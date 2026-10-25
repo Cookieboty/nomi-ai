@@ -91,7 +91,7 @@ Nomi 有 **43 个命名动作**（`packages/renderer/src/mascot/rig/actions.ts`�
 
 1. 在 `actions.ts` 的 `ACTIONS` 里加一项：`id`（英文小写下划线）、`label`（中文名）、`category`、`dur`、`trigger` 与轨道。手臂用 `arm()` / `both()`，姿态取 `P` 里已经解过的肩 / 肘 / 腕角度（保证手落在头周围的空地、不出画布）。
 2. 只改**动作与姿态参数**，不要改任何图层、锚点或布局；否则 `brandLock` 测试会失败。
-3. 在本页的表里补一行；`rigActions.test.ts` 会检查 id / 中文名 / 参数范围；如需新的界面文案，补 `en.json`。
+3. 在本页的表里补一行；`rigActions.test.ts` 会检查 id / 中文名 / 参数范围；如需新的界面文案，在 `packages/i18n/src/locales/<language>/ui/mascot-theme.json` 同步增加稳定 key。
 4. 想让它自动触发：在 `expressionDirector.ts`（事件 → 动作）或 `idleBehavior.ts`（空闲池，给动作加 `idle: true`）接线。
 5. 运行 `pnpm --filter @nomi-ai/renderer test`，并在真实应用里目测：头不乱跳、手与袖子接缝自然、四肢不被画布边缘截断、品牌部件不变形。
 

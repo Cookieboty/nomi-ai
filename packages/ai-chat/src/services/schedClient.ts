@@ -51,8 +51,7 @@ export interface SchedState {
   notifySupported: boolean;
 }
 
-export const BRIEFING_PROMPT =
-  '请为我写一份今天的简报：先一句问候，然后列出今天的提醒和安排，再根据你对我的了解给一两条贴心的小建议。简洁，不超过 150 字，用中文。';
+export const BRIEFING_PROMPT = 'ui.chat-settings.write-me-a-briefing-for-today-start-with';
 
 interface AiBridge {
   invoke: (channel: string, ...args: unknown[]) => Promise<unknown>;
@@ -66,7 +65,7 @@ const bridge = (): AiBridge | undefined => {
 
 async function call<T>(method: string, ...args: unknown[]): Promise<T> {
   const b = bridge();
-  if (!b) throw new Error(tr('日程功能需要在桌面应用中使用'));
+  if (!b) throw new Error(tr('ui.chat-settings.scheduling-requires-the-desktop-app'));
   const r = (await b.invoke(`ai:sched:${method}`, ...args)) as T & {
     __error?: { code: string; message: string };
   };

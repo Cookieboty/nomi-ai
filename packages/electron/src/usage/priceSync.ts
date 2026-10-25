@@ -1,8 +1,10 @@
 /**
- * 手动价格同步：用户点「同步价格」才联网，从 models.dev 下载公开价格表（https://models.dev/api.json，MIT）。
+ * 模型数据同步：从 models.dev 下载公开数据（https://models.dev/api.json，MIT），一次下载同时得到
+ * 价格表（这里解析）与模型参数（交给网关生成模型目录，onData）。
+ * 触发：用户点「立即同步」，或启动时距上次核对超过 12 小时且用户没关「启动时自动同步」（UsageService.autoSync）。
  *
  * 隐私：只发一个 GET（带 Accept-Encoding / If-None-Match），不带 cookie、不带任何用量或账号信息；
- * 没有后台轮询、没有启动时检查。命中 ETag（304）就不重新下载。
+ * 没有后台轮询。命中 ETag（304）就不重新下载。
  *
  * 数据：只取「一手提供商」（模型自己的厂商，不取 openrouter 之类的转售商），只提取
  * input / output / cache_read / cache_write 和按上下文长度分档的 tiers；
@@ -219,6 +221,10 @@ export interface PriceSyncDeps {
   /** 测试注入；默认全局 fetch */
   fetchImpl?: FetchLike;
   logger?: { warn(m: string, d?: unknown): void };
+  /** 下载到新数据时把整份 api.json 交给别的消费者（网关的模型目录） */
+  onData?: (api: unknown) => void;
+  /** 别的消费者还没有缓存（如网关的模型目录文件被删了）：这次不带 If-None-Match，强制完整下载 */
+  needsFull?: () => boolean;
 }
 
 const dateOnly = (ms: number): string => new Date(ms).toISOString().slice(0, 10);
@@ -301,7 +307,7 @@ export class PriceSync {
     }
   }
 
-  /** 只在用户点击时调用。失败不动已有缓存。 */
+  /** 用户点击或启动时自动同步调用。失败不动已有缓存。 */
   async sync(): Promise<PriceSyncResult> {
     if (this.running) return { ok: false, reason: 'busy' };
     this.running = true;
@@ -312,7 +318,7 @@ export class PriceSync {
         Accept: 'application/json',
         'Accept-Encoding': 'br, gzip',
       };
-      if (this.cache?.etag) headers['If-None-Match'] = this.cache.etag;
+      if (this.cache?.etag && !this.d.needsFull?.()) headers['If-None-Match'] = this.cache.etag;
       const doFetch: FetchLike = this.d.fetchImpl ?? ((u, i) => fetch(u, i));
       let res: Response;
       try {
@@ -354,6 +360,12 @@ export class PriceSync {
       }
       const { entries, skipped } = extractPrices(api);
       if (entries.length < MIN_ENTRIES) return { ok: false, reason: 'invalid' };
+      try {
+        this.d.onData?.(api);
+      } catch (e) {
+        // 模型目录生成失败不影响价格表
+        this.d.logger?.warn('models data consumer failed', String(e));
+      }
       const lm = Date.parse(res.headers.get('last-modified') ?? '');
       const dh = Date.parse(res.headers.get('date') ?? '');
       this.cache = {

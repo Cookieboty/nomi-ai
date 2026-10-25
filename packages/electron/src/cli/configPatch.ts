@@ -199,6 +199,9 @@ export interface DshPatch {
   api: string;
   baseURL: string;
   model: string;
+  /** 模型的上下文窗口 / 输出上限（pi-ai 的 contextWindow / maxTokens，§12.7.1） */
+  contextWindow?: number;
+  maxTokens?: number;
 }
 
 /** YAML 双引号标量与 JSON 字符串兼容 */
@@ -239,6 +242,8 @@ export function patchDshYaml(raw: string | null, patch: DshPatch | null): string
       `        apiKeyEnv: ${DSH_KEY_ENV}`,
       '        models:',
       `          - id: ${yq(patch.model)}`,
+      ...(patch.contextWindow ? [`            contextWindow: ${patch.contextWindow}`] : []),
+      ...(patch.maxTokens ? [`            maxTokens: ${patch.maxTokens}`] : []),
       '- id: agent-default-model',
       '  config:',
       '    provider: nomi',

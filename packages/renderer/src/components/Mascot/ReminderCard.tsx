@@ -25,7 +25,7 @@ export const ReminderCard: React.FC = () => {
       window.dispatchEvent(new CustomEvent('mascot:say', { detail: { text, ms, priority: 11 } }));
     const off1 = api.onReminder((r) => {
       setQueue((q) => [...q.filter((x) => x.id !== r.id), r]);
-      say(tr('提醒：{0}', r.text));
+      say(tr('ui.usage-tools.reminder', r.text));
     });
     // 关闭期间错过的提醒：挂载后拉取一次
     void api.takeMissedReminders().then((items) => {
@@ -33,7 +33,7 @@ export const ReminderCard: React.FC = () => {
       setQueue((q) => [...q, ...items.map((r) => ({ ...r, missed: true }))]);
       say(
         tr(
-          '你不在的时候错过了 {0} 个提醒：{1}{2}',
+          'ui.voice-mascot.you-missed-reminders-while-away',
           items.length,
           items
             .slice(0, 3)
@@ -61,16 +61,17 @@ export const ReminderCard: React.FC = () => {
       data-testid="reminder-card"
       data-missed={cur.missed ? '1' : '0'}
       role="alertdialog"
-      aria-label={tr('提醒')}
+      aria-label={tr('ui.foundation.reminders')}
     >
       <p className={styles.text}>
-        <Icon icon={BellRing} size={14} /> {cur.missed ? tr('错过的提醒') : tr('提醒')}（
+        <Icon icon={BellRing} size={14} />{' '}
+        {cur.missed ? tr('ui.voice-mascot.missed-reminders') : tr('ui.foundation.reminders')}（
         {time(cur.dueAt)}）：{tr(cur.text)}
       </p>
       <div className={styles.actions}>
         {queue.length > 1 && (
           <span className={styles.more}>
-            {tr('还有')} {queue.length - 1} {tr('个')}
+            {tr('ui.voice-mascot.and')} {queue.length - 1} {tr('ui.providers-schedule.counter-ge')}
           </span>
         )}
         <Button
@@ -79,7 +80,7 @@ export const ReminderCard: React.FC = () => {
           data-testid="reminder-snooze"
           onClick={() => act('snooze')}
         >
-          {tr('10 分钟后')}
+          {tr('ui.foundation.in-10-minutes')}
         </Button>
         <Button
           size="sm"
@@ -87,7 +88,7 @@ export const ReminderCard: React.FC = () => {
           data-testid="reminder-dismiss"
           onClick={() => act('dismiss')}
         >
-          {tr('好的')}
+          {tr('ui.voice-mascot.ok')}
         </Button>
       </div>
     </div>

@@ -45,16 +45,26 @@ import styles from './index.module.css';
 
 /** 「本机模型」同时管理内置 llama.cpp 与可选的 Ollama（原 Ollama 标签已并入） */
 type Tab = 'models' | 'calendar' | 'clipboard' | 'export';
+/** 剪贴板历史每条的时间：复用同一个格式器（toLocaleString 带参数时每次都新建 Intl.DateTimeFormat） */
+const clipTime = new Intl.DateTimeFormat('zh-CN', {
+  year: 'numeric',
+  month: 'numeric',
+  day: 'numeric',
+  hour: 'numeric',
+  minute: 'numeric',
+  second: 'numeric',
+  hour12: false,
+});
 const TABS: Tab[] = ['calendar', 'clipboard', 'export', 'models'];
 const EXPORT_ITEMS: Array<{ key: string; label: string }> = [
-  { key: 'conversations', label: '聊天记录' },
-  { key: 'memory', label: '记忆' },
-  { key: 'schedule', label: '提醒与日程任务' },
-  { key: 'calendar', label: '日历' },
-  { key: 'clipboard', label: '剪贴板历史' },
-  { key: 'skills', label: '技能包' },
-  { key: 'screen', label: '屏幕记忆（文字索引）' },
-  { key: 'settings', label: '设置与笔记（不含密钥）' },
+  { key: 'conversations', label: 'ui.knowledge-local.chat-history' },
+  { key: 'memory', label: 'ui.foundation.memory' },
+  { key: 'schedule', label: 'ui.knowledge-local.reminders-scheduled-tasks' },
+  { key: 'calendar', label: 'ui.knowledge-local.calendar' },
+  { key: 'clipboard', label: 'ui.knowledge-local.clipboard-history' },
+  { key: 'skills', label: 'ui.knowledge-local.skill-packs' },
+  { key: 'screen', label: 'ui.knowledge-local.screen-memory-text-index' },
+  { key: 'settings', label: 'ui.knowledge-local.settings-notes-no-keys' },
 ];
 
 const Bar: React.FC<{ p?: Progress; label?: string }> = ({ p, label }) => (
@@ -63,7 +73,7 @@ const Bar: React.FC<{ p?: Progress; label?: string }> = ({ p, label }) => (
       <i style={{ width: `${pct(p)}%` }} />
     </div>
     <span className={styles.hint}>
-      {label ?? t('下载中')}{' '}
+      {label ?? t('ui.knowledge-local.downloading')}{' '}
       {p?.total
         ? `${fmtBytes(p.received)} / ${fmtBytes(p.total)} · ${pct(p)}%`
         : (p?.status ?? '…')}
@@ -216,7 +226,7 @@ export const LocalPanel: React.FC<{
   const askDownload = (m: LocalModel) =>
     setConfirm({
       id: m.id,
-      title: t('下载「{0}」', m.name),
+      title: t('ui.knowledge-local.download-named', m.name),
       license: m.license,
       licenseUrl: m.licenseUrl,
       sourceUrl: m.sourceUrl,
@@ -224,7 +234,7 @@ export const LocalPanel: React.FC<{
       extra:
         st && !st.runtime.installed && st.runtime.supported
           ? t(
-              '还会一并下载 llama.cpp 运行时 {0}（{1}，约 {2}）。',
+              'ui.knowledge-local.the-llama-cpp-runtime-about-will-also-be',
               st.runtime.tag,
               st.runtime.license,
               fmtBytes(st.runtime.bytes),
@@ -243,15 +253,15 @@ export const LocalPanel: React.FC<{
         if (st && !st.runtime.installed) {
           r = await localClient.downloadRuntime();
           if (!r.ok) {
-            error = r.error || t('未知错误');
+            error = r.error || t('ui.voice-mascot.unknown-error');
             return r;
           }
         }
         r = await localClient.download(c.id);
-        if (r && r.ok === false) error = r.error || t('未知错误');
+        if (r && r.ok === false) error = r.error || t('ui.voice-mascot.unknown-error');
         return r;
       } catch (e) {
-        error = (e as Error).message || t('未知错误');
+        error = (e as Error).message || t('ui.voice-mascot.unknown-error');
         throw e;
       }
     });
@@ -268,32 +278,33 @@ export const LocalPanel: React.FC<{
   const models = st && (
     <div className={styles.stack}>
       <Notice tone="info" data-testid="local-ram">
-        {t('这台电脑约有')} {st.ramGb} {t('GB 内存，推荐')} <b>{t(rec?.name)}</b>
-        {t('。模型完全在本机运行，聊天内容不出电脑。')}
+        {t('ui.knowledge-local.this-computer-has-about')} {st.ramGb}{' '}
+        {t('ui.knowledge-local.gb-of-memory-recommended')} <b>{t(rec?.name)}</b>
+        {t('ui.knowledge-local.the-model-runs-entirely-on-this-device-chats')}
       </Notice>
       {!st.runtime.supported && (
         <Notice tone="warning">
-          {t('当前系统暂不支持内置的 llama.cpp 运行时，可以改用下方的 Ollama。')}
+          {t('ui.knowledge-local.the-built-in-llama-cpp-runtime-isn-t')}
         </Notice>
       )}
       <SettingsGroup
         data-testid="local-server"
         title={
           <>
-            {t('本机推理服务（llama.cpp')} {st.runtime.tag}）
+            {t('ui.knowledge-local.local-inference-server-llama-cpp')} {st.runtime.tag}）
           </>
         }
         description={
           running
             ? t(
-                '{0} · {1} · 已注册为「llama.cpp（本机）」',
+                'ui.knowledge-local.registered-as-llama-cpp-local',
                 st.models.find((m) => m.id === srv!.model)?.name ?? srv!.model,
                 srv!.baseURL,
               )
             : st.runtime.installed
-              ? t('运行时已就绪，选一个已下载的模型点「启动」。')
+              ? t('ui.knowledge-local.runtime-ready-pick-a-downloaded-model-and-click')
               : t(
-                  'Nomi 自带，不需要安装 Ollama；运行时会在第一次下载模型时按需获取（{0}）。',
+                  'ui.knowledge-local.built-into-nomi-no-ollama-needed-the-runtime',
                   st.runtime.license,
                 )
         }
@@ -306,7 +317,7 @@ export const LocalPanel: React.FC<{
                   onClick={() => void run('stop', () => localClient.stop())}
                   data-testid="local-stop"
                 >
-                  {t('停止')}
+                  {t('ui.foundation.stop')}
                 </Button>
                 <Button
                   size="sm"
@@ -314,7 +325,7 @@ export const LocalPanel: React.FC<{
                   onClick={() => void run('use', () => localClient.use())}
                   data-testid="local-use"
                 >
-                  {t('设为聊天模型')}
+                  {t('ui.knowledge-local.use-for-chat')}
                 </Button>
               </>
             )}
@@ -337,36 +348,41 @@ export const LocalPanel: React.FC<{
       >
         {srv?.error && <div className={styles.err}>{srv.error}</div>}
         {prog['llama-runtime'] && !st.runtime.installed && (
-          <Bar p={prog['llama-runtime']} label={t('下载运行时')} />
+          <Bar p={prog['llama-runtime']} label={t('ui.knowledge-local.download-runtime')} />
         )}
-        <SettingRow title={t('启动应用时自动运行')}>
+        <SettingRow title={t('ui.knowledge-local.run-when-the-app-starts')}>
           <Switch
             checked={st.settings.autoStart}
             onChange={(v) => void run('as', () => localClient.setSettings({ autoStart: v }))}
-            aria-label={t('开机自动启动本地模型')}
+            aria-label={t('ui.knowledge-local.start-local-model-automatically')}
           />
         </SettingRow>
-        <SettingRow title={t('离线模式')} description={t('只用本机模型，不向任何云端模型发请求。')}>
+        <SettingRow
+          title={t('ui.knowledge-local.offline-mode')}
+          description={t('ui.knowledge-local.only-use-local-models-and-never-send-requests')}
+        >
           <Switch
             checked={st.offline}
             onChange={(v) => void run('off', () => localClient.offline(v))}
-            aria-label={t('离线模式')}
+            aria-label={t('ui.knowledge-local.offline-mode')}
             data-testid="local-offline"
           />
         </SettingRow>
         {st.runtime.installed && !running && (
-          <SettingRow title={t('运行时占用约 {0}', fmtBytes(st.runtime.bytes))}>
+          <SettingRow
+            title={t('ui.knowledge-local.runtime-uses-about', fmtBytes(st.runtime.bytes))}
+          >
             <Button
               size="sm"
               variant="ghost"
               onClick={() => void run('rr', () => localClient.removeRuntime())}
             >
-              {t('删除运行时')}
+              {t('ui.knowledge-local.delete-runtime')}
             </Button>
           </SettingRow>
         )}
       </SettingsGroup>
-      <h3 className={styles.groupTitle}>{t('可下载的模型')}</h3>
+      <h3 className={styles.groupTitle}>{t('ui.knowledge-local.downloadable-models')}</h3>
       <div className={`${styles.list} ${styles.listFlow}`} data-testid="local-models">
         {st.models.map((m) => {
           const p = prog[m.id] ?? m.downloading;
@@ -375,24 +391,27 @@ export const LocalPanel: React.FC<{
             <div key={m.id} className={styles.card} data-testid={`local-model-${m.id}`}>
               <div className={styles.cardHead}>
                 <b className={styles.grow}>{t(m.name)}</b>
-                {m.id === st.recommended && <Badge tone="accent">{t('推荐')}</Badge>}
+                {m.id === st.recommended && (
+                  <Badge tone="accent">{t('ui.knowledge-local.recommended')}</Badge>
+                )}
                 <Badge tone={m.fit === 'ok' ? 'success' : m.fit === 'tight' ? 'warning' : 'danger'}>
                   {t(FIT_LABEL[m.fit])}
                 </Badge>
                 <Badge tone="neutral">{m.license}</Badge>
-                {m.installed && <Badge tone="success">{t('已下载')}</Badge>}
-                {isRun && <Badge tone="success">{t('运行中')}</Badge>}
+                {m.installed && <Badge tone="success">{t('ui.knowledge-local.downloaded')}</Badge>}
+                {isRun && <Badge tone="success">{t('ui.knowledge-local.running')}</Badge>}
               </div>
               <div className={styles.meta}>
-                {m.params} · {m.quant} · {fmtBytes(m.bytes)} {t('· 建议 ≥')} {m.minRamGb}{' '}
-                {t('GB 内存 ·')} {t(m.description)}
+                {m.params} · {m.quant} · {fmtBytes(m.bytes)}{' '}
+                {t('ui.knowledge-local.recommended-min')} {m.minRamGb}{' '}
+                {t('ui.knowledge-local.gb-memory')} {t(m.description)}
               </div>
               {p && busy === `d:${m.id}` && <Bar p={p} />}
               {failed[m.id] && !m.installed && busy !== `d:${m.id}` && (
                 <ErrorState
                   compact
                   data-testid={`local-download-error-${m.id}`}
-                  title={t('下载失败')}
+                  title={t('ui.mascot-theme.download-failed')}
                   detail={failed[m.id]!.error}
                   onRetry={() => void doDownload(failed[m.id]!.c)}
                   retryTestId={`local-retry-${m.id}`}
@@ -408,7 +427,7 @@ export const LocalPanel: React.FC<{
                       }
                       data-testid="local-cancel"
                     >
-                      {t('取消')}
+                      {t('ui.foundation.cancel')}
                     </Button>
                   ) : (
                     <Button
@@ -418,7 +437,7 @@ export const LocalPanel: React.FC<{
                       onClick={() => askDownload(m)}
                       data-testid="local-download"
                     >
-                      {t('下载')}
+                      {t('ui.knowledge-local.download')}
                     </Button>
                   )
                 ) : (
@@ -431,7 +450,11 @@ export const LocalPanel: React.FC<{
                         onClick={() => void run(`s:${m.id}`, () => localClient.start(m.id))}
                         data-testid="local-start"
                       >
-                        {busy === `s:${m.id}` ? t('启动中…') : running ? t('切换到它') : t('启动')}
+                        {busy === `s:${m.id}`
+                          ? t('ui.knowledge-local.starting')
+                          : running
+                            ? t('ui.knowledge-local.switch-to-it')
+                            : t('ui.knowledge-local.start')}
                       </Button>
                     )}
                     <Button
@@ -441,23 +464,27 @@ export const LocalPanel: React.FC<{
                       onClick={() => {
                         if (
                           window.confirm(
-                            t('删除「{0}」的模型文件（{1}）？', m.name, fmtBytes(m.bytes)),
+                            t(
+                              'ui.knowledge-local.delete-the-model-file-for',
+                              m.name,
+                              fmtBytes(m.bytes),
+                            ),
                           )
                         )
                           void run(`r:${m.id}`, () => localClient.remove(m.id));
                       }}
                       data-testid="local-remove"
                     >
-                      {t('删除')}
+                      {t('ui.foundation.delete')}
                     </Button>
                   </>
                 )}
                 <span className={styles.grow} />
                 <a className={styles.hint} href={m.licenseUrl} target="_blank" rel="noreferrer">
-                  {t('许可证')}
+                  {t('ui.knowledge-local.license')}
                 </a>
                 <a className={styles.hint} href={m.sourceUrl} target="_blank" rel="noreferrer">
-                  {t('模型卡')}
+                  {t('ui.knowledge-local.model-card')}
                 </a>
               </div>
             </div>
@@ -470,14 +497,14 @@ export const LocalPanel: React.FC<{
   const ollamaGroup = (
     <SettingsGroup
       data-testid="local-ollama"
-      title={t('Ollama（可选）')}
+      title={t('ui.knowledge-local.ollama-optional')}
       description={t(
-        '已安装 Ollama 的话也可以用它跑本机模型，和上面的内置引擎互不依赖。地址：{0}；请只拉取许可证允许你使用的模型。',
+        'ui.knowledge-local.if-you-already-have-ollama-you-can-run',
         st?.settings.ollamaUrl ?? '',
       )}
       actions={
         <Button size="sm" onClick={() => void loadOllama()}>
-          {t('刷新')}
+          {t('ui.knowledge-local.refresh')}
         </Button>
       }
     >
@@ -487,7 +514,7 @@ export const LocalPanel: React.FC<{
             className={styles.grow}
             size="sm"
             value={pullName}
-            placeholder={t('模型名，例如 qwen3:0.6b')}
+            placeholder={t('ui.knowledge-local.model-name-e-g-qwen3-0-6b')}
             onChange={(e) => setPullName(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && pullName.trim())
@@ -504,11 +531,13 @@ export const LocalPanel: React.FC<{
             }
             data-testid="ollama-pull"
           >
-            {t('拉取')}
+            {t('ui.knowledge-local.pull')}
           </Button>
         </div>
       )}
-      {busy === 'pull' && <Bar p={prog[`ollama:${pullName.trim()}`]} label={t('拉取中')} />}
+      {busy === 'pull' && (
+        <Bar p={prog[`ollama:${pullName.trim()}`]} label={t('ui.knowledge-local.pulling')} />
+      )}
       {ollamaErr && (
         <Notice tone="warning" data-testid="ollama-error">
           {ollamaErr}
@@ -520,8 +549,8 @@ export const LocalPanel: React.FC<{
         !ollamaErr && (
           <EmptyState
             icon={Cpu}
-            title={t('Ollama 里还没有模型')}
-            description={t('输入模型名拉取一个吧。')}
+            title={t('ui.knowledge-local.no-models-in-ollama-yet')}
+            description={t('ui.knowledge-local.enter-a-model-name-to-pull-one')}
           />
         )
       ) : (
@@ -535,10 +564,10 @@ export const LocalPanel: React.FC<{
                 <span className={styles.hint}>{fmtBytes(m.size)}</span>
                 <IconButton
                   size="sm"
-                  label={t('从 Ollama 删除 {0}', m.name)}
+                  label={t('ui.knowledge-local.delete-from-ollama-action', m.name)}
                   icon={<Icon icon={Trash2} size={14} />}
                   onClick={() => {
-                    if (window.confirm(t('从 Ollama 删除 {0}？', m.name)))
+                    if (window.confirm(t('ui.knowledge-local.delete-from-ollama', m.name)))
                       void run(`od:${m.name}`, () => localClient.ollamaDelete(m.name), loadOllama);
                   }}
                 />
@@ -576,7 +605,7 @@ export const LocalPanel: React.FC<{
     <div className={styles.stack}>
       <div className={styles.toolbar}>
         <span className={`${styles.hint} ${styles.toolbarText}`}>
-          {t('未来两周的日程，助手也能读取（工具 calendar_list），晨间简报会提到今天的安排。')}
+          {t('ui.knowledge-local.events-for-the-next-two-weeks-the-assistant')}
         </span>
         <span className={styles.toolbarActions}>
           <Button
@@ -584,7 +613,7 @@ export const LocalPanel: React.FC<{
             onClick={() => void run('imp', () => hubClient.calImport(), loadCal)}
             data-testid="cal-import"
           >
-            {t('导入 .ics')}
+            {t('ui.knowledge-local.import-ics')}
           </Button>
           <Button
             size="sm"
@@ -593,7 +622,7 @@ export const LocalPanel: React.FC<{
             }
             data-testid="cal-add-source"
           >
-            {t('订阅 / CalDAV')}
+            {t('ui.knowledge-local.subscribe-caldav')}
           </Button>
           <Button
             size="sm"
@@ -604,7 +633,7 @@ export const LocalPanel: React.FC<{
             data-testid="cal-new"
           >
             <Icon icon={Plus} size={14} />
-            {t('新日程')}
+            {t('ui.knowledge-local.new-event')}
           </Button>
         </span>
       </div>
@@ -615,7 +644,7 @@ export const LocalPanel: React.FC<{
               className={styles.grow}
               size="sm"
               autoFocus
-              placeholder={t('标题，例如：组会')}
+              placeholder={t('ui.knowledge-local.title-e-g-group-meeting')}
               value={t(newEv.summary)}
               onChange={(e) => setNewEv({ ...newEv, summary: e.target.value })}
               onKeyDown={(e) => {
@@ -638,7 +667,7 @@ export const LocalPanel: React.FC<{
               type="time"
               value={newEv.time}
               onChange={(e) => setNewEv({ ...newEv, time: e.target.value })}
-              aria-label={t('开始时间（留空为全天）')}
+              aria-label={t('ui.knowledge-local.start-time-leave-empty-for-all-day')}
             />
           </div>
           <div className={styles.row}>
@@ -648,10 +677,10 @@ export const LocalPanel: React.FC<{
                 value={newEv.mins}
                 onChange={(e) => setNewEv({ ...newEv, mins: e.target.value })}
                 options={[
-                  { value: '30', label: t('30 分钟') },
-                  { value: '60', label: t('1 小时') },
-                  { value: '90', label: t('1.5 小时') },
-                  { value: '120', label: t('2 小时') },
+                  { value: '30', label: t('ui.knowledge-local.30-minutes') },
+                  { value: '60', label: t('ui.knowledge-local.1-hour') },
+                  { value: '90', label: t('ui.knowledge-local.1-5-hours') },
+                  { value: '120', label: t('ui.knowledge-local.2-hours') },
                 ]}
               />
             </div>
@@ -661,16 +690,16 @@ export const LocalPanel: React.FC<{
                 value={newEv.rrule}
                 onChange={(e) => setNewEv({ ...newEv, rrule: e.target.value })}
                 options={[
-                  { value: '', label: t('不重复') },
-                  { value: 'FREQ=DAILY', label: t('每天') },
-                  { value: 'FREQ=WEEKLY', label: t('每周') },
-                  { value: 'FREQ=MONTHLY', label: t('每月') },
+                  { value: '', label: t('ui.foundation.does-not-repeat') },
+                  { value: 'FREQ=DAILY', label: t('ui.foundation.every-day') },
+                  { value: 'FREQ=WEEKLY', label: t('ui.knowledge-local.weekly') },
+                  { value: 'FREQ=MONTHLY', label: t('ui.foundation.monthly') },
                 ]}
               />
             </div>
             <span className={styles.grow} />
             <Button size="sm" onClick={() => setNewEv(null)}>
-              {t('取消')}
+              {t('ui.foundation.cancel')}
             </Button>
             <Button
               size="sm"
@@ -679,7 +708,7 @@ export const LocalPanel: React.FC<{
               onClick={() => void saveEvent()}
               data-testid="cal-save"
             >
-              {t('保存')}
+              {t('ui.foundation.save')}
             </Button>
           </div>
         </div>
@@ -695,14 +724,14 @@ export const LocalPanel: React.FC<{
                   setNewSrc({ ...newSrc, kind: e.target.value as 'ics-url' | 'caldav' })
                 }
                 options={[
-                  { value: 'ics-url', label: t('ICS 订阅链接') },
-                  { value: 'caldav', label: t('CalDAV 日历') },
+                  { value: 'ics-url', label: t('ui.knowledge-local.ics-subscription-url') },
+                  { value: 'caldav', label: t('ui.knowledge-local.caldav-calendar') },
                 ]}
               />
             </div>
             <Input
               size="sm"
-              placeholder={t('名称')}
+              placeholder={t('ui.foundation.name')}
               value={t(newSrc.name)}
               onChange={(e) => setNewSrc({ ...newSrc, name: e.target.value })}
             />
@@ -719,24 +748,26 @@ export const LocalPanel: React.FC<{
             <div className={styles.row}>
               <Input
                 size="sm"
-                placeholder={t('用户名')}
+                placeholder={t('ui.knowledge-local.username')}
                 value={newSrc.username}
                 onChange={(e) => setNewSrc({ ...newSrc, username: e.target.value })}
               />
               <Input
                 size="sm"
                 type="password"
-                placeholder={t('密码 / 应用专用密码（本机加密保存）')}
+                placeholder={t('ui.knowledge-local.password-app-password-stored-encrypted-locally')}
                 value={newSrc.password}
                 onChange={(e) => setNewSrc({ ...newSrc, password: e.target.value })}
               />
             </div>
           )}
           <div className={styles.row}>
-            <span className={styles.hint}>{t('只读同步，每 30 分钟刷新一次。')}</span>
+            <span className={styles.hint}>
+              {t('ui.knowledge-local.read-only-sync-refreshed-every-30-minutes')}
+            </span>
             <span className={styles.grow} />
             <Button size="sm" onClick={() => setNewSrc(null)}>
-              {t('取消')}
+              {t('ui.foundation.cancel')}
             </Button>
             <Button
               size="sm"
@@ -747,13 +778,17 @@ export const LocalPanel: React.FC<{
                 setNewSrc(null);
                 void run(
                   'src',
-                  () => hubClient.calAddSource({ ...s, name: s.name || t('订阅日历') }),
+                  () =>
+                    hubClient.calAddSource({
+                      ...s,
+                      name: s.name || t('ui.knowledge-local.subscribe-to-calendar'),
+                    }),
                   loadCal,
                 );
               }}
               data-testid="cal-source-save"
             >
-              {t('添加并同步')}
+              {t('ui.knowledge-local.add-and-sync')}
             </Button>
           </div>
         </div>
@@ -768,7 +803,7 @@ export const LocalPanel: React.FC<{
                 s.lastError ||
                 (s.lastSync
                   ? t(
-                      '上次同步 {0}',
+                      'ui.knowledge-local.last-synced',
                       new Date(s.lastSync).toLocaleString('zh-CN', { hour12: false }),
                     )
                   : '')
@@ -780,19 +815,17 @@ export const LocalPanel: React.FC<{
                 onChange={(v) =>
                   void run(`ct:${s.id}`, () => hubClient.calToggle(s.id, v), loadCal)
                 }
-                aria-label={t('显示 {0}', s.name)}
+                aria-label={t('ui.knowledge-local.show', s.name)}
               />
               {t(s.name)}
               {s.count !== undefined ? ` · ${s.count}` : ''}
-              {s.lastError && <Badge tone="danger">{t('同步失败')}</Badge>}
+              {s.lastError && <Badge tone="danger">{t('ui.knowledge-local.sync-failed')}</Badge>}
               {s.passwordInsecure && (
                 <Badge
                   tone="warning"
-                  title={t(
-                    '密码是旧版本以明文保存的；系统钥匙串可用后会自动加密，也可以移除后重新添加',
-                  )}
+                  title={t('ui.chat-settings.this-password-was-saved-in-plain-text-by')}
                 >
-                  {t('密码未加密')}
+                  {t('ui.chat-settings.password-not-encrypted')}
                 </Badge>
               )}
               {(s.kind === 'ics-url' || s.kind === 'caldav') && (
@@ -801,7 +834,7 @@ export const LocalPanel: React.FC<{
                   variant="ghost"
                   onClick={() => void run(`cs:${s.id}`, () => hubClient.calSync(s.id), loadCal)}
                 >
-                  {t('同步')}
+                  {t('ui.knowledge-local.sync')}
                 </Button>
               )}
               {s.kind !== 'local' && (
@@ -809,11 +842,11 @@ export const LocalPanel: React.FC<{
                   size="sm"
                   variant="ghost"
                   onClick={() => {
-                    if (window.confirm(t('移除日历「{0}」？', s.name)))
+                    if (window.confirm(t('ui.knowledge-local.remove-calendar', s.name)))
                       void run(`cr:${s.id}`, () => hubClient.calRemoveSource(s.id), loadCal);
                   }}
                 >
-                  {t('移除')}
+                  {t('ui.knowledge-local.remove')}
                 </Button>
               )}
             </span>
@@ -824,7 +857,7 @@ export const LocalPanel: React.FC<{
             variant="ghost"
             onClick={() => void run('cx', () => hubClient.calExport())}
           >
-            {t('导出 .ics')}
+            {t('ui.knowledge-local.export-ics')}
           </Button>
         </div>
       )}
@@ -833,8 +866,8 @@ export const LocalPanel: React.FC<{
       ) : events.length === 0 ? (
         <EmptyState
           icon={CalendarDays}
-          title={t('接下来两周没有日程')}
-          description={t('新建一个，或导入 / 订阅已有的日历。')}
+          title={t('ui.knowledge-local.no-events-in-the-next-two-weeks')}
+          description={t('ui.knowledge-local.create-one-or-import-subscribe-to-an-existing')}
         />
       ) : (
         <div className={styles.list} data-testid="cal-events">
@@ -851,7 +884,7 @@ export const LocalPanel: React.FC<{
                     onClick={() =>
                       void run(`er:${o.uid}`, () => hubClient.calRemove(o.uid), loadCal)
                     }
-                    aria-label={t('删除 {0}', o.summary)}
+                    aria-label={t('ui.knowledge-local.delete', o.summary)}
                   >
                     <Icon icon={X} />
                   </Button>
@@ -872,39 +905,39 @@ export const LocalPanel: React.FC<{
   const clipboard = (
     <div className={styles.stack}>
       <SettingsGroup
-        title={t('剪贴板历史')}
-        description={t('只存本机，默认关闭。看起来像密码、密钥、令牌的内容会自动跳过。')}
+        title={t('ui.knowledge-local.clipboard-history')}
+        description={t('ui.knowledge-local.stored-on-this-device-only-off-by-default')}
         actions={
           clips?.items.length ? (
             <Button
               size="sm"
               variant="ghost"
               onClick={() => {
-                if (window.confirm(t('清空未固定的剪贴板历史？')))
+                if (window.confirm(t('ui.knowledge-local.clear-unpinned-clipboard-history')))
                   void run('cc', () => hubClient.clipClear(), loadClips);
               }}
             >
-              {t('清空')}
+              {t('ui.knowledge-local.clear')}
             </Button>
           ) : undefined
         }
       >
-        <SettingRow title={t('记录剪贴板历史')}>
+        <SettingRow title={t('ui.knowledge-local.record-clipboard-history')}>
           <Switch
             checked={!!clips?.settings.enabled}
             onChange={(v) =>
               void run('ce', () => hubClient.clipSettings({ enabled: v }), loadClips)
             }
-            aria-label={t('记录剪贴板历史')}
+            aria-label={t('ui.knowledge-local.record-clipboard-history')}
             data-testid="clip-enabled"
           />
         </SettingRow>
-        <SettingRow title={t('包含图片')}>
+        <SettingRow title={t('ui.knowledge-local.include-images')}>
           <Switch
             checked={!!clips?.settings.images}
             disabled={!clips?.settings.enabled}
             onChange={(v) => void run('ci', () => hubClient.clipSettings({ images: v }), loadClips)}
-            aria-label={t('包含图片')}
+            aria-label={t('ui.knowledge-local.include-images')}
           />
         </SettingRow>
       </SettingsGroup>
@@ -913,11 +946,15 @@ export const LocalPanel: React.FC<{
       ) : clips.items.length === 0 ? (
         <EmptyState
           icon={ClipboardList}
-          title={clips.settings.enabled ? t('还没有复制过内容') : t('剪贴板历史未开启')}
+          title={
+            clips.settings.enabled
+              ? t('ui.knowledge-local.nothing-copied-yet')
+              : t('ui.knowledge-local.clipboard-history-is-off')
+          }
           description={
             clips.settings.enabled
-              ? t('复制一段文字或图片试试。')
-              : t('开启后，最近复制的内容会出现在这里。')
+              ? t('ui.knowledge-local.try-copying-some-text-or-an-image')
+              : t('ui.knowledge-local.when-on-recently-copied-items-appear-here')
           }
         />
       ) : (
@@ -932,23 +969,21 @@ export const LocalPanel: React.FC<{
                     <img
                       className={styles.clipImg}
                       src={c.thumb}
-                      alt={t('剪贴板图片 {0}×{1}', c.w, c.h)}
+                      alt={t('ui.knowledge-local.clipboard-image', c.w, c.h)}
                     />
                   )}
                 </span>
-                {c.pinned && <Badge tone="accent">{t('已固定')}</Badge>}
+                {c.pinned && <Badge tone="accent">{t('ui.knowledge-local.pinned')}</Badge>}
               </div>
               <div className={styles.row}>
-                <span className={styles.hint}>
-                  {new Date(c.at).toLocaleString('zh-CN', { hour12: false })}
-                </span>
+                <span className={styles.hint}>{clipTime.format(c.at)}</span>
                 <span className={styles.grow} />
                 <Button
                   size="sm"
                   onClick={() => void run(`cp:${c.id}`, () => hubClient.clipCopy(c.id))}
                   data-testid="clip-copy"
                 >
-                  {t('复制')}
+                  {t('ui.knowledge-local.copy')}
                 </Button>
                 {c.kind === 'image' ? (
                   <Button
@@ -964,7 +999,7 @@ export const LocalPanel: React.FC<{
                     }}
                     data-testid="clip-to-chat"
                   >
-                    {t('发到聊天')}
+                    {t('ui.knowledge-local.send-to-chat')}
                   </Button>
                 ) : (
                   <Button
@@ -975,7 +1010,7 @@ export const LocalPanel: React.FC<{
                     }}
                     data-testid="clip-to-chat"
                   >
-                    {t('放进输入框')}
+                    {t('ui.knowledge-local.put-in-input-box')}
                   </Button>
                 )}
                 <Button
@@ -985,7 +1020,7 @@ export const LocalPanel: React.FC<{
                     void run(`pn:${c.id}`, () => hubClient.clipPin(c.id, !c.pinned), loadClips)
                   }
                 >
-                  {c.pinned ? t('取消固定') : t('固定')}
+                  {c.pinned ? t('ui.foundation.unpin') : t('ui.knowledge-local.pin')}
                 </Button>
                 <Button
                   size="sm"
@@ -993,7 +1028,7 @@ export const LocalPanel: React.FC<{
                   onClick={() =>
                     void run(`rm:${c.id}`, () => hubClient.clipRemove(c.id), loadClips)
                   }
-                  aria-label={t('删除')}
+                  aria-label={t('ui.foundation.delete')}
                 >
                   <Icon icon={X} />
                 </Button>
@@ -1008,10 +1043,8 @@ export const LocalPanel: React.FC<{
   const exportTab = (
     <div className={styles.stack}>
       <SettingsGroup
-        title={t('导出数据')}
-        description={t(
-          '把你的数据打包成一个 .zip 文件，随时带走。API 密钥、CalDAV 密码等敏感信息不会被导出。',
-        )}
+        title={t('ui.knowledge-local.export-data')}
+        description={t('ui.knowledge-local.pack-your-data-into-a-zip-file-to')}
         actions={
           <Button
             size="sm"
@@ -1025,11 +1058,13 @@ export const LocalPanel: React.FC<{
                   [...exp],
                   exp.has('conversations') ? collectConversations() : undefined,
                 );
-                if (r) setExpDone(t('已导出到 {0}（{1}）', r.file, fmtBytes(r.bytes)));
+                if (r) setExpDone(t('ui.knowledge-local.exported-to', r.file, fmtBytes(r.bytes)));
               })
             }
           >
-            {busy === 'exp' ? t('打包中…') : t('导出为 .zip')}
+            {busy === 'exp'
+              ? t('ui.knowledge-local.packing')
+              : t('ui.knowledge-local.export-as-zip')}
           </Button>
         }
       >
@@ -1068,10 +1103,10 @@ export const LocalPanel: React.FC<{
       }}
       title={
         shown.length === 1 && shown[0] === 'calendar'
-          ? t('日历')
+          ? t('ui.knowledge-local.calendar')
           : !shown.includes('calendar')
-            ? t('本机管理')
-            : t('本地中心（日历 / 剪贴板；本机小模型为辅助）')
+            ? t('ui.chat-settings.local-tools')
+            : t('ui.knowledge-local.local-hub-calendar-clipboard-small-local-models-as')
       }
       size="lg"
       data-testid="local-panel"
@@ -1081,15 +1116,20 @@ export const LocalPanel: React.FC<{
           <Tabs<Tab>
             items={(
               [
-                { value: 'calendar', label: t('日历') },
-                { value: 'clipboard', label: t('剪贴板') },
-                { value: 'export', label: t('数据导出') },
-                { value: 'models', label: running ? t('本机模型 · 运行中') : t('本机模型') },
+                { value: 'calendar', label: t('ui.knowledge-local.calendar') },
+                { value: 'clipboard', label: t('ui.knowledge-local.clipboard') },
+                { value: 'export', label: t('ui.knowledge-local.data-export') },
+                {
+                  value: 'models',
+                  label: running
+                    ? t('ui.knowledge-local.local-models-running')
+                    : t('ui.knowledge-local.local-models'),
+                },
               ] as Array<{ value: Tab; label: string }>
             ).filter((x) => shown.includes(x.value))}
             value={tab}
             onChange={setTab}
-            aria-label={t('本地中心')}
+            aria-label={t('ui.knowledge-local.local-hub')}
           />
         )}
         {err && <ErrorState data-testid="local-error" detail={err} onRetry={() => void load()} />}
@@ -1111,13 +1151,13 @@ export const LocalPanel: React.FC<{
         data-testid="local-license-dialog"
         footer={
           <>
-            <Button onClick={() => setConfirm(null)}>{t('取消')}</Button>
+            <Button onClick={() => setConfirm(null)}>{t('ui.foundation.cancel')}</Button>
             <Button
               variant="primary"
               onClick={() => confirm && void doDownload(confirm)}
               data-testid="local-license-accept"
             >
-              {t('同意许可并下载')}
+              {t('ui.knowledge-local.accept-license-and-download')}
             </Button>
           </>
         }
@@ -1125,20 +1165,20 @@ export const LocalPanel: React.FC<{
         {confirm && (
           <div className={styles.stack}>
             <p>
-              {t('许可证：')}
+              {t('ui.knowledge-local.license-prefix')}
               <b>{confirm.license}</b>（
               <a href={confirm.licenseUrl} target="_blank" rel="noreferrer">
-                {t('查看全文')}
+                {t('ui.knowledge-local.view-full-text')}
               </a>
               ）
             </p>
             <p className={styles.hint}>
-              {t('大小约')} {fmtBytes(confirm.bytes)}
-              {t('，来自')}{' '}
+              {t('ui.knowledge-local.size-about')} {fmtBytes(confirm.bytes)}
+              {t('ui.knowledge-local.from')}{' '}
               <a href={confirm.sourceUrl} target="_blank" rel="noreferrer">
-                {t('官方模型卡')}
+                {t('ui.knowledge-local.official-model-card')}
               </a>
-              {t('，下载后会校验 SHA-256，可随时取消。')}
+              {t('ui.knowledge-local.verified-with-sha-256-after-download-you-can')}
             </p>
             {confirm.extra && <p className={styles.hint}>{confirm.extra}</p>}
           </div>

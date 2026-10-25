@@ -66,6 +66,9 @@ export interface PendingPermission {
   agent?: string;
   /** 超时自动拒绝的时间点（ms）；老版本主进程不给时为空 */
   expiresAt?: number;
+  /** ExitPlanMode / 按此方案执行（PR3） */
+  kind?: 'tool' | 'approve-plan';
+  toolName?: string;
 }
 
 /** 实时轨迹最多保留的事件数：超出后丢弃最早的（落盘轨迹另有 300 条 / 400KB 上限） */
@@ -120,6 +123,8 @@ export function applyLiveEvents(
               summary: e.summary,
               ...(e.agent ? { agent: e.agent } : {}),
               ...(e.expiresAt !== undefined ? { expiresAt: e.expiresAt } : {}),
+              ...(e.kind ? { kind: e.kind } : {}),
+              ...(e.toolName ? { toolName: e.toolName } : {}),
             },
           ];
         break;

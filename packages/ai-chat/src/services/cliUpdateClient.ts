@@ -1,3 +1,4 @@
+import { isBuiltinCliId, type BuiltinCliId } from '@nomi-ai/cli-plugins';
 import { t } from '@nomi-ai/ui';
 
 export interface CliInstallInfo {
@@ -12,7 +13,7 @@ export interface CliInstallInfo {
   runtimeWarning?: { nodeVersion: string | null; required: number } | null;
 }
 
-export type CliUpdatableKind = 'claude' | 'codex' | 'dsh' | 'grok' | 'gemini';
+export type CliUpdatableKind = BuiltinCliId;
 export type CliInstallScope = 'global' | 'user';
 
 export interface CliRequirement {
@@ -73,7 +74,7 @@ const bridge = (): AiBridge | undefined => {
 };
 async function call<T>(method: string, ...args: unknown[]): Promise<T> {
   const b = bridge();
-  if (!b) throw new Error(t('编程助手接入需要在桌面应用中使用'));
+  if (!b) throw new Error(t('ui.mascot-theme.coding-agent-harness-requires-the-desktop-app'));
   const r = (await b.invoke(`ai:cli-update:${method}`, ...args)) as T & {
     __error?: { message: string };
   };
@@ -127,9 +128,7 @@ export const cliUpdateClient = {
   /** 当前正在安装 / 更新的端点（同一时刻只允许一个），没有则 null */
   busy: async (): Promise<CliUpdatableKind | null> => {
     const b = await call<unknown>('busy');
-    return b === 'claude' || b === 'codex' || b === 'dsh' || b === 'grok' || b === 'gemini'
-      ? b
-      : null;
+    return typeof b === 'string' && isBuiltinCliId(b) ? b : null;
   },
   dismiss: (kind: CliUpdatableKind) => call<boolean>('dismiss', kind),
   onEvent: (fn: (e: CliUpdateEvent) => void) =>

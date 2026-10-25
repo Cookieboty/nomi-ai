@@ -47,6 +47,8 @@ describe('carrying context across a workspace switch (all CLIs share this path)'
     const moved = h.setTabCwd(tab.id, other, { carry: true });
     expect(moved).toMatchObject({ cwd: other, cliSessionId: null });
     expect(moved.carriedMessages).toBe(2);
+    // 新目录对应新的可见会话；旧对话只保存在主进程的 carry 文件里。
+    expect(h.tabMessages(tab.id)).toHaveLength(0);
     const r = await h.sendTab(tab.id, '暗号是什么？');
     // mock 原样回显收到的内容：前文（含旧目录与之前的对话）+ 分隔 + 用户这条消息
     expect(r.text).toContain('<previous_conversation>');
@@ -69,6 +71,7 @@ describe('carrying context across a workspace switch (all CLIs share this path)'
     h.setTabCwd(tab.id, other, { carry: true });
     const back = h.setTabCwd(tab.id, os.tmpdir(), { carry: false });
     expect(back.carriedMessages).toBeUndefined();
+    expect(h.tabMessages(tab.id)).toHaveLength(0);
     const r = await h.sendTab(tab.id, 'fresh');
     expect(r.text).toBe('Mock Gemini: fresh');
   }, 20_000);

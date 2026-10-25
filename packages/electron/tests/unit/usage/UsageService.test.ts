@@ -251,6 +251,67 @@ describe('UsageService：手动价格同步', () => {
   });
 });
 
+describe('UsageService：启动时自动同步模型数据', () => {
+  const api = () => {
+    const models: Record<string, unknown> = {};
+    for (let i = 0; i < 12; i++) models[`m-${i}`] = { id: `m-${i}`, cost: { input: 1, output: 2 } };
+    return { openai: { models } };
+  };
+  const build = (o: { now: () => number; needsFull?: () => boolean; root?: string }) => {
+    const root = o.root ?? fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-usage-auto-'));
+    const f = jest.fn().mockImplementation(async () => new Response(JSON.stringify(api())));
+    const onData = jest.fn();
+    const svc = new UsageService({
+      root,
+      home: fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-usage-auto-home-')),
+      scanMs: 0,
+      logger: { info: jest.fn(), warn: jest.fn() },
+      priceFetch: f,
+      now: o.now,
+      onModelsData: onData,
+      ...(o.needsFull ? { needsFullModelsData: o.needsFull } : {}),
+    });
+    return { svc, f, onData, root };
+  };
+
+  it('默认开：没同步过就同步，并把数据交给模型目录；12 小时内重启不再联网', async () => {
+    let t = Date.parse('2026-10-25T08:00:00Z');
+    const a = build({ now: () => t });
+    expect(a.svc.getSettings().modelsSyncAuto).toBe(true);
+    await a.svc.autoSync();
+    expect(a.f).toHaveBeenCalledTimes(1);
+    expect(a.onData).toHaveBeenCalledTimes(1);
+    // 6 小时后重启：不联网
+    t += 6 * 3600_000;
+    const b = build({ now: () => t, root: a.root });
+    await b.svc.autoSync();
+    expect(b.f).not.toHaveBeenCalled();
+    // 13 小时后重启：再核对一次
+    t += 7 * 3600_000;
+    const c = build({ now: () => t, root: a.root });
+    await c.svc.autoSync();
+    expect(c.f).toHaveBeenCalledTimes(1);
+  });
+
+  it('用户关掉后启动不联网；手动同步照常', async () => {
+    const a = build({ now: () => Date.now() });
+    a.svc.setSettings({ modelsSyncAuto: false });
+    await a.svc.autoSync();
+    expect(a.f).not.toHaveBeenCalled();
+    await a.svc.syncPrices();
+    expect(a.f).toHaveBeenCalledTimes(1);
+  });
+
+  it('网关还没有模型目录缓存：不等 12 小时', async () => {
+    const t = Date.parse('2026-10-25T08:00:00Z');
+    const a = build({ now: () => t });
+    await a.svc.autoSync();
+    const b = build({ now: () => t + 3600_000, root: a.root, needsFull: () => true });
+    await b.svc.autoSync();
+    expect(b.f).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('UsageService：按端信息（endpointUsage）', () => {
   it('只聚合指定端：今日 / 近 7 天 / 按天趋势 / 模型与供应商 / 最近活动', () => {
     const { svc } = mk();

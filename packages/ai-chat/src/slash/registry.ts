@@ -99,28 +99,25 @@ export function buildRegistry(
 }
 
 const SCOPE_WORD: Record<string, () => string> = {
-  project: () => t('项目'),
-  user: () => t('用户'),
-  plugin: () => t('插件'),
-  bundled: () => t('自带'),
+  project: () => t('ui.slash-commands.project'),
+  user: () => t('ui.slash-commands.user'),
+  plugin: () => t('ui.slash-commands.plugin'),
+  bundled: () => t('ui.slash-commands.bundled'),
 };
 
 /** 落选的同名命令为什么不能发送（holder = 占着裸名的那一条） */
 function ambiguityReason(bare: string, holder: SlashCommand | undefined): string {
   if (holder && FIXED_RANK[holder.source] !== undefined) {
-    const who = holder.source === 'builtin' ? t('Nomi 内置') : t('CLI 自带');
-    return t(
-      '和{0}的 /{1} 重名。CLI 只认 /{1} 这个名字，没有指定这一条的写法，Nomi 不会替它发送，以免执行成别的命令。',
-      who,
-      bare,
-    );
+    const who =
+      holder.source === 'builtin'
+        ? t('ui.slash-commands.built-into-nomi')
+        : t('ui.slash-commands.the-cli');
+    return t('ui.slash-commands.this-has-the-same-name-as-from-the', who, bare);
   }
-  const scope = holder?.scope ? (SCOPE_WORD[holder.scope]?.() ?? holder.scope) : t('另一条');
-  return t(
-    '同名时 CLI 只会执行{0}版的 /{1}，没有指定其他版本的写法，Nomi 不会替它发送，以免执行成别的命令。',
-    scope,
-    bare,
-  );
+  const scope = holder?.scope
+    ? (SCOPE_WORD[holder.scope]?.() ?? holder.scope)
+    : t('ui.slash-commands.the-other');
+  return t('ui.slash-commands.when-names-clash-the-cli-only-runs-the', scope, bare);
 }
 
 export function findCommand(commands: readonly SlashCommand[], name: string): SlashCommand | null {
@@ -128,6 +125,7 @@ export function findCommand(commands: readonly SlashCommand[], name: string): Sl
   return (
     commands.find((c) => c.name.toLowerCase() === n) ??
     commands.find((c) => c.aliases?.some((a) => a.toLowerCase() === n)) ??
+    commands.find((c) => c.hiddenAliases?.some((a) => a.toLowerCase() === n)) ??
     null
   );
 }

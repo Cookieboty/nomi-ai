@@ -1,0 +1,14 @@
+{
+  "cli": "claude",
+  "version": "2.1.310",
+  "wire": "messages",
+  "required": [
+    "block.type",
+    "block_delta.index",
+    "block_start.index",
+    "block_stop.index",
+    "delta.type",
+    "message_delta.delta"
+  ],
+  "toleratesUnknown": true
+}

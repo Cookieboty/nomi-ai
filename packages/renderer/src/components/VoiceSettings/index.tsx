@@ -65,7 +65,7 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
       await voiceService.updateSettings({ [key]: value });
       onSettingsChange?.();
     } catch (error) {
-      log.error('更新设置失败:', error);
+      log.error('Failed to update voice settings:', error);
     } finally {
       setIsLoading(false);
     }
@@ -95,21 +95,21 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
     <Modal
       open
       onClose={onClose}
-      title={tr('语音设置')}
+      title={tr('ui.knowledge-local.voice-settings')}
       className={styles.panel}
       data-testid="voice-settings"
     >
       <section className={styles.group}>
-        <SectionTitle level={4}>{tr('基本设置')}</SectionTitle>
+        <SectionTitle level={4}>{tr('ui.voice-mascot.basic-settings')}</SectionTitle>
         <Switch
           checked={settings.enabled}
           onChange={(v) => handleSettingChange('enabled', v)}
           disabled={isLoading}
-          label={tr('启用语音功能')}
+          label={tr('ui.voice-mascot.enable-voice')}
         />
         <label className={styles.range}>
           <span>
-            {tr('音量:')} {Math.round(settings.volume * 100)}%
+            {tr('ui.voice-mascot.volume')} {Math.round(settings.volume * 100)}%
           </span>
           <input
             type="range"
@@ -125,30 +125,30 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
           checked={settings.sfxEnabled !== false}
           onChange={(v) => handleSettingChange('sfxEnabled', v)}
           disabled={isLoading}
-          label={tr('动作音效')}
+          label={tr('ui.cli-monitor.action-sound-effects')}
           data-testid="sfx-enabled"
         />
         <p className={styles.help} style={{ paddingLeft: 0 }}>
-          {tr('点击、拖拽、任务完成等动作的短提示音（程序合成，可关）。')}
+          {tr('ui.cli-monitor.short-cues-for-clicks-drag-task-done-etc')}
         </p>
       </section>
 
       <section className={styles.group}>
-        <SectionTitle level={4}>{tr('当前角色音色')}</SectionTitle>
+        <SectionTitle level={4}>{tr('ui.voice-mascot.current-character-voice')}</SectionTitle>
         <p
           className="cd-muted"
           style={{ marginBottom: 8, fontSize: 12 }}
           data-testid="char-voice-label"
         >
-          {tr('角色：')}
-          <strong>{charName ?? tr('（未选择）')}</strong>
+          {tr('ui.voice-mascot.character')}
+          <strong>{charName ?? tr('ui.voice-mascot.none-selected')}</strong>
           <br />
-          {tr('将使用：')}
-          {tr('当前配置的本地或远程 TTS')}
+          {tr('ui.voice-mascot.will-use')}
+          {tr('ui.voice-mascot.the-configured-local-or-remote-tts')}
         </p>
         <label className={styles.range}>
           <span>
-            {tr('语速:')} {charPrefs.rate.toFixed(2)}×
+            {tr('ui.voice-mascot.rate')} {charPrefs.rate.toFixed(2)}×
           </span>
           <input
             type="range"
@@ -168,12 +168,12 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
             data-testid="char-speech-test"
             disabled={off}
             onClick={() =>
-              speakForActiveCharacter(tr('你好，我是 Nomi。今天也一起加油吧。'), {
+              speakForActiveCharacter(tr('ui.voice-mascot.hi-i-m-nomi-let-s-do-our'), {
                 prefs: { ...charPrefs, volume: settings.volume },
               })
             }
           >
-            {tr('试听本角色')}
+            {tr('ui.voice-mascot.preview-this-character')}
           </button>
           <button
             type="button"
@@ -186,25 +186,25 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
               refreshCharacter();
             }}
           >
-            {tr('恢复角色默认')}
+            {tr('ui.voice-mascot.restore-character-default')}
           </button>
         </div>
       </section>
 
       <section className={styles.group}>
-        <SectionTitle level={4}>{tr('功能设置')}</SectionTitle>
+        <SectionTitle level={4}>{tr('ui.voice-mascot.features')}</SectionTitle>
         <Switch
           checked={settings.timeAnnouncement}
           onChange={(v) => handleSettingChange('timeAnnouncement', v)}
           disabled={off}
-          label={tr('定时播报（根据时间播放问候语音）')}
+          label={tr('ui.voice-mascot.timed-greetings-plays-greetings-based-on-the-time')}
         />
       </section>
 
       <section className={styles.group} data-testid="voice-engine-link">
-        <SectionTitle level={4}>{tr('朗读引擎')}</SectionTitle>
+        <SectionTitle level={4}>{tr('ui.chat-settings.speech-engine')}</SectionTitle>
         <p className="cd-muted" style={{ fontSize: 12 }}>
-          {tr('离线语音模型、Fish / 自建 TTS 等引擎设置在主界面的「设置 → 语音与屏幕 → 语音」。')}
+          {tr('ui.voice-mascot.offline-voice-model-fish-self-hosted-tts-and')}
         </p>
         <div>
           <button
@@ -216,11 +216,11 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
               void openVoiceSettings();
             }}
           >
-            {tr('更多语音设置…')}
+            {tr('ui.voice-mascot.more-voice-settings')}
           </button>
         </div>
       </section>
-      {isLoading && <div className="cd-muted">{tr('保存中…')}</div>}
+      {isLoading && <div className="cd-muted">{tr('ui.voice-mascot.saving')}</div>}
     </Modal>
   );
 };

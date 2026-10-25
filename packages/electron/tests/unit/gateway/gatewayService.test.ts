@@ -9,7 +9,13 @@ import os from 'node:os';
 import path from 'node:path';
 
 import type { ProviderStoreData, SecretCipher } from '@nomi-ai/ai-runtime';
-import type { detect, GatewayConfig, WorkerInbound, WorkerOutbound } from '@nomi-ai/gateway';
+import {
+  setCatalogOverlay,
+  type detect,
+  type GatewayConfig,
+  type WorkerInbound,
+  type WorkerOutbound,
+} from '@nomi-ai/gateway';
 
 import { GatewayProcess } from '../../../src/gateway/GatewayProcess';
 import { GatewayService } from '../../../src/gateway/GatewayService';
@@ -538,6 +544,148 @@ describe('GatewayService', () => {
     });
     const p = svc.runtimeConfig().providers[0]!;
     expect(p.quirks).toEqual({ extraBody: { chat: { reasoning_split: true } }, dropParams: ['b'] });
+  });
+
+  it('model metadata (§12.7.2): user > preset > listed > built-in catalog > default', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gw-meta-'));
+    const svc = new GatewayService({
+      root,
+      cipher,
+      logger: { info() {}, warn() {} },
+      process: new GatewayProcess({
+        logger: { info() {}, warn() {} },
+        fork: () => new FakeChild() as never,
+      }),
+      presetModels: (id) =>
+        id === 'zhipu' ? [{ id: 'glm-5.3', ctx: 777_000, maxOutput: 99_000 }] : undefined,
+    });
+    svc.init();
+    // 中转（模型 id 带厂商前缀）、旧版本迁移来的「user」来源却没有值：按内置目录取
+    svc.upsertProvider({
+      name: 'Relay',
+      urls: { chat: 'https://relay/v1' },
+      models: [
+        { id: 'openai/gpt-6-astra', enabled: true, metaSource: 'user' },
+        { id: 'acme/unknown-model', enabled: true },
+        { id: 'acme/listed-model', enabled: true, ctx: 300_000, metaSource: 'listed' },
+        { id: 'openai/gpt-5.5', enabled: true, ctx: 64_000, metaSource: 'user' },
+      ],
+    });
+    // 预设按去掉前缀后的 id 匹配，优先于目录
+    svc.upsertProvider({
+      name: 'ZP',
+      presetId: 'zhipu',
+      urls: { chat: 'https://zp/v1' },
+      models: [{ id: 'z-ai/glm-5.3', enabled: true }],
+    });
+    const ref = (m: string) => svc.modelMetaOf(m)!;
+    // 按长度分档计价的模型默认按标准窗口
+    expect(ref('relay/openai/gpt-6-astra')).toMatchObject({ ctx: 272_000, source: 'catalog' });
+    expect(ref('relay/acme/unknown-model')).toMatchObject({
+      ctx: 128_000,
+      maxOutput: 32_000,
+      source: 'default',
+    });
+    expect(ref('relay/acme/listed-model')).toMatchObject({ ctx: 300_000, source: 'listed' });
+    expect(ref('relay/openai/gpt-5.5')).toMatchObject({ ctx: 64_000, source: 'user' });
+    expect(ref('zhipu/z-ai/glm-5.3')).toMatchObject({
+      ctx: 777_000,
+      maxOutput: 99_000,
+      source: 'preset',
+    });
+    // 编程助手启动注入用同一份结果
+    expect(svc.agentMeta('relay/openai/gpt-6-astra')).toMatchObject({
+      ctx: 272_000,
+      maxOutput: 128_000,
+      reasoning: true,
+      provider: 'Relay',
+    });
+    // 标签开启长上下文：注入最大输入
+    expect(svc.agentMeta('relay/openai/gpt-6-astra', { longContext: true })!.ctx).toBe(922_000);
+
+    // 网关快照：用户 / 预设 / 模型列表的值写进去，只来自目录的不写（网关自己读目录）
+    const cfg = svc.runtimeConfig();
+    const relay = cfg.providers.find((p) => p.id === 'relay')!;
+    expect(relay.models.find((m) => m.id === 'openai/gpt-6-astra')!.ctx).toBeUndefined();
+    expect(relay.models.find((m) => m.id === 'acme/listed-model')!.ctx).toBe(300_000);
+    const zp = cfg.providers.find((p) => p.id === 'zhipu')!;
+    expect(zp.models[0]).toMatchObject({ ctx: 777_000, maxOutput: 99_000 });
+
+    // 「模型」页拿到生效值；回传保存时生效值不落盘
+    const view = svc.state().providers.find((p) => p.id === 'relay')!;
+    const astra = view.models.find((m) => m.id === 'openai/gpt-6-astra')!;
+    expect(astra.effective).toMatchObject({
+      ctx: 272_000,
+      source: 'catalog',
+      longContext: { standard: 272_000, full: 922_000, on: false },
+    });
+    svc.upsertProvider({ id: 'relay', name: 'Relay', urls: {}, models: view.models });
+    const saved = svc.store.providers().find((p) => p.id === 'relay')!;
+    expect(saved.models.some((m) => 'effective' in m)).toBe(false);
+    expect(svc.cliModels().find((m) => m.ref === 'relay/openai/gpt-6-astra')!.ctx).toBe(272_000);
+    // 模型默认开启长上下文（「模型」页的开关）会保存下来
+    svc.upsertProvider({
+      id: 'relay',
+      name: 'Relay',
+      urls: {},
+      models: view.models.map((m) =>
+        m.id === 'openai/gpt-6-astra' ? { ...m, longContext: true } : m,
+      ),
+    });
+    expect(svc.modelMetaOf('relay/openai/gpt-6-astra')!.ctx).toBe(922_000);
+  });
+
+  it('models data sync (§12.7.2): synced catalog overlays the built-in one, survives a restart', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gw-catalog-'));
+    const make = () => {
+      const svc = new GatewayService({
+        root,
+        cipher,
+        logger: { info() {}, warn() {} },
+        process: new GatewayProcess({
+          logger: { info() {}, warn() {} },
+          fork: () => new FakeChild() as never,
+        }),
+      });
+      svc.init();
+      return svc;
+    };
+    const api = (n: number) => ({
+      openai: {
+        models: Object.fromEntries(
+          Array.from({ length: n }, (_, i) => [
+            `sync-model-${i}`,
+            { id: `sync-model-${i}`, limit: { context: 333_000, output: 9_000 }, tool_call: true },
+          ]),
+        ),
+      },
+    });
+    const svc = make();
+    svc.upsertProvider({
+      name: 'Relay',
+      urls: { chat: 'https://relay/v1' },
+      models: [{ id: 'acme/sync-model-7', enabled: true }],
+    });
+    expect(svc.hasCatalogSync()).toBe(false);
+    expect(svc.modelMetaOf('relay/acme/sync-model-7')).toMatchObject({ source: 'default' });
+    // 条目明显过少：视为异常响应，不采用
+    svc.applyModelsData(api(5));
+    expect(svc.hasCatalogSync()).toBe(false);
+    svc.applyModelsData(api(150));
+    expect(svc.hasCatalogSync()).toBe(true);
+    expect(svc.modelMetaOf('relay/acme/sync-model-7')).toMatchObject({
+      ctx: 333_000,
+      source: 'catalog',
+    });
+    // 网关进程按文件路径自己读；内置目录里的模型仍查得到
+    expect(svc.runtimeConfig().catalogFile).toBe(path.join(root, 'catalog-sync.json'));
+    expect(svc.state().catalog).toMatchObject({ synced: true });
+    expect(svc.modelMetaOf('relay/openai/gpt-5.2')?.ctx).toBe(272_000);
+    // 重启后从文件恢复
+    setCatalogOverlay(null);
+    const again = make();
+    expect(again.modelMetaOf('relay/acme/sync-model-7')?.ctx).toBe(333_000);
+    setCatalogOverlay(null);
   });
 
   it('releaseAgent: removes the tab dir but does not follow symlinks into the user CLI home', () => {

@@ -110,7 +110,7 @@ export class VoiceError extends Error {
 }
 
 const localOnlyError = () =>
-  new VoiceError('local_only', tr('已开启「仅本地模型」，不能把录音发送到云端。'));
+  new VoiceError('local_only', tr('electron.common.local-models-only-is-on-recordings-can-t'));
 
 const isLocalDefault = (u: string) => {
   try {
@@ -168,8 +168,8 @@ export class VoiceService {
   setVolcKey(raw: unknown): { ok: boolean; error?: string } {
     const key = typeof raw === 'string' ? raw.trim() : '';
     if (!key || key.length > 256 || /\s/.test(key))
-      return { ok: false, error: tr('API Key 格式不正确') };
-    const unavailable = tr('系统安全存储不可用，无法保存 API Key。');
+      return { ok: false, error: tr('electron.common.invalid-api-key-format') };
+    const unavailable = tr('electron.common.system-secure-storage-is-unavailable-so-the-api');
     if (!canEncryptSecrets()) return { ok: false, error: unavailable };
     let enc: string;
     try {
@@ -270,14 +270,17 @@ export class VoiceService {
           code: 'no_engine',
           message:
             process.platform === 'darwin'
-              ? tr(
-                  '未找到 whisper.cpp：请先 `brew install whisper-cpp`，或在设置里指定 whisper-cli 路径。',
-                )
-              : tr('还没有下载 whisper.cpp 引擎。'),
+              ? tr('electron.common.whisper-cpp-not-found-run-brew-install-whisper')
+              : tr('electron.common.the-whisper-cpp-engine-hasn-t-been-downloaded'),
         };
       const m = findAsset(s.whisperModel);
       if (!m || !this.installed(m))
-        return { ok: false, local: true, code: 'no_model', message: tr('还没有下载识别模型。') };
+        return {
+          ok: false,
+          local: true,
+          code: 'no_model',
+          message: tr('electron.common.the-recognition-model-hasn-t-been-downloaded-yet'),
+        };
       return { ok: true, local: true };
     }
     if (s.engine === 'volc') {
@@ -286,40 +289,51 @@ export class VoiceService {
           ok: false,
           local: false,
           code: 'no_provider',
-          message: tr('请先在语音设置里填写豆包语音的 API Key。'),
+          message: tr('electron.common.enter-your-doubao-speech-api-key-in-the'),
         };
       if (this.d.localOnly?.())
         return {
           ok: false,
           local: false,
           code: 'local_only',
-          message: tr('已开启「仅本地模型」，不能把录音发送到云端。'),
+          message: tr('electron.common.local-models-only-is-on-recordings-can-t'),
         };
       if (!s.cloudAcked.includes(VOLC_TARGET_ID))
         return {
           ok: false,
           local: false,
           code: 'cloud_not_acked',
-          message: tr('录音将发送给「{0}」识别，需要你确认一次。', tr('豆包语音（火山引擎）')),
+          message: tr(
+            'electron.common.recordings-will-be-sent-to-for-recognition-please',
+            tr('electron.common.doubao-speech-volcengine'),
+          ),
         };
       return { ok: true, local: false };
     }
     const target = this.cloudTarget();
     if (!target)
-      return { ok: false, local: false, code: 'no_provider', message: tr('请选择识别服务。') };
+      return {
+        ok: false,
+        local: false,
+        code: 'no_provider',
+        message: tr('electron.common.please-choose-a-recognition-service'),
+      };
     if (!target.local && this.d.localOnly?.())
       return {
         ok: false,
         local: false,
         code: 'local_only',
-        message: tr('已开启「仅本地模型」，不能把录音发送到云端。'),
+        message: tr('electron.common.local-models-only-is-on-recordings-can-t'),
       };
     if (!target.local && !s.cloudAcked.includes(cloudTargetId(s)))
       return {
         ok: false,
         local: false,
         code: 'cloud_not_acked',
-        message: tr('录音将发送给「{0}」识别，需要你确认一次。', target.name),
+        message: tr(
+          'electron.common.recordings-will-be-sent-to-for-recognition-please',
+          target.name,
+        ),
       };
     return { ok: true, local: target.local };
   }
@@ -400,8 +414,12 @@ export class VoiceService {
 
   async download(id: string): Promise<{ ok: boolean; error?: string }> {
     const a = findAsset(id);
-    if (!a || !assetsFor().includes(a)) return { ok: false, error: tr('未知或不适用于本机的资源') };
-    if (this.downloads.has(id)) return { ok: false, error: tr('正在下载') };
+    if (!a || !assetsFor().includes(a))
+      return {
+        ok: false,
+        error: tr('electron.common.unknown-resource-or-not-applicable-to-this-device'),
+      };
+    if (this.downloads.has(id)) return { ok: false, error: tr('electron.common.downloading') };
     const ctrl = new AbortController();
     const rec = { ctrl, received: 0, total: a.bytes };
     this.downloads.set(id, rec);
@@ -428,7 +446,8 @@ export class VoiceService {
         if (a.archive === 'zip') extractZip(buf, dir);
         else extractTarGz(buf, dir);
         fs.rmSync(dest, { force: true });
-        if (!findCliIn(dir)) throw new Error(tr('解包后没有找到 whisper-cli'));
+        if (!findCliIn(dir))
+          throw new Error(tr('electron.common.whisper-cli-not-found-after-unpacking'));
       }
       this.d.audit?.({
         tool: 'voice_model_download',
@@ -446,7 +465,11 @@ export class VoiceService {
       return { ok: true };
     } catch (e) {
       const aborted = ctrl.signal.aborted;
-      const msg = aborted ? tr('已取消') : e instanceof Error ? e.message : String(e);
+      const msg = aborted
+        ? tr('electron.common.cancelled')
+        : e instanceof Error
+          ? e.message
+          : String(e);
       this.progress(id, rec.received, rec.total, aborted ? 'cancelled' : 'error', msg);
       if (!aborted) this.d.logger.warn('语音模型下载失败', { id, error: msg } as never);
       return { ok: false, error: msg };
@@ -480,16 +503,20 @@ export class VoiceService {
     // 唤醒词检测只走本地，绝不上传
     const engine = opts.purpose === 'wake' ? 'whisper-cpp' : s.engine;
     if (!(wav instanceof Uint8Array) || wav.byteLength < 44 + 3200)
-      throw new VoiceError('empty', tr('录音太短了'));
+      throw new VoiceError('empty', tr('electron.common.recording-too-short'));
     if (wav.byteLength > 25 * 1024 * 1024)
-      throw new VoiceError('failed', tr('录音太长了（上限约 13 分钟）'));
+      throw new VoiceError('failed', tr('electron.common.recording-too-long-max-about-13-minutes'));
     let text: string;
     let fallback = false;
     if (engine === 'whisper-cpp') {
       text = await this.localTranscribe(wav, opts.purpose);
     } else if (engine === 'volc') {
       const r = this.readiness();
-      if (!r.ok) throw new VoiceError(r.code ?? 'failed', r.message ?? tr('识别服务不可用'));
+      if (!r.ok)
+        throw new VoiceError(
+          r.code ?? 'failed',
+          r.message ?? tr('electron.common.recognition-service-unavailable'),
+        );
       const pcm = wav.subarray(44);
       try {
         text = await this.volcBatch(pcm);
@@ -499,7 +526,11 @@ export class VoiceService {
       }
     } else {
       const r = this.readiness();
-      if (!r.ok) throw new VoiceError(r.code ?? 'failed', r.message ?? tr('识别服务不可用'));
+      if (!r.ok)
+        throw new VoiceError(
+          r.code ?? 'failed',
+          r.message ?? tr('electron.common.recognition-service-unavailable'),
+        );
       const t = this.cloudTarget()!;
       text = await transcribeOpenAICompat({
         baseURL: t.baseURL,
@@ -537,9 +568,10 @@ export class VoiceService {
     const s = this.settings;
     const opts = { purpose };
     const cli = this.locateCli();
-    if (!cli) throw new VoiceError('no_engine', tr('未找到 whisper.cpp 引擎'));
+    if (!cli) throw new VoiceError('no_engine', tr('electron.common.whisper-cpp-engine-not-found'));
     const m = findAsset(s.whisperModel);
-    if (!m || !this.installed(m)) throw new VoiceError('no_model', tr('还没有下载识别模型'));
+    if (!m || !this.installed(m))
+      throw new VoiceError('no_model', tr('electron.common.recognition-model-not-downloaded-yet'));
     return runWhisperCli({
       cli: cli.path,
       model: this.assetPath(m),
@@ -554,7 +586,7 @@ export class VoiceService {
       prompt:
         s.language === 'zh' ||
         (opts.purpose === 'wake' && /[\u4e00-\u9fff]/.test(s.wakeWord.phrase))
-          ? tr('以下是普通话的句子。')
+          ? '以下是普通话的句子。' // i18n-ignore — whisper 的中文引导词，是给模型的数据
           : undefined,
       timeoutMs: opts.purpose === 'wake' ? 20_000 : 120_000,
     });
@@ -585,7 +617,10 @@ export class VoiceService {
     for (let o = 0; o < pcm.byteLength; o += VOLC_PACKET_BYTES) {
       if (this.d.localOnly?.()) {
         session.cancel();
-        throw new VoiceError('local_only', tr('已开启「仅本地模型」，不能把录音发送到云端。'));
+        throw new VoiceError(
+          'local_only',
+          tr('electron.common.local-models-only-is-on-recordings-can-t'),
+        );
       }
       session.push(pcm.subarray(o, Math.min(pcm.byteLength, o + VOLC_PACKET_BYTES)));
       if (pace) await new Promise((r) => setTimeout(r, pace));
@@ -604,7 +639,10 @@ export class VoiceService {
         this.d.logger.warn('豆包识别失败，改用本地 whisper.cpp', { kind: err.kind } as never);
         return this.localTranscribe(pcmToWav(pcm), 'command');
       }
-      throw new VoiceError('failed', tr('{0}；本地离线模型未安装，无法回退。', message));
+      throw new VoiceError(
+        'failed',
+        tr('electron.common.the-local-offline-model-isn-t-installed-so', message),
+      );
     }
     const code: VoiceError['code'] =
       err?.kind === 'auth' || err?.kind === 'not_granted'
@@ -624,7 +662,11 @@ export class VoiceService {
     source: string,
   ): { ok: true; id: string } | { ok: false; code: VoiceError['code']; error: string } {
     if (this.settings.engine !== 'volc')
-      return { ok: false, code: 'no_provider', error: tr('当前识别引擎不支持流式识别') };
+      return {
+        ok: false,
+        code: 'no_provider',
+        error: tr('electron.common.the-current-recognition-engine-doesn-t-support-streaming'),
+      };
     const r = this.readiness();
     if (!r.ok) return { ok: false, code: r.code ?? 'failed', error: r.message ?? '' };
     // 同一窗口最多 MAX 个会话（含结束中的）：多出来的（旧的）直接取消
@@ -685,7 +727,10 @@ export class VoiceService {
     }
     rec.bytes += buf.byteLength;
     if (rec.bytes > MAX_STREAM_BYTES) {
-      const err = new VoiceError('failed', tr('录音太长了（上限约 13 分钟）'));
+      const err = new VoiceError(
+        'failed',
+        tr('electron.common.recording-too-long-max-about-13-minutes'),
+      );
       this.revokeStream(id, rec, err);
       this.sendStream(wc, { id, type: 'error', error: err.message });
       return false;
@@ -705,7 +750,11 @@ export class VoiceService {
     const rec = this.ownStream(wc, id);
     // 重复 stop（已在结束中）与未知会话一样：不重复发结束帧、不重复交付
     if (!rec || rec.phase !== 'recording')
-      return { ok: false, code: 'failed', error: tr('识别会话已结束') };
+      return {
+        ok: false,
+        code: 'failed',
+        error: tr('electron.common.the-recognition-session-has-already-ended'),
+      };
     // 结束期间仍登记在 streams 里（等握手 / 最终结果 / 回退），撤销入口照样能找到它
     rec.phase = 'finalizing';
     try {
@@ -791,7 +840,7 @@ export class VoiceService {
    * 不回退、不交付晚到的结果。已经发出去的音频收不回来，这里保证的是之后不再发送和处理。
    */
   private revokeStream(id: string, rec: VolcStream, reason?: VoiceError): void {
-    rec.revoked ??= reason ?? new VoiceError('empty', tr('已取消'));
+    rec.revoked ??= reason ?? new VoiceError('empty', tr('electron.common.cancelled'));
     rec.pcm = null;
     rec.session.cancel();
     if (this.streams.get(id) === rec) this.streams.delete(id);
@@ -807,7 +856,10 @@ export class VoiceService {
   /** 用户点「测试连接」：只建连 + 发参数包，不发送音频 */
   async volcTest(): Promise<{ ok: boolean; message: string }> {
     if (this.settings.engine !== 'volc')
-      return { ok: false, message: tr('请先把识别引擎切换为豆包流式语音识别 2.0') };
+      return {
+        ok: false,
+        message: tr('electron.common.switch-the-recognition-engine-to-doubao-streaming-asr'),
+      };
     const r = this.readiness();
     if (!r.ok) return { ok: false, message: r.message ?? '' };
     const to = this.d.volcTimeouts ?? {};
@@ -823,7 +875,7 @@ export class VoiceService {
       this.d.audit?.({ tool: 'voice_volc_test', args: {}, decision: 'user', result: 'ok' });
       return {
         ok: true,
-        message: tr('已连接到豆包语音并通过鉴权（没有发送音频，未做识别测试）。'),
+        message: tr('electron.common.connected-to-doubao-speech-and-authenticated-no-audio'),
       };
     } catch (e) {
       this.d.audit?.({ tool: 'voice_volc_test', args: {}, decision: 'user', result: 'error' });

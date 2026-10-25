@@ -3,7 +3,7 @@
  * 打开后在 `~/.nomi/bin/` 生成 nomi-claude / nomi-codex / nomi-gemini / nomi-grok / nomi-dsh
  * （Windows 为 .cmd / .ps1）：先查网关 /health，再按 §12.1–§12.4 设好环境变量和参数，启动真正的 CLI。
  * - 注入内容和 Nomi 启动的第三方会话同源（agents/index.ts 的 agentLaunch），生成脚本时静态写入；
- * - 令牌不写进脚本，运行时从 userData/gateway/tokens/<cli> 读取。这些文件是明文（0600，shell 要能读），
+ * - 令牌不写进脚本，运行时从 userData/gateway/tokens/<cli> 读取。这些文件是明文（POSIX 0600；Windows 另收紧 ACL，shell 要能读），
  *   只在开启时存在，关闭时删除；取舍见 §15（令牌只能访问本机回环地址上的网关，可随时「重置令牌」）；
  * - 只有用户确认后才在 shell 配置文件里加一段带标记的 PATH，关闭时删掉这一段，不碰其它内容；
  *   Windows 只在确认后修改用户 PATH，关闭时只删除 Nomi 添加的项；
@@ -18,7 +18,7 @@ import type { ClientModels } from '@nomi-ai/gateway';
 import { t as tr } from '../i18n';
 import { guardedHandle } from '../security/guardedIpc';
 import { shQuote } from '../security/shellEscape';
-import { writePrivateFile } from '../utils/privateFile';
+import { ensurePrivateDir, writePrivateFile } from '../utils/privateFile';
 
 import { agentLaunch, type AgentKind, type AgentLaunch, type ModelMeta } from './agents';
 import type { GatewayService } from './GatewayService';
@@ -131,15 +131,15 @@ function posixScript(i: ScriptInput): string {
   const say = (msg: string) => `printf '%s\\n' ${shQuote(msg)} >&2`;
   const L: string[] = ['#!/bin/sh', `# ${header(i.kind)}`];
   if (!i.model || !i.launch) {
-    L.push(say(tr('还没有为 {0} 设置第三方模型：请在 Nomi 设置 → 模型 里选择。', bin)), 'exit 1');
+    L.push(say(tr('electron.common.no-third-party-model-is-set-for-choose', bin)), 'exit 1');
     return L.join('\n') + '\n';
   }
   const launch = i.launch;
-  const needModel = say(tr('--nomi-model 后面要跟 供应商/模型'));
-  const badModel = say(tr('模型名无效：'));
-  const down = say(tr('请先打开 Nomi：网关（{0}）没有响应。', i.url));
-  const noToken = say(tr('找不到令牌：请在 Nomi 设置 → 模型 里重新打开「终端启动命令」。'));
-  const noBin = say(tr('没有找到 {0}：请先安装。', bin));
+  const needModel = say(tr('electron.common.nomi-model-must-be-followed-by-provider-model'));
+  const badModel = say(tr('electron.common.invalid-model-name-prefix'));
+  const down = say(tr('electron.common.please-start-nomi-first-the-gateway-is-not', i.url));
+  const noToken = say(tr('electron.common.token-not-found-turn-terminal-commands-off-and'));
+  const noBin = say(tr('electron.common.was-not-found-please-install-it-first', bin));
   L.push(
     `NOMI_URL=${shQuote(i.url)}`,
     `NOMI_TOKEN_FILE=${shQuote(i.tokenFile)}`,
@@ -419,7 +419,7 @@ export class TerminalCommands {
     const src = this.d.source();
     if (!src) return;
     fs.mkdirSync(this.binDir, { recursive: true });
-    fs.mkdirSync(this.tokenDir, { recursive: true, mode: 0o700 });
+    ensurePrivateDir(this.tokenDir);
     fs.mkdirSync(this.workDir, { recursive: true, mode: 0o700 });
     if (this.platform === 'win32')
       writeIfChanged(path.join(this.binDir, 'nomi-runner.cjs'), buildWindowsRunner(), 0o600);
@@ -471,13 +471,13 @@ export class TerminalCommands {
           JSON.stringify({
             ...config,
             messages: {
-              noModel: tr('还没有为 {0} 设置第三方模型：请在 Nomi 设置 → 模型 里选择。', kind),
-              needModel: tr('--nomi-model 后面要跟 供应商/模型'),
-              badModel: tr('模型名无效：'),
-              down: tr('请先打开 Nomi：网关（{0}）没有响应。', src.url),
-              noToken: tr('找不到令牌：请在 Nomi 设置 → 模型 里重新打开「终端启动命令」。'),
-              noBin: tr('没有找到 {0}：请先安装。', kind),
-              unsafeShim: tr('无法安全启动 {0}：请重新安装 CLI，或使用它的原生可执行文件。', kind),
+              noModel: tr('electron.common.no-third-party-model-is-set-for-choose', kind),
+              needModel: tr('electron.common.nomi-model-must-be-followed-by-provider-model'),
+              badModel: tr('electron.common.invalid-model-name-prefix'),
+              down: tr('electron.common.please-start-nomi-first-the-gateway-is-not', src.url),
+              noToken: tr('electron.common.token-not-found-turn-terminal-commands-off-and'),
+              noBin: tr('electron.common.was-not-found-please-install-it-first', kind),
+              unsafeShim: tr('electron.common.cannot-safely-launch-reinstall-the-cli-or-use', kind),
             },
           }),
         );
@@ -620,22 +620,6 @@ export function gatewayTerminalSource(g: GatewayService): () => TerminalSource |
     const snap = g.store.snapshot();
     const port = s.state === 'running' ? s.port : snap.port;
     if (!port) return null;
-    const providers = g.store.providers();
-    const metaOf = (ref: string): ModelMeta | undefined => {
-      const i = ref.indexOf('/');
-      const p = i > 0 ? providers.find((x) => x.id === ref.slice(0, i)) : undefined;
-      const m = p?.models.find((x) => x.id === ref.slice(i + 1));
-      return p && m
-        ? {
-            label: m.label ?? m.id,
-            provider: p.name,
-            ctx: m.ctx,
-            maxOutput: m.maxOutput,
-            reasoning: m.reasoning,
-            vision: m.vision,
-          }
-        : undefined;
-    };
     const clients: TerminalSource['clients'] = {};
     for (const kind of TERMINAL_KINDS)
       clients[kind] = {
@@ -645,7 +629,7 @@ export function gatewayTerminalSource(g: GatewayService): () => TerminalSource |
     return {
       url: `http://127.0.0.1:${port}`,
       clients,
-      metaOf,
+      metaOf: (ref) => g.agentMeta(ref),
       catalog: g.cliModels().map((m) => m.ref),
     };
   };
@@ -670,7 +654,7 @@ export function registerTerminalIpc(t: TerminalCommands): void {
     'ai:gateway:terminal-set',
     (input) => {
       const o = (input ?? {}) as { enabled?: unknown; addToPath?: unknown };
-      if (typeof o.enabled !== 'boolean') throw new Error(tr('参数无效'));
+      if (typeof o.enabled !== 'boolean') throw new Error(tr('electron.common.invalid-arguments'));
       return t.set({
         enabled: o.enabled,
         ...(typeof o.addToPath === 'boolean' ? { addToPath: o.addToPath } : {}),

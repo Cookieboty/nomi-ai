@@ -20,7 +20,11 @@ const CliConversation: React.FC<{
   tab: HarnessTabMeta;
   messages: HarnessTabMessage[];
   live?: TabLive;
-  onPermission?: (id: string, allow: boolean) => void;
+  onPermission?: (
+    id: string,
+    allow: boolean,
+    opts?: { approvePlan?: 'acceptEdits' | 'manual' | 'deny' },
+  ) => void;
   queued?: string[];
   onRetry?: (id: string) => void;
   onEdit?: (id: string, text: string) => void;
@@ -331,6 +335,81 @@ describe('CliConversation 运行中', () => {
     ]);
   });
 
+  it('ExitPlanMode 渲染批准计划卡：三选一回调带 approvePlan（PR3）', () => {
+    const onPermission = vi.fn();
+    const live = {
+      ...liveBase,
+      permissions: [
+        {
+          id: 'exit-1',
+          summary: 'ExitPlanMode: ship it',
+          kind: 'approve-plan' as const,
+          toolName: 'ExitPlanMode',
+        },
+      ],
+    };
+    const { getByTestId, queryByTestId, rerender } = render(
+      <CliConversation
+        tab={tab({ status: 'running' })}
+        messages={[]}
+        live={live}
+        onPermission={onPermission}
+      />,
+    );
+    expect(getByTestId('conv-approve-plan-card').textContent).toContain('ship it');
+    expect(queryByTestId('conv-permission-card')).toBeNull();
+    fireEvent.click(getByTestId('conv-approve-plan-accept-edits'));
+    expect(onPermission).toHaveBeenCalledWith('exit-1', true, { approvePlan: 'acceptEdits' });
+    onPermission.mockClear();
+    rerender(
+      <CliConversation
+        tab={tab({ status: 'running' })}
+        messages={[]}
+        live={live}
+        onPermission={onPermission}
+      />,
+    );
+    fireEvent.click(getByTestId('conv-approve-plan-manual'));
+    expect(onPermission).toHaveBeenCalledWith('exit-1', true, { approvePlan: 'manual' });
+    onPermission.mockClear();
+    rerender(
+      <CliConversation
+        tab={tab({ status: 'running' })}
+        messages={[]}
+        live={live}
+        onPermission={onPermission}
+      />,
+    );
+    fireEvent.click(getByTestId('conv-approve-plan-deny'));
+    expect(onPermission).toHaveBeenCalledWith('exit-1', false, { approvePlan: 'deny' });
+  });
+
+  it('按此方案执行卡：主按钮文案与继续修改（PR3 Codex/dsh/Grok）', () => {
+    const onPermission = vi.fn();
+    const { getByTestId, queryByTestId } = render(
+      <CliConversation
+        tab={tab({ status: 'running', backend: 'codex' })}
+        messages={[]}
+        live={{
+          ...liveBase,
+          permissions: [
+            {
+              id: 'execute-plan:t1',
+              summary: '按此方案执行：切到自动改文件并继续实施',
+              kind: 'approve-plan',
+              toolName: 'execute_plan',
+            },
+          ],
+        }}
+        onPermission={onPermission}
+      />,
+    );
+    expect(getByTestId('conv-approve-plan-accept-edits').textContent).toMatch(/按此方案执行/);
+    expect(queryByTestId('conv-approve-plan-manual')).toBeNull();
+    fireEvent.click(getByTestId('conv-approve-plan-deny'));
+    expect(onPermission).toHaveBeenCalledWith('execute-plan:t1', false, { approvePlan: 'deny' });
+  });
+
   it('超时自动拒绝后短暂提示（含来源子代理）', () => {
     const { getByTestId, queryByTestId } = render(
       <CliConversation
@@ -357,6 +436,26 @@ describe('CliConversation 运行中', () => {
     );
     expect(getByTestId('conv-live').textContent).toContain('排队等待');
     expect(getByTestId('conv-status').getAttribute('data-kind')).toBe('queued');
+  });
+
+  it('定稿消息已到、标签还没回到空闲的那一帧不画空的流式区', () => {
+    const { queryByTestId, rerender } = render(
+      <CliConversation
+        tab={tab({ status: 'running' })}
+        messages={messages}
+        onPermission={() => undefined}
+      />,
+    );
+    expect(queryByTestId('conv-live')).toBeNull();
+    // 刚发出的用户消息在末尾、实时进度还没来：照常显示等待状态
+    rerender(
+      <CliConversation
+        tab={tab({ status: 'running' })}
+        messages={[...messages, { id: 'u2', role: 'user', content: '再看看', timestamp: 3 }]}
+        onPermission={() => undefined}
+      />,
+    );
+    expect(queryByTestId('conv-live')).not.toBeNull();
   });
 });
 
@@ -498,6 +597,35 @@ describe('follow-scroll is ResizeObserver-driven (no per-frame forced layout)', 
     height = 1600;
     fireResize();
     expect(el.scrollTop).toBe(1300);
+  });
+
+  it('a scroll event that lands after the content grew again does not stop following', () => {
+    const run = tab({ status: 'running' });
+    const view = (text: string) => (
+      <CliConversation
+        tab={run}
+        messages={messages.slice(0, 1)}
+        live={{ text, startedAt: Date.now() }}
+        onPermission={() => undefined}
+      />
+    );
+    const { getByTestId, queryByTestId } = render(view('a'));
+    const el = getByTestId('conv-scroll');
+    expect(el.scrollTop).toBe(1000);
+    // 程序贴底后的 scroll 事件到达时，内容已经又长高 1000px（大段输出 / 卡片 / 图片）：
+    // scrollTop 没变小，不是用户往上滚，继续跟随
+    height = 2000;
+    fireEvent.scroll(el);
+    expect(queryByTestId('conv-jump-bottom')).toBeNull();
+    fireResize();
+    expect(el.scrollTop).toBe(2000);
+    // 用户拖动滚动条往上：停止跟随
+    el.scrollTop = 500;
+    fireEvent.scroll(el);
+    height = 2600;
+    fireResize();
+    expect(el.scrollTop).toBe(500);
+    expect(queryByTestId('conv-jump-bottom')).not.toBeNull();
   });
 
   it('completed turns get content-visibility; the live (last) turn does not', () => {

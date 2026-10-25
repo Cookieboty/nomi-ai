@@ -173,7 +173,7 @@ export class FishTtsConfigStore {
       if (!safeStorage.isEncryptionAvailable()) throw new Error('unavailable');
       buf = safeStorage.encryptString(value);
     } catch {
-      throw new Error(tr('系统安全存储不可用，无法安全保存云 Key；请在系统钥匙串可用后重试'));
+      throw new Error(tr('electron.common.system-secure-storage-is-unavailable-so-the-cloud'));
     }
     fs.writeFileSync(this.keyPath(), buf, { mode: 0o600 });
   }

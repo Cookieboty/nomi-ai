@@ -1,9 +1,12 @@
+import type { BuiltinCliId } from '@nomi-ai/cli-plugins';
 import type { ReasoningEffort } from '@nomi-ai/types';
 import { t } from '@nomi-ai/ui';
 
 import type { PermissionMode } from '../utils/permissionModes';
 
-export type HarnessBackend = 'nomi' | 'claude' | 'codex' | 'dsh' | 'grok' | 'gemini';
+import { clearModelSwitch, noteModelSwitch } from './modelSwitchTip';
+
+export type HarnessBackend = 'nomi' | BuiltinCliId | 'external';
 
 export interface HarnessState {
   backend: HarnessBackend;
@@ -11,15 +14,34 @@ export interface HarnessState {
   cliSessionId: string | null;
   busy: boolean;
   toolsDisabled: boolean;
+  /** 主标签（Nomi 对话）的权限模式 */
+  permissionMode?: PermissionMode;
   bins: Record<string, string | null>;
 }
 
 export type HarnessTabStatus = 'idle' | 'queued' | 'running' | 'error';
 
+/** 由 Nomi 委派开的标签（docs/design/nomi-delegate-cli.md） */
+export interface HarnessDelegation {
+  by: 'nomi';
+  /** 派出它的 Nomi 工具调用 id */
+  callId?: string;
+  goal: string;
+  takenOver?: boolean;
+  approvals: { asked: number; denied: number; timedOut: number };
+}
+
 export interface HarnessTabMeta {
   id: string;
   title: string;
+  /** 由 Nomi 委派开的标签 */
+  delegation?: HarnessDelegation;
   backend: HarnessBackend;
+  /**
+   * backend 为 'external' 时：用哪个外部插件（「设置 → 编程助手 → 添加 CLI」里的 id，§5.9）。
+   * 插件被删除后标签保留，发消息时报错。
+   */
+  pluginId?: string;
   cwd: string;
   cliSessionId: string | null;
   status: HarnessTabStatus;
@@ -38,6 +60,8 @@ export interface HarnessTabMeta {
    * 切换走 setTabSource，规则由主进程执行（空标签直接切；官方 → 第三方续接；第三方 → 官方带上下文新开）。
    */
   source?: TabSource;
+  /** 官方来源下用哪个官方账号；null / 缺省 = 跟随默认账号（docs/design/cli-plugin-architecture.md §5.10） */
+  accountId?: string | null;
   /**
    * 标签级模型覆盖。官方来源：CLI 的模型 id，null/缺省 = 沿用 CLI 默认模型（进程级参数注入，不改全局配置）；
    * 第三方来源：网关的 `供应商/模型`，null = 这个 CLI 在「模型」页分配的默认模型。
@@ -45,6 +69,8 @@ export interface HarnessTabMeta {
   modelOverride?: string | null;
   /** 标签级思考深度覆盖（仅推理模型）；null = 沿用 CLI 默认档位 */
   reasoningEffort?: string | null;
+  /** 第三方模型的长上下文选择：只对记下的模型生效；null / 缺省 = 跟随模型默认 */
+  longContext?: { model: string; on: boolean } | null;
   /** 仍在运行的后台子代理 / 后台任务数 */
   background?: number;
   /** 仍在运行的后台子代理；stoppable = 可以单独停止（Claude） */
@@ -86,6 +112,8 @@ export interface HarnessTabMessage {
   textBreaks?: number[];
   durationMs?: number;
   usage?: HarnessUsage;
+  /** 产生这条助手消息的模型（主进程在一轮结束时记下；旧消息没有） */
+  model?: string;
   stopped?: true;
   /** CLI 自发的一轮（后台子代理完成后主代理的跟进） */
   origin?: 'background';
@@ -158,6 +186,9 @@ export type HarnessLiveEvent =
       agent?: string;
       /** 超时自动拒绝的时间点（ms） */
       expiresAt?: number;
+      /** ExitPlanMode / 按此方案执行（PR3） */
+      kind?: 'tool' | 'approve-plan';
+      toolName?: string;
     }
   | ({ tabId: string } & LiveAgentEvent)
   | {
@@ -239,7 +270,7 @@ const bridge = (): AiBridge | undefined => {
 
 async function call<T>(method: string, ...args: unknown[]): Promise<T> {
   const b = bridge();
-  if (!b) throw new Error(t('编程助手接入需要在桌面应用中使用'));
+  if (!b) throw new Error(t('ui.mascot-theme.coding-agent-harness-requires-the-desktop-app'));
   const r = (await b.invoke(`ai:harness:${method}`, ...args)) as T & {
     __error?: { message: string };
   };
@@ -370,6 +401,8 @@ export const harnessClient = {
     cwd?: string;
     title?: string;
     messages?: HarnessTabMessage[];
+    /** backend = 'external' 时：外部插件 id（「添加 CLI」，§5.9） */
+    pluginId?: string;
   }) => call<HarnessTabMeta>('tab-create', o),
   seedTabMessages: (id: string, messages: HarnessTabMessage[]) =>
     call<HarnessTabMeta>('tab-seed', id, messages),
@@ -392,14 +425,27 @@ export const harnessClient = {
     call<BackendModelCatalog | null>('model-catalog', backend, opts),
   /** 切换标签来源；第三方时 model 是网关的 `供应商/模型`（省略 = 这个 CLI 分配的默认模型） */
   setTabSource: (id: string, source: TabSource, model?: string) =>
-    call<HarnessTabMeta>('tab-source', id, source, ...(model ? [model] : [])),
+    call<HarnessTabMeta>('tab-source', id, source, ...(model ? [model] : [])).then((tab) => {
+      // 换来源同时选了模型：同样是会话中途换模型
+      if (model) noteModelSwitch(id, model);
+      return tab;
+    }),
   /** 设置标签模型覆盖；传空串清除（沿用 CLI 默认模型），非推理模型会同步清除思考深度 */
   /** expectSource：选模型时看到的目录来源；主进程发现标签来源已变就拒绝（#83） */
   setTabModel: (id: string, model: string, opts: { expectSource?: TabSource } = {}) =>
-    call<HarnessTabMeta>('tab-model', id, model, opts),
+    call<HarnessTabMeta>('tab-model', id, model, opts).then((tab) => {
+      noteModelSwitch(id, model);
+      return tab;
+    }),
   /** 设置标签思考深度；传 null 清除（沿用 CLI 默认档位） */
   setTabEffort: (id: string, effort: ReasoningEffort | null) =>
     call<HarnessTabMeta>('tab-effort', id, effort),
+  /** 第三方标签开 / 关长上下文（null = 跟随模型默认）：下一条消息起按新窗口重启进程，对话保留 */
+  setTabLongContext: (id: string, on: boolean | null) =>
+    call<HarnessTabMeta>('tab-long-context', id, on),
+  /** 官方标签换账号（null = 跟随默认账号）：只重启这个标签，下一条消息起生效 */
+  setTabAccount: (id: string, accountId: string | null) =>
+    call<HarnessTabMeta>('tab-account', id, accountId),
   activateTab: (id: string) => call<HarnessTabsState>('tab-activate', id),
   setTabBackend: (id: string, b: HarnessBackend) => call<HarnessTabMeta>('tab-backend', id, b),
   setTabCwd: (id: string, cwd: string, opts: { carry?: boolean } = {}) =>
@@ -410,8 +456,10 @@ export const harnessClient = {
   recentCwds: () => call<string[]>('recent-cwds'),
   pickTabCwd: (id: string) => call<HarnessTabMeta>('tab-pick-cwd', id),
   tabMessages: (id: string) => call<HarnessTabMessage[]>('tab-messages', id),
-  sendTab: (id: string, prompt: string, images?: HarnessImageInput[]) =>
-    call<HarnessSendResult>('tab-send', id, prompt, images),
+  sendTab: (id: string, prompt: string, images?: HarnessImageInput[]) => {
+    clearModelSwitch(id);
+    return call<HarnessSendResult>('tab-send', id, prompt, images);
+  },
   cancelTab: (id: string) => call<boolean>('tab-cancel', id),
   /** 单独停止一个后台子代理（Claude stop_task）；不支持时返回 false */
   stopAgent: (tabId: string, agentId: string) => call<boolean>('stop-agent', tabId, agentId),
@@ -426,9 +474,19 @@ export const harnessClient = {
       messageId,
       { confirmed: true },
     ),
-  /** 允许/拒绝 Claude 工具权限请求 */
-  replyPermission: (tabId: string, requestId: string, allow: boolean) =>
-    call<boolean>('reply-permission', tabId, requestId, allow),
+  /** 允许/拒绝工具权限请求；approvePlan 用于 PR3「批准计划」三选一 */
+  replyPermission: (
+    tabId: string,
+    requestId: string,
+    allow: boolean,
+    opts?: { approvePlan?: 'acceptEdits' | 'manual' | 'deny' },
+  ) =>
+    opts
+      ? call<boolean>('reply-permission', tabId, requestId, allow, opts)
+      : call<boolean>('reply-permission', tabId, requestId, allow),
+  /** PR3：批准计划卡（批准并自动改文件 / 批准并逐项确认 / 继续修改） */
+  replyApprovePlan: (tabId: string, requestId: string, choice: 'acceptEdits' | 'manual' | 'deny') =>
+    call<boolean>('reply-approve-plan', tabId, requestId, choice),
   onTabs: (fn: (s: HarnessTabsState) => void) =>
     bridge()?.on('ai:harness:tabs', (p) => fn(p as HarnessTabsState)) ?? (() => undefined),
   onTabMessage: (fn: (e: { tabId: string; message: HarnessTabMessage }) => void) =>

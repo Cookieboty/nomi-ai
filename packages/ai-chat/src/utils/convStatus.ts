@@ -54,34 +54,41 @@ export function deriveStatus(args: {
   items: readonly TimelineItem[];
 }): StatusInfo | null {
   const { phase, live, items } = args;
-  if (phase === 'queued') return { kind: 'queued', label: t('排队等待：其它标签完成后开始') };
+  if (phase === 'queued')
+    return { kind: 'queued', label: t('ui.usage-tools.queued-starts-when-other-tabs-finish') };
   if (phase !== 'running') return null;
   if (live?.permissions?.length)
     return {
       kind: 'permission',
       label:
         live.permissions.length > 1
-          ? t('等待你的确认（{0} 项）', String(live.permissions.length))
-          : t('等待你的确认'),
+          ? t('ui.chat-settings.waiting-for-your-confirmation', String(live.permissions.length))
+          : t('ui.usage-tools.waiting-for-your-confirmation'),
     };
   const st = live?.status;
-  if (st?.kind === 'compact') return { kind: 'compact', label: t('正在压缩上下文…') };
+  if (st?.kind === 'compact')
+    return { kind: 'compact', label: t('ui.usage-tools.compacting-context') };
   if (st?.kind === 'retry')
     return {
       kind: 'retry',
-      label: t('请求失败，正在重试{0}', attemptText(st.attempt, st.max)),
+      label: t('ui.usage-tools.request-failed-retrying', attemptText(st.attempt, st.max)),
       detail: st.text,
     };
   if (st?.kind === 'reconnect')
     return {
       kind: 'reconnect',
-      label: t('连接中断，正在重新连接{0}', attemptText(st.attempt, st.max)),
+      label: t('ui.usage-tools.connection-lost-reconnecting', attemptText(st.attempt, st.max)),
       detail: st.text,
     };
   const { call, subagent } = lastRunning(items);
   if (subagent) {
     const d = describeCall(subagent);
-    return { kind: 'subagent', label: t('子代理运行中'), detail: d.target };
+    // Nomi 派给编程助手的子任务（delegate_to_cli）：不是 CLI 自己的子代理
+    const label =
+      subagent.name === 'delegate_to_cli'
+        ? t('ui.session-workspace.coding-assistant-running')
+        : t('ui.usage-tools.sub-agent-running');
+    return { kind: 'subagent', label, detail: d.target };
   }
   if (call) {
     const d = describeCall(call);
@@ -89,9 +96,9 @@ export function deriveStatus(args: {
   }
   const last = items[items.length - 1];
   if (last?.type === 'thinking' && last.running)
-    return { kind: 'thinking', label: t('模型正在推理…') };
+    return { kind: 'thinking', label: t('ui.usage-tools.model-is-reasoning') };
   if ((!live || (live.firstEventAt === undefined && !live.text)) && !items.length)
-    return { kind: 'first-token', label: t('等待模型响应…') };
-  if (live?.text.trim()) return { kind: 'writing', label: t('正在生成回复') };
-  return { kind: 'working', label: t('正在处理…') };
+    return { kind: 'first-token', label: t('ui.usage-tools.waiting-for-the-model') };
+  if (live?.text.trim()) return { kind: 'writing', label: t('ui.usage-tools.writing-reply') };
+  return { kind: 'working', label: t('ui.chat-settings.processing') };
 }

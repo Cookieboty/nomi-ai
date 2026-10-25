@@ -47,6 +47,8 @@ export interface UsageSettings {
   dailyBudget: number;
   monthlyBudget: number;
   taskAlert: number;
+  /** 启动时自动同步模型数据（价格 + 模型参数）；距上次核对不足 12 小时不同步 */
+  modelsSyncAuto?: boolean;
 }
 
 export interface UsageBuiltinPrice extends UsageCustomPrice {
@@ -221,65 +223,6 @@ export interface UsageQuotaHook {
   problem?: 'invalid-settings' | 'unsupported-statusline';
 }
 
-/** 网关请求日志的一条（主进程 usage/gatewayRequests.ts；只有元数据，不含 Key 和对话内容） */
-export interface GatewayRequestEntry {
-  id: string;
-  ts: number;
-  client: string;
-  ingress: string;
-  wire?: string;
-  providerId?: string;
-  provider?: string;
-  keyId?: string;
-  key?: string;
-  model?: string;
-  status: number;
-  ms: number;
-  firstByteMs?: number;
-  attempts: number;
-  input: number;
-  output: number;
-  cacheRead: number;
-  cacheWrite: number;
-  reasoning?: number;
-  notes?: string[];
-  error?: string;
-}
-
-export interface GatewayAggRow {
-  key: string;
-  label: string;
-  requests: number;
-  failed: number;
-  fallbacks: number;
-  input: number;
-  output: number;
-  cacheRead: number;
-  cacheWrite: number;
-  tokens: number;
-  cacheHitRate: number | null;
-  avgMs: number;
-}
-
-export interface GatewayRequestsView {
-  requests: GatewayRequestEntry[];
-  summary: {
-    requests: number;
-    failed: number;
-    fallbacks: number;
-    input: number;
-    output: number;
-    cacheRead: number;
-    cacheWrite: number;
-    cacheHitRate: number | null;
-    avgMs: number;
-    avgFirstByteMs: number | null;
-  };
-  byProvider: GatewayAggRow[];
-  byKey: GatewayAggRow[];
-  trace: { enabled: boolean; dir: string };
-}
-
 interface AiBridge {
   invoke: (channel: string, ...args: unknown[]) => Promise<unknown>;
   on: (channel: string, fn: (payload: unknown) => void) => () => void;
@@ -290,9 +233,12 @@ const bridge = (): AiBridge | undefined => {
   return b && typeof b.invoke === 'function' ? b : undefined;
 };
 
+/** 在桌面应用里（有 preload 桥）才能调用用量服务 */
+export const usageClientAvailable = (): boolean => Boolean(bridge());
+
 async function call<T>(method: string, ...args: unknown[]): Promise<T> {
   const b = bridge();
-  if (!b) throw new Error(t('用量统计需要在桌面应用中使用'));
+  if (!b) throw new Error(t('ui.usage-tools.usage-statistics-require-the-desktop-app'));
   const r = (await b.invoke(`ai:usage:${method}`, ...args)) as T & {
     __error?: { message: string };
   };
@@ -322,18 +268,11 @@ export const usageClient = {
   quotaHook: () => call<UsageQuotaHook>('quota-hook'),
   setQuotaHook: (enabled: boolean) => call<UsageQuotaHook>('quota-hook-set', enabled),
   onChanged: (fn: () => void) => bridge()?.on('ai:usage:changed', () => fn()) ?? (() => undefined),
-  /** 统一网关最近 200 条请求 + 按供应商 / 按 Key 汇总 + 调试模式状态 */
-  gatewayRequests: () => call<GatewayRequestsView>('gateway-requests'),
-  setGatewayTrace: (enabled: boolean) =>
-    call<{ enabled: boolean; dir: string }>('gateway-trace-set', enabled),
-  clearGatewayRequests: () => call<GatewayRequestsView>('gateway-clear'),
-  onGatewayChanged: (fn: () => void) =>
-    bridge()?.on('ai:usage:gateway-changed', () => fn()) ?? (() => undefined),
 };
 
 /** 来源 → 展示名（Nomi 对话 / 各编程工具 / 其他） */
 export const USAGE_SOURCE_LABEL: Record<string, string> = {
-  nomi: 'Nomi 对话',
+  nomi: 'ui.usage-tools.nomi-chat',
   claude: 'Claude Code',
   codex: 'Codex',
   dsh: 'dsh',
@@ -347,5 +286,5 @@ export const USAGE_SOURCE_LABEL: Record<string, string> = {
   cline: 'Cline',
   continue: 'Continue',
   cursor: 'Cursor',
-  other: '其他供应商',
+  other: 'ui.usage-tools.other-providers',
 };

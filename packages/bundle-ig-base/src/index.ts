@@ -7,3 +7,4 @@
 export * from './types';
 export * from './seams';
 export * from './plugins';
+export * from './toolCaller';

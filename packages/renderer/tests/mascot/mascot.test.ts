@@ -1,3 +1,4 @@
+import { t } from '@nomi-ai/ui';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { mascotReducer, type MascotState } from '../../src/contexts/MascotContext';
@@ -108,7 +109,7 @@ describe('MascotContext reducer', () => {
 
 describe('misc', () => {
   it('has original tips without Live2D selectors', () => {
-    expect(greetingFor(8)).toMatch(/早上好/);
-    expect(MOUSEOVER_TIPS.some((t) => t.selector.includes('live2d'))).toBe(false);
+    expect(t(greetingFor(8))).toMatch(/早上好/);
+    expect(MOUSEOVER_TIPS.some((tip) => tip.selector.includes('live2d'))).toBe(false);
   });
 });

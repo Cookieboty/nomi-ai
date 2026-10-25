@@ -15,9 +15,9 @@ import { EndpointIcon } from '../EndpointIcon';
 import styles from './index.module.css';
 
 const OPTIONS: Array<{ value: EndpointVisibility; label: () => string }> = [
-  { value: 'auto', label: () => t('自动') },
-  { value: 'show', label: () => t('显示') },
-  { value: 'hide', label: () => t('隐藏') },
+  { value: 'auto', label: () => t('ui.foundation.auto') },
+  { value: 'show', label: () => t('ui.chat-settings.show') },
+  { value: 'hide', label: () => t('ui.chat-settings.hide') },
 ];
 
 export const EndpointVisibilityMenu: React.FC<{
@@ -63,7 +63,7 @@ export const EndpointVisibilityMenu: React.FC<{
     const [b] = next.splice(from, 1);
     next.splice(to, 0, b!);
     onReorder(next);
-    setLive(t('{0} 移到第 {1} 位', ENDPOINT_FULL[b!](), to + 1));
+    setLive(t('ui.chat-settings.moved-to-position', ENDPOINT_FULL[b!](), to + 1));
   };
 
   return (
@@ -72,8 +72,8 @@ export const EndpointVisibilityMenu: React.FC<{
         ref={btnRef}
         type="button"
         className={styles.epChip}
-        aria-label={t('选择侧栏显示的端点')}
-        title={t('选择侧栏显示的端点')}
+        aria-label={t('ui.chat-settings.choose-which-endpoints-show-in-the-sidebar')}
+        title={t('ui.chat-settings.choose-which-endpoints-show-in-the-sidebar')}
         aria-haspopup="dialog"
         aria-expanded={open}
         data-testid="endpoint-visibility"
@@ -85,15 +85,19 @@ export const EndpointVisibilityMenu: React.FC<{
         <div
           className={styles.epVisMenu}
           role="dialog"
-          aria-label={t('侧栏显示的端点')}
+          aria-label={t('ui.chat-settings.endpoints-shown-in-the-sidebar')}
           data-testid="endpoint-visibility-menu"
         >
           <p className={styles.epVisHint}>
-            {t('自动：有对话时才显示，没有对话就不占位置。拖动调整顺序，侧栏最多显示 5 个。')}
+            {t('ui.chat-settings.auto-shown-only-when-it-has-conversations-drag')}
           </p>
           {onReorder && (
             <div className={styles.epVisOrder}>
-              <span>{customOrder ? t('自定义顺序') : t('按对话数排序')}</span>
+              <span>
+                {customOrder
+                  ? t('ui.chat-settings.custom-order')
+                  : t('ui.chat-settings.sorted-by-conversation-count')}
+              </span>
               {customOrder && (
                 <button
                   type="button"
@@ -101,10 +105,10 @@ export const EndpointVisibilityMenu: React.FC<{
                   data-testid="endpoint-order-reset"
                   onClick={() => {
                     onReorder(null);
-                    setLive(t('已恢复按对话数排序'));
+                    setLive(t('ui.chat-settings.sorted-by-conversation-count-again'));
                   }}
                 >
-                  {t('恢复按对话数排序')}
+                  {t('ui.chat-settings.sort-by-conversation-count')}
                 </button>
               )}
             </div>
@@ -140,8 +144,8 @@ export const EndpointVisibilityMenu: React.FC<{
                   <button
                     type="button"
                     className={styles.epVisGrip}
-                    aria-label={t('{0}，第 {1} 位。Alt+↑/↓ 调整顺序', name, i + 1)}
-                    title={t('拖动调整顺序')}
+                    aria-label={t('ui.chat-settings.position-alt-to-reorder', name, i + 1)}
+                    title={t('ui.chat-settings.drag-to-reorder')}
                     data-testid={`endpoint-order-grip-${b}`}
                     onKeyDown={(e) => {
                       if (!e.altKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
@@ -160,7 +164,7 @@ export const EndpointVisibilityMenu: React.FC<{
                 <div
                   className={styles.seg}
                   role="radiogroup"
-                  aria-label={t('{0} 的显示方式', name)}
+                  aria-label={t('ui.chat-settings.how-is-shown', name)}
                 >
                   {OPTIONS.map((o) => (
                     <button

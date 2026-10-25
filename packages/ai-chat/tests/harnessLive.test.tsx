@@ -56,6 +56,7 @@ function mockIpc() {
   return {
     invoke,
     emit: (events: unknown[]) => listeners['ai:harness:events']?.forEach((f) => f(events)),
+    emitMessage: (p: unknown) => listeners['ai:harness:tab-message']?.forEach((f) => f(p)),
   };
 }
 
@@ -112,5 +113,62 @@ describe('HarnessTabsContext 实时进度', () => {
     expect(seen.text).toBe('你好');
     expect(tabsRenders).toBe(tabsBefore);
     expect(otherRenders).toBe(otherBefore);
+  });
+});
+
+describe('HarnessTabsContext 回合定稿', () => {
+  /** 记录每次渲染时的「定稿消息数 / 是否还有实时进度」 */
+  async function setup() {
+    const ipc = mockIpc();
+    const frames: Array<{ messages: number; live: boolean }> = [];
+    const tabs: { current: ReturnType<typeof useHarnessTabs> | null } = { current: null };
+    const Probe: React.FC = () => {
+      tabs.current = useHarnessTabs();
+      const live = useHarnessLive((l) => l.a);
+      frames.push({ messages: tabs.current.messages.length, live: !!live });
+      return null;
+    };
+    render(
+      <HarnessTabsProvider>
+        <Probe />
+      </HarnessTabsProvider>,
+    );
+    await waitFor(() => expect(tabs.current?.activeTab?.id).toBe('a'));
+    await waitFor(() =>
+      expect(ipc.invoke).toHaveBeenCalledWith('ai:harness:tab-messages', expect.anything()),
+    );
+    await act(() => new Promise((r) => setTimeout(r, 0)));
+    return { ipc, frames };
+  }
+  const message = (extra: object = {}) => ({
+    tabId: 'a',
+    message: { id: 'm1', role: 'assistant', content: '你好', timestamp: 1, ...extra },
+  });
+
+  it('定稿助手消息一到就清掉实时进度，不等标签状态回到空闲', async () => {
+    const { ipc, frames } = await setup();
+    act(() => ipc.emit([{ tabId: 'a', type: 'text-delta', text: '你好' }]));
+    await act(() => new Promise((r) => setTimeout(r, 120)));
+    expect(frames.at(-1)).toEqual({ messages: 0, live: true });
+
+    // 最后一段流式事件还在缓冲里（未到下一帧）时定稿消息就到了
+    act(() => {
+      ipc.emit([{ tabId: 'a', type: 'text-delta', text: '！' }]);
+      ipc.emitMessage(message());
+    });
+    // 不等「已空闲」的标签状态：消息一到实时进度就清掉
+    expect(frames.at(-1)).toEqual({ messages: 1, live: false });
+    // 缓冲里的残余事件已先落下，兜底定时器之后也不会把进度重建出来
+    await act(() => new Promise((r) => setTimeout(r, 120)));
+    expect(frames.at(-1)).toEqual({ messages: 1, live: false });
+  });
+
+  it('后台自动回合的消息不清实时进度（用户回合可能还在进行）', async () => {
+    const { ipc, frames } = await setup();
+    act(() => ipc.emit([{ tabId: 'a', type: 'text-delta', text: '处理中' }]));
+    await act(() => new Promise((r) => setTimeout(r, 120)));
+    act(() => ipc.emitMessage(message({ origin: 'background' })));
+    await act(() => new Promise((r) => setTimeout(r, 0)));
+    expect(frames.at(-1)).toEqual({ messages: 1, live: true });
   });
 });

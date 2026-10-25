@@ -1,11 +1,11 @@
 /**
  * 端点相关的两组控件：
  *
- * - `EndpointControls`（输入栏左侧）：端点切换 + 编程助手的权限模式，只留发消息时要用的。
+ * - `EndpointControls`（输入栏左侧）：模型（编程助手还有权限模式），只留发消息时要用的。
+ *   端点在新建对话时选定，之后不在输入栏切换。
  * - `WorkspaceControl`（对话顶栏右侧，挨着「改动 · 文件」开关）：工作目录与换目录确认。
- * - `SessionControls`（输入框左下角）：「带上前文」标记；Nomi 对话的模型切换（NomiModelSwitch，统一网关）。
+ * - `SessionControls`（对话区顶部）：「带上前文」标记。
  *   编程助手的供应商在侧栏底部信息卡的「新标签默认」（CliDefaultSource）里设，模型在模型按钮里换。
- * 普通模式只有 Nomi，不显示端点切换。
  */
 import { Button, Icon, Modal, t } from '@nomi-ai/ui';
 import { History, X } from 'lucide-react';
@@ -17,10 +17,9 @@ import { useHarnessState } from '../../hooks/useHarnessState';
 import { gatewayClientAvailable } from '../../services/gatewayClient';
 import { MAIN_TAB_ID, harnessClient } from '../../services/harnessClient';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
-import { BackendSwitcher } from '../BackendSwitcher';
 import { ModelControls } from '../ModelControls';
 import { NomiModelSwitch } from '../NomiModelSwitch';
-import { BypassTip, PermissionModeChip } from '../PermissionModeChip';
+import { BypassTip, PermissionModeChip, type PermissionTab } from '../PermissionModeChip';
 import { WorkspacePicker } from '../WorkspacePicker';
 
 import styles from './index.module.css';
@@ -48,14 +47,27 @@ function useEndpoint() {
   return { isDev, tabs, harness, cli, tab };
 }
 
-/** 输入栏：端点切换 + 权限模式 */
+/** 输入栏：模型 + 权限模式（Nomi 的模型走统一网关，与编程助手的模型按钮同位置） */
 export const EndpointControls: React.FC = () => {
-  const { isDev, tabs, cli, tab } = useEndpoint();
+  const { tabs, harness, cli, tab } = useEndpoint();
   // 主对话标签切到 CLI 后端时也有权限模式（主进程里它同样是一个标签）
   const modeTab = tab ?? tabs.state?.tabs.find((x) => x.id === MAIN_TAB_ID) ?? null;
+  // Nomi 对话（主标签）：权限模式作用在 Nomi 自己的工具上；主标签不在标签列表里，用 harness 状态
+  // 等标签列表到了再判断：否则当前是 CLI 标签时会先闪一下 Nomi 的按钮
+  const nomiTab: PermissionTab | null =
+    tabs.state && !cli && harness?.backend === 'nomi'
+      ? {
+          id: MAIN_TAB_ID,
+          backend: 'nomi',
+          cwd: harness.cwd,
+          title: '',
+          permissionMode: harness.permissionMode,
+        }
+      : null;
   return (
     <>
-      {isDev && <BackendSwitcher />}
+      {!cli && gatewayClientAvailable() && <NomiModelSwitch />}
+      {nomiTab && <PermissionModeChip tab={nomiTab} />}
       {cli && modeTab && (
         <>
           <ModelControls key={`model-${modeTab.backend}`} tab={modeTab} />
@@ -132,16 +144,16 @@ function useCwdSwitch() {
           <Modal
             open
             onClose={() => setPendingCwd(null)}
-            title={t('切换工作目录')}
-            closeLabel={t('取消')}
+            title={t('ui.chat-settings.switch-working-directory')}
+            closeLabel={t('ui.foundation.cancel')}
             data-testid="cli-cwd-switch"
             footer={
               <div className={styles.actions}>
                 <Button data-testid="cli-cwd-cancel" onClick={() => setPendingCwd(null)}>
-                  {t('取消')}
+                  {t('ui.foundation.cancel')}
                 </Button>
                 <Button data-testid="cli-cwd-fresh" onClick={() => choose('fresh')}>
-                  {t('开新会话')}
+                  {t('ui.chat-settings.start-a-new-session')}
                 </Button>
                 <Button
                   variant="primary"
@@ -150,27 +162,30 @@ function useCwdSwitch() {
                   data-testid="cli-cwd-carry"
                   onClick={() => choose('carry')}
                 >
-                  {t('带上当前对话')}
+                  {t('ui.chat-settings.bring-this-conversation')}
                 </Button>
               </div>
             }
           >
             <div className={styles.body}>
               <p>
-                {t('换到')} <code className={styles.path}>{pending.next}</code>
+                {t('ui.chat-settings.switch-to')}{' '}
+                <code className={styles.path}>{pending.next}</code>
               </p>
               <p className="cd-muted" data-testid="cli-cwd-switch-origin">
-                {t('标签「{0}」', pending.title)} ·{' '}
+                {t('ui.chat-settings.tab', pending.title)} ·{' '}
                 <code className={styles.path}>{pending.originCwd}</code>
               </p>
               <p className="cd-muted">
                 {t(
-                  '{0} 的会话和工作目录绑定，换目录后会开一个新会话。可以把当前对话作为前文带过去，让它接着做；也可以从头开始。',
+                  'ui.chat-settings.sessions-are-tied-to-their-working-directory-so',
                   ENDPOINT_NAME[cli ?? 'claude'],
                 )}
               </p>
               {running && (
-                <p className="cd-muted">{t('正在运行的这一轮不会中断，会在原目录跑完。')}</p>
+                <p className="cd-muted">
+                  {t('ui.chat-settings.the-turn-that-is-running-won-t-be')}
+                </p>
               )}
             </div>
           </Modal>
@@ -199,40 +214,36 @@ export const WorkspaceControl: React.FC = () => {
 };
 
 /**
- * 输入框左下角：「带上前文」标记（换目录 / 换来源后才有）；Nomi 对话的模型切换。
+ * 对话区顶部：「带上前文」标记（换目录 / 换来源后才有）。
  * 编程助手的供应商在侧栏底部信息卡的「新标签默认」里设，已有会话用 `/model` 单独换。
  */
-export const SessionControls: React.FC<{ onManageNomi: () => void }> = ({ onManageNomi }) => {
+export const SessionControls: React.FC = () => {
   const { cli, tab } = useEndpoint();
   const carry = cli && tab?.carriedMessages ? tab : null;
-  const nomiProviders = !cli && gatewayClientAvailable();
-  if (!carry && !nomiProviders) return null;
+  if (!carry) return null;
 
   return (
     <div className={styles.session} data-testid="session-controls">
-      {carry ? (
-        <span
-          className={styles.carry}
-          data-testid="cli-carry-chip"
-          title={t(
-            '下一条消息会连同之前的 {0} 条对话一起发给新会话',
-            String(carry.carriedMessages),
-          )}
+      <span
+        className={styles.carry}
+        data-testid="cli-carry-chip"
+        title={t(
+          'ui.chat-settings.your-next-message-will-be-sent-to-the',
+          String(carry.carriedMessages),
+        )}
+      >
+        <Icon icon={History} size={14} />
+        {t('ui.chat-settings.with-context', String(carry.carriedMessages))}
+        <button
+          type="button"
+          className={styles.carryX}
+          aria-label={t('ui.chat-settings.don-t-bring-the-context')}
+          data-testid="cli-carry-clear"
+          onClick={() => void harnessClient.clearTabCarry(carry.id).catch(() => undefined)}
         >
-          <Icon icon={History} size={14} />
-          {t('带上前文 · {0} 条', String(carry.carriedMessages))}
-          <button
-            type="button"
-            className={styles.carryX}
-            aria-label={t('不带前文')}
-            data-testid="cli-carry-clear"
-            onClick={() => void harnessClient.clearTabCarry(carry.id).catch(() => undefined)}
-          >
-            <Icon icon={X} size={12} />
-          </button>
-        </span>
-      ) : null}
-      {nomiProviders && <NomiModelSwitch onManage={onManageNomi} />}
+          <Icon icon={X} size={12} />
+        </button>
+      </span>
     </div>
   );
 };

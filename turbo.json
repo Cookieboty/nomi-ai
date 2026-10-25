@@ -30,6 +30,18 @@
       "outputs": ["dist/**", "build/**", ".turbo/**"],
       "inputs": ["$TURBO_DEFAULT$", "!README.md", "!CHANGELOG.md", "!coverage/**", "!dist/**"]
     },
+    "@nomi-ai/i18n#build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", "dist-cjs/**"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!README.md",
+        "!CHANGELOG.md",
+        "!coverage/**",
+        "!dist/**",
+        "!dist-cjs/**"
+      ]
+    },
     "@nomi-ai/renderer#build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**", "build/**", ".turbo/**"],
@@ -132,6 +144,20 @@
     "package:debug": {
       "cache": false,
       "dependsOn": ["build"]
+    },
+    "@nomi-ai/gateway#test": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!README.md",
+        "!CHANGELOG.md",
+        "!coverage/**",
+        "!dist/**",
+        "$TURBO_ROOT$/packages/cli-plugins/src/gateways.ts",
+        "$TURBO_ROOT$/packages/cli-plugins/src/**",
+        "$TURBO_ROOT$/packages/ai-runtime/src/providers/presets.ts"
+      ]
     }
   }
 }

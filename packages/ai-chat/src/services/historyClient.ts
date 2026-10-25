@@ -1,8 +1,9 @@
+import type { BuiltinCliId } from '@nomi-ai/cli-plugins';
 import { t } from '@nomi-ai/ui';
 
 import type { HarnessTabMeta } from './harnessClient';
 
-export type HistoryBackend = 'claude' | 'codex' | 'dsh' | 'gemini' | 'grok';
+export type HistoryBackend = BuiltinCliId;
 export const HISTORY_BACKENDS: readonly HistoryBackend[] = [
   'claude',
   'codex',
@@ -66,7 +67,7 @@ const bridge = (): AiBridge | undefined => {
 
 async function call<T>(channel: string, ...args: unknown[]): Promise<T> {
   const b = bridge();
-  if (!b) throw new Error(t('编程助手接入需要在桌面应用中使用'));
+  if (!b) throw new Error(t('ui.mascot-theme.coding-agent-harness-requires-the-desktop-app'));
   const r = (await b.invoke(channel, ...args)) as T & { __error?: { message: string } };
   if (r && typeof r === 'object' && '__error' in r && r.__error) throw new Error(r.__error.message);
   return r;

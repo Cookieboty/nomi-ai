@@ -411,14 +411,6 @@
 .composerBar .modelStatus :global(.cd-dropdown) {
   min-width: 48px;
 }
-/* 后端切换器的内联 minWidth 112 在窄栏里是挤爆的主因 */
-.composerBar .modelStatus [data-testid='backend-switcher'] {
-  flex: 0 0 auto;
-}
-.composerBar .modelStatus [data-testid='backend-switcher'] :global(.cd-dropdown) {
-  min-width: 0 !important;
-  width: auto !important;
-}
 .composerBar .modelStatus [data-testid='cli-workspace'] {
   flex: 0 1 auto;
   min-width: 0;
@@ -431,13 +423,6 @@
 }
 .composerBar .modelStatus [data-testid='open-provider-panel'] {
   flex: none;
-}
-@container composer (max-width: 600px) {
-  /* 后端切换器只留图标 + 箭头；「Nomi 工具已关闭」提示先隐藏 */
-  .composerBar .modelStatus [data-testid='backend-switcher'] :global(.cd-dropdown__value),
-  .composerBar .modelStatus [data-testid='harness-tools-off'] {
-    display: none;
-  }
 }
 @container composer (max-width: 480px) {
   /* 更窄：工作目录只留文件夹图标（完整路径在 title / 无障碍名称里） */

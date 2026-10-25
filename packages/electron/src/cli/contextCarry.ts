@@ -39,18 +39,13 @@ export function buildCarriedContext(
     kept = kept.slice(1);
   if (!kept.length) return null;
   const text = [
-    t(
-      '[Nomi] 以下是这个对话之前在 {0} 里的内容，工作目录已经换成当前目录。请把它当作上下文继续，不必复述：',
-      fromCwd,
-    ),
+    t('electron.common.nomi-below-is-this-conversation-so-far-from', fromCwd),
     '<previous_conversation>',
     ...kept,
     '</previous_conversation>',
   ].join('\n');
   return { text, messages: kept.length };
 }
-
-const CARRY_END = '</previous_conversation>\n\n---\n\n';
 
 /**
  * 前文能占多少字符，取决于 CLI 怎么收消息：
@@ -79,13 +74,10 @@ export function fitCarried(text: string, max: number): string | null {
   return parts.length ? `${head}${parts.join('\n')}${tail}` : null;
 }
 
-/** 从 CLI 落盘的用户消息里去掉 Nomi 带入的前文，只留用户原话（读历史时用） */
-export function stripCarriedContext(text: string): string {
-  const i = text.indexOf(CARRY_END);
-  return i >= 0 && text.trimStart().startsWith('[Nomi]') ? text.slice(i + CARRY_END.length) : text;
-}
-
 /** 新会话第一轮实际发给 CLI 的内容：前文 + 用户这条消息 */
 export function withCarriedContext(carried: string | null | undefined, prompt: string): string {
   return carried ? `${carried}\n\n---\n\n${prompt}` : prompt;
 }
+
+// 前文的结束标记与去除：约定放在 @nomi-ai/cli-sdk（插件的历史转录解析也用）
+export { stripCarriedContext } from '@nomi-ai/cli-sdk';

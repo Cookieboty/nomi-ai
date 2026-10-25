@@ -15,6 +15,7 @@ import type { LocalPanel as LocalPanelT } from './LocalPanel';
 import type { MemoryPanel as MemoryPanelT } from './MemoryPanel';
 import type { NotesPanel as NotesPanelT } from './NotesPanel';
 import { PanelFallback } from './PanelFallback';
+import type { QualityPanel as QualityPanelT } from './QualityPanel';
 import type { SchedulePanel as SchedulePanelT } from './SchedulePanel';
 import type { ScreenPanel as ScreenPanelT } from './ScreenPanel';
 import type { SettingsView as SettingsViewT } from './SettingsView';
@@ -117,4 +118,7 @@ export const LocalPanel: React.FC<PropsOf<typeof LocalPanelT>> = lazyPanel(() =>
 );
 export const UsagePanel: React.FC<PropsOf<typeof UsagePanelT>> = lazyComponent(() =>
   import('./UsagePanel').then((m) => m.UsagePanel),
+);
+export const QualityPanel: React.FC<PropsOf<typeof QualityPanelT>> = lazyComponent(() =>
+  import('./QualityPanel').then((m) => m.QualityPanel),
 );

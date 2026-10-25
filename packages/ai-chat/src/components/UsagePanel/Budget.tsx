@@ -73,7 +73,7 @@ export const Budget: React.FC<Props> = ({ state, onSettings, onCleared }) => {
   const commit = (k: BudgetKey) => {
     const n = parseAmount(vals[k]);
     if (n == null) {
-      setErr(t('金额需要是不小于 0 的数字（留空 = 不提醒）'));
+      setErr(t('ui.usage-tools.the-amount-must-be-a-number-0-leave'));
       return;
     }
     if (n !== st[k]) void patch({ [k]: n });
@@ -82,7 +82,7 @@ export const Budget: React.FC<Props> = ({ state, onSettings, onCleared }) => {
   const clear = async () => {
     if (
       !window.confirm(
-        t('清空全部 {0} 条用量记录？价格表和预算设置会保留，此操作不可撤销。', state.records),
+        t('ui.usage-tools.clear-all-usage-records-your-price-table-and', state.records),
       )
     )
       return;
@@ -108,7 +108,7 @@ export const Budget: React.FC<Props> = ({ state, onSettings, onCleared }) => {
           step="any"
           min="0"
           inputMode="decimal"
-          placeholder={t('不提醒')}
+          placeholder={t('ui.usage-tools.no-alert')}
           value={vals[k]}
           data-testid={testid}
           aria-label={label}
@@ -127,75 +127,69 @@ export const Budget: React.FC<Props> = ({ state, onSettings, onCleared }) => {
       {err && <p className={styles.err}>{err}</p>}
       <section className={styles.panel}>
         <header className={styles.panelHead}>
-          <h3>{t('预算与提醒')}</h3>
+          <h3>{t('ui.usage-tools.budget-and-alerts')}</h3>
           <Badge tone="neutral">{st.currency}</Badge>
         </header>
         <div className={styles.budgetGrid}>
-          {field('dailyBudget', t('每日预算'), 'usage-budget-daily')}
-          {field('monthlyBudget', t('每月预算'), 'usage-budget-monthly')}
-          {field('taskAlert', t('单个任务花费提醒线'), 'usage-budget-task')}
+          {field('dailyBudget', t('ui.usage-tools.daily-budget'), 'usage-budget-daily')}
+          {field('monthlyBudget', t('ui.usage-tools.monthly-budget'), 'usage-budget-monthly')}
+          {field(
+            'taskAlert',
+            t('ui.usage-tools.single-task-spend-alert-line'),
+            'usage-budget-task',
+          )}
         </div>
+        <p className={styles.dim}>{t('ui.usage-tools.you-are-alerted-once-at-80-and-once')}</p>
         <p className={styles.dim}>
-          {t(
-            '花费到预算的 80% 和 100% 时各提醒一次（Nomi 气泡 + 灵动岛，只显示不朗读）。单个任务指同一会话连续使用，超过提醒线时提醒一次。留空 = 不提醒。',
-          )}
-        </p>
-        <p className={styles.dim}>
-          {t(
-            '免打扰时不会弹出，等恢复后补提醒；未定价模型的用量不计入花费。金额按当前币种填写，切换币种时会按汇率换算。',
-          )}
+          {t('ui.usage-tools.alerts-are-held-back-during-quiet-mode-and')}
         </p>
       </section>
 
       <section className={styles.panel}>
         <header className={styles.panelHead}>
-          <h3>{t('隐私与数据')}</h3>
+          <h3>{t('ui.chat-settings.privacy-data')}</h3>
           <AppIcon icon={ShieldCheck} />
         </header>
         <div className={styles.switchCol}>
           <Switch
             checked={st.enabled}
             onChange={(v) => void patch({ enabled: v })}
-            label={t('记录 Token 用量')}
+            label={t('ui.usage-tools.record-token-usage')}
             data-testid="usage-enabled"
           />
           <Switch
             checked={st.readToolLogs}
             disabled={!st.enabled}
             onChange={(v) => void patch({ readToolLogs: v })}
-            label={t('读取本机编程工具的会话日志')}
+            label={t('ui.usage-tools.read-local-coding-tool-session-logs')}
             data-testid="usage-read-logs"
           />
           <Switch
             checked={st.activeQuotaRefresh}
             disabled={!st.enabled}
             onChange={(v) => void patch({ activeQuotaRefresh: v })}
-            label={t('主动刷新额度（点「刷新」时让官方 CLI 去取）')}
+            label={t('ui.usage-tools.active-quota-refresh-let-the-official-cli-fetch')}
             data-testid="usage-active-quota"
           />
         </div>
         <p className={styles.dim}>
-          {t(
-            '开启后，在额度卡点「刷新」且本机数据已过期时，才会临时启动 claude 或 codex（官方 CLI，用它自己的登录态取额度，Codex 会向 OpenAI 发一次请求）。从不自动轮询；关闭后刷新只重读本机已有的数据。',
-          )}
+          {t('ui.usage-tools.when-on-clicking-refresh-on-the-quota-card')}
         </p>
         <p className={styles.dim}>
-          {t(
-            '只提取时间、模型、Token 数和会话编号，不保存对话内容，也不读取任何账号凭据。关闭后仍会记录 Nomi 对话的用量。',
-          )}
+          {t('ui.usage-tools.only-the-time-model-token-counts-and-session')}
         </p>
         <label className={styles.budgetField}>
-          <span>{t('记录保留时长')}</span>
+          <span>{t('ui.usage-tools.record-retention')}</span>
           <Select
             size="sm"
-            aria-label={t('记录保留时长')}
+            aria-label={t('ui.usage-tools.record-retention')}
             data-testid="usage-retention"
             value={st.retention}
             onChange={(e) => void patch({ retention: e.target.value as UsageRetention })}
             options={[
-              { value: '90d', label: t('90 天') },
-              { value: '1y', label: t('1 年') },
-              { value: 'forever', label: t('永久保留') },
+              { value: '90d', label: t('ui.usage-tools.90-days') },
+              { value: '1y', label: t('ui.usage-tools.1-year') },
+              { value: 'forever', label: t('ui.usage-tools.keep-forever') },
             ]}
           />
         </label>
@@ -208,12 +202,12 @@ export const Budget: React.FC<Props> = ({ state, onSettings, onCleared }) => {
             data-testid="usage-clear"
           >
             <AppIcon icon={Trash2} />
-            {t('清空用量记录')}
+            {t('ui.usage-tools.clear-usage-records')}
           </Button>
-          <span className={styles.dim}>{t('当前 {0} 条记录', state.records)}</span>
+          <span className={styles.dim}>{t('ui.usage-tools.records', state.records)}</span>
         </div>
         <Notice tone="info" icon={ShieldCheck}>
-          {t('所有用量数据只保存在这台电脑上：不上传、不做云同步，也没有排行榜或分享入口。')}
+          {t('ui.usage-tools.all-usage-data-stays-on-this-computer-nothing')}
         </Notice>
       </section>
     </div>

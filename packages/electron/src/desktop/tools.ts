@@ -119,7 +119,11 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
       const code = e instanceof ToolError ? e.code : 'internal_error';
       const message = e instanceof Error ? e.message : String(e);
       const decision =
-        code === 'user_denied' ? 'denied' : code === 'timeout_denied' ? 'timeout' : 'error';
+        code === 'user_denied' || code === 'mode_blocked'
+          ? 'denied'
+          : code === 'timeout_denied'
+            ? 'timeout'
+            : 'error';
       audit.append({
         tool,
         args: args as Record<string, unknown>,
@@ -159,6 +163,11 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
     if (d === 'denied')
       throw new ToolError('user_denied', '用户拒绝了这个操作，不要重试同一个调用');
     if (d === 'timeout') throw new ToolError('timeout_denied', '120 秒内没有得到确认，已自动拒绝');
+    if (d === 'blocked')
+      throw new ToolError(
+        'mode_blocked',
+        '当前是「计划」（只读）权限模式，不能执行会修改内容的操作；先给出方案，等用户切换权限模式后再做',
+      );
     return d;
   }
 

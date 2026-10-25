@@ -5,10 +5,12 @@
 import { t } from '@nomi-ai/ui';
 import React, { useEffect, useRef } from 'react';
 
+import type { AgentOption } from '../../slash/agentComplete';
 import { kindLabel, sourceLabel } from '../../slash/cards';
 import type { SlashGroup } from '../../slash/registry';
 import type { SlashCommand } from '../../slash/types';
 import type { Range } from '../../utils/fuzzy';
+import { EndpointIcon } from '../EndpointIcon';
 
 import styles from './index.module.css';
 
@@ -54,16 +56,18 @@ export const SlashPalette: React.FC<Props> = ({
       <div className={styles.menu} role="menu" data-testid="slash-menu">
         <div className={styles.empty} data-testid="slash-empty">
           {blocked
-            ? t(
-                '/{0} 是 CLI 自带命令，当前这种接入用不了。Nomi 不会把它做成自己的命令。按 Enter 查看说明。',
-                blocked,
-              )
-            : t('没有叫 /{0} 的命令。按 Enter 不会发给模型；想发送普通文字请以 // 开头。', query)}
+            ? t('ui.slash-commands.is-a-built-in-cli-command-and-is', blocked)
+            : t('ui.slash-commands.no-command-named-enter-will-not-send-it', query)}
         </div>
       </div>
     );
   return (
-    <div className={styles.menu} role="menu" data-testid="slash-menu" aria-label={t('斜杠命令')}>
+    <div
+      className={styles.menu}
+      role="menu"
+      data-testid="slash-menu"
+      aria-label={t('ui.slash-commands.slash-commands')}
+    >
       {groups.map((g) => (
         <div key={g.source} role="group" aria-label={sourceLabel(g.source)} data-group={g.source}>
           <div className={styles.group}>{sourceLabel(g.source)}</div>
@@ -93,14 +97,75 @@ export const SlashPalette: React.FC<Props> = ({
                   {c.disabled ? c.disabled.reason : c.description}
                 </span>
                 {c.badge && <span className={styles.badge}>{c.badge}</span>}
-                <span className={styles.kind}>{c.disabled ? t('不可用') : kindLabel(c.kind)}</span>
+                <span className={styles.kind}>
+                  {c.disabled ? t('ui.slash-commands.unavailable') : kindLabel(c.kind)}
+                </span>
               </button>
             );
           })}
         </div>
       ))}
       <div className={styles.foot} aria-hidden="true">
-        {t('↑↓ 选择 · Enter 执行 · Tab 补全 · Esc 关闭')}
+        {t('ui.slash-commands.select-enter-run-tab-complete-esc-close')}
+      </div>
+    </div>
+  );
+};
+
+interface AgentProps {
+  options: readonly AgentOption[];
+  active: number;
+  onPick: (o: AgentOption) => void;
+  onHover: (i: number) => void;
+}
+
+/** `/agent ` 后的编程助手列表：沿用命令面板的样式；没安装的置灰、不可选 */
+export const AgentPalette: React.FC<AgentProps> = ({ options, active, onPick, onHover }) => {
+  const activeRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    activeRef.current?.scrollIntoView?.({ block: 'nearest' });
+  }, [active, options]);
+  return (
+    <div
+      className={styles.menu}
+      role="menu"
+      data-testid="slash-agent-menu"
+      aria-label={t('ui.providers-schedule.coding-agents')}
+    >
+      <div className={styles.group}>{t('ui.providers-schedule.coding-agents')}</div>
+      {options.length === 0 && (
+        <div className={styles.empty} data-testid="slash-agent-empty">
+          {t('ui.slash-commands.no-matching-coding-agent')}
+        </div>
+      )}
+      {options.map((o, i) => {
+        const on = i === active;
+        return (
+          <button
+            key={o.id}
+            ref={on ? activeRef : undefined}
+            type="button"
+            role="menuitem"
+            className={`${styles.item} ${on ? styles.on : ''}`}
+            data-testid={`slash-agent-${o.id}`}
+            aria-current={on ? 'true' : undefined}
+            disabled={!o.installed}
+            {...(o.installed ? {} : { 'data-disabled': 'true', 'aria-disabled': true })}
+            onMouseDown={(e) => e.preventDefault()}
+            onMouseMove={() => !on && onHover(i)}
+            onClick={() => o.installed && onPick(o)}
+          >
+            <EndpointIcon backend={o.id} size={16} decorative />
+            <span className={styles.name}>{o.name}</span>
+            <span className={styles.desc}>{o.id}</span>
+            {!o.installed && (
+              <span className={styles.kind}>{t('ui.mascot-theme.not-installed')}</span>
+            )}
+          </button>
+        );
+      })}
+      <div className={styles.foot} aria-hidden="true">
+        {t('ui.slash-commands.select-enter-tab-choose-esc-close')}
       </div>
     </div>
   );

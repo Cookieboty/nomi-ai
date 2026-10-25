@@ -3,9 +3,10 @@
  * 样本取自 2026-10-23 实测（Codex 0.163.0 app-server、Grok 1.0.67 streaming-json / ACP）；
  * Gemini 0.65 / dsh 0.2.1 按源码里的事件形状。
  */
-import { codexLastContext } from '../../../src/cli/codex/appServer';
-import { createGeminiMapper } from '../../../src/cli/gemini/geminiEvents';
-import { acpMetaContext, createDshParser, createGrokParser } from '../../../src/cli/streamParse';
+import { acpMetaContext, createDshParser, createGrokParser } from '@nomi-ai/cli-plugins/main';
+import { codexLastContext, createGeminiMapper } from '@nomi-ai/cli-sdk';
+
+import '../../../src/cli/pluginI18n';
 import type { HarnessEvent } from '../../../src/cli/types';
 
 const doneUsages = (events: HarnessEvent[]) =>

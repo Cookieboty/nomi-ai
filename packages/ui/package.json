@@ -28,6 +28,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@nomi-ai/i18n": "workspace:*",
     "lucide-react": "^1.55.0"
   },
   "peerDependencies": {

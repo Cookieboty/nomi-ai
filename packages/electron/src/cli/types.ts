@@ -1,20 +1,28 @@
 /** 编程助手 CLI 接入 · 共享类型 */
+import type { BuiltinCliId } from '@nomi-ai/cli-plugins';
+import type {
+  HarnessEvent,
+  HarnessPermissionMode,
+  HarnessTraceEvent,
+  HarnessUsage,
+} from '@nomi-ai/cli-sdk';
 
-export type HarnessBackend = 'nomi' | 'claude' | 'codex' | 'dsh' | 'grok' | 'gemini';
+/** 对话后端：Nomi 自己 + 内置编程助手（id 由 @nomi-ai/cli-plugins 按插件目录生成，P9.4） */
+export type HarnessBackend = 'nomi' | BuiltinCliId | 'external';
 
 /**
  * 编程助手权限模式（Nomi 统一五档，映射见 cli/permissionMode.ts）：
  * 计划（只读）/ 逐项确认 / 自动改文件 / 自动（模型判断）/ 完全放开
  */
-export type HarnessPermissionMode = 'plan' | 'manual' | 'acceptEdits' | 'auto' | 'bypass';
+export type { HarnessPermissionMode } from '@nomi-ai/cli-sdk';
 
-export type CliKind = 'claude' | 'codex' | 'dsh' | 'grok' | 'gemini' | 'cursor';
+export type CliKind = BuiltinCliId | 'cursor';
 
 /** 旧版有独立第三方供应商存储的 CLI（迁移 / 撤销旧全局配置时用） */
-export type CliProviderKind = 'claude' | 'codex' | 'dsh' | 'grok' | 'gemini';
+export type CliProviderKind = BuiltinCliId;
 
 /** 支持版本更新的 CLI */
-export type UpdatableCli = 'claude' | 'codex' | 'dsh' | 'grok' | 'gemini';
+export type UpdatableCli = BuiltinCliId;
 
 export interface CliInstallInfo {
   kind: CliKind;
@@ -37,97 +45,8 @@ export interface HarnessSessionState {
   busy: boolean;
 }
 
-export type HarnessEvent =
-  | { type: 'text-delta'; text: string }
-  | { type: 'text'; text: string }
-  | {
-      type: 'tool';
-      name: string;
-      status: 'start' | 'done' | 'error';
-      /** claude / dsh / grok：调用 id；codex：命令行 */
-      detail?: string;
-      /** 调用 id（codex 等 detail 不是 id 的后端） */
-      id?: string;
-      /** 参数（已裁剪的 JSON 或文本）；start 事件带，部分后端在结果事件里补 */
-      input?: string;
-      /** 工具输出（已裁剪） */
-      output?: string;
-      /** 子代理内部的调用：指向父工具调用 id */
-      parentId?: string;
-      /** 主进程收到该事件的时间（ms） */
-      at?: number;
-      /** 事件发生时助手正文的字符下标，用来把工具插回文字中间 */
-      textAt?: number;
-    }
-  | { type: 'thinking'; text: string; at?: number; textAt?: number }
-  | {
-      type: 'permission';
-      id: string;
-      summary: string;
-      /** 请求的工具调用 id（Claude can_use_tool.tool_use_id） */
-      toolUseId?: string;
-      /** 发起请求的子代理（描述 / 类型）；主代理自己的请求没有 */
-      agent?: string;
-      /** 超时自动拒绝的时间点（ms），界面显示倒计时 */
-      expiresAt?: number;
-    }
-  /**
-   * 子代理生命周期（docs/design/cli-subagents.md §3）：四个后端统一成这一种。
-   * id：Claude task_id / Codex 子线程 id / dsh callId；callId：派生它的工具调用 id。
-   */
-  | {
-      type: 'agent';
-      op: 'start' | 'progress' | 'end';
-      id: string;
-      callId?: string;
-      label?: string;
-      agentType?: string;
-      background?: boolean;
-      status?: 'running' | 'completed' | 'failed' | 'stopped';
-      progress?: string;
-      summary?: string;
-      usage?: { toolUses?: number; tokens?: number; durationMs?: number };
-    }
-  /** 权限请求已结束（用户允许 / 拒绝，或超时自动拒绝）：界面据此移除对应卡片 */
-  | { type: 'permission-resolved'; id: string; reason: 'allowed' | 'denied' | 'timeout' }
-  /** 非文本的等待 / 恢复状态：重试、重连、上下文压缩（clear 表示恢复正常） */
-  | {
-      type: 'status';
-      kind: 'retry' | 'reconnect' | 'compact' | 'clear';
-      text?: string;
-      attempt?: number;
-      max?: number;
-    }
-  /**
-   * 一轮进行中的实时上下文占用：主线程每次模型请求的输入 + 输出（与 usage.contextTokens 同口径），
-   * 以及上下文压缩后的新占用。一轮里可能多次请求、甚至自动压缩，只看轮末 usage 会一直停在旧值。
-   * tokens 为 null：压缩了但 CLI 没给压缩后的大小，丢弃旧值、等下一次请求。
-   * 各后端来源：Claude assistant.usage / compact_boundary；Codex thread/tokenUsage/updated；
-   * Gemini·Grok(ACP) usage_update；Grok streaming-json 逐请求 usage 行；dsh status/step_end。
-   * window：CLI 同时给了模型窗口时附带（Codex modelContextWindow、Gemini usage_update.size）。
-   */
-  | { type: 'context'; tokens: number | null; model?: string; window?: number }
-  | { type: 'done'; sessionId?: string; text: string; usage?: HarnessUsage }
-  | { type: 'error'; message: string };
-
-/** 一轮的用量（有数据时才有字段） */
-export interface HarnessUsage {
-  inputTokens?: number;
-  outputTokens?: number;
-  cacheReadTokens?: number;
-  costUsd?: number;
-  /** CLI 自己上报的总耗时（ms） */
-  durationMs?: number;
-  /**
-   * 当前上下文占用：这一轮**最后一次**模型请求的全部输入（含缓存读 / 写）+ 该次输出。
-   * 上面几项是整轮累计（计费口径），一轮里多次请求时远大于真实上下文；CLI 给了逐请求用量才有此值。
-   */
-  contextTokens?: number;
-  /** CLI 上报的模型上下文窗口（如 Claude modelUsage.contextWindow），优先于前端经验表 */
-  contextWindow?: number;
-  /** CLI 实际使用的主模型（标签没指定模型时，前端据此查窗口经验表） */
-  model?: string;
-}
+// 一轮的界面事件与用量：定义搬到 @nomi-ai/cli-sdk（驱动与插件共用，docs/design/cli-plugin-architecture.md §5.4）
+export type { HarnessEvent, HarnessUsage } from '@nomi-ai/cli-sdk';
 
 export interface HarnessSendResult {
   text: string;
@@ -157,37 +76,8 @@ export interface HarnessImageInput {
   source?: string;
 }
 
-export interface HarnessTabMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  /** 用户附图缩略图（不存全尺寸 base64） */
-  images?: Array<{ thumb: string; width: number; height: number; source?: string }>;
-  timestamp: number;
-  error?: boolean;
-  tools?: string[];
-  /** 本轮工具调用 / 思考的结构化轨迹（会话视图据此渲染分组、diff、耗时） */
-  trace?: HarnessTraceEvent[];
-  /** 助手正文里后一段消息的起始下标 */
-  textBreaks?: number[];
-  /** 本轮耗时（ms，从发出到结束） */
-  durationMs?: number;
-  /** 本轮用量（CLI 上报时才有） */
-  usage?: HarnessUsage;
-  /** 被用户中断 */
-  stopped?: true;
-  /** CLI 在没有用户消息的情况下自发的一轮（后台子代理完成后主代理的跟进） */
-  origin?: 'background';
-  /** Gemini 因为不信任这个文件夹而拒绝运行（错误卡片上提供「信任此文件夹」） */
-  geminiTrust?: {
-    folder: string;
-    /** 范围很大的文件夹（主目录、文稿、默认对话目录等），确认时额外提醒 */
-    broad?: boolean;
-  };
-}
-
-/** 持久化到消息里的轨迹事件：HarnessEvent 里的 tool / thinking */
-export type HarnessTraceEvent = Extract<HarnessEvent, { type: 'tool' | 'thinking' }>;
+// 标签消息与轨迹事件：定义搬到 @nomi-ai/cli-sdk（插件的历史转录解析也用）
+export type { HarnessTabMessage, HarnessTraceEvent } from '@nomi-ai/cli-sdk';
 
 /**
  * 对话标签：绑定后端 + CLI 会话 + 工作目录。
@@ -197,10 +87,28 @@ export type HarnessTraceEvent = Extract<HarnessEvent, { type: 'tool' | 'thinking
 /** 标签来源：官方账号（CLI 自带配置）/ 第三方模型（经 Nomi 统一网关，§4.3） */
 export type HarnessTabSource = 'official' | 'thirdParty';
 
+/** 由 Nomi 委派开的标签（docs/design/nomi-delegate-cli.md） */
+export interface HarnessDelegation {
+  by: 'nomi';
+  /** 派出它的 Nomi 工具调用 id：对话里的子任务卡片据此找到标签 */
+  callId?: string;
+  /** 交给编程助手的目标（卡片标题） */
+  goal: string;
+  /** 用户在标签里自己发过消息：标签归用户，审批等待恢复 120 秒 */
+  takenOver?: boolean;
+  /** 审批统计（结果里交回 Nomi） */
+  approvals: { asked: number; denied: number; timedOut: number };
+}
+
 export interface HarnessTabMeta {
   id: string;
   title: string;
   backend: HarnessBackend;
+  /**
+   * backend 为 'external' 时：用哪个外部插件（「设置 → 编程助手 → 添加 CLI」里的 id，§5.9）。
+   * 插件被删除后标签保留，发消息时报错。
+   */
+  pluginId?: string;
   cwd: string;
   cliSessionId: string | null;
   status: HarnessTabStatus;
@@ -210,6 +118,8 @@ export interface HarnessTabMeta {
   lastError?: string;
   /** 权限模式（已按后端降级）；「完全放开」不跨重启保留 */
   permissionMode: HarnessPermissionMode;
+  /** 由 Nomi 委派开的标签 */
+  delegation?: HarnessDelegation;
   /** 历史会话未记录权限时，首次握手从 CLI 当前会话模式同步；同步后清除。 */
   permissionModeSource?: 'history-cli';
   /**
@@ -231,8 +141,18 @@ export interface HarnessTabMeta {
   modelScope?: string | null;
   /** 其它模型来源下这个标签上次的选择（key：供应商 id，官方账号为 "official"） */
   modelByScope?: Record<string, { model: string | null; effort: string | null }>;
+  /**
+   * 第三方模型的长上下文选择（docs/design/unified-gateway.md §12.7.2）：只对记下的那个模型生效，
+   * 换了模型就不匹配、回到新模型的默认（「模型」页按模型设的）；null / 缺省 = 跟随模型默认。
+   */
+  longContext?: { model: string; on: boolean } | null;
   /** 来源；缺省 = 官方。第三方时 modelOverride 是 `供应商/模型`（null = 「模型」页给这个编程助手分配的） */
   source?: HarnessTabSource;
+  /**
+   * 官方来源下用哪个官方账号（docs/design/cli-plugin-architecture.md §5.10）：账号 id；
+   * null / 缺省 = 跟随默认账号。账号被删除后自动回到默认账号。
+   */
+  accountId?: string | null;
   /** 仍在运行的后台子代理 / 后台任务数（仅内存、仅广播；> 0 时不回收进程，关闭 / 停止前提示） */
   background?: number;
   /** 仍在运行的后台子代理（仅内存、仅广播）；stoppable = CLI 支持单独停止（Claude stop_task） */

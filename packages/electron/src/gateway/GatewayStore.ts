@@ -11,6 +11,7 @@ import path from 'path';
 import type { SecretCipher } from '@nomi-ai/ai-runtime';
 import {
   CLIENT_IDS,
+  clampMaxRequestBodyBytes,
   type ClientId,
   type ClientModels,
   type GatewayConfig,
@@ -21,9 +22,17 @@ import {
 
 import { writePrivateFileAtomic } from '../utils/privateFile';
 
+import {
+  presetEntry,
+  resolveModelMeta,
+  type MetaSource,
+  type PresetModelMeta,
+  type ResolvedModelMeta,
+} from './modelMeta';
 import type {
   ClientConfig,
   GatewayKey,
+  GatewayModel,
   GatewayProvider,
   GatewayStoreData,
   KeyEncryption,
@@ -76,6 +85,8 @@ export class GatewayStore {
       logger?: Logger;
       /** 按预设 id 取厂商差异（ai-runtime 的 presets，由调用方注入，避免这里加载 AI SDK） */
       presetQuirks?: (presetId: string | undefined) => ProviderQuirks | undefined;
+      /** 按预设 id 取预设整理的模型元数据（§12.7.2 第 2 级），同样由调用方注入 */
+      presetModels?: (presetId: string | undefined) => readonly PresetModelMeta[] | undefined;
     },
   ) {
     this.data = this.load();
@@ -189,7 +200,11 @@ export class GatewayStore {
 
   setClient(
     id: ClientId,
-    patch: { models?: ClientModels; newTabSource?: ClientConfig['newTabSource'] },
+    patch: {
+      models?: ClientModels;
+      newTabSource?: ClientConfig['newTabSource'];
+      newTabAccountId?: string | null;
+    },
   ): void {
     const c = this.data.clients[id];
     if (!c) throw new Error(`unknown client ${id}`);
@@ -206,6 +221,12 @@ export class GatewayStore {
           }
         : {}),
       ...(patch.newTabSource ? { newTabSource: patch.newTabSource } : {}),
+      // undefined = 不变；null = 清除（跟随默认账号）；字符串 = 指定账号（含 local-<cli>）
+      ...(patch.newTabAccountId !== undefined
+        ? patch.newTabAccountId
+          ? { newTabAccountId: patch.newTabAccountId }
+          : { newTabAccountId: undefined }
+        : {}),
     };
   }
 
@@ -238,6 +259,40 @@ export class GatewayStore {
     this.data.learned[providerId] = learned;
   }
 
+  /** 供应商里一个模型的生效元数据（§12.7.2）；presetId 给环境变量供应商用（它们不在 store 里） */
+  modelMeta(
+    p: Pick<GatewayProvider, 'presetId' | 'models'>,
+    modelId: string,
+    opts: { longContext?: boolean } = {},
+  ): ResolvedModelMeta {
+    return resolveModelMeta(
+      p.models.find((m) => m.id === modelId),
+      modelId,
+      presetEntry(this.d.presetModels?.(p.presetId), modelId),
+      opts,
+    );
+  }
+
+  /**
+   * 推给网关的模型条目：把用户 / 预设 / 模型列表给的上限写进去，网关按它压输出上限（§12.7.3）。
+   * 只来自内置目录的不写：网关自己也读目录，写进去会被当成用户设置、盖过供应商规格
+   */
+  private runtimeModels(p: GatewayProvider): GatewayModel[] {
+    const fromConfig = (src: MetaSource) => src !== 'catalog' && src !== 'default';
+    return p.models.map((m) => {
+      const r = this.modelMeta(p, m.id);
+      // 网关不按窗口拦请求：写模型的完整窗口，不受标准窗口 / 标签长上下文选择影响
+      const ctx = r.longContext
+        ? { v: r.longContext.full, src: r.longContext.fullSource }
+        : { v: r.ctx, src: r.source };
+      return {
+        ...m,
+        ...(fromConfig(ctx.src) ? { ctx: ctx.v } : {}),
+        ...(fromConfig(r.maxOutputSource) ? { maxOutput: r.maxOutput } : {}),
+      };
+    });
+  }
+
   private quirksOf(p: GatewayProvider): ProviderQuirks | undefined {
     const preset = this.d.presetQuirks?.(p.presetId);
     if (!preset && !p.quirks) return undefined;
@@ -255,6 +310,8 @@ export class GatewayStore {
       name: p.name,
       enabled: p.enabled,
       urls: p.urls,
+      // 按创建时的预设匹配网关的供应商规格（§6.3）
+      ...(p.presetId ? { preset: p.presetId } : {}),
       // 一个 Key 都没存的（本地服务）给一个空 Key，否则路由找不到候选
       keys: !p.keys.length
         ? [{ id: 'none', value: '', enabled: true }]
@@ -269,10 +326,12 @@ export class GatewayStore {
                     value,
                     ...(k.wire ? { wire: k.wire } : {}),
                     enabled: k.enabled,
+                    ...(k.maxConcurrency ? { maxConcurrency: k.maxConcurrency } : {}),
+                    ...(k.rpm ? { rpm: k.rpm } : {}),
                   },
                 ];
           }),
-      models: p.models,
+      models: this.runtimeModels(p),
       ...(p.fallback ? { fallback: p.fallback } : {}),
       ...(p.headers ? { headers: p.headers } : {}),
       ...(p.userAgent ? { userAgent: p.userAgent } : {}),
@@ -305,6 +364,10 @@ export class GatewayStore {
       ...(extra.legacyToken ? { legacyToken: extra.legacyToken } : {}),
       allowedPrivateHosts: this.data.allowedPrivateHosts,
       learned: this.data.learned,
+      ...(this.data.strictParams ? { strictParams: true } : {}),
+      ...(typeof this.data.maxRequestBodyBytes === 'number'
+        ? { maxRequestBodyBytes: clampMaxRequestBodyBytes(this.data.maxRequestBodyBytes) }
+        : {}),
     };
   }
 }

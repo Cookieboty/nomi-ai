@@ -16,7 +16,7 @@ export type { TabsProps, TabItem } from './Tabs';
 export { Badge, Tag } from './Badge';
 export type { BadgeProps, BadgeTone } from './Badge';
 export { Tooltip } from './Tooltip';
-export { ModelPicker, formatContext, splitModelRef } from './ModelPicker';
+export { ModelPicker, formatContext, splitModelRef, truncDigits } from './ModelPicker';
 export type { ModelPickerProps, PickerModel, PickerProvider } from './ModelPicker';
 export type { TooltipProps } from './Tooltip';
 export { Toast, ToastProvider, useToast } from './Toast';

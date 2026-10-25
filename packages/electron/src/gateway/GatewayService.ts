@@ -9,12 +9,19 @@ import fs from 'node:fs';
 import path from 'path';
 
 import type { ProviderStoreData, SecretCipher } from '@nomi-ai/ai-runtime';
+import { BUILTIN_MANIFESTS, isBuiltinCliId } from '@nomi-ai/cli-plugins';
 import {
+  buildCatalog,
+  catalogOverlayVersion,
+  catalogSize,
+  CATALOG_VERSION,
+  clampMaxRequestBodyBytes,
   CLIENT_IDS,
   detect,
   isPrivateHost,
   normalizeBases,
   preferredWire,
+  type BuiltinClientId,
   type ClientId,
   type ClientModels,
   type DetectResult,
@@ -26,10 +33,13 @@ import {
   type RuntimeProvider,
   type UsageEvent,
   type Wire,
+  readCatalogFile,
+  setCatalogOverlay,
 } from '@nomi-ai/gateway';
 
 import { t as tr } from '../i18n';
 import { guardedHandle } from '../security/guardedIpc';
+import { writePrivateFileAtomic } from '../utils/privateFile';
 
 import {
   agentLaunch,
@@ -40,8 +50,28 @@ import {
 } from './agents';
 import { GatewayProcess, type GatewayStatus } from './GatewayProcess';
 import { GatewayStore, maskKey } from './GatewayStore';
-import { migrateLegacy } from './migrate';
+import { archiveLegacyFiles, legacyFileCandidates, migrateLegacy } from './migrate';
+import type { MetaSource, PresetModelMeta, ResolvedModelMeta } from './modelMeta';
+import { TabTokens } from './TabTokens';
 import type { GatewayKey, GatewayModel, GatewayProvider, StoredProbe } from './types';
+
+type Effort = 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+const EFFORTS: readonly Effort[] = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
+
+/** Key 的并发 / 每分钟请求数：正整数才记，null / 0 / 非法值清除 */
+function withLimits(
+  key: GatewayKey,
+  input: { maxConcurrency?: number | null; rpm?: number | null },
+): GatewayKey {
+  const out: GatewayKey = { ...key };
+  for (const f of ['maxConcurrency', 'rpm'] as const) {
+    if (!(f in input)) continue;
+    const v = input[f];
+    if (typeof v === 'number' && Number.isInteger(v) && v > 0 && v <= 100_000) out[f] = v;
+    else delete out[f];
+  }
+  return out;
+}
 
 type Logger = { info(m: string, d?: unknown): void; warn(m: string, d?: unknown): void };
 type NomiRole = 'chat' | 'agent-tools' | 'summary';
@@ -59,6 +89,7 @@ function hasLearned(l: LearnedState | undefined): l is LearnedState {
     (Object.keys(l.wireDown ?? {}).length ||
       Object.keys(l.modelWire ?? {}).length ||
       Object.keys(l.droppedParams ?? {}).length ||
+      Object.keys(l.models ?? {}).length ||
       l.customToolsRefused?.length),
   );
 }
@@ -93,10 +124,19 @@ export interface ProviderInput {
     wire?: Wire;
     position?: number;
     enabled?: boolean;
+    maxConcurrency?: number | null;
+    rpm?: number | null;
   }>;
-  /** 已有 Key 的顺序 / 启用 / 名称（不在列表里的已有 Key 视为删除） */
-  keys?: Array<{ id: string; name?: string; enabled: boolean; wire?: Wire }>;
-  models?: GatewayModel[];
+  /** 已有 Key 的顺序 / 启用 / 名称 / 限流（不在列表里的已有 Key 视为删除） */
+  keys?: Array<{
+    id: string;
+    name?: string;
+    enabled: boolean;
+    wire?: Wire;
+    maxConcurrency?: number | null;
+    rpm?: number | null;
+  }>;
+  models?: ModelView[];
   modelMap?: Array<{ from: string; to: string }>;
   headers?: Record<string, string>;
   userAgent?: string;
@@ -106,8 +146,28 @@ export interface ProviderInput {
   quirks?: ProviderQuirks;
 }
 
-export interface ProviderView extends Omit<GatewayProvider, 'keys'> {
+/** 「模型」页的模型条目：存的值原样给（编辑用），另附按 §12.7.2 算出的生效值（显示用） */
+export interface ModelView extends GatewayModel {
+  effective?: {
+    ctx: number;
+    maxOutput: number;
+    reasoning?: boolean;
+    vision?: boolean;
+    source: MetaSource;
+    maxOutputSource: MetaSource;
+    /** 可开长上下文：标准窗口 / 最大输入 / 模型默认是否开启 / 超过标准窗口后的单价（USD 每百万 token） */
+    longContext?: {
+      standard: number;
+      full: number;
+      on: boolean;
+      price?: LongContextPrice;
+    };
+  };
+}
+
+export interface ProviderView extends Omit<GatewayProvider, 'keys' | 'models'> {
   keys: Array<Omit<GatewayKey, 'enc' | 'encryption'> & { decryptable: boolean }>;
+  models: ModelView[];
   /** 运行时学到的状态（§7.4），「模型」页显示并可清除 */
   learned?: LearnedState;
 }
@@ -116,15 +176,37 @@ export interface GatewayStateView {
   status: GatewayStatus;
   providers: ProviderView[];
   clients: Partial<
-    Record<ClientId, { models: ClientModels; newTabSource?: 'official' | 'thirdParty' }>
+    Record<
+      ClientId,
+      {
+        models: ClientModels;
+        newTabSource?: 'official' | 'thirdParty';
+        newTabAccountId?: string | null;
+      }
+    >
   >;
   allowedPrivateHosts: string[];
   port: number;
+  /** 严格模式（§6.9.6，默认关） */
+  strictParams: boolean;
+  /** 入站请求体上限（字节）；默认 32 MiB */
+  maxRequestBodyBytes: number;
   migratedFrom?: { at: number; files: string[] };
   /** Nomi 对话最近用过的模型（新的在前） */
   recentNomi?: string[];
+  /** 模型目录：收录的模型数、版本（同步日；没同步过是内置目录的生成日）、是否来自同步 */
+  catalog: { models: number; version: string; synced: boolean };
   /** 这次启动撤销旧版本全局配置的结果（§6.3 第 7 步）：撤销了哪些、哪些没撤成 */
   legacyRevoke?: { revoked: string[]; failed: Array<{ kind: string; error: string }> };
+}
+
+/** 长上下文计价：超过 size 个提示词 token 的请求按 tier 单价（USD / 百万 token） */
+export interface LongContextPrice {
+  size: number;
+  input: number;
+  output: number;
+  tierInput: number;
+  tierOutput: number;
 }
 
 export interface EnvProviderEntry {
@@ -160,13 +242,24 @@ export interface GatewayServiceDeps {
   envProviders?: () => EnvProviderEntry[];
   /** 按预设 id 取厂商差异（ai-runtime presets） */
   presetQuirks?: (presetId: string | undefined) => ProviderQuirks | undefined;
+  /** 长上下文的计价（用量服务的价格表：内置 + 同步 + 自定义），界面提示「超过标准窗口按多少计费」 */
+  longContextPrice?: (model: string) => LongContextPrice | undefined;
+  /** 按预设 id 取预设整理的模型元数据（ai-runtime presets 的 modelMeta，§12.7.2） */
+  presetModels?: (presetId: string | undefined) => readonly PresetModelMeta[] | undefined;
   /** 测试注入：疑似不可用的协议用它确认 */
   detectImpl?: typeof detect;
+  /** 测试注入：环境变量（NOMI_ROUTE_PLAN）；默认 process.env */
+  env?: NodeJS.ProcessEnv;
   broadcast?: (channel: string, payload: unknown) => void;
 }
 
+/** 同步到的模型目录至少要有这么多条，否则视为异常响应 */
+const MIN_SYNCED_MODELS = 100;
+
 export class GatewayService {
   readonly store: GatewayStore;
+  /** 第三方标签的进程级令牌与绑定（§6.7） */
+  readonly tabs: TabTokens;
   private readonly proc: GatewayProcess;
 
   constructor(private readonly d: GatewayServiceDeps) {
@@ -175,6 +268,7 @@ export class GatewayService {
       cipher: d.cipher,
       logger: d.logger,
       presetQuirks: d.presetQuirks,
+      presetModels: d.presetModels,
     });
     this.proc =
       d.process ??
@@ -185,9 +279,11 @@ export class GatewayService {
         onKeyStatus: (e) => this.keyStatus(e),
         onStatus: () => this.changed(),
       });
+    this.tabs = new TabTokens({ send: (m) => this.proc.send(m), logger: d.logger });
+    this.proc.bindTabs({ ack: (m) => this.tabs.onAck(m), spawn: () => this.tabs.replay() });
   }
 
-  /** 启动：迁移（只一次）→ 令牌 → 拉起网关 */
+  /** 启动：迁移（只一次）→ 归档残留旧文件 → 令牌 → 拉起网关 */
   init(): void {
     if (!this.store.exists() && this.d.legacy) {
       try {
@@ -207,8 +303,57 @@ export class GatewayService {
         this.d.logger.warn('gateway migration failed', e);
       }
     }
-    if (this.store.ensureClients() || !this.store.exists()) this.store.save();
+    const normalized = this.normalizeCliAssignments();
+    if (this.store.ensureClients() || normalized || !this.store.exists()) this.store.save();
+    this.archiveLeftoverLegacy();
+    // 上次同步到的模型目录（models.dev）：主进程的元数据解析先用上；网关进程按 catalogFile 自己读
+    setCatalogOverlay(readCatalogFile(this.catalogFile));
     this.push();
+  }
+
+  /* ------------------------------ 模型数据同步（§12.7.2） ------------------------------ */
+
+  private get catalogFile(): string {
+    return path.join(this.d.root, 'catalog-sync.json');
+  }
+
+  /** 已有同步到的模型目录（没有时模型数据同步要强制完整下载，不能被 304 跳过） */
+  hasCatalogSync(): boolean {
+    return catalogOverlayVersion() !== null;
+  }
+
+  /**
+   * 模型数据同步下载到的 models.dev api.json（用量服务的 PriceSync 转交）→ 生成模型目录覆盖层：
+   * 写进 userData、主进程立即生效、推配置让网关进程重读，并通知界面刷新生效值。
+   * 条目明显过少（异常响应）时不采用，保留原有目录。
+   */
+  applyModelsData(api: unknown): void {
+    const { fromFallback: _f, ...doc } = buildCatalog(api, new Date().toISOString().slice(0, 10));
+    void _f;
+    if (Object.keys(doc.models).length < MIN_SYNCED_MODELS) {
+      this.d.logger.warn('models data sync: too few models, keeping the current catalog', {
+        count: Object.keys(doc.models).length,
+      });
+      return;
+    }
+    fs.mkdirSync(this.d.root, { recursive: true });
+    writePrivateFileAtomic(this.catalogFile, JSON.stringify(doc));
+    setCatalogOverlay(doc);
+    this.push();
+    this.changed();
+  }
+
+  /**
+   * 已迁移（或网关已有供应商）时，把仍留在磁盘上的 ai-providers.json 与各 CLI 的 store.json
+   * 改名为 `.migrated` 后缀，避免运行时再读旧双轨存储。空且未迁移时不动，以免误归档未导入的配置。
+   */
+  private archiveLeftoverLegacy(): void {
+    if (!this.d.legacy) return;
+    const snap = this.store.snapshot();
+    if (!snap.migratedFrom && snap.providers.length === 0) return;
+    const left = legacyFileCandidates(this.d.legacy).filter((f) => fs.existsSync(f));
+    if (!left.length) return;
+    archiveLegacyFiles(left, this.d.logger);
   }
 
   private legacyRevoke: GatewayStateView['legacyRevoke'];
@@ -226,8 +371,13 @@ export class GatewayService {
     const cfg = this.config();
     // 会话归属表由网关进程自己读写（§11.4）
     cfg.sessionsFile = path.join(this.d.root, 'sessions.json');
+    if (this.hasCatalogSync()) cfg.catalogFile = this.catalogFile;
     const traceDir = this.d.traceDir?.();
     if (traceDir) cfg.traceDir = traceDir;
+    // 路由计划默认 active（按新计划选上游协议）；NOMI_ROUTE_PLAN=shadow 可回滚到影子模式（§6.9.4）
+    const rp = (this.d.env ?? process.env).NOMI_ROUTE_PLAN;
+    if (rp === 'shadow') cfg.routePlan = 'shadow';
+    else cfg.routePlan = 'active';
     // 旧路由占着端口时先用临时端口
     if (this.d.legacy?.routeListening()) cfg.port = 0;
     return cfg;
@@ -262,6 +412,31 @@ export class GatewayService {
       keys: [{ id: 'env', value: e.key ?? '', enabled: true }],
       models: e.model ? [{ id: e.model, enabled: true }] : [],
     }));
+  }
+
+  /**
+   * 第三方模型引用自带供应商，不能与「新标签默认」的官方 / 其它供应商来源分离保存。
+   * 旧版本可能已经留下不一致的组合，启动时统一修正一次。
+   */
+  private normalizeCliAssignments(): boolean {
+    const data = this.store.snapshot();
+    let changed = false;
+    for (const id of CLIENT_IDS) {
+      if (id === 'nomi') continue;
+      const client = data.clients[id];
+      if (!client) continue;
+      const main = client.models.main?.trim();
+      if (main && client.newTabSource !== 'thirdParty') {
+        client.newTabSource = 'thirdParty';
+        client.newTabAccountId = undefined;
+        changed = true;
+      } else if (!main && client.newTabSource === 'thirdParty') {
+        client.newTabSource = 'official';
+        changed = true;
+      }
+    }
+    if (changed) this.store.replace(data);
+    return changed;
   }
 
   private push(): void {
@@ -349,11 +524,20 @@ export class GatewayService {
 
   /* ------------------------------ 编程助手（§12） ------------------------------ */
 
-  /** 新标签默认用哪种来源、第三方时用哪个模型（clients.<cli>） */
-  cliDefaults(kind: AgentKind): { source: 'official' | 'thirdParty'; model: string | null } {
+  /** 新标签默认用哪种来源、第三方时用哪个模型、官方时用哪个账号（clients.<cli>，§12） */
+  cliDefaults(kind: AgentKind): {
+    source: 'official' | 'thirdParty';
+    model: string | null;
+    accountId: string | null;
+  } {
     const c = this.store.snapshot().clients[kind];
     const model = c?.models.main ?? null;
-    return { source: c?.newTabSource === 'thirdParty' && model ? 'thirdParty' : 'official', model };
+    return {
+      source: c?.newTabSource === 'thirdParty' && model ? 'thirdParty' : 'official',
+      model,
+      // 账号选择只在官方来源时有意义；切到第三方时忽略
+      accountId: c?.newTabSource === 'thirdParty' ? null : (c?.newTabAccountId ?? null),
+    };
   }
 
   /** 第三方标签可选的模型（启用的供应商里启用的模型，`供应商/模型`） */
@@ -363,20 +547,64 @@ export class GatewayService {
     label: string;
     reasoning?: boolean;
     vision?: boolean;
+    ctx?: number;
   }> {
     return [...this.store.providers(), ...this.envViews()]
       .filter((p) => p.enabled)
       .flatMap((p) =>
         p.models
           .filter((m) => m.enabled && m.toolCalling !== false)
-          .map((m) => ({
-            ref: `${p.id}/${m.id}`,
-            provider: p.name,
-            label: m.label ?? m.id,
-            ...(m.reasoning !== undefined ? { reasoning: m.reasoning } : {}),
-            ...(m.vision !== undefined ? { vision: m.vision } : {}),
-          })),
+          .map((m) => {
+            const meta = this.modelMetaOf(`${p.id}/${m.id}`);
+            return {
+              ref: `${p.id}/${m.id}`,
+              provider: p.name,
+              label: m.label ?? m.id,
+              ...(meta?.reasoning !== undefined ? { reasoning: meta.reasoning } : {}),
+              ...(meta?.vision !== undefined ? { vision: meta.vision } : {}),
+              ...(meta && meta.source !== 'default' ? { ctx: meta.ctx } : {}),
+            };
+          }),
       );
+  }
+
+  /**
+   * 按 `供应商/模型` 取生效元数据（§12.7.2：用户 > 预设 > 模型列表 > 内置目录 > 默认值）。
+   * 编程助手启动注入、终端命令、模型选择器共用；供应商不存在时返回 undefined。
+   */
+  modelMetaOf(ref: string, opts: { longContext?: boolean } = {}): ResolvedModelMeta | undefined {
+    const i = ref.indexOf('/');
+    if (i <= 0) return undefined;
+    const pid = ref.slice(0, i);
+    const mid = ref.slice(i + 1);
+    const p = this.store.providers().find((x) => x.id === pid);
+    if (p) return this.store.modelMeta(p, mid, opts);
+    // 环境变量供应商的 id 是 env-<预设 id>
+    const env = this.envViews().find((x) => x.id === pid);
+    return env
+      ? this.store.modelMeta({ presetId: pid.slice(4), models: env.models }, mid, opts)
+      : undefined;
+  }
+
+  /**
+   * 编程助手启动注入用的元数据：生效值加上显示名。
+   * longContext：这个标签对长上下文的选择（只对标签的主模型给；不给 = 按模型默认）
+   */
+  agentMeta(ref: string, opts: { longContext?: boolean } = {}): ModelMeta | undefined {
+    const meta = this.modelMetaOf(ref, opts);
+    if (!meta) return undefined;
+    const i = ref.indexOf('/');
+    const pid = ref.slice(0, i);
+    const p = [...this.store.providers(), ...this.envViews()].find((x) => x.id === pid);
+    const m = p?.models.find((x) => x.id === ref.slice(i + 1));
+    return {
+      label: m?.label ?? ref.slice(i + 1),
+      ...(p ? { provider: p.name } : {}),
+      ctx: meta.ctx,
+      maxOutput: meta.maxOutput,
+      ...(meta.reasoning !== undefined ? { reasoning: meta.reasoning } : {}),
+      ...(meta.vision !== undefined ? { vision: meta.vision } : {}),
+    };
   }
 
   /** 这个标签的进程级私有目录（Grok 私有 GROK_HOME、dsh 叠加文件等） */
@@ -388,33 +616,73 @@ export class GatewayService {
    * 第三方会话的进程级注入（环境变量、参数、要剔除的继承变量）。网关没在运行时返回 null，
    * 调用方报错而不是悄悄走官方。dir：这个标签的私有目录（Grok 私有 GROK_HOME、dsh 叠加文件）。
    */
-  cliLaunch(kind: AgentKind, tabId: string, model: string): AgentLaunch | null {
+  cliLaunch(
+    kind: AgentKind,
+    tabId: string,
+    model: string,
+    /** longContext：标签对长上下文的选择；不给 = 按模型默认（窗口进注入参数，变了会重启进程） */
+    opts: { tabBound?: boolean; longContext?: boolean } = {},
+  ): AgentLaunch | null {
+    // 按标签令牌启动（tabBound）且插件支持 gateway 方式换模型（清单 clientSpec.placeholderModel，
+    // 如 Grok 的 nomi）：配置里写占位名，真实模型只在绑定里，换模型不用重启（§6.7）。
+    // 同一个标签的同步 / 异步两条路径必须写出同一份配置，否则后写的会覆盖先写的
+    const placeholder = opts.tabBound ? placeholderModelOf(kind) : undefined;
     const ep = this.endpoint(kind);
     if (!ep) return null;
-    const metaOf = (ref: string): ModelMeta | undefined => {
-      const i = ref.indexOf('/');
-      const p = i > 0 ? this.store.providers().find((x) => x.id === ref.slice(0, i)) : undefined;
-      const m = p?.models.find((x) => x.id === ref.slice(i + 1));
-      return p && m
-        ? {
-            label: m.label ?? m.id,
-            provider: p.name,
-            ctx: m.ctx,
-            maxOutput: m.maxOutput,
-            reasoning: m.reasoning,
-            vision: m.vision,
-          }
-        : undefined;
-    };
     return agentLaunch(kind, {
       url: ep.url,
       token: ep.token,
       model,
-      metaOf,
+      // 标签的长上下文选择只作用于它的主模型；档位 / 子代理等其它模型按各自默认
+      metaOf: (ref) =>
+        this.agentMeta(
+          ref,
+          ref === model && opts.longContext !== undefined ? { longContext: opts.longContext } : {},
+        ),
       catalog: this.cliModels().map((m) => m.ref),
       models: this.store.snapshot().clients[kind]?.models ?? {},
       dir: this.agentDir(kind, tabId),
+      ...(placeholder ? { placeholder } : {}),
     });
+  }
+
+  /**
+   * 同 cliLaunch，但给这个进程签一个标签令牌（`nomi-tab-`）并先在网关登记绑定（§6.7）：
+   * 网关按绑定解析这个标签的模型 / 思考深度，请求日志带标签 id。每次启动进程（含回收后重启、
+   * 重启型换模型）调一次，得到新代次；进程退出或标签关闭时调 releaseTab。
+   * 网关没在运行或不确认绑定时 reject，调用方报错而不是带着无效令牌启动。
+   */
+  async cliLaunchForTab(
+    kind: AgentKind,
+    tabId: string,
+    model: string,
+    effort?: string,
+    longContext?: boolean,
+  ): Promise<(AgentLaunch & { generation: number }) | null> {
+    const ep = this.endpoint(kind);
+    const launch = this.cliLaunch(kind, tabId, model, {
+      tabBound: true,
+      ...(longContext !== undefined ? { longContext } : {}),
+    });
+    if (!ep || !launch) return null;
+    const reg = await this.tabs.register({
+      client: kind,
+      tabId,
+      models: { ...this.store.snapshot().clients[kind]?.models, main: model },
+      ...(effort ? { effort } : {}),
+    });
+    const swap = (v: string) => v.split(ep.token).join(reg.token);
+    return {
+      ...launch,
+      env: Object.fromEntries(Object.entries(launch.env).map(([k, v]) => [k, swap(v)])),
+      args: launch.args.map(swap),
+      generation: reg.generation,
+    };
+  }
+
+  /** 第三方标签的进程退出 / 标签关闭：作废它的令牌 */
+  releaseTab(kind: AgentKind, tabId: string, generation?: number): void {
+    this.tabs.remove(kind, tabId, generation);
   }
 
   /**
@@ -434,6 +702,7 @@ export class GatewayService {
    * 只有 Claude 的会话键带 CLI 会话 id（x-claude-code-session-id）；查不到（含 30 天淘汰）返回 false。
    */
   servedSession(kind: AgentKind, sessionId: string): boolean {
+    // eslint-disable-next-line nomi/no-cli-literal -- 只有 Claude 的会话键带 CLI 会话 id（x-claude-code-session-id）
     if (kind !== 'claude' || !sessionId) return false;
     try {
       const raw = JSON.parse(fs.readFileSync(path.join(this.d.root, 'sessions.json'), 'utf8')) as {
@@ -527,13 +796,25 @@ export class GatewayService {
       providers: [
         ...data.providers.map((p) => ({
           ...p,
+          models: p.models.map((m) =>
+            withEffective(m, this.store.modelMeta(p, m.id), this.d.longContextPrice),
+          ),
           keys: p.keys.map(({ enc, encryption, ...k }) => ({
             ...k,
             decryptable: this.store.decrypt(enc, encryption) !== null,
           })),
           ...(hasLearned(data.learned[p.id]) ? { learned: data.learned[p.id] } : {}),
         })),
-        ...this.envViews(),
+        ...this.envViews().map((p) => ({
+          ...p,
+          models: p.models.map((m) =>
+            withEffective(
+              m,
+              this.store.modelMeta({ presetId: p.id.slice(4), models: [m] }, m.id),
+              this.d.longContextPrice,
+            ),
+          ),
+        })),
       ],
       clients: Object.fromEntries(
         CLIENT_IDS.flatMap((id) => {
@@ -542,7 +823,11 @@ export class GatewayService {
             ? [
                 [
                   id,
-                  { models: c.models, ...(c.newTabSource ? { newTabSource: c.newTabSource } : {}) },
+                  {
+                    models: c.models,
+                    ...(c.newTabSource ? { newTabSource: c.newTabSource } : {}),
+                    ...(c.newTabAccountId ? { newTabAccountId: c.newTabAccountId } : {}),
+                  },
                 ],
               ]
             : [];
@@ -550,8 +835,15 @@ export class GatewayService {
       ),
       allowedPrivateHosts: data.allowedPrivateHosts,
       port: data.port,
+      strictParams: data.strictParams === true,
+      maxRequestBodyBytes: clampMaxRequestBodyBytes(data.maxRequestBodyBytes ?? 32 * 1024 * 1024),
       ...(data.migratedFrom ? { migratedFrom: data.migratedFrom } : {}),
       ...(data.recentNomi?.length ? { recentNomi: data.recentNomi } : {}),
+      catalog: {
+        models: catalogSize(),
+        version: catalogOverlayVersion() ?? CATALOG_VERSION,
+        synced: this.hasCatalogSync(),
+      },
       ...(this.legacyRevoke ? { legacyRevoke: this.legacyRevoke } : {}),
     };
   }
@@ -578,23 +870,27 @@ export class GatewayService {
 
   upsertProvider(input: ProviderInput): ProviderView {
     const name = input.name.trim();
-    if (!name) throw new Error(tr('名称不能为空'));
+    if (!name) throw new Error(tr('electron.common.name-can-t-be-empty'));
     const now = Date.now();
     const prev = input.id ? this.store.providers().find((p) => p.id === input.id) : undefined;
-    if (input.id && !prev) throw new Error(tr('供应商不存在'));
-    if (prev?.source === 'env') throw new Error(tr('环境变量提供的供应商是只读的'));
+    if (input.id && !prev) throw new Error(tr('electron.common.provider-not-found'));
+    if (prev?.source === 'env')
+      throw new Error(tr('electron.common.providers-from-environment-variables-are-read-only'));
     const existing = new Map((prev?.keys ?? []).map((k) => [k.id, k]));
     const kept: GatewayKey[] = input.keys
       ? input.keys.flatMap((k) => {
           const old = existing.get(k.id);
           return old
             ? [
-                {
-                  ...old,
-                  enabled: k.enabled,
-                  ...(k.name !== undefined ? { name: k.name } : {}),
-                  wire: k.wire,
-                },
+                withLimits(
+                  {
+                    ...old,
+                    enabled: k.enabled,
+                    ...(k.name !== undefined ? { name: k.name } : {}),
+                    wire: k.wire,
+                  },
+                  k,
+                ),
               ]
             : [];
         })
@@ -605,10 +901,13 @@ export class GatewayService {
       .sort((a, b) => (a.position ?? Infinity) - (b.position ?? Infinity))
       // 名称留空时界面按顺序显示「主 Key / 备用 Key N」（随界面语言翻译）
       .map((k) => ({
-        key: {
-          ...this.store.makeKey(k.value, { name: k.name, wire: k.wire }),
-          enabled: k.enabled ?? true,
-        },
+        key: withLimits(
+          {
+            ...this.store.makeKey(k.value, { name: k.name, wire: k.wire }),
+            enabled: k.enabled ?? true,
+          },
+          k,
+        ),
         position: k.position,
       }));
     const keys = [...kept];
@@ -630,7 +929,8 @@ export class GatewayService {
           .map(([w, u]) => [w, u!.trim()]),
       ) as GatewayProvider['urls'],
       keys,
-      models: input.models ?? prev?.models ?? [],
+      // 界面回传的条目带着显示用的生效值（effective），不落盘
+      models: input.models?.map(({ effective: _e, ...m }: ModelView) => m) ?? prev?.models ?? [],
       ...(input.modelMap ? { modelMap: input.modelMap } : {}),
       ...(input.headers ? { headers: input.headers } : {}),
       ...(input.userAgent !== undefined ? { userAgent: input.userAgent || undefined } : {}),
@@ -649,7 +949,8 @@ export class GatewayService {
   removeProvider(id: string): void {
     const p = this.store.providers().find((x) => x.id === id);
     if (!p) return;
-    if (p.source === 'env') throw new Error(tr('环境变量提供的供应商是只读的'));
+    if (p.source === 'env')
+      throw new Error(tr('electron.common.providers-from-environment-variables-are-read-only'));
     this.bumpLearn(id);
     this.store.removeProvider(id);
     this.commit();
@@ -657,16 +958,56 @@ export class GatewayService {
 
   setAssignment(
     client: ClientId,
-    patch: { models?: ClientModels; newTabSource?: 'official' | 'thirdParty' },
+    patch: {
+      models?: ClientModels;
+      newTabSource?: 'official' | 'thirdParty';
+      newTabAccountId?: string | null;
+    },
   ): void {
-    this.store.setClient(client, patch);
-    const main = patch.models?.main;
+    const normalized = this.normalizeAssignmentPatch(client, patch);
+    this.store.setClient(client, normalized);
+    const main = normalized.models?.main;
     if (client === 'nomi' && main) {
       const data = this.store.snapshot();
       data.recentNomi = [main, ...(data.recentNomi ?? []).filter((r) => r !== main)].slice(0, 5);
       this.store.replace(data);
     }
     this.commit();
+  }
+
+  /** IPC / 主进程调用也走同一条联动规则，避免只靠渲染进程保证状态一致。 */
+  private normalizeAssignmentPatch(
+    client: ClientId,
+    patch: {
+      models?: ClientModels;
+      newTabSource?: 'official' | 'thirdParty';
+      newTabAccountId?: string | null;
+    },
+  ) {
+    if (client === 'nomi') return patch;
+    const hasMain = Boolean(
+      patch.models && Object.prototype.hasOwnProperty.call(patch.models, 'main'),
+    );
+    const main = patch.models?.main;
+    if (hasMain) {
+      if (main) {
+        return {
+          ...patch,
+          newTabSource: 'thirdParty' as const,
+          newTabAccountId: null,
+        };
+      }
+      // GatewayStore 用 undefined 表示从合并后的 models 中清除字段；渲染进程的 IPC
+      // 仍可传 null，进入这里后统一转换成可持久化的形状。
+      return {
+        ...patch,
+        newTabSource: 'official' as const,
+        models: { ...patch.models, main: undefined },
+      };
+    }
+    if (patch.newTabSource === 'official')
+      return { ...patch, models: { ...patch.models, main: undefined } };
+    return patch;
   }
 
   resetToken(client: ClientId): void {
@@ -681,6 +1022,26 @@ export class GatewayService {
   private readonly learnGen = new Map<string, number>();
   private bumpLearn(providerId: string): void {
     this.learnGen.set(providerId, (this.learnGen.get(providerId) ?? 0) + 1);
+  }
+
+  /** 网关全局选项：严格模式、请求体上限等 */
+  setOptions(patch: { strictParams?: unknown; maxRequestBodyBytes?: unknown }): GatewayStateView {
+    let changed = false;
+    const data = this.store.snapshot();
+    if (typeof patch.strictParams === 'boolean') {
+      if (patch.strictParams) data.strictParams = true;
+      else delete data.strictParams;
+      changed = true;
+    }
+    if (typeof patch.maxRequestBodyBytes === 'number') {
+      data.maxRequestBodyBytes = clampMaxRequestBodyBytes(patch.maxRequestBodyBytes);
+      changed = true;
+    }
+    if (changed) {
+      this.store.replace(data);
+      this.commit();
+    }
+    return this.state();
   }
 
   clearLearned(providerId: string): void {
@@ -707,10 +1068,33 @@ export class GatewayService {
       // 一个都不剩：说明判断不可靠，不学（宁可让请求照常失败）
       if (!allowed.length) return;
       cur.modelWire = { ...cur.modelWire, [e.model]: allowed };
+    } else if (e.type === 'model-efforts') {
+      // 思考档位被拒（§6.9.8）：记下这个模型实际接受的档位，带时间与目录版本（网关按它们判断过期）
+      const efforts = e.efforts.filter((x): x is Effort => (EFFORTS as string[]).includes(x));
+      if (!efforts.length || !e.model) return;
+      const prevModel = cur.models?.[e.model];
+      if (
+        prevModel?.catalogVersion === e.catalogVersion &&
+        JSON.stringify(prevModel.efforts) === JSON.stringify(efforts)
+      )
+        return;
+      cur.models = {
+        ...cur.models,
+        [e.model]: {
+          ...prevModel,
+          at: Number.isFinite(e.at) ? e.at : Date.now(),
+          catalogVersion: e.catalogVersion,
+          efforts,
+        },
+      };
     } else if (e.type === 'custom-tools-refused') {
       // 这个模型的 Responses 接口不接受 custom 工具：之后一开始就用转换模式（§11.3）
       if (cur.customToolsRefused?.includes(e.model)) return;
       cur.customToolsRefused = [...(cur.customToolsRefused ?? []), e.model];
+    } else if (e.type !== 'wire-suspect') {
+      // 新版网关可能报来本版本不认识的学习类型：忽略，不当成「协议疑似不可用」处理
+      this.d.logger.info('gateway learn event ignored', { type: (e as { type?: unknown }).type });
+      return;
     } else {
       const url = p.urls[e.wire];
       if (!url) return;
@@ -759,8 +1143,8 @@ export class GatewayService {
       e.status === 'ok'
         ? undefined
         : e.status === 'auth'
-          ? tr('{0} 鉴权失败：{1}', label, e.error ?? '')
-          : tr('{0} 被限流：{1}', label, e.error ?? '');
+          ? tr('electron.common.authentication-failed', label, e.error ?? '')
+          : tr('electron.common.rate-limited', label, e.error ?? '');
     if (k.lastError === next) return;
     this.store.upsertProvider({
       ...p,
@@ -772,7 +1156,8 @@ export class GatewayService {
 
   confirmPrivateHost(hostPort: string): void {
     const hp = hostPort.trim().toLowerCase();
-    if (!/^[a-z0-9.:[\]-]+:\d{1,5}$/.test(hp)) throw new Error(tr('地址格式应为 host:port'));
+    if (!/^[a-z0-9.:[\]-]+:\d{1,5}$/.test(hp))
+      throw new Error(tr('electron.common.the-address-must-be-host-port'));
     const data = this.store.snapshot();
     if (!data.allowedPrivateHosts.includes(hp)) data.allowedPrivateHosts.push(hp);
     this.store.replace(data);
@@ -829,19 +1214,24 @@ export class GatewayService {
       this.detect((input ?? {}) as Parameters<GatewayService['detect']>[0]),
     );
     handle('ai:gateway:set-assignment', (client, patch) => {
-      if (!CLIENT_IDS.includes(client as ClientId)) throw new Error(tr('未知客户端'));
+      if (!CLIENT_IDS.includes(client as BuiltinClientId))
+        throw new Error(tr('electron.common.unknown-client'));
       this.setAssignment(
         client as ClientId,
         (patch ?? {}) as Parameters<GatewayService['setAssignment']>[1],
       );
     });
     handle('ai:gateway:reset-token', (client) => {
-      if (!CLIENT_IDS.includes(client as ClientId)) throw new Error(tr('未知客户端'));
+      if (!CLIENT_IDS.includes(client as BuiltinClientId))
+        throw new Error(tr('electron.common.unknown-client'));
       this.resetToken(client as ClientId);
     });
     handle('ai:gateway:clear-learned', (id) => this.clearLearned(String(id)));
     handle('ai:gateway:confirm-private-host', (hp) => this.confirmPrivateHost(String(hp)));
     handle('ai:gateway:retry', () => this.proc.retry());
+    handle('ai:gateway:set-options', (patch) =>
+      this.setOptions((patch ?? {}) as { strictParams?: unknown; maxRequestBodyBytes?: unknown }),
+    );
   }
 
   dispose(): void {
@@ -856,4 +1246,40 @@ export function initGatewayService(d: GatewayServiceDeps): GatewayService {
 }
 export function getGatewayService(): GatewayService | null {
   return inst;
+}
+
+/** 插件清单声明的占位模型名（gateway 方式换模型）；没有就是 undefined */
+function placeholderModelOf(kind: string): string | undefined {
+  if (!isBuiltinCliId(kind)) return undefined;
+  const v = BUILTIN_MANIFESTS[kind].clientSpec.placeholderModel;
+  return typeof v === 'string' && v ? v : undefined;
+}
+
+function withEffective(
+  m: GatewayModel,
+  r: ResolvedModelMeta,
+  priceOf?: (model: string) => LongContextPrice | undefined,
+): ModelView {
+  const price = r.longContext ? priceOf?.(m.id) : undefined;
+  return {
+    ...m,
+    effective: {
+      ctx: r.ctx,
+      maxOutput: r.maxOutput,
+      ...(r.reasoning !== undefined ? { reasoning: r.reasoning } : {}),
+      ...(r.vision !== undefined ? { vision: r.vision } : {}),
+      source: r.source,
+      maxOutputSource: r.maxOutputSource,
+      ...(r.longContext
+        ? {
+            longContext: {
+              standard: r.longContext.standard,
+              full: r.longContext.full,
+              on: r.longContext.on,
+              ...(price ? { price } : {}),
+            },
+          }
+        : {}),
+    },
+  };
 }

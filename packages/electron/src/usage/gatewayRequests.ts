@@ -1,10 +1,10 @@
 /**
- * 统一网关的请求日志（docs/design/unified-gateway.md §14、§4.5「最近请求」）：条目结构、
- * 从网关用量事件归一化、按供应商 / 按 Key 聚合、缓存命中率。纯函数，不做 IO。
+ * 网关用量事件的字段声明、错误文本清洗，以及旧版「最近请求」条目（userData/gateway/requests.json）
+ * 的结构与读回校验（只用于导入模型质量账本，docs/design/model-quality.md §4.2）。纯函数，不做 IO。
  *
  * 口径说明（避免重复计费）：网关事件**不写入用量账本**。Nomi 自己的对话由 ai-runtime 记账（client 'nomi'），
  * 各编程助手（claude / codex / gemini / grok / dsh）的用量以它们自己的会话日志为准（UsageLogScanner），
- * 经网关的请求同样会出现在这些日志里。网关事件只用于这里的请求日志和「按供应商 / 按 Key」维度。
+ * 经网关的请求同样会出现在这些日志里。网关事件只进模型质量。
  */
 import { redactText } from '@nomi-ai/gateway';
 
@@ -30,7 +30,25 @@ export interface GatewayUsageEventLike {
   attempts: number;
   error?: string;
   notes?: string[];
+  /** 诊断追踪 id（诊断日志开着时网关才给，§8.3） */
+  traceId?: string;
+  /** 请求来自哪个标签（带标签令牌的第三方会话，§6.7）与进程代次 */
+  tabId?: string;
+  generation?: number;
+  /** 模型怎么解析出来的（explicit / tier / helper / subagent / binding / unknown / default） */
+  resolved?: string;
 }
+
+/** 模型解析方式的取值（与网关 ModelResolution 一致） */
+export const MODEL_RESOLUTIONS = [
+  'explicit',
+  'tier',
+  'helper',
+  'subagent',
+  'binding',
+  'unknown',
+  'default',
+] as const;
 
 /** 请求日志的一条（只有元数据：不含提示词和回复内容，不含 Key） */
 export interface GatewayRequestEntry {
@@ -61,10 +79,15 @@ export interface GatewayRequestEntry {
   reasoning?: number;
   notes?: string[];
   error?: string;
+  /** 诊断追踪 id：对应 userData/gateway/trace 里的文件与响应头 x-nomi-trace-id */
+  traceId?: string;
+  tabId?: string;
+  generation?: number;
+  resolved?: (typeof MODEL_RESOLUTIONS)[number];
 }
 
 /** 最多保留的条数 */
-export const GATEWAY_REQUEST_CAP = 200;
+const GATEWAY_REQUEST_CAP = 200;
 /** 错误信息最多保留的字符数 */
 export const GATEWAY_ERROR_MAX = 300;
 
@@ -126,128 +149,13 @@ export function toEntry(
   if (notes.length) entry.notes = notes.slice(0, 8);
   const error = cleanError(e.error);
   if (error) entry.error = error;
+  if (typeof e.traceId === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(e.traceId))
+    entry.traceId = e.traceId;
+  if (typeof e.tabId === 'string' && /^[A-Za-z0-9_:.-]{1,80}$/.test(e.tabId)) entry.tabId = e.tabId;
+  if (Number.isInteger(e.generation) && e.generation! > 0) entry.generation = e.generation;
+  const resolved = MODEL_RESOLUTIONS.find((r) => r === e.resolved);
+  if (resolved) entry.resolved = resolved;
   return entry;
-}
-
-/** 缓存命中率 = 缓存读 / (未命中缓存的输入 + 缓存读)；没有输入时为 null */
-export function cacheHitRate(input: number, cacheRead: number): number | null {
-  const d = input + cacheRead;
-  return d > 0 ? cacheRead / d : null;
-}
-
-export const isFailed = (e: GatewayRequestEntry) => e.status >= 400 || !!e.error;
-
-export interface GatewayAggRow {
-  key: string;
-  label: string;
-  requests: number;
-  failed: number;
-  fallbacks: number;
-  input: number;
-  output: number;
-  cacheRead: number;
-  cacheWrite: number;
-  tokens: number;
-  cacheHitRate: number | null;
-  avgMs: number;
-}
-
-export interface GatewaySummary {
-  requests: number;
-  failed: number;
-  fallbacks: number;
-  input: number;
-  output: number;
-  cacheRead: number;
-  cacheWrite: number;
-  cacheHitRate: number | null;
-  avgMs: number;
-  avgFirstByteMs: number | null;
-}
-
-function agg(rows: GatewayRequestEntry[], key: string, label: string): GatewayAggRow {
-  const r: GatewayAggRow = {
-    key,
-    label,
-    requests: 0,
-    failed: 0,
-    fallbacks: 0,
-    input: 0,
-    output: 0,
-    cacheRead: 0,
-    cacheWrite: 0,
-    tokens: 0,
-    cacheHitRate: null,
-    avgMs: 0,
-  };
-  let ms = 0;
-  for (const e of rows) {
-    r.requests++;
-    if (isFailed(e)) r.failed++;
-    if (e.attempts > 1) r.fallbacks++;
-    r.input += e.input;
-    r.output += e.output;
-    r.cacheRead += e.cacheRead;
-    r.cacheWrite += e.cacheWrite;
-    ms += e.ms;
-  }
-  r.tokens = r.input + r.cacheRead + r.cacheWrite + r.output;
-  r.cacheHitRate = cacheHitRate(r.input, r.cacheRead);
-  r.avgMs = r.requests ? Math.round(ms / r.requests) : 0;
-  return r;
-}
-
-function groupBy(
-  entries: GatewayRequestEntry[],
-  keyOf: (e: GatewayRequestEntry) => { key: string; label: string } | null,
-): GatewayAggRow[] {
-  const m = new Map<string, { label: string; rows: GatewayRequestEntry[] }>();
-  for (const e of entries) {
-    const k = keyOf(e);
-    if (!k) continue;
-    const g = m.get(k.key) ?? { label: k.label, rows: [] };
-    g.rows.push(e);
-    m.set(k.key, g);
-  }
-  return [...m.entries()]
-    .map(([key, g]) => agg(g.rows, key, g.label))
-    .sort((a, b) => b.tokens - a.tokens || b.requests - a.requests);
-}
-
-/** 汇总 + 按供应商 / 按 Key（只统计走到了上游的请求；Key 维度带上供应商名，避免同名 Key 混在一起） */
-export function aggregateGateway(entries: GatewayRequestEntry[]): {
-  summary: GatewaySummary;
-  byProvider: GatewayAggRow[];
-  byKey: GatewayAggRow[];
-} {
-  const all = agg(entries, '', '');
-  const fb = entries.filter((e) => typeof e.firstByteMs === 'number');
-  const summary: GatewaySummary = {
-    requests: all.requests,
-    failed: all.failed,
-    fallbacks: all.fallbacks,
-    input: all.input,
-    output: all.output,
-    cacheRead: all.cacheRead,
-    cacheWrite: all.cacheWrite,
-    cacheHitRate: all.cacheHitRate,
-    avgMs: all.avgMs,
-    avgFirstByteMs: fb.length
-      ? Math.round(fb.reduce((s, e) => s + (e.firstByteMs ?? 0), 0) / fb.length)
-      : null,
-  };
-  const byProvider = groupBy(entries, (e) =>
-    e.providerId ? { key: e.providerId, label: e.provider ?? e.providerId } : null,
-  );
-  const byKey = groupBy(entries, (e) =>
-    e.providerId && e.keyId
-      ? {
-          key: `${e.providerId}/${e.keyId}`,
-          label: `${e.provider ?? e.providerId} · ${e.key ?? e.keyId}`,
-        }
-      : null,
-  );
-  return { summary, byProvider, byKey };
 }
 
 /** 读回磁盘上的条目：字段逐个校验，坏条目丢弃 */
@@ -281,6 +189,10 @@ export function sanitizeEntries(raw: unknown): GatewayRequestEntry[] {
           attempts: Number(o.attempts),
           error: typeof o.error === 'string' ? o.error : undefined,
           notes: Array.isArray(o.notes) ? (o.notes as string[]) : undefined,
+          traceId: typeof o.traceId === 'string' ? o.traceId : undefined,
+          tabId: typeof o.tabId === 'string' ? o.tabId : undefined,
+          generation: typeof o.generation === 'number' ? o.generation : undefined,
+          resolved: typeof o.resolved === 'string' ? o.resolved : undefined,
         },
         o.id,
         {

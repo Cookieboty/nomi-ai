@@ -5,53 +5,46 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { OfficialAccounts } from '../src/components/ProvidersPage/OfficialAccounts';
 
-// 官方账号（docs/design/cli-official-accounts.md §6）
+// 官方账号（docs/design/cli-plugin-architecture.md §5.10）：一个账号 = 一个 CLI 配置目录
 afterEach(() => {
   cleanup();
   delete (window as { aiIPC?: unknown }).aiIPC;
 });
 
+const acct = (o: Record<string, unknown>) => ({
+  kind: 'codex',
+  identity: null,
+  active: false,
+  local: false,
+  loggedIn: true,
+  inUse: 0,
+  createdAt: 1,
+  ...o,
+});
+
 function mockIpc(over: Record<string, (...a: unknown[]) => unknown> = {}) {
   const listeners: Record<string, Array<(p: unknown) => void>> = {};
   let accounts = [
-    {
-      id: 'a',
-      kind: 'codex',
-      label: 'a@x.com',
-      identity: { key: 'ka', email: 'a@x.com', plan: 'plus' },
+    acct({
+      id: 'local-codex',
+      label: '本机登录',
+      local: true,
       active: true,
-      createdAt: 1,
-    },
-    {
-      id: 'b',
-      kind: 'codex',
-      label: 'b@x.com',
-      identity: { key: 'kb', email: 'b@x.com' },
-      active: false,
-      createdAt: 2,
-    },
+      identity: { key: 'kl', email: 'me@x.com', plan: 'plus' },
+    }),
+    acct({ id: 'b', label: 'b@x.com', identity: { key: 'kb', email: 'b@x.com' }, inUse: 2 }),
+    acct({ id: 'c', label: '工作', loggedIn: false, needsLogin: true }),
   ];
-  let live: unknown = { key: 'kc', email: 'c@x.com' };
   const handlers: Record<string, (...a: unknown[]) => unknown> = {
     'ai:cli-account:list': () => accounts,
-    'ai:cli-account:live': () => live,
-    'ai:cli-account:activate': (id) => {
+    'ai:cli-account:refresh': () => accounts,
+    'ai:cli-account:set-default': (_k, id) => {
       accounts = accounts.map((x) => ({ ...x, active: x.id === id }));
       return accounts.find((x) => x.id === id);
     },
-    'ai:cli-account:import-current': () => {
-      accounts = [
-        ...accounts,
-        {
-          id: 'c',
-          kind: 'codex',
-          label: 'c@x.com',
-          identity: { key: 'kc', email: 'c@x.com' },
-          active: true,
-          createdAt: 3,
-        },
-      ];
-      return accounts[2];
+    'ai:cli-account:remove': (id) => {
+      accounts = accounts.filter((x) => x.id !== id);
+      return undefined;
     },
     'ai:cli-account:login-start': () => ({ id: 'L1', kind: 'codex', state: 'starting' }),
     'ai:cli-account:login-input': () => true,
@@ -67,52 +60,77 @@ function mockIpc(over: Record<string, (...a: unknown[]) => unknown> = {}) {
       return () => undefined;
     },
   };
-  return {
-    invoke,
-    emit: (ch: string, p: unknown) => listeners[ch]?.forEach((f) => f(p)),
-    setLive: (v: unknown) => (live = v),
-  };
+  return { invoke, emit: (ch: string, p: unknown) => listeners[ch]?.forEach((f) => f(p)) };
 }
 
 describe('OfficialAccounts', () => {
-  it('列出账号（当前标记 / 套餐）、终端当前登录；终端账号不在列表里时可导入', async () => {
+  it('列出账号：默认 / 本机 / 套餐 / 在用标签数 / 需要重新登录；打开时用 CLI 状态命令刷新身份', async () => {
     const ipc = mockIpc();
     const r = render(<OfficialAccounts kind="codex" />);
-    await waitFor(() => expect(r.getAllByTestId('cli-account-card')).toHaveLength(2));
-    expect(r.getByTestId('cli-accounts-live').textContent).toContain('c@x.com');
+    await waitFor(() => expect(r.getAllByTestId('cli-account-card')).toHaveLength(3));
+    expect(ipc.invoke).toHaveBeenCalledWith('ai:cli-account:refresh', 'codex');
     expect(r.getByTestId('cli-account-current')).toBeTruthy();
     expect(r.getByText('plus')).toBeTruthy();
-    await act(async () => fireEvent.click(r.getByTestId('cli-accounts-import')));
-    await waitFor(() => expect(r.getAllByTestId('cli-account-card')).toHaveLength(3));
-    expect(ipc.invoke).toHaveBeenCalledWith('ai:cli-account:import-current', 'codex');
-    expect(r.queryByTestId('cli-accounts-import')).toBeNull();
+    expect(r.getByText('2 个标签在用')).toBeTruthy();
+    expect(r.getByTestId('cli-account-needs-login')).toBeTruthy();
+    // 本机登录不能删
+    expect(r.getAllByTestId('cli-account-remove')).toHaveLength(2);
   });
 
-  it('切换：调用 activate，成功提示；失败时显示主进程给的原因', async () => {
+  it('设为默认：调用 set-default，成功提示；失败时显示主进程给的原因', async () => {
     const ipc = mockIpc();
     const r = render(<OfficialAccounts kind="codex" />);
-    await waitFor(() => r.getByTestId('cli-account-activate'));
-    await act(async () => fireEvent.click(r.getByTestId('cli-account-activate')));
-    expect(ipc.invoke).toHaveBeenCalledWith('ai:cli-account:activate', 'b', 'codex');
+    await waitFor(() => expect(r.getAllByTestId('cli-account-activate')).toHaveLength(2));
+    await act(async () => fireEvent.click(r.getAllByTestId('cli-account-activate')[0]!));
+    expect(ipc.invoke).toHaveBeenCalledWith('ai:cli-account:set-default', 'codex', 'b');
     await waitFor(() => expect(r.getByTestId('cli-accounts-msg').textContent).toContain('b@x.com'));
 
     cleanup();
-    mockIpc({
-      'ai:cli-account:activate': () => ({
-        __error: { message: 'Codex 把登录凭据存在系统钥匙串里' },
-      }),
-    });
+    mockIpc({ 'ai:cli-account:set-default': () => ({ __error: { message: '账号不存在' } }) });
     const r2 = render(<OfficialAccounts kind="codex" />);
-    await waitFor(() => r2.getByTestId('cli-account-activate'));
-    await act(async () => fireEvent.click(r2.getByTestId('cli-account-activate')));
-    await waitFor(() => expect(r2.getByTestId('cli-accounts-msg').textContent).toContain('钥匙串'));
+    await waitFor(() => r2.getAllByTestId('cli-account-activate'));
+    await act(async () => fireEvent.click(r2.getAllByTestId('cli-account-activate')[0]!));
+    await waitFor(() =>
+      expect(r2.getByTestId('cli-accounts-msg').textContent).toContain('账号不存在'),
+    );
   });
 
-  it('设备码登录：弹窗显示一次性码与打开登录页；完成后提示并刷新', async () => {
+  it('需要重新登录的账号：在它自己的目录里登录（带账号 id）', async () => {
+    const ipc = mockIpc();
+    const r = render(<OfficialAccounts kind="codex" />);
+    await waitFor(() => r.getByTestId('cli-account-login'));
+    await act(async () => fireEvent.click(r.getByTestId('cli-account-login')));
+    expect(ipc.invoke).toHaveBeenCalledWith('ai:cli-account:login-start', 'codex', 'c');
+  });
+
+  it('删除：确认后调用 remove', async () => {
+    const ipc = mockIpc();
+    const confirm = vi.fn(() => true);
+    (window as unknown as { confirm: typeof confirm }).confirm = confirm;
+    const r = render(<OfficialAccounts kind="codex" />);
+    await waitFor(() => expect(r.getAllByTestId('cli-account-remove')).toHaveLength(2));
+    await act(async () => fireEvent.click(r.getAllByTestId('cli-account-remove')[0]!));
+    expect(String((confirm.mock.calls[0] as unknown[])[0])).toContain('登出');
+    expect(ipc.invoke).toHaveBeenCalledWith('ai:cli-account:remove', 'b', false);
+  });
+
+  it('同一身份登录在两处：给出提示', async () => {
+    mockIpc({
+      'ai:cli-account:list': () => [acct({ id: 'x', label: 'x', duplicateOf: '本机登录' })],
+      'ai:cli-account:refresh': () => [acct({ id: 'x', label: 'x', duplicateOf: '本机登录' })],
+    });
+    const r = render(<OfficialAccounts kind="codex" />);
+    await waitFor(() =>
+      expect(r.getByTestId('cli-account-duplicate').textContent).toContain('本机登录'),
+    );
+  });
+
+  it('设备码登录：弹窗显示一次性码与打开登录页；完成后提示', async () => {
     const ipc = mockIpc();
     const r = render(<OfficialAccounts kind="codex" />);
     await waitFor(() => r.getByTestId('cli-accounts-add'));
     await act(async () => fireEvent.click(r.getByTestId('cli-accounts-add')));
+    expect(ipc.invoke).toHaveBeenCalledWith('ai:cli-account:login-start', 'codex', undefined);
     act(() =>
       ipc.emit('ai:cli-account:login', {
         id: 'L1',
@@ -134,14 +152,7 @@ describe('OfficialAccounts', () => {
         id: 'L1',
         kind: 'codex',
         state: 'done',
-        account: {
-          id: 'n',
-          kind: 'codex',
-          label: 'n@x.com',
-          identity: { key: 'kn', email: 'n@x.com' },
-          active: false,
-          createdAt: 9,
-        },
+        account: acct({ id: 'n', label: 'n@x.com', identity: { key: 'kn', email: 'n@x.com' } }),
       }),
     );
     expect(r.getByTestId('cli-account-login-done').textContent).toContain('n@x.com');
@@ -175,7 +186,7 @@ describe('OfficialAccounts · Gemini', () => {
   it('登录没有链接和码：显示主进程给的「去浏览器完成」提示', async () => {
     const ipc = mockIpc({
       'ai:cli-account:list': () => [],
-      'ai:cli-account:live': () => null,
+      'ai:cli-account:refresh': () => [],
       'ai:cli-account:login-start': () => ({ id: 'G1', kind: 'gemini', state: 'starting' }),
     });
     const r = render(<OfficialAccounts kind="gemini" />);
@@ -194,6 +205,6 @@ describe('OfficialAccounts · Gemini', () => {
       expect(r.getByTestId('cli-account-waiting').textContent).toContain('Google'),
     );
     expect(r.queryByTestId('cli-account-open-url')).toBeNull();
-    expect(ipc.invoke).toHaveBeenCalledWith('ai:cli-account:login-start', 'gemini');
+    expect(ipc.invoke).toHaveBeenCalledWith('ai:cli-account:login-start', 'gemini', undefined);
   });
 });

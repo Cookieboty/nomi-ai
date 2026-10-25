@@ -16,33 +16,41 @@ const STATUS: Record<
   ReminderView['status'],
   { label: string; tone: 'neutral' | 'warning' | 'danger' | 'success' }
 > = {
-  pending: { label: '等待中', tone: 'neutral' },
-  fired: { label: '已提醒', tone: 'success' },
-  done: { label: '已完成', tone: 'success' },
-  missed: { label: '错过', tone: 'warning' },
-  cancelled: { label: '已取消', tone: 'danger' },
+  pending: { label: 'ui.foundation.pending', tone: 'neutral' },
+  fired: { label: 'ui.foundation.reminded', tone: 'success' },
+  done: { label: 'ui.foundation.done', tone: 'success' },
+  missed: { label: 'ui.foundation.missed', tone: 'warning' },
+  cancelled: { label: 'ui.foundation.cancelled', tone: 'danger' },
 };
 
 const WHEN = [
-  { value: '1', label: '1 分钟后' },
-  { value: '5', label: '5 分钟后' },
-  { value: '10', label: '10 分钟后' },
-  { value: '30', label: '30 分钟后' },
-  { value: '60', label: '1 小时后' },
-  { value: '1440', label: '明天这时' },
-  { value: 'at', label: '指定时间…' },
+  { value: '1', label: 'ui.foundation.in-1-minute' },
+  { value: '5', label: 'ui.foundation.in-5-minutes' },
+  { value: '10', label: 'ui.foundation.in-10-minutes' },
+  { value: '30', label: 'ui.foundation.in-30-minutes' },
+  { value: '60', label: 'ui.foundation.in-1-hour' },
+  { value: '1440', label: 'ui.foundation.this-time-tomorrow' },
+  { value: 'at', label: 'ui.foundation.pick-a-time' },
 ];
 
 const REPEAT = [
-  { value: 'none', label: '不重复' },
-  { value: 'daily', label: '每天' },
-  { value: 'weekdays', label: '工作日' },
-  { value: 'weekly', label: '每周…' },
-  { value: 'monthly', label: '每月' },
-  { value: 'interval', label: '每隔…' },
+  { value: 'none', label: 'ui.foundation.does-not-repeat' },
+  { value: 'daily', label: 'ui.foundation.every-day' },
+  { value: 'weekdays', label: 'ui.foundation.weekdays' },
+  { value: 'weekly', label: 'ui.foundation.weekly' },
+  { value: 'monthly', label: 'ui.foundation.monthly' },
+  { value: 'interval', label: 'ui.foundation.every' },
 ];
 
-const WEEK = ['日', '一', '二', '三', '四', '五', '六'];
+const WEEK = [
+  'ui.foundation.sun',
+  'ui.foundation.mon',
+  'ui.foundation.tue',
+  'ui.foundation.wed',
+  'ui.foundation.thu',
+  'ui.foundation.fri',
+  'ui.foundation.sat',
+];
 
 /** "YYYY-MM-DDTHH:MM"（datetime-local 的本地格式） */
 const localInput = (t: number) => {
@@ -118,12 +126,12 @@ export const RemindersTab: React.FC<{ onMsg: (m: string) => void }> = ({ onMsg }
     onMsg(
       r
         ? tr(
-            '好的，{0}{1}提醒你「{2}」',
+            'ui.foundation.ok-i-ll-remind-you',
             fmtDue(r.dueAt),
-            r.repeat ? tr('起{0}', describeRepeat(r.repeat)) : '',
+            r.repeat ? tr('ui.foundation.starting', describeRepeat(r.repeat)) : '',
             r.text,
           )
-        : tr('设置失败：时间可能已经过去了'),
+        : tr('ui.foundation.failed-the-time-may-have-already-passed'),
     );
     if (r) setText('');
   };
@@ -132,7 +140,7 @@ export const RemindersTab: React.FC<{ onMsg: (m: string) => void }> = ({ onMsg }
     <div className={styles.stack}>
       <div className={styles.row}>
         <Input
-          placeholder={tr('提醒我……（回车添加）')}
+          placeholder={tr('ui.foundation.remind-me-to-enter-to-add')}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && void add()}
@@ -156,7 +164,7 @@ export const RemindersTab: React.FC<{ onMsg: (m: string) => void }> = ({ onMsg }
           />
         </span>
         <Button variant="primary" onClick={() => void add()} data-testid="reminder-add">
-          {tr('添加')}
+          {tr('ui.foundation.add')}
         </Button>
       </div>
       {(minutes === 'at' || rep === 'weekly' || rep === 'interval') && (
@@ -182,8 +190,7 @@ export const RemindersTab: React.FC<{ onMsg: (m: string) => void }> = ({ onMsg }
                   setDays((d) => (d.includes(i) ? d.filter((x) => x !== i) : [...d, i].sort()))
                 }
               >
-                {tr('周')}
-                {w}
+                {tr('ui.foundation.weekday-button', tr(w))}
               </Button>
             ))}
           {rep === 'interval' && (
@@ -194,7 +201,7 @@ export const RemindersTab: React.FC<{ onMsg: (m: string) => void }> = ({ onMsg }
                 onChange={(e) => setEvery(e.target.value)}
                 options={[30, 45, 60, 90, 120, 180, 240].map((m) => ({
                   value: String(m),
-                  label: m % 60 === 0 ? tr('{0} 小时', m / 60) : tr('{0} 分钟', m),
+                  label: m % 60 === 0 ? tr('ui.foundation.h', m / 60) : tr('ui.foundation.min', m),
                 }))}
               />
             </span>
@@ -205,14 +212,14 @@ export const RemindersTab: React.FC<{ onMsg: (m: string) => void }> = ({ onMsg }
         className={styles.listToggle}
         checked={all}
         onChange={setAll}
-        label={tr('显示已结束的提醒')}
+        label={tr('ui.foundation.show-finished-reminders')}
       />
       {err && <span className={styles.hint}>{err}</span>}
       {items === null ? null : items.length === 0 ? (
         <EmptyState
           icon={BellRing}
-          title={tr('没有提醒')}
-          description={tr('也可以在对话里说：「每个工作日早上 9 点提醒我站会」')}
+          title={tr('ui.foundation.no-reminders')}
+          description={tr('ui.foundation.you-can-also-say-in-chat-remind-me')}
         />
       ) : (
         <table className={styles.table} data-testid="reminders-list">
@@ -241,7 +248,7 @@ export const RemindersTab: React.FC<{ onMsg: (m: string) => void }> = ({ onMsg }
                       variant="ghost"
                       onClick={() => void desktopClient.snoozeReminder(r.id, 10)}
                     >
-                      {tr('推迟 10 分钟')}
+                      {tr('ui.foundation.snooze-10-min')}
                     </Button>
                   )}
                   {r.status === 'pending' && (
@@ -250,7 +257,7 @@ export const RemindersTab: React.FC<{ onMsg: (m: string) => void }> = ({ onMsg }
                       variant="secondary"
                       onClick={() => void desktopClient.cancelReminder(r.id)}
                     >
-                      {r.repeat ? tr('停止') : tr('取消')}
+                      {r.repeat ? tr('ui.foundation.stop') : tr('ui.foundation.cancel')}
                     </Button>
                   )}
                 </td>

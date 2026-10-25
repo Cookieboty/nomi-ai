@@ -202,6 +202,43 @@ describe('PriceSync（mock fetch，不联网）', () => {
     expect(sync.entries().length).toBe(before.count);
   });
 
+  it('下载到新数据时把整份 api.json 交给模型目录；304 不交；消费者还没缓存时强制完整下载', async () => {
+    const onData = jest.fn();
+    let needsFull = false;
+    const f = jest
+      .fn()
+      .mockResolvedValueOnce(ok(fakeApi()))
+      .mockResolvedValueOnce(new Response(null, { status: 304 }))
+      .mockResolvedValueOnce(ok(fakeApi(), { etag: '"e2"' }));
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-psync-'));
+    const sync = new PriceSync({ root, fetchImpl: f, onData, needsFull: () => needsFull });
+    await sync.sync();
+    expect(onData).toHaveBeenCalledTimes(1);
+    expect(onData.mock.calls[0]![0]).toEqual(fakeApi());
+    await sync.sync();
+    expect(onData).toHaveBeenCalledTimes(1);
+    // 网关的目录缓存被删了：不带 If-None-Match，拿到完整数据再交一次
+    needsFull = true;
+    await sync.sync();
+    expect((f.mock.calls[2]![1] as RequestInit).headers).not.toHaveProperty('If-None-Match');
+    expect(onData).toHaveBeenCalledTimes(2);
+  });
+
+  it('模型目录生成失败不影响价格表', async () => {
+    const f = jest.fn().mockResolvedValue(ok(fakeApi()));
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-psync-'));
+    const sync = new PriceSync({
+      root,
+      fetchImpl: f,
+      logger: { warn: jest.fn() },
+      onData: () => {
+        throw new Error('boom');
+      },
+    });
+    expect(await sync.sync()).toMatchObject({ ok: true, status: 'updated' });
+    expect(sync.state().count).toBeGreaterThan(10);
+  });
+
   it('失败不动已有缓存：网络错误 / HTTP 500 / 坏 JSON / 条目太少', async () => {
     const f = jest
       .fn()

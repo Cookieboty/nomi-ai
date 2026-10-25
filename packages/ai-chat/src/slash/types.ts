@@ -55,6 +55,8 @@ export interface SlashCommand {
   name: string;
   /** 别名（同样不含 `/`） */
   aliases?: string[];
+  /** 兼容旧名的隐藏别名：能执行，但不出现在面板 / 帮助 / 搜索里 */
+  hiddenAliases?: string[];
   label: string;
   description: string;
   source: SlashSource;

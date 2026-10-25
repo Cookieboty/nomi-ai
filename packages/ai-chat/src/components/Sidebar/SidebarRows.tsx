@@ -11,10 +11,10 @@ import type { Meta } from './types';
 
 export const rel = (ts: number) => {
   const d = Date.now() - ts;
-  if (d < 60_000) return t('刚刚');
-  if (d < 3_600_000) return t('{0} 分钟前', Math.floor(d / 60_000));
-  if (d < 86_400_000) return t('{0} 小时前', Math.floor(d / 3_600_000));
-  return t('{0} 天前', Math.floor(d / 86_400_000));
+  if (d < 60_000) return t('ui.chat-settings.just-now');
+  if (d < 3_600_000) return t('ui.chat-settings.min-ago', Math.floor(d / 60_000));
+  if (d < 86_400_000) return t('ui.chat-settings.h-ago', Math.floor(d / 3_600_000));
+  return t('ui.chat-settings.d-ago', Math.floor(d / 86_400_000));
 };
 
 export function liveOf(tab: HarnessTabMeta | undefined): string {
@@ -46,12 +46,13 @@ export interface RowActionHandlers {
 export const RowActions: React.FC<
   RowActionHandlers & { kind: 'conv' | 'tab' | 'hist'; confirming?: boolean }
 > = ({ kind, confirming, onRename, onDelete, onCancelDelete, onMore }) => {
-  const delLabel = kind === 'tab' ? t('关闭标签') : t('删除对话');
+  const delLabel =
+    kind === 'tab' ? t('ui.mascot-theme.close-tab-action') : t('ui.cli-monitor.delete-chat');
   return (
     <div
       className={styles.rowActions}
       role="group"
-      aria-label={t('对话操作')}
+      aria-label={t('ui.cli-monitor.conversation-actions')}
       data-testid="row-actions"
       data-confirming={confirming || undefined}
       onKeyDown={(e) => {
@@ -70,7 +71,7 @@ export const RowActions: React.FC<
             data-testid="row-delete-confirm"
             autoFocus
           >
-            {t('确认删除')}
+            {t('ui.knowledge-local.delete-confirm')}
           </button>
           <button
             type="button"
@@ -78,7 +79,7 @@ export const RowActions: React.FC<
             onClick={onCancelDelete}
             data-testid="row-delete-cancel"
           >
-            {t('取消')}
+            {t('ui.foundation.cancel')}
           </button>
         </>
       ) : (
@@ -87,8 +88,8 @@ export const RowActions: React.FC<
             <button
               type="button"
               className={styles.rowBtn}
-              title={t('重命名')}
-              aria-label={t('重命名')}
+              title={t('ui.cli-monitor.rename')}
+              aria-label={t('ui.cli-monitor.rename')}
               onClick={onRename}
               data-testid="row-rename"
             >
@@ -110,8 +111,8 @@ export const RowActions: React.FC<
           <button
             type="button"
             className={styles.rowBtn}
-            title={t('更多操作')}
-            aria-label={t('更多操作')}
+            title={t('ui.cli-monitor.more-actions')}
+            aria-label={t('ui.cli-monitor.more-actions')}
             aria-haspopup="menu"
             onClick={(e) => onMore(e.currentTarget.getBoundingClientRect())}
             data-testid="row-more"
@@ -168,7 +169,7 @@ const ThreadItemImpl: React.FC<{
           className={styles.renameInput}
           data-testid="conversation-rename-input"
           defaultValue={c.name ? t(c.name) : ''}
-          aria-label={t('重命名')}
+          aria-label={t('ui.cli-monitor.rename')}
           maxLength={60}
           autoFocus
           onFocus={(e) => e.currentTarget.select()}
@@ -194,13 +195,15 @@ const ThreadItemImpl: React.FC<{
         className={cls}
         onClick={() => void onOpen(c.id)}
         onContextMenu={(e) => onCtx(c.id, e)}
-        title={tab?.dormant ? t('{0} · 已休眠', t(c.name)) : t(c.name)}
+        title={tab?.dormant ? t('ui.cli-monitor.named-dormant', t(c.name)) : t(c.name)}
         data-testid="history-item"
         data-backend={c.backend}
         data-conversation-id={c.id}
       >
         {lead}
-        <span className={styles.threadName}>{c.name ? t(c.name) : t('新对话')}</span>
+        <span className={styles.threadName}>
+          {c.name ? t(c.name) : t('ui.chat-settings.new-chat')}
+        </span>
         <span className={styles.threadTime}>{rel(c.updatedAt)}</span>
       </button>
       {onMore && (

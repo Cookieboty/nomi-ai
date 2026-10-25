@@ -36,13 +36,13 @@ interface Entry {
 
 export const AppEntries: React.FC<AppEntriesProps> = (p) => {
   const bindings = useShortcutBindings();
-  const settingsTip = t('设置');
+  const settingsTip = t('ui.foundation.settings');
   const settingsKey = formatCombo(bindings.settings);
   const panels: Entry[] = [
     {
       id: 'open-hub-panel',
       icon: LibraryBig,
-      tip: t('知识 · 记忆 · 日程'),
+      tip: t('ui.chat-settings.knowledge-memory-schedule'),
       key: formatCombo(bindings.hub),
       on: p.onHub,
       show: memClient.available() || kbClient.available() || schedClient.available(),
@@ -50,7 +50,7 @@ export const AppEntries: React.FC<AppEntriesProps> = (p) => {
     {
       id: 'open-ext-panel',
       icon: Blocks,
-      tip: t('扩展 / MCP'),
+      tip: t('ui.foundation.extensions-mcp'),
       key: formatCombo(bindings.ext),
       on: p.onExt,
       show: extClient.available(),
@@ -58,7 +58,7 @@ export const AppEntries: React.FC<AppEntriesProps> = (p) => {
     {
       id: 'open-local-panel',
       icon: Cpu,
-      tip: t('本机管理（剪贴板 · 导出 · 本机模型）'),
+      tip: t('ui.knowledge-local.local-clipboard-export-local-models'),
       key: formatCombo(bindings.local),
       on: p.onLocal,
       show: extClient.available(),
@@ -69,7 +69,7 @@ export const AppEntries: React.FC<AppEntriesProps> = (p) => {
     <nav
       className={styles.bar}
       data-collapsed={p.collapsed || undefined}
-      aria-label={t('应用入口')}
+      aria-label={t('ui.foundation.app-shortcuts')}
       data-testid="app-entries"
     >
       <button

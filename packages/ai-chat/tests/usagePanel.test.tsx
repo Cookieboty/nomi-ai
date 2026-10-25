@@ -598,7 +598,6 @@ describe('UsagePanel 订阅额度标签', () => {
     expect([...tabs].map((x) => x.textContent)).toEqual([
       '概览',
       '明细',
-      '最近请求',
       '订阅额度',
       '价格',
       '预算与隐私',
@@ -606,6 +605,12 @@ describe('UsagePanel 订阅额度标签', () => {
     fireEvent.click(r.getByRole('tab', { name: '订阅额度' }));
     await r.findByTestId('usage-quota-card');
     expect(r.getByRole('tab', { name: '30 天' })).toBeTruthy();
+  });
+  it('「最近请求」搬到「模型质量 → 请求明细」：这里只留一个跳转', async () => {
+    const onOpenRequests = vi.fn();
+    const r = render(<UsagePanel onOpenRequests={onOpenRequests} />);
+    fireEvent.click(await r.findByTestId('usage-open-requests'));
+    expect(onOpenRequests).toHaveBeenCalledTimes(1);
   });
 });
 

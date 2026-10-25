@@ -15,8 +15,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { getDictionary } from '@nomi-ai/i18n';
+
 import { LocaleService, onLocaleChange, resolveLocale, t } from '../../../src/i18n';
-import en from '../../../src/i18n/en.json';
 
 const tmp = () => path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'locale-')), 'locale.json');
 
@@ -35,7 +36,7 @@ describe('main-process i18n', () => {
   it('follows the system for new users and respects a saved choice', () => {
     sysLangs = ['zh-CN'];
     expect(new LocaleService(tmp()).get()).toEqual({ pref: 'system', locale: 'zh-CN' });
-    expect(t('退出')).toBe('退出');
+    expect(t('electron.common.quit')).toBe('退出');
     sysLangs = ['en-US'];
     const f = tmp();
     fs.writeFileSync(f, JSON.stringify({ locale: 'zh-CN' }));
@@ -52,20 +53,22 @@ describe('main-process i18n', () => {
     expect(sent.at(-1)).toEqual({ pref: 'en', locale: 'en' });
     expect(seen).toEqual(['en']);
     expect(JSON.parse(fs.readFileSync(f, 'utf8'))).toEqual({ locale: 'en' });
-    expect(t('退出')).toBe('Quit');
-    expect(t('读取失败：{0}', 'x')).toBe('Read failed: x');
+    expect(t('electron.common.quit')).toBe('Quit');
+    expect(t('electron.common.read-failed', 'x')).toBe('Read failed: x');
     // 常量标签作为参数时一并翻译；非字符串原样返回
-    expect(t('{0} · {1}', 'Nomi', '模型')).toBe('Nomi · model');
+    expect(t('{0} · {1}', 'Nomi', 'electron.common.model')).toBe('Nomi · model');
     expect(t(undefined)).toBeUndefined();
     expect(() => s.set('fr')).toThrow();
     off();
     s.set('zh-CN');
   });
 
-  it('every English entry keeps the placeholders of its key', () => {
-    for (const [k, v] of Object.entries(en as Record<string, string>)) {
+  it('every English entry keeps the placeholders of the Chinese entry', () => {
+    const zh = getDictionary('zh');
+    const en = getDictionary('en');
+    for (const k of Object.keys(zh)) {
       const ph = (s: string) => (s.match(/\{\w+\}/g) ?? []).sort().join();
-      expect([k, ph(v)]).toEqual([k, ph(k)]);
+      expect(ph(en[k])).toBe(ph(zh[k]));
     }
   });
 });

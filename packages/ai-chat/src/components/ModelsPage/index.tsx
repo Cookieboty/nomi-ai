@@ -3,16 +3,7 @@
  * - 分配：Nomi 对话（main / tools / summary）；各编程助手的第三方模型（标签选「第三方」时用）与「新标签默认用」；
  * - 官方账号不在这里：仍在「编程助手」页原位置（安装、账号也在那里）。
  */
-import {
-  BrandIcon,
-  Button,
-  Icon,
-  ModelPicker,
-  Select,
-  Switch,
-  t,
-  type SelectOption,
-} from '@nomi-ai/ui';
+import { BrandIcon, Button, Icon, Input, ModelPicker, Select, Switch, t } from '@nomi-ai/ui';
 import {
   AlertCircle,
   Check,
@@ -29,7 +20,15 @@ import {
 } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 
-import { CLI_KINDS, type CliKind } from '../../services/cliSource';
+import { useCliAccounts } from '../../hooks/useCliAccounts';
+import {
+  CLI_KINDS,
+  newTabOptions,
+  newTabPatch,
+  newTabSelectValue,
+  providerOfRef,
+  type CliKind,
+} from '../../services/cliSource';
 import {
   gatewayClient,
   WIRE_LABEL,
@@ -45,15 +44,27 @@ import { EndpointIcon } from '../EndpointIcon';
 
 import { AddProviderDialog } from './AddProviderDialog';
 import styles from './index.module.css';
+import { ModelsDataSyncCard } from './ModelsDataSyncCard';
 import { keyName, ProviderDetailDialog } from './ProviderDetailDialog';
 import { TerminalCommandsCard } from './TerminalCommandsCard';
 import { useCliInstall } from './useCliInstall';
 
 const FOLLOW = 'follow';
 const UNSET = 'unset';
+/** 选择器最前面的特殊选项：模块级常量（label 是翻译 key，由 Select 翻译）。
+ *  内联数组每次渲染都是新的，会让 ModelPicker 每次都重建几百个选项 */
+const SAME_AS_CHAT = [{ value: FOLLOW, label: 'ui.models.same-as-chat' }];
+const FOLLOW_MAIN = [{ value: FOLLOW, label: 'ui.models.follow-main-model' }];
+const NOT_SET = [{ value: UNSET, label: 'ui.cli-monitor.not-set' }];
 
 type ModelsPatch = Partial<Omit<Record<keyof ClientModels, string | null>, 'tiers'>> & {
   tiers?: Partial<Record<TierId, string | null>>;
+};
+/** 编程助手一行的设置：第三方模型（部分）与「新标签默认用」 */
+type CliAssignPatch = {
+  models?: ModelsPatch;
+  newTabSource?: 'official' | 'thirdParty';
+  newTabAccountId?: string | null;
 };
 type TierId = keyof NonNullable<ClientModels['tiers']>;
 
@@ -62,10 +73,10 @@ type TierId = keyof NonNullable<ClientModels['tiers']>;
  * Haiku 档就是 Claude Code 跑后台任务（起标题、摘要等）用的快速模型，旧版本的「小模型」已并入这里。
  */
 const CLAUDE_TIERS: ReadonlyArray<{ id: TierId; label: string }> = [
-  { id: 'opus', label: 'Opus 档' },
-  { id: 'sonnet', label: 'Sonnet 档' },
-  { id: 'haiku', label: 'Haiku 档 · 后台任务' },
-  { id: 'fable', label: 'Fable 档' },
+  { id: 'opus', label: 'ui.models.opus-tier' },
+  { id: 'sonnet', label: 'ui.models.sonnet-tier' },
+  { id: 'haiku', label: 'ui.models.haiku-tier-background-tasks' },
+  { id: 'fable', label: 'ui.models.fable-tier' },
 ];
 
 export const ModelsPage: React.FC = () => {
@@ -73,10 +84,13 @@ export const ModelsPage: React.FC = () => {
   const [adding, setAdding] = useState(false);
   const [showWire, setShowWire] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
-  const [claudeOpen, setClaudeOpen] = useState(false);
+  /** 展开了「各档模型 / 更多」的编程助手 */
+  const [openCli, setOpenCli] = useState<CliKind | null>(null);
   const [offer, setOffer] = useState<ProviderView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [revokeSeen, setRevokeSeen] = useState(false);
+  /** 模型页顶部「高级」：请求体上限等 */
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const providers = useMemo(() => state?.providers ?? [], [state]);
   const picker = useMemo(() => pickerProviders(providers), [providers]);
@@ -94,10 +108,7 @@ export const ModelsPage: React.FC = () => {
     run(gatewayClient.setAssignment('nomi', { models: patch as ClientModels }));
 
   /** 编程助手的第三方模型 / 新标签默认用；null 表示清除 */
-  const assignCli = (
-    kind: CliKind,
-    patch: { models?: ModelsPatch; newTabSource?: 'official' | 'thirdParty' },
-  ) =>
+  const assignCli = (kind: CliKind, patch: CliAssignPatch) =>
     run(
       gatewayClient.setAssignment(kind, patch as Parameters<typeof gatewayClient.setAssignment>[1]),
     );
@@ -119,17 +130,74 @@ export const ModelsPage: React.FC = () => {
     <div className={styles.page} data-testid="models-page">
       <div className={styles.head}>
         <label className={styles.inlineSwitch}>
-          <Switch checked={showWire} onChange={setShowWire} aria-label={t('显示协议')} />
-          <span>{t('显示协议')}</span>
+          <Switch checked={showWire} onChange={setShowWire} aria-label={t('ui.models.show-apis')} />
+          <span>{t('ui.models.show-apis')}</span>
         </label>
+        <label
+          className={styles.inlineSwitch}
+          title={t('ui.models.when-on-parameters-the-model-doesn-t-support')}
+        >
+          <Switch
+            checked={state?.strictParams === true}
+            onChange={(v) => run(gatewayClient.setOptions({ strictParams: v }))}
+            disabled={!state}
+            aria-label={t('ui.models.strict-mode')}
+            data-testid="models-strict"
+          />
+          <span>{t('ui.models.strict-mode')}</span>
+        </label>
+        <button
+          type="button"
+          className={styles.advancedToggle}
+          aria-expanded={showAdvanced}
+          data-testid="models-advanced-toggle"
+          onClick={() => setShowAdvanced((v) => !v)}
+        >
+          <Icon icon={showAdvanced ? ChevronDown : ChevronRight} size={14} />
+          <span>{t('ui.models.advanced')}</span>
+        </button>
       </div>
+      {showAdvanced && (
+        <div className={styles.advanced} data-testid="models-advanced">
+          <label
+            className={styles.inlineField}
+            title={t('ui.models.posts-over-the-limit-get-413-default-32')}
+          >
+            <span>{t('ui.models.request-body-limit')}</span>
+            <Input
+              size="sm"
+              type="number"
+              min={1}
+              max={256}
+              step={1}
+              inputMode="numeric"
+              className={styles.bodyLimitInput}
+              disabled={!state}
+              value={Math.round((state?.maxRequestBodyBytes ?? 32 * 1024 * 1024) / (1024 * 1024))}
+              onChange={(e) => {
+                const mib = Number(e.target.value);
+                if (!Number.isFinite(mib)) return;
+                run(
+                  gatewayClient.setOptions({
+                    maxRequestBodyBytes: Math.round(mib * 1024 * 1024),
+                  }),
+                );
+              }}
+              aria-label={t('ui.models.request-body-limit')}
+              data-testid="models-body-limit"
+            />
+            <span className={styles.muted}>{t('ui.models.mib')}</span>
+          </label>
+          <p className={styles.sub}>{t('ui.models.posts-over-the-limit-get-413-default-32')}</p>
+        </div>
+      )}
 
       {status?.state === 'failed' && (
         <div className={styles.offer} role="alert" data-testid="gateway-failed">
           <Icon icon={AlertCircle} size={14} />
-          <span>{t('模型网关没有启动：{0}', status.error)}</span>
+          <span>{t('ui.models.the-model-gateway-isn-t-running', status.error)}</span>
           <Button size="sm" variant="secondary" onClick={() => run(gatewayClient.retry())}>
-            {t('重试')}
+            {t('ui.mascot-theme.retry')}
           </Button>
         </div>
       )}
@@ -140,13 +208,9 @@ export const ModelsPage: React.FC = () => {
           data-testid="legacy-revoked"
         >
           <Icon icon={Info} size={16} />
-          <span>
-            {t(
-              '终端里的 CLI 已恢复为你自己的配置和官方登录；第三方模型现在在 Nomi 的标签里使用（右上角选「第三方」）。',
-            )}
-          </span>
+          <span>{t('ui.models.clis-in-your-terminal-are-back-to-your')}</span>
           <Button size="sm" variant="ghost" onClick={() => setRevokeSeen(true)}>
-            {t('知道了')}
+            {t('ui.models.got-it')}
             <Icon icon={X} size={14} />
           </Button>
         </div>
@@ -158,11 +222,7 @@ export const ModelsPage: React.FC = () => {
           role="alert"
           data-testid={`legacy-revoke-failed-${f.kind}`}
         >
-          {t(
-            '没能撤销旧版本写进 {0} 全局配置的第三方设置：{1}。请手动检查，下次启动会再试。',
-            f.kind,
-            f.error,
-          )}
+          {t('ui.models.couldn-t-undo-the-third-party-settings-an', f.kind, f.error)}
         </p>
       ))}
       {error && (
@@ -173,57 +233,67 @@ export const ModelsPage: React.FC = () => {
 
       {offer && (
         <div className={styles.offer} role="status" data-testid="models-offer">
-          <span>{t('要让 Nomi 对话用「{0}」吗？', offer.name)}</span>
+          <span>{t('ui.models.use-for-nomi-chat', offer.name)}</span>
           <Button size="sm" variant="primary" onClick={() => applyOffer(offer)}>
-            {t('一键填好')}
+            {t('ui.models.fill-in')}
           </Button>
           <Button size="sm" variant="ghost" onClick={() => setOffer(null)}>
-            {t('不用了')}
+            {t('ui.models.no-thanks')}
           </Button>
         </div>
       )}
 
+      <ModelsDataSyncCard gateway={state ?? null} />
+
       <section className={styles.card} aria-labelledby="models-assign">
         <h3 id="models-assign" className={styles.cardTitle}>
           <Icon icon={Waypoints} size={16} />
-          {t('分配')}
+          {t('ui.models.assignments')}
         </h3>
         <div className={styles.row}>
-          <span className={styles.rowLabel}>{t('Nomi 对话')}</span>
+          <span className={styles.rowLabel}>{t('ui.usage-tools.nomi-chat')}</span>
           <ModelPicker
             {...common}
             className={styles.picker}
             value={nomi.main ?? null}
             onChange={(v) => assign({ main: v })}
-            placeholder={picker.length ? t('选择模型') : t('先添加第三方供应商')}
+            placeholder={
+              picker.length
+                ? t('ui.models.choose-a-model')
+                : t('ui.models.add-a-third-party-provider-first')
+            }
             disabled={!picker.length}
-            aria-label={t('Nomi 对话的模型')}
+            aria-label={t('ui.models.model-for-nomi-chat')}
             data-testid="assign-chat"
           />
         </div>
         <div className={styles.row}>
-          <span className={`${styles.rowLabel} ${styles.rowLabelSub}`}>{t('工具调用')}</span>
+          <span className={`${styles.rowLabel} ${styles.rowLabelSub}`}>
+            {t('ui.models.tool-calls')}
+          </span>
           <ModelPicker
             {...common}
             className={styles.picker}
-            extraOptions={[{ value: FOLLOW, label: t('跟随对话') }]}
+            extraOptions={SAME_AS_CHAT}
             value={nomi.tools ?? FOLLOW}
             onChange={(v) => assign({ tools: v === FOLLOW ? null : v })}
             disabled={!picker.length}
-            aria-label={t('工具调用的模型')}
+            aria-label={t('ui.models.model-for-tool-calls')}
             data-testid="assign-tools"
           />
         </div>
         <div className={styles.row}>
-          <span className={`${styles.rowLabel} ${styles.rowLabelSub}`}>{t('摘要')}</span>
+          <span className={`${styles.rowLabel} ${styles.rowLabelSub}`}>
+            {t('ui.models.summaries')}
+          </span>
           <ModelPicker
             {...common}
             className={styles.picker}
-            extraOptions={[{ value: FOLLOW, label: t('跟随对话') }]}
+            extraOptions={SAME_AS_CHAT}
             value={nomi.summary ?? FOLLOW}
             onChange={(v) => assign({ summary: v === FOLLOW ? null : v })}
             disabled={!picker.length}
-            aria-label={t('摘要的模型')}
+            aria-label={t('ui.models.model-for-summaries')}
             data-testid="assign-summary"
           />
         </div>
@@ -232,28 +302,27 @@ export const ModelsPage: React.FC = () => {
       <section className={styles.card} aria-labelledby="models-cli" data-testid="models-cli">
         <h3 id="models-cli" className={styles.cardTitle}>
           <Icon icon={SquareTerminal} size={16} />
-          {t('编程助手')}
+          {t('ui.providers-schedule.coding-agents')}
         </h3>
         <p className={styles.sub}>
-          {t(
-            '每个编程助手的标签都可以在右上角选「官方账号」或「第三方」。这里设置选「第三方」时默认用的模型，以及新建标签默认用哪个；不会改 CLI 的全局配置。',
-          )}
+          {t('ui.models.each-coding-assistant-tab-can-choose-official-account')}
         </p>
         <div className={`${styles.cliRow} ${styles.cliHead}`}>
           <span />
-          <span>{t('第三方模型')}</span>
+          <span>{t('ui.models.third-party-models')}</span>
           <span />
-          <span>{t('新标签默认用')}</span>
+          <span>{t('ui.models.new-tabs-use')}</span>
         </div>
         {CLI_KINDS.map((kind) => (
           <CliRow
             key={kind}
             kind={kind}
             client={state?.clients[kind]}
+            gateway={state ?? null}
             common={common}
             disabled={!picker.length}
-            open={kind === 'claude' && claudeOpen}
-            onToggle={() => setClaudeOpen((x) => !x)}
+            open={openCli === kind}
+            onToggle={() => setOpenCli((x) => (x === kind ? null : kind))}
             onAssign={(patch) => assignCli(kind, patch)}
             missing={cli.missing(kind)}
             installBusy={cli.busy}
@@ -267,7 +336,7 @@ export const ModelsPage: React.FC = () => {
         <div className={styles.cardHeadRow}>
           <h3 id="models-providers" className={styles.cardTitle}>
             <Icon icon={Boxes} size={16} />
-            {t('第三方供应商')}
+            {t('ui.models.third-party-providers')}
           </h3>
           <Button
             size="sm"
@@ -277,12 +346,12 @@ export const ModelsPage: React.FC = () => {
             data-testid="add-provider"
           >
             <Icon icon={Plus} size={14} />
-            {t('添加')}
+            {t('ui.foundation.add')}
           </Button>
         </div>
         {state && !providers.length && (
           <p className={styles.muted} data-testid="models-empty">
-            {t('还没有第三方供应商。添加一个，Nomi 对话就能用它的模型。')}
+            {t('ui.models.no-third-party-providers-yet-add-one-and')}
           </p>
         )}
         {providers.map((p) => (
@@ -300,7 +369,7 @@ export const ModelsPage: React.FC = () => {
         showWire={showWire}
         onClose={() => setEditing(null)}
         onRemove={(p) => {
-          if (!window.confirm(t('删除供应商「{0}」及其所有 Key？', p.name))) return;
+          if (!window.confirm(t('ui.models.delete-provider-and-all-its-keys', p.name))) return;
           setEditing(null);
           run(gatewayClient.removeProvider(p.id));
         }}
@@ -314,11 +383,12 @@ export const ModelsPage: React.FC = () => {
 const CliRow: React.FC<{
   kind: CliKind;
   client: GatewayState['clients'][CliKind];
+  gateway: GatewayState | null;
   common: Pick<React.ComponentProps<typeof ModelPicker>, 'providers' | 'showWire' | 'size'>;
   disabled: boolean;
   open: boolean;
   onToggle: () => void;
-  onAssign: (patch: { models?: ModelsPatch; newTabSource?: 'official' | 'thirdParty' }) => void;
+  onAssign: (patch: CliAssignPatch) => void;
   /** 没安装：整行变灰，只显示「安装」 */
   missing: boolean;
   installBusy: string | null;
@@ -326,6 +396,7 @@ const CliRow: React.FC<{
 }> = ({
   kind,
   client,
+  gateway,
   common,
   disabled,
   open,
@@ -337,6 +408,7 @@ const CliRow: React.FC<{
 }) => {
   const m = client?.models ?? {};
   const name = ENDPOINT_NAME[kind];
+  const { accounts, error: accountsError } = useCliAccounts(kind);
   if (missing)
     return (
       <div className={`${styles.cliRow} ${styles.cliMissing}`} data-testid={`cli-row-${kind}`}>
@@ -344,35 +416,46 @@ const CliRow: React.FC<{
           <EndpointIcon backend={kind} size={16} decorative />
           {name}
         </span>
-        <span className={styles.muted}>{t('未安装')}</span>
+        <span className={styles.muted}>{t('ui.mascot-theme.not-installed')}</span>
         <span />
         <Button
           size="sm"
           variant="secondary"
           disabled={installBusy !== null}
-          title={installBusy && installBusy !== kind ? t('已有安装 / 更新在进行') : undefined}
+          title={
+            installBusy && installBusy !== kind
+              ? t('ui.foundation.another-install-update-is-already-in-progress')
+              : undefined
+          }
           onClick={onInstall}
-          aria-label={t('安装 {0}', name)}
+          aria-label={t('ui.cli-monitor.install-named', name)}
           data-testid={`cli-install-${kind}`}
         >
           <Icon icon={Download} size={14} />
-          {installBusy === kind ? t('进行中…') : t('安装')}
+          {installBusy === kind ? t('ui.cli-monitor.working') : t('ui.models.install')}
         </Button>
       </div>
     );
   const source = client?.newTabSource ?? 'official';
+  // eslint-disable-next-line nomi/no-cli-literal -- 各档模型（opus / sonnet / haiku / fable）是 Claude Code 独有的配置
   const claude = kind === 'claude';
-  const sourceOptions: SelectOption[] = [
-    { value: 'official', label: kind === 'dsh' ? t('dsh 自带配置') : t('官方账号') },
-    {
-      value: 'thirdParty',
-      label: t('第三方'),
-      disabled: !m.main,
-      description: m.main ? undefined : t('先选第三方模型'),
-    },
-  ];
+  const newTabCtx = { kind, client, gateway, accounts };
+  const sourceOptions = newTabOptions(newTabCtx);
+  const sourceValue = newTabSelectValue(client, kind);
+  const pickSource = (value: string) => {
+    const patch = newTabPatch(value, newTabCtx);
+    if (patch) onAssign(patch as CliAssignPatch);
+  };
   const setMain = (v: string) => {
-    if (v !== UNSET) return onAssign({ models: { main: v } });
+    if (v !== UNSET) {
+      // 主模型本身带有供应商；选模型就同时把「新标签默认」切到该供应商，
+      // 避免出现默认供应商与模型属于不同供应商的无效组合。
+      const providerId = providerOfRef(v);
+      return onAssign({
+        models: { main: v },
+        ...(providerId ? { newTabSource: 'thirdParty' as const, newTabAccountId: null } : {}),
+      });
+    }
     // 清掉主模型后「第三方」不能再作新标签默认
     onAssign({
       models: { main: null },
@@ -399,68 +482,97 @@ const CliRow: React.FC<{
           {...common}
           purpose="coding"
           className={styles.picker}
-          extraOptions={[{ value: UNSET, label: t('未设置') }]}
+          extraOptions={NOT_SET}
           value={m.main ?? UNSET}
           onChange={setMain}
           disabled={disabled}
-          aria-label={t('{0} 的第三方模型', name)}
+          aria-label={t('ui.models.third-party-model', name)}
           data-testid={`cli-main-${kind}`}
         />
-        {claude ? (
-          <button
-            type="button"
-            className={styles.expand}
-            aria-expanded={open}
-            data-testid="cli-tiers-toggle"
-            onClick={onToggle}
-          >
-            <Icon icon={open ? ChevronDown : ChevronRight} size={14} />
-            {t('各档模型')}
-          </button>
-        ) : (
-          <span />
-        )}
+        <button
+          type="button"
+          className={styles.expand}
+          aria-expanded={open}
+          data-testid={claude ? 'cli-tiers-toggle' : `cli-more-${kind}`}
+          onClick={onToggle}
+        >
+          <Icon icon={open ? ChevronDown : ChevronRight} size={14} />
+          {claude ? t('ui.models.per-tier-models') : t('ui.voice-mascot.more')}
+        </button>
         <Select
           size="sm"
           className={styles.source}
           options={sourceOptions}
-          value={source}
-          onChange={(e) => onAssign({ newTabSource: e.target.value as 'official' | 'thirdParty' })}
-          aria-label={t('{0} 新标签默认用', name)}
+          value={sourceValue}
+          onChange={(e) => pickSource(e.target.value)}
+          aria-label={t('ui.models.new-tabs-use-named', name)}
           data-testid={`cli-source-${kind}`}
-          menuMinWidth={200}
+          menuMinWidth={240}
+          title={accountsError ? t('ui.models.failed-to-load-accounts', accountsError) : undefined}
         />
       </div>
+      {accountsError ? (
+        <div
+          className={`${styles.cliRow} ${styles.tierRow}`}
+          data-testid={`cli-accounts-error-${kind}`}
+        >
+          <span className={styles.muted}>
+            {t('ui.models.failed-to-load-accounts', accountsError)}
+          </span>
+        </div>
+      ) : null}
       {open && (
         <>
-          {CLAUDE_TIERS.map((tier) => (
-            <div key={tier.id} className={`${styles.cliRow} ${styles.tierRow}`}>
-              <span className={styles.cliName}>{t(tier.label)}</span>
+          {claude &&
+            CLAUDE_TIERS.map((tier) => (
+              <div key={tier.id} className={`${styles.cliRow} ${styles.tierRow}`}>
+                <span className={styles.cliName}>{t(tier.label)}</span>
+                <ModelPicker
+                  {...common}
+                  purpose="coding"
+                  className={styles.picker}
+                  extraOptions={FOLLOW_MAIN}
+                  value={tierValue(tier.id) ?? FOLLOW}
+                  onChange={(v) => setTier(tier.id, v)}
+                  disabled={disabled}
+                  aria-label={t('ui.models.claude-code', t(tier.label))}
+                  data-testid={`cli-tier-${tier.id}`}
+                />
+              </div>
+            ))}
+          {claude && (
+            <div className={`${styles.cliRow} ${styles.tierRow}`}>
+              <span className={styles.cliName}>{t('ui.usage-tools.subagent')}</span>
               <ModelPicker
                 {...common}
                 purpose="coding"
                 className={styles.picker}
-                extraOptions={[{ value: FOLLOW, label: t('跟随主模型') }]}
-                value={tierValue(tier.id) ?? FOLLOW}
-                onChange={(v) => setTier(tier.id, v)}
+                extraOptions={FOLLOW_MAIN}
+                value={m.subagent ?? FOLLOW}
+                onChange={(v) => onAssign({ models: { subagent: v === FOLLOW ? null : v } })}
                 disabled={disabled}
-                aria-label={t('Claude Code 的{0}', t(tier.label))}
-                data-testid={`cli-tier-${tier.id}`}
+                aria-label={t('ui.models.claude-code-subagent-model')}
+                data-testid="cli-subagent"
               />
             </div>
-          ))}
+          )}
           <div className={`${styles.cliRow} ${styles.tierRow}`}>
-            <span className={styles.cliName}>{t('子代理')}</span>
+            <span
+              className={styles.cliName}
+              title={t('ui.models.used-for-helper-requests-such-as-titles-summaries')}
+            >
+              {t('ui.usage-tools.helper-model')}
+            </span>
             <ModelPicker
               {...common}
               purpose="coding"
               className={styles.picker}
-              extraOptions={[{ value: FOLLOW, label: t('跟随主模型') }]}
-              value={m.subagent ?? FOLLOW}
-              onChange={(v) => onAssign({ models: { subagent: v === FOLLOW ? null : v } })}
+              extraOptions={FOLLOW_MAIN}
+              value={m.summary ?? FOLLOW}
+              onChange={(v) => onAssign({ models: { summary: v === FOLLOW ? null : v } })}
               disabled={disabled}
-              aria-label={t('Claude Code 的子代理模型')}
-              data-testid="cli-subagent"
+              aria-label={t('ui.models.helper-model-titles-summaries-etc', name)}
+              data-testid={`cli-helper-${kind}`}
             />
           </div>
         </>
@@ -479,8 +591,8 @@ const ProviderRow: React.FC<{ p: ProviderView; onOpen: () => void }> = ({ p, onO
   const failing = fi >= 0 ? p.keys[fi]! : undefined;
   const warning = failing
     ? failing.decryptable
-      ? t('{0} 最近一次请求失败：{1}', keyName(failing, fi), failing.lastError ?? '')
-      : t('{0} 无法解密，请重新填写', keyName(failing, fi))
+      ? t('ui.models.the-last-request-failed', keyName(failing, fi), failing.lastError ?? '')
+      : t('ui.models.can-t-be-decrypted-please-enter-it-again', keyName(failing, fi))
     : undefined;
   const name = providerDisplayName(p.name);
   return (
@@ -501,7 +613,11 @@ const ProviderRow: React.FC<{ p: ProviderView; onOpen: () => void }> = ({ p, onO
                 <Icon icon={AlertCircle} size={14} />
               </span>
             )}
-            {fromEnv && <span className={styles.badgeMuted}>{t('环境变量')}</span>}
+            {fromEnv && (
+              <span className={styles.badgeMuted}>
+                {t('ui.chat-settings.environment-variable')}
+              </span>
+            )}
           </span>
           <span className={styles.wires}>
             {wires.map((w) => (
@@ -511,15 +627,15 @@ const ProviderRow: React.FC<{ p: ProviderView; onOpen: () => void }> = ({ p, onO
               </span>
             ))}
           </span>
-          <span className={styles.count}>{t('{0} 个 Key', String(p.keys.length))}</span>
-          <span className={styles.count}>{t('{0} 个模型', String(enabledCount))}</span>
+          <span className={styles.count}>{t('ui.models.keys', String(p.keys.length))}</span>
+          <span className={styles.count}>{t('ui.models.models', String(enabledCount))}</span>
           <Icon icon={ChevronRight} size={14} />
         </button>
         <button
           type="button"
           className={styles.more}
           aria-haspopup="dialog"
-          aria-label={fromEnv ? t('查看「{0}」', name) : t('编辑「{0}」', name)}
+          aria-label={fromEnv ? t('ui.models.view', name) : t('ui.models.edit', name)}
           onClick={onOpen}
         >
           <Icon icon={MoreHorizontal} size={16} />

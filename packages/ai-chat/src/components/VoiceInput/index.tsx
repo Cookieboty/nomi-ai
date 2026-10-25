@@ -91,19 +91,25 @@ export const VoiceButtons: React.FC<{ cv: ChatVoice; disabled?: boolean }> = ({ 
         disabled={disabled || handsFree}
         onStart={() => void v.pttStart()}
         onStop={(cancel) => void v.pttStop(cancel)}
-        tooltip={t('按住说话（F2）')}
+        tooltip={t('ui.chat-settings.hold-to-talk-f2')}
         data-testid="voice-mic"
       />
       {/* top-end：按钮贴着输入区右缘，居中的提示会被窗口右边裁掉 */}
       <Tooltip
         placement="top-end"
         content={
-          handsFree ? t('关闭免按键（Ctrl+Shift+H）') : t('免按键：说完自动识别（Ctrl+Shift+H）')
+          handsFree
+            ? t('ui.chat-settings.turn-off-hands-free-ctrl-shift-h')
+            : t('ui.chat-settings.hands-free-recognized-automatically-when-you-stop-talking')
         }
       >
         <button
           type="button"
-          aria-label={handsFree ? t('关闭免按键') : t('开启免按键')}
+          aria-label={
+            handsFree
+              ? t('ui.chat-settings.turn-off-hands-free')
+              : t('ui.chat-settings.turn-on-hands-free')
+          }
           aria-pressed={handsFree}
           className={`cd-voice-mic cd-voice-mic--ms cd-voice-toggle ${handsFree ? 'is-on' : ''}`}
           onClick={toggleHandsFree}
@@ -137,7 +143,7 @@ export const VoiceSettingsModal: React.FC<{ cv: ChatVoice }> = ({ cv }) => {
     <Modal
       open={cv.showSettings}
       onClose={() => cv.setShowSettings(false)}
-      title={t('语音输入')}
+      title={t('ui.chat-settings.voice-input')}
       size="lg"
     >
       {v.api && (

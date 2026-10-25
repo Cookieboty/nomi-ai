@@ -65,12 +65,12 @@ export function unsupportedImageMessage(backend: HarnessBackend): string {
             : backend === 'gemini'
               ? 'Gemini'
               : backend;
-  return t('{0} 的命令行没有图片输入，不能在会话里发送图片，请去掉图片后再发。', name);
+  return t('electron.common.the-cli-has-no-image-input-so-images', name);
 }
 
 /** 当前模型明确不支持看图（CLI / 网关给了模型能力时才判断） */
 export function modelNoVisionMessage(model: string): string {
-  return t('当前模型 {0} 不支持图片，请去掉图片，或在模型按钮里换一个能看图的模型。', model);
+  return t('electron.common.the-current-model-doesn-t-support-images-remove', model);
 }
 
 function normalizeMime(mime: string): ImageMime | null {
@@ -161,12 +161,12 @@ export function normalizeImages(
 export function rejectedImagesMessage(rejected: readonly RejectedImage[], max = 8): string {
   const has = (r: ImageRejectReason) => rejected.some((x) => x.reason === r);
   const parts: string[] = [];
-  if (has('too-large')) parts.push(t('图片太大（单张不能超过约 9MB）'));
-  if (has('no-thumb')) parts.push(t('图片缺少预览且体积较大，无法生成缩略图'));
-  if (has('mime')) parts.push(t('只支持 PNG / JPEG / WebP / GIF 图片'));
-  if (has('empty')) parts.push(t('图片内容为空'));
-  if (has('over-max')) parts.push(t('一次最多发送 {0} 张图片', max));
-  return t('有 {0} 张图片不能发送：{1}。请去掉后再发。', rejected.length, parts.join('；'));
+  if (has('too-large')) parts.push(t('electron.common.image-too-large-max-about-9mb-each'));
+  if (has('no-thumb')) parts.push(t('electron.common.image-has-no-preview-and-is-too-large'));
+  if (has('mime')) parts.push(t('electron.common.only-png-jpeg-webp-gif-images-are-supported'));
+  if (has('empty')) parts.push(t('electron.common.image-is-empty'));
+  if (has('over-max')) parts.push(t('electron.common.at-most-images-per-message', max));
+  return t('electron.common.image-s-can-t-be-sent-remove-them', rejected.length, parts.join('；'));
 }
 
 /** 写入会话临时目录，返回带 absPath 的列表 */

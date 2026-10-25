@@ -143,7 +143,7 @@ export const MessageBubble: React.FC = () => {
           tabIndex={measure ? -1 : undefined}
           onClick={openChat}
         >
-          {tr('查看全文')}
+          {tr('ui.knowledge-local.view-full-text')}
         </button>
       )}
     </div>

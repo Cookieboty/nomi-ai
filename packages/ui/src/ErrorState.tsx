@@ -46,7 +46,7 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
       <Icon icon={TriangleAlert} size={18} />
     </span>
     <div className="cd-error-state__text">
-      <p className="cd-error-state__title">{title ?? t('出错了')}</p>
+      <p className="cd-error-state__title">{title ?? t('ui.mascot-theme.something-went-wrong')}</p>
       {detail != null && detail !== '' && <p className="cd-error-state__detail">{detail}</p>}
     </div>
     {onRetry && (
@@ -57,7 +57,7 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
         disabled={retrying}
         data-testid={retryTestId}
       >
-        {retrying ? t('重试中…') : (retryLabel ?? t('重试'))}
+        {retrying ? t('ui.mascot-theme.retrying') : (retryLabel ?? t('ui.mascot-theme.retry'))}
       </Button>
     )}
   </div>

@@ -3,6 +3,8 @@
  * - 助手：一排紧凑的助手选择条（Claude Code / Codex / dsh / Grok / Gemini，带安装状态），
  *   下面是选中助手的分组：版本（检测 / 更新 / 安装）、官方账号、第三方模型入口。
  *   第三方供应商与模型分配（Nomi 对话和各编程助手）都在设置 →「模型」（统一网关），这里只留入口。
+ *   下面是「外部 CLI」：用户添加的说 ACP 的编程助手（§5.9）。
+ * - 委派：允许 Nomi 委派编程助手、按任务类型的默认编程助手（docs/design/nomi-delegate-cli.md §4.7）。
  * - 监视与会话：本机编程助手进度监视设置 + 活跃会话列表。
  * 切换标签只是换一个视图，不会改任何配置。
  */
@@ -19,6 +21,8 @@ import { CodingMonitor } from '../CodingMonitor';
 import { EndpointIcon } from '../EndpointIcon';
 
 import { CliEndpointSection } from './CliEndpointSection';
+import { DelegateSettings } from './DelegateSettings';
+import { ExternalClis } from './ExternalClis';
 import styles from './index.module.css';
 
 /** 助手选择条的顺序：与对话区端点顺序一致，去掉 Nomi（Nomi 的模型在「模型」页） */
@@ -35,8 +39,8 @@ export const ProvidersPage: React.FC<{
   const cliOk = harnessClient.available();
   // 「监视与会话」时记住上次看的助手；旧的「nomi」选中值落到第一个助手
   const [lastCli, setLastCli] = useState<CliKind>(() => (isCliKind(ep) ? ep : CLIS[0]!));
-  const cli: CliKind = ep === 'monitor' || ep === 'nomi' ? lastCli : ep;
-  const view = ep === 'monitor' ? 'monitor' : 'assistants';
+  const cli: CliKind = isCliKind(ep) ? ep : lastCli;
+  const view = ep === 'monitor' || ep === 'delegate' ? ep : 'assistants';
   const pick = (k: CliKind) => {
     setLastCli(k);
     setEp(k);
@@ -65,9 +69,14 @@ export const ProvidersPage: React.FC<{
   const statusOf = (b: CliKind): { label: string; tone: Tone } | null => {
     const info = infos?.find((x) => x.kind === b);
     if (!info) return null; // 主进程没报告这个端点：不猜
-    if (!info.path) return { label: t('未安装'), tone: 'off' };
-    if (info.updateAvailable) return { label: t('有新版本'), tone: 'warn' };
-    return { label: info.version ? t('已安装 {0}', info.version) : t('已安装'), tone: 'ok' };
+    if (!info.path) return { label: t('ui.mascot-theme.not-installed'), tone: 'off' };
+    if (info.updateAvailable) return { label: t('ui.cli-monitor.update-available'), tone: 'warn' };
+    return {
+      label: info.version
+        ? t('ui.chat-settings.installed', info.version)
+        : t('ui.knowledge-local.installed'),
+      tone: 'ok',
+    };
   };
 
   const onKey = (e: React.KeyboardEvent) => {
@@ -81,16 +90,31 @@ export const ProvidersPage: React.FC<{
   return (
     <div className={styles.page} data-testid="providers-page" data-endpoint={ep}>
       <Tabs
-        aria-label={t('编程助手分区')}
+        aria-label={t('ui.cli-monitor.coding-assistant-sections')}
         value={view}
-        onChange={(v) => (v === 'monitor' ? setEp('monitor') : pick(cli))}
+        onChange={(v) => (v === 'monitor' || v === 'delegate' ? setEp(v) : pick(cli))}
         items={[
-          { value: 'assistants', label: t('助手'), testId: 'providers-view-assistants' },
-          { value: 'monitor', label: t('监视与会话'), testId: 'providers-endpoint-monitor' },
+          {
+            value: 'assistants',
+            label: t('ui.providers-schedule.assistants'),
+            testId: 'providers-view-assistants',
+          },
+          {
+            value: 'delegate',
+            label: t('ui.chat-settings.handoff'),
+            testId: 'providers-view-delegate',
+          },
+          {
+            value: 'monitor',
+            label: t('ui.cli-monitor.monitor-sessions'),
+            testId: 'providers-endpoint-monitor',
+          },
         ]}
       />
 
-      {view === 'monitor' ? (
+      {view === 'delegate' ? (
+        <DelegateSettings />
+      ) : view === 'monitor' ? (
         <div data-testid="providers-section-monitor">
           <CodingMonitor onOpenedTab={onOpenedTab} onOpenNotify={onOpenNotify} />
         </div>
@@ -98,7 +122,7 @@ export const ProvidersPage: React.FC<{
         <>
           <div
             role="tablist"
-            aria-label={t('选择编程助手')}
+            aria-label={t('ui.providers-schedule.choose-a-coding-assistant')}
             className={styles.picker}
             data-testid="providers-endpoint-tabs"
             onKeyDown={onKey}
@@ -135,9 +159,14 @@ export const ProvidersPage: React.FC<{
             })}
           </div>
           {cliOk ? (
-            <CliEndpointSection key={cli} kind={cli} onOpenModels={onOpenModels} />
+            <>
+              <CliEndpointSection key={cli} kind={cli} onOpenModels={onOpenModels} />
+              <ExternalClis onOpenedTab={onOpenedTab} />
+            </>
           ) : (
-            <p className={styles.sub}>{t('编程助手接入需要在桌面应用中使用')}</p>
+            <p className={styles.sub}>
+              {t('ui.mascot-theme.coding-agent-harness-requires-the-desktop-app')}
+            </p>
           )}
         </>
       )}

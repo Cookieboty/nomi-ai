@@ -34,7 +34,7 @@ import {
   RefreshCw,
   Trash2,
 } from 'lucide-react';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   gatewayClient,
@@ -54,10 +54,11 @@ import { providerDisplayName } from '../../services/providerClient';
 
 import { NON_CHAT, storedProbes } from './AddProviderDialog';
 import styles from './index.module.css';
+import { metaSourceLabel, ModelLimitsGroups, userLimit } from './ModelLimitsGroups';
 
 /** Key 的显示名：用户起的名字原样显示，否则按顺序「主 Key / 备用 Key N」 */
 export const keyName = (k: { name?: string }, i: number): string =>
-  k.name || (i === 0 ? t('主 Key') : t('备用 Key {0}', String(i)));
+  k.name || (i === 0 ? t('ui.models.primary-key') : t('ui.models.backup-key', String(i)));
 
 interface KeyDraft {
   id: string;
@@ -68,7 +69,17 @@ interface KeyDraft {
   value?: string;
   /** 已有 Key 正在更换成的新值（undefined = 没在更换；保存时在原位置换成新 Key，名称保留） */
   replace?: string;
+  /** 并发上限 / 每分钟请求数（输入框文本，留空 = 不限） */
+  maxConcurrency?: string;
+  rpm?: string;
 }
+
+/** 限流输入框 → 正整数；留空 / 非法 = null（不限） */
+export const limitOf = (s: string | undefined): number | null => {
+  const v = (s ?? '').trim();
+  const n = Number(v);
+  return v && Number.isInteger(n) && n > 0 && n <= 100_000 ? n : null;
+};
 
 /** 草稿里这个 Key 要写入的新明文：新增的 Key，或填了新值的「更换」 */
 const freshValue = (k: KeyDraft): string | undefined =>
@@ -92,8 +103,15 @@ interface Draft {
 }
 
 const initDraft = (p: ProviderView): Draft => ({
-  name: p.name,
-  keys: p.keys.map((k) => ({ id: k.id, name: k.name ?? '', enabled: k.enabled, wire: k.wire })),
+  name: providerDisplayName(p.name),
+  keys: p.keys.map((k) => ({
+    id: k.id,
+    name: k.name ?? '',
+    enabled: k.enabled,
+    wire: k.wire,
+    maxConcurrency: k.maxConcurrency ? String(k.maxConcurrency) : '',
+    rpm: k.rpm ? String(k.rpm) : '',
+  })),
   models: p.models.map((m) => ({ ...m })),
   fallback: [...(p.fallback ?? [])],
   urls: Object.fromEntries(WIRES.map((w) => [w, p.urls[w] ?? ''])) as Record<Wire, string>,
@@ -114,10 +132,13 @@ export function buildPayload(p: ProviderView, d: Draft): ProviderInput {
       enabled: k.enabled,
       ...(k.name.trim() ? { name: k.name.trim() } : {}),
       ...(k.wire ? { wire: k.wire } : {}),
+      ...(limitOf(k.maxConcurrency) ? { maxConcurrency: limitOf(k.maxConcurrency) } : {}),
+      ...(limitOf(k.rpm) ? { rpm: limitOf(k.rpm) } : {}),
     }));
   return {
     id: p.id,
-    name: d.name.trim() || p.name,
+    // 名称没改时保留原值（预设名是 key，显示时才翻译）
+    name: !d.name.trim() || d.name.trim() === providerDisplayName(p.name) ? p.name : d.name.trim(),
     ...(p.presetId ? { presetId: p.presetId } : {}),
     enabled: p.enabled,
     // 清空的地址写空串：主进程据此关闭该协议
@@ -131,11 +152,17 @@ export function buildPayload(p: ProviderView, d: Draft): ProviderInput {
         id: k.id,
         enabled: k.enabled,
         ...(k.wire ? { wire: k.wire } : {}),
+        // 限流只在改了时才带（null = 清除）
+        ...(limitOf(k.maxConcurrency) !== (orig.get(k.id)?.maxConcurrency ?? null)
+          ? { maxConcurrency: limitOf(k.maxConcurrency) }
+          : {}),
+        ...(limitOf(k.rpm) !== (orig.get(k.id)?.rpm ?? null) ? { rpm: limitOf(k.rpm) } : {}),
         // 名字留空就按顺序显示；原来有名字、现在清空时写空串
         ...(k.name.trim() || orig.get(k.id)?.name ? { name: k.name.trim() } : {}),
       })),
     ...(newKeys.length ? { newKeys } : {}),
-    models: d.models,
+    // 生效值（effective）只用于显示，主进程会重算
+    models: d.models.map(({ effective: _e, ...m }) => m),
     modelMap: d.modelMap
       .map((x) => ({ from: x.from.trim(), to: x.to.trim() }))
       .filter((x) => x.from && x.to),
@@ -165,16 +192,75 @@ const splitKeys = (text: string): string[] => [
   ),
 ];
 
-/** 模型的能力标签 */
-const ModelBadges: React.FC<{ m: GatewayModel }> = ({ m }) => (
-  <>
-    {m.reasoning && <span className={styles.badgeSoft}>{t('推理')}</span>}
-    {m.vision && <span className={styles.badgeSoft}>{t('视觉')}</span>}
-    {m.ctx ? <span className={styles.badgeMuted}>{formatContext(m.ctx)}</span> : null}
-    {m.toolCalling === false && <span className={styles.badgeMuted}>{t('不支持工具调用')}</span>}
-    {m.metaSource === 'default' && <span className={styles.badgeMuted}>{t('参数未知')}</span>}
-  </>
-);
+/** 模型的能力标签：上下文按主进程算出的生效值显示，悬停看来源 */
+const ModelBadges: React.FC<{ m: GatewayModel }> = ({ m }) => {
+  const eff = m.effective;
+  const ctx = eff ? (eff.source === 'default' ? undefined : eff.ctx) : m.ctx;
+  const unknown = eff ? eff.source === 'default' : m.metaSource === 'default';
+  return (
+    <>
+      {(eff?.reasoning ?? m.reasoning) && (
+        <span className={styles.badgeSoft}>{t('ui.models.reasoning')}</span>
+      )}
+      {(eff?.vision ?? m.vision) && (
+        <span className={styles.badgeSoft}>{t('ui.models.vision')}</span>
+      )}
+      {ctx ? (
+        <span
+          className={styles.badgeMuted}
+          title={eff ? t('ui.models.meta-source', metaSourceLabel(eff.source)) : undefined}
+        >
+          {formatContext(ctx)}
+        </span>
+      ) : null}
+      {m.toolCalling === false && (
+        <span className={styles.badgeMuted}>{t('ui.models.no-tool-calling')}</span>
+      )}
+      {unknown && (
+        <span className={styles.badgeMuted} title={t('ui.models.limits-unknown-hint')}>
+          {t('ui.models.limits-unknown')}
+        </span>
+      )}
+    </>
+  );
+};
+
+/** 模型列表的一行 */
+const ModelRow = memo(function ModelRow({
+  m,
+  readOnly,
+  onSet,
+  onRemove,
+}: {
+  m: GatewayModel;
+  readOnly: boolean;
+  onSet: (id: string, x: Partial<GatewayModel>) => void;
+  onRemove: (id: string) => void;
+}) {
+  return (
+    <div className={styles.modelRow} data-testid={`pd-model-${m.id}`}>
+      <label className={styles.modelCheck}>
+        <input
+          type="checkbox"
+          disabled={readOnly}
+          checked={m.enabled}
+          onChange={(e) => onSet(m.id, { enabled: e.target.checked })}
+        />
+        <span>{m.label ?? m.id}</span>
+      </label>
+      <ModelBadges m={m} />
+      {!readOnly && (
+        <IconButton
+          size="sm"
+          className={styles.rowEnd}
+          label={t('ui.models.remove-model', m.id)}
+          icon={<Icon icon={Trash2} size={14} />}
+          onClick={() => onRemove(m.id)}
+        />
+      )}
+    </div>
+  );
+});
 
 interface Props {
   provider: ProviderView | null;
@@ -216,9 +302,10 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
   const refocus = useRef<string | null>(null);
 
   const patch = (x: Partial<Draft>) => setD((cur) => ({ ...cur, ...x }));
+  const initialPayload = useMemo(() => JSON.stringify(buildPayload(p, initial)), [p, initial]);
   const dirty = useMemo(
-    () => JSON.stringify(buildPayload(p, d)) !== JSON.stringify(buildPayload(p, initial)),
-    [p, d, initial],
+    () => JSON.stringify(buildPayload(p, d)) !== initialPayload,
+    [p, d, initialPayload],
   );
   const urlsChanged = JSON.stringify(d.urls) !== detectedUrls;
   const picker = useMemo(() => pickerProviders(providers), [providers]);
@@ -239,7 +326,7 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
   };
   const urlWires = WIRES.filter((w) => d.urls[w].trim());
   const wireOptions: SelectOption[] = [
-    { value: '', label: t('自动') },
+    { value: '', label: t('ui.foundation.auto') },
     ...WIRES.map((w) => ({ value: w, label: WIRE_LABEL[w] })),
   ];
 
@@ -264,7 +351,7 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
   const deleteKey = (i: number) => {
     const k = d.keys[i]!;
     const label = keyName({ name: k.name || p.keys.find((x) => x.id === k.id)?.name }, i);
-    if (!window.confirm(t('删除 {0}？保存后生效。', label))) return;
+    if (!window.confirm(t('ui.models.delete-this-takes-effect-when-you-save', label))) return;
     patch({ keys: d.keys.filter((_, n) => n !== i) });
   };
   const addKeys = () => {
@@ -281,8 +368,19 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
   };
 
   /* ---------------- 模型 ---------------- */
-  const setModel = (id: string, x: Partial<GatewayModel>) =>
-    patch({ models: d.models.map((m) => (m.id === id ? { ...m, ...x } : m)) });
+  // 引用稳定：模型列表可能有几百行（ModelRow 是 memo），输入框打字 / 勾选一个模型时其余行不重渲染
+  const setModel = useCallback(
+    (id: string, x: Partial<GatewayModel>) =>
+      setD((cur) => ({
+        ...cur,
+        models: cur.models.map((m) => (m.id === id ? { ...m, ...x } : m)),
+      })),
+    [],
+  );
+  const removeModel = useCallback(
+    (id: string) => setD((cur) => ({ ...cur, models: cur.models.filter((x) => x.id !== id) })),
+    [],
+  );
   const addModel = () => {
     const id = modelText.trim();
     if (!id) return;
@@ -301,7 +399,7 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
       const u = d.urls[w].trim();
       const hp = isPrivateUrl(u) ? hostPortOf(u) : null;
       if (!hp || allowedPrivateHosts.includes(hp)) continue;
-      if (!window.confirm(t('「{0}」是本机或局域网地址，允许 Nomi 访问它吗？', hp))) return false;
+      if (!window.confirm(t('ui.models.is-a-local-or-lan-address-allow-nomi', hp))) return false;
       await gatewayClient.confirmPrivateHost(hp);
     }
     return true;
@@ -328,18 +426,32 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
         ...(fresh.length ? { keys: fresh } : {}),
       });
       const have = new Set(d.models.map((m) => m.id));
+      const listed = (id: string) =>
+        r.limits?.[id] ? { ...r.limits[id], metaSource: 'listed' as const } : {};
       const added: GatewayModel[] = r.models
         .filter((id) => !have.has(id))
         .map((id) => ({
           id,
           enabled: false,
           ...(NON_CHAT.test(id) ? { toolCalling: false } : {}),
+          ...listed(id),
         }));
-      setD((cur) => ({ ...cur, models: [...cur.models, ...added], detected: storedProbes(r) }));
+      // 已有模型：用户没手填过的，用这次模型列表返回的上限刷新（§12.7.2 第 3 级）
+      const refreshed = (m: GatewayModel): GatewayModel =>
+        r.limits?.[m.id] && !userLimit(m, 'ctx') && !userLimit(m, 'maxOutput')
+          ? { ...m, ctx: undefined, maxOutput: undefined, ...listed(m.id) }
+          : m;
+      setD((cur) => ({
+        ...cur,
+        models: [...cur.models.map(refreshed), ...added],
+        detected: storedProbes(r),
+      }));
       setDetectedUrls(JSON.stringify(d.urls));
       const ok = WIRES.filter((w) => r.wires[w]?.ok).map((w) => WIRE_LABEL[w]);
-      const wiresText = ok.length ? t('可用协议：{0}', ok.join(' / ')) : t('所有协议都不可用');
-      const modelsText = t('新发现 {0} 个模型（默认不启用）', String(added.length));
+      const wiresText = ok.length
+        ? t('ui.models.available-apis', ok.join(' / '))
+        : t('ui.models.no-api-is-available');
+      const modelsText = t('ui.models.new-models-found-disabled-by-default', String(added.length));
       setNotice(`${wiresText} · ${modelsText}`);
     } catch (e) {
       setError((e as Error).message);
@@ -370,12 +482,12 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
           onClick={() => onRemove(p)}
           data-testid="provider-detail-remove"
         >
-          {t('删除供应商')}
+          {t('ui.models.delete-provider')}
         </Button>
       )}
-      {!readOnly && dirty && <span className={styles.help}>{t('有未保存的改动')}</span>}
+      {!readOnly && dirty && <span className={styles.help}>{t('ui.models.unsaved-changes')}</span>}
       <Button size="sm" variant="secondary" onClick={onClose} data-testid="provider-detail-cancel">
-        {readOnly ? t('关闭') : t('取消')}
+        {readOnly ? t('ui.providers-schedule.close') : t('ui.foundation.cancel')}
       </Button>
       {!readOnly && (
         <Button
@@ -385,7 +497,7 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
           onClick={() => void save()}
           data-testid="provider-detail-save"
         >
-          {t('保存')}
+          {t('ui.foundation.save')}
         </Button>
       )}
     </div>
@@ -401,10 +513,12 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
           readOnly ? (
             <span className={styles.titleRow}>
               {providerDisplayName(p.name)}
-              <span className={styles.badgeMuted}>{t('环境变量')}</span>
+              <span className={styles.badgeMuted}>
+                {t('ui.chat-settings.environment-variable')}
+              </span>
             </span>
           ) : (
-            t('编辑「{0}」', providerDisplayName(p.name))
+            t('ui.models.edit', providerDisplayName(p.name))
           )
         }
         footer={footer}
@@ -413,7 +527,7 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
         <div className={styles.detailBody} ref={bodyRef}>
           {readOnly && (
             <p className={styles.help} data-testid="provider-detail-readonly">
-              {t('这个供应商来自环境变量，只能查看；要修改请改环境变量后重启 Nomi。')}
+              {t('ui.models.this-provider-comes-from-environment-variables-and-is')}
             </p>
           )}
           {error && (
@@ -424,7 +538,7 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
 
           {!readOnly && (
             <label className={styles.field}>
-              <span>{t('名称')}</span>
+              <span>{t('ui.foundation.name')}</span>
               <Input
                 size="sm"
                 value={d.name}
@@ -437,9 +551,9 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
           {/* ---------------- Key ---------------- */}
           <section className={styles.section} aria-labelledby="pd-keys">
             <h4 id="pd-keys" className={styles.groupTitle}>
-              {t('Key（按顺序回退）')}
+              {t('ui.models.keys-fallback-in-order')}
             </h4>
-            {!d.keys.length && <span className={styles.muted}>{t('无需 Key')}</span>}
+            {!d.keys.length && <span className={styles.muted}>{t('ui.models.no-key-needed')}</span>}
             {(readOnly ? p.keys.map((k) => ({ ...k, name: k.name ?? '' })) : d.keys).map((k, i) => {
               const view = p.keys.find((x) => x.id === k.id);
               const label = keyName({ name: k.name || view?.name }, i);
@@ -458,7 +572,7 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                       <span className={styles.orderBtns}>
                         <IconButton
                           size="sm"
-                          label={t('上移 {0}', label)}
+                          label={t('ui.models.move-up', label)}
                           icon={<Icon icon={ArrowUp} size={14} />}
                           disabled={i === 0}
                           onClick={() => moveKey(i, -1)}
@@ -467,7 +581,7 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                         />
                         <IconButton
                           size="sm"
-                          label={t('下移 {0}', label)}
+                          label={t('ui.models.move-down', label)}
                           icon={<Icon icon={ArrowDown} size={14} />}
                           disabled={i === d.keys.length - 1}
                           onClick={() => moveKey(i, 1)}
@@ -485,13 +599,15 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                         value={k.name}
                         placeholder={keyName({}, i)}
                         onChange={(e) => setKey(i, { name: e.target.value })}
-                        aria-label={t('{0} 的名称', label)}
+                        aria-label={t('ui.models.name-of', label)}
                       />
                     )}
                     {'value' in k && typeof k.value === 'string' && (
-                      <span className={styles.badgeSoft}>{t('新')}</span>
+                      <span className={styles.badgeSoft}>{t('ui.models.new')}</span>
                     )}
-                    {replacing && <span className={styles.badgeSoft}>{t('待更换')}</span>}
+                    {replacing && (
+                      <span className={styles.badgeSoft}>{t('ui.models.replacing')}</span>
+                    )}
                     <code className={styles.masked}>
                       {'value' in k && typeof k.value === 'string'
                         ? k.value.length > 8
@@ -504,7 +620,11 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                         {view && (
                           <IconButton
                             size="sm"
-                            label={replacing ? t('取消更换 {0}', label) : t('更换 {0}', label)}
+                            label={
+                              replacing
+                                ? t('ui.models.cancel-replacing', label)
+                                : t('ui.models.replace', label)
+                            }
                             icon={<Icon icon={KeyRound} size={14} />}
                             aria-pressed={replacing}
                             onClick={() => setKey(i, { replace: replacing ? undefined : '' })}
@@ -514,11 +634,11 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                         <Switch
                           checked={k.enabled}
                           onChange={(v) => setKey(i, { enabled: v })}
-                          aria-label={t('启用 {0}', label)}
+                          aria-label={t('ui.foundation.enable', label)}
                         />
                         <IconButton
                           size="sm"
-                          label={t('删除 {0}', label)}
+                          label={t('ui.knowledge-local.delete', label)}
                           icon={<Icon icon={Trash2} size={14} />}
                           onClick={() => deleteKey(i)}
                           data-testid={`pd-key-delete-${k.id}`}
@@ -533,27 +653,29 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                       autoComplete="off"
                       spellCheck={false}
                       value={(k as KeyDraft).replace}
-                      placeholder={t('粘贴新的 Key，保存后替换 {0}', label)}
+                      placeholder={t('ui.models.paste-the-new-key-it-replaces-when-you', label)}
                       onChange={(e) => setKey(i, { replace: e.target.value })}
-                      aria-label={t('{0} 的新值', label)}
+                      aria-label={t('ui.models.new-value-for', label)}
                       data-testid={`pd-key-replace-input-${k.id}`}
                     />
                   )}
                   {nameIsKey && (
                     <span className={styles.errorText} data-testid={`pd-key-name-hint-${k.id}`}>
-                      {t('名称看起来像一个 Key。名称只是备注，不会改变请求用的 Key。')}{' '}
+                      {t('ui.models.this-name-looks-like-a-key-the-name')}{' '}
                       <button
                         type="button"
                         className={styles.linkBtn}
                         onClick={() => setKey(i, { replace: k.name.trim(), name: '' })}
                         data-testid={`pd-key-name-to-replace-${k.id}`}
                       >
-                        {t('改为用它更换这个 Key')}
+                        {t('ui.models.use-it-to-replace-this-key-instead')}
                       </button>
                     </span>
                   )}
                   {view && !view.decryptable && (
-                    <span className={styles.errorText}>{t('无法解密，请重新填写')}</span>
+                    <span className={styles.errorText}>
+                      {t('ui.models.can-t-be-decrypted-enter-it-again')}
+                    </span>
                   )}
                   {view?.lastError && (
                     <span className={styles.errorText} data-testid={`pd-key-error-${k.id}`}>
@@ -569,8 +691,8 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                   rows={2}
                   value={keysText}
                   onChange={(e) => setKeysText(e.target.value)}
-                  placeholder={t('添加 Key：每行一个，按顺序排在已有 Key 之后')}
-                  aria-label={t('添加 Key')}
+                  placeholder={t('ui.models.add-keys-one-per-line-placed-after-the')}
+                  aria-label={t('ui.models.add-keys')}
                   data-testid="pd-keys-input"
                 />
                 <Button
@@ -581,7 +703,7 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                   data-testid="pd-keys-add"
                 >
                   <Icon icon={Plus} size={14} />
-                  {t('添加')}
+                  {t('ui.foundation.add')}
                 </Button>
               </div>
             )}
@@ -591,7 +713,7 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
           <section className={styles.section} aria-labelledby="pd-models">
             <div className={styles.sectionHead}>
               <h4 id="pd-models" className={styles.groupTitle}>
-                {t('模型')}
+                {t('ui.foundation.model')}
               </h4>
               {!readOnly && (
                 <Button
@@ -606,7 +728,7 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                     size={14}
                     className={busy === 'detect' ? styles.spin : undefined}
                   />
-                  {t('刷新')}
+                  {t('ui.knowledge-local.refresh')}
                 </Button>
               )}
             </div>
@@ -617,27 +739,13 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
             )}
             <div className={styles.modelList}>
               {(readOnly ? p.models : d.models).map((m) => (
-                <div key={m.id} className={styles.modelRow} data-testid={`pd-model-${m.id}`}>
-                  <label className={styles.modelCheck}>
-                    <input
-                      type="checkbox"
-                      disabled={readOnly}
-                      checked={m.enabled}
-                      onChange={(e) => setModel(m.id, { enabled: e.target.checked })}
-                    />
-                    <span>{m.label ?? m.id}</span>
-                  </label>
-                  <ModelBadges m={m} />
-                  {!readOnly && (
-                    <IconButton
-                      size="sm"
-                      className={styles.rowEnd}
-                      label={t('移除模型 {0}', m.id)}
-                      icon={<Icon icon={Trash2} size={14} />}
-                      onClick={() => patch({ models: d.models.filter((x) => x.id !== m.id) })}
-                    />
-                  )}
-                </div>
+                <ModelRow
+                  key={m.id}
+                  m={m}
+                  readOnly={readOnly}
+                  onSet={setModel}
+                  onRemove={removeModel}
+                />
               ))}
             </div>
             {!readOnly && (
@@ -652,8 +760,8 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                       addModel();
                     }
                   }}
-                  placeholder={t('手动添加模型 id')}
-                  aria-label={t('手动添加模型 id')}
+                  placeholder={t('ui.models.add-a-model-id-manually')}
+                  aria-label={t('ui.models.add-a-model-id-manually')}
                   data-testid="pd-model-input"
                 />
                 <Button
@@ -664,7 +772,7 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                   data-testid="pd-model-add"
                 >
                   <Icon icon={Plus} size={14} />
-                  {t('添加')}
+                  {t('ui.foundation.add')}
                 </Button>
               </div>
             )}
@@ -674,15 +782,17 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
           {!readOnly && (
             <section className={styles.section} aria-labelledby="pd-fallback">
               <h4 id="pd-fallback" className={styles.groupTitle}>
-                {t('回退链')}
+                {t('ui.models.fallback-chain')}
               </h4>
-              <p className={styles.help}>{t('这个供应商的模型都失败时，按顺序改用下面的模型。')}</p>
+              <p className={styles.help}>
+                {t('ui.models.when-this-provider-s-models-all-fail-use')}
+              </p>
               {d.fallback.map((ref, i) => (
                 <div key={ref} className={styles.keyRow} data-testid={`pd-fallback-${i}`}>
                   <span className={styles.orderBtns}>
                     <IconButton
                       size="sm"
-                      label={t('上移 {0}', ref)}
+                      label={t('ui.models.move-up', ref)}
                       icon={<Icon icon={ArrowUp} size={14} />}
                       disabled={i === 0}
                       onClick={() => patch({ fallback: move(d.fallback, i, -1) })}
@@ -690,7 +800,7 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                     />
                     <IconButton
                       size="sm"
-                      label={t('下移 {0}', ref)}
+                      label={t('ui.models.move-down', ref)}
                       icon={<Icon icon={ArrowDown} size={14} />}
                       disabled={i === d.fallback.length - 1}
                       onClick={() => patch({ fallback: move(d.fallback, i, 1) })}
@@ -701,7 +811,7 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                   <IconButton
                     size="sm"
                     className={styles.rowEnd}
-                    label={t('从回退链移除 {0}', ref)}
+                    label={t('ui.models.remove-from-the-fallback-chain', ref)}
                     icon={<Icon icon={Trash2} size={14} />}
                     onClick={() => patch({ fallback: d.fallback.filter((x) => x !== ref) })}
                     data-testid={`pd-fallback-remove-${i}`}
@@ -717,9 +827,9 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                 onChange={(ref) =>
                   ref && !d.fallback.includes(ref) && patch({ fallback: [...d.fallback, ref] })
                 }
-                placeholder={t('添加回退模型')}
+                placeholder={t('ui.models.add-fallback-model')}
                 disabled={!fallbackPicker.length}
-                aria-label={t('添加回退模型')}
+                aria-label={t('ui.models.add-fallback-model')}
                 data-testid="pd-fallback-add"
               />
             </section>
@@ -736,12 +846,14 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
               data-testid="pd-advanced-toggle"
             >
               <Icon icon={advanced ? ChevronDown : ChevronRight} size={14} />
-              {t('高级')}
+              {t('ui.models.advanced')}
             </button>
             {advanced && (
               <div id="pd-advanced" className={styles.advBody}>
                 <div className={styles.advGroup}>
-                  <div className={styles.groupTitle}>{t('各协议地址（留空表示关闭这个协议）')}</div>
+                  <div className={styles.groupTitle}>
+                    {t('ui.models.address-per-api-leave-empty-to-turn-that')}
+                  </div>
                   {WIRES.map((w) => (
                     <label key={w} className={styles.urlRow}>
                       <span className={styles.urlLabel}>{WIRE_LABEL[w]}</span>
@@ -750,14 +862,16 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                         value={d.urls[w]}
                         readOnly={readOnly}
                         onChange={(e) => patch({ urls: { ...d.urls, [w]: e.target.value } })}
-                        placeholder={t('未启用')}
+                        placeholder={t('ui.slash-commands.disabled')}
                         data-testid={`pd-url-${w}`}
                       />
                     </label>
                   ))}
                   {!readOnly && urlsChanged && (
                     <div className={styles.offer} role="status" data-testid="pd-urls-changed">
-                      <span>{t('地址改了，建议重新检测一次。')}</span>
+                      <span>
+                        {t('ui.models.the-addresses-changed-detecting-again-is-recommended')}
+                      </span>
                       <Button
                         size="sm"
                         variant="secondary"
@@ -765,7 +879,7 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                         onClick={() => void detect()}
                         data-testid="pd-redetect"
                       >
-                        {t('重新检测')}
+                        {t('ui.models.detect-again')}
                       </Button>
                     </div>
                   )}
@@ -775,7 +889,7 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                   <>
                     <div className={styles.advGroup}>
                       <div className={styles.groupTitle}>
-                        {t('模型限定协议（都不勾 = 自动选择）')}
+                        {t('ui.models.restrict-models-to-apis-none-checked-automatic')}
                       </div>
                       {d.models
                         .filter((m) => m.enabled || m.wires?.length)
@@ -788,7 +902,7 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                                   type="checkbox"
                                   checked={m.wires?.includes(w) ?? false}
                                   onChange={(e) => toggleModelWire(m, w, e.target.checked)}
-                                  aria-label={t('{0} 走 {1}', m.id, WIRE_LABEL[w])}
+                                  aria-label={t('ui.models.uses', m.id, WIRE_LABEL[w])}
                                   data-testid={`pd-model-wire-${m.id}-${w}`}
                                 />
                                 <span>{WIRE_LABEL[w]}</span>
@@ -798,9 +912,13 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                         ))}
                     </div>
 
+                    <ModelLimitsGroups models={d.models} setModel={setModel} />
+
                     {d.keys.length > 0 && (
                       <div className={styles.advGroup}>
-                        <div className={styles.groupTitle}>{t('Key 限定协议')}</div>
+                        <div className={styles.groupTitle}>
+                          {t('ui.models.restrict-keys-to-an-api')}
+                        </div>
                         {d.keys.map((k, i) => {
                           const label = keyName(
                             { name: k.name || p.keys.find((x) => x.id === k.id)?.name },
@@ -817,7 +935,7 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                                 onChange={(e) =>
                                   setKey(i, { wire: (e.target.value || undefined) as Wire })
                                 }
-                                aria-label={t('{0} 限定的协议', label)}
+                                aria-label={t('ui.models.api-restriction-for', label)}
                                 data-testid={`pd-key-wire-${k.id}`}
                               />
                             </div>
@@ -826,19 +944,64 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                       </div>
                     )}
 
+                    {d.keys.length > 0 && (
+                      <div className={styles.advGroup}>
+                        <div className={styles.groupTitle}>
+                          {t('ui.models.key-limits-leave-blank-for-no-limit-extra')}
+                        </div>
+                        {d.keys.map((k, i) => {
+                          const label = keyName(
+                            { name: k.name || p.keys.find((x) => x.id === k.id)?.name },
+                            i,
+                          );
+                          return (
+                            <div key={k.id} className={styles.wireRow}>
+                              <span className={styles.keyName}>{label}</span>
+                              <Input
+                                size="sm"
+                                type="number"
+                                min={1}
+                                step={1}
+                                inputMode="numeric"
+                                className={styles.limitInput}
+                                value={k.maxConcurrency ?? ''}
+                                onChange={(e) => setKey(i, { maxConcurrency: e.target.value })}
+                                placeholder={t('ui.models.concurrent')}
+                                aria-label={t('ui.models.max-concurrent-requests', label)}
+                                data-testid={`pd-key-conc-${k.id}`}
+                              />
+                              <Input
+                                size="sm"
+                                type="number"
+                                min={1}
+                                step={1}
+                                inputMode="numeric"
+                                className={styles.limitInput}
+                                value={k.rpm ?? ''}
+                                onChange={(e) => setKey(i, { rpm: e.target.value })}
+                                placeholder={t('ui.models.per-minute')}
+                                aria-label={t('ui.models.max-requests-per-minute', label)}
+                                data-testid={`pd-key-rpm-${k.id}`}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
                     <PairRows
-                      title={t('模型映射（请求里的模型名 → 发给上游的模型名）')}
+                      title={t('ui.models.model-mapping-model-name-in-the-request-model')}
                       rows={d.modelMap.map((x) => [x.from, x.to] as const)}
-                      placeholders={[t('请求的模型名'), t('上游模型名')]}
+                      placeholders={[t('ui.models.requested-model'), t('ui.models.upstream-model')]}
                       testId="pd-map"
                       onChange={(rows) =>
                         patch({ modelMap: rows.map(([from, to]) => ({ from, to })) })
                       }
                     />
                     <PairRows
-                      title={t('自定义请求头')}
+                      title={t('ui.models.custom-headers')}
                       rows={d.headers.map((x) => [x.name, x.value] as const)}
-                      placeholders={[t('名称'), t('值')]}
+                      placeholders={[t('ui.foundation.name'), t('ui.models.value')]}
                       testId="pd-header"
                       onChange={(rows) =>
                         patch({ headers: rows.map(([name, value]) => ({ name, value })) })
@@ -850,7 +1013,7 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                         size="sm"
                         value={d.userAgent}
                         onChange={(e) => patch({ userAgent: e.target.value })}
-                        placeholder={t('默认')}
+                        placeholder={t('ui.providers-schedule.default')}
                         data-testid="pd-user-agent"
                       />
                     </label>
@@ -910,7 +1073,7 @@ const PairRows: React.FC<{
           />
           <IconButton
             size="sm"
-            label={t('删除第 {0} 行', String(i + 1))}
+            label={t('ui.models.delete-row', String(i + 1))}
             icon={<Icon icon={Trash2} size={14} />}
             onClick={() => onChange(rows.filter((_, n) => n !== i).map((x) => [x[0], x[1]]))}
           />
@@ -924,7 +1087,7 @@ const PairRows: React.FC<{
           data-testid={`${testId}-add`}
         >
           <Icon icon={Plus} size={14} />
-          {t('添加一行')}
+          {t('ui.models.add-row')}
         </Button>
       </div>
     </div>
@@ -939,22 +1102,22 @@ const LearnedInfo: React.FC<{ learned?: LearnedState; onClear: () => void }> = (
   const lines = learned
     ? [
         ...Object.entries(learned.wireDown ?? {}).map(([w, x]) =>
-          t('{0} 暂时不可用：{1}', WIRE_LABEL[w as Wire], x!.reason),
+          t('ui.models.temporarily-unavailable', WIRE_LABEL[w as Wire], x!.reason),
         ),
         ...Object.entries(learned.modelWire ?? {}).map(([m, ws]) =>
-          t('{0} 只走 {1}', m, ws.map((w) => WIRE_LABEL[w]).join(' / ')),
+          t('ui.models.only-uses', m, ws.map((w) => WIRE_LABEL[w]).join(' / ')),
         ),
         ...(learned.customToolsRefused ?? []).map((m) =>
-          t('{0} 的 Responses 接口不接受自定义工具，改用转换', m),
+          t('ui.models.s-responses-api-rejects-custom-tools-converting-instead', m),
         ),
         ...Object.entries(learned.droppedParams ?? {}).map(([w, ps]) =>
-          t('{0} 不发送字段：{1}', WIRE_LABEL[w as Wire] ?? w, ps.join('、')),
+          t('ui.models.omits-fields', WIRE_LABEL[w as Wire] ?? w, ps.join('、')),
         ),
       ]
     : [];
   return (
     <div className={styles.advGroup} data-testid="provider-learned">
-      <div className={styles.groupTitle}>{t('自动学到的')}</div>
+      <div className={styles.groupTitle}>{t('ui.models.learned-automatically')}</div>
       {lines.length ? (
         lines.map((l) => (
           <span key={l} className={styles.muted}>
@@ -962,7 +1125,7 @@ const LearnedInfo: React.FC<{ learned?: LearnedState; onClear: () => void }> = (
           </span>
         ))
       ) : (
-        <span className={styles.muted}>{t('还没有自动学到的状态')}</span>
+        <span className={styles.muted}>{t('ui.models.nothing-learned-automatically-yet')}</span>
       )}
       <div>
         <Button
@@ -972,7 +1135,7 @@ const LearnedInfo: React.FC<{ learned?: LearnedState; onClear: () => void }> = (
           onClick={onClear}
           data-testid="provider-learned-clear"
         >
-          {t('清除自动学到的')}
+          {t('ui.models.clear-what-was-learned')}
         </Button>
       </div>
     </div>

@@ -86,7 +86,7 @@ export interface SlashTarget {
   startedAt: number;
 }
 
-const DROPPED = () => t('会话已关闭或已重置，结果已丢弃。');
+const DROPPED = () => t('ui.slash-commands.the-conversation-was-closed-or-reset-so-the');
 
 export function useSlashCommands(p: SlashHookParams): SlashHook {
   const { backend, cwd, scopeKey } = p;
@@ -210,7 +210,7 @@ export function useSlashCommands(p: SlashHookParams): SlashHook {
       }
       if (!ok) {
         log.info('slash send dropped: target invalid', { command, scopeKey: target.scopeKey });
-        addCard(target, command, notice(t('提示'), DROPPED(), 'warn'));
+        addCard(target, command, notice(t('ui.slash-commands.note'), DROPPED(), 'warn'));
       }
       return ok;
     },
@@ -249,10 +249,10 @@ export function useSlashCommands(p: SlashHookParams): SlashHook {
         await setNomiModel(ref);
       },
       setTabSource: async (source, model) => {
-        if (!target.tabId) throw new Error(t('会话已关闭或已重置'));
+        if (!target.tabId) throw new Error(t('ui.slash-commands.the-session-was-closed-or-reset'));
         const tabs = await harnessClient.tabs().catch(() => null);
         const tab = tabs?.tabs.find((x) => x.id === target.tabId);
-        if (!tab) throw new Error(t('会话已关闭或已重置'));
+        if (!tab) throw new Error(t('ui.slash-commands.the-session-was-closed-or-reset'));
         const L = latest.current;
         // 已有对话：标签有会话 id，或发起命令的会话就是当前显示的、里面有消息
         const hasMessages =
@@ -274,7 +274,7 @@ export function useSlashCommands(p: SlashHookParams): SlashHook {
         return { catalog, current: tab?.modelOverride?.trim() || null, source };
       },
       setTabModel: async (model, expectSource) => {
-        if (!target.tabId) throw new Error(t('会话已关闭或已重置'));
+        if (!target.tabId) throw new Error(t('ui.slash-commands.the-session-was-closed-or-reset'));
         await harnessClient.setTabModel(target.tabId, model, expectSource ? { expectSource } : {});
       },
       gitDiff: async () => {
@@ -315,15 +315,15 @@ export function useSlashCommands(p: SlashHookParams): SlashHook {
       else if (o.type === 'send') {
         // 发送失败（目标已失效）时 deliver 已留下提示，这里不再追加「已展开并发送」
         if (!(await deliver(target, command, o.text))) return;
-        if (o.note) addCard(target, command, notice(t('提示'), o.note));
+        if (o.note) addCard(target, command, notice(t('ui.slash-commands.note'), o.note));
         else if (kind === 'expand')
           addCard(
             target,
             command,
             notice(
-              t('已展开并发送'),
+              t('ui.slash-commands.expanded-and-sent'),
               t(
-                '已把命令展开成 {0} 个字符的提示词，发给了 {1}。',
+                'ui.slash-commands.expanded-the-command-into-a-character-prompt-and',
                 o.text.length,
                 ENDPOINT_FULL[target.backend](),
               ),

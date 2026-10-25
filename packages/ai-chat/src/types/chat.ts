@@ -1,3 +1,5 @@
+import type { BuiltinCliId } from '@nomi-ai/cli-plugins';
+
 import type { HarnessTraceEvent, HarnessUsage } from '../services/harnessClient';
 
 export interface ChatMessage {
@@ -31,12 +33,16 @@ export interface ChatMessage {
   durationMs?: number;
   /** 本轮 token 用量（上游返回时才有） */
   usage?: HarnessUsage;
+  /** 用户用 `/cli` 指定这条需求交给哪个编程助手（docs/design/nomi-delegate-cli.md §4.6） */
+  delegateTo?: 'claude' | 'codex' | 'grok' | 'gemini' | 'dsh';
   /** 用户消息附带的图片：只保存缩略图（原图只随本轮发送，不进历史） */
   images?: Array<{ thumb: string; width: number; height: number; source?: string }>;
 }
 
 /** 对话所属后端：与 harness 后端一致；侧栏列表按此后端隔离 */
-export type ConversationBackend = 'nomi' | 'claude' | 'codex' | 'dsh' | 'grok' | 'gemini';
+/** 对话后端：Nomi 自己 + 内置编程助手（id 由 @nomi-ai/cli-plugins 生成） */
+/** 'external'：用户添加的外部 CLI（§5.9），具体是哪个插件看标签 / 对话的 pluginId */
+export type ConversationBackend = 'nomi' | BuiltinCliId | 'external';
 
 export const CONVERSATION_BACKENDS: readonly ConversationBackend[] = [
   'nomi',
@@ -48,7 +54,11 @@ export const CONVERSATION_BACKENDS: readonly ConversationBackend[] = [
 ] as const;
 
 export function isConversationBackend(v: unknown): v is ConversationBackend {
-  return typeof v === 'string' && (CONVERSATION_BACKENDS as readonly string[]).includes(v);
+  // 'external'（外部 CLI，§5.9）不在固定端点列表里（它要带 pluginId），但它的对话也是合法的
+  return (
+    typeof v === 'string' &&
+    (v === 'external' || (CONVERSATION_BACKENDS as readonly string[]).includes(v))
+  );
 }
 
 export interface ChatSession {
@@ -62,6 +72,8 @@ export interface ChatSession {
   backend: ConversationBackend;
   /** CLI 标签 id：有值时消息在 harness，侧栏只存元信息 */
   tabId?: string;
+  /** CLI 原生会话 id：用于与本机历史按 backend + sessionId 去重 */
+  cliSessionId?: string;
 }
 
 export interface StreamResponse {

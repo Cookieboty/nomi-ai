@@ -44,17 +44,25 @@ const fmt = (t?: number) =>
         minute: '2-digit',
       })
     : '—';
-const WEEK = ['日', '一', '二', '三', '四', '五', '六'];
+const WEEK = [
+  'ui.foundation.sun',
+  'ui.foundation.mon',
+  'ui.foundation.tue',
+  'ui.foundation.wed',
+  'ui.foundation.thu',
+  'ui.foundation.fri',
+  'ui.foundation.sat',
+];
 const REPEAT_OPTS = [
-  { value: 'daily', label: '每天' },
-  { value: 'weekdays', label: '工作日' },
-  { value: 'weekly', label: '每周…' },
-  { value: 'monthly', label: '每月' },
+  { value: 'daily', label: 'ui.foundation.every-day' },
+  { value: 'weekdays', label: 'ui.foundation.weekdays' },
+  { value: 'weekly', label: 'ui.foundation.weekly' },
+  { value: 'monthly', label: 'ui.foundation.monthly' },
 ];
 const FREQ_OPTS: Array<{ value: Frequency; label: string }> = [
-  { value: 'low', label: '偶尔（每天最多 1 次）' },
-  { value: 'medium', label: '适中（每天最多 3 次）' },
-  { value: 'high', label: '常常（每天最多 6 次）' },
+  { value: 'low', label: 'ui.providers-schedule.occasionally-at-most-once-a-day' },
+  { value: 'medium', label: 'ui.providers-schedule.moderate-at-most-3-times-a-day' },
+  { value: 'high', label: 'ui.providers-schedule.often-at-most-6-times-a-day' },
 ];
 
 const TaskEditor: React.FC<{
@@ -74,7 +82,7 @@ const TaskEditor: React.FC<{
       rep === 'weekly' ? { kind: 'weekly', days } : ({ kind: rep } as RepeatRule);
     try {
       const t = await schedClient.upsertTask({ id: task?.id, name, prompt, time, repeat });
-      onDone(tr('已保存，下次运行：{0}', fmt(t.nextRunAt)));
+      onDone(tr('ui.providers-schedule.saved-next-run', fmt(t.nextRunAt)));
     } catch (e) {
       setErr(errText(e));
     }
@@ -91,12 +99,14 @@ const TaskEditor: React.FC<{
         }
       }}
     >
-      <h3 className={styles.editorTitle}>{task ? tr('编辑任务') : tr('新建任务')}</h3>
+      <h3 className={styles.editorTitle}>
+        {task ? tr('ui.knowledge-local.edit-task') : tr('ui.providers-schedule.new-task')}
+      </h3>
       <div className={styles.row}>
         <Input
           size="sm"
           className={styles.grow}
-          placeholder={tr('任务名称，例如「每日简报」')}
+          placeholder={tr('ui.providers-schedule.task-name-e-g-daily-briefing')}
           value={name}
           maxLength={40}
           onChange={(e) => setName(e.target.value)}
@@ -133,15 +143,14 @@ const TaskEditor: React.FC<{
                 setDays((d) => (d.includes(i) ? d.filter((x) => x !== i) : [...d, i].sort()))
               }
             >
-              {tr('周')}
-              {w}
+              {tr('ui.foundation.weekday-button', tr(w))}
             </Button>
           ))}
         </div>
       )}
       <Textarea
         rows={3}
-        placeholder={tr('让助手做什么？例如：总结今天的提醒，给我一句鼓励')}
+        placeholder={tr('ui.providers-schedule.what-should-the-assistant-do-e-g-summarize')}
         value={prompt}
         maxLength={2000}
         onChange={(e) => setPrompt(e.target.value)}
@@ -150,12 +159,10 @@ const TaskEditor: React.FC<{
       {err && <span className={styles.err}>{err}</span>}
       <div className={styles.row}>
         <span className={`${styles.hint} ${styles.grow}`}>
-          {tr(
-            '到点后用当前对话模型生成，结果出现在 Nomi 气泡、系统通知和对话窗口。Ctrl/⌘ + Enter 保存',
-          )}
+          {tr('ui.providers-schedule.generated-with-the-current-chat-model-when-due')}
         </span>
         <Button size="sm" variant="ghost" onClick={() => onDone()}>
-          {tr('取消')}
+          {tr('ui.foundation.cancel')}
         </Button>
         <Button
           size="sm"
@@ -164,7 +171,7 @@ const TaskEditor: React.FC<{
           onClick={() => void save()}
           data-testid="task-save"
         >
-          {tr('保存')}
+          {tr('ui.foundation.save')}
         </Button>
       </div>
     </div>
@@ -188,7 +195,7 @@ const TimeRange: React.FC<{
       value={start}
       disabled={disabled}
       onChange={(e) => onStart(e.target.value)}
-      aria-label={tr('开始时间')}
+      aria-label={tr('ui.chat-settings.start-time')}
       data-testid={testIds?.[0]}
     />
     <span className={styles.hint}>{sep}</span>
@@ -198,7 +205,7 @@ const TimeRange: React.FC<{
       value={end}
       disabled={disabled}
       onChange={(e) => onEnd(e.target.value)}
-      aria-label={tr('结束时间')}
+      aria-label={tr('ui.chat-settings.end-time')}
       data-testid={testIds?.[1]}
     />
   </span>
@@ -259,13 +266,13 @@ const Body: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const addBriefing = async () => {
     try {
       const t = await schedClient.upsertTask({
-        name: tr('每日简报'),
-        prompt: BRIEFING_PROMPT,
+        name: tr('ui.providers-schedule.daily-briefing'),
+        prompt: tr(BRIEFING_PROMPT),
         time: '08:30',
         repeat: { kind: 'daily' },
         template: 'briefing',
       });
-      setMsg(tr('已添加「每日简报」，下次：{0}', fmt(t.nextRunAt)));
+      setMsg(tr('ui.providers-schedule.added-daily-briefing-next', fmt(t.nextRunAt)));
     } catch (e) {
       setMsg(errText(e));
     }
@@ -275,14 +282,24 @@ const Body: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     setMsg('');
     try {
       const r = await schedClient.runTask(id);
-      setMsg(r.ok ? tr('「{0}」已运行，结果已发到对话窗口', r.name) : tr('运行失败：{0}', r.text));
+      setMsg(
+        r.ok
+          ? tr('ui.providers-schedule.ran-the-result-was-sent-to-the-chat', r.name)
+          : tr('ui.providers-schedule.run-failed', r.text),
+      );
     } catch (e) {
       setMsg(errText(e));
     }
   };
 
   return (
-    <Modal open onClose={onClose} title={tr('日程与主动提醒')} size="lg" data-testid="sched-panel">
+    <Modal
+      open
+      onClose={onClose}
+      title={tr('ui.providers-schedule.schedule-proactive-reminders')}
+      size="lg"
+      data-testid="sched-panel"
+    >
       <div className={styles.stack}>
         {err && (
           <ErrorState detail={err} onRetry={() => void refresh()} data-testid="panel-error" />
@@ -301,22 +318,28 @@ const Body: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               >
                 <span className={styles.overviewLabel}>
                   <Icon icon={st.quietNow ? Moon : Bell} size={14} />
-                  {tr('提醒')}
+                  {tr('ui.foundation.reminders')}
                 </span>
                 <span className={styles.overviewValue}>
-                  {st.quietNow ? tr('免打扰中') : tr('正常提醒')}
+                  {st.quietNow
+                    ? tr('ui.providers-schedule.do-not-disturb')
+                    : tr('ui.providers-schedule.reminders-on')}
                 </span>
                 <span className={styles.overviewSub}>
                   {st.deferred > 0 ? (
                     <span className={styles.overviewWarn}>
-                      {st.deferred} {tr('条提醒待补报')}
+                      {st.deferred} {tr('ui.providers-schedule.reminders-waiting-to-be-delivered')}
                     </span>
                   ) : st.quietNow ? (
-                    tr('到 {0} 恢复', st.settings.quiet.end)
+                    tr('ui.providers-schedule.resumes-at', st.settings.quiet.end)
                   ) : st.settings.quiet.enabled ? (
-                    tr('免打扰 {0}–{1}', st.settings.quiet.start, st.settings.quiet.end)
+                    tr(
+                      'ui.providers-schedule.quiet-hours',
+                      st.settings.quiet.start,
+                      st.settings.quiet.end,
+                    )
                   ) : (
-                    tr('未设免打扰')
+                    tr('ui.providers-schedule.no-quiet-hours')
                   )}
                 </span>
               </button>
@@ -328,12 +351,14 @@ const Body: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               >
                 <span className={styles.overviewLabel}>
                   <Icon icon={ListChecks} size={14} />
-                  {tr('定时任务')}
+                  {tr('ui.providers-schedule.scheduled-tasks')}
                 </span>
                 <span className={styles.overviewValue}>
-                  {tr('{0} 个启用', st.tasks.filter((t) => t.enabled).length)}
+                  {tr('ui.providers-schedule.enabled', st.tasks.filter((t) => t.enabled).length)}
                 </span>
-                <span className={styles.overviewSub}>{tr('共 {0} 个', st.tasks.length)}</span>
+                <span className={styles.overviewSub}>
+                  {tr('ui.providers-schedule.in-total', st.tasks.length)}
+                </span>
               </button>
               <button
                 type="button"
@@ -344,15 +369,17 @@ const Body: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               >
                 <span className={styles.overviewLabel}>
                   <Icon icon={MessageCircle} size={14} />
-                  {tr('主动聊天')}
+                  {tr('ui.providers-schedule.proactive-chat')}
                 </span>
                 <span className={styles.overviewValue}>
-                  {st.settings.proactive.enabled ? tr('已开启') : tr('已关闭')}
+                  {st.settings.proactive.enabled
+                    ? tr('ui.providers-schedule.on')
+                    : tr('ui.providers-schedule.off')}
                 </span>
                 <span className={styles.overviewSub}>
                   {st.settings.proactive.enabled
-                    ? tr('今天 {0} 次', st.proactive.today)
-                    : tr('Nomi 不会主动搭话')}
+                    ? tr('ui.providers-schedule.today', st.proactive.today)
+                    : tr('ui.providers-schedule.nomi-won-t-start-chats')}
                 </span>
               </button>
             </div>
@@ -364,10 +391,10 @@ const Body: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 setMsg('');
               }}
               items={[
-                { value: 'reminders', label: tr('提醒') },
-                { value: 'tasks', label: tr('定时任务') },
-                { value: 'proactive', label: tr('主动聊天') },
-                { value: 'quiet', label: tr('免打扰与通知') },
+                { value: 'reminders', label: tr('ui.foundation.reminders') },
+                { value: 'tasks', label: tr('ui.providers-schedule.scheduled-tasks') },
+                { value: 'proactive', label: tr('ui.providers-schedule.proactive-chat') },
+                { value: 'quiet', label: tr('ui.providers-schedule.do-not-disturb-notifications') },
               ]}
             />
             {msg && (
@@ -396,7 +423,7 @@ const Body: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                       data-testid="task-new"
                     >
                       <Icon icon={Plus} size={14} />
-                      {tr('新建任务')}
+                      {tr('ui.providers-schedule.new-task')}
                     </Button>
                     {!st.tasks.some((t) => t.template === 'briefing') && (
                       <Button
@@ -405,7 +432,7 @@ const Body: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         data-testid="task-add-briefing"
                       >
                         <Icon icon={Sun} size={14} />
-                        {tr('添加每日简报')}
+                        {tr('ui.providers-schedule.add-daily-briefing')}
                       </Button>
                     )}
                   </div>
@@ -413,8 +440,10 @@ const Body: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 {st.tasks.length === 0 && !editing ? (
                   <EmptyState
                     icon={ListChecks}
-                    title={tr('还没有定时任务')}
-                    description={tr('让 Nomi 每天早上给你一份简报，或者每周五提醒你写周报。')}
+                    title={tr('ui.providers-schedule.no-scheduled-tasks-yet')}
+                    description={tr(
+                      'ui.providers-schedule.have-nomi-give-you-a-briefing-every-morning',
+                    )}
                   />
                 ) : (
                   st.tasks.map((t) => (
@@ -423,18 +452,22 @@ const Body: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                       data-testid="task-card"
                       title={tr(t.name)}
                       subtitle={tr(
-                        '{0} {1} · 下次 {2}{3}',
+                        'ui.providers-schedule.next',
                         describeRepeat(t.repeat),
                         t.time,
                         fmt(t.nextRunAt),
-                        t.lastRunAt ? tr(' · 上次 {0}', fmt(t.lastRunAt)) : '',
+                        t.lastRunAt ? tr('ui.providers-schedule.last', fmt(t.lastRunAt)) : '',
                       )}
                       actions={
                         <>
                           <Switch
                             checked={t.enabled}
                             onChange={(v) => void schedClient.toggleTask(t.id, v)}
-                            label={t.enabled ? tr('启用') : tr('停用')}
+                            label={
+                              t.enabled
+                                ? tr('ui.foundation.enable-label')
+                                : tr('ui.knowledge-local.disable')
+                            }
                           />
                           <Button
                             size="sm"
@@ -443,17 +476,19 @@ const Body: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                             onClick={() => void runNow(t.id)}
                             data-testid="task-run"
                           >
-                            {st.running.includes(t.id) ? tr('运行中…') : tr('立即运行')}
+                            {st.running.includes(t.id)
+                              ? tr('ui.providers-schedule.running')
+                              : tr('ui.providers-schedule.run-now')}
                           </Button>
                           <Button size="sm" variant="ghost" onClick={() => setEditing(t)}>
-                            {tr('编辑')}
+                            {tr('ui.foundation.edit')}
                           </Button>
                           <Button
                             size="sm"
                             variant="ghost"
                             onClick={() => void schedClient.removeTask(t.id)}
                           >
-                            {tr('删除')}
+                            {tr('ui.foundation.delete')}
                           </Button>
                         </>
                       }
@@ -461,7 +496,7 @@ const Body: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                       <p className={styles.prompt}>{t.prompt}</p>
                       {t.lastStatus === 'error' && (
                         <span className={styles.err}>
-                          {tr('上次失败：')}
+                          {tr('ui.providers-schedule.last-failure')}
                           {t.lastError}
                         </span>
                       )}
@@ -471,21 +506,25 @@ const Body: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 {results.length > 0 && (
                   <section className={styles.stack}>
                     <div className={styles.row}>
-                      <h4 className={`${styles.sectionTitle} ${styles.grow}`}>{tr('最近结果')}</h4>
+                      <h4 className={`${styles.sectionTitle} ${styles.grow}`}>
+                        {tr('ui.providers-schedule.latest-result')}
+                      </h4>
                       <Button
                         size="sm"
                         variant="ghost"
                         onClick={() => void schedClient.clearResults()}
                       >
-                        {tr('清空')}
+                        {tr('ui.knowledge-local.clear')}
                       </Button>
                     </div>
                     {results.slice(0, 5).map((r) => (
                       <div key={r.id} className={styles.result} data-testid="task-result">
                         <div className={styles.row}>
                           <strong className={styles.grow}>{tr(r.name)}</strong>
-                          {r.catchUp && <Badge tone="warning">{tr('补跑')}</Badge>}
-                          {!r.ok && <Badge tone="danger">{tr('失败')}</Badge>}
+                          {r.catchUp && (
+                            <Badge tone="warning">{tr('ui.providers-schedule.catch-up')}</Badge>
+                          )}
+                          {!r.ok && <Badge tone="danger">{tr('ui.foundation.failed')}</Badge>}
                           <span className={styles.hint}>{fmt(r.at)}</span>
                         </div>
                         <span className={r.ok ? styles.resultText : styles.err}>{tr(r.text)}</span>
@@ -498,21 +537,21 @@ const Body: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
             {tab === 'proactive' && (
               <SettingsGroup
-                title={tr('主动聊天')}
+                title={tr('ui.providers-schedule.proactive-chat')}
                 description={tr(
-                  '开启后，Nomi 会在你空闲时偶尔主动搭话（结合长期记忆里的话题）。默认关闭；免打扰时段、你刚聊过天或不在电脑前时不会打扰。',
+                  'ui.providers-schedule.when-on-nomi-occasionally-starts-a-chat-while',
                 )}
                 data-testid="sched-proactive"
               >
-                <SettingRow title={tr('允许主动聊天')}>
+                <SettingRow title={tr('ui.providers-schedule.allow-proactive-chat')}>
                   <Switch
                     checked={st.settings.proactive.enabled}
                     onChange={(v) => set({ proactive: { enabled: v } })}
-                    aria-label={tr('允许主动聊天')}
+                    aria-label={tr('ui.providers-schedule.allow-proactive-chat')}
                     data-testid="proactive-enabled"
                   />
                 </SettingRow>
-                <SettingRow title={tr('频率')}>
+                <SettingRow title={tr('ui.providers-schedule.frequency')}>
                   <span className={styles.ctrlMd}>
                     <Select
                       size="sm"
@@ -522,34 +561,36 @@ const Body: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                       onChange={(e) =>
                         set({ proactive: { frequency: e.target.value as Frequency } })
                       }
-                      aria-label={tr('频率')}
+                      aria-label={tr('ui.providers-schedule.frequency')}
                       data-testid="proactive-frequency"
                     />
                   </span>
                 </SettingRow>
                 <SettingRow
-                  title={tr('只在这个时段')}
-                  description={tr('这个时段之外不会主动搭话。')}
+                  title={tr('ui.providers-schedule.only-during')}
+                  description={tr('ui.chat-settings.nomi-won-t-start-a-chat-outside-these')}
                 >
                   <TimeRange
                     start={st.settings.proactive.activeStart}
                     end={st.settings.proactive.activeEnd}
-                    sep={tr('至')}
+                    sep={tr('ui.providers-schedule.to')}
                     disabled={!st.settings.proactive.enabled}
                     onStart={(v) => set({ proactive: { activeStart: v } })}
                     onEnd={(v) => set({ proactive: { activeEnd: v } })}
                   />
                 </SettingRow>
                 <SettingRow
-                  title={tr('当前状态')}
+                  title={tr('ui.slash-commands.current-status')}
                   description={
                     <span data-testid="proactive-gate">
                       {st.settings.proactive.enabled
                         ? st.proactive.gate.ok
-                          ? tr('现在可以搭话，空闲时会随机开口')
-                          : tr('暂不搭话：{0}', st.proactive.gate.reason)
-                        : tr('已关闭')}
-                      {st.proactive.lastAt ? tr(' · 上次 {0}', fmt(st.proactive.lastAt)) : ''}
+                          ? tr('ui.providers-schedule.ready-to-chat-she-ll-speak-up-at')
+                          : tr('ui.providers-schedule.not-chatting-now', st.proactive.gate.reason)
+                        : tr('ui.providers-schedule.off')}
+                      {st.proactive.lastAt
+                        ? tr('ui.providers-schedule.last', fmt(st.proactive.lastAt))
+                        : ''}
                     </span>
                   }
                 >
@@ -561,13 +602,15 @@ const Body: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                       setBusy(true);
                       void schedClient
                         .proactiveNow()
-                        .then((t) => setMsg(tr('Nomi 说：「{0}」', t)))
+                        .then((t) => setMsg(tr('ui.providers-schedule.nomi-says', t)))
                         .catch((e) => setMsg(errText(e)))
                         .finally(() => setBusy(false));
                     }}
                     data-testid="proactive-try"
                   >
-                    {busy ? tr('想一想…') : tr('现在试一下')}
+                    {busy
+                      ? tr('ui.providers-schedule.thinking')
+                      : tr('ui.providers-schedule.try-it-now')}
                   </Button>
                 </SettingRow>
               </SettingsGroup>
@@ -576,24 +619,24 @@ const Body: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             {tab === 'quiet' && (
               <div className={styles.stack} data-testid="sched-quiet">
                 <SettingsGroup
-                  title={tr('免打扰')}
+                  title={tr('ui.chat-settings.do-not-disturb')}
                   description={tr(
-                    '免打扰期间到点的提醒会先攒着，结束后一起告诉你；定时任务照常运行，结果只写进对话窗口。支持跨午夜（如 22:30 – 08:00）。',
+                    'ui.providers-schedule.reminders-due-during-do-not-disturb-are-held',
                   )}
                 >
-                  <SettingRow title={tr('免打扰时段')}>
+                  <SettingRow title={tr('ui.providers-schedule.do-not-disturb-hours')}>
                     <Switch
                       checked={st.settings.quiet.enabled}
                       onChange={(v) => set({ quiet: { enabled: v } })}
-                      aria-label={tr('免打扰时段')}
+                      aria-label={tr('ui.providers-schedule.do-not-disturb-hours')}
                       data-testid="quiet-enabled"
                     />
                   </SettingRow>
-                  <SettingRow title={tr('时段')}>
+                  <SettingRow title={tr('ui.chat-settings.hours')}>
                     <TimeRange
                       start={st.settings.quiet.start}
                       end={st.settings.quiet.end}
-                      sep={tr('到')}
+                      sep={tr('ui.providers-schedule.range-to')}
                       disabled={!st.settings.quiet.enabled}
                       onStart={(v) => set({ quiet: { start: v } })}
                       onEnd={(v) => set({ quiet: { end: v } })}
@@ -601,26 +644,30 @@ const Body: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                     />
                   </SettingRow>
                 </SettingsGroup>
-                <SettingsGroup title={tr('通知')}>
+                <SettingsGroup title={tr('ui.chat-settings.notifications')}>
                   <SettingRow
-                    title={tr('同时发送系统通知')}
+                    title={tr('ui.providers-schedule.also-send-system-notifications')}
                     description={
                       st.notifySupported
-                        ? tr('提醒到点时，除了 Nomi 气泡也发一条系统通知。')
-                        : tr('当前系统不支持通知，只会在 Nomi 气泡里提醒。')
+                        ? tr('ui.chat-settings.when-a-reminder-is-due-also-send-a')
+                        : tr(
+                            'ui.providers-schedule.notifications-aren-t-supported-on-this-system-reminders',
+                          )
                     }
                   >
                     <Switch
                       checked={st.settings.osNotify}
                       onChange={(v) => set({ osNotify: v })}
-                      aria-label={tr('同时发送系统通知')}
+                      aria-label={tr('ui.providers-schedule.also-send-system-notifications')}
                     />
                   </SettingRow>
                 </SettingsGroup>
                 <p className={styles.hint}>
-                  {tr('快捷键：')}
-                  <span className={styles.kbd}>Ctrl/⌘ + Shift + D</span> {tr('打开日程 ·')}{' '}
-                  <span className={styles.kbd}>Alt + 1~4</span> {tr('切换标签')}
+                  {tr('ui.knowledge-local.shortcut')}
+                  <span className={styles.kbd}>Ctrl/⌘ + Shift + D</span>{' '}
+                  {tr('ui.providers-schedule.open-schedule')}{' '}
+                  <span className={styles.kbd}>Alt + 1~4</span>{' '}
+                  {tr('ui.providers-schedule.switch-tabs')}
                 </p>
               </div>
             )}

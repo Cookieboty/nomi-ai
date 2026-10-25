@@ -6,6 +6,7 @@ import { harnessClient } from '../services/harnessClient';
 import { providerClient } from '../services/providerClient';
 import { usageClient, type UsageEndpointInfo } from '../services/usageClient';
 import type { ConversationBackend } from '../types/chat';
+import { hasOfficialAccount } from '../utils/cliCaps';
 
 import type { SlashData } from './types';
 
@@ -27,7 +28,7 @@ export async function loadSlashData(
   tabId?: string | null,
 ): Promise<SlashData> {
   const cli = backend !== 'nomi';
-  const accountKind = cli && backend !== 'dsh' ? backend : null;
+  const accountKind = cli && hasOfficialAccount(backend) ? backend : null;
   const [clis, usage, quotas, accounts, tabs, nomiProviders, gateway] = await Promise.all([
     cli && cliUpdateClient.available()
       ? soft(() => cliUpdateClient.inspect(false))

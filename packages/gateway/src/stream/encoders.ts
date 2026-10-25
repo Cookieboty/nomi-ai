@@ -1,10 +1,15 @@
 /**
  * 中间事件 → 下游 CLI 期望的 SSE。
  * Messages（Claude Code 原生）、Responses（Codex 原生）、Chat Completions（Codex chat 入口）。
+ * 工具调用 id 按入口协议的格式写（Messages 的 tool_use.id 只接受 [A-Za-z0-9_-]，§6.9.7），
+ * Responses 的条目 id 由 call_id 确定地派生（不随机），历史逐字节一致。
  */
+import { escapeCallId } from '../models/rules/response/callIds';
+
 import { customToolInput } from './aggregate';
 import { geminiErrorStatus } from './errors';
 import type { NormEvent, StopReason, StreamEncoder, StreamUsage } from './events';
+import { HEARTBEAT_COMMENT, HEARTBEAT_PING } from './heartbeat';
 import { SerialBlocks, type SerialBlock, type SerialSink } from './serial';
 import { formatSse } from './sse';
 
@@ -31,7 +36,7 @@ export class MessagesEncoder implements StreamEncoder {
         content_block:
           b.kind === 'text'
             ? { type: 'text', text: '' }
-            : { type: 'tool_use', id: b.id, name: b.name, input: {} },
+            : { type: 'tool_use', id: escapeCallId(b.id ?? ''), name: b.name, input: {} },
       });
     },
     delta: (b, d) =>
@@ -105,6 +110,9 @@ export class MessagesEncoder implements StreamEncoder {
           type: 'error',
           error: { type: messagesErrorType(ev.errorType), message: ev.message },
         });
+      case 'alive':
+        // 官方协议的 ping 只在 message_start 之后出现；之前用 SSE 注释
+        return this.started ? HEARTBEAT_PING : HEARTBEAT_COMMENT;
       default:
         return '';
     }
@@ -175,7 +183,9 @@ export class ResponsesEncoder implements StreamEncoder {
           const custom = this.customTools.has(b.name ?? '');
           it = {
             type: custom ? 'custom_tool_call' : 'function_call',
-            id: rid(custom ? 'ctc' : 'fc'),
+            id: b.id
+              ? `${custom ? 'ctc' : 'fc'}_${escapeCallId(b.id)}`
+              : rid(custom ? 'ctc' : 'fc'),
             call_id: b.id ?? '',
             name: b.name ?? '',
             arguments: '',
@@ -373,6 +383,8 @@ export class ResponsesEncoder implements StreamEncoder {
           })
         );
       }
+      case 'alive':
+        return HEARTBEAT_COMMENT;
       default:
         return '';
     }
@@ -479,6 +491,8 @@ export class ChatCompletionsEncoder implements StreamEncoder {
             error: { message: ev.message, type: ev.errorType ?? 'api_error' },
           }) + formatSse(undefined, '[DONE]')
         );
+      case 'alive':
+        return HEARTBEAT_COMMENT;
       default:
         return '';
     }
@@ -588,6 +602,8 @@ export class GeminiEncoder implements StreamEncoder {
           error: { code: ev.status ?? code, message: ev.message, status },
         });
       }
+      case 'alive':
+        return HEARTBEAT_COMMENT;
       default:
         return '';
     }

@@ -48,7 +48,7 @@ export const Toast: React.FC<{
       <button
         type="button"
         className="cd-btn cd-btn--ghost cd-btn--sm cd-icon-btn"
-        aria-label={tr('关闭提示')}
+        aria-label={tr('ui.mascot-theme.dismiss')}
         onClick={onClose}
       >
         <Icon icon={X} />

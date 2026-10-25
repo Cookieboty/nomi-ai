@@ -1,19 +1,21 @@
 # 编程助手接入：监视升级、会话接管与供应商切换（设计稿）
 
-> 状态：**P0 实现中 / 已批准**（2026-10-14）。
+> 状态：本文是 v1.x 的设计与验收记录（各节保留历史原貌）。v2.0.0 起编程助手改为插件化，见文末「插件化（v2.0.0）」与设计稿 [cli-plugin-architecture](../design/cli-plugin-architecture.md)。
 > 关联：现有 [编程助手监视](agent-monitor.md)、[供应商与 Token](providers.md)、[AI 对话](chat.md)。
 
 ## 1. 产品一句话
 
 把 Nomi 的对话窗口做成 **Claude Code / Codex（及后续同类 CLI）的 UI 外壳**：消息、工具确认、权限与进度都转发到本机真实 CLI；同时提供 **版本检查与看板娘一键更新**，以及 **按工具独立切换 API 供应商**（含可选本机协议路由）。Nomi 自己的 AI 运行时仍保留为「Nomi 原生」后端，可随时切回。
 
-## 2. 现状（代码事实）
+## 2. 历史基线（v1.x 起草时的代码事实，已过时）
 
-| 能力         | 现状                                                                                                                                     | 缺口                                                           |
+> **v2.0.0 现状**：第三方供应商只在 **GatewayStore**（`gateway/store.json`）；Nomi 对话经统一网关；编程助手为插件化 + 标签令牌（见文末「插件化（v2.0.0）」与 [cli-plugin-architecture](../design/cli-plugin-architecture.md)、[providers](providers.md)）。下表保留为设计推演起点，**不要当作当前架构**。
+
+| 能力         | 当时现状                                                                                                                                 | 当时缺口                                                       |
 | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
 | 编程助手监视 | `AgentProgressService` 只读解析 `~/.claude`、`~/.codex`、Cursor 等本地会话 + 进程存活；设置 → 编程助手 →「监视与会话」标签展示与气泡提醒 | 无版本号、无安装路径、无更新动作                               |
-| 对话后端     | 固定走 `AIClient` → `ai-runtime`（Vercel AI SDK + ProviderStore）                                                                        | 无法把一轮对话交给外部 CLI                                     |
-| 供应商       | Nomi 自己的 `ProviderStore`（safeStorage、任务路由、多 Key）                                                                             | 不写 `~/.claude/settings.json` / `~/.codex/config.toml`        |
+| 对话后端     | 固定走 `AIClient` → `ai-runtime`（Vercel AI SDK）                                                                                        | 无法把一轮对话交给外部 CLI                                     |
+| 供应商       | Nomi 自有供应商配置（safeStorage、任务路由、多 Key），尚未写入各 CLI 配置文件                                                            | 不写 `~/.claude/settings.json` / `~/.codex/config.toml`        |
 | 本地模型     | 本机管理面板 + llama.cpp / Ollama 标签                                                                                                   | 可作无云 Key 的联调，与 CLI `--oss` / 第三方 base URL 尚未打通 |
 
 **设计原则（不可破）：**
@@ -57,14 +59,14 @@
 
 ### 3.5 CLI 供应商与本地路由（Nomi 自建）
 
-| 概念                 | 含义                          | Nomi 实现                                                                                                   |
-| -------------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| 按工具的第三方供应商 | Claude / Codex 各自一组供应商 | `userData/cli-providers/claude/store.json` 与 `…/codex/store.json`，与 Nomi 原生 ProviderStore **完全隔离** |
-| 一键启用             | 只改连接字段，备份后写回      | 原子写 + `userData/cli-providers/backups/`                                                                  |
-| Direct               | CLI 直连上游（原生协议）      | 默认：Claude=`anthropic_messages`；Codex=`openai_responses`；dsh=`openai_responses`                         |
-| 本地路由             | 本机代理做协议转换            | `CliRouteService` 监听 `127.0.0.1:18721`；非原生格式须开启路由后才能启用第三方供应商                        |
-| Aggregation          | 多上游模型列表合并            | **P2**                                                                                                      |
-| Apps 页升级          | 检测版本、安装、升级          | 对标「版本与更新」章节，由看板娘执行                                                                        |
+| 概念                 | 含义                     | Nomi 实现                                                                              |
+| -------------------- | ------------------------ | -------------------------------------------------------------------------------------- |
+| 按工具的第三方供应商 | 各 CLI 选用的第三方模型  | v2 起统一在 **GatewayStore**（`gateway/store.json`）；标签来源选「第三方」时经本机网关 |
+| 一键启用             | 只改连接字段，备份后写回 | 原子写 + `userData/cli-providers/backups/`                                             |
+| Direct               | CLI 直连上游（原生协议） | 默认：Claude=`anthropic_messages`；Codex=`openai_responses`；dsh=`openai_responses`    |
+| 本地路由             | 本机代理做协议转换       | `CliRouteService` 监听 `127.0.0.1:18721`；非原生格式须开启路由后才能启用第三方供应商   |
+| Aggregation          | 多上游模型列表合并       | **P2**                                                                                 |
+| Apps 页升级          | 检测版本、安装、升级     | 对标「版本与更新」章节，由看板娘执行                                                   |
 
 **上游格式（按 CLI 不同）：**
 
@@ -80,9 +82,10 @@
 
 ## 4. 用户体验
 
-### 4.1 对话窗口：后端切换器
+### 4.1 对话窗口：后端（端点）
 
-在现有「供应商 / 模型」旁增加 **后端** 下拉：
+后端在**新建对话时**选定（侧栏 / 标签栏的「新对话」菜单 `NewChatMenu`），之后不在输入栏切换；
+输入栏工具行对所有后端一致：模型（编程助手还有权限模式）。
 
 | 后端             | 行为                                                                                       |
 | ---------------- | ------------------------------------------------------------------------------------------ |
@@ -129,7 +132,7 @@ Aggregation（多上游合并）仍为 **P2**。
 
 ```
 ┌─ ai-chat ─────────────────────────────────────────────┐
-│  BackendSwitcher │ CliProviderSwitcher │ Chat transcript │
+│  NewChatMenu     │ CliProviderSwitcher │ Chat transcript │
 │  PermissionCard  │ ToolCallTimeline（只读渲染 CLI 事件） │
 └────────────┬──────────────────────────────────────────┘
              │ IPC  ai:harness:*  /  ai:cli-provider:*  /  ai:cli-update:*
@@ -171,15 +174,15 @@ Aggregation（多上游合并）仍为 **P2**。
 
 **权限桥：** Claude Code 使用 `--permission-prompt-tool stdio`：`control_request`（`can_use_tool`）→ IPC → 对话区允许/拒绝卡片 → `control_response` 写回 stdin；120s 无操作自动拒绝。长驻模式下权限通道与多轮共用同一 stdin。
 
-**Codex 交互权限（查证 2026-10-15，CLI 0.162.1）：**
+**Codex 交互权限（查证 2026-10-20，CLI 0.163.0）：**
 
 - `codex exec --json` 的 NDJSON 事件为 `thread.*` / `turn.*` / `item.*` 等，**没有**可回写的交互式 approval / permission 事件；`--approve-for-me` 为自动审批，`--dangerously-bypass-approvals-and-sandbox` 为跳过，均非 UI 桥。
-- 交互式审批存在于实验性 **`codex app-server`**（JSON-RPC：`ExecCommandApproval*` / `CommandExecutionRequestApproval*` / `FileChangeRequestApproval*` 等），**不属于**当前 P0 的 `exec` 路径。
-- **结论：P0 不对 Codex 做假权限 UI**；dsh headless 同样自行决策。看板娘气泡提醒仍走监视器完成/失败通道。P1 若接 app-server 再对标 Claude 权限桥。
+- 当前主路径是 **`codex app-server`**（JSON-RPC：`ExecCommandApproval*` / `CommandExecutionRequestApproval*` / `FileChangeRequestApproval*` 等），这些请求会进入 Nomi 权限卡片；起不来 app-server 时才退回 `exec`，退路没有可回写的逐项审批通道，会按只读沙箱运行。
+- **结论：** Codex 的交互权限只在 app-server 路径提供；dsh headless 同样自行决策。看板娘气泡提醒仍走监视器完成/失败通道。
 
-**权限模式（2026-10-19）：** 四个后端统一为「计划 / 逐项确认 / 自动改文件 / 自动 / 完全放开」五档，按标签设置并映射到各 CLI 原生参数（Codex `-c sandbox_mode=…`、dsh `DSH_PERMISSION_MODE`、Claude / Grok `--permission-mode`）。修复了 Codex `exec` 默认只读、禁网导致无法改文件的问题；Grok 不再默认 `--yolo`。详见 [编程助手权限模式](../design/cli-permission-modes.md)。
+**权限模式（2026-10-19）：** 内置编程助手按能力统一为「计划 / 逐项确认 / 自动改文件 / 自动 / 完全放开」五档，按标签设置并映射到各 CLI 原生参数（Codex `-c sandbox_mode=…`、dsh `DSH_PERMISSION_MODE`、Claude / Grok `--permission-mode`）。不支持某档位的 CLI 会降级到更安全的档位。详见 [编程助手权限模式](../design/cli-permission-modes.md)。
 
-**子代理（2026-10-19）：** 四个后端都会派生子代理（Codex 的 `multi_agent` 默认开启）。Claude 的后台子代理会在一轮 `result` 之后继续输出并让主代理自发开新一轮，并行子代理会同时请求权限；接管层据此改成轮次队列与权限队列，子代理统一成 `agent` 事件。详见 [编程助手子代理](../design/cli-subagents.md)。
+**子代理（2026-10-19）：** Claude、Codex exec 与 dsh 会产生统一的 `agent` 事件；Grok 的事件仍待真实验证，Gemini 当前不声明子代理能力。Claude 的后台子代理会在一轮 `result` 之后继续输出并让主代理自发开新一轮，并行子代理会同时请求权限；接管层据此改成轮次队列与权限队列。详见 [编程助手子代理](../design/cli-subagents.md)。
 
 **安全：**
 
@@ -210,7 +213,7 @@ Aggregation（多上游合并）仍为 **P2**。
 | 集成（本机有 CLI） | 真实 `claude` / `codex` smoke（需用户 Key 或登录）                                                    |
 | **无云 Key**       | `codex exec --oss --local-provider ollama` + 本机 Ollama 模型；Nomi 原生后端继续用 Ollama / llama.cpp |
 | E2E headed         | 后端切换器可见；选 Mock 后端发一条消息出现工具时间线；权限卡允许/拒绝                                 |
-| 回归               | 监视器、Nomi 原生对话、ProviderStore 不受影响                                                         |
+| 回归               | 监视器、Nomi 原生对话、供应商存储不受影响                                                             |
 
 ## 8. 里程碑建议
 
@@ -346,11 +349,11 @@ _调研来源：本仓库 `packages/electron/src/agents/*`、官方 Claude Code 
 ### 12.5 普通 / 开发模式、端点隔离与分叉（HIGHLIGHT）
 
 - **对话模式**（侧栏 Nomi 标志右侧「助手 | 工作台」，默认普通，localStorage `ai-chat:chatMode`）：
-  - **普通**：仅 Nomi。隐藏标签栏、后端切换器、Mod+T 等编程助手 chrome。后台 CLI 标签继续跑，模式控件旁显示运行中的数量；切回开发恢复标签栏与未读。
+  - **普通**：仅 Nomi。隐藏标签栏、Mod+T 等编程助手 chrome。后台 CLI 标签继续跑，模式控件旁显示运行中的数量；切回开发恢复标签栏与未读。
   - **开发**：完整 chrome。选中 / 新建非 Nomi 会话会打开或聚焦对应 CLI 标签；Nomi 会话始终走主标签 + nomi 后端。
 - **会话归属**：每条 ConversationStore 元信息带 `backend: nomi|claude|codex|dsh` 与可选 `tabId`。旧行迁移为 `nomi`。侧栏列表不再混合身份——点 Nomi 只加载 Nomi；点 Claude 只聚焦该 Claude 标签。
 - **CLI 标签进侧栏**：创建 / 重命名 / 关闭 / 消息时同步一条 ConversationStore 元信息（消息仍在 `userData/harness/tabs/<id>.json`）。删除侧栏项会关闭对应标签（运行中仍走原确认）。
-- **切换后端**：有消息的会话不会静默改写身份。BackendSwitcher 会为新后端新建会话 / 标签；空会话可原地切换。跨端复制历史请用分叉。
+- **端点固定**：端点只在新建对话时选（`NewChatMenu`），输入栏不再有后端切换器；换端点就新建对话，跨端复制历史请用分叉。
 - **侧栏视图**（「全部 | 按端」，持久化）：
   - 全部：所有会话 + 端点色标（与灵动岛一致：nomi 珊瑚 / claude 橙 / codex 蓝 / dsh 蓝紫）。
   - 按端：先选端点按钮（未安装的 CLI 禁用），再只看该端。
@@ -636,3 +639,16 @@ ai-chat/src/
 
 **测试**：`ai-chat/tests/conversation*.test.tsx`、`convStatus` / `convTime` / `toolTrace` / `sendQueue` / `stopButton`、`electron/tests/unit/cli/*`；
 e2e：E24（工具时间线）、E25（统一视图：等待态 / 思考计时 / 队列 / 摘要 / 停止 / 重新生成 / 编辑 / 错误卡片 / Nomi 对话）、PERF（压测，默认跳过）。
+
+## 插件化（v2.0.0）
+
+从用户角度看，v2.0.0 的变化（设计与实现偏差见 [cli-plugin-architecture](../design/cli-plugin-architecture.md)）：
+
+- **内置插件**：Claude Code、Codex、Grok、Gemini、dsh 各是一个内置插件（`@nomi-ai/cli-plugins`），声明自己支持哪些能力（官方账号、续接、图片、斜杠命令、额度、进度监视、终端命令……）。界面按能力显示按钮，不再按 CLI 名字写死；某个插件出错不影响其它编程助手。
+- **外部 CLI**：任意支持 ACP 的编程助手可以在「设置 → 编程助手 → 外部 CLI」添加，见 [providers](providers.md#外部-cliacp)。
+- **多个官方账号同时使用**：一个账号一个配置目录，登录由 CLI 自己完成，Nomi 不经手凭据，见 [providers](providers.md#多个官方账号)。
+- **换模型**：按 CLI 能力选择不重启（只改网关绑定）、原进程切换或重启续接三种方式之一，见 [providers](providers.md#claude-code--codex--gemini--grok--dsh-用第三方模型)。
+- **标签令牌**：第三方标签的每个 CLI 进程用自己的令牌访问网关，网关先确认绑定再启动进程；网关没在运行或拒绝时这一轮直接报错，不会带着无效令牌启动。
+- **CLI 升级**：在 Nomi 里升级成功，或发现终端里把 CLI 升级了（每 30 分钟检查一次），长驻进程在空闲时用新版本重启并续接会话；Windows 上运行中的程序不能被替换，有会话在跑时会提示等它们结束再更新。
+- **网关更稳**：第三方流在出现第一段正文之前出错会自动换下一个候选；上游中途断开一定报错而不是当成完成；中转服务的保活事件转成 CLI 认的心跳；所有候选都失败时返回对应的 HTTP 状态码（如 429、502、504）。
+- **排查**：「设置 → 隐私与权限 → 诊断日志」记录 CLI 进程的收发与网关追踪（带标签 id 与追踪 id），可以导出诊断包，见 [隐私与安全](privacy-security.md#诊断日志)。

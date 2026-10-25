@@ -35,6 +35,39 @@
   white-space: nowrap;
 }
 
+.advancedToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1);
+  border: none;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  font-size: var(--cd-font-size-sm);
+  color: var(--cd-color-text-muted);
+  cursor: pointer;
+}
+
+.advanced {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--cd-space-1);
+  margin-top: calc(-1 * var(--cd-space-2));
+}
+
+.inlineField {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  font-size: var(--cd-font-size-sm);
+  color: var(--cd-color-text-muted);
+}
+
+.bodyLimitInput {
+  width: 4.5rem;
+}
+
 .offer {
   display: flex;
   align-items: center;
@@ -289,8 +322,14 @@
 }
 
 .errorText,
+.errText,
 .error {
   color: var(--cd-color-danger-text);
+  font-size: var(--cd-font-size-sm);
+}
+
+.okText {
+  color: var(--cd-color-success);
   font-size: var(--cd-font-size-sm);
 }
 
@@ -653,6 +692,22 @@
 
 .wireSelect {
   width: 150px;
+}
+
+.limitInput {
+  width: 96px;
+}
+
+.longHint {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+}
+
+.tokenInput {
+  flex: 1;
+  min-width: 0;
 }
 
 .pairRow > :nth-child(1),

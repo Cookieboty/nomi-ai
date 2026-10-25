@@ -1,5 +1,6 @@
 /**
- * 编程助手的权限模式（docs/design/cli-permission-modes.md §4）。
+ * 权限模式（docs/design/cli-permission-modes.md §4）：编程助手，以及 Nomi 自己的工具
+ * （主进程 desktop/consent.ts；Nomi 没有「完全放开」）。
  * 与主进程 cli/permissionMode.ts 的 SUPPORTED / 降级规则保持一致：主进程是最终裁决（返回 degraded），
  * 这里只用来决定下拉里哪些可选、Shift+Tab 怎么循环。
  */
@@ -27,49 +28,71 @@ const SUPPORTED: Record<CliBackend, readonly PermissionMode[]> = {
   // Grok 走 ACP（grok agent stdio）：有审批请求、没有「自动」
   grok: ['plan', 'manual', 'acceptEdits', 'bypass'],
   gemini: ['plan', 'manual', 'acceptEdits', 'bypass'],
+  // 外部 CLI（L1，§5.9）只有逐项确认：每次工具调用都经 ACP 权限请求由你批准
+  external: ['manual'],
 };
 
 export const isPermissionMode = (v: unknown): v is PermissionMode =>
   typeof v === 'string' && (PERMISSION_MODES as readonly string[]).includes(v);
 
+/** Nomi 自己的工具：破坏性操作永远要确认，所以没有「完全放开」 */
+const NOMI_MODES: readonly PermissionMode[] = ['plan', 'manual', 'acceptEdits', 'auto'];
+
 export function supportedModes(backend: HarnessBackend): readonly PermissionMode[] {
-  return backend === 'nomi' ? [] : SUPPORTED[backend];
+  return backend === 'nomi' ? NOMI_MODES : SUPPORTED[backend];
 }
 
 /** 不支持时实际使用的档位：只往更安全的一侧降（manual → plan，auto → acceptEdits） */
 export function fallbackMode(backend: HarnessBackend, mode: PermissionMode): PermissionMode {
   const ok = supportedModes(backend);
   if (ok.includes(mode)) return mode;
-  return mode === 'manual' ? 'plan' : 'acceptEdits';
+  const next = mode === 'manual' ? 'plan' : 'acceptEdits';
+  // 外部插件（§5.9）只有逐项确认：降不到计划 / 自动改文件时用它支持的第一档
+  return ok.includes(next) || !ok.length ? next : ok[0]!;
 }
 
 export function modeLabel(mode: PermissionMode): string {
   switch (mode) {
     case 'plan':
-      return t('计划');
+      return t('ui.chat-settings.plan');
     case 'manual':
-      return t('逐项确认');
+      return t('ui.chat-settings.ask-each-time');
     case 'acceptEdits':
-      return t('自动改文件');
+      return t('ui.chat-settings.auto-edit-files');
     case 'auto':
-      return t('自动');
+      return t('ui.foundation.auto');
     case 'bypass':
-      return t('完全放开');
+      return t('ui.chat-settings.full-access');
   }
 }
 
-export function modeHint(mode: PermissionMode): string {
+/** 档位说明；Nomi 的档位作用在它自己的工具（文件、剪贴板、浏览器、扩展）上，说法不同 */
+export function modeHint(mode: PermissionMode, backend?: HarnessBackend): string {
+  if (backend === 'nomi') {
+    switch (mode) {
+      case 'plan':
+        return t('ui.chat-settings.read-only-can-look-at-files-and-data');
+      case 'manual':
+        return t('ui.chat-settings.asks-you-every-time-before-writing-files-or');
+      case 'acceptEdits':
+        return t('ui.chat-settings.asks-according-to-each-tool-s-setting-in');
+      case 'auto':
+        return t('ui.chat-settings.makes-changes-without-asking-deletions-and-other-destructive');
+      case 'bypass':
+        break;
+    }
+  }
   switch (mode) {
     case 'plan':
-      return t('只读：先给出方案，不改文件、不执行命令');
+      return t('ui.chat-settings.read-only-proposes-a-plan-without-changing-files');
     case 'manual':
-      return t('改文件、运行命令前都先问你');
+      return t('ui.chat-settings.asks-you-before-changing-files-or-running-commands');
     case 'acceptEdits':
-      return t('自动修改工作目录里的文件，其它操作按 CLI 规则询问');
+      return t('ui.chat-settings.edits-files-in-the-working-directory-automatically-other');
     case 'auto':
-      return t('由 CLI 自行判断哪些操作需要确认');
+      return t('ui.chat-settings.lets-the-cli-decide-which-actions-need-confirmation');
     case 'bypass':
-      return t('不做任何限制，可以改任何文件、运行任何命令');
+      return t('ui.chat-settings.no-restrictions-can-change-any-file-and-run');
   }
 }
 

@@ -343,3 +343,58 @@ describe('job state lives in the main process', () => {
     expect(svc.job('codex')).not.toBeNull();
   });
 });
+
+describe('升级策略（P9.6）', () => {
+  const mk = (
+    runner: CliRunner,
+    o: { platform?: NodeJS.Platform; drain?: (k: string) => Promise<number> } = {},
+  ) => {
+    const updated: Array<[string, string | null]> = [];
+    const svc = new CliUpdateService({
+      root: path.join(tmp, 'cache'),
+      logger: { info: jest.fn(), warn: jest.fn() },
+      probe: probe({ npmPrefix: () => tmp }),
+      runner,
+      silent: true,
+      platform: o.platform,
+      drain: o.drain as never,
+      onUpdated: (k, v) => updated.push([k, v]),
+    });
+    return { svc, updated };
+  };
+  const installMock: CliRunner = async () => {
+    const bin = path.join(tmp, 'bin');
+    fs.mkdirSync(bin, { recursive: true });
+    fs.writeFileSync(path.join(bin, 'codex'), '#!/bin/sh\necho 0.200.0\n', { mode: 0o755 });
+    return { code: 0, output: 'added 1 package' };
+  };
+
+  it('Windows：还有会话在用这个 CLI 时先排空，排不空就不升级（运行中的程序不能被替换）', async () => {
+    const runner = jest.fn(installMock);
+    const drain = jest.fn(async () => 2);
+    const { svc, updated } = mk(runner, { platform: 'win32', drain });
+    const res = await svc.run('codex');
+    expect(drain).toHaveBeenCalledWith('codex');
+    expect(res.ok).toBe(false);
+    expect(res.log).toContain('2');
+    expect(runner).not.toHaveBeenCalled();
+    expect(updated).toEqual([]);
+  });
+
+  it('macOS / Linux 不排空（替换文件不影响运行中的进程）', async () => {
+    const drain = jest.fn(async () => 1);
+    const { svc } = mk(jest.fn(installMock), { platform: 'darwin', drain });
+    await svc.run('codex');
+    expect(drain).not.toHaveBeenCalled();
+  });
+
+  posix('升级成功后通知编排层（空闲时用新版本重启续接）；失败不通知', async () => {
+    const ok = mk(installMock);
+    const res = await ok.svc.run('codex');
+    expect(res.ok).toBe(true);
+    expect(ok.updated).toEqual([['codex', '0.200.0']]);
+    const bad = mk(async () => ({ code: 1, output: 'npm ERR!' }));
+    expect((await bad.svc.run('codex')).ok).toBe(false);
+    expect(bad.updated).toEqual([]);
+  });
+});

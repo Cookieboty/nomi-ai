@@ -13,6 +13,8 @@ export const ENDPOINT_NAME: Record<ConversationBackend, string> = {
   dsh: 'dsh',
   grok: 'Grok',
   gemini: 'Gemini',
+  // 外部 CLI 的名字来自它的清单（标签标题）；这里是没有清单时的统称
+  external: 'CLI',
 };
 
 export const ENDPOINT_FULL: Record<ConversationBackend, () => string> = {
@@ -22,6 +24,7 @@ export const ENDPOINT_FULL: Record<ConversationBackend, () => string> = {
   dsh: () => 'dsh',
   grok: () => 'Grok',
   gemini: () => 'Gemini',
+  external: () => t('ui.providers-schedule.external-cli'),
 };
 
 /** CSS 变量友好的 data-ep 值，样式见 Sidebar / ChatModeSwitch */
@@ -32,6 +35,7 @@ export const ENDPOINT_CSS: Record<ConversationBackend, string> = {
   dsh: 'dsh',
   grok: 'grok',
   gemini: 'gemini',
+  external: 'external',
 };
 
 export const CLI_BACKENDS: ConversationBackend[] = ['claude', 'codex', 'dsh', 'grok', 'gemini'];

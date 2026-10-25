@@ -7,10 +7,14 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
+import { CLI_LITERAL_ALLOWLIST } from './scripts/eslint/cli-literal-allowlist.mjs';
+import nomiPlugin from './scripts/eslint/nomi-plugin.mjs';
+
 export default tseslint.config(
   {
     ignores: [
       '**/dist/**',
+      '**/dist-cjs/**',
       '**/build/**',
       '**/coverage/**',
       '**/node_modules/**',
@@ -101,6 +105,63 @@ export default tseslint.config(
         },
       ],
     },
+  },
+
+  // 编程助手插件的入口边界（docs/design/cli-plugin-architecture.md §5.1）：
+  // manifest / gateway / renderer 是纯数据，渲染进程与网关进程也会加载，不能依赖 node 与主进程实现；
+  // main 是主进程实现，不能依赖渲染进程入口。整个插件包都不能 import electron。
+  {
+    files: ['packages/cli-plugins/src/**/*.ts'],
+    ignores: [
+      'packages/cli-plugins/src/*/main.ts',
+      'packages/cli-plugins/src/main.ts',
+      'packages/cli-plugins/src/shared/homes.ts',
+      'packages/cli-plugins/src/shared/scan.ts',
+    ],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [{ name: 'electron', message: '插件包不能依赖 electron。' }],
+          patterns: [
+            {
+              group: ['node:*', 'fs', 'path', 'os', 'child_process', 'crypto', 'url'],
+              message: 'manifest / gateway / renderer 入口只能是纯数据，不能依赖 node。',
+            },
+            {
+              group: ['**/main', './main', '../*/main', '../shared/homes', '../shared/scan'],
+              message: 'manifest / gateway / renderer 入口不能依赖主进程实现。',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['packages/cli-plugins/src/*/main.ts', 'packages/cli-plugins/src/main.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [{ name: 'electron', message: '插件包不能依赖 electron。' }],
+          patterns: [
+            {
+              group: ['**/renderer', './renderer', '../*/renderer', '../shared/renderer'],
+              message: '主进程实现不能依赖渲染进程入口。',
+            },
+          ],
+        },
+      ],
+    },
+  },
+
+  // 核心目录不按内置编程助手名字分支（§7.3）：差异放进插件，核心按能力位判断。
+  // electron/src/cli 是插件宿主与内置 CLI 的适配层（编排、驱动接线），不在此列。
+  {
+    files: ['packages/electron/src/**/*.ts', 'packages/ai-chat/src/**/*.{ts,tsx}'],
+    ignores: ['packages/electron/src/cli/**', ...CLI_LITERAL_ALLOWLIST],
+    plugins: { nomi: nomiPlugin },
+    rules: { 'nomi/no-cli-literal': 'error' },
   },
 
   // 测试文件放宽

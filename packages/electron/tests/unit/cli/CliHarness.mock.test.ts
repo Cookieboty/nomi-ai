@@ -11,6 +11,9 @@ import { CliHarnessService, type HarnessGateway } from '../../../src/cli/CliHarn
 import { testGateway } from '../../helpers/gateway';
 import { until } from '../../helpers/wait';
 
+// 每个用例都起真实的假 CLI 进程：全量测试并行负载下启动可能要好几秒，默认 10 秒不够
+jest.setTimeout(30_000);
+
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
   ipcMain: { removeHandler: () => undefined, handle: () => undefined },
@@ -131,8 +134,8 @@ describe('CliHarnessService mock CLI', () => {
         if (p.event.type === 'tool' && p.event.status === 'start') started++;
       });
       const run = h.sendTab(tab.id, 'go').catch((e: Error) => e);
-      for (let i = 0; i < 100 && started < 2; i++) await new Promise((r) => setTimeout(r, 50));
-      expect(started).toBeGreaterThanOrEqual(2);
+      // 按事件等：全量测试负载下进程启动与工具事件可能远超几秒
+      await until(() => started >= 2, { timeoutMs: 15_000, what: 'two tool starts' });
       expect(h.cancelTab(tab.id)).toBe(true);
       await run;
       const msgs = h.tabMessages(tab.id);
@@ -315,6 +318,53 @@ describe('CliHarnessService mock CLI', () => {
     } finally {
       if (prevAsk === undefined) delete process.env.NOMI_MOCK_ASK_PERMISSION;
       else process.env.NOMI_MOCK_ASK_PERMISSION = prevAsk;
+      delete process.env.NOMI_MOCK_PERMISSION_ID;
+    }
+  }, 15_000);
+
+  it('ExitPlanMode → approve-plan card; replyApprovePlan acceptEdits allows (PR3)', async () => {
+    const prevAsk = process.env.NOMI_MOCK_ASK_PERMISSION;
+    const prevExit = process.env.NOMI_MOCK_EXIT_PLAN_MODE;
+    process.env.NOMI_MOCK_ASK_PERMISSION = '1';
+    process.env.NOMI_MOCK_EXIT_PLAN_MODE = '1';
+    process.env.NOMI_MOCK_PERMISSION_ID = 'exit-plan-1';
+    try {
+      const h = track(
+        new CliHarnessService({
+          root: path.join(os.tmpdir(), `harness-exit-plan-${Date.now()}`),
+          logger: { info() {}, warn() {} },
+          defaultCwd: process.cwd(),
+        }),
+      );
+      h.setBackend('claude');
+      const tab = h.createTab({ backend: 'claude' });
+      h.setTabPermissionMode(tab.id, 'plan');
+      const seen: Array<{ kind?: string; toolName?: string }> = [];
+      h.events.on(
+        'event',
+        (p: {
+          tabId: string;
+          event: { type: string; id?: string; kind?: string; toolName?: string };
+        }) => {
+          if (p.event.type === 'permission' && p.tabId === tab.id) {
+            seen.push({ kind: p.event.kind, toolName: p.event.toolName });
+            expect(h.replyApprovePlan(tab.id, p.event.id!, 'acceptEdits')).toBe(true);
+          }
+        },
+      );
+      const r = await h.sendTab(tab.id, 'hello');
+      expect(seen.some((s) => s.kind === 'approve-plan' && s.toolName === 'ExitPlanMode')).toBe(
+        true,
+      );
+      expect(r.text).toContain('Mock Claude');
+      expect(r.text).not.toContain('权限被拒绝');
+      // 批准并自动改文件 → 标签档位切到 acceptEdits
+      expect(h.listTabs().tabs.find((x) => x.id === tab.id)?.permissionMode).toBe('acceptEdits');
+    } finally {
+      if (prevAsk === undefined) delete process.env.NOMI_MOCK_ASK_PERMISSION;
+      else process.env.NOMI_MOCK_ASK_PERMISSION = prevAsk;
+      if (prevExit === undefined) delete process.env.NOMI_MOCK_EXIT_PLAN_MODE;
+      else process.env.NOMI_MOCK_EXIT_PLAN_MODE = prevExit;
       delete process.env.NOMI_MOCK_PERMISSION_ID;
     }
   }, 15_000);
@@ -1101,7 +1151,8 @@ describe('CliHarnessService permission modes', () => {
       const e = await p;
       expect(e).toBeInstanceOf(Error);
       expect((e as Error).message).toMatch(/进程已结束/);
-      expect(Date.now() - started).toBeLessThan(5_000);
+      // 关键是不等满 10 秒的确认超时；负载下留出余量
+      expect(Date.now() - started).toBeLessThan(8_000);
     }, 20_000);
   });
 
@@ -1338,7 +1389,7 @@ describe('CliHarnessService parallel subagent permissions (docs/design/cli-subag
     });
     const tab = h.createTab({ backend: 'claude' });
     const run = h.sendTab(tab.id, 'go');
-    for (let i = 0; i < 200 && perms.length < 2; i++) await new Promise((r) => setTimeout(r, 20));
+    await until(() => perms.length >= 2, { timeoutMs: 15_000, what: 'two permission requests' });
     expect(perms.map((p) => [p.id, p.agent])).toEqual([
       ['perm-a', 'agent A'],
       ['perm-b', 'agent B'],

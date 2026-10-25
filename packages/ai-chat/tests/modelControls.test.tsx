@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { cleanup, fireEvent, render, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, waitFor, within } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -204,15 +204,36 @@ describe('ModelControls', () => {
     expect((await findByTestId('model-chip')).textContent).toContain('Fable 5.1 · 高');
   });
 
-  it('非推理模型（gpt-4.1）不显示滑杆', async () => {
-    const { findByTestId, queryByTestId } = setup({
+  it('未设档位且 CLI 没给默认档位：说明由 CLI 按模型决定，不留一个空滑杆', async () => {
+    const { findByTestId, getByTestId, queryByTestId, rerender } = setup({
+      catalog: claudeCatalog,
+      tabOver: { backend: 'claude' },
+    });
+    fireEvent.click(await findByTestId('model-chip'));
+    expect(getByTestId('effort-default-unknown').textContent).toBe(
+      '默认：由 Claude Code 按模型决定',
+    );
+    expect(getByTestId('effort-slider').getAttribute('aria-valuetext')).toBe('默认');
+    expect(queryByTestId('effort-default')).toBeNull();
+
+    // 知道默认档位（Fable 5.1）或已选了档位时不显示这句说明
+    rerender(<ModelControls tab={{ ...baseTab, backend: 'claude', modelOverride: 'fable' }} />);
+    expect(queryByTestId('effort-default-unknown')).toBeNull();
+    rerender(<ModelControls tab={{ ...baseTab, backend: 'claude', reasoningEffort: 'low' }} />);
+    expect(queryByTestId('effort-default-unknown')).toBeNull();
+    expect(getByTestId('effort-default')).toBeTruthy();
+  });
+
+  it('非推理模型（gpt-4.1）不显示滑杆，并说明当前模型无思考深度', async () => {
+    const { findByTestId, getByTestId, queryByTestId } = setup({
       catalog,
       tabOver: { modelOverride: 'gpt-4.1' },
     });
     fireEvent.click(await findByTestId('model-chip'));
     expect(queryByTestId('effort-title')).toBeNull();
-    expect(queryByTestId('effort-hint')).toBeNull();
     expect(queryByTestId('effort-slider')).toBeNull();
+    expect(getByTestId('effort-unavailable')).toBeTruthy();
+    expect(getByTestId('effort-hint').textContent).toContain('当前模型无思考深度');
   });
 
   it('未知自定义模型仍显示滑杆，并在模型页标为当前', async () => {
@@ -293,6 +314,141 @@ describe('ModelControls', () => {
     );
   });
 
+  it('长上下文（§12.7.2）：分档计价的第三方模型在模型页有「标准 / 长上下文」一组，价格写清楚', async () => {
+    const ref = 'amux/openai/gpt-6.1-sol';
+    const gatewayState = {
+      status: { state: 'running', port: 1, url: 'http://127.0.0.1:1' },
+      providers: [
+        {
+          id: 'amux',
+          name: 'Amux',
+          enabled: true,
+          urls: {},
+          keys: [],
+          models: [
+            {
+              id: 'openai/gpt-6.1-sol',
+              enabled: true,
+              effective: {
+                ctx: 272_000,
+                maxOutput: 128_000,
+                source: 'catalog',
+                maxOutputSource: 'catalog',
+                longContext: {
+                  standard: 272_000,
+                  full: 922_000,
+                  on: false,
+                  price: { size: 272_000, input: 2, output: 10, tierInput: 4, tierOutput: 15 },
+                },
+              },
+            },
+          ],
+        },
+      ],
+      clients: { codex: { models: {} } },
+      allowedPrivateHosts: [],
+      port: 1,
+    };
+    let current: HarnessTabMeta = { ...baseTab, source: 'thirdParty', modelOverride: ref };
+    const invoke = vi.fn(async (ch: string, ...a: unknown[]) => {
+      if (ch === 'ai:gateway:state') return gatewayState;
+      if (ch === 'ai:harness:model-catalog')
+        return {
+          backend: 'codex',
+          provider: { id: 'amux', name: 'Amux' },
+          defaultModel: null,
+          models: [{ id: ref, label: 'GPT-6.1 Sol', reasoning: true, efforts: [] }],
+        };
+      if (ch === 'ai:harness:tab-long-context') {
+        const on = a[1] as boolean | null;
+        current = { ...current, longContext: on === null ? null : { model: ref, on } };
+        return { ...current };
+      }
+      return {};
+    });
+    (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
+    const r = render(<ModelControls tab={current} />);
+    // 应用里网关状态早已缓存；测试里先等它到达再开菜单
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:gateway:state'));
+    await act(async () => {});
+    fireEvent.click(await r.findByTestId('model-chip'));
+    const group = await r.findByTestId('long-context-group');
+    // 抹零显示：922,000 → 922K
+    expect(within(group).getByTestId('long-context-standard').textContent).toContain('272K');
+    expect(within(group).getByTestId('long-context-long').textContent).toContain('922K');
+    expect(within(group).getByTestId('long-context-standard').getAttribute('aria-checked')).toBe(
+      'true',
+    );
+    expect(group.textContent).toContain('超过 272K 的请求按输入 $4/M（标准 $2/M）计费');
+    fireEvent.click(within(group).getByTestId('long-context-long'));
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-long-context', 'cx', true),
+    );
+    // 开启后按钮带「长」标记；切回标准时与模型默认相同 → 存 null（跟随默认）
+    r.rerender(<ModelControls tab={current} />);
+    expect((await r.findByTestId('model-chip-long')).textContent).toBe('长');
+    // 选上下文不关菜单（与选模型不同），可以接着切回
+    fireEvent.click(
+      within(await r.findByTestId('long-context-group')).getByTestId('long-context-standard'),
+    );
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-long-context', 'cx', null),
+    );
+  });
+
+  it('模型多于 8 个时模型页有搜索：按 id / 名称过滤，回车选第一个，Esc 先清空搜索词', async () => {
+    const models = Array.from({ length: 12 }, (_, i) => ({
+      id: `anthropic/claude-${i}`,
+      label: i === 7 ? 'Claude Opus' : undefined,
+      reasoning: false,
+      efforts: [],
+    }));
+    models.push({ id: 'openai/gpt-6', label: undefined, reasoning: false, efforts: [] });
+    const catalog: BackendModelCatalog = {
+      backend: 'codex',
+      provider: { id: 'amux', name: 'Amux' },
+      defaultModel: null,
+      models,
+    };
+    const invoke = vi.fn(async (ch: string) => (ch === 'ai:harness:model-catalog' ? catalog : {}));
+    (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
+    const r = render(<ModelControls tab={{ ...baseTab, source: 'thirdParty' }} />);
+    fireEvent.click(await r.findByTestId('model-chip'));
+    const menu = await r.findByTestId('model-menu');
+    const search = within(menu).getByTestId('model-search');
+    fireEvent.change(search, { target: { value: 'opus' } });
+    expect(within(menu).getByTestId('model-anthropic/claude-7')).toBeTruthy();
+    expect(within(menu).queryByTestId('model-openai/gpt-6')).toBeNull();
+    expect(within(menu).queryByTestId('model-default')).toBeNull();
+    fireEvent.change(search, { target: { value: 'nothing-here' } });
+    expect(within(menu).getByTestId('model-search-empty')).toBeTruthy();
+    fireEvent.keyDown(search, { key: 'Escape' });
+    expect((search as HTMLInputElement).value).toBe('');
+    expect(r.queryByTestId('model-menu')).not.toBeNull();
+    fireEvent.change(search, { target: { value: 'GPT' } });
+    fireEvent.keyDown(search, { key: 'Enter' });
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-model', 'cx', 'openai/gpt-6', {
+        expectSource: 'thirdParty',
+      }),
+    );
+  });
+
+  it('模型不多时没有搜索框', async () => {
+    const catalog: BackendModelCatalog = {
+      backend: 'codex',
+      provider: { id: 'amux', name: 'Amux' },
+      defaultModel: null,
+      models: [{ id: 'a/b', reasoning: false, efforts: [] }],
+    };
+    const invoke = vi.fn(async (ch: string) => (ch === 'ai:harness:model-catalog' ? catalog : {}));
+    (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
+    const r = render(<ModelControls tab={{ ...baseTab, source: 'thirdParty' }} />);
+    fireEvent.click(await r.findByTestId('model-chip'));
+    await r.findByTestId('model-menu');
+    expect(r.queryByTestId('model-search')).toBeNull();
+  });
+
   it('来源从官方切到第三方：重新按第三方要目录；官方仍不带 source', async () => {
     const invoke = vi.fn(async (ch: string) => {
       if (ch === 'ai:harness:model-catalog') return catalog;
@@ -329,8 +485,9 @@ describe('ModelControls', () => {
     });
     fireEvent.click(await r.findByTestId('model-chip'));
     expect(r.queryByTestId('effort-title')).toBeNull();
-    expect(r.queryByTestId('effort-hint')).toBeNull();
     expect(r.queryByTestId('effort-slider')).toBeNull();
+    expect(r.getByTestId('effort-unavailable')).toBeTruthy();
+    expect(r.getByTestId('effort-hint').textContent).toContain('当前模型无思考深度');
   });
 
   it('读不到目录：只有默认与自定义，显示原因；刷新按钮让主进程重读', async () => {
@@ -341,7 +498,7 @@ describe('ModelControls', () => {
     fireEvent.click(await findByTestId('model-chip'));
     expect(queryByTestId('effort-slider')).toBeNull();
     expect(queryByTestId('effort-title')).toBeNull();
-    expect(queryByTestId('effort-hint')).toBeNull();
+    expect(getByTestId('effort-hint').textContent).toContain('当前模型无思考深度');
     fireEvent.click(getByTestId('model-open'));
     expect(getByTestId('model-error').textContent).toContain('not authenticated');
     expect(getByTestId('model-default')).toBeTruthy();
@@ -366,5 +523,55 @@ describe('ModelControls', () => {
     resolve(claudeCatalog);
     expect((await r.findByTestId('model-chip')).textContent).toContain('Opus 5.5');
     expect(r.queryByTestId('model-chip-loading')).toBeNull();
+  });
+  it('Gemini：无文档化思考深度控制，浮层禁用档位并说明原因', async () => {
+    const geminiCatalog: BackendModelCatalog = {
+      backend: 'gemini',
+      defaultModel: {
+        id: 'gemini-2.5-pro',
+        label: 'Gemini 2.5 Pro',
+        reasoning: true,
+        efforts: ['low', 'high'],
+      },
+      models: [
+        {
+          id: 'gemini-2.5-pro',
+          label: 'Gemini 2.5 Pro',
+          reasoning: true,
+          efforts: ['low', 'high'],
+        },
+      ],
+    };
+    const { findByTestId, getByTestId, queryByTestId } = setup({
+      catalog: geminiCatalog,
+      tabOver: { backend: 'gemini', modelOverride: 'gemini-2.5-pro' },
+    });
+    fireEvent.click(await findByTestId('model-chip'));
+    expect(queryByTestId('effort-slider')).toBeNull();
+    expect(getByTestId('effort-unavailable')).toBeTruthy();
+    expect(getByTestId('effort-hint').textContent).toMatch(/Gemini.*思考深度|不会假装/);
+    fireEvent.click(getByTestId('model-open'));
+    expect(getByTestId('effort-hint').textContent).toMatch(/Gemini.*思考深度|不会假装/);
+  });
+
+  it('dsh：无文档化思考深度控制，浮层禁用档位并说明原因', async () => {
+    const dshCatalog: BackendModelCatalog = {
+      backend: 'dsh',
+      defaultModel: {
+        id: 'deepseek-v4',
+        label: 'DeepSeek V4',
+        reasoning: true,
+        efforts: ['medium'],
+      },
+      models: [{ id: 'deepseek-v4', label: 'DeepSeek V4', reasoning: true, efforts: ['medium'] }],
+    };
+    const { findByTestId, getByTestId, queryByTestId } = setup({
+      catalog: dshCatalog,
+      tabOver: { backend: 'dsh', modelOverride: 'deepseek-v4' },
+    });
+    fireEvent.click(await findByTestId('model-chip'));
+    expect(queryByTestId('effort-slider')).toBeNull();
+    expect(getByTestId('effort-unavailable')).toBeTruthy();
+    expect(getByTestId('effort-hint').textContent).toMatch(/dsh.*思考深度|不会假装/);
   });
 });

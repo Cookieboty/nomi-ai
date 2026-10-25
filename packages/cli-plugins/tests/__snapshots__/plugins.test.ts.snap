@@ -1,0 +1,164 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`内置插件契约（§9.1） > claude：历史夹具逐条解析结果 1`] = `
+[
+  {
+    "name": "claude/2.1.309/claude-tools.jsonl",
+    "parsed": {
+      "messages": [
+        {
+          "content": "Fix the failing login test",
+          "role": "user",
+        },
+        {
+          "content": "Let me look at the test.
+
+The test expected a 401; fixed.",
+          "role": "assistant",
+        },
+        {
+          "content": "Thanks, now run it",
+          "role": "user",
+        },
+      ],
+      "meta": {
+        "sessionId": "claude-tools",
+        "title": "Fix the failing login test",
+      },
+    },
+  },
+  {
+    "name": "claude/2.1.309/claude-real.jsonl",
+    "parsed": {
+      "messages": [
+        {
+          "content": "Use the Read tool to read /tmp/e2e/note.txt and tell me its contents.",
+          "role": "user",
+        },
+        {
+          "content": "The project's codebase documentation is in the current CLAUDE.md file. To launch and view the changes on a working copy, open a new CLAUDE.md file with the \`+\` button, and use \`claudit\` to review the code. That tool will tell you what the changes do for the current feature.",
+          "role": "assistant",
+        },
+      ],
+      "meta": {
+        "sessionId": "claude-real",
+        "title": "Use the Read tool to read /tmp/e2e/note.txt and tell me its contents.",
+      },
+    },
+  },
+]
+`;
+
+exports[`内置插件契约（§9.1） > codex：历史夹具逐条解析结果 1`] = `
+[
+  {
+    "name": "codex/0.163.0/codex-rollout.jsonl",
+    "parsed": {
+      "messages": [
+        {
+          "content": "Reply with exactly: pong",
+          "role": "user",
+        },
+        {
+          "content": "pong",
+          "role": "assistant",
+        },
+        {
+          "content": "List the files",
+          "role": "user",
+        },
+        {
+          "content": "There are two files: a.txt and b.txt.",
+          "role": "assistant",
+        },
+      ],
+      "meta": {
+        "sessionId": "codex-rollout",
+        "title": "Reply with exactly: pong",
+      },
+    },
+  },
+]
+`;
+
+exports[`内置插件契约（§9.1） > dsh：历史夹具逐条解析结果 1`] = `
+[
+  {
+    "name": "dsh/session-v4/dsh-session.jsonl",
+    "parsed": {
+      "messages": [
+        {
+          "content": "Reply with just the word PONG",
+          "role": "user",
+        },
+        {
+          "content": "PONG",
+          "role": "assistant",
+        },
+        {
+          "content": "Say it again",
+          "role": "user",
+        },
+        {
+          "content": "PONG",
+          "role": "assistant",
+        },
+      ],
+      "meta": {
+        "sessionId": "dsh-session",
+        "title": "Reply with just the word PONG",
+      },
+    },
+  },
+]
+`;
+
+exports[`内置插件契约（§9.1） > gemini：历史夹具逐条解析结果 1`] = `
+[
+  {
+    "name": "gemini/0.62.0/gemini-session.jsonl",
+    "parsed": {
+      "messages": [
+        {
+          "content": "hi",
+          "role": "user",
+        },
+        {
+          "content": "ab
+
+c",
+          "role": "assistant",
+        },
+      ],
+      "meta": {
+        "sessionId": "gemini-session",
+        "title": "hi",
+      },
+    },
+  },
+]
+`;
+
+exports[`内置插件契约（§9.1） > grok：历史夹具逐条解析结果 1`] = `
+[
+  {
+    "name": "grok/1.0.67/updates.jsonl",
+    "parsed": {
+      "messages": [
+        {
+          "content": "你是什么模型",
+          "role": "user",
+        },
+        {
+          "content": "我是 Grok",
+          "role": "assistant",
+        },
+      ],
+      "meta": {
+        "sessionId": "updates",
+        "title": "你是什么模型",
+      },
+    },
+  },
+]
+`;

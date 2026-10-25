@@ -38,7 +38,7 @@ export const TtsEngineCard: React.FC = () => {
       setCfg({ ...DEFAULT_TTS_CONFIG });
       setResult({
         ok: false,
-        text: t('加载失败：{0}', e instanceof Error ? e.message : String(e)),
+        text: t('ui.voice-mascot.load-failed', e instanceof Error ? e.message : String(e)),
       });
     }
   }, []);
@@ -73,12 +73,16 @@ export const TtsEngineCard: React.FC = () => {
     setResult(null);
     try {
       const r = await ttsConfigClient.test(draft());
-      const text = r.message || (r.success ? t('检测连接') : t('不可达，当前没有可用 TTS'));
+      const text =
+        r.message ||
+        (r.success
+          ? t('ui.voice-mascot.test-connection')
+          : t('ui.voice-mascot.unreachable-no-tts-available-right-now'));
       setResult({ ok: r.success, text: r.latency != null ? `${text} · ${r.latency}ms` : text });
     } catch (e) {
       setResult({
         ok: false,
-        text: t('检测失败：{0}', e instanceof Error ? e.message : String(e)),
+        text: t('ui.voice-mascot.check-failed', e instanceof Error ? e.message : String(e)),
       });
     } finally {
       setBusy(null);
@@ -92,11 +96,11 @@ export const TtsEngineCard: React.FC = () => {
       const latest = await ttsConfigClient.get();
       await ttsConfigClient.save({ ...draft(), enabled: latest.enabled, lastModified: Date.now() });
       await load();
-      setResult({ ok: true, text: t('配置已保存') });
+      setResult({ ok: true, text: t('ui.voice-mascot.settings-saved') });
     } catch (e) {
       setResult({
         ok: false,
-        text: t('保存失败：{0}', e instanceof Error ? e.message : String(e)),
+        text: t('ui.voice-mascot.save-failed', e instanceof Error ? e.message : String(e)),
       });
     } finally {
       setBusy(null);
@@ -104,16 +108,16 @@ export const TtsEngineCard: React.FC = () => {
   };
 
   const reset = async () => {
-    if (!window.confirm(t('重置为内置离线默认？将清除已保存配置与云 Key。'))) return;
+    if (!window.confirm(t('ui.voice-mascot.reset-to-the-built-in-offline-default-this'))) return;
     setBusy('reset');
     try {
       await ttsConfigClient.reset();
       await load();
-      setResult({ ok: true, text: t('已重置为内置默认') });
+      setResult({ ok: true, text: t('ui.voice-mascot.reset-to-built-in-default') });
     } catch (e) {
       setResult({
         ok: false,
-        text: t('重置失败：{0}', e instanceof Error ? e.message : String(e)),
+        text: t('ui.voice-mascot.reset-failed', e instanceof Error ? e.message : String(e)),
       });
     } finally {
       setBusy(null);
@@ -125,28 +129,37 @@ export const TtsEngineCard: React.FC = () => {
 
   return (
     <SettingsGroup
-      title={t('朗读引擎')}
-      description={t('默认用内置离线语音，在本机合成、无需联网；模型缺失或合成失败时保持静默。')}
+      title={t('ui.chat-settings.speech-engine')}
+      description={t('ui.chat-settings.uses-the-built-in-offline-voice-by-default')}
       data-testid="settings-tts-engine"
     >
       <div className={card.form}>
-        <FormField label={t('提供方')}>
+        <FormField label={t('ui.voice-mascot.provider')}>
           <Select
             value={p}
             data-testid="tts-provider"
             onChange={(e) => set({ provider: e.target.value as TtsProvider })}
             options={[
-              { value: 'sherpa-theresa', label: t('内置离线语音（sherpa-onnx，默认）') },
-              { value: 'fish-local', label: t('高级：Fish 本地（fish-speech）') },
-              { value: 'fish-cloud', label: t('高级：Fish 云 API（自备 Key）') },
-              { value: 'legacy', label: t('自行接入外部 TTS（legacy，自建克隆服务）') },
+              {
+                value: 'sherpa-theresa',
+                label: t('ui.voice-mascot.built-in-offline-voice-sherpa-onnx-default'),
+              },
+              { value: 'fish-local', label: t('ui.voice-mascot.advanced-local-fish-fish-speech') },
+              {
+                value: 'fish-cloud',
+                label: t('ui.voice-mascot.advanced-fish-cloud-api-your-own-key'),
+              },
+              {
+                value: 'legacy',
+                label: t('ui.voice-mascot.connect-your-own-external-tts-legacy-self-hosted'),
+              },
             ]}
           />
         </FormField>
 
         {fish && (
           <>
-            <FormField label={t('服务地址')}>
+            <FormField label={t('ui.voice-mascot.server-url')}>
               <Input
                 value={cfg.baseUrl}
                 placeholder={
@@ -156,10 +169,8 @@ export const TtsEngineCard: React.FC = () => {
               />
             </FormField>
             <FormField
-              label={t('音频格式')}
-              hint={t(
-                '应用已内置 Nomi 可爱声线，合成时自动发给 Fish，无需手动拷贝；不提供上传自己音色的入口。',
-              )}
+              label={t('ui.voice-mascot.audio-format')}
+              hint={t('ui.chat-settings.the-nomi-voice-is-built-in-and-sent')}
             >
               <Select
                 value={cfg.format}
@@ -169,14 +180,18 @@ export const TtsEngineCard: React.FC = () => {
             </FormField>
             {p === 'fish-cloud' && (
               <FormField
-                label={t('Fish 云 API Key（仅存主进程，safeStorage）')}
-                hint={cfg.hasApiKey ? t('已保存云端 Key') : t('尚未保存云端 Key')}
+                label={t('ui.voice-mascot.fish-cloud-api-key-kept-in-the-main')}
+                hint={
+                  cfg.hasApiKey
+                    ? t('ui.voice-mascot.cloud-key-saved')
+                    : t('ui.voice-mascot.no-cloud-key-saved-yet')
+                }
               >
                 <Input
                   type="password"
                   autoComplete="off"
                   value={apiKey}
-                  placeholder={t('留空则保留已保存的 Key')}
+                  placeholder={t('ui.voice-mascot.leave-empty-to-keep-the-saved-key')}
                   data-testid="tts-api-key"
                   onChange={(e) => {
                     setApiKey(e.target.value);
@@ -192,13 +207,11 @@ export const TtsEngineCard: React.FC = () => {
                   setClearKey(v);
                   setDirty(true);
                 }}
-                label={t('清除已保存的 Key')}
+                label={t('ui.voice-mascot.clear-the-saved-key')}
               />
             )}
             <Notice data-testid="fish-attribution">
-              {t(
-                'Built with Fish Audio — 研究/非商用免费；年营收 < USD 500k 可社区商用；对外提供 TTS / 克隆服务需另签；不可未经同意克隆真人；不可用输出训练其他基础 TTS 模型。',
-              )}
+              {t('ui.chat-settings.built-with-fish-audio-free-for-research-non')}
             </Notice>
           </>
         )}
@@ -206,7 +219,7 @@ export const TtsEngineCard: React.FC = () => {
         {p === 'legacy' && (
           <>
             <p className={styles.muted}>
-              {t('外部自建 TTS（hostname / port / path / audioUrl / promptText）。')}
+              {t('ui.chat-settings.self-hosted-external-tts-hostname-port-path-audiourl')}
             </p>
             <div className={card.grid}>
               <FormField label="hostname">
@@ -223,7 +236,7 @@ export const TtsEngineCard: React.FC = () => {
             <FormField label="path">
               <Input value={cfg.path} onChange={(e) => set({ path: e.target.value })} />
             </FormField>
-            <FormField label={t('audioUrl（服务侧参考音频 URL，非本机上传）')}>
+            <FormField label={t('ui.voice-mascot.audiourl-reference-audio-url-on-the-server-not')}>
               <Input value={cfg.audioUrl} onChange={(e) => set({ audioUrl: e.target.value })} />
             </FormField>
             <FormField label="promptText">
@@ -250,10 +263,10 @@ export const TtsEngineCard: React.FC = () => {
           data-testid="tts-engine-save"
           onClick={() => void save()}
         >
-          {t('保存配置')}
+          {t('ui.voice-mascot.save-settings')}
         </Button>
         <Button disabled={busy !== null} data-testid="tts-engine-test" onClick={() => void test()}>
-          {busy === 'test' ? t('检测中…') : t('检测连接')}
+          {busy === 'test' ? t('ui.voice-mascot.checking') : t('ui.voice-mascot.test-connection')}
         </Button>
         <Button
           variant="ghost"
@@ -261,7 +274,7 @@ export const TtsEngineCard: React.FC = () => {
           data-testid="tts-engine-reset"
           onClick={() => void reset()}
         >
-          {t('重置为内置默认')}
+          {t('ui.voice-mascot.reset-to-built-in-default-action')}
         </Button>
       </div>
     </SettingsGroup>

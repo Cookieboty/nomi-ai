@@ -66,7 +66,7 @@ export const TurnEditSummaryCard: React.FC<{
   const askUndo = () => {
     setNotice(null);
     if (!cwd) {
-      setNotice(t('当前会话没有工作目录'));
+      setNotice(t('ui.session-workspace.this-session-has-no-working-directory'));
       return;
     }
     setConfirming(true);
@@ -87,7 +87,7 @@ export const TurnEditSummaryCard: React.FC<{
       if (failed.length) {
         setNotice(
           t(
-            '部分文件撤销失败：{0}',
+            'ui.session-workspace.some-files-failed-to-undo',
             failed.map((f) => `${f.file}: ${undoErrorText(f.error, t)}`).join('\n'),
           ),
         );
@@ -121,7 +121,7 @@ export const TurnEditSummaryCard: React.FC<{
               <FileDiff size={16} />
             </span>
             <strong className={styles.turnCardTitle}>
-              {t('已编辑 {0} 个文件', summary.files)}
+              {t('ui.usage-tools.edited-files', summary.files)}
             </strong>
           </div>
           <button
@@ -130,7 +130,7 @@ export const TurnEditSummaryCard: React.FC<{
             onClick={open}
             data-testid="turn-view-changes-link"
           >
-            {t('查看变更')}
+            {t('ui.session-workspace.view-changes')}
             <ExternalLink size={12} />
           </button>
         </div>
@@ -143,17 +143,17 @@ export const TurnEditSummaryCard: React.FC<{
             data-testid="turn-undo"
           >
             <RotateCcw size={14} />
-            {t('撤销')}
+            {t('ui.mascot-theme.undo')}
           </button>
           <button
             type="button"
             className={styles.turnFullscreen}
             onClick={openFullscreen}
             data-testid="turn-open-fullscreen"
-            title={t('全屏审查')}
+            title={t('ui.session-workspace.full-screen-review')}
           >
             <Expand size={14} />
-            {t('全屏审查')}
+            {t('ui.session-workspace.full-screen-review')}
           </button>
           <button
             type="button"
@@ -161,16 +161,14 @@ export const TurnEditSummaryCard: React.FC<{
             onClick={open}
             data-testid="turn-view-changes"
           >
-            {t('查看变更')}
+            {t('ui.session-workspace.view-changes')}
           </button>
         </div>
       </div>
 
       {confirming ? (
         <div className={styles.turnConfirm} role="alertdialog" data-testid="turn-undo-confirm">
-          <span>
-            {t('撤销本轮对这些文件的写入？仅限工作区内，写回旧内容或安全 git checkout。')}
-          </span>
+          <span>{t('ui.session-workspace.undo-this-turn-s-writes-to-these-files')}</span>
           <span className={styles.turnConfirmBtns}>
             <button
               type="button"
@@ -178,7 +176,7 @@ export const TurnEditSummaryCard: React.FC<{
               onClick={() => setConfirming(false)}
               data-testid="turn-undo-cancel"
             >
-              {t('取消')}
+              {t('ui.foundation.cancel')}
             </button>
             <button
               type="button"
@@ -186,7 +184,7 @@ export const TurnEditSummaryCard: React.FC<{
               onClick={() => void onUndo()}
               data-testid="turn-undo-confirm-ok"
             >
-              {t('确认撤销')}
+              {t('ui.session-workspace.confirm-undo')}
             </button>
           </span>
         </div>
@@ -199,7 +197,7 @@ export const TurnEditSummaryCard: React.FC<{
             className={styles.turnConfirmCancel}
             onClick={() => setNotice(null)}
           >
-            {t('关闭')}
+            {t('ui.providers-schedule.close')}
           </button>
         </div>
       ) : null}
@@ -240,7 +238,9 @@ export const TurnEditSummaryCard: React.FC<{
                   </div>
                 ) : null}
                 {openFile && !e.diff ? (
-                  <p className={styles.turnInlineEmpty}>{t('无行级 Diff')}</p>
+                  <p className={styles.turnInlineEmpty}>
+                    {t('ui.session-workspace.no-line-level-diff')}
+                  </p>
                 ) : null}
               </div>
             );
@@ -285,7 +285,7 @@ export const TurnEditSummaryCard: React.FC<{
               onClick={() => setExpanded(true)}
               data-testid="turn-show-more"
             >
-              {t('再显示 {0} 个文件', more)}
+              {t('ui.session-workspace.show-more-files', more)}
               <ChevronDown size={14} />
             </button>
           ) : null}

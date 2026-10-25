@@ -86,14 +86,13 @@ export function looksSecret(s: string): boolean {
 /** 把系统日历的常见错误翻成人话 */
 export function systemCalendarError(msg: string): string {
   if (/-1743|not authori[sz]ed|Not allowed to send Apple events/i.test(msg))
-    return tr(
-      '没有「日历」的自动化权限：请到 系统设置 → 隐私与安全性 → 自动化 中允许 Nomi 控制「日历」',
-    );
-  if (/-600|isn.t running|Application can.t be found/i.test(msg)) return tr('无法启动「日历」App');
+    return tr('electron.common.no-automation-permission-for-calendar-allow-nomi-to');
+  if (/-600|isn.t running|Application can.t be found/i.test(msg))
+    return tr('electron.common.could-not-start-the-calendar-app');
   if (/80040154|ComObject|Outlook\.Application|class not registered/i.test(msg))
-    return tr('没有找到经典版 Outlook（新版 Outlook 不支持本地接口）。请改用 ICS 订阅或 CalDAV。');
+    return tr('electron.common.classic-outlook-was-not-found-the-new-outlook');
   if (/evolution: no local calendar/.test(msg))
-    return tr('没有找到 Evolution / GNOME 本地日历文件。在线账户请用 CalDAV 订阅。');
+    return tr('electron.common.no-local-evolution-gnome-calendar-file-found-use');
   return msg.slice(0, 200);
 }
 
@@ -116,7 +115,7 @@ export class LocalHubService {
     if (!this.sources.some((s) => s.kind === 'local'))
       this.sources.unshift({
         id: 'local',
-        name: tr('我的日历'),
+        name: tr('electron.common.my-calendar'),
         kind: 'local',
         color: COLORS[0],
         enabled: true,
@@ -209,10 +208,11 @@ export class LocalHubService {
   }
   upsertEvent(p: Partial<CalEvent>) {
     const summary = String(p.summary ?? '').trim();
-    if (!summary) throw new Error(tr('请填写事件标题'));
+    if (!summary) throw new Error(tr('electron.common.please-enter-an-event-title'));
     const start = Number(p.start);
     const end = Number(p.end ?? start + 3_600_000);
-    if (!Number.isFinite(start) || !(end > start)) throw new Error(tr('结束时间要晚于开始时间'));
+    if (!Number.isFinite(start) || !(end > start))
+      throw new Error(tr('electron.common.end-time-must-be-after-start-time'));
     const prev = p.uid ? this.events.find((e) => e.uid === p.uid && e.cal === 'local') : undefined;
     const e: CalEvent = {
       uid: prev?.uid ?? `${randomUUID()}@nomi`,
@@ -250,7 +250,7 @@ export class LocalHubService {
   }
   async importIcsDialog() {
     const r = await dialog.showOpenDialog({
-      title: tr('导入日历（.ics）'),
+      title: tr('electron.common.import-calendar-ics'),
       filters: [{ name: 'iCalendar', extensions: ['ics'] }],
       properties: ['openFile'],
     });
@@ -263,10 +263,10 @@ export class LocalHubService {
   importIcsText(text: string, name: string) {
     const id = `file-${randomUUID().slice(0, 8)}`;
     const list = parseIcs(text, id);
-    if (!list.length) throw new Error(tr('文件里没有找到日程（VEVENT）'));
+    if (!list.length) throw new Error(tr('electron.common.no-events-vevent-found-in-the-file'));
     this.sources.push({
       id,
-      name: name.slice(0, 60) || tr('导入的日历'),
+      name: name.slice(0, 60) || tr('electron.common.imported-calendar'),
       kind: 'file',
       color: COLORS[this.sources.length % COLORS.length],
       enabled: true,
@@ -286,9 +286,10 @@ export class LocalHubService {
     try {
       u = new URL(String(p.url).replace(/^webcal:/i, 'https:'));
     } catch {
-      throw new Error(tr('请填写有效的地址'));
+      throw new Error(tr('electron.common.please-enter-a-valid-url'));
     }
-    if (!/^https?:$/.test(u.protocol)) throw new Error(tr('只支持 http / https / webcal 地址'));
+    if (!/^https?:$/.test(u.protocol))
+      throw new Error(tr('electron.common.only-http-https-webcal-urls-are-supported'));
     // 地址里的 user:pass@ 挪到账号 / 密码字段：不让口令以明文留在 url 里（#35）
     const urlUser = decodeURIComponent(u.username);
     const urlPass = decodeURIComponent(u.password);
@@ -320,7 +321,7 @@ export class LocalHubService {
   private enc(v: string) {
     return encryptSecret(
       v,
-      tr('系统安全存储不可用，无法安全保存 CalDAV 密码；请在系统钥匙串可用后重试'),
+      tr('electron.common.system-secure-storage-is-unavailable-so-the-caldav'),
     );
   }
   private dec(v?: string) {
@@ -329,17 +330,18 @@ export class LocalHubService {
   /** 连接系统日历（macOS 日历 / 经典 Outlook / Evolution）；首次同步会触发系统授权 */
   async addSystemSource() {
     const info = systemCalendarInfo();
-    if (!info.provider) throw new Error(tr('当前系统不支持读取系统日历'));
+    if (!info.provider)
+      throw new Error(tr('electron.common.reading-the-system-calendar-is-not-supported-on'));
     let s = this.sources.find((x) => x.kind === 'system');
     if (!s) {
       s = {
         id: 'system',
         name:
           info.provider === 'macos-calendar'
-            ? tr('macOS 日历')
+            ? tr('electron.common.macos-calendar')
             : info.provider === 'outlook-com'
-              ? tr('Outlook（经典版）')
-              : tr('Evolution / GNOME 日历'),
+              ? tr('electron.common.outlook-classic')
+              : tr('electron.common.evolution-gnome-calendar'),
         kind: 'system',
         color: COLORS[this.sources.length % COLORS.length],
         enabled: true,
@@ -359,18 +361,19 @@ export class LocalHubService {
   /** 经同意后在系统日历里创建事件（macOS 日历 / 经典 Outlook） */
   async createSystemEvent(p: { summary?: unknown; start?: unknown; end?: unknown }) {
     const info = systemCalendarInfo();
-    if (!info.canCreate) throw new Error(tr('当前系统日历不支持由 Nomi 创建事件'));
+    if (!info.canCreate)
+      throw new Error(tr('electron.common.nomi-cannot-create-events-in-this-system-calendar'));
     const summary = String(p.summary ?? '').trim();
     const start = Number(p.start);
     const end = Number(p.end ?? start + 3_600_000);
     if (!summary || !Number.isFinite(start) || !Number.isFinite(end))
-      throw new Error(tr('事件信息不完整'));
+      throw new Error(tr('electron.common.event-details-are-incomplete'));
     const r = await dialog.showMessageBox({
       type: 'question',
-      buttons: [tr('创建'), tr('取消')],
+      buttons: [tr('electron.common.create'), tr('electron.common.cancel')],
       defaultId: 0,
       cancelId: 1,
-      message: tr('在系统日历中创建事件？'),
+      message: tr('electron.common.create-this-event-in-your-system-calendar'),
       detail: `${summary}\n${new Date(start).toLocaleString()} – ${new Date(end).toLocaleTimeString()}`,
     });
     if (r.response !== 0) return { ok: false, reason: 'user_denied' };
@@ -397,19 +400,21 @@ export class LocalHubService {
           headers: { ...headers, Depth: '1', 'Content-Type': 'application/xml; charset=utf-8' },
           body: caldavQuery(now - 30 * 86_400_000, now + 180 * 86_400_000),
         });
-        if (r.status === 401) throw new Error(tr('用户名或密码不对'));
-        if (!r.ok) throw new Error(tr('服务器返回 HTTP {0}', r.status));
+        if (r.status === 401) throw new Error(tr('electron.common.wrong-username-or-password'));
+        if (!r.ok) throw new Error(tr('electron.common.server-returned-http', r.status));
         texts = extractCalendarData(await r.text());
       } else {
         const r = await f(s.url, { headers });
-        if (!r.ok) throw new Error(tr('服务器返回 HTTP {0}', r.status));
+        if (!r.ok) throw new Error(tr('electron.common.server-returned-http', r.status));
         texts = [await r.text()];
       }
       const list = texts.flatMap((t) => parseIcs(t, s.id));
       this.replaceEvents(s.id, list);
       return list.length;
     } catch (e) {
-      s.lastError = (e as Error).message.replace(/fetch failed/, '连不上服务器');
+      s.lastError = (e as Error).message.replace(/fetch failed/, () =>
+        tr('electron.common.server-unreachable'),
+      );
       s.lastSync = Date.now();
       this.saveCal();
       this.broadcast('ai:hub:changed');
@@ -448,7 +453,7 @@ export class LocalHubService {
     return true;
   }
   removeSource(id: string) {
-    if (id === 'local') throw new Error(tr('本地日历不能删除'));
+    if (id === 'local') throw new Error(tr('electron.common.the-local-calendar-can-t-be-deleted'));
     this.sources = this.sources.filter((s) => s.id !== id);
     this.events = this.events.filter((e) => e.cal !== id);
     this.saveCal();
@@ -457,7 +462,7 @@ export class LocalHubService {
   }
   async exportIcs() {
     const r = await dialog.showSaveDialog({
-      title: tr('导出本地日历'),
+      title: tr('electron.common.export-local-calendar'),
       defaultPath: 'nomi.ics',
       filters: [{ name: 'iCalendar', extensions: ['ics'] }],
     });
@@ -491,7 +496,7 @@ export class LocalHubService {
     this.saveClips();
     this.applyClipWatch();
     if (!was && this.clipSettings.enabled) {
-      this.d.desktop.say(tr('好的，我会记住最近复制的内容（只在本机），像密码的内容会自动跳过～'));
+      this.d.desktop.say(tr('electron.common.ok-i-ll-remember-what-you-copy-recently'));
       broadcastMascotCommand({ type: 'motion', name: 'nod' });
     }
     this.audit('clipboard_history_settings', { enabled: this.clipSettings.enabled });
@@ -592,7 +597,7 @@ export class LocalHubService {
   }
   clipImage(id: string) {
     const c = this.clips.find((x) => x.id === id && x.kind === 'image');
-    if (!c) throw new Error(tr('没有这张图片'));
+    if (!c) throw new Error(tr('electron.common.image-not-found'));
     const img = nativeImage.createFromPath(path.join(this.clipDir, c.file!));
     const s = img.getSize();
     return {
@@ -629,7 +634,7 @@ export class LocalHubService {
   /** 打包 userData 下的本地数据（不含模型、索引、缓存；密钥类文件只导出脱敏版本） */
   async exportAll(opts: { conversations?: unknown; include?: string[] } = {}) {
     const r = await dialog.showSaveDialog({
-      title: tr('导出全部本地数据'),
+      title: tr('electron.common.export-all-local-data'),
       defaultPath: `nomi-export-${new Date().toISOString().slice(0, 10)}.zip`,
       filters: [{ name: 'Zip', extensions: ['zip'] }],
     });
@@ -715,7 +720,7 @@ export class LocalHubService {
         add(
           'settings/mcp.json',
           JSON.stringify(
-            mcp.map((s) => redactServerForExport(s, tr('<已移除>'))),
+            mcp.map((s) => redactServerForExport(s, tr('electron.common.removed'))),
             null,
             2,
           ),
@@ -726,11 +731,9 @@ export class LocalHubService {
     }
     add(
       'README.txt',
-      tr('Nomi 数据导出 {0}\n\n', new Date().toLocaleString('zh-CN')) +
-        tr(
-          '包含：对话、长期记忆、日程与提醒、日历（.ics）、剪贴板历史、技能、屏幕记忆文字、设置。\n',
-        ) +
-        tr('不含：API Key 等密钥（已移除）、下载的模型、知识库索引与缓存。\n'),
+      tr('electron.common.nomi-data-export', new Date().toLocaleString('zh-CN')) +
+        tr('electron.common.includes-chats-long-term-memory-schedules-reminders-calendars') +
+        tr('electron.common.excludes-api-keys-and-other-secrets-removed-downloaded'),
     );
     const zip = zipSync(files, { level: 6 });
     fs.writeFileSync(file, zip);
@@ -742,13 +745,19 @@ export class LocalHubService {
   tools(): ToolDefinition[] {
     const input = z
       .object({
-        days: z.number().int().min(1).max(31).default(1).describe(tr('从今天起查看几天的日程')),
+        days: z
+          .number()
+          .int()
+          .min(1)
+          .max(31)
+          .default(1)
+          .describe(tr('electron.common.how-many-days-of-events-to-view-from')),
       })
       .strict();
     return [
       {
         name: 'calendar_list',
-        description: tr('查看用户本地日历（含订阅的 ICS / CalDAV）从今天起若干天的日程。'),
+        description: tr('electron.common.view-events-in-the-user-s-local-calendar'),
         input,
         readOnly: true,
         execute: async (raw: unknown) => {

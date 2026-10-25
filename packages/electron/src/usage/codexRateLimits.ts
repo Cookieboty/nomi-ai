@@ -119,6 +119,8 @@ export interface CodexRpcDeps {
   /** 测试注入：自己造子进程 */
   spawnFn?: typeof spawn;
   env?: () => NodeJS.ProcessEnv;
+  /** 账号目录追加的启动参数（Codex 账号目录强制文件存储，§5.10） */
+  extraArgs?: () => string[];
   tmpRoot?: string;
   now?: () => number;
   timeoutMs?: number;
@@ -141,7 +143,7 @@ export class CodexRateLimitReader {
       const env = (this.d.env ?? withCliPath)();
       const platform = this.d.platform ?? process.platform;
       let file = bin;
-      let args = CODEX_APP_SERVER_ARGS;
+      let args = [...(this.d.extraArgs?.() ?? []), ...CODEX_APP_SERVER_ARGS];
       if (platform === 'win32' && /\.(cmd|bat)$/i.test(bin)) {
         const l = windowsShimLaunch(bin, args, env);
         if (!l) return { kind: 'transient', reason: 'spawn-failed' };

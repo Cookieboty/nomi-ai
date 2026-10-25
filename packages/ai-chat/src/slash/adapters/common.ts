@@ -28,6 +28,7 @@ import type { SlashCommand, SlashContext, SlashKind, SlashOutcome, SlashSource }
 export interface CmdSpec {
   name: string;
   aliases?: string[];
+  hiddenAliases?: string[];
   label: string;
   description: string;
   source: SlashSource;
@@ -43,6 +44,7 @@ export function cmd(s: CmdSpec): SlashCommand {
     id: `${s.source}:${s.name}`,
     name: s.name,
     ...(s.aliases ? { aliases: s.aliases } : {}),
+    ...(s.hiddenAliases ? { hiddenAliases: s.hiddenAliases } : {}),
     label: s.label,
     description: s.description,
     source: s.source,
@@ -64,16 +66,16 @@ export function nativeCommands(backend: ConversationBackend): SlashCommand[] {
     cmd({
       name: 'help',
       aliases: ['?'],
-      label: t('帮助'),
-      description: t('列出当前端可用的所有命令，以及每个命令怎么执行'),
+      label: t('ui.slash-commands.help'),
+      description: t('ui.slash-commands.list-every-command-available-here-and-how-each'),
       source: 'builtin',
       kind: 'native',
       run: (_a, ctx) => card(helpCard(ctx.commands())),
     }),
     cmd({
       name: 'context',
-      label: t('上下文用量'),
-      description: t('查看这个会话占了多少上下文窗口（进度条 + 分类估算）'),
+      label: t('ui.slash-commands.context-usage'),
+      description: t('ui.slash-commands.see-how-much-of-the-context-window-this'),
       source: 'builtin',
       kind: 'native',
       run: async (_a, ctx) => card(contextCard(ctx, await ctx.load())),
@@ -81,38 +83,38 @@ export function nativeCommands(backend: ConversationBackend): SlashCommand[] {
     cmd({
       name: 'cost',
       aliases: ['usage', 'stats'],
-      label: t('用量与费用'),
-      description: t('这个会话以及今日 / 近 7 天的 token 与费用'),
+      label: t('ui.usage-tools.usage-cost'),
+      description: t('ui.slash-commands.tokens-and-cost-for-this-session-today-and'),
       source: 'builtin',
       kind: 'native',
       run: async (_a, ctx) => card(costCard(ctx, await ctx.load())),
     }),
     cmd({
       name: 'status',
-      label: t('当前状态'),
-      description: t('模型、供应商、工作目录、登录方式、CLI 版本'),
+      label: t('ui.slash-commands.current-status'),
+      description: t('ui.slash-commands.model-provider-working-directory-login-mode-cli-version'),
       source: 'builtin',
       kind: 'native',
       run: async (_a, ctx) => card(statusCard(ctx, await ctx.load())),
     }),
     cmd({
       name: 'model',
-      label: t('切换模型'),
+      label: t('ui.slash-commands.switch-model'),
       description: cli
-        ? t('列出并切换当前标签的模型（与输入框的模型按钮一致）')
-        : t('列出并切换 Nomi 对话使用的供应商 / 模型'),
+        ? t('ui.slash-commands.list-and-switch-this-tab-s-model-same')
+        : t('ui.slash-commands.list-and-switch-the-provider-model-used-by'),
       source: 'builtin',
       kind: 'native',
-      hint: t('[模型名]'),
+      hint: t('ui.slash-commands.model'),
       run: async (a, ctx) => card(await modelCard(ctx, await ctx.load(), a)),
     }),
     cmd({
       name: 'clear',
       aliases: ['new', 'reset'],
-      label: t('新会话'),
+      label: t('ui.slash-commands.new-session'),
       description: cli
-        ? t('在同一目录开一个新标签（旧会话保留在历史里）')
-        : t('开始一个新对话（旧对话保留在历史里）'),
+        ? t('ui.slash-commands.open-a-new-tab-in-the-same-directory')
+        : t('ui.slash-commands.start-a-new-conversation-the-old-one-stays'),
       source: 'builtin',
       kind: 'native',
       run: async (_a, ctx) => {
@@ -123,8 +125,8 @@ export function nativeCommands(backend: ConversationBackend): SlashCommand[] {
     cmd({
       name: 'plugins',
       aliases: ['skills', 'mcp', 'agents', 'plugin'],
-      label: t('插件 / 命令'),
-      description: t('打开只读面板：当前端发现的命令、Skills、插件、MCP、子代理'),
+      label: t('ui.slash-commands.plugins-commands'),
+      description: t('ui.slash-commands.open-the-read-only-panel-commands-skills-plugins'),
       source: 'builtin',
       kind: 'ui',
       run: (_a, ctx) => {
@@ -137,19 +139,19 @@ export function nativeCommands(backend: ConversationBackend): SlashCommand[] {
     out.push(
       cmd({
         name: 'diff',
-        label: t('未提交的更改'),
-        description: t('只读显示当前目录的 git 状态与 diff'),
+        label: t('ui.slash-commands.uncommitted-changes'),
+        description: t('ui.slash-commands.show-the-git-status-and-diff-of-the'),
         source: 'builtin',
         kind: 'native',
         run: async (_a, ctx) => {
           const d = await ctx.actions.gitDiff();
-          return card({ kind: 'diff', title: t('未提交的更改'), ...d });
+          return card({ kind: 'diff', title: t('ui.slash-commands.uncommitted-changes'), ...d });
         },
       }),
       cmd({
         name: 'mode',
-        label: t('权限模式'),
-        description: t('切换权限模式：plan 计划 / manual 逐项确认 / edits 自动改文件 / auto 自动'),
+        label: t('ui.chat-settings.permission-mode-label'),
+        description: t('ui.chat-settings.switch-permission-mode-plan-manual-edits-auto-edit'),
         source: 'builtin',
         kind: 'native',
         hint: 'plan | manual | edits | auto',
@@ -176,13 +178,13 @@ async function runMode(raw: string, backend: ConversationBackend): Promise<Slash
   const arg = raw.trim().toLowerCase();
   const list = supportedModes(backend)
     .filter((m) => m !== 'bypass')
-    .map((m) => `${modeLabel(m)}：${modeHint(m)}`)
+    .map((m) => `${modeLabel(m)}：${modeHint(m, backend)}`)
     .join('\n');
   if (!arg)
     return card(
       notice(
-        t('权限模式'),
-        t('用法：/mode plan | manual | edits | auto；也可以在输入框里按 Shift+Tab 切换。'),
+        t('ui.chat-settings.permission-mode-label'),
+        t('ui.chat-settings.usage-mode-plan-manual-edits-auto-you-can'),
         'info',
         {
           detail: list,
@@ -192,28 +194,35 @@ async function runMode(raw: string, backend: ConversationBackend): Promise<Slash
   if (arg === 'bypass' || arg === 'yolo')
     return card(
       notice(
-        t('权限模式'),
-        t('「完全放开」需要在输入栏的权限模式按钮里选择并确认，不能用命令切换。'),
+        t('ui.chat-settings.permission-mode-label'),
+        t('ui.chat-settings.full-access-has-to-be-chosen-and-confirmed'),
         'warn',
       ),
     );
   const want = MODE_ARGS[arg];
   if (!want)
-    return card(notice(t('权限模式'), t('不认识「{0}」。', raw.trim()), 'warn', { detail: list }));
+    return card(
+      notice(
+        t('ui.chat-settings.permission-mode-label'),
+        t('ui.chat-settings.unknown-mode', raw.trim()),
+        'warn',
+        { detail: list },
+      ),
+    );
   const st = await harnessClient.tabs();
   const r = await harnessClient.setTabPermissionMode(st.activeTabId, want);
   const got = r.permissionMode ?? fallbackMode(backend, want);
   return card(
     notice(
-      t('权限模式'),
+      t('ui.chat-settings.permission-mode-label'),
       r.degraded
         ? t(
-            '{0} 不支持「{1}」，已使用「{2}」。',
+            'ui.chat-settings.doesnt-support-using-period',
             ENDPOINT_FULL[backend](),
             modeLabel(want),
             modeLabel(got),
           )
-        : t('已切换到「{0}」：{1}', modeLabel(got), modeHint(got)),
+        : t('ui.chat-settings.switched-to', modeLabel(got), modeHint(got, backend)),
       r.degraded ? 'warn' : 'info',
     ),
   );
@@ -229,7 +238,7 @@ interface Unsupported {
   reason?: () => string;
 }
 
-const TUI = () => t('这是交互式终端里的命令，Nomi 以非交互方式接入，没有对应的界面。');
+const TUI = () => t('ui.slash-commands.this-is-a-command-of-the-interactive-terminal');
 
 export function unsupportedCommands(
   backend: ConversationBackend,
@@ -241,7 +250,7 @@ export function unsupportedCommands(
       name: u.name,
       ...(u.aliases ? { aliases: u.aliases } : {}),
       label: `/${u.name}`,
-      description: t('暂不支持（{0}）', who),
+      description: t('ui.slash-commands.not-supported', who),
       source: 'endpoint',
       kind: 'unsupported',
       run: () => ({
@@ -255,52 +264,50 @@ export function unsupportedCommands(
 export const U = {
   memory: (file: string): Unsupported => ({
     name: 'memory',
-    alt: () => t('直接编辑项目里的 {0} 即可。', file),
+    alt: () => t('ui.slash-commands.just-edit-in-your-project', file),
   }),
   permissions: (): Unsupported => ({
     name: 'permissions',
     aliases: ['approvals', 'allowed-tools'],
-    alt: () => t('用 /mode 切换权限模式，或点输入栏的权限模式按钮（Shift+Tab 循环切换）。'),
+    alt: () => t('ui.chat-settings.use-mode-to-switch-the-permission-mode-or'),
   }),
   login: (cmdline: string): Unsupported => ({
     name: 'login',
     aliases: ['logout'],
-    alt: () => t('请在终端里运行 {0}。Nomi 不读取也不代你输入任何账号凭据。', cmdline),
+    alt: () => t('ui.slash-commands.run-in-a-terminal-nomi-never-reads-or', cmdline),
   }),
   theme: (): Unsupported => ({ name: 'theme', aliases: ['vim', 'terminal-setup', 'statusline'] }),
   ide: (): Unsupported => ({ name: 'ide', aliases: ['doctor', 'bug', 'feedback'] }),
   mention: (): Unsupported => ({
     name: 'mention',
-    alt: () => t('在输入框里直接写文件路径即可。'),
+    alt: () => t('ui.slash-commands.just-write-the-file-path-in-the-input'),
   }),
   resume: (): Unsupported => ({
     name: 'resume',
     aliases: ['fork', 'rewind', 'checkpoint'],
-    alt: () => t('在左侧历史里点开旧会话即可继续。'),
+    alt: () => t('ui.slash-commands.open-an-old-session-from-the-history-on'),
   }),
   compact: (why: () => string): Unsupported => ({ name: 'compact', reason: why }),
   /** CLI 自己的审查 / 初始化。非交互模式没有对应命令时，不拿 Nomi 提示词冒充。 */
   review: (): Unsupported => ({
     name: 'review',
     aliases: ['code-review'],
-    reason: () =>
-      t('代码审查是这个 CLI 自己的命令。非交互接入用不了，Nomi 不会另做一套提示词来冒充。'),
-    alt: () => t('请在该 CLI 的交互界面里使用 /review，或直接用文字说明要审查什么。'),
+    reason: () => t('ui.slash-commands.code-review-is-this-cli-s-own-command'),
+    alt: () => t('ui.slash-commands.use-review-in-that-cli-s-interactive-ui'),
   }),
   init: (file: string): Unsupported => ({
     name: 'init',
-    reason: () =>
-      t('生成项目说明是这个 CLI 自己的命令。非交互接入用不了，Nomi 不会另做一套提示词来冒充。'),
-    alt: () => t('请在该 CLI 的交互界面里使用 /init，或直接编辑项目里的 {0}。', file),
+    reason: () => t('ui.slash-commands.generating-project-notes-is-this-cli-s-own'),
+    alt: () => t('ui.slash-commands.use-init-in-that-cli-s-interactive-ui', file),
   }),
 };
 
 // ───────────────────────── 发现的自定义条目 ─────────────────────────
 
 const SCOPE_BADGE: Record<SlashDiscoveryEntry['scope'], () => string> = {
-  project: () => t('项目'),
-  user: () => t('用户'),
-  plugin: () => t('插件'),
+  project: () => t('ui.slash-commands.project'),
+  user: () => t('ui.slash-commands.user'),
+  plugin: () => t('ui.slash-commands.plugin'),
   bundled: () => 'Grok',
 };
 
@@ -347,8 +354,8 @@ export function discoveredCommands(
                 if (!r)
                   return card(
                     notice(
-                      t('/{0} 无法展开', e.name),
-                      t('没有找到这个命令的文件，可能已被删除或改名。'),
+                      t('ui.slash-commands.could-not-be-expanded', e.name),
+                      t('ui.slash-commands.the-command-file-was-not-found-it-may'),
                       'warn',
                     ),
                   );
@@ -358,7 +365,7 @@ export function discoveredCommands(
                   ...(r.shellInjection
                     ? {
                         note: t(
-                          '这个命令里有 !`…` 动态命令。Nomi 不会运行嵌入的 shell 命令，已原样保留。',
+                          'ui.slash-commands.this-command-contains-dynamic-commands-nomi-does-not',
                         ),
                       }
                     : {}),

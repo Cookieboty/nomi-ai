@@ -14,6 +14,7 @@ import {
   llmProvidersFromEnv,
   migrateStoreData,
 } from '@nomi-ai/ai-runtime';
+import { isBuiltinCliId } from '@nomi-ai/cli-plugins';
 import type { ProviderQuirks } from '@nomi-ai/gateway';
 import { app, BrowserWindow, safeStorage, session } from 'electron';
 
@@ -26,13 +27,21 @@ import { registerChatAssetProtocol } from '../chat/assetProtocol';
 import { ChatBackgroundService } from '../chat/ChatBackgroundService';
 import { AccountLogin, broadcastLogin } from '../cli/accounts/AccountLogin';
 import { AccountService } from '../cli/accounts/AccountService';
+import { ACCOUNT_KINDS, type AccountKind } from '../cli/accounts/types';
 import { initCliHarnessService } from '../cli/CliHarnessService';
+import { initCliPluginHost } from '../cli/CliPluginHost';
 import { initCliUpdateService } from '../cli/CliUpdateService';
+import { initDelegateService } from '../cli/delegate/DelegateService';
+import { resolveCliBinAsync, readVersionAsync } from '../cli/detect';
+import { cliChildEnv, isScript, spawnHarness } from '../cli/harness/spawn';
 import { decryptLegacyCliKey } from '../cli/legacyCliKey';
 import { initSessionHistoryService } from '../cli/SessionHistoryService';
+import type { CliKind } from '../cli/types';
 import { getDesktopService } from '../desktop/DesktopService';
+import { DiagnosticsService } from '../diagnostics/DiagnosticsService';
 import { initExtensionsService } from '../extensions/ExtensionsService';
 import { getGatewayService, initGatewayService } from '../gateway/GatewayService';
+import { harnessGateway } from '../gateway/harnessGateway';
 import { revokeLegacyGlobalConfig, type RevokeLegacyResult } from '../gateway/revokeLegacy';
 import {
   gatewayTerminalSource,
@@ -65,7 +74,12 @@ import {
 import { StartupService } from '../startup/StartupService';
 import { ThemeService } from '../theme/ThemeService';
 import { registerTtsModel } from '../tts/registerTtsModel';
-import { initGatewayRequestLog } from '../usage/GatewayRequestLog';
+import {
+  getGatewayRequestLog,
+  initGatewayRequestLog,
+  readLegacyGatewayTrace,
+} from '../usage/GatewayRequestLog';
+import { initQualityService } from '../usage/quality/QualityService';
 import { getUsageService, initUsageService } from '../usage/UsageService';
 import { GlobalErrorHandler } from '../utils/ErrorHandler';
 import { perfMark } from '../utils/perfMarks';
@@ -236,7 +250,7 @@ export class Application implements IApplication {
         chatProvider: () => desktop.providerFor('chat'),
         complete: async (messages, signal) => {
           const rt = this.aiRuntime;
-          if (!rt) throw new Error(tr('AI 服务未就绪'));
+          if (!rt) throw new Error(tr('electron.common.ai-service-not-ready'));
           const resp = await rt.client.chat.sendMessage({
             role: 'chat',
             messages,
@@ -256,7 +270,7 @@ export class Application implements IApplication {
         desktop,
         complete: async (messages, signal) => {
           const rt = this.aiRuntime;
-          if (!rt) throw new Error(tr('AI 服务未就绪'));
+          if (!rt) throw new Error(tr('electron.common.ai-service-not-ready'));
           const resp = await rt.client.chat.sendMessage({
             role: 'chat',
             messages,
@@ -276,7 +290,7 @@ export class Application implements IApplication {
         desktop,
         complete: async (messages, signal) => {
           const rt = this.aiRuntime;
-          if (!rt) throw new Error(tr('AI 服务未就绪'));
+          if (!rt) throw new Error(tr('electron.common.ai-service-not-ready'));
           const resp = await rt.client.chat.sendMessage({
             role: 'chat',
             messages,
@@ -290,12 +304,14 @@ export class Application implements IApplication {
             .map((o) =>
               tr(
                 '- {0} {1}',
-                o.allDay ? tr('全天') : new Date(o.start).toTimeString().slice(0, 5),
+                o.allDay
+                  ? tr('electron.common.all-day')
+                  : new Date(o.start).toTimeString().slice(0, 5),
                 o.summary,
               ),
             )
             .join('\n');
-          return [(await mem.context(q)).text, cal && tr('今日日历：\n{0}', cal)]
+          return [(await mem.context(q)).text, cal && tr('electron.common.today-s-calendar', cal)]
             .filter(Boolean)
             .join('\n\n');
         },
@@ -337,7 +353,6 @@ export class Application implements IApplication {
         root: path.join(app.getPath('userData'), 'local'),
         logger: this.logger as never,
         desktop,
-        providers: () => this.aiRuntime?.providers as never,
         gateway: () => getGatewayService(),
       });
       localLlm.registerIpc();
@@ -414,6 +429,20 @@ export class Application implements IApplication {
         root: path.join(app.getPath('userData'), 'usage'),
         logger: this.logger as never,
         providerName: (id) => this.aiRuntime?.listProviders().find((p) => p.id === id)?.name,
+        // Grok 额度指纹用账号模块记录的身份（来自 CLI 自己报告），不读 auth.json（§5.10 S7）
+        grokAccountKey: () => accounts.identityKey('grok'),
+        // 模型数据同步（models.dev）：同一份下载同时更新价格表与网关的模型目录
+        onModelsData: (api) => getGatewayService()?.applyModelsData(api),
+        needsFullModelsData: () => {
+          const g = getGatewayService();
+          return g ? !g.hasCatalogSync() : false;
+        },
+        // 额度跟着默认官方账号走：取额度的官方 CLI 在默认账号的账号目录里运行（§5.10）
+        officialAccount: (kind, prepare) => {
+          if (!prepare) return { dir: accounts.defaultDir(kind), args: [] };
+          const l = accounts.officialLaunch(kind, null);
+          return { dir: l.dir, args: l.args };
+        },
         // 预算 / 单任务提醒：看板娘气泡（只显示，不朗读）+ 灵动岛；免打扰中不弹，稍后重试
         alert: (a) => {
           if (desktop.notifyPolicy?.quiet() ?? false) return false;
@@ -448,8 +477,55 @@ export class Application implements IApplication {
       const cliUpdate = initCliUpdateService({
         root: path.join(app.getPath('userData'), 'cli-update'),
         logger: this.logger as never,
+        // CLI 升级策略（P9.6）：Windows 上先排空（拆空闲进程，最多等 30 秒让进行中的轮次结束）；
+        // 升级成功后空闲时用新版本重启会话并续接
+        drain: async (kind) => {
+          harness.restartForUpgrade(kind);
+          for (let i = 0; i < 60 && harness.busyTurns(kind) > 0; i++)
+            await new Promise((r) => setTimeout(r, 500));
+          return harness.busyTurns(kind);
+        },
+        onUpdated: () => void cliPlugins.refreshVersions(),
       });
       cliUpdate.registerIpc();
+      // 编程助手插件宿主（docs/design/cli-plugin-architecture.md §5、§7）：清单校验、有效能力、注册表快照
+      const cliPlugins = initCliPluginHost({
+        root: path.join(app.getPath('userData'), 'cli-plugins'),
+        logger: this.logger as never,
+        version: async (id) => {
+          const bin = await resolveCliBinAsync(id as CliKind).catch(() => null);
+          return bin ? readVersionAsync(bin) : null;
+        },
+        // 运行中 CLI 换了版本（应用内或终端里升级）：空闲时用新版本重启续接
+        onVersionChange: (id) => {
+          if (isBuiltinCliId(id)) harness.restartForUpgrade(id);
+        },
+        // 外部插件（§5.9）「测试」按钮：与标签同一套启动（Windows 垫片、诊断记录），不带网关 / 账号注入
+        spawnExternal: (command, args, cwd) => {
+          const useNode = isScript(command);
+          return spawnHarness(
+            useNode ? process.execPath : command,
+            useNode ? [command, ...args] : args,
+            {
+              cwd,
+              env: cliChildEnv(useNode),
+            },
+          );
+        },
+        onExternalRemoved: (id) => harness.externalRemoved(id),
+      });
+      cliPlugins.registerIpc();
+      void cliPlugins.start();
+      // 终端里升级了 CLI 也要发现：每 30 分钟重读一次版本（每个 CLI 起一次 --version）
+      const versionTimer = setInterval(() => void cliPlugins.refreshVersions(), 30 * 60_000);
+      versionTimer.unref?.();
+      this.lifecycle.register({
+        name: 'cli-plugins',
+        stop: () => {
+          clearInterval(versionTimer);
+          cliPlugins.stop();
+        },
+      });
       const cliRoot = path.join(app.getPath('userData'), 'cli-providers');
       // 统一网关（docs/design/unified-gateway.md）：首次启动从旧存储迁移，网关跑在独立的 utilityProcess 里。
       // 旧版本写进 CLI 全局配置的第三方设置在迁移后撤销（§6.3 第 7 步）；撤销全部成功之前，
@@ -463,28 +539,57 @@ export class Application implements IApplication {
           return null;
         }
       };
-      // 网关请求日志与调试追踪（unified-gateway §14）；网关事件不计入用量账本（CLI 以会话日志为准）
+      // 诊断日志（docs/design/cli-plugin-architecture.md §8）：开发版必开，正式版在「隐私与权限」里开；
+      // 用量面板旧的「调试模式」并入这里（网关正文追踪跟随它，首次启动沿用旧开关）
+      const diagnostics = new DiagnosticsService({
+        userData: app.getPath('userData'),
+        logger: this.logger,
+        traceDir: path.join(app.getPath('userData'), 'gateway', 'trace'),
+        legacyEnabled: () => readLegacyGatewayTrace(path.join(app.getPath('userData'), 'gateway')),
+        onChange: () => {
+          getGatewayRequestLog()?.traceStateChanged();
+          getGatewayService()?.refresh();
+        },
+      });
+      // 模型质量（docs/design/model-quality.md）：网关层 / CLI 层的请求质量，只存元数据，受用量总开关控制
+      const providerOf = (pid: string) =>
+        getGatewayService()
+          ?.store.providers()
+          .find((x) => x.id === pid);
+      const quality = initQualityService({
+        dir: path.join(app.getPath('userData'), 'usage', 'quality'),
+        logger: this.logger as never,
+        enabled: () => getUsageService()?.getSettings().enabled ?? true,
+        cost: (model, tokens) => getUsageService()?.costOf(model, tokens),
+        labelOf: (dim, key) => {
+          if (dim === 'provider') return providerOf(key)?.name;
+          if (dim !== 'key') return undefined;
+          const [pid = '', kid = ''] = key.split('\u0000');
+          const k = providerOf(pid)?.keys.find((x) => x.id === kid);
+          return k ? (k.name ?? k.masked) : undefined;
+        },
+      });
+      quality.registerIpc();
+      this.lifecycle.register({ name: 'model-quality', stop: () => quality.dispose() });
+      // 网关正文追踪目录（跟随诊断日志开关）；旧「最近请求」导入模型质量账本一次后删除
       const gatewayRequests = initGatewayRequestLog({
         root: path.join(app.getPath('userData'), 'gateway'),
         logger: this.logger as never,
-        names: (pid, kid) => {
-          const p = getGatewayService()
-            ?.store.providers()
-            .find((x) => x.id === pid);
-          const k = p?.keys.find((x) => x.id === kid);
-          return { provider: p?.name, key: k ? (k.name ?? k.masked) : undefined };
-        },
-        onTraceChange: () => getGatewayService()?.refresh(),
+        traceOn: () => diagnostics.bodyTrace(),
+        importLegacy: (records) => quality.importLegacy(records),
       });
-      gatewayRequests.registerIpc();
+      diagnostics.registerIpc();
       this.lifecycle.register({ name: 'gateway-requests', stop: () => gatewayRequests.dispose() });
       const gateway = initGatewayService({
         root: path.join(app.getPath('userData'), 'gateway'),
         cipher: createSafeStorageCipher(safeStorage),
         logger: this.logger as never,
-        onUsage: (e) => void gatewayRequests.add(e),
+        // 网关事件不计入用量账本（CLI 以会话日志为准），进模型质量
+        onUsage: (e) => quality.addGateway(e),
         traceDir: () => gatewayRequests.traceDir(),
         presetQuirks: (id) => findPreset(id)?.quirks as ProviderQuirks | undefined,
+        presetModels: (id) => findPreset(id)?.modelMeta,
+        longContextPrice: (model) => getUsageService()?.longContextPrice(model),
         // 环境变量提供的供应商（只读）：有 Key 的，以及显式设了地址 / 模型的 Ollama
         envProviders: () =>
           llmProvidersFromEnv()
@@ -524,6 +629,8 @@ export class Application implements IApplication {
       gateway.registerIpc();
       // 先迁移（读旧存储里「启用中」的标记），再撤销旧版本写进全局配置的东西（会清掉这些标记）
       gateway.init();
+      // 启动时自动同步模型数据（用户可在「模型」页关闭；距上次核对不足 12 小时不联网）
+      void usage.autoSync().catch((e) => this.logger.warn('models data auto sync failed', e));
       // 终端启动命令（unified-gateway §12.6，默认关）：端口 / 令牌 / 分配变化时重新生成脚本
       const terminal = initTerminalCommands({
         root: path.join(app.getPath('userData'), 'gateway'),
@@ -546,17 +653,39 @@ export class Application implements IApplication {
         this.logger.warn('revoke legacy CLI config failed', e);
       }
       this.lifecycle.register({ name: 'gateway', stop: () => gateway.dispose() });
+      // 官方账号（docs/design/cli-plugin-architecture.md §5.10）：一个账号 = 一个 CLI 配置目录，Nomi 不经手凭据。
+      // 改默认账号只重启跟随默认的官方标签；第三方标签与网关不受影响（S5、S6）
+      const accounts: AccountService = new AccountService({
+        root: path.join(app.getPath('userData'), 'cli-accounts'),
+        logger: this.logger as never,
+        onDefaultChanged: (kind) => {
+          harness.recycleDefaultAccount(kind);
+          // 换了号：上一个账号的订阅额度不能再显示
+          getUsageService()?.forgetAccountQuota(kind);
+        },
+        inUse: (kind, id) =>
+          harness.officialAccountTabs(kind).filter((a) => accounts.resolve(kind, a) === id).length,
+        onChanged: () => accounts.broadcastChanged(),
+      });
       const harness = initCliHarnessService({
         root: path.join(app.getPath('userData'), 'harness'),
         logger: this.logger as never,
         defaultCwd: app.getPath('documents'),
         // 第三方会话经统一网关按进程注入（docs/design/unified-gateway.md §12），不写 CLI 全局配置
-        gateway: {
-          defaults: (kind) => gateway.cliDefaults(kind),
-          launch: (kind, tabId, model) => gateway.cliLaunch(kind, tabId, model),
-          officialEnv: (env) => gateway.officialEnv(env),
-          models: () => gateway.cliModels(),
-          releaseAgent: (kind, tabId) => gateway.releaseAgent(kind, tabId),
+        gateway: harnessGateway(gateway),
+        // 模型质量 CLI 层：Nomi 里运行的编程助手（官方账号与第三方）每轮一条（model-quality.md §4.4）
+        quality: { addCli: (r) => void quality.addCli(r) },
+        // 官方标签按账号目录启动（docs/design/cli-plugin-architecture.md §5.10）
+        accounts: {
+          launch: (kind, accountId) => accounts.officialLaunch(kind, accountId),
+          noteSession: (kind, sessionId, accountId) =>
+            accounts.noteSession(kind, sessionId, accountId),
+        },
+        // 外部插件（§5.9）：通用 ACP 后端；握手报告的能力只能收窄注册表里的能力位
+        externals: {
+          spec: (id) => cliPlugins.externalSpec(id),
+          handshake: (id, caps) =>
+            cliPlugins.setHandshake(id, { images: caps.images, resume: caps.resume }),
         },
         // 新建 / 切到 Claude 会话时预先拉起长驻进程；NOMI_HARNESS_PREWARM=0 关闭
         prewarmClaude: process.env.NOMI_HARNESS_PREWARM !== '0',
@@ -565,21 +694,8 @@ export class Application implements IApplication {
         // Codex 走 app-server 长驻会话；NOMI_CODEX_APP_SERVER=0 退回每轮一个进程的 codex exec
         codexAppServer: process.env.NOMI_CODEX_APP_SERVER !== '0',
       });
-      // 官方账号（docs/design/cli-official-accounts.md）：切换后让来源为官方的长驻进程按新登录重拉。
-      // 第三方不再写全局配置，所以不再「切官方账号时停用第三方」（unified-gateway §13 第 2 条）
-      const accounts: AccountService = new AccountService({
-        root: path.join(app.getPath('userData'), 'cli-accounts'),
-        logger: this.logger as never,
-        onActivated: (kind) => {
-          harness.recycleBackend(kind);
-          // 换了号：上一个账号的订阅额度不能再显示
-          getUsageService()?.forgetAccountQuota(kind);
-        },
-        onChanged: () => accounts.broadcastChanged(),
-      });
       accounts.registerIpc();
       const accountLogin = new AccountLogin({
-        root: path.join(app.getPath('userData'), 'cli-accounts'),
         accounts,
         logger: this.logger as never,
         emit: broadcastLogin,
@@ -588,24 +704,59 @@ export class Application implements IApplication {
       this.lifecycle.register({ name: 'cli-account-login', stop: () => accountLogin.dispose() });
       harness.registerIpc();
       this.lifecycle.register({ name: 'cli-harness', stop: () => harness.dispose() });
+      // Nomi 对话的权限模式（输入栏的权限按钮）作用在 Nomi 自己的工具上；「完全放开」不适用
+      getDesktopService(this.logger).broker.permissionMode = () => {
+        const m = harness.mainPermissionMode();
+        return m === 'bypass' ? 'acceptEdits' : m;
+      };
+      // Nomi 把编程助手当子代理调用（工具 delegate_to_cli、/cli、设置 →「编程助手」→「委派」）
+      initDelegateService({
+        root: path.join(app.getPath('userData'), 'delegate'),
+        harness,
+        desktop: getDesktopService(this.logger),
+        gateway: harnessGateway(gateway),
+      }).registerIpc();
       initSessionHistoryService({
         logger: this.logger as never,
         openKeys: () => harness.openSessionKeys(),
+        openTitle: (backend, sessionId, title) =>
+          harness.syncOpenSessionTitle(backend, sessionId, title),
         openTab: (o) => harness.openHistorySession(o),
-        gatewaySession: (backend, sessionId) =>
-          backend !== 'dsh' && gateway.servedSession(backend, sessionId),
+        gatewaySession: (backend, sessionId) => gateway.servedSession(backend, sessionId),
         accountLabel: (backend, accountId) => {
+          // eslint-disable-next-line nomi/no-cli-literal -- 只有 Codex 的历史记录了 creator_account_id
           if (backend !== 'codex') return undefined;
           const a = accounts.findByAccountId('codex', accountId);
           return a ? (a.identity?.email ?? a.label) : undefined;
         },
+        // Nomi 启动时记下的账号；只有一个账号时不标注
+        sessionAccount: (backend, sessionId) => {
+          // 没有官方账号的 CLI（dsh）不记会话归属
+          if (!isAccountKind(backend)) return undefined;
+          const a = accounts.sessionAccount(backend, sessionId);
+          if (!a) return undefined;
+          return accounts.list(backend).length > 1 ? a : { id: a.id };
+        },
       }).registerIpc();
       // 监视器汇总 Nomi 标签；任一标签一轮结束 → 看板娘 / 灵动岛
       agents.attachHarness({
-        tabs: () => harness.listTabs().tabs,
+        // 外部插件（§5.9）没有进度监视能力：不进监视器
+        tabs: () =>
+          harness
+            .listTabs()
+            .tabs.filter(
+              (x): x is typeof x & { backend: Exclude<typeof x.backend, 'external'> } =>
+                x.backend !== 'external',
+            ),
         onTabs: (fn) => harness.events.on('tabs', fn),
-        onFinished: (fn) => harness.events.on('tab-finished', fn),
-        onPermission: (fn) => harness.events.on('permission-needed', fn),
+        onFinished: (fn) =>
+          harness.events.on('tab-finished', (e) => {
+            if (e.backend !== 'external') fn(e);
+          }),
+        onPermission: (fn) =>
+          harness.events.on('permission-needed', (e) => {
+            if (e.backend !== 'external') fn(e);
+          }),
         progress: (id) => harness.progressHint(id),
       });
 
@@ -1104,4 +1255,9 @@ export class Application implements IApplication {
       },
     };
   }
+}
+
+/** 有官方账号的编程助手（清单 capabilities.officialAccount，见 cli/accounts/types.ts） */
+function isAccountKind(k: string): k is AccountKind {
+  return (ACCOUNT_KINDS as readonly string[]).includes(k);
 }

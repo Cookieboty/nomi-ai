@@ -109,9 +109,9 @@ describe('EndpointControls workspace for CLI tabs', () => {
       <HarnessTabsProvider>
         <>
           <EndpointControls />
-          {/* 工作目录在对话顶栏（WorkspaceControl），供应商在输入框左下角（SessionControls） */}
+          {/* 工作目录在对话顶栏（WorkspaceControl），待带入前文在对话区顶部（SessionControls） */}
           <WorkspaceControl />
-          <SessionControls onManageNomi={() => undefined} />
+          <SessionControls />
         </>
       </HarnessTabsProvider>,
     );
@@ -126,9 +126,9 @@ describe('EndpointControls workspace for CLI tabs', () => {
   });
 
   it('is not shown for the Nomi main tab', async () => {
-    mockIpc({ ...state(), activeTabId: 'main' });
+    const invoke = mockIpc({ ...state(), activeTabId: 'main' });
     const r = mount();
-    await waitFor(() => r.getByTestId('backend-switcher'));
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:harness:tabs'));
     expect(r.queryByTestId('cli-workspace')).toBeNull();
   });
 

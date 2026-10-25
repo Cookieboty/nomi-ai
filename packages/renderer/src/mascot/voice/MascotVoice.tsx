@@ -50,7 +50,9 @@ export const MascotMicTool: React.FC<{
         onStart={() => void v.pttStart()}
         onStop={(cancel) => void v.pttStop(cancel)}
         tooltip={
-          continuous ? t('语音交互\n免按键对话中 · 右键关闭') : t('语音交互\n按住说话 · 右键免按键')
+          continuous
+            ? t('ui.voice-mascot.voice-hands-free-on-right-click-to-stop')
+            : t('ui.voice-mascot.voice-hold-to-talk-right-click-for-hands')
         }
         tooltipPlacement={tipSide}
       />
@@ -97,7 +99,7 @@ export const MascotVoiceBridge: React.FC = () => {
     const d = voiceDirective(v.state.phase, prev.current);
     prev.current = v.state.phase;
     if (d) applyDirective(d);
-    if (v.state.phase === 'awake') showMessage(t('我在～请说'), 2500, 9);
+    if (v.state.phase === 'awake') showMessage(t('ui.voice-mascot.i-m-here-go-ahead'), 2500, 9);
   }, [v.state.phase, showMessage]);
 
   // 语音打断：开口说话即停止朗读

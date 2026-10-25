@@ -13,8 +13,6 @@
  * `SEAM_NOT_INJECTED`，不影响业务门面。
  */
 
-import * as path from 'path';
-
 import {
   AiChatCompat,
   CapabilityIpcServer,
@@ -40,7 +38,6 @@ import type { AIClient } from '@nomi-ai/ai-sdk';
 import { FileSessionStorePlugin } from '@nomi-ai/bundle-ig-electron-caps';
 import { app, safeStorage } from 'electron';
 
-import { isLocalBaseURL as isLocalUrl } from '../desktop/consent';
 import { desktopIgPlugins } from '../desktop/plugin';
 import { getExtensionsService } from '../extensions/ExtensionsService';
 import { getGatewayService } from '../gateway/GatewayService';
@@ -155,10 +152,10 @@ export async function startAIRuntime(
   const home = opts.home ?? app.getAppPath();
   const runtimeLogger = toRuntimeLogger(logger);
 
-  // 多 provider 配置：仅本地 userData，key 用 safeStorage 加密（不可用时明文回退 + 警告）
+  // GatewayStore 是供应商唯一来源。这里只保留内存 ProviderStore：用量 sink + 预设/状态 IPC 垫片。
+  // 旧 ai-providers.json 由 GatewayService 启动迁移后改名为 *.migrated，运行时不再读写。
   const cipher = createSafeStorageCipher(safeStorage);
   const providerStore = new ProviderStore({
-    filePath: path.join(app.getPath('userData'), 'ai-providers.json'),
     cipher,
     // 用量与计费：每次成功调用记一条（响应 usage；没有才估算并标「估算」）
     onCall: (e) =>
@@ -202,7 +199,7 @@ export async function startAIRuntime(
       mcpToolGuard: (server, def) => getExtensionsService()?.guardEnvTool(server, def) ?? def,
       providers: {
         store: providerStore,
-        // 统一网关：Nomi 对话优先经网关（网关未就绪 / 没配模型时退回旧存储）
+        // 统一网关：Nomi 对话 / agent-tools / summary 只走网关（无旧存储回退）
         gateway: { resolve: (role) => getGatewayService()?.nomiRoute(role) ?? null },
         onRegistry: (r) => {
           registry = r;
@@ -282,35 +279,19 @@ export async function startAIRuntime(
       return { id: p.id, name: v?.name ?? p.id, baseURL: v?.baseURL };
     },
     lookupProvider(id) {
-      const st = providerService.state();
-      const v = st.providers.find((x) => x.id === id) ?? st.envProviders.find((x) => x.id === id);
-      const legacy = v ? { id: v.id, name: v.name, baseURL: v.baseURL } : null;
       const gw = getGatewayService()?.providerInfo(id) ?? null;
-      // 两边都有同名 id（迁移前后）时取更严的那个：有云端地址的
-      if (gw && legacy) return isLocalUrl(gw.baseURL) ? legacy : gw;
-      return gw ?? legacy;
+      if (gw) return gw;
+      // 仅环境变量垫片（ProviderService.envProviders），不读旧 ai-providers.json
+      const st = providerService.state();
+      const v = st.envProviders.find((x) => x.id === id);
+      return v ? { id: v.id, name: v.name, baseURL: v.baseURL } : null;
     },
     providerCredentials(id) {
-      // 网关的供应商优先（「模型」页新加的都在这里）；旧存储的 id 继续可用（已有的知识库 / 语音设置）
-      const gw = getGatewayService()?.credentials(id);
-      if (gw) return gw;
-      const p = providerStore.providers().find((x) => x.id === id);
-      if (!p) return null;
-      return {
-        id: p.id,
-        name: p.name,
-        baseURL: p.baseURL,
-        apiKey: providerStore.resolveKeys(id)[0],
-      };
+      // 只走网关（「模型」页与迁移后的供应商）；知识库 / 语音设置里的旧 id 在迁移后应已对应网关 id
+      return getGatewayService()?.credentials(id) ?? null;
     },
     listProviders() {
-      const gw = getGatewayService()?.listOpenAiCompatible() ?? [];
-      const legacy = providerStore
-        .providers()
-        // 迁移过来的同一个供应商只列网关那份（id 可能不同，地址相同）
-        .filter((p) => !gw.some((g) => g.id === p.id || g.baseURL === p.baseURL))
-        .map((p) => ({ id: p.id, name: p.name, baseURL: p.baseURL }));
-      return [...gw, ...legacy];
+      return getGatewayService()?.listOpenAiCompatible() ?? [];
     },
     channels: {
       business: transport.channels,

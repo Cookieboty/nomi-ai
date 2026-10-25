@@ -2,6 +2,7 @@
  * 对话标签状态：主进程是唯一数据源（标签元数据 + CLI 标签消息），这里只做订阅与缓存。
  * 标签 'main' 为原有对话（消息走 AiChatContext）；其它标签只绑定编程助手后端。
  */
+import { isBuiltinCliId } from '@nomi-ai/cli-plugins';
 import { t } from '@nomi-ai/ui';
 import React, {
   createContext,
@@ -64,7 +65,11 @@ interface HarnessTabsValue {
   queues: Record<string, string[]>;
   removeQueued: (index: number) => void;
   cancel: () => Promise<void>;
-  replyPermission: (requestId: string, allow: boolean) => Promise<void>;
+  replyPermission: (
+    requestId: string,
+    allow: boolean,
+    opts?: { approvePlan?: 'acceptEdits' | 'manual' | 'deny' },
+  ) => Promise<void>;
   /** 最近使用的编程助手后端（新建标签默认） */
   lastBackend: HarnessBackend;
 }
@@ -109,13 +114,17 @@ const LAST_BACKEND_KEY = 'nomi.tabs.lastBackend';
 function confirmStopBackground(tab: HarnessTabMeta | undefined): boolean {
   const n = tab?.background ?? 0;
   if (!n) return true;
-  return window.confirm(t('还有 {0} 个后台任务在运行，继续会一起停止它们。确定吗？', String(n)));
+  return window.confirm(
+    t('ui.chat-settings.background-tasks-are-still-running-and-will-be', String(n)),
+  );
 }
 
 export function HarnessTabsProvider({ children }: { children: React.ReactNode }) {
   const available = harnessClient.available();
   const [state, setState] = useState<HarnessTabsState | null>(null);
   const [cache, setCache] = useState<Record<string, HarnessTabMessage[]>>({});
+  /** 每个标签最近一次已观察到的工作目录；换目录即丢弃旧会话的渲染缓存。 */
+  const cwdRef = useRef<Record<string, string>>({});
   const [live, setLive] = useState<LiveMap>({});
   // 提交后再发布给 useHarnessLive 的订阅方（同 aiChatStore）
   const [liveStore] = useState(createLiveStore);
@@ -129,7 +138,7 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
   const [lastBackend, setLastBackend] = useState<HarnessBackend>(() => {
     try {
       const v = localStorage.getItem(LAST_BACKEND_KEY);
-      return v === 'codex' || v === 'dsh' || v === 'grok' || v === 'gemini' ? v : 'claude';
+      return v && isBuiltinCliId(v) ? v : 'claude';
     } catch {
       return 'claude';
     }
@@ -157,13 +166,26 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
         return next ?? cur;
       });
     });
-    const off2 = harnessClient.onTabMessage(({ tabId, message }) =>
+    const off2 = harnessClient.onTabMessage(({ tabId, message }) => {
+      // 回合的定稿助手消息：和清掉实时进度放在同一次提交里。主进程先发消息、下一个 microtask
+      // 才发「已空闲」的标签状态，分开提交的话中间那一帧同一段回答会渲染两份（定稿 + 流式）。
+      // 后台自动回合的消息不清：用户回合可能还在进行，实时进度属于它。
+      const settles = message.role === 'assistant' && message.origin !== 'background';
+      // 先落下已入队的实时事件（主进程保证它们先于本条消息到达），免得之后再把进度重建出来
+      if (settles) flushPending();
       setCache((cur) =>
         cur[tabId] && !cur[tabId]!.some((m) => m.id === message.id)
           ? { ...cur, [tabId]: [...cur[tabId]!, message] }
           : cur,
-      ),
-    );
+      );
+      if (settles)
+        setLive((cur) => {
+          if (!cur[tabId]) return cur;
+          const next = { ...cur };
+          delete next[tabId];
+          return next;
+        });
+    });
     // 实时事件按帧合批：一帧内到达的所有事件只触发一次 setState（流式文本 / 上千个工具事件不再逐条重渲染）
     const pending: HarnessLiveEvent[] = [];
     let raf = 0;
@@ -217,6 +239,25 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
   useLayoutEffect(() => {
     stateRef.current = state;
   });
+
+  useEffect(() => {
+    if (!state) return;
+    const previous = cwdRef.current;
+    const changed = state.tabs
+      .filter((tab) => previous[tab.id] !== undefined && previous[tab.id] !== tab.cwd)
+      .map((tab) => tab.id);
+    cwdRef.current = Object.fromEntries(state.tabs.map((tab) => [tab.id, tab.cwd]));
+    if (!changed.length) return;
+    setCache((cur) => {
+      let next: Record<string, HarnessTabMessage[]> | null = null;
+      for (const id of changed) {
+        if (!cur[id]) continue;
+        next ??= { ...cur };
+        delete next[id];
+      }
+      return next ?? cur;
+    });
+  }, [state]);
 
   const activeId = state?.activeTabId ?? MAIN_TAB_ID;
   const activeTab = state?.tabs.find((t) => t.id === activeId) ?? null;
@@ -392,9 +433,13 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
     await harnessClient.cancelTab(activeId);
   }, [isCliTab, activeId]);
   const replyPermission = useCallback(
-    async (requestId: string, allow: boolean) => {
+    async (
+      requestId: string,
+      allow: boolean,
+      opts?: { approvePlan?: 'acceptEdits' | 'manual' | 'deny' },
+    ) => {
       if (!isCliTab) return;
-      await harnessClient.replyPermission(activeId, requestId, allow).catch(() => undefined);
+      await harnessClient.replyPermission(activeId, requestId, allow, opts).catch(() => undefined);
       // 主进程会再发 permission-resolved；这里先乐观移除这一项（队列里的其它请求保留）
       setLive((cur) => {
         const prev = cur[activeId];

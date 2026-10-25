@@ -14,21 +14,12 @@ import styles from './index.module.css';
 /** 确认框文字：信任的范围、后果、写到哪里；范围很大的文件夹（主目录、文稿等）额外提醒 */
 export function geminiTrustConfirmText(folder: string, broad: boolean): string {
   const parts = [
-    t('让 Gemini 信任这个文件夹？'),
+    t('ui.usage-tools.let-gemini-trust-this-folder'),
     folder,
-    t(
-      '信任后，Gemini 会加载这个文件夹及其所有子文件夹里的项目配置（如 .gemini/settings.json、自定义命令、MCP 服务器和钩子），这些配置可以在你的电脑上运行程序。只信任你清楚其内容的文件夹。',
-    ),
-    t(
-      '这会写入 Gemini 自己的受信任文件夹列表，之后在终端里使用 Gemini 也同样生效；不会信任其它文件夹。',
-    ),
+    t('ui.usage-tools.once-trusted-gemini-will-load-project-configuration-from'),
+    t('ui.usage-tools.this-is-saved-to-gemini-s-own-trusted'),
   ];
-  if (broad)
-    parts.push(
-      t(
-        '注意：这是一个范围很大的文件夹（例如主目录或「文稿」），信任它等于信任里面的所有项目。更稳妥的做法是给这个对话换成具体的项目文件夹。',
-      ),
-    );
+  if (broad) parts.push(t('ui.usage-tools.note-this-is-a-very-broad-folder-such'));
   return parts.join('\n\n');
 }
 
@@ -59,7 +50,9 @@ export const GeminiTrustAction: React.FC<{
   if (state.kind === 'done')
     return (
       <span className={styles.errorNote} role="status" data-testid="gemini-trust-done">
-        {retry ? t('已信任此文件夹，正在重试…') : t('已信任此文件夹，可以重新发送。')}
+        {retry
+          ? t('ui.usage-tools.folder-trusted-retrying')
+          : t('ui.usage-tools.folder-trusted-you-can-send-your-message-again')}
       </span>
     );
   return (
@@ -73,7 +66,7 @@ export const GeminiTrustAction: React.FC<{
         data-testid="gemini-trust-folder"
       >
         <Icon icon={ShieldCheck} size={13} />
-        {t('信任此文件夹')}
+        {t('ui.usage-tools.trust-this-folder')}
       </button>
       {state.kind === 'error' && (
         <span className={styles.errorNote} role="alert" data-testid="gemini-trust-error">

@@ -95,3 +95,9 @@
   font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-subtle);
 }
+.item:disabled {
+  cursor: default;
+}
+.item[data-disabled='true'] > svg {
+  opacity: 0.55;
+}

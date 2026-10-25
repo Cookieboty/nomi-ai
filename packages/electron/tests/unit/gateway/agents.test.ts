@@ -69,9 +69,36 @@ describe('agent launches (§12, §12.7.1)', () => {
     const plain = agentLaunch('claude', base());
     expect(plain.env).toMatchObject({
       CLAUDE_CODE_MAX_CONTEXT_TOKENS: '128000',
-      CLAUDE_CODE_MAX_OUTPUT_TOKENS: '8192',
+      CLAUDE_CODE_MAX_OUTPUT_TOKENS: '32000',
       MAX_THINKING_TOKENS: '0',
     });
+  });
+
+  it('Claude: isolates user settings routing while sharing non-credential history entries', () => {
+    const home = tmp('claude-user-home-');
+    const userDir = path.join(home, '.claude');
+    fs.mkdirSync(userDir, { recursive: true });
+    const settings = JSON.stringify({
+      theme: 'dark',
+      env: {
+        ANTHROPIC_BASE_URL: 'https://seed-code.example',
+        ANTHROPIC_AUTH_TOKEN: 'user-token-must-not-be-used',
+      },
+    });
+    fs.writeFileSync(path.join(userDir, 'settings.json'), settings);
+    const dir = path.join(tmp('claude-agent-'), 'tab-1');
+
+    const l = agentLaunch('claude', base({ home, dir }));
+
+    expect(l.env).toMatchObject({
+      CLAUDE_CONFIG_DIR: dir,
+      ANTHROPIC_BASE_URL: 'http://127.0.0.1:18721',
+      ANTHROPIC_AUTH_TOKEN: 'nomi-gw-x-token',
+      CLAUDE_CODE_DISABLE_AGENT_VIEW: '1',
+    });
+    expect(fs.readFileSync(path.join(userDir, 'settings.json'), 'utf8')).toBe(settings);
+    expect(fs.existsSync(path.join(dir, 'settings.json'))).toBe(true);
+    expect(fs.lstatSync(path.join(dir, 'projects')).isSymbolicLink()).toBe(true);
   });
 
   it('Codex: -c provider pointing at the gateway, real context window, catalog from the user cache as template', () => {
@@ -148,6 +175,12 @@ describe('agent launches (§12, §12.7.1)', () => {
     expect(yaml).toContain('zp/glm-5');
     expect(yaml).not.toContain('nomi-gw-x-token');
     expect(l.env).toEqual({ NOMI_DSH_API_KEY: 'nomi-gw-x-token' });
+    // 模型的真实窗口写进 pi-ai 的模型条目；没有元数据时用默认值
+    expect(yaml).toContain('contextWindow: 128000');
+    const real = agentLaunch('dsh', base({ metaOf: (r) => meta[r] }));
+    const realYaml = fs.readFileSync(real.args[1]!, 'utf8');
+    expect(realYaml).toContain('contextWindow: 200000');
+    expect(realYaml).toContain('maxTokens: 131072');
   });
 
   it('Grok: private GROK_HOME with a generated config; shared entries symlinked back; ~/.grok untouched', () => {
@@ -160,11 +193,20 @@ describe('agent launches (§12, §12.7.1)', () => {
     fs.mkdirSync(path.join(shared, 'installed-plugins'));
     const dir = path.join(tmp('grok-agent-'), 'tab-1');
     const l = agentLaunch('grok', base({ home, dir }));
-    expect(l.env).toEqual({ GROK_HOME: dir, NOMI_GROK_API_KEY: 'nomi-gw-x-token' });
+    expect(l.env).toEqual({
+      GROK_HOME: dir,
+      NOMI_GROK_API_KEY: 'nomi-gw-x-token',
+      NOMI_GROK_CONTEXT_WINDOW: '128000',
+    });
     const conf = fs.readFileSync(path.join(dir, 'config.toml'), 'utf8');
+    // 不写 context_window 时 Grok 按 200K 压缩：没有元数据也写默认值
+    expect(conf).toContain('context_window = 128000');
     expect(conf).toContain('model = "zp/glm-5"');
     expect(conf).toContain('base_url = "http://127.0.0.1:18721/v1"');
     expect(conf).toContain('env_key = "NOMI_GROK_API_KEY"');
+    // 标题 / 摘要等辅助请求也走这个标签的模型，不落到网关的默认模型
+    expect(conf).toContain('session_summary = "nomi"');
+    expect(conf).toContain('prompt_suggestion = "nomi"');
     expect(fs.lstatSync(path.join(dir, 'sessions')).isSymbolicLink()).toBe(true);
     expect(fs.lstatSync(path.join(dir, 'installed-plugins')).isSymbolicLink()).toBe(true);
     expect(fs.existsSync(path.join(dir, 'auth.json'))).toBe(false);
@@ -173,6 +215,28 @@ describe('agent launches (§12, §12.7.1)', () => {
     // 再次启动（换模型）：重写配置，不重复建链
     agentLaunch('grok', base({ home, dir, model: 'zp/glm-5-air' }));
     expect(fs.readFileSync(path.join(dir, 'config.toml'), 'utf8')).toContain('zp/glm-5-air');
+  });
+
+  it('grok with a placeholder (tab-bound launch, §6.7): config carries the placeholder, not the model', () => {
+    const home = tmp('grok-ph-home-');
+    fs.mkdirSync(path.join(home, '.grok', 'sessions'), { recursive: true });
+    const dir = path.join(tmp('grok-ph-'), 'tab-1');
+    const l = agentLaunch('grok', base({ home, dir, placeholder: 'nomi' }));
+    const conf = fs.readFileSync(path.join(dir, 'config.toml'), 'utf8');
+    expect(conf).toContain('model = "nomi"');
+    expect(conf).not.toContain('zp/glm-5');
+    // 占位模型名时换模型不重启：窗口进 env（复用键），窗口不同的模型仍会重启
+    const real = agentLaunch(
+      'grok',
+      base({ home, dir, placeholder: 'nomi', metaOf: (r) => meta[r] }),
+    );
+    expect(real.env.NOMI_GROK_CONTEXT_WINDOW).toBe('200000');
+    expect(fs.readFileSync(path.join(dir, 'config.toml'), 'utf8')).toContain(
+      'context_window = 200000',
+    );
+    // 配置里没有真实模型：换模型只改绑定，复用键不带模型
+    expect(l.modelInConfig).toBe(false);
+    expect(agentLaunch('grok', base({ home, dir })).modelInConfig).toBe(true);
   });
 
   it('official sessions drop leftovers pointing at the gateway, keep the user own values', () => {

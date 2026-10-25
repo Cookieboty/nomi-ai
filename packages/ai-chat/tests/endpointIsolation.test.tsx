@@ -137,6 +137,7 @@ describe('CliDefaultSource · 侧栏信息卡「新标签默认」', () => {
     await waitFor(() =>
       expect(invoke).toHaveBeenCalledWith('ai:gateway:set-assignment', 'codex', {
         newTabSource: 'thirdParty',
+        newTabAccountId: null,
         models: { main: 'deep/ds-v4' },
       }),
     );
@@ -160,7 +161,7 @@ describe('EndpointControls', () => {
       <HarnessTabsProvider>
         <>
           <EndpointControls />
-          <SessionControls onManageNomi={() => undefined} />
+          <SessionControls />
         </>
       </HarnessTabsProvider>,
     );
@@ -176,7 +177,7 @@ describe('EndpointControls', () => {
       <HarnessTabsProvider>
         <>
           <EndpointControls />
-          <SessionControls onManageNomi={() => undefined} />
+          <SessionControls />
         </>
       </HarnessTabsProvider>,
     );

@@ -56,7 +56,7 @@ import type { Meta } from './types';
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
-  onNewChat: () => void;
+  onNewChat: () => void | Promise<void>;
   onForkRequest?: (id: string, mode: 'same' | 'cross') => void;
   /** 打开历史会话失败 / 有提示时 */
   onNotice?: (message: string) => void;
@@ -162,11 +162,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
     return m;
   }, [tabs.state]);
 
+  // 高亮项：工作台模式下当前在 CLI 标签时以标签为准。新建标签不会切换 Nomi 当前会话，
+  // 只看 currentConversationId 会让高亮停在之前打开的那一项上
+  const activeTabId = tabs.state?.activeTabId;
+  const highlightId =
+    isDev && activeTabId && activeTabId !== MAIN_TAB_ID
+      ? list.find((x) => x.tabId === activeTabId)?.id
+      : current;
+
   // 普通模式：侧栏只列 Nomi 会话（CLI 标签仍在后台运行，切回开发模式即可看到）
-  const navList = useMemo(
-    () => (isNormal ? list.filter((x) => x.backend === 'nomi') : list),
-    [list, isNormal],
-  );
+  const navList = useMemo(() => {
+    const source = isNormal ? list.filter((x) => x.backend === 'nomi') : list;
+    // 标签状态是 CLI 标题的即时来源。同步落盘在 useCliTabSync 的 effect 中完成，
+    // 这里先直接使用最新标签标题，避免侧栏短暂继续显示 Grok 1 / Codex 2。
+    return source.map((c) => {
+      const title = c.tabId ? tabById.get(c.tabId)?.title : undefined;
+      return title && title !== c.name ? { ...c, name: title } : c;
+    });
+  }, [list, isNormal, tabById]);
 
   const counts = useMemo(() => {
     const c: Record<ConversationBackend, number> = {
@@ -176,6 +189,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       dsh: 0,
       grok: 0,
       gemini: 0,
+      external: 0,
     };
     for (const x of navList) c[x.backend] = (c[x.backend] ?? 0) + 1;
     return c;
@@ -238,13 +252,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
     if (backend === 'nomi') {
       if (tabs.available) await tabs.activate(MAIN_TAB_ID);
       if (harnessClient.available()) await harnessClient.setBackend('nomi').catch(() => undefined);
-      onNewChat();
-      const store = ipc.conversationStore?.();
-      if (store) {
-        const id = store.ensureCurrent();
-        const m = store.get(id);
-        if (m && m.backend !== 'nomi') store.updateMeta(id, { backend: 'nomi' });
-      }
+      // 新建是异步操作。必须等它创建并切换到新的 Nomi 会话后再刷新侧栏，
+      // 否则 ensureCurrent() 可能读到旧的 CLI 镜像项并把它改写成 Nomi。
+      await onNewChat();
       refresh();
       return;
     }
@@ -275,7 +285,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       const st = tabById.get(meta.tabId)?.status;
       if (
         (st === 'running' || st === 'queued') &&
-        !window.confirm(t('该标签仍在运行，关闭会中止它。确定关闭？'))
+        !window.confirm(t('ui.mascot-theme.this-tab-is-still-running-closing-it-will'))
       )
         return;
       await tabs.close(meta.tabId);
@@ -338,6 +348,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const histBackends = useMemo(() => HISTORY_BACKENDS.filter((b) => Boolean(bins[b])), [bins]);
   const tabsKey = (tabs.state?.tabs ?? []).map((x) => `${x.id}:${x.cliSessionId ?? ''}`).join('|');
   const history = useCliHistory(isDev, histBackends, tabsKey);
+  // 镜像条目与本机历史使用同一个稳定键：CLI 后端 + 原生会话 id。
+  // 主进程会尽量提前排除已打开的会话，但这里还要防住历史扫描与标签同步的竞态，
+  // 也要覆盖搜索索引返回得比侧栏列表更早的情况。
+  const openSessionKeys = useMemo(() => {
+    const keys = new Set(
+      list.filter((c) => c.tabId && c.cliSessionId).map((c) => `${c.backend}:${c.cliSessionId}`),
+    );
+    // 标签状态先于 ConversationStore 镜像到达时，也要立即隐藏本机历史。
+    for (const tab of tabs.state?.tabs ?? []) {
+      if (tab.id !== MAIN_TAB_ID && tab.cliSessionId)
+        keys.add(`${tab.backend}:${tab.cliSessionId}`);
+    }
+    return keys;
+  }, [list, tabs.state]);
+  const historyItems = useCallback(
+    (backend?: HistoryBackend) => history.items(backend).filter((h) => !openSessionKeys.has(h.key)),
+    [history, openSessionKeys],
+  );
   const histScope: HistoryBackend | undefined =
     view === 'by-endpoint' && endpointFilter !== 'nomi'
       ? (endpointFilter as HistoryBackend)
@@ -348,15 +376,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const histItems: HistorySession[] =
     !histScopeSupported || (view === 'by-endpoint' && endpointFilter === 'nomi')
       ? []
-      : history.items(histScope);
+      : historyItems(histScope);
   const [openingKey, setOpeningKey] = useState<string | null>(null);
 
   // 侧栏「按端」：对话数（CLI 标签已镜像进对话列表）+ 磁盘历史；都为 0 且没有显式设置的端点不显示
   const endpointActivity = useMemo(() => {
     const a: Partial<Record<ConversationBackend, number>> = { ...counts };
-    for (const b of histBackends) a[b] = (a[b] ?? 0) + history.items(b).length;
+    for (const b of histBackends) a[b] = (a[b] ?? 0) + historyItems(b).length;
     return a;
-  }, [counts, histBackends, history]);
+  }, [counts, histBackends, historyItems]);
   const shownEndpoints = useMemo(() => {
     const shown = visibleEndpoints(CONVERSATION_BACKENDS, endpointVisibility, endpointActivity);
     // 正在看的端点（没被显式隐藏）始终保留，避免数据还没加载完时按钮跳动
@@ -381,13 +409,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
   // 端点图标的悬停提示：名称 + 对话数 + 本机历史数（只列非 0 的）
   const endpointTip = (b: ConversationBackend): string => {
     const hist = (histBackends as readonly string[]).includes(b)
-      ? history.items(b as HistoryBackend).length
+      ? historyItems(b as HistoryBackend).length
       : 0;
     return [
       ENDPOINT_FULL[b](),
-      counts[b] ? t('{0} 个对话', counts[b]) : '',
-      hist ? t('{0} 条本机历史', hist) : '',
-      cliMissing(b) ? t('未安装') : '',
+      counts[b] ? t('ui.cli-monitor.conversations', counts[b]) : '',
+      hist ? t('ui.cli-monitor.local-sessions', hist) : '',
+      cliMissing(b) ? t('ui.mascot-theme.not-installed') : '',
     ]
       .filter(Boolean)
       .join(' · ');
@@ -406,7 +434,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     setOpeningKey(h.key);
     try {
       const r = await historyClient.open(h.backend, h.sessionId);
-      if (!r.ok) onNotice?.(r.error || t('打开历史会话失败'));
+      if (!r.ok) onNotice?.(r.error || t('ui.cli-monitor.could-not-open-the-history-session'));
       else if (r.notice) onNotice?.(r.notice);
     } catch (e) {
       onNotice?.(e instanceof Error ? e.message : String(e));
@@ -497,15 +525,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
         kind: 'conv',
         id: m.id,
         meta: m,
-        title: m.name ? t(m.name) : t('新对话'),
+        title: m.name ? t(m.name) : t('ui.chat-settings.new-chat'),
         first: firstUserMessage(m),
         cwd: (m.tabId ? tabById.get(m.tabId)?.cwd : '') ?? '',
       });
     }
     if (isDev && histScopeSupported && !(view === 'by-endpoint' && endpointFilter === 'nomi')) {
       // 已加载的分页 + 搜索索引合并，同一会话（backend:sessionId）只保留一条
-      for (const h of [...history.items(histScope), ...searchIndex.items]) {
+      for (const h of [...historyItems(histScope), ...searchIndex.items]) {
         if (histScope && h.backend !== histScope) continue;
+        if (openSessionKeys.has(h.key)) continue;
         if (seen.has(h.key)) continue;
         seen.add(h.key);
         entries.push({ kind: 'hist', id: h.key, h });
@@ -519,7 +548,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     isDev,
     view,
     endpointFilter,
-    history,
+    historyItems,
+    openSessionKeys,
     histScope,
     histScopeSupported,
     searchIndex.items,
@@ -566,10 +596,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
   // 「按端」时新建跟随当前筛选的端，提示里写明
   const newLabel =
     isDev && view === 'by-endpoint'
-      ? t('新建 {0} 对话', ENDPOINT_FULL[endpointFilter]())
-      : t('新对话');
+      ? t('ui.cli-monitor.new-named-conversation', ENDPOINT_FULL[endpointFilter]())
+      : t('ui.chat-settings.new-chat');
   const newTip = [newLabel, formatCombo(bindings.newChat)].join(' ');
-  const searchTip = [t('搜索对话'), formatCombo(bindings.searchChats)].join(' ');
+  const searchTip = [
+    t('ui.cli-monitor.search-conversations'),
+    formatCombo(bindings.searchChats),
+  ].join(' ');
 
   const newBtn = (
     <div className={styles.newWrap} ref={menuRef}>
@@ -577,7 +610,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         className={collapsed ? styles.iconBtn : styles.headBtn}
         onClick={handleNewClick}
         title={newTip}
-        aria-label={t('新对话')}
+        aria-label={t('ui.chat-settings.new-chat')}
         aria-haspopup={isDev && view === 'all' ? 'menu' : undefined}
         aria-expanded={isDev && view === 'all' ? newMenu : undefined}
         data-testid="new-chat"
@@ -608,8 +641,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <button
             className={styles.iconBtn}
             onClick={onToggle}
-            title={collapsed ? t('展开侧边栏 (⌘/Ctrl+B)') : t('收起侧边栏 (⌘/Ctrl+B)')}
-            aria-label={collapsed ? t('展开侧边栏') : t('收起侧边栏')}
+            title={
+              collapsed
+                ? t('ui.chat-settings.expand-sidebar-ctrl-b')
+                : t('ui.chat-settings.collapse-sidebar-ctrl-b')
+            }
+            aria-label={
+              collapsed
+                ? t('ui.chat-settings.expand-sidebar')
+                : t('ui.chat-settings.collapse-sidebar')
+            }
             data-testid="sidebar-toggle"
           >
             <Icon icon={PanelLeft} />
@@ -621,8 +662,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             type="button"
             className={styles.iconBtn}
             onClick={onToggle}
-            title={t('展开侧边栏 (⌘/Ctrl+B)')}
-            aria-label={t('展开侧边栏')}
+            title={t('ui.chat-settings.expand-sidebar-ctrl-b')}
+            aria-label={t('ui.chat-settings.expand-sidebar')}
           >
             <EndpointIcon backend="nomi" size={24} decorative />
           </button>
@@ -644,7 +685,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className={styles.listHeader}>
           {/* 一行筛选：「全部」+ 各端图标（数量在悬停提示里），点一下即切换 */}
           {isDev && !searching && (
-            <div className={styles.epRow} role="group" aria-label={t('按端点筛选')}>
+            <div
+              className={styles.epRow}
+              role="group"
+              aria-label={t('ui.cli-monitor.filter-by-endpoint')}
+            >
               <button
                 type="button"
                 className={styles.epAll}
@@ -652,7 +697,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 data-testid="list-view-all"
                 onClick={() => setView('all')}
               >
-                {t('全部')}
+                {t('ui.providers-schedule.all')}
               </button>
               {epSplit.shown.map((b) => {
                 const tip = endpointTip(b);
@@ -706,8 +751,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 type="text"
                 role="searchbox"
                 value={query}
-                placeholder={t('搜索会话…')}
-                aria-label={t('搜索对话')}
+                placeholder={t('ui.cli-monitor.search-conversations-ellipsis')}
+                aria-label={t('ui.cli-monitor.search-conversations')}
                 aria-controls="sidebar-search-results"
                 aria-activedescendant={
                   searching && shown.length
@@ -723,8 +768,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <button
                 type="button"
                 className={styles.searchClear}
-                title={query ? t('清除搜索') : t('关闭搜索')}
-                aria-label={query ? t('清除搜索') : t('关闭搜索')}
+                title={query ? t('ui.cli-monitor.clear-search') : t('ui.cli-monitor.close-search')}
+                aria-label={
+                  query ? t('ui.cli-monitor.clear-search') : t('ui.cli-monitor.close-search')
+                }
                 data-testid="sidebar-search-clear"
                 onClick={() => (query ? (setQuery(''), inputRef.current?.focus()) : closeSearch())}
               >
@@ -734,7 +781,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
           ) : (
             <div className={styles.listHeadRow}>
               <span className={styles.sectionTitleInline} data-testid="list-title">
-                {view === 'by-endpoint' ? ENDPOINT_FULL[endpointFilter]() : t('对话')}
+                {view === 'by-endpoint'
+                  ? ENDPOINT_FULL[endpointFilter]()
+                  : t('ui.chat-settings.chats')}
                 <span className={styles.listCount}> · {visible.length}</span>
               </span>
               <span className={styles.headActions}>
@@ -744,8 +793,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     className={styles.headBtn}
                     onClick={history.refresh}
                     disabled={history.loading}
-                    title={t('刷新历史会话')}
-                    aria-label={t('刷新历史会话')}
+                    title={t('ui.cli-monitor.refresh-history')}
+                    aria-label={t('ui.cli-monitor.refresh-history')}
                     data-testid="cli-history-refresh"
                   >
                     <Icon icon={RefreshCw} size={14} />
@@ -756,7 +805,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   className={styles.headBtn}
                   onClick={() => setSearchOpen(true)}
                   title={searchTip}
-                  aria-label={t('搜索对话')}
+                  aria-label={t('ui.cli-monitor.search-conversations')}
                   data-testid="sidebar-search-toggle"
                 >
                   <SearchIcon />
@@ -769,12 +818,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
       )}
 
       {!collapsed && (
-        <nav className={styles.threads} aria-label={t('历史对话')} data-testid="conversation-list">
+        <nav
+          className={styles.threads}
+          aria-label={t('ui.chat-settings.history')}
+          data-testid="conversation-list"
+        >
           {searching && (
             <div
               id="sidebar-search-results"
               role="listbox"
-              aria-label={t('搜索结果')}
+              aria-label={t('ui.cli-monitor.search-results')}
               data-testid="sidebar-search-results"
             >
               <div
@@ -782,8 +835,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 aria-live="polite"
                 data-testid="sidebar-search-count"
               >
-                {t('搜索结果 {0}', results.length)}
-                {searchIndex.loading ? ['', t('正在索引历史会话…')].join(' · ') : ''}
+                {t('ui.cli-monitor.search-results-count', results.length)}
+                {searchIndex.loading ? ['', t('ui.cli-monitor.indexing-history')].join(' · ') : ''}
               </div>
               {shown.map(({ item, ranges }, i) => {
                 const selected = i === Math.min(activeIdx, shown.length - 1);
@@ -849,12 +902,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
               })}
               {results.length > MAX_RESULTS && (
                 <div className={styles.empty} data-testid="sidebar-search-capped">
-                  {t('只显示前 {0} 条，请输入更多关键词', MAX_RESULTS)}
+                  {t('ui.cli-monitor.showing-the-first-only-type-more-to-narrow', MAX_RESULTS)}
                 </div>
               )}
               {results.length === 0 && (
                 <div className={styles.empty} data-testid="sidebar-search-empty">
-                  {searchIndex.loading ? t('正在搜索…') : t('没有匹配的会话')}
+                  {searchIndex.loading
+                    ? t('ui.cli-monitor.searching')
+                    : t('ui.cli-monitor.no-matching-conversations')}
                 </div>
               )}
               {canSearchMore && (
@@ -865,7 +920,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   disabled={searchIndex.loading}
                   data-testid="sidebar-search-more"
                 >
-                  {searchIndex.loading ? t('加载中…') : t('搜索更早的历史')}
+                  {searchIndex.loading
+                    ? t('ui.mascot-theme.loading')
+                    : t('ui.cli-monitor.search-older-history')}
                 </button>
               )}
             </div>
@@ -875,7 +932,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             !(histVisible && histItems.length > 0) &&
             !histScanning && (
               <div className={styles.empty} data-testid="conversation-list-empty">
-                {t('还没有历史对话')}
+                {t('ui.chat-settings.no-past-conversations')}
               </div>
             )}
           {!searching &&
@@ -885,7 +942,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <ThreadItem
                 key={c.id}
                 c={c}
-                active={c.id === current}
+                active={c.id === highlightId}
                 tab={c.tabId ? tabById.get(c.tabId) : undefined}
                 onOpen={open}
                 onCtx={onCtx}
@@ -906,7 +963,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 rowComponent={VirtualRow}
                 rowProps={{
                   items: visible,
-                  current,
+                  current: highlightId,
                   tabById,
                   open,
                   onCtx,
@@ -925,9 +982,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {!searching && histVisible && (histItems.length > 0 || histScanning) && (
             <div className={styles.histSection} data-testid="cli-history">
               <div className={styles.histHead}>
-                <span className={styles.sectionTitle}>{t('本机历史')}</span>
+                <span className={styles.sectionTitle}>{t('ui.cli-monitor.local-history')}</span>
               </div>
-              {histScanning && <div className={styles.empty}>{t('正在扫描历史会话…')}</div>}
+              {histScanning && (
+                <div className={styles.empty}>{t('ui.cli-monitor.scanning-history-sessions')}</div>
+              )}
               {histItems.map((h) => (
                 <div
                   key={h.key}
@@ -946,7 +1005,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       h.title,
                       h.cwd,
                       ...historyOrigin(h),
-                      h.cwdMissing ? t('原目录已不存在') : '',
+                      h.cwdMissing
+                        ? t('ui.cli-monitor.the-original-directory-no-longer-exists')
+                        : '',
                     ]
                       .filter(Boolean)
                       .join('\n')}
@@ -993,7 +1054,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   disabled={history.loading}
                   data-testid="cli-history-more"
                 >
-                  {history.loading ? t('加载中…') : t('加载更多')}
+                  {history.loading ? t('ui.mascot-theme.loading') : t('ui.cli-monitor.load-more')}
                 </button>
               )}
             </div>
@@ -1059,8 +1120,8 @@ const CLIENT_LABELS: Record<HistoryClient, string> = {
 
 /** 行内只标出非官方线路，官方会话不加标签，保持列表干净 */
 function routeTag(h: HistorySession): string | null {
-  if (h.route === 'gateway') return t('第三方');
-  if (h.route === 'custom') return h.provider || t('第三方');
+  if (h.route === 'gateway') return t('ui.cli-monitor.third-party');
+  if (h.route === 'custom') return h.provider || t('ui.cli-monitor.third-party');
   return null;
 }
 
@@ -1074,10 +1135,11 @@ function routeInitial(h: HistorySession): string {
 /** 悬停提示里的来源信息：客户端、线路、账号 */
 function historyOrigin(h: HistorySession): string[] {
   const out: string[] = [];
-  if (h.client) out.push(t('客户端：{0}', CLIENT_LABELS[h.client]));
-  if (h.route === 'official') out.push(t('线路：官方'));
-  else if (h.route === 'gateway') out.push(t('线路：第三方（Nomi 网关）'));
-  else if (h.route === 'custom') out.push(t('线路：其他第三方（{0}）', h.provider || '?'));
-  if (h.account) out.push(t('账号：{0}', h.account));
+  if (h.client) out.push(t('ui.cli-monitor.client', CLIENT_LABELS[h.client]));
+  if (h.route === 'official') out.push(t('ui.cli-monitor.route-official'));
+  else if (h.route === 'gateway') out.push(t('ui.cli-monitor.route-third-party-nomi-gateway'));
+  else if (h.route === 'custom')
+    out.push(t('ui.cli-monitor.route-other-third-party', h.provider || '?'));
+  if (h.account) out.push(t('ui.cli-monitor.account', h.account));
   return out;
 }

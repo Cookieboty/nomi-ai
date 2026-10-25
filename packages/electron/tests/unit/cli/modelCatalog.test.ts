@@ -11,6 +11,7 @@ import {
   parseClaudeModels,
   parseCodexModels,
   parseGrokModels,
+  readClaudeEffortSetting,
   readCodexConfigDefaults,
   sanitizeEffort,
   supportsModelOverride,
@@ -79,6 +80,41 @@ describe('modelCatalog', () => {
     it('没有 models 时返回空目录', () => {
       expect(parseClaudeModels({}).models).toEqual([]);
       expect(parseClaudeModels(null).defaultModel).toBeNull();
+    });
+
+    // 2.1.310 实测：initialize 里只有 supportedEffortLevels，没有任何默认档位字段
+    const real = {
+      models: response.models.map(({ defaultEffort: _d, ...m }: Record<string, unknown>) => m),
+    };
+
+    it('响应里没有默认档位、也没配置时不猜（界面显示「由 CLI 按模型决定」）', () => {
+      const c = parseClaudeModels(real);
+      expect(c.defaultModel?.defaultEffort).toBeUndefined();
+      expect(c.models.some((m) => m.defaultEffort)).toBe(false);
+    });
+
+    it('配置的默认档位标到支持它的每个模型上，不支持的模型不标', () => {
+      const c = parseClaudeModels(real, { effort: 'xhigh' });
+      expect(c.defaultModel?.defaultEffort).toBe('xhigh');
+      expect(c.models.find((m) => m.id === 'opus')?.defaultEffort).toBe('xhigh');
+      // Opus 4.6 没有 xhigh；Haiku 4.5 不支持思考深度
+      expect(c.models.find((m) => m.id === 'claude-opus-4-6')?.defaultEffort).toBeUndefined();
+      expect(
+        c.models.find((m) => m.id === 'claude-haiku-4-5-20251001')?.defaultEffort,
+      ).toBeUndefined();
+      // 非法值忽略；CLI 自己报了默认档位时以它为准
+      expect(
+        parseClaudeModels(real, { effort: 'auto' }).defaultModel?.defaultEffort,
+      ).toBeUndefined();
+      expect(parseClaudeModels(response, { effort: 'low' }).defaultModel?.defaultEffort).toBe(
+        'high',
+      );
+    });
+
+    it('settings.json 里的 effortLevel', () => {
+      expect(readClaudeEffortSetting('{"effortLevel":"medium","model":"opus"}')).toBe('medium');
+      expect(readClaudeEffortSetting('{"model":"opus"}')).toBeNull();
+      expect(readClaudeEffortSetting('{ broken')).toBeNull();
     });
   });
 

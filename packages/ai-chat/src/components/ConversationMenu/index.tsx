@@ -87,7 +87,7 @@ export const ConversationMenu: React.FC<ConversationMenuProps> = ({
     <div
       ref={ref}
       role="menu"
-      aria-label={t('对话操作')}
+      aria-label={t('ui.cli-monitor.conversation-actions')}
       className={styles.menu}
       style={{ left, top }}
       data-testid="conversation-context-menu"
@@ -101,7 +101,7 @@ export const ConversationMenu: React.FC<ConversationMenuProps> = ({
           onClick={act(onOpen)}
           data-testid="conversation-open"
         >
-          {t('在标签中打开')}
+          {t('ui.cli-monitor.open-in-a-tab')}
         </button>
       )}
       {onRename && (
@@ -112,7 +112,7 @@ export const ConversationMenu: React.FC<ConversationMenuProps> = ({
           onClick={act(onRename)}
           data-testid="conversation-rename"
         >
-          {t('重命名')}
+          {t('ui.cli-monitor.rename')}
           {isTab && <span className={styles.key}>{formatCombo(bindings.renameTab)}</span>}
         </button>
       )}
@@ -124,7 +124,7 @@ export const ConversationMenu: React.FC<ConversationMenuProps> = ({
           onClick={act(onFork)}
           data-testid="fork-same"
         >
-          {t('分叉为新对话')}
+          {t('ui.cli-monitor.fork-as-new-chat')}
         </button>
       )}
       {onForkCross && (
@@ -135,7 +135,7 @@ export const ConversationMenu: React.FC<ConversationMenuProps> = ({
           onClick={act(onForkCross)}
           data-testid="fork-cross"
         >
-          {t('分叉到其他端')}
+          {t('ui.cli-monitor.fork-to-another-endpoint')}
         </button>
       )}
       {(onClose || onDelete) && <div className={styles.sep} role="separator" />}
@@ -147,7 +147,7 @@ export const ConversationMenu: React.FC<ConversationMenuProps> = ({
           onClick={act(onClose)}
           data-testid="conversation-close"
         >
-          {t('关闭标签')}
+          {t('ui.mascot-theme.close-tab-action')}
           <span className={styles.key}>{formatCombo(bindings.closeTab)}</span>
         </button>
       )}
@@ -159,7 +159,7 @@ export const ConversationMenu: React.FC<ConversationMenuProps> = ({
           onClick={act(onCloseLeft)}
           data-testid="conversation-close-left"
         >
-          {t('关闭左侧标签')}
+          {t('ui.mascot-theme.close-tabs-to-the-left')}
         </button>
       )}
       {onCloseRight && (
@@ -170,7 +170,7 @@ export const ConversationMenu: React.FC<ConversationMenuProps> = ({
           onClick={act(onCloseRight)}
           data-testid="conversation-close-right"
         >
-          {t('关闭右侧标签')}
+          {t('ui.mascot-theme.close-tabs-to-the-right')}
         </button>
       )}
       {onDelete && (
@@ -181,7 +181,7 @@ export const ConversationMenu: React.FC<ConversationMenuProps> = ({
           onClick={act(onDelete)}
           data-testid="conversation-delete"
         >
-          {t('删除对话')}
+          {t('ui.cli-monitor.delete-chat')}
         </button>
       )}
     </div>

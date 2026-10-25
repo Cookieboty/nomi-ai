@@ -1,4 +1,4 @@
-/* 输入栏：换工作目录的选择框与「带上前文」按钮 */
+/* 对话区顶部的「带上前文」提示 */
 .actions {
   display: flex;
   justify-content: flex-end;

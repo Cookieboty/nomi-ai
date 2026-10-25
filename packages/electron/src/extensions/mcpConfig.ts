@@ -51,7 +51,7 @@ export function sanitizeServer(raw: unknown, taken = new Set<string>()): McpServ
   const name = String(o.name ?? o.id ?? '')
     .trim()
     .slice(0, 60);
-  if (!name) throw new McpConfigError(t('请填写名称'));
+  if (!name) throw new McpConfigError(t('electron.common.please-enter-a-name'));
   let transport: Transport =
     o.transport === 'http' || o.transport === 'sse' ? o.transport : 'stdio';
   if (!o.transport && typeof o.url === 'string')
@@ -67,8 +67,10 @@ export function sanitizeServer(raw: unknown, taken = new Set<string>()): McpServ
   };
   if (transport === 'stdio') {
     const command = String(o.command ?? '').trim();
-    if (!command) throw new McpConfigError(t('本地（stdio）服务器需要填写启动命令'));
-    if (/[\n\r]/.test(command)) throw new McpConfigError(t('命令不能包含换行'));
+    if (!command)
+      throw new McpConfigError(t('electron.common.local-stdio-servers-need-a-start-command'));
+    if (/[\n\r]/.test(command))
+      throw new McpConfigError(t('electron.common.the-command-can-t-contain-line-breaks'));
     e.command = command;
     e.args = Array.isArray(o.args) ? o.args.map(String).slice(0, 64) : [];
     e.env = strMap(o.env);
@@ -78,10 +80,10 @@ export function sanitizeServer(raw: unknown, taken = new Set<string>()): McpServ
     try {
       u = new URL(url);
     } catch {
-      throw new McpConfigError(t('请填写有效的服务器地址（http/https）'));
+      throw new McpConfigError(t('electron.common.please-enter-a-valid-server-url-http-https'));
     }
     if (u.protocol !== 'http:' && u.protocol !== 'https:')
-      throw new McpConfigError(t('服务器地址只支持 http / https'));
+      throw new McpConfigError(t('electron.common.server-urls-only-support-http-https'));
     e.url = u.toString();
     e.headers = strMap(o.headers);
   }
@@ -94,7 +96,7 @@ export function parseImport(text: string, existing: string[] = []): McpServerEnt
   try {
     j = JSON.parse(text);
   } catch {
-    throw new McpConfigError(t('不是有效的 JSON'));
+    throw new McpConfigError(t('electron.common.not-valid-json'));
   }
   const taken = new Set(existing);
   const items: Array<Record<string, unknown>> = [];
@@ -105,7 +107,7 @@ export function parseImport(text: string, existing: string[] = []): McpServerEnt
       for (const [name, v] of Object.entries(root as Record<string, unknown>))
         if (v && typeof v === 'object') items.push({ name, ...(v as Record<string, unknown>) });
   }
-  if (!items.length) throw new McpConfigError(t('没有找到服务器配置'));
+  if (!items.length) throw new McpConfigError(t('electron.common.no-server-configuration-found'));
   const out: McpServerEntry[] = [];
   for (const it of items) {
     const e = sanitizeServer({ ...it, origin: 'user', trust: 'ask' }, taken);
@@ -243,8 +245,8 @@ export interface McpPreset {
 export const MCP_PRESETS: McpPreset[] = [
   {
     key: 'filesystem',
-    name: '文件系统',
-    description: '读写你指定的文件夹（官方参考实现）',
+    name: 'electron.common.filesystem',
+    description: 'electron.common.read-and-write-the-folders-you-specify-official',
     server: {
       transport: 'stdio',
       command: 'npx',
@@ -255,8 +257,9 @@ export const MCP_PRESETS: McpPreset[] = [
   },
   {
     key: 'memory',
-    name: '知识图谱记忆',
-    description: '以实体 / 关系保存信息（官方参考实现）',
+    name: 'electron.common.knowledge-graph-memory',
+    description:
+      'electron.common.store-information-as-entities-relations-official-reference-implementation',
     server: {
       transport: 'stdio',
       command: 'npx',
@@ -266,8 +269,8 @@ export const MCP_PRESETS: McpPreset[] = [
   },
   {
     key: 'sequential-thinking',
-    name: '分步思考',
-    description: '帮助模型拆解复杂问题（官方参考实现）',
+    name: 'electron.common.sequential-thinking',
+    description: 'electron.common.helps-the-model-break-down-complex-problems-official',
     server: {
       transport: 'stdio',
       command: 'npx',
@@ -277,8 +280,8 @@ export const MCP_PRESETS: McpPreset[] = [
   },
   {
     key: 'remote',
-    name: '远程 HTTP 服务器',
-    description: '连接一个 Streamable HTTP / SSE 的 MCP 服务',
+    name: 'electron.common.remote-http-server',
+    description: 'electron.common.connect-to-a-streamable-http-sse-mcp-server',
     server: { transport: 'http', url: 'https://' },
     license: '—',
   },

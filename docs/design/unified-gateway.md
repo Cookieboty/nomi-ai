@@ -1,6 +1,6 @@
 # 统一模型网关：一个第三方供应商，所有编程助手通用（设计稿）
 
-> 状态：设计稿，待评审。调研日期 2026-10-21。
+> 状态：**已实现（v2.0.0）**：`GatewayStore` 为第三方供应商唯一来源；Nomi 对话 / agent-tools / summary 与编程助手第三方均经本机网关。下文保留设计推演与实现记录，个别里程碑行里的「进行中」以本节状态与代码为准。调研日期 2026-10-21。
 > 范围决定（2026-10-21）：
 >
 > - **只管第三方供应商**。官方账号（多账号登录、全局切换）保持 [官方账号](cli-official-accounts.md) 的现状；网关不读、不写、不转发任何官方凭据（§13）。
@@ -274,7 +274,7 @@ interface GatewayProvider {
   fallback?: string[]; // 本供应商失败时依次尝试的 'provider/model'
   headers?: Record<string, string>; // 少数中转站需要的额外请求头（高级）
   userAgent?: string;
-  modelMap?: Array<{ from: string; to: string }>; // 对外名 → 上游真实名（沿用 ProviderStore 的模型映射）
+  modelMap?: Array<{ from: string; to: string }>; // 对外名 → 上游真实名
   source: 'user' | 'env'; // env：来自环境变量，只读
   detected?: Partial<Record<Wire, ProbeResult>>; // §8，任一 Key 可用即 ok
   detectedByKey?: Record<string /* keyId */, Partial<Record<Wire, ProbeResult>>>;
@@ -341,7 +341,7 @@ interface ClientConfig {
     small?: string; // Claude：haiku 档和 SMALL_FAST；其他 CLI 不用
     tiers?: Partial<Record<'opus' | 'sonnet' | 'haiku' | 'fable', string>>;
     subagent?: string;
-    tools?: string; // 仅 nomi：工具调用（原 ProviderStore 的 agent-tools 角色），空表示跟随 main
+    tools?: string; // 仅 nomi：工具调用（agent-tools 角色），空表示跟随 main
     summary?: string; // 仅 nomi：摘要（原 summary 角色）
   };
 }
@@ -381,7 +381,7 @@ type TabSource = { kind: 'official' } | { kind: 'thirdParty'; model: string /* p
    **官方账号保险箱（`userData/cli-accounts/*`）不读不改。**
 4. 合并完后后台跑一次探测（§8），补齐其他协议。
 5. 旧文件改名为 `*.migrated`，**不删除**；新界面里不提供回到旧界面的入口，但迁移有问题时可以从这些文件重新迁移（设置 → 模型 → ⋯ →「重新导入旧配置」），两个版本之后清理。
-6. 用量记录：`ProviderStore` 里按供应商记的用量按新的供应商 id 改写，接入 `UsageService`。
+6. 用量记录：按供应商记的用量按新的供应商 id 改写，接入 `UsageService`。
 7. **撤销旧版本写进全局配置的第三方设置**（先备份到 `userData/gateway/backups/<时间戳>/`）：
    - Claude：只删 `~/.claude/settings.json` 的 `env` 里**值等于 Nomi 当初写入值**的 `ANTHROPIC_API_KEY` / `ANTHROPIC_BASE_URL` / `ANTHROPIC_MODEL`（与本地路由令牌、旧供应商的 Key、地址、模型比对）；用户自己改过的不动。
    - Codex：`unpatchCodexToml` 去掉 `[model_providers.nomi]` 和 `model_provider = "nomi"`；`auth.json` 里只删**等于 Nomi 写入值**的 `OPENAI_API_KEY` 字段，`tokens` 等官方登录字段一个字节都不动。
@@ -788,6 +788,7 @@ Claude Code 用 `count_tokens` 的结果决定什么时候压缩上下文，纯�
 
 - 回退与冷却：`src/cooldown.ts`，按 (供应商, Key, wire) 冷却，429 / 5xx / 超时 / 连接失败 60 秒或 `min(Retry-After, 10 分钟)`，401 / 403 10 分钟；冷却中的候选排到队尾仍可用，成功清除。最终错误原样转发上游的 `Retry-After`。模型在某个供应商「不存在」（404）时跳过它的其它 Key，直接试回退的供应商。
 - Key 状态：网关经 `{type:'key-status'}` 报鉴权失败 / 限流 / 恢复，主进程把原因写在 Key 的 `lastError` 上（「模型」页标红），恢复后清掉，只落盘不重推配置。
+- A2 自适应降权：`metrics.ts` 按 (供应商, Key, wire) 滚动健康样本；样本足够且成功率过低 / degraded 过高 / 近期 auth·限流多时排到冷却之前的队尾（仍可试，不删 Key）；成功清除；`NOMI_ADAPTIVE_ROUTE=0` 关闭。
 - 缓存亲和：`src/affinity.ts`，会话键与 count_tokens 校准共用一套规则（`sessionKey`）。
 - 会话归属表：`src/sessions.ts`，网关进程自己读写 `userData/gateway/sessions.json`（路径随配置下发），只认 CLI 给的会话标识，不用内容哈希。同协议透传时按它决定保留还是剥掉历史里的加密推理和签名（`src/reasoning.ts`）；带着保留的推理被以推理特征拒绝时剥掉重试一次并标为不再保留。
 - §11.3：Chat 流修正（同协议透传改为按事件处理，没触发修正的事件字节不变）、正文里写出的工具调用（`<tool_call>`、GLM `arg_key`、DSML）、复读检测（流式）、custom tool 被拒后转函数工具重试并学习、Chat 上游的工具名映射（按原名确定性映射，回程还原）。每个修正都有 `quirks.fixes.*` 开关，默认开；用到的修正记进用量的 `notes`。
@@ -825,6 +826,7 @@ Claude Code 用 `count_tokens` 的结果决定什么时候压缩上下文，纯�
 
 | 环境变量                                            | 值                                                        |
 | --------------------------------------------------- | --------------------------------------------------------- |
+| `CLAUDE_CONFIG_DIR`                                 | Nomi 为这个标签创建的私有目录                             |
 | `ANTHROPIC_BASE_URL`                                | `http://127.0.0.1:18721`（不带 `/v1`）                    |
 | `ANTHROPIC_AUTH_TOKEN`                              | `claude` 客户端令牌                                       |
 | `ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU,FABLE}_MODEL` | `clients.claude.models.tiers`，没设的档位用 `main`        |
@@ -839,7 +841,7 @@ Claude Code 用 `count_tokens` 的结果决定什么时候压缩上下文，纯�
 
 - 用 `ANTHROPIC_AUTH_TOKEN`，**不用** `ANTHROPIC_API_KEY`：后者会触发「是否使用这个 API Key」的确认，并把确认结果写进 `~/.claude.json`。
 - 环境变量里的令牌优先于钥匙串里的 OAuth 登录，所以第三方会话不会读取、刷新或改写官方凭据。同一时间另一个标签里的官方会话照常使用官方账号。
-- 不设 `CLAUDE_CONFIG_DIR`：会话历史、`CLAUDE.md`、技能、MCP 配置和官方会话共用，用户感觉不到差别。
+- 设置 `CLAUDE_CONFIG_DIR` 指向 Nomi 为该标签创建的私有目录：用户 `settings.json` 里的 `env` 不会覆盖网关地址或令牌；`projects/`、`history.jsonl`、`CLAUDE.md`、技能与命令等无凭据条目仍软链回用户目录，历史和工作习惯保持连续。
 
 ### 12.2 Codex
 
@@ -892,15 +894,15 @@ codex … \
 
 Nomi 自己的对话也作为网关的一个客户端（`nomi`），和 CLI 走同一条路径，回退、学习、修正、用量全部共用：
 
-- `ai-runtime` 的 provider 工厂不再读 `ProviderStore`，改为向主进程要「当前角色的模型 + 首选入口协议」。首选入口协议 = §7.3 `pickWire` 对候选列表第一项算出的 wire，这样网关那一侧是同协议透传，没有转换损失。
+- `ai-runtime` 向主进程要「当前角色的模型 + 首选入口协议」。首选入口协议 = §7.3 `pickWire` 对候选列表第一项算出的 wire，这样网关那一侧是同协议透传，没有转换损失。
 - 按首选协议选 AI SDK 的实现（现有三种，见 `protocol.ts`）：`messages` → `@ai-sdk/anthropic`，`responses` → `@ai-sdk/openai` 的 `.responses()`，`chat` → `@ai-sdk/openai-compatible`；首选 `gemini` 时退回 `chat`。baseURL 指向网关，Key 用 `nomi` 客户端令牌。
 - **就绪时序**：Nomi 启动时，在网关报告就绪之前发起的对话请求排队等待（最长 10 秒），超时再报错。网关崩溃重启期间同样排队等待。
 - 网关进程长时间不可用时，对话给出明确错误，不绕过网关直连。这样只有一条代码路径，行为可预期。
-- 原 `ProviderStore` 的多 Key 切换、模型映射、`thinking` 开关都由网关提供；`ProviderRouter.ts` 里 `RoutedLLMRegistry.resolve()` 按角色选供应商的逻辑删除，改为向网关取模型；`LLMRegistry` 接口（`bundle-ig-base/src/seams/llm.ts`）保持不变，插件宿主无感。
+- 多 Key 切换、模型映射、`thinking` 开关由网关提供；`RoutedLLMRegistry.resolve()` 向网关取模型；`LLMRegistry` 接口（`bundle-ig-base/src/seams/llm.ts`）保持不变，插件宿主无感。
 
-**实现记录（2026-10-21，M2 第 1 步）**：
+**实现记录（2026-10-21，M2；GatewayStore-only）**：
 
-- `RoutedLLMRegistry` 新增 `gateway` 选项：`resolve(role)` 先问网关（`GatewayService.nomiRoute`），网关没就绪或 `clients.nomi` 没有 main 时**过渡期退回旧存储**。旧存储里是迁移前的同一批供应商（还有环境变量供应商），M5 删除旧存储时去掉这条退路，同时补上「就绪前排队 10 秒」。
+- `RoutedLLMRegistry` 的 `gateway` 选项：`resolve(role)` **只**问网关（`GatewayService.nomiRoute`）。环境变量供应商由网关以 `env-*` 暴露。就绪前排队 10 秒仍待补（网关未就绪时 `resolve` 返回 undefined，对话侧报未配置模型）。
 - 工具结果的接收者（`ToolCallProvider`）报真正的上游（网关供应商 id + 上游地址），不报网关的回环地址；首选或回退里只要有一个不在本机 / 局域网，就按云端算。桌面工具的本地 / 云端判断、云端同意都以它为准（`AIRuntimeBoot.resolveProvider / lookupProvider`）。
 - 没有 Key 的本地服务（Ollama、LM Studio、llama.cpp）在快照里带一个空 Key，路由和探测都不发鉴权头。迁移时旧配置里的本机 / 局域网地址视为用户已确认。
 - 跟着切换的入口：设置 →「模型」（正式上线，分配区先只有 Nomi 对话的 main / tools / summary）、对话区右上角的模型选择器、托盘「对话模型」、斜杠命令 `/model` `/status`、本机 llama.cpp「设为对话模型」、引导里的「添加第三方供应商」。知识库向量和云端语音识别的供应商列表合并了网关里有 Chat 地址的供应商，旧 id 继续可用。旧的 Nomi 供应商面板删除（编程助手页 Nomi 标签只留一个入口）；编程助手的第三方配置 M3 再并进来。
@@ -911,7 +913,7 @@ Nomi 自己的对话也作为网关的一个客户端（`nomi`），和 CLI 走�
 
 - 设置 → 模型 →「终端启动命令」开关。打开后，Nomi 在 `~/.nomi/bin/` 生成 `nomi-claude`、`nomi-codex`、`nomi-gemini`、`nomi-grok`、`nomi-dsh` 五个脚本。Windows 上生成 `.cmd` 和 `.ps1`，调用独立 Node 启动器，以参数数组启动 CLI；PowerShell 5 通过 JSON 保留空参数与引号。npm / pnpm 的 JS 启动垫片会解析为 Node + JS 入口，不安全或不支持的自定义批处理入口明确报错。
 - 脚本做的事和 §12.1–§12.4 相同：设置环境变量和参数，然后启动真正的 CLI，用户的其余参数原样传过去。模型默认取 `clients.<cli>.models`，可以用 `--nomi-model provider/model` 或 `--nomi-model=provider/model` 临时指定；Windows 支持任意参数位置（`--` 之后按原样传递），包括 Grok / dsh 的配置覆盖。
-- 令牌从 `userData/gateway/tokens/<cli>`（0600）读取，不写进脚本本身。这些文件是**明文**（shell 脚本要能读），和 `store.json` 里加密存储的 `tokenEnc` 策略不同；只有开启终端启动命令时才生成，关闭时删除。取舍写进 §15。
+- 令牌从 `userData/gateway/tokens/<cli>` 读取，不写进脚本本身。这些文件是**明文**（shell 脚本要能读）：POSIX 上文件 0600、目录 0700；**Windows 上 mode 位无效，写后用 `icacls` 去掉继承并只授予当前用户完全控制**（目录带 `(OI)(CI)` 继承）。和 `store.json` 里加密存储的 `tokenEnc` 策略不同；只有开启终端启动命令时才生成，关闭时删除。取舍写进 §15。
 - 脚本先请求网关的 `/health`，网关没运行时给出明确提示（「请先打开 Nomi」），不让 CLI 报一个看不懂的连接错误。
 - 只有在用户确认后才把 `~/.nomi/bin` 加进 PATH：在 `~/.zshrc` 等文件里写一段带标记的内容，关闭开关时删除。直接运行 `claude`、`codex` 等原命令，仍然是官方登录。
 - Windows 经同一确认入口修改当前用户的 PATH，保留原值类型与未展开的变量；关闭时只移除本次由 Nomi 添加的目录，用户原本已有的项保留。重新打开终端应用后生效。
@@ -935,7 +937,10 @@ Nomi 自己的对话也作为网关的一个客户端（`nomi`），和 CLI 走�
 | Codex       | `-c model_context_window=<ctx>`、`-c model_auto_compact_token_limit=<ctx × 0.8>`；推理模型保留 `model_reasoning_effort`，非推理模型不传；生成 `model_catalog_json` 文件（放在 Nomi 私有目录，`-c` 指向它，格式见 §12.8），否则每次启动都会警告「Model metadata for … not found」                                                                                              |
 
 - Claude Code 的主模型、小模型、各档模型可能是不同模型，上下文取**主模型**的值。小模型窗口更小时，网关在请求超出时按 §9.6 返回「上下文超长」，让 Claude Code 压缩。
-- 元数据缺失时（自定义模型、模型列表接口不返回），使用保守的默认值：上下文 128K、输出上限 8K，并在「模型」页提示用户补全。
+- 元数据缺失时（四级来源都查不到，§12.7.2），使用保守的默认值：上下文 128K、输出上限 32K（太小会截断长回答与推理；网关只在知道模型真实上限时才压低请求），并在「模型」页显示「参数未知」，可在供应商详情的「高级」里手填。
+- Grok：私有 `config.toml` 的 `[model.nomi]` 写 `context_window`（不写时自定义模型按 200K 压缩）；占位模型名时换模型不重启，所以窗口同时放进进程环境 `NOMI_GROK_CONTEXT_WINDOW`（Grok 不读），窗口不同的模型会进复用键触发重启。
+- dsh：叠加文件里 pi-ai 的模型条目写 `contextWindow` / `maxTokens`。
+- Gemini CLI 0.65.0 的窗口是按模型名写死的表（未知模型 1M），只能经设置文件的 `model.compressionThreshold` 调整，而非 root 的系统级设置文件已不可用（§12.3），暂不注入；上下文超长时由网关按 §9.6 返回错误，让它压缩。
 
 #### 12.7.2 模型元数据从哪来
 
@@ -944,7 +949,32 @@ Nomi 自己的对话也作为网关的一个客户端（`nomi`），和 CLI 走�
 1. 用户在模型详情里手动填写的值；
 2. 预设里为每个模型整理好的值（§8.4），在 M2 对首批厂商逐个核对官方文档，并记下查证日期；
 3. 上游模型列表接口返回的字段（部分厂商会返回 `context_length` 等）；
-4. 构建时内置一份公开模型目录的快照（候选：models.dev 的数据，引入前用 `pnpm check:licenses` 确认许可，登记 `assets-licenses.json`）。运行时不联网拉取。
+4. 构建时内置一份公开模型目录的快照（models.dev，MIT，`packages/gateway/src/models/catalog.json`，由 `packages/gateway/scripts/build-catalog.mjs` 生成，已登记 `assets-licenses.json`）。运行时可同步（见下文「模型数据同步」），同步到的目录作为覆盖层，没同步过 / 失败时用内置的。
+
+实现（`packages/electron/src/gateway/modelMeta.ts` 的 `resolveModelMeta`）：
+
+- 逐字段取第一个有值的一级，上下文和输出上限可以来自不同的级；
+- 预设按当前版本实时查（已保存的供应商也能用上后来补的值），先按原 id、再按去掉中转前缀后的 id 匹配（预设写 `glm-5.3`，中转列 `z-ai/glm-5.3`）；保存时存下的预设值排在实时预设之后；
+- 模型列表接口的值在「添加供应商」和「刷新」时存成 `metaSource: 'listed'`，字段兼容 `context_length`、`context_window`、`max_model_len`、`inputTokenLimit`、`top_provider.max_completion_tokens` 等（`listedLimits`）；
+- 内置目录收原厂条目；原厂还没收录的新模型（如 deepseek-v4.1-flash，原厂条目滞后、中转先上），按 OpenRouter 的条目补（只补原厂前缀下的模型，不覆盖原厂已有的）；
+- 内置目录按去掉中转前缀、`:free` 等标签和日期后缀后的 id 查；
+- 注入的「上下文」取**最大输入**（models.dev 的 `limit.input`，模型列表接口的 `max_input_tokens` / `inputTokenLimit`），没有时才用总窗口：有的模型为输出预留了一块（gpt-5 系列总窗口 400K、最大输入 272K，与 Codex 官方配置一致；gpt-5.4 起 1.05M / 922K），按总窗口注入会在 CLI 压缩前先撞上上游的上下文超长；
+- 编程助手启动注入（`GatewayService.agentMeta`，终端命令同用）、网关快照（用户 / 预设 / 列表的上限写进 `RuntimeModel`，只来自目录的不写，网关自己读目录）、「模型」页的标签与选择器（状态里每个模型附 `effective`，保存时丢弃）用同一份结果。
+
+**模型数据同步**：用量服务的 `PriceSync` 是唯一的联网点，一次下载 models.dev 同时得到价格表与模型目录（`buildCatalog`，与构建脚本同一个函数）：
+
+- 触发：启动时 `UsageService.autoSync()`（设置 `modelsSyncAuto` 默认开；距上次核对不足 12 小时不联网，网关还没有目录缓存时不等），或「模型」页「立即同步」/ 用量面板「同步价格」；没有后台轮询；
+- 网关：`GatewayService.applyModelsData` 生成目录（条目少于 100 视为异常，不采用），写 `userData/gateway/catalog-sync.json`，主进程 `setCatalogOverlay` 立即生效，配置里带 `catalogFile` 让网关进程按修改时间重读；
+- 查找先覆盖层后内置（models.dev 下架的旧模型仍按内置）；学到的结论只跟内置目录的版本（同步每天都可能更新，跟着它会让学到的结论天天作废）；
+- 网关还没有目录缓存（文件被删）时这次不带 If-None-Match，避免 304 让目录永远建不起来。
+
+**标准窗口与长上下文**：按上下文长度分档计价的模型（gpt-5.4 起超过 272K、Gemini / Grok 超过 200K、Qwen 超过 256K 等按更高单价计费），默认按**标准窗口**（最高一档的计价门槛）注入，用户可按需开启长上下文（注入最大输入）。
+
+- 标准窗口来自内置目录的 `limits.standard`（`build-catalog.mjs` 从 models.dev 的 `cost.tiers[].tier.size` 取最高一档，且小于最大输入时才有）；低于 128K 的档（智谱按 32K 输入分档、Haiku 5.5 的 100K 档）只是计价阶梯，不当窗口——编程助手的系统提示与工具定义就要一二十 K；
+- 优先级：「高级」里手填的上下文 > 标签的选择 > 模型的默认（「模型」页 →「高级」→「默认开启长上下文」）> 标准窗口；手填了上下文就没有标准 / 长之分；
+- 标签的选择记在 `HarnessTabMeta.longContext = { model, on }`：只对记下的模型生效，换了模型自然回到新模型的默认，不需要在各处换模型的路径里重置；与模型默认相同时存 null（跟随默认）；
+- 窗口是进程级注入参数（Claude `CLAUDE_CODE_MAX_CONTEXT_TOKENS`、Codex `model_context_window`、Grok `context_window`、dsh `contextWindow`），切换后复用键变化，下一条消息起重启进程并 `--resume` 续接；后台任务还在跑时拒绝切换（重启会结束后台子代理）。只作用于标签的主模型，档位 / 子代理等其它模型按各自默认；
+- 入口：输入栏模型菜单里的「上下文：标准 / 长上下文」一组（价格取用量面板的价格表，如「超过 272K 的请求按输入 $4/M（标准 $2/M）计费」）；上下文环在已用超过标准窗口 70%（赶在 CLI 80%~90% 的自动压缩之前）时显示提醒点，悬停浮窗里一键开启；「模型」页按模型设默认。没有全局开关，避免不知情时多花钱。
 
 #### 12.7.3 网关侧的请求修正
 
@@ -1106,7 +1136,7 @@ GLM Coding Plan、Kimi 的编程套餐等，Key 往往只能用专用地址，�
 
 沿用现有约束，并补充：
 
-- 客户端令牌在 `store.json` 里加密存储；只有开启终端启动命令时，才额外写出 0600 的明文令牌文件（§12.6）。令牌只能访问本机回环地址上的网关，泄露的影响限于本机其他进程能用用户的第三方额度，所以接受这个取舍；「重置令牌」可以随时作废。
+- 客户端令牌在 `store.json` 里加密存储；只有开启终端启动命令时，才额外写出明文令牌文件（§12.6：POSIX 0600，Windows 另收紧 ACL）。令牌只能访问本机回环地址上的网关，泄露的影响限于本机其他进程能用用户的第三方额度，所以接受这个取舍；「重置令牌」可以随时作废。
 
 - 网关只认自己的客户端令牌；请求里带的其他凭据（官方 OAuth 令牌等）一律不转发、不记录，直接 401（§13 第 1 条）。
 
@@ -1115,7 +1145,12 @@ GLM Coding Plan、Kimi 的编程套餐等，Key 往往只能用专用地址，�
   - **公网地址**：完整走 netGuard 的规则（只允许 http / https、拒绝内嵌凭据、连接时校验解析结果防 DNS 重绑定）。
   - **回环和私网地址**（Ollama、LM Studio、局域网里的自建服务）：netGuard 默认会拒绝，所以单独放行，但只放行用户**显式配置或确认过**的主机和端口（本地服务预设在添加时自动确认，自定义的私网地址在保存时弹窗确认）。连接时仍校验解析结果必须落在已确认的地址上。
   - 不允许上游地址指向网关自己的端口，防止请求转圈。
-- netGuard 现在在 `electron/src/security/netGuard.ts`，只依赖 Node 内置模块。把它的校验核心搬到 `packages/gateway/src/net/`（纯 Node），electron 包改为从网关包导入，满足「网关不 import electron」的约束。
+  - **DNS 钉 IP（防 TOCTOU 重绑定）**：出站统一走 `packages/gateway/src/net/upstreamFetch.ts` 的 undici Agent。每次请求先 `resolveUpstreamAddresses` 校验一次 DNS，再通过 AsyncLocalStorage 把已校验地址钉进自定义 `lookup`，连接不再二次解析。探测配置校验仍可用 `checkUpstream`，但真正的 fetch 路径不依赖第二次未校验的 DNS。
+  - **系统代理**：若环境变量有 `HTTPS_PROXY` / `HTTP_PROXY`（及小写形式），dispatcher 使用 undici `EnvHttpProxyAgent`（尊重 `NO_PROXY`）；直连与连代理的 connect 均走同一套钉 IP lookup。经代理时目标主机由代理侧解析——这是代理场景下的固有限制，直连场景无 TOCTOU。
+  - **超时**：Agent 设合理的 `connectTimeout` / `headersTimeout` 与 keep-alive。
+- **入站请求体上限**：`readBody` 按 `maxRequestBodyBytes`（默认 32 MiB，可在「模型」页高级设置调整，钳制 1–256 MiB）限制；`Content-Length` 超限立即 413，流式读取累计超限也 413 并停止缓冲。
+- **网关进程崩溃熔断**：`GatewayProcess` 在滚动窗口内（默认 60s）连续异常退出达阈值（默认 5 次）后停止自动重启，状态为 `failed`，避免崩溃风暴；窗口外的失败会滑出计数。
+- netGuard 校验核心在 `packages/gateway/src/net/`（纯 Node）；electron 包从网关包导入，满足「网关不 import electron」的约束。
 - Key 用 `safeStorage` 加密存储；解密只在主进程进行，通过 MessagePort 传给网关进程，网关进程只在内存里持有。
 - 配置写入用 `writePrivateFile`；备份目录权限 0700。
 - 新增的 IPC 通道都按 `ai:gateway:<动作>` 命名，走 `guardedHandle` 和 `ipcSenderGuard`：`ai:gateway:state`、`ai:gateway:upsert-provider`、`ai:gateway:remove-provider`、`ai:gateway:detect`、`ai:gateway:set-assignment`、`ai:gateway:reset-token`、`ai:gateway:clear-learned`、`ai:gateway:requests`、`ai:gateway:reimport-legacy`（§6.3 第 5 步），变更广播 `ai:gateway:changed`。返回给渲染进程的数据里 Key 只给掩码，令牌不返回。
@@ -1123,7 +1158,7 @@ GLM Coding Plan、Kimi 的编程套餐等，Key 往往只能用专用地址，�
 ## 16. 界面与文案约定
 
 - 术语统一用「第三方供应商」。
-- 所有中文文案作为 `t()` 的 key，英文同步加到 `packages/ui/src/locales/en.json`，用 `pnpm check:i18n` 检查。
+- 所有界面文案使用 `project.module.message` 稳定 key，语言资源统一放在 `packages/i18n/src/locales`，用 `pnpm check:i18n` 检查。
 - 供应商页和编程助手页同一行的控件用同一个高度令牌（`--cd-control-h-ms`）；协议徽标用现有的 `Badge` 组件 + `variant`，不在外部覆盖样式。
 - 探测结果、回退提示要有 `aria-live`；弹窗支持 `Esc` 关闭并管理焦点。
 
@@ -1174,7 +1209,7 @@ GLM Coding Plan、Kimi 的编程套餐等，Key 往往只能用专用地址，�
 | **H 历史共享**    | §13.1（列全、上限 500、来源标签已完成；筛选、副本续接待做）：压缩会话、上限 500、只读 `state_5.sqlite` 索引、来源 / 线路 / 账号标签与筛选、按会话推断续接来源、去掉推理内容的副本续接。依赖 M0 的 Codex 续接结论，不依赖网关，可以和 M1 并行，先合入                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | 切换官方账号前后，Nomi 历史列表里的会话数量和内容一致；Codex Desktop 创建的会话能在 Nomi 里继续，Desktop 里也能看到新增内容                                                                                |
 | **M1 内核**       | **2026-10-21 已完成**：`packages/gateway` 建好，`transforms.ts` 与 `stream/` 迁入；请求方向改为 4 个解码器 + 4 个编码器（旧的两两转换函数成为薄包装，用旧实现逐条比对过，快照见 `tests/parity.test.ts`）；流式事件补齐推理、签名、加密推理、缓存用量（Messages / Responses / Chat 编码器暂不输出推理，保持现有 CLI 看到的内容不变；Gemini 编码器输出推理文本）；新增 Gemini 流式编码器和非流式聚合；入口按路径识别（`ingress.ts`），认不出的路径沿用旧判断；Gemini 上游路径保留模型名里的 `/`。唯一有意的行为差异：Messages 上游的 `refusal` 停止原因原样透传。count_tokens 仍按旧行为转发，留到 M4（§10.3）。原计划：新建 `packages/gateway`；IR + 4 个解码器 + 4 个编码器；流式事件补字段；入口按路径识别协议；迁移现有 `routing/` 和全部测试；仍在主进程运行，行为与现在一致 | 原有路由测试全部通过；4×4 矩阵测试通过；现有用户无感                                                                                                                                                       |
 | **M1.5 界面原型** | 按 §4 做「模型」页、添加弹窗、`ModelPicker` 的可点击原型（假数据），先评审交互再接数据                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | 交互评审通过                                                                                                                                                                                               |
-| **M2 供应商**     | **进行中**：存储、迁移、探测、utilityProcess 守护、Nomi 对话改走网关与「模型」页、运行时学习、首批厂商预设已完成（2026-10-21，见 §7.4、§8.4、§12.5 实现记录）；验收矩阵的协议部分只跑了 amux 上的 GLM、Kimi（§17）。`GatewayStore` + 迁移（含 `ai-providers.json`）；地址规范化 + 按 Key 探测；预设扩展为多地址；`pickWire` + 运行时学习；按模型名路由；**网关迁到 utilityProcess**，打通配置快照推送（全仓第一次用 `MessageChannelMain`）和就绪时序；Nomi 对话改走网关（§12.5）；**列出 `LLMRegistry.resolve()` 的所有调用方逐一确认**（对话、agent-tools、summary、插件宿主）；首批厂商预设补全模型元数据和 `quirks`（§8.4）；跑验收矩阵的协议部分，定出各厂商的 `preferWire`                                                                                                 | 旧配置自动合并；新增供应商无需选协议；同一个供应商能同时服务 Nomi、Claude Code 和 Codex；网关崩溃重启时 Nomi 对话自动恢复；GLM、DeepSeek、Kimi、Qwen、MiniMax 的预设元数据都有查证日期                     |
+| **M2 供应商**     | **已完成（v2.0.0）**：存储、迁移、探测、utilityProcess 守护、Nomi 对话改走网关与「模型」页、运行时学习、首批厂商预设已完成（2026-10-21，见 §7.4、§8.4、§12.5 实现记录）；验收矩阵的协议部分只跑了 amux 上的 GLM、Kimi（§17）。`GatewayStore` + 迁移（含 `ai-providers.json`）；地址规范化 + 按 Key 探测；预设扩展为多地址；`pickWire` + 运行时学习；按模型名路由；**网关迁到 utilityProcess**，打通配置快照推送（全仓第一次用 `MessageChannelMain`）和就绪时序；Nomi 对话改走网关（§12.5）；**列出 `LLMRegistry.resolve()` 的所有调用方逐一确认**（对话、agent-tools、summary、插件宿主）；首批厂商预设补全模型元数据和 `quirks`（§8.4）；跑验收矩阵的协议部分，定出各厂商的 `preferWire`                                                                                       | 旧配置自动合并；新增供应商无需选协议；同一个供应商能同时服务 Nomi、Claude Code 和 Codex；网关崩溃重启时 Nomi 对话自动恢复；GLM、DeepSeek、Kimi、Qwen、MiniMax 的预设元数据都有查证日期                     |
 | **M3 接入**       | **主体已完成（2026-10-21，见 §12 实现记录）**：进程级注入、标签来源、撤销旧全局配置、模型参数注入、§12.7.3 大部分修正；第三方之间换模型按复用键处理。还没做：工具名映射、服务端工具报错、`recycleTab` 单独的 IPC（来源切换内部已按标签处理）。原计划：先实测 §12 各 CLI 的进程级注入方式并记下版本；`buildCliEnv` 按标签来源注入或剥离网关变量；标签来源菜单与切换规则（§4.3）；客户端令牌；撤销旧版本写进全局配置的第三方设置（§6.3 第 7 步）；删除官方账号切换流程里「自动停用第三方」一步；`recycleBackend` 只处理官方标签，新增 `recycleTab(tabId)`；第三方之间换模型走运行中切换（§13 第 5 条）；模型参数注入（§12.7.1，先实测 `_SUPPORTED_CAPABILITIES` 和 `model_catalog_json` 的格式）；§12.7.3 的请求修正                                                              | 5 个 CLI 都能在 Nomi 标签里用同一个供应商；同一个 CLI 一个标签用官方账号、一个标签用第三方，互不影响；官方账号的多账号切换回归测试全部通过；全局配置文件在第三方会话前后字节一致；核心场景验收矩阵全部通过 |
 | **M4 可靠性**     | **已完成（2026-10-21，见 §11.5）**。原计划：回退与冷却（按 Key × wire）、多 Key、亲和、流式空闲超时、count_tokens 校准、§11.3 全部修正、错误映射                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | 模拟上游 429 / 5xx / 断流 / 静默的集成测试通过                                                                                                                                                             |
 | **M5 界面与观测** | **已完成（2026-10-21）**：供应商详情编辑（Key 顺序 / 增删、模型刷新、回退链、高级）、编程助手行的安装、环境变量供应商只读接入网关（Nomi 对话没分配时默认用它）、终端启动命令（§12.6）、用量面板「最近请求」与按供应商 / Key 维度、调试模式（脱敏、24 小时删除）、托盘列最近 5 个模型；删除旧的 `ai:cli-provider:*`、旧本地路由和 `ai:providers:*` 的增删改通道（只留预设、状态、切换）。请求记录的 IPC 实际名为 `ai:usage:gateway-requests`。原计划：落地 §4 全部界面：「模型」页、添加弹窗、`ModelPicker` 替换对话框和托盘的旧控件；删除 §4.6 列出的旧界面和旧 IPC；用量新维度、请求日志；更新 `docs/features/providers.md` 和截图                                                                                                                                             | 真实应用 E2E 通过；手工验收清单通过；仓库里不再有 `cli-provider` 字样                                                                                                                                      |

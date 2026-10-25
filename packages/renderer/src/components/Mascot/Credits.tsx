@@ -43,17 +43,17 @@ export function collectCredits(
   }));
   rows.push({
     key: 'ui-icons',
-    title: t('工具栏图标'),
+    title: t('ui.chat-settings.toolbar-icons'),
     author: 'Lucide contributors',
     license: 'ISC',
     source: 'https://lucide.dev/license',
   });
   rows.push({
     key: 'icon',
-    title: t('应用图标'),
+    title: t('ui.chat-settings.app-icon'),
     author: 'Cookieboty',
     license: 'First-party',
-    note: t('作者原创，保留所有权利'),
+    note: t('ui.chat-settings.original-work-by-the-author-all-rights-reserved'),
   });
   return rows;
 }
@@ -68,7 +68,7 @@ export const Credits: React.FC = () => {
     <Modal
       open
       onClose={() => dispatch({ type: 'SET_PANEL', payload: null })}
-      title={t('致谢 / Credits')}
+      title={t('ui.chat-settings.credits')}
       data-testid="credits"
     >
       <ul className={styles.credits}>
@@ -89,13 +89,13 @@ export const Credits: React.FC = () => {
             {r.source && <div className={styles.creditSource}>{r.source}</div>}
             {r.termsUrl && (
               <div className={styles.creditSource}>
-                {t('条款：')}
+                {t('ui.chat-settings.terms')}
                 {r.termsUrl}
               </div>
             )}
             {r.licenseFileUrl && (
               <div className={styles.creditSource}>
-                {t('许可文件：')}
+                {t('ui.chat-settings.license-file')}
                 {r.licenseFileUrl}
               </div>
             )}
@@ -103,7 +103,7 @@ export const Credits: React.FC = () => {
         ))}
       </ul>
       <p className={styles.credit}>
-        {t('完整清单见 THIRD_PARTY_NOTICES.md 与 assets-licenses.json。')}
+        {t('ui.chat-settings.see-third-party-notices-md-and-assets-licenses')}
       </p>
     </Modal>
   );

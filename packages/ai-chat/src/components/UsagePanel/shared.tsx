@@ -29,7 +29,7 @@ export const SourceIcon: React.FC<{ source: string; size?: number }> = ({ source
 export const CostCell: React.FC<{ usd: number | null; fx: Fx }> = ({ usd, fx }) =>
   usd == null ? (
     <Badge tone="warning" data-testid="usage-unpriced">
-      {t('未定价')}
+      {t('ui.usage-tools.unpriced')}
     </Badge>
   ) : (
     <>{moneyOf(fx)(usd)}</>

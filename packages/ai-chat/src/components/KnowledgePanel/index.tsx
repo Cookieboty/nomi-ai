@@ -31,6 +31,7 @@ import {
   type KbProgress,
   type KbState,
 } from '../../services/kbClient';
+import { providerDisplayName } from '../../services/providerClient';
 
 import styles from './index.module.css';
 
@@ -44,11 +45,11 @@ type Tab = 'sources' | 'search' | 'models' | 'ocr';
 const fmt = (ts: number) => (ts ? new Date(ts).toLocaleString('zh-CN') : '—');
 
 const PHASE: Record<KbProgress['phase'], string> = {
-  scan: '正在扫描文件…',
-  index: '正在建立索引',
-  done: '索引完成',
-  cancelled: '已取消',
-  error: '索引出错',
+  scan: 'ui.foundation.scanning-files',
+  index: 'ui.foundation.building-index',
+  done: 'ui.foundation.indexing-complete',
+  cancelled: 'ui.foundation.cancelled',
+  error: 'ui.foundation.indexing-error',
   idle: '',
 };
 
@@ -61,7 +62,7 @@ const ProgressBox: React.FC<{ p: KbProgress }> = ({ p }) => {
     <div className={styles.progress} data-testid="kb-progress" role="status" aria-live="polite">
       <div className={styles.row}>
         <strong className={styles.grow}>
-          {PHASE[p.phase]}
+          {tr(PHASE[p.phase])}
           {p.running && p.total ? `（${p.done}/${p.total}）` : ''}
         </strong>
         {p.running ? (
@@ -71,12 +72,13 @@ const ProgressBox: React.FC<{ p: KbProgress }> = ({ p }) => {
             onClick={() => void kbClient.cancel()}
             data-testid="kb-cancel"
           >
-            {tr('取消')}
+            {tr('ui.foundation.cancel')}
           </Button>
         ) : (
           <span className={styles.hint}>
-            {tr('新增')} {p.added} {tr('· 更新')} {p.updated} {tr('· 移除')} {p.removed}
-            {p.failed ? tr(' · 失败 {0}', p.failed) : ''}
+            {tr('ui.foundation.added')} {p.added} {tr('ui.foundation.updated')} {p.updated}{' '}
+            {tr('ui.foundation.removed')} {p.removed}
+            {p.failed ? tr('ui.foundation.failed-named', p.failed) : ''}
           </span>
         )}
       </div>
@@ -115,7 +117,7 @@ const DocList: React.FC<{ sourceId: string; onMsg: (m: string) => void }> = ({
     <div className={styles.stack}>
       <Input
         size="sm"
-        placeholder={tr('按文件名筛选')}
+        placeholder={tr('ui.foundation.filter-by-file-name')}
         value={filter}
         onChange={(e) => setFilter(e.target.value)}
         data-testid="kb-doc-filter"
@@ -123,7 +125,11 @@ const DocList: React.FC<{ sourceId: string; onMsg: (m: string) => void }> = ({
       {!docs ? (
         <Skeleton height={60} />
       ) : docs.length === 0 ? (
-        <p className={styles.hint}>{filter ? tr('没有匹配的文件') : tr('还没有索引到文件')}</p>
+        <p className={styles.hint}>
+          {filter
+            ? tr('ui.foundation.no-matching-files')
+            : tr('ui.foundation.no-files-indexed-yet')}
+        </p>
       ) : (
         <ul className={styles.docList} data-testid="kb-docs">
           {docs.map((d) => (
@@ -133,20 +139,22 @@ const DocList: React.FC<{ sourceId: string; onMsg: (m: string) => void }> = ({
                 className={styles.docBtn}
                 title={d.error ? `${d.path}\n${d.error}` : d.path}
                 onClick={() =>
-                  void kbClient.open(d.id).then((r) => !r.ok && onMsg(r.error ?? tr('打开失败')))
+                  void kbClient
+                    .open(d.id)
+                    .then((r) => !r.ok && onMsg(r.error ?? tr('ui.foundation.couldn-t-open')))
                 }
               >
                 {tr(d.title)}
               </button>
               {d.ocr && <Badge>OCR</Badge>}
-              {d.vectors && <Badge tone="accent">{tr('向量')}</Badge>}
+              {d.vectors && <Badge tone="accent">{tr('ui.foundation.vector')}</Badge>}
               {d.status === 'error' ? (
-                <Badge tone="danger">{tr('失败')}</Badge>
+                <Badge tone="danger">{tr('ui.foundation.failed')}</Badge>
               ) : d.status === 'empty' ? (
-                <Badge tone="warning">{tr('无文本')}</Badge>
+                <Badge tone="warning">{tr('ui.foundation.no-text')}</Badge>
               ) : (
                 <span className={styles.hint}>
-                  {d.chunks} {tr('段')}
+                  {d.chunks} {tr('ui.foundation.chunks')}
                 </span>
               )}
             </li>
@@ -171,15 +179,14 @@ const ModelSection: React.FC<{
   const blocked = !!provider && !provider.local && st.localOnly;
   const save = (patch: Partial<KbModelRef>) =>
     void kbClient.setSettings({ [kind]: { ...ref, model, ...patch } } as never);
-  const title = kind === 'embed' ? tr('向量检索（可选）') : tr('重排序（可选）');
+  const title =
+    kind === 'embed'
+      ? tr('ui.foundation.vector-search-optional')
+      : tr('ui.foundation.reranking-optional');
   const desc =
     kind === 'embed'
-      ? tr(
-          '在关键词（BM25）之外按语义召回。推荐本机 Ollama：ollama pull nomic-embed-text 或 bge-m3。开启后会重新建立索引。',
-        )
-      : tr(
-          '对候选片段再打分排序。需要支持 /rerank 接口的服务（如 llama.cpp server、TEI、Jina 兼容服务）。',
-        );
+      ? tr('ui.foundation.semantic-recall-on-top-of-keyword-bm25-search')
+      : tr('ui.foundation.re-scores-and-reorders-candidate-chunks-requires-a');
   return (
     <section className={styles.section} data-testid={`kb-${kind}`}>
       <div className={styles.row}>
@@ -187,7 +194,7 @@ const ModelSection: React.FC<{
         <Switch
           checked={ref.enabled}
           onChange={(v) => save({ enabled: v })}
-          label={tr('启用')}
+          label={tr('ui.foundation.enable-label')}
           data-testid={`kb-${kind}-enabled`}
         />
       </div>
@@ -196,20 +203,24 @@ const ModelSection: React.FC<{
         <Select
           size="sm"
           value={ref.providerId}
-          placeholder={tr('选择服务')}
+          placeholder={tr('ui.foundation.choose-a-service')}
           onChange={(e) => save({ providerId: e.target.value })}
           options={st.providers.map((p) => ({
             value: p.id,
-            label: p.name,
-            description: p.local ? tr('本机') : tr('云端'),
-            group: p.local ? tr('本机服务') : tr('云端服务'),
+            label: providerDisplayName(p.name),
+            description: p.local ? tr('ui.foundation.local') : tr('ui.foundation.cloud'),
+            group: p.local
+              ? tr('ui.foundation.local-services')
+              : tr('ui.foundation.cloud-services'),
           }))}
           data-testid={`kb-${kind}-provider`}
         />
         <Input
           size="sm"
           placeholder={
-            kind === 'embed' ? tr('模型，如 nomic-embed-text') : tr('模型，如 bge-reranker-v2-m3')
+            kind === 'embed'
+              ? tr('ui.foundation.model-e-g-nomic-embed-text')
+              : tr('ui.foundation.model-e-g-bge-reranker-v2-m3')
           }
           value={model}
           onChange={(e) => setModel(e.target.value)}
@@ -227,7 +238,7 @@ const ModelSection: React.FC<{
             setTest(await kbClient.test(kind));
           }}
         >
-          {test === 'busy' ? tr('测试中…') : tr('测试连接')}
+          {test === 'busy' ? tr('ui.foundation.testing') : tr('ui.foundation.test-connection')}
         </Button>
       </div>
       {test && test !== 'busy' && (
@@ -235,12 +246,12 @@ const ModelSection: React.FC<{
       )}
       {st.providers.length === 0 && (
         <p className={styles.hint}>
-          {tr('还没有可用的服务。先在「设置 → 模型」里添加 Ollama 或其他 OpenAI 兼容服务。')}
+          {tr('ui.cli-monitor.no-service-available-yet-first-add-ollama-or')}
         </p>
       )}
       {blocked && (
         <Notice tone="warning">
-          {tr('已开启「仅本地模型可读文件」，不会把文件片段发送给云端服务「')}
+          {tr('ui.foundation.only-local-models-can-read-files-is-on')}
           {tr(provider!.name)}」。
         </Notice>
       )}
@@ -249,9 +260,11 @@ const ModelSection: React.FC<{
           <div className={styles.stack}>
             <span>
               「{tr(provider!.name)}
-              {tr('」是云端服务：')}
-              {kind === 'embed' ? tr('建立索引和检索时') : tr('检索时')}
-              {tr('会把文件内容片段发送给它。确认后才会使用。')}
+              {tr('ui.foundation.is-a-cloud-service')}
+              {kind === 'embed'
+                ? tr('ui.foundation.when-indexing-and-searching')
+                : tr('ui.foundation.when-searching')}
+              {tr('ui.foundation.file-content-chunks-are-sent-to-it-it')}
             </span>
             <div>
               <Button
@@ -260,11 +273,11 @@ const ModelSection: React.FC<{
                 onClick={() =>
                   void kbClient
                     .consentCloud(provider!.id)
-                    .then(() => onMsg(tr('已同意使用「{0}」', provider!.name)))
+                    .then(() => onMsg(tr('ui.foundation.agreed-to-use', provider!.name)))
                 }
                 data-testid={`kb-${kind}-consent`}
               >
-                {tr('我同意发送文件片段')}
+                {tr('ui.foundation.i-agree-to-send-file-chunks')}
               </Button>
             </div>
           </div>
@@ -305,14 +318,16 @@ const OcrRow: React.FC<{
             </div>
           )}
           {live?.phase === 'error' && <span className={styles.err}>{live.error}</span>}
-          {live?.phase === 'cancelled' && <span className={styles.hint}>{tr('已取消下载')}</span>}
+          {live?.phase === 'cancelled' && (
+            <span className={styles.hint}>{tr('ui.knowledge-local.download-cancelled')}</span>
+          )}
         </div>
         <div className={styles.itemCtrl}>
           {a.installed ? (
             <>
-              <Badge tone="success">{tr('已安装')}</Badge>
+              <Badge tone="success">{tr('ui.knowledge-local.installed')}</Badge>
               <Button size="sm" variant="ghost" onClick={() => void kbClient.ocrRemove(a.id)}>
-                {tr('删除')}
+                {tr('ui.foundation.delete')}
               </Button>
             </>
           ) : dl ? (
@@ -322,7 +337,7 @@ const OcrRow: React.FC<{
               onClick={() => void kbClient.ocrCancel(a.id)}
               data-testid="kb-ocr-cancel"
             >
-              {tr('取消')}
+              {tr('ui.foundation.cancel')}
             </Button>
           ) : (
             <Button
@@ -331,7 +346,7 @@ const OcrRow: React.FC<{
               onClick={() => setConfirm(true)}
               data-testid="kb-ocr-download"
             >
-              {tr('下载')}
+              {tr('ui.knowledge-local.download')}
             </Button>
           )}
         </div>
@@ -342,10 +357,10 @@ const OcrRow: React.FC<{
           <Modal
             open={confirm}
             onClose={() => setConfirm(false)}
-            title={tr('下载前请确认许可')}
+            title={tr('ui.knowledge-local.please-review-the-license-before-downloading')}
             footer={
               <>
-                <Button onClick={() => setConfirm(false)}>{tr('取消')}</Button>
+                <Button onClick={() => setConfirm(false)}>{tr('ui.foundation.cancel')}</Button>
                 <Button
                   variant="primary"
                   data-testid="kb-ocr-accept"
@@ -353,10 +368,10 @@ const OcrRow: React.FC<{
                     setConfirm(false);
                     void kbClient
                       .ocrDownload(a.id)
-                      .then((r) => r.ok && onMsg(tr('{0} 已就绪', a.name)));
+                      .then((r) => r.ok && onMsg(tr('ui.knowledge-local.is-ready', a.name)));
                   }}
                 >
-                  {tr('同意并下载')}
+                  {tr('ui.knowledge-local.agree-and-download')}
                 </Button>
               </>
             }
@@ -366,18 +381,18 @@ const OcrRow: React.FC<{
                 <strong>{tr(a.name)}</strong>（{fmtBytes(a.bytes)}）
               </p>
               <p>
-                {tr('许可：')}
+                {tr('ui.foundation.license')}
                 <strong>{a.license}</strong> ·{' '}
                 <a className={styles.link} href={a.licenseUrl} target="_blank" rel="noreferrer">
-                  {tr('查看许可全文')}
+                  {tr('ui.knowledge-local.view-full-license')}
                 </a>
               </p>
               <p className={styles.mono}>
-                {tr('来源：')}
+                {tr('ui.knowledge-local.source')}
                 {a.sourceUrl}
               </p>
               <p className={styles.hint}>
-                {tr('文件下载后会校验 SHA-256，只保存在本机，识别完全离线进行。')}
+                {tr('ui.knowledge-local.files-are-verified-with-sha-256-after-download')}
               </p>
             </div>
           </Modal>,
@@ -446,7 +461,7 @@ export const KnowledgePanel: React.FC<Props> = ({ isVisible, onClose }) => {
   const addFolder = async () => {
     try {
       const s = await kbClient.addFolder();
-      setMsg(s ? tr('已加入：{0}，正在建立索引…', s.path) : '');
+      setMsg(s ? tr('ui.knowledge-local.added-building-index', s.path) : '');
     } catch (e) {
       setMsg(e instanceof Error ? e.message : String(e));
     }
@@ -466,12 +481,16 @@ export const KnowledgePanel: React.FC<Props> = ({ isVisible, onClose }) => {
   const hasNotes = st?.sources.some((s) => s.kind === 'notes');
 
   return (
-    <Modal open onClose={onClose} title={tr('本地知识库')} size="lg" data-testid="kb-panel">
+    <Modal
+      open
+      onClose={onClose}
+      title={tr('ui.knowledge-local.local-knowledge-base')}
+      size="lg"
+      data-testid="kb-panel"
+    >
       <div className={styles.stack}>
         <Notice icon={Lock}>
-          {tr(
-            '索引只保存在本机。只会读取你在这里加入的文件夹（同时授予只读权限）和本地笔记；云端模型参与前会先征求同意。',
-          )}
+          {tr('ui.knowledge-local.the-index-is-stored-only-on-this-device')}
         </Notice>
         {err && (
           <ErrorState detail={err} onRetry={() => void refresh()} data-testid="panel-error" />
@@ -481,10 +500,10 @@ export const KnowledgePanel: React.FC<Props> = ({ isVisible, onClose }) => {
           <>
             <div className={styles.stats}>
               {[
-                [tr('文档'), st.stats.docs],
-                [tr('片段'), st.stats.chunks],
-                [tr('向量'), st.stats.vectors],
-                [tr('失败'), st.stats.errors],
+                [tr('ui.knowledge-local.documents'), st.stats.docs],
+                [tr('ui.knowledge-local.chunks'), st.stats.chunks],
+                [tr('ui.foundation.vector'), st.stats.vectors],
+                [tr('ui.foundation.failed'), st.stats.errors],
               ].map(([l, n]) => (
                 <div key={l} className={styles.stat}>
                   <span className={styles.statNum}>{n}</span>
@@ -501,10 +520,10 @@ export const KnowledgePanel: React.FC<Props> = ({ isVisible, onClose }) => {
                 setMsg('');
               }}
               items={[
-                { value: 'sources', label: tr('来源') },
-                { value: 'search', label: tr('检索测试') },
-                { value: 'models', label: tr('向量与重排') },
-                { value: 'ocr', label: tr('OCR 识别') },
+                { value: 'sources', label: tr('ui.knowledge-local.sources') },
+                { value: 'search', label: tr('ui.knowledge-local.search-test') },
+                { value: 'models', label: tr('ui.knowledge-local.vectors-reranking') },
+                { value: 'ocr', label: tr('ui.knowledge-local.ocr') },
               ]}
             />
             {msg && (
@@ -523,7 +542,7 @@ export const KnowledgePanel: React.FC<Props> = ({ isVisible, onClose }) => {
                     data-testid="kb-add-folder"
                   >
                     <Icon icon={Plus} size={14} />
-                    {tr('加入文件夹')}
+                    {tr('ui.knowledge-local.add-folder')}
                   </Button>
                   {!hasNotes && (
                     <Button
@@ -533,7 +552,7 @@ export const KnowledgePanel: React.FC<Props> = ({ isVisible, onClose }) => {
                       data-testid="kb-add-notes"
                     >
                       <Icon icon={Plus} size={14} />
-                      {tr('加入我的笔记')}
+                      {tr('ui.knowledge-local.add-my-notes')}
                     </Button>
                   )}
                   <span className={styles.grow} />
@@ -546,7 +565,7 @@ export const KnowledgePanel: React.FC<Props> = ({ isVisible, onClose }) => {
                     data-testid="kb-reindex"
                   >
                     <Icon icon={RefreshCw} size={14} />
-                    {tr('更新索引')}
+                    {tr('ui.knowledge-local.update-index')}
                   </Button>
                   <Button
                     size="sm"
@@ -554,16 +573,14 @@ export const KnowledgePanel: React.FC<Props> = ({ isVisible, onClose }) => {
                     disabled={st.progress.running || !st.sources.length}
                     onClick={() => void kbClient.reindex(true)}
                   >
-                    {tr('全部重建')}
+                    {tr('ui.knowledge-local.rebuild-all')}
                   </Button>
                 </div>
                 {st.sources.length === 0 ? (
                   <EmptyState
                     icon={FolderOpen}
-                    title={tr('知识库还是空的')}
-                    description={tr(
-                      '加入一个文件夹（支持 txt / md / pdf / docx / odt / rtf / xlsx / csv，开启 OCR 后还能识别图片），Nomi 就能基于你的资料回答并标注出处。',
-                    )}
+                    title={tr('ui.knowledge-local.the-knowledge-base-is-empty')}
+                    description={tr('ui.knowledge-local.add-a-folder-txt-md-pdf-docx-odt')}
                   />
                 ) : (
                   st.sources.map((s) => (
@@ -573,14 +590,16 @@ export const KnowledgePanel: React.FC<Props> = ({ isVisible, onClose }) => {
                       title={
                         <span className={styles.row}>
                           <Icon icon={s.kind === 'notes' ? NotebookPen : Folder} size={14} />
-                          {s.kind === 'notes' ? tr('我的笔记') : shortPath(s.path ?? '')}
+                          {s.kind === 'notes'
+                            ? tr('ui.knowledge-local.my-notes')
+                            : shortPath(s.path ?? '')}
                         </span>
                       }
                       subtitle={tr(
-                        '{0} 个文件 · {1} 段{2} · 最近索引 {3}',
+                        'ui.knowledge-local.files-chunks-last-indexed',
                         s.docs,
                         s.chunks,
-                        s.errors ? tr(' · {0} 个失败', s.errors) : '',
+                        s.errors ? tr('ui.knowledge-local.failed', s.errors) : '',
                         fmt(s.lastIndexed),
                       )}
                       actions={
@@ -588,14 +607,20 @@ export const KnowledgePanel: React.FC<Props> = ({ isVisible, onClose }) => {
                           <Switch
                             checked={s.enabled}
                             onChange={(v) => void kbClient.toggleSource(s.id, v)}
-                            label={s.enabled ? tr('启用') : tr('停用')}
+                            label={
+                              s.enabled
+                                ? tr('ui.foundation.enable-label')
+                                : tr('ui.knowledge-local.disable')
+                            }
                           />
                           <Button
                             size="sm"
                             variant="ghost"
                             onClick={() => setOpen(open === s.id ? null : s.id)}
                           >
-                            {open === s.id ? tr('收起') : tr('文件')}
+                            {open === s.id
+                              ? tr('ui.knowledge-local.collapse')
+                              : tr('ui.knowledge-local.files')}
                           </Button>
                           <Button
                             size="sm"
@@ -603,11 +628,13 @@ export const KnowledgePanel: React.FC<Props> = ({ isVisible, onClose }) => {
                             onClick={() =>
                               void kbClient
                                 .removeSource(s.id)
-                                .then(() => setMsg(tr('已移除来源及其索引')))
+                                .then(() =>
+                                  setMsg(tr('ui.knowledge-local.source-and-its-index-removed')),
+                                )
                             }
                             data-testid="kb-remove-source"
                           >
-                            {tr('移除')}
+                            {tr('ui.knowledge-local.remove')}
                           </Button>
                         </>
                       }
@@ -618,8 +645,9 @@ export const KnowledgePanel: React.FC<Props> = ({ isVisible, onClose }) => {
                   ))
                 )}
                 <p className={styles.hint}>
-                  {tr('在对话框里按')} <span className={styles.kbd}>Ctrl/⌘ + Shift + K</span>{' '}
-                  {tr('切换「知识库问答」，回答会附上可点击的出处。')}
+                  {tr('ui.knowledge-local.in-the-chat-box-press')}{' '}
+                  <span className={styles.kbd}>Ctrl/⌘ + Shift + K</span>{' '}
+                  {tr('ui.knowledge-local.to-toggle-knowledge-base-q-a-answers-include')}
                 </p>
               </div>
             )}
@@ -630,7 +658,7 @@ export const KnowledgePanel: React.FC<Props> = ({ isVisible, onClose }) => {
                   <Input
                     ref={searchRef}
                     className={styles.grow}
-                    placeholder={tr('输入问题或关键词，看看能检索到哪些片段')}
+                    placeholder={tr('ui.knowledge-local.enter-a-question-or-keywords-to-see-which')}
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && void runSearch()}
@@ -641,25 +669,27 @@ export const KnowledgePanel: React.FC<Props> = ({ isVisible, onClose }) => {
                     onClick={() => void runSearch()}
                     disabled={!query.trim()}
                   >
-                    {tr('检索')}
+                    {tr('ui.knowledge-local.search')}
                   </Button>
                 </div>
                 {hits === 'busy' ? (
                   <Skeleton height={80} />
                 ) : hits === null ? (
                   <p className={styles.hint}>
-                    {tr('检索只在本机进行（开启向量检索时，查询语句会发给所选的向量服务）。')}
+                    {tr('ui.knowledge-local.search-runs-only-on-this-device-with-vector')}
                   </p>
                 ) : hits.hits.length === 0 ? (
                   <EmptyState
                     icon={SearchX}
-                    title={tr('没有找到相关片段')}
-                    description={tr('换个关键词，或检查来源是否已建立索引。')}
+                    title={tr('ui.knowledge-local.no-relevant-chunks-found')}
+                    description={tr(
+                      'ui.knowledge-local.try-different-keywords-or-check-that-the-sources',
+                    )}
                   />
                 ) : (
                   <>
                     <span className={styles.hint}>
-                      {tr('检索方式：')}
+                      {tr('ui.knowledge-local.retrieval')}
                       {hits.mode}
                     </span>
                     {hits.hits.map((h, i) => (
@@ -676,7 +706,7 @@ export const KnowledgePanel: React.FC<Props> = ({ isVisible, onClose }) => {
                             }
                           >
                             {tr(h.title)}
-                            {h.page ? tr(' · 第 {0} 页', h.page) : ''}
+                            {h.page ? tr('ui.knowledge-local.page', h.page) : ''}
                           </button>
                         </div>
                         <span className={styles.hitText}>{tr(h.text)}</span>
@@ -704,9 +734,11 @@ export const KnowledgePanel: React.FC<Props> = ({ isVisible, onClose }) => {
                 <section className={styles.section}>
                   <div className={styles.item}>
                     <div className={styles.itemText}>
-                      <h4 className={styles.sectionTitle}>{tr('每次引用片段数')}</h4>
+                      <h4 className={styles.sectionTitle}>
+                        {tr('ui.knowledge-local.chunks-cited-per-answer')}
+                      </h4>
                       <p className={styles.hint}>
-                        {tr('知识库问答时附给模型的片段数量；越多越全面，也越占上下文。')}
+                        {tr('ui.knowledge-local.how-many-passages-are-given-to-the-model')}
                       </p>
                     </div>
                     <span className={styles.selectBox}>
@@ -718,7 +750,7 @@ export const KnowledgePanel: React.FC<Props> = ({ isVisible, onClose }) => {
                         }
                         options={[4, 6, 8, 10].map((n) => ({
                           value: String(n),
-                          label: tr('{0} 段', n),
+                          label: tr('ui.knowledge-local.chunks-count', n),
                         }))}
                         data-testid="kb-topk"
                       />
@@ -732,22 +764,20 @@ export const KnowledgePanel: React.FC<Props> = ({ isVisible, onClose }) => {
               <section className={styles.section} data-testid="kb-ocr">
                 <div className={styles.row}>
                   <h4 className={`${styles.sectionTitle} ${styles.grow}`}>
-                    {tr('识别图片中的文字（OCR）')}
+                    {tr('ui.knowledge-local.recognize-text-in-images-ocr')}
                   </h4>
                   <Switch
                     checked={st.settings.ocr.enabled}
                     onChange={(v) =>
                       void kbClient.setSettings({ ocr: { ...st.settings.ocr, enabled: v } })
                     }
-                    label={tr('启用')}
-                    aria-label={tr('索引图片中的文字（png / jpg / webp / bmp / tiff）')}
+                    label={tr('ui.foundation.enable-label')}
+                    aria-label={tr('ui.knowledge-local.index-text-in-images-png-jpg-webp-bmp')}
                     data-testid="kb-ocr-enabled"
                   />
                 </div>
                 <p className={styles.hint}>
-                  {tr(
-                    '索引 png / jpg / webp / bmp / tiff 里的文字。使用 tesseract.js 在本机离线识别，需要先下载对应语言的识别数据；开启后点「更新索引」。',
-                  )}
+                  {tr('ui.knowledge-local.index-text-in-png-jpg-webp-bmp-tiff')}
                 </p>
                 <div className={styles.items}>
                   {st.ocr.map((a) => (

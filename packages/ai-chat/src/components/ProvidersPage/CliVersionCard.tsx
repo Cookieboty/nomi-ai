@@ -183,17 +183,17 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
 
   const statusText =
     state === 'missing'
-      ? t('未安装')
+      ? t('ui.mascot-theme.not-installed')
       : state === 'outdated'
-        ? t('有新版本')
+        ? t('ui.cli-monitor.update-available')
         : state === 'current'
-          ? t('已是最新')
+          ? t('ui.cli-monitor.up-to-date')
           : info
-            ? t('已安装')
+            ? t('ui.knowledge-local.installed')
             : !loaded
-              ? t('检测中…')
+              ? t('ui.voice-mascot.checking')
               : // 主进程没返回这个端点（例如应用还没重启到新版本）：不要冒充「已安装」
-                t('无法检测，请重启 Nomi 后再试');
+                t('ui.providers-schedule.couldn-t-detect-it-restart-nomi-and-try');
   const statusTone: BadgeTone =
     state === 'current'
       ? 'success'
@@ -205,14 +205,14 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
 
   const actionLabel =
     state === 'missing'
-      ? t('一键安装')
+      ? t('ui.cli-monitor.install')
       : state === 'outdated'
-        ? t('更新到 {0}', info?.latest ?? '')
-        : t('重新安装最新版');
+        ? t('ui.cli-monitor.update-to', info?.latest ?? '')
+        : t('ui.cli-monitor.reinstall-latest');
 
   return (
     <SettingsGroup
-      title={t('版本')}
+      title={t('ui.foundation.version')}
       data-testid={`cli-version-card-${kind}`}
       actions={
         <>
@@ -223,7 +223,7 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
             data-testid={`cli-version-check-${kind}`}
             onClick={() => void load(true)}
           >
-            {checking ? t('检查中…') : t('检查更新')}
+            {checking ? t('ui.cli-monitor.checking') : t('ui.mascot-theme.check-for-updates')}
           </Button>
           {/* 第一次检测完成前不知道该装还是该更新：先不显示主操作 */}
           {loaded && (
@@ -231,18 +231,22 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
               size="sm"
               variant={state === 'missing' || state === 'outdated' ? 'primary' : 'secondary'}
               disabled={checking || running || otherBusy || !info}
-              title={otherBusy ? t('已有安装 / 更新在进行') : undefined}
+              title={
+                otherBusy
+                  ? t('ui.foundation.another-install-update-is-already-in-progress')
+                  : undefined
+              }
               data-testid={`cli-version-action-${kind}`}
               onClick={() => void openPlan()}
             >
-              {running ? t('进行中…') : actionLabel}
+              {running ? t('ui.cli-monitor.working') : actionLabel}
             </Button>
           )}
         </>
       }
     >
       <SettingRow
-        title={t('已装版本')}
+        title={t('ui.cli-monitor.installed-version')}
         description={
           info?.path ? (
             <span className={styles.path} title={info.path}>
@@ -258,7 +262,7 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
           {statusText}
         </Badge>
       </SettingRow>
-      <SettingRow title={t('最新版本')}>
+      <SettingRow title={t('ui.cli-monitor.latest-version')}>
         <span className={styles.ver} data-testid={`cli-version-latest-${kind}`}>
           {info?.latest ?? '—'}
         </span>
@@ -267,9 +271,9 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
       {info?.runtimeWarning && (
         <Notice tone="warning" data-testid={`cli-runtime-warning-${kind}`}>
           {t(
-            'dsh 需要 Node ≥ {0}，当前 PATH 上的 Node 为 {1}；升级 Node 后才能接管 dsh。',
+            'ui.mascot-theme.dsh-needs-node-but-the-node-on-path',
             info.runtimeWarning.required,
-            info.runtimeWarning.nodeVersion ?? t('未找到'),
+            info.runtimeWarning.nodeVersion ?? t('ui.mascot-theme.not-found'),
           )}
         </Notice>
       )}
@@ -286,7 +290,7 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
           aria-live="polite"
           data-testid={`cli-version-log-${kind}`}
         >
-          {lines.join('\n') || t('正在执行…')}
+          {lines.join('\n') || t('ui.cli-monitor.running')}
         </pre>
       )}
       {result && (
@@ -296,8 +300,8 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
           data-ok={result.ok ? '1' : '0'}
         >
           {result.ok
-            ? t('{0} 已就绪，版本 {1}。', name, result.version ?? '—')
-            : t('{0} 没有安装 / 更新成功：', name)}
+            ? t('ui.cli-monitor.is-ready-version', name, result.version ?? '—')
+            : t('ui.cli-monitor.could-not-be-installed-updated', name)}
           {result.note ? ` ${result.note}` : ''}
           {!result.ok && result.log ? <pre className={styles.logBox}>{result.log}</pre> : null}
           <Button
@@ -306,7 +310,7 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
             data-testid={`cli-version-dismiss-${kind}`}
             onClick={dismissResult}
           >
-            {t('关闭结果')}
+            {t('ui.cli-monitor.dismiss')}
           </Button>
         </Notice>
       )}

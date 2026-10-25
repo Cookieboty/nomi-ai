@@ -185,7 +185,7 @@ body {
   min-width: 0;
 }
 
-/* 输入框下方的工作目录 / 供应商：与输入框同宽、左对齐的一行轻量信息（菜单向上弹） */
+/* 对话区顶部的待带入前文提示：与消息列同宽、左对齐的一行轻量信息。 */
 .session-bar {
   display: flex;
   justify-content: flex-start;

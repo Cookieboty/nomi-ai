@@ -100,15 +100,19 @@ export const WorkspacePicker: React.FC<{
         disabled={disabled}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={t('工作目录：{0}', value || t('未设置'))}
-        title={value ? [t('工作目录'), value].join('\n') : t('选择工作目录')}
+        aria-label={t('ui.cli-monitor.workspace', value || t('ui.cli-monitor.not-set'))}
+        title={
+          value
+            ? [t('ui.cli-monitor.workspace-label'), value].join('\n')
+            : t('ui.cli-monitor.choose-workspace')
+        }
         data-testid={`${testId}-button`}
         onClick={() => setOpen((v) => !v)}
       >
         <Icon icon={Folder} size={14} />
         {label && <span className={styles.label}>{label}</span>}
         <span className={styles.path} data-testid={`${testId}-path`}>
-          {shortenPath(value) || t('选择目录')}
+          {shortenPath(value) || t('ui.cli-monitor.choose-folder')}
         </span>
       </button>
       {open &&
@@ -120,7 +124,7 @@ export const WorkspacePicker: React.FC<{
             role="menu"
             data-testid={`${testId}-menu`}
           >
-            {recent.length > 0 && <div className={styles.group}>{t('最近使用')}</div>}
+            {recent.length > 0 && <div className={styles.group}>{t('ui.cli-monitor.recent')}</div>}
             {recent.map((p) => (
               <button
                 key={p}
@@ -148,7 +152,7 @@ export const WorkspacePicker: React.FC<{
               <span className={styles.check}>
                 <Icon icon={FolderOpen} size={14} />
               </span>
-              {t('选择文件夹…')}
+              {t('ui.cli-monitor.choose-folder-ellipsis')}
             </button>
           </div>,
           document.body,

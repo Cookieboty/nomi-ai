@@ -14,7 +14,9 @@ import {
   parseCodexLine,
   parseDshLine,
   parseGrokLine,
-} from '../../../src/cli/streamParse';
+} from '@nomi-ai/cli-plugins/main';
+
+import '../../../src/cli/pluginI18n';
 import type { HarnessEvent } from '../../../src/cli/types';
 
 describe('streamParse', () => {
@@ -89,7 +91,12 @@ describe('streamParse', () => {
         },
       }),
     );
-    expect(ev[0]).toEqual({ type: 'permission', id: 'req-1', summary: 'Bash: ls -la' });
+    expect(ev[0]).toEqual({
+      type: 'permission',
+      id: 'req-1',
+      summary: 'Bash: ls -la',
+      toolName: 'Bash',
+    });
     expect(
       parseClaudeLine(
         JSON.stringify({
@@ -99,6 +106,40 @@ describe('streamParse', () => {
         }),
       ),
     ).toEqual([]);
+  });
+
+  it('marks ExitPlanMode can_use_tool as approve-plan (PR3)', () => {
+    const ev = parseClaudeLine(
+      JSON.stringify({
+        type: 'control_request',
+        request_id: 'exit-1',
+        request: {
+          subtype: 'can_use_tool',
+          tool_name: 'ExitPlanMode',
+          input: { plan: 'ship it' },
+        },
+      }),
+    );
+    expect(ev[0]).toEqual({
+      type: 'permission',
+      id: 'exit-1',
+      summary: 'ExitPlanMode: ship it',
+      toolName: 'ExitPlanMode',
+      kind: 'approve-plan',
+    });
+  });
+
+  it('forwards system/status.permissionMode for label write-back (PR3)', () => {
+    expect(
+      parseClaudeLine(
+        JSON.stringify({
+          type: 'system',
+          subtype: 'status',
+          status: 'ok',
+          permissionMode: 'acceptEdits',
+        }),
+      ),
+    ).toEqual([{ type: 'status', kind: 'clear', permissionMode: 'acceptEdits' }]);
   });
 
   it('parses claude tool_use start and tool_result done/error', () => {

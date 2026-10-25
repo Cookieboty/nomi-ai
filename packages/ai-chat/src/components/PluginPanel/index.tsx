@@ -11,6 +11,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { extClient, type McpList, type SkillInfo } from '../../services/extClient';
 import type { SlashDiscoveryEntry } from '../../services/harnessClient';
 import type { ConversationBackend } from '../../types/chat';
+import { hasSlashCommands } from '../../utils/cliCaps';
 import { ENDPOINT_FULL } from '../../utils/endpointBadge';
 
 import styles from './index.module.css';
@@ -27,10 +28,10 @@ interface Row {
 }
 
 const SCOPE: Record<SlashDiscoveryEntry['scope'], () => string> = {
-  project: () => tr('项目'),
-  user: () => tr('用户'),
-  plugin: () => tr('插件'),
-  bundled: () => tr('Grok 自带'),
+  project: () => tr('ui.slash-commands.project'),
+  user: () => tr('ui.slash-commands.user'),
+  plugin: () => tr('ui.slash-commands.plugin'),
+  bundled: () => tr('ui.slash-commands.bundled-with-grok'),
 };
 
 const toRow = (e: SlashDiscoveryEntry): Row => ({
@@ -40,7 +41,9 @@ const toRow = (e: SlashDiscoveryEntry): Row => ({
   badges: [
     e.scope === 'plugin' && e.plugin ? e.plugin : SCOPE[e.scope](),
     ...(e.transport ? [e.transport] : []),
-    ...(e.kind !== 'mcp' && e.kind !== 'plugin' && !e.userInvocable ? [tr('仅模型调用')] : []),
+    ...(e.kind !== 'mcp' && e.kind !== 'plugin' && !e.userInvocable
+      ? [tr('ui.slash-commands.model-only')]
+      : []),
   ],
   where: e.where,
   ...(e.argumentHint ? { hint: e.argumentHint } : {}),
@@ -95,13 +98,16 @@ export const PluginPanel: React.FC<Props> = ({
           key: s.name,
           name: `/${s.name}`,
           description: s.description,
-          badges: [s.builtin ? tr('内置') : tr('自定义'), s.enabled ? tr('已启用') : tr('未启用')],
+          badges: [
+            s.builtin ? tr('ui.chat-settings.built-in') : tr('ui.providers-schedule.custom'),
+            s.enabled ? tr('ui.foundation.enabled') : tr('ui.slash-commands.disabled'),
+          ],
         })),
         plugins: [],
         mcp: (nomi?.mcp?.servers ?? []).map((m) => ({
           key: m.id,
           name: m.name,
-          description: m.tools.length ? tr('{0} 个工具', m.tools.length) : '',
+          description: m.tools.length ? tr('ui.slash-commands.tools', m.tools.length) : '',
           badges: [m.transport, m.status],
         })),
         agents: [],
@@ -118,11 +124,11 @@ export const PluginPanel: React.FC<Props> = ({
   const tabs: Array<{ value: Tab; label: string }> = (
     cli
       ? [
-          { value: 'commands', label: tr('命令') },
+          { value: 'commands', label: tr('ui.foundation.command') },
           { value: 'skills', label: tr('Skills') },
-          { value: 'plugins', label: tr('插件') },
+          { value: 'plugins', label: tr('ui.slash-commands.plugin') },
           { value: 'mcp', label: tr('MCP') },
-          { value: 'agents', label: tr('子代理') },
+          { value: 'agents', label: tr('ui.usage-tools.subagent') },
         ]
       : [
           { value: 'skills', label: tr('Skills') },
@@ -134,13 +140,14 @@ export const PluginPanel: React.FC<Props> = ({
   })) as Array<{ value: Tab; label: string }>;
   const active: Tab = tabs.some((x) => x.value === tab) ? tab : (tabs[0]!.value as Tab);
   const list = rows[active];
-  const unsupported = backend === 'dsh';
+  // 没有斜杠发现能力的 CLI（如 dsh）没有可列的命令 / Skills / 插件
+  const unsupported = !hasSlashCommands(backend);
 
   return (
     <Modal
       open={isVisible}
       onClose={onClose}
-      title={tr('插件 / 命令：{0}', ENDPOINT_FULL[backend]())}
+      title={tr('ui.slash-commands.plugins-commands-detail', ENDPOINT_FULL[backend]())}
       size="lg"
       data-testid="plugin-panel"
     >
@@ -148,22 +155,30 @@ export const PluginPanel: React.FC<Props> = ({
         <Notice tone="info">
           {cli
             ? tr(
-                '只读视图：列出 {0} 在当前目录与用户目录里发现的命令、Skills、插件和 MCP（只读文件名与说明，不读取任何凭据）。启用 / 停用请在 CLI 里用它自己的命令。',
+                'ui.slash-commands.read-only-view-commands-skills-plugins-and-mcp',
                 ENDPOINT_FULL[backend](),
               )
-            : tr('Nomi 自带的 Skills 和 MCP 服务器。输入 / 可直接使用 Skills。')}
+            : tr('ui.slash-commands.nomi-s-own-skills-and-mcp-servers-type')}
         </Notice>
         {cli && cwd && <p className={styles.where}>{cwd}</p>}
         {unsupported ? (
           <EmptyState
-            title={tr('dsh 没有公开的命令 / 插件目录')}
+            title={tr('ui.slash-commands.dsh-has-no-public-command-plugin-directory')}
             data-testid="plugin-panel-empty"
           />
         ) : (
           <>
-            <Tabs<Tab> items={tabs} value={active} onChange={setTab} aria-label={tr('类别')} />
+            <Tabs<Tab>
+              items={tabs}
+              value={active}
+              onChange={setTab}
+              aria-label={tr('ui.slash-commands.category')}
+            />
             {list.length === 0 ? (
-              <EmptyState title={tr('这一类下没有发现内容')} data-testid="plugin-panel-empty" />
+              <EmptyState
+                title={tr('ui.slash-commands.nothing-found-in-this-category')}
+                data-testid="plugin-panel-empty"
+              />
             ) : (
               <ul className={styles.list} data-testid="plugin-panel-list">
                 {list.map((r) => (
@@ -187,11 +202,11 @@ export const PluginPanel: React.FC<Props> = ({
         )}
         <div className={styles.foot}>
           <Button size="sm" onClick={onRefresh} data-testid="plugin-panel-refresh">
-            {tr('刷新')}
+            {tr('ui.knowledge-local.refresh')}
           </Button>
           {!cli && onManageNomi && (
             <Button size="sm" onClick={onManageNomi} data-testid="plugin-panel-manage">
-              {tr('管理 Skills 与 MCP…')}
+              {tr('ui.slash-commands.manage-skills-and-mcp')}
             </Button>
           )}
         </div>

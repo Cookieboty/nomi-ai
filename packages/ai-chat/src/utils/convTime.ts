@@ -1,5 +1,5 @@
 /** 会话时间 / 用量展示：按分钟合并时间标签、完整时间、耗时、token 与费用摘要（纯函数） */
-import { t } from '@nomi-ai/ui';
+import { t, truncDigits } from '@nomi-ai/ui';
 
 import type { HarnessUsage } from '../services/harnessClient';
 import type { ConvMessage } from '../types/conversation';
@@ -56,11 +56,12 @@ export function timeLabels(
   return out;
 }
 
+/** token 数一律抹零（截断）显示，不四舍五入 */
 export function formatTokens(n: number): string {
-  if (n < 1000) return String(n);
-  if (n < 100_000) return `${(n / 1000).toFixed(n < 10_000 ? 1 : 0).replace(/\.0$/, '')}k`;
-  if (n < 1_000_000) return `${Math.round(n / 1000)}k`;
-  return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+  if (n < 1000) return String(Math.floor(n));
+  if (n < 100_000) return `${truncDigits(n / 1000, n < 10_000 ? 1 : 0)}k`;
+  if (n < 1_000_000) return `${truncDigits(n / 1000, 0)}k`;
+  return `${truncDigits(n / 1_000_000, 1)}M`;
 }
 
 export function formatCost(usd: number): string {
@@ -86,7 +87,7 @@ export function turnSummary(m: {
   const u = m.usage;
   if (u && (u.inputTokens !== undefined || u.outputTokens !== undefined)) {
     parts.tokens = t(
-      '输入 {0} · 输出 {1}',
+      'ui.usage-tools.in-out',
       formatTokens(u.inputTokens ?? 0),
       formatTokens(u.outputTokens ?? 0),
     );
@@ -97,8 +98,8 @@ export function turnSummary(m: {
 
 /** 完成后的思考块标题：已思考 N 秒（缺时间数据则只显示「已思考」） */
 export function thoughtLabel(ms?: number): string {
-  if (ms === undefined || ms < 0) return t('已思考');
+  if (ms === undefined || ms < 0) return t('ui.usage-tools.thought');
   const s = Math.max(1, Math.round(ms / 1000));
-  if (s < 60) return t('已思考 {0} 秒', s);
-  return t('已思考 {0} 分 {1} 秒', Math.floor(s / 60), s % 60);
+  if (s < 60) return t('ui.usage-tools.thought-for-s', s);
+  return t('ui.usage-tools.thought-for-m-s', Math.floor(s / 60), s % 60);
 }

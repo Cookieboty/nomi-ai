@@ -253,20 +253,36 @@ describe('ConversationStore', () => {
       backend: 'codex',
       createdAt: 10,
       updatedAt: 20,
+      cliSessionId: 'session-1',
     });
     expect(tabMeta.tabId).toBe('tab-uuid');
     expect(tabMeta.backend).toBe('codex');
+    expect(tabMeta.cliSessionId).toBe('session-1');
     const again = s.upsertFromTab({
       id: 'tab-uuid',
       title: 'Codex renamed',
       backend: 'codex',
       createdAt: 10,
       updatedAt: 30,
+      cliSessionId: 'session-1',
     });
     expect(again.id).toBe(tabMeta.id);
     expect(again.name).toBe('Codex renamed');
-    s.removeByTabId('tab-uuid');
-    expect(s.findByTabId('tab-uuid')).toBeUndefined();
+    // 标签被重建但仍绑定原 CLI 会话时，不能新建第二条镜像。
+    const rebound = s.upsertFromTab({
+      id: 'new-tab-uuid',
+      title: 'CLI session renamed',
+      backend: 'codex',
+      createdAt: 10,
+      updatedAt: 40,
+      cliSessionId: 'session-1',
+    });
+    expect(rebound.id).toBe(tabMeta.id);
+    expect(rebound.tabId).toBe('new-tab-uuid');
+    expect(rebound.name).toBe('CLI session renamed');
+    expect(s.list().filter((x) => x.cliSessionId === 'session-1')).toHaveLength(1);
+    s.removeByTabId('new-tab-uuid');
+    expect(s.findByTabId('new-tab-uuid')).toBeUndefined();
   });
 });
 

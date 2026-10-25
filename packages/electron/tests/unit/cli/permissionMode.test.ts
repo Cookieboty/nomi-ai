@@ -14,6 +14,8 @@ describe('permissionMode', () => {
     ['codex', ['plan', 'manual', 'acceptEdits', 'auto', 'bypass']],
     ['dsh', ['plan', 'acceptEdits', 'bypass']],
     ['grok', ['plan', 'manual', 'acceptEdits', 'bypass']],
+    // Nomi 自己的工具：破坏性操作永远要确认，没有「完全放开」
+    ['nomi', ['plan', 'manual', 'acceptEdits', 'auto']],
   ] as const)('%s supports %j', (backend, modes) => {
     expect([...supportedModes(backend)]).toEqual(modes);
   });

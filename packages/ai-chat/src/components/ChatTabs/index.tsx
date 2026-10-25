@@ -31,7 +31,7 @@ function tabTooltip(tab: HarnessTabMeta, status: string): string {
   return [
     [tab.title, KIND_LABEL[tab.backend], status].join(' · '),
     tab.cwd,
-    tab.cliSessionId ? t('会话 {0}', tab.cliSessionId.slice(0, 18)) : '',
+    tab.cliSessionId ? t('ui.mascot-theme.session', tab.cliSessionId.slice(0, 18)) : '',
     tab.lastError ?? '',
   ]
     .filter(Boolean)
@@ -48,18 +48,18 @@ export function tabDotStatus(tab: HarnessTabMeta, mainLoading = false): string {
 
 function statusLabel(s: string): string {
   return s === 'running'
-    ? t('运行中')
+    ? t('ui.knowledge-local.running')
     : s === 'queued'
-      ? t('排队中')
+      ? t('ui.mascot-theme.queued')
       : s === 'error'
-        ? t('出错')
+        ? t('ui.chat-settings.error')
         : s === 'unread'
-          ? t('有新结果')
+          ? t('ui.mascot-theme.new-result')
           : s === 'dormant'
-            ? t('已休眠')
+            ? t('ui.cli-monitor.dormant')
             : s === 'background'
-              ? t('后台运行中')
-              : t('空闲');
+              ? t('ui.chat-settings.running-in-background')
+              : t('ui.mascot-theme.idle');
 }
 
 export const ChatTabs: React.FC<{
@@ -144,7 +144,7 @@ export const ChatTabs: React.FC<{
   const closeTab = (tab: { id: string; status: string }) => {
     if (
       (tab.status === 'running' || tab.status === 'queued') &&
-      !window.confirm(t('该标签仍在运行，关闭会中止它。确定关闭？'))
+      !window.confirm(t('ui.mascot-theme.this-tab-is-still-running-closing-it-will'))
     )
       return;
     void tabs.close(tab.id);
@@ -158,8 +158,8 @@ export const ChatTabs: React.FC<{
       active.length > 0 &&
       !window.confirm(
         active.length === 1
-          ? t('该标签仍在运行，关闭会中止它。确定关闭？')
-          : t('有 {0} 个标签仍在运行，关闭会中止它们。确定关闭？', active.length),
+          ? t('ui.mascot-theme.this-tab-is-still-running-closing-it-will')
+          : t('ui.mascot-theme.tabs-are-still-running-closing-them-will-stop', active.length),
       )
     )
       return;
@@ -181,7 +181,7 @@ export const ChatTabs: React.FC<{
         className={styles.strip}
         ref={stripRef}
         role="tablist"
-        aria-label={t('对话标签')}
+        aria-label={t('ui.mascot-theme.chat-tabs')}
         onKeyDown={(e) => {
           if (e.key === 'ArrowRight') tabs.cycle(1);
           else if (e.key === 'ArrowLeft') tabs.cycle(-1);
@@ -248,8 +248,8 @@ export const ChatTabs: React.FC<{
                   type="button"
                   className={styles.close}
                   data-testid={`chat-tab-close-${i}`}
-                  aria-label={t('关闭标签 {0}', tab.title)}
-                  title={`${t('关闭标签')} (${formatCombo(bindings.closeTab)})`}
+                  aria-label={t('ui.mascot-theme.close-tab', tab.title)}
+                  title={`${t('ui.mascot-theme.close-tab-action')} (${formatCombo(bindings.closeTab)})`}
                   onClick={(e) => {
                     e.stopPropagation();
                     closeTab(tab);
@@ -294,7 +294,7 @@ export const ChatTabs: React.FC<{
           data-testid="chat-tab-add"
           aria-haspopup="menu"
           aria-expanded={menu}
-          title={`${t('新建编程助手标签')} (${formatCombo(bindings.newTab)})`}
+          title={`${t('ui.mascot-theme.new-coding-agent-tab')} (${formatCombo(bindings.newTab)})`}
           onClick={() => setMenu((v) => !v)}
         >
           <Icon icon={Plus} />
@@ -327,8 +327,10 @@ const MENU_ROOM = 340;
 /** CLI 标签的输入框提示：随运行状态与后端变化（不显示 Nomi 的「请先选择AI模型」） */
 export function cliTabPlaceholder(tab: { title: string; backend: string; status: string }): string {
   const label = CLI_LABEL[tab.backend] ?? tab.backend;
-  if (tab.status === 'running') return t('{0} 正在处理，完成后可继续发送…', label);
-  if (tab.status === 'queued') return t('{0} 排队中，等待其它标签完成…', label);
-  if (tab.title && tab.title !== label) return t('发给 {0}（{1}）…', tab.title, label);
-  return t('发给 {0}…', label);
+  if (tab.status === 'running')
+    return t('ui.cli-monitor.is-working-you-can-send-again-when-it', label);
+  if (tab.status === 'queued')
+    return t('ui.cli-monitor.is-queued-waiting-for-other-tabs-to-finish', label);
+  if (tab.title && tab.title !== label) return t('ui.cli-monitor.message', tab.title, label);
+  return t('ui.mascot-theme.message', label);
 }

@@ -79,9 +79,9 @@ export class VoiceIpcHandler extends BaseIpcHandler {
     this.registerHandler('get-available-voices', async () => {
       try {
         const voices = [
-          { id: 'voice1', name: t('标准女声'), language: 'zh-CN' },
-          { id: 'voice2', name: t('标准男声'), language: 'zh-CN' },
-          { id: 'voice3', name: t('英文女声'), language: 'en-US' },
+          { id: 'voice1', name: t('electron.common.standard-female-voice'), language: 'zh-CN' },
+          { id: 'voice2', name: t('electron.common.standard-male-voice'), language: 'zh-CN' },
+          { id: 'voice3', name: t('electron.common.english-female-voice'), language: 'en-US' },
         ];
 
         this.logger.debug('获取可用语音列表', { voices });
@@ -117,7 +117,7 @@ export class VoiceIpcHandler extends BaseIpcHandler {
 
       try {
         if (volume < 0 || volume > 1) {
-          throw new Error(t('音量值必须在0-1之间'));
+          throw new Error(t('electron.common.volume-must-be-between-0-and-1'));
         }
 
         this.configService.set('voiceSettings.volume', volume);
@@ -139,7 +139,9 @@ export class VoiceIpcHandler extends BaseIpcHandler {
       try {
         const validModes = ['fixed', 'tts', 'mixed'];
         if (!validModes.includes(mode)) {
-          throw new Error(t('无效的语音模式: {0}，支持的模式: {1}', mode, validModes.join(', ')));
+          throw new Error(
+            t('electron.common.invalid-voice-mode-supported-modes', mode, validModes.join(', ')),
+          );
         }
 
         this.configService.set('voiceSettings.voiceMode', mode);

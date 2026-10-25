@@ -232,7 +232,7 @@ export class ConfigService implements IConfigService {
 
     // 基本类型检查
     if (typeof config !== 'object' || config === null) {
-      errors.push(t('配置必须是一个对象'));
+      errors.push(t('electron.common.config-must-be-an-object'));
       return { isValid: false, errors, warnings };
     }
 
@@ -242,7 +242,7 @@ export class ConfigService implements IConfigService {
         typeof config.windowPosition.x !== 'number' ||
         typeof config.windowPosition.y !== 'number'
       ) {
-        errors.push(t('窗口位置必须是数字'));
+        errors.push(t('electron.common.window-position-must-be-a-number'));
       }
     }
 
@@ -250,13 +250,13 @@ export class ConfigService implements IConfigService {
     if (config.voiceSettings) {
       const voice = config.voiceSettings;
       if (typeof voice.enabled !== 'boolean') {
-        errors.push(t('语音设置enabled必须是布尔值'));
+        errors.push(t('electron.common.voice-setting-enabled-must-be-a-boolean'));
       }
       if (typeof voice.volume !== 'number' || voice.volume < 0 || voice.volume > 1) {
-        errors.push(t('音量必须是0-1之间的数字'));
+        errors.push(t('electron.common.volume-must-be-a-number-between-0-and'));
       }
       if (!['fixed', 'tts', 'mixed'].includes(voice.voiceMode)) {
-        errors.push(t('语音模式必须是fixed、tts或mixed'));
+        errors.push(t('electron.common.voice-mode-must-be-fixed-tts-or-mixed'));
       }
     }
 

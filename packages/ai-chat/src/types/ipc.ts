@@ -57,10 +57,10 @@ export interface IPCClient {
     opts?: { backend?: ConversationBackend; tabId?: string },
   ): Promise<string>;
   switchConversation(id: string): Promise<void>;
-  /** 更新会话元信息（标题 / 后端 / tabId） */
+  /** 更新会话元信息（标题 / 后端 / tabId / CLI session id） */
   updateConversation?(
     id: string,
-    patch: Partial<Pick<ChatSession, 'name' | 'backend' | 'tabId' | 'updatedAt'>>,
+    patch: Partial<Pick<ChatSession, 'name' | 'backend' | 'tabId' | 'cliSessionId' | 'updatedAt'>>,
   ): Promise<Omit<ChatSession, 'messages'>>;
   /** 同端或跨端分叉（复制可见消息） */
   forkConversation?(

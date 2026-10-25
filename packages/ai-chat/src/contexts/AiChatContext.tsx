@@ -13,6 +13,15 @@ import React, {
   type ReactNode,
 } from 'react';
 
+import { notifyConversationsChanged } from '../services/conversationStore';
+import {
+  bindNextDelegateConversation,
+  clearTurnPin,
+  consumeNextDelegate,
+  delegateClient,
+  delegateDirective,
+  type DelegateResult,
+} from '../services/delegateClient';
 import { desktopClient } from '../services/desktopClient';
 import { extClient } from '../services/extClient';
 import {
@@ -29,8 +38,15 @@ import { schedClient } from '../services/schedClient';
 import { screenClient, type ImageAttachment } from '../services/screenClient';
 import { type ChatMessage, type ChatConfig } from '../types/chat';
 import { type IPCClient } from '../types/ipc';
+import { ENDPOINT_NAME } from '../utils/endpointBadge';
 
 import { AiChatStoreContext, createAiChatStore } from './aiChatStore';
+
+/** 去掉交给模型时加的 <cli-output> 边界，只留编程助手原话（与 DelegateCard.plainSummary 一致） */
+function plainSummary(s: string): string {
+  const m = /^<cli-output>\n[^\n]*\n([\s\S]*)\n<\/cli-output>$/.exec(s.trim());
+  return (m ? m[1]! : s).trim();
+}
 
 export interface AiChatState {
   messages: ChatMessage[];
@@ -272,8 +288,61 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
         const m: ChatMessage = {
           id: `sched-${r.id}`,
           role: 'assistant',
-          content: t('**{0}**{1}\n\n{2}', r.name, r.catchUp ? t('（补上）') : '', r.text),
+          content: t(
+            '**{0}**{1}\n\n{2}',
+            r.name,
+            r.catchUp ? t('ui.chat-settings.added') : '',
+            r.text,
+          ),
           timestamp: r.at,
+        };
+        dispatch({ type: 'ADD_MESSAGE', payload: m });
+        void ipcClient.saveMessage(m);
+      }),
+    [ipcClient],
+  );
+
+  // 异步委派完成 → 写进当前对话（卡片也订阅同一广播更新汇报；Nomi 下一轮能读到）
+  useEffect(
+    () =>
+      delegateClient.onCompleted((r: DelegateResult) => {
+        const name = t(ENDPOINT_NAME[r.cli] ?? r.cli);
+        let body: string;
+        if (r.status === 'cancelled') {
+          body =
+            r.cancelledBy === 'nomi'
+              ? t('ui.session-workspace.s-handoff-was-stopped-with-nomi-s-turn', name)
+              : t('ui.session-workspace.s-handoff-was-stopped', name);
+        } else if (r.status === 'error') {
+          body = t('ui.session-workspace.s-handoff-failed', name, r.error ?? '');
+        } else if (r.report) {
+          const bits = [
+            t('ui.session-workspace.completed-the-handoff', name),
+            plainSummary(r.report.done),
+            r.report.unfinished
+              ? t('ui.session-workspace.not-finished-detail', plainSummary(r.report.unfinished))
+              : '',
+            r.report.needsUser
+              ? t(
+                  'ui.session-workspace.needs-your-decision-detail',
+                  plainSummary(r.report.needsUser),
+                )
+              : '',
+          ].filter(Boolean);
+          body = bits.join('\n\n');
+        } else {
+          body = t(
+            'ui.session-workspace.completed-the-handoff-with-body',
+            name,
+            plainSummary(r.summary) || t('ui.session-workspace.no-report'),
+          );
+        }
+        const m: ChatMessage = {
+          id: `delegate-${r.taskId}-${r.durationMs}`,
+          role: 'assistant',
+          content: body,
+          timestamp: Date.now(),
+          origin: 'background',
         };
         dispatch({ type: 'ADD_MESSAGE', payload: m });
         void ipcClient.saveMessage(m);
@@ -312,7 +381,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
         const userMessage: ChatMessage = {
           id: `desk-${e.at}`,
           role: 'user',
-          content: t('总结文件：{0}', e.name),
+          content: t('ui.chat-settings.summarize-file', e.name),
           timestamp: e.at,
         };
         const aiMessage: ChatMessage = {
@@ -359,6 +428,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
               role: 'assistant',
               content: r.text,
               timestamp: Date.now(),
+              // eslint-disable-next-line nomi/no-cli-literal -- 旧对话里 Claude Code 的模型 id 记作 claude-code（兼容）
               modelId: hs.backend === 'claude' ? 'claude-code' : hs.backend,
             };
             if (turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: aiMessage });
@@ -453,20 +523,30 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
         if (images?.length && screenClient.available()) {
           const r = await screenClient.checkSend();
           if (r === 'local_only')
-            throw new Error(
-              t(
-                '已开启「仅本地模型」，当前对话模型在云端，不能发送图片。可切换到本地视觉模型（如 Ollama）',
-              ),
-            );
-          if (r === 'user_denied') throw new Error(t('已取消：图片没有发送给云端模型'));
+            throw new Error(t('ui.chat-settings.local-models-only-is-on-and-the-current'));
+          if (r === 'user_denied')
+            throw new Error(t('ui.chat-settings.cancelled-the-image-wasn-t-sent-to-the'));
         }
 
+        // `/agent`：按会话 chip → 按 turnId 钉到主进程；钉住失败则中止发送
+        bindNextDelegateConversation(turn.convoId);
+        let delegateTo: Awaited<ReturnType<typeof consumeNextDelegate>> = null;
+        try {
+          delegateTo = await consumeNextDelegate(reqId);
+        } catch (pinErr) {
+          const msg =
+            pinErr instanceof Error
+              ? pinErr.message
+              : t('ui.slash-commands.couldn-t-pin-the-coding-assistant-the-message');
+          throw Object.assign(new Error(msg), { cause: pinErr });
+        }
         const userMessage: ChatMessage = {
           id: Date.now().toString(),
           role: 'user',
           content,
           timestamp: Date.now(),
           modelId: nomiModelLabel(),
+          ...(delegateTo ? { delegateTo } : {}),
           ...(images?.length
             ? {
                 images: images.map((i) => ({
@@ -505,6 +585,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
               role: 'assistant',
               content: r.text,
               timestamp: Date.now(),
+              // eslint-disable-next-line nomi/no-cli-literal -- 旧对话里 Claude Code 的模型 id 记作 claude-code（兼容）
               modelId: hs.backend === 'claude' ? 'claude-code' : hs.backend,
               ...(r.trace?.length ? { trace: r.trace } : {}),
               ...(r.durationMs !== undefined ? { durationMs: r.durationMs } : {}),
@@ -573,7 +654,9 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
         };
         try {
           await client.sendStreamMessage(
-            content,
+            delegateTo
+              ? `${delegateDirective(t(ENDPOINT_NAME[delegateTo]))}\n\n${content}`
+              : content,
             (chunk: string) => {
               accumulated += chunk;
               scheduleUi();
@@ -631,6 +714,8 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
       } catch (error) {
         dispatch({ type: 'SET_ERROR', payload: errorMessage(error) });
       } finally {
+        // 本轮未委派时清掉主进程 turn pin，避免泄漏到下一轮
+        void clearTurnPin(reqId);
         if (owned && activeStream.current?.reqId === reqId) activeStream.current = null;
         dispatch({ type: 'SET_STREAMING', payload: false });
         dispatch({ type: 'SET_LOADING', payload: false });
@@ -710,6 +795,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
       await stateRef.current.ipcClient.newConversation();
       historySeq.current++;
       dispatch({ type: 'CLEAR_MESSAGES' });
+      notifyConversationsChanged();
     } catch (error) {
       dispatch({ type: 'SET_ERROR', payload: errorMessage(error) });
     }

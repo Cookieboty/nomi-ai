@@ -50,30 +50,26 @@ export const TerminalCommandsCard: React.FC = () => {
       <div className={styles.head}>
         <h3 className={styles.title}>
           <Icon icon={SquareTerminal} size={16} />
-          {t('终端启动命令')}
+          {t('ui.models.terminal-commands')}
         </h3>
         <Switch
           checked={enabled}
           disabled={!st || busy}
           onChange={(on) => void apply({ enabled: on })}
-          aria-label={t('终端启动命令')}
+          aria-label={t('ui.models.terminal-commands')}
         />
       </div>
-      <p className={styles.desc}>
-        {t(
-          '在终端里用 nomi-claude、nomi-codex 等命令使用第三方模型；直接运行 claude、codex 仍是官方登录。',
-        )}
-      </p>
+      <p className={styles.desc}>{t('ui.models.use-third-party-models-in-a-terminal-with')}</p>
       {st && enabled && (
         <>
           <div className={styles.row}>
-            <span>{t('命令所在目录')}</span>
+            <span>{t('ui.models.command-folder')}</span>
             <code className={styles.code} data-testid="terminal-bin-dir">
               {st.binDir}
             </code>
           </div>
           <div className={styles.row}>
-            <span>{t('可用命令')}</span>
+            <span>{t('ui.slash-commands.available-commands')}</span>
             {st.commands.map((c) => (
               <code key={c} className={styles.code}>
                 {c}
@@ -86,8 +82,11 @@ export const TerminalCommandsCard: React.FC = () => {
                 <>
                   <span className={styles.ok}>
                     {st.pathKind === 'user-path'
-                      ? t('已加入用户 PATH（重新打开终端应用后生效）')
-                      : t('已加入 PATH（新打开的终端生效）：{0}', st.rcFiles.join('、'))}
+                      ? t('ui.models.added-to-your-user-path-restart-your-terminal')
+                      : t(
+                          'ui.models.added-to-path-takes-effect-in-new-terminals',
+                          st.rcFiles.join('、'),
+                        )}
                   </span>
                   <Button
                     size="sm"
@@ -95,26 +94,26 @@ export const TerminalCommandsCard: React.FC = () => {
                     disabled={busy}
                     onClick={() => void apply({ enabled: true, addToPath: false })}
                   >
-                    {t('从 PATH 移除')}
+                    {t('ui.models.remove-from-path')}
                   </Button>
                 </>
               ) : (
                 <>
-                  <span>{t('还没有加入 PATH，可以用完整路径运行，或者加入 PATH。')}</span>
+                  <span>{t('ui.models.not-on-path-yet-run-the-commands-by')}</span>
                   <Button
                     size="sm"
                     variant="secondary"
                     disabled={busy}
                     onClick={() => setConfirming(true)}
                   >
-                    {t('加入 PATH…')}
+                    {t('ui.models.add-to-path')}
                   </Button>
                 </>
               )}
             </div>
           ) : (
             <p className={styles.desc} data-testid="terminal-path-status">
-              {t('Windows 上 Nomi 不修改 PATH：请把上面的目录手动添加到用户环境变量 PATH。')}
+              {t('ui.models.on-windows-nomi-doesn-t-change-path-add')}
             </p>
           )}
         </>
@@ -127,11 +126,11 @@ export const TerminalCommandsCard: React.FC = () => {
       <Modal
         open={confirming}
         onClose={() => setConfirming(false)}
-        title={t('把 ~/.nomi/bin 加入 PATH？')}
+        title={t('ui.models.add-nomi-bin-to-path')}
         footer={
           <>
             <Button variant="ghost" onClick={() => setConfirming(false)}>
-              {t('取消')}
+              {t('ui.foundation.cancel')}
             </Button>
             <Button
               variant="primary"
@@ -141,19 +140,15 @@ export const TerminalCommandsCard: React.FC = () => {
                 void apply({ enabled: true, addToPath: true });
               }}
             >
-              {t('加入 PATH')}
+              {t('ui.models.add-to-path-action')}
             </Button>
           </>
         }
       >
         <p className={styles.desc}>
           {st?.pathKind === 'user-path'
-            ? t(
-                'Nomi 会把命令所在目录加入当前用户的 PATH；关闭开关时只移除 Nomi 添加的目录。已有目录和其他环境变量保持不变。',
-              )
-            : t(
-                'Nomi 会在下面的文件末尾加一段带标记的内容，把命令所在目录加进 PATH；关闭开关时删除这一段，不改其他内容。',
-              )}
+            ? t('ui.models.nomi-will-add-the-command-folder-to-your')
+            : t('ui.models.nomi-will-append-a-marked-block-to-the')}
         </p>
         <ul className={styles.list}>
           {st?.rcFiles.map((f) => (

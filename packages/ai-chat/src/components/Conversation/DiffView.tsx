@@ -233,7 +233,7 @@ export const DiffView: React.FC<{
     >
       <div className={styles.diffHead}>
         <span className={styles.diffFile} title={diff.file}>
-          {diff.file ? workspaceRelPath(cwd, diff.file) : t('（未命名文件）')}
+          {diff.file ? workspaceRelPath(cwd, diff.file) : t('ui.usage-tools.unnamed-file')}
         </span>
         {diff.changeKind && <span className={styles.diffKind}>{diff.changeKind}</span>}
         {!diff.summaryOnly && (
@@ -248,8 +248,16 @@ export const DiffView: React.FC<{
             className={styles.diffLayoutBtn}
             data-testid="diff-layout-toggle"
             aria-pressed={sideBySide}
-            title={sideBySide ? t('切换为单列') : t('切换为左右对比')}
-            aria-label={sideBySide ? t('切换为单列') : t('切换为左右对比')}
+            title={
+              sideBySide
+                ? t('ui.session-workspace.switch-to-unified-view')
+                : t('ui.session-workspace.switch-to-side-by-side-view')
+            }
+            aria-label={
+              sideBySide
+                ? t('ui.session-workspace.switch-to-unified-view')
+                : t('ui.session-workspace.switch-to-side-by-side-view')
+            }
             onClick={togglePref}
           >
             {sideBySide ? <Rows2 size={14} /> : <Columns2 size={14} />}
@@ -257,7 +265,7 @@ export const DiffView: React.FC<{
         ) : null}
       </div>
       {shown.length > 0 && (
-        <div className={styles.diffBody} role="table" aria-label={t('文件差异')}>
+        <div className={styles.diffBody} role="table" aria-label={t('ui.usage-tools.file-diff')}>
           {segments.map((s) => {
             if (s.kind === 'lines') {
               return <React.Fragment key={s.key}>{renderLines(s.lines)}</React.Fragment>;
@@ -273,12 +281,15 @@ export const DiffView: React.FC<{
                     data-testid="diff-fold"
                     onClick={() => setOpen((o) => ({ ...o, [s.key]: false }))}
                   >
-                    {t('收起未修改行')}
+                    {t('ui.usage-tools.collapse-unmodified-lines')}
                   </button>
                 </React.Fragment>
               );
             }
-            const label = s.count > 0 ? t('{0} 行未修改', s.count) : t('未修改行已折叠');
+            const label =
+              s.count > 0
+                ? t('ui.usage-tools.unmodified-lines', s.count)
+                : t('ui.usage-tools.unmodified-lines-folded');
             return (
               <button
                 key={s.key}
@@ -296,7 +307,7 @@ export const DiffView: React.FC<{
           })}
           {lines.length > MAX_LINES && (
             <div className={styles.diffMore}>
-              {t('还有 {0} 行未显示', lines.length - MAX_LINES)}
+              {t('ui.usage-tools.more-lines-not-shown', lines.length - MAX_LINES)}
             </div>
           )}
         </div>

@@ -16,7 +16,12 @@ const ORDERED = [
 export function themeLabel(cur: ThemeState): string {
   const def = THEMES.find((x) => x.id === cur.pref);
   if (cur.pref === 'system')
-    return tr('跟随系统 · {0}', cur.resolved === 'cream' ? tr('奶油') : tr('石墨'));
+    return tr(
+      'ui.chat-settings.system',
+      cur.resolved === 'cream'
+        ? tr('ui.mascot-theme.cream-short')
+        : tr('ui.chat-settings.graphite'),
+    );
   return def ? tr(def.name) : cur.pref;
 }
 
@@ -36,20 +41,22 @@ export const ThemeSettings: React.FC = () => {
   return (
     <div className={styles.themeBlock} data-testid="theme-settings" id="settings-theme">
       <SettingRow
-        title={tr('主题')}
+        title={tr('ui.chat-settings.theme')}
         description={
           sel
             ? sel.id === 'system'
               ? tr(
-                  '{0}（当前：{1}）',
+                  'ui.chat-settings.current',
                   tr(sel.desc),
-                  cur.resolved === 'cream' ? tr('奶油') : tr('石墨'),
+                  cur.resolved === 'cream'
+                    ? tr('ui.mascot-theme.cream-short')
+                    : tr('ui.chat-settings.graphite'),
                 )
               : tr(sel.desc)
             : undefined
         }
       />
-      <div className={styles.themes} role="radiogroup" aria-label={tr('主题')}>
+      <div className={styles.themes} role="radiogroup" aria-label={tr('ui.chat-settings.theme')}>
         {ORDERED.map((t) => {
           const on = cur.pref === t.id;
           const sys = t.id === 'system';

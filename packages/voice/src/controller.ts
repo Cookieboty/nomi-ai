@@ -118,7 +118,10 @@ export class VoiceController {
     if (e.type === 'partial' && typeof e.text === 'string') this.set({ partial: e.text });
     if (e.type === 'error') {
       // 主进程已结束这次会话（如中途开启「仅本地模型」）：停止推送，立即提示
-      s.eventError = { code: e.code ?? 'failed', message: e.error ?? t('识别失败') };
+      s.eventError = {
+        code: e.code ?? 'failed',
+        message: e.error ?? t('ui.voice-mascot.recognition-failed'),
+      };
       s.failed = true;
       s.pending = [];
       this.set({ error: s.eventError });
@@ -315,7 +318,10 @@ export class VoiceController {
         phase: 'idle',
         level: 0,
         partial: '',
-        error: { code: 'too_short', message: t('说得太短了，按住按钮说话，说完再松开。') },
+        error: {
+          code: 'too_short',
+          message: t('ui.voice-mascot.too-short-hold-the-button-while-talking-then'),
+        },
       });
       return '';
     }
@@ -510,7 +516,9 @@ export class VoiceController {
     if (r.ok) {
       if (!quiet) this.set({ lastText: r.text });
       if (!r.text && !quiet)
-        this.set({ error: { code: 'empty', message: t('没听清，再说一次？') } });
+        this.set({
+          error: { code: 'empty', message: t('ui.voice-mascot.didn-t-catch-that-say-it-again') },
+        });
       return r.text;
     }
     if (!quiet || r.code !== 'empty') this.set({ error: { code: r.code, message: r.error } });

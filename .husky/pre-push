@@ -1,0 +1,7 @@
+#!/usr/bin/env sh
+# Git LFS (husky v9: no source ./h — match pre-commit/commit-msg style)
+# 没装 git-lfs 就跳过（只有推送 LFS 跟踪的文件才需要它）；不能写成 `command -v … && …`，
+# 没装时那一行返回失败，整个钩子跟着失败、推送被拦
+if command -v git-lfs >/dev/null 2>&1; then
+  git lfs pre-push "$@"
+fi

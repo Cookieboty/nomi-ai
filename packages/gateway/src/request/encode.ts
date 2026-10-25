@@ -3,8 +3,10 @@
  * 推理参数（reasoning）与签名 / 加密推理的去留由上游能力和会话归属决定（§9.3、§12.7），
  * 这里只按协议能表达的内容编码：Chat / Responses / Gemini 不下发历史推理（Chat 在厂商要求时写回
  * reasoning_content），Messages 只保留带签名的。
+ * 历史里的工具调用 id 按上游协议的格式改写（Messages 的字符集、Chat 的长度，§6.9.7），调用与结果同一规则。
  */
 import type { IRMessage, IRPart, IRRequest, IRToolChoice } from '../ir';
+import { callIdForWire } from '../models/rules/response/callIds';
 import { argsObject, DEFAULT_MAX_TOKENS, toDataUrl, type Json } from '../util';
 
 function systemJoined(ir: IRRequest, sep: string): string {
@@ -19,6 +21,63 @@ function customInput(args: string | undefined): string {
   return v && typeof v === 'object' && !Array.isArray(v) && typeof v.input === 'string'
     ? v.input
     : (args ?? '');
+}
+
+/**
+ * Claude Code's built-in Agent tool exposes worktree / remote isolation. A direct
+ * CLI session launched by Nomi already owns its working directory, so passing
+ * that optional control to a third-party model lets it unexpectedly create a
+ * nested `.claude/worktrees` checkout. Hide the control from OpenAI-compatible
+ * upstreams; the original Claude tool schema still accepts an omitted value and
+ * therefore runs the subagent in the current directory.
+ */
+type OpenAiFunctionTool = {
+  type: 'function';
+  name: string;
+  description?: string;
+  parameters: Json;
+};
+
+function upstreamTool(t: {
+  name: string;
+  description?: string;
+  schema: unknown;
+  kind: string;
+}): OpenAiFunctionTool {
+  if (t.name !== 'Agent' || !t.schema || typeof t.schema !== 'object' || Array.isArray(t.schema)) {
+    return {
+      type: 'function',
+      name: t.name,
+      ...(t.description ? { description: t.description } : {}),
+      parameters: t.schema as Json,
+    };
+  }
+
+  const schema = t.schema as Record<string, unknown>;
+  const properties =
+    schema.properties && typeof schema.properties === 'object' && !Array.isArray(schema.properties)
+      ? { ...(schema.properties as Record<string, unknown>) }
+      : undefined;
+  if (properties) delete properties.isolation;
+  const required = Array.isArray(schema.required)
+    ? schema.required.filter((k): k is string => typeof k === 'string' && k !== 'isolation')
+    : schema.required;
+  const baseDescription = t.description
+    ?.split(/\r?\n/)
+    .filter((line) => !/\b(?:isolation|worktree|remote)\b/i.test(line))
+    .join('\n')
+    .trim();
+  const description = `${baseDescription ? `${baseDescription}\n\n` : ''}Nomi direct CLI policy: run subagents in the current working directory; do not use worktree or remote isolation.`;
+  return {
+    type: 'function',
+    name: t.name,
+    description,
+    parameters: {
+      ...schema,
+      ...(properties ? { properties } : {}),
+      ...(Array.isArray(required) ? { required } : {}),
+    } as Json,
+  };
 }
 
 /* --------------------------- OpenAI Chat Completions --------------------------- */
@@ -42,7 +101,7 @@ export function encodeChat(ir: IRRequest, model?: string, opts: EncodeOptions = 
       const toolCalls: Json[] = m.parts
         .filter((p) => p.kind === 'tool_call')
         .map((p) => ({
-          id: p.id ?? '',
+          id: callIdForWire('chat', p.id ?? ''),
           type: 'function',
           function: { name: p.name ?? '', arguments: p.args ?? '{}' },
         }));
@@ -65,7 +124,7 @@ export function encodeChat(ir: IRRequest, model?: string, opts: EncodeOptions = 
       if (p.kind === 'tool_result') {
         messages.push({
           role: 'tool',
-          tool_call_id: p.callId ?? '',
+          tool_call_id: callIdForWire('chat', p.callId ?? ''),
           content: p.text || '(no output)',
         });
         extraImages.push(...(p.images ?? []));
@@ -95,14 +154,17 @@ export function encodeChat(ir: IRRequest, model?: string, opts: EncodeOptions = 
   if (ir.topP !== undefined) out.top_p = ir.topP;
   if (ir.stop?.length) out.stop = ir.stop;
   if (ir.tools.length) {
-    out.tools = ir.tools.map((t) => ({
-      type: 'function',
-      function: {
-        name: t.name,
-        ...(t.description ? { description: t.description } : {}),
-        parameters: t.schema as Json,
-      },
-    }));
+    out.tools = ir.tools.map((t) => {
+      const tool = upstreamTool(t);
+      return {
+        type: 'function',
+        function: {
+          name: tool.name,
+          ...(tool.description ? { description: tool.description } : {}),
+          parameters: tool.parameters,
+        },
+      };
+    });
     if (ir.toolChoice)
       out.tool_choice =
         typeof ir.toolChoice === 'object'
@@ -174,12 +236,7 @@ export function encodeResponses(ir: IRRequest, model?: string): Json {
     out.tools = ir.tools.map((t) =>
       t.kind === 'custom'
         ? { type: 'custom', name: t.name, ...(t.description ? { description: t.description } : {}) }
-        : {
-            type: 'function',
-            name: t.name,
-            ...(t.description ? { description: t.description } : {}),
-            parameters: t.schema as Json,
-          },
+        : upstreamTool(t),
     );
     if (ir.toolChoice)
       out.tool_choice =
@@ -285,12 +342,17 @@ function anthropicBlock(p: IRPart): Json | null {
     case 'image':
       return anthropicImage(p);
     case 'tool_call':
-      return { type: 'tool_use', id: p.id ?? '', name: p.name ?? '', input: argsObject(p.args) };
+      return {
+        type: 'tool_use',
+        id: callIdForWire('messages', p.id ?? ''),
+        name: p.name ?? '',
+        input: argsObject(p.args),
+      };
     case 'tool_result': {
       const images = (p.images ?? []).map(anthropicImage);
       return {
         type: 'tool_result',
-        tool_use_id: p.callId ?? '',
+        tool_use_id: callIdForWire('messages', p.callId ?? ''),
         content: images.length
           ? [...(p.text ? [{ type: 'text', text: p.text }] : []), ...images]
           : (p.text ?? ''),

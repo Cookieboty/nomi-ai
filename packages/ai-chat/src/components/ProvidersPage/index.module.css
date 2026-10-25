@@ -189,3 +189,26 @@
   display: grid;
   gap: var(--cd-space-1-5);
 }
+
+/* 外部 CLI（§5.9） */
+.extTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+}
+.extCmd {
+  display: block;
+  font-family: var(--cd-font-mono);
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+  overflow-wrap: anywhere;
+}
+.extWarn {
+  display: block;
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-warning);
+}
+.extForm {
+  display: grid;
+  gap: var(--cd-space-3);
+}

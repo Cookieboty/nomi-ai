@@ -137,6 +137,57 @@ const chatTool = sse([
   [undefined, '[DONE]'],
 ]);
 
+/** Responses 上游有些实现只在 arguments.done / output_item.done 给工具参数。 */
+const responsesToolFinalOnly = sse([
+  [
+    'response.created',
+    { type: 'response.created', response: { id: 'resp-final-only', model: 'gpt-x' } },
+  ],
+  [
+    'response.output_item.added',
+    {
+      type: 'response.output_item.added',
+      output_index: 0,
+      item: {
+        type: 'function_call',
+        id: 'fc_final_only',
+        call_id: 'call_final_only',
+        name: 'Agent',
+        arguments: '',
+        status: 'in_progress',
+      },
+    },
+  ],
+  [
+    'response.function_call_arguments.done',
+    {
+      type: 'response.function_call_arguments.done',
+      output_index: 0,
+      item_id: 'fc_final_only',
+      arguments: '{"description":"review","prompt":"inspect"}',
+    },
+  ],
+  [
+    'response.output_item.done',
+    {
+      type: 'response.output_item.done',
+      output_index: 0,
+      item: {
+        type: 'function_call',
+        id: 'fc_final_only',
+        call_id: 'call_final_only',
+        name: 'Agent',
+        arguments: '{"description":"review","prompt":"inspect"}',
+        status: 'completed',
+      },
+    },
+  ],
+  [
+    'response.completed',
+    { type: 'response.completed', response: { id: 'resp-final-only', model: 'gpt-x' } },
+  ],
+]);
+
 const chatLength = sse([
   [
     undefined,
@@ -658,8 +709,18 @@ describe('stream → Chat Completions (Codex chat entry)', () => {
 });
 
 describe('stream edge cases', () => {
-  it('stream truncated without terminator still finishes once', () => {
+  it('stream truncated without terminator → error, not a normal finish', () => {
     const raw = sse([[undefined, { id: 'x', choices: [{ index: 0, delta: { content: 'a' } }] }]]);
+    const evs = run('chat', 'messages', raw);
+    expect(types(evs)).not.toContain('message_stop');
+    expect(types(evs).at(-1)).toBe('error');
+  });
+
+  it('finish_reason without [DONE] still finishes once', () => {
+    const raw = sse([
+      [undefined, { id: 'x', choices: [{ index: 0, delta: { content: 'a' } }] }],
+      [undefined, { id: 'x', choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] }],
+    ]);
     const evs = run('chat', 'messages', raw);
     expect(types(evs).filter((t) => t === 'message_stop')).toHaveLength(1);
   });
@@ -913,5 +974,20 @@ describe('interleaved parallel tool calls (serial block scheduling)', () => {
     const evs = run('messages', 'responses', raw, 13);
     const done = evs.filter((e) => e.data.type === 'response.function_call_arguments.done');
     expect(done.map((e) => e.data.arguments)).toEqual(['{"a":1}', '{"b":2}']);
+  });
+});
+
+describe('Responses final-only tool arguments', () => {
+  it('forwards arguments.done when no argument deltas were sent', () => {
+    const evs = run('responses', 'messages', responsesToolFinalOnly, 13);
+    const args = evs
+      .filter((e) => e.event === 'content_block_delta')
+      .map((e) => e.data.delta.partial_json ?? '')
+      .join('');
+    expect(args).toBe('{"description":"review","prompt":"inspect"}');
+    expect(evs.find((e) => e.event === 'content_block_start')?.data.content_block.input).toEqual(
+      {},
+    );
+    expect(evs.at(-1)?.event).toBe('message_stop');
   });
 });

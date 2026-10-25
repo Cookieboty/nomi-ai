@@ -2,7 +2,7 @@
  * 从各 CLI 自己读取模型目录（不写死任何模型 / 档位，见 modelCatalog.ts）。
  *
  * - Claude Code：起一个 stream-json 进程，只发 `initialize` 控制请求，读响应里的 `models`，
- *   不发任何对话、不耗额度
+ *   不发任何对话、不耗额度；响应里没有默认档位，另读 CLAUDE_CODE_EFFORT_LEVEL / settings.json
  * - Codex：`codex debug models`（JSON；随当前生效的配置 / 供应商刷新）+ config.toml 顶层默认值
  * - Grok：`grok agent stdio`（ACP）`initialize` → `session/new` 读 `models`，随即 `session/close`
  *
@@ -17,6 +17,7 @@ import {
   parseClaudeModels,
   parseCodexModels,
   parseGrokModels,
+  readClaudeEffortSetting,
   readCodexConfigDefaults,
   type BackendModelCatalog,
   type CliBackend,
@@ -28,6 +29,11 @@ export const MODEL_DISCOVERY_TIMEOUT_MS = 30_000;
 export interface ModelDiscoveryDeps {
   /** 按标签同样的方式拉起该 CLI（解析可执行文件、Node 脚本、环境变量）；找不到 CLI 返回 null */
   spawn: (backend: CliBackend, args: string[]) => ChildProcessWithoutNullStreams | null;
+  /**
+   * Claude Code 不传 --effort 时的默认档位来源（与拉起进程用同一份环境）：
+   * effortEnv = CLAUDE_CODE_EFFORT_LEVEL（优先），settingsPath = <CLAUDE_CONFIG_DIR 或 ~/.claude>/settings.json
+   */
+  claudeDefaults?: { effortEnv?: string; settingsPath?: string };
   /** Codex 的 config.toml 路径（读不传参数时的默认模型） */
   codexConfigPath: string;
   /** Grok 自己维护的模型缓存 / 设置缓存（ACP 版本返回不完整时兜底） */
@@ -125,7 +131,7 @@ function discoverClaude(deps: ModelDiscoveryDeps, timeoutMs: number) {
           fail(new Error(String(r.error ?? 'initialize failed')));
           return;
         }
-        done(parseClaudeModels(r.response));
+        done(parseClaudeModels(r.response, { effort: claudeConfiguredEffort(deps) }));
         return;
       }
     });
@@ -134,6 +140,19 @@ function discoverClaude(deps: ModelDiscoveryDeps, timeoutMs: number) {
       `${JSON.stringify({ type: 'control_request', request_id: requestId, request: { subtype: 'initialize' } })}\n`,
     );
   });
+}
+
+/** 环境变量优先（`auto` 等非档位值视为没设），其次设置文件；都没有为 null（CLI 按模型决定） */
+export function claudeConfiguredEffort(deps: ModelDiscoveryDeps): string | null {
+  const fromEnv = deps.claudeDefaults?.effortEnv?.trim();
+  if (fromEnv && fromEnv !== 'auto') return fromEnv;
+  const file = deps.claudeDefaults?.settingsPath;
+  if (!file) return null;
+  try {
+    return readClaudeEffortSetting(fs.readFileSync(file, 'utf8'));
+  } catch {
+    return null;
+  }
 }
 
 function discoverCodex(deps: ModelDiscoveryDeps, timeoutMs: number) {

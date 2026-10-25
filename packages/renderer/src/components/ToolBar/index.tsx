@@ -67,12 +67,30 @@ const BAR_GAP = 8;
 
 /** 工具的标题与一行说明（提示 = 标题\n说明；面板行 = 标题 + 说明） */
 const TOOL_META: Record<string, { title: () => string; desc: () => string }> = {
-  'ai-chat': { title: () => tr('AI 对话'), desc: () => tr('与 Nomi 聊天') },
-  'voice-input': { title: () => tr('语音交互'), desc: () => tr('语音输入 / 语音输出') },
-  'task-board': { title: () => tr('任务看板'), desc: () => tr('查看 / 管理你的任务') },
-  motion: { title: () => tr('角色互动'), desc: () => tr('动作 / 表情 / 互动') },
-  'voice-settings': { title: () => tr('声音设置'), desc: () => tr('音量 / 静音 / 语音偏好') },
-  more: { title: () => tr('更多'), desc: () => tr('设置 / 大小 / 退出') },
+  'ai-chat': {
+    title: () => tr('ui.voice-mascot.ai-chat'),
+    desc: () => tr('ui.voice-mascot.chat-with-nomi'),
+  },
+  'voice-input': {
+    title: () => tr('ui.voice-mascot.voice'),
+    desc: () => tr('ui.voice-mascot.voice-input-output'),
+  },
+  'task-board': {
+    title: () => tr('ui.voice-mascot.task-board'),
+    desc: () => tr('ui.voice-mascot.view-and-manage-your-tasks'),
+  },
+  motion: {
+    title: () => tr('ui.voice-mascot.interact'),
+    desc: () => tr('ui.voice-mascot.motions-expressions-play'),
+  },
+  'voice-settings': {
+    title: () => tr('ui.voice-mascot.sound'),
+    desc: () => tr('ui.voice-mascot.volume-mute-voice-preferences'),
+  },
+  more: {
+    title: () => tr('ui.voice-mascot.more'),
+    desc: () => tr('ui.voice-mascot.settings-size-quit'),
+  },
 };
 
 const TIP_BAR_WIDTH = 44;
@@ -179,14 +197,15 @@ export const ToolBar: React.FC = () => {
   // 关闭看板娘：隐藏窗口并停止语音（应用继续运行），在主界面「设置 → 通用」里可重新打开
   const hideMascot = useCallback(async () => {
     stopAllSpeech();
-    if (!(await closeMascot())) showMessage(tr('关闭 Nomi 失败，请稍后再试'));
+    if (!(await closeMascot()))
+      showMessage(tr('ui.voice-mascot.couldn-t-close-nomi-please-try-again-later'));
   }, [showMessage]);
 
   // 拍照功能
   const takeScreenshot = useCallback(() => {
     const canvas = document.querySelector('#mascot-canvas canvas') as HTMLCanvasElement | null;
     if (!canvas) {
-      showMessage(tr('找不到画布元素，无法截图'));
+      showMessage(tr('ui.voice-mascot.canvas-not-found-can-t-take-a-screenshot'));
       return;
     }
 
@@ -201,10 +220,10 @@ export const ToolBar: React.FC = () => {
       link.click();
       document.body.removeChild(link);
 
-      showMessage(tr('照好了，保存在下载目录了'));
+      showMessage(tr('ui.voice-mascot.got-it-saved-to-your-downloads-folder'));
     } catch (error) {
       log.error('截图失败:', error);
-      showMessage(tr('截图失败'));
+      showMessage(tr('ui.voice-mascot.screenshot-failed'));
     }
   }, [showMessage]);
 
@@ -217,7 +236,7 @@ export const ToolBar: React.FC = () => {
   // 关闭应用
   const quitApp = useCallback(async () => {
     await setCache('waifu-display', Date.now());
-    showMessage(tr('再见了，下次见！'), 2000);
+    showMessage(tr('ui.voice-mascot.bye-see-you-next-time'), 2000);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 遗留代码，沿用既有类型
     const electronAPI = (window as any).electronAPI;
@@ -262,7 +281,7 @@ export const ToolBar: React.FC = () => {
 
   const toggleVoiceMode = useCallback(async () => {
     if (!voiceService) {
-      showMessage(tr('语音服务尚未初始化，请稍后再试...'));
+      showMessage(tr('ui.voice-mascot.the-voice-service-isn-t-ready-yet-please'));
       return;
     }
 
@@ -276,11 +295,12 @@ export const ToolBar: React.FC = () => {
       await voiceService.updateSettings({ voiceMode: newMode });
 
       // 显示切换成功消息
-      const modeText = newMode === 'fixed' ? tr('固定语音') : tr('TTS语音');
-      showMessage(tr('已切换到{0}模式', modeText));
+      const modeText =
+        newMode === 'fixed' ? tr('ui.voice-mascot.fixed-voice') : tr('ui.voice-mascot.tts-voice');
+      showMessage(tr('ui.voice-mascot.switched-to-mode', modeText));
     } catch (error) {
       log.error('语音模式切换失败:', error);
-      showMessage(tr('语音模式切换失败，请重试'));
+      showMessage(tr('ui.voice-mascot.failed-to-switch-voice-mode-please-try-again'));
       // 回滚状态
       setVoiceMode(voiceMode);
     }
@@ -303,7 +323,7 @@ export const ToolBar: React.FC = () => {
         return () => {
           // 如果VoiceService还没有初始化，显示提示
           if (!voiceService) {
-            showMessage(tr('语音服务正在初始化中，请稍后再试...'));
+            showMessage(tr('ui.voice-mascot.the-voice-service-is-initializing-please-try-again'));
             return;
           }
 
@@ -318,9 +338,9 @@ export const ToolBar: React.FC = () => {
 
           // 显示消息
           if (newEnabled) {
-            showMessage(tr('语音功能已启用！'));
+            showMessage(tr('ui.voice-mascot.voice-enabled'));
           } else {
-            showMessage(tr('语音功能已禁用！'));
+            showMessage(tr('ui.voice-mascot.voice-disabled'));
           }
         };
       case 'voice-mode-toggle':
@@ -335,19 +355,24 @@ export const ToolBar: React.FC = () => {
               // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 遗留代码，沿用既有类型
               .then((result: any) => {
                 if (result?.success) {
-                  showMessage(tr('AI对话窗口已打开'));
+                  showMessage(tr('ui.voice-mascot.ai-chat-window-opened'));
                 } else {
-                  showMessage(tr('打开失败: {0}', result?.error || tr('未知错误')));
+                  showMessage(
+                    tr(
+                      'ui.voice-mascot.couldn-t-open',
+                      result?.error || tr('ui.voice-mascot.unknown-error'),
+                    ),
+                  );
                 }
               })
               // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 遗留代码，沿用既有类型
               .catch((error: any) => {
                 log.error('打开AI对话窗口失败:', error);
-                showMessage(tr('打开AI对话窗口失败，请稍后再试'));
+                showMessage(tr('ui.voice-mascot.couldn-t-open-the-ai-chat-window-please'));
               });
           } else {
             log.warn('Electron API不可用，无法打开AI对话窗口');
-            showMessage(tr('AI对话功能需要在Electron环境中运行'));
+            showMessage(tr('ui.voice-mascot.ai-chat-requires-the-electron-environment'));
           }
         };
       case 'motion':
@@ -357,17 +382,23 @@ export const ToolBar: React.FC = () => {
           const api = window.electronAPI as
             { openTaskBoard?: () => Promise<{ success: boolean; error?: string }> } | undefined;
           if (!api?.openTaskBoard) {
-            showMessage(tr('任务看板需要在桌面应用里打开'));
+            showMessage(tr('ui.voice-mascot.the-task-board-opens-in-the-desktop-app'));
             return;
           }
           void api
             .openTaskBoard()
             .then((r) => {
-              if (!r?.success) showMessage(tr('打开失败: {0}', r?.error || tr('未知错误')));
+              if (!r?.success)
+                showMessage(
+                  tr(
+                    'ui.voice-mascot.couldn-t-open',
+                    r?.error || tr('ui.voice-mascot.unknown-error'),
+                  ),
+                );
             })
             .catch((error: unknown) => {
               log.error('打开任务看板失败:', error);
-              showMessage(tr('打开任务看板失败，请稍后再试'));
+              showMessage(tr('ui.voice-mascot.couldn-t-open-the-task-board-please-try'));
             });
         };
       default:
@@ -586,26 +617,37 @@ export const ToolBar: React.FC = () => {
   const toolLabel = (toolId: string): string => {
     switch (toolId) {
       case 'photo':
-        return tr('截图保存');
+        return tr('ui.voice-mascot.save-screenshot');
       case 'info':
-        return tr('致谢 / Credits');
+        return tr('ui.chat-settings.credits');
       case 'quit':
-        return tr('关闭应用');
+        return tr('ui.voice-mascot.quit-app');
       case 'close-mascot':
-        return tr('关闭 Nomi（可在设置中重新打开）');
+        return tr('ui.voice-mascot.close-nomi-reopen-it-in-settings');
       case 'voice-settings':
         return voiceEnabled
-          ? [tr('声音：开'), tr('点按静音 · 右键语音偏好')].join('\n')
-          : [tr('声音：关'), tr('点按开启 · 右键语音偏好')].join('\n');
+          ? [
+              tr('ui.voice-mascot.sound-on'),
+              tr('ui.voice-mascot.click-to-mute-right-click-for-voice-preferences'),
+            ].join('\n')
+          : [
+              tr('ui.voice-mascot.sound-off'),
+              tr('ui.voice-mascot.click-to-unmute-right-click-for-voice-preferences'),
+            ].join('\n');
       case 'voice-mode-toggle':
-        return voiceMode === 'fixed' ? tr('语音模式：固定语音') : tr('语音模式：TTS');
+        return voiceMode === 'fixed'
+          ? tr('ui.voice-mascot.voice-mode-fixed-voice')
+          : tr('ui.voice-mascot.voice-mode-tts');
       case 'ai-chat':
       case 'task-board':
         return `${TOOL_META[toolId]!.title()}\n${TOOL_META[toolId]!.desc()}`;
       case 'voice-input':
-        return tr('免按键语音：开/关（工具栏麦克风按住说话）');
+        return tr('ui.voice-mascot.hands-free-voice-on-off-hold-the-toolbar');
       case 'motion':
-        return [tr('角色互动'), tr('做个动作 · 右键选动作')].join('\n');
+        return [
+          tr('ui.voice-mascot.interact'),
+          tr('ui.voice-mascot.do-a-motion-right-click-to-pick-one'),
+        ].join('\n');
       default:
         return toolId;
     }
@@ -741,7 +783,7 @@ export const ToolBar: React.FC = () => {
       type="button"
       className={styles.btn}
       data-testid="tool-more"
-      aria-label={menuOpen ? tr('收起') : tr('更多')}
+      aria-label={menuOpen ? tr('ui.knowledge-local.collapse') : tr('ui.voice-mascot.more')}
       aria-haspopup="menu"
       aria-expanded={menuOpen}
       onClick={() => {
@@ -775,7 +817,7 @@ export const ToolBar: React.FC = () => {
           ref={barRef}
           className={styles.bar}
           role="toolbar"
-          aria-label={tr('Nomi 工具栏')}
+          aria-label={tr('ui.voice-mascot.nomi-toolbar')}
           aria-orientation="vertical"
         >
           {primary.map(iconButton)}
@@ -791,7 +833,7 @@ export const ToolBar: React.FC = () => {
           <div
             className={styles.panel}
             role="menu"
-            aria-label={tr('Nomi 功能面板')}
+            aria-label={tr('ui.voice-mascot.nomi-panel')}
             data-testid="toolbar-menu"
             ref={menuRef}
             data-dense={panelBox?.dense ? '' : undefined}
@@ -814,7 +856,7 @@ export const ToolBar: React.FC = () => {
               <button
                 type="button"
                 className={styles.panelClose}
-                aria-label={tr('关闭')}
+                aria-label={tr('ui.providers-schedule.close')}
                 data-testid="toolbar-menu-close"
                 onClick={() => setMenuOpen(false)}
               >
@@ -858,23 +900,27 @@ export const ToolBar: React.FC = () => {
                 {secondary.map(menuItem)}
                 <div className={styles.sep} aria-hidden />
                 <div className={styles.menuRow}>
-                  <span>{tr('收起为单个按钮')}</span>
+                  <span>{tr('ui.voice-mascot.collapse-to-a-single-button')}</span>
                   <Switch
                     checked={prefs.compact}
                     onChange={(v: boolean) => updatePrefs({ compact: v })}
-                    aria-label={tr('收起为单个按钮')}
+                    aria-label={tr('ui.voice-mascot.collapse-to-a-single-button')}
                     data-testid="toolbar-compact"
                   />
                 </div>
                 {size && (
-                  <div className={styles.menuRow} role="group" aria-label={tr('Nomi 大小')}>
-                    <span>{tr('大小')}</span>
+                  <div
+                    className={styles.menuRow}
+                    role="group"
+                    aria-label={tr('ui.usage-tools.nomi-size')}
+                  >
+                    <span>{tr('ui.usage-tools.size')}</span>
                     <div className={styles.sizeCtl}>
                       <button
                         type="button"
                         className={styles.miniBtn}
-                        aria-label={tr('缩小')}
-                        title={tr('缩小')}
+                        aria-label={tr('ui.usage-tools.zoom-out')}
+                        title={tr('ui.usage-tools.zoom-out')}
                         data-testid="toolbar-zoom-out"
                         disabled={size.scale <= size.min + 1e-6}
                         onClick={() => scaleStore.step(-1)}
@@ -887,8 +933,8 @@ export const ToolBar: React.FC = () => {
                       <button
                         type="button"
                         className={styles.miniBtn}
-                        aria-label={tr('放大')}
-                        title={tr('放大')}
+                        aria-label={tr('ui.usage-tools.zoom-in')}
+                        title={tr('ui.usage-tools.zoom-in')}
                         data-testid="toolbar-zoom-in"
                         disabled={size.scale >= size.max - 1e-6}
                         onClick={() => scaleStore.step(1)}
@@ -898,8 +944,8 @@ export const ToolBar: React.FC = () => {
                       <button
                         type="button"
                         className={styles.miniBtn}
-                        aria-label={tr('重置大小')}
-                        title={tr('重置大小')}
+                        aria-label={tr('ui.usage-tools.reset-size')}
+                        title={tr('ui.usage-tools.reset-size')}
                         data-testid="toolbar-zoom-reset"
                         disabled={Math.abs(size.scale - size.default) < 1e-6}
                         onClick={() => scaleStore.reset()}
@@ -910,8 +956,12 @@ export const ToolBar: React.FC = () => {
                   </div>
                 )}
                 <div className={styles.menuRow}>
-                  <span>{tr('工具栏样式')}</span>
-                  <div className={styles.swatches} role="radiogroup" aria-label={tr('工具栏样式')}>
+                  <span>{tr('ui.voice-mascot.toolbar-style')}</span>
+                  <div
+                    className={styles.swatches}
+                    role="radiogroup"
+                    aria-label={tr('ui.voice-mascot.toolbar-style')}
+                  >
                     {TOOLBAR_STYLES.map((st) => (
                       <button
                         key={st.id}

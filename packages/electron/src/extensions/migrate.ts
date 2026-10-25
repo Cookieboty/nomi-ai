@@ -121,17 +121,17 @@ export function readConfigFile(file: string, maxBytes: number, allowRoots: strin
     }
     const real = fs.realpathSync(file);
     if (path.basename(real) !== path.basename(file) || DENY_DIR.test(norm(real)))
-      return { error: t('符号链接指向了不允许读取的位置，已跳过') };
+      return { error: t('electron.common.skipped-a-symbolic-link-points-somewhere-that-may') };
     const roots = allowRoots.map(realOrNull).filter((r): r is string => !!r);
     if (!roots.some((r) => isWithin(r, real)))
-      return { error: t('符号链接指向了不允许读取的位置，已跳过') };
+      return { error: t('electron.common.skipped-a-symbolic-link-points-somewhere-that-may') };
     fd = fs.openSync(real, 'r');
     const st = fs.fstatSync(fd);
-    if (!st.isFile()) return { error: t('不是普通文件，已跳过') };
-    if (st.size > maxBytes) return { error: t('文件太大，已跳过') };
+    if (!st.isFile()) return { error: t('electron.common.skipped-not-a-regular-file') };
+    if (st.size > maxBytes) return { error: t('electron.common.skipped-file-too-large') };
     const again = fs.statSync(real);
     if (again.ino !== st.ino || again.dev !== st.dev || fs.realpathSync(real) !== real)
-      return { error: t('文件在读取时发生了变化，已跳过') };
+      return { error: t('electron.common.skipped-the-file-changed-while-being-read') };
     const buf = Buffer.alloc(st.size);
     fs.readSync(fd, buf, 0, buf.length, 0);
     return { text: buf.toString('utf8') };
@@ -166,7 +166,7 @@ function varWarnings(raw: Record<string, unknown>): string[] {
   return vars.size
     ? [
         t(
-          '含环境变量引用 {0}：Nomi 不会展开 ${…}，导入后请在编辑里换成实际值',
+          'electron.common.contains-environment-variable-references-nomi-does-not-expand',
           [...vars].map((v) => `\${${v}}`).join('、'),
         ),
       ]
@@ -179,23 +179,24 @@ export function fromClaudeEntry(
   v: unknown,
 ): { raw?: Record<string, unknown>; warnings: string[]; error?: string } {
   if (!v || typeof v !== 'object' || Array.isArray(v))
-    return { warnings: [], error: t('配置格式不正确') };
+    return { warnings: [], error: t('electron.common.invalid-configuration') };
   const o = v as Record<string, unknown>;
   const warnings: string[] = [];
   const type = typeof o.type === 'string' ? o.type.toLowerCase() : undefined;
   let transport: 'stdio' | 'http' | 'sse';
   if (type === 'ws' || type === 'sdk')
-    return { warnings, error: t('Nomi 暂不支持 {0} 类型的 MCP 服务器', type) };
+    return { warnings, error: t('electron.common.nomi-doesn-t-support-mcp-servers-yet', type) };
   if (type === 'sse') transport = 'sse';
   else if (type === 'http' || type === 'streamable-http') transport = 'http';
   else if (type === 'stdio') transport = 'stdio';
-  else if (type) return { warnings, error: t('不认识的类型：{0}', type) };
+  else if (type) return { warnings, error: t('electron.common.unknown-type', type) };
   else if (typeof o.url === 'string') {
     transport = 'http';
-    warnings.push(t('缺少 type，已按远程 HTTP 导入'));
+    warnings.push(t('electron.common.no-type-given-imported-as-remote-http'));
   } else transport = 'stdio';
-  if (o.headersHelper) warnings.push(t('headersHelper（动态请求头）不会导入，请手动填写请求头'));
-  if (o.oauth) warnings.push(t('原配置使用 OAuth 登录；Nomi 暂不支持 OAuth，请改用令牌请求头'));
+  if (o.headersHelper)
+    warnings.push(t('electron.common.headershelper-dynamic-headers-is-not-imported-fill-in'));
+  if (o.oauth) warnings.push(t('electron.common.the-original-config-signs-in-with-oauth-nomi'));
   const raw: Record<string, unknown> =
     transport === 'stdio'
       ? { name, transport, command: o.command, args: o.args, env: o.env }
@@ -210,7 +211,7 @@ export function fromCodexEntry(
   v: unknown,
 ): { raw?: Record<string, unknown>; warnings: string[]; error?: string; disabled?: boolean } {
   if (!v || typeof v !== 'object' || Array.isArray(v))
-    return { warnings: [], error: t('配置格式不正确') };
+    return { warnings: [], error: t('electron.common.invalid-configuration') };
   const o = v as Record<string, unknown>;
   const warnings: string[] = [];
   const http = typeof o.url === 'string';
@@ -218,33 +219,35 @@ export function fromCodexEntry(
     if (typeof o.bearer_token_env_var === 'string')
       warnings.push(
         t(
-          '令牌来自环境变量 {0}：不会自动读取，请在请求头里填写 Authorization: Bearer …',
+          'electron.common.the-token-comes-from-the-environment-variable-which',
           o.bearer_token_env_var,
         ),
       );
     if (o.env_http_headers && typeof o.env_http_headers === 'object')
       warnings.push(
         t(
-          '这些请求头的值来自环境变量，不会自动读取：{0}',
+          'electron.common.these-header-values-come-from-environment-variables-and',
           Object.keys(o.env_http_headers).join('、'),
         ),
       );
-    if (o.http_headers_helper) warnings.push(t('http_headers_helper（动态请求头）不会导入'));
+    if (o.http_headers_helper)
+      warnings.push(t('electron.common.http-headers-helper-dynamic-headers-is-not-imported'));
   } else {
     if (Array.isArray(o.env_vars) && o.env_vars.length)
       warnings.push(
         t(
-          '原配置会转发这些环境变量，Nomi 不会自动转发，需要时请在环境变量里填写：{0}',
+          'electron.common.the-original-config-forwards-these-environment-variables-nomi',
           o.env_vars
             .map((x) => (typeof x === 'string' ? x : String((x as { name?: unknown })?.name ?? '')))
             .filter(Boolean)
             .join('、'),
         ),
       );
-    if (typeof o.cwd === 'string') warnings.push(t('Nomi 不支持指定工作目录（cwd），已忽略'));
+    if (typeof o.cwd === 'string')
+      warnings.push(t('electron.common.nomi-doesn-t-support-a-working-directory-cwd'));
   }
   if (o.oauth || o.auth === 'oauth')
-    warnings.push(t('原配置使用 OAuth 登录；Nomi 暂不支持 OAuth，请改用令牌请求头'));
+    warnings.push(t('electron.common.the-original-config-signs-in-with-oauth-nomi'));
   const raw: Record<string, unknown> = http
     ? {
         name,
@@ -286,10 +289,11 @@ function toCandidate(
 ): McpCandidate {
   const key = `${tool}:${scope}:mcp:${src}:${keySuffix}${name}`;
   const base = { key, kind: 'mcp' as const, tool, scope, name, where, warnings: conv.warnings };
-  if (conv.error || !conv.raw) return { ...base, error: conv.error ?? t('配置格式不正确') };
+  if (conv.error || !conv.raw)
+    return { ...base, error: conv.error ?? t('electron.common.invalid-configuration') };
   try {
     const server = sanitizeServer({ ...conv.raw, origin: 'user', trust: 'ask' });
-    if (conv.disabled) base.warnings.push(t('原配置中已停用'));
+    if (conv.disabled) base.warnings.push(t('electron.common.disabled-in-the-original-config'));
     return { ...base, server };
   } catch (e) {
     return { ...base, error: e instanceof McpConfigError ? e.message : String(e) };
@@ -430,14 +434,22 @@ function skillCandidate(
     return null;
   }
   if (DENY_DIR.test(norm(real)) || !allow(real))
-    return { ...base, error: t('符号链接指向了不允许读取的位置，已跳过') };
+    return {
+      ...base,
+      error: t('electron.common.skipped-a-symbolic-link-points-somewhere-that-may'),
+    };
   const md = path.join(real, 'SKILL.md');
   let text: string;
   try {
     const st = fs.lstatSync(md);
     if (!st.isFile())
-      return { ...base, dir: real, error: t('SKILL.md 必须是普通文件（不能是链接）') };
-    if (st.size > MAX_SKILL_MD) return { ...base, dir: real, error: t('SKILL.md 太大') };
+      return {
+        ...base,
+        dir: real,
+        error: t('electron.common.skill-md-must-be-a-regular-file-not'),
+      };
+    if (st.size > MAX_SKILL_MD)
+      return { ...base, dir: real, error: t('electron.common.skill-md-is-too-large') };
     text = fs.readFileSync(md, 'utf8');
   } catch {
     return null; // 不是技能目录
@@ -446,25 +458,35 @@ function skillCandidate(
   const rawName = (meta.name ?? '').trim() || dirName;
   const name = nomiSkillName(rawName);
   const warnings: string[] = [];
-  if (!validSkillName(name)) return { ...base, dir: real, error: t('技能名称无效：{0}', rawName) };
-  if (name !== rawName) warnings.push(t('名称已调整为 Nomi 支持的格式：{0}', name));
+  if (!validSkillName(name))
+    return { ...base, dir: real, error: t('electron.common.invalid-skill-name', rawName) };
+  if (name !== rawName)
+    warnings.push(t('electron.common.name-adjusted-to-a-format-nomi-supports', name));
   let description = (meta.description ?? '').replace(/\s+/g, ' ').trim();
   const when = (meta.when_to_use ?? meta['when-to-use'] ?? '').trim();
   if (when) description = [description, when].filter(Boolean).join(' ');
   if (!description) {
     description = firstLine(body);
-    if (description) warnings.push(t('缺少 description，已用正文第一行代替'));
+    if (description) warnings.push(t('electron.common.no-description-using-the-first-line-of-the'));
   }
-  if (!description) return { ...base, name, dir: real, error: t('缺少 description') };
+  if (!description)
+    return { ...base, name, dir: real, error: t('electron.common.missing-description') };
   const w = walk(real);
   if (w.denied.length)
-    warnings.push(t('这些文件看起来是凭据 / 密钥，不会复制：{0}', w.denied.slice(0, 5).join('、')));
-  if (w.links) warnings.push(t('技能目录里的 {0} 个符号链接不会复制', w.links));
-  if (w.truncated) warnings.push(t('文件太多，只复制前 {0} 个', MAX_FILES));
+    warnings.push(
+      t(
+        'electron.common.these-files-look-like-credentials-or-keys-and',
+        w.denied.slice(0, 5).join('、'),
+      ),
+    );
+  if (w.links)
+    warnings.push(t('electron.common.symbolic-links-in-the-skill-folder-won-t', w.links));
+  if (w.truncated)
+    warnings.push(t('electron.common.too-many-files-only-the-first-are-copied', MAX_FILES));
   if (w.files.some((f) => /\.(sh|py|js|ts|mjs|cjs|ps1|bat|rb)$/i.test(f)))
-    warnings.push(t('附带脚本只会作为参考文件复制，Nomi 不会执行它们'));
+    warnings.push(t('electron.common.bundled-scripts-are-copied-as-reference-files-only'));
   if (meta['allowed-tools'] || meta['allowed_tools'])
-    warnings.push(t('allowed-tools 等 Claude Code 专用字段在 Nomi 中不生效'));
+    warnings.push(t('electron.common.claude-code-specific-fields-such-as-allowed-tools'));
   let bytes = 0;
   for (const f of w.files) {
     try {
@@ -484,7 +506,7 @@ function skillCandidate(
     body: body.trim(),
     warnings,
   };
-  if (bytes > MAX_SKILL_BYTES) out.error = t('技能包太大（上限 5 MB）');
+  if (bytes > MAX_SKILL_BYTES) out.error = t('electron.common.skill-pack-too-large-max-5-mb');
   return out;
 }
 
@@ -547,7 +569,7 @@ export function discoverMigrations(e: MigrateEnv): MigrateScan {
       scan.sources.push({ tool, where, found: true });
       return j;
     } catch {
-      scan.sources.push({ tool, where, found: true, error: t('不是有效的 JSON') });
+      scan.sources.push({ tool, where, found: true, error: t('electron.common.not-valid-json') });
       return undefined;
     }
   };
@@ -625,7 +647,12 @@ export function discoverMigrations(e: MigrateEnv): MigrateScan {
     try {
       tbl = parseToml(r.text) as Record<string, unknown>;
     } catch {
-      scan.sources.push({ tool: 'codex', where, found: true, error: t('TOML 格式有误，无法解析') });
+      scan.sources.push({
+        tool: 'codex',
+        where,
+        found: true,
+        error: t('electron.common.invalid-toml-couldn-t-parse-it'),
+      });
       continue;
     }
     scan.sources.push({ tool: 'codex', where, found: true });

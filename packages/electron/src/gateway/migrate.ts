@@ -4,7 +4,7 @@
  * - 按「规范化后的主机名 + Key 明文」去重：同一个 Key 在不同地方配了不同协议，合并成一个供应商的多个地址；
  * - Nomi 当前供应商 + 默认模型、任务路由 → clients.nomi；各 CLI 当前启用的第三方 → clients[kind]；
  * - 旧路由改过的端口沿用；
- * - 旧文件只读不改：旧界面与旧路由在 M3 之前仍在使用它们（改名为 .migrated 留到移除旧代码时）。
+ * - 成功写入 GatewayStore 后，把仍存在的旧文件原子改名为 `*.migrated`（已存在则加时间戳）；失败不改旧文件。
  * 官方账号保险箱（cli-accounts）不读不写。
  */
 import fs from 'fs';
@@ -94,8 +94,39 @@ export interface MigrationResult {
   migrated: boolean;
   providers: number;
   files: string[];
+  /** 成功迁移后改名为 *.migrated 的路径 */
+  archived: string[];
   /** 读不出明文的 Key（比如换了机器，钥匙串不同） */
   undecryptable: number;
+}
+
+/** 可能残留的旧存储路径（Nomi + 各 CLI） */
+export function legacyFileCandidates(src: Pick<LegacySources, 'nomiFile' | 'cliRoot'>): string[] {
+  return [src.nomiFile, ...CLI_KINDS.map((k) => path.join(src.cliRoot, k, 'store.json'))];
+}
+
+/**
+ * 把旧文件改名为 `*.migrated`（已存在则 `*.migrated-<ts>`）。只 rename，失败只记日志。
+ * 必须在 GatewayStore 已成功 save 之后调用。
+ */
+export function archiveLegacyFiles(files: string[], logger?: Logger): string[] {
+  const archived: string[] = [];
+  for (const file of files) {
+    if (!fs.existsSync(file)) continue;
+    const base = `${file}.migrated`;
+    const dest = fs.existsSync(base) ? `${file}.migrated-${Date.now()}` : base;
+    try {
+      fs.renameSync(file, dest);
+      archived.push(dest);
+      logger?.info('gateway: archived legacy provider file', { from: file, to: dest });
+    } catch (e) {
+      logger?.warn('gateway: failed to archive legacy file', {
+        file,
+        error: e instanceof Error ? e.message : String(e),
+      });
+    }
+  }
+  return archived;
 }
 
 function nomiEntries(data: ProviderStoreData, cipher: SecretCipher, bad: { n: number }): Entry[] {
@@ -220,7 +251,8 @@ export function migrateLegacy(
     const add = (mid: string, enabled: boolean) => {
       const hit = models.find((m) => m.id === mid);
       if (hit) hit.enabled ||= enabled;
-      else models.push({ id: mid, enabled, metaSource: enabled ? 'user' : 'listed' });
+      // 旧配置只有模型名、没有上下文等元数据：不标来源，生效值按预设 / 内置目录算（§12.7.2）
+      else models.push({ id: mid, enabled });
     };
     for (const e of g.entries) {
       e.models.forEach((m) => add(m, true));
@@ -304,10 +336,16 @@ export function migrateLegacy(
   data.migratedFrom = { at: now, files };
   store.replace(data);
   store.save();
+  // 只有 save 成功才归档：含未能解析的残留文件，避免运行时再读旧存储
+  const archived = archiveLegacyFiles(
+    legacyFileCandidates(src).filter((f) => fs.existsSync(f)),
+    logger,
+  );
   logger?.info('gateway: migrated legacy providers', {
     providers: groups.length,
     files: files.length,
+    archived: archived.length,
     undecryptable: bad.n,
   });
-  return { migrated: true, providers: groups.length, files, undecryptable: bad.n };
+  return { migrated: true, providers: groups.length, files, archived, undecryptable: bad.n };
 }

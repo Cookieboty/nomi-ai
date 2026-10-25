@@ -274,14 +274,25 @@ describe('源码级约束：价格同步（priceSync.ts）只做一次公开 GET
     expect(code.match(/(?<![.\w])fetch\s*\(/g)).toHaveLength(1);
   });
 
-  it('只被用户点击触发：UsageService 里只有 IPC 处理器调用 syncPrices，没有定时 / 启动调用', () => {
+  it('只由用户点击或启动时的 autoSync 触发：没有定时轮询；autoSync 先看开关与 12 小时间隔', () => {
     const svc = fs.readFileSync(
       path.resolve(__dirname, '../../../src/usage/UsageService.ts'),
       'utf8',
     );
     const calls = svc.match(/syncPrices\(|priceSync\.sync\(/g) ?? [];
-    expect(calls).toHaveLength(3); // 方法定义 + 其中的 priceSync.sync() + IPC 处理器
+    expect(calls).toHaveLength(4); // 方法定义 + 其中的 priceSync.sync() + IPC 处理器 + autoSync
     expect(svc).toMatch(/handle\('ai:usage:price-sync', \(\) => this\.syncPrices\(\)\)/);
+    const auto = svc.slice(svc.indexOf('async autoSync()'), svc.indexOf('query(rangeId'));
+    expect(auto).toContain('this.settings.modelsSyncAuto');
+    expect(auto).toContain('MODELS_SYNC_INTERVAL_MS');
+    // 用量服务有扫描日志等别的定时器，但没有一个会触发同步
+    expect(svc).not.toMatch(/set(Interval|Timeout)\([^;]*(syncPrices|autoSync|priceSync)/);
+    // 应用只在启动时调一次 autoSync
+    const app = fs.readFileSync(
+      path.resolve(__dirname, '../../../src/core/Application.ts'),
+      'utf8',
+    );
+    expect(app.match(/\.autoSync\(/g)).toHaveLength(1);
   });
 });
 

@@ -39,13 +39,13 @@ const CodeBlock: React.FC<{ lang: string; code: string; highlightedHtml?: string
   return (
     <div className={styles.codeBlock} data-testid="md-code">
       <div className={styles.codeHead}>
-        <span>{lang || t('代码')}</span>
+        <span>{lang || t('ui.usage-tools.code')}</span>
         <button
           type="button"
           className={styles.copyBtn}
           onClick={copy}
-          aria-label={t('复制代码')}
-          title={t('复制代码')}
+          aria-label={t('ui.usage-tools.copy-code')}
+          title={t('ui.usage-tools.copy-code')}
         >
           <Icon icon={copied ? Check : Copy} size={13} />
         </button>

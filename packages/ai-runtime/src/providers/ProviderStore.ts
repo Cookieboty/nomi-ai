@@ -1,9 +1,9 @@
 /**
- * ProviderStore —— 多 provider 配置 + Token 服务的本地存储（仅主进程）。
+ * ProviderStore —— 多 provider 配置 + Token 的本地/内存存储（仅主进程）。
  *
- * 数据只落在 `userData/ai-providers.json`（0600）。API key 用 SecretCipher 加密后存储；
- * 对外（IPC / 渲染进程）只给 `ProviderView`：key 只有掩码与元数据，**永不回传明文**。
- * 明文只通过 `resolveKeys()` 交给主进程内的 LLM provider 工厂。
+ * 生产路径以 GatewayStore 为唯一来源；本类主要用于迁移读入、单测，以及 Electron 里
+ * 无 filePath 的内存垫片（用量 sink / 预设 IPC）。若提供 filePath，则落在该 JSON（0600）。
+ * API key 用 SecretCipher 加密后存储；对外只给 `ProviderView`（掩码），明文经 `resolveKeys()`。
  */
 import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs';

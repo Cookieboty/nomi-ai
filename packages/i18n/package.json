@@ -1,0 +1,31 @@
+{
+  "name": "@nomi-ai/i18n",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Nomi unified localization catalog and runtime",
+  "type": "module",
+  "main": "./dist-cjs/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist-cjs/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "dist-cjs"
+  ],
+  "scripts": {
+    "build": "node ../../scripts/run-bin.mjs rimraf dist dist-cjs && node ../../scripts/run-bin.mjs tsc -p tsconfig.json && node ../../scripts/run-bin.mjs tsc -p tsconfig.cjs.json && node scripts/write-cjs-package.mjs && node scripts/fix-esm-extensions.mjs",
+    "typecheck": "node ../../scripts/run-bin.mjs tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "clean": "node ../../scripts/run-bin.mjs rimraf dist dist-cjs"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "rimraf": "^6.1.3"
+  }
+}

@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { ModalHostContext, Modal } from '@nomi-ai/ui';
+import { ModalHostContext, Modal, t } from '@nomi-ai/ui';
 import { act, cleanup, fireEvent, render } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -41,7 +41,7 @@ describe('SettingsView', () => {
     const onClose = vi.fn();
     const { getByTestId } = render(<Harness onClose={onClose} />);
     for (const s of SETTINGS_SECTIONS) expect(getByTestId(`settings-nav-${s.id}`)).toBeTruthy();
-    expect(SETTINGS_SECTIONS.map((s) => s.label)).toContain('本机管理');
+    expect(SETTINGS_SECTIONS.map((s) => s.label)).toContain('ui.chat-settings.local-tools');
     expect(getByTestId('settings-privacy')).toBeTruthy();
     fireEvent.click(getByTestId('settings-nav-general'));
     expect(getByTestId('settings-nav-general').getAttribute('aria-current')).toBe('page');
@@ -113,16 +113,16 @@ describe('SettingsView 合并后的标签页分区', () => {
     expect(banner.getAttribute('src')).toContain('nomi-banner.webp');
     for (const s of SETTINGS_SECTIONS) {
       fireEvent.click(r.getByTestId(`settings-nav-${s.id}`));
-      expect(r.getByTestId('settings-section-title').textContent).toBe(s.label);
-      expect(r.getByRole('main').getAttribute('aria-label')).toBe(s.label);
+      expect(r.getByTestId('settings-section-title').textContent).toBe(t(s.label));
+      expect(r.getByRole('main').getAttribute('aria-label')).toBe(t(s.label));
       const general = s.id === 'general';
       expect(r.queryAllByTestId('settings-banner')).toHaveLength(general ? 1 : 0);
       if (general) {
         expect(r.queryByTestId('settings-page-head')).toBeNull();
       } else {
         const head = r.getByTestId('settings-page-head');
-        expect(head.querySelector('h1')!.textContent).toBe(s.label);
-        expect(head.querySelector('p')!.textContent).toBe(s.intro);
+        expect(head.querySelector('h1')!.textContent).toBe(t(s.label));
+        expect(head.querySelector('p')!.textContent).toBe(t(s.intro));
       }
     }
   });
@@ -184,7 +184,34 @@ describe('SettingsView 合并后的标签页分区', () => {
     expect(r.getByTestId('settings-reopen-onboarding')).toBeTruthy();
   });
 
-  it('菜单只有合并后的 12 个分区', () => {
+  it('「模型质量」在「模型」后面，点开懒加载面板', async () => {
+    const r = render(<Harness onClose={() => undefined} start="models" />);
+    fireEvent.click(r.getByTestId('settings-nav-quality'));
+    expect(r.getByTestId('settings-nav-quality').getAttribute('aria-current')).toBe('page');
+    expect(r.getByTestId('settings-section-title').textContent).toBe('模型质量');
+    expect(await r.findByTestId('settings-quality')).toBeTruthy();
+  });
+
+  it('宽分区（模型质量）不显示右侧说明栏，页头「说明」按钮在页头下展开同一组说明', async () => {
+    const { SECTION_HELP } = await import('../src/components/SettingsView/sectionHelp');
+    const r = render(<Harness onClose={() => undefined} start="quality" />);
+    expect(r.queryByTestId('settings-help')).toBeNull();
+    expect(r.queryByTestId('settings-help-inline')).toBeNull();
+    const toggle = r.getByTestId('settings-help-toggle');
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    const help = r.getByTestId('settings-help-inline');
+    expect(help.querySelectorAll('li')).toHaveLength(SECTION_HELP.quality.length);
+    fireEvent.click(toggle);
+    expect(r.queryByTestId('settings-help-inline')).toBeNull();
+    // 普通分区没有这个按钮
+    fireEvent.click(r.getByTestId('settings-nav-models'));
+    expect(r.queryByTestId('settings-help-toggle')).toBeNull();
+    expect(r.getByTestId('settings-help')).toBeTruthy();
+  });
+
+  it('菜单只有合并后的 13 个分区', () => {
     const r = render(<Harness onClose={() => undefined} />);
     const ids = r
       .getAllByTestId(/^settings-nav-/)
@@ -193,6 +220,7 @@ describe('SettingsView 合并后的标签页分区', () => {
       'general',
       'shortcuts',
       'models',
+      'quality',
       'coding',
       'usage',
       'senses',

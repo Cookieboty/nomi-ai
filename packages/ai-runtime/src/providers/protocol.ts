@@ -12,9 +12,9 @@ export const PROTOCOLS = ['openai-chat', 'openai-responses', 'anthropic'] as con
 export type Protocol = (typeof PROTOCOLS)[number];
 
 export const PROTOCOL_LABELS: Readonly<Record<Protocol, string>> = {
-  'openai-chat': 'OpenAI Chat Completions',
-  'openai-responses': 'OpenAI Responses',
-  anthropic: 'Anthropic Messages',
+  'openai-chat': 'ai-runtime.providers.protocol-openai-chat',
+  'openai-responses': 'ai-runtime.providers.protocol-openai-responses',
+  anthropic: 'ai-runtime.providers.protocol-anthropic',
 };
 
 export function isProtocol(v: unknown): v is Protocol {

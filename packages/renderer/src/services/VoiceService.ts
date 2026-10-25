@@ -103,7 +103,7 @@ export class VoiceService {
           resolve();
         } else if (attempts >= maxAttempts) {
           log.error('等待electronAPI超时');
-          reject(new Error(t('electronAPI准备超时')));
+          reject(new Error(t('ui.voice-mascot.electronapi-ready-timeout')));
         } else {
           setTimeout(checkAPI, 100);
         }

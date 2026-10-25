@@ -78,6 +78,24 @@ describe('CliHarnessService tabs', () => {
     expect(() => h.closeTab(MAIN_TAB_ID)).toThrow();
   });
 
+  it('syncs a history title into an automatically numbered CLI tab', () => {
+    const h = mk();
+    const tab = h.openHistorySession({
+      backend: 'codex',
+      sessionId: 'session-title-1',
+      cwd: os.tmpdir(),
+      title: 'Codex 1',
+      messages: [],
+    }).tab;
+    expect(tab.title).toBe('Codex 1');
+    h.syncOpenSessionTitle('codex', 'session-title-1', '修复登录流程');
+    expect(h.listTabs().tabs.find((x) => x.id === tab.id)?.title).toBe('修复登录流程');
+
+    h.renameTab(tab.id, '我的 Codex');
+    h.syncOpenSessionTitle('codex', 'session-title-1', '另一个标题');
+    expect(h.listTabs().tabs.find((x) => x.id === tab.id)?.title).toBe('我的 Codex');
+  });
+
   it('runs all tabs in parallel (no max-concurrent queue)', async () => {
     process.env.NOMI_MOCK_DELAY_MS = '400';
     const h = mk();

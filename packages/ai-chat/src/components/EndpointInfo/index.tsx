@@ -5,6 +5,7 @@
  * CLI 版本与更新、单端刷新、跳转设置 / 用量页。设计稿见 docs/design/endpoint-info-card.md。
  * 数据都来自本机主进程；Nomi 不读取任何凭据。
  */
+import { isBuiltinCliId } from '@nomi-ai/cli-plugins';
 import { Badge, Button, Modal, ModalHostContext, t } from '@nomi-ai/ui';
 import { KeyRound, LoaderCircle, RefreshCw, UserRound } from 'lucide-react';
 import React, { useState } from 'react';
@@ -14,6 +15,7 @@ import { isQuotaTool } from '../../hooks/useToolQuota';
 import { isCliKind } from '../../services/cliSource';
 import type { UsageQuotaEntry, UsageQuotaWindow } from '../../services/usageClient';
 import type { ConversationBackend } from '../../types/chat';
+import { hasOfficialAccount } from '../../utils/cliCaps';
 import { ENDPOINT_FULL } from '../../utils/endpointBadge';
 import { AppIcon } from '../AppIcons';
 import { CliDefaultSource } from '../CliDefaultSource';
@@ -40,9 +42,10 @@ export interface EndpointInfoProps {
 
 type Auth = { text: string; tone: 'neutral' | 'success' | 'warning' } | null;
 
-/** 登录方式：Nomi 对话 / dsh 固定 API；其余按官方登录状态 */
+/** 登录方式：Nomi 对话与没有官方账号的内置 CLI（dsh）固定 API；其余按官方登录状态 */
 function authOf(b: ConversationBackend, quota: UsageQuotaEntry | null): Auth {
-  if (b === 'nomi' || b === 'dsh') return { text: t('API 密钥'), tone: 'warning' };
+  if (b === 'nomi' || (isBuiltinCliId(b) && !hasOfficialAccount(b)))
+    return { text: t('ui.foundation.api-key'), tone: 'warning' };
   return quota ? authLabel(quota) : null;
 }
 
@@ -64,7 +67,7 @@ const MiniBars: React.FC<{ windows: UsageQuotaWindow[] }> = ({ windows }) => (
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={pct}
-            aria-label={t('{0}已用', label)}
+            aria-label={t('ui.usage-tools.used-amount', label)}
           >
             <i style={{ width: `${Math.max(2, Math.min(100, pct))}%` }} />
           </div>
@@ -125,7 +128,7 @@ export const EndpointInfoCard: React.FC<EndpointInfoProps> = (props) => {
           type="button"
           className={styles.main}
           onClick={() => setOpen(true)}
-          aria-label={t('查看 {0} 详情', name)}
+          aria-label={t('ui.usage-tools.view-details', name)}
           aria-haspopup="dialog"
           data-testid="endpoint-card-open"
         >
@@ -133,16 +136,18 @@ export const EndpointInfoCard: React.FC<EndpointInfoProps> = (props) => {
             <EndpointIcon backend={backend} size={18} decorative />
             <b className={styles.name}>{name}</b>
             {info.cli?.version ? <span className={styles.ver}>v{info.cli.version}</span> : null}
-            {backend === 'nomi' ? <span className={styles.ver}>{t('内置')}</span> : null}
+            {backend === 'nomi' ? (
+              <span className={styles.ver}>{t('ui.chat-settings.built-in')}</span>
+            ) : null}
           </span>
           <span className={styles.badges}>
             {backend === 'nomi' ? null : installed === false ? (
               <Badge tone="warning" data-testid="endpoint-card-install">
-                {t('未安装')}
+                {t('ui.mascot-theme.not-installed')}
               </Badge>
             ) : installed ? (
               <Badge tone="success" data-testid="endpoint-card-install">
-                {t('已安装')}
+                {t('ui.knowledge-local.installed')}
               </Badge>
             ) : null}
             {auth && installed !== false ? (
@@ -154,33 +159,39 @@ export const EndpointInfoCard: React.FC<EndpointInfoProps> = (props) => {
             {info.quota?.plan ? <Badge tone="neutral">{info.quota.plan}</Badge> : null}
             {running > 0 ? (
               <Badge tone="neutral" data-testid="endpoint-card-running">
-                {t('运行中 {0}', running)}
+                {t('ui.usage-tools.running', running)}
               </Badge>
             ) : null}
           </span>
           {installed === false ? (
-            <span className={styles.dim}>{t('没有找到官方 CLI，可在设置 → 编程助手里安装。')}</span>
+            <span className={styles.dim}>
+              {t('ui.usage-tools.official-cli-not-found-you-can-install-it')}
+            </span>
           ) : (
             <>
               {wins.length > 0 ? (
                 <MiniBars windows={wins} />
-              ) : isApi || backend === 'nomi' || backend === 'dsh' ? (
-                <span className={styles.dim}>{t('API 计费，无订阅额度')}</span>
+              ) : isApi || backend === 'nomi' || !hasOfficialAccount(backend) ? (
+                <span className={styles.dim}>
+                  {t('ui.usage-tools.api-billing-no-subscription-quota')}
+                </span>
               ) : info.quota ? (
-                <span className={styles.dim}>{t('暂无额度数据')}</span>
+                <span className={styles.dim}>{t('ui.usage-tools.no-quota-data')}</span>
               ) : null}
               <span className={styles.kv} data-testid="endpoint-card-usage">
                 <span>
                   {today && today.calls > 0 ? (
                     <>
-                      {t('今日')} <b>{formatTokens(today.total)}</b> ·{' '}
+                      {t('ui.usage-tools.today')} <b>{formatTokens(today.total)}</b> ·{' '}
                       <b>{formatMoney(today.costUsd, fx.currency, fx.rate)}</b>
                     </>
                   ) : (
-                    t('今日暂无用量')
+                    t('ui.usage-tools.no-usage-today')
                   )}
                 </span>
-                <span className={styles.dim}>{last ? relTime(last) : t('暂无活动')}</span>
+                <span className={styles.dim}>
+                  {last ? relTime(last) : t('ui.usage-tools.no-activity-yet')}
+                </span>
               </span>
             </>
           )}
@@ -191,14 +202,14 @@ export const EndpointInfoCard: React.FC<EndpointInfoProps> = (props) => {
             className={styles.refresh}
             onClick={() => void info.refresh()}
             disabled={info.busy}
-            aria-label={t('刷新 {0}', name)}
-            title={t('只刷新 {0}（额度与用量），不影响其他端', name)}
+            aria-label={t('ui.usage-tools.refresh', name)}
+            title={t('ui.usage-tools.refresh-only-quota-and-usage-other-endpoints-are', name)}
             data-testid="endpoint-card-refresh"
           >
             <RefreshGlyph busy={info.busy} />
           </button>
         )}
-        {/* 新标签默认用官方还是第三方供应商（当前会话的供应商在输入框左下角换） */}
+        {/* 新标签默认用本机配置、官方账号还是第三方供应商（当前会话的供应商在输入框左下角换） */}
         {isCliKind(backend) && installed !== false && <CliDefaultSource backend={backend} />}
         {info.error && (
           <span className={styles.err} role="status" data-testid="endpoint-card-error">
@@ -255,7 +266,7 @@ const EndpointDrawer: React.FC<{
         title={
           <span className={styles.drawerTitle}>
             <EndpointIcon backend={backend} size={20} decorative />
-            {t('{0} · 端详情', name)}
+            {t('ui.usage-tools.endpoint-details', name)}
           </span>
         }
         footer={
@@ -265,48 +276,49 @@ const EndpointDrawer: React.FC<{
               onClick={() => onOpenSettings('usage')}
               data-testid="endpoint-open-usage"
             >
-              {t('打开用量页')}
+              {t('ui.usage-tools.open-usage')}
             </Button>
             <Button
               size="sm"
               onClick={() => onOpenSettings('coding')}
               data-testid="endpoint-open-coding"
             >
-              {t('打开编程助手设置')}
+              {t('ui.usage-tools.open-coding-assistant-settings')}
             </Button>
           </div>
         }
       >
         <section className={styles.panel} data-testid="endpoint-drawer-overview">
-          <h3 className={styles.h3}>{t('概况')}</h3>
+          <h3 className={styles.h3}>{t('ui.usage-tools.overview-short')}</h3>
           <div className={styles.badges}>
             {backend === 'nomi' ? (
-              <Badge tone="success">{t('内置')}</Badge>
+              <Badge tone="success">{t('ui.chat-settings.built-in')}</Badge>
             ) : installed ? (
-              <Badge tone="success">{t('已安装')}</Badge>
+              <Badge tone="success">{t('ui.knowledge-local.installed')}</Badge>
             ) : installed === false ? (
-              <Badge tone="warning">{t('未安装')}</Badge>
+              <Badge tone="warning">{t('ui.mascot-theme.not-installed')}</Badge>
             ) : null}
             {cli?.version ? <Badge tone="neutral">v{cli.version}</Badge> : null}
             {cli?.updateAvailable && cli.latest ? (
               <Badge tone="warning" data-testid="endpoint-update-available">
-                {t('可更新到 {0}', cli.latest)}
+                {t('ui.usage-tools.update-to-available', cli.latest)}
               </Badge>
             ) : null}
             {auth ? <Badge tone={auth.tone}>{auth.text}</Badge> : null}
             {quota?.plan ? <Badge tone="neutral">{quota.plan}</Badge> : null}
-            <Badge tone="neutral">{t('运行中标签 {0}', running)}</Badge>
+            <Badge tone="neutral">{t('ui.usage-tools.running-tabs', running)}</Badge>
             <Badge tone="neutral">
-              {t('最近活动')} {last ? relTime(last, now) : t('暂无活动')}
+              {t('ui.usage-tools.last-activity')}{' '}
+              {last ? relTime(last, now) : t('ui.usage-tools.no-activity-yet')}
             </Badge>
           </div>
           {cli?.path ? (
             <div className={styles.dim}>
               {cli.installMethod === 'npm'
-                ? t('安装方式：npm')
+                ? t('ui.usage-tools.installed-via-npm')
                 : cli.installMethod === 'native'
-                  ? t('安装方式：官方安装器')
-                  : t('安装方式未知')}
+                  ? t('ui.usage-tools.installed-via-the-official-installer')
+                  : t('ui.usage-tools.install-method-unknown')}
             </div>
           ) : null}
           {backend !== 'nomi' && (
@@ -319,7 +331,9 @@ const EndpointDrawer: React.FC<{
                 data-testid="endpoint-check-update"
               >
                 <RefreshGlyph busy={info.checkingUpdate} />{' '}
-                {info.checkingUpdate ? t('检查中…') : t('检查更新')}
+                {info.checkingUpdate
+                  ? t('ui.cli-monitor.checking')
+                  : t('ui.mascot-theme.check-for-updates')}
               </Button>
             </div>
           )}
@@ -327,7 +341,7 @@ const EndpointDrawer: React.FC<{
 
         <section className={styles.panel} data-testid="endpoint-drawer-quota">
           <h3 className={styles.h3}>
-            {t('订阅额度')}
+            {t('ui.usage-tools.subscription-quota')}
             <span className={styles.grow} />
             {refreshable && (
               <Button
@@ -335,19 +349,26 @@ const EndpointDrawer: React.FC<{
                 variant="ghost"
                 onClick={() => void info.refresh()}
                 disabled={info.busy}
-                aria-label={t('刷新 {0}', name)}
+                aria-label={t('ui.usage-tools.refresh', name)}
                 data-testid="endpoint-drawer-refresh"
               >
-                <RefreshGlyph busy={info.busy} /> {info.busy ? t('刷新中…') : t('刷新')}
+                <RefreshGlyph busy={info.busy} />{' '}
+                {info.busy ? t('ui.chat-settings.refreshing') : t('ui.knowledge-local.refresh')}
               </Button>
             )}
           </h3>
-          {backend === 'nomi' || backend === 'dsh' || isApi ? (
-            <span className={styles.dim}>{t('API 计费，无订阅额度')}</span>
+          {backend === 'nomi' || !hasOfficialAccount(backend) || isApi ? (
+            <span className={styles.dim}>
+              {t('ui.usage-tools.api-billing-no-subscription-quota')}
+            </span>
           ) : quota?.status === 'ok' ? (
-            <QuotaWindowList windows={quota.windows} now={now} label={t('{0}额度窗口', name)} />
+            <QuotaWindowList
+              windows={quota.windows}
+              now={now}
+              label={t('ui.usage-tools.quota-windows', name)}
+            />
           ) : (
-            <span className={styles.dim}>{t('暂未返回可用额度')}</span>
+            <span className={styles.dim}>{t('ui.usage-tools.no-usable-quota-returned-yet')}</span>
           )}
           <div
             className={styles.foot}
@@ -356,7 +377,7 @@ const EndpointDrawer: React.FC<{
             data-testid="endpoint-drawer-status"
           >
             {info.busy ? (
-              <span className={styles.dim}>{t('正在刷新…')}</span>
+              <span className={styles.dim}>{t('ui.usage-tools.refreshing')}</span>
             ) : info.error ? (
               <span className={styles.errText}>{info.error}</span>
             ) : state?.note ? (
@@ -364,33 +385,33 @@ const EndpointDrawer: React.FC<{
             ) : null}
             <span className={styles.dim}>
               {quota?.updatedAt
-                ? t('更新于 {0}', relTime(quota.updatedAt, now))
-                : t('尚无额度数据')}
+                ? t('ui.usage-tools.updated', relTime(quota.updatedAt, now))
+                : t('ui.usage-tools.no-quota-data-yet')}
               {quota?.origin ? ` · ${t(ORIGIN_LABEL[quota.origin])}` : ''}
             </span>
           </div>
         </section>
 
         <section className={styles.panel} data-testid="endpoint-drawer-usage">
-          <h3 className={styles.h3}>{t('今日与近 7 天')}</h3>
+          <h3 className={styles.h3}>{t('ui.usage-tools.today-and-last-7-days')}</h3>
           <div className={styles.stats}>
             <div className={styles.stat}>
-              <span>{t('今日 Token')}</span>
+              <span>{t('ui.usage-tools.tokens-today')}</span>
               <b>{formatTokens(usage?.today.total ?? 0)}</b>
             </div>
             <div className={styles.stat}>
-              <span>{t('今日费用')}</span>
+              <span>{t('ui.usage-tools.cost-today')}</span>
               <b>{money(usage?.today.costUsd ?? 0)}</b>
             </div>
             <div className={styles.stat}>
-              <span>{t('近 7 天费用')}</span>
+              <span>{t('ui.usage-tools.cost-last-7-days')}</span>
               <b>{money(weekCost)}</b>
             </div>
           </div>
           <div
             className={styles.trend}
             role="img"
-            aria-label={t('近 7 天 Token 趋势')}
+            aria-label={t('ui.usage-tools.token-trend-last-7-days')}
             data-testid="endpoint-trend"
           >
             {series.map((p) => (
@@ -404,7 +425,9 @@ const EndpointDrawer: React.FC<{
         </section>
 
         <section className={styles.panel} data-testid="endpoint-drawer-config">
-          <h3 className={styles.h3}>{t('配置（仅路径，不读取内容）')}</h3>
+          <h3 className={styles.h3}>
+            {t('ui.usage-tools.config-path-only-contents-are-not-read')}
+          </h3>
           {paths.length > 0 ? (
             paths.map((p) => (
               <div key={p.path} className={styles.path} title={p.path}>
@@ -413,10 +436,14 @@ const EndpointDrawer: React.FC<{
             ))
           ) : (
             <span className={styles.dim}>
-              {backend === 'nomi' ? t('Nomi 的配置在设置里管理。') : t('暂未获取到配置路径。')}
+              {backend === 'nomi'
+                ? t('ui.usage-tools.nomi-s-configuration-is-managed-in-settings')
+                : t('ui.usage-tools.config-path-not-available')}
             </span>
           )}
-          <span className={styles.dim}>{t('登录凭据由官方 CLI 保管，Nomi 不读取、不展示。')}</span>
+          <span className={styles.dim}>
+            {t('ui.usage-tools.login-credentials-are-kept-by-the-official-cli')}
+          </span>
         </section>
       </Modal>
     </ModalHostContext.Provider>

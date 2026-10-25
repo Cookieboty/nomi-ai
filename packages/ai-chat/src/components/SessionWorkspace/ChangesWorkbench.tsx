@@ -93,7 +93,7 @@ export const ChangesWorkbenchHost: React.FC<{
       data-testid="changes-workbench"
       role="dialog"
       aria-modal="true"
-      aria-label={t('全屏审查')}
+      aria-label={t('ui.session-workspace.full-screen-review')}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) closeWorkbench();
       }}
@@ -106,7 +106,7 @@ export const ChangesWorkbenchHost: React.FC<{
           <span className={pane.crumbSep} aria-hidden>
             /
           </span>
-          <span className={pane.centerTitle}>{t('变更')}</span>
+          <span className={pane.centerTitle}>{t('ui.session-workspace.changed')}</span>
           <span className={styles.stat}>
             <span className={styles.add}>+{summary.added.toLocaleString()}</span>
             <span className={styles.del}>−{summary.removed.toLocaleString()}</span>
@@ -120,7 +120,7 @@ export const ChangesWorkbenchHost: React.FC<{
                 data-active={!scopeAll || undefined}
                 onClick={() => setScopeAll(false)}
               >
-                {workbench.sourceLabel || t('上一轮')}
+                {workbench.sourceLabel || t('ui.session-workspace.last-turn')}
               </button>
               <button
                 type="button"
@@ -130,18 +130,18 @@ export const ChangesWorkbenchHost: React.FC<{
                 data-testid="wb-view-all"
                 onClick={() => setScopeAll(true)}
               >
-                {t('全部')}
+                {t('ui.providers-schedule.all')}
               </button>
             </span>
           ) : null}
           <span className={styles.wbSpacer} />
-          <span className={pane.meta}>{t('{0} 个文件', String(summary.files))}</span>
+          <span className={pane.meta}>{t('ui.usage-tools.files', String(summary.files))}</span>
           <button
             ref={closeRef}
             type="button"
             className={pane.iconBtn}
-            aria-label={t('关闭')}
-            title={t('关闭（Esc）')}
+            aria-label={t('ui.providers-schedule.close')}
+            title={t('ui.session-workspace.close-esc')}
             data-testid="wb-close"
             onClick={closeWorkbench}
           >
@@ -152,7 +152,9 @@ export const ChangesWorkbenchHost: React.FC<{
         <div className={pane.wbBody}>
           <main className={pane.wbDiffs} ref={bodyRef}>
             {!entries.length ? (
-              <p className={pane.empty}>{t('本会话尚无文件变更')}</p>
+              <p className={pane.empty}>
+                {t('ui.session-workspace.no-file-changes-in-this-session-yet')}
+              </p>
             ) : (
               entries.map((e) =>
                 e.diff ? (
@@ -175,8 +177,8 @@ export const ChangesWorkbenchHost: React.FC<{
               <input
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                placeholder={t('筛选文件…')}
-                aria-label={t('筛选文件…')}
+                placeholder={t('ui.session-workspace.filter-files')}
+                aria-label={t('ui.session-workspace.filter-files')}
                 data-testid="wb-filter"
               />
             </label>

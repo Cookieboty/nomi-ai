@@ -214,11 +214,12 @@ const LABEL: Record<AgentKind, string> = {
 };
 
 const REMIND: Record<AgentStatus, (label: string, summary?: string) => string> = {
-  running: (l, s) => tr('{0} 还在忙：{1}', l, s || tr('处理中…')),
-  completed: (l, s) => tr('{0} 做完啦～{1}', l, s ? ` ${s}` : ''),
-  failed: (l, s) => tr('{0} 出错了：{1}', l, s || tr('请看看终端')),
-  stalled: (l) => tr('{0} 好像卡住了，要不要去看看？', l),
-  waiting: (l) => tr('{0} 这一轮做完了，在等你回复', l),
+  running: (l, s) => tr('electron.common.is-still-busy', l, s || tr('electron.common.working')),
+  completed: (l, s) => tr('electron.common.is-done', l, s ? ` ${s}` : ''),
+  failed: (l, s) =>
+    tr('electron.common.hit-an-error', l, s || tr('electron.common.check-the-terminal')),
+  stalled: (l) => tr('electron.common.seems-stuck-want-to-take-a-look', l),
+  waiting: (l) => tr('electron.common.finished-this-turn-and-is-waiting-for-you', l),
   idle: () => '',
 };
 
@@ -329,6 +330,11 @@ export class AgentProgressService {
   private readonly grokHome: string;
   /** 本轮 tick 的 flock 快照（dsh）；null = 无法判断 */
   private dshLocks: Set<number> | null = null;
+  /**
+   * 会话文件解析结果（路径 → mtime + 结果）：文件没动就不再读头尾、重新解析。
+   * 每 8 秒一轮，近 3 天的会话文件逐个读 128KB 再解析会占主进程几十毫秒。dsh 依赖本轮锁快照，不缓存。
+   */
+  private readonly inspected = new Map<string, { mtime: number; cand: Candidate }>();
   private tabs: () => WatchedTab[] = () => [];
   private tabProgress: (tabId: string) => string | undefined = () => undefined;
 
@@ -524,6 +530,15 @@ export class AgentProgressService {
     return out;
   }
 
+  private inspectCached(kind: AgentKind, filePath: string, mtime: number): Candidate {
+    if (kind === 'dsh') return this.inspect(kind, filePath, mtime);
+    const hit = this.inspected.get(filePath);
+    if (hit && hit.mtime === mtime && hit.cand.kind === kind) return hit.cand;
+    const cand = this.inspect(kind, filePath, mtime);
+    this.inspected.set(filePath, { mtime, cand });
+    return cand;
+  }
+
   /** 解析一个文件 → 候选会话（含去重 key） */
   private inspect(kind: AgentKind, filePath: string, mtime: number): Candidate {
     let info: SessionInfo;
@@ -563,7 +578,7 @@ export class AgentProgressService {
         sessionId: id,
         // 锁被持有 = 正在写；锁空闲 = 这一轮已提交；无法判断时按写入时间推断
         phase: lockHeld === false ? 'turn-done' : 'working',
-        detail: lockHeld ? tr('运行中') : undefined,
+        detail: lockHeld ? tr('electron.common.running') : undefined,
       };
       return { key: `dsh:${id}`, kind, path: filePath, mtime, info, lockHeld };
     } else if (kind === 'grok') {
@@ -718,7 +733,11 @@ export class AgentProgressService {
       ? (this.d.lockedInodes ?? (() => readLockedInodes(this.d.platform)))()
       : null;
     const files = this.scanFiles().filter((f) => now - f.mtime < ALIVE_LOOKBACK_MS);
-    const cands = this.dedupe(files.map((f) => this.inspect(f.kind, f.path, f.mtime)));
+    const cands = this.dedupe(files.map((f) => this.inspectCached(f.kind, f.path, f.mtime)));
+    if (this.inspected.size > files.length) {
+      const live = new Set(files.map((f) => f.path));
+      for (const p of this.inspected.keys()) if (!live.has(p)) this.inspected.delete(p);
+    }
     // 首次进程快照还没回来：先不判定（避免把所有历史会话当成在跑）
     const procs = this.procsAt === 0 ? null : this.procs;
     const alive = this.matchAlive(cands, procs);
@@ -886,7 +905,11 @@ export class AgentProgressService {
     const label = ENDPOINT_LABEL[e.backend];
     const who = `${label}（${e.title}）`;
     const brief = (e.summary || '').replace(/\s+/g, ' ').trim().slice(0, 80);
-    const text = tr('{0} 需要确认工具权限：{1}', who, brief || tr('请到对话里允许或拒绝'));
+    const text = tr(
+      'electron.common.needs-tool-permission',
+      who,
+      brief || tr('electron.common.allow-or-deny-in-the-chat'),
+    );
     this.d.desktop.say(text.slice(0, 140), {
       voice: this.settings.summaryEnabled ? 'full' : 'cue',
     });
@@ -895,7 +918,7 @@ export class AgentProgressService {
       endpoint: e.backend,
       status: 'attention',
       title: who,
-      body: brief || tr('需要确认工具权限'),
+      body: brief || tr('electron.common.tool-permission-required'),
     });
     broadcastMascotCommand({ type: 'motion', name: 'think' });
     if (e.background && this.settings.osNotify) this.notify(label, text);
@@ -941,7 +964,11 @@ export class AgentProgressService {
       endpoint: e.backend,
       status: e.ok ? 'done' : 'failed',
       title: who,
-      body: brief || (e.ok ? tr('这一轮做完了') : tr('出错了')),
+      body:
+        brief ||
+        (e.ok
+          ? tr('electron.common.this-turn-is-done')
+          : tr('electron.common.something-went-wrong')),
     });
     broadcastMascotCommand({ type: 'motion', name: e.ok ? 'thumbs_up' : 'sorry' });
     if (this.settings.osNotify) this.notify(label, text);
@@ -1053,7 +1080,7 @@ export class AgentProgressService {
     const groups = new Map<string, number>();
     for (const r of running) groups.set(r.label, (groups.get(r.label) ?? 0) + 1);
     const breakdown = [...groups].map(([l, n]) => `${l} ${n}`).join(' · ');
-    const head = tr('还有 {0} 个编程任务进行中（{1}）', running.length, breakdown);
+    const head = tr('electron.common.coding-task-s-still-in-progress', running.length, breakdown);
     const summary = this.settings.summaryEnabled;
     let text = head;
     if (summary) {
@@ -1075,7 +1102,7 @@ export class AgentProgressService {
       kind: 'agent',
       endpoint: kinds.size === 1 ? [...kinds][0] : undefined,
       status: 'running',
-      title: tr('{0} 个编程任务进行中', running.length),
+      title: tr('electron.common.coding-task-s-in-progress', running.length),
       body: summary ? text.slice(head.length + 1) || breakdown : breakdown,
     });
     this.d.logger.info('agent-progress digest', { running: running.length, summary });
@@ -1140,7 +1167,7 @@ export function tabView(t: WatchedTab): AgentSessionView {
     cwd: t.cwd,
     title: t.title,
     status,
-    summary: t.status === 'queued' ? tr('排队中') : t.lastError,
+    summary: t.status === 'queued' ? tr('electron.common.queued') : t.lastError,
     alive: t.status === 'running' || t.status === 'queued',
     path: '',
     mtime: t.updatedAt,
@@ -1174,8 +1201,8 @@ function finishSummary(label: string, title: string, ok: boolean, detail?: strin
   const task = brief(title, 24);
   const d = brief(detail, 60);
   return ok
-    ? tr('{0} 完成了任务「{1}」，结果：{2}', label, task, d || tr('顺利完成'))
-    : tr('{0} 的任务「{1}」失败了：{2}', label, task, d || tr('请看看终端'));
+    ? tr('electron.common.finished', label, task, d || tr('electron.common.completed-successfully'))
+    : tr('electron.common.task-failed', label, task, d || tr('electron.common.check-the-terminal'));
 }
 
 /** 有会话级用量日志的工具 */

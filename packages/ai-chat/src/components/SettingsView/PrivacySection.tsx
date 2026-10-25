@@ -10,6 +10,7 @@ import { useAiChatActions } from '../../contexts/aiChatStore';
 import { DesktopPanel } from '../lazyPanels';
 import type { ScreenTab } from '../ScreenPanel';
 
+import { DiagnosticsSettings } from './DiagnosticsSettings';
 import styles from './index.module.css';
 import { SectionPage } from './SectionPage';
 import { SECTION_TABS, type PrivacyTab, type SettingsSection, type SettingsTab } from './sections';
@@ -27,7 +28,7 @@ export const PrivacySection: React.FC<{
   return (
     <SectionPage
       testId="settings-privacy-page"
-      tabsLabel="隐私与权限分区"
+      tabsLabel="ui.chat-settings.privacy-and-permissions-sections"
       tabs={SECTION_TABS.privacy}
       value={tab}
       onChange={onTab}
@@ -35,72 +36,79 @@ export const PrivacySection: React.FC<{
       {tab === 'data' ? (
         <div className={styles.groups} data-testid="settings-privacy">
           <SettingsGroup
-            title={t('数据都在本机')}
-            description={t('Nomi 不做云同步；每一类数据在哪儿管理，都可以从这里直达。')}
+            title={t('ui.knowledge-local.your-data-stays-on-this-device')}
+            description={t('ui.knowledge-local.nomi-doesn-t-sync-to-the-cloud-jump')}
           >
             <SettingRow
-              title={t('对话与记忆')}
-              description={t('对话、记忆、知识库索引都只保存在这台电脑上，不做云同步。')}
+              title={t('ui.knowledge-local.chats-and-memory')}
+              description={t('ui.knowledge-local.chats-memories-and-the-knowledge-base-index-are')}
             >
               <Button size="sm" onClick={() => go('knowledge', 'memory')}>
-                {t('管理记忆')}
+                {t('ui.chat-settings.manage-memory')}
               </Button>
             </SettingRow>
             <SettingRow
-              title={t('屏幕记忆')}
-              description={t('只存本机，可随时暂停，并能排除指定的应用与窗口。')}
+              title={t('ui.chat-settings.screen-memory')}
+              description={t('ui.knowledge-local.stored-on-this-device-only-can-be-paused')}
             >
               <Button size="sm" onClick={() => go('senses', 'screen', 'privacy')}>
-                {t('屏幕记忆与排除')}
+                {t('ui.chat-settings.screen-memory-exclusions')}
               </Button>
             </SettingRow>
             <SettingRow
-              title={t('桌面文件')}
-              description={t('需要逐个文件夹授权，操作都有记录、可撤销。')}
+              title={t('ui.knowledge-local.desktop-files')}
+              description={t('ui.knowledge-local.each-folder-must-be-authorized-every-action-is')}
             >
               <Button size="sm" onClick={() => onTab('desktop')}>
-                {t('文件夹授权与操作记录')}
+                {t('ui.chat-settings.folder-grants-activity-log')}
               </Button>
             </SettingRow>
             <SettingRow
-              title={t('用量与费用')}
-              description={t('Token 用量与费用统计只存在本机，可随时关闭、设保留时长或一键清空。')}
+              title={t('ui.usage-tools.usage-cost')}
+              description={t('ui.usage-tools.token-usage-and-cost-statistics-stay-on-this')}
             >
               <Button size="sm" data-testid="privacy-usage" onClick={() => go('usage')}>
-                {t('用量统计的隐私设置')}
+                {t('ui.usage-tools.usage-privacy-settings')}
               </Button>
             </SettingRow>
             <SettingRow
-              title={t('编程助手')}
-              description={t('编程助手进度只读取本机日志 / 状态文件，不登录、不抓取任何账号。')}
+              title={t('ui.providers-schedule.coding-agents')}
+              description={t('ui.chat-settings.coding-agent-progress-only-reads-local-logs-status')}
             />
           </SettingsGroup>
-          <SettingsGroup title={t('导出与清除')}>
+          <SettingsGroup title={t('ui.knowledge-local.export-clear')}>
             <SettingRow
-              title={t('导出本地数据')}
-              description={t('把聊天、记忆、日程等打包成一个 .zip 文件。')}
+              title={t('ui.chat-settings.export-local-data')}
+              description={t('ui.knowledge-local.pack-chats-memories-schedules-and-more-into-a')}
             >
               <Button size="sm" data-testid="privacy-export" onClick={onExport}>
-                {t('导出')}
+                {t('ui.knowledge-local.export')}
               </Button>
             </SettingRow>
             <SettingRow
-              title={t('清空当前对话')}
-              description={t('只删除当前对话的消息，其它对话不受影响，无法撤销。')}
+              title={t('ui.chat-settings.clear-current-conversation')}
+              description={t('ui.knowledge-local.deletes-only-the-current-chat-s-messages-other')}
             >
               <Button
                 size="sm"
                 variant="danger"
                 data-testid="privacy-clear-chat"
                 onClick={() => {
-                  if (window.confirm(t('清空当前对话的消息？（其它对话不受影响）')))
+                  if (
+                    window.confirm(
+                      t(
+                        'ui.chat-settings.clear-messages-in-the-current-conversation-other-conversations',
+                      ),
+                    )
+                  )
                     void actions.clearChatHistory();
                 }}
               >
-                {t('清空')}
+                {t('ui.knowledge-local.clear')}
               </Button>
             </SettingRow>
           </SettingsGroup>
+          <DiagnosticsSettings />
         </div>
       ) : (
         <DesktopPanel key="desktop" isVisible onClose={noop} />

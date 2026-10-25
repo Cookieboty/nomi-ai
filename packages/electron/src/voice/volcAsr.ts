@@ -201,21 +201,19 @@ const LIMIT_RE = /rate\s*limit|too\s*many|qps|concurren|限流|并发/i;
 
 function messageFor(kind: VolcErrorKind, extra = ''): string {
   const m: Record<VolcErrorKind, string> = {
-    auth: t('豆包 API Key 无效或已失效，请在设置里检查'),
-    not_granted: t(
-      '这个 API Key 还没有开通所选的「流式语音识别 2.0」资源（小时版 / 并发版），请在火山引擎控制台确认',
-    ),
-    quota: t('豆包语音识别额度不足或账户欠费，请在火山引擎控制台查看'),
-    rate_limit: t('请求太频繁或超过并发上限，请稍后再试'),
-    busy: t('豆包语音识别服务繁忙，请稍后再试'),
-    timeout: t('豆包语音识别超时，请检查网络后重试'),
-    network: t('连接豆包语音识别失败，请检查网络'),
-    protocol: t('豆包语音识别返回了无法解析的数据'),
-    empty: t('没有收到有效音频'),
-    bad_audio: t('音频格式不被豆包语音识别接受'),
-    invalid: t('豆包语音识别请求参数无效'),
-    server: t('豆包语音识别服务出错'),
-    cancelled: t('已取消'),
+    auth: t('electron.common.the-doubao-api-key-is-invalid-or-has'),
+    not_granted: t('electron.common.this-api-key-doesn-t-have-the-selected'),
+    quota: t('electron.common.doubao-speech-recognition-quota-is-used-up-or'),
+    rate_limit: t('electron.common.too-many-requests-or-the-concurrency-limit-was'),
+    busy: t('electron.common.doubao-speech-recognition-is-busy-try-again-later'),
+    timeout: t('electron.common.doubao-speech-recognition-timed-out-check-your-network'),
+    network: t('electron.common.couldn-t-connect-to-doubao-speech-recognition-check'),
+    protocol: t('electron.common.doubao-speech-recognition-returned-data-that-couldn-t'),
+    empty: t('electron.common.no-valid-audio-was-received'),
+    bad_audio: t('electron.common.doubao-speech-recognition-doesn-t-accept-this-audio'),
+    invalid: t('electron.common.invalid-doubao-speech-recognition-request-parameters'),
+    server: t('electron.common.doubao-speech-recognition-service-error'),
+    cancelled: t('electron.common.cancelled'),
   };
   return extra ? `${m[kind]}（${extra}）` : m[kind];
 }
@@ -471,7 +469,12 @@ export class VolcAsrSession {
           return;
         }
         if (this.state !== 'done')
-          this.fail(new VolcAsrError('network', messageFor('network', t('连接被关闭'))));
+          this.fail(
+            new VolcAsrError(
+              'network',
+              messageFor('network', t('electron.common.connection-closed')),
+            ),
+          );
       });
       ws.on('message', (data) => {
         if (this.ws === ws) this.onMessage(data);

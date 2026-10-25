@@ -28,8 +28,10 @@ export interface ConvMessage {
   /** 本轮耗时（ms） */
   durationMs?: number;
   usage?: HarnessUsage;
-  /** 展示在元信息里的来源标签（模型 / 后端名） */
+  /** 展示在元信息里的来源标签（端点名：Claude Code / Grok / Nomi…） */
   label?: string;
+  /** 产生这条助手消息的模型（元信息里跟在端点名后面，弱化显示） */
+  model?: string;
   /** 原始消息（来源特有的扩展内容由 slots 渲染） */
   raw?: unknown;
 }
@@ -44,7 +46,14 @@ export interface ConvLive {
   /** 收到第一个输出事件的时间；undefined 表示仍在等待模型首字 */
   firstEventAt?: number;
   /** 待确认的权限请求队列（并行子代理会同时请求） */
-  permissions?: Array<{ id: string; summary: string; agent?: string; expiresAt?: number }>;
+  permissions?: Array<{
+    id: string;
+    summary: string;
+    agent?: string;
+    expiresAt?: number;
+    kind?: 'tool' | 'approve-plan';
+    toolName?: string;
+  }>;
   /** 最近一次超时自动拒绝 */
   permissionExpired?: { summary: string; agent?: string; at: number };
   /** 本轮出现过的子代理（按 id），卡片按 callId 关联到派生它的工具调用 */

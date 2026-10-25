@@ -4,7 +4,14 @@ import * as path from 'path';
 
 import { t } from '../i18n';
 
-import { decide, sanitizePolicy, TOOL_DEFAULT_POLICY, type Danger, type Policy } from './consent';
+import {
+  decide,
+  sanitizePolicy,
+  TOOL_DEFAULT_POLICY,
+  type Danger,
+  type NomiPermissionMode,
+  type Policy,
+} from './consent';
 import { guardPath, type GuardEnv, type GuardResult, type Scope } from './pathGuard';
 
 export interface DesktopSettings {
@@ -37,7 +44,8 @@ export interface ConfirmUi {
   cancel(id: string): void;
 }
 
-export type Decision = 'auto' | 'allowed' | 'denied' | 'timeout';
+/** blocked：当前权限模式不允许（「计划」档下的写 / 破坏性），没有弹确认 */
+export type Decision = 'auto' | 'allowed' | 'denied' | 'timeout' | 'blocked';
 
 export const CONFIRM_TIMEOUT_MS = 120_000;
 const TAINT_FALLBACK_MS = 120_000;
@@ -69,6 +77,8 @@ export class PermissionBroker {
   >();
   private readonly listeners = new Set<() => void>();
   ui: ConfirmUi | null = null;
+  /** Nomi 对话当前的权限模式（由编程助手服务里主标签的档位注入；未注入时按默认） */
+  permissionMode: () => NomiPermissionMode = () => 'acceptEdits';
 
   constructor(
     private readonly file: string,
@@ -211,15 +221,22 @@ export class PermissionBroker {
     signal?: AbortSignal;
     /** 强制确认（如 undo、云端首次发送提示） */
     force?: { dialog: boolean };
+    /** 不受权限模式影响（云端首次发送提示：它确认的是「发给谁」，不是改动） */
+    ignoreMode?: boolean;
   }): Promise<Decision> {
+    const mode = i.ignoreMode ? 'acceptEdits' : this.permissionMode();
+    if (mode === 'plan' && i.danger !== 'read') return 'blocked';
     const d = i.force
       ? { confirm: true, dialog: i.force.dialog, rememberable: false, reason: 'policy' as const }
       : decide({
           danger: i.danger,
           policy: this.policy(i.tool, i.danger),
+          explicitPolicy: (this.settings.policies[i.tool] ?? TOOL_DEFAULT_POLICY[i.tool]) != null,
           sessionAllowed: this.sessionAllowed.has(i.tool),
           tainted: this.isTainted(i.signal),
+          mode,
         });
+    if (d.blocked) return 'blocked';
     if (!d.confirm) return 'auto';
     if (!this.ui) return 'denied'; // 没有界面可确认 → 拒绝
     const timeoutMs = this.opts.timeoutMs ?? CONFIRM_TIMEOUT_MS;
@@ -281,7 +298,7 @@ export class PermissionBroker {
   async checkSend(
     provider: { id: string; name: string; local: boolean } | null,
     signal?: AbortSignal,
-    what = t('文件内容'),
+    what = t('electron.common.file-contents'),
   ): Promise<null | 'local_only' | 'user_denied'> {
     if (!provider || provider.local) return null;
     if (this.settings.localOnly) return 'local_only';
@@ -289,15 +306,11 @@ export class PermissionBroker {
     const d = await this.authorize({
       tool: 'cloud_send_notice',
       danger: 'write',
-      summary: t('{0}将发送给「{1}」进行处理，可以吗？', what, provider.name),
+      summary: t('electron.common.will-be-sent-to-for-processing-ok', what, provider.name),
       args: { provider: provider.name },
-      preview: t(
-        '这是第一次把本地{0}发送给云端模型「{1}」。\n{2}会离开本机，由该服务商处理。\n可以在「桌面能力 → 云端与仅本地」里开启「仅本地模型可读文件」。',
-        what,
-        provider.name,
-        what,
-      ),
+      preview: t('electron.common.this-is-the-first-time-local-will-be', what, provider.name, what),
       signal,
+      ignoreMode: true,
       force: { dialog: true },
     });
     if (d !== 'allowed') return 'user_denied';

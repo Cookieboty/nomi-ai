@@ -23,10 +23,7 @@ export function isGeminiUntrustedExit(exitCode: number | null, stderr: string): 
 
 /** 给用户看的说明：可以在错误卡片上点「信任此文件夹」（只信任这一个），或者自己去 Gemini 里信任 */
 export function geminiUntrustedMessage(cwd: string): string {
-  return t(
-    'Gemini CLI 不信任当前文件夹（{0}），已拒绝在这里运行。可以点下方「信任此文件夹」，或在终端里进入该文件夹运行一次 `gemini` 并选择信任，然后重试。',
-    cwd,
-  );
+  return t('electron.common.gemini-cli-does-not-trust-the-current-folder', cwd);
 }
 
 /** 工作区未受信任导致的失败；带上被拒绝的文件夹，界面据此显示「信任此文件夹」按钮 */

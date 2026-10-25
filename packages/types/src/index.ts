@@ -211,3 +211,4 @@ export interface SherpaModelStatus {
   /** missing / error：模型目录所在卷的可用字节（拿不到时缺省） */
   diskFree?: number;
 }
+export * from './quality';

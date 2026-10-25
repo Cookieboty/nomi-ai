@@ -15,6 +15,8 @@ import {
   type HarnessTabMeta,
 } from '../services/harnessClient';
 
+import { cliAcceptsImages } from './cliCaps';
+
 export type CliImageCapability = 'full' | 'none';
 
 export interface CliImageSupport {
@@ -25,9 +27,8 @@ export interface CliImageSupport {
 
 /** 后端本身能不能收图（不看模型） */
 export function cliImageSupport(backend: HarnessBackend | undefined | null): CliImageCapability {
-  if (!backend || backend === 'nomi') return 'full';
-  if (backend === 'dsh') return 'none';
-  return 'full';
+  // 按插件清单的 images 能力位（如 dsh 的命令行没有图片输入）
+  return cliAcceptsImages(backend) ? 'full' : 'none';
 }
 
 /** 结合模型目录判断（纯函数，便于单测） */
@@ -39,17 +40,14 @@ export function imageSupportFor(
   if (cliImageSupport(tab.backend) === 'none')
     return {
       capability: 'none',
-      reason: t('{0} 的命令行没有图片输入，不能在会话里发送图片，请去掉图片后再发。', 'dsh'),
+      reason: t('ui.session-workspace.the-cli-has-no-image-input-so-images', 'dsh'),
     };
   const own = tab.modelOverride?.trim() || null;
   const m = own ? catalog?.models.find((x) => x.id === own) : catalog?.defaultModel;
   if (m && m.vision === false)
     return {
       capability: 'none',
-      reason: t(
-        '当前模型 {0} 不支持图片，请去掉图片，或在模型按钮里换一个能看图的模型。',
-        m.label ?? m.id,
-      ),
+      reason: t('ui.session-workspace.model-lacks-vision-pick-another', m.label ?? m.id),
     };
   return { capability: 'full' };
 }
@@ -61,7 +59,7 @@ export function useCliImageSupport(tab: HarnessTabMeta | null | undefined): CliI
   const [catalog, setCatalog] = useState<{ key: string; value: BackendModelCatalog | null }>();
   const key = `${backend}|${source}`;
   useEffect(() => {
-    if (!backend || backend === 'nomi' || backend === 'dsh') return;
+    if (!backend || backend === 'nomi' || !cliAcceptsImages(backend)) return;
     let alive = true;
     harnessClient
       .modelCatalog(backend, source === 'thirdParty' ? { source } : {})

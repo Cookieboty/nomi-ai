@@ -9,7 +9,7 @@ export function geminiAdapter(): SlashCommand[] {
   return [
     ...nativeCommands('gemini'),
     ...unsupportedCommands('gemini', [
-      U.compact(() => t('Gemini 在 Nomi 里暂不支持压缩命令。可以用 /clear 开新标签。')),
+      U.compact(() => t('ui.slash-commands.gemini-doesn-t-support-compaction-in-nomi-yet')),
       U.review(),
       U.init('GEMINI.md'),
       U.memory('GEMINI.md'),

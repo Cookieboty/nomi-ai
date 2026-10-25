@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "name": "chat-truncated-to-responses",
+  "synthetic": true,
+  "description": "合成：用现有测试场景构造的追踪，不是真实流量",
+  "client": "grok",
+  "ingress": "responses",
+  "path": "/v1/responses",
+  "request": {
+    "model": "grok-code-fast",
+    "stream": true,
+    "input": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "input_text",
+            "text": "[text]"
+          }
+        ]
+      }
+    ]
+  },
+  "upstream": {
+    "wire": "chat",
+    "model": "deepseek-chat",
+    "status": 200,
+    "contentType": "text/event-stream",
+    "chunks": [
+      "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1761264000,\"model\":\"deepseek-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"\"},\"finish_reason\":null}]}\n\n",
+      "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1761264000,\"model\":\"deepseek-chat\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"[text]\"},\"finish_reason\":null}]}\n\n",
+      "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1761264000,\"model\":\"deepseek-chat\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"[text]\"},\"finish_reason\":null}]}\n\n",
+      "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"[text]"
+    ]
+  }
+}

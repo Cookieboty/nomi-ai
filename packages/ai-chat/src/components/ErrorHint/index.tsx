@@ -36,7 +36,7 @@ export const ErrorHint: React.FC<ErrorHintProps> = ({ error, onAction, onDismiss
           <IconButton
             size="sm"
             className={styles.errorHintDismiss}
-            label={t('关闭错误提示')}
+            label={t('ui.foundation.dismiss-error')}
             icon={<Icon icon={X} />}
             onClick={onDismiss}
           />

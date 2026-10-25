@@ -54,19 +54,26 @@ export interface ModelPickerProps extends Pick<
 
 const RECENT_MAX = 5;
 
+/** 截断到 digits 位小数（抹零，不四舍五入：1,050,000 → 1M，不显示成 1.1M） */
+export function truncDigits(x: number, digits: number): string {
+  const f = 10 ** digits;
+  // 1e-9 抵消浮点误差（0.29 * 100 = 28.999…）
+  return String(Math.floor(x * f + 1e-9) / f);
+}
+
 export function formatContext(tokens: number): string {
-  if (tokens >= 1_000_000) return `${+(tokens / 1_000_000).toFixed(1)}M`;
-  if (tokens >= 1000) return `${Math.round(tokens / 1000)}K`;
-  return String(tokens);
+  if (tokens >= 1_000_000) return `${truncDigits(tokens / 1_000_000, 1)}M`;
+  if (tokens >= 1000) return `${truncDigits(tokens / 1000, 0)}K`;
+  return String(Math.floor(tokens));
 }
 
 /** 能力标签：推理 · 视觉 · 128K；参数未知时给编程助手的提示 */
 function capabilities(m: PickerModel, purpose: 'chat' | 'coding'): string {
   const parts: string[] = [];
-  if (m.reasoning) parts.push(t('推理'));
-  if (m.vision) parts.push(t('视觉'));
+  if (m.reasoning) parts.push(t('ui.models.reasoning'));
+  if (m.vision) parts.push(t('ui.models.vision'));
   if (m.ctx) parts.push(formatContext(m.ctx));
-  if (purpose === 'coding' && m.metaKnown === false) parts.push(t('参数未知'));
+  if (purpose === 'coding' && m.metaKnown === false) parts.push(t('ui.models.limits-unknown'));
   return parts.join(' · ');
 }
 
@@ -75,14 +82,18 @@ export function splitModelRef(ref: string): { provider: string; model: string } 
   return i > 0 ? { provider: ref.slice(0, i), model: ref.slice(i + 1) } : null;
 }
 
+/** 默认值用模块级常量：参数默认值里的 [] 每次渲染都是新数组，会让下面的 useMemo 每次都重算 */
+const NO_RECENT: string[] = [];
+const NO_EXTRA: SelectOption[] = [];
+
 export const ModelPicker: React.FC<ModelPickerProps> = ({
   providers,
-  recent = [],
+  recent = NO_RECENT,
   value,
   onChange,
   purpose = 'chat',
   showWire = false,
-  extraOptions = [],
+  extraOptions = NO_EXTRA,
   placeholder,
   ...rest
 }) => {
@@ -93,7 +104,7 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
       for (const m of p.models) if (usable(m)) byRef.set(`${p.id}/${m.id}`, { p, m });
     const display = new Map<string, string>();
     const opts: SelectOption[] = [...extraOptions];
-    const recentGroup = t('最近使用');
+    const recentGroup = t('ui.cli-monitor.recent');
     for (const ref of recent.filter((r) => byRef.has(r)).slice(0, RECENT_MAX)) {
       const { p, m } = byRef.get(ref)!;
       opts.push({
@@ -128,9 +139,10 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
       searchable
       options={options}
       value={value ?? ''}
-      placeholder={placeholder ?? t('选择模型')}
+      placeholder={placeholder ?? t('ui.models.choose-a-model')}
       menuMinWidth={rest.menuMinWidth ?? 300}
-      renderValue={(o) => display.get(o.value) ?? o.label}
+      // 特殊选项的 label 可以是翻译 key（与 Select 一致）
+      renderValue={(o) => display.get(o.value) ?? t(o.label)}
       onChange={(e) => onChange(e.target.value)}
     />
   );

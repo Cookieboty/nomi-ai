@@ -33,7 +33,7 @@ pnpm build          # 构建全部包
 pnpm typecheck
 pnpm lint
 pnpm test           # 各包单元测试 + scripts 测试
-pnpm check:i18n     # 中文 key 与 en.json 是否一致
+pnpm check:i18n     # 统一词典的 key、语言、占位符和死 key 检查
 pnpm check:licenses # 依赖与素材许可是否全部为开源许可
 pnpm format:check   # Prettier 格式
 ```

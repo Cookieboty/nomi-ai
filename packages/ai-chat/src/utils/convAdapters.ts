@@ -36,6 +36,7 @@ function buildHarness(m: HarnessTabMessage, backend: string): ConvMessage {
     ...(m.durationMs !== undefined ? { durationMs: m.durationMs } : {}),
     ...(m.usage ? { usage: m.usage } : {}),
     ...(m.role === 'assistant' ? { label } : {}),
+    ...(m.role === 'assistant' && m.model ? { model: m.model } : {}),
     raw: m,
   };
 }
@@ -61,7 +62,8 @@ function buildChat(m: ChatMessage): ConvMessage | null {
     ...(m.origin ? { origin: m.origin } : {}),
     ...(m.durationMs !== undefined ? { durationMs: m.durationMs } : {}),
     ...(m.usage ? { usage: m.usage } : {}),
-    ...(m.role === 'assistant' && m.modelId ? { label: m.modelId } : {}),
+    ...(m.role === 'assistant' ? { label: ENDPOINT_NAME.nomi } : {}),
+    ...(m.role === 'assistant' && m.modelId ? { model: m.modelId } : {}),
     raw: m,
   };
 }

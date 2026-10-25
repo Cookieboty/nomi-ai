@@ -48,14 +48,16 @@ import styles from './index.module.css';
 import { MigrateDialog } from './MigrateDialog';
 
 type Tab = 'mcp' | 'skills';
-const TRUST_OPTIONS = (Object.keys(TRUST_LABEL) as Trust[]).map((v) => ({
-  value: v,
-  label: tr(TRUST_LABEL[v]),
-}));
+// 渲染时再翻译（模块加载时调用 t() 会固定在当时的语言）
+const trustOptions = () =>
+  (Object.keys(TRUST_LABEL) as Trust[]).map((v) => ({
+    value: v,
+    label: tr(TRUST_LABEL[v]),
+  }));
 const TRANSPORTS = [
-  { value: 'stdio', label: '本地命令（stdio）' },
-  { value: 'http', label: '远程 HTTP' },
-  { value: 'sse', label: '远程 SSE' },
+  { value: 'stdio', label: 'ui.foundation.local-command-stdio' },
+  { value: 'http', label: 'ui.foundation.remote-http' },
+  { value: 'sse', label: 'ui.foundation.remote-sse' },
 ];
 const tone = (s: McpServer['status']) =>
   s === 'connected'
@@ -224,7 +226,7 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
         if (draft || skill || importing !== null || migrating) return;
         onClose();
       }}
-      title={tr('扩展：MCP 与技能')}
+      title={tr('ui.foundation.extensions-mcp-skills')}
       size="lg"
       data-testid="ext-panel"
     >
@@ -233,13 +235,16 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
           items={[
             {
               value: 'mcp',
-              label: tr('MCP 服务器{0}', servers.length ? ` · ${servers.length}` : ''),
+              label: tr('ui.foundation.mcp-servers', servers.length ? ` · ${servers.length}` : ''),
             },
-            { value: 'skills', label: tr('技能{0}', skills?.length ? ` · ${skills.length}` : '') },
+            {
+              value: 'skills',
+              label: tr('ui.foundation.skills', skills?.length ? ` · ${skills.length}` : ''),
+            },
           ]}
           value={tab}
           onChange={setTab}
-          aria-label={tr('扩展')}
+          aria-label={tr('ui.foundation.extensions')}
         />
         {err && <ErrorState detail={err} onRetry={() => void load()} data-testid="panel-error" />}
         {!list && !err && <LoadingState rows={3} />}
@@ -249,15 +254,15 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
             <div className={styles.toolbar}>
               <span className={`${styles.hint} ${styles.toolbarText}`}>
                 {connectedTools
-                  ? tr('已向模型提供 {0} 个扩展工具', connectedTools)
-                  : tr('MCP 服务器可以给助手接入新工具（文件、网页、数据库…）')}
+                  ? tr('ui.foundation.extension-tools-available-to-the-model', connectedTools)
+                  : tr('ui.foundation.mcp-servers-give-the-assistant-new-tools-files')}
               </span>
               <span className={styles.toolbarActions}>
                 <Button size="sm" onClick={() => setMigrating(true)} data-testid="migrate-open">
-                  {tr('从其他工具导入')}
+                  {tr('ui.foundation.import-from-other-tools')}
                 </Button>
                 <Button size="sm" onClick={() => setImporting('')} data-testid="mcp-import-open">
-                  {tr('导入 JSON')}
+                  {tr('ui.foundation.import-json')}
                 </Button>
                 <Button
                   size="sm"
@@ -266,19 +271,21 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
                   data-testid="mcp-add"
                 >
                   <Icon icon={Plus} size={14} />
-                  {tr('添加服务器')}
+                  {tr('ui.foundation.add-server')}
                 </Button>
               </span>
             </div>
             {!list.ready && (
-              <Notice tone="warning">{tr('AI 服务还在启动，连接功能稍后可用。')}</Notice>
+              <Notice tone="warning">
+                {tr('ui.foundation.the-ai-service-is-still-starting-connecting-will')}
+              </Notice>
             )}
             {servers.length === 0 && list.env.length === 0 ? (
               <>
                 <EmptyState
                   icon={Blocks}
-                  title={tr('还没有 MCP 服务器')}
-                  description={tr('从下面的常用服务器开始，或添加自己的。')}
+                  title={tr('ui.foundation.no-mcp-servers-yet')}
+                  description={tr('ui.foundation.start-from-the-popular-servers-below-or-add')}
                 />
                 <div className={styles.presets}>
                   {list.presets.map((p) => (
@@ -293,8 +300,8 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
                       <span className={styles.hint}>{tr(p.description)}</span>
                       {p.license !== '—' && (
                         <span className={styles.hint}>
-                          {tr('许可：')}
-                          {p.license} {tr('· 首次连接由 npx 下载')}
+                          {tr('ui.foundation.license')}
+                          {p.license} {tr('ui.foundation.downloaded-by-npx-on-first-connect')}
                         </span>
                       )}
                     </button>
@@ -320,18 +327,18 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
                       </Badge>
                       {s.status === 'connected' && (
                         <Badge tone="neutral">
-                          {s.tools.length} {tr('个工具')}
+                          {s.tools.length} {tr('ui.foundation.tools')}
                         </Badge>
                       )}
                       <Switch
                         checked={s.enabled}
                         onChange={(v) => void run(`t:${s.id}`, () => extClient.mcpToggle(s.id, v))}
-                        aria-label={tr('启用 {0}', s.name)}
+                        aria-label={tr('ui.foundation.enable', s.name)}
                       />
                     </div>
                     <div className={styles.meta}>
                       {s.transport === 'stdio' ? `$ ${s.command} ${joinArgs(s.args)}` : s.url}{' '}
-                      {tr('· 调用：')}
+                      {tr('ui.foundation.calls')}
                       {tr(TRUST_LABEL[s.trust])}
                     </div>
                     {s.error && <div className={styles.err}>{s.error}</div>}
@@ -342,14 +349,20 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
                             {s.tools.map((t) => (
                               <li key={t.name}>
                                 <code>{t.name.replace(`${s.id}__`, '')}</code>
-                                {t.readOnly && <Badge tone="success">{tr('只读')}</Badge>}
-                                {t.dangerous && <Badge tone="danger">{tr('破坏性')}</Badge>}
+                                {t.readOnly && (
+                                  <Badge tone="success">{tr('ui.foundation.read-only')}</Badge>
+                                )}
+                                {t.dangerous && (
+                                  <Badge tone="danger">{tr('ui.foundation.destructive')}</Badge>
+                                )}
                                 <span className={styles.hint}>{tr(t.description)}</span>
                               </li>
                             ))}
                           </ul>
                         ) : (
-                          <p className={styles.hint}>{tr('连接后会列出这个服务器提供的工具。')}</p>
+                          <p className={styles.hint}>
+                            {tr('ui.foundation.once-connected-the-server-s-tools-are-listed')}
+                          </p>
                         )}
                         <div className={styles.row}>
                           {s.status === 'connected' ? (
@@ -359,7 +372,7 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
                                 void run(`c:${s.id}`, () => extClient.mcpDisconnect(s.id))
                               }
                             >
-                              {tr('断开')}
+                              {tr('ui.foundation.disconnect')}
                             </Button>
                           ) : (
                             <Button
@@ -372,24 +385,24 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
                               data-testid="mcp-connect"
                             >
                               {busy === `c:${s.id}`
-                                ? tr('连接中…')
+                                ? tr('ui.foundation.connecting')
                                 : s.status === 'error'
-                                  ? tr('重试连接')
-                                  : tr('连接')}
+                                  ? tr('ui.foundation.retry')
+                                  : tr('ui.foundation.connect')}
                             </Button>
                           )}
                           <Button size="sm" onClick={() => setDraft(fromServer(s))}>
-                            {tr('编辑')}
+                            {tr('ui.foundation.edit')}
                           </Button>
                           <Button
                             size="sm"
                             variant="danger"
                             onClick={() => {
-                              if (window.confirm(tr('删除 MCP 服务器「{0}」？', s.name)))
+                              if (window.confirm(tr('ui.foundation.delete-mcp-server', s.name)))
                                 void run(`r:${s.id}`, () => extClient.mcpRemove(s.id));
                             }}
                           >
-                            {tr('删除')}
+                            {tr('ui.foundation.delete')}
                           </Button>
                         </div>
                       </div>
@@ -400,14 +413,16 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
                   <div key={s.id} className={styles.card}>
                     <div className={styles.cardHead}>
                       <b className={styles.grow}>{tr(s.name)}</b>
-                      <Badge tone="neutral">{tr('来自环境变量 MCP_SERVERS')}</Badge>
+                      <Badge tone="neutral">
+                        {tr('ui.foundation.from-the-mcp-servers-environment-variable')}
+                      </Badge>
                       <Badge tone="success">
-                        {s.tools.length} {tr('个工具')}
+                        {s.tools.length} {tr('ui.foundation.tools')}
                       </Badge>
                     </div>
                     {s.tools.some((x) => x.dangerous) && (
                       <p className={styles.hint}>
-                        {tr('含写入 / 执行类工具，每次调用都会请你确认。')}
+                        {tr('ui.foundation.includes-write-execute-tools-every-call-will-ask')}
                       </p>
                     )}
                   </div>
@@ -415,9 +430,7 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
               </div>
             )}
             <p className={styles.hint}>
-              {tr(
-                '调用扩展工具前会按信任级别请你确认，并记录在「桌面能力 → 操作记录」。令牌等敏感值加密保存在本机。',
-              )}
+              {tr('ui.foundation.before-calling-an-extension-tool-you-ll-be')}
             </p>
           </div>
         )}
@@ -426,12 +439,12 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
           <div className={styles.stack}>
             <div className={styles.toolbar}>
               <span className={`${styles.hint} ${styles.toolbarText}`}>
-                {tr('技能是一份 SKILL.md 说明书：助手平时只看到名称和描述，用到时才读取全文。')}
+                {tr('ui.foundation.a-skill-is-a-skill-md-guide-the')}
               </span>
               <span className={styles.toolbarActions}>
                 <IconButton
                   size="sm"
-                  label={tr('打开技能文件夹')}
+                  label={tr('ui.foundation.open-skills-folder')}
                   icon={<Icon icon={FolderOpen} size={14} />}
                   onClick={() => void extClient.skillOpen()}
                 />
@@ -440,14 +453,14 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
                   onClick={() => setMigrating(true)}
                   data-testid="migrate-open-skills"
                 >
-                  {tr('从其他工具导入')}
+                  {tr('ui.foundation.import-from-other-tools')}
                 </Button>
                 <Button
                   size="sm"
                   onClick={() => void run('import', () => extClient.skillImport())}
                   data-testid="skill-import"
                 >
-                  {tr('从文件夹导入')}
+                  {tr('ui.foundation.import-from-folder')}
                 </Button>
                 <Button
                   size="sm"
@@ -458,15 +471,15 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
                   data-testid="skill-new"
                 >
                   <Icon icon={Plus} size={14} />
-                  {tr('新建技能')}
+                  {tr('ui.foundation.new-skill')}
                 </Button>
               </span>
             </div>
             {skills.length === 0 ? (
               <EmptyState
                 icon={BookOpen}
-                title={tr('还没有技能')}
-                description={tr('新建一个，或导入包含 SKILL.md 的文件夹。')}
+                title={tr('ui.foundation.no-skills-yet')}
+                description={tr('ui.foundation.create-one-or-import-a-folder-containing-skill')}
               />
             ) : (
               <div className={styles.list} data-testid="skill-list">
@@ -474,17 +487,19 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
                   <div key={s.dir} className={styles.card}>
                     <div className={styles.cardHead}>
                       <b className={styles.grow}>{tr(s.name)}</b>
-                      {s.builtin && <Badge tone="accent">{tr('内置示例')}</Badge>}
+                      {s.builtin && (
+                        <Badge tone="accent">{tr('ui.foundation.built-in-example')}</Badge>
+                      )}
                       {s.version && <Badge tone="neutral">v{s.version}</Badge>}
                       {s.files.length > 0 && (
                         <Badge tone="neutral">
-                          {s.files.length} {tr('个附件')}
+                          {s.files.length} {tr('ui.foundation.attachments')}
                         </Badge>
                       )}
                       {!s.error && (
                         <IconButton
                           size="sm"
-                          label={tr('编辑技能 {0}', s.name)}
+                          label={tr('ui.chat-settings.edit-skill', s.name)}
                           icon={<Icon icon={Pencil} size={14} />}
                           onClick={async () =>
                             setSkill({
@@ -496,10 +511,12 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
                       )}
                       <IconButton
                         size="sm"
-                        label={tr('删除技能 {0}', s.name)}
+                        label={tr('ui.chat-settings.delete-skill', s.name)}
                         icon={<Icon icon={Trash2} size={14} />}
                         onClick={() => {
-                          if (window.confirm(tr('删除技能「{0}」及其文件夹？', s.name)))
+                          if (
+                            window.confirm(tr('ui.foundation.delete-skill-and-its-folder', s.name))
+                          )
                             void run(`d:${s.name}`, () => extClient.skillRemove(s.name));
                         }}
                       />
@@ -509,13 +526,13 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
                           onChange={(v) =>
                             void run(`s:${s.name}`, () => extClient.skillToggle(s.name, v))
                           }
-                          aria-label={tr('启用技能 {0}', s.name)}
+                          aria-label={tr('ui.foundation.enable-skill', s.name)}
                         />
                       )}
                     </div>
                     {s.error ? (
                       <div className={styles.err}>
-                        {tr('无法读取：')}
+                        {tr('ui.foundation.couldn-t-read')}
                         {s.error}
                       </div>
                     ) : (
@@ -533,19 +550,19 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
       <Modal
         open={!!draft}
         onClose={() => setDraft(null)}
-        title={draft?.id ? tr('编辑 MCP 服务器') : tr('添加 MCP 服务器')}
+        title={draft?.id ? tr('ui.foundation.edit-mcp-server') : tr('ui.foundation.add-mcp-server')}
         footer={
           <div className={styles.row}>
-            <Button onClick={() => setDraft(null)}>{tr('取消')}</Button>
+            <Button onClick={() => setDraft(null)}>{tr('ui.foundation.cancel')}</Button>
             <Button onClick={() => void saveDraft(false)} data-testid="mcp-save">
-              {tr('保存')}
+              {tr('ui.foundation.save')}
             </Button>
             <Button
               variant="primary"
               onClick={() => void saveDraft(true)}
               data-testid="mcp-save-connect"
             >
-              {tr('保存并连接')}
+              {tr('ui.foundation.save-and-connect')}
             </Button>
           </div>
         }
@@ -559,19 +576,19 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
             }}
           >
             <label className={styles.field}>
-              {tr('名称')}
+              {tr('ui.foundation.name')}
               <Input
                 size="sm"
                 value={tr(draft.name)}
                 onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-                placeholder={tr('例如：项目文件')}
+                placeholder={tr('ui.foundation.e-g-project-files')}
                 data-testid="mcp-name"
                 autoFocus
               />
             </label>
             <div className={styles.row}>
               <label className={styles.field}>
-                {tr('连接方式')}
+                {tr('ui.foundation.transport')}
                 <div className={styles.selectBox}>
                   <Select
                     size="sm"
@@ -585,12 +602,12 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
                 </div>
               </label>
               <label className={styles.field}>
-                {tr('调用确认')}
+                {tr('ui.foundation.call-confirmation')}
                 <div className={styles.selectBox}>
                   <Select
                     size="sm"
                     value={draft.trust}
-                    options={TRUST_OPTIONS}
+                    options={trustOptions()}
                     onChange={(e) => setDraft({ ...draft, trust: e.target.value as Trust })}
                     data-testid="mcp-trust"
                   />
@@ -600,16 +617,16 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
             {draft.transport === 'stdio' ? (
               <>
                 <label className={styles.field}>
-                  {tr('命令')}
+                  {tr('ui.foundation.command')}
                   <Input
                     value={draft.command}
                     onChange={(e) => setDraft({ ...draft, command: e.target.value })}
-                    placeholder={tr('npx / uvx / node / 可执行文件完整路径')}
+                    placeholder={tr('ui.foundation.npx-uvx-node-full-path-to-an-executable')}
                     data-testid="mcp-command"
                   />
                 </label>
                 <label className={styles.field}>
-                  {tr('参数')}
+                  {tr('ui.foundation.arguments')}
                   <Input
                     value={draft.args}
                     onChange={(e) => setDraft({ ...draft, args: e.target.value })}
@@ -618,7 +635,7 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
                   />
                 </label>
                 <label className={styles.field}>
-                  {tr('环境变量（每行 KEY=VALUE）')}
+                  {tr('ui.foundation.environment-variables-one-key-value-per-line')}
                   <Textarea
                     rows={2}
                     value={draft.env}
@@ -627,14 +644,15 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
                 </label>
                 {draft.args.includes('{dir}') && (
                   <Notice tone="warning">
-                    {tr('请把参数里的')} {'{dir}'} {tr('换成要授权的文件夹路径。')}
+                    {tr('ui.foundation.replace-the')} {'{dir}'}{' '}
+                    {tr('ui.foundation.in-the-arguments-with-the-folder-path-to')}
                   </Notice>
                 )}
               </>
             ) : (
               <>
                 <label className={styles.field}>
-                  {tr('服务器地址')}
+                  {tr('ui.foundation.server-url')}
                   <Input
                     value={draft.url}
                     onChange={(e) => setDraft({ ...draft, url: e.target.value })}
@@ -643,7 +661,7 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
                   />
                 </label>
                 <label className={styles.field}>
-                  {tr('请求头（每行 KEY=VALUE，如 Authorization=Bearer …）')}
+                  {tr('ui.foundation.headers-one-key-value-per-line-e-g')}
                   <Textarea
                     rows={2}
                     value={draft.headers}
@@ -665,10 +683,10 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
       <Modal
         open={importing !== null}
         onClose={() => setImporting(null)}
-        title={tr('导入 MCP 配置')}
+        title={tr('ui.foundation.import-mcp-config')}
         footer={
           <div className={styles.row}>
-            <Button onClick={() => setImporting(null)}>{tr('取消')}</Button>
+            <Button onClick={() => setImporting(null)}>{tr('ui.foundation.cancel')}</Button>
             <Button
               variant="primary"
               disabled={!importing?.trim()}
@@ -685,15 +703,15 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
               }}
               data-testid="mcp-import"
             >
-              {tr('导入')}
+              {tr('ui.foundation.import')}
             </Button>
           </div>
         }
       >
         <div className={styles.stack}>
           <p className={styles.hint}>
-            {tr('粘贴常见的')} {'{ "mcpServers": { … } }'}{' '}
-            {tr('格式（很多客户端通用）。导入后默认不连接，检查无误再开启。')}
+            {tr('ui.foundation.paste-the-common')} {'{ "mcpServers": { … } }'}{' '}
+            {tr('ui.foundation.format-shared-by-many-clients-imported-servers-aren')}
           </p>
           <Textarea
             rows={8}
@@ -717,14 +735,18 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
         open={!!skill}
         onClose={() => setSkill(null)}
         size="lg"
-        title={skill?.originalName ? tr('编辑技能 · {0}', skill.originalName) : tr('新建技能')}
+        title={
+          skill?.originalName
+            ? tr('ui.foundation.edit-skill', skill.originalName)
+            : tr('ui.foundation.new-skill')
+        }
         footer={
           <div className={styles.row}>
-            <span className={styles.hint}>{tr('Ctrl/⌘+S 保存')}</span>
+            <span className={styles.hint}>{tr('ui.foundation.ctrl-s-to-save')}</span>
             <span className={styles.grow} />
-            <Button onClick={() => setSkill(null)}>{tr('取消')}</Button>
+            <Button onClick={() => setSkill(null)}>{tr('ui.foundation.cancel')}</Button>
             <Button variant="primary" onClick={() => void saveSkill()} data-testid="skill-save">
-              {tr('保存')}
+              {tr('ui.foundation.save')}
             </Button>
           </div>
         }
@@ -741,7 +763,7 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
           >
             <div className={styles.row}>
               <label className={styles.field}>
-                {tr('名称（小写字母 / 数字 / 连字符）')}
+                {tr('ui.foundation.name-lowercase-letters-digits-hyphens')}
                 <Input
                   value={tr(skill.meta.name)}
                   onChange={(e) =>
@@ -753,7 +775,7 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
                 />
               </label>
               <label className={styles.field}>
-                {tr('版本')}
+                {tr('ui.foundation.version')}
                 <Input
                   value={skill.meta.version ?? ''}
                   onChange={(e) =>
@@ -764,18 +786,18 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
               </label>
             </div>
             <label className={styles.field}>
-              {tr('什么时候用（描述）')}
+              {tr('ui.foundation.when-to-use-description')}
               <Input
                 value={tr(skill.meta.description)}
                 onChange={(e) =>
                   setSkill({ ...skill, meta: { ...skill.meta, description: e.target.value } })
                 }
-                placeholder={tr('用户要规划旅行行程时使用：…')}
+                placeholder={tr('ui.foundation.use-when-the-user-wants-to-plan-a')}
                 data-testid="skill-desc"
               />
             </label>
             <label className={styles.field}>
-              {tr('说明（Markdown，给助手看的操作步骤）')}
+              {tr('ui.foundation.instructions-markdown-steps-for-the-assistant')}
               <Textarea
                 rows={12}
                 value={skill.body}
@@ -786,7 +808,7 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
             </label>
             {skill.files.length > 0 && (
               <p className={styles.hint}>
-                {tr('附件：')}
+                {tr('ui.foundation.attachments-prefix')}
                 {skill.files.join('、')}
               </p>
             )}

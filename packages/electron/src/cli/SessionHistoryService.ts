@@ -21,6 +21,15 @@ import path from 'node:path';
 import zlib from 'node:zlib';
 
 import {
+  claude as claudePlugin,
+  codex as codexPlugin,
+  dsh as dshPlugin,
+  gemini as geminiPlugin,
+  grok as grokPlugin,
+} from '@nomi-ai/cli-plugins/main';
+import type { HistoryCapability } from '@nomi-ai/cli-sdk';
+
+import {
   foldGeminiChat,
   parseGeminiSession,
   geminiText,
@@ -46,6 +55,15 @@ import type {
   HarnessTabMeta,
   HarnessTabSource,
 } from './types';
+
+/** 各 CLI 的历史文件扫描（插件给出） */
+const HISTORY_SCAN: Record<HistoryBackend, HistoryCapability> = {
+  claude: claudePlugin.history,
+  codex: codexPlugin.history,
+  dsh: dshPlugin.history,
+  gemini: geminiPlugin.history,
+  grok: grokPlugin.history,
+};
 
 export const HISTORY_PAGE_SIZE = 20;
 /** 历史会话最多展示的条数（列表与搜索索引共同的硬上限，按 mtime 取最近的 N 条） */
@@ -135,6 +153,8 @@ export interface SessionHistoryDeps {
   logger?: { warn(m: string, d?: unknown): void };
   /** 已在标签里打开的会话：`${backend}:${sessionId}` */
   openKeys?: () => Set<string>;
+  /** 历史扫描发现已打开会话的新标题时，更新对应 CLI 标签（默认标题才会被替换）。 */
+  openTitle?: (backend: HistoryBackend, sessionId: string, title: string) => void;
   /** 新建 / 复用标签（由 CliHarnessService 提供） */
   openTab?: (o: {
     backend: HistoryBackend;
@@ -148,11 +168,21 @@ export interface SessionHistoryDeps {
     permissionModeSource?: 'history-cli';
     /** 会话原本的来源（由历史线路推断）：避免用新标签默认来源续接，官方 / 第三方互相串用 */
     source?: HarnessTabSource;
+    /** 会话原本所在的官方账号 */
+    accountId?: string;
   }) => { tab: HarnessTabMeta; reused: boolean };
   /** 会话是否经统一网关跑过（网关会话归属表）：历史里没记线路的后端（Claude）据此推断来源（#90） */
   gatewaySession?: (backend: HistoryBackend, sessionId: string) => boolean;
   /** 会话的官方账号 id → 展示用的标签（邮箱 / 名称）；对不上返回 undefined */
   accountLabel?: (backend: HistoryBackend, accountId: string) => string | undefined;
+  /**
+   * Nomi 启动这个会话时用的官方账号（会话目录在各账号间共享，文件里看不出，§5.10 S9）：
+   * label 只在需要区分时给（同一 CLI 有多个账号）；id 用来按原账号续接
+   */
+  sessionAccount?: (
+    backend: HistoryBackend,
+    sessionId: string,
+  ) => { id: string; label?: string } | undefined;
 }
 
 async function readHead(p: string, bytes: number): Promise<string> {
@@ -190,33 +220,6 @@ async function readTailText(
   } finally {
     await fh?.close().catch(() => undefined);
   }
-}
-
-async function readdir(d: string): Promise<fs.Dirent[]> {
-  try {
-    return await fs.promises.readdir(d, { withFileTypes: true });
-  } catch {
-    return [];
-  }
-}
-
-async function statAll(paths: Array<{ path: string; dirId?: string }>): Promise<FileEntry[]> {
-  const out: FileEntry[] = [];
-  for (let i = 0; i < paths.length; i += 128) {
-    const chunk = paths.slice(i, i + 128);
-    const res = await Promise.all(
-      chunk.map(async (c) => {
-        try {
-          const st = await fs.promises.stat(c.path);
-          return { ...c, mtime: st.mtimeMs, size: st.size } as FileEntry;
-        } catch {
-          return null;
-        }
-      }),
-    );
-    for (const r of res) if (r) out.push(r);
-  }
-  return out;
 }
 
 export function zstdDecode(buf: Buffer): Promise<string> {
@@ -267,84 +270,37 @@ export class SessionHistoryService {
         : path.join(this.home, '.dsh'));
   }
 
+  /** 各后端会话文件的根目录（尊重各 CLI 的目录变量；Gemini / dsh 可由构造参数覆盖） */
+  private historyRoot(backend: HistoryBackend): string {
+    const env = this.d.env ?? process.env;
+    switch (backend) {
+      case 'claude':
+        return path.join(claudeConfigDir(this.home, env), 'projects');
+      case 'codex':
+        return path.join(codexHomeDir(this.home, env), 'sessions');
+      case 'gemini':
+        return path.join(this.geminiRoot(), 'tmp');
+      case 'grok':
+        return path.join(grokHomeDir(this.home, env), 'sessions');
+      default:
+        return path.join(this.dshHome, 'sessions');
+    }
+  }
+
   /** 候选文件（mtime 倒序） */
   private async candidates(backend: HistoryBackend, force: boolean): Promise<FileEntry[]> {
     const hit = this.listCache.get(backend);
     if (!force && hit && Date.now() - hit.at < LIST_TTL_MS) return hit.entries;
-    let entries: FileEntry[];
-    if (backend === 'claude') {
-      // 尊重 CLAUDE_CONFIG_DIR（与 claude 本身、用量统计一致）
-      const root = path.join(claudeConfigDir(this.home, this.d.env ?? process.env), 'projects');
-      const files: Array<{ path: string }> = [];
-      for (const dir of await readdir(root)) {
-        if (!dir.isDirectory()) continue;
-        for (const f of await readdir(path.join(root, dir.name))) {
-          if (f.isFile() && f.name.endsWith('.jsonl'))
-            files.push({ path: path.join(root, dir.name, f.name) });
-        }
-      }
-      entries = await statAll(files);
-    } else if (backend === 'codex') {
-      const files: Array<{ path: string }> = [];
-      // Codex 会把旧会话压缩成 .jsonl.zst（续接时直接读）；archived_sessions/ 里的归档会话不列出
-      const walk = async (d: string, depth: number): Promise<void> => {
-        if (depth < 0) return;
-        for (const e of await readdir(d)) {
-          const p = path.join(d, e.name);
-          if (e.isDirectory()) await walk(p, depth - 1);
-          else if (e.isFile() && /^rollout-.*\.jsonl(?:\.zst)?$/.test(e.name))
-            files.push({ path: p });
-        }
-      };
-      // 尊重 CODEX_HOME（与 codex 本身、用量统计一致）
-      const codexHome = codexHomeDir(this.home, this.d.env ?? process.env);
-      await walk(path.join(codexHome, 'sessions'), 4);
-      this.refreshCodexIndex(path.join(codexHome, 'state_5.sqlite'));
+    // 文件扫描在插件里（@nomi-ai/cli-plugins 的 history.scan，只读目录与 stat）；
+    // 根目录在这里算，测试与旧配置可以单独覆盖 Gemini / dsh 的主目录
+    const entries: FileEntry[] = [];
+    for await (const f of HISTORY_SCAN[backend].scan(this.historyRoot(backend))) entries.push(f);
+    if (backend === 'codex') {
+      this.refreshCodexIndex(
+        path.join(codexHomeDir(this.home, this.d.env ?? process.env), 'state_5.sqlite'),
+      );
       // 归档 / 删除 / 续接可能让最新 rollout 消失；重扫时不能保留失效的反查路径。
       for (const key of this.byKey.keys()) if (key.startsWith('codex:')) this.byKey.delete(key);
-      entries = await statAll(files);
-    } else if (backend === 'gemini') {
-      // 只列主会话：子代理在 chats/<父会话 id>/ 下，文件名也不带 session- 前缀
-      const root = path.join(this.geminiRoot(), 'tmp');
-      const files: Array<{ path: string }> = [];
-      for (const proj of await readdir(root)) {
-        if (!proj.isDirectory()) continue;
-        const chats = path.join(root, proj.name, 'chats');
-        for (const f of await readdir(chats)) {
-          if (f.isFile() && /^session-.*\.jsonl?$/.test(f.name))
-            files.push({ path: path.join(chats, f.name) });
-        }
-      }
-      entries = await statAll(files);
-    } else if (backend === 'grok') {
-      const root = path.join(grokHomeDir(this.home, this.d.env ?? process.env), 'sessions');
-      const files: Array<{ path: string; dirId?: string }> = [];
-      const walk = async (d: string, depth: number): Promise<void> => {
-        if (depth < 0) return;
-        for (const e of await readdir(d)) {
-          const p = path.join(d, e.name);
-          if (e.isDirectory()) await walk(p, depth - 1);
-          else if (e.isFile() && e.name === 'updates.jsonl')
-            files.push({ path: p, dirId: path.basename(path.dirname(p)) });
-        }
-      };
-      await walk(root, 4);
-      entries = await statAll(files);
-    } else {
-      const root = path.join(this.dshHome, 'sessions');
-      const files: Array<{ path: string; dirId: string }> = [];
-      for (const proj of await readdir(root)) {
-        if (!proj.isDirectory()) continue;
-        for (const s of await readdir(path.join(root, proj.name))) {
-          if (!s.isDirectory() || !s.name.startsWith('session-')) continue;
-          const dir = path.join(root, proj.name, s.name);
-          const f = (await readdir(dir)).find(
-            (x) => x.isFile() && /^session\.v\d+\.jsonl/.test(x.name),
-          );
-          if (f) files.push({ path: path.join(dir, f.name), dirId: s.name });
-        }
-      }
-      entries = await statAll(files);
     }
     entries.sort((a, b) => b.mtime - a.mtime);
     this.listCache.set(backend, { at: Date.now(), entries });
@@ -362,7 +318,7 @@ export class SessionHistoryService {
       if (firstTurn?.isSidechain === true) return null;
       const sessionId = info.sessionId ?? path.basename(f.path, '.jsonl');
       const hasUser = /"type"\s*:\s*"user"/.test(head);
-      const title = info.title ?? (hasUser ? t('（无标题会话）') : undefined);
+      const title = info.title ?? (hasUser ? t('electron.common.untitled-session') : undefined);
       if (!title) return null;
       return {
         key: `claude:${sessionId}`,
@@ -403,7 +359,7 @@ export class SessionHistoryService {
         cleanTitle(row?.title ?? undefined) ??
         info.title ??
         cleanTitle(row?.first_user_message ?? undefined) ??
-        (client === 'desktop' ? t('（无标题会话）') : undefined);
+        (client === 'desktop' ? t('electron.common.untitled-session') : undefined);
       if (!sessionId || !title) return null;
       const model = info.model ?? row?.model ?? undefined;
       const effort = info.reasoningEffort ?? row?.reasoning_effort ?? undefined;
@@ -572,7 +528,7 @@ export class SessionHistoryService {
     o: { offset?: number; limit?: number; force?: boolean },
     cheap: boolean,
   ): Promise<HistoryPage> {
-    if (!BACKENDS.includes(backend)) throw new Error(t('未知后端'));
+    if (!BACKENDS.includes(backend)) throw new Error(t('electron.common.unknown-backend'));
     const limit = Math.min(
       HISTORY_PAGE_SIZE,
       Math.max(1, Math.round(o.limit ?? HISTORY_PAGE_SIZE)),
@@ -597,11 +553,17 @@ export class SessionHistoryService {
         const m = metas[k];
         const f = batch[k]!;
         scan++;
-        if (!m || open.has(m.key)) continue;
+        if (!m) continue;
+        if (open.has(m.key)) {
+          this.d.openTitle?.(backend, m.sessionId, m.title);
+          continue;
+        }
         // 同一会话的旧文件不再单列（只有「最新的那个文件」才是这条会话）
         if (this.byKey.get(m.key)?.path !== f.path) continue;
         const { accountId, ...rest } = m;
-        const account = accountId ? this.d.accountLabel?.(backend, accountId) : undefined;
+        const account =
+          (accountId ? this.d.accountLabel?.(backend, accountId) : undefined) ??
+          this.d.sessionAccount?.(backend, m.sessionId)?.label;
         visible.push({
           ...rest,
           ...(account ? { account } : {}),
@@ -623,7 +585,12 @@ export class SessionHistoryService {
     sessionId: string,
   ): Promise<{ messages: HarnessTabMessage[]; truncated: boolean; note?: string }> {
     const f = await this.locate(backend, sessionId);
-    if (!f) return { messages: [], truncated: false, note: t('找不到该会话的记录文件') };
+    if (!f)
+      return {
+        messages: [],
+        truncated: false,
+        note: t('electron.common.could-not-find-the-record-file-for-this'),
+      };
     try {
       let text: string;
       let truncated = false;
@@ -633,11 +600,20 @@ export class SessionHistoryService {
         ({ text, truncated } = await readTailText(f.path, MAX_TRANSCRIPT_BYTES));
       }
       const messages = parseTranscript(backend, text, f.mtime);
-      if (!messages.length) return { messages, truncated, note: t('没有解析到可显示的历史消息') };
+      if (!messages.length)
+        return {
+          messages,
+          truncated,
+          note: t('electron.common.no-displayable-history-messages-were-found'),
+        };
       return { messages, truncated };
     } catch (e) {
       this.d.logger?.warn('history transcript failed', e);
-      return { messages: [], truncated: false, note: t('读取历史消息失败，仍可继续该会话') };
+      return {
+        messages: [],
+        truncated: false,
+        note: t('electron.common.could-not-read-the-history-messages-you-can'),
+      };
     }
   }
 
@@ -661,14 +637,22 @@ export class SessionHistoryService {
 
   async open(backend: HistoryBackend, sessionId: string): Promise<HistoryOpenResult> {
     try {
-      if (!this.d.openTab) throw new Error(t('当前环境不支持打开历史会话'));
+      if (!this.d.openTab)
+        throw new Error(t('electron.common.opening-history-sessions-is-not-supported-here'));
       const f = await this.locate(backend, sessionId);
-      if (!f?.meta) return { ok: false, error: t('找不到该会话，可能已被删除') };
+      if (!f?.meta)
+        return {
+          ok: false,
+          error: t('electron.common.session-not-found-it-may-have-been-deleted'),
+        };
       const cwd = f.meta.cwd;
       if (!cwd || !isDir(cwd)) {
         return {
           ok: false,
-          error: t('原工作目录已不存在：{0}。续接需要同一目录，请先恢复该目录。', cwd ?? '?'),
+          error: t(
+            'electron.common.the-original-working-directory-no-longer-exists-resuming',
+            cwd ?? '?',
+          ),
         };
       }
       const tr = await this.transcript(backend, sessionId);
@@ -686,6 +670,10 @@ export class SessionHistoryService {
         ...(f.meta.reasoningEffort ? { reasoningEffort: f.meta.reasoningEffort } : {}),
         ...(f.meta.permissionMode ? { permissionMode: f.meta.permissionMode } : {}),
         ...(!f.meta.permissionMode ? { permissionModeSource: 'history-cli' as const } : {}),
+        ...(() => {
+          const acct = this.d.sessionAccount?.(backend, sessionId);
+          return acct ? { accountId: acct.id } : {};
+        })(),
         // 按历史记录的线路续接，不用新标签默认来源（#90）：网关 → 第三方；官方与用户自己在
         // config.toml 配的 custom 供应商都是 CLI 原生配置 → 官方。推断不出的沿用默认。
         ...(route
@@ -694,7 +682,10 @@ export class SessionHistoryService {
       });
       const notice = r.reused
         ? undefined
-        : (tr.note ?? (tr.truncated ? t('历史较长，只显示了最近的部分消息') : undefined));
+        : (tr.note ??
+          (tr.truncated
+            ? t('electron.common.long-history-only-the-most-recent-messages-are')
+            : undefined));
       return { ok: true, tab: r.tab, reused: r.reused, notice };
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) };

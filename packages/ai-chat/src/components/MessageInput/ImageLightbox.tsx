@@ -24,13 +24,13 @@ export const ImageLightbox: React.FC<{ image: ImageAttachment; onClose: () => vo
       className={styles.backdrop}
       role="dialog"
       aria-modal="true"
-      aria-label={t('查看图片')}
+      aria-label={t('ui.knowledge-local.view-image')}
       data-testid="attach-lightbox"
       onClick={onClose}
     >
       <img
         src={`data:${image.mime};base64,${image.data}`}
-        alt={t('附件图片')}
+        alt={t('ui.knowledge-local.attached-image')}
         className={styles.image}
         style={{ transform: `scale(${zoom})`, transition: 'transform 0.15s ease' }}
         onClick={(e) => e.stopPropagation()}
@@ -43,7 +43,7 @@ export const ImageLightbox: React.FC<{ image: ImageAttachment; onClose: () => vo
         <button
           type="button"
           className={styles.toolBtn}
-          aria-label={t('缩小')}
+          aria-label={t('ui.usage-tools.zoom-out')}
           onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))}
         >
           <Icon icon={Minus} size={14} />
@@ -51,7 +51,7 @@ export const ImageLightbox: React.FC<{ image: ImageAttachment; onClose: () => vo
         <button
           type="button"
           className={styles.toolBtn}
-          aria-label={t('放大')}
+          aria-label={t('ui.usage-tools.zoom-in')}
           onClick={() => setZoom((z) => Math.min(4, z + 0.25))}
         >
           <Icon icon={Plus} size={14} />
@@ -61,7 +61,7 @@ export const ImageLightbox: React.FC<{ image: ImageAttachment; onClose: () => vo
         type="button"
         data-autofocus
         className={styles.close}
-        aria-label={t('关闭')}
+        aria-label={t('ui.providers-schedule.close')}
         onClick={onClose}
       >
         <Icon icon={X} size={16} />

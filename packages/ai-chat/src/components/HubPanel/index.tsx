@@ -26,25 +26,25 @@ export const HUB_TABS: ReadonlyArray<{
 }> = [
   {
     id: 'kb',
-    label: '知识库',
+    label: 'ui.foundation.knowledge-base',
     available: () => kbClient.available(),
     settings: ['knowledge', 'kb'],
   },
   {
     id: 'memory',
-    label: '长期记忆',
+    label: 'ui.knowledge-local.long-term-memory',
     available: () => memClient.available(),
     settings: ['knowledge', 'memory'],
   },
   {
     id: 'notes',
-    label: '笔记',
+    label: 'ui.foundation.notes',
     available: () => desktopClient.available(),
     settings: ['knowledge', 'notes'],
   },
   {
     id: 'schedule',
-    label: '日程',
+    label: 'ui.chat-settings.schedule',
     available: () => schedClient.available(),
     settings: ['schedule', 'reminders'],
   },
@@ -97,14 +97,14 @@ export const HubPanel: React.FC<Props> = ({ isVisible, onClose, tab, onTab, onOp
       <Modal
         open
         onClose={onClose}
-        title={t('知识 · 记忆 · 日程')}
+        title={t('ui.chat-settings.knowledge-memory-schedule')}
         size="lg"
         data-testid="hub-panel"
       >
         <div className={styles.stack}>
           <div
             role="tablist"
-            aria-label={t('知识 · 记忆 · 日程分区')}
+            aria-label={t('ui.chat-settings.knowledge-memory-and-schedule-sections')}
             className={styles.tabs}
             data-testid="hub-tabs"
             onKeyDown={onKey}

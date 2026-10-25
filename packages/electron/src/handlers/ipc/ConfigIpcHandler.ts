@@ -207,13 +207,15 @@ export class ConfigIpcHandler extends BaseIpcHandler {
 
       try {
         if (!importData.config) {
-          throw new Error(t('导入数据格式错误，缺少config字段'));
+          throw new Error(t('electron.common.invalid-import-data-missing-config-field'));
         }
 
         // 验证导入的配置
         const validation = this.configService.validateConfig(importData.config);
         if (!validation.isValid) {
-          throw new Error(t('配置验证失败: {0}', validation.errors.join(', ')));
+          throw new Error(
+            t('electron.common.config-validation-failed', validation.errors.join(', ')),
+          );
         }
 
         // 更新配置
@@ -333,7 +335,7 @@ export class ConfigIpcHandler extends BaseIpcHandler {
         this.logger.error('TTS连接测试失败', { error: errorMessage });
         return {
           success: false,
-          message: t('连接测试失败: {0}', errorMessage),
+          message: t('electron.common.connection-test-failed', errorMessage),
         } as TTSTestResult;
       }
     });
@@ -405,12 +407,12 @@ export class ConfigIpcHandler extends BaseIpcHandler {
             if (spoken.success) {
               return {
                 success: true,
-                message: t('语音测试成功'),
+                message: t('electron.common.voice-test-succeeded'),
                 audioBase64: spoken.audioBase64,
                 mimeType: spoken.mimeType,
               };
             }
-            throw new Error(spoken.message || t('TTS 合成失败'));
+            throw new Error(spoken.message || t('electron.common.tts-synthesis-failed'));
           }
 
           const validation = validateTtsConfig({
@@ -418,7 +420,9 @@ export class ConfigIpcHandler extends BaseIpcHandler {
             provider: testConfig.provider || 'legacy',
           });
           if (!validation.isValid) {
-            throw new Error(t('TTS配置验证失败: {0}', validation.errors.join(', ')));
+            throw new Error(
+              t('electron.common.tts-config-validation-failed', validation.errors.join(', ')),
+            );
           }
 
           const { VoiceService } = await import('../../tts/legacy/LegacyTtsPlayer');
@@ -451,7 +455,7 @@ export class ConfigIpcHandler extends BaseIpcHandler {
 
             await voiceService.playTextToSpeech(testConfig.testText);
             this.logger.info('TTS语音测试成功', { testText: testConfig.testText });
-            return { success: true, message: t('语音测试成功') };
+            return { success: true, message: t('electron.common.voice-test-succeeded') };
           } finally {
             configManager.updateVoiceMode(originalConfig.voiceMode);
             if (originalConfig.ttsApiConfig) {
@@ -463,7 +467,7 @@ export class ConfigIpcHandler extends BaseIpcHandler {
           this.logger.error('TTS语音测试失败', { error: errorMessage });
           return {
             success: false,
-            message: t('语音测试失败: {0}', errorMessage),
+            message: t('electron.common.voice-test-failed', errorMessage),
           };
         }
       },
@@ -478,24 +482,33 @@ export class ConfigIpcHandler extends BaseIpcHandler {
       const status = sherpa.getStatus();
       return {
         success: true,
-        message: t('离线语音引擎就绪（模型位置：{0}）', status.source ?? ''),
+        message: t(
+          'electron.common.offline-voice-engine-ready-model-location',
+          status.source ?? '',
+        ),
         latency: ms,
       };
     } catch (error) {
       const status = sherpa.getStatus();
       const msg = error instanceof Error ? error.message : String(error);
       if (status.state === 'downloading') {
-        return { success: false, message: t('离线语音模型下载中，请稍候') };
+        return {
+          success: false,
+          message: t('electron.common.offline-voice-model-is-downloading-please-wait'),
+        };
       }
       if (status.state === 'missing' || status.state === 'error') {
         return {
           success: false,
           message: status.message
-            ? t('离线语音模型不可用: {0}', status.message)
-            : t('离线语音模型未下载：请在「设置 → 语音」开启语音以下载'),
+            ? t('electron.common.offline-voice-model-unavailable', status.message)
+            : t('electron.common.offline-voice-model-not-downloaded-turn-on-voice'),
         };
       }
-      return { success: false, message: t('离线语音引擎加载失败，没有可用 TTS: {0}', msg) };
+      return {
+        success: false,
+        message: t('electron.common.offline-voice-engine-failed-to-load-no-tts', msg),
+      };
     }
   }
 
@@ -515,7 +528,7 @@ export class ConfigIpcHandler extends BaseIpcHandler {
       const protocol = loopbackHosts.has(config.hostname.trim().toLowerCase()) ? http : https;
 
       const testData = JSON.stringify({
-        text: t('TTS连接测试'),
+        text: t('electron.common.tts-connection-test'),
         ref_audio_path: config.audioUrl,
         prompt_text: (config.promptText || '').substring(0, 100),
       });
@@ -536,12 +549,12 @@ export class ConfigIpcHandler extends BaseIpcHandler {
         if (res.statusCode && res.statusCode >= 200 && res.statusCode < 400) {
           resolve({
             success: true,
-            message: t('连接成功，TTS服务可正常访问'),
+            message: t('electron.common.connected-the-tts-service-is-reachable'),
           });
         } else {
           resolve({
             success: false,
-            message: t('服务器返回状态码: {0}', res.statusCode),
+            message: t('electron.common.server-returned-status-code', res.statusCode),
           });
         }
       });
@@ -549,7 +562,7 @@ export class ConfigIpcHandler extends BaseIpcHandler {
       req.on('error', (error) => {
         resolve({
           success: false,
-          message: t('连接失败: {0}', error.message),
+          message: t('electron.common.connection-failed', error.message),
         });
       });
 
@@ -557,7 +570,7 @@ export class ConfigIpcHandler extends BaseIpcHandler {
         req.destroy();
         resolve({
           success: false,
-          message: t('连接超时'),
+          message: t('electron.common.connection-timed-out'),
         });
       });
 

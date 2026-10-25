@@ -165,6 +165,26 @@ describe('Codex four-column changes layout', () => {
     expect(main!.contains(screen.getByTestId('chat-column'))).toBe(true);
   });
 
+  it('hovering the diff summary exposes each changed file and its line counts', () => {
+    render(
+      <ChangesUiProvider>
+        <FourColumnShell />
+      </ChangesUiProvider>,
+    );
+
+    const pill = screen.getByTestId('composer-changes-pill');
+    fireEvent.mouseEnter(pill);
+    const files = screen.getAllByTestId('composer-change-file');
+    expect(files).toHaveLength(2);
+    expect(files[0]!.getAttribute('data-file')).toBe(
+      'packages/electron/src/mascot/MascotWindowController.ts',
+    );
+    expect(files[0].textContent).toMatch(/MascotWindowController\.ts/);
+    expect(files[0].textContent).toMatch(/\+1/);
+    expect(files[0].textContent).toMatch(/−1/);
+    expect(files[1].textContent).toMatch(/windowBounds\.ts/);
+  });
+
   it('not a git repo: 改动 falls back to the session change tree', async () => {
     vi.mocked(harnessClient.gitDiff).mockResolvedValue(notRepo);
     render(

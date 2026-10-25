@@ -26,7 +26,11 @@ const invoke = (): Invoke | null => {
   };
 };
 
-const LABEL: Record<Variant, string> = { sunset: '日落橙（默认）', cream: '奶油', ink: '墨色' };
+const LABEL: Record<Variant, string> = {
+  sunset: 'ui.mascot-theme.sunset-orange-default',
+  cream: 'ui.mascot-theme.cream-short',
+  ink: 'ui.mascot-theme.ink',
+};
 
 export const AppIconSettings: React.FC = () => {
   const [s, setS] = useState<IconState | null>(null);
@@ -39,18 +43,14 @@ export const AppIconSettings: React.FC = () => {
   return (
     <SettingRow
       data-testid="settings-app-icon"
-      title={t('应用图标')}
+      title={t('ui.chat-settings.app-icon')}
       description={
         s.platform === 'darwin'
-          ? t(
-              '立即更新 Dock 图标（仅本次运行期间；退出后 Finder / 启动台仍显示默认墨色图标）。菜单栏托盘保持单色模板图标。',
-            )
-          : t(
-              '立即更新窗口、正在运行的任务栏按钮和托盘图标。已固定到任务栏的图标由系统缓存，可能要重启应用后才更新（个别情况需取消固定后重新固定）；安装包、可执行文件和开始菜单 / 桌面快捷方式始终为默认墨色。',
-            )
+          ? t('ui.mascot-theme.updates-the-dock-icon-right-away-for-this')
+          : t('ui.mascot-theme.updates-the-window-the-running-taskbar-button-and')
       }
     >
-      <div role="radiogroup" aria-label={t('应用图标')} className={styles.icons}>
+      <div role="radiogroup" aria-label={t('ui.chat-settings.app-icon')} className={styles.icons}>
         {(Object.keys(LABEL) as Variant[]).map((v) => (
           <button
             key={v}

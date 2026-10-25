@@ -1,0 +1,217 @@
+{
+  "name": "@nomi-ai/cli-plugins",
+  "version": "0.0.1",
+  "private": true,
+  "description": "内置编程助手插件（claude / codex / grok / gemini / dsh）：清单、启动、权限、账号、历史等；按 <cli>/{manifest,main,gateway,renderer} 分子路径",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./gateways": {
+      "types": "./dist/gateways.d.ts",
+      "import": "./dist/gateways.js",
+      "require": "./dist/gateways.cjs"
+    },
+    "./main": {
+      "types": "./dist/main.d.ts",
+      "import": "./dist/main.js",
+      "require": "./dist/main.cjs"
+    },
+    "./claude/manifest": {
+      "types": "./dist/claude/manifest.d.ts",
+      "import": "./dist/claude/manifest.js",
+      "require": "./dist/claude/manifest.cjs"
+    },
+    "./claude/main": {
+      "types": "./dist/claude/main.d.ts",
+      "import": "./dist/claude/main.js",
+      "require": "./dist/claude/main.cjs"
+    },
+    "./claude/gateway": {
+      "types": "./dist/claude/gateway.d.ts",
+      "import": "./dist/claude/gateway.js",
+      "require": "./dist/claude/gateway.cjs"
+    },
+    "./claude/renderer": {
+      "types": "./dist/claude/renderer.d.ts",
+      "import": "./dist/claude/renderer.js",
+      "require": "./dist/claude/renderer.cjs"
+    },
+    "./codex/manifest": {
+      "types": "./dist/codex/manifest.d.ts",
+      "import": "./dist/codex/manifest.js",
+      "require": "./dist/codex/manifest.cjs"
+    },
+    "./codex/main": {
+      "types": "./dist/codex/main.d.ts",
+      "import": "./dist/codex/main.js",
+      "require": "./dist/codex/main.cjs"
+    },
+    "./codex/gateway": {
+      "types": "./dist/codex/gateway.d.ts",
+      "import": "./dist/codex/gateway.js",
+      "require": "./dist/codex/gateway.cjs"
+    },
+    "./codex/renderer": {
+      "types": "./dist/codex/renderer.d.ts",
+      "import": "./dist/codex/renderer.js",
+      "require": "./dist/codex/renderer.cjs"
+    },
+    "./dsh/manifest": {
+      "types": "./dist/dsh/manifest.d.ts",
+      "import": "./dist/dsh/manifest.js",
+      "require": "./dist/dsh/manifest.cjs"
+    },
+    "./dsh/main": {
+      "types": "./dist/dsh/main.d.ts",
+      "import": "./dist/dsh/main.js",
+      "require": "./dist/dsh/main.cjs"
+    },
+    "./dsh/gateway": {
+      "types": "./dist/dsh/gateway.d.ts",
+      "import": "./dist/dsh/gateway.js",
+      "require": "./dist/dsh/gateway.cjs"
+    },
+    "./dsh/renderer": {
+      "types": "./dist/dsh/renderer.d.ts",
+      "import": "./dist/dsh/renderer.js",
+      "require": "./dist/dsh/renderer.cjs"
+    },
+    "./gemini/manifest": {
+      "types": "./dist/gemini/manifest.d.ts",
+      "import": "./dist/gemini/manifest.js",
+      "require": "./dist/gemini/manifest.cjs"
+    },
+    "./gemini/main": {
+      "types": "./dist/gemini/main.d.ts",
+      "import": "./dist/gemini/main.js",
+      "require": "./dist/gemini/main.cjs"
+    },
+    "./gemini/gateway": {
+      "types": "./dist/gemini/gateway.d.ts",
+      "import": "./dist/gemini/gateway.js",
+      "require": "./dist/gemini/gateway.cjs"
+    },
+    "./gemini/renderer": {
+      "types": "./dist/gemini/renderer.d.ts",
+      "import": "./dist/gemini/renderer.js",
+      "require": "./dist/gemini/renderer.cjs"
+    },
+    "./grok/manifest": {
+      "types": "./dist/grok/manifest.d.ts",
+      "import": "./dist/grok/manifest.js",
+      "require": "./dist/grok/manifest.cjs"
+    },
+    "./grok/main": {
+      "types": "./dist/grok/main.d.ts",
+      "import": "./dist/grok/main.js",
+      "require": "./dist/grok/main.cjs"
+    },
+    "./grok/gateway": {
+      "types": "./dist/grok/gateway.d.ts",
+      "import": "./dist/grok/gateway.js",
+      "require": "./dist/grok/gateway.cjs"
+    },
+    "./grok/renderer": {
+      "types": "./dist/grok/renderer.d.ts",
+      "import": "./dist/grok/renderer.js",
+      "require": "./dist/grok/renderer.cjs"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "main": [
+        "./dist/main.d.ts"
+      ],
+      "claude/manifest": [
+        "./dist/claude/manifest.d.ts"
+      ],
+      "claude/main": [
+        "./dist/claude/main.d.ts"
+      ],
+      "claude/gateway": [
+        "./dist/claude/gateway.d.ts"
+      ],
+      "claude/renderer": [
+        "./dist/claude/renderer.d.ts"
+      ],
+      "codex/manifest": [
+        "./dist/codex/manifest.d.ts"
+      ],
+      "codex/main": [
+        "./dist/codex/main.d.ts"
+      ],
+      "codex/gateway": [
+        "./dist/codex/gateway.d.ts"
+      ],
+      "codex/renderer": [
+        "./dist/codex/renderer.d.ts"
+      ],
+      "dsh/manifest": [
+        "./dist/dsh/manifest.d.ts"
+      ],
+      "dsh/main": [
+        "./dist/dsh/main.d.ts"
+      ],
+      "dsh/gateway": [
+        "./dist/dsh/gateway.d.ts"
+      ],
+      "dsh/renderer": [
+        "./dist/dsh/renderer.d.ts"
+      ],
+      "gemini/manifest": [
+        "./dist/gemini/manifest.d.ts"
+      ],
+      "gemini/main": [
+        "./dist/gemini/main.d.ts"
+      ],
+      "gemini/gateway": [
+        "./dist/gemini/gateway.d.ts"
+      ],
+      "gemini/renderer": [
+        "./dist/gemini/renderer.d.ts"
+      ],
+      "grok/manifest": [
+        "./dist/grok/manifest.d.ts"
+      ],
+      "grok/main": [
+        "./dist/grok/main.d.ts"
+      ],
+      "grok/gateway": [
+        "./dist/grok/gateway.d.ts"
+      ],
+      "grok/renderer": [
+        "./dist/grok/renderer.d.ts"
+      ]
+    }
+  },
+  "files": [
+    "dist",
+    "fixtures",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "node ../../scripts/run-bin.mjs tsup",
+    "dev": "node ../../scripts/run-bin.mjs tsup --watch",
+    "gen:ids": "node scripts/gen-ids.mjs",
+    "typecheck": "node scripts/gen-ids.mjs --check && node ../../scripts/run-bin.mjs tsc --noEmit",
+    "lint": "eslint . --max-warnings=0",
+    "test": "node ../../scripts/run-bin.mjs vitest run",
+    "clean": "node ../../scripts/run-bin.mjs rimraf dist coverage .turbo"
+  },
+  "dependencies": {
+    "@nomi-ai/cli-sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "rimraf": "^6.1.3",
+    "tsup": "^8.3.5",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.3"
+  }
+}

@@ -1,8 +1,8 @@
 /**
  * TrayManager —— 系统托盘：一键切换 Nomi 对话的模型、打开对话 / 模型设置。
  *
- * 有第三方供应商时菜单由统一网关的状态生成（Nomi 对话的 main 模型）；网关里一个都没有时
- * 退回旧的 ProviderService.state()（只剩环境变量供应商的情况）。只含名称，无 key，变化即重建。
+ * 菜单由统一网关状态生成（Nomi 对话的 main 模型；环境变量供应商也在网关里以 env-* 出现）。
+ * 仅在未注入网关 models API 时退回 ProviderService（单测垫片）。只含名称，无 key，变化即重建。
  * `IG_DISABLE_TRAY=1` 可关闭（无托盘的桌面环境 / 测试）。
  */
 import * as path from 'path';
@@ -84,7 +84,7 @@ export function gatewayMenuEntries(
 /** 供应商显示名：预设名与「（环境变量）」后缀按当前语言翻译，用户自定义名字原样保留。 */
 function providerName(name: string): string {
   const env = /^(.*)（环境变量）$/.exec(name);
-  if (env) return t('{0}（环境变量）', providerName(env[1]!));
+  if (env) return t('electron.common.env', providerName(env[1]!));
   return t(name);
 }
 
@@ -100,7 +100,7 @@ export function providerMenuEntries(state: ProviderState): ProviderMenuEntry[] {
         providerName(p.name),
         p.defaultModel,
         p.keys.length === 0 && !['ollama', 'lmstudio', 'custom'].includes(p.presetId)
-          ? t('（未配置 key）')
+          ? t('electron.common.no-key-configured')
           : '',
       ),
       checked: p.id === current,
@@ -109,7 +109,7 @@ export function providerMenuEntries(state: ProviderState): ProviderMenuEntry[] {
   for (const e of state.envProviders) {
     entries.push({
       id: e.id,
-      label: t('{0}{1}', providerName(e.name), e.hasKey ? '' : t('（无 key）')),
+      label: t('{0}{1}', providerName(e.name), e.hasKey ? '' : t('electron.common.no-key')),
       checked: e.id === current,
       enabled: e.hasKey,
     });
@@ -149,23 +149,23 @@ export interface TrayManagerOptions {
 
 /** 托盘「看板娘动作」菜单项 */
 export const TRAY_MOTIONS: Array<[string, string]> = [
-  ['wave', '挥手'],
-  ['nod', '点头'],
-  ['shake', '摇头'],
-  ['bow', '鞠躬'],
-  ['think', '托腮思考'],
-  ['heart', '比心'],
-  ['cheer', '加油握拳'],
-  ['thumbs_up', '点赞'],
-  ['peace', '剪刀手'],
-  ['celebrate', '庆祝'],
-  ['clap', '鼓掌'],
-  ['shy', '害羞'],
-  ['sorry', '道歉'],
-  ['surprise', '惊讶'],
-  ['yawn', '打哈欠'],
-  ['stretch', '伸懒腰'],
-  ['goodnight', '晚安'],
+  ['wave', 'electron.common.wave'],
+  ['nod', 'electron.common.nod'],
+  ['shake', 'electron.common.shake-head'],
+  ['bow', 'electron.common.bow'],
+  ['think', 'electron.common.chin-rest-thinking'],
+  ['heart', 'electron.common.heart-gesture'],
+  ['cheer', 'electron.common.cheer-fist-pump'],
+  ['thumbs_up', 'electron.common.thumbs-up'],
+  ['peace', 'electron.common.peace-sign'],
+  ['celebrate', 'electron.common.celebrate'],
+  ['clap', 'electron.common.clap'],
+  ['shy', 'electron.common.shy'],
+  ['sorry', 'electron.common.apologise'],
+  ['surprise', 'electron.common.surprised'],
+  ['yawn', 'electron.common.yawn'],
+  ['stretch', 'electron.common.stretch'],
+  ['goodnight', 'electron.common.good-night'],
 ];
 
 /**
@@ -185,11 +185,14 @@ export class TrayManager {
   private screenMenu(): MenuItemConstructorOptions[] {
     const sm = this.opts.screenMemory;
     const on = !!sm?.active();
-    this.tray?.setToolTip(on ? t('Nomi · ● 屏幕记忆中') : 'Nomi');
+    this.tray?.setToolTip(on ? t('electron.common.nomi-screen-memory-on') : 'Nomi');
     if (!sm || !on) return [];
     return [
-      { label: t('● 屏幕记忆中（仅保存在本机）'), click: () => sm.open() },
-      { label: t('暂停屏幕记忆 1 小时'), click: () => sm.pause(60) },
+      {
+        label: t('electron.common.screen-memory-on-stored-only-on-this-device'),
+        click: () => sm.open(),
+      },
+      { label: t('electron.common.pause-screen-memory-for-1-hour'), click: () => sm.pause(60) },
       { type: 'separator' },
     ];
   }
@@ -266,8 +269,8 @@ export class TrayManager {
     if (!this.tray || this.tray.isDestroyed()) return;
     const state = this.opts.providers.state();
     const gw = this.opts.models?.state();
-    const viaGateway = Boolean(gw?.providers.some((p) => p.enabled));
-    const entries = viaGateway ? gatewayMenuEntries(gw!) : providerMenuEntries(state);
+    // GatewayStore 是唯一来源：有 models API 就用网关菜单（可为空，引导去「模型」页）
+    const entries = gw ? gatewayMenuEntries(gw) : providerMenuEntries(state);
     const providerItems: MenuItemConstructorOptions[] = entries.map((e) => ({
       label: e.label,
       type: 'radio',
@@ -287,29 +290,34 @@ export class TrayManager {
     }));
     const template: MenuItemConstructorOptions[] = [
       ...this.screenMenu(),
-      { label: t('打开 AI 对话'), click: () => this.opts.openChat() },
+      { label: t('electron.common.open-ai-chat'), click: () => this.opts.openChat() },
       { type: 'separator' },
       {
-        label: state.overrideId ? t('对话模型（已被 NOMI_PROVIDER 锁定）') : t('对话模型'),
+        label: state.overrideId
+          ? t('electron.common.chat-model-locked-by-nomi-provider')
+          : t('electron.common.chat-model'),
         enabled: false,
       },
       ...providerItems,
-      { label: t('模型设置…'), click: () => this.opts.openProviderPanel() },
-      { label: t('桌面能力（文件授权 / 操作记录）…'), click: () => this.opts.openDesktopPanel?.() },
+      { label: t('electron.common.model-settings'), click: () => this.opts.openProviderPanel() },
+      {
+        label: t('electron.common.desktop-abilities-file-grants-activity-log'),
+        click: () => this.opts.openDesktopPanel?.(),
+      },
       { type: 'separator' },
       {
-        label: t('Nomi 动作'),
+        label: t('electron.common.nomi-motions'),
         submenu: TRAY_MOTIONS.map(([name, label]) => ({
           label: t(label),
           click: () => broadcastMascotCommand({ type: 'motion', name }),
         })),
       },
       {
-        label: t('互动设置（穿透 / 重力 / 散步）…'),
+        label: t('electron.common.interaction-settings-click-through-gravity-stroll'),
         click: () => broadcastMascotCommand({ type: 'open-panel', panel: 'interaction' }),
       },
       { type: 'separator' },
-      { label: t('退出'), click: () => this.opts.quit() },
+      { label: t('electron.common.quit'), click: () => this.opts.quit() },
     ];
     this.tray.setContextMenu(Menu.buildFromTemplate(template));
   }

@@ -3,9 +3,18 @@
  * 及按行明细（估算依据 + 各角色 token）。
  * 用量优先取 CLI 最近一轮真实 usage，否则本地估算（界面标明）。
  */
-import { t } from '@nomi-ai/ui';
+import { formatContext, t } from '@nomi-ai/ui';
 import React, { useMemo, useState } from 'react';
 
+import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
+import { harnessClient } from '../../services/harnessClient';
+import {
+  injectedWindowFor,
+  LONG_CONTEXT_HINT_RATIO,
+  longContextFor,
+  reportedMatchesInjected,
+} from '../../services/longContext';
+import { useGatewayState } from '../../services/nomiModel';
 import {
   contextWindowFor,
   fitContextWindow,
@@ -25,20 +34,31 @@ export const ContextUsageBar: React.FC<{
   model?: string | null;
 }> = ({ messages, model }) => {
   const [hover, setHover] = useState(false);
-  const baseWin = useMemo(
-    () => contextWindowFor(model ?? undefined, reportedContextWindow(messages)),
-    [model, messages],
-  );
+  // 当前编程助手标签：第三方模型快到标准窗口时，就地提议开启长上下文（§12.7.2）
+  const tabs = useHarnessTabs();
+  const tab = tabs.isCliTab ? tabs.activeTab : null;
+  const [longError, setLongError] = useState<string | null>(null);
+  const gateway = useGatewayState();
+  const long = tab ? longContextFor(tab, gateway) : null;
+  const injected = tab ? injectedWindowFor(tab, gateway) : null;
+  const baseWin = useMemo(() => {
+    const reported = reportedContextWindow(messages);
+    // 第三方标签：上报的窗口来自换模型 / 切长上下文之前（与这次要注入的对不上）时已过期，
+    // 显示下一次启动会注入的窗口，而不是上一个模型的
+    if (injected && !(reported && reportedMatchesInjected(reported, injected)))
+      return { size: injected, source: 'reported' as const };
+    return contextWindowFor(model ?? undefined, reported);
+  }, [model, messages, injected]);
   const est = useMemo(
     () =>
       estimateContext(
         messages,
         {
-          user: t('用户'),
-          assistant: t('助手'),
-          tools: t('工具'),
-          thinking: t('思考'),
-          system: t('系统提示 / 工具定义 / 记忆'),
+          user: t('ui.slash-commands.user'),
+          assistant: t('ui.providers-schedule.assistants'),
+          tools: t('ui.foundation.tool'),
+          thinking: t('ui.voice-mascot.think'),
+          system: t('ui.session-workspace.system-prompt-tool-defs-memory'),
         },
         { windowSize: baseWin.size },
       ),
@@ -50,17 +70,33 @@ export const ContextUsageBar: React.FC<{
   const level = over || pct >= 90 ? 'high' : pct >= 70 ? 'mid' : 'ok';
   /** 只在数字可能不准时提示一行；准确时不显示来源（「CLI 上报 / 对照表」对用户没有意义） */
   const basisRows = [
-    est.basis === 'estimate' ? t('估算值：还没有这个会话的真实用量') : null,
+    est.basis === 'estimate'
+      ? t('ui.session-workspace.estimate-no-real-usage-reported-for-this-session')
+      : null,
     win.widened
-      ? t('窗口大小是估算的，实际可能更小')
+      ? t('ui.session-workspace.the-window-size-is-an-estimate-and-may')
       : win.source === 'default'
-        ? t('未识别模型，窗口按 128K 计')
+        ? t('ui.session-workspace.unknown-model-assuming-a-128k-window')
         : null,
   ].filter((row): row is string => !!row);
   const tip = over
-    ? t('当前上下文 {0} / {1} · 已超窗口', formatTokens(est.used), formatTokens(win.size))
-    : t('当前上下文 {0} / {1}', formatTokens(est.used), formatTokens(win.size));
+    ? t(
+        'ui.session-workspace.current-context-over-the-window',
+        formatTokens(est.used),
+        formatTokens(win.size),
+      )
+    : t('ui.session-workspace.current-context', formatTokens(est.used), formatTokens(win.size));
   const dash = (pct / 100) * C;
+  // 快到标准窗口（CLI 将自动压缩）且这个模型能开长上下文：提议开启，而不是只看着它被压缩
+  const offerLong =
+    !!tab && !!long && !long.on && est.used >= long.standard * LONG_CONTEXT_HINT_RATIO;
+  const enableLong = () => {
+    if (!tab) return;
+    setLongError(null);
+    harnessClient
+      .setTabLongContext(tab.id, true)
+      .catch((e: unknown) => setLongError(e instanceof Error ? e.message : String(e)));
+  };
 
   return (
     <div
@@ -69,6 +105,7 @@ export const ContextUsageBar: React.FC<{
       data-basis={est.basis}
       data-level={level}
       data-over={over || undefined}
+      data-long-offer={offerLong || undefined}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       onFocus={() => setHover(true)}
@@ -77,7 +114,7 @@ export const ContextUsageBar: React.FC<{
       <button
         type="button"
         className={styles.contextRingBtn}
-        aria-label={`${t('上下文占用')} ${pct}% · ${tip}`}
+        aria-label={`${t('ui.foundation.context-usage')} ${pct}% · ${tip}`}
         title={undefined}
         data-testid="context-usage-toggle"
       >
@@ -112,9 +149,17 @@ export const ContextUsageBar: React.FC<{
         </svg>
         {/* 默认不显示百分比；仅供读屏 / 测试属性 */}
         <span className={styles.srOnly}>{pct}%</span>
+        {/* 有长上下文可开的提议时，环上加一个小点提醒悬停查看 */}
+        {offerLong && <span className={styles.contextRingDot} aria-hidden />}
       </button>
       {hover ? (
-        <div className={styles.contextRingTip} role="tooltip" data-testid="context-usage-detail">
+        <div
+          className={styles.contextRingTip}
+          // 带操作按钮时不再是纯提示
+          role={offerLong ? 'dialog' : 'tooltip'}
+          aria-label={offerLong ? t('ui.foundation.context-usage') : undefined}
+          data-testid="context-usage-detail"
+        >
           <div className={styles.contextRingTipMain}>{tip}</div>
           <div className={styles.contextRingTipMeta}>
             {basisRows.map((row) => (
@@ -129,6 +174,27 @@ export const ContextUsageBar: React.FC<{
               </div>
             ))}
           </div>
+          {offerLong && long ? (
+            <div className={styles.contextRingOffer} data-testid="long-context-offer">
+              <div>{t('ui.session-workspace.near-the-standard-window-cli-will-compact')}</div>
+              <button
+                type="button"
+                className={styles.contextRingOfferBtn}
+                data-testid="long-context-enable"
+                onClick={enableLong}
+              >
+                {t('ui.models.enable-long-context', formatContext(long.full))}
+              </button>
+              {long.priceNote ? (
+                <div className={styles.contextRingTipRow}>{long.priceNote}</div>
+              ) : null}
+              {longError ? (
+                <div className={styles.contextRingOfferError} role="alert">
+                  {longError}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>

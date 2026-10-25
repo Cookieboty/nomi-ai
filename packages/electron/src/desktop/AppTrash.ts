@@ -28,7 +28,9 @@ async function move(from: string, to: string): Promise<void> {
 
 export async function moveNoOverwrite(from: string, to: string): Promise<void> {
   if (fs.existsSync(to))
-    throw Object.assign(new Error(t('目标已存在：{0}', to)), { code: 'conflict' });
+    throw Object.assign(new Error(t('electron.common.target-already-exists', to)), {
+      code: 'conflict',
+    });
   await move(from, to);
 }
 
@@ -51,7 +53,9 @@ export class AppTrash {
 
   async restore(rec: Pick<TrashRecord, 'stored' | 'original'>): Promise<void> {
     if (!fs.existsSync(rec.stored))
-      throw Object.assign(new Error(t('回收站中的文件已不存在')), { code: 'gone' });
+      throw Object.assign(new Error(t('electron.common.the-file-in-the-trash-no-longer-exists')), {
+        code: 'gone',
+      });
     await moveNoOverwrite(rec.stored, rec.original);
     await fs.promises.rm(path.dirname(rec.stored), { recursive: true, force: true });
   }

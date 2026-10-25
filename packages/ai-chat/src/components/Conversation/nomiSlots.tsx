@@ -9,6 +9,7 @@ import React, { useState } from 'react';
 import type { KbSource } from '../../services/kbClient';
 import type { ChatMessage } from '../../types/chat';
 import type { ConvMessage } from '../../types/conversation';
+import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 
 import { SourceList, SourcePreview } from './Citations';
 import styles from './Citations.module.css';
@@ -34,7 +35,8 @@ const CitedBody: React.FC<{ message: ChatMessage }> = ({ message }) => {
       <details className={styles.stepRow} open>
         <summary>
           <Icon icon={ChevronRight} size={12} className={styles.stepIcon} />
-          {message.kb ? t('知识库') : t('来源')} · {sources.length} {t('处出处')}
+          {message.kb ? t('ui.foundation.knowledge-base') : t('ui.knowledge-local.sources')} ·{' '}
+          {sources.length} {t('ui.providers-schedule.sources-count-suffix')}
         </summary>
         <SourceList sources={sources} onPick={setPick} />
       </details>
@@ -49,11 +51,17 @@ export const nomiSlots: ConvSlots = {
     if (!raw) return null;
     return (
       <>
+        {m.role === 'user' && raw.delegateTo && (
+          <span className={styles.kbTag} data-testid="message-delegate-to">
+            {t('ui.session-workspace.to', t(ENDPOINT_NAME[raw.delegateTo]))}
+          </span>
+        )}
         {m.role === 'assistant' && !!raw.memories?.length && (
           <details className={styles.stepRow} data-testid="memory-tag">
             <summary>
               <Icon icon={ChevronRight} size={12} className={styles.stepIcon} />
-              {t('参考了')} {raw.memories.length} {t('条记忆')}
+              {t('ui.providers-schedule.used')} {raw.memories.length}{' '}
+              {t('ui.providers-schedule.memories')}
             </summary>
             <ul className={styles.stepBody}>
               {raw.memories.map((mem) => (
@@ -68,7 +76,11 @@ export const nomiSlots: ConvSlots = {
               <img
                 key={i}
                 src={im.thumb}
-                alt={im.source === 'snip' ? t('截图') : t('图片')}
+                alt={
+                  im.source === 'snip'
+                    ? t('ui.providers-schedule.screenshot')
+                    : t('ui.providers-schedule.image')
+                }
                 className={styles.imageThumb}
                 title={`${im.width}×${im.height}`}
               />
@@ -85,7 +97,7 @@ export const nomiSlots: ConvSlots = {
   after: (m) => {
     const raw = rawOf(m);
     return m.role === 'assistant' && raw?.kb && !raw.sources?.length ? (
-      <span className={styles.kbTag}>{t('知识库')}</span>
+      <span className={styles.kbTag}>{t('ui.foundation.knowledge-base')}</span>
     ) : null;
   },
 };

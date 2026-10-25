@@ -221,7 +221,11 @@ export class MemoryService {
     try {
       const raw = await this.d.complete(summaryPrompt(clean), AbortSignal.timeout(90_000));
       const p = parseSummary(raw);
-      if (!p) throw new MemError('bad-summary', tr('模型没有返回可用的摘要'));
+      if (!p)
+        throw new MemError(
+          'bad-summary',
+          tr('electron.common.the-model-returned-no-usable-summary'),
+        );
       const now = Date.now();
       const ep: Episode = prev
         ? {
@@ -281,7 +285,7 @@ export class MemoryService {
       this.audit('memory_summarize', { conversation: conversationId }, 'error');
       throw e instanceof MemError
         ? e
-        : new MemError('summarize-failed', tr('摘要失败：{0}', this.lastError));
+        : new MemError('summarize-failed', tr('electron.common.summarize-failed', this.lastError));
     } finally {
       this.busy.delete(conversationId);
       this.broadcast('ai:mem:status', { busy: [...this.busy] });
@@ -391,7 +395,7 @@ export class MemoryService {
 
   async updateEpisode(id: string, patch: unknown): Promise<Episode> {
     const e = this.data.episodes.find((x) => x.id === id);
-    if (!e) throw new MemError('not-found', tr('这条记忆已经不存在了'));
+    if (!e) throw new MemError('not-found', tr('electron.common.this-memory-no-longer-exists'));
     const p = (patch && typeof patch === 'object' ? patch : {}) as Partial<Episode>;
     let textChanged = false;
     if (typeof p.title === 'string' && p.title.trim()) {
@@ -424,7 +428,7 @@ export class MemoryService {
   async upsertFact(input: unknown): Promise<Fact> {
     const o = (input && typeof input === 'object' ? input : {}) as Partial<Fact>;
     const text = typeof o.text === 'string' ? o.text.trim().slice(0, 200) : '';
-    if (!text) throw new MemError('empty', tr('内容不能为空'));
+    if (!text) throw new MemError('empty', tr('electron.common.content-can-t-be-empty'));
     const kind: FactKind = FACT_KINDS.includes(o.kind as FactKind) ? (o.kind as FactKind) : 'note';
     const now = Date.now();
     let f = o.id ? this.data.facts.find((x) => x.id === o.id) : undefined;
@@ -508,7 +512,7 @@ export class MemoryService {
     const win = BrowserWindow.getFocusedWindow();
     const stamp = new Date().toISOString().slice(0, 10);
     const opts = {
-      title: tr('导出记忆'),
+      title: tr('electron.common.export-memories'),
       defaultPath: `nomi-memory-${stamp}.${format}`,
       filters: [
         format === 'md'
@@ -559,11 +563,21 @@ export class MemoryService {
   /** 代理工具：memory_search（查过往对话 / 事实）、memory_remember（用户明确要求记住时） */
   tools(): ToolDefinition[] {
     const search = z
-      .object({ query: z.string().min(1).max(300).describe(tr('要回忆的话题或关键词')) })
+      .object({
+        query: z
+          .string()
+          .min(1)
+          .max(300)
+          .describe(tr('electron.common.topic-or-keywords-to-recall')),
+      })
       .strict();
     const remember = z
       .object({
-        text: z.string().min(1).max(200).describe(tr('用户要求记住的、关于用户的一句话事实')),
+        text: z
+          .string()
+          .min(1)
+          .max(200)
+          .describe(tr('electron.common.a-one-sentence-fact-about-the-user-that')),
         kind: z
           .enum(['identity', 'preference', 'goal', 'dislike', 'habit', 'note'])
           .default('note'),
@@ -573,30 +587,46 @@ export class MemoryService {
       {
         name: 'memory_search',
         description: tr(
-          '在本地长期记忆（过往对话摘要与关于用户的事实）里查找。用户问“我们之前聊过…/你还记得…”时使用。',
+          'electron.common.search-local-long-term-memory-past-conversation-summaries',
         ),
         input: search,
         execute: async (raw: unknown) => {
           if (!this.settings.enabled)
-            return { ok: false, error: { code: 'disabled', message: tr('用户关闭了长期记忆') } };
+            return {
+              ok: false,
+              error: {
+                code: 'disabled',
+                message: tr('electron.common.the-user-turned-off-long-term-memory'),
+              },
+            };
           const { query } = search.parse(raw);
           const r = await this.context(query);
           this.audit('memory_search', { query: query.slice(0, 80) }, 'ok');
-          return { ok: true, data: { memory: r.text || tr('（没有相关记忆）') } };
+          return {
+            ok: true,
+            data: { memory: r.text || tr('electron.common.no-relevant-memories') },
+          };
         },
       } as unknown as ToolDefinition,
       {
         name: 'memory_remember',
-        description: tr(
-          '仅当用户明确要求“记住…”时，把一条关于用户的事实写入本地长期记忆。不要记录密码、密钥等敏感信息。',
-        ),
+        description: tr('electron.common.only-when-the-user-explicitly-asks-to-remember'),
         input: remember,
         execute: async (raw: unknown) => {
           if (!this.settings.enabled)
-            return { ok: false, error: { code: 'disabled', message: tr('用户关闭了长期记忆') } };
+            return {
+              ok: false,
+              error: {
+                code: 'disabled',
+                message: tr('electron.common.the-user-turned-off-long-term-memory'),
+              },
+            };
           const i = remember.parse(raw);
           if (this.data.facts.some((f) => isDuplicateFact(f.text, i.text)))
-            return { ok: true, data: { saved: false, reason: tr('已经记住了') } };
+            return {
+              ok: true,
+              data: { saved: false, reason: tr('electron.common.already-remembered') },
+            };
           const f = await this.upsertFact(i);
           broadcastMascotCommand({ type: 'motion', name: 'nod' });
           return { ok: true, data: { saved: true, id: f.id } };

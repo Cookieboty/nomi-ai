@@ -6,6 +6,7 @@
 import type { AuthStyle, ProbeState } from '../config';
 import type { Wire } from '../ir';
 import { WIRES } from '../ir';
+import { createUpstreamFetch } from '../net/upstreamFetch';
 import { checkUpstream, type LookupAll } from '../net/upstreamGuard';
 import { upstreamUrl } from '../upstream';
 
@@ -56,6 +57,8 @@ export interface DetectResult {
   byKey: Record<string, Partial<Record<Wire, ProbeLine>>>;
   /** 拉到的模型列表（可能为空） */
   models: string[];
+  /** 模型列表接口顺带返回的上下文 / 输出上限（§12.7.2 第 3 级；没返回的模型不在里面） */
+  limits?: Record<string, ListedLimits>;
   /** 可用的协议地址 */
   urls: Partial<Record<Wire, string>>;
 }
@@ -126,6 +129,17 @@ function looksLikeParamError(text: string): boolean {
   }
 }
 
+function outboundFetch(o: DetectOptions): typeof fetch {
+  if (o.fetchImpl) return o.fetchImpl;
+  return createUpstreamFetch({
+    getGuard: () => ({
+      allowedPrivateHosts: o.allowedPrivateHosts,
+      selfPort: o.selfPort,
+      lookupAll: o.lookupAll,
+    }),
+  }) as unknown as typeof fetch;
+}
+
 async function guarded(url: string, o: DetectOptions): Promise<string | null> {
   try {
     await checkUpstream(url, {
@@ -139,18 +153,61 @@ async function guarded(url: string, o: DetectOptions): Promise<string | null> {
   }
 }
 
-/** GET {chat base}/models：分别用 Bearer 和 x-api-key 试，得到模型列表与鉴权方式 */
+export interface ListedLimits {
+  ctx?: number;
+  maxOutput?: number;
+}
+
+const posInt = (v: unknown): number | undefined => {
+  const n = typeof v === 'string' ? Number(v) : v;
+  return typeof n === 'number' && Number.isInteger(n) && n > 0 ? n : undefined;
+};
+
+/**
+ * 模型列表里一项带的上限。各家字段名不同：OpenRouter `context_length` /
+ * `top_provider.max_completion_tokens`、vLLM `max_model_len`、Gemini `inputTokenLimit` /
+ * `outputTokenLimit`、其它中转的 `context_window` / `max_output_tokens` 等。
+ */
+export function listedLimits(item: unknown): ListedLimits | undefined {
+  if (!item || typeof item !== 'object') return undefined;
+  const o = item as Record<string, unknown>;
+  const top = (o.top_provider ?? {}) as Record<string, unknown>;
+  const first = (...vs: unknown[]) => vs.map(posInt).find((n) => n !== undefined);
+  // 明确的「最大输入」优先于总窗口（编程助手按它压缩，§12.7.1）
+  const ctx = first(
+    o.max_input_tokens,
+    o.inputTokenLimit,
+    o.input_token_limit,
+    o.context_length,
+    o.context_window,
+    o.max_context_length,
+    o.max_model_len,
+    top.context_length,
+  );
+  const maxOutput = first(
+    o.max_output_tokens,
+    o.max_completion_tokens,
+    o.outputTokenLimit,
+    o.output_token_limit,
+    top.max_completion_tokens,
+  );
+  return ctx || maxOutput
+    ? { ...(ctx ? { ctx } : {}), ...(maxOutput ? { maxOutput } : {}) }
+    : undefined;
+}
+
+/** GET {chat base}/models：分别用 Bearer 和 x-api-key 试，得到模型列表、上限与鉴权方式 */
 async function listModels(
   o: DetectOptions,
   key: string,
-): Promise<{ models: string[]; auth?: AuthStyle }> {
+): Promise<{ models: string[]; limits?: Record<string, ListedLimits>; auth?: AuthStyle }> {
   const base = o.bases.chat ?? o.bases.responses;
   if (!base) return { models: [] };
   const url = `${base.replace(/\/+$/, '')}/models`;
   if (await guarded(url, o)) return { models: [] };
   for (const auth of ['bearer', 'x-api-key'] as AuthStyle[]) {
     try {
-      const res = await (o.fetchImpl ?? fetch)(url, {
+      const res = await outboundFetch(o)(url, {
         headers: authHeaders('chat', auth, key),
         redirect: 'manual',
         signal: AbortSignal.timeout(o.timeoutMs ?? TIMEOUT_MS),
@@ -160,16 +217,21 @@ async function listModels(
         data?: Array<{ id?: unknown }>;
         models?: Array<{ name?: unknown; id?: unknown }>;
       };
-      const list = (j.data ?? j.models ?? [])
-        .map((m) =>
+      const models: string[] = [];
+      const limits: Record<string, ListedLimits> = {};
+      for (const m of j.data ?? j.models ?? []) {
+        const id =
           typeof m.id === 'string'
             ? m.id
             : typeof (m as { name?: unknown }).name === 'string'
               ? String((m as { name: string }).name).replace(/^models\//, '')
-              : '',
-        )
-        .filter(Boolean);
-      return { models: list, auth };
+              : '';
+        if (!id) continue;
+        models.push(id);
+        const l = listedLimits(m);
+        if (l) limits[id] = l;
+      }
+      return { models, ...(Object.keys(limits).length ? { limits } : {}), auth };
     } catch {
       /* 换一种鉴权再试 */
     }
@@ -192,7 +254,7 @@ async function probeWire(
   const blocked = await guarded(url, o);
   if (blocked) return { wire, url: base, ok: false, error: blocked, ms: 0 };
   const attempt = async (style: AuthStyle) => {
-    const res = await (o.fetchImpl ?? fetch)(url, {
+    const res = await outboundFetch(o)(url, {
       method: 'POST',
       headers: authHeaders(wire, style, key.value),
       body: JSON.stringify(probeBody(wire, model)),
@@ -313,5 +375,11 @@ export async function detect(o: DetectOptions): Promise<DetectResult> {
       .filter(([, l]) => l.ok)
       .map(([w]) => [w, o.bases[w]!]),
   ) as Partial<Record<Wire, string>>;
-  return { wires, byKey, models: listed.models, urls };
+  return {
+    wires,
+    byKey,
+    models: listed.models,
+    ...(listed.limits ? { limits: listed.limits } : {}),
+    urls,
+  };
 }

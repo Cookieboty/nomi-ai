@@ -1,7 +1,7 @@
 import { t } from '@nomi-ai/ui';
 /**
- * 旧的 Nomi 供应商存储（`ai:providers:*`）：只剩预设列表（添加第三方供应商时选）和状态 / 切换
- * （环境变量供应商的过渡期，网关里没有分配时由它路由）。供应商的增删改在统一网关（gatewayClient）。
+ * 旧 `ai:providers:*` IPC 垫片：只剩预设列表（添加第三方供应商时选）和只读状态 /
+ * `setActive`（环境变量切换的兼容）。供应商与模型配置的唯一来源是统一网关（gatewayClient）。
  * 主进程只回传掩码视图。
  */
 export type Protocol = 'openai-chat' | 'openai-responses' | 'anthropic';
@@ -147,7 +147,7 @@ export const providerClientAvailable = (): boolean => Boolean(bridge());
 
 const call = async <T>(method: string, ...args: unknown[]): Promise<T> => {
   const b = bridge();
-  if (!b) throw new Error(t('window.aiIPC 不可用'));
+  if (!b) throw new Error(t('ui.chat-settings.window-aiipc-is-unavailable'));
   try {
     return (await b.invoke(`ai:providers:${method}`, ...args)) as T;
   } catch (err) {
@@ -166,7 +166,7 @@ const call = async <T>(method: string, ...args: unknown[]): Promise<T> => {
  */
 export function providerDisplayName(name: string): string {
   const env = /^(.*)（环境变量）$/.exec(name);
-  if (env) return t('{0}（环境变量）', providerDisplayName(env[1]!));
+  if (env) return t('ui.mascot-theme.env', providerDisplayName(env[1]!));
   return t(name);
 }
 

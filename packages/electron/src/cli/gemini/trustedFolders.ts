@@ -95,12 +95,7 @@ function parseTrustFile(file: string, content: string): Record<string, unknown> 
     v = undefined;
   }
   if (!v || typeof v !== 'object' || Array.isArray(v))
-    throw new Error(
-      t(
-        'Gemini 的受信任文件夹列表（{0}）格式有误，Nomi 没有改动它。请先修复或删除这个文件后再试。',
-        file,
-      ),
-    );
+    throw new Error(t('electron.common.gemini-s-trusted-folders-list-is-malformed-so', file));
   return v as Record<string, unknown>;
 }
 
@@ -134,7 +129,9 @@ async function withLock<T>(file: string, fn: () => Promise<T>): Promise<T> {
         continue;
       }
       if (i >= LOCK_RETRIES)
-        throw new Error(t('Gemini 正在修改受信任文件夹列表，请稍后再试。'), { cause: e });
+        throw new Error(t('electron.common.gemini-is-updating-its-trusted-folders-list-please'), {
+          cause: e,
+        });
       await sleep(LOCK_WAIT_MS);
     }
   }
@@ -187,18 +184,15 @@ export async function trustGeminiFolder(
   const blocked = geminiTrustBlockedByEnv(env);
   if (blocked)
     throw new Error(
-      t(
-        '环境变量 {0} 让 Gemini 始终不信任任何文件夹，写入受信任列表也不会生效。请先去掉它。',
-        blocked,
-      ),
+      t('electron.common.the-environment-variable-makes-gemini-distrust-every-folder', blocked),
     );
-  if (!path.isAbsolute(folder)) throw new Error(t('工作目录无效'));
+  if (!path.isAbsolute(folder)) throw new Error(t('electron.common.invalid-working-directory'));
   let real: string;
   try {
     real = fs.realpathSync(folder);
     if (!fs.statSync(real).isDirectory()) throw new Error('not a directory');
   } catch {
-    throw new Error(t('工作目录无效'));
+    throw new Error(t('electron.common.invalid-working-directory'));
   }
   const file = geminiTrustedFoldersPath(opts.home ?? os.homedir(), env);
   fs.mkdirSync(path.dirname(file), { recursive: true });

@@ -7,12 +7,12 @@ const log = createLogger('memory');
 export type FactKind = 'identity' | 'preference' | 'goal' | 'dislike' | 'habit' | 'note';
 
 export const FACT_KIND_LABEL: Record<FactKind, string> = {
-  identity: '身份',
-  preference: '偏好',
-  goal: '目标',
-  dislike: '不喜欢',
-  habit: '习惯',
-  note: '其它',
+  identity: 'ui.chat-settings.identity',
+  preference: 'ui.chat-settings.preferences',
+  goal: 'ui.chat-settings.goals',
+  dislike: 'ui.chat-settings.dislikes',
+  habit: 'ui.chat-settings.habits',
+  note: 'ui.chat-settings.other',
 };
 
 export interface MemEpisode {
@@ -83,7 +83,11 @@ export class MemCallError extends Error {
 
 async function call<T>(method: string, ...args: unknown[]): Promise<T> {
   const b = bridge();
-  if (!b) throw new MemCallError('unavailable', tr('长期记忆需要在桌面应用中使用'));
+  if (!b)
+    throw new MemCallError(
+      'unavailable',
+      tr('ui.chat-settings.long-term-memory-requires-the-desktop-app'),
+    );
   const r = (await b.invoke(`ai:mem:${method}`, ...args)) as T & {
     __error?: { code: string; message: string };
   };

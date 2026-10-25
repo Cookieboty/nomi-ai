@@ -77,26 +77,36 @@ export type RepeatRule =
   | { kind: 'monthly' }
   | { kind: 'interval'; minutes: number };
 
-const WEEK = ['日', '一', '二', '三', '四', '五', '六'];
+const WEEK = [
+  'ui.foundation.sun',
+  'ui.foundation.mon',
+  'ui.foundation.tue',
+  'ui.foundation.wed',
+  'ui.foundation.thu',
+  'ui.foundation.fri',
+  'ui.foundation.sat',
+];
 export function describeRepeat(r?: RepeatRule): string {
-  if (!r) return t('不重复');
+  if (!r) return t('ui.foundation.does-not-repeat');
   switch (r.kind) {
     case 'daily':
-      return t('每天');
+      return t('ui.foundation.every-day');
     case 'weekdays':
-      return t('工作日');
+      return t('ui.foundation.weekdays');
     case 'monthly':
-      return t('每月');
+      return t('ui.foundation.monthly');
     case 'weekly':
       return t(
-        '每周{0}',
+        'ui.chat-settings.weekly-on',
         [...r.days]
           .sort()
-          .map((d) => WEEK[d])
+          .map((d) => t(WEEK[d]!))
           .join('、'),
       );
     case 'interval':
-      return r.minutes % 60 === 0 ? t('每 {0} 小时', r.minutes / 60) : t('每 {0} 分钟', r.minutes);
+      return r.minutes % 60 === 0
+        ? t('ui.chat-settings.every-h', r.minutes / 60)
+        : t('ui.chat-settings.every-min', r.minutes);
   }
 }
 
@@ -113,7 +123,7 @@ function bridge(): AiBridge | undefined {
 
 async function call<T>(method: string, ...args: unknown[]): Promise<T> {
   const b = bridge();
-  if (!b) throw new Error(t('桌面能力需要在桌面应用中使用'));
+  if (!b) throw new Error(t('ui.chat-settings.desktop-abilities-require-the-desktop-app'));
   return (await b.invoke(`ai:desktop:${method}`, ...args)) as T;
 }
 
@@ -159,46 +169,46 @@ export const desktopClient = {
 };
 
 export const TOOL_LABELS: Record<string, string> = {
-  desktop_request_scope: '请求授权文件夹',
-  fs_list: '列出文件夹',
-  fs_stat: '查看文件信息',
-  fs_search: '搜索文件',
-  fs_read_text: '读取文件文本',
-  fs_summarize: '总结文件',
-  fs_write_text: '写入文本文件',
-  fs_trash: '移到回收站',
-  undo_last: '撤销上一步',
-  grant_scope: '授权文件夹',
-  revoke_scope: '撤销授权',
-  drop_summarize: '拖到 Nomi 总结',
-  note_create: '新建笔记',
-  note_list: '列出笔记',
-  note_search: '搜索笔记',
-  note_read: '读取笔记',
-  note_update: '修改笔记',
-  note_trash: '删除笔记（回收站）',
-  reminder_create: '设置提醒',
-  reminder_list: '查看提醒',
-  reminder_cancel: '取消提醒',
-  reminder_snooze: '稍后提醒',
-  reminder_fire: '提醒触发',
-  clipboard_read: '读取剪贴板',
-  clipboard_write: '写入剪贴板',
-  browser_open: '沙箱浏览器：打开网页',
-  browser_read: '沙箱浏览器：读取页面',
-  browser_click: '沙箱浏览器：点击',
-  browser_type: '沙箱浏览器：输入文字',
-  browser_close: '沙箱浏览器：关闭',
-  code_run: '沙箱运行代码',
+  desktop_request_scope: 'ui.chat-settings.request-folder-access',
+  fs_list: 'ui.chat-settings.list-folder',
+  fs_stat: 'ui.chat-settings.view-file-info',
+  fs_search: 'ui.chat-settings.search-files',
+  fs_read_text: 'ui.chat-settings.read-file-text',
+  fs_summarize: 'ui.chat-settings.summarize-file-label',
+  fs_write_text: 'ui.chat-settings.write-text-file',
+  fs_trash: 'ui.chat-settings.move-to-trash',
+  undo_last: 'ui.chat-settings.undo-last-step',
+  grant_scope: 'ui.foundation.granted-folders',
+  revoke_scope: 'ui.foundation.revoke',
+  drop_summarize: 'ui.chat-settings.drop-onto-nomi-to-summarize',
+  note_create: 'ui.foundation.new-note',
+  note_list: 'ui.chat-settings.list-notes',
+  note_search: 'ui.chat-settings.search-notes',
+  note_read: 'ui.chat-settings.read-note',
+  note_update: 'ui.chat-settings.edit-note',
+  note_trash: 'ui.chat-settings.delete-note-trash',
+  reminder_create: 'ui.chat-settings.set-reminder',
+  reminder_list: 'ui.chat-settings.view-reminders',
+  reminder_cancel: 'ui.chat-settings.cancel-reminder',
+  reminder_snooze: 'ui.chat-settings.snooze-reminder',
+  reminder_fire: 'ui.chat-settings.reminder-fired',
+  clipboard_read: 'ui.chat-settings.read-clipboard',
+  clipboard_write: 'ui.chat-settings.write-clipboard',
+  browser_open: 'ui.chat-settings.sandbox-browser-open-page',
+  browser_read: 'ui.chat-settings.sandbox-browser-read-page',
+  browser_click: 'ui.chat-settings.sandbox-browser-click',
+  browser_type: 'ui.chat-settings.sandbox-browser-type-text',
+  browser_close: 'ui.chat-settings.sandbox-browser-close',
+  code_run: 'ui.chat-settings.run-code-in-sandbox',
 };
 
 export const DANGER_LABELS: Record<Danger, string> = {
-  read: '只读',
-  write: '写入',
-  destructive: '破坏性',
+  read: 'ui.foundation.read-only',
+  write: 'ui.chat-settings.write',
+  destructive: 'ui.foundation.destructive',
 };
 export const POLICY_LABELS: Record<Policy, string> = {
-  always: '总是允许',
-  session: '每次运行首次询问',
-  ask: '每次都询问',
+  always: 'ui.chat-settings.always-allow',
+  session: 'ui.chat-settings.ask-first-time-each-session',
+  ask: 'ui.chat-settings.ask-every-time',
 };

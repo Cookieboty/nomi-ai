@@ -22,11 +22,13 @@ export const QuotaWindowRow: React.FC<{ w: UsageQuotaWindow; now: number }> = ({
       <div className={styles.rowHead}>
         <span className={styles.rowName}>{label}</span>
         {w.expired ? (
-          <span className={styles.dim}>{t('窗口已重置，下次使用后更新')}</span>
+          <span className={styles.dim}>
+            {t('ui.usage-tools.window-reset-updates-after-next-use')}
+          </span>
         ) : (
           <>
             {w.resetAt ? <span className={styles.dim}>{resetText(w.resetAt, now)}</span> : null}
-            <span className={styles.rowCost}>{t('已用 {0}%', pct)}</span>
+            <span className={styles.rowCost}>{t('ui.usage-tools.used', pct)}</span>
           </>
         )}
       </div>

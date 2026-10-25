@@ -16,7 +16,7 @@
  * （codex `-c model=...`、grok `-m ... --reasoning-effort ...`、claude `--model ... --effort ...`），
  * 不改写用户的全局 CLI 配置；每轮新进程的后端下一条消息即生效，Claude 长驻进程空闲时重启复用。
  */
-import { Icon, t } from '@nomi-ai/ui';
+import { formatContext, Icon, Input, t } from '@nomi-ai/ui';
 import {
   Check,
   ChevronDown,
@@ -29,6 +29,11 @@ import {
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
+import {
+  cliAccountClient,
+  type AccountKind,
+  type CliAccount,
+} from '../../services/cliAccountClient';
 import { scopeCatalogToProvider, tabSourceOf, thirdPartyRefOf } from '../../services/cliSource';
 import { gatewayClient, gatewayClientAvailable } from '../../services/gatewayClient';
 import {
@@ -39,10 +44,23 @@ import {
   type ReasoningEffort,
   type TabSource,
 } from '../../services/harnessClient';
+import { longContextFor, type LongContextInfo } from '../../services/longContext';
 import { useGatewayState } from '../../services/nomiModel';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 
 import styles from './index.module.css';
+
+/** 模型多于这个数时模型页显示搜索框（与 @nomi-ai/ui 的 Select 一致） */
+const MODEL_SEARCH_THRESHOLD = 8;
+
+/** 有官方账号的编程助手 */
+const ACCOUNT_KINDS: readonly AccountKind[] = ['claude', 'codex', 'grok', 'gemini'];
+
+/**
+ * 没有文档化思考深度控制的后端（Gemini ACP / dsh）：
+ * 不暴露可操作的档位 UI，避免假装可调。
+ */
+const NO_REASONING_BACKENDS = new Set(['gemini', 'dsh']);
 
 /** 档位由浅到深的顺序（只用于排序 CLI 返回的值，不代表某个模型支持哪些） */
 const EFFORT_ORDER: ReasoningEffort[] = [
@@ -58,19 +76,19 @@ const EFFORT_ORDER: ReasoningEffort[] = [
 export function effortLabel(e: ReasoningEffort): string {
   switch (e) {
     case 'minimal':
-      return t('极简');
+      return t('ui.chat-settings.minimal');
     case 'low':
-      return t('低');
+      return t('ui.chat-settings.low');
     case 'medium':
-      return t('中');
+      return t('ui.chat-settings.medium');
     case 'high':
-      return t('高');
+      return t('ui.chat-settings.high');
     case 'xhigh':
-      return t('极高');
+      return t('ui.chat-settings.extra-high');
     case 'max':
-      return t('最高');
+      return t('ui.chat-settings.max');
     case 'ultra':
-      return t('极限');
+      return t('ui.chat-settings.ultra');
   }
 }
 
@@ -241,11 +259,11 @@ const EffortSlider: React.FC<{
         className={styles.slider}
         role="slider"
         tabIndex={0}
-        aria-label={t('思考深度')}
+        aria-label={t('ui.chat-settings.reasoning-effort')}
         aria-valuemin={0}
         aria-valuemax={levels.length - 1}
         aria-valuenow={idx < 0 ? undefined : idx}
-        aria-valuetext={value ? effortLabel(value) : t('默认')}
+        aria-valuetext={value ? effortLabel(value) : t('ui.providers-schedule.default')}
         data-testid="effort-slider"
         onKeyDown={(e) => {
           if (e.key === 'ArrowRight' || e.key === 'ArrowUp') step(idx < 0 ? 0 : idx + 1);
@@ -310,12 +328,17 @@ const ModelChip: React.FC<{
   catalog: BackendModelCatalog;
   refreshing: boolean;
   onRefresh: () => void;
-}> = ({ tab, catalog, refreshing, onRefresh }) => {
+  /** 第三方模型可开长上下文时的信息（§12.7.2）；null = 不显示「上下文」一组 */
+  long?: LongContextInfo | null;
+}> = ({ tab, catalog, refreshing, onRefresh, long = null }) => {
   const [open, setOpen] = useState(false);
-  const [view, setView] = useState<'effort' | 'model'>('effort');
+  const [view, setView] = useState<'effort' | 'model' | 'account'>('effort');
+  const [accounts, setAccounts] = useState<CliAccount[]>([]);
   const [note, setNote] = useState<string | null>(null);
   const [customOpen, setCustomOpen] = useState(false);
   const [customName, setCustomName] = useState('');
+  /** 模型页的搜索词（模型多于 MODEL_SEARCH_THRESHOLD 个时显示搜索框，与共享的 Select 一致） */
+  const [query, setQuery] = useState('');
   /** 拖动滑杆时的预览档位（松手提交后清空，回到以主进程广播的 tab 为准） */
   const [preview, setPreview] = useState<ReasoningEffort | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -325,15 +348,17 @@ const ModelChip: React.FC<{
   // 第三方来源的目录：直接是模型列表，没有思考深度页
   const thirdParty = tabSourceOf(tab) === 'thirdParty';
   const provider =
-    catalog.provider ?? (thirdParty ? { id: 'gateway', name: t('第三方模型') } : null);
+    catalog.provider ??
+    (thirdParty ? { id: 'gateway', name: t('ui.models.third-party-models') } : null);
   const currentModel = useMemo(
     () => catalog.models.find((m) => m.id === current) ?? null,
     [catalog, current],
   );
   // 档位所依据的模型：选了模型用它；没选用 CLI 告诉我们的默认模型
   const info = current ? currentModel : catalog.defaultModel;
-  // CLI 明确说不支持思考深度：不显示滑杆
-  const noReasoning = !!info && !info.reasoning;
+  // Gemini / dsh：没有文档化的思考深度控制，整后端禁用；其余看 CLI 是否声明该模型支持
+  const backendBlocksEffort = NO_REASONING_BACKENDS.has(tab.backend);
+  const noReasoning = backendBlocksEffort || (!!info && !info.reasoning);
   // 档位全部来自 CLI：模型自己的 > 目录并集（自定义的未知模型 / 默认模型未知）
   const levels: ReasoningEffort[] = noReasoning
     ? []
@@ -353,13 +378,51 @@ const ModelChip: React.FC<{
 
   const defaultLabel = catalog.defaultModel?.label ?? catalog.defaultModel?.id;
   // 没选模型时显示 CLI 默认用的那个模型名（浮层里再标「默认」）
-  const modelLabel = current ? (currentModel?.label ?? current) : (defaultLabel ?? t('默认模型'));
+  const modelLabel = current
+    ? (currentModel?.label ?? current)
+    : (defaultLabel ?? t('ui.providers-schedule.default-model'));
   // 没有显式覆盖时也显示 CLI 的实际默认档位，让底部按钮直接反映当前设置。
   const chipEffort = effort ?? defaultEffort;
   const shortLabel = chipEffort ? `${modelLabel} · ${effortLabel(chipEffort)}` : modelLabel;
+  /** 开 / 关长上下文；与模型默认相同时存 null（跟随默认），免得模型默认改了这里还钉着旧值 */
+  const pickLong = (on: boolean) => {
+    if (!long || on === long.on) return;
+    void run(() => harnessClient.setTabLongContext(tab.id, on === long.modelDefault ? null : on));
+  };
   const backendName = ENDPOINT_NAME[tab.backend as keyof typeof ENDPOINT_NAME];
   // 模型列表从哪来：官方账号是 CLI 自己，第三方是网关
   const sourceName = provider?.name || backendName;
+  // 官方来源的标签可以单独选官方账号（多个账号并行，§5.10.8）
+  const accountKind =
+    !thirdParty && ACCOUNT_KINDS.includes(tab.backend as AccountKind)
+      ? (tab.backend as AccountKind)
+      : null;
+  const defaultAccount = accounts.find((a) => a.active);
+  const pinnedAccount = tab.accountId ? accounts.find((a) => a.id === tab.accountId) : undefined;
+  const accountLabel = tab.accountId
+    ? (pinnedAccount?.label ?? t('ui.models.removed-account'))
+    : t(
+        'ui.models.follow-default',
+        defaultAccount?.label ?? t('ui.models.this-computer-s-sign-in'),
+      );
+
+  useEffect(() => {
+    if (!open || !accountKind) return;
+    let alive = true;
+    void cliAccountClient
+      .list(accountKind)
+      .then((l) => alive && setAccounts(l))
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [open, accountKind]);
+
+  const pickAccount = (id: string | null) => {
+    setView('effort');
+    if ((tab.accountId ?? null) === id) return;
+    void run(() => harnessClient.setTabAccount(tab.id, id));
+  };
 
   useEffect(() => {
     if (!note) return;
@@ -379,6 +442,7 @@ const ModelChip: React.FC<{
   const toggle = () => {
     setView(provider ? 'model' : 'effort');
     setCustomOpen(false);
+    setQuery('');
     setPreview(null);
     setOpen((o) => !o);
   };
@@ -386,11 +450,20 @@ const ModelChip: React.FC<{
   // 选完模型回到滑杆页，接着调档位（与 Codex 一致的「一次选完」）
   const pickModel = (model: string) => {
     setCustomOpen(false);
+    setQuery('');
     setView('effort');
     if (provider) setOpen(false);
     if (model === (current ?? '')) return;
     void run(() => harnessClient.setTabModel(tab.id, model, { expectSource: tabSourceOf(tab) }));
   };
+
+  const q = query.trim().toLowerCase();
+  const searchable = catalog.models.length > MODEL_SEARCH_THRESHOLD;
+  const shownModels = q
+    ? catalog.models.filter((m) =>
+        `${m.id} ${m.label ?? ''} ${m.description ?? ''}`.toLowerCase().includes(q),
+      )
+    : catalog.models;
 
   const pickEffort = (e: ReasoningEffort | null) => {
     setPreview(null);
@@ -409,15 +482,20 @@ const ModelChip: React.FC<{
         aria-expanded={open}
         aria-label={
           provider
-            ? t('模型（{0}）：{1}', provider.name, shortLabel)
-            : t('模型与思考深度：{0}', shortLabel)
+            ? t('ui.chat-settings.model', provider.name, shortLabel)
+            : t('ui.chat-settings.model-and-reasoning-effort', shortLabel)
         }
-        title={t('下一条消息起生效，仅影响当前标签')}
+        title={t('ui.chat-settings.takes-effect-from-the-next-message-current-tab')}
         data-testid="model-chip"
         onClick={toggle}
       >
         <Icon icon={Cpu} size={14} />
         <span className={styles.label}>{shortLabel}</span>
+        {long?.on && (
+          <span className={styles.longBadge} data-testid="model-chip-long">
+            {t('ui.models.long-context-short')}
+          </span>
+        )}
         <Icon icon={ChevronDown} size={12} />
       </button>
       {note && (
@@ -430,53 +508,158 @@ const ModelChip: React.FC<{
           btnRef={btnRef}
           menuRef={menuRef}
           onClose={() => setOpen(false)}
-          label={provider ? t('模型') : t('模型与思考深度')}
+          label={
+            provider
+              ? t('ui.foundation.model')
+              : t('ui.chat-settings.model-and-reasoning-effort-label')
+          }
           testId="model-menu"
           width={300}
         >
           {view === 'effort' ? (
             <div className={styles.effortView} data-testid="effort-view">
-              <div className={styles.effortHead}>
-                <span className={styles.effortHeadLabel}>{t('思考深度')}</span>
-                {effort && (
-                  <button
-                    type="button"
-                    className={styles.link}
-                    data-testid="effort-default"
-                    onClick={() => pickEffort(null)}
-                  >
-                    {t('恢复默认')}
-                  </button>
-                )}
-              </div>
-              {reasoningSupported && (
-                <EffortSlider
-                  levels={levels}
-                  value={shown}
-                  onPreview={setPreview}
-                  onCommit={pickEffort}
-                />
+              {reasoningSupported ? (
+                <>
+                  <div className={styles.effortHead}>
+                    <span className={styles.effortHeadLabel}>
+                      {t('ui.chat-settings.reasoning-effort')}
+                    </span>
+                    {effort ? (
+                      <button
+                        type="button"
+                        className={styles.link}
+                        data-testid="effort-default"
+                        onClick={() => pickEffort(null)}
+                      >
+                        {t('ui.providers-schedule.restore-defaults')}
+                      </button>
+                    ) : (
+                      // 沿用默认、CLI 又没告诉我们默认是哪一档：说明由谁决定，而不是留一个空滑块
+                      !defaultEffort && (
+                        <span className={styles.effortNote} data-testid="effort-default-unknown">
+                          {t(
+                            'ui.chat-settings.effort-default-set-by-cli',
+                            backendName || tab.backend,
+                          )}
+                        </span>
+                      )
+                    )}
+                  </div>
+                  <EffortSlider
+                    levels={levels}
+                    value={shown}
+                    onPreview={setPreview}
+                    onCommit={pickEffort}
+                  />
+                </>
+              ) : (
+                <div
+                  className={`${styles.effortHead} ${styles.effortUnavailable}`}
+                  data-testid="effort-unavailable"
+                >
+                  <span className={styles.effortHeadLabel}>
+                    {t('ui.chat-settings.reasoning-effort')}
+                  </span>
+                  <p className={styles.effortHint} data-testid="effort-hint" role="status">
+                    {backendBlocksEffort
+                      ? t(
+                          'ui.chat-settings.has-no-documented-reasoning-effort-control-nomi-will',
+                          backendName || tab.backend,
+                        )
+                      : t('ui.chat-settings.this-model-has-no-reasoning-effort')}
+                  </p>
+                </div>
               )}
               <button
                 type="button"
                 className={styles.modelRow}
                 data-testid="model-open"
-                aria-label={t('切换模型：{0}', modelLabel)}
+                aria-label={t('ui.chat-settings.switch-model', modelLabel)}
                 onClick={() => setView('model')}
               >
-                <span className={styles.modelRowLabel}>{t('模型')}</span>
+                <span className={styles.modelRowLabel}>{t('ui.foundation.model')}</span>
                 <span className={styles.modelRowValue}>
                   <span className={styles.modelLinkText}>{modelLabel}</span>
                 </span>
                 <Icon icon={ChevronRight} size={14} />
               </button>
+              {accountKind && (
+                <button
+                  type="button"
+                  className={styles.modelRow}
+                  data-testid="account-open"
+                  aria-label={t('ui.models.switch-official-account', accountLabel)}
+                  onClick={() => setView('account')}
+                >
+                  <span className={styles.modelRowLabel}>{t('ui.models.account')}</span>
+                  <span className={styles.modelRowValue}>
+                    <span className={styles.modelLinkText}>{accountLabel}</span>
+                  </span>
+                  <Icon icon={ChevronRight} size={14} />
+                </button>
+              )}
             </div>
+          ) : view === 'account' ? (
+            <>
+              <div className={styles.modelHead}>
+                <button
+                  type="button"
+                  className={styles.back}
+                  data-testid="account-back"
+                  onClick={() => setView('effort')}
+                >
+                  <Icon icon={ChevronLeft} size={14} />
+                  {t('ui.chat-settings.official-accounts')}
+                </button>
+              </div>
+              <div
+                className={styles.models}
+                role="listbox"
+                aria-label={t('ui.chat-settings.official-accounts')}
+              >
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={!tab.accountId}
+                  className={styles.item}
+                  data-testid="account-default"
+                  onClick={() => pickAccount(null)}
+                >
+                  <span className={styles.itemLabel}>
+                    {t('ui.models.follow-the-default-account')}
+                  </span>
+                  <span className={styles.itemHint}>
+                    {defaultAccount?.label ?? t('ui.models.this-computer-s-sign-in')}
+                  </span>
+                  {!tab.accountId && <Icon icon={Check} size={14} />}
+                </button>
+                {accounts.map((a) => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    role="option"
+                    aria-selected={tab.accountId === a.id}
+                    className={styles.item}
+                    data-testid={`account-${a.id}`}
+                    disabled={!a.loggedIn}
+                    title={a.identity?.email ?? a.label}
+                    onClick={() => pickAccount(a.id)}
+                  >
+                    <span className={styles.itemLabel}>{a.label}</span>
+                    <span className={styles.itemHint}>
+                      {a.loggedIn ? (a.identity?.plan ?? '') : t('ui.models.not-signed-in')}
+                    </span>
+                    {tab.accountId === a.id && <Icon icon={Check} size={14} />}
+                  </button>
+                ))}
+              </div>
+            </>
           ) : (
             <>
               <div className={styles.modelHead}>
                 {provider ? (
                   <span className={styles.back} data-testid="model-provider">
-                    {t('{0} 的模型', provider.name)}
+                    {t('ui.chat-settings.models', provider.name)}
                   </span>
                 ) : (
                   <button
@@ -486,7 +669,7 @@ const ModelChip: React.FC<{
                     onClick={() => setView('effort')}
                   >
                     <Icon icon={ChevronLeft} size={14} />
-                    {t('模型')}
+                    {t('ui.foundation.model')}
                   </button>
                 )}
                 <button
@@ -494,8 +677,8 @@ const ModelChip: React.FC<{
                   className={styles.back}
                   data-testid="model-refresh"
                   disabled={refreshing}
-                  aria-label={t('重新从 {0} 读取模型列表', sourceName)}
-                  title={t('重新从 {0} 读取模型列表', sourceName)}
+                  aria-label={t('ui.chat-settings.reload-the-model-list-from', sourceName)}
+                  title={t('ui.chat-settings.reload-the-model-list-from', sourceName)}
                   onClick={onRefresh}
                 >
                   <span className={refreshing ? styles.spin : undefined}>
@@ -505,24 +688,107 @@ const ModelChip: React.FC<{
               </div>
               {catalog.error && (
                 <div className={styles.modelError} role="status" data-testid="model-error">
-                  {t('没能从 {0} 读到模型列表：{1}', sourceName, catalog.error)}
+                  {t(
+                    'ui.chat-settings.couldn-t-read-the-model-list-from',
+                    sourceName,
+                    catalog.error,
+                  )}
                 </div>
               )}
-              <div className={styles.models} role="listbox" aria-label={t('模型')}>
-                <button
-                  type="button"
-                  role="option"
-                  aria-selected={!current}
-                  className={styles.item}
-                  data-testid="model-default"
-                  title={t('跟随 {0} 自己的选择', sourceName)}
-                  onClick={() => pickModel('')}
+              {backendBlocksEffort && (
+                <div className={styles.effortHint} role="status" data-testid="effort-hint">
+                  {t(
+                    'ui.chat-settings.has-no-documented-reasoning-effort-control-nomi-will',
+                    backendName || tab.backend,
+                  )}
+                </div>
+              )}
+              {long && (
+                <div
+                  className={styles.contextGroup}
+                  role="radiogroup"
+                  aria-label={t('ui.models.context-window')}
+                  data-testid="long-context-group"
                 >
-                  <span className={styles.itemLabel}>{t('默认模型')}</span>
-                  <span className={styles.itemHint}>{defaultLabel ?? sourceName}</span>
-                  {!current && <Icon icon={Check} size={14} />}
-                </button>
-                {catalog.models.map((m) => (
+                  <span className={styles.contextGroupLabel}>{t('ui.models.context-window')}</span>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={!long.on}
+                    className={styles.item}
+                    data-testid="long-context-standard"
+                    onClick={() => pickLong(false)}
+                  >
+                    <span className={styles.itemLabel}>{t('ui.models.standard-context')}</span>
+                    <span className={styles.itemHint}>{formatContext(long.standard)}</span>
+                    {!long.on && <Icon icon={Check} size={14} />}
+                  </button>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={long.on}
+                    className={styles.item}
+                    data-testid="long-context-long"
+                    onClick={() => pickLong(true)}
+                  >
+                    <span className={styles.itemLabel}>{t('ui.models.long-context')}</span>
+                    <span className={styles.itemHint}>{formatContext(long.full)}</span>
+                    {long.on && <Icon icon={Check} size={14} />}
+                  </button>
+                  <span className={styles.contextGroupNote}>
+                    {long.priceNote ?? t('ui.models.long-context-costs-more')}
+                    {' · '}
+                    {t('ui.models.switching-restarts-this-tab-s-assistant')}
+                  </span>
+                </div>
+              )}
+              {searchable && (
+                <Input
+                  autoFocus
+                  size="sm"
+                  className={styles.search}
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    // 回车选第一个匹配的；Esc 先清空搜索词，再按一次才关菜单
+                    if (e.key === 'Enter' && shownModels[0]) {
+                      e.preventDefault();
+                      pickModel(shownModels[0].id);
+                    } else if (e.key === 'Escape' && query) {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setQuery('');
+                    }
+                  }}
+                  placeholder={t('ui.session-workspace.search-models')}
+                  aria-label={t('ui.session-workspace.search-models')}
+                  data-testid="model-search"
+                />
+              )}
+              <div className={styles.models} role="listbox" aria-label={t('ui.foundation.model')}>
+                {!q && (
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={!current}
+                    className={styles.item}
+                    data-testid="model-default"
+                    title={t('ui.chat-settings.follows-s-own-choice', sourceName)}
+                    onClick={() => pickModel('')}
+                  >
+                    <span className={styles.itemLabel}>
+                      {t('ui.providers-schedule.default-model')}
+                    </span>
+                    <span className={styles.itemHint}>{defaultLabel ?? sourceName}</span>
+                    {!current && <Icon icon={Check} size={14} />}
+                  </button>
+                )}
+                {q && !shownModels.length && (
+                  <div className={styles.modelError} role="status" data-testid="model-search-empty">
+                    {t('ui.session-workspace.no-models-match', query.trim())}
+                  </div>
+                )}
+                {shownModels.map((m) => (
                   <button
                     key={m.id}
                     type="button"
@@ -535,12 +801,14 @@ const ModelChip: React.FC<{
                   >
                     <span className={styles.itemLabel}>{m.label ?? m.id}</span>
                     {!m.reasoning && !provider && (
-                      <span className={styles.itemHint}>{t('无思考深度')}</span>
+                      <span className={styles.itemHint}>
+                        {t('ui.chat-settings.no-reasoning-effort')}
+                      </span>
                     )}
                     {current === m.id && <Icon icon={Check} size={14} />}
                   </button>
                 ))}
-                {current && !currentModel && (
+                {current && !currentModel && !q && (
                   <button
                     type="button"
                     role="option"
@@ -550,7 +818,7 @@ const ModelChip: React.FC<{
                     onClick={() => pickModel(current)}
                   >
                     <span className={styles.itemLabel}>{current}</span>
-                    <span className={styles.itemHint}>{t('自定义')}</span>
+                    <span className={styles.itemHint}>{t('ui.providers-schedule.custom')}</span>
                     <Icon icon={Check} size={14} />
                   </button>
                 )}
@@ -572,8 +840,8 @@ const ModelChip: React.FC<{
                         className={styles.customInput}
                         value={customName}
                         onChange={(e) => setCustomName(e.target.value)}
-                        placeholder={t('模型 id')}
-                        aria-label={t('自定义模型 id')}
+                        placeholder={t('ui.chat-settings.model-id')}
+                        aria-label={t('ui.chat-settings.custom-model-id')}
                         maxLength={128}
                         data-testid="model-custom-input"
                       />
@@ -583,7 +851,7 @@ const ModelChip: React.FC<{
                         disabled={!customName.trim()}
                         data-testid="model-custom-ok"
                       >
-                        {t('使用')}
+                        {t('ui.chat-settings.use')}
                       </button>
                     </form>
                   ) : (
@@ -597,7 +865,7 @@ const ModelChip: React.FC<{
                       }}
                     >
                       <Icon icon={PencilLine} size={13} />
-                      {t('自定义模型 id')}
+                      {t('ui.chat-settings.custom-model-id')}
                     </button>
                   )}
                 </div>
@@ -621,7 +889,7 @@ const LoadingChip: React.FC<{ tab: HarnessTabMeta }> = ({ tab }) => {
     return () => clearTimeout(id);
   }, []);
   if (!show) return null;
-  const label = tab.modelOverride?.trim() || t('默认模型');
+  const label = tab.modelOverride?.trim() || t('ui.providers-schedule.default-model');
   return (
     <div className={styles.wrap}>
       <button
@@ -630,7 +898,7 @@ const LoadingChip: React.FC<{ tab: HarnessTabMeta }> = ({ tab }) => {
         disabled
         aria-busy="true"
         aria-label={t(
-          '正在从 {0} 读取模型列表',
+          'ui.chat-settings.reading-the-model-list-from',
           ENDPOINT_NAME[tab.backend as keyof typeof ENDPOINT_NAME],
         )}
         data-testid="model-chip-loading"
@@ -658,5 +926,13 @@ export const ModelControls: React.FC<{ tab: HarnessTabMeta }> = ({ tab }) => {
   );
   if (scoped === null) return null;
   if (scoped === undefined) return <LoadingChip tab={tab} />;
-  return <ModelChip tab={tab} catalog={scoped} refreshing={refreshing} onRefresh={refresh} />;
+  return (
+    <ModelChip
+      tab={tab}
+      catalog={scoped}
+      refreshing={refreshing}
+      onRefresh={refresh}
+      long={longContextFor(tab, gateway)}
+    />
+  );
 };

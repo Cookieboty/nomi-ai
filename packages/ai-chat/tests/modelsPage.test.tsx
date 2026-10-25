@@ -137,18 +137,25 @@ function fakeMain(
         const p = args[1] as {
           models?: Record<string, string | null>;
           newTabSource?: 'official' | 'thirdParty';
+          newTabAccountId?: string | null;
         };
         const prev = state.clients[client] ?? { models: {} };
         const next = { ...prev.models, ...p.models } as Record<string, unknown>;
         for (const k of Object.keys(next)) if (next[k] == null) delete next[k];
+        const accountPatch = Object.prototype.hasOwnProperty.call(p, 'newTabAccountId')
+          ? { newTabAccountId: p.newTabAccountId }
+          : {};
         state.clients[client] = {
           ...prev,
           models: next,
           ...(p.newTabSource ? { newTabSource: p.newTabSource } : {}),
+          ...accountPatch,
         };
         changed?.();
         break;
       }
+      case 'ai:cli-account:list':
+        return [];
     }
     return undefined;
   });
@@ -522,6 +529,127 @@ describe('ModelsPage', () => {
     expect(payload.detected).toMatchObject({ messages: { ok: true } });
   });
 
+  it('context limits: badges show the effective value; manual limits save as user-set (§12.7.2)', async () => {
+    const m = fakeMain({
+      detect: () => ({
+        wires: { chat: { wire: 'chat', url: 'https://relay/v1', ok: true, ms: 3 } },
+        byKey: {},
+        models: ['openai/gpt-6-astra', 'acme/new-model'],
+        limits: { 'acme/new-model': { ctx: 262_144, maxOutput: 16_384 } },
+        urls: {},
+      }),
+    });
+    m.state.providers = [
+      kimi({
+        models: [
+          {
+            id: 'openai/gpt-6-astra',
+            enabled: true,
+            metaSource: 'user',
+            effective: {
+              ctx: 1_050_000,
+              maxOutput: 128_000,
+              reasoning: true,
+              source: 'catalog',
+              maxOutputSource: 'catalog',
+            },
+          },
+          {
+            id: 'acme/mystery',
+            enabled: true,
+            effective: {
+              ctx: 128_000,
+              maxOutput: 32_000,
+              source: 'default',
+              maxOutputSource: 'default',
+            },
+          },
+        ],
+      }),
+    ];
+    render(<ModelsPage />);
+    fireEvent.click(await screen.findByTestId('provider-open-kimi'));
+    const dlg = detail();
+    const astra = within(dlg).getByTestId('pd-model-openai/gpt-6-astra');
+    // 抹零显示：1,050,000 → 1M，不四舍五入成 1.1M
+    expect(astra.textContent).toContain('1M');
+    expect(astra.textContent).not.toContain('1.1M');
+    expect(astra.textContent).toContain('推理');
+    expect(within(dlg).getByTestId('pd-model-acme/mystery').textContent).toContain('参数未知');
+
+    fireEvent.click(within(dlg).getByTestId('pd-advanced-toggle'));
+    const ctx = within(dlg).getByTestId('pd-model-ctx-openai/gpt-6-astra') as HTMLInputElement;
+    // 自动取值显示在占位里，输入框本身是空的
+    expect(ctx.value).toBe('');
+    expect(ctx.placeholder).toContain('内置模型目录');
+    fireEvent.change(within(dlg).getByTestId('pd-model-ctx-acme/mystery'), {
+      target: { value: '400000' },
+    });
+
+    fireEvent.click(within(dlg).getByTestId('pd-models-refresh'));
+    await within(dlg).findByTestId('pd-detect-notice');
+    fireEvent.click(within(dlg).getByTestId('provider-detail-save'));
+    await waitFor(() => expect(upserts(m)).toHaveLength(1));
+    expect(upserts(m)[0]!.models).toEqual([
+      { id: 'openai/gpt-6-astra', enabled: true, metaSource: 'user' },
+      { id: 'acme/mystery', enabled: true, ctx: 400_000, maxOutput: undefined, metaSource: 'user' },
+      // 模型列表接口返回的上限随新模型一起存下
+      {
+        id: 'acme/new-model',
+        enabled: false,
+        ctx: 262_144,
+        maxOutput: 16_384,
+        metaSource: 'listed',
+      },
+    ]);
+  });
+
+  it('long context default per model (§12.7.2): only models with a standard window get the switch', async () => {
+    const m = fakeMain();
+    m.state.providers = [
+      kimi({
+        models: [
+          {
+            id: 'openai/gpt-6.1-sol',
+            enabled: true,
+            effective: {
+              ctx: 272_000,
+              maxOutput: 128_000,
+              source: 'catalog',
+              maxOutputSource: 'catalog',
+              longContext: { standard: 272_000, full: 922_000, on: false },
+            },
+          },
+          {
+            id: 'openai/gpt-5.2',
+            enabled: true,
+            effective: {
+              ctx: 272_000,
+              maxOutput: 128_000,
+              source: 'catalog',
+              maxOutputSource: 'catalog',
+            },
+          },
+        ],
+      }),
+    ];
+    render(<ModelsPage />);
+    fireEvent.click(await screen.findByTestId('provider-open-kimi'));
+    const dlg = detail();
+    fireEvent.click(within(dlg).getByTestId('pd-advanced-toggle'));
+    expect(within(dlg).queryByTestId('pd-model-long-openai/gpt-5.2')).toBeNull();
+    const sw = within(dlg).getByTestId('pd-model-long-openai/gpt-6.1-sol');
+    expect(sw.closest('div')?.textContent).toContain('标准 272K · 长上下文 922K');
+    fireEvent.click(sw);
+    fireEvent.click(within(dlg).getByTestId('provider-detail-save'));
+    await waitFor(() => expect(upserts(m)).toHaveLength(1));
+    expect(upserts(m)[0]!.models![0]).toEqual({
+      id: 'openai/gpt-6.1-sol',
+      enabled: true,
+      longContext: true,
+    });
+  });
+
   it('fallback chain: add from the picker, reorder and remove', async () => {
     const m = fakeMain();
     m.state.providers = [
@@ -614,6 +742,77 @@ describe('ModelsPage', () => {
     expect(payload.modelMap).toEqual([{ from: 'a', to: 'kimi-k3' }]);
     expect(payload.headers).toEqual({ 'X-Old': '1', 'X-Team': 'nomi' });
     expect(payload.userAgent).toBe('nomi/1.1');
+  });
+
+  it('strict mode is off by default and the switch saves the gateway option', async () => {
+    const m = fakeMain({
+      extra: {
+        'ai:gateway:set-options': (patch) => {
+          m.state.strictParams = (patch as { strictParams: boolean }).strictParams;
+          return structuredClone(m.state);
+        },
+      },
+    });
+    render(<ModelsPage />);
+    const sw = await screen.findByTestId('models-strict');
+    await waitFor(() => expect((sw as HTMLButtonElement).disabled).toBe(false));
+    expect(sw.getAttribute('aria-checked')).toBe('false');
+    fireEvent.click(sw);
+    await waitFor(() =>
+      expect(m.calls).toContainEqual(['ai:gateway:set-options', [{ strictParams: true }]]),
+    );
+  });
+
+  it('advanced disclosure exposes request body limit and saves via set-options', async () => {
+    const m = fakeMain({
+      extra: {
+        'ai:gateway:set-options': (patch) => {
+          const p = patch as { maxRequestBodyBytes?: number };
+          if (typeof p.maxRequestBodyBytes === 'number') {
+            m.state.maxRequestBodyBytes = p.maxRequestBodyBytes;
+          }
+          return structuredClone(m.state);
+        },
+      },
+    });
+    m.state.maxRequestBodyBytes = 32 * 1024 * 1024;
+    render(<ModelsPage />);
+    expect(screen.queryByTestId('models-advanced')).toBeNull();
+    fireEvent.click(await screen.findByTestId('models-advanced-toggle'));
+    const input = await screen.findByTestId('models-body-limit');
+    expect((input as HTMLInputElement).value).toBe('32');
+    fireEvent.change(input, { target: { value: '64' } });
+    await waitFor(() =>
+      expect(m.calls).toContainEqual([
+        'ai:gateway:set-options',
+        [{ maxRequestBodyBytes: 64 * 1024 * 1024 }],
+      ]),
+    );
+  });
+
+  it('per-key limits: only changed limits are sent; blank clears a saved limit', async () => {
+    const m = fakeMain();
+    m.state.providers = [
+      kimi({
+        keys: [
+          { id: 'k0', masked: 'sk-…aaaa', enabled: true, decryptable: true, rpm: 60 },
+          { id: 'k1', masked: 'sk-…bbbb', enabled: true, decryptable: true },
+        ],
+      }),
+    ];
+    render(<ModelsPage />);
+    fireEvent.click(await screen.findByTestId('provider-open-kimi'));
+    const dlg = detail();
+    fireEvent.click(within(dlg).getByTestId('pd-advanced-toggle'));
+    expect((within(dlg).getByTestId('pd-key-rpm-k0') as HTMLInputElement).value).toBe('60');
+    fireEvent.change(within(dlg).getByTestId('pd-key-rpm-k0'), { target: { value: '' } });
+    fireEvent.change(within(dlg).getByTestId('pd-key-conc-k1'), { target: { value: '2' } });
+    fireEvent.click(within(dlg).getByTestId('provider-detail-save'));
+    await waitFor(() => expect(upserts(m)).toHaveLength(1));
+    expect(upserts(m)[0]!.keys).toEqual([
+      { id: 'k0', enabled: true, rpm: null },
+      { id: 'k1', enabled: true, maxConcurrency: 2 },
+    ]);
   });
 
   it('environment-variable providers are read-only', async () => {
@@ -733,33 +932,55 @@ describe('ModelsPage', () => {
       );
       pick('cli-main-codex', 'ds/v4');
       await waitFor(() =>
-        expect(assignments(m)).toContainEqual(['codex', { models: { main: 'ds/v4' } }]),
+        expect(assignments(m)).toContainEqual([
+          'codex',
+          {
+            models: { main: 'ds/v4' },
+            newTabSource: 'thirdParty',
+            newTabAccountId: null,
+          },
+        ]),
       );
       await waitFor(() => expect(m.state.clients.codex?.models.main).toBe('ds/v4'));
       pick('cli-main-codex', 'unset');
       await waitFor(() =>
-        expect(assignments(m)).toContainEqual(['codex', { models: { main: null } }]),
+        expect(assignments(m)).toContainEqual([
+          'codex',
+          { models: { main: null }, newTabSource: 'official' },
+        ]),
       );
     });
 
-    it('新标签默认用：没设主模型时「第三方」不可选；设了就能选，清掉主模型时退回官方', async () => {
+    it('新标签默认用：默认（本机登录）/ 官方账号（跟随默认或指定账号）/ 第三方供应商三组；选供应商带上模型，清主模型退回官方', async () => {
       const m = fakeMain();
       seed(m);
       render(<ModelsPage />);
       const src = (await screen.findByTestId('cli-source-grok')) as HTMLSelectElement;
-      const third = () =>
-        Array.from(src.options).find((o) => o.value === 'thirdParty') as HTMLOptionElement;
-      expect(third().disabled).toBe(true);
+      const values = () => Array.from(src.options).map((o) => o.value);
+      // 默认 = 本机登录；官方账号组有「跟随默认」；第三方组是具体供应商（不是一个笼统开关）
+      expect(values()).toContain('default');
+      expect(values()).toContain('follow');
+      expect(values()).toContain('provider:ds');
+      // 初始没有账号偏好时选中「跟随默认账号」
+      await waitFor(() => expect(src.value).toBe('follow'));
+      // 默认：本机 grok 自己的登录目录（local-grok）
+      pick('cli-source-grok', 'default');
       await waitFor(() =>
-        expect((screen.getByTestId('cli-main-grok') as HTMLSelectElement).disabled).toBe(false),
+        expect(assignments(m)).toContainEqual([
+          'grok',
+          { newTabSource: 'official', newTabAccountId: 'local-grok' },
+        ]),
       );
-      pick('cli-main-grok', 'ds/flash');
-      await waitFor(() => expect(third().disabled).toBe(false));
-      pick('cli-source-grok', 'thirdParty');
+      // 第三方供应商：自动带上该供应商第一个可用模型
+      pick('cli-source-grok', 'provider:ds');
       await waitFor(() =>
-        expect(assignments(m)).toContainEqual(['grok', { newTabSource: 'thirdParty' }]),
+        expect(assignments(m)).toContainEqual([
+          'grok',
+          { newTabSource: 'thirdParty', newTabAccountId: null, models: { main: 'ds/v4' } },
+        ]),
       );
       await waitFor(() => expect(m.state.clients.grok?.newTabSource).toBe('thirdParty'));
+      // 清掉主模型：没有可用第三方模型，回退到官方（跟随默认账号）
       pick('cli-main-grok', 'unset');
       await waitFor(() =>
         expect(assignments(m)).toContainEqual([
@@ -864,6 +1085,32 @@ describe('ModelsPage', () => {
       pick('cli-subagent', 'ds/flash');
       await waitFor(() =>
         expect(assignments(m)).toContainEqual(['claude', { models: { subagent: 'ds/flash' } }]),
+      );
+      // 辅助模型（标题、摘要等）：没设时跟随主模型
+      expect((screen.getByTestId('cli-helper-claude') as HTMLSelectElement).value).toBe('follow');
+      pick('cli-helper-claude', 'ds/flash');
+      await waitFor(() =>
+        expect(assignments(m)).toContainEqual(['claude', { models: { summary: 'ds/flash' } }]),
+      );
+    });
+
+    it('其它编程助手：「更多」里只有辅助模型，可清回跟随主模型', async () => {
+      const m = fakeMain();
+      seed(m);
+      m.state.clients.codex = { models: { main: 'ds/v4', summary: 'ds/flash' } };
+      render(<ModelsPage />);
+      fireEvent.click(await screen.findByTestId('cli-more-codex'));
+      expect(screen.getByTestId('cli-more-codex').getAttribute('aria-expanded')).toBe('true');
+      expect(screen.queryByTestId('cli-tier-haiku')).toBeNull();
+      expect(screen.queryByTestId('cli-subagent')).toBeNull();
+      await waitFor(() =>
+        expect((screen.getByTestId('cli-helper-codex') as HTMLSelectElement).value).toBe(
+          'ds/flash',
+        ),
+      );
+      pick('cli-helper-codex', 'follow');
+      await waitFor(() =>
+        expect(assignments(m)).toContainEqual(['codex', { models: { summary: null } }]),
       );
     });
   });

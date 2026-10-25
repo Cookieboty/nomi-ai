@@ -1,7 +1,13 @@
 /**
  * 上游 SSE → 中间事件。
  * 覆盖：OpenAI Chat Completions、OpenAI Responses、Gemini streamGenerateContent(alt=sse)、Anthropic Messages。
+ * 解码器只做协议翻译，假定输入是规范事件流（§6.4）：createDecoder 先接上解码前的规范化
+ * （canonical/upstream.ts：Chat 字段归一、Responses 保活 / 非规范事件、只给完整条目的展开）。
+ * 直接 new 各个类的调用方（用量旁路）只读用量，不依赖这些。
  */
+import { createUpstreamCanonicalizer } from '../canonical/upstream';
+import { GEMINI_FAILED_FINISH } from '../spec/gemini';
+
 import {
   mergeUsage,
   type NormEvent,
@@ -46,6 +52,14 @@ abstract class BaseDecoder implements StreamDecoder {
   /** 当前是否处在一段推理里（用于在推理与正文 / 工具之间切换时补 think_start） */
   protected thinking = false;
 
+  /** seed：这一轮的工具调用 id 种子（§6.9.7，按对话历史派生）；空 = 只按序号 */
+  constructor(protected readonly seed = '') {}
+
+  /** 上游没给工具调用 id 时的确定性 id */
+  protected fallbackId(prefix: string, key: string): string {
+    return this.seed ? `${prefix}_${this.seed}_${key}` : `${prefix}_${key}`;
+  }
+
   protected think(out: NormEvent[], text: string, id?: string) {
     if (!this.thinking) {
       this.thinking = true;
@@ -83,14 +97,22 @@ abstract class BaseDecoder implements StreamDecoder {
 
   protected abstract handle(ev: { event?: string; data: string }, out: NormEvent[]): void;
 
+  /** 收到过结束标记（Chat 的 finish_reason / [DONE]、Messages 的 stop_reason / message_stop、
+   * Responses 的 completed / incomplete / failed、Gemini 的 finishReason）或错误 */
+  get terminated(): boolean {
+    return this.done || this.pendingReason !== null;
+  }
+
+  /**
+   * 上游流结束。没有任何结束标记就断了（连接被中转站掐断、只发了保活等）按错误结束：
+   * 当成正常完成的话，客户端拿到的是空回复或截断的正文 / 工具参数，只会静默重试或执行半截调用。
+   */
   end(): NormEvent[] {
     const out: NormEvent[] = [];
     if (!this.done) {
-      if (!this.started && !this.pendingReason) {
-        this.fail(out, 'upstream stream ended without any data', 'api_error');
-      } else {
-        this.finish(out);
-      }
+      if (this.pendingReason) this.finish(out);
+      else if (!this.started) this.fail(out, 'upstream stream ended without any data', 'api_error');
+      else this.fail(out, 'upstream stream ended before completion', 'api_error');
     }
     return out;
   }
@@ -117,7 +139,10 @@ function chatFinish(r: unknown): StopReason | null {
 }
 
 export class ChatCompletionsDecoder extends BaseDecoder {
-  private tools = new Set<string>();
+  /** 已开始的工具调用：key → 调用 id */
+  private tools = new Map<string, string>();
+  /** 上游的 index → 当前对应的 key（同一 index 换了新的调用 id 时开新 key） */
+  private slot = new Map<string, string>();
 
   protected handle(ev: { event?: string; data: string }, out: NormEvent[]) {
     const data = ev.data.trim();
@@ -164,22 +189,30 @@ export class ChatCompletionsDecoder extends BaseDecoder {
     }
     const calls = Array.isArray(delta.tool_calls) ? (delta.tool_calls as Obj[]) : [];
     for (const tc of calls) {
-      const key = String(tc.index ?? 0);
+      // 同一 index 出现了新的调用 id 并带着工具名，就是另一个调用
+      // （只换 id 不带名字的不算：有的上游每个分片都发一个新 id）
+      const index = String(tc.index);
+      const id = typeof tc.id === 'string' && tc.id ? tc.id : '';
       const fn = asObj(tc.function);
+      let key = this.slot.get(index);
+      const prev = key ? this.tools.get(key) : undefined;
+      if (!key || (id && fn.name && prev && prev !== id)) {
+        key = this.tools.has(index) ? `${index}#${this.tools.size}` : index;
+        this.slot.set(index, key);
+      }
       if (!this.tools.has(key)) {
-        this.tools.add(key);
+        this.tools.set(key, id);
         this.sawTool = true;
         this.thinking = false;
         out.push({
           type: 'tool_start',
           key,
-          id: typeof tc.id === 'string' && tc.id ? tc.id : `call_${key}`,
+          id: id || this.fallbackId('call', key),
           name: String(fn.name ?? ''),
         });
       }
-      if (typeof fn.arguments === 'string' && fn.arguments) {
+      if (typeof fn.arguments === 'string' && fn.arguments)
         out.push({ type: 'tool_args', key, delta: fn.arguments });
-      }
     }
     const r = chatFinish(c.finish_reason);
     if (r) this.pendingReason = r;
@@ -191,6 +224,8 @@ export class ChatCompletionsDecoder extends BaseDecoder {
 export class ResponsesDecoder extends BaseDecoder {
   /** output_index / item_id → key */
   private toolKeys = new Map<string, string>();
+  /** 已经通过增量事件发给下游的参数，避免 done 事件重复追加完整 JSON。 */
+  private toolArgsEmitted = new Set<string>();
 
   private keyFor(j: Obj): string | undefined {
     if (typeof j.item_id === 'string' && this.toolKeys.has(j.item_id)) {
@@ -266,6 +301,7 @@ export class ResponsesDecoder extends BaseDecoder {
         });
         if (typeof item.arguments === 'string' && item.arguments) {
           out.push({ type: 'tool_args', key, delta: item.arguments });
+          this.toolArgsEmitted.add(key);
         }
         return;
       }
@@ -273,6 +309,7 @@ export class ResponsesDecoder extends BaseDecoder {
         const key = this.keyFor(j);
         if (key && typeof j.delta === 'string' && j.delta) {
           out.push({ type: 'tool_args', key, delta: j.delta });
+          this.toolArgsEmitted.add(key);
         }
         return;
       }
@@ -286,11 +323,27 @@ export class ResponsesDecoder extends BaseDecoder {
         }
         if (type === 'response.output_item.done' && item.type !== 'function_call') return;
         const key = this.keyFor(j) ?? (typeof item.id === 'string' ? item.id : undefined);
-        if (key && this.toolKeys.has(key)) out.push({ type: 'tool_end', key });
+        if (key && this.toolKeys.has(key)) {
+          // 某些 Responses 上游不发送 delta，只在 arguments.done / item.done 给完整参数。
+          // 如果这里不补发，Messages 下游会收到 input:{}，Claude 的 Agent 工具随后会把
+          // description / prompt 当成 unknown 而拒绝调用。
+          const finalArgs =
+            type === 'response.function_call_arguments.done' ? j.arguments : item.arguments;
+          if (
+            !this.toolArgsEmitted.has(key) &&
+            typeof finalArgs === 'string' &&
+            finalArgs.length > 0
+          ) {
+            out.push({ type: 'tool_args', key, delta: finalArgs });
+            this.toolArgsEmitted.add(key);
+          }
+          out.push({ type: 'tool_end', key });
+        }
         return;
       }
       case 'response.completed': {
-        this.readUsage(asObj(j.response));
+        const r = asObj(j.response);
+        this.readUsage(r);
         this.finish(out);
         return;
       }
@@ -382,7 +435,7 @@ export class GeminiDecoder extends BaseDecoder {
         out.push({
           type: 'tool_start',
           key,
-          id: typeof fc.id === 'string' && fc.id ? fc.id : `call_gemini_${key}`,
+          id: typeof fc.id === 'string' && fc.id ? fc.id : this.fallbackId('call_gemini', key),
           name: String(fc.name ?? ''),
         });
         out.push({ type: 'tool_args', key, delta: JSON.stringify(fc.args ?? {}) });
@@ -399,6 +452,9 @@ export class GeminiDecoder extends BaseDecoder {
         !this.sawTool
       ) {
         this.fail(out, `response blocked: ${fr}`, 'api_error');
+      } else if (GEMINI_FAILED_FINISH.has(fr) && !this.sawTool) {
+        // 模型想调用工具但没生成出合法的调用：按错误报，不当成一次空的正常回复
+        this.fail(out, `model produced an invalid tool call: ${fr}`, 'api_error');
       }
     }
   }
@@ -459,7 +515,7 @@ export class MessagesDecoder extends BaseDecoder {
           out.push({
             type: 'tool_start',
             key,
-            id: String(b.id ?? `toolu_${key}`),
+            id: String(b.id ?? this.fallbackId('toolu', key)),
             name: String(b.name ?? ''),
           });
           const input = asObj(b.input);
@@ -527,4 +583,40 @@ export class MessagesDecoder extends BaseDecoder {
         return;
     }
   }
+}
+
+type DecoderWire = 'chat' | 'responses' | 'gemini' | 'messages';
+
+function pureDecoder(wire: DecoderWire, seed: string): StreamDecoder {
+  switch (wire) {
+    case 'chat':
+      return new ChatCompletionsDecoder(seed);
+    case 'responses':
+      return new ResponsesDecoder(seed);
+    case 'gemini':
+      return new GeminiDecoder(seed);
+    case 'messages':
+      return new MessagesDecoder(seed);
+  }
+}
+
+/**
+ * 按上游协议建解码器：先过解码前的规范化（canonical/upstream.ts），再做纯协议翻译。
+ * seed：工具调用 id 的种子（§6.9.7）。
+ */
+export function createDecoder(wire: DecoderWire, opts: { seed?: string } = {}): StreamDecoder {
+  const dec = pureDecoder(wire, opts.seed ?? '');
+  const canon = createUpstreamCanonicalizer(wire);
+  if (!canon) return dec;
+  return {
+    push(ev) {
+      const out: NormEvent[] = [];
+      for (const e of canon.push(ev)) out.push(...dec.push(e));
+      return out;
+    },
+    end: () => dec.end(),
+    get terminated() {
+      return dec.terminated;
+    },
+  };
 }

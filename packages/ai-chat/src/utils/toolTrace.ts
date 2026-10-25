@@ -209,6 +209,8 @@ const KIND_TABLE: Record<ToolKind, readonly string[]> = {
     'killshell',
   ],
   subagent: [
+    // Nomi 派给编程助手的子任务（docs/design/nomi-delegate-cli.md）：时间线里显示成子任务卡片
+    'delegate_to_cli',
     'task',
     'agent',
     'spawn_subagent',
@@ -321,40 +323,60 @@ export function describeCall(call: ToolCall): CallDescription {
   const trimTarget = (s: string, n = 120) => (s.length > n ? `${s.slice(0, n)}…` : s);
   switch (kind) {
     case 'read':
-      return { kind, verb: t('读取'), target: path ? shortPath(path) : undefined };
+      return { kind, verb: t('ui.chat-settings.read'), target: path ? shortPath(path) : undefined };
     case 'search':
       return {
         kind,
-        verb: t('搜索'),
+        verb: t('ui.knowledge-local.search-action'),
         target: pattern ? trimTarget(pattern, 80) : path ? shortPath(path) : undefined,
       };
     case 'list':
-      return { kind, verb: t('列出'), target: path ? shortPath(path) : undefined };
+      return { kind, verb: t('ui.usage-tools.list'), target: path ? shortPath(path) : undefined };
     case 'edit':
-      return { kind, verb: t('编辑'), target: path ? shortPath(path) : changePath(o) };
+      return {
+        kind,
+        verb: t('ui.foundation.edit'),
+        target: path ? shortPath(path) : changePath(o),
+      };
     case 'write':
-      return { kind, verb: t('写入'), target: path ? shortPath(path) : undefined };
+      return {
+        kind,
+        verb: t('ui.chat-settings.write'),
+        target: path ? shortPath(path) : undefined,
+      };
     case 'command': {
       const cmd = firstString(o, COMMAND_KEYS) ?? (call.input && !o ? call.input : undefined);
-      return { kind, verb: t('运行命令'), target: cmd ? trimTarget(firstLine(cmd)) : undefined };
+      return {
+        kind,
+        verb: t('ui.usage-tools.run-command'),
+        target: cmd ? trimTarget(firstLine(cmd)) : undefined,
+      };
     }
     case 'subagent': {
       const d = firstString(o, ['description', 'prompt', 'task', 'message']);
-      return { kind, verb: t('子代理'), target: d ? trimTarget(firstLine(d), 100) : undefined };
+      return {
+        kind,
+        verb: t('ui.usage-tools.subagent'),
+        target: d ? trimTarget(firstLine(d), 100) : undefined,
+      };
     }
     case 'web': {
       const url = firstString(o, ['url']);
       return url
-        ? { kind, verb: t('访问'), target: trimTarget(url, 100) }
-        : { kind, verb: t('搜索网页'), target: pattern ? trimTarget(pattern, 80) : undefined };
+        ? { kind, verb: t('ui.usage-tools.open'), target: trimTarget(url, 100) }
+        : {
+            kind,
+            verb: t('ui.usage-tools.search-the-web'),
+            target: pattern ? trimTarget(pattern, 80) : undefined,
+          };
     }
     case 'todo':
-      return { kind, verb: t('更新任务清单') };
+      return { kind, verb: t('ui.usage-tools.update-task-list') };
     default: {
       const hint = path ?? pattern ?? firstString(o, COMMAND_KEYS);
       return {
         kind,
-        verb: t('调用'),
+        verb: t('ui.usage-tools.call'),
         target: hint ? `${call.name} · ${trimTarget(firstLine(hint), 60)}` : call.name,
       };
     }
@@ -410,7 +432,8 @@ function computeDiffs(call: ToolCall): FileDiff[] {
   const rawPatch = !o && call.input ? call.input : undefined;
   if (rawPatch) {
     const diff = parsePatch(rawPatch);
-    const file = /^\*\*\* (?:Update|Add|Delete) File: (.+)$/m.exec(rawPatch)?.[1] ?? t('补丁');
+    const file =
+      /^\*\*\* (?:Update|Add|Delete) File: (.+)$/m.exec(rawPatch)?.[1] ?? t('ui.usage-tools.patch');
     return diff.lines.length ? [{ file, diff }] : [];
   }
   if (!o) return [];
@@ -634,18 +657,24 @@ export function groupTitle(bucket: Bucket, calls: readonly ToolCall[]): string {
   const running = s.running > 0;
   if (bucket === 'explore') {
     const parts: string[] = [];
-    if (s.files) parts.push(t('{0} 个文件', s.files));
-    if (s.searches) parts.push(t('{0} 次搜索', s.searches));
-    if (s.lists) parts.push(t('{0} 个目录', s.lists));
-    if (s.webs) parts.push(t('{0} 次联网', s.webs));
+    if (s.files) parts.push(t('ui.usage-tools.files', s.files));
+    if (s.searches) parts.push(t('ui.usage-tools.searches', s.searches));
+    if (s.lists) parts.push(t('ui.usage-tools.folders', s.lists));
+    if (s.webs) parts.push(t('ui.usage-tools.web-lookups', s.webs));
     const body = parts.join(t('、'));
-    return running ? t('正在探索 {0}', body) : t('已探索 {0}', body);
+    return running ? t('ui.usage-tools.exploring', body) : t('ui.usage-tools.explored', body);
   }
   if (bucket === 'command')
-    return running ? t('正在运行 {0} 条命令', s.commands) : t('已运行 {0} 条命令', s.commands);
+    return running
+      ? t('ui.usage-tools.running-commands', s.commands)
+      : t('ui.usage-tools.ran-commands', s.commands);
   if (bucket === 'edit')
-    return running ? t('正在编辑 {0} 个文件', s.edits) : t('已编辑 {0} 个文件', s.edits);
-  return running ? t('正在调用 {0} 个工具', calls.length) : t('已调用 {0} 个工具', calls.length);
+    return running
+      ? t('ui.usage-tools.editing-files', s.edits)
+      : t('ui.usage-tools.edited-files', s.edits);
+  return running
+    ? t('ui.usage-tools.calling-tools', calls.length)
+    : t('ui.usage-tools.called-tools', calls.length);
 }
 
 // ───────────────────────── 耗时 ─────────────────────────

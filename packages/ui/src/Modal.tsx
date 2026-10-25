@@ -41,7 +41,7 @@ export const Modal: React.FC<ModalProps> = ({
   footer,
   size = 'md',
   closeOnOverlay = true,
-  closeLabel = t('关闭'),
+  closeLabel = t('ui.providers-schedule.close'),
   className,
   bodyClassName,
   children,
@@ -111,7 +111,7 @@ export const Modal: React.FC<ModalProps> = ({
               onClick={host.onOpenSettings}
               data-testid="open-in-settings"
             >
-              {t('在设置中打开')}
+              {t('ui.mascot-theme.open-in-settings')}
             </button>
           )}
           <button
@@ -120,7 +120,7 @@ export const Modal: React.FC<ModalProps> = ({
             aria-label={closeLabel}
             onClick={onClose}
           >
-            {t('关闭')}
+            {t('ui.providers-schedule.close')}
           </button>
         </div>
         {body}

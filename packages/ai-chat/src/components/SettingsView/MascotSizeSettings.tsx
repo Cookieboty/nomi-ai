@@ -64,17 +64,17 @@ export const MascotSizeSettings: React.FC<{ disabled?: boolean }> = ({ disabled 
   return (
     <SettingRow
       data-testid="settings-mascot-size"
-      title={t('Nomi 大小')}
+      title={t('ui.usage-tools.nomi-size')}
       description={
         <>
           {disabled
-            ? t('Nomi 已隐藏，打开后才能调整大小。')
-            : t('也可以在 Nomi 身上按住 Ctrl（macOS 为 ⌘）并滚动滚轮，或右键选择放大 / 缩小。')}
+            ? t('ui.chat-settings.nomi-is-hidden-show-it-to-adjust-its')
+            : t('ui.usage-tools.you-can-also-hold-ctrl-on-macos-and')}
           {s && s.max < s.hardMax - 1e-6 && (
             <>
               {' '}
               <span data-testid="mascot-size-cap">
-                {t('当前屏幕最大 {0}%').replace('{0}', String(pct(s.max)))}
+                {t('ui.usage-tools.largest-on-this-display').replace('{0}', String(pct(s.max)))}
               </span>
             </>
           )}
@@ -86,7 +86,7 @@ export const MascotSizeSettings: React.FC<{ disabled?: boolean }> = ({ disabled 
           type="button"
           variant="ghost"
           size="sm"
-          aria-label={t('缩小')}
+          aria-label={t('ui.usage-tools.zoom-out')}
           data-testid="mascot-size-minus"
           disabled={off || shown <= s.min + 1e-6}
           onClick={() => s && set(Math.max(s.min, Math.round((shown - s.step) * 100) / 100))}
@@ -101,7 +101,7 @@ export const MascotSizeSettings: React.FC<{ disabled?: boolean }> = ({ disabled 
           step={0.01}
           value={shown}
           disabled={off}
-          aria-label={t('Nomi 大小')}
+          aria-label={t('ui.usage-tools.nomi-size')}
           aria-valuetext={`${pct(shown)}%`}
           data-testid="mascot-size-slider"
           onPointerDown={() => {
@@ -116,7 +116,7 @@ export const MascotSizeSettings: React.FC<{ disabled?: boolean }> = ({ disabled 
           type="button"
           variant="ghost"
           size="sm"
-          aria-label={t('放大')}
+          aria-label={t('ui.usage-tools.zoom-in')}
           data-testid="mascot-size-plus"
           disabled={off || shown >= s.max - 1e-6}
           onClick={() => s && set(Math.min(s.max, Math.round((shown + s.step) * 100) / 100))}
@@ -139,7 +139,7 @@ export const MascotSizeSettings: React.FC<{ disabled?: boolean }> = ({ disabled 
             })
           }
         >
-          {t('重置')}
+          {t('ui.knowledge-local.reset')}
         </Button>
       </div>
     </SettingRow>

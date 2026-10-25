@@ -13,7 +13,7 @@ import React, {
 import { createPortal } from 'react-dom';
 
 import { cx } from './cx';
-import { t as tr } from './i18n';
+import { getLocale, t as tr } from './i18n';
 import { Icon } from './icons';
 
 export interface SelectOption {
@@ -92,6 +92,55 @@ function optionsFromChildren(children: React.ReactNode, group?: string): SelectO
 const Chevron = () => <Icon icon={ChevronDown} className="cd-dropdown__chevron" size={14} />;
 const Check = () => <Icon icon={CheckIcon} className="cd-dropdown__check" size={14} />;
 
+/**
+ * 弹层里的一行。单独 memo：悬停 / 方向键移动高亮时只有高亮变化的两行重渲染，
+ * 否则几百个选项每次都要重新翻译标签、拼悬停提示，长列表上移动鼠标会卡。
+ */
+const MenuOption = React.memo(function MenuOption({
+  o,
+  index,
+  id,
+  active,
+  selected,
+  setActive,
+  onPick,
+}: {
+  o: SelectOption;
+  index: number;
+  id: string;
+  active: boolean;
+  selected: boolean;
+  setActive: (i: number) => void;
+  onPick: (o: SelectOption) => void;
+}) {
+  return (
+    <div
+      id={id}
+      role="option"
+      data-index={index}
+      data-value={o.value}
+      aria-selected={selected}
+      aria-disabled={o.disabled || undefined}
+      className={cx('cd-dropdown__option', active && 'is-active', selected && 'is-selected')}
+      onMouseMove={() => !active && setActive(index)}
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={() => onPick(o)}
+    >
+      {o.icon && <span className="cd-dropdown__icon">{o.icon}</span>}
+      <span
+        className="cd-dropdown__label cd-truncate"
+        title={[tr(textOf(o.label)), o.description ? tr(o.description) : '']
+          .filter(Boolean)
+          .join(' · ')}
+      >
+        {tr(o.label)}
+      </span>
+      {o.description && <span className="cd-dropdown__desc">{tr(o.description)}</span>}
+      <span className="cd-dropdown__checkslot">{selected && <Check />}</span>
+    </div>
+  );
+});
+
 interface MenuPos {
   left: number;
   top: number;
@@ -114,7 +163,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
     className,
     children,
     searchable,
-    placeholder = tr('请选择'),
+    placeholder = tr('ui.mascot-theme.please-select'),
     menuMinWidth,
     renderValue,
     value,
@@ -132,6 +181,18 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
   const all = useMemo(
     () => [...(options ?? []), ...optionsFromChildren(children)],
     [options, children],
+  );
+  // 隐藏的原生 <option> 列表（模型选择器有几百个）：选项与语言不变就复用同一组元素，
+  // 父组件重渲染时不再逐个比对；locale 变化时要重新翻译
+  const locale = getLocale();
+  const nativeOptions = useMemo(
+    () =>
+      all.map((o) => (
+        <option key={`${o.group ?? ''}:${o.value}`} value={o.value} disabled={o.disabled}>
+          {tr(textOf(o.label)) || o.value}
+        </option>
+      )),
+    [all, locale],
   );
   const nativeRef = useRef<HTMLSelectElement>(null);
   useImperativeHandle(ref, () => nativeRef.current as HTMLSelectElement);
@@ -153,8 +214,11 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return all;
+    // 选项文案可以是翻译 key：按界面上显示的文字搜，不按 key 搜
     return all.filter((o) =>
-      `${o.searchText ?? textOf(o.label)} ${o.value} ${o.group ?? ''}`.toLowerCase().includes(q),
+      `${tr(o.searchText ?? textOf(o.label))} ${o.value} ${tr(o.group ?? '')}`
+        .toLowerCase()
+        .includes(q),
     );
   }, [all, query]);
 
@@ -329,7 +393,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
                 <input
                   ref={searchRef}
                   className="cd-input cd-input--sm"
-                  placeholder={tr('搜索…')}
+                  placeholder={tr('ui.mascot-theme.search')}
                   value={query}
                   aria-controls={listId}
                   aria-activedescendant={active >= 0 ? `${listId}-${active}` : undefined}
@@ -346,44 +410,29 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
               className="cd-dropdown__list"
               style={{ maxHeight: pos.maxHeight - (showSearch ? 44 : 0) }}
             >
-              {filtered.length === 0 && <div className="cd-dropdown__empty">{tr('无匹配项')}</div>}
+              {filtered.length === 0 && (
+                <div className="cd-dropdown__empty">{tr('ui.mascot-theme.no-matches')}</div>
+              )}
               {filtered.map((o, i) => {
                 const header =
                   o.group && o.group !== lastGroup ? (
                     <div className="cd-dropdown__group" role="presentation">
-                      {o.group}
+                      {tr(o.group)}
                     </div>
                   ) : null;
                 lastGroup = o.group;
-                const isSel = o.value === current;
                 return (
                   <React.Fragment key={`${o.group ?? ''}:${o.value}`}>
                     {header}
-                    <div
+                    <MenuOption
+                      o={o}
+                      index={i}
                       id={`${listId}-${i}`}
-                      role="option"
-                      data-index={i}
-                      data-value={o.value}
-                      aria-selected={isSel}
-                      aria-disabled={o.disabled || undefined}
-                      className={cx(
-                        'cd-dropdown__option',
-                        i === active && 'is-active',
-                        isSel && 'is-selected',
-                      )}
-                      onMouseMove={() => i !== active && setActive(i)}
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => commit(o)}
-                    >
-                      {o.icon && <span className="cd-dropdown__icon">{o.icon}</span>}
-                      <span className="cd-dropdown__label cd-truncate" title={textOf(o.label)}>
-                        {tr(o.label)}
-                      </span>
-                      {o.description && (
-                        <span className="cd-dropdown__desc">{tr(o.description)}</span>
-                      )}
-                      <span className="cd-dropdown__checkslot">{isSel && <Check />}</span>
-                    </div>
+                      active={i === active}
+                      selected={o.value === current}
+                      setActive={setActive}
+                      onPick={commit}
+                    />
                   </React.Fragment>
                 );
               })}
@@ -418,11 +467,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
         {...rest}
       >
         {!selected && <option value={current}>{current}</option>}
-        {all.map((o) => (
-          <option key={`${o.group ?? ''}:${o.value}`} value={o.value} disabled={o.disabled}>
-            {tr(textOf(o.label)) || o.value}
-          </option>
-        ))}
+        {nativeOptions}
       </select>
       <button
         ref={triggerRef}

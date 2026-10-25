@@ -19,6 +19,8 @@
  * - Cursor       cursor-agent CLI：~/.cursor/chats/<hash>/<id>/（SQLite store.db，无公开格式）
  *                ——只用 mtime + 进程存活判断，不解析内容。
  */
+import { cleanTitle, foldGeminiChat, geminiText, type GeminiChat } from '@nomi-ai/cli-plugins/main';
+
 export type AgentKind =
   'codex' | 'claude' | 'dsh' | 'grok' | 'aider' | 'cline' | 'continue' | 'cursor' | 'gemini';
 
@@ -121,30 +123,6 @@ const ts = (v: unknown): number | undefined => {
   return undefined;
 };
 
-/** 清理用户提问作为标题：去掉命令包装 / 系统注入，压成一行 */
-export function cleanTitle(raw: string | undefined, max = 80): string | undefined {
-  if (!raw) return undefined;
-  let s = raw;
-  // Nomi 换工作目录 / 分叉时带入的前文（cli/contextCarry.ts）：标题取用户原话
-  if (/^\s*\[Nomi\]/.test(s)) {
-    const end = s.indexOf('</previous_conversation>\n\n---\n\n');
-    if (end >= 0) s = s.slice(end + '</previous_conversation>\n\n---\n\n'.length);
-  }
-  // Claude Code 的 slash 命令包装 / 本地命令输出
-  if (/^\s*<(command-name|local-command-stdout|command-message|system-reminder)/.test(s)) {
-    const m = /<command-name>([^<]+)<\/command-name>/.exec(s);
-    const args = /<command-args>([^<]*)<\/command-args>/.exec(s);
-    if (!m) return undefined;
-    s = `${m[1]} ${args?.[1] ?? ''}`;
-  }
-  // Codex 注入的环境 / 指令块
-  if (/^\s*<(environment_context|user_instructions|INSTRUCTIONS)/i.test(s)) return undefined;
-  if (/^\s*#\s*AGENTS\.md/i.test(s)) return undefined;
-  s = s.replace(/\s+/g, ' ').trim();
-  if (!s) return undefined;
-  return s.length > max ? `${s.slice(0, max - 1)}…` : s;
-}
-
 function contentText(content: unknown): string | undefined {
   if (typeof content === 'string') return content;
   if (Array.isArray(content)) {
@@ -171,6 +149,9 @@ function toolName(content: unknown): string | undefined {
   }
   return undefined;
 }
+
+// 标题清理与 Gemini 会话折叠搬进了内置插件（历史转录也用）
+export { cleanTitle, foldGeminiChat, geminiText, type GeminiChat };
 
 // ---------------------------------------------------------------- Claude Code
 
@@ -400,89 +381,6 @@ export function parseGrokSession(text: string, fallbackSessionId?: string): Sess
 }
 
 // ---------------------------------------------------------------- Gemini CLI
-
-export interface GeminiChat {
-  sessionId?: string;
-  startTime?: string;
-  lastUpdated?: string;
-  /** 'main' | 'subagent'（0.62 起写在头部；旧文件没有） */
-  kind?: string;
-  summary?: string;
-  messages: Array<Record<string, unknown>>;
-}
-
-/**
- * Gemini CLI 会话文件 → 头部 + 消息列表。兼容两种格式：
- * - 旧版 `session-*.json`：一整份 `{ sessionId, messages: [...] }`
- * - 0.62 起 `session-*.jsonl`：首行头部，之后每行一条消息（同一 id 会被重写多次，后写的为准），
- *   `{ $set: {...} }` 行更新头部字段
- * 截断的 / 正在写入的半行直接跳过。
- */
-export function foldGeminiChat(raw: string): GeminiChat {
-  const trimmed = raw.trimStart();
-  if (trimmed.startsWith('{') && !trimmed.includes('\n{')) {
-    try {
-      const j = JSON.parse(trimmed) as Record<string, unknown>;
-      if (Array.isArray(j.messages)) {
-        return {
-          sessionId: str(j.sessionId),
-          startTime: str(j.startTime),
-          lastUpdated: str(j.lastUpdated),
-          kind: str(j.kind),
-          summary: str(j.summary),
-          messages: j.messages as Array<Record<string, unknown>>,
-        };
-      }
-    } catch {
-      /* 不是整份 JSON：按 JSONL 继续 */
-    }
-  }
-  const head: Record<string, unknown> = {};
-  const order: string[] = [];
-  const byId = new Map<string, Record<string, unknown>>();
-  let n = 0;
-  for (const line of raw.split('\n')) {
-    const l = line.trim();
-    if (!l.startsWith('{')) continue;
-    let o: Record<string, unknown>;
-    try {
-      o = JSON.parse(l) as Record<string, unknown>;
-    } catch {
-      continue;
-    }
-    if (o.$set && typeof o.$set === 'object') {
-      Object.assign(head, o.$set);
-      continue;
-    }
-    if (typeof o.type === 'string' && ('content' in o || 'toolCalls' in o)) {
-      const id = str(o.id) ?? `#${n++}`;
-      if (!byId.has(id)) order.push(id);
-      byId.set(id, o);
-      continue;
-    }
-    if (str(o.sessionId)) Object.assign(head, o);
-  }
-  return {
-    sessionId: str(head.sessionId),
-    startTime: str(head.startTime),
-    lastUpdated: str(head.lastUpdated),
-    kind: str(head.kind),
-    summary: str(head.summary),
-    messages: order.map((id) => byId.get(id)!),
-  };
-}
-
-/** Gemini 消息内容：字符串，或 `[{ text }]` 分段（没有 type 字段） */
-export function geminiText(content: unknown): string | undefined {
-  if (typeof content === 'string') return content || undefined;
-  if (Array.isArray(content)) {
-    const parts = content
-      .map((c) => (c && typeof c === 'object' ? str((c as Record<string, unknown>).text) : str(c)))
-      .filter((x): x is string => Boolean(x));
-    return parts.length ? parts.join('\n') : undefined;
-  }
-  return undefined;
-}
 
 export function parseGeminiSession(raw: string): SessionInfo {
   const info: SessionInfo = { phase: 'unknown' };

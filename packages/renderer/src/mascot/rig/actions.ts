@@ -130,7 +130,7 @@ export const ACTIONS: readonly ActionDef[] = [
   // ---- greet ---------------------------------------------------------------------------------
   {
     id: 'wave',
-    label: '挥手',
+    label: 'ui.voice-mascot.wave',
     category: 'greet',
     dur: 2.3,
     trigger: '问候 / 早安 / 首次打开 / 用户说“你好”', // i18n-ignore
@@ -148,7 +148,7 @@ export const ACTIONS: readonly ActionDef[] = [
   },
   {
     id: 'hello',
-    label: '打招呼',
+    label: 'ui.mascot-theme.greet',
     category: 'greet',
     dur: 1.9,
     priority: 1,
@@ -165,7 +165,7 @@ export const ACTIONS: readonly ActionDef[] = [
   },
   {
     id: 'nod',
-    label: '点头',
+    label: 'ui.voice-mascot.nod',
     category: 'agree',
     dur: 1.2,
     trigger: '回答“好 / 明白了”、确认', // i18n-ignore
@@ -179,7 +179,7 @@ export const ACTIONS: readonly ActionDef[] = [
   },
   {
     id: 'shake_head',
-    label: '摇头',
+    label: 'ui.voice-mascot.shake-head',
     category: 'agree',
     dur: 1.4,
     trigger: '否定、“不行 / 没有”', // i18n-ignore
@@ -194,7 +194,7 @@ export const ACTIONS: readonly ActionDef[] = [
   },
   {
     id: 'bow',
-    label: '鞠躬',
+    label: 'ui.voice-mascot.bow',
     category: 'greet',
     dur: 2.0,
     trigger: '感谢 / 告别 / 道歉的礼貌版', // i18n-ignore
@@ -209,7 +209,7 @@ export const ACTIONS: readonly ActionDef[] = [
   },
   {
     id: 'salute',
-    label: '敬礼',
+    label: 'ui.cli-monitor.salute',
     category: 'greet',
     dur: 1.9,
     trigger: '收到指令 / “收到！”', // i18n-ignore
@@ -228,7 +228,7 @@ export const ACTIONS: readonly ActionDef[] = [
 
   {
     id: 'pray',
-    label: '合十',
+    label: 'ui.usage-tools.prayer-hands',
     category: 'emotion',
     dur: 2.8,
     trigger: '感谢 / 拜托 / 祈祷', // i18n-ignore
@@ -245,7 +245,7 @@ export const ACTIONS: readonly ActionDef[] = [
   },
   {
     id: 'ok_hand',
-    label: 'OK 手势',
+    label: 'ui.usage-tools.ok-gesture',
     category: 'celebrate',
     dur: 2.2,
     trigger: '确认 / 没问题 / OK', // i18n-ignore
@@ -260,7 +260,7 @@ export const ACTIONS: readonly ActionDef[] = [
   },
   {
     id: 'think',
-    label: '托腮思考',
+    label: 'ui.cli-monitor.chin-rest-thinking',
     category: 'think',
     dur: 3.4,
     hold: true,
@@ -288,7 +288,7 @@ export const ACTIONS: readonly ActionDef[] = [
   },
   {
     id: 'explain',
-    label: '讲解',
+    label: 'ui.cli-monitor.explain',
     category: 'think',
     dur: 2.6,
     trigger: '长回答 / 讲解步骤（竖起食指）', // i18n-ignore
@@ -302,7 +302,7 @@ export const ACTIONS: readonly ActionDef[] = [
   },
   {
     id: 'eureka',
-    label: '灵光一闪',
+    label: 'ui.cli-monitor.eureka',
     category: 'think',
     dur: 2.2,
     trigger: '想到办法 / 找到答案', // i18n-ignore
@@ -319,7 +319,7 @@ export const ACTIONS: readonly ActionDef[] = [
   },
   {
     id: 'puzzled',
-    label: '疑惑歪头',
+    label: 'ui.cli-monitor.puzzled-head-tilt',
     category: 'think',
     dur: 2.4,
     trigger: '听不懂 / 需要澄清', // i18n-ignore
@@ -336,7 +336,7 @@ export const ACTIONS: readonly ActionDef[] = [
   },
   {
     id: 'look_around',
-    label: '张望',
+    label: 'ui.voice-mascot.look-around',
     category: 'idle',
     dur: 3.0,
     cooldown: 20,
@@ -354,7 +354,7 @@ export const ACTIONS: readonly ActionDef[] = [
   },
   {
     id: 'look_lr',
-    label: '左顾右盼',
+    label: 'ui.cli-monitor.look-left-and-right',
     category: 'idle',
     dur: 2.6,
     cooldown: 15,
@@ -378,7 +378,7 @@ export const ACTIONS: readonly ActionDef[] = [
   },
   {
     id: 'peek',
-    label: '偷看',
+    label: 'ui.cli-monitor.peek',
     category: 'emotion',
     dur: 2.6,
     cooldown: 25,
@@ -399,7 +399,7 @@ export const ACTIONS: readonly ActionDef[] = [
   // ---- emotion --------------------------------------------------------------------------------
   {
     id: 'heart',
-    label: '比心',
+    label: 'ui.cli-monitor.heart-gesture',
     category: 'emotion',
     dur: 2.6,
     trigger: '表达喜欢 / 被夸奖 / 摸头', // i18n-ignore
@@ -418,7 +418,7 @@ export const ACTIONS: readonly ActionDef[] = [
   },
   {
     id: 'blow_kiss',
-    label: '送飞吻',
+    label: 'ui.cli-monitor.blow-a-kiss',
     category: 'emotion',
     dur: 2.4,
     trigger: '告别 / 感谢', // i18n-ignore
@@ -445,7 +445,7 @@ export const ACTIONS: readonly ActionDef[] = [
   },
   {
     id: 'shy',
-    label: '害羞',
+    label: 'ui.mascot-theme.shy',
     category: 'emotion',
     dur: 2.8,
     trigger: '被夸奖 / 被摸头太久', // i18n-ignore
@@ -466,7 +466,7 @@ export const ACTIONS: readonly ActionDef[] = [
   },
   {
     id: 'cover_face',
-    label: '捂脸',
+    label: 'ui.cli-monitor.cover-face',
     category: 'emotion',
     dur: 2.6,
     trigger: '尴尬 / 出错后的不好意思', // i18n-ignore
@@ -483,7 +483,7 @@ export const ACTIONS: readonly ActionDef[] = [
   },
   {
     id: 'sorry',
-    label: '道歉',
+    label: 'ui.cli-monitor.apologise',
     category: 'emotion',
     dur: 2.8,
     priority: 3,
@@ -502,7 +502,7 @@ export const ACTIONS: readonly ActionDef[] = [
   },
   {
     id: 'surprise',
-    label: '惊讶',
+    label: 'ui.cli-monitor.surprised',
     category: 'react',
     dur: 1.8,
     priority: 2,
@@ -521,7 +521,7 @@ export const ACTIONS: readonly ActionDef[] = [
   },
   {
     id: 'sigh',
-    label: '叹气',
+    label: 'ui.cli-monitor.sigh',
     category: 'emotion',
     dur: 3.0,
     trigger: '长时间失败 / 无聊', // i18n-ignore
@@ -539,7 +539,7 @@ export const ACTIONS: readonly ActionDef[] = [
   },
   {
     id: 'smug',
-    label: '得意',
+    label: 'ui.cli-monitor.smug',
     category: 'emotion',
     dur: 2.4,
     trigger: '做对难题 / 任务一次成功', // i18n-ignore
@@ -556,7 +556,7 @@ export const ACTIONS: readonly ActionDef[] = [
   },
   {
     id: 'aggrieved',
-    label: '委屈',
+    label: 'ui.cli-monitor.aggrieved',
     category: 'emotion',
     dur: 3.0,
     trigger: '被批评 / 反复失败', // i18n-ignore
@@ -575,7 +575,7 @@ export const ACTIONS: readonly ActionDef[] = [
   },
   {
     id: 'tears',
-    label: '流泪',
+    label: 'ui.cli-monitor.tears',
     category: 'emotion',
     dur: 3.0,
     trigger: '感动 / 很难过', // i18n-ignore
@@ -590,7 +590,7 @@ export const ACTIONS: readonly ActionDef[] = [
   },
   {
     id: 'angry',
-    label: '生气（轻微）',
+    label: 'ui.cli-monitor.annoyed-mild',
     category: 'emotion',
     dur: 2.2,
     trigger: '被打断 / 连续失败', // i18n-ignore
@@ -607,7 +607,7 @@ export const ACTIONS: readonly ActionDef[] = [
   },
   {
     id: 'cold_sweat',
-    label: '冷汗',
+    label: 'ui.cli-monitor.cold-sweat',
     category: 'emotion',
     dur: 2.4,
     trigger: '紧张 / 尴尬 / 超时', // i18n-ignore
@@ -623,7 +623,7 @@ export const ACTIONS: readonly ActionDef[] = [
   },
   {
     id: 'daze',
-    label: '发呆',
+    label: 'ui.cli-monitor.daze',
     category: 'idle',
     dur: 3.4,
     cooldown: 40,
@@ -642,7 +642,7 @@ export const ACTIONS: readonly ActionDef[] = [
   // ---- celebrate ------------------------------------------------------------------------------
   {
     id: 'cheer',
-    label: '加油握拳',
+    label: 'ui.cli-monitor.cheer-fist-pump',
     category: 'celebrate',
     dur: 2.2,
     trigger: '鼓励用户 / 开始新任务', // i18n-ignore
@@ -659,7 +659,7 @@ export const ACTIONS: readonly ActionDef[] = [
   },
   {
     id: 'thumbs_up',
-    label: '点赞',
+    label: 'ui.cli-monitor.thumbs-up',
     category: 'celebrate',
     dur: 2.2,
     priority: 3,
@@ -676,7 +676,7 @@ export const ACTIONS: readonly ActionDef[] = [
   },
   {
     id: 'peace',
-    label: '剪刀手',
+    label: 'ui.cli-monitor.peace-sign',
     category: 'celebrate',
     dur: 2.2,
     trigger: '拍照 / 自拍 / 开心', // i18n-ignore
@@ -691,7 +691,7 @@ export const ACTIONS: readonly ActionDef[] = [
   },
   {
     id: 'celebrate',
-    label: '庆祝（双手举高）',
+    label: 'ui.cli-monitor.celebrate-hands-up',
     category: 'celebrate',
     dur: 2.6,
     priority: 3,
@@ -722,7 +722,7 @@ export const ACTIONS: readonly ActionDef[] = [
   },
   {
     id: 'clap',
-    label: '鼓掌',
+    label: 'ui.cli-monitor.clap',
     category: 'celebrate',
     dur: 2.4,
     trigger: '夸奖 / 用户完成目标', // i18n-ignore
@@ -759,7 +759,7 @@ export const ACTIONS: readonly ActionDef[] = [
   },
   {
     id: 'hop',
-    label: '开心跳动',
+    label: 'ui.cli-monitor.happy-bounce',
     category: 'celebrate',
     dur: 1.6,
     trigger: '被点击 / 高兴', // i18n-ignore
@@ -786,7 +786,7 @@ export const ACTIONS: readonly ActionDef[] = [
   },
   {
     id: 'wink',
-    label: '眨眼',
+    label: 'ui.cli-monitor.wink',
     category: 'emotion',
     dur: 1.6,
     trigger: '俏皮 / 彩蛋', // i18n-ignore
@@ -799,7 +799,7 @@ export const ACTIONS: readonly ActionDef[] = [
   },
   {
     id: 'tongue',
-    label: '吐舌',
+    label: 'ui.cli-monitor.stick-out-tongue',
     category: 'emotion',
     dur: 1.8,
     trigger: '调皮 / 小失误后的卖萌', // i18n-ignore
@@ -813,7 +813,7 @@ export const ACTIONS: readonly ActionDef[] = [
   },
   {
     id: 'cute',
-    label: '卖萌',
+    label: 'ui.cli-monitor.act-cute',
     category: 'emotion',
     dur: 2.4,
     trigger: '被摸头 / 撒娇', // i18n-ignore
@@ -831,7 +831,7 @@ export const ACTIONS: readonly ActionDef[] = [
   // ---- work / rest ----------------------------------------------------------------------------
   {
     id: 'work',
-    label: '打字工作',
+    label: 'ui.cli-monitor.typing-at-work',
     category: 'work',
     dur: 2.4,
     hold: true,
@@ -856,7 +856,7 @@ export const ACTIONS: readonly ActionDef[] = [
   },
   {
     id: 'yawn',
-    label: '打哈欠',
+    label: 'ui.cli-monitor.yawn',
     category: 'rest',
     dur: 3.0,
     cooldown: 60,
@@ -874,7 +874,7 @@ export const ACTIONS: readonly ActionDef[] = [
   },
   {
     id: 'stretch',
-    label: '伸懒腰',
+    label: 'ui.voice-mascot.stretch',
     category: 'rest',
     dur: 3.2,
     cooldown: 60,
@@ -892,7 +892,7 @@ export const ACTIONS: readonly ActionDef[] = [
   },
   {
     id: 'goodnight',
-    label: '晚安',
+    label: 'ui.cli-monitor.good-night',
     category: 'rest',
     dur: 3.4,
     hold: true,
@@ -917,7 +917,7 @@ export const ACTIONS: readonly ActionDef[] = [
   },
   {
     id: 'listen',
-    label: '倾听',
+    label: 'ui.cli-monitor.listen',
     category: 'think',
     dur: 2.6,
     hold: true,
@@ -936,7 +936,7 @@ export const ACTIONS: readonly ActionDef[] = [
   },
   {
     id: 'peek_note',
-    label: '哼歌',
+    label: 'ui.cli-monitor.humming',
     category: 'idle',
     dur: 3.0,
     cooldown: 40,

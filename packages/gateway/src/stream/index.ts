@@ -1,13 +1,15 @@
 /**
  * 流式协议转换入口：上游 SSE 文本分片 → 下游 SSE 文本。
  */
-import { eventsToJson, type AggregateResult } from './aggregate';
 import {
-  ChatCompletionsDecoder,
-  GeminiDecoder,
-  MessagesDecoder,
-  ResponsesDecoder,
-} from './decoders';
+  EventFixer,
+  fixEvents,
+  fixesEnabled,
+  type ResponseFixOptions,
+} from '../models/rules/response/fixer';
+
+import { eventsToJson, type AggregateResult } from './aggregate';
+import { createDecoder } from './decoders';
 import {
   ChatCompletionsEncoder,
   GeminiEncoder,
@@ -15,7 +17,6 @@ import {
   ResponsesEncoder,
 } from './encoders';
 import type { NormEvent, StreamDecoder, StreamEncoder } from './events';
-import { EventFixer, fixEvents, fixesEnabled, type ResponseFixOptions } from './fixer';
 import { jsonToEvents } from './json';
 import { SseParser } from './sse';
 
@@ -41,18 +42,9 @@ export interface ConvertOptions {
   fixes?: ResponseFixOptions;
 }
 
-function makeDecoder(f: UpstreamStreamFormat): StreamDecoder {
-  switch (f) {
-    case 'chat':
-      return new ChatCompletionsDecoder();
-    case 'responses':
-      return new ResponsesDecoder();
-    case 'gemini':
-      return new GeminiDecoder();
-    case 'messages':
-      return new MessagesDecoder();
-  }
-}
+/** 工具调用 id 的种子与修正共用一个（§6.9.7）：没给修正时只按序号 */
+const makeDecoder = (f: UpstreamStreamFormat, opts: ConvertOptions): StreamDecoder =>
+  createDecoder(f, { seed: opts.fixes?.callIds?.seed });
 
 function makeEncoder(
   f: DownstreamStreamFormat,
@@ -77,7 +69,7 @@ export function createStreamConverter(
   opts: ConvertOptions = {},
 ): StreamConverter {
   const parser = new SseParser();
-  const dec = makeDecoder(from);
+  const dec = makeDecoder(from, opts);
   const enc = makeEncoder(to, opts.model ?? '', opts.customTools);
   const fixer = opts.fixes && fixesEnabled(opts.fixes) ? new EventFixer(opts.fixes) : null;
   const emit = (n: NormEvent): string => {
@@ -134,7 +126,7 @@ export function jsonToJson(
 }
 
 function jsonEvents(from: UpstreamStreamFormat, body: unknown, opts: ConvertOptions): NormEvent[] {
-  const evs = jsonToEvents(from, body);
+  const evs = jsonToEvents(from, body, opts.fixes?.callIds?.seed);
   // 非流式不做复读检测（整段已经生成完）
   return opts.fixes && fixesEnabled(opts.fixes)
     ? fixEvents(evs, { ...opts.fixes, repetition: false })
@@ -147,4 +139,4 @@ export { SseParser, formatSse } from './sse';
 export type { NormEvent, StopReason, StreamUsage } from './events';
 export { mergeUsage } from './events';
 export { geminiErrorStatus } from './errors';
-export type { ResponseFixOptions, ResponseFixSwitches } from './fixer';
+export type { ResponseFixOptions, ResponseFixSwitches } from '../models/rules/response/fixer';

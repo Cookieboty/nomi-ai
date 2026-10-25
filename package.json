@@ -1,6 +1,6 @@
 {
   "name": "nomi",
-  "version": "1.2.0",
+  "version": "2.0.0",
   "description": "Nomi·诺米：本地运行的桌面 AI 伙伴（Electron + IgPluginHost / Vercel AI SDK）",
   "private": true,
   "type": "module",
@@ -18,6 +18,7 @@
     "test": "node scripts/run-bin.mjs turbo run test && pnpm run test:root",
     "test:root": "vitest run --config vitest.root.config.ts scripts/__tests__",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
+    "test:e2e-cli": "vitest run --config vitest.e2e-cli.config.ts",
     "test:e2e:headed": "playwright test --config playwright.config.ts",
     "lint": "node scripts/run-bin.mjs turbo run lint",
     "typecheck": "node scripts/run-bin.mjs turbo run typecheck",
@@ -92,5 +93,12 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/Cookieboty/nomi-ai.git"
+  },
+  "pnpm": {
+    "overrides": {
+      "undici": "7.30.1",
+      "zod": "^4.6.6",
+      "electron": "44.9.3"
+    }
   }
 }

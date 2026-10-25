@@ -146,7 +146,7 @@ export function toCalEvents(raw: unknown, cal: string): CalEvent[] {
     .filter((e) => e && Number.isFinite(e.start) && Number.isFinite(e.end) && e.uid)
     .map((e) => ({
       uid: `${cal}:${String(e.uid)}`,
-      summary: String(e.summary ?? '').slice(0, 200) || tr('（无标题）'),
+      summary: String(e.summary ?? '').slice(0, 200) || tr('electron.common.untitled-parens'),
       start: Number(e.start),
       end: Math.max(Number(e.end), Number(e.start)),
       allDay: !!e.allDay,

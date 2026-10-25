@@ -55,6 +55,15 @@ describe('voice catalog', () => {
 });
 
 describe('voice settings', () => {
+  it('wake word is data matched against speech, never a translation key', () => {
+    // 唤醒功能早于多语言：唤醒词与识别结果比对，不随界面语言翻译，也不能被替换成 key
+    expect(DEFAULT_VOICE_SETTINGS.wakeWord.phrase).toBe('你好，诺米');
+    expect(sanitizeVoiceSettings({}).wakeWord.phrase).toBe('你好，诺米');
+    expect(sanitizeVoiceSettings({ wakeWord: { phrase: 'Hey Nomi' } }).wakeWord.phrase).toBe(
+      'Hey Nomi',
+    );
+  });
+
   it('defaults: local engine, wake word off', () => {
     const s = sanitizeVoiceSettings(null);
     expect(s.engine).toBe('whisper-cpp');

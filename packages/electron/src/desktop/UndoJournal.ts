@@ -105,15 +105,17 @@ export class UndoJournal {
     const present = (p: string) => (virt.has(p) ? virt.get(p)! : fs.existsSync(p));
     for (const op of e.inverse) {
       if (op.op === 'move') {
-        if (!present(op.from) || present(op.to)) return t('无法移回：{0}', op.from);
+        if (!present(op.from) || present(op.to))
+          return t('electron.common.couldn-t-move-back', op.from);
         virt.set(op.from, false);
         virt.set(op.to, true);
       } else if (op.op === 'restore') {
-        if (!present(op.stored) || present(op.original)) return t('无法恢复：{0}', op.original);
+        if (!present(op.stored) || present(op.original))
+          return t('electron.common.couldn-t-restore', op.original);
         virt.set(op.stored, false);
         virt.set(op.original, true);
       } else if (op.op === 'trash') {
-        if (!present(op.path)) return t('文件已不存在：{0}', op.path);
+        if (!present(op.path)) return t('electron.common.file-no-longer-exists', op.path);
         if (op.expectSize !== undefined && !virt.has(op.path)) {
           let st: fs.Stats | null;
           try {
@@ -126,17 +128,17 @@ export class UndoJournal {
             st.size !== op.expectSize ||
             (op.expectMtimeMs !== undefined && st.mtimeMs !== op.expectMtimeMs)
           )
-            return t('文件在此之后被修改过：{0}', op.path);
+            return t('electron.common.the-file-was-modified-afterwards', op.path);
         }
         virt.set(op.path, false);
       } else if (op.op === 'custom') {
         const h = this.custom.get(op.kind);
-        if (!h) return t('无法撤销：{0}', op.kind);
+        if (!h) return t('electron.common.can-t-undo', op.kind);
         const p = h.check(op.payload);
         if (p) return p;
       } else if (op.op === 'truncate') {
         if (!fs.existsSync(op.path) || fs.statSync(op.path).size !== op.expectSize)
-          return t('文件在此之后被修改过：{0}', op.path);
+          return t('electron.common.the-file-was-modified-afterwards', op.path);
       }
     }
     return null;

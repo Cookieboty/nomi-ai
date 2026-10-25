@@ -43,8 +43,10 @@ export type NormEvent =
 export interface StreamDecoder {
   /** 一个完整 SSE 事件 → 中间事件 */
   push(ev: { event?: string; data: string }): NormEvent[];
-  /** 上游流结束：补齐未发出的 finish */
+  /** 上游流结束：补齐未发出的 finish；没收到结束标记时发错误 */
   end(): NormEvent[];
+  /** 已收到结束标记或错误 */
+  readonly terminated: boolean;
 }
 
 export interface StreamEncoder {

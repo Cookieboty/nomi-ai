@@ -1,6 +1,8 @@
-/** 编程助手官方账号（docs/design/cli-official-accounts.md） */
+import type { BuiltinCliId } from '@nomi-ai/cli-plugins';
+/** 编程助手官方账号（docs/design/cli-plugin-architecture.md §5.10：一个账号 = 一个 CLI 配置目录） */
 
-export type AccountKind = 'claude' | 'codex' | 'grok' | 'gemini';
+/** 有官方账号的编程助手（清单 capabilities.officialAccount；dsh 没有官方账号） */
+export type AccountKind = Exclude<BuiltinCliId, 'dsh'>;
 
 export const ACCOUNT_KINDS: readonly AccountKind[] = ['claude', 'codex', 'grok', 'gemini'];
 
@@ -13,19 +15,8 @@ export interface AccountIdentity {
   plan?: string;
   /** 组织 / 工作区 */
   org?: string;
-}
-
-/**
- * 某一时刻的凭据：逻辑名 → 文件内容（Claude：credentials / oauthAccount；Codex、Grok：auth.json；
- * Gemini：oauth_creds.json / google_accounts.json）。只在主进程内存里出现，落盘一律加密。
- */
-export type CredFiles = Record<string, string>;
-
-export interface LiveCreds {
-  files: CredFiles;
-  identity: AccountIdentity | null;
-  /** 越大越新（过期时间 / 最近刷新时间 / 文件修改时间）；判断不了为 null */
-  freshness: number | null;
+  /** Codex：已经读过 ChatGPT 账号 id（有没有都算），不再为它向 OpenAI 发请求 */
+  accountIdChecked?: boolean;
 }
 
 export interface AccountView {
@@ -33,7 +24,21 @@ export interface AccountView {
   kind: AccountKind;
   label: string;
   identity: AccountIdentity | null;
+  /** 是默认账号（新标签与「跟随默认」的标签用它） */
   active: boolean;
+  /** 「本机登录」：用户自己的 CLI 目录 */
+  local: boolean;
+  loggedIn: boolean;
+  /** 从旧版本迁移来、需要重新登录 */
+  needsLogin?: boolean;
+  /** 正在使用这个账号的标签数 */
+  inUse: number;
+  /** 同一身份也登录在另一个账号里（两处各自刷新会让其中一处失效） */
+  duplicateOf?: string;
+  /** 在终端里用这个账号运行 CLI 的命令（本机登录没有） */
+  terminalCommand?: string;
+  /** 共享软链失败（非阻断；Windows 无特权时常见） */
+  problems?: Array<{ entry: string; reason: string }>;
   createdAt: number;
   lastUsedAt?: number;
 }

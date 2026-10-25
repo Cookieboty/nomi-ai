@@ -56,10 +56,10 @@ export async function embed(
     body: JSON.stringify({ model: ep.model, input: inputs }),
     signal: opts.signal,
   });
-  if (!res.ok) throw new Error(t('embeddings 请求失败：HTTP {0}', res.status));
+  if (!res.ok) throw new Error(t('electron.common.embeddings-request-failed-http', res.status));
   const j = (await res.json()) as { data?: Array<{ embedding: number[]; index?: number }> };
   if (!Array.isArray(j.data) || j.data.length !== inputs.length)
-    throw new Error(t('embeddings 返回格式不正确'));
+    throw new Error(t('electron.common.embeddings-response-is-malformed'));
   return [...j.data]
     .sort((a, b) => (a.index ?? 0) - (b.index ?? 0))
     .map((d) => Float32Array.from(d.embedding));
@@ -82,11 +82,11 @@ export async function rerank(
     body: JSON.stringify({ model: ep.model, query, documents, top_n: documents.length }),
     signal: opts.signal,
   });
-  if (!res.ok) throw new Error(t('rerank 请求失败：HTTP {0}', res.status));
+  if (!res.ok) throw new Error(t('electron.common.rerank-request-failed-http', res.status));
   const j = (await res.json()) as {
     results?: Array<{ index: number; relevance_score?: number; score?: number }>;
   };
-  if (!Array.isArray(j.results)) throw new Error(t('rerank 返回格式不正确'));
+  if (!Array.isArray(j.results)) throw new Error(t('electron.common.rerank-response-is-malformed'));
   const scores = new Array<number>(documents.length).fill(-Infinity);
   for (const r of j.results)
     if (r.index >= 0 && r.index < documents.length)

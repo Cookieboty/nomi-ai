@@ -192,7 +192,8 @@ export class DesktopService {
     const items = this.deferred;
     this.deferred = [];
     if (!items.length) return;
-    if (items.length > 1) this.say(tr('免打扰期间有 {0} 条提醒，我一条条告诉你～', items.length));
+    if (items.length > 1)
+      this.say(tr('electron.common.reminders-came-in-during-do-not-disturb-here', items.length));
     for (const r of items) this.deliverReminder(r, this.notifyPolicy?.osNotify() ?? true);
   }
 
@@ -221,7 +222,7 @@ export class DesktopService {
     try {
       if (osNotify && Notification.isSupported()) {
         const n = new Notification({
-          title: tr('提醒'),
+          title: tr('electron.common.reminder'),
           body: r.text,
           silent: false,
           icon: iconImage(),
@@ -251,11 +252,11 @@ export class DesktopService {
    */
   private deliverReminderElsewhere(items: Reminder[], osNotify: boolean): void {
     if (!items.length) return;
-    const title = tr('提醒');
+    const title = tr('electron.common.reminder');
     const body =
       items.length === 1
         ? items[0]!.text
-        : tr('有 {0} 条提醒：{1}', items.length, items.map((r) => r.text).join('；'));
+        : tr('electron.common.reminders', items.length, items.map((r) => r.text).join('；'));
     let island = false;
     try {
       island = notifyIsland({ kind: 'reminder', title, body, status: 'attention' });
@@ -371,7 +372,7 @@ export class DesktopService {
     instruction: string,
     signal?: AbortSignal,
   ): Promise<string> {
-    if (!this.runtime) throw new Error(tr('AI runtime 未就绪'));
+    if (!this.runtime) throw new Error(tr('electron.common.ai-runtime-not-ready'));
     return this.runtime.complete(
       [
         { role: 'system', content: instruction },
@@ -385,8 +386,8 @@ export class DesktopService {
   async pickFolder(suggested?: string): Promise<string | null> {
     const parent = this.windows ? BrowserWindow.getFocusedWindow() : null;
     const opts: Electron.OpenDialogOptions = {
-      title: tr('授权 Nomi 访问这个文件夹'),
-      buttonLabel: tr('授权'),
+      title: tr('electron.common.grant-nomi-access-to-this-folder'),
+      buttonLabel: tr('electron.common.grant'),
       properties: ['openDirectory', 'createDirectory'],
       ...(suggested
         ? { defaultPath: suggested.replace(/^~(?=$|[\\/])/, app.getPath('home')) }
@@ -472,21 +473,24 @@ export class DesktopService {
     if (!probe.ok)
       return fail(
         probe.code,
-        probe.code === 'denied' ? tr('这个文件受保护，我不能读哦。') : tr('这个文件我打不开…'),
+        probe.code === 'denied'
+          ? tr('electron.common.this-file-is-protected-i-can-t-read')
+          : tr('electron.common.i-can-t-open-this-file'),
       );
     if (!isSupported(probe.real))
-      return fail('unsupported', tr('这种文件我还读不懂（支持 txt / md / pdf / docx 等）。'));
+      return fail('unsupported', tr('electron.common.i-can-t-read-this-kind-of-file'));
     this.broker.grant(probe.real, 'read', 'file', true);
     const name = path.basename(probe.real);
-    say(tr('读一下「{0}」…', name));
+    say(tr('electron.common.reading', name));
     broadcastMascotCommand({ type: 'motion', name: 'think' });
     const parsed = await parseFile(probe.real);
-    if (!parsed.ok) return fail(parsed.code, tr('读取失败：{0}', parsed.message));
-    if (!parsed.text.trim()) return fail('empty', tr('没读到文字（可能是扫描版 PDF）。'));
+    if (!parsed.ok) return fail(parsed.code, tr('electron.common.read-failed', parsed.message));
+    if (!parsed.text.trim())
+      return fail('empty', tr('electron.common.no-text-found-it-may-be-a-scanned'));
     const send = await this.broker.checkSend(this.providerFor('summary'));
     if (send === 'local_only')
-      return fail('local_only', tr('已开启「仅本地模型可读文件」，当前模型在云端。'));
-    if (send === 'user_denied') return fail('user_denied', tr('好的，不发送。'));
+      return fail('local_only', tr('electron.common.only-local-models-can-read-files-is-on'));
+    if (send === 'user_denied') return fail('user_denied', tr('electron.common.ok-not-sending'));
     let summary: string;
     try {
       summary = await summarizeText(
@@ -496,7 +500,10 @@ export class DesktopService {
         name,
       );
     } catch (e) {
-      return fail('llm_error', tr('总结失败：{0}', e instanceof Error ? e.message : String(e)));
+      return fail(
+        'llm_error',
+        tr('electron.common.summary-failed', e instanceof Error ? e.message : String(e)),
+      );
     }
     this.audit.append({
       tool: 'drop_summarize',
@@ -508,7 +515,11 @@ export class DesktopService {
       provider: this.providerFor('summary')?.id,
     });
     const short = summary.replace(/\s+/g, ' ').trim();
-    say(short.length > 90 ? tr('{0}…（完整内容在对话窗口）', short.slice(0, 90)) : short);
+    say(
+      short.length > 90
+        ? tr('electron.common.full-text-in-the-chat-window', short.slice(0, 90))
+        : short,
+    );
     broadcastMascotCommand({ type: 'motion', name: 'nod' });
     broadcastMascotCommand({ type: 'expression', name: 'happy' });
     if (this.windows) {
@@ -582,7 +593,7 @@ export class DesktopService {
     handle('ai:desktop:journal', () => this.journal.list(50));
     handle('ai:desktop:undo-last', async () => {
       const e = this.journal.last();
-      if (!e) return { ok: false, error: tr('没有可撤销的操作') };
+      if (!e) return { ok: false, error: tr('electron.common.nothing-to-undo') };
       try {
         await this.journal.undo(e);
         this.audit.append({
@@ -619,12 +630,12 @@ export class DesktopService {
     );
     handle('ai:desktop:notes-save', (_e, raw) => {
       const o = (raw ?? {}) as { id?: string; title?: unknown; body?: unknown; tags?: unknown };
-      const title = str(o.title, 200).trim() || tr('无标题');
+      const title = str(o.title, 200).trim() || tr('electron.common.untitled');
       const body = str(o.body, 200_000);
       const tags = Array.isArray(o.tags) ? (o.tags as string[]) : undefined;
       if (o.id) {
         const { before, after } = this.notes.update(o.id, { title, body, tags });
-        this.journal.record('note_update', tr('修改笔记「{0}」', after.title), [
+        this.journal.record('note_update', tr('electron.common.edit-note', after.title), [
           { op: 'custom', kind: 'note-restore', payload: before },
         ]);
         userAudit('note_update', { id: after.id, title: after.title });
@@ -632,7 +643,7 @@ export class DesktopService {
         return after;
       }
       const n = this.notes.create({ title, body, tags });
-      this.journal.record('note_create', tr('新建笔记「{0}」', n.title), [
+      this.journal.record('note_create', tr('electron.common.new-note', n.title), [
         { op: 'trash', path: this.notes.fileOf(n.id) },
         { op: 'custom', kind: 'note-forget', payload: n.id },
       ]);
@@ -645,7 +656,7 @@ export class DesktopService {
       if (!n) return false;
       const rec = await this.trash.trash(this.notes.fileOf(n.id));
       this.notes.forget(n.id);
-      this.journal.record('note_trash', tr('删除笔记「{0}」', n.title), [
+      this.journal.record('note_trash', tr('electron.common.delete-note', n.title), [
         { op: 'restore', stored: rec.stored, original: rec.original },
         { op: 'custom', kind: 'note-forget', payload: n.id },
       ]);
@@ -694,7 +705,7 @@ export class DesktopService {
     handle('ai:desktop:reminders-cancel', (_e, id) => {
       try {
         const { before } = this.reminders.cancel(String(id));
-        this.journal.record('reminder_cancel', tr('取消提醒「{0}」', before.text), [
+        this.journal.record('reminder_cancel', tr('electron.common.cancel-reminder', before.text), [
           { op: 'custom', kind: 'reminder-restore', payload: before },
         ]);
         userAudit('reminder_cancel', { id: before.id });

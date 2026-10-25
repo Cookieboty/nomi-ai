@@ -17,6 +17,8 @@ import {
   useAiChatActions,
   useAiChatSelector,
 } from '../../contexts/aiChatStore';
+import { useNextDelegate } from '../../hooks/useNextDelegate';
+import { delegateClient, setNextDelegate, type DelegateCli } from '../../services/delegateClient';
 import { extClient } from '../../services/extClient';
 import { kbClient } from '../../services/kbClient';
 import { memClient } from '../../services/memClient';
@@ -37,10 +39,12 @@ import {
   matchShortcut,
   useShortcutBindings,
 } from '../../services/shortcuts';
+import { agentArgQuery, filterAgents, type AgentOption } from '../../slash/agentComplete';
 import { argPhase, paletteQuery } from '../../slash/parse';
 import { buildRegistry, findCommand, flattenGroups, searchCommands } from '../../slash/registry';
 import type { SlashBridge, SlashCommand } from '../../slash/types';
 import type { ConvMessage } from '../../types/conversation';
+import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { CYCLE_PERMISSION_EVENT, type CyclePermissionDetail } from '../../utils/permissionModes';
 import { AppIcon, FEATURE_ICONS } from '../AppIcons';
 import { EndpointControls, PermissionTip } from '../EndpointControls';
@@ -48,7 +52,7 @@ import { ErrorHint } from '../ErrorHint';
 import { ComposerChangesPill } from '../SessionWorkspace/ComposerChangesPill';
 import { ContextUsageBar } from '../SessionWorkspace/ContextUsageBar';
 import type { SettingsSection } from '../SettingsView/sections';
-import { SlashPalette } from '../SlashPalette';
+import { AgentPalette, SlashPalette } from '../SlashPalette';
 import { VoiceButtons, VoiceSettingsModal, VoiceStatusRow, useChatVoice } from '../VoiceInput';
 
 import { ImageLightbox } from './ImageLightbox';
@@ -105,7 +109,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   busyOverride,
   imageCapability,
   imageUnsupportedReason,
-  placeholder = tr('输入消息...'),
+  placeholder = tr('ui.knowledge-local.type-a-message'),
   queue,
   disabled = false,
   onProvidersClick,
@@ -127,6 +131,11 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   const [slashIdx, setSlashIdx] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
   const [isComposing, setIsComposing] = useState(false);
+  const [agentIdx, setAgentIdx] = useState(0);
+  /** 按 Esc 关掉助手列表时的输入；输入一变就重新出现 */
+  const [agentClosed, setAgentClosed] = useState<string | null>(null);
+  /** `/agent ` 补全用的已安装编程助手（委派设置里的检测结果）；null = 还没读到 */
+  const [agentInstalled, setAgentInstalled] = useState<DelegateCli[] | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // 列向 flex 里 flex:1 的基准高度是 0，行内 height 不生效，所以这里按内容写回，并封顶。
   useLayoutEffect(() => {
@@ -161,6 +170,8 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   const streaming = useAiChatSelector(selectStreaming);
   const chatError = useAiChatSelector(selectError);
   // 知识库问答模式（Ctrl/Cmd+Shift+K 切换），记住上次的选择
+  // `/cli 名字`：下一个需求交给哪个编程助手（输入栏上的 chip，点 × 取消）
+  const nextDelegate = useNextDelegate();
   const [kbMode, setKbMode] = useState(() => {
     try {
       return localStorage.getItem('cd.chat.kbMode') === '1';
@@ -205,7 +216,8 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     setImgErr('');
     setImages((cur) => {
       const next = [...cur, ...list];
-      if (next.length > MAX_ATTACHMENTS) setImgErr(tr('最多附 {0} 张图片', MAX_ATTACHMENTS));
+      if (next.length > MAX_ATTACHMENTS)
+        setImgErr(tr('ui.knowledge-local.up-to-images', MAX_ATTACHMENTS));
       return next.slice(0, MAX_ATTACHMENTS);
     });
     requestAnimationFrame(() => textareaRef.current?.focus());
@@ -235,7 +247,8 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
       const a = await screenClient.snip();
       if (a) {
         addImages([a]);
-        if (!textareaRef.current?.value) setMessage(tr('这张截图里是什么？'));
+        if (!textareaRef.current?.value)
+          setMessage(tr('ui.knowledge-local.what-s-in-this-screenshot'));
       }
     } catch (e) {
       setImgErr((e as Error).message);
@@ -248,7 +261,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     () =>
       screenClient.onAttachment((a) => {
         addImages([a]);
-        setMessage((m) => m || tr('这张截图里是什么？'));
+        setMessage((m) => m || tr('ui.knowledge-local.what-s-in-this-screenshot'));
       }),
     [addImages],
   );
@@ -285,7 +298,9 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   const visionWarn = images.length > 0 && !(visionKnown ?? likelyVision(chatModel));
 
   const handleSend = async () => {
-    let trimmedMessage = message.trim() || (images.length ? tr('请看看这张图片。') : '');
+    let trimmedMessage =
+      message.trim() ||
+      (images.length ? tr('ui.knowledge-local.please-take-a-look-at-this-image') : '');
     if (!trimmedMessage) return;
     // 斜杠命令：原生命令 / 未知命令 / 自定义命令都在这里被接管；`//x` 转义成普通文字 `/x`
     if (slash && !images.length && trimmedMessage.startsWith('/')) {
@@ -315,7 +330,10 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
       setImages([]);
       setImgErr('');
       if (sendImages.length && imageCapability === 'none') {
-        setImgErr(imageUnsupportedReason ?? tr('当前模型不支持图片，请去掉图片后再发。'));
+        setImgErr(
+          imageUnsupportedReason ??
+            tr('ui.session-workspace.the-current-model-doesn-t-support-images-remove'),
+        );
         setImages(sendImages);
         setMessage(trimmedMessage);
       } else if (sendImages.length && onSend && busyOverride !== undefined) {
@@ -337,7 +355,38 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     // 处理输入法组合状态
-    if (isComposing) return;
+    if (isComposing || e.nativeEvent.isComposing) return;
+
+    // `/agent ` 后选编程助手：↑↓ 选择，Enter / Tab 选用，Esc 关闭列表
+    if (agentOpen) {
+      const n = agentOptions.length;
+      if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && n) {
+        e.preventDefault();
+        const d = e.key === 'ArrowDown' ? 1 : -1;
+        setAgentIdx((i) => (i + d + n) % n);
+        return;
+      }
+      const o = agentOptions[Math.min(agentIdx, n - 1)];
+      // 名字已经敲全（如 `/agent codex`）时 Enter 照常执行命令，不再拦下补全
+      const typed = (agentQuery ?? '').toLowerCase();
+      const exact = !!typed && agentOptions.some((x) => x.id === typed);
+      if ((e.key === 'Enter' && !e.shiftKey && !exact) || (e.key === 'Tab' && !e.shiftKey)) {
+        if (o?.installed) {
+          e.preventDefault();
+          pickAgent(o);
+          return;
+        }
+        if (e.key === 'Tab') {
+          e.preventDefault();
+          return;
+        }
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setAgentClosed(message);
+        return;
+      }
+    }
 
     // 斜杠命令：↑↓ 选择，Enter 执行（需要参数的先补全），Tab 补全，Esc 关闭
     if (slashOpen) {
@@ -405,6 +454,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setMessage(e.target.value);
     setSlashIdx(0);
+    setAgentIdx(0);
     // 刚敲下 `/`：重新读一次项目 / 用户命令目录（文件可能刚被改过）
     if (e.target.value === '/') slash?.refresh();
   };
@@ -461,7 +511,9 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     {
       id: 'kb',
       icon: <AppIcon icon={FEATURE_ICONS.kb} />,
-      label: kbMode ? tr('知识库问答：开') : tr('知识库问答：关'),
+      label: kbMode
+        ? tr('ui.knowledge-local.knowledge-base-q-a-on')
+        : tr('ui.knowledge-local.knowledge-base-q-a-off'),
       hint: formatCombo(bindings.kbAsk),
       testId: 'kb-mode-toggle',
       menu: true,
@@ -472,7 +524,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     {
       id: 'snip',
       icon: <AppIcon icon={FEATURE_ICONS.snip} />,
-      label: tr('截图提问'),
+      label: tr('ui.knowledge-local.ask-about-a-screenshot'),
       hint: formatCombo(bindings.snip),
       testId: 'snip-button',
       menu: true,
@@ -482,7 +534,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     {
       id: 'model',
       icon: <AppIcon icon={FEATURE_ICONS.model} />,
-      label: tr('供应商与模型'),
+      label: tr('ui.knowledge-local.providers-models'),
       testId: 'open-providers',
       menu: true,
       run: () => openModels(),
@@ -491,8 +543,8 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     {
       id: 'voice',
       icon: <AppIcon icon={FEATURE_ICONS.voice} />,
-      label: tr('语音设置'),
-      hint: tr('F2 说话'),
+      label: tr('ui.knowledge-local.voice-settings'),
+      hint: tr('ui.knowledge-local.f2-to-talk'),
       testId: 'open-voice-settings',
       run: () => cv.setShowSettings(true),
       show: cv.v.available,
@@ -500,7 +552,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     {
       id: 'hub',
       icon: <AppIcon icon={FEATURE_ICONS.hub} />,
-      label: tr('知识 · 记忆 · 日程'),
+      label: tr('ui.chat-settings.knowledge-memory-schedule'),
       hint: formatCombo(bindings.hub),
       testId: 'open-hub-panel',
       run: () => onHubClick?.(),
@@ -509,7 +561,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     {
       id: 'screen',
       icon: <AppIcon icon={FEATURE_ICONS.screen} />,
-      label: tr('截图与屏幕记忆'),
+      label: tr('ui.knowledge-local.screenshots-screen-memory'),
       hint: formatCombo(bindings.screen),
       testId: 'open-screen-panel',
       run: () => onScreenClick?.(),
@@ -518,7 +570,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     {
       id: 'ext',
       icon: <AppIcon icon={FEATURE_ICONS.ext} />,
-      label: tr('扩展：MCP 与技能'),
+      label: tr('ui.foundation.extensions-mcp-skills'),
       hint: formatCombo(bindings.ext),
       testId: 'open-ext-panel',
       run: () => onExtClick?.(),
@@ -527,7 +579,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     {
       id: 'desktop',
       icon: <AppIcon icon={FEATURE_ICONS.desktop} />,
-      label: tr('桌面能力'),
+      label: tr('ui.foundation.desktop-abilities'),
       testId: 'open-desktop-panel',
       run: () => onDesktopClick?.(),
       show: !!onDesktopClick,
@@ -535,7 +587,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     {
       id: 'local',
       icon: <AppIcon icon={FEATURE_ICONS.local} />,
-      label: tr('本地中心（辅助）'),
+      label: tr('ui.knowledge-local.local-hub-helpers'),
       hint: formatCombo(bindings.local),
       testId: 'open-local-panel',
       run: () => onLocalClick?.(),
@@ -544,7 +596,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     {
       id: 'settings',
       icon: <AppIcon icon={FEATURE_ICONS.settings} />,
-      label: tr('全部设置…'),
+      label: tr('ui.knowledge-local.all-settings'),
       hint: formatCombo(bindings.settings),
       testId: 'composer-settings',
       run: () => onSettingsClick?.(),
@@ -582,10 +634,32 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
       ? slashQuery
       : undefined;
   const slashOpen = slashQuery !== null && (slashFlat.length > 0 || (!!slash && slashQuery !== ''));
+  const agentQuery = slash ? agentArgQuery(message, registry) : null;
+  const agentOptions = agentQuery === null ? [] : filterAgents(agentInstalled, agentQuery);
+  const agentOpen = agentQuery !== null && agentClosed !== message;
+  function pickAgent(o: AgentOption) {
+    const a = argPhase(message);
+    if (!a) return;
+    setMessage(`/${a.name} ${o.id} `);
+    setAgentIdx(0);
+    textareaRef.current?.focus();
+  }
+  const agentPhase = agentQuery !== null;
+  useEffect(() => {
+    if (!agentPhase || !delegateClient.available()) return;
+    let live = true;
+    void delegateClient
+      .settings()
+      .then((v) => live && setAgentInstalled(Array.isArray(v?.installed) ? v.installed : []))
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [agentPhase]);
   const argState = slash ? argPhase(message) : null;
   const argCmd = argState ? findCommand(registry, argState.name) : null;
   // 命令名已定、正在输参数：显示参数提示
-  const argHint = argCmd?.args && !argCmd.disabled && !argState?.args ? argCmd : null;
+  const argHint = argCmd?.args && !argCmd.disabled && !argState?.args && !agentOpen ? argCmd : null;
   function runCommand(c: Cmd | undefined) {
     if (!c) return;
     setMenuOpen(false);
@@ -659,7 +733,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
       {viewing && images.some((x) => x.id === viewing.id) && (
         <ImageLightbox image={viewing} onClose={closeViewer} />
       )}
-      {contextMessages ? <ComposerChangesPill messages={contextMessages} /> : null}
+      {contextMessages?.length ? <ComposerChangesPill messages={contextMessages} /> : null}
       <div
         className={`${styles.inputWrapper} ${dragOver ? styles.dragOver : ''}`}
         onDragOver={(e) => {
@@ -688,6 +762,14 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
             onHover={setSlashIdx}
           />
         )}
+        {agentOpen && (
+          <AgentPalette
+            options={agentOptions}
+            active={Math.min(agentIdx, Math.max(0, agentOptions.length - 1))}
+            onPick={pickAgent}
+            onHover={setAgentIdx}
+          />
+        )}
         {argHint?.args && (
           <div className={styles.slashHint} data-testid="slash-arg-hint">
             <code>
@@ -703,16 +785,20 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
                 <button
                   type="button"
                   className={styles.attachOpen}
-                  aria-label={tr('查看图片')}
+                  aria-label={tr('ui.knowledge-local.view-image')}
                   data-testid="attach-open"
                   onClick={() => setViewing(i)}
                 >
-                  <img src={i.thumb} alt={tr('附件图片')} className={styles.attachThumb} />
+                  <img
+                    src={i.thumb}
+                    alt={tr('ui.knowledge-local.attached-image')}
+                    className={styles.attachThumb}
+                  />
                 </button>
                 <button
                   type="button"
                   className={styles.attachRemove}
-                  aria-label={tr('移除图片')}
+                  aria-label={tr('ui.knowledge-local.remove-image')}
                   onClick={() => setImages((c) => c.filter((x) => x.id !== i.id))}
                 >
                   <Icon icon={X} size={12} />
@@ -724,11 +810,11 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
                 <span className={styles.attachErr}>{imgErr}</span>
               ) : visionWarn ? (
                 <span className={styles.attachWarn} data-testid="vision-warn">
-                  {tr('当前模型可能不支持看图，建议切换到视觉模型（如 qwen2.5vl、llava、gpt-4o）')}
+                  {tr('ui.knowledge-local.the-current-model-may-not-support-images-consider')}
                 </span>
               ) : (
                 <span className={styles.attachHint}>
-                  {tr('图片将随这条消息发送 · 原图不会保存在聊天记录里')}
+                  {tr('ui.knowledge-local.images-are-sent-with-this-message-originals-aren')}
                 </span>
               )}
             </div>
@@ -750,16 +836,16 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
           }}
           placeholder={
             queue && busy
-              ? tr('运行中，继续输入会排队，完成后自动发送…')
+              ? tr('ui.usage-tools.running-keep-typing-to-queue-it-will-send')
               : busyOverride !== undefined
                 ? placeholder
                 : kbMode && kbAvailable
-                  ? tr('向知识库提问，回答会标注出处…')
+                  ? tr('ui.knowledge-local.ask-the-knowledge-base-answers-include-citations')
                   : placeholder
           }
           disabled={isDisabled}
           className={styles.messageTextarea}
-          aria-label={tr('消息输入框')}
+          aria-label={tr('ui.mascot-theme.message-input')}
           data-testid="chat-input"
           rows={1}
         />
@@ -773,8 +859,8 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
                 onClick={() => setMenuOpen((v) => !v)}
                 aria-haspopup="menu"
                 aria-expanded={menuOpen}
-                title={tr('更多：知识库问答、截图、模型、设置（也可输入 / ）')}
-                aria-label={tr('更多功能')}
+                title={tr('ui.knowledge-local.more-knowledge-base-q-a-screenshot-models-settings')}
+                aria-label={tr('ui.knowledge-local.more')}
                 data-testid="composer-more"
               >
                 <Icon icon={Plus} />
@@ -790,11 +876,30 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
                 type="button"
                 className={styles.chip}
                 onClick={toggleKb}
-                title={tr('知识库问答已开启，点击关闭')}
+                title={tr('ui.knowledge-local.knowledge-base-q-a-is-on-click-to')}
                 data-testid="kb-mode-chip"
               >
                 <Icon icon={BookOpen} size={14} />
-                {tr('知识库')}
+                {tr('ui.foundation.knowledge-base')}
+              </button>
+            )}
+            {nextDelegate && (
+              <button
+                type="button"
+                className={styles.chip}
+                onClick={() => setNextDelegate(null)}
+                title={tr(
+                  'ui.session-workspace.your-next-request-goes-to-click-to-cancel',
+                  tr(ENDPOINT_NAME[nextDelegate]),
+                )}
+                aria-label={tr(
+                  'ui.session-workspace.cancel-next-request-goes-to',
+                  tr(ENDPOINT_NAME[nextDelegate]),
+                )}
+                data-testid="next-delegate-chip"
+              >
+                {tr('ui.session-workspace.to', tr(ENDPOINT_NAME[nextDelegate]))}
+                <Icon icon={X} size={12} />
               </button>
             )}
             {onPluginsClick && (
@@ -802,8 +907,8 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
                 type="button"
                 className={styles.iconButton}
                 onClick={onPluginsClick}
-                title={tr('插件 / 命令：当前端的命令、Skills、插件、MCP（也可输入 /）')}
-                aria-label={tr('插件 / 命令')}
+                title={tr('ui.slash-commands.plugins-commands-commands-skills-plugins-and-mcp-for')}
+                aria-label={tr('ui.slash-commands.plugins-commands')}
                 data-testid="plugin-panel-open"
               >
                 <Icon icon={Blocks} size={16} />
@@ -815,7 +920,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
           </div>
           <div className={styles.composerRight} data-zone="right">
             <VoiceButtons cv={cv} disabled={disabled} />
-            {contextMessages ? (
+            {contextMessages?.length ? (
               <ContextUsageBar messages={contextMessages} model={contextModel} />
             ) : null}
             {canStop ? (
@@ -823,8 +928,8 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
                 type="button"
                 onClick={stopFn}
                 className={styles.sendButton}
-                title={tr('停止生成')}
-                aria-label={tr('停止生成')}
+                title={tr('ui.usage-tools.stop-generating')}
+                aria-label={tr('ui.usage-tools.stop-generating')}
                 data-testid="stop-button"
               >
                 <Icon icon={Square} />
@@ -834,8 +939,14 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
                 onClick={handleSend}
                 disabled={isDisabled || (!message.trim() && !images.length)}
                 className={styles.sendButton}
-                title={queue && busy ? tr('排队发送 (Enter)') : tr('发送消息 (Enter)')}
-                aria-label={queue && busy ? tr('排队') : tr('发送')}
+                title={
+                  queue && busy
+                    ? tr('ui.usage-tools.queue-message-enter')
+                    : tr('ui.knowledge-local.send-message-enter')
+                }
+                aria-label={
+                  queue && busy ? tr('ui.usage-tools.queue') : tr('ui.knowledge-local.send')
+                }
                 data-testid={queue && busy ? 'queue-button' : 'send-button'}
               >
                 {queue && busy ? (

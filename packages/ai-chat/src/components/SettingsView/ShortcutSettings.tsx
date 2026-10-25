@@ -23,8 +23,8 @@ import styles from './index.module.css';
 import { SectionPage } from './SectionPage';
 
 const SHORTCUT_TABS = [
-  { id: 'app', label: '应用内快捷键' },
-  { id: 'global', label: '全局快捷键' },
+  { id: 'app', label: 'ui.chat-settings.in-app-shortcuts' },
+  { id: 'global', label: 'ui.chat-settings.global-shortcuts' },
 ] as const;
 type ShortcutTab = (typeof SHORTCUT_TABS)[number]['id'];
 
@@ -66,7 +66,7 @@ export const ShortcutSettings: React.FC = () => {
   return (
     <SectionPage
       testId="settings-shortcuts-page"
-      tabsLabel="快捷键分区"
+      tabsLabel="ui.chat-settings.shortcut-sections"
       tabs={SHORTCUT_TABS}
       value={tab}
       onChange={(x) => {
@@ -76,12 +76,14 @@ export const ShortcutSettings: React.FC = () => {
     >
       {tab === 'global' ? (
         <section className={styles.block} data-testid="settings-shortcuts-global">
-          <p className={styles.note}>{t('全局快捷键由系统注册，Nomi 不在前台时也能触发。')}</p>
+          <p className={styles.note}>
+            {t('ui.chat-settings.global-shortcuts-are-registered-with-the-system-and')}
+          </p>
           <table className={styles.shortcutTable}>
             <thead>
               <tr>
-                <th scope="col">{t('快捷键')}</th>
-                <th scope="col">{t('功能')}</th>
+                <th scope="col">{t('ui.chat-settings.shortcuts')}</th>
+                <th scope="col">{t('ui.chat-settings.action')}</th>
               </tr>
             </thead>
             <tbody>
@@ -105,7 +107,7 @@ export const ShortcutSettings: React.FC = () => {
               data-testid="shortcut-conflict-banner"
             >
               {t(
-                '检测到快捷键冲突：{0}。在下方对应行点「修改」换一个组合键。',
+                'ui.chat-settings.shortcut-conflict-detected-click-edit-on-that-row',
                 SHORTCUT_DEFS.filter((d) => conflicts[d.id])
                   .map((d) => `${t(d.label)}（${formatCombo(bindings[d.id])}）`)
                   .join('、'),
@@ -113,15 +115,15 @@ export const ShortcutSettings: React.FC = () => {
             </div>
           )}
           <p className={styles.note}>
-            {t('点击「修改」后按下新的组合键（需包含 ⌘/Ctrl 或 Alt，或使用 F1–F12）；Esc 取消。')}
+            {t('ui.mascot-theme.click-change-then-press-the-new-key-combination')}
           </p>
           <table className={styles.shortcutTable}>
             <thead>
               <tr>
-                <th scope="col">{t('功能')}</th>
-                <th scope="col">{t('快捷键')}</th>
+                <th scope="col">{t('ui.chat-settings.action')}</th>
+                <th scope="col">{t('ui.chat-settings.shortcuts')}</th>
                 <th scope="col" className={styles.shortcutActions}>
-                  {t('操作')}
+                  {t('ui.foundation.action')}
                 </th>
               </tr>
             </thead>
@@ -139,11 +141,13 @@ export const ShortcutSettings: React.FC = () => {
                         data-testid={`shortcut-combo-${d.id}`}
                         data-shortcut-recording={rec ? 'true' : undefined}
                       >
-                        {rec ? t('请按下新的组合键…') : formatCombo(bindings[d.id])}
+                        {rec
+                          ? t('ui.mascot-theme.press-the-new-key-combination')
+                          : formatCombo(bindings[d.id])}
                       </kbd>
                       {rec && invalid && (
                         <div className={styles.warn} role="alert">
-                          {t('需要包含 ⌘/Ctrl 或 Alt（或使用 F1–F12）')}
+                          {t('ui.mascot-theme.must-include-ctrl-or-alt-or-use-f1')}
                         </div>
                       )}
                       {!rec && c && (
@@ -153,9 +157,13 @@ export const ShortcutSettings: React.FC = () => {
                           data-testid={`shortcut-conflict-${d.id}`}
                         >
                           {c.with.length > 0 &&
-                            t('与「{0}」冲突，只有一个会生效', c.with.map(labelOf).join('、'))}
+                            t(
+                              'ui.mascot-theme.conflicts-with-only-one-will-work',
+                              c.with.map(labelOf).join('、'),
+                            )}
                           {c.with.length > 0 && c.reserved && ' · '}
-                          {c.reserved && t('与系统快捷键「{0}」冲突', t(c.reserved))}
+                          {c.reserved &&
+                            t('ui.mascot-theme.conflicts-with-the-system-shortcut', t(c.reserved))}
                         </div>
                       )}
                     </td>
@@ -164,23 +172,26 @@ export const ShortcutSettings: React.FC = () => {
                         size="sm"
                         variant="ghost"
                         data-testid={`shortcut-edit-${d.id}`}
-                        aria-label={t('修改「{0}」的快捷键', t(d.label))}
+                        aria-label={t('ui.mascot-theme.change-the-shortcut-for', t(d.label))}
                         onClick={() => {
                           setInvalid(false);
                           setRecording(rec ? null : d.id);
                         }}
                       >
-                        {rec ? t('取消') : t('修改')}
+                        {rec ? t('ui.foundation.cancel') : t('ui.mascot-theme.change')}
                       </Button>
                       {custom && !rec && (
                         <Button
                           size="sm"
                           variant="ghost"
                           data-testid={`shortcut-reset-${d.id}`}
-                          aria-label={t('恢复「{0}」的默认快捷键', t(d.label))}
+                          aria-label={t(
+                            'ui.mascot-theme.restore-the-default-shortcut-for',
+                            t(d.label),
+                          )}
                           onClick={() => setBinding(d.id, null)}
                         >
-                          {t('恢复默认')}
+                          {t('ui.providers-schedule.restore-defaults')}
                         </Button>
                       )}
                     </td>
@@ -194,7 +205,7 @@ export const ShortcutSettings: React.FC = () => {
                     <kbd className={styles.kbd}>{t(k)}</kbd>
                   </td>
                   <td className={styles.shortcutActions}>
-                    <span className={styles.note}>{t('固定')}</span>
+                    <span className={styles.note}>{t('ui.knowledge-local.pin')}</span>
                   </td>
                 </tr>
               ))}
@@ -202,7 +213,7 @@ export const ShortcutSettings: React.FC = () => {
           </table>
           {anyCustom && (
             <Button size="sm" onClick={resetBindings} data-testid="shortcut-reset-all">
-              {t('全部恢复默认')}
+              {t('ui.mascot-theme.restore-all-defaults')}
             </Button>
           )}
         </section>

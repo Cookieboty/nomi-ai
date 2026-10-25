@@ -3,7 +3,7 @@
  * 数据来自主进程 UsageService（ai:usage:*）；全部只存本机。
  */
 import { Button, EmptyState, ErrorState, Notice, Skeleton, Tabs, t } from '@nomi-ai/ui';
-import { Coins, RefreshCw } from 'lucide-react';
+import { Activity, Coins, RefreshCw } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import {
@@ -20,16 +20,18 @@ import { AppIcon } from '../AppIcons';
 import { Budget } from './Budget';
 import { Details, type DetailRange } from './Details';
 import { listSep } from './format';
-import { GatewayRequests } from './GatewayRequests';
 import styles from './index.module.css';
 import { Overview } from './Overview';
 import { Pricing } from './Pricing';
 import { QuotaCard } from './Quota';
 import type { Fx } from './shared';
 
-type Tab = 'overview' | 'details' | 'requests' | 'quota' | 'pricing' | 'budget';
+type Tab = 'overview' | 'details' | 'quota' | 'pricing' | 'budget';
 
-export const UsagePanel: React.FC = () => {
+export const UsagePanel: React.FC<{
+  /** 跳到「设置 → 模型质量 → 请求明细」（原「最近请求」） */
+  onOpenRequests?: () => void;
+}> = ({ onOpenRequests }) => {
   const [tab, setTab] = useState<Tab>('overview');
   const [range, setRange] = useState<UsageRangeId>('7d');
   const [state, setState] = useState<UsageState | null>(null);
@@ -83,8 +85,8 @@ export const UsagePanel: React.FC = () => {
       <section className={styles.root} data-testid="settings-usage">
         <EmptyState
           icon={Coins}
-          title={t('用量统计仅在桌面应用中提供')}
-          description={t('Token 用量与费用统计依赖本机主进程，网页预览中不可用。')}
+          title={t('ui.usage-tools.usage-statistics-are-only-available-in-the-desktop')}
+          description={t('ui.usage-tools.token-usage-and-cost-statistics-rely-on-the')}
         />
       </section>
     );
@@ -99,24 +101,24 @@ export const UsagePanel: React.FC = () => {
   return (
     <section className={styles.root} data-testid="settings-usage">
       <header className={styles.head}>
-        <h2 className={styles.h2}>{t('用量与费用')}</h2>
+        <h2 className={styles.h2}>{t('ui.usage-tools.usage-cost')}</h2>
         <span className={styles.grow} />
         {/* 订阅额度卡片里的「本期用量」也按这个范围统计 */}
         {(tab === 'overview' || tab === 'quota') && (
           <Tabs<UsageRangeId>
-            aria-label={t('统计时间范围')}
+            aria-label={t('ui.usage-tools.statistics-time-range')}
             value={range}
             onChange={setRange}
             items={[
-              { value: 'today', label: t('今日') },
-              { value: '7d', label: t('7 天') },
-              { value: '30d', label: t('30 天') },
-              { value: '90d', label: t('90 天') },
+              { value: 'today', label: t('ui.usage-tools.today') },
+              { value: '7d', label: t('ui.usage-tools.7-days') },
+              { value: '30d', label: t('ui.usage-tools.30-days') },
+              { value: '90d', label: t('ui.usage-tools.90-days') },
             ]}
           />
         )}
         <Tabs<'USD' | 'CNY'>
-          aria-label={t('币种')}
+          aria-label={t('ui.usage-tools.currency')}
           value={fx.currency}
           onChange={setCurrency}
           items={[
@@ -129,21 +131,21 @@ export const UsagePanel: React.FC = () => {
           onClick={() => void scan()}
           disabled={scanning}
           data-testid="usage-scan"
-          aria-label={t('重新扫描本机日志')}
-          title={t('重新扫描本机日志')}
+          aria-label={t('ui.usage-tools.rescan-local-logs')}
+          title={t('ui.usage-tools.rescan-local-logs')}
         >
           <AppIcon icon={RefreshCw} />
-          {t('刷新')}
+          {t('ui.knowledge-local.refresh')}
         </Button>
       </header>
       <p className={styles.sub}>
-        {t('统计 Nomi 对话与本机编程工具的 Token 用量和预估费用。数据只保存在这台电脑上，不上传。')}
+        {t('ui.usage-tools.token-usage-and-estimated-cost-of-nomi-chats')}
         {state && state.detected.length > 0 && (
           <>
             {' '}
             {t(
-              '已检测到本机工具：{0}。',
-              state.detected.map((s) => USAGE_SOURCE_LABEL[s] ?? s).join(listSep()),
+              'ui.usage-tools.detected-local-tools',
+              state.detected.map((s) => t(USAGE_SOURCE_LABEL[s] ?? s)).join(listSep()),
             )}
           </>
         )}
@@ -151,25 +153,38 @@ export const UsagePanel: React.FC = () => {
       {state?.persist?.degraded && (
         <Notice tone="warning" data-testid="usage-persist-degraded">
           {t(
-            '用量记录暂时写不进磁盘：{0} 条记录先保存在内存里，会自动重试。请检查磁盘空间和权限；恢复之前退出应用，这些记录可能丢失。',
+            'ui.usage-tools.usage-records-can-t-be-written-to-disk',
             String(state.persist.pendingRecords),
           )}
         </Notice>
       )}
 
-      <Tabs<Tab>
-        aria-label={t('用量分区')}
-        value={tab}
-        onChange={setTab}
-        items={[
-          { value: 'overview', label: t('概览') },
-          { value: 'details', label: t('明细') },
-          { value: 'requests', label: t('最近请求') },
-          { value: 'quota', label: t('订阅额度') },
-          { value: 'pricing', label: t('价格') },
-          { value: 'budget', label: t('预算与隐私') },
-        ]}
-      />
+      <div className={styles.head}>
+        <Tabs<Tab>
+          aria-label={t('ui.usage-tools.usage-sections')}
+          value={tab}
+          onChange={setTab}
+          items={[
+            { value: 'overview', label: t('ui.usage-tools.overview') },
+            { value: 'details', label: t('ui.usage-tools.details') },
+            { value: 'quota', label: t('ui.usage-tools.subscription-quota') },
+            { value: 'pricing', label: t('ui.usage-tools.pricing') },
+            { value: 'budget', label: t('ui.usage-tools.budget-and-privacy') },
+          ]}
+        />
+        {onOpenRequests && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onOpenRequests}
+            data-testid="usage-open-requests"
+            title={t('ui.model-quality.gateway-request-success-rate-latency-and-per-request')}
+          >
+            <AppIcon icon={Activity} />
+            {t('ui.model-quality.recent-requests-model-quality')}
+          </Button>
+        )}
+      </div>
 
       {err && !state ? (
         <ErrorState detail={err} onRetry={() => void refresh()} />
@@ -182,7 +197,7 @@ export const UsagePanel: React.FC = () => {
         <>
           {!state.settings.enabled && (
             <Notice tone="warning" data-testid="usage-disabled">
-              {t('用量统计已关闭，新的调用不会被记录。')}
+              {t('ui.usage-tools.usage-statistics-are-off-new-calls-are-not')}
             </Notice>
           )}
           {err && <p className={styles.err}>{err}</p>}
@@ -202,7 +217,6 @@ export const UsagePanel: React.FC = () => {
           )}
           {tab === 'quota' && <QuotaCard usageBySource={data.bySource} fx={fx} />}
           {tab === 'details' && <Details fx={fx} range={detailRange} onRange={setDetailRange} />}
-          {tab === 'requests' && <GatewayRequests />}
           {tab === 'pricing' && (
             <Pricing
               state={state}

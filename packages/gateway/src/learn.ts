@@ -6,9 +6,14 @@
  *   主进程用单协议探测确认后才写 wireDown；
  * - 模型不支持这个接口：报 modelWire（这个模型能走的协议），换 wire 重试；
  * - 可选字段被拒：报 droppedParams，去掉该字段重试。
+ * - 错误修正器（§6.9.8，route/rectifiers.ts）：思考预算 / 档位不合法 → 改一处只重试一次；
+ *   档位被拒时报 model-efforts（这个模型还能用的档位，带目录版本，主进程存成有有效期的结论）。
  * 中转站的错误体最不规范，所以判断偏保守：认不出来的一律不学。
  */
 import type { Wire } from './ir';
+import { CATALOG_VERSION } from './models/catalog';
+import type { Effort } from './models/types';
+import { rectifierFor, remainingEfforts, type RectifyFix } from './route/rectifiers';
 import type { Candidate } from './route/resolve';
 
 export type LearnEvent =
@@ -16,12 +21,25 @@ export type LearnEvent =
   | { type: 'dropped-param'; providerId: string; wire: Wire; param: string }
   | { type: 'wire-suspect'; providerId: string; wire: Wire; reason: string }
   /** Responses 上游拒绝 custom 工具：主进程把 model 追加到 learned[providerId].customToolsRefused */
-  | { type: 'custom-tools-refused'; providerId: string; model: string };
+  | { type: 'custom-tools-refused'; providerId: string; model: string }
+  /**
+   * 思考档位被拒（§6.9.8）：主进程写 learned[providerId].models[model] = { at, catalogVersion, efforts }，
+   * 7 天后或目录升级后失效
+   */
+  | {
+      type: 'model-efforts';
+      providerId: string;
+      model: string;
+      efforts: Effort[];
+      at: number;
+      catalogVersion: string;
+    };
 
 export type Failure =
   | { kind: 'wire-missing' }
   | { kind: 'model-wire' }
   | { kind: 'param'; param: string }
+  | { kind: 'rectify'; fix: RectifyFix; rejected?: Effort }
   | { kind: 'other' };
 
 /** 去掉也不影响语义的可选字段（必需字段永远不学，如 model / messages / tools） */
@@ -38,6 +56,9 @@ const OPTIONAL_PARAMS = [
   'top_logprobs',
   'stream_options',
   'reasoning_effort',
+  // 跨协议时按推理意图写入的字段（intent.ts）；不支持推理的模型拒绝时去掉重试
+  'reasoning',
+  'thinking',
   'include',
   'prediction',
   'modalities',
@@ -62,7 +83,16 @@ const ENDPOINT_WORDS =
 const word = (p: string) => new RegExp(`(^|[^a-z_])${p}([^a-z_]|$)`, 'i');
 
 /** 按状态码与错误体分类；sent 是发给上游的请求体（只在它确实带了那个字段时才认定字段被拒） */
-export function classifyFailure(status: number, text: string, sent: unknown): Failure {
+export function classifyFailure(
+  status: number,
+  text: string,
+  sent: unknown,
+  opts: { applied?: readonly RectifyFix[] } = {},
+): Failure {
+  // 修正器优先（降档比整个去掉推理参数好）；同一种修正已经试过就按普通规则处理
+  const r = rectifierFor(status, text, sent);
+  if (r && !opts.applied?.includes(r.fix))
+    return { kind: 'rectify', fix: r.fix, ...(r.rejected ? { rejected: r.rejected } : {}) };
   const keys =
     sent && typeof sent === 'object' && !Array.isArray(sent)
       ? Object.keys(sent as Record<string, unknown>)
@@ -123,9 +153,24 @@ export class Learner {
   }
 
   /** 记一次失败，返回这次请求该怎么重试（null = 不按学习重试） */
-  failure(c: Candidate, f: Failure): { excludeWire: Wire } | { dropParam: string } | null {
+  failure(
+    c: Candidate,
+    f: Failure,
+  ): { excludeWire: Wire } | { dropParam: string } | { rectify: RectifyFix } | null {
     const now = this.now();
     const pid = c.provider.id;
+    if (f.kind === 'rectify') {
+      if (f.fix === 'effort' && f.rejected)
+        this.onLearn({
+          type: 'model-efforts',
+          providerId: pid,
+          model: modelOf(c),
+          efforts: remainingEfforts(f.rejected, c.model?.reasoning?.efforts),
+          at: now,
+          catalogVersion: CATALOG_VERSION,
+        });
+      return { rectify: f.fix };
+    }
     if (f.kind === 'param') {
       this.onLearn({ type: 'dropped-param', providerId: pid, wire: c.wire, param: f.param });
       return { dropParam: f.param };

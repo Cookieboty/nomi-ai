@@ -70,7 +70,8 @@ import { notifyConversationsChanged } from './services/conversationStore';
 import { desktopClient } from './services/desktopClient';
 import { forkCrossBackend, forkSameBackend } from './services/forkConversation';
 import { harnessClient, type ContextBreakdown } from './services/harnessClient';
-import { watchNomiModel } from './services/nomiModel';
+import { derivedSwitchTip } from './services/modelSwitchTip';
+import { nomiModelLabel, useGatewayState, watchNomiModel } from './services/nomiModel';
 import { providerClient } from './services/providerClient';
 import { screenClient, type ImageAttachment, type ScreenState } from './services/screenClient';
 import {
@@ -115,7 +116,14 @@ const NomiConversation: React.FC<Omit<React.ComponentProps<typeof ConversationVi
   props,
 ) => {
   const live = useAiChatSelector(selectNomiLive, sameLive);
-  return <ConversationView {...props} live={live} />;
+  // 换了 Nomi 的模型、还没发送：和最后一条助手消息的模型比（网关状态变化时重算）
+  useGatewayState();
+  const current = nomiModelLabel();
+  const modelSwitchTip = useMemo(
+    () => derivedSwitchTip(props.messages, current),
+    [props.messages, current],
+  );
+  return <ConversationView {...props} live={live} modelSwitchTip={modelSwitchTip} />;
 };
 
 const FILES_RAIL_W_KEY = 'nomi.filesRailWidth';
@@ -554,7 +562,7 @@ const AiChatContent: React.FC = () => {
         }
         // 激活 / 重载后再广播一次：侧栏列表只在消息数变化时才会自刷新
         notifyConversationsChanged();
-        setToast(t('已分叉为「{0}」', r.title));
+        setToast(t('ui.cli-monitor.forked-as', r.title));
       } catch (e) {
         setToast(e instanceof Error ? e.message : String(e));
       }
@@ -576,7 +584,7 @@ const AiChatContent: React.FC = () => {
           await actions.loadChatHistory();
         }
         notifyConversationsChanged();
-        setToast(t('已分叉到 {0}', r.title));
+        setToast(t('ui.cli-monitor.forked-to', r.title));
       } catch (e) {
         setToast(e instanceof Error ? e.message : String(e));
       }
@@ -708,7 +716,7 @@ const AiChatContent: React.FC = () => {
   }, [openSettings]);
 
   const handleNewChat = () => {
-    actions.newConversation();
+    return actions.newConversation();
   };
 
   const paletteCommands = useMemo<PaletteCommand[]>(
@@ -716,14 +724,14 @@ const AiChatContent: React.FC = () => {
       ...SHORTCUT_DEFS.filter((d) => d.id !== 'palette' && shortcutActions[d.id]).map((d) => ({
         id: d.id,
         label: d.label,
-        group: '操作',
+        group: 'ui.foundation.action',
         hint: formatCombo(bindings[d.id]),
         run: shortcutActions[d.id]!,
       })),
       ...SETTINGS_SECTIONS.map((sec) => ({
         id: `settings-${sec.id}`,
         label: sec.label,
-        group: '设置',
+        group: 'ui.foundation.settings',
         run: () => openSettings(sec.id),
       })),
     ],
@@ -859,7 +867,10 @@ const AiChatContent: React.FC = () => {
                     title={tabs.activeTab?.title}
                   >
                     {tabs.activeTab?.status === 'running' ? (
-                      <span className="chat-compact-title-dot" aria-label={t('运行中')} />
+                      <span
+                        className="chat-compact-title-dot"
+                        aria-label={t('ui.knowledge-local.running')}
+                      />
                     ) : null}
                     <span className="chat-compact-title-text">{tabs.activeTab?.title ?? ''}</span>
                   </div>
@@ -895,14 +906,18 @@ const AiChatContent: React.FC = () => {
                   type="button"
                   className="screen-mem-indicator"
                   onClick={() => setShowScreen(true)}
-                  title={t('屏幕记忆开启中（仅保存在本机），点击管理或暂停')}
+                  title={t('ui.foundation.screen-memory-is-on-stored-only-on-this')}
                   data-testid="screen-mem-indicator"
                 >
                   <span className="screen-mem-dot" />
-                  {t('屏幕记忆中')}
+                  {t('ui.foundation.screen-memory-on')}
                 </button>
               )}
             </ChatHeader>
+            {/* 待带入的新会话前文属于当前对话状态，放在对话区顶部，避免和输入工具混在一起。 */}
+            <div className="session-bar chat-session-bar">
+              <SessionControls />
+            </div>
             {/* 对话区域 */}
             <main className="chat-container">
               {isDev && tabs.isCliTab ? (
@@ -914,10 +929,10 @@ const AiChatContent: React.FC = () => {
                     <div className="welcome-screen" data-testid="cli-tab-empty">
                       <div className="welcome-content">
                         <h2 className="welcome-title">
-                          {t('{0} · 新会话', tabs.activeTab!.title)}
+                          {t('ui.mascot-theme.new-session', tabs.activeTab!.title)}
                         </h2>
                         <p className="welcome-subtitle">
-                          {t('消息会转发给本机编程助手；多个标签可以同时运行。')}
+                          {t('ui.mascot-theme.messages-go-to-the-coding-agent-on-this')}
                         </p>
                       </div>
                     </div>
@@ -946,12 +961,23 @@ const AiChatContent: React.FC = () => {
               ) : messageCount === 0 && slash.cards.length === 0 ? (
                 <div className="welcome-screen" data-testid="welcome-screen">
                   <div className="welcome-content">
-                    <h2 className="welcome-title">{t('今天想做点什么？')}</h2>
+                    <h2 className="welcome-title">
+                      {t('ui.foundation.what-would-you-like-to-do-today')}
+                    </h2>
                     <div className="quick-actions">
                       {[
-                        [t('你好，请介绍一下自己'), t('打个招呼')],
-                        [t('帮我写一段代码'), t('写一段代码')],
-                        [t('帮我整理今天的待办'), t('整理今天的待办')],
+                        [
+                          t('ui.foundation.hi-please-introduce-yourself'),
+                          t('ui.foundation.say-hello'),
+                        ],
+                        [
+                          t('ui.foundation.help-me-write-some-code'),
+                          t('ui.foundation.write-some-code'),
+                        ],
+                        [
+                          t('ui.foundation.help-me-organize-today-s-to-dos'),
+                          t('ui.foundation.organize-today-s-to-dos'),
+                        ],
                       ].map(([prompt, label]) => (
                         <button
                           key={label}
@@ -963,7 +989,7 @@ const AiChatContent: React.FC = () => {
                       ))}
                     </div>
                     <p className="welcome-subtitle">
-                      {t('输入 / 查看命令 · ＋ 打开知识库、语音、模型与设置')}
+                      {t('ui.foundation.type-for-commands-for-knowledge-base-voice-models')}
                     </p>
                   </div>
                 </div>
@@ -1007,10 +1033,6 @@ const AiChatContent: React.FC = () => {
                 onExtClick={openExt}
                 onLocalClick={openLocal}
               />
-              {/* 输入框下方：工作目录与供应商 / 账号（不再浮在消息上方压住正文） */}
-              <div className="session-bar">
-                <SessionControls onManageNomi={() => openSettings('models')} />
-              </div>
             </footer>
           </div>
 
@@ -1026,7 +1048,7 @@ const AiChatContent: React.FC = () => {
                 aria-valuemax={CHAT_COL_W_MAX}
                 onPointerDown={onChatColSplitterDown}
                 onDoubleClick={onChatColSplitterDbl}
-                title={t('拖动调整对话与变更 Diff 宽度；双击恢复默认')}
+                title={t('ui.session-workspace.drag-to-resize-chat-and-diff-double-click')}
               />
               <CenterChangesHost messages={cliConvMessages} cwd={tabs.activeTab.cwd} />
             </>
@@ -1045,7 +1067,7 @@ const AiChatContent: React.FC = () => {
               aria-valuemax={FILES_RAIL_W_MAX}
               onPointerDown={onFilesRailSplitterDown}
               onDoubleClick={onFilesRailSplitterDbl}
-              title={t('拖动调整聊天与工作区宽度；双击恢复默认')}
+              title={t('ui.session-workspace.drag-to-resize-chat-vs-workspace-double-click')}
             />
             <aside
               className="files-rail"

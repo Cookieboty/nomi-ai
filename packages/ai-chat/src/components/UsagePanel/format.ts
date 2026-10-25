@@ -1,9 +1,9 @@
 /** 用量面板的纯格式化 / 换算函数（无 React 依赖，便于单测）。 */
-import { getLocale, t } from '@nomi-ai/ui';
+import { getLocale, t, truncDigits } from '@nomi-ai/ui';
 
-import type { UsageCurrency } from '../../services/usageClient';
+import type { UsageCurrency, UsagePriceSyncResult } from '../../services/usageClient';
 
-/** 1234 → 1.23K，1_234_567 → 1.23M，12_345_678_901 → 12.3B；小于 1000 原样 */
+/** 1234 → 1.23K，1_234_567 → 1.23M，12_345_678_901 → 12.3B；小于 1000 原样。一律抹零，不四舍五入 */
 export function formatTokens(n: number): string {
   if (!Number.isFinite(n)) return '0';
   const v = Math.abs(n);
@@ -13,19 +13,14 @@ export function formatTokens(n: number): string {
     [1e6, 'M'],
     [1e9, 'B'],
   ];
-  const fmt = (x: number, unit: string) => {
-    const txt = x.toFixed(x >= 100 ? 0 : x >= 10 ? 1 : 2);
-    return `${sign}${txt.includes('.') ? txt.replace(/\.?0+$/, '') : txt}${unit}`;
-  };
+  const fmt = (x: number, unit: string) =>
+    `${sign}${truncDigits(x, x >= 100 ? 0 : x >= 10 ? 1 : 2)}${unit}`;
   for (let i = units.length - 1; i >= 0; i--) {
     const [base, unit] = units[i]!;
     if (v < base) continue;
-    // 四舍五入后凑满 1000 就进位（999.9K → 1M）
-    const next = units[i + 1];
-    if (next && Math.round(v / base) >= 1000) return fmt(v / next[0], next[1]);
     return fmt(v / base, unit);
   }
-  return `${sign}${Math.round(v)}`;
+  return `${sign}${Math.floor(v)}`;
 }
 
 /** 完整千分位（明细表、提示） */
@@ -54,10 +49,10 @@ export function sessionUsageText(
   c: UsageCurrency,
   cnyPerUsd: number,
 ): string {
-  const tokens = t('累计 {0} Token', formatTokens(u.tokens));
-  if (u.costUsd == null) return [tokens, t('未定价')].join(' · ');
+  const tokens = t('ui.usage-tools.tokens-in-total', formatTokens(u.tokens));
+  if (u.costUsd == null) return [tokens, t('ui.usage-tools.unpriced')].join(' · ');
   const cost = formatMoney(u.costUsd, c, cnyPerUsd);
-  return [tokens, u.unpriced ? t('{0}（部分模型未定价）', cost) : cost].join(' · ');
+  return [tokens, u.unpriced ? t('ui.usage-tools.some-models-unpriced', cost) : cost].join(' · ');
 }
 
 /** 单价展示（USD / 1M tokens）：保留有效位，去掉多余 0 */
@@ -150,26 +145,43 @@ export const listSep = (): string => (getLocale() === 'en' ? ', ' : '、');
 
 /** 额度窗口名：300 分钟 → 5 小时窗口，10080 → 每周窗口；未知长度用 primary / secondary 兜底 */
 export function quotaWindowLabel(id: string, minutes?: number): string {
-  if (!minutes) return id === 'secondary' ? t('长周期窗口') : t('短周期窗口');
-  if (minutes === 10080) return t('每周窗口');
-  if (minutes < 60) return t('{0} 分钟窗口', Math.round(minutes));
-  if (minutes < 1440) return t('{0} 小时窗口', Number((minutes / 60).toFixed(1)));
-  return t('{0} 天窗口', Number((minutes / 1440).toFixed(1)));
+  if (!minutes)
+    return id === 'secondary' ? t('ui.usage-tools.long-window') : t('ui.usage-tools.short-window');
+  if (minutes === 10080) return t('ui.usage-tools.weekly-window');
+  if (minutes < 60) return t('ui.usage-tools.minute-window', Math.round(minutes));
+  if (minutes < 1440) return t('ui.usage-tools.hour-window', Number((minutes / 60).toFixed(1)));
+  return t('ui.usage-tools.day-window', Number((minutes / 1440).toFixed(1)));
 }
 
 /** 距重置还有多久：「约 2 小时后重置」 */
 export function resetText(resetAt: number, now: number): string {
   const d = Math.max(0, resetAt - now);
-  if (d < 3_600_000) return t('约 {0} 分钟后重置', Math.max(1, Math.round(d / 60_000)));
-  if (d < 86_400_000) return t('约 {0} 小时后重置', Math.round(d / 3_600_000));
-  return t('约 {0} 天后重置', Math.round(d / 86_400_000));
+  if (d < 3_600_000) return t('ui.usage-tools.resets-in-min', Math.max(1, Math.round(d / 60_000)));
+  if (d < 86_400_000) return t('ui.usage-tools.resets-in-h', Math.round(d / 3_600_000));
+  return t('ui.usage-tools.resets-in-d', Math.round(d / 86_400_000));
 }
 
 /** 额度窗口短名（迷你进度条用）：300 分钟 → 5 小时，10080 → 每周 */
 export function quotaWindowShort(id: string, minutes?: number): string {
-  if (!minutes) return id === 'secondary' ? t('长周期') : t('短周期');
-  if (minutes === 10080) return t('每周');
-  if (minutes < 60) return t('{0} 分钟', Math.round(minutes));
-  if (minutes < 1440) return t('{0} 小时', Number((minutes / 60).toFixed(1)));
-  return t('{0} 天', Number((minutes / 1440).toFixed(1)));
+  if (!minutes)
+    return id === 'secondary'
+      ? t('ui.usage-tools.long-window-short')
+      : t('ui.usage-tools.short-window-short');
+  if (minutes === 10080) return t('ui.knowledge-local.weekly');
+  if (minutes < 60) return t('ui.foundation.min', Math.round(minutes));
+  if (minutes < 1440) return t('ui.foundation.h', Number((minutes / 60).toFixed(1)));
+  return t('ui.usage-tools.d', Number((minutes / 1440).toFixed(1)));
+}
+
+/** 模型数据同步（models.dev）失败的原因（用量面板与「模型」页共用） */
+export function syncFailureReason(r: Extract<UsagePriceSyncResult, { ok: false }>): string {
+  const why: Record<string, string> = {
+    network: t('ui.usage-tools.network-unavailable'),
+    timeout: t('ui.usage-tools.connection-timed-out'),
+    http: t('ui.usage-tools.the-server-returned-an-error', r.httpStatus ?? ''),
+    invalid: t('ui.usage-tools.the-returned-price-table-has-an-unexpected-format'),
+    'too-large': t('ui.usage-tools.the-returned-data-is-too-large'),
+    busy: t('ui.usage-tools.a-sync-is-already-running'),
+  };
+  return why[r.reason] ?? r.reason;
 }

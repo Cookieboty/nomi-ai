@@ -1,12 +1,14 @@
 /**
  * 缓存亲和（docs/design/unified-gateway.md §11.2，简化版）。
  * 同一个会话尽量留在上次成功的 (供应商, Key) 上，上游的提示缓存才命中得了。
- * 会话键：prompt_cache_key（Codex）→ x-claude-code-session-id 头 / metadata.user_id 里的 session_id（Claude Code）
- * → x-nomi-tab 头 → hash(system + 第一条 user 消息)。碰撞的后果只是排序偏好不准。
+ * 会话键：按客户端规格的 sessionKey 规则（默认 prompt_cache_key → x-claude-code-session-id 头 →
+ * metadata.user_id 里的 session_id）→ x-nomi-tab 头 → hash(system + 第一条 user 消息)。
+ * 碰撞的后果只是排序偏好不准。
  */
 import { createHash } from 'node:crypto';
 import type { IncomingHttpHeaders } from 'node:http';
 
+import { sessionKeyRules } from './clients/index';
 import type { Wire } from './ir';
 
 export const AFFINITY_MAX = 1000;
@@ -22,6 +24,16 @@ const header = (h: IncomingHttpHeaders, name: string) => {
   const v = h[name];
   return str(Array.isArray(v) ? v[0] : v);
 };
+
+/** 点分路径取值（a.b.c） */
+function pathOf(o: Record<string, unknown>, path: string): unknown {
+  let cur: unknown = o;
+  for (const k of path.split('.')) {
+    if (!cur || typeof cur !== 'object') return undefined;
+    cur = (cur as Record<string, unknown>)[k];
+  }
+  return cur;
+}
 
 /** Claude Code 的 metadata.user_id：新版是 JSON 字符串（带 session_id），旧版是普通字符串 */
 function claudeUserSession(userId: string): string {
@@ -67,18 +79,16 @@ export function sessionKey(
   opts: { hashFallback?: boolean } = {},
 ): string | null {
   const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
+  // 会话键从哪取由客户端规格给出（§5.5 sessionKey）；规格不认识的客户端用默认规则
+  const rules = sessionKeyRules(client || null);
   // 带客户端前缀（亲和 / 归属表按客户端分开）；不传客户端时不带前缀
-  client = client ? `${client}:` : '';
-  const pck = str(b.prompt_cache_key);
-  if (pck) return `${client}pck:${pck}`;
-  const cc = header(headers, 'x-claude-code-session-id');
-  if (cc) return `${client}cc:${cc}`;
-  const meta =
-    b.metadata && typeof b.metadata === 'object' ? (b.metadata as Record<string, unknown>) : null;
-  const uid = str(meta?.user_id);
-  if (uid) return `${client}cc:${claudeUserSession(uid)}`;
+  const pre = client ? `${client}:` : '';
+  for (const r of rules) {
+    const v = r.header ? header(headers, r.header) : r.bodyPath ? str(pathOf(b, r.bodyPath)) : null;
+    if (v) return `${pre}${r.prefix}:${r.parse === 'claude-user' ? claudeUserSession(v) : v}`;
+  }
   const tab = header(headers, 'x-nomi-tab');
-  if (tab) return `${client}tab:${tab}`;
+  if (tab) return `${pre}tab:${tab}`;
   if (opts.hashFallback === false) return null;
   const user = firstUserOf(wire, b);
   if (user === null || user === undefined) return null;

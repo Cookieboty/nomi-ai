@@ -11,21 +11,33 @@ import { interactionSettings } from '@/mascot/interaction/settings';
 const ITEMS: Array<{ key: keyof MascotInteractionConfig; label: string; hint: string }> = [
   {
     key: 'clickThrough',
-    label: '透明区域点击穿透',
-    hint: '只有点在角色身上才会被拦截，其它地方的点击直接落到下面的窗口。',
+    label: 'ui.chat-settings.click-through-transparent-areas',
+    hint: 'ui.chat-settings.only-clicks-on-the-character-itself-are-captured',
   },
   {
     key: 'gravity',
-    label: '重力与落地',
-    hint: '默认关闭：松手后停在你放的位置。开启后会落到任务栏 / Dock 上方，也可以扔出去（会反弹、撞墙）。',
+    label: 'ui.chat-settings.gravity-landing',
+    hint: 'ui.chat-settings.off-by-default-she-stays-where-you-drop',
   },
-  { key: 'wander', label: '偶尔散步', hint: '闲着时沿屏幕底边走一走（约每 20~60 秒一次）。' },
-  { key: 'reactions', label: '触摸反应', hint: '摸头、戳脸、点击、双击时的表情、动作与台词。' },
-  { key: 'globalLook', label: '视线跟随全局鼠标', hint: '鼠标在窗口外时也看向它。' },
+  {
+    key: 'wander',
+    label: 'ui.chat-settings.stroll-occasionally',
+    hint: 'ui.chat-settings.walks-along-the-bottom-of-the-screen-when',
+  },
+  {
+    key: 'reactions',
+    label: 'ui.chat-settings.touch-reactions',
+    hint: 'ui.chat-settings.expressions-motions-and-lines-when-you-pat-her',
+  },
+  {
+    key: 'globalLook',
+    label: 'ui.chat-settings.eyes-follow-the-global-cursor',
+    hint: 'ui.chat-settings.looks-at-the-cursor-even-when-it-s',
+  },
   {
     key: 'bubbleReplies',
-    label: '气泡显示 AI 回复',
-    hint: '对话回复完成后在气泡里显示前一两句，点「查看全文」打开对话窗口。',
+    label: 'ui.chat-settings.show-ai-replies-in-bubble',
+    hint: 'ui.chat-settings.after-a-reply-finishes-the-first-sentence-or',
   },
 ];
 
@@ -39,7 +51,7 @@ export const InteractionSettings: React.FC = () => {
     <Modal
       open
       onClose={() => dispatch({ type: 'SET_PANEL', payload: null })}
-      title={t('互动设置')}
+      title={t('ui.chat-settings.interaction-settings')}
       data-testid="interaction-settings"
     >
       <ul className={styles.settingsList}>
@@ -62,7 +74,7 @@ export const InteractionSettings: React.FC = () => {
           data-testid="interaction-wander-now"
           onClick={() => window.electronAPI?.mascotWindow?.wanderNow()}
         >
-          {t('现在走一走')}
+          {t('ui.chat-settings.take-a-walk-now')}
         </Button>
       </div>
     </Modal>

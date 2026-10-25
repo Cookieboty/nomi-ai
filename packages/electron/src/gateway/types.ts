@@ -16,6 +16,9 @@ export interface GatewayKey {
   wire?: Wire;
   enabled: boolean;
   lastError?: string;
+  /** 这个 Key 的并发上限 / 每分钟请求数（§6.11.3）；不设 = 不限 */
+  maxConcurrency?: number;
+  rpm?: number;
 }
 
 export interface GatewayModel {
@@ -29,6 +32,8 @@ export interface GatewayModel {
   vision?: boolean;
   toolCalling?: boolean;
   metaSource?: 'user' | 'preset' | 'listed' | 'catalog' | 'default';
+  /** 这个模型默认开启长上下文（§12.7.2；只对有标准窗口的模型有意义，标签可单独切换） */
+  longContext?: boolean;
 }
 
 export interface StoredProbe {
@@ -64,6 +69,8 @@ export interface GatewayProvider {
 
 export interface ClientConfig {
   newTabSource?: 'official' | 'thirdParty';
+  /** 官方来源时新标签用的账号 id；`local-<cli>` = 本机登录；null/缺省 = 跟随默认账号（§12） */
+  newTabAccountId?: string | null;
   tokenEnc: string;
   tokenEncryption: KeyEncryption;
   models: ClientModels;
@@ -81,4 +88,8 @@ export interface GatewayStoreData {
   recentNomi?: string[];
   /** 一次性迁移的来源与时间（§6.3） */
   migratedFrom?: { at: number; files: string[] };
+  /** 严格模式（§6.9.6，默认关）：模型不支持的参数直接报错，而不是丢弃并记录 */
+  strictParams?: boolean;
+  /** 入站请求体上限（字节）；不设 = 32 MiB */
+  maxRequestBodyBytes?: number;
 }

@@ -20,7 +20,9 @@ export class ChecksumError extends Error {
     readonly expected: string,
     readonly actual: string,
   ) {
-    super(t('校验失败：期望 {0}…，实际 {1}…', expected.slice(0, 12), actual.slice(0, 12)));
+    super(
+      t('electron.common.checksum-failed-expected-got', expected.slice(0, 12), actual.slice(0, 12)),
+    );
   }
 }
 
@@ -106,7 +108,9 @@ export async function downloadVerified(opts: {
     if (!res.ok || !res.body) {
       // 416：已有部分不可用（例如服务端文件变了）→ 删掉，下次从头
       if (res.status === 416) fs.rmSync(tmp, { force: true, maxRetries: 5, retryDelay: 200 });
-      throw Object.assign(new Error(t('下载失败：HTTP {0}', res.status)), { status: res.status });
+      throw Object.assign(new Error(t('electron.common.download-failed-http', res.status)), {
+        status: res.status,
+      });
     }
     const resumed = offset > 0 && res.status === 206;
     if (!resumed) offset = 0;

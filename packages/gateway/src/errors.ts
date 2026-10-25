@@ -4,13 +4,45 @@
 import type { Wire } from './ir';
 
 export type ErrorKind =
-  'rate_limit' | 'overloaded' | 'auth' | 'invalid' | 'not_found' | 'context' | 'upstream';
+  | 'rate_limit'
+  | 'overloaded'
+  | 'auth'
+  | 'invalid'
+  | 'not_found'
+  | 'context'
+  | 'payload_too_large'
+  | 'upstream'
+  | 'timeout';
+
+/**
+ * 提交前给 CLI 的状态码（docs/design/cli-plugin-architecture.md §6.11.5）：上游的状态码不原样透传，
+ * 避免触发 CLI 的错误行为。
+ * - 上游 401 / 403（供应商 Key 无效）→ 502：Claude Code 等把 401 理解为「请重新登录官方账号」；
+ * - 重定向 → 502（网关不跟随）；
+ * - 429 → 429（CLI 按自己的退避重试，Retry-After 照转）；
+ * - 其余 4xx → 原样（让用户看到真实原因）；
+ * - 504（首字节前超时）→ 504；503 / 529（过载）→ 原样；其余 5xx / 网络 → 502。
+ */
+export function clientStatusOf(status: number): number {
+  if (status === 401 || status === 403) return 502;
+  if (status >= 300 && status < 400) return 502;
+  if (status < 500) return status;
+  if (status === 503 || status === 504 || status === 529) return status;
+  return 502;
+}
+
+/** 上游 401 / 403 改成 502 时给用户的说明（不让人以为要重新登录 CLI） */
+export function upstreamAuthMessage(status: number, message: string): string {
+  return `上游拒绝了这个供应商的 Key（${status}），请在「模型」页检查 Key：${message}`;
+}
 
 export function kindOfStatus(status: number, message = ''): ErrorKind {
+  if (status === 504) return 'timeout';
   if (status === 429) return 'rate_limit';
   if (status === 503 || status === 529) return 'overloaded';
   if (status === 401 || status === 403) return 'auth';
   if (status === 404) return 'not_found';
+  if (status === 413) return 'payload_too_large';
   if (status === 400 && /context|too long|maximum context|token limit/i.test(message))
     return 'context';
   if (status >= 400 && status < 500) return 'invalid';
@@ -24,7 +56,9 @@ const STATUS: Record<ErrorKind, number> = {
   invalid: 400,
   not_found: 404,
   context: 400,
+  payload_too_large: 413,
   upstream: 502,
+  timeout: 504,
 };
 
 export function errorResponse(
@@ -41,7 +75,9 @@ export function errorResponse(
       invalid: 'invalid_request_error',
       not_found: 'not_found_error',
       context: 'invalid_request_error',
+      payload_too_large: 'invalid_request_error',
       upstream: 'api_error',
+      timeout: 'api_error',
     }[kind];
     // 「prompt is too long」触发 Claude Code 自动压缩
     const msg =
@@ -58,7 +94,9 @@ export function errorResponse(
       invalid: 'INVALID_ARGUMENT',
       not_found: 'NOT_FOUND',
       context: 'INVALID_ARGUMENT',
+      payload_too_large: 'INVALID_ARGUMENT',
       upstream: 'INTERNAL',
+      timeout: 'DEADLINE_EXCEEDED',
     }[kind];
     return { status, body: { error: { code: status, message, status: s } } };
   }
@@ -69,10 +107,12 @@ export function errorResponse(
     invalid: 'invalid_request_error',
     not_found: 'model_not_found',
     context: 'context_length_exceeded',
+    payload_too_large: 'invalid_request_error',
     upstream: 'server_error',
+    timeout: 'timeout',
   }[kind];
   const type =
-    kind === 'invalid' || kind === 'context' || kind === 'not_found'
+    kind === 'invalid' || kind === 'context' || kind === 'not_found' || kind === 'payload_too_large'
       ? 'invalid_request_error'
       : code;
   return { status, body: { error: { message, type, code } } };

@@ -7,6 +7,7 @@ import { Button, SettingRow, SettingsGroup, t } from '@nomi-ai/ui';
 import React from 'react';
 
 import type { CliKind } from '../../services/cliSource';
+import { hasOfficialAccount } from '../../utils/cliCaps';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 
 import { CliVersionCard } from './CliVersionCard';
@@ -20,13 +21,16 @@ export const CliEndpointSection: React.FC<{ kind: CliKind; onOpenModels?: () => 
   <div className={styles.section} data-testid={`providers-section-${kind}`}>
     <CliVersionCard kind={kind} />
 
-    {kind !== 'dsh' && <OfficialAccounts kind={kind} />}
+    {hasOfficialAccount(kind) && <OfficialAccounts kind={kind} />}
 
-    <SettingsGroup title={t('第三方模型')} data-testid={`cli-third-party-${kind}`}>
+    <SettingsGroup
+      title={t('ui.models.third-party-models')}
+      data-testid={`cli-third-party-${kind}`}
+    >
       <SettingRow
-        title={t('在「模型」页统一设置')}
+        title={t('ui.providers-schedule.set-up-in-models')}
         description={t(
-          '经 Nomi 网关转换协议；每个 {0} 标签可以在对话区右上角选用官方账号或第三方，互不影响，也不改 CLI 的全局配置。',
+          'ui.providers-schedule.requests-go-through-the-nomi-gateway-which-converts',
           ENDPOINT_NAME[kind],
         )}
       >
@@ -37,7 +41,7 @@ export const CliEndpointSection: React.FC<{ kind: CliKind; onOpenModels?: () => 
             onClick={onOpenModels}
             data-testid="cli-open-models"
           >
-            {t('打开「模型」')}
+            {t('ui.models.open-models')}
           </Button>
         )}
       </SettingRow>

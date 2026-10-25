@@ -350,6 +350,7 @@ describe('CliHarnessService model / effort overrides', () => {
         defaults: () => ({
           source: o.source ?? 'official',
           model: o.main === undefined ? 'gw/a' : o.main,
+          accountId: null,
         }),
         launch: (kind, tabId, model) => {
           launches.push([kind, tabId, model]);

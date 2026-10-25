@@ -4,6 +4,7 @@
  * Overrides persist in localStorage.
  */
 import type { ModelConfig, ModelVoiceConfig } from '@nomi-ai/types';
+import { t } from '@nomi-ai/ui';
 
 import { isMascotMuted } from './presence';
 import {
@@ -136,7 +137,9 @@ export function resolvePrefsForCharacter(
   return prefs;
 }
 
-export function speakForActiveCharacter(text: string, opts: SpeakSoftOptions = {}): boolean {
+export function speakForActiveCharacter(key: string, opts: SpeakSoftOptions = {}): boolean {
+  // 模块常量里的台词（提示音 / 触摸反应 / 整点报时）存的是 key，朗读前晚翻译；普通文本原样返回
+  const text = t(key);
   // 看板娘已关闭：不再播放语音
   if (isMascotMuted()) {
     opts.onEnd?.();

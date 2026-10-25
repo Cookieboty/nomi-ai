@@ -35,7 +35,9 @@ class StepBoundary extends React.Component<{ children: React.ReactNode }, { fail
   }
   render() {
     return this.state.failed ? (
-      <p className={styles.note}>{t('暂时无法加载供应商设置，可以先跳过，之后在设置里添加。')}</p>
+      <p className={styles.note}>
+        {t('ui.mascot-theme.provider-settings-couldn-t-be-loaded-skip-for')}
+      </p>
     ) : (
       this.props.children
     );
@@ -55,29 +57,33 @@ const STEPS = [
 type Step = (typeof STEPS)[number];
 
 const STEP_TITLE: Record<Step, () => string> = {
-  language: () => t('选择界面语言'),
-  theme: () => t('选一个喜欢的外观'),
-  startup: () => t('启动 Nomi 后先看到什么？'),
-  layout: () => t('工作台要精简一点，还是全都摆出来？'),
-  character: () => t('选一个喜欢的声音'),
-  persona: () => t('她该怎么称呼你？'),
-  provider: () => t('接入一个 AI 模型'),
-  privacy: () => t('你的数据只留在这台电脑上'),
+  language: () => t('ui.mascot-theme.choose-your-language'),
+  theme: () => t('ui.mascot-theme.pick-a-look-you-like'),
+  startup: () => t('ui.mascot-theme.what-should-you-see-when-nomi-starts'),
+  layout: () => t('ui.mascot-theme.keep-the-workbench-minimal-or-show-everything'),
+  character: () => t('ui.mascot-theme.pick-a-voice-you-like'),
+  persona: () => t('ui.mascot-theme.what-should-she-call-you'),
+  provider: () => t('ui.mascot-theme.connect-an-ai-model'),
+  privacy: () => t('ui.mascot-theme.your-data-stays-on-this-computer'),
 };
 /** 看板娘在每一步说的话 */
 const STEP_LINE: Record<Step, () => string> = {
-  language: () => t('你好，我是 Nomi·诺米，住在你桌面上的 AI 伙伴。花一分钟认识一下吧！'),
-  theme: () => t('先挑一个看着舒服的外观吧，我们每天都要见面呢。'),
-  startup: () => t('每次启动，是先让我出现在桌面上，还是直接打开主界面？之后都能改哦。'),
-  layout: () => t('喜欢清爽就选精简，经常同时开好几个会话就选全量～'),
-  character: () => t('想让我用什么样的声音和你说话？点一下就能试听，之后也能随时改。'),
-  persona: () => t('告诉我怎么称呼你，我会好好记住。'),
-  provider: () => t('接上一个 AI 模型，我就能帮你规划任务、把想法变成行动。'),
-  privacy: () => t('放心，我们的对话和记忆都只留在这台电脑上。'),
+  language: () => t('ui.mascot-theme.hi-i-m-nomi-your-ai-companion-who'),
+  theme: () => t('ui.mascot-theme.pick-a-look-that-feels-comfortable-we-ll'),
+  startup: () => t('ui.mascot-theme.should-i-show-up-on-your-desktop-first'),
+  layout: () => t('ui.mascot-theme.pick-compact-if-you-like-it-clean-or'),
+  character: () => t('ui.mascot-theme.how-should-i-sound-when-i-talk-to'),
+  persona: () => t('ui.mascot-theme.tell-me-what-to-call-you-i-ll'),
+  provider: () => t('ui.mascot-theme.connect-an-ai-model-and-i-can-help'),
+  privacy: () => t('ui.mascot-theme.rest-assured-our-conversations-and-memories-stay-on'),
 };
 
 const LANGS: { id: LocalePref; label: () => string; hint: () => string }[] = [
-  { id: 'system', label: () => t('跟随系统'), hint: () => t('自动匹配电脑的语言') },
+  {
+    id: 'system',
+    label: () => t('ui.mascot-theme.follow-system'),
+    hint: () => t('ui.mascot-theme.matches-your-computer-language'),
+  },
   // i18n-ignore
   { id: 'zh-CN', label: () => '中文', hint: () => '简体中文' },
   { id: 'en', label: () => 'English', hint: () => 'English' },
@@ -86,28 +92,60 @@ const LANGS: { id: LocalePref; label: () => string; hint: () => string }[] = [
 const STARTUPS: { id: StartupView; label: () => string; hint: () => string }[] = [
   {
     id: 'mascot',
-    label: () => t('以 Nomi 方式打开'),
-    hint: () => t('桌面上先出现 Nomi，点她的「AI 对话」进入主界面（默认）'),
+    label: () => t('ui.mascot-theme.open-with-nomi'),
+    hint: () => t('ui.mascot-theme.nomi-appears-on-your-desktop-first-click-her'),
   },
   {
     id: 'main',
-    label: () => t('以控制台（主界面）方式打开'),
-    hint: () => t('直接打开软件主界面，Nomi 在桌面待命'),
+    label: () => t('ui.mascot-theme.open-with-the-console-main-window'),
+    hint: () => t('ui.mascot-theme.open-the-main-window-right-away-nomi-waits'),
   },
 ];
 
 const VOICES: { id: VoiceStyle; label: () => string; hint: () => string }[] = [
-  { id: 'soft', label: () => t('柔和'), hint: () => t('轻声细语') },
-  { id: 'lively', label: () => t('活泼'), hint: () => t('元气满满') },
-  { id: 'calm', label: () => t('沉稳'), hint: () => t('平静从容') },
-  { id: 'off', label: () => t('不出声'), hint: () => t('只用气泡') },
+  {
+    id: 'soft',
+    label: () => t('ui.mascot-theme.soft'),
+    hint: () => t('ui.mascot-theme.gentle-and-quiet'),
+  },
+  {
+    id: 'lively',
+    label: () => t('ui.mascot-theme.lively'),
+    hint: () => t('ui.mascot-theme.full-of-energy'),
+  },
+  {
+    id: 'calm',
+    label: () => t('ui.mascot-theme.calm'),
+    hint: () => t('ui.mascot-theme.composed-and-steady'),
+  },
+  {
+    id: 'off',
+    label: () => t('ui.mascot-theme.silent'),
+    hint: () => t('ui.mascot-theme.bubbles-only'),
+  },
 ];
 
 const TONES: { id: string; label: () => string; desc: () => string }[] = [
-  { id: 'gentle', label: () => t('温柔体贴'), desc: () => t('语气温柔，多关心对方') },
-  { id: 'lively', label: () => t('元气活泼'), desc: () => t('热情有活力，偶尔用表情') },
-  { id: 'concise', label: () => t('简洁专业'), desc: () => t('直接给结论，少寒暄') },
-  { id: 'playful', label: () => t('俏皮幽默'), desc: () => t('轻松幽默，适度开玩笑') },
+  {
+    id: 'gentle',
+    label: () => t('ui.mascot-theme.warm-caring'),
+    desc: () => t('ui.mascot-theme.gentle-tone-attentive-to-you'),
+  },
+  {
+    id: 'lively',
+    label: () => t('ui.mascot-theme.cheerful-lively'),
+    desc: () => t('ui.mascot-theme.enthusiastic-the-occasional-emoji'),
+  },
+  {
+    id: 'concise',
+    label: () => t('ui.mascot-theme.concise-professional'),
+    desc: () => t('ui.mascot-theme.straight-to-the-point-little-small-talk'),
+  },
+  {
+    id: 'playful',
+    label: () => t('ui.mascot-theme.playful-witty'),
+    desc: () => t('ui.mascot-theme.light-hearted-jokes-in-moderation'),
+  },
 ];
 
 export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ onDone }) => {
@@ -140,17 +178,17 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
 
   const savePersona = useCallback(async () => {
     const lines: string[] = [];
-    if (name.trim()) lines.push(t('- 请称呼我：{0}', name.trim().slice(0, 40)));
+    if (name.trim()) lines.push(t('ui.mascot-theme.call-me', name.trim().slice(0, 40)));
     const tn = TONES.find((x) => x.id === tone);
-    if (tn) lines.push(t('- 回答语气：{0}（{1}）', tn.label(), tn.desc()));
+    if (tn) lines.push(t('ui.mascot-theme.reply-tone', tn.label(), tn.desc()));
     if (!lines.length) return;
     const cur = await onboardingClient.persona();
     await onboardingClient.setPersona(mergePersona(cur, lines));
     onboardingClient.mascot({
       type: 'say',
       text: name.trim()
-        ? t('好的，{0}！以后就这么叫你啦～', name.trim().slice(0, 40))
-        : t('记住啦～'),
+        ? t('ui.mascot-theme.got-it-that-s-what-i-ll-call', name.trim().slice(0, 40))
+        : t('ui.mascot-theme.noted'),
     });
   }, [name, tone]);
 
@@ -160,8 +198,8 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
       onboardingClient.mascot({
         type: 'say',
         text: skipped
-          ? t('随时可以在设置里重新打开引导哦～')
-          : t('准备好啦！我在这里，陪你把每一个任务都变成小小的成就。'),
+          ? t('ui.mascot-theme.you-can-reopen-this-guide-from-settings-anytime')
+          : t('ui.mascot-theme.all-set-i-m-here-to-help-turn'),
         motion: skipped ? undefined : 'cheer',
       });
       onDone(skipped);
@@ -180,7 +218,11 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
     switch (step) {
       case 'language':
         return (
-          <div className={styles.options} role="radiogroup" aria-label={t('语言')}>
+          <div
+            className={styles.options}
+            role="radiogroup"
+            aria-label={t('ui.voice-mascot.language')}
+          >
             {LANGS.map((l) => (
               <button
                 key={l.id}
@@ -232,10 +274,14 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
         );
         return (
           <>
-            <div className={styles.options} role="radiogroup" aria-label={t('主题')}>
+            <div
+              className={styles.options}
+              role="radiogroup"
+              aria-label={t('ui.chat-settings.theme')}
+            >
               {main.map((x) => card(x, true))}
             </div>
-            <div className={styles.subLabel}>{t('更多配色')}</div>
+            <div className={styles.subLabel}>{t('ui.mascot-theme.more-colors')}</div>
             <div className={styles.options}>{more.map((x) => card(x, false))}</div>
           </>
         );
@@ -243,7 +289,11 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
       case 'startup':
         return (
           <>
-            <div className={styles.options} role="radiogroup" aria-label={t('启动方式')}>
+            <div
+              className={styles.options}
+              role="radiogroup"
+              aria-label={t('ui.mascot-theme.startup-mode')}
+            >
               {STARTUPS.map((x) => (
                 <button
                   key={x.id}
@@ -264,15 +314,19 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
               ))}
             </div>
             <p className={styles.note}>
-              {t('依赖定时任务 / 提醒的话，选 Nomi 更顺手；主要在主界面里工作，就选主界面。')}
-              {t('之后可在「设置 → 通用」随时修改。')}
+              {t('ui.mascot-theme.if-you-rely-on-scheduled-tasks-reminders-nomi')}
+              {t('ui.mascot-theme.you-can-change-this-any-time-in-settings')}
             </p>
           </>
         );
       case 'layout':
         return (
           <>
-            <div className={styles.options} role="radiogroup" aria-label={t('界面模式')}>
+            <div
+              className={styles.options}
+              role="radiogroup"
+              aria-label={t('ui.chat-settings.layout')}
+            >
               {LAYOUT_DENSITIES.map((x) => (
                 <button
                   key={x.id}
@@ -289,14 +343,18 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
               ))}
             </div>
             <p className={styles.note}>
-              {t('只影响工作台（编程助手）；之后可在「设置 → 通用 → 外观」随时修改。')}
+              {t('ui.mascot-theme.only-affects-the-workbench-coding-assistants-change-it')}
             </p>
           </>
         );
       case 'character':
         return (
           <>
-            <div className={styles.options} role="radiogroup" aria-label={t('声音')}>
+            <div
+              className={styles.options}
+              role="radiogroup"
+              aria-label={t('ui.mascot-theme.voice')}
+            >
               {VOICES.map((v) => (
                 <button
                   key={v.id}
@@ -310,7 +368,10 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
                     onboardingClient.mascot({
                       type: 'voice-style',
                       style: v.id,
-                      preview: v.id === 'off' ? undefined : t('你好，我是 Nomi，今天也要加油哦！'),
+                      preview:
+                        v.id === 'off'
+                          ? undefined
+                          : t('ui.mascot-theme.hi-i-m-nomi-let-s-make-today'),
                     });
                   }}
                 >
@@ -320,8 +381,8 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
               ))}
             </div>
             <p className={styles.note}>
-              {t('点一下就能试听；之后可在「设置 → 语音与屏幕」细调。')}{' '}
-              {t('首次开启声音会下载离线语音模型（约 115 MB），下载完成后才能试听。')}
+              {t('ui.mascot-theme.click-to-preview-fine-tune-later-in-settings')}{' '}
+              {t('ui.voice-mascot.the-first-time-you-turn-on-a-voice')}
             </p>
           </>
         );
@@ -329,19 +390,23 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
         return (
           <>
             <label className={styles.field}>
-              <span className={styles.subLabel}>{t('称呼')}</span>
+              <span className={styles.subLabel}>{t('ui.mascot-theme.name')}</span>
               <input
                 className={styles.input}
                 data-testid="onb-name"
                 value={name}
                 maxLength={40}
-                placeholder={t('例如：小林、主人、你的名字')}
+                placeholder={t('ui.mascot-theme.e-g-lin-boss-your-name')}
                 onChange={(e) => setName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && void next()}
               />
             </label>
-            <div className={styles.subLabel}>{t('说话的语气')}</div>
-            <div className={styles.options} role="radiogroup" aria-label={t('说话的语气')}>
+            <div className={styles.subLabel}>{t('ui.mascot-theme.speaking-tone')}</div>
+            <div
+              className={styles.options}
+              role="radiogroup"
+              aria-label={t('ui.mascot-theme.speaking-tone')}
+            >
               {TONES.map((x) => (
                 <button
                   key={x.id}
@@ -357,16 +422,16 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
                 </button>
               ))}
             </div>
-            <p className={styles.note}>{t('会写进「记忆 → 关于我」，随时可以修改。')}</p>
+            <p className={styles.note}>
+              {t('ui.mascot-theme.saved-to-memory-about-me-you-can-change')}
+            </p>
           </>
         );
       case 'provider':
         return (
           <>
             <p className={styles.note}>
-              {t(
-                '添加一个第三方供应商（厂商、中转平台或本机 Ollama 等）。不着急的话可以先跳过，之后在「设置 → 模型」里添加。',
-              )}
+              {t('ui.cli-monitor.add-a-third-party-provider-a-model-vendor')}
             </p>
             <div className={styles.provider} data-testid="onb-provider">
               <StepBoundary>
@@ -380,21 +445,19 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
           <ul className={styles.privacy}>
             <li>
               <Icon icon={Lock} />
-              {t('对话、记忆、知识库和屏幕记忆只保存在本机，不做云同步。')}
+              {t('ui.mascot-theme.chats-memories-the-knowledge-base-and-screen-memory')}
             </li>
             <li>
               <Icon icon={KeyRound} />
-              {t('API 密钥用系统安全存储加密保存，不会上传。')}
+              {t('ui.mascot-theme.api-keys-are-encrypted-with-the-system-secure')}
             </li>
             <li>
               <Icon icon={Cloud} />
-              {t(
-                '只有你选择的模型服务商会收到对话内容；第一次把文件或图片发给云端模型前会先问你。',
-              )}
+              {t('ui.mascot-theme.only-the-model-provider-you-choose-receives-your')}
             </li>
             <li>
               <Icon icon={FolderLock} />
-              {t('她看不到你的文件，除非你逐个文件夹授权；所有操作都有记录，可撤销。')}
+              {t('ui.mascot-theme.she-can-t-see-your-files-unless-you')}
             </li>
           </ul>
         );
@@ -412,7 +475,10 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
         aria-labelledby="onb-title"
       >
         <header className={styles.head}>
-          <div className={styles.dots} aria-label={t('第 {0} 步，共 {1} 步', i + 1, STEPS.length)}>
+          <div
+            className={styles.dots}
+            aria-label={t('ui.mascot-theme.step-of', i + 1, STEPS.length)}
+          >
             {STEPS.map((s, k) => (
               <span
                 key={s}
@@ -426,11 +492,11 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
             data-testid="onboarding-skip-all"
             onClick={() => void finish(true)}
           >
-            {t('跳过引导')}
+            {t('ui.mascot-theme.skip-guide')}
           </button>
         </header>
         <div className={styles.step} key={step} data-testid={`onboarding-step-${step}`}>
-          <div className={styles.kicker}>{t('第 {0} 步，共 {1} 步', i + 1, STEPS.length)}</div>
+          <div className={styles.kicker}>{t('ui.mascot-theme.step-of', i + 1, STEPS.length)}</div>
           <h1 id="onb-title" className={styles.title}>
             {STEP_TITLE[step]()}
           </h1>
@@ -444,7 +510,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
             disabled={i === 0}
             onClick={() => setI(Math.max(0, i - 1))}
           >
-            {t('上一步')}
+            {t('ui.mascot-theme.back')}
           </button>
           <span className={styles.grow} />
           {!last && (
@@ -454,7 +520,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
               data-testid="onboarding-skip-step"
               onClick={skipStep}
             >
-              {t('跳过这一步')}
+              {t('ui.mascot-theme.skip-this-step')}
             </button>
           )}
           <button
@@ -463,7 +529,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
             data-testid={last ? 'onboarding-finish' : 'onboarding-next'}
             onClick={() => void next()}
           >
-            {last ? t('开始使用') : t('下一步')}
+            {last ? t('ui.mascot-theme.get-started') : t('ui.mascot-theme.next')}
           </button>
         </footer>
       </div>

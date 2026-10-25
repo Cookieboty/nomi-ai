@@ -269,6 +269,13 @@ export class ConversationStore {
     return this.idx().find((c) => c.tabId === tabId);
   }
 
+  findByCliSessionId(
+    backend: ConversationBackend,
+    cliSessionId: string,
+  ): ConversationMeta | undefined {
+    return this.idx().find((c) => c.backend === backend && c.cliSessionId === cliSessionId);
+  }
+
   create(nameOrOpts?: string | CreateConversationOpts): ConversationMeta {
     const opts: CreateConversationOpts =
       typeof nameOrOpts === 'string' || nameOrOpts === undefined
@@ -277,7 +284,7 @@ export class ConversationStore {
     const ts = this.now();
     const meta: ConversationMeta = {
       id: this.newId(),
-      name: opts.name ?? t('新对话'),
+      name: opts.name ?? t('ui.chat-settings.new-chat'),
       createdAt: ts,
       updatedAt: ts,
       backend: opts.backend ?? 'nomi',
@@ -366,7 +373,7 @@ export class ConversationStore {
   }
 
   /**
-   * 同步 CLI 标签到侧栏元信息：已有则更新标题 / 时间 / 后端；没有则新建。
+   * 同步 CLI 标签到侧栏元信息：已有则更新标题 / 时间 / 后端 / 原生会话 id；没有则新建。
    * 返回会话元信息。
    */
   upsertFromTab(tab: {
@@ -375,17 +382,24 @@ export class ConversationStore {
     backend: ConversationBackend;
     createdAt: number;
     updatedAt: number;
+    cliSessionId?: string;
   }): ConversationMeta {
     if (tab.backend === 'nomi') {
       throw new Error('CLI tab sync requires a non-nomi backend');
     }
-    const existing = this.findByTabId(tab.id);
+    // tab id 是当前窗口里的标签身份；CLI session id 是本机历史的稳定身份。
+    // 优先按标签更新，标签被重建但仍绑定同一 CLI 会话时再按 session id 接回原镜像。
+    const existing =
+      this.findByTabId(tab.id) ??
+      (tab.cliSessionId ? this.findByCliSessionId(tab.backend, tab.cliSessionId) : undefined);
     if (existing) {
       return this.updateMeta(existing.id, {
         name: tab.title,
         backend: tab.backend,
         tabId: tab.id,
-        updatedAt: tab.updatedAt,
+        cliSessionId: tab.cliSessionId,
+        // 重命名标签不一定会改 tab.updatedAt，镜像时间不能因此倒退。
+        updatedAt: Math.max(existing.updatedAt, tab.updatedAt || this.now()),
       });
     }
     const ts = this.now();
@@ -396,6 +410,7 @@ export class ConversationStore {
       updatedAt: tab.updatedAt || ts,
       backend: tab.backend,
       tabId: tab.id,
+      ...(tab.cliSessionId ? { cliSessionId: tab.cliSessionId } : {}),
     };
     this.writeIndex([...this.idx(), meta]);
     this.write(messagesKey(meta.id), []);
@@ -416,7 +431,7 @@ export class ConversationStore {
     const src = this.get(sourceId);
     if (!src) throw new Error(`unknown conversation: ${sourceId}`);
     const msgs = opts.messages ?? this.getMessages(sourceId);
-    const name = opts.name ?? t('{0} (副本)', src.name);
+    const name = opts.name ?? t('ui.cli-monitor.copy', src.name);
     const meta = this.create({
       name,
       backend: opts.backend ?? src.backend,
@@ -462,7 +477,9 @@ export class ConversationStore {
       this.idx().map((c) => {
         if (c.id !== id) return c;
         const named =
-          message && message.role === 'user' && (c.name === '新对话' || c.name === t('新对话'))
+          message &&
+          message.role === 'user' &&
+          (c.name === 'ui.chat-settings.new-chat' || c.name === t('ui.chat-settings.new-chat'))
             ? message.content.slice(0, 30)
             : c.name;
         return { ...c, name: named, updatedAt: this.now(), modelId: message?.modelId ?? c.modelId };
@@ -488,7 +505,7 @@ export class ConversationStore {
     if (!legacy) return;
     this.storage.removeItem(LEGACY_HISTORY_KEY);
     if (legacy.length === 0) return;
-    const meta = this.create(t('历史对话'));
+    const meta = this.create(t('ui.chat-settings.history'));
     const messages = legacy.slice(-this.maxMessages);
     this.remember(meta.id, messages, this.write(messagesKey(meta.id), messages));
   }

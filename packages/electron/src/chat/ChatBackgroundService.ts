@@ -117,7 +117,7 @@ export class ChatBackgroundService {
 
   async pickImage(parent?: BrowserWindow | null): Promise<ChatBackgroundState> {
     const opts: Electron.OpenDialogOptions = {
-      title: tr('选择聊天背景图片'),
+      title: tr('electron.common.choose-chat-background-image'),
       properties: ['openFile'],
       filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }],
     };

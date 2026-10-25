@@ -63,7 +63,7 @@ export const NewChatMenu: React.FC<NewChatMenuProps> = ({
     <div
       ref={ref}
       role="menu"
-      aria-label={t('新建对话')}
+      aria-label={t('ui.cli-monitor.new-conversation')}
       className={`${styles.menu} ${className ?? ''}`}
       data-testid={testId}
       onKeyDown={onKey}
@@ -83,7 +83,11 @@ export const NewChatMenu: React.FC<NewChatMenuProps> = ({
             {ENDPOINT_NAME[b]}
           </span>
           <span className={styles.hint}>
-            {missing(b) ? t('未安装') : b === lastBackend ? t('上次使用') : ''}
+            {missing(b)
+              ? t('ui.mascot-theme.not-installed')
+              : b === lastBackend
+                ? t('ui.mascot-theme.last-used')
+                : ''}
           </span>
         </button>
       ))}
@@ -92,7 +96,7 @@ export const NewChatMenu: React.FC<NewChatMenuProps> = ({
           value={workspace.cwd}
           onChange={workspace.set}
           testId={workspaceTestId}
-          label={t('目录')}
+          label={t('ui.mascot-theme.folder')}
         />
       </div>
     </div>

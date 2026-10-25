@@ -13,6 +13,7 @@ import {
 import type { BackendModelCatalog, TabSource } from '../services/harnessClient';
 import { nomiMainRef, nomiModelChoices, splitRef } from '../services/nomiModel';
 import { providerDisplayName } from '../services/providerClient';
+import { hasOfficialAccount } from '../utils/cliCaps';
 import { ENDPOINT_FULL } from '../utils/endpointBadge';
 import { rankItems } from '../utils/fuzzy';
 
@@ -98,18 +99,18 @@ export function currentModel(ctx: SlashContext, data: SlashData): ModelInfo {
 
 /** CLI 标签的来源，给 /status 的「供应商」一行：官方账号 /「供应商 / 模型」 */
 function cliSourceLine(ctx: SlashContext, data: SlashData): CardRow {
-  const label = t('供应商');
+  const label = t('ui.providers-schedule.provider');
   if (tabSourceOf(data.cliTab) === 'thirdParty') {
     const ref = thirdPartyRefOf(data.cliTab, ctx.backend, data.nomiGateway);
     return ref
-      ? { label, value: t('{0}（第三方）', refSlashLabel(data.nomiGateway, ref)) }
-      : { label, value: t('第三方 · 未设置模型'), tone: 'warn' };
+      ? { label, value: t('ui.models.third-party', refSlashLabel(data.nomiGateway, ref)) }
+      : { label, value: t('ui.models.third-party-no-model-set'), tone: 'warn' };
   }
-  if (ctx.backend === 'dsh') return { label, value: t('dsh 自带配置') };
+  if (!hasOfficialAccount(ctx.backend)) return { label, value: t('ui.models.dsh-built-in-config') };
   const a = data.cliAccount;
   return a
-    ? { label, value: t('官方 · {0}', a.identity?.email ?? a.label) }
-    : { label, value: t('官方'), tone: 'muted' };
+    ? { label, value: t('ui.chat-settings.official', a.identity?.email ?? a.label) }
+    : { label, value: t('ui.models.official'), tone: 'muted' };
 }
 
 // ───────────────────────────── /context ─────────────────────────────
@@ -118,33 +119,33 @@ export function contextCard(ctx: SlashContext, data: SlashData): SlashCardInput 
   const m = currentModel(ctx, data);
   const baseWin = contextWindowFor(m.model, reportedContextWindow(ctx.messages));
   const est = estimateContext(ctx.messages, {
-    user: t('你的消息'),
-    assistant: t('助手回复'),
-    tools: t('工具调用与结果'),
-    thinking: t('思考'),
-    system: t('系统提示 / 工具定义 / 记忆（推算）'),
+    user: t('ui.slash-commands.your-messages'),
+    assistant: t('ui.slash-commands.assistant-replies'),
+    tools: t('ui.slash-commands.tool-calls-and-results'),
+    thinking: t('ui.voice-mascot.think'),
+    system: t('ui.slash-commands.system-prompt-tool-definitions-memory-inferred'),
   });
   const win = fitContextWindow(baseWin, est.used);
   const notes: string[] = [];
   notes.push(
     est.basis === 'actual'
-      ? t('总量取自最近一次请求返回的真实用量；各类占比是按文字估算的。')
-      : t('这个会话还没有真实用量记录，总量和各类占比都是估算。'),
+      ? t('ui.slash-commands.the-total-comes-from-the-real-usage-returned')
+      : t('ui.slash-commands.this-session-has-no-real-usage-record-yet'),
   );
   notes.push(
     win.widened
-      ? t('窗口大小未知，已按当前用量放宽，实际窗口可能更小。')
+      ? t('ui.slash-commands.the-window-size-is-unknown-and-was-widened')
       : win.source === 'reported'
-        ? t('窗口大小取自 CLI 上报的模型信息。')
+        ? t('ui.session-workspace.the-window-size-comes-from-the-model-info')
         : win.source === 'table'
-          ? t('窗口大小来自内置的常见模型对照表，可能与实际不符。')
-          : t('无法识别当前模型的窗口大小，暂按 128K 估算。'),
+          ? t('ui.slash-commands.the-window-size-comes-from-a-built-in')
+          : t('ui.slash-commands.the-window-size-of-the-current-model-is'),
   );
   if (ctx.backend !== 'nomi')
-    notes.push(t('这是 Nomi 按会话记录做的统计，和 CLI 内部的统计（含自动压缩）可能不同。'));
+    notes.push(t('ui.slash-commands.this-is-computed-by-nomi-from-the-session'));
   return {
     kind: 'context',
-    title: t('上下文用量'),
+    title: t('ui.slash-commands.context-usage'),
     used: est.used,
     windowSize: win.size,
     windowSource: win.source,
@@ -177,12 +178,13 @@ export function costCard(ctx: SlashContext, data: SlashData): SlashCardInput {
   const today = pick(data.usage?.today);
   const week = pick(data.usage?.week);
   const notes: string[] = [];
-  if (s.missing) notes.push(t('有 {0} 轮没有返回用量数据，未计入。', s.missing));
+  if (s.missing)
+    notes.push(t('ui.slash-commands.turns-returned-no-usage-data-and-are-not', s.missing));
   if (!s.costUsd && s.turns > s.missing)
-    notes.push(t('这一端没有返回费用；今日 / 近 7 天按本机价格表估算。'));
+    notes.push(t('ui.slash-commands.this-endpoint-does-not-report-cost-today-last'));
   return {
     kind: 'cost',
-    title: t('用量与费用'),
+    title: t('ui.usage-tools.usage-cost'),
     session: s,
     ...(today ? { today } : {}),
     ...(week ? { week } : {}),
@@ -195,57 +197,60 @@ export function costCard(ctx: SlashContext, data: SlashData): SlashCardInput {
 export function statusCard(ctx: SlashContext, data: SlashData): SlashCardInput {
   const m = currentModel(ctx, data);
   const rows: CardRow[] = [];
-  rows.push({ label: t('端'), value: ENDPOINT_FULL[ctx.backend]() });
+  rows.push({ label: t('ui.slash-commands.endpoint'), value: ENDPOINT_FULL[ctx.backend]() });
   rows.push(
     m.model
-      ? { label: t('模型'), value: m.model }
+      ? { label: t('ui.foundation.model'), value: m.model }
       : {
-          label: t('模型'),
-          value: ctx.backend === 'nomi' ? t('未配置') : t('由 CLI 自己决定'),
+          label: t('ui.foundation.model'),
+          value:
+            ctx.backend === 'nomi'
+              ? t('ui.providers-schedule.not-configured-plain')
+              : t('ui.slash-commands.chosen-by-the-cli-itself'),
           tone: 'muted',
         },
   );
   rows.push(
     ctx.backend === 'nomi'
       ? {
-          label: t('供应商'),
-          value: m.provider ?? t('未配置'),
+          label: t('ui.providers-schedule.provider'),
+          value: m.provider ?? t('ui.providers-schedule.not-configured-plain'),
           ...(m.provider ? {} : { tone: 'muted' as const }),
         }
       : cliSourceLine(ctx, data),
   );
   const auth = data.quota?.auth;
   rows.push({
-    label: t('登录方式'),
+    label: t('ui.slash-commands.login-mode'),
     value:
       ctx.backend === 'nomi' || m.thirdParty
-        ? t('API 密钥')
+        ? t('ui.foundation.api-key')
         : auth === 'subscription'
-          ? t('账号登录（订阅）')
+          ? t('ui.slash-commands.account-login-subscription')
           : auth === 'api'
-            ? t('API 密钥')
-            : t('未确认'),
+            ? t('ui.foundation.api-key')
+            : t('ui.slash-commands.unconfirmed'),
     ...(ctx.backend !== 'nomi' && !m.thirdParty && !auth ? { tone: 'muted' as const } : {}),
   });
-  if (data.quota?.plan) rows.push({ label: t('套餐'), value: data.quota.plan });
+  if (data.quota?.plan) rows.push({ label: t('ui.slash-commands.plan'), value: data.quota.plan });
   if (ctx.backend !== 'nomi')
     rows.push({
-      label: t('CLI 版本'),
-      value: data.cli?.version ?? t('未检测到'),
+      label: t('ui.slash-commands.cli-version'),
+      value: data.cli?.version ?? t('ui.slash-commands.not-detected'),
       ...(data.cli?.version ? {} : { tone: 'warn' as const }),
     });
-  if (ctx.cwd) rows.push({ label: t('工作目录'), value: ctx.cwd });
+  if (ctx.cwd) rows.push({ label: t('ui.cli-monitor.workspace-label'), value: ctx.cwd });
   if (ctx.session)
     rows.push({
-      label: t('会话'),
-      value: ctx.session.id ? ctx.session.id.slice(0, 8) : t('尚未开始'),
+      label: t('ui.slash-commands.session'),
+      value: ctx.session.id ? ctx.session.id.slice(0, 8) : t('ui.slash-commands.not-started'),
     });
   rows.push({
-    label: t('状态'),
-    value: ctx.session?.running ? t('正在运行') : t('空闲'),
+    label: t('ui.cli-monitor.status'),
+    value: ctx.session?.running ? t('ui.slash-commands.running') : t('ui.mascot-theme.idle'),
   });
-  rows.push({ label: t('消息数'), value: String(ctx.messages.length) });
-  return { kind: 'status', title: t('当前状态'), rows };
+  rows.push({ label: t('ui.slash-commands.messages'), value: String(ctx.messages.length) });
+  return { kind: 'status', title: t('ui.slash-commands.current-status'), rows };
 }
 
 // ───────────────────────────── /model ─────────────────────────────
@@ -269,21 +274,20 @@ function nomiChoices(ctx: SlashContext, data: SlashData): ModelChoice[] {
 }
 
 const cancelled = (ok: boolean) => {
-  if (!ok) throw new Error(t('已取消切换'));
+  if (!ok) throw new Error(t('ui.models.switch-cancelled'));
 };
 
 /** CLI 标签的「官方」一项：改用官方账号（第三方 → 官方且已有对话时会先确认） */
 function officialChoice(ctx: SlashContext, data: SlashData, source: TabSource): ModelChoice {
   const a = data.cliAccount;
-  const label =
-    ctx.backend === 'dsh'
-      ? t('dsh 自带配置')
-      : a
-        ? t('官方 · {0}', a.identity?.email ?? a.label)
-        : t('官方');
+  const label = !hasOfficialAccount(ctx.backend)
+    ? t('ui.models.dsh-built-in-config')
+    : a
+      ? t('ui.chat-settings.official', a.identity?.email ?? a.label)
+      : t('ui.models.official');
   return {
     label,
-    provider: t('官方'),
+    provider: t('ui.models.official'),
     model: 'official',
     active: source === 'official',
     run: async () => cancelled(await ctx.actions.setTabSource('official')),
@@ -295,7 +299,7 @@ function thirdPartyChoices(ctx: SlashContext, data: SlashData, source: TabSource
   const cur =
     source === 'thirdParty' ? thirdPartyRefOf(data.cliTab, ctx.backend, data.nomiGateway) : null;
   return codingModelChoices(data.nomiGateway).map((c) => ({
-    label: t('第三方 · {0}', c.label),
+    label: t('ui.models.third-party-dot', c.label),
     provider: c.provider,
     model: c.ref,
     active: c.ref === cur,
@@ -322,12 +326,15 @@ async function tabModelCard(
 ): Promise<SlashCardInput> {
   const thirdParty = tabSource === 'thirdParty';
   const source =
-    catalog.provider?.name || (thirdParty ? t('第三方模型') : ENDPOINT_FULL[ctx.backend]());
+    catalog.provider?.name ||
+    (thirdParty ? t('ui.models.third-party-models') : ENDPOINT_FULL[ctx.backend]());
   const defaultLabel = catalog.defaultModel?.label ?? catalog.defaultModel?.id;
   const pick = (model: string) => ctx.actions.setTabModel(model, tabSource);
   const choices: ModelChoice[] = [
     {
-      label: defaultLabel ? t('默认模型 · {0}', defaultLabel) : t('默认模型'),
+      label: defaultLabel
+        ? t('ui.slash-commands.default-model', defaultLabel)
+        : t('ui.providers-schedule.default-model'),
       provider: source,
       model: '',
       active: !current,
@@ -343,7 +350,7 @@ async function tabModelCard(
   ];
   if (current && !catalog.models.some((m) => m.id === current))
     choices.push({
-      label: t('{0}（自定义）', current),
+      label: t('ui.slash-commands.custom', current),
       provider: source,
       model: current,
       active: true,
@@ -351,9 +358,14 @@ async function tabModelCard(
     });
   choices.push(...others);
   const done = (label: string) =>
-    notice(t('模型已切换'), t('已切换到 {0}', label), 'info', {
-      detail: t('只影响当前标签，下一条消息起生效。'),
-    });
+    notice(
+      t('ui.slash-commands.model-switched'),
+      t('ui.slash-commands.switched-to', label),
+      'info',
+      {
+        detail: t('ui.slash-commands.only-affects-this-tab-starting-with-the-next'),
+      },
+    );
   const q = args.trim();
   let list = choices;
   if (q) {
@@ -366,44 +378,55 @@ async function tabModelCard(
     try {
       if (hit) {
         const c = hit[0]!.item;
-        if (c.active) return notice(t('模型'), t('已经在使用 {0}', c.label));
+        if (c.active)
+          return notice(t('ui.foundation.model'), t('ui.slash-commands.already-using', c.label));
         await c.run();
         return done(c.label);
       }
       // 目录里没有：和模型按钮的「自定义模型 id」一样直接用（第三方只能从网关的模型里选）
       if (!thirdParty && !ranked.length && MODEL_ID.test(q)) {
         await pick(q);
-        return done(t('{0}（自定义）', q));
+        return done(t('ui.slash-commands.custom', q));
       }
     } catch (e) {
-      return notice(t('切换失败'), e instanceof Error ? e.message : String(e), 'error');
+      return notice(
+        t('ui.slash-commands.switch-failed'),
+        e instanceof Error ? e.message : String(e),
+        'error',
+      );
     }
     list = ranked.map((r) => r.item);
   }
   return {
     kind: 'list',
-    title: q ? t('匹配「{0}」的模型', q) : t('可用的模型'),
+    title: q ? t('ui.slash-commands.models-matching', q) : t('ui.slash-commands.available-models'),
     items: list.map((c) => ({
       label: c.label,
       active: c.active,
       action: {
         id: `model:${c.model || 'default'}`,
-        label: c.active ? t('当前') : t('切换'),
+        label: c.active ? t('ui.providers-schedule.current') : t('ui.slash-commands.switch'),
         run: async () => {
           await c.run();
         },
       },
     })),
     empty: thirdParty
-      ? t('没有匹配的模型。')
-      : t('没有匹配的模型。也可以输入完整的模型 id：/model <模型 id>'),
+      ? t('ui.slash-commands.no-matching-models')
+      : t('ui.slash-commands.no-matching-models-you-can-also-enter-a'),
     actions: [
-      { id: 'open-models', label: t('打开模型设置'), run: () => ctx.actions.openProviders() },
+      {
+        id: 'open-models',
+        label: t('ui.models.open-model-settings'),
+        run: () => ctx.actions.openProviders(),
+      },
     ],
     note: [
-      thirdParty ? t('这个标签用第三方模型（经 Nomi 网关）。') : '',
-      catalog.error ? t('没能从 {0} 读到模型列表：{1}', source, catalog.error) : '',
-      t('只影响当前标签，下一条消息起生效；与输入框的模型按钮是同一个设置。'),
+      thirdParty ? t('ui.models.this-tab-uses-a-third-party-model-through') : '',
+      catalog.error
+        ? t('ui.chat-settings.couldn-t-read-the-model-list-from', source, catalog.error)
+        : '',
+      t('ui.slash-commands.only-affects-this-tab-same-as-model-button'),
     ]
       .filter(Boolean)
       .join(' '),
@@ -435,14 +458,14 @@ export async function modelCard(
   } else choices = nomiChoices(ctx, data);
   const note =
     ctx.backend === 'nomi'
-      ? t('这里列出设置 →「模型」里启用的模型。')
-      : t('「官方」用 CLI 自己的账号；「第三方」经 Nomi 网关。只影响当前标签，下一条消息起生效。');
+      ? t('ui.models.lists-the-models-enabled-under-settings-models')
+      : t('ui.models.official-uses-the-cli-s-own-account-third');
   const toItem = (c: ModelChoice): CardListItem => ({
     label: c.label,
     active: c.active,
     action: {
       id: `model:${c.label}`,
-      label: c.active ? t('当前') : t('切换'),
+      label: c.active ? t('ui.providers-schedule.current') : t('ui.slash-commands.switch'),
       run: async () => {
         await c.run();
       },
@@ -460,32 +483,39 @@ export async function modelCard(
     const hit = exact.length === 1 ? exact : ranked.length === 1 ? ranked : null;
     if (hit) {
       const c = hit[0]!.item;
-      if (c.active) return notice(t('模型'), t('已经在使用 {0}', c.label));
+      if (c.active)
+        return notice(t('ui.foundation.model'), t('ui.slash-commands.already-using', c.label));
       try {
         await c.run();
         return notice(
-          t('模型已切换'),
-          t('已切换到 {0}', c.label),
+          t('ui.slash-commands.model-switched'),
+          t('ui.slash-commands.switched-to', c.label),
           'info',
-          ctx.backend === 'nomi' ? undefined : { detail: t('只影响当前标签，下一条消息起生效。') },
+          ctx.backend === 'nomi'
+            ? undefined
+            : { detail: t('ui.slash-commands.only-affects-this-tab-starting-with-the-next') },
         );
       } catch (e) {
-        return notice(t('切换失败'), e instanceof Error ? e.message : String(e), 'error');
+        return notice(
+          t('ui.slash-commands.switch-failed'),
+          e instanceof Error ? e.message : String(e),
+          'error',
+        );
       }
     }
     list = ranked.map((r) => r.item);
   }
   return {
     kind: 'list',
-    title: q ? t('匹配「{0}」的模型', q) : t('可用的模型'),
+    title: q ? t('ui.slash-commands.models-matching', q) : t('ui.slash-commands.available-models'),
     items: list.map(toItem),
     empty: choices.length
-      ? t('没有匹配的模型。')
-      : t('还没有可切换的模型，请先在设置 →「模型」里添加第三方供应商。'),
+      ? t('ui.slash-commands.no-matching-models')
+      : t('ui.models.no-models-to-switch-to-yet-add-a'),
     actions: [
       {
         id: 'open-providers',
-        label: t('打开模型设置'),
+        label: t('ui.models.open-model-settings'),
         run: () => ctx.actions.openProviders(),
       },
     ],
@@ -496,22 +526,22 @@ export async function modelCard(
 // ───────────────────────────── /help ─────────────────────────────
 
 const KIND_LABEL: Record<SlashKind, () => string> = {
-  native: () => t('Nomi 内置'),
-  passthrough: () => t('转给 CLI'),
-  expand: () => t('展开为提示词'),
-  unsupported: () => t('不支持'),
-  ui: () => t('打开界面'),
+  native: () => t('ui.slash-commands.built-into-nomi'),
+  passthrough: () => t('ui.slash-commands.sent-to-cli'),
+  expand: () => t('ui.slash-commands.expands-to-prompt'),
+  unsupported: () => t('ui.slash-commands.unsupported'),
+  ui: () => t('ui.slash-commands.opens-ui'),
 };
 export const kindLabel = (k: SlashKind): string => KIND_LABEL[k]();
 
 const SOURCE_LABEL: Record<string, () => string> = {
   builtin: () => 'Nomi',
-  endpoint: () => t('当前端'),
-  project: () => t('项目命令'),
-  user: () => t('用户命令'),
-  plugin: () => t('插件'),
+  endpoint: () => t('ui.slash-commands.this-endpoint'),
+  project: () => t('ui.slash-commands.project-commands'),
+  user: () => t('ui.slash-commands.user-commands'),
+  plugin: () => t('ui.slash-commands.plugin'),
   skill: () => t('Skills'),
-  ui: () => t('界面'),
+  ui: () => t('ui.slash-commands.interface'),
 };
 export const sourceLabel = (s: string): string => SOURCE_LABEL[s]?.() ?? s;
 
@@ -524,13 +554,13 @@ export function helpCard(cmds: readonly SlashCommand[]): SlashCardInput {
         label: `/${c.name}`,
         ...(c.args ? { hint: c.args.hint } : {}),
         description: c.disabled ? c.disabled.reason : c.description,
-        badge: c.disabled ? t('不可用') : kindLabel(c.kind),
+        badge: c.disabled ? t('ui.slash-commands.unavailable') : kindLabel(c.kind),
       });
   return {
     kind: 'list',
-    title: t('可用命令'),
+    title: t('ui.slash-commands.available-commands'),
     items,
-    empty: t('没有可用命令。'),
+    empty: t('ui.slash-commands.no-commands-available'),
     actions: [],
   };
 }
@@ -548,18 +578,28 @@ export function unknownCard(
     name,
     (c) => [{ text: c.name, weight: 3 }, ...(c.aliases ?? []).map((a) => ({ text: a, weight: 2 }))],
   ).slice(0, 4);
-  return notice(t('未知命令'), t('没有叫 /{0} 的命令，已拦下，没有发给模型。', name), 'warn', {
-    ...(near.length
-      ? { detail: t('你可能想输入：{0}', near.map((r) => `/${r.item.name}`).join('  ')) }
-      : {}),
-    actions: [
-      {
-        id: 'send-plain',
-        label: t('作为普通文字发送'),
-        run: () => sendPlain(rawText),
-      },
-    ],
-  });
+  return notice(
+    t('ui.slash-commands.unknown-command'),
+    t('ui.slash-commands.there-is-no-command-named-it-was-blocked', name),
+    'warn',
+    {
+      ...(near.length
+        ? {
+            detail: t(
+              'ui.slash-commands.did-you-mean',
+              near.map((r) => `/${r.item.name}`).join('  '),
+            ),
+          }
+        : {}),
+      actions: [
+        {
+          id: 'send-plain',
+          label: t('ui.slash-commands.send-as-plain-text'),
+          run: () => sendPlain(rawText),
+        },
+      ],
+    },
+  );
 }
 
 export function unsupportedCard(
@@ -568,7 +608,7 @@ export function unsupportedCard(
   alternative: string | undefined,
 ): SlashCardInput {
   return notice(
-    t('/{0} 暂不支持', name),
+    t('ui.slash-commands.is-not-supported', name),
     reason,
     'warn',
     alternative ? { detail: alternative } : undefined,
@@ -577,7 +617,7 @@ export function unsupportedCard(
 
 /** 同名冲突里落选、CLI 又没有指定它的写法：说明原因，不发送 */
 export const disabledCard = (name: string, reason: string): SlashCardInput =>
-  notice(t('/{0} 不能发送', name), reason, 'warn');
+  notice(t('ui.slash-commands.can-t-be-sent', name), reason, 'warn');
 
 export const errorCard = (name: string, e: unknown): SlashCardInput =>
-  notice(t('/{0} 执行失败', name), e instanceof Error ? e.message : String(e), 'error');
+  notice(t('ui.slash-commands.failed', name), e instanceof Error ? e.message : String(e), 'error');

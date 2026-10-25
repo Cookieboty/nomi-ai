@@ -5,7 +5,7 @@
  * 消息操作：复制 / 重新生成 / 编辑重发 / 停止；排队中的待发消息。
  */
 import { Icon, t } from '@nomi-ai/ui';
-import { ArrowDown, ChevronsUp, Layers, ShieldAlert, X } from 'lucide-react';
+import { ArrowDown, ArrowLeftRight, ChevronsUp, Layers, X } from 'lucide-react';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import type { SlashCard } from '../../slash/types';
@@ -16,8 +16,10 @@ import { buildTimeline, reduceTrace } from '../../utils/toolTrace';
 import { SystemCardView } from '../SystemCards';
 
 import { AgentsByCallContext, agentsByCall } from './agentContext';
+import { ApprovePlanCard } from './ApprovePlanCard';
 import styles from './index.module.css';
 import { AssistantBody, AssistantMessage, type ConvSlots, UserMessage } from './Messages';
+import { PermissionCard } from './PermissionCard';
 import { StatusLine } from './StatusLine';
 
 export type { ConvSlots } from './Messages';
@@ -56,69 +58,6 @@ export function useStickToBottom(
   }, [scrollRef, contentRef, followRef, scrollToBottom]);
 }
 
-/** 剩余秒数（每秒刷新）；没有截止时间返回 null */
-function useSecondsLeft(expiresAt: number | undefined): number | null {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    if (expiresAt === undefined) return;
-    const id = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(id);
-  }, [expiresAt]);
-  return expiresAt === undefined ? null : Math.max(0, Math.ceil((expiresAt - now) / 1000));
-}
-
-/** 权限请求：醒目卡片（注明来源子代理与自动拒绝倒计时） */
-const PermissionCard: React.FC<{
-  summary: string;
-  agent?: string;
-  expiresAt?: number;
-  onReply: (allow: boolean) => void;
-}> = ({ summary, agent, expiresAt, onReply }) => {
-  const left = useSecondsLeft(expiresAt);
-  return (
-    <div
-      className={styles.perm}
-      data-testid="conv-permission-card"
-      role="alertdialog"
-      aria-label={agent ? t('子代理「{0}」需要确认工具权限', agent) : t('需要确认工具权限')}
-    >
-      <div className={styles.permHead}>
-        <Icon icon={ShieldAlert} size={16} />
-        <span className={styles.permTitle}>{t('需要确认工具权限')}</span>
-        {agent && (
-          <span className={styles.permSource} data-testid="conv-permission-agent">
-            {t('子代理 · {0}', agent)}
-          </span>
-        )}
-        {left !== null && (
-          <span className={styles.permTimer} data-testid="conv-permission-timer">
-            {t('{0} 秒后自动拒绝', String(left))}
-          </span>
-        )}
-      </div>
-      <code className={styles.permSummary}>{summary}</code>
-      <div className={styles.permActions}>
-        <button
-          type="button"
-          className={styles.permAllow}
-          data-testid="conv-permission-allow"
-          onClick={() => onReply(true)}
-        >
-          {t('允许')}
-        </button>
-        <button
-          type="button"
-          className={styles.permDeny}
-          data-testid="conv-permission-deny"
-          onClick={() => onReply(false)}
-        >
-          {t('拒绝')}
-        </button>
-      </div>
-    </div>
-  );
-};
-
 /** at 之后 ms 毫秒内为 true（到期由定时器翻转，不在渲染时读时钟） */
 function useRecent(at: number | undefined, ms: number): boolean {
   const [now, setNow] = useState(() => Date.now());
@@ -139,8 +78,8 @@ function useElapsed(since: number): string {
   }, []);
   const s = Math.max(0, Math.floor((now - since) / 1000));
   return s >= 60
-    ? t('{0} 分 {1} 秒', String(Math.floor(s / 60)), String(s % 60))
-    : t('{0} 秒', String(s));
+    ? t('ui.chat-settings.m-s', String(Math.floor(s / 60)), String(s % 60))
+    : t('ui.mascot-theme.s', String(s));
 }
 
 const BackgroundAgentRow: React.FC<{
@@ -152,7 +91,7 @@ const BackgroundAgentRow: React.FC<{
   return (
     <li className={styles.bgRow} data-testid="conv-background-agent">
       <span className={styles.bgLabel} title={agent.label}>
-        {agent.label || t('子代理')}
+        {agent.label || t('ui.usage-tools.subagent')}
       </span>
       <span className={styles.bgElapsed}>{elapsed}</span>
       {onStop && (
@@ -161,14 +100,21 @@ const BackgroundAgentRow: React.FC<{
           className={styles.bgStop}
           data-testid="conv-background-stop"
           disabled={!agent.stoppable || stopping}
-          title={agent.stoppable ? t('停止这个子代理') : t('该编程助手不支持单独停止子代理')}
-          aria-label={t('停止子代理「{0}」', agent.label || t('子代理'))}
+          title={
+            agent.stoppable
+              ? t('ui.chat-settings.stop-this-subagent')
+              : t('ui.chat-settings.this-coding-agent-can-t-stop-a-single')
+          }
+          aria-label={t(
+            'ui.chat-settings.stop-subagent',
+            agent.label || t('ui.usage-tools.subagent'),
+          )}
           onClick={() => {
             setStopping(true);
             onStop(agent.id);
           }}
         >
-          {stopping ? t('正在停止…') : t('停止')}
+          {stopping ? t('ui.chat-settings.stopping') : t('ui.foundation.stop')}
         </button>
       )}
     </li>
@@ -199,7 +145,7 @@ const BackgroundBar: React.FC<{
         }}
       >
         <Icon icon={Layers} size={13} />
-        {t('后台任务 {0} 个', String(n))}
+        {t('ui.chat-settings.background-tasks', String(n))}
       </button>
       {open && agents?.length ? (
         <ul className={styles.bgList}>
@@ -215,7 +161,11 @@ const BackgroundBar: React.FC<{
 /** 待确认的权限请求队列：按到达顺序全部列出（并行子代理会同时请求），超时自动拒绝时短暂提示 */
 const PermissionQueue: React.FC<{
   live: ConvLive | null | undefined;
-  onPermission?: (requestId: string, allow: boolean) => void;
+  onPermission?: (
+    requestId: string,
+    allow: boolean,
+    opts?: { approvePlan?: 'acceptEdits' | 'manual' | 'deny' },
+  ) => void;
 }> = ({ live, onPermission }) => {
   const list = live?.permissions ?? [];
   const expired = live?.permissionExpired;
@@ -225,30 +175,44 @@ const PermissionQueue: React.FC<{
     <div className={styles.permQueue} data-testid="conv-permission-queue">
       {list.length > 1 && (
         <div className={styles.permCount} aria-live="polite">
-          {t('{0} 项待确认', String(list.length))}
+          {t('ui.chat-settings.requests-waiting', String(list.length))}
         </div>
       )}
-      {list.map((p) => (
-        <PermissionCard
-          key={p.id}
-          summary={p.summary}
-          agent={p.agent}
-          expiresAt={p.expiresAt}
-          onReply={(allow) => onPermission(p.id, allow)}
-        />
-      ))}
+      {list.map((p) =>
+        p.kind === 'approve-plan' ? (
+          <ApprovePlanCard
+            key={p.id}
+            summary={p.summary}
+            agent={p.agent}
+            expiresAt={p.expiresAt}
+            executePlan={p.toolName === 'execute_plan'}
+            onChoice={(choice) => onPermission(p.id, choice !== 'deny', { approvePlan: choice })}
+          />
+        ) : (
+          <PermissionCard
+            key={p.id}
+            summary={p.summary}
+            agent={p.agent}
+            expiresAt={p.expiresAt}
+            onReply={(allow) => onPermission(p.id, allow)}
+          />
+        ),
+      )}
       {showExpired && expired && (
         <div className={styles.permExpired} role="status" data-testid="conv-permission-expired">
           {expired.agent
-            ? t('子代理「{0}」的请求已超时，已自动拒绝：{1}', expired.agent, expired.summary)
-            : t('请求已超时，已自动拒绝：{0}', expired.summary)}
+            ? t(
+                'ui.chat-settings.subagent-s-request-timed-out-and-was-denied',
+                expired.agent,
+                expired.summary,
+              )
+            : t('ui.chat-settings.the-request-timed-out-and-was-denied', expired.summary)}
         </div>
       )}
     </div>
   );
 };
 
-/** 首屏最多渲染的消息条数，以及按内容体量折算的预算（超大消息会让窗口变小） */
 export const WINDOW_MESSAGES = 30;
 export const WINDOW_BUDGET = 400;
 export const LOAD_MORE_STEP = 30;
@@ -307,7 +271,11 @@ export interface ConversationViewProps {
   /** 已排队、等当前轮结束后自动发送的消息 */
   queued?: readonly string[];
   onRemoveQueued?: (index: number) => void;
-  onPermission?: (requestId: string, allow: boolean) => void;
+  onPermission?: (
+    requestId: string,
+    allow: boolean,
+    opts?: { approvePlan?: 'acceptEdits' | 'manual' | 'deny' },
+  ) => void;
   /** 重新生成 / 重试（传入出错或最后一条助手消息的 id） */
   onRetry?: (assistantId: string) => void;
   /** 编辑某条用户消息并重新发送 */
@@ -319,6 +287,11 @@ export interface ConversationViewProps {
   onDismissCard?: (id: string) => void;
   /** 编程助手进程因空闲被回收：显示提示，发送下一条消息会自动续接 */
   dormant?: boolean;
+  /**
+   * 会话中途换了模型、还没发送下一条消息：切换后的模型名（空串 = 默认模型），显示一条弱提示。
+   * 由来源决定（编程助手标签看切换记录，Nomi 对话比较最后一条助手消息的模型）
+   */
+  modelSwitchTip?: string | null;
   /** 仍在运行的后台子代理（跨轮次）与后台任务总数（docs/design/cli-subagents.md §5） */
   backgroundAgents?: ReadonlyArray<{
     id: string;
@@ -343,6 +316,7 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
   cards,
   onDismissCard,
   dormant,
+  modelSwitchTip,
   backgroundAgents,
   backgroundCount,
   onStopAgent,
@@ -401,11 +375,14 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
 
   /** 上次贴底时内容是否已超出一屏（超出后由滚动锚定保持位置） */
   const overflowedRef = useRef(false);
+  /** 上一次看到的 scrollTop：判断这次滚动是不是用户往上滚 */
+  const lastTopRef = useRef(0);
   const scrollToBottom = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
     const h = el.scrollHeight;
     el.scrollTop = h;
+    lastTopRef.current = el.scrollTop;
     overflowedRef.current = h > el.clientHeight;
   }, []);
 
@@ -422,12 +399,20 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
     if (e.deltaY < 0) followRef.current = false;
   }, []);
 
+  // 只有用户往上滚（scrollTop 变小且离开底部）才停止跟随。不能只看「离底部多远」：程序贴底后
+  // scroll 事件要到下一帧才来，这期间内容又长高一大截（大段流式输出、工具 / 权限卡、图片加载完、
+  // 已完成轮次从占位高度换成真实高度）时会误判成用户滚开，从此不再跟随、停在半截。
+  // 内容变高不改 scrollTop，程序贴底只会让它变大；上方内容缩短时滚动锚定会让它变小，但离底距离不变。
   const onScroll = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
     const near = isNearBottom(el);
-    followRef.current = near;
-    setAway((v) => (v === !near ? v : !near));
+    const scrolledUp = el.scrollTop < lastTopRef.current - 1;
+    lastTopRef.current = el.scrollTop;
+    if (near) followRef.current = true;
+    else if (scrolledUp) followRef.current = false;
+    const away = !followRef.current;
+    setAway((v) => (v === away ? v : away));
   }, []);
 
   // 首次挂载（切换会话时由外层 key 重建）：直接到底部
@@ -466,7 +451,8 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
       if (messages[i]!.role === 'assistant') return messages[i]!.id;
     return undefined;
   }, [messages]);
-  const showLive = phase !== 'idle';
+  // 定稿消息已到、标签状态还没回到空闲的那一帧：不再画一个空的流式区（状态行会闪一下）
+  const showLive = phase !== 'idle' && !(running && !live && last?.role === 'assistant');
 
   return (
     <AgentsByCallContext.Provider value={agentMap}>
@@ -490,7 +476,7 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
                 }}
               >
                 <Icon icon={ChevronsUp} size={14} />
-                {t('显示更早的 {0} 条消息', start)}
+                {t('ui.usage-tools.show-earlier-messages', start)}
               </button>
             )}
             {start === 0 && renderCards(cardPlan.head)}
@@ -566,13 +552,13 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
             {queued?.map((text, i) => (
               <div className={styles.pending} key={`${i}-${text}`} data-testid="conv-queued">
                 <span className={styles.pendingText}>{text}</span>
-                <span className={styles.pendingTag}>{t('已排队')}</span>
+                <span className={styles.pendingTag}>{t('ui.usage-tools.queued')}</span>
                 {onRemoveQueued && (
                   <button
                     type="button"
                     className={styles.action}
-                    aria-label={t('移出队列')}
-                    title={t('移出队列')}
+                    aria-label={t('ui.usage-tools.remove-from-queue')}
+                    title={t('ui.usage-tools.remove-from-queue')}
                     data-testid="conv-queued-remove"
                     onClick={() => onRemoveQueued(i)}
                   >
@@ -582,9 +568,25 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
               </div>
             ))}
             <BackgroundBar agents={backgroundAgents} count={backgroundCount} onStop={onStopAgent} />
+            {modelSwitchTip != null && !running && (
+              <div
+                className={styles.modelTip}
+                data-testid="conv-model-switch-tip"
+                role="note"
+                aria-live="polite"
+              >
+                <Icon icon={ArrowLeftRight} size={12} />
+                <span>
+                  {t(
+                    'ui.cli-monitor.switched-to-changing-models-mid-conversation-means-the',
+                    modelSwitchTip || t('ui.providers-schedule.default-model'),
+                  )}
+                </span>
+              </div>
+            )}
             {dormant && !running && (
               <div className={styles.dormant} data-testid="conv-dormant" role="status">
-                {t('编程助手进程空闲已休眠，发送下一条消息会自动续接会话')}
+                {t('ui.cli-monitor.the-coding-assistant-process-went-dormant-after-being')}
               </div>
             )}
           </div>
@@ -594,8 +596,8 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
             type="button"
             className={styles.jump}
             data-testid="conv-jump-bottom"
-            aria-label={t('回到底部')}
-            title={t('回到底部')}
+            aria-label={t('ui.usage-tools.jump-to-latest')}
+            title={t('ui.usage-tools.jump-to-latest')}
             onClick={() => {
               followRef.current = true;
               setAway(false);

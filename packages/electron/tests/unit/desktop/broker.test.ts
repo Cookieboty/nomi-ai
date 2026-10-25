@@ -129,4 +129,33 @@ describe('PermissionBroker', () => {
       'local_only',
     );
   });
+
+  it('plan mode blocks writes without prompting, even forced ones; reads and cloud notices still work', async () => {
+    const { b, seen } = mk(1000);
+    b.permissionMode = () => 'plan';
+    const w = { tool: 'fs_write_text', danger: 'write' as const, summary: 's', args: {} };
+    expect(await b.authorize(w)).toBe('blocked');
+    expect(await b.authorize({ ...w, force: { dialog: false } })).toBe('blocked');
+    expect(await b.authorize({ ...w, tool: 'fs_trash', danger: 'destructive' })).toBe('blocked');
+    expect(await b.authorize({ ...w, tool: 'fs_read_text', danger: 'read' })).toBe('auto');
+    expect(seen).toHaveLength(0);
+    const p = b.checkSend({ id: 'deepseek', name: 'DeepSeek', local: false });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(seen[0]).toMatchObject({ tool: 'cloud_send_notice' });
+    b.answer(seen[0].id, true);
+    expect(await p).toBeNull();
+  });
+
+  it('auto mode skips default write prompts but keeps per-tool policies', async () => {
+    const { b, seen } = mk(1000);
+    b.permissionMode = () => 'auto';
+    const w = { tool: 'fs_write_text', danger: 'write' as const, summary: 's', args: {} };
+    expect(await b.authorize(w)).toBe('auto');
+    b.setPolicy('fs_write_text', 'write', 'ask');
+    const p = b.authorize(w);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(seen).toHaveLength(1);
+    b.answer(seen[0].id, false);
+    expect(await p).toBe('denied');
+  });
 });

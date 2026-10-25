@@ -1,0 +1,5 @@
+{"sessionId": "gem-sess-1", "projectHash": "abc", "startTime": "2026-10-14T10:00:00.000Z", "kind": "main"}
+{"id": "u1", "timestamp": "2026-10-14T10:00:01.000Z", "type": "user", "content": "hi"}
+{"id": "m1", "timestamp": "2026-10-14T10:00:05.000Z", "type": "gemini", "model": "gemini-2.5-pro", "content": "a", "tokens": {"input": 100, "output": 5, "cached": 40, "thoughts": 3, "tool": 0, "total": 108}}
+{"id": "m1", "timestamp": "2026-10-14T10:00:05.000Z", "type": "gemini", "model": "gemini-2.5-pro", "content": "ab", "tokens": {"input": 100, "output": 10, "cached": 40, "thoughts": 5, "tool": 2, "total": 117}}
+{"id": "m2", "timestamp": "2026-10-14T10:00:20.000Z", "type": "gemini", "model": "gemini-2.5-flash", "content": "c", "tokens": {"input": 50, "output": 7, "cached": 0, "thoughts": 0, "tool": 0, "total": 57}}

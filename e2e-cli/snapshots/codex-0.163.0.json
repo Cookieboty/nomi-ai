@@ -1,0 +1,14 @@
+{
+  "cli": "codex",
+  "version": "0.163.0",
+  "wire": "responses",
+  "required": [
+    "message.content",
+    "message.role",
+    "response.id",
+    "usage.input_tokens",
+    "usage.output_tokens",
+    "usage.total_tokens"
+  ],
+  "toleratesUnknown": true
+}

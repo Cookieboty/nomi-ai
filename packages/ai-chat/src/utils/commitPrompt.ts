@@ -12,23 +12,28 @@ export interface CommitPromptFile {
 
 export function buildCommitPrompt(files: readonly CommitPromptFile[], push: boolean): string {
   const listed = files.slice(0, MAX_LISTED).map((f) => {
-    const mark = f.staged ? (f.unstaged ? t('（部分已暂存）') : t('（已暂存）')) : '';
+    const mark = f.staged
+      ? f.unstaged
+        ? t('ui.session-workspace.partly-staged')
+        : t('ui.session-workspace.staged-parens')
+      : '';
     return `- ${f.path}${mark}`;
   });
   if (files.length > MAX_LISTED) {
-    listed.push(`- ${t('…另有 {0} 个文件', String(files.length - MAX_LISTED))}`);
+    listed.push(`- ${t('ui.foundation.and-more-files', String(files.length - MAX_LISTED))}`);
   }
   return [
-    t('请提交以下未提交的改动（{0} 个文件）：', String(files.length)),
+    t(
+      'ui.session-workspace.please-commit-the-following-uncommitted-changes-files',
+      String(files.length),
+    ),
     ...listed,
     '',
-    t('按仓库约定写 Conventional Commits 提交信息，必要时按主题拆成多个提交。'),
-    t('不要使用 --no-verify；钩子失败就修复后重新提交。不要改写已有历史，不要打 tag。'),
+    t('ui.session-workspace.write-conventional-commits-messages-following-the-repo-conventions'),
+    t('ui.session-workspace.do-not-use-no-verify-if-a-hook'),
     push
-      ? t(
-          '提交完成后执行普通的 git push（没有上游分支时用 -u origin <当前分支>），不要 force-push。',
-        )
-      : t('只提交，不要推送。'),
-    t('完成后列出每个提交的 hash 和标题。'),
+      ? t('ui.session-workspace.after-committing-run-a-plain-git-push-use')
+      : t('ui.session-workspace.commit-only-do-not-push'),
+    t('ui.session-workspace.when-done-list-each-commit-hash-and-subject'),
   ].join('\n');
 }
