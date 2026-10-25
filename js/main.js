@@ -31,6 +31,14 @@
     .then(function (r) { return r.ok ? r.json() : null; })
     .then(function (rel) {
       if (!rel || !rel.assets) return;
+      /* Until v2.0.0 is formally released, keep static v2.0.0 package labels;
+         only rewrite hrefs/names when the latest tag is v2.x. */
+      var tag = String(rel.tag_name || rel.name || "");
+      if (!/^v?2\./.test(tag)) {
+        var rl0 = document.getElementById("dl-release");
+        if (rl0 && rel.html_url) rl0.setAttribute("href", rel.html_url);
+        return;
+      }
       var byName = {};
       rel.assets.forEach(function (a) { byName[a.name] = a.browser_download_url; });
       function find(re) {
