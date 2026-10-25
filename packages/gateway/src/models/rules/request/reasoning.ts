@@ -26,7 +26,7 @@ const num = (v: unknown): number | undefined =>
 
 const ORDER: readonly Effort[] = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
 
-/** 取不高于请求的最高可用档；没有就取最低档（magpie fitLevel） */
+/** 取不高于请求的最高可用档；没有就取最低档 */
 export function fitLevel(want: Effort, efforts: readonly Effort[] | undefined): Effort {
   if (!efforts?.length) return want;
   const rank = ORDER.indexOf(want);
