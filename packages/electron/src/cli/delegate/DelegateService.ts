@@ -992,6 +992,14 @@ function gitEnv(): NodeJS.ProcessEnv {
   return env;
 }
 
+function realPath(p: string): string {
+  try {
+    return fs.realpathSync.native(p);
+  } catch {
+    return p;
+  }
+}
+
 export function gitChanged(cwd: string): Promise<string[] | null> {
   return new Promise((resolve) => {
     const env = gitEnv();
@@ -1003,8 +1011,10 @@ export function gitChanged(cwd: string): Promise<string[] | null> {
         if (err) return resolve(null);
         const root = String(toplevelRaw).trim();
         if (!root) return resolve(null);
-        // cwd 必须落在该仓库内；否则是 ambient GIT_DIR/错乱环境，当作非 git
-        const relCwd = path.relative(root, path.resolve(cwd));
+        // cwd 必须落在该仓库内；否则是 ambient GIT_DIR/错乱环境，当作非 git。
+        // git 给的是解析过符号链接的路径（macOS /var → /private/var），cwd 也按解析后的比
+        const realCwd = realPath(path.resolve(cwd));
+        const relCwd = path.relative(realPath(root), realCwd);
         if (relCwd.startsWith('..') || path.isAbsolute(relCwd)) return resolve(null);
         execFile(
           'git',
@@ -1013,8 +1023,8 @@ export function gitChanged(cwd: string): Promise<string[] | null> {
           (err2, stdout) => {
             if (err2) return resolve(null);
             const files = parsePorcelain(String(stdout)).map((f) => {
-              const abs = path.resolve(root, f);
-              const rel = path.relative(cwd, abs);
+              const abs = path.resolve(realPath(root), f);
+              const rel = path.relative(realCwd, abs);
               return rel || f;
             });
             resolve(files);

@@ -63,11 +63,21 @@ export async function resolveGitRoot(cwd: string): Promise<string | null> {
     const { stdout } = await git(cwd, ['rev-parse', '--show-toplevel']);
     const root = stdout.trim();
     if (!root) return null;
-    const rel = path.relative(root, path.resolve(cwd));
+    // git 返回的是解析过符号链接的路径（macOS 的 /var → /private/var、软链进来的项目目录），
+    // 按同样解析过的 cwd 比较，否则会误判成「不在仓库里」、退回 shared-cwd
+    const rel = path.relative(realPath(root), realPath(path.resolve(cwd)));
     if (rel.startsWith('..') || path.isAbsolute(rel)) return null;
     return root;
   } catch {
     return null;
+  }
+}
+
+function realPath(p: string): string {
+  try {
+    return fs.realpathSync.native(p);
+  } catch {
+    return p;
   }
 }
 
