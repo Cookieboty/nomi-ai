@@ -18,7 +18,7 @@ import { formatBucket } from '../UsagePanel/format';
 import { SERIES_COLORS, dimensionLabel, formatMs, formatRate, formatTps } from './format';
 import styles from './index.module.css';
 import { InlineEmpty, emptyCopy, loadingOrError, useQualityData } from './shared';
-import type { QualityBase } from './types';
+import type { CountOptions, QualityBase } from './types';
 
 type SeriesMetric = QualitySeriesQuery['metric'];
 
@@ -250,10 +250,10 @@ const TREND_GROUPS: Array<{ value: QualityDimension; gatewayOnly?: boolean }> = 
 export const Trend: React.FC<{
   base: QualityBase;
   rangeDays: number;
-  countBy: 'request' | 'attempt';
+  count: CountOptions;
   filtered: boolean;
   onClearFilters: () => void;
-}> = ({ base, rangeDays, countBy, filtered, onClearFilters }) => {
+}> = ({ base, rangeDays, count, filtered, onClearFilters }) => {
   const [metric, setMetric] = useState<SeriesMetric>('successRate');
   const [dim, setDim] = useState<QualityDimension | ''>('modelFamily');
   const [bucket, setBucket] = useState<'hour' | 'day'>(rangeDays <= 2 ? 'hour' : 'day');
@@ -265,7 +265,13 @@ export const Trend: React.FC<{
     ...base,
     metric,
     bucket,
-    ...(gateway ? { countBy } : {}),
+    ...(gateway
+      ? {
+          countBy: count.countBy,
+          ...(count.cancelInDenominator ? { cancelInDenominator: true } : {}),
+          ...(count.includeRejected ? { includeRejected: true } : {}),
+        }
+      : {}),
     ...(groupBy ? { groupBy } : {}),
   };
   const s = useQualityData<QualitySeries>(JSON.stringify(query), () => qualityClient.series(query));
