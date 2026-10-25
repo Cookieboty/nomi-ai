@@ -5,6 +5,8 @@
  * 总量优先用主进程算好的 usage.contextTokens（最后一次请求的输入 + 输出）；
  * 每轮的 input / cache / output 是整轮累计（计费口径），一轮多次请求时远大于上下文，不能拿来当总量。
  */
+import { truncDigits } from '@nomi-ai/ui';
+
 import type { ContextBreakdown } from '../services/harnessClient';
 import type { ConvMessage } from '../types/conversation';
 
@@ -244,11 +246,11 @@ function recentCategories(
   ].filter((c) => c.tokens > 0);
 }
 
+/** token 数一律抹零（截断）显示，不四舍五入 */
 export function formatTokens(n: number): string {
-  const trim = (x: number, digits: number) => x.toFixed(digits).replace(/\.0$/, '');
-  if (n >= 1_000_000) return `${trim(n / 1_000_000, n >= 10_000_000 ? 0 : 1)}M`;
-  if (n >= 1000) return `${trim(n / 1000, n >= 100_000 ? 0 : 1)}K`;
-  return String(Math.round(n));
+  if (n >= 1_000_000) return `${truncDigits(n / 1_000_000, n >= 10_000_000 ? 0 : 1)}M`;
+  if (n >= 1000) return `${truncDigits(n / 1000, n >= 100_000 ? 0 : 1)}K`;
+  return String(Math.floor(n));
 }
 
 export function formatUsd(n: number): string {

@@ -54,10 +54,17 @@ export interface ModelPickerProps extends Pick<
 
 const RECENT_MAX = 5;
 
+/** 截断到 digits 位小数（抹零，不四舍五入：1,050,000 → 1M，不显示成 1.1M） */
+export function truncDigits(x: number, digits: number): string {
+  const f = 10 ** digits;
+  // 1e-9 抵消浮点误差（0.29 * 100 = 28.999…）
+  return String(Math.floor(x * f + 1e-9) / f);
+}
+
 export function formatContext(tokens: number): string {
-  if (tokens >= 1_000_000) return `${+(tokens / 1_000_000).toFixed(1)}M`;
-  if (tokens >= 1000) return `${Math.round(tokens / 1000)}K`;
-  return String(tokens);
+  if (tokens >= 1_000_000) return `${truncDigits(tokens / 1_000_000, 1)}M`;
+  if (tokens >= 1000) return `${truncDigits(tokens / 1000, 0)}K`;
+  return String(Math.floor(tokens));
 }
 
 /** 能力标签：推理 · 视觉 · 128K；参数未知时给编程助手的提示 */

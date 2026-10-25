@@ -1,5 +1,5 @@
 /** 会话时间 / 用量展示：按分钟合并时间标签、完整时间、耗时、token 与费用摘要（纯函数） */
-import { t } from '@nomi-ai/ui';
+import { t, truncDigits } from '@nomi-ai/ui';
 
 import type { HarnessUsage } from '../services/harnessClient';
 import type { ConvMessage } from '../types/conversation';
@@ -56,11 +56,12 @@ export function timeLabels(
   return out;
 }
 
+/** token 数一律抹零（截断）显示，不四舍五入 */
 export function formatTokens(n: number): string {
-  if (n < 1000) return String(n);
-  if (n < 100_000) return `${(n / 1000).toFixed(n < 10_000 ? 1 : 0).replace(/\.0$/, '')}k`;
-  if (n < 1_000_000) return `${Math.round(n / 1000)}k`;
-  return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+  if (n < 1000) return String(Math.floor(n));
+  if (n < 100_000) return `${truncDigits(n / 1000, n < 10_000 ? 1 : 0)}k`;
+  if (n < 1_000_000) return `${truncDigits(n / 1000, 0)}k`;
+  return `${truncDigits(n / 1_000_000, 1)}M`;
 }
 
 export function formatCost(usd: number): string {

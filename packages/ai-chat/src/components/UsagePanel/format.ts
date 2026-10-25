@@ -1,9 +1,9 @@
 /** 用量面板的纯格式化 / 换算函数（无 React 依赖，便于单测）。 */
-import { getLocale, t } from '@nomi-ai/ui';
+import { getLocale, t, truncDigits } from '@nomi-ai/ui';
 
 import type { UsageCurrency } from '../../services/usageClient';
 
-/** 1234 → 1.23K，1_234_567 → 1.23M，12_345_678_901 → 12.3B；小于 1000 原样 */
+/** 1234 → 1.23K，1_234_567 → 1.23M，12_345_678_901 → 12.3B；小于 1000 原样。一律抹零，不四舍五入 */
 export function formatTokens(n: number): string {
   if (!Number.isFinite(n)) return '0';
   const v = Math.abs(n);
@@ -13,19 +13,14 @@ export function formatTokens(n: number): string {
     [1e6, 'M'],
     [1e9, 'B'],
   ];
-  const fmt = (x: number, unit: string) => {
-    const txt = x.toFixed(x >= 100 ? 0 : x >= 10 ? 1 : 2);
-    return `${sign}${txt.includes('.') ? txt.replace(/\.?0+$/, '') : txt}${unit}`;
-  };
+  const fmt = (x: number, unit: string) =>
+    `${sign}${truncDigits(x, x >= 100 ? 0 : x >= 10 ? 1 : 2)}${unit}`;
   for (let i = units.length - 1; i >= 0; i--) {
     const [base, unit] = units[i]!;
     if (v < base) continue;
-    // 四舍五入后凑满 1000 就进位（999.9K → 1M）
-    const next = units[i + 1];
-    if (next && Math.round(v / base) >= 1000) return fmt(v / next[0], next[1]);
     return fmt(v / base, unit);
   }
-  return `${sign}${Math.round(v)}`;
+  return `${sign}${Math.floor(v)}`;
 }
 
 /** 完整千分位（明细表、提示） */

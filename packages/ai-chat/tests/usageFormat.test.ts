@@ -20,7 +20,7 @@ import {
 import { parseRows } from '../src/components/UsagePanel/Pricing';
 
 describe('用量格式化', () => {
-  it('formatTokens：K / M / B 缩写，小数按量级取位', () => {
+  it('formatTokens：K / M / B 缩写，小数按量级取位，一律抹零', () => {
     expect(formatTokens(0)).toBe('0');
     expect(formatTokens(999)).toBe('999');
     expect(formatTokens(1234)).toBe('1.23K');
@@ -29,7 +29,9 @@ describe('用量格式化', () => {
     expect(formatTokens(100_000)).toBe('100K');
     expect(formatTokens(510_000)).toBe('510K');
     expect(formatTokens(1_000)).toBe('1K');
-    expect(formatTokens(999_999)).toBe('1M');
+    expect(formatTokens(999_999)).toBe('999K');
+    expect(formatTokens(1_299)).toBe('1.29K');
+    expect(formatTokens(1_050_000)).toBe('1.05M');
     expect(formatTokens(10_000)).toBe('10K');
     expect(formatTokens(1_500_000)).toBe('1.5M');
     expect(formatTokens(2_000_000_000)).toBe('2B');

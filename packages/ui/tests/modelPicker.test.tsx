@@ -92,6 +92,12 @@ describe('ModelPicker', () => {
     expect(formatContext(128_000)).toBe('128K');
     expect(formatContext(1_000_000)).toBe('1M');
     expect(formatContext(1_500_000)).toBe('1.5M');
+    // 抹零，不四舍五入
+    expect(formatContext(1_050_000)).toBe('1M');
+    expect(formatContext(1_099_999)).toBe('1M');
+    expect(formatContext(922_000)).toBe('922K');
+    expect(formatContext(127_999)).toBe('127K');
+    expect(formatContext(1_290_000)).toBe('1.2M');
     expect(splitModelRef('relay/vendor/model-x')).toEqual({
       provider: 'relay',
       model: 'vendor/model-x',

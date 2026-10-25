@@ -571,7 +571,9 @@ describe('ModelsPage', () => {
     fireEvent.click(await screen.findByTestId('provider-open-kimi'));
     const dlg = detail();
     const astra = within(dlg).getByTestId('pd-model-openai/gpt-6-astra');
-    expect(astra.textContent).toContain('1.1M');
+    // 抹零显示：1,050,000 → 1M，不四舍五入成 1.1M
+    expect(astra.textContent).toContain('1M');
+    expect(astra.textContent).not.toContain('1.1M');
     expect(astra.textContent).toContain('推理');
     expect(within(dlg).getByTestId('pd-model-acme/mystery').textContent).toContain('参数未知');
 
