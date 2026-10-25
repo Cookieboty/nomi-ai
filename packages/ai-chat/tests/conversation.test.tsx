@@ -437,6 +437,26 @@ describe('CliConversation 运行中', () => {
     expect(getByTestId('conv-live').textContent).toContain('排队等待');
     expect(getByTestId('conv-status').getAttribute('data-kind')).toBe('queued');
   });
+
+  it('定稿消息已到、标签还没回到空闲的那一帧不画空的流式区', () => {
+    const { queryByTestId, rerender } = render(
+      <CliConversation
+        tab={tab({ status: 'running' })}
+        messages={messages}
+        onPermission={() => undefined}
+      />,
+    );
+    expect(queryByTestId('conv-live')).toBeNull();
+    // 刚发出的用户消息在末尾、实时进度还没来：照常显示等待状态
+    rerender(
+      <CliConversation
+        tab={tab({ status: 'running' })}
+        messages={[...messages, { id: 'u2', role: 'user', content: '再看看', timestamp: 3 }]}
+        onPermission={() => undefined}
+      />,
+    );
+    expect(queryByTestId('conv-live')).not.toBeNull();
+  });
 });
 
 describe('CliConversation 自动滚动（贴底才跟，上滑不抢）', () => {

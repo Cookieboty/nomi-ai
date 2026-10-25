@@ -166,13 +166,26 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
         return next ?? cur;
       });
     });
-    const off2 = harnessClient.onTabMessage(({ tabId, message }) =>
+    const off2 = harnessClient.onTabMessage(({ tabId, message }) => {
+      // 回合的定稿助手消息：和清掉实时进度放在同一次提交里。主进程先发消息、下一个 microtask
+      // 才发「已空闲」的标签状态，分开提交的话中间那一帧同一段回答会渲染两份（定稿 + 流式）。
+      // 后台自动回合的消息不清：用户回合可能还在进行，实时进度属于它。
+      const settles = message.role === 'assistant' && message.origin !== 'background';
+      // 先落下已入队的实时事件（主进程保证它们先于本条消息到达），免得之后再把进度重建出来
+      if (settles) flushPending();
       setCache((cur) =>
         cur[tabId] && !cur[tabId]!.some((m) => m.id === message.id)
           ? { ...cur, [tabId]: [...cur[tabId]!, message] }
           : cur,
-      ),
-    );
+      );
+      if (settles)
+        setLive((cur) => {
+          if (!cur[tabId]) return cur;
+          const next = { ...cur };
+          delete next[tabId];
+          return next;
+        });
+    });
     // 实时事件按帧合批：一帧内到达的所有事件只触发一次 setState（流式文本 / 上千个工具事件不再逐条重渲染）
     const pending: HarnessLiveEvent[] = [];
     let raf = 0;

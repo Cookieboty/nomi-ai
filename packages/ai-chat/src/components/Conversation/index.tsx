@@ -440,7 +440,8 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
       if (messages[i]!.role === 'assistant') return messages[i]!.id;
     return undefined;
   }, [messages]);
-  const showLive = phase !== 'idle';
+  // 定稿消息已到、标签状态还没回到空闲的那一帧：不再画一个空的流式区（状态行会闪一下）
+  const showLive = phase !== 'idle' && !(running && !live && last?.role === 'assistant');
 
   return (
     <AgentsByCallContext.Provider value={agentMap}>
