@@ -258,10 +258,13 @@ export class AiSdkLlmProvider implements LLMProvider {
     };
     const toolsFor = (req: { reqId: string; extra?: Record<string, unknown> }) => {
       const caller = typeof req.extra?.callerTabId === 'string' ? req.extra.callerTabId : undefined;
+      const conversationId =
+        typeof req.extra?.conversationId === 'string' ? req.extra.conversationId : undefined;
       return toAiSdkToolSet(defs, {
         provider: receiver,
         reqId: req.reqId,
         ...(caller ? { callerTabId: caller } : {}),
+        ...(conversationId ? { conversationId } : {}),
       }) as ToolSet;
     };
     return {

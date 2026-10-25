@@ -39,6 +39,8 @@ interface SdkChatOptions {
   provider?: string;
   model?: string;
   messages: Array<{ role: 'system' | 'user' | 'assistant' | 'tool'; content: string }>;
+  /** 透传至 ChatRequest.extra（如 conversationId，#116） */
+  extra?: Record<string, unknown>;
 }
 
 type SdkChatChunk =
@@ -161,9 +163,11 @@ export class SdkIPCClient implements IPCClient {
     const reqId = streamOpts?.reqId;
     const signal = streamOpts?.signal;
     try {
+      const conversationId = this.currentConversationId();
       const opts = {
         messages: await this.buildMessages(message, history, extraSystem, images),
         ...(reqId ? { reqId } : {}),
+        ...(conversationId ? { extra: { conversationId } } : {}),
       };
       if (signal?.aborted) return;
       // 对话走工具循环（role 仍是 chat，按 chat 路由选 provider）

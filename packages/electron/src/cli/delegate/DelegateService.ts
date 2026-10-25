@@ -134,6 +134,8 @@ export interface DelegateResult {
   usage?: HarnessUsage;
   /** P3：worktree / shared-cwd 隔离说明（给 Nomi / 用户看） */
   isolationNote?: string;
+  /** 发起委派的 Nomi 会话；渲染层按此会话落盘完成结果（#116） */
+  conversationId?: string;
 }
 
 /** 后台委派进行中的任务（P2） */
@@ -153,6 +155,8 @@ interface BgTask {
   result?: DelegateResult;
   /** 启动时的 ToolExecContext 片段：完成时 markRead / maySend；重启恢复的终态任务没有它 */
   ctx?: ToolExecContext;
+  /** 发起委派的 Nomi 会话 id（#116） */
+  conversationId?: string;
 }
 
 interface PersistedBgTask {
@@ -167,6 +171,7 @@ interface PersistedBgTask {
   status: BgTask['status'];
   cancelledBy?: BgTask['cancelledBy'];
   result?: DelegateResult;
+  conversationId?: string;
 }
 
 const MAX_PERSISTED_TASKS = 200;
@@ -687,6 +692,7 @@ export class DelegateService {
         before,
         status: 'running',
         ctx,
+        ...(ctx.conversationId ? { conversationId: ctx.conversationId } : {}),
       };
       this.tasks.set(tab.id, task);
       this.persistTasks();
@@ -723,6 +729,7 @@ export class DelegateService {
       before,
       status: 'running',
       ctx,
+      ...(ctx.conversationId ? { conversationId: ctx.conversationId } : {}),
     };
     this.tasks.set(tab.id, task);
     this.persistTasks();
@@ -807,7 +814,12 @@ export class DelegateService {
       }
     }
     if (o.status === 'cancelled') {
-      await releaseIsolation(task.isolation, (m) => console.warn(`[delegate] ${m}`));
+      // 用户接管后 worktree 归用户；不能在取消收尾里删掉（#118）
+      const takenOver = this.d.harness.listTabs().tabs.find((x) => x.id === task.taskId)
+        ?.delegation?.takenOver;
+      if (!takenOver) {
+        await releaseIsolation(task.isolation, (m) => console.warn(`[delegate] ${m}`));
+      }
     }
     if (report) {
       report = wrapReport({ ...report, changedFiles });
@@ -828,6 +840,7 @@ export class DelegateService {
       durationMs: Date.now() - task.startedAt,
       ...(o.usage ? { usage: o.usage } : {}),
       isolationNote,
+      ...(task.conversationId ? { conversationId: task.conversationId } : {}),
     };
 
     task.status = result.status;

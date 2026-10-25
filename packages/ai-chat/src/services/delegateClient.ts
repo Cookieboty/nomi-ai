@@ -57,6 +57,8 @@ export interface DelegateResult {
   durationMs: number;
   usage?: HarnessUsage;
   isolationNote?: string;
+  /** 发起委派的 Nomi 会话；完成结果写回该会话（#116） */
+  conversationId?: string;
 }
 
 export function delegateKindLabel(k: DelegateKind): string {

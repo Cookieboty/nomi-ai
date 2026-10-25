@@ -48,6 +48,25 @@ describe('toAiSdkToolSet', () => {
     } as never);
     expect(out).toBe('hi');
   });
+
+  it('forwards conversationId into ToolExecContext (#116)', async () => {
+    let seen: { conversationId?: string } | undefined;
+    const tool = {
+      ...echoTool,
+      id: 'echo',
+      execute: async (_input: { text: string }, ctx: { conversationId?: string }) => {
+        seen = ctx;
+        return 'ok';
+      },
+    };
+    const set = toAiSdkToolSet([tool], { conversationId: 'conv-42', reqId: 'r1' });
+    await set.echo!.execute!({ text: 'x' }, {
+      toolCallId: 't1',
+      messages: [],
+      abortSignal: undefined as never,
+    } as never);
+    expect(seen?.conversationId).toBe('conv-42');
+  });
 });
 
 describe('AiSdkLlmProvider', () => {

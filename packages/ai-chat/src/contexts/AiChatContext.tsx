@@ -344,8 +344,17 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           timestamp: Date.now(),
           origin: 'background',
         };
-        dispatch({ type: 'ADD_MESSAGE', payload: m });
-        void ipcClient.saveMessage(m);
+        const targetId = r.conversationId;
+        if (targetId && ipcClient.saveMessageTo) {
+          // 只在目标会话仍是当前展示时更新 UI，避免污染另一会话（#116）
+          if (ipcClient.currentConversationId?.() === targetId) {
+            dispatch({ type: 'ADD_MESSAGE', payload: m });
+          }
+          void ipcClient.saveMessageTo(m, targetId);
+        } else {
+          dispatch({ type: 'ADD_MESSAGE', payload: m });
+          void ipcClient.saveMessage(m);
+        }
       }),
     [ipcClient],
   );
