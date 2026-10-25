@@ -3,9 +3,12 @@
  * 主进程（GatewayService）通过 utilityProcess 的 parentPort 推送配置快照；网关回报监听地址、用量与错误。
  * 这里不依赖 Electron：port 只要有 on('message') / postMessage 即可，单测用假的 port。
  */
+import fs from 'node:fs';
+
 import type { GatewayConfig } from './config';
 import type { KeyStatusEvent } from './cooldown';
 import type { LearnEvent } from './learn';
+import { readCatalogFile, setCatalogOverlay } from './models/catalog';
 import { BindingTable, type BindingAck, type BindingMessage } from './route/binding';
 import { createGateway, type GatewayHooks, type GatewayServer, type UsageEvent } from './server';
 
@@ -40,7 +43,24 @@ export function runGatewayWorker(
   // 串行处理消息：启动是异步的，后到的配置要等前一次完成
   let chain = Promise.resolve();
 
+  /** 已加载的同步目录（路径 + 修改时间）：变了才重读，配置每次推送都会带上路径 */
+  let catalogKey = '';
+  const statKey = (file: string | undefined): string => {
+    try {
+      return file ? `${file}:${fs.statSync(file).mtimeMs}` : '';
+    } catch {
+      return '';
+    }
+  };
+  const loadCatalog = (file: string | undefined) => {
+    const key = statKey(file);
+    if (key === catalogKey) return;
+    catalogKey = key;
+    setCatalogOverlay(file && key ? readCatalogFile(file) : null);
+  };
+
   const apply = async (config: GatewayConfig) => {
+    loadCatalog(config.catalogFile);
     const key = `${config.host}:${config.port}`;
     if (gw && key === listenKey) {
       gw.update(config);

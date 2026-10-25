@@ -49,7 +49,17 @@ export {
   type TabBinding,
 } from './route/binding';
 export { Limiter, limitsOf, type Limits } from './limits';
-export { bareModelId, CATALOG_VERSION, catalogEntry } from './models/catalog';
+export {
+  bareModelId,
+  CATALOG_VERSION,
+  catalogEntry,
+  catalogOverlayVersion,
+  catalogSize,
+  readCatalogFile,
+  setCatalogOverlay,
+  type CatalogDoc,
+} from './models/catalog';
+export { buildCatalog } from './models/buildCatalog';
 export { effectiveModel, LEARNED_TTL_MS } from './models/effective';
 export { FAMILIES, familyOf } from './models/families';
 export { fitLevel, UnsupportedParamError } from './models/rules/request/index';

@@ -949,7 +949,7 @@ Nomi 自己的对话也作为网关的一个客户端（`nomi`），和 CLI 走�
 1. 用户在模型详情里手动填写的值；
 2. 预设里为每个模型整理好的值（§8.4），在 M2 对首批厂商逐个核对官方文档，并记下查证日期；
 3. 上游模型列表接口返回的字段（部分厂商会返回 `context_length` 等）；
-4. 构建时内置一份公开模型目录的快照（models.dev，MIT，`packages/gateway/src/models/catalog.json`，由 `packages/gateway/scripts/build-catalog.mjs` 生成，已登记 `assets-licenses.json`）。运行时不联网拉取。
+4. 构建时内置一份公开模型目录的快照（models.dev，MIT，`packages/gateway/src/models/catalog.json`，由 `packages/gateway/scripts/build-catalog.mjs` 生成，已登记 `assets-licenses.json`）。运行时可同步（见下文「模型数据同步」），同步到的目录作为覆盖层，没同步过 / 失败时用内置的。
 
 实现（`packages/electron/src/gateway/modelMeta.ts` 的 `resolveModelMeta`）：
 
@@ -960,6 +960,13 @@ Nomi 自己的对话也作为网关的一个客户端（`nomi`），和 CLI 走�
 - 内置目录按去掉中转前缀、`:free` 等标签和日期后缀后的 id 查；
 - 注入的「上下文」取**最大输入**（models.dev 的 `limit.input`，模型列表接口的 `max_input_tokens` / `inputTokenLimit`），没有时才用总窗口：有的模型为输出预留了一块（gpt-5 系列总窗口 400K、最大输入 272K，与 Codex 官方配置一致；gpt-5.4 起 1.05M / 922K），按总窗口注入会在 CLI 压缩前先撞上上游的上下文超长；
 - 编程助手启动注入（`GatewayService.agentMeta`，终端命令同用）、网关快照（用户 / 预设 / 列表的上限写进 `RuntimeModel`，只来自目录的不写，网关自己读目录）、「模型」页的标签与选择器（状态里每个模型附 `effective`，保存时丢弃）用同一份结果。
+
+**模型数据同步**：用量服务的 `PriceSync` 是唯一的联网点，一次下载 models.dev 同时得到价格表与模型目录（`buildCatalog`，与构建脚本同一个函数）：
+
+- 触发：启动时 `UsageService.autoSync()`（设置 `modelsSyncAuto` 默认开；距上次核对不足 12 小时不联网，网关还没有目录缓存时不等），或「模型」页「立即同步」/ 用量面板「同步价格」；没有后台轮询；
+- 网关：`GatewayService.applyModelsData` 生成目录（条目少于 100 视为异常，不采用），写 `userData/gateway/catalog-sync.json`，主进程 `setCatalogOverlay` 立即生效，配置里带 `catalogFile` 让网关进程按修改时间重读；
+- 查找先覆盖层后内置（models.dev 下架的旧模型仍按内置）；学到的结论只跟内置目录的版本（同步每天都可能更新，跟着它会让学到的结论天天作废）；
+- 网关还没有目录缓存（文件被删）时这次不带 If-None-Match，避免 304 让目录永远建不起来。
 
 **标准窗口与长上下文**：按上下文长度分档计价的模型（gpt-5.4 起超过 272K、Gemini / Grok 超过 200K、Qwen 超过 256K 等按更高单价计费），默认按**标准窗口**（最高一档的计价门槛）注入，用户可按需开启长上下文（注入最大输入）。
 

@@ -147,6 +147,8 @@ export interface GatewayState {
   /** 入站请求体上限（字节）；默认 32 MiB */
   maxRequestBodyBytes?: number;
   migratedFrom?: { at: number; files: string[] };
+  /** 模型目录：收录的模型数、版本（同步日；没同步过是内置目录的生成日）、是否来自同步 */
+  catalog?: { models: number; version: string; synced: boolean };
   /** 这次启动撤销旧版本全局配置的结果（§6.3 第 7 步） */
   legacyRevoke?: { revoked: string[]; failed: Array<{ kind: string; error: string }> };
 }

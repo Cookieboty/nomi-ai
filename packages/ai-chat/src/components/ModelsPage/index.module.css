@@ -322,8 +322,14 @@
 }
 
 .errorText,
+.errText,
 .error {
   color: var(--cd-color-danger-text);
+  font-size: var(--cd-font-size-sm);
+}
+
+.okText {
+  color: var(--cd-color-success);
   font-size: var(--cd-font-size-sm);
 }
 

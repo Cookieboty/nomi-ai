@@ -47,6 +47,8 @@ export interface UsageSettings {
   dailyBudget: number;
   monthlyBudget: number;
   taskAlert: number;
+  /** 启动时自动同步模型数据（价格 + 模型参数）；距上次核对不足 12 小时不同步 */
+  modelsSyncAuto?: boolean;
 }
 
 export interface UsageBuiltinPrice extends UsageCustomPrice {
@@ -230,6 +232,9 @@ const bridge = (): AiBridge | undefined => {
   const b = (window as unknown as { aiIPC?: AiBridge }).aiIPC;
   return b && typeof b.invoke === 'function' ? b : undefined;
 };
+
+/** 在桌面应用里（有 preload 桥）才能调用用量服务 */
+export const usageClientAvailable = (): boolean => Boolean(bridge());
 
 async function call<T>(method: string, ...args: unknown[]): Promise<T> {
   const b = bridge();

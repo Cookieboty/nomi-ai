@@ -174,6 +174,8 @@ export interface GatewayConfig {
   learned?: Record<string, LearnedState>;
   /** 会话归属表文件（§11.4）；缺省只在内存里 */
   sessionsFile?: string;
+  /** 运行时同步到的模型目录（models.dev，§12.7.2）；有就作为内置目录的覆盖层 */
+  catalogFile?: string;
   /** 调试追踪目录（§14「调试模式」）：设置了才把请求 / 响应正文脱敏后写到这里，24 小时自动删除 */
   traceDir?: string;
   /** 严格模式（§6.9.6，默认关）：模型不支持的参数直接报错，而不是丢弃并记录 */

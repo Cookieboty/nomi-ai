@@ -1,7 +1,7 @@
 /** 用量面板的纯格式化 / 换算函数（无 React 依赖，便于单测）。 */
 import { getLocale, t, truncDigits } from '@nomi-ai/ui';
 
-import type { UsageCurrency } from '../../services/usageClient';
+import type { UsageCurrency, UsagePriceSyncResult } from '../../services/usageClient';
 
 /** 1234 → 1.23K，1_234_567 → 1.23M，12_345_678_901 → 12.3B；小于 1000 原样。一律抹零，不四舍五入 */
 export function formatTokens(n: number): string {
@@ -171,4 +171,17 @@ export function quotaWindowShort(id: string, minutes?: number): string {
   if (minutes < 60) return t('ui.foundation.min', Math.round(minutes));
   if (minutes < 1440) return t('ui.foundation.h', Number((minutes / 60).toFixed(1)));
   return t('ui.usage-tools.d', Number((minutes / 1440).toFixed(1)));
+}
+
+/** 模型数据同步（models.dev）失败的原因（用量面板与「模型」页共用） */
+export function syncFailureReason(r: Extract<UsagePriceSyncResult, { ok: false }>): string {
+  const why: Record<string, string> = {
+    network: t('ui.usage-tools.network-unavailable'),
+    timeout: t('ui.usage-tools.connection-timed-out'),
+    http: t('ui.usage-tools.the-server-returned-an-error', r.httpStatus ?? ''),
+    invalid: t('ui.usage-tools.the-returned-price-table-has-an-unexpected-format'),
+    'too-large': t('ui.usage-tools.the-returned-data-is-too-large'),
+    busy: t('ui.usage-tools.a-sync-is-already-running'),
+  };
+  return why[r.reason] ?? r.reason;
 }

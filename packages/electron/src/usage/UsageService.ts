@@ -102,7 +102,12 @@ export interface UsageSettings {
   monthlyBudget: number;
   /** 单个任务（连续使用的一段会话）花费超过它就提醒一次 */
   taskAlert: number;
+  /** 启动时自动同步模型数据（价格 + 模型参数，models.dev）；距上次核对不足 12 小时不同步 */
+  modelsSyncAuto: boolean;
 }
+
+/** 启动时自动同步模型数据的最短间隔 */
+export const MODELS_SYNC_INTERVAL_MS = 12 * 60 * 60_000;
 
 export const DEFAULT_USAGE_SETTINGS: UsageSettings = {
   enabled: true,
@@ -116,6 +121,7 @@ export const DEFAULT_USAGE_SETTINGS: UsageSettings = {
   dailyBudget: 0,
   monthlyBudget: 0,
   taskAlert: 0,
+  modelsSyncAuto: true,
 };
 
 export function sanitizeUsageSettings(
@@ -143,6 +149,7 @@ export function sanitizeUsageSettings(
     dailyBudget: amount(o.dailyBudget, base.dailyBudget),
     monthlyBudget: amount(o.monthlyBudget, base.monthlyBudget),
     taskAlert: amount(o.taskAlert, base.taskAlert),
+    modelsSyncAuto: b(o.modelsSyncAuto, base.modelsSyncAuto),
   };
 }
 
@@ -192,6 +199,9 @@ type Deps = {
   ) => { dir: string | null; args: string[] } | null;
   /** 价格同步所用的 fetch（测试注入；默认全局 fetch，只在用户点「同步价格」时调用） */
   priceFetch?: (url: string, init: RequestInit) => Promise<Response>;
+  /** 模型数据同步下载到新数据时交给网关生成模型目录；网关还没有目录缓存时强制完整下载 */
+  onModelsData?: (api: unknown) => void;
+  needsFullModelsData?: () => boolean;
 };
 
 /** 单个工具这次「刷新」的结果（面板提示用，不含任何账号信息） */
@@ -402,6 +412,8 @@ export class UsageService {
       now: d.now,
       fetchImpl: d.priceFetch,
       logger: d.logger,
+      ...(d.onModelsData ? { onData: d.onModelsData } : {}),
+      ...(d.needsFullModelsData ? { needsFull: d.needsFullModelsData } : {}),
     });
     this.load();
     this.loadAlerts();
@@ -1514,13 +1526,25 @@ export class UsageService {
   }
 
   /**
-   * 手动同步价格（用户点「同步价格」才会走到这里）：只下载 models.dev 的公开价格表，不上传任何用量。
-   * 返回结果 + 最新状态；成功后通知各窗口刷新。
+   * 同步模型数据（价格 + 模型参数）：用户点「立即同步」，或启动时由 autoSync 调用。
+   * 只下载 models.dev 的公开数据，不上传任何用量。返回结果 + 最新状态；成功后通知各窗口刷新。
    */
   async syncPrices(): Promise<{ result: PriceSyncResult } & ReturnType<UsageService['state']>> {
     const result = await this.priceSync.sync();
     if (result.ok) this.changed();
     return { result, ...this.state() };
+  }
+
+  /**
+   * 启动时自动同步：用户没关「启动时自动同步」、且距上次与服务器核对超过 12 小时才联网；
+   * 网关还没有模型目录缓存时不等 12 小时（否则刚升级的版本要等半天才有新模型）。
+   */
+  async autoSync(): Promise<void> {
+    if (!this.settings.modelsSyncAuto) return;
+    const last = this.priceSync.state().checkedAt;
+    if (last && this.now() - last < MODELS_SYNC_INTERVAL_MS && !this.d.needsFullModelsData?.())
+      return;
+    await this.syncPrices();
   }
 
   query(rangeId: RangeId) {

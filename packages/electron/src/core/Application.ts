@@ -431,6 +431,12 @@ export class Application implements IApplication {
         providerName: (id) => this.aiRuntime?.listProviders().find((p) => p.id === id)?.name,
         // Grok 额度指纹用账号模块记录的身份（来自 CLI 自己报告），不读 auth.json（§5.10 S7）
         grokAccountKey: () => accounts.identityKey('grok'),
+        // 模型数据同步（models.dev）：同一份下载同时更新价格表与网关的模型目录
+        onModelsData: (api) => getGatewayService()?.applyModelsData(api),
+        needsFullModelsData: () => {
+          const g = getGatewayService();
+          return g ? !g.hasCatalogSync() : false;
+        },
         // 额度跟着默认官方账号走：取额度的官方 CLI 在默认账号的账号目录里运行（§5.10）
         officialAccount: (kind, prepare) => {
           if (!prepare) return { dir: accounts.defaultDir(kind), args: [] };
@@ -623,6 +629,8 @@ export class Application implements IApplication {
       gateway.registerIpc();
       // 先迁移（读旧存储里「启用中」的标记），再撤销旧版本写进全局配置的东西（会清掉这些标记）
       gateway.init();
+      // 启动时自动同步模型数据（用户可在「模型」页关闭；距上次核对不足 12 小时不联网）
+      void usage.autoSync().catch((e) => this.logger.warn('models data auto sync failed', e));
       // 终端启动命令（unified-gateway §12.6，默认关）：端口 / 令牌 / 分配变化时重新生成脚本
       const terminal = initTerminalCommands({
         root: path.join(app.getPath('userData'), 'gateway'),

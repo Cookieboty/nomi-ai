@@ -12,7 +12,7 @@ import {
 } from '../../services/usageClient';
 import { AppIcon } from '../AppIcons';
 
-import { formatDateTime, formatPrice, formatTokens } from './format';
+import { formatDateTime, formatPrice, formatTokens, syncFailureReason } from './format';
 import styles from './index.module.css';
 
 interface Row {
@@ -78,18 +78,7 @@ export function priceSyncMessage(r: UsagePriceSyncResult): string {
     return r.status === 'not-modified'
       ? t('ui.usage-tools.price-table-is-up-to-date-nothing-downloaded')
       : t('ui.usage-tools.synced-prices-for-models', r.count);
-  const why: Record<string, string> = {
-    network: t('ui.usage-tools.network-unavailable'),
-    timeout: t('ui.usage-tools.connection-timed-out'),
-    http: t('ui.usage-tools.the-server-returned-an-error', r.httpStatus ?? ''),
-    invalid: t('ui.usage-tools.the-returned-price-table-has-an-unexpected-format'),
-    'too-large': t('ui.usage-tools.the-returned-data-is-too-large'),
-    busy: t('ui.usage-tools.a-sync-is-already-running'),
-  };
-  return t(
-    'ui.usage-tools.sync-failed-existing-prices-are-still-in-use',
-    why[r.reason] ?? r.reason,
-  );
+  return t('ui.usage-tools.sync-failed-existing-prices-are-still-in-use', syncFailureReason(r));
 }
 
 export const Pricing: React.FC<Props> = ({ state, unpriced, onSettings, onState }) => {
@@ -254,9 +243,7 @@ export const Pricing: React.FC<Props> = ({ state, unpriced, onSettings, onState 
               : t('ui.usage-tools.not-synced-yet-using-the-built-in-price', state.pricing.date)}
           </span>
         </header>
-        <p className={styles.dim}>
-          {t('ui.usage-tools.goes-online-only-when-you-click-downloads-the')}
-        </p>
+        <p className={styles.dim}>{t('ui.usage-tools.models-data-sync-note')}</p>
         <div className={styles.actionsRow}>
           <Button
             size="sm"

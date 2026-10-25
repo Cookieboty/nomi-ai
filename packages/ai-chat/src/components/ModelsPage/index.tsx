@@ -44,6 +44,7 @@ import { EndpointIcon } from '../EndpointIcon';
 
 import { AddProviderDialog } from './AddProviderDialog';
 import styles from './index.module.css';
+import { ModelsDataSyncCard } from './ModelsDataSyncCard';
 import { keyName, ProviderDetailDialog } from './ProviderDetailDialog';
 import { TerminalCommandsCard } from './TerminalCommandsCard';
 import { useCliInstall } from './useCliInstall';
@@ -236,6 +237,8 @@ export const ModelsPage: React.FC = () => {
           </Button>
         </div>
       )}
+
+      <ModelsDataSyncCard gateway={state ?? null} />
 
       <section className={styles.card} aria-labelledby="models-assign">
         <h3 id="models-assign" className={styles.cardTitle}>

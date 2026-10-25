@@ -11,6 +11,10 @@ import path from 'path';
 import type { ProviderStoreData, SecretCipher } from '@nomi-ai/ai-runtime';
 import { BUILTIN_MANIFESTS, isBuiltinCliId } from '@nomi-ai/cli-plugins';
 import {
+  buildCatalog,
+  catalogOverlayVersion,
+  catalogSize,
+  CATALOG_VERSION,
   clampMaxRequestBodyBytes,
   CLIENT_IDS,
   detect,
@@ -29,10 +33,13 @@ import {
   type RuntimeProvider,
   type UsageEvent,
   type Wire,
+  readCatalogFile,
+  setCatalogOverlay,
 } from '@nomi-ai/gateway';
 
 import { t as tr } from '../i18n';
 import { guardedHandle } from '../security/guardedIpc';
+import { writePrivateFileAtomic } from '../utils/privateFile';
 
 import {
   agentLaunch,
@@ -187,6 +194,8 @@ export interface GatewayStateView {
   migratedFrom?: { at: number; files: string[] };
   /** Nomi 对话最近用过的模型（新的在前） */
   recentNomi?: string[];
+  /** 模型目录：收录的模型数、版本（同步日；没同步过是内置目录的生成日）、是否来自同步 */
+  catalog: { models: number; version: string; synced: boolean };
   /** 这次启动撤销旧版本全局配置的结果（§6.3 第 7 步）：撤销了哪些、哪些没撤成 */
   legacyRevoke?: { revoked: string[]; failed: Array<{ kind: string; error: string }> };
 }
@@ -244,6 +253,9 @@ export interface GatewayServiceDeps {
   broadcast?: (channel: string, payload: unknown) => void;
 }
 
+/** 同步到的模型目录至少要有这么多条，否则视为异常响应 */
+const MIN_SYNCED_MODELS = 100;
+
 export class GatewayService {
   readonly store: GatewayStore;
   /** 第三方标签的进程级令牌与绑定（§6.7） */
@@ -294,7 +306,41 @@ export class GatewayService {
     const normalized = this.normalizeCliAssignments();
     if (this.store.ensureClients() || normalized || !this.store.exists()) this.store.save();
     this.archiveLeftoverLegacy();
+    // 上次同步到的模型目录（models.dev）：主进程的元数据解析先用上；网关进程按 catalogFile 自己读
+    setCatalogOverlay(readCatalogFile(this.catalogFile));
     this.push();
+  }
+
+  /* ------------------------------ 模型数据同步（§12.7.2） ------------------------------ */
+
+  private get catalogFile(): string {
+    return path.join(this.d.root, 'catalog-sync.json');
+  }
+
+  /** 已有同步到的模型目录（没有时模型数据同步要强制完整下载，不能被 304 跳过） */
+  hasCatalogSync(): boolean {
+    return catalogOverlayVersion() !== null;
+  }
+
+  /**
+   * 模型数据同步下载到的 models.dev api.json（用量服务的 PriceSync 转交）→ 生成模型目录覆盖层：
+   * 写进 userData、主进程立即生效、推配置让网关进程重读，并通知界面刷新生效值。
+   * 条目明显过少（异常响应）时不采用，保留原有目录。
+   */
+  applyModelsData(api: unknown): void {
+    const { fromFallback: _f, ...doc } = buildCatalog(api, new Date().toISOString().slice(0, 10));
+    void _f;
+    if (Object.keys(doc.models).length < MIN_SYNCED_MODELS) {
+      this.d.logger.warn('models data sync: too few models, keeping the current catalog', {
+        count: Object.keys(doc.models).length,
+      });
+      return;
+    }
+    fs.mkdirSync(this.d.root, { recursive: true });
+    writePrivateFileAtomic(this.catalogFile, JSON.stringify(doc));
+    setCatalogOverlay(doc);
+    this.push();
+    this.changed();
   }
 
   /**
@@ -325,6 +371,7 @@ export class GatewayService {
     const cfg = this.config();
     // 会话归属表由网关进程自己读写（§11.4）
     cfg.sessionsFile = path.join(this.d.root, 'sessions.json');
+    if (this.hasCatalogSync()) cfg.catalogFile = this.catalogFile;
     const traceDir = this.d.traceDir?.();
     if (traceDir) cfg.traceDir = traceDir;
     // 路由计划默认 active（按新计划选上游协议）；NOMI_ROUTE_PLAN=shadow 可回滚到影子模式（§6.9.4）
@@ -792,6 +839,11 @@ export class GatewayService {
       maxRequestBodyBytes: clampMaxRequestBodyBytes(data.maxRequestBodyBytes ?? 32 * 1024 * 1024),
       ...(data.migratedFrom ? { migratedFrom: data.migratedFrom } : {}),
       ...(data.recentNomi?.length ? { recentNomi: data.recentNomi } : {}),
+      catalog: {
+        models: catalogSize(),
+        version: catalogOverlayVersion() ?? CATALOG_VERSION,
+        synced: this.hasCatalogSync(),
+      },
       ...(this.legacyRevoke ? { legacyRevoke: this.legacyRevoke } : {}),
     };
   }

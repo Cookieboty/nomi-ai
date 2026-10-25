@@ -9,7 +9,13 @@ import os from 'node:os';
 import path from 'node:path';
 
 import type { ProviderStoreData, SecretCipher } from '@nomi-ai/ai-runtime';
-import type { detect, GatewayConfig, WorkerInbound, WorkerOutbound } from '@nomi-ai/gateway';
+import {
+  setCatalogOverlay,
+  type detect,
+  type GatewayConfig,
+  type WorkerInbound,
+  type WorkerOutbound,
+} from '@nomi-ai/gateway';
 
 import { GatewayProcess } from '../../../src/gateway/GatewayProcess';
 import { GatewayService } from '../../../src/gateway/GatewayService';
@@ -627,6 +633,59 @@ describe('GatewayService', () => {
       ),
     });
     expect(svc.modelMetaOf('relay/openai/gpt-6-astra')!.ctx).toBe(922_000);
+  });
+
+  it('models data sync (§12.7.2): synced catalog overlays the built-in one, survives a restart', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gw-catalog-'));
+    const make = () => {
+      const svc = new GatewayService({
+        root,
+        cipher,
+        logger: { info() {}, warn() {} },
+        process: new GatewayProcess({
+          logger: { info() {}, warn() {} },
+          fork: () => new FakeChild() as never,
+        }),
+      });
+      svc.init();
+      return svc;
+    };
+    const api = (n: number) => ({
+      openai: {
+        models: Object.fromEntries(
+          Array.from({ length: n }, (_, i) => [
+            `sync-model-${i}`,
+            { id: `sync-model-${i}`, limit: { context: 333_000, output: 9_000 }, tool_call: true },
+          ]),
+        ),
+      },
+    });
+    const svc = make();
+    svc.upsertProvider({
+      name: 'Relay',
+      urls: { chat: 'https://relay/v1' },
+      models: [{ id: 'acme/sync-model-7', enabled: true }],
+    });
+    expect(svc.hasCatalogSync()).toBe(false);
+    expect(svc.modelMetaOf('relay/acme/sync-model-7')).toMatchObject({ source: 'default' });
+    // 条目明显过少：视为异常响应，不采用
+    svc.applyModelsData(api(5));
+    expect(svc.hasCatalogSync()).toBe(false);
+    svc.applyModelsData(api(150));
+    expect(svc.hasCatalogSync()).toBe(true);
+    expect(svc.modelMetaOf('relay/acme/sync-model-7')).toMatchObject({
+      ctx: 333_000,
+      source: 'catalog',
+    });
+    // 网关进程按文件路径自己读；内置目录里的模型仍查得到
+    expect(svc.runtimeConfig().catalogFile).toBe(path.join(root, 'catalog-sync.json'));
+    expect(svc.state().catalog).toMatchObject({ synced: true });
+    expect(svc.modelMetaOf('relay/openai/gpt-5.2')?.ctx).toBe(272_000);
+    // 重启后从文件恢复
+    setCatalogOverlay(null);
+    const again = make();
+    expect(again.modelMetaOf('relay/acme/sync-model-7')?.ctx).toBe(333_000);
+    setCatalogOverlay(null);
   });
 
   it('releaseAgent: removes the tab dir but does not follow symlinks into the user CLI home', () => {
