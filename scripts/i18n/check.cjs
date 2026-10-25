@@ -43,9 +43,18 @@ function keysOf(file, all = false) {
     }
     return false;
   };
+  const isI18nCall = (n) => {
+    const p = n.parent;
+    if (!ts.isCallExpression(p)) return false;
+    const e = p.expression;
+    return ts.isIdentifier(e) && (e.text === 't' || e.text === 'tr') && p.arguments[0] === n;
+  };
   (function v(n) {
     const isStr = ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n);
-    if ((isStr || ts.isTemplateExpression(n) || ts.isJsxText(n)) && han.test(n.getText())) {
+    if (
+      (isStr || ts.isTemplateExpression(n) || ts.isJsxText(n)) &&
+      (han.test(n.getText()) || (all && isI18nCall(n)))
+    ) {
       if (!all && (isLog(n) || ignored(n))) return;
       let key;
       if (isStr) key = n.text;

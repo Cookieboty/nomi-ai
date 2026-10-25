@@ -253,7 +253,7 @@ export function splitShownEndpoints(
 const PROVIDER_ENDPOINT_KEY = 'ai-chat:providerEndpoint';
 const providerEpSubs = new Set<Listener>();
 
-/** 编程助手页的当前标签：四个端点之一，或「监视与会话」 */
+/** 编程助手页的当前标签：内置编程助手端点之一，或「监视与会话」 */
 export type CodingTab = ConversationBackend | 'monitor' | 'delegate';
 export const isCodingTab = (v: unknown): v is CodingTab =>
   v === 'monitor' || v === 'delegate' || isConversationBackend(v);

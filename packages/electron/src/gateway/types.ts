@@ -67,6 +67,8 @@ export interface GatewayProvider {
 
 export interface ClientConfig {
   newTabSource?: 'official' | 'thirdParty';
+  /** 官方来源时新标签用的账号 id；`local-<cli>` = 本机登录；null/缺省 = 跟随默认账号（§12） */
+  newTabAccountId?: string | null;
   tokenEnc: string;
   tokenEncryption: KeyEncryption;
   models: ClientModels;

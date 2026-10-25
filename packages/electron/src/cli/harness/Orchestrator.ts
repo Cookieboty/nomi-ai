@@ -301,6 +301,8 @@ export class HarnessOrchestrator {
    * 等权限模式确认）点停止，靠它让晚到的握手 / 确认结果不再把这一轮发出去（#75）
    */
   private readonly sendAborts = new Map<string, AbortController>();
+  /** 用户接管委派标签时，按标签串行化取消与等待，避免重复发送竞态。 */
+  private readonly takeoverInFlight = new Map<string, Promise<void>>();
   /** 实时事件按帧合批后再广播（见 eventBatcher） */
   private readonly eventBatcher = new EventBatcher<HarnessEvent & { tabId: string }>((batch) =>
     this.broadcast('ai:harness:events', batch),
@@ -871,8 +873,11 @@ export class HarnessOrchestrator {
     };
     // 新标签的来源：显式指定的，否则「模型」页给这个编程助手设的「新标签默认用」
     tab.source = this.defaultSource(backend, opts.source);
-    if (opts.accountId && tab.source === 'official' && isAccountBackend(backend))
-      tab.accountId = String(opts.accountId);
+    // 官方来源的账号：建标签显式指定的优先；否则用「模型」页给这个后端设的默认账号
+    if (tab.source === 'official' && isAccountBackend(backend)) {
+      const accountId = opts.accountId ? String(opts.accountId) : this.defaultAccountId(backend);
+      if (accountId) tab.accountId = accountId;
+    }
     this.inheritSettings(
       tab,
       isPermissionMode(opts.permissionMode) && opts.permissionMode !== 'bypass',
@@ -1107,6 +1112,13 @@ export class HarnessOrchestrator {
     const d = g.defaults(backend as BuiltinBackend);
     const source = want ?? d.source;
     return source === 'thirdParty' && (d.model || want) ? 'thirdParty' : 'official';
+  }
+
+  /** 「模型」页给这个编程助手设的新标签默认官方账号 id；未配置返回 null（跟随默认账号，§12） */
+  private defaultAccountId(backend: HarnessBackend): string | null {
+    const g = this.d.gateway;
+    if (!g || !isBuiltinCliId(backend)) return null;
+    return g.defaults(backend as BuiltinBackend).accountId;
   }
 
   /**
@@ -2057,13 +2069,10 @@ export class HarnessOrchestrator {
     id: string,
     prompt: string,
     images?: HarnessImageInput[],
+    opts: { userInitiated?: boolean } = {},
   ): Promise<HarnessSendResult> {
     const tab = this.requireTab(id);
     if (tab.backend === 'nomi') throw new Error(t('当前为 Nomi 后端，请走原生对话'));
-    // 只有自发轮次在跑时允许发送：CLI 会排队处理，回显到达时再切换归属（§4）
-    const autoOnly = tab.status === 'running' && this.isAutoOnly(id);
-    if ((tab.status === 'running' && !autoOnly) || tab.status === 'queued')
-      throw new Error(t('上一轮尚未结束'));
     const text = String(prompt ?? '').slice(0, 100_000);
     const { images: normalized, rejected } = inspectImages(images);
     if (rejected.length) throw new Error(rejectedImagesMessage(rejected));
@@ -2075,13 +2084,21 @@ export class HarnessOrchestrator {
     // 能不能看图看模型：CLI / 网关明确说这个模型不支持时才拦（不知道就交给 CLI / 网关处理）
     const vision = normalized.length ? this.visionOf(tab) : null;
     if (vision && !vision.vision) throw new Error(modelNoVisionMessage(vision.model));
+    if (opts.userInitiated && tab.delegation?.by === 'nomi' && !tab.delegation.takenOver) {
+      await this.takeOverDelegatedTab(id);
+    }
+    const current = this.requireTab(id);
+    // 只有自发轮次在跑时允许发送：CLI 会排队处理，回显到达时再切换归属（§4）
+    const autoOnly = current.status === 'running' && this.isAutoOnly(id);
+    if ((current.status === 'running' && !autoOnly) || current.status === 'queued')
+      throw new Error(t('上一轮尚未结束'));
     // 模型来源（官方 / 第三方供应商）变了却还没收到通知：先对齐，不把别的来源的模型名发出去
-    if ((tab.modelScope ?? null) !== this.scopeOf(tab)) {
-      this.adoptScope(tab);
+    if ((current.modelScope ?? null) !== this.scopeOf(current)) {
+      this.adoptScope(current);
       this.changed();
     }
     // 这一轮用的模型（展示在助手消息上）：发送时定下，进行中换模型只影响下一轮
-    const modelOf = this.turnModelResolver(tab);
+    const modelOf = this.turnModelResolver(current);
     const thumbs = normalized.length ? imageThumbsForMessage(normalized) : undefined;
     this.appendMessage(id, {
       id: randomUUID(),
@@ -2090,13 +2107,13 @@ export class HarnessOrchestrator {
       ...(thumbs?.length ? { images: thumbs } : {}),
       timestamp: Date.now(),
     });
-    tab.lastError = undefined;
+    current.lastError = undefined;
     try {
       await this.acquire(id);
     } catch (e) {
       this.stopRequested.delete(id);
       if (this.tabs.has(id)) {
-        tab.status = 'idle';
+        current.status = 'idle';
         this.appendMessage(id, {
           id: randomUUID(),
           role: 'assistant',
@@ -2113,15 +2130,15 @@ export class HarnessOrchestrator {
       this.release();
       throw new Error(t('标签已关闭'));
     }
-    tab.status = 'running';
+    current.status = 'running';
     const abort = new AbortController();
     this.sendAborts.set(id, abort);
     const startedAt = Date.now();
     this.turnExits.delete(id);
-    const quality = this.qualityBase(tab);
+    const quality = this.qualityBase(current);
     this.partial.set(id, { text: '', breaks: [], events: [], q: { retries: 0 } });
     this.changed();
-    const runCwd = tab.cwd;
+    const runCwd = current.cwd;
     // 新会话的第一轮：把换目录 / 分叉时留下的前文放在用户消息前面一起发（界面上只显示用户原话）
     // 按这个 CLI 收消息的方式裁到预算内（命令行参数有长度上限，见 carriedBudget）
     const stored = tab.cliSessionId ? null : this.carriedText(id);
@@ -2133,19 +2150,19 @@ export class HarnessOrchestrator {
       if (stageDir && normalized.length) staged = stageImages(stageDir, normalized);
       const result =
         backend === 'claude'
-          ? await this.runClaude(tab, toCli, abort.signal, normalized)
+          ? await this.runClaude(current, toCli, abort.signal, normalized)
           : backend === 'dsh'
-            ? await this.runDsh(tab, toCli)
+            ? await this.runDsh(current, toCli)
             : backend === 'grok'
-              ? await this.runGrokTurn(tab, toCli, abort.signal, normalized)
+              ? await this.runGrokTurn(current, toCli, abort.signal, normalized)
               : backend === 'gemini' || backend === 'external'
-                ? await this.runAcp(tab, toCli, abort.signal, normalized)
-                : await this.runCodexTurn(tab, toCli, abort.signal, staged);
-      if (result.sessionId && tab.backend === backend && tab.cwd === runCwd)
-        this.bindCliSession(tab, result.sessionId);
+                ? await this.runAcp(current, toCli, abort.signal, normalized)
+                : await this.runCodexTurn(current, toCli, abort.signal, staged);
+      if (result.sessionId && current.backend === backend && current.cwd === runCwd)
+        this.bindCliSession(current, result.sessionId);
       // 前文已经进了新会话：清掉，之后的轮次靠 CLI 自己续接
       if (stored) this.setCarried(tab, null);
-      tab.status = this.claudeLive.get(id)?.auto ? 'running' : 'idle';
+      current.status = this.claudeLive.get(id)?.auto ? 'running' : 'idle';
       // 去重保序：同一 tool_use 后出现的 done/error 覆盖开始态标签
       const toolEvents = result.events.filter(
         (e): e is Extract<HarnessEvent, { type: 'tool' }> => e.type === 'tool',
@@ -2183,7 +2200,7 @@ export class HarnessOrchestrator {
         usage,
         model: modelOf(result.events, usage),
       });
-      this.finish(tab, true, result.text);
+      this.finish(current, true, result.text);
       return { ...result, trace, durationMs, ...(usage ? { usage } : {}) };
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
@@ -2194,7 +2211,7 @@ export class HarnessOrchestrator {
       if (this.tabs.has(id)) {
         if (stopped) {
           // 用户中断：保留已生成的文本与轨迹，标记「已停止」，不算错误
-          tab.status = 'idle';
+          current.status = 'idle';
           this.appendMessage(id, {
             id: randomUUID(),
             role: 'assistant',
@@ -2216,8 +2233,8 @@ export class HarnessOrchestrator {
             model: modelOf(part?.events ?? [], part?.context),
           });
         } else {
-          tab.status = 'error';
-          tab.lastError = message;
+          current.status = 'error';
+          current.lastError = message;
           // 失败前已生成的文字保留在前面，错误信息跟在后面（不当成成功，也不丢已输出内容）
           // Claude 的 API 错误会先以 assistant 正文输出一遍、再在 result 里重复一遍，已出现过就不再追加
           const partText = part?.text ?? '';
@@ -2249,7 +2266,7 @@ export class HarnessOrchestrator {
             usage: part?.context,
             model: modelOf(part?.events ?? [], part?.context),
           });
-          this.finish(tab, false, '', message);
+          this.finish(current, false, '', message);
         }
       }
       // 用户停止：带上停止前已生成的文字，调用方（如 Nomi 委派）能区分「停止」与「出错」
@@ -4473,6 +4490,59 @@ export class HarnessOrchestrator {
     }
   }
 
+  /**
+   * 用户在委派标签中发送消息时，先取消 Nomi 当前轮次并等待它真正回到 idle，
+   * 再把标签归用户。这样不会让两个 sendTab 同时写入同一个 CLI 会话。
+   */
+  private async takeOverDelegatedTab(id: string): Promise<void> {
+    const existing = this.takeoverInFlight.get(id);
+    if (existing) return existing;
+    const p = this.performTakeover(id).finally(() => {
+      if (this.takeoverInFlight.get(id) === p) this.takeoverInFlight.delete(id);
+    });
+    this.takeoverInFlight.set(id, p);
+    return p;
+  }
+
+  private async performTakeover(id: string): Promise<void> {
+    const tab = this.requireTab(id);
+    const delegation = tab.delegation;
+    if (!delegation || delegation.takenOver) return;
+    if (tab.status === 'running' || tab.status === 'queued') {
+      if (!this.cancelTab(id)) throw new Error(t('无法接手：上一轮尚未结束'));
+      await this.waitForTabIdle(id, 30_000);
+    }
+    const current = this.requireTab(id);
+    if (current.status === 'running' || current.status === 'queued')
+      throw new Error(t('无法接手：上一轮尚未结束'));
+    this.markTakenOver(id);
+  }
+
+  private waitForTabIdle(id: string, timeoutMs: number): Promise<void> {
+    const isIdle = () => {
+      const status = this.tabs.get(id)?.status;
+      return status !== 'running' && status !== 'queued';
+    };
+    if (isIdle()) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        cleanup();
+        reject(new Error(t('无法接手：上一轮在等待后仍未结束')));
+      }, timeoutMs);
+      const cleanup = () => {
+        this.events.off('tabs', onTabs);
+        clearTimeout(timer);
+      };
+      const onTabs = () => {
+        if (!isIdle()) return;
+        cleanup();
+        resolve();
+      };
+      this.events.on('tabs', onTabs);
+      (timer as { unref?: () => void }).unref?.();
+    });
+  }
+
   private clearOnePermissionTimeout(tabId: string, requestId: string) {
     const m = this.pendingPermissions.get(tabId);
     const tmr = m?.get(requestId);
@@ -4580,12 +4650,12 @@ export class HarnessOrchestrator {
     handle('ai:harness:recent-cwds', () => this.recentCwds());
     handle('ai:harness:tab-messages', (id) => this.tabMessages(String(id)));
     handle('ai:harness:tab-send', async (id, p, images) => {
-      this.markTakenOver(String(id));
       return slimResult(
         await this.sendTab(
           String(id),
           String(p ?? ''),
           Array.isArray(images) ? (images as HarnessImageInput[]) : undefined,
+          { userInitiated: true },
         ),
       );
     });

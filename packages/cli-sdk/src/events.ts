@@ -51,7 +51,7 @@ export type HarnessEvent =
       toolName?: string;
     }
   /**
-   * 子代理生命周期（docs/design/cli-subagents.md §3）：四个后端统一成这一种。
+   * 子代理生命周期（docs/design/cli-subagents.md §3）：支持该能力的后端统一成这一种。
    * id：Claude task_id / Codex 子线程 id / dsh callId；callId：派生它的工具调用 id。
    */
   | {

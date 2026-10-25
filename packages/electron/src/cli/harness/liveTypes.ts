@@ -12,8 +12,12 @@ type BuiltinBackend = BuiltinCliId;
 
 /** 统一网关提供给编程助手的能力（主进程 GatewayService，§12） */
 export interface HarnessGateway {
-  /** 新标签默认来源与第三方时用的模型（clients.<cli>） */
-  defaults(kind: BuiltinBackend): { source: HarnessTabSource; model: string | null };
+  /** 新标签默认来源、第三方时用的模型、官方时用的账号 id（clients.<cli>，§12） */
+  defaults(kind: BuiltinBackend): {
+    source: HarnessTabSource;
+    model: string | null;
+    accountId: string | null;
+  };
   /** 第三方会话的进程级注入；网关没在运行时返回 null */
   launch(
     kind: BuiltinBackend,

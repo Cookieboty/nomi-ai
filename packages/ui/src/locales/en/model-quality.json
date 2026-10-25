@@ -203,5 +203,7 @@
   "每行的条按这一行的最大值等比；带星标的是这一项指标最好的": "Bars are scaled to the largest value in each row; the starred value is the best for that metric",
   "多级对比表：同一模型在不同供应商、Key、编程助手里的差别；勾选几项可并排对比。": "Multi-level table: how the same model differs across providers, keys and coding agents; tick a few rows to compare side by side.",
   "按小时 / 天看成功率、延迟、速度的走势。": "Success rate, latency and speed over time, by hour or day.",
-  "模型 / 供应商 · Key": "Model / provider · Key"
+  "模型 / 供应商 · Key": "Model / provider · Key",
+  "路由质量": "Routing quality",
+  "主损失": "Primary loss"
 }

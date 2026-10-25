@@ -190,7 +190,11 @@ export class GatewayStore {
 
   setClient(
     id: ClientId,
-    patch: { models?: ClientModels; newTabSource?: ClientConfig['newTabSource'] },
+    patch: {
+      models?: ClientModels;
+      newTabSource?: ClientConfig['newTabSource'];
+      newTabAccountId?: string | null;
+    },
   ): void {
     const c = this.data.clients[id];
     if (!c) throw new Error(`unknown client ${id}`);
@@ -207,6 +211,12 @@ export class GatewayStore {
           }
         : {}),
       ...(patch.newTabSource ? { newTabSource: patch.newTabSource } : {}),
+      // undefined = 不变；null = 清除（跟随默认账号）；字符串 = 指定账号（含 local-<cli>）
+      ...(patch.newTabAccountId !== undefined
+        ? patch.newTabAccountId
+          ? { newTabAccountId: patch.newTabAccountId }
+          : { newTabAccountId: undefined }
+        : {}),
     };
   }
 

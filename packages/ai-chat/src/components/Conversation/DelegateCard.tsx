@@ -282,6 +282,21 @@ const Report: React.FC<{ v: DelegateView }> = ({ v }) => {
           </ul>
         </div>
       )}
+      {r.conflictedFiles?.length ? (
+        <div className={styles.reportRow} data-testid="delegate-conflicts">
+          <span className={styles.reportLabel}>{t('未自动覆盖的文件')}</span>
+          <ul className={styles.files}>
+            {r.conflictedFiles.slice(0, 8).map((f) => (
+              <li key={f}>
+                <code>{f}</code>
+              </li>
+            ))}
+            {r.conflictedFiles.length > 8 && (
+              <li className={styles.muted}>{t('等 {0} 个', String(r.conflictedFiles.length))}</li>
+            )}
+          </ul>
+        </div>
+      ) : null}
       {r.approvals.asked > 0 && (
         <div className={styles.muted}>
           {t(

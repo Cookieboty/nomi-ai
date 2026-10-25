@@ -148,7 +148,14 @@ export interface GatewayStateView {
   status: GatewayStatus;
   providers: ProviderView[];
   clients: Partial<
-    Record<ClientId, { models: ClientModels; newTabSource?: 'official' | 'thirdParty' }>
+    Record<
+      ClientId,
+      {
+        models: ClientModels;
+        newTabSource?: 'official' | 'thirdParty';
+        newTabAccountId?: string | null;
+      }
+    >
   >;
   allowedPrivateHosts: string[];
   port: number;
@@ -409,11 +416,20 @@ export class GatewayService {
 
   /* ------------------------------ 编程助手（§12） ------------------------------ */
 
-  /** 新标签默认用哪种来源、第三方时用哪个模型（clients.<cli>） */
-  cliDefaults(kind: AgentKind): { source: 'official' | 'thirdParty'; model: string | null } {
+  /** 新标签默认用哪种来源、第三方时用哪个模型、官方时用哪个账号（clients.<cli>，§12） */
+  cliDefaults(kind: AgentKind): {
+    source: 'official' | 'thirdParty';
+    model: string | null;
+    accountId: string | null;
+  } {
     const c = this.store.snapshot().clients[kind];
     const model = c?.models.main ?? null;
-    return { source: c?.newTabSource === 'thirdParty' && model ? 'thirdParty' : 'official', model };
+    return {
+      source: c?.newTabSource === 'thirdParty' && model ? 'thirdParty' : 'official',
+      model,
+      // 账号选择只在官方来源时有意义；切到第三方时忽略
+      accountId: c?.newTabSource === 'thirdParty' ? null : (c?.newTabAccountId ?? null),
+    };
   }
 
   /** 第三方标签可选的模型（启用的供应商里启用的模型，`供应商/模型`） */
@@ -648,7 +664,11 @@ export class GatewayService {
             ? [
                 [
                   id,
-                  { models: c.models, ...(c.newTabSource ? { newTabSource: c.newTabSource } : {}) },
+                  {
+                    models: c.models,
+                    ...(c.newTabSource ? { newTabSource: c.newTabSource } : {}),
+                    ...(c.newTabAccountId ? { newTabAccountId: c.newTabAccountId } : {}),
+                  },
                 ],
               ]
             : [];
@@ -771,7 +791,11 @@ export class GatewayService {
 
   setAssignment(
     client: ClientId,
-    patch: { models?: ClientModels; newTabSource?: 'official' | 'thirdParty' },
+    patch: {
+      models?: ClientModels;
+      newTabSource?: 'official' | 'thirdParty';
+      newTabAccountId?: string | null;
+    },
   ): void {
     this.store.setClient(client, patch);
     const main = patch.models?.main;

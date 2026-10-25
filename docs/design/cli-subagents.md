@@ -7,7 +7,7 @@
 
 ## 1. 背景
 
-四个后端都能派生子代理，Codex 的 `multi_agent` 默认开启。Nomi 原来只把 Claude 子代理内部的工具调用按
+Claude、Codex 与 dsh 当前能产生统一的子代理事件；Grok 的事件格式仍待真实验证，Gemini 当前不声明子代理能力。Codex 的 `multi_agent` 默认开启。Nomi 原来只把 Claude 子代理内部的工具调用按
 `parent_tool_use_id` 嵌套显示，其余情况要么丢事件、要么丢数据：
 
 | 后端   | CLI 给出的子代理信息（实测 / 源码）                                                                                                                                                                                                                                                                                                                                                                                                                        | Nomi 原来的处理                                |
@@ -16,6 +16,7 @@
 | Codex  | `exec --json` 的 `collab_tool_call` item：`tool` ∈ `spawn_agent / wait / send_input / close_agent`，`sender_thread_id`、`receiver_thread_ids`、`prompt`、`agents_states[thread] = { status, message }`。子代理内部的命令**不进**主流                                                                                                                                                                                                                       | 整个 item 被丢弃：子代理运行期间界面空白       |
 | dsh    | 工具 `subagent`（`backgroundMode: continuable`）、`subagent_fork`、`send_message`、`interrupt_agent`、`list_agents`；无头 JSON 只投影主会话（`session !== agent.session` 直接 return），子代理内部不可见                                                                                                                                                                                                                                                   | 只认 `subagent`，其余显示成普通工具            |
 | Grok   | 二进制含 `subagent_id / subagent_spawn / subagent_message / subagent_output / subagent_type` ⚠️ 未实测                                                                                                                                                                                                                                                                                                                                                     | 不明                                           |
+| Gemini | 当前 ACP 清单不声明子代理能力                                                                                                                                                                                                                                                                                                                                                                                                                              | 不适用                                         |
 
 ### 1.1 两个会丢东西的问题（P0）
 
@@ -29,7 +30,7 @@
 
 ## 2. 目标
 
-- 子代理在四个后端都**可见**：谁在跑、在做什么、结果是什么；CLI 不给内部步骤时如实说明，不让人以为卡住。
+- 对已声明支持的后端，子代理都**可见**：谁在跑、在做什么、结果是什么；CLI 不给内部步骤时如实说明，不让人以为卡住。未声明支持的后端不显示虚假的子代理状态。
 - **不丢数据**：后台子代理与主代理自发的跟进轮次都落盘、计入用量、触发提醒。
 - **权限不丢**：并行请求排队、注明来源、可见倒计时、超时可见。
 - **可控**：能看到后台还有几个子代理；能单独停止（CLI 支持时）；关闭 / 停止前提示。
@@ -114,13 +115,13 @@ Claude 的 `task_started` 也会为子代理内部的后台 Bash 等发出（`ta
 
 ## 7. 实施阶段
 
-| 阶段   | 内容                                                                                                                                                                        | 状态   |
-| ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| P0-1   | Claude 轮次队列（replay + uuid）、自发轮次落盘、后台任务计数、空闲回收保护、权限经长驻 stdin 回复                                                                           | 已完成 |
-| P0-2   | 权限队列（主进程 `permission` 带来源 + `permission-resolved`；渲染层多项排队）                                                                                              | 已完成 |
-| P1     | `agent` 事件；Claude `task_*`、Codex `collab_tool_call`、dsh 子代理工具映射；工具名识别补全                                                                                 | 已完成 |
-| P2     | 子代理卡片（状态 / 后台 / 进度 / 无内部步骤说明）、后台任务条与单独停止（Claude `stop_task`）、标签「后台运行中」、停止 / 关闭前确认；完成提醒复用自发轮次的 `tab-finished` | 已完成 |
-| 待实测 | Grok 子代理事件；dsh 无头在后台子代理未结束时是否提前退出                                                                                                                   | —      |
+| 阶段   | 内容                                                                                                                                                                        | 状态                                                         |
+| ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| P0-1   | Claude 轮次队列（replay + uuid）、自发轮次落盘、后台任务计数、空闲回收保护、权限经长驻 stdin 回复                                                                           | 已完成                                                       |
+| P0-2   | 权限队列（主进程 `permission` 带来源 + `permission-resolved`；渲染层多项排队）                                                                                              | 已完成                                                       |
+| P1     | `agent` 事件；Claude `task_*`、Codex `collab_tool_call`、dsh 子代理工具映射；工具名识别补全                                                                                 | Claude / Codex exec / dsh 已完成；Grok 待实测；Gemini 不支持 |
+| P2     | 子代理卡片（状态 / 后台 / 进度 / 无内部步骤说明）、后台任务条与单独停止（Claude `stop_task`）、标签「后台运行中」、停止 / 关闭前确认；完成提醒复用自发轮次的 `tab-finished` | 已完成                                                       |
+| 待实测 | Grok 子代理事件；dsh 无头在后台子代理未结束时是否提前退出                                                                                                                   | —                                                            |
 
 ## 8. 测试
 

@@ -172,15 +172,15 @@ Aggregation（多上游合并）仍为 **P2**。
 
 **权限桥：** Claude Code 使用 `--permission-prompt-tool stdio`：`control_request`（`can_use_tool`）→ IPC → 对话区允许/拒绝卡片 → `control_response` 写回 stdin；120s 无操作自动拒绝。长驻模式下权限通道与多轮共用同一 stdin。
 
-**Codex 交互权限（查证 2026-10-15，CLI 0.162.1）：**
+**Codex 交互权限（查证 2026-10-20，CLI 0.163.0）：**
 
 - `codex exec --json` 的 NDJSON 事件为 `thread.*` / `turn.*` / `item.*` 等，**没有**可回写的交互式 approval / permission 事件；`--approve-for-me` 为自动审批，`--dangerously-bypass-approvals-and-sandbox` 为跳过，均非 UI 桥。
-- 交互式审批存在于实验性 **`codex app-server`**（JSON-RPC：`ExecCommandApproval*` / `CommandExecutionRequestApproval*` / `FileChangeRequestApproval*` 等），**不属于**当前 P0 的 `exec` 路径。
-- **结论：P0 不对 Codex 做假权限 UI**；dsh headless 同样自行决策。看板娘气泡提醒仍走监视器完成/失败通道。P1 若接 app-server 再对标 Claude 权限桥。
+- 当前主路径是 **`codex app-server`**（JSON-RPC：`ExecCommandApproval*` / `CommandExecutionRequestApproval*` / `FileChangeRequestApproval*` 等），这些请求会进入 Nomi 权限卡片；起不来 app-server 时才退回 `exec`，退路没有可回写的逐项审批通道，会按只读沙箱运行。
+- **结论：** Codex 的交互权限只在 app-server 路径提供；dsh headless 同样自行决策。看板娘气泡提醒仍走监视器完成/失败通道。
 
-**权限模式（2026-10-19）：** 四个后端统一为「计划 / 逐项确认 / 自动改文件 / 自动 / 完全放开」五档，按标签设置并映射到各 CLI 原生参数（Codex `-c sandbox_mode=…`、dsh `DSH_PERMISSION_MODE`、Claude / Grok `--permission-mode`）。修复了 Codex `exec` 默认只读、禁网导致无法改文件的问题；Grok 不再默认 `--yolo`。详见 [编程助手权限模式](../design/cli-permission-modes.md)。
+**权限模式（2026-10-19）：** 内置编程助手按能力统一为「计划 / 逐项确认 / 自动改文件 / 自动 / 完全放开」五档，按标签设置并映射到各 CLI 原生参数（Codex `-c sandbox_mode=…`、dsh `DSH_PERMISSION_MODE`、Claude / Grok `--permission-mode`）。不支持某档位的 CLI 会降级到更安全的档位。详见 [编程助手权限模式](../design/cli-permission-modes.md)。
 
-**子代理（2026-10-19）：** 四个后端都会派生子代理（Codex 的 `multi_agent` 默认开启）。Claude 的后台子代理会在一轮 `result` 之后继续输出并让主代理自发开新一轮，并行子代理会同时请求权限；接管层据此改成轮次队列与权限队列，子代理统一成 `agent` 事件。详见 [编程助手子代理](../design/cli-subagents.md)。
+**子代理（2026-10-19）：** Claude、Codex exec 与 dsh 会产生统一的 `agent` 事件；Grok 的事件仍待真实验证，Gemini 当前不声明子代理能力。Claude 的后台子代理会在一轮 `result` 之后继续输出并让主代理自发开新一轮，并行子代理会同时请求权限；接管层据此改成轮次队列与权限队列。详见 [编程助手子代理](../design/cli-subagents.md)。
 
 **安全：**
 

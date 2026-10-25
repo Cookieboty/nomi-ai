@@ -92,4 +92,26 @@ describe('CliHarnessService · Nomi 委派开的标签', () => {
       timedOut: 1,
     });
   });
+
+  it('用户发送空消息时不会误标记接管；运行中的委派会先取消再交给用户', async () => {
+    const h = mk();
+    const d = h.createTab({ backend: 'codex', activate: false, delegation: { goal: 'x' } });
+    await expect(h.sendTab(d.id, '   ', undefined, { userInitiated: true })).rejects.toThrow(
+      '消息为空',
+    );
+    expect(h.listTabs().tabs.find((x) => x.id === d.id)?.delegation?.takenOver).toBeUndefined();
+
+    const tab = (h as unknown as { tabs: Map<string, { status: string }> }).tabs.get(d.id)!;
+    tab.status = 'running';
+    const cancel = jest.spyOn(h, 'cancelTab').mockImplementation(() => {
+      tab.status = 'idle';
+      h.events.emit('tabs', h.listTabs());
+      return true;
+    });
+    await (
+      h as unknown as { takeOverDelegatedTab(id: string): Promise<void> }
+    ).takeOverDelegatedTab(d.id);
+    expect(cancel).toHaveBeenCalledWith(d.id);
+    expect(h.listTabs().tabs.find((x) => x.id === d.id)?.delegation?.takenOver).toBe(true);
+  });
 });

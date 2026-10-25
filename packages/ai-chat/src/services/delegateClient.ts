@@ -7,6 +7,8 @@
  */
 import { t } from '@nomi-ai/ui';
 
+import type { HarnessUsage } from './harnessClient';
+
 export const DELEGATE_CLIS = ['claude', 'codex', 'grok', 'gemini', 'dsh'] as const;
 export type DelegateCli = (typeof DELEGATE_CLIS)[number];
 
@@ -47,11 +49,14 @@ export interface DelegateResult {
   report?: { done: string; changedFiles: string[]; unfinished?: string; needsUser?: string };
   /** 汇报缺失时 git 核对到的改动文件（相对 cwd） */
   changedFiles?: string[];
+  conflictedFiles?: string[];
   summary: string;
   filesVerified: boolean;
   approvals: { asked: number; denied: number; timedOut: number };
   error?: string;
   durationMs: number;
+  usage?: HarnessUsage;
+  isolationNote?: string;
 }
 
 export function delegateKindLabel(k: DelegateKind): string {

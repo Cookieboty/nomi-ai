@@ -83,9 +83,31 @@ describe('worktree isolation', () => {
 
     const applied = applyWorktreeToMain(h, ['b.txt']);
     expect(applied.applied).toEqual(['b.txt']);
+    expect(applied.conflicted).toEqual([]);
     expect(fs.readFileSync(path.join(d, 'b.txt'), 'utf8')).toBe('b');
 
     await releaseIsolation(h);
     expect(fs.existsSync(h.worktreePath!)).toBe(false);
+  });
+
+  it('does not overwrite a main-worktree change made after delegation started', async () => {
+    const d = mkTmp();
+    git(d, ['init']);
+    git(d, ['config', 'user.email', 't@t']);
+    git(d, ['config', 'user.name', 't']);
+    fs.writeFileSync(path.join(d, 'a.txt'), 'base');
+    git(d, ['add', 'a.txt']);
+    git(d, ['commit', '-m', 'init']);
+
+    const h = await prepareIsolation(d, 'task-conflict');
+    fs.writeFileSync(path.join(h.worktreePath!, 'a.txt'), 'delegate change');
+    fs.writeFileSync(path.join(d, 'a.txt'), 'user change');
+
+    const applied = applyWorktreeToMain(h, ['a.txt']);
+    expect(applied.applied).toEqual([]);
+    expect(applied.conflicted).toEqual(['a.txt']);
+    expect(fs.readFileSync(path.join(d, 'a.txt'), 'utf8')).toBe('user change');
+
+    await releaseIsolation(h);
   });
 });

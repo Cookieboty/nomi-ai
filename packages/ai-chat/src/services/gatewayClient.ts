@@ -99,7 +99,15 @@ export interface GatewayState {
   status: GatewayStatus;
   providers: ProviderView[];
   clients: Partial<
-    Record<ClientId, { models: ClientModels; newTabSource?: 'official' | 'thirdParty' }>
+    Record<
+      ClientId,
+      {
+        models: ClientModels;
+        newTabSource?: 'official' | 'thirdParty';
+        /** 官方来源时新标签用的账号 id；`local-<cli>` = 本机登录；缺省 = 跟随默认账号（§12） */
+        newTabAccountId?: string | null;
+      }
+    >
   >;
   allowedPrivateHosts: string[];
   port: number;
@@ -247,7 +255,11 @@ export const gatewayClient = {
   detect: (input: DetectInput) => call<DetectResult>('detect', input),
   setAssignment: (
     client: ClientId,
-    patch: { models?: ClientModels; newTabSource?: 'official' | 'thirdParty' },
+    patch: {
+      models?: ClientModels;
+      newTabSource?: 'official' | 'thirdParty';
+      newTabAccountId?: string | null;
+    },
   ) => call<void>('set-assignment', client, patch),
   resetToken: (client: ClientId) => call<void>('reset-token', client),
   clearLearned: (providerId: string) => call<void>('clear-learned', providerId),

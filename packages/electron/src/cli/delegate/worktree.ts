@@ -2,7 +2,7 @@
  * P3 委派 OS 隔离（轻量）：git worktree，避免并行子任务改同一工作区。
  * 设计：docs/design/nomi-delegate-cli.md §9 P3。不做 Docker。
  */
-import { execFile } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -178,20 +178,29 @@ export async function releaseIsolation(
 
 /**
  * 将 worktree 内相对仓库根的改动拷回主工作树，便于用户在原目录看到结果。
- * 并行任务改同一文件时后完成的覆盖先完成的（残留风险）。
+ * 主工作树已经有改动的路径会保留在 worktree 中并报告为冲突，避免覆盖用户或先完成任务的结果。
  */
 export function applyWorktreeToMain(
   handle: IsolationHandle,
   changedRelPaths: string[],
-): { applied: string[]; skipped: string[] } {
+): { applied: string[]; skipped: string[]; conflicted: string[] } {
   const applied: string[] = [];
   const skipped: string[] = [];
+  const conflicted: string[] = [];
   if (handle.kind !== 'worktree' || !handle.worktreePath || !handle.gitRoot) {
-    return { applied, skipped };
+    return { applied, skipped, conflicted };
   }
   for (const rel of changedRelPaths) {
     if (!rel || rel.includes('..') || path.isAbsolute(rel)) {
       skipped.push(rel);
+      continue;
+    }
+    // The worktree starts at HEAD. Never overwrite a file that the user changed
+    // in the main worktree after the task was started; doing so would silently
+    // destroy unrelated local work. The caller can surface conflicted files and
+    // let the user merge them explicitly.
+    if (!isMainPathClean(handle.gitRoot, rel)) {
+      conflicted.push(rel);
       continue;
     }
     const src = path.join(handle.worktreePath, rel);
@@ -211,5 +220,28 @@ export function applyWorktreeToMain(
       skipped.push(rel);
     }
   }
-  return { applied, skipped };
+  return { applied, skipped, conflicted };
+}
+
+/** Return false when the destination path has staged, unstaged, or untracked changes. */
+function isMainPathClean(gitRoot: string, rel: string): boolean {
+  try {
+    const { stdout } = requireGitStatus(gitRoot, rel);
+    return !stdout.trim();
+  } catch {
+    // A failed status check is unsafe to treat as clean. Leave the file in the
+    // worktree so the user can inspect and apply it manually.
+    return false;
+  }
+}
+
+function requireGitStatus(gitRoot: string, rel: string): { stdout: string } {
+  return {
+    stdout: execFileSync('git', ['status', '--porcelain=v1', '--untracked-files=all', '--', rel], {
+      cwd: gitRoot,
+      encoding: 'utf8',
+      env: gitEnv(),
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }),
+  };
 }

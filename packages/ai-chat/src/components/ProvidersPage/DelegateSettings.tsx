@@ -125,6 +125,7 @@ export const DelegateSettings: React.FC = () => {
               data-testid={`delegate-default-${k}`}
               onChange={(e) => setDefault(k, e.target.value)}
               options={optionsFor(k)}
+              menuMinWidth={140}
             />
           </SettingRow>
         ))}
@@ -150,6 +151,7 @@ export const DelegateSettings: React.FC = () => {
               value: p.id,
               label: p.label,
             }))}
+            menuMinWidth={180}
           />
         </SettingRow>
         <SettingRow

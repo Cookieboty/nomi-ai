@@ -13,7 +13,7 @@
 
 子 CLI 自带的沙箱（如 Codex Seatbelt）仍然生效；本层只隔离「并行写同一工作树」。
 
-## 残留风险
+## 冲突与残留
 
-- 两个委派改同一文件时，后完成的拷回覆盖先完成的。
-- 成功路径下 `.nomi-delegate/` 会残留；已写入仓库 `info/exclude`，可用 `git worktree list` / 手动 `git worktree remove` 清理。
+- 回填前会检查主工作树的目标路径；如果用户或另一个委派已经改过该路径，文件不会自动覆盖，结果里的 `conflictedFiles` 会列出这些路径。
+- 成功路径下 `.nomi-delegate/` 会保留到 `delegate_followup` 不再需要；已写入仓库 `info/exclude`，可用 `git worktree list` / 手动 `git worktree remove` 清理。应用重启时仍在运行的任务会标记为中断并异步清理其 worktree。

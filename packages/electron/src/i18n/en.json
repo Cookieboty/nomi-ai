@@ -228,7 +228,6 @@
   "无法启动 llama-server：{0}": "Couldn't start llama-server: {0}",
   "推理服务启动超时": "The inference server timed out while starting",
   "本地模型「{0}」已就绪，聊天内容不会离开这台电脑～": "Local model “{0}” is ready; your chats won't leave this computer~",
-  "本机 llama.cpp {0} · {1}（{2}）": "Local llama.cpp {0} · {1} ({2})",
   "本地模型还没有运行": "The local model isn't running yet",
   "没有检测到 Ollama：请先安装并启动 Ollama（https://ollama.com）": "Ollama not detected: please install and start Ollama first (https://ollama.com)",
   "Ollama 返回错误 HTTP {0}": "Ollama returned HTTP {0}",
@@ -376,6 +375,8 @@
   "选择编程助手工作目录": "Choose coding assistant working directory",
   "当前为 Nomi 后端，请走原生对话": "Nomi backend is active; use the built-in chat path",
   "上一轮尚未结束": "Previous turn still running",
+  "无法接手：上一轮尚未结束": "Cannot take over: the previous turn is still running",
+  "无法接手：上一轮在等待后仍未结束": "Cannot take over: the previous turn did not finish in time",
   "消息为空": "Message is empty",
   "未找到 Claude Code（可设 NOMI_USE_MOCK_CLI=1）": "Claude Code not found (set NOMI_USE_MOCK_CLI=1 for mock)",
   "未找到 Codex（可设 NOMI_USE_MOCK_CLI=1）": "Codex not found (set NOMI_USE_MOCK_CLI=1 for mock)",
@@ -598,7 +599,6 @@
   "对话模型": "Chat model",
   "模型设置…": "Model settings…",
   "当前环境无法启动网关进程": "The gateway process can't be started in this environment",
-  "网关进程连续 {0} 次异常退出（{1}）": "The gateway process exited abnormally {0} times in a row ({1})",
   "名称不能为空": "Name can't be empty",
   "环境变量提供的供应商是只读的": "Providers from environment variables are read-only",
   "地址格式应为 host:port": "The address must be host:port",
@@ -665,5 +665,12 @@
   "继续修改": "Keep editing",
   "按此方案执行：切到自动改文件并继续实施": "Execute this plan: switch to auto-edit and continue",
   "无效的批准计划选项": "Invalid approve-plan choice",
-  "网关进程在 {0} 秒内异常退出 {1} 次（最近退出码 {2}），已停止自动重启": "The gateway process exited abnormally {1} times within {0}s (last exit code {2}); auto-restart stopped"
+  "网关进程在 {0} 秒内异常退出 {1} 次（最近退出码 {2}），已停止自动重启": "The gateway process exited abnormally {1} times within {0}s (last exit code {2}); auto-restart stopped",
+  "无法确认是否还有 CLI 在用这个账号（常见于 Windows）。请先在终端退出相关 CLI，或确认后强制删除。": "Could not confirm whether a CLI is still using this account (common on Windows). Quit the related CLI in a terminal, or confirm to force-delete it.",
+  "工作目录不是 git 仓库：委派在原目录运行。若并行多个子任务，它们会互相改同一批文件；": "The working directory is not a git repository: the handoff runs in the original directory. If multiple subtasks run in parallel, they may modify the same files;",
+  "请串行委派，或先把该目录初始化为 git 仓库以便自动使用 worktree 隔离。": "hand off tasks one at a time, or initialize the directory as a git repository so worktree isolation can be used automatically.",
+  "无法创建委派 worktree：{0}": "Could not create the handoff worktree: {0}",
+  "已在 git worktree 中隔离并行写入：{0}": "Parallel writes are isolated in a git worktree: {0}",
+  "批准计划：{0}": "Approve plan: {0}",
+  "按上述计划实施": "Implement the plan above"
 }

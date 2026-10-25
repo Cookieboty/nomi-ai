@@ -97,7 +97,8 @@ Nomi 工具循环
 ```ts
 interface DelegateResult {
   taskId: string; // = 标签 id
-  status: 'done' | 'error' | 'cancelled';
+  cli: 'claude' | 'codex' | 'grok' | 'gemini' | 'dsh';
+  status: 'running' | 'done' | 'error' | 'cancelled'; // 默认后台委派首次返回 running
   cancelledBy?: 'user' | 'nomi'; // 用户在卡片上停的，还是 Nomi 这一轮被停连带停的
   report?: {
     done: string; // 做了什么
@@ -105,15 +106,18 @@ interface DelegateResult {
     unfinished?: string; // 没做完的
     needsUser?: string; // 需要用户决定的
   };
+  conflictedFiles?: string[]; // 主工作树已有改动、因此没有自动覆盖的文件
   summary: string; // report 解析失败时：最后一段回复，截断到约 4000 字符
+  filesVerified: boolean; // 是否通过 git status 核对过改动文件
   approvals?: { asked: number; denied: number; timedOut: number }; // 审批统计（§5.1）
   error?: string;
   durationMs: number;
   usage?: HarnessUsage;
+  isolationNote?: string; // worktree / shared-cwd 隔离说明
 }
 ```
 
-- ~~`taken_over`~~：见 §12（P1 未实现；用户中途发消息时 `sendTab` 会因「上一轮尚未结束」拒绝，委派仍等到本轮结束）。
+- `taken_over`：用户在委派标签中发送消息时，主进程先取消当前委派轮次，等待标签回到空闲，再把标签归用户；取消失败或超时不会伪造接管状态。
 - 大段产出（调研结论、长日志）让编程助手写进工作目录里的文件，`report` 里只给路径，不经 Nomi 的上下文传递。
 
 ### 4.4 发给编程助手的消息
@@ -341,16 +345,16 @@ CLI 配置里如果接了 Nomi 的 MCP，子任务就有可能回头调用 Nomi�
 
 ## 9. 分阶段
 
-| 阶段 | 内容                                                                                                                                                                  |
-| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| P1   | 同步、单个子任务；§5 权限、§6 安全、§7 卡片（含卡片内审批）与停止；助手模式与工作台模式都开放（§7.1）                                                                 |
-| P2   | ✅ `background`（**默认 true**）、`delegate_followup`、`delegate_status`；完成后广播 `ai:delegate:completed`，对话注入结果，卡片 live 更新。`background:false` 可同步 |
-| P3   | ✅ 并行：git 仓库内每个子任务一个 worktree（`.nomi-delegate/`）；非 git 则 shared-cwd + 提示；结束后拷回主树；并发上限 `MAX_PARALLEL_DELEGATES`（3）                  |
+| 阶段 | 内容                                                                                                                                                                                                                               |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P1   | 同步、单个子任务；§5 权限、§6 安全、§7 卡片（含卡片内审批）与停止；助手模式与工作台模式都开放（§7.1）                                                                                                                              |
+| P2   | ✅ `background`（**默认 true**）、`delegate_followup`、`delegate_status`；完成后广播 `ai:delegate:completed`，对话注入结果，卡片 live 更新；任务状态落盘到私有 `tasks.json`，重启时运行中任务标记为中断。`background:false` 可同步 |
+| P3   | ✅ 并行：git 仓库内每个子任务一个 worktree（`.nomi-delegate/`）；非 git 则 shared-cwd + 提示；结束后拷回主树；并发上限 `MAX_PARALLEL_DELEGATES`（3）                                                                               |
 
 ## 10. 测试
 
 - 单元：权限映射表（§5 每一格）；cwd 未授权被拒；层数限制；`summary` / report 字段 untrusted 边界；abort → `cancelTab` /
-  孤儿标签清理；仅本地 + 云端模型时不返回正文。用户接手 → `taken_over` 留待后续（见 §12）。
+  孤儿标签清理；仅本地 + 云端模型时不返回正文；任务状态持久化与重启中断；用户接手时取消并等待标签回到 idle；worktree 回填冲突不覆盖主工作树。
 - 无界面 E2E：用 mock CLI 后端跑一次完整委派，断言新标签、结果回到 Nomi、用量记录带 `delegatedBy`。
 - 真实应用 E2E：卡片显示、停止、跳转审批。
 
@@ -401,10 +405,7 @@ Nomi 可继续聊；完成后广播 + 对话通知。需要同步等结果时传
 - **单独停止子代理**按插件能力位 `subagentStop` 判断（目前只有 Claude），不按名字。
 - `/agent`（旧名 `/cli`）钉住按 **conversationId（渲染层）+ turnId/reqId（主进程）** 隔离，不再是进程级；
   发送时先 IPC 钉住，失败则中止发送；cwd/授权通过后才 consume；本轮结束 `clearPin`（未委派也不泄漏）。
-- **`taken_over` 未实现（有意偏差）**：设计稿里用户中途在委派标签发消息应提前结束并返回 `taken_over`。
-  现状：`tab-send` 会 `markTakenOver`（只影响审批超时），但标签 `status === 'running'` 时 `sendTab` 直接抛
-  「上一轮尚未结束」，委派侧的 `await sendTab` 仍跑完本轮。结果类型与实现均无 `taken_over`；真正的中途接手
-  打断留待后续（需 harness 在 running 时支持接手并取消/结束等待中的委派 send）。
+- **`taken_over`**：`tab-send` 的用户路径会先取消运行中的委派轮次并等待它回到 idle，再接受用户消息；空消息、图片能力校验等输入错误发生在接管前，不会误标记标签归用户。委派侧收到 `HarnessStoppedError` 后按 `cancelled` 收尾，后续 `delegate_followup` 返回 `taken_over`。
 - 汇报 `done` / `unfinished` / `needsUser` 与 `summary` 一样包 `<cli-output>` untrusted 边界（§6.1）；
   改动文件用 `git rev-parse --show-toplevel` + `status --porcelain -z`（`core.quotepath=false`），路径相对委派 cwd；
   汇报缺失时仍通过结果里的 `changedFiles` 交回 git 列表。
@@ -425,7 +426,6 @@ Nomi 可继续聊；完成后广播 + 对话通知。需要同步等结果时传
 | ----------------------------------------------------- | ----------------------------------------------------------- |
 | 完整拆分 `CliHarnessService`（约 4886 行）            | 归入插件化 M5；本版本不拆                                   |
 | Permission PR3 ExitPlanMode UX                        | 权限模式后续 PR                                             |
-| `taken_over` 中途接手打断                             | 见上文「有意偏差」；需 harness 在 running 时支持接手        |
 | LFS **历史 rewrite**（filter-repo / migrate rewrite） | 不做；改用 `migrate import --no-rewrite` + `.gitattributes` |
 
 - `createTab` 与后续 await 之后、`sendTab` 之前若 `ctx.signal` 已中止：`closeTab` 清理孤儿标签并返回 `cancelledBy: 'nomi'`。
@@ -438,7 +438,8 @@ Nomi 可继续聊；完成后广播 + 对话通知。需要同步等结果时传
 - **非 git**：`shared-cwd`，结果带 `isolationNote` 提醒并行会互相改文件。
 - **并发上限**：同时 `running` 的委派 ≤ 3（`concurrency_limit`）。
 - **不做 Docker**；子 CLI 自身 Seatbelt/沙箱仍生效。本地 `info/exclude` 写入 `.nomi-delegate/`。
-- **残留风险**：并行任务改同一文件时后完成的覆盖先完成的；`.nomi-delegate/` 在成功路径会残留直到手动清理 / 取消。
+- **已修复**：回填前检查主工作树对应路径；用户已有改动的文件不会被委派结果覆盖，并通过 `conflictedFiles` / `isolationNote` 返回。
+- **残留风险**：成功任务的 `.nomi-delegate/` 会保留以支持 `delegate_followup`；应用重启时仍在运行的任务会标记为中断并异步清理其 worktree，已完成任务仍需后续清理策略。
 
 ### 12.3 A1 AgentProfile + 委派模型覆盖（已实现）
 

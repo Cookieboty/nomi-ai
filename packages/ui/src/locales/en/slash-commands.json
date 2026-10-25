@@ -171,7 +171,8 @@
   "可用：{0}": "Available: {0}",
   "已取消指定，Nomi 会按设置选编程助手。": "Cleared. Nomi will pick a coding assistant from your settings.",
   "{0} 没有安装，可在设置 →「编程助手」里安装。": "{0} isn’t installed. You can install it in Settings → Coding assistants.",
-  "指定下一个需求交给哪个编程助手（如 /agent codex 修复登录 bug）": "Pick which coding assistant handles your next request (e.g. /agent codex fix the login bug)",
+  "指定下一个需求交给哪个编程助手（后台执行，如 /agent codex 修复登录 bug）": "Pick which coding assistant handles your next request (runs in the background; e.g. /agent codex fix the login bug)",
+  "无法钉住编程助手，消息未发送": "Couldn’t pin the coding assistant; the message was not sent",
   "名字 [需求]": "name [request]",
   "没有匹配的编程助手": "No matching coding agent",
   "↑↓ 选择 · Enter / Tab 选用 · Esc 关闭": "↑↓ select · Enter / Tab choose · Esc close"

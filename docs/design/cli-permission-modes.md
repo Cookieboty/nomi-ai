@@ -6,7 +6,7 @@
 
 ## 1. 背景：为什么要做
 
-Nomi 把消息转发给本机 CLI 时，四个后端的权限原本各自为政：
+Nomi 把消息转发给本机 CLI 时，各内置后端的权限原本各自为政：
 
 | 后端        | 原来的启动方式                              | 实际效果                                                                               | 问题                     |
 | ----------- | ------------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------ |
@@ -124,7 +124,7 @@ Nomi 对话（主标签）也有权限按钮，档位存在主标签的 `permiss
 
 ## 6. 测试
 
-- `tests/unit/cli/permissionMode.test.ts`：四个后端 × 五档的映射与降级（表驱动）。
+- `tests/unit/cli/permissionMode.test.ts`：内置后端 × 五档的映射与降级（表驱动）。
 - `tests/unit/cli/CliHarness.mock.test.ts`「permission modes」：默认档与降级、`bypass` 需确认且不能设默认、旧数据迁移与 `bypass` 不跨重启、Claude 运行中切换不重启（mock-claude 支持 `NOMI_MOCK_CLAUDE_CONTROL_LOG`）、Codex 各档参数（含续接）、dsh 的 `DSH_PERMISSION_MODE`、Grok 不再默认 `--yolo`。
 - 真机冒烟（待 PR 2 后补齐）：每个后端每档跑一次「写一个文件 + curl 一个网址」。
 

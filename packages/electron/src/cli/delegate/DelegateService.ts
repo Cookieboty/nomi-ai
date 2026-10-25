@@ -124,6 +124,8 @@ export interface DelegateResult {
    * 有汇报时与 report.changedFiles 一致。
    */
   changedFiles?: string[];
+  /** worktree 回填时因主工作树已有修改而未自动覆盖的文件 */
+  conflictedFiles?: string[];
   /** 改动文件以 git status 核对过（不是 git 仓库时为 false） */
   filesVerified: boolean;
   approvals: { asked: number; denied: number; timedOut: number };
@@ -149,8 +151,45 @@ interface BgTask {
   status: 'running' | 'done' | 'error' | 'cancelled';
   cancelledBy?: 'user' | 'nomi';
   result?: DelegateResult;
-  /** 启动时的 ToolExecContext 片段：完成时 markRead / maySend */
-  ctx: ToolExecContext;
+  /** 启动时的 ToolExecContext 片段：完成时 markRead / maySend；重启恢复的终态任务没有它 */
+  ctx?: ToolExecContext;
+}
+
+interface PersistedBgTask {
+  taskId: string;
+  cli: DelegateCli;
+  goal: string;
+  cwd: string;
+  sourceCwd: string;
+  isolation: IsolationHandle;
+  startedAt: number;
+  before: string[] | null;
+  status: BgTask['status'];
+  cancelledBy?: BgTask['cancelledBy'];
+  result?: DelegateResult;
+}
+
+const MAX_PERSISTED_TASKS = 200;
+
+function isPersistedBgTask(value: unknown): value is PersistedBgTask {
+  if (!value || typeof value !== 'object') return false;
+  const v = value as Partial<PersistedBgTask>;
+  return (
+    typeof v.taskId === 'string' &&
+    typeof v.cli === 'string' &&
+    (DELEGATE_CLIS as readonly string[]).includes(v.cli) &&
+    typeof v.goal === 'string' &&
+    typeof v.cwd === 'string' &&
+    typeof v.sourceCwd === 'string' &&
+    typeof v.startedAt === 'number' &&
+    (v.before === null || Array.isArray(v.before)) &&
+    !!v.isolation &&
+    typeof v.isolation === 'object' &&
+    (v.status === 'running' ||
+      v.status === 'done' ||
+      v.status === 'error' ||
+      v.status === 'cancelled')
+  );
 }
 
 type ToolResult =
@@ -182,10 +221,67 @@ export class DelegateService {
 
   constructor(private readonly d: DelegateDeps) {
     this.settingsCache = this.load();
+    this.loadTasks();
   }
 
   private get file(): string {
     return path.join(this.d.root, 'settings.json');
+  }
+
+  private get tasksFile(): string {
+    return path.join(this.d.root, 'tasks.json');
+  }
+
+  /** 让后台委派的状态在应用重启后仍可查询；运行中的任务无法安全假设会继续存在。 */
+  private loadTasks(): void {
+    let raw: unknown;
+    try {
+      raw = JSON.parse(fs.readFileSync(this.tasksFile, 'utf8'));
+    } catch {
+      return;
+    }
+    if (!Array.isArray(raw)) return;
+    let interrupted = false;
+    for (const item of raw) {
+      if (!isPersistedBgTask(item)) continue;
+      const task: BgTask = { ...item, ctx: undefined };
+      if (task.status === 'running') {
+        task.status = 'error';
+        task.result = {
+          taskId: task.taskId,
+          cli: task.cli,
+          status: 'error',
+          summary: untrusted('应用在委派任务完成前退出，任务已标记为中断；请重新委派。'),
+          filesVerified: false,
+          approvals: { asked: 0, denied: 0, timedOut: 0 },
+          error: 'delegate_interrupted_by_restart',
+          durationMs: Math.max(0, Date.now() - task.startedAt),
+          isolationNote: task.isolation.note,
+        };
+        interrupted = true;
+        try {
+          this.d.harness.closeTab(task.taskId);
+        } catch {
+          /* 标签可能已在应用重启期间被清掉 */
+        }
+        void releaseIsolation(task.isolation);
+      }
+      this.tasks.set(task.taskId, task);
+    }
+    if (interrupted) this.persistTasks();
+  }
+
+  private persistTasks(): void {
+    const tasks: PersistedBgTask[] = [...this.tasks.values()]
+      .sort((a, b) => b.startedAt - a.startedAt)
+      .slice(0, MAX_PERSISTED_TASKS)
+      .map(({ ctx: _ctx, ...task }) => task);
+    try {
+      fs.mkdirSync(this.d.root, { recursive: true });
+      writePrivateFileAtomic(this.tasksFile, JSON.stringify(tasks, null, 2));
+    } catch {
+      // 状态落盘失败不能阻止正在运行的委派。
+    }
   }
 
   private load(): DelegateSettings {
@@ -347,7 +443,7 @@ export class DelegateService {
     }
   }
 
-  private async executeStatus(raw: unknown, _ctx: ToolExecContext): Promise<ToolResult> {
+  private async executeStatus(raw: unknown, ctx: ToolExecContext): Promise<ToolResult> {
     const { taskId } = statusInput.parse(raw);
     const data = this.statusOf(taskId);
     if (!data)
@@ -355,7 +451,7 @@ export class DelegateService {
         ok: false,
         error: { code: 'unknown_task', message: `没有这个委派任务：${taskId}` },
       };
-    return { ok: true, data };
+    return { ok: true, data: await this.resultForModel(data, ctx) };
   }
 
   private async executeFollowup(raw: unknown, ctx: ToolExecContext): Promise<ToolResult> {
@@ -554,17 +650,20 @@ export class DelegateService {
         /* 标签可能已不存在 */
       }
       await releaseIsolation(isolation);
-      return {
-        taskId: tab.id,
-        cli,
-        status: 'cancelled',
-        cancelledBy: 'nomi',
-        summary: '',
-        filesVerified: false,
-        approvals: { asked: 0, denied: 0, timedOut: 0 },
-        durationMs: Date.now() - t0,
-        isolationNote: isolation.note,
-      };
+      return this.resultForModel(
+        {
+          taskId: tab.id,
+          cli,
+          status: 'cancelled',
+          cancelledBy: 'nomi',
+          summary: '',
+          filesVerified: false,
+          approvals: { asked: 0, denied: 0, timedOut: 0 },
+          durationMs: Date.now() - t0,
+          isolationNote: this.publicIsolationNote(isolation),
+        },
+        ctx,
+      );
     }
 
     const prompt = buildDelegatePrompt({
@@ -590,20 +689,26 @@ export class DelegateService {
         ctx,
       };
       this.tasks.set(tab.id, task);
+      this.persistTasks();
       void this.runChild(task, prompt, { linkAbort: false });
-      return {
-        taskId: tab.id,
-        cli,
-        status: 'running',
-        summary:
-          `${CLI_NAME[cli]} 已在后台开始：${i.goal.slice(0, 80)}。` +
-          '可用 delegate_status 查询进度；完成后会在对话里通知。' +
-          (isolation.kind === 'worktree' ? `（${isolation.note}）` : `（注意：${isolation.note}）`),
-        filesVerified: false,
-        approvals: { asked: 0, denied: 0, timedOut: 0 },
-        durationMs: Date.now() - t0,
-        isolationNote: isolation.note,
-      };
+      return this.resultForModel(
+        {
+          taskId: tab.id,
+          cli,
+          status: 'running',
+          summary:
+            `${CLI_NAME[cli]} 已在后台开始：${i.goal.slice(0, 80)}。` +
+            '可用 delegate_status 查询进度；完成后会在对话里通知。' +
+            (isolation.kind === 'worktree'
+              ? '（已使用 git worktree 隔离并行写入）'
+              : '（注意：工作目录不是 git 仓库，并行任务可能互相修改文件）'),
+          filesVerified: false,
+          approvals: { asked: 0, denied: 0, timedOut: 0 },
+          durationMs: Date.now() - t0,
+          isolationNote: this.publicIsolationNote(isolation),
+        },
+        ctx,
+      );
     }
 
     // 同步：Nomi 这一轮被停时连带停掉子任务
@@ -620,6 +725,7 @@ export class DelegateService {
       ctx,
     };
     this.tasks.set(tab.id, task);
+    this.persistTasks();
     return this.runChild(task, prompt, { linkAbort: true, signal: ctx.signal });
   }
 
@@ -689,10 +795,16 @@ export class DelegateService {
       ? after.filter((f) => !task.before!.includes(f) || !!report?.changedFiles.includes(f))
       : null;
     let changedFiles = (git ?? report?.changedFiles ?? []).slice(0, 50);
-    // P3：非取消时把 worktree 改动拷回主工作树，便于用户在原目录看到结果；worktree 仍保留供 followup
+    let isolationNote = task.isolation.note;
+    let conflictedFiles: string[] = [];
+    // P3：非取消时把 worktree 改动拷回主工作树；主工作树已有改动的文件不覆盖
     if (o.status !== 'cancelled' && task.isolation.kind === 'worktree' && changedFiles.length) {
-      const { applied } = applyWorktreeToMain(task.isolation, changedFiles);
+      const { applied, conflicted } = applyWorktreeToMain(task.isolation, changedFiles);
+      conflictedFiles = conflicted;
       if (applied.length) changedFiles = applied.slice(0, 50);
+      if (conflicted.length) {
+        isolationNote += ` 未覆盖主工作树中已有改动的文件：${conflicted.slice(0, 20).join(', ')}`;
+      }
     }
     if (o.status === 'cancelled') {
       await releaseIsolation(task.isolation, (m) => console.warn(`[delegate] ${m}`));
@@ -701,39 +813,30 @@ export class DelegateService {
       report = wrapReport({ ...report, changedFiles });
     }
     const approvals = this.approvalsOf(task.taskId);
-    let result: DelegateResult = {
+    const result: DelegateResult = {
       taskId: task.taskId,
       cli: task.cli,
       status: o.status,
       ...(o.status === 'cancelled' && o.cancelledBy ? { cancelledBy: o.cancelledBy } : {}),
       ...(report ? { report } : {}),
       ...(changedFiles.length ? { changedFiles } : {}),
+      ...(conflictedFiles.length ? { conflictedFiles } : {}),
       summary: report ? '' : untrusted(tailText(o.text, 3000)),
       filesVerified: !!git,
       approvals: { ...approvals },
       ...(o.error ? { error: o.error } : {}),
       durationMs: Date.now() - task.startedAt,
       ...(o.usage ? { usage: o.usage } : {}),
-      isolationNote: task.isolation.note,
+      isolationNote,
     };
-
-    this.d.desktop.broker.markRead(task.ctx.signal);
-    if (!(await this.maySend(task.ctx))) {
-      const { report: _hidden, changedFiles: _cf, ...rest } = result;
-      result = {
-        ...rest,
-        summary: `（已开启「仅本地模型可读文件」，编程助手的输出不发给当前的云端模型；改动了 ${
-          changedFiles.length
-        } 个文件）`,
-      };
-    }
 
     task.status = result.status;
     task.cancelledBy = result.cancelledBy;
     task.result = result;
     this.tasks.set(task.taskId, task);
+    this.persistTasks();
     this.broadcastCompleted(result);
-    return result;
+    return task.ctx ? this.resultForModel(result, task.ctx) : result;
   }
 
   private approvalsOf(taskId: string): { asked: number; denied: number; timedOut: number } {
@@ -782,6 +885,7 @@ export class DelegateService {
     task.result = undefined;
     task.ctx = ctx;
     task.startedAt = t0;
+    this.persistTasks();
     // 跟进按同步等（通常较短）；abort 连带停
     return this.runChild(task, message, { linkAbort: true, signal: ctx.signal });
   }
@@ -793,6 +897,35 @@ export class DelegateService {
   private broadcast(ch: string, payload: unknown): void {
     for (const w of BrowserWindow.getAllWindows())
       if (!w.isDestroyed()) w.webContents.send(ch, payload);
+  }
+
+  private publicIsolationNote(isolation: IsolationHandle): string {
+    return isolation.kind === 'worktree'
+      ? '已使用 git worktree 隔离并行写入'
+      : '工作目录不是 git 仓库，并行任务可能互相修改文件';
+  }
+
+  /** 编程助手的输出和本地路径只在接收方允许时交给模型；UI 仍保留完整结果。 */
+  private async resultForModel(
+    result: DelegateResult,
+    ctx: ToolExecContext,
+  ): Promise<DelegateResult> {
+    this.d.desktop.broker.markRead(ctx.signal);
+    if (await this.maySend(ctx)) return result;
+    const {
+      report: _hidden,
+      changedFiles: _changed,
+      conflictedFiles: _conflicted,
+      isolationNote: _isolation,
+      error: _error,
+      ...rest
+    } = result;
+    return {
+      ...rest,
+      summary: `（已开启「仅本地模型可读文件」，编程助手的输出不发给当前的云端模型；改动了 ${
+        result.changedFiles?.length ?? 0
+      } 个文件）`,
+    };
   }
 
   /** 编程助手的输出视同文件内容：交给接收这次工具结果的模型前按「仅本地 / 云端首次发送」规则检查 */

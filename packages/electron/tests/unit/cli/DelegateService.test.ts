@@ -12,6 +12,7 @@ import { runWithToolCaller } from '@nomi-ai/bundle-ig-base';
 
 import { HarnessStoppedError } from '../../../src/cli/CliHarnessService';
 import { DelegateService, untrusted } from '../../../src/cli/delegate/DelegateService';
+import { __setSpawnSyncForTest } from '../../../src/utils/privateFile';
 
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
@@ -125,7 +126,20 @@ function setup(
       };
       error?: { code: string; message: string };
     }>;
-  return { svc, run, created, cancelled, closed, authorized, markRead, cwd, tabs };
+  return {
+    svc,
+    run,
+    created,
+    cancelled,
+    closed,
+    authorized,
+    markRead,
+    cwd,
+    tabs,
+    root,
+    harness,
+    desktop,
+  };
 }
 
 describe('DelegateService · delegate_to_cli', () => {
@@ -393,13 +407,22 @@ describe('DelegateService · delegate_to_cli', () => {
   });
 
   it('仅本地 + 云端模型：不交回编程助手的输出', async () => {
-    const r = await setup({ localOnlyBlocks: true }).run({});
+    const s = setup({ localOnlyBlocks: true });
+    const r = await s.run({});
     expect(r.data?.report).toBeUndefined();
     expect(String(r.data?.summary)).toContain('仅本地模型可读文件');
     expect(String(r.data?.summary)).not.toContain('修好了登录');
+
+    const statusTool = s.svc.tools().find((x) => x.name === 'delegate_status')!;
+    const status = (await statusTool.execute({ taskId: 't1' }, {})) as {
+      ok: boolean;
+      data?: Record<string, unknown>;
+    };
+    expect(status.data?.report).toBeUndefined();
+    expect(String(status.data?.summary)).toContain('仅本地模型可读文件');
   });
 
-  it('结果类型不含 taken_over（§12 有意偏差）', async () => {
+  it('委派结果类型保持稳定，接管状态由 harness 标签元数据表达', async () => {
     const r = await setup().run({});
     expect(r.data?.status).toBe('done');
     expect(r.data).not.toHaveProperty('taken_over');
@@ -529,6 +552,60 @@ describe('DelegateService · P2 异步委派', () => {
     await new Promise((r) => setTimeout(r, 50));
     expect(s.svc.statusOf('t1')?.status).toBe('cancelled');
     expect(s.svc.statusOf('t1')?.cancelledBy).toBe('user');
+  });
+
+  it('终态委派在服务重建后仍可查询', async () => {
+    __setSpawnSyncForTest((() => ({ status: 0, signal: null, output: [], pid: 0 })) as never);
+    const s = setup({ send: async () => ({ text: REPORT }) });
+    try {
+      const done = await s.run({});
+      expect(done.data?.status).toBe('done');
+
+      const restored = new DelegateService({
+        root: s.root,
+        harness: s.harness as never,
+        desktop: s.desktop as never,
+      });
+      expect(restored.statusOf('t1')).toMatchObject({ taskId: 't1', status: 'done' });
+    } finally {
+      __setSpawnSyncForTest(null);
+    }
+  });
+
+  it('重建服务会把运行中的委派标记为中断，而不是继续伪装成 running', () => {
+    __setSpawnSyncForTest((() => ({ status: 0, signal: null, output: [], pid: 0 })) as never);
+    const s = setup();
+    try {
+      fs.writeFileSync(
+        path.join(s.root, 'tasks.json'),
+        JSON.stringify([
+          {
+            taskId: 't-restart',
+            cli: 'claude',
+            goal: 'x',
+            cwd: s.cwd,
+            sourceCwd: s.cwd,
+            isolation: { kind: 'shared-cwd', cwd: s.cwd, sourceCwd: s.cwd, note: 'shared' },
+            startedAt: Date.now() - 1000,
+            before: null,
+            status: 'running',
+          },
+        ]),
+      );
+      const restored = new DelegateService({
+        root: s.root,
+        harness: s.harness as never,
+        desktop: s.desktop as never,
+      });
+      expect(restored.statusOf('t-restart')).toMatchObject({
+        taskId: 't-restart',
+        status: 'error',
+        error: 'delegate_interrupted_by_restart',
+      });
+      expect(s.closed).toContain('t-restart');
+    } finally {
+      __setSpawnSyncForTest(null);
+    }
   });
 });
 

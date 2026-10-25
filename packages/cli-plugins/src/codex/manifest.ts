@@ -24,7 +24,10 @@ export const manifest: CliManifest = {
     images: 'path',
     // 档位全部经启动参数（-c sandbox_mode / approval_policy）设置
     permissionModes: PERMISSION_MODES.map((mode) => ({ mode })),
-    subagents: false,
+    // exec --json exposes collab_tool_call events which the plugin maps to
+    // unified agent timeline events. app-server may omit the same details, so
+    // the UI still treats the agent card as summary-only unless events arrive.
+    subagents: true,
     slashCommands: true,
     resume: true,
     fork: false,

@@ -472,5 +472,7 @@
   "默认档位": "Default profile",
   "对应 AgentProfile：default / cheap / local（本地优先仅作标记）。": "AgentProfile ids: default / cheap / local (preferLocal is metadata only for now).",
   "便宜模型（cheap）": "Cheap model (cheap)",
-  "档位为 cheap 且未自带 model 时使用；第三方填「供应商/模型」，官方填 CLI 模型名。": "Used when the cheap profile has no model of its own. Third-party: provider/model; official: CLI model id."
+  "档位为 cheap 且未自带 model 时使用；第三方填「供应商/模型」，官方填 CLI 模型名。": "Used when the cheap profile has no model of its own. Third-party: provider/model; official: CLI model id.",
+  "部分账号的共享目录软链失败（在 Windows 上常见，需要开发者模式或管理员权限）。会话历史可能不会跨账号共享；官方登录与凭据不受影响。": "Some account shared-directory links failed (common on Windows; Developer Mode or administrator rights may be required). Session history may not be shared across accounts; official sign-in and credentials are unaffected.",
+  "无法确认是否还有 CLI 在用这个账号。请先在终端退出相关 CLI。确认没有进程占用后，仍要强制删除「{0}」吗？": "Nomi could not confirm whether a CLI is still using this account. Quit the related CLI in a terminal first. If no process is using it, force-delete “{0}” anyway?"
 }
