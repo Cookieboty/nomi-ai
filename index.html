@@ -12,7 +12,7 @@
   <link rel="icon" href="assets/brand/nomi-mark.svg" type="image/svg+xml" />
   <link rel="preload" href="assets/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" as="image" href="assets/mockup/hero-bg.webp?v=20261025v2fc" imagesrcset="assets/mockup/hero-bg.webp?v=20261025v2fc 1024w, assets/mockup/hero-bg@2x.webp?v=20261025v2fc 2048w" imagesizes="100vw" fetchpriority="high" />
-  <link rel="stylesheet" href="css/styles.css?v=20261025v2fc" />
+  <link rel="stylesheet" href="css/styles.css?v=20261025v2fd" />
 </head>
 <body data-page="home" id="top">
   <header class="site-header">
@@ -199,10 +199,10 @@
     <section class="section workflow workflow--bleed" id="workflow" aria-labelledby="workflow-title">
       <div class="workflow-bleed-media" aria-hidden="true">
         <img
-          src="assets/mockup/workflow-bg.webp?v=20261025v2fc"
-          srcset="assets/mockup/workflow-bg.webp?v=20261025v2fc 836w, assets/mockup/workflow-bg@2x.webp?v=20261025v2fc 1672w"
+          src="assets/mockup/workflow-bg.webp?v=20261025v2fd"
+          srcset="assets/mockup/workflow-bg.webp?v=20261025v2fd 836w, assets/mockup/workflow-bg@2x.webp?v=20261025v2fd 1672w"
           sizes="100vw"
-          width="1672" height="468"
+          width="1672" height="470"
           alt=""
           loading="lazy"
           decoding="async"
@@ -225,6 +225,53 @@
           <li><span class="wf-num">5</span><strong data-i18n="workflow.5.t">会话接管</strong><span data-i18n="workflow.5.d">热切换 · 升级 · 恢复</span></li>
           <li><span class="wf-num">6</span><strong data-i18n="workflow.6.t">可观测与安全</strong><span data-i18n="workflow.6.d">追踪 · 限额 · 令牌 · 隔离</span></li>
         </ol>
+      </div>
+    </section>
+
+
+    <section class="home-download" id="download" aria-labelledby="home-dl-title">
+      <div class="container home-download-grid">
+        <div class="home-download-copy">
+          <span class="section-label section-label--on-dark"><span class="star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span><span data-i18n="hero.badge">Nomi 2.0</span></span>
+          <h2 id="home-dl-title" data-i18n="page.download.title">支持多平台</h2>
+          <p class="lead" data-i18n="page.download.lead">覆盖主流操作系统，随时随地开始使用。</p>
+          <div class="home-download-cards">
+            <article class="home-dl-card">
+              <div class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.5L10.5 4.4v7.1H3V5.5zm0 13L10.5 19.6v-7.1H3v6zm8.2-13.2L21 3v8.5h-9.8V5.3zM12.2 19.7L21 21v-8.5h-8.8v7.2z"/></svg></div>
+              <h3>Windows</h3>
+              <p class="req" data-i18n="dl.windows.req">Windows 10 及以上</p>
+              <a class="btn btn-primary" id="dl-win" href="https://github.com/Cookieboty/nomi-ai/releases" rel="noopener noreferrer" target="_blank" data-i18n="dl.download">下载</a>
+            </article>
+            <article class="home-dl-card">
+              <div class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.7 12.6c0-2.1 1.7-3.1 1.8-3.2-1-1.4-2.5-1.6-3-1.7-1.3-.1-2.5.8-3.1.8-.7 0-1.7-.7-2.8-.7-1.4 0-2.8.9-3.5 2.2-1.5 2.6-.4 6.5 1.1 8.6.7 1 1.6 2.2 2.7 2.1 1.1 0 1.5-.7 2.8-.7s1.7.7 2.8.7c1.2 0 1.9-1 2.6-2 .8-1.2 1.1-2.3 1.1-2.4-.1 0-2.2-.9-2.2-3.7zM14.8 6.5c.6-.7 1-1.7.9-2.7-.9 0-1.9.6-2.5 1.3-.6.6-1.1 1.7-.9 2.6 1 .1 1.9-.5 2.5-1.2z"/></svg></div>
+              <h3>macOS</h3>
+              <p class="req" data-i18n="dl.mac.req">Apple Silicon / Intel</p>
+              <a class="btn btn-primary" id="dl-mac" href="https://github.com/Cookieboty/nomi-ai/releases" rel="noopener noreferrer" target="_blank" data-i18n="dl.download">下载</a>
+              <div class="home-dl-sub">
+                <a id="dl-mac-arm64" href="https://github.com/Cookieboty/nomi-ai/releases" rel="noopener noreferrer" target="_blank">Apple Silicon</a>
+                <a id="dl-mac-x64" href="https://github.com/Cookieboty/nomi-ai/releases" rel="noopener noreferrer" target="_blank">Intel</a>
+              </div>
+            </article>
+            <article class="home-dl-card">
+              <div class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.5 2c-1.2 0-2.1 1.4-1.9 2.7.1.6.3 1.2.3 1.8 0 .4-.2.8-.3 1.2-.5 1.3-.2 2.3.7 3.2.2.2.3.5.2.8-.2.8-.5 1.5-.5 2.4 0 2.1 1.6 3.6 3.8 3.6 2.5 0 4-1.8 4-4.1 0-1.5-.6-2.7-1.1-3.7-.2-.4-.2-.8 0-1.2.5-1.1.7-2.2.4-3.4C17.8 3.1 16.4 2 14.8 2c-.8 0-1.5.3-2 .8-.1-.3-.2-.5-.3-.8zM8.6 14.2c-.9 0-1.8.4-2.4 1.1C5.2 16.3 5 17.7 5.4 19c.5 1.5 1.8 2.5 3.4 2.5.6 0 1.1-.1 1.6-.4.4 1.2 1.5 2 2.8 2 1 0 1.9-.5 2.4-1.3.6.3 1.2.4 1.9.4 1.8 0 3.3-1.2 3.7-2.9.3-1.3-.1-2.6-1-3.5-.7-.7-1.6-1.1-2.6-1.1-.5 0-1 .1-1.4.3-.5-.9-1.5-1.5-2.6-1.5-.9 0-1.7.4-2.3 1.1-.5-.7-1.3-1.1-2.1-1.1z"/></svg></div>
+              <h3>Linux</h3>
+              <p class="req" data-i18n="dl.linux.req">x64 AppImage</p>
+              <a class="btn btn-primary" id="dl-linux" href="https://github.com/Cookieboty/nomi-ai/releases" rel="noopener noreferrer" target="_blank" data-i18n="dl.download">下载</a>
+            </article>
+          </div>
+          <p class="home-download-more"><a href="download.html" data-i18n="platforms.desktop.cta">前往下载页 →</a></p>
+        </div>
+        <div class="home-download-visual" aria-hidden="true">
+          <img
+            src="assets/mockup/home-dl-visual.webp?v=20261025v2fd"
+            srcset="assets/mockup/home-dl-visual.webp?v=20261025v2fd 257w, assets/mockup/home-dl-visual@2x.webp?v=20261025v2fd 514w"
+            sizes="(max-width: 900px) min(70vw, 280px), 340px"
+            width="514" height="397"
+            alt=""
+            loading="lazy"
+            decoding="async"
+          />
+        </div>
       </div>
     </section>
 
