@@ -114,4 +114,29 @@ describe('CliHarnessService · Nomi 委派开的标签', () => {
     expect(cancel).toHaveBeenCalledWith(d.id);
     expect(h.listTabs().tabs.find((x) => x.id === d.id)?.delegation?.takenOver).toBe(true);
   });
+
+  it('接管时先 markTakenOver 再 cancel，避免委派收尾删 worktree（#118）', async () => {
+    const h = mk();
+    const d = h.createTab({ backend: 'codex', activate: false, delegation: { goal: 'x' } });
+    const tab = (h as unknown as { tabs: Map<string, { status: string }> }).tabs.get(d.id)!;
+    tab.status = 'running';
+    const order: string[] = [];
+    const origMark = (h as unknown as { markTakenOver(id: string): void }).markTakenOver.bind(h);
+    jest.spyOn(h as never, 'markTakenOver' as never).mockImplementation(((id: string) => {
+      order.push('mark');
+      origMark(id);
+    }) as never);
+    jest.spyOn(h, 'cancelTab').mockImplementation(() => {
+      order.push('cancel');
+      tab.status = 'idle';
+      h.events.emit('tabs', h.listTabs());
+      return true;
+    });
+    await (
+      h as unknown as { takeOverDelegatedTab(id: string): Promise<void> }
+    ).takeOverDelegatedTab(d.id);
+    expect(order[0]).toBe('mark');
+    expect(order).toContain('cancel');
+    expect(order.indexOf('mark')).toBeLessThan(order.indexOf('cancel'));
+  });
 });

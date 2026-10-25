@@ -15,7 +15,7 @@ import {
   Star,
   X,
 } from 'lucide-react';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
 import {
   qualityClient,
@@ -99,6 +99,26 @@ function visibleRows(
     out.push({ id, s, depth, path, ancestors, hasChildren });
     if (hasChildren && expanded.has(id))
       out.push(...visibleRows(s.children!, expanded, depth + 1, path, `${id}›`, [...ancestors, s]));
+  }
+  return out;
+}
+
+/** 整棵分组树展平（不论是否展开），用于按 id 解析并排对比的最新指标（#124） */
+export function flattenRows(
+  groups: readonly QualityStats[],
+  depth = 0,
+  parent: Row['path'] = [],
+  prefix = '',
+  ancestors: QualityStats[] = [],
+): Row[] {
+  const out: Row[] = [];
+  for (const s of groups) {
+    const path = [...parent, { dim: s.dim ?? 'provider', key: s.key }];
+    const id = `${prefix}${s.dim}:${s.key}`;
+    const hasChildren = !!s.children?.length;
+    out.push({ id, s, depth, path, ancestors, hasChildren });
+    if (hasChildren)
+      out.push(...flattenRows(s.children!, depth + 1, path, `${id}›`, [...ancestors, s]));
   }
   return out;
 }
@@ -500,7 +520,8 @@ export const CompareTable: React.FC<{
   };
   const s = useQualityData<QualityResult>(JSON.stringify(query), () => qualityClient.query(query));
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [selected, setSelected] = useState<Map<string, Row>>(new Map());
+  /** 只存选中 id；指标从当前查询结果解析，避免口径/刷新后仍用旧快照（#124） */
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [compareOpen, setCompareOpen] = useState(false);
   const [groups, setGroups] = useState<Set<ColumnGroup>>(new Set(['token', 'latency', 'speed']));
   const [pageSize, setPageSize] = useState(10);
@@ -516,6 +537,17 @@ export const CompareTable: React.FC<{
   const top = s.data?.groups ?? [];
   const pageGroups = top.slice(page * pageSize, (page + 1) * pageSize);
   const rows = useMemo(() => visibleRows(pageGroups, expanded), [pageGroups, expanded]);
+  const rowById = useMemo(() => {
+    const m = new Map<string, Row>();
+    for (const r of flattenRows(top)) m.set(r.id, r);
+    return m;
+  }, [top]);
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      const next = new Set([...prev].filter((id) => rowById.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [rowById]);
   const cols = COLUMNS.filter((c) => c.group === 'count' || groups.has(c.group));
   const heads = GROUP_HEADS.filter((g) => groups.has(g.group));
 
@@ -527,10 +559,10 @@ export const CompareTable: React.FC<{
       return next;
     });
   const check = (r: Row) =>
-    setSelected((prev) => {
-      const next = new Map(prev);
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
       if (next.has(r.id)) next.delete(r.id);
-      else if (next.size < MAX_COMPARE) next.set(r.id, r);
+      else if (next.size < MAX_COMPARE) next.add(r.id);
       return next;
     });
 
@@ -580,7 +612,7 @@ export const CompareTable: React.FC<{
     );
   }
 
-  const selectedRows = [...selected.values()];
+  const selectedRows = [...selectedIds].map((id) => rowById.get(id)!).filter(Boolean);
 
   return (
     <div className={styles.stack} data-testid="quality-compare-view">
@@ -600,7 +632,10 @@ export const CompareTable: React.FC<{
       {selectedRows.length >= 2 && compareOpen && (
         <ComparePanel
           rows={selectedRows}
-          onRemove={(id) => check(selected.get(id)!)}
+          onRemove={(id) => {
+            const r = rowById.get(id);
+            if (r) check(r);
+          }}
           onClose={() => setCompareOpen(false)}
         />
       )}
@@ -623,7 +658,7 @@ export const CompareTable: React.FC<{
               <button
                 type="button"
                 className={styles.textBtn}
-                onClick={() => setSelected(new Map())}
+                onClick={() => setSelectedIds(new Set())}
               >
                 {t('ui.voice-mascot.clear')}
               </button>
@@ -747,15 +782,15 @@ export const CompareTable: React.FC<{
                   key={r.id}
                   className={styles.treeRow}
                   data-depth={r.depth}
-                  aria-selected={selected.has(r.id)}
+                  aria-selected={selectedIds.has(r.id)}
                   data-testid="quality-row"
                 >
                   <NameCell
                     row={r}
                     open={expanded.has(r.id)}
                     onToggle={() => toggle(r.id)}
-                    checked={selected.has(r.id)}
-                    canCheck={selected.size < MAX_COMPARE}
+                    checked={selectedIds.has(r.id)}
+                    canCheck={selectedIds.size < MAX_COMPARE}
                     onCheck={() => check(r)}
                   />
                   {cols.map((c) => {

@@ -155,6 +155,10 @@ export class QualityService {
       n++;
     }
     if (n) {
+      // 同步写盘成功后再让调用方删源文件，避免写失败却丢数据（#127）
+      if (!this.ledger.flushSync()) {
+        throw new Error('quality ledger flush failed during legacy import');
+      }
       this.version++;
       this.d.logger.info('quality: imported legacy gateway requests', { count: n });
       this.changed();

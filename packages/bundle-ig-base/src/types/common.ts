@@ -100,6 +100,8 @@ export interface ToolExecContext {
    * 若该标签是 Nomi 派出的（delegation.by === 'nomi'），委派层数限制会拒绝（§6.4）。
    */
   callerTabId?: string;
+  /** 发起本轮工具循环的 Nomi 会话 id；后台委派完成结果按此会话落盘（#116） */
+  conversationId?: string;
 }
 
 /** 工具接口 */

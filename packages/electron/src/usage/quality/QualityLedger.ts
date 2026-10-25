@@ -116,19 +116,24 @@ export class QualityLedger {
     return this.writing;
   }
 
-  /** 退出时：同步写完 */
-  flushSync(): void {
+  /**
+   * 同步写完攒着的记录。
+   * @returns 是否全部写成功（无待写或写完为 true；写失败为 false，pending 已清空但数据可能丢失——调用方应在删源前检查）
+   */
+  flushSync(): boolean {
     if (this.timer) {
       clearTimeout(this.timer);
       this.timer = null;
     }
     const batch = this.take();
-    if (!batch.length) return;
+    if (!batch.length) return true;
     try {
       fs.mkdirSync(this.d.dir, { recursive: true, mode: 0o700 });
       for (const [key, data] of batch) fs.appendFileSync(this.file(key), data, { mode: 0o600 });
+      return true;
     } catch (e) {
       this.d.logger?.warn('quality ledger write failed', { error: (e as Error).message });
+      return false;
     }
   }
 

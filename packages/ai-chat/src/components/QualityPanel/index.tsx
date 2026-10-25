@@ -177,7 +177,7 @@ export const QualityPanel: React.FC<{
         <Trend
           base={base}
           rangeDays={(range.to - range.from) / 86_400_000}
-          countBy={count.countBy}
+          count={count}
           filtered={filtered}
           onClearFilters={() => setFilters({})}
         />

@@ -247,4 +247,26 @@ describe('「最近请求」迁移到模型质量账本', () => {
     expect(q.query({ from: NOW - 3600_000, to: NOW + 1 }).total.requests).toBe(1);
     log2.dispose();
   });
+
+  it('importLegacy throws when flushSync fails so source file is kept (#127)', () => {
+    const qDir = tmp();
+    const q = new QualityService({ dir: qDir, logger, now: () => NOW, flushMs: 60_000 });
+    const ledger = (q as unknown as { ledger: { flushSync: () => boolean } }).ledger;
+    jest.spyOn(ledger, 'flushSync').mockReturnValue(false);
+    expect(() =>
+      q.importLegacy([
+        {
+          id: 'x',
+          layer: 'gateway',
+          ts: NOW,
+          client: 'nomi',
+          source: 'nomi',
+          stream: true,
+          outcome: 'ok',
+          timing: { endMs: 1 },
+          tokens: {},
+        },
+      ]),
+    ).toThrow(/flush failed/);
+  });
 });

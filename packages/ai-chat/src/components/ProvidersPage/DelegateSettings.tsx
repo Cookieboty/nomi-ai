@@ -50,8 +50,9 @@ export const DelegateSettings: React.FC = () => {
         enabled: optimistic.enabled,
         defaults: optimistic.defaults,
         defaultProfileId: optimistic.defaultProfileId ?? 'default',
-        ...(optimistic.cheapModel !== undefined
-          ? { cheapModel: optimistic.cheapModel || undefined }
+        // 清空时 next.cheapModel 为 undefined；不能用 !== undefined 判断是否在改这个字段（#126）
+        ...(Object.prototype.hasOwnProperty.call(next, 'cheapModel')
+          ? { cheapModel: next.cheapModel || undefined }
           : s.cheapModel
             ? { cheapModel: s.cheapModel }
             : {}),

@@ -52,6 +52,7 @@ function file(now: Date): string | null {
 }
 
 function write(rec: Record<string, unknown>): void {
+  if (!enabled()) return;
   const now = new Date();
   const f = file(now);
   if (!f || capped) return;

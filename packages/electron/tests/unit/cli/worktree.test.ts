@@ -62,6 +62,15 @@ describe('worktree isolation', () => {
     expect(h.note).toMatch(/不是 git/);
   });
 
+  it('prepareIsolation falls back to shared-cwd when the git repo has no commits', async () => {
+    const d = mkTmp();
+    git(d, ['init']);
+    const h = await prepareIsolation(d, 'empty-repo');
+    expect(h.kind).toBe('shared-cwd');
+    expect(h.cwd).toBe(d);
+    expect(h.note).toMatch(/不是 git|worktree/i);
+  });
+
   it('prepareIsolation creates a detached worktree under sourceCwd', async () => {
     const d = mkTmp();
     git(d, ['init']);

@@ -77,6 +77,25 @@ describe('QualityLedger', () => {
   });
 });
 
+it('flushSync returns false when write fails so callers can keep the source (#127)', () => {
+  const dir = tmp();
+  const l = new QualityLedger({ dir, now: () => NOW, flushMs: 60_000 });
+  l.append(rec(NOW));
+  // Make the day file path unwritable by replacing dir with a file
+  fs.rmSync(dir, { recursive: true, force: true });
+  fs.writeFileSync(dir, 'not-a-dir');
+  expect(l.flushSync()).toBe(false);
+  fs.unlinkSync(dir);
+});
+
+it('flushSync returns true when nothing pending or write succeeds (#127)', () => {
+  const dir = tmp();
+  const l = new QualityLedger({ dir, now: () => NOW, flushMs: 60_000 });
+  expect(l.flushSync()).toBe(true);
+  l.append(rec(NOW));
+  expect(l.flushSync()).toBe(true);
+});
+
 describe('fromGateway', () => {
   const base = {
     client: 'claude',

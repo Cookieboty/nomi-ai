@@ -29,13 +29,15 @@ export type MapToolsOpts = {
   reqId?: string;
   /** 发起工具调用的编程助手标签（MCP/host 传入；缺省时读 ALS） */
   callerTabId?: string;
+  /** 发起本轮的 Nomi 会话 id（后台委派完成落盘，#116） */
+  conversationId?: string;
 };
 
 function isMapToolsOpts(v: unknown): v is MapToolsOpts {
   return (
     !!v &&
     typeof v === 'object' &&
-    ('provider' in v || 'reqId' in v || 'callerTabId' in v) &&
+    ('provider' in v || 'reqId' in v || 'callerTabId' in v || 'conversationId' in v) &&
     !('id' in v)
   );
 }
@@ -53,7 +55,7 @@ export function toAiSdkTool(
   def: ToolDefinition,
   providerOrOpts?: MapToolsOpts | ToolCallProvider,
 ): Tool {
-  const { provider, reqId, callerTabId } = normalizeOpts(providerOrOpts);
+  const { provider, reqId, callerTabId, conversationId } = normalizeOpts(providerOrOpts);
   return tool({
     description: def.description,
     inputSchema: toFlexibleSchema(def.input),
@@ -65,6 +67,7 @@ export function toAiSdkTool(
         ...(provider ? { provider } : {}),
         ...(reqId ? { reqId } : {}),
         ...(caller ? { callerTabId: caller } : {}),
+        ...(conversationId ? { conversationId } : {}),
       });
     },
   });

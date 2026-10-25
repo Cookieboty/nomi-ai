@@ -48,7 +48,7 @@ export class GatewayRequestLog {
     }
   }
 
-  /** 旧的 requests.json：导入质量账本一次后删除；读不懂的文件留着不动 */
+  /** 旧的 requests.json：导入质量账本成功后再删除；读不懂 / 写入失败的文件留着（#127） */
   private migrateLegacy(): void {
     const file = path.join(this.d.root, REQUESTS_FILE);
     if (!this.d.importLegacy || !fs.existsSync(file)) return;

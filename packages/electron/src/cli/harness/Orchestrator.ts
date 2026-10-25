@@ -56,6 +56,7 @@ import { BrowserWindow, dialog } from 'electron';
 import { t } from '../../i18n';
 import { guardedHandle } from '../../security/guardedIpc';
 import { claudeConfigDir } from '../../usage/cliHomes';
+import { qualityLedgerInput } from '../../usage/quality/cliTokens';
 import { CoalescedWriter, flushPendingWritesSync } from '../../utils/coalescedWriter';
 import { writePrivateFile } from '../../utils/privateFile';
 import { codexConfigPath, grokHomePath } from '../configPatch';
@@ -1043,6 +1044,8 @@ export class HarnessOrchestrator {
       throw new Error(t('electron.common.the-main-chat-tab-cannot-be-closed'));
     const tab = this.requireTab(id);
     this.cancelTab(id);
+    // 取消进行中的绑定/预热，避免晚到的 ack 仍 spawn 孤儿 CLI（#120）
+    this.claudeStarting.delete(id);
     this.teardownClaudeLive(id);
     const order = [...this.tabs.keys()];
     const idx = order.indexOf(id);
@@ -2418,6 +2421,7 @@ export class HarnessOrchestrator {
       const q = this.partial.get(id)?.q;
       const rel = (t?: number) => (t === undefined ? undefined : Math.max(0, t - startedAt));
       const output = o.usage?.outputTokens;
+      const input = qualityLedgerInput(base.client, o.usage ?? {});
       const gen = q?.first !== undefined && q.last !== undefined ? q.last - q.first : undefined;
       const record: QualityRecord = {
         id: randomUUID(),
@@ -2436,7 +2440,7 @@ export class HarnessOrchestrator {
           endMs: Date.now() - startedAt,
         },
         tokens: {
-          ...(o.usage?.inputTokens !== undefined ? { input: o.usage.inputTokens } : {}),
+          ...(input !== undefined ? { input } : {}),
           ...(output !== undefined ? { output } : {}),
           ...(o.usage?.cacheReadTokens !== undefined ? { cacheRead: o.usage.cacheReadTokens } : {}),
         },
@@ -2610,7 +2614,13 @@ export class HarnessOrchestrator {
     const pending = this.claudeStarting.get(tab.id);
     if (pending) return pending;
     const p = this.bindTabLaunch(tab, launch)
-      .then((bound) => this.ensureClaudeLive(tab, bound))
+      .then((bound) => {
+        if (!this.tabs.has(tab.id)) {
+          this.dropTabBinding(tab);
+          throw new Error(t('electron.common.tab-was-closed'));
+        }
+        return this.ensureClaudeLive(tab, bound);
+      })
       .finally(() => {
         if (this.claudeStarting.get(tab.id) === p) this.claudeStarting.delete(tab.id);
       });
@@ -4616,6 +4626,8 @@ export class HarnessOrchestrator {
     const tab = this.requireTab(id);
     const delegation = tab.delegation;
     if (!delegation || delegation.takenOver) return;
+    // 先标记接管，再 cancel：委派 finalize 看到 takenOver 就不会删 worktree（#118）
+    this.markTakenOver(id);
     if (tab.status === 'running' || tab.status === 'queued') {
       if (!this.cancelTab(id))
         throw new Error(t('electron.common.cannot-take-over-the-previous-turn-is-still'));
@@ -4624,7 +4636,6 @@ export class HarnessOrchestrator {
     const current = this.requireTab(id);
     if (current.status === 'running' || current.status === 'queued')
       throw new Error(t('electron.common.cannot-take-over-the-previous-turn-is-still'));
-    this.markTakenOver(id);
   }
 
   private waitForTabIdle(id: string, timeoutMs: number): Promise<void> {
