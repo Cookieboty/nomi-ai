@@ -16,7 +16,7 @@
  * （codex `-c model=...`、grok `-m ... --reasoning-effort ...`、claude `--model ... --effort ...`），
  * 不改写用户的全局 CLI 配置；每轮新进程的后端下一条消息即生效，Claude 长驻进程空闲时重启复用。
  */
-import { Icon, t } from '@nomi-ai/ui';
+import { Icon, Input, t } from '@nomi-ai/ui';
 import {
   Check,
   ChevronDown,
@@ -681,10 +681,10 @@ const ModelChip: React.FC<{
                 </div>
               )}
               {searchable && (
-                <input
+                <Input
                   autoFocus
-                  type="search"
-                  className={styles.customInput}
+                  size="sm"
+                  className={styles.search}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={(e) => {

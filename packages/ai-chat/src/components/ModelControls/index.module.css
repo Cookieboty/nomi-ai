@@ -374,6 +374,10 @@
   gap: var(--cd-space-2);
   width: 100%;
 }
+/* 菜单是纵向 flex：搜索框不能参与收缩，否则列表一长就被压扁 */
+.search {
+  flex: none;
+}
 .customInput {
   flex: 1;
   min-width: 0;
