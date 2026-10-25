@@ -130,16 +130,24 @@ function entryOf(m: Raw): ModelSpecData {
 
 const isChat = (m: Raw) => !m.type || m.type === 'chat';
 
+/** 远程 id 写入目录时跳过原型链污染键 */
+function safeCatalogKey(id: string): string | null {
+  const key = id.toLowerCase();
+  if (key === '__proto__' || key === 'constructor' || key === 'prototype') return null;
+  return key;
+}
+
 /** api.json → 目录；version 由调用方给（构建日 / 同步日） */
 export function buildCatalog(api: unknown, version: string): CatalogDoc & { fromFallback: number } {
   const data = obj(api) ?? {};
-  const models: Record<string, ModelSpecData> = {};
+  const models: Record<string, ModelSpecData> = Object.create(null);
   for (const pid of ORIGINS) {
     for (const [id, raw] of Object.entries(obj(obj(data[pid])?.models) ?? {})) {
       const m = obj(raw);
       if (!m || !isChat(m)) continue;
-      const key = id.toLowerCase();
-      if (!models[key]) models[key] = entryOf(m);
+      const key = safeCatalogKey(id);
+      if (!key || models[key]) continue;
+      models[key] = entryOf(m);
     }
   }
   let fromFallback = 0;
@@ -148,8 +156,8 @@ export function buildCatalog(api: unknown, version: string): CatalogDoc & { from
     const i = id.indexOf('/');
     if (!m || !isChat(m) || i <= 0) continue;
     if (!FALLBACK_VENDORS.includes(id.slice(0, i).replace(/^~/, ''))) continue;
-    const key = id.slice(i + 1).toLowerCase();
-    if (models[key]) continue;
+    const key = safeCatalogKey(id.slice(i + 1));
+    if (!key || models[key]) continue;
     models[key] = entryOf(m);
     fromFallback++;
   }
