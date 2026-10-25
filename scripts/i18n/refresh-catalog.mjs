@@ -1,4 +1,5 @@
 /* eslint-disable no-console -- generator reports its result to the CLI */
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -72,8 +73,18 @@ const dictionaries = languages
   .join(',\n');
 const union = [...new Set(allKeys)].map((key) => JSON.stringify(key)).join(' | ') || 'never';
 const importLines = imports.sort((a, b) => a.path.localeCompare(b.path)).map((entry) => entry.line);
+const catalogFile = path.join(packageRoot, 'src/catalog.ts');
 fs.writeFileSync(
-  path.join(packageRoot, 'src/catalog.ts'),
+  catalogFile,
   `${importLines.join('\n')}\n\nexport const DICTIONARIES = {\n${dictionaries},\n} as const;\n\nexport type TranslationKey = ${union};\nexport type Language = keyof typeof DICTIONARIES;\n\nexport const getDictionary = (language: Language): Record<string, string> =>\n  Object.assign({}, ...Object.values(DICTIONARIES[language])) as Record<string, string>;\n`,
+);
+// 生成的是未排版的单行联合类型；提交的版本按 Prettier 排版，直接写完就排版，避免整文件 diff
+execFileSync(
+  process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm',
+  ['exec', 'prettier', '--write', catalogFile],
+  {
+    cwd: root,
+    stdio: 'ignore',
+  },
 );
 console.log(`Refreshed ${allKeys.length} localization keys for languages: ${languages.join(', ')}`);
