@@ -65,9 +65,10 @@
 
 ## 安全
 
-- API Key 用系统安全存储加密（macOS 钥匙串 / Windows DPAPI / Linux libsecret·kwallet），保存在本机 `gateway/store.json`（权限 0600）。
+- API Key 用系统安全存储加密（macOS 钥匙串 / Windows DPAPI / Linux libsecret·kwallet），保存在本机 `gateway/store.json`（权限 0600）。**GatewayStore 是第三方供应商唯一来源**；旧 `ai-providers.json` 等仅迁移后改名保留。
 - 保存后界面只能拿到掩码；Key 只在主进程和网关进程的内存里解密，只随请求发往你为该供应商配置的地址，不上报、不同步。
-- 网关只监听本机，每个客户端用自己的令牌访问。
+- 网关只监听本机，每个客户端用自己的令牌访问。出站请求 **DNS 钉 IP**（防解析后被重绑定）；入站请求体默认上限 32 MiB（「模型」页高级可调）。
+- 网关进程短时间内反复崩溃会触发**熔断**并停止自动重启（避免风暴）；健康差的 Key/协议候选会被自适应排到队尾（可用 `NOMI_ADAPTIVE_ROUTE=0` 关闭）。实时快照见网关 `GET /metrics`。
 - 工具结果会发给谁按真正的上游判断：经网关访问云端供应商时按云端处理（隐私设置里的「仅本地」与云端同意照常生效）。
 
 ## 升级与兼容

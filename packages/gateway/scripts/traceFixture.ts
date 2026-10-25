@@ -1,5 +1,5 @@
 /**
- * 诊断追踪 → 回放夹具（docs/plans/cli-plugin-architecture.md P11「录制回放工具」）。
+ * 诊断追踪 → 回放夹具（docs/design/cli-plugin-architecture.md §8 诊断追踪 / 录制回放）。
  *
  * 输入是网关写的追踪文件（userData/gateway/trace/*.json，src/trace.ts 的 version 2 格式：
  * 入口请求体、各次上游尝试、上游原始响应全文、给客户端输出的差异）；输出是
