@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="Nomi·诺米——懂你的日常，也能搞定工作。助手模式陪你聊天、记事、提醒；工作台模式并行 Claude Code、Codex 等编程助手。本地优先，Windows / macOS / Linux。" />
-  <meta name="theme-color" content="#FCEFE1" />
-  <meta property="og:title" content="Nomi·诺米 — 懂你的日常，也能搞定工作" />
-  <meta property="og:description" content="懂你的日常，也能搞定工作。助手模式陪伴日常，工作台模式并行编程助手。本地优先。" />
+  <meta name="description" content="Nomi·诺米——让 AI 工具协同起来。连接编程助手、模型与工作流；本地优先，Windows / macOS / Linux。" />
+  <meta name="theme-color" content="#FFF8F1" />
+  <meta property="og:title" content="Nomi·诺米 — 让 AI 工具协同起来" />
+  <meta property="og:description" content="让 AI 工具协同起来。不止是桌面伙伴，更是连接 AI 工具、模型与工作流的智能助手。" />
   <meta property="og:image" content="https://withnomi.app/assets/brand/nomi-brand-avatar.jpg" />
-  <title>Nomi·诺米 — 懂你的日常，也能搞定工作</title>
+  <title>Nomi·诺米 — 让 AI 工具协同起来</title>
   <link rel="icon" href="assets/brand/nomi-mark.svg" type="image/svg+xml" />
   <link rel="preload" href="assets/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="preload" as="image" href="assets/brand/nomi-brand-avatar-440.webp" imagesrcset="assets/brand/nomi-brand-avatar-440.webp 440w, assets/brand/nomi-brand-avatar-880.webp 880w" imagesizes="(max-width: 500px) calc(100vw - 6rem), 413px" fetchpriority="high" />
-  <link rel="stylesheet" href="css/styles.css?v=20261023e" />
+  <link rel="preload" as="image" href="assets/mockup/hero-bg.webp?v=20261025v2fc" imagesrcset="assets/mockup/hero-bg.webp?v=20261025v2fc 1024w, assets/mockup/hero-bg@2x.webp?v=20261025v2fc 2048w" imagesizes="100vw" fetchpriority="high" />
+  <link rel="stylesheet" href="css/styles.css?v=20261025v2fe" />
 </head>
 <body data-page="home" id="top">
   <header class="site-header">
@@ -35,9 +35,10 @@
         <nav class="nav" id="site-nav" data-i18n-aria-label="nav.main">
           <a href="index.html" aria-current="page" data-i18n="nav.home">首页</a>
           <a href="features.html" data-i18n="nav.features">功能</a>
-          <a href="download.html" data-i18n="nav.download">下载</a>
+          <a href="privacy.html" data-i18n="nav.privacy">隐私</a>
           <a href="docs.html" data-i18n="nav.docs">文档</a>
           <a href="changelog.html" data-i18n="nav.changelog">更新日志</a>
+          <a href="download.html" data-i18n="nav.download">下载</a>
           <a class="nav-cta" href="download.html" data-i18n="nav.cta">下载 Nomi</a>
           <a class="nav-contact" href="index.html#contact" data-contact-open data-i18n="nav.contact">联系我们</a>
         </nav>
@@ -46,207 +47,188 @@
   </header>
 
   <main>
-    <section class="hero">
-      <div class="container hero-grid">
+    <section class="hero hero--bleed" aria-labelledby="hero-title">
+      <div class="hero-bleed-media" aria-hidden="true">
+        <img
+          src="assets/mockup/hero-bg.webp?v=20261025v2fc"
+          srcset="assets/mockup/hero-bg.webp?v=20261025v2fc 1024w, assets/mockup/hero-bg@2x.webp?v=20261025v2fc 2048w"
+          sizes="100vw"
+          width="2048" height="768"
+          alt=""
+          fetchpriority="high"
+          decoding="async"
+        />
+      </div>
+      <div class="hero-bleed-mask" aria-hidden="true"></div>
+      <div class="container hero-bleed-inner">
         <div class="hero-copy">
-          <div class="hero-badge"><span class="dot" aria-hidden="true"></span> <span data-i18n="hero.badge">本地优先 · Windows / macOS / Linux</span></div>
-          <h1 data-i18n="hero.title">Nomi·诺米</h1>
-          <p class="hero-slogan" data-i18n="hero.slogan">懂你的日常，也能搞定工作。</p>
-          <p class="hero-promise" data-i18n="hero.promise">平常在助手模式里，诺米陪你聊天、记事、提醒；忙起来就切到工作台模式，和 Claude Code、Codex 等编程助手一起把活儿干完。</p>
+          <div class="hero-badge hero-badge--pill"><span class="star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span> <span data-i18n="hero.badge">Nomi 2.0</span></div>
+          <h1 id="hero-title" data-i18n="hero.title">让 AI 工具协同起来</h1>
+          <p class="hero-promise" data-i18n="hero.promise">不止是桌面伙伴，更是连接 AI 工具、模型与工作流的智能助手。</p>
           <div class="hero-actions">
-            <a class="btn btn-primary btn-lg" href="#download" data-i18n="hero.download">立即下载</a>
-            <a class="btn btn-secondary btn-lg" href="https://github.com/Cookieboty/nomi-ai" rel="noopener noreferrer" target="_blank" data-i18n="hero.github">在 GitHub 查看</a>
+            <a class="btn btn-primary btn-lg" href="download.html" data-i18n="hero.download">立即下载</a>
+            <a class="btn btn-ghost-light btn-lg" href="#sixcaps" data-i18n="hero.more">了解更多 →</a>
           </div>
-          <div class="hero-meta">
-            <span><span class="meta-star star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span><span data-i18n="hero.meta.mit">MIT 开源</span></span>
-            <span><span class="meta-star star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span><span data-i18n="hero.meta.bilingual">中文 / English</span></span>
-            <span><span class="meta-star star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span><span data-i18n="hero.meta.models">云端模型 + 本地模型</span></span>
-          </div>
-        </div>
-        <div class="hero-visual">
-          <div class="hero-stage">
-            <span class="hero-float-star hero-float-star--1" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span>
-            <span class="hero-float-star hero-float-star--2" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span>
-            <div class="hero-stage-ring" aria-hidden="true"></div>
-            <div class="hero-stage-inner">
-              <img src="assets/brand/nomi-brand-avatar-440.webp" srcset="assets/brand/nomi-brand-avatar-440.webp 440w, assets/brand/nomi-brand-avatar-880.webp 880w" sizes="(max-width: 500px) calc(100vw - 6rem), 413px" data-i18n-alt="hero.avatarAlt" alt="Nomi·诺米 官方品牌立绘" width="440" height="440" fetchpriority="high" decoding="async" />
-            </div>
-          </div>
-          <blockquote class="hero-quote" data-i18n="hero.quote">「我在这里，陪你把每一个任务都变成小小的成就。」</blockquote>
         </div>
       </div>
     </section>
 
-    <section class="section section-tight" aria-labelledby="pillars-title">
+    <section class="section pillars-flat" id="pillars" aria-labelledby="pillars-title">
       <div class="container">
-        <div class="section-head">
-          <span class="section-label"><span class="star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span><span data-i18n="pillars.label">三个承诺</span></span>
+        <div class="pillars-head">
+          <svg class="pillars-arc" viewBox="0 0 900 60" preserveAspectRatio="none" aria-hidden="true">
+            <defs>
+              <linearGradient id="pillarsArcGrad" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stop-color="#FB9466" stop-opacity="0.95"/>
+                <stop offset="55%" stop-color="#FB9466" stop-opacity="0.55"/>
+                <stop offset="100%" stop-color="#FB9466" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <path d="M40 48 C 220 8, 480 4, 860 36" fill="none" stroke="url(#pillarsArcGrad)" stroke-width="2.2" stroke-linecap="round"/>
+            <g transform="translate(36,18)">
+              <path fill="#FB9466" d="M12 0C12.6 4.2 14 5.8 18 6.5C14 7.2 12.6 8.8 12 13C11.4 8.8 10 7.2 6 6.5C10 5.8 11.4 4.2 12 0Z"/>
+            </g>
+            <g transform="translate(70,8)" opacity="0.85">
+              <path fill="#FB9466" d="M8 0C8.4 2.8 9.3 3.9 12 4.3C9.3 4.7 8.4 5.8 8 8.6C7.6 5.8 6.7 4.7 4 4.3C6.7 3.9 7.6 2.8 8 0Z"/>
+            </g>
+          </svg>
+          <span class="section-label section-label--center"><span class="star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span><span data-i18n="pillars.label">Nomi 2.0</span></span>
           <h2 id="pillars-title" data-i18n="pillars.title">懂你 · 行动 · 相伴</h2>
-          <p class="lead" data-i18n="pillars.lead">诺米记得你的习惯，替你动手做事，也一直在桌面守候。</p>
+          <p class="lead" data-i18n="pillars.lead">不止是陪伴你的桌面伙伴，更是连接 AI 工具、模型与工作流的智能助手。</p>
         </div>
-        <div class="pillars">
+        <div class="pillars pillars--trio">
           <article class="pillar">
-            <div class="icon-star" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></div>
-            <h3 data-i18n="pillars.tasks.title">懂你所需</h3>
-            <p data-i18n="pillars.tasks.desc">记得你的习惯和说过的话，知道你今天要忙什么，提醒总在刚刚好的时候。</p>
-          </article>
-          <article class="pillar">
-            <div class="icon-star" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></div>
-            <h3 data-i18n="pillars.exec.title">付诸行动</h3>
-            <p data-i18n="pillars.exec.desc">读文件、看屏幕、查知识库，再叫上编程助手一起开工——说到就能做到。</p>
+            <div class="pillar-top"><div class="pillar-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7a2.5 2.5 0 0 1-2.5 2.5H10l-4 3.5V16H6.5A2.5 2.5 0 0 1 4 13.5v-7z"/><circle cx="9" cy="10" r="0.9" fill="currentColor" stroke="none"/><circle cx="12" cy="10" r="0.9" fill="currentColor" stroke="none"/><circle cx="15" cy="10" r="0.9" fill="currentColor" stroke="none"/></svg></div><h3 data-i18n="pillars.chat.title">日常对话</h3></div>
+            <p data-i18n="pillars.chat.desc">和 Nomi 聊天，获取信息、灵感与建议，随时陪伴。</p>
           </article>
           <article class="pillar">
-            <div class="icon-star" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></div>
-            <h3 data-i18n="pillars.care.title">桌面相伴</h3>
-            <p data-i18n="pillars.care.desc">会动、会说话，你忙时安静等候，闲下来就陪你聊上两句。</p>
+            <div class="pillar-top"><div class="pillar-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="7" width="16" height="12" rx="2"/><path d="M8 7V5.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V7"/><path d="M4 12h16"/></svg></div><h3 data-i18n="pillars.work.title">高效工作</h3></div>
+            <p data-i18n="pillars.work.desc">连接你的工具与模型，帮你处理各类任务。</p>
+          </article>
+          <article class="pillar">
+            <div class="pillar-top"><div class="pillar-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg></div><h3 data-i18n="pillars.local.title">本地运行</h3></div>
+            <p data-i18n="pillars.local.desc">所有数据与操作都在本机，更安全、更可控。</p>
           </article>
         </div>
       </div>
     </section>
 
-    <section class="section section-tight" aria-labelledby="modes-title">
+    <section class="section section-tight bg-soft" id="sixcaps" aria-labelledby="sixcaps-title">
       <div class="container">
-        <div class="section-head">
-          <span class="section-label"><span class="star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span><span data-i18n="modes.label">随时切换</span></span>
-          <h2 id="modes-title" data-i18n="modes.title">两种模式，一个诺米</h2>
-          <p class="lead" data-i18n="modes.lead">一种陪伴，两种工作方式。</p>
-          <p class="lead" data-i18n="modes.sub">日常交给诺米，复杂工作也能从容应对。</p>
+        <div class="section-head section-head--center">
+          <h2 id="sixcaps-title" class="sixcaps-heading"><span class="star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span><span data-i18n="sixcaps.label">Nomi 2.0 六大核心能力</span></h2>
+          <p class="lead" data-i18n="sixcaps.title">更强的能力 · 更广的连接 · 更贴心的体验</p>
         </div>
-        <div class="modes">
-          <article class="mode-card">
-            <h3 data-i18n="modes.assistant.title">助手模式</h3>
-            <p data-i18n="modes.assistant.desc">只和诺米聊天。问问题、整理待办、读文件、看屏幕、记住你的习惯。界面干净，适合每个人。</p>
+        <div class="sixcaps-grid">
+          <article class="sixcap-card">
+            <div class="sixcap-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16v12H4z"/><path d="M7 10l3 2-3 2M12 14h5"/></svg></div>
+            <span class="sixcap-num">01</span>
+            <h3 data-i18n="sixcaps.1.t">CLI 插件化</h3>
+            <p data-i18n="sixcaps.1.d">Claude Code、Codex、Gemini、Grok、dsh 等编程助手统一接入，一个窗口开工。</p>
+            <div class="sixcap-chips" aria-hidden="true">
+              <span class="chip-ico" title="Claude"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2l2.2 6.8L21 11l-6.8 2.2L12 20l-2.2-6.8L3 11l6.8-2.2z"/></svg></span>
+              <span class="chip-ico" title="OpenAI"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3M6.2 6.2l2.1 2.1M15.7 15.7l2.1 2.1M17.8 6.2l-2.1 2.1M8.3 15.7l-2.1 2.1" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></span>
+              <span class="chip-ico" title="Gemini"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 3c2.5 4 4 5.5 8 8-4 2.5-5.5 4-8 8-2.5-4-4-5.5-8-8 4-2.5 5.5-4 8-8z"/></svg></span>
+              <span class="chip-ico" title="X"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2"/></svg></span>
+              <span class="chip-ico chip-ico--text" title="dsh">dsh</span>
+            </div>
           </article>
-          <article class="mode-card">
-            <h3 data-i18n="modes.workbench.title">工作台模式</h3>
-            <p data-i18n="modes.workbench.desc">同一窗口并行 Claude Code、Codex、Gemini CLI、Grok、dsh。看工具调用与改动，切换账号与模型；任务完成或等你确认时，诺米会告诉你。</p>
+          <article class="sixcap-card">
+            <div class="sixcap-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/><path d="M9 12h6M12 9v6"/></svg></div>
+            <span class="sixcap-num">02</span>
+            <h3 data-i18n="sixcaps.2.t">统一网关</h3>
+            <p data-i18n="sixcaps.2.d">多种协议一个入口；对话与干活共用，少配少折腾。</p>
+            <div class="sixcap-chips" aria-hidden="true">
+              <span class="chip-pill">Messages</span>
+              <span class="chip-pill">Responses</span>
+              <span class="chip-pill">Chat</span>
+              <span class="chip-pill">Gemini</span>
+            </div>
+          </article>
+          <article class="sixcap-card">
+            <div class="sixcap-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="2.5"/><circle cx="5" cy="7" r="1.5"/><circle cx="19" cy="7" r="1.5"/><circle cx="5" cy="17" r="1.5"/><circle cx="19" cy="17" r="1.5"/><path d="M10.2 10.5L6.2 7.8M13.8 10.5l3.8-2.7M10.2 13.5L6.2 16.2M13.8 13.5l3.8 2.7"/></svg></div>
+            <span class="sixcap-num">03</span>
+            <h3 data-i18n="sixcaps.3.t">智能模型路由</h3>
+            <p data-i18n="sixcaps.3.d">按任务自动选合适模型与线路，断了也能接着走。</p>
+            <div class="sixcap-chips" aria-hidden="true">
+              <span class="chip-ico" title="OpenAI"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></span>
+              <span class="chip-ico" title="Gemini"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 3c2.5 4 4 5.5 8 8-4 2.5-5.5 4-8 8-2.5-4-4-5.5-8-8 4-2.5 5.5-4 8-8z"/></svg></span>
+              <span class="chip-ico" title="X"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2"/></svg></span>
+              <span class="chip-ico" title="Claude"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2l2.2 6.8L21 11l-6.8 2.2L12 20l-2.2-6.8L3 11l6.8-2.2z"/></svg></span>
+            </div>
+          </article>
+          <article class="sixcap-card">
+            <div class="sixcap-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="6" rx="6" ry="2.2"/><path d="M6 6v4c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2V6"/><path d="M6 10v4c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2v-4"/><path d="M6 14v4c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2v-4"/></svg></div>
+            <span class="sixcap-num">04</span>
+            <h3 data-i18n="sixcaps.4.t">多供应商与多 Key</h3>
+            <p data-i18n="sixcaps.4.d">官方、国内、中转、本地多源接入，多把 Key 灵活切换。</p>
+            <div class="sixcap-chips" aria-hidden="true">
+              <span class="chip-ico" title="Cloud"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M7.5 17h10a3.5 3.5 0 0 0 .4-7 5 5 0 0 0-9.6-1.5A3.5 3.5 0 0 0 7.5 17z"/></svg></span>
+              <span class="chip-ico" title="Server"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="16" height="6" rx="1.5"/><circle cx="8" cy="7" r="0.9" fill="currentColor"/><circle cx="8" cy="17" r="0.9" fill="currentColor"/></svg></span>
+              <span class="chip-ico" title="Local"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span>
+              <span class="chip-ico" title="Key"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="8" cy="12" r="3"/><path d="M11 12h10v3M17 12v3"/></svg></span>
+            </div>
+          </article>
+          <article class="sixcap-card">
+            <div class="sixcap-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 7h9l-2-2M17 17H8l2 2"/><path d="M16 7v4M8 13v4"/></svg></div>
+            <span class="sixcap-num">05</span>
+            <h3 data-i18n="sixcaps.5.t">会话接管与热切换</h3>
+            <p data-i18n="sixcaps.5.d">接管真实会话，换助手、升级、重连，进度不丢。</p>
+            <div class="sixcap-chips" aria-hidden="true">
+              <span class="chip-ico" title="Terminal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10l3 2-3 2M12 14h5"/></svg></span>
+              <span class="chip-ico chip-ico--text" title="prompt">&gt;_</span>
+            </div>
+          </article>
+          <article class="sixcap-card">
+            <div class="sixcap-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/><path d="M8.5 13.5c.8 1.6 2 2.5 3.5 2.5s2.7-.9 3.5-2.5"/></svg></div>
+            <span class="sixcap-num">06</span>
+            <h3 data-i18n="sixcaps.6.t">可观测与安全</h3>
+            <p data-i18n="sixcaps.6.d">用量与链路看得见；令牌隔离，敏感操作仍需你确认。</p>
+            <div class="sixcap-chips" aria-hidden="true">
+              <span class="chip-ico" title="Lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="6" y="11" width="12" height="9" rx="2"/><path d="M9 11V8a3 3 0 0 1 6 0v3"/></svg></span>
+              <span class="chip-ico" title="Chart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 19h16M7 16v-5M12 16V8M17 16v-8"/></svg></span>
+              <span class="chip-ico" title="Shield"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/></svg></span>
+            </div>
           </article>
         </div>
+        <p class="v2caps-more">
+          <a class="text-link" href="features.html#v2-full" data-i18n="sixcaps.more">了解 2.0 全部能力 →</a>
+        </p>
       </div>
     </section>
 
-    <section class="section bg-soft" aria-labelledby="spot-title">
-      <div class="container">
-        <div class="spotlight">
-          <div class="spotlight-copy">
-            <span class="section-label"><span class="star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span><span data-i18n="features.mascot.title">桌面伙伴</span></span>
-            <h2 id="spot-title" data-i18n="spot.companion.title">住在桌面的伙伴</h2>
-            <p data-i18n="spot.companion.desc">全身 Rive 角色会眨眼、挥手、说话，大小随心调。摸头互动，拖文件总结——她就站在你工作区的边角。</p>
-          </div>
-          <div class="spotlight-media spotlight-media--soft">
-            <img src="assets/screenshots/mascot.webp" srcset="assets/screenshots/mascot-330.webp 330w, assets/screenshots/mascot.webp 660w, assets/screenshots/mascot-2x.webp 990w" sizes="(max-width: 800px) 70vw, 22rem" data-i18n-alt="gallery.mascotAlt" alt="桌面伙伴 Nomi 的立绘、对话气泡与语音工具栏" width="660" height="710" loading="lazy" decoding="async" />
-          </div>
-        </div>
-        <div class="spotlight spotlight--flip">
-          <div class="spotlight-copy">
-            <span class="section-label"><span class="star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span><span data-i18n="nav.privacy">隐私</span></span>
-            <h2 data-i18n="spot.local.title">本地优先，随你掌控</h2>
-            <p data-i18n="spot.local.desc">对话与记忆留在本机；Key 加密；可开启仅本地模型。有用之外，还要让你安心。</p>
-          </div>
-          <div class="spotlight-media">
-            <img src="assets/screenshots/local-models.webp?v=20261023e" srcset="assets/screenshots/local-models-640.webp?v=20261023e 640w, assets/screenshots/local-models.webp?v=20261023e 1280w, assets/screenshots/local-models-2x.webp?v=20261023e 2560w" sizes="(max-width: 800px) calc(100vw - 2.5rem), 560px" data-i18n-alt="gallery.localModelsAlt" alt="本机小模型列表：按内存推荐模型，可一键下载并离线运行" width="1280" height="800" loading="lazy" decoding="async" />
-          </div>
-        </div>
-        <div class="spotlight">
-          <div class="spotlight-copy">
-            <span class="section-label"><span class="star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span><span data-i18n="spot.coding.label">工作台模式</span></span>
-            <h2 data-i18n="spot.coding.title">工作台：所有编程助手，一个窗口</h2>
-            <p data-i18n="spot.coding.desc">切到工作台模式，Claude Code、Codex、Gemini CLI、Grok、dsh 多标签并行；工具调用、diff 与子代理一目了然，权限与账号随手切换。</p>
-          </div>
-          <div class="spotlight-media">
-            <img src="assets/screenshots/workspace.webp?v=20261023e" srcset="assets/screenshots/workspace-640.webp?v=20261023e 640w, assets/screenshots/workspace.webp?v=20261023e 1280w" sizes="(max-width: 800px) calc(100vw - 2.5rem), 560px" data-i18n-alt="gallery.codingAlt" alt="工作台模式：左侧会话、中间对话与 Diff、右侧改动与文件" width="1280" height="786" loading="lazy" decoding="async" />
+    <section class="section workflow workflow--bleed" id="workflow" aria-labelledby="workflow-title">
+      <div class="workflow-bleed-media" aria-hidden="true">
+        <img
+          src="assets/mockup/workflow-bg.webp?v=20261025v2fd"
+          srcset="assets/mockup/workflow-bg.webp?v=20261025v2fd 836w, assets/mockup/workflow-bg@2x.webp?v=20261025v2fd 1672w"
+          sizes="100vw"
+          width="1672" height="470"
+          alt=""
+          loading="lazy"
+          decoding="async"
+        />
+      </div>
+      <div class="workflow-bleed-mask" aria-hidden="true"></div>
+      <div class="container workflow-bleed-inner">
+        <div class="workflow-head">
+          <div>
+            <span class="section-label section-label--on-dark"><span class="star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span><span data-i18n="workflow.label">Nomi 的工作流</span></span>
+            <h2 id="workflow-title" data-i18n="workflow.title">从工具接入到任务执行，简单高效</h2>
+            <p class="lead" data-i18n="workflow.lead">把分散的 CLI、模型与会话串成一条清晰路径。</p>
           </div>
         </div>
+        <ol class="workflow-steps">
+          <li><span class="wf-num">1</span><strong data-i18n="workflow.1.t">CLI 工具</strong><span data-i18n="workflow.1.d">Claude、Codex、Gemini、Grok、dsh</span></li>
+          <li><span class="wf-num">2</span><strong data-i18n="workflow.2.t">统一网关</strong><span data-i18n="workflow.2.d">协议转换 · 流式响应 · 错误规范化</span></li>
+          <li><span class="wf-num">3</span><strong data-i18n="workflow.3.t">智能路由</strong><span data-i18n="workflow.3.d">模型 · 协议 · 上下文 · 推理参数</span></li>
+          <li><span class="wf-num">4</span><strong data-i18n="workflow.4.t">多供应商</strong><span data-i18n="workflow.4.d">官方 · 国内 · 中转 · 本地 · 多 Key</span></li>
+          <li><span class="wf-num">5</span><strong data-i18n="workflow.5.t">会话接管</strong><span data-i18n="workflow.5.d">热切换 · 升级 · 恢复</span></li>
+          <li><span class="wf-num">6</span><strong data-i18n="workflow.6.t">可观测与安全</strong><span data-i18n="workflow.6.d">追踪 · 限额 · 令牌 · 隔离</span></li>
+        </ol>
       </div>
     </section>
 
-    <section class="section" aria-labelledby="features-title">
-      <div class="container">
-        <div class="section-head">
-          <span class="section-label"><span class="star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span><span data-i18n="features.label">功能亮点</span></span>
-          <h2 id="features-title" data-i18n="features.title">她能帮你做什么</h2>
-          <p class="lead" data-i18n="features.lead">从桌面伙伴到知识库、本地模型与自动化——云端或离线，按你的方式使用。</p>
-        </div>
-        <div class="feature-grid">
-          <article class="feature-card">
-            <div class="icon-star icon-star--sm" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></div>
-            <h3 data-i18n="features.mascot.title">桌面伙伴</h3>
-            <p data-i18n="features.mascot.desc">全身 Rive 角色：会眨眼、挥手、有表情，说话时口型同步；摸头互动、对话气泡、拖文件总结。</p>
-          </article>
-          <article class="feature-card">
-            <div class="icon-star icon-star--sm" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></div>
-            <h3 data-i18n="features.chat.title">助手模式对话</h3>
-            <p data-i18n="features.chat.desc">干净的 Nomi 对话：流式输出、会话列表、框选屏幕提问——专注陪伴与日常。</p>
-          </article>
-          <article class="feature-card">
-            <div class="icon-star icon-star--sm" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></div>
-            <h3 data-i18n="features.providers.title">工作台：编程助手</h3>
-            <p data-i18n="features.providers.desc">Claude Code、Codex、Gemini CLI、Grok、dsh 同窗并行；官方多账号与第三方模型一键切换。</p>
-          </article>
-          <article class="feature-card">
-            <div class="icon-star icon-star--sm" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></div>
-            <h3 data-i18n="features.knowledge.title">知识库与记忆</h3>
-            <p data-i18n="features.knowledge.desc">基于你的文件夹与笔记回答，并标出引用；长期记忆可看可改可删。</p>
-          </article>
-          <article class="feature-card">
-            <div class="icon-star icon-star--sm" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></div>
-            <h3 data-i18n="features.screen.title">屏幕问答</h3>
-            <p data-i18n="features.screen.desc">框选屏幕直接提问；可选本机屏幕记忆，问「刚才那个页面说了什么」。</p>
-          </article>
-          <article class="feature-card">
-            <div class="icon-star icon-star--sm" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></div>
-            <h3 data-i18n="features.local.title">本地模型</h3>
-            <p data-i18n="features.local.desc">一键下载开源小模型本机运行，完全离线也能聊天与知识库问答。</p>
-          </article>
-          <article class="feature-card">
-            <div class="icon-star icon-star--sm" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></div>
-            <h3 data-i18n="features.auto.title">自动化与 MCP</h3>
-            <p data-i18n="features.auto.desc">受控读写文件、浏览器与代码沙箱；图形界面管理 MCP 与技能包，可从 Claude Code / Codex 导入。</p>
-          </article>
-          <article class="feature-card">
-            <div class="icon-star icon-star--sm" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></div>
-            <h3 data-i18n="features.voice.title">语音与个性化</h3>
-            <p data-i18n="features.voice.desc">离线或流式语音输入、TTS 与口型同步；五款主题、聊天背景、图标与快捷键。</p>
-          </article>
-        </div>
-      </div>
-    </section>
-
-    <section class="section showcase" aria-labelledby="gallery-title">
-      <div class="container">
-        <div class="section-head">
-          <span class="section-label"><span class="star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span><span data-i18n="showcase.label">产品一览</span></span>
-          <h2 id="gallery-title" data-i18n="showcase.title">看看 Nomi 长什么样</h2>
-          <p class="lead" data-i18n="showcase.lead">深色界面住在奶油色世界里——既能陪伴，也能在工作台里认真干活。</p>
-        </div>
-        <div class="gallery">
-          <figure class="gallery-item gallery-item--soft">
-            <img src="assets/screenshots/mascot.webp" srcset="assets/screenshots/mascot-330.webp 330w, assets/screenshots/mascot.webp 660w, assets/screenshots/mascot-2x.webp 990w" sizes="(max-width: 700px) 70vw, 22rem" data-i18n-alt="gallery.mascotAlt" alt="桌面伙伴 Nomi 的立绘、对话气泡与语音工具栏" width="660" height="710" loading="lazy" decoding="async" />
-            <figcaption data-i18n="gallery.mascot">桌面伙伴</figcaption>
-          </figure>
-          <figure class="gallery-item">
-            <img src="assets/screenshots/chat.webp?v=20261023e" srcset="assets/screenshots/chat-640.webp?v=20261023e 640w, assets/screenshots/chat.webp?v=20261023e 1280w" sizes="(max-width: 700px) calc(100vw - 2.5rem), 560px" data-i18n-alt="gallery.chatAlt" alt="助手模式：顶栏一键切换助手 / 工作台，左侧会话列表，右侧是开聊的快捷建议" width="1280" height="800" loading="lazy" decoding="async" />
-            <figcaption data-i18n="gallery.chat">助手模式</figcaption>
-          </figure>
-          <figure class="gallery-item">
-            <img src="assets/screenshots/command-palette.webp?v=20261023e" srcset="assets/screenshots/command-palette-640.webp?v=20261023e 640w, assets/screenshots/command-palette.webp?v=20261023e 1280w, assets/screenshots/command-palette-2x.webp?v=20261023e 2560w" sizes="(max-width: 700px) calc(100vw - 2.5rem), 560px" data-i18n-alt="gallery.paletteAlt" alt="命令面板（Ctrl/⌘+K）：搜索并执行新对话、设置、记忆等命令" width="1280" height="800" loading="lazy" decoding="async" />
-            <figcaption data-i18n="gallery.palette">命令面板（Ctrl/⌘+K）</figcaption>
-          </figure>
-          <figure class="gallery-item">
-            <img src="assets/screenshots/settings-providers.webp?v=20261023e" srcset="assets/screenshots/settings-providers-640.webp?v=20261023e 640w, assets/screenshots/settings-providers.webp?v=20261023e 1280w" sizes="(max-width: 700px) calc(100vw - 2.5rem), 560px" data-i18n-alt="gallery.providersAlt" alt="模型页：编程助手第三方模型分配与第三方供应商列表" width="1280" height="800" loading="lazy" decoding="async" />
-            <figcaption data-i18n="gallery.providers">供应商与模型</figcaption>
-          </figure>
-          <figure class="gallery-item">
-            <img src="assets/screenshots/knowledge.webp?v=20261023e" srcset="assets/screenshots/knowledge-640.webp?v=20261023e 640w, assets/screenshots/knowledge.webp?v=20261023e 1280w, assets/screenshots/knowledge-2x.webp?v=20261023e 2560w" sizes="(max-width: 700px) calc(100vw - 2.5rem), 560px" data-i18n-alt="gallery.knowledgeAlt" alt="本地知识库检索：按关键词命中文件夹里的笔记，并标出来源文档" width="1280" height="800" loading="lazy" decoding="async" />
-            <figcaption data-i18n="gallery.knowledge">本地知识库</figcaption>
-          </figure>
-          <figure class="gallery-item">
-            <img src="assets/screenshots/tools.webp?v=20261023e" srcset="assets/screenshots/tools-640.webp?v=20261023e 640w, assets/screenshots/tools.webp?v=20261023e 1280w, assets/screenshots/tools-2x.webp?v=20261023e 2560w" sizes="(max-width: 700px) calc(100vw - 2.5rem), 560px" data-i18n-alt="gallery.toolsAlt" alt="桌面工具权限：只读工具默认允许，写入需确认，删除需逐次确认" width="1280" height="800" loading="lazy" decoding="async" />
-            <figcaption data-i18n="gallery.tools">工具权限</figcaption>
-          </figure>
-        </div>
-      </div>
-    </section>
 
     <section class="section section-tight">
       <div class="container">
@@ -255,45 +237,53 @@
             <h2 data-i18n="privacy.band.title">隐私是品牌的一部分</h2>
             <p data-i18n="privacy.band.desc">对话、记忆、知识库与日程都只保存在你的电脑上。可开启「仅本地模型」，敏感内容不发往云端。</p>
           </div>
+          <a class="btn btn-secondary" href="privacy.html" data-i18n="nav.privacy">隐私</a>
         </div>
       </div>
     </section>
 
-    <section class="section" id="download" aria-labelledby="download-title">
-      <div class="container">
-        <div class="section-head">
-          <span class="section-label"><span class="star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span><span data-i18n="page.download.label">下载</span></span>
-          <h2 id="download-title" data-i18n="cta.title">准备好认识 Nomi 了吗？</h2>
-          <p class="lead" data-i18n="cta.lead">安装后跟着引导选语言、主题和模型，几分钟就能开始对话。</p>
+    <section class="home-download" id="download" aria-labelledby="home-dl-title">
+      <div class="container home-download-grid">
+        <div class="home-download-copy">
+          <span class="section-label section-label--on-dark"><span class="star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span><span data-i18n="hero.badge">Nomi 2.0</span></span>
+          <h2 id="home-dl-title" data-i18n="page.download.title">支持多平台</h2>
+          <p class="lead" data-i18n="page.download.lead">覆盖主流操作系统，随时随地开始使用。</p>
+          <div class="home-download-cards">
+            <article class="home-dl-card">
+              <div class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.5L10.5 4.4v7.1H3V5.5zm0 13L10.5 19.6v-7.1H3v6zm8.2-13.2L21 3v8.5h-9.8V5.3zM12.2 19.7L21 21v-8.5h-8.8v7.2z"/></svg></div>
+              <h3>Windows</h3>
+              <p class="req" data-i18n="dl.windows.req">Windows 10 及以上</p>
+              <a class="btn btn-primary" id="dl-win" href="https://github.com/Cookieboty/nomi-ai/releases" rel="noopener noreferrer" target="_blank" data-i18n="dl.download">下载</a>
+            </article>
+            <article class="home-dl-card">
+              <div class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.7 12.6c0-2.1 1.7-3.1 1.8-3.2-1-1.4-2.5-1.6-3-1.7-1.3-.1-2.5.8-3.1.8-.7 0-1.7-.7-2.8-.7-1.4 0-2.8.9-3.5 2.2-1.5 2.6-.4 6.5 1.1 8.6.7 1 1.6 2.2 2.7 2.1 1.1 0 1.5-.7 2.8-.7s1.7.7 2.8.7c1.2 0 1.9-1 2.6-2 .8-1.2 1.1-2.3 1.1-2.4-.1 0-2.2-.9-2.2-3.7zM14.8 6.5c.6-.7 1-1.7.9-2.7-.9 0-1.9.6-2.5 1.3-.6.6-1.1 1.7-.9 2.6 1 .1 1.9-.5 2.5-1.2z"/></svg></div>
+              <h3>macOS</h3>
+              <p class="req" data-i18n="dl.mac.req">Apple Silicon / Intel</p>
+              <div class="home-dl-row">
+                <a class="btn btn-primary" id="dl-mac-arm64" href="https://github.com/Cookieboty/nomi-ai/releases" rel="noopener noreferrer" target="_blank">Apple Silicon</a>
+                <a class="btn btn-primary" id="dl-mac-x64" href="https://github.com/Cookieboty/nomi-ai/releases" rel="noopener noreferrer" target="_blank">Intel</a>
+              </div>
+            </article>
+            <article class="home-dl-card">
+              <div class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.5 2c-1.2 0-2.1 1.4-1.9 2.7.1.6.3 1.2.3 1.8 0 .4-.2.8-.3 1.2-.5 1.3-.2 2.3.7 3.2.2.2.3.5.2.8-.2.8-.5 1.5-.5 2.4 0 2.1 1.6 3.6 3.8 3.6 2.5 0 4-1.8 4-4.1 0-1.5-.6-2.7-1.1-3.7-.2-.4-.2-.8 0-1.2.5-1.1.7-2.2.4-3.4C17.8 3.1 16.4 2 14.8 2c-.8 0-1.5.3-2 .8-.1-.3-.2-.5-.3-.8zM8.6 14.2c-.9 0-1.8.4-2.4 1.1C5.2 16.3 5 17.7 5.4 19c.5 1.5 1.8 2.5 3.4 2.5.6 0 1.1-.1 1.6-.4.4 1.2 1.5 2 2.8 2 1 0 1.9-.5 2.4-1.3.6.3 1.2.4 1.9.4 1.8 0 3.3-1.2 3.7-2.9.3-1.3-.1-2.6-1-3.5-.7-.7-1.6-1.1-2.6-1.1-.5 0-1 .1-1.4.3-.5-.9-1.5-1.5-2.6-1.5-.9 0-1.7.4-2.3 1.1-.5-.7-1.3-1.1-2.1-1.1z"/></svg></div>
+              <h3>Linux</h3>
+              <p class="req" data-i18n="dl.linux.req">x64 AppImage</p>
+              <a class="btn btn-primary" id="dl-linux" href="https://github.com/Cookieboty/nomi-ai/releases" rel="noopener noreferrer" target="_blank" data-i18n="dl.download">下载</a>
+            </article>
+          </div>
+          <p class="home-download-more"><a href="download.html" data-i18n="platforms.desktop.cta">前往下载页 →</a></p>
         </div>
-        <div class="platform-grid">
-          <article class="platform-card">
-            <div class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.5L10.5 4.4v7.1H3V5.5zm0 13L10.5 19.6v-7.1H3v6zm8.2-13.2L21 3v8.5h-9.8V5.3zM12.2 19.7L21 21v-8.5h-8.8v7.2z"/></svg></div>
-            <h3>Windows</h3>
-            <p class="pkg">Nomi-Setup-1.2.0.exe</p>
-            <p class="req" data-i18n="dl.windows.req">Windows 10 及以上</p>
-            <a class="btn btn-primary" id="dl-win" href="https://github.com/Cookieboty/nomi-ai/releases/download/v1.2.0/Nomi-Setup-1.2.0.exe" rel="noopener noreferrer" target="_blank" data-i18n="dl.download">下载安装包</a>
-          </article>
-          <article class="platform-card">
-            <div class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.7 12.6c0-2.1 1.7-3.1 1.8-3.2-1-1.4-2.5-1.6-3-1.7-1.3-.1-2.5.8-3.1.8-.7 0-1.7-.7-2.8-.7-1.4 0-2.8.9-3.5 2.2-1.5 2.6-.4 6.5 1.1 8.6.7 1 1.6 2.2 2.7 2.1 1.1 0 1.5-.7 2.8-.7s1.7.7 2.8.7c1.2 0 1.9-1 2.6-2 .8-1.2 1.1-2.3 1.1-2.4-.1 0-2.2-.9-2.2-3.7zM14.8 6.5c.6-.7 1-1.7.9-2.7-.9 0-1.9.6-2.5 1.3-.6.6-1.1 1.7-.9 2.6 1 .1 1.9-.5 2.5-1.2z"/></svg></div>
-            <h3>macOS</h3>
-            <p class="pkg">Nomi-1.2.0-arm64.dmg<br />Nomi-1.2.0.dmg</p>
-            <p class="req" data-i18n="dl.mac.req">Apple Silicon / Intel</p>
-            <div class="dl-row">
-              <a class="btn btn-primary" id="dl-mac-arm64" href="https://github.com/Cookieboty/nomi-ai/releases/download/v1.2.0/Nomi-1.2.0-arm64.dmg" rel="noopener noreferrer" target="_blank">Apple Silicon</a>
-              <a class="btn btn-primary" id="dl-mac-x64" href="https://github.com/Cookieboty/nomi-ai/releases/download/v1.2.0/Nomi-1.2.0.dmg" rel="noopener noreferrer" target="_blank">Intel</a>
-            </div>
-          </article>
-          <article class="platform-card">
-            <div class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12.5 2c-1.2 0-2.1 1.4-1.9 2.7.1.6.3 1.2.3 1.8 0 .4-.2.8-.3 1.2-.5 1.3-.2 2.3.7 3.2.2.2.3.5.2.8-.2.8-.5 1.5-.5 2.4 0 2.1 1.6 3.6 3.8 3.6 2.5 0 4-1.8 4-4.1 0-1.5-.6-2.7-1.1-3.7-.2-.4-.2-.8 0-1.2.5-1.1.7-2.2.4-3.4C17.8 3.1 16.4 2 14.8 2c-.8 0-1.5.3-2 .8-.1-.3-.2-.5-.3-.8zM8.6 14.2c-.9 0-1.8.4-2.4 1.1C5.2 16.3 5 17.7 5.4 19c.5 1.5 1.8 2.5 3.4 2.5.6 0 1.1-.1 1.6-.4.4 1.2 1.5 2 2.8 2 1 0 1.9-.5 2.4-1.3.6.3 1.2.4 1.9.4 1.8 0 3.3-1.2 3.7-2.9.3-1.3-.1-2.6-1-3.5-.7-.7-1.6-1.1-2.6-1.1-.5 0-1 .1-1.4.3-.5-.9-1.5-1.5-2.6-1.5-.9 0-1.7.4-2.3 1.1-.5-.7-1.3-1.1-2.1-1.1z"/></svg></div>
-            <h3>Linux</h3>
-            <p class="pkg">Nomi-1.2.0.AppImage</p>
-            <p class="req" data-i18n="dl.linux.req">x64 AppImage</p>
-            <a class="btn btn-primary" id="dl-linux" href="https://github.com/Cookieboty/nomi-ai/releases/download/v1.2.0/Nomi-1.2.0.AppImage" rel="noopener noreferrer" target="_blank" data-i18n="dl.download">下载安装包</a>
-          </article>
+        <div class="home-download-visual" aria-hidden="true">
+          <img
+            src="assets/mockup/home-dl-visual.webp?v=20261025v2fe"
+            srcset="assets/mockup/home-dl-visual.webp?v=20261025v2fe 397w, assets/mockup/home-dl-visual@2x.webp?v=20261025v2fe 794w"
+            sizes="(max-width: 900px) min(70vw, 280px), 340px"
+            width="397" height="360"
+            alt=""
+            loading="lazy"
+            decoding="async"
+          />
         </div>
-        
-        <p class="note"><span data-i18n="dl.note">Linux、Windows 与 macOS 安装包均可下载。也可打开</span> <a id="dl-release" href="https://github.com/Cookieboty/nomi-ai/releases/latest" rel="noopener noreferrer" target="_blank" data-i18n="dl.latest">GitHub 最新 Release</a>。</p>
       </div>
     </section>
 
@@ -306,11 +296,11 @@
         </div>
         <div class="contact-grid">
           <figure class="contact-card">
-            <picture><source srcset="assets/contact/qr-author.webp?v=20261023e" type="image/webp" /><img src="assets/contact/qr-author.png?v=20261023e" width="360" height="480" loading="lazy" decoding="async" alt="作者微信二维码" data-i18n-alt="contact.author.alt" /></picture>
+            <picture><source srcset="assets/contact/qr-author.webp?v=20261025v2fc" type="image/webp" /><img src="assets/contact/qr-author.png?v=20261025v2fc" width="360" height="480" loading="lazy" decoding="async" alt="作者微信二维码" data-i18n-alt="contact.author.alt" /></picture>
             <figcaption data-i18n="contact.author.cap">作者微信 · Tomo</figcaption>
           </figure>
           <figure class="contact-card">
-            <picture><source srcset="assets/contact/qr-group.webp?v=20261023e" type="image/webp" /><img src="assets/contact/qr-group.png?v=20261023e" width="360" height="480" loading="lazy" decoding="async" alt="Nomi 用户交流群二维码" data-i18n-alt="contact.group.alt" /></picture>
+            <picture><source srcset="assets/contact/qr-group.webp?v=20261025v2fc" type="image/webp" /><img src="assets/contact/qr-group.png?v=20261025v2fc" width="360" height="480" loading="lazy" decoding="async" alt="Nomi 用户交流群二维码" data-i18n-alt="contact.group.alt" /></picture>
             <figcaption data-i18n="contact.group.cap">Nomi 用户交流群</figcaption>
           </figure>
         </div>
@@ -332,10 +322,10 @@
           <h4 data-i18n="footer.product">产品</h4>
           <ul>
             <li><a href="features.html" data-i18n="nav.features">功能</a></li>
-            <li><a href="download.html" data-i18n="nav.download">下载</a></li>
+            <li><a href="privacy.html" data-i18n="nav.privacy">隐私</a></li>
             <li><a href="docs.html" data-i18n="nav.docs">文档</a></li>
             <li><a href="changelog.html" data-i18n="nav.changelog">更新日志</a></li>
-            <li><a href="privacy.html" data-i18n="nav.privacy">隐私</a></li>
+            <li><a href="download.html" data-i18n="nav.download">下载</a></li>
           </ul>
         </div>
         <div class="footer-col">
@@ -355,7 +345,7 @@
       </div>
     </div>
   </footer>
-  <script src="js/i18n.js?v=20261023e"></script>
-  <script src="js/main.js?v=20261023e"></script>
+  <script src="js/i18n.js?v=20261025v2fe"></script>
+  <script src="js/main.js?v=20261025v2fe"></script>
 </body>
 </html>

@@ -4,12 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="Nomi·诺米核心能力：桌面伙伴与语音、对话与屏幕问答、知识库与记忆、自动化与 MCP、本地优先与模型自由、编程助手。" />
-  <meta name="theme-color" content="#FCEFE1" />
+  <meta name="theme-color" content="#FFF8F1" />
   <title>功能 — Nomi·诺米</title>
   <link rel="icon" href="assets/brand/nomi-mark.svg" type="image/svg+xml" />
   <link rel="preload" href="assets/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin />
   <script>document.documentElement.className+=" js"</script>
-  <link rel="stylesheet" href="css/styles.css?v=20261023e" />
+  <link rel="stylesheet" href="css/styles.css?v=20261025v2fe" />
 </head>
 <body data-page="features">
   <header class="site-header">
@@ -32,9 +32,10 @@
         <nav class="nav" id="site-nav" data-i18n-aria-label="nav.main">
           <a href="index.html" data-i18n="nav.home">首页</a>
           <a href="features.html" aria-current="page" data-i18n="nav.features">功能</a>
-          <a href="download.html" data-i18n="nav.download">下载</a>
+          <a href="privacy.html" data-i18n="nav.privacy">隐私</a>
           <a href="docs.html" data-i18n="nav.docs">文档</a>
           <a href="changelog.html" data-i18n="nav.changelog">更新日志</a>
+          <a href="download.html" data-i18n="nav.download">下载</a>
           <a class="nav-cta" href="download.html" data-i18n="nav.cta">下载 Nomi</a>
           <a class="nav-contact" href="index.html#contact" data-contact-open data-i18n="nav.contact">联系我们</a>
         </nav>
@@ -50,6 +51,62 @@
         <p class="lead" data-i18n="page.features.lead">会动、会说话的桌面伙伴，记得你，也能动手帮你。</p>
         <div class="hero-actions">
           <a class="btn btn-primary btn-lg" href="download.html" data-i18n="nav.cta">下载 Nomi</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-tight bg-soft" id="v2-full" aria-labelledby="v2full-title">
+      <div class="container">
+        <div class="section-head">
+          <span class="section-label"><span class="star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span><span data-i18n="v2full.label">v2.0 全部能力</span></span>
+          <h2 id="v2full-title" data-i18n="v2full.title">即将发布的六项能力</h2>
+          <p class="lead" data-i18n="v2full.lead">用结果说话：少开窗口、少改配置、出事能看见、改文件更安心。</p>
+        </div>
+        <div class="v2full-grid">
+          <article class="v2full-card">
+            <span class="v2full-num" aria-hidden="true">01</span>
+            <h3 data-i18n="v2full.1.t">多助手，一个窗口</h3>
+            <p data-i18n="v2full.1.d">Claude Code、Codex、Gemini、Grok、dsh 并排，还能按命令接入你自己的助手——不用在好几个终端之间跳。</p>
+          </article>
+          <article class="v2full-card">
+            <span class="v2full-num" aria-hidden="true">02</span>
+            <h3 data-i18n="v2full.2.t">换助手不断档</h3>
+            <p data-i18n="v2full.2.d">会话可接管、可热切换；进度接着来，不用把上下文再说一遍。</p>
+          </article>
+          <article class="v2full-card">
+            <span class="v2full-num" aria-hidden="true">03</span>
+            <h3 data-i18n="v2full.3.t">自动选对路</h3>
+            <p data-i18n="v2full.3.d">按任务挑合适模型与线路；断了自动换线，少手动挑、少配协议。</p>
+          </article>
+          <article class="v2full-card">
+            <span class="v2full-num" aria-hidden="true">04</span>
+            <h3 data-i18n="v2full.4.t">一处配好，处处可用</h3>
+            <p data-i18n="v2full.4.d">对话与干活共用一套供应商与分配；辅助模型、并发与回退一次设好。</p>
+          </article>
+          <article class="v2full-card">
+            <span class="v2full-num" aria-hidden="true">05</span>
+            <h3 data-i18n="v2full.5.t">多源更稳</h3>
+            <p data-i18n="v2full.5.d">多家供应商、多把 Key，也能跑本地模型——云端或离线，按你的方式接。</p>
+          </article>
+          <article class="v2full-card">
+            <span class="v2full-num" aria-hidden="true">06</span>
+            <h3 data-i18n="v2full.6.t">看得见，控得住</h3>
+            <p data-i18n="v2full.6.d">质量对比看成功率与延迟；权限与沙箱把关改文件，敏感操作仍要你点头。</p>
+          </article>
+        </div>
+        <div class="v2full-shots">
+          <figure>
+            <img src="assets/screenshots/external-cli.webp?v=20261025v2ia" srcset="assets/screenshots/external-cli-640.webp?v=20261025v2ia 640w, assets/screenshots/external-cli.webp?v=20261025v2ia 1280w" sizes="(max-width: 700px) calc(100vw - 2.5rem), 420px" data-i18n-alt="gallery.externalAlt" alt="外部助手接入" width="1280" height="800" loading="lazy" decoding="async" />
+            <figcaption data-i18n="gallery.external">外部助手</figcaption>
+          </figure>
+          <figure>
+            <img src="assets/screenshots/models-gateway.webp?v=20261025v2ia" srcset="assets/screenshots/models-gateway-640.webp?v=20261025v2ia 640w, assets/screenshots/models-gateway.webp?v=20261025v2ia 1280w" sizes="(max-width: 700px) calc(100vw - 2.5rem), 420px" data-i18n-alt="gallery.providersAlt" alt="模型与供应商" width="1280" height="800" loading="lazy" decoding="async" />
+            <figcaption data-i18n="v2full.shot.route">自动选路与模型</figcaption>
+          </figure>
+          <figure>
+            <img src="assets/screenshots/permission-modes.webp?v=20261025v2ia" srcset="assets/screenshots/permission-modes-640.webp?v=20261025v2ia 640w, assets/screenshots/permission-modes.webp?v=20261025v2ia 1280w" sizes="(max-width: 700px) calc(100vw - 2.5rem), 420px" data-i18n-alt="gallery.permissionAlt" alt="权限模式" width="1280" height="800" loading="lazy" decoding="async" />
+            <figcaption data-i18n="gallery.permission">权限与安全</figcaption>
+          </figure>
         </div>
       </div>
     </section>
@@ -93,7 +150,7 @@
           </section>
           <section class="cap-panel" role="tabpanel" id="panel-chat" aria-labelledby="tab-chat" tabindex="0">
             <figure class="cap-visual cap-visual--shot">
-              <img src="assets/screenshots/chat.webp?v=20261023e" srcset="assets/screenshots/chat-640.webp?v=20261023e 640w, assets/screenshots/chat.webp?v=20261023e 1280w" sizes="(max-width: 960px) calc(100vw - 2.5rem), 840px" data-i18n-alt="gallery.chatAlt" alt="Nomi 对话窗口：左侧会话列表，右侧是空对话与开聊的快捷建议" width="1280" height="800" loading="lazy" decoding="async" />
+              <img src="assets/screenshots/chat.webp?v=20261025v2ia" srcset="assets/screenshots/chat-640.webp?v=20261025v2ia 640w, assets/screenshots/chat.webp?v=20261025v2ia 1280w" sizes="(max-width: 960px) calc(100vw - 2.5rem), 840px" data-i18n-alt="gallery.chatAlt" alt="Nomi 对话窗口：左侧会话列表，右侧是空对话与开聊的快捷建议" width="1280" height="800" loading="lazy" decoding="async" />
             </figure>
             <div class="cap-copy">
               <h3 data-i18n="ft.chat.t">对话与屏幕问答</h3>
@@ -106,7 +163,7 @@
           </section>
           <section class="cap-panel" role="tabpanel" id="panel-memory" aria-labelledby="tab-memory" tabindex="0">
             <figure class="cap-visual cap-visual--shot">
-              <img src="assets/screenshots/knowledge.webp?v=20261023e" srcset="assets/screenshots/knowledge-640.webp?v=20261023e 640w, assets/screenshots/knowledge.webp?v=20261023e 1280w, assets/screenshots/knowledge-2x.webp?v=20261023e 2560w" sizes="(max-width: 960px) calc(100vw - 2.5rem), 840px" data-i18n-alt="gallery.knowledgeAlt" alt="本地知识库检索：按关键词命中文件夹里的笔记，并标出来源文档" width="1280" height="800" loading="lazy" decoding="async" />
+              <img src="assets/screenshots/knowledge.webp?v=20261025v2ia" srcset="assets/screenshots/knowledge-640.webp?v=20261025v2ia 640w, assets/screenshots/knowledge.webp?v=20261025v2ia 1280w, assets/screenshots/knowledge-2x.webp?v=20261025v2ia 2560w" sizes="(max-width: 960px) calc(100vw - 2.5rem), 840px" data-i18n-alt="gallery.knowledgeAlt" alt="本地知识库检索：按关键词命中文件夹里的笔记，并标出来源文档" width="1280" height="800" loading="lazy" decoding="async" />
             </figure>
             <div class="cap-copy">
               <h3 data-i18n="ft.memory.t">知识库与长期记忆</h3>
@@ -119,7 +176,7 @@
           </section>
           <section class="cap-panel" role="tabpanel" id="panel-tools" aria-labelledby="tab-tools" tabindex="0">
             <figure class="cap-visual cap-visual--shot">
-              <img src="assets/screenshots/tools.webp?v=20261023e" srcset="assets/screenshots/tools-640.webp?v=20261023e 640w, assets/screenshots/tools.webp?v=20261023e 1280w, assets/screenshots/tools-2x.webp?v=20261023e 2560w" sizes="(max-width: 960px) calc(100vw - 2.5rem), 840px" data-i18n-alt="gallery.toolsAlt" alt="桌面工具权限：只读工具默认允许，写入需确认，删除需逐次确认" width="1280" height="800" loading="lazy" decoding="async" />
+              <img src="assets/screenshots/tools.webp?v=20261025v2ia" srcset="assets/screenshots/tools-640.webp?v=20261025v2ia 640w, assets/screenshots/tools.webp?v=20261025v2ia 1280w, assets/screenshots/tools-2x.webp?v=20261025v2ia 2560w" sizes="(max-width: 960px) calc(100vw - 2.5rem), 840px" data-i18n-alt="gallery.toolsAlt" alt="桌面工具权限：只读工具默认允许，写入需确认，删除需逐次确认" width="1280" height="800" loading="lazy" decoding="async" />
             </figure>
             <div class="cap-copy">
               <h3 data-i18n="ft.tools.t">自动化与 MCP</h3>
@@ -132,7 +189,7 @@
           </section>
           <section class="cap-panel" role="tabpanel" id="panel-local" aria-labelledby="tab-local" tabindex="0">
             <figure class="cap-visual cap-visual--shot">
-              <img src="assets/screenshots/settings-providers.webp?v=20261023e" srcset="assets/screenshots/settings-providers-640.webp?v=20261023e 640w, assets/screenshots/settings-providers.webp?v=20261023e 1280w" sizes="(max-width: 960px) calc(100vw - 2.5rem), 840px" data-i18n-alt="gallery.providersAlt" alt="模型页：编程助手第三方模型分配与第三方供应商列表" width="1280" height="800" loading="lazy" decoding="async" />
+              <img src="assets/screenshots/settings-providers.webp?v=20261025v2ia" srcset="assets/screenshots/settings-providers-640.webp?v=20261025v2ia 640w, assets/screenshots/settings-providers.webp?v=20261025v2ia 1280w" sizes="(max-width: 960px) calc(100vw - 2.5rem), 840px" data-i18n-alt="gallery.providersAlt" alt="模型页：编程助手第三方模型分配与第三方供应商列表" width="1280" height="800" loading="lazy" decoding="async" />
             </figure>
             <div class="cap-copy">
               <h3 data-i18n="ft.local.t">本地优先，模型自由</h3>
@@ -145,7 +202,7 @@
           </section>
           <section class="cap-panel" role="tabpanel" id="panel-coding" aria-labelledby="tab-coding" tabindex="0">
             <figure class="cap-visual cap-visual--shot">
-              <img src="assets/screenshots/workspace.webp?v=20261023e" srcset="assets/screenshots/workspace-640.webp?v=20261023e 640w, assets/screenshots/workspace.webp?v=20261023e 1280w" sizes="(max-width: 960px) calc(100vw - 2.5rem), 840px" data-i18n-alt="gallery.codingAlt" alt="工作台模式：左侧会话、中间对话与 Diff、右侧改动与文件" width="1280" height="786" loading="lazy" decoding="async" />
+              <img src="assets/screenshots/workspace.webp?v=20261025v2ia" srcset="assets/screenshots/workspace-640.webp?v=20261025v2ia 640w, assets/screenshots/workspace.webp?v=20261025v2ia 1280w" sizes="(max-width: 960px) calc(100vw - 2.5rem), 840px" data-i18n-alt="gallery.codingAlt" alt="工作台模式：左侧会话、中间对话与 Diff、右侧改动与文件" width="1280" height="786" loading="lazy" decoding="async" />
             </figure>
             <div class="cap-copy">
               <h3 data-i18n="ft.coding.t">编程助手</h3>
@@ -195,6 +252,47 @@
         </div>
       </div>
     </section>
+  
+    <section class="section showcase" aria-labelledby="gallery20-title">
+      <div class="container">
+        <div class="section-head">
+          <span class="section-label"><span class="star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span><span data-i18n="showcase.label">产品一览</span></span>
+          <h2 id="gallery20-title" data-i18n="showcase.titleFeatures">更多 v2.0 截图</h2>
+          <p class="lead" data-i18n="showcase.leadFeatures">委派、质量对比、外部助手、自动更新等细节都在这里。</p>
+        </div>
+        <div class="gallery">
+          <figure class="gallery-item">
+            <img src="assets/screenshots/quality-panel.webp?v=20261025v2ia" srcset="assets/screenshots/quality-panel-640.webp?v=20261025v2ia 640w, assets/screenshots/quality-panel.webp?v=20261025v2ia 1280w" sizes="(max-width: 700px) calc(100vw - 2.5rem), 560px" data-i18n-alt="gallery.qualityAlt" alt="模型质量面板" width="1280" height="800" loading="lazy" decoding="async" />
+            <figcaption data-i18n="gallery.quality">模型质量</figcaption>
+          </figure>
+          <figure class="gallery-item" id="gallery-delegate">
+            <img src="assets/screenshots/delegate-settings.webp?v=20261025v2ia" srcset="assets/screenshots/delegate-settings-640.webp?v=20261025v2ia 640w, assets/screenshots/delegate-settings.webp?v=20261025v2ia 1280w" sizes="(max-width: 700px) calc(100vw - 2.5rem), 560px" data-i18n-alt="gallery.delegateAlt" alt="委派设置" width="1280" height="800" loading="lazy" decoding="async" />
+            <figcaption data-i18n="gallery.delegate">委派设置</figcaption>
+          </figure>
+          <figure class="gallery-item">
+            <img src="assets/screenshots/external-cli.webp?v=20261025v2ia" srcset="assets/screenshots/external-cli-640.webp?v=20261025v2ia 640w, assets/screenshots/external-cli.webp?v=20261025v2ia 1280w" sizes="(max-width: 700px) calc(100vw - 2.5rem), 560px" data-i18n-alt="gallery.externalAlt" alt="外部 CLI" width="1280" height="800" loading="lazy" decoding="async" />
+            <figcaption data-i18n="gallery.external">外部 CLI</figcaption>
+          </figure>
+          <figure class="gallery-item">
+            <img src="assets/screenshots/permission-modes.webp?v=20261025v2ia" srcset="assets/screenshots/permission-modes-640.webp?v=20261025v2ia 640w, assets/screenshots/permission-modes.webp?v=20261025v2ia 1280w" sizes="(max-width: 700px) calc(100vw - 2.5rem), 560px" data-i18n-alt="gallery.permissionAlt" alt="权限模式" width="1280" height="800" loading="lazy" decoding="async" />
+            <figcaption data-i18n="gallery.permission">权限模式</figcaption>
+          </figure>
+          <figure class="gallery-item">
+            <img src="assets/screenshots/models-gateway.webp?v=20261025v2ia" srcset="assets/screenshots/models-gateway-640.webp?v=20261025v2ia 640w, assets/screenshots/models-gateway.webp?v=20261025v2ia 1280w" sizes="(max-width: 700px) calc(100vw - 2.5rem), 560px" data-i18n-alt="gallery.providersAlt" alt="统一模型网关" width="1280" height="800" loading="lazy" decoding="async" />
+            <figcaption data-i18n="gallery.providers">统一模型网关</figcaption>
+          </figure>
+          <figure class="gallery-item">
+            <img src="assets/screenshots/i18n-language.webp?v=20261025v2ia" srcset="assets/screenshots/i18n-language-640.webp?v=20261025v2ia 640w, assets/screenshots/i18n-language.webp?v=20261025v2ia 1280w" sizes="(max-width: 700px) calc(100vw - 2.5rem), 560px" data-i18n-alt="gallery.i18nAlt" alt="界面语言" width="1280" height="800" loading="lazy" decoding="async" />
+            <figcaption data-i18n="gallery.i18n">界面语言</figcaption>
+          </figure>
+          <figure class="gallery-item">
+            <img src="assets/screenshots/auto-update.webp?v=20261025v2ia" srcset="assets/screenshots/auto-update-640.webp?v=20261025v2ia 640w, assets/screenshots/auto-update.webp?v=20261025v2ia 1280w" sizes="(max-width: 700px) calc(100vw - 2.5rem), 560px" data-i18n-alt="gallery.updateAlt" alt="自动更新" width="1280" height="800" loading="lazy" decoding="async" />
+            <figcaption data-i18n="gallery.update">自动更新</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
   </main>
 
   <footer class="site-footer">
@@ -211,10 +309,10 @@
           <h4 data-i18n="footer.product">产品</h4>
           <ul>
             <li><a href="features.html" data-i18n="nav.features">功能</a></li>
-            <li><a href="download.html" data-i18n="nav.download">下载</a></li>
+            <li><a href="privacy.html" data-i18n="nav.privacy">隐私</a></li>
             <li><a href="docs.html" data-i18n="nav.docs">文档</a></li>
             <li><a href="changelog.html" data-i18n="nav.changelog">更新日志</a></li>
-            <li><a href="privacy.html" data-i18n="nav.privacy">隐私</a></li>
+            <li><a href="download.html" data-i18n="nav.download">下载</a></li>
           </ul>
         </div>
         <div class="footer-col">
@@ -234,8 +332,8 @@
       </div>
     </div>
   </footer>
-  <script src="js/i18n.js?v=20261023e"></script>
-  <script src="js/main.js?v=20261023e"></script>
-  <script src="js/features.js?v=20261023e"></script>
+  <script src="js/i18n.js?v=20261025v2fe"></script>
+  <script src="js/main.js?v=20261025v2fe"></script>
+  <script src="js/features.js?v=20261025v2fe"></script>
 </body>
 </html>
