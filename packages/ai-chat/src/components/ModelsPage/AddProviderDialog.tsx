@@ -217,6 +217,8 @@ const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSaved }) => {
       const meta = new Map((preset?.modelMeta ?? []).map((m) => [m.id, m]));
       const list: GatewayModel[] = models.map((m) => {
         const known = meta.get(m.id);
+        // 预设没整理的，用模型列表接口顺带返回的上限（§12.7.2 第 3 级）
+        const listed = known ? undefined : result.limits?.[m.id];
         return {
           id: m.id,
           enabled: enabled.has(m.id),
@@ -233,6 +235,7 @@ const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSaved }) => {
             : m.chat
               ? {}
               : { toolCalling: false }),
+          ...(listed ? { ...listed, metaSource: 'listed' as const } : {}),
         };
       });
       const saved = await gatewayClient.upsertProvider({

@@ -44,6 +44,7 @@ import {
 import { GatewayProcess, type GatewayStatus } from './GatewayProcess';
 import { GatewayStore, maskKey } from './GatewayStore';
 import { archiveLegacyFiles, legacyFileCandidates, migrateLegacy } from './migrate';
+import type { MetaSource, PresetModelMeta, ResolvedModelMeta } from './modelMeta';
 import { TabTokens } from './TabTokens';
 import type { GatewayKey, GatewayModel, GatewayProvider, StoredProbe } from './types';
 
@@ -128,7 +129,7 @@ export interface ProviderInput {
     maxConcurrency?: number | null;
     rpm?: number | null;
   }>;
-  models?: GatewayModel[];
+  models?: ModelView[];
   modelMap?: Array<{ from: string; to: string }>;
   headers?: Record<string, string>;
   userAgent?: string;
@@ -138,8 +139,21 @@ export interface ProviderInput {
   quirks?: ProviderQuirks;
 }
 
-export interface ProviderView extends Omit<GatewayProvider, 'keys'> {
+/** 「模型」页的模型条目：存的值原样给（编辑用），另附按 §12.7.2 算出的生效值（显示用） */
+export interface ModelView extends GatewayModel {
+  effective?: {
+    ctx: number;
+    maxOutput: number;
+    reasoning?: boolean;
+    vision?: boolean;
+    source: MetaSource;
+    maxOutputSource: MetaSource;
+  };
+}
+
+export interface ProviderView extends Omit<GatewayProvider, 'keys' | 'models'> {
   keys: Array<Omit<GatewayKey, 'enc' | 'encryption'> & { decryptable: boolean }>;
+  models: ModelView[];
   /** 运行时学到的状态（§7.4），「模型」页显示并可清除 */
   learned?: LearnedState;
 }
@@ -203,6 +217,8 @@ export interface GatewayServiceDeps {
   envProviders?: () => EnvProviderEntry[];
   /** 按预设 id 取厂商差异（ai-runtime presets） */
   presetQuirks?: (presetId: string | undefined) => ProviderQuirks | undefined;
+  /** 按预设 id 取预设整理的模型元数据（ai-runtime presets 的 modelMeta，§12.7.2） */
+  presetModels?: (presetId: string | undefined) => readonly PresetModelMeta[] | undefined;
   /** 测试注入：疑似不可用的协议用它确认 */
   detectImpl?: typeof detect;
   /** 测试注入：环境变量（NOMI_ROUTE_PLAN）；默认 process.env */
@@ -222,6 +238,7 @@ export class GatewayService {
       cipher: d.cipher,
       logger: d.logger,
       presetQuirks: d.presetQuirks,
+      presetModels: d.presetModels,
     });
     this.proc =
       d.process ??
@@ -465,20 +482,61 @@ export class GatewayService {
     label: string;
     reasoning?: boolean;
     vision?: boolean;
+    ctx?: number;
   }> {
     return [...this.store.providers(), ...this.envViews()]
       .filter((p) => p.enabled)
       .flatMap((p) =>
         p.models
           .filter((m) => m.enabled && m.toolCalling !== false)
-          .map((m) => ({
-            ref: `${p.id}/${m.id}`,
-            provider: p.name,
-            label: m.label ?? m.id,
-            ...(m.reasoning !== undefined ? { reasoning: m.reasoning } : {}),
-            ...(m.vision !== undefined ? { vision: m.vision } : {}),
-          })),
+          .map((m) => {
+            const meta = this.modelMetaOf(`${p.id}/${m.id}`);
+            return {
+              ref: `${p.id}/${m.id}`,
+              provider: p.name,
+              label: m.label ?? m.id,
+              ...(meta?.reasoning !== undefined ? { reasoning: meta.reasoning } : {}),
+              ...(meta?.vision !== undefined ? { vision: meta.vision } : {}),
+              ...(meta && meta.source !== 'default' ? { ctx: meta.ctx } : {}),
+            };
+          }),
       );
+  }
+
+  /**
+   * 按 `供应商/模型` 取生效元数据（§12.7.2：用户 > 预设 > 模型列表 > 内置目录 > 默认值）。
+   * 编程助手启动注入、终端命令、模型选择器共用；供应商不存在时返回 undefined。
+   */
+  modelMetaOf(ref: string): ResolvedModelMeta | undefined {
+    const i = ref.indexOf('/');
+    if (i <= 0) return undefined;
+    const pid = ref.slice(0, i);
+    const mid = ref.slice(i + 1);
+    const p = this.store.providers().find((x) => x.id === pid);
+    if (p) return this.store.modelMeta(p, mid);
+    // 环境变量供应商的 id 是 env-<预设 id>
+    const env = this.envViews().find((x) => x.id === pid);
+    return env
+      ? this.store.modelMeta({ presetId: pid.slice(4), models: env.models }, mid)
+      : undefined;
+  }
+
+  /** 编程助手启动注入用的元数据：生效值加上显示名 */
+  agentMeta(ref: string): ModelMeta | undefined {
+    const meta = this.modelMetaOf(ref);
+    if (!meta) return undefined;
+    const i = ref.indexOf('/');
+    const pid = ref.slice(0, i);
+    const p = [...this.store.providers(), ...this.envViews()].find((x) => x.id === pid);
+    const m = p?.models.find((x) => x.id === ref.slice(i + 1));
+    return {
+      label: m?.label ?? ref.slice(i + 1),
+      ...(p ? { provider: p.name } : {}),
+      ctx: meta.ctx,
+      maxOutput: meta.maxOutput,
+      ...(meta.reasoning !== undefined ? { reasoning: meta.reasoning } : {}),
+      ...(meta.vision !== undefined ? { vision: meta.vision } : {}),
+    };
   }
 
   /** 这个标签的进程级私有目录（Grok 私有 GROK_HOME、dsh 叠加文件等） */
@@ -502,26 +560,11 @@ export class GatewayService {
     const placeholder = opts.tabBound ? placeholderModelOf(kind) : undefined;
     const ep = this.endpoint(kind);
     if (!ep) return null;
-    const metaOf = (ref: string): ModelMeta | undefined => {
-      const i = ref.indexOf('/');
-      const p = i > 0 ? this.store.providers().find((x) => x.id === ref.slice(0, i)) : undefined;
-      const m = p?.models.find((x) => x.id === ref.slice(i + 1));
-      return p && m
-        ? {
-            label: m.label ?? m.id,
-            provider: p.name,
-            ctx: m.ctx,
-            maxOutput: m.maxOutput,
-            reasoning: m.reasoning,
-            vision: m.vision,
-          }
-        : undefined;
-    };
     return agentLaunch(kind, {
       url: ep.url,
       token: ep.token,
       model,
-      metaOf,
+      metaOf: (ref) => this.agentMeta(ref),
       catalog: this.cliModels().map((m) => m.ref),
       models: this.store.snapshot().clients[kind]?.models ?? {},
       dir: this.agentDir(kind, tabId),
@@ -675,13 +718,19 @@ export class GatewayService {
       providers: [
         ...data.providers.map((p) => ({
           ...p,
+          models: p.models.map((m) => withEffective(m, this.store.modelMeta(p, m.id))),
           keys: p.keys.map(({ enc, encryption, ...k }) => ({
             ...k,
             decryptable: this.store.decrypt(enc, encryption) !== null,
           })),
           ...(hasLearned(data.learned[p.id]) ? { learned: data.learned[p.id] } : {}),
         })),
-        ...this.envViews(),
+        ...this.envViews().map((p) => ({
+          ...p,
+          models: p.models.map((m) =>
+            withEffective(m, this.store.modelMeta({ presetId: p.id.slice(4), models: [m] }, m.id)),
+          ),
+        })),
       ],
       clients: Object.fromEntries(
         CLIENT_IDS.flatMap((id) => {
@@ -791,7 +840,8 @@ export class GatewayService {
           .map(([w, u]) => [w, u!.trim()]),
       ) as GatewayProvider['urls'],
       keys,
-      models: input.models ?? prev?.models ?? [],
+      // 界面回传的条目带着显示用的生效值（effective），不落盘
+      models: input.models?.map(({ effective: _e, ...m }: ModelView) => m) ?? prev?.models ?? [],
       ...(input.modelMap ? { modelMap: input.modelMap } : {}),
       ...(input.headers ? { headers: input.headers } : {}),
       ...(input.userAgent !== undefined ? { userAgent: input.userAgent || undefined } : {}),
@@ -1114,4 +1164,18 @@ function placeholderModelOf(kind: string): string | undefined {
   if (!isBuiltinCliId(kind)) return undefined;
   const v = BUILTIN_MANIFESTS[kind].clientSpec.placeholderModel;
   return typeof v === 'string' && v ? v : undefined;
+}
+
+function withEffective(m: GatewayModel, r: ResolvedModelMeta): ModelView {
+  return {
+    ...m,
+    effective: {
+      ctx: r.ctx,
+      maxOutput: r.maxOutput,
+      ...(r.reasoning !== undefined ? { reasoning: r.reasoning } : {}),
+      ...(r.vision !== undefined ? { vision: r.vision } : {}),
+      source: r.source,
+      maxOutputSource: r.maxOutputSource,
+    },
+  };
 }

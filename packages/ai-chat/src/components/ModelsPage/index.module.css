@@ -692,6 +692,11 @@
   width: 96px;
 }
 
+.tokenInput {
+  flex: 1;
+  min-width: 0;
+}
+
 .pairRow > :nth-child(1),
 .pairRow > :nth-child(3) {
   flex: 1;

@@ -44,6 +44,7 @@ import {
   WIRES,
   type GatewayModel,
   type LearnedState,
+  type MetaSource,
   type ProviderInput,
   type ProviderView,
   type StoredProbe,
@@ -160,7 +161,8 @@ export function buildPayload(p: ProviderView, d: Draft): ProviderInput {
         ...(k.name.trim() || orig.get(k.id)?.name ? { name: k.name.trim() } : {}),
       })),
     ...(newKeys.length ? { newKeys } : {}),
-    models: d.models,
+    // 生效值（effective）只用于显示，主进程会重算
+    models: d.models.map(({ effective: _e, ...m }) => m),
     modelMap: d.modelMap
       .map((x) => ({ from: x.from.trim(), to: x.to.trim() }))
       .filter((x) => x.from && x.to),
@@ -190,20 +192,57 @@ const splitKeys = (text: string): string[] => [
   ),
 ];
 
-/** 模型的能力标签 */
-const ModelBadges: React.FC<{ m: GatewayModel }> = ({ m }) => (
-  <>
-    {m.reasoning && <span className={styles.badgeSoft}>{t('ui.models.reasoning')}</span>}
-    {m.vision && <span className={styles.badgeSoft}>{t('ui.models.vision')}</span>}
-    {m.ctx ? <span className={styles.badgeMuted}>{formatContext(m.ctx)}</span> : null}
-    {m.toolCalling === false && (
-      <span className={styles.badgeMuted}>{t('ui.models.no-tool-calling')}</span>
-    )}
-    {m.metaSource === 'default' && (
-      <span className={styles.badgeMuted}>{t('ui.models.limits-unknown')}</span>
-    )}
-  </>
-);
+const metaSourceLabel = (s: MetaSource): string =>
+  ({
+    user: t('ui.models.meta-source-user'),
+    preset: t('ui.models.meta-source-preset'),
+    listed: t('ui.models.meta-source-listed'),
+    catalog: t('ui.models.meta-source-catalog'),
+    default: t('ui.models.meta-source-default'),
+  })[s];
+
+/** 用户在「高级」里手填的值（旧数据没有来源但有值的也算）；预设 / 模型列表存下的不算 */
+const userLimit = (m: GatewayModel, k: 'ctx' | 'maxOutput'): number | undefined =>
+  !m.metaSource || m.metaSource === 'user' ? m[k] : undefined;
+
+/** 上下文 / 输出上限输入框 → 正整数；留空 / 非法 = undefined（自动） */
+const tokenLimitOf = (s: string): number | undefined => {
+  const n = Number(s.trim());
+  return s.trim() && Number.isInteger(n) && n > 0 && n <= 100_000_000 ? n : undefined;
+};
+
+/** 模型的能力标签：上下文按主进程算出的生效值显示，悬停看来源 */
+const ModelBadges: React.FC<{ m: GatewayModel }> = ({ m }) => {
+  const eff = m.effective;
+  const ctx = eff ? (eff.source === 'default' ? undefined : eff.ctx) : m.ctx;
+  const unknown = eff ? eff.source === 'default' : m.metaSource === 'default';
+  return (
+    <>
+      {(eff?.reasoning ?? m.reasoning) && (
+        <span className={styles.badgeSoft}>{t('ui.models.reasoning')}</span>
+      )}
+      {(eff?.vision ?? m.vision) && (
+        <span className={styles.badgeSoft}>{t('ui.models.vision')}</span>
+      )}
+      {ctx ? (
+        <span
+          className={styles.badgeMuted}
+          title={eff ? t('ui.models.meta-source', metaSourceLabel(eff.source)) : undefined}
+        >
+          {formatContext(ctx)}
+        </span>
+      ) : null}
+      {m.toolCalling === false && (
+        <span className={styles.badgeMuted}>{t('ui.models.no-tool-calling')}</span>
+      )}
+      {unknown && (
+        <span className={styles.badgeMuted} title={t('ui.models.limits-unknown-hint')}>
+          {t('ui.models.limits-unknown')}
+        </span>
+      )}
+    </>
+  );
+};
 
 interface Props {
   provider: ProviderView | null;
@@ -318,6 +357,15 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
     if (!d.models.some((m) => m.id === id)) patch({ models: [...d.models, { id, enabled: true }] });
     setModelText('');
   };
+  /** 手填上下文 / 输出上限：填了就标为用户设置；两项都清空则回到自动（预设 / 模型列表 / 内置目录） */
+  const setModelLimit = (m: GatewayModel, k: 'ctx' | 'maxOutput', text: string) => {
+    const next = { ctx: userLimit(m, 'ctx'), maxOutput: userLimit(m, 'maxOutput') };
+    next[k] = tokenLimitOf(text);
+    setModel(m.id, {
+      ...next,
+      metaSource: next.ctx || next.maxOutput ? 'user' : undefined,
+    });
+  };
   const toggleModelWire = (m: GatewayModel, w: Wire, on: boolean) => {
     const cur = m.wires ?? [];
     const next = on ? WIRES.filter((x) => x === w || cur.includes(x)) : cur.filter((x) => x !== w);
@@ -357,14 +405,26 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
         ...(fresh.length ? { keys: fresh } : {}),
       });
       const have = new Set(d.models.map((m) => m.id));
+      const listed = (id: string) =>
+        r.limits?.[id] ? { ...r.limits[id], metaSource: 'listed' as const } : {};
       const added: GatewayModel[] = r.models
         .filter((id) => !have.has(id))
         .map((id) => ({
           id,
           enabled: false,
           ...(NON_CHAT.test(id) ? { toolCalling: false } : {}),
+          ...listed(id),
         }));
-      setD((cur) => ({ ...cur, models: [...cur.models, ...added], detected: storedProbes(r) }));
+      // 已有模型：用户没手填过的，用这次模型列表返回的上限刷新（§12.7.2 第 3 级）
+      const refreshed = (m: GatewayModel): GatewayModel =>
+        r.limits?.[m.id] && !userLimit(m, 'ctx') && !userLimit(m, 'maxOutput')
+          ? { ...m, ctx: undefined, maxOutput: undefined, ...listed(m.id) }
+          : m;
+      setD((cur) => ({
+        ...cur,
+        models: [...cur.models.map(refreshed), ...added],
+        detected: storedProbes(r),
+      }));
       setDetectedUrls(JSON.stringify(d.urls));
       const ok = WIRES.filter((w) => r.wires[w]?.ok).map((w) => WIRE_LABEL[w]);
       const wiresText = ok.length
@@ -843,6 +903,57 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                             ))}
                           </div>
                         ))}
+                    </div>
+
+                    <div className={styles.advGroup}>
+                      <div className={styles.groupTitle}>{t('ui.models.model-limits-title')}</div>
+                      {d.models
+                        .filter((m) => m.enabled)
+                        .map((m) => {
+                          const eff = m.effective;
+                          const auto = (v: number | undefined, src: MetaSource | undefined) =>
+                            v && src && src !== 'user'
+                              ? `${t('ui.models.auto-value', formatContext(v))} · ${metaSourceLabel(src)}`
+                              : undefined;
+                          return (
+                            <div key={m.id} className={styles.wireRow}>
+                              <span className={styles.keyName}>{m.label ?? m.id}</span>
+                              <Input
+                                size="sm"
+                                type="number"
+                                min={1}
+                                step={1}
+                                inputMode="numeric"
+                                className={styles.tokenInput}
+                                value={userLimit(m, 'ctx') ?? ''}
+                                onChange={(e) => setModelLimit(m, 'ctx', e.target.value)}
+                                placeholder={
+                                  auto(eff?.ctx, eff?.source) ?? t('ui.models.context-window')
+                                }
+                                title={t('ui.models.context-window')}
+                                aria-label={t('ui.models.context-window-for', m.id)}
+                                data-testid={`pd-model-ctx-${m.id}`}
+                              />
+                              <Input
+                                size="sm"
+                                type="number"
+                                min={1}
+                                step={1}
+                                inputMode="numeric"
+                                className={styles.tokenInput}
+                                value={userLimit(m, 'maxOutput') ?? ''}
+                                onChange={(e) => setModelLimit(m, 'maxOutput', e.target.value)}
+                                placeholder={
+                                  auto(eff?.maxOutput, eff?.maxOutputSource) ??
+                                  t('ui.models.max-output')
+                                }
+                                title={t('ui.models.max-output')}
+                                aria-label={t('ui.models.max-output-for', m.id)}
+                                data-testid={`pd-model-max-output-${m.id}`}
+                              />
+                            </div>
+                          );
+                        })}
                     </div>
 
                     {d.keys.length > 0 && (

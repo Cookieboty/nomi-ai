@@ -620,22 +620,6 @@ export function gatewayTerminalSource(g: GatewayService): () => TerminalSource |
     const snap = g.store.snapshot();
     const port = s.state === 'running' ? s.port : snap.port;
     if (!port) return null;
-    const providers = g.store.providers();
-    const metaOf = (ref: string): ModelMeta | undefined => {
-      const i = ref.indexOf('/');
-      const p = i > 0 ? providers.find((x) => x.id === ref.slice(0, i)) : undefined;
-      const m = p?.models.find((x) => x.id === ref.slice(i + 1));
-      return p && m
-        ? {
-            label: m.label ?? m.id,
-            provider: p.name,
-            ctx: m.ctx,
-            maxOutput: m.maxOutput,
-            reasoning: m.reasoning,
-            vision: m.vision,
-          }
-        : undefined;
-    };
     const clients: TerminalSource['clients'] = {};
     for (const kind of TERMINAL_KINDS)
       clients[kind] = {
@@ -645,7 +629,7 @@ export function gatewayTerminalSource(g: GatewayService): () => TerminalSource |
     return {
       url: `http://127.0.0.1:${port}`,
       clients,
-      metaOf,
+      metaOf: (ref) => g.agentMeta(ref),
       catalog: g.cliModels().map((m) => m.ref),
     };
   };

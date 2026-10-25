@@ -161,8 +161,8 @@ describe('gateway migration (§6.3)', () => {
     });
     expect(ds.keys.map((k) => k.masked)).toHaveLength(2);
     expect(ds.models).toEqual([
-      { id: 'deepseek-v4-pro', enabled: true, metaSource: 'user' },
-      { id: 'deepseek-v4-flash', enabled: false, metaSource: 'listed' },
+      { id: 'deepseek-v4-pro', enabled: true },
+      { id: 'deepseek-v4-flash', enabled: false },
     ]);
     const kimi = data.providers.find((p) => p.id === 'kimi')!;
     expect(kimi.urls).toEqual({ messages: 'https://api.moonshot.cn/anthropic' });

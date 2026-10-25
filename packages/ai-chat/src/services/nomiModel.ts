@@ -135,11 +135,15 @@ export function pickerProviders(list: ProviderView[]): PickerProvider[] {
           .map((m) => ({
             id: m.id,
             label: m.label,
-            ctx: m.ctx,
-            reasoning: m.reasoning,
-            vision: m.vision,
+            ctx: m.effective && m.effective.source !== 'default' ? m.effective.ctx : m.ctx,
+            reasoning: m.effective?.reasoning ?? m.reasoning,
+            vision: m.effective?.vision ?? m.vision,
             toolCalling: m.toolCalling,
-            metaKnown: m.metaSource ? m.metaSource !== 'default' : undefined,
+            metaKnown: m.effective
+              ? m.effective.source !== 'default'
+              : m.metaSource
+                ? m.metaSource !== 'default'
+                : undefined,
             wire: WIRE_LABEL[m.wires?.[0] ?? okWires[0] ?? 'chat'],
           })),
       };

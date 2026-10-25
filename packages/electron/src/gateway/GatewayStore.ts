@@ -22,9 +22,17 @@ import {
 
 import { writePrivateFileAtomic } from '../utils/privateFile';
 
+import {
+  presetEntry,
+  resolveModelMeta,
+  type MetaSource,
+  type PresetModelMeta,
+  type ResolvedModelMeta,
+} from './modelMeta';
 import type {
   ClientConfig,
   GatewayKey,
+  GatewayModel,
   GatewayProvider,
   GatewayStoreData,
   KeyEncryption,
@@ -77,6 +85,8 @@ export class GatewayStore {
       logger?: Logger;
       /** 按预设 id 取厂商差异（ai-runtime 的 presets，由调用方注入，避免这里加载 AI SDK） */
       presetQuirks?: (presetId: string | undefined) => ProviderQuirks | undefined;
+      /** 按预设 id 取预设整理的模型元数据（§12.7.2 第 2 级），同样由调用方注入 */
+      presetModels?: (presetId: string | undefined) => readonly PresetModelMeta[] | undefined;
     },
   ) {
     this.data = this.load();
@@ -249,6 +259,31 @@ export class GatewayStore {
     this.data.learned[providerId] = learned;
   }
 
+  /** 供应商里一个模型的生效元数据（§12.7.2）；presetId 给环境变量供应商用（它们不在 store 里） */
+  modelMeta(p: Pick<GatewayProvider, 'presetId' | 'models'>, modelId: string): ResolvedModelMeta {
+    return resolveModelMeta(
+      p.models.find((m) => m.id === modelId),
+      modelId,
+      presetEntry(this.d.presetModels?.(p.presetId), modelId),
+    );
+  }
+
+  /**
+   * 推给网关的模型条目：把用户 / 预设 / 模型列表给的上限写进去，网关按它压输出上限（§12.7.3）。
+   * 只来自内置目录的不写：网关自己也读目录，写进去会被当成用户设置、盖过供应商规格
+   */
+  private runtimeModels(p: GatewayProvider): GatewayModel[] {
+    const fromConfig = (src: MetaSource) => src !== 'catalog' && src !== 'default';
+    return p.models.map((m) => {
+      const r = this.modelMeta(p, m.id);
+      return {
+        ...m,
+        ...(fromConfig(r.source) ? { ctx: r.ctx } : {}),
+        ...(fromConfig(r.maxOutputSource) ? { maxOutput: r.maxOutput } : {}),
+      };
+    });
+  }
+
   private quirksOf(p: GatewayProvider): ProviderQuirks | undefined {
     const preset = this.d.presetQuirks?.(p.presetId);
     if (!preset && !p.quirks) return undefined;
@@ -287,7 +322,7 @@ export class GatewayStore {
                   },
                 ];
           }),
-      models: p.models,
+      models: this.runtimeModels(p),
       ...(p.fallback ? { fallback: p.fallback } : {}),
       ...(p.headers ? { headers: p.headers } : {}),
       ...(p.userAgent ? { userAgent: p.userAgent } : {}),

@@ -31,8 +31,19 @@ export interface GatewayModel {
   reasoning?: boolean;
   vision?: boolean;
   toolCalling?: boolean;
-  metaSource?: 'user' | 'preset' | 'listed' | 'catalog' | 'default';
+  metaSource?: MetaSource;
+  /** 主进程按「用户 > 预设 > 模型列表 > 内置目录 > 默认值」算出的生效值（只读，保存时丢弃） */
+  effective?: {
+    ctx: number;
+    maxOutput: number;
+    reasoning?: boolean;
+    vision?: boolean;
+    source: MetaSource;
+    maxOutputSource: MetaSource;
+  };
 }
+
+export type MetaSource = 'user' | 'preset' | 'listed' | 'catalog' | 'default';
 
 export interface StoredProbe {
   ok: boolean;
@@ -180,6 +191,8 @@ export interface DetectResult {
   wires: Partial<Record<Wire, ProbeLine>>;
   byKey: Record<string, Partial<Record<Wire, ProbeLine>>>;
   models: string[];
+  /** 模型列表接口顺带返回的上下文 / 输出上限 */
+  limits?: Record<string, { ctx?: number; maxOutput?: number }>;
   urls: Partial<Record<Wire, string>>;
 }
 

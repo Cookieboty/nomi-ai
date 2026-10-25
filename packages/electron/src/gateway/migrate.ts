@@ -251,7 +251,8 @@ export function migrateLegacy(
     const add = (mid: string, enabled: boolean) => {
       const hit = models.find((m) => m.id === mid);
       if (hit) hit.enabled ||= enabled;
-      else models.push({ id: mid, enabled, metaSource: enabled ? 'user' : 'listed' });
+      // 旧配置只有模型名、没有上下文等元数据：不标来源，生效值按预设 / 内置目录算（§12.7.2）
+      else models.push({ id: mid, enabled });
     };
     for (const e of g.entries) {
       e.models.forEach((m) => add(m, true));

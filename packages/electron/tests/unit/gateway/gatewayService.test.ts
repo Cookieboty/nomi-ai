@@ -540,6 +540,78 @@ describe('GatewayService', () => {
     expect(p.quirks).toEqual({ extraBody: { chat: { reasoning_split: true } }, dropParams: ['b'] });
   });
 
+  it('model metadata (§12.7.2): user > preset > listed > built-in catalog > default', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gw-meta-'));
+    const svc = new GatewayService({
+      root,
+      cipher,
+      logger: { info() {}, warn() {} },
+      process: new GatewayProcess({
+        logger: { info() {}, warn() {} },
+        fork: () => new FakeChild() as never,
+      }),
+      presetModels: (id) =>
+        id === 'zhipu' ? [{ id: 'glm-5.3', ctx: 777_000, maxOutput: 99_000 }] : undefined,
+    });
+    svc.init();
+    // 中转（模型 id 带厂商前缀）、旧版本迁移来的「user」来源却没有值：按内置目录取
+    svc.upsertProvider({
+      name: 'Relay',
+      urls: { chat: 'https://relay/v1' },
+      models: [
+        { id: 'openai/gpt-6-astra', enabled: true, metaSource: 'user' },
+        { id: 'acme/unknown-model', enabled: true },
+        { id: 'acme/listed-model', enabled: true, ctx: 300_000, metaSource: 'listed' },
+        { id: 'openai/gpt-5.5', enabled: true, ctx: 64_000, metaSource: 'user' },
+      ],
+    });
+    // 预设按去掉前缀后的 id 匹配，优先于目录
+    svc.upsertProvider({
+      name: 'ZP',
+      presetId: 'zhipu',
+      urls: { chat: 'https://zp/v1' },
+      models: [{ id: 'z-ai/glm-5.3', enabled: true }],
+    });
+    const ref = (m: string) => svc.modelMetaOf(m)!;
+    expect(ref('relay/openai/gpt-6-astra')).toMatchObject({ ctx: 1_050_000, source: 'catalog' });
+    expect(ref('relay/acme/unknown-model')).toMatchObject({
+      ctx: 128_000,
+      maxOutput: 32_000,
+      source: 'default',
+    });
+    expect(ref('relay/acme/listed-model')).toMatchObject({ ctx: 300_000, source: 'listed' });
+    expect(ref('relay/openai/gpt-5.5')).toMatchObject({ ctx: 64_000, source: 'user' });
+    expect(ref('zhipu/z-ai/glm-5.3')).toMatchObject({
+      ctx: 777_000,
+      maxOutput: 99_000,
+      source: 'preset',
+    });
+    // 编程助手启动注入用同一份结果
+    expect(svc.agentMeta('relay/openai/gpt-6-astra')).toMatchObject({
+      ctx: 1_050_000,
+      maxOutput: 128_000,
+      reasoning: true,
+      provider: 'Relay',
+    });
+
+    // 网关快照：用户 / 预设 / 模型列表的值写进去，只来自目录的不写（网关自己读目录）
+    const cfg = svc.runtimeConfig();
+    const relay = cfg.providers.find((p) => p.id === 'relay')!;
+    expect(relay.models.find((m) => m.id === 'openai/gpt-6-astra')!.ctx).toBeUndefined();
+    expect(relay.models.find((m) => m.id === 'acme/listed-model')!.ctx).toBe(300_000);
+    const zp = cfg.providers.find((p) => p.id === 'zhipu')!;
+    expect(zp.models[0]).toMatchObject({ ctx: 777_000, maxOutput: 99_000 });
+
+    // 「模型」页拿到生效值；回传保存时生效值不落盘
+    const view = svc.state().providers.find((p) => p.id === 'relay')!;
+    const astra = view.models.find((m) => m.id === 'openai/gpt-6-astra')!;
+    expect(astra.effective).toMatchObject({ ctx: 1_050_000, source: 'catalog' });
+    svc.upsertProvider({ id: 'relay', name: 'Relay', urls: {}, models: view.models });
+    const saved = svc.store.providers().find((p) => p.id === 'relay')!;
+    expect(saved.models.some((m) => 'effective' in m)).toBe(false);
+    expect(svc.cliModels().find((m) => m.ref === 'relay/openai/gpt-6-astra')!.ctx).toBe(1_050_000);
+  });
+
   it('releaseAgent: removes the tab dir but does not follow symlinks into the user CLI home', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gw-release-'));
     const svc = new GatewayService({

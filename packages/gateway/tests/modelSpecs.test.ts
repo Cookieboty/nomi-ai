@@ -52,6 +52,10 @@ describe('built-in catalog (models.dev)', () => {
   it('lookup ignores provider prefixes and case', () => {
     expect(catalogEntry('anthropic/Claude-Sonnet-4-6')).toEqual(catalogEntry('claude-sonnet-4-6'));
     expect(catalogEntry('totally-unknown-model')).toBeUndefined();
+    // 中转常加的 :free / :latest 标签
+    expect(catalogEntry('anthropic/claude-sonnet-4-6:free')).toEqual(
+      catalogEntry('claude-sonnet-4-6'),
+    );
   });
 });
 

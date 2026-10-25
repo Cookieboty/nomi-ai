@@ -937,7 +937,10 @@ Nomi 自己的对话也作为网关的一个客户端（`nomi`），和 CLI 走�
 | Codex       | `-c model_context_window=<ctx>`、`-c model_auto_compact_token_limit=<ctx × 0.8>`；推理模型保留 `model_reasoning_effort`，非推理模型不传；生成 `model_catalog_json` 文件（放在 Nomi 私有目录，`-c` 指向它，格式见 §12.8），否则每次启动都会警告「Model metadata for … not found」                                                                                              |
 
 - Claude Code 的主模型、小模型、各档模型可能是不同模型，上下文取**主模型**的值。小模型窗口更小时，网关在请求超出时按 §9.6 返回「上下文超长」，让 Claude Code 压缩。
-- 元数据缺失时（自定义模型、模型列表接口不返回），使用保守的默认值：上下文 128K、输出上限 8K，并在「模型」页提示用户补全。
+- 元数据缺失时（四级来源都查不到，§12.7.2），使用保守的默认值：上下文 128K、输出上限 32K（太小会截断长回答与推理；网关只在知道模型真实上限时才压低请求），并在「模型」页显示「参数未知」，可在供应商详情的「高级」里手填。
+- Grok：私有 `config.toml` 的 `[model.nomi]` 写 `context_window`（不写时自定义模型按 200K 压缩）；占位模型名时换模型不重启，所以窗口同时放进进程环境 `NOMI_GROK_CONTEXT_WINDOW`（Grok 不读），窗口不同的模型会进复用键触发重启。
+- dsh：叠加文件里 pi-ai 的模型条目写 `contextWindow` / `maxTokens`。
+- Gemini CLI 0.65.0 的窗口是按模型名写死的表（未知模型 1M），只能经设置文件的 `model.compressionThreshold` 调整，而非 root 的系统级设置文件已不可用（§12.3），暂不注入；上下文超长时由网关按 §9.6 返回错误，让它压缩。
 
 #### 12.7.2 模型元数据从哪来
 
@@ -946,7 +949,15 @@ Nomi 自己的对话也作为网关的一个客户端（`nomi`），和 CLI 走�
 1. 用户在模型详情里手动填写的值；
 2. 预设里为每个模型整理好的值（§8.4），在 M2 对首批厂商逐个核对官方文档，并记下查证日期；
 3. 上游模型列表接口返回的字段（部分厂商会返回 `context_length` 等）；
-4. 构建时内置一份公开模型目录的快照（候选：models.dev 的数据，引入前用 `pnpm check:licenses` 确认许可，登记 `assets-licenses.json`）。运行时不联网拉取。
+4. 构建时内置一份公开模型目录的快照（models.dev，MIT，`packages/gateway/src/models/catalog.json`，由 `packages/gateway/scripts/build-catalog.mjs` 生成，已登记 `assets-licenses.json`）。运行时不联网拉取。
+
+实现（`packages/electron/src/gateway/modelMeta.ts` 的 `resolveModelMeta`）：
+
+- 逐字段取第一个有值的一级，上下文和输出上限可以来自不同的级；
+- 预设按当前版本实时查（已保存的供应商也能用上后来补的值），先按原 id、再按去掉中转前缀后的 id 匹配（预设写 `glm-5.3`，中转列 `z-ai/glm-5.3`）；保存时存下的预设值排在实时预设之后；
+- 模型列表接口的值在「添加供应商」和「刷新」时存成 `metaSource: 'listed'`，字段兼容 `context_length`、`context_window`、`max_model_len`、`inputTokenLimit`、`top_provider.max_completion_tokens` 等（`listedLimits`）；
+- 内置目录按去掉中转前缀、`:free` 等标签和日期后缀后的 id 查；
+- 编程助手启动注入（`GatewayService.agentMeta`，终端命令同用）、网关快照（用户 / 预设 / 列表的上限写进 `RuntimeModel`，只来自目录的不写，网关自己读目录）、「模型」页的标签与选择器（状态里每个模型附 `effective`，保存时丢弃）用同一份结果。
 
 #### 12.7.3 网关侧的请求修正
 

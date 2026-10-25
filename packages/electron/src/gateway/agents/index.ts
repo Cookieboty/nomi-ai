@@ -13,11 +13,14 @@ import type { ClientModels } from '@nomi-ai/gateway';
 
 import { ensureAccountHome, userCliHome } from '../../cli/accounts/homes';
 import { patchDshYaml } from '../../cli/configPatch';
+import { DEFAULT_CTX, DEFAULT_MAX_OUTPUT } from '../modelMeta';
+
+export { DEFAULT_CTX, DEFAULT_MAX_OUTPUT };
 
 /** 有第三方注入的编程助手：就是全部内置 CLI（cli-plugins 生成的 id 表） */
 export type AgentKind = BuiltinCliId;
 
-/** 模型元数据（§12.7.1）；缺失的项按保守默认值：上下文 128K、输出 8K */
+/** 模型元数据（§12.7.1，按 modelMeta.resolveModelMeta 的优先级算好）；缺失的项按保守默认值 */
 export interface ModelMeta {
   label?: string;
   provider?: string;
@@ -26,9 +29,6 @@ export interface ModelMeta {
   reasoning?: boolean;
   vision?: boolean;
 }
-
-export const DEFAULT_CTX = 128_000;
-export const DEFAULT_MAX_OUTPUT = 8_192;
 
 export interface LaunchContext {
   /** 网关地址（http://127.0.0.1:端口，不带 /v1） */
@@ -246,9 +246,17 @@ function gemini(c: LaunchContext): AgentLaunch {
 function dsh(c: LaunchContext): AgentLaunch {
   fs.mkdirSync(c.dir, { recursive: true, mode: 0o700 });
   const file = path.join(c.dir, 'patch.yml');
+  const meta = c.metaOf?.(c.model);
   fs.writeFileSync(
     file,
-    patchDshYaml(null, { api: 'openai-responses', baseURL: `${c.url}/v1`, model: c.model }),
+    patchDshYaml(null, {
+      api: 'openai-responses',
+      baseURL: `${c.url}/v1`,
+      model: c.model,
+      // pi-ai 按 contextWindow 判断上下文溢出与压缩；不写时用它的默认值
+      contextWindow: meta?.ctx ?? DEFAULT_CTX,
+      maxTokens: meta?.maxOutput ?? DEFAULT_MAX_OUTPUT,
+    }),
     { mode: 0o600 },
   );
   return {
@@ -280,6 +288,8 @@ function grok(c: LaunchContext): AgentLaunch {
       problems.map((p) => `${p.entry}: ${p.reason}`).join('; '),
     );
   }
+  // 自定义模型不写 context_window 时 Grok 按 200K 自动压缩（用户手册 11-custom-models）
+  const ctx = c.metaOf?.(c.model)?.ctx ?? DEFAULT_CTX;
   fs.writeFileSync(
     path.join(c.dir, 'config.toml'),
     [
@@ -290,6 +300,7 @@ function grok(c: LaunchContext): AgentLaunch {
       'name = "Nomi"',
       'env_key = "NOMI_GROK_API_KEY"',
       'api_backend = "responses"',
+      `context_window = ${ctx}`,
       // 网关在提交前已做回退与重试；Grok 默认的长重试会让上游中断时一直转圈（实测 1.0.67）
       'max_retries = 1',
       '',
@@ -304,7 +315,13 @@ function grok(c: LaunchContext): AgentLaunch {
     { mode: 0o600 },
   );
   return {
-    env: { GROK_HOME: c.dir, NOMI_GROK_API_KEY: c.token },
+    env: {
+      GROK_HOME: c.dir,
+      NOMI_GROK_API_KEY: c.token,
+      // Grok 不读这个变量：只让窗口进复用键（Orchestrator sig）。占位模型名时换模型不重启，
+      // 但新模型的窗口不同就必须重启，否则配置里还是旧模型的 context_window
+      NOMI_GROK_CONTEXT_WINDOW: String(ctx),
+    },
     args: [],
     strip: STRIP.grok,
     // 占位模型名时配置里没有真实模型：换模型不必重启（复用键不带模型）

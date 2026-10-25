@@ -23,9 +23,9 @@ export function bareModelId(id: string): string {
   return (i >= 0 ? id.slice(i + 1) : id).toLowerCase();
 }
 
-/** 目录里的条目；没收录返回 undefined */
+/** 目录里的条目；没收录返回 undefined。中转常加的 `:free` / `:latest` 等标签与日期后缀不参与匹配 */
 export function catalogEntry(model: string): ModelSpecData | undefined {
-  const id = bareModelId(model);
+  const id = bareModelId(model).replace(/:[\w.-]+$/, '');
   return doc.models[id] ?? doc.models[id.replace(/-\d{8}$|-latest$/, '')];
 }
 

@@ -582,6 +582,7 @@ export class Application implements IApplication {
         onUsage: (e) => quality.addGateway(e),
         traceDir: () => gatewayRequests.traceDir(),
         presetQuirks: (id) => findPreset(id)?.quirks as ProviderQuirks | undefined,
+        presetModels: (id) => findPreset(id)?.modelMeta,
         // 环境变量提供的供应商（只读）：有 Key 的，以及显式设了地址 / 模型的 Ollama
         envProviders: () =>
           llmProvidersFromEnv()

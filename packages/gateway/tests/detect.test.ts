@@ -3,7 +3,7 @@ import type { AddressInfo } from 'node:net';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { detect, normalizeBases } from '../src/probe/detect';
+import { detect, listedLimits, normalizeBases } from '../src/probe/detect';
 
 const cleanups: Array<() => void> = [];
 afterEach(() => {
@@ -52,6 +52,33 @@ describe('normalizeBases (§8.1)', () => {
   });
 });
 
+describe('listedLimits (§12.7.2)', () => {
+  it.each([
+    [{ id: 'a', context_length: 200_000 }, { ctx: 200_000 }],
+    [
+      { id: 'or/x', context_length: 1_000_000, top_provider: { max_completion_tokens: 65_536 } },
+      { ctx: 1_000_000, maxOutput: 65_536 },
+    ],
+    [{ id: 'vllm', max_model_len: 32_768 }, { ctx: 32_768 }],
+    [
+      { name: 'models/g', inputTokenLimit: 1_048_576, outputTokenLimit: 65_536 },
+      { ctx: 1_048_576, maxOutput: 65_536 },
+    ],
+    [
+      { id: 'relay', context_window: '128000', max_output_tokens: 16_384 },
+      { ctx: 128_000, maxOutput: 16_384 },
+    ],
+  ])('%j', (item, want) => {
+    expect(listedLimits(item)).toEqual(want);
+  });
+  it('nothing usable, nothing out', () => {
+    expect(listedLimits({ id: 'x' })).toBeUndefined();
+    expect(listedLimits({ id: 'x', context_length: 0 })).toBeUndefined();
+    expect(listedLimits({ id: 'x', context_length: -1, max_output_tokens: 1.5 })).toBeUndefined();
+    expect(listedLimits('x')).toBeUndefined();
+  });
+});
+
 describe('detect (§8.2)', () => {
   it('a local service without a key: probes without any auth header', async () => {
     const auths: Array<string | undefined> = [];
@@ -59,7 +86,11 @@ describe('detect (§8.2)', () => {
       auths.push(req.headers.authorization ?? (req.headers['x-api-key'] as string | undefined));
       if (req.url === '/v1/models') {
         res.writeHead(200, { 'content-type': 'application/json' });
-        return res.end(JSON.stringify({ data: [{ id: 'qwen3' }] }));
+        return res.end(
+          JSON.stringify({
+            data: [{ id: 'qwen3', context_length: 262_144 }, { id: 'tiny' }],
+          }),
+        );
       }
       if (req.url === '/v1/chat/completions') {
         res.writeHead(200, { 'content-type': 'application/json' });
@@ -77,7 +108,9 @@ describe('detect (§8.2)', () => {
       allowedPrivateHosts: [hp],
     });
     expect(r.wires.chat).toMatchObject({ ok: true });
-    expect(r.models).toEqual(['qwen3']);
+    expect(r.models).toEqual(['qwen3', 'tiny']);
+    // 模型列表顺带返回的上限保留下来（§12.7.2 第 3 级）；没返回的模型不在里面
+    expect(r.limits).toEqual({ qwen3: { ctx: 262_144 } });
     expect(auths.every((a) => a === undefined)).toBe(true);
   });
 

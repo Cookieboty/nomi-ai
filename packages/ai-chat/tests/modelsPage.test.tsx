@@ -529,6 +529,79 @@ describe('ModelsPage', () => {
     expect(payload.detected).toMatchObject({ messages: { ok: true } });
   });
 
+  it('context limits: badges show the effective value; manual limits save as user-set (§12.7.2)', async () => {
+    const m = fakeMain({
+      detect: () => ({
+        wires: { chat: { wire: 'chat', url: 'https://relay/v1', ok: true, ms: 3 } },
+        byKey: {},
+        models: ['openai/gpt-6-astra', 'acme/new-model'],
+        limits: { 'acme/new-model': { ctx: 262_144, maxOutput: 16_384 } },
+        urls: {},
+      }),
+    });
+    m.state.providers = [
+      kimi({
+        models: [
+          {
+            id: 'openai/gpt-6-astra',
+            enabled: true,
+            metaSource: 'user',
+            effective: {
+              ctx: 1_050_000,
+              maxOutput: 128_000,
+              reasoning: true,
+              source: 'catalog',
+              maxOutputSource: 'catalog',
+            },
+          },
+          {
+            id: 'acme/mystery',
+            enabled: true,
+            effective: {
+              ctx: 128_000,
+              maxOutput: 32_000,
+              source: 'default',
+              maxOutputSource: 'default',
+            },
+          },
+        ],
+      }),
+    ];
+    render(<ModelsPage />);
+    fireEvent.click(await screen.findByTestId('provider-open-kimi'));
+    const dlg = detail();
+    const astra = within(dlg).getByTestId('pd-model-openai/gpt-6-astra');
+    expect(astra.textContent).toContain('1.1M');
+    expect(astra.textContent).toContain('推理');
+    expect(within(dlg).getByTestId('pd-model-acme/mystery').textContent).toContain('参数未知');
+
+    fireEvent.click(within(dlg).getByTestId('pd-advanced-toggle'));
+    const ctx = within(dlg).getByTestId('pd-model-ctx-openai/gpt-6-astra') as HTMLInputElement;
+    // 自动取值显示在占位里，输入框本身是空的
+    expect(ctx.value).toBe('');
+    expect(ctx.placeholder).toContain('内置模型目录');
+    fireEvent.change(within(dlg).getByTestId('pd-model-ctx-acme/mystery'), {
+      target: { value: '400000' },
+    });
+
+    fireEvent.click(within(dlg).getByTestId('pd-models-refresh'));
+    await within(dlg).findByTestId('pd-detect-notice');
+    fireEvent.click(within(dlg).getByTestId('provider-detail-save'));
+    await waitFor(() => expect(upserts(m)).toHaveLength(1));
+    expect(upserts(m)[0]!.models).toEqual([
+      { id: 'openai/gpt-6-astra', enabled: true, metaSource: 'user' },
+      { id: 'acme/mystery', enabled: true, ctx: 400_000, maxOutput: undefined, metaSource: 'user' },
+      // 模型列表接口返回的上限随新模型一起存下
+      {
+        id: 'acme/new-model',
+        enabled: false,
+        ctx: 262_144,
+        maxOutput: 16_384,
+        metaSource: 'listed',
+      },
+    ]);
+  });
+
   it('fallback chain: add from the picker, reorder and remove', async () => {
     const m = fakeMain();
     m.state.providers = [

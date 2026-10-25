@@ -69,7 +69,7 @@ describe('agent launches (§12, §12.7.1)', () => {
     const plain = agentLaunch('claude', base());
     expect(plain.env).toMatchObject({
       CLAUDE_CODE_MAX_CONTEXT_TOKENS: '128000',
-      CLAUDE_CODE_MAX_OUTPUT_TOKENS: '8192',
+      CLAUDE_CODE_MAX_OUTPUT_TOKENS: '32000',
       MAX_THINKING_TOKENS: '0',
     });
   });
@@ -175,6 +175,12 @@ describe('agent launches (§12, §12.7.1)', () => {
     expect(yaml).toContain('zp/glm-5');
     expect(yaml).not.toContain('nomi-gw-x-token');
     expect(l.env).toEqual({ NOMI_DSH_API_KEY: 'nomi-gw-x-token' });
+    // 模型的真实窗口写进 pi-ai 的模型条目；没有元数据时用默认值
+    expect(yaml).toContain('contextWindow: 128000');
+    const real = agentLaunch('dsh', base({ metaOf: (r) => meta[r] }));
+    const realYaml = fs.readFileSync(real.args[1]!, 'utf8');
+    expect(realYaml).toContain('contextWindow: 200000');
+    expect(realYaml).toContain('maxTokens: 131072');
   });
 
   it('Grok: private GROK_HOME with a generated config; shared entries symlinked back; ~/.grok untouched', () => {
@@ -187,8 +193,14 @@ describe('agent launches (§12, §12.7.1)', () => {
     fs.mkdirSync(path.join(shared, 'installed-plugins'));
     const dir = path.join(tmp('grok-agent-'), 'tab-1');
     const l = agentLaunch('grok', base({ home, dir }));
-    expect(l.env).toEqual({ GROK_HOME: dir, NOMI_GROK_API_KEY: 'nomi-gw-x-token' });
+    expect(l.env).toEqual({
+      GROK_HOME: dir,
+      NOMI_GROK_API_KEY: 'nomi-gw-x-token',
+      NOMI_GROK_CONTEXT_WINDOW: '128000',
+    });
     const conf = fs.readFileSync(path.join(dir, 'config.toml'), 'utf8');
+    // 不写 context_window 时 Grok 按 200K 压缩：没有元数据也写默认值
+    expect(conf).toContain('context_window = 128000');
     expect(conf).toContain('model = "zp/glm-5"');
     expect(conf).toContain('base_url = "http://127.0.0.1:18721/v1"');
     expect(conf).toContain('env_key = "NOMI_GROK_API_KEY"');
@@ -213,6 +225,15 @@ describe('agent launches (§12, §12.7.1)', () => {
     const conf = fs.readFileSync(path.join(dir, 'config.toml'), 'utf8');
     expect(conf).toContain('model = "nomi"');
     expect(conf).not.toContain('zp/glm-5');
+    // 占位模型名时换模型不重启：窗口进 env（复用键），窗口不同的模型仍会重启
+    const real = agentLaunch(
+      'grok',
+      base({ home, dir, placeholder: 'nomi', metaOf: (r) => meta[r] }),
+    );
+    expect(real.env.NOMI_GROK_CONTEXT_WINDOW).toBe('200000');
+    expect(fs.readFileSync(path.join(dir, 'config.toml'), 'utf8')).toContain(
+      'context_window = 200000',
+    );
     // 配置里没有真实模型：换模型只改绑定，复用键不带模型
     expect(l.modelInConfig).toBe(false);
     expect(agentLaunch('grok', base({ home, dir })).modelInConfig).toBe(true);
