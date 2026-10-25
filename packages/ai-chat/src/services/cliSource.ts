@@ -190,8 +190,8 @@ export function newTabOptions({ kind, client, gateway, accounts }: NewTabCtx): S
     group: t('ui.providers-schedule.default'),
     label: official ? t('ui.models.this-computer-s-sign-in') : t('ui.models.dsh-built-in-config'),
     description: official
-      ? t('ui.models.dont-use-nomi-config-use-this-computers-login', name)
-      : t('ui.models.dont-use-nomi-config-use-built-in-config', name),
+      ? t('ui.models.cli-own-sign-in-without-nomi', name)
+      : t('ui.models.cli-own-config-without-nomi', name),
   });
 
   if (official) {
