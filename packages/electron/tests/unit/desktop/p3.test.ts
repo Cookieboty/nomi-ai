@@ -2,6 +2,13 @@
 jest.unmock('fs');
 jest.unmock('path');
 jest.unmock('child_process');
+// Python 是否有 OS 沙箱取决于本机（macOS 自带 sandbox-exec，CI 的 Linux 常没有 bwrap）：
+// 默认按「没有」测二次确认，个别用例再切成「有」
+const mockPySandbox = jest.fn(() => ({ available: false, kind: 'fallback' }));
+jest.mock('../../../src/sandbox/platformSandbox', () => ({
+  ...jest.requireActual('../../../src/sandbox/platformSandbox'),
+  pythonPlatformSandboxAvailable: () => mockPySandbox(),
+}));
 
 import * as fs from 'fs';
 import * as os from 'os';
@@ -214,6 +221,16 @@ describe('P3 tools', () => {
     expect(s.ran).toEqual(['print(6*7)']);
   });
 
+  it('python 有 OS 沙箱（sandbox-exec / bwrap）时只需一次确认', async () => {
+    mockPySandbox.mockReturnValueOnce({ available: true, kind: 'sandbox-exec' });
+    const s = setup();
+    const r = await s.call('code_run', { language: 'python', code: 'print(6*7)' });
+    expect(r.ok).toBe(true);
+    expect(s.asks).toHaveLength(1);
+    expect(s.asks[0].summary).not.toContain('没有系统级隔离');
+    expect(s.ran).toEqual(['print(6*7)']);
+  });
+
   it('python 第二次确认被拒绝 → 不运行', async () => {
     const s = setup({ answer: (n) => n === 1 });
     const r = await s.call('code_run', { language: 'python', code: 'print(1)' });
@@ -229,7 +246,9 @@ describe('P3 tools', () => {
     expect(s.asks[0].summary).not.toContain('没有系统级隔离');
     const d = s.tools.find((t) => t.name === 'code_run')!.description;
     expect(d).not.toContain('隔离沙箱');
-    expect(d).toContain('Python 没有系统级隔离');
+    // 如实说明：OS 沙箱不可用时回落为用户权限运行，并要求二次确认
+    expect(d).toContain('不可用时回落为用户权限运行');
+    expect(d).toContain('无 OS 沙箱时 Python 需要二次确认');
   });
 
   it('respects local-only mode with a cloud model', async () => {

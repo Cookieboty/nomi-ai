@@ -257,6 +257,8 @@ describe('设置 →「编程助手」→「委派」', () => {
       expect(ipc.invoke).toHaveBeenCalledWith('ai:delegate:set-settings', {
         enabled: false,
         defaults: { coding: 'codex' },
+        // 委派档位（agent profile）没选过时按 default 保存
+        defaultProfileId: 'default',
       }),
     );
   });

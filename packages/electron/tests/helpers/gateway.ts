@@ -92,6 +92,7 @@ export function testGateway(
     defaults: () => ({
       source: o.source ?? 'official',
       model: o.main === undefined ? 'gw/main' : o.main,
+      accountId: null,
     }),
     launch: (kind, tabId, model, opts) => {
       launches.push([kind, tabId, model]);
