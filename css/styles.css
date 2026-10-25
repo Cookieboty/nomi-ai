@@ -1569,3 +1569,30 @@ a:hover { color: var(--app-accent-strong); }
 .cpop { background: var(--app-surface); border: 1px solid var(--app-border); border-radius: 16px; box-shadow: var(--nomi-shadow-lg); color: var(--app-text); }
 .cpop-close { background: var(--app-surface-sunken); color: var(--app-text); }
 .cpop-grid img { border: 1px solid var(--app-border-subtle); border-radius: 12px; background: var(--app-bg); }
+
+/* Hero is kept exactly as the original design: restore its legacy tokens + button look. */
+.hero {
+  --nomi-orange: #FB9466; --nomi-hover: #F17F4E; --nomi-peach: #F7A67C; --nomi-peach-soft: #FDBA94;
+  --nomi-cream: #FCEFE1; --nomi-cream-deep: #F5E4D0; --nomi-ink: #33291F; --nomi-ink-on-accent: #2a211a;
+  --nomi-warm-gray: #6E5F4E; --nomi-white: #FFFBF7; --nomi-card: #FFF9F3;
+  --nomi-border: rgba(51, 41, 31, 0.09); --nomi-border-strong: rgba(51, 41, 31, 0.14);
+  --nomi-shadow: 0 8px 28px rgba(51, 41, 31, 0.08); --nomi-shadow-lg: 0 20px 56px rgba(51, 41, 31, 0.14);
+  --nomi-glow: 0 0 80px rgba(251, 148, 102, 0.35);
+  color: #33291F;
+}
+.hero .btn { border-radius: 999px; font-weight: 700; min-height: 0; border: 2px solid transparent; }
+.hero .btn-primary { background: #FB9466; color: #2a211a; border-color: transparent; box-shadow: 0 4px 18px rgba(251, 148, 102, 0.4); }
+.hero .btn-primary:hover { background: #F17F4E; color: #2a211a; box-shadow: 0 6px 22px rgba(241, 127, 78, 0.45); }
+.hero .btn-secondary { background: transparent; border-color: #33291F; color: #33291F; }
+.hero .btn-secondary:hover { background: #33291F; color: #FCEFE1; }
+.hero a:not(.btn) { color: #F17F4E; }
+
+.callout::before, .callout::after { display: none !important; }
+
+@media (max-width: 480px) {
+  .pillars .pillar { padding: 14px 10px 16px; }
+  .pillars .icon-star { width: 24px; height: 24px; border-radius: 7px; }
+  .pillars .icon-star svg { width: 12px; height: 12px; }
+  .pillars .pillar h3 { font-size: 13.5px; margin: 8px 0 4px; letter-spacing: -0.01em; }
+  .pillars .pillar p { font-size: 11.5px; line-height: 1.5; }
+}
