@@ -1,0 +1,7 @@
+---
+'@nomi-ai/gateway': patch
+'@nomi-ai/electron': patch
+'@nomi-ai/ai-chat': patch
+---
+
+按上下文长度分档计价的第三方模型（gpt-5.4 起、Gemini Pro、Grok、Qwen、MiniMax 等）默认按标准窗口（超过即加价的门槛，如 272K）注入，避免长对话不知不觉按高价计费；可在输入栏模型菜单里按标签开启长上下文，或在「模型」页按模型设默认；快到标准窗口时上下文环会提议开启，并写清超出部分的单价。

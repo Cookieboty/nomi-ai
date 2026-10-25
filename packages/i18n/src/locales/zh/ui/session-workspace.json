@@ -50,6 +50,7 @@
   "ui.session-workspace.message": "{0} · {1}",
   "ui.session-workspace.model-lacks-vision-pick-another": "当前模型 {0} 不支持图片，请去掉图片，或在模型按钮里换一个能看图的模型。",
   "ui.session-workspace.more-finished": "另有 {0} 个已结束",
+  "ui.session-workspace.near-the-standard-window-cli-will-compact": "快到标准窗口了，助手会自动压缩前文。",
   "ui.session-workspace.need-your-approval": "{0} 等你确认",
   "ui.session-workspace.needs-your-approval": "等你确认",
   "ui.session-workspace.needs-your-decision": "需要你决定的",

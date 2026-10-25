@@ -32,6 +32,8 @@ export interface GatewayModel {
   vision?: boolean;
   toolCalling?: boolean;
   metaSource?: 'user' | 'preset' | 'listed' | 'catalog' | 'default';
+  /** 这个模型默认开启长上下文（§12.7.2；只对有标准窗口的模型有意义，标签可单独切换） */
+  longContext?: boolean;
 }
 
 export interface StoredProbe {

@@ -32,9 +32,7 @@ describe('resolveModelMeta (§12.7.2)', () => {
   });
 
   it('falls back to the built-in catalog by bare id, ignoring relay tags', () => {
-    // 目录写了最大输入时按它（总窗口 1.05M、为输出预留后最多输入 922K）
     expect(resolveModelMeta(undefined, 'openai/gpt-6-astra')).toMatchObject({
-      ctx: 922_000,
       maxOutput: 128_000,
       vision: true,
       source: 'catalog',
@@ -47,6 +45,39 @@ describe('resolveModelMeta (§12.7.2)', () => {
 
   it('400K-class GPT models inject the 272K input limit Codex itself uses, not the 400K total', () => {
     expect(resolveModelMeta(undefined, 'relay/gpt-5.2')).toMatchObject({ ctx: 272_000 });
+  });
+
+  it('tiered-price models default to the standard window; long context opens the full input', () => {
+    // gpt-6-astra：超过 272K 加价，最大输入 922K（总窗口 1.05M 减去输出预留）
+    const std = resolveModelMeta(undefined, 'openai/gpt-6-astra');
+    expect(std).toMatchObject({
+      ctx: 272_000,
+      longContext: { standard: 272_000, full: 922_000, on: false },
+    });
+    // 标签开启
+    expect(
+      resolveModelMeta(undefined, 'openai/gpt-6-astra', undefined, { longContext: true }),
+    ).toMatchObject({
+      ctx: 922_000,
+      longContext: { on: true },
+    });
+    // 模型默认开启；标签可以单独关掉
+    const byDefault = { id: 'openai/gpt-6-astra', enabled: true, longContext: true };
+    expect(resolveModelMeta(byDefault, byDefault.id)).toMatchObject({ ctx: 922_000 });
+    expect(
+      resolveModelMeta(byDefault, byDefault.id, undefined, { longContext: false }),
+    ).toMatchObject({
+      ctx: 272_000,
+    });
+    // 用户手填了上下文：按手填的，没有标准 / 长之分
+    const manual = resolveModelMeta(
+      { id: 'gpt-6-astra', enabled: true, ctx: 500_000, metaSource: 'user' },
+      'gpt-6-astra',
+    );
+    expect(manual).toMatchObject({ ctx: 500_000, source: 'user' });
+    expect(manual.longContext).toBeUndefined();
+    // 没有加价档的模型没有长上下文
+    expect(resolveModelMeta(undefined, 'relay/gpt-5.2').longContext).toBeUndefined();
   });
 
   it('models the vendor entry lags on are filled from OpenRouter (deepseek-v4.1-flash)', () => {

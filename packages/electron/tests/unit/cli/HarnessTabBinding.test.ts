@@ -172,6 +172,39 @@ describe('第三方标签的标签令牌与绑定（§6.7）', () => {
     expect(h.listTabs().tabs.find((x) => x.id === tab.id)?.cliSessionId).toBe(sid);
   }, 15_000);
 
+  it('长上下文（§12.7.2）：开启后下一条消息按新窗口重启并续接；只对当时的模型生效', async () => {
+    const gw = testGateway({
+      source: 'thirdParty',
+      tabTokens: true,
+      models: ['gw/main', 'gw/other'],
+    });
+    const h = mk(gw);
+    const tab = h.createTab({ backend: 'claude', source: 'thirdParty' });
+    await h.sendTab(tab.id, 'hi');
+    const sid = h.listTabs().tabs.find((x) => x.id === tab.id)?.cliSessionId;
+    expect(gw.longContexts.every((v) => v === undefined)).toBe(true);
+    // 与当前一致的选择不算变化；开启后记在当前模型上
+    expect(h.setTabLongContext(tab.id, true).longContext).toEqual({ model: 'gw/main', on: true });
+    await h.sendTab(tab.id, 'again');
+    expect(registers(gw)).toEqual([
+      `register claude ${tab.id} gw/main g1`,
+      `register claude ${tab.id} gw/main g2`,
+    ]);
+    expect(gw.longContexts.at(-1)).toBe(true);
+    expect(h.listTabs().tabs.find((x) => x.id === tab.id)?.cliSessionId).toBe(sid);
+    // 换了模型：选择不再匹配，回到新模型的默认
+    h.setTabModel(tab.id, 'gw/other');
+    await h.sendTab(tab.id, 'third');
+    expect(gw.longContexts.at(-1)).toBeUndefined();
+  }, 15_000);
+
+  it('长上下文只对第三方标签', () => {
+    const gw = testGateway({ source: 'official', tabTokens: true });
+    const h = mk(gw);
+    const tab = h.createTab({ backend: 'claude' });
+    expect(() => h.setTabLongContext(tab.id, true)).toThrow();
+  });
+
   it('Codex app-server 按轮下发模型（inplace 方式）：同一个进程，只更新绑定', async () => {
     process.env.NOMI_CODEX_BIN = path.join(mockDir, 'mock-codex.mjs');
     const gw = testGateway({

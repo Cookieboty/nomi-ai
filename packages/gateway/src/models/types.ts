@@ -29,8 +29,11 @@ export interface ModelReasoning {
 /** 模型规格的数据部分（每一级都只写自己知道的字段） */
 export interface ModelSpecData {
   family?: string;
-  /** context：总窗口；input：最大输入（有的厂商为输出预留一部分，input < context）；maxOutput：输出上限 */
-  limits?: { context?: number; input?: number; maxOutput?: number };
+  /**
+   * context：总窗口；input：最大输入（有的厂商为输出预留一部分，input < context）；maxOutput：输出上限；
+   * standard：标准窗口（超过它按长上下文加价，编程助手默认按它压缩，可按模型开启长上下文）
+   */
+  limits?: { context?: number; input?: number; standard?: number; maxOutput?: number };
   /** 模型的原生协议与理由（§6.9.4 排序规则 1） */
   wires?: { prefer: Wire[]; reason?: string };
   input?: { images?: boolean; pdf?: boolean };

@@ -85,14 +85,36 @@ function reasoningOf(m) {
   return r;
 }
 
+/**
+ * 标准窗口：按上下文长度分档计价的模型，最高一档的门槛（gpt-5.4+ 272K、Gemini / Grok 200K、
+ * Qwen 256K）。只在它小于最大输入时有意义——编程助手默认按它压缩，用户可按模型开启长上下文。
+ * 低于 128K 的档（智谱按 32K 输入分档、Haiku 5.5 的 100K 档）只是计价阶梯，不当窗口：
+ * 编程助手的系统提示与工具定义就要一二十 K，按它压缩会几乎每轮都压。
+ */
+const MIN_STANDARD = 128_000;
+
+function standardOf(m) {
+  const tiers = Array.isArray(m.cost?.tiers) ? m.cost.tiers : [];
+  const sizes = tiers
+    .filter((t) => !t.tier?.type || t.tier.type === 'context')
+    .map((t) => Number(t.tier?.size))
+    .filter((n) => Number.isInteger(n) && n >= MIN_STANDARD);
+  if (!sizes.length) return undefined;
+  const size = Math.max(...sizes);
+  const max = m.limit?.input ?? m.limit?.context;
+  return max && size < max ? size : undefined;
+}
+
 function entryOf(m) {
   const input = Array.isArray(m.modalities?.input) ? m.modalities.input : [];
+  const standard = standardOf(m);
   const e = {
     ...(m.family ? { family: m.family } : {}),
     limits: {
       ...(m.limit?.context ? { context: m.limit.context } : {}),
       // 最大输入（总窗口减去为输出预留的部分）：编程助手按它压缩，比总窗口更准
       ...(m.limit?.input ? { input: m.limit.input } : {}),
+      ...(standard ? { standard } : {}),
       ...(m.limit?.output ? { maxOutput: m.limit.output } : {}),
     },
     input: { images: input.includes('image'), pdf: input.includes('pdf') },

@@ -69,6 +69,8 @@ export interface HarnessTabMeta {
   modelOverride?: string | null;
   /** 标签级思考深度覆盖（仅推理模型）；null = 沿用 CLI 默认档位 */
   reasoningEffort?: string | null;
+  /** 第三方模型的长上下文选择：只对记下的模型生效；null / 缺省 = 跟随模型默认 */
+  longContext?: { model: string; on: boolean } | null;
   /** 仍在运行的后台子代理 / 后台任务数 */
   background?: number;
   /** 仍在运行的后台子代理；stoppable = 可以单独停止（Claude） */
@@ -438,6 +440,9 @@ export const harnessClient = {
   /** 设置标签思考深度；传 null 清除（沿用 CLI 默认档位） */
   setTabEffort: (id: string, effort: ReasoningEffort | null) =>
     call<HarnessTabMeta>('tab-effort', id, effort),
+  /** 第三方标签开 / 关长上下文（null = 跟随模型默认）：下一条消息起按新窗口重启进程，对话保留 */
+  setTabLongContext: (id: string, on: boolean | null) =>
+    call<HarnessTabMeta>('tab-long-context', id, on),
   /** 官方标签换账号（null = 跟随默认账号）：只重启这个标签，下一条消息起生效 */
   setTabAccount: (id: string, accountId: string | null) =>
     call<HarnessTabMeta>('tab-account', id, accountId),

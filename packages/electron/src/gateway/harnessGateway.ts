@@ -14,8 +14,8 @@ export function harnessGateway(gateway: GatewayService): HarnessGateway {
     models: () => gateway.cliModels(),
     releaseAgent: (kind, tabId) => gateway.releaseAgent(kind, tabId),
     // 第三方进程按标签令牌启动：先在网关登记绑定、等确认，再拉起（§6.7）
-    launchForTab: async (kind, tabId, model, effort) => {
-      const l = await gateway.cliLaunchForTab(kind, tabId, model, effort);
+    launchForTab: async (kind, tabId, model, effort, longContext) => {
+      const l = await gateway.cliLaunchForTab(kind, tabId, model, effort, longContext);
       return l
         ? { env: l.env, generation: l.generation, modelInConfig: Boolean(l.modelInConfig) }
         : null;

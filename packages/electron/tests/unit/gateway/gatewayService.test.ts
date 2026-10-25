@@ -573,7 +573,8 @@ describe('GatewayService', () => {
       models: [{ id: 'z-ai/glm-5.3', enabled: true }],
     });
     const ref = (m: string) => svc.modelMetaOf(m)!;
-    expect(ref('relay/openai/gpt-6-astra')).toMatchObject({ ctx: 922_000, source: 'catalog' });
+    // 按长度分档计价的模型默认按标准窗口
+    expect(ref('relay/openai/gpt-6-astra')).toMatchObject({ ctx: 272_000, source: 'catalog' });
     expect(ref('relay/acme/unknown-model')).toMatchObject({
       ctx: 128_000,
       maxOutput: 32_000,
@@ -588,11 +589,13 @@ describe('GatewayService', () => {
     });
     // 编程助手启动注入用同一份结果
     expect(svc.agentMeta('relay/openai/gpt-6-astra')).toMatchObject({
-      ctx: 922_000,
+      ctx: 272_000,
       maxOutput: 128_000,
       reasoning: true,
       provider: 'Relay',
     });
+    // 标签开启长上下文：注入最大输入
+    expect(svc.agentMeta('relay/openai/gpt-6-astra', { longContext: true })!.ctx).toBe(922_000);
 
     // 网关快照：用户 / 预设 / 模型列表的值写进去，只来自目录的不写（网关自己读目录）
     const cfg = svc.runtimeConfig();
@@ -605,11 +608,25 @@ describe('GatewayService', () => {
     // 「模型」页拿到生效值；回传保存时生效值不落盘
     const view = svc.state().providers.find((p) => p.id === 'relay')!;
     const astra = view.models.find((m) => m.id === 'openai/gpt-6-astra')!;
-    expect(astra.effective).toMatchObject({ ctx: 922_000, source: 'catalog' });
+    expect(astra.effective).toMatchObject({
+      ctx: 272_000,
+      source: 'catalog',
+      longContext: { standard: 272_000, full: 922_000, on: false },
+    });
     svc.upsertProvider({ id: 'relay', name: 'Relay', urls: {}, models: view.models });
     const saved = svc.store.providers().find((p) => p.id === 'relay')!;
     expect(saved.models.some((m) => 'effective' in m)).toBe(false);
-    expect(svc.cliModels().find((m) => m.ref === 'relay/openai/gpt-6-astra')!.ctx).toBe(922_000);
+    expect(svc.cliModels().find((m) => m.ref === 'relay/openai/gpt-6-astra')!.ctx).toBe(272_000);
+    // 模型默认开启长上下文（「模型」页的开关）会保存下来
+    svc.upsertProvider({
+      id: 'relay',
+      name: 'Relay',
+      urls: {},
+      models: view.models.map((m) =>
+        m.id === 'openai/gpt-6-astra' ? { ...m, longContext: true } : m,
+      ),
+    });
+    expect(svc.modelMetaOf('relay/openai/gpt-6-astra')!.ctx).toBe(922_000);
   });
 
   it('releaseAgent: removes the tab dir but does not follow symlinks into the user CLI home', () => {

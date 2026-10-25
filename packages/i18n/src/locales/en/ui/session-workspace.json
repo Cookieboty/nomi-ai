@@ -50,6 +50,7 @@
   "ui.session-workspace.message": "{0} · {1}",
   "ui.session-workspace.model-lacks-vision-pick-another": "The current model {0} doesn’t support images; remove the images, or pick a vision-capable model from the model button.",
   "ui.session-workspace.more-finished": "{0} more finished",
+  "ui.session-workspace.near-the-standard-window-cli-will-compact": "Nearing the standard window; the assistant will compact earlier messages.",
   "ui.session-workspace.need-your-approval": "{0} need your approval",
   "ui.session-workspace.needs-your-approval": "Needs your approval",
   "ui.session-workspace.needs-your-decision": "Needs your decision",

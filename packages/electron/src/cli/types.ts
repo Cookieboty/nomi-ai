@@ -141,6 +141,11 @@ export interface HarnessTabMeta {
   modelScope?: string | null;
   /** 其它模型来源下这个标签上次的选择（key：供应商 id，官方账号为 "official"） */
   modelByScope?: Record<string, { model: string | null; effort: string | null }>;
+  /**
+   * 第三方模型的长上下文选择（docs/design/unified-gateway.md §12.7.2）：只对记下的那个模型生效，
+   * 换了模型就不匹配、回到新模型的默认（「模型」页按模型设的）；null / 缺省 = 跟随模型默认。
+   */
+  longContext?: { model: string; on: boolean } | null;
   /** 来源；缺省 = 官方。第三方时 modelOverride 是 `供应商/模型`（null = 「模型」页给这个编程助手分配的） */
   source?: HarnessTabSource;
   /**

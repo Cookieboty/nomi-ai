@@ -403,3 +403,36 @@
     transition: none;
   }
 }
+
+/* 第三方模型的「上下文」一组：标准窗口 / 长上下文（§12.7.2） */
+.contextGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding-bottom: var(--cd-space-1-5);
+  margin-bottom: var(--cd-space-1-5);
+  border-bottom: 1px solid var(--cd-color-border);
+}
+.contextGroupLabel {
+  padding: var(--cd-space-1) var(--cd-space-2);
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+}
+.contextGroupNote {
+  padding: var(--cd-space-1) var(--cd-space-2) 0;
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+}
+.item[aria-checked='true'] {
+  background: var(--cd-color-selected-bg);
+  color: var(--cd-color-selected-text);
+}
+.longBadge {
+  flex: none;
+  padding: 0 var(--cd-space-1);
+  border-radius: var(--cd-radius-sm);
+  background: var(--cd-color-selected-bg);
+  color: var(--cd-color-selected-text);
+  font-size: var(--cd-font-size-xs);
+  line-height: 1.5;
+}

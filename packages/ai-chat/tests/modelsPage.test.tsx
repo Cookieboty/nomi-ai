@@ -604,6 +604,52 @@ describe('ModelsPage', () => {
     ]);
   });
 
+  it('long context default per model (§12.7.2): only models with a standard window get the switch', async () => {
+    const m = fakeMain();
+    m.state.providers = [
+      kimi({
+        models: [
+          {
+            id: 'openai/gpt-6.1-sol',
+            enabled: true,
+            effective: {
+              ctx: 272_000,
+              maxOutput: 128_000,
+              source: 'catalog',
+              maxOutputSource: 'catalog',
+              longContext: { standard: 272_000, full: 922_000, on: false },
+            },
+          },
+          {
+            id: 'openai/gpt-5.2',
+            enabled: true,
+            effective: {
+              ctx: 272_000,
+              maxOutput: 128_000,
+              source: 'catalog',
+              maxOutputSource: 'catalog',
+            },
+          },
+        ],
+      }),
+    ];
+    render(<ModelsPage />);
+    fireEvent.click(await screen.findByTestId('provider-open-kimi'));
+    const dlg = detail();
+    fireEvent.click(within(dlg).getByTestId('pd-advanced-toggle'));
+    expect(within(dlg).queryByTestId('pd-model-long-openai/gpt-5.2')).toBeNull();
+    const sw = within(dlg).getByTestId('pd-model-long-openai/gpt-6.1-sol');
+    expect(sw.closest('div')?.textContent).toContain('标准 272K · 长上下文 922K');
+    fireEvent.click(sw);
+    fireEvent.click(within(dlg).getByTestId('provider-detail-save'));
+    await waitFor(() => expect(upserts(m)).toHaveLength(1));
+    expect(upserts(m)[0]!.models![0]).toEqual({
+      id: 'openai/gpt-6.1-sol',
+      enabled: true,
+      longContext: true,
+    });
+  });
+
   it('fallback chain: add from the picker, reorder and remove', async () => {
     const m = fakeMain();
     m.state.providers = [

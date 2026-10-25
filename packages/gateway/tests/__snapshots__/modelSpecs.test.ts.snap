@@ -62,6 +62,7 @@ exports[`built-in catalog (models.dev) > is versioned and covers the main model 
     "limits": {
       "context": 1048576,
       "maxOutput": 65536,
+      "standard": 200000,
     },
     "reasoning": {
       "budget": {

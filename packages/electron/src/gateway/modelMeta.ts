@@ -30,6 +30,11 @@ export interface ResolvedModelMeta {
   source: MetaSource;
   /** 输出上限取自哪一级 */
   maxOutputSource: MetaSource;
+  /**
+   * 有长上下文可开时（按长度分档计价、标准窗口小于最大输入，且用户没手填上下文）：
+   * standard = 标准窗口（默认注入它），full = 最大输入（开启长上下文后注入它）
+   */
+  longContext?: { standard: number; full: number; fullSource: MetaSource; on: boolean };
 }
 
 /** 元数据缺失时的保守默认值（§12.7.1） */
@@ -72,11 +77,13 @@ function catalogLayer(id: string): Layer | undefined {
 /**
  * 一个模型的生效元数据。stored：已保存的模型条目（没有时只看预设与目录）；id：供应商模型列表里的 id。
  * 旧版本迁移来的条目可能标了 metaSource: 'user' 却没有任何值：按字段取值，空字段自然往下一级找。
+ * longContext：这个标签对长上下文的选择；不给时按模型的默认（stored.longContext，缺省关）。
  */
 export function resolveModelMeta(
   stored: GatewayModel | undefined,
   id: string,
   preset?: PresetModelMeta,
+  opts: { longContext?: boolean } = {},
 ): ResolvedModelMeta {
   const userSet = !stored?.metaSource || stored.metaSource === 'user';
   const layers: Array<[MetaSource, Layer | undefined]> = [
@@ -97,6 +104,40 @@ export function resolveModelMeta(
   const reasoning = pick('reasoning');
   const vision = pick('vision');
   const toolCalling = pick('toolCalling');
+  // 标准窗口只来自内置目录（长上下文的计价门槛）；用户手填了上下文就按手填的，不再分标准 / 长
+  const standard = catalogEntry(id)?.limits?.standard;
+  const long =
+    ctx && ctx[1] !== 'user' && standard && standard < ctx[0]!
+      ? {
+          standard,
+          full: ctx[0]!,
+          fullSource: ctx[1],
+          on: opts.longContext ?? stored?.longContext ?? false,
+        }
+      : undefined;
+  if (long && !long.on) {
+    return {
+      ...resolved(ctx, maxOutput, reasoning, vision, toolCalling),
+      ctx: long.standard,
+      source: 'catalog',
+      longContext: long,
+    };
+  }
+  return {
+    ...resolved(ctx, maxOutput, reasoning, vision, toolCalling),
+    ...(long ? { longContext: long } : {}),
+  };
+}
+
+type Picked<T> = [T | undefined, MetaSource] | undefined;
+
+function resolved(
+  ctx: Picked<number>,
+  maxOutput: Picked<number>,
+  reasoning: Picked<boolean>,
+  vision: Picked<boolean>,
+  toolCalling: Picked<boolean>,
+): ResolvedModelMeta {
   return {
     ctx: ctx?.[0] ?? DEFAULT_CTX,
     maxOutput: maxOutput?.[0] ?? DEFAULT_MAX_OUTPUT,

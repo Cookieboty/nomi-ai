@@ -260,11 +260,16 @@ export class GatewayStore {
   }
 
   /** 供应商里一个模型的生效元数据（§12.7.2）；presetId 给环境变量供应商用（它们不在 store 里） */
-  modelMeta(p: Pick<GatewayProvider, 'presetId' | 'models'>, modelId: string): ResolvedModelMeta {
+  modelMeta(
+    p: Pick<GatewayProvider, 'presetId' | 'models'>,
+    modelId: string,
+    opts: { longContext?: boolean } = {},
+  ): ResolvedModelMeta {
     return resolveModelMeta(
       p.models.find((m) => m.id === modelId),
       modelId,
       presetEntry(this.d.presetModels?.(p.presetId), modelId),
+      opts,
     );
   }
 
@@ -276,9 +281,13 @@ export class GatewayStore {
     const fromConfig = (src: MetaSource) => src !== 'catalog' && src !== 'default';
     return p.models.map((m) => {
       const r = this.modelMeta(p, m.id);
+      // 网关不按窗口拦请求：写模型的完整窗口，不受标准窗口 / 标签长上下文选择影响
+      const ctx = r.longContext
+        ? { v: r.longContext.full, src: r.longContext.fullSource }
+        : { v: r.ctx, src: r.source };
       return {
         ...m,
-        ...(fromConfig(r.source) ? { ctx: r.ctx } : {}),
+        ...(fromConfig(ctx.src) ? { ctx: ctx.v } : {}),
         ...(fromConfig(r.maxOutputSource) ? { maxOutput: r.maxOutput } : {}),
       };
     });

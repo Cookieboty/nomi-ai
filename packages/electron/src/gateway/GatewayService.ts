@@ -148,6 +148,13 @@ export interface ModelView extends GatewayModel {
     vision?: boolean;
     source: MetaSource;
     maxOutputSource: MetaSource;
+    /** 可开长上下文：标准窗口 / 最大输入 / 模型默认是否开启 / 超过标准窗口后的单价（USD 每百万 token） */
+    longContext?: {
+      standard: number;
+      full: number;
+      on: boolean;
+      price?: LongContextPrice;
+    };
   };
 }
 
@@ -184,6 +191,15 @@ export interface GatewayStateView {
   legacyRevoke?: { revoked: string[]; failed: Array<{ kind: string; error: string }> };
 }
 
+/** 长上下文计价：超过 size 个提示词 token 的请求按 tier 单价（USD / 百万 token） */
+export interface LongContextPrice {
+  size: number;
+  input: number;
+  output: number;
+  tierInput: number;
+  tierOutput: number;
+}
+
 export interface EnvProviderEntry {
   id: string;
   name: string;
@@ -217,6 +233,8 @@ export interface GatewayServiceDeps {
   envProviders?: () => EnvProviderEntry[];
   /** 按预设 id 取厂商差异（ai-runtime presets） */
   presetQuirks?: (presetId: string | undefined) => ProviderQuirks | undefined;
+  /** 长上下文的计价（用量服务的价格表：内置 + 同步 + 自定义），界面提示「超过标准窗口按多少计费」 */
+  longContextPrice?: (model: string) => LongContextPrice | undefined;
   /** 按预设 id 取预设整理的模型元数据（ai-runtime presets 的 modelMeta，§12.7.2） */
   presetModels?: (presetId: string | undefined) => readonly PresetModelMeta[] | undefined;
   /** 测试注入：疑似不可用的协议用它确认 */
@@ -507,23 +525,26 @@ export class GatewayService {
    * 按 `供应商/模型` 取生效元数据（§12.7.2：用户 > 预设 > 模型列表 > 内置目录 > 默认值）。
    * 编程助手启动注入、终端命令、模型选择器共用；供应商不存在时返回 undefined。
    */
-  modelMetaOf(ref: string): ResolvedModelMeta | undefined {
+  modelMetaOf(ref: string, opts: { longContext?: boolean } = {}): ResolvedModelMeta | undefined {
     const i = ref.indexOf('/');
     if (i <= 0) return undefined;
     const pid = ref.slice(0, i);
     const mid = ref.slice(i + 1);
     const p = this.store.providers().find((x) => x.id === pid);
-    if (p) return this.store.modelMeta(p, mid);
+    if (p) return this.store.modelMeta(p, mid, opts);
     // 环境变量供应商的 id 是 env-<预设 id>
     const env = this.envViews().find((x) => x.id === pid);
     return env
-      ? this.store.modelMeta({ presetId: pid.slice(4), models: env.models }, mid)
+      ? this.store.modelMeta({ presetId: pid.slice(4), models: env.models }, mid, opts)
       : undefined;
   }
 
-  /** 编程助手启动注入用的元数据：生效值加上显示名 */
-  agentMeta(ref: string): ModelMeta | undefined {
-    const meta = this.modelMetaOf(ref);
+  /**
+   * 编程助手启动注入用的元数据：生效值加上显示名。
+   * longContext：这个标签对长上下文的选择（只对标签的主模型给；不给 = 按模型默认）
+   */
+  agentMeta(ref: string, opts: { longContext?: boolean } = {}): ModelMeta | undefined {
+    const meta = this.modelMetaOf(ref, opts);
     if (!meta) return undefined;
     const i = ref.indexOf('/');
     const pid = ref.slice(0, i);
@@ -552,7 +573,8 @@ export class GatewayService {
     kind: AgentKind,
     tabId: string,
     model: string,
-    opts: { tabBound?: boolean } = {},
+    /** longContext：标签对长上下文的选择；不给 = 按模型默认（窗口进注入参数，变了会重启进程） */
+    opts: { tabBound?: boolean; longContext?: boolean } = {},
   ): AgentLaunch | null {
     // 按标签令牌启动（tabBound）且插件支持 gateway 方式换模型（清单 clientSpec.placeholderModel，
     // 如 Grok 的 nomi）：配置里写占位名，真实模型只在绑定里，换模型不用重启（§6.7）。
@@ -564,7 +586,12 @@ export class GatewayService {
       url: ep.url,
       token: ep.token,
       model,
-      metaOf: (ref) => this.agentMeta(ref),
+      // 标签的长上下文选择只作用于它的主模型；档位 / 子代理等其它模型按各自默认
+      metaOf: (ref) =>
+        this.agentMeta(
+          ref,
+          ref === model && opts.longContext !== undefined ? { longContext: opts.longContext } : {},
+        ),
       catalog: this.cliModels().map((m) => m.ref),
       models: this.store.snapshot().clients[kind]?.models ?? {},
       dir: this.agentDir(kind, tabId),
@@ -583,9 +610,13 @@ export class GatewayService {
     tabId: string,
     model: string,
     effort?: string,
+    longContext?: boolean,
   ): Promise<(AgentLaunch & { generation: number }) | null> {
     const ep = this.endpoint(kind);
-    const launch = this.cliLaunch(kind, tabId, model, { tabBound: true });
+    const launch = this.cliLaunch(kind, tabId, model, {
+      tabBound: true,
+      ...(longContext !== undefined ? { longContext } : {}),
+    });
     if (!ep || !launch) return null;
     const reg = await this.tabs.register({
       client: kind,
@@ -718,7 +749,9 @@ export class GatewayService {
       providers: [
         ...data.providers.map((p) => ({
           ...p,
-          models: p.models.map((m) => withEffective(m, this.store.modelMeta(p, m.id))),
+          models: p.models.map((m) =>
+            withEffective(m, this.store.modelMeta(p, m.id), this.d.longContextPrice),
+          ),
           keys: p.keys.map(({ enc, encryption, ...k }) => ({
             ...k,
             decryptable: this.store.decrypt(enc, encryption) !== null,
@@ -728,7 +761,11 @@ export class GatewayService {
         ...this.envViews().map((p) => ({
           ...p,
           models: p.models.map((m) =>
-            withEffective(m, this.store.modelMeta({ presetId: p.id.slice(4), models: [m] }, m.id)),
+            withEffective(
+              m,
+              this.store.modelMeta({ presetId: p.id.slice(4), models: [m] }, m.id),
+              this.d.longContextPrice,
+            ),
           ),
         })),
       ],
@@ -1166,7 +1203,12 @@ function placeholderModelOf(kind: string): string | undefined {
   return typeof v === 'string' && v ? v : undefined;
 }
 
-function withEffective(m: GatewayModel, r: ResolvedModelMeta): ModelView {
+function withEffective(
+  m: GatewayModel,
+  r: ResolvedModelMeta,
+  priceOf?: (model: string) => LongContextPrice | undefined,
+): ModelView {
+  const price = r.longContext ? priceOf?.(m.id) : undefined;
   return {
     ...m,
     effective: {
@@ -1176,6 +1218,16 @@ function withEffective(m: GatewayModel, r: ResolvedModelMeta): ModelView {
       ...(r.vision !== undefined ? { vision: r.vision } : {}),
       source: r.source,
       maxOutputSource: r.maxOutputSource,
+      ...(r.longContext
+        ? {
+            longContext: {
+              standard: r.longContext.standard,
+              full: r.longContext.full,
+              on: r.longContext.on,
+              ...(price ? { price } : {}),
+            },
+          }
+        : {}),
     },
   };
 }

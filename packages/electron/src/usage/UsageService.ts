@@ -1451,6 +1451,28 @@ export class UsageService {
   }
 
   /**
+   * 长上下文的计价（「模型」页与输入栏提示「超过标准窗口按多少计费」）：
+   * 有按长度分档的价格时返回最高一档的门槛与单价，否则 undefined。
+   */
+  longContextPrice(
+    model: string,
+  ):
+    | { size: number; input: number; output: number; tierInput: number; tierOutput: number }
+    | undefined {
+    const m = this.priceOf()(model);
+    const tiers = m?.price.tiers;
+    if (!m || !tiers?.length) return undefined;
+    const top = tiers.reduce((a, b) => (b.size > a.size ? b : a));
+    return {
+      size: top.size,
+      input: m.price.input,
+      output: m.price.output,
+      tierInput: top.input ?? m.price.input,
+      tierOutput: top.output ?? m.price.output,
+    };
+  }
+
+  /**
    * 按当前价格表（内置 + 同步 + 自定义）估算一次调用的费用（USD），未定价返回 undefined。
    * 模型质量记录用；input 为未命中缓存的输入。
    */

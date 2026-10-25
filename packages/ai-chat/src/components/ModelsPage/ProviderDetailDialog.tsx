@@ -44,7 +44,6 @@ import {
   WIRES,
   type GatewayModel,
   type LearnedState,
-  type MetaSource,
   type ProviderInput,
   type ProviderView,
   type StoredProbe,
@@ -55,6 +54,7 @@ import { providerDisplayName } from '../../services/providerClient';
 
 import { NON_CHAT, storedProbes } from './AddProviderDialog';
 import styles from './index.module.css';
+import { metaSourceLabel, ModelLimitsGroups, userLimit } from './ModelLimitsGroups';
 
 /** Key 的显示名：用户起的名字原样显示，否则按顺序「主 Key / 备用 Key N」 */
 export const keyName = (k: { name?: string }, i: number): string =>
@@ -191,25 +191,6 @@ const splitKeys = (text: string): string[] => [
       .filter(Boolean),
   ),
 ];
-
-const metaSourceLabel = (s: MetaSource): string =>
-  ({
-    user: t('ui.models.meta-source-user'),
-    preset: t('ui.models.meta-source-preset'),
-    listed: t('ui.models.meta-source-listed'),
-    catalog: t('ui.models.meta-source-catalog'),
-    default: t('ui.models.meta-source-default'),
-  })[s];
-
-/** 用户在「高级」里手填的值（旧数据没有来源但有值的也算）；预设 / 模型列表存下的不算 */
-const userLimit = (m: GatewayModel, k: 'ctx' | 'maxOutput'): number | undefined =>
-  !m.metaSource || m.metaSource === 'user' ? m[k] : undefined;
-
-/** 上下文 / 输出上限输入框 → 正整数；留空 / 非法 = undefined（自动） */
-const tokenLimitOf = (s: string): number | undefined => {
-  const n = Number(s.trim());
-  return s.trim() && Number.isInteger(n) && n > 0 && n <= 100_000_000 ? n : undefined;
-};
 
 /** 模型的能力标签：上下文按主进程算出的生效值显示，悬停看来源 */
 const ModelBadges: React.FC<{ m: GatewayModel }> = ({ m }) => {
@@ -356,15 +337,6 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
     if (!id) return;
     if (!d.models.some((m) => m.id === id)) patch({ models: [...d.models, { id, enabled: true }] });
     setModelText('');
-  };
-  /** 手填上下文 / 输出上限：填了就标为用户设置；两项都清空则回到自动（预设 / 模型列表 / 内置目录） */
-  const setModelLimit = (m: GatewayModel, k: 'ctx' | 'maxOutput', text: string) => {
-    const next = { ctx: userLimit(m, 'ctx'), maxOutput: userLimit(m, 'maxOutput') };
-    next[k] = tokenLimitOf(text);
-    setModel(m.id, {
-      ...next,
-      metaSource: next.ctx || next.maxOutput ? 'user' : undefined,
-    });
   };
   const toggleModelWire = (m: GatewayModel, w: Wire, on: boolean) => {
     const cur = m.wires ?? [];
@@ -905,56 +877,7 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                         ))}
                     </div>
 
-                    <div className={styles.advGroup}>
-                      <div className={styles.groupTitle}>{t('ui.models.model-limits-title')}</div>
-                      {d.models
-                        .filter((m) => m.enabled)
-                        .map((m) => {
-                          const eff = m.effective;
-                          const auto = (v: number | undefined, src: MetaSource | undefined) =>
-                            v && src && src !== 'user'
-                              ? `${t('ui.models.auto-value', formatContext(v))} · ${metaSourceLabel(src)}`
-                              : undefined;
-                          return (
-                            <div key={m.id} className={styles.wireRow}>
-                              <span className={styles.keyName}>{m.label ?? m.id}</span>
-                              <Input
-                                size="sm"
-                                type="number"
-                                min={1}
-                                step={1}
-                                inputMode="numeric"
-                                className={styles.tokenInput}
-                                value={userLimit(m, 'ctx') ?? ''}
-                                onChange={(e) => setModelLimit(m, 'ctx', e.target.value)}
-                                placeholder={
-                                  auto(eff?.ctx, eff?.source) ?? t('ui.models.context-window')
-                                }
-                                title={t('ui.models.context-window')}
-                                aria-label={t('ui.models.context-window-for', m.id)}
-                                data-testid={`pd-model-ctx-${m.id}`}
-                              />
-                              <Input
-                                size="sm"
-                                type="number"
-                                min={1}
-                                step={1}
-                                inputMode="numeric"
-                                className={styles.tokenInput}
-                                value={userLimit(m, 'maxOutput') ?? ''}
-                                onChange={(e) => setModelLimit(m, 'maxOutput', e.target.value)}
-                                placeholder={
-                                  auto(eff?.maxOutput, eff?.maxOutputSource) ??
-                                  t('ui.models.max-output')
-                                }
-                                title={t('ui.models.max-output')}
-                                aria-label={t('ui.models.max-output-for', m.id)}
-                                data-testid={`pd-model-max-output-${m.id}`}
-                              />
-                            </div>
-                          );
-                        })}
-                    </div>
+                    <ModelLimitsGroups models={d.models} setModel={setModel} />
 
                     {d.keys.length > 0 && (
                       <div className={styles.advGroup}>

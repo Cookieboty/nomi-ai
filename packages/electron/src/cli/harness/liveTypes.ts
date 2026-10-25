@@ -23,8 +23,11 @@ export interface HarnessGateway {
     kind: BuiltinBackend,
     tabId: string,
     model: string,
-    /** tabBound：这个进程按标签令牌启动（与 launchForTab 写出同一份配置，含占位模型名） */
-    opts?: { tabBound?: boolean },
+    /**
+     * tabBound：这个进程按标签令牌启动（与 launchForTab 写出同一份配置，含占位模型名）；
+     * longContext：标签对长上下文的选择，不给 = 按模型默认
+     */
+    opts?: { tabBound?: boolean; longContext?: boolean },
   ): {
     env: Record<string, string>;
     args: string[];
@@ -47,6 +50,7 @@ export interface HarnessGateway {
     tabId: string,
     model: string,
     effort?: string,
+    longContext?: boolean,
   ): Promise<{
     env: Record<string, string>;
     generation: number;

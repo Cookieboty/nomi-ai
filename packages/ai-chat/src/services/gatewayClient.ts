@@ -40,7 +40,22 @@ export interface GatewayModel {
     vision?: boolean;
     source: MetaSource;
     maxOutputSource: MetaSource;
+    /** 可开长上下文：标准窗口 / 最大输入 / 模型默认是否开启 / 超过标准窗口后的单价（USD 每百万 token） */
+    longContext?: {
+      standard: number;
+      full: number;
+      on: boolean;
+      price?: {
+        size: number;
+        input: number;
+        output: number;
+        tierInput: number;
+        tierOutput: number;
+      };
+    };
   };
+  /** 这个模型默认开启长上下文（只对有标准窗口的模型有意义） */
+  longContext?: boolean;
 }
 
 export type MetaSource = 'user' | 'preset' | 'listed' | 'catalog' | 'default';

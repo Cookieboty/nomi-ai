@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { cleanup, fireEvent, render, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, waitFor, within } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -311,6 +311,88 @@ describe('ModelControls', () => {
         refresh: true,
         source: 'thirdParty',
       }),
+    );
+  });
+
+  it('长上下文（§12.7.2）：分档计价的第三方模型在模型页有「标准 / 长上下文」一组，价格写清楚', async () => {
+    const ref = 'amux/openai/gpt-6.1-sol';
+    const gatewayState = {
+      status: { state: 'running', port: 1, url: 'http://127.0.0.1:1' },
+      providers: [
+        {
+          id: 'amux',
+          name: 'Amux',
+          enabled: true,
+          urls: {},
+          keys: [],
+          models: [
+            {
+              id: 'openai/gpt-6.1-sol',
+              enabled: true,
+              effective: {
+                ctx: 272_000,
+                maxOutput: 128_000,
+                source: 'catalog',
+                maxOutputSource: 'catalog',
+                longContext: {
+                  standard: 272_000,
+                  full: 922_000,
+                  on: false,
+                  price: { size: 272_000, input: 2, output: 10, tierInput: 4, tierOutput: 15 },
+                },
+              },
+            },
+          ],
+        },
+      ],
+      clients: { codex: { models: {} } },
+      allowedPrivateHosts: [],
+      port: 1,
+    };
+    let current: HarnessTabMeta = { ...baseTab, source: 'thirdParty', modelOverride: ref };
+    const invoke = vi.fn(async (ch: string, ...a: unknown[]) => {
+      if (ch === 'ai:gateway:state') return gatewayState;
+      if (ch === 'ai:harness:model-catalog')
+        return {
+          backend: 'codex',
+          provider: { id: 'amux', name: 'Amux' },
+          defaultModel: null,
+          models: [{ id: ref, label: 'GPT-6.1 Sol', reasoning: true, efforts: [] }],
+        };
+      if (ch === 'ai:harness:tab-long-context') {
+        const on = a[1] as boolean | null;
+        current = { ...current, longContext: on === null ? null : { model: ref, on } };
+        return { ...current };
+      }
+      return {};
+    });
+    (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
+    const r = render(<ModelControls tab={current} />);
+    // 应用里网关状态早已缓存；测试里先等它到达再开菜单
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:gateway:state'));
+    await act(async () => {});
+    fireEvent.click(await r.findByTestId('model-chip'));
+    const group = await r.findByTestId('long-context-group');
+    // 抹零显示：922,000 → 922K
+    expect(within(group).getByTestId('long-context-standard').textContent).toContain('272K');
+    expect(within(group).getByTestId('long-context-long').textContent).toContain('922K');
+    expect(within(group).getByTestId('long-context-standard').getAttribute('aria-checked')).toBe(
+      'true',
+    );
+    expect(group.textContent).toContain('超过 272K 的请求按输入 $4/M（标准 $2/M）计费');
+    fireEvent.click(within(group).getByTestId('long-context-long'));
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-long-context', 'cx', true),
+    );
+    // 开启后按钮带「长」标记；切回标准时与模型默认相同 → 存 null（跟随默认）
+    r.rerender(<ModelControls tab={current} />);
+    expect((await r.findByTestId('model-chip-long')).textContent).toBe('长');
+    // 选上下文不关菜单（与选模型不同），可以接着切回
+    fireEvent.click(
+      within(await r.findByTestId('long-context-group')).getByTestId('long-context-standard'),
+    );
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-long-context', 'cx', null),
     );
   });
 

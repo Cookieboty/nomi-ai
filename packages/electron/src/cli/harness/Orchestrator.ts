@@ -511,6 +511,7 @@ export class HarnessOrchestrator {
         permissionMode?: unknown;
         modelOverride?: unknown;
         reasoningEffort?: unknown;
+        longContext?: unknown;
       };
       const m = this.main;
       if (isBackend(raw.backend)) m.backend = raw.backend;
@@ -519,6 +520,7 @@ export class HarnessOrchestrator {
       if (typeof raw.title === 'string' && raw.title.trim()) m.title = raw.title;
       mainMode = raw.permissionMode;
       this.restoreOverrides(m, raw);
+      m.longContext = sanitizeLongContext(raw.longContext);
     } catch {
       /* */
     }
@@ -547,6 +549,7 @@ export class HarnessOrchestrator {
           permissionMode: this.restoredMode(tab.backend, tab.permissionMode),
         };
         this.restoreOverrides(restored, tab);
+        restored.longContext = sanitizeLongContext(tab.longContext);
         this.tabs.set(tab.id, restored);
       }
       if (raw.activeTabId && this.tabs.has(raw.activeTabId)) this.activeTabId = raw.activeTabId;
@@ -574,6 +577,7 @@ export class HarnessOrchestrator {
       permissionMode: HarnessPermissionMode;
       modelOverride?: string | null;
       reasoningEffort?: string | null;
+      longContext?: HarnessTabMeta['longContext'];
     } = {
       backend: m.backend,
       cwd: m.cwd,
@@ -583,6 +587,7 @@ export class HarnessOrchestrator {
       permissionMode: m.permissionMode,
       ...(m.modelOverride ? { modelOverride: m.modelOverride } : {}),
       ...(m.reasoningEffort ? { reasoningEffort: m.reasoningEffort } : {}),
+      ...(m.longContext ? { longContext: m.longContext } : {}),
     };
     return s;
   }
@@ -1569,6 +1574,32 @@ export class HarnessOrchestrator {
   }
 
   /**
+   * 第三方标签开 / 关长上下文（§12.7.2）。只对当前模型记一次（换模型后回到新模型的默认）；
+   * null = 跟随模型默认。窗口是进程级注入参数，下一条消息起按新窗口重启进程（--resume 续接，对话保留）。
+   * 后台任务还在跑时不切：重启会把后台子代理一起结束。
+   */
+  setTabLongContext(id: string, on: boolean | null): HarnessTabMeta {
+    const tab = this.requireTab(id);
+    if (this.sourceOf(tab) !== 'thirdParty')
+      throw new Error(t('electron.common.long-context-is-only-for-third-party-models'));
+    const model = this.effectiveOverrides(tab).model;
+    if (!model) throw new Error(t('electron.common.this-tab-has-no-third-party-model-yet'));
+    const next = on === null ? null : { model, on };
+    const cur = tab.longContext?.model === model ? tab.longContext : null;
+    if ((cur?.on ?? null) === (next?.on ?? null)) return { ...tab };
+    if ((tab.background ?? 0) > 0)
+      throw new Error(t('electron.common.background-tasks-are-still-running-switch-long'));
+    tab.longContext = next;
+    this.changed();
+    return { ...tab };
+  }
+
+  /** 这个标签对当前模型的长上下文选择；undefined = 跟随模型默认 */
+  private longContextOf(tab: HarnessTabMeta, model: string): boolean | undefined {
+    return tab.longContext?.model === model ? tab.longContext.on : undefined;
+  }
+
+  /**
    * 模型 / 思考深度覆盖变化后回收长驻 CLI 进程（目前只有 Claude）。
    * 每轮新进程的后端（codex / grok / dsh）无需处理。仅在空闲时回收：
    * 进行中的轮次、后台任务、自发轮次都等它们结束——覆盖本就约定「下一条消息起生效」，
@@ -1662,8 +1693,10 @@ export class HarnessOrchestrator {
     if (this.sourceOf(tab) === 'official') return this.officialLaunch(tab.backend, tab.accountId);
     const model = this.effectiveOverrides(tab).model;
     if (!model) throw new Error(t('electron.common.this-tab-has-no-third-party-model-yet'));
+    const longContext = this.longContextOf(tab, model);
     const l = this.d.gateway!.launch(tab.backend as BuiltinBackend, tab.id, model, {
       tabBound: this.needsTabBinding(tab),
+      ...(longContext !== undefined ? { longContext } : {}),
     });
     if (!l) throw new Error(t('electron.common.the-model-gateway-isn-t-running-so-third'));
     // 按标签令牌启动的进程以实际启动为准：占位模型名时配置里没有真实模型，换模型不必重启（§6.7）
@@ -1707,6 +1740,7 @@ export class HarnessOrchestrator {
       tab.id,
       model,
       effort,
+      this.longContextOf(tab, model),
     );
     if (!r) throw new Error(t('electron.common.the-model-gateway-isn-t-running-so-third'));
     this.tabBindings.set(tab.id, {
@@ -4712,6 +4746,9 @@ export class HarnessOrchestrator {
     handle('ai:harness:tab-account', (id, accountId) =>
       this.setTabAccount(String(id), accountId ? String(accountId) : null),
     );
+    handle('ai:harness:tab-long-context', (id, on) =>
+      this.setTabLongContext(String(id), typeof on === 'boolean' ? on : null),
+    );
     handle('ai:harness:tab-effort', (id, e) =>
       this.setTabReasoningEffort(String(id), e === null || e === undefined ? null : String(e)),
     );
@@ -5087,3 +5124,12 @@ function reportedModel(events: readonly HarnessEvent[]): string | undefined {
 /** 对外名字不变：编排层的类就是 HarnessOrchestrator */
 export const CliHarnessService = HarnessOrchestrator;
 export type CliHarnessService = HarnessOrchestrator;
+
+/** 落盘的长上下文选择：形状不对就丢弃（回到跟随模型默认） */
+function sanitizeLongContext(v: unknown): HarnessTabMeta['longContext'] {
+  if (!v || typeof v !== 'object') return null;
+  const o = v as { model?: unknown; on?: unknown };
+  return typeof o.model === 'string' && o.model && typeof o.on === 'boolean'
+    ? { model: o.model, on: o.on }
+    : null;
+}

@@ -692,6 +692,13 @@
   width: 96px;
 }
 
+.longHint {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+}
+
 .tokenInput {
   flex: 1;
   min-width: 0;

@@ -16,7 +16,7 @@
  * （codex `-c model=...`、grok `-m ... --reasoning-effort ...`、claude `--model ... --effort ...`），
  * 不改写用户的全局 CLI 配置；每轮新进程的后端下一条消息即生效，Claude 长驻进程空闲时重启复用。
  */
-import { Icon, Input, t } from '@nomi-ai/ui';
+import { formatContext, Icon, Input, t } from '@nomi-ai/ui';
 import {
   Check,
   ChevronDown,
@@ -44,6 +44,7 @@ import {
   type ReasoningEffort,
   type TabSource,
 } from '../../services/harnessClient';
+import { longContextFor, type LongContextInfo } from '../../services/longContext';
 import { useGatewayState } from '../../services/nomiModel';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 
@@ -327,7 +328,9 @@ const ModelChip: React.FC<{
   catalog: BackendModelCatalog;
   refreshing: boolean;
   onRefresh: () => void;
-}> = ({ tab, catalog, refreshing, onRefresh }) => {
+  /** 第三方模型可开长上下文时的信息（§12.7.2）；null = 不显示「上下文」一组 */
+  long?: LongContextInfo | null;
+}> = ({ tab, catalog, refreshing, onRefresh, long = null }) => {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<'effort' | 'model' | 'account'>('effort');
   const [accounts, setAccounts] = useState<CliAccount[]>([]);
@@ -381,6 +384,11 @@ const ModelChip: React.FC<{
   // 没有显式覆盖时也显示 CLI 的实际默认档位，让底部按钮直接反映当前设置。
   const chipEffort = effort ?? defaultEffort;
   const shortLabel = chipEffort ? `${modelLabel} · ${effortLabel(chipEffort)}` : modelLabel;
+  /** 开 / 关长上下文；与模型默认相同时存 null（跟随默认），免得模型默认改了这里还钉着旧值 */
+  const pickLong = (on: boolean) => {
+    if (!long || on === long.on) return;
+    void run(() => harnessClient.setTabLongContext(tab.id, on === long.modelDefault ? null : on));
+  };
   const backendName = ENDPOINT_NAME[tab.backend as keyof typeof ENDPOINT_NAME];
   // 模型列表从哪来：官方账号是 CLI 自己，第三方是网关
   const sourceName = provider?.name || backendName;
@@ -483,6 +491,11 @@ const ModelChip: React.FC<{
       >
         <Icon icon={Cpu} size={14} />
         <span className={styles.label}>{shortLabel}</span>
+        {long?.on && (
+          <span className={styles.longBadge} data-testid="model-chip-long">
+            {t('ui.models.long-context-short')}
+          </span>
+        )}
         <Icon icon={ChevronDown} size={12} />
       </button>
       {note && (
@@ -690,6 +703,45 @@ const ModelChip: React.FC<{
                   )}
                 </div>
               )}
+              {long && (
+                <div
+                  className={styles.contextGroup}
+                  role="radiogroup"
+                  aria-label={t('ui.models.context-window')}
+                  data-testid="long-context-group"
+                >
+                  <span className={styles.contextGroupLabel}>{t('ui.models.context-window')}</span>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={!long.on}
+                    className={styles.item}
+                    data-testid="long-context-standard"
+                    onClick={() => pickLong(false)}
+                  >
+                    <span className={styles.itemLabel}>{t('ui.models.standard-context')}</span>
+                    <span className={styles.itemHint}>{formatContext(long.standard)}</span>
+                    {!long.on && <Icon icon={Check} size={14} />}
+                  </button>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={long.on}
+                    className={styles.item}
+                    data-testid="long-context-long"
+                    onClick={() => pickLong(true)}
+                  >
+                    <span className={styles.itemLabel}>{t('ui.models.long-context')}</span>
+                    <span className={styles.itemHint}>{formatContext(long.full)}</span>
+                    {long.on && <Icon icon={Check} size={14} />}
+                  </button>
+                  <span className={styles.contextGroupNote}>
+                    {long.priceNote ?? t('ui.models.long-context-costs-more')}
+                    {' · '}
+                    {t('ui.models.switching-restarts-this-tab-s-assistant')}
+                  </span>
+                </div>
+              )}
               {searchable && (
                 <Input
                   autoFocus
@@ -874,5 +926,13 @@ export const ModelControls: React.FC<{ tab: HarnessTabMeta }> = ({ tab }) => {
   );
   if (scoped === null) return null;
   if (scoped === undefined) return <LoadingChip tab={tab} />;
-  return <ModelChip tab={tab} catalog={scoped} refreshing={refreshing} onRefresh={refresh} />;
+  return (
+    <ModelChip
+      tab={tab}
+      catalog={scoped}
+      refreshing={refreshing}
+      onRefresh={refresh}
+      long={longContextFor(tab, gateway)}
+    />
+  );
 };

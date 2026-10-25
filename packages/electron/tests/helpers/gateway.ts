@@ -33,6 +33,8 @@ export function testGateway(
   } = {},
 ): HarnessGateway & {
   launches: Array<[string, string, string]>;
+  /** 每次启动（同步注入与按标签登记）带的长上下文选择；undefined = 跟随模型默认 */
+  longContexts: Array<boolean | undefined>;
   /**
    * 'register <cli> <tab> <model> g<n>' / 'update <cli> <tab> <model>' /
    * 'release <cli> <tab> g<n>'（进程退出，只作废那一代）/ 'release <cli> <tab>'（标签关闭）
@@ -43,12 +45,17 @@ export function testGateway(
 } {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-gw-agents-'));
   const launches: Array<[string, string, string]> = [];
+  const longContexts: Array<boolean | undefined> = [];
+  /** 开了长上下文时主模型的窗口（与 GatewayService.agentMeta 一样只作用于标签的主模型） */
+  const metaFor = (model: string, longContext: boolean | undefined) =>
+    longContext ? { metaOf: (ref: string) => (ref === model ? { ctx: 900_000 } : undefined) } : {};
   const bindings: string[] = [];
   const generations = new Map<string, number>();
   const active = new Map<string, number>();
   const tabApi: Partial<HarnessGateway> = o.tabTokens
     ? {
-        launchForTab: async (kind, tabId, model) => {
+        launchForTab: async (kind, tabId, model, _effort, longContext) => {
+          longContexts.push(longContext);
           if (o.running === false) return null;
           if (o.bindError) throw new Error(o.bindError);
           const key = `${kind}:${tabId}`;
@@ -66,6 +73,7 @@ export function testGateway(
             dir: path.join(dir, kind, tabId),
             home: o.home,
             ...(kind === 'grok' ? { placeholder: 'nomi' } : {}),
+            ...metaFor(model, longContext),
           });
           return { env: l.env, generation: g, modelInConfig: Boolean(l.modelInConfig) };
         },
@@ -86,6 +94,7 @@ export function testGateway(
     : {};
   return {
     launches,
+    longContexts,
     bindings,
     live: (kind, tabId) => active.get(`${kind}:${tabId}`),
     ...tabApi,
@@ -96,6 +105,7 @@ export function testGateway(
     }),
     launch: (kind, tabId, model, opts) => {
       launches.push([kind, tabId, model]);
+      longContexts.push(opts?.longContext);
       if (o.running === false) return null;
       return agentLaunch(kind, {
         url: TEST_GATEWAY_URL,
@@ -106,6 +116,7 @@ export function testGateway(
         home: o.home,
         // 与 GatewayService.cliLaunch 一致：按标签令牌启动的 Grok 写占位模型名
         ...(opts?.tabBound && kind === 'grok' ? { placeholder: 'nomi' } : {}),
+        ...metaFor(model, opts?.longContext),
       });
     },
     officialEnv: (env) => {
