@@ -174,6 +174,21 @@ describe('cliTrace：编程助手子进程收发', () => {
     expect(c.stdin.write).toBe(orig);
     expect(fs.readdirSync(dir)).toEqual([]);
   });
+
+  it('启动时开着、中途关掉：后续 write 不再落盘（#119）', () => {
+    const dir = tmp('nomi-clitrace-flip-');
+    let on = true;
+    configureCliTrace({ dir, enabled: () => on });
+    const c = fakeChild();
+    traceCliChild(c as never, 'claude', [], { tabId: 't' });
+    c.stdout.write('before');
+    on = false;
+    c.stdout.write('after');
+    const f = fs.readdirSync(dir).find((n) => n.startsWith('cli-'))!;
+    const raw = fs.readFileSync(path.join(dir, f), 'utf8');
+    expect(raw).toContain('before');
+    expect(raw).not.toContain('after');
+  });
 });
 
 describe('S8：登录进程从不做收发记录', () => {
