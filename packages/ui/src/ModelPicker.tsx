@@ -141,7 +141,8 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
       value={value ?? ''}
       placeholder={placeholder ?? t('ui.models.choose-a-model')}
       menuMinWidth={rest.menuMinWidth ?? 300}
-      renderValue={(o) => display.get(o.value) ?? o.label}
+      // 特殊选项的 label 可以是翻译 key（与 Select 一致）
+      renderValue={(o) => display.get(o.value) ?? t(o.label)}
       onChange={(e) => onChange(e.target.value)}
     />
   );

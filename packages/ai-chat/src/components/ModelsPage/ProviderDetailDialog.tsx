@@ -34,7 +34,7 @@ import {
   RefreshCw,
   Trash2,
 } from 'lucide-react';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   gatewayClient,
@@ -225,6 +225,43 @@ const ModelBadges: React.FC<{ m: GatewayModel }> = ({ m }) => {
   );
 };
 
+/** 模型列表的一行 */
+const ModelRow = memo(function ModelRow({
+  m,
+  readOnly,
+  onSet,
+  onRemove,
+}: {
+  m: GatewayModel;
+  readOnly: boolean;
+  onSet: (id: string, x: Partial<GatewayModel>) => void;
+  onRemove: (id: string) => void;
+}) {
+  return (
+    <div className={styles.modelRow} data-testid={`pd-model-${m.id}`}>
+      <label className={styles.modelCheck}>
+        <input
+          type="checkbox"
+          disabled={readOnly}
+          checked={m.enabled}
+          onChange={(e) => onSet(m.id, { enabled: e.target.checked })}
+        />
+        <span>{m.label ?? m.id}</span>
+      </label>
+      <ModelBadges m={m} />
+      {!readOnly && (
+        <IconButton
+          size="sm"
+          className={styles.rowEnd}
+          label={t('ui.models.remove-model', m.id)}
+          icon={<Icon icon={Trash2} size={14} />}
+          onClick={() => onRemove(m.id)}
+        />
+      )}
+    </div>
+  );
+});
+
 interface Props {
   provider: ProviderView | null;
   providers: ProviderView[];
@@ -265,9 +302,10 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
   const refocus = useRef<string | null>(null);
 
   const patch = (x: Partial<Draft>) => setD((cur) => ({ ...cur, ...x }));
+  const initialPayload = useMemo(() => JSON.stringify(buildPayload(p, initial)), [p, initial]);
   const dirty = useMemo(
-    () => JSON.stringify(buildPayload(p, d)) !== JSON.stringify(buildPayload(p, initial)),
-    [p, d, initial],
+    () => JSON.stringify(buildPayload(p, d)) !== initialPayload,
+    [p, d, initialPayload],
   );
   const urlsChanged = JSON.stringify(d.urls) !== detectedUrls;
   const picker = useMemo(() => pickerProviders(providers), [providers]);
@@ -330,8 +368,19 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
   };
 
   /* ---------------- 模型 ---------------- */
-  const setModel = (id: string, x: Partial<GatewayModel>) =>
-    patch({ models: d.models.map((m) => (m.id === id ? { ...m, ...x } : m)) });
+  // 引用稳定：模型列表可能有几百行（ModelRow 是 memo），输入框打字 / 勾选一个模型时其余行不重渲染
+  const setModel = useCallback(
+    (id: string, x: Partial<GatewayModel>) =>
+      setD((cur) => ({
+        ...cur,
+        models: cur.models.map((m) => (m.id === id ? { ...m, ...x } : m)),
+      })),
+    [],
+  );
+  const removeModel = useCallback(
+    (id: string) => setD((cur) => ({ ...cur, models: cur.models.filter((x) => x.id !== id) })),
+    [],
+  );
   const addModel = () => {
     const id = modelText.trim();
     if (!id) return;
@@ -690,27 +739,13 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
             )}
             <div className={styles.modelList}>
               {(readOnly ? p.models : d.models).map((m) => (
-                <div key={m.id} className={styles.modelRow} data-testid={`pd-model-${m.id}`}>
-                  <label className={styles.modelCheck}>
-                    <input
-                      type="checkbox"
-                      disabled={readOnly}
-                      checked={m.enabled}
-                      onChange={(e) => setModel(m.id, { enabled: e.target.checked })}
-                    />
-                    <span>{m.label ?? m.id}</span>
-                  </label>
-                  <ModelBadges m={m} />
-                  {!readOnly && (
-                    <IconButton
-                      size="sm"
-                      className={styles.rowEnd}
-                      label={t('ui.models.remove-model', m.id)}
-                      icon={<Icon icon={Trash2} size={14} />}
-                      onClick={() => patch({ models: d.models.filter((x) => x.id !== m.id) })}
-                    />
-                  )}
-                </div>
+                <ModelRow
+                  key={m.id}
+                  m={m}
+                  readOnly={readOnly}
+                  onSet={setModel}
+                  onRemove={removeModel}
+                />
               ))}
             </div>
             {!readOnly && (

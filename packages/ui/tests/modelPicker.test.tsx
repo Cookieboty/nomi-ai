@@ -88,6 +88,18 @@ describe('ModelPicker', () => {
     expect(optionTexts()[0]).toContain('跟随对话');
   });
 
+  it('special option labels may be translation keys (module-level constants stay memo-friendly)', () => {
+    render(
+      <Harness
+        value="follow"
+        extraOptions={[{ value: 'follow', label: 'ui.models.same-as-chat' }]}
+      />,
+    );
+    expect(screen.getByRole('combobox').textContent).toContain('跟随对话');
+    fireEvent.click(screen.getByRole('combobox'));
+    expect(optionTexts()[0]).toContain('跟随对话');
+  });
+
   it('helpers', () => {
     expect(formatContext(128_000)).toBe('128K');
     expect(formatContext(1_000_000)).toBe('1M');

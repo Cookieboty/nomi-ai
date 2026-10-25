@@ -49,13 +49,14 @@ const RETENTIONS = [
   { value: '30', label: 'ui.providers-schedule.keep-30-days' },
 ];
 
-const fmt = (t: number) =>
-  new Date(t).toLocaleString('zh-CN', {
-    month: 'numeric',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+// 复用同一个格式器：toLocaleString 带参数时每次都新建 Intl.DateTimeFormat，时间线每条都要格式化
+const timeFmt = new Intl.DateTimeFormat('zh-CN', {
+  month: 'numeric',
+  day: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+const fmt = (t: number) => timeFmt.format(t);
 
 /** 快捷键组合：每个键一个 kbd，键之间用细小的「+」 */
 const Keys: React.FC<{ keys: string[] }> = ({ keys }) => (

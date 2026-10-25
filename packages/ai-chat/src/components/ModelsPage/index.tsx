@@ -51,6 +51,11 @@ import { useCliInstall } from './useCliInstall';
 
 const FOLLOW = 'follow';
 const UNSET = 'unset';
+/** 选择器最前面的特殊选项：模块级常量（label 是翻译 key，由 Select 翻译）。
+ *  内联数组每次渲染都是新的，会让 ModelPicker 每次都重建几百个选项 */
+const SAME_AS_CHAT = [{ value: FOLLOW, label: 'ui.models.same-as-chat' }];
+const FOLLOW_MAIN = [{ value: FOLLOW, label: 'ui.models.follow-main-model' }];
+const NOT_SET = [{ value: UNSET, label: 'ui.cli-monitor.not-set' }];
 
 type ModelsPatch = Partial<Omit<Record<keyof ClientModels, string | null>, 'tiers'>> & {
   tiers?: Partial<Record<TierId, string | null>>;
@@ -269,7 +274,7 @@ export const ModelsPage: React.FC = () => {
           <ModelPicker
             {...common}
             className={styles.picker}
-            extraOptions={[{ value: FOLLOW, label: t('ui.models.same-as-chat') }]}
+            extraOptions={SAME_AS_CHAT}
             value={nomi.tools ?? FOLLOW}
             onChange={(v) => assign({ tools: v === FOLLOW ? null : v })}
             disabled={!picker.length}
@@ -284,7 +289,7 @@ export const ModelsPage: React.FC = () => {
           <ModelPicker
             {...common}
             className={styles.picker}
-            extraOptions={[{ value: FOLLOW, label: t('ui.models.same-as-chat') }]}
+            extraOptions={SAME_AS_CHAT}
             value={nomi.summary ?? FOLLOW}
             onChange={(v) => assign({ summary: v === FOLLOW ? null : v })}
             disabled={!picker.length}
@@ -477,7 +482,7 @@ const CliRow: React.FC<{
           {...common}
           purpose="coding"
           className={styles.picker}
-          extraOptions={[{ value: UNSET, label: t('ui.cli-monitor.not-set') }]}
+          extraOptions={NOT_SET}
           value={m.main ?? UNSET}
           onChange={setMain}
           disabled={disabled}
@@ -526,7 +531,7 @@ const CliRow: React.FC<{
                   {...common}
                   purpose="coding"
                   className={styles.picker}
-                  extraOptions={[{ value: FOLLOW, label: t('ui.models.follow-main-model') }]}
+                  extraOptions={FOLLOW_MAIN}
                   value={tierValue(tier.id) ?? FOLLOW}
                   onChange={(v) => setTier(tier.id, v)}
                   disabled={disabled}
@@ -542,7 +547,7 @@ const CliRow: React.FC<{
                 {...common}
                 purpose="coding"
                 className={styles.picker}
-                extraOptions={[{ value: FOLLOW, label: t('ui.models.follow-main-model') }]}
+                extraOptions={FOLLOW_MAIN}
                 value={m.subagent ?? FOLLOW}
                 onChange={(v) => onAssign({ models: { subagent: v === FOLLOW ? null : v } })}
                 disabled={disabled}
@@ -562,7 +567,7 @@ const CliRow: React.FC<{
               {...common}
               purpose="coding"
               className={styles.picker}
-              extraOptions={[{ value: FOLLOW, label: t('ui.models.follow-main-model') }]}
+              extraOptions={FOLLOW_MAIN}
               value={m.summary ?? FOLLOW}
               onChange={(v) => onAssign({ models: { summary: v === FOLLOW ? null : v } })}
               disabled={disabled}

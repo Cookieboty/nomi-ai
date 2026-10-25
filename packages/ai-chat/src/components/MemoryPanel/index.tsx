@@ -18,7 +18,7 @@ import {
   Textarea,
 } from '@nomi-ai/ui';
 import { Brain, UserRound, Lock, Pin } from 'lucide-react';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
 
 import { useAiChatActions } from '../../contexts/aiChatStore';
 import {
@@ -39,13 +39,14 @@ interface Props {
 
 type Tab = 'episodes' | 'facts' | 'persona' | 'settings';
 
-const fmt = (ts: number) =>
-  new Date(ts).toLocaleString('zh-CN', {
-    month: 'numeric',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+// 复用同一个格式器：toLocaleString 带参数时每次都新建 Intl.DateTimeFormat（每条约 30µs，列表里几百条）
+const timeFmt = new Intl.DateTimeFormat('zh-CN', {
+  month: 'numeric',
+  day: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+const fmt = (ts: number) => timeFmt.format(ts);
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 // 渲染时再翻译（模块加载时调用 t() 会固定在当时的语言）
 const kindOptions = () =>
@@ -54,7 +55,13 @@ const kindOptions = () =>
     label: tr(FACT_KIND_LABEL[k]),
   }));
 
-const EpisodeCard: React.FC<{ e: MemEpisode; onMsg: (m: string) => void }> = ({ e, onMsg }) => {
+const EpisodeCard = memo(function EpisodeCard({
+  e,
+  onMsg,
+}: {
+  e: MemEpisode;
+  onMsg: (m: string) => void;
+}) {
   const [edit, setEdit] = useState(false);
   const [title, setTitle] = useState(e.title);
   const [summary, setSummary] = useState(e.summary);
@@ -191,9 +198,9 @@ const EpisodeCard: React.FC<{ e: MemEpisode; onMsg: (m: string) => void }> = ({ 
       )}
     </Card>
   );
-};
+});
 
-const FactRow: React.FC<{ f: MemFact; onMsg: (m: string) => void }> = ({ f, onMsg }) => {
+const FactRow = memo(function FactRow({ f, onMsg }: { f: MemFact; onMsg: (m: string) => void }) {
   const [edit, setEdit] = useState(false);
   const [text, setText] = useState(f.text);
   const [kind, setKind] = useState<FactKind>(f.kind);
@@ -261,7 +268,7 @@ const FactRow: React.FC<{ f: MemFact; onMsg: (m: string) => void }> = ({ f, onMs
       )}
     </li>
   );
-};
+});
 
 export const MemoryPanel: React.FC<Props> = ({ isVisible, onClose }) => {
   if (!isVisible) return null;

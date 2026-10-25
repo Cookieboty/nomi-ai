@@ -45,6 +45,16 @@ import styles from './index.module.css';
 
 /** 「本机模型」同时管理内置 llama.cpp 与可选的 Ollama（原 Ollama 标签已并入） */
 type Tab = 'models' | 'calendar' | 'clipboard' | 'export';
+/** 剪贴板历史每条的时间：复用同一个格式器（toLocaleString 带参数时每次都新建 Intl.DateTimeFormat） */
+const clipTime = new Intl.DateTimeFormat('zh-CN', {
+  year: 'numeric',
+  month: 'numeric',
+  day: 'numeric',
+  hour: 'numeric',
+  minute: 'numeric',
+  second: 'numeric',
+  hour12: false,
+});
 const TABS: Tab[] = ['calendar', 'clipboard', 'export', 'models'];
 const EXPORT_ITEMS: Array<{ key: string; label: string }> = [
   { key: 'conversations', label: 'ui.knowledge-local.chat-history' },
@@ -966,9 +976,7 @@ export const LocalPanel: React.FC<{
                 {c.pinned && <Badge tone="accent">{t('ui.knowledge-local.pinned')}</Badge>}
               </div>
               <div className={styles.row}>
-                <span className={styles.hint}>
-                  {new Date(c.at).toLocaleString('zh-CN', { hour12: false })}
-                </span>
+                <span className={styles.hint}>{clipTime.format(c.at)}</span>
                 <span className={styles.grow} />
                 <Button
                   size="sm"
