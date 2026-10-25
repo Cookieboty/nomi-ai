@@ -143,8 +143,7 @@ const TaskEditor: React.FC<{
                 setDays((d) => (d.includes(i) ? d.filter((x) => x !== i) : [...d, i].sort()))
               }
             >
-              {tr('ui.foundation.week')}
-              {w}
+              {tr('ui.foundation.weekday-button', tr(w))}
             </Button>
           ))}
         </div>

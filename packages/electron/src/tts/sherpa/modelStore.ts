@@ -93,7 +93,7 @@ export function probeWritableDir(dir: string): void {
     throw new SherpaInstallError(
       'prepare',
       `model dir not writable: ${dir} (${errText(e)}) — 请检查盘符是否存在 / 目录权限，` +
-        'electron.common.or-set-nomi-sherpa-tts-model-dir-to',
+        t('electron.common.or-set-nomi-sherpa-tts-model-dir-to'),
       e,
     );
   }
@@ -190,7 +190,7 @@ export async function installModel(opts: InstallOptions): Promise<string> {
       throw new SherpaInstallError(
         'download',
         `model download failed after trying ${urls.length} url(s): ${failures.slice(-3).join(' | ')}` +
-          'electron.common.if-the-network-is-slow-or-github-is',
+          t('electron.common.if-the-network-is-slow-or-github-is'),
       );
     }
     opts.onProgress?.('extract', { received: 0, total: 1 });

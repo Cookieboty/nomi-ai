@@ -183,5 +183,5 @@ export const SKIP_REASONS: Record<string, string> = {
 export function describeSkip(r: string): string {
   if (r.startsWith('excluded:'))
     return t('ui.chat-settings.excluded-window-detected-skipped', r.slice(9));
-  return SKIP_REASONS[r] ?? r;
+  return SKIP_REASONS[r] ? t(SKIP_REASONS[r]) : r;
 }

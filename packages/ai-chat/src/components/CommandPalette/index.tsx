@@ -34,7 +34,7 @@ export const CommandPalette: React.FC<{
     const needle = q.trim().toLowerCase();
     if (!needle) return commands;
     return commands.filter((c) =>
-      [t(c.label), c.label, t(c.group)].some((s) => s.toLowerCase().includes(needle)),
+      [t(c.label), t(c.group)].some((s) => s.toLowerCase().includes(needle)),
     );
   }, [q, commands]);
   useEffect(() => {

@@ -26,11 +26,12 @@ export interface VoiceSettingsPanelProps {
   onRefresh(): void;
 }
 
-const LANGS = [
-  { value: 'auto', label: 'ui.voice-mascot.auto-detect' },
-  { value: 'zh', label: 'ui.voice-mascot.chinese' },
+// 语言名始终用其本身的文字显示
+const langOptions = () => [
+  { value: 'auto', label: t('ui.voice-mascot.auto-detect') },
+  { value: 'zh', label: '中文' }, // i18n-ignore
   { value: 'en', label: 'English' },
-  { value: 'ja', label: 'ui.voice-mascot.japanese' },
+  { value: 'ja', label: '日本語' }, // i18n-ignore
   { value: 'ko', label: '한국어' },
 ];
 
@@ -448,7 +449,7 @@ export const VoiceSettingsPanel: React.FC<VoiceSettingsPanelProps> = ({
               size="sm"
               value={s.language}
               onChange={(e) => set({ language: e.target.value })}
-              options={LANGS}
+              options={langOptions()}
               aria-label={t('ui.voice-mascot.language')}
               data-testid="voice-language"
             />
@@ -540,7 +541,7 @@ export const VoiceSettingsPanel: React.FC<VoiceSettingsPanelProps> = ({
                   options={[
                     ...config.providers.map((p) => ({
                       value: p.id,
-                      label: p.name,
+                      label: t(p.name),
                       description: p.local
                         ? t('ui.providers-schedule.local')
                         : t('ui.foundation.cloud'),

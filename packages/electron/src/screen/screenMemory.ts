@@ -17,18 +17,19 @@ export interface ScreenMemSettings {
   snipHotkey: boolean;
 }
 
+/** 按窗口标题子串匹配，中英文词都要保留，不随界面语言翻译 */
 export const DEFAULT_EXCLUSIONS = [
   '1Password',
   'Bitwarden',
   'KeePass',
   'LastPass',
-  'electron.common.password',
+  '密码', // i18n-ignore
   'Password',
-  'electron.common.incognito',
+  '无痕', // i18n-ignore
   'InPrivate',
   'Incognito',
-  'electron.common.private-browsing',
-  'electron.common.bank',
+  '隐私浏览', // i18n-ignore
+  '银行', // i18n-ignore
   'Bank',
 ];
 

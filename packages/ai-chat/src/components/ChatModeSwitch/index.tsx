@@ -49,7 +49,7 @@ export const ChatModeSwitch: React.FC = () => {
           data-testid="chat-mode-normal"
           onClick={() => setMode('normal')}
         >
-          {modeLabel('ui.providers-schedule.assistants', 'Assistant') /* i18n-ignore */}
+          {modeLabel('助手', 'Assistant') /* i18n-ignore */}
         </button>
         <button
           type="button"

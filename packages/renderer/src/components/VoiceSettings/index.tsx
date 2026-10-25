@@ -65,7 +65,7 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
       await voiceService.updateSettings({ [key]: value });
       onSettingsChange?.();
     } catch (error) {
-      log.error('ui.usage-tools.failed-to-update-settings', error);
+      log.error('Failed to update voice settings:', error);
     } finally {
       setIsLoading(false);
     }

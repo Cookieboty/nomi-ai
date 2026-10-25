@@ -31,6 +31,7 @@ import {
   type KbProgress,
   type KbState,
 } from '../../services/kbClient';
+import { providerDisplayName } from '../../services/providerClient';
 
 import styles from './index.module.css';
 
@@ -61,7 +62,7 @@ const ProgressBox: React.FC<{ p: KbProgress }> = ({ p }) => {
     <div className={styles.progress} data-testid="kb-progress" role="status" aria-live="polite">
       <div className={styles.row}>
         <strong className={styles.grow}>
-          {PHASE[p.phase]}
+          {tr(PHASE[p.phase])}
           {p.running && p.total ? `（${p.done}/${p.total}）` : ''}
         </strong>
         {p.running ? (
@@ -206,7 +207,7 @@ const ModelSection: React.FC<{
           onChange={(e) => save({ providerId: e.target.value })}
           options={st.providers.map((p) => ({
             value: p.id,
-            label: p.name,
+            label: providerDisplayName(p.name),
             description: p.local ? tr('ui.foundation.local') : tr('ui.foundation.cloud'),
             group: p.local
               ? tr('ui.foundation.local-services')

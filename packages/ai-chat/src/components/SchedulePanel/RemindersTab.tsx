@@ -190,8 +190,7 @@ export const RemindersTab: React.FC<{ onMsg: (m: string) => void }> = ({ onMsg }
                   setDays((d) => (d.includes(i) ? d.filter((x) => x !== i) : [...d, i].sort()))
                 }
               >
-                {tr('ui.foundation.week')}
-                {w}
+                {tr('ui.foundation.weekday-button', tr(w))}
               </Button>
             ))}
           {rep === 'interval' && (

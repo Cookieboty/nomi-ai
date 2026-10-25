@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  AGENT_STEP_LABEL,
   BUBBLE_PRIORITY,
   BUBBLE_TIMEOUT,
   deriveBubble,
@@ -54,7 +53,7 @@ describe('deriveBubble', () => {
       payload: { reason: 'llm-call', step: 2, sessionId: 's1' },
     });
     expect(bubble).not.toBeNull();
-    expect(bubble!.text).toContain(AGENT_STEP_LABEL['llm-call']);
+    expect(bubble!.text).toContain('正在思考中…');
     expect(bubble!.text).toContain('step 2');
     expect(bubble!.priority).toBe(BUBBLE_PRIORITY.agentStep);
     expect(bubble!.timeout).toBe(BUBBLE_TIMEOUT.agentStep);
@@ -74,7 +73,7 @@ describe('deriveBubble', () => {
       kind: 'agent:step',
       payload: { reason: 'reflect' },
     });
-    expect(bubble!.text).toBe(AGENT_STEP_LABEL.reflect);
+    expect(bubble!.text).toBe('正在自我复盘…');
   });
 
   it('maps message:complete assistant to bubble', () => {

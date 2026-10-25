@@ -4389,7 +4389,7 @@ export class HarnessOrchestrator {
           this.d.logger.warn('harness execute-plan mode switch failed', e);
         }
         // 切到自动改文件后发送「按上述计划实施」（设计默认）
-        void this.sendTab(tabId, EXECUTE_PLAN_FOLLOW_UP).catch((e) =>
+        void this.sendTab(tabId, t(EXECUTE_PLAN_FOLLOW_UP)).catch((e) =>
           this.d.logger.warn('harness execute-plan follow-up failed', e),
         );
       } else if (reason === 'timeout') {

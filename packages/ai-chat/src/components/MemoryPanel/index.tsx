@@ -47,7 +47,9 @@ const fmt = (ts: number) =>
     minute: '2-digit',
   });
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
-const KIND_OPTIONS = (Object.keys(FACT_KIND_LABEL) as FactKind[]).map((k) => ({
+// 渲染时再翻译（模块加载时调用 t() 会固定在当时的语言）
+const kindOptions = () =>
+  (Object.keys(FACT_KIND_LABEL) as FactKind[]).map((k) => ({
   value: k,
   label: tr(FACT_KIND_LABEL[k]),
 }));
@@ -208,7 +210,7 @@ const FactRow: React.FC<{ f: MemFact; onMsg: (m: string) => void }> = ({ f, onMs
             <Select
               size="sm"
               value={kind}
-              options={KIND_OPTIONS}
+              options={kindOptions()}
               onChange={(e) => setKind(e.target.value as FactKind)}
             />
           </span>
@@ -517,7 +519,7 @@ const PanelBody: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                     <Select
                       size="sm"
                       value={newKind}
-                      options={KIND_OPTIONS}
+                      options={kindOptions()}
                       onChange={(e) => setNewKind(e.target.value as FactKind)}
                       data-testid="mem-new-kind"
                     />

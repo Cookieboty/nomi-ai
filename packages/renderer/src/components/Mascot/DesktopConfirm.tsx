@@ -215,7 +215,7 @@ export const DesktopConfirm: React.FC = () => {
               <code>{cur.tool}</code>
             </div>
             <p className={styles.text}>{tr(cur.summary)}</p>
-            {REASON[cur.reason] && <p className={styles.hint}>{REASON[cur.reason]}</p>}
+            {REASON[cur.reason] && <p className={styles.hint}>{tr(REASON[cur.reason])}</p>}
             {cur.preview && (
               <>
                 <div className={styles.label}>{tr('ui.chat-settings.preview-not-yet-run')}</div>

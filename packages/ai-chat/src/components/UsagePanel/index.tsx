@@ -145,7 +145,7 @@ export const UsagePanel: React.FC<{
             {' '}
             {t(
               'ui.usage-tools.detected-local-tools',
-              state.detected.map((s) => USAGE_SOURCE_LABEL[s] ?? s).join(listSep()),
+              state.detected.map((s) => t(USAGE_SOURCE_LABEL[s] ?? s)).join(listSep()),
             )}
           </>
         )}

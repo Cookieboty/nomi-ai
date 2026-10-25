@@ -266,9 +266,11 @@ export class ExtensionsService {
       const dir = path.join(this.d.skillsRoot, s.meta.name);
       if (fs.existsSync(dir)) continue;
       fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(path.join(dir, 'SKILL.md'), buildSkillMd(s.meta, s.body));
+      // 写入磁盘的内容会进模型上下文，按当前界面语言落地成正文而不是 key
+      const meta = { ...s.meta, description: t(s.meta.description) };
+      fs.writeFileSync(path.join(dir, 'SKILL.md'), buildSkillMd(meta, t(s.body)));
       for (const [f, c] of Object.entries(BUILTIN_FILES[s.meta.name] ?? {}))
-        fs.writeFileSync(path.join(dir, f), c);
+        fs.writeFileSync(path.join(dir, f), t(c));
     }
     this.saveSkillState();
   }

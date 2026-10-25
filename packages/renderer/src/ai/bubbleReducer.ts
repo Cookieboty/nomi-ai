@@ -91,7 +91,7 @@ export function deriveBubble(evt: BubbleEvent): BubbleDirective | null {
   switch (evt.kind) {
     case 'agent:step': {
       const reason = evt.payload.reason ?? 'llm-call';
-      const label = AGENT_STEP_LABEL[reason] ?? t('ui.chat-settings.processing');
+      const label = t(AGENT_STEP_LABEL[reason] ?? 'ui.chat-settings.processing');
       const step = typeof evt.payload.step === 'number' ? evt.payload.step : 0;
       return {
         text: step > 0 ? `${label} (step ${step})` : label,

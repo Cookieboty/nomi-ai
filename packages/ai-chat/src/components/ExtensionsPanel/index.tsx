@@ -48,7 +48,9 @@ import styles from './index.module.css';
 import { MigrateDialog } from './MigrateDialog';
 
 type Tab = 'mcp' | 'skills';
-const TRUST_OPTIONS = (Object.keys(TRUST_LABEL) as Trust[]).map((v) => ({
+// 渲染时再翻译（模块加载时调用 t() 会固定在当时的语言）
+const trustOptions = () =>
+  (Object.keys(TRUST_LABEL) as Trust[]).map((v) => ({
   value: v,
   label: tr(TRUST_LABEL[v]),
 }));
@@ -605,7 +607,7 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
                   <Select
                     size="sm"
                     value={draft.trust}
-                    options={TRUST_OPTIONS}
+                    options={trustOptions()}
                     onChange={(e) => setDraft({ ...draft, trust: e.target.value as Trust })}
                     data-testid="mcp-trust"
                   />

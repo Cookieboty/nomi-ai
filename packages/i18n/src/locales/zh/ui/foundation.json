@@ -236,7 +236,7 @@
   "ui.foundation.vector-search-optional": "向量检索（可选）",
   "ui.foundation.version": "版本",
   "ui.foundation.wed": "三",
-  "ui.foundation.week": "周",
+  "ui.foundation.weekday-button": "周{0}",
   "ui.foundation.weekdays": "工作日",
   "ui.foundation.weekly": "每周…",
   "ui.foundation.what-would-you-like-to-do-today": "今天想做点什么？",

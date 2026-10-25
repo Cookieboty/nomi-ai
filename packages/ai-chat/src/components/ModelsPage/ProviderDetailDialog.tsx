@@ -102,7 +102,7 @@ interface Draft {
 }
 
 const initDraft = (p: ProviderView): Draft => ({
-  name: p.name,
+  name: providerDisplayName(p.name),
   keys: p.keys.map((k) => ({
     id: k.id,
     name: k.name ?? '',
@@ -136,7 +136,8 @@ export function buildPayload(p: ProviderView, d: Draft): ProviderInput {
     }));
   return {
     id: p.id,
-    name: d.name.trim() || p.name,
+    // 名称没改时保留原值（预设名是 key，显示时才翻译）
+    name: !d.name.trim() || d.name.trim() === providerDisplayName(p.name) ? p.name : d.name.trim(),
     ...(p.presetId ? { presetId: p.presetId } : {}),
     enabled: p.enabled,
     // 清空的地址写空串：主进程据此关闭该协议

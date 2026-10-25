@@ -51,7 +51,8 @@ export const DEFAULT_VOICE_SETTINGS: VoiceSettings = {
   autoSend: true,
   bargeIn: true,
   vadThreshold: 0.5,
-  wakeWord: { enabled: false, phrase: 'electron.common.hey-nomi', windowSec: 8 },
+  // 唤醒词与语音识别结果比对，是数据不是界面文案
+  wakeWord: { enabled: false, phrase: '你好，诺米', windowSec: 8 }, // i18n-ignore
 };
 
 const str = (v: unknown, d: string, max = 300) =>
