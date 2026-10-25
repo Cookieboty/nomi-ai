@@ -49,9 +49,9 @@ const DEFECTS: Array<[string, ResponsesDefects]> = [
 
 const succeeded = (r: CliRun) => r.code === 0 && r.stdout.includes(ANSWER);
 
-/** 上游中途断开：CLI 不能把它当成成功的完整回复 */
+/** 上游中途断开：CLI 不能把它当成成功的完整回复；超时强杀不算「正常报错」（#125） */
 const reportedFailure = (r: CliRun) =>
-  r.code !== 0 || /结束标记|ended|error|failed|中断/i.test(r.stdout + r.stderr);
+  !r.timedOut && (r.code !== 0 || /结束标记|ended|error|failed|中断/i.test(r.stdout + r.stderr));
 
 describe.each([
   ['grok', runGrok],
