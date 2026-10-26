@@ -791,8 +791,13 @@ export class Application implements IApplication {
       });
       voice.registerIpc();
       // 麦克风：只允许本应用窗口申请「音频」采集（不允许摄像头 / 屏幕）；
+      // 剪贴板只放行写入（复制按钮用 navigator.clipboard.writeText），读取仍拒绝；
       // 其余权限（geolocation / notifications / HID / MIDI / pointerLock 等）一律拒绝。
       session.defaultSession.setPermissionRequestHandler((_wc, permission, callback, details) => {
+        if (permission === 'clipboard-sanitized-write') {
+          callback(true);
+          return;
+        }
         if (permission === 'media') {
           const types = (details as { mediaTypes?: string[] }).mediaTypes ?? [];
           callback(types.length > 0 && types.every((t) => t === 'audio'));
@@ -800,9 +805,9 @@ export class Application implements IApplication {
         }
         callback(false);
       });
-      // 权限检查（持久化授权查询等）同样默认拒绝，媒体例外
+      // 权限检查（持久化授权查询等）同样默认拒绝，媒体与剪贴板写入例外
       session.defaultSession.setPermissionCheckHandler((_wc, permission) => {
-        return permission === 'media';
+        return permission === 'media' || permission === 'clipboard-sanitized-write';
       });
 
       // 创建看板娘窗口（始终创建：定时任务 / 提醒 / 编程助手进度都靠它播报；
