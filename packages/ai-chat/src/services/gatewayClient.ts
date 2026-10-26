@@ -129,6 +129,10 @@ export type ClientModelsPatch = {
 export type PrivacyAction = 'mask' | 'warn' | 'block';
 
 export interface PrivacySettings {
+  /** 严格识别（按键名认）/ 本机模型也隐藏 / 形状保持（假 key 代替占位符），默认都关 */
+  strict: boolean;
+  local: boolean;
+  shape: boolean;
   /** 没列出的类型是脱敏 */
   actions: Partial<Record<string, 'warn' | 'block'>>;
   /** 自定义密钥：只有名称与掩码 */
@@ -335,6 +339,9 @@ export const gatewayClient = {
     strictParams?: boolean;
     maxRequestBodyBytes?: number;
     privacyMode?: boolean;
+    privacyStrict?: boolean;
+    privacyLocal?: boolean;
+    privacyShape?: boolean;
   }) => call<GatewayState>('set-options', patch),
   privacySetAction: (kind: string, action: PrivacyAction) =>
     call<GatewayState>('privacy-set-action', kind, action),
@@ -348,6 +355,12 @@ export const gatewayClient = {
   privacyRemoveAllow: (tag: string) => call<GatewayState>('privacy-remove-allow', tag),
   privacyLog: () => call<PrivacyLogEntry[]>('privacy-log'),
   privacyClearLog: () => call<void>('privacy-clear-log'),
+  /** 「试一试」：一段文字按现在的设置会变成什么（不影响网关里的占位符） */
+  privacyPreview: (text: string) =>
+    call<{
+      text: string;
+      hits: Array<{ kind: string; action: string; len: number; head: string }>;
+    }>('privacy-preview', text),
   onChanged: (fn: () => void) =>
     bridge()?.on?.('ai:gateway:changed', () => fn()) ?? (() => undefined),
 };

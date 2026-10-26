@@ -16,6 +16,12 @@ const h = vi.hoisted(() => ({
     privacyRemoveAllow: vi.fn(async () => ({})),
     privacyLog: vi.fn(async () => [] as PrivacyLogEntry[]),
     privacyClearLog: vi.fn(async () => undefined),
+    privacyPreview: vi.fn(async (text: string) => ({
+      text: text.replace('sk-secret-value', '{{API_KEY_abcdefgh}}'),
+      hits: text.includes('sk-secret-value')
+        ? [{ kind: 'API_KEY', action: 'mask', len: 15, head: 'sk-' }]
+        : [],
+    })),
   },
 }));
 
@@ -32,6 +38,9 @@ const checked = (el: HTMLElement) =>
   el.getAttribute('aria-checked') === 'true' || (el as HTMLInputElement).checked === true;
 
 const settings = (extra: Partial<NonNullable<GatewayState['privacy']>> = {}) => ({
+  strict: false,
+  local: false,
+  shape: false,
   actions: {},
   secrets: [],
   allow: [],
@@ -161,5 +170,41 @@ describe('PrivacyModeSettings', () => {
     const r = render(<PrivacyModeSettings />);
     expect((r.getByTestId('privacy-secret-name') as HTMLInputElement).disabled).toBe(true);
     expect((r.getByTestId('privacy-allow-value') as HTMLInputElement).disabled).toBe(true);
+  });
+
+  it('三个细项开关：默认关，点开就写 set-options；隐私模式关着时不能点', async () => {
+    h.state = { privacyMode: true, privacy: settings({ shape: true }) };
+    const r = render(<PrivacyModeSettings />);
+    expect(checked(r.getByTestId('privacy-strict-switch'))).toBe(false);
+    expect(checked(r.getByTestId('privacy-shape-switch'))).toBe(true);
+    fireEvent.click(r.getByTestId('privacy-strict-switch'));
+    expect(h.client.setOptions).toHaveBeenCalledWith({ privacyStrict: true });
+    // 改的过程中开关禁用，等这一次完成再点下一个
+    await waitFor(() =>
+      expect((r.getByTestId('privacy-shape-switch') as HTMLButtonElement).disabled).toBe(false),
+    );
+    fireEvent.click(r.getByTestId('privacy-shape-switch'));
+    expect(h.client.setOptions).toHaveBeenCalledWith({ privacyShape: false });
+    cleanup();
+    h.state = { privacyMode: false, privacy: settings() };
+    const off = render(<PrivacyModeSettings />);
+    expect((off.getByTestId('privacy-local-switch') as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('试一试：显示找到的值和供应商收到的文字；隐私模式关着也能试', async () => {
+    h.state = { privacyMode: false, privacy: settings() };
+    const r = render(<PrivacyModeSettings />);
+    fireEvent.change(r.getByTestId('privacy-try-input'), {
+      target: { value: 'key sk-secret-value' },
+    });
+    fireEvent.click(r.getByTestId('privacy-try-run'));
+    await waitFor(() => expect(r.getByTestId('privacy-try-result')).toBeTruthy());
+    expect(h.client.privacyPreview).toHaveBeenCalledWith('key sk-secret-value');
+    const out = r.getByTestId('privacy-try-result').textContent!;
+    expect(out).toContain('key {{API_KEY_abcdefgh}}');
+    expect(out).toContain('15');
+    // 改了输入就清掉旧结果
+    fireEvent.change(r.getByTestId('privacy-try-input'), { target: { value: 'plain' } });
+    expect(r.queryByTestId('privacy-try-result')).toBeNull();
   });
 });

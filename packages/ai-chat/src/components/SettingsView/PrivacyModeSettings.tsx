@@ -4,7 +4,17 @@
  * 下面是第 2 阶段的细项：每类密钥找到之后怎么处理、自定义密钥、从不脱敏、最近隐藏的密钥。
  * 状态来自网关（ai:gateway:state 的 privacyMode / privacy），旧主进程没有这些字段时不显示对应部分。
  */
-import { Button, Input, Notice, Select, SettingRow, SettingsGroup, Switch, t } from '@nomi-ai/ui';
+import {
+  Button,
+  Input,
+  Notice,
+  Select,
+  SettingRow,
+  SettingsGroup,
+  Switch,
+  t,
+  Textarea,
+} from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import {
@@ -32,6 +42,36 @@ const kindLabel = (kind: string) => KINDS.find((k) => k.kind === kind)?.label() 
 /** 一条值的辨认信息：类型 · 长度 · 开头几个字符 */
 const summary = (e: { kind: string; len: number; head: string }) =>
   t('ui.chat-settings.secret-entry-summary', kindLabel(e.kind), e.len, e.head);
+
+/** 开关下面的三个细项（默认都关） */
+const SUB_SWITCHES: Array<{
+  key: 'privacyStrict' | 'privacyLocal' | 'privacyShape';
+  field: 'strict' | 'local' | 'shape';
+  title: () => string;
+  description: () => string;
+}> = [
+  {
+    key: 'privacyStrict',
+    field: 'strict',
+    title: () => t('ui.chat-settings.strict-detection'),
+    description: () => t('ui.chat-settings.also-catch-values-by-their-name-may-misfire'),
+  },
+  {
+    key: 'privacyShape',
+    field: 'shape',
+    title: () => t('ui.chat-settings.send-look-alike-keys'),
+    description: () => t('ui.chat-settings.look-alike-keys-pass-format-checks'),
+  },
+  {
+    key: 'privacyLocal',
+    field: 'local',
+    title: () => t('ui.chat-settings.hide-keys-for-local-models-too'),
+    description: () => t('ui.chat-settings.local-and-lan-models-also-get-placeholders'),
+  },
+];
+
+/** 「试一试」最多送多少个字符（与主进程的上限一致） */
+const PREVIEW_MAX = 20_000;
 
 /** 记录多久刷新一次（只在设置页开着时） */
 const LOG_POLL_MS = 5000;
@@ -85,6 +125,18 @@ export const PrivacyModeSettings: React.FC = () => {
             data-testid="privacy-mode-switch"
           />
         </SettingRow>
+        {state.privacy &&
+          SUB_SWITCHES.map(({ key, field, title, description }) => (
+            <SettingRow key={key} title={title()} description={description()}>
+              <Switch
+                checked={state.privacy![field]}
+                disabled={!on || busy}
+                onChange={(v) => void run(gatewayClient.setOptions({ [key]: v }))}
+                aria-label={title()}
+                data-testid={`privacy-${field}-switch`}
+              />
+            </SettingRow>
+          ))}
         {error && (
           <Notice tone="danger" role="alert" data-testid="privacy-error">
             {error}
@@ -274,6 +326,8 @@ const PrivacyDetails: React.FC<{
         </SettingRow>
       </SettingsGroup>
 
+      <TryIt />
+
       <SettingsGroup
         title={t('ui.chat-settings.recently-hidden-keys')}
         description={t('ui.chat-settings.only-kind-length-and-first-characters-are-kept')}
@@ -332,3 +386,79 @@ const PrivacyDetails: React.FC<{
     </>
   );
 };
+
+/** 「试一试」：粘一段文字，看按现在的设置发给供应商时会变成什么（隐私模式关着也能试） */
+const TryIt: React.FC = () => {
+  const [text, setText] = useState('');
+  const [result, setResult] = useState<Awaited<
+    ReturnType<typeof gatewayClient.privacyPreview>
+  > | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const preview = () => {
+    setBusy(true);
+    gatewayClient
+      .privacyPreview(text)
+      .then(setResult)
+      .catch(() => setResult(null))
+      .finally(() => setBusy(false));
+  };
+
+  return (
+    <SettingsGroup
+      title={t('ui.chat-settings.try-it')}
+      description={t('ui.chat-settings.paste-text-to-see-what-the-provider-would-receive')}
+      data-testid="settings-privacy-try"
+    >
+      <div className={styles.tryIt}>
+        <Textarea
+          value={text}
+          rows={4}
+          maxLength={PREVIEW_MAX}
+          aria-label={t('ui.chat-settings.try-it')}
+          data-testid="privacy-try-input"
+          onChange={(e) => {
+            setText(e.target.value);
+            setResult(null);
+          }}
+        />
+        <div className={styles.inlineForm}>
+          <Button
+            size="sm"
+            disabled={busy || !text.trim()}
+            onClick={preview}
+            data-testid="privacy-try-run"
+          >
+            {t('ui.foundation.preview')}
+          </Button>
+        </div>
+        {result && (
+          <div aria-live="polite" data-testid="privacy-try-result">
+            {result.hits.length ? (
+              <ul className={styles.tryHits}>
+                {result.hits.map((h, i) => (
+                  <li key={i}>
+                    {summary(h)} · {actionLabel(h.action)}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className={styles.letThrough}>{t('ui.chat-settings.nothing-would-be-hidden')}</p>
+            )}
+            <div className={styles.letThrough}>
+              {t('ui.chat-settings.what-the-provider-receives')}
+            </div>
+            <pre className={styles.tryOut}>{result.text}</pre>
+          </div>
+        )}
+      </div>
+    </SettingsGroup>
+  );
+};
+
+const actionLabel = (a: string) =>
+  a === 'warn'
+    ? t('ui.chat-settings.privacy-action-warn')
+    : a === 'block'
+      ? t('ui.chat-settings.privacy-action-block')
+      : t('ui.chat-settings.privacy-action-mask');

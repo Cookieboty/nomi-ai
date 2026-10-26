@@ -588,3 +588,27 @@
   font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-muted);
 }
+/* 隐私模式「试一试」：输入、按钮、结果上下排列 */
+.tryIt {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-2);
+  padding: var(--cd-space-3) var(--cd-space-4);
+}
+.tryHits {
+  margin: 0;
+  padding-left: var(--cd-space-4);
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text);
+}
+.tryOut {
+  margin: 0;
+  max-height: 240px;
+  overflow: auto;
+  padding: var(--cd-space-2);
+  border-radius: var(--cd-radius-sm);
+  background: var(--cd-color-bg-subtle);
+  font-size: var(--cd-font-size-xs);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
