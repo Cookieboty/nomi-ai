@@ -78,6 +78,23 @@ describe('CliHarnessService.knownDir', () => {
     await expect(h.listWorktrees(path.dirname(proj))).rejects.toThrow();
   });
 
+  it('worktree：伪造的 gitdir 指向仓库外的目录时，那个目录不会变成已知目录', async () => {
+    const env = Object.fromEntries(
+      Object.entries(process.env).filter(([k]) => !k.startsWith('GIT_')),
+    );
+    const git = (...a: string[]) => execFileSync('git', a, { cwd: proj, env, stdio: 'ignore' });
+    git('init', '-q', '-b', 'main');
+    git('-c', 'user.email=a@b', '-c', 'user.name=t', 'commit', '-q', '--allow-empty', '-m', 'i');
+    const fake = path.join(proj, '.git', 'worktrees', 'evil');
+    fs.mkdirSync(fake, { recursive: true });
+    fs.writeFileSync(path.join(fake, 'gitdir'), `${path.join(other, '.git')}\n`);
+    fs.writeFileSync(path.join(fake, 'HEAD'), 'ref: refs/heads/main\n');
+    fs.writeFileSync(path.join(fake, 'commondir'), '../..\n');
+    h.createTab({ backend: 'claude', cwd: proj });
+    await h.listWorktrees(proj);
+    expect(() => h.knownDir(other)).toThrow();
+  });
+
   it('生成提交信息：把 diff 和最近的提交标题交给辅助模型，清掉包装', async () => {
     const env = Object.fromEntries(
       Object.entries(process.env).filter(([k]) => !k.startsWith('GIT_')),

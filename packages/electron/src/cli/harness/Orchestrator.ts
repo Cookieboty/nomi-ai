@@ -89,6 +89,7 @@ import {
   gitSyncStatus,
   gitUnstage,
   gitWorktrees,
+  ownedWorktrees,
 } from '../gitOps';
 import { pickIdle, resolveIdleReclaimMs, sweepIntervalMs } from '../idleReclaim';
 import {
@@ -561,8 +562,9 @@ export class HarnessOrchestrator {
 
   /** 已知目录所在仓库的 worktree；列出来的（还在的）路径之后也算已知目录 */
   async listWorktrees(cwd: unknown) {
-    const r = await gitWorktrees(this.knownDir(cwd));
-    for (const w of r?.worktrees ?? []) if (!w.prunable) this.rememberWorktree(w.path);
+    const dir = this.knownDir(cwd);
+    const r = await gitWorktrees(dir);
+    for (const p of await ownedWorktrees(dir, r?.worktrees ?? [])) this.rememberWorktree(p);
     return r;
   }
   private rememberWorktree(p: string) {

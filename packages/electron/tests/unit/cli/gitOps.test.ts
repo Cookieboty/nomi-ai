@@ -25,9 +25,13 @@ import {
   gitStage,
   gitSyncStatus,
   gitUnstage,
+  gitOpsEnv,
   gitWorktrees,
+  ownedWorktrees,
   parseWorktrees,
+  redact,
 } from '../../../src/cli/gitOps';
+import { gitEnv } from '../../../src/cli/slashDiscovery';
 
 const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('GIT_')));
 const git = (cwd: string, ...a: string[]) =>
@@ -356,5 +360,74 @@ describe('gitOps', () => {
     write(path.join(repo, 'a.txt'), 'later\n');
     expect((await gitDiscardUndo(repo, r2.stashes)).code).toBe('moved');
     expect(fs.readFileSync(path.join(repo, 'a.txt'), 'utf8')).toBe('later\n');
+  });
+
+  it('锁按仓库：从子目录 / 软链打开同一仓库也共用一把锁', async () => {
+    write(path.join(repo, 'sub', 'b.txt'), 'b\n');
+    const link = path.join(root, 'link');
+    fs.symlinkSync(repo, link, 'dir');
+    const rs = await Promise.all([
+      gitStage(repo, ['a.txt']),
+      gitStage(path.join(repo, 'sub'), ['b.txt']),
+      gitStage(link, ['a.txt']),
+    ]);
+    expect(rs.map((r) => r.code).sort()).toEqual(['busy', 'busy', undefined]);
+  });
+
+  it('写操作的环境不带 GIT_OPTIONAL_LOCKS=0，只读刷新的照旧', () => {
+    expect(gitEnv().GIT_OPTIONAL_LOCKS).toBe('0');
+    expect(gitOpsEnv().GIT_OPTIONAL_LOCKS).toBeUndefined();
+    expect(gitOpsEnv().GIT_TERMINAL_PROMPT).toBe('0');
+  });
+
+  it('输出里远端地址内嵌的凭据打码', async () => {
+    expect(redact('To https://user:ghp_secret@github.com/a/b.git')).toBe(
+      'To https://***@github.com/a/b.git',
+    );
+    git(repo, 'remote', 'add', 'origin', 'https://u:tok123@127.0.0.1:1/x.git');
+    const r = await gitFetch(repo);
+    expect(r.ok).toBe(false);
+    expect(r.output ?? '').not.toContain('tok123');
+  });
+
+  it('提交上下文：未跟踪的软链（指向仓库外的密钥）不读内容', async () => {
+    const secret = path.join(root, 'secret.txt');
+    write(secret, 'TOP-SECRET-KEY\n');
+    fs.symlinkSync(secret, path.join(repo, 'leak.txt'));
+    const ctx = await gitCommitContext(repo, ['leak.txt']);
+    expect(ctx?.diff).toContain('new file: leak.txt\n(symlink)');
+    expect(JSON.stringify(ctx)).not.toContain('TOP-SECRET-KEY');
+  });
+
+  it('撤销放弃：上级目录被换成指向仓库外的软链时不删', async () => {
+    write(path.join(repo, 'd', 'x.txt'), 'x\n');
+    git(repo, 'add', '.');
+    git(repo, 'commit', '-q', '-m', 'd');
+    fs.rmSync(path.join(repo, 'd', 'x.txt'));
+    const r = await gitDiscard(repo, ['d/x.txt']);
+    expect(r.ok).toBe(true);
+    const outside = path.join(root, 'outside');
+    write(path.join(outside, 'x.txt'), 'keep\n');
+    fs.rmSync(path.join(repo, 'd'), { recursive: true });
+    fs.symlinkSync(outside, path.join(repo, 'd'), 'dir');
+    // git 自己的检查先拦下（moved）；在检查之后才换成软链时由删除前的真实路径检查拦下（invalid）
+    expect(['moved', 'invalid']).toContain((await gitDiscardUndo(repo, r.stashes)).code);
+    expect(fs.readFileSync(path.join(outside, 'x.txt'), 'utf8')).toBe('keep\n');
+  });
+
+  it('worktree：伪造的 .git/worktrees/x/gitdir 指向仓库外时不算本仓库的', async () => {
+    const wt = path.join(root, 'wt');
+    git(repo, 'worktree', 'add', '-q', '--detach', wt);
+    const outside = path.join(root, 'outside');
+    fs.mkdirSync(outside);
+    const fake = path.join(repo, '.git', 'worktrees', 'evil');
+    fs.mkdirSync(fake, { recursive: true });
+    fs.writeFileSync(path.join(fake, 'gitdir'), `${path.join(outside, '.git')}\n`);
+    fs.writeFileSync(path.join(fake, 'HEAD'), `${git(repo, 'rev-parse', 'HEAD')}\n`);
+    fs.writeFileSync(path.join(fake, 'commondir'), '../..\n');
+    const list = await gitWorktrees(repo);
+    expect(list?.worktrees.map((w) => w.path)).toContain(outside);
+    const owned = (await ownedWorktrees(repo, list!.worktrees)).map((p) => fs.realpathSync(p));
+    expect(owned).toEqual([fs.realpathSync(repo), fs.realpathSync(wt)]);
   });
 });

@@ -80,6 +80,16 @@ const NET_MS = 2 * 60_000;
 const OUTPUT_MAX = 8 * 1024;
 const MAX_PATHS = 20_000;
 
+/** 写操作的环境：同 gitEnv，但不带 GIT_OPTIONAL_LOCKS=0（那只适合只读的状态刷新） */
+export function gitOpsEnv(): NodeJS.ProcessEnv {
+  const env = gitEnv();
+  delete env.GIT_OPTIONAL_LOCKS;
+  return env;
+}
+
+/** 远端地址里内嵌的凭据（https://user:token@host）不显示出来 */
+export const redact = (s: string) => s.replace(/:\/\/[^/@\s]+@/g, '://***@');
+
 interface Run {
   code: number;
   stdout: string;
@@ -92,7 +102,7 @@ function run(cwd: string, args: string[], timeout = LOCAL_MS, input?: string): P
     const child = execFile(
       'git',
       ['--no-pager', '-c', 'core.quotepath=false', ...args],
-      { cwd, timeout, maxBuffer: 8 * 1024 * 1024, windowsHide: true, env: gitEnv() },
+      { cwd, timeout, maxBuffer: 8 * 1024 * 1024, windowsHide: true, env: gitOpsEnv() },
       (err, stdout, stderr) => {
         const e = err as (Error & { code?: unknown; killed?: boolean }) | null;
         resolve({
@@ -113,7 +123,8 @@ const out = (...rs: Run[]) => {
     .map((r) => `${r.stdout}\n${r.stderr}`.trim())
     .filter(Boolean)
     .join('\n');
-  return s.length > OUTPUT_MAX ? `…${s.slice(-OUTPUT_MAX)}` : s;
+  const r = redact(s);
+  return r.length > OUTPUT_MAX ? `…${r.slice(-OUTPUT_MAX)}` : r;
 };
 
 const line = async (cwd: string, args: string[]) => {
@@ -143,10 +154,20 @@ const fail = (code: GitOpCode, ...rs: Run[]): GitOpResult => ({
   ...(rs.length ? { output: out(...rs) } : {}),
 });
 
+const real = (p: string) => {
+  try {
+    return fs.realpathSync(p);
+  } catch {
+    return path.resolve(p);
+  }
+};
+
 const running = new Set<string>();
 
+/** 锁按仓库（common dir 的真实路径）：同一仓库从子目录 / 软链打开也共用一把锁 */
 async function locked(cwd: string, fn: () => Promise<GitOpResult>): Promise<GitOpResult> {
-  const key = path.resolve(cwd);
+  const common = await line(cwd, ['rev-parse', '--path-format=absolute', '--git-common-dir']);
+  const key = real(common || cwd);
   if (running.has(key)) return { ok: false, code: 'busy' };
   running.add(key);
   try {
@@ -155,14 +176,6 @@ async function locked(cwd: string, fn: () => Promise<GitOpResult>): Promise<GitO
     running.delete(key);
   }
 }
-
-const real = (p: string) => {
-  try {
-    return fs.realpathSync(p);
-  } catch {
-    return path.resolve(p);
-  }
-};
 
 /** 路径（相对 cwd，同 git status）：必须是字符串、不越出仓库；不合法时整批拒绝 */
 async function checkPaths(cwd: string, paths: unknown): Promise<string[] | null> {
@@ -182,6 +195,11 @@ async function checkPaths(cwd: string, paths: unknown): Promise<string[] | null>
   }
   return list;
 }
+
+const inside = (root: string, p: string) => {
+  const rel = path.relative(root, p);
+  return !rel || (rel !== '..' && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel));
+};
 
 const hasHead = async (cwd: string) =>
   (await run(cwd, ['rev-parse', '--verify', '-q', 'HEAD'])).code === 0;
@@ -450,6 +468,39 @@ export async function gitWorktrees(cwd: string): Promise<GitWorktreeList | null>
   };
 }
 
+/**
+ * 列出来的 worktree 里，真属于 cwd 所在仓库的那些路径：它的 common dir 就是这个仓库的，
+ * 而且 <w>/.git 是指回 <commonDir>/worktrees/<name> 的 gitfile（主工作区则 <w>/.git 就是 common dir）。
+ * .git/worktrees/x/gitdir 可以被改成任意目录，不校验就会把仓库外的目录当成已知工作区。
+ */
+export async function ownedWorktrees(cwd: string, worktrees: GitWorktree[]): Promise<string[]> {
+  const common = await line(cwd, ['rev-parse', '--path-format=absolute', '--git-common-dir']);
+  if (!common) return [];
+  const want = real(common);
+  const owned: string[] = [];
+  for (const w of worktrees) {
+    if (w.prunable) continue;
+    const dotgit = path.join(w.path, '.git');
+    let st: fs.Stats;
+    try {
+      st = fs.lstatSync(dotgit);
+    } catch {
+      continue;
+    }
+    if (st.isDirectory()) {
+      if (real(dotgit) !== want) continue;
+    } else if (st.isFile()) {
+      const m = /^gitdir:\s*(.+?)\s*$/m.exec(fs.readFileSync(dotgit, 'utf8'));
+      if (!m) continue;
+      const gd = real(path.resolve(w.path, m[1]!));
+      if (path.dirname(gd) !== path.join(want, 'worktrees')) continue;
+    } else continue;
+    const c = await line(w.path, ['rev-parse', '--path-format=absolute', '--git-common-dir']);
+    if (c && real(c) === want) owned.push(w.path);
+  }
+  return owned;
+}
+
 /** 生成提交信息时给模型看的 diff 上限（字符）；更多的只给文件列表 */
 const CONTEXT_DIFF_MAX = 24_000;
 const UNTRACKED_PEEK = 1500;
@@ -494,10 +545,16 @@ export async function gitCommitContext(
       .split('\n')
       .filter(Boolean);
     const base = real(cwd);
+    const top = real(await line(cwd, ['rev-parse', '--show-toplevel']));
     const peeks = untracked.slice(0, UNTRACKED_MAX).map((f) => {
       let head = '';
       try {
-        const buf = fs.readFileSync(path.resolve(base, f)).subarray(0, UNTRACKED_PEEK);
+        const file = path.resolve(base, f);
+        const st = fs.lstatSync(file);
+        // 软链、非普通文件不读：可能指向仓库外的密钥
+        if (st.isSymbolicLink()) return `new file: ${f}\n(symlink)`;
+        if (!st.isFile() || !inside(top, real(file))) return `new file: ${f}`;
+        const buf = fs.readFileSync(file).subarray(0, UNTRACKED_PEEK);
         head = buf.includes(0) ? '(binary)' : buf.toString('utf8');
       } catch {
         /* 读不了就只给文件名 */
@@ -645,7 +702,12 @@ export function gitDiscardUndo(cwd: string, stashes: unknown): Promise<GitOpResu
         );
         if (r.code !== 0) return fail('error', r);
       }
-      for (const f of remove) fs.rmSync(path.resolve(top, f), { force: true });
+      for (const f of remove) {
+        const file = path.resolve(top, f);
+        // 上级目录换成了指向仓库外的软链：不删
+        if (!inside(top, real(path.dirname(file)))) return fail('invalid');
+        fs.rmSync(file, { force: true });
+      }
       const d = await run(top, ['stash', 'drop', '-q', `stash@{${await stashIndex(top, sha)}}`]);
       if (d.code !== 0) return fail('error', d);
     }
