@@ -8,10 +8,11 @@ import {
   normalizeThemePref,
   resolveTheme,
 } from '@nomi-ai/ui';
-import { act, cleanup, fireEvent, render } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ThemeSettings } from '../src/components/SettingsView/ThemeSettings';
+import { CHAT_BG_PRESET_URL, setChatBackground } from '../src/services/chatBackground';
 
 afterEach(() => {
   cleanup();
@@ -40,11 +41,8 @@ describe('themes', () => {
       'system',
     ]);
   });
-  it('maps legacy paper id to cream', () => {
-    expect(normalizeThemePref('paper')).toBe('cream');
-    localStorage.setItem('cd.theme', 'paper');
-    initTheme();
-    expect(document.documentElement.getAttribute('data-theme')).toBe('cream');
+  it('treats removed paper id as unknown', () => {
+    expect(normalizeThemePref('paper')).toBeNull();
   });
   it('follow system resolves dark → graphite, light → cream', () => {
     expect(resolveTheme('system', true)).toBe('graphite');
@@ -60,8 +58,9 @@ describe('themes', () => {
     expect(document.documentElement.dataset.themePref).toBe('image');
     expect(document.documentElement.dataset.theme).toBe('graphite');
   });
-  it('only image theme reveals image controls and hides them on other themes', () => {
+  it('only image theme reveals image controls and hides them on other themes', async () => {
     applyTheme(DEFAULT_THEME);
+    await setChatBackground({ imageUrl: CHAT_BG_PRESET_URL });
     const view = render(<ThemeSettings />);
     expect(view.getAllByRole('radio')).toHaveLength(7);
     expect(
@@ -69,7 +68,7 @@ describe('themes', () => {
     ).toContain('linear-gradient');
     expect(view.queryByTestId('image-theme-settings')).toBeNull();
     fireEvent.click(view.getByTestId('theme-image'));
-    expect(view.getByTestId('image-theme-settings')).toBeTruthy();
+    await waitFor(() => expect(view.getByTestId('image-theme-settings')).toBeTruthy());
     expect(view.getAllByRole('slider')).toHaveLength(2);
     expect(view.queryByTestId('settings-chat-bg')).toBeNull();
     fireEvent.click(view.getByTestId('theme-graphite'));

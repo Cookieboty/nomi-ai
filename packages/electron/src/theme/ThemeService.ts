@@ -1,7 +1,7 @@
 /**
  * 界面主题：用户选择持久化到 userData/theme.json，广播给所有窗口（对话窗口 + 看板娘）。
  * 「跟随系统」用 nativeTheme 解析：深色 → Graphite，浅色 → Cream，系统切换时实时更新。
- * 新用户默认 Sunset Orange；已保存的选择优先。历史 id `paper` 读入时映射为 `cream`。
+ * 新用户默认 Sunset Orange；已保存的选择优先。
  *
  * macOS 窗口外观（nativeTheme.themeSource）跟随所选主题：否则系统是浅色、主题是深色时，
  * 失焦窗口的红绿灯按浅色外观画成半透明深灰，落在深色标题栏上就看不见了。
@@ -18,12 +18,9 @@ export type ThemeId = (typeof THEME_IDS)[number];
 export type ThemePref = ThemeId | 'system' | 'image';
 export const DEFAULT_THEME: ThemePref = 'sunset';
 
-const LEGACY: Record<string, ThemeId> = { paper: 'cream' };
-
 export const normalizeThemePref = (v: unknown): ThemePref | null => {
   if (typeof v !== 'string') return null;
   if (v === 'system' || v === 'image') return v;
-  if (v in LEGACY) return LEGACY[v]!;
   return (THEME_IDS as readonly string[]).includes(v) ? (v as ThemeId) : null;
 };
 
