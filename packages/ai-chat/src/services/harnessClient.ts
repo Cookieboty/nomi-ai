@@ -359,6 +359,27 @@ export interface GitSyncStatus {
   /** 没有上游时推送会用的远端 */
   pushRemote?: string;
 }
+
+export interface GitWorktree {
+  path: string;
+  branch?: string;
+  head?: string;
+  detached?: boolean;
+  /** 主工作区 */
+  main?: boolean;
+  /** 查询用的 cwd 所在的 worktree */
+  current?: boolean;
+  /** Nomi 委派任务的隔离目录（.nomi-delegate/<id>） */
+  delegate?: boolean;
+  locked?: boolean;
+  prunable?: boolean;
+}
+
+export interface GitWorktreeList {
+  /** cwd 是附属 worktree */
+  linked: boolean;
+  worktrees: GitWorktree[];
+}
 export interface ContextBreakdown {
   system: number;
   user: number;
@@ -419,6 +440,8 @@ export const harnessClient = {
   gitFetch: (cwd: string) => call<GitOpResult>('git-fetch', cwd),
   gitPull: (cwd: string) => call<GitOpResult>('git-pull', cwd),
   gitPush: (cwd: string) => call<GitOpResult>('git-push', cwd),
+  /** 同一仓库的 worktree；列出来的目录之后也能传给上面这些接口 */
+  gitWorktrees: (cwd: string) => call<GitWorktreeList | null>('git-worktrees', cwd),
   workspaceRead: (cwd: string, filePath: string) =>
     call<WorkspaceFileResult>('workspace-read', cwd, filePath),
   workspaceWrite: (cwd: string, filePath: string, content: string) =>

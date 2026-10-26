@@ -404,3 +404,14 @@ div:hover > .stageBtn,
   font-size: var(--cd-font-size-xs);
   font-weight: var(--cd-font-weight-medium);
 }
+
+/* 助手改的文件落在别的 worktree：分支栏下一行提示 */
+.worktreeHint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  margin: var(--cd-space-2) 10px 0;
+  color: var(--cd-color-text-subtle);
+  font-size: var(--cd-font-size-xs);
+}

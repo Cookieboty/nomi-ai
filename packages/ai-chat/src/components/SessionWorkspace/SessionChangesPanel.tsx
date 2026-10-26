@@ -3,10 +3,11 @@
  * 改动：git 仓库里以 `git status` / `git diff` 为准，本会话助手改过的文件带标记；
  * 不是 git 仓库（或读不到）时退回本会话变更树。中栏 Diff 见 CenterChangesHost。
  */
-import { t } from '@nomi-ai/ui';
+import { Select, t } from '@nomi-ai/ui';
 import {
   Bot,
   Expand,
+  FolderGit2,
   FolderTree,
   GitBranch,
   LocateFixed,
@@ -20,7 +21,7 @@ import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useSt
 import { createPortal } from 'react-dom';
 
 import { useGitBranch } from '../../hooks/useGitBranch';
-import { useGitSync } from '../../hooks/useGitSync';
+import { useGitSync, useGitWorktrees } from '../../hooks/useGitSync';
 import {
   harnessClient,
   type GitDiffResult,
@@ -48,6 +49,7 @@ import {
 } from '../../utils/sessionChanges';
 import type { FileDiff as ToolFileDiff } from '../../utils/toolTrace';
 import { workspaceRelPath } from '../../utils/workspacePath';
+import { editsElsewhere, samePath, worktreeLabel } from '../../utils/worktrees';
 
 import { ChangeFileTree } from './ChangeFileTree';
 import { useChangesUi } from './ChangesUiContext';
@@ -208,8 +210,19 @@ export const SessionChangesPanel: React.FC<{
   const [openDiskPaths, setOpenDiskPaths] = useState<string[]>([]);
   /** 手动刷新时连同分支一起重读 */
   const [branchNonce, setBranchNonce] = useState(0);
-  const branch = useGitBranch(cwd, busy, branchNonce);
-  const sync = useGitSync(cwd, busy, branchNonce);
+  /** 切到同一仓库的另一个 worktree 看改动（null = 标签自己的目录）；换目录时回到标签目录 */
+  const [wtCwd, setWtCwd] = useState<string | null>(null);
+  const [wtFor, setWtFor] = useState(cwd);
+  if (wtFor !== cwd) {
+    setWtFor(cwd);
+    setWtCwd(null);
+  }
+  /** 改动 / 提交 / 同步针对的目录 */
+  const gitCwd = wtCwd ?? cwd;
+  const worktreeList = useGitWorktrees(cwd, busy, branchNonce);
+  const worktrees = useMemo(() => worktreeList?.worktrees ?? [], [worktreeList]);
+  const branch = useGitBranch(gitCwd, busy, branchNonce);
+  const sync = useGitSync(gitCwd, busy, branchNonce);
   const prevCount = useRef(0);
   const panelRef = useRef<HTMLElement>(null);
   const {
@@ -226,8 +239,8 @@ export const SessionChangesPanel: React.FC<{
   const changeByFile = useMemo(() => new Map(changes.map((c) => [c.file, c])), [changes]);
   /** git 给的是相对 cwd 的路径，工具调用里多是绝对路径：统一换成相对路径再对 */
   const changeByRel = useMemo(
-    () => new Map(changes.map((c) => [relOf(cwd, c.file), c])),
-    [changes, cwd],
+    () => new Map(changes.map((c) => [relOf(gitCwd, c.file), c])),
+    [changes, gitCwd],
   );
   const changedTree = useMemo(
     () => buildChangeFileTree(changes, { cwd, compact: true }),
@@ -267,14 +280,14 @@ export const SessionChangesPanel: React.FC<{
   const gitReq = useRef(0);
   const refreshGit = useCallback(async () => {
     const id = ++gitReq.current;
-    if (!cwd) {
+    if (!gitCwd) {
       setGit(null);
       return;
     }
     setGitBusy(true);
     let next: GitDiffResult;
     try {
-      next = await harnessClient.gitDiff(cwd);
+      next = await harnessClient.gitDiff(gitCwd);
     } catch (e) {
       next = {
         ok: false,
@@ -288,17 +301,17 @@ export const SessionChangesPanel: React.FC<{
     if (id !== gitReq.current) return;
     setGit(next);
     setGitBusy(false);
-  }, [cwd]);
+  }, [gitCwd]);
 
   const refreshAll = useCallback(() => {
     setBranchNonce((n) => n + 1);
     void refreshGit();
   }, [refreshGit]);
-  const ops = useGitOps(cwd, refreshAll);
+  const ops = useGitOps(gitCwd, refreshAll);
 
   // 换目录：立即刷新。助手又改了文件、一轮跑完、窗口重新拿到焦点：常在同一刻接连发生
   // （一轮结束时新消息落地 + busy 下降沿），合并成一次 git diff
-  useEffect(() => setGit(null), [cwd]);
+  useEffect(() => setGit(null), [gitCwd]);
   useEffect(() => {
     void refreshGit();
   }, [refreshGit]);
@@ -547,10 +560,31 @@ export const SessionChangesPanel: React.FC<{
     const files = gitFiles
       .filter((g) => paths.has(g.path))
       .map((g) => ({ path: g.path, staged: g.staged, unstaged: g.unstaged }));
-    if (files.length) fillComposer(buildCommitPrompt(files, push));
+    if (files.length) fillComposer(buildCommitPrompt(files, push, wtCwd ?? undefined));
   };
 
-  const selectedRel = selectedFile ? relOf(cwd, selectedFile) : null;
+  // worktree：正在看的那个（标签目录所在的，或切过去的）；助手改的文件落在别的 worktree 时提示
+  const liveWorktrees = worktrees.filter((w) => !w.prunable);
+  const viewing =
+    (wtCwd
+      ? liveWorktrees.find((w) => samePath(w.path, wtCwd))
+      : liveWorktrees.find((w) => w.current)) ?? null;
+  const elsewhere = viewing
+    ? editsElsewhere(
+        changes.map((c) => c.file),
+        liveWorktrees,
+        viewing.path,
+      ).sort((a, b) => b.count - a.count)[0]
+    : undefined;
+  const pickWorktree = (p: string) => {
+    const home = liveWorktrees.find((w) => w.current);
+    setWtCwd(home && samePath(home.path, p) ? null : p);
+    setPreviewKey(null);
+    setSelectedFile(null);
+    setOnlySession(false);
+  };
+
+  const selectedRel = selectedFile ? relOf(gitCwd, selectedFile) : null;
   // 中栏预览只在同一来源（未提交 g: / 磁盘 d:）的文件间前后切换
   const portalFiles = previewKey
     ? previewFiles.filter((f) => f.key[0] === previewKey[0])
@@ -735,6 +769,47 @@ export const SessionChangesPanel: React.FC<{
           <GitSyncButtons sync={sync} ops={ops} />
         </div>
       ) : null}
+      {/* 同一仓库有多个 worktree（委派任务、编程助手的 --worktree、自己 git worktree add 的）：可以切过去看 */}
+      {liveWorktrees.length > 1 && viewing ? (
+        <div className={styles.branchBar} data-testid="rail-worktree">
+          <FolderGit2 size={13} aria-hidden />
+          <Select
+            size="sm"
+            variant="ghost"
+            value={viewing.path}
+            options={liveWorktrees.map((w) => ({
+              value: w.path,
+              label: w.main
+                ? `${worktreeLabel(w)} · ${t('ui.session-workspace.main-worktree')}`
+                : w.delegate
+                  ? `${worktreeLabel(w)} · ${t('ui.session-workspace.delegated-task')}`
+                  : worktreeLabel(w),
+            }))}
+            menuMinWidth={220}
+            title={viewing.path}
+            aria-label={t('ui.session-workspace.switch-worktree')}
+            data-testid="rail-worktree-select"
+            onChange={(e) => pickWorktree(e.target.value)}
+          />
+        </div>
+      ) : null}
+      {changesActive && elsewhere ? (
+        <p className={pane.worktreeHint} data-testid="rail-worktree-hint">
+          {t(
+            'ui.session-workspace.assistant-changed-n-files-in-worktree',
+            worktreeLabel(elsewhere.worktree),
+            String(elsewhere.count),
+          )}
+          <button
+            type="button"
+            className={pane.link}
+            data-testid="rail-worktree-hint-switch"
+            onClick={() => pickWorktree(elsewhere.worktree.path)}
+          >
+            {t('ui.session-workspace.switch-to-it')}
+          </button>
+        </p>
+      ) : null}
 
       {changesActive && source === 'git' ? (
         <>
@@ -884,7 +959,7 @@ export const SessionChangesPanel: React.FC<{
               hideFileTabs
               files={portalFiles}
               activeKey={previewKey!}
-              cwd={cwd}
+              cwd={previewKey?.startsWith('g:') ? gitCwd : cwd}
               onActiveKey={setPreviewKey}
               onClose={() => setPreviewKey(null)}
               onSaved={() => void refreshGit()}

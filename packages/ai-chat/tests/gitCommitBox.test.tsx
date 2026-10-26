@@ -5,7 +5,12 @@ import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ChangesUiProvider, SessionChangesPanel } from '../src/components/SessionWorkspace';
-import { harnessClient, type GitSyncStatus } from '../src/services/harnessClient';
+import {
+  harnessClient,
+  type GitSyncStatus,
+  type GitWorktreeList,
+} from '../src/services/harnessClient';
+import type { ConvMessage } from '../src/types/conversation';
 
 vi.mock('../src/services/harnessClient', () => ({
   harnessClient: {
@@ -20,6 +25,7 @@ vi.mock('../src/services/harnessClient', () => ({
     gitFetch: vi.fn(async () => ({ ok: true })),
     gitPull: vi.fn(async () => ({ ok: true })),
     gitPush: vi.fn(async () => ({ ok: true })),
+    gitWorktrees: vi.fn(async () => null),
   },
 }));
 
@@ -45,10 +51,10 @@ const sync = (extra: Partial<GitSyncStatus> = {}): GitSyncStatus => ({
   ...extra,
 });
 
-const mount = () =>
+const mount = (messages: ConvMessage[] = []) =>
   render(
     <ChangesUiProvider>
-      <SessionChangesPanel rail messages={[]} cwd="/tmp/proj" />
+      <SessionChangesPanel rail messages={messages} cwd="/tmp/proj" />
     </ChangesUiProvider>,
   );
 
@@ -207,5 +213,69 @@ describe('分支栏同步', () => {
     await waitFor(() =>
       expect(screen.getByTestId('git-notice').textContent).toContain('origin/main'),
     );
+  });
+});
+
+describe('worktree', () => {
+  const list: GitWorktreeList = {
+    linked: false,
+    worktrees: [
+      { path: '/tmp/proj', branch: 'main', main: true, current: true },
+      { path: '/tmp/proj-feat', branch: 'feat' },
+      { path: '/tmp/proj/.nomi-delegate/abc', head: 'abcdef1234', detached: true, delegate: true },
+      { path: '/tmp/gone', branch: 'old', prunable: true },
+    ],
+  };
+  const edit = (file: string): ConvMessage => ({
+    id: 'm1',
+    role: 'assistant',
+    text: '',
+    at: 1,
+    trace: [
+      {
+        type: 'tool',
+        name: 'Edit',
+        status: 'done',
+        input: JSON.stringify({ file_path: file, old_string: 'a\n', new_string: 'b\n' }),
+      },
+    ],
+  });
+
+  it('只有一个 worktree 时不显示切换', async () => {
+    mount();
+    await screen.findByTestId('rail-commit-box');
+    await waitFor(() => expect(h.gitWorktrees).toHaveBeenCalledWith('/tmp/proj'));
+    expect(screen.queryByTestId('rail-worktree')).toBeNull();
+  });
+
+  it('切到另一个 worktree：改动、提交都针对那个目录；不列已经不在的 worktree', async () => {
+    h.gitWorktrees.mockResolvedValue(list);
+    mount();
+    await screen.findByTestId('rail-worktree');
+    fireEvent.click(screen.getByRole('combobox'));
+    expect(document.querySelector('[data-value="/tmp/gone"]')).toBeNull();
+    expect(
+      document.querySelector('[data-value="/tmp/proj/.nomi-delegate/abc"]')!.textContent,
+    ).toContain('委派任务');
+    fireEvent.click(document.querySelector('[data-value="/tmp/proj-feat"]')!);
+    await waitFor(() => expect(h.gitDiff).toHaveBeenCalledWith('/tmp/proj-feat'));
+    await waitFor(() => expect(h.gitSyncStatus).toHaveBeenCalledWith('/tmp/proj-feat'));
+    fireEvent.change(message(), { target: { value: 'feat: wt' } });
+    fireEvent.click(screen.getByTestId('rail-commit'));
+    await waitFor(() =>
+      expect(h.gitCommit).toHaveBeenCalledWith('/tmp/proj-feat', 'feat: wt', ['a.ts', 'b.md']),
+    );
+  });
+
+  it('助手改的文件在委派 worktree 里：提示并可以切过去', async () => {
+    h.gitWorktrees.mockResolvedValue(list);
+    mount([edit('/tmp/proj/.nomi-delegate/abc/src/x.ts')]);
+    const hint = await screen.findByTestId('rail-worktree-hint');
+    expect(hint.textContent).toContain('abc');
+    expect(hint.textContent).toContain('1');
+    fireEvent.click(screen.getByTestId('rail-worktree-hint-switch'));
+    await waitFor(() => expect(h.gitDiff).toHaveBeenCalledWith('/tmp/proj/.nomi-delegate/abc'));
+    // 已经在看那个 worktree：不再提示
+    await waitFor(() => expect(screen.queryByTestId('rail-worktree-hint')).toBeNull());
   });
 });
