@@ -577,3 +577,14 @@
     display: none;
   }
 }
+
+/* 隐私模式：设置行右侧的一行小表单（输入框与按钮同为 sm 高） */
+.inlineForm {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+}
+.letThrough {
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+}
