@@ -33,6 +33,8 @@ export interface RedactionHit {
   masked: number;
   /** 回程还原了几处 */
   restored: number;
+  /** 这个值的「从不脱敏」标记（allowTagOf）：界面上点「这不是密钥」时主进程存它，不存原文 */
+  allowTag: string;
 }
 
 export interface MaskResult {
@@ -227,6 +229,7 @@ class Masking {
       head: value.slice(0, Math.min(4, Math.floor(value.length / 4))),
       masked: 1,
       restored: 0,
+      allowTag: allowTagOf(this.opts.key, value),
     });
   }
 }

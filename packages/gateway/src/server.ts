@@ -112,6 +112,8 @@ const MAX_LEARN_RETRIES = 2;
  * Nomi 对话据此记账（#97；ai-runtime 的 NOMI_SERVED_MODEL_HEADER 与此一致）
  */
 export const SERVED_MODEL_HEADER = 'x-nomi-served-model';
+/** 这次请求隐藏了几个密钥（隐私模式，docs/design/secret-privacy.md §11）：Nomi 对话据此在消息下方提示 */
+export const REDACTED_HEADER = 'x-nomi-redacted';
 
 export type GatewayClient = ClientId | 'legacy';
 
@@ -993,6 +995,8 @@ export class GatewayServer {
     const sentMasked = Boolean(masked && this.privacy.applies(cfg, cand));
     if (!sentMasked) delete tag.redactions;
     const restorer = sentMasked && masked!.restore.size ? new Restorer(masked!.restore) : null;
+    // 保活已发头时不能再 setHeader（#114）；Nomi 不保活，所以总能带上
+    if (restorer && !res.headersSent) res.setHeader(REDACTED_HEADER, String(masked!.restore.size));
     // 模型解析的备注、请求修正（attempt）之后再追加响应修正（respond，§11.3）
     const notes = [...resolveNotes, ...(last.notes ?? [])];
     const mode = bridgeMode(cand.wire, ingress.wire, cand.customToolsAsFunctions);

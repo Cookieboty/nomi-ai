@@ -8,7 +8,7 @@ import type { AddressInfo } from 'node:net';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import type { GatewayConfig, PrivacyConfig, RuntimeProvider } from '../src/config';
-import { PLACEHOLDER_RE } from '../src/privacy';
+import { allowTagOf, PLACEHOLDER_RE } from '../src/privacy';
 import { createGateway, type UsageEvent } from '../src/server';
 
 const SECRET = 'sk-proj-Ab3dEf6hIj9kLm2nOp5qRs8tUv';
@@ -130,12 +130,19 @@ describe('隐私模式', () => {
     );
     const res = await post(url, ask(true));
     const text = await res.text();
+    expect(res.headers.get('x-nomi-redacted')).toBe('1');
     expect(JSON.stringify(up.seen[0]!.body)).not.toContain(SECRET);
     expect(placeholderIn(up.seen[0]!.body)).toMatch(/^\{\{API_KEY_[a-z2-7]{8}\}\}$/);
     expect(streamText(text)).toBe(`key: ${SECRET} done`);
     await new Promise((r) => setTimeout(r, 20));
     expect(usage[0]!.redactions).toEqual([
-      expect.objectContaining({ kind: 'API_KEY', masked: 1, restored: 1, len: SECRET.length }),
+      expect.objectContaining({
+        kind: 'API_KEY',
+        masked: 1,
+        restored: 1,
+        len: SECRET.length,
+        allowTag: allowTagOf('k', SECRET),
+      }),
     ]);
   });
 
@@ -201,7 +208,9 @@ describe('隐私模式', () => {
         { providers: [provider('zp', { messages: up.base })], privacy },
         [up.hostPort],
       );
-      await (await post(url, ask(true))).text();
+      const res = await post(url, ask(true));
+      await res.text();
+      expect(res.headers.get('x-nomi-redacted')).toBeNull();
       expect(JSON.stringify(up.seen.at(-1)!.body)).toContain(SECRET);
       await new Promise((r) => setTimeout(r, 20));
       expect(usage[0]!.redactions).toBeUndefined();
