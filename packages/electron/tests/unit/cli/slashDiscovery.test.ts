@@ -429,6 +429,22 @@ describe('slashDiscovery', () => {
     expect(await gitBranch(path.join(root, 'nope'))).toBeNull();
   });
 
+  it('gitDiff：第一行是未暂存的文件时保留开头的空格（否则会被当成已暂存）', async () => {
+    const { execFileSync } = await import('node:child_process');
+    const g = (...a: string[]) =>
+      execFileSync('git', ['-c', 'user.email=a@b', '-c', 'user.name=t', ...a], { cwd: proj });
+    g('init', '-q');
+    write(path.join(proj, 'a.go'), 'a\n');
+    write(path.join(proj, 'b.go'), 'b\n');
+    g('add', '.');
+    g('commit', '-q', '-m', 'init');
+    write(path.join(proj, 'a.go'), 'a2\n');
+    write(path.join(proj, 'b.go'), 'b2\n');
+    g('add', 'b.go');
+    const r = await gitDiff(proj);
+    expect(r.status.split('\n')).toEqual([' M a.go', 'M  b.go']);
+  });
+
   it('gitDiff reports status and diff for a real repo, and a clean error otherwise', async () => {
     const { execFileSync } = await import('node:child_process');
     const g = (...a: string[]) =>

@@ -731,7 +731,8 @@ export async function gitBranch(cwd: string): Promise<GitBranchResult | null> {
 export async function gitDiff(cwd: string): Promise<GitDiffResult> {
   try {
     const flags = ['--no-ext-diff', '--no-textconv', '--no-color'];
-    const status = (await git(cwd, ['status', '--short', '--untracked-files=normal'])).trim();
+    // 只去结尾：每行开头两列是状态，第一行「 M path」（未暂存）去掉开头空格就成了「M path」（已暂存）
+    const status = (await git(cwd, ['status', '--short', '--untracked-files=normal'])).trimEnd();
     const stat = (await git(cwd, ['diff', ...flags, '--stat', 'HEAD']).catch(() => '')).trim();
     const [full, cached, work, nsHead, nsStaged, nsWork] = await Promise.all([
       git(cwd, ['diff', ...flags, 'HEAD']).catch(() => ''),
