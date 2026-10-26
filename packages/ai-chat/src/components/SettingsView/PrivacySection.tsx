@@ -1,6 +1,6 @@
 /**
  * 设置 → 隐私与权限：
- * 「隐私与数据」= 数据只在本机的说明 + 管理 / 导出 / 清除的快捷入口（第一个标签）；
+ * 「隐私与数据」= 数据只在本机的说明 + 隐私模式开关 + 管理 / 导出 / 清除的快捷入口（第一个标签）；
  * 「桌面权限」= 文件夹授权、工具权限、云端与仅本地开关与操作记录（桌面能力面板）。
  */
 import { Button, SettingRow, SettingsGroup, t } from '@nomi-ai/ui';
@@ -12,6 +12,7 @@ import type { ScreenTab } from '../ScreenPanel';
 
 import { DiagnosticsSettings } from './DiagnosticsSettings';
 import styles from './index.module.css';
+import { PrivacyModeSettings } from './PrivacyModeSettings';
 import { SectionPage } from './SectionPage';
 import { SECTION_TABS, type PrivacyTab, type SettingsSection, type SettingsTab } from './sections';
 
@@ -76,6 +77,7 @@ export const PrivacySection: React.FC<{
               description={t('ui.chat-settings.coding-agent-progress-only-reads-local-logs-status')}
             />
           </SettingsGroup>
+          <PrivacyModeSettings />
           <SettingsGroup title={t('ui.knowledge-local.export-clear')}>
             <SettingRow
               title={t('ui.chat-settings.export-local-data')}

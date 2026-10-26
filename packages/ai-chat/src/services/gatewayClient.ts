@@ -146,6 +146,8 @@ export interface GatewayState {
   strictParams?: boolean;
   /** 入站请求体上限（字节）；默认 32 MiB */
   maxRequestBodyBytes?: number;
+  /** 隐私模式（默认开）：发往云端第三方供应商前把密钥换成占位符；旧主进程没有这个字段 */
+  privacyMode?: boolean;
   migratedFrom?: { at: number; files: string[] };
   /** 模型目录：收录的模型数、版本（同步日；没同步过是内置目录的生成日）、是否来自同步 */
   catalog?: { models: number; version: string; synced: boolean };
@@ -300,8 +302,11 @@ export const gatewayClient = {
   clearLearned: (providerId: string) => call<void>('clear-learned', providerId),
   confirmPrivateHost: (hostPort: string) => call<void>('confirm-private-host', hostPort),
   retry: () => call<void>('retry'),
-  setOptions: (patch: { strictParams?: boolean; maxRequestBodyBytes?: number }) =>
-    call<GatewayState>('set-options', patch),
+  setOptions: (patch: {
+    strictParams?: boolean;
+    maxRequestBodyBytes?: number;
+    privacyMode?: boolean;
+  }) => call<GatewayState>('set-options', patch),
   onChanged: (fn: () => void) =>
     bridge()?.on?.('ai:gateway:changed', () => fn()) ?? (() => undefined),
 };
