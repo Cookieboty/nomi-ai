@@ -501,7 +501,9 @@ html[data-platform] .ai-chat-app {
   height: 100vh;
   padding-top: var(--cd-titlebar-h);
 }
-html[data-platform] .main-content {
+html[data-platform] .main-content,
+html[data-platform] .files-rail {
+  /* 右栏也要扣掉标题栏：否则底部固定的提交区会被裁掉一截 */
   height: calc(100vh - var(--cd-titlebar-h));
 }
 /* 模态 / 遮罩不盖住标题栏（可以一直拖动窗口） */
