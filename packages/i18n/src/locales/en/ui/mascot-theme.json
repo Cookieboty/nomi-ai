@@ -217,6 +217,7 @@
   "ui.mascot-theme.update-install-failed": "Update install failed",
   "ui.mascot-theme.update-install-failed-detail": "Update install failed: {0}",
   "ui.mascot-theme.update-is-available": "Update {0} is available",
+  "ui.mascot-theme.update-release-pending": "A new version is being released — no update available yet. Please try again later.",
   "ui.mascot-theme.updates-are-only-available-in-the-desktop-app": "Updates are only available in the desktop app.",
   "ui.mascot-theme.updates-come-from-github-releases-cookieboty-nomi-ai": "Updates come from GitHub Releases (Cookieboty/nomi-ai). Download is automatic; install waits for your confirmation.",
   "ui.mascot-theme.updates-the-dock-icon-right-away-for-this": "Updates the Dock icon right away (for this session only; Finder and Launchpad keep the default ink icon after you quit). The menu-bar icon stays a monochrome template.",

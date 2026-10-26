@@ -217,6 +217,7 @@
   "ui.mascot-theme.update-install-failed": "安装更新失败",
   "ui.mascot-theme.update-install-failed-detail": "安装更新失败：{0}",
   "ui.mascot-theme.update-is-available": "发现新版本 {0}",
+  "ui.mascot-theme.update-release-pending": "新版本正在发布中，暂无可用更新，请稍后再试",
   "ui.mascot-theme.updates-are-only-available-in-the-desktop-app": "更新服务不可用（仅在桌面应用中提供）。",
   "ui.mascot-theme.updates-come-from-github-releases-cookieboty-nomi-ai": "更新来自 GitHub Releases（Cookieboty/nomi-ai），下载完成后需你确认才会安装。",
   "ui.mascot-theme.updates-the-dock-icon-right-away-for-this": "立即更新 Dock 图标（仅本次运行期间；退出后 Finder / 启动台仍显示默认墨色图标）。菜单栏托盘保持单色模板图标。",

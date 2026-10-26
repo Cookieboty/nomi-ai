@@ -12,7 +12,7 @@ Nomi ships installers for **Windows (NSIS)**, **macOS (DMG, x64+arm64)** and **L
 | 来源                                                                     | 用途                                                                            |
 | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
 | `CI` → job `build-electron` → artifact `installer-{linux,mac,win}-<sha>` | push main / 带 `ci:full` 的 PR / `workflow_dispatch` 的可安装包（未签名也可测） |
-| tag `v*` → 同 job + `package:publish:*`                                  | 写入 GitHub Release，供 `electron-updater` 使用                                 |
+| tag `v*` → 同 job + `package:publish:*`                                  | 写入 **draft** GitHub Release；三端齐全后自动发布，供 `electron-updater` 使用   |
 
 - Runner：**ubuntu-latest** → AppImage；**windows-latest** → NSIS `Nomi Setup *.exe`；**macos-latest** → DMG（x64+arm64）。
 - 各平台在 runner 上 `pnpm install` 会装上对应的 `sherpa-onnx-<os>-<arch>`；Mac 双架构额外由 `scripts/release/ensure-sherpa-platform.mjs` 补齐另一边 darwin 包。
@@ -52,7 +52,12 @@ Auto-check can be toggled off in Settings. Periodic re-check is every 6 hours wh
 ## Cut a release · 如何发一版
 
 > Do **not** push a `v*` tag until CI on `main` (or the release branch) is green and you intend
-> users to receive that build. Tags trigger a **published** GitHub Release.
+> users to receive that build. A tag creates a **draft** Release that CI publishes automatically
+> once all three platforms uploaded their installers and `latest*.yml` (#146).
+>
+> **不要再手动 `gh release create vX.Y.Z`（不带 `--draft`）**：已发布但还没有安装包的 Release 会让
+> 已安装的客户端检查更新时找不到 `latest*.yml`（#146）。CI 会自己建 draft；若确实先手动建了已发布的
+> Release，`prepare-release` 会把它转回 draft，等三端传齐再发布。
 
 1. **Bump the version** in sync (semver, no leading `v` in the JSON fields):
    - `package.json` (workspace root)
@@ -61,7 +66,7 @@ Auto-check can be toggled off in Settings. Periodic re-check is every 6 hours wh
    - Root [`CHANGELOG.md`](../CHANGELOG.md) is generated from `.changeset/*.md`: `pnpm changelog`
      refreshes the _Unreleased_ section (CI runs `pnpm changelog:check`); `pnpm changeset:version`
      first turns _Unreleased_ into `## x.y.z — date`, then consumes the changesets.
-   - Write the release notes (EN + 中文, same shape as the previous Release body) in `docs/releases/vX.Y.Z.md`; paste it as the GitHub Release body after the tag build finishes.
+   - Write the release notes (EN + 中文, same shape as the previous Release body) in `docs/releases/vX.Y.Z.md` **before tagging**: `prepare-release` uses it as the draft Release body. (Otherwise the body is empty; edit the draft — or the published Release — on GitHub afterwards.)
 2. **Commit** on `main` (or a release PR), wait for CI green on all three platforms.
 3. **Tag and push** (example for 1.0.0 — only when you are ready):
 
@@ -70,10 +75,20 @@ Auto-check can be toggled off in Settings. Periodic re-check is every 6 hours wh
    git push origin v1.0.0
    ```
 
-4. **CI** (`.github/workflows/ci.yml` → `build-electron`):
-   - Builds win / mac / linux with signing secrets when present
-   - Runs `pnpm --filter @nomi-ai/electron run package:publish:{win,mac,linux}` (`--publish always`)
-   - Uploads installers + `latest*.yml` / `.blockmap` to the GitHub Release for that tag
+4. **CI** (`.github/workflows/ci.yml`):
+   - `prepare-release`: creates a **draft** Release for the tag (`gh release create --draft --verify-tag`,
+     body from `docs/releases/<tag>.md`). An existing draft is reused; an existing _published_ Release
+     without all update manifests is turned back into a draft (electron-builder skips uploading into a
+     published Release when `releaseType: draft`).
+   - `build-electron`: builds win / mac / linux with signing secrets when present, runs
+     `pnpm --filter @nomi-ai/electron run package:publish:{win,mac,linux}` (`--publish always`,
+     `releaseType: draft` in `electron-builder.yml`) and uploads installers + `latest*.yml` / `.blockmap`
+     into that draft. Drafts are invisible to electron-updater, so users never see a half-uploaded release.
+   - `publish-release` (needs all three builds): `scripts/release/verify-release-assets.mjs <tag>` checks
+     `latest.yml` / `latest-mac.yml` / `latest-linux.yml` exist, match the tag version, and every file they
+     list is uploaded; then `gh release edit <tag> --draft=false --latest`. If any platform failed, the
+     Release **stays a draft** — fix and re-run the failed jobs (Actions → Re-run failed jobs); publish-release
+     runs again after they succeed.
    - On macOS, runs `scripts/release/check-mac-update.mjs`: the job fails if `latest-mac.yml` does not list both the x64 and arm64 zip, or a listed file is missing or its size / sha512 differ. It prints a warning when the build is unsigned, because Squirrel.Mac rejects unsigned updates
 5. **Verify the Release** page has, at least:
    - Windows: `Nomi Setup x.y.z.exe` + `latest.yml` + `.blockmap`
@@ -198,5 +213,8 @@ GH_TOKEN=… pnpm --filter @nomi-ai/electron run package:publish:linux   # or :w
 
 - **Settings always “unavailable”** — you are on `pnpm dev` / unpackaged. Package and install first.
 - **Check fails with 404** — no Release (or no `latest*.yml`) for a _newer_ version than the installed app.
+  Since #146 the app treats a missing `latest*.yml` (`ERR_UPDATER_CHANNEL_FILE_NOT_FOUND`) as “a new version
+  is being released, no update yet”: manual checks show that hint, automatic checks stay silent. With the
+  draft → publish gate this should only happen for Releases published by hand.
 - **Download stalls** — corporate proxy; electron-updater uses HTTPS to `api.github.com` / release assets.
 - **Install does nothing** — status must be `downloaded`; click **Restart and install** and confirm the dialog.

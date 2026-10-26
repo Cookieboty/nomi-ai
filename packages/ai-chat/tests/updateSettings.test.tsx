@@ -30,6 +30,15 @@ afterEach(() => {
   delete (window as { electronAPI?: unknown }).electronAPI;
 });
 
+describe('新版本发布中（#146）', () => {
+  it('not-available + release-pending 显示友好提示，否则仍是「已是最新版本」', () => {
+    expect(statusLabel({ ...base, status: 'not-available', notice: 'release-pending' })).toBe(
+      '新版本正在发布中，暂无可用更新，请稍后再试',
+    );
+    expect(statusLabel({ ...base, status: 'not-available' })).toBe('已是最新版本');
+  });
+});
+
 describe('自动更新失败后能重试', () => {
   it('按失败的阶段说明：检查 / 下载 / 安装', () => {
     const err = (errorStage: UpdateState['errorStage']) =>

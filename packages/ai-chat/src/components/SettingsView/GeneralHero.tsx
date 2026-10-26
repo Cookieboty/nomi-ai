@@ -22,7 +22,14 @@ function versionFacts(s: UpdateState | null): { value: string; sub: string; tone
   const v = s.currentVersion;
   switch (s.status) {
     case 'not-available':
-      return { value: v, sub: t('ui.mascot-theme.you-are-up-to-date'), tone: 'ok' };
+      return {
+        value: v,
+        sub:
+          s.notice === 'release-pending'
+            ? t('ui.mascot-theme.update-release-pending')
+            : t('ui.mascot-theme.you-are-up-to-date'),
+        tone: 'ok',
+      };
     case 'available':
       return {
         value: v,

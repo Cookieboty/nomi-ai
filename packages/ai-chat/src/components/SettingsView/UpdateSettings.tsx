@@ -28,6 +28,8 @@ export interface UpdateState {
   error?: string;
   /** 失败在哪一步：检查 / 下载 / 安装 */
   errorStage?: 'check' | 'download' | 'install';
+  /** 'release-pending'：新版本正在发布、本平台安装包还没上传（仅手动检查时出现） */
+  notice?: 'release-pending';
   checkedAt?: number;
   autoCheck: boolean;
 }
@@ -53,7 +55,9 @@ export function statusLabel(s: UpdateState): string {
     case 'available':
       return t('ui.mascot-theme.update-is-available').replace('{0}', s.availableVersion ?? '');
     case 'not-available':
-      return t('ui.mascot-theme.you-are-up-to-date');
+      return s.notice === 'release-pending'
+        ? t('ui.mascot-theme.update-release-pending')
+        : t('ui.mascot-theme.you-are-up-to-date');
     case 'downloading':
       return t('ui.mascot-theme.downloading-update').replace(
         '{0}',

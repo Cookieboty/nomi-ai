@@ -46,6 +46,12 @@ export interface UpdateState {
   error?: string;
   /** 失败在哪一步（status 为 error 时）：检查 / 下载 / 安装——界面据此说明，并给「重试」 */
   errorStage?: 'check' | 'download' | 'install';
+  /**
+   * 附加说明（status 为 not-available 时）：'release-pending' = 最新 Release 已可见但本平台的
+   * latest*.yml 还没上传（三端产物仍在发布中），对用户而言等同于「暂无可用更新」。
+   * 只在手动检查时带上，自动检查静默。
+   */
+  notice?: 'release-pending';
   /** last successful check (ms since epoch) */
   checkedAt?: number;
   autoCheck: boolean;
@@ -119,6 +125,23 @@ const CHANNEL = {
   changed: 'updates:changed',
 } as const;
 
+/**
+ * 最新 Release 已对外可见、但本平台的更新清单（latest.yml / latest-mac.yml / latest-linux.yml）
+ * 还没上传：electron-updater 的 GitHubProvider 抛 ERR_UPDATER_CHANNEL_FILE_NOT_FOUND
+ * （"Cannot find latest.yml in the latest release artifacts (...): HttpError: 404"）。
+ * 这是发版过程中的瞬态，不是用户侧故障——按「暂无可用更新」处理。
+ */
+export function isReleasePendingError(err: unknown): boolean {
+  if (!err) return false;
+  const code = (err as { code?: unknown }).code;
+  if (code === 'ERR_UPDATER_CHANNEL_FILE_NOT_FOUND') return true;
+  const msg = err instanceof Error ? err.message : String(err);
+  return (
+    /Cannot find (channel )?"?latest[\w-]*\.yml"?/i.test(msg) ||
+    (/latest[\w-]*\.yml/i.test(msg) && /\b404\b/.test(msg))
+  );
+}
+
 const DEFAULT_LAUNCH_DELAY = 15_000;
 /**
  * 下载卡住的判定：Electron net 请求上 electron-updater 的 socket 超时不生效，连接静默断开时
@@ -142,6 +165,8 @@ export class UpdateService {
   private stallTimer: ReturnType<typeof setTimeout> | null = null;
   /** 正在进行的自动下载的取消令牌（来自 checkForUpdates 的返回） */
   private downloadToken: { cancel(): void } | null = null;
+  /** 当前这次检查是否由用户手动触发（决定「发布中」时是否给提示） */
+  private manualCheck = false;
 
   constructor(
     private readonly logger: ILoggerService,
@@ -169,7 +194,7 @@ export class UpdateService {
   registerIpc(): void {
     const opts = { owner: 'UpdateService', wrapErrors: false };
     guardedHandle(CHANNEL.get, () => this.getState(), opts);
-    guardedHandle(CHANNEL.check, () => this.check(), opts);
+    guardedHandle(CHANNEL.check, () => this.check({ manual: true }), opts);
     guardedHandle(CHANNEL.download, () => this.download(), opts);
     guardedHandle(CHANNEL.install, () => this.install(), opts);
     guardedHandle(
@@ -237,6 +262,10 @@ export class UpdateService {
       });
     });
     this.updater.on('error', (err) => {
+      if (this.state.status === 'checking' && isReleasePendingError(err)) {
+        this.markReleasePending(err);
+        return;
+      }
       const msg = err instanceof Error ? err.message : String(err);
       this.logger.warn('[updater] error', { error: msg });
       this.fail(msg);
@@ -282,7 +311,11 @@ export class UpdateService {
     }
   }
 
-  async check(): Promise<UpdateState> {
+  /**
+   * @param opts.manual 用户在设置页点「检查更新」；启动 / 定时检查为自动（默认）。
+   */
+  async check(opts: { manual?: boolean } = {}): Promise<UpdateState> {
+    this.manualCheck = opts.manual === true;
     if (!this.packaged) {
       this.patch({
         status: 'unavailable',
@@ -300,11 +333,31 @@ export class UpdateService {
       // 自动下载的失败已经通过 error 事件反映到状态上；这里只防止未处理的 rejection
       void r?.downloadPromise?.catch(() => undefined);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      this.fail(msg, 'check');
-      this.patch({ checkedAt: Date.now() });
+      if (isReleasePendingError(err)) {
+        this.markReleasePending(err);
+      } else {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.fail(msg, 'check');
+        this.patch({ checkedAt: Date.now() });
+      }
     }
     return this.getState();
+  }
+
+  /** 新版本正在发布（本平台 latest*.yml 尚未上传）：视为暂无可用更新，不向用户抛堆栈 */
+  private markReleasePending(err: unknown): void {
+    const msg = err instanceof Error ? err.message : String(err);
+    this.logger.info('[updater] latest release has no update manifest for this platform yet', {
+      error: msg.split('\n')[0],
+    });
+    this.downloadToken = null;
+    this.patch({
+      status: 'not-available',
+      availableVersion: undefined,
+      error: undefined,
+      checkedAt: Date.now(),
+      notice: this.manualCheck ? 'release-pending' : undefined,
+    });
   }
 
   async download(): Promise<UpdateState> {
@@ -410,6 +463,8 @@ export class UpdateService {
       autoCheck: this.autoCheck,
     };
     if (this.state.status !== 'error') this.state.errorStage = undefined;
+    if (this.state.status !== 'not-available' || partial.status === 'checking')
+      this.state.notice = undefined;
     this.watchStall();
     this.broadcast();
   }

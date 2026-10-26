@@ -144,6 +144,8 @@ publish:
   provider: github
   owner: Cookieboty
   repo: nomi-ai
-  # v* tags create a published Release so installed apps can update.
-  # Do not push a tag until you are ready for users to receive it (see docs/RELEASE.md).
-  releaseType: release
+  # #146: upload into a DRAFT Release. electron-updater ignores drafts, so installed apps never
+  # see a version whose latest*.yml is not uploaded yet. CI (.github/workflows/ci.yml) creates the
+  # draft in `prepare-release` and publishes it in `publish-release` only after all three platforms
+  # uploaded and scripts/release/verify-release-assets.mjs passed (see docs/RELEASE.md).
+  releaseType: draft

@@ -2197,6 +2197,7 @@ export type TranslationKey =
   | 'ui.mascot-theme.update-install-failed'
   | 'ui.mascot-theme.update-install-failed-detail'
   | 'ui.mascot-theme.update-is-available'
+  | 'ui.mascot-theme.update-release-pending'
   | 'ui.mascot-theme.updates-are-only-available-in-the-desktop-app'
   | 'ui.mascot-theme.updates-come-from-github-releases-cookieboty-nomi-ai'
   | 'ui.mascot-theme.updates-the-dock-icon-right-away-for-this'

@@ -40,6 +40,7 @@ jest.mock('electron-updater', () => ({
 import {
   UpdateService,
   _resetUpdateServiceForTests,
+  isReleasePendingError,
   type UpdaterLike,
 } from '../../../src/services/UpdateService';
 
@@ -144,6 +145,90 @@ describe('UpdateService', () => {
     updater.checkError = new Error('network down');
     svc.start();
     expect(await svc.check()).toMatchObject({ status: 'error', errorStage: 'check' });
+  });
+
+  describe('最新 Release 缺本平台 latest*.yml（#146）', () => {
+    /** 模拟 electron-updater GitHubProvider：先发 error 事件再 reject（与真实 AppUpdater 一致） */
+    const missingManifest = (file: string) => {
+      const err = Object.assign(
+        new Error(
+          `Cannot find ${file} in the latest release artifacts (https://github.com/Cookieboty/nomi-ai/releases/download/v2.0.3/${file}): HttpError: 404 \n"method: GET url: ..."\n    at createHttpError (httpExecutor.js:53:12)`,
+        ),
+        { code: 'ERR_UPDATER_CHANNEL_FILE_NOT_FOUND' },
+      );
+      updater.checkForUpdates = async () => {
+        updater.emit('checking-for-update');
+        updater.emit('error', err);
+        throw err;
+      };
+      return err;
+    };
+
+    it.each(['latest.yml', 'latest-mac.yml', 'latest-linux.yml'])(
+      '%s 404：手动检查 → 暂无可用更新 + 发布中提示，不带错误堆栈',
+      async (file) => {
+        missingManifest(file);
+        svc.start();
+        const s = await svc.check({ manual: true });
+        expect(s).toMatchObject({ status: 'not-available', notice: 'release-pending' });
+        expect(s.error).toBeUndefined();
+        expect(s.errorStage).toBeUndefined();
+        expect(s.checkedAt).toEqual(expect.any(Number));
+      },
+    );
+
+    it('自动检查（启动 / 定时）静默：not-available 且不带提示', async () => {
+      missingManifest('latest.yml');
+      svc.start();
+      const s = await svc.check();
+      expect(s.status).toBe('not-available');
+      expect(s.notice).toBeUndefined();
+      expect(s.error).toBeUndefined();
+    });
+
+    it('只有 message、没有 code 的 404 也识别（旧版 electron-updater）', async () => {
+      const err = new Error(
+        'Cannot find latest.yml in the latest release artifacts (https://x/latest.yml): HttpError: 404',
+      );
+      updater.checkError = err;
+      svc.start();
+      expect(await svc.check({ manual: true })).toMatchObject({
+        status: 'not-available',
+        notice: 'release-pending',
+      });
+    });
+
+    it('下一次检查开始时清掉提示；产物传齐后正常发现新版本', async () => {
+      missingManifest('latest.yml');
+      svc.start();
+      await svc.check({ manual: true });
+      updater.checkForUpdates = FakeUpdater.prototype.checkForUpdates.bind(updater);
+      const s = await svc.check({ manual: true });
+      expect(s).toMatchObject({ status: 'available', availableVersion: '1.0.1' });
+      expect(s.notice).toBeUndefined();
+    });
+
+    it('其他真实错误（含别的 404）仍按失败处理', async () => {
+      updater.checkError = Object.assign(
+        new Error('Unable to find latest version on GitHub (https://x): HttpError: 404'),
+        { code: 'ERR_UPDATER_LATEST_VERSION_NOT_FOUND' },
+      );
+      svc.start();
+      expect(await svc.check({ manual: true })).toMatchObject({
+        status: 'error',
+        errorStage: 'check',
+      });
+    });
+
+    it('isReleasePendingError 判定', () => {
+      expect(isReleasePendingError({ code: 'ERR_UPDATER_CHANNEL_FILE_NOT_FOUND' })).toBe(true);
+      expect(
+        isReleasePendingError(new Error('Cannot find channel "latest-mac.yml" update info: 404')),
+      ).toBe(true);
+      expect(isReleasePendingError(new Error('net::ERR_INTERNET_DISCONNECTED'))).toBe(false);
+      expect(isReleasePendingError(new Error('HttpError: 404 on Nomi-2.0.3.exe'))).toBe(false);
+      expect(isReleasePendingError(null)).toBe(false);
+    });
   });
 
   describe('失败后能重试', () => {
