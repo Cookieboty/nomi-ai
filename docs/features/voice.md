@@ -14,36 +14,42 @@
 
 ## 语音播报
 
-自 2.0.3 起不再内置离线语音引擎，也不再使用系统朗读（speechSynthesis）。Nomi 的声音分两部分：
+自 2.0.3 起不再内置离线语音引擎，也不再使用系统朗读（speechSynthesis）。Nomi 的声音分两部分：预录提示语音 + 实时朗读引擎（默认 Edge 在线朗读）。
 
 ### 诺米提示语音（预录，默认开启）
 
 - 诺米的常用中文提示语（问候、提醒、开关语音等，共 96 段）随安装包内置为预录语音，约 1.6 MB，位于 `packages/renderer/public/voice/nomi/zh/`（`<key>.mp3` + `manifest.json`）。
 - 音色：微软晓伊（`zh-CN-XiaoyiNeural`，语速 -5%，音调 +0Hz）。
 - 只在**同时满足**以下条件时播放：当前角色是诺米、界面语言为中文、看板娘未静音、「设置 → 语音与屏幕 → 语音 → 诺米提示语音」开启（IPC `tts:prompt-voice`）。
-- 播放顺序：**预录片段 → 实时朗读引擎 → 静音**。台词有对应片段就播片段；没有则交给实时朗读引擎；引擎为「无」或未接入时只显示文字。
+- 播放顺序：**预录片段 → 实时朗读引擎 → 静音**。台词有对应片段就播片段；没有则交给实时朗读引擎（默认 Edge）；引擎为「无」、未接入或合成失败时只显示文字。
 - 带变量的台词（如「已切换到 xx 模式」「你不在的时候错过了 N 条提醒」）气泡显示完整文字，语音念一句固定说法。
 - 同一句 1.5 秒内只播一次（气泡和事件语音同时触发时不会重复）。口型、音量、语音打断沿用原有播放逻辑（`packages/renderer/src/mascot/tts/audioPlayback.ts` 的 `playAudioClip`）。
 - 片段生成脚本：`scripts/voice/gen.py`（需要 `pip install edge-tts` 和 ffmpeg）。台词文字取自 `@nomi-ai/i18n` 中文文案；新增台词用 `--add KEY`，改了文案用 `--only KEY` 重新生成。
 
 > **许可提示**：当前片段由微软 Edge 在线 Neural 朗读服务生成，其输出的再分发许可不明确，属于临时素材。正式发布前需用 Azure Speech 订阅（同一音色）重新生成。
 
-### 实时朗读引擎（默认「无」）
+### 实时朗读引擎（默认 Edge 在线朗读）
 
 「设置 → 语音与屏幕 → 语音 → 实时朗读引擎」可选：
 
-| 选项（`provider`） | 说明                                                 |
-| ------------------ | ---------------------------------------------------- |
-| `none`（**默认**） | 不合成语音，AI 回复只出文字（预录提示语音不受影响）  |
-| `edge`             | 微软 Edge 在线朗读 —— **暂未接入**，选中后静默并提示 |
-| `azure`            | Azure Speech —— **暂未接入**，选中后静默并提示       |
-| `openai`           | OpenAI 语音 —— **暂未接入**，选中后静默并提示        |
+| 选项（`provider`） | 说明                                                                   |
+| ------------------ | ---------------------------------------------------------------------- |
+| `edge`（**默认**） | 微软 Edge 在线朗读：默认晓伊（`zh-CN-XiaoyiNeural`）、语速 -5%，需联网 |
+| `none`             | 不合成语音，只出文字（预录提示语音不受影响）                           |
+| `azure`            | Azure Speech —— **暂未接入**，选中后静默并提示                         |
+| `openai`           | OpenAI 语音 —— **暂未接入**，选中后静默并提示                          |
 
-- 路由：`packages/electron/src/tts/ttsRouter.ts`；IPC `tts:speak` / `tts:health`。当前一律静默，不会回退到系统朗读。
-- 目前**没有实现任何实时朗读引擎**：AI 普通回复不出声，只有预录提示语音会播放。
-- 旧配置兼容：已移除的内置离线引擎、Fish（本地 / 云）和自建 legacy 引擎一律按「无」加载，不报错。
-- e2e：`CD_TTS=off` 时不调用任何实时朗读引擎。
-- 「语音设置」：当前角色的语速、音量。
+> **重要**：Edge 朗读**需要联网**，用的是 Edge 浏览器「大声朗读」背后的在线服务（`speech.platform.bing.com`），**不是微软公开的官方 API**，微软随时可能调整或封锁，届时会自动退回只显示文字；第三方客户端的使用条款没有明确说明，**许可属灰色地带**。不想把台词文字发给微软，可以把引擎改为「无」。
+
+- **生效范围**：诺米台词里没有预录片段的那些（提醒、反应、命令反馈、设置里的试听等，入口 `speakForActiveCharacter`）。**AI 普通对话回复目前不会自动朗读**（没有接到回复流上）。
+- **默认开**：没有 `tts-config.json` 时 `provider = edge`、`enabled = true`。旧配置里保存过「无」的仍是「无」；已移除的内置离线引擎、Fish（本地 / 云）和 legacy 引擎按「无」加载，不报错。
+- **音色 / 语速**：音色列表从官方 voices 接口在线获取并只保留中文（`zh-*`）；取不到时用内置几个（晓伊、晓晓、云希、云健、云扬、云夏、台湾晓臻、香港曉佳）。语速 -50%～+50%（`edgeRate`），Edge 引擎不使用角色「语速」设置。
+- **试听**：设置卡片里的「试听」用未保存的音色 / 语速合成一句；「检测连接」实际合成一个短句并显示延迟。
+- **朗读内容清理**：去掉代码块、行内代码、HTML、图片、链接地址（保留文字）、标题 / 引用 / 列表符号、强调符号等再朗读（`@nomi-ai/types` 的 `cleanTextForSpeech`）。
+- **长文本**：按句切段（`splitSpeechSegments`，约 120 字一段），边播当前句边请求下一句；口型同步、语音打断（`stopSpeaking` → IPC `tts:stop` 取消主进程里还在合成的请求）沿用原播放逻辑。
+- **失败处理**：没联网、超时（15 秒）、403、协议变化 → 一律静默，只显示文字，不弹开发者错误；403 时按服务器时间校正时钟重试一次。连续失败 3 次后，设置里显示「实时朗读暂时连不上（可能没联网，或服务有变化），先只显示文字。」成功一次即清零。
+- e2e：`CD_TTS=off` 时不调用任何实时朗读引擎、不联网（音色列表直接用内置）。
+- 「语音设置」：当前角色的音量（语速对 Edge 引擎不生效）。
 - **不提供**「上传我的音色 / 任意参考音频克隆」入口。
 
 ## 技术说明
@@ -51,5 +57,6 @@
 - 本地识别使用 whisper.cpp（MIT）；语音活动检测使用 Silero VAD（MIT，ONNX Runtime 运行），未下载时退回能量检测。
 - 录音只在内存或临时文件中，识别后立即删除，不写日志。在线识别每次调用都记入审计日志。
 - 唤醒词通过「语音分段 → 本地识别 → 模糊匹配」实现。
-- 预录提示语音：`packages/renderer/src/mascot/voice/promptClips.ts`；实时朗读路由 `packages/electron/src/tts/ttsRouter.ts`。
+- 预录提示语音：`packages/renderer/src/mascot/voice/promptClips.ts`；实时朗读路由 `packages/electron/src/tts/ttsRouter.ts`；IPC `tts:speak` / `tts:preview` / `tts:voices` / `tts:status` / `tts:stop` / `tts:health`。
+- Edge 客户端：`packages/electron/src/tts/edge/`（项目自写，MIT；纯 Node，基于已有依赖 `ws`，macOS / Windows / Linux 通用，不需要安装 Edge）。协议：WSS `speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1`，先发 `speech.config`（输出 `audio-24khz-48kbitrate-mono-mp3`），再发 SSML，收二进制 `Path:audio` 帧直到 `turn.end`；请求带 `Sec-MS-GEC` 令牌（v2 算法，`secMsGec.ts`）。微软改版时通常只需更新 `edgeProtocol.ts` 里的版本号或令牌算法。
 - 渲染播放 `packages/renderer/src/mascot/tts/audioPlayback.ts`（预录片段与引擎返回的音频通用）。

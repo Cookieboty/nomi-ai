@@ -165,3 +165,89 @@ describe('audioPlayback 旧请求不能清理新句（#47）', () => {
     expect(audios).toHaveLength(0);
   });
 });
+
+describe('speakRealtime 分句流式播放 / 打断', () => {
+  it('去掉 Markdown 后按句请求；边播边预取下一句，最后一句播完才 onEnd', async () => {
+    const texts: string[] = [];
+    setApi(async (req: never) => {
+      texts.push((req as { text: string }).text);
+      return OK;
+    });
+    const onEnd = vi.fn();
+    const long =
+      '第一句话在这里。' + '```js\nconst x = 1\n```\n' + '**第二句**话也很长！' + '第三句。';
+    const started = await (async () => {
+      const p = speakRealtime(long, { onEnd });
+      await flush();
+      audios[0]!.playDeferred.resolve();
+      return p;
+    })();
+    expect(started).toBe(true);
+    expect(texts.join('')).not.toMatch(/const|\*|`/);
+    expect(texts.length).toBeGreaterThanOrEqual(1);
+    // 逐句播放到结束
+    for (let i = 0; i < 10 && !onEnd.mock.calls.length; i++) {
+      const a = audios[audios.length - 1]!;
+      a.playDeferred.resolve();
+      await flush();
+      a.onended?.();
+      await flush();
+    }
+    expect(onEnd).toHaveBeenCalledTimes(1);
+    expect(audios.length).toBe(texts.length);
+  });
+
+  it('长文本切成多段；stopSpeaking 后不再播放后续段，并通知主进程取消', async () => {
+    const ttsStop = vi.fn(async () => true);
+    let calls = 0;
+    (window as unknown as { electronAPI: unknown }).electronAPI = {
+      ttsSpeak: async () => {
+        calls++;
+        return OK;
+      },
+      ttsStop,
+    };
+    const onEnd = vi.fn();
+    const text = Array.from({ length: 6 }, (_, i) =>
+      `这是第${i}句，内容稍微长一点点以便切分开来。`.repeat(3),
+    ).join('');
+    const p = speakRealtime(text, { onEnd });
+    await flush();
+    audios[0]!.playDeferred.resolve();
+    await expect(p).resolves.toBe(true);
+    expect(calls).toBe(2); // 当前句 + 预取下一句
+    stopSpeaking();
+    expect(ttsStop).toHaveBeenCalled();
+    audios[0]!.onended?.();
+    await flush();
+    expect(audios.length).toBe(1);
+    expect(onEnd).not.toHaveBeenCalled();
+  });
+
+  it('中途某句失败：停下并 onEnd（文字仍在）', async () => {
+    let n = 0;
+    setApi(async () => (n++ === 0 ? OK : { success: false, via: 'none' }));
+    const onEnd = vi.fn();
+    const p = speakRealtime(
+      '第一句。' +
+        '第二句很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长。',
+      { onEnd },
+    );
+    await flush();
+    audios[0]!.playDeferred.resolve();
+    await expect(p).resolves.toBe(true);
+    audios[0]!.onended?.();
+    await flush();
+    expect(onEnd).toHaveBeenCalledTimes(1);
+    expect(audios.length).toBe(1);
+  });
+
+  it('只剩代码块（没有可读文字）：不请求，直接 onEnd', async () => {
+    const ttsSpeak = vi.fn(async () => OK);
+    setApi(ttsSpeak);
+    const onEnd = vi.fn();
+    await expect(speakRealtime('```\ncode\n```', { onEnd })).resolves.toBe(false);
+    expect(ttsSpeak).not.toHaveBeenCalled();
+    expect(onEnd).toHaveBeenCalled();
+  });
+});

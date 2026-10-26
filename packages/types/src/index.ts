@@ -24,6 +24,8 @@ export interface IpcApi {
   /** Main-process TTS synthesize; on failure renderer stays silent */
   ttsSpeak?: (req: TTSSpeakRequest) => Promise<TTSSpeakResult>;
   ttsHealth?: (config?: Partial<TTSConfig>) => Promise<TTSTestResult>;
+  /** 打断：取消主进程里还在合成的请求 */
+  ttsStop?: () => Promise<boolean>;
   /** 诺米提示语音开关（TTSConfig.promptVoice，默认开） */
   ttsPromptVoice?: () => Promise<boolean>;
 
@@ -70,9 +72,9 @@ export interface VoiceSettings {
 }
 
 /**
- * Realtime TTS engine: none (default — AI replies are text only) or Edge / Azure / OpenAI
- * (not implemented yet: selecting one stays silent). Nomi's fixed prompt lines use
- * prerecorded clips, not this engine.
+ * Realtime TTS engine: edge (default — Microsoft Edge online read-aloud, needs network),
+ * none (text only), or Azure / OpenAI (not implemented yet: selecting one stays silent).
+ * Nomi's fixed prompt lines use prerecorded clips, not this engine.
  */
 export type TTSProvider = 'none' | 'edge' | 'azure' | 'openai';
 
@@ -84,17 +86,50 @@ export interface TTSConfig {
   enabled: boolean;
   /** 诺米提示语音：Nomi 固定台词播放预录音频（默认开）。 */
   promptVoice?: boolean;
-  /** Realtime engine. Default: none (text only; failures stay silent). */
+  /** Realtime engine. Default: edge (failures stay silent, text only). */
   provider: TTSProvider;
+  /** Edge voice short name, e.g. zh-CN-XiaoyiNeural. */
+  edgeVoice?: string;
+  /** Edge speech rate in percent (-50..50). Default -5, same as the prompt clips. */
+  edgeRate?: number;
   lastModified: number;
 }
 
-/** Public defaults: no realtime engine, prompt voice on. */
+export const DEFAULT_EDGE_VOICE = 'zh-CN-XiaoyiNeural';
+export const DEFAULT_EDGE_RATE = -5;
+
+/** Public defaults: Edge engine (Xiaoyi, -5%), prompt voice on. */
 export const DEFAULT_TTS_CONFIG: Omit<TTSConfig, 'lastModified'> = {
   enabled: true,
   promptVoice: true,
-  provider: 'none',
+  provider: 'edge',
+  edgeVoice: DEFAULT_EDGE_VOICE,
+  edgeRate: DEFAULT_EDGE_RATE,
 };
+
+/** One selectable realtime voice. */
+export interface TTSVoice {
+  shortName: string;
+  locale: string;
+  gender?: string;
+  /** Friendly name from the service, if any. */
+  name?: string;
+}
+
+/** Recent realtime-engine health, for a plain-language hint in settings. */
+export interface TTSStatus {
+  consecutiveFailures: number;
+  lastFailureAt?: number;
+  lastSuccessAt?: number;
+}
+
+/** Settings preview ("试听"): synthesize a short sample with an unsaved draft. */
+export interface TTSPreviewRequest {
+  text: string;
+  provider: TTSProvider;
+  edgeVoice?: string;
+  edgeRate?: number;
+}
 
 export interface TTSSpeakRequest {
   text: string;
@@ -119,6 +154,8 @@ export interface TTSTestResult {
   message: string;
   latency?: number;
 }
+
+export * from './speechText';
 
 export * from './models';
 

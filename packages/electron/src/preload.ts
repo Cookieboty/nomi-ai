@@ -205,6 +205,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   ttsSpeak: async (req: { text: string; volume?: number; speed?: number }) => {
     return await ipcRenderer.invoke('tts:speak', req);
   },
+  ttsStop: async () => {
+    return await ipcRenderer.invoke('tts:stop');
+  },
   ttsHealth: async (config?: unknown) => {
     return await ipcRenderer.invoke('tts:health', config);
   },

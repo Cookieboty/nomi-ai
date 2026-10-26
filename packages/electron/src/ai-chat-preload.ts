@@ -41,6 +41,10 @@ const aiChatAPI = {
     save: (cfg: unknown) => ipcRenderer.invoke('saveTTSConfig', cfg),
     test: (cfg: unknown) => ipcRenderer.invoke('testTTSConnection', cfg),
     reset: () => ipcRenderer.invoke('resetTTSConfig'),
+    voices: () => ipcRenderer.invoke('tts:voices'),
+    preview: (req: unknown) => ipcRenderer.invoke('tts:preview', req),
+    status: () => ipcRenderer.invoke('tts:status'),
+    stop: () => ipcRenderer.invoke('tts:stop'),
   },
 
   /** 设置 → 通用：聊天主面板背景（chat/ChatBackgroundService.ts） */

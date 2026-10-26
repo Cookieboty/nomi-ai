@@ -44,13 +44,20 @@ Model files and binaries are **not bundled**: they are downloaded on demand from
 
 openWakeWord pretrained models (CC BY-NC-SA 4.0) are **not** used.
 
-## Speech output (Nomi prompt clips)
+## Speech output (Nomi prompt clips, Edge online read-aloud)
 
-There is no built-in speech synthesis engine. Nomi's short fixed prompt lines (Chinese UI, Nomi character only) play prerecorded MP3 clips from `packages/renderer/public/voice/nomi/zh/` (list in its `manifest.json`).
+There is no built-in (offline) speech synthesis engine. Nomi's short fixed prompt lines (Chinese UI, Nomi character only) play prerecorded MP3 clips from `packages/renderer/public/voice/nomi/zh/` (list in its `manifest.json`).
 
 | Component                                 | Licence            | Notes                                                                                                                                                                                                                                                                                                              |
 | ----------------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Nomi prompt clips (`voice/nomi/zh/*.mp3`) | Unclear — see note | Generated with the Microsoft Edge online neural voice `zh-CN-XiaoyiNeural` (rate −5%, pitch +0Hz) via `scripts/voice/gen.py`. Redistribution terms for audio from the free Edge read-aloud service are not clearly stated; regenerate the clips with a licensed Azure Speech subscription before a formal release. |
+
+### Edge online read-aloud (realtime engine, default)
+
+Lines without a prerecorded clip are synthesized at runtime by the **Microsoft Edge online read-aloud service** (`speech.platform.bing.com`, the service behind Edge's "Read aloud"). Nothing is bundled and no audio is stored; text is sent to Microsoft over the network only when the engine is `edge` (the default) and the mascot speaks.
+
+- **Not an official public Microsoft API.** It is used the way the Edge browser uses it; Microsoft may change or block it at any time, in which case Nomi silently falls back to text only. Terms of use for third-party clients are not stated — **licensing is a grey area**. Users can switch the engine to "None" in Settings.
+- **Client code is original project code (MIT)** — `packages/electron/src/tts/edge/` — written on top of the existing `ws` dependency (MIT); no new dependency and no GPL/LGPL code. The wire format (request headers, `speech.config` / SSML frames, binary audio framing, `Sec-MS-GEC` token) was re-implemented from public protocol descriptions, with reference to `msedge-tts` (MIT, https://github.com/Migushthe2nd/MsEdgeTTS) and the public discussion in `rany2/edge-tts` PR #492; no source was copied from `edge-tts` (LGPL-3.0).
 
 ## Local models (llama.cpp)
 

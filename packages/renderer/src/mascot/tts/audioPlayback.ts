@@ -1,8 +1,10 @@
 /**
  * 看板娘语音播放：预录提示语（playAudioClip）与实时朗读引擎返回的音频（speakRealtime）。
  * 驱动 lipSyncStore 口型、支持打断；失败返回 false，调用方保持静默。
+ * 实时朗读会先去掉 Markdown / 代码等不该念的内容，再按句切段：边播当前句边请求下一句。
  */
 
+import { cleanTextForSpeech, splitSpeechSegments, type TTSSpeakResult } from '@nomi-ai/types';
 import { createLogger } from '@nomi-ai/ui';
 
 import { lipSyncStore } from '../../ai/lipSyncStore';
@@ -99,6 +101,12 @@ function cleanupActive(): void {
 export function stopSpeaking(): void {
   generation++;
   cleanupActive();
+  // 取消主进程里还在合成的句子（不等待；失败无所谓）
+  try {
+    void window.electronAPI?.ttsStop?.()?.catch?.(() => undefined);
+  } catch {
+    /* ignore */
+  }
 }
 
 /**
@@ -232,19 +240,44 @@ export async function playAudioClip(
   }
 }
 
+function toBlobUrl(result: TTSSpeakResult): string {
+  const binary = atob(result.audioBase64 ?? '');
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return URL.createObjectURL(new Blob([bytes], { type: result.mimeType || 'audio/mpeg' }));
+}
+
+/** 开始播放一段；返回「这段播完」的 promise（被打断时永不 resolve，由 generation 判断退出）。 */
+async function startSegment(
+  result: TTSSpeakResult,
+  gen: number,
+  volume: number | undefined,
+): Promise<{ ended: Promise<void> }> {
+  const session = newSession();
+  let done!: () => void;
+  const ended = new Promise<void>((resolve) => {
+    done = resolve;
+  });
+  try {
+    session.url = toBlobUrl(result);
+    await playInSession(session.url, session, gen, { volume, onEnd: done });
+  } catch (err) {
+    releaseSession(session);
+    throw err;
+  }
+  return { ended };
+}
+
 /**
- * 请主进程实时朗读引擎合成并播放。返回 true 表示已开始播放；没有音频时返回 false。
+ * 请主进程实时朗读引擎合成并播放。长文本按句切段流式播放，可被 stopSpeaking 打断。
+ * 返回 true 表示第一句已开始播放；没有音频时返回 false（调用方保持静默 / 只显示文字）。
+ * onEnd 在最后一句播完（或中途某句失败）时调用；被打断时不调用。
  */
 export async function speakRealtime(text: string, opts: SpeakOptions = {}): Promise<boolean> {
   ensureStopper();
-  const trimmed = text.trim();
-  if (!trimmed) {
-    opts.onEnd?.();
-    return false;
-  }
-
+  const segments = splitSpeechSegments(cleanTextForSpeech(text ?? ''));
   const api = typeof window !== 'undefined' ? window.electronAPI : undefined;
-  if (!api?.ttsSpeak) {
+  if (!segments.length || !api?.ttsSpeak) {
     opts.onEnd?.();
     return false;
   }
@@ -252,35 +285,49 @@ export async function speakRealtime(text: string, opts: SpeakOptions = {}): Prom
   const gen = ++generation;
   stopSoftSpeech();
   cleanupActive();
-  const session = newSession();
 
+  const fetchSegment = (i: number): Promise<TTSSpeakResult | null> =>
+    api.ttsSpeak!({ text: segments[i]!, volume: opts.volume, speed: opts.speed }).catch(() => null);
+  const playable = (r: TTSSpeakResult | null): r is TTSSpeakResult =>
+    !!r?.success && !!r.audioBase64;
+
+  let ended: Promise<void>;
+  let next: Promise<TTSSpeakResult | null> | null = null;
   try {
-    const result = await api.ttsSpeak({
-      text: trimmed,
-      volume: opts.volume,
-      speed: opts.speed,
-    });
-    if (gen !== generation) return true; // cancelled
-    if (!result?.success || !result.audioBase64) {
+    const first = await fetchSegment(0);
+    if (gen !== generation) return playable(first); // cancelled
+    if (!playable(first)) {
       opts.onEnd?.();
       return false;
     }
-
-    const mime = result.mimeType || 'audio/mpeg';
-    const binary = atob(result.audioBase64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-    const blob = new Blob([bytes], { type: mime });
-    const url = URL.createObjectURL(blob);
-    session.url = url;
-
-    await playInSession(url, session, gen, opts);
-    return true;
+    if (segments.length > 1) next = fetchSegment(1); // 预取下一句
+    ({ ended } = await startSegment(first, gen, opts.volume));
   } catch (err) {
     log.warn('TTS playback failed; staying silent', err);
-    // 只释放本句自己的资源；新句已经接管时 activeSession 不是我，不会被牵连
-    releaseSession(session);
-    if (gen === generation) opts.onEnd?.();
+    if (gen === generation) {
+      cleanupActive();
+      opts.onEnd?.();
+    }
     return false;
   }
+
+  // 其余句子在后台接力播放
+  void (async () => {
+    try {
+      for (let i = 1; i < segments.length; i++) {
+        await ended;
+        if (gen !== generation) return;
+        const r = await next!;
+        if (gen !== generation) return;
+        if (!playable(r)) break; // 中途失败：停在这里，文字仍在
+        next = i + 1 < segments.length ? fetchSegment(i + 1) : null;
+        ({ ended } = await startSegment(r, gen, opts.volume));
+      }
+      await ended;
+    } catch (err) {
+      log.warn('TTS segment playback failed; stopping', err);
+    }
+    if (gen === generation) opts.onEnd?.();
+  })();
+  return true;
 }

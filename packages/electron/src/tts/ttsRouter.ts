@@ -1,10 +1,13 @@
 /**
  * TTS 路由（纯逻辑，无 electron 依赖，便于单测）：
- *   none（默认）→ 不合成，AI 回复只出文字
- *   edge / azure / openai → 尚未实现，静默
- * 失败 / 超时一律静默，没有系统朗读兜底。
+ *   edge（默认）→ 微软 Edge 在线朗读（需联网）
+ *   none → 不合成，只出文字
+ *   azure / openai → 尚未实现，静默
+ * 失败 / 超时 / 离线一律静默（渲染层只显示文字），没有系统朗读兜底。
  */
 import type { TTSConfig, TTSSpeakRequest, TTSSpeakResult } from '@nomi-ai/types';
+
+import type { EdgeSpeakFail, EdgeSpeakOk, EdgeSpeakParams } from './edge/EdgeTtsService';
 
 /**
  * CD_TTS=off（e2e）：不调用任何实时朗读引擎，tts:speak 直接静默。
@@ -26,8 +29,13 @@ export interface TtsSpeakOutcome {
   message?: string;
 }
 
+export interface TtsEdgeEngine {
+  speak(p: EdgeSpeakParams): Promise<EdgeSpeakOk | EdgeSpeakFail>;
+}
+
 export interface TtsRouterDeps {
   getConfig: () => TTSConfig;
+  edge?: TtsEdgeEngine;
   onOutcome?: (o: TtsSpeakOutcome) => void;
   now?: () => number;
 }
@@ -46,7 +54,7 @@ export class TtsRouter {
     try {
       const cfg = this.deps.getConfig();
       provider = cfg.provider;
-      result = this.route(req, cfg);
+      result = await this.route(req, cfg);
     } catch (err) {
       error = err;
       result = silent(err instanceof Error ? err.message : String(err));
@@ -66,10 +74,24 @@ export class TtsRouter {
     return result;
   }
 
-  private route(req: TTSSpeakRequest, cfg: TTSConfig): TTSSpeakResult {
+  private async route(req: TTSSpeakRequest, cfg: TTSConfig): Promise<TTSSpeakResult> {
     if (!req?.text?.trim()) return silent('empty text');
     if (!cfg.enabled) return silent('tts disabled');
     if (cfg.provider === 'none') return silent('no realtime TTS engine');
+    if (cfg.provider === 'edge' && this.deps.edge) {
+      const r = await this.deps.edge.speak({
+        text: req.text,
+        voice: cfg.edgeVoice,
+        rate: cfg.edgeRate,
+      });
+      if (!r.ok) return silent(`edge: ${r.kind}`);
+      return {
+        success: true,
+        audioBase64: r.audio.toString('base64'),
+        mimeType: 'audio/mpeg',
+        via: 'edge',
+      };
+    }
     return silent(`${cfg.provider} TTS is not implemented yet`);
   }
 }

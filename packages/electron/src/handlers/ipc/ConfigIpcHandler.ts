@@ -3,12 +3,20 @@
  * 处理应用配置、模型配置等相关的IPC通信
  */
 
-import { type TTSConfig, type TTSSpeakRequest, type TTSTestResult } from '@nomi-ai/types';
+import {
+  type TTSConfig,
+  type TTSPreviewRequest,
+  type TTSSpeakRequest,
+  type TTSSpeakResult,
+  type TTSTestResult,
+} from '@nomi-ai/types';
 import { app } from 'electron';
 
 import { t } from '../../i18n';
 import { type IConfigService } from '../../services/ConfigService';
 import { type ILoggerService } from '../../services/LoggerService';
+import { EdgeTtsService } from '../../tts/edge/EdgeTtsService';
+import { BUILTIN_ZH_VOICES, listChineseVoices } from '../../tts/edge/edgeVoices';
 import { getTtsConfigStore } from '../../tts/TtsConfigStore';
 import { TtsRouter, applyTtsEnvOverride } from '../../tts/ttsRouter';
 
@@ -231,12 +239,15 @@ export class ConfigIpcHandler extends BaseIpcHandler {
   }
 
   /**
-   * 初始化TTS配置相关IPC处理器。实时朗读引擎（Edge / Azure / OpenAI）尚未接入：tts:speak 一律静默。
+   * 初始化TTS配置相关IPC处理器。实时朗读：Edge 在线朗读（默认，需联网）；Azure / OpenAI 尚未接入。
+   * 任何失败都静默（渲染层只显示文字），连续失败次数经 tts:status 给设置页显示提示。
    */
   private initializeTTSHandlers(): void {
     const store = getTtsConfigStore();
+    const edge = new EdgeTtsService();
     const router = new TtsRouter({
       getConfig: () => applyTtsEnvOverride(store.load()),
+      edge,
       onOutcome: (o) => this.logger.debug('tts:speak', o),
     });
     const notAvailable = (provider: TTSConfig['provider']): TTSTestResult =>
@@ -244,7 +255,7 @@ export class ConfigIpcHandler extends BaseIpcHandler {
         ? { success: true, message: t('electron.common.no-realtime-tts-engine-selected') }
         : { success: false, message: t('electron.common.this-tts-engine-is-not-available-yet') };
 
-    // 获取TTS配置（无文件时返回默认：无实时引擎 + 诺米提示语音开）
+    // 获取TTS配置（无文件时返回默认：Edge 实时朗读 + 诺米提示语音开）
     this.registerHandler('getTTSConfig', async () => {
       try {
         return store.load();
@@ -270,9 +281,53 @@ export class ConfigIpcHandler extends BaseIpcHandler {
       }
     });
 
+    // 试听 / 测试都用传入的（未保存的）配置，CD_TTS=off 时仍静默
+    const previewRouter = (cfg: Partial<TTSConfig>) =>
+      new TtsRouter({
+        getConfig: () =>
+          applyTtsEnvOverride({ ...store.load(), ...cfg, enabled: true } as TTSConfig),
+        edge,
+      });
+
     this.registerHandler('testTTSConnection', async (_, config: TTSConfig) => {
       this.validateArgs([config], 1, ['object']);
-      return { ...notAvailable(config.provider), latency: 0 };
+      if (config.provider !== 'edge') return { ...notAvailable(config.provider), latency: 0 };
+      const t0 = Date.now();
+      const r = await previewRouter(config).speak({ text: t('electron.common.tts-test-sentence') });
+      return r.success
+        ? {
+            success: true,
+            message: t('electron.common.realtime-tts-reachable'),
+            latency: Date.now() - t0,
+          }
+        : { success: false, message: t('electron.common.realtime-tts-unreachable'), latency: 0 };
+    });
+
+    this.registerHandler(
+      'tts:preview',
+      async (_, req: TTSPreviewRequest): Promise<TTSSpeakResult> => {
+        this.validateArgs([req], 1, ['object']);
+        return previewRouter({
+          provider: req.provider,
+          edgeVoice: req.edgeVoice,
+          edgeRate: req.edgeRate,
+        }).speak({ text: String(req.text ?? '').slice(0, 300) });
+      },
+    );
+
+    // CD_TTS=off（e2e）不联网，直接给内置列表
+    this.registerHandler('tts:voices', async () =>
+      process.env.CD_TTS === 'off'
+        ? { voices: [...BUILTIN_ZH_VOICES], source: 'builtin' as const }
+        : listChineseVoices(),
+    );
+
+    this.registerHandler('tts:status', async () => edge.getStatus());
+
+    // 打断：取消还在等音频的请求
+    this.registerHandler('tts:stop', async () => {
+      edge.stop();
+      return true;
     });
 
     this.registerHandler('resetTTSConfig', async () => {
@@ -288,7 +343,7 @@ export class ConfigIpcHandler extends BaseIpcHandler {
       }
     });
 
-    // 合成路由：目前没有可用引擎，渲染层收到静默结果
+    // 合成路由：成功返回 mp3（base64），失败静默
     this.registerHandler('tts:speak', async (_, req: TTSSpeakRequest) => {
       this.validateArgs([req], 1, ['object']);
       return router.speak(req ?? { text: '' });
@@ -304,7 +359,14 @@ export class ConfigIpcHandler extends BaseIpcHandler {
     });
 
     this.registerHandler('tts:health', async (_, config?: Partial<TTSConfig>) => {
-      const res = notAvailable(config?.provider ?? store.load().provider);
+      const provider = config?.provider ?? store.load().provider;
+      if (provider === 'edge') {
+        const s = edge.getStatus();
+        return s.consecutiveFailures >= 3
+          ? { success: false, message: t('electron.common.realtime-tts-unreachable') }
+          : { success: true, message: t('electron.common.realtime-tts-reachable') };
+      }
+      const res = notAvailable(provider);
       return res.success ? { ...res, success: false } : res;
     });
   }

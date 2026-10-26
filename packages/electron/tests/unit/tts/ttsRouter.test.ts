@@ -11,12 +11,38 @@ const cfg = (patch: Partial<TTSConfig> = {}): TTSConfig => ({
 });
 
 describe('TtsRouter', () => {
-  it('none（默认）静默', async () => {
-    const r = await new TtsRouter({ getConfig: () => cfg() }).speak({ text: '你好' });
-    expect(r).toMatchObject({ success: false, via: 'none' });
+  it('默认是 edge：返回 mp3 base64，带上音色和语速', async () => {
+    const speak = jest.fn(async () => ({ ok: true as const, audio: Buffer.from('mp3') }));
+    const r = await new TtsRouter({ getConfig: () => cfg(), edge: { speak } }).speak({
+      text: '你好',
+    });
+    expect(r).toEqual({
+      success: true,
+      audioBase64: Buffer.from('mp3').toString('base64'),
+      mimeType: 'audio/mpeg',
+      via: 'edge',
+    });
+    expect(speak).toHaveBeenCalledWith({ text: '你好', voice: 'zh-CN-XiaoyiNeural', rate: -5 });
   });
 
-  it.each(['edge', 'azure', 'openai'] as const)('%s 尚未实现：静默', async (provider) => {
+  it('edge 失败（离线 / 超时 / 403）静默', async () => {
+    for (const kind of ['offline', 'timeout', 'forbidden', 'protocol'] as const) {
+      const edge = { speak: jest.fn(async () => ({ ok: false as const, kind, message: kind })) };
+      const r = await new TtsRouter({ getConfig: () => cfg(), edge }).speak({ text: '你好' });
+      expect(r).toMatchObject({ success: false, via: 'none', message: `edge: ${kind}` });
+    }
+  });
+
+  it('none 静默', async () => {
+    const edge = { speak: jest.fn() };
+    const r = await new TtsRouter({ getConfig: () => cfg({ provider: 'none' }), edge }).speak({
+      text: '你好',
+    });
+    expect(r).toMatchObject({ success: false, via: 'none' });
+    expect(edge.speak).not.toHaveBeenCalled();
+  });
+
+  it.each(['azure', 'openai'] as const)('%s 尚未实现：静默', async (provider) => {
     const r = await new TtsRouter({ getConfig: () => cfg({ provider }) }).speak({ text: '你好' });
     expect(r).toMatchObject({ success: false, via: 'none' });
     expect(r.message).toMatch(/not implemented/);
@@ -60,7 +86,22 @@ describe('normalizeTtsConfig', () => {
       expect(c).not.toHaveProperty('baseUrl');
     }
     expect(normalizeTtsConfig(null)).toMatchObject({ provider: 'none', promptVoice: true });
+    expect(normalizeTtsConfig({ provider: 'none' }).provider).toBe('none');
+    expect(DEFAULT_TTS_CONFIG).toMatchObject({ provider: 'edge', enabled: true });
     expect(normalizeTtsConfig({ provider: 'azure' }).provider).toBe('azure');
+  });
+
+  it('edge 音色 / 语速归一化', () => {
+    expect(
+      normalizeTtsConfig({ provider: 'edge', edgeVoice: 'zh-CN-YunxiNeural', edgeRate: 12.4 }),
+    ).toMatchObject({ edgeVoice: 'zh-CN-YunxiNeural', edgeRate: 12 });
+    expect(normalizeTtsConfig({ edgeVoice: "x'/><evil", edgeRate: 999 })).toMatchObject({
+      edgeVoice: 'zh-CN-XiaoyiNeural',
+      edgeRate: 50,
+    });
+    expect(normalizeTtsConfig({ edgeRate: 'fast' }).edgeRate).toBe(-5);
+    expect(validateTtsConfig(cfg({ provider: 'edge', edgeVoice: 'bad' })).isValid).toBe(false);
+    expect(validateTtsConfig(cfg({ provider: 'edge', edgeRate: 80 })).isValid).toBe(false);
   });
 
   it('保存时只接受 none / edge / azure / openai', () => {

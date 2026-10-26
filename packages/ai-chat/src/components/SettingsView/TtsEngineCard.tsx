@@ -1,17 +1,20 @@
 /**
  * 设置 → 语音与屏幕 → 语音：
  * - 「诺米提示语音」开关：提示 / 提醒等短句播放预录的诺米语音（只在中文界面、诺米形象下），立即保存；
- * - 「实时朗读引擎」：AI 回复用它朗读。选项为 无（默认，只显示文字）/ Edge / Azure / OpenAI；
- *   Edge / Azure / OpenAI 主进程暂未接入，选了也保持静默。
+ * - 「实时朗读引擎」：没有预录片段的诺米台词用它朗读。Edge 在线朗读（默认，需联网）/ 无 / Azure / OpenAI；
+ *   Edge 可选中文音色（在线列表，失败用内置几个）、调语速、试听；连续失败时显示白话提示。
+ *   Azure / OpenAI 暂未接入，选了保持静默。
  */
-import { Button, FormField, Notice, Select, SettingsGroup, Switch, t } from '@nomi-ai/ui';
-import React, { useCallback, useEffect, useState } from 'react';
+import { Button, FormField, Input, Notice, Select, SettingsGroup, Switch, t } from '@nomi-ai/ui';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
   DEFAULT_TTS_CONFIG,
+  TTS_FAILURE_HINT_THRESHOLD,
   ttsConfigClient,
   type TtsEngineConfig,
   type TtsProvider,
+  type TtsVoiceOption,
 } from '../../services/ttsConfigClient';
 
 import styles from './index.module.css';
@@ -22,8 +25,11 @@ type Result = { ok: boolean; text: string } | null;
 export const TtsEngineCard: React.FC = () => {
   const [cfg, setCfg] = useState<TtsEngineConfig | null>(null);
   const [dirty, setDirty] = useState(false);
-  const [busy, setBusy] = useState<'test' | 'save' | 'reset' | null>(null);
+  const [busy, setBusy] = useState<'test' | 'save' | 'reset' | 'preview' | null>(null);
   const [result, setResult] = useState<Result>(null);
+  const [voices, setVoices] = useState<TtsVoiceOption[]>([]);
+  const [failing, setFailing] = useState(false);
+  const previewAudio = useRef<HTMLAudioElement | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -45,8 +51,15 @@ export const TtsEngineCard: React.FC = () => {
       .get()
       .then((c) => alive && setCfg(c))
       .catch(() => alive && setCfg({ ...DEFAULT_TTS_CONFIG }));
+    void ttsConfigClient.voices().then((v) => alive && v && setVoices(v.voices));
+    void ttsConfigClient
+      .status()
+      .then(
+        (st) => alive && setFailing((st?.consecutiveFailures ?? 0) >= TTS_FAILURE_HINT_THRESHOLD),
+      );
     return () => {
       alive = false;
+      previewAudio.current?.pause();
     };
   }, []);
 
@@ -75,6 +88,27 @@ export const TtsEngineCard: React.FC = () => {
         ok: false,
         text: t('ui.voice-mascot.check-failed', e instanceof Error ? e.message : String(e)),
       });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const preview = async () => {
+    setBusy('preview');
+    setResult(null);
+    try {
+      previewAudio.current?.pause();
+      const url = await ttsConfigClient.preview(draft(), t('ui.voice-mascot.preview-sentence'));
+      if (!url) {
+        setResult({ ok: false, text: t('ui.voice-mascot.preview-unavailable') });
+        return;
+      }
+      const audio = new Audio(url);
+      previewAudio.current = audio;
+      await audio.play();
+      setFailing(false);
+    } catch {
+      setResult({ ok: false, text: t('ui.voice-mascot.preview-unavailable') });
     } finally {
       setBusy(null);
     }
@@ -132,7 +166,17 @@ export const TtsEngineCard: React.FC = () => {
   };
 
   const p = cfg.provider;
-  const pending = p === 'edge' || p === 'azure' || p === 'openai';
+  const pending = p === 'azure' || p === 'openai';
+  const voice = cfg.edgeVoice || DEFAULT_TTS_CONFIG.edgeVoice!;
+  const voiceOptions = (
+    voices.some((v) => v.shortName === voice)
+      ? voices
+      : [{ shortName: voice, locale: voice.slice(0, 5) }, ...voices]
+  ).map((v) => ({
+    value: v.shortName,
+    label: `${v.shortName.replace(/Neural$/, '')}${v.gender ? ` · ${v.gender}` : ''}`,
+  }));
+  const rate = typeof cfg.edgeRate === 'number' ? cfg.edgeRate : DEFAULT_TTS_CONFIG.edgeRate!;
 
   return (
     <>
@@ -160,13 +204,44 @@ export const TtsEngineCard: React.FC = () => {
               data-testid="tts-provider"
               onChange={(e) => set({ provider: e.target.value as TtsProvider })}
               options={[
-                { value: 'none', label: t('ui.voice-mascot.engine-none-text-only-default') },
                 { value: 'edge', label: t('ui.voice-mascot.engine-edge') },
+                { value: 'none', label: t('ui.voice-mascot.engine-none-text-only') },
                 { value: 'azure', label: t('ui.voice-mascot.engine-azure') },
                 { value: 'openai', label: t('ui.voice-mascot.engine-openai') },
               ]}
             />
           </FormField>
+
+          {p === 'edge' && (
+            <>
+              <FormField label={t('ui.voice-mascot.edge-voice')}>
+                <Select
+                  value={voice}
+                  data-testid="tts-edge-voice"
+                  onChange={(e) => set({ edgeVoice: e.target.value })}
+                  options={voiceOptions}
+                />
+              </FormField>
+              <FormField label={t('ui.voice-mascot.edge-rate', String(rate))}>
+                <Input
+                  type="range"
+                  min={-50}
+                  max={50}
+                  step={5}
+                  value={rate}
+                  data-testid="tts-edge-rate"
+                  aria-label={t('ui.voice-mascot.edge-rate', String(rate))}
+                  onChange={(e) => set({ edgeRate: Number(e.target.value) })}
+                />
+              </FormField>
+              <Notice data-testid="tts-edge-note">{t('ui.voice-mascot.edge-network-note')}</Notice>
+              {failing && (
+                <Notice tone="warning" data-testid="tts-edge-failing">
+                  {t('ui.voice-mascot.edge-failing-hint')}
+                </Notice>
+              )}
+            </>
+          )}
 
           {pending && (
             <Notice data-testid="tts-engine-pending">
@@ -194,6 +269,15 @@ export const TtsEngineCard: React.FC = () => {
           >
             {t('ui.voice-mascot.save-settings')}
           </Button>
+          {p === 'edge' && (
+            <Button
+              disabled={busy !== null}
+              data-testid="tts-engine-preview"
+              onClick={() => void preview()}
+            >
+              {busy === 'preview' ? t('ui.voice-mascot.previewing') : t('ui.voice-mascot.preview')}
+            </Button>
+          )}
           <Button
             disabled={busy !== null}
             data-testid="tts-engine-test"
