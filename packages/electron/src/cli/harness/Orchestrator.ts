@@ -330,6 +330,10 @@ export class HarnessOrchestrator {
   private readonly turnExits = new Set<string>();
   /** 用户在排队 / 运行期间点了停止的标签 */
   private readonly stopRequested = new Set<string>();
+  /** Nomi 委派建好、但第一轮还没开始发送的标签（建标签到 sendTab 之间有 git 检查等 await） */
+  private readonly delegatedUnsent = new Set<string>();
+  /** 上面这类标签在开始前就被点了停止：sendTab 一开始就按「已停止」结束，不再发给 CLI */
+  private readonly stopBeforeStart = new Set<string>();
   /**
    * 每次发送一个中止令牌（标签 → 这一轮）：从开始运行到这一轮真正发给 CLI 之间（Gemini 握手、
    * 等权限模式确认）点停止，靠它让晚到的握手 / 确认结果不再把这一轮发出去（#75）
@@ -1014,6 +1018,7 @@ export class HarnessOrchestrator {
     if (opts.reasoningEffort && isReasoningEffort(opts.reasoningEffort))
       tab.reasoningEffort = opts.reasoningEffort;
     this.tabs.set(tab.id, tab);
+    if (opts.delegation) this.delegatedUnsent.add(tab.id);
     const seeded = Array.isArray(opts.messages)
       ? opts.messages
           .filter(
@@ -1153,6 +1158,8 @@ export class HarnessOrchestrator {
     const idx = order.indexOf(id);
     this.tabs.delete(id);
     this.messages.delete(id);
+    this.delegatedUnsent.delete(id);
+    this.stopBeforeStart.delete(id);
     this.tabFileBytes.delete(id);
     this.progress.delete(id);
     // a pending coalesced write must not recreate the deleted file
@@ -2159,6 +2166,12 @@ export class HarnessOrchestrator {
    * CLI 没应答 / 这条消息还在它的队列里 / 宽限期内这一轮没结束时，才拆进程（下一轮 --resume）。
    */
   cancelTab(id: string): boolean {
+    // 委派子任务的卡片一出现就能点停止，此时第一轮可能还没开始（建 worktree / git 检查较慢，
+    // Windows 上尤甚）：记下来，sendTab 开始时直接按「已停止」结束，而不是悄悄丢掉这次停止
+    if (this.delegatedUnsent.has(id) && this.tabs.has(id)) {
+      this.stopBeforeStart.add(id);
+      return true;
+    }
     const queued = this.tabs.get(id)?.status === 'queued';
     if (queued) this.stopRequested.add(id);
     // 这一轮已开始、但还没真正发给 CLI（Gemini 握手 / 等权限模式确认）：中止它的令牌，
@@ -2281,6 +2294,8 @@ export class HarnessOrchestrator {
       await this.takeOverDelegatedTab(id);
     }
     const current = this.requireTab(id);
+    this.delegatedUnsent.delete(id);
+    const stopBeforeStart = this.stopBeforeStart.delete(id) && !opts.userInitiated;
     // 只有自发轮次在跑时允许发送：CLI 会排队处理，回显到达时再切换归属（§4）
     const autoOnly = current.status === 'running' && this.isAutoOnly(id);
     if ((current.status === 'running' && !autoOnly) || current.status === 'queued')
@@ -2326,6 +2341,10 @@ export class HarnessOrchestrator {
     current.status = 'running';
     const abort = new AbortController();
     this.sendAborts.set(id, abort);
+    if (stopBeforeStart) {
+      this.stopRequested.add(id);
+      abort.abort();
+    }
     const startedAt = Date.now();
     this.turnExits.delete(id);
     const quality = this.qualityBase(current);
@@ -2340,6 +2359,7 @@ export class HarnessOrchestrator {
     const stageDir = normalized.length ? this.promptImageDir(id) : null;
     let staged: StagedImage[] = [];
     try {
+      if (abort.signal.aborted) throw new Error(t('electron.common.aborted'));
       if (stageDir && normalized.length) staged = stageImages(stageDir, normalized);
       const result =
         backend === 'claude'
