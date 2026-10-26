@@ -327,6 +327,8 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - 发布前加固与体验修复：Grok 的提示与图片改走临时文件（`--prompt-file`），不再把 base64 图片塞进命令行参数；工作区读写等 IPC 只接受已知标签 / 工作区目录；更新检查阶段卡住时也会超时报错；Linux 上主窗口 / 对话窗口位置改为 resize / move 防抖保存；在输入框里按 Esc 不再关闭中栏 Diff；窗口窄于约 1240px 时四栏随窗口收缩、不再横向溢出；界面模式（精简 / 全量）偏好跨窗口同步；分栏拖拽被系统打断（pointercancel）时恢复原宽度；已拖过对话列宽的用户不再被默认宽度迁移重置（只迁移旧默认 440）；文件预览跨文件切换少读一次磁盘。 (`@nomi-ai/ai-chat` patch, `@nomi-ai/electron` patch, `@nomi-ai/types` patch)
 - 右栏「改动」可以自己提交和推送了：提交区移到面板底部，写好提交信息点「提交改动」（或 ⌘↩）即可，不必再让助手代劳。有已暂存的内容时只提交已暂存的，否则提交当前列表里的文件；每个文件和分组都能暂存 / 取消暂存。提交钩子照常运行，被拒时显示 git 的输出并保留提交信息；提交后可以撤销（改动回到已暂存）。 (`@nomi-ai/ai-chat` minor, `@nomi-ai/electron` minor)
 - 右栏「改动」可以自己提交和推送了：提交区移到面板底部，写好提交信息点「提交改动」（或 ⌘↩）即可，不必再让助手代劳。有已暂存的内容时只提交已暂存的，否则提交当前列表里的文件；每个文件和分组都能暂存 / 取消暂存。提交钩子照常运行，被拒时显示 git 的输出并保留提交信息；提交后可以撤销（改动回到已暂存）。 (`@nomi-ai/i18n` minor)
+- 右栏「改动」认得 worktree 了：同一仓库有多个 worktree（委派任务的隔离目录、编程助手开的 worktree、自己 git worktree add 的）时，分支栏下面可以切换，改动、提交、拉取、推送都针对选中的那个。助手改的文件落在别的 worktree 里时会提示，一键切过去；在那边「让助手提交」时，指令里会写明 worktree 的路径。 (`@nomi-ai/ai-chat` minor, `@nomi-ai/electron` minor)
+- 右栏「改动」认得 worktree 了：同一仓库有多个 worktree（委派任务的隔离目录、编程助手开的 worktree、自己 git worktree add 的）时，分支栏下面可以切换，改动、提交、拉取、推送都针对选中的那个。助手改的文件落在别的 worktree 里时会提示，一键切过去；在那边「让助手提交」时，指令里会写明 worktree 的路径。 (`@nomi-ai/i18n` minor)
 - 右栏完整 cwd 树（变更 +/−/蓝点）、全屏 Review 显式入口、chat↔rail 与 Diff|树水平分割线（可拖/持久化/双击复位）、预览|工作区|分栏切换；composer 加高；发送钮旁上下文环默认只显示环形，悬停再展示「当前上下文 xK / 最大」。 (`@nomi-ai/ai-chat` minor, `@nomi-ai/electron` patch)
 - 右栏完整 cwd 树（变更 +/−/蓝点）、全屏 Review 显式入口、chat↔rail 与 Diff|树水平分割线（可拖/持久化/双击复位）、预览|工作区|分栏切换；composer 加高；发送钮旁上下文环默认只显示环形，悬停再展示「当前上下文 xK / 最大」。 (`@nomi-ai/ui` patch)
 - 右栏把「变更」和「未提交」合并为「改动」：git 仓库里以 git 状态为准，分「已暂存 / 未暂存」两组， (`@nomi-ai/ai-chat` patch, `@nomi-ai/electron` patch)
