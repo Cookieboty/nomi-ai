@@ -2,7 +2,7 @@
 jest.unmock('fs');
 jest.unmock('path');
 
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -347,5 +347,91 @@ describe('MediaService', () => {
     svc.upsertProvider({ id: 'volc', enabled: false });
     const notice = events.find(([c]) => c === 'ai:media:notice');
     expect(notice?.[1]).toMatchObject({ kind: 'switched', to: { providerRef: 'fal' } });
+  });
+  it('素材库批量删除：索引与文件一起删掉，不留孤儿文件', async () => {
+    const { svc, events } = makeService();
+    const a = await svc.addFromSrc(
+      `data:image/png;base64,${PNG(11).toString('base64')}`,
+      'manual_add',
+    );
+    const b = await svc.addFromSrc(
+      `data:image/png;base64,${PNG(12).toString('base64')}`,
+      'manual_add',
+    );
+    const fa = svc.assets.filePath(svc.assets.get(a.id)!);
+    expect(existsSync(fa)).toBe(true);
+    expect(svc.deleteAssets([a.id, 'missing'])).toBe(1);
+    expect(existsSync(fa)).toBe(false);
+    expect(svc.listAssets().map((x) => x.id)).toEqual([b.id]);
+    expect(svc.assets.get(a.id)).toBeUndefined();
+    expect(events.some(([c]) => c === 'ai:media:changed')).toBe(true);
+  });
+
+  it('素材库批量导出：原图字节写入目标目录，同名不覆盖', async () => {
+    const { svc } = makeService();
+    const a = await svc.addFromSrc(
+      `data:image/png;base64,${PNG(21).toString('base64')}`,
+      'manual_add',
+    );
+    const dir = tmp();
+    expect(svc.exportAssets([a.id, 'missing'], dir)).toBe(1);
+    expect(svc.exportAssets([a.id], dir)).toBe(1);
+    const files = readdirSync(dir).sort();
+    expect(files).toHaveLength(2);
+    expect(readFileSync(path.join(dir, files[0])).equals(PNG(21))).toBe(true);
+  });
+
+  it('会话临时换模型：只影响该会话，不改设置里的默认；新会话仍用默认', async () => {
+    const { svc, fetchMock } = makeService();
+    svc.upsertProvider({ id: 'openai', apiKey: 'k1' });
+    svc.upsertProvider({ id: 'volc', apiKey: 'k2' });
+    svc.setChatDefault({ modelId: 'gpt-image-1', providerRef: 'openai' });
+    const before = JSON.stringify(svc.state().prefs);
+    const r = svc.setSessionChoice('c1', { modelId: 'seedream-4', providerRef: 'volc' });
+    expect(r).toEqual({ choice: { modelId: 'seedream-4', providerRef: 'volc' }, override: true });
+    expect(JSON.stringify(svc.state().prefs)).toBe(before);
+    expect(svc.sessionChoice('c2')).toMatchObject({
+      override: false,
+      choice: { providerRef: 'openai' },
+    });
+    const tool = svc.tools()[0] as unknown as {
+      execute: (i: unknown, c: unknown) => Promise<{ data: { providerRef: string } }>;
+    };
+    fetchMock.mockImplementation(async () =>
+      okJson({ data: [{ b64_json: PNG(31).toString('base64') }] }),
+    );
+    expect((await tool.execute({ prompt: 'x' }, { conversationId: 'c1' })).data.providerRef).toBe(
+      'volc',
+    );
+    expect((await tool.execute({ prompt: 'y' }, { conversationId: 'c2' })).data.providerRef).toBe(
+      'openai',
+    );
+    // 清除覆盖后回到默认
+    expect(svc.setSessionChoice('c1', null).override).toBe(false);
+  });
+
+  it('会话临时换模型：新会话（尚无 id）先记为待定，首次生图时归属该会话；不可用组合被拒', async () => {
+    const { svc } = makeService();
+    svc.upsertProvider({ id: 'openai', apiKey: 'k1' });
+    svc.upsertProvider({ id: 'volc', apiKey: 'k2' });
+    svc.setChatDefault({ modelId: 'gpt-image-1', providerRef: 'openai' });
+    expect(() =>
+      svc.setSessionChoice('c1', { modelId: 'gpt-image-1', providerRef: 'fal' }),
+    ).toThrow();
+    svc.setSessionChoice(undefined, { modelId: 'seedream-4', providerRef: 'volc' });
+    const tool = svc.tools()[0] as unknown as {
+      execute: (i: unknown, c: unknown) => Promise<{ data: { providerRef: string } }>;
+    };
+    expect((await tool.execute({ prompt: 'x' }, { conversationId: 'new1' })).data.providerRef).toBe(
+      'volc',
+    );
+    expect(svc.sessionChoice('new1').override).toBe(true);
+    expect(svc.sessionChoice(undefined).override).toBe(false);
+    // 覆盖的供应商被停用 → 自动回落到默认
+    svc.upsertProvider({ id: 'volc', enabled: false });
+    expect(svc.sessionChoice('new1')).toMatchObject({
+      override: false,
+      choice: { providerRef: 'openai' },
+    });
   });
 });

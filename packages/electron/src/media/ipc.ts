@@ -117,6 +117,20 @@ export function registerMediaIpc(svc: MediaService): void {
     svc.addFromSrc(str(src, MAX_SRC), sourceOf(source, 'manual_add'), str(conv, 128) || undefined),
   );
   handle('ai:media:set-in-library', (id, v) => svc.setInLibrary(str(id, 64), v === true));
+  const ids = (v: unknown): string[] =>
+    Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string').slice(0, 500) : [];
+  handle('ai:media:delete-assets', (v) => svc.deleteAssets(ids(v)));
+  handle('ai:media:export-assets', async (v) => {
+    const list = ids(v);
+    if (!list.length) return 0;
+    const r = await dialog.showOpenDialog({ properties: ['openDirectory', 'createDirectory'] });
+    if (r.canceled || !r.filePaths[0]) return 0;
+    return svc.exportAssets(list, r.filePaths[0]);
+  });
+  handle('ai:media:session-choice', (conv) => svc.sessionChoice(str(conv, 128) || undefined));
+  handle('ai:media:set-session-choice', (conv, c) =>
+    svc.setSessionChoice(str(conv, 128) || undefined, choiceOf(c)),
+  );
   handle('ai:media:ingest-uploads', (imgs, conv) =>
     svc.ingestUploads(
       Array.isArray(imgs)

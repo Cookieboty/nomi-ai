@@ -475,6 +475,63 @@ export class MediaService {
     return v;
   }
 
+  /** 素材库批量删除：去掉索引与文件，不留孤儿文件；返回实际删除数 */
+  deleteAssets(ids: string[]): number {
+    let n = 0;
+    for (const id of ids) if (this.assets.delete(id)) n++;
+    if (n) this.emit(MEDIA_CHANGED_EVENT, { assets: true });
+    return n;
+  }
+
+  /** 批量导出到目录：同名自动加序号，不覆盖已有文件；返回导出数 */
+  exportAssets(ids: string[], dir: string): number {
+    let n = 0;
+    for (const id of ids) {
+      const rec = this.assets.get(id);
+      const got = rec ? this.assets.read(id) : null;
+      if (!rec || !got) continue;
+      const base = `nomi-${rec.sha256.slice(0, 12)}`;
+      let file = path.join(dir, `${base}.${rec.ext}`);
+      for (let i = 1; fs.existsSync(file); i++) file = path.join(dir, `${base}-${i}.${rec.ext}`);
+      fs.writeFileSync(file, got.data);
+      n++;
+    }
+    return n;
+  }
+
+  // ---------- 会话临时模型（只影响该会话，不写设置） ----------
+
+  private readonly sessionChoices = new Map<string, MediaModelChoice>();
+  private static readonly PENDING = '__pending__';
+
+  /** 当前会话生效的生图模型：会话覆盖（仍可用时）优先，否则用设置里的默认 */
+  sessionChoice(conversationId?: string): { choice: MediaModelChoice | null; override: boolean } {
+    const key = conversationId || MediaService.PENDING;
+    const o = this.sessionChoices.get(key);
+    if (o && this.config.isUsable(o)) return { choice: o, override: true };
+    if (o) this.sessionChoices.delete(key);
+    const d = this.config.prefs().chatDefaultImage;
+    return { choice: d && this.config.isUsable(d) ? d : null, override: false };
+  }
+
+  /** 设置 / 清除会话覆盖；尚未落盘的新会话先记在 pending，首次调用工具时归属到该会话 */
+  setSessionChoice(conversationId: string | undefined, choice: MediaModelChoice | null) {
+    const key = conversationId || MediaService.PENDING;
+    if (choice && !this.config.isUsable(choice))
+      throw new MediaError('not_configured', tr('electron.common.media-not-configured'));
+    if (choice)
+      this.sessionChoices.set(key, { modelId: choice.modelId, providerRef: choice.providerRef });
+    else this.sessionChoices.delete(key);
+    return this.sessionChoice(conversationId);
+  }
+
+  private adoptPending(conversationId?: string): void {
+    const p = this.sessionChoices.get(MediaService.PENDING);
+    if (!conversationId || !p) return;
+    if (!this.sessionChoices.has(conversationId)) this.sessionChoices.set(conversationId, p);
+    this.sessionChoices.delete(MediaService.PENDING);
+  }
+
   listAssets(opts: { source?: AssetSource } = {}): AssetView[] {
     return this.assets.list({ inLibraryOnly: true, ...opts }).map((r) => this.assets.view(r));
   }
@@ -509,8 +566,9 @@ export class MediaService {
       input,
       execute: async (raw: unknown, ctx: ToolExecContext) => {
         const { prompt, ...rest } = input.parse(raw) as { prompt: string } & MediaParams;
-        const choice = this.config.prefs().chatDefaultImage;
-        if (!choice || !this.config.isUsable(choice))
+        this.adoptPending(ctx.conversationId);
+        const { choice } = this.sessionChoice(ctx.conversationId);
+        if (!choice)
           return {
             ok: false,
             error: { code: 'not_configured', message: tr('electron.common.media-not-configured') },
