@@ -1,6 +1,6 @@
 /**
  * Optional (advanced) Fish TTS orchestration for the main process.
- * No longer the product default (sherpa-onnx offline TTS is; see ../ttsRouter.ts).
+ * Default provider is `none` (see ../ttsRouter.ts).
  * When selected: fish-local + cute nomi seed (bundled sample.wav inlined as reference_audio).
  * On failure / disabled provider → silent result; renderer does not use Web Speech.
  * Does not expose user voice-upload cloning.
@@ -51,10 +51,6 @@ export class FishTtsService {
     const cfg = this.store.load();
     if (!cfg.enabled) {
       return { success: false, via: 'none', fallbackToSystem: false, message: 'tts disabled' };
-    }
-
-    if (cfg.provider === 'sherpa-theresa') {
-      return { success: false, via: 'none', fallbackToSystem: false, message: 'handled by sherpa' };
     }
 
     if (cfg.provider === 'legacy') {
@@ -160,7 +156,9 @@ export class FishTtsService {
       cfg.baseUrl,
     );
     const apiKey =
-      mode === 'cloud' ? apiKeyOverride?.trim() || this.store.getApiKey() || cfg.apiKey : undefined;
+      mode === 'cloud'
+        ? apiKeyOverride?.trim() || this.store.getApiKey('fish-cloud') || cfg.apiKey
+        : undefined;
     return new FishTtsClient({ mode, baseUrl, apiKey });
   }
 
@@ -169,7 +167,7 @@ export class FishTtsService {
     if (this.healthCache && now - this.healthCache.at < HEALTH_CACHE_MS) {
       return this.healthCache.ok;
     }
-    if (cfg.provider === 'fish-cloud' && !this.store.getApiKey() && !cfg.apiKey) {
+    if (cfg.provider === 'fish-cloud' && !this.store.getApiKey('fish-cloud') && !cfg.apiKey) {
       this.healthCache = { at: now, ok: false };
       return false;
     }

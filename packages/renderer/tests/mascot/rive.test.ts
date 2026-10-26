@@ -64,7 +64,9 @@ describe('rive backend', () => {
   it('exposes the authored leg clips (ROUND18 step/squat, ROUND26 walk/run) as native triggers baked into the .riv', () => {
     const fire = vi.fn();
     const b = createRiveBackend(() => ({ trigger: (name) => ({ trigger: () => fire(name) }) }));
-    const riv = fs.readFileSync(path.join(__dirname, '../../public/assets/models/rive/nomi-complete.riv'));
+    const riv = fs.readFileSync(
+      path.join(__dirname, '../../public/assets/models/rive/nomi-complete.riv'),
+    );
     for (const clip of ['squat', 'step', 'walk', 'run']) {
       expect(b.playMotion(clip), clip).toBe(true);
       expect(fire).toHaveBeenLastCalledWith(clip);

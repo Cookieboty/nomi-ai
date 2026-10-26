@@ -202,9 +202,9 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
       </section>
 
       <section className={styles.group} data-testid="voice-engine-link">
-        <SectionTitle level={4}>{tr('ui.chat-settings.speech-engine')}</SectionTitle>
+        <SectionTitle level={4}>{tr('ui.voice-mascot.realtime-tts-engine')}</SectionTitle>
         <p className="cd-muted" style={{ fontSize: 12 }}>
-          {tr('ui.voice-mascot.offline-voice-model-fish-self-hosted-tts-and')}
+          {tr('ui.voice-mascot.realtime-tts-engine-link-hint')}
         </p>
         <div>
           <button

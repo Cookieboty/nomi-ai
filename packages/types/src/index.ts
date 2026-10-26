@@ -20,7 +20,7 @@ export interface IpcApi {
   /** 主进程改了语音开关（TTS 模型下载失败回滚等）；返回取消订阅 */
   onVoiceSettingsChanged?: (callback: (settings: Partial<VoiceSettings>) => void) => () => void;
 
-  // 朗读（内置 sherpa-onnx 离线 TTS / 可选 Fish / legacy 外部服务）；配置在对话窗口的设置里
+  // 实时朗读（Edge / Azure / OpenAI / 可选 Fish / legacy 外部服务；默认无）；配置在对话窗口的设置里
   /** Main-process TTS synthesize; on failure renderer stays silent */
   ttsSpeak?: (req: TTSSpeakRequest) => Promise<TTSSpeakResult>;
   ttsHealth?: (config?: Partial<TTSConfig>) => Promise<TTSTestResult>;
@@ -68,17 +68,19 @@ export interface VoiceSettings {
 }
 
 /**
- * TTS provider: built-in sherpa-onnx offline (default), optional Fish (advanced),
- * legacy external clone API. System Web Speech is intentionally unsupported.
+ * Realtime TTS engine: none (default — AI replies are text only), Edge / Azure / OpenAI,
+ * optional Fish (advanced), legacy external clone API. No built-in offline engine and no
+ * system Web Speech. Nomi's fixed prompt lines use prerecorded clips, not this engine.
  */
-export type TTSProvider = 'sherpa-theresa' | 'fish-local' | 'fish-cloud' | 'legacy';
+export type TTSProvider =
+  'none' | 'edge' | 'azure' | 'openai' | 'fish-local' | 'fish-cloud' | 'legacy';
 
 /** Audio format requested from Fish /v1/tts */
 export type TTSAudioFormat = 'mp3' | 'wav' | 'opus' | 'pcm';
 
 /**
  * TTS configuration (userData/tts-config.json).
- * Built-in default is the offline sherpa-onnx VITS model (`sherpa-theresa`, sid 0, speed 1.0).
+ * Default provider is `none`; `promptVoice` controls Nomi's prerecorded prompt clips.
  * Fish (`fish-local` / `fish-cloud`) is an optional advanced engine with cute Nomi referenceId.
  * `apiKey` for fish-cloud is stored via safeStorage in the main process — never trust
  * a raw key from the renderer as the source of truth.
@@ -87,12 +89,10 @@ export type TTSAudioFormat = 'mp3' | 'wav' | 'opus' | 'pcm';
  */
 export interface TTSConfig {
   enabled: boolean;
-  /** Default: sherpa-theresa (offline; missing / failed TTS stays silent). */
+  /** 诺米提示语音：Nomi 固定台词播放预录音频（默认开）。 */
+  promptVoice?: boolean;
+  /** Realtime engine. Default: none (text only; failures stay silent). */
   provider: TTSProvider;
-  /** sherpa speaker id (default 0). */
-  sherpaSid?: number;
-  /** sherpa speech speed multiplier (default 1.0 — do not speed up). */
-  sherpaSpeed?: number;
   /** fish-local base, default http://127.0.0.1:8080 */
   baseUrl: string;
   /**
@@ -125,12 +125,11 @@ export interface TTSConfig {
   lastModified: number;
 }
 
-/** Public defaults: built-in sherpa-onnx offline TTS (no secrets). Fish fields kept for the advanced engine. */
+/** Public defaults: no realtime engine, prompt voice on (no secrets). */
 export const DEFAULT_TTS_CONFIG: Omit<TTSConfig, 'lastModified'> = {
   enabled: true,
-  provider: 'sherpa-theresa',
-  sherpaSid: 0,
-  sherpaSpeed: 1.0,
+  promptVoice: true,
+  provider: 'none',
   baseUrl: 'http://127.0.0.1:8080',
   referenceId: 'nomi',
   format: 'mp3',
@@ -158,7 +157,7 @@ export interface TTSSpeakRequest {
   /** Override referenceId for this utterance (character binding). */
   referenceId?: string;
   volume?: number;
-  /** Per-character playback speed for local sherpa (0.5..1.5). */
+  /** Per-character speed multiplier (0.5..1.5), mapped to engine speech rate when supported. */
   speed?: number;
 }
 
@@ -167,8 +166,8 @@ export interface TTSSpeakResult {
   /** base64 audio when success; renderer plays it */
   audioBase64?: string;
   mimeType?: string;
-  /** 'sherpa' | 'fish' | 'legacy' | 'none' — none means no audio was produced */
-  via?: 'sherpa' | 'fish' | 'legacy' | 'none';
+  /** 'fish' | 'legacy' | 'none' — none means no audio was produced */
+  via?: 'fish' | 'legacy' | 'none';
   message?: string;
   /** Kept for wire compatibility; always false because system speech is disabled. */
   fallbackToSystem?: boolean;
@@ -183,32 +182,4 @@ export interface TTSTestResult {
 
 export * from './models';
 
-/** sherpa-onnx offline TTS model status (extraResources / env / auto-fetched for dev). */
-export interface SherpaModelStatus {
-  /**
-   * ready：模型可用；missing：未下载；downloading：下载 / 解压中；error：上次下载失败（message 为原因）。
-   * 模型不再随安装包分发，按需下载到 userData/tts-models（见 docs/design/tts-on-demand.md）。
-   */
-  state: 'ready' | 'missing' | 'downloading' | 'error';
-  /** where the model was found（'resources' 仅旧版本；新版不再打包模型） */
-  source?: 'env' | 'resources' | 'dev' | 'userData';
-  modelId: string;
-  message?: string;
-  /** downloading 时：download | extract */
-  phase?: 'download' | 'extract';
-  /** 已下载字节（含续传前已有部分） */
-  received?: number;
-  /** 总字节（manifest 固定值） */
-  total?: number;
-  /** 磁盘上可续传的半成品字节数（missing / error 时 >0 表示「继续下载」） */
-  partialBytes?: number;
-  /** 安装后占用（字节，manifest 固定值），设置页展示用 */
-  installedBytes?: number;
-  /** 压缩包大小（字节） */
-  archiveBytes?: number;
-  /** missing / error：下载 + 解压的磁盘峰值需求（压缩包剩余部分 + 解压后文件 + 余量） */
-  diskRequired?: number;
-  /** missing / error：模型目录所在卷的可用字节（拿不到时缺省） */
-  diskFree?: number;
-}
 export * from './quality';

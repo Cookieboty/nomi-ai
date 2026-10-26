@@ -1,7 +1,9 @@
 /**
- * 设置 → 语音与屏幕 → 语音：朗读引擎（原来的独立「TTS 语音配置」窗口）。
- * 默认内置离线语音（sherpa-onnx，模型下载见上方 TtsModelCard）；Fish 本地 / Fish 云 / 自建 legacy 为高级选项。
- * 语音开关由 TtsModelCard 负责，这里保存时沿用主进程里的最新开关，不会互相覆盖。
+ * 设置 → 语音与屏幕 → 语音：
+ * - 「诺米提示语音」开关：提示 / 提醒等短句播放预录的诺米语音（只在中文界面、诺米形象下），立即保存；
+ * - 「实时朗读引擎」：AI 回复用它朗读。选项为 无（默认，只显示文字）/ Edge / Azure / OpenAI；
+ *   Edge / Azure / OpenAI 主进程暂未接入，选了也保持静默。旧配置里的 Fish / 自建 legacy
+ *   仍能用，只在已选中时出现在列表里。
  */
 import { Button, FormField, Input, Notice, Select, SettingsGroup, Switch, t } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -14,11 +16,18 @@ import {
 } from '../../services/ttsConfigClient';
 
 import styles from './index.module.css';
-import card from './TtsModelCard.module.css';
+import card from './TtsEngineCard.module.css';
 
 type Result = { ok: boolean; text: string } | null;
 
 const FORMATS = ['mp3', 'wav', 'opus'];
+
+/** 旧配置里才会出现的引擎：只在当前已选中时显示 */
+const LEGACY_LABEL_KEYS: Partial<Record<TtsProvider, string>> = {
+  'fish-local': 'ui.voice-mascot.advanced-local-fish-fish-speech',
+  'fish-cloud': 'ui.voice-mascot.advanced-fish-cloud-api-your-own-key',
+  legacy: 'ui.voice-mascot.connect-your-own-external-tts-legacy-self-hosted',
+};
 
 export const TtsEngineCard: React.FC = () => {
   const [cfg, setCfg] = useState<TtsEngineConfig | null>(null);
@@ -108,12 +117,13 @@ export const TtsEngineCard: React.FC = () => {
   };
 
   const reset = async () => {
-    if (!window.confirm(t('ui.voice-mascot.reset-to-the-built-in-offline-default-this'))) return;
+    if (!window.confirm(t('ui.voice-mascot.reset-tts-settings-to-default-this-clears-saved')))
+      return;
     setBusy('reset');
     try {
       await ttsConfigClient.reset();
       await load();
-      setResult({ ok: true, text: t('ui.voice-mascot.reset-to-built-in-default') });
+      setResult({ ok: true, text: t('ui.voice-mascot.tts-settings-reset-to-default') });
     } catch (e) {
       setResult({
         ok: false,
@@ -124,61 +134,72 @@ export const TtsEngineCard: React.FC = () => {
     }
   };
 
+  const setPromptVoice = async (on: boolean) => {
+    setCfg({ ...cfg, promptVoice: on });
+    try {
+      // 只改这一项：以主进程里的最新配置为底，不把未保存的引擎草稿一起写进去
+      const latest = await ttsConfigClient.get();
+      await ttsConfigClient.save({ ...latest, promptVoice: on, lastModified: Date.now() });
+    } catch (e) {
+      setCfg({ ...cfg, promptVoice: !on });
+      setResult({
+        ok: false,
+        text: t('ui.voice-mascot.save-failed', e instanceof Error ? e.message : String(e)),
+      });
+    }
+  };
+
   const p = cfg.provider;
+  const keyed = p === 'fish-cloud';
+  const pending = p === 'edge' || p === 'azure' || p === 'openai';
   const fish = p === 'fish-local' || p === 'fish-cloud';
 
   return (
-    <SettingsGroup
-      title={t('ui.chat-settings.speech-engine')}
-      description={t('ui.chat-settings.uses-the-built-in-offline-voice-by-default')}
-      data-testid="settings-tts-engine"
-    >
-      <div className={card.form}>
-        <FormField label={t('ui.voice-mascot.provider')}>
-          <Select
-            value={p}
-            data-testid="tts-provider"
-            onChange={(e) => set({ provider: e.target.value as TtsProvider })}
-            options={[
-              {
-                value: 'sherpa-theresa',
-                label: t('ui.voice-mascot.built-in-offline-voice-sherpa-onnx-default'),
-              },
-              { value: 'fish-local', label: t('ui.voice-mascot.advanced-local-fish-fish-speech') },
-              {
-                value: 'fish-cloud',
-                label: t('ui.voice-mascot.advanced-fish-cloud-api-your-own-key'),
-              },
-              {
-                value: 'legacy',
-                label: t('ui.voice-mascot.connect-your-own-external-tts-legacy-self-hosted'),
-              },
-            ]}
-          />
-        </FormField>
+    <>
+      <SettingsGroup
+        title={t('ui.voice-mascot.nomi-prompt-voice')}
+        description={t('ui.voice-mascot.nomi-prompt-voice-hint')}
+        data-testid="settings-prompt-voice"
+      >
+        <Switch
+          checked={cfg.promptVoice !== false}
+          data-testid="prompt-voice-switch"
+          onChange={(v) => void setPromptVoice(v)}
+          label={t('ui.voice-mascot.nomi-prompt-voice')}
+        />
+      </SettingsGroup>
+      <SettingsGroup
+        title={t('ui.voice-mascot.realtime-tts-engine')}
+        description={t('ui.voice-mascot.realtime-tts-engine-hint')}
+        data-testid="settings-tts-engine"
+      >
+        <div className={card.form}>
+          <FormField label={t('ui.voice-mascot.provider')}>
+            <Select
+              value={p}
+              data-testid="tts-provider"
+              onChange={(e) => set({ provider: e.target.value as TtsProvider })}
+              options={[
+                { value: 'none', label: t('ui.voice-mascot.engine-none-text-only-default') },
+                { value: 'edge', label: t('ui.voice-mascot.engine-edge') },
+                { value: 'azure', label: t('ui.voice-mascot.engine-azure') },
+                { value: 'openai', label: t('ui.voice-mascot.engine-openai') },
+                // 旧配置里的 Fish / 自建 TTS 仍可用，但不再作为新选项提供
+                ...(LEGACY_LABEL_KEYS[p]
+                  ? [{ value: p, label: t(LEGACY_LABEL_KEYS[p] as string) }]
+                  : []),
+              ]}
+            />
+          </FormField>
 
-        {fish && (
-          <>
-            <FormField label={t('ui.voice-mascot.server-url')}>
-              <Input
-                value={cfg.baseUrl}
-                placeholder={
-                  p === 'fish-cloud' ? 'https://api.fish.audio' : 'http://127.0.0.1:8080'
-                }
-                onChange={(e) => set({ baseUrl: e.target.value })}
-              />
-            </FormField>
-            <FormField
-              label={t('ui.voice-mascot.audio-format')}
-              hint={t('ui.chat-settings.the-nomi-voice-is-built-in-and-sent')}
-            >
-              <Select
-                value={cfg.format}
-                onChange={(e) => set({ format: e.target.value })}
-                options={FORMATS.map((f) => ({ value: f, label: f }))}
-              />
-            </FormField>
-            {p === 'fish-cloud' && (
+          {pending && (
+            <Notice data-testid="tts-engine-pending">
+              {t('ui.voice-mascot.engine-not-available-yet-hint')}
+            </Notice>
+          )}
+
+          {keyed && (
+            <>
               <FormField
                 label={t('ui.voice-mascot.fish-cloud-api-key-kept-in-the-main')}
                 hint={
@@ -199,84 +220,117 @@ export const TtsEngineCard: React.FC = () => {
                   }}
                 />
               </FormField>
-            )}
-            {p === 'fish-cloud' && cfg.hasApiKey && (
-              <Switch
-                checked={clearKey}
-                onChange={(v) => {
-                  setClearKey(v);
-                  setDirty(true);
-                }}
-                label={t('ui.voice-mascot.clear-the-saved-key')}
-              />
-            )}
-            <Notice data-testid="fish-attribution">
-              {t('ui.chat-settings.built-with-fish-audio-free-for-research-non')}
-            </Notice>
-          </>
-        )}
+              {cfg.hasApiKey && (
+                <Switch
+                  checked={clearKey}
+                  onChange={(v) => {
+                    setClearKey(v);
+                    setDirty(true);
+                  }}
+                  label={t('ui.voice-mascot.clear-the-saved-key')}
+                />
+              )}
+            </>
+          )}
 
-        {p === 'legacy' && (
-          <>
-            <p className={styles.muted}>
-              {t('ui.chat-settings.self-hosted-external-tts-hostname-port-path-audiourl')}
-            </p>
-            <div className={card.grid}>
-              <FormField label="hostname">
-                <Input value={cfg.hostname} onChange={(e) => set({ hostname: e.target.value })} />
-              </FormField>
-              <FormField label="port">
+          {fish && (
+            <>
+              <FormField label={t('ui.voice-mascot.server-url')}>
                 <Input
-                  type="number"
-                  value={String(cfg.port)}
-                  onChange={(e) => set({ port: Number(e.target.value) || 8080 })}
+                  value={cfg.baseUrl}
+                  placeholder={
+                    p === 'fish-cloud' ? 'https://api.fish.audio' : 'http://127.0.0.1:8080'
+                  }
+                  onChange={(e) => set({ baseUrl: e.target.value })}
                 />
               </FormField>
-            </div>
-            <FormField label="path">
-              <Input value={cfg.path} onChange={(e) => set({ path: e.target.value })} />
-            </FormField>
-            <FormField label={t('ui.voice-mascot.audiourl-reference-audio-url-on-the-server-not')}>
-              <Input value={cfg.audioUrl} onChange={(e) => set({ audioUrl: e.target.value })} />
-            </FormField>
-            <FormField label="promptText">
-              <Input value={cfg.promptText} onChange={(e) => set({ promptText: e.target.value })} />
-            </FormField>
-          </>
+              <FormField
+                label={t('ui.voice-mascot.audio-format')}
+                hint={t('ui.chat-settings.the-nomi-voice-is-built-in-and-sent')}
+              >
+                <Select
+                  value={cfg.format}
+                  onChange={(e) => set({ format: e.target.value })}
+                  options={FORMATS.map((f) => ({ value: f, label: f }))}
+                />
+              </FormField>
+              <Notice data-testid="fish-attribution">
+                {t('ui.chat-settings.built-with-fish-audio-free-for-research-non')}
+              </Notice>
+            </>
+          )}
+
+          {p === 'legacy' && (
+            <>
+              <p className={styles.muted}>
+                {t('ui.chat-settings.self-hosted-external-tts-hostname-port-path-audiourl')}
+              </p>
+              <div className={card.grid}>
+                <FormField label="hostname">
+                  <Input value={cfg.hostname} onChange={(e) => set({ hostname: e.target.value })} />
+                </FormField>
+                <FormField label="port">
+                  <Input
+                    type="number"
+                    value={String(cfg.port)}
+                    onChange={(e) => set({ port: Number(e.target.value) || 8080 })}
+                  />
+                </FormField>
+              </div>
+              <FormField label="path">
+                <Input value={cfg.path} onChange={(e) => set({ path: e.target.value })} />
+              </FormField>
+              <FormField
+                label={t('ui.voice-mascot.audiourl-reference-audio-url-on-the-server-not')}
+              >
+                <Input value={cfg.audioUrl} onChange={(e) => set({ audioUrl: e.target.value })} />
+              </FormField>
+              <FormField label="promptText">
+                <Input
+                  value={cfg.promptText}
+                  onChange={(e) => set({ promptText: e.target.value })}
+                />
+              </FormField>
+            </>
+          )}
+        </div>
+
+        {result && (
+          <Notice
+            tone={result.ok ? 'success' : 'danger'}
+            className={card.result}
+            data-testid="tts-engine-result"
+          >
+            {result.text}
+          </Notice>
         )}
-      </div>
 
-      {result && (
-        <Notice
-          tone={result.ok ? 'success' : 'danger'}
-          className={card.result}
-          data-testid="tts-engine-result"
-        >
-          {result.text}
-        </Notice>
-      )}
-
-      <div className={styles.actions}>
-        <Button
-          variant="primary"
-          disabled={!dirty || busy !== null}
-          data-testid="tts-engine-save"
-          onClick={() => void save()}
-        >
-          {t('ui.voice-mascot.save-settings')}
-        </Button>
-        <Button disabled={busy !== null} data-testid="tts-engine-test" onClick={() => void test()}>
-          {busy === 'test' ? t('ui.voice-mascot.checking') : t('ui.voice-mascot.test-connection')}
-        </Button>
-        <Button
-          variant="ghost"
-          disabled={busy !== null}
-          data-testid="tts-engine-reset"
-          onClick={() => void reset()}
-        >
-          {t('ui.voice-mascot.reset-to-built-in-default-action')}
-        </Button>
-      </div>
-    </SettingsGroup>
+        <div className={styles.actions}>
+          <Button
+            variant="primary"
+            disabled={!dirty || busy !== null}
+            data-testid="tts-engine-save"
+            onClick={() => void save()}
+          >
+            {t('ui.voice-mascot.save-settings')}
+          </Button>
+          <Button
+            disabled={busy !== null}
+            data-testid="tts-engine-test"
+            onClick={() => void test()}
+          >
+            {busy === 'test' ? t('ui.voice-mascot.checking') : t('ui.voice-mascot.test-connection')}
+          </Button>
+          <Button
+            variant="ghost"
+            disabled={busy !== null}
+            data-testid="tts-engine-reset"
+            onClick={() => void reset()}
+          >
+            {t('ui.voice-mascot.reset-to-default')}
+          </Button>
+        </div>
+      </SettingsGroup>
+    </>
   );
 };

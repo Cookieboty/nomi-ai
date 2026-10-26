@@ -23,9 +23,7 @@
     "lint:fix": "eslint src tests --fix",
     "package:publish:mac": "electron-builder build --mac --publish always",
     "package:publish:win": "electron-builder build --win --publish always",
-    "package:publish:linux": "electron-builder build --linux --publish always",
-    "postinstall": "node scripts/ensure-tts-model.mjs --postinstall",
-    "ensure-tts-model": "node scripts/ensure-tts-model.mjs"
+    "package:publish:linux": "electron-builder build --linux --publish always"
   },
   "author": "Cookieboty",
   "license": "MIT",
@@ -49,7 +47,6 @@
     "electron-updater": "^6.6.2",
     "fflate": "^0.8.3",
     "onnxruntime-web": "1.30.0",
-    "sherpa-onnx-node": "1.13.8",
     "smol-toml": "1.9.0",
     "tar-stream": "3.2.2",
     "tesseract.js": "7.0.0",

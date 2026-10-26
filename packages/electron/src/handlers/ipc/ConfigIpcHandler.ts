@@ -6,12 +6,7 @@
 import http from 'http';
 import https from 'https';
 
-import {
-  type SherpaModelStatus,
-  type TTSConfig,
-  type TTSSpeakRequest,
-  type TTSTestResult,
-} from '@nomi-ai/types';
+import { type TTSConfig, type TTSSpeakRequest, type TTSTestResult } from '@nomi-ai/types';
 import { app } from 'electron';
 
 import { t } from '../../i18n';
@@ -19,7 +14,6 @@ import { type IConfigService } from '../../services/ConfigService';
 import { type ILoggerService } from '../../services/LoggerService';
 import { getFishTtsService } from '../../tts/fish';
 import { validateTtsConfig } from '../../tts/fish/validateTtsConfig';
-import { getSherpaTtsService } from '../../tts/sherpa';
 import { TtsRouter, applyTtsEnvOverride } from '../../tts/ttsRouter';
 
 import { BaseIpcHandler } from './BaseIpcHandler';
@@ -245,18 +239,9 @@ export class ConfigIpcHandler extends BaseIpcHandler {
    */
   private initializeTTSHandlers(): void {
     const fish = getFishTtsService();
-    const sherpa = getSherpaTtsService();
     const router = new TtsRouter({
       getConfig: () => applyTtsEnvOverride(fish.getConfig()),
-      sherpa,
       fish,
-      onSherpaFailure: (error) => {
-        const code = (error as { code?: string } | null)?.code;
-        // downloading / superseded 属预期情形，由逐请求结果日志 + 服务内限频进度日志覆盖，避免刷屏
-        if (code === 'downloading' || code === 'superseded' || code === 'not_ready') return;
-        const message = error instanceof Error ? error.message : String(error);
-        this.logger.warn('sherpa TTS 不可用，保持静默', { code, message });
-      },
       // 每条 tts:speak 都必有一条结果日志：success / fallback / error + provider
       onOutcome: (o) => {
         const meta = {
@@ -274,7 +259,7 @@ export class ConfigIpcHandler extends BaseIpcHandler {
       },
     });
 
-    // 获取TTS配置（无文件时返回内置 sherpa 离线默认，便于开箱走 sherpa 路径）
+    // 获取TTS配置（无文件时返回默认：无实时引擎 + 诺米提示语音开）
     this.registerHandler('getTTSConfig', async () => {
       try {
         const config = fish.getConfig();
@@ -312,15 +297,24 @@ export class ConfigIpcHandler extends BaseIpcHandler {
       }
     });
 
-    // 测试连接：sherpa → 模型就绪 + 引擎可加载；Fish → /v1/health；legacy → 原 POST 探测
+    // 测试连接：Fish → /v1/health；legacy → 原 POST 探测；none → 无需测试
     this.registerHandler('testTTSConnection', async (_, config: TTSConfig) => {
       this.validateArgs([config], 1, ['object']);
 
       try {
         const startTime = Date.now();
         let result: TTSTestResult;
-        if (config.provider === 'sherpa-theresa') {
-          result = await this.checkSherpaHealth();
+        if (config.provider === 'none') {
+          result = { success: true, message: t('electron.common.no-realtime-tts-engine-selected') };
+        } else if (
+          config.provider === 'edge' ||
+          config.provider === 'azure' ||
+          config.provider === 'openai'
+        ) {
+          result = {
+            success: false,
+            message: t('electron.common.this-tts-engine-is-not-available-yet'),
+          };
         } else if (config.provider === 'fish-local' || config.provider === 'fish-cloud') {
           result = await fish.checkHealth(config);
         } else {
@@ -354,7 +348,7 @@ export class ConfigIpcHandler extends BaseIpcHandler {
       }
     });
 
-    // 合成路由：sherpa（默认）/ Fish（可选）；渲染层播放，失败则静默
+    // 合成路由：none（默认）/ Fish（可选）；渲染层播放，失败则静默
     this.registerHandler('tts:speak', async (_, req: TTSSpeakRequest) => {
       this.validateArgs([req], 1, ['object']);
       try {
@@ -371,15 +365,11 @@ export class ConfigIpcHandler extends BaseIpcHandler {
       }
     });
 
-    // sherpa 模型状态（ready / missing / downloading / error）
-    this.registerHandler('tts:sherpa:status', async (): Promise<SherpaModelStatus> => {
-      return sherpa.getStatus();
-    });
-
     this.registerHandler('tts:health', async (_, config?: Partial<TTSConfig>) => {
       try {
-        if ((config?.provider ?? fish.getConfig().provider) === 'sherpa-theresa') {
-          return await this.checkSherpaHealth();
+        const provider = config?.provider ?? fish.getConfig().provider;
+        if (provider === 'none') {
+          return { success: false, message: t('electron.common.no-realtime-tts-engine-selected') };
         }
         return await fish.checkHealth(config);
       } catch (error) {
@@ -395,15 +385,9 @@ export class ConfigIpcHandler extends BaseIpcHandler {
         this.validateArgs([testConfig], 1, ['object']);
 
         try {
-          if (
-            testConfig.provider === 'sherpa-theresa' ||
-            testConfig.provider === 'fish-local' ||
-            testConfig.provider === 'fish-cloud'
-          ) {
-            const spoken = await (testConfig.provider === 'sherpa-theresa' ? router : fish).speak({
-              text: testConfig.testText,
-              referenceId: testConfig.referenceId,
-            });
+          if (testConfig.provider === 'fish-local' || testConfig.provider === 'fish-cloud') {
+            const req = { text: testConfig.testText, referenceId: testConfig.referenceId };
+            const spoken = await fish.speak(req);
             if (spoken.success) {
               return {
                 success: true,
@@ -472,44 +456,6 @@ export class ConfigIpcHandler extends BaseIpcHandler {
         }
       },
     );
-  }
-
-  /** sherpa：预热引擎；缺模型不下载，提示去「语音」设置下载 */
-  private async checkSherpaHealth(): Promise<TTSTestResult> {
-    const sherpa = getSherpaTtsService();
-    try {
-      const ms = await sherpa.warmup();
-      const status = sherpa.getStatus();
-      return {
-        success: true,
-        message: t(
-          'electron.common.offline-voice-engine-ready-model-location',
-          status.source ?? '',
-        ),
-        latency: ms,
-      };
-    } catch (error) {
-      const status = sherpa.getStatus();
-      const msg = error instanceof Error ? error.message : String(error);
-      if (status.state === 'downloading') {
-        return {
-          success: false,
-          message: t('electron.common.offline-voice-model-is-downloading-please-wait'),
-        };
-      }
-      if (status.state === 'missing' || status.state === 'error') {
-        return {
-          success: false,
-          message: status.message
-            ? t('electron.common.offline-voice-model-unavailable', status.message)
-            : t('electron.common.offline-voice-model-not-downloaded-turn-on-voice'),
-        };
-      }
-      return {
-        success: false,
-        message: t('electron.common.offline-voice-engine-failed-to-load-no-tts', msg),
-      };
-    }
   }
 
   /**

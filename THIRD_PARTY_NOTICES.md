@@ -44,13 +44,13 @@ Model files and binaries are **not bundled**: they are downloaded on demand from
 
 openWakeWord pretrained models (CC BY-NC-SA 4.0) are **not** used.
 
-## Speech output (offline, default)
+## Speech output (Nomi prompt clips)
 
-The speech model (~115 MB download, ~133 MB extracted) is **not** shipped in the installer: it is downloaded from the official k2-fsa/sherpa-onnx release into the user data folder when the user turns voice on (see `docs/design/tts-on-demand.md`). The archive sha256 and per-file sizes are pinned in `packages/electron/src/tts/sherpa/manifest.ts`.
+There is no built-in speech synthesis engine. Nomi's short fixed prompt lines (Chinese UI, Nomi character only) play prerecorded MP3 clips from `packages/renderer/public/voice/nomi/zh/` (list in its `manifest.json`).
 
-| Component                                                                                                                    | Licence    | Notes                                                                                                                                             |
-| ---------------------------------------------------------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sherpa-onnx-node` 1.13.8 + platform packages `sherpa-onnx-{darwin-arm64,darwin-x64,linux-x64,linux-arm64,win-x64,win-ia32}` | Apache-2.0 | © k2-fsa / sherpa-onnx contributors — https://github.com/k2-fsa/sherpa-onnx. Native N-API addon and bundled ONNX Runtime, unpacked from the asar. |
+| Component                                 | Licence            | Notes                                                                                                                                                                                                                                                                                                              |
+| ----------------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Nomi prompt clips (`voice/nomi/zh/*.mp3`) | Unclear — see note | Generated with the Microsoft Edge online neural voice `zh-CN-XiaoyiNeural` (rate −5%, pitch +0Hz) via `scripts/voice/gen.py`. Redistribution terms for audio from the free Edge read-aloud service are not clearly stated; regenerate the clips with a licensed Azure Speech subscription before a formal release. |
 
 ## Speech output (optional advanced: Fish Audio / fish-speech)
 

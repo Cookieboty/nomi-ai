@@ -1,5 +1,5 @@
 /**
- * Per-character soft TTS binding.
+ * Per-character voice binding (rate / volume / Fish reference preset).
  * Merge order: global soft prefs → built-in character defaults → model.config.voice → user override.
  * Overrides persist in localStorage.
  */
@@ -115,25 +115,6 @@ export function resolvePrefsForCharacter(
     rate: voice.rate ?? global.rate,
     pitch: voice.pitch ?? global.pitch,
   };
-  // Apply voiceHint when no explicit URI
-  if (
-    !prefs.voiceURI &&
-    voice.voiceHint &&
-    typeof window !== 'undefined' &&
-    window.speechSynthesis
-  ) {
-    const voices = window.speechSynthesis.getVoices();
-    const hint = voice.voiceHint.toLowerCase();
-    const hit =
-      voices.find(
-        (v) => v.name.toLowerCase().includes(hint) || v.voiceURI.toLowerCase().includes(hint),
-      ) ?? null;
-    if (hit) prefs.voiceURI = hit.voiceURI;
-    else {
-      // soft auto-pick still applies via empty URI + scoring
-      prefs.voiceURI = '';
-    }
-  }
   return prefs;
 }
 
@@ -156,7 +137,7 @@ export function speakForActiveCharacter(key: string, opts: SpeakSoftOptions = {}
   const configuredRate = Number.isFinite(merged.rate) ? merged.rate : 0.92;
   const speed = Math.min(1.5, Math.max(0.5, configuredRate));
 
-  // Main-process TTS path (local sherpa or remote provider). TTS failures stay silent.
+  // Main-process TTS path (configured realtime engine). TTS failures stay silent.
   void (async () => {
     try {
       const { speakWithFish } = await import('./tts/fishSpeak');

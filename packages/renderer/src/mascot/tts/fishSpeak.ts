@@ -1,5 +1,5 @@
 /**
- * TTS playback in the renderer (sherpa / Fish / any engine returning audio via IPC).
+ * TTS playback in the renderer (any main-process engine returning audio via IPC).
  * Calls main `tts:speak`, plays returned audio, drives lipSyncStore RMS when possible.
  * On failure returns false; callers keep the request silent when no TTS is available.
  * No preview / upload-clone UI — character binding uses built-in referenceId (e.g. nomi).

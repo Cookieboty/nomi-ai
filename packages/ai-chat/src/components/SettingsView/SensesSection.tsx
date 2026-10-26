@@ -13,7 +13,6 @@ import styles from './index.module.css';
 import { SectionPage } from './SectionPage';
 import { SECTION_TABS, type SensesTab } from './sections';
 import { TtsEngineCard } from './TtsEngineCard';
-import { TtsModelCard } from './TtsModelCard';
 
 const noop = () => undefined;
 
@@ -21,7 +20,6 @@ const VoiceSection: React.FC = () => {
   const v = useVoice('chat');
   return (
     <div className={styles.groups}>
-      <TtsModelCard />
       <TtsEngineCard />
       {v.api ? (
         <div data-testid="settings-voice">

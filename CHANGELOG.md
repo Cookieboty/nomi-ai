@@ -90,7 +90,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - **context:** 上下文环在一轮进行中实时更新，自动压缩、重启后都不再停在压缩前的旧值。 (`@nomi-ai/ai-chat` patch, `@nomi-ai/electron` patch)
 - **desktop:** undoing a file overwrite made by the assistant now works (it always reported a conflict before). The old version is restored from the app trash; if you edited the new file in between, the undo is refused and both copies are kept, and a failed undo step is rolled back. (`@nomi-ai/ai-chat` patch)
 - **electron:** Windows 上私有令牌/配置文件写后用 icacls 收紧 ACL（去继承、仅当前用户），补齐 POSIX 0600 在 win32 无效的缺口；令牌目录走 ensurePrivateDir。 (`@nomi-ai/electron` patch)
-- **electron:** choosing the local Fish voice engine with the default address (127.0.0.1:8080, `nomi`, mp3) in advanced voice settings and saving no longer silently switches back to the built-in Sherpa voice. The old-default migration now only applies to config files written by earlier versions (no schema version), and runs once. (`@nomi-ai/electron` patch)
+- **electron:** choosing the local Fish voice engine with the default address (127.0.0.1:8080, `nomi`, mp3) in advanced voice settings and saving no longer silently switches back to the built-in offline voice. The old-default migration now only applies to config files written by earlier versions (no schema version), and runs once. (`@nomi-ai/electron` patch)
 - **electron:** every service-registered ai:* IPC channel (desktop capabilities, MCP / skills, memory, knowledge base, scheduler, voice, screen, local models, calendar hub, CLI history / update, theme, language, updates, onboarding) now goes through the shared sender guard like the chat and CLI channels: an untrusted window or sub-frame can no longer flip local-only mode, change tool policies, add or start MCP servers, or read / edit memory and the knowledge base. (`@nomi-ai/electron` patch)
 - **electron:** exporting local data no longer includes MCP secrets — every env / header value, URL credentials and command-line tokens are removed from `settings/mcp.json` regardless of whether they were stored encrypted (the old export only stripped values starting with `enc:`, so plaintext-saved keys leaked into the "secret-free" ZIP). fix(electron): when the system secure storage is unavailable (or encryption fails), saving a CalDAV password, a Fish cloud API key or an MCP secret / header is now refused with a clear error instead of silently writing plaintext; existing legacy values keep working. MCP header values are now always stored encrypted, and `calendar.json` is written with 0600 permissions. (`@nomi-ai/electron` patch)
 - **electron:** fixes found by running the real Claude Code and Codex: the harness closes CLI stdin, so Codex no longer hangs waiting for input; switching backend drops the previous CLI session and Codex resume uses valid arguments; the Codex config patch keeps a single provider table; and the local route reports input token usage at the end of the stream.
@@ -174,6 +174,8 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 ### Refactoring
 
 - **logging:** central logger; debug/info output is silent in production (set NOMI_DEBUG=1 or localStorage nomi.debug=1 to enable).
+- **tts:** 删除内置语音模型下载相关文案，新增「诺米提示语音」与实时朗读引擎（无 / Edge / Azure / OpenAI）文案。 (`@nomi-ai/i18n` patch)
+- **tts:** 移除内置离线语音引擎（安装包不再带原生 addon，也不再有语音模型下载卡片）和系统 speechSynthesis 朗读。旧配置照常启动，已移除的引擎按「无」处理。设置「实时朗读引擎」只保留 无 / Edge / Azure / OpenAI，后三者暂未接入（选中时静默并提示）；保留「诺米提示语音」开关。 (`@nomi-ai/electron` patch, `@nomi-ai/renderer` patch, `@nomi-ai/ai-chat` patch, `@nomi-ai/types` patch, `@nomi-ai/bundle-ig-electron-caps` patch)
 
 ### Tests
 
@@ -190,7 +192,6 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - **BREAKING** remove leftover files, duplicate icons and stale docs; remove dsh and the legacy standalone MCP subsystem (breaking for anyone scripting `dsh`).
 - **changeset:** quote package names and split changesets that mixed ignored and releasable packages so `changeset status` passes; add a regression test.
 - **release:** macOS tag builds now verify that `latest-mac.yml` lists both the x64 and arm64 zip and that every listed file matches its size and sha512, and warn when the build is unsigned (macOS rejects unsigned auto-updates). (`@nomi-ai/electron` patch)
-- **tts:** the dev postinstall model download is skipped when the model is already complete (file sizes + `.nomi-model.json` version marker), can be disabled with `NOMI_SKIP_MODEL_DOWNLOAD=1`, and is skipped by default on CI (`CI=true`; set `NOMI_SKIP_MODEL_DOWNLOAD=0` to force it). (`@nomi-ai/electron` patch)
 - P9 Polish Package B —— CI/打包骨架 + E2E 补齐 + Changesets 骨架
 
 ### Other
@@ -221,10 +222,9 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - Product polish: Gemini / dsh reasoning-effort UI is disabled with clear copy (no documented control); non-reasoning models show「当前模型无思考深度」. ProviderRouter.isKeyError prefers HTTP status codes (401/402/403/429) before message regex; describeStreamError prefixes HTTP status so stream key-rotation can use the same rule. (`@nomi-ai/ai-runtime` patch, `@nomi-ai/ui` patch)
 - Python 代码沙箱接入平台隔离：macOS sandbox-exec、Linux bwrap（默认可写仅临时目录并禁网）；不可用或 Windows 时诚实回落并在结果中标注 sandbox 元数据。 (`@nomi-ai/electron` minor)
 - Refactor coding-agent harness: move `HarnessOrchestrator` into `cli/harness/*` with a thin `CliHarnessService` facade (same public API). No intentional behavior change; enables permission PR3 and further orchestration cuts. (`@nomi-ai/cli-sdk` patch)
-- Remove system speech fallback from TTS and pass the active character speed setting to the local sherpa model. TTS failures now stay silent. (`@nomi-ai/electron` patch, `@nomi-ai/renderer` patch, `@nomi-ai/types` patch)
-- Remove system speech fallback from TTS and pass the active character speed setting to the local sherpa model. TTS failures now stay silent. (`@nomi-ai/ui` patch)
+- Remove system speech fallback from TTS. TTS failures now stay silent. (`@nomi-ai/electron` patch, `@nomi-ai/renderer` patch, `@nomi-ai/types` patch)
+- Remove system speech fallback from TTS. TTS failures now stay silent. (`@nomi-ai/ui` patch)
 - Settings menu, round two (breaking, no compatibility layer): the standalone "Updates" section is
-- TTS 设置页与语音设置里不再写「模型随安装包分发」，改为说明开启语音时才下载模型。 (`@nomi-ai/renderer` patch)
 - Table-driven cross-platform tests for TerminalCommands / cli-plugins quoting surfaces (buildScript, posix/PowerShell argv, shQuote/cmdQuote/psQuote, MODEL_RE, --nomi-model, Grok softlink template text) without real FS drama. (`@nomi-ai/cli-plugins` patch)
 - Use the high-fidelity `nomi-complete.riv` scene for the opt-in Rive mascot renderer. The scene now exposes official face expressions, blink timing, talking/lip-sync triggers, the wave/hello/cheer/celebrate action set, and a separate `Nomi-full` artboard available through `?rive=full`. (`@nomi-ai/renderer` minor)
 - `/cli` 改名为 `/agent`（旧名 `/cli` 仍可用，但不再出现在面板和提示里）；敲 `/agent ` 后列出编程助手供补全：已安装的在前、没安装的置灰不可选，按名字前缀过滤，↑↓ 选择、Enter / Tab 选用、Esc 关闭，输入法组合中不触发。 (`@nomi-ai/ai-chat` minor)
@@ -392,7 +392,6 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - 新增本地统一网关进程（为一个第三方供应商同时服务 Nomi 对话和各编程助手做准备）：随应用在独立进程里启动，只监听本机；首次启动时把已有的 Nomi 供应商和编程助手第三方供应商复制到新的网关存储（Key 加密保存），原有配置文件不改动，现有功能照旧使用原配置。 (`@nomi-ai/electron` minor)
 - 新增界面模式「精简 / 全量」（设置 → 通用 → 外观，新手引导里也能选）：精简模式隐藏工作台顶部的对话标签条与侧栏底部的编程助手信息卡，顶栏只显示当前会话标题，在侧栏里切换会话；全量模式与之前一致（默认）。助手模式不受影响。 (`@nomi-ai/ai-chat` minor)
 - 新增知识库引用按钮无障碍标签的英文翻译（#65）。 (`@nomi-ai/ui` patch)
-- 新增离线语音模型下载按钮、磁盘空间提示相关的英文文案（#60）。 (`@nomi-ai/ui` patch)
 - 新增设置 →「模型质量」（紧挨「模型」页）：按供应商、模型、Key、客户端等维度看成功率、失败率、取消、断流、回退、TTFB / TTFT / TPOT / E2E 的 p50 / p90 / p99、输出速度与缓存命中率。四个标签：总览（指标卡与上一周期对比、失败原因、按供应商）、对比（可排序可选列，勾选 2～4 项并排对比，快捷对比「同一模型跨供应商 / 同一供应商跨 Key / 本周 vs 上周」，可导出 CSV）、趋势（按小时 / 天的多条折线，另有表格视图）、请求明细（原「用量与费用 → 最近请求」移到这里：每条的时间线、结果与失败原因、各次尝试、追踪 id，可筛选、分页、导出 CSV）。网关层与 CLI 层两种口径分开看：官方账号在 Nomi 里运行的编程助手在 CLI 层统计；只在终端里用的 CLI 不在统计范围内。样本少于 20 时只显示中位数；上游缓冲后整段吐出的请求单独标出，不计入 TPOT / 输出速度。 (`@nomi-ai/ai-chat` minor, `@nomi-ai/electron` minor)
 - 更新应用图标设置说明的英文文案（#56）。 (`@nomi-ai/ui` patch)
 - 最近请求面板的应用层改动，与统一网关 changeset 配套。 (`@nomi-ai/ai-chat` minor, `@nomi-ai/electron` minor)
@@ -423,9 +422,6 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - 看板娘缩小后「更多」面板不再被截断：面板按窗口大小定位，窗口太小时用紧凑排版并可滚动。 (`@nomi-ai/renderer` patch, `@nomi-ai/ai-chat` minor, `@nomi-ai/electron` minor, `@nomi-ai/types` minor)
 - 看板娘缩小后「更多」面板不再被截断：面板按窗口大小定位，窗口太小时用紧凑排版并可滚动。 (`@nomi-ai/voice` patch)
 - 知识库回答改用会话里同一个 Markdown 渲染器（不再显示原始 Markdown），正文中的 [n] 仍是可点击的引用；恢复引用编号、来源卡片和来源预览丢失的样式（#65）。 (`@nomi-ai/ai-chat` patch)
-- 离线语音模型不再打进安装包（各平台安装包约小 132 MiB 解压内容），改为在「设置 → 语音与屏幕 → 语音」开启语音时从 sherpa-onnx 官方 release 下载到本机（约 115 MB，sha256 校验），显示进度，可取消、重试、删除，中途退出后下次断点续传；下载完成后完全离线可用。新安装默认关闭语音；之前开着语音的用户保持开启，并会在启动时自动下载模型。缺少模型时语音静默并提示，不会崩溃。 (`@nomi-ai/electron` minor, `@nomi-ai/ai-chat` minor, `@nomi-ai/renderer` minor, `@nomi-ai/types` minor)
-- 离线语音模型不再打进安装包（各平台安装包约小 132 MiB 解压内容），改为在「设置 → 语音与屏幕 → 语音」开启语音时从 sherpa-onnx 官方 release 下载到本机（约 115 MB，sha256 校验），显示进度，可取消、重试、删除，中途退出后下次断点续传；下载完成后完全离线可用。新安装默认关闭语音；之前开着语音的用户保持开启，并会在启动时自动下载模型。缺少模型时语音静默并提示，不会崩溃。 (`@nomi-ai/ui` minor)
-- 离线语音模型改为用户触发下载（#60）：启动时不再自动下载；语音已开但模型缺失时设置页显示「下载离线语音模型」按钮；下载前显示所需磁盘空间（压缩包 + 解压峰值）与可用空间，不足时拒绝下载并给出明确提示；语音仍开着时下载失败不再误报「语音已关闭」；下载中途关掉语音会取消下载。 (`@nomi-ai/electron` patch, `@nomi-ai/ai-chat` patch, `@nomi-ai/types` patch)
 - 移除已不再使用的 3D / VRM 渲染器：three.js、@pixiv/three-vrm、react-three-fiber / drei、VRM 动作库（motions.json）及相关代码与依赖都已删除， (`@nomi-ai/renderer` patch, `@nomi-ai/bundle-ig-mascot` patch)
 - 移除按端信息卡及详情抽屉中容易与 CLI 默认模型混淆的模型展示，并压缩卡片高度。 (`@nomi-ai/ai-chat` patch)
 - 移除模型浮层不再使用的思考深度说明文案（英文词条）。 (`@nomi-ai/ui` patch)

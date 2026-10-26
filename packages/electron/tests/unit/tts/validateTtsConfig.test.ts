@@ -1,43 +1,47 @@
 import { DEFAULT_TTS_CONFIG } from '@nomi-ai/types';
 
-import {
-  isLegacyFishProductDefault,
-  migrateTtsConfigProvider,
-  normalizeTtsConfig,
-  validateTtsConfig,
-} from '../../../src/tts/fish/validateTtsConfig';
+import { normalizeTtsConfig, validateTtsConfig } from '../../../src/tts/fish/validateTtsConfig';
+
+/** 代表旧 tts-config.json 里已移除的内置离线引擎 provider：任何未知值都按 none 处理 */
+const REMOVED_OFFLINE_PROVIDER = 'offline-theresa-removed';
 
 describe('validateTtsConfig', () => {
-  it('accepts built-in sherpa defaults (sid 0, speed 1.0)', () => {
+  it('accepts defaults: no realtime engine, prompt voice on', () => {
     const cfg = normalizeTtsConfig({ ...DEFAULT_TTS_CONFIG, lastModified: 1 });
     const v = validateTtsConfig(cfg);
     expect(v.isValid).toBe(true);
-    expect(cfg.provider).toBe('sherpa-theresa');
-    expect(cfg.sherpaSid).toBe(0);
-    expect(cfg.sherpaSpeed).toBe(1.0);
+    expect(cfg.provider).toBe('none');
+    expect(cfg.promptVoice).toBe(true);
     expect(cfg.referenceId).toBe('nomi');
   });
 
-  it('defaults to sherpa when no file / no provider; keeps explicit Fish choice', () => {
-    expect(normalizeTtsConfig(null).provider).toBe('sherpa-theresa');
-    expect(normalizeTtsConfig({}).provider).toBe('sherpa-theresa');
+  it('defaults to none when no file / no provider; keeps explicit choices', () => {
+    expect(normalizeTtsConfig(null).provider).toBe('none');
+    expect(normalizeTtsConfig({}).provider).toBe('none');
+    for (const p of ['edge', 'azure', 'openai'] as const) {
+      expect(normalizeTtsConfig({ provider: p }).provider).toBe(p);
+    }
+    expect(normalizeTtsConfig({ provider: 'unknown-engine' } as any).provider).toBe('none');
     expect(normalizeTtsConfig({ provider: 'fish-local' }).provider).toBe('fish-local');
     expect(normalizeTtsConfig({ provider: 'fish-cloud' }).provider).toBe('fish-cloud');
   });
 
-  it('sanitizes sherpa sid / speed and validates ranges', () => {
-    const cfg = normalizeTtsConfig({ sherpaSid: -1, sherpaSpeed: 9 });
-    expect(cfg.sherpaSid).toBe(0);
-    expect(cfg.sherpaSpeed).toBe(1.0);
-    expect(normalizeTtsConfig({ sherpaSid: 5, sherpaSpeed: 1.2 })).toMatchObject({
-      sherpaSid: 5,
-      sherpaSpeed: 1.2,
-    });
-    const bad = { ...cfg, sherpaSid: 1000 };
-    expect(validateTtsConfig(bad).errors.some((e) => /sherpaSid/.test(e))).toBe(true);
-    expect(
-      validateTtsConfig({ ...cfg, sherpaSpeed: 3 }).errors.some((e) => /sherpaSpeed/.test(e)),
-    ).toBe(true);
+  it('old configs with the removed built-in engine start as none and drop its fields', () => {
+    const cfg = normalizeTtsConfig({
+      provider: REMOVED_OFFLINE_PROVIDER,
+      oldEngineSid: 3,
+      oldEngineSpeed: 1.2,
+      enabled: true,
+    } as any);
+    expect(cfg.provider).toBe('none');
+    expect(cfg).not.toHaveProperty('oldEngineSid');
+    expect(cfg).not.toHaveProperty('oldEngineSpeed');
+    expect(validateTtsConfig(cfg).isValid).toBe(true);
+  });
+
+  it('keeps promptVoice off when explicitly disabled', () => {
+    expect(normalizeTtsConfig({ promptVoice: false }).promptVoice).toBe(false);
+    expect(normalizeTtsConfig({ promptVoice: 'x' as any }).promptVoice).toBe(true);
   });
 
   it('rejects invalid fish baseUrl', () => {
@@ -74,14 +78,14 @@ describe('validateTtsConfig', () => {
     expect(v.errors.length).toBeGreaterThan(0);
   });
 
-  it('legacy system provider is migrated to the local TTS default', () => {
+  it('legacy system provider becomes none', () => {
     const cfg = normalizeTtsConfig({
       ...DEFAULT_TTS_CONFIG,
       provider: 'system',
       enabled: true,
       lastModified: 1,
     } as any);
-    expect(cfg.provider).toBe('sherpa-theresa');
+    expect(cfg.provider).toBe('none');
     expect(validateTtsConfig(cfg).isValid).toBe(true);
   });
 
@@ -95,32 +99,5 @@ describe('validateTtsConfig', () => {
       promptText: 'hello',
     } as any);
     expect(cfg.provider).toBe('legacy');
-  });
-
-  it('migrates untouched fish-local product default to sherpa-theresa', () => {
-    expect(
-      isLegacyFishProductDefault({
-        provider: 'fish-local',
-        baseUrl: 'http://127.0.0.1:8080',
-        referenceId: 'nomi',
-        format: 'mp3',
-      }),
-    ).toBe(true);
-    expect(
-      isLegacyFishProductDefault({
-        provider: 'fish-local',
-        baseUrl: 'http://192.168.1.5:8080',
-        referenceId: 'nomi',
-      }),
-    ).toBe(false);
-    const { config, migrated } = migrateTtsConfigProvider({
-      provider: 'fish-local',
-      baseUrl: 'http://127.0.0.1:8080/',
-      referenceId: 'nomi',
-    });
-    expect(migrated).toBe(true);
-    expect(config.provider).toBe('sherpa-theresa');
-    expect(migrateTtsConfigProvider({ provider: 'fish-cloud' }).migrated).toBe(false);
-    expect(migrateTtsConfigProvider({ provider: 'sherpa-theresa' }).migrated).toBe(false);
   });
 });

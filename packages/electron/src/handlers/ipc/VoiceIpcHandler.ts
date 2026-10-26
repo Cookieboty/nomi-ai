@@ -3,7 +3,6 @@
  * 全局按键监听彩蛋已移除，不再启动 node-global-key-listener。
  */
 
-import { eventBus } from '../../core/EventBus';
 import { t } from '../../i18n';
 import { type IConfigService } from '../../services/ConfigService';
 import { type ILoggerService } from '../../services/LoggerService';
@@ -36,7 +35,6 @@ export class VoiceIpcHandler extends BaseIpcHandler {
       try {
         const currentSettings = this.configService.get('voiceSettings') || {};
         const updatedSettings = { ...currentSettings, ...settings };
-        const prevEnabled = Boolean((currentSettings as { enabled?: boolean }).enabled);
 
         this.configService.set('voiceSettings', updatedSettings);
         this.configService.save().catch((error) => {
@@ -45,10 +43,6 @@ export class VoiceIpcHandler extends BaseIpcHandler {
         });
 
         this.logger.info('语音设置已保存', { settings: updatedSettings });
-        // 开关变化交给 TtsModelController：开启时按需下载模型，失败 / 取消则关回去
-        if (typeof settings.enabled === 'boolean' && settings.enabled !== prevEnabled) {
-          eventBus.emit('voice:enabled-changed', { enabled: settings.enabled });
-        }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         this.logger.error('保存语音设置失败', { error: errorMessage, settings });

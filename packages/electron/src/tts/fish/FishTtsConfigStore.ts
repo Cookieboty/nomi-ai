@@ -6,7 +6,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-import type { TTSConfig } from '@nomi-ai/types';
+import type { TTSConfig, TTSProvider } from '@nomi-ai/types';
 import { DEFAULT_TTS_CONFIG } from '@nomi-ai/types';
 import { app, safeStorage } from 'electron';
 
@@ -14,30 +14,25 @@ import { t as tr } from '../../i18n';
 import { createMainLogger } from '../../utils/log';
 import { writePrivateFile } from '../../utils/privateFile';
 
-import {
-  migrateTtsConfigProvider,
-  normalizeTtsConfig,
-  validateTtsConfig,
-} from './validateTtsConfig';
+import { normalizeTtsConfig, validateTtsConfig } from './validateTtsConfig';
 
-const log = createMainLogger('FishTTS-config');
+const log = createMainLogger('TTS-config');
 
-const API_KEY_FILE = 'tts.fish.apiKey.bin';
+type KeyProvider = 'fish-cloud';
+const API_KEY_FILES: Record<KeyProvider, string> = { 'fish-cloud': 'tts.fish.apiKey.bin' };
+const keyProviderOf = (p: TTSProvider | undefined): KeyProvider | undefined =>
+  p === 'fish-cloud' ? p : undefined;
 
-/**
- * tts-config.json 的格式版本。新写入一律带当前版本；缺失版本号 = 旧版本写出的文件，
- * 只有这类文件才会跑「fish-local 旧产品默认 → sherpa」一次性迁移，
- * 用户在新版本里主动保存的 Fish 默认组合不会再被改回去。
- */
-const CONFIG_SCHEMA_VERSION = 1;
+/** tts-config.json 的格式版本（2：移除内置离线引擎，默认 none） */
+const CONFIG_SCHEMA_VERSION = 2;
 
 export class FishTtsConfigStore {
   private configPath(): string {
     return path.join(app.getPath('userData'), 'tts-config.json');
   }
 
-  private keyPath(): string {
-    return path.join(app.getPath('userData'), 'keys', API_KEY_FILE);
+  private keyPath(provider: KeyProvider = 'fish-cloud'): string {
+    return path.join(app.getPath('userData'), 'keys', API_KEY_FILES[provider]);
   }
 
   load(): TTSConfig {
@@ -47,41 +42,17 @@ export class FishTtsConfigStore {
         return { ...DEFAULT_TTS_CONFIG, lastModified: 0 };
       }
       const raw = JSON.parse(fs.readFileSync(p, 'utf8')) as Partial<TTSConfig>;
-      // Never keep apiKey from disk JSON
+      // Never keep apiKey from disk JSON；已移除的内置离线引擎等未知 provider 归一为 none
       const {
         apiKey: _drop,
-        schemaVersion,
+        schemaVersion: _v,
         ...rest
       } = raw as Partial<TTSConfig> & {
         schemaVersion?: unknown;
       };
-      // 只迁移没有版本号的旧文件；带版本号的文件里的 provider 是用户（或迁移）的明确结果
-      const { config, migrated } =
-        typeof schemaVersion === 'number'
-          ? { config: normalizeTtsConfig(rest), migrated: false }
-          : migrateTtsConfigProvider(rest);
-      if (migrated) {
-        // Persist (with the current schemaVersion) so the migration runs exactly once;
-        // intentional Fish users with custom baseUrl/referenceId are not migrated
-        // (see isLegacyFishProductDefault).
-        // Write directly (avoid save→loadPublic→load recursion).
-        try {
-          log.info('migrated legacy fish-local product default → sherpa-theresa');
-          const toDisk: Record<string, unknown> = {
-            ...config,
-            schemaVersion: CONFIG_SCHEMA_VERSION,
-            lastModified: Date.now(),
-          };
-          delete toDisk.apiKey;
-          delete toDisk.hasApiKey;
-          delete toDisk.clearApiKey;
-          writePrivateFile(this.configPath(), JSON.stringify(toDisk, null, 2));
-        } catch (e) {
-          log.warn('TTS provider migration save failed; using in-memory sherpa default', {
-            error: e instanceof Error ? e.message : String(e),
-          });
-        }
-        return config;
+      const config = normalizeTtsConfig(rest);
+      if ((raw as { provider?: unknown }).provider !== config.provider) {
+        log.info('TTS provider normalized', { from: String(raw.provider), to: config.provider });
       }
       return config;
     } catch {
@@ -95,7 +66,7 @@ export class FishTtsConfigStore {
     return {
       ...cfg,
       apiKey: '',
-      hasApiKey: this.hasApiKey(),
+      hasApiKey: this.hasApiKey(keyProviderOf(cfg.provider)),
     };
   }
 
@@ -106,10 +77,11 @@ export class FishTtsConfigStore {
       throw new Error(`TTS config invalid: ${validation.errors.join(', ')}`);
     }
 
-    if (input.clearApiKey) {
-      this.clearApiKey();
-    } else if (typeof input.apiKey === 'string' && input.apiKey.trim()) {
-      this.setApiKey(input.apiKey.trim());
+    const kp = keyProviderOf(normalized.provider);
+    if (kp && input.clearApiKey) {
+      this.clearApiKey(kp);
+    } else if (kp && typeof input.apiKey === 'string' && input.apiKey.trim()) {
+      this.setApiKey(input.apiKey.trim(), kp);
     }
 
     const toDisk: Record<string, unknown> = {
@@ -128,18 +100,18 @@ export class FishTtsConfigStore {
   reset(): void {
     const p = this.configPath();
     if (fs.existsSync(p)) fs.unlinkSync(p);
-    this.clearApiKey();
+    this.clearApiKey('fish-cloud');
   }
 
   /** 只有真的能读出 Key 时才算已配置：解不开的文件不能让界面显示「已配置」（#35） */
-  hasApiKey(): boolean {
-    return !!this.getApiKey();
+  hasApiKey(provider: KeyProvider | undefined = 'fish-cloud'): boolean {
+    return !!provider && !!this.getApiKey(provider);
   }
 
-  getApiKey(): string | undefined {
+  getApiKey(provider: KeyProvider = 'fish-cloud'): string | undefined {
     let buf: Buffer;
     try {
-      const p = this.keyPath();
+      const p = this.keyPath(provider);
       if (!fs.existsSync(p)) return undefined;
       buf = fs.readFileSync(p);
     } catch {
@@ -157,15 +129,15 @@ export class FishTtsConfigStore {
     if (legacy === undefined) return undefined;
     // 旧明文：安全存储可用就就地加密迁移；不可用时照旧使用
     try {
-      if (safeStorage.isEncryptionAvailable()) this.setApiKey(legacy);
+      if (safeStorage.isEncryptionAvailable()) this.setApiKey(legacy, provider);
     } catch {
       /* 迁移失败不影响本次使用 */
     }
     return legacy;
   }
 
-  setApiKey(value: string): void {
-    const dir = path.dirname(this.keyPath());
+  setApiKey(value: string, provider: KeyProvider = 'fish-cloud'): void {
+    const dir = path.dirname(this.keyPath(provider));
     fs.mkdirSync(dir, { recursive: true });
     // 安全存储不可用 / 加密失败：失败关闭，不把云 Key 以明文写进 keys/*.bin
     let buf: Buffer;
@@ -175,12 +147,12 @@ export class FishTtsConfigStore {
     } catch {
       throw new Error(tr('electron.common.system-secure-storage-is-unavailable-so-the-cloud'));
     }
-    fs.writeFileSync(this.keyPath(), buf, { mode: 0o600 });
+    fs.writeFileSync(this.keyPath(provider), buf, { mode: 0o600 });
   }
 
-  clearApiKey(): void {
+  clearApiKey(provider: KeyProvider = 'fish-cloud'): void {
     try {
-      if (fs.existsSync(this.keyPath())) fs.unlinkSync(this.keyPath());
+      if (fs.existsSync(this.keyPath(provider))) fs.unlinkSync(this.keyPath(provider));
     } catch {
       /* ignore */
     }

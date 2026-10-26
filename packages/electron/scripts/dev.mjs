@@ -29,10 +29,6 @@ const run = (args, label) => {
   }
 };
 
-// 兜底：离线 TTS 模型缺失 / 不完整时先补齐（已完整毫秒级跳过；失败只报错不阻塞 dev，运行时仍会后台下载 + 系统语音回退）。
-// CI / 不想下载：NOMI_SKIP_TTS_MODEL=1
-spawnSync(node, [path.join(root, 'scripts/ensure-tts-model.mjs')], { cwd: root, stdio: 'inherit' });
-
 log('compiling main process…');
 run([tsc, '-p', 'tsconfig.json'], 'tsc');
 run([path.join(root, 'scripts/bundle-preload.mjs')], 'preload bundle');

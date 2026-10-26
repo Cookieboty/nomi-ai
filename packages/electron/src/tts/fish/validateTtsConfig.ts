@@ -5,10 +5,15 @@
 import type { TTSConfig, TTSProvider } from '@nomi-ai/types';
 import { DEFAULT_TTS_CONFIG } from '@nomi-ai/types';
 
-const PROVIDERS: TTSProvider[] = ['sherpa-theresa', 'fish-local', 'fish-cloud', 'legacy'];
-const SHERPA_MAX_SID = 803;
-const SHERPA_SPEED_MIN = 0.5;
-const SHERPA_SPEED_MAX = 1.5;
+const PROVIDERS: TTSProvider[] = [
+  'none',
+  'edge',
+  'azure',
+  'openai',
+  'fish-local',
+  'fish-cloud',
+  'legacy',
+];
 const FORMATS = ['mp3', 'wav', 'opus', 'pcm'] as const;
 
 export interface TtsValidation {
@@ -24,23 +29,16 @@ export function normalizeTtsConfig(raw: Partial<TTSConfig> | null | undefined): 
     ? (raw.provider as TTSProvider)
     : inferProvider(raw);
 
+  // 只保留已知字段：旧版本里已移除引擎的私有字段等直接丢弃
+  const passThrough: Partial<TTSConfig> = {};
+  if (raw.apiKey !== undefined) passThrough.apiKey = raw.apiKey;
+  if (raw.hasApiKey !== undefined) passThrough.hasApiKey = raw.hasApiKey;
+  if (raw.clearApiKey !== undefined) passThrough.clearApiKey = raw.clearApiKey;
   return {
     ...base,
-    ...raw,
+    ...passThrough,
     provider,
-    sherpaSid:
-      typeof raw.sherpaSid === 'number' &&
-      Number.isInteger(raw.sherpaSid) &&
-      raw.sherpaSid >= 0 &&
-      raw.sherpaSid <= SHERPA_MAX_SID
-        ? raw.sherpaSid
-        : (base.sherpaSid ?? 0),
-    sherpaSpeed:
-      typeof raw.sherpaSpeed === 'number' &&
-      raw.sherpaSpeed >= SHERPA_SPEED_MIN &&
-      raw.sherpaSpeed <= SHERPA_SPEED_MAX
-        ? raw.sherpaSpeed
-        : (base.sherpaSpeed ?? 1),
+    promptVoice: raw.promptVoice !== false,
     enabled: raw.enabled !== false,
     baseUrl:
       typeof raw.baseUrl === 'string' && raw.baseUrl.trim() ? raw.baseUrl.trim() : base.baseUrl,
@@ -66,39 +64,18 @@ export function normalizeTtsConfig(raw: Partial<TTSConfig> | null | undefined): 
 }
 
 function inferProvider(raw: Partial<TTSConfig>): TTSProvider {
-  // Legacy files without provider: if classic clone fields look filled → legacy; else product default
-  if (raw.hostname && raw.port && raw.path && raw.audioUrl && raw.promptText) {
+  // 旧文件：没有 provider 且经典克隆字段齐全 → legacy；其余（含已移除的内置离线引擎）→ none
+  if (
+    raw.provider === undefined &&
+    raw.hostname &&
+    raw.port &&
+    raw.path &&
+    raw.audioUrl &&
+    raw.promptText
+  ) {
     return 'legacy';
   }
-  return DEFAULT_TTS_CONFIG.provider;
-}
-
-/**
- * Pre-sherpa product default was fish-local + nomi @ 127.0.0.1:8080.
- * Untouched copies of that default should move to sherpa-theresa so `pnpm dev`
- * is not stuck on Fish (unreachable → silent TTS on many Linux setups).
- * Custom Fish baseUrl / referenceId / cloud are left alone.
- */
-export function isLegacyFishProductDefault(raw: Partial<TTSConfig> | null | undefined): boolean {
-  if (!raw || raw.provider !== 'fish-local') return false;
-  const base = typeof raw.baseUrl === 'string' ? raw.baseUrl.trim().replace(/\/$/, '') : '';
-  if (base && base !== 'http://127.0.0.1:8080' && base !== 'http://localhost:8080') return false;
-  const ref = typeof raw.referenceId === 'string' ? raw.referenceId.trim() : '';
-  if (ref && ref !== 'nomi') return false;
-  if (raw.format != null && raw.format !== 'mp3') return false;
-  return true;
-}
-
-/** Apply one-shot provider migration; returns whether provider changed. */
-export function migrateTtsConfigProvider(raw: Partial<TTSConfig> | null | undefined): {
-  config: TTSConfig;
-  migrated: boolean;
-} {
-  const config = normalizeTtsConfig(raw);
-  if (isLegacyFishProductDefault(raw)) {
-    return { config: { ...config, provider: 'sherpa-theresa' }, migrated: true };
-  }
-  return { config, migrated: false };
+  return 'none';
 }
 
 export function validateTtsConfig(config: TTSConfig): TtsValidation {
@@ -108,26 +85,11 @@ export function validateTtsConfig(config: TTSConfig): TtsValidation {
     errors.push('enabled must be boolean');
   }
   if (!PROVIDERS.includes(config.provider)) {
-    errors.push('provider must be sherpa-theresa | fish-local | fish-cloud | legacy');
+    errors.push('provider must be none | edge | azure | openai | fish-local | fish-cloud | legacy');
   }
 
-  if (config.provider === 'sherpa-theresa') {
-    if (
-      config.sherpaSid != null &&
-      (!Number.isInteger(config.sherpaSid) ||
-        config.sherpaSid < 0 ||
-        config.sherpaSid > SHERPA_MAX_SID)
-    ) {
-      errors.push(`sherpaSid must be an integer 0–${SHERPA_MAX_SID}`);
-    }
-    if (
-      config.sherpaSpeed != null &&
-      (typeof config.sherpaSpeed !== 'number' ||
-        config.sherpaSpeed < SHERPA_SPEED_MIN ||
-        config.sherpaSpeed > SHERPA_SPEED_MAX)
-    ) {
-      errors.push(`sherpaSpeed must be ${SHERPA_SPEED_MIN}–${SHERPA_SPEED_MAX}`);
-    }
+  if (config.promptVoice != null && typeof config.promptVoice !== 'boolean') {
+    errors.push('promptVoice must be boolean');
   }
 
   if (config.provider === 'fish-local' || config.provider === 'fish-cloud') {
@@ -190,6 +152,5 @@ export function validateTtsConfig(config: TTSConfig): TtsValidation {
     }
   }
 
-  // system: no extra fields required
   return { isValid: errors.length === 0, errors };
 }

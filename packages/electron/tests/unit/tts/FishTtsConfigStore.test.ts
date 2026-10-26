@@ -32,6 +32,9 @@ import { DEFAULT_TTS_CONFIG } from '@nomi-ai/types';
 
 import { FishTtsConfigStore } from '../../../src/tts/fish/FishTtsConfigStore';
 
+/** 代表旧 tts-config.json 里已移除的内置离线引擎 provider：任何未知值都按 none 处理 */
+const REMOVED_OFFLINE_PROVIDER = 'offline-theresa-removed';
+
 const cfgFile = () => path.join(userData, 'tts-config.json');
 const onDisk = () => JSON.parse(fs.readFileSync(cfgFile(), 'utf8')) as Record<string, unknown>;
 const fishLocalDefault = (): TTSConfig => ({
@@ -54,7 +57,7 @@ describe('FishTtsConfigStore save → load（#31）', () => {
   it('新保存的 fish-local 默认组合：返回值、文件、重新创建 store 后都保持 fish-local', () => {
     const saved = new FishTtsConfigStore().save(fishLocalDefault());
     expect(saved.provider).toBe('fish-local');
-    expect(onDisk()).toMatchObject({ provider: 'fish-local', schemaVersion: 1 });
+    expect(onDisk()).toMatchObject({ provider: 'fish-local', schemaVersion: 2 });
 
     const again = new FishTtsConfigStore();
     expect(again.load().provider).toBe('fish-local');
@@ -68,7 +71,24 @@ describe('FishTtsConfigStore save → load（#31）', () => {
     expect(store.loadPublic()).not.toHaveProperty('schemaVersion');
   });
 
-  it('旧的无版本配置（fish-local 旧产品默认）只迁移一次，随后用户再选 fish-local 保持不变', () => {
+  it('旧配置里的 已移除的内置离线引擎启动时按 none 处理，不报错', () => {
+    fs.writeFileSync(
+      cfgFile(),
+      JSON.stringify({
+        provider: REMOVED_OFFLINE_PROVIDER,
+        oldEngineSid: 0,
+        oldEngineSpeed: 1,
+        schemaVersion: 1,
+      }),
+    );
+    const store = new FishTtsConfigStore();
+    const cfg = store.load();
+    expect(cfg.provider).toBe('none');
+    expect(cfg).not.toHaveProperty('oldEngineSid');
+    expect(store.loadPublic().hasApiKey).toBe(false);
+  });
+
+  it('旧的无版本 Fish 配置保持原样（不再迁移）', () => {
     fs.writeFileSync(
       cfgFile(),
       JSON.stringify({
@@ -77,28 +97,7 @@ describe('FishTtsConfigStore save → load（#31）', () => {
         referenceId: 'nomi',
       }),
     );
-    const store = new FishTtsConfigStore();
-    expect(store.load().provider).toBe('sherpa-theresa');
-    expect(onDisk()).toMatchObject({ provider: 'sherpa-theresa', schemaVersion: 1 });
-
-    store.save(fishLocalDefault());
     expect(new FishTtsConfigStore().load().provider).toBe('fish-local');
-  });
-
-  it('旧的无版本配置：自定义 Fish 与 fish-cloud 不迁移', () => {
-    fs.writeFileSync(
-      cfgFile(),
-      JSON.stringify({
-        provider: 'fish-local',
-        baseUrl: 'http://10.0.0.5:8080',
-        referenceId: 'me',
-      }),
-    );
-    expect(new FishTtsConfigStore().load()).toMatchObject({
-      provider: 'fish-local',
-      baseUrl: 'http://10.0.0.5:8080',
-      referenceId: 'me',
-    });
     fs.writeFileSync(
       cfgFile(),
       JSON.stringify({ provider: 'fish-cloud', baseUrl: 'https://api.fish.audio' }),
