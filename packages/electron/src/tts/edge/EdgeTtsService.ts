@@ -2,7 +2,7 @@
  * Edge engine for the TTS router: cleans text, synthesizes it, tracks consecutive failures for
  * the settings hint, and lets `stop()` abort in-flight requests (barge-in).
  */
-import { DEFAULT_EDGE_RATE, DEFAULT_EDGE_VOICE, cleanTextForSpeech } from '@nomi-ai/types';
+import { DEFAULT_TTS_RATE, DEFAULT_EDGE_VOICE, cleanTextForSpeech } from '@nomi-ai/types';
 import type { TTSStatus } from '@nomi-ai/types';
 
 import { VOICE_NAME_RE } from './edgeProtocol';
@@ -41,7 +41,7 @@ export class EdgeTtsService {
     if (!/[\p{L}\p{N}]/u.test(text))
       return { ok: false, kind: 'empty', message: 'nothing to read' };
     const voice = p.voice && VOICE_NAME_RE.test(p.voice) ? p.voice : DEFAULT_EDGE_VOICE;
-    const rate = Number.isFinite(p.rate) ? (p.rate as number) : DEFAULT_EDGE_RATE;
+    const rate = Number.isFinite(p.rate) ? (p.rate as number) : DEFAULT_TTS_RATE;
     const ac = new AbortController();
     this.inflight.add(ac);
     try {

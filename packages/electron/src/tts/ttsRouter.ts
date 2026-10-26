@@ -82,7 +82,7 @@ export class TtsRouter {
       const r = await this.deps.edge.speak({
         text: req.text,
         voice: cfg.edgeVoice,
-        rate: cfg.edgeRate,
+        rate: cfg.rate,
       });
       if (!r.ok) return silent(`edge: ${r.kind}`);
       return {

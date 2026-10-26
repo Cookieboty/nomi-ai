@@ -1,4 +1,3 @@
-import type { ModelVoiceConfig } from '@nomi-ai/types';
 import { type VoiceSettings as VoiceSettingsType } from '@nomi-ai/types';
 import { createLogger, t as tr } from '@nomi-ai/ui';
 import { Modal, SectionTitle, Switch } from '@nomi-ai/ui';
@@ -8,7 +7,6 @@ import {
   clearCharacterVoiceOverride,
   getActiveCharacter,
   resolvePrefsForCharacter,
-  saveCharacterVoice,
   speakForActiveCharacter,
   type SoftSpeechPrefs,
 } from '../../mascot/characterVoice';
@@ -66,21 +64,6 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
       onSettingsChange?.();
     } catch (error) {
       log.error('Failed to update voice settings:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const patchCharacter = async (patch: ModelVoiceConfig) => {
-    if (!charName) return;
-    const { config } = getActiveCharacter();
-    setIsLoading(true);
-    try {
-      await saveCharacterVoice(charName, patch, config);
-      setCharPrefs(
-        resolvePrefsForCharacter(charName, { ...config, voice: { ...config?.voice, ...patch } }),
-      );
-      onSettingsChange?.();
     } finally {
       setIsLoading(false);
     }
@@ -146,21 +129,6 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
           {tr('ui.voice-mascot.will-use')}
           {tr('ui.voice-mascot.the-configured-local-or-remote-tts')}
         </p>
-        <label className={styles.range}>
-          <span>
-            {tr('ui.voice-mascot.rate')} {charPrefs.rate.toFixed(2)}×
-          </span>
-          <input
-            type="range"
-            min="0.7"
-            max="1.15"
-            step="0.01"
-            value={charPrefs.rate}
-            data-testid="char-speech-rate"
-            onChange={(e) => void patchCharacter({ rate: parseFloat(e.target.value) })}
-            disabled={off || !charName}
-          />
-        </label>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button
             type="button"

@@ -90,13 +90,18 @@ export interface TTSConfig {
   provider: TTSProvider;
   /** Edge voice short name, e.g. zh-CN-XiaoyiNeural. */
   edgeVoice?: string;
-  /** Edge speech rate in percent (-50..50). Default -5, same as the prompt clips. */
-  edgeRate?: number;
+  /**
+   * The single read-aloud speech rate, percent (-50..50). Default -5, same as the prompt clips.
+   * Used for mascot lines, AI replies and the settings preview.
+   */
+  rate?: number;
+  /** Read Nomi's AI chat replies aloud with the realtime engine (default on). */
+  readReplies?: boolean;
   lastModified: number;
 }
 
 export const DEFAULT_EDGE_VOICE = 'zh-CN-XiaoyiNeural';
-export const DEFAULT_EDGE_RATE = -5;
+export const DEFAULT_TTS_RATE = -5;
 
 /** Public defaults: Edge engine (Xiaoyi, -5%), prompt voice on. */
 export const DEFAULT_TTS_CONFIG: Omit<TTSConfig, 'lastModified'> = {
@@ -104,7 +109,8 @@ export const DEFAULT_TTS_CONFIG: Omit<TTSConfig, 'lastModified'> = {
   promptVoice: true,
   provider: 'edge',
   edgeVoice: DEFAULT_EDGE_VOICE,
-  edgeRate: DEFAULT_EDGE_RATE,
+  rate: DEFAULT_TTS_RATE,
+  readReplies: true,
 };
 
 /** One selectable realtime voice. */
@@ -128,14 +134,12 @@ export interface TTSPreviewRequest {
   text: string;
   provider: TTSProvider;
   edgeVoice?: string;
-  edgeRate?: number;
+  rate?: number;
 }
 
 export interface TTSSpeakRequest {
   text: string;
   volume?: number;
-  /** Per-character speed multiplier (0.5..1.5), mapped to engine speech rate when supported. */
-  speed?: number;
 }
 
 export interface TTSSpeakResult {

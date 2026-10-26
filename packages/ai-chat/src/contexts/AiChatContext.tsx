@@ -34,6 +34,7 @@ import { createIPCClient } from '../services/IPCClient';
 import { kbClient } from '../services/kbClient';
 import { ingestConversation, memoryContext } from '../services/memClient';
 import { nomiModelLabel } from '../services/nomiModel';
+import { startReplySpeech, stopReplySpeech, type ReplySpeaker } from '../services/replySpeech';
 import { schedClient } from '../services/schedClient';
 import { screenClient, type ImageAttachment } from '../services/screenClient';
 import { type ChatMessage, type ChatConfig } from '../types/chat';
@@ -524,6 +525,9 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
       const reqId = newReqId();
       const controller = new AbortController();
       let owned = false;
+      // 用户发了新消息：正在朗读的上一条回复立即停
+      stopReplySpeech();
+      let speaker: ReplySpeaker | null = null;
       try {
         dispatch({ type: 'SET_LOADING', payload: true });
         dispatch({ type: 'SET_ERROR', payload: undefined });
@@ -621,6 +625,8 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
 
         activeStream.current = { reqId, convoId: turn.convoId, controller };
         owned = true;
+        // 朗读 AI 回复：只念普通诺米对话（`/agent` 委派给编程助手的这一轮不念）
+        if (!delegateTo) speaker = startReplySpeech(reqId);
         dispatch({ type: 'SET_STREAMING', payload: true });
 
         let accumulated = '';
@@ -668,6 +674,11 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
               : content,
             (chunk: string) => {
               accumulated += chunk;
+              if (speaker) {
+                // 已切到别的会话：不再朗读这一轮
+                if (turn.isActive()) speaker.push(chunk);
+                else speaker.stop();
+              }
               scheduleUi();
             },
             history,
@@ -705,6 +716,8 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
         flushUi();
 
         const stopped = controller.signal.aborted;
+        if (stopped) speaker?.stop();
+        else speaker?.finish();
         const finalAiMessage: ChatMessage = {
           ...aiMessage,
           content: accumulated,
@@ -721,6 +734,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
         if (!stopped && turn.exists())
           maybeIngest([...history, userMessage, finalAiMessage], turn.convoId);
       } catch (error) {
+        speaker?.stop();
         dispatch({ type: 'SET_ERROR', payload: errorMessage(error) });
       } finally {
         // 本轮未委派时清掉主进程 turn pin，避免泄漏到下一轮
@@ -754,6 +768,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
 
   const stopGeneration = useCallback(() => {
     const a = activeStream.current;
+    stopReplySpeech();
     if (!a || a.controller.signal.aborted) return;
     a.controller.abort();
     // 兜底：即便客户端实现没有处理 signal，也直接通知主进程中止上游
@@ -770,6 +785,8 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
   // 加载对话历史
   const loadChatHistory = useCallback(async () => {
     const my = ++historySeq.current;
+    // 切换会话：停止朗读上一个会话的回复
+    stopReplySpeech();
     // 换了会话：上一个会话的错误提示不再适用（#78）
     dispatch({ type: 'SET_ERROR', payload: undefined });
     try {
@@ -798,6 +815,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
   // 新建会话（旧会话保留在本地存储中；进行中的流继续写回旧会话）
   const newConversation = useCallback(async () => {
     historySeq.current++;
+    stopReplySpeech();
     dispatch({ type: 'SET_ERROR', payload: undefined });
     try {
       ingestCurrent();

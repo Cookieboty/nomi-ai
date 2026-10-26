@@ -12,8 +12,10 @@ export interface TtsEngineConfig {
   provider: TtsProvider;
   /** Edge 音色，如 zh-CN-XiaoyiNeural */
   edgeVoice?: string;
-  /** Edge 语速百分比，-50..50 */
-  edgeRate?: number;
+  /** 朗读语速百分比，-50..50（提示语以外所有实时朗读共用这一个语速） */
+  rate?: number;
+  /** 朗读 AI 回复（默认开；实时朗读引擎不可用时不生效） */
+  readReplies?: boolean;
   [key: string]: unknown;
 }
 
@@ -28,7 +30,8 @@ export const DEFAULT_TTS_CONFIG: TtsEngineConfig = {
   promptVoice: true,
   provider: 'edge',
   edgeVoice: 'zh-CN-XiaoyiNeural',
-  edgeRate: -5,
+  rate: -5,
+  readReplies: true,
 };
 
 export interface TtsVoiceOption {
@@ -68,7 +71,7 @@ interface Bridge {
     text: string;
     provider: TtsProvider;
     edgeVoice?: string;
-    edgeRate?: number;
+    rate?: number;
   }): Promise<PreviewResult>;
   status?(): Promise<TtsEngineStatus>;
 }
@@ -116,7 +119,7 @@ export const ttsConfigClient = {
         text,
         provider: cfg.provider,
         edgeVoice: cfg.edgeVoice,
-        edgeRate: cfg.edgeRate,
+        rate: cfg.rate,
       });
       if (!r?.success || !r.audioBase64) return null;
       return `data:${r.mimeType || 'audio/mpeg'};base64,${r.audioBase64}`;

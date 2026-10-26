@@ -45,6 +45,8 @@ const aiChatAPI = {
     preview: (req: unknown) => ipcRenderer.invoke('tts:preview', req),
     status: () => ipcRenderer.invoke('tts:status'),
     stop: () => ipcRenderer.invoke('tts:stop'),
+    /** 朗读 AI 回复：say / end / stop（主进程按配置决定是否转发给看板娘） */
+    reply: (msg: unknown) => ipcRenderer.invoke('tts:reply', msg),
   },
 
   /** 设置 → 通用：聊天主面板背景（chat/ChatBackgroundService.ts） */

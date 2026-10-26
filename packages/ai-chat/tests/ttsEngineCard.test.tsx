@@ -115,7 +115,7 @@ describe('TtsEngineCard（设置 → 语音：提示语音 + 实时朗读引擎�
     ).toMatchObject({
       provider: 'edge',
       edgeVoice: 'zh-CN-YunxiNeural',
-      edgeRate: 10,
+      rate: 10,
     });
 
     fireEvent.click(screen.getByTestId('tts-engine-save'));
@@ -123,7 +123,7 @@ describe('TtsEngineCard（设置 → 语音：提示语音 + 实时朗读引擎�
     expect(tts.save.mock.calls[0][0]).toMatchObject({
       provider: 'edge',
       edgeVoice: 'zh-CN-YunxiNeural',
-      edgeRate: 10,
+      rate: 10,
     });
     vi.unstubAllGlobals();
   });
@@ -152,5 +152,20 @@ describe('TtsEngineCard（设置 → 语音：提示语音 + 实时朗读引擎�
     fireEvent.click(input);
     await waitFor(() => expect(tts.save).toHaveBeenCalledTimes(1));
     expect(tts.save.mock.calls[0][0]).toMatchObject({ provider: 'none', promptVoice: false });
+  });
+
+  it('朗读 AI 回复开关：默认开、立即保存；引擎不可用时禁用', async () => {
+    const { tts } = mockTts({ enabled: true, provider: 'edge' });
+    render(<TtsEngineCard />);
+    const sw = await screen.findByTestId('read-replies-switch');
+    const input = (sw.querySelector('input') ?? sw) as HTMLInputElement;
+    expect(input.checked ?? input.getAttribute('aria-checked') === 'true').toBeTruthy();
+    fireEvent.click(input);
+    await waitFor(() => expect(tts.save).toHaveBeenCalledTimes(1));
+    expect(tts.save.mock.calls[0][0]).toMatchObject({ readReplies: false });
+    fireEvent.change(screen.getByTestId('tts-provider'), { target: { value: 'none' } });
+    const off = screen.getByTestId('read-replies-switch');
+    const offInput = (off.querySelector('input') ?? off) as HTMLInputElement;
+    expect(offInput.disabled || off.getAttribute('aria-disabled') === 'true').toBe(true);
   });
 });

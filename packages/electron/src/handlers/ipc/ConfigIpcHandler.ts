@@ -12,11 +12,13 @@ import {
 } from '@nomi-ai/types';
 import { app } from 'electron';
 
+import { broadcastMascotCommand } from '../../ai/mascotCommand';
 import { t } from '../../i18n';
 import { type IConfigService } from '../../services/ConfigService';
 import { type ILoggerService } from '../../services/LoggerService';
 import { EdgeTtsService } from '../../tts/edge/EdgeTtsService';
 import { BUILTIN_ZH_VOICES, listChineseVoices } from '../../tts/edge/edgeVoices';
+import { replySpeechCommand } from '../../tts/replySpeech';
 import { getTtsConfigStore } from '../../tts/TtsConfigStore';
 import { TtsRouter, applyTtsEnvOverride } from '../../tts/ttsRouter';
 
@@ -310,7 +312,7 @@ export class ConfigIpcHandler extends BaseIpcHandler {
         return previewRouter({
           provider: req.provider,
           edgeVoice: req.edgeVoice,
-          edgeRate: req.edgeRate,
+          rate: req.rate,
         }).speak({ text: String(req.text ?? '').slice(0, 300) });
       },
     );
@@ -347,6 +349,21 @@ export class ConfigIpcHandler extends BaseIpcHandler {
     this.registerHandler('tts:speak', async (_, req: TTSSpeakRequest) => {
       this.validateArgs([req], 1, ['object']);
       return router.speak(req ?? { text: '' });
+    });
+
+    // 朗读 AI 回复：对话窗口把整句转发到看板娘窗口（沿用 mascot:command → tts:speak 播放链路）
+    this.registerHandler('tts:reply', async (_, msg: unknown) => {
+      let cfg: TTSConfig | null;
+      try {
+        cfg = store.load();
+      } catch {
+        cfg = null;
+      }
+      const cmd = replySpeechCommand(msg, cfg, process.env);
+      if (!cmd) return false;
+      // 停止由看板娘窗口处理（它在朗读回复时才停播放并取消合成），不在这里误停别的台词
+      broadcastMascotCommand(cmd);
+      return true;
     });
 
     // 诺米提示语音开关：看板娘窗口据此决定是否播放预录提示语

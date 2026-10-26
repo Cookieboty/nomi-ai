@@ -93,15 +93,15 @@ describe('normalizeTtsConfig', () => {
 
   it('edge 音色 / 语速归一化', () => {
     expect(
-      normalizeTtsConfig({ provider: 'edge', edgeVoice: 'zh-CN-YunxiNeural', edgeRate: 12.4 }),
-    ).toMatchObject({ edgeVoice: 'zh-CN-YunxiNeural', edgeRate: 12 });
-    expect(normalizeTtsConfig({ edgeVoice: "x'/><evil", edgeRate: 999 })).toMatchObject({
+      normalizeTtsConfig({ provider: 'edge', edgeVoice: 'zh-CN-YunxiNeural', rate: 12.4 }),
+    ).toMatchObject({ edgeVoice: 'zh-CN-YunxiNeural', rate: 12 });
+    expect(normalizeTtsConfig({ edgeVoice: "x'/><evil", rate: 999 })).toMatchObject({
       edgeVoice: 'zh-CN-XiaoyiNeural',
-      edgeRate: 50,
+      rate: 50,
     });
-    expect(normalizeTtsConfig({ edgeRate: 'fast' }).edgeRate).toBe(-5);
+    expect(normalizeTtsConfig({ rate: 'fast' }).rate).toBe(-5);
     expect(validateTtsConfig(cfg({ provider: 'edge', edgeVoice: 'bad' })).isValid).toBe(false);
-    expect(validateTtsConfig(cfg({ provider: 'edge', edgeRate: 80 })).isValid).toBe(false);
+    expect(validateTtsConfig(cfg({ provider: 'edge', rate: 80 })).isValid).toBe(false);
   });
 
   it('保存时只接受 none / edge / azure / openai', () => {

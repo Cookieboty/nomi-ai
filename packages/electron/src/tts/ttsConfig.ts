@@ -3,7 +3,7 @@
  * 旧文件里的未知 provider（包括已移除的引擎）一律当作 none，不抛错；没有配置文件时默认 edge。
  */
 import type { TTSConfig, TTSProvider } from '@nomi-ai/types';
-import { DEFAULT_EDGE_RATE, DEFAULT_EDGE_VOICE, DEFAULT_TTS_CONFIG } from '@nomi-ai/types';
+import { DEFAULT_EDGE_VOICE, DEFAULT_TTS_CONFIG, DEFAULT_TTS_RATE } from '@nomi-ai/types';
 
 import { VOICE_NAME_RE } from './edge/edgeProtocol';
 
@@ -22,10 +22,12 @@ export function normalizeTtsConfig(raw: unknown): TTSConfig {
       typeof r.edgeVoice === 'string' && VOICE_NAME_RE.test(r.edgeVoice)
         ? r.edgeVoice
         : DEFAULT_EDGE_VOICE,
-    edgeRate:
-      typeof r.edgeRate === 'number' && Number.isFinite(r.edgeRate)
-        ? Math.round(Math.max(-50, Math.min(50, r.edgeRate)))
-        : DEFAULT_EDGE_RATE,
+    // 统一语速（旧版 edgeRate / 角色语速不再读取：破坏性更新）
+    rate:
+      typeof r.rate === 'number' && Number.isFinite(r.rate)
+        ? Math.round(Math.max(-50, Math.min(50, r.rate)))
+        : DEFAULT_TTS_RATE,
+    readReplies: r.readReplies !== false,
     lastModified: typeof r.lastModified === 'number' ? r.lastModified : 0,
   };
 }
@@ -41,9 +43,11 @@ export function validateTtsConfig(config: unknown): { isValid: boolean; errors: 
   if (c.edgeVoice != null && (typeof c.edgeVoice !== 'string' || !VOICE_NAME_RE.test(c.edgeVoice)))
     errors.push('edgeVoice must be a voice short name like zh-CN-XiaoyiNeural');
   if (
-    c.edgeRate != null &&
-    (typeof c.edgeRate !== 'number' || !Number.isFinite(c.edgeRate) || Math.abs(c.edgeRate) > 50)
+    c.rate != null &&
+    (typeof c.rate !== 'number' || !Number.isFinite(c.rate) || Math.abs(c.rate) > 50)
   )
-    errors.push('edgeRate must be a number between -50 and 50');
+    errors.push('rate must be a number between -50 and 50');
+  if (c.readReplies != null && typeof c.readReplies !== 'boolean')
+    errors.push('readReplies must be boolean');
   return { isValid: errors.length === 0, errors };
 }

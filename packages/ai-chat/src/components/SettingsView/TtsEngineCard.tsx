@@ -150,14 +150,14 @@ export const TtsEngineCard: React.FC = () => {
     }
   };
 
-  const setPromptVoice = async (on: boolean) => {
-    setCfg({ ...cfg, promptVoice: on });
+  /** 单独的开关项：只改这一项，以主进程里的最新配置为底，不把未保存的引擎草稿一起写进去 */
+  const setFlag = async (key: 'promptVoice' | 'readReplies', on: boolean) => {
+    setCfg({ ...cfg, [key]: on });
     try {
-      // 只改这一项：以主进程里的最新配置为底，不把未保存的引擎草稿一起写进去
       const latest = await ttsConfigClient.get();
-      await ttsConfigClient.save({ ...latest, promptVoice: on, lastModified: Date.now() });
+      await ttsConfigClient.save({ ...latest, [key]: on, lastModified: Date.now() });
     } catch (e) {
-      setCfg({ ...cfg, promptVoice: !on });
+      setCfg({ ...cfg, [key]: !on });
       setResult({
         ok: false,
         text: t('ui.voice-mascot.save-failed', e instanceof Error ? e.message : String(e)),
@@ -176,7 +176,7 @@ export const TtsEngineCard: React.FC = () => {
     value: v.shortName,
     label: `${v.shortName.replace(/Neural$/, '')}${v.gender ? ` · ${v.gender}` : ''}`,
   }));
-  const rate = typeof cfg.edgeRate === 'number' ? cfg.edgeRate : DEFAULT_TTS_CONFIG.edgeRate!;
+  const rate = typeof cfg.rate === 'number' ? cfg.rate : DEFAULT_TTS_CONFIG.rate!;
 
   return (
     <>
@@ -188,8 +188,21 @@ export const TtsEngineCard: React.FC = () => {
         <Switch
           checked={cfg.promptVoice !== false}
           data-testid="prompt-voice-switch"
-          onChange={(v) => void setPromptVoice(v)}
+          onChange={(v) => void setFlag('promptVoice', v)}
           label={t('ui.voice-mascot.nomi-prompt-voice')}
+        />
+      </SettingsGroup>
+      <SettingsGroup
+        title={t('ui.voice-mascot.read-ai-replies')}
+        description={t('ui.voice-mascot.read-ai-replies-hint')}
+        data-testid="settings-read-replies"
+      >
+        <Switch
+          checked={cfg.readReplies !== false && cfg.enabled !== false && p === 'edge'}
+          disabled={cfg.enabled === false || p !== 'edge'}
+          data-testid="read-replies-switch"
+          onChange={(v) => void setFlag('readReplies', v)}
+          label={t('ui.voice-mascot.read-ai-replies')}
         />
       </SettingsGroup>
       <SettingsGroup
@@ -231,7 +244,7 @@ export const TtsEngineCard: React.FC = () => {
                   value={rate}
                   data-testid="tts-edge-rate"
                   aria-label={t('ui.voice-mascot.edge-rate', String(rate))}
-                  onChange={(e) => set({ edgeRate: Number(e.target.value) })}
+                  onChange={(e) => set({ rate: Number(e.target.value) })}
                 />
               </FormField>
               <Notice data-testid="tts-edge-note">{t('ui.voice-mascot.edge-network-note')}</Notice>

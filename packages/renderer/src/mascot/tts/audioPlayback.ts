@@ -15,7 +15,6 @@ const log = createLogger('mascot-audio');
 
 export interface SpeakOptions {
   volume?: number;
-  speed?: number;
   onEnd?: () => void;
 }
 
@@ -35,6 +34,17 @@ let generation = 0;
 let activeSession: Session | null = null;
 let audioCtx: AudioContext | null = null;
 let stopperRegistered = false;
+/** 播放权被拿走（打断 / 新的一句开始）时通知等待者 */
+const preemptWaiters = new Set<() => void>();
+
+/** 新一代播放：之前的句子全部作废，并通知等待它们播完的人 */
+function bump(): number {
+  generation++;
+  const waiters = [...preemptWaiters];
+  preemptWaiters.clear();
+  for (const w of waiters) w();
+  return generation;
+}
 
 function newSession(): Session {
   return { audio: null, url: null, graph: null, raf: 0 };
@@ -99,7 +109,7 @@ function cleanupActive(): void {
 
 /** Stop playback (barge-in). */
 export function stopSpeaking(): void {
-  generation++;
+  bump();
   cleanupActive();
   // 取消主进程里还在合成的句子（不等待；失败无所谓）
   try {
@@ -226,7 +236,7 @@ export async function playAudioClip(
   opts: { volume?: number; onEnd?: () => void } = {},
 ): Promise<boolean> {
   ensureStopper();
-  const gen = ++generation;
+  const gen = bump();
   stopSoftSpeech();
   cleanupActive();
   const session = newSession();
@@ -282,12 +292,12 @@ export async function speakRealtime(text: string, opts: SpeakOptions = {}): Prom
     return false;
   }
 
-  const gen = ++generation;
+  const gen = bump();
   stopSoftSpeech();
   cleanupActive();
 
   const fetchSegment = (i: number): Promise<TTSSpeakResult | null> =>
-    api.ttsSpeak!({ text: segments[i]!, volume: opts.volume, speed: opts.speed }).catch(() => null);
+    api.ttsSpeak!({ text: segments[i]!, volume: opts.volume }).catch(() => null);
   const playable = (r: TTSSpeakResult | null): r is TTSSpeakResult =>
     !!r?.success && !!r.audioBase64;
 
@@ -330,4 +340,38 @@ export async function speakRealtime(text: string, opts: SpeakOptions = {}): Prom
     if (gen === generation) opts.onEnd?.();
   })();
   return true;
+}
+
+/**
+ * 播放一段已合成的音频（朗读 AI 回复的逐句队列用）。与其它语音共用打断与口型同步：
+ * 返回的 done 在这句播完时为 'ended'，被打断 / 被别的语音抢占时为 'interrupted'。
+ * 播放失败返回 null。
+ */
+export async function playSynthesized(
+  result: TTSSpeakResult,
+  opts: { volume?: number } = {},
+): Promise<{ done: Promise<'ended' | 'interrupted'> } | null> {
+  ensureStopper();
+  if (!result?.success || !result.audioBase64) return null;
+  const gen = bump();
+  stopSoftSpeech();
+  cleanupActive();
+  let settle!: (v: 'ended' | 'interrupted') => void;
+  const done = new Promise<'ended' | 'interrupted'>((resolve) => {
+    settle = resolve;
+  });
+  const onPreempt = () => settle('interrupted');
+  preemptWaiters.add(onPreempt);
+  try {
+    const { ended } = await startSegment(result, gen, opts.volume);
+    void ended.then(() => {
+      preemptWaiters.delete(onPreempt);
+      settle('ended');
+    });
+  } catch (err) {
+    preemptWaiters.delete(onPreempt);
+    log.warn('reply segment playback failed', err);
+    return null;
+  }
+  return { done };
 }

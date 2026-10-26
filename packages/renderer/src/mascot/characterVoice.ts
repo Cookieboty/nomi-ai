@@ -132,8 +132,6 @@ export function speakForActiveCharacter(key: string, opts: SpeakSoftOptions = {}
   }
   const prefs = resolvePrefsForCharacter();
   const merged = opts.prefs ? { ...prefs, ...opts.prefs } : prefs;
-  const configuredRate = Number.isFinite(merged.rate) ? merged.rate : 0.92;
-  const speed = Math.min(1.5, Math.max(0.5, configuredRate));
 
   // 保留文字、不播音频的台词
   if (isNoAudioLine(key)) {
@@ -154,7 +152,6 @@ export function speakForActiveCharacter(key: string, opts: SpeakSoftOptions = {}
       const { speakRealtime } = await import('./tts/audioPlayback');
       await speakRealtime(text, {
         volume: merged.volume,
-        speed,
         onEnd: opts.onEnd,
       });
     } catch {

@@ -399,6 +399,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - 新增设置 →「模型质量」（紧挨「模型」页）：按供应商、模型、Key、客户端等维度看成功率、失败率、取消、断流、回退、TTFB / TTFT / TPOT / E2E 的 p50 / p90 / p99、输出速度与缓存命中率。四个标签：总览（指标卡与上一周期对比、失败原因、按供应商）、对比（可排序可选列，勾选 2～4 项并排对比，快捷对比「同一模型跨供应商 / 同一供应商跨 Key / 本周 vs 上周」，可导出 CSV）、趋势（按小时 / 天的多条折线，另有表格视图）、请求明细（原「用量与费用 → 最近请求」移到这里：每条的时间线、结果与失败原因、各次尝试、追踪 id，可筛选、分页、导出 CSV）。网关层与 CLI 层两种口径分开看：官方账号在 Nomi 里运行的编程助手在 CLI 层统计；只在终端里用的 CLI 不在统计范围内。样本少于 20 时只显示中位数；上游缓冲后整段吐出的请求单独标出，不计入 TPOT / 输出速度。 (`@nomi-ai/ai-chat` minor, `@nomi-ai/electron` minor)
 - 更新应用图标设置说明的英文文案（#56）。 (`@nomi-ai/ui` patch)
 - 最近请求面板的应用层改动，与统一网关 changeset 配套。 (`@nomi-ai/ai-chat` minor, `@nomi-ai/electron` minor)
+- 朗读 AI 回复：普通诺米对话的回复边生成边由看板娘按句朗读（预取下一句、口型同步），跳过代码、思考过程、表格和链接地址，每条约前 300 字；发新消息、停止生成、切换会话、按住说话会立即打断；编程助手 / CLI 代理对话不朗读。「设置 → 语音」新增「朗读 AI 回复」开关（默认开，实时朗读引擎可用时生效），失败静默只显示文字。**破坏性更新**：语速统一为一个「朗读语速」设置（`rate`，默认 -5%），删除「语音设置」里的角色语速和旧的 `edgeRate`。 (`@nomi-ai/electron` patch, `@nomi-ai/renderer` patch, `@nomi-ai/ai-chat` patch, `@nomi-ai/types` patch, `@nomi-ai/i18n` patch)
 - 本地路由的协议转换迁到新的 `@nomi-ai/gateway` 包，请求方向统一经过中间表示（行为与之前一致）；上游为 Gemini 协议时，模型名里的 `/`（如 `google/gemini-3-flash`）不再被转义成 `%2F`，聚合网关不再报「Unknown model」。 (`@nomi-ai/electron` patch)
 - 构建共享 UI 前清理旧产物，避免词典拆分后旧 en.json 遮蔽新词典，导致英文界面仍显示中文。 (`@nomi-ai/ui` patch)
 - 标签右键菜单支持一次关闭当前标签左侧或右侧的标签。 (`@nomi-ai/ai-chat` patch)
