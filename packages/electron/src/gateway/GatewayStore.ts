@@ -201,7 +201,7 @@ export class GatewayStore {
   }
 
   /** 解不开时用这次进程的临时密钥：隐私模式照常工作，只是重启后占位符会变（缓存失效一次） */
-  private privacyKey(): string {
+  privacyKey(): string {
     const d = this.data;
     const key =
       d.privacyKeyEnc && d.privacyKeyEncryption
@@ -398,7 +398,25 @@ export class GatewayStore {
         ? { maxRequestBodyBytes: clampMaxRequestBodyBytes(this.data.maxRequestBodyBytes) }
         : {}),
       // 隐私模式默认开：没有 privacyMode 字段也是开（docs/design/secret-privacy.md §11）
-      privacy: { enabled: this.data.privacyMode !== false, key: this.privacyKey() },
+      privacy: this.runtimePrivacy(),
+    };
+  }
+
+  /** 快照里的隐私模式：自定义密钥解密后只在内存里，例外名单只有标记 */
+  private runtimePrivacy(): NonNullable<GatewayConfig['privacy']> {
+    const d = this.data;
+    const known = (d.privacySecrets ?? []).flatMap((s) => {
+      const value = this.decrypt(s.enc, s.encryption);
+      return value ? [{ kind: 'CUSTOM', value }] : [];
+    });
+    return {
+      enabled: d.privacyMode !== false,
+      key: this.privacyKey(),
+      ...(d.privacyActions && Object.keys(d.privacyActions).length
+        ? { actions: { ...d.privacyActions } }
+        : {}),
+      ...(known.length ? { known } : {}),
+      ...(d.privacyAllow?.length ? { allow: d.privacyAllow.map((a) => a.tag) } : {}),
     };
   }
 }

@@ -97,4 +97,26 @@ export interface GatewayStoreData {
   /** 占位符的 HMAC 密钥（首次启动生成，加密存储） */
   privacyKeyEnc?: string;
   privacyKeyEncryption?: KeyEncryption;
+  /** 按类型的动作；没列出的类型是脱敏 */
+  privacyActions?: Record<string, 'warn' | 'block'>;
+  /** 用户登记的自定义密钥（加密存储；界面只给名称与掩码） */
+  privacySecrets?: PrivacySecret[];
+  /** 「从不脱敏」名单：只存例外标记（HMAC）和辨认用的类型、长度、开头几个字符 */
+  privacyAllow?: PrivacyAllow[];
+}
+
+export interface PrivacySecret {
+  id: string;
+  name: string;
+  enc: string;
+  encryption: KeyEncryption;
+  masked: string;
+}
+
+export interface PrivacyAllow {
+  tag: string;
+  kind: string;
+  len: number;
+  head: string;
+  at: number;
 }

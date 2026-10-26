@@ -5,6 +5,7 @@
  * - 旧的本地路由服务开着且占用同一端口时，网关先用临时端口，等旧路由移除（M3）后接管；
  * - IPC 一律 ai:gateway:*；返回给渲染进程的数据里 Key 只给掩码，令牌不返回。
  */
+import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'path';
 
@@ -15,11 +16,14 @@ import {
   catalogOverlayVersion,
   catalogSize,
   CATALOG_VERSION,
+  allowTagOf,
   clampMaxRequestBodyBytes,
   CLIENT_IDS,
   detect,
   isPrivateHost,
+  MIN_KNOWN,
   normalizeBases,
+  PRIVACY_KINDS,
   preferredWire,
   type BuiltinClientId,
   type ClientId,
@@ -52,6 +56,7 @@ import { GatewayProcess, type GatewayStatus } from './GatewayProcess';
 import { GatewayStore, maskKey } from './GatewayStore';
 import { archiveLegacyFiles, legacyFileCandidates, migrateLegacy } from './migrate';
 import type { MetaSource, PresetModelMeta, ResolvedModelMeta } from './modelMeta';
+import { PrivacyLog, type PrivacyLogEntry } from './PrivacyLog';
 import { TabTokens } from './TabTokens';
 import type { GatewayKey, GatewayModel, GatewayProvider, StoredProbe } from './types';
 
@@ -200,6 +205,12 @@ export interface GatewayStateView {
   maxRequestBodyBytes: number;
   /** 隐私模式（默认开）：发往云端第三方供应商前把密钥换成占位符 */
   privacyMode: boolean;
+  /** 隐私模式的设置：按类型的动作、自定义密钥（只有掩码）、「从不脱敏」名单（只有标记与辨认信息） */
+  privacy: {
+    actions: Record<string, 'warn' | 'block'>;
+    secrets: Array<{ id: string; name: string; masked: string }>;
+    allow: Array<{ tag: string; kind: string; len: number; head: string; at: number }>;
+  };
   migratedFrom?: { at: number; files: string[] };
   /** Nomi 对话最近用过的模型（新的在前） */
   recentNomi?: string[];
@@ -270,8 +281,11 @@ export class GatewayService {
   /** 第三方标签的进程级令牌与绑定（§6.7） */
   readonly tabs: TabTokens;
   private readonly proc: GatewayProcess;
+  /** 最近隐藏的密钥（只有元数据） */
+  private readonly privacyLog: PrivacyLog;
 
   constructor(private readonly d: GatewayServiceDeps) {
+    this.privacyLog = new PrivacyLog(path.join(d.root, 'privacy-log.json'));
     this.store = new GatewayStore({
       file: path.join(d.root, 'store.json'),
       cipher: d.cipher,
@@ -283,7 +297,10 @@ export class GatewayService {
       d.process ??
       new GatewayProcess({
         logger: d.logger,
-        onUsage: (e) => d.onUsage?.(e),
+        onUsage: (e) => {
+          this.notePrivacy(e);
+          d.onUsage?.(e);
+        },
         onLearn: (e) => void this.learn(e),
         onKeyStatus: (e) => this.keyStatus(e),
         onStatus: () => this.changed(),
@@ -849,6 +866,15 @@ export class GatewayService {
       strictParams: data.strictParams === true,
       maxRequestBodyBytes: clampMaxRequestBodyBytes(data.maxRequestBodyBytes ?? 32 * 1024 * 1024),
       privacyMode: data.privacyMode !== false,
+      privacy: {
+        actions: { ...(data.privacyActions ?? {}) },
+        secrets: (data.privacySecrets ?? []).map((s) => ({
+          id: s.id,
+          name: s.name,
+          masked: s.masked,
+        })),
+        allow: (data.privacyAllow ?? []).map((a) => ({ ...a })),
+      },
       ...(data.migratedFrom ? { migratedFrom: data.migratedFrom } : {}),
       ...(data.recentNomi?.length ? { recentNomi: data.recentNomi } : {}),
       catalog: {
@@ -1062,6 +1088,123 @@ export class GatewayService {
     return this.state();
   }
 
+  /* ------------------------------ 隐私模式（docs/design/secret-privacy.md §9、§12） ------------------------------ */
+
+  /** 网关用量事件里的命中记录进「最近隐藏的密钥」 */
+  notePrivacy(e: UsageEvent): void {
+    this.privacyLog.note(e);
+  }
+
+  privacyLogEntries(): PrivacyLogEntry[] {
+    return this.privacyLog.list();
+  }
+
+  /** 某类值找到之后怎么处理：mask（默认）/ warn（只提醒）/ block（拦截） */
+  setPrivacyAction(kind: unknown, action: unknown): GatewayStateView {
+    if (!PRIVACY_KINDS.includes(kind as (typeof PRIVACY_KINDS)[number]))
+      throw new Error(tr('electron.common.privacy-unknown-secret-kind'));
+    if (action !== 'mask' && action !== 'warn' && action !== 'block')
+      throw new Error(tr('electron.common.privacy-unknown-secret-action'));
+    const data = this.store.snapshot();
+    const actions = { ...(data.privacyActions ?? {}) };
+    if (action === 'mask') delete actions[kind as string];
+    else actions[kind as string] = action;
+    if (Object.keys(actions).length) data.privacyActions = actions;
+    else delete data.privacyActions;
+    this.store.replace(data);
+    this.commit();
+    return this.state();
+  }
+
+  /** 登记自定义密钥：之后任何请求里出现这个原文都按 CUSTOM 遮 */
+  addPrivacySecret(input: unknown): GatewayStateView {
+    const o = (input ?? {}) as { name?: unknown; value?: unknown };
+    const name = typeof o.name === 'string' ? o.name.trim().slice(0, 40) : '';
+    const value = typeof o.value === 'string' ? o.value.trim() : '';
+    if (!name) throw new Error(tr('electron.common.name-can-t-be-empty'));
+    if (value.length < MIN_KNOWN || value.length > 4096)
+      throw new Error(tr('electron.common.privacy-secret-length-invalid', MIN_KNOWN));
+    const data = this.store.snapshot();
+    const list = data.privacySecrets ?? [];
+    if (list.length >= 100) throw new Error(tr('electron.common.privacy-too-many-secrets'));
+    if (list.some((s) => this.store.decrypt(s.enc, s.encryption) === value))
+      throw new Error(tr('electron.common.privacy-secret-already-added'));
+    const enc = this.store.encrypt(value);
+    data.privacySecrets = [
+      ...list,
+      {
+        id: `s-${randomUUID().slice(0, 8)}`,
+        name,
+        enc: enc.enc,
+        encryption: enc.encryption,
+        masked: maskKey(value),
+      },
+    ];
+    this.store.replace(data);
+    this.commit();
+    return this.state();
+  }
+
+  removePrivacySecret(id: unknown): GatewayStateView {
+    const data = this.store.snapshot();
+    const list = data.privacySecrets ?? [];
+    const next = list.filter((s) => s.id !== id);
+    if (next.length !== list.length) {
+      if (next.length) data.privacySecrets = next;
+      else delete data.privacySecrets;
+      this.store.replace(data);
+      this.commit();
+    }
+    return this.state();
+  }
+
+  /**
+   * 加进「从不脱敏」：从「最近隐藏的密钥」里点「这不是密钥」时给标记与辨认信息；
+   * 手动添加时给原文，这里算出标记后原文就丢掉，不落盘
+   */
+  addPrivacyAllow(input: unknown): GatewayStateView {
+    const o = (input ?? {}) as Record<string, unknown>;
+    let entry: { tag: string; kind: string; len: number; head: string };
+    if (typeof o.value === 'string' && o.value.trim()) {
+      const v = o.value.trim().slice(0, 256);
+      entry = {
+        tag: allowTagOf(this.store.privacyKey(), v),
+        kind: 'CUSTOM',
+        len: v.length,
+        head: v.slice(0, Math.min(4, Math.floor(v.length / 4))),
+      };
+    } else if (typeof o.tag === 'string' && /^[a-z2-7]{8}$/.test(o.tag)) {
+      entry = {
+        tag: o.tag,
+        kind: typeof o.kind === 'string' ? o.kind.slice(0, 32) : 'CUSTOM',
+        len: typeof o.len === 'number' && o.len >= 0 ? Math.trunc(o.len) : 0,
+        head: typeof o.head === 'string' ? o.head.slice(0, 4) : '',
+      };
+    } else throw new Error(tr('electron.common.privacy-allow-entry-invalid'));
+    const data = this.store.snapshot();
+    const list = data.privacyAllow ?? [];
+    if (!list.some((a) => a.tag === entry.tag)) {
+      if (list.length >= 200) throw new Error(tr('electron.common.privacy-too-many-allow-entries'));
+      data.privacyAllow = [...list, { ...entry, at: Date.now() }];
+      this.store.replace(data);
+      this.commit();
+    }
+    return this.state();
+  }
+
+  removePrivacyAllow(tag: unknown): GatewayStateView {
+    const data = this.store.snapshot();
+    const list = data.privacyAllow ?? [];
+    const next = list.filter((a) => a.tag !== tag);
+    if (next.length !== list.length) {
+      if (next.length) data.privacyAllow = next;
+      else delete data.privacyAllow;
+      this.store.replace(data);
+      this.commit();
+    }
+    return this.state();
+  }
+
   clearLearned(providerId: string): void {
     this.bumpLearn(providerId);
     this.store.setLearned(providerId, {});
@@ -1250,9 +1393,17 @@ export class GatewayService {
     handle('ai:gateway:set-options', (patch) =>
       this.setOptions((patch ?? {}) as GatewayOptionsPatch),
     );
+    handle('ai:gateway:privacy-set-action', (kind, action) => this.setPrivacyAction(kind, action));
+    handle('ai:gateway:privacy-add-secret', (input) => this.addPrivacySecret(input));
+    handle('ai:gateway:privacy-remove-secret', (id) => this.removePrivacySecret(id));
+    handle('ai:gateway:privacy-add-allow', (input) => this.addPrivacyAllow(input));
+    handle('ai:gateway:privacy-remove-allow', (tag) => this.removePrivacyAllow(tag));
+    handle('ai:gateway:privacy-log', () => this.privacyLog.list());
+    handle('ai:gateway:privacy-clear-log', () => this.privacyLog.clear());
   }
 
   dispose(): void {
+    this.privacyLog.flush();
     this.proc.stop();
   }
 }

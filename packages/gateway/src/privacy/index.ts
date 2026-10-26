@@ -24,6 +24,7 @@ export {
   entropy,
   hasSecret,
   mergeSpans,
+  PRIVACY_KINDS,
   ruleSpans,
   RULES_VERSION,
   type RuleOptions,

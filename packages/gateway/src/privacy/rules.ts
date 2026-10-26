@@ -13,6 +13,9 @@ export const RULES_VERSION = 1;
 export type SecretKind =
   'API_KEY' | 'PRIVATE_KEY' | 'TOKEN' | 'PASSWORD' | 'CONNECTION_STRING' | 'CUSTOM';
 
+/** 设置里按类型选动作时列出的类型（CONNECTION_STRING 目前没有规则产出，不列） */
+export const PRIVACY_KINDS = ['API_KEY', 'TOKEN', 'PRIVATE_KEY', 'PASSWORD', 'CUSTOM'] as const;
+
 export interface SecretSpan {
   start: number;
   end: number;

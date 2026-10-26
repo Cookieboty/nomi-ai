@@ -10,6 +10,7 @@ import path from 'node:path';
 
 import type { ProviderStoreData, SecretCipher } from '@nomi-ai/ai-runtime';
 import {
+  allowTagOf,
   setCatalogOverlay,
   type detect,
   type GatewayConfig,
@@ -162,6 +163,80 @@ describe('GatewayService', () => {
     });
     again.init();
     expect(again.runtimeConfig().privacy!.key).toBe(first.key);
+  });
+
+  it('privacy settings: per-kind actions, custom secrets and the never-mask list reach the snapshot', () => {
+    const t = setup();
+    t.svc.init();
+    const file = path.join(t.root, 'gateway', 'store.json');
+
+    t.svc.setPrivacyAction('PRIVATE_KEY', 'block');
+    t.svc.setPrivacyAction('API_KEY', 'warn');
+    t.svc.setPrivacyAction('API_KEY', 'mask');
+    expect(t.lastConfig().privacy!.actions).toEqual({ PRIVATE_KEY: 'block' });
+    expect(() => t.svc.setPrivacyAction('EMAIL', 'block')).toThrow();
+    expect(() => t.svc.setPrivacyAction('TOKEN', 'drop')).toThrow();
+
+    const v = t.svc.addPrivacySecret({ name: '公司内网', value: 'corp-internal-token-42' });
+    expect(v.privacy.secrets).toEqual([
+      { id: expect.any(String), name: '公司内网', masked: expect.any(String) },
+    ]);
+    expect(t.lastConfig().privacy!.known).toEqual([
+      { kind: 'CUSTOM', value: 'corp-internal-token-42' },
+    ]);
+    expect(fs.readFileSync(file, 'utf8')).not.toContain('corp-internal-token-42');
+    expect(() => t.svc.addPrivacySecret({ name: 'x', value: 'short' })).toThrow();
+    expect(() =>
+      t.svc.addPrivacySecret({ name: 'again', value: 'corp-internal-token-42' }),
+    ).toThrow();
+
+    // 手动放行给原文：只存标记
+    const key = t.lastConfig().privacy!.key;
+    t.svc.addPrivacyAllow({ value: 'sk-test-not-a-real-key-123456' });
+    t.svc.addPrivacyAllow({ tag: 'abcdefgh', kind: 'API_KEY', len: 40, head: 'sk-p' });
+    t.svc.addPrivacyAllow({ tag: 'abcdefgh', kind: 'API_KEY', len: 40, head: 'sk-p' });
+    expect(t.lastConfig().privacy!.allow).toEqual([
+      allowTagOf(key, 'sk-test-not-a-real-key-123456'),
+      'abcdefgh',
+    ]);
+    expect(fs.readFileSync(file, 'utf8')).not.toContain('sk-test-not-a-real-key-123456');
+    expect(() => t.svc.addPrivacyAllow({ tag: 'NOT-A-TAG' })).toThrow();
+
+    const id = t.svc.state().privacy.secrets[0]!.id;
+    t.svc.removePrivacySecret(id);
+    t.svc.removePrivacyAllow('abcdefgh');
+    t.svc.setPrivacyAction('PRIVATE_KEY', 'mask');
+    const p = t.lastConfig().privacy!;
+    expect(p.known).toBeUndefined();
+    expect(p.actions).toBeUndefined();
+    expect(p.allow).toHaveLength(1);
+  });
+
+  it('privacy log aggregates hits from usage events by placeholder', () => {
+    const t = setup();
+    t.svc.init();
+    const hit = {
+      kind: 'API_KEY',
+      placeholder: '{{API_KEY_abcdefgh}}',
+      action: 'mask' as const,
+      len: 40,
+      head: 'sk-p',
+      masked: 1,
+      restored: 1,
+      allowTag: 'zzzzzzzz',
+    };
+    t.svc.notePrivacy({ client: 'claude', redactions: [hit] } as never);
+    t.svc.notePrivacy({ client: 'nomi', redactions: [{ ...hit, restored: 0 }] } as never);
+    t.svc.notePrivacy({ client: 'nomi' } as never);
+    expect(t.svc.privacyLogEntries()).toEqual([
+      expect.objectContaining({
+        placeholder: '{{API_KEY_abcdefgh}}',
+        requests: 2,
+        masked: 2,
+        restored: 1,
+        clients: ['claude', 'nomi'],
+      }),
+    ]);
   });
 
   it('uses a temporary port while the legacy route still holds the port', () => {
