@@ -1,5 +1,9 @@
 # Credits
 
+## Nomi image theme preset
+
+- **Bundled background** (`packages/electron/assets/backgrounds/nomi-preset.jpg`) — supplied by the user and confirmed as free material on 2026-10-26. The original source, author and exact licence were not supplied; recorded as `LicenseRef-UserProvided-Free`, not MIT or CC0. Inclusion does not resolve the existing release licence gate.
+
 ## Nomi·诺米 brand & mascot
 
 - **Brand board, mascot artwork (2D pseudo-3D layered rig `sprite/nomi`, body cut from the owner's half-body illustration, head from the owner's front-facing HD head image), logo concept** — owner-provided, AI-generated, licensed by project owner (Cookieboty) for use in this repository under the MIT licence.

@@ -45,15 +45,41 @@ describe('chatAssetMimeFor', () => {
 });
 
 describe('resolveChatAssetUrl · AREA 白名单', () => {
-  it('serves local presets while rejecting malformed URL encoding', async () => {
+  it('serves application presets while rejecting malformed URL encoding', async () => {
+    const { root } = await makeRoot();
+    const preset = path.join(root, 'app-assets', 'nomi-preset.jpg');
+    await fsp.mkdir(path.dirname(preset));
+    await fsp.writeFile(preset, Buffer.from([0]));
+    expect(await resolveChatAssetUrl(root, 'chat-asset://presets/background.jpg', preset)).toBe(
+      await fsp.realpath(preset),
+    );
+    expect(await resolveChatAssetUrl(root, 'chat-asset://images/%ZZ.png')).toBeNull();
+    await fsp.rm(root, { recursive: true });
+  });
+
+  it('ignores userData presets and restricts requests to the single bundled image', async () => {
     const { root } = await makeRoot();
     const preset = path.join(root, 'presets', 'background.jpg');
     await fsp.mkdir(path.dirname(preset));
     await fsp.writeFile(preset, Buffer.from([0]));
-    expect(await resolveChatAssetUrl(root, 'chat-asset://presets/background.jpg')).toBe(
-      await fsp.realpath(preset),
+    expect(await resolveChatAssetUrl(root, 'chat-asset://presets/background.jpg')).toMatch(
+      /assets[\\/]backgrounds[\\/]nomi-preset\.jpg$/,
     );
-    expect(await resolveChatAssetUrl(root, 'chat-asset://images/%ZZ.png')).toBeNull();
+    expect(
+      await resolveChatAssetUrl(
+        root,
+        'chat-asset://presets/background.jpg',
+        path.join(root, 'missing.jpg'),
+      ),
+    ).toBeNull();
+    for (const rawUrl of [
+      'chat-asset://presets/other.jpg',
+      'chat-asset://presets/../images/hello.png',
+      'chat-asset://presets/%2e%2e%2fsecret.png',
+      'chat-asset://presets/background.jpg?file=secret.png',
+    ]) {
+      expect(await resolveChatAssetUrl(root, rawUrl)).toBeNull();
+    }
     await fsp.rm(root, { recursive: true });
   });
   it('只放行 images AREA；其它 host 一律拒绝', async () => {

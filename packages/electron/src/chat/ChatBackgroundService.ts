@@ -11,6 +11,10 @@ import { BrowserWindow, dialog, ipcMain } from 'electron';
 import { t as tr } from '../i18n';
 import { writePrivateFileAtomic } from '../utils/privateFile';
 
+import { CHAT_BG_PRESET_URL, getChatBackgroundPresetFile } from './backgroundPreset';
+
+export { CHAT_BG_PRESET_URL } from './backgroundPreset';
+
 export type ChatBgMode = 'default' | 'solid' | 'image';
 
 export interface ChatBackgroundState {
@@ -26,7 +30,6 @@ export interface ChatBackgroundState {
 
 export const CHAT_BG_FILE = 'chat-background.json';
 export const CHAT_BG_IMAGE_STEM = 'panel-bg';
-export const CHAT_BG_PRESET_URL = 'chat-asset://presets/background.jpg';
 
 export const DEFAULT_CHAT_BG: ChatBackgroundState = {
   mode: 'default',
@@ -76,13 +79,11 @@ export function sanitizeChatBg(raw: unknown): ChatBackgroundState {
 
 export class ChatBackgroundService {
   private state: ChatBackgroundState = { ...DEFAULT_CHAT_BG };
-  private readonly presetFile: string;
-
   constructor(
     private readonly file: string,
     private readonly imagesDir: string,
+    private readonly presetFile = getChatBackgroundPresetFile(),
   ) {
-    this.presetFile = path.join(path.dirname(imagesDir), 'presets', 'background.jpg');
     this.state = this.defaults();
     try {
       const saved = JSON.parse(

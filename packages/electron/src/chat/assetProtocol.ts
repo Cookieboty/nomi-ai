@@ -4,6 +4,8 @@ import { Readable } from 'node:stream';
 
 import { app, protocol } from 'electron';
 
+import { CHAT_BG_PRESET_URL, getChatBackgroundPresetFile } from './backgroundPreset';
+
 export const CHAT_ASSET_SCHEME = 'chat-asset';
 
 const IMG_MIME: Record<string, string> = {
@@ -16,7 +18,11 @@ const IMG_MIME: Record<string, string> = {
 
 const AREAS = new Set(['images', 'presets']);
 
-export async function resolveChatAssetUrl(root: string, rawUrl: string): Promise<string | null> {
+export async function resolveChatAssetUrl(
+  root: string,
+  rawUrl: string,
+  presetFile = getChatBackgroundPresetFile(),
+): Promise<string | null> {
   let u: URL;
   try {
     u = new URL(rawUrl);
@@ -24,6 +30,7 @@ export async function resolveChatAssetUrl(root: string, rawUrl: string): Promise
     return null;
   }
   if (u.protocol !== `${CHAT_ASSET_SCHEME}:` || !AREAS.has(u.hostname)) return null;
+  if (u.hostname === 'presets' && rawUrl !== CHAT_BG_PRESET_URL) return null;
   let rel: string;
   try {
     rel = decodeURIComponent(u.pathname).replace(/^\/+/, '');
@@ -33,8 +40,9 @@ export async function resolveChatAssetUrl(root: string, rawUrl: string): Promise
   if (!rel || rel.includes('\0') || rel.split(/[\\/]/).some((seg) => seg === '..' || seg === ''))
     return null;
   if (!IMG_MIME[path.extname(rel).toLowerCase()]) return null;
-  const base = path.resolve(root, u.hostname);
-  const file = path.resolve(base, rel);
+  const isPreset = u.hostname === 'presets';
+  const base = isPreset ? path.dirname(presetFile) : path.resolve(root, u.hostname);
+  const file = isPreset ? presetFile : path.resolve(base, rel);
   if (!file.startsWith(base + path.sep)) return null;
   try {
     const real = await fsp.realpath(file);
@@ -62,11 +70,12 @@ export const CHAT_ASSET_SCHEME_PRIVILEGES: Electron.CustomScheme = {
   },
 };
 
-/** app ready 后调用：响应 chat-asset:// 请求，根为 userData/chat。*/
+/** app ready 后调用：用户图片从 userData/chat 读取，预设从应用资源读取。*/
 export function registerChatAssetProtocol(): void {
   const root = path.join(app.getPath('userData'), 'chat');
+  const presetFile = getChatBackgroundPresetFile();
   protocol.handle(CHAT_ASSET_SCHEME, async (req) => {
-    const file = await resolveChatAssetUrl(root, req.url);
+    const file = await resolveChatAssetUrl(root, req.url, presetFile);
     if (!file) return new Response('not found', { status: 404 });
     const body = Readable.toWeb(createReadStream(file)) as unknown as ReadableStream;
     return new Response(body, {

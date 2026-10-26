@@ -3,6 +3,7 @@ jest.unmock('path');
 jest.mock('../../../src/i18n', () => ({ t: (s: string) => s }));
 
 jest.mock('electron', () => ({
+  app: { isPackaged: false },
   BrowserWindow: {
     getAllWindows: () => [],
     fromWebContents: () => null,
@@ -25,6 +26,7 @@ import {
 } from '../../../src/chat/ChatBackgroundService';
 
 const tmpRoot = () => fs.mkdtempSync(path.join(os.tmpdir(), 'chat-bg-'));
+const PRESET_DEFAULTS = { ...DEFAULT_CHAT_BG, mode: 'image', imageUrl: CHAT_BG_PRESET_URL };
 
 describe('ChatBackgroundService', () => {
   it('sanitizes and defaults', () => {
@@ -62,7 +64,7 @@ describe('ChatBackgroundService', () => {
     const file = path.join(root, 'chat-background.json');
     const images = path.join(root, 'images');
     const s = new ChatBackgroundService(file, images);
-    expect(s.get().mode).toBe('default');
+    expect(s.get()).toEqual(PRESET_DEFAULTS);
     expect(s.set({ mode: 'solid', solidColor: '#abcdef', blur: 8, opacity: 0.5 })).toMatchObject({
       mode: 'solid',
       solidColor: '#abcdef',
@@ -70,8 +72,8 @@ describe('ChatBackgroundService', () => {
       opacity: 0.5,
     });
     expect(JSON.parse(fs.readFileSync(file, 'utf8')).mode).toBe('solid');
-    expect(s.reset()).toEqual(DEFAULT_CHAT_BG);
-    expect(JSON.parse(fs.readFileSync(file, 'utf8')).mode).toBe('default');
+    expect(s.reset()).toEqual(PRESET_DEFAULTS);
+    expect(JSON.parse(fs.readFileSync(file, 'utf8')).mode).toBe('image');
   });
 
   it('loads legacy settings and persists only global blur on the next update', () => {
@@ -178,10 +180,10 @@ describe('ChatBackgroundService', () => {
     const root = tmpRoot();
     const file = path.join(root, 'chat-background.json');
     const images = path.join(root, 'images');
-    const preset = path.join(root, 'presets', 'background.jpg');
+    const preset = path.join(root, 'app-assets', 'nomi-preset.jpg');
     fs.mkdirSync(path.dirname(preset));
     fs.writeFileSync(preset, 'preset');
-    const service = new ChatBackgroundService(file, images);
+    const service = new ChatBackgroundService(file, images, preset);
     const defaults = { ...DEFAULT_CHAT_BG, mode: 'image', imageUrl: CHAT_BG_PRESET_URL };
     expect(service.get()).toEqual(defaults);
     const source = path.join(root, 'custom.png');
@@ -191,18 +193,18 @@ describe('ChatBackgroundService', () => {
     const selected = await service.pickImage();
     expect(selected).toMatchObject({ blur: 17, opacity: 0.6 });
     expect(selected.imageUrl).not.toBe(CHAT_BG_PRESET_URL);
-    expect(new ChatBackgroundService(file, images).get()).toEqual(selected);
+    expect(new ChatBackgroundService(file, images, preset).get()).toEqual(selected);
     expect(service.reset()).toEqual(defaults);
     expect(fs.readFileSync(preset, 'utf8')).toBe('preset');
     expect(fs.readdirSync(images)).toEqual([]);
-    expect(new ChatBackgroundService(file, images).get()).toEqual(defaults);
+    expect(new ChatBackgroundService(file, images, preset).get()).toEqual(defaults);
   });
 
   it('falls back to the preset when the saved custom image is missing or unsafe', () => {
     const root = tmpRoot();
     const file = path.join(root, 'chat-background.json');
     const images = path.join(root, 'images');
-    const preset = path.join(root, 'presets', 'background.jpg');
+    const preset = path.join(root, 'app-assets', 'nomi-preset.jpg');
     fs.mkdirSync(path.dirname(preset));
     fs.writeFileSync(preset, 'preset');
     for (const imageUrl of [
@@ -212,12 +214,35 @@ describe('ChatBackgroundService', () => {
       'https://example.com/image.png',
     ]) {
       fs.writeFileSync(file, JSON.stringify({ mode: 'image', imageUrl, blur: 0, opacity: 0.75 }));
-      expect(new ChatBackgroundService(file, images).get()).toMatchObject({
+      expect(new ChatBackgroundService(file, images, preset).get()).toMatchObject({
         imageUrl: CHAT_BG_PRESET_URL,
         blur: 0,
         opacity: 0.75,
       });
     }
+  });
+
+  it('uses the bundled preset without a local preset or image directory', () => {
+    const root = tmpRoot();
+    const file = path.join(root, 'bg.json');
+    const images = path.join(root, 'chat', 'images');
+    const service = new ChatBackgroundService(file, images);
+    expect(service.get()).toEqual(PRESET_DEFAULTS);
+    expect(fs.existsSync(path.join(root, 'chat'))).toBe(false);
+    expect(new ChatBackgroundService(file, images).get()).toEqual(PRESET_DEFAULTS);
+  });
+
+  it('does not use a userData preset when the bundled resource is missing', () => {
+    const root = tmpRoot();
+    const file = path.join(root, 'bg.json');
+    const images = path.join(root, 'chat', 'images');
+    const localPreset = path.join(root, 'chat', 'presets', 'background.jpg');
+    fs.mkdirSync(path.dirname(localPreset), { recursive: true });
+    fs.writeFileSync(localPreset, 'obsolete-local-preset');
+    fs.writeFileSync(file, JSON.stringify(PRESET_DEFAULTS));
+    const service = new ChatBackgroundService(file, images, path.join(root, 'missing.jpg'));
+    expect(service.get()).toEqual(DEFAULT_CHAT_BG);
+    expect(fs.readFileSync(localPreset, 'utf8')).toBe('obsolete-local-preset');
   });
 
   it('keeps the previous cached image when a replacement cannot be persisted', async () => {
