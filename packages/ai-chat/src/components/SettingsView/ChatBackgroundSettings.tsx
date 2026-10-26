@@ -1,7 +1,7 @@
 /** 图片主题的图片选择、全局毛玻璃模糊与透明度。 */
 import { Button, SettingRow, t } from '@nomi-ai/ui';
 import { ImagePlus, RotateCcw } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import React, { useState, useSyncExternalStore } from 'react';
 
 import {
   DEFAULT_CHAT_BG,
@@ -18,8 +18,8 @@ import {
 import styles from './index.module.css';
 
 export const ChatBackgroundSettings: React.FC = () => {
-  const [state, setState] = useState<ChatBackgroundState>(getChatBackground);
-  useEffect(() => subscribeChatBackground(setState), []);
+  // useSyncExternalStore：首次渲染与订阅生效之间到达的主进程初始值也不会丢
+  const state = useSyncExternalStore(subscribeChatBackground, getChatBackground);
   const [pickError, setPickError] = useState<string | null>(null);
   const pick = () =>
     void pickChatBackgroundImage().then(

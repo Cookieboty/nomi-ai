@@ -1,6 +1,5 @@
-import { createReadStream, promises as fsp } from 'node:fs';
+import { promises as fsp } from 'node:fs';
 import path from 'node:path';
-import { Readable } from 'node:stream';
 
 import { app, protocol } from 'electron';
 
@@ -77,10 +76,18 @@ export function registerChatAssetProtocol(): void {
   protocol.handle(CHAT_ASSET_SCHEME, async (req) => {
     const file = await resolveChatAssetUrl(root, req.url, presetFile);
     if (!file) return new Response('not found', { status: 404 });
-    const body = Readable.toWeb(createReadStream(file)) as unknown as ReadableStream;
-    return new Response(body, {
+    // 整个读入再返回：流式响应在 Windows 上会一直占着文件句柄（换图后旧图删不掉），
+    // 且渲染端中途取消时可能拿到截断的数据；背景图有 CHAT_BG_MAX_BYTES 上限，读入内存无压力
+    let body: Buffer;
+    try {
+      body = await fsp.readFile(file);
+    } catch {
+      return new Response('not found', { status: 404 });
+    }
+    return new Response(new Uint8Array(body), {
       headers: {
         'content-type': chatAssetMimeFor(file),
+        'content-length': String(body.length),
         'access-control-allow-origin': '*',
         'cache-control': 'no-store',
       },

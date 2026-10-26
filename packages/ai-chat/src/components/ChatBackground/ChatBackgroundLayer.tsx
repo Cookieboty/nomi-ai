@@ -1,7 +1,7 @@
 /** 窗口级背景层，与设置及挂到 body 的弹层共用，不拦截指针。
  *  图片层自身 filter 模糊（静态、只栅格化一次），上面叠一层固定深色遮罩保证文字对比度。 */
-import { currentTheme, type ThemeState } from '@nomi-ai/ui';
-import React, { useEffect, useState } from 'react';
+import { currentTheme } from '@nomi-ai/ui';
+import React, { useEffect, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 
 import {
@@ -9,19 +9,18 @@ import {
   getChatBackground,
   revalidateChatBackground,
   subscribeChatBackground,
-  type ChatBackgroundState,
 } from '../../services/chatBackground';
 
+const subscribeTheme = (fn: () => void) => {
+  window.addEventListener('cd:theme-changed', fn);
+  return () => window.removeEventListener('cd:theme-changed', fn);
+};
+
 export const ChatBackgroundLayer: React.FC = () => {
-  const [s, setS] = useState<ChatBackgroundState>(getChatBackground);
-  const [theme, setTheme] = useState<ThemeState>(currentTheme);
+  // useSyncExternalStore：首次渲染与订阅生效之间到达的主进程初始值 / 主题变更也不会丢
+  const s = useSyncExternalStore(subscribeChatBackground, getChatBackground);
+  const theme = useSyncExternalStore(subscribeTheme, currentTheme);
   const active = theme.pref === 'image';
-  useEffect(() => subscribeChatBackground(setS), []);
-  useEffect(() => {
-    const onTheme = (event: Event) => setTheme((event as CustomEvent<ThemeState>).detail);
-    window.addEventListener('cd:theme-changed', onTheme);
-    return () => window.removeEventListener('cd:theme-changed', onTheme);
-  }, []);
   useEffect(() => {
     const root = document.documentElement;
     if (active) root.dataset.chatBg = 'image';

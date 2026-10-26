@@ -89,11 +89,45 @@ export function writePrivateFile(file: string, data: string): void {
   tightenWindowsAcl(file, 'file');
 }
 
+const RENAME_RETRY_CODES = new Set(['EPERM', 'EACCES', 'EBUSY']);
+const RENAME_RETRY_MS = 2_000;
+
+/** @internal 单测注入 */
+export const __renameDeps = {
+  rename: (from: string, to: string) => fs.renameSync(from, to),
+  platform: () => process.platform,
+  sleep: (ms: number) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms),
+};
+
+/**
+ * Windows 上目标文件正被别的进程短暂打开（杀软 / 索引器扫描刚写的文件、其他进程读取）时
+ * MoveFileEx 会报 EPERM/EACCES/EBUSY；这是瞬时占用，退避重试，超时仍失败才抛出。
+ */
+function renameWithRetry(from: string, to: string): void {
+  const deadline = Date.now() + RENAME_RETRY_MS;
+  for (let delay = 10; ; delay = Math.min(delay * 2, 100)) {
+    try {
+      __renameDeps.rename(from, to);
+      return;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code ?? '';
+      if (
+        __renameDeps.platform() !== 'win32' ||
+        !RENAME_RETRY_CODES.has(code) ||
+        Date.now() >= deadline
+      ) {
+        throw error;
+      }
+      __renameDeps.sleep(delay);
+    }
+  }
+}
+
 /** 原子写：先写 0600 的 .tmp，再 rename；最后收紧目标权限（修正历史遗留文件）。 */
 export function writePrivateFileAtomic(file: string, data: string): void {
   const tmp = `${file}.tmp`;
   fs.writeFileSync(tmp, data, { mode: 0o600 });
-  fs.renameSync(tmp, file);
+  renameWithRetry(tmp, file);
   try {
     fs.chmodSync(file, 0o600);
   } catch {
