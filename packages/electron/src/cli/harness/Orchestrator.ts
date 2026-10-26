@@ -436,10 +436,14 @@ export class HarnessOrchestrator {
       grokAcp?: boolean;
       /** Codex 走 app-server 长驻会话（`codex app-server`）；关闭或起不来时用 `codex exec`。测试缺省关闭 */
       codexAppServer?: boolean;
-      /** 辅助模型（网关 summary 档）一次性补全：右栏「生成提交信息」用；没有时这个按钮报错 */
+      /**
+       * 辅助模型一次性补全：右栏「生成提交信息」用。Nomi 自己没配模型时，宿主可以退回 tab
+       * （当前编程助手标签用的第三方模型）。都没有时抛出 code = 'no-model' 的错误。
+       */
       complete?: (
         messages: Array<{ role: 'system' | 'user'; content: string }>,
         signal: AbortSignal,
+        tab?: { kind: string; model: string | null },
       ) => Promise<string>;
     },
   ) {
@@ -522,19 +526,37 @@ export class HarnessOrchestrator {
     if (!ctx) return { ok: false, code: 'invalid' as const };
     if (!ctx.diff.trim() && !ctx.stat.trim()) return { ok: false, code: 'nothing' as const };
     try {
-      const raw = await this.d.complete(commitMessagePrompt(ctx), AbortSignal.timeout(90_000));
+      const raw = await this.d.complete(
+        commitMessagePrompt(ctx),
+        AbortSignal.timeout(90_000),
+        this.helperTab(dir),
+      );
       const message = cleanCommitMessage(raw);
       return message
         ? { ok: true, message }
         : { ok: false, code: 'error' as const, output: raw.slice(0, 2000) };
     } catch (e) {
       const timeout = e instanceof Error && e.name === 'TimeoutError';
+      const noModel = (e as { code?: unknown } | null)?.code === 'no-model';
       return {
         ok: false,
-        code: timeout ? ('timeout' as const) : ('error' as const),
+        code: timeout ? ('timeout' as const) : noModel ? ('no-model' as const) : ('error' as const),
         output: e instanceof Error ? e.message : String(e),
       };
     }
+  }
+
+  /**
+   * 「生成提交信息」退回用哪个标签的模型：目录相同的第三方标签（最近用过的优先），
+   * 没有就是最近用过的任一第三方标签。官方账号标签的模型不经网关，用不了。
+   */
+  private helperTab(dir: string): { kind: string; model: string | null } | undefined {
+    const third = [...this.tabs.values()]
+      .filter((t) => t.source === 'thirdParty' && isBuiltinCliId(t.backend))
+      .sort((a, b) => b.updatedAt - a.updatedAt);
+    const want = realDir(dir);
+    const tab = third.find((t) => realDir(t.cwd) === want) ?? third[0];
+    return tab ? { kind: tab.backend, model: tab.modelOverride ?? null } : undefined;
   }
 
   /** 已知目录所在仓库的 worktree；列出来的（还在的）路径之后也算已知目录 */

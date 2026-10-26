@@ -693,20 +693,25 @@ export class Application implements IApplication {
         grokAcp: process.env.NOMI_GROK_ACP !== '0',
         // Codex 走 app-server 长驻会话；NOMI_CODEX_APP_SERVER=0 退回每轮一个进程的 codex exec
         codexAppServer: process.env.NOMI_CODEX_APP_SERVER !== '0',
-        // 右栏「生成提交信息」：辅助模型档（没设时跟主模型），经网关所以受外发保护；
-        // 同样遵守「仅本地模型可读文件」，发给云端前按设置确认
-        complete: async (messages, signal) => {
+        // 右栏「生成提交信息」：先用 Nomi 的辅助模型（没设时跟主模型）；Nomi 没配模型时用当前编程助手标签的
+        // 第三方模型。都经网关所以受外发保护，也都遵守「仅本地模型可读文件」，发往云端前按设置确认
+        complete: async (messages, signal, tab) => {
           const rt = this.aiRuntime;
-          if (!rt) throw new Error(tr('electron.common.ai-service-not-ready'));
+          const own = rt?.resolveProvider('summary') ? desktop.providerFor('summary') : null;
+          const via = own ? null : tab ? gateway.helperRoute(tab.kind, tab.model) : null;
+          if (!rt && !via) throw new Error(tr('electron.common.ai-service-not-ready'));
+          if (!own && !via)
+            throw Object.assign(new Error('no model for Nomi or this tab'), { code: 'no-model' });
           const send = await desktop.broker.checkSend(
-            desktop.providerFor('summary'),
+            own ?? via!.receiver,
             signal,
             tr('electron.common.code-changes'),
           );
           if (send === 'local_only')
             throw new Error(tr('electron.common.only-local-models-can-read-files-is-on'));
           if (send === 'user_denied') throw new Error(tr('electron.common.ok-not-sending'));
-          const resp = await rt.client.chat.sendMessage({
+          if (via) return gateway.helperComplete(via.model, messages, signal);
+          const resp = await rt!.client.chat.sendMessage({
             role: 'summary',
             messages,
             signal,

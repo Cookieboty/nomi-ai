@@ -43,6 +43,8 @@ export type GitOpCode =
   /** 撤销提交：HEAD 已经不是那个提交 / 已经推送 */
   | 'moved'
   | 'pushed'
+  /** 生成提交信息：Nomi 和当前标签都没有可用的模型 */
+  | 'no-model'
   | 'timeout'
   | 'error';
 

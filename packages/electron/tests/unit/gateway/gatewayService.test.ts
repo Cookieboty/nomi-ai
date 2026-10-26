@@ -385,6 +385,34 @@ describe('GatewayService', () => {
     expect(t.lastConfig().allowedPrivateHosts).toEqual(['127.0.0.1:11434']);
   });
 
+  it('helperRoute：编程助手的辅助档 → Haiku 档 → 标签模型 → 主模型，取第一个能路由的', async () => {
+    const t = setup();
+    t.svc.init();
+    t.svc.upsertProvider({
+      name: 'DS',
+      urls: { chat: 'https://api.deepseek.com/v1' },
+      newKeys: [{ value: 'sk-d' }],
+      models: [
+        { id: 'deepseek-v4-flash', enabled: true },
+        { id: 'deepseek-v4-pro', enabled: true },
+      ],
+    });
+    expect(t.svc.helperRoute('claude', 'ds/deepseek-v4-pro')).toBeNull(); // 网关还没就绪
+    t.children[0]!.say({ type: 'listening', port: 18721, url: 'http://127.0.0.1:18721' });
+    await t.svc.whenReady(100);
+    // 客户端什么都没设：用标签选的模型
+    expect(t.svc.helperRoute('claude', 'ds/deepseek-v4-pro')).toEqual({
+      model: 'ds/deepseek-v4-pro',
+      receiver: { id: 'ds', name: 'DS', local: false },
+    });
+    // 设了 Haiku 档：优先用它（更便宜）；路由不了的引用跳过
+    t.svc.setAssignment('claude', {
+      models: { main: 'ds/deepseek-v4-pro', tiers: { haiku: 'ds/deepseek-v4-flash' } },
+    });
+    expect(t.svc.helperRoute('claude', 'nope/x')!.model).toBe('ds/deepseek-v4-flash');
+    expect(t.svc.helperRoute('codex', null)).toBeNull();
+  });
+
   it("routes Nomi chat roles through the gateway with each model's own wire", async () => {
     const t = setup();
     t.svc.init();

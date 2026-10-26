@@ -66,6 +66,7 @@
   "ui.session-workspace.git-error-hook": "提交被钩子拒绝，提交信息已保留，改好后再提交",
   "ui.session-workspace.git-error-mismatch": "上游分支和本地分支名字不同。为避免推到别的分支，请在终端里推送",
   "ui.session-workspace.git-error-moved": "之后已经有新的提交，不能撤销",
+  "ui.session-workspace.git-error-no-model": "没有可用的模型来写提交信息：Nomi 还没选模型，当前标签也不是第三方供应商。到「设置 → 模型」给 Nomi 选一个模型，或者把标签换成第三方供应商",
   "ui.session-workspace.git-error-no-remote": "这个仓库没有配置远端",
   "ui.session-workspace.git-error-no-upstream": "当前分支还没有上游分支，先推送一次",
   "ui.session-workspace.git-error-nothing": "没有可提交的改动",

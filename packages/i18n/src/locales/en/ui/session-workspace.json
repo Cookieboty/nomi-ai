@@ -66,6 +66,7 @@
   "ui.session-workspace.git-error-hook": "A hook rejected the commit. Your message is kept; fix the issue and commit again.",
   "ui.session-workspace.git-error-mismatch": "The upstream branch has a different name than the local branch. To avoid pushing to the wrong branch, push from a terminal.",
   "ui.session-workspace.git-error-moved": "There are newer commits, so this can't be undone",
+  "ui.session-workspace.git-error-no-model": "No model to write the commit message: Nomi has no model yet and this tab isn't using a third-party provider. Pick a model for Nomi in Settings → Model, or switch the tab to a third-party provider.",
   "ui.session-workspace.git-error-no-remote": "This repository has no remote",
   "ui.session-workspace.git-error-no-upstream": "This branch has no upstream yet. Push it once first.",
   "ui.session-workspace.git-error-nothing": "Nothing to commit",

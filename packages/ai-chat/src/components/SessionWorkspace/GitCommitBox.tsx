@@ -62,6 +62,8 @@ export function gitErrorText(code: GitOpCode | undefined): string {
       return t('ui.session-workspace.git-error-moved');
     case 'pushed':
       return t('ui.session-workspace.git-error-pushed');
+    case 'no-model':
+      return t('ui.session-workspace.git-error-no-model');
     case 'timeout':
       return t('ui.session-workspace.git-error-timeout');
     default:

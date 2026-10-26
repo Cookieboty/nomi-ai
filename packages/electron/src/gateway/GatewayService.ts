@@ -827,6 +827,57 @@ export class GatewayService {
     return { ...picked, receiver };
   }
 
+  /**
+   * 编程助手标签的辅助请求（右栏「生成提交信息」在 Nomi 自己没配模型时用）：按这个编程助手在「模型」页的
+   * 辅助档 → Haiku 档 → 小模型 → 标签选的模型 → 主模型，取第一个网关能路由的。以 nomi 客户端经网关发出，
+   * 所以照样受外发保护。网关没在运行或都路由不了时 null。
+   */
+  helperRoute(
+    kind: string,
+    tabModel: string | null,
+  ): { model: string; receiver: { id: string; name: string; local: boolean } } | null {
+    if (!this.endpoint('nomi')) return null;
+    const m = this.store.snapshot().clients[kind as ClientId]?.models;
+    const cfg = this.config();
+    for (const ref of [m?.summary, m?.tiers?.haiku, m?.small, tabModel, m?.main]) {
+      if (!ref) continue;
+      const picked = preferredWire(cfg, 'nomi', ref);
+      if (!picked?.upstreams.length) continue;
+      const cloud = picked.upstreams.find((u) => !privateUrl(u.url));
+      const u = cloud ?? picked.upstreams[0]!;
+      return {
+        model: picked.publicModel,
+        receiver: { id: u.providerId, name: u.name, local: !cloud },
+      };
+    }
+    return null;
+  }
+
+  /** 经网关发一次非流式的 Chat 请求（入口协议固定 Chat，网关按上游转换），返回正文 */
+  async helperComplete(
+    model: string,
+    messages: Array<{ role: string; content: string }>,
+    signal: AbortSignal,
+  ): Promise<string> {
+    const ep = this.endpoint('nomi');
+    if (!ep) throw new Error(tr('electron.common.ai-service-not-ready'));
+    const res = await fetch(`${ep.url}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${ep.token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ model, messages, stream: false }),
+      signal,
+    });
+    const text = await res.text();
+    if (!res.ok) throw new Error(`${res.status} ${text.slice(0, 500)}`);
+    try {
+      const j = JSON.parse(text) as { choices?: Array<{ message?: { content?: unknown } }> };
+      const c = j.choices?.[0]?.message?.content;
+      return typeof c === 'string' ? c : '';
+    } catch {
+      return '';
+    }
+  }
+
   /* ------------------------------ 渲染进程视图 ------------------------------ */
 
   state(): GatewayStateView {

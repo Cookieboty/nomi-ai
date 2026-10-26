@@ -336,6 +336,7 @@ export type GitOpCode =
   | 'mismatch'
   | 'moved'
   | 'pushed'
+  | 'no-model'
   | 'timeout'
   | 'error';
 

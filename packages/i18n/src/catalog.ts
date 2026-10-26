@@ -2944,6 +2944,7 @@ export type TranslationKey =
   | 'ui.session-workspace.git-error-hook'
   | 'ui.session-workspace.git-error-mismatch'
   | 'ui.session-workspace.git-error-moved'
+  | 'ui.session-workspace.git-error-no-model'
   | 'ui.session-workspace.git-error-no-remote'
   | 'ui.session-workspace.git-error-no-upstream'
   | 'ui.session-workspace.git-error-nothing'

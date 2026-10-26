@@ -113,6 +113,21 @@ describe('CliHarnessService.knownDir', () => {
       expect(msgs[1]!.content).toContain('export const a = 1;');
       // 没有已暂存的内容
       expect((await svc.suggestCommitMessage(proj)).code).toBe('nothing');
+      // 没有第三方标签：不给宿主可退回的标签
+      expect((complete.mock.calls[0] as unknown[])[2]).toBeUndefined();
+      // 目录相同的第三方标签：把它的编程助手和模型交给宿主（Nomi 没配模型时退回用它）
+      const tab = svc.createTab({ backend: 'claude', cwd: proj });
+      Object.assign((svc as unknown as { tabs: Map<string, object> }).tabs.get(tab.id)!, {
+        source: 'thirdParty',
+        modelOverride: 'deepseek/deepseek-chat',
+      });
+      await svc.suggestCommitMessage(proj, ['a.ts']);
+      expect((complete.mock.calls[1] as unknown[])[2]).toEqual({
+        kind: 'claude',
+        model: 'deepseek/deepseek-chat',
+      });
+      complete.mockRejectedValueOnce(Object.assign(new Error('x'), { code: 'no-model' }));
+      expect((await svc.suggestCommitMessage(proj, ['a.ts'])).code).toBe('no-model');
       complete.mockRejectedValueOnce(new Error('已开启「仅本地模型可读文件」'));
       expect(await svc.suggestCommitMessage(proj, ['a.ts'])).toMatchObject({
         ok: false,
