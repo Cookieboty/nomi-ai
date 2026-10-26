@@ -5,6 +5,7 @@
  * - 边界用零宽断言写在正则里：紧挨字母数字、`_`、`-` 的不算（长单词中间的片段不是 key）；
  * - 规则只在值落在 id（UUID、32 位以上十六进制）里面时让路（§5.3）。
  * 纯 Node，不依赖 Electron。
+ * 部分内置规则移植自 yetone/magpie internal/redact（MIT），见 CREDITS.md / THIRD_PARTY_NOTICES.md。
  */
 
 /** 规则表版本：规则有改动就加一，命中记录里带上，便于排查误报 */
