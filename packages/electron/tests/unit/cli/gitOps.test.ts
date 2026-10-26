@@ -73,14 +73,15 @@ describe('gitOps', () => {
 
   it('暂存 / 取消暂存：含未跟踪、删除、带空格和通配符的路径（按字面）', async () => {
     write(path.join(repo, 'new file.txt'), 'n\n');
-    write(path.join(repo, '*.txt'), 'star\n');
+    // Windows 文件名不能含 *
+    if (process.platform !== 'win32') write(path.join(repo, '*.txt'), 'star\n');
     fs.rmSync(path.join(repo, 'a.txt'));
     expect(await gitStage(repo, ['new file.txt', 'a.txt'])).toEqual({ ok: true });
     const s = status(repo);
     expect(s).toContain('D  a.txt');
     expect(s).toContain('A  "new file.txt"');
     // `*.txt` 按字面是另一个文件，没被一起暂存
-    expect(s).toContain('?? *.txt');
+    if (process.platform !== 'win32') expect(s).toContain('?? *.txt');
     expect(await gitUnstage(repo, ['new file.txt'])).toEqual({ ok: true });
     expect(status(repo)).toContain('?? "new file.txt"');
   });
@@ -440,7 +441,8 @@ describe('gitOps', () => {
     expect(r.ok).toBe(true);
     const outside = path.join(root, 'outside');
     write(path.join(outside, 'x.txt'), 'keep\n');
-    const dir = path.join(repo, 'd');
+    // 用真实路径比对：macOS 的临时目录 /var 是指向 /private/var 的软链，git 给的是后者
+    const dir = path.join(fs.realpathSync(repo), 'd');
     // 删除前取上级目录真实路径的那一刻才换：git diff 的检查已经过了
     const realpath = fs.realpathSync;
     const spy = jest.spyOn(fs, 'realpathSync').mockImplementation(((p: fs.PathLike) => {

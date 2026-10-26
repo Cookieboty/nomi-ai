@@ -156,7 +156,10 @@ const fail = (code: GitOpCode, ...rs: Run[]): GitOpResult => ({
 
 const real = (p: string) => {
   try {
-    return fs.realpathSync(p);
+    // Windows：realpathSync 不展开 8.3 短名（C:\Users\RUNNER~1），git 给的是长名，
+    // 两边比对会误判越界；native 版本会展开
+    const rp = fs.realpathSync;
+    return process.platform === 'win32' && rp.native ? rp.native(p) : rp(p);
   } catch {
     return path.resolve(p);
   }
