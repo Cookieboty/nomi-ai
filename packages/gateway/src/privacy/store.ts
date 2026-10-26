@@ -8,6 +8,7 @@
  */
 import { placeholderOf, tagOf } from './placeholder';
 import type { SecretSpan } from './rules';
+import { shapeOf } from './shape';
 
 /** 短于它的值不按原文认：普通文本里到处都是 */
 export const MIN_KNOWN = 8;
@@ -33,8 +34,10 @@ function hash4(s: string, i: number): number {
 
 export class SecretStore {
   private key = '';
-  /** 原文 → 占位符 */
-  private byValue = new Map<string, string>();
+  /** 形状保持模式（§13）：同一个值在两种模式下的表示不同，切换时清空 */
+  private shape = false;
+  /** 原文 → 占位符（或形状保持模式下的假 key）与类型 */
+  private byValue = new Map<string, { p: string; kind: string }>();
   /** 占位符 → 原文 */
   private byPlaceholder = new Map<string, string>();
   /** 已知原文（快照给的），淘汰时保留 */
@@ -51,6 +54,13 @@ export class SecretStore {
   setKey(key: string): void {
     if (key === this.key) return;
     this.key = key;
+    this.clear();
+  }
+
+  /** 切换形状保持模式：之前的占位符全部作废 */
+  setShape(on: boolean): void {
+    if (on === this.shape) return;
+    this.shape = on;
     this.clear();
   }
 
@@ -76,17 +86,25 @@ export class SecretStore {
     return this.byValue.size;
   }
 
-  /** 原文对应的占位符；第一次见到时登记（同名占位符被别的值占了就带序号） */
+  /**
+   * 原文对应的占位符；第一次见到时登记（同名占位符被别的值占了就带序号）。
+   * 形状保持模式下适用的值换成同形状的假 key（假 key 万一撞上别的值就退回占位符）
+   */
   assign(kind: string, value: string): string {
     const had = this.byValue.get(value);
-    if (had) return had;
+    if (had) return had.p;
     if (this.byValue.size >= this.maxValues) this.evict();
-    const tag = tagOf(this.key, kind, value);
-    let n = 1;
-    let p = placeholderOf(kind, tag);
-    while (this.byPlaceholder.has(p) && this.byPlaceholder.get(p) !== value)
-      p = placeholderOf(kind, tag, ++n);
-    this.byValue.set(value, p);
+    const shaped = this.shape ? shapeOf(this.key, kind, value) : null;
+    let p: string;
+    if (shaped && !this.byPlaceholder.has(shaped)) p = shaped;
+    else {
+      const tag = tagOf(this.key, kind, value);
+      let n = 1;
+      p = placeholderOf(kind, tag);
+      while (this.byPlaceholder.has(p) && this.byPlaceholder.get(p) !== value)
+        p = placeholderOf(kind, tag, ++n);
+    }
+    this.byValue.set(value, { p, kind });
     this.byPlaceholder.set(p, value);
     if (value.length >= MIN_KNOWN) this.add({ value, kind });
     return p;
@@ -158,24 +176,18 @@ export class SecretStore {
     this.index.clear();
     this.bits.fill(0);
     for (const e of this.pinned) this.add(e);
-    for (const [value, p] of this.byValue)
-      if (value.length >= MIN_KNOWN) this.add({ value, kind: kindOf(p) });
+    for (const [value, { kind }] of this.byValue)
+      if (value.length >= MIN_KNOWN) this.add({ value, kind });
   }
 
   private evict(): void {
     let n = 0;
     const half = Math.floor(this.maxValues / 2);
-    for (const [value, p] of this.byValue) {
+    for (const [value, { p }] of this.byValue) {
       this.byValue.delete(value);
       this.byPlaceholder.delete(p);
       if (++n >= half) break;
     }
     this.reindex();
   }
-}
-
-/** `{{API_KEY_xxxxxxxx}}` → `API_KEY` */
-function kindOf(placeholder: string): string {
-  const m = /^\{\{([A-Z][A-Z_]*?)_[a-z2-7]{8}(?:_\d+)?\}\}$/.exec(placeholder);
-  return m?.[1] ?? 'CUSTOM';
 }

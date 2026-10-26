@@ -2,12 +2,12 @@
  * 密钥不出本机（docs/design/secret-privacy.md）：发往云端第三方供应商之前把密钥换成占位符，回程换回来。
  * 对所有客户端一视同仁，唯一的区分是上游在不在本机。
  */
-import type { GatewayConfig } from '../config';
+import type { GatewayConfig, PrivacyConfig } from '../config';
 import { isPrivateHost } from '../net/address';
 import { isLoopbackHost } from '../net/loopback';
 import type { Candidate } from '../route/resolve';
 
-import { maskBody, type MaskResult } from './mask';
+import { maskBody, maskText, type MaskResult, type RedactionHit } from './mask';
 import { SecretStore } from './store';
 
 export { isIdKey, maskBody, maskText } from './mask';
@@ -20,6 +20,7 @@ export {
   tagOf,
 } from './placeholder';
 export { Restorer } from './restore';
+export { shapeOf } from './shape';
 export {
   entropy,
   hasSecret,
@@ -56,6 +57,27 @@ export function knownSecrets(cfg: GatewayConfig): Array<{ kind: string; value: s
   return out.filter((k) => Boolean(k.value));
 }
 
+/**
+ * 「试一试」（§12）：一段文字按这份设置会变成什么、找到了哪些值。用一次性的存储，
+ * 不登记已见值，也不影响网关进程里的占位符；主进程直接调用，不经网关进程。
+ */
+export function previewPrivacy(
+  text: string,
+  p: Pick<PrivacyConfig, 'key' | 'strict' | 'shape' | 'actions' | 'allow' | 'known'>,
+): { text: string; hits: RedactionHit[] } {
+  const store = new SecretStore();
+  store.setKey(p.key);
+  store.setShape(p.shape === true);
+  store.setKnown(p.known ?? []);
+  const r = maskText(text, store, {
+    key: p.key,
+    ...(p.strict ? { strict: true } : {}),
+    ...(p.actions ? { actions: p.actions } : {}),
+    ...(p.allow?.length ? { allow: new Set(p.allow) } : {}),
+  });
+  return { text: r.text, hits: r.hits };
+}
+
 /** 网关进程里的隐私模式：已见值跨请求、跨客户端共享，随配置快照更新 */
 export class GatewayPrivacy {
   readonly store = new SecretStore();
@@ -68,6 +90,7 @@ export class GatewayPrivacy {
       return;
     }
     this.store.setKey(p.key);
+    this.store.setShape(p.shape === true);
     this.store.setKnown(knownSecrets(cfg));
   }
 

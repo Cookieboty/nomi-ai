@@ -9,9 +9,11 @@ import {
   maskBody,
   maskText,
   PLACEHOLDER_RE,
+  previewPrivacy,
   Restorer,
   ruleSpans,
   SecretStore,
+  shapeOf,
 } from '../src/privacy';
 
 const KEY = 'test-key';
@@ -408,6 +410,77 @@ describe('回程还原', () => {
         { message: { tool_calls: [{ function: { arguments: JSON.stringify({ k: OPENAI }) } }] } },
       ],
     });
+  });
+});
+
+describe('形状保持模式', () => {
+  const shaped = () => {
+    const st = store();
+    st.setShape(true);
+    return st;
+  };
+
+  it('同前缀、同长度、同字符类别，确定且不等于原文', () => {
+    const a = shapeOf(KEY, 'API_KEY', OPENAI)!;
+    expect(a).not.toBe(OPENAI);
+    expect(a.startsWith('sk-proj-')).toBe(true);
+    expect(a).toHaveLength(OPENAI.length);
+    const cls = (c: string) =>
+      /[a-z]/.test(c) ? 'a' : /[A-Z]/.test(c) ? 'A' : /\d/.test(c) ? '0' : c;
+    expect([...a].map(cls).join('')).toBe([...OPENAI].map(cls).join(''));
+    expect(shapeOf(KEY, 'API_KEY', OPENAI)).toBe(a);
+    // 不适用的：私钥、带空白的、可替换字符太少的
+    expect(shapeOf(KEY, 'PRIVATE_KEY', PEM)).toBeNull();
+    expect(shapeOf(KEY, 'PASSWORD', 'S3cretPw99')).toBeNull();
+    expect(shapeOf(KEY, 'API_KEY', 'sk-ab-cd')).toBeNull();
+  });
+
+  it('脱敏时发假 key，私钥照旧发占位符；切换模式清空已见值', () => {
+    const st = shaped();
+    const r = maskText(`a ${OPENAI} b ${PEM}`, st, { key: KEY });
+    const fake = shapeOf(KEY, 'API_KEY', OPENAI)!;
+    expect(r.text).toContain(fake);
+    expect(r.text).toMatch(/\{\{PRIVATE_KEY_[a-z2-7]{8}\}\}/);
+    expect(r.restore.get(fake)).toBe(OPENAI);
+    st.setShape(false);
+    expect(st.size).toBe(0);
+    expect(maskText(OPENAI, st, { key: KEY }).text).toMatch(/^\{\{API_KEY_/);
+  });
+
+  it('回程：假 key 在正文里被切成几段也能换回；id 字段不受影响', () => {
+    const fake = shapeOf(KEY, 'API_KEY', OPENAI)!;
+    const r = new Restorer(new Map([[fake, OPENAI]]));
+    const chunk = (text: string) => ({
+      id: 'chatcmpl-s',
+      choices: [{ index: 0, delta: { content: text } }],
+    });
+    const out =
+      r.push(
+        [chunk(`use ${fake.slice(0, 1)}`), chunk(fake.slice(1, 10)), chunk(`${fake.slice(10)} ok`)]
+          .map((d) => `data: ${JSON.stringify(d)}\n\n`)
+          .join(''),
+      ) + r.end();
+    const parsed = out
+      .split('\n\n')
+      .filter(Boolean)
+      .map((b) => JSON.parse(b.slice(6)) as ReturnType<typeof chunk>);
+    expect(parsed.map((d) => d.choices[0]!.delta.content).join('')).toBe(`use ${OPENAI} ok`);
+    expect(parsed.every((d) => d.id === 'chatcmpl-s')).toBe(true);
+  });
+});
+
+describe('试一试', () => {
+  it('不登记已见值，按设置给出结果', () => {
+    const r = previewPrivacy(`k ${OPENAI} c corp-internal-42x`, {
+      key: KEY,
+      known: [{ kind: 'CUSTOM', value: 'corp-internal-42x' }],
+      actions: { CUSTOM: 'warn' },
+    });
+    expect(plain(r.text)).toBe('k  c corp-internal-42x');
+    expect(r.hits.map((h) => [h.kind, h.action])).toEqual([
+      ['API_KEY', 'mask'],
+      ['CUSTOM', 'warn'],
+    ]);
   });
 });
 

@@ -8,7 +8,7 @@ import type { AddressInfo } from 'node:net';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import type { GatewayConfig, PrivacyConfig, RuntimeProvider } from '../src/config';
-import { allowTagOf, PLACEHOLDER_RE } from '../src/privacy';
+import { allowTagOf, PLACEHOLDER_RE, shapeOf } from '../src/privacy';
 import { createGateway, type UsageEvent } from '../src/server';
 
 const SECRET = 'sk-proj-Ab3dEf6hIj9kLm2nOp5qRs8tUv';
@@ -144,6 +144,23 @@ describe('隐私模式', () => {
         allowTag: allowTagOf('k', SECRET),
       }),
     ]);
+  });
+
+  it('形状保持模式：上游收到同形状的假 key，客户端拿回原值', async () => {
+    const fake = shapeOf('k', 'API_KEY', SECRET)!;
+    const up = await upstream((s, res) => {
+      res.writeHead(200, { 'content-type': 'text/event-stream' });
+      res.end(echoStream(JSON.stringify(s.body).includes(fake) ? fake : 'missing'));
+    });
+    const { url } = await gateway(
+      { providers: [provider('zp', { messages: up.base })], privacy: { ...PRIVACY, shape: true } },
+      [up.hostPort],
+    );
+    const text = await (await post(url, ask(true))).text();
+    const sent = JSON.stringify(up.seen[0]!.body);
+    expect(sent).not.toContain(SECRET);
+    expect(sent).toContain(fake);
+    expect(streamText(text)).toBe(`key: ${SECRET} done`);
   });
 
   it('跨协议（Messages 入口 → Chat 上游）也脱敏', async () => {

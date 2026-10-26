@@ -34,6 +34,23 @@ interface Leaf {
 /** 区分「同一段文本」用的字段：内容块 / 条目 / 工具调用的编号 */
 const CTX_FIELDS = ['type', 'index', 'item_id', 'output_index', 'content_index'];
 
+/**
+ * 会被切成增量的字段（正文、思考、工具参数）：只有这些字段结尾的半个占位符才扣住。
+ * id、type 之类每个事件都有、但不是增量的字段不能扣——尾巴会被挪进下一个事件的同名字段
+ */
+const DELTA_FIELDS = new Set([
+  'text',
+  'content',
+  'delta',
+  'partial_json',
+  'arguments',
+  'thinking',
+  'reasoning',
+  'reasoning_content',
+  'input',
+  'output',
+]);
+
 function leaves(root: unknown, eventType: string): Leaf[] {
   const out: Leaf[] = [];
   const visit = (
@@ -114,21 +131,29 @@ export class Restorer {
   readonly counts = new Map<string, number>();
   private buf = '';
   private held: Held | null = null;
+  /** `{{…}}` 占位符 */
   private readonly prefixes: string[];
+  /** 形状保持模式的假 key（§13）：没有固定的花括号，按原样整串匹配 */
+  private readonly shaped: string[];
 
   constructor(private readonly map: ReadonlyMap<string, string>) {
-    this.prefixes = [...map.keys()];
+    const keys = [...map.keys()];
+    this.prefixes = keys.filter((k) => k.startsWith('{{'));
+    this.shaped = keys.filter((k) => !k.startsWith('{{'));
   }
 
-  /** 文本里的占位符换回原值 */
+  /** 文本里的占位符（与假 key）换回原值 */
   text(s: string, escaped = false): string {
-    if (!s.includes('{{')) return s;
-    return s.replace(PLACEHOLDER_RE, (p) => {
-      const v = this.map.get(p);
-      if (v === undefined) return p;
+    const put = (p: string) => {
+      const v = this.map.get(p)!;
       this.counts.set(p, (this.counts.get(p) ?? 0) + 1);
       return escaped ? JSON.stringify(v).slice(1, -1) : v;
-    });
+    };
+    let out = s.includes('{{')
+      ? s.replace(PLACEHOLDER_RE, (p) => (this.map.has(p) ? put(p) : p))
+      : s;
+    for (const f of this.shaped) if (out.includes(f)) out = out.split(f).join(put(f));
+    return out;
   }
 
   /** 非流式 JSON 响应体 */
@@ -142,7 +167,7 @@ export class Restorer {
 
   /** 非流式的原样正文：是 JSON 就按结构还原（值里的换行、引号要转义），否则按文本 */
   raw(text: string): string {
-    if (!text.includes('{{')) return text;
+    if (!text.includes('{{') && !this.shaped.some((f) => text.includes(f))) return text;
     try {
       return JSON.stringify(this.walkJson(JSON.parse(text), ''));
     } catch {
@@ -238,6 +263,7 @@ export class Restorer {
     // 结尾是占位符的开头：扣住，等下一个增量
     for (let i = ls.length - 1; i >= 0; i--) {
       const l = ls[i]!;
+      if (!DELTA_FIELDS.has(String(l.key))) continue;
       const s = get(l);
       const tail = this.partialTail(s);
       if (!tail) continue;
@@ -251,11 +277,24 @@ export class Restorer {
 
   /** 文本结尾是某个本次占位符的开头（不完整）时返回这段尾巴 */
   private partialTail(s: string): string {
+    let best = '';
     const i = s.lastIndexOf('{');
-    if (i < 0) return '';
-    const start = i > 0 && s[i - 1] === '{' ? i - 1 : i;
-    const tail = s.slice(start);
-    if (tail.includes('}}')) return '';
-    return this.prefixes.some((p) => p.length > tail.length && p.startsWith(tail)) ? tail : '';
+    if (i >= 0) {
+      const start = i > 0 && s[i - 1] === '{' ? i - 1 : i;
+      const tail = s.slice(start);
+      if (
+        !tail.includes('}}') &&
+        this.prefixes.some((p) => p.length > tail.length && p.startsWith(tail))
+      )
+        best = tail;
+    }
+    // 假 key：结尾是它的任意一段开头（哪怕只有一个字符）都先扣住，只多等一个增量
+    for (const f of this.shaped)
+      for (let k = Math.min(f.length - 1, s.length); k > best.length; k--)
+        if (s.endsWith(f.slice(0, k))) {
+          best = s.slice(s.length - k);
+          break;
+        }
+    return best;
   }
 }

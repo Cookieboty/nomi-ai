@@ -198,6 +198,8 @@ export interface PrivacyConfig {
   strict?: boolean;
   /** 本机 / 局域网上游也脱敏 */
   local?: boolean;
+  /** 形状保持模式：key 换成同形状的假 key 而不是占位符（§13） */
+  shape?: boolean;
   /** 占位符 HMAC 密钥（主进程生成，safeStorage 存储） */
   key: string;
   /** 额外的已知原文：主进程里其他服务的密钥、用户登记的自定义密钥 */
