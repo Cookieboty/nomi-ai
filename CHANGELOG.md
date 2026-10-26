@@ -273,6 +273,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - 修复 Responses 入口在上游用 CRLF 换行时流式输出被攒到整轮结束（#94）：补全层按 LF / CRLF 空行分帧并原样保留换行；上游中途出错时先写出已收到的完整事件。 (`@nomi-ai/gateway` patch)
 - 修复 Windows 分数 DPI 下透明窗口初始尺寸与移动时的尺寸累积偏差。补齐 Windows 终端的 PowerShell 入口、任意位置模型覆盖和 Grok / dsh 支持，参数通过独立启动器传递；可经确认加入用户 PATH，关闭时只移除 Nomi 添加的目录。 (`@nomi-ai/electron` patch, `@nomi-ai/ai-chat` patch, `@nomi-ai/renderer` patch)
 - 修复 macOS 上系统为浅色、Nomi 为深色主题时，窗口失焦后红绿灯看不见：窗口外观改为跟随所选主题（「跟随系统」时仍交给系统） (`@nomi-ai/electron` patch)
+- 修复 macOS 对话窗口缺少系统原生阴影的问题。 (`@nomi-ai/electron` patch)
 - 修复「仅本地」隐私判断漏掉同一供应商其它协议的云端地址（#100）：网关运行时可能把请求换到同一个 Key 能走的其它协议，判断接收方时把这些地址都算上，取严。 (`@nomi-ai/gateway` patch)
 - 修复「普通 / 开发」切换提示文字溢出、压到侧栏上的问题：较长的提示会按最大宽度换行，贴着左边缘的提示改为左对齐显示。 (`@nomi-ai/ai-chat` patch)
 - 修复「普通 / 开发」切换提示文字溢出、压到侧栏上的问题：较长的提示会按最大宽度换行，贴着左边缘的提示改为左对齐显示。 (`@nomi-ai/ui` patch)
