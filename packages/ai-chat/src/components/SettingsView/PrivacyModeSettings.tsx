@@ -1,5 +1,5 @@
 /**
- * 设置 → 隐私与权限 →「隐私模式」（docs/design/secret-privacy.md §12）：
+ * 设置 → 隐私与权限 →「外发保护」（docs/design/secret-privacy.md §12）：
  * 发往云端第三方供应商前把密钥换成占位符，默认开；关闭前要确认，重新打开不需要。
  * 下面是第 2 阶段的细项：每类密钥找到之后怎么处理、自定义密钥、从不脱敏、最近隐藏的密钥。
  * 状态来自网关（ai:gateway:state 的 privacyMode / privacy），旧主进程没有这些字段时不显示对应部分。
@@ -108,7 +108,10 @@ export const PrivacyModeSettings: React.FC = () => {
 
   return (
     <>
-      <SettingsGroup title={t('ui.chat-settings.privacy-mode')} data-testid="settings-privacy-mode">
+      <SettingsGroup
+        title={t('ui.chat-settings.outbound-protection')}
+        data-testid="settings-privacy-mode"
+      >
         <SettingRow
           title={t('ui.chat-settings.hide-keys-before-sending-to-third-party-providers')}
           description={

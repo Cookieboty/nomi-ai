@@ -78,7 +78,7 @@ export const TurnSummary: React.FC<{ message: ConvMessage }> = ({ message }) => 
     s.duration && t('ui.usage-tools.took', s.duration),
     s.tokens,
     s.cost && t('ui.usage-tools.cost-named', s.cost),
-    redacted && t('ui.usage-tools.privacy-mode-hid-n-keys-in-this-turn', redacted),
+    redacted && t('ui.usage-tools.outbound-protection-hid-n-keys-in-this-turn', redacted),
   ]
     .filter(Boolean)
     .join(' · ');
@@ -91,7 +91,7 @@ export const TurnSummary: React.FC<{ message: ConvMessage }> = ({ message }) => 
         <span
           data-part="redacted"
           data-testid="conv-redacted"
-          title={t('ui.usage-tools.privacy-mode-hid-n-keys-in-this-turn', redacted)}
+          title={t('ui.usage-tools.outbound-protection-hid-n-keys-in-this-turn', redacted)}
         >
           {hid}
         </span>

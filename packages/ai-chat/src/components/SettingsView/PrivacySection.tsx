@@ -1,6 +1,7 @@
 /**
  * 设置 → 隐私与权限：
- * 「隐私与数据」= 数据只在本机的说明 + 隐私模式开关 + 管理 / 导出 / 清除的快捷入口（第一个标签）；
+ * 「隐私与数据」= 数据只在本机的说明 + 管理 / 导出 / 清除的快捷入口（第一个标签）；
+ * 「外发保护」= 发给第三方供应商之前对密钥的处理（docs/design/secret-privacy.md，数据流向而不是数据存放）；
  * 「桌面权限」= 文件夹授权、工具权限、云端与仅本地开关与操作记录（桌面能力面板）。
  */
 import { Button, SettingRow, SettingsGroup, t } from '@nomi-ai/ui';
@@ -57,6 +58,16 @@ export const PrivacySection: React.FC<{
               </Button>
             </SettingRow>
             <SettingRow
+              title={t('ui.chat-settings.outbound-protection')}
+              description={t(
+                'ui.chat-settings.keys-in-chats-files-and-command-output-become-placeholders',
+              )}
+            >
+              <Button size="sm" data-testid="privacy-go-outbound" onClick={() => onTab('outbound')}>
+                {t('ui.mascot-theme.go-to-settings')}
+              </Button>
+            </SettingRow>
+            <SettingRow
               title={t('ui.knowledge-local.desktop-files')}
               description={t('ui.knowledge-local.each-folder-must-be-authorized-every-action-is')}
             >
@@ -77,7 +88,6 @@ export const PrivacySection: React.FC<{
               description={t('ui.chat-settings.coding-agent-progress-only-reads-local-logs-status')}
             />
           </SettingsGroup>
-          <PrivacyModeSettings />
           <SettingsGroup title={t('ui.knowledge-local.export-clear')}>
             <SettingRow
               title={t('ui.chat-settings.export-local-data')}
@@ -111,6 +121,10 @@ export const PrivacySection: React.FC<{
             </SettingRow>
           </SettingsGroup>
           <DiagnosticsSettings />
+        </div>
+      ) : tab === 'outbound' ? (
+        <div className={styles.groups} data-testid="settings-outbound">
+          <PrivacyModeSettings />
         </div>
       ) : (
         <DesktopPanel key="desktop" isVisible onClose={noop} />

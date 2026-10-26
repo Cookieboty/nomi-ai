@@ -719,7 +719,7 @@ export class GatewayServer {
           .filter((h) => h.action === 'block')
           .map((h) => `${h.kind} ×${h.masked}`)
           .join('、');
-        const message = `Nomi 网关：请求里有设为拦截的密钥（${kinds}），已按隐私设置拦下。可以在 设置 → 隐私与权限 里改成脱敏。`;
+        const message = `Nomi 网关：请求里有设为拦截的密钥（${kinds}），已按外发保护的设置拦下。可以在 设置 → 隐私与权限 → 外发保护 里改成脱敏。`;
         tag.blocked = true;
         fail(400, message);
         reportLocal(400, message);
