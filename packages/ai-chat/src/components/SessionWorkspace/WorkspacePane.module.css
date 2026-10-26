@@ -12,9 +12,9 @@
   display: flex;
   align-items: center;
   gap: var(--cd-space-2);
-  height: 44px;
+  height: var(--cd-chat-header-h);
   padding: 0 var(--cd-space-3);
-  border-bottom: 1px solid var(--cd-color-border);
+  border-bottom: 1px solid var(--cd-panel-border);
   box-sizing: border-box;
   flex-shrink: 0;
   font-size: var(--cd-font-size-md);
@@ -31,7 +31,7 @@
   gap: var(--cd-space-0-5);
   padding: var(--cd-space-0-5);
   border-radius: var(--cd-radius-md);
-  background: var(--cd-color-surface-sunken);
+  background: var(--cd-panel-surface-sunken);
   min-width: 0;
 }
 .segBtn {
@@ -50,7 +50,7 @@
   cursor: pointer;
 }
 .segBtn:hover {
-  background: var(--cd-color-hover);
+  background: var(--cd-chat-hover-overlay);
   color: var(--cd-color-text);
 }
 .segBtn:focus-visible {
@@ -58,10 +58,17 @@
   outline-offset: -2px;
 }
 .segBtn[data-active] {
-  background: var(--cd-color-surface-raised);
+  background: var(--cd-panel-surface-raised);
   color: var(--cd-color-text);
   font-weight: var(--cd-font-weight-medium);
   box-shadow: var(--cd-shadow-sm);
+}
+
+:global(html[data-chat-bg]) .seg {
+  background: transparent;
+}
+:global(html[data-chat-bg]) .segBtn:hover {
+  background: var(--cd-chat-hover-overlay);
 }
 
 /* 右栏空状态：与筛选框 / 列表同一条左边线（10px） */
@@ -149,7 +156,7 @@
   cursor: pointer;
 }
 .iconBtn:hover {
-  background: var(--cd-color-hover);
+  background: var(--cd-chat-hover-overlay);
   color: var(--cd-color-text);
 }
 .iconBtn:focus-visible {
@@ -174,8 +181,8 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border-left: 1px solid var(--cd-color-border);
-  background: var(--cd-color-surface-raised);
+  border-left: 1px solid var(--cd-panel-border);
+  background: var(--cd-chat-files-bg);
 }
 @media (max-width: 900px) {
   .wbTreePane {
@@ -229,7 +236,7 @@
   cursor: pointer;
 }
 .chip:hover {
-  background: var(--cd-color-hover);
+  background: var(--cd-chat-hover-overlay);
   color: var(--cd-color-text);
 }
 .chip:focus-visible {
@@ -249,17 +256,162 @@
   color: var(--cd-color-accent-strong);
 }
 
-/* 改动列表顶部（筛选框上方）：交给助手提交；主按钮占满一行，推送是次要入口 */
-.commitBar {
+.segBtn,
+.iconBtn,
+.chip {
+  transition:
+    background-color var(--cd-duration-fast) var(--cd-ease),
+    color var(--cd-duration-fast) var(--cd-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .segBtn,
+  .iconBtn,
+  .chip {
+    transition: none;
+  }
+}
+
+/* 底部提交区：固定在列表下方（docs/design/changes-panel-git.md §1） */
+.commitBox {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: var(--cd-space-1-5);
+  padding: var(--cd-space-2) 10px;
+  border-top: 1px solid var(--cd-color-border);
+}
+.commitInput {
+  width: 100%;
+  min-height: 52px;
+  max-height: 160px;
+  padding: var(--cd-space-1-5) var(--cd-space-2);
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-color-input-bg);
+  color: var(--cd-color-text);
+  font: inherit;
+  font-size: var(--cd-font-size-sm);
+  resize: vertical;
+}
+.commitInput:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: -1px;
+}
+.commitActions {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  min-width: 0;
+}
+.commitSpacer {
+  flex: 1;
+}
+.commitCheck {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1);
+  min-width: 0;
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-xs);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* 操作结果：成功一行字，失败带 git 输出 */
+.gitNotice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-1);
+  padding: var(--cd-space-1-5) var(--cd-space-2);
+  border: 1px solid var(--cd-color-success-border);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-color-success-soft);
+  font-size: var(--cd-font-size-xs);
+}
+.gitNotice[data-tone='error'] {
+  border-color: var(--cd-color-danger-border);
+  background: var(--cd-color-danger-soft);
+}
+.gitNoticeHead {
   display: flex;
   align-items: center;
   gap: var(--cd-space-2);
-  margin: var(--cd-space-2) 10px 0;
+  min-width: 0;
 }
-.commitBar > :first-child {
+.gitNoticeText {
   flex: 1;
   min-width: 0;
-  justify-content: center;
+  color: var(--cd-color-text);
+}
+.gitOutput summary {
+  color: var(--cd-color-text-muted);
+  cursor: pointer;
+}
+.gitOutput pre {
+  max-height: 160px;
+  margin: var(--cd-space-1) 0 0;
+  overflow: auto;
+  font-family: var(--cd-font-mono);
+  font-size: var(--cd-font-size-xs);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* 分支栏右侧：上游分支、检查远端 / 拉取 / 推送 */
+.syncButtons {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--cd-space-1);
+  min-width: 0;
+}
+.upstream {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--cd-color-text-subtle);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.syncBtn {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--cd-space-0-5);
+  height: var(--cd-control-h-2xs);
+  padding: 0 var(--cd-space-1);
+  border: 0;
+  border-radius: var(--cd-radius-sm);
+  background: none;
+  color: var(--cd-color-text-muted);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.syncBtn:hover:not(:disabled) {
+  background: var(--cd-color-hover);
+  color: var(--cd-color-text);
+}
+.syncBtn:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+}
+.syncBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.syncBtn[data-busy] {
+  opacity: 1;
+  color: var(--cd-color-accent-strong);
+}
+
+/* 行内暂存 / 取消暂存：悬停或键盘聚焦时出现 */
+.stageBtn {
+  opacity: 0;
+}
+div:hover > .stageBtn,
+.stageBtn:focus-visible {
+  opacity: 1;
 }
 
 /* 改动列表：有暂存内容时分「已暂存 / 未暂存」两组 */
@@ -274,4 +426,30 @@
   color: var(--cd-color-text-muted);
   font-size: var(--cd-font-size-xs);
   font-weight: var(--cd-font-weight-medium);
+}
+
+/* 助手改的文件落在别的 worktree：分支栏下一行提示 */
+.worktreeHint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  margin: var(--cd-space-2) 10px 0;
+  color: var(--cd-color-text-subtle);
+  font-size: var(--cd-font-size-xs);
+}
+
+/* 生成提交信息进行中 */
+.pulse {
+  animation: gitPulse 1s ease-in-out infinite;
+}
+@keyframes gitPulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pulse {
+    animation: none;
+  }
 }

@@ -8,13 +8,15 @@ import {
   normalizeThemePref,
   resolveTheme,
 } from '@nomi-ai/ui';
-import { cleanup, fireEvent, render } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ThemeSettings } from '../src/components/SettingsView/ThemeSettings';
+import { CHAT_BG_PRESET_URL, setChatBackground } from '../src/services/chatBackground';
 
 afterEach(() => {
   cleanup();
+  applyTheme(DEFAULT_THEME);
   localStorage.clear();
   document.documentElement.removeAttribute('data-theme');
   delete (window as { aiIPC?: unknown }).aiIPC;
@@ -32,6 +34,7 @@ describe('themes', () => {
     expect(THEMES.map((t) => t.id).sort()).toEqual([
       'cream',
       'graphite',
+      'image',
       'ink',
       'mist',
       'sunset',
@@ -40,13 +43,39 @@ describe('themes', () => {
   });
   it('maps legacy paper id to cream', () => {
     expect(normalizeThemePref('paper')).toBe('cream');
-    localStorage.setItem('cd.theme', 'paper');
-    initTheme();
-    expect(document.documentElement.getAttribute('data-theme')).toBe('cream');
   });
   it('follow system resolves dark → graphite, light → cream', () => {
     expect(resolveTheme('system', true)).toBe('graphite');
     expect(resolveTheme('system', false)).toBe('cream');
+  });
+  it('image theme uses the graphite palette and persists the image preference', () => {
+    expect(normalizeThemePref('image')).toBe('image');
+    expect(resolveTheme('image', true)).toBe('graphite');
+    expect(resolveTheme('image', false)).toBe('graphite');
+    localStorage.setItem('cd.theme', 'image');
+    initTheme();
+    expect(currentTheme()).toEqual({ pref: 'image', resolved: 'graphite' });
+    expect(document.documentElement.dataset.themePref).toBe('image');
+    expect(document.documentElement.dataset.theme).toBe('graphite');
+  });
+  it('only image theme reveals image controls and hides them on other themes', async () => {
+    applyTheme(DEFAULT_THEME);
+    await setChatBackground({ imageUrl: CHAT_BG_PRESET_URL });
+    const view = render(<ThemeSettings />);
+    expect(view.getAllByRole('radio')).toHaveLength(7);
+    expect(
+      (view.getByTestId('theme-system').firstElementChild as HTMLElement).style.backgroundImage,
+    ).toContain('linear-gradient');
+    expect(view.queryByTestId('image-theme-settings')).toBeNull();
+    fireEvent.click(view.getByTestId('theme-image'));
+    await waitFor(() => expect(view.getByTestId('image-theme-settings')).toBeTruthy());
+    expect(view.getAllByRole('slider')).toHaveLength(2);
+    expect(view.queryByTestId('settings-chat-bg')).toBeNull();
+    fireEvent.click(view.getByTestId('theme-graphite'));
+    expect(view.queryByTestId('image-theme-settings')).toBeNull();
+    expect(view.queryAllByRole('slider')).toHaveLength(0);
+    act(() => applyTheme('image'));
+    expect(view.getByTestId('chat-bg-pick')).toBeTruthy();
   });
   it('picker applies theme and persists via IPC', async () => {
     const invoke = vi.fn().mockResolvedValue({ pref: 'cream', resolved: 'cream' });

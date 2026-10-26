@@ -21,7 +21,7 @@
   min-width: 0;
   height: var(--cd-control-h-md);
   padding: 0 var(--cd-space-2) 0 var(--cd-space-3);
-  border: 1px solid var(--cd-color-border);
+  border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-md);
   background: var(--cd-color-input-bg);
   color: var(--cd-color-text);
@@ -47,8 +47,8 @@
   background: transparent;
 }
 .cd-dropdown--ghost .cd-dropdown__trigger:hover:not(:disabled) {
-  border-color: var(--cd-color-border);
-  background: var(--cd-color-hover);
+  border-color: var(--cd-panel-border);
+  background: var(--cd-control-hover-bg);
 }
 /* 胶囊：输入栏工具行（与模型 / 权限按钮同高、同形、同字号） */
 .cd-dropdown--chip .cd-dropdown__trigger {
@@ -59,8 +59,8 @@
   font-size: var(--cd-font-size-sm);
 }
 .cd-dropdown--chip .cd-dropdown__trigger:hover:not(:disabled) {
-  border-color: var(--cd-color-border);
-  background: var(--cd-color-hover);
+  border-color: var(--cd-panel-border);
+  background: var(--cd-control-hover-bg);
 }
 /* 与同一行模型 / 权限按钮的小箭头同大 */
 .cd-dropdown--chip .cd-dropdown__chevron {
@@ -75,7 +75,7 @@
 }
 .cd-dropdown__trigger:disabled {
   border-color: var(--cd-color-border-subtle);
-  background: var(--cd-color-surface-sunken);
+  background: var(--cd-panel-surface-sunken);
   color: var(--cd-color-disabled-text);
   cursor: not-allowed;
 }
@@ -99,9 +99,9 @@
   display: flex;
   flex-direction: column;
   padding: var(--cd-space-1-5);
-  border: 1px solid var(--cd-color-border);
+  border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-lg);
-  background: var(--cd-color-surface-raised);
+  background: var(--cd-chat-popover-bg);
   box-shadow: var(--cd-shadow-popover);
   color: var(--cd-color-text);
   outline: none;
@@ -111,7 +111,7 @@
 }
 .cd-dropdown__search {
   padding: var(--cd-space-1) var(--cd-space-1) var(--cd-space-2);
-  border-bottom: 1px solid var(--cd-color-border);
+  border-bottom: 1px solid var(--cd-panel-border);
   margin-bottom: var(--cd-space-1);
 }
 .cd-dropdown__search .cd-input {
@@ -140,9 +140,20 @@
   line-height: var(--cd-line-height-sm);
   cursor: pointer;
   user-select: none;
+  transition:
+    background-color var(--cd-duration-fast) var(--cd-ease),
+    color var(--cd-duration-fast) var(--cd-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cd-dropdown__trigger,
+  .cd-dropdown__chevron,
+  .cd-dropdown__option {
+    transition: none;
+  }
 }
 .cd-dropdown__option.is-active {
-  background: var(--cd-color-hover);
+  background: var(--cd-control-hover-bg);
 }
 .cd-dropdown__option.is-selected {
   color: var(--cd-color-selected-text);

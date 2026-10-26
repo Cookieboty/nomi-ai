@@ -139,7 +139,8 @@ export async function fromRaw(r: RawAttachment | null): Promise<ImageAttachment 
 /** 只用于 UI 提示：模型名看起来是否支持图片 */
 export function likelyVision(model: string | undefined): boolean {
   if (!model) return false;
-  return /(vision|[-_.]vl\b|vl[-:]|llava|bakllava|moondream|minicpm-v|gpt-4o|gpt-4\.1|gpt-5|\bo3\b|\bo4|claude|gemini|gemma3|qwen2\.5-?vl|qwen3-?vl|pixtral|glm-4v|internvl|mistral-small3)/i.test(
+  // grok-3 只认文字，grok-4 起能看图；o1-mini / o1-preview 不能看图
+  return /(vision|[-_.]vl\b|vl[-:]|llava|bakllava|moondream|minicpm-v|gpt-4o|gpt-4\.1|gpt-4\.5|gpt-5|\bo1\b(?!-mini|-preview)|\bo3\b|\bo4|claude|opus|sonnet|haiku|gemini|gemma3|grok-?[4-9]|llama-?4|qwen2\.5-?vl|qwen3-?vl|pixtral|glm-4(\.\d+)?v|internvl|mistral-small3)/i.test(
     model,
   );
 }

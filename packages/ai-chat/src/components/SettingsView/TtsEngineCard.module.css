@@ -9,7 +9,7 @@
   flex: 1 1 200px;
   height: 6px;
   border-radius: 3px;
-  background: var(--cd-color-border);
+  background: var(--cd-panel-border);
   overflow: hidden;
 }
 .fill {

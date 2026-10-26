@@ -51,11 +51,11 @@
   max-width: 280px;
   padding: 8px 10px;
   border-radius: 8px;
-  background: #2a241c;
-  color: #fff;
+  background: var(--cd-chat-popover-bg);
+  color: var(--cd-color-text);
   font-size: var(--cd-font-size-sm);
   line-height: 1.4;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--cd-shadow-popover);
   pointer-events: none;
   white-space: normal;
 }
@@ -65,7 +65,7 @@
   top: 100%;
   right: 10px;
   border: 6px solid transparent;
-  border-top-color: #2a241c;
+  border-top-color: var(--cd-chat-popover-bg);
 }
 /* 带「开启长上下文」按钮时：可点击，并用一条透明桥盖住环与浮窗之间的空隙，移过去不会关掉 */
 .contextRingTip[role='dialog'] {
@@ -94,7 +94,7 @@
   gap: var(--cd-space-1-5);
   margin-top: var(--cd-space-2);
   padding-top: var(--cd-space-2);
-  border-top: 1px solid rgba(255, 255, 255, 0.16);
+  border-top: 1px solid var(--cd-panel-border);
   font-size: var(--cd-font-size-xs);
 }
 .contextRingOfferBtn {
@@ -103,21 +103,21 @@
   padding: 0 var(--cd-space-2);
   border: 0;
   border-radius: var(--cd-radius-sm);
-  background: #f5a623;
-  color: #2a241c;
+  background: var(--cd-color-accent);
+  color: var(--cd-color-text-on-accent);
   font-size: var(--cd-font-size-xs);
   font-weight: 600;
   cursor: pointer;
 }
 .contextRingOfferBtn:hover {
-  background: #ffb73d;
+  background: color-mix(in srgb, var(--cd-color-accent) 85%, var(--cd-color-text));
 }
 .contextRingOfferBtn:focus-visible {
   outline: 2px solid var(--cd-color-accent-strong);
   outline-offset: 2px;
 }
 .contextRingOfferError {
-  color: #ff9aa2;
+  color: var(--cd-color-danger-text);
   white-space: normal;
 }
 .contextRingTipMain {
@@ -200,7 +200,7 @@
   align-items: center;
   gap: var(--cd-space-2, 8px);
   padding: 4px 8px;
-  border-bottom: 1px solid var(--cd-color-border, #333);
+  border-bottom: 1px solid var(--cd-panel-border);
   min-height: var(--cd-control-h-sm, 28px);
 }
 
@@ -774,8 +774,11 @@
   border: 1px solid var(--cd-color-border, #333);
   border-radius: var(--cd-radius-lg);
   overflow: hidden;
-  background: var(--cd-color-surface, #121212);
+  background: var(--cd-panel-surface);
   box-shadow: var(--cd-shadow-popover);
+}
+:global(html[data-chat-bg]) .wbFrame {
+  background: var(--cd-modal-bg);
 }
 .wbSpacer {
   flex: 1;
@@ -886,8 +889,11 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  border-left: 1px solid var(--cd-color-border, #333);
+  border-left: 1px solid var(--cd-panel-border);
   background: var(--cd-color-surface-raised, #161616);
+}
+:global(html[data-chat-bg]) .panel[data-rail] .railTreePane {
+  background: transparent;
 }
 
 .panel[data-rail] {
@@ -902,8 +908,8 @@
   flex-direction: row;
   align-items: center;
   gap: var(--cd-space-1);
-  height: 44px;
-  min-height: 44px;
+  height: var(--cd-chat-header-h);
+  min-height: var(--cd-chat-header-h);
   padding: 0 var(--cd-space-2);
   box-sizing: border-box;
   flex-shrink: 0;
@@ -912,9 +918,18 @@
   width: var(--cd-control-h-sm);
   height: var(--cd-control-h-sm);
   border-radius: var(--cd-radius-md);
+  transition:
+    background-color var(--cd-duration-fast) var(--cd-ease),
+    color var(--cd-duration-fast) var(--cd-ease);
 }
 .panel[data-rail] .panelHead .iconBtn:hover:not(:disabled) {
-  background: var(--cd-color-hover);
+  background: var(--cd-chat-hover-overlay);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel[data-rail] .panelHead .iconBtn {
+    transition: none;
+  }
 }
 /* 空状态、列表与筛选框（左右 10px）同一条左边线 */
 .panel[data-rail] .empty {
@@ -1080,22 +1095,13 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* 工作台背景开启：中栏 Diff / 预览底色半透明，透出 App 级背景层；归「右侧面板」模糊 */
+/* 中栏 Diff / 预览与其他面板共用全局背景。 */
 :global(html[data-chat-bg]) .centerChanges {
   position: relative;
-  background: color-mix(in srgb, var(--cd-color-surface-raised, #1a1a1a) 55%, transparent);
-}
-:global(html[data-chat-bg]) .centerChanges::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  backdrop-filter: blur(var(--cd-chat-bg-blur-right, 0px));
-  -webkit-backdrop-filter: blur(var(--cd-chat-bg-blur-right, 0px));
+  background: var(--cd-panel-surface-raised);
 }
 :global(html[data-chat-bg]) .centerChanges .preview {
-  background: color-mix(in srgb, var(--cd-color-surface-sunken, #111) 60%, transparent);
+  background: var(--cd-panel-surface-sunken);
 }
 
 /* 右栏顶部：当前分支（只读） */

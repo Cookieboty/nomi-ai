@@ -10,7 +10,7 @@
   height: var(--cd-control-h-md, 36px);
   border-radius: var(--cd-radius-full, 999px);
   border: 1px solid var(--cd-color-border);
-  background: var(--cd-color-surface-raised);
+  background: var(--cd-panel-surface-raised);
   color: var(--cd-color-text-muted);
   cursor: pointer;
   touch-action: none;
@@ -107,7 +107,7 @@
 }
 /* 悬浮在透明窗口（看板娘）上：实底 + 阴影，保证任何桌面背景下都可读；窗口窄时换行而不是截断 */
 .cd-voice-status--floating {
-  background: var(--cd-color-surface-raised);
+  background: var(--cd-chat-popover-bg);
   border: 1px solid var(--cd-color-border-strong);
   border-radius: var(--cd-radius-lg, 12px);
   box-shadow: var(--cd-shadow-md, 0 4px 14px rgba(0, 0, 0, 0.35));
@@ -230,9 +230,9 @@
   gap: 12px;
   align-items: flex-start;
   padding: 10px 12px;
-  border: 1px solid var(--cd-color-border);
+  border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-md, 8px);
-  background: var(--cd-color-surface-sunken);
+  background: var(--cd-panel-surface-sunken);
 }
 .cd-voice-asset__main {
   flex: 1;
@@ -268,7 +268,7 @@
   position: relative;
   height: 18px;
   border-radius: var(--cd-radius-full, 999px);
-  background: var(--cd-color-surface);
+  background: var(--cd-panel-surface);
   overflow: hidden;
   font-size: 11px;
   line-height: 18px;

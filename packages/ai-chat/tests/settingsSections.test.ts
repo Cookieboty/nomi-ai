@@ -44,7 +44,7 @@ describe('设置分区：合并后的菜单', () => {
     }
     expect(SECTION_TABS.knowledge.map((t) => t.id)).toEqual(['kb', 'memory', 'notes']);
     expect(SECTION_TABS.schedule.map((t) => t.id)).toEqual(['reminders', 'calendar']);
-    expect(SECTION_TABS.privacy.map((t) => t.id)).toEqual(['data', 'desktop']);
+    expect(SECTION_TABS.privacy.map((t) => t.id)).toEqual(['data', 'outbound', 'desktop']);
     expect(SECTION_TABS.senses.map((t) => t.id)).toEqual(['voice', 'screen']);
     expect(SECTION_TABS.quality.map((t) => t.id)).toEqual(['compare', 'trend', 'requests']);
     expect(tabOf('quality', 'requests')).toBe('requests');
@@ -52,6 +52,7 @@ describe('设置分区：合并后的菜单', () => {
     expect(tabOf('knowledge', 'calendar')).toBeUndefined();
     expect(tabOf('schedule', 'calendar')).toBe('calendar');
     expect(tabOf('privacy', 'desktop')).toBe('desktop');
+    expect(tabOf('privacy', 'outbound')).toBe('outbound');
     expect(tabOf('privacy', undefined)).toBeUndefined();
   });
 });

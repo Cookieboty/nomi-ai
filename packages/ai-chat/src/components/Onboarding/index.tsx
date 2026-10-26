@@ -22,6 +22,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useLayoutDensity } from '../../hooks/useLayoutDensity';
 import { startupClient, type StartupView } from '../../services/startupClient';
 import { ModelsPage } from '../ModelsPage';
+import { ChatBackgroundSettings } from '../SettingsView/ChatBackgroundSettings';
 import { LAYOUT_DENSITIES } from '../SettingsView/LayoutDensitySettings';
 
 import { mergePersona, onboardingClient, type VoiceStyle } from './client';
@@ -283,6 +284,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
             </div>
             <div className={styles.subLabel}>{t('ui.mascot-theme.more-colors')}</div>
             <div className={styles.options}>{more.map((x) => card(x, false))}</div>
+            {theme === 'image' && <ChatBackgroundSettings />}
           </>
         );
       }

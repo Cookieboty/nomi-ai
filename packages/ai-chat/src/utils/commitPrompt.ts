@@ -10,7 +10,12 @@ export interface CommitPromptFile {
   unstaged: boolean;
 }
 
-export function buildCommitPrompt(files: readonly CommitPromptFile[], push: boolean): string {
+/** worktree：改动在另一个 worktree 里（不是助手的工作目录）时给出它的路径 */
+export function buildCommitPrompt(
+  files: readonly CommitPromptFile[],
+  push: boolean,
+  worktree?: string,
+): string {
   const listed = files.slice(0, MAX_LISTED).map((f) => {
     const mark = f.staged
       ? f.unstaged
@@ -28,6 +33,9 @@ export function buildCommitPrompt(files: readonly CommitPromptFile[], push: bool
       String(files.length),
     ),
     ...listed,
+    ...(worktree
+      ? ['', t('ui.session-workspace.these-changes-are-in-worktree-run-git-there', worktree)]
+      : []),
     '',
     t('ui.session-workspace.write-conventional-commits-messages-following-the-repo-conventions'),
     t('ui.session-workspace.do-not-use-no-verify-if-a-hook'),

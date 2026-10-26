@@ -79,6 +79,8 @@ describe('quoted paths', () => {
   it('unquotes paths git wraps in quotes (spaces, escapes, octal utf-8)', () => {
     expect(parseGitStatus('A  "a b.txt"')[0]!.path).toBe('a b.txt');
     expect(parseGitStatus('R  "old name.ts" -> "new name.ts"')[0]!.path).toBe('new name.ts');
+    // 旧路径留着：取消暂存时连同它一起
+    expect(parseGitStatus('R  "old name.ts" -> "new name.ts"')[0]!.from).toBe('old name.ts');
     expect(unquoteGitPath('"q\\"x\\\\y\\tz"')).toBe('q"x\\y\tz');
     expect(unquoteGitPath('"\\344\\270\\255.txt"')).toBe('中.txt');
     expect(unquoteGitPath('plain.txt')).toBe('plain.txt');

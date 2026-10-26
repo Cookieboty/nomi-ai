@@ -164,3 +164,4 @@ export * from './speechText';
 export * from './models';
 
 export * from './quality';
+export * from './chatBackground';

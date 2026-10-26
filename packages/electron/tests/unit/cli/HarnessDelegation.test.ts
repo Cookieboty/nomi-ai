@@ -11,6 +11,7 @@ import {
   CliHarnessService,
   DELEGATED_PERMISSION_TIMEOUT_MS,
 } from '../../../src/cli/CliHarnessService';
+import { HarnessStoppedError } from '../../../src/cli/harness/liveTypes';
 
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
@@ -91,6 +92,22 @@ describe('CliHarnessService · Nomi 委派开的标签', () => {
       denied: 1,
       timedOut: 1,
     });
+  });
+
+  it('委派标签第一轮开始前就点停止：不丢这次停止，sendTab 直接按「已停止」结束、不发给 CLI', async () => {
+    const h = mk();
+    const d = h.createTab({ backend: 'claude', activate: false, delegation: { goal: 'x' } });
+    const plain = h.createTab({ backend: 'claude' });
+    // 普通空闲标签：没有可停的，照旧返回 false，也不会影响它下一轮
+    expect(h.cancelTab(plain.id)).toBe(false);
+    expect(h.cancelTab(d.id)).toBe(true);
+    const run = jest.spyOn(h as unknown as { runClaude: () => unknown }, 'runClaude');
+    await expect(h.sendTab(d.id, 'go')).rejects.toBeInstanceOf(HarnessStoppedError);
+    expect(run).not.toHaveBeenCalled();
+    const tab = h.listTabs().tabs.find((x) => x.id === d.id)!;
+    expect(tab.status).toBe('idle');
+    // 已经开始过：之后的停止走正常路径，不会再「预先停止」下一轮
+    expect(h.cancelTab(d.id)).toBe(false);
   });
 
   it('用户发送空消息时不会误标记接管；运行中的委派会先取消再交给用户', async () => {

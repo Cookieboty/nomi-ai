@@ -59,6 +59,8 @@ const rateResult = (account: string, pct: number) => ({
 
 interface Opts {
   env?: NodeJS.ProcessEnv;
+  /** 假 app-server 的会话超时；只有专测超时的用例才调小 */
+  codexTimeoutMs?: number;
 }
 
 function setup(opts: Opts = {}) {
@@ -119,7 +121,9 @@ function setup(opts: Opts = {}) {
       spawnFn: spawnFn as never,
       env: () => ({}),
       tmpRoot,
-      timeoutMs: 300,
+      // 假 app-server 在进程内应答，但 CI（尤其 windows）上 jest 并行时事件循环可能被卡住
+      // 数百毫秒；300ms 会让正常握手偶发超时 → transient、不记 codexFp。正常路径给足余量。
+      timeoutMs: opts.codexTimeoutMs ?? 10_000,
     },
   });
   const entry = (r: QuotaRefreshReport, id: string) => r.entries.find((e) => e.id === id);
@@ -463,7 +467,7 @@ describe('刷新额度 · Codex', () => {
   });
 
   it('暂时性失败（超时）：保留上次 app-server 的值并标 stale', async () => {
-    const t = setup();
+    const t = setup({ codexTimeoutMs: 1_500 });
     await t.svc.refreshQuota();
     t.set.codex('hang');
     t.clock.t += 6 * 60_000;

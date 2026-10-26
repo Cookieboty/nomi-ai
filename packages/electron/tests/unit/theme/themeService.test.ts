@@ -46,13 +46,29 @@ describe('ThemeService', () => {
     fs.writeFileSync(f, JSON.stringify({ theme: 'mist' }));
     expect(new ThemeService(f, fakeNative(true)).get().pref).toBe('mist');
   });
-  it('migrates legacy paper to cream', () => {
+  it('migrates legacy paper id to cream and writes it back', () => {
     const f = tmp();
     fs.writeFileSync(f, JSON.stringify({ theme: 'paper' }));
     expect(new ThemeService(f, fakeNative(false)).get()).toEqual({
       pref: 'cream',
       resolved: 'cream',
     });
+    expect(JSON.parse(fs.readFileSync(f, 'utf8')).theme).toBe('cream');
+  });
+  it('persists image theme with graphite chrome and a dark native appearance', () => {
+    const file = tmp();
+    const native = fakeNative(false);
+    const service = new ThemeService(file, native, 'darwin');
+    expect(service.set('image')).toEqual({ pref: 'image', resolved: 'graphite' });
+    expect(native.themeSource).toBe('dark');
+    expect(sent.at(-1)).toEqual({ pref: 'image', resolved: 'graphite' });
+    expect(JSON.parse(fs.readFileSync(file, 'utf8')).theme).toBe('image');
+    expect(new ThemeService(file, fakeNative(false)).get()).toEqual({
+      pref: 'image',
+      resolved: 'graphite',
+    });
+    expect(resolveTheme('image', false)).toBe('graphite');
+    expect(appearanceFor('image')).toBe('dark');
   });
   it('system follows nativeTheme live: dark → graphite, light → cream', () => {
     const n = fakeNative(true);
@@ -62,7 +78,6 @@ describe('ThemeService', () => {
     n.fire();
     expect(sent.at(-1)).toEqual({ pref: 'system', resolved: 'cream' });
     expect(resolveTheme('cream', true)).toBe('cream');
-    expect(s.set('paper')).toEqual({ pref: 'cream', resolved: 'cream' });
     expect(() => s.set('neon')).toThrow();
   });
 

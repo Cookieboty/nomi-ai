@@ -11,6 +11,7 @@ body {
   background: var(--cd-color-bg-gradient);
   color: var(--cd-color-text);
   overflow: hidden;
+  isolation: isolate;
 }
 
 .ai-chat-app {
@@ -52,6 +53,14 @@ body {
   flex-direction: column;
   background: var(--cd-color-bg);
   overflow: hidden;
+}
+
+html[data-chat-bg] .settings-overlay {
+  background: transparent;
+}
+
+html[data-chat-bg] .ai-chat-app::before {
+  display: none;
 }
 
 .ai-chat-app::before {
@@ -174,7 +183,7 @@ body {
   min-height: 0;
   position: relative;
   z-index: 1;
-  border-left: 1px solid var(--cd-color-border, #333);
+  border-left: 1px solid var(--cd-panel-border);
   background: color-mix(in srgb, var(--cd-color-surface-raised, #1a1a1a) 92%, transparent);
 }
 .files-rail > * {
@@ -220,17 +229,32 @@ body {
   isolation: isolate;
 }
 
-/* 工作台自定义背景（设置 → 通用 → 聊天背景）：铺满整个 .ai-chat-app */
+/* 全局自定义背景：独立于应用与弹层的窗口底层。 */
 .chat-bg-layer {
-  position: absolute;
+  position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background-color: var(--cd-chat-bg-color, transparent);
+  overflow: hidden;
+}
+.chat-bg-image,
+.chat-bg-mask {
+  position: absolute;
+}
+/* 模糊直接作用在静态图片上（只栅格化一次），负 inset 盖住模糊后变透明的边缘 */
+.chat-bg-image {
+  inset: calc(var(--cd-chat-bg-blur, 0px) * -2);
   background-image: var(--cd-chat-bg-image, none);
   background-size: cover;
   background-position: center;
-  opacity: var(--cd-chat-bg-opacity, 0.35);
+  opacity: var(--cd-chat-bg-opacity, 0.4);
+  filter: blur(var(--cd-chat-bg-blur, 0px));
+}
+/* 固定深色遮罩：不随透明度滑块变化，保证亮图上的文字对比度 */
+.chat-bg-mask {
+  inset: 0;
+  z-index: 1;
+  background: rgb(0 0 0 / 35%);
 }
 .chat-container > * {
   position: relative;
@@ -252,8 +276,6 @@ body {
   max-width: 640px;
   width: 100%;
   background: var(--cd-color-surface);
-  backdrop-filter: var(--cd-blur);
-  -webkit-backdrop-filter: var(--cd-blur);
   border: 1px solid var(--cd-color-border);
   border-radius: var(--cd-radius-xl);
   padding: 40px var(--cd-space-8);
@@ -314,8 +336,6 @@ body {
 /* 底部输入区：干净分隔，无发光动画 */
 .input-container {
   background: var(--cd-color-surface);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   border-top: 1px solid var(--cd-color-border);
   padding: var(--cd-space-4) var(--cd-space-5) var(--cd-space-5);
   position: relative;
@@ -460,8 +480,8 @@ html[data-platform] .app-titlebar {
   z-index: 2000;
   align-items: center;
   justify-content: center;
-  background: var(--cd-color-bg);
-  border-bottom: 1px solid var(--cd-color-border);
+  background: var(--cd-panel-bg);
+  border-bottom: 1px solid var(--cd-panel-border);
   -webkit-app-region: drag;
   app-region: drag;
   user-select: none;
@@ -472,34 +492,6 @@ html[data-platform='darwin'] .app-titlebar {
   padding-left: 78px; /* 红绿灯 */
   padding-right: 78px;
 }
-/* 侧栏开关：macOS 紧跟红绿灯，其它平台在最左 */
-.app-titlebar-toggle {
-  position: absolute;
-  left: var(--cd-space-2);
-  top: 50%;
-  transform: translateY(-50%);
-  width: var(--cd-control-h-sm);
-  height: var(--cd-control-h-sm);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  border-radius: var(--cd-radius-md);
-  background: transparent;
-  color: var(--cd-color-text-muted);
-  cursor: pointer;
-}
-html[data-platform='darwin'] .app-titlebar-toggle {
-  left: 78px;
-}
-.app-titlebar-toggle:hover {
-  background: var(--cd-color-hover);
-  color: var(--cd-color-text);
-}
-.app-titlebar-toggle:focus-visible {
-  outline: 2px solid var(--cd-color-accent-strong);
-  outline-offset: -2px;
-}
 .app-titlebar-title {
   font: var(--cd-text-label);
   color: var(--cd-color-text-muted);
@@ -509,7 +501,9 @@ html[data-platform] .ai-chat-app {
   height: 100vh;
   padding-top: var(--cd-titlebar-h);
 }
-html[data-platform] .main-content {
+html[data-platform] .main-content,
+html[data-platform] .files-rail {
+  /* 右栏也要扣掉标题栏：否则底部固定的提交区会被裁掉一截 */
   height: calc(100vh - var(--cd-titlebar-h));
 }
 /* 模态 / 遮罩不盖住标题栏（可以一直拖动窗口） */
@@ -538,29 +532,36 @@ html[data-platform='linux'] {
   --cd-font-size-md: 14.5px;
 }
 
-/* 开启工作台背景时，各栏不透明底色换成半透明，让背景透出来（层叠见 .chat-bg-layer）。
-   各栏模糊用 ::before 上的 backdrop-filter：直接加在栏上会让栏成为 position:fixed
-   子元素的包含块，栏内弹出的菜单会错位。 */
-html[data-chat-bg] .app-titlebar,
-html[data-platform='darwin'][data-chat-bg] .app-titlebar {
-  background: color-mix(in srgb, var(--cd-color-bg) 55%, transparent);
-}
 html[data-chat-bg] .files-rail {
-  background: color-mix(in srgb, var(--cd-color-surface-raised, #1a1a1a) 55%, transparent);
+  border-left: none;
+  background: var(--cd-panel-bg-subtle);
 }
-html[data-chat-bg] .chat-column::before,
-html[data-chat-bg] .files-rail::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  backdrop-filter: blur(var(--cd-chat-bg-blur-center, 0px));
-  -webkit-backdrop-filter: blur(var(--cd-chat-bg-blur-center, 0px));
+
+html[data-chat-bg] .app-titlebar {
+  background: var(--cd-panel-bg-subtle);
 }
-html[data-chat-bg] .files-rail::before {
-  backdrop-filter: blur(var(--cd-chat-bg-blur-right, 0px));
-  -webkit-backdrop-filter: blur(var(--cd-chat-bg-blur-right, 0px));
+html[data-chat-bg] .center-changes-splitter::after,
+html[data-chat-bg] .files-rail-splitter::after {
+  inset: 0 2px;
+  background: var(--cd-panel-border);
+  opacity: 1;
+  transition: background-color var(--cd-duration-fast) var(--cd-ease);
+}
+html[data-chat-bg] .center-changes-splitter:hover::after,
+html[data-chat-bg] .center-changes-splitter:active::after,
+html[data-chat-bg] .files-rail-splitter:hover::after,
+html[data-chat-bg] .files-rail-splitter:active::after {
+  background: color-mix(in srgb, var(--cd-color-accent-strong) 55%, transparent);
+}
+html[data-chat-bg] .main-content--with-changes [data-testid='center-changes-pane'],
+html[data-chat-bg] .main-content--with-changes [data-testid='center-preview-pane'] {
+  border-left: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-chat-bg] .center-changes-splitter::after,
+  html[data-chat-bg] .files-rail-splitter::after {
+    transition: none;
+  }
 }
 
 /* 精简模式：顶栏不放对话标签条，只显示当前会话标题（与右侧按钮同高、贴底，同一中线） */

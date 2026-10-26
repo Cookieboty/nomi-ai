@@ -26,6 +26,8 @@ files:
   # 预加载只用 esbuild 产物 *.bundle.js
   - '!dist/preload.js'
   - '!dist/ai-chat-preload.js'
+  # 运行时从 resources/assets 读（extraResources），asar 内不再带一份背景图
+  - '!assets/backgrounds/**'
   - '!**/*.map'
   - '!**/*.{ts,mts,cts,tsx}'
   - '!**/*.d.ts'

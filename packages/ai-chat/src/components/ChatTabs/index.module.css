@@ -10,18 +10,35 @@
   min-width: 0;
 }
 
-/* 嵌在顶栏里：撑满顶栏高度、标签贴底（激活标签的 ::after 盖住顶栏底边线），底边线由顶栏画 */
 .bar[data-embedded] {
   align-self: stretch;
-  align-items: flex-end;
+  align-items: stretch;
   flex: 1;
   padding: 0;
   border-bottom: none;
   min-height: 0;
 }
+.bar[data-embedded] .strip {
+  align-items: stretch;
+  gap: 0;
+}
+.bar[data-embedded] .tab {
+  height: auto;
+  border-top: none;
+  border-radius: 0;
+}
+.bar[data-embedded] .active::after {
+  display: none;
+}
+:global(html[data-chat-bg]) .bar[data-embedded] .active {
+  background: var(--cd-chat-hover-overlay);
+}
+:global(html[data-chat-bg]) .bar[data-embedded] .tab:hover {
+  background: var(--cd-chat-hover-overlay);
+}
 .bar[data-embedded] .add {
-  /* sm 按钮在 ms 标签旁对齐中线 */
-  margin-bottom: calc((var(--cd-control-h-ms) - var(--cd-control-h-sm)) / 2);
+  display: flex;
+  align-items: center;
 }
 .strip {
   display: flex;
@@ -56,11 +73,11 @@
   user-select: none;
   flex-shrink: 0;
   transition:
-    background 0.15s ease,
-    color 0.15s ease;
+    background-color var(--cd-duration-fast) var(--cd-ease),
+    color var(--cd-duration-fast) var(--cd-ease);
 }
 .tab:hover {
-  background: var(--cd-color-hover);
+  background: var(--cd-chat-hover-bg);
   color: var(--cd-color-text);
 }
 .tab:focus-visible {
@@ -68,8 +85,8 @@
   outline-offset: -2px;
 }
 .active {
-  background: var(--cd-color-surface);
-  border-color: var(--cd-color-border);
+  background: var(--cd-chat-tab-bg);
+  border-color: var(--cd-panel-border);
   color: var(--cd-color-text);
   font-weight: var(--cd-font-weight-bold);
 }
@@ -80,7 +97,11 @@
   right: 0;
   bottom: -1px;
   height: 1px;
-  background: var(--cd-color-surface);
+  background: var(--cd-chat-tab-bg);
+  transition: background-color var(--cd-duration-fast) var(--cd-ease);
+}
+.active:hover::after {
+  background: var(--cd-chat-hover-bg);
 }
 
 .dot {
@@ -155,6 +176,9 @@
 }
 
 .close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: var(--cd-control-h-2xs);
   height: var(--cd-control-h-2xs);
   border: none;
@@ -166,6 +190,10 @@
   cursor: pointer;
   opacity: 0;
   flex-shrink: 0;
+  transition:
+    background-color var(--cd-duration-fast) var(--cd-ease),
+    color var(--cd-duration-fast) var(--cd-ease),
+    opacity var(--cd-duration-fast) var(--cd-ease);
 }
 .tab:hover .close,
 .active .close,
@@ -174,7 +202,7 @@
 }
 .close:hover {
   opacity: 1;
-  background: var(--cd-color-hover);
+  background: var(--cd-chat-hover-overlay);
 }
 
 .add {
@@ -192,9 +220,12 @@
   background: transparent;
   color: var(--cd-color-text-muted);
   cursor: pointer;
+  transition:
+    background-color var(--cd-duration-fast) var(--cd-ease),
+    color var(--cd-duration-fast) var(--cd-ease);
 }
 .addBtn:hover {
-  background: var(--cd-color-hover);
+  background: var(--cd-chat-hover-bg);
   color: var(--cd-color-text);
 }
 
@@ -208,6 +239,15 @@
 .add[data-align='end'] .menu {
   left: auto;
   right: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab,
+  .active::after,
+  .close,
+  .addBtn {
+    transition: none;
+  }
 }
 
 /* 空闲但还有后台子代理 / 后台任务：强调色空心圆环（docs/design/cli-subagents.md §5） */

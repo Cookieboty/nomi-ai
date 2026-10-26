@@ -38,9 +38,9 @@
   font-family: var(--cd-font-mono);
   font-size: var(--cd-font-size-xs);
   padding: 1px var(--cd-space-1-5);
-  border: 1px solid var(--cd-color-border);
+  border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-sm);
-  background: var(--cd-color-surface-sunken);
+  background: var(--cd-panel-surface-sunken);
 }
 .selectBox {
   flex: none;
@@ -50,9 +50,9 @@
 .overview {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  border: 1px solid var(--cd-color-border);
+  border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-lg);
-  background: var(--cd-color-surface-raised);
+  background: var(--cd-settings-card-bg);
   box-shadow: var(--cd-shadow-sm);
   overflow: hidden;
 }
@@ -71,10 +71,10 @@
   cursor: pointer;
 }
 .overviewCell + .overviewCell {
-  border-left: 1px solid var(--cd-color-border);
+  border-left: 1px solid var(--cd-panel-border);
 }
 .overviewCell:hover {
-  background: var(--cd-color-hover);
+  background: var(--cd-control-hover-bg);
 }
 .overviewCell:focus-visible {
   outline: 2px solid var(--cd-color-accent-strong);
@@ -115,7 +115,7 @@
   }
   .overviewCell + .overviewCell {
     border-left: 0;
-    border-top: 1px solid var(--cd-color-border);
+    border-top: 1px solid var(--cd-panel-border);
   }
 }
 /* 任务编辑器：与设置分组同一种卡片 */
@@ -124,9 +124,9 @@
   flex-direction: column;
   gap: var(--cd-space-3);
   padding: var(--cd-space-4) var(--cd-space-5);
-  border: 1px solid var(--cd-color-border);
+  border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-lg);
-  background: var(--cd-color-surface-raised);
+  background: var(--cd-settings-card-bg);
   box-shadow: var(--cd-shadow-sm);
 }
 .editorTitle {
@@ -147,7 +147,7 @@
   gap: var(--cd-space-1);
   padding: var(--cd-space-2) var(--cd-space-3);
   border-radius: var(--cd-radius-md);
-  background: var(--cd-color-surface-sunken);
+  background: var(--cd-panel-surface-sunken);
 }
 .resultText {
   font-size: var(--cd-font-size-sm);
@@ -164,7 +164,7 @@
 .table td {
   text-align: left;
   padding: var(--cd-space-1-5) var(--cd-space-2);
-  border-bottom: 1px solid var(--cd-color-border);
+  border-bottom: 1px solid var(--cd-panel-border);
   vertical-align: top;
 }
 

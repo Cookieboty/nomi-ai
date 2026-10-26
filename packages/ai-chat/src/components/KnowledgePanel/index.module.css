@@ -23,9 +23,9 @@
 .stats {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  border: 1px solid var(--cd-color-border);
+  border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-lg);
-  background: var(--cd-color-surface-raised);
+  background: var(--cd-settings-card-bg);
 }
 .stat {
   padding: var(--cd-space-2) var(--cd-space-4);
@@ -34,7 +34,7 @@
   gap: var(--cd-space-0-5);
 }
 .stat + .stat {
-  border-left: 1px solid var(--cd-color-border);
+  border-left: 1px solid var(--cd-panel-border);
 }
 .statNum {
   font-size: var(--cd-font-size-lg);
@@ -47,18 +47,18 @@
   color: var(--cd-color-text-muted);
 }
 .progress {
-  border: 1px solid var(--cd-color-border);
+  border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-md);
   padding: var(--cd-space-2) var(--cd-space-3);
   display: flex;
   flex-direction: column;
   gap: var(--cd-space-1-5);
-  background: var(--cd-color-surface-sunken);
+  background: var(--cd-panel-surface-sunken);
 }
 .bar {
   height: 6px;
   border-radius: var(--cd-radius-full);
-  background: var(--cd-color-surface-raised);
+  background: var(--cd-settings-card-bg);
   overflow: hidden;
 }
 .barFill {
@@ -90,7 +90,7 @@
   padding: 0;
   max-height: 260px;
   overflow: auto;
-  border: 1px solid var(--cd-color-border);
+  border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-md);
 }
 .docItem {
@@ -98,7 +98,7 @@
   align-items: center;
   gap: var(--cd-space-2);
   padding: var(--cd-space-1-5) var(--cd-space-3);
-  border-bottom: 1px solid var(--cd-color-border);
+  border-bottom: 1px solid var(--cd-panel-border);
   font-size: var(--cd-font-size-sm);
 }
 .docItem:last-child {
@@ -119,7 +119,7 @@
   color: var(--cd-color-accent-strong);
 }
 .hit {
-  border: 1px solid var(--cd-color-border);
+  border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-md);
   padding: var(--cd-space-2) var(--cd-space-3);
   display: flex;
@@ -136,9 +136,9 @@
   overflow: hidden;
 }
 .section {
-  border: 1px solid var(--cd-color-border);
+  border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-lg);
-  background: var(--cd-color-surface-raised);
+  background: var(--cd-settings-card-bg);
   box-shadow: var(--cd-shadow-sm);
   padding: var(--cd-space-4);
   display: flex;
@@ -158,7 +158,7 @@
   padding: var(--cd-space-2) 0;
 }
 .item + .item {
-  border-top: 1px solid var(--cd-color-border);
+  border-top: 1px solid var(--cd-panel-border);
 }
 /* 分组里只有一行时不再叠加上下留白 */
 .section > .item {

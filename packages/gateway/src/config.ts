@@ -187,4 +187,25 @@ export interface GatewayConfig {
    * shadow = 只计算新计划、与现有选协议规则比对写日志（回滚用，NOMI_ROUTE_PLAN=shadow）。
    */
   routePlan?: 'shadow' | 'active';
+  /** 隐私模式（docs/design/secret-privacy.md）：不设 = 关；主进程默认给 enabled: true */
+  privacy?: PrivacyConfig;
+}
+
+export interface PrivacyConfig {
+  /** true = 发往云端前把密钥换成占位符、回程换回来；false = 原样发出 */
+  enabled: boolean;
+  /** 严格档（键名像密钥的赋值 + 熵） */
+  strict?: boolean;
+  /** 本机 / 局域网上游也脱敏 */
+  local?: boolean;
+  /** 形状保持模式：key 换成同形状的假 key 而不是占位符（§13） */
+  shape?: boolean;
+  /** 占位符 HMAC 密钥（主进程生成，safeStorage 存储） */
+  key: string;
+  /** 额外的已知原文：主进程里其他服务的密钥、用户登记的自定义密钥 */
+  known?: Array<{ kind: string; value: string }>;
+  /** 按类型的动作；没列出的类型是 mask */
+  actions?: Record<string, 'warn' | 'block'>;
+  /** 「从不脱敏」名单的标记（allowTagOf） */
+  allow?: string[];
 }

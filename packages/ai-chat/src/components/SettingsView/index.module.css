@@ -13,8 +13,8 @@
   flex-direction: column;
   gap: var(--cd-space-0-5);
   padding: var(--cd-space-4) 10px;
-  border-right: 1px solid var(--cd-color-border);
-  background: var(--cd-color-bg-subtle);
+  border-right: 1px solid var(--cd-panel-border);
+  background: var(--cd-panel-bg-subtle);
   overflow-y: auto;
 }
 .back,
@@ -34,7 +34,7 @@
 }
 .back:hover,
 .navItem:hover {
-  background: var(--cd-color-hover);
+  background: var(--cd-chat-hover-overlay);
   color: var(--cd-color-text);
 }
 .brand {
@@ -70,7 +70,7 @@
   padding: var(--cd-space-2) 0;
 }
 .navSection + .navSection {
-  border-top: 1px solid var(--cd-color-border);
+  border-top: 1px solid var(--cd-panel-border);
 }
 .navItem.navActive {
   background: var(--cd-color-selected-bg);
@@ -111,9 +111,9 @@
   margin-top: 0;
   margin-bottom: var(--cd-space-4);
   padding: var(--cd-space-4) var(--cd-space-5);
-  border: 1px solid var(--cd-color-border);
+  border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-lg);
-  background: var(--cd-color-surface-raised);
+  background: var(--cd-settings-card-bg);
   box-shadow: var(--cd-shadow-sm);
 }
 .note {
@@ -136,7 +136,7 @@
 .shortcutTable th,
 .shortcutTable td {
   padding: var(--cd-space-1-5) var(--cd-space-2);
-  border-bottom: 1px solid var(--cd-color-border);
+  border-bottom: 1px solid var(--cd-panel-border);
   text-align: left;
   vertical-align: middle;
 }
@@ -149,13 +149,20 @@
   font-size: var(--cd-font-size-xs);
   padding: var(--cd-space-0-5) var(--cd-space-1-5);
   border-radius: var(--cd-radius-sm);
-  background: var(--cd-color-surface-sunken);
+  background: var(--cd-panel-surface-sunken);
   color: var(--cd-color-text);
 }
 .kbd[data-shortcut-recording='true'] {
   outline: 2px solid var(--cd-color-accent-strong);
 }
 .warn {
+  margin-top: var(--cd-space-1);
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-danger);
+}
+/* 行内说明（<p>）里的错误提示：独占一行 */
+.warnBlock {
+  display: block;
   margin-top: var(--cd-space-1);
   font-size: var(--cd-font-size-xs);
   color: var(--cd-color-danger);
@@ -179,7 +186,7 @@
   cursor: pointer;
 }
 .iconOpt:hover {
-  background: var(--cd-color-hover);
+  background: var(--cd-chat-hover-overlay);
 }
 .iconOpt:focus-visible {
   outline: 2px solid var(--cd-color-accent-strong);
@@ -193,9 +200,9 @@
   width: 44px;
   height: var(--cd-control-h-sm);
   padding: 2px;
-  border: 1px solid var(--cd-color-border);
+  border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-sm);
-  background: var(--cd-color-surface);
+  background: var(--cd-panel-surface);
   cursor: pointer;
 }
 .srOnly {
@@ -211,11 +218,11 @@
   gap: var(--cd-space-2);
   /* 和下面的设置行之间一条分隔线（设置行之间的分隔线由 SettingRow 自己画） */
   padding-bottom: var(--cd-space-3);
-  border-bottom: 1px solid var(--cd-color-border);
+  border-bottom: 1px solid var(--cd-panel-border);
 }
 .themes {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: var(--cd-space-2);
 }
 @media (max-width: 1100px) {
@@ -229,7 +236,7 @@
   gap: var(--cd-space-1-5);
   min-width: 0;
   padding: var(--cd-space-1-5);
-  border: 1px solid var(--cd-color-border);
+  border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-md);
   background: transparent;
   color: var(--cd-color-text);
@@ -238,7 +245,7 @@
   cursor: pointer;
 }
 .theme:hover {
-  background: var(--cd-color-hover);
+  background: var(--cd-chat-hover-overlay);
 }
 .theme:focus-visible {
   outline: 2px solid var(--cd-color-accent-strong);
@@ -256,6 +263,14 @@
   border-radius: var(--cd-radius-sm);
   border: 1px solid;
   padding: var(--cd-space-2);
+  background-size: cover;
+  background-position: center;
+}
+.themeImagePlaceholder {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  color: var(--cd-color-text-muted);
 }
 .themeCard {
   display: flex;
@@ -326,7 +341,7 @@
   margin-top: var(--cd-space-2);
   height: 6px;
   border-radius: var(--cd-radius-full);
-  background: var(--cd-color-border);
+  background: var(--cd-panel-border);
   overflow: hidden;
 }
 .updateBarFill {
@@ -367,7 +382,7 @@
   flex: none;
   height: var(--cd-control-h-sm);
   padding: 0 var(--cd-space-3);
-  border: 1px solid var(--cd-color-border);
+  border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-md);
   background: transparent;
   color: var(--cd-color-text-muted);
@@ -375,7 +390,7 @@
   cursor: pointer;
 }
 .helpToggle:hover {
-  background: var(--cd-color-hover);
+  background: var(--cd-chat-hover-overlay);
   color: var(--cd-color-text);
 }
 .helpToggle[aria-expanded='true'] {
@@ -388,9 +403,9 @@
 .helpInline {
   margin: 0 0 var(--cd-space-5);
   padding: var(--cd-space-4);
-  border: 1px solid var(--cd-color-border);
+  border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-lg);
-  background: var(--cd-color-surface-raised);
+  background: var(--cd-panel-surface-raised);
 }
 .helpInline .helpList {
   display: grid;
@@ -474,7 +489,7 @@
   width: 32px;
   height: 32px;
   border-radius: var(--cd-radius-md);
-  border: 1px solid var(--cd-color-border);
+  border: 1px solid var(--cd-panel-border);
   background-size: cover;
   background-position: center;
   flex: none;
@@ -529,9 +544,9 @@
   width: 248px;
   flex: none;
   padding: var(--cd-space-4);
-  border: 1px solid var(--cd-color-border);
+  border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-lg);
-  background: var(--cd-color-surface-raised);
+  background: var(--cd-settings-card-bg);
   box-shadow: var(--cd-shadow-sm);
 }
 .helpTitle {
@@ -576,4 +591,63 @@
   .help {
     display: none;
   }
+}
+
+.back,
+.navItem,
+.iconOpt,
+.theme,
+.helpToggle {
+  transition:
+    background-color var(--cd-duration-fast) var(--cd-ease),
+    color var(--cd-duration-fast) var(--cd-ease);
+}
+.navIcon {
+  transition: color var(--cd-duration-fast) var(--cd-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .back,
+  .navItem,
+  .iconOpt,
+  .theme,
+  .helpToggle,
+  .navIcon {
+    transition: none;
+  }
+}
+
+/* 隐私模式：设置行右侧的一行小表单（输入框与按钮同为 sm 高） */
+.inlineForm {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+}
+.letThrough {
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+}
+/* 隐私模式「试一试」：输入、按钮、结果上下排列 */
+.tryIt {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-2);
+  padding: var(--cd-space-3) var(--cd-space-4);
+}
+.tryHits {
+  margin: 0;
+  padding-left: var(--cd-space-4);
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text);
+}
+.tryOut {
+  margin: 0;
+  max-height: 240px;
+  overflow: auto;
+  padding: var(--cd-space-2);
+  border-radius: var(--cd-radius-sm);
+  background: var(--cd-panel-bg-subtle);
+  font-size: var(--cd-font-size-xs);
+  white-space: pre-wrap;
+  word-break: break-all;
 }

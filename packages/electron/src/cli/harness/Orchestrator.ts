@@ -59,6 +59,7 @@ import { claudeConfigDir } from '../../usage/cliHomes';
 import { qualityLedgerInput } from '../../usage/quality/cliTokens';
 import { CoalescedWriter, flushPendingWritesSync } from '../../utils/coalescedWriter';
 import { writePrivateFile } from '../../utils/privateFile';
+import { cleanCommitMessage, commitMessagePrompt } from '../commitMessage';
 import { codexConfigPath, grokHomePath } from '../configPatch';
 import {
   buildCarriedContext,
@@ -75,6 +76,21 @@ import {
   isBroadGeminiFolder,
   trustGeminiFolder,
 } from '../gemini/trustedFolders';
+import {
+  gitCommit,
+  gitCommitContext,
+  gitCommitUndo,
+  gitDiscard,
+  gitDiscardUndo,
+  gitFetch,
+  gitPull,
+  gitPush,
+  gitStage,
+  gitSyncStatus,
+  gitUnstage,
+  gitWorktrees,
+  ownedWorktrees,
+} from '../gitOps';
 import { pickIdle, resolveIdleReclaimMs, sweepIntervalMs } from '../idleReclaim';
 import {
   effortsForModel,
@@ -275,6 +291,17 @@ const CLI_BACKENDS: readonly BuiltinBackend[] = BUILTIN_CLI_IDS;
 
 type State = ReturnType<HarnessOrchestrator['state']>;
 
+/** 真实路径（git 给的 worktree 路径已解析软链，如 macOS 的 /var → /private/var）；读不到时原样 */
+function realDir(p: string): string {
+  try {
+    // Windows：只有 native 会把 8.3 短名（RUNNER~1）展开成 git 给出的长名
+    const rp = fs.realpathSync;
+    return process.platform === 'win32' && rp.native ? rp.native(p) : rp(p);
+  } catch {
+    return path.resolve(p);
+  }
+}
+
 /**
  * 编排层（docs/design/cli-plugin-architecture.md §5.4）：标签、持久化、来源 / 账号、回收、权限队列与界面广播。
  * 各 CLI 的会话协议在 cli-sdk 的共享驱动里，各 CLI 的差异（档位、账号目录、历史、收尾规则）在
@@ -303,6 +330,10 @@ export class HarnessOrchestrator {
   private readonly turnExits = new Set<string>();
   /** 用户在排队 / 运行期间点了停止的标签 */
   private readonly stopRequested = new Set<string>();
+  /** Nomi 委派建好、但第一轮还没开始发送的标签（建标签到 sendTab 之间有 git 检查等 await） */
+  private readonly delegatedUnsent = new Set<string>();
+  /** 上面这类标签在开始前就被点了停止：sendTab 一开始就按「已停止」结束，不再发给 CLI */
+  private readonly stopBeforeStart = new Set<string>();
   /**
    * 每次发送一个中止令牌（标签 → 这一轮）：从开始运行到这一轮真正发给 CLI 之间（Gemini 握手、
    * 等权限模式确认）点停止，靠它让晚到的握手 / 确认结果不再把这一轮发出去（#75）
@@ -412,6 +443,15 @@ export class HarnessOrchestrator {
       grokAcp?: boolean;
       /** Codex 走 app-server 长驻会话（`codex app-server`）；关闭或起不来时用 `codex exec`。测试缺省关闭 */
       codexAppServer?: boolean;
+      /**
+       * 辅助模型一次性补全：右栏「生成提交信息」用。Nomi 自己没配模型时，宿主可以退回 tab
+       * （当前编程助手标签用的第三方模型）。都没有时抛出 code = 'no-model' 的错误。
+       */
+      complete?: (
+        messages: Array<{ role: 'system' | 'user'; content: string }>,
+        signal: AbortSignal,
+        tab?: { kind: string; model: string | null },
+      ) => Promise<string>;
     },
   ) {
     this.idleReclaimMs = resolveIdleReclaimMs(d.idleReclaimMs, process.env.NOMI_HARNESS_IDLE_MS);
@@ -472,7 +512,73 @@ export class HarnessOrchestrator {
     const want = key(abs);
     for (const tab of this.tabs.values()) if (key(path.resolve(tab.cwd)) === want) return abs;
     if (this.recent.some((p) => key(p) === want)) return abs;
+    if (this.worktreeDirs.size) {
+      const real = key(realDir(abs));
+      if ([...this.worktreeDirs].some((p) => key(p) === real)) return abs;
+    }
     throw new Error(t('electron.common.invalid-working-directory'));
+  }
+
+  /**
+   * 已知目录所在仓库的 worktree（git worktree list 给的，不是渲染层给的）：右栏可以切过去看改动、提交。
+   * 只在内存里；上限防止无限增长。
+   */
+  private worktreeDirs = new Set<string>();
+
+  /** 「生成提交信息」：要提交的 diff + 最近的提交标题交给辅助模型（经网关，受外发保护） */
+  async suggestCommitMessage(cwd: unknown, paths?: unknown) {
+    const dir = this.knownDir(cwd);
+    if (!this.d.complete) return { ok: false, code: 'error' as const };
+    const ctx = await gitCommitContext(dir, paths);
+    if (!ctx) return { ok: false, code: 'invalid' as const };
+    if (!ctx.diff.trim() && !ctx.stat.trim()) return { ok: false, code: 'nothing' as const };
+    try {
+      const raw = await this.d.complete(
+        commitMessagePrompt(ctx),
+        AbortSignal.timeout(90_000),
+        this.helperTab(dir),
+      );
+      const message = cleanCommitMessage(raw);
+      return message
+        ? { ok: true, message }
+        : { ok: false, code: 'error' as const, output: raw.slice(0, 2000) };
+    } catch (e) {
+      const timeout = e instanceof Error && e.name === 'TimeoutError';
+      const noModel = (e as { code?: unknown } | null)?.code === 'no-model';
+      return {
+        ok: false,
+        code: timeout ? ('timeout' as const) : noModel ? ('no-model' as const) : ('error' as const),
+        output: e instanceof Error ? e.message : String(e),
+      };
+    }
+  }
+
+  /**
+   * 「生成提交信息」退回用哪个标签的模型：目录相同的第三方标签（最近用过的优先），
+   * 没有就是最近用过的任一第三方标签。官方账号标签的模型不经网关，用不了。
+   */
+  private helperTab(dir: string): { kind: string; model: string | null } | undefined {
+    const third = [...this.tabs.values()]
+      .filter((t) => t.source === 'thirdParty' && isBuiltinCliId(t.backend))
+      .sort((a, b) => b.updatedAt - a.updatedAt);
+    const want = realDir(dir);
+    const tab = third.find((t) => realDir(t.cwd) === want) ?? third[0];
+    return tab ? { kind: tab.backend, model: tab.modelOverride ?? null } : undefined;
+  }
+
+  /** 已知目录所在仓库的 worktree；列出来的（还在的）路径之后也算已知目录 */
+  async listWorktrees(cwd: unknown) {
+    const dir = this.knownDir(cwd);
+    const r = await gitWorktrees(dir);
+    for (const p of await ownedWorktrees(dir, r?.worktrees ?? [])) this.rememberWorktree(p);
+    return r;
+  }
+  private rememberWorktree(p: string) {
+    const abs = realDir(p);
+    this.worktreeDirs.delete(abs);
+    this.worktreeDirs.add(abs);
+    while (this.worktreeDirs.size > 200)
+      this.worktreeDirs.delete(this.worktreeDirs.values().next().value!);
   }
 
   private rememberCwd(abs: string) {
@@ -912,6 +1018,7 @@ export class HarnessOrchestrator {
     if (opts.reasoningEffort && isReasoningEffort(opts.reasoningEffort))
       tab.reasoningEffort = opts.reasoningEffort;
     this.tabs.set(tab.id, tab);
+    if (opts.delegation) this.delegatedUnsent.add(tab.id);
     const seeded = Array.isArray(opts.messages)
       ? opts.messages
           .filter(
@@ -1051,6 +1158,8 @@ export class HarnessOrchestrator {
     const idx = order.indexOf(id);
     this.tabs.delete(id);
     this.messages.delete(id);
+    this.delegatedUnsent.delete(id);
+    this.stopBeforeStart.delete(id);
     this.tabFileBytes.delete(id);
     this.progress.delete(id);
     // a pending coalesced write must not recreate the deleted file
@@ -2057,6 +2166,12 @@ export class HarnessOrchestrator {
    * CLI 没应答 / 这条消息还在它的队列里 / 宽限期内这一轮没结束时，才拆进程（下一轮 --resume）。
    */
   cancelTab(id: string): boolean {
+    // 委派子任务的卡片一出现就能点停止，此时第一轮可能还没开始（建 worktree / git 检查较慢，
+    // Windows 上尤甚）：记下来，sendTab 开始时直接按「已停止」结束，而不是悄悄丢掉这次停止
+    if (this.delegatedUnsent.has(id) && this.tabs.has(id)) {
+      this.stopBeforeStart.add(id);
+      return true;
+    }
     const queued = this.tabs.get(id)?.status === 'queued';
     if (queued) this.stopRequested.add(id);
     // 这一轮已开始、但还没真正发给 CLI（Gemini 握手 / 等权限模式确认）：中止它的令牌，
@@ -2179,6 +2294,8 @@ export class HarnessOrchestrator {
       await this.takeOverDelegatedTab(id);
     }
     const current = this.requireTab(id);
+    this.delegatedUnsent.delete(id);
+    const stopBeforeStart = this.stopBeforeStart.delete(id) && !opts.userInitiated;
     // 只有自发轮次在跑时允许发送：CLI 会排队处理，回显到达时再切换归属（§4）
     const autoOnly = current.status === 'running' && this.isAutoOnly(id);
     if ((current.status === 'running' && !autoOnly) || current.status === 'queued')
@@ -2224,6 +2341,10 @@ export class HarnessOrchestrator {
     current.status = 'running';
     const abort = new AbortController();
     this.sendAborts.set(id, abort);
+    if (stopBeforeStart) {
+      this.stopRequested.add(id);
+      abort.abort();
+    }
     const startedAt = Date.now();
     this.turnExits.delete(id);
     const quality = this.qualityBase(current);
@@ -2238,6 +2359,7 @@ export class HarnessOrchestrator {
     const stageDir = normalized.length ? this.promptImageDir(id) : null;
     let staged: StagedImage[] = [];
     try {
+      if (abort.signal.aborted) throw new Error(t('electron.common.aborted'));
       if (stageDir && normalized.length) staged = stageImages(stageDir, normalized);
       const result =
         backend === 'claude'
@@ -4800,6 +4922,23 @@ export class HarnessOrchestrator {
     );
     handle('ai:harness:git-diff', (cwd) => gitDiff(this.knownDir(cwd)));
     handle('ai:harness:git-branch', (cwd) => gitBranch(this.knownDir(cwd)));
+    // 右栏「改动」的写操作（见 gitOps.ts）：暂存、提交、拉取只快进、推送不强推
+    handle('ai:harness:git-sync-status', (cwd) => gitSyncStatus(this.knownDir(cwd)));
+    handle('ai:harness:git-stage', (cwd, paths) => gitStage(this.knownDir(cwd), paths));
+    handle('ai:harness:git-unstage', (cwd, paths) => gitUnstage(this.knownDir(cwd), paths));
+    handle('ai:harness:git-commit', (cwd, message, paths) =>
+      gitCommit(this.knownDir(cwd), message, paths ?? undefined),
+    );
+    handle('ai:harness:git-commit-undo', (cwd, sha) => gitCommitUndo(this.knownDir(cwd), sha));
+    handle('ai:harness:git-fetch', (cwd) => gitFetch(this.knownDir(cwd)));
+    handle('ai:harness:git-pull', (cwd) => gitPull(this.knownDir(cwd)));
+    handle('ai:harness:git-push', (cwd) => gitPush(this.knownDir(cwd)));
+    handle('ai:harness:git-worktrees', (cwd) => this.listWorktrees(cwd));
+    handle('ai:harness:git-discard', (cwd, paths) => gitDiscard(this.knownDir(cwd), paths));
+    handle('ai:harness:git-discard-undo', (cwd, sha) => gitDiscardUndo(this.knownDir(cwd), sha));
+    handle('ai:harness:git-suggest-message', (cwd, paths) =>
+      this.suggestCommitMessage(cwd, paths ?? undefined),
+    );
     handle('ai:harness:workspace-read', (cwd, filePath) =>
       readWorkspaceFile(this.knownDir(cwd), String(filePath ?? '')),
     );

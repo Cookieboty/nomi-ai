@@ -310,7 +310,12 @@ describe('large history', () => {
     await waitFor(() => r.getAllByTestId('history-item'));
     await type(r, 'qqqzzzxxx');
     await waitFor(() => r.getByTestId('sidebar-search-empty'));
-    expect(calls.filter(([c, a]) => c === 'ai:history:index' && a[0] === 'claude')).toHaveLength(1);
+    // 空态可能先于索引请求渲染（慢机器上更明显），等请求记录到再断言
+    await waitFor(() =>
+      expect(calls.filter(([c, a]) => c === 'ai:history:index' && a[0] === 'claude')).toHaveLength(
+        1,
+      ),
+    );
     // 逐页点到最后一页为止：累计到硬上限后前端主动收尾，按钮消失。
     // loading 期间按钮是 disabled，需要等它恢复可用再点
     const clickMoreWhenEnabled = async () => {

@@ -10,9 +10,7 @@
   display: flex;
   align-items: flex-end;
   gap: var(--cd-space-3);
-  background: var(--cd-color-surface-raised);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: var(--cd-chat-input-bg);
   border: 1px solid var(--cd-color-border);
   border-radius: var(--cd-radius-xl);
   padding: var(--cd-space-3) 14px;
