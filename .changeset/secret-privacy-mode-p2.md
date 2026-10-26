@@ -1,8 +1,6 @@
 ---
-'@nomi-ai/gateway': minor
 '@nomi-ai/electron': minor
 '@nomi-ai/ai-chat': minor
-'@nomi-ai/ai-runtime': minor
 '@nomi-ai/bundle-ig-base': patch
 ---
 

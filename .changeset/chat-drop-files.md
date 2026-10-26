@@ -1,7 +1,6 @@
 ---
 '@nomi-ai/ai-chat': patch
 '@nomi-ai/electron': patch
-'@nomi-ai/i18n': patch
 ---
 
 对话窗口可以拖入 / 粘贴任意文件，拖到对话区任意位置都能放下：图片仍作图片附件；其他文件显示为文件卡片，点开可预览内容。
