@@ -378,3 +378,70 @@ export function gitPush(cwd: string): Promise<GitOpResult> {
     return r.code === 0 ? { ok: true, output: out(r) } : fail(classify(r), r);
   });
 }
+
+export interface GitWorktree {
+  path: string;
+  /** 分支名（refs/heads/ 之后）；游离 HEAD 时不给 */
+  branch?: string;
+  head?: string;
+  detached?: boolean;
+  /** 第一个：主工作区 */
+  main?: boolean;
+  /** 就是传入的 cwd 所在的 worktree */
+  current?: boolean;
+  /** Nomi 委派任务的隔离目录（.nomi-delegate/<id>） */
+  delegate?: boolean;
+  locked?: boolean;
+  /** 目录已经不在了（git worktree prune 会清掉） */
+  prunable?: boolean;
+}
+
+export interface GitWorktreeList {
+  /** cwd 是附属 worktree（不是主工作区） */
+  linked: boolean;
+  worktrees: GitWorktree[];
+}
+
+/** 解析 `git worktree list --porcelain`：每段空行分隔，`worktree <path>` 开头 */
+export function parseWorktrees(raw: string): GitWorktree[] {
+  const list: GitWorktree[] = [];
+  for (const block of raw.split(/\n\s*\n/)) {
+    let w: GitWorktree | null = null;
+    let bare = false;
+    for (const l of block.split('\n')) {
+      const [key, ...rest] = l.split(' ');
+      const val = rest.join(' ');
+      if (key === 'worktree') w = { path: val };
+      else if (!w) continue;
+      else if (key === 'HEAD') w.head = val;
+      else if (key === 'branch') w.branch = val.replace(/^refs\/heads\//, '');
+      else if (key === 'detached') w.detached = true;
+      else if (key === 'bare') bare = true;
+      else if (key === 'locked') w.locked = true;
+      else if (key === 'prunable') w.prunable = true;
+    }
+    if (w && !bare) list.push(w);
+  }
+  return list;
+}
+
+/** 同一个仓库的所有 worktree；不是 git 仓库时 null */
+export async function gitWorktrees(cwd: string): Promise<GitWorktreeList | null> {
+  const top = await line(cwd, ['rev-parse', '--show-toplevel']);
+  if (!top) return null;
+  const [gitDir, commonDir] = (
+    await line(cwd, ['rev-parse', '--path-format=absolute', '--git-dir', '--git-common-dir'])
+  ).split('\n');
+  const r = await run(cwd, ['worktree', 'list', '--porcelain']);
+  const here = real(top);
+  const worktrees = (r.code === 0 ? parseWorktrees(r.stdout) : [{ path: top }]).map((w, i) => ({
+    ...w,
+    ...(i === 0 ? { main: true } : {}),
+    ...(real(w.path) === here ? { current: true } : {}),
+    ...(/[\\/]\.nomi-delegate[\\/][^\\/]+$/.test(w.path) ? { delegate: true } : {}),
+  }));
+  return {
+    linked: !!gitDir && !!commonDir && real(gitDir) !== real(commonDir),
+    worktrees,
+  };
+}

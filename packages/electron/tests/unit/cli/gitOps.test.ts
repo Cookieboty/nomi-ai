@@ -22,6 +22,8 @@ import {
   gitStage,
   gitSyncStatus,
   gitUnstage,
+  gitWorktrees,
+  parseWorktrees,
 } from '../../../src/cli/gitOps';
 
 const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('GIT_')));
@@ -245,5 +247,53 @@ describe('gitOps', () => {
     expect(classify(r('git@github.com: Permission denied (publickey).'))).toBe('auth');
     expect(classify(r('', true))).toBe('timeout');
     expect(classify(r('fatal: something else'))).toBe('error');
+  });
+
+  it('worktree：列出主工作区、附属 worktree 和委派目录；附属 worktree 里也能提交', async () => {
+    const wt = path.join(root, 'wt');
+    git(repo, 'worktree', 'add', '-q', '-b', 'feat', wt);
+    const del = path.join(repo, '.nomi-delegate', 'abc');
+    git(repo, 'worktree', 'add', '-q', '--detach', del);
+    const main = await gitWorktrees(repo);
+    expect(main?.linked).toBe(false);
+    const real = (p: string) => fs.realpathSync(p);
+    const at = (p: string) => main?.worktrees.find((w) => real(w.path) === real(p));
+    expect(main?.worktrees).toHaveLength(3);
+    expect(main?.worktrees[0]).toBe(at(repo));
+    expect(at(repo)).toMatchObject({ main: true, current: true, branch: 'main' });
+    expect(at(wt)).toMatchObject({ branch: 'feat' });
+    expect(at(wt)?.main).toBeUndefined();
+    expect(at(del)).toMatchObject({ delegate: true, detached: true });
+
+    const linked = await gitWorktrees(wt);
+    expect(linked?.linked).toBe(true);
+    expect(linked?.worktrees.find((w) => w.current)?.branch).toBe('feat');
+
+    write(path.join(wt, 'w.txt'), 'w');
+    expect((await gitCommit(wt, 'feat: w', ['w.txt'])).ok).toBe(true);
+    expect(git(repo, 'log', '-1', '--format=%s', 'feat')).toBe('feat: w');
+    expect(await gitWorktrees(root)).toBeNull();
+  });
+
+  it('parseWorktrees：跳过 bare，认出 locked / prunable', () => {
+    const raw = [
+      'worktree /r',
+      'bare',
+      '',
+      'worktree /r/a b',
+      'HEAD 1234',
+      'branch refs/heads/x/y',
+      'locked reason',
+      '',
+      'worktree /gone',
+      'HEAD 5678',
+      'detached',
+      'prunable gitdir file points to non-existent location',
+      '',
+    ].join('\n');
+    expect(parseWorktrees(raw)).toEqual([
+      { path: '/r/a b', head: '1234', branch: 'x/y', locked: true },
+      { path: '/gone', head: '5678', detached: true, prunable: true },
+    ]);
   });
 });

@@ -6,7 +6,10 @@ jest.unmock('fs');
 jest.unmock('path');
 jest.unmock('node:fs');
 jest.unmock('node:path');
+jest.unmock('child_process');
+jest.unmock('node:child_process');
 
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -55,5 +58,23 @@ describe('CliHarnessService.knownDir', () => {
     expect(() => h.knownDir(path.join(proj, 'nope'))).toThrow();
     expect(() => h.knownDir('')).toThrow();
     expect(() => h.knownDir(undefined)).toThrow();
+  });
+
+  it('worktree：列出已知仓库的 worktree 之后，这些目录也算已知；没列过的不算', async () => {
+    const env = Object.fromEntries(
+      Object.entries(process.env).filter(([k]) => !k.startsWith('GIT_')),
+    );
+    const git = (...a: string[]) => execFileSync('git', a, { cwd: proj, env, stdio: 'ignore' });
+    git('init', '-q', '-b', 'main');
+    git('-c', 'user.email=a@b', '-c', 'user.name=t', 'commit', '-q', '--allow-empty', '-m', 'i');
+    const wt = path.join(other, 'wt');
+    git('worktree', 'add', '-q', '--detach', wt);
+    h.createTab({ backend: 'claude', cwd: proj });
+    expect(() => h.knownDir(wt)).toThrow();
+    const r = await h.listWorktrees(proj);
+    expect(r?.worktrees).toHaveLength(2);
+    expect(h.knownDir(wt)).toBe(path.resolve(wt));
+    // 不是已知目录就不能拿来列
+    await expect(h.listWorktrees(path.dirname(proj))).rejects.toThrow();
   });
 });

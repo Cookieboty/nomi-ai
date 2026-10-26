@@ -84,6 +84,7 @@ import {
   gitStage,
   gitSyncStatus,
   gitUnstage,
+  gitWorktrees,
 } from '../gitOps';
 import { pickIdle, resolveIdleReclaimMs, sweepIntervalMs } from '../idleReclaim';
 import {
@@ -285,6 +286,15 @@ const CLI_BACKENDS: readonly BuiltinBackend[] = BUILTIN_CLI_IDS;
 
 type State = ReturnType<HarnessOrchestrator['state']>;
 
+/** 真实路径（git 给的 worktree 路径已解析软链，如 macOS 的 /var → /private/var）；读不到时原样 */
+function realDir(p: string): string {
+  try {
+    return fs.realpathSync(p);
+  } catch {
+    return path.resolve(p);
+  }
+}
+
 /**
  * 编排层（docs/design/cli-plugin-architecture.md §5.4）：标签、持久化、来源 / 账号、回收、权限队列与界面广播。
  * 各 CLI 的会话协议在 cli-sdk 的共享驱动里，各 CLI 的差异（档位、账号目录、历史、收尾规则）在
@@ -482,7 +492,31 @@ export class HarnessOrchestrator {
     const want = key(abs);
     for (const tab of this.tabs.values()) if (key(path.resolve(tab.cwd)) === want) return abs;
     if (this.recent.some((p) => key(p) === want)) return abs;
+    if (this.worktreeDirs.size) {
+      const real = key(realDir(abs));
+      if ([...this.worktreeDirs].some((p) => key(p) === real)) return abs;
+    }
     throw new Error(t('electron.common.invalid-working-directory'));
+  }
+
+  /**
+   * 已知目录所在仓库的 worktree（git worktree list 给的，不是渲染层给的）：右栏可以切过去看改动、提交。
+   * 只在内存里；上限防止无限增长。
+   */
+  private worktreeDirs = new Set<string>();
+
+  /** 已知目录所在仓库的 worktree；列出来的（还在的）路径之后也算已知目录 */
+  async listWorktrees(cwd: unknown) {
+    const r = await gitWorktrees(this.knownDir(cwd));
+    for (const w of r?.worktrees ?? []) if (!w.prunable) this.rememberWorktree(w.path);
+    return r;
+  }
+  private rememberWorktree(p: string) {
+    const abs = realDir(p);
+    this.worktreeDirs.delete(abs);
+    this.worktreeDirs.add(abs);
+    while (this.worktreeDirs.size > 200)
+      this.worktreeDirs.delete(this.worktreeDirs.values().next().value!);
   }
 
   private rememberCwd(abs: string) {
@@ -4821,6 +4855,7 @@ export class HarnessOrchestrator {
     handle('ai:harness:git-fetch', (cwd) => gitFetch(this.knownDir(cwd)));
     handle('ai:harness:git-pull', (cwd) => gitPull(this.knownDir(cwd)));
     handle('ai:harness:git-push', (cwd) => gitPush(this.knownDir(cwd)));
+    handle('ai:harness:git-worktrees', (cwd) => this.listWorktrees(cwd));
     handle('ai:harness:workspace-read', (cwd, filePath) =>
       readWorkspaceFile(this.knownDir(cwd), String(filePath ?? '')),
     );
