@@ -485,18 +485,34 @@ describe('试一试', () => {
 });
 
 describe('性能', () => {
-  it('1 MiB 文本类请求体扫描不慢（宽松阈值，防回退）', () => {
-    const chunk = 'const url = "https://x.example/a?b=1"; // nomi- Bearer key=v\n'.repeat(300);
-    const messages = Array.from({ length: Math.ceil((1 << 20) / chunk.length) }, (_, i) => ({
+  const chunk = 'const url = "https://x.example/a?b=1"; // nomi- Bearer key=v\n'.repeat(300);
+  const bodyOf = (bytes: number) => ({
+    model: 'm',
+    messages: Array.from({ length: Math.ceil(bytes / chunk.length) }, (_, i) => ({
       role: 'user',
       content: [{ type: 'tool_result', tool_use_id: `t${i}`, content: chunk }],
-    }));
-    const body = { model: 'm', messages };
+    })),
+  });
+  /** 取多次中的最快一次：CI 共享 runner 上单次计时会被 GC / 调度抖动拉长几十倍 */
+  const fastest = (body: unknown, s: SecretStore, runs = 5) => {
+    maskBody(body, s, { key: KEY });
+    let best = Infinity;
+    for (let i = 0; i < runs; i++) {
+      const t = performance.now();
+      maskBody(body, s, { key: KEY });
+      best = Math.min(best, performance.now() - t);
+    }
+    return best;
+  };
+
+  it('1 MiB 文本类请求体扫描不慢、随体积线性增长（防回退）', () => {
     const s = store([{ kind: 'API_KEY', value: 'zp-secret-value-123456' }]);
-    maskBody(body, s, { key: KEY });
-    const t = performance.now();
-    maskBody(body, s, { key: KEY });
-    expect(performance.now() - t).toBeLessThan(100);
+    const small = fastest(bodyOf(1 << 20), s);
+    const large = fastest(bodyOf(4 << 20), s);
+    // 本机 1 MiB 约 15 ms；阈值只拦灾难性回退（回溯 / 二次方会到秒级），不拦机器快慢
+    expect(small).toBeLessThan(500);
+    // 线性约 4 倍，二次方约 16 倍；留出噪声余量
+    expect(large / Math.max(small, 1)).toBeLessThan(10);
   });
 });
 
