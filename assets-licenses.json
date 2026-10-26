@@ -6,6 +6,12 @@
   "reviewedLicenses": {},
   "assets": [
     {
+      "pattern": "packages/electron/assets/backgrounds/nomi-preset.jpg",
+      "license": "MIT",
+      "author": "Nomi-ai project owner (Cookieboty) — owner-provided, AI-generated Nomi artwork, licensed by project owner for this open-source repository (confirmed 2026-10-26); recompressed to 1920×1080 JPEG",
+      "source": "Nomi image-theme preset (owner-provided)"
+    },
+    {
       "pattern": "packages/renderer/public/assets/models/{model-list.json,CREDITS.md}",
       "license": "MIT",
       "author": "Nomi contributors",

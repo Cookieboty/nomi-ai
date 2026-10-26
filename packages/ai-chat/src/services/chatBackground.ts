@@ -1,70 +1,24 @@
 /**
- * 工作台背景（侧栏 / 对话列 / Diff 与文件栏）：主进程 chat-bg:* 持久化；无 IPC 时落 localStorage（浏览器 / 单测）。
+ * 图片主题背景（图片 / 模糊 / 透明度）：主进程 chat-bg:* 持久化；无 IPC 时落 localStorage（浏览器 / 单测）。
+ * 是否显示只看主题 pref === 'image'；状态与校验共用 @nomi-ai/types。
  */
+import {
+  CHAT_BG_ERROR,
+  CHAT_BG_MAX_BYTES,
+  CHAT_BG_PRESET_URL,
+  DEFAULT_CHAT_BG,
+  sanitizeChatBg,
+  type ChatBackgroundState,
+} from '@nomi-ai/types';
+import { createLogger, t as tr } from '@nomi-ai/ui';
 import type { CSSProperties } from 'react';
 
-export type ChatBgMode = 'default' | 'solid' | 'image';
-
-export interface ChatBackgroundState {
-  mode: ChatBgMode;
-  solidColor: string;
-  imageUrl: string | null;
-  /** 各栏透出背景时的模糊 px：左 = 侧栏，中 = 对话列，右 = Diff 与文件栏 */
-  blurLeft: number;
-  blurCenter: number;
-  blurRight: number;
-  opacity: number;
-}
-
-export const DEFAULT_CHAT_BG: ChatBackgroundState = {
-  mode: 'default',
-  solidColor: '#fff8f1',
-  imageUrl: null,
-  blurLeft: 0,
-  blurCenter: 0,
-  blurRight: 0,
-  opacity: 0.35,
-};
+export { CHAT_BG_PRESET_URL, DEFAULT_CHAT_BG, sanitizeChatBg, type ChatBackgroundState };
 
 const KEY = 'cd.chatBackground';
-const MODES: ChatBgMode[] = ['default', 'solid', 'image'];
-const HEX = /^#[0-9a-fA-F]{6}$/;
-const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
-
-export function sanitizeChatBg(raw: unknown): ChatBackgroundState {
-  const o = (raw && typeof raw === 'object' ? raw : {}) as Partial<ChatBackgroundState> & {
-    /** 旧版单一 blur：没有分栏值时三栏都沿用 */
-    blur?: unknown;
-  };
-  const mode = MODES.includes(o.mode as ChatBgMode) ? (o.mode as ChatBgMode) : 'default';
-  const solidColor =
-    typeof o.solidColor === 'string' && HEX.test(o.solidColor)
-      ? o.solidColor
-      : DEFAULT_CHAT_BG.solidColor;
-  const imageUrl =
-    typeof o.imageUrl === 'string' &&
-    (o.imageUrl.startsWith('chat-asset://') ||
-      o.imageUrl.startsWith('data:') ||
-      o.imageUrl.startsWith('blob:'))
-      ? o.imageUrl
-      : null;
-  const px = (v: unknown, fallback: number) =>
-    typeof v === 'number' && Number.isFinite(v) ? clamp(v, 0, 40) : fallback;
-  const legacy = px(o.blur, 0);
-  const opacity =
-    typeof o.opacity === 'number' && Number.isFinite(o.opacity)
-      ? clamp(o.opacity, 0.05, 1)
-      : DEFAULT_CHAT_BG.opacity;
-  return {
-    mode,
-    solidColor,
-    imageUrl,
-    blurLeft: px(o.blurLeft, legacy),
-    blurCenter: px(o.blurCenter, legacy),
-    blurRight: px(o.blurRight, legacy),
-    opacity,
-  };
-}
+const log = createLogger('chat-bg');
+/** 滑块拖动时合并写入主进程的间隔 */
+export const CHAT_BG_WRITE_DEBOUNCE_MS = 150;
 
 type ChatBgApi = {
   get: () => Promise<unknown>;
@@ -81,6 +35,12 @@ const api = (): ChatBgApi | null => {
 
 let state: ChatBackgroundState = { ...DEFAULT_CHAT_BG };
 const listeners = new Set<(s: ChatBackgroundState) => void>();
+/** 尚未发出的补丁（防抖中）与已发出未返回的补丁：主进程广播回来时叠加，避免滑块回跳 */
+let queuedPatch: Partial<ChatBackgroundState> = {};
+let inFlightPatch: Partial<ChatBackgroundState> = {};
+let flushTimer: ReturnType<typeof setTimeout> | null = null;
+let waiters: Array<(s: ChatBackgroundState) => void> = [];
+let revision = 0;
 
 function emit(next: ChatBackgroundState): void {
   state = next;
@@ -102,8 +62,9 @@ export function subscribeChatBackground(fn: (s: ChatBackgroundState) => void): (
   return () => listeners.delete(fn);
 }
 
-/** 启动时调用一次：本地缓存 → 主进程 → 订阅变更 */
+/** 启动时调用一次：缓存预览 → 主进程验证图片与预设 → 订阅变更 */
 export function initChatBackground(): () => void {
+  const initialRevision = revision;
   try {
     const cached = localStorage.getItem(KEY);
     if (cached) emit(sanitizeChatBg(JSON.parse(cached)));
@@ -112,59 +73,122 @@ export function initChatBackground(): () => void {
   }
   const a = api();
   if (!a) return () => undefined;
-  void a.get().then((v) => emit(sanitizeChatBg(v)));
-  return a.onChanged((v) => emit(sanitizeChatBg(v)));
+  void a.get().then((value) => {
+    if (revision === initialRevision) emit(sanitizeChatBg(value));
+  });
+  return a.onChanged((value) => {
+    revision += 1;
+    emit(sanitizeChatBg({ ...(value as object), ...inFlightPatch, ...queuedPatch }));
+  });
 }
 
-export async function setChatBackground(
+async function flush(): Promise<void> {
+  flushTimer = null;
+  const a = api();
+  const patch = queuedPatch;
+  const done = waiters;
+  queuedPatch = {};
+  waiters = [];
+  inFlightPatch = { ...inFlightPatch, ...patch };
+  try {
+    if (a) await a.set(patch);
+  } catch (error) {
+    // 主进程没写进去：拉回主进程的真实值（叠加还没发出的补丁），界面不显示一个没保存的值
+    log.warn('chat-bg:set failed, resyncing', error);
+    try {
+      if (a) {
+        revision += 1;
+        emit(sanitizeChatBg({ ...((await a.get()) as object), ...queuedPatch }));
+      }
+    } catch {
+      /* 读也失败：保留本地预览 */
+    }
+  } finally {
+    if (!flushTimer) inFlightPatch = {};
+    for (const fn of done) fn(getChatBackground());
+  }
+}
+
+/** 本地立即生效；写主进程按 CHAT_BG_WRITE_DEBOUNCE_MS 合并（拖动滑块只落一次盘）。 */
+export function setChatBackground(
   patch: Partial<ChatBackgroundState>,
 ): Promise<ChatBackgroundState> {
+  revision += 1;
   const next = sanitizeChatBg({ ...state, ...patch });
   emit(next);
+  if (!api()) return Promise.resolve(next);
+  queuedPatch = { ...queuedPatch, ...patch };
+  if (flushTimer) clearTimeout(flushTimer);
+  flushTimer = setTimeout(() => void flush(), CHAT_BG_WRITE_DEBOUNCE_MS);
+  return new Promise((resolve) => waiters.push(resolve));
+}
+
+/** 当前图片加载失败（文件被删 / 移走）：让主进程重新校验并回退预设；无 IPC 时直接回退预设。 */
+export async function revalidateChatBackground(): Promise<ChatBackgroundState> {
+  revision += 1;
   const a = api();
-  if (!a) return next;
-  return sanitizeChatBg(await a.set(patch));
+  if (!a) {
+    const next = {
+      ...state,
+      imageUrl: state.imageUrl === CHAT_BG_PRESET_URL ? null : CHAT_BG_PRESET_URL,
+    };
+    emit(next);
+    return next;
+  }
+  const next = sanitizeChatBg(await a.set({}));
+  emit(next);
+  return next;
 }
 
 export async function resetChatBackground(): Promise<ChatBackgroundState> {
+  revision += 1;
+  if (flushTimer) clearTimeout(flushTimer);
+  flushTimer = null;
+  queuedPatch = {};
+  const pending = waiters;
+  waiters = [];
   const a = api();
   if (!a) {
     emit({ ...DEFAULT_CHAT_BG });
+    for (const fn of pending) fn(getChatBackground());
     return getChatBackground();
   }
-  return sanitizeChatBg(await a.reset());
+  const next = sanitizeChatBg(await a.reset());
+  emit(next);
+  for (const fn of pending) fn(next);
+  return next;
 }
 
 export async function pickChatBackgroundImage(): Promise<ChatBackgroundState> {
+  revision += 1;
   const a = api();
   if (!a) return getChatBackground();
-  return sanitizeChatBg(await a.pickImage());
+  const next = sanitizeChatBg(await a.pickImage());
+  emit(next);
+  return next;
 }
 
-/** 背景层本身的 CSS 变量（图片 / 纯色 / 透明度）；三栏模糊见 chatBgBlurVars */
-export function chatBgStyle(s: ChatBackgroundState): CSSProperties {
-  if (s.mode === 'default') {
-    return {
-      ['--cd-chat-bg-image' as string]: 'none',
-      ['--cd-chat-bg-color' as string]: 'transparent',
-      ['--cd-chat-bg-opacity' as string]: '0',
-    };
+/** 选图失败的本地化提示：主进程错误跨 IPC 后只剩消息文本，按开头的错误码识别 */
+export function chatBgErrorMessage(error: unknown): string {
+  const msg = error instanceof Error ? error.message : String(error);
+  if (msg.includes(CHAT_BG_ERROR.tooLarge)) {
+    return tr(
+      'ui.chat-settings.background-image-too-large',
+      String(CHAT_BG_MAX_BYTES / 1024 / 1024),
+    );
   }
-  const image =
-    s.mode === 'image' && s.imageUrl ? `url("${s.imageUrl.replace(/"/g, '\\"')}")` : 'none';
-  const color = s.mode === 'solid' ? s.solidColor : 'transparent';
-  return {
-    ['--cd-chat-bg-image' as string]: image,
-    ['--cd-chat-bg-color' as string]: color,
-    ['--cd-chat-bg-opacity' as string]: String(s.opacity),
-  };
+  if (msg.includes(CHAT_BG_ERROR.unsupported)) {
+    return tr('ui.chat-settings.background-image-unsupported');
+  }
+  return tr('ui.chat-settings.background-image-import-failed');
 }
 
-/** 三栏各自的 backdrop 模糊：挂到 <html> 上，侧栏 / 对话列 / 右侧各栏都能读到 */
-export function chatBgBlurVars(s: ChatBackgroundState): Record<string, string> {
+/** 背景层本身的 CSS 变量（图片 / 透明度）；模糊变量由背景层写到 <html>。 */
+export function chatBgStyle(s: ChatBackgroundState): CSSProperties {
   return {
-    '--cd-chat-bg-blur-left': `${s.blurLeft}px`,
-    '--cd-chat-bg-blur-center': `${s.blurCenter}px`,
-    '--cd-chat-bg-blur-right': `${s.blurRight}px`,
+    ['--cd-chat-bg-image' as string]: s.imageUrl
+      ? `url("${s.imageUrl.replace(/"/g, '\\"')}")`
+      : 'none',
+    ['--cd-chat-bg-opacity' as string]: String(s.opacity),
   };
 }

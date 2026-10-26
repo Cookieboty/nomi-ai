@@ -126,6 +126,37 @@ export type ClientModelsPatch = {
   [K in keyof ClientModels]?: ClientModels[K] | null;
 };
 
+export type PrivacyAction = 'mask' | 'warn' | 'block';
+
+export interface PrivacySettings {
+  /** 严格识别（按键名认）/ 本机模型也隐藏 / 形状保持（假 key 代替占位符），默认都关 */
+  strict: boolean;
+  local: boolean;
+  shape: boolean;
+  /** 没列出的类型是脱敏 */
+  actions: Partial<Record<string, 'warn' | 'block'>>;
+  /** 自定义密钥：只有名称与掩码 */
+  secrets: Array<{ id: string; name: string; masked: string }>;
+  /** 「从不脱敏」：例外标记与辨认用的类型、长度、开头几个字符 */
+  allow: Array<{ tag: string; kind: string; len: number; head: string; at: number }>;
+}
+
+/** 最近隐藏的密钥（按占位符汇总，只有元数据） */
+export interface PrivacyLogEntry {
+  placeholder: string;
+  kind: string;
+  len: number;
+  head: string;
+  allowTag: string;
+  action: string;
+  firstAt: number;
+  lastAt: number;
+  requests: number;
+  masked: number;
+  restored: number;
+  clients: string[];
+}
+
 export interface GatewayState {
   status: GatewayStatus;
   providers: ProviderView[];
@@ -146,6 +177,10 @@ export interface GatewayState {
   strictParams?: boolean;
   /** 入站请求体上限（字节）；默认 32 MiB */
   maxRequestBodyBytes?: number;
+  /** 隐私模式（默认开）：发往云端第三方供应商前把密钥换成占位符；旧主进程没有这个字段 */
+  privacyMode?: boolean;
+  /** 隐私模式的设置（docs/design/secret-privacy.md §12）；旧主进程没有 */
+  privacy?: PrivacySettings;
   migratedFrom?: { at: number; files: string[] };
   /** 模型目录：收录的模型数、版本（同步日；没同步过是内置目录的生成日）、是否来自同步 */
   catalog?: { models: number; version: string; synced: boolean };
@@ -300,8 +335,32 @@ export const gatewayClient = {
   clearLearned: (providerId: string) => call<void>('clear-learned', providerId),
   confirmPrivateHost: (hostPort: string) => call<void>('confirm-private-host', hostPort),
   retry: () => call<void>('retry'),
-  setOptions: (patch: { strictParams?: boolean; maxRequestBodyBytes?: number }) =>
-    call<GatewayState>('set-options', patch),
+  setOptions: (patch: {
+    strictParams?: boolean;
+    maxRequestBodyBytes?: number;
+    privacyMode?: boolean;
+    privacyStrict?: boolean;
+    privacyLocal?: boolean;
+    privacyShape?: boolean;
+  }) => call<GatewayState>('set-options', patch),
+  privacySetAction: (kind: string, action: PrivacyAction) =>
+    call<GatewayState>('privacy-set-action', kind, action),
+  privacyAddSecret: (name: string, value: string) =>
+    call<GatewayState>('privacy-add-secret', { name, value }),
+  privacyRemoveSecret: (id: string) => call<GatewayState>('privacy-remove-secret', id),
+  /** 从最近记录放行给标记；手动放行给原文（主进程算出标记后丢掉原文） */
+  privacyAddAllow: (
+    input: { value: string } | { tag: string; kind: string; len: number; head: string },
+  ) => call<GatewayState>('privacy-add-allow', input),
+  privacyRemoveAllow: (tag: string) => call<GatewayState>('privacy-remove-allow', tag),
+  privacyLog: () => call<PrivacyLogEntry[]>('privacy-log'),
+  privacyClearLog: () => call<void>('privacy-clear-log'),
+  /** 「试一试」：一段文字按现在的设置会变成什么（不影响网关里的占位符） */
+  privacyPreview: (text: string) =>
+    call<{
+      text: string;
+      hits: Array<{ kind: string; action: string; len: number; head: string }>;
+    }>('privacy-preview', text),
   onChanged: (fn: () => void) =>
     bridge()?.on?.('ai:gateway:changed', () => fn()) ?? (() => undefined),
 };

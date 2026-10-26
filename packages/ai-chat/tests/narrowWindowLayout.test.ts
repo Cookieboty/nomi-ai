@@ -79,3 +79,11 @@ describe('窄窗口四栏不横向溢出', () => {
     expect(css).not.toMatch(/\.files-rail\s*\{[^}]*min-width:\s*200px/s);
   });
 });
+
+describe('一体化标题栏下的高度', () => {
+  it('右栏和主区一样扣掉标题栏高度（否则底部固定的提交区被裁掉）', () => {
+    const rule =
+      /html\[data-platform\] \.main-content,\s*html\[data-platform\] \.files-rail \{[^}]*height:\s*calc\(100vh - var\(--cd-titlebar-h\)\)/;
+    expect(css).toMatch(rule);
+  });
+});

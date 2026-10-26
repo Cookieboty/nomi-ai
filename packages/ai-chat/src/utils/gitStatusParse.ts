@@ -4,6 +4,8 @@ export type GitFileStatus = 'M' | 'A' | 'D' | '?' | 'R' | 'C' | 'U' | ' ';
 
 export interface GitFileEntry {
   path: string;
+  /** 改名 / 复制前的路径（`R  old -> new`）：取消暂存时要连同它一起 */
+  from?: string;
   /** 工作区位（第二列）或未跟踪 */
   work: GitFileStatus;
   /** 暂存区位（第一列） */
@@ -55,7 +57,12 @@ export function parseStatusLine(line: string): GitFileEntry | null {
   const x = raw[0] ?? ' ';
   const y = raw[1] ?? ' ';
   let path = raw.slice(2).trim();
-  if (path.includes(' -> ')) path = path.split(' -> ').pop()!.trim();
+  let from: string | undefined;
+  if (path.includes(' -> ')) {
+    const [a, ...rest] = path.split(' -> ');
+    from = unquoteGitPath(a!.trim()) || undefined;
+    path = rest.join(' -> ').trim();
+  }
   if (!path) return null;
   path = unquoteGitPath(path);
   const index = letterOf(x === '?' ? '?' : x);
@@ -64,7 +71,7 @@ export function parseStatusLine(line: string): GitFileEntry | null {
   const staged = !untracked && index !== ' ' && index !== '?';
   const unstaged = untracked || (work !== ' ' && work !== '?') || work === '?';
   const letter = untracked ? '?' : work !== ' ' ? work : index;
-  return { path, work, index, letter, staged, unstaged, untracked };
+  return { path, ...(from ? { from } : {}), work, index, letter, staged, unstaged, untracked };
 }
 
 export function parseGitStatus(status: string): GitFileEntry[] {

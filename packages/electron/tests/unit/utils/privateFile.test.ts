@@ -15,6 +15,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import {
+  __renameDeps,
   __setSpawnSyncForTest,
   ensurePrivateDir,
   tightenWindowsAcl,
@@ -129,5 +130,50 @@ describe('privateFile Windows ACL', () => {
     expect(fs.readFileSync(file, 'utf8')).toBe('keep');
     expect(warn).toHaveBeenCalled();
     warn.mockRestore();
+  });
+});
+
+describe('writePrivateFileAtomic rename 重试', () => {
+  const original = { ...__renameDeps };
+  let dir: string;
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pf-rename-'));
+  });
+  afterEach(() => {
+    Object.assign(__renameDeps, original);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+  const busy = (code: string) => Object.assign(new Error(code), { code });
+
+  it('Windows 上目标被短暂占用（EPERM）时退避重试直到成功', () => {
+    const file = path.join(dir, 'a.json');
+    let failures = 2;
+    const sleeps: number[] = [];
+    __renameDeps.platform = () => 'darwin';
+    __renameDeps.rename = (from, to) => {
+      if (failures-- > 0) throw busy('EPERM');
+      fs.renameSync(from, to);
+    };
+    __renameDeps.sleep = (ms) => {
+      sleeps.push(ms);
+      return 'ok';
+    };
+    expect(() => writePrivateFileAtomic(file, '{}')).toThrow('EPERM');
+
+    failures = 2;
+    __renameDeps.platform = () => 'win32';
+    writePrivateFileAtomic(file, '{"x":1}');
+    expect(fs.readFileSync(file, 'utf8')).toBe('{"x":1}');
+    expect(sleeps).toEqual([10, 20]);
+  });
+
+  it('非瞬时错误不重试', () => {
+    __renameDeps.platform = () => 'win32';
+    const rename = jest.fn(() => {
+      throw busy('ENOENT');
+    });
+    __renameDeps.rename = rename;
+    expect(() => writePrivateFileAtomic(path.join(dir, 'b.json'), '{}')).toThrow('ENOENT');
+    expect(rename).toHaveBeenCalledTimes(1);
   });
 });

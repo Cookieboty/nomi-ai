@@ -20,7 +20,7 @@ import {
   THEME_IDS,
   // @ts-expect-error 纯 ESM 脚本（无类型声明），测试与 CLI 共用同一实现
 } from '../scripts/theme-contrast-lib.mjs';
-import { THEMES } from '../src/theme';
+import { THEMES, resolveTheme } from '../src/theme';
 
 interface Pair {
   group: string;
@@ -116,7 +116,7 @@ describe('contrast helpers', () => {
 describe('theme.ts swatches stay in sync with tokens.css', () => {
   for (const t of THEMES.filter((x) => x.id !== 'system')) {
     it(`${t.id}: swatch bg / text / accent equal the tokens`, () => {
-      const v = themes[t.id]!;
+      const v = themes[resolveTheme(t.id, true)]!;
       expect(t.swatch[0].toLowerCase()).toBe(v['--cd-color-bg']!.toLowerCase());
       expect(t.swatch[2].toLowerCase()).toBe(v['--cd-color-text']!.toLowerCase());
       expect(t.swatch[3].toLowerCase()).toBe(v['--cd-color-accent']!.toLowerCase());

@@ -10,6 +10,7 @@ import path from 'node:path';
 
 import type { ProviderStoreData, SecretCipher } from '@nomi-ai/ai-runtime';
 import {
+  allowTagOf,
   setCatalogOverlay,
   type detect,
   type GatewayConfig,
@@ -128,6 +129,146 @@ describe('GatewayService', () => {
     expect(again.state().providers).toHaveLength(1);
   });
 
+  it('privacy mode is on by default, the key survives restarts, and can be turned off', () => {
+    const t = setup();
+    t.svc.init();
+    const first = t.lastConfig().privacy!;
+    expect(first.enabled).toBe(true);
+    expect(first.key).toMatch(/^[0-9a-f]{64}$/);
+    expect(t.svc.state().privacyMode).toBe(true);
+    const file = path.join(t.root, 'gateway', 'store.json');
+    // 存储里只有加密后的密钥，没有 privacyMode 字段（默认开）
+    const saved = JSON.parse(fs.readFileSync(file, 'utf8')) as Record<string, unknown>;
+    expect(saved.privacyMode).toBeUndefined();
+    expect(JSON.stringify(saved)).not.toContain(first.key);
+
+    expect(t.svc.setOptions({ privacyMode: false }).privacyMode).toBe(false);
+    expect(t.lastConfig().privacy).toEqual({ enabled: false, key: first.key });
+    t.svc.setOptions({ privacyMode: 'no' });
+    expect(t.lastConfig().privacy!.enabled).toBe(false);
+    t.svc.setOptions({ privacyMode: true });
+    expect(t.lastConfig().privacy!.enabled).toBe(true);
+    expect(
+      (JSON.parse(fs.readFileSync(file, 'utf8')) as Record<string, unknown>).privacyMode,
+    ).toBeUndefined();
+
+    const again = new GatewayService({
+      root: path.join(t.root, 'gateway'),
+      cipher,
+      logger: { info() {}, warn() {} },
+      process: new GatewayProcess({
+        logger: { info() {}, warn() {} },
+        fork: () => new FakeChild() as never,
+      }),
+    });
+    again.init();
+    expect(again.runtimeConfig().privacy!.key).toBe(first.key);
+  });
+
+  it('privacy settings: per-kind actions, custom secrets and the never-mask list reach the snapshot', () => {
+    const t = setup();
+    t.svc.init();
+    const file = path.join(t.root, 'gateway', 'store.json');
+
+    t.svc.setPrivacyAction('PRIVATE_KEY', 'block');
+    t.svc.setPrivacyAction('API_KEY', 'warn');
+    t.svc.setPrivacyAction('API_KEY', 'mask');
+    expect(t.lastConfig().privacy!.actions).toEqual({ PRIVATE_KEY: 'block' });
+    expect(() => t.svc.setPrivacyAction('EMAIL', 'block')).toThrow();
+    expect(() => t.svc.setPrivacyAction('TOKEN', 'drop')).toThrow();
+
+    const v = t.svc.addPrivacySecret({ name: '公司内网', value: 'corp-internal-token-42' });
+    expect(v.privacy.secrets).toEqual([
+      { id: expect.any(String), name: '公司内网', masked: expect.any(String) },
+    ]);
+    expect(t.lastConfig().privacy!.known).toEqual([
+      { kind: 'CUSTOM', value: 'corp-internal-token-42' },
+    ]);
+    expect(fs.readFileSync(file, 'utf8')).not.toContain('corp-internal-token-42');
+    expect(() => t.svc.addPrivacySecret({ name: 'x', value: 'short' })).toThrow();
+    expect(() =>
+      t.svc.addPrivacySecret({ name: 'again', value: 'corp-internal-token-42' }),
+    ).toThrow();
+
+    // 手动放行给原文：只存标记
+    const key = t.lastConfig().privacy!.key;
+    t.svc.addPrivacyAllow({ value: 'sk-test-not-a-real-key-123456' });
+    t.svc.addPrivacyAllow({ tag: 'abcdefgh', kind: 'API_KEY', len: 40, head: 'sk-p' });
+    t.svc.addPrivacyAllow({ tag: 'abcdefgh', kind: 'API_KEY', len: 40, head: 'sk-p' });
+    expect(t.lastConfig().privacy!.allow).toEqual([
+      allowTagOf(key, 'sk-test-not-a-real-key-123456'),
+      'abcdefgh',
+    ]);
+    expect(fs.readFileSync(file, 'utf8')).not.toContain('sk-test-not-a-real-key-123456');
+    expect(() => t.svc.addPrivacyAllow({ tag: 'NOT-A-TAG' })).toThrow();
+
+    const id = t.svc.state().privacy.secrets[0]!.id;
+    t.svc.removePrivacySecret(id);
+    t.svc.removePrivacyAllow('abcdefgh');
+    t.svc.setPrivacyAction('PRIVATE_KEY', 'mask');
+    const p = t.lastConfig().privacy!;
+    expect(p.known).toBeUndefined();
+    expect(p.actions).toBeUndefined();
+    expect(p.allow).toHaveLength(1);
+  });
+
+  it('privacy sub-switches (strict / local / shape) default off and reach the snapshot', () => {
+    const t = setup();
+    t.svc.init();
+    const p0 = t.lastConfig().privacy!;
+    expect([p0.strict, p0.local, p0.shape]).toEqual([undefined, undefined, undefined]);
+    expect(t.svc.state().privacy).toMatchObject({ strict: false, local: false, shape: false });
+    t.svc.setOptions({ privacyStrict: true, privacyLocal: true, privacyShape: true });
+    expect(t.lastConfig().privacy).toMatchObject({ strict: true, local: true, shape: true });
+    t.svc.setOptions({ privacyShape: false, privacyLocal: 'yes' });
+    expect(t.lastConfig().privacy).toMatchObject({ strict: true, local: true });
+    expect(t.lastConfig().privacy!.shape).toBeUndefined();
+  });
+
+  it('privacy preview uses the current settings and known secrets without touching the gateway', () => {
+    const t = setup();
+    t.svc.init();
+    t.svc.addPrivacySecret({ name: 'db', value: 'corp-internal-token-42' });
+    t.svc.setPrivacyAction('CUSTOM', 'warn');
+    const r = t.svc.previewPrivacy(
+      'k sk-proj-Ab3dEf6hIj9kLm2nOp5qRs8tUv and corp-internal-token-42',
+    );
+    expect(r.text).not.toContain('sk-proj-Ab3dEf6hIj9kLm2nOp5qRs8tUv');
+    expect(r.text).toContain('corp-internal-token-42');
+    expect(r.hits.map((h) => [h.kind, h.action])).toEqual([
+      ['API_KEY', 'mask'],
+      ['CUSTOM', 'warn'],
+    ]);
+    expect(t.svc.previewPrivacy(42).text).toBe('');
+  });
+
+  it('privacy log aggregates hits from usage events by placeholder', () => {
+    const t = setup();
+    t.svc.init();
+    const hit = {
+      kind: 'API_KEY',
+      placeholder: '{{API_KEY_abcdefgh}}',
+      action: 'mask' as const,
+      len: 40,
+      head: 'sk-p',
+      masked: 1,
+      restored: 1,
+      allowTag: 'zzzzzzzz',
+    };
+    t.svc.notePrivacy({ client: 'claude', redactions: [hit] } as never);
+    t.svc.notePrivacy({ client: 'nomi', redactions: [{ ...hit, restored: 0 }] } as never);
+    t.svc.notePrivacy({ client: 'nomi' } as never);
+    expect(t.svc.privacyLogEntries()).toEqual([
+      expect.objectContaining({
+        placeholder: '{{API_KEY_abcdefgh}}',
+        requests: 2,
+        masked: 2,
+        restored: 1,
+        clients: ['claude', 'nomi'],
+      }),
+    ]);
+  });
+
   it('uses a temporary port while the legacy route still holds the port', () => {
     const t = setup({ routeListening: true });
     t.svc.init();
@@ -242,6 +383,34 @@ describe('GatewayService', () => {
     expect(() => t.svc.confirmPrivateHost('not a host')).toThrow();
     t.svc.confirmPrivateHost('127.0.0.1:11434');
     expect(t.lastConfig().allowedPrivateHosts).toEqual(['127.0.0.1:11434']);
+  });
+
+  it('helperRoute：编程助手的辅助档 → Haiku 档 → 标签模型 → 主模型，取第一个能路由的', async () => {
+    const t = setup();
+    t.svc.init();
+    t.svc.upsertProvider({
+      name: 'DS',
+      urls: { chat: 'https://api.deepseek.com/v1' },
+      newKeys: [{ value: 'sk-d' }],
+      models: [
+        { id: 'deepseek-v4-flash', enabled: true },
+        { id: 'deepseek-v4-pro', enabled: true },
+      ],
+    });
+    expect(t.svc.helperRoute('claude', 'ds/deepseek-v4-pro')).toBeNull(); // 网关还没就绪
+    t.children[0]!.say({ type: 'listening', port: 18721, url: 'http://127.0.0.1:18721' });
+    await t.svc.whenReady(100);
+    // 客户端什么都没设：用标签选的模型
+    expect(t.svc.helperRoute('claude', 'ds/deepseek-v4-pro')).toEqual({
+      model: 'ds/deepseek-v4-pro',
+      receiver: { id: 'ds', name: 'DS', local: false },
+    });
+    // 设了 Haiku 档：优先用它（更便宜）；路由不了的引用跳过
+    t.svc.setAssignment('claude', {
+      models: { main: 'ds/deepseek-v4-pro', tiers: { haiku: 'ds/deepseek-v4-flash' } },
+    });
+    expect(t.svc.helperRoute('claude', 'nope/x')!.model).toBe('ds/deepseek-v4-flash');
+    expect(t.svc.helperRoute('codex', null)).toBeNull();
   });
 
   it("routes Nomi chat roles through the gateway with each model's own wire", async () => {

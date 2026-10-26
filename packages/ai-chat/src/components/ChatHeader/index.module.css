@@ -2,11 +2,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 44px;
+  height: var(--cd-chat-header-h);
   padding: 0 var(--cd-space-3) 0 var(--cd-space-4);
   flex-shrink: 0;
   position: relative;
   z-index: 3;
+  background: var(--cd-chat-header-bg);
 }
 .actions {
   margin-left: auto;
@@ -22,12 +23,11 @@
 }
 .header[data-with-tabs] {
   gap: var(--cd-space-2);
-  border-bottom: 1px solid var(--cd-color-border);
+  padding-left: 0;
+  border-bottom: 1px solid var(--cd-panel-border);
 }
-/* 标签贴底（ms 高），右侧按钮也贴底、同高：两边同一条中线（居中会比标签高半个差值） */
 .header[data-with-tabs] .actions {
-  align-self: flex-end;
-  height: var(--cd-control-h-ms);
+  align-self: stretch;
 }
 .tabsSlot {
   display: flex;
@@ -44,11 +44,11 @@
   }
   .header[data-with-tabs] .actions {
     align-self: center;
-    height: 44px;
+    height: var(--cd-chat-header-h);
   }
   .header[data-with-tabs] .tabsSlot {
     order: 1;
     flex-basis: 100%;
-    height: calc(var(--cd-control-h-ms) + var(--cd-space-1));
+    height: var(--cd-chat-header-h);
   }
 }

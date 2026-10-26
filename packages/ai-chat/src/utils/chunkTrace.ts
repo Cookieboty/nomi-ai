@@ -7,6 +7,8 @@ export interface StreamUsage {
   cacheReadTokens?: number;
   /** 最后一步请求的上下文占用（多步工具循环时 < inputTokens） */
   contextTokens?: number;
+  /** 隐私模式在这一轮发给第三方供应商的内容里隐藏了几个密钥（统一网关报回） */
+  redacted?: number;
 }
 
 type Chunk = { type: string; [k: string]: unknown };
@@ -57,5 +59,7 @@ export function chunkToUsage(c: Chunk): StreamUsage | null {
   if (i !== undefined) out.inputTokens = i;
   if (o !== undefined) out.outputTokens = o;
   if (cr !== undefined) out.cacheReadTokens = cr;
+  const red = n(u.redacted);
+  if (red !== undefined && red > 0) out.redacted = Math.trunc(red);
   return Object.keys(out).length ? out : null;
 }

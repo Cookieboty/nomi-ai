@@ -1,7 +1,7 @@
 /**
  * 界面主题：用户选择持久化到 userData/theme.json，广播给所有窗口（对话窗口 + 看板娘）。
  * 「跟随系统」用 nativeTheme 解析：深色 → Graphite，浅色 → Cream，系统切换时实时更新。
- * 新用户默认 Sunset Orange；已保存的选择优先。历史 id `paper` 读入时映射为 `cream`。
+ * 新用户默认 Sunset Orange；已保存的选择优先。历史 id `paper` 读入时映射为 `cream` 并写回。
  *
  * macOS 窗口外观（nativeTheme.themeSource）跟随所选主题：否则系统是浅色、主题是深色时，
  * 失焦窗口的红绿灯按浅色外观画成半透明深灰，落在深色标题栏上就看不见了。
@@ -15,28 +15,29 @@ import { guardedHandle } from '../security/guardedIpc';
 
 export const THEME_IDS = ['mist', 'graphite', 'ink', 'cream', 'sunset'] as const;
 export type ThemeId = (typeof THEME_IDS)[number];
-export type ThemePref = ThemeId | 'system';
+export type ThemePref = ThemeId | 'system' | 'image';
 export const DEFAULT_THEME: ThemePref = 'sunset';
 
+/** v1.0.4 前的「纸白」已改名奶油；老用户的 theme.json 里可能还是 paper */
 const LEGACY: Record<string, ThemeId> = { paper: 'cream' };
 
 export const normalizeThemePref = (v: unknown): ThemePref | null => {
   if (typeof v !== 'string') return null;
-  if (v === 'system') return 'system';
+  if (v === 'system' || v === 'image') return v;
   if (v in LEGACY) return LEGACY[v]!;
   return (THEME_IDS as readonly string[]).includes(v) ? (v as ThemeId) : null;
 };
 
 export const isThemePref = (v: unknown): v is ThemePref => normalizeThemePref(v) !== null;
 export const resolveTheme = (pref: ThemePref, dark: boolean): ThemeId =>
-  pref === 'system' ? (dark ? 'graphite' : 'cream') : pref;
+  pref === 'image' ? 'graphite' : pref === 'system' ? (dark ? 'graphite' : 'cream') : pref;
 
 /** 深色主题：窗口外观用 dark（与 packages/ui/src/tokens.css 的深色主题一致） */
 const DARK_THEMES: ReadonlySet<ThemeId> = new Set<ThemeId>(['graphite', 'ink']);
 
 /** 所选主题对应的原生窗口外观；「跟随系统」交还给系统 */
 export const appearanceFor = (pref: ThemePref): 'system' | 'dark' | 'light' =>
-  pref === 'system' ? 'system' : DARK_THEMES.has(pref) ? 'dark' : 'light';
+  pref === 'system' ? 'system' : DARK_THEMES.has(resolveTheme(pref, true)) ? 'dark' : 'light';
 
 export interface ThemeState {
   pref: ThemePref;
@@ -67,6 +68,7 @@ export class ThemeService {
       const raw = JSON.parse(fs.readFileSync(file, 'utf8')) as { theme?: unknown };
       const n = normalizeThemePref(raw.theme);
       if (n) this.pref = n;
+      if (n && n !== raw.theme) this.persist();
     } catch {
       /* 首次运行：用默认 */
     }
@@ -86,10 +88,14 @@ export class ThemeService {
     this.pref = n;
     // 先切外观再解析：从固定主题切回「跟随系统」时，shouldUseDarkColors 要按系统重新算
     this.syncAppearance();
-    fs.mkdirSync(path.dirname(this.file), { recursive: true });
-    fs.writeFileSync(this.file, JSON.stringify({ theme: n }, null, 2), 'utf8');
+    this.persist();
     this.broadcast();
     return this.get();
+  }
+
+  private persist(): void {
+    fs.mkdirSync(path.dirname(this.file), { recursive: true });
+    fs.writeFileSync(this.file, JSON.stringify({ theme: this.pref }, null, 2), 'utf8');
   }
 
   private syncAppearance(): void {

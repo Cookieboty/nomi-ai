@@ -64,6 +64,14 @@ describe('redaction', () => {
     expect(out).toContain('?key=[REDACTED]&a=1');
   });
 
+  it('uses the shared privacy rules too (private keys, connection strings)', () => {
+    const out = redactText(
+      'k -----BEGIN PRIVATE KEY-----\nMIIEv\n-----END PRIVATE KEY----- db postgres://u:S3cretPw@h/db',
+    );
+    expect(out).not.toContain('MIIEv');
+    expect(out).not.toContain('S3cretPw');
+  });
+
   it('redacts secret fields by name but keeps token counts', () => {
     const out = redactJson(
       {
@@ -99,6 +107,31 @@ describe('redaction', () => {
     expect(s).toEqual(
       expect.arrayContaining(['zp-secret-value-123456', 'tok-claude-abcdef', 'legacy-token-xyz']),
     );
+  });
+});
+
+describe('隐私模式与追踪', () => {
+  it('自定义密钥与这次请求遮掉的原文不以明文写进追踪', async () => {
+    const custom = 'my-custom-secret-zzz';
+    const strictPw = 'hunter2hunter2X9';
+    const cfg = cfgBase({
+      privacy: { enabled: true, key: 'k', known: [{ kind: 'CUSTOM', value: custom }] },
+    });
+    expect(secretsOf(cfg)).toContain(custom);
+    const dir = path.join(tmpDir(), 'trace');
+    const t = new RequestTrace(dir, cfg, {
+      client: 'claude',
+      ingress: 'messages',
+      path: '/v1/messages',
+      startedAt: Date.now(),
+    });
+    t.addSecrets([strictPw]);
+    t.request({}, { messages: [{ role: 'user', content: `${custom} DB_PASSWORD=${strictPw}` }] });
+    t.client(`data: {"text":"${strictPw} ${custom}"}\n\n`);
+    const file = await t.finish({ status: 200, ms: 1, attempts: 1 });
+    const raw = fs.readFileSync(file!, 'utf8');
+    expect(raw).not.toContain(custom);
+    expect(raw).not.toContain(strictPw);
   });
 });
 

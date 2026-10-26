@@ -56,7 +56,7 @@
   max-width: min(640px, 82%);
   padding: var(--cd-space-2) 14px;
   border-radius: var(--cd-radius-xl) var(--cd-radius-xl) var(--cd-radius-xs) var(--cd-radius-xl);
-  background: var(--cd-color-user-msg);
+  background: var(--cd-chat-user-bg);
   color: var(--cd-color-text);
   font-size: var(--conv-text);
   line-height: var(--conv-leading);

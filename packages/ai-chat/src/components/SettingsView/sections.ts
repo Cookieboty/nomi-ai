@@ -138,6 +138,8 @@ export const SECTION_TABS = {
   ],
   privacy: [
     { id: 'data', label: 'ui.chat-settings.privacy-data' },
+    // 外发保护：发给模型 / 第三方供应商之前的处理（数据流向），与「数据存在本机」分开
+    { id: 'outbound', label: 'ui.chat-settings.outbound-protection' },
     { id: 'desktop', label: 'ui.chat-settings.desktop-permissions' },
   ],
   quality: [

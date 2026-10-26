@@ -258,7 +258,7 @@ Nomi 构建在这些优秀的开源项目之上：
 - [Zod](https://zod.dev/)、[Lucide](https://lucide.dev/)、[react-window](https://github.com/bvaughn/react-window)
 - [electron-builder](https://www.electron.build/) 与 electron-updater、[node-global-key-listener](https://github.com/LaunchMenu/node-global-key-listener)
 - [Rive](https://rive.app/)（`@rive-app/canvas-lite`，MIT）、[Qwen](https://github.com/QwenLM) 开源模型（本地模型目录）
-- 特别感谢 [magpie](https://github.com/yetone/magpie)（MIT）：统一网关的部分设计参考了它，比如推理档位贴合、不透明推理原样回传、工具调用 id 与配对处理
+- 特别感谢 [magpie](https://github.com/yetone/magpie)（MIT）：统一网关的部分设计参考了它，比如推理档位贴合、不透明推理原样回传、工具调用 id 与配对处理；隐私模式的密钥脱敏也参考了它（占位符、回程还原、已见值匹配、跳过规则、出错不发），部分密钥识别规则移植自其 `internal/redact`，见 [CREDITS.md](CREDITS.md)
 
 角色与图标的作者和许可也可以在应用内「致谢」页查看。
 
@@ -466,7 +466,7 @@ Nomi is built on excellent open-source projects:
 - [Zod](https://zod.dev/), [Lucide](https://lucide.dev/), [react-window](https://github.com/bvaughn/react-window)
 - [electron-builder](https://www.electron.build/) and electron-updater, [node-global-key-listener](https://github.com/LaunchMenu/node-global-key-listener)
 - [Rive](https://rive.app/) (`@rive-app/canvas-lite`, MIT), [Qwen](https://github.com/QwenLM) open models (local model catalog)
-- Special thanks to [magpie](https://github.com/yetone/magpie) (MIT): parts of the unified gateway design draw on it, such as reasoning-effort fitting, passing sealed reasoning back unchanged, and tool-call id and pairing handling
+- Special thanks to [magpie](https://github.com/yetone/magpie) (MIT): parts of the unified gateway design draw on it, such as reasoning-effort fitting, passing sealed reasoning back unchanged, and tool-call id and pairing handling; privacy mode's secret masking draws on it too (placeholders, restoring on the way back, matching already-seen values, skip rules, and not sending on errors), and some secret-detection rules are ported from its `internal/redact` — see [CREDITS.md](CREDITS.md)
 
 Authors and licenses for the character and icons are also listed in the in-app Credits page.
 

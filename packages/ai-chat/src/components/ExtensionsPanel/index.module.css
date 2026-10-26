@@ -55,7 +55,7 @@ textarea.mono {
   display: flex;
   flex-direction: column;
   gap: var(--cd-space-1-5);
-  background: var(--cd-color-surface-raised);
+  background: var(--cd-panel-surface-raised);
   transition: border-color var(--cd-duration-fast) var(--cd-ease);
 }
 .card:hover {
@@ -110,15 +110,19 @@ textarea.mono {
   padding: var(--cd-space-3) var(--cd-space-4);
   border-radius: var(--cd-radius-lg);
   border: 1px solid var(--cd-color-border);
-  background: var(--cd-color-surface-raised);
+  background: var(--cd-panel-surface-raised);
   color: var(--cd-color-text);
   cursor: pointer;
   font: inherit;
   font-size: var(--cd-font-size-sm);
+  transition:
+    background-color var(--cd-duration-fast) var(--cd-ease),
+    color var(--cd-duration-fast) var(--cd-ease),
+    border-color var(--cd-duration-fast) var(--cd-ease);
 }
 .preset:hover {
   border-color: var(--cd-color-border-strong);
-  background: var(--cd-color-hover);
+  background: var(--cd-chat-hover-bg);
 }
 .preset:focus-visible {
   outline: 2px solid var(--cd-color-accent-strong);
@@ -140,4 +144,11 @@ textarea.mono {
   flex: none;
   align-items: center;
   gap: var(--cd-space-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .preset {
+    transition: none;
+  }
 }

@@ -16,12 +16,15 @@
   font-size: var(--cd-font-size-md);
   display: flex;
   flex-direction: column;
-  background: var(--cd-color-surface-raised);
+  background: var(--cd-panel-surface-raised);
   color: var(--cd-color-text);
   border: 1px solid var(--cd-color-border);
   border-radius: var(--cd-radius-xl);
   box-shadow: var(--cd-shadow-lg);
   overflow: hidden;
+}
+:global(html[data-chat-bg]) .card {
+  background: var(--cd-modal-bg);
 }
 .head {
   display: flex;

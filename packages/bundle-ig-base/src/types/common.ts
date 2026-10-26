@@ -38,6 +38,8 @@ export interface ChatUsage {
    * 远大于真实上下文；有逐步用量时才填。
    */
   contextTokens?: number;
+  /** 隐私模式在这一轮发给第三方供应商的内容里隐藏了几个密钥（统一网关报回，含历史消息里的） */
+  redacted?: number;
 }
 
 export interface ChatResponse {

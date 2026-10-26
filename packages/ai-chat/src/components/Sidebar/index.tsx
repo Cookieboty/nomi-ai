@@ -1,5 +1,5 @@
 import { t, Icon } from '@nomi-ai/ui';
-import { RefreshCw, X, PanelLeft, SquarePen } from 'lucide-react';
+import { RefreshCw, X, SquarePen } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { List } from 'react-window';
 
@@ -62,8 +62,6 @@ interface SidebarProps {
   onNotice?: (message: string) => void;
   /** 「按端」信息卡里的跳转：设置 → 编程助手 / 用量与费用 */
   onOpenSettings?: (section: 'coding' | 'usage') => void;
-  /** 是否在侧栏顶部显示收起按钮（桌面应用里它在窗口标题栏，传 false） */
-  showToggle?: boolean;
   /** 侧栏底部的应用级入口（设置 / 知识 / 扩展 / 本机），由 App 传入 */
   footer?: React.ReactNode;
 }
@@ -76,7 +74,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onForkRequest,
   onNotice,
   onOpenSettings,
-  showToggle = true,
   footer,
 }) => {
   const { actions } = useAiChatActions();
@@ -195,17 +192,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
     return c;
   }, [navList]);
 
-  // 当前端的运行中 / 排队中标签数与最近一次标签活动（信息卡用）
+  // 左下角信息卡跟随当前会话所在的端（CLI 标签 / Nomi 对话）；点了顶部端点图标就先看那个端，
+  // 直到切换会话。还没有当前会话时退回筛选的端
+  const [cardPick, setCardPick] = useState<ConversationBackend | null>(null);
+  const [cardPickFor, setCardPickFor] = useState(highlightId);
+  if (cardPickFor !== highlightId) {
+    setCardPickFor(highlightId);
+    setCardPick(null);
+  }
+  const cardBackend: ConversationBackend =
+    cardPick ?? navList.find((x) => x.id === highlightId)?.backend ?? endpointFilter;
+  // 该端的运行中 / 排队中标签数与最近一次标签活动（信息卡用）
   const { endpointRunning, endpointLastTab } = useMemo(() => {
     let running = 0;
     let last: number | null = null;
     for (const x of tabs.state?.tabs ?? []) {
-      if (x.backend !== endpointFilter) continue;
+      if (x.backend !== cardBackend) continue;
       if (x.status === 'running' || x.status === 'queued') running++;
       if (last == null || x.updatedAt > last) last = x.updatedAt;
     }
     return { endpointRunning: running, endpointLastTab: last };
-  }, [tabs.state, endpointFilter]);
+  }, [tabs.state, cardBackend]);
 
   const visible = useMemo(() => {
     if (view === 'by-endpoint') return navList.filter((x) => x.backend === endpointFilter);
@@ -402,6 +409,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     [shownEndpoints, endpointActivity, endpointOrder, view, endpointFilter],
   );
   const pickEndpoint = (b: ConversationBackend) => {
+    setCardPick(b);
     setEndpointFilter(b);
     setView('by-endpoint');
   };
@@ -636,44 +644,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
       data-testid="chat-sidebar"
     >
       <div className={styles.top}>
-        {/* 桌面应用里收起按钮在窗口标题栏（红绿灯右侧）；没有标题栏（浏览器预览）时放在这里 */}
-        {showToggle && (
-          <button
-            className={styles.iconBtn}
-            onClick={onToggle}
-            title={
-              collapsed
-                ? t('ui.chat-settings.expand-sidebar-ctrl-b')
-                : t('ui.chat-settings.collapse-sidebar-ctrl-b')
-            }
-            aria-label={
-              collapsed
-                ? t('ui.chat-settings.expand-sidebar')
-                : t('ui.chat-settings.collapse-sidebar')
-            }
-            data-testid="sidebar-toggle"
-          >
-            <Icon icon={PanelLeft} />
-          </button>
-        )}
-        {collapsed && !showToggle && (
-          // 收起态顶部是 Nomi 标志，点一下展开
-          <button
-            type="button"
-            className={styles.iconBtn}
-            onClick={onToggle}
-            title={t('ui.chat-settings.expand-sidebar-ctrl-b')}
-            aria-label={t('ui.chat-settings.expand-sidebar')}
-          >
-            <EndpointIcon backend="nomi" size={24} decorative />
-          </button>
-        )}
+        <button
+          type="button"
+          className={collapsed ? styles.iconBtn : styles.brandWrap}
+          onClick={onToggle}
+          title={
+            collapsed
+              ? t('ui.chat-settings.expand-sidebar-ctrl-b')
+              : t('ui.chat-settings.collapse-sidebar-ctrl-b')
+          }
+          aria-label={
+            collapsed
+              ? t('ui.chat-settings.expand-sidebar')
+              : t('ui.chat-settings.collapse-sidebar')
+          }
+          aria-expanded={!collapsed}
+          data-testid="sidebar-toggle"
+        >
+          <EndpointIcon backend="nomi" size={collapsed ? 24 : 28} decorative />
+          {!collapsed && <span className={styles.brand}>Nomi</span>}
+        </button>
         {!collapsed && (
           <>
-            <span className={styles.brandWrap}>
-              <EndpointIcon backend="nomi" size={28} decorative />
-              <span className={styles.brand}>Nomi</span>
-            </span>
             <span className={styles.spacer} />
             <ChatModeSwitch />
           </>
@@ -1062,16 +1054,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </nav>
       )}
 
-      {/* 「按端」视图：选中某端后，左下角固定一张该端的信息卡（点击打开详情抽屉）；精简模式不显示 */}
-      {!collapsed && !searching && isDev && !isCompact && view === 'by-endpoint' && (
+      {/* 工作台模式：左下角固定一张当前会话所在端的信息卡（点击打开详情抽屉）；精简模式不显示 */}
+      {!collapsed && !searching && isDev && !isCompact && (
         <EndpointInfoCard
-          backend={endpointFilter}
+          backend={cardBackend}
           running={endpointRunning}
           lastTabActivity={endpointLastTab}
           bin={
-            endpointFilter === 'nomi'
+            cardBackend === 'nomi'
               ? undefined
-              : (bins[endpointFilter] ?? (endpointFilter in bins ? null : undefined))
+              : (bins[cardBackend] ?? (cardBackend in bins ? null : undefined))
           }
           onOpenSettings={onOpenSettings}
         />

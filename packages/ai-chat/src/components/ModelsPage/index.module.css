@@ -92,9 +92,9 @@
 }
 
 .card {
-  border: 1px solid var(--cd-color-border);
+  border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-lg);
-  background: var(--cd-color-surface-raised);
+  background: var(--cd-settings-card-bg);
   box-shadow: var(--cd-shadow-sm);
   padding: var(--cd-space-4);
   display: flex;
@@ -156,7 +156,7 @@
   margin-top: var(--cd-space-3);
   min-height: 0;
   padding-bottom: var(--cd-space-1);
-  border-bottom: 1px solid var(--cd-color-border);
+  border-bottom: 1px solid var(--cd-panel-border);
   font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-subtle);
 }
@@ -208,7 +208,7 @@
 
 .expand:hover,
 .more:hover {
-  background: var(--cd-color-hover);
+  background: var(--cd-control-hover-bg);
 }
 
 .expand:focus-visible,
@@ -223,7 +223,7 @@
 /* ------------------------------ 供应商列表 ------------------------------ */
 
 .provider {
-  border-top: 1px solid var(--cd-color-border);
+  border-top: 1px solid var(--cd-panel-border);
 }
 
 .provider:first-of-type {
@@ -254,7 +254,28 @@
 }
 
 .providerMain:hover {
-  background: var(--cd-color-hover);
+  background: var(--cd-control-hover-bg);
+}
+
+.expand,
+.more,
+.providerMain,
+.presetCard,
+.advToggle {
+  transition:
+    background-color var(--cd-duration-fast) var(--cd-ease),
+    color var(--cd-duration-fast) var(--cd-ease),
+    border-color var(--cd-duration-fast) var(--cd-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .expand,
+  .more,
+  .providerMain,
+  .presetCard,
+  .advToggle {
+    transition: none;
+  }
 }
 
 .providerName {
@@ -313,7 +334,7 @@
 
 .badgeMuted {
   color: var(--cd-color-text-subtle);
-  background: var(--cd-color-surface-sunken);
+  background: var(--cd-panel-surface-sunken);
 }
 
 .badgeSoft {
@@ -348,7 +369,7 @@
   gap: var(--cd-space-2);
   height: var(--cd-control-h-md);
   padding: 0 var(--cd-space-3);
-  border: 1px solid var(--cd-color-border);
+  border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-md);
   color: var(--cd-color-text-subtle);
 }
@@ -386,9 +407,9 @@
   gap: var(--cd-space-2);
   min-height: var(--cd-control-h-lg);
   padding: var(--cd-space-1-5) var(--cd-space-3);
-  border: 1px solid var(--cd-color-border);
+  border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-md);
-  background: var(--cd-color-surface);
+  background: var(--cd-settings-card-bg);
   color: var(--cd-color-text);
   font-size: var(--cd-font-size-sm);
   text-align: left;
@@ -396,7 +417,7 @@
 }
 
 .presetCard:hover {
-  background: var(--cd-color-hover);
+  background: var(--cd-control-hover-bg);
 }
 
 .customCard span {
@@ -664,7 +685,7 @@
 }
 
 .advToggle:hover {
-  background: var(--cd-color-hover);
+  background: var(--cd-control-hover-bg);
 }
 
 .advBody {

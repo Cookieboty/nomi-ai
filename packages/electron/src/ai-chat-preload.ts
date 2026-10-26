@@ -1,5 +1,5 @@
 import { mkAiPreload } from '@nomi-ai/ai-sdk-client/preload';
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, webUtils } from 'electron';
 
 // 为 AI 对话窗口注入 window.aiIPC（走 ai-sdk-client 的白名单桥）
 mkAiPreload({ contextBridge, ipcRenderer });
@@ -8,6 +8,11 @@ mkAiPreload({ contextBridge, ipcRenderer });
 const aiChatAPI = {
   /** 平台：渲染层据此画一体化标题栏（macOS 红绿灯 / Windows·Linux 原生按钮 overlay） */
   platform: process.platform,
+
+  /** 拖入 / 粘贴的文件 → 本机绝对路径；只接受真实 File 对象，渲染层不能伪造路径 */
+  files: {
+    pathFor: (file: File): string => webUtils.getPathForFile(file),
+  },
 
   /** 设置 → 应用图标（core/appIcon.ts） */
   appIcon: {

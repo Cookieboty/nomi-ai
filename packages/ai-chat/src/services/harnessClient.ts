@@ -136,6 +136,8 @@ export interface HarnessUsage {
   contextWindow?: number;
   /** CLI 实际使用的主模型（标签没指定模型时据此查窗口经验表） */
   model?: string;
+  /** 仅 Nomi 对话：隐私模式在这一轮发给第三方供应商的内容里隐藏了几个密钥（含历史消息里的） */
+  redacted?: number;
   /**
    * 仅渲染端：从 CLI 会话记录算出的分项（加起来等于 contextTokens，见主进程 transcriptContext.ts）。
    * 有它时上下文环直接用，不再按 Nomi 落盘的消息估算。
@@ -317,6 +319,72 @@ export interface GitDiffResult {
   error?: string;
 }
 export type GitNumstat = Record<string, { added: number; removed: number }>;
+
+/** 右栏「改动」写操作的失败原因（主进程 cli/gitOps.ts） */
+export type GitOpCode =
+  | 'busy'
+  | 'invalid'
+  | 'auth'
+  | 'diverged'
+  | 'rejected'
+  | 'dirty'
+  | 'hook'
+  | 'nothing'
+  | 'detached'
+  | 'no-remote'
+  | 'no-upstream'
+  | 'mismatch'
+  | 'moved'
+  | 'pushed'
+  | 'no-model'
+  | 'timeout'
+  | 'error';
+
+export interface GitOpResult {
+  ok: boolean;
+  code?: GitOpCode;
+  /** git 的原始输出（截到最后 8 KB） */
+  output?: string;
+  /** 提交：新提交的完整 sha */
+  sha?: string;
+  /** 生成的提交信息 */
+  message?: string;
+  /** 放弃改动：存改动的 stash（撤销时原样传回） */
+  stashes?: string[];
+}
+
+export interface GitSyncStatus {
+  branch: string | null;
+  detached?: string;
+  /** 上游分支（如 origin/feat/x） */
+  upstream?: string;
+  ahead: number;
+  behind: number;
+  remotes: string[];
+  /** 没有上游时推送会用的远端 */
+  pushRemote?: string;
+}
+
+export interface GitWorktree {
+  path: string;
+  branch?: string;
+  head?: string;
+  detached?: boolean;
+  /** 主工作区 */
+  main?: boolean;
+  /** 查询用的 cwd 所在的 worktree */
+  current?: boolean;
+  /** Nomi 委派任务的隔离目录（.nomi-delegate/<id>） */
+  delegate?: boolean;
+  locked?: boolean;
+  prunable?: boolean;
+}
+
+export interface GitWorktreeList {
+  /** cwd 是附属 worktree */
+  linked: boolean;
+  worktrees: GitWorktree[];
+}
 export interface ContextBreakdown {
   system: number;
   user: number;
@@ -365,6 +433,27 @@ export const harnessClient = {
   /** 当前分支（只读，对话顶栏用）；不是 git 仓库时 null */
   gitBranch: (cwd: string) =>
     call<{ branch: string | null; detached?: string } | null>('git-branch', cwd),
+  /** 分支、上游、ahead / behind；不是 git 仓库时 null */
+  gitSyncStatus: (cwd: string) => call<GitSyncStatus | null>('git-sync-status', cwd),
+  /** 路径都相对 cwd（同 git status） */
+  gitStage: (cwd: string, paths: string[]) => call<GitOpResult>('git-stage', cwd, paths),
+  gitUnstage: (cwd: string, paths: string[]) => call<GitOpResult>('git-unstage', cwd, paths),
+  /** 给了 paths 就先暂存它们再提交，否则只提交已暂存的 */
+  gitCommit: (cwd: string, message: string, paths?: string[]) =>
+    call<GitOpResult>('git-commit', cwd, message, paths ?? null),
+  gitCommitUndo: (cwd: string, sha: string) => call<GitOpResult>('git-commit-undo', cwd, sha),
+  gitFetch: (cwd: string) => call<GitOpResult>('git-fetch', cwd),
+  gitPull: (cwd: string) => call<GitOpResult>('git-pull', cwd),
+  gitPush: (cwd: string) => call<GitOpResult>('git-push', cwd),
+  /** 辅助模型根据要提交的 diff 写提交信息；paths 同 gitCommit */
+  gitSuggestMessage: (cwd: string, paths?: string[]) =>
+    call<GitOpResult>('git-suggest-message', cwd, paths ?? null),
+  /** 放弃未暂存的改动（存进 stash，可撤销） */
+  gitDiscard: (cwd: string, paths: string[]) => call<GitOpResult>('git-discard', cwd, paths),
+  gitDiscardUndo: (cwd: string, stashes: string[]) =>
+    call<GitOpResult>('git-discard-undo', cwd, stashes),
+  /** 同一仓库的 worktree；列出来的目录之后也能传给上面这些接口 */
+  gitWorktrees: (cwd: string) => call<GitWorktreeList | null>('git-worktrees', cwd),
   workspaceRead: (cwd: string, filePath: string) =>
     call<WorkspaceFileResult>('workspace-read', cwd, filePath),
   workspaceWrite: (cwd: string, filePath: string, content: string) =>

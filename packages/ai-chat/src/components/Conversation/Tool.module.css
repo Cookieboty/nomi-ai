@@ -16,8 +16,8 @@
 }
 .group,
 .block {
-  border: 1px solid var(--cd-color-border);
-  background: var(--cd-color-surface-raised);
+  border: none;
+  background: transparent;
 }
 .block {
   margin: var(--cd-space-0-5) 0;
@@ -40,7 +40,6 @@
   cursor: pointer;
 }
 .head:hover {
-  background: var(--cd-color-hover);
   color: var(--cd-color-text);
 }
 .head:focus-visible {
@@ -78,7 +77,10 @@
   color: var(--cd-color-text-muted);
   white-space: nowrap;
 }
-.item:hover > .head .verb {
+.head:hover .verb,
+.head:hover .target,
+.head:hover .duration,
+.head:hover .subCount {
   color: var(--cd-color-text);
 }
 .target {
@@ -205,7 +207,7 @@
   overflow: auto;
   border: 1px solid var(--cd-color-border);
   border-radius: var(--cd-radius-sm);
-  background: var(--cd-color-surface-sunken);
+  background: var(--cd-chat-tool-detail-bg);
   color: var(--cd-color-text-muted);
   font-family: var(--cd-font-mono);
   font-size: var(--conv-code, 14px);
@@ -254,7 +256,7 @@
 .diff {
   border: 1px solid var(--cd-color-border);
   border-radius: var(--cd-radius-sm);
-  background: var(--cd-color-surface-sunken);
+  background: var(--cd-chat-tool-detail-bg);
   overflow: hidden;
 }
 .diffHead {
@@ -350,7 +352,7 @@
   margin-left: 0;
 }
 .diffLayoutBtn:hover {
-  background: var(--cd-color-hover);
+  background: var(--cd-chat-hover-overlay);
   color: var(--cd-color-text);
 }
 .diffLayoutBtn:focus-visible {
@@ -406,6 +408,9 @@
   color: var(--text-secondary, #c9d1d9);
   background: color-mix(in srgb, var(--border, #30363d) 40%, transparent);
 }
+:global(html[data-chat-bg]) .diffFold:hover {
+  background: var(--cd-chat-hover-overlay);
+}
 .diffMore {
   padding: 3px 10px;
   font-size: var(--conv-meta, 13px);
@@ -427,6 +432,35 @@
   cursor: pointer;
 }
 .earlier:hover {
-  background: var(--cd-color-hover);
+  background: var(--cd-chat-hover-overlay);
   color: var(--cd-color-text);
+}
+
+.diffLayoutBtn,
+.diffFold,
+.earlier {
+  transition:
+    background-color var(--cd-duration-fast) var(--cd-ease),
+    color var(--cd-duration-fast) var(--cd-ease);
+}
+
+.head,
+.verb,
+.target,
+.duration,
+.subCount {
+  transition: color var(--cd-duration-fast) var(--cd-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .head,
+  .diffLayoutBtn,
+  .diffFold,
+  .earlier,
+  .verb,
+  .target,
+  .duration,
+  .subCount {
+    transition: none;
+  }
 }

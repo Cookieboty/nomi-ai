@@ -1,7 +1,7 @@
 .card {
-  border: 1px solid var(--cd-color-border);
+  border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-lg);
-  background: var(--cd-color-surface-raised);
+  background: var(--cd-settings-card-bg);
   box-shadow: var(--cd-shadow-sm);
   padding: var(--cd-space-4);
   display: flex;
@@ -44,7 +44,7 @@
   font-family: var(--cd-font-mono);
   font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text);
-  background: var(--cd-color-surface-sunken);
+  background: var(--cd-panel-surface-sunken);
   border-radius: var(--cd-radius-sm);
   padding: var(--cd-space-0-5) var(--cd-space-1-5);
   word-break: break-all;

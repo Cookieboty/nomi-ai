@@ -88,6 +88,28 @@
   /* 语义阴影：浮层 / 菜单 / 下拉用 popover；跟随各主题的 md（主题都写在根元素上，别名能取到主题值） */
   --cd-shadow-popover: var(--cd-shadow-md);
   --cd-blur: blur(12px);
+  --cd-panel-bg: var(--cd-color-bg);
+  --cd-panel-bg-subtle: var(--cd-color-bg-subtle);
+  --cd-panel-surface: var(--cd-color-surface);
+  --cd-panel-surface-raised: var(--cd-color-surface-raised);
+  --cd-panel-surface-sunken: var(--cd-color-surface-sunken);
+  --cd-panel-blur: var(--cd-blur);
+  --cd-panel-border: var(--cd-color-border);
+  --cd-modal-bg: var(--cd-panel-surface-raised);
+  --cd-chat-popover-bg: var(--cd-color-surface-raised);
+  --cd-chat-header-h: calc(var(--cd-control-h-lg) + var(--cd-space-1));
+  --cd-chat-header-bg: transparent;
+  --cd-chat-user-bg: var(--cd-color-user-msg);
+  --cd-chat-tool-detail-bg: var(--cd-color-surface-sunken);
+  --cd-chat-markdown-bg: var(--cd-color-surface-sunken);
+  --cd-chat-tab-bg: var(--cd-color-surface);
+  --cd-chat-input-bg: var(--cd-panel-surface-raised);
+  --cd-chat-files-bg: var(--cd-panel-surface-raised);
+  --cd-chat-hover-bg: var(--cd-color-hover);
+  --cd-chat-hover-overlay: var(--cd-color-hover);
+  --cd-control-hover-bg: var(--cd-color-hover);
+  --cd-control-active-bg: var(--cd-color-active);
+  --cd-settings-card-bg: var(--cd-panel-surface-raised);
 
   /* motion */
   --cd-transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -539,4 +561,33 @@
   --cd-bubble-text: #f0f2f6;
   --cd-bubble-link: #b7beff;
   --cd-bubble-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+html[data-chat-bg] {
+  --cd-panel-bg: color-mix(in srgb, var(--cd-color-bg) 55%, transparent);
+  --cd-panel-bg-subtle: color-mix(in srgb, var(--cd-color-bg-subtle) 55%, transparent);
+  --cd-panel-surface: color-mix(in srgb, var(--cd-color-surface) 55%, transparent);
+  --cd-panel-surface-raised: color-mix(in srgb, var(--cd-color-surface-raised) 55%, transparent);
+  --cd-panel-surface-sunken: color-mix(in srgb, var(--cd-color-surface-sunken) 55%, transparent);
+  --cd-panel-blur: none;
+  --cd-panel-border: color-mix(in srgb, var(--cd-color-border) 55%, transparent);
+  --cd-modal-bg: color-mix(in srgb, var(--cd-color-bg-subtle) 94%, transparent);
+  --cd-chat-popover-bg: color-mix(in srgb, var(--cd-color-bg-subtle) 92%, transparent);
+  --cd-chat-header-bg: var(--cd-panel-bg-subtle);
+  --cd-chat-user-bg: var(--cd-panel-bg-subtle);
+  --cd-chat-tool-detail-bg: var(--cd-panel-bg-subtle);
+  --cd-chat-markdown-bg: var(--cd-panel-bg-subtle);
+  --cd-chat-tab-bg: var(--cd-panel-bg-subtle);
+  --cd-chat-input-bg: var(--cd-panel-bg-subtle);
+  --cd-chat-files-bg: var(--cd-panel-bg-subtle);
+  --cd-chat-hover-bg: color-mix(in srgb, var(--cd-color-bg-subtle) 70%, transparent);
+  --cd-chat-hover-overlay: color-mix(in srgb, var(--cd-color-bg-subtle) 18%, transparent);
+  --cd-control-hover-bg: var(--cd-chat-hover-bg);
+  --cd-control-active-bg: color-mix(in srgb, var(--cd-color-bg-subtle) 80%, transparent);
+  --cd-settings-card-bg: var(--cd-panel-bg-subtle);
+  --cd-color-input-bg: var(--cd-panel-bg-subtle);
+  --cd-color-btn-secondary-bg: var(--cd-panel-bg-subtle);
+  --cd-color-btn-secondary-border: var(--cd-panel-border);
+  --cd-color-disabled-bg: var(--cd-panel-bg-subtle);
+  --cd-color-switch-off: color-mix(in srgb, var(--cd-color-bg-subtle) 65%, transparent);
 }

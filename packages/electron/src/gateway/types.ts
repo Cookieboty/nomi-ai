@@ -92,4 +92,35 @@ export interface GatewayStoreData {
   strictParams?: boolean;
   /** 入站请求体上限（字节）；不设 = 32 MiB */
   maxRequestBodyBytes?: number;
+  /** 隐私模式（docs/design/secret-privacy.md）：没有这个字段 = 开，只有用户关掉才写 false */
+  privacyMode?: boolean;
+  /** 隐私模式的三个细项开关（默认都关，只有打开才写 true）：严格识别、本机模型也隐藏、形状保持 */
+  privacyStrict?: boolean;
+  privacyLocal?: boolean;
+  privacyShape?: boolean;
+  /** 占位符的 HMAC 密钥（首次启动生成，加密存储） */
+  privacyKeyEnc?: string;
+  privacyKeyEncryption?: KeyEncryption;
+  /** 按类型的动作；没列出的类型是脱敏 */
+  privacyActions?: Record<string, 'warn' | 'block'>;
+  /** 用户登记的自定义密钥（加密存储；界面只给名称与掩码） */
+  privacySecrets?: PrivacySecret[];
+  /** 「从不脱敏」名单：只存例外标记（HMAC）和辨认用的类型、长度、开头几个字符 */
+  privacyAllow?: PrivacyAllow[];
+}
+
+export interface PrivacySecret {
+  id: string;
+  name: string;
+  enc: string;
+  encryption: KeyEncryption;
+  masked: string;
+}
+
+export interface PrivacyAllow {
+  tag: string;
+  kind: string;
+  len: number;
+  head: string;
+  at: number;
 }
