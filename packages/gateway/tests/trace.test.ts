@@ -64,6 +64,14 @@ describe('redaction', () => {
     expect(out).toContain('?key=[REDACTED]&a=1');
   });
 
+  it('uses the shared privacy rules too (private keys, connection strings)', () => {
+    const out = redactText(
+      'k -----BEGIN PRIVATE KEY-----\nMIIEv\n-----END PRIVATE KEY----- db postgres://u:S3cretPw@h/db',
+    );
+    expect(out).not.toContain('MIIEv');
+    expect(out).not.toContain('S3cretPw');
+  });
+
   it('redacts secret fields by name but keeps token counts', () => {
     const out = redactJson(
       {

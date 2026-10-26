@@ -2,6 +2,8 @@
  * 情节记忆（纯逻辑，便于单测）：对话摘要 → 结构化条目；BM25 + 可选向量 RRF 召回；
  * 召回结果拼成 system 片段；导出 Markdown。
  */
+import { hasSecret } from '@nomi-ai/gateway';
+
 import { Bm25Index } from '../knowledge/bm25';
 import { tokenize } from '../knowledge/tokenize';
 import { cosine, rrf } from '../knowledge/vector';
@@ -114,6 +116,7 @@ export interface ParsedSummary {
   facts: Array<{ kind: FactKind; text: string }>;
 }
 
+/** 个人敏感字样；密钥格式另由网关的共用规则认（hasSecret，docs/design/secret-privacy.md §5） */
 const SECRET = /(sk-[a-z0-9_-]{12,}|password|密码|口令|身份证|银行卡|\b\d{15,19}\b)/i;
 
 /** 解析模型输出（容忍 ```json 包裹、前后杂字）；不合法返回 null */
@@ -140,7 +143,7 @@ export function parseSummary(raw: string): ParsedSummary | null {
       if (!f || typeof f !== 'object') continue;
       const o = f as Record<string, unknown>;
       const text = str(o.text, 200);
-      if (!text || SECRET.test(text)) continue;
+      if (!text || SECRET.test(text) || hasSecret(text)) continue;
       const kind = FACT_KINDS.includes(o.kind as FactKind) ? (o.kind as FactKind) : 'note';
       facts.push({ kind, text });
     }

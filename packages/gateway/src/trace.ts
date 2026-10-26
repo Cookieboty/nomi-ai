@@ -3,7 +3,7 @@
  * traceDir，网关把每个请求的请求体、发给上游的请求体和响应正文写到 `<traceDir>/<时间>-<客户端>.json`。
  *
  * - Key、客户端令牌、Authorization 等一律脱敏：已知的密钥值（配置里的 Key 与令牌）按原文替换，
- *   再按常见格式（sk-…、Bearer …、AIza…）和敏感字段名兜底；
+ *   再按隐私模式的共用规则（privacy/rules）、常见格式（sk-…、Bearer …、AIza…）和敏感字段名兜底；
  * - 文件 0600、目录 0700；超过 24 小时的文件自动删除（写入时顺带清理，主进程关掉开关后也会清理）。
  * 纯 Node，不依赖 Electron。
  */
@@ -12,6 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import type { GatewayConfig } from './config';
+import { mergeSpans, ruleSpans } from './privacy/rules';
 
 /** 追踪文件保留时长 */
 export const TRACE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
@@ -46,6 +47,17 @@ const SECRET_PATTERNS: RegExp[] = [
 export function redactText(text: string, secrets: readonly string[] = []): string {
   let out = text;
   for (const s of secrets) if (s && s.length >= 6) out = out.split(s).join(REDACTED);
+  // 与隐私模式共用的规则（私钥块、各家 key 前缀、JWT、连接串密码…），再按下面追踪自己的格式兜底
+  const spans = ruleSpans(out);
+  if (spans.length) {
+    let acc = '';
+    let at = 0;
+    for (const sp of mergeSpans(spans)) {
+      acc += out.slice(at, sp.start) + REDACTED;
+      at = sp.end;
+    }
+    out = acc + out.slice(at);
+  }
   for (const re of SECRET_PATTERNS)
     out = out.replace(re, (m, p1: string | undefined) =>
       typeof p1 === 'string' && (/^[?&]/.test(p1) || /code/i.test(p1))
