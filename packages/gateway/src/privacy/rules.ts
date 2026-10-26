@@ -8,7 +8,7 @@
  */
 
 /** 规则表版本：规则有改动就加一，命中记录里带上，便于排查误报 */
-export const RULES_VERSION = 1;
+export const RULES_VERSION = 2;
 
 export type SecretKind =
   'API_KEY' | 'PRIVATE_KEY' | 'TOKEN' | 'PASSWORD' | 'CONNECTION_STRING' | 'CUSTOM';
@@ -108,6 +108,12 @@ const RULES: Rule[] = [
     markers: ['_sk_'],
     ok: secretValue,
   },
+  // Stripe：sk_live_ / rk_live_ / sk_test_…（下划线分隔，上面 sk- 规则认不出）
+  {
+    kind: 'API_KEY',
+    re: new RegExp(`${B}(?:sk|rk)_(?:live|test)_[A-Za-z0-9]{20,}`, 'g'),
+    markers: ['_live_', '_test_'],
+  },
   {
     kind: 'TOKEN',
     re: new RegExp(
@@ -159,7 +165,7 @@ const RULES: Rule[] = [
   // 连接串与 URL 里的 user:pass@
   {
     kind: 'PASSWORD',
-    re: /\b[a-z][a-z0-9+.-]*:\/\/[^\s:@/"'`]+:([^\s@/"'`]+)@/dgi,
+    re: /\b[a-z][a-z0-9+.-]*:\/\/[^\s:@/"'`]*:([^\s@/"'`]+)@/dgi,
     group: 1,
     markers: ['://'],
     also: ['@'],
@@ -268,7 +274,7 @@ export interface RuleOptions {
 
 /** 按规则找文本里的密钥区间（未合并，可能重叠） */
 export function ruleSpans(s: string, opts: RuleOptions = {}): SecretSpan[] {
-  const out: SecretSpan[] = [];
+  const out: Array<SecretSpan & { contextual: boolean }> = [];
   const hits = markerHits(s);
   for (const r of RULES) {
     let ws: Array<[number, number]> | null;
@@ -291,13 +297,25 @@ export function ruleSpans(s: string, opts: RuleOptions = {}): SecretSpan[] {
         if (r.strict && NOT_CREDENTIAL_NAME.test(m[1] ?? '')) continue;
         if (r.ok && !r.ok(v)) continue;
         const start = from + (r.group ? m.indices![r.group]![0] : m.index);
-        out.push({ start, end: start + v.length, kind: r.kind, by: r.strict ? 'strict' : 'rule' });
+        out.push({
+          start,
+          end: start + v.length,
+          kind: r.kind,
+          by: r.strict ? 'strict' : 'rule',
+          contextual: r.group !== undefined,
+        });
       }
     }
   }
   if (!out.length) return out;
   const ids = idRanges(s);
-  return ids.length ? out.filter((sp) => !ids.some(([a, b]) => sp.start >= a && sp.end <= b)) : out;
+  // 只有「值本身像 key」的规则给 id 让路；带上下文的（Bearer、连接串密码、?key=、键名赋值）
+  // 已经说明它是凭据，十六进制的密码 / 令牌照样遮
+  return ids.length
+    ? out
+        .filter((sp) => sp.contextual || !ids.some(([a, b]) => sp.start >= a && sp.end <= b))
+        .map(({ contextual: _c, ...sp }) => sp)
+    : out.map(({ contextual: _c, ...sp }) => sp);
 }
 
 /**

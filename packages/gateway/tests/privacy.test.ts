@@ -517,3 +517,42 @@ describe('GatewayPrivacy', () => {
     expect(g.store.size).toBe(0);
   });
 });
+
+describe('评审补充（v2.0.2）', () => {
+  const HEX = '3f2a9c1b7d4e8f60a1b2c3d4e5f60718';
+
+  it('带上下文的规则不给 id 让路：十六进制的连接串密码、Bearer 令牌照样遮', () => {
+    expect(values(`postgres://app:${HEX}@db:5432/x`)).toEqual([HEX]);
+    expect(values(`Authorization: Bearer ${HEX}`)).toEqual([HEX]);
+    // 裸的 32 位十六进制仍是 id，不遮
+    expect(values(`commit ${HEX}`)).toEqual([]);
+  });
+
+  it('认得 Stripe key 与没有用户名的连接串密码', () => {
+    // 拆开拼，免得仓库的 push protection 把测试数据当真 key
+    const stripe = 'sk_' + 'live_' + 'FAKEfakeFAKEfakeFAKEfake0000';
+    expect(values(`STRIPE=${stripe}`)).toEqual([stripe]);
+    expect(values('redis://:p4ssw0rdXyz@host:6379')).toEqual(['p4ssw0rdXyz']);
+  });
+
+  it('Messages 纯文本文档的 data 是正文，照样遮；图片的 data 不动', () => {
+    const body = {
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'document',
+              source: { type: 'text', media_type: 'text/plain', data: `env ${OPENAI}` },
+            },
+            { type: 'image', source: { type: 'base64', media_type: 'image/png', data: OPENAI } },
+          ],
+        },
+      ],
+    };
+    const r = maskBody(body, store(), { key: KEY });
+    const out = r.body as typeof body;
+    expect(plain(out.messages[0]!.content[0]!.source.data)).not.toContain(OPENAI);
+    expect(out.messages[0]!.content[1]!.source.data).toBe(OPENAI);
+  });
+});

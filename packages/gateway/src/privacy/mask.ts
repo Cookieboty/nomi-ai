@@ -176,9 +176,14 @@ class Masking {
     if (!isObj(v)) return v;
     if (mode === 'normal' && sealed(v)) return v;
     let out: Obj | null = null;
+    // Messages 的纯文本文档（document.source = { type: 'text', data }）：data 是正文，不是媒体
+    const textSource = mode === 'normal' && v.type === 'text' && typeof v.data === 'string';
     for (const k of Object.keys(v)) {
       const x = v[k];
-      const y = this.walk(x, k, modeOf(mode, k, v, x));
+      const y =
+        textSource && k === 'data' && (x as string).length >= 8
+          ? this.text(x as string)
+          : this.walk(x, k, modeOf(mode, k, v, x));
       if (y !== x) (out ??= { ...v })[k] = y;
     }
     return out ?? v;
