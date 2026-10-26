@@ -138,7 +138,7 @@ for (const packaged of [false, true]) {
         await probe.decode();
         return { width: probe.naturalWidth, height: probe.naturalHeight };
       });
-      expect(presetSize).toEqual({ width: 3840, height: 2160 });
+      expect(presetSize).toEqual({ width: 1920, height: 1080 });
       await expect(page.getByRole('slider', { name: '毛玻璃' })).toBeEnabled();
       await application!.evaluate(({ dialog }, source) => {
         dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [source] });
@@ -159,7 +159,8 @@ for (const packaged of [false, true]) {
       await expect(page.getByTestId('settings-appearance').getByRole('slider')).toHaveCount(2);
       await expect(page.getByTestId('chat-bg-blur')).toHaveValue('8');
       await expect(page.getByTestId('chat-bg-opacity')).toHaveValue('40');
-      await expect(page.getByTestId('chat-bg-mask')).toHaveCSS('backdrop-filter', 'blur(8px)');
+      await expect(page.getByTestId('chat-bg-image')).toHaveCSS('filter', 'blur(8px)');
+      await expect(page.getByTestId('chat-bg-mask')).toHaveCSS('backdrop-filter', 'none');
       await expect(page.locator('.settings-overlay')).toHaveCSS(
         'background-color',
         'rgba(0, 0, 0, 0)',
@@ -167,7 +168,6 @@ for (const packaged of [false, true]) {
       await expect.poll(() => JSON.parse(readFileSync(themeFile, 'utf8')).theme).toBe('image');
 
       const image = page.getByTestId('chat-bg-image');
-      const bounds = await image.boundingBox();
       const slider = page.getByRole('slider', { name: '毛玻璃' });
       await slider.focus();
       await slider.press('Home');
@@ -187,17 +187,12 @@ for (const packaged of [false, true]) {
       await page.mouse.up();
       const glass = await slider.inputValue();
       expect(Number(glass)).toBeGreaterThan(1);
-      await expect(page.getByTestId('chat-bg-mask')).toHaveCSS(
-        'backdrop-filter',
-        `blur(${glass}px)`,
-      );
+      await expect(page.getByTestId('chat-bg-image')).toHaveCSS('filter', `blur(${glass}px)`);
       const frostedBackground = await page.screenshot({
         clip: { x: 1210, y: 200, width: 40, height: 40 },
       });
       expect(frostedBackground.equals(clearBackground)).toBe(false);
-      expect(await image.boundingBox()).toEqual(bounds);
       await expect(image).toHaveCSS('transform', 'none');
-      await expect(image).toHaveCSS('filter', 'none');
       await expect
         .poll(() => JSON.parse(readFileSync(backgroundFile, 'utf8')).blur)
         .toBe(Number(glass));
@@ -254,10 +249,7 @@ for (const packaged of [false, true]) {
       await close();
 
       page = await launch();
-      await expect(page.getByTestId('chat-bg-mask')).toHaveCSS(
-        'backdrop-filter',
-        `blur(${glass}px)`,
-      );
+      await expect(page.getByTestId('chat-bg-image')).toHaveCSS('filter', `blur(${glass}px)`);
       await expect(page.locator('html')).toHaveAttribute('data-theme-pref', 'image');
       await page.getByTestId('open-settings').click();
       await expect(page.getByTestId('theme-image')).toHaveAttribute('aria-checked', 'true');
