@@ -1,0 +1,88 @@
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--cd-space-1-5);
+  margin-bottom: var(--cd-space-2);
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 240px;
+  height: var(--cd-control-h-ms);
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-color-surface-sunken);
+  color: var(--cd-color-text);
+}
+.chipOpen {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  min-width: 0;
+  height: 100%;
+  padding: 0 var(--cd-space-2);
+  border: none;
+  border-radius: inherit;
+  background: transparent;
+  color: inherit;
+  font-size: var(--cd-font-size-sm);
+  cursor: pointer;
+}
+.chipOpen:hover,
+.chipRemove:hover {
+  background: var(--cd-color-hover);
+}
+.chipOpen:focus-visible,
+.chipRemove:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: -2px;
+}
+.chipName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chipRemove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--cd-control-h-2xs);
+  height: var(--cd-control-h-2xs);
+  margin-right: var(--cd-space-1);
+  padding: 0;
+  border: none;
+  border-radius: var(--cd-radius-full);
+  background: transparent;
+  color: var(--cd-color-text-muted);
+  cursor: pointer;
+}
+.previewBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-2);
+}
+.previewPath {
+  font-family: var(--cd-font-mono);
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+  word-break: break-all;
+}
+.previewText {
+  margin: 0;
+  max-height: 60vh;
+  overflow: auto;
+  padding: var(--cd-space-3);
+  border-radius: var(--cd-radius-sm);
+  background: var(--cd-color-surface-sunken);
+  font-family: var(--cd-font-mono);
+  font-size: var(--cd-font-size-xs);
+  line-height: var(--cd-line-height-md);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.previewNote {
+  font-size: var(--cd-font-size-sm);
+  color: var(--cd-color-text-muted);
+}

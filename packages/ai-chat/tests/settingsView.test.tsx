@@ -57,7 +57,7 @@ describe('SettingsView 合并后的标签页分区', () => {
   it('隐私与权限：默认「隐私与数据」，可切到「桌面权限」，方向键切换且 aria 状态正确', () => {
     const r = render(<Harness onClose={() => undefined} />);
     const page = 'settings-privacy-page';
-    expect(tabs(r, page)).toHaveLength(2);
+    expect(tabs(r, page)).toHaveLength(3);
     expect(r.getByTestId(`${page}-tab-data`).getAttribute('aria-selected')).toBe('true');
     expect(r.getByTestId('settings-privacy')).toBeTruthy();
     // 数据页里的「文件夹授权与操作记录」跳到「桌面权限」标签
@@ -74,9 +74,20 @@ describe('SettingsView 合并后的标签页分区', () => {
     expect(r.getByTestId(`${page}-tab-data`).getAttribute('aria-controls')).toBe(panel.id);
   });
 
+  it('外发保护单独一个标签：数据页只留入口，点「去设置」切过去', () => {
+    const r = render(<Harness onClose={() => undefined} />);
+    const page = 'settings-privacy-page';
+    expect(r.queryByTestId('settings-outbound')).toBeNull();
+    fireEvent.click(r.getByTestId('privacy-go-outbound'));
+    expect(r.getByTestId(`${page}-tab-outbound`).getAttribute('aria-selected')).toBe('true');
+    expect(r.getByTestId('settings-outbound')).toBeTruthy();
+    expect(r.queryByTestId('settings-privacy')).toBeNull();
+  });
+
   it('深链接标签：desktop / memory / notes / calendar / screen 分别落在对应标签', () => {
     const cases: Array<[SettingsSection, SettingsTab, string]> = [
       ['privacy', 'desktop', 'settings-privacy-page'],
+      ['privacy', 'outbound', 'settings-privacy-page'],
       ['knowledge', 'memory', 'settings-knowledge'],
       ['knowledge', 'notes', 'settings-knowledge'],
       ['schedule', 'calendar', 'settings-schedule'],

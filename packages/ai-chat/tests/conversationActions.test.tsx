@@ -125,6 +125,17 @@ describe('每条消息的时间 / 每轮摘要', () => {
     expect(s.textContent).toContain('1m 12s');
     expect(s.textContent).toContain('12k');
     expect(s.textContent).toContain('$0.05');
+    expect(queryAllByTestId('conv-redacted')).toHaveLength(0);
+  });
+
+  it('隐私模式隐藏了密钥时在摘要里提示（只有这一项也显示）', () => {
+    const { getByTestId } = render(
+      view({ messages: [user('u', 'q'), asst('a', 'r', { usage: { redacted: 2 } })] }),
+    );
+    const r = getByTestId('conv-redacted');
+    expect(r.textContent).toContain('2');
+    expect(r.getAttribute('title')).toBeTruthy();
+    expect(getByTestId('conv-turn-summary').contains(r)).toBe(true);
   });
 });
 

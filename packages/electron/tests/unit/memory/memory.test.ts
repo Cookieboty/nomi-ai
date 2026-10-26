@@ -42,7 +42,7 @@ describe('episodes logic', () => {
   it('parses fenced JSON, filters secrets and unknown kinds', () => {
     const p = parseSummary(
       '好的：```json\n{"title":"搬家计划","summary":"讨论了下月搬到杭州。","keywords":["搬家","杭州","搬家"],' +
-        '"facts":[{"kind":"identity","text":"用户叫小林"},{"kind":"weird","text":"喜欢猫"},{"kind":"note","text":"我的密码是123"}]}\n```',
+        '"facts":[{"kind":"identity","text":"用户叫小林"},{"kind":"weird","text":"喜欢猫"},{"kind":"note","text":"我的密码是123"},{"kind":"note","text":"用的 token 是 ghp_a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7"}]}\n```',
     );
     expect(p).toEqual({
       title: '搬家计划',

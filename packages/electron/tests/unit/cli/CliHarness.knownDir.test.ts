@@ -6,7 +6,10 @@ jest.unmock('fs');
 jest.unmock('path');
 jest.unmock('node:fs');
 jest.unmock('node:path');
+jest.unmock('child_process');
+jest.unmock('node:child_process');
 
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -55,5 +58,69 @@ describe('CliHarnessService.knownDir', () => {
     expect(() => h.knownDir(path.join(proj, 'nope'))).toThrow();
     expect(() => h.knownDir('')).toThrow();
     expect(() => h.knownDir(undefined)).toThrow();
+  });
+
+  it('worktree：列出已知仓库的 worktree 之后，这些目录也算已知；没列过的不算', async () => {
+    const env = Object.fromEntries(
+      Object.entries(process.env).filter(([k]) => !k.startsWith('GIT_')),
+    );
+    const git = (...a: string[]) => execFileSync('git', a, { cwd: proj, env, stdio: 'ignore' });
+    git('init', '-q', '-b', 'main');
+    git('-c', 'user.email=a@b', '-c', 'user.name=t', 'commit', '-q', '--allow-empty', '-m', 'i');
+    const wt = path.join(other, 'wt');
+    git('worktree', 'add', '-q', '--detach', wt);
+    h.createTab({ backend: 'claude', cwd: proj });
+    expect(() => h.knownDir(wt)).toThrow();
+    const r = await h.listWorktrees(proj);
+    expect(r?.worktrees).toHaveLength(2);
+    expect(h.knownDir(wt)).toBe(path.resolve(wt));
+    // 不是已知目录就不能拿来列
+    await expect(h.listWorktrees(path.dirname(proj))).rejects.toThrow();
+  });
+
+  it('生成提交信息：把 diff 和最近的提交标题交给辅助模型，清掉包装', async () => {
+    const env = Object.fromEntries(
+      Object.entries(process.env).filter(([k]) => !k.startsWith('GIT_')),
+    );
+    const git = (...a: string[]) => execFileSync('git', a, { cwd: proj, env, stdio: 'ignore' });
+    git('init', '-q', '-b', 'main');
+    git(
+      '-c',
+      'user.email=a@b',
+      '-c',
+      'user.name=t',
+      'commit',
+      '-q',
+      '--allow-empty',
+      '-m',
+      'feat(x): 第一个',
+    );
+    fs.writeFileSync(path.join(proj, 'a.ts'), 'export const a = 1;\n');
+    const complete = jest.fn(async () => '```\nfeat(x): 加上 a\n```');
+    const svc = new CliHarnessService({
+      root,
+      logger: { info() {}, warn() {} },
+      defaultCwd: proj,
+      complete,
+    });
+    try {
+      expect(await svc.suggestCommitMessage(proj, ['a.ts'])).toEqual({
+        ok: true,
+        message: 'feat(x): 加上 a',
+      });
+      const [msgs] = complete.mock.calls[0] as unknown as [Array<{ content: string }>];
+      expect(msgs[1]!.content).toContain('feat(x): 第一个');
+      expect(msgs[1]!.content).toContain('export const a = 1;');
+      // 没有已暂存的内容
+      expect((await svc.suggestCommitMessage(proj)).code).toBe('nothing');
+      complete.mockRejectedValueOnce(new Error('已开启「仅本地模型可读文件」'));
+      expect(await svc.suggestCommitMessage(proj, ['a.ts'])).toMatchObject({
+        ok: false,
+        code: 'error',
+        output: expect.stringContaining('仅本地模型'),
+      });
+    } finally {
+      svc.dispose();
+    }
   });
 });

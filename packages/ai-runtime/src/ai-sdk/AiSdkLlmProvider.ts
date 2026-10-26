@@ -73,6 +73,12 @@ export interface AiSdkLlmProviderOptions {
    * 只给可信的上游（Nomi 网关）设置；记账用它，缺省用请求解析出的模型（#97）。
    */
   servedModelHeader?: string;
+  /** 上游在这个响应头里报回隐藏了几个密钥（Nomi 网关的隐私模式）；只给可信的上游设置 */
+  redactedHeader?: string;
+}
+
+function withRedacted(u: ChatUsage | undefined, redacted: number): ChatUsage | undefined {
+  return u && redacted ? { ...u, redacted } : u;
 }
 
 /** 每条消息最多带几张图、总 base64 体积上限（约 12 MB 原图） */
@@ -286,6 +292,13 @@ export class AiSdkLlmProvider implements LLMProvider {
     this.aborts.delete(reqId);
   }
 
+  /** 上游报回隐藏了几个密钥（只认 redactedHeader 指定的头） */
+  private redacted(headers: Record<string, string> | undefined): number {
+    const name = this.opts.redactedHeader;
+    const v = name && headers ? Number(headers[name.toLowerCase()]) : 0;
+    return Number.isInteger(v) && v > 0 ? v : 0;
+  }
+
   /** 上游报回的实际模型（只认 servedModelHeader 指定的头） */
   private servedModel(headers: Record<string, string> | undefined): string | undefined {
     const name = this.opts.servedModelHeader;
@@ -348,7 +361,7 @@ export class AiSdkLlmProvider implements LLMProvider {
         content: result.text,
         toolCalls,
         finishReason: finishOf(result.finishReason),
-        usage: usageOf(result.usage),
+        usage: withRedacted(usageOf(result.usage), this.redacted(result.response?.headers)),
       };
     } finally {
       this.aborts.delete(request.reqId);
@@ -372,11 +385,14 @@ export class AiSdkLlmProvider implements LLMProvider {
         ...(tools ? { tools, stopWhen: stepCountIs(this.opts.maxSteps ?? 5) } : {}),
       });
       let served: string | undefined;
+      // 每一步都是一次网关请求，都会带上整段历史：取各步的最大值
+      let redacted = 0;
       // 最后一步的用量 = 当前上下文（finish 的 totalUsage 是各步累加）
       let lastStep: ChatUsage | undefined;
       for await (const part of result.fullStream) {
         if (part.type === 'finish-step') {
           served = this.servedModel(part.response?.headers) ?? served;
+          redacted = Math.max(redacted, this.redacted(part.response?.headers));
           lastStep = usageOf(part.usage) ?? lastStep;
         } else if (part.type === 'text-delta') {
           yield { type: 'delta', content: part.text };
@@ -411,7 +427,12 @@ export class AiSdkLlmProvider implements LLMProvider {
             total && lastStep
               ? { ...total, contextTokens: lastStep.promptTokens + lastStep.completionTokens }
               : total;
-          if (u) yield { type: 'usage', usage: u, model: served ?? this.resolveModel(request) };
+          if (u)
+            yield {
+              type: 'usage',
+              usage: withRedacted(u, redacted)!,
+              model: served ?? this.resolveModel(request),
+            };
           yield { type: 'done', finishReason: finishOf(part.finishReason) };
         } else if (part.type === 'error') {
           yield { type: 'error', error: describeStreamError(part.error) };

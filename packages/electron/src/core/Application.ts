@@ -693,6 +693,26 @@ export class Application implements IApplication {
         grokAcp: process.env.NOMI_GROK_ACP !== '0',
         // Codex 走 app-server 长驻会话；NOMI_CODEX_APP_SERVER=0 退回每轮一个进程的 codex exec
         codexAppServer: process.env.NOMI_CODEX_APP_SERVER !== '0',
+        // 右栏「生成提交信息」：辅助模型档（没设时跟主模型），经网关所以受外发保护；
+        // 同样遵守「仅本地模型可读文件」，发给云端前按设置确认
+        complete: async (messages, signal) => {
+          const rt = this.aiRuntime;
+          if (!rt) throw new Error(tr('electron.common.ai-service-not-ready'));
+          const send = await desktop.broker.checkSend(
+            desktop.providerFor('summary'),
+            signal,
+            tr('electron.common.code-changes'),
+          );
+          if (send === 'local_only')
+            throw new Error(tr('electron.common.only-local-models-can-read-files-is-on'));
+          if (send === 'user_denied') throw new Error(tr('electron.common.ok-not-sending'));
+          const resp = await rt.client.chat.sendMessage({
+            role: 'summary',
+            messages,
+            signal,
+          } as never);
+          return typeof resp?.content === 'string' ? resp.content : '';
+        },
       });
       accounts.registerIpc();
       const accountLogin = new AccountLogin({
@@ -791,8 +811,13 @@ export class Application implements IApplication {
       });
       voice.registerIpc();
       // 麦克风：只允许本应用窗口申请「音频」采集（不允许摄像头 / 屏幕）；
+      // 剪贴板只放行写入（复制按钮用 navigator.clipboard.writeText），读取仍拒绝；
       // 其余权限（geolocation / notifications / HID / MIDI / pointerLock 等）一律拒绝。
       session.defaultSession.setPermissionRequestHandler((_wc, permission, callback, details) => {
+        if (permission === 'clipboard-sanitized-write') {
+          callback(true);
+          return;
+        }
         if (permission === 'media') {
           const types = (details as { mediaTypes?: string[] }).mediaTypes ?? [];
           callback(types.length > 0 && types.every((t) => t === 'audio'));
@@ -800,9 +825,9 @@ export class Application implements IApplication {
         }
         callback(false);
       });
-      // 权限检查（持久化授权查询等）同样默认拒绝，媒体例外
+      // 权限检查（持久化授权查询等）同样默认拒绝，媒体与剪贴板写入例外
       session.defaultSession.setPermissionCheckHandler((_wc, permission) => {
-        return permission === 'media';
+        return permission === 'media' || permission === 'clipboard-sanitized-write';
       });
 
       // 创建看板娘窗口（始终创建：定时任务 / 提醒 / 编程助手进度都靠它播报；

@@ -4,10 +4,12 @@ import { Check, CircleAlert, Copy, Layers, OctagonX, Pencil, RefreshCw } from 'l
 import type { LucideIcon } from 'lucide-react';
 import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
 
+import { joinFileAttachments, splitFileAttachments } from '../../services/fileAttachments';
 import type { ConvMessage } from '../../types/conversation';
 import { segmentBody } from '../../utils/convSegments';
 import { formatFullTime, turnSummary } from '../../utils/convTime';
 import { entriesFromLegacyTools, hasRunning, reduceTrace } from '../../utils/toolTrace';
+import { FileChipRow } from '../FileAttachment';
 
 import styles from './index.module.css';
 import { Markdown } from './Markdown';
@@ -68,12 +70,15 @@ const CopyAction: React.FC<{ text: string }> = ({ text }) => {
 
 /** 一轮的耗时 / token / 费用摘要（有数据才显示） */
 export const TurnSummary: React.FC<{ message: ConvMessage }> = ({ message }) => {
-  const s = turnSummary(message);
-  if (!s) return null;
+  const s = turnSummary(message) ?? {};
+  const redacted = message.usage?.redacted ?? 0;
+  if (!s.duration && !s.tokens && !s.cost && !redacted) return null;
+  const hid = redacted ? t('ui.usage-tools.hid-n-keys', redacted) : '';
   const title = [
     s.duration && t('ui.usage-tools.took', s.duration),
     s.tokens,
     s.cost && t('ui.usage-tools.cost-named', s.cost),
+    redacted && t('ui.usage-tools.outbound-protection-hid-n-keys-in-this-turn', redacted),
   ]
     .filter(Boolean)
     .join(' · ');
@@ -82,6 +87,15 @@ export const TurnSummary: React.FC<{ message: ConvMessage }> = ({ message }) => 
       {s.duration && <span data-part="duration">{t('ui.usage-tools.took', s.duration)}</span>}
       {s.tokens && <span data-part="tokens">{s.tokens}</span>}
       {s.cost && <span data-part="cost">{s.cost}</span>}
+      {hid && (
+        <span
+          data-part="redacted"
+          data-testid="conv-redacted"
+          title={t('ui.usage-tools.outbound-protection-hid-n-keys-in-this-turn', redacted)}
+        >
+          {hid}
+        </span>
+      )}
     </span>
   );
 };
@@ -180,14 +194,19 @@ export const UserMessage = memo(function UserMessage({
   onEdit?: (id: string, text: string) => void;
   slots?: ConvSlots;
 }) {
+  // 文件附件块从正文里拆出来画成卡片；编辑只改文字，重发时附件原样带上
+  const { text: bodyText, files } = useMemo(
+    () => splitFileAttachments(message.text),
+    [message.text],
+  );
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(message.text);
+  const [draft, setDraft] = useState(bodyText);
   const full = formatFullTime(message.at);
   const submit = () => {
     const text = draft.trim();
     if (!text) return;
     setEditing(false);
-    onEdit?.(message.id, text);
+    onEdit?.(message.id, joinFileAttachments(text, files));
   };
   return (
     <div className={styles.user} data-testid="msg-user" data-message-id={message.id}>
@@ -236,21 +255,22 @@ export const UserMessage = memo(function UserMessage({
       ) : (
         <>
           {slots?.before?.(message)}
-          {message.text && (
+          {files.length > 0 && <FileChipRow files={files} />}
+          {bodyText && (
             <div className={styles.userBubble} title={full}>
-              {message.text}
+              {bodyText}
             </div>
           )}
           <div className={`${styles.actions} ${styles.actionsRight}`} role="toolbar">
             <span className={styles.fullTime}>{full}</span>
-            <CopyAction text={message.text} />
+            <CopyAction text={bodyText} />
             {canEdit && onEdit && (
               <ActionButton
                 icon={Pencil}
                 label={t('ui.usage-tools.edit-and-resend')}
                 testId="msg-edit"
                 onClick={() => {
-                  setDraft(message.text);
+                  setDraft(bodyText);
                   setEditing(true);
                 }}
               />

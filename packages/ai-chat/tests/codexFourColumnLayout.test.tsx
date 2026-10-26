@@ -20,6 +20,13 @@ vi.mock('../src/services/harnessClient', () => ({
   harnessClient: {
     workspaceList: vi.fn(async () => ({ ok: true, entries: [] })),
     gitBranch: vi.fn(async () => ({ branch: 'main' })),
+    gitSyncStatus: vi.fn(async () => ({
+      branch: 'main',
+      upstream: 'origin/main',
+      ahead: 0,
+      behind: 0,
+      remotes: ['origin'],
+    })),
     gitDiff: vi.fn(async () => ({
       ok: true,
       status: '',
@@ -315,7 +322,14 @@ describe('Codex four-column changes layout', () => {
     expect(text).toContain('只提交，不要推送');
 
     fireEvent.click(screen.getByTestId('changes-only-session'));
-    fireEvent.click(screen.getByTestId('rail-ask-commit-push'));
+    // 「提交后推送」对让助手提交同样生效
+    await waitFor(() =>
+      expect((screen.getByTestId('rail-commit-push-after') as HTMLInputElement).disabled).toBe(
+        false,
+      ),
+    );
+    fireEvent.click(screen.getByTestId('rail-commit-push-after'));
+    fireEvent.click(screen.getByTestId('rail-ask-commit'));
     const pushText = screen.getByTestId('fill-probe').textContent ?? '';
     expect(pushText).toContain('- notes.md');
     expect(pushText).toContain('不要 force-push');
@@ -389,7 +403,7 @@ describe('Codex four-column changes layout', () => {
     expect(screen.getByTestId('git-list').textContent).not.toMatch(/未暂存/);
   });
 
-  it('commit bar sits above the list; 文件 view starts with folders collapsed', async () => {
+  it('commit box sits below the list; 文件 view starts with folders collapsed', async () => {
     vi.mocked(harnessClient.gitDiff).mockResolvedValue({
       ok: true,
       status: ' M src/a.ts',
@@ -413,9 +427,9 @@ describe('Codex four-column changes layout', () => {
         <SessionChangesPanel rail messages={[]} cwd="/tmp/proj" />
       </ChangesUiProvider>,
     );
-    const bar = await screen.findByTestId('rail-commit-bar');
+    const box = await screen.findByTestId('rail-commit-box');
     const list = screen.getByTestId('git-list');
-    expect(bar.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(list.compareDocumentPosition(box) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
     fireEvent.click(screen.getByTestId('rail-tab-workspace'));
     const tree = await screen.findByTestId('files-rail-tree');

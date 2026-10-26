@@ -5,7 +5,7 @@ import type { ChatChunk, ChatRequest } from '@nomi-ai/bundle-ig-base';
 import { describe, expect, it } from 'vitest';
 
 import { AiSdkLlmProvider } from '../src/ai-sdk/AiSdkLlmProvider';
-import { NOMI_SERVED_MODEL_HEADER } from '../src/providers/ProviderRouter';
+import { NOMI_REDACTED_HEADER, NOMI_SERVED_MODEL_HEADER } from '../src/providers/ProviderRouter';
 
 const usage = { prompt_tokens: 3, completion_tokens: 2, total_tokens: 5 };
 
@@ -65,5 +65,36 @@ describe('served model header (#97)', () => {
     expect(await streamModel(mk(() => streamRes({}), true))).toBe('a/model-a');
     expect(await streamModel(mk(() => streamRes(fellBack), false))).toBe('a/model-a');
     expect((await mk(() => jsonRes(fellBack), false).chat(req(false))).model).toBe('a/model-a');
+  });
+});
+
+describe('redacted header（隐私模式）', () => {
+  const mkR = (res: () => Response, trusted: boolean) =>
+    new AiSdkLlmProvider({
+      id: 'gw',
+      protocol: 'openai-chat',
+      apiKey: 'k',
+      baseURL: 'http://gateway.test/v1',
+      defaultModel: 'a/model-a',
+      fetchImpl: (async () => res()) as typeof fetch,
+      ...(trusted ? { redactedHeader: NOMI_REDACTED_HEADER } : {}),
+    });
+  const hid = { [NOMI_REDACTED_HEADER]: '2' };
+
+  it('stream / chat: usage carries how many keys the gateway hid', async () => {
+    const out: ChatChunk[] = [];
+    for await (const c of mkR(() => streamRes(hid), true).stream(req(true))) out.push(c);
+    const u = out.find((c) => c.type === 'usage') as { usage: { redacted?: number } };
+    expect(u.usage.redacted).toBe(2);
+    expect((await mkR(() => jsonRes(hid), true).chat(req(false))).usage?.redacted).toBe(2);
+  });
+
+  it('no header, a bad value or an untrusted upstream: nothing', async () => {
+    for (const [res, trusted] of [
+      [() => jsonRes({}), true],
+      [() => jsonRes({ [NOMI_REDACTED_HEADER]: 'x' }), true],
+      [() => jsonRes(hid), false],
+    ] as const)
+      expect((await mkR(res, trusted).chat(req(false))).usage?.redacted).toBeUndefined();
   });
 });

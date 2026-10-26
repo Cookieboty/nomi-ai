@@ -657,6 +657,32 @@ export function parseNumstat(raw: string): NumstatMap {
   return out;
 }
 
+/**
+ * 跑 git 用的环境：不弹交互输入（凭据只走系统凭据助手 / SSH agent），
+ * 去掉会把 git 指向别处的 GIT_DIR 等变量（从别的 git 钩子里启动时会带着）。
+ */
+export function gitEnv(): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    GIT_OPTIONAL_LOCKS: '0',
+    GIT_TERMINAL_PROMPT: '0',
+    GCM_INTERACTIVE: 'never',
+    NO_COLOR: '1',
+  };
+  for (const k of [
+    'GIT_DIR',
+    'GIT_WORK_TREE',
+    'GIT_COMMON_DIR',
+    'GIT_PREFIX',
+    'GIT_INDEX_FILE',
+    'GIT_OBJECT_DIRECTORY',
+    'GIT_ALTERNATE_OBJECT_DIRECTORIES',
+  ] as const) {
+    delete env[k];
+  }
+  return env;
+}
+
 function git(cwd: string, args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
     execFile(
@@ -667,26 +693,7 @@ function git(cwd: string, args: string[]): Promise<string> {
         timeout: 8000,
         maxBuffer: 32 * 1024 * 1024,
         windowsHide: true,
-        env: (() => {
-          const env: NodeJS.ProcessEnv = {
-            ...process.env,
-            GIT_OPTIONAL_LOCKS: '0',
-            GIT_TERMINAL_PROMPT: '0',
-            NO_COLOR: '1',
-          };
-          for (const k of [
-            'GIT_DIR',
-            'GIT_WORK_TREE',
-            'GIT_COMMON_DIR',
-            'GIT_PREFIX',
-            'GIT_INDEX_FILE',
-            'GIT_OBJECT_DIRECTORY',
-            'GIT_ALTERNATE_OBJECT_DIRECTORIES',
-          ] as const) {
-            delete env[k];
-          }
-          return env;
-        })(),
+        env: gitEnv(),
       },
       (err, stdout, stderr) => {
         if (!err) return resolve(String(stdout));

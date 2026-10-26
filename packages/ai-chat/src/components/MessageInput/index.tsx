@@ -20,6 +20,12 @@ import {
 import { useNextDelegate } from '../../hooks/useNextDelegate';
 import { delegateClient, setNextDelegate, type DelegateCli } from '../../services/delegateClient';
 import { extClient } from '../../services/extClient';
+import {
+  MAX_FILE_ATTACHMENTS,
+  fileAttachmentFrom,
+  joinFileAttachments,
+  type FileAttachment,
+} from '../../services/fileAttachments';
 import { kbClient } from '../../services/kbClient';
 import { memClient } from '../../services/memClient';
 import { nomiModelLabel, nomiModelMeta } from '../../services/nomiModel';
@@ -49,6 +55,7 @@ import { CYCLE_PERMISSION_EVENT, type CyclePermissionDetail } from '../../utils/
 import { AppIcon, FEATURE_ICONS } from '../AppIcons';
 import { EndpointControls, PermissionTip } from '../EndpointControls';
 import { ErrorHint } from '../ErrorHint';
+import { FileChip } from '../FileAttachment';
 import { ComposerChangesPill } from '../SessionWorkspace/ComposerChangesPill';
 import { ContextUsageBar } from '../SessionWorkspace/ContextUsageBar';
 import type { SettingsSection } from '../SettingsView/sections';
@@ -239,6 +246,68 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     },
     [addImages],
   );
+  // 非图片文件：小文本文件连内容发，其余只发路径（services/fileAttachments.ts）
+  const [files, setFiles] = useState<FileAttachment[]>([]);
+  const addOtherFiles = useCallback(async (list: File[]) => {
+    const out: FileAttachment[] = [];
+    for (const f of list) {
+      const a = await fileAttachmentFrom(f);
+      if (a) out.push(a);
+      else setImgErr(tr('ui.knowledge-local.can-t-read-file', f.name));
+    }
+    if (!out.length) return;
+    setFiles((cur) => {
+      const next = [...cur, ...out];
+      if (next.length > MAX_FILE_ATTACHMENTS)
+        setImgErr(tr('ui.knowledge-local.up-to-files', MAX_FILE_ATTACHMENTS));
+      return next.slice(0, MAX_FILE_ATTACHMENTS);
+    });
+    requestAnimationFrame(() => textareaRef.current?.focus());
+  }, []);
+  /** 拖入 / 粘贴的文件：图片作图片附件，其余作文件附件；有文件返回 true */
+  const takeFiles = useCallback(
+    (list: File[]) => {
+      if (!list.length) return false;
+      const imgs = list.filter((f) => f.type.startsWith('image/'));
+      const others = list.filter((f) => !f.type.startsWith('image/'));
+      if (imgs.length) void addFiles(imgs);
+      if (others.length) void addOtherFiles(others);
+      return true;
+    },
+    [addFiles, addOtherFiles],
+  );
+  // 整个对话窗口都能拖入文件（不只输入框），拖动时高亮输入框
+  const takeFilesRef = useRef(takeFiles);
+  useLayoutEffect(() => {
+    takeFilesRef.current = takeFiles;
+  }, [takeFiles]);
+  useEffect(() => {
+    const hasFiles = (e: DragEvent) => !!e.dataTransfer?.types.includes('Files');
+    const onOver = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+      setDragOver(true);
+    };
+    const onLeave = (e: DragEvent) => {
+      // relatedTarget 为空 = 拖出了窗口
+      if (!e.relatedTarget) setDragOver(false);
+    };
+    const onDrop = (e: DragEvent) => {
+      setDragOver(false);
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      takeFilesRef.current(Array.from(e.dataTransfer?.files ?? []));
+    };
+    window.addEventListener('dragover', onOver);
+    window.addEventListener('dragleave', onLeave);
+    window.addEventListener('drop', onDrop);
+    return () => {
+      window.removeEventListener('dragover', onOver);
+      window.removeEventListener('dragleave', onLeave);
+      window.removeEventListener('drop', onDrop);
+    };
+  }, []);
   const snip = useCallback(async () => {
     if (!screenOk || snipping) return;
     setSnipping(true);
@@ -295,15 +364,24 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   const chatModel = nomiModelLabel() ?? '';
   // 模型元数据写明了视觉能力就以它为准，否则按名字猜
   const visionKnown = nomiModelMeta()?.vision;
-  const visionWarn = images.length > 0 && !(visionKnown ?? likelyVision(chatModel));
+  // 编程助手标签由调用方给出发图能力（当前 CLI 模型），不能拿 Nomi 自己的模型去判断
+  const visionWarn =
+    images.length > 0 &&
+    (imageCapability !== undefined
+      ? imageCapability === 'none'
+      : !(visionKnown ?? likelyVision(chatModel)));
 
   const handleSend = async () => {
     let trimmedMessage =
       message.trim() ||
-      (images.length ? tr('ui.knowledge-local.please-take-a-look-at-this-image') : '');
+      (images.length
+        ? tr('ui.knowledge-local.please-take-a-look-at-this-image')
+        : files.length
+          ? tr('ui.knowledge-local.please-take-a-look-at-these-files')
+          : '');
     if (!trimmedMessage) return;
     // 斜杠命令：原生命令 / 未知命令 / 自定义命令都在这里被接管；`//x` 转义成普通文字 `/x`
-    if (slash && !images.length && trimmedMessage.startsWith('/')) {
+    if (slash && !images.length && !files.length && trimmedMessage.startsWith('/')) {
       const scopeAtStart = slash.scope?.();
       const r = await slash.run(trimmedMessage, getRegistry());
       if (r.handled) {
@@ -313,6 +391,10 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
       }
       if (r.text !== undefined) trimmedMessage = r.text;
     }
+    // 文件附件拼在正文末尾，随文字一起走（排队也带上）
+    const sendFiles = files;
+    const typed = trimmedMessage;
+    trimmedMessage = joinFileAttachments(trimmedMessage, sendFiles);
     if (busy) {
       // 运行中：文字消息进队列（带图片的消息不排队，等当前轮结束再发）
       if (queue && !images.length) {
@@ -320,6 +402,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
         if (kbMode && kbAvailable) queue.onQueue(trimmedMessage, { kb: true });
         else queue.onQueue(trimmedMessage);
         setMessage('');
+        setFiles([]);
       }
       return;
     }
@@ -328,6 +411,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     try {
       setMessage('');
       setImages([]);
+      setFiles([]);
       setImgErr('');
       if (sendImages.length && imageCapability === 'none') {
         setImgErr(
@@ -335,7 +419,8 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
             tr('ui.session-workspace.the-current-model-doesn-t-support-images-remove'),
         );
         setImages(sendImages);
-        setMessage(trimmedMessage);
+        setFiles(sendFiles);
+        setMessage(typed);
       } else if (sendImages.length && onSend && busyOverride !== undefined) {
         onSend(trimmedMessage, sendImages);
       } else if (sendImages.length) {
@@ -469,7 +554,8 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     busyOverride === undefined ? (streaming ? actions.stopGeneration : undefined) : queue?.onStop;
   // 仅在运行中（busy）才可能出现停止键：排队模式下输入为空才停止（有字时发送键是「排队」）。
   // 旧写法缺 busy 前置条件，导致 CLI 标签空闲时也显示停止键（点击 tabs.cancel 空操作）。
-  const canStop = !!stopFn && busy && (!queue || (!message.trim() && !images.length));
+  const canStop =
+    !!stopFn && busy && (!queue || (!message.trim() && !images.length && !files.length));
 
   // 语音：自动发送（对话空闲时）或填入输入框
   const busyRef = useRef(false);
@@ -734,24 +820,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
         <ImageLightbox image={viewing} onClose={closeViewer} />
       )}
       {contextMessages?.length ? <ComposerChangesPill messages={contextMessages} /> : null}
-      <div
-        className={`${styles.inputWrapper} ${dragOver ? styles.dragOver : ''}`}
-        onDragOver={(e) => {
-          if (Array.from(e.dataTransfer.items).some((it) => it.type.startsWith('image/'))) {
-            e.preventDefault();
-            setDragOver(true);
-          }
-        }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={(e) => {
-          setDragOver(false);
-          const files = Array.from(e.dataTransfer.files);
-          if (files.some((f) => f.type.startsWith('image/'))) {
-            e.preventDefault();
-            void addFiles(files);
-          }
-        }}
-      >
+      <div className={`${styles.inputWrapper} ${dragOver ? styles.dragOver : ''}`}>
         {slashOpen && (
           <SlashPalette
             groups={slashGroups}
@@ -778,7 +847,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
             <span>{argHint.description}</span>
           </div>
         )}
-        {(images.length > 0 || imgErr) && (
+        {(images.length > 0 || files.length > 0 || imgErr) && (
           <div className={styles.attachRow} data-testid="attach-row">
             {images.map((i) => (
               <div key={i.id} className={styles.attachItem} title={`${i.width}×${i.height}`}>
@@ -805,18 +874,28 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
                 </button>
               </div>
             ))}
+            {files.map((f) => (
+              <FileChip
+                key={f.id}
+                file={f}
+                onRemove={() => setFiles((c) => c.filter((x) => x.id !== f.id))}
+              />
+            ))}
             <div className={styles.attachMeta}>
               {imgErr ? (
                 <span className={styles.attachErr}>{imgErr}</span>
               ) : visionWarn ? (
                 <span className={styles.attachWarn} data-testid="vision-warn">
-                  {tr('ui.knowledge-local.the-current-model-may-not-support-images-consider')}
+                  {imageCapability === 'none'
+                    ? (imageUnsupportedReason ??
+                      tr('ui.session-workspace.the-current-model-doesn-t-support-images-remove'))
+                    : tr('ui.knowledge-local.the-current-model-may-not-support-images-consider')}
                 </span>
-              ) : (
+              ) : images.length ? (
                 <span className={styles.attachHint}>
                   {tr('ui.knowledge-local.images-are-sent-with-this-message-originals-aren')}
                 </span>
-              )}
+              ) : null}
             </div>
           </div>
         )}
@@ -828,11 +907,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
           onCompositionStart={handleCompositionStart}
           onCompositionEnd={handleCompositionEnd}
           onPaste={(e) => {
-            const files = Array.from(e.clipboardData.files);
-            if (files.some((f) => f.type.startsWith('image/'))) {
-              e.preventDefault();
-              void addFiles(files);
-            }
+            if (takeFiles(Array.from(e.clipboardData.files))) e.preventDefault();
           }}
           placeholder={
             queue && busy
@@ -937,7 +1012,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
             ) : (
               <button
                 onClick={handleSend}
-                disabled={isDisabled || (!message.trim() && !images.length)}
+                disabled={isDisabled || (!message.trim() && !images.length && !files.length)}
                 className={styles.sendButton}
                 title={
                   queue && busy
