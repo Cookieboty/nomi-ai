@@ -44,22 +44,20 @@ Model files and binaries are **not bundled**: they are downloaded on demand from
 
 openWakeWord pretrained models (CC BY-NC-SA 4.0) are **not** used.
 
-## Speech output (offline, default)
+## Speech output (Nomi prompt clips, Edge online read-aloud)
 
-The speech model (~115 MB download, ~133 MB extracted) is **not** shipped in the installer: it is downloaded from the official k2-fsa/sherpa-onnx release into the user data folder when the user turns voice on (see `docs/design/tts-on-demand.md`). The archive sha256 and per-file sizes are pinned in `packages/electron/src/tts/sherpa/manifest.ts`.
+There is no built-in (offline) speech synthesis engine. Nomi's short fixed prompt lines (Chinese UI, Nomi character only) play prerecorded MP3 clips from `packages/renderer/public/voice/nomi/zh/` (list in its `manifest.json`).
 
-| Component                                                                                                                    | Licence    | Notes                                                                                                                                             |
-| ---------------------------------------------------------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sherpa-onnx-node` 1.13.8 + platform packages `sherpa-onnx-{darwin-arm64,darwin-x64,linux-x64,linux-arm64,win-x64,win-ia32}` | Apache-2.0 | © k2-fsa / sherpa-onnx contributors — https://github.com/k2-fsa/sherpa-onnx. Native N-API addon and bundled ONNX Runtime, unpacked from the asar. |
+| Component                                 | Licence            | Notes                                                                                                                                                                                                                                                                                                              |
+| ----------------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Nomi prompt clips (`voice/nomi/zh/*.mp3`) | Unclear — see note | Generated with the Microsoft Edge online neural voice `zh-CN-XiaoyiNeural` (rate −5%, pitch +0Hz) via `scripts/voice/gen.py`. Redistribution terms for audio from the free Edge read-aloud service are not clearly stated; regenerate the clips with a licensed Azure Speech subscription before a formal release. |
 
-## Speech output (optional advanced: Fish Audio / fish-speech)
+### Edge online read-aloud (realtime engine, default)
 
-**Built with Fish Audio.** Not enabled by default. Model weights are **not** bundled. The app talks to a user-run local fish-speech HTTP API (`http://127.0.0.1:8080`) or the user’s own Fish cloud API key.
+Lines without a prerecorded clip are synthesized at runtime by the **Microsoft Edge online read-aloud service** (`speech.platform.bing.com`, the service behind Edge's "Read aloud"). Nothing is bundled and no audio is stored; text is sent to Microsoft over the network only when the engine is `edge` (the default) and the mascot speaks.
 
-| Component                                                                               | Licence                                  | Notes                                                                                                                                                                                                                                                                      |
-| --------------------------------------------------------------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Fish Speech / Fish Audio Materials (optional runtime)                                   | Fish Audio Community License             | Research / non-commercial free; community commercial while Annual Revenue &lt; USD 500k (see official LICENSE); Hosted Service needs a separate agreement; no non-consensual real-person cloning; do not train other base TTS models on outputs. Full excerpt in `NOTICE`. |
-| Nomi built-in reference preset `nomi` (`packages/electron/assets/tts/references/nomi/`) | MIT (owner-provided sample when present) | Cute / kawaii Mandarin preset id only; place project-owned `sample.wav` + `sample.lab` beside the README. No third-party character packs.                                                                                                                                  |
+- **Not an official public Microsoft API.** It is used the way the Edge browser uses it; Microsoft may change or block it at any time, in which case Nomi silently falls back to text only. Terms of use for third-party clients are not stated — **licensing is a grey area**. Users can switch the engine to "None" in Settings.
+- **Client code is original project code (MIT)** — `packages/electron/src/tts/edge/` — written on top of the existing `ws` dependency (MIT); no new dependency and no GPL/LGPL code. The wire format (request headers, `speech.config` / SSML frames, binary audio framing, `Sec-MS-GEC` token) was re-implemented from public protocol descriptions, with reference to `msedge-tts` (MIT, https://github.com/Migushthe2nd/MsEdgeTTS) and the public discussion in `rany2/edge-tts` PR #492; no source was copied from `edge-tts` (LGPL-3.0).
 
 ## Local models (llama.cpp)
 

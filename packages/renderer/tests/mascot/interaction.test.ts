@@ -37,10 +37,12 @@ describe('gestures', () => {
     vi.useRealTimers();
   });
 
-  it('every region has a click reaction with a line; skirt protests', () => {
+  it('every region has a click reaction; skirt protests', () => {
     for (const r of ['head', 'face', 'body', 'hands', 'skirt', 'legs'] as const) {
+      // 台词已精简：多数区域只剩表情 / 动作，没有台词时保持安静
       const re = reactionFor('click', r);
-      expect(re?.lines.length).toBeGreaterThan(0);
+      expect(re).not.toBeNull();
+      expect(Array.isArray(re?.lines)).toBe(true);
     }
     expect(reactionFor('click', 'skirt')?.expression).toBe('angry');
     expect(reactionFor('hover', 'skirt')?.expression).toBe('angry');

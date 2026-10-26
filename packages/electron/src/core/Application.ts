@@ -73,7 +73,6 @@ import {
 } from '../startup/startupPlan';
 import { StartupService } from '../startup/StartupService';
 import { ThemeService } from '../theme/ThemeService';
-import { registerTtsModel } from '../tts/registerTtsModel';
 import {
   getGatewayRequestLog,
   initGatewayRequestLog,
@@ -400,8 +399,6 @@ export class Application implements IApplication {
         }
       });
 
-      // 离线 TTS 模型按需下载（不再随安装包分发）；语音已开但缺模型时启动即下载
-      registerTtsModel(this.configService).start();
       const startupPlan = planStartup({
         defaultView: startup.get().defaultView,
         onboardingPending: onboarding.shouldAutoOpen(),

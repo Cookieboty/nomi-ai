@@ -1,0 +1,876 @@
+{
+ "voice": "zh-CN-XiaoyiNeural",
+ "rate": "-5%",
+ "pitch": "+0Hz",
+ "volume": "+0%",
+ "format": "audio-24khz-48kbitrate-mono-mp3",
+ "style": "default",
+ "count": 96,
+ "generator": "scripts/voice/gen.py (edge-tts)",
+ "clips": [
+  {
+   "key": "ui.voice-mascot.want-to-chat-about-something",
+   "text": "要聊点什么吗？",
+   "spoken_text": "要聊点什么吗？",
+   "file": "ui.voice-mascot.want-to-chat-about-something.mp3",
+   "duration_s": 2.02,
+   "size_bytes": 12096,
+   "category": "tips"
+  },
+  {
+   "key": "ui.voice-mascot.open-the-chat-window-and-talk-to-me",
+   "text": "打开聊天窗口，和我说说话吧。",
+   "spoken_text": "打开聊天窗口，和我说说话吧。",
+   "file": "ui.voice-mascot.open-the-chat-window-and-talk-to-me.mp3",
+   "duration_s": 3.6,
+   "size_bytes": 21600,
+   "category": "tips"
+  },
+  {
+   "key": "ui.voice-mascot.ask-me-anything",
+   "text": "有问题尽管问我！",
+   "spoken_text": "有问题尽管问我！",
+   "file": "ui.voice-mascot.ask-me-anything.mp3",
+   "duration_s": 2.59,
+   "size_bytes": 15552,
+   "category": "tips"
+  },
+  {
+   "key": "ui.voice-mascot.voice-settings-are-here-right-click-to-fine",
+   "text": "语音设置在这里，右键可以细调。",
+   "spoken_text": "语音设置在这里，右键可以细调。",
+   "file": "ui.voice-mascot.voice-settings-are-here-right-click-to-fine.mp3",
+   "duration_s": 3.62,
+   "size_bytes": 21744,
+   "category": "tips"
+  },
+  {
+   "key": "ui.voice-mascot.want-to-see-me-do-a-move-right",
+   "text": "想看我做个动作吗？右键可以挑一个。",
+   "spoken_text": "想看我做个动作吗？右键可以挑一个。",
+   "file": "ui.voice-mascot.want-to-see-me-do-a-move-right.mp3",
+   "duration_s": 4.49,
+   "size_bytes": 26928,
+   "category": "tips"
+  },
+  {
+   "key": "ui.voice-mascot.want-me-to-step-away-you-can-bring",
+   "text": "想让我先退下吗？设置里随时能叫我回来。",
+   "spoken_text": "想让我先退下吗？设置里随时能叫我回来。",
+   "file": "ui.voice-mascot.want-me-to-step-away-you-can-bring.mp3",
+   "duration_s": 4.73,
+   "size_bytes": 28368,
+   "category": "tips"
+  },
+  {
+   "key": "ui.voice-mascot.time-for-a-break-see-you-next-time",
+   "text": "要休息了吗？下次见～",
+   "spoken_text": "要休息了吗？下次见～",
+   "file": "ui.voice-mascot.time-for-a-break-see-you-next-time.mp3",
+   "duration_s": 3.12,
+   "size_bytes": 18720,
+   "category": "tips"
+  },
+  {
+   "key": "ui.voice-mascot.come-back-soon-okay",
+   "text": "记得早点回来哦。",
+   "spoken_text": "记得早点回来哦。",
+   "file": "ui.voice-mascot.come-back-soon-okay.mp3",
+   "duration_s": 2.18,
+   "size_bytes": 13104,
+   "category": "tips"
+  },
+  {
+   "key": "ui.voice-mascot.rest-your-eyes-look-at-something-far-away",
+   "text": "休息一下眼睛吧，看看远处～",
+   "spoken_text": "休息一下眼睛吧，看看远处～",
+   "file": "ui.voice-mascot.rest-your-eyes-look-at-something-far-away.mp3",
+   "duration_s": 3.31,
+   "size_bytes": 19872,
+   "category": "tips"
+  },
+  {
+   "key": "ui.voice-mascot.have-some-water-and-stay-hydrated",
+   "text": "喝口水吧，补充一下水分。",
+   "spoken_text": "喝口水吧，补充一下水分。",
+   "file": "ui.voice-mascot.have-some-water-and-stay-hydrated.mp3",
+   "duration_s": 3.29,
+   "size_bytes": 19728,
+   "category": "tips"
+  },
+  {
+   "key": "ui.voice-mascot.you-ve-been-sitting-a-while-get-up",
+   "text": "坐久了记得起来活动活动。",
+   "spoken_text": "坐久了记得起来活动活动。",
+   "file": "ui.voice-mascot.you-ve-been-sitting-a-while-get-up.mp3",
+   "duration_s": 3.14,
+   "size_bytes": 18864,
+   "category": "tips"
+  },
+  {
+   "key": "ui.voice-mascot.if-something-s-puzzling-you-toss-it-my",
+   "text": "有想不通的问题，可以丢给我试试。",
+   "spoken_text": "有想不通的问题，可以丢给我试试。",
+   "file": "ui.voice-mascot.if-something-s-puzzling-you-toss-it-my.mp3",
+   "duration_s": 3.96,
+   "size_bytes": 23760,
+   "category": "tips"
+  },
+  {
+   "key": "ui.voice-mascot.thanks-for-your-hard-work-today",
+   "text": "今天也辛苦啦。",
+   "spoken_text": "今天也辛苦啦。",
+   "file": "ui.voice-mascot.thanks-for-your-hard-work-today.mp3",
+   "duration_s": 2.21,
+   "size_bytes": 13248,
+   "category": "tips"
+  },
+  {
+   "key": "ui.voice-mascot.good-morning-a-new-day-begins",
+   "text": "早上好！新的一天开始啦。",
+   "spoken_text": "早上好！新的一天开始啦。",
+   "file": "ui.voice-mascot.good-morning-a-new-day-begins.mp3",
+   "duration_s": 3.5,
+   "size_bytes": 21024,
+   "category": "tips"
+  },
+  {
+   "key": "ui.voice-mascot.good-morning-time-to-focus",
+   "text": "上午好，专注的时间到了。",
+   "spoken_text": "上午好，专注的时间到了。",
+   "file": "ui.voice-mascot.good-morning-time-to-focus.mp3",
+   "duration_s": 3.24,
+   "size_bytes": 19440,
+   "category": "tips"
+  },
+  {
+   "key": "ui.voice-mascot.it-s-noon-remember-to-have-lunch",
+   "text": "中午了，记得吃午饭哦。",
+   "spoken_text": "中午了，记得吃午饭哦。",
+   "file": "ui.voice-mascot.it-s-noon-remember-to-have-lunch.mp3",
+   "duration_s": 2.95,
+   "size_bytes": 17712,
+   "category": "tips"
+  },
+  {
+   "key": "ui.voice-mascot.good-afternoon-a-cup-of-tea-to-perk",
+   "text": "下午好，来杯茶提提神？",
+   "spoken_text": "下午好，来杯茶提提神？",
+   "file": "ui.voice-mascot.good-afternoon-a-cup-of-tea-to-perk.mp3",
+   "duration_s": 3.34,
+   "size_bytes": 20016,
+   "category": "tips"
+  },
+  {
+   "key": "ui.voice-mascot.good-evening-how-was-your-day",
+   "text": "晚上好，今天过得怎么样？",
+   "spoken_text": "晚上好，今天过得怎么样？",
+   "file": "ui.voice-mascot.good-evening-how-was-your-day.mp3",
+   "duration_s": 3.02,
+   "size_bytes": 18144,
+   "category": "tips"
+  },
+  {
+   "key": "ui.voice-mascot.it-s-late-get-some-rest-soon",
+   "text": "已经很晚了，早点休息吧。",
+   "spoken_text": "已经很晚了，早点休息吧。",
+   "file": "ui.voice-mascot.it-s-late-get-some-rest-soon.mp3",
+   "duration_s": 3.17,
+   "size_bytes": 19008,
+   "category": "tips"
+  },
+  {
+   "key": "ui.voice-mascot.still-up-this-late-your-health-comes-first",
+   "text": "这么晚还没睡？身体要紧哦。",
+   "spoken_text": "这么晚还没睡？身体要紧哦。",
+   "file": "ui.voice-mascot.still-up-this-late-your-health-comes-first.mp3",
+   "duration_s": 3.74,
+   "size_bytes": 22464,
+   "category": "tips"
+  },
+  {
+   "key": "ui.voice-mascot.hi-i-m-your-desktop-companion",
+   "text": "你好，我是你的桌面伙伴～",
+   "spoken_text": "你好，我是你的桌面伙伴～",
+   "file": "ui.voice-mascot.hi-i-m-your-desktop-companion.mp3",
+   "duration_s": 3.02,
+   "size_bytes": 18144,
+   "category": "tips"
+  },
+  {
+   "key": "ui.voice-mascot.welcome-back",
+   "text": "欢迎回来！",
+   "spoken_text": "欢迎回来！",
+   "file": "ui.voice-mascot.welcome-back.mp3",
+   "duration_s": 1.87,
+   "size_bytes": 11232,
+   "category": "tips"
+  },
+  {
+   "key": "ui.usage-tools.let-me-think",
+   "text": "让我想想…",
+   "spoken_text": "让我想想…",
+   "file": "ui.usage-tools.let-me-think.mp3",
+   "duration_s": 1.87,
+   "size_bytes": 11232,
+   "category": "cue"
+  },
+  {
+   "key": "ui.cli-monitor.hmm-one-sec",
+   "text": "嗯…稍等一下。",
+   "spoken_text": "嗯…稍等一下。",
+   "file": "ui.cli-monitor.hmm-one-sec.mp3",
+   "duration_s": 2.3,
+   "size_bytes": 13824,
+   "category": "cue"
+  },
+  {
+   "key": "ui.cli-monitor.i-m-here",
+   "text": "我来啦～",
+   "spoken_text": "我来啦～",
+   "file": "ui.cli-monitor.i-m-here.mp3",
+   "duration_s": 1.87,
+   "size_bytes": 11232,
+   "category": "cue"
+  },
+  {
+   "key": "ui.cli-monitor.let-s-do-our-best-today",
+   "text": "今天也一起加油吧！",
+   "spoken_text": "今天也一起加油吧！",
+   "file": "ui.cli-monitor.let-s-do-our-best-today.mp3",
+   "duration_s": 2.57,
+   "size_bytes": 15408,
+   "category": "cue"
+  },
+  {
+   "key": "ui.cli-monitor.hi-i-m-nomi",
+   "text": "你好，我是 Nomi～",
+   "spoken_text": "你好，我是 诺米～",
+   "file": "ui.cli-monitor.hi-i-m-nomi.mp3",
+   "duration_s": 2.95,
+   "size_bytes": 17712,
+   "category": "cue"
+  },
+  {
+   "key": "ui.cli-monitor.rest-early-okay",
+   "text": "早点休息哦。",
+   "spoken_text": "早点休息哦。",
+   "file": "ui.cli-monitor.rest-early-okay.mp3",
+   "duration_s": 1.92,
+   "size_bytes": 11520,
+   "category": "cue"
+  },
+  {
+   "key": "ui.cli-monitor.task-done",
+   "text": "任务搞定啦！",
+   "spoken_text": "任务搞定啦！",
+   "file": "ui.cli-monitor.task-done.mp3",
+   "duration_s": 1.92,
+   "size_bytes": 11520,
+   "category": "cue"
+  },
+  {
+   "key": "ui.cli-monitor.done-thumbs-up",
+   "text": "完成～给你点个赞！",
+   "spoken_text": "完成～给你点个赞！",
+   "file": "ui.cli-monitor.done-thumbs-up.mp3",
+   "duration_s": 2.26,
+   "size_bytes": 13536,
+   "category": "cue"
+  },
+  {
+   "key": "ui.usage-tools.this-round-is-finished",
+   "text": "这一轮做完了哦。",
+   "spoken_text": "这一轮做完了哦。",
+   "file": "ui.usage-tools.this-round-is-finished.mp3",
+   "duration_s": 2.18,
+   "size_bytes": 13104,
+   "category": "cue"
+  },
+  {
+   "key": "ui.cli-monitor.oops-something-went-wrong",
+   "text": "哎呀，出错了…",
+   "spoken_text": "哎呀，出错了…",
+   "file": "ui.cli-monitor.oops-something-went-wrong.mp3",
+   "duration_s": 2.38,
+   "size_bytes": 14256,
+   "category": "cue"
+  },
+  {
+   "key": "ui.usage-tools.didn-t-work-try-again",
+   "text": "这次没成功，再试试？",
+   "spoken_text": "这次没成功，再试试？",
+   "file": "ui.usage-tools.didn-t-work-try-again.mp3",
+   "duration_s": 3.07,
+   "size_bytes": 18432,
+   "category": "cue"
+  },
+  {
+   "key": "ui.cli-monitor.failed-but-don-t-give-up",
+   "text": "失败了，别灰心。",
+   "spoken_text": "失败了，别灰心。",
+   "file": "ui.cli-monitor.failed-but-don-t-give-up.mp3",
+   "duration_s": 2.66,
+   "size_bytes": 15984,
+   "category": "cue"
+  },
+  {
+   "key": "ui.usage-tools.need-you-to-confirm",
+   "text": "需要你点一下确认～",
+   "spoken_text": "需要你点一下确认～",
+   "file": "ui.usage-tools.need-you-to-confirm.mp3",
+   "duration_s": 2.45,
+   "size_bytes": 14688,
+   "category": "cue"
+  },
+  {
+   "key": "ui.cli-monitor.permission-is-waiting-for-you",
+   "text": "权限在等你哦。",
+   "spoken_text": "权限在等你哦。",
+   "file": "ui.cli-monitor.permission-is-waiting-for-you.mp3",
+   "duration_s": 2.16,
+   "size_bytes": 12960,
+   "category": "cue"
+  },
+  {
+   "key": "ui.usage-tools.please-allow-or-deny-in-chat",
+   "text": "请到对话里允许或拒绝。",
+   "spoken_text": "请到对话里允许或拒绝。",
+   "file": "ui.usage-tools.please-allow-or-deny-in-chat.mp3",
+   "duration_s": 3.43,
+   "size_bytes": 20592,
+   "category": "cue"
+  },
+  {
+   "key": "ui.cli-monitor.looks-stuck",
+   "text": "好像卡住了…",
+   "spoken_text": "好像卡住了…",
+   "file": "ui.cli-monitor.looks-stuck.mp3",
+   "duration_s": 2.06,
+   "size_bytes": 12384,
+   "category": "cue"
+  },
+  {
+   "key": "ui.cli-monitor.no-updates-for-a-while",
+   "text": "半天没动静呢。",
+   "spoken_text": "半天没动静呢。",
+   "file": "ui.cli-monitor.no-updates-for-a-while.mp3",
+   "duration_s": 2.18,
+   "size_bytes": 13104,
+   "category": "cue"
+  },
+  {
+   "key": "ui.usage-tools.want-to-check-on-it",
+   "text": "要不要去看看？",
+   "spoken_text": "要不要去看看？",
+   "file": "ui.usage-tools.want-to-check-on-it.mp3",
+   "duration_s": 1.99,
+   "size_bytes": 11952,
+   "category": "cue"
+  },
+  {
+   "key": "ui.cli-monitor.waiting-for-your-reply",
+   "text": "在等你回复哦～",
+   "spoken_text": "在等你回复哦～",
+   "file": "ui.cli-monitor.waiting-for-your-reply.mp3",
+   "duration_s": 2.04,
+   "size_bytes": 12240,
+   "category": "cue"
+  },
+  {
+   "key": "ui.usage-tools.your-turn",
+   "text": "轮到你啦！",
+   "spoken_text": "轮到你啦！",
+   "file": "ui.usage-tools.your-turn.mp3",
+   "duration_s": 1.87,
+   "size_bytes": 11232,
+   "category": "cue"
+  },
+  {
+   "key": "ui.cli-monitor.ready-awaiting-your-order",
+   "text": "我准备好了，等你指示。",
+   "spoken_text": "我准备好了，等你指示。",
+   "file": "ui.cli-monitor.ready-awaiting-your-order.mp3",
+   "duration_s": 2.95,
+   "size_bytes": 17712,
+   "category": "cue"
+  },
+  {
+   "key": "ui.cli-monitor.reminder-time",
+   "text": "提醒时间到！",
+   "spoken_text": "提醒时间到！",
+   "file": "ui.cli-monitor.reminder-time.mp3",
+   "duration_s": 1.99,
+   "size_bytes": 11952,
+   "category": "cue"
+  },
+  {
+   "key": "ui.cli-monitor.ding-don-t-forget-this",
+   "text": "叮咚，记得这件事哦。",
+   "spoken_text": "叮咚，记得这件事哦。",
+   "file": "ui.cli-monitor.ding-don-t-forget-this.mp3",
+   "duration_s": 2.74,
+   "size_bytes": 16416,
+   "category": "cue"
+  },
+  {
+   "key": "ui.cli-monitor.it-s-time",
+   "text": "到点啦～",
+   "spoken_text": "到点啦～",
+   "file": "ui.cli-monitor.it-s-time.mp3",
+   "duration_s": 1.87,
+   "size_bytes": 11232,
+   "category": "cue"
+  },
+  {
+   "key": "ui.cli-monitor.focus-time",
+   "text": "专注时间开始！",
+   "spoken_text": "专注时间开始！",
+   "file": "ui.cli-monitor.focus-time.mp3",
+   "duration_s": 2.18,
+   "size_bytes": 13104,
+   "category": "cue"
+  },
+  {
+   "key": "ui.usage-tools.flow-mode-on",
+   "text": "进入心流模式～",
+   "spoken_text": "进入心流模式～",
+   "file": "ui.usage-tools.flow-mode-on.mp3",
+   "duration_s": 2.33,
+   "size_bytes": 13968,
+   "category": "cue"
+  },
+  {
+   "key": "ui.cli-monitor.you-ve-got-this-i-m-here",
+   "text": "加油，我陪你。",
+   "spoken_text": "加油，我陪你。",
+   "file": "ui.cli-monitor.you-ve-got-this-i-m-here.mp3",
+   "duration_s": 2.47,
+   "size_bytes": 14832,
+   "category": "cue"
+  },
+  {
+   "key": "ui.cli-monitor.pomodoro-take-a-break",
+   "text": "番茄钟响啦！休息一下吧。",
+   "spoken_text": "番茄钟响啦！休息一下吧。",
+   "file": "ui.cli-monitor.pomodoro-take-a-break.mp3",
+   "duration_s": 3.55,
+   "size_bytes": 21312,
+   "category": "cue"
+  },
+  {
+   "key": "ui.cli-monitor.beep-time-to-rest",
+   "text": "嘀嘀，该歇会儿了。",
+   "spoken_text": "嘀嘀，该歇会儿了。",
+   "file": "ui.cli-monitor.beep-time-to-rest.mp3",
+   "duration_s": 2.47,
+   "size_bytes": 14832,
+   "category": "cue"
+  },
+  {
+   "key": "ui.cli-monitor.stand-up-and-stretch",
+   "text": "站起来走走～",
+   "spoken_text": "站起来走走～",
+   "file": "ui.cli-monitor.stand-up-and-stretch.mp3",
+   "duration_s": 1.92,
+   "size_bytes": 11520,
+   "category": "cue"
+  },
+  {
+   "key": "ui.cli-monitor.got-the-file",
+   "text": "收到文件啦！",
+   "spoken_text": "收到文件啦！",
+   "file": "ui.cli-monitor.got-the-file.mp3",
+   "duration_s": 1.94,
+   "size_bytes": 11664,
+   "category": "cue"
+  },
+  {
+   "key": "ui.cli-monitor.let-me-see-what-it-is",
+   "text": "我看看是什么～",
+   "spoken_text": "我看看是什么～",
+   "file": "ui.cli-monitor.let-me-see-what-it-is.mp3",
+   "duration_s": 2.06,
+   "size_bytes": 12384,
+   "category": "cue"
+  },
+  {
+   "key": "ui.cli-monitor.you-dropped-it-i-ll-read-it",
+   "text": "拖给我的，我来读。",
+   "spoken_text": "拖给我的，我来读。",
+   "file": "ui.cli-monitor.you-dropped-it-i-ll-read-it.mp3",
+   "duration_s": 2.69,
+   "size_bytes": 16128,
+   "category": "cue"
+  },
+  {
+   "key": "ui.usage-tools.please-confirm-this-action",
+   "text": "这个操作要你确认一下。",
+   "spoken_text": "这个操作要你确认一下。",
+   "file": "ui.usage-tools.please-confirm-this-action.mp3",
+   "duration_s": 3.05,
+   "size_bytes": 18288,
+   "category": "cue"
+  },
+  {
+   "key": "ui.usage-tools.confirm-before-we-continue",
+   "text": "请确认后再继续哦。",
+   "spoken_text": "请确认后再继续哦。",
+   "file": "ui.usage-tools.confirm-before-we-continue.mp3",
+   "duration_s": 2.66,
+   "size_bytes": 15984,
+   "category": "cue"
+  },
+  {
+   "key": "ui.cli-monitor.i-ll-wait-for-your-yes",
+   "text": "我等你点头～",
+   "spoken_text": "我等你点头～",
+   "file": "ui.cli-monitor.i-ll-wait-for-your-yes.mp3",
+   "duration_s": 1.97,
+   "size_bytes": 11808,
+   "category": "cue"
+  },
+  {
+   "key": "ui.cli-monitor.awesome",
+   "text": "太棒了！！",
+   "spoken_text": "太棒了！！",
+   "file": "ui.cli-monitor.awesome.mp3",
+   "duration_s": 1.87,
+   "size_bytes": 11232,
+   "category": "cue"
+  },
+  {
+   "key": "ui.cli-monitor.success-confetti",
+   "text": "成功啦，撒花！",
+   "spoken_text": "成功啦，撒花！",
+   "file": "ui.cli-monitor.success-confetti.mp3",
+   "duration_s": 2.57,
+   "size_bytes": 15408,
+   "category": "cue"
+  },
+  {
+   "key": "ui.cli-monitor.i-ll-fix-it-right-away",
+   "text": "我这就更正。",
+   "spoken_text": "我这就更正。",
+   "file": "ui.cli-monitor.i-ll-fix-it-right-away.mp3",
+   "duration_s": 1.9,
+   "size_bytes": 11376,
+   "category": "cue"
+  },
+  {
+   "key": "ui.cli-monitor.well-done",
+   "text": "干得漂亮！",
+   "spoken_text": "干得漂亮！",
+   "file": "ui.cli-monitor.well-done.mp3",
+   "duration_s": 1.87,
+   "size_bytes": 11232,
+   "category": "cue"
+  },
+  {
+   "key": "ui.cli-monitor.good-night-sweet-dreams",
+   "text": "晚安～好梦。",
+   "spoken_text": "晚安～好梦。",
+   "file": "ui.cli-monitor.good-night-sweet-dreams.mp3",
+   "duration_s": 1.87,
+   "size_bytes": 11232,
+   "category": "cue"
+  },
+  {
+   "key": "ui.cli-monitor.it-s-late-rest-a-bit",
+   "text": "夜深了，歇歇吧。",
+   "spoken_text": "夜深了，歇歇吧。",
+   "file": "ui.cli-monitor.it-s-late-rest-a-bit.mp3",
+   "duration_s": 2.47,
+   "size_bytes": 14832,
+   "category": "cue"
+  },
+  {
+   "key": "ui.cli-monitor.see-you-tomorrow",
+   "text": "明天见。",
+   "spoken_text": "明天见。",
+   "file": "ui.cli-monitor.see-you-tomorrow.mp3",
+   "duration_s": 1.87,
+   "size_bytes": 11232,
+   "category": "cue"
+  },
+  {
+   "key": "ui.cli-monitor.okay",
+   "text": "好的～",
+   "spoken_text": "好的～",
+   "file": "ui.cli-monitor.okay.mp3",
+   "duration_s": 1.87,
+   "size_bytes": 11232,
+   "category": "cue"
+  },
+  {
+   "key": "ui.cli-monitor.got-it",
+   "text": "收到！",
+   "spoken_text": "收到！",
+   "file": "ui.cli-monitor.got-it.mp3",
+   "duration_s": 1.87,
+   "size_bytes": 11232,
+   "category": "cue"
+  },
+  {
+   "key": "ui.voice-mascot.i-m-listening",
+   "text": "我在听～",
+   "spoken_text": "我在听～",
+   "file": "ui.voice-mascot.i-m-listening.mp3",
+   "duration_s": 1.87,
+   "size_bytes": 11232,
+   "category": "gesture"
+  },
+  {
+   "key": "ui.voice-mascot.i-m-here-go-ahead",
+   "text": "我在～请说",
+   "spoken_text": "我在～请说",
+   "file": "ui.voice-mascot.i-m-here-go-ahead.mp3",
+   "duration_s": 2.02,
+   "size_bytes": 12096,
+   "category": "toast/error"
+  },
+  {
+   "key": "ui.voice-mascot.couldn-t-close-nomi-please-try-again-later",
+   "text": "关闭 Nomi 失败，请稍后再试",
+   "spoken_text": "关闭 诺米 失败，请稍后再试",
+   "file": "ui.voice-mascot.couldn-t-close-nomi-please-try-again-later.mp3",
+   "duration_s": 4.22,
+   "size_bytes": 25344,
+   "category": "toast/error"
+  },
+  {
+   "key": "ui.voice-mascot.canvas-not-found-can-t-take-a-screenshot",
+   "text": "找不到画布元素，无法截图",
+   "spoken_text": "找不到画布元素，无法截图",
+   "file": "ui.voice-mascot.canvas-not-found-can-t-take-a-screenshot.mp3",
+   "duration_s": 3.5,
+   "size_bytes": 21024,
+   "category": "toast/error"
+  },
+  {
+   "key": "ui.voice-mascot.got-it-saved-to-your-downloads-folder",
+   "text": "照好了，保存在下载目录了",
+   "spoken_text": "照好了，保存在下载目录了",
+   "file": "ui.voice-mascot.got-it-saved-to-your-downloads-folder.mp3",
+   "duration_s": 3.31,
+   "size_bytes": 19872,
+   "category": "toast/error"
+  },
+  {
+   "key": "ui.voice-mascot.screenshot-failed",
+   "text": "截图失败",
+   "spoken_text": "截图失败",
+   "file": "ui.voice-mascot.screenshot-failed.mp3",
+   "duration_s": 1.87,
+   "size_bytes": 11232,
+   "category": "toast/error"
+  },
+  {
+   "key": "ui.voice-mascot.bye-see-you-next-time",
+   "text": "再见了，下次见！",
+   "spoken_text": "再见了，下次见！",
+   "file": "ui.voice-mascot.bye-see-you-next-time.mp3",
+   "duration_s": 2.47,
+   "size_bytes": 14832,
+   "category": "toast/error"
+  },
+  {
+   "key": "ui.voice-mascot.the-voice-service-isn-t-ready-yet-please",
+   "text": "语音服务尚未初始化，请稍后再试...",
+   "spoken_text": "语音服务尚未初始化，请稍后再试...",
+   "file": "ui.voice-mascot.the-voice-service-isn-t-ready-yet-please.mp3",
+   "duration_s": 4.1,
+   "size_bytes": 24624,
+   "category": "toast/error"
+  },
+  {
+   "key": "ui.voice-mascot.failed-to-switch-voice-mode-please-try-again",
+   "text": "语音模式切换失败，请重试",
+   "spoken_text": "语音模式切换失败，请重试",
+   "file": "ui.voice-mascot.failed-to-switch-voice-mode-please-try-again.mp3",
+   "duration_s": 3.79,
+   "size_bytes": 22752,
+   "category": "toast/error"
+  },
+  {
+   "key": "ui.voice-mascot.the-voice-service-is-initializing-please-try-again",
+   "text": "语音服务正在初始化中，请稍后再试...",
+   "spoken_text": "语音服务正在初始化中，请稍后再试...",
+   "file": "ui.voice-mascot.the-voice-service-is-initializing-please-try-again.mp3",
+   "duration_s": 4.34,
+   "size_bytes": 26064,
+   "category": "toast/error"
+  },
+  {
+   "key": "ui.voice-mascot.voice-enabled",
+   "text": "语音功能已启用！",
+   "spoken_text": "语音功能已启用！",
+   "file": "ui.voice-mascot.voice-enabled.mp3",
+   "duration_s": 2.35,
+   "size_bytes": 14112,
+   "category": "toast/error"
+  },
+  {
+   "key": "ui.voice-mascot.voice-disabled",
+   "text": "语音功能已禁用！",
+   "spoken_text": "语音功能已禁用！",
+   "file": "ui.voice-mascot.voice-disabled.mp3",
+   "duration_s": 2.42,
+   "size_bytes": 14544,
+   "category": "toast/error"
+  },
+  {
+   "key": "ui.voice-mascot.ai-chat-window-opened",
+   "text": "AI对话窗口已打开",
+   "spoken_text": "AI对话窗口已打开",
+   "file": "ui.voice-mascot.ai-chat-window-opened.mp3",
+   "duration_s": 2.93,
+   "size_bytes": 17568,
+   "category": "toast/error"
+  },
+  {
+   "key": "ui.voice-mascot.couldn-t-open-the-ai-chat-window-please",
+   "text": "打开AI对话窗口失败，请稍后再试",
+   "spoken_text": "打开AI对话窗口失败，请稍后再试",
+   "file": "ui.voice-mascot.couldn-t-open-the-ai-chat-window-please.mp3",
+   "duration_s": 4.66,
+   "size_bytes": 27936,
+   "category": "toast/error"
+  },
+  {
+   "key": "ui.voice-mascot.ai-chat-requires-the-electron-environment",
+   "text": "AI对话功能需要在Electron环境中运行",
+   "spoken_text": "AI对话功能需要在Electron环境中运行",
+   "file": "ui.voice-mascot.ai-chat-requires-the-electron-environment.mp3",
+   "duration_s": 4.8,
+   "size_bytes": 28800,
+   "category": "toast/error"
+  },
+  {
+   "key": "ui.voice-mascot.the-task-board-opens-in-the-desktop-app",
+   "text": "任务看板需要在桌面应用里打开",
+   "spoken_text": "任务看板需要在桌面应用里打开",
+   "file": "ui.voice-mascot.the-task-board-opens-in-the-desktop-app.mp3",
+   "duration_s": 3.79,
+   "size_bytes": 22752,
+   "category": "toast/error"
+  },
+  {
+   "key": "ui.voice-mascot.couldn-t-open-the-task-board-please-try",
+   "text": "打开任务看板失败，请稍后再试",
+   "spoken_text": "打开任务看板失败，请稍后再试",
+   "file": "ui.voice-mascot.couldn-t-open-the-task-board-please-try.mp3",
+   "duration_s": 3.94,
+   "size_bytes": 23616,
+   "category": "toast/error"
+  },
+  {
+   "key": "ui.voice-mascot.recognition-failed",
+   "text": "识别失败",
+   "spoken_text": "识别失败",
+   "file": "ui.voice-mascot.recognition-failed.mp3",
+   "duration_s": 1.87,
+   "size_bytes": 11232,
+   "category": "toast/error"
+  },
+  {
+   "key": "ui.voice-mascot.too-short-hold-the-button-while-talking-then",
+   "text": "说得太短了，按住按钮说话，说完再松开。",
+   "spoken_text": "说得太短了，按住按钮说话，说完再松开。",
+   "file": "ui.voice-mascot.too-short-hold-the-button-while-talking-then.mp3",
+   "duration_s": 4.92,
+   "size_bytes": 29520,
+   "category": "toast/error"
+  },
+  {
+   "key": "ui.voice-mascot.didn-t-catch-that-say-it-again",
+   "text": "没听清，再说一次？",
+   "spoken_text": "没听清，再说一次？",
+   "file": "ui.voice-mascot.didn-t-catch-that-say-it-again.mp3",
+   "duration_s": 2.71,
+   "size_bytes": 16272,
+   "category": "toast/error"
+  },
+  {
+   "key": "ui.voice-mascot.microphone-access-denied-allow-nomi-in-system-settings",
+   "text": "麦克风权限被拒绝。请在系统设置 → 隐私 → 麦克风中允许 Nomi。",
+   "spoken_text": "麦克风权限被拒绝。请在系统设置 → 隐私 → 麦克风中允许 诺米。",
+   "file": "ui.voice-mascot.microphone-access-denied-allow-nomi-in-system-settings.mp3",
+   "duration_s": 7.51,
+   "size_bytes": 45072,
+   "category": "toast/error"
+  },
+  {
+   "key": "ui.voice-mascot.no-microphone-found",
+   "text": "没有找到可用的麦克风。",
+   "spoken_text": "没有找到可用的麦克风。",
+   "file": "ui.voice-mascot.no-microphone-found.mp3",
+   "duration_s": 2.74,
+   "size_bytes": 16416,
+   "category": "toast/error"
+  },
+  {
+   "key": "ui.voice-mascot.the-microphone-is-in-use-by-another-app",
+   "text": "麦克风被其他程序占用了。",
+   "spoken_text": "麦克风被其他程序占用了。",
+   "file": "ui.voice-mascot.the-microphone-is-in-use-by-another-app.mp3",
+   "duration_s": 3.1,
+   "size_bytes": 18576,
+   "category": "toast/error"
+  },
+  {
+   "key": "ui.voice-mascot.hi-i-m-nomi-let-s-do-our",
+   "text": "你好，我是 Nomi。今天也一起加油吧。",
+   "spoken_text": "你好，我是 诺米。今天也一起加油吧。",
+   "file": "ui.voice-mascot.hi-i-m-nomi-let-s-do-our.mp3",
+   "duration_s": 5.11,
+   "size_bytes": 30672,
+   "category": "preview"
+  },
+  {
+   "key": "ui.voice-mascot.switched-to-mode.fixed",
+   "text": "已切换到固定语音模式",
+   "spoken_text": "已切换到固定语音模式",
+   "file": "ui.voice-mascot.switched-to-mode.fixed.mp3",
+   "duration_s": 3.07,
+   "size_bytes": 18432,
+   "category": "variable"
+  },
+  {
+   "key": "ui.voice-mascot.switched-to-mode.tts",
+   "text": "已切换到实时朗读模式",
+   "spoken_text": "已切换到实时朗读模式",
+   "file": "ui.voice-mascot.switched-to-mode.tts.mp3",
+   "duration_s": 3.14,
+   "size_bytes": 18864,
+   "category": "variable"
+  },
+  {
+   "key": "ui.voice-mascot.couldn-t-open",
+   "text": "打开失败了，请稍后再试",
+   "spoken_text": "打开失败了，请稍后再试",
+   "file": "ui.voice-mascot.couldn-t-open.mp3",
+   "duration_s": 3.22,
+   "size_bytes": 19296,
+   "category": "variable"
+  },
+  {
+   "key": "ui.voice-mascot.couldn-t-open-the-microphone",
+   "text": "无法打开麦克风",
+   "spoken_text": "无法打开麦克风",
+   "file": "ui.voice-mascot.couldn-t-open-the-microphone.mp3",
+   "duration_s": 2.38,
+   "size_bytes": 14256,
+   "category": "variable"
+  },
+  {
+   "key": "ui.voice-mascot.you-missed-reminders-while-away",
+   "text": "你不在的时候有错过的提醒哦",
+   "spoken_text": "你不在的时候有错过的提醒哦",
+   "file": "ui.voice-mascot.you-missed-reminders-while-away.mp3",
+   "duration_s": 3.41,
+   "size_bytes": 20448,
+   "category": "variable"
+  }
+ ]
+}

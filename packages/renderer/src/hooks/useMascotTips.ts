@@ -22,8 +22,8 @@ export function useMascotTips(): void {
   }, [showMessage]);
 
   useEffect(() => {
-    const say = (t: string | string[], timeout = 4000, priority = 8) =>
-      showRef.current(t, timeout, priority);
+    const say = (t: string | string[], timeout = 4000, priority = 8, clip?: string | null) =>
+      showRef.current(t, timeout, priority, false, clip === undefined ? {} : { clip });
 
     const greet = setTimeout(
       () => say(greetingFor(new Date().getHours()), 6000, GREETING_PRIORITY),
@@ -55,10 +55,11 @@ export function useMascotTips(): void {
       }
     }, 5000);
 
-    const onCopy = () => say(MESSAGES.copy, 5000, 9);
     const onSay = (e: Event) => {
-      const d = (e as CustomEvent<{ text?: string; ms?: number; priority?: number }>).detail;
-      if (d?.text) say(d.text, d.ms ?? 4000, d.priority ?? 9);
+      const d = (
+        e as CustomEvent<{ text?: string; ms?: number; priority?: number; clip?: string | null }>
+      ).detail;
+      if (d?.text) say(d.text, d.ms ?? 4000, d.priority ?? 9, d.clip);
     };
     const onVisible = () => {
       if (!document.hidden) say(MESSAGES.visibility, 4000, 9);
@@ -67,7 +68,6 @@ export function useMascotTips(): void {
     window.addEventListener('mouseover', onOver);
     window.addEventListener('mousemove', onActive);
     window.addEventListener('keydown', onActive);
-    window.addEventListener('copy', onCopy);
     window.addEventListener('mascot:say', onSay);
     document.addEventListener('visibilitychange', onVisible);
     return () => {
@@ -76,7 +76,6 @@ export function useMascotTips(): void {
       window.removeEventListener('mouseover', onOver);
       window.removeEventListener('mousemove', onActive);
       window.removeEventListener('keydown', onActive);
-      window.removeEventListener('copy', onCopy);
       window.removeEventListener('mascot:say', onSay);
       document.removeEventListener('visibilitychange', onVisible);
     };

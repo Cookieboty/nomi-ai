@@ -15,6 +15,7 @@ import path from 'node:path';
 
 import { BrowserWindow, type IpcMainInvokeEvent, type WebContents } from 'electron';
 
+import { broadcastMascotCommand } from '../ai/mascotCommand';
 import { t as tr } from '../i18n';
 import { guardedHandle } from '../security/guardedIpc';
 import { canEncryptSecrets, decryptSecret, encryptSecret } from '../security/secretStorage';
@@ -887,6 +888,9 @@ export class VoiceService {
     const prev = this.activity;
     this.activity = a;
     this.broadcast('ai:voice:activity', { activity: a, source });
+    // 按住说话：无论是否开启 barge-in，都立即停掉正在朗读的 AI 回复
+    if (a === 'listening' && source.endsWith(':ptt') && prev !== a)
+      broadcastMascotCommand({ type: 'reply-speech', op: 'stop' });
     // 用户一开口就打断正在播报的 TTS（barge-in）
     if (
       this.settings.bargeIn &&

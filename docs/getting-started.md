@@ -82,6 +82,8 @@ The current builds are not signed / notarized. If Windows shows SmartScreen, cli
 On first launch the chat window opens an 8-step guide: **UI language → theme → startup mode → layout mode → character & voice → how to address you & tone → model provider → privacy**.
 Every step is skippable; you can rerun it later from Settings → Reopen onboarding.
 
+Voice: nothing is downloaded on first run. With the Nomi character and the Chinese UI, Nomi speaks her common prompts with built-in prerecorded clips (Settings → Voice & screen → Voice → Nomi prompt voice). AI replies are text-only by default; the realtime TTS engine options Edge / Azure / OpenAI are listed but not wired up yet. See [Voice](features/voice.md).
+
 “Startup mode” decides what you see when Nomi starts: the **mascot** (default; click her “AI chat” to open the main window) or the **main window** (opens straight away while the mascot keeps waiting on your desktop, so scheduled tasks and reminders still work). Change it any time in Settings → General → Show on startup. Design: [Startup default view](design/startup-default-view.md).
 
 “Layout mode” is **Full** (default: conversation tabs at the top of the workbench and the coding-assistant info card at the bottom of the sidebar) or **Compact** (hides both, leaving the session list and the chat). Change it any time in Settings → General → Appearance.

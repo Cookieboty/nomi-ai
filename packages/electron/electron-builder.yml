@@ -44,15 +44,6 @@ asarUnpack:
   # 知识库 OCR：tesseract.js 的 worker_threads 脚本与 tesseract.js-core WASM 需从磁盘加载
   - '**/node_modules/tesseract.js/**'
   - '**/node_modules/tesseract.js-core/**'
-  # sherpa-onnx 本地离线 TTS：N-API addon（.node）及其 libonnxruntime / libsherpa-onnx-c-api 动态库
-  # 必须在磁盘上（asar 内无法 dlopen）；各平台预编译包为 optionalDependencies（sherpa-onnx-<os>-<arch>）
-  - '**/node_modules/sherpa-onnx-node/**'
-  - '**/node_modules/sherpa-onnx-darwin-arm64/**'
-  - '**/node_modules/sherpa-onnx-darwin-x64/**'
-  - '**/node_modules/sherpa-onnx-linux-arm64/**'
-  - '**/node_modules/sherpa-onnx-linux-x64/**'
-  - '**/node_modules/sherpa-onnx-win-x64/**'
-  - '**/node_modules/sherpa-onnx-win-ia32/**'
 
 extraResources:
   - from: ../renderer/dist
@@ -61,8 +52,6 @@ extraResources:
     to: ai-chat
   - from: assets
     to: assets
-  # 离线 TTS 模型不再打包：用户开启语音时按需下载到 userData（docs/design/tts-on-demand.md）。
-  # sherpa-onnx 原生库仍随包（见 asarUnpack）。
 
 directories:
   buildResources: assets

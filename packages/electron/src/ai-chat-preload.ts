@@ -40,12 +40,18 @@ const aiChatAPI = {
     },
   },
 
-  /** 设置 → 语音与屏幕 → 语音：朗读引擎配置（userData/tts-config.json；云 Key 只写不读） */
+  /** 设置 → 语音与屏幕 → 语音：朗读引擎配置（userData/tts-config.json） */
   tts: {
     get: () => ipcRenderer.invoke('getTTSConfig'),
     save: (cfg: unknown) => ipcRenderer.invoke('saveTTSConfig', cfg),
     test: (cfg: unknown) => ipcRenderer.invoke('testTTSConnection', cfg),
     reset: () => ipcRenderer.invoke('resetTTSConfig'),
+    voices: () => ipcRenderer.invoke('tts:voices'),
+    preview: (req: unknown) => ipcRenderer.invoke('tts:preview', req),
+    status: () => ipcRenderer.invoke('tts:status'),
+    stop: () => ipcRenderer.invoke('tts:stop'),
+    /** 朗读 AI 回复：say / end / stop（主进程按配置决定是否转发给看板娘） */
+    reply: (msg: unknown) => ipcRenderer.invoke('tts:reply', msg),
   },
 
   /** 设置 → 通用：聊天主面板背景（chat/ChatBackgroundService.ts） */

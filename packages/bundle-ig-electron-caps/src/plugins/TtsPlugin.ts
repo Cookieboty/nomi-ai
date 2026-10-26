@@ -11,7 +11,7 @@ import {
   type TtsVoice,
 } from '../seams/tts';
 
-import { AzureTtsProvider, EdgeTtsProvider, OpenAiTtsProvider, SystemTtsProvider } from './tts';
+import { AzureTtsProvider, EdgeTtsProvider, OpenAiTtsProvider } from './tts';
 
 export interface TtsPluginConfig {
   defaultProviderId?: string;
@@ -78,7 +78,6 @@ export const TtsPlugin = definePlugin<TtsPluginConfig>({
   apply(ctx: PluginContext, cfg: TtsPluginConfig) {
     const svc = new TtsServiceImpl(cfg.defaultProviderId);
     if (cfg.registerDefaults ?? true) {
-      svc.register(new SystemTtsProvider());
       svc.register(new EdgeTtsProvider());
       svc.register(new OpenAiTtsProvider());
       svc.register(new AzureTtsProvider());

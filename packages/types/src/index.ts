@@ -20,10 +20,14 @@ export interface IpcApi {
   /** 主进程改了语音开关（TTS 模型下载失败回滚等）；返回取消订阅 */
   onVoiceSettingsChanged?: (callback: (settings: Partial<VoiceSettings>) => void) => () => void;
 
-  // 朗读（内置 sherpa-onnx 离线 TTS / 可选 Fish / legacy 外部服务）；配置在对话窗口的设置里
+  // 实时朗读（Edge / Azure / OpenAI，均未接入；默认无）；配置在对话窗口的设置里
   /** Main-process TTS synthesize; on failure renderer stays silent */
   ttsSpeak?: (req: TTSSpeakRequest) => Promise<TTSSpeakResult>;
   ttsHealth?: (config?: Partial<TTSConfig>) => Promise<TTSTestResult>;
+  /** 打断：取消主进程里还在合成的请求 */
+  ttsStop?: () => Promise<boolean>;
+  /** 诺米提示语音开关（TTSConfig.promptVoice，默认开） */
+  ttsPromptVoice?: () => Promise<boolean>;
 
   // AI对话相关API
   openAiChat: () => Promise<{ success: boolean; error?: string }>;
@@ -68,98 +72,74 @@ export interface VoiceSettings {
 }
 
 /**
- * TTS provider: built-in sherpa-onnx offline (default), optional Fish (advanced),
- * legacy external clone API. System Web Speech is intentionally unsupported.
+ * Realtime TTS engine: edge (default — Microsoft Edge online read-aloud, needs network),
+ * none (text only), or Azure / OpenAI (not implemented yet: selecting one stays silent).
+ * Nomi's fixed prompt lines use prerecorded clips, not this engine.
  */
-export type TTSProvider = 'sherpa-theresa' | 'fish-local' | 'fish-cloud' | 'legacy';
-
-/** Audio format requested from Fish /v1/tts */
-export type TTSAudioFormat = 'mp3' | 'wav' | 'opus' | 'pcm';
+export type TTSProvider = 'none' | 'edge' | 'azure' | 'openai';
 
 /**
  * TTS configuration (userData/tts-config.json).
- * Built-in default is the offline sherpa-onnx VITS model (`sherpa-theresa`, sid 0, speed 1.0).
- * Fish (`fish-local` / `fish-cloud`) is an optional advanced engine with cute Nomi referenceId.
- * `apiKey` for fish-cloud is stored via safeStorage in the main process — never trust
- * a raw key from the renderer as the source of truth.
- * Legacy fields (hostname/port/path/audioUrl/promptText) remain for external TTS.
- * There is no user voice-upload / clone-from-arbitrary-audio path in the product UI.
+ * Unknown providers in an old file (e.g. removed engines) load as `none`.
  */
 export interface TTSConfig {
   enabled: boolean;
-  /** Default: sherpa-theresa (offline; missing / failed TTS stays silent). */
+  /** 诺米提示语音：Nomi 固定台词播放预录音频（默认开）。 */
+  promptVoice?: boolean;
+  /** Realtime engine. Default: edge (failures stay silent, text only). */
   provider: TTSProvider;
-  /** sherpa speaker id (default 0). */
-  sherpaSid?: number;
-  /** sherpa speech speed multiplier (default 1.0 — do not speed up). */
-  sherpaSpeed?: number;
-  /** fish-local base, default http://127.0.0.1:8080 */
-  baseUrl: string;
+  /** Edge voice short name, e.g. zh-CN-XiaoyiNeural. */
+  edgeVoice?: string;
   /**
-   * Fish cloud API key. When reading via IPC, main may return empty string and
-   * set hasApiKey instead; when saving, a non-empty value updates safeStorage,
-   * empty string leaves existing key unchanged, explicit clearApiKey clears it.
+   * The single read-aloud speech rate, percent (-50..50). Default -5, same as the prompt clips.
+   * Used for mascot lines, AI replies and the settings preview.
    */
-  apiKey?: string;
-  /** True when a cloud key is stored (IPC get only). */
-  hasApiKey?: boolean;
-  /** Clear stored cloud API key on save (IPC save only). */
-  clearApiKey?: boolean;
-  /**
-   * Built-in voice preset / Fish reference_id (e.g. `nomi` for local references/nomi).
-   * Not a user-uploaded clone slot.
-   */
-  referenceId: string;
-  format: TTSAudioFormat;
-  timeoutMs: number;
-  /** Optional Fish cloud model header (e.g. s2.1-pro-free). */
-  cloudModel?: string;
-
-  // --- legacy external TTS (hostname/port/path clone API) ---
-  hostname: string;
-  port: number;
-  path: string;
-  audioUrl: string;
-  promptText: string;
-
+  rate?: number;
+  /** Read Nomi's AI chat replies aloud with the realtime engine (default on). */
+  readReplies?: boolean;
   lastModified: number;
 }
 
-/** Public defaults: built-in sherpa-onnx offline TTS (no secrets). Fish fields kept for the advanced engine. */
+export const DEFAULT_EDGE_VOICE = 'zh-CN-XiaoyiNeural';
+export const DEFAULT_TTS_RATE = -5;
+
+/** Public defaults: Edge engine (Xiaoyi, -5%), prompt voice on. */
 export const DEFAULT_TTS_CONFIG: Omit<TTSConfig, 'lastModified'> = {
   enabled: true,
-  provider: 'sherpa-theresa',
-  sherpaSid: 0,
-  sherpaSpeed: 1.0,
-  baseUrl: 'http://127.0.0.1:8080',
-  referenceId: 'nomi',
-  format: 'mp3',
-  timeoutMs: 30000,
-  cloudModel: 's2.1-pro-free',
-  hostname: '127.0.0.1',
-  port: 8080,
-  path: '/v1/tts',
-  audioUrl: '',
-  promptText: '',
+  promptVoice: true,
+  provider: 'edge',
+  edgeVoice: DEFAULT_EDGE_VOICE,
+  rate: DEFAULT_TTS_RATE,
+  readReplies: true,
 };
 
-/** Built-in cute voice presets (no user upload). */
-export const BUILTIN_FISH_VOICE_PRESETS = [
-  {
-    id: 'nomi',
-    label: 'Nomi（可爱）',
-    description:
-      'Built-in kawaii Mandarin preference for Nomi; local fish-speech uses references/nomi.',
-  },
-] as const;
+/** One selectable realtime voice. */
+export interface TTSVoice {
+  shortName: string;
+  locale: string;
+  gender?: string;
+  /** Friendly name from the service, if any. */
+  name?: string;
+}
+
+/** Recent realtime-engine health, for a plain-language hint in settings. */
+export interface TTSStatus {
+  consecutiveFailures: number;
+  lastFailureAt?: number;
+  lastSuccessAt?: number;
+}
+
+/** Settings preview ("试听"): synthesize a short sample with an unsaved draft. */
+export interface TTSPreviewRequest {
+  text: string;
+  provider: TTSProvider;
+  edgeVoice?: string;
+  rate?: number;
+}
 
 export interface TTSSpeakRequest {
   text: string;
-  /** Override referenceId for this utterance (character binding). */
-  referenceId?: string;
   volume?: number;
-  /** Per-character playback speed for local sherpa (0.5..1.5). */
-  speed?: number;
 }
 
 export interface TTSSpeakResult {
@@ -167,11 +147,9 @@ export interface TTSSpeakResult {
   /** base64 audio when success; renderer plays it */
   audioBase64?: string;
   mimeType?: string;
-  /** 'sherpa' | 'fish' | 'legacy' | 'none' — none means no audio was produced */
-  via?: 'sherpa' | 'fish' | 'legacy' | 'none';
+  /** Engine that produced audio; none means no audio was produced */
+  via?: TTSProvider;
   message?: string;
-  /** Kept for wire compatibility; always false because system speech is disabled. */
-  fallbackToSystem?: boolean;
 }
 
 // TTS连接测试结果
@@ -181,35 +159,9 @@ export interface TTSTestResult {
   latency?: number;
 }
 
+export * from './speechText';
+
 export * from './models';
 
-/** sherpa-onnx offline TTS model status (extraResources / env / auto-fetched for dev). */
-export interface SherpaModelStatus {
-  /**
-   * ready：模型可用；missing：未下载；downloading：下载 / 解压中；error：上次下载失败（message 为原因）。
-   * 模型不再随安装包分发，按需下载到 userData/tts-models（见 docs/design/tts-on-demand.md）。
-   */
-  state: 'ready' | 'missing' | 'downloading' | 'error';
-  /** where the model was found（'resources' 仅旧版本；新版不再打包模型） */
-  source?: 'env' | 'resources' | 'dev' | 'userData';
-  modelId: string;
-  message?: string;
-  /** downloading 时：download | extract */
-  phase?: 'download' | 'extract';
-  /** 已下载字节（含续传前已有部分） */
-  received?: number;
-  /** 总字节（manifest 固定值） */
-  total?: number;
-  /** 磁盘上可续传的半成品字节数（missing / error 时 >0 表示「继续下载」） */
-  partialBytes?: number;
-  /** 安装后占用（字节，manifest 固定值），设置页展示用 */
-  installedBytes?: number;
-  /** 压缩包大小（字节） */
-  archiveBytes?: number;
-  /** missing / error：下载 + 解压的磁盘峰值需求（压缩包剩余部分 + 解压后文件 + 余量） */
-  diskRequired?: number;
-  /** missing / error：模型目录所在卷的可用字节（拿不到时缺省） */
-  diskFree?: number;
-}
 export * from './quality';
 export * from './chatBackground';

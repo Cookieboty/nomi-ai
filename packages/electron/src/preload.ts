@@ -202,10 +202,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openVoiceSettings: async () => {
     return await ipcRenderer.invoke('open-voice-settings');
   },
-  ttsSpeak: async (req: { text: string; referenceId?: string; volume?: number }) => {
+  ttsSpeak: async (req: { text: string; volume?: number }) => {
     return await ipcRenderer.invoke('tts:speak', req);
+  },
+  ttsStop: async () => {
+    return await ipcRenderer.invoke('tts:stop');
   },
   ttsHealth: async (config?: unknown) => {
     return await ipcRenderer.invoke('tts:health', config);
+  },
+  ttsPromptVoice: async () => {
+    return await ipcRenderer.invoke('tts:prompt-voice');
   },
 } as IpcApi);

@@ -15,8 +15,7 @@ Nomi ships installers for **Windows (NSIS)**, **macOS (DMG, x64+arm64)** and **L
 | tag `v*` → 同 job + `package:publish:*`                                  | 写入 GitHub Release，供 `electron-updater` 使用                                 |
 
 - Runner：**ubuntu-latest** → AppImage；**windows-latest** → NSIS `Nomi Setup *.exe`；**macos-latest** → DMG（x64+arm64）。
-- 各平台在 runner 上 `pnpm install` 会装上对应的 `sherpa-onnx-<os>-<arch>`；Mac 双架构额外由 `scripts/release/ensure-sherpa-platform.mjs` 补齐另一边 darwin 包。
-- **不要**在 Linux 开发机 / box 上用 wine 交叉打 Win/Mac 当正式产物（会打进错误平台的 sherpa 原生库，离线 TTS 不可用）。
+- **不要**在 Linux 开发机 / box 上用 wine 交叉打 Win/Mac 当正式产物（原生依赖会打成错误平台）。
 
 ### 手动触发（Actions → CI → Run workflow）
 
@@ -150,13 +149,6 @@ CSC_LINK=./devid.p12 CSC_KEY_PASSWORD=… APPLE_ID=… APPLE_APP_SPECIFIC_PASSWO
 export COREPACK_HOME="${COREPACK_HOME:-$HOME/.cache/corepack}"
 pnpm install --frozen-lockfile
 pnpm turbo run build
-
-# 离线 TTS 模型不再打包（用户开启语音时下载到 userData，见 docs/design/tts-on-demand.md），无需 sync
-
-# 补齐本靶场需要的 sherpa 原生包（Mac 会拉 darwin-x64 + darwin-arm64）
-node scripts/release/ensure-sherpa-platform.mjs linux   # 在 Linux 上
-# node scripts/release/ensure-sherpa-platform.mjs win  # 仅 Windows 真机
-# node scripts/release/ensure-sherpa-platform.mjs mac  # 仅 macOS 真机
 
 # 打包（脚本名见 packages/electron/package.json）
 pnpm package:prod:linux   # → dist/*.AppImage

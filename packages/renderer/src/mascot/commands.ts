@@ -4,9 +4,10 @@ import { applyDirective, playMotionNow } from './mood';
 
 /** 新手引导里可选的声音风格（作用于当前角色的 TTS；off = 关闭语音） */
 export const VOICE_STYLES = {
-  soft: { rate: 0.95, pitch: 1.1 },
-  lively: { rate: 1.1, pitch: 1.25 },
-  calm: { rate: 0.9, pitch: 0.95 },
+  // 语速统一在「实时朗读引擎」里设置（一个语速），这里只保留音调偏好
+  soft: { pitch: 1.1 },
+  lively: { pitch: 1.25 },
+  calm: { pitch: 0.95 },
 } as const;
 export type VoiceStyle = keyof typeof VOICE_STYLES | 'off';
 
@@ -60,6 +61,13 @@ export function handleMascotCommand(raw: unknown): boolean {
           .catch(() => undefined)
           .finally(speak);
       else speak();
+      return true;
+    }
+    case 'reply-speech': {
+      // 朗读 AI 回复（对话窗口 → 主进程 tts:reply → 这里）
+      // 从宽的 MascotCommand 收窄成 ReplySpeechMessage，避免 TS2559
+      const msg = { op: cmd.op, id: cmd.id, text: cmd.text };
+      void import('./tts/replySpeech').then((m) => m.handleReplySpeech(msg));
       return true;
     }
     default:

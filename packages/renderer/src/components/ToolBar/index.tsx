@@ -41,6 +41,7 @@ import { closeMascot } from '@/mascot/presence';
 import { scalePercent, scaleStore, useMascotScale } from '@/mascot/scaleStore';
 import { registerSpeechStopper, stopAllSpeech } from '@/mascot/speechStop';
 import { MascotMicTool, toggleMascotHandsfree } from '@/mascot/voice/MascotVoice';
+import { CLIP_HINTS } from '@/mascot/voice/promptClips';
 import { setCache } from '@/utils/cache';
 
 const log = createLogger('toolbar');
@@ -106,7 +107,8 @@ export const ToolBar: React.FC = () => {
   } = useMascot();
   const { showMessage: say } = useWaifuMessage();
   const showMessage = useCallback(
-    (message: string, timeout: number = 4000) => say(message, timeout, 9),
+    (message: string, timeout: number = 4000, clip?: string) =>
+      say(message, timeout, 9, false, clip ? { clip } : {}),
     [say],
   );
 
@@ -297,7 +299,11 @@ export const ToolBar: React.FC = () => {
       // 显示切换成功消息
       const modeText =
         newMode === 'fixed' ? tr('ui.voice-mascot.fixed-voice') : tr('ui.voice-mascot.tts-voice');
-      showMessage(tr('ui.voice-mascot.switched-to-mode', modeText));
+      showMessage(
+        tr('ui.voice-mascot.switched-to-mode', modeText),
+        4000,
+        newMode === 'fixed' ? CLIP_HINTS.modeFixed : CLIP_HINTS.modeTts,
+      );
     } catch (error) {
       log.error('语音模式切换失败:', error);
       showMessage(tr('ui.voice-mascot.failed-to-switch-voice-mode-please-try-again'));
@@ -362,6 +368,8 @@ export const ToolBar: React.FC = () => {
                       'ui.voice-mascot.couldn-t-open',
                       result?.error || tr('ui.voice-mascot.unknown-error'),
                     ),
+                    4000,
+                    CLIP_HINTS.openFailed,
                   );
                 }
               })
@@ -394,6 +402,8 @@ export const ToolBar: React.FC = () => {
                     'ui.voice-mascot.couldn-t-open',
                     r?.error || tr('ui.voice-mascot.unknown-error'),
                   ),
+                  4000,
+                  CLIP_HINTS.openFailed,
                 );
             })
             .catch((error: unknown) => {

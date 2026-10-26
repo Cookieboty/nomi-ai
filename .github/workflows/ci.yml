@@ -292,7 +292,7 @@ jobs:
   # ---------------------------------------------------------------
   # Electron 打包：三平台 runner 各打原生包（AppImage / DMG / NSIS）。
   # 正式安装包以本 job 的 artifact / tag 时的 GitHub Release 为准；
-  # 不要在 Linux box 上用 wine 交叉打 Win/Mac 当正式产物（离线 TTS sherpa 原生库会对不上）。
+  # 不要在 Linux box 上用 wine 交叉打 Win/Mac 当正式产物（原生依赖会对不上）。
   # 签名/公证：仅 tag 构建经 scripts/release/signing-env.mjs 门控注入 secret；其它事件不签名。
   # ---------------------------------------------------------------
   build-electron:
@@ -352,18 +352,6 @@ jobs:
       - name: Install dependencies
         if: steps.plat.outputs.run == 'true'
         run: pnpm install --frozen-lockfile
-
-      # pnpm only installs optional sherpa natives for *this* OS/CPU.
-      # Mac DMG is dual-arch → also fetch the other darwin arch; never cross-OS.
-      - name: Ensure sherpa-onnx natives for target
-        if: steps.plat.outputs.run == 'true'
-        shell: bash
-        run: node scripts/release/ensure-sherpa-platform.mjs ${{ matrix.artifact }}
-
-      - name: Verify sherpa natives (fail if still missing)
-        if: steps.plat.outputs.run == 'true'
-        shell: bash
-        run: node scripts/release/ensure-sherpa-platform.mjs ${{ matrix.artifact }} --check
 
       # quality 作业已用相同 key 保存 turbo 缓存（needs: quality），这里直接命中，跳过重复构建
       - name: Turbo cache

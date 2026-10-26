@@ -14,123 +14,60 @@
 
 ## 语音播报
 
-Nomi 默认使用**内置离线语音**（[sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)，本机 CPU 合成，不需要联网或外部服务）。
-合成发生在 Electron 主进程；渲染层只拿到一段 WAV 播放并驱动口型。
+自 2.0.3 起不再内置离线语音引擎，也不再使用系统朗读（speechSynthesis）。Nomi 的声音分两部分：预录提示语音 + 实时朗读引擎（默认 Edge 在线朗读）。
 
-| 提供方（`provider`）         | 说明                                                                                                         |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `sherpa-theresa`（**默认**） | 内置离线 TTS：sherpa-onnx 原生 addon + 中文 VITS 模型，`sid=0`、全局 `speed=1.0`；当前角色的语速设置会覆盖它 |
-| `fish-local`                 | 高级 / 可选：本机 [fish-speech](https://github.com/fishaudio/fish-speech) HTTP API，`http://127.0.0.1:8080`  |
-| `fish-cloud`                 | 高级 / 可选：[Fish Audio 云](https://fish.audio) `https://api.fish.audio/v1/tts`，**你自己的** API Key       |
-| `legacy`                     | 保留：自行接入外部 TTS（hostname/port/path/audioUrl/promptText）                                             |
+### 诺米提示语音（预录，默认开启）
 
-**行为**
+- 诺米的常用中文提示语（问候、提醒、开关语音等，共 96 段）随安装包内置为预录语音，约 1.6 MB，位于 `packages/renderer/public/voice/nomi/zh/`（`<key>.mp3` + `manifest.json`）。
+- 音色：微软晓伊（`zh-CN-XiaoyiNeural`，语速 -5%，音调 +0Hz）。
+- 只在**同时满足**以下条件时播放：当前角色是诺米、界面语言为中文、看板娘未静音、「设置 → 语音与屏幕 → 语音 → 诺米提示语音」开启（IPC `tts:prompt-voice`）。
+- 播放顺序：**预录片段 → 实时朗读引擎 → 静音**。台词有对应片段就播片段；没有则交给实时朗读引擎（默认 Edge）；引擎为「无」、未接入或合成失败时只显示文字。
+- 带变量的台词（如「已切换到 xx 模式」「你不在的时候错过了 N 条提醒」）气泡显示完整文字，语音念一句固定说法。
+- 同一句 1.5 秒内只播一次（气泡和事件语音同时触发时不会重复）。口型、音量、语音打断沿用原有播放逻辑（`packages/renderer/src/mascot/tts/audioPlayback.ts` 的 `playAudioClip`）。
+- 片段生成脚本：`scripts/voice/gen.py`（需要 `pip install edge-tts` 和 ffmpeg）。台词文字取自 `@nomi-ai/i18n` 中文文案；新增台词用 `--add KEY`，改了文案用 `--only KEY` 重新生成。
 
-- 没有保存过配置时默认就是 `sherpa-theresa`。
-- **旧配置迁移**：磁盘上若仍是「未改过的」Fish 时代产品默认（`fish-local` + `nomi` + `http://127.0.0.1:8080`），加载时一次性改写为 `sherpa-theresa` 并写回；自定义过 Fish 地址/声线的配置保持原样。
-- 路由（`packages/electron/src/tts/ttsRouter.ts`）：`sherpa-theresa` → sherpa；`fish-*` → Fish，失败再试 sherpa；`legacy` → 遗留播放器；关闭或 TTS 失败 → 静默。
-- **回退**：sherpa 模型缺失 / 原生库加载失败 / 合成出错时不调用系统 Web Speech。Fish 不可达时优先走 sherpa，两者都不可用则静默。
-- 角色说话时主进程分句合成并拼接成一段 WAV（`audio/wav`，22.05 kHz mono），经 IPC `tts:speak` 以 base64 返回；渲染层沿用原有播放 / 口型 / 打断逻辑。
-- **不提供**「上传我的音色 / 任意参考音频克隆」入口。产品内角色自己说话 ≠ Hosted Service；不要把本应用做成对外自助 TTS 平台。
+> **许可提示**：当前片段由微软 Edge 在线 Neural 朗读服务生成，其输出的再分发许可不明确，属于临时素材。正式发布前需用 Azure Speech 订阅（同一音色）重新生成。
 
-### 模型分发（按需下载，不随安装包）
+### 实时朗读引擎（默认 Edge 在线朗读）
 
-自 1.0.4 起，离线 TTS 模型（下载约 115 MB，解压约 133 MB）**不再打包进安装包**，改为用户开启语音时按需下载。设计细节见 [docs/design/tts-on-demand.md](../design/tts-on-demand.md)。sherpa-onnx 原生库（`sherpa-onnx-node` + 平台包）仍随安装包分发。
+「设置 → 语音与屏幕 → 语音 → 实时朗读引擎」可选：
 
-1. **新安装默认语音关闭**（`voiceSettings.enabled=false`）。在主界面「设置 → 语音与屏幕 → 语音 → 朗读（离线语音）」开启语音、看板娘工具栏打开语音、或首次引导里选一个声音时，主进程从官方 release 下载模型到 `userData/tts-models/<id>/`。设置页显示进度条、可取消；失败显示原因并**把语音关回去**，可点「重试」；已下载可「删除模型」（语音随之关闭）。
-2. **老用户升级**：`config.json` 里已保存 `enabled=true` 的用户保持开启，启动时自动在后台下载模型（这次失败不会关语音，设置页显示错误 + 重试）；关着的保持关闭。
-3. 下载：地址 / sha256 / 字节数钉死在 `packages/electron/src/tts/sherpa/manifest.ts`；`NOMI_SHERPA_TTS_MODEL_URL` 可加镜像。**断点续传**：下载中途退出 / 断网，半成品保留在 `userData/tts-models/.download/<id>.tar.bz2.part`，下次用 HTTP `Range` 续传（服务器不支持则从头下）；sha256 覆盖完整文件，不符则删除半成品。用户点「取消」会删除半成品。
-4. 运行时定位顺序：`NOMI_SHERPA_TTS_MODEL_DIR` → 开发态（未打包）`../models/<id>`、`models/<id>` → `userData/tts-models/<id>`。不再读取 `process.resourcesPath/tts-models`。
-5. **缺模型永不崩溃**：`synthesize` / `warmup` 只抛 `not_ready`（附「去设置里开启语音下载」提示），路由静默；**不会在后台自动下载**（只有上面两种情形会下载）。模型就绪后完全离线工作。
-6. **开发**：`pnpm i` 的 `postinstall`（`scripts/ensure-tts-model.mjs`）仍会把模型准备到仓库同级 `../models/<id>`，方便 `pnpm dev`；与打包无关。已完整（按清单大小 + `.nomi-model.json` 版本标记校验）则毫秒级跳过；`NOMI_SKIP_MODEL_DOWNLOAD=1`（旧名 `NOMI_SKIP_TTS_MODEL=1`）跳过；CI（`CI=true`）里 postinstall 默认跳过，需要预下载时设 `NOMI_SKIP_MODEL_DOWNLOAD=0`。
-7. IPC：`ai:tts-model:status | download | cancel | delete | set-voice-enabled`，推送 `ai:tts-model:changed`（进度限频 200 ms）；语音开关被主进程改动时推送 `voice-settings:changed` 同步看板娘工具栏。旧的 `tts:sherpa:status` 保留（新增 `downloading` 状态）。
+| 选项（`provider`） | 说明                                                                   |
+| ------------------ | ---------------------------------------------------------------------- |
+| `edge`（**默认**） | 微软 Edge 在线朗读：默认晓伊（`zh-CN-XiaoyiNeural`）、语速 -5%，需联网 |
+| `none`             | 不合成语音，只出文字（预录提示语音不受影响）                           |
+| `azure`            | Azure Speech —— **暂未接入**，选中后静默并提示                         |
+| `openai`           | OpenAI 语音 —— **暂未接入**，选中后静默并提示                          |
 
-#### 环境变量
+> **重要**：Edge 朗读**需要联网**，用的是 Edge 浏览器「大声朗读」背后的在线服务（`speech.platform.bing.com`），**不是微软公开的官方 API**，微软随时可能调整或封锁，届时会自动退回只显示文字；第三方客户端的使用条款没有明确说明，**许可属灰色地带**。不想把台词文字发给微软，可以把引擎改为「无」。
 
-| 变量                                                           | 作用                                                                                                                                                        |
-| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `NOMI_SKIP_MODEL_DOWNLOAD=1`                                   | 跳过开发态 postinstall / dev 的模型准备（`=0` 时在 CI 里也强制准备）                                                                                        |
-| `NOMI_SKIP_TTS_MODEL=1`                                        | 跳过开发态 postinstall / dev 的模型准备（CI）                                                                                                               |
-| `NOMI_SHERPA_TTS_MODEL_URL`                                    | 镜像地址（同一个 `vits-zh-hf-theresa.tar.bz2`，sha256 仍按清单校验）；可多个，逗号 / 分号 / 空白分隔，按序尝试，最后兜底官方 GitHub。脚本与运行时下载都生效 |
-| `NOMI_SHERPA_TTS_MODEL_DIR`                                    | 指向已手动解压的模型目录（完整则不再下载）                                                                                                                  |
-| `NOMI_SHERPA_TTS_ATTEMPTS` / `NOMI_SHERPA_TTS_IDLE_TIMEOUT_MS` | 脚本每地址重试次数（默认 3）/ 空闲超时毫秒（默认 30000）                                                                                                    |
-| `HTTPS_PROXY` / `HTTP_PROXY`                                   | Node 内置 fetch 默认不走代理；脚本会尽力启用（Node ≥ 22.21 / 24.5），运行时下载（Electron）请用系统代理或镜像                                               |
+- **生效范围**：诺米台词里没有预录片段的那些（提醒、反应、命令反馈、设置里的试听等，入口 `speakForActiveCharacter`），以及 AI 对话回复（见下文「朗读 AI 回复」）。
+- **默认开**：没有 `tts-config.json` 时 `provider = edge`、`enabled = true`。旧配置里保存过「无」的仍是「无」；已移除的内置离线引擎、Fish（本地 / 云）和 legacy 引擎按「无」加载，不报错。
+- **音色 / 语速**：音色列表从官方 voices 接口在线获取并只保留中文（`zh-*`）；取不到时用内置几个（晓伊、晓晓、云希、云健、云扬、云夏、台湾晓臻、香港曉佳）。**语速只有一个**：「朗读语速」-50%～+50%（配置项 `rate`，默认 -5%），台词和 AI 回复共用；原来「语音设置」里的角色语速已删除（破坏性更新，旧的 `edgeRate` / 角色语速不再读取）。
+- **试听**：设置卡片里的「试听」用未保存的音色 / 语速合成一句；「检测连接」实际合成一个短句并显示延迟。
+- **朗读内容清理**：去掉代码块、行内代码、HTML、图片、链接地址（保留文字）、标题 / 引用 / 列表符号、强调符号等再朗读（`@nomi-ai/types` 的 `cleanTextForSpeech`）。
+- **长文本**：按句切段（`splitSpeechSegments`，约 120 字一段），边播当前句边请求下一句；口型同步、语音打断（`stopSpeaking` → IPC `tts:stop` 取消主进程里还在合成的请求）沿用原播放逻辑。
+- **失败处理**：没联网、超时（15 秒）、403、协议变化 → 一律静默，只显示文字，不弹开发者错误；403 时按服务器时间校正时钟重试一次。连续失败 3 次后，设置里显示「实时朗读暂时连不上（可能没联网，或服务有变化），先只显示文字。」成功一次即清零。
+- e2e：`CD_TTS=off` 时不调用任何实时朗读引擎、不联网（音色列表直接用内置）。
+- 「语音设置」：当前角色的音量（语速统一在「设置 → 语音」的「朗读语速」）。
+- **不提供**「上传我的音色 / 任意参考音频克隆」入口。
 
-#### 手动下载（国内网络 / GitHub 不通 / 公司代理）
+### 朗读 AI 回复（默认开启）
 
-1. 浏览器或下载器获取 `https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-zh-hf-theresa.tar.bz2`（约 115 MB，sha256 `f337638c…1d9e92`）。
-2. 解压（Windows 可用 7-Zip / `tar -xjf`），得到 `vits-zh-hf-theresa/` 目录，放到 `<repo>/../models/vits-zh-hf-theresa`（例如 `D:\self_git\models\vits-zh-hf-theresa`，内含 `theresa.onnx`、`lexicon.txt`、`tokens.txt`、`*.fst`、`dict/`），或放任意位置并设置 `NOMI_SHERPA_TTS_MODEL_DIR`。
-3. `pnpm --filter @nomi-ai/electron ensure-tts-model --check` 校验；通过后重启 `pnpm dev`，下一条语音即用 sherpa。
-4. 安装版：把解压出的目录放到 `userData/tts-models/vits-zh-hf-theresa/`（Linux `~/.config/Nomi/`、macOS `~/Library/Application Support/Nomi/`、Windows `%APPDATA%\Nomi\`），重启后设置页即显示「已下载」。
-
-#### 常见失败排查
-
-- 日志 `model install FAILED [download]`：网络 / 超时 → 设镜像 `NOMI_SHERPA_TTS_MODEL_URL` 或手动下载。
-- `[prepare]` 目录不可写（权限 / 磁盘满）：设置页显示错误，语音保持关闭；脚本请换权限正常的位置或手动解压。
-- `[extract]` / `[finalize]`：磁盘空间不足、杀毒软件 / 资源管理器占用目录（已自动重试 rename）。
-- `engine load FAILED` + `sherpa-onnx 原生库加载失败`：见下方 Windows 说明，错误信息里带真实 dlopen 原因。
-
-### 实现与平台
-
-- 原生 addon：`sherpa-onnx-node@1.13.8`（N-API，Electron 可直接加载，无需 electron-rebuild）。预编译包为 optionalDependencies：`darwin-arm64` / `darwin-x64` / `linux-x64` / `linux-arm64` / `win-x64` / `win-ia32`。
-- `electron-builder.yml` 的 `asarUnpack` 已包含 `sherpa-onnx-*`（`.node` 与 `libonnxruntime` / `libsherpa-onnx-c-api` 动态库必须在磁盘上）。
-- **Windows x64 原生库**：需要平台包 `sherpa-onnx-win-x64`（`sherpa-onnx-node` 的 optionalDependency，须在 Windows 本机 `pnpm install` 安装，不要拷贝 Linux 的 node_modules）及其 `onnxruntime.dll` / `sherpa-onnx-c-api.dll`。加载前代码会把平台包目录加入 `PATH`；`sherpa-onnx-node` 自带 loader 会吞掉真实 dlopen 错误，`nativeAddon.ts` 失败后会诊断（平台包缺失 / DLL 缺失 / 真实 dlopen 错误）并给出提示：未装 **VC++ 2015-2022 x64 运行库**（<https://aka.ms/vs/17/release/vc_redist.x64.exe>）、`System32` 下旧版 `onnxruntime.dll` 抢先加载、杀毒软件拦截。
-- 懒加载 + 单例：首次合成时才 `require` addon 并加载模型（约 0.7–1.5 s）；推理用 `createAsync` / `generateAsync`，不阻塞主进程事件循环；同一时刻只跑一个合成，新请求会让旧请求在句间退出（对应打断）。
-- 参考参数（同 `/workspace/tts-samples/gen.py`）：`numThreads=4`、`provider=cpu`、`maxNumSentences=1`、`ruleFsts=phone/date/number/new_heteronym`、`dictDir=dict/`。CPU 实时率约 0.15–0.2。
-- 每条 `tts:speak` 都有一条结果日志：`tts:speak success|fallback|error`（含 provider / via / 耗时 / code / message）；单次请求 90 s 总超时，超时静默，IPC 不会永久挂起。
-- 单次文本上限 1500 字符（超出静默）；引擎加载失败后 60 s 内不重试，直接静默。
-
-### 本地验证
-
-```bash
-# 单元测试（路由 / 回退 / 模型定位 / 分句 / WAV）
-pnpm --filter @nomi-ai/electron exec jest --watchman=false --coverage=false tests/unit/tts
-
-# 用已有模型目录跑通真实合成（开发态）
-NOMI_SHERPA_TTS_MODEL_DIR=/path/to/extracted-model pnpm dev
-# 然后让看板娘说话；或在「设置 → 语音与屏幕 → 语音 → 朗读引擎」点「检测连接」（会预热引擎并报告耗时）
-```
-
-### 设置页
-
-- 「设置 → 语音与屏幕 → 语音 → 朗读引擎」（原独立的「TTS 语音配置」窗口已并入设置）：默认「内置离线语音」；高级可切换 Fish 本地 / 云、legacy；检测连接；**Built with Fish Audio** 标注（仅选用 Fish 时适用，文案保留）。
-- 「语音设置」：当前角色 TTS 语速、音量；没有可用 TTS 时保持静默。
-
-## 高级：Fish Audio（可选，Built with Fish Audio）
-
-Fish 代码与合规文案保留，但**不再默认启用**。选择 `fish-local` / `fish-cloud` 后：
-
-- 主进程调用 Fish `/v1/tts`；失败或服务未就绪时先尝试 sherpa，仍失败则静默。
-- Nomi 默认 `referenceId` / `voiceHint` = `nomi`（内置可爱预设）。
-- 应用已内置种子 `packages/electron/assets/tts/references/nomi/{sample.wav,sample.lab}`，合成时以 `reference_audio`（base64）+ `reference_text` 发给本地 Fish，**无需**拷进 fish-speech 的 `references/`。
-
-```bash
-# 示例：Docker Compose（以官方文档为准）
-docker compose --profile server up
-
-# 健康检查
-curl -s http://127.0.0.1:8080/v1/health
-# → {"status":"ok"}
-```
-
-仍需在本机（或局域网）运行 fish-speech HTTP 服务；应用不捆绑数 GB 模型权重。Fish 云：在配置页填写你自己的 Bearer Token（safeStorage 加密），默认模型头可用 `s2.1-pro-free`（以官方为准）。
-
-## 许可要点
-
-- **sherpa-onnx**：Apache-2.0（© k2-fsa 项目贡献者），见 `NOTICE` 与 `THIRD_PARTY_NOTICES.md`。
-
-### Fish Audio Community License（仅选用 Fish 时适用）
-
-- **Built with Fish Audio**（协议要求显著标注）。
-- 研究 / 非商用免费；年营收 &lt; **USD 500,000** 可在社区许可下商用（以官方 LICENSE 为准）。
-- **Hosted Service**（向第三方提供自助 TTS / 克隆 API）需与 Fish Audio 另行签约。
-- 不可未经同意克隆真人；不可用输出训练其他基础 TTS 模型。
-- 完整摘录见仓库根目录 `NOTICE` 与 `THIRD_PARTY_NOTICES.md`。
+- **开关**：「设置 → 语音 → 朗读 AI 回复」（配置项 `readReplies`，新装默认开）；只有实时朗读引擎可用（已启用且引擎为 Edge）时才生效，否则开关置灰、只显示文字。
+- **只念普通诺米对话**：主对话切到编程助手 / CLI 代理、编程助手标签、`/agent` 委派的那一轮都不念。
+- **边生成边念**：回复流按句切分（`ReplySpeechStream`：句号 / 问号 / 感叹号 / 分号 / 省略号 / 换行），凑够一句就发给看板娘朗读，播当前句时预取下一句，口型同步。
+- **不念的内容**：代码块（未闭合时先不念，等闭合后跳过）、行内代码、思考过程（`<think>` 等）、工具调用（不在文本流里）、表格行、链接地址（保留链接文字）、图片、Markdown 符号。
+- **长度上限**：每条回复约前 **300 字**（按整句，越过 300 字的那一句念完即止），剩下的只显示文字。
+- **立即打断**：发送新消息、停止生成、切换 / 新建会话、按住说话（以及语音打断、其它台词抢占）。
+- **失败**：静默，只显示文字。`CD_TTS=off`（e2e）时主进程直接丢弃，不朗读、不联网。
+- **链路**（复用原有台词朗读链路）：对话窗口 `ReplySpeechStream` → IPC `tts:reply`（主进程按配置把关）→ `mascot:command`（`reply-speech`）→ 看板娘窗口队列 → `tts:speak` → `ttsRouter` / Edge → `playSynthesized`（口型同步、打断与其它语音共用）。
 
 ## 技术说明
 
 - 本地识别使用 whisper.cpp（MIT）；语音活动检测使用 Silero VAD（MIT，ONNX Runtime 运行），未下载时退回能量检测。
 - 录音只在内存或临时文件中，识别后立即删除，不写日志。在线识别每次调用都记入审计日志。
 - 唤醒词通过「语音分段 → 本地识别 → 模糊匹配」实现。
-- sherpa：`packages/electron/src/tts/sherpa/`；路由 `packages/electron/src/tts/ttsRouter.ts`；IPC `tts:speak` / `tts:health` / `tts:sherpa:*`。
-- Fish 客户端：`packages/electron/src/tts/fish/`；渲染播放 `packages/renderer/src/mascot/tts/fishSpeak.ts`（对所有引擎返回的音频通用）。
+- 预录提示语音：`packages/renderer/src/mascot/voice/promptClips.ts`；实时朗读路由 `packages/electron/src/tts/ttsRouter.ts`；IPC `tts:speak` / `tts:preview` / `tts:voices` / `tts:status` / `tts:stop` / `tts:health`。
+- Edge 客户端：`packages/electron/src/tts/edge/`（项目自写，MIT；纯 Node，基于已有依赖 `ws`，macOS / Windows / Linux 通用，不需要安装 Edge）。协议：WSS `speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1`，先发 `speech.config`（输出 `audio-24khz-48kbitrate-mono-mp3`），再发 SSML，收二进制 `Path:audio` 帧直到 `turn.end`；请求带 `Sec-MS-GEC` 令牌（v2 算法，`secMsGec.ts`）。微软改版时通常只需更新 `edgeProtocol.ts` 里的版本号或令牌算法。
+- 渲染播放 `packages/renderer/src/mascot/tts/audioPlayback.ts`（预录片段与引擎返回的音频通用）。

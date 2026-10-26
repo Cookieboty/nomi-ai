@@ -1,19 +1,20 @@
 /**
- * Soft system TTS helpers (Web Speech API).
- * Prefer softer Chinese female / Edge neural voices, slower rate, gentle pitch.
- * Chromium does not honor full SSML; we insert clause pauses instead.
+ * Speech preference helpers shared by the mascot voice paths.
+ *
+ * 2.0.3 起不再使用系统 speechSynthesis 朗读：提示语走预录音频，其余走设置里的实时朗读引擎，
+ * 都没有时只显示气泡。这里只保留语速 / 音量等偏好与停止入口，供旧调用方继续工作。
  */
 
 const STORAGE_KEY = 'mascot.softSpeech.v1';
 
 export interface SoftSpeechPrefs {
-  /** speechSynthesis voiceURI; empty = auto-pick soft Chinese female */
+  /** Legacy field kept for stored prefs; no longer used for playback. */
   voiceURI: string;
-  /** 0.5..1.5 — default slower than system */
+  /** 0.5..1.5 — speaking rate passed to the realtime engine */
   rate: number;
-  /** 0..2 — slightly above 1 sounds softer than high cartoon pitch */
+  /** Legacy field kept for stored prefs. */
   pitch: number;
-  /** Prefer Microsoft Edge / Online Natural voices when present */
+  /** Legacy field kept for stored prefs. */
   preferNeural: boolean;
   volume: number;
 }
@@ -25,19 +26,6 @@ export const DEFAULT_SOFT_SPEECH: SoftSpeechPrefs = {
   preferNeural: true,
   volume: 0.78,
 };
-
-/** Name patterns scored higher for "soft Chinese female" (incl. Edge neural). */
-const SOFT_ZH_FEMALE: Array<{ re: RegExp; score: number }> = [
-  { re: /xiaoxiao/i, score: 100 },
-  { re: /yunxia|xiaoqiu|xiaoyi|xiaohan/i, score: 95 },
-  { re: /online.*natural|natural.*chinese|neural/i, score: 90 },
-  { re: /huihui|yaoyao|meijia|ting-?ting|sinji|hanhan/i, score: 80 },
-  { re: /microsoft.*(xiao|hui|yao|mei)|google.*(中文|chinese).*female/i, score: 70 },
-  { re: /zh[-_]cn|chinese.*(china|mainland)|华语|普通话|國語|粤/i, score: 40 },
-  { re: /female|女/i, score: 25 },
-];
-
-const AVOID: RegExp[] = [/male|男|kangkang|yunyang|yunjian|david|mark|george|ravi|espeak|robot/i];
 
 export function loadSoftSpeechPrefs(): SoftSpeechPrefs {
   try {
@@ -61,33 +49,6 @@ export function saveSoftSpeechPrefs(patch: Partial<SoftSpeechPrefs>): SoftSpeech
   return next;
 }
 
-export function scoreVoice(v: SpeechSynthesisVoice, preferNeural: boolean): number {
-  const label = `${v.name} ${v.lang} ${v.voiceURI}`;
-  if (AVOID.some((re) => re.test(label))) return -1000;
-  let s = 0;
-  for (const { re, score } of SOFT_ZH_FEMALE) if (re.test(label)) s += score;
-  if (/^zh/i.test(v.lang) || /chinese/i.test(label)) s += 30;
-  if (preferNeural && /online|natural|neural|edge/i.test(label)) s += 35;
-  if (v.localService === false) s += 10; // cloud/neural often localService=false
-  return s;
-}
-
-export function pickSoftVoice(
-  voices: SpeechSynthesisVoice[],
-  prefs: SoftSpeechPrefs = loadSoftSpeechPrefs(),
-): SpeechSynthesisVoice | null {
-  if (!voices.length) return null;
-  if (prefs.voiceURI) {
-    const exact = voices.find((v) => v.voiceURI === prefs.voiceURI);
-    if (exact) return exact;
-  }
-  const ranked = [...voices]
-    .map((v) => ({ v, s: scoreVoice(v, prefs.preferNeural) }))
-    .filter((x) => x.s > 0)
-    .sort((a, b) => b.s - a.s);
-  return ranked[0]?.v ?? voices.find((v) => /^zh/i.test(v.lang)) ?? null;
-}
-
 /** Split on Chinese/English clause punctuation for gentle pauses. */
 export function clausePauseParts(text: string): string[] {
   const parts = text
@@ -102,98 +63,14 @@ export interface SpeakSoftOptions {
   /** Cancel any current utterance first (default true) */
   cancel?: boolean;
   onEnd?: () => void;
+  /**
+   * 诺米提示语音片段 key（变量台词用固定句）；null 表示不播预录片段。
+   * 未提供时按台词 key / 文本自动匹配。
+   */
+  clip?: string | null;
 }
 
-/**
- * Speak with soft defaults. Returns false if Speech Synthesis is unavailable.
- */
-let generation = 0;
-
-/** 立即停止系统朗读（语音打断用）：作废尚未开始的分句 */
+/** 语音打断入口：系统朗读已移除，保留为空操作以兼容 speechStop 等调用方 */
 export function stopSoftSpeech(): void {
-  generation++;
-  try {
-    window.speechSynthesis?.cancel();
-  } catch {
-    /* ignore */
-  }
-}
-
-export function speakSoft(text: string, opts: SpeakSoftOptions = {}): boolean {
-  const gen = ++generation;
-  try {
-    const synth = typeof window !== 'undefined' ? window.speechSynthesis : undefined;
-    if (!synth || typeof SpeechSynthesisUtterance === 'undefined' || !text.trim()) return false;
-    const prefs = opts.prefs ?? loadSoftSpeechPrefs();
-    if (opts.cancel !== false) synth.cancel();
-
-    // Voices often empty until voiceschanged
-    const voices = synth.getVoices();
-    const voice = pickSoftVoice(voices, prefs);
-    const parts = clausePauseParts(text);
-    let i = 0;
-
-    const speakNext = () => {
-      if (gen !== generation) return;
-      if (i >= parts.length) {
-        opts.onEnd?.();
-        return;
-      }
-      const u = new SpeechSynthesisUtterance(parts[i++]);
-      u.lang = voice?.lang || 'zh-CN';
-      if (voice) u.voice = voice;
-      u.rate = prefs.rate;
-      u.pitch = prefs.pitch;
-      u.volume = prefs.volume;
-      u.onend = () => {
-        // Short breath between clauses (~120–180ms)
-        if (gen !== generation) return;
-        if (i < parts.length) setTimeout(speakNext, 140);
-        else opts.onEnd?.();
-      };
-      u.onerror = () => opts.onEnd?.();
-      synth.speak(u);
-    };
-
-    if (!voices.length) {
-      const once = () => {
-        synth.removeEventListener('voiceschanged', once);
-        speakNext();
-      };
-      synth.addEventListener('voiceschanged', once);
-      // Fallback if event never fires
-      setTimeout(() => {
-        synth.removeEventListener('voiceschanged', once);
-        if (!synth.speaking) speakNext();
-      }, 400);
-    } else {
-      speakNext();
-    }
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export function listSoftVoiceChoices(): Array<{
-  voiceURI: string;
-  name: string;
-  lang: string;
-  score: number;
-  neural: boolean;
-}> {
-  const synth = typeof window !== 'undefined' ? window.speechSynthesis : undefined;
-  if (!synth) return [];
-  const prefs = loadSoftSpeechPrefs();
-  return synth
-    .getVoices()
-    .map((v) => ({
-      voiceURI: v.voiceURI,
-      name: v.name,
-      lang: v.lang,
-      score: scoreVoice(v, prefs.preferNeural),
-      neural: /online|natural|neural|edge/i.test(v.name),
-    }))
-    .filter((v) => v.score > 0 || /^zh/i.test(v.lang))
-    .sort((a, b) => b.score - a.score);
+  /* no system speech to stop */
 }

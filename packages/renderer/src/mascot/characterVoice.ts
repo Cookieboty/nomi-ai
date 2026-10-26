@@ -1,5 +1,5 @@
 /**
- * Per-character soft TTS binding.
+ * Per-character voice binding (rate / volume).
  * Merge order: global soft prefs → built-in character defaults → model.config.voice → user override.
  * Overrides persist in localStorage.
  */
@@ -14,15 +14,14 @@ import {
   type SoftSpeechPrefs,
   type SpeakSoftOptions,
 } from './softSpeech';
+import { isNoAudioLine, playPromptClip } from './voice/promptClips';
 
 const OVERRIDE_KEY = 'mascot.characterVoice.v1';
 
 /** Built-in softer defaults by model id / tag family. */
 export const CHARACTER_VOICE_DEFAULTS: Record<string, ModelVoiceConfig> = {
   nomi: {
-    /** Built-in Fish cute preset id (local references/nomi). */
     voiceHint: 'nomi',
-    fishReferenceId: 'nomi',
     rate: 0.92,
     pitch: 1.1,
   },
@@ -36,6 +35,11 @@ type OverrideMap = Record<string, ModelVoiceConfig>;
 
 let activeModelName: string | null = null;
 let activeModelConfig: ModelConfig | undefined;
+
+/** 当前看板娘模型名（诺米提示语音据此判断是否适用） */
+export function getActiveModelName(): string | null {
+  return activeModelName;
+}
 
 function storage(): Storage | null {
   try {
@@ -115,25 +119,6 @@ export function resolvePrefsForCharacter(
     rate: voice.rate ?? global.rate,
     pitch: voice.pitch ?? global.pitch,
   };
-  // Apply voiceHint when no explicit URI
-  if (
-    !prefs.voiceURI &&
-    voice.voiceHint &&
-    typeof window !== 'undefined' &&
-    window.speechSynthesis
-  ) {
-    const voices = window.speechSynthesis.getVoices();
-    const hint = voice.voiceHint.toLowerCase();
-    const hit =
-      voices.find(
-        (v) => v.name.toLowerCase().includes(hint) || v.voiceURI.toLowerCase().includes(hint),
-      ) ?? null;
-    if (hit) prefs.voiceURI = hit.voiceURI;
-    else {
-      // soft auto-pick still applies via empty URI + scoring
-      prefs.voiceURI = '';
-    }
-  }
   return prefs;
 }
 
@@ -147,26 +132,28 @@ export function speakForActiveCharacter(key: string, opts: SpeakSoftOptions = {}
   }
   const prefs = resolvePrefsForCharacter();
   const merged = opts.prefs ? { ...prefs, ...opts.prefs } : prefs;
-  const voice = resolveCharacterVoice(activeModelName, activeModelConfig);
-  // Only built-in Fish presets (e.g. nomi) map from voiceHint — not OS hints like xiaoxiao.
-  const fishPresets = new Set(['nomi']);
-  const referenceId =
-    voice.fishReferenceId ||
-    (voice.voiceHint && fishPresets.has(voice.voiceHint) ? voice.voiceHint : undefined);
-  const configuredRate = Number.isFinite(merged.rate) ? merged.rate : 0.92;
-  const speed = Math.min(1.5, Math.max(0.5, configuredRate));
 
-  // Main-process TTS path (local sherpa or remote provider). TTS failures stay silent.
+  // 保留文字、不播音频的台词
+  if (isNoAudioLine(key)) {
+    opts.onEnd?.();
+    return false;
+  }
+
+  // 顺序：诺米预录片段 → 已配置的实时朗读引擎 → 静默（只剩气泡）
   void (async () => {
     try {
-      const { speakWithFish } = await import('./tts/fishSpeak');
-      const ok = await speakWithFish(text, {
-        referenceId,
+      const clip = await playPromptClip(key, {
+        modelName: activeModelName,
+        clip: opts.clip,
         volume: merged.volume,
-        speed,
         onEnd: opts.onEnd,
       });
-      if (ok) return;
+      if (clip !== 'none') return;
+      const { speakRealtime } = await import('./tts/audioPlayback');
+      await speakRealtime(text, {
+        volume: merged.volume,
+        onEnd: opts.onEnd,
+      });
     } catch {
       // Keep the cue state consistent if the TTS module itself cannot load.
       opts.onEnd?.();

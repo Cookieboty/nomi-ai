@@ -10,12 +10,7 @@ export interface TipRule {
 export const MOUSEOVER_TIPS: TipRule[] = [
   {
     selector: '#mascot-canvas',
-    text: [
-      'ui.voice-mascot.hm-need-something',
-      'ui.voice-mascot.i-m-right-here',
-      'ui.voice-mascot.want-to-chat-about-something',
-      'ui.voice-mascot.stop-poking-i-ll-get-shy',
-    ],
+    text: ['ui.voice-mascot.want-to-chat-about-something'],
   },
   {
     selector: '#waifu-tool-ai-chat',
@@ -24,14 +19,6 @@ export const MOUSEOVER_TIPS: TipRule[] = [
       'ui.voice-mascot.ask-me-anything',
     ],
   },
-  {
-    selector: '#waifu-tool-info',
-    text: [
-      'ui.voice-mascot.want-to-learn-about-this-project',
-      'ui.voice-mascot.here-s-an-introduction-to-me',
-    ],
-  },
-  { selector: '#waifu-tool-photo', text: ['ui.voice-mascot.taking-a-photo-i-m-ready'] },
   {
     selector: '#waifu-tool-voice-settings',
     text: ['ui.voice-mascot.voice-settings-are-here-right-click-to-fine'],
@@ -71,26 +58,12 @@ export const TIME_GREETINGS: Array<{ from: number; to: number; text: string }> =
 
 export const MESSAGES = {
   welcome: 'ui.voice-mascot.hi-i-m-your-desktop-companion',
-  copy: 'ui.voice-mascot.copied-remember-to-credit-the-source',
   visibility: 'ui.voice-mascot.welcome-back',
 };
 
 export function greetingFor(hour: number): string {
   return TIME_GREETINGS.find((g) => hour >= g.from && hour <= g.to)?.text ?? MESSAGES.welcome;
 }
-
-/** 键盘关键词触发的台词（取代旧的固定语音 mp3）。由 TTS 朗读。 */
-export const KEYWORD_LINES: Array<{ keywords: string[]; lines: string[] }> = [
-  {
-    keywords: ['function', 'def ', 'func '],
-    lines: ['ui.voice-mascot.another-function-written', 'ui.voice-mascot.nice-function-name'],
-  },
-  { keywords: ['if'], lines: ['ui.voice-mascot.watch-out-for-edge-cases'] },
-  { keywords: ['for', 'while'], lines: ['ui.voice-mascot.make-sure-that-loop-can-end'] },
-  { keywords: ['catch'], lines: ['ui.voice-mascot.nice-error-handling'] },
-  { keywords: ['await'], lines: ['ui.voice-mascot.awaiting-async'] },
-  { keywords: ['todo'], lines: ['ui.voice-mascot.another-todo-added'] },
-];
 
 export const HOURLY_LINES: Array<{ from: number; to: number; lines: string[] }> =
   TIME_GREETINGS.map((g) => ({ from: g.from, to: g.to, lines: [g.text] }));

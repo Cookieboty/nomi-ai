@@ -4,8 +4,7 @@ import { defineConfig } from '@playwright/test';
 process.env.CD_LOCALE ||= 'zh-CN';
 // 首次启动引导默认不弹出（引导自己的用例里显式开启）
 process.env.CD_ONBOARDING ||= 'off';
-// 不在 e2e 里跑离线 sherpa 合成（4 线程 ONNX + 模型自动下载解压）：Windows runner 只有 4 vCPU，
-// 与 swiftshader 渲染抢 CPU 会让气泡事件迟到、对话窗渲染进程 crash（E11 / E12 / E10 / E18）。
+// e2e 不调用实时朗读引擎（避免外网请求与 CPU 抢占，气泡事件更稳定）。
 process.env.CD_TTS ||= 'off';
 
 export default defineConfig({

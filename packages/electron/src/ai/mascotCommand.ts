@@ -1,11 +1,14 @@
 import { BrowserWindow } from 'electron';
 
+import type { ReplySpeechCommand } from '../tts/replySpeech';
+
 /** 主进程 → 看板娘渲染进程的指令（channel: `mascot:command`） */
 export type MascotCommand =
   | { type: 'motion'; name: string }
   | { type: 'expression'; name: string }
   | { type: 'parameter'; id: string; value: number }
-  | { type: 'open-panel'; panel: 'interaction' | 'credits' | 'motions' };
+  | { type: 'open-panel'; panel: 'interaction' | 'credits' | 'motions' }
+  | ReplySpeechCommand;
 
 export const MASCOT_COMMAND_CHANNEL = 'mascot:command';
 

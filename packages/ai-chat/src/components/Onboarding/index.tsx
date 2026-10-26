@@ -383,8 +383,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
               ))}
             </div>
             <p className={styles.note}>
-              {t('ui.mascot-theme.click-to-preview-fine-tune-later-in-settings')}{' '}
-              {t('ui.voice-mascot.the-first-time-you-turn-on-a-voice')}
+              {t('ui.mascot-theme.click-to-preview-fine-tune-later-in-settings')}
             </p>
           </>
         );

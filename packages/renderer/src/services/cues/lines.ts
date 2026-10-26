@@ -36,44 +36,21 @@ export type CueEvent =
   | 'grab_extra';
 
 export const CUE_LINES: Record<CueEvent, string[]> = {
-  'hover:face': [
-    'ui.cli-monitor.hmm-why-are-you-looking-at-me',
-    'ui.usage-tools.is-there-rice-on-my-face',
-    'ui.usage-tools.too-close-i-ll-get-shy',
-  ],
-  'hover:skirt': [
-    'ui.cli-monitor.hey-eyes-up-here',
-    'ui.cli-monitor.hmph-look-again-and-i-ll-ignore-you',
-  ],
-  'hover:hands': ['ui.voice-mascot.high-five', 'ui.cli-monitor.empty-hands'],
-  wall: [
-    'ui.cli-monitor.ouch-bumped',
-    'ui.cli-monitor.that-wall-is-hard',
-    'ui.cli-monitor.please-set-me-down-gently',
-  ],
-  release: [
-    'ui.usage-tools.landed',
-    'ui.cli-monitor.phew-finally-put-down',
-    'ui.cli-monitor.be-gentler-next-time',
-  ],
-  wave: ['ui.voice-mascot.hello-there', 'ui.cli-monitor.hi-hi', 'ui.cli-monitor.i-see-you'],
-  think: ['ui.usage-tools.let-me-think', 'ui.cli-monitor.hmm-one-sec', 'ui.cli-monitor.thinking'],
-  happy: ['ui.cli-monitor.hehe-so-happy', 'ui.usage-tools.yay', 'ui.cli-monitor.feeling-great'],
-  angry: [
-    'ui.cli-monitor.hmph-i-m-mad',
-    'ui.cli-monitor.don-t-keep-doing-that',
-    'ui.cli-monitor.i-m-really-getting-angry',
-  ],
+  'hover:face': [],
+  'hover:skirt': [],
+  'hover:hands': [],
+  wall: [],
+  release: [],
+  wave: [],
+  think: ['ui.usage-tools.let-me-think', 'ui.cli-monitor.hmm-one-sec'],
+  happy: [],
+  angry: [],
   greet: [
     'ui.cli-monitor.i-m-here',
     'ui.cli-monitor.let-s-do-our-best-today',
     'ui.cli-monitor.hi-i-m-nomi',
   ],
-  sleep: [
-    'ui.cli-monitor.sleepy-good-night',
-    'ui.cli-monitor.just-a-nap-zzz',
-    'ui.cli-monitor.rest-early-okay',
-  ],
+  sleep: ['ui.cli-monitor.rest-early-okay'],
   'agent:done': [
     'ui.cli-monitor.task-done',
     'ui.cli-monitor.done-thumbs-up',
@@ -89,11 +66,7 @@ export const CUE_LINES: Record<CueEvent, string[]> = {
     'ui.cli-monitor.permission-is-waiting-for-you',
     'ui.usage-tools.please-allow-or-deny-in-chat',
   ],
-  'agent:running': [
-    'ui.cli-monitor.i-m-working',
-    'ui.cli-monitor.coding-in-progress',
-    'ui.cli-monitor.typing-away',
-  ],
+  'agent:running': [],
   'agent:stalled': [
     'ui.cli-monitor.looks-stuck',
     'ui.cli-monitor.no-updates-for-a-while',
@@ -129,34 +102,18 @@ export const CUE_LINES: Record<CueEvent, string[]> = {
     'ui.usage-tools.confirm-before-we-continue',
     'ui.cli-monitor.i-ll-wait-for-your-yes',
   ],
-  celebrate: [
-    'ui.cli-monitor.awesome',
-    'ui.cli-monitor.celebrate',
-    'ui.cli-monitor.success-confetti',
-  ],
-  sorry: [
-    'ui.cli-monitor.sorry-sorry',
-    'ui.cli-monitor.i-m-sorry',
-    'ui.cli-monitor.i-ll-fix-it-right-away',
-  ],
-  thumbs_up: [
-    'ui.usage-tools.nice',
-    'ui.cli-monitor.well-done',
-    'ui.cli-monitor.thumbs-up-for-you',
-  ],
+  celebrate: ['ui.cli-monitor.awesome', 'ui.cli-monitor.success-confetti'],
+  sorry: ['ui.cli-monitor.i-ll-fix-it-right-away'],
+  thumbs_up: ['ui.cli-monitor.well-done'],
   goodnight: [
     'ui.cli-monitor.good-night-sweet-dreams',
     'ui.cli-monitor.it-s-late-rest-a-bit',
     'ui.cli-monitor.see-you-tomorrow',
   ],
-  nod: ['ui.cli-monitor.mm-hmm', 'ui.cli-monitor.okay', 'ui.cli-monitor.got-it'],
-  clap: ['ui.cli-monitor.clap-clap', 'ui.usage-tools.applause', 'ui.voice-mascot.yay'],
-  poke: ['ui.voice-mascot.that-tickles', 'ui.cli-monitor.stop-poking', 'ui.cli-monitor.eek'],
-  grab_extra: [
-    'ui.cli-monitor.hold-me-steady',
-    'ui.usage-tools.we-re-flying',
-    'ui.cli-monitor.put-me-down',
-  ],
+  nod: ['ui.cli-monitor.okay', 'ui.cli-monitor.got-it'],
+  clap: [],
+  poke: [],
+  grab_extra: [],
 };
 
 /** 事件默认冷却（ms）与语音优先级（高可打断低） */

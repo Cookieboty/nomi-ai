@@ -14,9 +14,10 @@ import { useMascotShown } from '../presence';
 import { stopAllSpeech } from '../speechStop';
 
 import styles from './MascotVoice.module.css';
+import { CLIP_HINTS } from './promptClips';
 import { voiceDirective } from './voiceMood';
 
-import { useWaifuMessage } from '@/hooks/useWaifuMessage';
+import { playBubbleClip, useWaifuMessage } from '@/hooks/useWaifuMessage';
 
 let toggleImpl: (() => Promise<void>) | null = null;
 
@@ -93,6 +94,13 @@ export const MascotVoiceBridge: React.FC = () => {
       toggleImpl = null;
     };
   }, [setContinuous, state.mode, config]);
+
+  // 语音出错：诺米提示语音念出固定句（详情只在状态胶囊里显示）
+  const err = v.state.error;
+  useEffect(() => {
+    if (!err) return;
+    playBubbleClip(err.message, err.code === 'mic_failed' ? CLIP_HINTS.micFailed : undefined);
+  }, [err]);
 
   // 表情 / 动作
   useEffect(() => {

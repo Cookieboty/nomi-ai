@@ -3,23 +3,23 @@
  * 处理应用配置、模型配置等相关的IPC通信
  */
 
-import http from 'http';
-import https from 'https';
-
 import {
-  type SherpaModelStatus,
   type TTSConfig,
+  type TTSPreviewRequest,
   type TTSSpeakRequest,
+  type TTSSpeakResult,
   type TTSTestResult,
 } from '@nomi-ai/types';
 import { app } from 'electron';
 
+import { broadcastMascotCommand } from '../../ai/mascotCommand';
 import { t } from '../../i18n';
 import { type IConfigService } from '../../services/ConfigService';
 import { type ILoggerService } from '../../services/LoggerService';
-import { getFishTtsService } from '../../tts/fish';
-import { validateTtsConfig } from '../../tts/fish/validateTtsConfig';
-import { getSherpaTtsService } from '../../tts/sherpa';
+import { EdgeTtsService } from '../../tts/edge/EdgeTtsService';
+import { BUILTIN_ZH_VOICES, listChineseVoices } from '../../tts/edge/edgeVoices';
+import { replySpeechCommand } from '../../tts/replySpeech';
+import { getTtsConfigStore } from '../../tts/TtsConfigStore';
 import { TtsRouter, applyTtsEnvOverride } from '../../tts/ttsRouter';
 
 import { BaseIpcHandler } from './BaseIpcHandler';
@@ -241,49 +241,26 @@ export class ConfigIpcHandler extends BaseIpcHandler {
   }
 
   /**
-   * 初始化TTS配置相关IPC处理器
+   * 初始化TTS配置相关IPC处理器。实时朗读：Edge 在线朗读（默认，需联网）；Azure / OpenAI 尚未接入。
+   * 任何失败都静默（渲染层只显示文字），连续失败次数经 tts:status 给设置页显示提示。
    */
   private initializeTTSHandlers(): void {
-    const fish = getFishTtsService();
-    const sherpa = getSherpaTtsService();
+    const store = getTtsConfigStore();
+    const edge = new EdgeTtsService();
     const router = new TtsRouter({
-      getConfig: () => applyTtsEnvOverride(fish.getConfig()),
-      sherpa,
-      fish,
-      onSherpaFailure: (error) => {
-        const code = (error as { code?: string } | null)?.code;
-        // downloading / superseded 属预期情形，由逐请求结果日志 + 服务内限频进度日志覆盖，避免刷屏
-        if (code === 'downloading' || code === 'superseded' || code === 'not_ready') return;
-        const message = error instanceof Error ? error.message : String(error);
-        this.logger.warn('sherpa TTS 不可用，保持静默', { code, message });
-      },
-      // 每条 tts:speak 都必有一条结果日志：success / fallback / error + provider
-      onOutcome: (o) => {
-        const meta = {
-          provider: o.provider,
-          via: o.via,
-          ms: o.ms,
-          textLength: o.textLength,
-          code: o.code,
-          message: o.message,
-          audioBytes: o.audioBytes,
-        };
-        if (o.outcome === 'success') this.logger.info('tts:speak success', meta);
-        else if (o.outcome === 'fallback') this.logger.warn('tts:speak fallback', meta);
-        else this.logger.error('tts:speak error', meta);
-      },
+      getConfig: () => applyTtsEnvOverride(store.load()),
+      edge,
+      onOutcome: (o) => this.logger.debug('tts:speak', o),
     });
+    const notAvailable = (provider: TTSConfig['provider']): TTSTestResult =>
+      provider === 'none'
+        ? { success: true, message: t('electron.common.no-realtime-tts-engine-selected') }
+        : { success: false, message: t('electron.common.this-tts-engine-is-not-available-yet') };
 
-    // 获取TTS配置（无文件时返回内置 sherpa 离线默认，便于开箱走 sherpa 路径）
+    // 获取TTS配置（无文件时返回默认：Edge 实时朗读 + 诺米提示语音开）
     this.registerHandler('getTTSConfig', async () => {
       try {
-        const config = fish.getConfig();
-        this.logger.debug('获取TTS配置成功', {
-          provider: config.provider,
-          enabled: config.enabled,
-          hasApiKey: config.hasApiKey,
-        });
-        return config;
+        return store.load();
       } catch (error) {
         this.logger.error('获取TTS配置失败', {
           error: error instanceof Error ? error.message : String(error),
@@ -292,17 +269,11 @@ export class ConfigIpcHandler extends BaseIpcHandler {
       }
     });
 
-    // 保存TTS配置（云 Key 走 safeStorage）
     this.registerHandler('saveTTSConfig', async (_, config: TTSConfig) => {
       this.validateArgs([config], 1, ['object']);
-
       try {
-        const saved = fish.saveConfig(config);
-        this.logger.info('TTS配置保存成功', {
-          provider: saved.provider,
-          enabled: saved.enabled,
-          hasApiKey: saved.hasApiKey,
-        });
+        const saved = store.save(config);
+        this.logger.info('TTS配置保存成功', { provider: saved.provider, enabled: saved.enabled });
         return this.createSuccessResponse();
       } catch (error) {
         this.logger.error('TTS配置保存失败', {
@@ -312,38 +283,58 @@ export class ConfigIpcHandler extends BaseIpcHandler {
       }
     });
 
-    // 测试连接：sherpa → 模型就绪 + 引擎可加载；Fish → /v1/health；legacy → 原 POST 探测
+    // 试听 / 测试都用传入的（未保存的）配置，CD_TTS=off 时仍静默
+    const previewRouter = (cfg: Partial<TTSConfig>) =>
+      new TtsRouter({
+        getConfig: () =>
+          applyTtsEnvOverride({ ...store.load(), ...cfg, enabled: true } as TTSConfig),
+        edge,
+      });
+
     this.registerHandler('testTTSConnection', async (_, config: TTSConfig) => {
       this.validateArgs([config], 1, ['object']);
-
-      try {
-        const startTime = Date.now();
-        let result: TTSTestResult;
-        if (config.provider === 'sherpa-theresa') {
-          result = await this.checkSherpaHealth();
-        } else if (config.provider === 'fish-local' || config.provider === 'fish-cloud') {
-          result = await fish.checkHealth(config);
-        } else {
-          result = await this.testLegacyTTSConnection(config);
-        }
-        const latency = result.latency ?? Date.now() - startTime;
-        const testResult: TTSTestResult = { ...result, latency };
-        this.logger.info('TTS连接测试完成', { testResult });
-        return testResult;
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        this.logger.error('TTS连接测试失败', { error: errorMessage });
-        return {
-          success: false,
-          message: t('electron.common.connection-test-failed', errorMessage),
-        } as TTSTestResult;
-      }
+      if (config.provider !== 'edge') return { ...notAvailable(config.provider), latency: 0 };
+      const t0 = Date.now();
+      const r = await previewRouter(config).speak({ text: t('electron.common.tts-test-sentence') });
+      return r.success
+        ? {
+            success: true,
+            message: t('electron.common.realtime-tts-reachable'),
+            latency: Date.now() - t0,
+          }
+        : { success: false, message: t('electron.common.realtime-tts-unreachable'), latency: 0 };
     });
 
-    // 重置TTS配置
+    this.registerHandler(
+      'tts:preview',
+      async (_, req: TTSPreviewRequest): Promise<TTSSpeakResult> => {
+        this.validateArgs([req], 1, ['object']);
+        return previewRouter({
+          provider: req.provider,
+          edgeVoice: req.edgeVoice,
+          rate: req.rate,
+        }).speak({ text: String(req.text ?? '').slice(0, 300) });
+      },
+    );
+
+    // CD_TTS=off（e2e）不联网，直接给内置列表
+    this.registerHandler('tts:voices', async () =>
+      process.env.CD_TTS === 'off'
+        ? { voices: [...BUILTIN_ZH_VOICES], source: 'builtin' as const }
+        : listChineseVoices(),
+    );
+
+    this.registerHandler('tts:status', async () => edge.getStatus());
+
+    // 打断：取消还在等音频的请求
+    this.registerHandler('tts:stop', async () => {
+      edge.stop();
+      return true;
+    });
+
     this.registerHandler('resetTTSConfig', async () => {
       try {
-        fish.resetConfig();
+        store.reset();
         this.logger.info('TTS配置已重置');
         return this.createSuccessResponse();
       } catch (error) {
@@ -354,228 +345,46 @@ export class ConfigIpcHandler extends BaseIpcHandler {
       }
     });
 
-    // 合成路由：sherpa（默认）/ Fish（可选）；渲染层播放，失败则静默
+    // 合成路由：成功返回 mp3（base64），失败静默
     this.registerHandler('tts:speak', async (_, req: TTSSpeakRequest) => {
       this.validateArgs([req], 1, ['object']);
-      try {
-        // 结果日志（success / fallback / error）由 router.onOutcome 统一输出，这里不重复
-        return await router.speak(req ?? { text: '' });
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        return {
-          success: false,
-          via: 'none',
-          fallbackToSystem: false,
-          message: errorMessage,
-        };
-      }
+      return router.speak(req ?? { text: '' });
     });
 
-    // sherpa 模型状态（ready / missing / downloading / error）
-    this.registerHandler('tts:sherpa:status', async (): Promise<SherpaModelStatus> => {
-      return sherpa.getStatus();
+    // 朗读 AI 回复：对话窗口把整句转发到看板娘窗口（沿用 mascot:command → tts:speak 播放链路）
+    this.registerHandler('tts:reply', async (_, msg: unknown) => {
+      let cfg: TTSConfig | null;
+      try {
+        cfg = store.load();
+      } catch {
+        cfg = null;
+      }
+      const cmd = replySpeechCommand(msg, cfg, process.env);
+      if (!cmd) return false;
+      // 停止由看板娘窗口处理（它在朗读回复时才停播放并取消合成），不在这里误停别的台词
+      broadcastMascotCommand(cmd);
+      return true;
+    });
+
+    // 诺米提示语音开关：看板娘窗口据此决定是否播放预录提示语
+    this.registerHandler('tts:prompt-voice', async () => {
+      try {
+        return store.load().promptVoice !== false;
+      } catch {
+        return true;
+      }
     });
 
     this.registerHandler('tts:health', async (_, config?: Partial<TTSConfig>) => {
-      try {
-        if ((config?.provider ?? fish.getConfig().provider) === 'sherpa-theresa') {
-          return await this.checkSherpaHealth();
-        }
-        return await fish.checkHealth(config);
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        return { success: false, message: errorMessage } as TTSTestResult;
+      const provider = config?.provider ?? store.load().provider;
+      if (provider === 'edge') {
+        const s = edge.getStatus();
+        return s.consecutiveFailures >= 3
+          ? { success: false, message: t('electron.common.realtime-tts-unreachable') }
+          : { success: true, message: t('electron.common.realtime-tts-reachable') };
       }
-    });
-
-    // 遗留：测试 legacy 语音克隆播放
-    this.registerHandler(
-      'test-tts-voice',
-      async (_, testConfig: TTSConfig & { testText: string }) => {
-        this.validateArgs([testConfig], 1, ['object']);
-
-        try {
-          if (
-            testConfig.provider === 'sherpa-theresa' ||
-            testConfig.provider === 'fish-local' ||
-            testConfig.provider === 'fish-cloud'
-          ) {
-            const spoken = await (testConfig.provider === 'sherpa-theresa' ? router : fish).speak({
-              text: testConfig.testText,
-              referenceId: testConfig.referenceId,
-            });
-            if (spoken.success) {
-              return {
-                success: true,
-                message: t('electron.common.voice-test-succeeded'),
-                audioBase64: spoken.audioBase64,
-                mimeType: spoken.mimeType,
-              };
-            }
-            throw new Error(spoken.message || t('electron.common.tts-synthesis-failed'));
-          }
-
-          const validation = validateTtsConfig({
-            ...testConfig,
-            provider: testConfig.provider || 'legacy',
-          });
-          if (!validation.isValid) {
-            throw new Error(
-              t('electron.common.tts-config-validation-failed', validation.errors.join(', ')),
-            );
-          }
-
-          const { VoiceService } = await import('../../tts/legacy/LegacyTtsPlayer');
-          const voiceService = new VoiceService();
-          const { MCPConfigManager } = await import('../../tts/legacy/LegacyVoiceConfig');
-          const configManager = MCPConfigManager.getInstance();
-          const originalConfig = configManager.getVoiceConfig();
-
-          try {
-            configManager.updateVoiceMode('tts');
-            if (configManager.getVoiceConfig().ttsApiConfig) {
-              configManager.updateTTSApiConfig({
-                hostname: testConfig.hostname,
-                port: testConfig.port,
-                path: testConfig.path,
-                audioUrl: testConfig.audioUrl,
-                promptText: testConfig.promptText,
-              });
-            } else {
-              const newConfig = { ...configManager.getVoiceConfig() };
-              newConfig.ttsApiConfig = {
-                hostname: testConfig.hostname,
-                port: testConfig.port,
-                path: testConfig.path,
-                audioUrl: testConfig.audioUrl,
-                promptText: testConfig.promptText,
-              };
-              configManager.updateVoiceMode('tts');
-            }
-
-            await voiceService.playTextToSpeech(testConfig.testText);
-            this.logger.info('TTS语音测试成功', { testText: testConfig.testText });
-            return { success: true, message: t('electron.common.voice-test-succeeded') };
-          } finally {
-            configManager.updateVoiceMode(originalConfig.voiceMode);
-            if (originalConfig.ttsApiConfig) {
-              configManager.updateTTSApiConfig(originalConfig.ttsApiConfig);
-            }
-          }
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          this.logger.error('TTS语音测试失败', { error: errorMessage });
-          return {
-            success: false,
-            message: t('electron.common.voice-test-failed', errorMessage),
-          };
-        }
-      },
-    );
-  }
-
-  /** sherpa：预热引擎；缺模型不下载，提示去「语音」设置下载 */
-  private async checkSherpaHealth(): Promise<TTSTestResult> {
-    const sherpa = getSherpaTtsService();
-    try {
-      const ms = await sherpa.warmup();
-      const status = sherpa.getStatus();
-      return {
-        success: true,
-        message: t(
-          'electron.common.offline-voice-engine-ready-model-location',
-          status.source ?? '',
-        ),
-        latency: ms,
-      };
-    } catch (error) {
-      const status = sherpa.getStatus();
-      const msg = error instanceof Error ? error.message : String(error);
-      if (status.state === 'downloading') {
-        return {
-          success: false,
-          message: t('electron.common.offline-voice-model-is-downloading-please-wait'),
-        };
-      }
-      if (status.state === 'missing' || status.state === 'error') {
-        return {
-          success: false,
-          message: status.message
-            ? t('electron.common.offline-voice-model-unavailable', status.message)
-            : t('electron.common.offline-voice-model-not-downloaded-turn-on-voice'),
-        };
-      }
-      return {
-        success: false,
-        message: t('electron.common.offline-voice-engine-failed-to-load-no-tts', msg),
-      };
-    }
-  }
-
-  /**
-   * 验证TTS配置（委托纯函数，供遗留调用）
-   */
-  private validateTTSConfig(config: TTSConfig): { isValid: boolean; errors: string[] } {
-    return validateTtsConfig(config);
-  }
-
-  /**
-   * 遗留外部 TTS：POST 探测
-   */
-  private async testLegacyTTSConnection(config: TTSConfig): Promise<TTSTestResult> {
-    return new Promise((resolve) => {
-      const loopbackHosts = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
-      const protocol = loopbackHosts.has(config.hostname.trim().toLowerCase()) ? http : https;
-
-      const testData = JSON.stringify({
-        text: t('electron.common.tts-connection-test'),
-        ref_audio_path: config.audioUrl,
-        prompt_text: (config.promptText || '').substring(0, 100),
-      });
-
-      const options = {
-        hostname: config.hostname,
-        port: config.port,
-        path: config.path,
-        method: 'POST',
-        timeout: 10000,
-        headers: {
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(testData),
-        },
-      };
-
-      const req = protocol.request(options, (res) => {
-        if (res.statusCode && res.statusCode >= 200 && res.statusCode < 400) {
-          resolve({
-            success: true,
-            message: t('electron.common.connected-the-tts-service-is-reachable'),
-          });
-        } else {
-          resolve({
-            success: false,
-            message: t('electron.common.server-returned-status-code', res.statusCode),
-          });
-        }
-      });
-
-      req.on('error', (error) => {
-        resolve({
-          success: false,
-          message: t('electron.common.connection-failed', error.message),
-        });
-      });
-
-      req.on('timeout', () => {
-        req.destroy();
-        resolve({
-          success: false,
-          message: t('electron.common.connection-timed-out'),
-        });
-      });
-
-      req.write(testData);
-      req.end();
+      const res = notAvailable(provider);
+      return res.success ? { ...res, success: false } : res;
     });
   }
 
