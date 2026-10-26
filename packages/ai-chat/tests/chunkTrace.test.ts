@@ -72,4 +72,13 @@ describe('chunkToTrace (Nomi tool calls use the same trace model)', () => {
     ).toEqual({ inputTokens: 12, outputTokens: 5, cacheReadTokens: 2 });
     expect(chunkToUsage({ type: 'delta' })).toBeNull();
   });
+
+  it('chunkToUsage carries how many keys privacy mode hid', () => {
+    expect(
+      chunkToUsage({ type: 'usage', usage: { promptTokens: 1, completionTokens: 1, redacted: 2 } }),
+    ).toMatchObject({ redacted: 2 });
+    expect(
+      chunkToUsage({ type: 'usage', usage: { promptTokens: 1, redacted: 0 } }),
+    ).not.toHaveProperty('redacted');
+  });
 });

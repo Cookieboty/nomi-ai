@@ -70,12 +70,15 @@ const CopyAction: React.FC<{ text: string }> = ({ text }) => {
 
 /** 一轮的耗时 / token / 费用摘要（有数据才显示） */
 export const TurnSummary: React.FC<{ message: ConvMessage }> = ({ message }) => {
-  const s = turnSummary(message);
-  if (!s) return null;
+  const s = turnSummary(message) ?? {};
+  const redacted = message.usage?.redacted ?? 0;
+  if (!s.duration && !s.tokens && !s.cost && !redacted) return null;
+  const hid = redacted ? t('ui.usage-tools.hid-n-keys', redacted) : '';
   const title = [
     s.duration && t('ui.usage-tools.took', s.duration),
     s.tokens,
     s.cost && t('ui.usage-tools.cost-named', s.cost),
+    redacted && t('ui.usage-tools.privacy-mode-hid-n-keys-in-this-turn', redacted),
   ]
     .filter(Boolean)
     .join(' · ');
@@ -84,6 +87,15 @@ export const TurnSummary: React.FC<{ message: ConvMessage }> = ({ message }) => 
       {s.duration && <span data-part="duration">{t('ui.usage-tools.took', s.duration)}</span>}
       {s.tokens && <span data-part="tokens">{s.tokens}</span>}
       {s.cost && <span data-part="cost">{s.cost}</span>}
+      {hid && (
+        <span
+          data-part="redacted"
+          data-testid="conv-redacted"
+          title={t('ui.usage-tools.privacy-mode-hid-n-keys-in-this-turn', redacted)}
+        >
+          {hid}
+        </span>
+      )}
     </span>
   );
 };

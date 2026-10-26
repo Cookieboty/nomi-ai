@@ -136,6 +136,8 @@ export interface HarnessUsage {
   contextWindow?: number;
   /** CLI 实际使用的主模型（标签没指定模型时据此查窗口经验表） */
   model?: string;
+  /** 仅 Nomi 对话：隐私模式在这一轮发给第三方供应商的内容里隐藏了几个密钥（含历史消息里的） */
+  redacted?: number;
   /**
    * 仅渲染端：从 CLI 会话记录算出的分项（加起来等于 contextTokens，见主进程 transcriptContext.ts）。
    * 有它时上下文环直接用，不再按 Nomi 落盘的消息估算。
