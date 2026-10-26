@@ -364,7 +364,12 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   const chatModel = nomiModelLabel() ?? '';
   // 模型元数据写明了视觉能力就以它为准，否则按名字猜
   const visionKnown = nomiModelMeta()?.vision;
-  const visionWarn = images.length > 0 && !(visionKnown ?? likelyVision(chatModel));
+  // 编程助手标签由调用方给出发图能力（当前 CLI 模型），不能拿 Nomi 自己的模型去判断
+  const visionWarn =
+    images.length > 0 &&
+    (imageCapability !== undefined
+      ? imageCapability === 'none'
+      : !(visionKnown ?? likelyVision(chatModel)));
 
   const handleSend = async () => {
     let trimmedMessage =
@@ -881,7 +886,10 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
                 <span className={styles.attachErr}>{imgErr}</span>
               ) : visionWarn ? (
                 <span className={styles.attachWarn} data-testid="vision-warn">
-                  {tr('ui.knowledge-local.the-current-model-may-not-support-images-consider')}
+                  {imageCapability === 'none'
+                    ? (imageUnsupportedReason ??
+                      tr('ui.session-workspace.the-current-model-doesn-t-support-images-remove'))
+                    : tr('ui.knowledge-local.the-current-model-may-not-support-images-consider')}
                 </span>
               ) : images.length ? (
                 <span className={styles.attachHint}>
