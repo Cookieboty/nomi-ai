@@ -259,6 +259,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - 使用官方账号登录后，可在输入栏直接切换模型与思考深度（Codex / Claude Code / Grok）：新增一枚「模型 · 思考深度」按钮（参考 Codex：浮层大字显示当前档位，下方「模型名 ›」进入模型列表，可选默认模型 / CLI 列出的模型 / 自定义模型 id，再下方用分档滑杆调思考深度）。模型列表、每个模型支持的档位与默认档位全部从 CLI 自己读取、不写死：Claude Code 读 stream-json `initialize` 的模型列表（与 `/model` 一致），Codex 读 `codex debug models` 与 config.toml 的默认模型 / 档位，Grok 读 `grok agent stdio`（ACP）的模型列表；切换账号或供应商后重新读取，读不到时只保留默认模型与自定义 id。设置按标签保存、下一条消息起生效，以进程级参数注入（codex `exec -c`、grok `-m` / `--reasoning-effort`、claude `--model` / `--effort`，Claude 长驻进程空闲时重启复用），不改写用户的全局 CLI 配置；非推理模型自动隐藏思考深度，第三方供应商激活时仍由供应商管理模型（按钮隐藏，标签覆盖也不再注入）；Claude 有后台任务时切换不会中断它们，等后台结束后的下一条消息再生效。Gemini（ACP）/ dsh 暂无无头覆盖参数，不显示按钮。 (`@nomi-ai/ui` patch)
 - 供应商预设的应用层改动，与统一网关 changeset 配套。 (`@nomi-ai/ai-chat` minor, `@nomi-ai/electron` minor)
 - 侧栏「按端」可以选择显示哪些编程助手：每个端点可设为自动、显示或隐藏。默认自动，没有对话、标签和历史的 CLI 不再显示一个为 0 的切换按钮；Nomi 始终显示。 (`@nomi-ai/ai-chat` minor)
+- 侧栏左下角的端信息卡改为跟随当前会话所在的端（编程助手标签或 Nomi 对话），「全部」视图下也显示；点顶部的端点图标会先看那个端，切换会话后回到当前会话的端。 (`@nomi-ai/ai-chat` patch)
 - 侧栏的编程助手历史加入 Gemini CLI 会话，可以直接打开并在原工作目录续接；监视器现在能识别 Gemini CLI 0.62 起使用的 `.jsonl` 会话文件（之前只认旧版 `.json`，新版本的会话标题与状态显示不出来），Nomi 里 Gemini 标签的花费也会出现在完成提示里。 (`@nomi-ai/ai-chat` minor, `@nomi-ai/electron` minor)
 - 侧栏端点筛选改成一行：「全部」+ 各端图标，点一下即切换，数量放在悬停提示里；本机历史并进同一列表，没有历史时不再显示空分组；筛选行一次最多显示 5 个端点，其余收进「+N」，默认按对话数从多到少排列，可在显示设置里拖拽（或 Alt+↑/↓）自定义顺序 (`@nomi-ai/ai-chat` patch)
 - 侧栏端点筛选改成一行：「全部」+ 各端图标，点一下即切换，数量放在悬停提示里；本机历史并进同一列表，没有历史时不再显示空分组；筛选行一次最多显示 5 个端点，其余收进「+N」，默认按对话数从多到少排列，可在显示设置里拖拽（或 Alt+↑/↓）自定义顺序 (`@nomi-ai/ui` patch)
