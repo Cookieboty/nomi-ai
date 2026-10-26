@@ -27,9 +27,16 @@ interface Rule {
   re: RegExp;
   /** 值是第几个分组（不设 = 整个匹配） */
   group?: number;
-  /** 文本里至少有一个（fold 时按小写找） */
+  /** 文本里至少有一个（区分大小写） */
   markers: string[];
-  fold?: boolean;
+  /** 文本里还必须都有（连接串的 @） */
+  also?: string[];
+  /**
+   * 匹配离标记多远：正则只在每个标记前 back、后 ahead 个字符的窗口里跑（默认 64 / 512），
+   * 长文本里标记很常见（代码里的 nomi-、Bearer、key=）时不用整段扫描
+   */
+  back?: number;
+  ahead?: number;
   ok?: (v: string) => boolean;
   strict?: boolean;
 }
@@ -84,6 +91,7 @@ const RULES: Rule[] = [
     kind: 'PRIVATE_KEY',
     re: /-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY(?: BLOCK)?-----[\s\S]+?-----END (?:[A-Z0-9]+ )*PRIVATE KEY(?: BLOCK)?-----/g,
     markers: ['PRIVATE KEY'],
+    ahead: 16_384,
   },
   {
     kind: 'API_KEY',
@@ -103,7 +111,7 @@ const RULES: Rule[] = [
       `${B}(?:gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{40,}|glpat-[A-Za-z0-9_-]{20,})`,
       'g',
     ),
-    markers: ['gh', 'github_pat_', 'glpat-'],
+    markers: ['ghp_', 'gho_', 'ghu_', 'ghs_', 'ghr_', 'github_pat_', 'glpat-'],
   },
   {
     kind: 'API_KEY',
@@ -136,13 +144,13 @@ const RULES: Rule[] = [
     kind: 'TOKEN',
     re: new RegExp(`${B}eyJ[A-Za-z0-9_-]{10,}\\.eyJ[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}`, 'g'),
     markers: ['eyJ'],
+    ahead: 8192,
   },
   {
     kind: 'TOKEN',
     re: /\bBearer\s+([A-Za-z0-9._~+/=-]{16,})/dgi,
     group: 1,
-    markers: ['bearer'],
-    fold: true,
+    markers: ['Bearer', 'bearer', 'BEARER'],
     ok: secretValue,
   },
   // 连接串与 URL 里的 user:pass@
@@ -151,13 +159,14 @@ const RULES: Rule[] = [
     re: /\b[a-z][a-z0-9+.-]*:\/\/[^\s:@/"'`]+:([^\s@/"'`]+)@/dgi,
     group: 1,
     markers: ['://'],
+    also: ['@'],
     ok: passwordValue,
   },
   {
     kind: 'TOKEN',
     re: /[?&](?:key|api_key|apikey|access_token|token|client_secret)=([^&\s"'#]{12,})/dgi,
     group: 1,
-    markers: ['='],
+    markers: ['key=', 'token=', 'secret=', 'KEY=', 'TOKEN=', 'SECRET=', 'Key=', 'Token='],
     ok: secretValue,
   },
   // 严格档：键名像密钥的赋值（.env、YAML、JSON）
@@ -185,6 +194,70 @@ function idRanges(s: string): Array<[number, number]> {
   return out;
 }
 
+/** 标记 → 用到它的规则（严格档的 = 和 : 太常见，不走这里） */
+const BY_MARKER = new Map<string, Rule[]>();
+for (const r of RULES)
+  if (!r.strict) for (const m of r.markers) BY_MARKER.set(m, [...(BY_MARKER.get(m) ?? []), r]);
+
+/** 一遍扫出所有标记（大小写不敏感，再按原样核对），比逐个 includes 快 */
+const MARKER_RE = new RegExp(
+  [...new Set([...BY_MARKER.keys()].map((m) => m.toLowerCase()))]
+    .sort((a, b) => b.length - a.length)
+    .map((m) => m.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&'))
+    .join('|'),
+  'gi',
+);
+
+/** 每条规则的标记出现在哪些位置 */
+function markerHits(s: string): Map<Rule, Array<[number, number]>> {
+  const out = new Map<Rule, Array<[number, number]>>();
+  MARKER_RE.lastIndex = 0;
+  for (let m = MARKER_RE.exec(s); m; m = MARKER_RE.exec(s)) {
+    const i = m.index;
+    // 标记可能互相重叠：下一次从下一个字符接着找
+    MARKER_RE.lastIndex = i + 1;
+    for (const [mk, rules] of BY_MARKER) {
+      if (!s.startsWith(mk, i)) continue;
+      for (const r of rules) {
+        const list = out.get(r) ?? [];
+        list.push([i, mk.length]);
+        out.set(r, list);
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * 规则要跑的窗口（合并过、不重叠）；窗口加起来超过半段时返回 null（整段扫描更快）。
+ * 窗口从标记前 back 个字符开始：零宽断言在窗口开头看不到前一个字符，但匹配都从标记附近开始，
+ * 只有真正的段首（from = 0）才会落在窗口开头。
+ */
+function windows(
+  s: string,
+  r: Rule,
+  hits: Array<[number, number]>,
+): Array<[number, number]> | null {
+  const back = r.back ?? 64;
+  const ahead = r.ahead ?? 512;
+  const at = hits.map(([i, n]): [number, number] => [
+    Math.max(0, i - back),
+    Math.min(s.length, i + n + ahead),
+  ]);
+  if (at.length < 2) return at;
+  at.sort((a, b) => a[0] - b[0]);
+  const out: Array<[number, number]> = [at[0]!];
+  let total = 0;
+  for (let i = 1; i < at.length; i++) {
+    const last = out[out.length - 1]!;
+    const cur = at[i]!;
+    if (cur[0] <= last[1]) last[1] = Math.max(last[1], cur[1]);
+    else out.push(cur);
+  }
+  for (const [a, b] of out) total += b - a;
+  return total > s.length / 2 ? null : out;
+}
+
 export interface RuleOptions {
   /** 打开严格档（L3） */
   strict?: boolean;
@@ -193,21 +266,30 @@ export interface RuleOptions {
 /** 按规则找文本里的密钥区间（未合并，可能重叠） */
 export function ruleSpans(s: string, opts: RuleOptions = {}): SecretSpan[] {
   const out: SecretSpan[] = [];
-  let lower: string | null = null;
+  const hits = markerHits(s);
   for (const r of RULES) {
-    if (r.strict && !opts.strict) continue;
-    const hit = r.fold
-      ? r.markers.some((m) => (lower ??= s.toLowerCase()).includes(m))
-      : r.markers.some((m) => s.includes(m));
-    if (!hit) continue;
-    r.re.lastIndex = 0;
-    for (const m of s.matchAll(r.re)) {
-      const v = r.group ? m[r.group] : m[0];
-      if (!v) continue;
-      if (r.strict && NOT_CREDENTIAL_NAME.test(m[1] ?? '')) continue;
-      if (r.ok && !r.ok(v)) continue;
-      const start = r.group ? m.indices![r.group]![0] : m.index;
-      out.push({ start, end: start + v.length, kind: r.kind, by: r.strict ? 'strict' : 'rule' });
+    let ws: Array<[number, number]> | null;
+    if (r.strict) {
+      if (!opts.strict || !r.markers.some((m) => s.includes(m))) continue;
+      ws = null;
+    } else {
+      const at = hits.get(r);
+      if (!at) continue;
+      ws = windows(s, r, at);
+    }
+    if (r.also && !r.also.every((m) => s.includes(m))) continue;
+    // 窗口里的匹配换算回整段的下标；窗口相互不重叠，同一个匹配不会记两次
+    for (const [from, to] of ws ?? [[0, s.length]]) {
+      const text = from === 0 && to === s.length ? s : s.slice(from, to);
+      r.re.lastIndex = 0;
+      for (const m of text.matchAll(r.re)) {
+        const v = r.group ? m[r.group] : m[0];
+        if (!v) continue;
+        if (r.strict && NOT_CREDENTIAL_NAME.test(m[1] ?? '')) continue;
+        if (r.ok && !r.ok(v)) continue;
+        const start = from + (r.group ? m.indices![r.group]![0] : m.index);
+        out.push({ start, end: start + v.length, kind: r.kind, by: r.strict ? 'strict' : 'rule' });
+      }
     }
   }
   if (!out.length) return out;

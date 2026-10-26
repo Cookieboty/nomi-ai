@@ -192,6 +192,9 @@ export class Restorer {
 
   private event(raw: string): string {
     const ev = parseEvent(raw);
+    // 保活注释与 ping 不打断扣住的尾巴：先放它们，尾巴继续等下一个增量（客户端不看它们的顺序）
+    if (ev.data === null || /^\s*\{\s*"type"\s*:\s*"ping"\s*\}\s*$/.test(ev.data))
+      return raw + '\n\n';
     let json: unknown;
     if (ev.data !== null && ev.data.trimStart().startsWith('{')) {
       try {

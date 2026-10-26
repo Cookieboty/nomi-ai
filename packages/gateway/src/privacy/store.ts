@@ -20,6 +20,8 @@ interface Entry {
 }
 
 const BITS = 1 << 16;
+/** 前缀数不超过它时用 indexOf 逐个找，超过时逐位置扫描 */
+const SMALL_INDEX = 64;
 
 function hash4(s: string, i: number): number {
   return (
@@ -97,8 +99,35 @@ export class SecretStore {
 
   /** 文本里出现的已知原文 / 已见值（不重叠，同一位置取最长的） */
   find(s: string): SecretSpan[] {
+    if (!this.index.size || s.length < MIN_KNOWN) return [];
+    return this.index.size <= SMALL_INDEX ? this.findSmall(s) : this.findScan(s);
+  }
+
+  /** 前缀不多时：每个前缀用原生 indexOf 找，比逐个位置算位图快得多 */
+  private findSmall(s: string): SecretSpan[] {
+    const hits: SecretSpan[] = [];
+    for (const [prefix, list] of this.index) {
+      for (let i = s.indexOf(prefix); i >= 0; i = s.indexOf(prefix, i + 1)) {
+        let best: Entry | null = null;
+        for (const e of list)
+          if ((!best || e.value.length > best.value.length) && s.startsWith(e.value, i)) best = e;
+        if (best) hits.push({ start: i, end: i + best.value.length, kind: best.kind, by: 'known' });
+      }
+    }
+    if (hits.length < 2) return hits;
+    hits.sort((a, b) => a.start - b.start || b.end - a.end);
     const out: SecretSpan[] = [];
-    if (!this.index.size || s.length < MIN_KNOWN) return out;
+    let end = -1;
+    for (const h of hits) {
+      if (h.start < end) continue;
+      out.push(h);
+      end = h.end;
+    }
+    return out;
+  }
+
+  private findScan(s: string): SecretSpan[] {
+    const out: SecretSpan[] = [];
     const last = s.length - MIN_KNOWN;
     for (let i = 0; i <= last; i++) {
       const h = hash4(s, i);

@@ -53,6 +53,13 @@ describe('规则', () => {
     expect(values('integrity sha512-AbCdEf0123456789')).toEqual([]);
   });
 
+  it('标记很密、离段首很远时也认得（只在标记附近的窗口里跑正则）', () => {
+    const noise = 'const nomi-x = Bearer; key=1 '.repeat(2000);
+    const s = `${noise}${'A'.repeat(80)}${OPENAI} ${noise} x=${GITHUB}`;
+    expect(values(s)).toEqual([GITHUB]);
+    expect(values(`${noise} ${OPENAI}`)).toEqual([OPENAI]);
+  });
+
   it('严格档默认关', () => {
     const s = 'DB_PASSWORD=Xk29vLq8Zr4mWp7t';
     expect(ruleSpans(s)).toEqual([]);
@@ -249,7 +256,8 @@ describe('回程还原', () => {
     text
       .split('\n\n')
       .filter(Boolean)
-      .map((b) => /^data: (.*)$/m.exec(b)![1]!)
+      .map((b) => /^data: (.*)$/m.exec(b)?.[1])
+      .filter((d): d is string => d !== undefined)
       .map((d) => (d.startsWith('{') ? JSON.parse(d) : d));
 
   it('完整的占位符', () => {
@@ -287,6 +295,27 @@ describe('回程还原', () => {
         .join('');
       expect(joined).toBe(`hi ${OPENAI} ok`);
     }
+  });
+
+  it('中间夹着保活注释和 ping 也能拼完整', () => {
+    const { map, p1 } = setup();
+    const r = new Restorer(map);
+    const delta = (text: string) => ({
+      type: 'content_block_delta',
+      index: 0,
+      delta: { type: 'text_delta', text },
+    });
+    const out =
+      r.push(
+        sse([delta(`a ${p1.slice(0, 6)}`)]) +
+          ': keepalive\n\n' +
+          'event: ping\ndata: {"type": "ping"}\n\n' +
+          sse([delta(`${p1.slice(6)} b`)]),
+      ) + r.end();
+    const texts = datas(out)
+      .filter((d) => (d as { type?: string }).type === 'content_block_delta')
+      .map((d) => (d as { delta: { text: string } }).delta.text);
+    expect(texts.join('')).toBe(`a ${OPENAI} b`);
   });
 
   it('扣住的尾巴后面跟的是另一段文本：原样放出', () => {
@@ -379,6 +408,22 @@ describe('回程还原', () => {
         { message: { tool_calls: [{ function: { arguments: JSON.stringify({ k: OPENAI }) } }] } },
       ],
     });
+  });
+});
+
+describe('性能', () => {
+  it('1 MiB 文本类请求体扫描不慢（宽松阈值，防回退）', () => {
+    const chunk = 'const url = "https://x.example/a?b=1"; // nomi- Bearer key=v\n'.repeat(300);
+    const messages = Array.from({ length: Math.ceil((1 << 20) / chunk.length) }, (_, i) => ({
+      role: 'user',
+      content: [{ type: 'tool_result', tool_use_id: `t${i}`, content: chunk }],
+    }));
+    const body = { model: 'm', messages };
+    const s = store([{ kind: 'API_KEY', value: 'zp-secret-value-123456' }]);
+    maskBody(body, s, { key: KEY });
+    const t = performance.now();
+    maskBody(body, s, { key: KEY });
+    expect(performance.now() - t).toBeLessThan(100);
   });
 });
 
