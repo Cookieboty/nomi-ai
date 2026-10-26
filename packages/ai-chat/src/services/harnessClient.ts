@@ -319,6 +319,46 @@ export interface GitDiffResult {
   error?: string;
 }
 export type GitNumstat = Record<string, { added: number; removed: number }>;
+
+/** 右栏「改动」写操作的失败原因（主进程 cli/gitOps.ts） */
+export type GitOpCode =
+  | 'busy'
+  | 'invalid'
+  | 'auth'
+  | 'diverged'
+  | 'rejected'
+  | 'dirty'
+  | 'hook'
+  | 'nothing'
+  | 'detached'
+  | 'no-remote'
+  | 'no-upstream'
+  | 'mismatch'
+  | 'moved'
+  | 'pushed'
+  | 'timeout'
+  | 'error';
+
+export interface GitOpResult {
+  ok: boolean;
+  code?: GitOpCode;
+  /** git 的原始输出（截到最后 8 KB） */
+  output?: string;
+  /** 提交：新提交的完整 sha */
+  sha?: string;
+}
+
+export interface GitSyncStatus {
+  branch: string | null;
+  detached?: string;
+  /** 上游分支（如 origin/feat/x） */
+  upstream?: string;
+  ahead: number;
+  behind: number;
+  remotes: string[];
+  /** 没有上游时推送会用的远端 */
+  pushRemote?: string;
+}
 export interface ContextBreakdown {
   system: number;
   user: number;
@@ -367,6 +407,18 @@ export const harnessClient = {
   /** 当前分支（只读，对话顶栏用）；不是 git 仓库时 null */
   gitBranch: (cwd: string) =>
     call<{ branch: string | null; detached?: string } | null>('git-branch', cwd),
+  /** 分支、上游、ahead / behind；不是 git 仓库时 null */
+  gitSyncStatus: (cwd: string) => call<GitSyncStatus | null>('git-sync-status', cwd),
+  /** 路径都相对 cwd（同 git status） */
+  gitStage: (cwd: string, paths: string[]) => call<GitOpResult>('git-stage', cwd, paths),
+  gitUnstage: (cwd: string, paths: string[]) => call<GitOpResult>('git-unstage', cwd, paths),
+  /** 给了 paths 就先暂存它们再提交，否则只提交已暂存的 */
+  gitCommit: (cwd: string, message: string, paths?: string[]) =>
+    call<GitOpResult>('git-commit', cwd, message, paths ?? null),
+  gitCommitUndo: (cwd: string, sha: string) => call<GitOpResult>('git-commit-undo', cwd, sha),
+  gitFetch: (cwd: string) => call<GitOpResult>('git-fetch', cwd),
+  gitPull: (cwd: string) => call<GitOpResult>('git-pull', cwd),
+  gitPush: (cwd: string) => call<GitOpResult>('git-push', cwd),
   workspaceRead: (cwd: string, filePath: string) =>
     call<WorkspaceFileResult>('workspace-read', cwd, filePath),
   workspaceWrite: (cwd: string, filePath: string, content: string) =>

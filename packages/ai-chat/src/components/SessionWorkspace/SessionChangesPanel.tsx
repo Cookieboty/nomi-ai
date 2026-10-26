@@ -3,15 +3,16 @@
  * 改动：git 仓库里以 `git status` / `git diff` 为准，本会话助手改过的文件带标记；
  * 不是 git 仓库（或读不到）时退回本会话变更树。中栏 Diff 见 CenterChangesHost。
  */
-import { Button, t } from '@nomi-ai/ui';
+import { t } from '@nomi-ai/ui';
 import {
   Bot,
   Expand,
   FolderTree,
   GitBranch,
-  GitCommitHorizontal,
   LocateFixed,
+  Minus,
   PanelRightClose,
+  Plus,
   RefreshCw,
   Search,
 } from 'lucide-react';
@@ -19,6 +20,7 @@ import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useSt
 import { createPortal } from 'react-dom';
 
 import { useGitBranch } from '../../hooks/useGitBranch';
+import { useGitSync } from '../../hooks/useGitSync';
 import {
   harnessClient,
   type GitDiffResult,
@@ -50,6 +52,7 @@ import { workspaceRelPath } from '../../utils/workspacePath';
 import { ChangeFileTree } from './ChangeFileTree';
 import { useChangesUi } from './ChangesUiContext';
 import { FilePreview, type PreviewFile } from './FilePreview';
+import { GitCommitBox, GitSyncButtons, useGitOps } from './GitCommitBox';
 import styles from './SessionWorkspace.module.css';
 import pane from './WorkspacePane.module.css';
 
@@ -85,7 +88,21 @@ const GitRow: React.FC<{
   session?: ChangeEntry;
   selected: boolean;
   onSelect: () => void;
-}> = ({ entry, letter, area, added, removed, session, selected, onSelect }) => (
+  /** 暂存（未暂存区）/ 取消暂存（已暂存区）；没有时不显示按钮 */
+  onStage?: () => void;
+  stageDisabled?: boolean;
+}> = ({
+  entry,
+  letter,
+  area,
+  added,
+  removed,
+  session,
+  selected,
+  onSelect,
+  onStage,
+  stageDisabled,
+}) => (
   <div
     className={styles.row}
     data-testid="git-row"
@@ -136,8 +153,34 @@ const GitRow: React.FC<{
         <LocateFixed size={12} />
       </button>
     ) : null}
+    {onStage ? (
+      <button
+        type="button"
+        className={`${styles.iconBtn} ${pane.stageBtn}`}
+        data-testid={area === 'staged' ? 'git-row-unstage' : 'git-row-stage'}
+        disabled={stageDisabled}
+        title={
+          area === 'staged' ? t('ui.session-workspace.unstage') : t('ui.session-workspace.stage')
+        }
+        aria-label={`${
+          area === 'staged' ? t('ui.session-workspace.unstage') : t('ui.session-workspace.stage')
+        } ${entry.path}`}
+        onClick={onStage}
+      >
+        {area === 'staged' ? <Minus size={12} /> : <Plus size={12} />}
+      </button>
+    ) : null}
   </div>
 );
+
+/** 取消暂存时改名的旧路径也要一起，否则旧路径的删除还留在暂存区 */
+const stagePaths = (rows: readonly GitItem[], area: GitArea) => [
+  ...new Set(
+    rows.flatMap((r) =>
+      area === 'staged' && r.entry.from ? [r.entry.path, r.entry.from] : [r.entry.path],
+    ),
+  ),
+];
 
 export const SessionChangesPanel: React.FC<{
   messages: readonly ConvMessage[];
@@ -166,6 +209,7 @@ export const SessionChangesPanel: React.FC<{
   /** 手动刷新时连同分支一起重读 */
   const [branchNonce, setBranchNonce] = useState(0);
   const branch = useGitBranch(cwd, busy, branchNonce);
+  const sync = useGitSync(cwd, busy, branchNonce);
   const prevCount = useRef(0);
   const panelRef = useRef<HTMLElement>(null);
   const {
@@ -245,6 +289,12 @@ export const SessionChangesPanel: React.FC<{
     setGit(next);
     setGitBusy(false);
   }, [cwd]);
+
+  const refreshAll = useCallback(() => {
+    setBranchNonce((n) => n + 1);
+    void refreshGit();
+  }, [refreshGit]);
+  const ops = useGitOps(cwd, refreshAll);
 
   // 换目录：立即刷新。助手又改了文件、一轮跑完、窗口重新拿到焦点：常在同一刻接连发生
   // （一轮结束时新消息落地 + busy 下降沿），合并成一次 git diff
@@ -486,10 +536,14 @@ export const SessionChangesPanel: React.FC<{
       messageId: changes[0]?.messageId,
     });
 
+  /** 「提交」与「让助手提交」针对的文件：有过滤 / 只看本会话时是过滤后的 */
+  const pickedRows = onlySession || q ? gitRows : gitItems;
+  const stagedCount = gitFiles.filter((g) => g.staged).length;
+  const commitPaths = [...new Set(pickedRows.map((r) => r.entry.path))];
+
   /** 交给当前助手提交：只填进输入框，用户看过再发 */
   const askCommit = (push: boolean) => {
-    const picked = onlySession || q ? gitRows : gitItems;
-    const paths = new Set(picked.map((r) => r.entry.path));
+    const paths = new Set(commitPaths);
     const files = gitFiles
       .filter((g) => paths.has(g.path))
       .map((g) => ({ path: g.path, staged: g.staged, unstaged: g.unstaged }));
@@ -678,34 +732,12 @@ export const SessionChangesPanel: React.FC<{
         >
           <GitBranch size={13} aria-hidden />
           <span className={styles.branchName}>{branch}</span>
+          <GitSyncButtons sync={sync} ops={ops} />
         </div>
       ) : null}
 
       {changesActive && source === 'git' ? (
         <>
-          {gitRows.length ? (
-            <div className={pane.commitBar} data-testid="rail-commit-bar">
-              <Button
-                size="sm"
-                variant="primary"
-                data-testid="rail-ask-commit"
-                title={t('ui.session-workspace.put-a-commit-request-in-the-composer-send')}
-                onClick={() => askCommit(false)}
-              >
-                <GitCommitHorizontal size={14} />
-                {t('ui.session-workspace.ask-assistant-to-commit')}
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                data-testid="rail-ask-commit-push"
-                title={t('ui.session-workspace.commit-then-git-push-never-force-push')}
-                onClick={() => askCommit(true)}
-              >
-                {t('ui.session-workspace.commit-push')}
-              </Button>
-            </div>
-          ) : null}
           {filterBox}
           <div className={styles.body} data-testid="git-list">
             {!gitFiles.length ? (
@@ -728,6 +760,26 @@ export const SessionChangesPanel: React.FC<{
                       <div className={pane.gitGroupHead}>
                         <span>{label}</span>
                         <span className={styles.count}>{list.length}</span>
+                        <span className={styles.wbSpacer} />
+                        <button
+                          type="button"
+                          className={styles.iconBtn}
+                          disabled={ops.op !== null}
+                          data-testid={`git-group-${area}-toggle`}
+                          title={
+                            area === 'staged'
+                              ? t('ui.session-workspace.unstage-all')
+                              : t('ui.session-workspace.stage-all')
+                          }
+                          aria-label={
+                            area === 'staged'
+                              ? t('ui.session-workspace.unstage-all')
+                              : t('ui.session-workspace.stage-all')
+                          }
+                          onClick={() => void ops.stage(stagePaths(list, area), area !== 'staged')}
+                        >
+                          {area === 'staged' ? <Minus size={12} /> : <Plus size={12} />}
+                        </button>
                       </div>
                     ) : null}
                     {list.map((r) => (
@@ -745,6 +797,8 @@ export const SessionChangesPanel: React.FC<{
                             : selectedRel === r.entry.path
                         }
                         onSelect={() => pickGit(r)}
+                        onStage={() => void ops.stage(stagePaths([r], r.area), r.area !== 'staged')}
+                        stageDisabled={ops.op !== null}
                       />
                     ))}
                   </div>
@@ -755,6 +809,14 @@ export const SessionChangesPanel: React.FC<{
               <p className={styles.empty}>{t('ui.session-workspace.diff-truncated')}</p>
             ) : null}
           </div>
+          <GitCommitBox
+            ops={ops}
+            sync={sync}
+            hasChanges={gitRows.length > 0}
+            stagedCount={stagedCount}
+            paths={commitPaths}
+            onAskAssistant={askCommit}
+          />
         </>
       ) : changesActive ? (
         <div className={styles.railBody} data-testid="changes-list" data-layout="tree">
