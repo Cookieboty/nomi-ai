@@ -440,7 +440,11 @@ describe('gitOps', () => {
     fs.writeFileSync(path.join(fake, 'HEAD'), `${git(repo, 'rev-parse', 'HEAD')}\n`);
     fs.writeFileSync(path.join(fake, 'commondir'), '../..\n');
     const list = await gitWorktrees(repo);
-    expect(list?.worktrees.map((w) => realp(w.path))).toContain(realp(outside));
+    // Windows 上 git 直接给出 gitdir 文件里的路径（…/outside/.git），其他平台给去掉 .git 的目录
+    const listed = list?.worktrees.map((w) => realp(w.path)) ?? [];
+    expect(
+      listed.some((p) => p === realp(outside) || p === realp(path.join(outside, '.git'))),
+    ).toBe(true);
     const owned = (await ownedWorktrees(repo, list!.worktrees)).map(realp);
     expect(owned).toEqual([realp(repo), realp(wt)]);
   });
