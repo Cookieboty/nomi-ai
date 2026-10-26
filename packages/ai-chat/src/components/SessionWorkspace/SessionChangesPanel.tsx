@@ -14,6 +14,7 @@ import {
   Minus,
   PanelRightClose,
   Plus,
+  RotateCcw,
   RefreshCw,
   Search,
 } from 'lucide-react';
@@ -93,6 +94,8 @@ const GitRow: React.FC<{
   /** 暂存（未暂存区）/ 取消暂存（已暂存区）；没有时不显示按钮 */
   onStage?: () => void;
   stageDisabled?: boolean;
+  /** 放弃未暂存的改动（只在未暂存区） */
+  onDiscard?: () => void;
 }> = ({
   entry,
   letter,
@@ -104,6 +107,7 @@ const GitRow: React.FC<{
   onSelect,
   onStage,
   stageDisabled,
+  onDiscard,
 }) => (
   <div
     className={styles.row}
@@ -153,6 +157,19 @@ const GitRow: React.FC<{
         onClick={() => locateChangeMessage(session.messageId)}
       >
         <LocateFixed size={12} />
+      </button>
+    ) : null}
+    {onDiscard ? (
+      <button
+        type="button"
+        className={`${styles.iconBtn} ${pane.stageBtn}`}
+        data-testid="git-row-discard"
+        disabled={stageDisabled}
+        title={t('ui.session-workspace.discard-changes')}
+        aria-label={`${t('ui.session-workspace.discard-changes')} ${entry.path}`}
+        onClick={onDiscard}
+      >
+        <RotateCcw size={12} />
       </button>
     ) : null}
     {onStage ? (
@@ -836,6 +853,19 @@ export const SessionChangesPanel: React.FC<{
                         <span>{label}</span>
                         <span className={styles.count}>{list.length}</span>
                         <span className={styles.wbSpacer} />
+                        {area === 'unstaged' ? (
+                          <button
+                            type="button"
+                            className={styles.iconBtn}
+                            disabled={ops.op !== null}
+                            data-testid="git-group-unstaged-discard"
+                            title={t('ui.session-workspace.discard-all-unstaged-changes')}
+                            aria-label={t('ui.session-workspace.discard-all-unstaged-changes')}
+                            onClick={() => void ops.discard(stagePaths(list, area))}
+                          >
+                            <RotateCcw size={12} />
+                          </button>
+                        ) : null}
                         <button
                           type="button"
                           className={styles.iconBtn}
@@ -874,6 +904,11 @@ export const SessionChangesPanel: React.FC<{
                         onSelect={() => pickGit(r)}
                         onStage={() => void ops.stage(stagePaths([r], r.area), r.area !== 'staged')}
                         stageDisabled={ops.op !== null}
+                        onDiscard={
+                          r.area === 'unstaged'
+                            ? () => void ops.discard(stagePaths([r], r.area))
+                            : undefined
+                        }
                       />
                     ))}
                   </div>

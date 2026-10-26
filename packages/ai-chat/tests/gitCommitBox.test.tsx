@@ -26,6 +26,9 @@ vi.mock('../src/services/harnessClient', () => ({
     gitPull: vi.fn(async () => ({ ok: true })),
     gitPush: vi.fn(async () => ({ ok: true })),
     gitWorktrees: vi.fn(async () => null),
+    gitSuggestMessage: vi.fn(async () => ({ ok: true, message: 'feat: 生成的' })),
+    gitDiscard: vi.fn(async () => ({ ok: true, stashes: ['b'.repeat(40)] })),
+    gitDiscardUndo: vi.fn(async () => ({ ok: true })),
   },
 }));
 
@@ -277,5 +280,55 @@ describe('worktree', () => {
     await waitFor(() => expect(h.gitDiff).toHaveBeenCalledWith('/tmp/proj/.nomi-delegate/abc'));
     // 已经在看那个 worktree：不再提示
     await waitFor(() => expect(screen.queryByTestId('rail-worktree-hint')).toBeNull());
+  });
+});
+
+describe('生成提交信息 / 放弃改动', () => {
+  it('生成：没有暂存时按列表里的文件，结果填进输入框', async () => {
+    mount();
+    await screen.findByTestId('rail-commit-box');
+    fireEvent.click(screen.getByTestId('rail-commit-suggest'));
+    await waitFor(() =>
+      expect(h.gitSuggestMessage).toHaveBeenCalledWith('/tmp/proj', ['a.ts', 'b.md']),
+    );
+    await waitFor(() => expect(message().value).toBe('feat: 生成的'));
+  });
+
+  it('生成：有暂存时只看已暂存的；失败时提示原因', async () => {
+    h.gitDiff.mockResolvedValue(diff('M  a.ts'));
+    h.gitSuggestMessage.mockResolvedValueOnce({ ok: false, code: 'error', output: '仅本地模型' });
+    mount();
+    await screen.findByTestId('git-group-staged');
+    fireEvent.click(screen.getByTestId('rail-commit-suggest'));
+    await waitFor(() => expect(h.gitSuggestMessage).toHaveBeenCalledWith('/tmp/proj', undefined));
+    expect((await screen.findByTestId('git-notice-output')).textContent).toContain('仅本地模型');
+  });
+
+  it('放弃：先确认，取消就不动；确认后可以撤销', async () => {
+    const confirm = vi.fn<(m?: string) => boolean>(() => false);
+    window.confirm = confirm;
+    mount();
+    const rows = await screen.findAllByTestId('git-row-discard');
+    fireEvent.click(rows[0]!);
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(confirm.mock.calls[0]![0]).toContain('a.ts');
+    expect(h.gitDiscard).not.toHaveBeenCalled();
+    confirm.mockReturnValue(true);
+    fireEvent.click(rows[0]!);
+    await waitFor(() => expect(h.gitDiscard).toHaveBeenCalledWith('/tmp/proj', ['a.ts']));
+    fireEvent.click(await screen.findByTestId('git-undo-commit'));
+    await waitFor(() =>
+      expect(h.gitDiscardUndo).toHaveBeenCalledWith('/tmp/proj', ['b'.repeat(40)]),
+    );
+  });
+
+  it('已暂存的行没有放弃按钮；分组标题可以放弃整组未暂存的', async () => {
+    window.confirm = vi.fn(() => true);
+    h.gitDiff.mockResolvedValue(diff('M  s.ts\n M a.ts\n?? b.md'));
+    mount();
+    const staged = await screen.findByTestId('git-group-staged');
+    expect(staged.querySelector('[data-testid="git-row-discard"]')).toBeNull();
+    fireEvent.click(screen.getByTestId('git-group-unstaged-discard'));
+    await waitFor(() => expect(h.gitDiscard).toHaveBeenCalledWith('/tmp/proj', ['a.ts', 'b.md']));
   });
 });

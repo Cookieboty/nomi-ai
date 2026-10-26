@@ -3,7 +3,14 @@
  * git 由主进程执行（cli/gitOps.ts）：钩子照常跑，拉取只快进，推送从不强推。
  */
 import { Button, t } from '@nomi-ai/ui';
-import { ArrowDownToLine, ArrowUpFromLine, Bot, CloudDownload, Undo2 } from 'lucide-react';
+import {
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Bot,
+  CloudDownload,
+  Sparkles,
+  Undo2,
+} from 'lucide-react';
 import React, { useCallback, useRef, useState } from 'react';
 
 import {
@@ -15,14 +22,14 @@ import {
 
 import pane from './WorkspacePane.module.css';
 
-export type GitOp = 'stage' | 'commit' | 'undo' | 'fetch' | 'pull' | 'push';
+export type GitOp = 'stage' | 'commit' | 'undo' | 'fetch' | 'pull' | 'push' | 'suggest' | 'discard';
 
 interface Notice {
   tone: 'ok' | 'error';
   text: string;
   output?: string;
-  /** 刚才的提交：可以撤销 */
-  undo?: { sha: string; message: string };
+  /** 刚才的提交 / 放弃：可以撤销 */
+  undo?: { kind: 'commit'; sha: string; message: string } | { kind: 'discard'; stashes: string[] };
 }
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
@@ -94,7 +101,8 @@ export function useGitOps(cwd: string | null | undefined, refresh: () => void) {
         setOp(null);
       }
       if (!r.ok) setNotice({ tone: 'error', text: gitErrorText(r.code), output: r.output });
-      refresh();
+      // 生成提交信息只读
+      if (kind !== 'suggest') refresh();
       return r;
     },
     [cwd, refresh],
@@ -126,7 +134,7 @@ export function useGitOps(cwd: string | null | undefined, refresh: () => void) {
     setNotice({
       tone: 'ok',
       text: t('ui.session-workspace.committed-sha', r.sha.slice(0, 7)),
-      undo: { sha: r.sha, message: msg },
+      undo: { kind: 'commit', sha: r.sha, message: msg },
     });
     if (pushAfter) await push(sync);
   };
@@ -134,11 +142,39 @@ export function useGitOps(cwd: string | null | undefined, refresh: () => void) {
   const undo = async () => {
     const u = notice?.undo;
     if (!cwd || !u) return;
-    const r = await exec('undo', () => harnessClient.gitCommitUndo(cwd, u.sha));
+    const r = await exec('undo', () =>
+      u.kind === 'commit'
+        ? harnessClient.gitCommitUndo(cwd, u.sha)
+        : harnessClient.gitDiscardUndo(cwd, u.stashes),
+    );
     if (r?.ok) {
       setNotice(null);
-      setMessage(u.message);
+      if (u.kind === 'commit') setMessage(u.message);
     }
+  };
+
+  /** 辅助模型写提交信息（替换输入框里的内容）；paths 同 commit */
+  const suggest = async (paths: string[] | undefined) => {
+    if (!cwd) return;
+    const r = await exec('suggest', () => harnessClient.gitSuggestMessage(cwd, paths));
+    if (r?.ok && r.message) setMessage(r.message);
+  };
+
+  /** 放弃未暂存的改动：先确认；存进 stash，可以撤销 */
+  const discard = async (paths: string[]) => {
+    if (!cwd || !paths.length) return;
+    const ask =
+      paths.length === 1
+        ? t('ui.session-workspace.discard-unstaged-changes-in', paths[0]!)
+        : t('ui.session-workspace.discard-unstaged-changes-in-n-files', String(paths.length));
+    if (!window.confirm(ask)) return;
+    const r = await exec('discard', () => harnessClient.gitDiscard(cwd, paths));
+    if (r?.ok && r.stashes?.length)
+      setNotice({
+        tone: 'ok',
+        text: t('ui.session-workspace.discarded-changes-saved-in-git-stash', String(paths.length)),
+        undo: { kind: 'discard', stashes: r.stashes },
+      });
   };
 
   const fetchRemote = async () => {
@@ -166,6 +202,8 @@ export function useGitOps(cwd: string | null | undefined, refresh: () => void) {
     stage,
     commit,
     undo,
+    suggest,
+    discard,
     fetchRemote,
     pull,
     push,
@@ -283,11 +321,17 @@ const NoticeLine: React.FC<{ ops: GitOps }> = ({ ops }) => {
             className={pane.link}
             disabled={ops.op !== null}
             data-testid="git-undo-commit"
-            title={t('ui.session-workspace.undo-this-commit-changes-go-back-to-staged')}
+            title={
+              n.undo.kind === 'commit'
+                ? t('ui.session-workspace.undo-this-commit-changes-go-back-to-staged')
+                : t('ui.session-workspace.put-the-discarded-changes-back')
+            }
             onClick={() => void ops.undo()}
           >
             <Undo2 size={12} />
-            {t('ui.session-workspace.undo-commit')}
+            {n.undo.kind === 'commit'
+              ? t('ui.session-workspace.undo-commit')
+              : t('ui.session-workspace.undo-discard')}
           </button>
         ) : null}
         <button
@@ -341,7 +385,7 @@ export const GitCommitBox: React.FC<{
             className={pane.commitInput}
             value={ops.message}
             rows={2}
-            disabled={ops.op === 'commit'}
+            disabled={ops.op === 'commit' || ops.op === 'suggest'}
             placeholder={t(
               'ui.session-workspace.commit-message-hint-to-commit',
               isMac ? '⌘↩' : 'Ctrl+↩',
@@ -357,6 +401,18 @@ export const GitCommitBox: React.FC<{
             }}
           />
           <div className={pane.commitActions}>
+            <button
+              type="button"
+              className={pane.syncBtn}
+              disabled={busy || count === 0}
+              data-busy={ops.op === 'suggest' || undefined}
+              data-testid="rail-commit-suggest"
+              title={t('ui.session-workspace.write-a-commit-message-with-the-helper-model')}
+              aria-label={t('ui.session-workspace.write-a-commit-message-with-the-helper-model')}
+              onClick={() => void ops.suggest(stagedCount > 0 ? undefined : paths)}
+            >
+              <Sparkles size={13} className={ops.op === 'suggest' ? pane.pulse : undefined} />
+            </button>
             <label
               className={pane.commitCheck}
               title={t('ui.session-workspace.commit-then-git-push-never-force-push')}

@@ -346,6 +346,10 @@ export interface GitOpResult {
   output?: string;
   /** 提交：新提交的完整 sha */
   sha?: string;
+  /** 生成的提交信息 */
+  message?: string;
+  /** 放弃改动：存改动的 stash（撤销时原样传回） */
+  stashes?: string[];
 }
 
 export interface GitSyncStatus {
@@ -440,6 +444,13 @@ export const harnessClient = {
   gitFetch: (cwd: string) => call<GitOpResult>('git-fetch', cwd),
   gitPull: (cwd: string) => call<GitOpResult>('git-pull', cwd),
   gitPush: (cwd: string) => call<GitOpResult>('git-push', cwd),
+  /** 辅助模型根据要提交的 diff 写提交信息；paths 同 gitCommit */
+  gitSuggestMessage: (cwd: string, paths?: string[]) =>
+    call<GitOpResult>('git-suggest-message', cwd, paths ?? null),
+  /** 放弃未暂存的改动（存进 stash，可撤销） */
+  gitDiscard: (cwd: string, paths: string[]) => call<GitOpResult>('git-discard', cwd, paths),
+  gitDiscardUndo: (cwd: string, stashes: string[]) =>
+    call<GitOpResult>('git-discard-undo', cwd, stashes),
   /** 同一仓库的 worktree；列出来的目录之后也能传给上面这些接口 */
   gitWorktrees: (cwd: string) => call<GitWorktreeList | null>('git-worktrees', cwd),
   workspaceRead: (cwd: string, filePath: string) =>

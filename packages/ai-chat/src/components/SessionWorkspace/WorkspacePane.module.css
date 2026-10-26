@@ -415,3 +415,18 @@ div:hover > .stageBtn,
   color: var(--cd-color-text-subtle);
   font-size: var(--cd-font-size-xs);
 }
+
+/* 生成提交信息进行中 */
+.pulse {
+  animation: gitPulse 1s ease-in-out infinite;
+}
+@keyframes gitPulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pulse {
+    animation: none;
+  }
+}
