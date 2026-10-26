@@ -28,6 +28,7 @@ import {
   SettingsView,
   prefetchPanels,
 } from './components/lazyPanels';
+import { useMediaHost } from './components/Media/useMediaHost';
 import { MessageInput } from './components/MessageInput';
 import { OnboardingHost } from './components/Onboarding';
 import { onboardingClient } from './components/Onboarding/client';
@@ -233,8 +234,7 @@ const AiChatContent: React.FC = () => {
     persistChatColumnWidth(CHAT_COL_W_DEFAULT);
   };
 
-  // Slices, not the whole state: a streamed frame changes only the live tail, which
-  // NomiConversation subscribes to; App and the rest of the tree stay put.
+  // Slices, not the whole state: streamed frames only touch the live tail (NomiConversation).
   const { actions, store: chatStore } = useAiChatActions();
   const isLoading = useAiChatSelector(selectIsLoading);
   const ipcClient = useAiChatSelector(selectIpcClient);
@@ -253,8 +253,7 @@ const AiChatContent: React.FC = () => {
     () => (tabs.isCliTab ? tabs.messages.map((m) => fromHarnessMessage(m, cliBackend)) : []),
     [tabs.isCliTab, tabs.messages, cliBackend],
   );
-  // 右栏（改动 · 文件）默认收起、不常驻：顶栏开关 / 右栏 × 切换，记住上次的选择；
-  // 有变更时顶栏开关带数字提示，点摘要卡「查看变更」也会展开
+  // 右栏（改动 · 文件）默认收起，记住上次选择；有变更时顶栏开关带数字，「查看变更」也会展开
   const [railPref, setRailPref] = useState(readFilesRailOpen);
   // 上下文环 / `/context`：优先用 CLI 自己的会话记录（Claude：总量 + 分项都准，含重启后、压缩后被中断、
   // 在终端里直接用过 CLI 的情况）；没有时用一轮进行中实时上报的占用；都没有才按落盘消息估算。
@@ -715,9 +714,8 @@ const AiChatContent: React.FC = () => {
     };
   }, [openSettings]);
 
-  const handleNewChat = () => {
-    return actions.newConversation();
-  };
+  const handleNewChat = () => actions.newConversation();
+  const media = useMediaHost(sidebarCollapsed, handleNewChat, openSettings, setToast); // 生图入口与覆盖层
 
   const paletteCommands = useMemo<PaletteCommand[]>(
     () => [
@@ -826,6 +824,7 @@ const AiChatContent: React.FC = () => {
           onForkRequest={onForkRequest}
           onNotice={setToast}
           onOpenSettings={(sec) => openSettings(sec)}
+          topNav={media.nav}
           footer={
             <AppEntries
               collapsed={sidebarCollapsed}
@@ -1104,6 +1103,7 @@ const AiChatContent: React.FC = () => {
         </div>
       )}
 
+      {media.overlays}
       {/* 模型配置保持为弹窗；日常功能为右侧抽屉（快速视图） */}
       {paletteEl}
       <PluginPanel

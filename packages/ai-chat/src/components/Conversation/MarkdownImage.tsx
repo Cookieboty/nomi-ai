@@ -2,6 +2,8 @@
 import { Modal, t } from '@nomi-ai/ui';
 import React, { memo, useState } from 'react';
 
+import { MediaImageMenu } from '../Media/MediaImageMenu';
+
 import { sanitizeImgSrc } from './Markdown.helpers';
 import styles from './MarkdownImage.module.css';
 
@@ -17,24 +19,26 @@ export const MarkdownImage: React.FC<{ src: string; alt?: string }> = memo(({ sr
   }
   return (
     <>
-      <button
-        type="button"
-        className={styles.imgBtn}
-        onClick={() => setOpen(true)}
-        aria-label={t('ui.usage-tools.view-full-image')}
-        title={t('ui.usage-tools.view-full-image')}
-        data-testid="md-img"
-      >
-        <img
-          src={safe}
-          alt={alt ?? ''}
-          loading="lazy"
-          decoding="async"
-          referrerPolicy="no-referrer"
-          onError={() => setFailed(true)}
-          className={styles.img}
-        />
-      </button>
+      <MediaImageMenu src={safe} source="chat_reply">
+        <button
+          type="button"
+          className={styles.imgBtn}
+          onClick={() => setOpen(true)}
+          aria-label={t('ui.usage-tools.view-full-image')}
+          title={t('ui.usage-tools.view-full-image')}
+          data-testid="md-img"
+        >
+          <img
+            src={safe}
+            alt={alt ?? ''}
+            loading="lazy"
+            decoding="async"
+            referrerPolicy="no-referrer"
+            onError={() => setFailed(true)}
+            className={styles.img}
+          />
+        </button>
+      </MediaImageMenu>
       <Modal
         open={open}
         onClose={() => setOpen(false)}

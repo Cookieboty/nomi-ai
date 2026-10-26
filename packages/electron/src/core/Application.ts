@@ -55,11 +55,14 @@ import { getIslandService, initIslandService, notifyIsland } from '../island/Isl
 import { initKnowledgeService } from '../knowledge/KnowledgeService';
 import { getLocalHubService, initLocalHubService } from '../local/LocalHubService';
 import { getLocalModelService, initLocalModelService } from '../local/LocalModelService';
+import { broadcastMedia, registerMediaIpc } from '../media/ipc';
+import { initMediaService } from '../media/MediaService';
 import { getMemoryService, initMemoryService } from '../memory/MemoryService';
 import { OnboardingService } from '../onboarding/OnboardingService';
 import { getSchedulerService, initSchedulerService } from '../schedule/SchedulerService';
 import { getScreenService, initScreenService } from '../screen/ScreenService';
 import { appCspString } from '../security/csp';
+import { decryptSecret, encryptSecret } from '../security/secretStorage';
 import { AdvancedTTSEngine } from '../services/AdvancedTTSEngine';
 import { CacheService } from '../services/CacheService';
 import { ConfigService } from '../services/ConfigService';
@@ -262,6 +265,20 @@ export class Application implements IApplication {
       kb.registerIpc();
       this.lifecycle.register({ name: 'knowledge', stop: () => kb.dispose() });
       this.lifecycle.register({ name: 'reminders', stop: () => desktop.reminders.stop() });
+
+      // 生图：全部走用户配置的第三方供应商；Key 经 safeStorage 加密且只在主进程使用
+      const media = initMediaService({
+        root: path.join(app.getPath('userData'), 'media'),
+        chatRoot: path.join(app.getPath('userData'), 'chat'),
+        logger: this.logger as never,
+        codec: {
+          encrypt: (v) => encryptSecret(v, tr('electron.common.media-secure-storage-unavailable')),
+          decrypt: (v) => decryptSecret(v),
+        },
+        localOnly: () => desktop.broker.localOnly,
+        broadcast: broadcastMedia,
+      });
+      registerMediaIpc(media);
 
       // 长期记忆：对话摘要 + 召回（复用知识库的 BM25 / 向量服务），工具随桌面工具注册
       const mem = initMemoryService({

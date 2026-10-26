@@ -639,5 +639,14 @@
   "electron.common.you-denied-this-tool-call-so-this-turn": "已拒绝这次工具调用，这一轮已结束",
   "electron.common.you-haven-t-agreed-to-send-file-chunks": "还没同意把文件片段发送给「{0}」",
   "electron.common.you-re-away-from-the-computer": "你不在电脑前",
-  "electron.common.you-were-just-chatting": "你刚刚在聊天"
+  "electron.common.you-were-just-chatting": "你刚刚在聊天",
+  "electron.common.media-not-configured": "还没有配置生图模型。请到「设置 → 模型 → 按任务分配 → 生图」选择模型与供应商。",
+  "electron.common.media-local-only": "已开启「仅本地模型」，云端生图已被禁用。",
+  "electron.common.media-prompt-required": "请填写图片描述",
+  "electron.common.media-key-unavailable": "无法读取该供应商的 API Key，请在设置里重新填写",
+  "electron.common.media-empty-result": "供应商没有返回图片",
+  "electron.common.media-tool-prompt": "要生成的图片的详细描述（主体、风格、构图、光线等），用用户的语言书写",
+  "electron.common.media-tool-description": "用用户在设置里选定的生图模型生成图片。只在用户明确要求画图 / 生成图片时调用。比例、张数等参数可省略，未配置模型时会返回 not_configured，此时请提示用户去设置里配置，不要改用其他方式生成。",
+  "electron.common.media-tool-note": "图片已经展示在界面上，不要在回复里重复输出图片链接或 Markdown 图片。",
+  "electron.common.media-secure-storage-unavailable": "系统安全存储不可用，无法保存生图 API Key"
 }

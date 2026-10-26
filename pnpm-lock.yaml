@@ -109,6 +109,9 @@ importers:
       '@nomi-ai/cli-plugins':
         specifier: workspace:*
         version: link:../cli-plugins
+      '@nomi-ai/gateway':
+        specifier: workspace:*
+        version: link:../gateway
       '@nomi-ai/ui':
         specifier: workspace:*
         version: link:../ui

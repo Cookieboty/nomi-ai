@@ -17,6 +17,7 @@
   "dependencies": {
     "@nomi-ai/ai-sdk-client": "workspace:*",
     "@nomi-ai/cli-plugins": "workspace:*",
+    "@nomi-ai/gateway": "workspace:*",
     "@nomi-ai/ui": "workspace:*",
     "@nomi-ai/voice": "workspace:*",
     "lowlight": "^3",

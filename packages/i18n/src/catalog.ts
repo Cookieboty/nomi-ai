@@ -5,6 +5,7 @@ import ui_cli_monitor_en from './locales/en/ui/cli-monitor.json';
 import ui_foundation_en from './locales/en/ui/foundation.json';
 import ui_knowledge_local_en from './locales/en/ui/knowledge-local.json';
 import ui_mascot_theme_en from './locales/en/ui/mascot-theme.json';
+import ui_media_en from './locales/en/ui/media.json';
 import ui_model_quality_en from './locales/en/ui/model-quality.json';
 import ui_models_en from './locales/en/ui/models.json';
 import ui_providers_schedule_en from './locales/en/ui/providers-schedule.json';
@@ -19,6 +20,7 @@ import ui_cli_monitor_zh from './locales/zh/ui/cli-monitor.json';
 import ui_foundation_zh from './locales/zh/ui/foundation.json';
 import ui_knowledge_local_zh from './locales/zh/ui/knowledge-local.json';
 import ui_mascot_theme_zh from './locales/zh/ui/mascot-theme.json';
+import ui_media_zh from './locales/zh/ui/media.json';
 import ui_model_quality_zh from './locales/zh/ui/model-quality.json';
 import ui_models_zh from './locales/zh/ui/models.json';
 import ui_providers_schedule_zh from './locales/zh/ui/providers-schedule.json';
@@ -36,6 +38,7 @@ export const DICTIONARIES = {
     ui_foundation: ui_foundation_zh,
     ui_knowledge_local: ui_knowledge_local_zh,
     ui_mascot_theme: ui_mascot_theme_zh,
+    ui_media: ui_media_zh,
     ui_model_quality: ui_model_quality_zh,
     ui_models: ui_models_zh,
     ui_providers_schedule: ui_providers_schedule_zh,
@@ -52,6 +55,7 @@ export const DICTIONARIES = {
     ui_foundation: ui_foundation_en,
     ui_knowledge_local: ui_knowledge_local_en,
     ui_mascot_theme: ui_mascot_theme_en,
+    ui_media: ui_media_en,
     ui_model_quality: ui_model_quality_en,
     ui_models: ui_models_en,
     ui_providers_schedule: ui_providers_schedule_en,
@@ -735,6 +739,15 @@ export type TranslationKey =
   | 'electron.common.you-haven-t-agreed-to-send-file-chunks'
   | 'electron.common.you-re-away-from-the-computer'
   | 'electron.common.you-were-just-chatting'
+  | 'electron.common.media-not-configured'
+  | 'electron.common.media-local-only'
+  | 'electron.common.media-prompt-required'
+  | 'electron.common.media-key-unavailable'
+  | 'electron.common.media-empty-result'
+  | 'electron.common.media-tool-prompt'
+  | 'electron.common.media-tool-description'
+  | 'electron.common.media-tool-note'
+  | 'electron.common.media-secure-storage-unavailable'
   | 'ui.chat-settings.a-browser-window-should-have-opened-if-not'
   | 'ui.chat-settings.about'
   | 'ui.chat-settings.about-these-settings'
@@ -2220,6 +2233,82 @@ export type TranslationKey =
   | 'ui.mascot-theme.you-can-change-this-any-time-in-settings'
   | 'ui.mascot-theme.you-can-reopen-this-guide-from-settings-anytime'
   | 'ui.mascot-theme.your-data-stays-on-this-computer'
+  | 'ui.media.action-failed'
+  | 'ui.media.add-binding'
+  | 'ui.media.add-custom'
+  | 'ui.media.add-to-library'
+  | 'ui.media.added-to-library'
+  | 'ui.media.advanced'
+  | 'ui.media.api-key'
+  | 'ui.media.assign-label'
+  | 'ui.media.assign-model'
+  | 'ui.media.auto-add-generated'
+  | 'ui.media.auto-add-uploads'
+  | 'ui.media.base-url'
+  | 'ui.media.binding-enabled'
+  | 'ui.media.choose-provider'
+  | 'ui.media.clear-key'
+  | 'ui.media.configure-provider-below'
+  | 'ui.media.configure-provider-in-settings'
+  | 'ui.media.copied'
+  | 'ui.media.custom-name'
+  | 'ui.media.desktop-only'
+  | 'ui.media.failed-title'
+  | 'ui.media.generate'
+  | 'ui.media.generating'
+  | 'ui.media.go-configure'
+  | 'ui.media.guide-body'
+  | 'ui.media.guide-title'
+  | 'ui.media.import'
+  | 'ui.media.imported'
+  | 'ui.media.in-library'
+  | 'ui.media.key-missing'
+  | 'ui.media.key-replace'
+  | 'ui.media.key-set'
+  | 'ui.media.library-empty'
+  | 'ui.media.local-only-warning'
+  | 'ui.media.nav-label'
+  | 'ui.media.nav-library'
+  | 'ui.media.nav-studio'
+  | 'ui.media.no-usable-provider'
+  | 'ui.media.notice-cleared'
+  | 'ui.media.notice-switched'
+  | 'ui.media.opt-opaque'
+  | 'ui.media.opt-transparent'
+  | 'ui.media.param-aspect-ratio'
+  | 'ui.media.param-background'
+  | 'ui.media.param-batch-count'
+  | 'ui.media.param-compression'
+  | 'ui.media.param-count'
+  | 'ui.media.param-output-format'
+  | 'ui.media.param-prompt-upsampling'
+  | 'ui.media.param-quality'
+  | 'ui.media.param-resolution'
+  | 'ui.media.param-safety-tolerance'
+  | 'ui.media.param-seed'
+  | 'ui.media.param-temperature'
+  | 'ui.media.param-watermark'
+  | 'ui.media.prompt-placeholder'
+  | 'ui.media.protocol'
+  | 'ui.media.provider-enabled'
+  | 'ui.media.provider-volc'
+  | 'ui.media.providers-sub'
+  | 'ui.media.providers-title'
+  | 'ui.media.ref-image'
+  | 'ui.media.ref-or-edit-image'
+  | 'ui.media.remove-binding'
+  | 'ui.media.remove-from-library'
+  | 'ui.media.removed-from-library'
+  | 'ui.media.retry-in-studio'
+  | 'ui.media.save-as'
+  | 'ui.media.src-agent'
+  | 'ui.media.src-chat-generated'
+  | 'ui.media.src-chat-reply'
+  | 'ui.media.src-chat-upload'
+  | 'ui.media.src-manual-add'
+  | 'ui.media.src-studio'
+  | 'ui.media.studio-empty'
+  | 'ui.media.target-chat'
   | 'ui.model-quality.about-the-two-measurement-layers'
   | 'ui.model-quality.active-filters'
   | 'ui.model-quality.all-columns-count-requests-failed-excludes-client-errors'

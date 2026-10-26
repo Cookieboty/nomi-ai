@@ -66,6 +66,8 @@ interface SidebarProps {
   showToggle?: boolean;
   /** 侧栏底部的应用级入口（设置 / 知识 / 扩展 / 本机），由 App 传入 */
   footer?: React.ReactNode;
+  /** 顶部固定导航（新对话 / 图片工作台 / 素材库），在会话列表上方 */
+  topNav?: React.ReactNode;
 }
 
 /** 侧栏：全部 / 按端 + 端点徽标；点击按后端路由到主对话或 CLI 标签 */
@@ -78,6 +80,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenSettings,
   showToggle = true,
   footer,
+  topNav,
 }) => {
   const { actions } = useAiChatActions();
   const ipc = useAiChatSelector(selectIpcClient);
@@ -680,6 +683,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
       </div>
       {collapsed && <div className={styles.collapsedNew}>{newBtn}</div>}
+      {topNav}
 
       {!collapsed && (
         <div className={styles.listHeader}>
