@@ -15,28 +15,28 @@ import { guardedHandle } from '../security/guardedIpc';
 
 export const THEME_IDS = ['mist', 'graphite', 'ink', 'cream', 'sunset'] as const;
 export type ThemeId = (typeof THEME_IDS)[number];
-export type ThemePref = ThemeId | 'system';
+export type ThemePref = ThemeId | 'system' | 'image';
 export const DEFAULT_THEME: ThemePref = 'sunset';
 
 const LEGACY: Record<string, ThemeId> = { paper: 'cream' };
 
 export const normalizeThemePref = (v: unknown): ThemePref | null => {
   if (typeof v !== 'string') return null;
-  if (v === 'system') return 'system';
+  if (v === 'system' || v === 'image') return v;
   if (v in LEGACY) return LEGACY[v]!;
   return (THEME_IDS as readonly string[]).includes(v) ? (v as ThemeId) : null;
 };
 
 export const isThemePref = (v: unknown): v is ThemePref => normalizeThemePref(v) !== null;
 export const resolveTheme = (pref: ThemePref, dark: boolean): ThemeId =>
-  pref === 'system' ? (dark ? 'graphite' : 'cream') : pref;
+  pref === 'image' ? 'graphite' : pref === 'system' ? (dark ? 'graphite' : 'cream') : pref;
 
 /** 深色主题：窗口外观用 dark（与 packages/ui/src/tokens.css 的深色主题一致） */
 const DARK_THEMES: ReadonlySet<ThemeId> = new Set<ThemeId>(['graphite', 'ink']);
 
 /** 所选主题对应的原生窗口外观；「跟随系统」交还给系统 */
 export const appearanceFor = (pref: ThemePref): 'system' | 'dark' | 'light' =>
-  pref === 'system' ? 'system' : DARK_THEMES.has(pref) ? 'dark' : 'light';
+  pref === 'system' ? 'system' : DARK_THEMES.has(resolveTheme(pref, true)) ? 'dark' : 'light';
 
 export interface ThemeState {
   pref: ThemePref;

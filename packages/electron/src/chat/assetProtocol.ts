@@ -14,7 +14,7 @@ const IMG_MIME: Record<string, string> = {
   '.gif': 'image/gif',
 };
 
-const AREAS = new Set(['images']);
+const AREAS = new Set(['images', 'presets']);
 
 export async function resolveChatAssetUrl(root: string, rawUrl: string): Promise<string | null> {
   let u: URL;
@@ -24,7 +24,12 @@ export async function resolveChatAssetUrl(root: string, rawUrl: string): Promise
     return null;
   }
   if (u.protocol !== `${CHAT_ASSET_SCHEME}:` || !AREAS.has(u.hostname)) return null;
-  const rel = decodeURIComponent(u.pathname).replace(/^\/+/, '');
+  let rel: string;
+  try {
+    rel = decodeURIComponent(u.pathname).replace(/^\/+/, '');
+  } catch {
+    return null;
+  }
   if (!rel || rel.includes('\0') || rel.split(/[\\/]/).some((seg) => seg === '..' || seg === ''))
     return null;
   if (!IMG_MIME[path.extname(rel).toLowerCase()]) return null;
@@ -68,7 +73,7 @@ export function registerChatAssetProtocol(): void {
       headers: {
         'content-type': chatAssetMimeFor(file),
         'access-control-allow-origin': '*',
-        'cache-control': 'no-cache',
+        'cache-control': 'no-store',
       },
     });
   });

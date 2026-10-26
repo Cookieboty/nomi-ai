@@ -4,7 +4,7 @@
   margin: var(--cd-space-1) 0;
   border: 1px solid var(--cd-color-border);
   border-radius: var(--cd-radius-sm);
-  background: var(--cd-color-surface-sunken);
+  background: var(--cd-chat-markdown-bg);
   cursor: zoom-in;
   overflow: hidden;
   line-height: 0;
@@ -30,7 +30,7 @@
   margin: var(--cd-space-1) 0;
   padding: var(--cd-space-0-5) var(--cd-space-2);
   border-radius: var(--cd-radius-xs);
-  background: var(--cd-color-surface-sunken);
+  background: var(--cd-chat-markdown-bg);
   color: var(--cd-color-text-muted);
   font-size: var(--conv-meta, 13px);
 }

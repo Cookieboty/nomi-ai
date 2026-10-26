@@ -45,6 +45,17 @@ describe('chatAssetMimeFor', () => {
 });
 
 describe('resolveChatAssetUrl · AREA 白名单', () => {
+  it('serves local presets while rejecting malformed URL encoding', async () => {
+    const { root } = await makeRoot();
+    const preset = path.join(root, 'presets', 'background.jpg');
+    await fsp.mkdir(path.dirname(preset));
+    await fsp.writeFile(preset, Buffer.from([0]));
+    expect(await resolveChatAssetUrl(root, 'chat-asset://presets/background.jpg')).toBe(
+      await fsp.realpath(preset),
+    );
+    expect(await resolveChatAssetUrl(root, 'chat-asset://images/%ZZ.png')).toBeNull();
+    await fsp.rm(root, { recursive: true });
+  });
   it('只放行 images AREA；其它 host 一律拒绝', async () => {
     const { root } = await makeRoot();
     expect(await resolveChatAssetUrl(root, 'chat-asset://images/hello.png')).toMatch(/hello\.png$/);

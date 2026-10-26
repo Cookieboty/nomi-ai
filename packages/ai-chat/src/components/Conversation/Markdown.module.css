@@ -77,14 +77,14 @@
   font-size: 0.875em;
   padding: 1px 5px;
   border-radius: var(--cd-radius-xs);
-  background: var(--cd-color-surface-sunken);
+  background: var(--cd-chat-markdown-bg);
   border: 1px solid var(--cd-color-border);
 }
 .codeBlock {
   margin: 0 0 0.8em;
   border: 1px solid var(--cd-color-border);
   border-radius: var(--cd-radius-md);
-  background: var(--cd-color-surface-sunken);
+  background: var(--cd-chat-markdown-bg);
   overflow: hidden;
 }
 .codeHead {
@@ -107,9 +107,12 @@
   background: transparent;
   color: inherit;
   cursor: pointer;
+  transition:
+    background-color var(--cd-duration-fast) var(--cd-ease),
+    color var(--cd-duration-fast) var(--cd-ease);
 }
 .copyBtn:hover {
-  background: var(--cd-color-hover);
+  background: var(--cd-chat-hover-overlay);
   color: var(--cd-color-text);
 }
 .copyBtn:focus-visible {
@@ -117,6 +120,7 @@
 }
 .codePre {
   margin: 0;
+  background: transparent;
   padding: 10px var(--cd-space-3);
   max-height: 420px;
   overflow: auto;
@@ -139,7 +143,7 @@
   border: 1px solid var(--cd-color-border);
 }
 .md th {
-  background: var(--cd-color-surface-sunken);
+  background: var(--cd-chat-markdown-bg);
   font-weight: var(--cd-font-weight-medium);
 }
 
@@ -195,4 +199,10 @@
 }
 .codePre .hljs-strong {
   font-weight: var(--cd-font-weight-bold);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .copyBtn {
+    transition: none;
+  }
 }

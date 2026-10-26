@@ -360,7 +360,7 @@ export class Application implements IApplication {
       // 界面主题（设置 → 通用 → 主题），对话窗口与看板娘同步
       const themes = new ThemeService(path.join(app.getPath('userData'), 'theme.json'));
       themes.registerIpc();
-      // 对话主面板背景（设置 → 通用 → 聊天背景）
+      // 图片主题背景（设置 → 通用 → 主题 → 图片主题）
       const chatBg = new ChatBackgroundService(
         path.join(app.getPath('userData'), 'chat-background.json'),
         path.join(app.getPath('userData'), 'chat', 'images'),

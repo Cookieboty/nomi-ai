@@ -1,5 +1,5 @@
 import { t, Icon } from '@nomi-ai/ui';
-import { RefreshCw, X, PanelLeft, SquarePen } from 'lucide-react';
+import { RefreshCw, X, SquarePen } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { List } from 'react-window';
 
@@ -62,8 +62,6 @@ interface SidebarProps {
   onNotice?: (message: string) => void;
   /** 「按端」信息卡里的跳转：设置 → 编程助手 / 用量与费用 */
   onOpenSettings?: (section: 'coding' | 'usage') => void;
-  /** 是否在侧栏顶部显示收起按钮（桌面应用里它在窗口标题栏，传 false） */
-  showToggle?: boolean;
   /** 侧栏底部的应用级入口（设置 / 知识 / 扩展 / 本机），由 App 传入 */
   footer?: React.ReactNode;
 }
@@ -76,7 +74,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onForkRequest,
   onNotice,
   onOpenSettings,
-  showToggle = true,
   footer,
 }) => {
   const { actions } = useAiChatActions();
@@ -636,44 +633,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
       data-testid="chat-sidebar"
     >
       <div className={styles.top}>
-        {/* 桌面应用里收起按钮在窗口标题栏（红绿灯右侧）；没有标题栏（浏览器预览）时放在这里 */}
-        {showToggle && (
-          <button
-            className={styles.iconBtn}
-            onClick={onToggle}
-            title={
-              collapsed
-                ? t('ui.chat-settings.expand-sidebar-ctrl-b')
-                : t('ui.chat-settings.collapse-sidebar-ctrl-b')
-            }
-            aria-label={
-              collapsed
-                ? t('ui.chat-settings.expand-sidebar')
-                : t('ui.chat-settings.collapse-sidebar')
-            }
-            data-testid="sidebar-toggle"
-          >
-            <Icon icon={PanelLeft} />
-          </button>
-        )}
-        {collapsed && !showToggle && (
-          // 收起态顶部是 Nomi 标志，点一下展开
-          <button
-            type="button"
-            className={styles.iconBtn}
-            onClick={onToggle}
-            title={t('ui.chat-settings.expand-sidebar-ctrl-b')}
-            aria-label={t('ui.chat-settings.expand-sidebar')}
-          >
-            <EndpointIcon backend="nomi" size={24} decorative />
-          </button>
-        )}
+        <button
+          type="button"
+          className={collapsed ? styles.iconBtn : styles.brandWrap}
+          onClick={onToggle}
+          title={
+            collapsed
+              ? t('ui.chat-settings.expand-sidebar-ctrl-b')
+              : t('ui.chat-settings.collapse-sidebar-ctrl-b')
+          }
+          aria-label={
+            collapsed
+              ? t('ui.chat-settings.expand-sidebar')
+              : t('ui.chat-settings.collapse-sidebar')
+          }
+          aria-expanded={!collapsed}
+          data-testid="sidebar-toggle"
+        >
+          <EndpointIcon backend="nomi" size={collapsed ? 24 : 28} decorative />
+          {!collapsed && <span className={styles.brand}>Nomi</span>}
+        </button>
         {!collapsed && (
           <>
-            <span className={styles.brandWrap}>
-              <EndpointIcon backend="nomi" size={28} decorative />
-              <span className={styles.brand}>Nomi</span>
-            </span>
             <span className={styles.spacer} />
             <ChatModeSwitch />
           </>

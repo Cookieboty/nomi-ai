@@ -25,16 +25,29 @@
   gap: var(--cd-space-1-5);
   min-width: 0;
   padding: var(--cd-space-2);
-  border: 1px solid var(--cd-color-border);
+  border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-md);
-  background: var(--cd-color-surface-raised);
+  background: var(--cd-settings-card-bg);
   color: var(--cd-color-text);
   font: inherit;
   text-align: left;
   cursor: pointer;
 }
 .pick:hover {
-  background: var(--cd-color-hover);
+  background: var(--cd-control-hover-bg);
+}
+
+.pick {
+  transition:
+    background-color var(--cd-duration-fast) var(--cd-ease),
+    color var(--cd-duration-fast) var(--cd-ease),
+    border-color var(--cd-duration-fast) var(--cd-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pick {
+    transition: none;
+  }
 }
 .pick:focus-visible {
   outline: 2px solid var(--cd-color-accent-strong);
@@ -123,7 +136,7 @@
   display: block;
   padding: var(--cd-space-2) 10px;
   border-radius: var(--cd-radius-sm);
-  background: var(--cd-color-surface-sunken);
+  background: var(--cd-panel-surface-sunken);
   font-family: var(--cd-font-mono);
   font-size: var(--cd-font-size-xs);
   word-break: break-all;
@@ -157,7 +170,7 @@
   margin: 0;
   padding: var(--cd-space-2) 10px;
   border-radius: var(--cd-radius-sm);
-  background: var(--cd-color-surface-sunken);
+  background: var(--cd-panel-surface-sunken);
   font-family: var(--cd-font-mono);
   font-size: var(--cd-font-size-xs);
   white-space: pre-wrap;
@@ -172,8 +185,8 @@
   align-self: flex-start;
   padding: var(--cd-space-1-5) var(--cd-space-3);
   border-radius: var(--cd-radius-md);
-  border: 1px solid var(--cd-color-border);
-  background: var(--cd-color-surface-sunken);
+  border: 1px solid var(--cd-panel-border);
+  background: var(--cd-panel-surface-sunken);
 }
 .loginCode code {
   font-family: var(--cd-font-mono);

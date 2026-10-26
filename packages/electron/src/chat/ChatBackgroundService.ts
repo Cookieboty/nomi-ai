@@ -1,14 +1,15 @@
 /**
- * 工作台背景（设置 → 通用 → 聊天背景）：纯色或图片，左 / 中 / 右三栏各自的模糊与整体透明度，重置回默认。
- * 铺满对话窗工作台（侧栏、对话列、Diff 与文件栏），不改 OS。
- * 持久化：userData/chat-background.json；图片落到 userData/chat/images/panel-bg.*（chat-asset://）。
+ * 全局图片主题：图片、毛玻璃与透明度，不改 OS。
+ * 图片与参数持久化，用户图片优先于独立预设。
  */
+import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
 import { BrowserWindow, dialog, ipcMain } from 'electron';
 
 import { t as tr } from '../i18n';
+import { writePrivateFileAtomic } from '../utils/privateFile';
 
 export type ChatBgMode = 'default' | 'solid' | 'image';
 
@@ -18,25 +19,21 @@ export interface ChatBackgroundState {
   solidColor: string;
   /** chat-asset://images/panel-bg.ext，mode=image 时使用 */
   imageUrl: string | null;
-  /** 各栏透出背景时的模糊半径 px（0–40）：左 = 侧栏，中 = 对话列，右 = Diff 与文件栏 */
-  blurLeft: number;
-  blurCenter: number;
-  blurRight: number;
+  blur: number;
   /** 背景层不透明度 0.05–1 */
   opacity: number;
 }
 
 export const CHAT_BG_FILE = 'chat-background.json';
 export const CHAT_BG_IMAGE_STEM = 'panel-bg';
+export const CHAT_BG_PRESET_URL = 'chat-asset://presets/background.jpg';
 
 export const DEFAULT_CHAT_BG: ChatBackgroundState = {
   mode: 'default',
   solidColor: '#fff8f1',
   imageUrl: null,
-  blurLeft: 0,
-  blurCenter: 0,
-  blurRight: 0,
-  opacity: 0.35,
+  blur: 8,
+  opacity: 0.4,
 };
 
 const MODES: ChatBgMode[] = ['default', 'solid', 'image'];
@@ -47,8 +44,9 @@ const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n
 
 export function sanitizeChatBg(raw: unknown): ChatBackgroundState {
   const o = (raw && typeof raw === 'object' ? raw : {}) as Partial<ChatBackgroundState> & {
-    /** 旧版只有一个 blur（只作用于对话区）：没有分栏值时三栏都沿用它 */
-    blur?: unknown;
+    blurLeft?: unknown;
+    blurCenter?: unknown;
+    blurRight?: unknown;
   };
   const mode = MODES.includes(o.mode as ChatBgMode) ? (o.mode as ChatBgMode) : 'default';
   const solidColor =
@@ -56,12 +54,13 @@ export function sanitizeChatBg(raw: unknown): ChatBackgroundState {
       ? o.solidColor
       : DEFAULT_CHAT_BG.solidColor;
   const imageUrl =
-    typeof o.imageUrl === 'string' && o.imageUrl.startsWith('chat-asset://images/')
+    typeof o.imageUrl === 'string' &&
+    (o.imageUrl.startsWith('chat-asset://images/') || o.imageUrl === CHAT_BG_PRESET_URL)
       ? o.imageUrl
       : null;
   const px = (v: unknown, fallback: number) =>
     typeof v === 'number' && Number.isFinite(v) ? clamp(v, 0, 40) : fallback;
-  const legacy = px(o.blur, 0);
+  const blur = px(o.blur, px(o.blurCenter, px(o.blurLeft, px(o.blurRight, DEFAULT_CHAT_BG.blur))));
   const opacity =
     typeof o.opacity === 'number' && Number.isFinite(o.opacity)
       ? clamp(o.opacity, 0.05, 1)
@@ -70,25 +69,37 @@ export function sanitizeChatBg(raw: unknown): ChatBackgroundState {
     mode,
     solidColor,
     imageUrl,
-    blurLeft: px(o.blurLeft, legacy),
-    blurCenter: px(o.blurCenter, legacy),
-    blurRight: px(o.blurRight, legacy),
+    blur,
     opacity,
   };
 }
 
 export class ChatBackgroundService {
   private state: ChatBackgroundState = { ...DEFAULT_CHAT_BG };
+  private readonly presetFile: string;
 
   constructor(
     private readonly file: string,
     private readonly imagesDir: string,
   ) {
+    this.presetFile = path.join(path.dirname(imagesDir), 'presets', 'background.jpg');
+    this.state = this.defaults();
     try {
-      this.state = sanitizeChatBg(JSON.parse(fs.readFileSync(file, 'utf8')));
+      const saved = JSON.parse(
+        fs.readFileSync(file, 'utf8'),
+      ) as Partial<ChatBackgroundState> | null;
+      this.state = sanitizeChatBg(saved);
+      if (saved?.mode === 'default' && saved.imageUrl == null) {
+        const cached = this.latestCachedImage();
+        if (cached) this.state.imageUrl = `chat-asset://images/${cached}`;
+      }
     } catch {
       /* first run */
     }
+    this.state.imageUrl = this.validImageUrl(this.state.imageUrl) ?? this.defaults().imageUrl;
+    if (this.state.imageUrl) this.state.mode = 'image';
+    else if (this.state.mode === 'image') this.state.mode = 'default';
+    this.persist();
   }
 
   get(): ChatBackgroundState {
@@ -100,19 +111,23 @@ export class ChatBackgroundService {
       ...this.state,
       ...(patch && typeof patch === 'object' ? patch : {}),
     });
-    // 切回 default / solid 时保留 imageUrl 文件，方便再切回 image；reset 才删
+    next.imageUrl = this.validImageUrl(next.imageUrl) ?? this.defaults().imageUrl;
+    const previous = this.state;
     this.state = next;
-    this.persist();
+    try {
+      this.persist();
+    } catch (error) {
+      this.state = previous;
+      throw error;
+    }
     this.broadcast();
     return this.get();
   }
 
   reset(): ChatBackgroundState {
+    const next = this.set(this.defaults());
     this.removeImageFiles();
-    this.state = { ...DEFAULT_CHAT_BG };
-    this.persist();
-    this.broadcast();
-    return this.get();
+    return next;
   }
 
   async pickImage(parent?: BrowserWindow | null): Promise<ChatBackgroundState> {
@@ -129,16 +144,23 @@ export class ChatBackgroundService {
     const ext = path.extname(src).toLowerCase();
     if (!IMG_EXT.has(ext)) throw new Error(`unsupported image type: ${ext}`);
     fs.mkdirSync(this.imagesDir, { recursive: true });
-    this.removeImageFiles();
-    const destName = `${CHAT_BG_IMAGE_STEM}${ext}`;
+    const destName = `${CHAT_BG_IMAGE_STEM}.${randomUUID()}${ext}`;
     const dest = path.join(this.imagesDir, destName);
     fs.copyFileSync(src, dest);
+    const previous = this.state;
     this.state = sanitizeChatBg({
       ...this.state,
       mode: 'image',
       imageUrl: `chat-asset://images/${destName}`,
     });
-    this.persist();
+    try {
+      this.persist();
+    } catch (error) {
+      this.state = previous;
+      fs.unlinkSync(dest);
+      throw error;
+    }
+    this.removeImageFiles(destName);
     this.broadcast();
     return this.get();
   }
@@ -159,7 +181,64 @@ export class ChatBackgroundService {
 
   private persist(): void {
     fs.mkdirSync(path.dirname(this.file), { recursive: true });
-    fs.writeFileSync(this.file, JSON.stringify(this.state, null, 2), 'utf8');
+    writePrivateFileAtomic(this.file, JSON.stringify(this.state, null, 2));
+  }
+
+  private defaults(): ChatBackgroundState {
+    return {
+      ...DEFAULT_CHAT_BG,
+      ...(this.validImageUrl(CHAT_BG_PRESET_URL)
+        ? { mode: 'image', imageUrl: CHAT_BG_PRESET_URL }
+        : {}),
+    };
+  }
+
+  private validImageUrl(rawUrl: string | null): string | null {
+    if (!rawUrl) return null;
+    try {
+      const url = new URL(rawUrl);
+      const name = decodeURIComponent(url.pathname.slice(1));
+      const isPreset = rawUrl === CHAT_BG_PRESET_URL;
+      if (
+        !isPreset &&
+        (url.protocol !== 'chat-asset:' ||
+          url.hostname !== 'images' ||
+          url.username ||
+          url.password ||
+          url.search ||
+          url.hash ||
+          name.includes('\\') ||
+          path.basename(name) !== name ||
+          !name.startsWith(CHAT_BG_IMAGE_STEM + '.') ||
+          !IMG_EXT.has(path.extname(name).toLowerCase()))
+      )
+        return null;
+      const file = isPreset ? this.presetFile : path.join(this.imagesDir, name);
+      const realFile = fs.realpathSync(file);
+      const realDir = fs.realpathSync(isPreset ? path.dirname(this.presetFile) : this.imagesDir);
+      return realFile.startsWith(realDir + path.sep) && fs.statSync(realFile).isFile()
+        ? rawUrl
+        : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private latestCachedImage(): string | null {
+    try {
+      return (
+        fs
+          .readdirSync(this.imagesDir)
+          .filter((name) => this.validImageUrl(`chat-asset://images/${name}`))
+          .sort(
+            (left, right) =>
+              fs.statSync(path.join(this.imagesDir, right)).mtimeMs -
+              fs.statSync(path.join(this.imagesDir, left)).mtimeMs,
+          )[0] ?? null
+      );
+    } catch {
+      return null;
+    }
   }
 
   private broadcast(): void {
@@ -169,11 +248,11 @@ export class ChatBackgroundService {
     }
   }
 
-  private removeImageFiles(): void {
+  private removeImageFiles(keep?: string): void {
     try {
       if (!fs.existsSync(this.imagesDir)) return;
       for (const name of fs.readdirSync(this.imagesDir)) {
-        if (name.startsWith(CHAT_BG_IMAGE_STEM + '.')) {
+        if (name !== keep && name.startsWith(CHAT_BG_IMAGE_STEM + '.')) {
           try {
             fs.unlinkSync(path.join(this.imagesDir, name));
           } catch {

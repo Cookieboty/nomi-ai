@@ -1,9 +1,9 @@
-/** 工作台背景层：铺在 .ai-chat-app 最底层（侧栏、对话、中栏、右栏都透出），不拦截指针。
- *  开启时给 <html> 打 data-chat-bg 并写入三栏模糊变量，各栏据此换成半透明底色 + backdrop 模糊。 */
+/** 窗口级背景层，与设置及挂到 body 的弹层共用，不拦截指针。 */
+import { currentTheme, type ThemeState } from '@nomi-ai/ui';
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 import {
-  chatBgBlurVars,
   chatBgStyle,
   getChatBackground,
   subscribeChatBackground,
@@ -12,26 +12,36 @@ import {
 
 export const ChatBackgroundLayer: React.FC = () => {
   const [s, setS] = useState<ChatBackgroundState>(getChatBackground);
+  const [theme, setTheme] = useState<ThemeState>(currentTheme);
+  const active = theme.pref === 'image';
   useEffect(() => subscribeChatBackground(setS), []);
   useEffect(() => {
+    const onTheme = (event: Event) => setTheme((event as CustomEvent<ThemeState>).detail);
+    window.addEventListener('cd:theme-changed', onTheme);
+    return () => window.removeEventListener('cd:theme-changed', onTheme);
+  }, []);
+  useEffect(() => {
     const root = document.documentElement;
-    const vars = chatBgBlurVars(s);
-    if (s.mode === 'default') delete root.dataset.chatBg;
-    else root.dataset.chatBg = s.mode;
-    for (const [k, v] of Object.entries(vars)) root.style.setProperty(k, v);
+    if (active) root.dataset.chatBg = 'image';
+    else delete root.dataset.chatBg;
+    root.style.setProperty('--cd-chat-bg-blur', `${s.blur}px`);
     return () => {
       delete root.dataset.chatBg;
-      for (const k of Object.keys(vars)) root.style.removeProperty(k);
+      root.style.removeProperty('--cd-chat-bg-blur');
     };
-  }, [s]);
-  if (s.mode === 'default') return null;
-  return (
+  }, [active, s.blur]);
+  if (!active) return null;
+  return createPortal(
     <div
       className="chat-bg-layer"
       data-testid="chat-bg-layer"
-      data-mode={s.mode}
+      data-mode="image"
       aria-hidden
-      style={chatBgStyle(s)}
-    />
+      style={chatBgStyle({ ...s, mode: 'image' })}
+    >
+      <div className="chat-bg-image" data-testid="chat-bg-image" />
+      <div className="chat-bg-mask" data-testid="chat-bg-mask" />
+    </div>,
+    document.body,
   );
 };

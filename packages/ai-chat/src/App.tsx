@@ -47,7 +47,7 @@ import {
   type SettingsTab,
 } from './components/SettingsView/sections';
 import { Sidebar } from './components/Sidebar';
-import { AppTitleBar, hasAppTitleBar } from './components/TitleBar';
+import { AppTitleBar } from './components/TitleBar';
 import { AiChatContextProvider } from './contexts/AiChatContext';
 import type { AiChatState } from './contexts/AiChatContext';
 import {
@@ -810,10 +810,7 @@ const AiChatContent: React.FC = () => {
   return (
     <div className="ai-chat-app">
       <ChatBackgroundLayer />
-      <AppTitleBar
-        sidebarCollapsed={sidebarCollapsed}
-        onToggleSidebar={() => setSidebarCollapsed((v) => !v)}
-      />
+      <AppTitleBar />
       {/* 会话树保活：打开设置时只隐藏（display:none）不卸载，避免关闭时整树冷重挂载导致卡顿、
           草稿/滚动位置丢失与 IPC 订阅重建 */}
       <div className={settings ? 'chat-keepalive-hidden' : 'chat-keepalive'}>
@@ -821,7 +818,6 @@ const AiChatContent: React.FC = () => {
         <Sidebar
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-          showToggle={!hasAppTitleBar()}
           onNewChat={handleNewChat}
           onForkRequest={onForkRequest}
           onNotice={setToast}

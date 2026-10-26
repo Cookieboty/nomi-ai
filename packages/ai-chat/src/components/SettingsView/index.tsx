@@ -15,7 +15,6 @@ import { ProvidersPage } from '../ProvidersPage';
 import type { ScreenTab } from '../ScreenPanel';
 
 import { AppIconSettings } from './AppIconSettings';
-import { ChatBackgroundSettings } from './ChatBackgroundSettings';
 import { GeneralHero } from './GeneralHero';
 import styles from './index.module.css';
 import { IslandSettings } from './IslandSettings';
@@ -117,7 +116,6 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
               <ThemeSettings />
               <LayoutDensitySettings />
               <AppIconSettings />
-              <ChatBackgroundSettings />
             </SettingsGroup>
             <StartupSettings
               language={<LanguageSettings />}

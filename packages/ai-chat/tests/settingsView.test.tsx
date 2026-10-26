@@ -171,7 +171,8 @@ describe('SettingsView 合并后的标签页分区', () => {
     expect(r.getByTestId('settings-hero-theme').textContent).toContain('主题');
     const appearance = r.getByTestId('settings-appearance');
     expect(appearance.querySelector('[data-testid="theme-settings"]')).toBeTruthy();
-    expect(appearance.querySelector('[data-testid="settings-chat-bg"]')).toBeTruthy();
+    expect(appearance.querySelector('[data-testid="settings-chat-bg"]')).toBeNull();
+    expect(appearance.querySelector('[data-testid="theme-image"]')).toBeTruthy();
     // 没有桌面桥时「启动与窗口」只有语言一行
     const g = r.getByTestId('settings-basic-group');
     expect(g.querySelector('[data-testid="language-settings"]')).toBeTruthy();

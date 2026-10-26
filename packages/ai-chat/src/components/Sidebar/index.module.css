@@ -6,25 +6,11 @@
   flex-direction: column;
   gap: var(--cd-space-1);
   padding: 10px var(--cd-space-2);
-  background: var(--cd-color-bg-subtle);
-  border-right: 1px solid var(--cd-color-border);
+  background: var(--cd-panel-bg-subtle);
+  border-right: 1px solid var(--cd-panel-border);
   transition: width 0.18s ease;
   position: relative;
   overflow: hidden;
-}
-/* 工作台背景开启：侧栏半透明，透出 App 级背景层 */
-:global(html[data-chat-bg]) .sidebar {
-  background: color-mix(in srgb, var(--cd-color-bg-subtle) 55%, transparent);
-}
-/* 模糊放在 ::before 上，避免侧栏成为 position:fixed 子元素的包含块 */
-:global(html[data-chat-bg]) .sidebar::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  backdrop-filter: blur(var(--cd-chat-bg-blur-left, 0px));
-  -webkit-backdrop-filter: blur(var(--cd-chat-bg-blur-left, 0px));
 }
 .collapsed {
   width: 52px;
@@ -66,8 +52,31 @@
   display: inline-flex;
   align-items: center;
   gap: var(--cd-space-2);
-  padding-left: var(--cd-space-1);
+  height: var(--cd-control-h-md);
+  padding: 0 var(--cd-space-1);
   min-width: 0;
+  border: none;
+  border-radius: var(--cd-radius-md);
+  background: transparent;
+  color: var(--cd-color-text);
+  font: inherit;
+  cursor: pointer;
+  transition:
+    background-color var(--cd-duration-fast) var(--cd-ease),
+    color var(--cd-duration-fast) var(--cd-ease);
+}
+.brandWrap:hover {
+  background: var(--cd-chat-hover-overlay);
+}
+.brandWrap:focus-visible,
+.iconBtn:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: -2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .brandWrap {
+    transition: none;
+  }
 }
 .spacer {
   flex: 1;
@@ -163,6 +172,9 @@
   cursor: pointer;
   border-radius: var(--cd-radius-md);
   font: inherit;
+  transition:
+    background-color var(--cd-duration-fast) var(--cd-ease),
+    color var(--cd-duration-fast) var(--cd-ease);
 }
 .iconBtn {
   width: 32px;
@@ -177,8 +189,17 @@
 .segBtn:hover,
 .epChip:hover,
 .epAll:hover {
-  background: var(--cd-color-hover);
+  background: var(--cd-chat-hover-overlay);
   color: var(--cd-color-text);
+}
+@media (prefers-reduced-motion: reduce) {
+  .iconBtn,
+  .thread,
+  .segBtn,
+  .epChip,
+  .epAll {
+    transition: none;
+  }
 }
 .listHeader {
   display: flex;

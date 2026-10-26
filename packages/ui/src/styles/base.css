@@ -21,10 +21,10 @@
 /* 次按钮：悬停 bg-surface-hover + 强边框，按下 bg-selected（规范 §9.1） */
 .cd-btn:hover:not(:disabled) {
   border-color: var(--cd-color-border-strong);
-  background: var(--cd-color-hover);
+  background: var(--cd-control-hover-bg);
 }
 .cd-btn:active:not(:disabled) {
-  background: var(--cd-color-active);
+  background: var(--cd-control-active-bg);
 }
 .cd-btn:focus-visible {
   outline: none;
@@ -35,6 +35,7 @@
   color: var(--cd-color-disabled-text);
   cursor: not-allowed;
 }
+
 .cd-btn--sm {
   height: 26px;
   padding: 0 var(--cd-space-2);
@@ -71,12 +72,12 @@
 }
 /* 与透明 chip / 下拉框 / 各处幽灵图标按钮同一种 hover（中性底色，不用强调色） */
 .cd-btn--ghost:hover:not(:disabled) {
-  background: var(--cd-color-hover);
+  background: var(--cd-control-hover-bg);
   border-color: transparent;
   color: var(--cd-color-text);
 }
 .cd-btn--ghost:active:not(:disabled) {
-  background: var(--cd-color-active);
+  background: var(--cd-control-active-bg);
 }
 .cd-btn--ghost:disabled {
   border-color: transparent;
@@ -122,7 +123,7 @@
   min-width: 0;
   height: 32px;
   padding: 0 var(--cd-space-3);
-  border: 1px solid var(--cd-color-border);
+  border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-md);
   background: var(--cd-color-input-bg);
   color: var(--cd-color-text);
@@ -141,7 +142,7 @@
   cursor: pointer;
 }
 .cd-select option {
-  background: var(--cd-color-bg);
+  background: var(--cd-panel-bg);
   color: var(--cd-color-text);
 }
 .cd-input::placeholder,
@@ -159,7 +160,7 @@
 .cd-select:disabled,
 .cd-textarea:disabled {
   border-color: var(--cd-color-border-subtle);
-  background: var(--cd-color-surface-sunken);
+  background: var(--cd-panel-surface-sunken);
   color: var(--cd-color-disabled-text);
   cursor: not-allowed;
 }
@@ -230,11 +231,11 @@
 
 /* ---------- Card / Panel ---------- */
 .cd-card {
-  border: 1px solid var(--cd-color-border);
+  border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-lg);
-  background: var(--cd-color-surface);
-  backdrop-filter: var(--cd-blur);
-  -webkit-backdrop-filter: var(--cd-blur);
+  background: var(--cd-panel-surface);
+  backdrop-filter: var(--cd-panel-blur);
+  -webkit-backdrop-filter: var(--cd-panel-blur);
   box-shadow: var(--cd-shadow-md);
   color: var(--cd-color-text);
   padding: var(--cd-space-3) var(--cd-space-4);
@@ -245,7 +246,7 @@
 }
 .cd-card--flat {
   box-shadow: none;
-  background: var(--cd-color-surface-sunken);
+  background: var(--cd-panel-surface-sunken);
 }
 .cd-card__head {
   display: flex;
@@ -293,12 +294,15 @@
   flex-direction: column;
   width: min(560px, 100%);
   max-height: 100%;
-  border: 1px solid var(--cd-color-border);
+  border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-xl);
-  background: var(--cd-color-surface-raised);
+  background: var(--cd-panel-surface-raised);
   box-shadow: var(--cd-shadow-lg), var(--cd-shadow-glow);
   color: var(--cd-color-text);
   font-family: var(--cd-font-sans);
+}
+.cd-modal:not(.cd-modal--inline):not(.cd-modal--drawer) {
+  background: var(--cd-modal-bg);
 }
 .cd-modal--lg {
   width: min(820px, 100%);
@@ -309,7 +313,7 @@
   justify-content: space-between;
   gap: var(--cd-space-3);
   padding: var(--cd-space-4) var(--cd-space-5);
-  border-bottom: 1px solid var(--cd-color-border);
+  border-bottom: 1px solid var(--cd-panel-border);
 }
 .cd-modal__title {
   margin: 0;
@@ -330,7 +334,7 @@
   justify-content: flex-end;
   gap: var(--cd-space-2);
   padding: var(--cd-space-3) var(--cd-space-5);
-  border-top: 1px solid var(--cd-color-border);
+  border-top: 1px solid var(--cd-panel-border);
 }
 
 /* ---------- Tabs ---------- */
@@ -339,8 +343,8 @@
   gap: var(--cd-space-0-5);
   padding: var(--cd-space-0-5);
   border-radius: var(--cd-radius-md);
-  background: var(--cd-color-bg-subtle);
-  border: 1px solid var(--cd-color-border);
+  background: var(--cd-panel-bg-subtle);
+  border: 1px solid var(--cd-panel-border);
   width: fit-content;
 }
 .cd-tab {
@@ -357,15 +361,15 @@
   font-weight: var(--cd-font-weight-medium);
 }
 .cd-tab:hover {
-  background: var(--cd-color-hover);
+  background: var(--cd-control-hover-bg);
   color: var(--cd-color-text);
 }
 /* 选中态：selected-bg 填充 + selected-text 文字（对比度 ≥ 4.5:1，见 tests/theme-contrast.test.ts） */
 .cd-tab[aria-selected='true'],
 .cd-tab[aria-checked='true'] {
-  background: var(--cd-color-surface);
+  background: var(--cd-panel-surface);
   color: var(--cd-color-text);
-  border-color: var(--cd-color-border);
+  border-color: var(--cd-panel-border);
 }
 .cd-tab:focus-visible {
   outline: none;
@@ -386,7 +390,7 @@
   gap: var(--cd-space-4);
   padding: 0;
   border: none;
-  border-bottom: 1px solid var(--cd-color-border);
+  border-bottom: 1px solid var(--cd-panel-border);
   border-radius: 0;
   background: transparent;
 }
@@ -430,7 +434,7 @@
   margin-left: var(--cd-space-1);
 }
 .cd-badge--neutral {
-  background: var(--cd-color-hover);
+  background: var(--cd-control-hover-bg);
   color: var(--cd-color-text-muted);
 }
 .cd-badge--success {
@@ -459,9 +463,9 @@
   position: absolute;
   z-index: var(--cd-z-tooltip);
   padding: var(--cd-space-1) var(--cd-space-2);
-  border: 1px solid var(--cd-color-border);
+  border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-sm);
-  background: var(--cd-color-surface-raised);
+  background: var(--cd-chat-popover-bg);
   box-shadow: var(--cd-shadow-md);
   color: var(--cd-color-text);
   font-size: var(--cd-font-size-xs);
@@ -525,10 +529,10 @@
   min-width: 200px;
   max-width: 360px;
   padding: var(--cd-space-2) var(--cd-space-3);
-  border: 1px solid var(--cd-color-border);
+  border: 1px solid var(--cd-panel-border);
   border-left: 3px solid var(--cd-color-accent);
   border-radius: var(--cd-radius-md);
-  background: var(--cd-color-surface-raised);
+  background: var(--cd-chat-popover-bg);
   box-shadow: var(--cd-shadow-lg);
   color: var(--cd-color-text);
   font-size: var(--cd-font-size-sm);
@@ -550,7 +554,7 @@
 /* ---------- Notice (inline banner) ---------- */
 .cd-notice {
   padding: var(--cd-space-2) var(--cd-space-3);
-  border: 1px solid var(--cd-color-border);
+  border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-md);
   background: var(--cd-color-accent-soft);
   color: var(--cd-color-text);
@@ -724,7 +728,7 @@
   font-size: var(--cd-font-size-xs);
   padding: 1px var(--cd-space-1);
   border-radius: var(--cd-radius-xs);
-  background: var(--cd-color-surface-sunken);
+  background: var(--cd-panel-surface-sunken);
   color: var(--cd-color-accent-strong);
 }
 .cd-section-title {
@@ -746,11 +750,11 @@
   font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-muted);
   padding: var(--cd-space-1) var(--cd-space-2);
-  border-bottom: 1px solid var(--cd-color-border);
+  border-bottom: 1px solid var(--cd-panel-border);
 }
 .cd-table td {
   padding: var(--cd-space-1) var(--cd-space-2);
-  border-bottom: 1px solid var(--cd-color-border);
+  border-bottom: 1px solid var(--cd-panel-border);
 }
 
 /* 首字母头像（供应商卡片 / 表单） */
@@ -759,9 +763,9 @@
   flex: none;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--cd-color-border);
+  border: 1px solid var(--cd-panel-border);
   border-radius: 8px;
-  background: var(--cd-color-surface-sunken);
+  background: var(--cd-panel-surface-sunken);
   font-weight: 600;
 }
 
@@ -772,9 +776,9 @@
   flex-direction: column;
   gap: var(--cd-space-2);
   padding: var(--cd-space-4) var(--cd-space-5);
-  border: 1px solid var(--cd-color-border);
+  border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-lg);
-  background: var(--cd-color-surface-raised);
+  background: var(--cd-settings-card-bg);
   box-shadow: var(--cd-shadow-sm);
   color: var(--cd-color-text);
 }
@@ -855,4 +859,16 @@
   flex: none;
   align-items: center;
   gap: var(--cd-space-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cd-btn,
+  .cd-input,
+  .cd-select,
+  .cd-textarea,
+  .cd-switch__track,
+  .cd-switch__thumb,
+  .cd-tab {
+    transition: none;
+  }
 }

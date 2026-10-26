@@ -61,10 +61,10 @@
   font-family: var(--cd-font-mono);
   font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text);
-  border: 1px solid var(--cd-color-border);
+  border: 1px solid var(--cd-panel-border);
   border-bottom-width: 2px;
   border-radius: var(--cd-radius-sm);
-  background: var(--cd-color-surface-sunken);
+  background: var(--cd-panel-surface-sunken);
 }
 .indicator {
   display: inline-flex;
@@ -74,8 +74,8 @@
   padding: var(--cd-space-0-5) var(--cd-space-2);
   border-radius: var(--cd-radius-full);
   font-size: var(--cd-font-size-xs);
-  background: var(--cd-color-surface-sunken);
-  border: 1px solid var(--cd-color-border);
+  background: var(--cd-panel-surface-sunken);
+  border: 1px solid var(--cd-panel-border);
   color: var(--cd-color-text);
 }
 .dot,
@@ -108,9 +108,9 @@
   gap: var(--cd-space-3);
   text-align: left;
   padding: var(--cd-space-2);
-  border: 1px solid var(--cd-color-border);
+  border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-md);
-  background: var(--cd-color-surface);
+  background: var(--cd-panel-surface);
   cursor: pointer;
   color: inherit;
   font: inherit;
@@ -124,7 +124,7 @@
   height: 54px;
   object-fit: cover;
   border-radius: var(--cd-radius-sm);
-  background: var(--cd-color-surface-sunken);
+  background: var(--cd-panel-surface-sunken);
   flex: none;
 }
 .entryBody {
@@ -156,9 +156,9 @@
   gap: var(--cd-space-1);
   padding: var(--cd-space-0-5) var(--cd-space-1) var(--cd-space-0-5) var(--cd-space-2);
   border-radius: var(--cd-radius-full);
-  border: 1px solid var(--cd-color-border);
+  border: 1px solid var(--cd-panel-border);
   font-size: var(--cd-font-size-xs);
-  background: var(--cd-color-surface-sunken);
+  background: var(--cd-panel-surface-sunken);
 }
 .chip button {
   border: none;
@@ -170,7 +170,7 @@
 .preview {
   max-width: 100%;
   border-radius: var(--cd-radius-md);
-  border: 1px solid var(--cd-color-border);
+  border: 1px solid var(--cd-panel-border);
 }
 .ocr {
   white-space: pre-wrap;
@@ -178,7 +178,7 @@
   max-height: 260px;
   overflow: auto;
   margin: 0;
-  background: var(--cd-color-surface-sunken);
+  background: var(--cd-panel-surface-sunken);
   padding: var(--cd-space-2);
   border-radius: var(--cd-radius-md);
 }

@@ -7,8 +7,8 @@
   border: 1px solid rgba(239, 68, 68, 0.4);
   border-radius: var(--cd-radius-lg);
   background: var(--cd-color-danger-soft);
-  backdrop-filter: var(--cd-blur);
-  -webkit-backdrop-filter: var(--cd-blur);
+  backdrop-filter: var(--cd-panel-blur);
+  -webkit-backdrop-filter: var(--cd-panel-blur);
   box-shadow: var(--cd-shadow-md);
   color: var(--cd-color-danger-text);
   font-size: var(--cd-font-size-md);

@@ -92,8 +92,8 @@ p.dim {
   gap: var(--cd-space-1);
   padding: 14px 14px 10px;
   border-radius: var(--cd-radius-lg);
-  border: 1px solid var(--cd-color-border);
-  background: var(--cd-color-surface);
+  border: 1px solid var(--cd-panel-border);
+  background: var(--cd-panel-surface);
   overflow: hidden;
   min-width: 0;
 }
@@ -140,8 +140,8 @@ p.dim {
   gap: var(--cd-space-3);
   padding: 14px var(--cd-space-4);
   border-radius: var(--cd-radius-lg);
-  border: 1px solid var(--cd-color-border);
-  background: var(--cd-color-surface);
+  border: 1px solid var(--cd-panel-border);
+  background: var(--cd-panel-surface);
   min-width: 0;
 }
 .panelHead {
@@ -186,7 +186,7 @@ p.dim {
   display: block;
 }
 .grid {
-  stroke: var(--cd-color-border);
+  stroke: var(--cd-panel-border);
   stroke-width: 1;
   stroke-dasharray: 3 4;
 }
@@ -292,7 +292,7 @@ p.dim {
   margin-top: 5px;
   height: 4px;
   border-radius: 2px;
-  background: var(--cd-color-hover);
+  background: var(--cd-control-hover-bg);
   overflow: hidden;
 }
 .bar i {
@@ -356,8 +356,8 @@ i.heatCell {
   outline-offset: 1px;
 }
 .lv0 {
-  background: var(--cd-color-hover);
-  box-shadow: inset 0 0 0 1px var(--cd-color-border);
+  background: var(--cd-control-hover-bg);
+  box-shadow: inset 0 0 0 1px var(--cd-panel-border);
 }
 .lv1 {
   background: rgba(var(--cd-accent-rgb), 0.28);
@@ -386,7 +386,7 @@ i.heatCell {
   gap: 14px;
   padding: var(--cd-space-2) var(--cd-space-3);
   border-radius: var(--cd-radius-md);
-  background: var(--cd-color-hover);
+  background: var(--cd-control-hover-bg);
   font-size: var(--cd-font-size-sm);
   color: var(--cd-color-text-muted);
 }
@@ -404,7 +404,7 @@ i.heatCell {
 .tableWrap {
   container-type: inline-size;
   overflow-x: auto;
-  border: 1px solid var(--cd-color-border);
+  border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-md);
 }
 .table {
@@ -416,7 +416,7 @@ i.heatCell {
 .table td {
   padding: 7px 9px;
   text-align: left;
-  border-bottom: 1px solid var(--cd-color-border);
+  border-bottom: 1px solid var(--cd-panel-border);
   vertical-align: middle;
 }
 .table tbody tr:last-child td {
@@ -427,10 +427,10 @@ i.heatCell {
   font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-muted);
   white-space: nowrap;
-  background: var(--cd-color-bg-subtle);
+  background: var(--cd-panel-bg-subtle);
 }
 .table tbody tr:hover {
-  background: var(--cd-color-hover);
+  background: var(--cd-control-hover-bg);
 }
 .num {
   text-align: right !important;
@@ -516,7 +516,7 @@ i.heatCell {
   cursor: pointer;
 }
 .chip:hover {
-  background: var(--cd-color-hover);
+  background: var(--cd-control-hover-bg);
 }
 
 .filterSel {
@@ -575,7 +575,7 @@ i.heatCell {
   gap: var(--cd-space-2);
   padding: 10px var(--cd-space-3);
   border-radius: var(--cd-radius-md);
-  background: var(--cd-color-hover);
+  background: var(--cd-control-hover-bg);
 }
 .quotaHook > p {
   margin: 0;
@@ -663,7 +663,7 @@ i.heatCell {
   gap: var(--cd-space-0-5) 10px;
   margin-top: auto;
   padding-top: var(--cd-space-2);
-  border-top: 1px solid var(--cd-color-border);
+  border-top: 1px solid var(--cd-panel-border);
   font-size: var(--cd-font-size-xs);
 }
 .toolFoot .err {

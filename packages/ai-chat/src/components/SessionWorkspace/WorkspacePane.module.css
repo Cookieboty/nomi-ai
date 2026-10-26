@@ -12,9 +12,9 @@
   display: flex;
   align-items: center;
   gap: var(--cd-space-2);
-  height: 44px;
+  height: var(--cd-chat-header-h);
   padding: 0 var(--cd-space-3);
-  border-bottom: 1px solid var(--cd-color-border);
+  border-bottom: 1px solid var(--cd-panel-border);
   box-sizing: border-box;
   flex-shrink: 0;
   font-size: var(--cd-font-size-md);
@@ -31,7 +31,7 @@
   gap: var(--cd-space-0-5);
   padding: var(--cd-space-0-5);
   border-radius: var(--cd-radius-md);
-  background: var(--cd-color-surface-sunken);
+  background: var(--cd-panel-surface-sunken);
   min-width: 0;
 }
 .segBtn {
@@ -50,7 +50,7 @@
   cursor: pointer;
 }
 .segBtn:hover {
-  background: var(--cd-color-hover);
+  background: var(--cd-chat-hover-overlay);
   color: var(--cd-color-text);
 }
 .segBtn:focus-visible {
@@ -58,10 +58,17 @@
   outline-offset: -2px;
 }
 .segBtn[data-active] {
-  background: var(--cd-color-surface-raised);
+  background: var(--cd-panel-surface-raised);
   color: var(--cd-color-text);
   font-weight: var(--cd-font-weight-medium);
   box-shadow: var(--cd-shadow-sm);
+}
+
+:global(html[data-chat-bg]) .seg {
+  background: transparent;
+}
+:global(html[data-chat-bg]) .segBtn:hover {
+  background: var(--cd-chat-hover-overlay);
 }
 
 /* 右栏空状态：与筛选框 / 列表同一条左边线（10px） */
@@ -149,7 +156,7 @@
   cursor: pointer;
 }
 .iconBtn:hover {
-  background: var(--cd-color-hover);
+  background: var(--cd-chat-hover-overlay);
   color: var(--cd-color-text);
 }
 .iconBtn:focus-visible {
@@ -174,8 +181,8 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border-left: 1px solid var(--cd-color-border);
-  background: var(--cd-color-surface-raised);
+  border-left: 1px solid var(--cd-panel-border);
+  background: var(--cd-chat-files-bg);
 }
 @media (max-width: 900px) {
   .wbTreePane {
@@ -229,7 +236,7 @@
   cursor: pointer;
 }
 .chip:hover {
-  background: var(--cd-color-hover);
+  background: var(--cd-chat-hover-overlay);
   color: var(--cd-color-text);
 }
 .chip:focus-visible {
@@ -247,6 +254,22 @@
   flex: none;
   align-items: center;
   color: var(--cd-color-accent-strong);
+}
+
+.segBtn,
+.iconBtn,
+.chip {
+  transition:
+    background-color var(--cd-duration-fast) var(--cd-ease),
+    color var(--cd-duration-fast) var(--cd-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .segBtn,
+  .iconBtn,
+  .chip {
+    transition: none;
+  }
 }
 
 /* 改动列表顶部（筛选框上方）：交给助手提交；主按钮占满一行，推送是次要入口 */

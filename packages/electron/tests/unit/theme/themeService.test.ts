@@ -54,6 +54,21 @@ describe('ThemeService', () => {
       resolved: 'cream',
     });
   });
+  it('persists image theme with graphite chrome and a dark native appearance', () => {
+    const file = tmp();
+    const native = fakeNative(false);
+    const service = new ThemeService(file, native, 'darwin');
+    expect(service.set('image')).toEqual({ pref: 'image', resolved: 'graphite' });
+    expect(native.themeSource).toBe('dark');
+    expect(sent.at(-1)).toEqual({ pref: 'image', resolved: 'graphite' });
+    expect(JSON.parse(fs.readFileSync(file, 'utf8')).theme).toBe('image');
+    expect(new ThemeService(file, fakeNative(false)).get()).toEqual({
+      pref: 'image',
+      resolved: 'graphite',
+    });
+    expect(resolveTheme('image', false)).toBe('graphite');
+    expect(appearanceFor('image')).toBe('dark');
+  });
   it('system follows nativeTheme live: dark → graphite, light → cream', () => {
     const n = fakeNative(true);
     const s = new ThemeService(tmp(), n);

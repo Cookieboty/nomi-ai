@@ -8,13 +8,14 @@ import {
   normalizeThemePref,
   resolveTheme,
 } from '@nomi-ai/ui';
-import { cleanup, fireEvent, render } from '@testing-library/react';
+import { act, cleanup, fireEvent, render } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ThemeSettings } from '../src/components/SettingsView/ThemeSettings';
 
 afterEach(() => {
   cleanup();
+  applyTheme(DEFAULT_THEME);
   localStorage.clear();
   document.documentElement.removeAttribute('data-theme');
   delete (window as { aiIPC?: unknown }).aiIPC;
@@ -32,6 +33,7 @@ describe('themes', () => {
     expect(THEMES.map((t) => t.id).sort()).toEqual([
       'cream',
       'graphite',
+      'image',
       'ink',
       'mist',
       'sunset',
@@ -47,6 +49,34 @@ describe('themes', () => {
   it('follow system resolves dark → graphite, light → cream', () => {
     expect(resolveTheme('system', true)).toBe('graphite');
     expect(resolveTheme('system', false)).toBe('cream');
+  });
+  it('image theme uses the graphite palette and persists the image preference', () => {
+    expect(normalizeThemePref('image')).toBe('image');
+    expect(resolveTheme('image', true)).toBe('graphite');
+    expect(resolveTheme('image', false)).toBe('graphite');
+    localStorage.setItem('cd.theme', 'image');
+    initTheme();
+    expect(currentTheme()).toEqual({ pref: 'image', resolved: 'graphite' });
+    expect(document.documentElement.dataset.themePref).toBe('image');
+    expect(document.documentElement.dataset.theme).toBe('graphite');
+  });
+  it('only image theme reveals image controls and hides them on other themes', () => {
+    applyTheme(DEFAULT_THEME);
+    const view = render(<ThemeSettings />);
+    expect(view.getAllByRole('radio')).toHaveLength(7);
+    expect(
+      (view.getByTestId('theme-system').firstElementChild as HTMLElement).style.backgroundImage,
+    ).toContain('linear-gradient');
+    expect(view.queryByTestId('image-theme-settings')).toBeNull();
+    fireEvent.click(view.getByTestId('theme-image'));
+    expect(view.getByTestId('image-theme-settings')).toBeTruthy();
+    expect(view.getAllByRole('slider')).toHaveLength(2);
+    expect(view.queryByTestId('settings-chat-bg')).toBeNull();
+    fireEvent.click(view.getByTestId('theme-graphite'));
+    expect(view.queryByTestId('image-theme-settings')).toBeNull();
+    expect(view.queryAllByRole('slider')).toHaveLength(0);
+    act(() => applyTheme('image'));
+    expect(view.getByTestId('chat-bg-pick')).toBeTruthy();
   });
   it('picker applies theme and persists via IPC', async () => {
     const invoke = vi.fn().mockResolvedValue({ pref: 'cream', resolved: 'cream' });

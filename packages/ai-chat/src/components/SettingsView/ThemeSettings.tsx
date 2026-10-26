@@ -1,9 +1,16 @@
-/** 设置 → 通用 → 外观 → 主题：跟随系统 + 五套配色，一行小色卡，点选即时生效（对话窗口与看板娘同步）。 */
+/** 设置 → 通用 → 外观 → 主题：配色与图片主题，点选即时生效。 */
 import { Icon, SettingRow, t as tr } from '@nomi-ai/ui';
 import { THEMES, currentTheme, setTheme, type ThemeState } from '@nomi-ai/ui';
-import { Check } from 'lucide-react';
+import { Check, Image } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
+import {
+  getChatBackground,
+  subscribeChatBackground,
+  type ChatBackgroundState,
+} from '../../services/chatBackground';
+
+import { ChatBackgroundSettings } from './ChatBackgroundSettings';
 import styles from './index.module.css';
 
 /** 跟随系统放最前，其余按 THEMES 顺序 */
@@ -37,6 +44,8 @@ export function useThemeState(): ThemeState {
 
 export const ThemeSettings: React.FC = () => {
   const cur = useThemeState();
+  const [background, setBackground] = useState<ChatBackgroundState>(getChatBackground);
+  useEffect(() => subscribeChatBackground(setBackground), []);
   const sel = THEMES.find((x) => x.id === cur.pref);
   return (
     <div className={styles.themeBlock} data-testid="theme-settings" id="settings-theme">
@@ -60,6 +69,7 @@ export const ThemeSettings: React.FC = () => {
         {ORDERED.map((t) => {
           const on = cur.pref === t.id;
           const sys = t.id === 'system';
+          const image = t.id === 'image';
           return (
             <button
               key={t.id}
@@ -74,15 +84,29 @@ export const ThemeSettings: React.FC = () => {
               <span
                 className={styles.themePreview}
                 style={{
-                  background: sys
-                    ? `linear-gradient(110deg, ${t.swatch[0]} 50%, ${t.swatch[2]} 50%)`
-                    : t.swatch[0],
+                  backgroundColor: t.swatch[0],
                   borderColor: t.swatch[1],
+                  backgroundImage: sys
+                    ? `linear-gradient(110deg, ${t.swatch[0]} 50%, ${t.swatch[2]} 50%)`
+                    : image && background.imageUrl
+                      ? `url("${background.imageUrl.replace(/"/g, '\\"')}")`
+                      : 'none',
                 }}
                 aria-hidden
               >
-                {!sys && (
-                  <span style={{ background: t.swatch[1] }} className={styles.themeCard}>
+                {image && !background.imageUrl ? (
+                  <span className={styles.themeImagePlaceholder}>
+                    <Icon icon={Image} size={24} />
+                  </span>
+                ) : !sys ? (
+                  <span
+                    style={{
+                      background: image
+                        ? `color-mix(in srgb, ${t.swatch[1]} 55%, transparent)`
+                        : t.swatch[1],
+                    }}
+                    className={styles.themeCard}
+                  >
                     <span style={{ background: t.swatch[2] }} className={styles.themeLine} />
                     <span
                       style={{ background: t.swatch[2], opacity: 0.45 }}
@@ -90,7 +114,7 @@ export const ThemeSettings: React.FC = () => {
                     />
                     <span style={{ background: t.swatch[3] }} className={styles.themeDot} />
                   </span>
-                )}
+                ) : null}
                 {on && (
                   <span className={styles.themeCheck}>
                     <Icon icon={Check} size={12} />
@@ -102,6 +126,7 @@ export const ThemeSettings: React.FC = () => {
           );
         })}
       </div>
+      {cur.pref === 'image' && <ChatBackgroundSettings />}
     </div>
   );
 };
