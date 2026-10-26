@@ -63,7 +63,13 @@ for (const packaged of [false, true]) {
       delete env.ELECTRON_RUN_AS_NODE;
       application = await electron.launch({
         executablePath: resolveElectronExecutable(),
-        args: [resolve(repoRoot(), 'e2e-headed/harness/main.cjs'), '--profile=chat-only'],
+        // 断言用的是中文文案：界面语言默认跟随系统（navigator.languages），CI 的 Linux / Windows
+        // runner 是英文，所以显式指定 Chromium 的界面语言
+        args: [
+          resolve(repoRoot(), 'e2e-headed/harness/main.cjs'),
+          '--profile=chat-only',
+          '--lang=zh-CN',
+        ],
         cwd: repoRoot(),
         env,
         timeout: 30_000,

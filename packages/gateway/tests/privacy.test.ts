@@ -507,10 +507,12 @@ describe('性能', () => {
 
   it('1 MiB 文本类请求体扫描不慢、随体积线性增长（防回退）', () => {
     const s = store([{ kind: 'API_KEY', value: 'zp-secret-value-123456' }]);
-    const small = fastest(bodyOf(1 << 20), s);
-    const large = fastest(bodyOf(4 << 20), s);
-    // 本机 1 MiB 约 15 ms；阈值只拦灾难性回退（回溯 / 二次方会到秒级），不拦机器快慢
-    expect(small).toBeLessThan(500);
+    // 原来量 1 MiB 与 4 MiB 各 6 遍（共 30 MiB），慢的共享 runner 上总时长超过 5 s 的用例上限；
+    // 线性与否看 256 KiB → 1 MiB 的比值就够了，总量 7.5 MiB
+    const small = fastest(bodyOf(1 << 18), s, 4);
+    const large = fastest(bodyOf(1 << 20), s, 4);
+    // 本机 1 MiB 约 13 ms；阈值只拦灾难性回退（回溯 / 二次方会到秒级），不拦机器快慢
+    expect(large).toBeLessThan(500);
     // 线性约 4 倍，二次方约 16 倍；留出噪声余量
     expect(large / Math.max(small, 1)).toBeLessThan(10);
   });

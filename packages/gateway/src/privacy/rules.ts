@@ -218,20 +218,31 @@ const MARKER_RE = new RegExp(
   'gi',
 );
 
-/** 每条规则的标记出现在哪些位置 */
-function markerHits(s: string): Map<Rule, Array<[number, number]>> {
-  const out = new Map<Rule, Array<[number, number]>>();
+/**
+ * 正则报出的（最长的）小写标记 → 这个位置要核对的原样标记及其规则：
+ * 包括作为它前缀的更短标记（同一位置可能同时对上），命中后只查一次表，不再逐个试全部标记
+ */
+const CANDIDATES = new Map<string, Array<[string, Rule[]]>>();
+for (const low of new Set([...BY_MARKER.keys()].map((m) => m.toLowerCase())))
+  CANDIDATES.set(
+    low,
+    [...BY_MARKER].filter(([mk]) => low.startsWith(mk.toLowerCase())),
+  );
+
+/** 每条规则的标记出现在哪些位置：扁平的 [位置, 长度, 位置, 长度, …]，按位置升序 */
+function markerHits(s: string): Map<Rule, number[]> {
+  const out = new Map<Rule, number[]>();
   MARKER_RE.lastIndex = 0;
   for (let m = MARKER_RE.exec(s); m; m = MARKER_RE.exec(s)) {
     const i = m.index;
     // 标记可能互相重叠：下一次从下一个字符接着找
     MARKER_RE.lastIndex = i + 1;
-    for (const [mk, rules] of BY_MARKER) {
+    for (const [mk, rules] of CANDIDATES.get(m[0].toLowerCase())!) {
       if (!s.startsWith(mk, i)) continue;
       for (const r of rules) {
-        const list = out.get(r) ?? [];
-        list.push([i, mk.length]);
-        out.set(r, list);
+        let list = out.get(r);
+        if (!list) out.set(r, (list = []));
+        list.push(i, mk.length);
       }
     }
   }
@@ -241,31 +252,33 @@ function markerHits(s: string): Map<Rule, Array<[number, number]>> {
 /**
  * 规则要跑的窗口（合并过、不重叠）；窗口加起来超过半段时返回 null（整段扫描更快）。
  * 窗口从标记前 back 个字符开始：零宽断言在窗口开头看不到前一个字符，但匹配都从标记附近开始，
- * 只有真正的段首（from = 0）才会落在窗口开头。
+ * 只有真正的段首（from = 0）才会落在窗口开头。hits 已按位置升序（markerHits 从左到右扫）。
  */
-function windows(
-  s: string,
-  r: Rule,
-  hits: Array<[number, number]>,
-): Array<[number, number]> | null {
+function windows(s: string, r: Rule, hits: number[]): Array<[number, number]> | null {
   const back = r.back ?? 64;
   const ahead = r.ahead ?? 512;
-  const at = hits.map(([i, n]): [number, number] => [
-    Math.max(0, i - back),
-    Math.min(s.length, i + n + ahead),
-  ]);
-  if (at.length < 2) return at;
-  at.sort((a, b) => a[0] - b[0]);
-  const out: Array<[number, number]> = [at[0]!];
+  const half = s.length / 2;
+  const out: Array<[number, number]> = [];
   let total = 0;
-  for (let i = 1; i < at.length; i++) {
-    const last = out[out.length - 1]!;
-    const cur = at[i]!;
-    if (cur[0] <= last[1]) last[1] = Math.max(last[1], cur[1]);
-    else out.push(cur);
+  let last: [number, number] | null = null;
+  for (let k = 0; k < hits.length; k += 2) {
+    const i = hits[k]!;
+    const n = hits[k + 1]!;
+    const a = Math.max(0, i - back);
+    const b = Math.min(s.length, i + n + ahead);
+    if (last && a <= last[1]) {
+      if (b > last[1]) {
+        total += b - last[1];
+        last[1] = b;
+      }
+    } else {
+      last = [a, b];
+      out.push(last);
+      total += b - a;
+    }
+    if (total > half) return null;
   }
-  for (const [a, b] of out) total += b - a;
-  return total > s.length / 2 ? null : out;
+  return out;
 }
 
 export interface RuleOptions {
