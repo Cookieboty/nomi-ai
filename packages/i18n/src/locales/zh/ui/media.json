@@ -74,5 +74,22 @@
   "ui.media.src-manual-add": "手动导入",
   "ui.media.src-studio": "工作台",
   "ui.media.studio-empty": "生成的图片会显示在这里",
-  "ui.media.target-chat": "对话生图"
+  "ui.media.target-chat": "对话生图",
+  "ui.media.via-provider": "经 {0}",
+  "ui.media.params-title": "生成参数",
+  "ui.media.task-queue": "任务队列",
+  "ui.media.queue-empty": "暂无任务",
+  "ui.media.retry-snapshot": "按快照重试",
+  "ui.media.library-subtitle": "本地图片 · 按内容哈希去重",
+  "ui.media.multi-select": "多选",
+  "ui.media.selected-count": "已选 {0} 张",
+  "ui.media.exported": "已导出 {0} 张图片",
+  "ui.media.deleted": "已删除 {0} 张图片",
+  "ui.media.confirm-delete": "删除选中的 {0} 张图片？文件会从本机删除，无法恢复。",
+  "ui.media.session-pill": "生图：{0} · {1}",
+  "ui.media.session-scope": "（本会话）",
+  "ui.media.session-unconfigured": "生图模型：未配置",
+  "ui.media.session-switched": "仅本会话改用 {0} · {1}，不改设置",
+  "ui.media.go-settings": "去设置…",
+  "ui.media.original-unavailable": "原图已不可用（重启前发送的图片只保留了缩略图）"
 }

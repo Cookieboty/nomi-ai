@@ -74,5 +74,22 @@
   "ui.media.src-manual-add": "Imported",
   "ui.media.src-studio": "Studio",
   "ui.media.studio-empty": "Generated images appear here",
-  "ui.media.target-chat": "Chat image generation"
+  "ui.media.target-chat": "Chat image generation",
+  "ui.media.via-provider": "via {0}",
+  "ui.media.params-title": "Generation parameters",
+  "ui.media.task-queue": "Task queue",
+  "ui.media.queue-empty": "No tasks yet",
+  "ui.media.retry-snapshot": "Retry with snapshot",
+  "ui.media.library-subtitle": "Local images · deduplicated by content hash",
+  "ui.media.multi-select": "Select",
+  "ui.media.selected-count": "{0} selected",
+  "ui.media.exported": "Exported {0} images",
+  "ui.media.deleted": "Deleted {0} images",
+  "ui.media.confirm-delete": "Delete the {0} selected images? Files will be removed from this computer and can't be recovered.",
+  "ui.media.session-pill": "Image: {0} · {1}",
+  "ui.media.session-scope": " (this chat)",
+  "ui.media.session-unconfigured": "Image model: not set",
+  "ui.media.session-switched": "This chat now uses {0} · {1}; settings unchanged",
+  "ui.media.go-settings": "Open settings…",
+  "ui.media.original-unavailable": "Original no longer available (only a thumbnail was kept for images sent before restart)"
 }

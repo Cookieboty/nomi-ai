@@ -7,6 +7,7 @@ import { ChevronRight } from 'lucide-react';
 import React, { useState } from 'react';
 
 import type { KbSource } from '../../services/kbClient';
+import { originalOf } from '../../services/mediaClient';
 import type { ChatMessage } from '../../types/chat';
 import type { ConvMessage } from '../../types/conversation';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
@@ -74,7 +75,12 @@ export const nomiSlots: ConvSlots = {
         {!!raw.images?.length && (
           <div className={styles.imageRow} data-testid="message-images">
             {raw.images.map((im, i) => (
-              <MediaImageMenu key={i} src={im.thumb} source="chat_upload">
+              <MediaImageMenu
+                key={i}
+                src={im.thumb}
+                original={originalOf(im.thumb)}
+                source="chat_upload"
+              >
                 <img
                   src={im.thumb}
                   alt={

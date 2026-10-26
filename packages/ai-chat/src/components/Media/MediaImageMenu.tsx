@@ -19,6 +19,10 @@ import styles from './Media.module.css';
 export interface MediaImageMenuProps {
   src: string;
   source: AssetSource;
+  /**
+   * 入库 / 复制 / 另存用的原图。不传 = 就用 src；传 null = 原图已不可用（只有缩略图），禁用「加入素材库」。
+   */
+  original?: string | null;
   conversationId?: string;
   /** 另存为默认文件名 */
   fileName?: string;
@@ -28,12 +32,14 @@ export interface MediaImageMenuProps {
 export const MediaImageMenu: React.FC<MediaImageMenuProps> = ({
   src,
   source,
+  original,
   conversationId,
   fileName,
   children,
 }) => {
   const enabled = mediaClient.available() && !!src;
-  const inLib = useAssetInLibrary(enabled ? src : undefined);
+  const full = original === undefined ? src : original;
+  const inLib = useAssetInLibrary(enabled && full ? full : undefined);
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -115,9 +121,12 @@ export const MediaImageMenu: React.FC<MediaImageMenuProps> = ({
               type="button"
               role="menuitem"
               className={styles.menuItem}
+              disabled={!full}
+              title={full ? undefined : t('ui.media.original-unavailable')}
+              data-testid="menu-add-to-library"
               onClick={() =>
                 void run(
-                  () => mediaClient.addAsset(src, source, conversationId),
+                  () => mediaClient.addAsset(full ?? src, source, conversationId),
                   t('ui.media.added-to-library'),
                 )
               }
@@ -129,7 +138,7 @@ export const MediaImageMenu: React.FC<MediaImageMenuProps> = ({
             type="button"
             role="menuitem"
             className={styles.menuItem}
-            onClick={() => void run(() => mediaClient.copyImage(src), t('ui.media.copied'))}
+            onClick={() => void run(() => mediaClient.copyImage(full ?? src), t('ui.media.copied'))}
           >
             {t('ui.knowledge-local.copy')}
           </button>
@@ -137,7 +146,7 @@ export const MediaImageMenu: React.FC<MediaImageMenuProps> = ({
             type="button"
             role="menuitem"
             className={styles.menuItem}
-            onClick={() => void run(() => mediaClient.saveImage(src, fileName))}
+            onClick={() => void run(() => mediaClient.saveImage(full ?? src, fileName))}
           >
             {t('ui.media.save-as')}
           </button>

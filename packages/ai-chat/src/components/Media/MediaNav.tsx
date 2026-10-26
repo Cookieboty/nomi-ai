@@ -9,8 +9,12 @@ import { mediaClient } from '../../services/mediaClient';
 
 import styles from './Media.module.css';
 
+export type MediaView = 'chat' | 'studio' | 'library';
+
 export interface MediaNavProps {
   collapsed: boolean;
+  /** 主区域当前显示的页面（工作台 / 素材库高亮） */
+  active?: MediaView;
   onNewChat: () => void;
   onStudio: () => void;
   onLibrary: () => void;
@@ -18,6 +22,7 @@ export interface MediaNavProps {
 
 export const MediaNav: React.FC<MediaNavProps> = ({
   collapsed,
+  active = 'chat',
   onNewChat,
   onStudio,
   onLibrary,
@@ -26,12 +31,19 @@ export const MediaNav: React.FC<MediaNavProps> = ({
     { id: 'nav-new-chat', icon: SquarePen, label: t('ui.chat-settings.new-chat'), on: onNewChat },
     ...(mediaClient.available()
       ? [
-          { id: 'nav-image-studio', icon: Palette, label: t('ui.media.nav-studio'), on: onStudio },
+          {
+            id: 'nav-image-studio',
+            icon: Palette,
+            label: t('ui.media.nav-studio'),
+            on: onStudio,
+            view: 'studio',
+          },
           {
             id: 'nav-asset-library',
             icon: Images,
             label: t('ui.media.nav-library'),
             on: onLibrary,
+            view: 'library',
           },
         ]
       : []),
@@ -52,6 +64,7 @@ export const MediaNav: React.FC<MediaNavProps> = ({
           title={it.label}
           aria-label={it.label}
           data-testid={it.id}
+          aria-current={'view' in it && it.view === active ? 'page' : undefined}
         >
           <Icon icon={it.icon} size={16} />
           {!collapsed && <span>{it.label}</span>}

@@ -49,6 +49,7 @@ import { CYCLE_PERMISSION_EVENT, type CyclePermissionDetail } from '../../utils/
 import { AppIcon, FEATURE_ICONS } from '../AppIcons';
 import { EndpointControls, PermissionTip } from '../EndpointControls';
 import { ErrorHint } from '../ErrorHint';
+import { MediaSessionPill } from '../Media/MediaSessionPill';
 import { ComposerChangesPill } from '../SessionWorkspace/ComposerChangesPill';
 import { ContextUsageBar } from '../SessionWorkspace/ContextUsageBar';
 import type { SettingsSection } from '../SettingsView/sections';
@@ -917,6 +918,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
             <div className={styles.modelStatus}>
               <EndpointControls />
             </div>
+            {busyOverride === undefined && <MediaSessionPill />}
           </div>
           <div className={styles.composerRight} data-zone="right">
             <VoiceButtons cv={cv} disabled={disabled} />

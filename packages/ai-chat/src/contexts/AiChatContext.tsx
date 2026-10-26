@@ -32,7 +32,7 @@ import {
 } from '../services/harnessClient';
 import { createIPCClient } from '../services/IPCClient';
 import { kbClient } from '../services/kbClient';
-import { mediaClient } from '../services/mediaClient';
+import { mediaClient, rememberOriginal } from '../services/mediaClient';
 import { ingestConversation, memoryContext } from '../services/memClient';
 import { nomiModelLabel } from '../services/nomiModel';
 import { schedClient } from '../services/schedClient';
@@ -577,6 +577,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
               }
             : {}),
         };
+        images?.forEach((i) => rememberOriginal(i.thumb, i.mime, i.data));
         const history = override?.history ?? s.messages;
         dispatch({ type: 'ADD_MESSAGE', payload: userMessage });
         schedClient.activity();

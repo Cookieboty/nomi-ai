@@ -64,6 +64,21 @@ export interface MediaTask {
   error?: { code: string; message: string };
 }
 
+export interface SessionChoice {
+  choice: MediaModelChoice | null;
+  /** true = 本会话临时改用，不是设置里的默认 */
+  override: boolean;
+}
+
+/** 已启用且有 Key 的「模型 · 供应商」组合（对话 pill / 工作台下拉共用） */
+export function usablePairs(state: MediaState | null): MediaModelChoice[] {
+  if (!state) return [];
+  const ok = new Set(state.providers.filter((p) => p.enabled && p.hasKey).map((p) => p.id));
+  return state.bindings
+    .filter((b) => b.enabled && ok.has(b.providerRef))
+    .map((b) => ({ modelId: b.modelId, providerRef: b.providerRef }));
+}
+
 export interface ChoiceChange {
   target: 'chat' | 'studio';
   kind: 'switched' | 'cleared';
@@ -144,6 +159,14 @@ export const mediaClient = {
   copyImage: (src: string) => call<boolean>('copy-image', src),
   saveImage: (src: string, name?: string) => call<boolean>('save-image', src, name),
   importFiles: () => call<MediaAsset[]>('import'),
+  /** 彻底删除（文件 + 索引） */
+  deleteAssets: (ids: string[]) => call<number>('delete-assets', ids),
+  /** 选择目录后导出原图；取消返回 0 */
+  exportAssets: (ids: string[]) => call<number>('export-assets', ids),
+  sessionChoice: (conversationId?: string) =>
+    call<SessionChoice>('session-choice', conversationId ?? ''),
+  setSessionChoice: (conversationId: string | undefined, c: MediaModelChoice | null) =>
+    call<SessionChoice>('set-session-choice', conversationId ?? '', c),
   onChanged: (fn: () => void) => on('ai:media:changed', () => fn()),
   onTask: (fn: (task: MediaTask) => void) => on('ai:media:task', (p) => fn(p as MediaTask)),
   onNotice: (fn: (c: ChoiceChange) => void) => on('ai:media:notice', (p) => fn(p as ChoiceChange)),
@@ -267,4 +290,21 @@ export function describeChange(state: MediaState | null, c: ChoiceChange): strin
       providerName(state, c.to.providerRef),
     );
   return t('ui.media.notice-cleared', where, model);
+}
+
+// ---------- 上传图原图登记 ----------
+// 会话历史里只存缩略图；本次运行期间发出的上传图在这里记住原图，右键「加入素材库」存原图。
+// 重启后旧消息没有原图可取 → 菜单禁用该项，不会把缩略图当原图入库。
+const ORIGINALS_MAX = 64;
+const originals = new Map<string, string>();
+
+export function rememberOriginal(thumb: string, mime: string, base64: string): void {
+  if (!thumb || !base64) return;
+  originals.delete(thumb);
+  originals.set(thumb, `data:${mime};base64,${base64}`);
+  while (originals.size > ORIGINALS_MAX) originals.delete(originals.keys().next().value as string);
+}
+
+export function originalOf(thumb: string): string | null {
+  return originals.get(thumb) ?? null;
 }

@@ -715,7 +715,7 @@ const AiChatContent: React.FC = () => {
   }, [openSettings]);
 
   const handleNewChat = () => actions.newConversation();
-  const media = useMediaHost(sidebarCollapsed, handleNewChat, openSettings, setToast); // 生图入口与覆盖层
+  const media = useMediaHost(sidebarCollapsed, handleNewChat, openSettings, setToast); // 生图入口与整页
 
   const paletteCommands = useMemo<PaletteCommand[]>(
     () => [
@@ -840,6 +840,7 @@ const AiChatContent: React.FC = () => {
         <div
           className={centerOpen ? 'main-content main-content--with-changes' : 'main-content'}
           data-with-changes={centerOpen ? 'true' : undefined}
+          hidden={media.chatHidden}
         >
           <div
             className="chat-column"
@@ -1053,7 +1054,7 @@ const AiChatContent: React.FC = () => {
             </>
           ) : null}
         </div>
-
+        {media.page}
         {railOpen && tabs.activeTab ? (
           <>
             <div
@@ -1103,7 +1104,6 @@ const AiChatContent: React.FC = () => {
         </div>
       )}
 
-      {media.overlays}
       {/* 模型配置保持为弹窗；日常功能为右侧抽屉（快速视图） */}
       {paletteEl}
       <PluginPanel
