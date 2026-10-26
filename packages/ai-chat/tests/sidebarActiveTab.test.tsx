@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { cleanup, render, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Sidebar } from '../src/components/Sidebar';
@@ -18,7 +18,16 @@ const list = [
     tabId: 't1',
   },
   { id: 'chat', name: '聊聊天气', backend: 'nomi', createdAt: 1, updatedAt: now - 2000 },
+  {
+    id: 'cc',
+    name: '修个 bug',
+    backend: 'claude',
+    createdAt: 1,
+    updatedAt: now - 3000,
+    tabId: 't3',
+  },
 ];
+const current = vi.hoisted(() => ({ id: 'old' }));
 
 // 新建 CLI 标签不会切换 Nomi 侧的当前会话：currentConversationId 仍是之前打开的 old
 vi.mock('../src/contexts/AiChatContext', () => {
@@ -27,7 +36,7 @@ vi.mock('../src/contexts/AiChatContext', () => {
       messages: [],
       ipcClient: {
         listConversations: async () => list,
-        currentConversationId: () => 'old',
+        currentConversationId: () => current.id,
         conversationStore: () => undefined,
       },
     },
@@ -39,7 +48,12 @@ vi.mock('../src/contexts/AiChatContext', () => {
 const tabsState = vi.hoisted(() => ({ activeTabId: 't2' }));
 vi.mock('../src/contexts/HarnessTabsContext', async (importOriginal) => {
   const mod = await importOriginal<typeof HarnessTabs>();
-  const tab = (id: string, title: string) => ({ id, title, backend: 'codex', status: 'idle' });
+  const tab = (id: string, title: string, backend = 'codex') => ({
+    id,
+    title,
+    backend,
+    status: 'idle',
+  });
   return {
     ...mod,
     useHarnessTabs: () => ({
@@ -47,13 +61,21 @@ vi.mock('../src/contexts/HarnessTabsContext', async (importOriginal) => {
       available: true,
       state: {
         activeTabId: tabsState.activeTabId,
-        tabs: [tab('main', 'Nomi'), tab('t1', '你是什么模型？'), tab('t2', 'Codex 2')],
+        tabs: [
+          tab('main', 'Nomi'),
+          tab('t1', '你是什么模型？'),
+          tab('t2', 'Codex 2'),
+          tab('t3', '修个 bug', 'claude'),
+        ],
       },
     }),
   };
 });
 
-beforeEach(() => setChatMode('dev'));
+beforeEach(() => {
+  setChatMode('dev');
+  current.id = 'old';
+});
 afterEach(() => {
   cleanup();
   localStorage.clear();
@@ -71,7 +93,7 @@ describe('Sidebar 高亮项', () => {
     const r = render(
       <Sidebar collapsed={false} onToggle={() => undefined} onNewChat={() => undefined} />,
     );
-    await waitFor(() => expect(r.getAllByTestId('conversation-row')).toHaveLength(3));
+    await waitFor(() => expect(r.getAllByTestId('conversation-row')).toHaveLength(4));
     const active = activeRows(r);
     expect(active).toHaveLength(1);
     expect(active[0]).toContain('Codex 2');
@@ -82,9 +104,50 @@ describe('Sidebar 高亮项', () => {
     const r = render(
       <Sidebar collapsed={false} onToggle={() => undefined} onNewChat={() => undefined} />,
     );
-    await waitFor(() => expect(r.getAllByTestId('conversation-row')).toHaveLength(3));
+    await waitFor(() => expect(r.getAllByTestId('conversation-row')).toHaveLength(4));
     const active = activeRows(r);
     expect(active).toHaveLength(1);
     expect(active[0]).toContain('你是什么模型');
+  });
+});
+
+const cardEndpoint = (r: ReturnType<typeof render>) =>
+  r.getByTestId('endpoint-info-card').getAttribute('data-endpoint');
+
+describe('左下角端信息卡', () => {
+  it('跟随当前会话所在的端：Claude Code 标签显示 Claude Code 的卡', async () => {
+    tabsState.activeTabId = 't3';
+    const r = render(
+      <Sidebar collapsed={false} onToggle={() => undefined} onNewChat={() => undefined} />,
+    );
+    await waitFor(() => expect(cardEndpoint(r)).toBe('claude'));
+  });
+
+  it('在主标签看 Nomi 对话时显示 Nomi 的卡', async () => {
+    tabsState.activeTabId = 'main';
+    current.id = 'chat';
+    const r = render(
+      <Sidebar collapsed={false} onToggle={() => undefined} onNewChat={() => undefined} />,
+    );
+    await waitFor(() => expect(cardEndpoint(r)).toBe('nomi'));
+  });
+
+  it('点顶部端点图标先看那个端，切换会话后回到当前会话的端', async () => {
+    tabsState.activeTabId = 't3';
+    const r = render(
+      <Sidebar collapsed={false} onToggle={() => undefined} onNewChat={() => undefined} />,
+    );
+    await waitFor(() => expect(cardEndpoint(r)).toBe('claude'));
+    fireEvent.click(r.getByTestId('endpoint-filter-nomi'));
+    expect(cardEndpoint(r)).toBe('nomi');
+    tabsState.activeTabId = 't2';
+    r.rerender(
+      <Sidebar collapsed={false} onToggle={() => undefined} onNewChat={() => undefined} />,
+    );
+    tabsState.activeTabId = 't3';
+    r.rerender(
+      <Sidebar collapsed={false} onToggle={() => undefined} onNewChat={() => undefined} />,
+    );
+    expect(cardEndpoint(r)).toBe('claude');
   });
 });

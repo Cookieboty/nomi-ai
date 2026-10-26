@@ -195,17 +195,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
     return c;
   }, [navList]);
 
-  // 当前端的运行中 / 排队中标签数与最近一次标签活动（信息卡用）
+  // 左下角信息卡跟随当前会话所在的端（CLI 标签 / Nomi 对话）；点了顶部端点图标就先看那个端，
+  // 直到切换会话。还没有当前会话时退回筛选的端
+  const [cardPick, setCardPick] = useState<ConversationBackend | null>(null);
+  const [cardPickFor, setCardPickFor] = useState(highlightId);
+  if (cardPickFor !== highlightId) {
+    setCardPickFor(highlightId);
+    setCardPick(null);
+  }
+  const cardBackend: ConversationBackend =
+    cardPick ?? navList.find((x) => x.id === highlightId)?.backend ?? endpointFilter;
+  // 该端的运行中 / 排队中标签数与最近一次标签活动（信息卡用）
   const { endpointRunning, endpointLastTab } = useMemo(() => {
     let running = 0;
     let last: number | null = null;
     for (const x of tabs.state?.tabs ?? []) {
-      if (x.backend !== endpointFilter) continue;
+      if (x.backend !== cardBackend) continue;
       if (x.status === 'running' || x.status === 'queued') running++;
       if (last == null || x.updatedAt > last) last = x.updatedAt;
     }
     return { endpointRunning: running, endpointLastTab: last };
-  }, [tabs.state, endpointFilter]);
+  }, [tabs.state, cardBackend]);
 
   const visible = useMemo(() => {
     if (view === 'by-endpoint') return navList.filter((x) => x.backend === endpointFilter);
@@ -402,6 +412,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     [shownEndpoints, endpointActivity, endpointOrder, view, endpointFilter],
   );
   const pickEndpoint = (b: ConversationBackend) => {
+    setCardPick(b);
     setEndpointFilter(b);
     setView('by-endpoint');
   };
@@ -1062,16 +1073,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </nav>
       )}
 
-      {/* 「按端」视图：选中某端后，左下角固定一张该端的信息卡（点击打开详情抽屉）；精简模式不显示 */}
-      {!collapsed && !searching && isDev && !isCompact && view === 'by-endpoint' && (
+      {/* 工作台模式：左下角固定一张当前会话所在端的信息卡（点击打开详情抽屉）；精简模式不显示 */}
+      {!collapsed && !searching && isDev && !isCompact && (
         <EndpointInfoCard
-          backend={endpointFilter}
+          backend={cardBackend}
           running={endpointRunning}
           lastTabActivity={endpointLastTab}
           bin={
-            endpointFilter === 'nomi'
+            cardBackend === 'nomi'
               ? undefined
-              : (bins[endpointFilter] ?? (endpointFilter in bins ? null : undefined))
+              : (bins[cardBackend] ?? (cardBackend in bins ? null : undefined))
           }
           onOpenSettings={onOpenSettings}
         />

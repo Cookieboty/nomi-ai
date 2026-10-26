@@ -164,15 +164,16 @@ describe('CLI history in the sidebar', () => {
     expect(r.queryByTestId('cli-history-more')).toBeNull();
   });
 
-  it('按端信息卡：只在「开发模式 + 按端」时出现，并跟随所选端；历史区仍可滚动', async () => {
+  it('端信息卡：跟随当前会话所在的端，点端点图标先看那个端；历史区仍可滚动', async () => {
     localStorage.setItem('ai-chat:conversationListView', 'by-endpoint');
     localStorage.setItem('ai-chat:endpointFilter', 'claude');
     // Codex 在这里没有对话：没有显式设置时侧栏不显示它，这里显式设为「显示」
     localStorage.setItem('ai-chat:sidebarEndpoints', JSON.stringify({ codex: 'show' }));
     mockIpc();
     const r = mount();
+    // 当前会话是 Nomi 对话 n1：筛选停在 Claude Code 也显示 Nomi 的卡
     const card = await r.findByTestId('endpoint-info-card');
-    expect(card.getAttribute('data-endpoint')).toBe('claude');
+    await waitFor(() => expect(card.getAttribute('data-endpoint')).toBe('nomi'));
     // 卡片在可滚动的会话列表（含「本机历史」）之外，固定在侧栏底部
     expect(r.getByTestId('conversation-list').contains(card)).toBe(false);
     expect(await r.findByTestId('cli-history')).toBeTruthy();
@@ -180,9 +181,9 @@ describe('CLI history in the sidebar', () => {
     await waitFor(() =>
       expect(r.getByTestId('endpoint-info-card').getAttribute('data-endpoint')).toBe('codex'),
     );
-    // 切到「全部」后消失
+    // 「全部」视图下也保留
     fireEvent.click(r.getByTestId('list-view-all'));
-    await waitFor(() => expect(r.queryByTestId('endpoint-info-card')).toBeNull());
+    expect(r.getByTestId('endpoint-info-card')).toBeTruthy();
   });
 
   it('一行筛选：从「全部」直接点端点图标即切到该端；悬停提示带对话数与本机历史数', async () => {
