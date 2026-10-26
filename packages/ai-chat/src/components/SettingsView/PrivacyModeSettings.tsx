@@ -204,6 +204,8 @@ const PrivacyDetails: React.FC<{
               value={settings.actions[kind] ?? 'mask'}
               disabled={disabled}
               options={actionOptions}
+              // 触发器只有「脱敏」宽，菜单按最长的选项（英文 Warn only + 勾）放宽
+              menuMinWidth={160}
               aria-label={label()}
               data-testid={`privacy-action-${kind}`}
               onChange={(e) =>
