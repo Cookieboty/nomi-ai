@@ -1,6 +1,6 @@
 {
   "name": "nomi",
-  "version": "2.0.1",
+  "version": "2.0.3",
   "description": "Nomi·诺米：本地运行的桌面 AI 伙伴（Electron + IgPluginHost / Vercel AI SDK）",
   "private": true,
   "type": "module",
