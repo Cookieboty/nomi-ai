@@ -38,7 +38,9 @@ describe('PrivacyLog', () => {
       ['{{TOKEN_bbbbbbbb}}', 1, 0, ['codex']],
     ]);
     log.flush();
-    expect((fs.statSync(file).mode & 0o777).toString(8)).toBe('600');
+    // Windows 没有 POSIX 权限位
+    if (process.platform !== 'win32')
+      expect((fs.statSync(file).mode & 0o777).toString(8)).toBe('600');
     const again = new PrivacyLog(file);
     expect(again.list().map((e) => e.placeholder)).toEqual([
       '{{TOKEN_aaaaaaaa}}',

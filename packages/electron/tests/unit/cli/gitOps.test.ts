@@ -43,7 +43,13 @@ function init(dir: string) {
   git(dir, 'config', 'user.email', 'a@b');
   git(dir, 'config', 'user.name', 't');
   git(dir, 'config', 'commit.gpgsign', 'false');
+  // Windows runner 默认 autocrlf=true，检出会把 \n 变成 \r\n
+  git(dir, 'config', 'core.autocrlf', 'false');
 }
+
+/** 真实路径；Windows 用 native 才会展开 8.3 短名，和 git 给出的路径一致 */
+const realp = (p: string) =>
+  process.platform === 'win32' ? fs.realpathSync.native(p) : fs.realpathSync(p);
 
 const status = (dir: string) => git(dir, 'status', '--short');
 const write = (file: string, text: string) => {
@@ -264,7 +270,7 @@ describe('gitOps', () => {
     git(repo, 'worktree', 'add', '-q', '--detach', del);
     const main = await gitWorktrees(repo);
     expect(main?.linked).toBe(false);
-    const real = (p: string) => fs.realpathSync(p);
+    const real = realp;
     const at = (p: string) => main?.worktrees.find((w) => real(w.path) === real(p));
     expect(main?.worktrees).toHaveLength(3);
     expect(main?.worktrees[0]).toBe(at(repo));
@@ -427,9 +433,9 @@ describe('gitOps', () => {
     fs.writeFileSync(path.join(fake, 'HEAD'), `${git(repo, 'rev-parse', 'HEAD')}\n`);
     fs.writeFileSync(path.join(fake, 'commondir'), '../..\n');
     const list = await gitWorktrees(repo);
-    expect(list?.worktrees.map((w) => w.path)).toContain(outside);
-    const owned = (await ownedWorktrees(repo, list!.worktrees)).map((p) => fs.realpathSync(p));
-    expect(owned).toEqual([fs.realpathSync(repo), fs.realpathSync(wt)]);
+    expect(list?.worktrees.map((w) => realp(w.path))).toContain(realp(outside));
+    const owned = (await ownedWorktrees(repo, list!.worktrees)).map(realp);
+    expect(owned).toEqual([realp(repo), realp(wt)]);
   });
 
   it('撤销放弃：git 的检查通过之后、删除之前上级目录才被换成软链，也不删仓库外的文件', async () => {
@@ -442,7 +448,7 @@ describe('gitOps', () => {
     const outside = path.join(root, 'outside');
     write(path.join(outside, 'x.txt'), 'keep\n');
     // 用真实路径比对：macOS 的临时目录 /var 是指向 /private/var 的软链，git 给的是后者
-    const dir = path.join(fs.realpathSync(repo), 'd');
+    const dir = path.join(realp(repo), 'd');
     // 删除前取上级目录真实路径的那一刻才换：git diff 的检查已经过了
     const realpath = fs.realpathSync;
     const spy = jest.spyOn(fs, 'realpathSync').mockImplementation(((p: fs.PathLike) => {

@@ -294,7 +294,9 @@ type State = ReturnType<HarnessOrchestrator['state']>;
 /** 真实路径（git 给的 worktree 路径已解析软链，如 macOS 的 /var → /private/var）；读不到时原样 */
 function realDir(p: string): string {
   try {
-    return fs.realpathSync(p);
+    // Windows：只有 native 会把 8.3 短名（RUNNER~1）展开成 git 给出的长名
+    const rp = fs.realpathSync;
+    return process.platform === 'win32' && rp.native ? rp.native(p) : rp(p);
   } catch {
     return path.resolve(p);
   }
