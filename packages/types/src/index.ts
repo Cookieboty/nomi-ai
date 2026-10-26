@@ -24,6 +24,8 @@ export interface IpcApi {
   /** Main-process TTS synthesize; on failure renderer stays silent */
   ttsSpeak?: (req: TTSSpeakRequest) => Promise<TTSSpeakResult>;
   ttsHealth?: (config?: Partial<TTSConfig>) => Promise<TTSTestResult>;
+  /** 诺米提示语音开关（TTSConfig.promptVoice，默认开） */
+  ttsPromptVoice?: () => Promise<boolean>;
 
   // AI对话相关API
   openAiChat: () => Promise<{ success: boolean; error?: string }>;

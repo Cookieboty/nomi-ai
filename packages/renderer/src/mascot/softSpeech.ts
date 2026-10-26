@@ -63,6 +63,11 @@ export interface SpeakSoftOptions {
   /** Cancel any current utterance first (default true) */
   cancel?: boolean;
   onEnd?: () => void;
+  /**
+   * 诺米提示语音片段 key（变量台词用固定句）；null 表示不播预录片段。
+   * 未提供时按台词 key / 文本自动匹配。
+   */
+  clip?: string | null;
 }
 
 /** 语音打断入口：系统朗读已移除，保留为空操作以兼容 speechStop 等调用方 */

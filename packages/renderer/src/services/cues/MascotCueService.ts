@@ -17,6 +17,8 @@ const log = createLogger('mascot-cue');
 export interface CueSpeakOpts {
   /** 覆盖默认台词 */
   text?: string;
+  /** 诺米提示语音片段 key（变量台词播固定句）；null 表示不播预录片段 */
+  clip?: string | null;
   /** 是否同时播音效（默认 true） */
   sfx?: boolean;
   /** 强制打断同级或更低优先级 */
@@ -80,7 +82,7 @@ export class MascotCueService {
   trigger(event: CueEvent, opts: CueSpeakOpts = {}): boolean {
     const meta = CUE_META[event];
     const lines = CUE_LINES[event];
-    if (!meta || !lines?.length) return false;
+    if (!meta) return false;
     const now = opts.now ?? performance.now();
     const last = this.lastByEvent.get(event) ?? -Infinity;
     if (now - last < meta.cooldownMs && !opts.force) return false;
@@ -103,14 +105,17 @@ export class MascotCueService {
     }
 
     if (wantSpeech && this.canSpeak()) {
-      // CUE_LINES 存的是 key：先翻译再截断，避免按 key 长度截断
-      const text = t(opts.text?.trim() || pick(lines)).slice(0, 160);
+      // CUE_LINES 存的是 key：key 原样交给朗读（便于匹配预录片段），普通文本截断
+      // 台词被精简掉的事件（lines 为空）不说话，只保留音效
+      const custom = opts.text?.trim();
+      const text = custom ? t(custom).slice(0, 160) : lines?.length ? pick(lines) : '';
       if (text) {
         if (this.speaking && priority >= this.currentPriority) stopAllSpeech();
         this.speaking = true;
         this.currentPriority = priority;
         try {
           speakForActiveCharacter(text, {
+            clip: opts.clip,
             prefs: { volume: this.gate.voiceVolume } as SoftSpeechPrefs,
             onEnd: () => {
               this.speaking = false;

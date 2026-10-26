@@ -179,6 +179,63 @@ async function attachVolumeEnvelope(
 }
 
 /**
+ * 在给定 session 里播放一个音频地址：挂接口型包络（AnalyserNode RMS → lipSyncStore）后 play。
+ * 预录提示语与实时 TTS 共用这条路径，因此共享打断 / 切句 / 口型复位逻辑。
+ */
+async function playInSession(
+  src: string,
+  session: Session,
+  gen: number,
+  opts: { volume?: number; onEnd?: () => void },
+): Promise<void> {
+  const audio = new Audio();
+  session.audio = audio;
+  activeSession = session;
+  audio.src = src;
+  audio.volume = Math.max(0, Math.min(1, opts.volume ?? 0.78));
+  audio.onended = () => {
+    if (gen !== generation) return;
+    releaseSession(session);
+    opts.onEnd?.();
+  };
+  audio.onerror = () => {
+    if (gen !== generation) return;
+    releaseSession(session);
+    opts.onEnd?.();
+  };
+
+  await attachVolumeEnvelope(audio, session, gen);
+  if (gen !== generation) {
+    releaseSession(session); // 已被取消：不再 play，只释放自己的资源
+    return;
+  }
+  await audio.play();
+}
+
+/**
+ * 播放一段静态音频（预录提示语）。与 speakWithFish 共用打断与口型同步。
+ * 返回 true 表示已开始播放；play() 失败返回 false 且不调用 onEnd（调用方继续兜底）。
+ */
+export async function playAudioClip(
+  src: string,
+  opts: { volume?: number; onEnd?: () => void } = {},
+): Promise<boolean> {
+  ensureStopper();
+  const gen = ++generation;
+  stopSoftSpeech();
+  cleanupActive();
+  const session = newSession();
+  try {
+    await playInSession(src, session, gen, opts);
+    return true;
+  } catch (err) {
+    log.warn('clip playback failed', err);
+    releaseSession(session);
+    return false;
+  }
+}
+
+/**
  * Try Fish synthesize + play. Returns true if Fish audio started (or completed setup).
  * Returns false when no TTS audio was produced.
  */
@@ -222,28 +279,7 @@ export async function speakWithFish(text: string, opts: FishSpeakOptions = {}): 
     const url = URL.createObjectURL(blob);
     session.url = url;
 
-    const audio = new Audio();
-    session.audio = audio;
-    activeSession = session;
-    audio.src = url;
-    audio.volume = Math.max(0, Math.min(1, opts.volume ?? 0.78));
-    audio.onended = () => {
-      if (gen !== generation) return;
-      releaseSession(session);
-      opts.onEnd?.();
-    };
-    audio.onerror = () => {
-      if (gen !== generation) return;
-      releaseSession(session);
-      opts.onEnd?.();
-    };
-
-    await attachVolumeEnvelope(audio, session, gen);
-    if (gen !== generation) {
-      releaseSession(session); // 已被取消：不再 play，只释放自己的资源
-      return true;
-    }
-    await audio.play();
+    await playInSession(url, session, gen, opts);
     return true;
   } catch (err) {
     log.warn('TTS playback failed; staying silent', err);

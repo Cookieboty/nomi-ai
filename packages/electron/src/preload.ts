@@ -208,4 +208,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   ttsHealth: async (config?: unknown) => {
     return await ipcRenderer.invoke('tts:health', config);
   },
+  ttsPromptVoice: async () => {
+    return await ipcRenderer.invoke('tts:prompt-voice');
+  },
 } as IpcApi);

@@ -14,6 +14,7 @@ import {
   type SoftSpeechPrefs,
   type SpeakSoftOptions,
 } from './softSpeech';
+import { isNoAudioLine, playPromptClip } from './voice/promptClips';
 
 const OVERRIDE_KEY = 'mascot.characterVoice.v1';
 
@@ -36,6 +37,11 @@ type OverrideMap = Record<string, ModelVoiceConfig>;
 
 let activeModelName: string | null = null;
 let activeModelConfig: ModelConfig | undefined;
+
+/** 当前看板娘模型名（诺米提示语音据此判断是否适用） */
+export function getActiveModelName(): string | null {
+  return activeModelName;
+}
 
 function storage(): Storage | null {
   try {
@@ -137,17 +143,29 @@ export function speakForActiveCharacter(key: string, opts: SpeakSoftOptions = {}
   const configuredRate = Number.isFinite(merged.rate) ? merged.rate : 0.92;
   const speed = Math.min(1.5, Math.max(0.5, configuredRate));
 
-  // Main-process TTS path (configured realtime engine). TTS failures stay silent.
+  // 保留文字、不播音频的台词
+  if (isNoAudioLine(key)) {
+    opts.onEnd?.();
+    return false;
+  }
+
+  // 顺序：诺米预录片段 → 已配置的实时朗读引擎 → 静默（只剩气泡）
   void (async () => {
     try {
+      const clip = await playPromptClip(key, {
+        modelName: activeModelName,
+        clip: opts.clip,
+        volume: merged.volume,
+        onEnd: opts.onEnd,
+      });
+      if (clip !== 'none') return;
       const { speakWithFish } = await import('./tts/fishSpeak');
-      const ok = await speakWithFish(text, {
+      await speakWithFish(text, {
         referenceId,
         volume: merged.volume,
         speed,
         onEnd: opts.onEnd,
       });
-      if (ok) return;
     } catch {
       // Keep the cue state consistent if the TTS module itself cannot load.
       opts.onEnd?.();

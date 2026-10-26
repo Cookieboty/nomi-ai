@@ -8,6 +8,7 @@ import { createLogger, t as tr } from '@nomi-ai/ui';
 import { useEffect, useRef } from 'react';
 import type { FC } from 'react';
 
+import { CLIP_HINTS } from '@/mascot/voice/promptClips';
 import { REACTION_SPEAK_KINDS, type CueEvent } from '@/services/cues/lines';
 import { mascotCueService } from '@/services/cues/MascotCueService';
 import { sfxService } from '@/services/sfx/SfxService';
@@ -207,6 +208,7 @@ export const MascotAudioBridge: FC = () => {
       const text = typeof r?.text === 'string' ? r.text : '';
       mascotCueService.trigger('reminder', {
         text: text ? tr('ui.usage-tools.reminder', text.slice(0, 80)) : undefined,
+        clip: CLIP_HINTS.reminder,
       });
     });
     return () => off();

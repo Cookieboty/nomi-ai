@@ -365,6 +365,15 @@ export class ConfigIpcHandler extends BaseIpcHandler {
       }
     });
 
+    // 诺米提示语音开关：看板娘窗口据此决定是否播放预录提示语
+    this.registerHandler('tts:prompt-voice', async () => {
+      try {
+        return fish.getConfig().promptVoice !== false;
+      } catch {
+        return true;
+      }
+    });
+
     this.registerHandler('tts:health', async (_, config?: Partial<TTSConfig>) => {
       try {
         const provider = config?.provider ?? fish.getConfig().provider;

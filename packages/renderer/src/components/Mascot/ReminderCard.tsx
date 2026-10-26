@@ -6,6 +6,8 @@ import React, { useEffect, useState } from 'react';
 
 import styles from './DesktopConfirm.module.css';
 
+import { CLIP_HINTS } from '@/mascot/voice/promptClips';
+
 const time = (t: number) =>
   new Date(t).toLocaleTimeString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit' });
 
@@ -21,11 +23,14 @@ export const ReminderCard: React.FC = () => {
   useEffect(() => {
     if (!api?.onReminder) return;
     // priority 11 > messageComplete (9): late AI replies must not replace a live reminder
-    const say = (text: string, ms = 15000) =>
-      window.dispatchEvent(new CustomEvent('mascot:say', { detail: { text, ms, priority: 11 } }));
+    // clip：诺米提示语音播固定句，气泡显示带内容的完整文字
+    const say = (text: string, clip: string, ms = 15000) =>
+      window.dispatchEvent(
+        new CustomEvent('mascot:say', { detail: { text, ms, priority: 11, clip } }),
+      );
     const off1 = api.onReminder((r) => {
       setQueue((q) => [...q.filter((x) => x.id !== r.id), r]);
-      say(tr('ui.usage-tools.reminder', r.text));
+      say(tr('ui.usage-tools.reminder', r.text), CLIP_HINTS.reminder);
     });
     // 关闭期间错过的提醒：挂载后拉取一次
     void api.takeMissedReminders().then((items) => {
@@ -41,6 +46,7 @@ export const ReminderCard: React.FC = () => {
             .join('、'),
           items.length > 3 ? '…' : '',
         ),
+        CLIP_HINTS.missedReminders,
         20000,
       );
     });
