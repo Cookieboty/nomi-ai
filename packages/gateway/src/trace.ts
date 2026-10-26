@@ -106,6 +106,8 @@ export function secretsOf(cfg: GatewayConfig): string[] {
   for (const p of cfg.providers) for (const k of p.keys) if (k.value) out.push(k.value);
   for (const c of Object.values(cfg.clients)) if (c?.token) out.push(c.token);
   if (cfg.legacyToken) out.push(cfg.legacyToken);
+  // 隐私模式登记的自定义密钥：规则认不出，只能按原文替换
+  for (const k of cfg.privacy?.known ?? []) if (k.value) out.push(k.value);
   // 长的先替换：一个密钥是另一个的前缀时不留半截
   return out.sort((a, b) => b.length - a.length);
 }
@@ -202,7 +204,7 @@ interface TraceAttempt {
  * 一个请求的追踪记录。网关在请求各阶段调用它，结束时 finish() 写盘（异步，失败只记日志）。
  */
 export class RequestTrace {
-  private readonly secrets: string[];
+  private secrets: string[];
   private readonly attempts: TraceAttempt[] = [];
   private requestHeaders: Record<string, string> = {};
   private requestBody: unknown;
@@ -226,6 +228,16 @@ export class RequestTrace {
   ) {
     this.secrets = secretsOf(cfg);
     this.id = opts.id ?? randomUUID().replace(/-/g, '').slice(0, 12);
+  }
+
+  /**
+   * 追加这个请求里隐私模式遮掉的原文（严格档、已见值等规则兜不住的值）：
+   * 写给客户端的输出是还原过的，不加的话会以明文落进追踪文件
+   */
+  addSecrets(values: Iterable<string>): void {
+    const set = new Set(this.secrets);
+    for (const v of values) if (v) set.add(v);
+    this.secrets = [...set].sort((a, b) => b.length - a.length);
   }
 
   request(headers: Record<string, string | string[] | undefined>, body: unknown): void {

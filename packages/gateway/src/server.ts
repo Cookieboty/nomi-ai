@@ -713,6 +713,7 @@ export class GatewayServer {
         return;
       }
       if (masked.hits.length) tag.redactions = masked.hits;
+      if (masked.restore.size) trace?.addSecrets(masked.restore.values());
       if (masked.blocked) {
         const kinds = masked.hits
           .filter((h) => h.action === 'block')
