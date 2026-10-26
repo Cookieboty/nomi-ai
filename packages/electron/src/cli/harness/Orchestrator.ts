@@ -59,6 +59,7 @@ import { claudeConfigDir } from '../../usage/cliHomes';
 import { qualityLedgerInput } from '../../usage/quality/cliTokens';
 import { CoalescedWriter, flushPendingWritesSync } from '../../utils/coalescedWriter';
 import { writePrivateFile } from '../../utils/privateFile';
+import { cleanCommitMessage, commitMessagePrompt } from '../commitMessage';
 import { codexConfigPath, grokHomePath } from '../configPatch';
 import {
   buildCarriedContext,
@@ -77,7 +78,10 @@ import {
 } from '../gemini/trustedFolders';
 import {
   gitCommit,
+  gitCommitContext,
   gitCommitUndo,
+  gitDiscard,
+  gitDiscardUndo,
   gitFetch,
   gitPull,
   gitPush,
@@ -432,6 +436,11 @@ export class HarnessOrchestrator {
       grokAcp?: boolean;
       /** Codex 走 app-server 长驻会话（`codex app-server`）；关闭或起不来时用 `codex exec`。测试缺省关闭 */
       codexAppServer?: boolean;
+      /** 辅助模型（网关 summary 档）一次性补全：右栏「生成提交信息」用；没有时这个按钮报错 */
+      complete?: (
+        messages: Array<{ role: 'system' | 'user'; content: string }>,
+        signal: AbortSignal,
+      ) => Promise<string>;
     },
   ) {
     this.idleReclaimMs = resolveIdleReclaimMs(d.idleReclaimMs, process.env.NOMI_HARNESS_IDLE_MS);
@@ -504,6 +513,29 @@ export class HarnessOrchestrator {
    * 只在内存里；上限防止无限增长。
    */
   private worktreeDirs = new Set<string>();
+
+  /** 「生成提交信息」：要提交的 diff + 最近的提交标题交给辅助模型（经网关，受外发保护） */
+  async suggestCommitMessage(cwd: unknown, paths?: unknown) {
+    const dir = this.knownDir(cwd);
+    if (!this.d.complete) return { ok: false, code: 'error' as const };
+    const ctx = await gitCommitContext(dir, paths);
+    if (!ctx) return { ok: false, code: 'invalid' as const };
+    if (!ctx.diff.trim() && !ctx.stat.trim()) return { ok: false, code: 'nothing' as const };
+    try {
+      const raw = await this.d.complete(commitMessagePrompt(ctx), AbortSignal.timeout(90_000));
+      const message = cleanCommitMessage(raw);
+      return message
+        ? { ok: true, message }
+        : { ok: false, code: 'error' as const, output: raw.slice(0, 2000) };
+    } catch (e) {
+      const timeout = e instanceof Error && e.name === 'TimeoutError';
+      return {
+        ok: false,
+        code: timeout ? ('timeout' as const) : ('error' as const),
+        output: e instanceof Error ? e.message : String(e),
+      };
+    }
+  }
 
   /** 已知目录所在仓库的 worktree；列出来的（还在的）路径之后也算已知目录 */
   async listWorktrees(cwd: unknown) {
@@ -4856,6 +4888,11 @@ export class HarnessOrchestrator {
     handle('ai:harness:git-pull', (cwd) => gitPull(this.knownDir(cwd)));
     handle('ai:harness:git-push', (cwd) => gitPush(this.knownDir(cwd)));
     handle('ai:harness:git-worktrees', (cwd) => this.listWorktrees(cwd));
+    handle('ai:harness:git-discard', (cwd, paths) => gitDiscard(this.knownDir(cwd), paths));
+    handle('ai:harness:git-discard-undo', (cwd, sha) => gitDiscardUndo(this.knownDir(cwd), sha));
+    handle('ai:harness:git-suggest-message', (cwd, paths) =>
+      this.suggestCommitMessage(cwd, paths ?? undefined),
+    );
     handle('ai:harness:workspace-read', (cwd, filePath) =>
       readWorkspaceFile(this.knownDir(cwd), String(filePath ?? '')),
     );

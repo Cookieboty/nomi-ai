@@ -72,6 +72,7 @@
   "electron.common.claude-error": "Claude error",
   "electron.common.claude-process-stdin-is-not-writable": "Claude process stdin is not writable",
   "electron.common.cli-process-es-outside-nomi-still-use-this": "{0} CLI process(es) outside Nomi still use this account (PID {1}). Quit them in the terminal first",
+  "electron.common.code-changes": "code changes",
   "electron.common.codex-could-not-start-the-app-server": "Codex could not start the app-server",
   "electron.common.codex-did-not-return-a-session": "Codex did not return a session",
   "electron.common.codex-error": "Codex error",

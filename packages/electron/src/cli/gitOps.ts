@@ -51,8 +51,10 @@ export interface GitOpResult {
   code?: GitOpCode;
   /** git 的原始输出（截到最后 8 KB） */
   output?: string;
-  /** 提交：新提交的完整 sha */
+  /** 提交：新提交的完整 sha；放弃改动：存改动的 stash 的 sha */
   sha?: string;
+  /** 生成的提交信息 */
+  message?: string;
 }
 
 export interface GitSyncStatus {
@@ -444,4 +446,207 @@ export async function gitWorktrees(cwd: string): Promise<GitWorktreeList | null>
     linked: !!gitDir && !!commonDir && real(gitDir) !== real(commonDir),
     worktrees,
   };
+}
+
+/** 生成提交信息时给模型看的 diff 上限（字符）；更多的只给文件列表 */
+const CONTEXT_DIFF_MAX = 24_000;
+const UNTRACKED_PEEK = 1500;
+const UNTRACKED_MAX = 10;
+const CONTEXT_PATHS_MAX = 300;
+
+export interface GitCommitContext {
+  /** 最近的提交标题（照着仓库的风格写） */
+  subjects: string[];
+  stat: string;
+  diff: string;
+  truncated: boolean;
+}
+
+/**
+ * 要提交的内容（生成提交信息用）：paths 为空 = 已暂存的；否则这些文件相对 HEAD 的改动，
+ * 未跟踪的文件附上开头一段。只读。
+ */
+export async function gitCommitContext(
+  cwd: string,
+  paths?: unknown,
+): Promise<GitCommitContext | null> {
+  const flags = ['--no-ext-diff', '--no-textconv', '--no-color'];
+  const subjects = (await line(cwd, ['log', '-10', '--format=%s'])).split('\n').filter(Boolean);
+  let stat: string;
+  let diff: string;
+  if (paths == null) {
+    stat = await line(cwd, ['diff', ...flags, '--cached', '--stat']);
+    diff = (await run(cwd, ['diff', ...flags, '--cached'])).stdout;
+  } else {
+    const all = await checkPaths(cwd, paths);
+    if (!all) return null;
+    // 命令行长度有上限（Windows 约 32K）：只看前面这些文件
+    const list = all.slice(0, CONTEXT_PATHS_MAX);
+    const head = (await hasHead(cwd)) ? ['HEAD'] : ['--cached'];
+    const spec = ['--literal-pathspecs'];
+    stat = await line(cwd, [...spec, 'diff', ...flags, '--stat', ...head, '--', ...list]);
+    diff = (await run(cwd, [...spec, 'diff', ...flags, ...head, '--', ...list])).stdout;
+    const untracked = (
+      await line(cwd, [...spec, 'ls-files', '--others', '--exclude-standard', '--', ...list])
+    )
+      .split('\n')
+      .filter(Boolean);
+    const base = real(cwd);
+    const peeks = untracked.slice(0, UNTRACKED_MAX).map((f) => {
+      let head = '';
+      try {
+        const buf = fs.readFileSync(path.resolve(base, f)).subarray(0, UNTRACKED_PEEK);
+        head = buf.includes(0) ? '(binary)' : buf.toString('utf8');
+      } catch {
+        /* 读不了就只给文件名 */
+      }
+      return `new file: ${f}\n${head}`;
+    });
+    if (untracked.length > UNTRACKED_MAX)
+      peeks.push(`… ${untracked.length - UNTRACKED_MAX} more new files`);
+    if (untracked.length) {
+      stat = [stat, ...untracked.map((f) => ` ${f} (new)`)].filter(Boolean).join('\n');
+      diff = [diff, ...peeks].filter(Boolean).join('\n');
+    }
+  }
+  const truncated = diff.length > CONTEXT_DIFF_MAX;
+  return { subjects, stat, diff: truncated ? diff.slice(0, CONTEXT_DIFF_MAX) : diff, truncated };
+}
+
+const DISCARD_TAG = 'nomi: discard';
+const SHA_RE = /^[0-9a-f]{40}([0-9a-f]{24})?$/i;
+
+async function stashPush(cwd: string, args: string[], paths: string[], label: string) {
+  const before = await line(cwd, ['rev-parse', '-q', '--verify', 'refs/stash']);
+  const r = await run(
+    cwd,
+    [
+      '--literal-pathspecs',
+      'stash',
+      'push',
+      ...args,
+      '-m',
+      label,
+      '--pathspec-from-file=-',
+      '--pathspec-file-nul',
+    ],
+    LOCAL_MS * 4,
+    paths.join('\0'),
+  );
+  const sha = await line(cwd, ['rev-parse', '-q', '--verify', 'refs/stash']);
+  // 没有可存的改动时 git 不建 stash（退出码也是 0）
+  return { r, sha: sha && sha !== before ? sha : '' };
+}
+
+/**
+ * 放弃这些文件未暂存的改动（含未跟踪文件）：存进 git stash 而不是直接丢掉，可以撤销；已暂存的部分留着。
+ * 已跟踪的和未跟踪的分两个 stash（git 的 --keep-index 碰上未跟踪文件的路径会出错），按创建顺序返回。
+ */
+export function gitDiscard(
+  cwd: string,
+  paths: unknown,
+): Promise<GitOpResult & { stashes?: string[] }> {
+  return locked(cwd, async () => {
+    const list = await checkPaths(cwd, paths);
+    if (!list) return fail('invalid');
+    if (!(await hasHead(cwd))) return fail('invalid');
+    const top = real(await line(cwd, ['rev-parse', '--show-toplevel']));
+    const others = new Set(
+      (await run(top, ['ls-files', '--others', '--exclude-standard', '-z'])).stdout
+        .split('\0')
+        .filter(Boolean)
+        .map((f) => path.resolve(top, f)),
+    );
+    const base = real(cwd);
+    const untracked = list.filter((p) => others.has(path.resolve(base, p)));
+    const tracked = list.filter((p) => !others.has(path.resolve(base, p)));
+    const label = `${DISCARD_TAG} ${list.length}`;
+    const stashes: string[] = [];
+    if (tracked.length) {
+      const t = await stashPush(cwd, ['--keep-index'], tracked, label);
+      if (t.r.code !== 0) return fail(t.r.timedOut ? 'timeout' : 'error', t.r);
+      if (t.sha) stashes.push(t.sha);
+    }
+    if (untracked.length) {
+      const u = await stashPush(cwd, ['--include-untracked'], untracked, label);
+      if (u.r.code !== 0) return { ...fail(u.r.timedOut ? 'timeout' : 'error', u.r), stashes };
+      if (u.sha) stashes.push(u.sha);
+    }
+    return stashes.length ? { ok: true, stashes } : fail('nothing');
+  });
+}
+
+const stashIndex = async (cwd: string, sha: string) =>
+  (await line(cwd, ['stash', 'list', '--format=%H'])).split('\n').indexOf(sha);
+
+/**
+ * 撤销放弃。已跟踪的：工作区按 stash 里的样子还原（暂存区不动，不做合并，所以不会冲突），
+ * 前提是这些文件之后没再改过；未跟踪的：stash pop。成功后删掉对应的 stash。
+ */
+export function gitDiscardUndo(cwd: string, stashes: unknown): Promise<GitOpResult> {
+  const list = Array.isArray(stashes) ? stashes : [stashes];
+  if (
+    !list.length ||
+    list.length > 2 ||
+    !list.every((s) => typeof s === 'string' && SHA_RE.test(s))
+  )
+    return Promise.resolve(fail('invalid'));
+  return locked(cwd, async () => {
+    const top = real(await line(cwd, ['rev-parse', '--show-toplevel']));
+    for (const sha of list as string[]) if ((await stashIndex(top, sha)) < 0) return fail('moved');
+    for (const sha of list as string[]) {
+      const untracked = (await run(top, ['rev-parse', '-q', '--verify', `${sha}^3`])).code === 0;
+      if (untracked) {
+        const r = await run(top, ['stash', 'pop', '-q', `stash@{${await stashIndex(top, sha)}}`]);
+        if (r.code !== 0) return fail('error', r);
+        continue;
+      }
+      // stash 的第二个父提交是当时的暂存区：它和工作区（stash 本身）之间的差别就是放弃掉的
+      const changes = (
+        await run(top, ['diff', '--name-status', '-z', '--no-renames', `${sha}^2`, sha])
+      ).stdout.split('\0');
+      const restore: string[] = [];
+      const remove: string[] = [];
+      for (let i = 0; i + 1 < changes.length; i += 2) {
+        const [st, f] = [changes[i]!, changes[i + 1]!];
+        if (!f) continue;
+        (st === 'D' ? remove : restore).push(f);
+      }
+      const all = [...restore, ...remove];
+      if (all.length) {
+        // 放弃之后又改过：不覆盖（git diff 没有 --pathspec-from-file，分批放进参数）
+        for (let k = 0; k < all.length; k += 200) {
+          const dirty = await run(top, [
+            '--literal-pathspecs',
+            'diff',
+            '--name-only',
+            '--',
+            ...all.slice(k, k + 200),
+          ]);
+          if (dirty.code !== 0) return fail('error', dirty);
+          if (dirty.stdout.trim()) return fail('moved', dirty);
+        }
+      }
+      if (restore.length) {
+        const r = await run(
+          top,
+          [
+            '--literal-pathspecs',
+            'restore',
+            `--source=${sha}`,
+            '--worktree',
+            '--pathspec-from-file=-',
+            '--pathspec-file-nul',
+          ],
+          LOCAL_MS * 4,
+          restore.join('\0'),
+        );
+        if (r.code !== 0) return fail('error', r);
+      }
+      for (const f of remove) fs.rmSync(path.resolve(top, f), { force: true });
+      const d = await run(top, ['stash', 'drop', '-q', `stash@{${await stashIndex(top, sha)}}`]);
+      if (d.code !== 0) return fail('error', d);
+    }
+    return { ok: true };
+  });
 }

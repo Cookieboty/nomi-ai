@@ -15,7 +15,10 @@ import path from 'node:path';
 import {
   classify,
   gitCommit,
+  gitCommitContext,
   gitCommitUndo,
+  gitDiscard,
+  gitDiscardUndo,
   gitFetch,
   gitPull,
   gitPush,
@@ -295,5 +298,63 @@ describe('gitOps', () => {
       { path: '/r/a b', head: '1234', branch: 'x/y', locked: true },
       { path: '/gone', head: '5678', detached: true, prunable: true },
     ]);
+  });
+
+  it('提交上下文：已暂存的 / 指定文件（含未跟踪文件开头）+ 最近的提交标题', async () => {
+    write(path.join(repo, 'a.txt'), 'a2\n');
+    write(path.join(repo, 'new.md'), '# hello\n');
+    git(repo, 'add', 'a.txt');
+    const staged = await gitCommitContext(repo);
+    expect(staged?.subjects).toEqual(['init']);
+    expect(staged?.diff).toContain('+a2');
+    expect(staged?.diff).not.toContain('hello');
+    const listed = await gitCommitContext(repo, ['a.txt', 'new.md']);
+    expect(listed?.diff).toContain('+a2');
+    expect(listed?.diff).toContain('new file: new.md\n# hello');
+    expect(listed?.stat).toContain('new.md (new)');
+    expect(await gitCommitContext(repo, ['../x'])).toBeNull();
+  });
+
+  it('放弃改动：存进 stash（未跟踪的也是），已暂存的留着；撤销后原样回来', async () => {
+    write(path.join(repo, 'a.txt'), 'staged\n');
+    git(repo, 'add', 'a.txt');
+    write(path.join(repo, 'a.txt'), 'staged\nmore\n');
+    write(path.join(repo, 'n.txt'), 'new\n');
+    write(path.join(repo, 'keep.txt'), 'keep\n');
+    const r = await gitDiscard(repo, ['a.txt', 'n.txt']);
+    expect(r.ok).toBe(true);
+    expect(fs.readFileSync(path.join(repo, 'a.txt'), 'utf8')).toBe('staged\n');
+    expect(fs.existsSync(path.join(repo, 'n.txt'))).toBe(false);
+    // 别的文件不动
+    expect(status(repo)).toBe('M  a.txt\n?? keep.txt');
+    expect(git(repo, 'stash', 'list')).toContain('nomi: discard 2');
+    expect(r.stashes).toHaveLength(2);
+    expect(await gitDiscardUndo(repo, r.stashes)).toEqual({ ok: true });
+    expect(fs.readFileSync(path.join(repo, 'a.txt'), 'utf8')).toBe('staged\nmore\n');
+    expect(fs.readFileSync(path.join(repo, 'n.txt'), 'utf8')).toBe('new\n');
+    // 暂存区没被撤销动过
+    expect(status(repo)).toBe('MM a.txt\n?? keep.txt\n?? n.txt');
+    expect(git(repo, 'show', ':a.txt')).toBe('staged');
+    expect(git(repo, 'stash', 'list')).toBe('');
+    expect((await gitDiscardUndo(repo, r.stashes)).code).toBe('moved');
+  });
+
+  it('放弃改动：没有可放弃的返回 nothing', async () => {
+    expect((await gitDiscard(repo, ['a.txt'])).code).toBe('nothing');
+  });
+
+  it('放弃删除，撤销时再删一次；放弃之后又改过的文件不覆盖', async () => {
+    fs.rmSync(path.join(repo, 'a.txt'));
+    const r = await gitDiscard(repo, ['a.txt']);
+    expect(fs.readFileSync(path.join(repo, 'a.txt'), 'utf8')).toBe('a\n');
+    expect(await gitDiscardUndo(repo, r.stashes)).toEqual({ ok: true });
+    expect(fs.existsSync(path.join(repo, 'a.txt'))).toBe(false);
+
+    git(repo, 'checkout', '--', 'a.txt');
+    write(path.join(repo, 'a.txt'), 'mine\n');
+    const r2 = await gitDiscard(repo, ['a.txt']);
+    write(path.join(repo, 'a.txt'), 'later\n');
+    expect((await gitDiscardUndo(repo, r2.stashes)).code).toBe('moved');
+    expect(fs.readFileSync(path.join(repo, 'a.txt'), 'utf8')).toBe('later\n');
   });
 });

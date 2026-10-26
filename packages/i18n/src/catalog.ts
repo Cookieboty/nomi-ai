@@ -167,6 +167,7 @@ export type TranslationKey =
   | 'electron.common.claude-error'
   | 'electron.common.claude-process-stdin-is-not-writable'
   | 'electron.common.cli-process-es-outside-nomi-still-use-this'
+  | 'electron.common.code-changes'
   | 'electron.common.codex-could-not-start-the-app-server'
   | 'electron.common.codex-did-not-return-a-session'
   | 'electron.common.codex-error'

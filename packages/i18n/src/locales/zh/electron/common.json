@@ -72,6 +72,7 @@
   "electron.common.claude-error": "Claude 错误",
   "electron.common.claude-process-stdin-is-not-writable": "Claude 进程 stdin 不可写",
   "electron.common.cli-process-es-outside-nomi-still-use-this": "还有 {0} 个 Nomi 之外的 CLI 进程在用这个账号（进程号 {1}），请先在终端里退出它们",
+  "electron.common.code-changes": "代码改动",
   "electron.common.codex-could-not-start-the-app-server": "Codex 没能启动 app-server",
   "electron.common.codex-did-not-return-a-session": "Codex 没有返回会话",
   "electron.common.codex-error": "Codex 错误",

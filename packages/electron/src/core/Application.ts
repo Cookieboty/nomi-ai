@@ -693,6 +693,26 @@ export class Application implements IApplication {
         grokAcp: process.env.NOMI_GROK_ACP !== '0',
         // Codex 走 app-server 长驻会话；NOMI_CODEX_APP_SERVER=0 退回每轮一个进程的 codex exec
         codexAppServer: process.env.NOMI_CODEX_APP_SERVER !== '0',
+        // 右栏「生成提交信息」：辅助模型档（没设时跟主模型），经网关所以受外发保护；
+        // 同样遵守「仅本地模型可读文件」，发给云端前按设置确认
+        complete: async (messages, signal) => {
+          const rt = this.aiRuntime;
+          if (!rt) throw new Error(tr('electron.common.ai-service-not-ready'));
+          const send = await desktop.broker.checkSend(
+            desktop.providerFor('summary'),
+            signal,
+            tr('electron.common.code-changes'),
+          );
+          if (send === 'local_only')
+            throw new Error(tr('electron.common.only-local-models-can-read-files-is-on'));
+          if (send === 'user_denied') throw new Error(tr('electron.common.ok-not-sending'));
+          const resp = await rt.client.chat.sendMessage({
+            role: 'summary',
+            messages,
+            signal,
+          } as never);
+          return typeof resp?.content === 'string' ? resp.content : '';
+        },
       });
       accounts.registerIpc();
       const accountLogin = new AccountLogin({
