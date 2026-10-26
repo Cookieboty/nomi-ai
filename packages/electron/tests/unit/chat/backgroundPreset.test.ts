@@ -27,10 +27,12 @@ describe('bundled background preset', () => {
     );
   });
 
-  it('includes the background in the existing assets packaging rule', () => {
+  it('ships the background only via extraResources, not inside asar', () => {
     const config = fs.readFileSync(path.join(packageRoot, 'electron-builder.yml'), 'utf8');
     expect(config).toMatch(/extraResources:[\s\S]*?- from: assets\s+to: assets/);
-    expect(config).not.toContain('!assets/backgrounds');
+    expect(config).toMatch(/^files:[\s\S]*?- '!assets\/backgrounds\/\*\*'/m);
+    const preset = path.join(packageRoot, 'assets/backgrounds/nomi-preset.jpg');
+    expect(fs.statSync(preset).size).toBeLessThan(600 * 1024);
     const manifest = JSON.parse(
       fs.readFileSync(path.join(packageRoot, '../../assets-licenses.json'), 'utf8'),
     );

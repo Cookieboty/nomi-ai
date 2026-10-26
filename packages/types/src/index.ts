@@ -212,3 +212,4 @@ export interface SherpaModelStatus {
   diskFree?: number;
 }
 export * from './quality';
+export * from './chatBackground';

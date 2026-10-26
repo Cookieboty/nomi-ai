@@ -46,12 +46,12 @@ describe('ThemeService', () => {
     fs.writeFileSync(f, JSON.stringify({ theme: 'mist' }));
     expect(new ThemeService(f, fakeNative(true)).get().pref).toBe('mist');
   });
-  it('migrates legacy paper to cream', () => {
+  it('rejects removed paper id and falls back to default', () => {
     const f = tmp();
     fs.writeFileSync(f, JSON.stringify({ theme: 'paper' }));
     expect(new ThemeService(f, fakeNative(false)).get()).toEqual({
-      pref: 'cream',
-      resolved: 'cream',
+      pref: 'sunset',
+      resolved: 'sunset',
     });
   });
   it('persists image theme with graphite chrome and a dark native appearance', () => {
@@ -77,7 +77,7 @@ describe('ThemeService', () => {
     n.fire();
     expect(sent.at(-1)).toEqual({ pref: 'system', resolved: 'cream' });
     expect(resolveTheme('cream', true)).toBe('cream');
-    expect(s.set('paper')).toEqual({ pref: 'cream', resolved: 'cream' });
+    expect(() => s.set('paper')).toThrow();
     expect(() => s.set('neon')).toThrow();
   });
 

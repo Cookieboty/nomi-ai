@@ -7,10 +7,9 @@
   "assets": [
     {
       "pattern": "packages/electron/assets/backgrounds/nomi-preset.jpg",
-      "license": "LicenseRef-UserProvided-Free",
-      "author": "Not supplied by the user",
-      "source": "User-provided Nomi image preset, confirmed as free material on 2026-10-26",
-      "notes": "Bundled at the user's explicit request. The exact licence and original source were not supplied; no MIT, CC0, ownership or redistribution terms are asserted. This entry remains subject to the existing licence gate."
+      "license": "MIT",
+      "author": "Nomi-ai project owner (Cookieboty) — owner-provided, AI-generated Nomi artwork, licensed by project owner for this open-source repository (confirmed 2026-10-26); recompressed to 1920×1080 JPEG",
+      "source": "Nomi image-theme preset (owner-provided)"
     },
     {
       "pattern": "packages/renderer/public/assets/models/{model-list.json,CREDITS.md}",

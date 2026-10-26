@@ -4,7 +4,6 @@
  * 桌面端由主进程 `ai:theme:*` 持久化、解析「跟随系统」（nativeTheme）并广播给所有窗口；
  * 无 IPC 时退回 localStorage + prefers-color-scheme。
  *
- * 历史 id `paper`（纸白）在读写时映射为 `cream`（奶油），与品牌奶油色板对齐。
  */
 export type ThemeId = 'mist' | 'graphite' | 'ink' | 'cream' | 'sunset';
 export type ThemePref = ThemeId | 'system' | 'image';
@@ -67,17 +66,15 @@ export const DEFAULT_THEME: ThemePref = 'sunset';
 const KEY = 'cd.theme';
 const THEME_IDS: ThemeId[] = ['mist', 'graphite', 'ink', 'cream', 'sunset'];
 /** 旧版 Light Paper / 纸白 */
-const LEGACY_THEME: Record<string, ThemeId> = { paper: 'cream' };
 
 export const isThemeId = (v: unknown): v is ThemeId => THEME_IDS.includes(v as ThemeId);
 export const isThemePref = (v: unknown): v is ThemePref =>
-  v === 'system' || v === 'image' || isThemeId(v) || v === 'paper';
+  v === 'system' || v === 'image' || isThemeId(v);
 
-/** 规范主题 id（paper → cream） */
+/** 规范主题 id；未知值返回 null */
 export const normalizeThemePref = (v: unknown): ThemePref | null => {
   if (typeof v !== 'string') return null;
   if (v === 'system' || v === 'image') return v;
-  if (v in LEGACY_THEME) return LEGACY_THEME[v]!;
   return isThemeId(v) ? v : null;
 };
 
