@@ -1,177 +1,70 @@
-import { DEFAULT_TTS_CONFIG, type TTSConfig, type TTSSpeakResult } from '@nomi-ai/types';
+import type { TTSConfig } from '@nomi-ai/types';
+import { DEFAULT_TTS_CONFIG } from '@nomi-ai/types';
 
-import { TtsRouter, applyTtsEnvOverride, selectEngine } from '../../../src/tts/ttsRouter';
-
-/** 代表旧 tts-config.json 里已移除的内置离线引擎 provider：任何未知值都按 none 处理 */
-const REMOVED_OFFLINE_PROVIDER = 'offline-theresa-removed';
+import { normalizeTtsConfig, validateTtsConfig } from '../../../src/tts/ttsConfig';
+import { TtsRouter, applyTtsEnvOverride } from '../../../src/tts/ttsRouter';
 
 const cfg = (patch: Partial<TTSConfig> = {}): TTSConfig => ({
   ...DEFAULT_TTS_CONFIG,
-  lastModified: 1,
+  lastModified: 0,
   ...patch,
 });
 
-const ok = (): TTSSpeakResult => ({
-  success: true,
-  via: 'fish',
-  audioBase64: Buffer.from('fish').toString('base64'),
-  mimeType: 'audio/mpeg',
-  fallbackToSystem: false,
-});
-
-function setup(config: TTSConfig) {
-  const fish = { speak: jest.fn(async () => ok()) };
-  const router = new TtsRouter({ getConfig: () => config, fish });
-  return { router, fish };
-}
-
-describe('selectEngine', () => {
-  it('defaults to none (AI replies are text only)', () => {
-    expect(DEFAULT_TTS_CONFIG.provider).toBe('none');
-    expect(selectEngine(cfg())).toBe('none');
+describe('TtsRouter', () => {
+  it('none（默认）静默', async () => {
+    const r = await new TtsRouter({ getConfig: () => cfg() }).speak({ text: '你好' });
+    expect(r).toMatchObject({ success: false, via: 'none' });
   });
 
-  it('maps every provider', () => {
-    expect(selectEngine(cfg({ provider: 'fish-local' }))).toBe('fish');
-    expect(selectEngine(cfg({ provider: 'fish-cloud' }))).toBe('fish');
-    expect(selectEngine(cfg({ provider: 'legacy' }))).toBe('legacy');
-    for (const p of ['edge', 'azure', 'openai'] as const) {
-      expect(selectEngine(cfg({ provider: p }))).toBe('none');
-    }
-    expect(selectEngine(cfg({ provider: 'fish-local', enabled: false }))).toBe('none');
-    expect(selectEngine({ enabled: true, provider: REMOVED_OFFLINE_PROVIDER as never })).toBe(
-      'none',
+  it.each(['edge', 'azure', 'openai'] as const)('%s 尚未实现：静默', async (provider) => {
+    const r = await new TtsRouter({ getConfig: () => cfg({ provider }) }).speak({ text: '你好' });
+    expect(r).toMatchObject({ success: false, via: 'none' });
+    expect(r.message).toMatch(/not implemented/);
+  });
+
+  it('空文本 / 关闭 / CD_TTS=off 静默', async () => {
+    expect((await new TtsRouter({ getConfig: () => cfg() }).speak({ text: '  ' })).message).toBe(
+      'empty text',
+    );
+    const off = applyTtsEnvOverride(cfg({ provider: 'edge' }), { CD_TTS: 'off' });
+    expect((await new TtsRouter({ getConfig: () => off }).speak({ text: 'x' })).message).toBe(
+      'tts disabled',
     );
   });
-});
 
-describe('TtsRouter.speak', () => {
-  it('none → silent, no engine called', async () => {
-    const { router, fish } = setup(cfg());
-    const r = await router.speak({ text: '你好' });
-    expect(r).toMatchObject({ success: false, via: 'none', fallbackToSystem: false });
-    expect(r.message).toMatch(/no realtime TTS engine/);
-    expect(fish.speak).not.toHaveBeenCalled();
-  });
-
-  it('edge / azure / openai are not wired yet → silent', async () => {
-    for (const p of ['edge', 'azure', 'openai'] as const) {
-      const { router, fish } = setup(cfg({ provider: p }));
-      const r = await router.speak({ text: '你好' });
-      expect(r).toMatchObject({ success: false, via: 'none', fallbackToSystem: false });
-      expect(r.message).toMatch(/not implemented/);
-      expect(fish.speak).not.toHaveBeenCalled();
-    }
-  });
-
-  it('routes Fish providers to Fish with trimmed text; failure / throw stays silent', async () => {
-    const { router, fish } = setup(cfg({ provider: 'fish-local' }));
-    const r = await router.speak({ text: ' 你好 ', referenceId: 'nomi' });
-    expect(r.via).toBe('fish');
-    expect(fish.speak).toHaveBeenCalledWith({ text: '你好', referenceId: 'nomi' });
-    fish.speak.mockResolvedValueOnce({
-      success: false,
-      via: 'none',
-      fallbackToSystem: false,
-      message: 'Fish TTS unreachable',
-    });
-    const r2 = await router.speak({ text: '你好' });
-    expect(r2).toMatchObject({ success: false, via: 'none', message: 'Fish TTS unreachable' });
-    fish.speak.mockRejectedValueOnce(new Error('boom'));
-    const r3 = await router.speak({ text: '你好' });
-    expect(r3).toMatchObject({ success: false, via: 'none', message: 'boom' });
-  });
-
-  it('disabled / legacy / empty text never synthesize', async () => {
-    for (const patch of [
-      { enabled: false, provider: 'fish-local' as const },
-      { provider: 'legacy' as const },
-    ]) {
-      const { router, fish } = setup(cfg(patch));
-      const r = await router.speak({ text: '你好' });
-      expect(r.success).toBe(false);
-      expect(r.fallbackToSystem).toBe(false);
-      expect(fish.speak).not.toHaveBeenCalled();
-    }
-    const { router, fish } = setup(cfg({ provider: 'fish-local' }));
-    expect((await router.speak({ text: '   ' })).fallbackToSystem).toBe(false);
-    expect(fish.speak).not.toHaveBeenCalled();
-  });
-
-  describe('per-request outcome log + timeout', () => {
-    it('reports success / fallback with provider, exactly once each', async () => {
-      const onOutcome = jest.fn();
-      const fish = { speak: jest.fn() };
-      const router = new TtsRouter({
-        getConfig: () => cfg({ provider: 'fish-cloud' }),
-        fish,
-        onOutcome,
-      });
-      fish.speak.mockResolvedValueOnce(ok());
-      await router.speak({ text: '你好' });
-      fish.speak.mockResolvedValueOnce({ success: false, via: 'none', message: 'HTTP 401' });
-      await router.speak({ text: '你好' });
-      await router.speak({ text: '  ' });
-      expect(onOutcome).toHaveBeenCalledTimes(3);
-      expect(onOutcome.mock.calls[0]![0]).toMatchObject({
-        outcome: 'success',
-        provider: 'fish-cloud',
-        via: 'fish',
-      });
-      expect(onOutcome.mock.calls[1]![0]).toMatchObject({
-        outcome: 'fallback',
-        provider: 'fish-cloud',
-        message: 'HTTP 401',
-      });
-      expect(onOutcome.mock.calls[2]![0]).toMatchObject({ outcome: 'fallback' });
-    });
-
-    it('a hung synthesize cannot hang the IPC: times out → stays silent + logged', async () => {
-      const onOutcome = jest.fn();
-      const router = new TtsRouter({
-        getConfig: () => cfg({ provider: 'fish-local' }),
-        fish: { speak: jest.fn(() => new Promise<never>(() => undefined)) },
-        onOutcome,
-        speakTimeoutMs: 30,
-      });
-      const r = await router.speak({ text: '你好' });
-      expect(r).toMatchObject({ success: false, fallbackToSystem: false });
-      expect(onOutcome).toHaveBeenCalledWith(
-        expect.objectContaining({ outcome: 'fallback', code: 'timeout' }),
-      );
-    });
-
-    it('thrown errors are reported as error and rethrown', async () => {
-      const onOutcome = jest.fn();
-      const router = new TtsRouter({
-        getConfig: () => {
-          throw new Error('cfg boom');
-        },
-        fish: { speak: jest.fn() },
-        onOutcome,
-      });
-      await expect(router.speak({ text: 'x' })).rejects.toThrow('cfg boom');
-      expect(onOutcome).toHaveBeenCalledWith(
-        expect.objectContaining({ outcome: 'error', message: 'cfg boom' }),
-      );
-    });
+  it('每条请求恰好上报一次结果；getConfig 抛错也静默', async () => {
+    const onOutcome = jest.fn();
+    const r = await new TtsRouter({
+      getConfig: () => {
+        throw new Error('boom');
+      },
+      onOutcome,
+    }).speak({ text: 'x' });
+    expect(r).toMatchObject({ success: false, via: 'none', message: 'boom' });
+    expect(onOutcome).toHaveBeenCalledTimes(1);
+    expect(onOutcome.mock.calls[0][0]).toMatchObject({ outcome: 'error' });
   });
 });
 
-describe('applyTtsEnvOverride (CD_TTS=off for e2e)', () => {
-  it('leaves config untouched by default', () => {
-    const c = cfg();
-    expect(applyTtsEnvOverride(c, {})).toBe(c);
+describe('normalizeTtsConfig', () => {
+  it('旧配置里已移除的引擎当作 none，不抛错；丢弃未知字段', () => {
+    for (const provider of ['fish-local', 'fish-cloud', 'legacy', 'sherpa-theresa', 42]) {
+      const c = normalizeTtsConfig({
+        provider,
+        enabled: true,
+        baseUrl: 'http://x',
+        promptVoice: false,
+      });
+      expect(c.provider).toBe('none');
+      expect(c.promptVoice).toBe(false);
+      expect(c).not.toHaveProperty('baseUrl');
+    }
+    expect(normalizeTtsConfig(null)).toMatchObject({ provider: 'none', promptVoice: true });
+    expect(normalizeTtsConfig({ provider: 'azure' }).provider).toBe('azure');
   });
 
-  it('disables synthesis: no engine call, stays silent', async () => {
-    const fish = { speak: jest.fn(async () => ok()) };
-    const router = new TtsRouter({
-      getConfig: () => applyTtsEnvOverride(cfg({ provider: 'fish-local' }), { CD_TTS: 'off' }),
-      fish,
-    });
-    const r = await router.speak({ text: '你好' });
-    expect(r.fallbackToSystem).toBe(false);
-    expect(fish.speak).not.toHaveBeenCalled();
+  it('保存时只接受 none / edge / azure / openai', () => {
+    expect(validateTtsConfig(cfg({ provider: 'openai' })).isValid).toBe(true);
+    expect(validateTtsConfig({ ...cfg(), provider: 'legacy' }).isValid).toBe(false);
   });
 });

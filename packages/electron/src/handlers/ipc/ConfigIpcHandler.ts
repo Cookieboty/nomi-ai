@@ -3,17 +3,13 @@
  * 处理应用配置、模型配置等相关的IPC通信
  */
 
-import http from 'http';
-import https from 'https';
-
 import { type TTSConfig, type TTSSpeakRequest, type TTSTestResult } from '@nomi-ai/types';
 import { app } from 'electron';
 
 import { t } from '../../i18n';
 import { type IConfigService } from '../../services/ConfigService';
 import { type ILoggerService } from '../../services/LoggerService';
-import { getFishTtsService } from '../../tts/fish';
-import { validateTtsConfig } from '../../tts/fish/validateTtsConfig';
+import { getTtsConfigStore } from '../../tts/TtsConfigStore';
 import { TtsRouter, applyTtsEnvOverride } from '../../tts/ttsRouter';
 
 import { BaseIpcHandler } from './BaseIpcHandler';
@@ -235,40 +231,23 @@ export class ConfigIpcHandler extends BaseIpcHandler {
   }
 
   /**
-   * 初始化TTS配置相关IPC处理器
+   * 初始化TTS配置相关IPC处理器。实时朗读引擎（Edge / Azure / OpenAI）尚未接入：tts:speak 一律静默。
    */
   private initializeTTSHandlers(): void {
-    const fish = getFishTtsService();
+    const store = getTtsConfigStore();
     const router = new TtsRouter({
-      getConfig: () => applyTtsEnvOverride(fish.getConfig()),
-      fish,
-      // 每条 tts:speak 都必有一条结果日志：success / fallback / error + provider
-      onOutcome: (o) => {
-        const meta = {
-          provider: o.provider,
-          via: o.via,
-          ms: o.ms,
-          textLength: o.textLength,
-          code: o.code,
-          message: o.message,
-          audioBytes: o.audioBytes,
-        };
-        if (o.outcome === 'success') this.logger.info('tts:speak success', meta);
-        else if (o.outcome === 'fallback') this.logger.warn('tts:speak fallback', meta);
-        else this.logger.error('tts:speak error', meta);
-      },
+      getConfig: () => applyTtsEnvOverride(store.load()),
+      onOutcome: (o) => this.logger.debug('tts:speak', o),
     });
+    const notAvailable = (provider: TTSConfig['provider']): TTSTestResult =>
+      provider === 'none'
+        ? { success: true, message: t('electron.common.no-realtime-tts-engine-selected') }
+        : { success: false, message: t('electron.common.this-tts-engine-is-not-available-yet') };
 
     // 获取TTS配置（无文件时返回默认：无实时引擎 + 诺米提示语音开）
     this.registerHandler('getTTSConfig', async () => {
       try {
-        const config = fish.getConfig();
-        this.logger.debug('获取TTS配置成功', {
-          provider: config.provider,
-          enabled: config.enabled,
-          hasApiKey: config.hasApiKey,
-        });
-        return config;
+        return store.load();
       } catch (error) {
         this.logger.error('获取TTS配置失败', {
           error: error instanceof Error ? error.message : String(error),
@@ -277,17 +256,11 @@ export class ConfigIpcHandler extends BaseIpcHandler {
       }
     });
 
-    // 保存TTS配置（云 Key 走 safeStorage）
     this.registerHandler('saveTTSConfig', async (_, config: TTSConfig) => {
       this.validateArgs([config], 1, ['object']);
-
       try {
-        const saved = fish.saveConfig(config);
-        this.logger.info('TTS配置保存成功', {
-          provider: saved.provider,
-          enabled: saved.enabled,
-          hasApiKey: saved.hasApiKey,
-        });
+        const saved = store.save(config);
+        this.logger.info('TTS配置保存成功', { provider: saved.provider, enabled: saved.enabled });
         return this.createSuccessResponse();
       } catch (error) {
         this.logger.error('TTS配置保存失败', {
@@ -297,47 +270,14 @@ export class ConfigIpcHandler extends BaseIpcHandler {
       }
     });
 
-    // 测试连接：Fish → /v1/health；legacy → 原 POST 探测；none → 无需测试
     this.registerHandler('testTTSConnection', async (_, config: TTSConfig) => {
       this.validateArgs([config], 1, ['object']);
-
-      try {
-        const startTime = Date.now();
-        let result: TTSTestResult;
-        if (config.provider === 'none') {
-          result = { success: true, message: t('electron.common.no-realtime-tts-engine-selected') };
-        } else if (
-          config.provider === 'edge' ||
-          config.provider === 'azure' ||
-          config.provider === 'openai'
-        ) {
-          result = {
-            success: false,
-            message: t('electron.common.this-tts-engine-is-not-available-yet'),
-          };
-        } else if (config.provider === 'fish-local' || config.provider === 'fish-cloud') {
-          result = await fish.checkHealth(config);
-        } else {
-          result = await this.testLegacyTTSConnection(config);
-        }
-        const latency = result.latency ?? Date.now() - startTime;
-        const testResult: TTSTestResult = { ...result, latency };
-        this.logger.info('TTS连接测试完成', { testResult });
-        return testResult;
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        this.logger.error('TTS连接测试失败', { error: errorMessage });
-        return {
-          success: false,
-          message: t('electron.common.connection-test-failed', errorMessage),
-        } as TTSTestResult;
-      }
+      return { ...notAvailable(config.provider), latency: 0 };
     });
 
-    // 重置TTS配置
     this.registerHandler('resetTTSConfig', async () => {
       try {
-        fish.resetConfig();
+        store.reset();
         this.logger.info('TTS配置已重置');
         return this.createSuccessResponse();
       } catch (error) {
@@ -348,189 +288,24 @@ export class ConfigIpcHandler extends BaseIpcHandler {
       }
     });
 
-    // 合成路由：none（默认）/ Fish（可选）；渲染层播放，失败则静默
+    // 合成路由：目前没有可用引擎，渲染层收到静默结果
     this.registerHandler('tts:speak', async (_, req: TTSSpeakRequest) => {
       this.validateArgs([req], 1, ['object']);
-      try {
-        // 结果日志（success / fallback / error）由 router.onOutcome 统一输出，这里不重复
-        return await router.speak(req ?? { text: '' });
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        return {
-          success: false,
-          via: 'none',
-          fallbackToSystem: false,
-          message: errorMessage,
-        };
-      }
+      return router.speak(req ?? { text: '' });
     });
 
     // 诺米提示语音开关：看板娘窗口据此决定是否播放预录提示语
     this.registerHandler('tts:prompt-voice', async () => {
       try {
-        return fish.getConfig().promptVoice !== false;
+        return store.load().promptVoice !== false;
       } catch {
         return true;
       }
     });
 
     this.registerHandler('tts:health', async (_, config?: Partial<TTSConfig>) => {
-      try {
-        const provider = config?.provider ?? fish.getConfig().provider;
-        if (provider === 'none') {
-          return { success: false, message: t('electron.common.no-realtime-tts-engine-selected') };
-        }
-        return await fish.checkHealth(config);
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        return { success: false, message: errorMessage } as TTSTestResult;
-      }
-    });
-
-    // 遗留：测试 legacy 语音克隆播放
-    this.registerHandler(
-      'test-tts-voice',
-      async (_, testConfig: TTSConfig & { testText: string }) => {
-        this.validateArgs([testConfig], 1, ['object']);
-
-        try {
-          if (testConfig.provider === 'fish-local' || testConfig.provider === 'fish-cloud') {
-            const req = { text: testConfig.testText, referenceId: testConfig.referenceId };
-            const spoken = await fish.speak(req);
-            if (spoken.success) {
-              return {
-                success: true,
-                message: t('electron.common.voice-test-succeeded'),
-                audioBase64: spoken.audioBase64,
-                mimeType: spoken.mimeType,
-              };
-            }
-            throw new Error(spoken.message || t('electron.common.tts-synthesis-failed'));
-          }
-
-          const validation = validateTtsConfig({
-            ...testConfig,
-            provider: testConfig.provider || 'legacy',
-          });
-          if (!validation.isValid) {
-            throw new Error(
-              t('electron.common.tts-config-validation-failed', validation.errors.join(', ')),
-            );
-          }
-
-          const { VoiceService } = await import('../../tts/legacy/LegacyTtsPlayer');
-          const voiceService = new VoiceService();
-          const { MCPConfigManager } = await import('../../tts/legacy/LegacyVoiceConfig');
-          const configManager = MCPConfigManager.getInstance();
-          const originalConfig = configManager.getVoiceConfig();
-
-          try {
-            configManager.updateVoiceMode('tts');
-            if (configManager.getVoiceConfig().ttsApiConfig) {
-              configManager.updateTTSApiConfig({
-                hostname: testConfig.hostname,
-                port: testConfig.port,
-                path: testConfig.path,
-                audioUrl: testConfig.audioUrl,
-                promptText: testConfig.promptText,
-              });
-            } else {
-              const newConfig = { ...configManager.getVoiceConfig() };
-              newConfig.ttsApiConfig = {
-                hostname: testConfig.hostname,
-                port: testConfig.port,
-                path: testConfig.path,
-                audioUrl: testConfig.audioUrl,
-                promptText: testConfig.promptText,
-              };
-              configManager.updateVoiceMode('tts');
-            }
-
-            await voiceService.playTextToSpeech(testConfig.testText);
-            this.logger.info('TTS语音测试成功', { testText: testConfig.testText });
-            return { success: true, message: t('electron.common.voice-test-succeeded') };
-          } finally {
-            configManager.updateVoiceMode(originalConfig.voiceMode);
-            if (originalConfig.ttsApiConfig) {
-              configManager.updateTTSApiConfig(originalConfig.ttsApiConfig);
-            }
-          }
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          this.logger.error('TTS语音测试失败', { error: errorMessage });
-          return {
-            success: false,
-            message: t('electron.common.voice-test-failed', errorMessage),
-          };
-        }
-      },
-    );
-  }
-
-  /**
-   * 验证TTS配置（委托纯函数，供遗留调用）
-   */
-  private validateTTSConfig(config: TTSConfig): { isValid: boolean; errors: string[] } {
-    return validateTtsConfig(config);
-  }
-
-  /**
-   * 遗留外部 TTS：POST 探测
-   */
-  private async testLegacyTTSConnection(config: TTSConfig): Promise<TTSTestResult> {
-    return new Promise((resolve) => {
-      const loopbackHosts = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
-      const protocol = loopbackHosts.has(config.hostname.trim().toLowerCase()) ? http : https;
-
-      const testData = JSON.stringify({
-        text: t('electron.common.tts-connection-test'),
-        ref_audio_path: config.audioUrl,
-        prompt_text: (config.promptText || '').substring(0, 100),
-      });
-
-      const options = {
-        hostname: config.hostname,
-        port: config.port,
-        path: config.path,
-        method: 'POST',
-        timeout: 10000,
-        headers: {
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(testData),
-        },
-      };
-
-      const req = protocol.request(options, (res) => {
-        if (res.statusCode && res.statusCode >= 200 && res.statusCode < 400) {
-          resolve({
-            success: true,
-            message: t('electron.common.connected-the-tts-service-is-reachable'),
-          });
-        } else {
-          resolve({
-            success: false,
-            message: t('electron.common.server-returned-status-code', res.statusCode),
-          });
-        }
-      });
-
-      req.on('error', (error) => {
-        resolve({
-          success: false,
-          message: t('electron.common.connection-failed', error.message),
-        });
-      });
-
-      req.on('timeout', () => {
-        req.destroy();
-        resolve({
-          success: false,
-          message: t('electron.common.connection-timed-out'),
-        });
-      });
-
-      req.write(testData);
-      req.end();
+      const res = notAvailable(config?.provider ?? store.load().provider);
+      return res.success ? { ...res, success: false } : res;
     });
   }
 

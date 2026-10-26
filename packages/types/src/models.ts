@@ -6,13 +6,8 @@
 export interface ModelVoiceConfig {
   /** speechSynthesis.voiceURI or empty for auto soft pick (system fallback) */
   voiceURI?: string;
-  /**
-   * Name substring hint for system voices, and/or Fish built-in referenceId
-   * (e.g. `nomi` → fish reference_id `nomi`).
-   */
+  /** Voice name hint for a realtime engine (e.g. `nomi`) */
   voiceHint?: string;
-  /** Explicit Fish built-in reference preset id when different from voiceHint */
-  fishReferenceId?: string;
   /** Speech rate 0.5..1.5 (system fallback) */
   rate?: number;
   /** Pitch 0..2 (system fallback) */

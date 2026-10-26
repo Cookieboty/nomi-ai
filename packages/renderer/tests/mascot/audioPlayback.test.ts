@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../src/mascot/softSpeech', () => ({ stopSoftSpeech: vi.fn() }));
 
-import { speakWithFish, stopFishSpeak } from '../../src/mascot/tts/fishSpeak';
+import { speakRealtime, stopSpeaking } from '../../src/mascot/tts/audioPlayback';
 
 interface Deferred<T> {
   promise: Promise<T>;
@@ -84,7 +84,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  stopFishSpeak();
+  stopSpeaking();
   vi.unstubAllGlobals();
 });
 
@@ -92,15 +92,15 @@ function setApi(ttsSpeak: (...a: never[]) => Promise<unknown>) {
   (window as unknown as { electronAPI: unknown }).electronAPI = { ttsSpeak };
 }
 
-describe('fishSpeak 旧请求不能清理新句（#47）', () => {
+describe('audioPlayback 旧请求不能清理新句（#47）', () => {
   it('A.play 晚拒绝时 B 已在播放：B 的 pause / revoke 都不被调用', async () => {
     setApi(async () => OK);
-    const a = speakWithFish('第一句');
+    const a = speakRealtime('第一句');
     await flush();
     const audioA = audios[0]!;
     expect(audioA.play).toHaveBeenCalled();
 
-    const b = speakWithFish('第二句');
+    const b = speakRealtime('第二句');
     await flush();
     const audioB = audios[1]!;
     expect(audioB.play).toHaveBeenCalled();
@@ -126,8 +126,8 @@ describe('fishSpeak 旧请求不能清理新句（#47）', () => {
     let n = 0;
     setApi(() => (n++ === 0 ? synthA.promise : Promise.resolve(OK)));
     const onEndA = vi.fn();
-    const a = speakWithFish('A', { onEnd: onEndA });
-    const b = speakWithFish('B');
+    const a = speakRealtime('A', { onEnd: onEndA });
+    const b = speakRealtime('B');
     await flush();
     const audioB = audios[0]!;
     expect(audioB.play).toHaveBeenCalled();
@@ -144,10 +144,10 @@ describe('fishSpeak 旧请求不能清理新句（#47）', () => {
   it('AudioContext.resume 等待期间被停止：不再挂接包络，也不 play', async () => {
     ctxState = 'suspended';
     setApi(async () => OK);
-    const p = speakWithFish('hi');
+    const p = speakRealtime('hi');
     await flush();
     expect(resumeDeferred).not.toBeNull();
-    stopFishSpeak();
+    stopSpeaking();
     resumeDeferred!.resolve();
     await p;
     expect(mediaSources).toBe(0);
@@ -158,8 +158,8 @@ describe('fishSpeak 旧请求不能清理新句（#47）', () => {
   it('取消旧句后晚到的合成结果被丢弃（不创建 Audio）', async () => {
     const synth = deferred<unknown>();
     setApi(() => synth.promise);
-    const p = speakWithFish('x');
-    stopFishSpeak();
+    const p = speakRealtime('x');
+    stopSpeaking();
     synth.resolve(OK);
     await expect(p).resolves.toBe(true);
     expect(audios).toHaveLength(0);

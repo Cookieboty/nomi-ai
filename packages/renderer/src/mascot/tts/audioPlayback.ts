@@ -1,8 +1,6 @@
 /**
- * TTS playback in the renderer (any main-process engine returning audio via IPC).
- * Calls main `tts:speak`, plays returned audio, drives lipSyncStore RMS when possible.
- * On failure returns false; callers keep the request silent when no TTS is available.
- * No preview / upload-clone UI — character binding uses built-in referenceId (e.g. nomi).
+ * 看板娘语音播放：预录提示语（playAudioClip）与实时朗读引擎返回的音频（speakRealtime）。
+ * 驱动 lipSyncStore 口型、支持打断；失败返回 false，调用方保持静默。
  */
 
 import { createLogger } from '@nomi-ai/ui';
@@ -11,10 +9,9 @@ import { lipSyncStore } from '../../ai/lipSyncStore';
 import { stopSoftSpeech } from '../softSpeech';
 import { registerSpeechStopper } from '../speechStop';
 
-const log = createLogger('fish-speak');
+const log = createLogger('mascot-audio');
 
-export interface FishSpeakOptions {
-  referenceId?: string;
+export interface SpeakOptions {
   volume?: number;
   speed?: number;
   onEnd?: () => void;
@@ -44,7 +41,7 @@ function newSession(): Session {
 function ensureStopper(): void {
   if (stopperRegistered) return;
   stopperRegistered = true;
-  registerSpeechStopper(() => stopFishSpeak());
+  registerSpeechStopper(() => stopSpeaking());
 }
 
 /** 幂等：只释放传入 session 自己持有的资源。 */
@@ -98,8 +95,8 @@ function cleanupActive(): void {
   else lipSyncStore.reset();
 }
 
-/** Stop Fish playback (barge-in). */
-export function stopFishSpeak(): void {
+/** Stop playback (barge-in). */
+export function stopSpeaking(): void {
   generation++;
   cleanupActive();
 }
@@ -213,7 +210,7 @@ async function playInSession(
 }
 
 /**
- * 播放一段静态音频（预录提示语）。与 speakWithFish 共用打断与口型同步。
+ * 播放一段静态音频（预录提示语）。与 speakRealtime 共用打断与口型同步。
  * 返回 true 表示已开始播放；play() 失败返回 false 且不调用 onEnd（调用方继续兜底）。
  */
 export async function playAudioClip(
@@ -236,10 +233,9 @@ export async function playAudioClip(
 }
 
 /**
- * Try Fish synthesize + play. Returns true if Fish audio started (or completed setup).
- * Returns false when no TTS audio was produced.
+ * 请主进程实时朗读引擎合成并播放。返回 true 表示已开始播放；没有音频时返回 false。
  */
-export async function speakWithFish(text: string, opts: FishSpeakOptions = {}): Promise<boolean> {
+export async function speakRealtime(text: string, opts: SpeakOptions = {}): Promise<boolean> {
   ensureStopper();
   const trimmed = text.trim();
   if (!trimmed) {
@@ -261,7 +257,6 @@ export async function speakWithFish(text: string, opts: FishSpeakOptions = {}): 
   try {
     const result = await api.ttsSpeak({
       text: trimmed,
-      referenceId: opts.referenceId,
       volume: opts.volume,
       speed: opts.speed,
     });
@@ -288,15 +283,4 @@ export async function speakWithFish(text: string, opts: FishSpeakOptions = {}): 
     if (gen === generation) opts.onEnd?.();
     return false;
   }
-}
-
-/** Map character voiceHint / fishReferenceId → built-in Fish reference preset. */
-export function resolveFishReferenceId(
-  voiceHint?: string,
-  fishReferenceId?: string,
-  fallback = 'nomi',
-): string {
-  if (fishReferenceId && fishReferenceId.trim()) return fishReferenceId.trim();
-  if (voiceHint && /^[a-zA-Z0-9\-_ ]+$/.test(voiceHint.trim())) return voiceHint.trim();
-  return fallback;
 }

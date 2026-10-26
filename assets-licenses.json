@@ -55,15 +55,6 @@
       "notes": "Default SFX are synthesized in code; README only in this folder for now."
     },
     {
-      "pattern": "packages/electron/assets/tts/references/nomi/**",
-      "license": "LicenseRef-FirstParty",
-      "firstParty": true,
-      "owner": "Cookieboty",
-      "author": "Nomi-ai project owner (Cookieboty) — provisional Edge TTS (zh-CN-XiaoyiNeural) seed; replace with project-owned recording when available",
-      "source": "packages/electron/assets/tts/references/nomi/README.md",
-      "notes": "Provisional product seed. See folder README for Edge TTS provenance caveats before commercial redistribution."
-    },
-    {
       "pattern": "packages/renderer/public/voice/nomi/zh/**",
       "license": "LicenseRef-FirstParty",
       "firstParty": true,

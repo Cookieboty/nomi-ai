@@ -1,27 +1,2 @@
 Nomi — third-party notices (excerpt)
 
-================================================================================
-Fish Audio / fish-speech
-================================================================================
-
-This product’s optional advanced text-to-speech engine is Built with Fish Audio.
-Fish Speech / Fish Audio Materials are subject to the Fish Audio Community License
-(see https://github.com/fishaudio/fish-speech/blob/main/LICENSE). Summary only —
-the official LICENSE controls:
-
-  • Research and non-commercial use are free of charge under the Agreement.
-  • Community commercial use may be available while Annual Revenue is less than
-    USD 500,000 (see the current LICENSE for the exact grant and conditions).
-  • Offering a Hosted Service (making the Materials available so third parties can
-    self-serve TTS / voice cloning via API or similar) requires a separate written
-    license from Fish Audio. In-product character speech that you control is
-    generally not a Hosted Service under the LICENSE’s examples.
-  • Do not clone a real person’s voice without consent.
-  • Do not use outputs to train another foundational TTS model.
-
-Nomi does not bundle multi-gigabyte Fish model weights. Users run a local
-fish-speech server or supply their own Fish cloud API key. Built-in voice presets
-(e.g. `nomi`) use project-owned / compliant reference samples only — no infringing
-character voice packs and no end-user “upload any voice to clone” product surface.
-
-================================================================================

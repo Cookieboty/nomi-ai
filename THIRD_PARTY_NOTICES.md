@@ -52,15 +52,6 @@ There is no built-in speech synthesis engine. Nomi's short fixed prompt lines (C
 | ----------------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Nomi prompt clips (`voice/nomi/zh/*.mp3`) | Unclear — see note | Generated with the Microsoft Edge online neural voice `zh-CN-XiaoyiNeural` (rate −5%, pitch +0Hz) via `scripts/voice/gen.py`. Redistribution terms for audio from the free Edge read-aloud service are not clearly stated; regenerate the clips with a licensed Azure Speech subscription before a formal release. |
 
-## Speech output (optional advanced: Fish Audio / fish-speech)
-
-**Built with Fish Audio.** Not enabled by default. Model weights are **not** bundled. The app talks to a user-run local fish-speech HTTP API (`http://127.0.0.1:8080`) or the user’s own Fish cloud API key.
-
-| Component                                                                               | Licence                                  | Notes                                                                                                                                                                                                                                                                      |
-| --------------------------------------------------------------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Fish Speech / Fish Audio Materials (optional runtime)                                   | Fish Audio Community License             | Research / non-commercial free; community commercial while Annual Revenue &lt; USD 500k (see official LICENSE); Hosted Service needs a separate agreement; no non-consensual real-person cloning; do not train other base TTS models on outputs. Full excerpt in `NOTICE`. |
-| Nomi built-in reference preset `nomi` (`packages/electron/assets/tts/references/nomi/`) | MIT (owner-provided sample when present) | Cute / kawaii Mandarin preset id only; place project-owned `sample.wav` + `sample.lab` beside the README. No third-party character packs.                                                                                                                                  |
-
 ## Local models (llama.cpp)
 
 Nothing here is bundled. The runtime and the model weights download on demand from the pinned URLs in `packages/electron/src/local/llmCatalog.ts`. Each download is checked against its SHA-256, and the licence is shown before it starts. We checked every licence on the official model card. Models with custom licences (Llama, Gemma) or an "other" licence (Qwen2.5-3B) are not listed.

@@ -1,5 +1,5 @@
 /**
- * Per-character voice binding (rate / volume / Fish reference preset).
+ * Per-character voice binding (rate / volume).
  * Merge order: global soft prefs → built-in character defaults → model.config.voice → user override.
  * Overrides persist in localStorage.
  */
@@ -21,9 +21,7 @@ const OVERRIDE_KEY = 'mascot.characterVoice.v1';
 /** Built-in softer defaults by model id / tag family. */
 export const CHARACTER_VOICE_DEFAULTS: Record<string, ModelVoiceConfig> = {
   nomi: {
-    /** Built-in Fish cute preset id (local references/nomi). */
     voiceHint: 'nomi',
-    fishReferenceId: 'nomi',
     rate: 0.92,
     pitch: 1.1,
   },
@@ -134,12 +132,6 @@ export function speakForActiveCharacter(key: string, opts: SpeakSoftOptions = {}
   }
   const prefs = resolvePrefsForCharacter();
   const merged = opts.prefs ? { ...prefs, ...opts.prefs } : prefs;
-  const voice = resolveCharacterVoice(activeModelName, activeModelConfig);
-  // Only built-in Fish presets (e.g. nomi) map from voiceHint — not OS hints like xiaoxiao.
-  const fishPresets = new Set(['nomi']);
-  const referenceId =
-    voice.fishReferenceId ||
-    (voice.voiceHint && fishPresets.has(voice.voiceHint) ? voice.voiceHint : undefined);
   const configuredRate = Number.isFinite(merged.rate) ? merged.rate : 0.92;
   const speed = Math.min(1.5, Math.max(0.5, configuredRate));
 
@@ -159,9 +151,8 @@ export function speakForActiveCharacter(key: string, opts: SpeakSoftOptions = {}
         onEnd: opts.onEnd,
       });
       if (clip !== 'none') return;
-      const { speakWithFish } = await import('./tts/fishSpeak');
-      await speakWithFish(text, {
-        referenceId,
+      const { speakRealtime } = await import('./tts/audioPlayback');
+      await speakRealtime(text, {
         volume: merged.volume,
         speed,
         onEnd: opts.onEnd,

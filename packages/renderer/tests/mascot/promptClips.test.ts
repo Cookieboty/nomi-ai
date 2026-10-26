@@ -12,7 +12,7 @@ vi.mock('@nomi-ai/ui', async (orig) => ({
   t: (k: string) => (k === 'ui.cli-monitor.okay' ? '好的～' : k),
 }));
 vi.mock('../../src/mascot/presence', () => ({ isMascotMuted: () => h.muted }));
-vi.mock('../../src/mascot/tts/fishSpeak', () => ({ playAudioClip: h.play }));
+vi.mock('../../src/mascot/tts/audioPlayback', () => ({ playAudioClip: h.play }));
 
 import {
   CLIP_HINTS,

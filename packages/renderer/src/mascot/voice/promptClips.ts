@@ -3,7 +3,7 @@
  *
  * 播放顺序：预录片段 → 已配置的实时朗读引擎 → 仅气泡。
  * 只在「当前模型是 Nomi + 界面中文 + 提示语音开启 + 看板娘未静音」时播放。
- * 口型同步与打断复用 fishSpeak 的播放会话（AnalyserNode RMS → lipSyncStore）。
+ * 口型同步与打断复用 audioPlayback 的播放会话（AnalyserNode RMS → lipSyncStore）。
  */
 import { createLogger, getLocale, t } from '@nomi-ai/ui';
 
@@ -148,7 +148,7 @@ export async function playPromptClip(
   }
   last = { key, at: now };
   const entry = clips.get(key)!;
-  const { playAudioClip } = await import('../tts/fishSpeak');
+  const { playAudioClip } = await import('../tts/audioPlayback');
   const ok = await playAudioClip(`${PROMPT_CLIP_BASE}${entry.file}`, {
     volume: opts.volume,
     onEnd: opts.onEnd,

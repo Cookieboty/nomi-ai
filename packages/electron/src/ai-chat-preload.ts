@@ -35,7 +35,7 @@ const aiChatAPI = {
     },
   },
 
-  /** 设置 → 语音与屏幕 → 语音：朗读引擎配置（userData/tts-config.json；云 Key 只写不读） */
+  /** 设置 → 语音与屏幕 → 语音：朗读引擎配置（userData/tts-config.json） */
   tts: {
     get: () => ipcRenderer.invoke('getTTSConfig'),
     save: (cfg: unknown) => ipcRenderer.invoke('saveTTSConfig', cfg),

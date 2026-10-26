@@ -23,7 +23,7 @@
 - 只在**同时满足**以下条件时播放：当前角色是诺米、界面语言为中文、看板娘未静音、「设置 → 语音与屏幕 → 语音 → 诺米提示语音」开启（IPC `tts:prompt-voice`）。
 - 播放顺序：**预录片段 → 实时朗读引擎 → 静音**。台词有对应片段就播片段；没有则交给实时朗读引擎；引擎为「无」或未接入时只显示文字。
 - 带变量的台词（如「已切换到 xx 模式」「你不在的时候错过了 N 条提醒」）气泡显示完整文字，语音念一句固定说法。
-- 同一句 1.5 秒内只播一次（气泡和事件语音同时触发时不会重复）。口型、音量、语音打断沿用原有播放逻辑（`packages/renderer/src/mascot/tts/fishSpeak.ts` 的 `playAudioClip`）。
+- 同一句 1.5 秒内只播一次（气泡和事件语音同时触发时不会重复）。口型、音量、语音打断沿用原有播放逻辑（`packages/renderer/src/mascot/tts/audioPlayback.ts` 的 `playAudioClip`）。
 - 片段生成脚本：`scripts/voice/gen.py`（需要 `pip install edge-tts` 和 ffmpeg）。台词文字取自 `@nomi-ai/i18n` 中文文案；新增台词用 `--add KEY`，改了文案用 `--only KEY` 重新生成。
 
 > **许可提示**：当前片段由微软 Edge 在线 Neural 朗读服务生成，其输出的再分发许可不明确，属于临时素材。正式发布前需用 Azure Speech 订阅（同一音色）重新生成。
@@ -39,8 +39,9 @@
 | `azure`            | Azure Speech —— **暂未接入**，选中后静默并提示       |
 | `openai`           | OpenAI 语音 —— **暂未接入**，选中后静默并提示        |
 
-- 路由：`packages/electron/src/tts/ttsRouter.ts`；IPC `tts:speak` / `tts:health`。失败或超时（90 s）一律静默，不会回退到系统朗读。
-- 旧配置兼容：已移除的内置离线引擎按「无」处理；之前配置过的 Fish（本地 / 云）或自建 legacy 引擎继续可用，但不再作为新选项提供。选用 Fish 时适用 Fish Audio Community License（Built with Fish Audio），详见 `NOTICE` / `THIRD_PARTY_NOTICES.md`。
+- 路由：`packages/electron/src/tts/ttsRouter.ts`；IPC `tts:speak` / `tts:health`。当前一律静默，不会回退到系统朗读。
+- 目前**没有实现任何实时朗读引擎**：AI 普通回复不出声，只有预录提示语音会播放。
+- 旧配置兼容：已移除的内置离线引擎、Fish（本地 / 云）和自建 legacy 引擎一律按「无」加载，不报错。
 - e2e：`CD_TTS=off` 时不调用任何实时朗读引擎。
 - 「语音设置」：当前角色的语速、音量。
 - **不提供**「上传我的音色 / 任意参考音频克隆」入口。
@@ -51,4 +52,4 @@
 - 录音只在内存或临时文件中，识别后立即删除，不写日志。在线识别每次调用都记入审计日志。
 - 唤醒词通过「语音分段 → 本地识别 → 模糊匹配」实现。
 - 预录提示语音：`packages/renderer/src/mascot/voice/promptClips.ts`；实时朗读路由 `packages/electron/src/tts/ttsRouter.ts`。
-- 渲染播放 `packages/renderer/src/mascot/tts/fishSpeak.ts`（预录片段与引擎返回的音频通用）。
+- 渲染播放 `packages/renderer/src/mascot/tts/audioPlayback.ts`（预录片段与引擎返回的音频通用）。

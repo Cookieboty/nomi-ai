@@ -20,7 +20,7 @@ export interface IpcApi {
   /** 主进程改了语音开关（TTS 模型下载失败回滚等）；返回取消订阅 */
   onVoiceSettingsChanged?: (callback: (settings: Partial<VoiceSettings>) => void) => () => void;
 
-  // 实时朗读（Edge / Azure / OpenAI / 可选 Fish / legacy 外部服务；默认无）；配置在对话窗口的设置里
+  // 实时朗读（Edge / Azure / OpenAI，均未接入；默认无）；配置在对话窗口的设置里
   /** Main-process TTS synthesize; on failure renderer stays silent */
   ttsSpeak?: (req: TTSSpeakRequest) => Promise<TTSSpeakResult>;
   ttsHealth?: (config?: Partial<TTSConfig>) => Promise<TTSTestResult>;
@@ -70,24 +70,15 @@ export interface VoiceSettings {
 }
 
 /**
- * Realtime TTS engine: none (default — AI replies are text only), Edge / Azure / OpenAI,
- * optional Fish (advanced), legacy external clone API. No built-in offline engine and no
- * system Web Speech. Nomi's fixed prompt lines use prerecorded clips, not this engine.
+ * Realtime TTS engine: none (default — AI replies are text only) or Edge / Azure / OpenAI
+ * (not implemented yet: selecting one stays silent). Nomi's fixed prompt lines use
+ * prerecorded clips, not this engine.
  */
-export type TTSProvider =
-  'none' | 'edge' | 'azure' | 'openai' | 'fish-local' | 'fish-cloud' | 'legacy';
-
-/** Audio format requested from Fish /v1/tts */
-export type TTSAudioFormat = 'mp3' | 'wav' | 'opus' | 'pcm';
+export type TTSProvider = 'none' | 'edge' | 'azure' | 'openai';
 
 /**
  * TTS configuration (userData/tts-config.json).
- * Default provider is `none`; `promptVoice` controls Nomi's prerecorded prompt clips.
- * Fish (`fish-local` / `fish-cloud`) is an optional advanced engine with cute Nomi referenceId.
- * `apiKey` for fish-cloud is stored via safeStorage in the main process — never trust
- * a raw key from the renderer as the source of truth.
- * Legacy fields (hostname/port/path/audioUrl/promptText) remain for external TTS.
- * There is no user voice-upload / clone-from-arbitrary-audio path in the product UI.
+ * Unknown providers in an old file (e.g. removed engines) load as `none`.
  */
 export interface TTSConfig {
   enabled: boolean;
@@ -95,69 +86,18 @@ export interface TTSConfig {
   promptVoice?: boolean;
   /** Realtime engine. Default: none (text only; failures stay silent). */
   provider: TTSProvider;
-  /** fish-local base, default http://127.0.0.1:8080 */
-  baseUrl: string;
-  /**
-   * Fish cloud API key. When reading via IPC, main may return empty string and
-   * set hasApiKey instead; when saving, a non-empty value updates safeStorage,
-   * empty string leaves existing key unchanged, explicit clearApiKey clears it.
-   */
-  apiKey?: string;
-  /** True when a cloud key is stored (IPC get only). */
-  hasApiKey?: boolean;
-  /** Clear stored cloud API key on save (IPC save only). */
-  clearApiKey?: boolean;
-  /**
-   * Built-in voice preset / Fish reference_id (e.g. `nomi` for local references/nomi).
-   * Not a user-uploaded clone slot.
-   */
-  referenceId: string;
-  format: TTSAudioFormat;
-  timeoutMs: number;
-  /** Optional Fish cloud model header (e.g. s2.1-pro-free). */
-  cloudModel?: string;
-
-  // --- legacy external TTS (hostname/port/path clone API) ---
-  hostname: string;
-  port: number;
-  path: string;
-  audioUrl: string;
-  promptText: string;
-
   lastModified: number;
 }
 
-/** Public defaults: no realtime engine, prompt voice on (no secrets). */
+/** Public defaults: no realtime engine, prompt voice on. */
 export const DEFAULT_TTS_CONFIG: Omit<TTSConfig, 'lastModified'> = {
   enabled: true,
   promptVoice: true,
   provider: 'none',
-  baseUrl: 'http://127.0.0.1:8080',
-  referenceId: 'nomi',
-  format: 'mp3',
-  timeoutMs: 30000,
-  cloudModel: 's2.1-pro-free',
-  hostname: '127.0.0.1',
-  port: 8080,
-  path: '/v1/tts',
-  audioUrl: '',
-  promptText: '',
 };
-
-/** Built-in cute voice presets (no user upload). */
-export const BUILTIN_FISH_VOICE_PRESETS = [
-  {
-    id: 'nomi',
-    label: 'Nomi（可爱）',
-    description:
-      'Built-in kawaii Mandarin preference for Nomi; local fish-speech uses references/nomi.',
-  },
-] as const;
 
 export interface TTSSpeakRequest {
   text: string;
-  /** Override referenceId for this utterance (character binding). */
-  referenceId?: string;
   volume?: number;
   /** Per-character speed multiplier (0.5..1.5), mapped to engine speech rate when supported. */
   speed?: number;
@@ -168,11 +108,9 @@ export interface TTSSpeakResult {
   /** base64 audio when success; renderer plays it */
   audioBase64?: string;
   mimeType?: string;
-  /** 'fish' | 'legacy' | 'none' — none means no audio was produced */
-  via?: 'fish' | 'legacy' | 'none';
+  /** Engine that produced audio; none means no audio was produced */
+  via?: TTSProvider;
   message?: string;
-  /** Kept for wire compatibility; always false because system speech is disabled. */
-  fallbackToSystem?: boolean;
 }
 
 // TTS连接测试结果
