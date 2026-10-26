@@ -138,13 +138,21 @@ for (const packaged of [false, true]) {
       await expect(page.getByTestId('chat-bg-blur')).toHaveValue('8');
       await expect(page.getByTestId('chat-bg-opacity')).toHaveValue('40');
       await expect(page.getByTestId('chat-bg-reset')).toHaveCount(0);
-      const presetSize = await page.getByTestId('chat-bg-image').evaluate(async (image) => {
-        const probe = new Image();
-        probe.src = getComputedStyle(image).backgroundImage.slice(5, -2);
-        await probe.decode();
-        return { width: probe.naturalWidth, height: probe.naturalHeight };
-      });
-      expect(presetSize).toEqual({ width: 1920, height: 1080 });
+      // 解码失败（Windows runner 上偶发）时重试，而不是一次就判失败；失败原因带进断言信息
+      await expect
+        .poll(() =>
+          page.getByTestId('chat-bg-image').evaluate(async (image) => {
+            const probe = new Image();
+            probe.src = getComputedStyle(image).backgroundImage.slice(5, -2);
+            try {
+              await probe.decode();
+            } catch (e) {
+              return `${probe.src}: ${String(e)}`;
+            }
+            return { width: probe.naturalWidth, height: probe.naturalHeight };
+          }),
+        )
+        .toEqual({ width: 1920, height: 1080 });
       await expect(page.getByRole('slider', { name: '毛玻璃' })).toBeEnabled();
       await application!.evaluate(({ dialog }, source) => {
         dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [source] });
@@ -174,13 +182,18 @@ for (const packaged of [false, true]) {
       await expect.poll(() => JSON.parse(readFileSync(themeFile, 'utf8')).theme).toBe('image');
 
       const image = page.getByTestId('chat-bg-image');
+      // 窗口右侧露出背景的一小块；Windows runner 屏幕只有 1024 宽，窗口会被压窄，不能写死 x
+      const bgClip = async () => {
+        const width = await page.evaluate(() => window.innerWidth);
+        return { x: width - 70, y: 200, width: 40, height: 40 };
+      };
       const slider = page.getByRole('slider', { name: '毛玻璃' });
       await slider.focus();
       await slider.press('Home');
       await slider.press('ArrowRight');
       await expect(slider).toHaveValue('1');
       const clearBackground = await page.screenshot({
-        clip: { x: 1210, y: 200, width: 40, height: 40 },
+        clip: await bgClip(),
       });
       const sliderBounds = (await slider.boundingBox())!;
       await page.mouse.move(sliderBounds.x + 8, sliderBounds.y + sliderBounds.height / 2);
@@ -195,7 +208,7 @@ for (const packaged of [false, true]) {
       expect(Number(glass)).toBeGreaterThan(1);
       await expect(page.getByTestId('chat-bg-image')).toHaveCSS('filter', `blur(${glass}px)`);
       const frostedBackground = await page.screenshot({
-        clip: { x: 1210, y: 200, width: 40, height: 40 },
+        clip: await bgClip(),
       });
       expect(frostedBackground.equals(clearBackground)).toBe(false);
       await expect(image).toHaveCSS('transform', 'none');
@@ -289,7 +302,7 @@ for (const packaged of [false, true]) {
           await probe.decode();
           return { width: probe.naturalWidth, height: probe.naturalHeight };
         }),
-      ).toEqual(presetSize);
+      ).toEqual({ width: 1920, height: 1080 });
       await expect(page.getByTestId('theme-image')).toHaveAttribute('aria-checked', 'true');
       await page.getByTestId('theme-system').click();
       await expect(page.getByTestId('chat-bg-layer')).toHaveCount(0);

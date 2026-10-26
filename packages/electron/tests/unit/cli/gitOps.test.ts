@@ -48,8 +48,14 @@ function init(dir: string) {
 }
 
 /** 真实路径；Windows 用 native 才会展开 8.3 短名，和 git 给出的路径一致 */
-const realp = (p: string) =>
-  process.platform === 'win32' ? fs.realpathSync.native(p) : fs.realpathSync(p);
+const realp = (p: string): string => {
+  try {
+    return process.platform === 'win32' ? fs.realpathSync.native(p) : fs.realpathSync(p);
+  } catch {
+    // 不存在的路径（伪造 worktree 的 .git）：取上级目录的真实路径再拼回去
+    return path.join(realp(path.dirname(p)), path.basename(p));
+  }
+};
 
 const status = (dir: string) => git(dir, 'status', '--short');
 const write = (file: string, text: string) => {
@@ -211,7 +217,8 @@ describe('gitOps', () => {
     const p = await gitPull(repo);
     expect(p.code).toBe('diverged');
     expect(git(repo, 'log', '-1', '--format=%s')).toBe('feat: mine');
-  });
+    // 二十多次 git 子进程，Windows runner 上每次 0.3~0.5 s，10 s 默认上限不够
+  }, 30_000);
 
   it('检查远端 + 拉取只快进', async () => {
     withRemote();
