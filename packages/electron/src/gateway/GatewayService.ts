@@ -21,8 +21,10 @@ import {
   CLIENT_IDS,
   detect,
   isPrivateHost,
+  knownSecrets,
   MIN_KNOWN,
   normalizeBases,
+  previewPrivacy,
   PRIVACY_KINDS,
   preferredWire,
   type BuiltinClientId,
@@ -34,6 +36,7 @@ import {
   type KeyStatusEvent,
   type LearnEvent,
   type ProviderQuirks,
+  type RedactionHit,
   type RuntimeProvider,
   type UsageEvent,
   type Wire,
@@ -177,11 +180,17 @@ export interface ProviderView extends Omit<GatewayProvider, 'keys' | 'models'> {
   learned?: LearnedState;
 }
 
+/** 「试一试」最多处理多少个字符 */
+const PREVIEW_MAX = 20_000;
+
 /** ai:gateway:set-options 的参数（来自渲染进程，逐项校验类型） */
 export interface GatewayOptionsPatch {
   strictParams?: unknown;
   maxRequestBodyBytes?: unknown;
   privacyMode?: unknown;
+  privacyStrict?: unknown;
+  privacyLocal?: unknown;
+  privacyShape?: unknown;
 }
 
 export interface GatewayStateView {
@@ -207,6 +216,9 @@ export interface GatewayStateView {
   privacyMode: boolean;
   /** 隐私模式的设置：按类型的动作、自定义密钥（只有掩码）、「从不脱敏」名单（只有标记与辨认信息） */
   privacy: {
+    strict: boolean;
+    local: boolean;
+    shape: boolean;
     actions: Record<string, 'warn' | 'block'>;
     secrets: Array<{ id: string; name: string; masked: string }>;
     allow: Array<{ tag: string; kind: string; len: number; head: string; at: number }>;
@@ -867,6 +879,9 @@ export class GatewayService {
       maxRequestBodyBytes: clampMaxRequestBodyBytes(data.maxRequestBodyBytes ?? 32 * 1024 * 1024),
       privacyMode: data.privacyMode !== false,
       privacy: {
+        strict: data.privacyStrict === true,
+        local: data.privacyLocal === true,
+        shape: data.privacyShape === true,
         actions: { ...(data.privacyActions ?? {}) },
         secrets: (data.privacySecrets ?? []).map((s) => ({
           id: s.id,
@@ -1081,6 +1096,13 @@ export class GatewayService {
       else data.privacyMode = false;
       changed = true;
     }
+    // 三个细项默认关：打开才写 true
+    for (const k of ['privacyStrict', 'privacyLocal', 'privacyShape'] as const) {
+      if (typeof patch[k] !== 'boolean') continue;
+      if (patch[k]) data[k] = true;
+      else delete data[k];
+      changed = true;
+    }
     if (changed) {
       this.store.replace(data);
       this.commit();
@@ -1089,6 +1111,16 @@ export class GatewayService {
   }
 
   /* ------------------------------ 隐私模式（docs/design/secret-privacy.md §9、§12） ------------------------------ */
+
+  /**
+   * 「试一试」：一段文字按现在的设置会变成什么。主进程直接算（previewPrivacy 是纯函数、一次性存储），
+   * 已知原文与网关进程里的一致（第三方 Key、客户端令牌、自定义密钥），不登记已见值
+   */
+  previewPrivacy(text: unknown): { text: string; hits: RedactionHit[] } {
+    const s = typeof text === 'string' ? text.slice(0, PREVIEW_MAX) : '';
+    const cfg = this.runtimeConfig();
+    return previewPrivacy(s, { ...cfg.privacy!, known: knownSecrets(cfg) });
+  }
 
   /** 网关用量事件里的命中记录进「最近隐藏的密钥」 */
   notePrivacy(e: UsageEvent): void {
@@ -1400,6 +1432,7 @@ export class GatewayService {
     handle('ai:gateway:privacy-remove-allow', (tag) => this.removePrivacyAllow(tag));
     handle('ai:gateway:privacy-log', () => this.privacyLog.list());
     handle('ai:gateway:privacy-clear-log', () => this.privacyLog.clear());
+    handle('ai:gateway:privacy-preview', (text) => this.previewPrivacy(text));
   }
 
   dispose(): void {

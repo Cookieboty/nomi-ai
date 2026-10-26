@@ -411,6 +411,9 @@ export class GatewayStore {
     });
     return {
       enabled: d.privacyMode !== false,
+      ...(d.privacyStrict ? { strict: true } : {}),
+      ...(d.privacyLocal ? { local: true } : {}),
+      ...(d.privacyShape ? { shape: true } : {}),
       key: this.privacyKey(),
       ...(d.privacyActions && Object.keys(d.privacyActions).length
         ? { actions: { ...d.privacyActions } }

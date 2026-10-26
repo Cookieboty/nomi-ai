@@ -94,6 +94,10 @@ export interface GatewayStoreData {
   maxRequestBodyBytes?: number;
   /** 隐私模式（docs/design/secret-privacy.md）：没有这个字段 = 开，只有用户关掉才写 false */
   privacyMode?: boolean;
+  /** 隐私模式的三个细项开关（默认都关，只有打开才写 true）：严格识别、本机模型也隐藏、形状保持 */
+  privacyStrict?: boolean;
+  privacyLocal?: boolean;
+  privacyShape?: boolean;
   /** 占位符的 HMAC 密钥（首次启动生成，加密存储） */
   privacyKeyEnc?: string;
   privacyKeyEncryption?: KeyEncryption;

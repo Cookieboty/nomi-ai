@@ -212,6 +212,36 @@ describe('GatewayService', () => {
     expect(p.allow).toHaveLength(1);
   });
 
+  it('privacy sub-switches (strict / local / shape) default off and reach the snapshot', () => {
+    const t = setup();
+    t.svc.init();
+    const p0 = t.lastConfig().privacy!;
+    expect([p0.strict, p0.local, p0.shape]).toEqual([undefined, undefined, undefined]);
+    expect(t.svc.state().privacy).toMatchObject({ strict: false, local: false, shape: false });
+    t.svc.setOptions({ privacyStrict: true, privacyLocal: true, privacyShape: true });
+    expect(t.lastConfig().privacy).toMatchObject({ strict: true, local: true, shape: true });
+    t.svc.setOptions({ privacyShape: false, privacyLocal: 'yes' });
+    expect(t.lastConfig().privacy).toMatchObject({ strict: true, local: true });
+    expect(t.lastConfig().privacy!.shape).toBeUndefined();
+  });
+
+  it('privacy preview uses the current settings and known secrets without touching the gateway', () => {
+    const t = setup();
+    t.svc.init();
+    t.svc.addPrivacySecret({ name: 'db', value: 'corp-internal-token-42' });
+    t.svc.setPrivacyAction('CUSTOM', 'warn');
+    const r = t.svc.previewPrivacy(
+      'k sk-proj-Ab3dEf6hIj9kLm2nOp5qRs8tUv and corp-internal-token-42',
+    );
+    expect(r.text).not.toContain('sk-proj-Ab3dEf6hIj9kLm2nOp5qRs8tUv');
+    expect(r.text).toContain('corp-internal-token-42');
+    expect(r.hits.map((h) => [h.kind, h.action])).toEqual([
+      ['API_KEY', 'mask'],
+      ['CUSTOM', 'warn'],
+    ]);
+    expect(t.svc.previewPrivacy(42).text).toBe('');
+  });
+
   it('privacy log aggregates hits from usage events by placeholder', () => {
     const t = setup();
     t.svc.init();
