@@ -118,18 +118,20 @@ describe('全局背景层', () => {
     expect(layer).not.toMatch(/opacity:/);
   });
 
-  it('图片固定取景，第二底层蒙版模糊背景，不缩放图片', () => {
-    expect(ruleBody(app, '.chat-bg-image,\n.chat-bg-mask')).toMatch(/inset:\s*0/);
+  it('图片层自身 filter 模糊并用负 inset 盖住边缘，遮罩为固定深色且不做 backdrop 模糊', () => {
     const image = ruleBody(app, '.chat-bg-image');
+    expect(image).toMatch(/inset:\s*calc\(var\(--cd-chat-bg-blur, 0px\) \* -2\)/);
     expect(image).toMatch(/background-size:\s*cover/);
     expect(image).toMatch(/background-position:\s*center/);
     expect(image).toMatch(/opacity:\s*var\(--cd-chat-bg-opacity/);
-    expect(image).not.toMatch(/filter:|transform:|--cd-chat-bg-blur/);
+    expect(image).toMatch(/(?:^|\s)filter:\s*blur\(var\(--cd-chat-bg-blur/);
+    expect(image).not.toContain('backdrop-filter');
     const mask = ruleBody(app, '.chat-bg-mask');
+    expect(mask).toMatch(/inset:\s*0/);
     expect(mask).toMatch(/z-index:\s*1/);
-    expect(mask).toMatch(/backdrop-filter:\s*blur\(var\(--cd-chat-bg-blur/);
-    expect(mask).not.toContain('-webkit-backdrop-filter');
-    expect(mask).not.toMatch(/(?:^|\s)filter:/);
+    expect(mask).toMatch(/background:\s*rgb\(0 0 0 \/ \d+%\)/);
+    expect(mask).not.toMatch(/filter:|--cd-chat-bg-opacity/);
+    expect(app).not.toContain('--cd-chat-bg-color');
   });
 
   it('欢迎区、输入区和各栏不再单独模糊', () => {

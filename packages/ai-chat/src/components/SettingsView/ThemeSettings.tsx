@@ -1,11 +1,12 @@
 /** 设置 → 通用 → 外观 → 主题：配色与图片主题，点选即时生效。 */
 import { Icon, SettingRow, t as tr } from '@nomi-ai/ui';
-import { THEMES, currentTheme, setTheme, type ThemeState } from '@nomi-ai/ui';
+import { THEMES, currentTheme, setTheme, type ThemePref, type ThemeState } from '@nomi-ai/ui';
 import { Check, Image } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
 import {
   getChatBackground,
+  pickChatBackgroundImage,
   subscribeChatBackground,
   type ChatBackgroundState,
 } from '../../services/chatBackground';
@@ -40,6 +41,15 @@ export function useThemeState(): ThemeState {
     return () => window.removeEventListener('cd:theme-changed', on);
   }, []);
   return cur;
+}
+
+/** 图片主题还没有任何图片（预设缺失且未选图）时先弹选图，选到了才切主题，避免切到无图的空深色。 */
+export async function selectTheme(id: ThemePref, background: ChatBackgroundState): Promise<void> {
+  if (id === 'image' && !background.imageUrl) {
+    const picked = await pickChatBackgroundImage().catch(() => null);
+    if (!picked?.imageUrl) return;
+  }
+  await setTheme(id);
 }
 
 export const ThemeSettings: React.FC = () => {
@@ -78,7 +88,7 @@ export const ThemeSettings: React.FC = () => {
               aria-checked={on}
               title={tr(t.desc)}
               className={`${styles.theme} ${on ? styles.themeOn : ''}`}
-              onClick={() => void setTheme(t.id)}
+              onClick={() => void selectTheme(t.id, background)}
               data-testid={`theme-${t.id}`}
             >
               <span
