@@ -75,6 +75,16 @@ import {
   isBroadGeminiFolder,
   trustGeminiFolder,
 } from '../gemini/trustedFolders';
+import {
+  gitCommit,
+  gitCommitUndo,
+  gitFetch,
+  gitPull,
+  gitPush,
+  gitStage,
+  gitSyncStatus,
+  gitUnstage,
+} from '../gitOps';
 import { pickIdle, resolveIdleReclaimMs, sweepIntervalMs } from '../idleReclaim';
 import {
   effortsForModel,
@@ -4800,6 +4810,17 @@ export class HarnessOrchestrator {
     );
     handle('ai:harness:git-diff', (cwd) => gitDiff(this.knownDir(cwd)));
     handle('ai:harness:git-branch', (cwd) => gitBranch(this.knownDir(cwd)));
+    // 右栏「改动」的写操作（见 gitOps.ts）：暂存、提交、拉取只快进、推送不强推
+    handle('ai:harness:git-sync-status', (cwd) => gitSyncStatus(this.knownDir(cwd)));
+    handle('ai:harness:git-stage', (cwd, paths) => gitStage(this.knownDir(cwd), paths));
+    handle('ai:harness:git-unstage', (cwd, paths) => gitUnstage(this.knownDir(cwd), paths));
+    handle('ai:harness:git-commit', (cwd, message, paths) =>
+      gitCommit(this.knownDir(cwd), message, paths ?? undefined),
+    );
+    handle('ai:harness:git-commit-undo', (cwd, sha) => gitCommitUndo(this.knownDir(cwd), sha));
+    handle('ai:harness:git-fetch', (cwd) => gitFetch(this.knownDir(cwd)));
+    handle('ai:harness:git-pull', (cwd) => gitPull(this.knownDir(cwd)));
+    handle('ai:harness:git-push', (cwd) => gitPush(this.knownDir(cwd)));
     handle('ai:harness:workspace-read', (cwd, filePath) =>
       readWorkspaceFile(this.knownDir(cwd), String(filePath ?? '')),
     );
