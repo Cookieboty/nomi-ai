@@ -328,7 +328,8 @@ export class WindowManager implements IWindowManager {
       title: options.title,
       icon: windowIconPath(),
       skipTaskbar: type === 'main',
-      hasShadow: false,
+      // macOS 对话窗口使用系统原生阴影；透明看板娘不绘制整窗阴影。
+      hasShadow: process.platform === 'darwin' && type === 'aiChat',
       backgroundColor: type === 'main' ? '#00000000' : undefined,
       ...(options.chrome ?? {}),
       webPreferences: {
