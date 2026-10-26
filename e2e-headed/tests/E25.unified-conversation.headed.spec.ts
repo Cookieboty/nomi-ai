@@ -126,6 +126,40 @@ test.describe('E25 · unified conversation view', () => {
       NOMI_MOCK_STEP_MS: '900',
     }));
     await newClaudeTab(chat);
+    // 重试 / 压缩 / 思考中都是 mock 按 STEP_MS 依次发出的瞬时态：Windows runner 上
+    // 前面的断言、填队列等一耗时，轮询就会错过（看到的已是 working / 「已思考 N 秒」）。
+    // 在页面里用 MutationObserver 记下出现过的每个状态，断言「出现过」而不是「此刻仍是」。
+    await chat.evaluate(() => {
+      const seen = { kinds: [] as string[], thinkingRunning: false };
+      (window as unknown as { __e25Seen: typeof seen }).__e25Seen = seen;
+      const sample = () => {
+        const kind = document
+          .querySelector('[data-testid="conv-status"]')
+          ?.getAttribute('data-kind');
+        if (kind && seen.kinds[seen.kinds.length - 1] !== kind) seen.kinds.push(kind);
+        const think = document.querySelector('[data-testid="tool-thinking"]');
+        if (
+          think?.getAttribute('data-open') === 'true' &&
+          think.textContent?.includes('思考中') &&
+          document.querySelector('[data-testid="tool-thinking-timer"]')
+        ) {
+          seen.thinkingRunning = true;
+        }
+      };
+      new MutationObserver(sample).observe(document.body, {
+        subtree: true,
+        childList: true,
+        attributes: true,
+        characterData: true,
+      });
+      sample();
+    });
+    const seen = () =>
+      chat.evaluate(
+        () =>
+          (window as unknown as { __e25Seen: { kinds: string[]; thinkingRunning: boolean } })
+            .__e25Seen,
+      );
     await type(chat, '第一条任务：检查 registerHandler');
 
     // 等待模型首字
@@ -144,23 +178,24 @@ test.describe('E25 · unified conversation view', () => {
     await expect(chat.locator('[data-testid="conv-queued"]')).toContainText('顺便跑一下测试');
     await shot(chat, '21-queued-message');
 
-    // 重试 / 压缩等待态（mock 在首字之后依次发出）
-    await expect(status).toHaveAttribute('data-kind', 'retry', { timeout: 20_000 });
-    await expect(status).toContainText('正在重试');
-    await shot(chat, '22-retrying');
-    await expect(status).toHaveAttribute('data-kind', 'compact', { timeout: 20_000 });
-    await expect(status).toContainText('压缩上下文');
-    await shot(chat, '23-compacting');
+    // 重试 / 压缩等待态（mock 在首字之后依次发出）：按出现顺序断言
+    await expect
+      .poll(async () => (await seen()).kinds.filter((k) => k === 'retry' || k === 'compact'), {
+        timeout: 20_000,
+      })
+      .toEqual(['retry', 'compact']);
+    await shot(chat, '22-23-retry-compact');
 
-    // 思考中：展开 + 计时
-    const think = chat.locator('[data-testid="tool-thinking"]').first();
-    await expect(think).toHaveAttribute('data-open', 'true', { timeout: 20_000 });
-    await expect(think).toContainText('思考中');
-    await expect(chat.locator('[data-testid="tool-thinking-timer"]')).toBeVisible();
+    // 思考中：展开 + 计时（出现过即可；之后会收起为「已思考 N 秒」）
+    await expect.poll(async () => (await seen()).thinkingRunning, { timeout: 20_000 }).toBe(true);
     await shot(chat, '24-thinking-running');
 
     // 工具运行时状态行显示动作与目标
-    await expect(status).toHaveAttribute('data-kind', /tool|subagent/, { timeout: 30_000 });
+    await expect
+      .poll(async () => (await seen()).kinds.some((k) => k === 'tool' || k === 'subagent'), {
+        timeout: 30_000,
+      })
+      .toBe(true);
     await shot(chat, '25-tool-running');
 
     // 第一轮结束；排队的第二条自动发出
