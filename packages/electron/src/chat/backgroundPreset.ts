@@ -2,7 +2,7 @@ import path from 'node:path';
 
 import { app } from 'electron';
 
-export const CHAT_BG_PRESET_URL = 'chat-asset://presets/background.jpg';
+export { CHAT_BG_PRESET_URL } from '@nomi-ai/types';
 
 export function getChatBackgroundPresetFile(
   packaged = app.isPackaged,

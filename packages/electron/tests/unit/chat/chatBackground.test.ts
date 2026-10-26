@@ -12,6 +12,12 @@ jest.mock('electron', () => ({
   dialog: {
     showOpenDialog: jest.fn(async () => ({ canceled: true, filePaths: [] })),
   },
+  nativeImage: {
+    createFromBuffer: jest.fn(() => ({
+      isEmpty: () => true,
+      getSize: () => ({ width: 0, height: 0 }),
+    })),
+  },
 }));
 
 import fs from 'node:fs';
@@ -24,39 +30,29 @@ import {
   DEFAULT_CHAT_BG,
   sanitizeChatBg,
 } from '../../../src/chat/ChatBackgroundService';
+import { CHAT_BG_MAX_BYTES, CHAT_BG_MAX_WIDTH } from '@nomi-ai/types';
 
 const tmpRoot = () => fs.mkdtempSync(path.join(os.tmpdir(), 'chat-bg-'));
-const PRESET_DEFAULTS = { ...DEFAULT_CHAT_BG, mode: 'image', imageUrl: CHAT_BG_PRESET_URL };
+const PRESET_DEFAULTS = { ...DEFAULT_CHAT_BG, imageUrl: CHAT_BG_PRESET_URL };
 
 describe('ChatBackgroundService', () => {
   it('sanitizes and defaults', () => {
     expect(sanitizeChatBg(null)).toEqual(DEFAULT_CHAT_BG);
-    expect(
-      sanitizeChatBg({
-        mode: 'solid',
-        solidColor: '#ff0000',
-        blur: 99,
-        opacity: 2,
-      }),
-    ).toEqual({
-      mode: 'solid',
-      solidColor: '#ff0000',
+    expect(sanitizeChatBg({ mode: 'solid', solidColor: '#ff0000', blur: 99, opacity: 2 })).toEqual({
       imageUrl: null,
       blur: 40,
       opacity: 1,
     });
-    expect(sanitizeChatBg({ mode: 'image', imageUrl: 'http://evil' }).imageUrl).toBeNull();
+    expect(sanitizeChatBg({ imageUrl: 'http://evil' }).imageUrl).toBeNull();
   });
 
-  it('preserves global blur and migrates panel blur with the center value first', () => {
-    expect(sanitizeChatBg({ mode: 'image', blur: 8 }).blur).toBe(8);
-    expect(sanitizeChatBg({ blurLeft: 4, blurCenter: 12, blurRight: 20 }).blur).toBe(12);
-    expect(sanitizeChatBg({ blur: 0, blurCenter: 12 }).blur).toBe(0);
-    expect(sanitizeChatBg({ blurLeft: 4, blurRight: 20 }).blur).toBe(4);
-    expect(sanitizeChatBg({ blurRight: 20 }).blur).toBe(20);
+  it('clamps blur and ignores removed per-panel blur fields', () => {
+    expect(sanitizeChatBg({ blur: 8 }).blur).toBe(8);
     expect(sanitizeChatBg({ blur: -1 }).blur).toBe(0);
-    expect(sanitizeChatBg({ blur: NaN, blurCenter: 8 }).blur).toBe(8);
-    expect(sanitizeChatBg({ blur: Infinity }).blur).toBe(8);
+    expect(sanitizeChatBg({ blur: Infinity }).blur).toBe(DEFAULT_CHAT_BG.blur);
+    expect(sanitizeChatBg({ blurLeft: 4, blurCenter: 12, blurRight: 20 }).blur).toBe(
+      DEFAULT_CHAT_BG.blur,
+    );
   });
 
   it('persists set/reset to disk', () => {
@@ -65,32 +61,26 @@ describe('ChatBackgroundService', () => {
     const images = path.join(root, 'images');
     const s = new ChatBackgroundService(file, images);
     expect(s.get()).toEqual(PRESET_DEFAULTS);
-    expect(s.set({ mode: 'solid', solidColor: '#abcdef', blur: 8, opacity: 0.5 })).toMatchObject({
-      mode: 'solid',
-      solidColor: '#abcdef',
-      blur: 8,
-      opacity: 0.5,
-    });
-    expect(JSON.parse(fs.readFileSync(file, 'utf8')).mode).toBe('solid');
+    expect(s.set({ blur: 3, opacity: 0.5 })).toMatchObject({ blur: 3, opacity: 0.5 });
+    expect(JSON.parse(fs.readFileSync(file, 'utf8'))).toMatchObject({ blur: 3, opacity: 0.5 });
     expect(s.reset()).toEqual(PRESET_DEFAULTS);
-    expect(JSON.parse(fs.readFileSync(file, 'utf8')).mode).toBe('image');
+    expect(JSON.parse(fs.readFileSync(file, 'utf8'))).toEqual(PRESET_DEFAULTS);
   });
 
-  it('loads legacy settings and persists only global blur on the next update', () => {
+  it('drops removed fields from saved settings', () => {
     const root = tmpRoot();
     const file = path.join(root, 'chat-background.json');
     fs.writeFileSync(
       file,
-      JSON.stringify({ mode: 'image', blurLeft: 3, blurCenter: 7, blurRight: 9 }),
+      JSON.stringify({ mode: 'solid', solidColor: '#123456', blurCenter: 7, opacity: 0.42 }),
     );
     const service = new ChatBackgroundService(file, path.join(root, 'images'));
-    expect(service.get().blur).toBe(7);
-    service.set({ opacity: 0.42 });
-    const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
-    expect(saved).toMatchObject({ blur: 7, opacity: 0.42 });
-    expect(saved).not.toHaveProperty('blurLeft');
-    expect(saved).not.toHaveProperty('blurCenter');
-    expect(saved).not.toHaveProperty('blurRight');
+    expect(service.get()).toEqual({ ...PRESET_DEFAULTS, opacity: 0.42 });
+    expect(Object.keys(JSON.parse(fs.readFileSync(file, 'utf8'))).sort()).toEqual([
+      'blur',
+      'imageUrl',
+      'opacity',
+    ]);
   });
 
   it('copies picked image into chat-asset images dir', async () => {
@@ -105,7 +95,6 @@ describe('ChatBackgroundService', () => {
     dialog.showOpenDialog.mockResolvedValueOnce({ canceled: false, filePaths: [src] });
     const s = new ChatBackgroundService(file, images);
     const st = await s.pickImage();
-    expect(st.mode).toBe('image');
     expect(st.imageUrl).toMatch(/^chat-asset:\/\/images\/panel-bg\.[\w-]+\.png$/);
     expect(fs.readFileSync(path.join(images, new URL(st.imageUrl!).pathname), 'utf8')).toBe(
       'fake-png',
@@ -155,24 +144,89 @@ describe('ChatBackgroundService', () => {
     expect(fs.readdirSync(images)).toEqual(['panel-bg.png']);
   });
 
-  it('recovers the temporary image from the previous no-cache implementation', () => {
+  it('does not adopt orphan cached images when none is saved', () => {
     const root = tmpRoot();
     const file = path.join(root, 'chat-background.json');
     const images = path.join(root, 'images');
     fs.mkdirSync(images);
     fs.writeFileSync(path.join(images, 'panel-bg.png'), 'old-png');
-    fs.writeFileSync(
-      file,
-      JSON.stringify({ mode: 'default', imageUrl: null, blur: 0, opacity: 0.39 }),
-    );
-    const service = new ChatBackgroundService(file, images);
-    expect(service.get()).toMatchObject({
-      mode: 'image',
-      imageUrl: 'chat-asset://images/panel-bg.png',
+    fs.writeFileSync(file, JSON.stringify({ imageUrl: null, blur: 0, opacity: 0.39 }));
+    expect(new ChatBackgroundService(file, images).get()).toEqual({
+      imageUrl: CHAT_BG_PRESET_URL,
       blur: 0,
       opacity: 0.39,
     });
-    expect(JSON.parse(fs.readFileSync(file, 'utf8'))).toEqual(service.get());
+  });
+
+  it('re-validates on an empty patch and falls back to the preset when the image vanished', async () => {
+    const { dialog } = jest.requireMock('electron') as { dialog: { showOpenDialog: jest.Mock } };
+    const root = tmpRoot();
+    const images = path.join(root, 'images');
+    const src = path.join(root, 'src.png');
+    fs.writeFileSync(src, 'png');
+    dialog.showOpenDialog.mockResolvedValueOnce({ canceled: false, filePaths: [src] });
+    const service = new ChatBackgroundService(path.join(root, 'bg.json'), images);
+    const picked = await service.pickImage();
+    fs.unlinkSync(path.join(images, new URL(picked.imageUrl!).pathname));
+    expect(service.set({}).imageUrl).toBe(CHAT_BG_PRESET_URL);
+  });
+
+  it('rejects images over the size limit without touching state', async () => {
+    const root = tmpRoot();
+    const images = path.join(root, 'images');
+    const src = path.join(root, 'huge.png');
+    fs.writeFileSync(src, '');
+    fs.truncateSync(src, CHAT_BG_MAX_BYTES + 1);
+    const service = new ChatBackgroundService(path.join(root, 'bg.json'), images);
+    const before = service.get();
+    await expect(service.importImage(src)).rejects.toThrow('image too large');
+    expect(service.get()).toEqual(before);
+    expect(fs.existsSync(images)).toBe(false);
+  });
+
+  it('downscales wide images to the max width as jpg', async () => {
+    const { nativeImage } = jest.requireMock('electron') as {
+      nativeImage: { createFromBuffer: jest.Mock };
+    };
+    const resize = jest.fn(() => ({ toJPEG: () => Buffer.from('small-jpg') }));
+    nativeImage.createFromBuffer.mockReturnValueOnce({
+      isEmpty: () => false,
+      getSize: () => ({ width: 4000, height: 3000 }),
+      resize,
+    });
+    const root = tmpRoot();
+    const images = path.join(root, 'images');
+    const src = path.join(root, 'wide.png');
+    fs.writeFileSync(src, 'wide');
+    const service = new ChatBackgroundService(path.join(root, 'bg.json'), images);
+    const st = await service.importImage(src);
+    expect(resize).toHaveBeenCalledWith({ width: CHAT_BG_MAX_WIDTH, quality: 'best' });
+    expect(st.imageUrl).toMatch(/\.jpg$/);
+    expect(fs.readFileSync(path.join(images, new URL(st.imageUrl!).pathname), 'utf8')).toBe(
+      'small-jpg',
+    );
+  });
+
+  it('keeps the original persist error when cleanup unlink also fails', async () => {
+    const root = tmpRoot();
+    const src = path.join(root, 'src.png');
+    fs.writeFileSync(src, 'png');
+    const service = new ChatBackgroundService(
+      path.join(root, 'bg.json'),
+      path.join(root, 'images'),
+    );
+    const rename = jest.spyOn(fs, 'renameSync').mockImplementationOnce(() => {
+      throw new Error('disk unavailable');
+    });
+    const unlink = jest.spyOn(fs, 'unlinkSync').mockImplementationOnce(() => {
+      throw new Error('unlink failed');
+    });
+    try {
+      await expect(service.importImage(src)).rejects.toThrow('disk unavailable');
+    } finally {
+      rename.mockRestore();
+      unlink.mockRestore();
+    }
   });
 
   it('uses the preset at first run and resets to it without deleting it', async () => {
@@ -184,7 +238,7 @@ describe('ChatBackgroundService', () => {
     fs.mkdirSync(path.dirname(preset));
     fs.writeFileSync(preset, 'preset');
     const service = new ChatBackgroundService(file, images, preset);
-    const defaults = { ...DEFAULT_CHAT_BG, mode: 'image', imageUrl: CHAT_BG_PRESET_URL };
+    const defaults = { ...DEFAULT_CHAT_BG, imageUrl: CHAT_BG_PRESET_URL };
     expect(service.get()).toEqual(defaults);
     const source = path.join(root, 'custom.png');
     fs.writeFileSync(source, 'custom');
@@ -213,7 +267,7 @@ describe('ChatBackgroundService', () => {
       'chat-asset://images/panel-bg.%ZZ.png',
       'https://example.com/image.png',
     ]) {
-      fs.writeFileSync(file, JSON.stringify({ mode: 'image', imageUrl, blur: 0, opacity: 0.75 }));
+      fs.writeFileSync(file, JSON.stringify({ imageUrl, blur: 0, opacity: 0.75 }));
       expect(new ChatBackgroundService(file, images, preset).get()).toMatchObject({
         imageUrl: CHAT_BG_PRESET_URL,
         blur: 0,
