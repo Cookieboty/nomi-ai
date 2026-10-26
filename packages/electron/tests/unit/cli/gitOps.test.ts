@@ -430,4 +430,32 @@ describe('gitOps', () => {
     const owned = (await ownedWorktrees(repo, list!.worktrees)).map((p) => fs.realpathSync(p));
     expect(owned).toEqual([fs.realpathSync(repo), fs.realpathSync(wt)]);
   });
+
+  it('撤销放弃：git 的检查通过之后、删除之前上级目录才被换成软链，也不删仓库外的文件', async () => {
+    write(path.join(repo, 'd', 'x.txt'), 'x\n');
+    git(repo, 'add', '.');
+    git(repo, 'commit', '-q', '-m', 'd');
+    fs.rmSync(path.join(repo, 'd', 'x.txt'));
+    const r = await gitDiscard(repo, ['d/x.txt']);
+    expect(r.ok).toBe(true);
+    const outside = path.join(root, 'outside');
+    write(path.join(outside, 'x.txt'), 'keep\n');
+    const dir = path.join(repo, 'd');
+    // 删除前取上级目录真实路径的那一刻才换：git diff 的检查已经过了
+    const realpath = fs.realpathSync;
+    const spy = jest.spyOn(fs, 'realpathSync').mockImplementation(((p: fs.PathLike) => {
+      if (String(p) === dir && !fs.lstatSync(dir).isSymbolicLink()) {
+        fs.rmSync(dir, { recursive: true });
+        fs.symlinkSync(outside, dir, 'dir');
+      }
+      return realpath(p);
+    }) as typeof fs.realpathSync);
+    try {
+      expect((await gitDiscardUndo(repo, r.stashes)).code).toBe('invalid');
+    } finally {
+      spy.mockRestore();
+    }
+    expect(fs.lstatSync(dir).isSymbolicLink()).toBe(true);
+    expect(fs.readFileSync(path.join(outside, 'x.txt'), 'utf8')).toBe('keep\n');
+  });
 });
