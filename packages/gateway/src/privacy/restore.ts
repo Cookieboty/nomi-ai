@@ -140,6 +140,16 @@ export class Restorer {
     }
   }
 
+  /** 非流式的原样正文：是 JSON 就按结构还原（值里的换行、引号要转义），否则按文本 */
+  raw(text: string): string {
+    if (!text.includes('{{')) return text;
+    try {
+      return JSON.stringify(this.walkJson(JSON.parse(text), ''));
+    } catch {
+      return this.text(text);
+    }
+  }
+
   private walkJson(v: unknown, key: string): unknown {
     if (typeof v === 'string') return this.text(v, key === 'arguments' || key === 'partial_json');
     if (Array.isArray(v)) return v.map((x) => this.walkJson(x, key));

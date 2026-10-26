@@ -45,6 +45,7 @@ import { UnsupportedParamError } from './models/rules/request/index';
 import { isAllowedHostHeader, urlHost } from './net/loopback';
 import { createUpstreamFetch, type UpstreamFetch } from './net/upstreamFetch';
 import { UpstreamBlockedError, type LookupAll } from './net/upstreamGuard';
+import { GatewayPrivacy, Restorer, type MaskResult, type RedactionHit } from './privacy';
 import { ProviderStage, specOf } from './providers/index';
 import { stagedResponse } from './providers/stream';
 import {
@@ -166,6 +167,10 @@ export interface UsageEvent {
   losses?: Loss[];
   /** RoutePlan 质量档：lossless | good | degraded（字段名避开 outcome） */
   routeQuality?: 'lossless' | 'good' | 'degraded';
+  /** 隐私模式遮掉的值（docs/design/secret-privacy.md §11）：只有类型、长度、开头几个字符，不带原文 */
+  redactions?: RedactionHit[];
+  /** 有设为拦截的密钥，请求没有发出 */
+  blocked?: boolean;
 }
 
 export interface GatewayHooks {
@@ -354,6 +359,8 @@ export class GatewayServer {
   readonly metrics: GatewayMetrics;
   /** 钉 IP 的上游 fetch（测试可用 hooks.fetchImpl 覆盖） */
   private readonly upstreamFetch: UpstreamFetch;
+  /** 隐私模式：已见值跨请求、跨客户端共享 */
+  private readonly privacy = new GatewayPrivacy();
 
   constructor(
     private cfg: GatewayConfig,
@@ -373,6 +380,7 @@ export class GatewayServer {
       this.hooks.onLearn?.(e);
     });
     this.metrics = new GatewayMetrics({ now });
+    this.privacy.configure(cfg);
     this.upstreamFetch = createUpstreamFetch({
       getGuard: () => ({
         allowedPrivateHosts: this.cfg.allowedPrivateHosts,
@@ -389,6 +397,7 @@ export class GatewayServer {
   /** 换新配置：进行中的请求继续用各自拿到的旧快照 */
   update(cfg: GatewayConfig): void {
     this.cfg = cfg;
+    this.privacy.configure(cfg);
   }
 
   get config(): GatewayConfig {
@@ -688,9 +697,37 @@ export class GatewayServer {
       stream: wantsStream,
       ...(intent ? { reasoning: intent.mode !== 'disabled' } : {}),
     };
+    // 隐私模式（docs/design/secret-privacy.md）：发往云端的候选用脱敏后的请求体，每个请求只算一次；
+    // 出错就不发（§10），有设为拦截的密钥也不发（§9）
+    let masked: MaskResult | null = null;
+    if (r.candidates.some((c) => this.privacy.applies(cfg, c))) {
+      try {
+        masked = this.privacy.mask(cfg, body);
+      } catch (e) {
+        this.hooks.logger?.warn('gateway privacy mask failed', { error: (e as Error).message });
+        const message = 'Nomi 网关：脱敏出错，请求没有发出';
+        fail(500, message);
+        reportLocal(500, message);
+        return;
+      }
+      if (masked.hits.length) tag.redactions = masked.hits;
+      if (masked.blocked) {
+        const kinds = masked.hits
+          .filter((h) => h.action === 'block')
+          .map((h) => `${h.kind} ×${h.masked}`)
+          .join('、');
+        const message = `Nomi 网关：请求里有设为拦截的密钥（${kinds}），已按隐私设置拦下。可以在 设置 → 隐私与权限 里改成脱敏。`;
+        tag.blocked = true;
+        fail(400, message);
+        reportLocal(400, message);
+        return;
+      }
+    }
+    const bodyFor = (c: Candidate): unknown =>
+      masked && this.privacy.applies(cfg, c) ? masked.body : body;
     // count_tokens 不是生成请求：不计入用量与模型质量
     if (ingress.countTokens) {
-      await this.countTokens(res, cfg, ingress, body, r.candidates[0]!);
+      await this.countTokens(res, cfg, ingress, bodyFor(r.candidates[0]!), r.candidates[0]!);
       return;
     }
 
@@ -753,8 +790,11 @@ export class GatewayServer {
           keyId: cand.key.id,
           wire: cand.wire,
         });
+      const candBody = bodyFor(cand);
       const sendBody =
-        ingress.wire === cand.wire && !keep ? stripSealedReasoning(ingress.wire, body) : body;
+        ingress.wire === cand.wire && !keep
+          ? stripSealedReasoning(ingress.wire, candBody)
+          : candBody;
       // 并发与每分钟请求数（§6.11.3）：排队期间给客户端发保活；等不到就换下一个候选（不冷却这个 Key）
       const release = await this.limiter.acquire(
         `${cand.provider.id}\u0000${cand.key.id}`,
@@ -949,6 +989,10 @@ export class GatewayServer {
     }
     const { res: up, cand, stage } = last;
     win.cand = cand;
+    // 回程还原（§8）：只有发了脱敏请求体的候选才有占位符可还原
+    const sentMasked = Boolean(masked && this.privacy.applies(cfg, cand));
+    if (!sentMasked) delete tag.redactions;
+    const restorer = sentMasked && masked!.restore.size ? new Restorer(masked!.restore) : null;
     // 模型解析的备注、请求修正（attempt）之后再追加响应修正（respond，§11.3）
     const notes = [...resolveNotes, ...(last.notes ?? [])];
     const mode = bridgeMode(cand.wire, ingress.wire, cand.customToolsAsFunctions);
@@ -966,6 +1010,7 @@ export class GatewayServer {
         trace,
         stage,
         resolveAs,
+        restorer,
       );
     } catch (e) {
       // 网关内部异常：照样上报一次（结果记为网关自身的错误），再交给上层处理
@@ -989,6 +1034,11 @@ export class GatewayServer {
     } finally {
       held?.();
     }
+    if (restorer && tag.redactions)
+      tag.redactions = tag.redactions.map((h) => ({
+        ...h,
+        restored: restorer.counts.get(h.placeholder) ?? 0,
+      }));
     const usage = out.usage;
     void trace?.finish({
       status: up.status,
@@ -1267,6 +1317,7 @@ export class GatewayServer {
     trace?: RequestTrace | null,
     stage?: ProviderStage,
     client: string | null = null,
+    restorer: Restorer | null = null,
   ): Promise<Responded> {
     // 保活已发头时不能再 setHeader（#114）；Nomi 跳过保活所以仍能走到这里（#97）
     if (!res.headersSent) res.setHeader(SERVED_MODEL_HEADER, cand.publicModel);
@@ -1347,6 +1398,7 @@ export class GatewayServer {
           }
           // 背压（§6.11.4）：客户端读得慢时暂停读上游，等 drain；等待期间不算上游空闲
           out = conform(out);
+          if (restorer) out = restorer.push(out);
           const ok = out ? res.write(out) : true;
           if (!ok) {
             if (idle) clearTimeout(idle);
@@ -1368,7 +1420,8 @@ export class GatewayServer {
           outcome = 'stream-break';
           errorKind = 'no-terminal';
         }
-        const tail = conform(bridge.end(rest)) + (conformer?.end() ?? '');
+        let tail = conform(bridge.end(rest)) + (conformer?.end() ?? '');
+        if (restorer) tail = restorer.push(tail) + restorer.end();
         if (tail) res.write(tail);
         if (bridge.stopped) {
           if (idle) clearTimeout(idle);
@@ -1385,7 +1438,7 @@ export class GatewayServer {
           const msg = idleFired
             ? `Nomi 网关：上游 ${Math.round(idleMs / 1000)} 秒没有任何输出，已中断`
             : `Nomi 网关：上游中断（${(e as Error).message}）`;
-          res.write(conform(bridge.fail(msg)) + (conformer?.end() ?? ''));
+          res.write((restorer?.end() ?? '') + conform(bridge.fail(msg)) + (conformer?.end() ?? ''));
         }
       } finally {
         if (idle) clearTimeout(idle);
@@ -1460,11 +1513,11 @@ export class GatewayServer {
         'Content-Type': 'text/event-stream; charset=utf-8',
         'Cache-Control': 'no-cache',
       });
-      res.end(out.body);
+      res.end(restorer ? restorer.push(out.body) + restorer.end() : out.body);
     } else if (out.kind === 'raw') {
       res.writeHead(out.status, { 'Content-Type': out.contentType });
-      res.end(out.body);
-    } else sendJson(res, out.status, out.body);
+      res.end(restorer ? restorer.raw(out.body) : out.body);
+    } else sendJson(res, out.status, restorer ? restorer.json(out.body) : out.body);
     return {
       usage,
       outcome: 'ok',
