@@ -41,8 +41,8 @@ describe('themes', () => {
       'system',
     ]);
   });
-  it('treats removed paper id as unknown', () => {
-    expect(normalizeThemePref('paper')).toBeNull();
+  it('maps legacy paper id to cream', () => {
+    expect(normalizeThemePref('paper')).toBe('cream');
   });
   it('follow system resolves dark → graphite, light → cream', () => {
     expect(resolveTheme('system', true)).toBe('graphite');
