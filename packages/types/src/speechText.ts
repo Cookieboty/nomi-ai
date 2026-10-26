@@ -33,7 +33,7 @@ export function cleanTextForSpeech(input: string): string {
 const HARD_LIMIT = 280;
 
 /**
- * Split cleaned text into speakable segments: sentence ends (。！？!?；; and ". "), line breaks,
+ * Split cleaned text into speakable segments: sentence ends (。！？!?；;、". "、and "1.打开"-style digit-dot before a letter), line breaks,
  * then short pieces merged up to `target` chars; anything longer than the hard limit is cut at
  * a comma or space.
  */
@@ -41,7 +41,7 @@ export function splitSpeechSegments(text: string, target = 120): string[] {
   const clean = text.trim();
   if (!clean) return [];
   const parts = clean
-    .split(/(?<=[。！？!?；;…])|(?<=\.)(?=\s)|\n+/)
+    .split(/(?<=[。！？!?；;…])|(?<=\.)(?=\s)|(?<=\d\.)(?=\p{L})|\n+/u)
     .map((p) => p.trim())
     .filter((p) => /[\p{L}\p{N}]/u.test(p));
   const out: string[] = [];
@@ -52,6 +52,8 @@ export function splitSpeechSegments(text: string, target = 120): string[] {
   };
   for (const part of parts) {
     for (const piece of hardSplit(part)) {
+      // 「步骤1.打开」切开后的「1.」不要并回后文，否则仍整段一次合成连读
+      if (buf && /\d\.$/.test(buf)) flush();
       const sep = buf && /[A-Za-z0-9]$/.test(buf) && /^[A-Za-z0-9]/.test(piece) ? ' ' : '';
       if (buf && buf.length + sep.length + piece.length > target) flush();
       buf = buf ? buf + (/[A-Za-z0-9.,!?;:]$/.test(buf) ? ' ' : sep) + piece : piece;

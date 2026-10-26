@@ -63,10 +63,13 @@ export function handleMascotCommand(raw: unknown): boolean {
       else speak();
       return true;
     }
-    case 'reply-speech':
+    case 'reply-speech': {
       // 朗读 AI 回复（对话窗口 → 主进程 tts:reply → 这里）
-      void import('./tts/replySpeech').then((m) => m.handleReplySpeech(cmd));
+      // 从宽的 MascotCommand 收窄成 ReplySpeechMessage，避免 TS2559
+      const msg = { op: cmd.op, id: cmd.id, text: cmd.text };
+      void import('./tts/replySpeech').then((m) => m.handleReplySpeech(msg));
       return true;
+    }
     default:
       return false;
   }

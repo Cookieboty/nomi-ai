@@ -283,5 +283,10 @@ describe('speech text helpers', () => {
     expect(segs.every((s) => s.length <= 280)).toBe(true);
     expect(segs.join('')).toContain('第一句。');
     expect(splitSpeechSegments('   ')).toEqual([]);
+    // 中文序号「步骤1.打开」：点号后无空白也要切开，避免整段连读
+    expect(splitSpeechSegments('步骤1.打开设置。然后保存。')).toEqual([
+      '步骤1.',
+      '打开设置。然后保存。',
+    ]);
   });
 });
