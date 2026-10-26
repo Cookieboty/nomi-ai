@@ -128,6 +128,42 @@ describe('GatewayService', () => {
     expect(again.state().providers).toHaveLength(1);
   });
 
+  it('privacy mode is on by default, the key survives restarts, and can be turned off', () => {
+    const t = setup();
+    t.svc.init();
+    const first = t.lastConfig().privacy!;
+    expect(first.enabled).toBe(true);
+    expect(first.key).toMatch(/^[0-9a-f]{64}$/);
+    expect(t.svc.state().privacyMode).toBe(true);
+    const file = path.join(t.root, 'gateway', 'store.json');
+    // 存储里只有加密后的密钥，没有 privacyMode 字段（默认开）
+    const saved = JSON.parse(fs.readFileSync(file, 'utf8')) as Record<string, unknown>;
+    expect(saved.privacyMode).toBeUndefined();
+    expect(JSON.stringify(saved)).not.toContain(first.key);
+
+    expect(t.svc.setOptions({ privacyMode: false }).privacyMode).toBe(false);
+    expect(t.lastConfig().privacy).toEqual({ enabled: false, key: first.key });
+    t.svc.setOptions({ privacyMode: 'no' });
+    expect(t.lastConfig().privacy!.enabled).toBe(false);
+    t.svc.setOptions({ privacyMode: true });
+    expect(t.lastConfig().privacy!.enabled).toBe(true);
+    expect(
+      (JSON.parse(fs.readFileSync(file, 'utf8')) as Record<string, unknown>).privacyMode,
+    ).toBeUndefined();
+
+    const again = new GatewayService({
+      root: path.join(t.root, 'gateway'),
+      cipher,
+      logger: { info() {}, warn() {} },
+      process: new GatewayProcess({
+        logger: { info() {}, warn() {} },
+        fork: () => new FakeChild() as never,
+      }),
+    });
+    again.init();
+    expect(again.runtimeConfig().privacy!.key).toBe(first.key);
+  });
+
   it('uses a temporary port while the legacy route still holds the port', () => {
     const t = setup({ routeListening: true });
     t.svc.init();

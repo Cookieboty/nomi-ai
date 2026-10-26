@@ -183,6 +183,35 @@ export class GatewayStore {
     return changed;
   }
 
+  /* ------------------------------ 隐私模式 ------------------------------ */
+
+  /** 确保有占位符的 HMAC 密钥（首次使用、或换了机器解不开时重新生成） */
+  ensurePrivacyKey(): boolean {
+    const d = this.data;
+    if (
+      d.privacyKeyEnc &&
+      d.privacyKeyEncryption &&
+      this.decrypt(d.privacyKeyEnc, d.privacyKeyEncryption)
+    )
+      return false;
+    const k = this.encrypt(randomBytes(32).toString('hex'));
+    d.privacyKeyEnc = k.enc;
+    d.privacyKeyEncryption = k.encryption;
+    return true;
+  }
+
+  /** 解不开时用这次进程的临时密钥：隐私模式照常工作，只是重启后占位符会变（缓存失效一次） */
+  private privacyKey(): string {
+    const d = this.data;
+    const key =
+      d.privacyKeyEnc && d.privacyKeyEncryption
+        ? this.decrypt(d.privacyKeyEnc, d.privacyKeyEncryption)
+        : null;
+    return key ?? (this.ephemeralPrivacyKey ??= randomBytes(32).toString('hex'));
+  }
+
+  private ephemeralPrivacyKey: string | null = null;
+
   clientToken(id: ClientId): string | null {
     const c = this.data.clients[id];
     return c ? this.decrypt(c.tokenEnc, c.tokenEncryption) : null;
@@ -368,6 +397,8 @@ export class GatewayStore {
       ...(typeof this.data.maxRequestBodyBytes === 'number'
         ? { maxRequestBodyBytes: clampMaxRequestBodyBytes(this.data.maxRequestBodyBytes) }
         : {}),
+      // 隐私模式默认开：没有 privacyMode 字段也是开（docs/design/secret-privacy.md §11）
+      privacy: { enabled: this.data.privacyMode !== false, key: this.privacyKey() },
     };
   }
 }

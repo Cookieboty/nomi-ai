@@ -92,4 +92,9 @@ export interface GatewayStoreData {
   strictParams?: boolean;
   /** 入站请求体上限（字节）；不设 = 32 MiB */
   maxRequestBodyBytes?: number;
+  /** 隐私模式（docs/design/secret-privacy.md）：没有这个字段 = 开，只有用户关掉才写 false */
+  privacyMode?: boolean;
+  /** 占位符的 HMAC 密钥（首次启动生成，加密存储） */
+  privacyKeyEnc?: string;
+  privacyKeyEncryption?: KeyEncryption;
 }

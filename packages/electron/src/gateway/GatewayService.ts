@@ -172,6 +172,13 @@ export interface ProviderView extends Omit<GatewayProvider, 'keys' | 'models'> {
   learned?: LearnedState;
 }
 
+/** ai:gateway:set-options 的参数（来自渲染进程，逐项校验类型） */
+export interface GatewayOptionsPatch {
+  strictParams?: unknown;
+  maxRequestBodyBytes?: unknown;
+  privacyMode?: unknown;
+}
+
 export interface GatewayStateView {
   status: GatewayStatus;
   providers: ProviderView[];
@@ -191,6 +198,8 @@ export interface GatewayStateView {
   strictParams: boolean;
   /** 入站请求体上限（字节）；默认 32 MiB */
   maxRequestBodyBytes: number;
+  /** 隐私模式（默认开）：发往云端第三方供应商前把密钥换成占位符 */
+  privacyMode: boolean;
   migratedFrom?: { at: number; files: string[] };
   /** Nomi 对话最近用过的模型（新的在前） */
   recentNomi?: string[];
@@ -304,7 +313,9 @@ export class GatewayService {
       }
     }
     const normalized = this.normalizeCliAssignments();
-    if (this.store.ensureClients() || normalized || !this.store.exists()) this.store.save();
+    const keyed = this.store.ensurePrivacyKey();
+    if (this.store.ensureClients() || keyed || normalized || !this.store.exists())
+      this.store.save();
     this.archiveLeftoverLegacy();
     // 上次同步到的模型目录（models.dev）：主进程的元数据解析先用上；网关进程按 catalogFile 自己读
     setCatalogOverlay(readCatalogFile(this.catalogFile));
@@ -837,6 +848,7 @@ export class GatewayService {
       port: data.port,
       strictParams: data.strictParams === true,
       maxRequestBodyBytes: clampMaxRequestBodyBytes(data.maxRequestBodyBytes ?? 32 * 1024 * 1024),
+      privacyMode: data.privacyMode !== false,
       ...(data.migratedFrom ? { migratedFrom: data.migratedFrom } : {}),
       ...(data.recentNomi?.length ? { recentNomi: data.recentNomi } : {}),
       catalog: {
@@ -1024,8 +1036,8 @@ export class GatewayService {
     this.learnGen.set(providerId, (this.learnGen.get(providerId) ?? 0) + 1);
   }
 
-  /** 网关全局选项：严格模式、请求体上限等 */
-  setOptions(patch: { strictParams?: unknown; maxRequestBodyBytes?: unknown }): GatewayStateView {
+  /** 网关全局选项：严格模式、请求体上限、隐私模式等 */
+  setOptions(patch: GatewayOptionsPatch): GatewayStateView {
     let changed = false;
     const data = this.store.snapshot();
     if (typeof patch.strictParams === 'boolean') {
@@ -1035,6 +1047,12 @@ export class GatewayService {
     }
     if (typeof patch.maxRequestBodyBytes === 'number') {
       data.maxRequestBodyBytes = clampMaxRequestBodyBytes(patch.maxRequestBodyBytes);
+      changed = true;
+    }
+    // 隐私模式默认开：打开时去掉字段，只有关掉才写 false
+    if (typeof patch.privacyMode === 'boolean') {
+      if (patch.privacyMode) delete data.privacyMode;
+      else data.privacyMode = false;
       changed = true;
     }
     if (changed) {
@@ -1230,7 +1248,7 @@ export class GatewayService {
     handle('ai:gateway:confirm-private-host', (hp) => this.confirmPrivateHost(String(hp)));
     handle('ai:gateway:retry', () => this.proc.retry());
     handle('ai:gateway:set-options', (patch) =>
-      this.setOptions((patch ?? {}) as { strictParams?: unknown; maxRequestBodyBytes?: unknown }),
+      this.setOptions((patch ?? {}) as GatewayOptionsPatch),
     );
   }
 
