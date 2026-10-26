@@ -639,7 +639,7 @@
   overflow: auto;
   padding: var(--cd-space-2);
   border-radius: var(--cd-radius-sm);
-  background: var(--cd-color-bg-subtle);
+  background: var(--cd-panel-bg-subtle);
   font-size: var(--cd-font-size-xs);
   white-space: pre-wrap;
   word-break: break-all;
