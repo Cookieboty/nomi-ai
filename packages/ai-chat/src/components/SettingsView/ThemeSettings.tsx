@@ -5,6 +5,7 @@ import { Check, Image } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
 import {
+  chatBgErrorMessage,
   getChatBackground,
   pickChatBackgroundImage,
   subscribeChatBackground,
@@ -43,19 +44,32 @@ export function useThemeState(): ThemeState {
   return cur;
 }
 
-/** 图片主题还没有任何图片（预设缺失且未选图）时先弹选图，选到了才切主题，避免切到无图的空深色。 */
-export async function selectTheme(id: ThemePref, background: ChatBackgroundState): Promise<void> {
+/**
+ * 图片主题还没有任何图片（预设缺失且未选图）时先弹选图，选到了才切主题，避免切到无图的空深色。
+ * 选图失败返回给用户看的错误文案，否则返回 null。
+ */
+export async function selectTheme(
+  id: ThemePref,
+  background: ChatBackgroundState,
+): Promise<string | null> {
   if (id === 'image' && !background.imageUrl) {
-    const picked = await pickChatBackgroundImage().catch(() => null);
-    if (!picked?.imageUrl) return;
+    let picked: ChatBackgroundState;
+    try {
+      picked = await pickChatBackgroundImage();
+    } catch (error) {
+      return chatBgErrorMessage(error);
+    }
+    if (!picked.imageUrl) return null;
   }
   await setTheme(id);
+  return null;
 }
 
 export const ThemeSettings: React.FC = () => {
   const cur = useThemeState();
   const [background, setBackground] = useState<ChatBackgroundState>(getChatBackground);
   useEffect(() => subscribeChatBackground(setBackground), []);
+  const [pickError, setPickError] = useState<string | null>(null);
   const sel = THEMES.find((x) => x.id === cur.pref);
   return (
     <div className={styles.themeBlock} data-testid="theme-settings" id="settings-theme">
@@ -88,7 +102,7 @@ export const ThemeSettings: React.FC = () => {
               aria-checked={on}
               title={tr(t.desc)}
               className={`${styles.theme} ${on ? styles.themeOn : ''}`}
-              onClick={() => void selectTheme(t.id, background)}
+              onClick={() => void selectTheme(t.id, background).then(setPickError)}
               data-testid={`theme-${t.id}`}
             >
               <span
@@ -136,6 +150,11 @@ export const ThemeSettings: React.FC = () => {
           );
         })}
       </div>
+      {pickError && cur.pref !== 'image' && (
+        <div className={styles.warn} role="alert" data-testid="theme-image-error">
+          {pickError}
+        </div>
+      )}
       {cur.pref === 'image' && <ChatBackgroundSettings />}
     </div>
   );

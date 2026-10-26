@@ -9,8 +9,9 @@ import path from 'node:path';
 
 import {
   CHAT_BG_IMAGE_URL_PREFIX,
+  CHAT_BG_ERROR,
   CHAT_BG_MAX_BYTES,
-  CHAT_BG_MAX_WIDTH,
+  CHAT_BG_MAX_EDGE,
   CHAT_BG_PRESET_URL,
   DEFAULT_CHAT_BG,
   sanitizeChatBg,
@@ -92,21 +93,37 @@ export class ChatBackgroundService {
     return this.importImage(r.filePaths[0]);
   }
 
-  /** 校验大小 → 过宽则缩到 CHAT_BG_MAX_WIDTH 存 jpg，否则原样复制（全程异步 IO）。 */
+  /**
+   * 校验大小 → 最长边超过 CHAT_BG_MAX_EDGE 则等比缩小（PNG 仍存 PNG 保留透明，其余存 jpg），
+   * 否则原样复制；GIF 不缩以免丢动画。
+   */
   async importImage(src: string): Promise<ChatBackgroundState> {
     let ext = path.extname(src).toLowerCase();
-    if (!IMG_EXT.has(ext)) throw new Error(`unsupported image type: ${ext}`);
+    if (!IMG_EXT.has(ext)) {
+      throw new Error(`${CHAT_BG_ERROR.unsupported}: unsupported image type: ${ext}`);
+    }
     const { size } = await fsp.stat(src);
     if (size > CHAT_BG_MAX_BYTES) {
-      throw new Error(`image too large: ${size} bytes (max ${CHAT_BG_MAX_BYTES})`);
+      throw new Error(
+        `${CHAT_BG_ERROR.tooLarge}: image too large: ${size} bytes (max ${CHAT_BG_MAX_BYTES})`,
+      );
     }
     await fsp.mkdir(this.imagesDir, { recursive: true });
     let resized: Buffer | null = null;
     if (ext !== '.gif') {
       const img = nativeImage.createFromBuffer(await fsp.readFile(src));
-      if (!img.isEmpty() && img.getSize().width > CHAT_BG_MAX_WIDTH) {
-        resized = img.resize({ width: CHAT_BG_MAX_WIDTH, quality: 'best' }).toJPEG(85);
-        ext = '.jpg';
+      const { width, height } = img.isEmpty() ? { width: 0, height: 0 } : img.getSize();
+      if (Math.max(width, height) > CHAT_BG_MAX_EDGE) {
+        const out = img.resize(
+          width >= height
+            ? { width: CHAT_BG_MAX_EDGE, quality: 'best' }
+            : { height: CHAT_BG_MAX_EDGE, quality: 'best' },
+        );
+        if (ext === '.png') resized = out.toPNG();
+        else {
+          resized = out.toJPEG(85);
+          ext = '.jpg';
+        }
       }
     }
     const destName = `${CHAT_BG_IMAGE_STEM}.${randomUUID()}${ext}`;

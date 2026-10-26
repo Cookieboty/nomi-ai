@@ -3,16 +3,20 @@
  * 是否显示只看主题 pref === 'image'；状态与校验共用 @nomi-ai/types。
  */
 import {
+  CHAT_BG_ERROR,
+  CHAT_BG_MAX_BYTES,
   CHAT_BG_PRESET_URL,
   DEFAULT_CHAT_BG,
   sanitizeChatBg,
   type ChatBackgroundState,
 } from '@nomi-ai/types';
+import { createLogger, t as tr } from '@nomi-ai/ui';
 import type { CSSProperties } from 'react';
 
 export { CHAT_BG_PRESET_URL, DEFAULT_CHAT_BG, sanitizeChatBg, type ChatBackgroundState };
 
 const KEY = 'cd.chatBackground';
+const log = createLogger('chat-bg');
 /** 滑块拖动时合并写入主进程的间隔 */
 export const CHAT_BG_WRITE_DEBOUNCE_MS = 150;
 
@@ -88,8 +92,17 @@ async function flush(): Promise<void> {
   inFlightPatch = { ...inFlightPatch, ...patch };
   try {
     if (a) await a.set(patch);
-  } catch {
-    /* 主进程写失败：保持本地预览，下次写入再同步 */
+  } catch (error) {
+    // 主进程没写进去：拉回主进程的真实值（叠加还没发出的补丁），界面不显示一个没保存的值
+    log.warn('chat-bg:set failed, resyncing', error);
+    try {
+      if (a) {
+        revision += 1;
+        emit(sanitizeChatBg({ ...((await a.get()) as object), ...queuedPatch }));
+      }
+    } catch {
+      /* 读也失败：保留本地预览 */
+    }
   } finally {
     if (!flushTimer) inFlightPatch = {};
     for (const fn of done) fn(getChatBackground());
@@ -153,6 +166,21 @@ export async function pickChatBackgroundImage(): Promise<ChatBackgroundState> {
   const next = sanitizeChatBg(await a.pickImage());
   emit(next);
   return next;
+}
+
+/** 选图失败的本地化提示：主进程错误跨 IPC 后只剩消息文本，按开头的错误码识别 */
+export function chatBgErrorMessage(error: unknown): string {
+  const msg = error instanceof Error ? error.message : String(error);
+  if (msg.includes(CHAT_BG_ERROR.tooLarge)) {
+    return tr(
+      'ui.chat-settings.background-image-too-large',
+      String(CHAT_BG_MAX_BYTES / 1024 / 1024),
+    );
+  }
+  if (msg.includes(CHAT_BG_ERROR.unsupported)) {
+    return tr('ui.chat-settings.background-image-unsupported');
+  }
+  return tr('ui.chat-settings.background-image-import-failed');
 }
 
 /** 背景层本身的 CSS 变量（图片 / 透明度）；模糊变量由背景层写到 <html>。 */

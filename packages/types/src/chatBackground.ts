@@ -12,8 +12,13 @@ export const CHAT_BG_PRESET_URL = 'chat-asset://presets/background.jpg';
 export const CHAT_BG_IMAGE_URL_PREFIX = 'chat-asset://images/';
 /** 用户图片大小上限（字节） */
 export const CHAT_BG_MAX_BYTES = 15 * 1024 * 1024;
-/** 用户图片落盘前的最大宽度（px） */
-export const CHAT_BG_MAX_WIDTH = 2560;
+/** 用户图片落盘前的最长边（px） */
+export const CHAT_BG_MAX_EDGE = 2560;
+/** 导入失败的错误码（放在错误消息开头，跨 IPC 后渲染端据此给出本地化提示） */
+export const CHAT_BG_ERROR = {
+  tooLarge: 'CHAT_BG_TOO_LARGE',
+  unsupported: 'CHAT_BG_UNSUPPORTED',
+} as const;
 
 export const DEFAULT_CHAT_BG: ChatBackgroundState = {
   imageUrl: null,

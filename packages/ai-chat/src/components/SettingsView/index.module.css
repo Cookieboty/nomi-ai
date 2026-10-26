@@ -160,6 +160,13 @@
   font-size: var(--cd-font-size-xs);
   color: var(--cd-color-danger);
 }
+/* 行内说明（<p>）里的错误提示：独占一行 */
+.warnBlock {
+  display: block;
+  margin-top: var(--cd-space-1);
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-danger);
+}
 .shortcutActions {
   white-space: nowrap;
   text-align: right !important;

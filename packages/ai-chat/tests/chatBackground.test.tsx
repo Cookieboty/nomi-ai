@@ -9,6 +9,7 @@ import {
   CHAT_BG_PRESET_URL,
   CHAT_BG_WRITE_DEBOUNCE_MS,
   DEFAULT_CHAT_BG,
+  chatBgErrorMessage,
   chatBgStyle,
   getChatBackground,
   initChatBackground,
@@ -259,5 +260,66 @@ describe('chatBackground', () => {
     fireEvent.click(view.getByTestId('theme-image'));
     await waitFor(() => expect(currentTheme().pref).toBe('image'));
     expect(getChatBackground().imageUrl).toBe('chat-asset://images/new.png');
+  });
+
+  it('maps main-process import errors to readable messages', () => {
+    const ipc = (m: string) =>
+      new Error(`Error invoking remote method 'chat-bg:pick-image': Error: ${m}`);
+    expect(chatBgErrorMessage(ipc('CHAT_BG_TOO_LARGE: image too large'))).toContain('15 MB');
+    expect(chatBgErrorMessage(ipc('CHAT_BG_UNSUPPORTED: unsupported image type: .bmp'))).toContain(
+      'PNG',
+    );
+    expect(chatBgErrorMessage(new Error('EACCES'))).toBe('图片导入失败，请重试');
+  });
+
+  it('shows the picker error instead of failing silently', async () => {
+    (window as { electronAPI?: unknown }).electronAPI = {
+      chatBg: {
+        pickImage: async () => {
+          throw new Error('CHAT_BG_TOO_LARGE: image too large');
+        },
+      },
+    };
+    applyTheme('image');
+    const view = render(<ThemeSettings />);
+    fireEvent.click(view.getByTestId('chat-bg-pick'));
+    await waitFor(() =>
+      expect(view.getByTestId('chat-bg-pick-error').textContent).toContain('15 MB'),
+    );
+  });
+
+  it('empty image theme reports a picker error and stays on the current theme', async () => {
+    await resetChatBackground();
+    (window as { electronAPI?: unknown }).electronAPI = {
+      chatBg: {
+        pickImage: async () => {
+          throw new Error('CHAT_BG_UNSUPPORTED: unsupported image type: .bmp');
+        },
+      },
+    };
+    const view = render(<ThemeSettings />);
+    fireEvent.click(view.getByTestId('theme-image'));
+    await waitFor(() => expect(view.getByTestId('theme-image-error').textContent).toContain('PNG'));
+    expect(currentTheme().pref).toBe(DEFAULT_THEME);
+  });
+
+  it('resyncs from the main process when a debounced write fails', async () => {
+    vi.useFakeTimers();
+    (window as { electronAPI?: unknown }).electronAPI = {
+      chatBg: {
+        get: async () => ({ ...PRESET, blur: 4 }),
+        set: async () => {
+          throw new Error('disk full');
+        },
+        reset: async () => PRESET,
+        pickImage: async () => PRESET,
+        onChanged: () => () => undefined,
+      },
+    };
+    const done = setChatBackground({ blur: 30 });
+    expect(getChatBackground().blur).toBe(30);
+    await vi.advanceTimersByTimeAsync(CHAT_BG_WRITE_DEBOUNCE_MS);
+    await done;
+    expect(getChatBackground().blur).toBe(4);
   });
 });

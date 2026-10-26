@@ -6,6 +6,7 @@ import React, { useEffect, useState } from 'react';
 import {
   DEFAULT_CHAT_BG,
   CHAT_BG_PRESET_URL,
+  chatBgErrorMessage,
   getChatBackground,
   pickChatBackgroundImage,
   resetChatBackground,
@@ -19,6 +20,12 @@ import styles from './index.module.css';
 export const ChatBackgroundSettings: React.FC = () => {
   const [state, setState] = useState<ChatBackgroundState>(getChatBackground);
   useEffect(() => subscribeChatBackground(setState), []);
+  const [pickError, setPickError] = useState<string | null>(null);
+  const pick = () =>
+    void pickChatBackgroundImage().then(
+      () => setPickError(null),
+      (error: unknown) => setPickError(chatBgErrorMessage(error)),
+    );
 
   const patch = (value: Partial<ChatBackgroundState>) => void setChatBackground(value);
   const pristine =
@@ -32,15 +39,22 @@ export const ChatBackgroundSettings: React.FC = () => {
         data-testid="image-theme-settings"
         title={t('ui.providers-schedule.image')}
         description={
-          state.imageUrl ? (
-            <span data-testid="chat-bg-image-set">
-              {state.imageUrl === CHAT_BG_PRESET_URL
-                ? t('ui.chat-settings.preset-image')
-                : t('ui.chat-settings.image-selected')}
-            </span>
-          ) : (
-            t('ui.chat-settings.no-image-yet')
-          )
+          <>
+            {state.imageUrl ? (
+              <span data-testid="chat-bg-image-set">
+                {state.imageUrl === CHAT_BG_PRESET_URL
+                  ? t('ui.chat-settings.preset-image')
+                  : t('ui.chat-settings.image-selected')}
+              </span>
+            ) : (
+              t('ui.chat-settings.no-image-yet')
+            )}
+            {pickError && (
+              <span className={styles.warnBlock} role="alert" data-testid="chat-bg-pick-error">
+                {pickError}
+              </span>
+            )}
+          </>
         }
       >
         {state.imageUrl && (
@@ -55,7 +69,7 @@ export const ChatBackgroundSettings: React.FC = () => {
           variant="secondary"
           size="sm"
           data-testid="chat-bg-pick"
-          onClick={() => void pickChatBackgroundImage()}
+          onClick={pick}
         >
           <ImagePlus size={14} strokeWidth={1.75} aria-hidden />
           {t('ui.chat-settings.choose-image')}

@@ -24,13 +24,14 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { CHAT_BG_ERROR, CHAT_BG_MAX_BYTES, CHAT_BG_MAX_EDGE } from '@nomi-ai/types';
+
 import {
   ChatBackgroundService,
   CHAT_BG_PRESET_URL,
   DEFAULT_CHAT_BG,
   sanitizeChatBg,
 } from '../../../src/chat/ChatBackgroundService';
-import { CHAT_BG_MAX_BYTES, CHAT_BG_MAX_WIDTH } from '@nomi-ai/types';
 
 const tmpRoot = () => fs.mkdtempSync(path.join(os.tmpdir(), 'chat-bg-'));
 const PRESET_DEFAULTS = { ...DEFAULT_CHAT_BG, imageUrl: CHAT_BG_PRESET_URL };
@@ -179,32 +180,59 @@ describe('ChatBackgroundService', () => {
     fs.truncateSync(src, CHAT_BG_MAX_BYTES + 1);
     const service = new ChatBackgroundService(path.join(root, 'bg.json'), images);
     const before = service.get();
-    await expect(service.importImage(src)).rejects.toThrow('image too large');
+    await expect(service.importImage(src)).rejects.toThrow(CHAT_BG_ERROR.tooLarge);
     expect(service.get()).toEqual(before);
     expect(fs.existsSync(images)).toBe(false);
   });
 
-  it('downscales wide images to the max width as jpg', async () => {
+  const mockDecoded = (width: number, height: number) => {
     const { nativeImage } = jest.requireMock('electron') as {
       nativeImage: { createFromBuffer: jest.Mock };
     };
-    const resize = jest.fn(() => ({ toJPEG: () => Buffer.from('small-jpg') }));
+    const resize = jest.fn(() => ({
+      toJPEG: () => Buffer.from('small-jpg'),
+      toPNG: () => Buffer.from('small-png'),
+    }));
     nativeImage.createFromBuffer.mockReturnValueOnce({
       isEmpty: () => false,
-      getSize: () => ({ width: 4000, height: 3000 }),
+      getSize: () => ({ width, height }),
       resize,
     });
+    return resize;
+  };
+  const importAs = async (name: string) => {
     const root = tmpRoot();
     const images = path.join(root, 'images');
-    const src = path.join(root, 'wide.png');
-    fs.writeFileSync(src, 'wide');
+    const src = path.join(root, name);
+    fs.writeFileSync(src, 'raw');
     const service = new ChatBackgroundService(path.join(root, 'bg.json'), images);
     const st = await service.importImage(src);
-    expect(resize).toHaveBeenCalledWith({ width: CHAT_BG_MAX_WIDTH, quality: 'best' });
+    return {
+      st,
+      saved: fs.readFileSync(path.join(images, new URL(st.imageUrl!).pathname), 'utf8'),
+    };
+  };
+
+  it('downscales wide images to the max edge as jpg', async () => {
+    const resize = mockDecoded(4000, 3000);
+    const { st, saved } = await importAs('wide.jpeg');
+    expect(resize).toHaveBeenCalledWith({ width: CHAT_BG_MAX_EDGE, quality: 'best' });
     expect(st.imageUrl).toMatch(/\.jpg$/);
-    expect(fs.readFileSync(path.join(images, new URL(st.imageUrl!).pathname), 'utf8')).toBe(
-      'small-jpg',
-    );
+    expect(saved).toBe('small-jpg');
+  });
+
+  it('downscales tall images by height', async () => {
+    const resize = mockDecoded(1200, 6000);
+    const { st } = await importAs('tall.webp');
+    expect(resize).toHaveBeenCalledWith({ height: CHAT_BG_MAX_EDGE, quality: 'best' });
+    expect(st.imageUrl).toMatch(/\.jpg$/);
+  });
+
+  it('keeps large png as png so transparency survives', async () => {
+    mockDecoded(4000, 3000);
+    const { st, saved } = await importAs('wide.png');
+    expect(st.imageUrl).toMatch(/\.png$/);
+    expect(saved).toBe('small-png');
   });
 
   it('keeps the original persist error when cleanup unlink also fails', async () => {
@@ -340,7 +368,7 @@ describe('ChatBackgroundService', () => {
       canceled: false,
       filePaths: [path.join(root, 'bad.txt')],
     });
-    await expect(service.pickImage()).rejects.toThrow('unsupported image type');
+    await expect(service.pickImage()).rejects.toThrow(CHAT_BG_ERROR.unsupported);
     expect(service.get()).toEqual(before);
   });
 });
