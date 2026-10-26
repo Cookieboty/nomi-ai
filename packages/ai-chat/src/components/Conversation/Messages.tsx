@@ -4,10 +4,12 @@ import { Check, CircleAlert, Copy, Layers, OctagonX, Pencil, RefreshCw } from 'l
 import type { LucideIcon } from 'lucide-react';
 import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
 
+import { joinFileAttachments, splitFileAttachments } from '../../services/fileAttachments';
 import type { ConvMessage } from '../../types/conversation';
 import { segmentBody } from '../../utils/convSegments';
 import { formatFullTime, turnSummary } from '../../utils/convTime';
 import { entriesFromLegacyTools, hasRunning, reduceTrace } from '../../utils/toolTrace';
+import { FileChipRow } from '../FileAttachment';
 
 import styles from './index.module.css';
 import { Markdown } from './Markdown';
@@ -180,14 +182,19 @@ export const UserMessage = memo(function UserMessage({
   onEdit?: (id: string, text: string) => void;
   slots?: ConvSlots;
 }) {
+  // 文件附件块从正文里拆出来画成卡片；编辑只改文字，重发时附件原样带上
+  const { text: bodyText, files } = useMemo(
+    () => splitFileAttachments(message.text),
+    [message.text],
+  );
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(message.text);
+  const [draft, setDraft] = useState(bodyText);
   const full = formatFullTime(message.at);
   const submit = () => {
     const text = draft.trim();
     if (!text) return;
     setEditing(false);
-    onEdit?.(message.id, text);
+    onEdit?.(message.id, joinFileAttachments(text, files));
   };
   return (
     <div className={styles.user} data-testid="msg-user" data-message-id={message.id}>
@@ -236,21 +243,22 @@ export const UserMessage = memo(function UserMessage({
       ) : (
         <>
           {slots?.before?.(message)}
-          {message.text && (
+          {files.length > 0 && <FileChipRow files={files} />}
+          {bodyText && (
             <div className={styles.userBubble} title={full}>
-              {message.text}
+              {bodyText}
             </div>
           )}
           <div className={`${styles.actions} ${styles.actionsRight}`} role="toolbar">
             <span className={styles.fullTime}>{full}</span>
-            <CopyAction text={message.text} />
+            <CopyAction text={bodyText} />
             {canEdit && onEdit && (
               <ActionButton
                 icon={Pencil}
                 label={t('ui.usage-tools.edit-and-resend')}
                 testId="msg-edit"
                 onClick={() => {
-                  setDraft(message.text);
+                  setDraft(bodyText);
                   setEditing(true);
                 }}
               />

@@ -15,6 +15,8 @@ import { t } from '@nomi-ai/ui';
 import type { ChatMessage, ChatSession, ConversationBackend } from '../types/chat';
 import { isConversationBackend } from '../types/chat';
 
+import { splitFileAttachments } from './fileAttachments';
+
 export interface KeyValueStorage {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
@@ -327,7 +329,7 @@ export class ConversationStore {
     const cached = this.messagesCache.get(id);
     const messages = cached ?? this.read<ChatMessage[]>(messagesKey(id));
     const text = messages?.find((m) => m.role === 'user')?.content ?? '';
-    return text.slice(0, maxLen);
+    return splitFileAttachments(text).text.slice(0, maxLen);
   }
 
   setMessages(id: string, messages: ChatMessage[]): void {
@@ -480,7 +482,7 @@ export class ConversationStore {
           message &&
           message.role === 'user' &&
           (c.name === 'ui.chat-settings.new-chat' || c.name === t('ui.chat-settings.new-chat'))
-            ? message.content.slice(0, 30)
+            ? splitFileAttachments(message.content).text.slice(0, 30)
             : c.name;
         return { ...c, name: named, updatedAt: this.now(), modelId: message?.modelId ?? c.modelId };
       }),
