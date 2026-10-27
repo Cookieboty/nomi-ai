@@ -66,7 +66,7 @@ const okDetect = (url: string): DetectResult => ({
 
 function fakeMain(
   o: {
-    detect?: (input: Record<string, unknown>) => DetectResult;
+    detect?: (input: Record<string, unknown>) => DetectResult | Promise<DetectResult>;
     extra?: Record<string, (...a: unknown[]) => unknown>;
   } = {},
 ) {
@@ -325,6 +325,89 @@ describe('ModelsPage', () => {
     expect(err.textContent).toContain('Key 无效或没有权限');
     expect(upserts(m)).toHaveLength(0);
     expect(screen.getByTestId('models-provider-form')).toBeTruthy();
+  });
+
+  it('custom address: optional test model is sent as fallbackModel and saved when /models is empty (#161)', async () => {
+    const m = fakeMain({
+      detect: (i) => ({
+        wires: {
+          chat: {
+            wire: 'chat',
+            url: String(i.url),
+            ok: true,
+            model: String(i.fallbackModel ?? ''),
+            ms: 5,
+          },
+        },
+        byKey: {},
+        models: [],
+        urls: { chat: String(i.url) },
+      }),
+    });
+    render(<ModelsPage />);
+    fireEvent.click(await screen.findByTestId('models-preset-custom'));
+    fireEvent.change(screen.getByTestId('models-provider-url'), {
+      target: { value: 'https://relay.example.com/v1' },
+    });
+    fireEvent.change(screen.getByTestId('models-provider-key'), { target: { value: 'sk-xyz' } });
+    expect(screen.getByTestId('models-provider-test-model')).toBeTruthy();
+    fireEvent.change(screen.getByTestId('models-provider-test-model'), {
+      target: { value: 'my-synth-model' },
+    });
+    fireEvent.click(screen.getByTestId('models-provider-save'));
+    await waitFor(() => expect(upserts(m)).toHaveLength(1));
+    const detect = m.calls.find(([c]) => c === 'ai:gateway:detect')![1][0] as Record<
+      string,
+      unknown
+    >;
+    expect(detect.fallbackModel).toBe('my-synth-model');
+    expect(upserts(m)[0]!.models.map((x) => x.id)).toContain('my-synth-model');
+  });
+
+  it('custom address with empty /models and no test model shows an actionable error (#161)', async () => {
+    const m = fakeMain({
+      detect: () => ({
+        wires: {
+          chat: { wire: 'chat', url: 'https://relay.example.com/v1', ok: true, ms: 5 },
+        },
+        byKey: {},
+        models: [],
+        urls: { chat: 'https://relay.example.com/v1' },
+      }),
+    });
+    render(<ModelsPage />);
+    fireEvent.click(await screen.findByTestId('models-preset-custom'));
+    fireEvent.change(screen.getByTestId('models-provider-url'), {
+      target: { value: 'https://relay.example.com/v1' },
+    });
+    fireEvent.change(screen.getByTestId('models-provider-key'), { target: { value: 'sk-1' } });
+    fireEvent.click(screen.getByTestId('models-provider-save'));
+    const err = await screen.findByTestId('models-provider-error');
+    expect(err.textContent).toMatch(/测试用模型|test model/i);
+    expect(upserts(m)).toHaveLength(0);
+    expect(screen.getByTestId('models-provider-test-model')).toBeTruthy();
+  });
+
+  it('cancelling while detect is in flight does not upsert (#162)', async () => {
+    let resolveDetect!: (v: DetectResult) => void;
+    const m = fakeMain({
+      detect: () =>
+        new Promise<DetectResult>((r) => {
+          resolveDetect = r;
+        }),
+    });
+    m.state.providers = [kimi()];
+    render(<ModelsPage />);
+    fireEvent.click(await screen.findByTestId('add-provider'));
+    fireEvent.click(await screen.findByTestId('models-preset-deepseek'));
+    fireEvent.change(screen.getByTestId('models-provider-key'), { target: { value: 'sk-aaaa' } });
+    fireEvent.click(screen.getByTestId('models-provider-save'));
+    await waitFor(() => expect(m.calls.some(([c]) => c === 'ai:gateway:detect')).toBe(true));
+    fireEvent.click(screen.getByTestId('models-provider-cancel'));
+    resolveDetect(okDetect('https://api.deepseek.com'));
+    await new Promise((x) => setTimeout(x, 80));
+    expect(upserts(m)).toHaveLength(0);
+    expect(m.state.providers.map((p) => p.id)).toEqual(['kimi']);
   });
 
   it('custom address needs an address; local presets need no key and are confirmed automatically', async () => {
