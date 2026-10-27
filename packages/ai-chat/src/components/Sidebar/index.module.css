@@ -384,7 +384,7 @@
 .threadLive {
   font-size: var(--cd-font-size-sm);
   font-weight: var(--cd-font-weight-medium);
-  color: var(--cd-color-accent);
+  color: var(--cd-color-accent-strong);
   white-space: nowrap;
   margin-left: auto;
 }
