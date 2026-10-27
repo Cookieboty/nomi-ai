@@ -33,6 +33,11 @@ export default defineConfig(({ mode }) => ({
         ? JSON.stringify(`http://${DEV_HOST}:${PORTS.renderer}`)
         : '"https://api.example.com"',
   },
+  // @nomi-ai/types 只产出 CommonJS（主进程要 require），workspace 链接的包默认不预构建：
+  // dev 下浏览器按 ESM 直接加载 dist/index.js 拿不到任何具名导出，整页白屏。
+  optimizeDeps: {
+    include: ['@nomi-ai/types'],
+  },
   server: {
     host: DEV_HOST,
     port: PORTS.chat,
