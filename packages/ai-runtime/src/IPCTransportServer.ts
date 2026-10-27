@@ -24,6 +24,11 @@ export interface IPCTransportServerOptions {
   logger?: RuntimeLogger;
   /** 允许的 sender id / url 判定；返回 false 则请求被拒绝并抛错 */
   isSenderAllowed?: (event: IpcInvokeEvent, spec: IpcMethodSpec) => boolean;
+  /**
+   * chat 门面请求真正发出前的主进程检查（如本地文件内容的外发授权）：可就地改写 options.messages；
+   * 抛错则这次请求失败（流式请求以 done + error 结束）。
+   */
+  prepareChat?: (options: Record<string, unknown>, method: string) => Promise<void>;
 }
 
 interface FacadeLike {
@@ -103,7 +108,15 @@ export class IPCTransportServer {
     if (spec.kind === 'stream') {
       return this.handleStream(event, spec, bound, args);
     }
+    await this.prepare(spec, args);
     return bound(...args);
+  }
+
+  private async prepare(spec: IpcMethodSpec, args: unknown[]): Promise<void> {
+    const options = args[0];
+    if (spec.facade !== 'chat' || !this.opts.prepareChat) return;
+    if (!options || typeof options !== 'object') return;
+    await this.opts.prepareChat(options as Record<string, unknown>, spec.method);
   }
 
   /**
@@ -135,7 +148,6 @@ export class IPCTransportServer {
       callArgs = args.slice(1);
     }
 
-    const iterable = fn(...callArgs) as AsyncIterable<unknown>;
     // 窗口已关闭 / 已销毁：向它 send 会抛 "Object has been destroyed"。停止推送并中止上游生成。
     const gone = (): boolean => {
       try {
@@ -176,6 +188,10 @@ export class IPCTransportServer {
     };
     (async () => {
       try {
+        // 先过主进程的外发检查，通过后才创建上游请求
+        await this.prepare(spec, args);
+        if (gone()) return;
+        const iterable = fn(...callArgs) as AsyncIterable<unknown>;
         for await (const value of iterable) {
           if (closed) return;
           // 窗口没了：不等下一次发送失败，马上停掉上游

@@ -76,6 +76,8 @@ export interface AIRuntimeBootOptions {
    *     并 `logger.warn` 提示（避免阻塞主流程）；其它异常照常向外抛。
    */
   ttsProviders?: TtsProvider[];
+  /** Nomi 对话请求发出前的外发检查，见 IPCTransportServerOptions.prepareChat */
+  prepareChat?: (options: Record<string, unknown>, method: string) => Promise<void>;
 }
 
 export interface AIRuntimeBootHandle {
@@ -223,6 +225,7 @@ export async function startAIRuntime(
     client,
     adapter,
     logger: runtimeLogger,
+    prepareChat: opts.prepareChat,
   });
   transport.start();
 

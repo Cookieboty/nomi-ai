@@ -90,6 +90,53 @@ describe('IPCTransportServer', () => {
     expect(last.done).toBe(true);
   });
 
+  it('prepareChat：流式请求先过主进程检查，可改写 messages；抛错则不调用上游并以 error 结束', async () => {
+    const ctx = createFakeSdkCtx();
+    const llm = createFakeLLM('fake');
+    ctx.provide(LLMRegistryKey, createFakeLLMRegistry(llm));
+    ctx.provide(ToolRegistryKey, createFakeToolRegistry());
+    ctx.provide(UserProfileKey, createFakeProfileService());
+    const adapter = createFakeIpcAdapter();
+    const seen: string[] = [];
+    new IPCTransportServer({
+      client: new AIClient(ctx),
+      adapter,
+      logger: NoopRuntimeLogger,
+      prepareChat: async (opts, method) => {
+        seen.push(method);
+        const msgs = opts.messages as Array<{ content: string }>;
+        if (msgs[0]!.content === 'deny') throw new Error('blocked');
+        msgs[0]!.content = 'redacted';
+      },
+    }).start();
+
+    await adapter.invoke(7, 'ai:chat:stream', {
+      provider: 'fake',
+      messages: [{ role: 'user', content: 'secret' }],
+    });
+    await new Promise((r) => setTimeout(r, 5));
+    expect(llm.streamCalls[0]?.messages[0]?.content).toBe('redacted');
+
+    await adapter.invoke(8, 'ai:chat:stream', {
+      provider: 'fake',
+      messages: [{ role: 'user', content: 'deny' }],
+    });
+    await new Promise((r) => setTimeout(r, 5));
+    expect(llm.streamCalls).toHaveLength(1);
+    const chunkCh = chunkChannelName({ facade: 'chat', method: 'stream' });
+    const sent = (adapter.senderStreams.get(8) ?? []).filter((s) => s.channel === chunkCh);
+    expect(sent.at(-1)!.payload).toMatchObject({ done: true, error: 'blocked' });
+
+    await expect(
+      adapter.invoke(9, 'ai:chat:sendMessage', {
+        provider: 'fake',
+        messages: [{ role: 'user', content: 'deny' }],
+      }),
+    ).rejects.toThrow('blocked');
+    expect(llm.chatCalls).toHaveLength(0);
+    expect(seen).toEqual(['stream', 'stream', 'sendMessage']);
+  });
+
   it('tts.stream：位置参数不被改写——服务端用原始 (text, opts) 调用（reqId 在 envelope 里）', async () => {
     const ctx = createFakeSdkCtx();
     ctx.provide(LLMRegistryKey, createFakeLLMRegistry(createFakeLLM('fake')));

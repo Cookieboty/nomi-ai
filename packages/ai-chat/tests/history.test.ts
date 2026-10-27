@@ -23,6 +23,17 @@ describe('buildProviderMessages', () => {
     ]);
   });
 
+  it('wraps delegate results in a <cli-output> boundary so the main process can filter them (#117)', () => {
+    const history = [
+      msg('1', 'user', 'go'),
+      msg('delegate-t1-42', 'assistant', 'did it', { origin: 'background' }),
+      msg('3', 'assistant', 'plain', { origin: 'background' }),
+    ];
+    const out = buildProviderMessages(history, 'next');
+    expect(out[1]!.content).toMatch(/^<cli-output>\n.+\ndid it\n<\/cli-output>$/);
+    expect(out[2]!.content).toBe('plain');
+  });
+
   it('drops empty and failed messages; no system prompt when blank', () => {
     const history = [
       msg('1', 'user', 'q'),

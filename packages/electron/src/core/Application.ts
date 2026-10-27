@@ -38,6 +38,7 @@ import { decryptLegacyCliKey } from '../cli/legacyCliKey';
 import { initSessionHistoryService } from '../cli/SessionHistoryService';
 import type { CliKind } from '../cli/types';
 import { getDesktopService } from '../desktop/DesktopService';
+import { guardOutboundMessages } from '../desktop/outboundGuard';
 import { DiagnosticsService } from '../diagnostics/DiagnosticsService';
 import { initExtensionsService } from '../extensions/ExtensionsService';
 import { getGatewayService, initGatewayService } from '../gateway/GatewayService';
@@ -880,6 +881,19 @@ export class Application implements IApplication {
           screen,
         },
         ttsProviders: [electronNativeTts],
+        // 消息里的附件正文 / 委派汇报按实际接收者过「仅本地 / 云端首次发送」（#149 / #117）
+        prepareChat: (options, method) =>
+          guardOutboundMessages(options.messages, (what) => {
+            const desktop = getDesktopService(this.logger);
+            const fallback = method.startsWith('agent') ? 'agent-tools' : 'chat';
+            const role =
+              options.role === 'chat' ||
+              options.role === 'agent-tools' ||
+              options.role === 'summary'
+                ? options.role
+                : fallback;
+            return desktop.checkSendAll(desktop.receiversFor(undefined, [role]), undefined, what);
+          }),
       });
       this.logger.info('AI runtime 启动完成', {
         profile: this.aiRuntime.profile,
