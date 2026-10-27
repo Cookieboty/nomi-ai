@@ -107,7 +107,7 @@ describe('AgentProgressService：用量联动', () => {
     return { svc, say, home, finish: (e: EndpointFinished) => finished(e), changed: tabsChanged };
   };
 
-  it('state：标签按接管的 CLI 会话 id、文件会话按「工具:会话」附上累计用量；Nomi 对话不附', () => {
+  it('state：标签按接管的 CLI 会话 id、文件会话按「工具:会话」附上累计用量；Nomi 对话不附', async () => {
     const usage: SessionUsageView = { tokens: 1200, costUsd: 0.5, calls: 3, unpriced: false };
     const usageOf = jest.fn((s: string, id: string) => (id === 'sess-1' ? usage : null));
     const { svc, home } = setup(
@@ -121,7 +121,7 @@ describe('AgentProgressService：用量联动', () => {
     const dir = path.join(home, '.dsh', 'sessions', '--w-x--', 'sess-1');
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, 'session.lock'), '');
-    svc.tick();
+    await svc.tick();
     const by = Object.fromEntries(svc.state().sessions.map((s) => [s.id, s]));
     expect(by['tab:a']!.usage).toEqual(usage);
     expect(by['tab:b']!.usage).toBeUndefined();
@@ -130,13 +130,13 @@ describe('AgentProgressService：用量联动', () => {
     expect(usageOf).not.toHaveBeenCalledWith('nomi', expect.anything());
   });
 
-  it('usageOf 抛错不影响监视视图', () => {
+  it('usageOf 抛错不影响监视视图', async () => {
     const { svc } = setup([tab({ id: 'a' })], {
       usageOf: () => {
         throw new Error('boom');
       },
     });
-    svc.tick();
+    await svc.tick();
     expect(svc.state().sessions[0]!.usage).toBeUndefined();
   });
 
