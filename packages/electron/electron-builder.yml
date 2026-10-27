@@ -43,7 +43,7 @@ files:
   - '!**/node_modules/**/*.{md,markdown}'
   - '!**/node_modules/**/{test,tests,__tests__,__mocks__,docs,example,examples,coverage,.github}/**'
   - '!**/node_modules/**/{tsconfig*.json,.eslintrc*,.prettierrc*,.editorconfig,.npmignore}'
-  # onnxruntime-web（~135MB）：唯一使用方是主进程 voice/sileroNode.ts 的 import('onnxruntime-web')，
+  # onnxruntime-web（~135MB）：唯一使用方是 voice/sileroCore.ts（在 sileroWorker.ts 的 worker 线程里）的 import('onnxruntime-web')，
   # Node 下走 exports.node → dist/ort.node.min.{mjs,js}，它只加载 ort-wasm-simd-threaded.mjs → .wasm。
   # 浏览器 / WebGPU / WebGL / JSEP / JSPI / asyncify 构建全部用不到，只保留这 4 个文件（~14MB）。
   # 升级 onnxruntime-web 后需重新核对 ort.node.min.mjs 引用的文件名。

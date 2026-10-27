@@ -132,6 +132,7 @@ export class VoiceService {
   private readonly vads = new Map<string, SileroStream>();
   private readonly vadOwners = new Set<number>();
   private vadSeq = 0;
+  private vadErrAt = 0;
   private ipcDone = false;
   private readonly streams = new Map<string, VolcStream>();
   private readonly streamOwners = new Set<number>();
@@ -947,7 +948,11 @@ export class VoiceService {
         this.vadOwners.add(wc.id);
         wc.once('destroyed', () => {
           this.vadOwners.delete(wc.id);
-          for (const k of [...this.vads.keys()]) if (k.startsWith(`${wc.id}:`)) this.vads.delete(k);
+          for (const [k, v] of [...this.vads]) {
+            if (!k.startsWith(`${wc.id}:`)) continue;
+            v.dispose();
+            this.vads.delete(k);
+          }
         });
       }
       return { kind: 'silero', handle };
@@ -958,11 +963,22 @@ export class VoiceService {
       const v = this.vads.get(key);
       if (!v) return 0;
       const f = toFloat32(frame);
-      return f ? v.prob(f) : 0;
+      if (!f) return 0;
+      // worker 崩溃 / 超时等：本帧按「无语音」处理，下一帧懒重建 worker
+      return v.prob(f).catch((err: unknown) => {
+        const now = Date.now();
+        if (now - this.vadErrAt > 10_000) {
+          this.vadErrAt = now;
+          this.d.logger.warn('Silero VAD 推理失败', { error: String(err) } as never);
+        }
+        return 0;
+      });
     });
     handle('ai:voice:vadClose', (e, h) => {
       const key = String(h);
-      if (key.startsWith(`${e.sender.id}:`)) this.vads.delete(key);
+      if (!key.startsWith(`${e.sender.id}:`)) return;
+      this.vads.get(key)?.dispose();
+      this.vads.delete(key);
     });
     handle('ai:voice:transcribe', async (_e, wav, opts) => {
       const o = (opts ?? {}) as { source?: string; purpose?: 'command' | 'wake' };
