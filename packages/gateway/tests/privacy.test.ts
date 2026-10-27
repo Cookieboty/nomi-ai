@@ -553,14 +553,15 @@ describe('性能', () => {
   it('1 MiB 文本类请求体扫描不慢、随体积线性增长（防回退）', () => {
     const s = store([{ kind: 'API_KEY', value: 'zp-secret-value-123456' }]);
     // 原来量 1 MiB 与 4 MiB 各 6 遍（共 30 MiB），慢的共享 runner 上总时长超过 5 s 的用例上限。
-    // 线性与否看 128 KiB → 1 MiB 的比值：线性约 8 倍、二次方约 64 倍；阈值 32 两边各留 2 倍以上余量。
+    // 线性与否看 128 KiB → 1 MiB 的比值：理想线性约 8 倍、二次方约 64 倍。macOS runner 上大对象的 GC /
+    // 分配开销让实测比值到过 35 倍（v2.0.4 CI），阈值取 48：仍低于二次方的 64，再配 500 ms 绝对上限兜底。
     // 不用 64 KiB 做基准：它在快机器上不到 1 ms，被 Math.max(…, 1) 截断后比值实际变成「1 MiB 的毫秒数」，
     // macOS runner 上 1 MiB 偶尔 70+ ms 就误报（v2.0.4 CI）。
     const small = fastest(bodyOf(1 << 17), s, 12);
     const large = fastest(bodyOf(1 << 20), s, 4);
     // 本机 1 MiB 约 13 ms；阈值只拦灾难性回退（回溯 / 二次方会到秒级），不拦机器快慢
     expect(large).toBeLessThan(500);
-    expect(large / Math.max(small, 0.1)).toBeLessThan(32);
+    expect(large / Math.max(small, 0.1)).toBeLessThan(48);
   });
 });
 
