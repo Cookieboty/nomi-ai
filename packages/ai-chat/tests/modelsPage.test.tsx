@@ -413,7 +413,9 @@ describe('ModelsPage', () => {
   it('custom address needs an address; local presets need no key and are confirmed automatically', async () => {
     const m = fakeMain();
     render(<ModelsPage />);
-    fireEvent.click(await screen.findByTestId('models-preset-custom'));
+    // custom chip is always mounted; wait for async presets (ollama) before switching
+    await screen.findByTestId('models-preset-ollama', {}, { timeout: 5000 });
+    fireEvent.click(screen.getByTestId('models-preset-custom'));
     fireEvent.change(screen.getByTestId('models-provider-key'), { target: { value: 'sk-1234' } });
     const save = screen.getByTestId('models-provider-save') as HTMLButtonElement;
     expect(save.disabled).toBe(true);

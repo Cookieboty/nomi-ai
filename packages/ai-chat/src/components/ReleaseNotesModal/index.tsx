@@ -73,10 +73,12 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
   useLocale();
   const locale = getLocale();
   const [showAfter, setShowAfter] = useState(getShowReleaseNotesAfterUpdate);
-
-  useEffect(() => {
+  /** Track which open session we synced prefs for (avoid setState-in-effect). */
+  const [syncedOpen, setSyncedOpen] = useState(false);
+  if (open !== syncedOpen) {
+    setSyncedOpen(open);
     if (open) setShowAfter(getShowReleaseNotesAfterUpdate());
-  }, [open]);
+  }
 
   const onToggleShow = useCallback((checked: boolean) => {
     setShowAfter(checked);
