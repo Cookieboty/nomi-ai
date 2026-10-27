@@ -331,6 +331,8 @@ export class UsageLogScanner {
     let added = 0;
     let files = 0;
     try {
+      // 游标与路由去重都依赖完整账本：大账本后台载入完成前先等
+      await this.d.ledger.whenReady();
       for (const f of this.find()) {
         if (this.d.routeBusy?.(f.source)) continue;
         try {
