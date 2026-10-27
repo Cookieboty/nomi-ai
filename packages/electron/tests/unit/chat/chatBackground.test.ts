@@ -56,16 +56,29 @@ describe('ChatBackgroundService', () => {
     );
   });
 
-  it('persists set/reset to disk', () => {
+  it('persists set/reset to disk', async () => {
     const root = tmpRoot();
     const file = path.join(root, 'chat-background.json');
     const images = path.join(root, 'images');
     const s = new ChatBackgroundService(file, images);
     expect(s.get()).toEqual(PRESET_DEFAULTS);
-    expect(s.set({ blur: 3, opacity: 0.5 })).toMatchObject({ blur: 3, opacity: 0.5 });
+    expect(await s.set({ blur: 3, opacity: 0.5 })).toMatchObject({ blur: 3, opacity: 0.5 });
     expect(JSON.parse(fs.readFileSync(file, 'utf8'))).toMatchObject({ blur: 3, opacity: 0.5 });
-    expect(s.reset()).toEqual(PRESET_DEFAULTS);
+    expect(await s.reset()).toEqual(PRESET_DEFAULTS);
     expect(JSON.parse(fs.readFileSync(file, 'utf8'))).toEqual(PRESET_DEFAULTS);
+  });
+
+  it('concurrent set calls apply in order and keep the last state (#154)', async () => {
+    const root = tmpRoot();
+    const file = path.join(root, 'chat-background.json');
+    const s = new ChatBackgroundService(file, path.join(root, 'images'));
+    const results = await Promise.all([
+      s.set({ blur: 1 }),
+      s.set({ opacity: 0.4 }),
+      s.set({ blur: 5 }),
+    ]);
+    expect(results[2]).toMatchObject({ blur: 5, opacity: 0.4 });
+    expect(JSON.parse(fs.readFileSync(file, 'utf8'))).toMatchObject({ blur: 5, opacity: 0.4 });
   });
 
   it('drops removed fields from saved settings', () => {
@@ -100,7 +113,7 @@ describe('ChatBackgroundService', () => {
     expect(fs.readFileSync(path.join(images, new URL(st.imageUrl!).pathname), 'utf8')).toBe(
       'fake-png',
     );
-    s.reset();
+    await s.reset();
     expect(fs.readdirSync(images)).toEqual([]);
   });
 
@@ -169,7 +182,7 @@ describe('ChatBackgroundService', () => {
     const service = new ChatBackgroundService(path.join(root, 'bg.json'), images);
     const picked = await service.pickImage();
     fs.unlinkSync(path.join(images, new URL(picked.imageUrl!).pathname));
-    expect(service.set({}).imageUrl).toBe(CHAT_BG_PRESET_URL);
+    expect((await service.set({})).imageUrl).toBe(CHAT_BG_PRESET_URL);
   });
 
   it('rejects images over the size limit without touching state', async () => {
@@ -243,7 +256,7 @@ describe('ChatBackgroundService', () => {
       path.join(root, 'bg.json'),
       path.join(root, 'images'),
     );
-    const rename = jest.spyOn(fs, 'renameSync').mockImplementationOnce(() => {
+    const rename = jest.spyOn(fs.promises, 'rename').mockImplementationOnce(async () => {
       throw new Error('disk unavailable');
     });
     const unlink = jest.spyOn(fs, 'unlinkSync').mockImplementationOnce(() => {
@@ -271,12 +284,12 @@ describe('ChatBackgroundService', () => {
     const source = path.join(root, 'custom.png');
     fs.writeFileSync(source, 'custom');
     dialog.showOpenDialog.mockResolvedValueOnce({ canceled: false, filePaths: [source] });
-    service.set({ blur: 17, opacity: 0.6 });
+    await service.set({ blur: 17, opacity: 0.6 });
     const selected = await service.pickImage();
     expect(selected).toMatchObject({ blur: 17, opacity: 0.6 });
     expect(selected.imageUrl).not.toBe(CHAT_BG_PRESET_URL);
     expect(new ChatBackgroundService(file, images, preset).get()).toEqual(selected);
-    expect(service.reset()).toEqual(defaults);
+    expect(await service.reset()).toEqual(defaults);
     expect(fs.readFileSync(preset, 'utf8')).toBe('preset');
     expect(fs.readdirSync(images)).toEqual([]);
     expect(new ChatBackgroundService(file, images, preset).get()).toEqual(defaults);
@@ -338,7 +351,7 @@ describe('ChatBackgroundService', () => {
     dialog.showOpenDialog.mockResolvedValue({ canceled: false, filePaths: [source] });
     const previous = await service.pickImage();
     fs.writeFileSync(source, 'replacement');
-    const rename = jest.spyOn(fs, 'renameSync').mockImplementationOnce(() => {
+    const rename = jest.spyOn(fs.promises, 'rename').mockImplementationOnce(async () => {
       throw new Error('disk unavailable');
     });
     try {
@@ -361,7 +374,7 @@ describe('ChatBackgroundService', () => {
       path.join(root, 'bg.json'),
       path.join(root, 'images'),
     );
-    const before = service.set({ blur: 0, opacity: 1 });
+    const before = await service.set({ blur: 0, opacity: 1 });
     dialog.showOpenDialog.mockResolvedValueOnce({ canceled: true, filePaths: [] });
     expect(await service.pickImage()).toEqual(before);
     dialog.showOpenDialog.mockResolvedValueOnce({

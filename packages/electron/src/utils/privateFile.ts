@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
+import fsp from 'node:fs/promises';
 import os from 'node:os';
 
 /**
@@ -97,7 +98,13 @@ export const __renameDeps = {
   rename: (from: string, to: string) => fs.renameSync(from, to),
   platform: () => process.platform,
   sleep: (ms: number) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms),
+  renameAsync: (from: string, to: string) => fsp.rename(from, to),
+  sleepAsync: (ms: number) => new Promise<void>((r) => setTimeout(r, ms)),
 };
+
+const isTransientRenameError = (error: unknown) =>
+  __renameDeps.platform() === 'win32' &&
+  RENAME_RETRY_CODES.has((error as NodeJS.ErrnoException).code ?? '');
 
 /**
  * Windows 上目标文件正被别的进程短暂打开（杀软 / 索引器扫描刚写的文件、其他进程读取）时
@@ -110,26 +117,68 @@ function renameWithRetry(from: string, to: string): void {
       __renameDeps.rename(from, to);
       return;
     } catch (error) {
-      const code = (error as NodeJS.ErrnoException).code ?? '';
-      if (
-        __renameDeps.platform() !== 'win32' ||
-        !RENAME_RETRY_CODES.has(code) ||
-        Date.now() >= deadline
-      ) {
-        throw error;
-      }
+      if (!isTransientRenameError(error) || Date.now() >= deadline) throw error;
       __renameDeps.sleep(delay);
     }
   }
 }
 
-/** 原子写：先写 0600 的 .tmp，再 rename；最后收紧目标权限（修正历史遗留文件）。 */
+/**
+ * 原子写：先写 0600 的 .tmp，再 rename；最后收紧目标权限（修正历史遗留文件）。
+ * 同步版本在 Windows 文件被占用时会在当前线程里等待重试；主进程里响应界面操作（IPC）的写入用
+ * writePrivateFileAtomicAsync，等待期间不挡事件循环（#154）。
+ */
 export function writePrivateFileAtomic(file: string, data: string): void {
   const tmp = `${file}.tmp`;
   fs.writeFileSync(tmp, data, { mode: 0o600 });
   renameWithRetry(tmp, file);
   try {
     fs.chmodSync(file, 0o600);
+  } catch {
+    /* Windows 等平台忽略 */
+  }
+  tightenWindowsAcl(file, 'file');
+}
+
+/** 每个目标文件的写入队列：同一路径的异步原子写按调用顺序串行，最后一次调用的内容最后落盘 */
+const writeQueues = new Map<string, Promise<void>>();
+let tmpSeq = 0;
+
+/**
+ * writePrivateFileAtomic 的异步版本：Windows 上目标被短暂占用时用定时器退避重试（同样约 2 秒的预算），
+ * 等待期间主进程照常处理其他事件 / IPC。同一路径串行，各次写入用各自的临时文件，失败时清掉临时文件再抛出。
+ */
+export function writePrivateFileAtomicAsync(file: string, data: string): Promise<void> {
+  const prev = writeQueues.get(file) ?? Promise.resolve();
+  const run = prev.catch(() => undefined).then(() => writeAtomicNow(file, data));
+  const tail = run.catch(() => undefined);
+  writeQueues.set(file, tail);
+  void tail.then(() => {
+    if (writeQueues.get(file) === tail) writeQueues.delete(file);
+  });
+  return run;
+}
+
+async function writeAtomicNow(file: string, data: string): Promise<void> {
+  const tmp = `${file}.${process.pid}.${++tmpSeq}.tmp`;
+  try {
+    await fsp.writeFile(tmp, data, { mode: 0o600 });
+    const deadline = Date.now() + RENAME_RETRY_MS;
+    for (let delay = 10; ; delay = Math.min(delay * 2, 100)) {
+      try {
+        await __renameDeps.renameAsync(tmp, file);
+        break;
+      } catch (error) {
+        if (!isTransientRenameError(error) || Date.now() >= deadline) throw error;
+        await __renameDeps.sleepAsync(delay);
+      }
+    }
+  } catch (error) {
+    await fsp.rm(tmp, { force: true }).catch(() => undefined);
+    throw error;
+  }
+  try {
+    await fsp.chmod(file, 0o600);
   } catch {
     /* Windows 等平台忽略 */
   }

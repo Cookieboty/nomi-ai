@@ -20,7 +20,7 @@ import {
 import { BrowserWindow, dialog, ipcMain, nativeImage } from 'electron';
 
 import { t as tr } from '../i18n';
-import { writePrivateFileAtomic } from '../utils/privateFile';
+import { writePrivateFileAtomic, writePrivateFileAtomicAsync } from '../utils/privateFile';
 
 import { getChatBackgroundPresetFile } from './backgroundPreset';
 
@@ -38,6 +38,8 @@ const IMG_EXT = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif']);
 
 export class ChatBackgroundService {
   private state: ChatBackgroundState;
+  /** 改动按顺序执行：每次都基于上一次落盘后的状态合并，失败只回滚自己这一次 */
+  private ops: Promise<unknown> = Promise.resolve();
   constructor(
     private readonly file: string,
     private readonly imagesDir: string,
@@ -58,26 +60,38 @@ export class ChatBackgroundService {
   }
 
   /** 合并补丁并重新校验图片；图片已失效（被删 / 移走）时回退预设。传空补丁即可触发重新校验。 */
-  set(patch: unknown): ChatBackgroundState {
+  set(patch: unknown): Promise<ChatBackgroundState> {
+    return this.serial(() => this.apply(patch));
+  }
+
+  reset(): Promise<ChatBackgroundState> {
+    return this.serial(async () => {
+      const next = await this.apply({ ...DEFAULT_CHAT_BG, imageUrl: this.presetUrl() });
+      this.removeImageFiles();
+      return next;
+    });
+  }
+
+  private serial<T>(fn: () => Promise<T>): Promise<T> {
+    const run = this.ops.catch(() => undefined).then(fn);
+    this.ops = run;
+    return run;
+  }
+
+  private async apply(patch: unknown): Promise<ChatBackgroundState> {
     const next = this.withValidImage(
       sanitizeChatBg({ ...this.state, ...(patch && typeof patch === 'object' ? patch : {}) }),
     );
     const previous = this.state;
     this.state = next;
     try {
-      this.persist();
+      await this.persistAsync();
     } catch (error) {
       this.state = previous;
       throw error;
     }
     this.broadcast();
     return this.get();
-  }
-
-  reset(): ChatBackgroundState {
-    const next = this.set({ ...DEFAULT_CHAT_BG, imageUrl: this.presetUrl() });
-    this.removeImageFiles();
-    return next;
   }
 
   async pickImage(parent?: BrowserWindow | null): Promise<ChatBackgroundState> {
@@ -97,7 +111,11 @@ export class ChatBackgroundService {
    * 校验大小 → 最长边超过 CHAT_BG_MAX_EDGE 则等比缩小（PNG 仍存 PNG 保留透明，其余存 jpg），
    * 否则原样复制；GIF 不缩以免丢动画。
    */
-  async importImage(src: string): Promise<ChatBackgroundState> {
+  importImage(src: string): Promise<ChatBackgroundState> {
+    return this.serial(() => this.importNow(src));
+  }
+
+  private async importNow(src: string): Promise<ChatBackgroundState> {
     let ext = path.extname(src).toLowerCase();
     if (!IMG_EXT.has(ext)) {
       throw new Error(`${CHAT_BG_ERROR.unsupported}: unsupported image type: ${ext}`);
@@ -133,7 +151,7 @@ export class ChatBackgroundService {
     const previous = this.state;
     this.state = sanitizeChatBg({ ...this.state, imageUrl: CHAT_BG_IMAGE_URL_PREFIX + destName });
     try {
-      this.persist();
+      await this.persistAsync();
     } catch (error) {
       this.state = previous;
       try {
@@ -162,9 +180,16 @@ export class ChatBackgroundService {
     });
   }
 
+  /** 启动时同步写一次（还没有界面在等） */
   private persist(): void {
     fs.mkdirSync(path.dirname(this.file), { recursive: true });
     writePrivateFileAtomic(this.file, JSON.stringify(this.state, null, 2));
+  }
+
+  /** 界面操作触发的写入：Windows 文件被占用时退避等待不挡主进程（#154） */
+  private async persistAsync(): Promise<void> {
+    await fsp.mkdir(path.dirname(this.file), { recursive: true });
+    await writePrivateFileAtomicAsync(this.file, JSON.stringify(this.state, null, 2));
   }
 
   private presetUrl(): string | null {

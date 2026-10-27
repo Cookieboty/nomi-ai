@@ -16,6 +16,7 @@ import path from 'node:path';
 
 import {
   __renameDeps,
+  writePrivateFileAtomicAsync,
   __setSpawnSyncForTest,
   ensurePrivateDir,
   tightenWindowsAcl,
@@ -175,5 +176,60 @@ describe('writePrivateFileAtomic rename 重试', () => {
     __renameDeps.rename = rename;
     expect(() => writePrivateFileAtomic(path.join(dir, 'b.json'), '{}')).toThrow('ENOENT');
     expect(rename).toHaveBeenCalledTimes(1);
+  });
+
+  it('异步版本：占用时用定时器退避，等待期间事件循环照常（#154）', async () => {
+    const file = path.join(dir, 'c.json');
+    let failures = 3;
+    const sleeps: number[] = [];
+    __renameDeps.platform = () => 'win32';
+    __renameDeps.renameAsync = async (from, to) => {
+      if (failures-- > 0) throw busy('EBUSY');
+      fs.renameSync(from, to);
+    };
+    __renameDeps.sleepAsync = (ms) => {
+      sleeps.push(ms);
+      return new Promise((r) => setTimeout(r, 1));
+    };
+    const sync = jest.fn();
+    __renameDeps.sleep = sync;
+    let ticks = 0;
+    const timer = setInterval(() => ticks++, 0);
+    try {
+      await writePrivateFileAtomicAsync(file, '{"y":2}');
+    } finally {
+      clearInterval(timer);
+    }
+    expect(fs.readFileSync(file, 'utf8')).toBe('{"y":2}');
+    expect(sleeps).toEqual([10, 20, 40]);
+    expect(sync).not.toHaveBeenCalled();
+    expect(ticks).toBeGreaterThan(0);
+    expect(fs.readdirSync(dir)).toEqual(['c.json']);
+  });
+
+  it('异步版本：同一路径按调用顺序串行，失败清掉临时文件并抛出', async () => {
+    const file = path.join(dir, 'd.json');
+    __renameDeps.platform = () => 'win32';
+    let first = true;
+    __renameDeps.renameAsync = async (from, to) => {
+      if (first) {
+        first = false;
+        await new Promise((r) => setTimeout(r, 20));
+      }
+      fs.renameSync(from, to);
+    };
+    await Promise.all([
+      writePrivateFileAtomicAsync(file, '1'),
+      writePrivateFileAtomicAsync(file, '2'),
+      writePrivateFileAtomicAsync(file, '3'),
+    ]);
+    expect(fs.readFileSync(file, 'utf8')).toBe('3');
+
+    __renameDeps.renameAsync = async () => {
+      throw busy('ENOENT');
+    };
+    await expect(writePrivateFileAtomicAsync(file, '4')).rejects.toThrow('ENOENT');
+    expect(fs.readFileSync(file, 'utf8')).toBe('3');
+    expect(fs.readdirSync(dir)).toEqual(['d.json']);
   });
 });
