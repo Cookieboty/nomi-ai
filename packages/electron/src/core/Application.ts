@@ -870,7 +870,8 @@ export class Application implements IApplication {
         },
         ttsProviders: [electronNativeTts],
         // 消息里的附件正文 / 委派汇报按实际接收者过「仅本地 / 云端首次发送」（#149 / #117）
-        prepareChat: (options, method) =>
+        // signal：用户在确认等待中停止该轮时撤掉还没答复的确认（#160）
+        prepareChat: (options, method, signal) =>
           guardOutboundMessages(options.messages, (what) => {
             const desktop = getDesktopService(this.logger);
             const fallback = method.startsWith('agent') ? 'agent-tools' : 'chat';
@@ -880,7 +881,7 @@ export class Application implements IApplication {
               options.role === 'summary'
                 ? options.role
                 : fallback;
-            return desktop.checkSendAll(desktop.receiversFor(undefined, [role]), undefined, what);
+            return desktop.checkSendAll(desktop.receiversFor(undefined, [role]), signal, what);
           }),
       });
       this.logger.info('AI runtime 启动完成', {

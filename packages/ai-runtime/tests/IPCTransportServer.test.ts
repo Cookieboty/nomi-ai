@@ -137,6 +137,81 @@ describe('IPCTransportServer', () => {
     expect(seen).toEqual(['stream', 'stream', 'sendMessage']);
   });
 
+  it('prepareChat 等待确认时停止：放行后不再创建上游请求，静默结束；新一轮不受影响（#160）', async () => {
+    const ctx = createFakeSdkCtx();
+    const llm = createFakeLLM('fake');
+    ctx.provide(LLMRegistryKey, createFakeLLMRegistry(llm));
+    ctx.provide(ToolRegistryKey, createFakeToolRegistry());
+    ctx.provide(UserProfileKey, createFakeProfileService());
+    const adapter = createFakeIpcAdapter();
+    const gates: Array<{ release: () => void; signal?: AbortSignal }> = [];
+    new IPCTransportServer({
+      client: new AIClient(ctx),
+      adapter,
+      logger: NoopRuntimeLogger,
+      prepareChat: (_opts, _method, signal) =>
+        new Promise<void>((resolve) => gates.push({ release: resolve, signal })),
+    }).start();
+    const chunkCh = chunkChannelName({ facade: 'chat', method: 'stream' });
+
+    await adapter.invoke(7, 'ai:chat:stream', {
+      reqId: 'r1',
+      provider: 'fake',
+      messages: [{ role: 'user', content: 'hi' }],
+    });
+    expect(gates[0]!.signal?.aborted).toBe(false);
+    await adapter.invoke(7, 'ai:chat:abort', 'r1');
+    expect(gates[0]!.signal?.aborted).toBe(true);
+    // 用户随后在遗留的确认里点了允许
+    gates[0]!.release();
+    await new Promise((r) => setTimeout(r, 5));
+    expect(llm.streamCalls).toHaveLength(0);
+    const sent = (adapter.senderStreams.get(7) ?? []).filter((s) => s.channel === chunkCh);
+    expect(sent).toHaveLength(1);
+    expect(sent[0]!.payload).toEqual({ reqId: 'r1', done: true });
+
+    // 停止后立刻发的新一轮照常执行
+    await adapter.invoke(7, 'ai:chat:stream', {
+      reqId: 'r2',
+      provider: 'fake',
+      messages: [{ role: 'user', content: 'again' }],
+    });
+    expect(gates[1]!.signal?.aborted).toBe(false);
+    gates[1]!.release();
+    await new Promise((r) => setTimeout(r, 5));
+    expect(llm.streamCalls).toHaveLength(1);
+  });
+
+  it('prepareChat 因停止而失败（撤掉确认后抛「已取消」）：静默结束，不带 error', async () => {
+    const ctx = createFakeSdkCtx();
+    const llm = createFakeLLM('fake');
+    ctx.provide(LLMRegistryKey, createFakeLLMRegistry(llm));
+    ctx.provide(ToolRegistryKey, createFakeToolRegistry());
+    ctx.provide(UserProfileKey, createFakeProfileService());
+    const adapter = createFakeIpcAdapter();
+    new IPCTransportServer({
+      client: new AIClient(ctx),
+      adapter,
+      logger: NoopRuntimeLogger,
+      prepareChat: (_opts, _method, signal) =>
+        new Promise<void>((_resolve, reject) =>
+          signal?.addEventListener('abort', () => reject(new Error('cancelled'))),
+        ),
+    }).start();
+
+    await adapter.invoke(3, 'ai:chat:stream', {
+      reqId: 'r1',
+      provider: 'fake',
+      messages: [{ role: 'user', content: 'hi' }],
+    });
+    await adapter.invoke(3, 'ai:chat:abort', 'r1');
+    await new Promise((r) => setTimeout(r, 5));
+    expect(llm.streamCalls).toHaveLength(0);
+    const chunkCh = chunkChannelName({ facade: 'chat', method: 'stream' });
+    const sent = (adapter.senderStreams.get(3) ?? []).filter((s) => s.channel === chunkCh);
+    expect(sent.map((s) => s.payload)).toEqual([{ reqId: 'r1', done: true }]);
+  });
+
   it('tts.stream：位置参数不被改写——服务端用原始 (text, opts) 调用（reqId 在 envelope 里）', async () => {
     const ctx = createFakeSdkCtx();
     ctx.provide(LLMRegistryKey, createFakeLLMRegistry(createFakeLLM('fake')));

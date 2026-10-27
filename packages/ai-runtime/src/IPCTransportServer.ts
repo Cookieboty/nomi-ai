@@ -26,9 +26,14 @@ export interface IPCTransportServerOptions {
   isSenderAllowed?: (event: IpcInvokeEvent, spec: IpcMethodSpec) => boolean;
   /**
    * chat 门面请求真正发出前的主进程检查（如本地文件内容的外发授权）：可就地改写 options.messages；
-   * 抛错则这次请求失败（流式请求以 done + error 结束）。
+   * 抛错则这次请求失败（流式请求以 done + error 结束）。流式请求带 signal：用户在检查等待中停止该轮时触发，
+   * 用来撤掉还没答复的确认；无论检查结果如何，已停止的轮次都不会再创建上游请求。
    */
-  prepareChat?: (options: Record<string, unknown>, method: string) => Promise<void>;
+  prepareChat?: (
+    options: Record<string, unknown>,
+    method: string,
+    signal?: AbortSignal,
+  ) => Promise<void>;
 }
 
 interface FacadeLike {
@@ -49,6 +54,8 @@ function mergeableText(value: unknown): { type: string; content: string } | null
 
 export class IPCTransportServer {
   private readonly registered: string[] = [];
+  /** 进行中的 chat 流：reqId → 本轮的取消控制器（覆盖外发检查到收尾的整个生命周期） */
+  private readonly streamAborts = new Map<string, AbortController>();
   private started = false;
   private readonly logger: RuntimeLogger;
 
@@ -108,15 +115,19 @@ export class IPCTransportServer {
     if (spec.kind === 'stream') {
       return this.handleStream(event, spec, bound, args);
     }
+    if (spec.facade === 'chat' && spec.method === 'abort' && typeof args[0] === 'string') {
+      // 还在外发检查里的流没有上游请求可停：在这里标记取消，检查结束后不再创建（#160）
+      this.streamAborts.get(args[0])?.abort();
+    }
     await this.prepare(spec, args);
     return bound(...args);
   }
 
-  private async prepare(spec: IpcMethodSpec, args: unknown[]): Promise<void> {
+  private async prepare(spec: IpcMethodSpec, args: unknown[], signal?: AbortSignal): Promise<void> {
     const options = args[0];
     if (spec.facade !== 'chat' || !this.opts.prepareChat) return;
     if (!options || typeof options !== 'object') return;
-    await this.opts.prepareChat(options as Record<string, unknown>, spec.method);
+    await this.opts.prepareChat(options as Record<string, unknown>, spec.method, signal);
   }
 
   /**
@@ -186,11 +197,20 @@ export class IPCTransportServer {
       closed = true;
       this.abortUpstream(spec, reqId);
     };
+    // chat 流从收到起就登记取消所有权：外发检查等待确认时用户点停止，abort 也能命中这一轮
+    const aborter = new AbortController();
+    if (spec.facade === 'chat') this.streamAborts.set(reqId, aborter);
+    const cancelled = (): boolean => aborter.signal.aborted;
     (async () => {
       try {
         // 先过主进程的外发检查，通过后才创建上游请求
-        await this.prepare(spec, args);
+        await this.prepare(spec, args, aborter.signal);
         if (gone()) return;
+        // 检查期间已停止：不管确认最后是允许还是拒绝，都不再创建上游请求
+        if (cancelled()) {
+          safeSend({ reqId, done: true });
+          return;
+        }
         const iterable = fn(...callArgs) as AsyncIterable<unknown>;
         for await (const value of iterable) {
           if (closed) return;
@@ -219,9 +239,17 @@ export class IPCTransportServer {
         if (!sendHeld()) return stop();
         safeSend({ reqId, done: true });
       } catch (err) {
-        this.logger.warn(`stream ${spec.facade}.${spec.method} threw`, err);
         sendHeld();
+        if (cancelled()) {
+          // 用户停止导致的失败（如撤掉确认后的「已取消」）：静默结束，不当作错误
+          safeSend({ reqId, done: true });
+          return;
+        }
+        this.logger.warn(`stream ${spec.facade}.${spec.method} threw`, err);
         safeSend({ reqId, done: true, error: (err as Error).message });
+      } finally {
+        // 只清理本轮登记的：同一 reqId 的新一轮已经登记时不能误删
+        if (this.streamAborts.get(reqId) === aborter) this.streamAborts.delete(reqId);
       }
     })().catch((err) => this.logger.error('unhandled stream error', err));
 
