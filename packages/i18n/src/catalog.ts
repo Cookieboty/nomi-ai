@@ -1979,6 +1979,7 @@ export type TranslationKey =
   | 'ui.mascot-theme.redo'
   | 'ui.mascot-theme.rest-assured-our-conversations-and-memories-stay-on'
   | 'ui.mascot-theme.restart-and-install'
+  | 'ui.mascot-theme.restart-to-update'
   | 'ui.mascot-theme.restore-all-defaults'
   | 'ui.mascot-theme.restore-the-default-shortcut-for'
   | 'ui.mascot-theme.retry'

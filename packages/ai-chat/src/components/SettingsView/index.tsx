@@ -12,6 +12,7 @@ import { AppIcon } from '../AppIcons';
 import { ExtensionsPanel, LocalPanel, QualityPanel, UsagePanel } from '../lazyPanels';
 import { onboardingClient } from '../Onboarding/client';
 import { ProvidersPage } from '../ProvidersPage';
+import { RestartUpdateButton } from '../RestartUpdateButton';
 
 import { AppIconSettings } from './AppIconSettings';
 import { GeneralHero } from './GeneralHero';
@@ -277,6 +278,7 @@ export const SettingsView: React.FC<Props> = ({
               ))}
           </div>
         ))}
+        <RestartUpdateButton placement="settings-nav" collapsed={collapsed} />
       </nav>
       <main
         className={

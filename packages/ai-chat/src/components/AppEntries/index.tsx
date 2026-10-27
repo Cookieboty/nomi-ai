@@ -12,6 +12,7 @@ import { kbClient } from '../../services/kbClient';
 import { memClient } from '../../services/memClient';
 import { schedClient } from '../../services/schedClient';
 import { formatCombo, useShortcutBindings } from '../../services/shortcuts';
+import { RestartUpdateButton } from '../RestartUpdateButton';
 
 import styles from './index.module.css';
 
@@ -76,6 +77,7 @@ export const AppEntries: React.FC<AppEntriesProps> = (p) => {
         <Icon icon={Settings} size={16} />
         {!p.collapsed && <span>{settingsTip}</span>}
       </button>
+      <RestartUpdateButton placement="sidebar" collapsed={p.collapsed} />
       {!p.collapsed && <span className={styles.spacer} />}
       {panels.map((e) => (
         <button

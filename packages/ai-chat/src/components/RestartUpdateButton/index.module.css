@@ -1,0 +1,57 @@
+/* Match AppEntries control height; accent so it reads as an action, not a permanent nav item. */
+.sidebarBtn {
+  height: var(--cd-control-h-ms);
+  min-width: var(--cd-control-h-ms);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cd-space-2);
+  border: none;
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-color-accent-soft);
+  color: var(--cd-color-accent-strong);
+  font: inherit;
+  font-size: var(--cd-font-size-sm);
+  font-weight: var(--cd-font-weight-bold);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.sidebarExpanded {
+  padding: 0 var(--cd-space-2);
+}
+.sidebarBtn:hover:not(:disabled) {
+  background: var(--cd-color-hover);
+  color: var(--cd-color-accent-strong);
+}
+.sidebarBtn:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: -2px;
+}
+.sidebarBtn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.navWrap {
+  margin-top: auto;
+  padding-top: var(--cd-space-2);
+  border-top: 1px solid var(--cd-panel-border);
+  flex: none;
+}
+.navCollapsed {
+  display: flex;
+  justify-content: center;
+}
+.navBtn {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cd-space-2);
+}
+.navCollapsed .navBtn {
+  width: auto;
+  min-width: var(--cd-control-h-ms);
+  padding-left: var(--cd-space-2);
+  padding-right: var(--cd-space-2);
+}
