@@ -201,8 +201,9 @@ describe('SettingsView 合并后的标签页分区', () => {
     fireEvent.click(r.getByTestId('settings-nav-quality'));
     expect(r.getByTestId('settings-nav-quality').getAttribute('aria-current')).toBe('page');
     expect(r.getByTestId('settings-section-title').textContent).toBe('模型质量');
-    expect(await r.findByTestId('settings-quality')).toBeTruthy();
-  });
+    // 懒加载 chunk 在 Windows CI 上冷启动可能超过默认 1s
+    expect(await r.findByTestId('settings-quality', {}, { timeout: 10_000 })).toBeTruthy();
+  }, 20_000);
 
   it('宽分区（模型质量）不显示右侧说明栏，页头「说明」按钮在页头下展开同一组说明', async () => {
     const { SECTION_HELP } = await import('../src/components/SettingsView/sectionHelp');
