@@ -10,6 +10,7 @@ import path from 'node:path';
 
 import {
   applyWorktreeToMain,
+  ensureDelegateExclude,
   MAX_PARALLEL_DELEGATES,
   prepareIsolation,
   releaseIsolation,
@@ -150,5 +151,49 @@ describe('worktree isolation', () => {
     expect(fs.readFileSync(path.join(d, 'sibling', 'file.txt'), 'utf8')).toBe('orig');
 
     await releaseIsolation(h);
+  });
+
+  it('exclude 写进目标仓库的 info/exclude，不受应用自己的 cwd 影响；重复调用不重复写（#139）', async () => {
+    const repo = path.join(mkTmp(), 'repo with space');
+    fs.mkdirSync(repo);
+    git(repo, ['init']);
+    const elsewhere = mkTmp();
+    git(elsewhere, ['init']);
+    const prev = process.cwd();
+    process.chdir(elsewhere);
+    try {
+      await ensureDelegateExclude(repo);
+      await ensureDelegateExclude(repo);
+    } finally {
+      process.chdir(prev);
+    }
+    const target = fs.readFileSync(path.join(repo, '.git', 'info', 'exclude'), 'utf8');
+    expect(target.split('\n').filter((l) => l.trim() === '.nomi-delegate/')).toHaveLength(1);
+    const other = path.join(elsewhere, '.git', 'info', 'exclude');
+    expect(fs.existsSync(other) ? fs.readFileSync(other, 'utf8') : '').not.toContain(
+      '.nomi-delegate/',
+    );
+  });
+
+  it('linked worktree：写到它自己的 git 目录对应的 exclude', async () => {
+    const repo = mkTmp();
+    git(repo, ['init']);
+    git(repo, ['config', 'user.email', 't@t']);
+    git(repo, ['config', 'user.name', 't']);
+    fs.writeFileSync(path.join(repo, 'a.txt'), 'a');
+    git(repo, ['add', '.']);
+    git(repo, ['commit', '-m', 'init']);
+    const wt = path.join(mkTmp(), 'linked');
+    git(repo, ['worktree', 'add', '--detach', wt]);
+    await ensureDelegateExclude(wt);
+    const p = execFileSync(
+      'git',
+      ['rev-parse', '--path-format=absolute', '--git-path', 'info/exclude'],
+      {
+        cwd: wt,
+        encoding: 'utf8',
+      },
+    ).trim();
+    expect(fs.readFileSync(p, 'utf8')).toContain('.nomi-delegate/');
   });
 });

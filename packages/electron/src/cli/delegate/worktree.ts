@@ -89,8 +89,10 @@ function safeId(raw: string): string {
 export async function ensureDelegateExclude(gitRoot: string): Promise<void> {
   try {
     const { stdout } = await git(gitRoot, ['rev-parse', '--git-path', 'info/exclude']);
-    const exclude = stdout.trim();
-    if (!exclude) return;
+    const out = stdout.trim();
+    if (!out) return;
+    // git 给的可能是相对 gitRoot 的路径（.git/info/exclude）：按 gitRoot 解析，不能按应用自己的 cwd（#139）
+    const exclude = path.resolve(gitRoot, out);
     fs.mkdirSync(path.dirname(exclude), { recursive: true });
     const marker = '.nomi-delegate/';
     let cur = '';
