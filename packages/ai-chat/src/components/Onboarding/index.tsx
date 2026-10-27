@@ -32,6 +32,7 @@ import { useNomiModelStatus } from '../../hooks/useNomiModelStatus';
 import { startupClient, type StartupView } from '../../services/startupClient';
 import { ChatBackgroundSettings } from '../SettingsView/ChatBackgroundSettings';
 
+import privacyArt from './art/privacy.webp';
 import profileArt from './art/profile.webp';
 import providerArt from './art/provider.webp';
 import welcomeArt from './art/welcome.webp';
@@ -66,7 +67,7 @@ const STEP_ART: Record<Step, { src: string; intro?: () => string }> = {
   welcome: { src: welcomeArt, intro: () => t('ui.mascot-theme.intro-welcome') },
   profile: { src: profileArt, intro: () => t('ui.mascot-theme.intro-profile') },
   provider: { src: providerArt, intro: () => t('ui.mascot-theme.intro-provider') },
-  privacy: { src: welcomeArt },
+  privacy: { src: privacyArt },
 };
 
 const LANGS: { id: LocalePref; label: () => string }[] = [
