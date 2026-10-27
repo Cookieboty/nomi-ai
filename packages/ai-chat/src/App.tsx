@@ -28,6 +28,7 @@ import { OnboardingHost } from './components/Onboarding';
 import { OPEN_MODELS_EVENT } from './components/Onboarding/client';
 import { onboardingClient } from './components/Onboarding/client';
 import { PluginPanel } from './components/PluginPanel';
+import { ReleaseNotesHost } from './components/ReleaseNotesModal';
 import {
   ChangesUiProvider,
   ChangesWorkbenchHost,
@@ -1088,6 +1089,7 @@ function App() {
         </HarnessTabsProvider>
         {/* 首次启动引导（未完成时覆盖在对话窗口上；设置 → 通用 可重新打开） */}
         <OnboardingHost />
+        <ReleaseNotesHost />
       </AiChatContextProvider>
     </ErrorBoundary>
   );

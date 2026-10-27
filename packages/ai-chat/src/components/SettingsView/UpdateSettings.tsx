@@ -6,6 +6,13 @@
 import { Button, SettingRow, SettingsGroup, Switch, t } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useState } from 'react';
 
+import {
+  getShowReleaseNotesAfterUpdate,
+  openReleaseNotes,
+  setShowReleaseNotesAfterUpdate,
+  subscribeShowReleaseNotesAfterUpdate,
+} from '../../services/releaseNotesPrefs';
+
 import styles from './index.module.css';
 
 type UpdateStatus =
@@ -96,6 +103,14 @@ export const UpdateSettings: React.FC<{ children?: React.ReactNode }> = ({ child
   const [state, setState] = useUpdateState();
   const [busy, setBusy] = useState(false);
   const [confirmInstall, setConfirmInstall] = useState(false);
+  const [showReleaseNotes, setShowReleaseNotes] = useState(getShowReleaseNotesAfterUpdate);
+  useEffect(
+    () =>
+      subscribeShowReleaseNotesAfterUpdate(() =>
+        setShowReleaseNotes(getShowReleaseNotesAfterUpdate()),
+      ),
+    [],
+  );
 
   const run = useCallback(
     async (fn: () => Promise<UpdateState>) => {
@@ -115,6 +130,35 @@ export const UpdateSettings: React.FC<{ children?: React.ReactNode }> = ({ child
         <p className={styles.muted}>
           {t('ui.mascot-theme.updates-are-only-available-in-the-desktop-app')}
         </p>
+        <SettingRow
+          data-testid="updates-show-release-notes"
+          title={t('ui.mascot-theme.show-release-notes-after-update')}
+          description={t('ui.mascot-theme.show-release-notes-after-update-hint')}
+        >
+          <Switch
+            checked={showReleaseNotes}
+            onChange={(on) => {
+              setShowReleaseNotesAfterUpdate(on);
+              setShowReleaseNotes(on);
+            }}
+            aria-label={t('ui.mascot-theme.show-release-notes-after-update')}
+          />
+        </SettingRow>
+        <SettingRow
+          data-testid="updates-view-release-notes"
+          title={t('ui.mascot-theme.release-notes')}
+          description={t('ui.mascot-theme.view-this-versions-release-notes')}
+        >
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            data-testid="updates-open-release-notes"
+            onClick={() => openReleaseNotes()}
+          >
+            {t('ui.mascot-theme.view-release-notes')}
+          </Button>
+        </SettingRow>
         {children}
       </SettingsGroup>
     );
@@ -231,6 +275,36 @@ export const UpdateSettings: React.FC<{ children?: React.ReactNode }> = ({ child
           onChange={(on) => void run(() => api()!.setAutoCheck(on))}
           aria-label={t('ui.mascot-theme.check-for-updates-on-launch-and-periodically')}
         />
+      </SettingRow>
+
+      <SettingRow
+        data-testid="updates-show-release-notes"
+        title={t('ui.mascot-theme.show-release-notes-after-update')}
+        description={t('ui.mascot-theme.show-release-notes-after-update-hint')}
+      >
+        <Switch
+          checked={showReleaseNotes}
+          onChange={(on) => {
+            setShowReleaseNotesAfterUpdate(on);
+            setShowReleaseNotes(on);
+          }}
+          aria-label={t('ui.mascot-theme.show-release-notes-after-update')}
+        />
+      </SettingRow>
+      <SettingRow
+        data-testid="updates-view-release-notes"
+        title={t('ui.mascot-theme.release-notes')}
+        description={t('ui.mascot-theme.view-this-versions-release-notes')}
+      >
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          data-testid="updates-open-release-notes"
+          onClick={() => openReleaseNotes()}
+        >
+          {t('ui.mascot-theme.view-release-notes')}
+        </Button>
       </SettingRow>
       {children}
     </SettingsGroup>
