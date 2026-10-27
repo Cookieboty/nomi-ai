@@ -14,6 +14,7 @@ import {
   endpointSourceOf,
   sanitizeUsageSettings,
 } from '../../../src/usage/UsageService';
+import { whenPrivateWritesIdle } from '../../../src/utils/privateFile';
 
 const mk = (now = () => Date.now()) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-usage-svc-'));
@@ -281,6 +282,7 @@ describe('UsageService：启动时自动同步模型数据', () => {
     await a.svc.autoSync();
     expect(a.f).toHaveBeenCalledTimes(1);
     expect(a.onData).toHaveBeenCalledTimes(1);
+    await whenPrivateWritesIdle();
     // 6 小时后重启：不联网
     t += 6 * 3600_000;
     const b = build({ now: () => t, root: a.root });

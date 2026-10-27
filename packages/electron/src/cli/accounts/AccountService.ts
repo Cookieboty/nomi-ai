@@ -21,7 +21,7 @@ import { BrowserWindow } from 'electron';
 import { t } from '../../i18n';
 import { guardedHandle } from '../../security/guardedIpc';
 import { runLimited, STDOUT_LIMIT } from '../../usage/limitedProcess';
-import { writePrivateFileAtomic } from '../../utils/privateFile';
+import { writePrivateFileAtomic, writePrivateFileAtomicAsync } from '../../utils/privateFile';
 import { resolveCliBinAsync, withCliPath } from '../detect';
 
 import { claudeAccountName, claudeKeychainService } from './adapters';
@@ -427,10 +427,11 @@ export class AccountService {
     m.delete(key);
     m.set(key, id);
     while (m.size > MAX_SESSIONS) m.delete(m.keys().next().value!);
-    writePrivateFileAtomic(
+    // 每次开会话都会写：异步落盘不挡主进程（#154），内存里的映射已是最新
+    void writePrivateFileAtomicAsync(
       path.join(this.d.root, SESSIONS_FILE),
       JSON.stringify({ version: 1, sessions: [...m] }),
-    );
+    ).catch((e) => this.d.logger.warn('session-accounts write failed', String(e)));
   }
 
   /** 会话所在的账号（还存在时）：id 与展示名（邮箱优先） */

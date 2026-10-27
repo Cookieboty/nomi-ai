@@ -11,7 +11,7 @@ import path from 'node:path';
 import { BrowserWindow } from 'electron';
 
 import { guardedHandle } from '../security/guardedIpc';
-import { writePrivateFileAtomic } from '../utils/privateFile';
+import { writePrivateFileAtomicAsync } from '../utils/privateFile';
 
 import {
   CLOSE_MAIN_ACTIONS,
@@ -66,7 +66,7 @@ export class StartupService {
   }
 
   /** 部分更新：只改传入的字段；任一字段非法则整体拒绝、不落盘 */
-  set(patch: unknown): StartupState {
+  async set(patch: unknown): Promise<StartupState> {
     const p = (patch ?? null) as {
       defaultView?: unknown;
       closeMain?: unknown;
@@ -112,9 +112,10 @@ export class StartupService {
       closeMain: (p.closeMain as CloseMainAction | undefined) ?? this.state.closeMain,
       showMascot,
     };
-    fs.mkdirSync(path.dirname(this.file), { recursive: true });
-    writePrivateFileAtomic(this.file, JSON.stringify(this.state, null, 2));
     const next = this.get();
+    // 界面操作触发：Windows 文件被占用时的退避等待不挡主进程（#154）
+    fs.mkdirSync(path.dirname(this.file), { recursive: true });
+    await writePrivateFileAtomicAsync(this.file, JSON.stringify(next, null, 2));
     for (const fn of this.listeners) fn(next);
     for (const w of BrowserWindow.getAllWindows())
       if (!w.isDestroyed()) w.webContents.send('ai:startup:changed', next);

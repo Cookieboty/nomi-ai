@@ -19,7 +19,7 @@ import {
 } from 'electron-updater';
 
 import { guardedHandle } from '../security/guardedIpc';
-import { writePrivateFileAtomic } from '../utils/privateFile';
+import { writePrivateFileAtomicAsync } from '../utils/privateFile';
 
 import { type ILoggerService } from './LoggerService';
 
@@ -289,12 +289,15 @@ export class UpdateService {
 
   private persistAutoCheck(): void {
     if (!this.settingsFile) return;
+    // 异步落盘：Windows 文件被占用时的退避等待不挡主进程（#154）
+    const data: StoredUpdateSettings = { version: 1, autoCheck: this.autoCheck };
+    const fail = (err: unknown) =>
+      this.logger.warn('[updater] failed to persist autoCheck', { error: String(err) });
     try {
       fs.mkdirSync(path.dirname(this.settingsFile), { recursive: true });
-      const data: StoredUpdateSettings = { version: 1, autoCheck: this.autoCheck };
-      writePrivateFileAtomic(this.settingsFile, JSON.stringify(data));
+      void writePrivateFileAtomicAsync(this.settingsFile, JSON.stringify(data)).catch(fail);
     } catch (err) {
-      this.logger.warn('[updater] failed to persist autoCheck', { error: String(err) });
+      fail(err);
     }
   }
 

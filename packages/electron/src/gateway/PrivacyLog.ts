@@ -10,7 +10,7 @@ import fs from 'fs';
 
 import type { UsageEvent } from '@nomi-ai/gateway';
 
-import { writePrivateFileAtomic } from '../utils/privateFile';
+import { writePrivateFileAtomic, writePrivateFileAtomicAsync } from '../utils/privateFile';
 
 export interface PrivacyLogEntry {
   placeholder: string;
@@ -111,7 +111,13 @@ export class PrivacyLog {
 
   private schedule(): void {
     if (this.timer) return;
-    this.timer = setTimeout(() => this.flush(), FLUSH_MS);
+    // 定时落盘走异步写（Windows 文件被占用时不挡主进程，#154）；退出 / 清空仍用同步 flush
+    this.timer = setTimeout(() => {
+      this.timer = null;
+      void writePrivateFileAtomicAsync(this.file, JSON.stringify([...this.entries.values()])).catch(
+        () => undefined,
+      );
+    }, FLUSH_MS);
     this.timer.unref?.();
   }
 

@@ -83,6 +83,7 @@ import { initQualityService } from '../usage/quality/QualityService';
 import { getUsageService, initUsageService } from '../usage/UsageService';
 import { GlobalErrorHandler } from '../utils/ErrorHandler';
 import { perfMark } from '../utils/perfMarks';
+import { whenPrivateWritesIdle } from '../utils/privateFile';
 import { getVoiceService } from '../voice/VoiceService';
 
 import { initAppIcon } from './appIcon';
@@ -1000,6 +1001,8 @@ export class Application implements IApplication {
 
       // 保存配置：退出路径同步落盘最新配置（日常保存走异步写，见 ConfigService.flushOnQuit）
       await this.configService.flushOnQuit();
+      // 其余服务排队中的异步私有文件写入（Windows 占用重试不挡主进程，#154）也等它们落盘
+      await whenPrivateWritesIdle();
 
       // 清理IPC处理器
       this.ipcRegistry.cleanup();
