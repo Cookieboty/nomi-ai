@@ -1,12 +1,10 @@
-import type { TranslationKey } from '@nomi-ai/i18n';
-
 /** Structured product release notes (catalog keys, not raw markdown paths). */
 export type ReleaseNotesSectionId = 'new' | 'improvements' | 'fixes';
 
 export interface ReleaseNotesSection {
   id: ReleaseNotesSectionId;
   /** Stable i18n keys under ui.release-notes.* */
-  itemKeys: TranslationKey[];
+  itemKeys: string[];
 }
 
 export interface ReleaseNotesEntry {
