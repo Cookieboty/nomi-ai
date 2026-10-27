@@ -213,10 +213,12 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - **e2e:** first-run onboarding (add provider, test connection, first reply, not shown again) is covered end to end.
 - **e2e:** the CC0 test VRM is downloaded at test time instead of being committed.
 - **electron:** dispose CLI harnesses in HarnessTabs / SessionHistory tests so the long-lived mock Claude process no longer keeps jest from exiting.
+- tests no longer write git worktrees or `.git/info/exclude` entries into this repo when TEMP points inside it; `run-bin` keeps the system temp unless `NOMI_WORKSPACE_TMP=1`. Fixes the Windows #115 path comparison, the macOS 1 MiB privacy perf check and a cold-start timeout in the Volcengine ASR test. (`@nomi-ai/electron` patch)
 
 ### Build & release
 
 - **release:** macOS signing + notarization and Windows signing are enabled automatically when the documented secrets are present; root CHANGELOG generated from changesets.
+- **release:** tag builds check the tag equals `v${version}`, create one draft Release from `docs/releases/<tag>.md` before packaging, and publish only after every installer and blockmap listed in latest*.yml is attached (#146). (`@nomi-ai/electron` patch)
 
 ### Maintenance
 

@@ -3,6 +3,25 @@
  * 配置全局测试环境和模拟
  */
 
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
+
+// 测试的临时目录（mkdtemp(os.tmpdir())）被当作「仓库外」的目录。若 TEMP/TMP 被指到仓库内，
+// git 会向上找到本仓库，worktree / .git/info/exclude 写进真实仓库。设 GIT_CEILING_DIRECTORIES
+// 让 git 不越过临时目录往上找；测试自己 git init 的目录不受影响。
+{
+  const tmp = os.tmpdir();
+  const ceilings = new Set([path.resolve(tmp)]);
+  try {
+    ceilings.add(fs.realpathSync.native(tmp));
+  } catch {
+    /* tmp may not exist yet */
+  }
+  const prev = process.env.GIT_CEILING_DIRECTORIES;
+  process.env.GIT_CEILING_DIRECTORIES = [...ceilings, ...(prev ? [prev] : [])].join(path.delimiter);
+}
+
 // 模拟Electron模块
 jest.mock('electron', () => ({
   app: {

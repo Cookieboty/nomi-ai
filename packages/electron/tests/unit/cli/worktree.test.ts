@@ -139,10 +139,16 @@ describe('worktree isolation', () => {
     fs.rmSync(path.join(h.worktreePath!, 'sibling', 'file.txt'));
 
     const seen: string[] = [];
-    const scope = fs.realpathSync(path.join(d, 'allowed')) + path.sep;
+    // Windows：os.tmpdir() 可能是 8.3 短名（RUNNER~1），git 给的 gitRoot 是长名；
+    // realpathSync.native 两边都展开成长名，再按不区分大小写比较
+    const canon = (p: string) => {
+      const r = path.normalize(fs.realpathSync.native(p)) + path.sep;
+      return process.platform === 'win32' ? r.toLowerCase() : r;
+    };
+    const scope = canon(path.join(d, 'allowed'));
     const r = await applyWorktreeToMain(h, ['allowed/a.txt', 'sibling/file.txt'], (dest) => {
       seen.push(dest);
-      return fs.realpathSync(path.dirname(dest)) + path.sep === scope;
+      return canon(path.dirname(dest)) === scope;
     });
     expect(r.applied).toEqual(['allowed/a.txt']);
     expect(r.denied).toEqual(['sibling/file.txt']);

@@ -482,7 +482,7 @@ describe('slashDiscovery', () => {
     // git 向上找到仓库后本用例会误判为 ok。用 GIT_CEILING_DIRECTORIES 把查找钉在临时目录本身。
     const plain = fs.mkdtempSync(path.join(os.tmpdir(), 'not-git-'));
     const prev = process.env.GIT_CEILING_DIRECTORIES;
-    process.env.GIT_CEILING_DIRECTORIES = plain;
+    process.env.GIT_CEILING_DIRECTORIES = path.dirname(plain); // ceiling 必须是 cwd 的上级才生效
     try {
       const r = await gitDiff(plain);
       expect(r.ok).toBe(false);

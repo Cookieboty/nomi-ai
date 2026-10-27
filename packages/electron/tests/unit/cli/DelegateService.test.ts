@@ -690,7 +690,7 @@ describe('DelegateService · gitChanged', () => {
     // 非 git
     const plain = fs.mkdtempSync(path.join(os.tmpdir(), 'delegate-nongit-'));
     const prev = process.env.GIT_CEILING_DIRECTORIES;
-    process.env.GIT_CEILING_DIRECTORIES = plain;
+    process.env.GIT_CEILING_DIRECTORIES = path.dirname(plain); // ceiling 必须是 cwd 的上级才生效
     try {
       expect(await gitChanged(plain)).toBeNull();
     } finally {

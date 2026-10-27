@@ -205,7 +205,10 @@ const session = (
     apiKey: KEY,
     resourceId: RES,
     url,
-    connectTimeoutMs: 2000,
+    // 文件里第一次真连 WebSocket 是冷启动（ws 模块初始化 + 覆盖率插桩 + Windows runner 上多 worker 抢 CPU），
+    // 曾在 windows-latest 上超过 2 s 触发建连超时（v2.0.4 CI）。下面的 beforeAll 先预热一次，
+    // 建连上限放宽到 10 s；测超时的用例自己传更短的值。
+    connectTimeoutMs: 10_000,
     finalTimeoutMs: 1000,
     backoffMs: () => 10,
     ...extra,
@@ -248,6 +251,16 @@ describe('volc protocol', () => {
 
 // ───────────── 会话 ─────────────
 describe('VolcAsrSession (mock server)', () => {
+  beforeAll(async () => {
+    // 预热：先完成一次真实握手，后面的用例不再承担冷启动开销
+    const m = await mockServer(echo([], 'warm'));
+    const s = session(m.url);
+    await s.start();
+    s.push(pcm(100));
+    await s.finish();
+    await m.close();
+  }, 30_000);
+
   it('handshake headers, 2.0 resource, full request, 200ms packets, last packet', async () => {
     const m = await mockServer(echo(['你', '你好'], '你好。'));
     const s = session(m.url);
