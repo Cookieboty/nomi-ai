@@ -539,24 +539,38 @@ describe('DelegateService · P2 异步委派', () => {
         return new Promise((r) => gates.push(r));
       },
     });
-    const follow = s.svc.tools().find((x) => x.name === 'delegate_followup')!;
+    const tools = s.svc.tools();
+    const follow = tools.find((x) => x.name === 'delegate_followup')!;
+    const status = tools.find((x) => x.name === 'delegate_status')!;
+    const statusOf = async (taskId: string) =>
+      ((await status.execute({ taskId }, {})) as { data?: { status: string } }).data?.status;
+    const until = async (ok: () => boolean | Promise<boolean>) => {
+      for (let i = 0; i < 500 && !(await ok()); i++) await new Promise((r) => setTimeout(r, 10));
+    };
     const a = await s.run({ background: true });
-    await new Promise((r) => setTimeout(r, 20));
-    for (let i = 0; i < 3; i++) expect((await s.run({ background: true })).ok).toBe(true);
+    const aId = a.data!.taskId as string;
+    await until(async () => (await statusOf(aId)) === 'done');
+    const running: string[] = [];
+    for (let i = 0; i < 3; i++) {
+      const r = await s.run({ background: true });
+      expect(r.ok).toBe(true);
+      running.push(r.data!.taskId as string);
+    }
     // 第四个首次委派被拒
     expect((await s.run({ background: true })).error?.code).toBe('concurrency_limit');
-    const r = (await follow.execute({ taskId: a.data!.taskId, message: '再看看' }, {})) as {
+    const r = (await follow.execute({ taskId: aId, message: '再看看' }, {})) as {
       ok: boolean;
       error?: { code: string };
     };
     expect(r.error?.code).toBe('concurrency_limit');
+    await until(() => gates.length === 3);
     expect(calls).toBe(4);
 
     // 完成一个，名额回来
     gates[0]!({ text: REPORT });
-    await new Promise((r2) => setTimeout(r2, 20));
-    const p = follow.execute({ taskId: a.data!.taskId, message: '再看看' }, {});
-    await new Promise((r2) => setTimeout(r2, 20));
+    await until(async () => (await statusOf(running[0]!)) === 'done');
+    const p = follow.execute({ taskId: aId, message: '再看看' }, {});
+    await until(() => gates.length === 4);
     expect(calls).toBe(5);
     gates[3]!({ text: REPORT });
     expect(((await p) as { ok: boolean }).ok).toBe(true);
