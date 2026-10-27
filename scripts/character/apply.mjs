@@ -5,9 +5,9 @@
  *   CHARACTER_PACK=/path/to/pack pnpm character:apply
  *   pnpm character:apply   # ensure official nomi generated config (idempotent; no asset churn)
  *
- * v1 overwrites landing paths in place. Scheme B (runtime userData) is deferred.
+ * v1 overwrites landing paths in place. Runtime overlay (Scheme B) is separate — see CharacterPackService.
  */
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import {
@@ -22,7 +22,7 @@ import {
   resolvePackDir,
   writeJson,
 } from './lib.mjs';
-import { GENERATED, TARGETS } from './paths.mjs';
+import { GENERATED, ROOT, TARGETS } from './paths.mjs';
 
 function writeGenerated(data) {
   for (const dest of Object.values(GENERATED)) {
@@ -125,6 +125,23 @@ function applyPack(packDir) {
       if (existsSync(src)) copyFile(src, join(TARGETS.onboardingDir, f));
     }
     console.info(`onboarding → ${rel(TARGETS.onboardingDir)}`);
+  }
+
+  // Optional pack attribution (if present)
+  const appliedCredits = join(ROOT, 'docs/character-pack/applied-credits');
+  for (const name of ['CREDITS.md', 'CREDITS.txt', 'LICENSE', 'LICENSE.txt']) {
+    const src = join(packDir, name);
+    if (existsSync(src)) {
+      mkdirSync(appliedCredits, { recursive: true });
+      copyFile(src, join(appliedCredits, name));
+      console.info(`credits → ${rel(join(appliedCredits, name))}`);
+    }
+  }
+  const licensesSrc = join(packDir, 'assets-licenses');
+  if (existsSync(licensesSrc)) {
+    mkdirSync(appliedCredits, { recursive: true });
+    copyTree(licensesSrc, join(appliedCredits, 'assets-licenses'), { clean: true });
+    console.info(`assets-licenses → ${rel(join(appliedCredits, 'assets-licenses'))}`);
   }
 
   let generated = generatedFromManifest(manifest, packDir);

@@ -1,6 +1,6 @@
-import React, { lazy, useCallback, useState } from 'react';
+import React, { lazy, useCallback, useEffect, useState } from 'react';
 
-import { getCharacterMode } from '../../mascot/characterConfig';
+import { ensureCharacterPackOverlay, getCharacterMode } from '../../mascot/characterConfig';
 
 // Rive is the default 2D renderer; the layered Canvas2D rig (SpriteCanvas) stays as the fallback
 // for machines where the Rive wasm / scene cannot start. Static packs skip both.
@@ -20,6 +20,9 @@ export interface Nomi2DCanvasProps {
  * - static: single image (no riv / 43 actions)
  */
 export const Nomi2DCanvas: React.FC<Nomi2DCanvasProps> = ({ manifestPath }) => {
+  useEffect(() => {
+    void ensureCharacterPackOverlay();
+  }, []);
   const mode = getCharacterMode();
   const [riveFailed, setRiveFailed] = useState(false);
   const onRiveFailure = useCallback(() => {

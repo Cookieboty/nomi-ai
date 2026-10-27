@@ -2,7 +2,7 @@ import { perfMark } from '@nomi-ai/ui';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import { createStaticBackend } from '../../mascot/backends/static';
-import { getStaticSrc } from '../../mascot/characterConfig';
+import { ensureCharacterPackOverlay, getStaticSrc } from '../../mascot/characterConfig';
 import { mascotRegistry } from '../../mascot/MascotBackend';
 import { characterBox } from '../../mascot/spriteLayout';
 import MascotInteractionLayerLite, { type SpriteGeometry } from '../SpriteMascot/InteractionLite';
@@ -16,15 +16,16 @@ export interface StaticCanvasProps {
 }
 
 function measureGeometry(canvas: HTMLCanvasElement | null): SpriteGeometry {
-  if (!canvas) return { head: null, body: null };
+  if (!canvas) return { head: null, body: null, box: null };
   const r = canvas.getBoundingClientRect();
-  if (r.width <= 0 || r.height <= 0) return { head: null, body: null };
+  if (r.width <= 0 || r.height <= 0) return { head: null, body: null, box: null };
   const b = characterBox(r.width, r.height);
-  if (b.w <= 0 || b.h <= 0) return { head: null, body: null };
+  if (b.w <= 0 || b.h <= 0) return { head: null, body: null, box: null };
   const left = r.left + b.x;
   const top = r.top + b.y;
   const right = left + b.w;
   const bottom = top + b.h;
+  const box = { left, right, top, bottom };
   return {
     head: {
       left: left + b.w * 0.16,
@@ -32,7 +33,8 @@ function measureGeometry(canvas: HTMLCanvasElement | null): SpriteGeometry {
       top: top + b.h * 0.04,
       bottom: top + b.h * 0.42,
     },
-    body: { left, right, top, bottom },
+    body: box,
+    box,
   };
 }
 
@@ -55,6 +57,10 @@ export const StaticCanvas: React.FC<StaticCanvasProps> = ({
     }),
     [],
   );
+
+  useEffect(() => {
+    void ensureCharacterPackOverlay();
+  }, []);
 
   useEffect(() => {
     const backend = createStaticBackend();

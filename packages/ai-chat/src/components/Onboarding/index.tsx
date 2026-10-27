@@ -32,10 +32,7 @@ import { useNomiModelStatus } from '../../hooks/useNomiModelStatus';
 import { startupClient, type StartupView } from '../../services/startupClient';
 import { ChatBackgroundSettings } from '../SettingsView/ChatBackgroundSettings';
 
-import privacyArt from './art/privacy.webp';
-import profileArt from './art/profile.webp';
-import providerArt from './art/provider.webp';
-import welcomeArt from './art/welcome.webp';
+import { BUILTIN_ONBOARDING_ART, resolveOnboardingArt } from './artUrls';
 import {
   OPEN_MODELS_EVENT,
   matchTemplate,
@@ -63,11 +60,11 @@ const STEP_LINE: Record<Step, () => string> = {
   privacy: () => t('ui.mascot-theme.rest-assured-our-conversations-and-memories-stay-on'),
 };
 /** 带插画的步骤：插画 + 一句介绍（窗口很矮时插画隐藏） */
-const STEP_ART: Record<Step, { src: string; intro?: () => string }> = {
-  welcome: { src: welcomeArt, intro: () => t('ui.mascot-theme.intro-welcome') },
-  profile: { src: profileArt, intro: () => t('ui.mascot-theme.intro-profile') },
-  provider: { src: providerArt, intro: () => t('ui.mascot-theme.intro-provider') },
-  privacy: { src: privacyArt },
+const STEP_ART_META: Record<Step, { intro?: () => string }> = {
+  welcome: { intro: () => t('ui.mascot-theme.intro-welcome') },
+  profile: { intro: () => t('ui.mascot-theme.intro-profile') },
+  provider: { intro: () => t('ui.mascot-theme.intro-provider') },
+  privacy: {},
 };
 
 const LANGS: { id: LocalePref; label: () => string }[] = [
@@ -131,6 +128,11 @@ const INTEREST_LABEL: Record<UserInterest, () => string> = {
 
 export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ onDone }) => {
   useLocale();
+  const [stepArt, setStepArt] = useState(BUILTIN_ONBOARDING_ART);
+  useEffect(() => {
+    void resolveOnboardingArt().then(setStepArt);
+  }, []);
+
   const [i, setI] = useState(0);
   // 引导是阻断式对话框：焦点留在卡片内（Esc 不关闭，需点「跳过引导」）
   const cardRef = useRef<HTMLDivElement>(null);
@@ -485,7 +487,8 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
   })();
 
   const last = i === STEPS.length - 1;
-  const art = STEP_ART[step];
+  const artSrc = stepArt[step] ?? BUILTIN_ONBOARDING_ART[step];
+  const artIntro = STEP_ART_META[step]?.intro;
   return (
     <div className={styles.overlay} data-testid="onboarding" data-step={step}>
       <div
@@ -498,7 +501,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
         {/* 插画铺满整张卡片做背景，人物靠右完整显示；没有插画的步骤用欢迎图的淡化版 */}
         <div
           className={styles.bg}
-          style={{ backgroundImage: `url(${art.src})` }}
+          style={{ backgroundImage: `url(${artSrc})` }}
           aria-hidden
           data-testid="onb-art"
           data-art={step}
@@ -529,7 +532,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
           <h1 id="onb-title" className={styles.title}>
             {STEP_TITLE[step]()}
           </h1>
-          {art.intro && <p className={styles.intro}>{art.intro()}</p>}
+          {artIntro && <p className={styles.intro}>{artIntro()}</p>}
           <div className={styles.body}>{body}</div>
         </div>
         <footer className={styles.foot}>

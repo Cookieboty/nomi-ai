@@ -111,7 +111,7 @@ describe('sprite geometry + bubble', () => {
     expect(regionInSprite(cx, head.bottom - 4, head, body)).toBe('face');
     expect(regionInSprite(cx, head.bottom + 10, head, body)).toBe('body');
     expect(regionInSprite(body.left + 2, head.bottom + 30, head, body)).toBe('hands');
-    expect(regionInSprite(cx, body.bottom - 2, head, body)).toBe('skirt');
+    expect(regionInSprite(cx, body.bottom - 2, head, body)).toBe('hem');
   });
 });
 

@@ -9,5 +9,5 @@
 - [ ] 四张 onboarding：`welcome` / `profile` / `provider` / `privacy`（`.webp`）
 - [ ] `voice/zh` 下必选 clip id 的 mp3 + `manifest.json`（可后期补）
 - [ ] `copy/zh.json` + `copy/en.json`（显示名、自称、系统提示身份句）
-- [ ] 可选：`persona/system-prompt.md`、`layout/hitboxes.json`、品牌图标
+- [ ] 可选：`persona/system-prompt.md`、`layout/hitboxes.json`（含 `hem` + 可选 `bubbleAnchor`）、`CREDITS.md` / `assets-licenses/`、品牌图标
 - [ ] `pnpm character:check -- path/to/pack` 通过

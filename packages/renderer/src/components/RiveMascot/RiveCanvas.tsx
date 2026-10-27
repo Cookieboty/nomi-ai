@@ -4,7 +4,7 @@ import riveWasmUrl from '@rive-app/canvas-lite/rive.wasm?url';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import { createRiveBackend } from '../../mascot/backends/rive';
-import { getRiveConfig } from '../../mascot/characterConfig';
+import { ensureCharacterPackOverlay, getRiveConfig } from '../../mascot/characterConfig';
 import { mascotRegistry } from '../../mascot/MascotBackend';
 import { characterBox } from '../../mascot/spriteLayout';
 import MascotInteractionLayerLite, { type SpriteGeometry } from '../SpriteMascot/InteractionLite';
@@ -33,14 +33,15 @@ const DEFAULT_SRC = DEFAULT_RIVE.src;
  * ResizeObserver lags one resize behind the window and makes the anchor drift.
  */
 function measureGeometry(wrap: HTMLElement | null): SpriteGeometry {
-  if (!wrap) return { head: null, body: null };
+  if (!wrap) return { head: null, body: null, box: null };
   const b = characterBox(wrap.clientWidth, wrap.clientHeight);
-  if (b.w <= 0 || b.h <= 0) return { head: null, body: null };
+  if (b.w <= 0 || b.h <= 0) return { head: null, body: null, box: null };
   const r = wrap.getBoundingClientRect();
   const left = r.left + b.x;
   const top = r.top + b.y;
   const right = left + b.w;
   const bottom = top + b.h;
+  const box = { left, right, top, bottom };
   return {
     head: {
       left: left + b.w * 0.16,
@@ -48,7 +49,8 @@ function measureGeometry(wrap: HTMLElement | null): SpriteGeometry {
       top: top + b.h * 0.04,
       bottom: top + b.h * 0.42,
     },
-    body: { left, right, top, bottom },
+    body: box,
+    box,
   };
 }
 
@@ -62,6 +64,9 @@ export const RiveCanvas: React.FC<RiveCanvasProps> = ({ src = DEFAULT_SRC, style
   useEffect(() => {
     onFailureRef.current = onFailure;
   });
+  useEffect(() => {
+    void ensureCharacterPackOverlay();
+  }, []);
   // The production scene has one source of truth: the full-body SVG-backed rig.
   // Keep the artboard selection unconditional so the removed half-body rig cannot
   // be selected by a stale query string or an old local preference.

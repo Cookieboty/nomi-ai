@@ -108,6 +108,28 @@ export function officialGenerated() {
   };
 }
 
+/** Read layout/hitboxes.json; normalize skirt→hem. Returns null if missing/invalid. */
+export function loadPackHitboxes(packDir, manifest) {
+  const layoutRel = manifest?.assets?.layout || 'layout';
+  const path = join(packDir, layoutRel, 'hitboxes.json');
+  if (!existsSync(path)) return null;
+  try {
+    const raw = readJson(path);
+    if (!raw?.regions || typeof raw.regions !== 'object') return null;
+    const regions = { ...raw.regions };
+    if (regions.skirt && !regions.hem) {
+      regions.hem = regions.skirt;
+      delete regions.skirt;
+    }
+    return {
+      regions,
+      ...(raw.bubbleAnchor ? { bubbleAnchor: raw.bubbleAnchor } : {}),
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function generatedFromManifest(manifest, packDir) {
   const mode = packMode(manifest);
   const copyZh = existsSync(join(packDir, 'copy/zh.json'))
@@ -129,7 +151,7 @@ export function generatedFromManifest(manifest, packDir) {
     artboard: manifest.rive?.artboard || 'Nomi-full',
     stateMachine: manifest.rive?.stateMachine || 'NomiFull',
   };
-  return {
+  const out = {
     schema: 1,
     id: manifest.id,
     displayName: { zh: zhName, en: enName },
@@ -150,6 +172,9 @@ export function generatedFromManifest(manifest, packDir) {
     staticSrc: mode === 'static' ? './assets/models/static/character.webp' : undefined,
     copy: { zh: copyZh, en: copyEn },
   };
+  const hitboxes = loadPackHitboxes(packDir, manifest);
+  if (hitboxes) out.hitboxes = hitboxes;
+  return out;
 }
 
 export { TARGETS, ROOT };

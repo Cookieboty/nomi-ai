@@ -22,12 +22,21 @@ import {
 } from '../../src/mascot/voice/promptClips';
 
 const manifest = {
+  idSchema: 'stable-v1',
   clips: [
-    { key: 'ui.cli-monitor.okay', text: '好的～', file: 'ui.cli-monitor.okay.mp3' },
     {
-      key: 'ui.cli-monitor.reminder-time',
+      id: 'ack-okay',
+      key: 'ack-okay',
+      i18nKey: 'ui.cli-monitor.okay',
+      text: '好的～',
+      file: 'ack-okay.mp3',
+    },
+    {
+      id: 'remind-time',
+      key: 'remind-time',
+      i18nKey: 'ui.cli-monitor.reminder-time',
       text: '提醒时间到！',
-      file: 'ui.cli-monitor.reminder-time.mp3',
+      file: 'remind-time.mp3',
     },
   ],
 };
@@ -52,14 +61,19 @@ afterEach(() => {
 });
 
 describe('promptClips', () => {
-  it('plays the clip for a Nomi line by key', async () => {
+  it('plays the clip for a Nomi line by legacy i18n key (one-release alias)', async () => {
     await expect(playPromptClip('ui.cli-monitor.okay', { modelName: 'nomi' })).resolves.toBe(
       'played',
     );
-    expect(h.play).toHaveBeenCalledWith('./voice/nomi/zh/ui.cli-monitor.okay.mp3', {
+    expect(h.play).toHaveBeenCalledWith('./voice/nomi/zh/ack-okay.mp3', {
       volume: undefined,
       onEnd: undefined,
     });
+  });
+
+  it('plays by stable id', async () => {
+    await expect(playPromptClip('ack-okay', { modelName: 'nomi' })).resolves.toBe('played');
+    expect(h.play.mock.calls[0]![0]).toContain('ack-okay.mp3');
   });
 
   it('matches translated text back to its clip', async () => {
@@ -68,7 +82,7 @@ describe('promptClips', () => {
 
   it('uses an explicit clip hint for variable lines', async () => {
     await playPromptClip('提醒：交周报', { modelName: 'nomi', clip: CLIP_HINTS.reminder });
-    expect(h.play.mock.calls[0]![0]).toContain('ui.cli-monitor.reminder-time.mp3');
+    expect(h.play.mock.calls[0]![0]).toContain('remind-time.mp3');
   });
 
   it('dedupes the bubble and speech paths firing together', async () => {
@@ -108,12 +122,15 @@ describe('bundled manifest', () => {
     const dir = path.resolve(__dirname, '../../public/voice/nomi/zh');
     const m = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8')) as {
       voice: string;
-      clips: Array<{ key: string; file: string }>;
+      idSchema?: string;
+      clips: Array<{ id?: string; key: string; i18nKey?: string; file: string }>;
     };
     expect(m.voice).toBe('zh-CN-XiaoyiNeural');
+    expect(m.idSchema).toBe('stable-v1');
     for (const c of m.clips) expect(fs.existsSync(path.join(dir, c.file))).toBe(true);
-    const keys = new Set(m.clips.map((c) => c.key));
-    for (const k of Object.values(CLIP_HINTS)) expect(keys.has(k)).toBe(true);
-    expect(keys.has('ui.voice-mascot.canvas-not-found-can-t-take-a-screenshot')).toBe(true);
+    const ids = new Set(m.clips.map((c) => c.id || c.key));
+    for (const k of Object.values(CLIP_HINTS)) expect(ids.has(k)).toBe(true);
+    const i18n = new Set(m.clips.map((c) => c.i18nKey).filter(Boolean));
+    expect(i18n.has('ui.voice-mascot.canvas-not-found-can-t-take-a-screenshot')).toBe(true);
   });
 });

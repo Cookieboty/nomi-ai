@@ -92,10 +92,18 @@ if (existsSync(zhDir)) {
   const manPath = join(zhDir, 'manifest.json');
   need(existsSync(manPath), 'voice/zh/manifest.json required when voice/zh present');
   if (existsSync(manPath)) {
-    const clips = readJson(manPath).clips || [];
-    const have = new Set(clips.map((c) => c.key));
+    const man = readJson(manPath);
+    const clips = man.clips || [];
+    const have = new Set();
+    for (const c of clips) {
+      if (c.id) have.add(c.id);
+      if (c.key) have.add(c.key);
+    }
     const required = contract.voice.requiredClipIds || [];
     const missing = required.filter((id) => !have.has(id));
+    if (man.idSchema && man.idSchema !== 'stable-v1') {
+      warnings.push(`unexpected voice idSchema: ${man.idSchema}`);
+    }
     // Official pack must be complete; custom packs warn.
     if (manifest.id === 'nomi') {
       need(

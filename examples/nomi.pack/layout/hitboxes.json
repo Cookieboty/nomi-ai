@@ -1,5 +1,5 @@
 {
-  "note": "ratios of character box; skirt retained in P0 (hem is alias)",
+  "note": "ratios of character box; hem is the lower garment region",
   "regions": {
     "head": {
       "top": 0.04,
@@ -25,14 +25,15 @@
       "left": 0.05,
       "right": 0.95
     },
-    "skirt": {
+    "hem": {
       "top": 0.6,
       "bottom": 1,
       "left": 0.15,
       "right": 0.85
     }
   },
-  "aliases": {
-    "hem": "skirt"
+  "bubbleAnchor": {
+    "x": 0.72,
+    "y": 0.18
   }
 }

@@ -32,7 +32,8 @@ CHARACTER_PACK=examples/static-demo.pack pnpm character:apply && pnpm build
 ## 设计假设（P0）
 
 1. **官方 Nomi 优先**：无 `CHARACTER_PACK` 时行为与今日一致。
-2. **仅构建期**：`CHARACTER_PACK=… pnpm character:apply && pnpm build`。Scheme B（运行时 userData）延期。
+2. **Scheme A（构建期）**：`CHARACTER_PACK=… pnpm character:apply && pnpm build`。
+   **Scheme B（运行时）**：把完整包放到 `userData/character-pack` 或随安装包 `resources/character-pack`；校验失败回退内置。
 3. **v1 原地覆盖**现有路径（不改名为 `default/`）：
    - `packages/renderer/public/assets/models/rive/nomi-complete.riv`
    - `packages/renderer/public/assets/models/sprite/nomi/`
@@ -40,7 +41,7 @@ CHARACTER_PACK=examples/static-demo.pack pnpm character:apply && pnpm build
    - `packages/ai-chat/src/components/Onboarding/art/`
    - static 模式另写：`packages/renderer/public/assets/models/static/character.webp`
 4. 单角色；无商店 / 切换 UI；UI 主题与 `appId` 不进包。
-5. `skirt→hem` 与 voice-id 去 nomi 语义重命名 **不在 P0**（别名即可）。
+5. 区域 id 为 `hem`（不再用 `skirt`）；voice clip 使用稳定 id（见 `voice-ids.json`），旧 key 别名保留一版。
 6. Rive artboard / stateMachine（`Nomi-full` / `NomiFull`）写入契约，manifest 可覆盖。
 7. 官方 CI 仍锁 nomi；fork 可用 `CHARACTER_PACK_SKIP_BRAND_LOCK=1`。
 8. `static` 模式为一等公民。

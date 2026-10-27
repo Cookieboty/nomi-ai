@@ -11,7 +11,9 @@ import {
   placeBubble,
   type BubblePlacement,
 } from '@/mascot/bubblePlacement';
+import { getHitboxes } from '@/mascot/characterConfig';
 import { layoutStore } from '@/mascot/layoutStore';
+import { bubbleAnchorBox } from '@/mascot/spriteInteraction';
 import { toBubbleText } from '@/security/bubbleText';
 
 const PREF_W = 220;
@@ -50,7 +52,9 @@ export const MessageBubble: React.FC = () => {
   }, [incoming, incomingMore]);
 
   const compute = useCallback(() => {
-    const { head, gutter } = layoutStore.get();
+    const { head: measuredHead, gutter, box } = layoutStore.get();
+    const anchored = box ? bubbleAnchorBox(box, getHitboxes()) : null;
+    const head = anchored || measuredHead;
     const el = measureRef.current;
     if (!head || !el) {
       setPlace(null);

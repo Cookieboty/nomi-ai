@@ -111,7 +111,7 @@ export const REACTIONS: Partial<
       expression: 'surprised',
       lines: [],
     },
-    skirt: {
+    hem: {
       expression: 'angry',
       lines: [],
     },
@@ -146,7 +146,7 @@ export const REACTIONS: Partial<
       motion: 'wave',
       lines: [],
     },
-    skirt: {
+    hem: {
       expression: 'angry',
       motion: 'shake',
       lines: [],
@@ -164,7 +164,7 @@ export const REACTIONS: Partial<
       motion: 'clap',
       lines: [],
     },
-    skirt: {
+    hem: {
       expression: 'angry',
       motion: 'shake',
       lines: [],

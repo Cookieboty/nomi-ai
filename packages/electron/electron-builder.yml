@@ -75,6 +75,10 @@ extraResources:
     to: ai-chat
   - from: assets
     to: assets
+  # Scheme B OEM overlay placeholder (empty / README). Place a valid pack here to ship
+  # as resources/character-pack. Runtime also checks userData/character-pack first.
+  - from: character-pack-resources
+    to: character-pack
 
 directories:
   buildResources: assets

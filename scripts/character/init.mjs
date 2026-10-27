@@ -68,15 +68,14 @@ mkdirSync(dirname(persona), { recursive: true });
 writeFileSync(persona, '你是 Nomi（诺米），住在用户桌面上的 AI 伙伴。\n保持简短、有情感的回复。\n');
 
 writeJson(join(pack, 'layout/hitboxes.json'), {
-  note: 'ratios of character box; skirt retained in P0 (hem is alias)',
+  note: 'ratios of character box; hem is the lower garment region',
   regions: {
     head: { top: 0.04, bottom: 0.28, left: 0.16, right: 0.84 },
     face: { top: 0.1, bottom: 0.32, left: 0.22, right: 0.78 },
     body: { top: 0.28, bottom: 0.6, left: 0.18, right: 0.82 },
     hand: { top: 0.45, bottom: 0.7, left: 0.05, right: 0.95 },
-    skirt: { top: 0.6, bottom: 1.0, left: 0.15, right: 0.85 },
+    hem: { top: 0.6, bottom: 1.0, left: 0.15, right: 0.85 },
   },
-  aliases: { hem: 'skirt' },
 });
 
 const generated = officialGenerated();

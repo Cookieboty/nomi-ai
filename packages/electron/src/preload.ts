@@ -153,6 +153,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
       };
     },
   },
+  /** Scheme B 运行时角色包 overlay（无则 built-in） */
+  characterPack: {
+    getActive: () => ipcRenderer.invoke('character-pack:get-active'),
+  },
   /** 主进程 → 看板娘指令（AI 工具 / 托盘：播放动作、切换表情）。返回取消订阅函数。 */
   onMascotCommand: (callback: (cmd: unknown) => void) => {
     const listener = (_: unknown, cmd: unknown) => callback(cmd);
