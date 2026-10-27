@@ -46,7 +46,8 @@ import { guardedHandle } from '../security/guardedIpc';
 import { claudeConfigDir, codexHomeDir, geminiDir, grokHomeDir } from '../usage/cliHomes';
 import { dbSignature } from '../usage/sqliteRead';
 
-import { readCodexThreads, type CodexThreadRow } from './codexThreadIndex';
+import type { CodexThreadRow } from './codexThreadIndex';
+import { readCodexThreadsAsync } from './codexThreadReader';
 import { parseTranscript, titleFromMessages, type HistoryBackend } from './historyTranscript';
 import { fromCliPermissionMode } from './permissionMode';
 import type {
@@ -183,6 +184,8 @@ export interface SessionHistoryDeps {
     backend: HistoryBackend,
     sessionId: string,
   ) => { id: string; label?: string } | undefined;
+  /** 读 Codex 索引（state_5.sqlite 的 threads 表，测试注入）；默认在 worker 线程里查，不阻塞主进程 */
+  codexThreads?: (file: string) => Promise<CodexThreadRow[]>;
 }
 
 async function readHead(p: string, bytes: number): Promise<string> {
@@ -298,6 +301,8 @@ export class SessionHistoryService {
     sig: null,
     rows: new Map(),
   };
+  /** 进行中的索引刷新：并发调用方等同一个 Promise，不发起重叠的查询 */
+  private codexRefresh: Promise<void> | null = null;
 
   private geminiRoot(): string {
     return this.d.geminiHome ? path.join(this.d.geminiHome, '.gemini') : geminiDir(this.home);
@@ -338,7 +343,7 @@ export class SessionHistoryService {
     const entries: FileEntry[] = [];
     for await (const f of HISTORY_SCAN[backend].scan(this.historyRoot(backend))) entries.push(f);
     if (backend === 'codex') {
-      this.refreshCodexIndex(
+      await this.refreshCodexIndex(
         path.join(codexHomeDir(this.home, this.d.env ?? process.env), 'state_5.sqlite'),
       );
       // 归档 / 删除 / 续接可能让最新 rollout 消失；重扫时不能保留失效的反查路径。
@@ -734,11 +739,28 @@ export class SessionHistoryService {
     }
   }
 
-  private refreshCodexIndex(file: string): void {
+  private refreshCodexIndex(file: string): Promise<void> {
+    this.codexRefresh ??= this.doRefreshCodexIndex(file).finally(() => {
+      this.codexRefresh = null;
+    });
+    return this.codexRefresh;
+  }
+
+  private async doRefreshCodexIndex(file: string): Promise<void> {
     const sig = dbSignature(file);
     if (sig === this.codexIndex.sig) return;
     const rows = new Map<string, CodexThreadRow>();
-    if (sig) for (const r of readCodexThreads(file)) if (r.id) rows.set(r.id, r);
+    if (sig) {
+      let list: CodexThreadRow[];
+      try {
+        list = await (this.d.codexThreads ?? readCodexThreadsAsync)(file);
+      } catch (e) {
+        // worker 崩溃 / 超时：保留上一份索引，不记新指纹，下次列表时重试
+        this.d.logger?.warn('codex index refresh failed', e);
+        return;
+      }
+      for (const r of list) if (r.id) rows.set(r.id, r);
+    }
     // 标题、归档与续接供应商都可能只改 sqlite，不改 rollout 的 mtime：只让索引行有变化（新增 /
     // 删除 / 改动）的会话重新解析。Codex 运行时库一直在变，整表清空会让所有会话（含其他后端）重读。
     const changed = codexRowsChanged(this.codexIndex.rows, rows);
