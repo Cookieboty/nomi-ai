@@ -405,6 +405,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - 委派 P1 加固：汇报字段包 untrusted 边界；`/agent` 钉住按会话+轮次隔离（失败中止发送）；拒绝委派标签再委派；git 改动列表用 rev-parse/porcelain -z；abort 后清理孤儿标签；`taken_over` 记为有意偏差；修复非 git 目录下 gitDiff 用例的竞态。 (`@nomi-ai/ai-runtime` patch)
 - 委派 P1 加固：汇报字段包 untrusted 边界；`/agent` 钉住按会话+轮次隔离（失败中止发送）；拒绝委派标签再委派；git 改动列表用 rev-parse/porcelain -z；abort 后清理孤儿标签；`taken_over` 记为有意偏差；修复非 git 目录下 gitDiff 用例的竞态。 (`@nomi-ai/electron` patch, `@nomi-ai/ai-chat` patch, `@nomi-ai/bundle-ig-base` patch)
 - 安装包瘦身约 160MB：onnxruntime-web 只打包 Node 下语音检测实际加载的 4 个文件，tesseract.js-core 只保留 Electron 会用到的 relaxedsimd 核心，Chromium 语言包只保留英文与简体中文。 (`@nomi-ai/electron` patch)
+- 安装包瘦身（easy wins）：去掉 asarUnpack 在 asar 内的 onnx/tesseract 重复副本；bare-* prebuilds 只留当前平台；zlibjs 只留 node-zlib.js；i18n 不打包 src/ESM dist；assets 仅走 extraResources。 (`@nomi-ai/electron` patch)
 - 对照 Codex Desktop 默认整页 IA：左会话 | 中 chat | 右 files-rail。「查看变更」聚焦右侧已更改文件树 + Diff，不再默认打开全屏 portal 工作台；工作台降为次要详情入口。 (`@nomi-ai/ai-chat` minor, `@nomi-ai/electron` patch)
 - 对照 Codex Desktop：助手消息下「已编辑 N 个文件」摘要卡（路径 +/−、「再显示」、查看变更、确认后撤销本轮写入），以及三栏完整变更工作台（左来源汇总、中行级 Diff、右目录树），与 SessionChangesPanel / 预览打通。 (`@nomi-ai/ai-chat` minor, `@nomi-ai/electron` patch)
 - 对照 Codex Desktop：助手消息下「已编辑 N 个文件」摘要卡（路径 +/−、「再显示」、查看变更、确认后撤销本轮写入），以及三栏完整变更工作台（左来源汇总、中行级 Diff、右目录树），与 SessionChangesPanel / 预览打通。 (`@nomi-ai/ui` patch)

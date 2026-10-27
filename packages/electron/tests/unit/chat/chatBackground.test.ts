@@ -32,11 +32,16 @@ import {
   DEFAULT_CHAT_BG,
   sanitizeChatBg,
 } from '../../../src/chat/ChatBackgroundService';
+import { __renameDeps, whenPrivateWritesIdle } from '../../../src/utils/privateFile';
 
 const tmpRoot = () => fs.mkdtempSync(path.join(os.tmpdir(), 'chat-bg-'));
 const PRESET_DEFAULTS = { ...DEFAULT_CHAT_BG, imageUrl: CHAT_BG_PRESET_URL };
 
 describe('ChatBackgroundService', () => {
+  afterEach(async () => {
+    await whenPrivateWritesIdle();
+  });
+
   it('sanitizes and defaults', () => {
     expect(sanitizeChatBg(null)).toEqual(DEFAULT_CHAT_BG);
     expect(sanitizeChatBg({ mode: 'solid', solidColor: '#ff0000', blur: 99, opacity: 2 })).toEqual({
@@ -258,16 +263,17 @@ describe('ChatBackgroundService', () => {
       path.join(root, 'images'),
     );
     await service.flush();
-    const rename = jest.spyOn(fs.promises, 'rename').mockImplementationOnce(async () => {
+    const realRename = __renameDeps.renameAsync;
+    __renameDeps.renameAsync = async () => {
       throw new Error('disk unavailable');
-    });
+    };
     const unlink = jest.spyOn(fs, 'unlinkSync').mockImplementationOnce(() => {
       throw new Error('unlink failed');
     });
     try {
       await expect(service.importImage(src)).rejects.toThrow('disk unavailable');
     } finally {
-      rename.mockRestore();
+      __renameDeps.renameAsync = realRename;
       unlink.mockRestore();
     }
   });
@@ -297,7 +303,7 @@ describe('ChatBackgroundService', () => {
     expect(new ChatBackgroundService(file, images, preset).get()).toEqual(defaults);
   });
 
-  it('falls back to the preset when the saved custom image is missing or unsafe', () => {
+  it('falls back to the preset when the saved custom image is missing or unsafe', async () => {
     const root = tmpRoot();
     const file = path.join(root, 'chat-background.json');
     const images = path.join(root, 'images');
@@ -311,11 +317,13 @@ describe('ChatBackgroundService', () => {
       'https://example.com/image.png',
     ]) {
       fs.writeFileSync(file, JSON.stringify({ imageUrl, blur: 0, opacity: 0.75 }));
-      expect(new ChatBackgroundService(file, images, preset).get()).toMatchObject({
+      const service = new ChatBackgroundService(file, images, preset);
+      expect(service.get()).toMatchObject({
         imageUrl: CHAT_BG_PRESET_URL,
         blur: 0,
         opacity: 0.75,
       });
+      await service.flush();
     }
   });
 
@@ -354,9 +362,10 @@ describe('ChatBackgroundService', () => {
     dialog.showOpenDialog.mockResolvedValue({ canceled: false, filePaths: [source] });
     const previous = await service.pickImage();
     fs.writeFileSync(source, 'replacement');
-    const rename = jest.spyOn(fs.promises, 'rename').mockImplementationOnce(async () => {
+    const realRename = __renameDeps.renameAsync;
+    __renameDeps.renameAsync = async () => {
       throw new Error('disk unavailable');
-    });
+    };
     try {
       await expect(service.pickImage()).rejects.toThrow('disk unavailable');
       expect(service.get()).toEqual(previous);
@@ -366,7 +375,7 @@ describe('ChatBackgroundService', () => {
         'first',
       );
     } finally {
-      rename.mockRestore();
+      __renameDeps.renameAsync = realRename;
     }
   });
 
