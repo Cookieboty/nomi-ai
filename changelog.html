@@ -56,6 +56,37 @@
 
     <section class="section section-tight">
       <div class="container changelog">
+        <article class="release" id="v204">
+          <header class="release-head">
+            <h2 data-i18n="cl.v204.title">v2.0.4 — 设置重组、外发保护加固、安装包瘦身</h2>
+            <time datetime="2026-10-27">2026-10-27</time>
+          </header>
+          <h3 class="release-group" data-i18n="cl.v204.feat">新功能</h3>
+          <ul class="release-list">
+            <li data-i18n="cl.v204.feat.1">设置重组为七个分区：通用 / 模型与供应商 / 编程助手 / 用量与质量 / 知识与记忆 / 扩展 · MCP / 隐私。</li>
+            <li data-i18n="cl.v204.feat.2">「开始使用」清单：模型、编程助手、第一次对话。</li>
+            <li data-i18n="cl.v204.feat.3">新手引导精简为 4 步，新增「职业与兴趣」，按它推荐编程助手、功能与欢迎页示例问题。</li>
+            <li data-i18n="cl.v204.feat.4">提醒、任务结果、主动对话等统一走一个通知渠道：诺米气泡 → 灵动岛 → 系统通知。</li>
+          </ul>
+          <h3 class="release-group" data-i18n="cl.v204.imp">改进</h3>
+          <ul class="release-list">
+            <li data-i18n="cl.v204.imp.1">移除笔记、日历同步、屏幕记忆、截图提问与剪贴板历史；磁盘上的笔记和日历数据仍保留。</li>
+            <li data-i18n="cl.v204.imp.2">设置 → 模型：先配供应商再分配模型，表单直接内嵌在页面里。</li>
+            <li data-i18n="cl.v204.imp.3">安装包瘦身（Linux 目录包约 499MB → 353MB）；启动更快，长会话更流畅。</li>
+            <li data-i18n="cl.v204.imp.4">编程助手可同时安装 / 更新；会话改在侧栏切换，并显示进行中 / 排队中。</li>
+          </ul>
+          <h3 class="release-group" data-i18n="cl.v204.fix">修复</h3>
+          <ul class="release-list">
+            <li data-i18n="cl.v204.fix.1">外发内容保护加固：文本附件、委派历史、云端备用协议与工具参数里的密钥都会正确脱敏。</li>
+            <li data-i18n="cl.v204.fix.2">委派 worktree 回填遵守原目录授权；放弃改动的撤销不会串到别的工作区。</li>
+            <li data-i18n="cl.v204.fix.3">右栏「放弃改动」对未跟踪目录不再失败。</li>
+            <li data-i18n="cl.v204.fix.4">质量页 TTFT / 生成速率恢复准确。</li>
+            <li data-i18n="cl.v204.fix.5">检查更新时若安装包还没传完，显示「新版本仍在发布中」而不是 404。</li>
+            <li data-i18n="cl.v204.fix.6">停止回复时会一并撤回待确认的「发送到云端」。</li>
+          </ul>
+          <a class="link-arrow" href="https://github.com/Cookieboty/nomi-ai/releases/tag/v2.0.4" rel="noopener noreferrer" target="_blank" data-i18n="cl.release">查看 GitHub Release →</a>
+        </article>
+
         <article class="release" id="v202">
           <header class="release-head">
             <h2 data-i18n="cl.v202.title">v2.0.2 — 右栏「改动」直接提交与同步、外发内容保护、全局背景图</h2>
