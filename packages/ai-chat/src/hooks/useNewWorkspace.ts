@@ -3,7 +3,7 @@
  */
 import { useCallback, useState } from 'react';
 
-import { useHarnessTabs } from '../contexts/HarnessTabsContext';
+import { useHarnessTabsCore } from '../contexts/HarnessTabsContext';
 
 export function useNewWorkspace(): {
   /** 当前显示的目录（用户选的，否则默认） */
@@ -13,7 +13,7 @@ export function useNewWorkspace(): {
   set: (cwd: string) => void;
   reset: () => void;
 } {
-  const tabs = useHarnessTabs();
+  const tabs = useHarnessTabsCore();
   const [chosen, setChosen] = useState<string | undefined>();
   const fallback = tabs.activeTab?.cwd ?? '';
   const set = useCallback((cwd: string) => setChosen(cwd), []);

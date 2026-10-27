@@ -4,7 +4,7 @@
  */
 import React, { useCallback, useLayoutEffect, useMemo, useRef } from 'react';
 
-import { useHarnessLive, useHarnessTabs } from '../../contexts/HarnessTabsContext';
+import { useHarnessLive, useHarnessTabsCore } from '../../contexts/HarnessTabsContext';
 import { harnessClient } from '../../services/harnessClient';
 import { modelSwitchTipFor, useModelSwitch } from '../../services/modelSwitchTip';
 import { tabLiveToConv } from '../../utils/convAdapters';
@@ -17,7 +17,7 @@ type Props = Omit<
 >;
 
 export const CliConversation: React.FC<Props> = (props) => {
-  const tabs = useHarnessTabs();
+  const tabs = useHarnessTabsCore();
   const tabLive = useHarnessLive((l) => l[props.scopeId]);
   const live = useMemo(() => tabLiveToConv(tabLive), [tabLive]);
   // 回调保持引用稳定：内联箭头会击穿每条消息的 memo，让窗口内所有助手消息重跑变更聚合 / trace 归并。

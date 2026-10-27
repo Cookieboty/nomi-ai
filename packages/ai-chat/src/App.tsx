@@ -59,7 +59,11 @@ import {
   useAiChatActions,
   useAiChatSelector,
 } from './contexts/aiChatStore';
-import { HarnessTabsProvider, useHarnessLive, useHarnessTabs } from './contexts/HarnessTabsContext';
+import {
+  HarnessTabsProvider,
+  useHarnessLive,
+  useHarnessTabsCore,
+} from './contexts/HarnessTabsContext';
 import { useChatMode } from './hooks/useChatMode';
 import { useHarnessState } from './hooks/useHarnessState';
 import { useLayoutDensity } from './hooks/useLayoutDensity';
@@ -241,7 +245,8 @@ const AiChatContent: React.FC = () => {
   const firstMessageId = useAiChatSelector(selectFirstMessageId);
   const messageCount = useAiChatSelector(selectMessageCount);
   const settledNomi = useAiChatSelector(selectSettledNomi, shallowArrayEqual);
-  const tabs = useHarnessTabs();
+  // 不订阅完整标签列表：后台标签的状态 / 未读广播不让整个 App 重渲染
+  const tabs = useHarnessTabsCore();
   const { isDev, setMode } = useChatMode();
   // 精简模式（工作台）：不显示顶部对话标签条，顶栏只放当前会话的标题
   const { isCompact } = useLayoutDensity();
@@ -340,7 +345,7 @@ const AiChatContent: React.FC = () => {
   );
   // 不论从哪个入口回到主标签（顶栏 / 快捷键 / 侧栏 / 分叉后），都把当前会话恢复成 Nomi 会话
   useRestoreNomiOnMain(
-    tabs.state?.activeTabId,
+    tabs.activeTabId,
     () => ipcClient.conversationStore?.(),
     () => actions.loadChatHistory(),
   );
@@ -752,9 +757,13 @@ const AiChatContent: React.FC = () => {
   const cliImages = useCliImageSupport(cliActive);
   const tabSend = tabs.send;
   const tabCancel = tabs.cancel;
+  // 只依赖用到的原始字段：当前标签的 updatedAt / unread 等变化不重建 props，MessageInput 的 memo 才守得住
+  const cliBusy = !!cliActive && (cliActive.status === 'running' || cliActive.status === 'queued');
+  const cliPlaceholder = cliActive ? cliTabPlaceholder(cliActive) : undefined;
+  const hasCliActive = !!cliActive;
   const inputModeProps = useMemo(
     () =>
-      cliActive
+      hasCliActive
         ? {
             onSend: (text: string, images?: ImageAttachment[]) => {
               const imgs = images?.map((im) => ({
@@ -767,17 +776,17 @@ const AiChatContent: React.FC = () => {
               }));
               void tabSend(text, imgs);
             },
-            busyOverride: cliActive.status === 'running' || cliActive.status === 'queued',
+            busyOverride: cliBusy,
             imageCapability: cliImages.capability,
             imageUnsupportedReason: cliImages.reason,
-            placeholder: cliTabPlaceholder(cliActive),
+            placeholder: cliPlaceholder,
             queue: {
               onQueue: (text: string) => void tabSend(text),
               onStop: () => void tabCancel(),
             },
           }
         : { queue: { onQueue: nomiQueue.enqueue } },
-    [cliActive, cliImages, tabSend, tabCancel, nomiQueue.enqueue],
+    [hasCliActive, cliBusy, cliPlaceholder, cliImages, tabSend, tabCancel, nomiQueue.enqueue],
   );
   const openPlugins = useCallback(() => setShowPlugins(true), []);
   const closePlugins = useCallback(() => setShowPlugins(false), []);
