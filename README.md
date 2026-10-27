@@ -61,7 +61,7 @@
 
 <table>
   <tr>
-    <td align="center"><img src="docs/contact/qr-author.png" alt="作者微信 / Author WeChat" width="220"><br><sub>作者微信 / Author WeChat</sub></td>
+    <td align="center"><img src="docs/contact/qr-author.png" alt="作者微信 · 言萧凡（Tomo） / Author WeChat · 言萧凡 (Tomo)" width="220"><br><sub>作者微信 · 言萧凡（Tomo）<br>Author WeChat · 言萧凡 (Tomo)</sub></td>
   </tr>
 </table>
 
