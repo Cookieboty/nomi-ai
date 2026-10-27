@@ -715,9 +715,7 @@ const AiChatContent: React.FC = () => {
     };
   }, [openSettings]);
 
-  const handleNewChat = () => {
-    return actions.newConversation();
-  };
+  const handleNewChat = useCallback(() => actions.newConversation(), [actions]);
 
   const paletteCommands = useMemo<PaletteCommand[]>(
     () => [
@@ -802,6 +800,25 @@ const AiChatContent: React.FC = () => {
   const openLocal = useCallback(() => setShowLocal(true), []);
   const closeLocal = useCallback(() => setShowLocal(false), []);
   const closeSettings = useCallback(() => setSettings(null), []);
+  // 侧栏是 memo 组件：回调与 footer 都要稳定，否则 App 每次渲染都连带重渲染整个会话列表
+  const toggleSidebar = useCallback(() => setSidebarCollapsed((v) => !v), []);
+  const openSidebarSettings = useCallback(
+    (sec: 'coding' | 'usage') => openSettings(sec),
+    [openSettings],
+  );
+  const openGeneralSettings = useCallback(() => openSettings(), [openSettings]);
+  const sidebarFooter = useMemo(
+    () => (
+      <AppEntries
+        collapsed={sidebarCollapsed}
+        onHub={openHub}
+        onExt={openExt}
+        onLocal={openLocal}
+        onSettings={openGeneralSettings}
+      />
+    ),
+    [sidebarCollapsed, openHub, openExt, openLocal, openGeneralSettings],
+  );
 
   const paletteEl = (
     <CommandPalette open={palette} onClose={() => setPalette(false)} commands={paletteCommands} />
@@ -817,20 +834,12 @@ const AiChatContent: React.FC = () => {
         {/* 侧边栏 */}
         <Sidebar
           collapsed={sidebarCollapsed}
-          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+          onToggle={toggleSidebar}
           onNewChat={handleNewChat}
           onForkRequest={onForkRequest}
           onNotice={setToast}
-          onOpenSettings={(sec) => openSettings(sec)}
-          footer={
-            <AppEntries
-              collapsed={sidebarCollapsed}
-              onHub={() => setShowHub(true)}
-              onExt={() => setShowExt(true)}
-              onLocal={() => setShowLocal(true)}
-              onSettings={() => openSettings()}
-            />
-          }
+          onOpenSettings={openSidebarSettings}
+          footer={sidebarFooter}
         />
 
         {/* 主内容：无查看区时对话全宽；有本会话 Diff 或右栏文件预览时 chat-column | 中栏 横排全高 */}

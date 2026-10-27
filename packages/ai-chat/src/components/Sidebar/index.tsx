@@ -1,6 +1,6 @@
 import { t, Icon } from '@nomi-ai/ui';
 import { RefreshCw, X, SquarePen } from 'lucide-react';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { List } from 'react-window';
 
 import {
@@ -42,6 +42,7 @@ import { NewChatMenu } from '../NewChatMenu';
 import { EndpointMoreMenu } from './EndpointMoreMenu';
 import { EndpointVisibilityMenu } from './EndpointVisibilityMenu';
 import styles from './index.module.css';
+import { sameMetaList } from './listEquality';
 import {
   firstUserMessageCache,
   Highlight,
@@ -67,7 +68,7 @@ interface SidebarProps {
 }
 
 /** 侧栏：全部 / 按端 + 端点徽标；点击按后端路由到主对话或 CLI 标签 */
-export const Sidebar: React.FC<SidebarProps> = ({
+const SidebarImpl: React.FC<SidebarProps> = ({
   collapsed,
   onToggle,
   onNewChat,
@@ -115,7 +116,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
     void ipc
       .listConversations()
       .then((l) => {
-        setList([...l].sort((a, b) => b.updatedAt - a.updatedAt));
+        const next = [...l].sort((a, b) => b.updatedAt - a.updatedAt);
+        // 内容没变就保留旧引用：否则每次刷新都让依赖 list 的 memo 与所有行重算
+        setList((prev) => (sameMetaList(prev, next) ? prev : next));
         setCurrent(ipc.currentConversationId?.());
       })
       .catch(() => undefined);
@@ -219,9 +222,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
     return navList;
   }, [navList, view, endpointFilter]);
 
+  // 行回调读最新的 list / current / tabs（经 ref），回调本身保持稳定：
+  // 否则每次渲染换引用，ThreadItem 的 React.memo 全部失效
+  const latest = useRef({
+    list,
+    current,
+    tabs,
+    isDev,
+    confirmId,
+    removeItem: undefined as ((id: string) => Promise<void>) | undefined,
+  });
+
   const open = useCallback(
     async (id: string) => {
       if (!ipc) return;
+      const { list, current, tabs, isDev } = latest.current;
       const meta =
         list.find((x) => x.id === id) ?? (await ipc.listConversations()).find((x) => x.id === id);
       if (!meta) return;
@@ -251,7 +266,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       await Promise.all(pending);
       refresh();
     },
-    [ipc, list, isDev, setMode, tabs, refresh, current, actions],
+    [ipc, setMode, refresh, actions],
   );
 
   const createFor = async (backend: ConversationBackend) => {
@@ -313,22 +328,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
     (id: string, name: string | null) => {
       setRenamingId(null);
       if (!name || !ipc) return;
+      const { list, tabs } = latest.current;
       const meta = list.find((x) => x.id === id);
       if (!meta || meta.name === name) return;
       if (meta.tabId) void tabs.rename(meta.tabId, name).catch(() => undefined);
       else ipc.conversationStore?.()?.updateMeta(id, { name });
       refresh();
     },
-    [ipc, list, tabs, refresh],
+    [ipc, refresh],
   );
 
-  const requestDelete = (id: string) => {
+  useLayoutEffect(() => {
+    latest.current = { list, current, tabs, isDev, confirmId, removeItem };
+  });
+
+  const requestDelete = useCallback((id: string) => {
+    const { list, confirmId, removeItem } = latest.current;
     const meta = list.find((x) => x.id === id);
     if (!meta) return;
     // CLI 标签：关闭标签（可从历史重新打开），运行中沿用关闭确认；Nomi 对话：永久删除，先二次确认
-    if (meta.tabId || confirmId === id) void removeItem(id);
+    if (meta.tabId || confirmId === id) void removeItem?.(id);
     else setConfirmId(id);
-  };
+  }, []);
   const cancelDelete = useCallback(() => setConfirmId(null), []);
   useEffect(() => {
     if (!confirmId) return;
@@ -343,11 +364,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
     setCtx({ id, x: a.right - 184, y: a.bottom + 2 });
   }, []);
 
-  const onCtx = (id: string, e: React.MouseEvent) => {
+  const onCtx = useCallback((id: string, e: React.MouseEvent) => {
     e.preventDefault();
     setNewMenu(false);
     setCtx({ id, x: e.clientX, y: e.clientY });
-  };
+  }, []);
 
   const cliMissing = (b: ConversationBackend) => b !== 'nomi' && !bins[b];
 
@@ -469,6 +490,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     redirecting.current = true;
     leftDevOn.current = currentMeta.id;
     const nomi = list.find((x) => x.backend === 'nomi');
+    // 一次性的模式切换重定向（受 redirecting 保护），不会级联渲染
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void (nomi ? open(nomi.id) : createFor('nomi')).finally(() => {
       redirecting.current = false;
     });
@@ -636,6 +659,37 @@ export const Sidebar: React.FC<SidebarProps> = ({
         />
       )}
     </div>
+  );
+
+  // react-window 按浅比较 rowProps 决定是否重渲染行：对象本身也要稳定
+  const rowProps = useMemo(
+    () => ({
+      items: visible,
+      current: highlightId,
+      tabById,
+      open,
+      onCtx,
+      renamingId,
+      onRename: commitRename,
+      confirmId,
+      onRenameStart: setRenamingId,
+      onDeleteRequest: requestDelete,
+      onDeleteCancel: cancelDelete,
+      onMore: openMore,
+    }),
+    [
+      visible,
+      highlightId,
+      tabById,
+      open,
+      onCtx,
+      renamingId,
+      commitRename,
+      confirmId,
+      requestDelete,
+      cancelDelete,
+      openMore,
+    ],
   );
 
   return (
@@ -953,20 +1007,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 rowCount={visible.length}
                 rowHeight={52}
                 rowComponent={VirtualRow}
-                rowProps={{
-                  items: visible,
-                  current: highlightId,
-                  tabById,
-                  open,
-                  onCtx,
-                  renamingId,
-                  onRename: commitRename,
-                  confirmId,
-                  onRenameStart: setRenamingId,
-                  onDeleteRequest: requestDelete,
-                  onDeleteCancel: cancelDelete,
-                  onMore: openMore,
-                }}
+                rowProps={rowProps}
                 style={{ height: '100%', width: '100%' }}
               />
             </div>
@@ -1101,6 +1142,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
     </aside>
   );
 };
+
+/** memo：App 每次渲染（流式输出、标签进度）不再连带重渲染整个侧栏 */
+export const Sidebar = React.memo(SidebarImpl);
 
 const CLIENT_LABELS: Record<HistoryClient, string> = {
   cli: 'CLI',
