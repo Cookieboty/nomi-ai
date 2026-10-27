@@ -80,7 +80,11 @@ function learnedData(l: LearnedModel | undefined, now: number): ModelSpecData | 
   return d;
 }
 
-const cache = new WeakMap<RuntimeProvider, Map<string, { learned: unknown; e: EffectiveModel }>>();
+/** until：结果里用了学到的结论时，它过期的时刻；过了就重算（#138）。没用到学习结果的一直有效 */
+const cache = new WeakMap<
+  RuntimeProvider,
+  Map<string, { learned: unknown; until: number; e: EffectiveModel }>
+>();
 
 /**
  * 供应商里某个模型的生效规格。model 是供应商模型列表里的 id（可能带中转服务的前缀）。
@@ -97,8 +101,8 @@ export function effectiveModel(
   if (!byModel) cache.set(p, (byModel = new Map()));
   const hit = byModel.get(key);
   // 学到的状态随配置快照整份替换：按引用判断是否需要重算
-  if (hit && hit.learned === learned && opts.now === undefined) return hit.e;
   const now = opts.now ?? Date.now();
+  if (hit && hit.learned === learned && opts.now === undefined && now < hit.until) return hit.e;
   const id = bareModelId(model);
   const sources: EffectiveModel['sources'] = [];
   let data: ModelSpecData = {};
@@ -123,7 +127,8 @@ export function effectiveModel(
     data = merge(data, provider.spec);
     sources.push('provider');
   }
-  const l = learnedData(learned?.models?.[model], now);
+  const learnedModel = learned?.models?.[model];
+  const l = learnedData(learnedModel, now);
   const user = userData(p.models.find((m) => m.id === model));
   if (l) {
     // 用户明确设置过的不被学到的结论覆盖
@@ -145,6 +150,8 @@ export function effectiveModel(
     strict: m?.strict ?? opts.strict ?? false,
     catalogVersion: CATALOG_VERSION,
   };
-  if (opts.now === undefined) byModel.set(key, { learned, e });
+  // 学到的结论还没生效（不存在 / 已过期 / 目录版本不同）时重算也不会变：一直有效
+  const until = l && learnedModel ? learnedModel.at + LEARNED_TTL_MS : Infinity;
+  if (opts.now === undefined) byModel.set(key, { learned, until, e });
   return e;
 }

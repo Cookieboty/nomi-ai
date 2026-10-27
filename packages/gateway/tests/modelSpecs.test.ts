@@ -5,7 +5,7 @@
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { ClientId, GatewayConfig, RuntimeProvider } from '../src/config';
 import { budgetToEffort, effortToBudget, type ReasoningIntent } from '../src/intent';
@@ -103,6 +103,39 @@ describe('EffectiveModel merge (family → catalog → provider → learned → 
     expect(effectiveModel(userP, 'glm-5.3', learned(now), { now }).reasoning?.efforts).toEqual([
       'high',
     ]);
+  });
+
+  it('cached result stops using a learned conclusion once it expires, without a config change (#138)', () => {
+    const start = 1_000_000_000_000;
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(start);
+      const p = prov({
+        urls: { chat: 'https://relay.example/v1' },
+        models: [{ id: 'glm-5.3', enabled: true }],
+      });
+      // 一分钟后过期的学习记录；同一个 provider / learned 对象（缓存命中路径）
+      const learned = {
+        models: {
+          'glm-5.3': {
+            at: start - LEARNED_TTL_MS + 60_000,
+            catalogVersion: CATALOG_VERSION,
+            efforts: ['low'] as Effort[],
+          },
+        },
+      };
+      const first = effectiveModel(p, 'glm-5.3', learned);
+      expect(first.sources).toContain('learned');
+      expect(effectiveModel(p, 'glm-5.3', learned)).toBe(first);
+      vi.setSystemTime(start + 60_001);
+      const after = effectiveModel(p, 'glm-5.3', learned);
+      expect(after.sources).not.toContain('learned');
+      expect(after.reasoning?.efforts).toEqual(['low', 'high', 'max']);
+      // 没有学习结论的结果仍走缓存
+      expect(effectiveModel(p, 'glm-5.3', learned)).toBe(after);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
