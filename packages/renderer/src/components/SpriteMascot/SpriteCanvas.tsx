@@ -6,7 +6,7 @@ import {
   loadSpriteManifest,
   type SpriteBackend,
 } from '../../mascot/backends/sprite';
-import { ensureCharacterPackOverlay } from '../../mascot/characterConfig';
+import { useCharacterPackReady } from '../../mascot/characterConfig';
 import {
   drawRig,
   paintRigFrame,
@@ -64,12 +64,10 @@ export const SpriteCanvas: React.FC<SpriteCanvasProps> = ({
   const animRef = useRef<RigAnimator | null>(null);
   const rigImgs = useRef<RigImages>(new Map());
   const geometry = useRef<SpriteGeometry>({ head: null, body: null, box: null });
+  const overlayReady = useCharacterPackReady();
 
   useEffect(() => {
-    void ensureCharacterPackOverlay();
-  }, []);
-
-  useEffect(() => {
+    if (!overlayReady) return undefined;
     let cancelled = false;
     let detach: (() => void) | null = null;
     let raf = 0;
@@ -383,7 +381,9 @@ export const SpriteCanvas: React.FC<SpriteCanvasProps> = ({
       releaseImages(loadedRigImgs);
       delete document.documentElement.dataset.mascotRig;
     };
-  }, [manifestPath]);
+  }, [overlayReady, manifestPath]);
+
+  if (!overlayReady) return null;
 
   return (
     <div

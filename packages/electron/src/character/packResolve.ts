@@ -6,6 +6,8 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { normalizePackRelPath } from './packProtocol';
+
 export type PackSource = 'userData' | 'resources' | 'builtin';
 
 export interface PackManifestLite {
@@ -74,30 +76,36 @@ export function validatePackRoot(root: string): string | null {
   const mode = m.assets?.mode || m.mode || 'rive';
   if (!['rive', 'sprite', 'static'].includes(mode)) return `unknown mode: ${mode}`;
 
-  const onboardingDir = join(root, m.assets?.onboarding || 'onboarding');
+  const onboardingRel = normalizePackRelPath(m.assets?.onboarding || 'onboarding');
+  if (!onboardingRel) return 'invalid assets.onboarding path';
+  const onboardingDir = join(root, onboardingRel);
   for (const f of ONBOARDING_FILES) {
     if (!existsSync(join(onboardingDir, f))) return `missing onboarding/${f}`;
   }
 
   if (mode === 'static') {
+    const staticRel = normalizePackRelPath(m.assets?.static || 'static/character.webp');
     const candidates = [
-      join(root, m.assets?.static || 'static/character.webp'),
+      ...(staticRel ? [join(root, staticRel)] : []),
       join(root, 'static/character.webp'),
       join(root, 'static/character.png'),
     ];
     if (!candidates.some((p) => existsSync(p))) return 'static mode missing static/character.webp';
   } else if (mode === 'rive') {
-    const riveRel = m.assets?.rive || 'rive/character.riv';
+    const riveRel = normalizePackRelPath(m.assets?.rive || 'rive/character.riv');
+    if (!riveRel) return 'invalid assets.rive path';
     if (!existsSync(join(root, riveRel))) return `missing ${riveRel}`;
   } else if (mode === 'sprite') {
-    const spriteDir = join(root, m.assets?.sprite || 'sprite');
+    const spriteRel = normalizePackRelPath(m.assets?.sprite || 'sprite');
+    if (!spriteRel) return 'invalid assets.sprite path';
+    const spriteDir = join(root, spriteRel);
     if (!existsSync(join(spriteDir, 'manifest.json'))) return 'sprite/manifest.json required';
   }
   return null;
 }
 
 export function loadHitboxes(root: string, manifest: PackManifestLite): PackHitboxes | null {
-  const layoutRel = manifest.assets?.layout || 'layout';
+  const layoutRel = normalizePackRelPath(manifest.assets?.layout || 'layout') || 'layout';
   const path = join(root, layoutRel, 'hitboxes.json');
   if (!existsSync(path)) return null;
   try {

@@ -2,7 +2,12 @@
  * Build-time character pack identity (written by `pnpm character:apply`) plus
  * Scheme B runtime overlay (character-pack:get-active). Official path keeps id
  * `nomi` so behavior matches pre-pack builds when no overlay is present.
+ *
+ * Overlay load is async; UI must subscribe via `useCharacterPackReady` (or
+ * `subscribeCharacterPackOverlay`) so mode / asset URLs re-render after resolve.
  */
+import { useSyncExternalStore } from 'react';
+
 import generated from './character.generated.json';
 
 export type CharacterPackMode = 'rive' | 'sprite' | 'static';
@@ -53,6 +58,14 @@ export const CHARACTER = generated as CharacterGenerated;
 let overlay: CharacterPackOverlay | null = null;
 let overlayLoaded = false;
 let overlayPromise: Promise<void> | null = null;
+/** Bumps on each overlay settle so useSyncExternalStore re-renders. */
+let overlayEpoch = 0;
+const overlayListeners = new Set<() => void>();
+
+function notifyOverlayListeners(): void {
+  overlayEpoch += 1;
+  for (const fn of overlayListeners) fn();
+}
 
 function apiGetActive(): Promise<CharacterPackOverlay | null> {
   const w = window as unknown as {
@@ -70,9 +83,24 @@ export function ensureCharacterPackOverlay(): Promise<void> {
     overlayPromise = apiGetActive().then((snap) => {
       overlay = snap && snap.source !== 'builtin' ? snap : null;
       overlayLoaded = true;
+      notifyOverlayListeners();
     });
   }
   return overlayPromise;
+}
+
+/** Subscribe to overlay readiness / snapshot changes (e.g. after ensure settles). */
+export function subscribeCharacterPackOverlay(listener: () => void): () => void {
+  overlayListeners.add(listener);
+  // Kick the load for subscribers that never call ensure themselves.
+  void ensureCharacterPackOverlay();
+  return () => {
+    overlayListeners.delete(listener);
+  };
+}
+
+export function isCharacterPackOverlayReady(): boolean {
+  return overlayLoaded;
 }
 
 /** Test / HMR helper */
@@ -80,6 +108,20 @@ export function resetCharacterPackOverlayForTest(): void {
   overlay = null;
   overlayLoaded = false;
   overlayPromise = null;
+  notifyOverlayListeners();
+}
+
+/**
+ * React: true once Scheme B overlay IPC has settled (builtin or overlay).
+ * Re-renders consumers so mode / riveUrl / staticUrl read after readiness.
+ */
+export function useCharacterPackReady(): boolean {
+  const epoch = useSyncExternalStore(
+    subscribeCharacterPackOverlay,
+    () => (overlayLoaded ? overlayEpoch : -1),
+    () => 0,
+  );
+  return epoch >= 0;
 }
 
 export function getOverlay(): CharacterPackOverlay | null {

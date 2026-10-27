@@ -9,7 +9,11 @@ import { app, protocol } from 'electron';
 
 import { guardedHandle } from '../security/guardedIpc';
 
-import { characterPackAssetUrl, registerCharacterPackProtocol } from './packProtocol';
+import {
+  characterPackAssetUrl,
+  normalizePackRelPath,
+  registerCharacterPackProtocol,
+} from './packProtocol';
 import {
   packModeOf,
   resolveCharacterPack,
@@ -99,11 +103,14 @@ export class CharacterPackService {
       };
     }
     const mode = packModeOf(r.manifest);
-    const onboardingDir = (r.manifest.assets?.onboarding || 'onboarding').replace(/\/?$/, '/');
-    const voiceDir = (r.manifest.assets?.voice || 'voice').replace(/\/?$/, '/');
-    const riveRel = r.manifest.assets?.rive || 'rive/character.riv';
-    const staticRel = r.manifest.assets?.static || 'static/character.webp';
-    const spriteDir = (r.manifest.assets?.sprite || 'sprite').replace(/\/?$/, '/');
+    const onboardingDir = `${normalizePackRelPath(r.manifest.assets?.onboarding || 'onboarding') || 'onboarding'}/`;
+    const voiceDir = `${normalizePackRelPath(r.manifest.assets?.voice || 'voice') || 'voice'}/`;
+    const riveRel =
+      normalizePackRelPath(r.manifest.assets?.rive || 'rive/character.riv') || 'rive/character.riv';
+    const staticRel =
+      normalizePackRelPath(r.manifest.assets?.static || 'static/character.webp') ||
+      'static/character.webp';
+    const spriteDir = `${normalizePackRelPath(r.manifest.assets?.sprite || 'sprite') || 'sprite'}/`;
     return {
       source: r.source,
       id: r.manifest.id,
@@ -118,7 +125,7 @@ export class CharacterPackService {
       },
       voiceBaseUrl: characterPackAssetUrl(`${voiceDir}zh/`),
       riveUrl: mode === 'rive' ? characterPackAssetUrl(riveRel) : null,
-      staticUrl: mode === 'static' ? characterPackAssetUrl(staticRel.replace(/^\.\//, '')) : null,
+      staticUrl: mode === 'static' ? characterPackAssetUrl(staticRel) : null,
       spriteManifestUrl: characterPackAssetUrl(`${spriteDir}manifest.json`),
       hitboxes: r.hitboxes,
       rive: {

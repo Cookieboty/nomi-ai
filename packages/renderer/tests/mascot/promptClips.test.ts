@@ -134,3 +134,24 @@ describe('bundled manifest', () => {
     expect(i18n.has('ui.voice-mascot.canvas-not-found-can-t-take-a-screenshot')).toBe(true);
   });
 });
+
+describe('legacyClipIds rename mapping', () => {
+  it('maps every legacy i18n key to a stable id present in the bundled manifest', async () => {
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const legacy = JSON.parse(
+      fs.readFileSync(path.resolve(__dirname, '../../src/mascot/voice/legacyClipIds.json'), 'utf8'),
+    ) as { byLegacyKey: Record<string, string> };
+    const dir = path.resolve(__dirname, '../../public/voice/nomi/zh');
+    const m = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8')) as {
+      clips: Array<{ id?: string; key: string }>;
+    };
+    const ids = new Set(m.clips.map((c) => c.id || c.key));
+    const missing: string[] = [];
+    for (const [legacyKey, id] of Object.entries(legacy.byLegacyKey)) {
+      if (!ids.has(id)) missing.push(`${legacyKey} → ${id}`);
+    }
+    expect(missing).toEqual([]);
+    expect(Object.keys(legacy.byLegacyKey).length).toBeGreaterThan(50);
+  });
+});

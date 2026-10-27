@@ -77,9 +77,28 @@ export async function resolveCharacterPackUrl(
   }
 }
 
+/**
+ * Normalize a pack-manifest relative asset path for URL / filesystem use.
+ * Strips leading ./ and / , unifies separators, rejects empty / absolute / traversal.
+ * Returns null when the path is unsafe or empty.
+ */
+export function normalizePackRelPath(relPath: string | null | undefined): string | null {
+  if (relPath == null) return null;
+  let s = String(relPath).trim().replace(/\\/g, '/');
+  // Reject absolute (posix / win drive) before stripping cosmetic prefixes
+  if (s.startsWith('/') || /^[a-zA-Z]:/.test(s)) return null;
+  // Drop leading ./ segments (manifest authors often write "./rive/x.riv")
+  while (s.startsWith('./')) s = s.slice(2);
+  if (!s) return null;
+  const keepSlash = s.endsWith('/');
+  const parts = s.split('/').filter((seg) => seg.length > 0 && seg !== '.');
+  if (parts.length === 0 || parts.some((seg) => seg === '..')) return null;
+  return keepSlash ? `${parts.join('/')}/` : parts.join('/');
+}
+
 export function characterPackAssetUrl(relPath: string): string {
-  const clean = relPath.replace(/^\/+/, '');
-  return `${CHARACTER_PACK_SCHEME}://pack/${clean.split('\\').join('/')}`;
+  const clean = normalizePackRelPath(relPath) ?? relPath.replace(/^\/+/, '').split('\\').join('/');
+  return `${CHARACTER_PACK_SCHEME}://pack/${clean}`;
 }
 
 /** Register after app ready. Pass electron.protocol from caller to keep this module electron-free for tests. */

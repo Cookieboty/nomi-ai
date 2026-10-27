@@ -9,6 +9,7 @@ import {
   CHARACTER_PACK_SCHEME,
   characterPackAssetUrl,
   characterPackMimeFor,
+  normalizePackRelPath,
   resolveCharacterPackUrl,
 } from '../../../src/character/packProtocol';
 import {
@@ -138,5 +139,39 @@ describe('real example pack (Scheme B fixture)', () => {
     expect(r.manifest?.id).toBe('static-demo');
     expect(r.hitboxes?.regions.hem).toBeTruthy();
     expect(r.hitboxes?.bubbleAnchor).toBeTruthy();
+  });
+});
+
+describe('normalizePackRelPath', () => {
+  it('strips ./ and backslashes, keeps trailing slash, rejects traversal', () => {
+    expect(normalizePackRelPath('./rive/character.riv')).toBe('rive/character.riv');
+    expect(normalizePackRelPath('static\\character.webp')).toBe('static/character.webp');
+    expect(normalizePackRelPath('voice/zh/')).toBe('voice/zh/');
+    expect(normalizePackRelPath('../secret')).toBeNull();
+    expect(normalizePackRelPath('/abs')).toBeNull();
+    expect(normalizePackRelPath('C:\\abs')).toBeNull();
+    expect(characterPackAssetUrl('./onboarding/welcome.webp')).toBe(
+      'character-pack://pack/onboarding/welcome.webp',
+    );
+  });
+
+  it('validates packs whose manifest uses ./ relative asset paths', async () => {
+    const root = tmp();
+    mkdirSync(path.join(root, 'onboarding'), { recursive: true });
+    mkdirSync(path.join(root, 'rive'), { recursive: true });
+    for (const f of ['welcome.webp', 'profile.webp', 'provider.webp', 'privacy.webp']) {
+      writeFileSync(path.join(root, 'onboarding', f), Buffer.from([0]));
+    }
+    writeFileSync(path.join(root, 'rive', 'character.riv'), Buffer.from([1]));
+    writeFileSync(
+      path.join(root, 'manifest.json'),
+      JSON.stringify({
+        schema: 1,
+        id: 'dot-rel',
+        assets: { mode: 'rive', rive: './rive/character.riv', onboarding: './onboarding' },
+      }),
+    );
+    expect(validatePackRoot(root)).toBeNull();
+    await fsp.rm(root, { recursive: true, force: true });
   });
 });

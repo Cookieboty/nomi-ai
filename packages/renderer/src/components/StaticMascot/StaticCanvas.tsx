@@ -2,13 +2,13 @@ import { perfMark } from '@nomi-ai/ui';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import { createStaticBackend } from '../../mascot/backends/static';
-import { ensureCharacterPackOverlay, getStaticSrc } from '../../mascot/characterConfig';
+import { getStaticSrc, useCharacterPackReady } from '../../mascot/characterConfig';
 import { mascotRegistry } from '../../mascot/MascotBackend';
 import { characterBox } from '../../mascot/spriteLayout';
 import MascotInteractionLayerLite, { type SpriteGeometry } from '../SpriteMascot/InteractionLite';
 
 export interface StaticCanvasProps {
-  /** URL of the static character image (default from character.generated.json). */
+  /** URL of the static character image (default: overlay.staticUrl → generated → public path). */
   src?: string;
   /** Optional blink frame for a tiny idle flicker. */
   blinkSrc?: string;
@@ -41,12 +41,12 @@ function measureGeometry(canvas: HTMLCanvasElement | null): SpriteGeometry {
 /**
  * First-class static mascot: paints a single (optionally two-frame) image onto a canvas
  * so InteractionLite alpha hit-testing / drag still works. Motions are no-ops.
+ *
+ * Src is re-read from the live overlay after Scheme B settles — never frozen on first create.
  */
-export const StaticCanvas: React.FC<StaticCanvasProps> = ({
-  src = getStaticSrc(),
-  blinkSrc,
-  style,
-}) => {
+export const StaticCanvas: React.FC<StaticCanvasProps> = ({ src, blinkSrc, style }) => {
+  const overlayReady = useCharacterPackReady();
+  const resolvedSrc = src ?? getStaticSrc();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [blink, setBlink] = useState(false);
   const geometry = useMemo(
@@ -59,10 +59,7 @@ export const StaticCanvas: React.FC<StaticCanvasProps> = ({
   );
 
   useEffect(() => {
-    void ensureCharacterPackOverlay();
-  }, []);
-
-  useEffect(() => {
+    if (!overlayReady) return undefined;
     const backend = createStaticBackend();
     const detach = mascotRegistry.attach(backend);
     document.documentElement.dataset.mascotRenderer = 'static';
@@ -72,7 +69,7 @@ export const StaticCanvas: React.FC<StaticCanvasProps> = ({
       detach();
       backend.dispose();
     };
-  }, []);
+  }, [overlayReady]);
 
   useEffect(() => {
     if (!blinkSrc) return undefined;
@@ -94,9 +91,10 @@ export const StaticCanvas: React.FC<StaticCanvasProps> = ({
   }, [blinkSrc]);
 
   useEffect(() => {
+    if (!overlayReady) return undefined;
     const canvas = canvasRef.current;
     if (!canvas) return undefined;
-    const url = blink && blinkSrc ? blinkSrc : src;
+    const url = blink && blinkSrc ? blinkSrc : resolvedSrc;
     let cancelled = false;
     const img = new Image();
     img.decoding = 'async';
@@ -129,11 +127,14 @@ export const StaticCanvas: React.FC<StaticCanvasProps> = ({
       cancelled = true;
       window.removeEventListener('resize', onResize);
     };
-  }, [src, blinkSrc, blink]);
+  }, [overlayReady, resolvedSrc, blinkSrc, blink]);
+
+  if (!overlayReady) return null;
 
   return (
     <div
       data-testid="static-canvas"
+      data-static-src={resolvedSrc}
       style={{
         width: '100%',
         height: '100%',

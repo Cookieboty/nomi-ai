@@ -4,13 +4,13 @@ import riveWasmUrl from '@rive-app/canvas-lite/rive.wasm?url';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import { createRiveBackend } from '../../mascot/backends/rive';
-import { ensureCharacterPackOverlay, getRiveConfig } from '../../mascot/characterConfig';
+import { getRiveConfig, useCharacterPackReady } from '../../mascot/characterConfig';
 import { mascotRegistry } from '../../mascot/MascotBackend';
 import { characterBox } from '../../mascot/spriteLayout';
 import MascotInteractionLayerLite, { type SpriteGeometry } from '../SpriteMascot/InteractionLite';
 
 export interface RiveCanvasProps {
-  /** URL of the high-fidelity .riv (default: public/assets/models/rive/nomi-complete.riv). */
+  /** URL of the high-fidelity .riv (default: overlay.riveUrl → character.generated → public path). */
   src?: string;
   style?: React.CSSProperties;
   /**
@@ -22,9 +22,6 @@ export interface RiveCanvasProps {
 
 /** Rive normally loads in a few seconds even on software rendering; beyond this we fall back. */
 export const RIVE_LOAD_TIMEOUT_MS = 20_000;
-
-const DEFAULT_RIVE = getRiveConfig();
-const DEFAULT_SRC = DEFAULT_RIVE.src;
 
 /**
  * Window-space geometry of the character, measured from the live layout every time it is read.
@@ -58,20 +55,19 @@ function measureGeometry(wrap: HTMLElement | null): SpriteGeometry {
  * Rive renderer. The wasm is bundled — the
  * runtime's default CDN URL would be blocked by the app CSP (connect-src 'self') — and the page CSP
  * needs 'wasm-unsafe-eval' for it to compile (see docs/brand/rive-complete.md).
+ *
+ * `src` / artboard / stateMachine follow the live overlay (Scheme B) via getRiveConfig — never a
+ * module-load freeze of DEFAULT_SRC, so overlay packs actually load their `.riv`.
  */
-export const RiveCanvas: React.FC<RiveCanvasProps> = ({ src = DEFAULT_SRC, style, onFailure }) => {
+export const RiveCanvas: React.FC<RiveCanvasProps> = ({ src, style, onFailure }) => {
   const onFailureRef = useRef(onFailure);
   useEffect(() => {
     onFailureRef.current = onFailure;
   });
-  useEffect(() => {
-    void ensureCharacterPackOverlay();
-  }, []);
-  // The production scene has one source of truth: the full-body SVG-backed rig.
-  // Keep the artboard selection unconditional so the removed half-body rig cannot
-  // be selected by a stale query string or an old local preference.
+  const overlayReady = useCharacterPackReady();
+  // Re-read after overlay settles; explicit prop wins when provided.
   const riveCfg = getRiveConfig();
-  const resolvedSrc = src;
+  const resolvedSrc = src ?? riveCfg.src;
   const stateMachine = riveCfg.stateMachine;
   const artboard = riveCfg.artboard;
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -87,6 +83,7 @@ export const RiveCanvas: React.FC<RiveCanvasProps> = ({ src = DEFAULT_SRC, style
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!overlayReady) return undefined;
     const wrap = wrapRef.current;
     const canvas = canvasRef.current;
     if (!wrap || !canvas) return undefined;
@@ -184,12 +181,15 @@ export const RiveCanvas: React.FC<RiveCanvasProps> = ({ src = DEFAULT_SRC, style
       detach?.();
       rive?.cleanup();
     };
-  }, [resolvedSrc, stateMachine, artboard]);
+  }, [overlayReady, resolvedSrc, stateMachine, artboard]);
+
+  if (!overlayReady) return null;
 
   return (
     <div
       ref={wrapRef}
       data-testid="rive-canvas"
+      data-rive-src={resolvedSrc}
       style={{
         width: '100%',
         height: '100%',
