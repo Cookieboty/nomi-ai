@@ -351,7 +351,9 @@
   z-index: -1;
   background-color: var(--onb-wash);
   background-repeat: no-repeat;
-  background-size: auto 100%;
+  /* 按卡片宽度缩放（不再按高度铺满），让手和道具落在左侧内容区（~58%）之外；
+     每步按原图里手/道具最靠左的位置单独设定，底部对齐；应用内 webp 在原图上方用纯背景色补了 260px 画布、原图顶边 36px 渐隐（960×800），缩小后头顶不露出图片边缘 */
+  background-size: var(--onb-art-w, 88%) auto;
   background-position: right bottom;
   pointer-events: none;
 }
@@ -362,10 +364,22 @@
   background: linear-gradient(
     90deg,
     var(--onb-wash) 0%,
-    var(--onb-wash) 46%,
-    rgba(var(--onb-wash-rgb), 0.82) 56%,
-    rgba(var(--onb-wash-rgb), 0) 72%
+    var(--onb-wash) 44%,
+    rgba(var(--onb-wash-rgb), 0.8) 52%,
+    rgba(var(--onb-wash-rgb), 0) 60%
   );
+}
+.bg[data-art='welcome'] {
+  --onb-art-w: 86%;
+}
+.bg[data-art='profile'] {
+  --onb-art-w: 88%;
+}
+.bg[data-art='provider'] {
+  --onb-art-w: 96%;
+}
+.bg[data-art='privacy'] {
+  --onb-art-w: 96%;
 }
 .cardArt .step {
   width: 58%;
