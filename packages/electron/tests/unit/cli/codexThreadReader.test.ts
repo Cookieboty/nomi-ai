@@ -97,7 +97,7 @@ describe('CodexThreadReader（主进程 ↔ worker）', () => {
     const { r, spawn, workers } = setup();
     const p = r.read('/x/a');
     workers[0]!.crash();
-    await expect(p).rejects.toThrow('退出');
+    await expect(p).rejects.toThrow('exited');
     expect(workers[0]!.terminated).toBe(true);
     expect(await r.read('/x/b')).toEqual([{ id: 'b' }]);
     expect(spawn).toHaveBeenCalledTimes(2);
@@ -123,7 +123,7 @@ describe('CodexThreadReader（主进程 ↔ worker）', () => {
     await r.read('/x/a');
     workers[0]!.hang = true; // 之后的请求不再回复
     const q = r.read('/x/b');
-    await expect(q).rejects.toThrow('超时');
+    await expect(q).rejects.toThrow('timed out');
     expect(workers[0]!.terminated).toBe(true);
     expect(r.inProcess).toBe(false);
     expect(await r.read('/x/c')).toEqual([{ id: 'c' }]);
@@ -160,7 +160,7 @@ describe('CodexThreadReader（主进程 ↔ worker）', () => {
     const { r } = setup();
     const p = r.read('/x/a');
     r.shutdown();
-    await expect(p).rejects.toThrow('关闭');
+    await expect(p).rejects.toThrow('closed');
   });
 });
 

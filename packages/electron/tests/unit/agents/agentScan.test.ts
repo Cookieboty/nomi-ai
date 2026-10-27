@@ -196,7 +196,11 @@ describe('ScanCache', () => {
 
       // 续写冷文件（不改目录 mtime）：平时看不到，整体复查那一轮看到
       fs.utimesSync(cold, new Date(now), new Date(now));
-      expect((await scan(c, root)).find((f) => f.path === cold)?.mtime).toBe(now - 10 * DAY);
+      // mtimeMs 由纳秒换算成浮点毫秒，可能差 0.001：只比到毫秒
+      expect((await scan(c, root)).find((f) => f.path === cold)?.mtime).toBeCloseTo(
+        now - 10 * DAY,
+        0,
+      );
       const full = await scan(c, root, opts(true));
       expect(full[0]?.path).toBe(cold);
       expect(full).toEqual(listFilesSync(root, jsonl, 3, 60));
