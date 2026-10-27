@@ -10,7 +10,7 @@ import { app } from 'electron';
 
 import { t } from '../i18n';
 import { DEFAULT_MASCOT_SCALE, migrateMascotSize } from '../mascot/mascotSize';
-import { writePrivateFileAtomic } from '../utils/privateFile';
+import { writePrivateFileAtomic, writePrivateFileAtomicAsync } from '../utils/privateFile';
 
 import { type ILoggerService } from './LoggerService';
 
@@ -61,6 +61,13 @@ export class ConfigService implements IConfigService {
   private configPath: string;
   private logger?: ILoggerService;
   private defaultConfig: AppConfig;
+  /**
+   * 写盘队列（最后一次写赢）：同一时刻最多一个写入在跑（inflight）、一个在排队（queued）。
+   * 运行中再 save() 的合并到排队的那一次，排队的那次开始时才序列化当时最新的配置，
+   * 所以旧内容不会在新内容之后落盘，窗口拖动 / 缩放的连续保存也不会堆积。
+   */
+  private inflight: Promise<void> | null = null;
+  private queued: Promise<void> | null = null;
 
   constructor(logger?: ILoggerService) {
     this.logger = logger;
@@ -97,6 +104,8 @@ export class ConfigService implements IConfigService {
    * 加载配置
    */
   async load(): Promise<void> {
+    // reload 时先等还没落盘的保存写完，免得读到旧文件
+    await this.whenIdle();
     try {
       if (fs.existsSync(this.configPath)) {
         const configData = fs.readFileSync(this.configPath, 'utf8');
@@ -163,18 +172,91 @@ export class ConfigService implements IConfigService {
   }
 
   /**
-   * 保存配置
+   * 保存配置（异步原子写）。窗口移动 / 缩放防抖后频繁调用：Windows 上 config.json 在 userData 根，
+   * 不在自动收紧的私有子目录里，每次原子写都要对新文件跑一次 icacls；异步版本不挡主进程。
+   * 返回的 Promise 在包含本次改动的那次写入落盘后 resolve，失败时 reject。
    */
-  async save(): Promise<void> {
+  save(): Promise<void> {
+    if (this.queued) return this.queued;
+    const prev = this.inflight;
+    const job: Promise<void> = (prev ? prev.catch(() => undefined) : Promise.resolve()).then(() =>
+      this.runQueued(job),
+    );
+    this.queued = job;
+    return job;
+  }
+
+  private async runQueued(job: Promise<void>): Promise<void> {
+    // 被 flushOnQuit 接管（改为同步写）的排队写入：直接结束
+    if (this.queued !== job) return;
+    this.queued = null;
+    this.inflight = job;
     try {
       const configData = JSON.stringify(this.config, null, 2);
-      writePrivateFileAtomic(this.configPath, configData);
+      await writePrivateFileAtomicAsync(this.configPath, configData);
       this.logger?.debug('配置保存成功', { path: this.configPath });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger?.error('配置保存失败', { error: errorMessage, path: this.configPath });
       throw error;
+    } finally {
+      if (this.inflight === job) this.inflight = null;
     }
+  }
+
+  /** 等排队 / 进行中的异步保存都结束（不管成败） */
+  private async whenIdle(): Promise<void> {
+    while (this.inflight || this.queued) {
+      await (this.queued ?? this.inflight)?.catch(() => undefined);
+    }
+  }
+
+  /** 同步保存：只给退出路径用（之后进程马上退出，异步写来不及） */
+  saveSync(): void {
+    try {
+      writePrivateFileAtomic(this.configPath, JSON.stringify(this.config, null, 2));
+      this.logger?.debug('配置保存成功（同步）', { path: this.configPath });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger?.error('配置保存失败', { error: errorMessage, path: this.configPath });
+      throw error;
+    }
+  }
+
+  /**
+   * 退出时落盘最新配置：丢掉还没开始的排队写入，等进行中的那次结束（最多 waitMs，免得它在同步写之后
+   * 才 rename、把旧内容盖回去），再同步写一次最新配置。
+   */
+  async flushOnQuit(waitMs = 2_000): Promise<void> {
+    this.queued = null;
+    const running = this.inflight;
+    let settled = !running;
+    if (running) {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const done = running
+        .catch(() => undefined)
+        .then(() => {
+          settled = true;
+        });
+      await Promise.race([
+        done,
+        new Promise<void>((resolve) => {
+          timer = setTimeout(resolve, waitMs);
+        }),
+      ]);
+      if (timer) clearTimeout(timer);
+      // 等超时了：那次写入若在同步写之后才落盘（进程还没退出时），再同步写一次把最新配置盖回去
+      if (!settled) {
+        void done.then(() => {
+          try {
+            this.saveSync();
+          } catch {
+            /* saveSync 已记日志 */
+          }
+        });
+      }
+    }
+    this.saveSync();
   }
 
   /**
@@ -279,6 +361,8 @@ export class ConfigService implements IConfigService {
     const backupPath = path.join(app.getPath('userData'), `config-backup-${timestamp}.json`);
 
     try {
+      // 备份的是磁盘上的文件：先等还没落盘的保存写完
+      await this.whenIdle();
       fs.copyFileSync(this.configPath, backupPath);
       try {
         fs.chmodSync(backupPath, 0o600);

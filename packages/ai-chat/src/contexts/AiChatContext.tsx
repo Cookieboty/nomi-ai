@@ -126,6 +126,8 @@ export function aiChatReducer(state: AiChatState, action: AiChatAction): AiChatS
     case 'SET_LOADING':
       return { ...state, isLoading: action.payload };
     case 'SET_ERROR':
+      // 同值不换引用：切换会话时每次都会清一次错误，新 state 会让所有选择器重跑
+      if (action.payload === state.error) return state;
       return { ...state, error: action.payload };
     case 'SET_IPC_CLIENT':
       return { ...state, ipcClient: action.payload };

@@ -545,10 +545,19 @@ function groupDelegates(items: TimelineItem[]): Array<TimelineItem | SubagentIte
 /** 顶层时间线一次最多渲染的条目数；更早的折叠成一行，点击展开（长任务不会一次渲染上千行） */
 export const TIMELINE_WINDOW = 60;
 
-export const ToolTimeline: React.FC<{ items: TimelineItem[]; nested?: boolean }> = ({
+/**
+ * 按 items 引用 memo：流式纯文字帧里 convSegments 保持各组 items 不变，这里整块跳过，
+ * 不再每帧跑 groupDelegates 和逐行 sameCall。
+ */
+export const ToolTimeline = memo(function ToolTimeline({
   items,
   nested,
-}) => {
+}: {
+  items: TimelineItem[];
+  nested?: boolean;
+}) {
+  // 语言切换时重渲染：memo 挡住了根组件的更新，这里自己订阅（#140）
+  useLocale();
   const [showAll, setShowAll] = useState(false);
   if (!items.length) return null;
   const hidden =
@@ -600,4 +609,4 @@ export const ToolTimeline: React.FC<{ items: TimelineItem[]; nested?: boolean }>
       })}
     </div>
   );
-};
+});

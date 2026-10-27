@@ -12,7 +12,7 @@ import type { SlashCard } from '../../slash/types';
 import type { ConvLive, ConvMessage, ConvPhase } from '../../types/conversation';
 import { deriveStatus } from '../../utils/convStatus';
 import { timeLabels } from '../../utils/convTime';
-import { buildTimeline, reduceTrace } from '../../utils/toolTrace';
+import { buildTimeline, reduceTraceCached } from '../../utils/toolTrace';
 import { SystemCardView } from '../SystemCards';
 
 import { AgentsByCallContext, agentsByCall } from './agentContext';
@@ -356,7 +356,7 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
 
   const liveTrace = live?.trace;
   const liveItems = useMemo(
-    () => (liveTrace?.length ? buildTimeline(reduceTrace(liveTrace), running) : []),
+    () => (liveTrace?.length ? buildTimeline(reduceTraceCached(liveTrace), running) : []),
     [liveTrace, running],
   );
   const status = useMemo(

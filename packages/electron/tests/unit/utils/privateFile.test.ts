@@ -16,6 +16,9 @@ import path from 'node:path';
 
 import {
   __renameDeps,
+  __resetAclCacheForTest,
+  __setPrivateRootForTest,
+  __setSpawnAsyncForTest,
   writePrivateFileAtomicAsync,
   __setSpawnSyncForTest,
   ensurePrivateDir,
@@ -50,6 +53,8 @@ describe('privateFile Windows ACL', () => {
   beforeEach(() => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pf-'));
     calls.length = 0;
+    __resetAclCacheForTest();
+    __setPrivateRootForTest(null);
     __setSpawnSyncForTest(fakeSpawn);
     process.env.USERNAME = 'alice';
     process.env.USERDOMAIN = 'CORP';
@@ -57,6 +62,9 @@ describe('privateFile Windows ACL', () => {
 
   afterEach(() => {
     __setSpawnSyncForTest(null);
+    __setSpawnAsyncForTest(null);
+    __setPrivateRootForTest(undefined);
+    __resetAclCacheForTest();
     Object.defineProperty(process, 'platform', { value: originalPlatform });
     if (envSnap.USERNAME === undefined) delete process.env.USERNAME;
     else process.env.USERNAME = envSnap.USERNAME;
@@ -88,8 +96,9 @@ describe('privateFile Windows ACL', () => {
     calls.length = 0;
     writePrivateFileAtomic(file, 'secret2');
     expect(fs.readFileSync(file, 'utf8')).toBe('secret2');
+    // 原子写在 rename 之前收紧临时文件（ACE 随文件一起 rename）
     expect(calls).toEqual([
-      { cmd: 'icacls', args: [file, '/inheritance:r', '/grant:r', 'CORP\\alice:(F)'] },
+      { cmd: 'icacls', args: [`${file}.tmp`, '/inheritance:r', '/grant:r', 'CORP\\alice:(F)'] },
     ]);
 
     calls.length = 0;
@@ -131,6 +140,185 @@ describe('privateFile Windows ACL', () => {
     expect(fs.readFileSync(file, 'utf8')).toBe('keep');
     expect(warn).toHaveBeenCalled();
     warn.mockRestore();
+  });
+});
+
+describe('privateFile Windows ACL 缓存', () => {
+  let root: string;
+  const originalPlatform = process.platform;
+  const envSnap = { USERNAME: process.env.USERNAME, USERDOMAIN: process.env.USERDOMAIN };
+  const calls: string[][] = [];
+  let status = 0;
+  const fakeSpawn = ((_cmd: string, args?: readonly string[]) => {
+    calls.push([...(args ?? [])].map(String));
+    return { status, signal: null, output: [], pid: 0, stdout: '', stderr: '', error: undefined };
+  }) as unknown as typeof spawnSync;
+  const asyncCalls: string[][] = [];
+  const dirGrant = ['/inheritance:r', '/grant:r', 'CORP\\alice:(OI)(CI)F'];
+  const fileGrant = ['/inheritance:r', '/grant:r', 'CORP\\alice:(F)'];
+
+  beforeEach(() => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'pf-cache-'));
+    calls.length = 0;
+    asyncCalls.length = 0;
+    status = 0;
+    __resetAclCacheForTest();
+    __setPrivateRootForTest(root);
+    __setSpawnSyncForTest(fakeSpawn);
+    __setSpawnAsyncForTest(async (_cmd, args) => {
+      asyncCalls.push(args);
+      return { status };
+    });
+    process.env.USERNAME = 'alice';
+    process.env.USERDOMAIN = 'CORP';
+    Object.defineProperty(process, 'platform', { value: 'win32' });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(process, 'platform', { value: originalPlatform });
+    __setSpawnSyncForTest(null);
+    __setSpawnAsyncForTest(null);
+    __setPrivateRootForTest(undefined);
+    __resetAclCacheForTest();
+    if (envSnap.USERNAME === undefined) delete process.env.USERNAME;
+    else process.env.USERNAME = envSnap.USERNAME;
+    if (envSnap.USERDOMAIN === undefined) delete process.env.USERDOMAIN;
+    else process.env.USERDOMAIN = envSnap.USERDOMAIN;
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it('userData 子目录：首次写只收紧目录一次，之后同目录的写入（普通 / 原子 / 新文件）都不再 icacls', () => {
+    const sub = path.join(root, 'usage');
+    fs.mkdirSync(sub);
+    const a = path.join(sub, 'cursors.json');
+    writePrivateFile(a, '1');
+    expect(calls).toEqual([[sub, ...dirGrant]]);
+    calls.length = 0;
+    writePrivateFile(a, '2');
+    writePrivateFileAtomic(a, '3');
+    writePrivateFileAtomic(path.join(sub, 'b.json'), 'b');
+    writePrivateFile(path.join(sub, 'c.json'), 'c');
+    expect(calls).toEqual([]);
+    expect(fs.readFileSync(a, 'utf8')).toBe('3');
+    expect(fs.readdirSync(sub).sort()).toEqual(['b.json', 'c.json', 'cursors.json']);
+  });
+
+  it('私有目录里的历史遗留文件：首次覆盖写逐文件修正一次，之后跳过', () => {
+    const sub = path.join(root, 'gateway');
+    fs.mkdirSync(sub);
+    const legacy = path.join(sub, 'store.json');
+    fs.writeFileSync(legacy, 'old');
+    writePrivateFile(legacy, 'new');
+    expect(calls).toEqual([
+      [sub, ...dirGrant],
+      [legacy, ...fileGrant],
+    ]);
+    calls.length = 0;
+    writePrivateFile(legacy, 'newer');
+    expect(calls).toEqual([]);
+  });
+
+  it('目录被删后重建：缓存失效，重新收紧', () => {
+    const sub = path.join(root, 'accounts');
+    fs.mkdirSync(sub);
+    writePrivateFileAtomic(path.join(sub, 'a.json'), '1');
+    fs.rmSync(sub, { recursive: true });
+    fs.mkdirSync(sub);
+    calls.length = 0;
+    writePrivateFileAtomic(path.join(sub, 'a.json'), '2');
+    expect(calls).toEqual([[sub, ...dirGrant]]);
+  });
+
+  it('兜底：userData 根 / 外部目录不自动收紧；普通写同一文件只收紧一次，原子写每次收紧', () => {
+    const cfg = path.join(root, 'config.json');
+    writePrivateFileAtomic(cfg, '1');
+    writePrivateFileAtomic(cfg, '2');
+    expect(calls).toEqual([
+      [`${cfg}.tmp`, ...fileGrant],
+      [`${cfg}.tmp`, ...fileGrant],
+    ]);
+    calls.length = 0;
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'pf-outside-'));
+    try {
+      const f = path.join(outside, 'settings.json');
+      writePrivateFile(f, 'x');
+      writePrivateFile(f, 'y');
+      expect(calls).toEqual([[f, ...fileGrant]]);
+      // 文件被删除后重建：身份变了，重新收紧
+      fs.rmSync(f);
+      writePrivateFile(f, 'z');
+      expect(calls).toEqual([
+        [f, ...fileGrant],
+        [f, ...fileGrant],
+      ]);
+    } finally {
+      fs.rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
+  it('兜底：目录收紧失败后不再重试目录，改为逐文件收紧', () => {
+    const sub = path.join(root, 'shared');
+    fs.mkdirSync(sub);
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    status = 5;
+    const f = path.join(sub, 'a.json');
+    writePrivateFileAtomic(f, '1');
+    // icacls 全部失败：临时文件收紧失败后 rename 完再对目标补一次
+    expect(calls).toEqual([
+      [sub, ...dirGrant],
+      [`${f}.tmp`, ...fileGrant],
+      [f, ...fileGrant],
+    ]);
+    status = 0;
+    calls.length = 0;
+    writePrivateFileAtomic(f, '2');
+    expect(calls).toEqual([[`${f}.tmp`, ...fileGrant]]);
+    warn.mockRestore();
+  });
+
+  it('ensurePrivateDir 显式收紧的目录（即使在 userData 之外）也算私有，且只收紧一次', () => {
+    __setPrivateRootForTest(null);
+    const tokens = path.join(root, 'tokens');
+    ensurePrivateDir(tokens);
+    ensurePrivateDir(tokens);
+    expect(calls).toEqual([[tokens, ...dirGrant]]);
+    calls.length = 0;
+    writePrivateFile(path.join(tokens, 't1'), 'x');
+    writePrivateFileAtomic(path.join(tokens, 't2'), 'y');
+    expect(calls).toEqual([]);
+  });
+
+  it('异步原子写：icacls 走异步 spawn，并发写同一目录只收紧一次目录', async () => {
+    const sub = path.join(root, 'chat');
+    fs.mkdirSync(sub);
+    await Promise.all([
+      writePrivateFileAtomicAsync(path.join(sub, 'a.json'), 'a'),
+      writePrivateFileAtomicAsync(path.join(sub, 'b.json'), 'b'),
+    ]);
+    expect(asyncCalls).toEqual([[sub, ...dirGrant]]);
+    await writePrivateFileAtomicAsync(path.join(sub, 'a.json'), 'a2');
+    expect(asyncCalls).toHaveLength(1);
+    expect(calls).toEqual([]);
+
+    // 兜底目录：每次异步逐文件收紧，不走同步 spawn
+    const cfg = path.join(root, 'config.json');
+    await writePrivateFileAtomicAsync(cfg, '1');
+    expect(asyncCalls.slice(1)).toEqual([
+      [expect.stringMatching(/config\.json\.\d+\.\d+\.tmp$/), ...fileGrant],
+    ]);
+    expect(calls).toEqual([]);
+  });
+
+  it('非 win32：缓存逻辑完全不介入，不调用 icacls', async () => {
+    Object.defineProperty(process, 'platform', { value: 'linux' });
+    const sub = path.join(root, 'usage');
+    fs.mkdirSync(sub);
+    writePrivateFile(path.join(sub, 'a'), '1');
+    writePrivateFileAtomic(path.join(sub, 'b'), '2');
+    await writePrivateFileAtomicAsync(path.join(sub, 'c'), '3');
+    expect(calls).toEqual([]);
+    expect(asyncCalls).toEqual([]);
+    expect((fs.statSync(path.join(sub, 'a')).mode & 0o777).toString(8)).toBe('600');
   });
 });
 

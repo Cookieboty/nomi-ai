@@ -21,7 +21,7 @@ import { LogLevel, type LoggerService } from '../services/LoggerService';
 import { writePrivateFile } from '../utils/privateFile';
 
 import { buildDiagnosticsBundle } from './bundle';
-import { configureCliTrace } from './cliTrace';
+import { configureCliTrace, flushCliTrace } from './cliTrace';
 
 const FILE = 'diagnostics.json';
 
@@ -105,6 +105,8 @@ export class DiagnosticsService {
     const file = await (this.d.pickSavePath ?? pickSavePath)(name);
     if (!file) return { ok: false };
     try {
+      // 收发记录是缓冲异步写的：打包前先把还在内存里的写完
+      await flushCliTrace();
       const { data, files } = buildDiagnosticsBundle(
         {
           logDir: this.logDir,

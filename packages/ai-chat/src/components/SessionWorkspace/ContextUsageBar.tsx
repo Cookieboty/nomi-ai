@@ -6,7 +6,7 @@
 import { formatContext, t } from '@nomi-ai/ui';
 import React, { useMemo, useState } from 'react';
 
-import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
+import { useHarnessTabsCore } from '../../contexts/HarnessTabsContext';
 import { harnessClient } from '../../services/harnessClient';
 import {
   injectedWindowFor,
@@ -35,7 +35,7 @@ export const ContextUsageBar: React.FC<{
 }> = ({ messages, model }) => {
   const [hover, setHover] = useState(false);
   // 当前编程助手标签：第三方模型快到标准窗口时，就地提议开启长上下文（§12.7.2）
-  const tabs = useHarnessTabs();
+  const tabs = useHarnessTabsCore();
   const tab = tabs.isCliTab ? tabs.activeTab : null;
   const [longError, setLongError] = useState<string | null>(null);
   const gateway = useGatewayState();

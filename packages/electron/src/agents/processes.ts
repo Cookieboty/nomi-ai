@@ -158,13 +158,15 @@ export async function listAgentProcesses(platform = process.platform): Promise<A
     const so = await run('ps', ['-A', '-o', 'pid=,comm=,args=']);
     const found = classify(parsePs(so));
     if (platform === 'linux') {
-      for (const p of found) {
-        try {
-          p.cwd = fs.readlinkSync(`/proc/${p.pid}/cwd`);
-        } catch {
-          /* 别的用户的进程 */
-        }
-      }
+      await Promise.all(
+        found.map(async (p) => {
+          try {
+            p.cwd = await fs.promises.readlink(`/proc/${p.pid}/cwd`);
+          } catch {
+            /* 别的用户的进程 */
+          }
+        }),
+      );
     } else if (platform === 'darwin') {
       const cw = await cwdsMac(found.map((p) => p.pid));
       for (const p of found) p.cwd = cw.get(p.pid);
@@ -183,6 +185,18 @@ export function readLockedInodes(platform: NodeJS.Platform = process.platform): 
   if (platform !== 'linux') return null;
   try {
     return parseProcLocks(fs.readFileSync('/proc/locks', 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+/** readLockedInodes 的异步版本（轮询里用，不同步读 /proc/locks） */
+export async function readLockedInodesAsync(
+  platform: NodeJS.Platform = process.platform,
+): Promise<Set<number> | null> {
+  if (platform !== 'linux') return null;
+  try {
+    return parseProcLocks(await fs.promises.readFile('/proc/locks', 'utf8'));
   } catch {
     return null;
   }

@@ -16,6 +16,7 @@ import { t as tr } from '../i18n';
 import { notifyIsland } from '../island/IslandService';
 import { guardedHandle } from '../security/guardedIpc';
 
+import { ScanCache } from './fsScan';
 import {
   type AgentKind,
   type AgentStatus,
@@ -32,7 +33,7 @@ import {
   parseGeminiSession,
   phaseOf,
 } from './parsers';
-import { type AgentProc, listAgentProcesses, readLockedInodes } from './processes';
+import { type AgentProc, listAgentProcesses, readLockedInodesAsync } from './processes';
 
 type Logger = { info(m: string, d?: unknown): void; warn(m: string, d?: unknown): void };
 
@@ -79,6 +80,11 @@ export const ENDED_VISIBLE_MS = 30 * 60_000;
 /** 进程存活匹配时考虑多久内写过的会话文件（等你回复的会话可能挂很久） */
 const ALIVE_LOOKBACK_MS = 3 * 24 * 60 * 60_000;
 const MAX_FILES_PER_KIND = 60;
+/**
+ * 冷文件（超过 ALIVE_LOOKBACK_MS 没写过）平时用缓存的 mtime，每隔这么久整体重新 stat 一次：
+ * 续写很久以前的会话（resume）最迟这么久后被发现。
+ */
+const FULL_RESTAT_MS = 60_000;
 
 export interface AgentSessionView {
   id: string;
@@ -155,7 +161,7 @@ type Deps = {
   /** Grok 家目录（默认 GROK_HOME 或 ~/.grok） */
   grokHome?: string;
   /** 测试注入：被 flock 持有的 inode；null = 无法判断 */
-  lockedInodes?: () => Set<number> | null;
+  lockedInodes?: () => Set<number> | null | Promise<Set<number> | null>;
   /** 免打扰中：定时汇总不弹（结束 / 权限提示不受影响） */
   isQuiet?: () => boolean;
   /** 汇总间隔（默认 DIGEST_INTERVAL_MS），测试可调 */
@@ -223,46 +229,7 @@ const REMIND: Record<AgentStatus, (label: string, summary?: string) => string> =
   idle: () => '',
 };
 
-function safeStat(p: string): fs.Stats | null {
-  try {
-    return fs.statSync(p);
-  } catch {
-    return null;
-  }
-}
-
-/** 递归列出匹配文件，按 mtime 倒序取前 limit 个（不能按目录遍历顺序截断，否则会漏掉最新的） */
-function listFiles(
-  dir: string,
-  pred: (n: string, full: string) => boolean,
-  depth = 3,
-  limit = MAX_FILES_PER_KIND,
-): Array<{ path: string; mtime: number }> {
-  const out: Array<{ path: string; mtime: number }> = [];
-  let visited = 0;
-  const walk = (d: string, dep: number) => {
-    if (dep < 0 || visited > 20_000) return;
-    let ents: fs.Dirent[];
-    try {
-      ents = fs.readdirSync(d, { withFileTypes: true });
-    } catch {
-      return;
-    }
-    for (const e of ents) {
-      visited++;
-      const p = path.join(d, e.name);
-      if (e.isDirectory()) walk(p, dep - 1);
-      else if (e.isFile() && pred(e.name, p)) {
-        const st = safeStat(p);
-        if (st) out.push({ path: p, mtime: st.mtimeMs });
-      }
-    }
-  };
-  if (fs.existsSync(dir)) walk(dir, depth);
-  return out.sort((x, y) => y.mtime - x.mtime).slice(0, limit);
-}
-
-/** 读文件开头 / 结尾若干字节，不把几十 MB 的 JSONL 整个读进内存 */
+/** 读文件开头 / 结尾若干字节，不把几十 MB 的 JSONL 整个读进内存（同步版，轮询里用 ScanCache.readSlice） */
 export function readSlice(p: string, which: 'head' | 'tail', bytes: number): string {
   let fd: number | null = null;
   try {
@@ -332,9 +299,17 @@ export class AgentProgressService {
   private dshLocks: Set<number> | null = null;
   /**
    * 会话文件解析结果（路径 → mtime + 结果）：文件没动就不再读头尾、重新解析。
-   * 每 8 秒一轮，近 3 天的会话文件逐个读 128KB 再解析会占主进程几十毫秒。dsh 依赖本轮锁快照，不缓存。
+   * 每 8 秒一轮，近 3 天的会话文件逐个读 128KB 再解析会占主进程几十毫秒。dsh 依赖本轮锁快照，不缓存
+   * （它的会话索引解析结果由 ScanCache.readParsed 按文件 mtime / size 缓存）。
    */
   private readonly inspected = new Map<string, { mtime: number; cand: Candidate }>();
+  /** 目录列表 / 文件 mtime 缓存 + 异步并发池（轮询不在主进程同步遍历会话目录） */
+  private readonly scan = new ScanCache();
+  private lastFullRestatAt = 0;
+  /** 进行中的一轮 tick；轮询定时器到点时它还没跑完就跳过这一拍 */
+  private ticking: Promise<void> | null = null;
+  /** tick 进行中又被调用（手动刷新 / 首次进程快照）：跑完后再补一轮 */
+  private tickAgain: { refresh: boolean } | null = null;
   private tabs: () => WatchedTab[] = () => [];
   private tabProgress: (tabId: string) => string | undefined = () => undefined;
 
@@ -452,100 +427,101 @@ export class AgentProgressService {
   }
 
   /** 扫描本机已知路径，返回候选会话文件（每种工具按 mtime 倒序） */
-  scanFiles(): Array<{ kind: AgentKind; path: string; mtime: number }> {
+  async scanFiles(): Promise<Array<{ kind: AgentKind; path: string; mtime: number }>> {
     const h = this.home;
-    const out: Array<{ kind: AgentKind; path: string; mtime: number }> = [];
     const { tools } = this.settings;
-    const add = (kind: AgentKind, list: Array<{ path: string; mtime: number }>) => {
-      for (const f of list) out.push({ kind, ...f });
-    };
+    const now = this.now();
+    const full = now - this.lastFullRestatAt >= FULL_RESTAT_MS || now < this.lastFullRestatAt;
+    const o = { now, hotMs: ALIVE_LOOKBACK_MS, full };
+    const jobs: Array<Promise<Array<{ kind: AgentKind; path: string; mtime: number }>>> = [];
+    const add = (
+      kind: AgentKind,
+      dir: string,
+      pred: (n: string, full: string) => boolean,
+      depth: number,
+      limit = MAX_FILES_PER_KIND,
+    ) =>
+      jobs.push(
+        this.scan
+          .listFiles(dir, pred, depth, limit, o)
+          .then((list) => list.map((f) => ({ kind, ...f }))),
+      );
+    this.scan.begin();
     if (tools.codex)
-      add(
-        'codex',
-        listFiles(path.join(h, '.codex', 'sessions'), (n) => n.endsWith('.jsonl'), 4),
-      );
+      add('codex', path.join(h, '.codex', 'sessions'), (n) => n.endsWith('.jsonl'), 4);
     if (tools.claude)
-      add(
-        'claude',
-        listFiles(path.join(h, '.claude', 'projects'), (n) => n.endsWith('.jsonl'), 3),
-      );
-    if (tools.dsh) {
+      add('claude', path.join(h, '.claude', 'projects'), (n) => n.endsWith('.jsonl'), 3);
+    if (tools.dsh)
       // $DSH_HOME/sessions/<编码后的 cwd>/session-<uuid>/{session.lock, session.v4.jsonl.zstd}
       add(
         'dsh',
-        listFiles(
-          path.join(this.dshHome, 'sessions'),
-          (n) => n === 'session.lock' || /^session\.v\d+\.jsonl/.test(n),
-          2,
-        ),
+        path.join(this.dshHome, 'sessions'),
+        (n) => n === 'session.lock' || /^session\.v\d+\.jsonl/.test(n),
+        2,
       );
-    }
-    if (tools.grok) {
+    if (tools.grok)
       // ~/.grok/sessions/<cwd>/<uuid>/updates.jsonl — 用 mtime 推断活跃；细解析见用量模块
-      add(
-        'grok',
-        listFiles(path.join(this.grokHome, 'sessions'), (n) => n === 'updates.jsonl', 3),
-      );
-    }
+      add('grok', path.join(this.grokHome, 'sessions'), (n) => n === 'updates.jsonl', 3);
     if (tools.gemini)
       add(
         'gemini',
-        listFiles(
-          path.join(h, '.gemini', 'tmp'),
-          // 0.62 起是 .jsonl；旧版 .json
-          (n, full) =>
-            /^session-.*\.jsonl?$/.test(n) && full.includes(`${path.sep}chats${path.sep}`),
-          3,
-        ),
+        path.join(h, '.gemini', 'tmp'),
+        // 0.62 起是 .jsonl；旧版 .json
+        (n, fp) => /^session-.*\.jsonl?$/.test(n) && fp.includes(`${path.sep}chats${path.sep}`),
+        3,
       );
-    if (tools.aider) {
-      for (const p of [
-        path.join(h, '.aider', 'analytics.jsonl'),
-        path.join(h, '.aider.chat.history.md'),
-      ]) {
-        const st = safeStat(p);
-        if (st) out.push({ kind: 'aider', path: p, mtime: st.mtimeMs });
-      }
-    }
+    if (tools.aider)
+      jobs.push(
+        Promise.all(
+          [path.join(h, '.aider', 'analytics.jsonl'), path.join(h, '.aider.chat.history.md')].map(
+            async (p) => {
+              const st = await this.scan.stat(p);
+              return st ? [{ kind: 'aider' as const, path: p, mtime: st.mtimeMs }] : [];
+            },
+          ),
+        ).then((l) => l.flat()),
+      );
     if (tools.cline)
-      add(
-        'cline',
-        listFiles(path.join(h, '.cline'), (n) => n === 'job.json' || n.endsWith('.jsonl'), 5),
-      );
+      add('cline', path.join(h, '.cline'), (n) => n === 'job.json' || n.endsWith('.jsonl'), 5);
     if (tools.continue)
       add(
         'continue',
-        listFiles(
-          path.join(h, '.continue', 'sessions'),
-          (n) => n.endsWith('.json') && n !== 'sessions.json',
-          1,
-        ),
+        path.join(h, '.continue', 'sessions'),
+        (n) => n.endsWith('.json') && n !== 'sessions.json',
+        1,
       );
     if (tools.cursor)
       // cursor-agent CLI：~/.cursor/chats/<hash>/<chatId>/store.db(+-wal)，内容为私有 SQLite
-      add(
-        'cursor',
-        listFiles(path.join(h, '.cursor', 'chats'), (n) => /^store\.db(-wal)?$/.test(n), 3, 30),
-      );
+      add('cursor', path.join(h, '.cursor', 'chats'), (n) => /^store\.db(-wal)?$/.test(n), 3, 30);
+    // 各工具并发扫，结果按固定顺序拼接（与同步实现一致）
+    const out = (await Promise.all(jobs)).flat();
+    this.scan.end();
+    if (full) this.lastFullRestatAt = now;
     return out;
   }
 
-  private inspectCached(kind: AgentKind, filePath: string, mtime: number): Candidate {
+  private async inspectCached(
+    kind: AgentKind,
+    filePath: string,
+    mtime: number,
+  ): Promise<Candidate> {
     if (kind === 'dsh') return this.inspect(kind, filePath, mtime);
     const hit = this.inspected.get(filePath);
     if (hit && hit.mtime === mtime && hit.cand.kind === kind) return hit.cand;
-    const cand = this.inspect(kind, filePath, mtime);
+    const cand = await this.inspect(kind, filePath, mtime);
     this.inspected.set(filePath, { mtime, cand });
     return cand;
   }
 
   /** 解析一个文件 → 候选会话（含去重 key） */
-  private inspect(kind: AgentKind, filePath: string, mtime: number): Candidate {
+  private async inspect(kind: AgentKind, filePath: string, mtime: number): Promise<Candidate> {
+    const slice = (p: string, which: 'head' | 'tail', bytes: number) =>
+      this.scan.readSlice(p, which, bytes);
     let info: SessionInfo;
     if (kind === 'claude') {
       info = parseClaudeSession(
-        readSlice(filePath, 'head', 32 * 1024),
-        readSlice(filePath, 'tail', 96 * 1024),
+        await slice(filePath, 'head', 32 * 1024),
+        await slice(filePath, 'tail', 96 * 1024),
       );
       // 子代理：<project>/<sessionId>/subagents/agent-*.jsonl → 并入父会话
       const parts = filePath.split(path.sep);
@@ -554,8 +530,8 @@ export class AgentProgressService {
       info.sessionId ??= path.basename(filePath, '.jsonl');
     } else if (kind === 'codex') {
       info = parseCodexSession(
-        readSlice(filePath, 'head', 32 * 1024),
-        readSlice(filePath, 'tail', 96 * 1024),
+        await slice(filePath, 'head', 32 * 1024),
+        await slice(filePath, 'tail', 96 * 1024),
       );
       info.sessionId ??=
         /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$/i.exec(
@@ -564,14 +540,14 @@ export class AgentProgressService {
     } else if (kind === 'dsh') {
       const dir = path.dirname(filePath);
       const id = path.basename(dir);
-      const meta = parseDshProjcache(
-        readSlice(
-          path.join(this.dshHome, 'storages', 'session_projcache', 'sessions', `${id}.json`),
-          'head',
-          256 * 1024,
-        ),
+      // 会话索引（最多 256KB）按 (mtime, size) 缓存解析结果：没变就不重读；
+      // 同一会话的 session.lock 与 session.v*.jsonl 在同一轮里共用一次读取
+      const meta = await this.scan.readParsed(
+        path.join(this.dshHome, 'storages', 'session_projcache', 'sessions', `${id}.json`),
+        256 * 1024,
+        parseDshProjcache,
       );
-      const lock = safeStat(path.join(dir, 'session.lock'));
+      const lock = await this.scan.stat(path.join(dir, 'session.lock'));
       const lockHeld = this.dshLocks && lock ? this.dshLocks.has(lock.ino) : undefined;
       info = {
         ...meta,
@@ -597,22 +573,21 @@ export class AgentProgressService {
       // .jsonl 逐行追加：标题在开头、最新状态在末尾，各取一段拼起来（按消息 id 去重）
       info = parseGeminiSession(
         filePath.endsWith('.jsonl')
-          ? `${readSlice(filePath, 'head', 64 * 1024)}\n${readSlice(filePath, 'tail', 512 * 1024)}`
-          : readSlice(filePath, 'head', 4 * 1024 * 1024),
+          ? `${await slice(filePath, 'head', 64 * 1024)}\n${await slice(filePath, 'tail', 512 * 1024)}`
+          : await slice(filePath, 'head', 4 * 1024 * 1024),
       );
     } else if (kind === 'cursor') {
       // 会话 = chatId 目录
       info = { phase: 'unknown', sessionId: path.basename(path.dirname(filePath)) };
     } else {
-      const raw = readSlice(filePath, 'tail', 64 * 1024);
       const r =
-        kind === 'aider'
-          ? filePath.endsWith('.jsonl')
-            ? parseAiderAnalytics(raw)
-            : parseAiderHistory(raw)
-          : kind === 'cline'
-            ? parseClineJob(raw)
-            : parseContinueSession(readSlice(filePath, 'head', 4 * 1024 * 1024));
+        kind === 'continue'
+          ? parseContinueSession(await slice(filePath, 'head', 4 * 1024 * 1024))
+          : kind === 'aider'
+            ? filePath.endsWith('.jsonl')
+              ? parseAiderAnalytics(await slice(filePath, 'tail', 64 * 1024))
+              : parseAiderHistory(await slice(filePath, 'tail', 64 * 1024))
+            : parseClineJob(await slice(filePath, 'tail', 64 * 1024));
       info = { phase: phaseOf(r), detail: r.summary };
       if (kind === 'continue') info.title = r.summary;
     }
@@ -718,22 +693,56 @@ export class AgentProgressService {
         const first = this.procsAt === 0;
         this.procs = p;
         this.procsAt = this.now();
-        if (first) this.tick(false);
+        if (first)
+          this.tick(false).catch((e) => this.d.logger.warn('agent-progress tick', String(e)));
       })
       .finally(() => {
         this.procRefreshing = false;
       });
   }
 
-  tick(refresh = true): void {
+  /**
+   * 扫一轮会话文件并更新列表。异步执行、不重叠：进行中再被调用时只记下「跑完再补一轮」，
+   * 返回的 Promise 在补的那轮也结束后才完成。
+   */
+  tick(refresh = true): Promise<void> {
+    if (!this.settings.enabled) return Promise.resolve();
+    if (this.ticking) {
+      this.tickAgain = { refresh: refresh || !!this.tickAgain?.refresh };
+      return this.ticking;
+    }
+    const run = async () => {
+      let r = refresh;
+      for (;;) {
+        await this.tickOnce(r);
+        const again = this.tickAgain;
+        this.tickAgain = null;
+        if (!again || !this.settings.enabled) return;
+        r = again.refresh;
+      }
+    };
+    this.ticking = run().finally(() => {
+      this.ticking = null;
+      this.tickAgain = null;
+    });
+    return this.ticking;
+  }
+
+  private async tickOnce(refresh: boolean): Promise<void> {
     if (!this.settings.enabled) return;
     if (refresh) this.refreshProcs();
     const now = this.now();
-    this.dshLocks = this.settings.tools.dsh
-      ? (this.d.lockedInodes ?? (() => readLockedInodes(this.d.platform)))()
+    const locks = this.settings.tools.dsh
+      ? (this.d.lockedInodes ?? (() => readLockedInodesAsync(this.d.platform)))()
       : null;
-    const files = this.scanFiles().filter((f) => now - f.mtime < ALIVE_LOOKBACK_MS);
-    const cands = this.dedupe(files.map((f) => this.inspectCached(f.kind, f.path, f.mtime)));
+    const [lockSet, scanned] = await Promise.all([locks, this.scanFiles()]);
+    this.dshLocks = lockSet;
+    const files = scanned.filter((f) => now - f.mtime < ALIVE_LOOKBACK_MS);
+    const cands = this.dedupe(
+      await Promise.all(files.map((f) => this.inspectCached(f.kind, f.path, f.mtime))),
+    );
+    // 扫描期间监听被关掉：结果作废
+    if (!this.settings.enabled) return;
     if (this.inspected.size > files.length) {
       const live = new Set(files.map((f) => f.path));
       for (const p of this.inspected.keys()) if (!live.has(p)) this.inspected.delete(p);
@@ -1023,13 +1032,13 @@ export class AgentProgressService {
 
   start(): void {
     if (this.timer) return;
-    this.tick();
+    const warn = (e: unknown) => this.d.logger.warn('agent-progress tick', String(e));
+    // 第一轮异步跑：不在启动路径上同步遍历会话目录
+    this.tick().catch(warn);
     this.timer = setInterval(() => {
-      try {
-        this.tick();
-      } catch (e) {
-        this.d.logger.warn('agent-progress tick', String(e));
-      }
+      // 上一轮还没扫完（会话很多 / 磁盘慢）就跳过这一拍，不叠加
+      if (this.ticking) return;
+      this.tick().catch(warn);
     }, this.pollMs);
     if (typeof this.timer === 'object' && 'unref' in this.timer) this.timer.unref();
     this.startDigest();
@@ -1060,17 +1069,13 @@ export class AgentProgressService {
   }
 
   /**
-   * 定时汇总：重新扫描一次，若有进行中的编程任务，被动告知「还有 N 个任务进行中」
+   * 定时汇总：按最近一轮轮询的结果（最多旧一个轮询周期）与对话标签的实时状态，
+   * 若有进行中的编程任务，被动告知「还有 N 个任务进行中」
    * （按工具分组）。消息语音播报开启时附带最近进度并朗读；关闭时只出气泡 / 灵动岛。
    * 0 个不提示；刚发过结束 / 权限等提示、免打扰中也跳过。返回是否发出了汇总。
    */
   digest(): boolean {
     if (!this.settings.enabled) return false;
-    try {
-      this.tick(false);
-    } catch (e) {
-      this.d.logger.warn('agent-progress digest scan', String(e));
-    }
     const running = this.runningTasks();
     if (!running.length) return false;
     if (this.d.isQuiet?.()) return false;
@@ -1130,8 +1135,8 @@ export class AgentProgressService {
     handle('ai:agents:set-settings', (p) =>
       this.setSettings((p ?? {}) as Partial<AgentWatchSettings>),
     );
-    handle('ai:agents:scan', () => {
-      this.tick();
+    handle('ai:agents:scan', async () => {
+      await this.tick();
       return this.state();
     });
   }

@@ -204,7 +204,7 @@ describe('AgentProgressService', () => {
     message: { stop_reason: 'tool_use', content: [{ type: 'tool_use', name: 'Bash' }] },
   };
 
-  it('many stale Claude files + one live session → exactly one active session', () => {
+  it('many stale Claude files + one live session → exactly one active session', async () => {
     const now = Date.parse('2026-10-14T10:00:00Z');
     const { home, svc } = mk({
       now,
@@ -246,7 +246,7 @@ describe('AgentProgressService', () => {
       now - 1_000,
     );
 
-    svc.tick();
+    await svc.tick();
     const sessions = svc.state().sessions;
     const active = sessions.filter((s) => s.status === 'running' || s.status === 'stalled');
     expect(active).toHaveLength(1);
@@ -262,7 +262,7 @@ describe('AgentProgressService', () => {
     expect(sessions.map((s) => s.id)).toEqual(['claude:live']);
   });
 
-  it('stalled only when process alive; ended session → completed then hidden', () => {
+  it('stalled only when process alive; ended session → completed then hidden', async () => {
     let now = Date.parse('2026-10-14T10:00:00Z');
     let procs: unknown[] = [{ pid: 1, kind: 'claude', cwd: '/w/a' }];
     const home = tmp();
@@ -277,7 +277,7 @@ describe('AgentProgressService', () => {
     });
     const file = path.join(home, '.claude', 'projects', '-w-a', 's.jsonl');
     write(file, claudeLines('s', '/w/a', '跑测试', toolUse), now - 10 * 60_000);
-    svc.tick();
+    await svc.tick();
     expect(svc.state().sessions[0]?.status).toBe('stalled');
 
     // 写入 end_turn，进程退出 → completed
@@ -291,33 +291,33 @@ describe('AgentProgressService', () => {
     );
     procs = [];
     say.mockClear();
-    svc.tick();
+    await svc.tick();
     expect(svc.state().sessions[0]).toMatchObject({ status: 'completed', alive: false });
 
     now += 31 * 60_000;
-    svc.tick();
+    await svc.tick();
     expect(svc.state().sessions).toHaveLength(0);
   });
 
-  it('会话文件没变就不重读（按 mtime 缓存解析结果），变了才重新解析', () => {
+  it('会话文件没变就不重读（按 mtime 缓存解析结果），变了才重新解析', async () => {
     const now = Date.parse('2026-10-14T10:00:00Z');
     const { home, svc } = mk({ now, procs: () => [] });
     const file = path.join(home, '.claude', 'projects', '-w-a', 's.jsonl');
     write(file, claudeLines('s', '/w/a', '跑测试', toolUse), now - 60_000);
-    svc.tick();
-    const open = jest.spyOn(fs, 'openSync');
+    await svc.tick();
+    const open = jest.spyOn(fs.promises, 'open');
     try {
-      svc.tick();
+      await svc.tick();
       expect(open.mock.calls.filter(([p]) => p === file)).toHaveLength(0);
       fs.utimesSync(file, new Date(now), new Date(now));
-      svc.tick();
+      await svc.tick();
       expect(open.mock.calls.filter(([p]) => p === file).length).toBeGreaterThan(0);
     } finally {
       open.mockRestore();
     }
   });
 
-  it('轮询结果没变就不广播；会话状态变化才通知渲染进程', () => {
+  it('轮询结果没变就不广播；会话状态变化才通知渲染进程', async () => {
     let now = Date.parse('2026-10-14T10:00:00Z');
     const home = tmp();
     const svc = new AgentProgressService({
@@ -335,14 +335,14 @@ describe('AgentProgressService', () => {
     try {
       const file = path.join(home, '.claude', 'projects', '-w-a', 's.jsonl');
       write(file, claudeLines('s', '/w/a', '跑测试', toolUse), now);
-      svc.tick();
+      await svc.tick();
       expect(changed()).toBe(1);
 
       // 时间推进但文件与进程都没变：不再广播
       now += 5_000;
-      svc.tick();
+      await svc.tick();
       now += 5_000;
-      svc.tick();
+      await svc.tick();
       expect(changed()).toBe(1);
 
       // 写入 end_turn：状态变了 → 广播
@@ -354,14 +354,14 @@ describe('AgentProgressService', () => {
         }),
         now,
       );
-      svc.tick();
+      await svc.tick();
       expect(changed()).toBe(2);
     } finally {
       mockWindows.length = 0;
     }
   });
 
-  it('codex: no start reminder; remind when running → waiting, dedupe by session id', () => {
+  it('codex: no start reminder; remind when running → waiting, dedupe by session id', async () => {
     let now = Date.parse('2026-10-14T10:00:00Z');
     const home = tmp();
     const svc = new AgentProgressService({
@@ -380,7 +380,7 @@ describe('AgentProgressService', () => {
     const meta = { type: 'session_meta', payload: { id, cwd: '/w/nomi' } };
     write(file, [meta, { type: 'event_msg', payload: { type: 'task_started' } }], now);
     say.mockClear();
-    svc.tick();
+    await svc.tick();
     expect(svc.detectKinds()).toContain('codex');
     expect(svc.state().sessions).toHaveLength(1);
     expect(svc.state().sessions[0]).toMatchObject({ status: 'running', project: 'nomi' });
@@ -395,7 +395,7 @@ describe('AgentProgressService', () => {
       [meta, { type: 'event_msg', payload: { type: 'task_complete', last_agent_message: '好了' } }],
       now,
     );
-    svc.tick();
+    await svc.tick();
     expect(svc.state().sessions[0]?.status).toBe('waiting');
     expect(say.mock.calls.some((c) => String(c[0]).includes('等你回复'))).toBe(true);
 

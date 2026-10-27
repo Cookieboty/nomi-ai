@@ -77,7 +77,7 @@ describe('dsh session detection', () => {
     ).toEqual([{ pid: 7, kind: 'dsh' }]);
   });
 
-  it('running while session.lock is flocked, completed once released', () => {
+  it('running while session.lock is flocked, completed once released', async () => {
     const home = tmp();
     const dshHome = path.join(home, '.dsh');
     const ino = mkSession(dshHome, 'session-aaa', '/w/app', 'refactor api', now - 2_000);
@@ -95,7 +95,7 @@ describe('dsh session detection', () => {
       lockedInodes: () => locks,
     });
     expect(svc.detectKinds()).toContain('dsh');
-    svc.tick();
+    await svc.tick();
     let s = svc.state().sessions;
     expect(s).toHaveLength(1);
     expect(s[0]).toMatchObject({
@@ -107,7 +107,7 @@ describe('dsh session detection', () => {
       project: 'app',
     });
     locks = new Set();
-    svc.tick();
+    await svc.tick();
     s = svc.state().sessions;
     expect(s[0]).toMatchObject({ status: 'completed', alive: false });
   });
@@ -170,7 +170,7 @@ describe('Nomi tabs in the aggregated monitor', () => {
     mascot.mockClear();
   });
 
-  it('lists tabs alongside file sessions with mapped status', () => {
+  it('lists tabs alongside file sessions with mapped status', async () => {
     const { svc } = setup([
       tab({ id: 'main', title: 'Chat', backend: 'nomi' }),
       tab({ id: 'a', status: 'running', backend: 'claude' }),
@@ -178,7 +178,7 @@ describe('Nomi tabs in the aggregated monitor', () => {
       tab({ id: 'c', status: 'error', lastError: 'boom' }),
       tab({ id: 'd', unread: 2 }),
     ]);
-    svc.tick();
+    await svc.tick();
     const byTab = Object.fromEntries(svc.state().sessions.map((s) => [s.tabId, s]));
     expect(byTab.main).toMatchObject({ kind: 'nomi', status: 'waiting', source: 'tab' });
     expect(byTab.a).toMatchObject({
@@ -191,13 +191,13 @@ describe('Nomi tabs in the aggregated monitor', () => {
     expect(byTab.d).toMatchObject({ status: 'completed', unread: 2 });
   });
 
-  it('hides the file entry of a session driven by a tab', () => {
+  it('hides the file entry of a session driven by a tab', async () => {
     const tabs = [tab({ id: 'a', cliSessionId: 'session-aaa' })];
     const { svc, home } = setup(tabs);
     const dir = path.join(home, '.dsh', 'sessions', '--w-app--', 'session-aaa');
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, 'session.lock'), '');
-    svc.tick();
+    await svc.tick();
     expect(svc.state().sessions.map((s) => s.id)).toEqual(['tab:a']);
   });
 

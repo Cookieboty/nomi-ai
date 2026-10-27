@@ -23,7 +23,12 @@ import { PassThrough } from 'node:stream';
 import { strFromU8, unzipSync } from 'fflate';
 
 import { buildDiagnosticsBundle } from '../../../src/diagnostics/bundle';
-import { configureCliTrace, traceCliChild } from '../../../src/diagnostics/cliTrace';
+import {
+  configureCliTrace,
+  flushCliTrace,
+  flushCliTraceSync,
+  traceCliChild,
+} from '../../../src/diagnostics/cliTrace';
 import { DiagnosticsService } from '../../../src/diagnostics/DiagnosticsService';
 
 const tmp = (p: string) => fs.mkdtempSync(path.join(os.tmpdir(), p));
@@ -151,6 +156,7 @@ describe('cliTrace：编程助手子进程收发', () => {
     c.stdout.write('hello');
     c.stderr.write('warn');
     c.emit('close', 0, null);
+    flushCliTraceSync();
     const f = fs.readdirSync(dir).find((n) => n.startsWith('cli-'))!;
     const raw = fs.readFileSync(path.join(dir, f), 'utf8');
     const recs = raw
@@ -184,10 +190,93 @@ describe('cliTrace：编程助手子进程收发', () => {
     c.stdout.write('before');
     on = false;
     c.stdout.write('after');
+    flushCliTraceSync();
     const f = fs.readdirSync(dir).find((n) => n.startsWith('cli-'))!;
     const raw = fs.readFileSync(path.join(dir, f), 'utf8');
     expect(raw).toContain('before');
     expect(raw).not.toContain('after');
+  });
+
+  const readRecs = (dir: string) => {
+    const f = fs.readdirSync(dir).find((n) => n.startsWith('cli-'));
+    if (!f) return [];
+    return fs
+      .readFileSync(path.join(dir, f), 'utf8')
+      .trim()
+      .split('\n')
+      .map((l) => JSON.parse(l) as Record<string, unknown>);
+  };
+
+  it('缓冲写：data 事件当场不落盘，定时器到点后异步批量追加，顺序不变', async () => {
+    const dir = tmp('nomi-clitrace-buf-');
+    configureCliTrace({ dir, enabled: () => true });
+    const c = fakeChild();
+    traceCliChild(c as never, 'claude', [], { tabId: 't' });
+    for (let i = 0; i < 50; i++) c.stdout.write(`chunk-${i}`);
+    c.stderr.write('oops');
+    // 同步路径上不碰文件
+    expect(readRecs(dir)).toEqual([]);
+    await new Promise((r) => setTimeout(r, 300));
+    await flushCliTrace();
+    const recs = readRecs(dir);
+    expect(recs.map((r) => r.ev)).toEqual(['spawn', ...Array(50).fill('out'), 'err']);
+    expect(recs.slice(1, 51).map((r) => r.data)).toEqual(
+      Array.from({ length: 50 }, (_, i) => `chunk-${i}`),
+    );
+  });
+
+  it('写入在途时继续产生的记录排在后面；flushCliTrace 等全部落盘', async () => {
+    const dir = tmp('nomi-clitrace-order-');
+    configureCliTrace({ dir, enabled: () => true });
+    const c = fakeChild();
+    traceCliChild(c as never, 'codex', []);
+    c.stdout.write('a');
+    const first = flushCliTrace();
+    c.stdout.write('b');
+    c.stdout.write('Bearer abcdefghijklmnopqrstuvwxyz');
+    await first;
+    await flushCliTrace();
+    const recs = readRecs(dir);
+    expect(recs.map((r) => r.data ?? r.ev)).toEqual([
+      'spawn',
+      'a',
+      'b',
+      expect.not.stringContaining('abcdefghijklmnopqrstuvwxyz'),
+    ]);
+  });
+
+  it('同步 flush（进程退出 / 换目录）把剩下的写完，并且只建一次目录', () => {
+    const dir = path.join(tmp('nomi-clitrace-sync-'), 'logs');
+    configureCliTrace({ dir, enabled: () => true });
+    const mkdir = jest.spyOn(fs, 'mkdirSync');
+    const c = fakeChild();
+    traceCliChild(c as never, 'claude', []);
+    c.stdout.write('x');
+    flushCliTraceSync();
+    c.stdout.write('y');
+    flushCliTraceSync();
+    expect(mkdir.mock.calls.filter((a) => a[0] === dir)).toHaveLength(1);
+    mkdir.mockRestore();
+    expect(readRecs(dir).map((r) => r.data ?? r.ev)).toEqual(['spawn', 'x', 'y']);
+
+    // 换目录前把旧目录的缓冲写完
+    c.stdout.write('z');
+    const next = tmp('nomi-clitrace-next-');
+    configureCliTrace({ dir: next, enabled: () => true });
+    expect(readRecs(dir).map((r) => r.data ?? r.ev)).toEqual(['spawn', 'x', 'y', 'z']);
+    expect(fs.readdirSync(next)).toEqual([]);
+  });
+
+  it('退出钩子：process exit 时同步写完缓冲', () => {
+    const dir = tmp('nomi-clitrace-exit-');
+    configureCliTrace({ dir, enabled: () => true });
+    const c = fakeChild();
+    traceCliChild(c as never, 'claude', []);
+    c.stdout.write('bye');
+    const hooks = process.listeners('exit').filter((f) => f === flushCliTraceSync);
+    expect(hooks).toHaveLength(1);
+    (hooks[0] as () => void)();
+    expect(readRecs(dir).map((r) => r.data ?? r.ev)).toEqual(['spawn', 'bye']);
   });
 });
 

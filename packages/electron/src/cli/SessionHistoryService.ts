@@ -46,7 +46,8 @@ import { guardedHandle } from '../security/guardedIpc';
 import { claudeConfigDir, codexHomeDir, geminiDir, grokHomeDir } from '../usage/cliHomes';
 import { dbSignature } from '../usage/sqliteRead';
 
-import { readCodexThreads, type CodexThreadRow } from './codexThreadIndex';
+import type { CodexThreadRow } from './codexThreadIndex';
+import { readCodexThreadsAsync } from './codexThreadReader';
 import { parseTranscript, titleFromMessages, type HistoryBackend } from './historyTranscript';
 import { fromCliPermissionMode } from './permissionMode';
 import type {
@@ -183,6 +184,8 @@ export interface SessionHistoryDeps {
     backend: HistoryBackend,
     sessionId: string,
   ) => { id: string; label?: string } | undefined;
+  /** 读 Codex 索引（state_5.sqlite 的 threads 表，测试注入）；默认在 worker 线程里查，不阻塞主进程 */
+  codexThreads?: (file: string) => Promise<CodexThreadRow[]>;
 }
 
 async function readHead(p: string, bytes: number): Promise<string> {
@@ -222,26 +225,68 @@ async function readTailText(
   }
 }
 
-export function zstdDecode(buf: Buffer): Promise<string> {
-  const native = (zlib as unknown as { zstdDecompressSync?: (b: Buffer) => Buffer })
-    .zstdDecompressSync;
-  if (native) {
-    try {
-      return Promise.resolve(native(buf).toString('utf8'));
-    } catch {
-      /* 落到外部 zstd */
-    }
-  }
-  return new Promise((resolve, reject) => {
-    const cp = execFile(
-      'zstd',
-      ['-dc'],
-      { encoding: 'buffer', maxBuffer: 64 * 1024 * 1024, timeout: 15_000 },
-      (err, stdout) => (err ? reject(err) : resolve(stdout.toString('utf8'))),
-    );
-    cp.stdin?.on('error', () => undefined);
-    cp.stdin?.end(buf);
+/**
+ * zstd 解压后的体积上限（外部 zstd 兜底的 maxBuffer 同值）。原同步解压不设上限，大会话也能统计用量；
+ * 这里给足余量，同时远低于 V8 单个字符串约 512MB 的上限
+ */
+export const ZSTD_MAX_OUTPUT_BYTES = 256 * 1024 * 1024;
+
+type ZstdAsync = (
+  b: Buffer,
+  o: { maxOutputLength?: number },
+  cb: (err: Error | null, out: Buffer) => void,
+) => void;
+
+/**
+ * 解压 zstd 为文本。优先用 Node 自带的异步 zlib.zstdDecompress（在 libuv 线程池里跑，不阻塞主线程，
+ * 所有窗口的 IPC 不会被大会话卡住）；没有内置 zstd 或解码失败时退回外部 `zstd -dc`。
+ * 解压结果超过上限直接失败（外部 zstd 也会因为同样的上限失败，不必再试）。
+ */
+export function zstdDecode(buf: Buffer, maxBytes = ZSTD_MAX_OUTPUT_BYTES): Promise<string> {
+  const native = (zlib as unknown as { zstdDecompress?: ZstdAsync }).zstdDecompress;
+  const external = () =>
+    new Promise<string>((resolve, reject) => {
+      const cp = execFile(
+        'zstd',
+        ['-dc'],
+        { encoding: 'buffer', maxBuffer: maxBytes, timeout: 15_000 },
+        (err, stdout) => (err ? reject(err) : resolve(stdout.toString('utf8'))),
+      );
+      cp.stdin?.on('error', () => undefined);
+      cp.stdin?.end(buf);
+    });
+  if (!native) return external();
+  return new Promise<string>((resolve, reject) => {
+    native(buf, { maxOutputLength: maxBytes }, (err, out) => {
+      if (!err) return resolve(out.toString('utf8'));
+      if ((err as NodeJS.ErrnoException).code === 'ERR_BUFFER_TOO_LARGE') return reject(err);
+      external().then(resolve, reject);
+    });
   });
+}
+
+/** 两份 Codex 索引里有差异的会话 id（任一边独有，或同 id 的列值不同） */
+export function codexRowsChanged(
+  prev: Map<string, CodexThreadRow>,
+  next: Map<string, CodexThreadRow>,
+): Set<string> {
+  const out = new Set<string>();
+  const same = (a: CodexThreadRow, b: CodexThreadRow) => {
+    const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+    for (const k of keys)
+      if (
+        (a as unknown as Record<string, unknown>)[k] !==
+        (b as unknown as Record<string, unknown>)[k]
+      )
+        return false;
+    return true;
+  };
+  for (const [id, r] of next) {
+    const old = prev.get(id);
+    if (!old || !same(old, r)) out.add(id);
+  }
+  for (const id of prev.keys()) if (!next.has(id)) out.add(id);
+  return out;
 }
 
 export class SessionHistoryService {
@@ -256,6 +301,8 @@ export class SessionHistoryService {
     sig: null,
     rows: new Map(),
   };
+  /** 进行中的索引刷新：并发调用方等同一个 Promise，不发起重叠的查询 */
+  private codexRefresh: Promise<void> | null = null;
 
   private geminiRoot(): string {
     return this.d.geminiHome ? path.join(this.d.geminiHome, '.gemini') : geminiDir(this.home);
@@ -296,7 +343,7 @@ export class SessionHistoryService {
     const entries: FileEntry[] = [];
     for await (const f of HISTORY_SCAN[backend].scan(this.historyRoot(backend))) entries.push(f);
     if (backend === 'codex') {
-      this.refreshCodexIndex(
+      await this.refreshCodexIndex(
         path.join(codexHomeDir(this.home, this.d.env ?? process.env), 'state_5.sqlite'),
       );
       // 归档 / 删除 / 续接可能让最新 rollout 消失；重扫时不能保留失效的反查路径。
@@ -692,13 +739,37 @@ export class SessionHistoryService {
     }
   }
 
-  private refreshCodexIndex(file: string): void {
+  private refreshCodexIndex(file: string): Promise<void> {
+    this.codexRefresh ??= this.doRefreshCodexIndex(file).finally(() => {
+      this.codexRefresh = null;
+    });
+    return this.codexRefresh;
+  }
+
+  private async doRefreshCodexIndex(file: string): Promise<void> {
     const sig = dbSignature(file);
     if (sig === this.codexIndex.sig) return;
-    // 标题、归档与续接供应商都可能只改 sqlite，不改 rollout 的 mtime。
-    this.parsed.clear();
     const rows = new Map<string, CodexThreadRow>();
-    if (sig) for (const r of readCodexThreads(file)) if (r.id) rows.set(r.id, r);
+    if (sig) {
+      let list: CodexThreadRow[];
+      try {
+        list = await (this.d.codexThreads ?? readCodexThreadsAsync)(file);
+      } catch (e) {
+        // worker 崩溃 / 超时：保留上一份索引，不记新指纹，下次列表时重试
+        this.d.logger?.warn('codex index refresh failed', e);
+        return;
+      }
+      for (const r of list) if (r.id) rows.set(r.id, r);
+    }
+    // 标题、归档与续接供应商都可能只改 sqlite，不改 rollout 的 mtime：只让索引行有变化（新增 /
+    // 删除 / 改动）的会话重新解析。Codex 运行时库一直在变，整表清空会让所有会话（含其他后端）重读。
+    const changed = codexRowsChanged(this.codexIndex.rows, rows);
+    if (changed.size) {
+      for (const p of this.parsed.keys()) {
+        const id = CODEX_ID_RE.exec(path.basename(p))?.[1];
+        if (id && changed.has(id)) this.parsed.delete(p);
+      }
+    }
     this.codexIndex = { sig, rows };
   }
 

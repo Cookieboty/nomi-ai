@@ -6,9 +6,9 @@ import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
 
 import { joinFileAttachments, splitFileAttachments } from '../../services/fileAttachments';
 import type { ConvMessage } from '../../types/conversation';
-import { segmentBody } from '../../utils/convSegments';
+import { layoutBody, planBody, planLength, sliceBody } from '../../utils/convSegments';
 import { formatFullTime, turnSummary } from '../../utils/convTime';
-import { entriesFromLegacyTools, hasRunning, reduceTrace } from '../../utils/toolTrace';
+import { entriesFromLegacyTools, hasRunning, reduceTraceCached } from '../../utils/toolTrace';
 import { FileChipRow } from '../FileAttachment';
 
 import styles from './index.module.css';
@@ -143,14 +143,18 @@ export const AssistantBody: React.FC<{
   extra?: React.ReactNode;
 }> = ({ text, trace, legacyTools, breaks, live, streaming, endedAt, extra }) => {
   const entries = useMemo(() => {
-    if (trace?.length) return reduceTrace(trace);
+    if (trace?.length) return reduceTraceCached(trace);
     if (legacyTools?.length) return entriesFromLegacyTools(legacyTools);
     return [];
   }, [trace, legacyTools]);
-  const segments = useMemo(
-    () => segmentBody(text, entries, !!live, endedAt, breaks),
-    [text, entries, live, endedAt, breaks],
+  // 时间线只随轨迹重建；流式文字帧只重新切文字，各组 items 保持同一引用
+  const layout = useMemo(() => layoutBody(entries), [entries]);
+  const len = planLength(layout, text.length, breaks);
+  const plan = useMemo(
+    () => planBody(layout, len, !!live, endedAt, breaks),
+    [layout, len, live, endedAt, breaks],
   );
+  const segments = useMemo(() => sliceBody(text, plan), [text, plan]);
   if (!segments.length && !extra) return null;
   let lastText = -1;
   let runningAt = -1;

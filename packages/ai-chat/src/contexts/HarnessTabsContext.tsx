@@ -27,15 +27,21 @@ import {
   type HarnessTabsState,
 } from '../services/harnessClient';
 import { applyLiveEvents, type LiveStatus, type TabLive } from '../utils/liveState';
+import { shareTabsState } from '../utils/shareTabsState';
 
 /** 内存里最多缓存几个标签的消息（含当前）：其余切走后丢弃，回来时重新从主进程读取 */
 const MAX_CACHED_TABS = 4;
 
 export type { TabLive, LiveStatus };
 
-interface HarnessTabsValue {
+/**
+ * 不含完整标签列表的部分：后台标签的状态 / 未读变化不会让它换引用（activeTab 经结构共享，
+ * 只有当前标签真的变了才换）。只关心当前标签与操作的消费者（如 App）用 useHarnessTabsCore()。
+ */
+interface HarnessTabsCore {
   available: boolean;
-  state: HarnessTabsState | null;
+  /** 主进程记录的当前标签 id（状态尚未加载时为 undefined） */
+  activeTabId: string | undefined;
   activeTab: HarnessTabMeta | null;
   /** 当前标签是独立的 CLI 标签（非 main） */
   isCliTab: boolean;
@@ -74,7 +80,13 @@ interface HarnessTabsValue {
   lastBackend: HarnessBackend;
 }
 
+interface HarnessTabsValue extends HarnessTabsCore {
+  /** 完整标签状态：任一标签变化都会换引用 */
+  state: HarnessTabsState | null;
+}
+
 const Ctx = createContext<HarnessTabsValue | null>(null);
+const CoreCtx = createContext<HarnessTabsCore | null>(null);
 
 type LiveMap = Record<string, TabLive>;
 
@@ -148,13 +160,14 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
     if (!available) return;
     void harnessClient
       .tabs()
-      .then(setState)
+      .then((s) => setState((cur) => shareTabsState(cur, s)))
       .catch(() => undefined);
     let flushPending: () => void = () => undefined;
     const off1 = harnessClient.onTabs((s) => {
       // 先落下已入队的实时事件（主进程保证它们先于本次标签状态到达），再清理已结束的标签
       flushPending();
-      setState(s);
+      // 结构共享：没变的标签沿用旧对象，整份没变时 setState 拿到同一引用直接跳过
+      setState((cur) => shareTabsState(cur, s));
       // 结束运行的标签清掉实时进度
       setLive((cur) => {
         let next: Record<string, TabLive> | null = null;
@@ -329,12 +342,14 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
     } catch (error) {
       void harnessClient
         .tabs()
-        .then(setState)
+        .then((s) => setState((cur) => shareTabsState(cur, s)))
         .catch(() => undefined);
       throw error;
     }
   }, []);
-  const ids = useMemo(() => state?.tabs.map((t) => t.id) ?? [], [state]);
+  // 只在标签增删 / 重排时换引用：cycle / selectIndex 不随后台标签的状态广播变化
+  const idsKey = state?.tabs.map((t) => t.id).join('\u0000') ?? '';
+  const ids = useMemo(() => (idsKey ? idsKey.split('\u0000') : []), [idsKey]);
   const cycle = useCallback(
     (dir: 1 | -1) => {
       if (ids.length < 2) return;
@@ -453,10 +468,11 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
   );
 
   const messages = (isCliTab && cache[activeId]) || EMPTY_MESSAGES;
-  const value = useMemo<HarnessTabsValue>(
+  const stateActiveTabId = state?.activeTabId;
+  const core = useMemo<HarnessTabsCore>(
     () => ({
       available,
-      state,
+      activeTabId: stateActiveTabId,
       activeTab,
       isCliTab,
       messages,
@@ -477,7 +493,7 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
     }),
     [
       available,
-      state,
+      stateActiveTabId,
       activeTab,
       isCliTab,
       messages,
@@ -497,9 +513,12 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       lastBackend,
     ],
   );
+  const value = useMemo<HarnessTabsValue>(() => ({ ...core, state }), [core, state]);
   return (
     <Ctx.Provider value={value}>
-      <LiveCtx.Provider value={liveStore}>{children}</LiveCtx.Provider>
+      <CoreCtx.Provider value={core}>
+        <LiveCtx.Provider value={liveStore}>{children}</LiveCtx.Provider>
+      </CoreCtx.Provider>
     </Ctx.Provider>
   );
 }
@@ -507,6 +526,7 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
 const EMPTY: HarnessTabsValue = {
   available: false,
   state: null,
+  activeTabId: undefined,
   activeTab: null,
   isCliTab: false,
   messages: [],
@@ -526,8 +546,14 @@ const EMPTY: HarnessTabsValue = {
   lastBackend: 'claude',
 };
 
+/** 完整的标签上下文（含 state）：任一标签变化都会重渲染，只给需要标签列表的组件用 */
 export function useHarnessTabs(): HarnessTabsValue {
   return useContext(Ctx) ?? EMPTY;
+}
+
+/** 不含标签列表：只在当前标签 / 队列 / 当前消息 / 操作变化时重渲染 */
+export function useHarnessTabsCore(): HarnessTabsCore {
+  return useContext(CoreCtx) ?? EMPTY;
 }
 
 /**

@@ -32,6 +32,9 @@ let capped = false;
 
 /** 主进程启动时配置一次：日志目录与「现在开没开」 */
 export function configureCliTrace(o: { dir: string; enabled: () => boolean }): void {
+  // 换目录前把旧目录的缓冲写完
+  flushCliTraceSync();
+  if (o.dir !== dir) day = '';
   dir = o.dir;
   enabled = o.enabled;
 }
@@ -51,6 +54,115 @@ function file(now: Date): string | null {
   return path.join(dir, `cli-${d}.jsonl`);
 }
 
+/*
+ * 写盘缓冲（同 LoggerService）：原来每个 stdout / stderr data 事件都同步 mkdirSync + appendFileSync，
+ * 流式输出时一秒几十上百次，直接卡主进程。现在每条记录照旧当场脱敏、计入当日大小（上限判断不变），
+ * 但只进内存队列；攒 FLUSH_MS 或攒够 FLUSH_BYTES 后用 fs.promises.appendFile 异步追加。
+ * 同一时间只有一次写入在途，写完再写下一批，行的先后顺序与产生顺序一致；跨天时按各行自己的文件分批。
+ * 目录每个 (目录, 文件) 只建一次；运行中目录被删（ENOENT）时重建再试一次。进程退出时同步写完剩下的。
+ */
+const FLUSH_MS = 200;
+const FLUSH_BYTES = 256 * 1024;
+
+interface Pending {
+  file: string;
+  line: string;
+}
+
+let pending: Pending[] = [];
+let pendingBytes = 0;
+let writing: Promise<void> | null = null;
+let flushTimer: NodeJS.Timeout | null = null;
+let readyDir: string | null = null;
+let exitHooked = false;
+
+function ensureDir(f: string): void {
+  const d = path.dirname(f);
+  if (readyDir === d) return;
+  fs.mkdirSync(d, { recursive: true });
+  readyDir = d;
+}
+
+function scheduleFlush(ms: number): void {
+  if (flushTimer) {
+    if (ms > 0) return;
+    clearTimeout(flushTimer);
+  }
+  flushTimer = setTimeout(() => {
+    flushTimer = null;
+    void flushCliTrace();
+  }, ms);
+  flushTimer.unref?.();
+}
+
+/** 取出缓冲，按目标文件把相邻的行合成一批（保持顺序） */
+function takeBatches(): Pending[] {
+  const out: Pending[] = [];
+  for (const p of pending) {
+    const last = out[out.length - 1];
+    if (last && last.file === p.file) last.line += p.line;
+    else out.push({ ...p });
+  }
+  pending = [];
+  pendingBytes = 0;
+  return out;
+}
+
+async function appendBatch(b: Pending): Promise<void> {
+  try {
+    ensureDir(b.file);
+    await fs.promises.appendFile(b.file, b.line, { mode: 0o600 });
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
+    readyDir = null;
+    ensureDir(b.file);
+    await fs.promises.appendFile(b.file, b.line, { mode: 0o600 });
+  }
+}
+
+/** 异步写出缓冲；返回的 Promise 在当前已入队的记录全部落盘（或写失败被丢弃）后完成 */
+export function flushCliTrace(): Promise<void> {
+  if (flushTimer) {
+    clearTimeout(flushTimer);
+    flushTimer = null;
+  }
+  if (writing) {
+    // 有写入在途：等它写完再接着写，保证顺序
+    return writing.then(() => flushCliTrace());
+  }
+  if (!pending.length) return Promise.resolve();
+  const batches = takeBatches();
+  writing = (async () => {
+    for (const b of batches) {
+      try {
+        await appendBatch(b);
+      } catch {
+        /* 诊断日志写不了不能影响编程助手 */
+      }
+    }
+  })().finally(() => {
+    writing = null;
+    if (pending.length) scheduleFlush(0);
+  });
+  return writing;
+}
+
+/** 同步写出缓冲（进程退出 / 测试）。在途的异步写入不等，剩下的直接同步追加。 */
+export function flushCliTraceSync(): void {
+  if (flushTimer) {
+    clearTimeout(flushTimer);
+    flushTimer = null;
+  }
+  for (const b of takeBatches()) {
+    try {
+      ensureDir(b.file);
+      fs.appendFileSync(b.file, b.line, { mode: 0o600 });
+    } catch {
+      /* 诊断日志写不了不能影响编程助手 */
+    }
+  }
+}
+
 function write(rec: Record<string, unknown>): void {
   if (!enabled()) return;
   const now = new Date();
@@ -62,12 +174,13 @@ function write(rec: Record<string, unknown>): void {
     line = `${JSON.stringify({ t: now.toISOString(), note: 'daily size limit reached, stop logging' })}\n`;
   }
   written += line.length;
-  try {
-    fs.mkdirSync(path.dirname(f), { recursive: true });
-    fs.appendFileSync(f, line, { mode: 0o600 });
-  } catch {
-    /* 诊断日志写不了不能影响编程助手 */
+  pending.push({ file: f, line });
+  pendingBytes += line.length;
+  if (!exitHooked) {
+    exitHooked = true;
+    process.once('exit', flushCliTraceSync);
   }
+  scheduleFlush(pendingBytes >= FLUSH_BYTES ? 0 : FLUSH_MS);
 }
 
 function text(chunk: unknown): string {

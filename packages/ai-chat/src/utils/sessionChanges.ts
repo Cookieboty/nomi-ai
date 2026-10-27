@@ -47,31 +47,37 @@ function toolCallsOf(m: ConvMessage): ToolCall[] {
     .map((e) => e.call);
 }
 
+/** 非助手消息的固定空结果，保持引用稳定 */
+const NO_CHANGES: ChangeEntry[] = [];
+
+/**
+ * 按消息对象缓存单条消息的变更：fromHarnessMessage / fromChatMessage 对未变化的源消息返回同一个
+ * ConvMessage，定稿消息只会被追加不会被改，所以 reduceTrace + diff 每条消息只算一次。
+ * 同时记下 trace 引用，万一同一对象换了 trace 也能失效重算。
+ */
+const turnCache = new WeakMap<
+  ConvMessage,
+  { trace: ConvMessage['trace']; entries: ChangeEntry[] }
+>();
+
+/** 会话聚合按消息数组对象缓存：同一份 cliConvMessages 被多个面板同时聚合时只算一次 */
+const sessionCache = new WeakMap<
+  readonly ConvMessage[],
+  { length: number; entries: ChangeEntry[] }
+>();
+
 /** 聚合会话内所有编辑/写入产物；同路径后写覆盖先写 */
 export function aggregateSessionChanges(messages: readonly ConvMessage[]): ChangeEntry[] {
+  const hit = sessionCache.get(messages);
+  if (hit && hit.length === messages.length) return hit.entries;
   const map = new Map<string, ChangeEntry>();
+  // 单条消息内已是「同路径后写覆盖」，按消息顺序再覆盖一遍即等价于逐个调用覆盖
   for (const m of messages) {
-    if (m.role !== 'assistant') continue;
-    for (const call of toolCallsOf(m)) {
-      for (const d of diffsOf(call)) {
-        const file = d.file || '(unnamed)';
-        const added = d.diff.added;
-        const removed = d.diff.removed;
-        const status = statusOf(d.changeKind, added, removed);
-        map.set(file, {
-          file,
-          added,
-          removed,
-          changeKind: d.changeKind,
-          status,
-          letter: letterOf(status),
-          diff: d,
-          messageId: m.id,
-        });
-      }
-    }
+    for (const e of aggregateTurnChanges(m)) map.set(e.file, e);
   }
-  return [...map.values()].sort((a, b) => a.file.localeCompare(b.file));
+  const entries = [...map.values()].sort((a, b) => a.file.localeCompare(b.file));
+  sessionCache.set(messages, { length: messages.length, entries });
+  return entries;
 }
 
 export function summarizeChanges(entries: readonly ChangeEntry[]): ChangesSummary {
@@ -95,9 +101,11 @@ export function locateChangeMessage(messageId: string): boolean {
   return true;
 }
 
-/** 单条助手消息内的文件变更（同路径后写覆盖） */
+/** 单条助手消息内的文件变更（同路径后写覆盖）；按消息对象缓存，未变化时返回同一个数组 */
 export function aggregateTurnChanges(message: ConvMessage): ChangeEntry[] {
-  if (message.role !== 'assistant') return [];
+  if (message.role !== 'assistant') return NO_CHANGES;
+  const hit = turnCache.get(message);
+  if (hit && hit.trace === message.trace) return hit.entries;
   const map = new Map<string, ChangeEntry>();
   for (const call of toolCallsOf(message)) {
     for (const d of diffsOf(call)) {
@@ -117,7 +125,9 @@ export function aggregateTurnChanges(message: ConvMessage): ChangeEntry[] {
       });
     }
   }
-  return [...map.values()].sort((a, b) => a.file.localeCompare(b.file));
+  const entries = [...map.values()].sort((a, b) => a.file.localeCompare(b.file));
+  turnCache.set(message, { trace: message.trace, entries });
+  return entries;
 }
 
 export function splitPathDisplay(file: string): { dir: string; name: string } {

@@ -331,3 +331,54 @@ describe('change tree relative to cwd', () => {
     expect(file?.kind === 'file' && file.entry?.file).toBe(`${cwd}/src/a.ts`);
   });
 });
+
+describe('session changes caching', () => {
+  const edit = (id: string, file: string, n: number): ConvMessage => ({
+    id,
+    role: 'assistant',
+    text: '',
+    at: n,
+    trace: [
+      {
+        type: 'tool',
+        name: 'Edit',
+        status: 'done',
+        input: JSON.stringify({ file_path: file, old_string: `o${n}`, new_string: `n${n}` }),
+      },
+    ],
+  });
+
+  it('aggregateTurnChanges is cached per message object', () => {
+    const m = edit('c1', 'cache/a.ts', 1);
+    const first = aggregateTurnChanges(m);
+    expect(first).toHaveLength(1);
+    expect(aggregateTurnChanges(m)).toBe(first);
+    // 内容相同但是新对象 → 重新计算（不同数组）
+    expect(aggregateTurnChanges({ ...m, trace: [...m.trace!] })).not.toBe(first);
+    // 非助手消息返回稳定的空数组
+    const u: ConvMessage = { id: 'u', role: 'user', text: 'x', at: 0 };
+    expect(aggregateTurnChanges(u)).toBe(aggregateTurnChanges(u));
+  });
+
+  it('aggregateSessionChanges is memoized by array identity and reuses per-message entries', () => {
+    const m1 = edit('s1', 'cache/x.ts', 1);
+    const m2 = edit('s2', 'cache/y.ts', 2);
+    const msgs = [m1, m2];
+    const a = aggregateSessionChanges(msgs);
+    expect(aggregateSessionChanges(msgs)).toBe(a);
+    // 新数组（追加一条）：重新聚合，但未变化消息的条目对象复用
+    const m3 = edit('s3', 'cache/x.ts', 3);
+    const b = aggregateSessionChanges([...msgs, m3]);
+    expect(b).not.toBe(a);
+    expect(b.map((e) => e.file)).toEqual(['cache/x.ts', 'cache/y.ts']);
+    expect(b[0]!.messageId).toBe('s3');
+    expect(b[1]).toBe(a[1]);
+  });
+
+  it('session aggregate over many edits stays correct (later write wins)', () => {
+    const msgs = Array.from({ length: 400 }, (_, i) => edit(`m${i}`, `many/f${i % 250}.ts`, i));
+    const out = aggregateSessionChanges(msgs);
+    expect(out).toHaveLength(250);
+    expect(out.find((e) => e.file === 'many/f0.ts')!.messageId).toBe('m250');
+  });
+});

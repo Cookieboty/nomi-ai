@@ -7,6 +7,7 @@ import {
   classifyTool,
   commandOf,
   describeCall,
+  DIFF_CACHE_MAX,
   diffsOf,
   diffStats,
   entriesFromLegacyTools,
@@ -347,6 +348,39 @@ describe('diffsOf / lineDiff', () => {
     expect(far).toMatchObject({ added: 400, removed: 400 });
     expect(diffAllAdded('').lines).toEqual([]);
     expect(parsePatch('+a\n-b\n c')).toMatchObject({ added: 1, removed: 1 });
+  });
+
+  it('diff cache is an LRU: hits refresh recency, oldest-unused is evicted', () => {
+    // 每个测试用独立前缀，避免和其他用例共用缓存键
+    const mk = (i: number) => call('Write', { file_path: `lru-${i}`, content: `x${i}` });
+    const first = mk(0);
+    const firstDiffs = diffsOf(first);
+    for (let i = 1; i < DIFF_CACHE_MAX; i++) diffsOf(mk(i));
+    // 新建的调用对象、同样的参数 → 命中并刷新 0 号
+    expect(diffsOf(mk(0))).toBe(firstDiffs);
+    const second = diffsOf(mk(1));
+    expect(diffsOf(mk(1))).toBe(second);
+    // 再塞满一整轮新键：0、1 号都没被再访问，应被淘汰
+    for (let i = 0; i < DIFF_CACHE_MAX; i++) diffsOf(mk(DIFF_CACHE_MAX + i));
+    expect(diffsOf(mk(0))).not.toBe(firstDiffs);
+  });
+
+  it('ordered passes over more than 200 edits keep hitting the cache', () => {
+    const inputs = Array.from({ length: 300 }, (_, i) =>
+      JSON.stringify({ file_path: `pass-${i}`, old_string: `a${i}`, new_string: `b${i}` }),
+    );
+    const pass = () =>
+      inputs.map((input) => diffsOf({ id: 'x', name: 'Edit', status: 'done', input }));
+    const a = pass();
+    const b = pass();
+    b.forEach((d, i) => expect(d).toBe(a[i]));
+  });
+
+  it('same input with a different tool name is not served from cache', () => {
+    const input = { file_path: 'name-check', content: 'z' };
+    expect(diffsOf(call('Write', input))).toHaveLength(1);
+    expect(diffsOf(call('Read', input))).toEqual([]);
+    expect(diffsOf(call('Write', input))).toHaveLength(1);
   });
 });
 

@@ -203,3 +203,44 @@ describe('WindowManager 关闭主界面时', () => {
     expect(quit).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('WindowManager 启动时两个窗口并行', () => {
+  it('看板娘页面还在加载时，对话窗口可以并行创建并加载完成', async () => {
+    const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() };
+    const config = {
+      getConfig: () => ({ windowPosition: { x: 0, y: 0 }, mascotScale: 1 }),
+      set: jest.fn(),
+      save: jest.fn(async () => undefined),
+    };
+    const wm = new WindowManager(logger as never, config as never);
+    const mascot = { ...newWin(), webContents: { setAudioMuted: jest.fn() } };
+    const chat = newWin();
+    const internals = wm as unknown as Internals & {
+      setupMainWindowEvents: (w: unknown) => void;
+      loadMainWindowContent: (w: unknown) => Promise<void>;
+    };
+    internals.createWindow = jest.fn(async (_o: unknown, type: string) =>
+      type === 'main' ? mascot : chat,
+    );
+    internals.setupMainWindowEvents = jest.fn();
+    internals.setupAiChatWindowEvents = jest.fn();
+    let releaseMascot!: () => void;
+    internals.loadMainWindowContent = jest.fn(() => new Promise<void>((r) => (releaseMascot = r)));
+    internals.loadAiChatWindowContent = jest.fn(async () => undefined);
+
+    // 与 Application.start 的顺序一致：先发起对话窗口，再等看板娘
+    const chatP = wm.createAiChatWindow({ activate: true });
+    const mascotP = wm.createMainWindow({ activate: false });
+    await expect(chatP).resolves.toBe(chat);
+    expect(wm.getAiChatWindow()).toBe(chat);
+    expect(internals.loadMainWindowContent).toHaveBeenCalledTimes(1);
+
+    releaseMascot();
+    await expect(mascotP).resolves.toBe(mascot);
+    expect(wm.getMainWindow()).toBe(mascot);
+    // 看板娘以不抢焦点的方式出现，对话窗口照常聚焦
+    const calls = (internals.createWindow as jest.Mock).mock.calls;
+    expect(calls.find((c) => c[1] === 'main')![0]).toMatchObject({ showInactive: true });
+    expect(calls.find((c) => c[1] === 'aiChat')![0]).toMatchObject({ showInactive: false });
+  });
+});

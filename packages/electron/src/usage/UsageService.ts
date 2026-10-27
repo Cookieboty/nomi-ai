@@ -18,6 +18,7 @@ import { guardedHandle } from '../security/guardedIpc';
 import { writePrivateFile } from '../utils/privateFile';
 
 import {
+  addDays,
   breakdown,
   dateKey,
   details,
@@ -167,6 +168,8 @@ type Deps = {
   now?: () => number;
   /** 日志扫描间隔（ms），默认 60s；0 = 不自动扫描（测试） */
   scanMs?: number;
+  /** 账本同步载入的大小上限（字节，见 UsageLedger）；测试传 0 让非空账本走后台载入 */
+  ledgerSyncLoadMaxBytes?: number;
   /** Nomi 供应商 id → 显示名 */
   providerName?: (id: string) => string | undefined;
   /**
@@ -401,6 +404,14 @@ export class UsageService {
     priceVer: number;
     map: Map<string, SessionUsage>;
   } | null = null;
+  /** 热力图缓存：账本 / 价格 / 日期都没变时直接复用（界面每次 ai:usage:changed 都会重查） */
+  private heatCache: {
+    ver: number;
+    prices: unknown;
+    priceVer: number;
+    today: number;
+    days: ReturnType<typeof heatmap>;
+  } | null = null;
 
   constructor(private readonly d: Deps) {
     fs.mkdirSync(d.root, { recursive: true });
@@ -506,6 +517,14 @@ export class UsageService {
       logger: d.logger,
       now: d.now,
       onPersistChange: () => this.changed(),
+      ...(d.ledgerSyncLoadMaxBytes !== undefined
+        ? { syncLoadMaxBytes: d.ledgerSyncLoadMaxBytes }
+        : {}),
+      // 大账本后台载入完成：通知界面重查，预算按完整数据再算一次
+      onLoaded: () => {
+        this.changed();
+        this.scheduleCheck();
+      },
     });
     this.scanner = new UsageLogScanner({
       ledger: this.ledger,
@@ -765,6 +784,7 @@ export class UsageService {
    */
   async autoRefreshQuota(): Promise<void> {
     if (!(this.settings.enabled && this.settings.activeQuotaRefresh)) return;
+    await this.ledger.whenReady();
     const now = this.now();
     if (now - this.lastQuotaView > QUOTA_VIEW_WINDOW_MS) return;
     const due = (['claude', 'codex', 'grok'] as const).filter((tool) => {
@@ -1232,7 +1252,7 @@ export class UsageService {
     this.pruneTimer = null;
     if (this.broadcastTimer) clearTimeout(this.broadcastTimer);
     this.broadcastTimer = null;
-    this.ledger.flush();
+    this.ledger.close();
   }
 
   async scan(): Promise<{ added: number; files: number }> {
@@ -1240,6 +1260,8 @@ export class UsageService {
       return { added: 0, files: 0 };
     this.scanning = true;
     try {
+      // 游标与去重都要完整账本：后台载入没完成就先等它
+      await this.ledger.whenReady();
       const before = this.ledger.size();
       const r = await this.scanner.scan();
       this.lastScanAt = this.now();
@@ -1280,6 +1302,8 @@ export class UsageService {
   checkBudgets(): void {
     const s = this.settings;
     if (!s.enabled || (!(s.dailyBudget > 0) && !(s.monthlyBudget > 0))) return;
+    // 账本还在后台载入：数据不全不判断（载入完成后会再安排一次检查）
+    if (!this.ledger.isLoaded()) return;
     const now = this.now();
     const d = new Date(now);
     const dayKey = dateKey(now);
@@ -1590,21 +1614,30 @@ export class UsageService {
 
   heatmap() {
     const now = this.now();
-    const days = heatmap(this.ledger.all(), now, this.priceOf());
+    const today = startOfDay(now);
+    const ver = this.ledger.version();
+    const prices = this.settings.customPrices;
+    const priceVer = this.priceSync.version();
+    const c = this.heatCache;
+    if (c && c.ver === ver && c.prices === prices && c.priceVer === priceVer && c.today === today)
+      return { days: c.days, today: dateKey(now) };
+    // 只取热力图覆盖的 365 天（heatmap 自己也按这个窗口过滤；range 是按时间排好的同一份子序列，结果不变）
+    const recs = this.ledger.range(addDays(today, -364), addDays(today, 1));
+    const days = heatmap(recs, now, this.priceOf());
+    this.heatCache = { ver, prices, priceVer, today, days };
     return { days, today: dateKey(now) };
   }
 
   details(q: DetailQuery) {
-    return details(this.ledger.all(), q, this.priceOf(), this.labels());
+    // details 先按 [from, to) 过滤：二分取区间代替拷贝整本账（顺序相同，结果不变）
+    return details(this.ledger.range(q.from, q.to), q, this.priceOf(), this.labels());
   }
 
   csv(q: DetailQuery): string {
     const recs = this.ledger
-      .all()
+      .range(q.from, q.to)
       .filter(
         (r) =>
-          r.ts >= q.from &&
-          r.ts < q.to &&
           (!q.source || r.source === q.source) &&
           (!q.model || r.model === q.model) &&
           (!q.session || r.session === q.session),
@@ -1676,12 +1709,32 @@ export class UsageService {
         offset: typeof o.offset === 'number' ? o.offset : 0,
       };
     };
-    handle('ai:usage:state', () => this.state());
-    handle('ai:usage:query', (r) => this.query(rid(r)));
-    handle('ai:usage:heatmap', () => this.heatmap());
-    handle('ai:usage:endpoint', (id) => this.endpointUsage(endpointSourceOf(id)));
-    handle('ai:usage:details', (q) => this.details(dq(q)));
-    handle('ai:usage:csv', (q) => this.csv(dq(q)));
+    // 读账本的查询：大账本后台载入完成前先等，界面拿到的总是完整数据
+    const ready = this.ledger.whenReady();
+    handle('ai:usage:state', async () => {
+      await ready;
+      return this.state();
+    });
+    handle('ai:usage:query', async (r) => {
+      await ready;
+      return this.query(rid(r));
+    });
+    handle('ai:usage:heatmap', async () => {
+      await ready;
+      return this.heatmap();
+    });
+    handle('ai:usage:endpoint', async (id) => {
+      await ready;
+      return this.endpointUsage(endpointSourceOf(id));
+    });
+    handle('ai:usage:details', async (q) => {
+      await ready;
+      return this.details(dq(q));
+    });
+    handle('ai:usage:csv', async (q) => {
+      await ready;
+      return this.csv(dq(q));
+    });
     handle('ai:usage:set-settings', (p) => this.setSettings((p ?? {}) as Partial<UsageSettings>));
     handle('ai:usage:quota', () => this.quotaViewed());
     handle('ai:usage:quota-refresh', (tool) => this.refreshQuota(quotaToolOf(tool)));

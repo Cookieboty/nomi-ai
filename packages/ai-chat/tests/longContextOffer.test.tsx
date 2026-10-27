@@ -31,6 +31,7 @@ const tabRef: { current: HarnessTabMeta } = {
 
 vi.mock('../src/contexts/HarnessTabsContext', () => ({
   useHarnessTabs: () => ({ isCliTab: true, activeTab: tabRef.current }),
+  useHarnessTabsCore: () => ({ isCliTab: true, activeTab: tabRef.current }),
 }));
 
 const gatewayState = {
