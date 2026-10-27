@@ -82,6 +82,27 @@ function pick(params: MediaParams, keys: string[]): Record<string, unknown> {
   return o;
 }
 
+/**
+ * 各协议单次请求最多返回几张图。超过时主进程拆成多次请求再合并
+ * （Gemini / OpenRouter 对话出图一次只给 1 张）。
+ */
+export const PROTOCOL_MAX_IMAGES: Record<MediaProtocol, number> = {
+  'openai-images': 10,
+  'ark-image': 15,
+  fal: 4,
+  gemini: 1,
+  'openrouter-chat-image': 1,
+};
+
+/** 把请求的张数按协议上限切成若干批，例如 n=4、上限 1 → [1,1,1,1] */
+export function splitImageCount(protocol: MediaProtocol, n: unknown): number[] {
+  const total = typeof n === 'number' && Number.isFinite(n) && n >= 1 ? Math.floor(n) : 1;
+  const per = Math.max(1, PROTOCOL_MAX_IMAGES[protocol] ?? 1);
+  const out: number[] = [];
+  for (let left = total; left > 0; left -= per) out.push(Math.min(per, left));
+  return out;
+}
+
 export function buildRequest(input: GenerateInput): BuiltRequest {
   const base = trimSlash(input.baseURL);
   const { params, prompt, upstreamModel: model, apiKey } = input;

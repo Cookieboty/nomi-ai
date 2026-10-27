@@ -10,26 +10,31 @@ import type {
 import { t } from '@nomi-ai/ui';
 import { useEffect, useState } from 'react';
 /**
- * 生图客户端：`ai:media:*` IPC。生图 Key 只写不读——渲染层只能看到 hasKey / keyHint。
+ * 生图客户端：`ai:media:*` IPC。供应商 / Key 复用「模型 → 第三方供应商」的配置，这里只看得到
+ * 供应商名与是否可用；图片模型由主进程按打包规则识别，或在供应商设置里标记（markImage）。
  */
 
 export interface MediaProviderView {
   id: string;
   name: string;
-  baseURL: string;
-  preset?: string;
+  presetId?: string;
   enabled: boolean;
-  keyHint?: string;
   hasKey: boolean;
-  custom: boolean;
+}
+
+/** 供应商设置里的手动标记：modelId = 图片模型 schema；null = 不是图片模型 */
+export interface ImageMark {
+  providerRef: string;
+  upstream: string;
+  modelId: string | null;
 }
 
 export interface MediaState {
   schemaVersion: number;
   models: MediaModelSpec[];
-  presets: Array<{ id: string; name: string; baseURL: string }>;
   providers: MediaProviderView[];
   bindings: ProviderBinding[];
+  marks: ImageMark[];
   prefs: MediaPrefs;
   localOnly: boolean;
 }
@@ -62,6 +67,8 @@ export interface MediaTask {
   finishedAt?: number;
   assets: MediaAsset[];
   error?: { code: string; message: string };
+  /** 生成中进度：已完成批次 / 总批次 */
+  progress?: { done: number; total: number };
 }
 
 export interface SessionChoice {
@@ -77,6 +84,37 @@ export function usablePairs(state: MediaState | null): MediaModelChoice[] {
   return state.bindings
     .filter((b) => b.enabled && ok.has(b.providerRef))
     .map((b) => ({ modelId: b.modelId, providerRef: b.providerRef }));
+}
+
+/** 先选供应商：已启用、有 Key、且至少提供一个可用生图模型的供应商（按设置里的顺序） */
+export function choiceProviders(state: MediaState | null): MediaProviderView[] {
+  if (!state) return [];
+  const known = new Set(state.models.map((m) => m.id));
+  return state.providers.filter(
+    (p) =>
+      p.enabled &&
+      p.hasKey &&
+      state.bindings.some((b) => b.enabled && b.providerRef === p.id && known.has(b.modelId)),
+  );
+}
+
+/** 再选模型：该供应商已启用绑定的生图模型 id（按模型目录顺序） */
+export function providerModelIds(state: MediaState | null, providerRef: string): string[] {
+  if (!state) return [];
+  const on = new Set(
+    state.bindings.filter((b) => b.enabled && b.providerRef === providerRef).map((b) => b.modelId),
+  );
+  return state.models.filter((m) => on.has(m.id)).map((m) => m.id);
+}
+
+/** 换供应商：新供应商也提供当前模型就保留，否则换成它的第一个模型（无则空串） */
+export function modelForProvider(
+  state: MediaState | null,
+  providerRef: string,
+  modelId: string,
+): string {
+  const ids = providerModelIds(state, providerRef);
+  return ids.includes(modelId) ? modelId : (ids[0] ?? '');
 }
 
 export interface ChoiceChange {
@@ -122,22 +160,9 @@ const on = (ch: string, fn: (p: unknown) => void) => bridge()?.on(ch, fn) ?? (()
 export const mediaClient = {
   available: () => !!bridge(),
   state: () => call<MediaState>('state'),
-  upsertProvider: (p: {
-    id?: string;
-    name?: string;
-    baseURL?: string;
-    enabled?: boolean;
-    apiKey?: string | null;
-  }) => call<{ provider: MediaProviderView; changes: ChoiceChange[] }>('upsert-provider', p),
-  removeProvider: (id: string) => call<{ changes: ChoiceChange[] }>('remove-provider', id),
-  upsertBinding: (p: {
-    providerRef: string;
-    modelId: string;
-    enabled?: boolean;
-    presetKey?: MediaProtocol;
-    upstreamModelName?: string;
-  }) => call<{ changes: ChoiceChange[] }>('upsert-binding', p),
-  removeBinding: (c: MediaModelChoice) => call<{ changes: ChoiceChange[] }>('remove-binding', c),
+  /** modelId：标为该图片模型；null：标为不是图片模型；undefined：清除标记，回到自动识别 */
+  markImage: (p: { providerRef: string; upstream: string; modelId?: string | null }) =>
+    call<{ changes: ChoiceChange[] }>('mark-image', p),
   setChatDefault: (c: MediaModelChoice | null) => call<MediaPrefs>('set-chat-default', c),
   setPrefs: (p: { autoAddGenerated?: boolean; autoAddUploads?: boolean }) =>
     call<MediaPrefs>('set-prefs', p),
@@ -149,6 +174,10 @@ export const mediaClient = {
     },
   ) => call<MediaTask>('start', p),
   tasks: () => call<MediaTask[]>('tasks'),
+  /** 取消排队中 / 生成中的任务 */
+  cancel: (taskId: string) => call<boolean>('cancel', taskId),
+  /** 失败或取消的任务按原参数重新排队，返回新任务 */
+  retry: (taskId: string) => call<MediaTask>('retry', taskId),
   assets: (source?: AssetSource) => call<MediaAsset[]>('assets', source ? { source } : {}),
   lookup: (src: string) => call<MediaAsset | null>('lookup', src),
   addAsset: (src: string, source: AssetSource, conversationId?: string) =>

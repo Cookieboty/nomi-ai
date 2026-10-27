@@ -27,6 +27,10 @@ export interface ParamUi {
   surface?: UiSurface[];
   step?: number;
   optionLabels?: Record<string, string>;
+  /** 工作台控件形态：segmented = 整数取值渲染成分段按钮（不写则按取值范围自动判断） */
+  widget?: 'segmented';
+  /** 仅限制 UI 可选上限（API 上限仍以 maximum 为准），配合 widget: 'segmented' 使用 */
+  uiMax?: number;
 }
 
 export interface ParamSchema {

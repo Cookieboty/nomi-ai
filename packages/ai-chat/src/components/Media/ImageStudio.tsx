@@ -1,6 +1,8 @@
 /**
  * 图片工作台（整页，侧栏固定入口打开）。本文件只管状态与动作：
- * 主区（顶栏 / Hero / 进行中任务 / 结果大图 / 输入框）见 StudioMain，右侧「生成设置」见 StudioSettings。
+ * 主区（顶栏 / Hero / 进行中任务 + 生成队列 / 结果大图 / 输入框）见 StudioMain，右侧「生成设置」见 StudioSettings。
+ * 参数只在右侧编辑（唯一入口）；输入框下方只读摘要，点击跳到右侧对应项并高亮。
+ * 先选供应商，再选它提供的模型。队列在主进程（每个供应商并发上限见 PROVIDER_CONCURRENCY）。
  * 参数控件全部按当前模型 schema 渲染；记住上次选择（studioLast，主进程在成功后写入）；
  * 任务异步，结果经 ai:media:task 推送。
  */
@@ -18,8 +20,10 @@ import { t } from '@nomi-ai/ui';
 import React, { useEffect, useMemo, useState } from 'react';
 
 import {
+  choiceProviders,
   mediaClient,
   mediaToast,
+  modelForProvider,
   openMedia,
   useMediaState,
   type MediaAsset,
@@ -66,9 +70,13 @@ export interface StudioCtx {
   advOpen: boolean;
   draft: StudioDraft | null;
   focusTaskId: string | null;
+  /** 输入框摘要点击后高亮的右侧设置项（provider / model / 参数 key） */
+  highlight: string | null;
   setPrompt: (p: string) => void;
   setStyle: (s: StyleKey) => void;
-  setProviderRef: (p: string) => void;
+  pickProvider: (p: string) => void;
+  focusSetting: (key: string) => void;
+  cancel: (task: MediaTask) => void;
   setAdvOpen: (v: boolean) => void;
   setFocusTaskId: (id: string | null) => void;
   pickModel: (id: string) => void;
@@ -103,6 +111,12 @@ export const ImageStudio: React.FC<{ active: boolean; prompt?: string; onBack?: 
   const [advOpen, setAdvOpen] = useState(false);
   const [draft, setDraft] = useState<StudioDraft | null>(null);
   const [focusTaskId, setFocusTaskId] = useState<string | null>(null);
+  const [highlight, setHighlight] = useState<string | null>(null);
+  useEffect(() => {
+    if (!highlight) return;
+    const id = window.setTimeout(() => setHighlight(null), 1600);
+    return () => window.clearTimeout(id);
+  }, [highlight]);
 
   // 初始：上次的选择（参数按当前 schema 迁移），否则第一个有可用供应商的模型
   useEffect(() => {
@@ -110,6 +124,9 @@ export const ImageStudio: React.FC<{ active: boolean; prompt?: string; onBack?: 
     const last = state.prefs.studioLast;
     const spec =
       (last && state.models.find((m) => m.id === last.modelId)) ||
+      state.models.find(
+        (m) => m.id === modelForProvider(state, choiceProviders(state)[0]?.id ?? '', ''),
+      ) ||
       state.models.find((m) => usable(state, m.id).length) ||
       state.models[0];
     if (spec) {
@@ -149,7 +166,8 @@ export const ImageStudio: React.FC<{ active: boolean; prompt?: string; onBack?: 
       if (task.surface !== 'studio') return;
       setTasks((prev) => [task, ...prev.filter((x) => x.id !== task.id)]);
       if (task.status === 'succeeded') setFocusTaskId(null);
-      if (task.status === 'failed' && task.error) mediaToast(task.error.message);
+      if (task.status === 'failed' && task.error && task.error.code !== 'canceled')
+        mediaToast(task.error.message);
     });
     const offChanged = mediaClient.onChanged(() => {
       void mediaClient
@@ -171,11 +189,14 @@ export const ImageStudio: React.FC<{ active: boolean; prompt?: string; onBack?: 
   if (!state) return null;
   const maxRefs = spec?.['x-media']?.image?.max ?? 0;
 
-  const pickModel = (id: string, keep?: MediaParams) => {
+  const pickModel = (id: string, keep?: MediaParams, via?: string) => {
     const to = state.models.find((m) => m.id === id);
     if (!to) return;
     setModelId(id);
-    setProviderRef(usable(state, id)[0]?.id ?? '');
+    const ps = usable(state, id);
+    const ref = via ?? providerRef;
+    // 当前供应商也提供该模型就不换供应商
+    setProviderRef(ps.some((p) => p.id === ref) ? ref : (ps[0]?.id ?? ''));
     setParams(migrateParams(to, keep ?? params, state.prefs.userDefaults[id]).params);
     setRefs((r) => r.slice(0, to['x-media']?.image?.max ?? 0));
   };
@@ -214,7 +235,22 @@ export const ImageStudio: React.FC<{ active: boolean; prompt?: string; onBack?: 
     focusTaskId,
     setPrompt,
     setStyle,
-    setProviderRef,
+    highlight,
+    pickProvider: (ref) => {
+      const next = modelForProvider(state, ref, modelId);
+      if (next && next !== modelId) pickModel(next, undefined, ref);
+      else setProviderRef(ref);
+    },
+    focusSetting: (key) => {
+      if (spec && layout?.advanced.some((f) => f.key === key)) setAdvOpen(true);
+      setHighlight(key);
+      window.requestAnimationFrame(() =>
+        document
+          .querySelector(`[data-setting="${key}"]`)
+          ?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
+      );
+    },
+    cancel: (task) => void mediaClient.cancel(task.id).catch((e: Error) => mediaToast(e.message)),
     setAdvOpen,
     setFocusTaskId,
     pickModel: (id) => pickModel(id),
@@ -249,14 +285,19 @@ export const ImageStudio: React.FC<{ active: boolean; prompt?: string; onBack?: 
         refs: refs.map((assetId) => ({ assetId })),
       });
     },
-    // 按快照重试：用任务当时的模型 / 供应商 / 提示词 / 参数原样再跑一次
+    // 失败的任务交给主进程按原请求（含参考图）重新排队；其余按快照再跑一次
     retry: (task) =>
-      void submit({
-        modelId: task.modelId,
-        providerRef: task.providerRef,
-        prompt: task.prompt,
-        params: task.params,
-      }),
+      task.status === 'failed'
+        ? void mediaClient
+            .retry(task.id)
+            .then((n) => setTasks((prev) => [n, ...prev.filter((x) => x.id !== n.id)]))
+            .catch((e: Error) => mediaToast(e.message || t('ui.media.action-failed')))
+        : void submit({
+            modelId: task.modelId,
+            providerRef: task.providerRef,
+            prompt: task.prompt,
+            params: task.params,
+          }),
     save: () => {
       const s = storage();
       if (!s) return;

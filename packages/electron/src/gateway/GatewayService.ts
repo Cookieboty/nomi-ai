@@ -763,6 +763,41 @@ export class GatewayService {
     return { id: p.id, name: p.name, baseURL: p.urls.chat, ...(key ? { apiKey: key } : {}) };
   }
 
+  /**
+   * 生图复用这里的供应商（同一个列表 / Key / 地址 / 启用开关）：列出供应商的基本信息与模型，
+   * hasKey = 有已启用且能解密的 Key。不含 Key。
+   */
+  mediaProviders(): Array<{
+    id: string;
+    name: string;
+    presetId?: string;
+    enabled: boolean;
+    hasKey: boolean;
+    urls: Partial<Record<'messages' | 'responses' | 'chat' | 'gemini', string>>;
+    models: Array<{ id: string; enabled: boolean }>;
+  }> {
+    return this.store.providers().map((p) => ({
+      id: p.id,
+      name: p.name,
+      ...(p.presetId ? { presetId: p.presetId } : {}),
+      enabled: p.enabled,
+      hasKey: p.keys.some((k) => k.enabled && this.store.decrypt(k.enc, k.encryption) !== null),
+      urls: { ...p.urls },
+      models: p.models.map((m) => ({ id: m.id, enabled: m.enabled })),
+    }));
+  }
+
+  /** 生图用的 Key（只在主进程内使用，绝不发给渲染进程）：第一个已启用、能解密的 Key */
+  mediaApiKey(id: string): string {
+    const p = this.store.providers().find((x) => x.id === id && x.enabled);
+    return (
+      p?.keys
+        .filter((k) => k.enabled)
+        .map((k) => this.store.decrypt(k.enc, k.encryption))
+        .find((v): v is string => Boolean(v)) ?? ''
+    );
+  }
+
   /** 同上，列表（不含 Key） */
   listOpenAiCompatible(): Array<{ id: string; name: string; baseURL: string }> {
     return this.store

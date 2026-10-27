@@ -1,5 +1,5 @@
 /**
- * 工作台右侧「生成设置」：模型（先选模型）→ 供应商 → schema 基础参数 → 风格 → 高级参数（折叠）
+ * 工作台右侧「生成设置」（参数唯一编辑入口）：供应商 → 该供应商的模型 → schema 基础参数 → 风格 → 高级参数（折叠）
  * → 参考图（上传 / 素材库）→ 历史记录。所有参数字段与取值来自当前模型 schema。
  */
 import { Icon, IconButton, t } from '@nomi-ai/ui';
@@ -15,23 +15,31 @@ import {
 } from 'lucide-react';
 import React, { useRef, useState } from 'react';
 
-import { displayName, modelName, openMedia, type MediaTask } from '../../services/mediaClient';
+import {
+  choiceProviders,
+  displayName,
+  modelName,
+  openMedia,
+  providerModelIds,
+  type MediaTask,
+} from '../../services/mediaClient';
 
 import { usable, type StudioCtx } from './ImageStudio';
 import styles from './Studio.module.css';
 import { IconMenu, StudioField, label, type MenuItem } from './StudioControls';
 import { CAP_I18N, STYLE_I18N, STYLE_KEYS, UPLOAD_TYPES } from './studioModel';
 
-/** 模型下拉项：名称 + 「默认」徽标（对话默认模型）+ 按能力生成的一行说明 */
+/** 模型下拉项：只列当前供应商提供的模型；名称 + 「默认」徽标 + 能力标签（文生图 / 图生图） */
 export function modelItems(ctx: StudioCtx): MenuItem[] {
   const def = ctx.state.prefs.chatDefaultImage?.modelId;
-  return ctx.state.models.map((m) => ({
+  const ids = ctx.providerRef ? providerModelIds(ctx.state, ctx.providerRef) : [];
+  const models = ids.length ? ctx.state.models.filter((m) => ids.includes(m.id)) : ctx.state.models;
+  return models.map((m) => ({
     value: m.id,
     title: m.name,
     badge: m.id === def ? t('ui.providers-schedule.default') : undefined,
-    description: usable(ctx.state, m.id).length
-      ? m.capabilities.flatMap((c) => (CAP_I18N[c] ? [t(CAP_I18N[c])] : [])).join(' · ')
-      : t('ui.media.no-usable-provider'),
+    tags: m.capabilities.flatMap((c) => (CAP_I18N[c] ? [t(CAP_I18N[c])] : [])),
+    ...(usable(ctx.state, m.id).length ? {} : { description: t('ui.media.no-usable-provider') }),
   }));
 }
 
@@ -204,47 +212,54 @@ const Refs: React.FC<{ ctx: StudioCtx }> = ({ ctx }) => {
 };
 
 export const StudioSettings: React.FC<{ ctx: StudioCtx }> = ({ ctx }) => {
-  const providers = ctx.modelId ? usable(ctx.state, ctx.modelId) : [];
+  const providers = choiceProviders(ctx.state);
+  const hl = (key: string) => (ctx.highlight === key ? styles.settingHl : '');
   const field = (f: NonNullable<StudioCtx['layout']>['basic'][number]) => (
-    <StudioField
-      key={f.key}
-      f={f}
-      value={ctx.params[f.key]}
-      onChange={(v) => ctx.change(f.key, v)}
-    />
+    <div key={f.key} data-setting={f.key} className={`${styles.settingSlot} ${hl(f.key)}`}>
+      <StudioField f={f} value={ctx.params[f.key]} onChange={(v) => ctx.change(f.key, v)} />
+    </div>
   );
   return (
     <aside className={styles.side} data-testid="studio-params">
       <div className={styles.sideCard}>
         <h3 className={styles.sideTitle}>{t('ui.media.settings-title')}</h3>
         <section className={styles.sideSection}>
-          <span className={styles.sectionTitle}>{t('ui.media.model-select')}</span>
-          <IconMenu
-            items={modelItems(ctx)}
-            value={ctx.modelId}
-            onChange={ctx.pickModel}
-            icon={<Icon icon={Sparkles} size={18} />}
-            ariaLabel={t('ui.media.assign-model')}
-            testId="studio-model"
-          />
-          <IconMenu
-            items={providers.map((p) => ({
-              value: p.id,
-              title: displayName(p.name),
-              description: t('ui.media.via-provider', displayName(p.name)),
-            }))}
-            value={ctx.providerRef}
-            onChange={ctx.setProviderRef}
-            icon={<Icon icon={Plug} size={16} />}
-            ariaLabel={t('ui.media.choose-provider')}
-            placeholder={
-              providers.length
-                ? t('ui.media.choose-provider')
-                : t('ui.media.configure-provider-in-settings')
-            }
-            disabled={!providers.length}
-            testId="studio-provider"
-          />
+          <span className={styles.sectionTitle} title={t('ui.media.provider-first')}>
+            {t('ui.media.model-select')}
+          </span>
+          <div data-setting="provider" className={`${styles.settingSlot} ${hl('provider')}`}>
+            <IconMenu
+              items={providers.map((p) => ({
+                value: p.id,
+                title: displayName(p.name),
+                description: t(
+                  'ui.media.provider-models',
+                  providerModelIds(ctx.state, p.id).length,
+                ),
+              }))}
+              value={ctx.providerRef}
+              onChange={ctx.pickProvider}
+              icon={<Icon icon={Plug} size={16} />}
+              ariaLabel={t('ui.media.choose-provider')}
+              placeholder={
+                providers.length
+                  ? t('ui.media.choose-provider')
+                  : t('ui.media.configure-provider-in-settings')
+              }
+              disabled={!providers.length}
+              testId="studio-provider"
+            />
+          </div>
+          <div data-setting="model" className={`${styles.settingSlot} ${hl('model')}`}>
+            <IconMenu
+              items={modelItems(ctx)}
+              value={ctx.modelId}
+              onChange={ctx.pickModel}
+              icon={<Icon icon={Sparkles} size={18} />}
+              ariaLabel={t('ui.media.assign-model')}
+              testId="studio-model"
+            />
+          </div>
         </section>
         <section className={styles.sideSection}>{ctx.layout?.basic.map(field)}</section>
         <section className={styles.sideSection}>

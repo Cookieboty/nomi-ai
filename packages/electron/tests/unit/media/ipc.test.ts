@@ -21,24 +21,28 @@ import path from 'node:path';
 import { registerMediaIpc } from '../../../src/media/ipc';
 import { MediaService } from '../../../src/media/MediaService';
 
+import { fakeProviders } from './fakeProviders';
+
 const SECRET = 'sk-ipc-secret-9876';
 
 describe('ai:media IPC', () => {
+  const src = fakeProviders();
+  src.key('openai', SECRET);
   const svc = new MediaService({
     root: mkdtempSync(path.join(os.tmpdir(), 'media-ipc-')),
     logger: { info: jest.fn(), warn: jest.fn() },
-    codec: {
-      encrypt: (v) => `enc:${Buffer.from(v).toString('base64')}`,
-      decrypt: (v) => (v ? Buffer.from(v.slice(4), 'base64').toString() : ''),
-    },
+    providers: src,
   });
   registerMediaIpc(svc);
   const call = (ch: string, ...a: unknown[]) => handlers.get(ch)!(...a);
 
-  it('写入 Key 后，state / upsert 返回 / 会话模型查询都不含明文或密文', async () => {
-    const enc = `enc:${Buffer.from(SECRET).toString('base64')}`;
+  it('共用供应商有 Key 时，state / 标记 / 会话模型查询都不含 Key', async () => {
     const outs = [
-      await call('ai:media:upsert-provider', { id: 'openai', apiKey: SECRET }),
+      await call('ai:media:mark-image', {
+        providerRef: 'openai',
+        upstream: 'gpt-4.1',
+        modelId: null,
+      }),
       await call('ai:media:set-chat-default', { modelId: 'gpt-image-1', providerRef: 'openai' }),
       await call('ai:media:state'),
       await call('ai:media:session-choice', 'c1'),
@@ -50,7 +54,6 @@ describe('ai:media IPC', () => {
     for (const o of outs) {
       const s = JSON.stringify(o);
       expect(s).not.toContain(SECRET);
-      expect(s).not.toContain(enc);
     }
     const st = (await call('ai:media:state')) as {
       providers: Array<{ id: string; hasKey: boolean }>;

@@ -409,3 +409,31 @@
 .mediaMain[hidden] {
   display: none;
 }
+.menuGroup {
+  padding: var(--cd-space-1-5) var(--cd-space-2) 2px;
+  font-size: var(--cd-font-size-xs);
+  font-weight: var(--cd-font-weight-medium);
+  color: var(--cd-color-text-muted);
+}
+.menuGroup ~ .menuItem {
+  padding-left: var(--cd-space-4);
+}
+
+.imageMark {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.imageBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--cd-color-accent-strong, var(--cd-color-text));
+  background: var(--cd-color-accent-soft);
+  white-space: nowrap;
+}

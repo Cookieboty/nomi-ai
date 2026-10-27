@@ -81,15 +81,13 @@ export function hasStyleParam(properties: Record<string, unknown>): boolean {
 export function segmentOptions(f: ResolvedField, maxSegments = 6): ParamValue[] | null {
   const ui = f['x-ui'];
   if (f.enum && ui.control === 'chips') return f.enum;
-  if (
-    f.type === 'integer' &&
-    typeof f.minimum === 'number' &&
-    typeof f.maximum === 'number' &&
-    f.maximum - f.minimum + 1 <= maxSegments &&
-    f.maximum >= f.minimum
-  ) {
+  if (f.type === 'integer' && typeof f.minimum === 'number' && typeof f.maximum === 'number') {
+    // x-ui 显式声明 segmented 时可用 uiMax 收窄 UI 可选上限；否则仅取值范围 ≤ maxSegments 才分段
+    const declared = ui.widget === 'segmented';
+    const hi = declared && typeof ui.uiMax === 'number' ? Math.min(f.maximum, ui.uiMax) : f.maximum;
+    if (hi < f.minimum || hi - f.minimum + 1 > maxSegments) return null;
     const out: number[] = [];
-    for (let v = f.minimum; v <= f.maximum; v++) out.push(v);
+    for (let v = f.minimum; v <= hi; v++) out.push(v);
     return out;
   }
   return null;
@@ -138,4 +136,23 @@ export const UPLOAD_TYPES = ['image/png', 'image/jpeg'];
 
 export function uploadAllowed(file: { type: string; size: number }): boolean {
   return UPLOAD_TYPES.includes(file.type) && file.size <= MAX_UPLOAD_BYTES;
+}
+
+type QueueTask = {
+  id: string;
+  status: 'queued' | 'running' | 'succeeded' | 'failed';
+  createdAt: number;
+};
+
+/**
+ * 主区生成队列：生成中 → 排队中（都按提交先后）→ 最近结束的任务（新的在前），总数不超过 max。
+ * tasks 为「新的在前」的任务列表。
+ */
+export function queueView<T extends QueueTask>(tasks: T[], max = 6): T[] {
+  const byTime = (a: T, b: T) => a.createdAt - b.createdAt;
+  const running = tasks.filter((x) => x.status === 'running').sort(byTime);
+  const queued = tasks.filter((x) => x.status === 'queued').sort(byTime);
+  const ended = tasks.filter((x) => x.status === 'succeeded' || x.status === 'failed');
+  const active = [...running, ...queued];
+  return [...active, ...ended.slice(0, Math.max(0, max - active.length))];
 }

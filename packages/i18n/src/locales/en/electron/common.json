@@ -647,6 +647,5 @@
   "electron.common.media-empty-result": "The provider returned no image",
   "electron.common.media-tool-prompt": "A detailed description of the image to generate (subject, style, composition, lighting…), written in the user's language",
   "electron.common.media-tool-description": "Generate images with the image model the user chose in Settings. Only call this when the user explicitly asks for a picture. Aspect ratio, count and other parameters are optional. If it returns not_configured, tell the user to set it up in Settings; do not try another way to generate.",
-  "electron.common.media-tool-note": "The images are already shown in the UI; do not repeat image links or Markdown images in your reply.",
-  "electron.common.media-secure-storage-unavailable": "Secure system storage is unavailable, so the image API key can't be saved"
+  "electron.common.media-tool-note": "The images are already shown in the UI; do not repeat image links or Markdown images in your reply."
 }

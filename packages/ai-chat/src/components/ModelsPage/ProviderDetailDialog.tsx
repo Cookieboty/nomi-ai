@@ -49,8 +49,10 @@ import {
   type StoredProbe,
   type Wire,
 } from '../../services/gatewayClient';
+import { useMediaState, type MediaState } from '../../services/mediaClient';
 import { pickerProviders } from '../../services/nomiModel';
 import { providerDisplayName } from '../../services/providerClient';
+import { MediaImageMark } from '../Media/MediaSettings';
 
 import { NON_CHAT, storedProbes } from './AddProviderDialog';
 import styles from './index.module.css';
@@ -231,9 +233,12 @@ const ModelRow = memo(function ModelRow({
   readOnly,
   onSet,
   onRemove,
+  image,
 }: {
   m: GatewayModel;
   readOnly: boolean;
+  /** 生图标记（复用这个供应商生图）；没有生图能力时不显示 */
+  image?: { state: MediaState; providerId: string; onDone: () => void };
   onSet: (id: string, x: Partial<GatewayModel>) => void;
   onRemove: (id: string) => void;
 }) {
@@ -249,6 +254,14 @@ const ModelRow = memo(function ModelRow({
         <span>{m.label ?? m.id}</span>
       </label>
       <ModelBadges m={m} />
+      {image && (
+        <MediaImageMark
+          state={image.state}
+          providerId={image.providerId}
+          upstream={m.id}
+          onDone={image.onDone}
+        />
+      )}
       {!readOnly && (
         <IconButton
           size="sm"
@@ -288,6 +301,15 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
   onRemove,
 }) => {
   const readOnly = p.source === 'env';
+  // 生图复用这个供应商：模型行上可看到 / 修改「图片模型」识别结果
+  const [media, refreshMedia] = useMediaState();
+  const imageCtx = useMemo(
+    () =>
+      media && !readOnly ? { state: media, providerId: p.id, onDone: refreshMedia } : undefined,
+    // refreshMedia 每次渲染都是新函数，只随状态变化
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [media, readOnly, p.id],
+  );
   const [initial] = useState(() => initDraft(p));
   const [d, setD] = useState<Draft>(initial);
   const [keysText, setKeysText] = useState('');
@@ -745,6 +767,7 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                   readOnly={readOnly}
                   onSet={setModel}
                   onRemove={removeModel}
+                  image={imageCtx}
                 />
               ))}
             </div>

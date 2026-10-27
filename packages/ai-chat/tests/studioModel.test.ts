@@ -7,6 +7,7 @@ import {
   estimateProgress,
   hasStyleParam,
   loadDraft,
+  queueView,
   saveDraft,
   segmentOptions,
   uploadAllowed,
@@ -71,6 +72,30 @@ describe('segmentOptions follows the schema', () => {
     const q = basic.find((f) => f.key === 'quality')!;
     expect(segmentOptions(q)).toBeNull();
   });
+
+  it('Seedream n (API 1-15) declares segmented with uiMax 4 → 1/2/3/4', () => {
+    const sd = IMAGE_MODEL_SPECS.find((s) => s.id === 'seedream-4')!;
+    const n = layoutProperties(sd, initialParams(sd), 'studio').basic.find((f) => f.key === 'n')!;
+    expect(n.maximum).toBe(15);
+    expect(segmentOptions(n)).toEqual([1, 2, 3, 4]);
+  });
+
+  it('integer range ≤ 6 segments, larger range stays a slider unless declared', () => {
+    const field = (maximum: number, ui: Record<string, unknown> = {}) =>
+      ({
+        key: 'n',
+        type: 'integer',
+        minimum: 1,
+        maximum,
+        'x-ui': { control: 'stepper', label: 'x', order: 1, ...ui },
+      }) as unknown as Parameters<typeof segmentOptions>[0];
+    expect(segmentOptions(field(6))).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(segmentOptions(field(7))).toBeNull();
+    expect(segmentOptions(field(15))).toBeNull();
+    expect(segmentOptions(field(15, { widget: 'segmented' }))).toBeNull();
+    expect(segmentOptions(field(15, { widget: 'segmented', uiMax: 3 }))).toEqual([1, 2, 3]);
+    expect(segmentOptions(field(2, { widget: 'segmented', uiMax: 4 }))).toEqual([1, 2]);
+  });
 });
 
 describe('draft', () => {
@@ -101,4 +126,31 @@ it('upload limits', () => {
   expect(uploadAllowed({ type: 'image/png', size: 1 })).toBe(true);
   expect(uploadAllowed({ type: 'image/webp', size: 1 })).toBe(false);
   expect(uploadAllowed({ type: 'image/jpeg', size: 11 * 1024 * 1024 })).toBe(false);
+});
+
+describe('queueView', () => {
+  const task = (
+    id: string,
+    status: 'queued' | 'running' | 'succeeded' | 'failed',
+    createdAt: number,
+  ) => ({
+    id,
+    status,
+    createdAt,
+  });
+  it('生成中、排队中按提交顺序在前，再接最近结束的任务，总数受限', () => {
+    // 新的在前
+    const tasks = [
+      task('q2', 'queued', 6),
+      task('q1', 'queued', 5),
+      task('r2', 'running', 4),
+      task('r1', 'running', 3),
+      task('f', 'failed', 2),
+      task('d', 'succeeded', 1),
+      task('old', 'succeeded', 0),
+    ];
+    expect(queueView(tasks).map((x) => x.id)).toEqual(['r1', 'r2', 'q1', 'q2', 'f', 'd']);
+    expect(queueView(tasks, 3).map((x) => x.id)).toEqual(['r1', 'r2', 'q1', 'q2']);
+    expect(queueView([])).toEqual([]);
+  });
 });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  splitImageCount,
   buildRequest,
   openaiSizeFor,
   parseResponse,
@@ -173,5 +174,17 @@ describe('协议适配（纯函数，无网络）', () => {
     expect(
       parseResponse('fal', { images: [{ url: 'https://img', content_type: 'image/jpeg' }] }),
     ).toEqual([{ url: 'https://img', mime: 'image/jpeg' }]);
+  });
+});
+
+describe('splitImageCount', () => {
+  it('按协议单次上限拆分张数', () => {
+    expect(splitImageCount('gemini', 3)).toEqual([1, 1, 1]);
+    expect(splitImageCount('openrouter-chat-image', 2)).toEqual([1, 1]);
+    expect(splitImageCount('openai-images', 4)).toEqual([4]);
+    expect(splitImageCount('openai-images', 12)).toEqual([10, 2]);
+    expect(splitImageCount('ark-image', 15)).toEqual([15]);
+    expect(splitImageCount('fal', undefined)).toEqual([1]);
+    expect(splitImageCount('fal', 0)).toEqual([1]);
   });
 });

@@ -557,6 +557,26 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = Object.freeze([
     hint: 'ai-runtime.providers.hint-openrouter',
   }),
   P({
+    // 只生图的平台（图片工作台 / 对话生图用，不提供对话模型）。fal 的同步接口 POST https://fal.run/{model}，
+    // Authorization: Key …；没有列模型接口，按 preset 规则不预填模型，用户手动加模型 id（如 fal-ai/flux-pro/v1.1），生图按 model_specs 规则识别。
+    id: 'fal',
+    name: 'ai-runtime.providers.preset-fal',
+    category: 'platform',
+    protocol: 'openai-chat',
+    baseURL: 'https://fal.run',
+    defaultModel: '',
+    models: [],
+    icon: 'fal',
+    requiresApiKey: true,
+    websiteUrl: 'https://fal.ai',
+    apiKeyUrl: 'https://fal.ai/dashboard/keys',
+    docsUrl: 'https://docs.fal.ai/model-apis/quickstart',
+    modelsEndpoint: false,
+    verified: true,
+    keywords: ['fal', 'flux', '生图', 'image'],
+    hint: 'ai-runtime.providers.hint-fal',
+  }),
+  P({
     id: 'siliconflow',
     name: 'ai-runtime.providers.preset-siliconflow',
     category: 'platform',

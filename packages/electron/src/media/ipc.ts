@@ -1,5 +1,5 @@
 /**
- * 生图 IPC（ai:media:*）。Key 只进不出：渲染层只能写入 / 清除，读取永远拿不到明文。
+ * 生图 IPC（ai:media:*）。供应商与 Key 用 Nomi 已有的第三方供应商配置；这里不收也不出任何 Key。
  */
 import * as fs from 'fs';
 import * as path from 'path';
@@ -48,35 +48,15 @@ export function registerMediaIpc(svc: MediaService): void {
     );
 
   handle('ai:media:state', () => svc.state());
-  handle('ai:media:upsert-provider', (p) => {
+  handle('ai:media:mark-image', (p) => {
     const o = (p ?? {}) as Record<string, unknown>;
-    return svc.upsertProvider({
-      ...(typeof o.id === 'string' ? { id: o.id } : {}),
-      ...(typeof o.name === 'string' ? { name: str(o.name, 80) } : {}),
-      ...(typeof o.baseURL === 'string' ? { baseURL: str(o.baseURL, 500) } : {}),
-      ...(typeof o.enabled === 'boolean' ? { enabled: o.enabled } : {}),
-      ...(o.apiKey === null || typeof o.apiKey === 'string'
-        ? { apiKey: o.apiKey === null ? null : str(o.apiKey, 1000) }
+    return svc.markImage({
+      providerRef: str(o.providerRef, 128),
+      upstream: str(o.upstream, 200),
+      ...(o.modelId === null || typeof o.modelId === 'string'
+        ? { modelId: o.modelId === null ? null : str(o.modelId, 64) }
         : {}),
     });
-  });
-  handle('ai:media:remove-provider', (id) => svc.removeProvider(str(id, 64)));
-  handle('ai:media:upsert-binding', (p) => {
-    const o = (p ?? {}) as Record<string, unknown>;
-    const c = choiceOf(o);
-    if (!c) return { __error: { code: 'invalid', message: 'invalid binding' } };
-    return svc.upsertBinding({
-      ...c,
-      ...(typeof o.enabled === 'boolean' ? { enabled: o.enabled } : {}),
-      ...(typeof o.presetKey === 'string' ? { presetKey: o.presetKey as never } : {}),
-      ...(typeof o.upstreamModelName === 'string'
-        ? { upstreamModelName: str(o.upstreamModelName, 200) }
-        : {}),
-    });
-  });
-  handle('ai:media:remove-binding', (p) => {
-    const c = choiceOf(p);
-    return c ? svc.removeBinding(c) : { changes: [] };
   });
   handle('ai:media:set-chat-default', (p) => svc.setChatDefault(choiceOf(p)));
   handle('ai:media:set-prefs', (p) => {
@@ -106,6 +86,8 @@ export function registerMediaIpc(svc: MediaService): void {
     });
   });
   handle('ai:media:tasks', () => svc.listTasks());
+  handle('ai:media:cancel', (id) => svc.cancel(str(id, 64)));
+  handle('ai:media:retry', (id) => svc.retry(str(id, 64)));
   handle('ai:media:assets', (p) => {
     const o = (p ?? {}) as Record<string, unknown>;
     return svc.listAssets(

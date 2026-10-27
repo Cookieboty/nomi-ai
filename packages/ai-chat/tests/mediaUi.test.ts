@@ -8,6 +8,7 @@ import {
 } from '../src/components/Media/AssetLibrary';
 import { pillLabel } from '../src/components/Media/MediaSessionPill';
 import {
+  choiceProviders,
   originalOf,
   rememberOriginal,
   usablePairs,
@@ -17,7 +18,7 @@ import {
 const state = {
   schemaVersion: 1,
   models: [{ id: 'm1', name: 'Model One' }],
-  presets: [],
+  marks: [],
   providers: [
     { id: 'p1', name: 'Prov A', enabled: true, hasKey: true },
     { id: 'p2', name: 'Prov B', enabled: true, hasKey: false },
@@ -80,5 +81,13 @@ describe('上传图原图登记', () => {
     for (let i = 0; i < 70; i++) rememberOriginal(`t${i}`, 'image/jpeg', 'eA==');
     expect(originalOf('t0')).toBeNull();
     expect(originalOf('t69')).not.toBeNull();
+  });
+});
+
+describe('生图供应商列表（复用第三方供应商）', () => {
+  it('只列已启用、有 Key、且识别出可用图片模型的供应商', () => {
+    expect(choiceProviders(state).map((p) => p.id)).toEqual(['p1']);
+    expect(choiceProviders({ ...state, bindings: [] })).toEqual([]);
+    expect(choiceProviders(null)).toEqual([]);
   });
 });

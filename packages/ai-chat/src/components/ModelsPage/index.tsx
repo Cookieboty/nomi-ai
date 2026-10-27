@@ -41,7 +41,7 @@ import { pickerProviders, useGatewayState } from '../../services/nomiModel';
 import { providerDisplayName } from '../../services/providerClient';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { EndpointIcon } from '../EndpointIcon';
-import { MediaAssignRow, MediaProvidersCard } from '../Media/MediaSettings';
+import { MediaAssignRow, MediaPrefsCard } from '../Media/MediaSettings';
 
 import { AddProviderDialog } from './AddProviderDialog';
 import styles from './index.module.css';
@@ -334,7 +334,7 @@ export const ModelsPage: React.FC = () => {
       </section>
       {cli.dialog}
 
-      <MediaProvidersCard className={styles.card} titleClassName={styles.cardTitle} />
+      <MediaPrefsCard className={styles.card} titleClassName={styles.cardTitle} />
 
       <section className={styles.card} aria-labelledby="models-providers">
         <div className={styles.cardHeadRow}>

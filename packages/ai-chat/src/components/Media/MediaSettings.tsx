@@ -1,39 +1,27 @@
 /**
- * 设置 → 模型：「按任务分配」里的「生图」行 + 生图供应商卡片（Key 只写不读）+ 两个入库开关。
- * 先选模型，再选能提供它的（已启用且已填 Key 的）供应商；初始未配置。
+ * 设置 → 模型：「按任务分配」里的「生图」行、供应商模型行上的「图片」标记、素材库开关。
+ * 生图没有独立的供应商配置：直接复用「第三方供应商」（同一份列表 / Key / 地址 / 启用开关），
+ * 图片模型按打包的 model_specs 规则自动识别，也可以在供应商的模型行上手动标记。
  */
-import type { MediaProtocol } from '@nomi-ai/gateway/media';
-import { Button, Icon, Input, Select, Switch, t } from '@nomi-ai/ui';
-import { ChevronDown, ChevronRight, ImagePlus, Trash2 } from 'lucide-react';
-import React, { useState } from 'react';
+import { Icon, Select, Switch, t } from '@nomi-ai/ui';
+import { ImagePlus } from 'lucide-react';
+import React from 'react';
 
 import {
+  choiceProviders,
   displayName,
+  modelForProvider,
+  modelName,
+  providerModelIds,
   mediaClient,
   mediaToast,
   describeChange,
   useMediaState,
   type ChoiceChange,
-  type MediaProviderView,
   type MediaState,
 } from '../../services/mediaClient';
 
 import styles from './Media.module.css';
-
-const PROTOCOLS: MediaProtocol[] = [
-  'openai-images',
-  'gemini',
-  'ark-image',
-  'openrouter-chat-image',
-  'fal',
-];
-
-function usableProviders(s: MediaState, modelId: string): MediaProviderView[] {
-  return s.bindings
-    .filter((b) => b.modelId === modelId && b.enabled)
-    .map((b) => s.providers.find((p) => p.id === b.providerRef))
-    .filter((p): p is MediaProviderView => !!p && p.enabled && p.hasKey);
-}
 
 function report(state: MediaState | null, changes: ChoiceChange[] | undefined): void {
   for (const c of changes ?? []) mediaToast(describeChange(state, c));
@@ -56,59 +44,60 @@ export interface MediaAssignRowProps {
 /** 「按任务分配」→「生图」 */
 export const MediaAssignRow: React.FC<MediaAssignRowProps> = ({ rowClassName, labelClassName }) => {
   const [state, refresh] = useMediaState();
-  const [pendingModel, setPendingModel] = useState<string | null>(null);
   if (!mediaClient.available() || !state) return null;
   const cur = state.prefs.chatDefaultImage;
-  const modelId = pendingModel ?? cur?.modelId ?? '';
-  const providers = modelId ? usableProviders(state, modelId) : [];
-  const modelOptions = [
-    { value: '', label: t('ui.providers-schedule.not-configured-plain') },
-    ...state.models.map((m) => ({
-      value: m.id,
-      label: m.name,
-      description: usableProviders(state, m.id).length
-        ? undefined
-        : t('ui.media.no-usable-provider'),
+  const providerRef = cur?.providerRef ?? '';
+  // 先选供应商（已启用 + 有 Key + 有可用模型），再选它提供的模型
+  const providerOptions = [
+    {
+      value: '',
+      label: t('ui.providers-schedule.not-configured-plain'),
+      // 没有可生图的供应商：引导到下方「第三方供应商」里添加 / 标记图片模型
+      ...(choiceProviders(state).length ? {} : { description: t('ui.media.no-image-provider') }),
+    },
+    ...choiceProviders(state).map((p) => ({
+      value: p.id,
+      label: displayName(p.name),
+      description: t('ui.media.provider-models', providerModelIds(state, p.id).length),
     })),
   ];
-  const providerOptions = providers.map((p) => ({ value: p.id, label: displayName(p.name) }));
+  const modelOptions = providerModelIds(state, providerRef).map((id) => ({
+    value: id,
+    label: modelName(state, id),
+  }));
   const setDefault = async (choice: { modelId: string; providerRef: string } | null) => {
     await guarded(() => mediaClient.setChatDefault(choice));
-    setPendingModel(null);
     refresh();
   };
   return (
     <div className={rowClassName} data-testid="assign-image">
-      <span className={labelClassName}>{t('ui.media.assign-label')}</span>
+      <span className={labelClassName} title={t('ui.media.provider-first')}>
+        {t('ui.media.assign-label')}
+      </span>
       <div className={styles.assignPickers}>
         <Select
           size="sm"
-          value={modelId}
-          options={modelOptions}
-          aria-label={t('ui.media.assign-model')}
-          data-testid="assign-image-model"
+          value={providerRef}
+          options={providerOptions}
+          aria-label={t('ui.media.choose-provider')}
+          data-testid="assign-image-provider"
           onChange={(e) => {
-            const v = e.target.value;
-            if (!v) return void setDefault(null);
-            const ps = usableProviders(state, v);
-            if (ps.length === 1) return void setDefault({ modelId: v, providerRef: ps[0]!.id });
-            setPendingModel(v);
+            const ref = e.target.value;
+            if (!ref) return void setDefault(null);
+            const modelId = modelForProvider(state, ref, cur?.modelId ?? '');
+            if (modelId) void setDefault({ modelId, providerRef: ref });
           }}
         />
         <Select
           size="sm"
-          value={pendingModel ? '' : (cur?.providerRef ?? '')}
-          options={providerOptions}
-          placeholder={
-            modelId && !providers.length
-              ? t('ui.media.configure-provider-below')
-              : t('ui.media.choose-provider')
-          }
-          disabled={!modelId || !providers.length}
-          aria-label={t('ui.media.choose-provider')}
-          data-testid="assign-image-provider"
+          value={cur?.modelId ?? ''}
+          options={modelOptions}
+          placeholder={t('ui.media.assign-model')}
+          disabled={!providerRef || !modelOptions.length}
+          aria-label={t('ui.media.assign-model')}
+          data-testid="assign-image-model"
           onChange={(e) =>
-            e.target.value && void setDefault({ modelId, providerRef: e.target.value })
+            e.target.value && void setDefault({ modelId: e.target.value, providerRef })
           }
         />
       </div>
@@ -116,204 +105,72 @@ export const MediaAssignRow: React.FC<MediaAssignRowProps> = ({ rowClassName, la
   );
 };
 
-const ProviderRow: React.FC<{ state: MediaState; p: MediaProviderView; onDone: () => void }> = ({
+/** 供应商模型行上的生图标记：自动识别 / 标为某个图片模型 / 不是图片模型 */
+export interface MediaImageMarkProps {
+  /** 由供应商详情统一取一次（useMediaState），避免每行各自请求 */
+  state: MediaState;
+  providerId: string;
+  upstream: string;
+  onDone: () => void;
+}
+
+const AUTO = '__auto';
+const NOT_IMAGE = '__none';
+
+export const MediaImageMark: React.FC<MediaImageMarkProps> = ({
   state,
-  p,
+  providerId,
+  upstream,
   onDone,
 }) => {
-  const [open, setOpen] = useState(false);
-  const [key, setKey] = useState('');
-  const [bind, setBind] = useState<{ modelId: string; presetKey: MediaProtocol; upstream: string }>(
-    {
-      modelId: state.models[0]?.id ?? '',
-      presetKey: 'openai-images',
-      upstream: '',
-    },
+  const mark = state.marks.find((m) => m.providerRef === providerId && m.upstream === upstream);
+  const bound = state.bindings.find(
+    (b) => b.providerRef === providerId && b.upstreamModelName === upstream,
   );
-  const bindings = state.bindings.filter((b) => b.providerRef === p.id);
-  const upsert = async (patch: Parameters<typeof mediaClient.upsertProvider>[0]) => {
-    const r = await guarded(() => mediaClient.upsertProvider({ id: p.id, ...patch }));
+  const value = !mark ? AUTO : mark.modelId === null ? NOT_IMAGE : mark.modelId;
+  const autoLabel = bound
+    ? t('ui.media.mark-auto-detected', modelName(state, bound.modelId))
+    : t('ui.media.mark-auto');
+  const options = [
+    { value: AUTO, label: autoLabel },
+    ...state.models.map((m) => ({ value: m.id, label: modelName(state, m.id) })),
+    { value: NOT_IMAGE, label: t('ui.media.mark-not-image') },
+  ];
+  const onChange = async (v: string) => {
+    const modelId = v === AUTO ? undefined : v === NOT_IMAGE ? null : v;
+    const r = await guarded(() =>
+      mediaClient.markImage({ providerRef: providerId, upstream, modelId }),
+    );
     report(state, r?.changes);
     onDone();
   };
   return (
-    <div className={styles.provider} data-testid={`media-provider-${p.id}`}>
-      <div className={styles.providerHead}>
-        <button
-          type="button"
-          className={styles.expand}
-          onClick={() => setOpen((x) => !x)}
-          aria-expanded={open}
-        >
-          <Icon icon={open ? ChevronDown : ChevronRight} size={14} />
-          <span className={styles.providerName}>{displayName(p.name)}</span>
-        </button>
-        <span className={styles.keyState}>
-          {p.hasKey ? `${t('ui.media.key-set')} ${p.keyHint ?? ''}` : t('ui.media.key-missing')}
+    <span className={styles.imageMark} data-testid="media-image-mark">
+      {bound && (
+        <span className={styles.imageBadge} title={modelName(state, bound.modelId)}>
+          <Icon icon={ImagePlus} size={12} />
+          {t('ui.providers-schedule.image')}
         </span>
-        <Switch
-          checked={p.enabled}
-          onChange={(v) => void upsert({ enabled: v })}
-          aria-label={t('ui.media.provider-enabled')}
-        />
-      </div>
-      {open && (
-        <div className={styles.providerBody}>
-          <div className={styles.muted}>{p.baseURL}</div>
-          <div className={styles.inline}>
-            <Input
-              size="sm"
-              type="password"
-              autoComplete="off"
-              value={key}
-              placeholder={
-                p.hasKey ? t('ui.media.key-replace') : t('ui.voice-mascot.paste-your-api-key')
-              }
-              onChange={(e) => setKey(e.target.value)}
-              aria-label={t('ui.media.api-key')}
-            />
-            <Button
-              size="sm"
-              variant="primary"
-              disabled={!key.trim()}
-              onClick={() => void upsert({ apiKey: key.trim() }).then(() => setKey(''))}
-            >
-              {t('ui.foundation.save')}
-            </Button>
-            {p.hasKey && (
-              <Button size="sm" variant="ghost" onClick={() => void upsert({ apiKey: null })}>
-                {t('ui.media.clear-key')}
-              </Button>
-            )}
-            {p.custom && (
-              <Button
-                size="sm"
-                variant="danger"
-                onClick={() =>
-                  void guarded(() => mediaClient.removeProvider(p.id)).then((r) => {
-                    report(state, r?.changes);
-                    onDone();
-                  })
-                }
-                aria-label={t('ui.models.delete-provider')}
-              >
-                <Icon icon={Trash2} size={14} />
-              </Button>
-            )}
-          </div>
-          <div className={styles.bindings}>
-            {bindings.map((b) => (
-              <div key={b.modelId} className={styles.binding}>
-                <span className={styles.bindingName}>
-                  {state.models.find((m) => m.id === b.modelId)?.name ?? b.modelId}
-                </span>
-                <Input
-                  size="sm"
-                  defaultValue={b.upstreamModelName}
-                  aria-label={t('ui.models.upstream-model')}
-                  title={t('ui.models.upstream-model')}
-                  onBlur={(e) => {
-                    const v = e.target.value.trim();
-                    if (v && v !== b.upstreamModelName)
-                      void guarded(() =>
-                        mediaClient.upsertBinding({ ...b, upstreamModelName: v }),
-                      ).then(onDone);
-                  }}
-                />
-                <Switch
-                  checked={b.enabled}
-                  onChange={(v) =>
-                    void guarded(() => mediaClient.upsertBinding({ ...b, enabled: v })).then(
-                      (r) => {
-                        report(state, r?.changes);
-                        onDone();
-                      },
-                    )
-                  }
-                  aria-label={t('ui.media.binding-enabled')}
-                />
-                {p.custom && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    aria-label={t('ui.media.remove-binding')}
-                    onClick={() =>
-                      void guarded(() =>
-                        mediaClient.removeBinding({ modelId: b.modelId, providerRef: p.id }),
-                      ).then((r) => {
-                        report(state, r?.changes);
-                        onDone();
-                      })
-                    }
-                  >
-                    <Icon icon={Trash2} size={14} />
-                  </Button>
-                )}
-              </div>
-            ))}
-            {p.custom && (
-              <div className={styles.binding}>
-                <Select
-                  size="sm"
-                  value={bind.modelId}
-                  options={state.models.map((m) => ({ value: m.id, label: m.name }))}
-                  onChange={(e) => setBind({ ...bind, modelId: e.target.value })}
-                  aria-label={t('ui.media.assign-model')}
-                />
-                <Select
-                  size="sm"
-                  value={bind.presetKey}
-                  options={PROTOCOLS.map((x) => ({ value: x, label: x }))}
-                  onChange={(e) => setBind({ ...bind, presetKey: e.target.value as MediaProtocol })}
-                  aria-label={t('ui.media.protocol')}
-                />
-                <Input
-                  size="sm"
-                  value={bind.upstream}
-                  placeholder={t('ui.models.upstream-model')}
-                  onChange={(e) => setBind({ ...bind, upstream: e.target.value })}
-                />
-                <Button
-                  size="sm"
-                  disabled={!bind.modelId || !bind.upstream.trim()}
-                  onClick={() =>
-                    void guarded(() =>
-                      mediaClient.upsertBinding({
-                        providerRef: p.id,
-                        modelId: bind.modelId,
-                        enabled: true,
-                        presetKey: bind.presetKey,
-                        upstreamModelName: bind.upstream.trim(),
-                      }),
-                    ).then(() => {
-                      setBind({ ...bind, upstream: '' });
-                      onDone();
-                    })
-                  }
-                >
-                  {t('ui.media.add-binding')}
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
       )}
-    </div>
+      <Select
+        size="sm"
+        value={value}
+        options={options}
+        aria-label={t('ui.media.mark-label')}
+        onChange={(e) => void onChange(e.target.value)}
+      />
+    </span>
   );
 };
 
-export interface MediaProvidersCardProps {
+export interface MediaPrefsCardProps {
   className?: string;
   titleClassName?: string;
 }
 
-/** 生图供应商 + 入库开关 */
-export const MediaProvidersCard: React.FC<MediaProvidersCardProps> = ({
-  className,
-  titleClassName,
-}) => {
+/** 生图素材库开关（供应商在上方「第三方供应商」里配置） */
+export const MediaPrefsCard: React.FC<MediaPrefsCardProps> = ({ className, titleClassName }) => {
   const [state, refresh] = useMediaState();
-  const [draft, setDraft] = useState({ name: '', baseURL: '', apiKey: '' });
   if (!mediaClient.available() || !state) return null;
   const setPref = (p: { autoAddGenerated?: boolean; autoAddUploads?: boolean }) =>
     void guarded(() => mediaClient.setPrefs(p)).then(refresh);
@@ -321,55 +178,10 @@ export const MediaProvidersCard: React.FC<MediaProvidersCardProps> = ({
     <section className={className} aria-labelledby="models-media" data-testid="models-media">
       <h3 id="models-media" className={titleClassName}>
         <Icon icon={ImagePlus} size={16} />
-        {t('ui.media.providers-title')}
+        {t('ui.media.prefs-title')}
       </h3>
-      <p className={styles.muted}>{t('ui.media.providers-sub')}</p>
+      <p className={styles.muted}>{t('ui.media.reuse-providers')}</p>
       {state.localOnly && <p className={styles.warn}>{t('ui.media.local-only-warning')}</p>}
-      {state.providers.map((p) => (
-        <ProviderRow key={p.id} state={state} p={p} onDone={refresh} />
-      ))}
-      <div className={styles.inline}>
-        <Input
-          size="sm"
-          value={draft.name}
-          placeholder={t('ui.media.custom-name')}
-          onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-        />
-        <Input
-          size="sm"
-          value={draft.baseURL}
-          placeholder="https://"
-          onChange={(e) => setDraft({ ...draft, baseURL: e.target.value })}
-          aria-label={t('ui.media.base-url')}
-        />
-        <Input
-          size="sm"
-          type="password"
-          autoComplete="off"
-          value={draft.apiKey}
-          placeholder={t('ui.media.api-key')}
-          onChange={(e) => setDraft({ ...draft, apiKey: e.target.value })}
-        />
-        <Button
-          size="sm"
-          disabled={!draft.name.trim() || !draft.baseURL.trim()}
-          onClick={() =>
-            void guarded(() =>
-              mediaClient.upsertProvider({
-                name: draft.name.trim(),
-                baseURL: draft.baseURL.trim(),
-                enabled: true,
-                ...(draft.apiKey.trim() ? { apiKey: draft.apiKey.trim() } : {}),
-              }),
-            ).then((r) => {
-              if (r) setDraft({ name: '', baseURL: '', apiKey: '' });
-              refresh();
-            })
-          }
-        >
-          {t('ui.media.add-custom')}
-        </Button>
-      </div>
       <div className={styles.prefRow}>
         <Switch
           checked={state.prefs.autoAddGenerated}

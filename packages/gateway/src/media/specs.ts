@@ -136,6 +136,18 @@ export const IMAGE_MODEL_SPECS: MediaModelSpec[] = [
             surface: ['studio', 'chat'],
           },
         },
+        n: {
+          type: 'integer',
+          minimum: 1,
+          maximum: 4,
+          default: 1,
+          'x-ui': {
+            control: 'stepper',
+            label: 'ui.media.param-batch-count',
+            order: 3,
+            surface: ['studio', 'chat'],
+          },
+        },
         temperature: {
           type: 'number',
           minimum: 0,
@@ -201,6 +213,9 @@ export const IMAGE_MODEL_SPECS: MediaModelSpec[] = [
             label: 'ui.media.param-batch-count',
             order: 3,
             surface: ['studio', 'chat'],
+            // API 允许 1-15 张，工作台按设计只开放 1-4 的分段按钮；对话工具仍按 maximum 校验
+            widget: 'segmented',
+            uiMax: 4,
           },
         },
         watermark: {

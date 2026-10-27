@@ -14,10 +14,12 @@ import {
   useAiChatSelector,
 } from '../../contexts/aiChatStore';
 import {
+  choiceProviders,
   mediaClient,
   mediaToast,
   modelName,
   openMedia,
+  providerModelIds,
   providerName,
   usablePairs,
   useMediaState,
@@ -131,17 +133,26 @@ export const MediaSessionPill: React.FC = () => {
       </button>
       {open && (
         <div className={styles.sessionMenu} role="menu" data-testid="media-session-menu">
-          {pairs.map((p) => (
-            <button
-              key={`${p.modelId}@${p.providerRef}`}
-              type="button"
-              role="menuitemradio"
-              aria-checked={same(p, sc?.choice)}
-              className={styles.menuItem}
-              onClick={() => void pick(p)}
-            >
-              {modelName(state, p.modelId)} · {providerName(state, p.providerRef)}
-            </button>
+          {/* 先供应商、再它提供的模型：按供应商分组 */}
+          {choiceProviders(state).map((pv) => (
+            <div key={pv.id} role="group" aria-label={providerName(state, pv.id)}>
+              <div className={styles.menuGroup}>{providerName(state, pv.id)}</div>
+              {providerModelIds(state, pv.id).map((modelId) => {
+                const p = { modelId, providerRef: pv.id };
+                return (
+                  <button
+                    key={modelId}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={same(p, sc?.choice)}
+                    className={styles.menuItem}
+                    onClick={() => void pick(p)}
+                  >
+                    {modelName(state, modelId)}
+                  </button>
+                );
+              })}
+            </div>
           ))}
           {pairs.length > 0 && <div className={styles.menuSep} />}
           <button

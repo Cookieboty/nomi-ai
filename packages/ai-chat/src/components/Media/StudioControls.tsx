@@ -113,8 +113,21 @@ export interface MenuItem {
   title: string;
   description?: string;
   badge?: string;
+  /** 能力标签（如 文生图 / 图生图），以小标签显示 */
+  tags?: string[];
   disabled?: boolean;
 }
+
+const Tags: React.FC<{ tags?: string[] }> = ({ tags }) =>
+  tags?.length ? (
+    <span className={styles.tags}>
+      {tags.map((x) => (
+        <span key={x} className={styles.tag}>
+          {x}
+        </span>
+      ))}
+    </span>
+  ) : null;
 
 /** 带图标的下拉：触发器显示当前项（图标 + 名称 + 徽标 + 一行说明），列表同样式 */
 export const IconMenu: React.FC<{
@@ -161,6 +174,7 @@ export const IconMenu: React.FC<{
           {!compact && cur?.description && (
             <span className={styles.menuDesc}>{cur.description}</span>
           )}
+          {!compact && <Tags tags={cur?.tags} />}
         </span>
         <Icon icon={ChevronDown} size={compact ? 12 : 16} />
       </button>
@@ -179,12 +193,14 @@ export const IconMenu: React.FC<{
                 setOpen(false);
               }}
             >
+              <span className={styles.menuIcon}>{icon}</span>
               <span className={styles.menuText}>
                 <span className={styles.menuTitle}>
                   {i.title}
                   {i.badge && <span className={styles.badge}>{i.badge}</span>}
                 </span>
                 {i.description && <span className={styles.menuDesc}>{i.description}</span>}
+                <Tags tags={i.tags} />
               </span>
               {i.value === value && <Icon icon={Check} size={14} />}
             </button>

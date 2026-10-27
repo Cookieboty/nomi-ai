@@ -1,7 +1,10 @@
 /**
  * 生图服务（主进程）：
- * - 全部走用户配置的第三方供应商（无内置服务、无兜底）；Key 只在主进程解密使用
+ * - 复用 Nomi 已有的第三方供应商配置（同一份 Key / 地址 / 启用开关；无内置服务、无兜底）；
+ *   图片模型按打包规则识别或由用户在供应商设置里标记；Key 只在主进程使用
  * - 任务层异步：generate() 先落一条任务，执行中广播 ai:media:task；对话工具 / 工作台等待其完成
+ * - 生成队列在主进程：每个供应商最多 PROVIDER_CONCURRENCY 个请求并行，其余排队（切页面不丢）；
+ *   协议一次给不了 n 张时拆成多次请求；排队中的任务可取消，失败 / 取消的任务可重试
  * - 结果写入素材库（sha256 去重）；是否「入库」由两个开关决定（生成图默认开，上传图默认关）
  * - 「仅本地模型」开启时拒绝云端生图（本机地址的自定义供应商除外）
  * 数据全部在 userData/media。
@@ -13,18 +16,20 @@ import * as path from 'path';
 import type { ToolDefinition, ToolExecContext } from '@nomi-ai/bundle-ig-base';
 import {
   IMAGE_MODEL_SPECS,
-  MEDIA_PROVIDER_PRESETS,
   MEDIA_SCHEMA_VERSION,
   buildRequest,
   chatToolFields,
   clampParams,
   getImageSpec,
   parseResponse,
+  splitImageCount,
   upstreamErrorMessage,
   type AssetSource,
   type MediaModelChoice,
   type MediaParams,
   type MediaProtocol,
+  type GenerateInput,
+  type GeneratedImage,
   type RefImage,
 } from '@nomi-ai/gateway/media';
 import { z } from 'zod';
@@ -35,7 +40,12 @@ import { t as tr } from '../i18n';
 import { ensurePrivateDir, writePrivateFileAtomic } from '../utils/privateFile';
 
 import { AssetError, AssetLibrary, MEDIA_ASSET_HOST, sha256, type AssetView } from './assets';
-import { MediaConfigError, MediaConfigStore, type ChoiceChange, type SecretCodec } from './store';
+import {
+  MediaConfigError,
+  MediaConfigStore,
+  type ChoiceChange,
+  type ProviderSource,
+} from './store';
 
 type Logger = { info(m: string, d?: unknown): void; warn(m: string, d?: unknown): void };
 type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
@@ -47,6 +57,8 @@ export const MEDIA_NOTICE_EVENT = 'ai:media:notice';
 const GENERATE_TIMEOUT_MS = 180_000;
 const MAX_DOWNLOAD_BYTES = 30 * 1024 * 1024;
 const MAX_TASKS = 100;
+/** 每个供应商同时在途的生图请求上限（拆分出的子请求各占一个名额） */
+export const PROVIDER_CONCURRENCY = 2;
 
 export type MediaSurface = 'chat' | 'studio';
 export type MediaTaskStatus = 'queued' | 'running' | 'succeeded' | 'failed';
@@ -65,6 +77,8 @@ export interface MediaTask {
   conversationId?: string;
   assets: AssetView[];
   error?: { code: string; message: string };
+  /** 生成中进度：已完成的请求批次 / 总批次（拆分时 >1） */
+  progress?: { done: number; total: number };
 }
 
 export interface GenerateRequest extends MediaModelChoice {
@@ -80,7 +94,8 @@ export interface MediaDeps {
   root: string;
   chatRoot?: string;
   logger: Logger;
-  codec: SecretCodec;
+  /** 共用的第三方供应商（网关配置） */
+  providers: ProviderSource;
   /** 「仅本地模型」开关 */
   localOnly?: () => boolean;
   fetch?: FetchLike;
@@ -109,13 +124,18 @@ export class MediaService {
   private tasks: MediaTask[] = [];
   private readonly tasksFile: string;
   private readonly running = new Map<string, Promise<MediaTask>>();
+  /** 运行期原始请求（含参考图），供重试；不落盘 */
+  private readonly requests = new Map<string, GenerateRequest>();
+  private readonly cancels = new Map<string, AbortController>();
+  private readonly active = new Map<string, number>();
+  private readonly waiting = new Map<string, Array<() => void>>();
   private readonly fetchImpl: FetchLike;
   private readonly now: () => number;
 
   constructor(private readonly d: MediaDeps) {
     ensurePrivateDir(d.root);
     this.now = d.now ?? Date.now;
-    this.config = new MediaConfigStore(d.root, d.codec);
+    this.config = new MediaConfigStore(d.root, d.providers);
     this.assets = new AssetLibrary(d.root, this.now);
     this.fetchImpl = d.fetch ?? ((url, init) => fetch(url, init));
     this.tasksFile = path.join(d.root, 'tasks.json');
@@ -164,9 +184,9 @@ export class MediaService {
     return {
       schemaVersion: MEDIA_SCHEMA_VERSION,
       models: IMAGE_MODEL_SPECS,
-      presets: MEDIA_PROVIDER_PRESETS.map((p) => ({ id: p.id, name: p.name, baseURL: p.baseURL })),
       providers: this.config.providers(),
       bindings: this.config.bindings(),
+      marks: this.config.marks(),
       prefs: this.config.prefs(),
       localOnly: this.d.localOnly?.() === true,
     };
@@ -178,28 +198,16 @@ export class MediaService {
 
   // ---------- 配置 ----------
 
-  upsertProvider(input: Parameters<MediaConfigStore['upsertProvider']>[0]) {
-    const r = this.config.upsertProvider(input);
-    this.notifyChanges(r.changes);
-    return { provider: r.provider, changes: r.changes };
-  }
-
-  removeProvider(id: string) {
-    const changes = this.config.removeProvider(id);
+  /** 在供应商设置里把一个上游模型标为图片模型（或取消） */
+  markImage(input: Parameters<MediaConfigStore['markImage']>[0]) {
+    const changes = this.config.markImage(input);
     this.notifyChanges(changes);
     return { changes };
   }
 
-  upsertBinding(input: Parameters<MediaConfigStore['upsertBinding']>[0]) {
-    const changes = this.config.upsertBinding(input);
-    this.notifyChanges(changes);
-    return { changes };
-  }
-
-  removeBinding(choice: MediaModelChoice) {
-    const changes = this.config.removeBinding(choice);
-    this.notifyChanges(changes);
-    return { changes };
+  /** 共用供应商配置变了（网关广播）：校正默认选择并推送新状态 */
+  providersChanged(): void {
+    this.notifyChanges(this.config.providersChanged());
   }
 
   setChatDefault(choice: MediaModelChoice | null) {
@@ -218,7 +226,9 @@ export class MediaService {
 
   private cloudBlocked(providerRef: string): boolean {
     if (this.d.localOnly?.() !== true) return false;
-    return !isLocalBaseURL(this.config.provider(providerRef)?.baseURL);
+    const b = this.config.bindings().find((x) => x.providerRef === providerRef);
+    const ep = b ? this.config.endpoint(b) : null;
+    return !isLocalBaseURL(ep?.baseURL);
   }
 
   /** 发起任务（异步）：立刻返回任务，执行结果经事件推送；wait() 可等待完成 */
@@ -241,9 +251,77 @@ export class MediaService {
     this.tasks.push(task);
     this.saveTasks();
     this.emit(MEDIA_TASK_EVENT, task);
-    const p = this.run(task, req, signal).finally(() => this.running.delete(task.id));
+    const ctl = new AbortController();
+    this.cancels.set(task.id, ctl);
+    this.requests.set(task.id, req);
+    const sig = signal ? AbortSignal.any([signal, ctl.signal]) : ctl.signal;
+    const p = this.run(task, req, sig).finally(() => {
+      this.running.delete(task.id);
+      this.cancels.delete(task.id);
+    });
     this.running.set(task.id, p);
     return task;
+  }
+
+  /** 取消排队中 / 生成中的任务；已结束的任务返回 false */
+  cancel(taskId: string): boolean {
+    const ctl = this.cancels.get(taskId);
+    if (!ctl || ctl.signal.aborted) return false;
+    ctl.abort();
+    return true;
+  }
+
+  /** 用原任务的模型、供应商、提示词与参数重新排队（失败或取消的任务） */
+  retry(taskId: string): MediaTask {
+    const t = this.tasks.find((x) => x.id === taskId);
+    if (!t) throw new MediaError('not_found', 'task not found');
+    if (t.status !== 'failed') throw new MediaError('invalid', 'only failed tasks can be retried');
+    const prev = this.requests.get(taskId);
+    return this.start({
+      modelId: t.modelId,
+      providerRef: t.providerRef,
+      prompt: t.prompt,
+      params: t.params,
+      surface: t.surface,
+      ...(t.conversationId ? { conversationId: t.conversationId } : {}),
+      ...(prev?.refs ? { refs: prev.refs } : {}),
+    });
+  }
+
+  /** 当前在途数（测试 / 诊断用） */
+  inFlight(providerRef: string): number {
+    return this.active.get(providerRef) ?? 0;
+  }
+
+  private acquire(providerRef: string, sig: AbortSignal): Promise<void> {
+    if (sig.aborted) return Promise.reject(new MediaError('canceled', 'canceled'));
+    const n = this.active.get(providerRef) ?? 0;
+    if (n < PROVIDER_CONCURRENCY) {
+      this.active.set(providerRef, n + 1);
+      return Promise.resolve();
+    }
+    return new Promise((resolve, reject) => {
+      const q = this.waiting.get(providerRef) ?? [];
+      const go = () => {
+        sig.removeEventListener('abort', onAbort);
+        resolve();
+      };
+      const onAbort = () => {
+        const i = q.indexOf(go);
+        if (i >= 0) q.splice(i, 1);
+        reject(new MediaError('canceled', 'canceled'));
+      };
+      sig.addEventListener('abort', onAbort, { once: true });
+      q.push(go);
+      this.waiting.set(providerRef, q);
+    });
+  }
+
+  /** 名额直接转交给队首；没人排队才减计数 */
+  private release(providerRef: string): void {
+    const next = this.waiting.get(providerRef)?.shift();
+    if (next) next();
+    else this.active.set(providerRef, Math.max(0, (this.active.get(providerRef) ?? 1) - 1));
   }
 
   wait(taskId: string): Promise<MediaTask> {
@@ -281,14 +359,15 @@ export class MediaService {
       return this.fail(task, 'local_only', tr('electron.common.media-local-only'));
     const prompt = String(req.prompt ?? '').trim();
     if (!prompt) return this.fail(task, 'invalid', tr('electron.common.media-prompt-required'));
-    const binding = this.config.binding(req)!;
-    const provider = this.config.provider(req.providerRef)!;
-    let apiKey: string;
+    let ep: ReturnType<MediaConfigStore['endpoint']>;
     try {
-      apiKey = this.config.apiKey(req.providerRef);
+      ep = this.config.endpoint(req);
     } catch {
-      return this.fail(task, 'key_unavailable', tr('electron.common.media-key-unavailable'));
+      ep = null;
     }
+    if (!ep?.apiKey)
+      return this.fail(task, 'key_unavailable', tr('electron.common.media-key-unavailable'));
+    const { binding, baseURL, apiKey } = ep;
     const refs: RefImage[] = [];
     for (const r of req.refs ?? []) {
       if ('assetId' in r) {
@@ -296,51 +375,61 @@ export class MediaService {
         if (got) refs.push({ mime: got.mime, data: got.data.toString('base64') });
       } else if (r && typeof r.data === 'string') refs.push(r);
     }
-    task.status = 'running';
-    this.emit(MEDIA_TASK_EVENT, task);
-    const timeout = AbortSignal.timeout(GENERATE_TIMEOUT_MS);
-    const sig = signal ? AbortSignal.any([signal, timeout]) : timeout;
-    try {
-      const built = buildRequest({
-        protocol: binding.presetKey as MediaProtocol,
-        baseURL: provider.baseURL,
-        apiKey,
-        upstreamModel: binding.upstreamModelName,
-        prompt,
-        params: task.params,
-        ...(refs.length ? { refs } : {}),
-      });
-      let body: BodyInit;
-      const headers: Record<string, string> = { ...built.headers };
-      if (built.body.kind === 'json') {
-        headers['content-type'] = 'application/json';
-        body = JSON.stringify(built.body.json);
-      } else {
-        const form = new FormData();
-        for (const [k, v] of Object.entries(built.body.fields)) form.append(k, v);
-        for (const f of built.body.files)
-          form.append(f.field, new Blob([Buffer.from(f.data, 'base64')], { type: f.mime }), f.name);
-        body = form;
-      }
-      const res = await this.fetchImpl(built.url, { method: 'POST', headers, body, signal: sig });
-      const text = await res.text();
-      let json: unknown = null;
+    const protocol = binding.presetKey as MediaProtocol;
+    const batches = splitImageCount(protocol, task.params.n);
+    task.progress = { done: 0, total: batches.length };
+    const sig = signal ?? new AbortController().signal;
+    const images: GeneratedImage[] = [];
+    let firstError: { code: string; message: string } | null = null;
+    const runBatch = async (count: number): Promise<void> => {
+      await this.acquire(req.providerRef, sig);
       try {
-        json = JSON.parse(text);
-      } catch {
-        /* 非 JSON 响应 */
-      }
-      if (!res.ok) {
-        const msg = upstreamErrorMessage(json) ?? `HTTP ${res.status}`;
-        return this.fail(task, res.status === 401 || res.status === 403 ? 'auth' : 'upstream', msg);
-      }
-      const images = parseResponse(binding.presetKey as MediaProtocol, json);
-      if (!images.length)
-        return this.fail(
-          task,
-          'empty',
-          upstreamErrorMessage(json) ?? tr('electron.common.media-empty-result'),
+        if (sig.aborted) throw new MediaError('canceled', 'canceled');
+        if (task.status === 'queued') {
+          task.status = 'running';
+          this.emit(MEDIA_TASK_EVENT, task);
+        }
+        const params =
+          batches.length > 1 || 'n' in task.params ? { ...task.params, n: count } : task.params;
+        const got = await this.requestImages(
+          {
+            protocol,
+            baseURL,
+            apiKey,
+            upstreamModel: binding.upstreamModelName,
+            prompt,
+            params,
+            ...(refs.length ? { refs } : {}),
+          },
+          sig,
         );
+        images.push(...got);
+        task.progress = { done: (task.progress?.done ?? 0) + 1, total: batches.length };
+        if (batches.length > 1) this.emit(MEDIA_TASK_EVENT, task);
+      } finally {
+        this.release(req.providerRef);
+      }
+    };
+    const settled = await Promise.allSettled(batches.map((c) => runBatch(c)));
+    for (const r of settled) {
+      if (r.status === 'rejected' && !firstError) {
+        const err = r.reason as unknown;
+        const code = err instanceof MediaError ? err.code : sig.aborted ? 'canceled' : 'network';
+        if (!(err instanceof MediaError))
+          this.d.logger.warn('[media] generate failed', { code, err: String(err) });
+        firstError = {
+          code,
+          message:
+            code === 'canceled'
+              ? tr('electron.common.cancelled')
+              : err instanceof Error
+                ? err.message
+                : String(err),
+        };
+      }
+    }
+    if (sig.aborted) return this.fail(task, 'canceled', tr('electron.common.cancelled'));
+    try {
       const inLibrary = this.config.prefs().autoAddGenerated;
       const source: AssetSource = req.surface === 'chat' ? 'chat_generated' : 'studio';
       const views: AssetView[] = [];
@@ -348,7 +437,7 @@ export class MediaService {
         const bytes = img.b64
           ? { data: Buffer.from(img.b64, 'base64'), mime: img.mime }
           : img.url
-            ? await this.download(img.url, sig)
+            ? await this.download(img.url, AbortSignal.timeout(GENERATE_TIMEOUT_MS))
             : null;
         if (!bytes) continue;
         const { asset } = this.assets.add({
@@ -364,7 +453,13 @@ export class MediaService {
         });
         views.push(this.assets.view(asset));
       }
-      if (!views.length) return this.fail(task, 'empty', tr('electron.common.media-empty-result'));
+      if (!views.length) {
+        const e = firstError ?? {
+          code: 'empty',
+          message: tr('electron.common.media-empty-result'),
+        };
+        return this.fail(task, e.code, e.message);
+      }
       if (req.surface === 'studio')
         this.config.setStudioLast({
           modelId: req.modelId,
@@ -373,11 +468,58 @@ export class MediaService {
         });
       return this.finish(task, { status: 'succeeded', assets: views });
     } catch (err) {
-      const aborted = sig.aborted;
-      const code = aborted ? (timeout.aborted ? 'timeout' : 'aborted') : 'network';
-      this.d.logger.warn('[media] generate failed', { code, err: String(err) });
-      return this.fail(task, code, aborted ? code : String((err as Error)?.message ?? err));
+      this.d.logger.warn('[media] save result failed', { err: String(err) });
+      return this.fail(task, 'network', String((err as Error)?.message ?? err));
     }
+  }
+
+  /** 发一次上游请求（已占到并发名额）；失败抛 MediaError，code 区分 auth / upstream / empty / timeout */
+  private async requestImages(
+    input: GenerateInput,
+    cancel: AbortSignal,
+  ): Promise<GeneratedImage[]> {
+    const timeout = AbortSignal.timeout(GENERATE_TIMEOUT_MS);
+    const sig = AbortSignal.any([cancel, timeout]);
+    const built = buildRequest(input);
+    let body: BodyInit;
+    const headers: Record<string, string> = { ...built.headers };
+    if (built.body.kind === 'json') {
+      headers['content-type'] = 'application/json';
+      body = JSON.stringify(built.body.json);
+    } else {
+      const form = new FormData();
+      for (const [k, v] of Object.entries(built.body.fields)) form.append(k, v);
+      for (const f of built.body.files)
+        form.append(f.field, new Blob([Buffer.from(f.data, 'base64')], { type: f.mime }), f.name);
+      body = form;
+    }
+    let text: string;
+    let res: Response;
+    try {
+      res = await this.fetchImpl(built.url, { method: 'POST', headers, body, signal: sig });
+      text = await res.text();
+    } catch (err) {
+      if (cancel.aborted) throw new MediaError('canceled', 'canceled');
+      if (timeout.aborted) throw new MediaError('timeout', 'timeout');
+      throw new MediaError('network', String((err as Error)?.message ?? err));
+    }
+    let json: unknown = null;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      /* 非 JSON 响应 */
+    }
+    if (!res.ok) {
+      const msg = upstreamErrorMessage(json) ?? `HTTP ${res.status}`;
+      throw new MediaError(res.status === 401 || res.status === 403 ? 'auth' : 'upstream', msg);
+    }
+    const images = parseResponse(input.protocol, json);
+    if (!images.length)
+      throw new MediaError(
+        'empty',
+        upstreamErrorMessage(json) ?? tr('electron.common.media-empty-result'),
+      );
+    return images;
   }
 
   private async download(

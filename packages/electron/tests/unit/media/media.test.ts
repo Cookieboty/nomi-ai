@@ -8,7 +8,9 @@ import path from 'node:path';
 
 import { AssetLibrary, sha256 } from '../../../src/media/assets';
 import { MediaService } from '../../../src/media/MediaService';
-import { MediaConfigStore, type SecretCodec } from '../../../src/media/store';
+import { MediaConfigStore } from '../../../src/media/store';
+
+import { fakeProviders } from './fakeProviders';
 
 const PNG = (seed: number) =>
   Buffer.concat([
@@ -18,10 +20,6 @@ const PNG = (seed: number) =>
 const JPG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 9, 9]);
 
 const tmp = () => mkdtempSync(path.join(os.tmpdir(), 'media-'));
-const codec: SecretCodec = {
-  encrypt: (v) => `enc:${Buffer.from(v).toString('base64')}`,
-  decrypt: (v) => (v ? Buffer.from(v.slice(4), 'base64').toString() : ''),
-};
 const logger = { info: jest.fn(), warn: jest.fn() };
 
 describe('AssetLibrary sha256 去重', () => {
@@ -68,41 +66,56 @@ describe('AssetLibrary sha256 去重', () => {
   });
 });
 
-describe('MediaConfigStore', () => {
-  it('预设供应商与绑定首启即有，Key 加密落盘、对外只给 hasKey', () => {
+describe('MediaConfigStore（复用第三方供应商）', () => {
+  it('图片模型按规则从供应商模型列表识别；没有 Key 的供应商不可用；配置文件不含 Key', () => {
     const root = tmp();
-    const s = new MediaConfigStore(root, codec);
-    expect(s.providers().map((p) => p.id)).toEqual(
-      expect.arrayContaining(['openai', 'openrouter', 'google', 'volc', 'fal']),
-    );
+    const src = fakeProviders();
+    const s = new MediaConfigStore(root, src);
+    expect(s.bindings().map((b) => `${b.providerRef}:${b.modelId}:${b.presetKey}`)).toEqual([
+      'openai:gpt-image-1:openai-images',
+      'openrouter:gemini-2.5-flash-image:openrouter-chat-image',
+      'google:gemini-2.5-flash-image:gemini',
+      'volc:seedream-4:ark-image',
+      'fal:flux-1.1-pro:fal',
+      'fal:seedream-4:fal',
+    ]);
     expect(s.prefs().chatDefaultImage).toBeNull();
-    s.upsertProvider({ id: 'openai', apiKey: 'sk-secret-1234' });
-    const raw = readFileSync(path.join(root, 'config.json'), 'utf8');
-    expect(raw).not.toContain('sk-secret-1234');
-    const v = s.providers().find((p) => p.id === 'openai')!;
-    expect(v).toMatchObject({ hasKey: true, keyHint: '1234' });
-    expect(v).not.toHaveProperty('apiKeyEnc');
-    expect(s.apiKey('openai')).toBe('sk-secret-1234');
+    expect(() => s.setChatDefault({ modelId: 'gpt-image-1', providerRef: 'openai' })).toThrow();
+    src.key('openai', 'sk-secret-1234');
+    s.setChatDefault({ modelId: 'gpt-image-1', providerRef: 'openai' });
+    expect(s.providers().find((p) => p.id === 'openai')).toEqual({
+      id: 'openai',
+      name: 'OpenAI',
+      presetId: 'openai',
+      enabled: true,
+      hasKey: true,
+    });
+    expect(readFileSync(path.join(root, 'config.json'), 'utf8')).not.toContain('sk-secret');
+    expect(s.endpoint({ modelId: 'gpt-image-1', providerRef: 'openai' })).toMatchObject({
+      baseURL: 'https://api.openai.com/v1',
+      apiKey: 'sk-secret-1234',
+    });
+    // Gemini 原生接口地址从 OpenAI 兼容地址推出
+    src.key('google', 'g');
+    expect(s.endpoint({ modelId: 'gemini-2.5-flash-image', providerRef: 'google' })?.baseURL).toBe(
+      'https://generativelanguage.googleapis.com/v1beta',
+    );
   });
 
   it('入库开关默认：生成图开、上传图关', () => {
-    const s = new MediaConfigStore(tmp(), codec);
+    const s = new MediaConfigStore(tmp(), fakeProviders());
     expect(s.prefs().autoAddGenerated).toBe(true);
     expect(s.prefs().autoAddUploads).toBe(false);
   });
 
-  it('不能把对话默认设为没有 Key 的组合', () => {
-    const s = new MediaConfigStore(tmp(), codec);
-    expect(() => s.setChatDefault({ modelId: 'gpt-image-1', providerRef: 'openai' })).toThrow();
-  });
-
   it('默认供应商停用 → 自动切到同模型另一家已启用的供应商', () => {
-    const s = new MediaConfigStore(tmp(), codec);
-    s.upsertProvider({ id: 'openrouter', apiKey: 'k1' });
-    s.upsertProvider({ id: 'google', apiKey: 'k2' });
+    const src = fakeProviders();
+    const s = new MediaConfigStore(tmp(), src);
+    src.key('openrouter', 'k1');
+    src.key('google', 'k2');
     s.setChatDefault({ modelId: 'gemini-2.5-flash-image', providerRef: 'openrouter' });
-    const { changes } = s.upsertProvider({ id: 'openrouter', enabled: false });
-    expect(changes).toEqual([
+    src.set('openrouter', { enabled: false });
+    expect(s.providersChanged()).toEqual([
       {
         target: 'chat',
         kind: 'switched',
@@ -116,51 +129,61 @@ describe('MediaConfigStore', () => {
     });
   });
 
-  it('同模型没有其他可用供应商 → 清空为未配置，不跨模型兜底', () => {
-    const s = new MediaConfigStore(tmp(), codec);
-    s.upsertProvider({ id: 'openai', apiKey: 'k' });
-    s.upsertProvider({ id: 'google', apiKey: 'k2' }); // 别的模型可用，也不能兜底过去
+  it('模型在供应商里被停用 / 标为非图片 → 同模型无其他可用供应商时清空，不跨模型兜底', () => {
+    const src = fakeProviders();
+    const s = new MediaConfigStore(tmp(), src);
+    src.key('openai', 'k');
+    src.key('google', 'k2'); // 别的模型可用，也不能兜底过去
     s.setChatDefault({ modelId: 'gpt-image-1', providerRef: 'openai' });
-    const changes = s.upsertBinding({
-      providerRef: 'openai',
-      modelId: 'gpt-image-1',
-      enabled: false,
-    });
+    const changes = s.markImage({ providerRef: 'openai', upstream: 'gpt-image-1', modelId: null });
     expect(changes[0]).toMatchObject({ target: 'chat', kind: 'cleared' });
     expect(s.prefs().chatDefaultImage).toBeNull();
+    // 清除标记 → 回到自动识别
+    s.markImage({ providerRef: 'openai', upstream: 'gpt-image-1' });
+    expect(s.isUsable({ modelId: 'gpt-image-1', providerRef: 'openai' })).toBe(true);
+    src.set('openai', { models: [{ id: 'gpt-image-1', enabled: false }] });
+    expect(s.isUsable({ modelId: 'gpt-image-1', providerRef: 'openai' })).toBe(false);
   });
 
   it('清除 Key 同样触发校正；损坏的配置文件回落到默认', () => {
     const root = tmp();
-    const s = new MediaConfigStore(root, codec);
-    s.upsertProvider({ id: 'volc', apiKey: 'k' });
+    const src = fakeProviders();
+    const s = new MediaConfigStore(root, src);
+    src.key('volc', 'k');
     s.setChatDefault({ modelId: 'seedream-4', providerRef: 'volc' });
-    s.upsertProvider({ id: 'fal', apiKey: 'k' });
-    const { changes } = s.upsertProvider({ id: 'volc', apiKey: null });
-    expect(changes[0]).toMatchObject({ kind: 'switched', to: { providerRef: 'fal' } });
+    src.key('fal', 'k');
+    src.key('volc', '');
+    expect(s.providersChanged()[0]).toMatchObject({ kind: 'switched', to: { providerRef: 'fal' } });
     require('node:fs').writeFileSync(path.join(root, 'config.json'), '{oops');
-    expect(new MediaConfigStore(root, codec).prefs().chatDefaultImage).toBeNull();
+    expect(new MediaConfigStore(root, src).prefs().chatDefaultImage).toBeNull();
   });
 
-  it('自定义供应商：新增绑定需要协议与上游模型名，删除后校正', () => {
-    const s = new MediaConfigStore(tmp(), codec);
-    const { provider } = s.upsertProvider({
-      name: 'My Proxy',
-      baseURL: 'https://proxy.example/v1',
-      apiKey: 'k',
-    });
-    expect(provider.custom).toBe(true);
-    expect(() => s.upsertBinding({ providerRef: provider.id, modelId: 'gpt-image-1' })).toThrow();
-    s.upsertBinding({
-      providerRef: provider.id,
-      modelId: 'gpt-image-1',
+  it('规则没覆盖的供应商（自建中转）：在模型行上手动标记为图片模型，删除供应商后校正', () => {
+    const src = fakeProviders();
+    src.add(
+      {
+        id: 'proxy',
+        name: 'My Proxy',
+        enabled: true,
+        hasKey: true,
+        urls: { chat: 'https://proxy.example/v1' },
+        models: [{ id: 'my-image-model', enabled: true }],
+      },
+      'k',
+    );
+    const s = new MediaConfigStore(tmp(), src);
+    expect(s.bindings().some((b) => b.providerRef === 'proxy')).toBe(false);
+    expect(() =>
+      s.markImage({ providerRef: 'proxy', upstream: 'my-image-model', modelId: 'nope' }),
+    ).toThrow();
+    s.markImage({ providerRef: 'proxy', upstream: 'my-image-model', modelId: 'gpt-image-1' });
+    expect(s.binding({ modelId: 'gpt-image-1', providerRef: 'proxy' })).toMatchObject({
       presetKey: 'openai-images',
-      upstreamModelName: 'gpt-image-1',
+      upstreamModelName: 'my-image-model',
     });
-    s.setChatDefault({ modelId: 'gpt-image-1', providerRef: provider.id });
-    const changes = s.removeProvider(provider.id);
-    expect(changes[0]).toMatchObject({ kind: 'cleared' });
-    expect(() => s.removeProvider('openai')).toThrow();
+    s.setChatDefault({ modelId: 'gpt-image-1', providerRef: 'proxy' });
+    src.set('proxy', { enabled: false });
+    expect(s.providersChanged()[0]).toMatchObject({ kind: 'cleared' });
   });
 });
 
@@ -172,6 +195,7 @@ function okJson(body: unknown): Response {
 }
 
 function makeService(over: Partial<ConstructorParameters<typeof MediaService>[0]> = {}) {
+  const src = fakeProviders();
   const fetchMock = jest.fn(async (_url: string, _init?: RequestInit) =>
     okJson({ data: [{ b64_json: PNG(7).toString('base64') }] }),
   );
@@ -179,12 +203,21 @@ function makeService(over: Partial<ConstructorParameters<typeof MediaService>[0]
   const svc = new MediaService({
     root: tmp(),
     logger,
-    codec,
+    providers: src,
     fetch: fetchMock as never,
     broadcast: (c, p) => events.push([c, p]),
     ...over,
   });
-  return { svc, fetchMock, events };
+  /** 在共用供应商配置里填 Key，并像网关广播那样通知生图 */
+  const key = (id: string, k: string) => {
+    src.key(id, k);
+    svc.providersChanged();
+  };
+  const disable = (id: string) => {
+    src.set(id, { enabled: false });
+    svc.providersChanged();
+  };
+  return { svc, fetchMock, events, src, key, disable };
 }
 
 describe('MediaService', () => {
@@ -203,8 +236,8 @@ describe('MediaService', () => {
   });
 
   it('对话生图：Key 只放在请求头，结果写入素材库（生成图开关默认开）', async () => {
-    const { svc, fetchMock, events } = makeService();
-    svc.upsertProvider({ id: 'openai', apiKey: 'sk-abc' });
+    const { svc, fetchMock, events, key } = makeService();
+    key('openai', 'sk-abc');
     svc.setChatDefault({ modelId: 'gpt-image-1', providerRef: 'openai' });
     const tool = svc.tools()[0] as unknown as {
       execute: (i: unknown, c: unknown) => Promise<unknown>;
@@ -236,8 +269,8 @@ describe('MediaService', () => {
   });
 
   it('生成图开关关闭：图片仍可显示，但不进素材库', async () => {
-    const { svc } = makeService();
-    svc.upsertProvider({ id: 'openai', apiKey: 'k' });
+    const { svc, key } = makeService();
+    key('openai', 'k');
     svc.setPrefs({ autoAddGenerated: false });
     const task = await svc.generate({
       modelId: 'gpt-image-1',
@@ -293,8 +326,8 @@ describe('MediaService', () => {
   });
 
   it('仅本地模型开启时拒绝云端生图', async () => {
-    const { svc, fetchMock } = makeService({ localOnly: () => true });
-    svc.upsertProvider({ id: 'openai', apiKey: 'k' });
+    const { svc, fetchMock, key } = makeService({ localOnly: () => true });
+    key('openai', 'k');
     const task = await svc.generate({
       modelId: 'gpt-image-1',
       providerRef: 'openai',
@@ -310,8 +343,8 @@ describe('MediaService', () => {
     const fetchMock = jest.fn(
       async () => new Response(JSON.stringify({ error: { message: 'bad key' } }), { status: 401 }),
     );
-    const { svc } = makeService({ fetch: fetchMock as never });
-    svc.upsertProvider({ id: 'openai', apiKey: 'k' });
+    const { svc, key } = makeService({ fetch: fetchMock as never });
+    key('openai', 'k');
     const task = await svc.generate({
       modelId: 'gpt-image-1',
       providerRef: 'openai',
@@ -327,8 +360,8 @@ describe('MediaService', () => {
         ? okJson({ images: [{ url: 'https://cdn.fal/x.png' }] })
         : new Response(new Uint8Array(PNG(9)), { headers: { 'content-type': 'image/png' } }),
     );
-    const { svc } = makeService({ fetch: fetchMock as never });
-    svc.upsertProvider({ id: 'fal', apiKey: 'k' });
+    const { svc, key } = makeService({ fetch: fetchMock as never });
+    key('fal', 'k');
     const task = await svc.generate({
       modelId: 'flux-1.1-pro',
       providerRef: 'fal',
@@ -340,11 +373,11 @@ describe('MediaService', () => {
   });
 
   it('停用默认供应商时广播 notice（渲染层据此 toast）', () => {
-    const { svc, events } = makeService();
-    svc.upsertProvider({ id: 'volc', apiKey: 'k' });
-    svc.upsertProvider({ id: 'fal', apiKey: 'k' });
+    const { svc, events, key, disable } = makeService();
+    key('volc', 'k');
+    key('fal', 'k');
     svc.setChatDefault({ modelId: 'seedream-4', providerRef: 'volc' });
-    svc.upsertProvider({ id: 'volc', enabled: false });
+    disable('volc');
     const notice = events.find(([c]) => c === 'ai:media:notice');
     expect(notice?.[1]).toMatchObject({ kind: 'switched', to: { providerRef: 'fal' } });
   });
@@ -382,9 +415,9 @@ describe('MediaService', () => {
   });
 
   it('会话临时换模型：只影响该会话，不改设置里的默认；新会话仍用默认', async () => {
-    const { svc, fetchMock } = makeService();
-    svc.upsertProvider({ id: 'openai', apiKey: 'k1' });
-    svc.upsertProvider({ id: 'volc', apiKey: 'k2' });
+    const { svc, fetchMock, key } = makeService();
+    key('openai', 'k1');
+    key('volc', 'k2');
     svc.setChatDefault({ modelId: 'gpt-image-1', providerRef: 'openai' });
     const before = JSON.stringify(svc.state().prefs);
     const r = svc.setSessionChoice('c1', { modelId: 'seedream-4', providerRef: 'volc' });
@@ -411,9 +444,9 @@ describe('MediaService', () => {
   });
 
   it('会话临时换模型：新会话（尚无 id）先记为待定，首次生图时归属该会话；不可用组合被拒', async () => {
-    const { svc } = makeService();
-    svc.upsertProvider({ id: 'openai', apiKey: 'k1' });
-    svc.upsertProvider({ id: 'volc', apiKey: 'k2' });
+    const { svc, key, disable } = makeService();
+    key('openai', 'k1');
+    key('volc', 'k2');
     svc.setChatDefault({ modelId: 'gpt-image-1', providerRef: 'openai' });
     expect(() =>
       svc.setSessionChoice('c1', { modelId: 'gpt-image-1', providerRef: 'fal' }),
@@ -428,10 +461,176 @@ describe('MediaService', () => {
     expect(svc.sessionChoice('new1').override).toBe(true);
     expect(svc.sessionChoice(undefined).override).toBe(false);
     // 覆盖的供应商被停用 → 自动回落到默认
-    svc.upsertProvider({ id: 'volc', enabled: false });
+    disable('volc');
     expect(svc.sessionChoice('new1')).toMatchObject({
       override: false,
       choice: { providerRef: 'openai' },
     });
+  });
+});
+
+describe('MediaService 生成队列', () => {
+  /** 可手动放行的 fetch：每次调用挂起，release() 依次返回不同的图 */
+  function gatedFetch() {
+    const pending: Array<() => void> = [];
+    let seed = 20;
+    const fetchMock = jest.fn(
+      (_url: string, init?: RequestInit) =>
+        new Promise<Response>((resolve, reject) => {
+          const s = seed++;
+          init?.signal?.addEventListener('abort', () => reject(new Error('aborted')));
+          pending.push(() =>
+            resolve(
+              _url.includes('generateContent')
+                ? okJson({
+                    candidates: [
+                      {
+                        content: {
+                          parts: [
+                            {
+                              inlineData: {
+                                mimeType: 'image/png',
+                                data: PNG(s).toString('base64'),
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    ],
+                  })
+                : okJson({ data: [{ b64_json: PNG(s).toString('base64') }] }),
+            ),
+          );
+        }),
+    );
+    const flush = () => new Promise((r) => setTimeout(r, 0));
+    return { fetchMock, pending, flush };
+  }
+  const req = (prompt: string) =>
+    ({ modelId: 'gpt-image-1', providerRef: 'openai', prompt, surface: 'studio' }) as const;
+
+  it('每个供应商最多 2 个并发，其余排队，空出名额后依次开始', async () => {
+    const { fetchMock, pending, flush } = gatedFetch();
+    const { svc, key } = makeService({ fetch: fetchMock as never });
+    key('openai', 'k');
+    const tasks = [svc.start(req('a')), svc.start(req('b')), svc.start(req('c'))];
+    await flush();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(svc.inFlight('openai')).toBe(2);
+    expect(tasks.map((t) => t.status)).toEqual(['running', 'running', 'queued']);
+    pending.shift()!();
+    await svc.wait(tasks[0].id);
+    await flush();
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(tasks[2].status).toBe('running');
+    pending.splice(0).forEach((go) => go());
+    await Promise.all(tasks.map((t) => svc.wait(t.id)));
+    expect(tasks.map((t) => t.status)).toEqual(['succeeded', 'succeeded', 'succeeded']);
+    expect(svc.inFlight('openai')).toBe(0);
+  });
+
+  it('不同供应商各自计数，互不占名额', async () => {
+    const { fetchMock, flush } = gatedFetch();
+    const { svc, key } = makeService({ fetch: fetchMock as never });
+    key('openai', 'k');
+    key('google', 'g');
+    svc.start(req('a'));
+    svc.start(req('b'));
+    svc.start({ ...req('c'), modelId: 'gemini-2.5-flash-image', providerRef: 'google' });
+    await flush();
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('取消排队中的任务：不发请求、标记 canceled；可重试并重新排队', async () => {
+    const { fetchMock, pending, flush } = gatedFetch();
+    const { svc, key } = makeService({ fetch: fetchMock as never });
+    key('openai', 'k');
+    svc.start(req('a'));
+    svc.start(req('b'));
+    const queued = svc.start(req('c'));
+    await flush();
+    expect(svc.cancel(queued.id)).toBe(true);
+    const done = await svc.wait(queued.id);
+    expect(done.status).toBe('failed');
+    expect(done.error?.code).toBe('canceled');
+    expect(svc.cancel(queued.id)).toBe(false);
+    pending.splice(0).forEach((go) => go());
+    await flush();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    const again = svc.retry(queued.id);
+    expect(again.id).not.toBe(queued.id);
+    expect(again.prompt).toBe('c');
+    await flush();
+    pending.splice(0).forEach((go) => go());
+    expect((await svc.wait(again.id)).status).toBe('succeeded');
+    expect(() => svc.retry(again.id)).toThrow();
+  });
+
+  it('取消生成中的任务会中止请求并释放名额', async () => {
+    const { fetchMock, flush } = gatedFetch();
+    const { svc, key } = makeService({ fetch: fetchMock as never });
+    key('openai', 'k');
+    const t = svc.start(req('a'));
+    await flush();
+    svc.cancel(t.id);
+    expect((await svc.wait(t.id)).error?.code).toBe('canceled');
+    expect(svc.inFlight('openai')).toBe(0);
+  });
+
+  it('失败任务重试：沿用原模型、供应商与参数', async () => {
+    let calls = 0;
+    const fetchMock = jest.fn(async () =>
+      ++calls === 1
+        ? new Response(JSON.stringify({ error: { message: 'busy' } }), { status: 500 })
+        : okJson({ data: [{ b64_json: PNG(3).toString('base64') }] }),
+    );
+    const { svc, key } = makeService({ fetch: fetchMock as never });
+    key('openai', 'k');
+    const failed = await svc.generate({ ...req('x'), params: { aspect_ratio: '16:9' } });
+    expect(failed.error).toEqual({ code: 'upstream', message: 'busy' });
+    const again = await svc.wait(svc.retry(failed.id).id);
+    expect(again.status).toBe('succeeded');
+    expect(again.params).toEqual(failed.params);
+  });
+
+  it('协议一次只出 1 张（Gemini）：n=3 拆成 3 次请求，合并结果并报告进度', async () => {
+    const { fetchMock, pending, flush } = gatedFetch();
+    // 事件里是同一个任务对象，按当时状态拍快照
+    const events: unknown[] = [];
+    const { svc, key } = makeService({
+      fetch: fetchMock as never,
+      broadcast: (c, p) => c === 'ai:media:task' && events.push(structuredClone(p)),
+    });
+    key('google', 'g');
+    const t = svc.start({
+      ...req('x'),
+      modelId: 'gemini-2.5-flash-image',
+      providerRef: 'google',
+      params: { n: 3 },
+    });
+    await flush();
+    // 拆出的子请求同样受并发上限约束
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    pending.shift()!();
+    await flush();
+    await flush();
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    pending.splice(0).forEach((go) => go());
+    const done = await svc.wait(t.id);
+    expect(done.status).toBe('succeeded');
+    expect(done.assets).toHaveLength(3);
+    expect(done.progress).toEqual({ done: 3, total: 3 });
+    expect(events.some((p) => (p as { progress?: { done: number } }).progress?.done === 1)).toBe(
+      true,
+    );
+  });
+
+  it('支持多张的协议不拆分：n 原样一次发出', async () => {
+    const { svc, fetchMock, key } = makeService();
+    key('openai', 'k');
+    await svc.generate({ ...req('x'), params: { n: 4 } });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]!.body)).n).toBe(4);
   });
 });

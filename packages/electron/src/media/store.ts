@@ -1,56 +1,51 @@
 /**
- * 生图配置存储（主进程）：供应商（Key 经 safeStorage 加密）、模型×供应商绑定、偏好。
- * 文件：userData/media/config.json（0600 原子写）。Key 永远不出主进程，对外只给 hasKey / keyHint。
+ * 生图配置存储（主进程）：只存图片模型标记与偏好，不存供应商与 Key。
+ * 供应商、Key、地址、启用开关全部来自 Nomi 已有的第三方供应商配置（网关 store.json），经 ProviderSource 读取；
+ * 图片模型 = 打包规则识别 + 用户在供应商设置里的标记（见 @nomi-ai/gateway/media providers.ts）。
+ * 文件：userData/media/config.json（0600 原子写）。
  */
 import * as fs from 'fs';
 import * as path from 'path';
 
 import {
   DEFAULT_MEDIA_PREFS,
-  MEDIA_PROTOCOLS,
-  MEDIA_PROVIDER_PRESETS,
   getImageSpec,
+  imageBaseURL,
+  imageBindings,
   isBindingUsable,
   migrateParams,
   reconcileChoice,
+  type ImageMark,
   type MediaModelChoice,
   type MediaParams,
   type MediaPrefs,
-  type MediaProtocol,
   type ProviderAvailability,
   type ProviderBinding,
+  type SharedProvider,
 } from '@nomi-ai/gateway/media';
 
 import { ensurePrivateDir, writePrivateFileAtomic } from '../utils/privateFile';
 
-export interface MediaProviderRecord {
-  id: string;
-  name: string;
-  baseURL: string;
-  /** 预设 id；自定义供应商为空 */
-  preset?: string;
-  enabled: boolean;
-  /** safeStorage 加密后的 Key（enc:...） */
-  apiKeyEnc?: string;
-  /** Key 末 4 位，仅用于界面提示 */
-  keyHint?: string;
+/** 共用供应商来源（网关）。Key 只在主进程里取，绝不进渲染层 */
+export interface ProviderSource {
+  list(): SharedProvider[];
+  /** 该供应商可用的明文 Key；没有返回空串 */
+  apiKey(id: string): string;
 }
 
-export interface MediaProviderView extends Omit<MediaProviderRecord, 'apiKeyEnc'> {
+/** 渲染层看到的供应商（不含 Key） */
+export interface MediaProviderView {
+  id: string;
+  name: string;
+  presetId?: string;
+  enabled: boolean;
   hasKey: boolean;
-  custom: boolean;
 }
 
 export interface MediaConfig {
-  version: 1;
-  providers: MediaProviderRecord[];
-  bindings: ProviderBinding[];
+  version: 2;
+  marks: ImageMark[];
   prefs: MediaPrefs;
-}
-
-export interface SecretCodec {
-  encrypt(value: string): string;
-  decrypt(value: string | undefined): string;
 }
 
 /** 偏好被自动调整（默认供应商被停用等）时产生的通知 */
@@ -70,33 +65,8 @@ export class MediaConfigError extends Error {
   }
 }
 
-const ID_RE = /^[a-z0-9][a-z0-9_-]{0,47}$/;
-
 function seedConfig(): MediaConfig {
-  return {
-    version: 1,
-    providers: [],
-    bindings: [],
-    prefs: { ...DEFAULT_MEDIA_PREFS, userDefaults: {} },
-  };
-}
-
-/** 补齐预设供应商与预设绑定（新版本新增预设时，老用户也能看到） */
-export function ensurePresets(cfg: MediaConfig): MediaConfig {
-  for (const p of MEDIA_PROVIDER_PRESETS) {
-    if (!cfg.providers.some((x) => x.id === p.id))
-      cfg.providers.push({
-        id: p.id,
-        name: p.name,
-        baseURL: p.baseURL,
-        preset: p.id,
-        enabled: true,
-      });
-    for (const b of p.bindings)
-      if (!cfg.bindings.some((x) => x.providerRef === p.id && x.modelId === b.modelId))
-        cfg.bindings.push({ ...b, providerRef: p.id, enabled: true });
-  }
-  return cfg;
+  return { version: 2, marks: [], prefs: { ...DEFAULT_MEDIA_PREFS, userDefaults: {} } };
 }
 
 function sanitizePrefs(raw: unknown): MediaPrefs {
@@ -133,25 +103,26 @@ export class MediaConfigStore {
 
   constructor(
     root: string,
-    private readonly codec: SecretCodec,
+    private readonly source: ProviderSource,
   ) {
     ensurePrivateDir(root);
     this.file = path.join(root, 'config.json');
-    this.cfg = ensurePresets(this.load());
-    // 绑定里引用的模型若已下线：保留记录但不可用（getImageSpec 为空，usable 判定会过滤）
+    this.cfg = this.load();
   }
 
   private load(): MediaConfig {
     try {
       const raw = JSON.parse(fs.readFileSync(this.file, 'utf8')) as Partial<MediaConfig>;
+      // 2.1.0 未发布：旧的独立供应商配置（version 1）不迁移，只保留偏好
       return {
-        version: 1,
-        providers: Array.isArray(raw.providers)
-          ? raw.providers.filter((p) => p && ID_RE.test(p.id))
-          : [],
-        bindings: Array.isArray(raw.bindings)
-          ? raw.bindings.filter(
-              (b) => b && typeof b.modelId === 'string' && MEDIA_PROTOCOLS.includes(b.presetKey),
+        version: 2,
+        marks: Array.isArray(raw.marks)
+          ? raw.marks.filter(
+              (m) =>
+                m &&
+                typeof m.providerRef === 'string' &&
+                typeof m.upstream === 'string' &&
+                (m.modelId === null || typeof m.modelId === 'string'),
             )
           : [],
         prefs: sanitizePrefs(raw.prefs),
@@ -167,16 +138,30 @@ export class MediaConfigStore {
 
   // ---------- 读取 ----------
 
+  private shared(): SharedProvider[] {
+    try {
+      return this.source.list();
+    } catch {
+      return [];
+    }
+  }
+
   providers(): MediaProviderView[] {
-    return this.cfg.providers.map(({ apiKeyEnc, ...p }) => ({
-      ...p,
-      hasKey: !!apiKeyEnc,
-      custom: !p.preset,
+    return this.shared().map((p) => ({
+      id: p.id,
+      name: p.name,
+      ...(p.presetId ? { presetId: p.presetId } : {}),
+      enabled: p.enabled,
+      hasKey: p.hasKey,
     }));
   }
 
   bindings(): ProviderBinding[] {
-    return this.cfg.bindings.map((b) => ({ ...b }));
+    return imageBindings(this.shared(), this.cfg.marks);
+  }
+
+  marks(): ImageMark[] {
+    return this.cfg.marks.map((m) => ({ ...m }));
   }
 
   prefs(): MediaPrefs {
@@ -184,19 +169,11 @@ export class MediaConfigStore {
   }
 
   availability(): ProviderAvailability[] {
-    return this.cfg.providers.map((p) => ({ id: p.id, enabled: p.enabled, hasKey: !!p.apiKeyEnc }));
-  }
-
-  provider(id: string): MediaProviderRecord | undefined {
-    return this.cfg.providers.find((p) => p.id === id);
-  }
-
-  apiKey(id: string): string {
-    return this.codec.decrypt(this.provider(id)?.apiKeyEnc);
+    return this.shared().map((p) => ({ id: p.id, enabled: p.enabled, hasKey: p.hasKey }));
   }
 
   binding(choice: MediaModelChoice): ProviderBinding | undefined {
-    return this.cfg.bindings.find(
+    return this.bindings().find(
       (b) => b.modelId === choice.modelId && b.providerRef === choice.providerRef,
     );
   }
@@ -207,102 +184,42 @@ export class MediaConfigStore {
     return !!b && isBindingUsable(b, this.availability());
   }
 
-  // ---------- 供应商 ----------
-
-  upsertProvider(input: {
-    id?: string;
-    name?: string;
-    baseURL?: string;
-    enabled?: boolean;
-    apiKey?: string | null;
-  }): { provider: MediaProviderView; changes: ChoiceChange[] } {
-    let rec = input.id ? this.provider(input.id) : undefined;
-    if (!rec) {
-      const name = String(input.name ?? '').trim();
-      const baseURL = String(input.baseURL ?? '').trim();
-      if (!name) throw new MediaConfigError('invalid', 'name required');
-      if (!/^https?:\/\//i.test(baseURL))
-        throw new MediaConfigError('invalid', 'baseURL must be http(s)');
-      let id = input.id && ID_RE.test(input.id) ? input.id : `custom-${Date.now().toString(36)}`;
-      while (this.provider(id)) id = `${id}-x`;
-      rec = { id, name, baseURL, enabled: true };
-      this.cfg.providers.push(rec);
-    } else {
-      if (input.name !== undefined && !rec.preset) rec.name = String(input.name).trim() || rec.name;
-      if (input.baseURL !== undefined) {
-        const u = String(input.baseURL).trim();
-        if (!/^https?:\/\//i.test(u))
-          throw new MediaConfigError('invalid', 'baseURL must be http(s)');
-        rec.baseURL = u;
-      }
-    }
-    if (typeof input.enabled === 'boolean') rec.enabled = input.enabled;
-    if (input.apiKey === null || input.apiKey === '') {
-      delete rec.apiKeyEnc;
-      delete rec.keyHint;
-    } else if (typeof input.apiKey === 'string') {
-      const k = input.apiKey.trim();
-      rec.apiKeyEnc = this.codec.encrypt(k);
-      rec.keyHint = k.slice(-4);
-    }
-    const changes = this.reconcile();
-    this.save();
-    return { provider: this.providers().find((p) => p.id === rec!.id)!, changes };
+  /** 生成用的连接信息（主进程内用；含明文 Key） */
+  endpoint(
+    choice: MediaModelChoice,
+  ): { binding: ProviderBinding; baseURL: string; apiKey: string } | null {
+    const b = this.binding(choice);
+    const p = this.shared().find((x) => x.id === choice.providerRef);
+    if (!b || !p) return null;
+    return { binding: b, baseURL: imageBaseURL(p, b.presetKey), apiKey: this.source.apiKey(p.id) };
   }
 
-  removeProvider(id: string): ChoiceChange[] {
-    const rec = this.provider(id);
-    if (!rec) return [];
-    if (rec.preset) throw new MediaConfigError('invalid', 'preset providers cannot be removed');
-    this.cfg.providers = this.cfg.providers.filter((p) => p.id !== id);
-    this.cfg.bindings = this.cfg.bindings.filter((b) => b.providerRef !== id);
-    const changes = this.reconcile();
-    this.save();
-    return changes;
-  }
+  // ---------- 图片模型标记（在供应商设置的模型列表里操作） ----------
 
-  // ---------- 绑定 ----------
-
-  upsertBinding(input: {
+  /** modelId：标为该图片模型；null：标为「不是图片模型」；undefined：清除标记，回到自动识别 */
+  markImage(input: {
     providerRef: string;
-    modelId: string;
-    enabled?: boolean;
-    presetKey?: MediaProtocol;
-    upstreamModelName?: string;
+    upstream: string;
+    modelId?: string | null;
   }): ChoiceChange[] {
-    if (!this.provider(input.providerRef))
-      throw new MediaConfigError('not_found', 'provider not found');
-    if (!getImageSpec(input.modelId)) throw new MediaConfigError('invalid', 'unknown model');
-    let b = this.binding(input);
-    if (!b) {
-      if (!input.presetKey || !MEDIA_PROTOCOLS.includes(input.presetKey))
-        throw new MediaConfigError('invalid', 'protocol required');
-      const upstream = String(input.upstreamModelName ?? '').trim();
-      if (!upstream) throw new MediaConfigError('invalid', 'upstream model name required');
-      b = {
-        providerRef: input.providerRef,
-        modelId: input.modelId,
-        enabled: true,
-        presetKey: input.presetKey,
-        upstreamModelName: upstream,
-      };
-      this.cfg.bindings.push(b);
-    }
-    if (typeof input.enabled === 'boolean') b.enabled = input.enabled;
-    if (input.presetKey && MEDIA_PROTOCOLS.includes(input.presetKey)) b.presetKey = input.presetKey;
-    if (typeof input.upstreamModelName === 'string' && input.upstreamModelName.trim())
-      b.upstreamModelName = input.upstreamModelName.trim();
+    const upstream = String(input.upstream ?? '').trim();
+    if (!input.providerRef || !upstream) throw new MediaConfigError('invalid', 'model required');
+    if (typeof input.modelId === 'string' && !getImageSpec(input.modelId))
+      throw new MediaConfigError('invalid', 'unknown model');
+    this.cfg.marks = this.cfg.marks.filter(
+      (m) => !(m.providerRef === input.providerRef && m.upstream === upstream),
+    );
+    if (input.modelId !== undefined)
+      this.cfg.marks.push({ providerRef: input.providerRef, upstream, modelId: input.modelId });
     const changes = this.reconcile();
     this.save();
     return changes;
   }
 
-  removeBinding(choice: MediaModelChoice): ChoiceChange[] {
-    this.cfg.bindings = this.cfg.bindings.filter(
-      (b) => !(b.modelId === choice.modelId && b.providerRef === choice.providerRef),
-    );
+  /** 共用供应商配置变化后调用：校正默认选择 */
+  providersChanged(): ChoiceChange[] {
     const changes = this.reconcile();
-    this.save();
+    if (changes.length) this.save();
     return changes;
   }
 
@@ -350,7 +267,8 @@ export class MediaConfigStore {
   reconcile(): ChoiceChange[] {
     const changes: ChoiceChange[] = [];
     const avail = this.availability();
-    const chat = reconcileChoice(this.cfg.prefs.chatDefaultImage, this.cfg.bindings, avail);
+    const bindings = this.bindings();
+    const chat = reconcileChoice(this.cfg.prefs.chatDefaultImage, bindings, avail);
     if (chat.kind === 'switched') {
       this.cfg.prefs.chatDefaultImage = chat.choice;
       changes.push({ target: 'chat', kind: 'switched', from: chat.from, to: chat.choice });
@@ -361,7 +279,7 @@ export class MediaConfigStore {
     const last = this.cfg.prefs.studioLast;
     const studio = reconcileChoice(
       last ? { modelId: last.modelId, providerRef: last.providerRef } : null,
-      this.cfg.bindings,
+      bindings,
       avail,
     );
     if (studio.kind === 'switched' && last) {
