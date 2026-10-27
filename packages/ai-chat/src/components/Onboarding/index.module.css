@@ -11,8 +11,12 @@
     var(--cd-color-overlay);
 }
 .card {
-  width: min(860px, 100%);
-  max-height: min(820px, calc(100vh - 48px - var(--cd-titlebar-h, 0px)));
+  --onb-wash: #fcefe1;
+  --onb-wash-rgb: 252, 239, 225;
+  position: relative;
+  isolation: isolate;
+  width: min(1040px, 100%);
+  height: min(720px, calc(100vh - 48px - var(--cd-titlebar-h, 0px)));
   font-size: var(--cd-font-size-md);
   display: flex;
   flex-direction: column;
@@ -66,6 +70,8 @@
   background: var(--cd-color-hover);
 }
 .step {
+  flex: 1;
+  min-height: 0;
   padding: 18px 28px var(--cd-space-2);
   overflow: auto;
 }
@@ -91,6 +97,13 @@
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 10px;
 }
+.optionsDense {
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  gap: var(--cd-space-2);
+}
+.optionsDense .swatch {
+  height: 20px;
+}
 .option {
   display: flex;
   flex-direction: column;
@@ -114,6 +127,41 @@
 }
 .optionSmall {
   padding: 10px var(--cd-space-3);
+}
+.optionsPair {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+/* 语言：紧凑的分段按钮 */
+.segmented {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 3px;
+  gap: 2px;
+  border-radius: var(--cd-radius-md);
+  border: 1px solid var(--cd-color-border);
+  background: rgba(var(--onb-wash-rgb), 0.7);
+}
+.segment {
+  padding: 5px 14px;
+  border: 0;
+  border-radius: var(--cd-radius-sm);
+  background: transparent;
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-sm);
+  cursor: pointer;
+}
+.segment:hover {
+  color: var(--cd-color-text);
+}
+.segment:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 1px;
+}
+.segmentOn {
+  background: var(--cd-color-selected-bg);
+  color: var(--cd-color-selected-text);
+  font-weight: var(--cd-font-weight-bold);
+  box-shadow: 0 0 0 1px var(--cd-color-accent-strong) inset;
 }
 .optionOn {
   border-color: var(--cd-color-accent-strong);
@@ -174,32 +222,23 @@
   line-height: 1.6;
   color: var(--cd-color-text-muted);
 }
-.provider {
-  max-height: 340px;
-  overflow: auto;
-  border: 1px solid var(--cd-color-border);
-  border-radius: var(--cd-radius-lg);
-  padding: var(--cd-space-2);
-  background: var(--cd-color-bg);
-}
 .privacy {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
 }
 .privacy li {
   display: flex;
   gap: var(--cd-space-3);
   align-items: flex-start;
-  padding: var(--cd-space-3) 14px;
-  border-radius: var(--cd-radius-lg);
-  background: var(--cd-color-surface);
-  border: 1px solid var(--cd-color-border);
+  padding: 6px 10px;
+  border-radius: var(--cd-radius-md);
+  background: rgba(var(--onb-wash-rgb), 0.7);
   font-size: var(--cd-font-size-sm);
-  line-height: 1.55;
+  line-height: 1.45;
 }
 .foot {
   display: flex;
@@ -241,4 +280,208 @@
 }
 .primary:hover {
   background: var(--cd-color-accent-hover);
+}
+
+/* 步骤插画：16:9 原图裁成横幅，人物在右侧；窗口很矮时隐藏，把空间留给选项 */
+.intro {
+  margin: -10px 0 var(--cd-space-3);
+  font-size: var(--cd-font-size-sm);
+  line-height: 1.6;
+  color: var(--cd-color-text-muted);
+}
+.callout,
+.configured {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-3);
+  padding: var(--cd-space-3) 14px;
+  border-radius: var(--cd-radius-lg);
+  border: 1px solid var(--cd-color-border);
+  background: var(--cd-color-surface);
+  font-size: var(--cd-font-size-sm);
+  line-height: 1.55;
+}
+.calloutOk,
+.configured {
+  border-color: var(--cd-color-accent-strong);
+  background: var(--cd-color-selected-bg);
+  color: var(--cd-color-selected-text);
+}
+.calloutTitle {
+  font-weight: var(--cd-font-weight-bold);
+}
+.secondary {
+  height: var(--cd-control-h-md);
+  padding: 0 var(--cd-space-4);
+  border-radius: var(--cd-radius-md);
+  font-size: var(--cd-font-size-sm);
+  cursor: pointer;
+  border: 1px solid var(--cd-color-border);
+  background: var(--cd-color-surface);
+  color: var(--cd-color-text);
+  white-space: nowrap;
+}
+.secondary:hover {
+  background: var(--cd-color-hover);
+}
+.link {
+  background: none;
+  border: 0;
+  padding: 0 var(--cd-space-1);
+  color: var(--cd-color-accent-strong);
+  font-size: var(--cd-font-size-sm);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.error {
+  margin: 0;
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-danger);
+}
+.primary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* 背景插画：按卡片高度缩放，让人物头顶贴近卡片上沿（不留大片空白）；底部对齐。
+   应用内 webp 在原图上方用纯背景色补了 260px 画布（960×800，原图占下方 67.5%，原图被画幅切掉的头顶已在补出的画布里补全），
+   图高取卡片高的 128%，原图顶边约落在卡片高 13% 处；横向按每步原图里手/道具最靠左的位置
+   （--onb-art-l，占图宽比例）对齐到卡片 52% 处（伸进左侧内容区右缘的渐变里，被淡化），右侧多出的部分裁掉 */
+.cardArt {
+  container-type: size;
+}
+.bg {
+  --onb-art-h: 128cqh;
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-color: var(--onb-wash);
+  background-repeat: no-repeat;
+  background-size: auto var(--onb-art-h);
+  background-position: left calc(52cqw - var(--onb-art-l, 0.44) * 1.2 * var(--onb-art-h)) bottom;
+  pointer-events: none;
+}
+.bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    var(--onb-wash) 0%,
+    var(--onb-wash) 44%,
+    rgba(var(--onb-wash-rgb), 0.8) 52%,
+    rgba(var(--onb-wash-rgb), 0) 60%
+  );
+}
+.bg[data-art='welcome'],
+.bg[data-art='provider'] {
+  --onb-art-l: 0.44;
+}
+.bg[data-art='profile'] {
+  --onb-art-l: 0.47;
+}
+.bg[data-art='privacy'] {
+  --onb-art-l: 0.475;
+}
+.cardArt .step {
+  width: 58%;
+}
+:global([data-theme='ink']) .card,
+:global([data-theme='graphite']) .card {
+  --onb-wash: #1d1a18;
+  --onb-wash-rgb: 29, 26, 24;
+}
+:global([data-theme='ink']) .bg,
+:global([data-theme='graphite']) .bg {
+  opacity: 0.55;
+}
+.head,
+.foot {
+  position: relative;
+}
+/* 窄窗：内容占满，背景淡化成纹理 */
+@media (max-width: 880px) {
+  .cardArt .step {
+    width: auto;
+  }
+  .bg {
+    opacity: 0.22;
+  }
+}
+/* 矮窗：卡片变矮，人物随高度缩小；再淡一些保证文字可读 */
+@media (max-height: 640px) {
+  .bg {
+    opacity: 0.7;
+  }
+}
+
+/* 接上模型：① 供应商 → ② 模型（供应商配好前置灰） */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-2);
+  padding: var(--cd-space-3);
+  border-radius: var(--cd-radius-lg);
+  border: 1px solid var(--cd-color-border);
+  background: color-mix(in srgb, var(--cd-color-surface) 86%, transparent);
+}
+.sectionOff {
+  opacity: 0.5;
+}
+.sectionOff * {
+  pointer-events: none;
+}
+.sectionHead {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+}
+.sectionHead .subLabel {
+  margin-top: 0;
+  color: var(--cd-color-text);
+}
+.sectionNo {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--cd-color-accent-strong);
+  color: #fff;
+  font-size: var(--cd-font-size-xs);
+  font-weight: var(--cd-font-weight-bold);
+}
+.sectionOff .sectionNo {
+  background: var(--cd-color-text-muted);
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cd-space-1-5);
+  max-height: 132px;
+  overflow-y: auto;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--cd-color-border);
+  background: var(--cd-color-surface);
+  color: var(--cd-color-text);
+  font-size: var(--cd-font-size-sm);
+  cursor: pointer;
+}
+.chip:hover {
+  border-color: var(--cd-color-accent);
+}
+
+/* 有背景插画时，页眉 / 页脚右侧的文字按钮压在插画上：垫一层底色保证可读 */
+.cardArt .skipAll,
+.cardArt .foot .ghost {
+  background: rgba(var(--onb-wash-rgb), 0.85);
+  backdrop-filter: blur(6px);
 }

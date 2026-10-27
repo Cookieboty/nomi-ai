@@ -3,7 +3,6 @@
   "ui.cli-monitor.act-cute": "卖萌",
   "ui.cli-monitor.action-sound-effects": "动作音效",
   "ui.cli-monitor.active-sessions": "活跃会话",
-  "ui.cli-monitor.add-a-third-party-provider-a-model-vendor": "添加一个第三方供应商（厂商、中转平台或本机 Ollama 等）。不着急的话可以先跳过，之后在「设置 → 模型」里添加。",
   "ui.cli-monitor.aggrieved": "委屈",
   "ui.cli-monitor.annoyed-mild": "生气（轻微）",
   "ui.cli-monitor.apologise": "道歉",

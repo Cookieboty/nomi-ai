@@ -3,7 +3,6 @@
   "ui.cli-monitor.act-cute": "Act cute",
   "ui.cli-monitor.action-sound-effects": "Action sound effects",
   "ui.cli-monitor.active-sessions": "Active sessions",
-  "ui.cli-monitor.add-a-third-party-provider-a-model-vendor": "Add a third-party provider (a model vendor, a relay platform, local Ollama, …). You can skip this for now and add one later under “Settings → Models”.",
   "ui.cli-monitor.aggrieved": "Aggrieved",
   "ui.cli-monitor.annoyed-mild": "Annoyed (mild)",
   "ui.cli-monitor.apologise": "Apologise",

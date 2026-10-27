@@ -25,6 +25,7 @@ import {
 } from './components/lazyPanels';
 import { MessageInput } from './components/MessageInput';
 import { OnboardingHost } from './components/Onboarding';
+import { OPEN_MODELS_EVENT } from './components/Onboarding/client';
 import { onboardingClient } from './components/Onboarding/client';
 import { PluginPanel } from './components/PluginPanel';
 import {
@@ -396,6 +397,12 @@ const AiChatContent: React.FC = () => {
   }, []);
   // 托盘「模型设置…」→ 设置 →「模型与供应商」
   useEffect(() => providerClient.onOpenPanel(() => openSettings('models')), [openSettings]);
+  // 新手引导里「打开完整模型设置」/「去接上模型」
+  useEffect(() => {
+    const open = () => openSettings('models');
+    window.addEventListener(OPEN_MODELS_EVENT, open);
+    return () => window.removeEventListener(OPEN_MODELS_EVENT, open);
+  }, [openSettings]);
   useEffect(() => watchNomiModel(), []);
   // 看板娘「TTS 语音配置」/ 语音错误「去设置」→ 设置 → 通用 → 语音
   useEffect(

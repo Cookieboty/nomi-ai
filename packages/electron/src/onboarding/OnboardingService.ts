@@ -21,7 +21,7 @@ export interface OnboardingState {
 }
 
 /** 引导里允许转发给看板娘的指令（不开放任意指令） */
-const ALLOWED = new Set(['say', 'voice-style', 'motion']);
+const ALLOWED = new Set(['say', 'motion']);
 
 export interface OnboardingDeps {
   userData: string;

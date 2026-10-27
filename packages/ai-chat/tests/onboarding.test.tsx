@@ -5,7 +5,12 @@ import React from 'react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { OnboardingHost } from '../src/components/Onboarding';
-import { mergePersona } from '../src/components/Onboarding/client';
+import {
+  OPEN_MODELS_EVENT,
+  matchTemplate,
+  mergePersona,
+  personaBlockLines,
+} from '../src/components/Onboarding/client';
 
 type Call = [string, ...unknown[]];
 let calls: Call[] = [];
@@ -13,6 +18,41 @@ let persona = '我喜欢猫';
 let done = false;
 let startupView: 'mascot' | 'main' = 'mascot';
 let profile: unknown = { role: null, interests: [] };
+/** none：没有模型；unassigned：有模型没选给 Nomi；ready：已选 */
+let model: 'none' | 'unassigned' | 'ready' = 'none';
+let nomiMain = 'p1/m1';
+
+const PRESET = {
+  id: 'deepseek',
+  name: 'DeepSeek',
+  category: 'vendor',
+  protocol: 'openai',
+  baseURL: 'https://api.deepseek.com',
+  defaultModel: 'deepseek-chat',
+  models: ['deepseek-chat'],
+  requiresApiKey: true,
+};
+
+const gatewayState = () => ({
+  status: { running: true },
+  providers:
+    model === 'none'
+      ? []
+      : [
+          {
+            id: 'p1',
+            name: 'P1',
+            enabled: true,
+            source: 'user',
+            models: [
+              { id: 'm1', enabled: true },
+              { id: 'm2', enabled: true },
+            ],
+            urls: {},
+          },
+        ],
+  clients: model === 'ready' ? { nomi: { models: { main: nomiMain } } } : {},
+});
 
 beforeEach(() => {
   calls = [];
@@ -20,6 +60,8 @@ beforeEach(() => {
   done = false;
   startupView = 'mascot';
   profile = { role: null, interests: [] };
+  model = 'none';
+  nomiMain = 'p1/m1';
   (window as unknown as { aiIPC: unknown }).aiIPC = {
     invoke: async (ch: string, ...a: unknown[]) => {
       calls.push([ch, ...a]);
@@ -43,15 +85,24 @@ beforeEach(() => {
         persona = String(a[0]);
         return true;
       }
-      if (ch === 'ai:providers:presets') return [];
-      if (ch === 'ai:providers:state')
+      if (ch === 'ai:gateway:state') return gatewayState();
+      if (ch === 'ai:gateway:set-assignment') {
+        model = 'ready';
+        nomiMain = (a[1] as { models: { main: string } }).models.main;
+        return undefined;
+      }
+      if (ch === 'ai:providers:presets') return [PRESET];
+      if (ch === 'ai:gateway:detect')
         return {
-          providers: [],
-          envProviders: [],
-          routes: {},
-          roles: [],
-          encryption: 'safeStorage',
+          wires: { chat: { wire: 'chat', url: 'https://api.deepseek.com', ok: true } },
+          byKey: {},
+          models: ['deepseek-chat', 'deepseek-reasoner', 'text-embedding-x'],
+          urls: { chat: 'https://api.deepseek.com' },
         };
+      if (ch === 'ai:gateway:upsert-provider') {
+        model = 'unassigned';
+        return gatewayState().providers[0];
+      }
       return null;
     },
     on: () => () => undefined,
@@ -64,56 +115,50 @@ afterEach(() => {
 });
 
 const mascot = () =>
-  calls.filter((c) => c[0] === 'ai:onboarding:mascot').map((c) => c[1] as { type: string });
+  calls
+    .filter((c) => c[0] === 'ai:onboarding:mascot')
+    .map((c) => c[1] as { type: string; text?: string });
+const skipTo = async (id: string, n: number) => {
+  for (let k = 0; k < n; k++) fireEvent.click(await screen.findByTestId('onboarding-skip-step'));
+  await screen.findByTestId(`onboarding-step-${id}`);
+};
 
 describe('first-launch onboarding', () => {
-  it('walks language → theme → startup → voice → name & tone → occupation & interests → provider → privacy', async () => {
+  it('walks welcome & preferences → about you → model → privacy (4 steps)', async () => {
     render(<OnboardingHost />);
-    await screen.findByTestId('onboarding-step-language');
-    // 看板娘打招呼
+    await screen.findByTestId('onboarding-step-welcome');
+    // 看板娘打招呼；欢迎页有插画与介绍
     await waitFor(() => expect(mascot()[0]).toMatchObject({ type: 'say', motion: 'wave' }));
+    // 插画是整张卡片的背景（不是横幅 img），人物靠右完整显示
+    const bg = screen.getByTestId('onb-art');
+    expect(bg.tagName).toBe('DIV');
+    expect(bg.getAttribute('data-art')).toBe('welcome');
+    expect(bg.style.backgroundImage).toMatch(/welcome/);
+    expect(screen.getByTestId('onboarding').querySelector('img')).toBeNull();
+    expect(screen.getByText('你好，我是 Nomi·诺米')).toBeTruthy();
+    expect(screen.getByText('第 1 步，共 4 步')).toBeTruthy();
+    expect(screen.queryByTestId('onboarding-step-appearance')).toBeNull();
 
-    // 1 语言：即时切换为英文
+    // 1 欢迎与偏好：语言（即时切换）、主题、启动方式都在同一页
     act(() => fireEvent.click(screen.getByTestId('onb-lang-en')));
     expect(getLocale()).toBe('en');
     expect(screen.getByTestId('onboarding-next').textContent).toBe('Next');
     act(() => fireEvent.click(screen.getByTestId('onb-lang-zh-CN')));
-    fireEvent.click(screen.getByTestId('onboarding-next'));
-
-    // 2 主题：默认暖墨，可选跟随系统
-    await screen.findByTestId('onboarding-step-theme');
     expect(screen.getByTestId('onb-theme-sunset')).toBeTruthy();
     act(() => fireEvent.click(screen.getByTestId('onb-theme-system')));
     expect(currentTheme().pref).toBe('system');
-    fireEvent.click(screen.getByTestId('onboarding-next'));
-
-    // 3 启动方式：默认看板娘；不选直接下一步不会写设置
-    await screen.findByTestId('onboarding-step-startup');
     expect(screen.getByTestId('onb-startup-mascot').getAttribute('aria-checked')).toBe('true');
-    expect(screen.getByTestId('onb-startup-main').getAttribute('aria-checked')).toBe('false');
     fireEvent.click(screen.getByTestId('onboarding-next'));
     expect(calls.some((c) => c[0] === 'ai:startup:set')).toBe(false);
 
-    // 4 声音（只内置 Nomi，不再选角色）
-    fireEvent.click(await screen.findByTestId('onb-voice-lively'));
-    expect(screen.queryByTestId('onb-char-nomi')).toBeNull();
-    expect(mascot()).toEqual(
-      expect.arrayContaining([expect.objectContaining({ type: 'voice-style', style: 'lively' })]),
-    );
-    expect(mascot().some((c) => (c as { type: string }).type === 'select-model')).toBe(false);
-    fireEvent.click(screen.getByTestId('onboarding-next'));
-
-    // 5 称呼 + 语气 → 写进 persona（保留原有内容）
-    await screen.findByTestId('onboarding-step-persona');
-    fireEvent.change(screen.getByTestId('onb-name'), { target: { value: '小林' } });
-    fireEvent.click(screen.getByTestId('onb-tone-concise'));
-    fireEvent.click(screen.getByTestId('onboarding-next'));
+    // 2 关于你：称呼 + 职业（单选）+ 兴趣（多选，再点取消）→ 存进主进程，并写进 persona
+    // 不再有声音、说话语气
     await screen.findByTestId('onboarding-step-profile');
-    expect(persona).toContain('- 请称呼我：小林');
-    expect(persona).toContain('简洁专业');
-    expect(persona).toContain('我喜欢猫');
-
-    // 6 职业（单选）与兴趣（多选，再点取消）→ 存进主进程，并写进 persona
+    expect(screen.getByText('关于你')).toBeTruthy();
+    expect(screen.getByTestId('onb-art').getAttribute('data-art')).toBe('profile');
+    expect(mascot().some((c) => c.type === 'voice-style')).toBe(false);
+    expect(screen.queryByText('说话的语气')).toBeNull();
+    fireEvent.change(screen.getByTestId('onb-name'), { target: { value: '小林' } });
     fireEvent.click(screen.getByTestId('onb-role-office'));
     fireEvent.click(screen.getByTestId('onb-role-developer'));
     expect(screen.getByTestId('onb-role-office').getAttribute('aria-checked')).toBe('false');
@@ -128,26 +173,94 @@ describe('first-launch onboarding', () => {
     expect(persona).toContain('- 我的职业：开发者');
     expect(persona).toContain('- 我的兴趣：编程、写作');
     expect(persona).toContain('- 请称呼我：小林');
+    expect(persona).toContain('我喜欢猫');
+    expect(persona).not.toContain('语气');
     expect(persona.match(/<!-- onboarding -->/g)).toHaveLength(1);
 
-    // 7 供应商：可跳过
-    expect(screen.getByTestId('onb-provider')).toBeTruthy();
+    // 3 模型：先配供应商，模型一栏置灰；不弹对话框、不内嵌整个模型页；可跳过
+    expect(screen.getByTestId('onb-art').getAttribute('data-art')).toBe('provider');
+    await screen.findByTestId('onb-preset-deepseek');
+    const models = screen.getByTestId('onb-model-section');
+    expect(models.getAttribute('aria-disabled')).toBe('true');
+    expect(models.getAttribute('data-state')).toBe('disabled');
+    expect(screen.queryByRole('dialog', { name: /添加/ })).toBeNull();
+    expect(screen.queryByTestId('models-page')).toBeNull();
     fireEvent.click(screen.getByTestId('onboarding-skip-step'));
 
-    // 8 隐私 → 开始使用
+    // 4 隐私：没有模型 →「还差一步」，看板娘也这么说
     await screen.findByTestId('onboarding-step-privacy');
+    expect(screen.getByTestId('onb-one-step-left').textContent).toContain('还差一步：接上模型');
+    await waitFor(() => expect(mascot().at(-1)?.text).toContain('还差一步'));
     fireEvent.click(screen.getByTestId('onboarding-finish'));
     await waitFor(() => expect(screen.queryByTestId('onboarding')).toBeNull());
     expect(calls).toContainEqual(['ai:onboarding:complete', { skipped: false }]);
+    expect(mascot().at(-1)?.text).toContain('还差一步');
+  });
+
+  it('model step: configure a provider inline, then pick its model for Nomi; finish says all set', async () => {
+    render(<OnboardingHost />);
+    await screen.findByTestId('onboarding-step-welcome');
+    await skipTo('provider', 2);
+    fireEvent.click(await screen.findByTestId('onb-preset-deepseek'));
+    const save = screen.getByTestId('onb-provider-save') as HTMLButtonElement;
+    expect(save.disabled).toBe(true);
+    fireEvent.change(screen.getByTestId('onb-provider-key'), { target: { value: 'sk-test' } });
+    fireEvent.click(save);
+    await waitFor(() =>
+      expect(screen.getByTestId('onb-provider-section').getAttribute('data-state')).toBe(
+        'configured',
+      ),
+    );
+    const detect = calls.find((c) => c[0] === 'ai:gateway:detect')![1] as Record<string, unknown>;
+    expect(detect).toMatchObject({ keys: ['sk-test'], fallbackModel: 'deepseek-chat' });
+    const saved = calls.find((c) => c[0] === 'ai:gateway:upsert-provider')![1] as {
+      presetId: string;
+      newKeys: unknown;
+      models: { id: string; enabled: boolean }[];
+    };
+    expect(saved.presetId).toBe('deepseek');
+    expect(saved.newKeys).toEqual([{ value: 'sk-test' }]);
+    expect(saved.models.filter((m) => m.enabled).map((m) => m.id)).toEqual(['deepseek-chat']);
+    // 供应商配好了：模型一栏可选，但还没给 Nomi 选
+    await waitFor(() =>
+      expect(screen.getByTestId('onb-model-section').getAttribute('data-state')).toBe('choose'),
+    );
+    expect(calls.some((c) => c[0] === 'ai:gateway:set-assignment')).toBe(false);
+    fireEvent.click(screen.getByTestId('onb-model-m2'));
+    await waitFor(() =>
+      expect(screen.getByTestId('onb-model-section').getAttribute('data-state')).toBe('ready'),
+    );
+    expect(calls).toContainEqual([
+      'ai:gateway:set-assignment',
+      'nomi',
+      { models: { main: 'p1/m2' } },
+    ]);
+    fireEvent.click(screen.getByTestId('onboarding-next'));
+    await screen.findByTestId('onboarding-step-privacy');
+    expect(screen.getByTestId('onb-all-set').textContent).toContain('全部设好了');
+    expect(screen.queryByTestId('onb-one-step-left')).toBeNull();
+    fireEvent.click(screen.getByTestId('onboarding-finish'));
+    await waitFor(() => expect(screen.queryByTestId('onboarding')).toBeNull());
+    expect(mascot().at(-1)).toMatchObject({ motion: 'cheer' });
+  });
+
+  it('"connect a model" ends the guide and asks the chat window to open Settings → Models', async () => {
+    let opened = 0;
+    const onOpen = () => opened++;
+    window.addEventListener(OPEN_MODELS_EVENT, onOpen);
+    render(<OnboardingHost />);
+    await screen.findByTestId('onboarding-step-welcome');
+    await skipTo('privacy', 3);
+    fireEvent.click(screen.getByTestId('onb-go-models'));
+    await waitFor(() => expect(opened).toBe(1));
+    expect(screen.queryByTestId('onboarding')).toBeNull();
+    expect(calls).toContainEqual(['ai:onboarding:complete', { skipped: false }]);
+    window.removeEventListener(OPEN_MODELS_EVENT, onOpen);
   });
 
   it('lets the user open with the main window; choice is saved immediately and survives skipping', async () => {
     render(<OnboardingHost />);
-    await screen.findByTestId('onboarding-step-language');
-    fireEvent.click(screen.getByTestId('onboarding-next'));
-    await screen.findByTestId('onboarding-step-theme');
-    fireEvent.click(screen.getByTestId('onboarding-next'));
-    await screen.findByTestId('onboarding-step-startup');
+    await screen.findByTestId('onboarding-step-welcome');
     expect(screen.getByTestId('onb-startup-mascot').textContent).toContain('以 Nomi 方式打开');
     expect(screen.getByTestId('onb-startup-main').textContent).toContain(
       '以控制台（主界面）方式打开',
@@ -164,14 +277,10 @@ describe('first-launch onboarding', () => {
     expect(startupView).toBe('main');
   });
 
-  it('startup step is skippable and keeps the mascot default', async () => {
+  it('welcome & preferences step is skippable and keeps the mascot default', async () => {
     render(<OnboardingHost />);
-    await screen.findByTestId('onboarding-step-language');
-    fireEvent.click(screen.getByTestId('onboarding-skip-step'));
-    fireEvent.click(await screen.findByTestId('onboarding-skip-step'));
-    await screen.findByTestId('onboarding-step-startup');
-    fireEvent.click(screen.getByTestId('onboarding-skip-step'));
-    await screen.findByTestId('onboarding-step-character');
+    await screen.findByTestId('onboarding-step-welcome');
+    await skipTo('profile', 1);
     expect(startupView).toBe('mascot');
     expect(calls.some((c) => c[0] === 'ai:startup:set')).toBe(false);
   });
@@ -179,11 +288,7 @@ describe('first-launch onboarding', () => {
   it('reopened onboarding preselects the currently saved startup mode', async () => {
     startupView = 'main';
     render(<OnboardingHost />);
-    await screen.findByTestId('onboarding-step-language');
-    fireEvent.click(screen.getByTestId('onboarding-next'));
-    await screen.findByTestId('onboarding-step-theme');
-    fireEvent.click(screen.getByTestId('onboarding-next'));
-    await screen.findByTestId('onboarding-step-startup');
+    await screen.findByTestId('onboarding-step-welcome');
     await waitFor(() =>
       expect(screen.getByTestId('onb-startup-main').getAttribute('aria-checked')).toBe('true'),
     );
@@ -202,15 +307,14 @@ describe('first-launch onboarding', () => {
     act(() => {
       window.dispatchEvent(new CustomEvent('cd:onboarding-show'));
     });
-    expect(screen.getByTestId('onboarding-step-language')).toBeTruthy();
+    expect(screen.getByTestId('onboarding-step-welcome')).toBeTruthy();
   });
 
   it('re-run preselects the saved occupation and interests; skipping the step saves nothing', async () => {
     profile = { role: 'student', interests: ['learning'] };
     render(<OnboardingHost />);
-    await screen.findByTestId('onboarding-step-language');
-    for (let k = 0; k < 5; k++) fireEvent.click(await screen.findByTestId('onboarding-skip-step'));
-    await screen.findByTestId('onboarding-step-profile');
+    await screen.findByTestId('onboarding-step-welcome');
+    await skipTo('profile', 1);
     await waitFor(() =>
       expect(screen.getByTestId('onb-role-student').getAttribute('aria-checked')).toBe('true'),
     );
@@ -220,14 +324,44 @@ describe('first-launch onboarding', () => {
     expect(calls.some((c) => c[0] === 'ai:onboarding:set-profile')).toBe(false);
   });
 
-  it('clicking Next again while the step is still saving does not skip a step', async () => {
+  it('re-run backfills the name and drops the removed reply-tone line on rewrite', async () => {
+    persona = [
+      '<!-- onboarding -->',
+      '- 请称呼我：小林',
+      '- 回答语气：简洁专业（直奔主题，少寒暄）',
+      '- 我的职业：学生',
+      '- 手写的一行',
+      '<!-- /onboarding -->',
+      '',
+      '我喜欢猫',
+    ].join('\n');
     render(<OnboardingHost />);
-    await screen.findByTestId('onboarding-step-language');
-    for (let k = 0; k < 5; k++) fireEvent.click(await screen.findByTestId('onboarding-skip-step'));
-    await screen.findByTestId('onboarding-step-profile');
+    await screen.findByTestId('onboarding-step-welcome');
+    await skipTo('profile', 1);
+    await waitFor(() =>
+      expect((screen.getByTestId('onb-name') as HTMLInputElement).value).toBe('小林'),
+    );
+    fireEvent.click(screen.getByTestId('onb-role-developer'));
+    fireEvent.click(screen.getByTestId('onboarding-next'));
+    await screen.findByTestId('onboarding-step-provider');
+    expect(persona).toContain('- 请称呼我：小林');
+    expect(persona).not.toContain('回答语气');
+    expect(persona).toContain('- 我的职业：开发者');
+    expect(persona).not.toContain('- 我的职业：学生');
+    expect(persona).toContain('- 手写的一行');
+    expect(persona).toContain('我喜欢猫');
+    expect(persona.match(/<!-- onboarding -->/g)).toHaveLength(1);
+  });
+
+  it('Back / skip are disabled and Next is ignored while the step is still saving', async () => {
+    render(<OnboardingHost />);
+    await screen.findByTestId('onboarding-step-welcome');
+    await skipTo('profile', 1);
     fireEvent.click(screen.getByTestId('onb-role-developer'));
     const btn = screen.getByTestId('onboarding-next');
     fireEvent.click(btn);
+    expect((screen.getByTestId('onboarding-back') as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByTestId('onboarding-skip-step') as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(btn);
     fireEvent.click(btn);
     await screen.findByTestId('onboarding-step-provider');
@@ -242,5 +376,11 @@ describe('first-launch onboarding', () => {
     expect(b).toContain('- 请称呼我：B');
     expect(b).not.toContain('- 请称呼我：A');
     expect(b).toContain('原有内容');
+    expect(personaBlockLines(b)).toEqual(['- 请称呼我：B']);
+    expect(matchTemplate('- 回答语气：{0}（{1}）', '- 回答语气：活泼（多用表情）')).toEqual([
+      '活泼',
+      '多用表情',
+    ]);
+    expect(matchTemplate('- 请称呼我：{0}', '- 别的')).toBeNull();
   });
 });
