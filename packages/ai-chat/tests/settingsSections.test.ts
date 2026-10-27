@@ -13,6 +13,8 @@ describe('设置分区：合并后的菜单', () => {
       'ext',
       'privacy',
     ]);
+    // 命令面板的设置条目由分区生成：不再有单独的「快捷键」入口
+    expect(SETTINGS_SECTIONS.some((s) => (s.id as string) === 'shortcuts')).toBe(false);
     expect(SETTINGS_SECTIONS.map((s) => s.label)).toEqual([
       'ui.chat-settings.general',
       'ui.chat-settings.models-and-providers',
