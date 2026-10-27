@@ -700,29 +700,40 @@ export class GatewayServer {
       ...(intent ? { reasoning: intent.mode !== 'disabled' } : {}),
     };
     // 隐私模式（docs/design/secret-privacy.md）：发往云端的候选用脱敏后的请求体，每个请求只算一次；
-    // 出错就不发（§10），有设为拦截的密钥也不发（§9）
+    // 出错就不发（§10），有设为拦截的密钥也不发（§9）。
+    // 初选全是本机、之后学习重试 / 短期压制才换到云端地址的，在真正发给它之前补算（#150）
     let masked: MaskResult | null = null;
-    if (r.candidates.some((c) => this.privacy.applies(cfg, c))) {
+    /** 算出脱敏结果；返回拒绝原因（出错 / 命中拦截），null 表示可以发 */
+    const ensureMasked = (): { status: number; message: string } | null => {
+      if (masked) return null;
+      let m: MaskResult;
       try {
-        masked = this.privacy.mask(cfg, body);
+        m = this.privacy.mask(cfg, body);
       } catch (e) {
         this.hooks.logger?.warn('gateway privacy mask failed', { error: (e as Error).message });
-        const message = 'Nomi 网关：脱敏出错，请求没有发出';
-        fail(500, message);
-        reportLocal(500, message);
-        return;
+        return { status: 500, message: 'Nomi 网关：脱敏出错，请求没有发出' };
       }
-      if (masked.hits.length) tag.redactions = masked.hits;
-      if (masked.restore.size) trace?.addSecrets(masked.restore.values());
-      if (masked.blocked) {
-        const kinds = masked.hits
+      masked = m;
+      if (m.hits.length) tag.redactions = m.hits;
+      if (m.restore.size) trace?.addSecrets(m.restore.values());
+      if (m.blocked) {
+        const kinds = m.hits
           .filter((h) => h.action === 'block')
           .map((h) => `${h.kind} ×${h.masked}`)
           .join('、');
-        const message = `Nomi 网关：请求里有设为拦截的密钥（${kinds}），已按外发保护的设置拦下。可以在 设置 → 隐私与权限 → 外发保护 里改成脱敏。`;
         tag.blocked = true;
-        fail(400, message);
-        reportLocal(400, message);
+        return {
+          status: 400,
+          message: `Nomi 网关：请求里有设为拦截的密钥（${kinds}），已按外发保护的设置拦下。可以在 设置 → 隐私与权限 → 外发保护 里改成脱敏。`,
+        };
+      }
+      return null;
+    };
+    if (r.candidates.some((c) => this.privacy.applies(cfg, c))) {
+      const refused = ensureMasked();
+      if (refused) {
+        fail(refused.status, refused.message);
+        reportLocal(refused.status, refused.message);
         return;
       }
     }
@@ -782,6 +793,22 @@ export class GatewayServer {
       )
         break;
       const cand = queue.shift()!;
+      // 换到了需要外发保护的候选（初选时没算脱敏）：先补算；出错或命中拦截就不发给它，整个请求到此为止
+      if (this.privacy.applies(cfg, cand)) {
+        const refused = ensureMasked();
+        if (refused) {
+          last = {
+            kind: 'failed',
+            status: refused.status,
+            message: refused.message,
+            retryable: false,
+            cand,
+            outcome: 'request-rejected',
+          };
+          errors.splice(0);
+          break;
+        }
+      }
       attempts++;
       const began = Date.now();
       // 同协议透传：历史里的加密推理和签名只在上一轮是同一 (供应商, Key, 协议) 时保留（§9.3）

@@ -280,4 +280,69 @@ describe('隐私模式', () => {
     expect(JSON.stringify(up.seen[1]!.body)).not.toContain('Xk29vLq8Zr4mWp7t');
     expect(placeholderIn(up.seen[1]!.body)).toBe(placeholderIn(up.seen[0]!.body));
   });
+
+  describe('初选本机、重试换到云端协议（#150）', () => {
+    const CLOUD = 'https://cloud.example.com/v1';
+    async function setup(privacy: PrivacyConfig) {
+      const up = await upstream((_s, res) => {
+        res.writeHead(404, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Not Found' }));
+      });
+      const cloud: Seen[] = [];
+      const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const u = String(input);
+        if (!u.startsWith(CLOUD)) return fetch(input, init);
+        cloud.push({ url: u, body: JSON.parse(String(init?.body ?? '{}')) });
+        return new Response(
+          JSON.stringify({
+            id: 'c',
+            model: 'glm-5',
+            choices: [
+              { index: 0, message: { role: 'assistant', content: 'ok' }, finish_reason: 'stop' },
+            ],
+            usage: { prompt_tokens: 1, completion_tokens: 1 },
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        );
+      }) as typeof fetch;
+      const usage: UsageEvent[] = [];
+      const gw = createGateway(
+        {
+          host: '127.0.0.1',
+          port: 0,
+          providers: [provider('zp', { messages: up.base, chat: CLOUD })],
+          clients: { claude: { token: 'tok-claude', models: { main: 'zp/glm-5' } } },
+          allowedPrivateHosts: [up.hostPort],
+          privacy,
+        },
+        { onUsage: (e) => usage.push(e), fetchImpl },
+      );
+      await gw.start();
+      cleanups.push(() => gw.stop());
+      return { up, cloud, usage, url: gw.listenUrl()! };
+    }
+
+    it('云端重试用脱敏后的请求体', async () => {
+      const { up, cloud, url } = await setup({ enabled: true, key: 'k' });
+      const res = await post(url, ask(false));
+      await res.text();
+      expect(up.seen).toHaveLength(1);
+      // 本机上游不在保护范围（privacy.local 关闭）：原文
+      expect(JSON.stringify(up.seen[0]!.body)).toContain(SECRET);
+      expect(cloud).toHaveLength(1);
+      expect(JSON.stringify(cloud[0]!.body)).not.toContain(SECRET);
+      expect(placeholderIn(cloud[0]!.body)).not.toBe('');
+    });
+
+    it('命中拦截：不发给云端', async () => {
+      const { cloud, url } = await setup({
+        enabled: true,
+        key: 'k',
+        actions: { API_KEY: 'block' },
+      });
+      const res = await post(url, ask(false));
+      expect(res.status).toBe(400);
+      expect(cloud).toHaveLength(0);
+    });
+  });
 });
