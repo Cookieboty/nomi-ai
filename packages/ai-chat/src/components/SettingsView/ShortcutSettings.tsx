@@ -7,7 +7,6 @@ import React, { useEffect, useState } from 'react';
 
 import {
   FIXED_SHORTCUTS,
-  GLOBAL_SHORTCUTS,
   SHORTCUT_DEFS,
   comboFromEvent,
   findConflicts,
@@ -20,19 +19,11 @@ import {
 } from '../../services/shortcuts';
 
 import styles from './index.module.css';
-import { SectionPage } from './SectionPage';
-
-const SHORTCUT_TABS = [
-  { id: 'app', label: 'ui.chat-settings.in-app-shortcuts' },
-  { id: 'global', label: 'ui.chat-settings.global-shortcuts' },
-] as const;
-type ShortcutTab = (typeof SHORTCUT_TABS)[number]['id'];
 
 export const ShortcutSettings: React.FC = () => {
   const bindings = useShortcutBindings();
   const [recording, setRecording] = useState<ShortcutId | null>(null);
   const [invalid, setInvalid] = useState(false);
-  const [tab, setTab] = useState<ShortcutTab>('app');
   const conflicts = findConflicts(bindings);
   const labelOf = (id: ShortcutId) => t(SHORTCUT_DEFS.find((d) => d.id === id)!.label);
 
@@ -64,160 +55,116 @@ export const ShortcutSettings: React.FC = () => {
   const anyCustom = SHORTCUT_DEFS.some((d) => bindings[d.id] !== d.combo);
 
   return (
-    <SectionPage
-      testId="settings-shortcuts-page"
-      tabsLabel="ui.chat-settings.shortcut-sections"
-      tabs={SHORTCUT_TABS}
-      value={tab}
-      onChange={(x) => {
-        setRecording(null);
-        setTab(x);
-      }}
-    >
-      {tab === 'global' ? (
-        <section className={styles.block} data-testid="settings-shortcuts-global">
-          <p className={styles.note}>
-            {t('ui.chat-settings.global-shortcuts-are-registered-with-the-system-and')}
-          </p>
-          <table className={styles.shortcutTable}>
-            <thead>
-              <tr>
-                <th scope="col">{t('ui.chat-settings.shortcuts')}</th>
-                <th scope="col">{t('ui.chat-settings.action')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {GLOBAL_SHORTCUTS.map(([k, label]) => (
-                <tr key={k}>
-                  <td>
-                    <kbd className={styles.kbd}>{formatCombo(k)}</kbd>
-                  </td>
-                  <td>{t(label)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      ) : (
-        <section className={styles.block} data-testid="settings-shortcuts">
-          {Object.keys(conflicts).length > 0 && (
-            <div
-              className={styles.conflictBanner}
-              role="alert"
-              data-testid="shortcut-conflict-banner"
-            >
-              {t(
-                'ui.chat-settings.shortcut-conflict-detected-click-edit-on-that-row',
-                SHORTCUT_DEFS.filter((d) => conflicts[d.id])
-                  .map((d) => `${t(d.label)}（${formatCombo(bindings[d.id])}）`)
-                  .join('、'),
-              )}
-            </div>
+    <section className={styles.block} data-testid="settings-shortcuts">
+      {Object.keys(conflicts).length > 0 && (
+        <div className={styles.conflictBanner} role="alert" data-testid="shortcut-conflict-banner">
+          {t(
+            'ui.chat-settings.shortcut-conflict-detected-click-edit-on-that-row',
+            SHORTCUT_DEFS.filter((d) => conflicts[d.id])
+              .map((d) => `${t(d.label)}（${formatCombo(bindings[d.id])}）`)
+              .join('、'),
           )}
-          <p className={styles.note}>
-            {t('ui.mascot-theme.click-change-then-press-the-new-key-combination')}
-          </p>
-          <table className={styles.shortcutTable}>
-            <thead>
-              <tr>
-                <th scope="col">{t('ui.chat-settings.action')}</th>
-                <th scope="col">{t('ui.chat-settings.shortcuts')}</th>
-                <th scope="col" className={styles.shortcutActions}>
-                  {t('ui.foundation.action')}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {SHORTCUT_DEFS.map((d) => {
-                const c = conflicts[d.id];
-                const rec = recording === d.id;
-                const custom = bindings[d.id] !== d.combo;
-                return (
-                  <tr key={d.id} data-testid={`shortcut-row-${d.id}`}>
-                    <th scope="row">{t(d.label)}</th>
-                    <td>
-                      <kbd
-                        className={styles.kbd}
-                        data-testid={`shortcut-combo-${d.id}`}
-                        data-shortcut-recording={rec ? 'true' : undefined}
-                      >
-                        {rec
-                          ? t('ui.mascot-theme.press-the-new-key-combination')
-                          : formatCombo(bindings[d.id])}
-                      </kbd>
-                      {rec && invalid && (
-                        <div className={styles.warn} role="alert">
-                          {t('ui.mascot-theme.must-include-ctrl-or-alt-or-use-f1')}
-                        </div>
-                      )}
-                      {!rec && c && (
-                        <div
-                          className={styles.warn}
-                          role="alert"
-                          data-testid={`shortcut-conflict-${d.id}`}
-                        >
-                          {c.with.length > 0 &&
-                            t(
-                              'ui.mascot-theme.conflicts-with-only-one-will-work',
-                              c.with.map(labelOf).join('、'),
-                            )}
-                          {c.with.length > 0 && c.reserved && ' · '}
-                          {c.reserved &&
-                            t('ui.mascot-theme.conflicts-with-the-system-shortcut', t(c.reserved))}
-                        </div>
-                      )}
-                    </td>
-                    <td className={styles.shortcutActions}>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        data-testid={`shortcut-edit-${d.id}`}
-                        aria-label={t('ui.mascot-theme.change-the-shortcut-for', t(d.label))}
-                        onClick={() => {
-                          setInvalid(false);
-                          setRecording(rec ? null : d.id);
-                        }}
-                      >
-                        {rec ? t('ui.foundation.cancel') : t('ui.mascot-theme.change')}
-                      </Button>
-                      {custom && !rec && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          data-testid={`shortcut-reset-${d.id}`}
-                          aria-label={t(
-                            'ui.mascot-theme.restore-the-default-shortcut-for',
-                            t(d.label),
-                          )}
-                          onClick={() => setBinding(d.id, null)}
-                        >
-                          {t('ui.providers-schedule.restore-defaults')}
-                        </Button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-              {FIXED_SHORTCUTS.map(([k, label]) => (
-                <tr key={k}>
-                  <th scope="row">{t(label)}</th>
-                  <td>
-                    <kbd className={styles.kbd}>{t(k)}</kbd>
-                  </td>
-                  <td className={styles.shortcutActions}>
-                    <span className={styles.note}>{t('ui.knowledge-local.pin')}</span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {anyCustom && (
-            <Button size="sm" onClick={resetBindings} data-testid="shortcut-reset-all">
-              {t('ui.mascot-theme.restore-all-defaults')}
-            </Button>
-          )}
-        </section>
+        </div>
       )}
-    </SectionPage>
+      <p className={styles.note}>
+        {t('ui.mascot-theme.click-change-then-press-the-new-key-combination')}
+      </p>
+      <table className={styles.shortcutTable}>
+        <thead>
+          <tr>
+            <th scope="col">{t('ui.chat-settings.action')}</th>
+            <th scope="col">{t('ui.chat-settings.shortcuts')}</th>
+            <th scope="col" className={styles.shortcutActions}>
+              {t('ui.foundation.action')}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {SHORTCUT_DEFS.map((d) => {
+            const c = conflicts[d.id];
+            const rec = recording === d.id;
+            const custom = bindings[d.id] !== d.combo;
+            return (
+              <tr key={d.id} data-testid={`shortcut-row-${d.id}`}>
+                <th scope="row">{t(d.label)}</th>
+                <td>
+                  <kbd
+                    className={styles.kbd}
+                    data-testid={`shortcut-combo-${d.id}`}
+                    data-shortcut-recording={rec ? 'true' : undefined}
+                  >
+                    {rec
+                      ? t('ui.mascot-theme.press-the-new-key-combination')
+                      : formatCombo(bindings[d.id])}
+                  </kbd>
+                  {rec && invalid && (
+                    <div className={styles.warn} role="alert">
+                      {t('ui.mascot-theme.must-include-ctrl-or-alt-or-use-f1')}
+                    </div>
+                  )}
+                  {!rec && c && (
+                    <div
+                      className={styles.warn}
+                      role="alert"
+                      data-testid={`shortcut-conflict-${d.id}`}
+                    >
+                      {c.with.length > 0 &&
+                        t(
+                          'ui.mascot-theme.conflicts-with-only-one-will-work',
+                          c.with.map(labelOf).join('、'),
+                        )}
+                      {c.with.length > 0 && c.reserved && ' · '}
+                      {c.reserved &&
+                        t('ui.mascot-theme.conflicts-with-the-system-shortcut', t(c.reserved))}
+                    </div>
+                  )}
+                </td>
+                <td className={styles.shortcutActions}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    data-testid={`shortcut-edit-${d.id}`}
+                    aria-label={t('ui.mascot-theme.change-the-shortcut-for', t(d.label))}
+                    onClick={() => {
+                      setInvalid(false);
+                      setRecording(rec ? null : d.id);
+                    }}
+                  >
+                    {rec ? t('ui.foundation.cancel') : t('ui.mascot-theme.change')}
+                  </Button>
+                  {custom && !rec && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      data-testid={`shortcut-reset-${d.id}`}
+                      aria-label={t('ui.mascot-theme.restore-the-default-shortcut-for', t(d.label))}
+                      onClick={() => setBinding(d.id, null)}
+                    >
+                      {t('ui.providers-schedule.restore-defaults')}
+                    </Button>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+          {FIXED_SHORTCUTS.map(([k, label]) => (
+            <tr key={k}>
+              <th scope="row">{t(label)}</th>
+              <td>
+                <kbd className={styles.kbd}>{t(k)}</kbd>
+              </td>
+              <td className={styles.shortcutActions}>
+                <span className={styles.note}>{t('ui.knowledge-local.pin')}</span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {anyCustom && (
+        <Button size="sm" onClick={resetBindings} data-testid="shortcut-reset-all">
+          {t('ui.mascot-theme.restore-all-defaults')}
+        </Button>
+      )}
+    </section>
   );
 };

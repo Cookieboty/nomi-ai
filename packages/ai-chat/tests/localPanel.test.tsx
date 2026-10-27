@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { LocalPanel } from '../src/components/LocalPanel';
-import { collectConversations, fmtBytes, fmtWhen, pct } from '../src/services/localClient';
+import { collectConversations, fmtBytes, pct } from '../src/services/localClient';
 
 afterEach(() => {
   cleanup();
@@ -50,15 +50,8 @@ function mockIpc(over: Record<string, unknown> = {}) {
   const invoke = vi.fn(async (ch: string, ..._a: unknown[]) => {
     if (ch === 'ai:local:state') return state;
     if (ch === 'ai:local:download' || ch === 'ai:local:download-runtime') return { ok: true };
-    if (ch === 'ai:hub:cal-state')
-      return {
-        sources: [{ id: 'local', name: '我的日历', kind: 'local', color: '#f00', enabled: true }],
-      };
-    if (ch === 'ai:hub:cal-range') return [];
     // 「本机模型」标签里同时列出 Ollama 的模型
     if (ch === 'ai:local:ollama-list') return [];
-    if (ch === 'ai:hub:clip-state')
-      return { settings: { enabled: false, max: 200, images: true }, items: [] };
     return true;
   });
   (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
@@ -109,14 +102,6 @@ describe('LocalPanel', () => {
     expect(r2.getByTestId('local-use')).toBeTruthy();
     expect(r2.getByTestId('local-stop')).toBeTruthy();
   });
-
-  it('calendar and clipboard empty states', async () => {
-    mockIpc();
-    const r = render(<LocalPanel isVisible onClose={() => undefined} />);
-    await waitFor(() => expect(r.getByText('接下来两周没有日程')).toBeTruthy());
-    fireEvent.click(r.getByRole('tab', { name: '剪贴板' }));
-    await waitFor(() => expect(r.getByText('剪贴板历史未开启')).toBeTruthy());
-  });
 });
 
 describe('localClient helpers', () => {
@@ -124,20 +109,6 @@ describe('localClient helpers', () => {
     expect(fmtBytes(1536)).toBe('2 KB');
     expect(fmtBytes(3 * 1024 ** 3)).toBe('3.0 GB');
     expect(pct({ received: 50, total: 200 })).toBe(25);
-    const now = new Date(2026, 9, 12, 8);
-    expect(
-      fmtWhen(
-        {
-          start: new Date(2026, 9, 12, 9).getTime(),
-          end: new Date(2026, 9, 12, 10, 30).getTime(),
-          allDay: false,
-        },
-        now,
-      ),
-    ).toBe('今天 09:00–10:30');
-    expect(fmtWhen({ start: new Date(2026, 9, 13).getTime(), end: 0, allDay: true }, now)).toBe(
-      '10月13日 全天',
-    );
   });
   it('collects only ai-chat keys', () => {
     const m = new Map([
@@ -152,61 +123,30 @@ describe('localClient helpers', () => {
     expect(collectConversations(s)).toEqual({ 'ai-chat:conversations': [1] });
   });
 
-  it('tabs 属性限制可见标签：只给日历时不显示标签条；不含日历时没有日历标签', async () => {
+  it('tabs 属性限制可见标签：只给一个时不显示标签条', async () => {
     mockIpc();
-    const cal = render(<LocalPanel isVisible onClose={() => undefined} tabs={['calendar']} />);
-    expect(cal.queryAllByRole('tab')).toHaveLength(0);
-    expect(cal.getByRole('heading', { name: '日历' })).toBeTruthy();
-    cal.unmount();
-    const rest = render(
-      <LocalPanel isVisible onClose={() => undefined} tabs={['clipboard', 'export', 'models']} />,
-    );
-    expect(rest.getAllByRole('tab').map((x) => x.textContent)).toEqual([
-      '剪贴板',
-      '数据导出',
-      '本机模型',
-    ]);
-    expect(rest.getByTestId('local-panel')).toBeTruthy();
-    expect(rest.getByRole('heading', { name: '本机管理' })).toBeTruthy();
+    const one = render(<LocalPanel isVisible onClose={() => undefined} tabs={['export']} />);
+    expect(one.queryAllByRole('tab')).toHaveLength(0);
+    one.unmount();
+    const both = render(<LocalPanel isVisible onClose={() => undefined} />);
+    expect(both.getAllByRole('tab').map((x) => x.textContent)).toEqual(['数据导出', '本机模型']);
+    expect(both.getByRole('heading', { name: '本机管理' })).toBeTruthy();
   });
 
-  describe('Alt+数字只在可见标签里切换', () => {
-    const sel = (r: ReturnType<typeof render>) =>
+  it('Alt+数字只在可见标签里切换：Alt+2 是本机模型，Alt+3 无效', async () => {
+    mockIpc();
+    const r = render(<LocalPanel isVisible onClose={() => undefined} />);
+    const sel = () =>
       r
         .getAllByRole('tab')
         .filter((x) => x.getAttribute('aria-selected') === 'true')
         .map((x) => x.textContent);
     const alt = (n: number) => fireEvent.keyDown(window, { key: String(n), altKey: true });
-
-    it('本机管理（无日历）：Alt+1 是剪贴板，Alt+3 是本机模型，Alt+5 无效', async () => {
-      mockIpc();
-      const r = render(
-        <LocalPanel isVisible onClose={() => undefined} tabs={['clipboard', 'export', 'models']} />,
-      );
-      alt(1);
-      await waitFor(() => expect(sel(r)).toEqual(['剪贴板']));
-      alt(3);
-      await waitFor(() => expect(sel(r)).toEqual(['本机模型']));
-      alt(2);
-      await waitFor(() => expect(sel(r)).toEqual(['数据导出']));
-      alt(5);
-      expect(sel(r)).toEqual(['数据导出']);
-    });
-
-    it('只有日历一个可见标签：Alt+2 / Alt+3 / Alt+1 都没有副作用', async () => {
-      mockIpc();
-      const r = render(<LocalPanel isVisible onClose={() => undefined} tabs={['calendar']} />);
-      for (const n of [1, 2, 3]) alt(n);
-      expect(r.getByRole('heading', { name: '日历' })).toBeTruthy();
-      expect(r.queryByRole('heading', { name: '剪贴板历史' })).toBeNull();
-      expect(r.queryAllByRole('tab')).toHaveLength(0);
-    });
-
-    it('不限制标签时按完整 4 个：Alt+2 是剪贴板', async () => {
-      mockIpc();
-      const r = render(<LocalPanel isVisible onClose={() => undefined} />);
-      alt(2);
-      await waitFor(() => expect(sel(r)).toEqual(['剪贴板']));
-    });
+    alt(2);
+    await waitFor(() => expect(sel()).toEqual(['本机模型']));
+    alt(1);
+    await waitFor(() => expect(sel()).toEqual(['数据导出']));
+    alt(3);
+    expect(sel()).toEqual(['数据导出']);
   });
 });

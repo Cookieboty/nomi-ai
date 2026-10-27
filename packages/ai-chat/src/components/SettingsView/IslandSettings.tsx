@@ -90,7 +90,7 @@ export const IslandSettings: React.FC = () => {
       >
         <SettingRow
           title={t('ui.mascot-theme.enable-dynamic-island-notifications')}
-          description={t('ui.chat-settings.when-off-nomi-bubbles-and-system-notifications-are')}
+          description={t('ui.chat-settings.when-off-system-notifications-are-used-while-nomi')}
         >
           <Switch
             checked={s.enabled}
@@ -116,7 +116,7 @@ export const IslandSettings: React.FC = () => {
       </SettingsGroup>
       <SettingsGroup
         title={t('ui.chat-settings.notification-types')}
-        description={t('ui.mascot-theme.nothing-pops-up-during-quiet-hours-schedule-calendar')}
+        description={t('ui.mascot-theme.nothing-pops-up-during-quiet-hours-schedule')}
       >
         {KINDS.map(([k, label, desc]) => (
           <SettingRow key={k} title={label} description={desc}>

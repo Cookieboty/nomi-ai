@@ -22,7 +22,6 @@ const install = (currency: 'USD' | 'CNY') => {
   const agents = {
     settings: {
       enabled: true,
-      osNotify: false,
       summaryEnabled: true,
       cooldownMs: 1000,
       tools: { claude: true, codex: true, dsh: true },

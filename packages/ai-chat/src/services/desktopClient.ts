@@ -49,16 +49,6 @@ export interface DesktopSummaryEvent {
   at: number;
 }
 
-export interface NoteMetaView {
-  id: string;
-  title: string;
-  tags: string[];
-  created: number;
-  updated: number;
-}
-export interface NoteView extends NoteMetaView {
-  body: string;
-}
 export interface ReminderView {
   id: string;
   text: string;
@@ -144,12 +134,6 @@ export const desktopClient = {
   resetAll: () => call<boolean>('reset-all'),
   onChanged: (fn: (s: DesktopState) => void) =>
     on('ai:desktop:changed', (p) => fn(p as DesktopState)),
-  notes: (query?: string) =>
-    call<Array<NoteMetaView & { snippet?: string }>>('notes-list', query ?? ''),
-  readNote: (id: string) => call<NoteView | null>('notes-read', id),
-  saveNote: (n: { id?: string; title: string; body: string; tags?: string[] }) =>
-    call<NoteView>('notes-save', n),
-  trashNote: (id: string) => call<boolean>('notes-trash', id),
   reminders: (all = false) => call<ReminderView[]>('reminders-list', all),
   createReminder: (r: { text: string; at?: string; inMinutes?: number; repeat?: RepeatRule }) =>
     call<ReminderView | null>('reminders-create', r),
@@ -157,8 +141,8 @@ export const desktopClient = {
     call<ReminderView | null>('reminders-update', id, p),
   cancelReminder: (id: string) => call<boolean>('reminders-cancel', id),
   snoozeReminder: (id: string, minutes = 10) => call<boolean>('reminders-snooze', id, minutes),
-  onP2Changed: (fn: (kind: 'notes' | 'reminders') => void) =>
-    on('ai:desktop:p2-changed', (p) => fn((p as { kind: 'notes' | 'reminders' }).kind)),
+  onP2Changed: (fn: (kind: 'reminders') => void) =>
+    on('ai:desktop:p2-changed', (p) => fn((p as { kind: 'reminders' }).kind)),
   onOpenPanel: (fn: () => void) => on('ai:desktop:open-panel', () => fn()),
   /** 看板娘工具栏「任务看板」→ 打开「知识 · 记忆 · 日程」面板的日程页 */
   onOpenSchedule: (fn: () => void) => on('ai:hub:open-schedule', () => fn()),
@@ -181,12 +165,6 @@ export const TOOL_LABELS: Record<string, string> = {
   grant_scope: 'ui.foundation.granted-folders',
   revoke_scope: 'ui.foundation.revoke',
   drop_summarize: 'ui.chat-settings.drop-onto-nomi-to-summarize',
-  note_create: 'ui.foundation.new-note',
-  note_list: 'ui.chat-settings.list-notes',
-  note_search: 'ui.chat-settings.search-notes',
-  note_read: 'ui.chat-settings.read-note',
-  note_update: 'ui.chat-settings.edit-note',
-  note_trash: 'ui.chat-settings.delete-note-trash',
   reminder_create: 'ui.chat-settings.set-reminder',
   reminder_list: 'ui.chat-settings.view-reminders',
   reminder_cancel: 'ui.chat-settings.cancel-reminder',

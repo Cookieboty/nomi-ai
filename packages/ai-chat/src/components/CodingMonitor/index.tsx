@@ -114,16 +114,6 @@ export const CodingMonitor: React.FC<{
               />
             </SettingRow>
             <SettingRow
-              title={tr('ui.cli-monitor.send-a-system-notification-when-a-task-finishes')}
-            >
-              <Switch
-                checked={agents.settings.osNotify}
-                onChange={(v) => setSettings({ osNotify: v })}
-                aria-label={tr('ui.cli-monitor.send-a-system-notification-when-a-task-finishes')}
-                data-testid="agents-os-notify"
-              />
-            </SettingRow>
-            <SettingRow
               title={tr('ui.providers-schedule.read-aloud')}
               description={tr(
                 'ui.providers-schedule.read-task-status-and-periodic-summaries-aloud-in',
@@ -209,7 +199,7 @@ export const CodingMonitor: React.FC<{
 
           <SettingsGroup
             title={tr('ui.cli-monitor.active-sessions')}
-            description={tr('ui.providers-schedule.claude-code-codex-dsh-gemini-cli-cursor-aider')}
+            description={tr('ui.providers-schedule.claude-code-codex-dsh-grok-gemini-cli-plus')}
           >
             {agents.sessions.length > 0 && (
               <div
