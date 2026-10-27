@@ -93,17 +93,32 @@ function mockIpc() {
   (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
 }
 
-const mount = () =>
+const mount = (collapsed = false, onToggle: () => void = () => undefined) =>
   render(
     <HarnessTabsProvider>
       <Sidebar
-        collapsed={false}
-        onToggle={() => undefined}
+        collapsed={collapsed}
+        onToggle={onToggle}
         onNewChat={() => undefined}
         onForkRequest={onForkRequest}
       />
     </HarnessTabsProvider>,
   );
+
+/** 自管 collapsed，便于测「折叠态重命名先展开」（#163） */
+function MountCollapsed() {
+  const [collapsed, setCollapsed] = React.useState(true);
+  return (
+    <HarnessTabsProvider>
+      <Sidebar
+        collapsed={collapsed}
+        onToggle={() => setCollapsed((c) => !c)}
+        onNewChat={() => undefined}
+        onForkRequest={onForkRequest}
+      />
+    </HarnessTabsProvider>
+  );
+}
 const row = (r: ReturnType<typeof mount>, id: string) =>
   r.container
     .querySelector(`[data-conversation-id="${id}"]`)!
