@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { applyLocale } from '@nomi-ai/ui';
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -424,5 +425,23 @@ describe('normal mode: current CLI conversation is swapped for a Nomi one', () =
     const r = mount();
     await waitFor(() => r.getAllByTestId('history-item'));
     expect(switchConversation).not.toHaveBeenCalled();
+  });
+});
+
+describe('侧栏随语言刷新', () => {
+  afterEach(() => applyLocale('zh-CN'));
+  it('memo 的 Sidebar props 不变时，切到 English 后按钮文案也会刷新', async () => {
+    applyLocale('zh-CN');
+    const r = mount();
+    const btn = r.getByTestId('sidebar-search-toggle');
+    expect(btn.getAttribute('aria-label')).toBe('搜索对话');
+    // 先等初始的异步刷新全部落定，排除它们顺带触发的重渲染
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+    act(() => applyLocale('en'));
+    expect(r.getByTestId('sidebar-search-toggle').getAttribute('aria-label')).toBe(
+      'Search conversations',
+    );
   });
 });

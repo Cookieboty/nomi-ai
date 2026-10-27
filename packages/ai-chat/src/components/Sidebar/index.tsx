@@ -1,4 +1,4 @@
-import { t, Icon } from '@nomi-ai/ui';
+import { t, Icon, useLocale } from '@nomi-ai/ui';
 import { RefreshCw, X, SquarePen } from 'lucide-react';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { List } from 'react-window';
@@ -77,6 +77,8 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   onOpenSettings,
   footer,
 }) => {
+  // Sidebar 是 React.memo，props 稳定时不随根组件重渲染：自己订阅语言，切换后文案才会刷新
+  useLocale();
   const { actions } = useAiChatActions();
   const ipc = useAiChatSelector(selectIpcClient);
   const messageCount = useAiChatSelector(selectMessageCount);

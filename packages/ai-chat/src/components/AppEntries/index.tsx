@@ -3,7 +3,7 @@
  * 它们与当前对话无关，所以不放在对话列顶栏；展开时一行（设置带文字），侧栏收起时竖排只显示图标。
  * 侧栏 overflow: hidden 会裁掉 CSS 提示，这里用原生 title。
  */
-import { Icon, t } from '@nomi-ai/ui';
+import { Icon, t, useLocale } from '@nomi-ai/ui';
 import { Blocks, Cpu, LibraryBig, Settings, type LucideIcon } from 'lucide-react';
 import React from 'react';
 
@@ -35,6 +35,8 @@ interface Entry {
 }
 
 export const AppEntries: React.FC<AppEntriesProps> = (p) => {
+  // 作为 useMemo 缓存的 footer 元素挂在 memo 侧栏里：自己订阅语言
+  useLocale();
   const bindings = useShortcutBindings();
   const settingsTip = t('ui.foundation.settings');
   const settingsKey = formatCombo(bindings.settings);
