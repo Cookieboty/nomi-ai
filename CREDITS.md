@@ -8,6 +8,7 @@
 
 - **Brand board, mascot artwork (2D pseudo-3D layered rig `sprite/nomi`, body cut from the owner's half-body illustration, head from the owner's front-facing HD head image), logo concept** — owner-provided, AI-generated, licensed by project owner (Cookieboty) for use in this repository under the MIT licence.
 - **Hand / forearm pieces** (`sprite/nomi/layers/hands/`) — AI-generated, non-brand art (a neutral forearm cuff and hand in nine shapes: wave, fist, thumbs-up, point, rest, peace, plus prayer / OK / hand-on-chest), cut out and colour-matched to the master by Nomi-ai contributors; licensed by the project owner under the MIT licence. They are the only AI-generated pixels added to the rig after the brand artwork was fixed; no brand part (hair, hairclips, bow, earring, choker, jacket, logo, tag) is generated or redrawn — see [docs/BRAND.md](docs/BRAND.md#9-品牌锁).
+- **Onboarding illustrations** (`packages/ai-chat/src/components/Onboarding/art/*.webp`: welcome, appearance, profile, provider) — AI-generated scene art requested by the project owner (Cookieboty) for the first-run guide and licensed by the project owner under the MIT licence. They are decorative only and are **not** brand-lock master art; the rig and brand parts are unchanged — see [docs/BRAND.md](docs/BRAND.md#9-品牌锁).
 - **Vector logo / app icons / tray icons** (`docs/brand/*.svg`, `packages/electron/assets/`) — recreated as vectors from the brand board by Nomi-ai contributors; same terms.
 
 ## Code references

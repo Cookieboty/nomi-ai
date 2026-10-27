@@ -174,14 +174,6 @@
   line-height: 1.6;
   color: var(--cd-color-text-muted);
 }
-.provider {
-  max-height: 340px;
-  overflow: auto;
-  border: 1px solid var(--cd-color-border);
-  border-radius: var(--cd-radius-lg);
-  padding: var(--cd-space-2);
-  background: var(--cd-color-bg);
-}
 .privacy {
   list-style: none;
   margin: 0;
@@ -241,4 +233,86 @@
 }
 .primary:hover {
   background: var(--cd-color-accent-hover);
+}
+
+/* 步骤插画：16:9 原图裁成横幅，人物在右侧；窗口很矮时隐藏，把空间留给选项 */
+.art {
+  display: block;
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+  object-position: center 30%;
+  border-radius: var(--cd-radius-lg);
+  margin-bottom: var(--cd-space-3);
+}
+@media (max-height: 640px) {
+  .art {
+    display: none;
+  }
+}
+.intro {
+  margin: -10px 0 var(--cd-space-3);
+  font-size: var(--cd-font-size-sm);
+  line-height: 1.6;
+  color: var(--cd-color-text-muted);
+}
+.status,
+.callout {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-3);
+  padding: var(--cd-space-3) 14px;
+  border-radius: var(--cd-radius-lg);
+  border: 1px solid var(--cd-color-border);
+  background: var(--cd-color-surface);
+  font-size: var(--cd-font-size-sm);
+  line-height: 1.55;
+}
+.status[data-status='ready'],
+.calloutOk {
+  border-color: var(--cd-color-accent-strong);
+  background: var(--cd-color-selected-bg);
+  color: var(--cd-color-selected-text);
+}
+.calloutTitle {
+  font-weight: var(--cd-font-weight-bold);
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cd-space-2);
+}
+.secondary {
+  height: var(--cd-control-h-md);
+  padding: 0 var(--cd-space-4);
+  border-radius: var(--cd-radius-md);
+  font-size: var(--cd-font-size-sm);
+  cursor: pointer;
+  border: 1px solid var(--cd-color-border);
+  background: var(--cd-color-surface);
+  color: var(--cd-color-text);
+  white-space: nowrap;
+}
+.secondary:hover {
+  background: var(--cd-color-hover);
+}
+.link {
+  background: none;
+  border: 0;
+  padding: 0 var(--cd-space-1);
+  color: var(--cd-color-accent-strong);
+  font-size: var(--cd-font-size-sm);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.error {
+  margin: 0;
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-danger);
+}
+.primary:disabled {
+  opacity: 0.6;
+  cursor: default;
 }

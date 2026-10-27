@@ -1,7 +1,6 @@
 ---
 '@nomi-ai/electron': minor
 '@nomi-ai/ai-chat': minor
-'@nomi-ai/i18n': patch
 ---
 
 精简功能，让 Nomi 更专注：

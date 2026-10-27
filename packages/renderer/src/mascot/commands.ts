@@ -1,15 +1,5 @@
-import { getActiveCharacter, saveCharacterVoice, speakForActiveCharacter } from './characterVoice';
 import { MASCOT_EXPRESSIONS, type MascotExpression } from './MascotBackend';
 import { applyDirective, playMotionNow } from './mood';
-
-/** 新手引导里可选的声音风格（作用于当前角色的 TTS；off = 关闭语音） */
-export const VOICE_STYLES = {
-  // 语速统一在「实时朗读引擎」里设置（一个语速），这里只保留音调偏好
-  soft: { pitch: 1.1 },
-  lively: { pitch: 1.25 },
-  calm: { pitch: 0.95 },
-} as const;
-export type VoiceStyle = keyof typeof VOICE_STYLES | 'off';
 
 /** 主进程（AI 工具 / 托盘）或渲染进程内部发来的看板娘指令 */
 export type MascotCommand =
@@ -44,23 +34,6 @@ export function handleMascotCommand(raw: unknown): boolean {
         }),
       );
       if (typeof cmd.motion === 'string') playMotionNow(cmd.motion);
-      return true;
-    }
-    case 'voice-style': {
-      const style = cmd.style as VoiceStyle;
-      if (style !== 'off' && !(style in VOICE_STYLES)) return false;
-      window.dispatchEvent(
-        new CustomEvent('mascot:voice-enabled', { detail: { enabled: style !== 'off' } }),
-      );
-      if (style === 'off') return true;
-      const { name, config } = getActiveCharacter();
-      const preview = typeof cmd.preview === 'string' ? cmd.preview.slice(0, 120) : '';
-      const speak = () => preview && speakForActiveCharacter(preview);
-      if (name)
-        void saveCharacterVoice(name, { ...VOICE_STYLES[style] }, config)
-          .catch(() => undefined)
-          .finally(speak);
-      else speak();
       return true;
     }
     case 'reply-speech': {

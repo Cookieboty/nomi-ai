@@ -23,8 +23,12 @@ Linux AppImage：`chmod +x Nomi-<版本号>.AppImage && ./Nomi-<版本号>.AppIm
 
 ### 首次引导
 
-第一次启动会打开对话窗口并进入 8 步引导：**界面语言 → 主题 → 启动方式 → 角色与声音 → 称呼与语气 → 职业与兴趣 → 模型供应商 → 隐私**。
-每一步都可以跳过，之后可在「设置 → 重新打开新手引导」再走一遍。
+第一次启动会打开对话窗口并进入 6 步引导：**欢迎与界面语言 → 外观与启动 → 称呼与语气 → 职业与兴趣 → 接上模型 → 隐私与完成**。
+每一步都可以跳过，之后可在「设置 → 重新打开新手引导」再走一遍；重新打开时会带出上次填的称呼、语气、职业和兴趣。
+
+「接上模型」一步显示当前模型状态，可直接「添加模型」，或打开完整的模型设置。没接模型就完成引导时，最后一页会提示「还差一步：接上模型」，并可一键跳到「设置 → 模型」。
+
+声音不在引导里设置：新装默认用 Edge 在线朗读（晓伊，语速 -5%），「朗读 AI 回复」默认开启；Edge 朗读需要联网，没联网时只显示文字。可在「设置 → 语音」修改，详见 [语音](features/voice.md)。
 
 「职业与兴趣」用来推荐任务：侧栏「开始使用」会推荐适合你的编程助手（如开发者推荐 Claude Code 与 Codex，其他职业都至少推荐 Codex）和功能（知识库、日程提醒、语音、MCP 与技能），欢迎屏的示例问题也会随之调整。编程助手可以同时安装。
 
@@ -78,12 +82,12 @@ The current builds are not signed / notarized. If Windows shows SmartScreen, cli
 
 ### First-run onboarding
 
-On first launch the chat window opens an 8-step guide: **UI language → theme → startup mode → character & voice → how to address you & tone → occupation & interests → model provider → privacy**.
+On first launch the chat window opens a 6-step guide: **welcome & UI language → look & startup → how to address you & tone → occupation & interests → connect a model → privacy & finish**. The model step shows the current model status, with **Add a model** and a link to the full model settings; if you finish without a model, the last page says "One step left: connect a model" and can jump straight to Settings → Models. Reopening the guide prefills your saved name, tone, occupation and interests.
 
 Your occupation and interests drive the recommendations: the sidebar's Get started card suggests coding agents (Claude Code and Codex for developers, and at least Codex for everyone else) and features (knowledge base, reminders, voice, MCP and skills), and the welcome screen's example questions change to match. Coding agents can be installed at the same time.
 Every step is skippable; you can rerun it later from Settings → Reopen onboarding.
 
-Voice: nothing is downloaded on first run. With the Nomi character and the Chinese UI, Nomi speaks her common prompts with built-in prerecorded clips (Settings → General → Voice → Nomi prompt voice). AI replies are text-only by default; the realtime TTS engine options Edge / Azure / OpenAI are listed but not wired up yet. See [Voice](features/voice.md).
+Voice is not part of onboarding. Nothing is downloaded on first run: Nomi's common prompts use built-in prerecorded clips, and the realtime engine defaults to Edge online TTS (Xiaoyi, rate -5%) with **Read AI replies** on by default. Edge TTS needs an internet connection; offline, Nomi just shows text. Change it in Settings → Voice. See [Voice](features/voice.md).
 
 “Startup mode” decides what you see when Nomi starts: the **mascot** (default; click her “AI chat” to open the main window) or the **main window** (opens straight away while the mascot keeps waiting on your desktop, so scheduled tasks and reminders still work). Change it any time in Settings → General → Show on startup. Design: [Startup default view](design/startup-default-view.md).
 

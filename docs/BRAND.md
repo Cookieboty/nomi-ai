@@ -98,12 +98,10 @@ Nomi 首先要有用：每一句暖心的话旁边，都要有一件真正帮上
 | -------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
 | 首次问候 | 你好，我是 Nomi·诺米，住在你桌面上的 AI 伙伴。花一分钟认识一下吧！ | Hi, I'm Nomi — your AI companion who lives on your desktop. Let's get to know each other in a minute! |
 | 主题     | 先挑一个看着舒服的外观吧，我们每天都要见面呢。                     | Pick a look that feels comfortable — we'll be seeing each other every day.                            |
-| 角色     | 想让我以什么样子陪着你？点一下就能换，之后也能随时改。             | How would you like me to look? One click to switch, and you can change it anytime.                    |
 | 称呼     | 告诉我怎么称呼你，我会好好记住。                                   | Tell me what to call you — I'll remember.                                                             |
 | 模型     | 接上一个 AI 模型，我就能帮你规划任务、把想法变成行动。             | Connect an AI model and I can help plan your tasks and turn ideas into action.                        |
 | 隐私     | 放心，我们的对话和记忆都只留在这台电脑上。                         | Rest assured: our conversations and memories stay on this computer.                                   |
 | 完成     | 准备好啦！我在这里，陪你把每一个任务都变成小小的成就。             | All set! I'm here to help turn every task into a small win.                                           |
-| 试听     | 你好，我是 Nomi，今天也要加油哦！                                  | Hi, I'm Nomi. Let's make today a good one!                                                            |
 
 ## 9. 品牌锁
 
@@ -122,5 +120,7 @@ Nomi 的造型是品牌资产。看板娘有 43 个动作，但**每一帧里，
 
 - 禁止用 AI 生图重绘 / 重新生成整张全身图、头部图或任何带品牌细节的部件：生成的姿势图会漂移（发夹位置翻转、标志大小变化、皮肤色变化）。
 - 唯一允许的 AI 生成素材是**手 / 前臂部件**（`layers/hands/`：挥手、握拳、点赞、食指、放松、剪刀手、合十、OK、手放胸前）。它们只是一截中性的袖口加一只手，不含任何品牌细节；抠图后做了肤色 / 袖色匹配，并在肘部与原袖子融合（袖口硬边、袖子在末端收窄并叠在袖口上，无半透明渐隐；合十为双臂对称抬起，只在胸前中线绘制一个合十手部件）。授权说明见 [CREDITS](../CREDITS.md) 与 `assets-licenses.json`。
+
+- 例外：新手引导的 4 张场景插画（`packages/ai-chat/src/components/Onboarding/art/`）是所有者要求的 AI 生成装饰图，只用于引导页顶部，不是品牌原画，不进看板娘图层，也不能作为重绘参考；授权见 [CREDITS](../CREDITS.md)。窗口高度不超过 640px 时自动隐藏。
 
 **要改品牌图层时**：先拿到所有者批准的新原画 → 用官方图裁切 → 更新 `brand-lock.json` → 在 PR 里说明为什么。
