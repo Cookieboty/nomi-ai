@@ -78,7 +78,11 @@ export function useMediaHost(
     <div className={styles.mediaMain} hidden={view === 'chat'} data-testid="media-main">
       {mounted.studio && (
         <div className={styles.mediaMain} hidden={view !== 'studio'}>
-          <ImageStudio active={view === 'studio'} prompt={studioPrompt} />
+          <ImageStudio
+            active={view === 'studio'}
+            prompt={studioPrompt}
+            onBack={() => setView('chat')}
+          />
         </div>
       )}
       {mounted.library && (
