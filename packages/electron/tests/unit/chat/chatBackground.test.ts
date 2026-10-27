@@ -81,7 +81,7 @@ describe('ChatBackgroundService', () => {
     expect(JSON.parse(fs.readFileSync(file, 'utf8'))).toMatchObject({ blur: 5, opacity: 0.4 });
   });
 
-  it('drops removed fields from saved settings', () => {
+  it('drops removed fields from saved settings', async () => {
     const root = tmpRoot();
     const file = path.join(root, 'chat-background.json');
     fs.writeFileSync(
@@ -90,6 +90,7 @@ describe('ChatBackgroundService', () => {
     );
     const service = new ChatBackgroundService(file, path.join(root, 'images'));
     expect(service.get()).toEqual({ ...PRESET_DEFAULTS, opacity: 0.42 });
+    await service.flush();
     expect(Object.keys(JSON.parse(fs.readFileSync(file, 'utf8'))).sort()).toEqual([
       'blur',
       'imageUrl',
@@ -256,6 +257,7 @@ describe('ChatBackgroundService', () => {
       path.join(root, 'bg.json'),
       path.join(root, 'images'),
     );
+    await service.flush();
     const rename = jest.spyOn(fs.promises, 'rename').mockImplementationOnce(async () => {
       throw new Error('disk unavailable');
     });
@@ -347,6 +349,7 @@ describe('ChatBackgroundService', () => {
     const images = path.join(root, 'images');
     const source = path.join(root, 'source.png');
     const service = new ChatBackgroundService(file, images);
+    await service.flush();
     fs.writeFileSync(source, 'first');
     dialog.showOpenDialog.mockResolvedValue({ canceled: false, filePaths: [source] });
     const previous = await service.pickImage();

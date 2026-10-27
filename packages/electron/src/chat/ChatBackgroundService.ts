@@ -52,7 +52,13 @@ export class ChatBackgroundService {
       /* first run */
     }
     this.state = this.withValidImage(sanitizeChatBg(saved));
-    this.persist();
+    // 启动落盘进同一串行队列，便于测试 await flush，也避免与 set/import 抢写（#154）
+    void this.serial(() => this.persistAsync());
+  }
+
+  /** 等到队列里的 persist / import 都结束（单测在 mock rename 前调用） */
+  flush(): Promise<void> {
+    return this.serial(async () => undefined);
   }
 
   get(): ChatBackgroundState {
@@ -178,11 +184,6 @@ export class ChatBackgroundService {
       const win = BrowserWindow.fromWebContents(e.sender);
       return this.pickImage(win);
     });
-  }
-
-  /** 启动时也走异步写：不挡主进程；状态已在内存里，界面读 this.state（#154） */
-  private persist(): void {
-    void this.persistAsync().catch(() => undefined);
   }
 
   /** 界面操作触发的写入：Windows 文件被占用时退避等待不挡主进程（#154） */

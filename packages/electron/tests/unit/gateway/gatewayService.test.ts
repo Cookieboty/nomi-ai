@@ -804,7 +804,7 @@ describe('GatewayService', () => {
     expect(svc.modelMetaOf('relay/openai/gpt-6-astra')!.ctx).toBe(922_000);
   });
 
-  it('models data sync (§12.7.2): synced catalog overlays the built-in one, survives a restart', () => {
+  it('models data sync (§12.7.2): synced catalog overlays the built-in one, survives a restart', async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gw-catalog-'));
     const make = () => {
       const svc = new GatewayService({
@@ -838,9 +838,9 @@ describe('GatewayService', () => {
     expect(svc.hasCatalogSync()).toBe(false);
     expect(svc.modelMetaOf('relay/acme/sync-model-7')).toMatchObject({ source: 'default' });
     // 条目明显过少：视为异常响应，不采用
-    svc.applyModelsData(api(5));
+    await svc.applyModelsData(api(5));
     expect(svc.hasCatalogSync()).toBe(false);
-    svc.applyModelsData(api(150));
+    await svc.applyModelsData(api(150));
     expect(svc.hasCatalogSync()).toBe(true);
     expect(svc.modelMetaOf('relay/acme/sync-model-7')).toMatchObject({
       ctx: 333_000,

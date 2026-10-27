@@ -367,23 +367,23 @@ export class GatewayService {
    * 写进 userData、主进程立即生效、推配置让网关进程重读，并通知界面刷新生效值。
    * 条目明显过少（异常响应）时不采用，保留原有目录。
    */
-  applyModelsData(api: unknown): void {
+  applyModelsData(api: unknown): Promise<void> {
     const { fromFallback: _f, ...doc } = buildCatalog(api, new Date().toISOString().slice(0, 10));
     void _f;
     if (Object.keys(doc.models).length < MIN_SYNCED_MODELS) {
       this.d.logger.warn('models data sync: too few models, keeping the current catalog', {
         count: Object.keys(doc.models).length,
       });
-      return;
+      return Promise.resolve();
     }
     fs.mkdirSync(this.d.root, { recursive: true });
     // 内存先更新；磁盘异步落盘，避免 Windows 占用重试卡住主进程（#154）
-    void writePrivateFileAtomicAsync(this.catalogFile, JSON.stringify(doc)).catch((e) =>
-      this.d.logger.warn('models catalog write failed', { error: String(e) }),
-    );
     setCatalogOverlay(doc);
     this.push();
     this.changed();
+    return writePrivateFileAtomicAsync(this.catalogFile, JSON.stringify(doc)).catch((e) => {
+      this.d.logger.warn('models catalog write failed', { error: String(e) });
+    });
   }
 
   /**
