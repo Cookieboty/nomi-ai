@@ -76,7 +76,7 @@ const importLines = imports.sort((a, b) => a.path.localeCompare(b.path)).map((en
 const catalogFile = path.join(packageRoot, 'src/catalog.ts');
 fs.writeFileSync(
   catalogFile,
-  `${importLines.join('\n')}\n\nexport const DICTIONARIES = {\n${dictionaries},\n} as const;\n\nexport type TranslationKey = ${union};\nexport type Language = keyof typeof DICTIONARIES;\n\n/** 合并后的整张词典按语言缓存：t() 每次翻译都要查它，每次重新合并几千条会让界面明显卡顿 */\nconst merged = new Map<Language, Record<string, string>>();\n\nexport const getDictionary = (language: Language): Record<string, string> => {\n  let d = merged.get(language);\n  if (!d) {\n    d = Object.assign({}, ...Object.values(DICTIONARIES[language])) as Record<string, string>;\n    merged.set(language, d);\n  }\n  return d;\n};\n`,
+  `${importLines.join('\n')}\n\nexport const DICTIONARIES = {\n${dictionaries},\n} as const;\n\nexport type TranslationKey = ${union};\nexport type Language = keyof typeof DICTIONARIES;\n\n/** 合并后的整张词典按语言缓存：t() 每次翻译都要查它，每次重新合并几千条会让界面明显卡顿 */\nconst merged = new Map<Language, Record<string, string>>();\n\nexport const getDictionary = (language: Language): Record<string, string> => {\n  let d = merged.get(language);\n  if (!d) {\n    // 无原型：查 __proto__ / constructor 之类的键不会命中继承属性\n    d = Object.assign(Object.create(null), ...Object.values(DICTIONARIES[language]));\n    merged.set(language, d);\n  }\n  return d;\n};\n`,
 );
 // 生成的是未排版的单行联合类型；提交的版本按 Prettier 排版，直接写完就排版，避免整文件 diff
 execFileSync(

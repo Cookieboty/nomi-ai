@@ -38,16 +38,25 @@ export function format(value: string, args: unknown[]): string {
 
 export type Translate = (key: unknown, ...args: unknown[]) => unknown;
 
+/**
+ * 只认词典自己的字符串条目：用户文本（会话名等）可能恰好是 `__proto__` / `constructor` / `toString`，
+ * 不能读到继承属性返回对象或函数（#142）。查不到原样返回。
+ */
+function lookup(dictionaries: Record<string, string>, key: string): string {
+  if (!Object.hasOwn(dictionaries, key)) return key;
+  const value = dictionaries[key];
+  return typeof value === 'string' ? value : key;
+}
+
 export function createTranslator(getLocale: () => Locale): Translate {
   return (input, ...args) => {
     if (typeof input !== 'string') return input;
     const language = languageForLocale(getLocale());
     const dictionaries = getDictionary(language);
-    const translated = dictionaries[input] ?? input;
-    const translatedArgs = args.map((arg) => {
-      if (typeof arg !== 'string') return arg;
-      return dictionaries[arg] ?? arg;
-    });
+    const translated = lookup(dictionaries, input);
+    const translatedArgs = args.map((arg) =>
+      typeof arg === 'string' ? lookup(dictionaries, arg) : arg,
+    );
     return format(translated, translatedArgs);
   };
 }
