@@ -26,18 +26,20 @@ export interface ScreenDeps {
 
 export class ScreenService {
   private ipcDone = false;
+  /** 启动时清理旧数据的异步任务（测试可 await） */
+  readonly legacyPurged: Promise<void>;
 
   constructor(private readonly d: ScreenDeps) {
-    this.purgeLegacy();
+    this.legacyPurged = this.purgeLegacy();
   }
 
   /** 旧版本的屏幕记忆与截图设置：功能已移除，不再留在磁盘上 */
-  private purgeLegacy() {
-    try {
-      fs.rmSync(this.d.root, { recursive: true, force: true });
-    } catch (err) {
-      this.d.logger.warn('清理旧屏幕记忆失败', String(err));
-    }
+  // 异步删除：旧截图目录可能很大，不在主进程启动路径上做同步 IO
+  private purgeLegacy(): Promise<void> {
+    return fs.promises.rm(this.d.root, { recursive: true, force: true }).then(
+      () => undefined,
+      (err) => this.d.logger.warn('清理旧屏幕记忆失败', String(err)),
+    );
   }
 
   registerIpc(): void {

@@ -28,19 +28,23 @@ export interface HubDeps {
 
 export class LocalHubService {
   private ipcDone = false;
+  /** 启动时清理旧数据的异步任务（测试可 await） */
+  readonly legacyPurged: Promise<void>;
 
   constructor(private readonly d: HubDeps) {
-    this.purgeLegacyClipboard();
+    this.legacyPurged = this.purgeLegacyClipboard();
   }
 
   /** 旧版本的剪贴板历史（clipboard.json + clips/ 图片）：功能已移除，不再留在磁盘上 */
-  private purgeLegacyClipboard() {
-    try {
-      fs.rmSync(path.join(this.d.root, 'clipboard.json'), { force: true });
-      fs.rmSync(path.join(this.d.root, 'clips'), { recursive: true, force: true });
-    } catch (err) {
-      this.d.logger.warn('清理旧剪贴板历史失败', String(err));
-    }
+  // 异步删除：clips/ 可能有大量图片，不在主进程启动路径上做同步 IO
+  private purgeLegacyClipboard(): Promise<void> {
+    return Promise.all([
+      fs.promises.rm(path.join(this.d.root, 'clipboard.json'), { force: true }),
+      fs.promises.rm(path.join(this.d.root, 'clips'), { recursive: true, force: true }),
+    ]).then(
+      () => undefined,
+      (err) => this.d.logger.warn('清理旧剪贴板历史失败', String(err)),
+    );
   }
 
   private audit(tool: string, args: Record<string, unknown>, result = 'ok', source = 'settings') {
