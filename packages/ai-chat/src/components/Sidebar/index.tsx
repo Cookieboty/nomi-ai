@@ -27,7 +27,7 @@ import {
   type HistoryClient,
   type HistorySession,
 } from '../../services/historyClient';
-import { formatCombo, useShortcutBindings, useShortcutEvent } from '../../services/shortcuts';
+import { formatCombo, useShortcutBindings } from '../../services/shortcuts';
 import type { ConversationBackend } from '../../types/chat';
 import { CONVERSATION_BACKENDS } from '../../types/chat';
 import { ENDPOINT_FULL } from '../../utils/endpointBadge';
@@ -55,9 +55,9 @@ import {
   SearchIcon,
   type SearchEntry,
 } from './searchSupport';
-import { beginSidebarRename } from './sidebarRename';
 import { rel, liveOf, RowActions, ThreadItem, VirtualRow } from './SidebarRows';
 import type { Meta } from './types';
+import { useSidebarRename, useSidebarSearchShortcut } from './useSidebarRename';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -206,6 +206,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   // 左下角信息卡跟随当前会话所在的端（CLI 标签 / Nomi 对话）；点了顶部端点图标就先看那个端，
   // 直到切换会话。还没有当前会话时退回筛选的端
   const [cardPick, setCardPick] = useState<ConversationBackend | null>(null);
+  const startRename = useSidebarRename(collapsed, onToggle, highlightId, setRenamingId);
   const [cardPickFor, setCardPickFor] = useState(highlightId);
   if (cardPickFor !== highlightId) {
     setCardPickFor(highlightId);
@@ -515,14 +516,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   const searching = !collapsed && searchOpen && debounced.trim() !== '';
   const searchIndex = useHistorySearchIndex(isDev && searching, histBackends, tabsKey);
 
-  useShortcutEvent('searchChats', () => {
-    setSearchOpen(true);
-    window.setTimeout(() => inputRef.current?.focus(), 0);
-  });
-  useShortcutEvent(
-    'renameTab',
-    () => highlightId && beginSidebarRename(highlightId, collapsed, onToggle, setRenamingId),
-  );
+  useSidebarSearchShortcut(setSearchOpen, inputRef);
   useEffect(() => {
     if (searchOpen) inputRef.current?.focus();
   }, [searchOpen]);
@@ -1142,7 +1136,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
               y={ctx.y}
               isTab={Boolean(meta?.tabId)}
               onDismiss={() => setCtx(null)}
-              onRename={() => beginSidebarRename(ctx.id, collapsed, onToggle, setRenamingId)}
+              onRename={() => startRename(ctx.id)}
               onFork={() => onForkRequest?.(ctx.id, 'same')}
               // 跨端分叉只在开发模式提供；普通模式只有「分叉为新对话」（同端 Nomi）
               onForkCross={isDev ? () => onForkRequest?.(ctx.id, 'cross') : undefined}
