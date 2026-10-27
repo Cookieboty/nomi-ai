@@ -11,7 +11,7 @@ import {
   Sparkles,
   Undo2,
 } from 'lucide-react';
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
 
 import {
   harnessClient,
@@ -28,8 +28,10 @@ interface Notice {
   tone: 'ok' | 'error';
   text: string;
   output?: string;
-  /** 刚才的提交 / 放弃：可以撤销 */
-  undo?: { kind: 'commit'; sha: string; message: string } | { kind: 'discard'; stashes: string[] };
+  /** 刚才的提交 / 放弃：可以撤销；cwd 是做这次操作的工作区，撤销只作用于它 */
+  undo?:
+    | { kind: 'commit'; cwd: string; sha: string; message: string }
+    | { kind: 'discard'; cwd: string; stashes: string[] };
 }
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
@@ -86,6 +88,13 @@ export function useGitOps(cwd: string | null | undefined, refresh: () => void) {
     setNotice(null);
     setMessage('');
   }
+  // 操作进行中换了工作区：旧操作晚到的结果（提示、撤销、生成的提交信息）不写进新工作区（#152）。
+  // 每个操作用发起时闭包里的 cwd，完成后和当前的比一下
+  const cwdRef = useRef(cwd);
+  useLayoutEffect(() => {
+    cwdRef.current = cwd;
+  }, [cwd]);
+  const here = (at: string) => cwdRef.current === at;
 
   const exec = useCallback(
     async (kind: GitOp, fn: () => Promise<GitOpResult>): Promise<GitOpResult | null> => {
@@ -102,7 +111,8 @@ export function useGitOps(cwd: string | null | undefined, refresh: () => void) {
         opRef.current = null;
         setOp(null);
       }
-      if (!r.ok) setNotice({ tone: 'error', text: gitErrorText(r.code), output: r.output });
+      if (!r.ok && cwdRef.current === cwd)
+        setNotice({ tone: 'error', text: gitErrorText(r.code), output: r.output });
       // 生成提交信息只读
       if (kind !== 'suggest') refresh();
       return r;
@@ -120,7 +130,7 @@ export function useGitOps(cwd: string | null | undefined, refresh: () => void) {
   const push = async (sync: GitSyncStatus | null) => {
     if (!cwd) return;
     const r = await exec('push', () => harnessClient.gitPush(cwd));
-    if (r?.ok) {
+    if (r?.ok && here(cwd)) {
       const target = sync?.upstream ?? sync?.pushRemote ?? '';
       setNotice({ tone: 'ok', text: t('ui.session-workspace.pushed-to', target) });
     }
@@ -132,24 +142,31 @@ export function useGitOps(cwd: string | null | undefined, refresh: () => void) {
     if (!cwd || !msg) return;
     const r = await exec('commit', () => harnessClient.gitCommit(cwd, msg, paths));
     if (!r?.ok || !r.sha) return;
-    setMessage('');
-    setNotice({
-      tone: 'ok',
-      text: t('ui.session-workspace.committed-sha', r.sha.slice(0, 7)),
-      undo: { kind: 'commit', sha: r.sha, message: msg },
-    });
+    if (here(cwd)) {
+      setMessage('');
+      setNotice({
+        tone: 'ok',
+        text: t('ui.session-workspace.committed-sha', r.sha.slice(0, 7)),
+        undo: { kind: 'commit', cwd, sha: r.sha, message: msg },
+      });
+    }
     if (pushAfter) await push(sync);
   };
 
   const undo = async () => {
     const u = notice?.undo;
     if (!cwd || !u) return;
+    // 撤销记录属于别的工作区：不对当前工作区执行
+    if (u.cwd !== cwd) {
+      setNotice(null);
+      return;
+    }
     const r = await exec('undo', () =>
       u.kind === 'commit'
         ? harnessClient.gitCommitUndo(cwd, u.sha)
         : harnessClient.gitDiscardUndo(cwd, u.stashes),
     );
-    if (r?.ok) {
+    if (r?.ok && here(cwd)) {
       setNotice(null);
       if (u.kind === 'commit') setMessage(u.message);
     }
@@ -159,7 +176,7 @@ export function useGitOps(cwd: string | null | undefined, refresh: () => void) {
   const suggest = async (paths: string[] | undefined) => {
     if (!cwd) return;
     const r = await exec('suggest', () => harnessClient.gitSuggestMessage(cwd, paths));
-    if (r?.ok && r.message) setMessage(r.message);
+    if (r?.ok && r.message && here(cwd)) setMessage(r.message);
   };
 
   /** 放弃未暂存的改动：先确认；存进 stash，可以撤销 */
@@ -171,18 +188,18 @@ export function useGitOps(cwd: string | null | undefined, refresh: () => void) {
         : t('ui.session-workspace.discard-unstaged-changes-in-n-files', String(paths.length));
     if (!window.confirm(ask)) return;
     const r = await exec('discard', () => harnessClient.gitDiscard(cwd, paths));
-    if (r?.ok && r.stashes?.length)
+    if (r?.ok && r.stashes?.length && here(cwd))
       setNotice({
         tone: 'ok',
         text: t('ui.session-workspace.discarded-changes-saved-in-git-stash', String(paths.length)),
-        undo: { kind: 'discard', stashes: r.stashes },
+        undo: { kind: 'discard', cwd, stashes: r.stashes },
       });
   };
 
   const fetchRemote = async () => {
     if (!cwd) return;
     const r = await exec('fetch', () => harnessClient.gitFetch(cwd));
-    if (!r?.ok) return;
+    if (!r?.ok || !here(cwd)) return;
     // 落后几个提交要等重读的上游状态；这里只说检查过了
     setNotice({ tone: 'ok', text: t('ui.session-workspace.checked-the-remote') });
   };
@@ -190,7 +207,8 @@ export function useGitOps(cwd: string | null | undefined, refresh: () => void) {
   const pull = async () => {
     if (!cwd) return;
     const r = await exec('pull', () => harnessClient.gitPull(cwd));
-    if (r?.ok) setNotice({ tone: 'ok', text: t('ui.session-workspace.pulled-fast-forward') });
+    if (r?.ok && here(cwd))
+      setNotice({ tone: 'ok', text: t('ui.session-workspace.pulled-fast-forward') });
   };
 
   return {

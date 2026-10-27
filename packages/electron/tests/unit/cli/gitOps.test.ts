@@ -357,6 +357,19 @@ describe('gitOps', () => {
     expect((await gitDiscardUndo(repo, r.stashes)).code).toBe('moved');
   });
 
+  it('撤销放弃只认原工作区：同仓库另一个 worktree 拿着 A 的 stash 撤销被拒，B 不动、stash 还在（#152）', async () => {
+    const wt = path.join(root, 'wt-b');
+    git(repo, 'worktree', 'add', '-q', '--detach', wt);
+    write(path.join(repo, 'a.txt'), 'changed in A\n');
+    const r = await gitDiscard(repo, ['a.txt']);
+    expect(r.ok).toBe(true);
+    expect((await gitDiscardUndo(wt, r.stashes)).code).toBe('mismatch');
+    expect(fs.readFileSync(path.join(wt, 'a.txt'), 'utf8')).toBe('a\n');
+    expect(git(repo, 'stash', 'list')).toContain('nomi: discard 1');
+    expect(await gitDiscardUndo(repo, r.stashes)).toEqual({ ok: true });
+    expect(fs.readFileSync(path.join(repo, 'a.txt'), 'utf8')).toBe('changed in A\n');
+  });
+
   it('放弃改动：没有可放弃的返回 nothing', async () => {
     expect((await gitDiscard(repo, ['a.txt'])).code).toBe('nothing');
   });

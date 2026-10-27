@@ -9,6 +9,7 @@
  * - 同一个目录同时只跑一个写操作。
  */
 import { execFile } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -576,6 +577,12 @@ export async function gitCommitContext(
 }
 
 const DISCARD_TAG = 'nomi: discard';
+/**
+ * 放弃时所在工作区的标记，写进 stash 说明里。同一仓库的各个 worktree 共用 refs/stash，
+ * 「stash 还在列表里」证明不了它属于当前工作区；撤销时要求标记一致（#152）。
+ */
+const worktreeTag = (top: string) =>
+  `[wt:${createHash('sha256').update(top).digest('hex').slice(0, 12)}]`;
 const SHA_RE = /^[0-9a-f]{40}([0-9a-f]{24})?$/i;
 
 async function stashPush(cwd: string, args: string[], paths: string[], label: string) {
@@ -622,7 +629,7 @@ export function gitDiscard(
     const base = real(cwd);
     const untracked = list.filter((p) => others.has(path.resolve(base, p)));
     const tracked = list.filter((p) => !others.has(path.resolve(base, p)));
-    const label = `${DISCARD_TAG} ${list.length}`;
+    const label = `${DISCARD_TAG} ${list.length} ${worktreeTag(top)}`;
     const stashes: string[] = [];
     if (tracked.length) {
       const t = await stashPush(cwd, ['--keep-index'], tracked, label);
@@ -656,6 +663,11 @@ export function gitDiscardUndo(cwd: string, stashes: unknown): Promise<GitOpResu
   return locked(cwd, async () => {
     const top = real(await line(cwd, ['rev-parse', '--show-toplevel']));
     for (const sha of list as string[]) if ((await stashIndex(top, sha)) < 0) return fail('moved');
+    // 别的 worktree 里放弃的：不往这里恢复，也不删它
+    const tag = worktreeTag(top);
+    for (const sha of list as string[])
+      if (!(await line(top, ['log', '-1', '--format=%s', sha])).includes(tag))
+        return fail('mismatch');
     for (const sha of list as string[]) {
       const untracked = (await run(top, ['rev-parse', '-q', '--verify', `${sha}^3`])).code === 0;
       if (untracked) {
