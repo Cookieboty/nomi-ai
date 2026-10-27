@@ -162,6 +162,9 @@ function setup(opts: Opts = {}) {
     spawnFn,
     entry,
     writeCodexLog,
+    waitCodexPending: async () => {
+      for (let i = 0; i < 400 && !releaseCodex; i++) await new Promise((r) => setTimeout(r, 5));
+    },
     releaseCodex: async () => {
       for (let i = 0; i < 100 && !releaseCodex; i++) await new Promise((r) => setTimeout(r, 5));
       releaseCodex?.();
@@ -492,7 +495,8 @@ describe('刷新额度 · 清空后迟到的结果不回写', () => {
     const t = setup();
     t.set.codex('defer');
     const p = t.svc.refreshQuota('codex');
-    await new Promise((r) => setTimeout(r, 30));
+    // 等 Codex 请求真正发出后再清空（Windows CI 上 30ms 不一定够）
+    await t.waitCodexPending();
     t.svc.clear();
     await t.releaseCodex();
     const r = await p;

@@ -28,6 +28,8 @@ import {
   writePrivateFileAtomic,
 } from '../../../src/utils/privateFile';
 
+const REAL_PLATFORM = process.platform;
+
 describe('privateFile Windows ACL', () => {
   let dir: string;
   const originalPlatform = process.platform;
@@ -324,7 +326,10 @@ describe('privateFile Windows ACL 缓存', () => {
     await writePrivateFileAtomicAsync(path.join(sub, 'c'), '3');
     expect(calls).toEqual([]);
     expect(asyncCalls).toEqual([]);
-    expect((fs.statSync(path.join(sub, 'a')).mode & 0o777).toString(8)).toBe('600');
+    // 真实 Windows 文件系统不支持 POSIX 权限位（总是 666），只在真 POSIX 上校验
+    if (REAL_PLATFORM !== 'win32') {
+      expect((fs.statSync(path.join(sub, 'a')).mode & 0o777).toString(8)).toBe('600');
+    }
   });
 });
 

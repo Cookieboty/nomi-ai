@@ -213,7 +213,15 @@ describe('WindowManager 启动时两个窗口并行', () => {
       save: jest.fn(async () => undefined),
     };
     const wm = new WindowManager(logger as never, config as never);
-    const mascot = { ...newWin(), webContents: { setAudioMuted: jest.fn() } };
+    const mascot = {
+      ...newWin(),
+      webContents: { setAudioMuted: jest.fn() },
+      // Windows 下 createMainWindow 会校正窗口尺寸（setWindowBounds）
+      isResizable: jest.fn(() => false),
+      setResizable: jest.fn(),
+      setBounds: jest.fn(),
+      getBounds: jest.fn(() => ({ x: 0, y: 0, width: 0, height: 0 })),
+    };
     const chat = newWin();
     const internals = wm as unknown as Internals & {
       setupMainWindowEvents: (w: unknown) => void;
