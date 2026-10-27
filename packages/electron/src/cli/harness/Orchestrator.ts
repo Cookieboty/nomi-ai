@@ -188,6 +188,7 @@ import {
   withPermissionExpiry,
   type ApprovePlanChoice,
 } from './permissionQueue';
+import { RendererSubscribers } from './rendererSubscribers';
 import { cliChildEnv, isScript, peekHarnessBin, resolveHarnessBin, spawnHarness } from './spawn';
 export type {
   AccountBackend,
@@ -341,6 +342,8 @@ export class HarnessOrchestrator {
   private readonly sendAborts = new Map<string, AbortController>();
   /** 用户接管委派标签时，按标签串行化取消与等待，避免重复发送竞态。 */
   private readonly takeoverInFlight = new Map<string, Promise<void>>();
+  /** ai:harness:* 推送的接收方：在 IPC 调用里登记发起方 webContents（见 registerIpc） */
+  private readonly subscribers = new RendererSubscribers();
   /** 实时事件按帧合批后再广播（见 eventBatcher） */
   private readonly eventBatcher = new EventBatcher<HarnessEvent & { tabId: string }>((batch) =>
     this.broadcast('ai:harness:events', batch),
@@ -2256,6 +2259,7 @@ export class HarnessOrchestrator {
   /** 测试 / 应用退出：拆除所有长驻 Claude 与残留子进程（含其子孙进程）、清掉所有定时器 */
   dispose(): void {
     this.disposed = true;
+    this.subscribers.clear();
     this.writer.dispose();
     this.stopIdleSweep();
     this.eventBatcher.dispose();
@@ -4407,14 +4411,12 @@ export class HarnessOrchestrator {
     this.broadcast(channel, payload);
   }
 
+  /**
+   * 推送只发给调过 ai:harness:* 的窗口（即对话窗口，见 rendererSubscribers），
+   * 不再广播到看板娘 / 岛 / 截图浮层等从不监听的窗口
+   */
   private broadcast(channel: string, payload: unknown) {
-    for (const w of BrowserWindow.getAllWindows()) {
-      try {
-        w.webContents.send(channel, payload);
-      } catch {
-        /* */
-      }
-    }
+    this.subscribers.send(channel, payload);
   }
 
   /** 记下一轮里最近的文本 / 工具步骤，不做任何额外计算或模型调用 */
@@ -4801,8 +4803,16 @@ export class HarnessOrchestrator {
   }
 
   registerIpc(): void {
+    // 发起调用的窗口就是推送通道的接收方（guardedHandle 已先校验 sender 受信）
     const handle = (ch: string, fn: (...a: unknown[]) => unknown) =>
-      guardedHandle(ch, fn, { owner: 'CliHarnessService' });
+      guardedHandle(
+        ch,
+        (event, ...a) => {
+          this.subscribers.add(event?.sender);
+          return fn(...a);
+        },
+        { owner: 'CliHarnessService', passEvent: true },
+      );
     // 启动时就在后台把各 CLI 的可执行文件探测好，之后的状态读取都只读缓存
     void this.refreshBins().catch(() => undefined);
     handle('ai:harness:state', async () => {
