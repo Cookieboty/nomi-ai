@@ -36,7 +36,10 @@
     "check:i18n": "node scripts/i18n/check.cjs",
     "check:frontend": "node scripts/check-frontend-standards.mjs",
     "changelog": "node scripts/release/changelog.mjs",
-    "changelog:check": "node scripts/release/changelog.mjs --check"
+    "changelog:check": "node scripts/release/changelog.mjs --check",
+    "character:check": "node scripts/character/check.mjs",
+    "character:apply": "node scripts/character/apply.mjs",
+    "character:init": "node scripts/character/init.mjs"
   },
   "author": "",
   "license": "MIT",

@@ -7,12 +7,15 @@
  */
 import { createLogger, getLocale, t } from '@nomi-ai/ui';
 
+import { getCharacterId, getPromptClipBase, isActivePackModel } from '../characterConfig';
 import { isMascotMuted } from '../presence';
 
 const log = createLogger('prompt-clips');
 
-export const PROMPT_CLIP_BASE = './voice/nomi/zh/';
-export const PROMPT_CLIP_MODEL = 'nomi';
+/** @deprecated Prefer getPromptClipBase(); kept for tests / callers. */
+export const PROMPT_CLIP_BASE = getPromptClipBase();
+/** @deprecated Prefer getCharacterId(); default remains nomi for official builds. */
+export const PROMPT_CLIP_MODEL = getCharacterId();
 
 /** 保留文字气泡、但不播放任何音频的台词 */
 export const NO_AUDIO_KEYS: ReadonlySet<string> = new Set([
@@ -51,7 +54,7 @@ function loadManifest(): Promise<Map<string, PromptClipEntry> | null> {
   if (!manifest) {
     manifest = (async () => {
       try {
-        const res = await fetch(`${PROMPT_CLIP_BASE}manifest.json`);
+        const res = await fetch(`${getPromptClipBase()}manifest.json`);
         if (!res.ok) return null;
         const m = (await res.json()) as Manifest;
         return new Map((m.clips ?? []).map((c) => [c.key, c]));
@@ -82,11 +85,7 @@ async function promptVoiceOn(): Promise<boolean> {
 
 /** 预录片段是否适用于当前模型与界面语言（同步部分）。 */
 export function promptClipsApplicable(modelName: string | null | undefined): boolean {
-  return (
-    (modelName ?? '').toLowerCase() === PROMPT_CLIP_MODEL &&
-    getLocale() === 'zh-CN' &&
-    !isMascotMuted()
-  );
+  return isActivePackModel(modelName) && getLocale() === 'zh-CN' && !isMascotMuted();
 }
 
 /**
@@ -149,7 +148,7 @@ export async function playPromptClip(
   last = { key, at: now };
   const entry = clips.get(key)!;
   const { playAudioClip } = await import('../tts/audioPlayback');
-  const ok = await playAudioClip(`${PROMPT_CLIP_BASE}${entry.file}`, {
+  const ok = await playAudioClip(`${getPromptClipBase()}${entry.file}`, {
     volume: opts.volume,
     onEnd: opts.onEnd,
   });
