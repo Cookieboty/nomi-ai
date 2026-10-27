@@ -411,18 +411,32 @@ export interface FileDiff {
   summaryOnly?: boolean;
 }
 
-const DIFF_CACHE_MAX = 200;
-const diffCache = new Map<string, FileDiff[]>();
+/** diff 缓存上限：会话聚合每次会按序走完全部编辑调用，上限过小时 LRU 也会整轮失效 */
+export const DIFF_CACHE_MAX = 1000;
+/**
+ * 按参数字符串缓存（LRU：命中时移到末尾，满了淘汰最久未用的）。
+ * 不按 ToolCall 对象缓存：reduceTrace 每次都新建调用对象，且运行中的调用会被就地补全。
+ * 键直接用 input 原串（与 trace 事件共享同一个字符串对象，哈希只算一次、相等比较走指针），
+ * 不再拼 `name + input` 这种每次都要重新哈希整段文件内容的新串；name 存在值里校验。
+ */
+const diffCache = new Map<string, { name: string; diffs: FileDiff[] }>();
 
 /** 编辑 / 写入类调用 → 每个文件一份 diff；识别不了返回空数组（按名称 + 参数缓存，避免每次渲染重算 LCS） */
 export function diffsOf(call: ToolCall): FileDiff[] {
-  const key = `${call.name}\u0000${call.input ?? ''}`;
+  const key = call.input ?? '';
   const hit = diffCache.get(key);
-  if (hit) return hit;
-  const out = computeDiffs(call);
-  if (diffCache.size >= DIFF_CACHE_MAX) diffCache.delete(diffCache.keys().next().value as string);
-  diffCache.set(key, out);
-  return out;
+  if (hit && hit.name === call.name) {
+    diffCache.delete(key);
+    diffCache.set(key, hit);
+    return hit.diffs;
+  }
+  const diffs = computeDiffs(call);
+  if (hit) diffCache.delete(key);
+  else if (diffCache.size >= DIFF_CACHE_MAX) {
+    diffCache.delete(diffCache.keys().next().value as string);
+  }
+  diffCache.set(key, { name: call.name, diffs });
+  return diffs;
 }
 
 function computeDiffs(call: ToolCall): FileDiff[] {
