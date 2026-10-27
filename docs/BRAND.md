@@ -98,7 +98,7 @@ Nomi 首先要有用：每一句暖心的话旁边，都要有一件真正帮上
 | -------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
 | 首次问候 | 你好，我是 Nomi·诺米，住在你桌面上的 AI 伙伴。花一分钟认识一下吧！ | Hi, I'm Nomi — your AI companion who lives on your desktop. Let's get to know each other in a minute! |
 | 主题     | 先挑一个看着舒服的外观吧，我们每天都要见面呢。                     | Pick a look that feels comfortable — we'll be seeing each other every day.                            |
-| 称呼     | 告诉我怎么称呼你，我会好好记住。                                   | Tell me what to call you — I'll remember.                                                             |
+| 关于你   | 告诉我你的职业和兴趣，我会推荐适合你的工具和玩法～                 | Tell me what you do and what you're into, and I'll suggest tools and things to try.                   |
 | 模型     | 接上一个 AI 模型，我就能帮你规划任务、把想法变成行动。             | Connect an AI model and I can help plan your tasks and turn ideas into action.                        |
 | 隐私     | 放心，我们的对话和记忆都只留在这台电脑上。                         | Rest assured: our conversations and memories stay on this computer.                                   |
 | 完成     | 准备好啦！我在这里，陪你把每一个任务都变成小小的成就。             | All set! I'm here to help turn every task into a small win.                                           |

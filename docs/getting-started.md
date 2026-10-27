@@ -23,14 +23,14 @@ Linux AppImage：`chmod +x Nomi-<版本号>.AppImage && ./Nomi-<版本号>.AppIm
 
 ### 首次引导
 
-第一次启动会打开对话窗口并进入 6 步引导：**欢迎与界面语言 → 外观与启动 → 称呼与语气 → 职业与兴趣 → 接上模型 → 隐私与完成**。
-每一步都可以跳过，之后可在「设置 → 重新打开新手引导」再走一遍；重新打开时会带出上次填的称呼、语气、职业和兴趣。
+第一次启动会打开对话窗口并进入 5 步引导：**欢迎与界面语言 → 外观与启动 → 关于你（称呼、职业与兴趣）→ 接上模型 → 隐私与完成**。
+每一步都可以跳过，之后可在「设置 → 重新打开新手引导」再走一遍；重新打开时会带出上次填的称呼、职业和兴趣。
 
-「接上模型」一步显示当前模型状态，可直接「添加模型」，或打开完整的模型设置。没接模型就完成引导时，最后一页会提示「还差一步：接上模型」，并可一键跳到「设置 → 模型」。
+「接上模型」在引导里一气呵成：先选第三方供应商（预设或自定义地址），填 Key 后「检测并保存」；供应商配好之前，下面的模型选择是灰的；配好后列出这个供应商的对话模型，点一个就设为 Nomi 对话用的模型。也可以打开完整的模型设置。没接模型就完成引导时，最后一页会提示「还差一步：接上模型」，并可一键跳到「设置 → 模型」。
 
 声音不在引导里设置：新装默认用 Edge 在线朗读（晓伊，语速 -5%），「朗读 AI 回复」默认开启；Edge 朗读需要联网，没联网时只显示文字。可在「设置 → 语音」修改，详见 [语音](features/voice.md)。
 
-「职业与兴趣」用来推荐任务：侧栏「开始使用」会推荐适合你的编程助手（如开发者推荐 Claude Code 与 Codex，其他职业都至少推荐 Codex）和功能（知识库、日程提醒、语音、MCP 与技能），欢迎屏的示例问题也会随之调整。编程助手可以同时安装。
+「关于你」里的职业与兴趣用来推荐任务：侧栏「开始使用」会推荐适合你的编程助手（如开发者推荐 Claude Code 与 Codex，其他职业都至少推荐 Codex）和功能（知识库、日程提醒、语音、MCP 与技能），欢迎屏的示例问题也会随之调整。编程助手可以同时安装。
 
 「启动方式」决定以后启动 Nomi 先看到什么：**看板娘**（默认，点她的「AI 对话」进入主界面）或**软件主界面**（直接进入主界面，看板娘仍在桌面待命，定时任务和提醒照常播报）。随时可在「设置 → 通用 → 启动 Nomi 后默认显示」修改，设计见 [启动默认界面](design/startup-default-view.md)。
 
@@ -82,7 +82,7 @@ The current builds are not signed / notarized. If Windows shows SmartScreen, cli
 
 ### First-run onboarding
 
-On first launch the chat window opens a 6-step guide: **welcome & UI language → look & startup → how to address you & tone → occupation & interests → connect a model → privacy & finish**. The model step shows the current model status, with **Add a model** and a link to the full model settings; if you finish without a model, the last page says "One step left: connect a model" and can jump straight to Settings → Models. Reopening the guide prefills your saved name, tone, occupation and interests.
+On first launch the chat window opens a 5-step guide: **welcome & UI language → look & startup → about you (name, occupation & interests) → connect a model → privacy & finish**. The model step is one inline flow: first choose a provider (a preset or a custom address), enter the key and **Check & save**; the model list stays greyed out until a provider is set up, then lists that provider's chat models — pick one and it becomes Nomi's chat model. A link opens the full model settings; if you finish without a model, the last page says "One step left: connect a model" and can jump straight to Settings → Models. Reopening the guide prefills your saved name, occupation and interests.
 
 Your occupation and interests drive the recommendations: the sidebar's Get started card suggests coding agents (Claude Code and Codex for developers, and at least Codex for everyone else) and features (knowledge base, reminders, voice, MCP and skills), and the welcome screen's example questions change to match. Coding agents can be installed at the same time.
 Every step is skippable; you can rerun it later from Settings → Reopen onboarding.

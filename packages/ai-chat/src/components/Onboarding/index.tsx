@@ -1,5 +1,5 @@
 /**
- * 首次启动引导：欢迎与语言 → 外观与启动 → 称呼与语气 → 职业与兴趣 → 接上模型 → 隐私与完成。
+ * 首次启动引导：欢迎与语言 → 外观与启动 → 关于你（称呼、职业与兴趣）→ 接上模型 → 隐私与完成。
  * 职业与兴趣存在主进程，侧栏「开始使用」与欢迎页据此推荐任务（services/recommendations）。
  * 每一步都能「跳过这一步」，右上角「跳过引导」直接结束；完成后可在「设置 → 通用」重新打开。
  * 看板娘在引导中打招呼、回应每一步的选择；还没接上模型时，最后一步与她的台词都会提醒「还差一步」。
@@ -28,11 +28,8 @@ import {
 import { CheckCircle2, Cloud, FolderLock, KeyRound, Lock, PlugZap } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
-import { useNomiModelStatus, type NomiModelStatus } from '../../hooks/useNomiModelStatus';
-import { gatewayClient, type GatewayState, type ProviderView } from '../../services/gatewayClient';
-import { refreshNomiModel, useGatewayState } from '../../services/nomiModel';
+import { useNomiModelStatus } from '../../hooks/useNomiModelStatus';
 import { startupClient, type StartupView } from '../../services/startupClient';
-import { AddProviderDialog } from '../ModelsPage/AddProviderDialog';
 import { ChatBackgroundSettings } from '../SettingsView/ChatBackgroundSettings';
 
 import appearanceArt from './art/appearance.webp';
@@ -47,15 +44,15 @@ import {
   personaBlockLines,
 } from './client';
 import styles from './index.module.css';
+import { ProviderSetup } from './ProviderSetup';
 
-const STEPS = ['welcome', 'appearance', 'persona', 'profile', 'provider', 'privacy'] as const;
+const STEPS = ['welcome', 'appearance', 'profile', 'provider', 'privacy'] as const;
 type Step = (typeof STEPS)[number];
 
 const STEP_TITLE: Record<Step, () => string> = {
   welcome: () => t('ui.mascot-theme.welcome-title'),
   appearance: () => t('ui.mascot-theme.appearance-and-startup'),
-  persona: () => t('ui.mascot-theme.what-should-she-call-you'),
-  profile: () => t('ui.mascot-theme.what-do-you-mostly-do'),
+  profile: () => t('ui.mascot-theme.about-you'),
   provider: () => t('ui.mascot-theme.connect-an-ai-model'),
   privacy: () => t('ui.mascot-theme.your-data-stays-on-this-computer'),
 };
@@ -63,7 +60,6 @@ const STEP_TITLE: Record<Step, () => string> = {
 const STEP_LINE: Record<Step, () => string> = {
   welcome: () => t('ui.mascot-theme.hi-i-m-nomi-your-ai-companion-who'),
   appearance: () => t('ui.mascot-theme.pick-a-look-that-feels-comfortable-we-ll'),
-  persona: () => t('ui.mascot-theme.tell-me-what-to-call-you-i-ll'),
   profile: () => t('ui.mascot-theme.tell-me-what-you-do-and-i-ll-suggest'),
   provider: () => t('ui.mascot-theme.connect-an-ai-model-and-i-can-help'),
   privacy: () => t('ui.mascot-theme.rest-assured-our-conversations-and-memories-stay-on'),
@@ -100,28 +96,8 @@ const STARTUPS: { id: StartupView; label: () => string; hint: () => string }[] =
   },
 ];
 
-const TONES: { id: string; label: () => string; desc: () => string }[] = [
-  {
-    id: 'gentle',
-    label: () => t('ui.mascot-theme.warm-caring'),
-    desc: () => t('ui.mascot-theme.gentle-tone-attentive-to-you'),
-  },
-  {
-    id: 'lively',
-    label: () => t('ui.mascot-theme.cheerful-lively'),
-    desc: () => t('ui.mascot-theme.enthusiastic-the-occasional-emoji'),
-  },
-  {
-    id: 'concise',
-    label: () => t('ui.mascot-theme.concise-professional'),
-    desc: () => t('ui.mascot-theme.straight-to-the-point-little-small-talk'),
-  },
-  {
-    id: 'playful',
-    label: () => t('ui.mascot-theme.playful-witty'),
-    desc: () => t('ui.mascot-theme.light-hearted-jokes-in-moderation'),
-  },
-];
+/** 早期引导写的「回答语气」行：这个功能已删除，重写引导那一段时丢掉 */
+const DROPPED_TONE_LINE = /^- (回答语气|Reply tone)[:：]/;
 
 const ROLE_LABEL: Record<UserRole, { label: () => string; hint: () => string }> = {
   developer: {
@@ -159,99 +135,6 @@ const INTEREST_LABEL: Record<UserInterest, () => string> = {
   automation: () => t('ui.mascot-theme.interest-automation'),
 };
 
-/** 一键给 Nomi 对话选模型时用的模型：第一个启用的供应商里第一个支持工具调用的模型 */
-function firstModelRef(s: GatewayState | null): { ref: string; label: string } | null {
-  for (const p of s?.providers ?? []) {
-    if (!p.enabled) continue;
-    const m = p.models.find((x) => x.enabled && x.toolCalling !== false);
-    if (m) return { ref: `${p.id}/${m.id}`, label: `${p.name} · ${m.label ?? m.id}` };
-  }
-  return null;
-}
-
-/** 接上模型这一步：状态 + 「添加模型」（引导内完成）+ 打开完整模型设置 */
-const ProviderStep: React.FC<{
-  status: NomiModelStatus | null | undefined;
-  onOpenModels: () => void;
-}> = ({ status, onOpenModels }) => {
-  const state = useGatewayState();
-  const [adding, setAdding] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const assign = (ref: string) => {
-    setError(null);
-    gatewayClient
-      .setAssignment('nomi', { models: { main: ref } })
-      .then(refreshNomiModel)
-      .catch((e: Error) => setError(e.message));
-  };
-  // 新加的供应商：Nomi 对话还没有模型时直接用它的第一个模型，小白不用再去选
-  const onSaved = (p: ProviderView) => {
-    setAdding(false);
-    if (status === 'ready') return;
-    const first = firstModelRef({ providers: [p] } as GatewayState);
-    if (first) assign(first.ref);
-  };
-  const pick = status === 'unassigned' ? firstModelRef(state) : null;
-  return (
-    <>
-      <div
-        className={styles.status}
-        data-testid="onb-model-status"
-        data-status={status ?? 'loading'}
-      >
-        <Icon icon={status === 'ready' ? CheckCircle2 : PlugZap} />
-        <span>
-          {status === 'ready'
-            ? t('ui.mascot-theme.model-status-ready')
-            : status === 'unassigned'
-              ? t('ui.mascot-theme.model-status-unassigned')
-              : status === null
-                ? t('ui.mascot-theme.model-status-checking')
-                : t('ui.mascot-theme.model-status-none')}
-        </span>
-      </div>
-      <div className={styles.actions}>
-        {pick && (
-          <button
-            type="button"
-            className={styles.primary}
-            data-testid="onb-use-model"
-            onClick={() => assign(pick.ref)}
-          >
-            {t('ui.mascot-theme.use-model-for-nomi', pick.label)}
-          </button>
-        )}
-        <button
-          type="button"
-          className={pick || status === 'ready' ? styles.secondary : styles.primary}
-          data-testid="onb-add-model"
-          onClick={() => setAdding(true)}
-        >
-          {t('ui.foundation.getting-started-add-a-model')}
-        </button>
-        <button
-          type="button"
-          className={styles.link}
-          data-testid="onb-open-models"
-          onClick={onOpenModels}
-        >
-          {t('ui.mascot-theme.open-full-model-settings')}
-        </button>
-      </div>
-      {error && (
-        <p className={styles.error} role="alert">
-          {error}
-        </p>
-      )}
-      <p className={styles.note}>
-        {t('ui.cli-monitor.add-a-third-party-provider-a-model-vendor')}
-        {t('ui.mascot-theme.open-full-model-settings-hint')}
-      </p>
-      <AddProviderDialog open={adding} onClose={() => setAdding(false)} onSaved={onSaved} />
-    </>
-  );
-};
-
 export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ onDone }) => {
   useLocale();
   const [i, setI] = useState(0);
@@ -264,7 +147,6 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
   const [lang, setLang] = useState<LocalePref>(getLocalePref);
   const [theme, setThemeSel] = useState<ThemePref>(() => currentTheme().pref);
   const [name, setName] = useState('');
-  const [tone, setTone] = useState<string | null>(null);
   const [role, setRole] = useState<UserRole | null>(null);
   const [interests, setInterests] = useState<UserInterest[]>([]);
   // 启动方式：默认看板娘（保持历史行为）；点选即写入设置，跳过 / 不选则不改
@@ -280,16 +162,14 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
       setRole(p.role);
       setInterests(p.interests);
     });
-    // 以及上次填的称呼与语气（跳过这一步也不会把它们清掉）
+    // 以及上次填的称呼（跳过这一步也不会把它清掉）
     const persona = onboardingClient.persona().then((text) => {
       const keep: string[] = [];
       for (const line of personaBlockLines(text)) {
         const callMe = matchTemplate(t('ui.mascot-theme.call-me'), line);
-        const reply = matchTemplate(t('ui.mascot-theme.reply-tone'), line);
-        const tn = reply && TONES.find((x) => x.label() === reply[0]);
         if (callMe) setName(callMe[0]!);
-        else if (tn) setTone(tn.id);
         else if (
+          !DROPPED_TONE_LINE.test(line) &&
           !matchTemplate(t('ui.mascot-theme.occupation-line'), line) &&
           !matchTemplate(t('ui.mascot-theme.interests-line'), line)
         )
@@ -310,13 +190,11 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
     });
   }, [step, line]);
 
-  /** 称呼、语气、职业与兴趣一起写进「关于我」里引导的那一段；返回是否写了内容 */
+  /** 称呼、职业与兴趣一起写进「关于我」里引导的那一段；返回是否写了内容 */
   const writePersona = useCallback(async (): Promise<boolean> => {
     await loaded.current;
     const lines: string[] = [];
     if (name.trim()) lines.push(t('ui.mascot-theme.call-me', name.trim().slice(0, 40)));
-    const tn = TONES.find((x) => x.id === tone);
-    if (tn) lines.push(t('ui.mascot-theme.reply-tone', tn.label(), tn.desc()));
     if (role && role !== 'other')
       lines.push(t('ui.mascot-theme.occupation-line', ROLE_LABEL[role].label()));
     if (interests.length)
@@ -330,9 +208,11 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
     const merged = mergePersona(cur, [...lines, ...keepLines.current]);
     if (merged !== cur.trim()) await onboardingClient.setPersona(merged);
     return lines.length > 0;
-  }, [name, tone, role, interests]);
+  }, [name, role, interests]);
 
-  const savePersona = useCallback(async () => {
+  const saveProfile = useCallback(async () => {
+    const profile: UserProfile = { role, interests };
+    await onboardingClient.setProfile(profile);
     if (!(await writePersona())) return;
     onboardingClient.mascot({
       type: 'say',
@@ -340,14 +220,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
         ? t('ui.mascot-theme.got-it-that-s-what-i-ll-call', name.trim().slice(0, 40))
         : t('ui.mascot-theme.noted'),
     });
-  }, [name, writePersona]);
-
-  const saveProfile = useCallback(async () => {
-    const profile: UserProfile = { role, interests };
-    await onboardingClient.setProfile(profile);
-    if (await writePersona())
-      onboardingClient.mascot({ type: 'say', text: t('ui.mascot-theme.noted') });
-  }, [role, interests, writePersona]);
+  }, [name, role, interests, writePersona]);
 
   const finish = useCallback(
     async (skipped: boolean) => {
@@ -378,7 +251,6 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
     savingRef.current = true;
     setSaving(true);
     try {
-      if (step === 'persona') await savePersona();
       if (step === 'profile') await saveProfile();
       if (i === STEPS.length - 1) return await finish(false);
       setI(i + 1);
@@ -425,16 +297,20 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
           </>
         );
       case 'appearance': {
-        const main = THEMES.filter((x) => x.id === 'sunset' || x.id === 'system');
-        const more = THEMES.filter((x) => x.id !== 'sunset' && x.id !== 'system');
-        const card = (x: (typeof THEMES)[number], big: boolean) => (
+        // 默认的日落橙与跟随系统排在前面；全部做成小卡片，一屏内能看到启动方式
+        const themes = [
+          ...THEMES.filter((x) => x.id === 'sunset' || x.id === 'system'),
+          ...THEMES.filter((x) => x.id !== 'sunset' && x.id !== 'system'),
+        ];
+        const card = (x: (typeof THEMES)[number]) => (
           <button
             key={x.id}
             type="button"
             role="radio"
             aria-checked={theme === x.id}
             data-testid={`onb-theme-${x.id}`}
-            className={`${styles.option} ${big ? '' : styles.optionSmall} ${theme === x.id ? styles.optionOn : ''}`}
+            className={`${styles.option} ${styles.optionSmall} ${theme === x.id ? styles.optionOn : ''}`}
+            title={t(x.desc)}
             onClick={() => {
               setThemeSel(x.id);
               void setTheme(x.id);
@@ -451,7 +327,6 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
               }}
             />
             <span className={styles.optionTitle}>{t(x.name)}</span>
-            {big && <span className={styles.optionHint}>{t(x.desc)}</span>}
           </button>
         );
         return (
@@ -459,14 +334,12 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
             <div className={styles.subLabel}>{t('ui.chat-settings.theme')}</div>
 
             <div
-              className={styles.options}
+              className={`${styles.options} ${styles.optionsDense}`}
               role="radiogroup"
               aria-label={t('ui.chat-settings.theme')}
             >
-              {main.map((x) => card(x, true))}
+              {themes.map(card)}
             </div>
-            <div className={styles.subLabel}>{t('ui.mascot-theme.more-colors')}</div>
-            <div className={styles.options}>{more.map((x) => card(x, false))}</div>
             {theme === 'image' && <ChatBackgroundSettings />}
 
             <div className={styles.subLabel}>{t('ui.mascot-theme.startup-mode')}</div>
@@ -502,7 +375,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
           </>
         );
       }
-      case 'persona':
+      case 'profile':
         return (
           <>
             <label className={styles.field}>
@@ -517,35 +390,6 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
                 onKeyDown={(e) => e.key === 'Enter' && void next()}
               />
             </label>
-            <div className={styles.subLabel}>{t('ui.mascot-theme.speaking-tone')}</div>
-            <div
-              className={styles.options}
-              role="radiogroup"
-              aria-label={t('ui.mascot-theme.speaking-tone')}
-            >
-              {TONES.map((x) => (
-                <button
-                  key={x.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={tone === x.id}
-                  data-testid={`onb-tone-${x.id}`}
-                  className={`${styles.option} ${tone === x.id ? styles.optionOn : ''}`}
-                  onClick={() => setTone(x.id)}
-                >
-                  <span className={styles.optionTitle}>{x.label()}</span>
-                  <span className={styles.optionHint}>{x.desc()}</span>
-                </button>
-              ))}
-            </div>
-            <p className={styles.note}>
-              {t('ui.mascot-theme.saved-to-memory-about-me-you-can-change')}
-            </p>
-          </>
-        );
-      case 'profile':
-        return (
-          <>
             <div className={styles.subLabel}>{t('ui.mascot-theme.occupation')}</div>
             <div
               className={styles.options}
@@ -600,7 +444,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
           </>
         );
       case 'provider':
-        return <ProviderStep status={model} onOpenModels={openModels} />;
+        return <ProviderSetup onOpenModels={openModels} />;
       case 'privacy':
         return (
           <>
@@ -658,11 +502,19 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
     <div className={styles.overlay} data-testid="onboarding" data-step={step}>
       <div
         ref={cardRef}
-        className={styles.card}
+        className={`${styles.card} ${art ? styles.cardArt : ''}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="onb-title"
       >
+        {/* 插画铺满整张卡片做背景，人物靠右完整显示；没有插画的步骤用欢迎图的淡化版 */}
+        <div
+          className={`${styles.bg} ${art ? '' : styles.bgFaded}`}
+          style={{ backgroundImage: `url(${(art ?? STEP_ART.welcome)!.src})` }}
+          aria-hidden
+          data-testid="onb-art"
+          data-art={art ? step : 'welcome-faded'}
+        />
         <header className={styles.head}>
           <div
             className={styles.dots}
@@ -685,15 +537,6 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
           </button>
         </header>
         <div className={styles.step} key={step} data-testid={`onboarding-step-${step}`}>
-          {art && (
-            <img
-              className={styles.art}
-              src={art.src}
-              alt=""
-              aria-hidden
-              data-testid={`onb-art-${step}`}
-            />
-          )}
           <div className={styles.kicker}>{t('ui.mascot-theme.step-of', i + 1, STEPS.length)}</div>
           <h1 id="onb-title" className={styles.title}>
             {STEP_TITLE[step]()}

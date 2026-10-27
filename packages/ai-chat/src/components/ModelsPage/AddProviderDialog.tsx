@@ -31,9 +31,9 @@ import {
 import styles from './index.module.css';
 
 type Step = 1 | 2 | 3;
-type PresetGroup = 'vendor' | 'platform' | 'local';
+export type PresetGroup = 'vendor' | 'platform' | 'local';
 
-const GROUP_LABEL: Record<PresetGroup, string> = {
+export const GROUP_LABEL: Record<PresetGroup, string> = {
   vendor: 'ui.chat-settings.model-vendors',
   platform: 'ui.models.relay-platforms',
   local: 'ui.models.local-services',
@@ -69,19 +69,88 @@ export function storedProbes(result: DetectResult): Partial<Record<Wire, StoredP
 }
 
 /** 预设里各协议的地址：有多地址扩展（§8.4）用它，否则只有 baseURL 那一种 */
-const presetUrls = (p: ProviderPreset): Partial<Record<Wire, string>> =>
+export const presetUrls = (p: ProviderPreset): Partial<Record<Wire, string>> =>
   p.urls ?? { [PROTOCOL_WIRE[p.protocol]]: p.baseURL };
 
 /** 预设推荐的模型：整理过元数据的主力模型 */
-const recommendedOf = (p: ProviderPreset | null): string[] =>
+export const recommendedOf = (p: ProviderPreset | null): string[] =>
   p ? [...(p.modelMeta ?? []).map((m) => m.id), ...p.models] : [];
 
-const groupOf = (p: ProviderPreset): PresetGroup =>
+export const groupOf = (p: ProviderPreset): PresetGroup =>
   !p.requiresApiKey && isPrivateUrl(p.baseURL)
     ? 'local'
     : p.category === 'platform'
       ? 'platform'
       : 'vendor';
+
+/** 探测结果 → 模型行：有模型列表用列表，否则用预设推荐 + 测试模型 */
+export function modelRows(
+  result: DetectResult,
+  preset: ProviderPreset | null,
+  testModel = '',
+): ModelRow[] {
+  const recommended = new Set(recommendedOf(preset));
+  const listed = result.models.length
+    ? result.models
+    : [...recommended, testModel.trim()].filter(Boolean);
+  return [...new Set(listed)].map((id) => ({
+    id,
+    recommended: recommended.has(id),
+    chat: !NON_CHAT.test(id),
+  }));
+}
+
+/** 默认启用的模型：列表里有预设推荐的就只启用推荐的，否则全部对话模型 */
+export function defaultEnabled(rows: ModelRow[]): Set<string> {
+  const chat = rows.filter((x) => x.chat);
+  const preferred = chat.filter((x) => x.recommended);
+  return new Set((preferred.length ? preferred : chat).map((x) => x.id));
+}
+
+/** 把检测过的供应商存进网关（设置里的模型页与新手引导共用） */
+export function saveDetectedProvider(input: {
+  result: DetectResult;
+  preset: ProviderPreset | null;
+  name: string;
+  keys: string[];
+  models: ModelRow[];
+  enabled: Set<string>;
+}): Promise<ProviderView> {
+  const { result, preset, name, keys, models, enabled } = input;
+  const meta = new Map((preset?.modelMeta ?? []).map((m) => [m.id, m]));
+  const list: GatewayModel[] = models.map((m) => {
+    const known = meta.get(m.id);
+    // 预设没整理的，用模型列表接口顺带返回的上限（§12.7.2 第 3 级）
+    const listed = known ? undefined : result.limits?.[m.id];
+    return {
+      id: m.id,
+      enabled: enabled.has(m.id),
+      // 预设整理过的元数据（§12.7.2 第 2 级）一起存下，编程助手按它注入上下文与输出上限
+      ...(known
+        ? {
+            ctx: known.ctx,
+            maxOutput: known.maxOutput,
+            reasoning: known.reasoning,
+            vision: known.vision,
+            toolCalling: known.toolCalling,
+            metaSource: 'preset' as const,
+          }
+        : m.chat
+          ? {}
+          : { toolCalling: false }),
+      ...(listed ? { ...listed, metaSource: 'listed' as const } : {}),
+    };
+  });
+  return gatewayClient.upsertProvider({
+    name: name.trim() || preset?.name || t('ui.models.custom-provider'),
+    ...(preset ? { presetId: preset.id } : {}),
+    ...(preset?.quirks ? { quirks: preset.quirks } : {}),
+    urls: result.urls,
+    newKeys: keys.map((value) => ({ value })),
+    models: list,
+    detected: storedProbes(result),
+  });
+}
 
 interface Props {
   open: boolean;
@@ -93,7 +162,7 @@ interface Props {
 export const AddProviderDialog: React.FC<Props> = (props) =>
   props.open ? <AddProviderFlow {...props} /> : null;
 
-interface ModelRow {
+export interface ModelRow {
   id: string;
   recommended: boolean;
   chat: boolean;
@@ -143,18 +212,10 @@ const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSaved }) => {
       .filter((x) => x.items.length);
   }, [presets, query]);
 
-  const models: ModelRow[] = useMemo(() => {
-    if (!result) return [];
-    const recommended = new Set(recommendedOf(preset));
-    const listed = result.models.length
-      ? result.models
-      : [...recommended, testModel.trim()].filter(Boolean);
-    return [...new Set(listed)].map((id) => ({
-      id,
-      recommended: recommended.has(id),
-      chat: !NON_CHAT.test(id),
-    }));
-  }, [result, preset, testModel]);
+  const models: ModelRow[] = useMemo(
+    () => (result ? modelRows(result, preset, testModel) : []),
+    [result, preset, testModel],
+  );
 
   const okWires = WIRES.filter((w) => result?.wires[w]?.ok);
 
@@ -194,13 +255,7 @@ const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSaved }) => {
         fallbackModel: testModel.trim() || recommendedOf(preset)[0] || undefined,
       });
       setResult(r);
-      const rec = new Set(recommendedOf(preset));
-      const chatModels = (r.models.length ? r.models : [...rec, testModel.trim()]).filter(
-        (id) => id && !NON_CHAT.test(id),
-      );
-      // 预设推荐的模型在列表里就只默认启用推荐的，否则全部对话模型
-      const preferred = chatModels.filter((id) => rec.has(id));
-      setEnabled(new Set(preferred.length ? preferred : chatModels));
+      setEnabled(defaultEnabled(modelRows(r, preset, testModel)));
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -213,40 +268,7 @@ const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSaved }) => {
     setBusy(true);
     setError(null);
     try {
-      const detected = storedProbes(result);
-      const meta = new Map((preset?.modelMeta ?? []).map((m) => [m.id, m]));
-      const list: GatewayModel[] = models.map((m) => {
-        const known = meta.get(m.id);
-        // 预设没整理的，用模型列表接口顺带返回的上限（§12.7.2 第 3 级）
-        const listed = known ? undefined : result.limits?.[m.id];
-        return {
-          id: m.id,
-          enabled: enabled.has(m.id),
-          // 预设整理过的元数据（§12.7.2 第 2 级）一起存下，编程助手按它注入上下文与输出上限
-          ...(known
-            ? {
-                ctx: known.ctx,
-                maxOutput: known.maxOutput,
-                reasoning: known.reasoning,
-                vision: known.vision,
-                toolCalling: known.toolCalling,
-                metaSource: 'preset' as const,
-              }
-            : m.chat
-              ? {}
-              : { toolCalling: false }),
-          ...(listed ? { ...listed, metaSource: 'listed' as const } : {}),
-        };
-      });
-      const saved = await gatewayClient.upsertProvider({
-        name: name.trim() || preset?.name || t('ui.models.custom-provider'),
-        ...(preset ? { presetId: preset.id } : {}),
-        ...(preset?.quirks ? { quirks: preset.quirks } : {}),
-        urls: result.urls,
-        newKeys: keys.map((value) => ({ value })),
-        models: list,
-        detected,
-      });
+      const saved = await saveDetectedProvider({ result, preset, name, keys, models, enabled });
       onSaved(saved);
     } catch (e) {
       setError((e as Error).message);
