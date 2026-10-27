@@ -2,6 +2,8 @@
 
 产品永远只内置 **一套** 完整角色。换肤 = 构建前用素材包覆盖约定路径，再 `pnpm build`。
 
+> **第三方 / fork 请先读 → [REPLACING.md](./REPLACING.md)**（复制示范包、校验、apply、恢复官方、brand-lock SKIP）。
+
 ## 快速开始
 
 ```bash
@@ -25,6 +27,8 @@ pnpm character:check -- examples/static-demo.pack
 CHARACTER_PACK=examples/static-demo.pack pnpm character:apply && pnpm build
 ```
 
+试完 static 示范后请按 [REPLACING.md § 恢复官方树](./REPLACING.md#4-恢复官方树本地试完换肤后) 还原素材；无 `CHARACTER_PACK` 的 `apply` **不会**自动还原图片。
+
 ## 设计假设（P0）
 
 1. **官方 Nomi 优先**：无 `CHARACTER_PACK` 时行为与今日一致。
@@ -34,6 +38,7 @@ CHARACTER_PACK=examples/static-demo.pack pnpm character:apply && pnpm build
    - `packages/renderer/public/assets/models/sprite/nomi/`
    - `packages/renderer/public/voice/nomi/`
    - `packages/ai-chat/src/components/Onboarding/art/`
+   - static 模式另写：`packages/renderer/public/assets/models/static/character.webp`
 4. 单角色；无商店 / 切换 UI；UI 主题与 `appId` 不进包。
 5. `skirt→hem` 与 voice-id 去 nomi 语义重命名 **不在 P0**（别名即可）。
 6. Rive artboard / stateMachine（`Nomi-full` / `NomiFull`）写入契约，manifest 可覆盖。
@@ -42,6 +47,7 @@ CHARACTER_PACK=examples/static-demo.pack pnpm character:apply && pnpm build
 
 ## 文档
 
+- **[REPLACING.md](./REPLACING.md) — 第三方换肤 / 替换指南（从这里开始）**
 - [CONTRACT.md](./CONTRACT.md) — 契约说明
 - [contract.json](./contract.json) — 机器可读契约
 - [designer-checklist.md](./designer-checklist.md) — 设计师检查表

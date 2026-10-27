@@ -85,6 +85,9 @@ jobs:
       - name: Character pack contract (default nomi pack)
         run: pnpm character:check
 
+      - name: Character pack contract (static demo pack)
+        run: node scripts/character/check.mjs examples/static-demo.pack
+
       - name: Frontend architecture check (file budgets and registered exceptions)
         run: pnpm check:frontend
 

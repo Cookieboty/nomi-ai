@@ -5,6 +5,8 @@ clip / action / file **names** stay stable unless the contract bumps.
 
 Official Nomi first: with no `CHARACTER_PACK`, the app behaves exactly as today.
 
+Third-party skinning steps: [`REPLACING.md`](./REPLACING.md).
+
 ## Modes
 
 | `manifest.assets.mode` | Required assets                  | Notes                                                 |
@@ -57,7 +59,8 @@ v1 overwrite target: `packages/ai-chat/src/components/Onboarding/art/`.
 Ids: `head` / `face` / `body` / `hand` / `skirt`.
 `hem` is an accepted **alias** of `skirt` in P0 (rename deferred).
 
-Optional `layout/hitboxes.json` overrides ratios; omit to keep built-in defaults.
+Optional `layout/hitboxes.json` documents region ratios for designers (`hem` alias of `skirt`).
+P0 runtime still uses built-in proportions; wiring pack hitboxes into hit-testing is deferred.
 
 ## Brand lock
 

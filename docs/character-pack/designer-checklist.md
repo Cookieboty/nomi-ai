@@ -1,5 +1,7 @@
 # 设计师交付检查表
 
+换肤流程与命令详见 **[REPLACING.md](./REPLACING.md)**。
+
 - [ ] `manifest.json`（`schema` / `id` / `displayName` / `version` / `assets.mode`）
 - [ ] **rive 模式**：`rive/character.riv`，契约内动作齐（或在 capabilities 声明缺失）
 - [ ] **sprite**（强烈建议）：分层 + `thumb.png` + `manifest.json`
