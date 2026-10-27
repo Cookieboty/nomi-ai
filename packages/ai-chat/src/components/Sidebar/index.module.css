@@ -48,6 +48,11 @@
   color: var(--cd-color-text);
   white-space: nowrap;
 }
+/* 品牌标与设置页侧栏同一个（无底板）：N 跟随文字色，飘带与星光保持品牌色 */
+.brandMark {
+  flex: none;
+  color: var(--cd-color-text);
+}
 .brandWrap {
   display: inline-flex;
   align-items: center;
@@ -375,6 +380,16 @@
   color: var(--cd-color-text-subtle);
   white-space: nowrap;
   margin-left: auto;
+}
+.threadLive {
+  font-size: var(--cd-font-size-sm);
+  font-weight: var(--cd-font-weight-medium);
+  color: var(--cd-color-accent);
+  white-space: nowrap;
+  margin-left: auto;
+}
+.threadLive[data-live='queued'] {
+  color: var(--cd-color-warning);
 }
 .histTitle {
   display: flex;

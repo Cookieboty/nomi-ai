@@ -6,8 +6,18 @@
  */
 import { useEffect, useState } from 'react';
 
+import { useWindowEvent } from '../hooks/useWindowEvent';
+
 /** 快捷键触发「搜索对话」时在 window 上广播的事件（侧栏监听） */
 export const SEARCH_CHATS_EVENT = 'nomi:search-chats';
+/** 快捷键触发「重命名当前会话」时广播的事件（侧栏监听，在列表里进入改名） */
+export const RENAME_CHAT_EVENT = 'nomi:rename-chat';
+
+const SHORTCUT_EVENTS = { searchChats: SEARCH_CHATS_EVENT, renameTab: RENAME_CHAT_EVENT } as const;
+/** 在别处（如侧栏）响应 App 广播的快捷键动作 */
+export function useShortcutEvent(id: keyof typeof SHORTCUT_EVENTS, fn: () => void): void {
+  useWindowEvent(SHORTCUT_EVENTS[id], fn);
+}
 
 export type ShortcutId =
   | 'palette'
@@ -17,12 +27,10 @@ export type ShortcutId =
   | 'settings'
   | 'sidebar'
   | 'kbAsk'
-  | 'snip'
   | 'handsFree'
   | 'hub'
   | 'ext'
   | 'local'
-  | 'screen'
   | 'newTab'
   | 'closeTab'
   | 'nextTab'
@@ -44,25 +52,15 @@ export const SHORTCUT_DEFS: ShortcutDef[] = [
   { id: 'settings', label: 'ui.chat-settings.open-settings', combo: 'Mod+,' },
   { id: 'sidebar', label: 'ui.chat-settings.collapse-expand-sidebar', combo: 'Mod+B' },
   { id: 'kbAsk', label: 'ui.chat-settings.toggle-knowledge-base-q-a', combo: 'Mod+Shift+K' },
-  { id: 'snip', label: 'ui.knowledge-local.ask-about-a-screenshot', combo: 'Mod+Shift+S' },
   { id: 'handsFree', label: 'ui.mascot-theme.toggle-hands-free-voice', combo: 'Mod+Shift+H' },
   { id: 'hub', label: 'ui.chat-settings.knowledge-memory-schedule', combo: 'Mod+Shift+M' },
   { id: 'ext', label: 'ui.foundation.extensions-mcp', combo: 'Mod+Shift+E' },
-  { id: 'local', label: 'ui.chat-settings.local-tools', combo: 'Mod+Shift+J' },
-  { id: 'screen', label: 'ui.chat-settings.screen-memory', combo: 'Mod+Shift+O' },
+  { id: 'local', label: 'ui.knowledge-local.local-models', combo: 'Mod+Shift+J' },
   { id: 'newTab', label: 'ui.mascot-theme.new-coding-agent-tab', combo: 'Mod+T' },
   { id: 'closeTab', label: 'ui.mascot-theme.close-tab-action', combo: 'Mod+Shift+W' },
   { id: 'nextTab', label: 'ui.mascot-theme.next-tab', combo: 'Ctrl+Tab' },
   { id: 'prevTab', label: 'ui.cli-monitor.previous-tab', combo: 'Ctrl+Shift+Tab' },
   { id: 'renameTab', label: 'ui.cli-monitor.rename-tab', combo: 'Mod+Shift+R' },
-];
-
-/**
- * 系统级全局快捷键（主进程 globalShortcut 注册，Nomi 不在前台也生效）。
- * 与 packages/electron/src/screen/ScreenService.ts 的 SNIP_HOTKEY 一致；开关在「语音与屏幕 → 屏幕」。
- */
-export const GLOBAL_SHORTCUTS: Array<[string, string]> = [
-  ['Mod+Alt+A', 'ui.chat-settings.screenshot-question-enable-the-screenshot-hotkey-in-voice'],
 ];
 
 /** 不可改绑、仅展示的按键 */

@@ -19,11 +19,9 @@ import {
 import { Cloud, FolderLock, KeyRound, Lock } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
-import { useLayoutDensity } from '../../hooks/useLayoutDensity';
 import { startupClient, type StartupView } from '../../services/startupClient';
 import { ModelsPage } from '../ModelsPage';
 import { ChatBackgroundSettings } from '../SettingsView/ChatBackgroundSettings';
-import { LAYOUT_DENSITIES } from '../SettingsView/LayoutDensitySettings';
 
 import { mergePersona, onboardingClient, type VoiceStyle } from './client';
 import styles from './index.module.css';
@@ -49,7 +47,6 @@ const STEPS = [
   'language',
   'theme',
   'startup',
-  'layout',
   'character',
   'persona',
   'provider',
@@ -61,7 +58,6 @@ const STEP_TITLE: Record<Step, () => string> = {
   language: () => t('ui.mascot-theme.choose-your-language'),
   theme: () => t('ui.mascot-theme.pick-a-look-you-like'),
   startup: () => t('ui.mascot-theme.what-should-you-see-when-nomi-starts'),
-  layout: () => t('ui.mascot-theme.keep-the-workbench-minimal-or-show-everything'),
   character: () => t('ui.mascot-theme.pick-a-voice-you-like'),
   persona: () => t('ui.mascot-theme.what-should-she-call-you'),
   provider: () => t('ui.mascot-theme.connect-an-ai-model'),
@@ -72,7 +68,6 @@ const STEP_LINE: Record<Step, () => string> = {
   language: () => t('ui.mascot-theme.hi-i-m-nomi-your-ai-companion-who'),
   theme: () => t('ui.mascot-theme.pick-a-look-that-feels-comfortable-we-ll'),
   startup: () => t('ui.mascot-theme.should-i-show-up-on-your-desktop-first'),
-  layout: () => t('ui.mascot-theme.pick-compact-if-you-like-it-clean-or'),
   character: () => t('ui.mascot-theme.how-should-i-sound-when-i-talk-to'),
   persona: () => t('ui.mascot-theme.tell-me-what-to-call-you-i-ll'),
   provider: () => t('ui.mascot-theme.connect-an-ai-model-and-i-can-help'),
@@ -163,7 +158,6 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
   const [tone, setTone] = useState<string | null>(null);
   // 启动方式：默认看板娘（保持历史行为）；点选即写入设置，跳过 / 不选则不改
   const [startup, setStartup] = useState<StartupView>('mascot');
-  const { density, setDensity } = useLayoutDensity();
 
   useEffect(() => {
     void startupClient.get().then(setStartup);
@@ -321,34 +315,6 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
             </p>
           </>
         );
-      case 'layout':
-        return (
-          <>
-            <div
-              className={styles.options}
-              role="radiogroup"
-              aria-label={t('ui.chat-settings.layout')}
-            >
-              {LAYOUT_DENSITIES.map((x) => (
-                <button
-                  key={x.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={density === x.id}
-                  data-testid={`onb-layout-${x.id}`}
-                  className={`${styles.option} ${density === x.id ? styles.optionOn : ''}`}
-                  onClick={() => setDensity(x.id)}
-                >
-                  <span className={styles.optionTitle}>{x.label()}</span>
-                  <span className={styles.optionHint}>{x.hint()}</span>
-                </button>
-              ))}
-            </div>
-            <p className={styles.note}>
-              {t('ui.mascot-theme.only-affects-the-workbench-coding-assistants-change-it')}
-            </p>
-          </>
-        );
       case 'character':
         return (
           <>
@@ -446,7 +412,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
           <ul className={styles.privacy}>
             <li>
               <Icon icon={Lock} />
-              {t('ui.mascot-theme.chats-memories-the-knowledge-base-and-screen-memory')}
+              {t('ui.mascot-theme.chats-memories-and-the-knowledge-base-stay-local')}
             </li>
             <li>
               <Icon icon={KeyRound} />

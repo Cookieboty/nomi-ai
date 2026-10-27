@@ -16,7 +16,6 @@ import { useCliHistory } from '../../hooks/useCliHistory';
 import { useCliTabSync } from '../../hooks/useCliTabSync';
 import { useConversationListView } from '../../hooks/useConversationListView';
 import { MAX_RESULTS, useHistorySearchIndex } from '../../hooks/useHistorySearchIndex';
-import { useLayoutDensity } from '../../hooks/useLayoutDensity';
 import { useNewWorkspace } from '../../hooks/useNewWorkspace';
 import { orderEndpoints, splitShownEndpoints, visibleEndpoints } from '../../services/chatPrefs';
 import { CONVERSATIONS_CHANGED_EVENT } from '../../services/conversationStore';
@@ -28,7 +27,7 @@ import {
   type HistoryClient,
   type HistorySession,
 } from '../../services/historyClient';
-import { SEARCH_CHATS_EVENT, formatCombo, useShortcutBindings } from '../../services/shortcuts';
+import { formatCombo, useShortcutBindings, useShortcutEvent } from '../../services/shortcuts';
 import type { ConversationBackend } from '../../types/chat';
 import { CONVERSATION_BACKENDS } from '../../types/chat';
 import { ENDPOINT_FULL } from '../../utils/endpointBadge';
@@ -37,8 +36,13 @@ import { ChatModeSwitch } from '../ChatModeSwitch';
 import { ConversationMenu } from '../ConversationMenu';
 import { EndpointIcon } from '../EndpointIcon';
 import { EndpointInfoCard } from '../EndpointInfo';
+import { GettingStarted } from '../GettingStarted';
 import { NewChatMenu } from '../NewChatMenu';
+import { NomiMark } from '../SettingsView/NomiMark';
+import type { SettingsSection, SettingsTab } from '../SettingsView/sections';
+import { sidebarToggleLabels } from '../TitleBar';
 
+import { CollapsedRail } from './CollapsedRail';
 import { EndpointMoreMenu } from './EndpointMoreMenu';
 import { EndpointVisibilityMenu } from './EndpointVisibilityMenu';
 import styles from './index.module.css';
@@ -61,8 +65,8 @@ interface SidebarProps {
   onForkRequest?: (id: string, mode: 'same' | 'cross') => void;
   /** 打开历史会话失败 / 有提示时 */
   onNotice?: (message: string) => void;
-  /** 「按端」信息卡里的跳转：设置 → 编程助手 / 用量与费用 */
-  onOpenSettings?: (section: 'coding' | 'usage') => void;
+  /** 跳到设置的某个分区 / 标签：「按端」信息卡、「开始使用」清单 */
+  onOpenSettings?: (section: SettingsSection, tab?: SettingsTab) => void;
   /** 侧栏底部的应用级入口（设置 / 知识 / 扩展 / 本机），由 App 传入 */
   footer?: React.ReactNode;
 }
@@ -83,7 +87,6 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   const isLoading = useAiChatSelector(selectIsLoading);
   const tabs = useHarnessTabs();
   const { isDev, isNormal, setMode } = useChatMode();
-  const { isCompact } = useLayoutDensity();
   const {
     view: storedView,
     setView,
@@ -158,9 +161,11 @@ const SidebarImpl: React.FC<SidebarProps> = ({
 
   const tabById = useMemo(() => {
     const m = new Map<string, HarnessTabMeta>();
-    for (const x of tabs.state?.tabs ?? []) m.set(x.id, x);
+    // Nomi 主对话正在回复时也算「进行中」（主标签自身的状态不反映 Nomi 的生成）
+    for (const x of tabs.state?.tabs ?? [])
+      m.set(x.id, x.id === MAIN_TAB_ID && isLoading ? { ...x, status: 'running' } : x);
     return m;
-  }, [tabs.state]);
+  }, [tabs.state, isLoading]);
 
   // 高亮项：工作台模式下当前在 CLI 标签时以标签为准。新建标签不会切换 Nomi 当前会话，
   // 只看 currentConversationId 会让高亮停在之前打开的那一项上
@@ -507,14 +512,11 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   const searching = !collapsed && searchOpen && debounced.trim() !== '';
   const searchIndex = useHistorySearchIndex(isDev && searching, histBackends, tabsKey);
 
-  useEffect(() => {
-    const onEvent = () => {
-      setSearchOpen(true);
-      window.setTimeout(() => inputRef.current?.focus(), 0);
-    };
-    window.addEventListener(SEARCH_CHATS_EVENT, onEvent);
-    return () => window.removeEventListener(SEARCH_CHATS_EVENT, onEvent);
-  }, []);
+  useShortcutEvent('searchChats', () => {
+    setSearchOpen(true);
+    window.setTimeout(() => inputRef.current?.focus(), 0);
+  });
+  useShortcutEvent('renameTab', () => highlightId && setRenamingId(highlightId));
   useEffect(() => {
     if (searchOpen) inputRef.current?.focus();
   }, [searchOpen]);
@@ -702,20 +704,16 @@ const SidebarImpl: React.FC<SidebarProps> = ({
           type="button"
           className={collapsed ? styles.iconBtn : styles.brandWrap}
           onClick={onToggle}
-          title={
-            collapsed
-              ? t('ui.chat-settings.expand-sidebar-ctrl-b')
-              : t('ui.chat-settings.collapse-sidebar-ctrl-b')
-          }
-          aria-label={
-            collapsed
-              ? t('ui.chat-settings.expand-sidebar')
-              : t('ui.chat-settings.collapse-sidebar')
-          }
+          title={sidebarToggleLabels(collapsed).title}
+          aria-label={sidebarToggleLabels(collapsed).label}
           aria-expanded={!collapsed}
           data-testid="sidebar-toggle"
         >
-          <EndpointIcon backend="nomi" size={collapsed ? 24 : 28} decorative />
+          <NomiMark
+            className={styles.brandMark}
+            size={collapsed ? 24 : 28}
+            testId="sidebar-brand-mark"
+          />
           {!collapsed && <span className={styles.brand}>Nomi</span>}
         </button>
         {!collapsed && (
@@ -726,6 +724,16 @@ const SidebarImpl: React.FC<SidebarProps> = ({
         )}
       </div>
       {collapsed && <div className={styles.collapsedNew}>{newBtn}</div>}
+      {collapsed && (
+        <CollapsedRail
+          items={visible}
+          activeId={highlightId}
+          tabById={tabById}
+          onOpen={open}
+          onCtx={onCtx}
+          onExpand={onToggle}
+        />
+      )}
 
       {!collapsed && (
         <div className={styles.listHeader}>
@@ -869,6 +877,14 @@ const SidebarImpl: React.FC<SidebarProps> = ({
           aria-label={t('ui.chat-settings.history')}
           data-testid="conversation-list"
         >
+          {!searching && onOpenSettings && (
+            <GettingStarted
+              mode={isDev ? 'workbench' : 'assistant'}
+              hasChats={list.length > 0 || histItems.length > 0}
+              onOpenSettings={onOpenSettings}
+              onStart={handleNewClick}
+            />
+          )}
           {searching && (
             <div
               id="sidebar-search-results"
@@ -1095,8 +1111,8 @@ const SidebarImpl: React.FC<SidebarProps> = ({
         </nav>
       )}
 
-      {/* 工作台模式：左下角固定一张当前会话所在端的信息卡（点击打开详情抽屉）；精简模式不显示 */}
-      {!collapsed && !searching && isDev && !isCompact && (
+      {/* 工作台模式：左下角固定一张当前会话所在端的信息卡（点击打开详情抽屉） */}
+      {!collapsed && !searching && isDev && (
         <EndpointInfoCard
           backend={cardBackend}
           running={endpointRunning}

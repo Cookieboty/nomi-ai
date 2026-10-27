@@ -19,6 +19,8 @@ import { CliPlanDialog } from '../ProvidersPage/CliPlanDialog';
 export interface CliInstallState {
   /** 主进程明确报告没装（没有返回这个端点时不算没装） */
   missing: (kind: CliKind) => boolean;
+  /** 本机是否装了任一编程助手（还没查到结果时为 null） */
+  anyInstalled: boolean | null;
   /** 正在安装 / 更新的端点（同一时刻只有一个） */
   busy: CliUpdatableKind | null;
   install: (kind: CliKind) => void;
@@ -26,7 +28,7 @@ export interface CliInstallState {
 }
 
 export function useCliInstall(onError: (message: string) => void): CliInstallState {
-  const [infos, setInfos] = useState<CliInstallInfo[]>([]);
+  const [infos, setInfos] = useState<CliInstallInfo[] | null>(null);
   const [plan, setPlan] = useState<CliInstallPlan | null>(null);
   const [busy, setBusy] = useState<CliUpdatableKind | null>(null);
 
@@ -84,9 +86,10 @@ export function useCliInstall(onError: (message: string) => void): CliInstallSta
   const name = plan ? ENDPOINT_NAME[plan.kind] : '';
   return {
     missing: (kind) => {
-      const info = infos.find((i) => (i.kind as string) === kind);
+      const info = infos?.find((i) => (i.kind as string) === kind);
       return Boolean(info && !info.path);
     },
+    anyInstalled: infos && infos.some((i) => !!i.path),
     busy,
     install: (kind) => void openPlan(kind),
     dialog: (

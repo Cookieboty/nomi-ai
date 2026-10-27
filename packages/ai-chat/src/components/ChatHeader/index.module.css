@@ -21,34 +21,3 @@
   transform: none;
   white-space: nowrap;
 }
-.header[data-with-tabs] {
-  gap: var(--cd-space-2);
-  padding-left: 0;
-  border-bottom: 1px solid var(--cd-panel-border);
-}
-.header[data-with-tabs] .actions {
-  align-self: stretch;
-}
-.tabsSlot {
-  display: flex;
-  flex: 1;
-  min-width: 0;
-  align-self: stretch;
-}
-/* 对话列窄（中栏打开或窗口小）：标签换到第二行占满宽度，不被右侧入口挤没 */
-@container chat-column (max-width: 640px) {
-  .header[data-with-tabs] {
-    flex-wrap: wrap;
-    height: auto;
-    row-gap: 0;
-  }
-  .header[data-with-tabs] .actions {
-    align-self: center;
-    height: var(--cd-chat-header-h);
-  }
-  .header[data-with-tabs] .tabsSlot {
-    order: 1;
-    flex-basis: 100%;
-    height: var(--cd-chat-header-h);
-  }
-}

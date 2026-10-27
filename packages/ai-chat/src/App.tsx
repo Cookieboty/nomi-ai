@@ -1,13 +1,12 @@
 import type { ClientAIClient } from '@nomi-ai/ai-sdk-client';
 import * as AISdkReact from '@nomi-ai/ai-sdk-client/react';
 import { t } from '@nomi-ai/ui';
-import { ModalHostContext, type ModalHost } from '@nomi-ai/ui';
+import { Button, ModalHostContext, type ModalHost } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { AppEntries } from './components/AppEntries';
 import { ChatBackgroundLayer } from './components/ChatBackground/ChatBackgroundLayer';
 import { ChatHeader } from './components/ChatHeader';
-import { ChatTabs, cliTabPlaceholder } from './components/ChatTabs';
 import { CommandPalette, type PaletteCommand } from './components/CommandPalette';
 import { ConversationView } from './components/Conversation';
 import { CliConversation } from './components/Conversation/CliConversation';
@@ -18,13 +17,9 @@ import { nomiSlots } from './components/Conversation/nomiSlots';
 import { SessionControls, WorkspaceControl } from './components/EndpointControls';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ForkTargetMenu } from './components/ForkMenu';
-import type { HubTab } from './components/HubPanel';
 import {
   DesktopPanel,
   ExtensionsPanel,
-  HubPanel,
-  LocalPanel,
-  ScreenPanel,
   SettingsView,
   prefetchPanels,
 } from './components/lazyPanels';
@@ -41,7 +36,6 @@ import {
   useChangesUi,
 } from './components/SessionWorkspace';
 import {
-  LOCAL_MANAGE_TABS,
   SETTINGS_SECTIONS,
   type SettingsSection,
   type SettingsTab,
@@ -66,7 +60,7 @@ import {
 } from './contexts/HarnessTabsContext';
 import { useChatMode } from './hooks/useChatMode';
 import { useHarnessState } from './hooks/useHarnessState';
-import { useLayoutDensity } from './hooks/useLayoutDensity';
+import { useModelReady } from './hooks/useModelReady';
 import { useRestoreNomiOnMain } from './hooks/useRestoreNomiOnMain';
 import { useSendQueue } from './hooks/useSendQueue';
 import { setProviderEndpoint } from './services/chatPrefs';
@@ -77,8 +71,9 @@ import { harnessClient, type ContextBreakdown } from './services/harnessClient';
 import { derivedSwitchTip } from './services/modelSwitchTip';
 import { nomiModelLabel, useGatewayState, watchNomiModel } from './services/nomiModel';
 import { providerClient } from './services/providerClient';
-import { screenClient, type ImageAttachment, type ScreenState } from './services/screenClient';
+import type { ImageAttachment } from './services/screenClient';
 import {
+  RENAME_CHAT_EVENT,
   SEARCH_CHATS_EVENT,
   SHORTCUT_DEFS,
   formatCombo,
@@ -100,6 +95,7 @@ import {
   readChatColumnWidth,
 } from './utils/chatColumnWidth';
 import { useCliImageSupport } from './utils/cliImageSupport';
+import { cliTabPlaceholder } from './utils/cliTabPlaceholder';
 import {
   fromHarnessMessage,
   nomiConvMessages,
@@ -113,7 +109,6 @@ import './App.css';
 
 const selectSettledNomi = (s: AiChatState) => settledNomiMessages(s.messages, s.isLoading);
 const selectNomiLive = (s: AiChatState) => nomiLive(s.messages, s.isLoading);
-const LOCAL_TABS = [...LOCAL_MANAGE_TABS];
 
 /** The Nomi conversation: the only part that rerenders per streamed frame (its live turn). */
 const NomiConversation: React.FC<Omit<React.ComponentProps<typeof ConversationView>, 'live'>> = (
@@ -249,8 +244,6 @@ const AiChatContent: React.FC = () => {
   const tabs = useHarnessTabsCore();
   const { isDev, setMode } = useChatMode();
   // 精简模式（工作台）：不显示顶部对话标签条，顶栏只放当前会话的标题
-  const { isCompact } = useLayoutDensity();
-  const compactTabs = isDev && isCompact;
   // ───── 统一会话视图的数据：Nomi 主对话与编程助手标签走同一个 ConversationView ─────
   const nomiMessages = useMemo(() => nomiConvMessages(settledNomi), [settledNomi]);
   const cliBackend = tabs.activeTab?.backend ?? 'claude';
@@ -381,8 +374,6 @@ const AiChatContent: React.FC = () => {
     const tid = window.setTimeout(() => setToast(null), 2400);
     return () => window.clearTimeout(tid);
   }, [toast]);
-  const [tabRename, setTabRename] = useState(0);
-  const [tabNew, setTabNew] = useState(0);
 
   // 首屏后空闲时预取设置 / 面板 chunk（不占首屏，打开时无需等待）
   useEffect(() => {
@@ -405,50 +396,7 @@ const AiChatContent: React.FC = () => {
   const [showDesktop, setShowDesktop] = useState(false);
   // 托盘「桌面能力…」→ 打开桌面能力面板
   useEffect(() => desktopClient.onOpenPanel(() => setShowDesktop(true)), []);
-  const [showHub, setShowHub] = useState(false);
-  const [hubTab, setHubTab] = useState<HubTab>('kb');
-  useEffect(
-    () =>
-      desktopClient.onOpenSchedule(() => {
-        setHubTab('schedule');
-        setShowHub(true);
-      }),
-    [],
-  );
-  const [showScreen, setShowScreen] = useState(false);
   const [showExt, setShowExt] = useState(false);
-  const [showLocal, setShowLocal] = useState(false);
-  const [screenSt, setScreenSt] = useState<ScreenState | null>(null);
-  const [screenPausedExpired, setScreenPausedExpired] = useState(false);
-  useEffect(() => {
-    if (!screenClient.available()) return;
-    void screenClient
-      .state()
-      .then(setScreenSt)
-      .catch(() => undefined);
-    const off1 = screenClient.onChanged(setScreenSt);
-    const off2 = screenClient.onOpenPanel(() => setShowScreen(true));
-    return () => {
-      off1();
-      off2();
-    };
-  }, []);
-  // 根据 pausedUntil 的时间点驱动「暂停已过期」标志，避免在渲染期调用 Date.now()
-  useEffect(() => {
-    const until = screenSt?.settings.pausedUntil ?? 0;
-    const delay = until - Date.now();
-    if (delay <= 0) {
-      // 已过期：异步切到 true，避免同步 setState 触发级联渲染
-
-      setScreenPausedExpired(true);
-      return;
-    }
-    // 未到期：先置 false，再在到期后翻为 true
-    setScreenPausedExpired(false);
-    const tid = window.setTimeout(() => setScreenPausedExpired(true), delay);
-    return () => window.clearTimeout(tid);
-  }, [screenSt?.settings.pausedUntil]);
-  const screenActive = !!screenSt?.settings.enabled && screenPausedExpired;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => window.innerWidth < 720);
   // 窗口变窄时自动收起侧栏，避免挤压对话区
   useEffect(() => {
@@ -467,19 +415,21 @@ const AiChatContent: React.FC = () => {
   const [settingsLink, setSettingsLink] = useState<{ tab?: SettingsTab } | undefined>();
   const openSettings = useCallback((sec: SettingsSection = 'general', tab?: SettingsTab) => {
     setSettingsLink(tab ? { tab } : undefined);
-    setShowHub(false);
-    setShowScreen(false);
     setShowExt(false);
-    setShowLocal(false);
     setShowDesktop(false);
     setSettings(sec);
   }, []);
-  // 托盘「模型设置…」→ 设置 →「模型」
+  // 托盘「模型设置…」→ 设置 →「模型与供应商」
   useEffect(() => providerClient.onOpenPanel(() => openSettings('models')), [openSettings]);
   useEffect(() => watchNomiModel(), []);
-  // 看板娘「TTS 语音配置」/ 语音错误「去设置」→ 设置 → 语音与屏幕 → 语音
+  // 看板娘「TTS 语音配置」/ 语音错误「去设置」→ 设置 → 通用 → 语音
   useEffect(
-    () => desktopClient.onOpenVoiceSettings(() => openSettings('senses', 'voice')),
+    () => desktopClient.onOpenVoiceSettings(() => openSettings('general', 'voice')),
+    [openSettings],
+  );
+  // 看板娘「日程」→ 设置 → 知识与记忆 → 日程
+  useEffect(
+    () => desktopClient.onOpenSchedule(() => openSettings('knowledge', 'schedule')),
     [openSettings],
   );
   // ---- 斜杠命令：输入 / 弹出命令面板，命令结果以系统卡片显示在会话流里 ----
@@ -633,21 +583,16 @@ const AiChatContent: React.FC = () => {
       focusInput,
       settings: () => setSettings((s) => (s ? null : 'general')),
       sidebar: () => setSidebarCollapsed((v) => !v),
-      hub: () => setShowHub((v) => !v),
+      hub: () => openSettings('knowledge'),
       ext: () => setShowExt((v) => !v),
-      local: () => setShowLocal((v) => !v),
-      screen: () => setShowScreen((v) => !v),
+      local: () => openSettings('models', 'local'),
       newTab: () => {
         if (!isDev) return;
-        // 精简模式没有标签条（「+」菜单）：按当前标签的端和目录直接新开；Nomi 标签则新开对话
-        if (compactTabs) {
-          const cur = tabs.activeTab;
-          if (cur && cur.backend !== 'nomi')
-            void tabs.create(cur.backend, cur.cwd).catch(() => undefined);
-          else newChat();
-          return;
-        }
-        setTabNew((n) => n + 1);
+        // 按当前会话的端和目录直接新开；Nomi 会话则新开对话（其它端从侧栏的新建菜单选）
+        const cur = tabs.activeTab;
+        if (cur && cur.backend !== 'nomi')
+          void tabs.create(cur.backend, cur.cwd).catch(() => undefined);
+        else newChat();
       },
       closeTab: () => {
         if (!isDev) return;
@@ -662,12 +607,12 @@ const AiChatContent: React.FC = () => {
         tabs.cycle(-1);
       },
       renameTab: () => {
-        // 改名框在标签条上；精简模式在侧栏的会话列表里改名
-        if (!isDev || compactTabs) return;
-        setTabRename((n) => n + 1);
+        // 在侧栏的会话列表里给当前会话改名
+        if (!isDev) return;
+        window.dispatchEvent(new Event(RENAME_CHAT_EVENT));
       },
     }),
-    [newChat, focusInput, tabs, isDev, compactTabs],
+    [newChat, focusInput, tabs, isDev, openSettings],
   );
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -713,14 +658,14 @@ const AiChatContent: React.FC = () => {
       onOpenSettings: () => openSettings(sec, tab),
     });
     return {
-      screen: mk('senses', 'screen'),
       ext: mk('ext'),
       desktop: mk('privacy', 'desktop'),
-      local: mk('local'),
     };
   }, [openSettings]);
 
   const handleNewChat = useCallback(() => actions.newConversation(), [actions]);
+  // 欢迎屏：还没有可用模型时，快捷问题换成「添加模型」，免得一点就报错
+  const modelReady = useModelReady();
 
   const paletteCommands = useMemo<PaletteCommand[]>(
     () => [
@@ -800,19 +745,16 @@ const AiChatContent: React.FC = () => {
   );
   const openDesktop = useCallback(() => setShowDesktop(true), []);
   const closeDesktop = useCallback(() => setShowDesktop(false), []);
-  const openHub = useCallback(() => setShowHub(true), []);
-  const closeHub = useCallback(() => setShowHub(false), []);
-  const openScreen = useCallback(() => setShowScreen(true), []);
-  const closeScreen = useCallback(() => setShowScreen(false), []);
+  // 知识 · 记忆 · 日程、截图提问、本机模型都只在设置里有一个入口
+  const openHub = useCallback(() => openSettings('knowledge'), [openSettings]);
   const openExt = useCallback(() => setShowExt(true), []);
   const closeExt = useCallback(() => setShowExt(false), []);
-  const openLocal = useCallback(() => setShowLocal(true), []);
-  const closeLocal = useCallback(() => setShowLocal(false), []);
+  const openLocal = useCallback(() => openSettings('models', 'local'), [openSettings]);
   const closeSettings = useCallback(() => setSettings(null), []);
   // 侧栏是 memo 组件：回调与 footer 都要稳定，否则 App 每次渲染都连带重渲染整个会话列表
   const toggleSidebar = useCallback(() => setSidebarCollapsed((v) => !v), []);
   const openSidebarSettings = useCallback(
-    (sec: 'coding' | 'usage') => openSettings(sec),
+    (sec: SettingsSection, tab?: SettingsTab) => openSettings(sec, tab),
     [openSettings],
   );
   const openGeneralSettings = useCallback(() => openSettings(), [openSettings]);
@@ -822,11 +764,10 @@ const AiChatContent: React.FC = () => {
         collapsed={sidebarCollapsed}
         onHub={openHub}
         onExt={openExt}
-        onLocal={openLocal}
         onSettings={openGeneralSettings}
       />
     ),
-    [sidebarCollapsed, openHub, openExt, openLocal, openGeneralSettings],
+    [sidebarCollapsed, openHub, openExt, openGeneralSettings],
   );
 
   const paletteEl = (
@@ -836,7 +777,7 @@ const AiChatContent: React.FC = () => {
   return (
     <div className="ai-chat-app">
       <ChatBackgroundLayer />
-      <AppTitleBar />
+      <AppTitleBar sidebarCollapsed={sidebarCollapsed} onToggleSidebar={toggleSidebar} />
       {/* 会话树保活：打开设置时只隐藏（display:none）不卸载，避免关闭时整树冷重挂载导致卡顿、
           草稿/滚动位置丢失与 IPC 订阅重建 */}
       <div className={settings ? 'chat-keepalive-hidden' : 'chat-keepalive'}>
@@ -873,34 +814,6 @@ const AiChatContent: React.FC = () => {
             }}
           >
             <ChatHeader
-              tabs={
-                compactTabs ? (
-                  <div
-                    className="chat-compact-title"
-                    data-testid="chat-compact-title"
-                    title={tabs.activeTab?.title}
-                  >
-                    {tabs.activeTab?.status === 'running' ? (
-                      <span
-                        className="chat-compact-title-dot"
-                        aria-label={t('ui.knowledge-local.running')}
-                      />
-                    ) : null}
-                    <span className="chat-compact-title-text">{tabs.activeTab?.title ?? ''}</span>
-                  </div>
-                ) : isDev ? (
-                  <ChatTabs
-                    embedded
-                    renameRequest={tabRename}
-                    newTabRequest={tabNew}
-                    mainLoading={isLoading}
-                    onForkTab={(tabId, mode) => {
-                      const meta = ipcClient.conversationStore?.()?.findByTabId(tabId);
-                      if (meta) onForkRequest(meta.id, mode);
-                    }}
-                  />
-                ) : undefined
-              }
               trailing={
                 <>
                   {/* 工作目录 + 这个目录的改动 / 文件：都是当前会话所在的工作区 */}
@@ -914,20 +827,7 @@ const AiChatContent: React.FC = () => {
                   ) : null}
                 </>
               }
-            >
-              {screenActive && (
-                <button
-                  type="button"
-                  className="screen-mem-indicator"
-                  onClick={() => setShowScreen(true)}
-                  title={t('ui.foundation.screen-memory-is-on-stored-only-on-this')}
-                  data-testid="screen-mem-indicator"
-                >
-                  <span className="screen-mem-dot" />
-                  {t('ui.foundation.screen-memory-on')}
-                </button>
-              )}
-            </ChatHeader>
+            />
             {/* 待带入的新会话前文属于当前对话状态，放在对话区顶部，避免和输入工具混在一起。 */}
             <div className="session-bar chat-session-bar">
               <SessionControls />
@@ -978,30 +878,45 @@ const AiChatContent: React.FC = () => {
                     <h2 className="welcome-title">
                       {t('ui.foundation.what-would-you-like-to-do-today')}
                     </h2>
-                    <div className="quick-actions">
-                      {[
-                        [
-                          t('ui.foundation.hi-please-introduce-yourself'),
-                          t('ui.foundation.say-hello'),
-                        ],
-                        [
-                          t('ui.foundation.help-me-write-some-code'),
-                          t('ui.foundation.write-some-code'),
-                        ],
-                        [
-                          t('ui.foundation.help-me-organize-today-s-to-dos'),
-                          t('ui.foundation.organize-today-s-to-dos'),
-                        ],
-                      ].map(([prompt, label]) => (
-                        <button
-                          key={label}
-                          className="quick-action-btn"
-                          onClick={() => actions.sendMessage(prompt)}
+                    {modelReady === false ? (
+                      <div className="welcome-setup" data-testid="welcome-needs-model">
+                        <p className="welcome-subtitle">
+                          {t('ui.foundation.nomi-has-no-model-yet-add-one-to-start')}
+                        </p>
+                        <Button
+                          variant="primary"
+                          onClick={() => openSettings('models')}
+                          data-testid="welcome-add-model"
                         >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
+                          {t('ui.foundation.getting-started-add-a-model')}
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="quick-actions">
+                        {[
+                          [
+                            t('ui.foundation.hi-please-introduce-yourself'),
+                            t('ui.foundation.say-hello'),
+                          ],
+                          [
+                            t('ui.foundation.help-me-write-some-code'),
+                            t('ui.foundation.write-some-code'),
+                          ],
+                          [
+                            t('ui.foundation.help-me-organize-today-s-to-dos'),
+                            t('ui.foundation.organize-today-s-to-dos'),
+                          ],
+                        ].map(([prompt, label]) => (
+                          <button
+                            key={label}
+                            className="quick-action-btn"
+                            onClick={() => actions.sendMessage(prompt)}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     <p className="welcome-subtitle">
                       {t('ui.foundation.type-for-commands-for-knowledge-base-voice-models')}
                     </p>
@@ -1043,7 +958,6 @@ const AiChatContent: React.FC = () => {
                 onSettingsClick={onInputSettings}
                 onDesktopClick={openDesktop}
                 onHubClick={openHub}
-                onScreenClick={openScreen}
                 onExtClick={openExt}
                 onLocalClick={openLocal}
               />
@@ -1135,21 +1049,8 @@ const AiChatContent: React.FC = () => {
       <ModalHostContext.Provider value={drawerHost.desktop}>
         <DesktopPanel isVisible={showDesktop} onClose={closeDesktop} />
       </ModalHostContext.Provider>
-      <HubPanel
-        isVisible={showHub}
-        onClose={closeHub}
-        tab={hubTab}
-        onTab={setHubTab}
-        onOpenSettings={openSettings}
-      />
-      <ModalHostContext.Provider value={drawerHost.screen}>
-        <ScreenPanel isVisible={showScreen} onClose={closeScreen} />
-      </ModalHostContext.Provider>
       <ModalHostContext.Provider value={drawerHost.ext}>
         <ExtensionsPanel isVisible={showExt} onClose={closeExt} />
-      </ModalHostContext.Provider>
-      <ModalHostContext.Provider value={drawerHost.local}>
-        <LocalPanel isVisible={showLocal} onClose={closeLocal} tabs={LOCAL_TABS} />
       </ModalHostContext.Provider>
       <ForkTargetMenu
         open={!!forkCross}

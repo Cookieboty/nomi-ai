@@ -157,9 +157,10 @@ const ThreadItemImpl: React.FC<{
   // 语言切换时重渲染：memo 挡住了根组件的更新，这里自己订阅（#140）
   useLocale();
   const cls = `${styles.thread} ${active ? styles.threadActive : ''}`;
+  const live = liveOf(tab);
   const lead = (
     <>
-      <span className={styles.dot} data-live={liveOf(tab) || undefined} aria-hidden />
+      <span className={styles.dot} data-live={live || undefined} aria-hidden />
       <EndpointIcon backend={c.backend} size={14} />
     </>
   );
@@ -206,7 +207,14 @@ const ThreadItemImpl: React.FC<{
         <span className={styles.threadName}>
           {c.name ? t(c.name) : t('ui.chat-settings.new-chat')}
         </span>
-        <span className={styles.threadTime}>{rel(c.updatedAt)}</span>
+        {live === 'running' || live === 'queued' ? (
+          // 进行中 / 排队：时间位置换成状态文字，一眼看出哪个任务在跑
+          <span className={styles.threadLive} data-live={live} data-testid="thread-live">
+            {live === 'running' ? t('ui.chat-settings.in-progress') : t('ui.mascot-theme.queued')}
+          </span>
+        ) : (
+          <span className={styles.threadTime}>{rel(c.updatedAt)}</span>
+        )}
       </button>
       {onMore && (
         <RowActions

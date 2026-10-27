@@ -2,7 +2,6 @@
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ChatTabs } from '../src/components/ChatTabs';
 import {
   EndpointControls,
   SessionControls,
@@ -280,28 +279,5 @@ describe('EndpointControls workspace for CLI tabs', () => {
     expect(chip.textContent).toContain('3');
     fireEvent.click(r.getByTestId('cli-carry-clear'));
     await waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:harness:tab-carry-clear', 'cx'));
-  });
-});
-
-describe('new tab menu workspace', () => {
-  it('creates the tab in the chosen workspace', async () => {
-    const invoke = mockIpc(state());
-    const r = render(
-      <HarnessTabsProvider>
-        <ChatTabs />
-      </HarnessTabsProvider>,
-    );
-    await waitFor(() => r.getByTestId('chat-tab-add'));
-    fireEvent.click(r.getByTestId('chat-tab-add'));
-    fireEvent.click(r.getByTestId('new-tab-workspace-button'));
-    await waitFor(() => r.getAllByTestId('workspace-recent-item'));
-    fireEvent.click(r.getAllByTestId('workspace-recent-item')[0]!);
-    fireEvent.click(r.getByTestId('chat-tab-new-claude'));
-    await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-create', {
-        backend: 'claude',
-        cwd: '/recent/one',
-      }),
-    );
   });
 });
