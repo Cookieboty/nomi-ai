@@ -188,7 +188,8 @@ describe('settings', () => {
       ocr: { enabled: true, langs: ['eng', 'xx'] },
       embed: { enabled: true, providerId: 'p', model: 'm' },
     });
-    expect(s.sources.map((x) => x.id)).toEqual(['1', '3']);
+    // 旧版本的「笔记」来源已移除，读取时丢弃
+    expect(s.sources.map((x) => x.id)).toEqual(['1']);
     expect(s.sources[0].path).toBe('C:\\Docs');
     expect(s.topK).toBe(12);
     expect(s.ocr.langs).toEqual(['eng']);

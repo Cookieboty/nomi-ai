@@ -28,6 +28,7 @@ import {
 } from '../../../src/agents/AgentProgressService';
 import { parseDshProjcache } from '../../../src/agents/parsers';
 import { classify, parseProcLocks } from '../../../src/agents/processes';
+import { fakeDesktop } from '../helpers/fakeDesktop';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'cd-agents-ep-'));
 
@@ -88,7 +89,7 @@ describe('dsh session detection', () => {
       home,
       dshHome,
       logger: { info: jest.fn(), warn: jest.fn() },
-      desktop: { say: jest.fn() } as never,
+      desktop: fakeDesktop(jest.fn()) as never,
       now: () => now,
       pollMs: 60_000,
       processes: () => [],
@@ -127,7 +128,7 @@ describe('Nomi tabs in the aggregated monitor', () => {
     ...over,
   });
 
-  const setup = (tabs: WatchedTab[]) => {
+  const setup = (tabs: WatchedTab[], hidden = false) => {
     const home = tmp();
     const say = jest.fn();
     const svc = new AgentProgressService({
@@ -135,7 +136,7 @@ describe('Nomi tabs in the aggregated monitor', () => {
       home,
       dshHome: path.join(home, '.dsh'),
       logger: { info: jest.fn(), warn: jest.fn() },
-      desktop: { say } as never,
+      desktop: fakeDesktop(say, { island, hidden: () => hidden }) as never,
       now: () => now,
       pollMs: 60_000,
       processes: () => [],
@@ -201,16 +202,22 @@ describe('Nomi tabs in the aggregated monitor', () => {
     expect(svc.state().sessions.map((s) => s.id)).toEqual(['tab:a']);
   });
 
-  it('mascot + island react when Claude needs tool permission', () => {
-    const { say, needPerm } = setup([]);
-    needPerm({
+  it('Claude needs tool permission: bubble while Nomi is shown, island (only) once she is closed', () => {
+    const perm = {
       tabId: 'a',
       title: 'Refactor',
-      backend: 'claude',
+      backend: 'claude' as const,
       summary: 'Bash: ls -la',
       background: true,
-    });
-    expect(say).toHaveBeenCalledWith(expect.stringContaining('工具权限'), { voice: 'cue' });
+    };
+    const shown = setup([]);
+    shown.needPerm(perm);
+    expect(shown.say).toHaveBeenCalledWith(expect.stringContaining('工具权限'), { voice: 'cue' });
+    expect(island).not.toHaveBeenCalled();
+    expect(mascot).toHaveBeenCalledWith({ type: 'motion', name: 'think' });
+    const hidden = setup([], true);
+    hidden.needPerm(perm);
+    expect(hidden.say).not.toHaveBeenCalled();
     expect(island).toHaveBeenCalledWith(
       expect.objectContaining({
         kind: 'agent',
@@ -218,10 +225,9 @@ describe('Nomi tabs in the aggregated monitor', () => {
         status: 'attention',
       }),
     );
-    expect(mascot).toHaveBeenCalledWith({ type: 'motion', name: 'think' });
   });
 
-  it('mascot + island react to a background endpoint finishing', () => {
+  it('background endpoint finishing: bubble while shown, island (only) while Nomi is closed', () => {
     const { svc, say, finish } = setup([]);
     finish({
       tabId: 'a',
@@ -235,11 +241,10 @@ describe('Nomi tabs in the aggregated monitor', () => {
       kind: 'done',
       voice: 'cue',
     });
-    expect(island).toHaveBeenCalledWith(
-      expect.objectContaining({ kind: 'agent', endpoint: 'codex', status: 'done' }),
-    );
+    expect(island).not.toHaveBeenCalled();
     expect(mascot).toHaveBeenCalledWith({ type: 'motion', name: 'thumbs_up' });
-    finish({
+    const closed = setup([], true);
+    closed.finish({
       tabId: 'b',
       title: 'Fix',
       backend: 'dsh',
@@ -248,6 +253,7 @@ describe('Nomi tabs in the aggregated monitor', () => {
       error: 'rate limited',
       background: true,
     });
+    expect(closed.say).not.toHaveBeenCalled();
     expect(island).toHaveBeenLastCalledWith(
       expect.objectContaining({ endpoint: 'dsh', status: 'failed', body: 'rate limited' }),
     );

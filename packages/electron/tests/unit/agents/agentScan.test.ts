@@ -17,6 +17,7 @@ import path from 'node:path';
 
 import { AgentProgressService, readSlice } from '../../../src/agents/AgentProgressService';
 import { ScanCache, limiter, readSliceAsync } from '../../../src/agents/fsScan';
+import { fakeDesktop } from '../helpers/fakeDesktop';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'cd-agents-scan-'));
 const HOUR = 3_600_000;
@@ -221,7 +222,7 @@ describe('AgentProgressService 异步轮询', () => {
       root: tmp(),
       home,
       logger: { info: jest.fn(), warn: jest.fn() },
-      desktop: { say: jest.fn() } as never,
+      desktop: fakeDesktop(jest.fn()) as never,
       pollMs: 50,
       processes: () => [],
       lockedInodes: () => new Set(),
@@ -373,7 +374,7 @@ describe('AgentProgressService dsh 会话索引缓存', () => {
       home,
       dshHome,
       logger: { info: jest.fn(), warn: jest.fn() },
-      desktop: { say: jest.fn() } as never,
+      desktop: fakeDesktop(jest.fn()) as never,
       now: () => now,
       pollMs: 60_000,
       processes: () => [],

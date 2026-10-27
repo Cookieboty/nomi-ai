@@ -40,19 +40,6 @@ const RULES: Array<{ kind: AgentKind; test: (name: string, cmd: string) => boole
         /(^|[\\/\s])codex(-[a-z0-9_-]+)?(\.exe)?(\s|$)/i.test(c)),
   },
   {
-    kind: 'cursor',
-    test: (n, c) =>
-      /cursor-agent/i.test(c) ||
-      /^cursor-agent/i.test(n) ||
-      // Cursor IDE 主进程（不算 helper / renderer）
-      (/^cursor(\.exe)?$/i.test(n) && !/--type=/.test(c)),
-  },
-  {
-    kind: 'aider',
-    test: (n, c) =>
-      /^aider(\.exe)?$/i.test(n) || /(^|[\\/\s])aider(\.exe)?(\s|$)|-m aider\b/i.test(c),
-  },
-  {
     kind: 'gemini',
     test: (n, c) =>
       /^gemini(\.exe)?$/i.test(n) ||
@@ -73,7 +60,6 @@ const RULES: Array<{ kind: AgentKind; test: (name: string, cmd: string) => boole
       /@xai-official[\\/]grok/i.test(c) ||
       /(^|[\\/\s])grok(\.exe)?(\s|$)/i.test(c),
   },
-  { kind: 'cline', test: (n, c) => /^cline(\.exe)?$/i.test(n) || /[\\/]cline[\\/].*cli/i.test(c) },
 ];
 
 export function classify(procs: RawProc[], selfPid = process.pid): AgentProc[] {

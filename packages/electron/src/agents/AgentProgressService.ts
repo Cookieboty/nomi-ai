@@ -1,5 +1,5 @@
 /**
- * 编程助手进度监视：只读本机 Codex / Claude Code / dsh / Aider / Cline / Continue / Cursor
+ * 编程助手进度监视：只读本机 Codex / Claude Code / dsh / Grok / Gemini CLI
  * 已暴露的日志与会话文件，状态变化时通过看板娘气泡提醒。绝不刮取远端账号。
  * 同时汇总 Nomi 自己的对话标签（实时状态优先于文件推断），在一个列表里展示所有端点。
  */
@@ -7,13 +7,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { BrowserWindow, Notification } from 'electron';
+import { BrowserWindow } from 'electron';
 
 import { broadcastMascotCommand } from '../ai/mascotCommand';
-import { iconImage } from '../core/appIcon';
-import type { DesktopService } from '../desktop/DesktopService';
+import type { DesktopNotice, DesktopService } from '../desktop/DesktopService';
 import { t as tr } from '../i18n';
-import { notifyIsland } from '../island/IslandService';
 import { guardedHandle } from '../security/guardedIpc';
 
 import { ScanCache } from './fsScan';
@@ -23,15 +21,10 @@ import {
   type LastPhase,
   type SessionInfo,
   decideStatus,
-  parseAiderAnalytics,
-  parseAiderHistory,
   parseClaudeSession,
-  parseClineJob,
   parseCodexSession,
-  parseContinueSession,
   parseDshProjcache,
   parseGeminiSession,
-  phaseOf,
 } from './parsers';
 import { type AgentProc, listAgentProcesses, readLockedInodesAsync } from './processes';
 
@@ -43,7 +36,6 @@ export interface AgentWatchSettings {
   stallMs: number;
   /** 同工具同状态最短提醒间隔 */
   cooldownMs: number;
-  osNotify: boolean;
   /** 编程助手消息语音播报：朗读任务提示文字（语音走 TTS，默认关） */
   summaryEnabled: boolean;
   tools: Record<AgentKind, boolean>;
@@ -53,17 +45,12 @@ export const DEFAULT_AGENT_WATCH: AgentWatchSettings = {
   enabled: true,
   stallMs: 5 * 60_000,
   cooldownMs: 90_000,
-  osNotify: false,
   summaryEnabled: false,
   tools: {
     codex: true,
     claude: true,
     dsh: true,
     grok: true,
-    aider: true,
-    cline: true,
-    continue: true,
-    cursor: true,
     gemini: true,
   },
 };
@@ -212,10 +199,6 @@ const LABEL: Record<AgentKind, string> = {
   claude: 'Claude Code',
   dsh: 'dsh',
   grok: 'Grok',
-  aider: 'Aider',
-  cline: 'Cline',
-  continue: 'Continue',
-  cursor: 'Cursor',
   gemini: 'Gemini CLI',
 };
 
@@ -255,17 +238,12 @@ export function sanitizeAgentWatch(raw: unknown, base = DEFAULT_AGENT_WATCH): Ag
     enabled: b(o.enabled, base.enabled),
     stallMs: n(o.stallMs, base.stallMs),
     cooldownMs: n(o.cooldownMs, base.cooldownMs),
-    osNotify: b(o.osNotify, base.osNotify),
     summaryEnabled: b(o.summaryEnabled, base.summaryEnabled),
     tools: {
       codex: b(tools.codex, true),
       claude: b(tools.claude, true),
       dsh: b(tools.dsh, true),
       grok: b(tools.grok, true),
-      aider: b(tools.aider, true),
-      cline: b(tools.cline, true),
-      continue: b(tools.continue, true),
-      cursor: b(tools.cursor, true),
       gemini: b(tools.gemini, true),
     },
   };
@@ -414,14 +392,6 @@ export class AgentProgressService {
     if (fs.existsSync(path.join(h, '.claude'))) found.push('claude');
     if (fs.existsSync(path.join(this.dshHome, 'sessions'))) found.push('dsh');
     if (fs.existsSync(path.join(this.grokHome, 'sessions'))) found.push('grok');
-    if (
-      fs.existsSync(path.join(h, '.aider')) ||
-      fs.existsSync(path.join(h, '.aider.chat.history.md'))
-    )
-      found.push('aider');
-    if (fs.existsSync(path.join(h, '.cline'))) found.push('cline');
-    if (fs.existsSync(path.join(h, '.continue'))) found.push('continue');
-    if (fs.existsSync(path.join(h, '.cursor'))) found.push('cursor');
     if (fs.existsSync(path.join(h, '.gemini'))) found.push('gemini');
     return found;
   }
@@ -470,29 +440,6 @@ export class AgentProgressService {
         (n, fp) => /^session-.*\.jsonl?$/.test(n) && fp.includes(`${path.sep}chats${path.sep}`),
         3,
       );
-    if (tools.aider)
-      jobs.push(
-        Promise.all(
-          [path.join(h, '.aider', 'analytics.jsonl'), path.join(h, '.aider.chat.history.md')].map(
-            async (p) => {
-              const st = await this.scan.stat(p);
-              return st ? [{ kind: 'aider' as const, path: p, mtime: st.mtimeMs }] : [];
-            },
-          ),
-        ).then((l) => l.flat()),
-      );
-    if (tools.cline)
-      add('cline', path.join(h, '.cline'), (n) => n === 'job.json' || n.endsWith('.jsonl'), 5);
-    if (tools.continue)
-      add(
-        'continue',
-        path.join(h, '.continue', 'sessions'),
-        (n) => n.endsWith('.json') && n !== 'sessions.json',
-        1,
-      );
-    if (tools.cursor)
-      // cursor-agent CLI：~/.cursor/chats/<hash>/<chatId>/store.db(+-wal)，内容为私有 SQLite
-      add('cursor', path.join(h, '.cursor', 'chats'), (n) => /^store\.db(-wal)?$/.test(n), 3, 30);
     // 各工具并发扫，结果按固定顺序拼接（与同步实现一致）
     const out = (await Promise.all(jobs)).flat();
     this.scan.end();
@@ -569,33 +516,19 @@ export class AgentProgressService {
       }
       info = { phase: 'working', sessionId: id, cwd };
       return { key: `grok:${id}`, kind, path: filePath, mtime, info };
-    } else if (kind === 'gemini') {
-      // .jsonl 逐行追加：标题在开头、最新状态在末尾，各取一段拼起来（按消息 id 去重）
+    } else {
+      // gemini：.jsonl 逐行追加：标题在开头、最新状态在末尾，各取一段拼起来（按消息 id 去重）
       info = parseGeminiSession(
         filePath.endsWith('.jsonl')
           ? `${await slice(filePath, 'head', 64 * 1024)}\n${await slice(filePath, 'tail', 512 * 1024)}`
           : await slice(filePath, 'head', 4 * 1024 * 1024),
       );
-    } else if (kind === 'cursor') {
-      // 会话 = chatId 目录
-      info = { phase: 'unknown', sessionId: path.basename(path.dirname(filePath)) };
-    } else {
-      const r =
-        kind === 'continue'
-          ? parseContinueSession(await slice(filePath, 'head', 4 * 1024 * 1024))
-          : kind === 'aider'
-            ? filePath.endsWith('.jsonl')
-              ? parseAiderAnalytics(await slice(filePath, 'tail', 64 * 1024))
-              : parseAiderHistory(await slice(filePath, 'tail', 64 * 1024))
-            : parseClineJob(await slice(filePath, 'tail', 64 * 1024));
-      info = { phase: phaseOf(r), detail: r.summary };
-      if (kind === 'continue') info.title = r.summary;
     }
     const sid = info.parentId ?? info.sessionId ?? filePath;
     return { key: `${kind}:${sid}`, kind, path: filePath, mtime, info };
   }
 
-  /** 同一会话 id 的多个文件（主文件 + 子代理 / Cursor 的 db + wal）合并成一个 */
+  /** 同一会话 id 的多个文件（主文件 + 子代理）合并成一个 */
   private dedupe(cands: Candidate[]): Candidate[] {
     const by = new Map<string, Candidate>();
     for (const c of cands) {
@@ -668,12 +601,8 @@ export class AgentProgressService {
       );
       if (hit) claimed.add(hit.key);
     }
-    // aider / cline / continue 的会话文件是全局的，进程匹配不可靠：只看是否有该类进程
-    const kindsAlive = new Set(procs.map((p) => p.kind));
     for (const c of cands) {
       if (c.kind === 'dsh' && c.lockHeld !== undefined) res.set(c.key, c.lockHeld);
-      else if (c.kind === 'aider' || c.kind === 'cline' || c.kind === 'continue')
-        res.set(c.key, kindsAlive.has(c.kind) ? undefined : false);
       else res.set(c.key, claimed.has(c.key));
     }
     return res;
@@ -838,7 +767,18 @@ export class AgentProgressService {
     if (!text) return;
     this.sayWithCost(
       text,
-      agentBubbleOpts(next.status, voice),
+      {
+        endpoint: next.kind,
+        status:
+          next.status === 'failed'
+            ? 'failed'
+            : next.status === 'stalled' || next.status === 'waiting'
+              ? 'attention'
+              : 'done',
+        title: who,
+        body: next.title,
+        bubble: agentBubbleOpts(next.status, voice),
+      },
       finished && USAGE_KINDS.has(next.kind) && this.runStart.has(next.id)
         ? {
             source: next.kind,
@@ -847,23 +787,10 @@ export class AgentProgressService {
           }
         : undefined,
     );
-    notifyIsland({
-      kind: 'agent',
-      endpoint: next.kind,
-      status:
-        next.status === 'failed'
-          ? 'failed'
-          : next.status === 'stalled' || next.status === 'waiting'
-            ? 'attention'
-            : 'done',
-      title: who,
-      body: next.title,
-    });
     broadcastMascotCommand({
       type: 'motion',
       name: next.status === 'failed' || next.status === 'stalled' ? 'sorry' : 'thumbs_up',
     });
-    if (this.settings.osNotify) this.notify(next.label, text);
     next.lastRemindStatus = next.status;
     next.lastRemindAt = this.now();
     this.lastRemindAt = next.lastRemindAt;
@@ -905,8 +832,8 @@ export class AgentProgressService {
   }
 
   /**
-   * Claude 工具权限待确认：看板娘说话 + 思考动作 + 灵动岛 attention。
-   * 前台也提醒（对话区已有卡片，气泡/岛作二次提示）；后台额外可走系统通知。
+   * 工具权限待确认：看板娘在 → 气泡 + 思考动作；不在 → 灵动岛 attention（或系统通知）。
+   * 前台也提醒（对话区已有卡片，这里是二次提示）。
    */
   onPermissionNeeded(e: EndpointPermissionNeeded): void {
     if (!this.settings.enabled) return;
@@ -919,18 +846,16 @@ export class AgentProgressService {
       who,
       brief || tr('electron.common.allow-or-deny-in-the-chat'),
     );
-    this.d.desktop.say(text.slice(0, 140), {
-      voice: this.settings.summaryEnabled ? 'full' : 'cue',
-    });
-    notifyIsland({
+    this.d.desktop.notify({
       kind: 'agent',
       endpoint: e.backend,
       status: 'attention',
       title: who,
       body: brief || tr('electron.common.tool-permission-required'),
+      text: text.slice(0, 140),
+      bubble: { voice: this.settings.summaryEnabled ? 'full' : 'cue' },
     });
     broadcastMascotCommand({ type: 'motion', name: 'think' });
-    if (e.background && this.settings.osNotify) this.notify(label, text);
     this.lastRemindAt = this.now();
     this.d.logger.info('agent-progress permission needed', {
       backend: e.backend,
@@ -959,7 +884,17 @@ export class AgentProgressService {
     const tab = this.safeTabs().find((t) => t.id === e.tabId);
     this.sayWithCost(
       text,
-      agentBubbleOpts(e.ok ? 'completed' : 'failed', voice),
+      {
+        endpoint: e.backend,
+        status: e.ok ? 'done' : 'failed',
+        title: who,
+        body:
+          brief ||
+          (e.ok
+            ? tr('electron.common.this-turn-is-done')
+            : tr('electron.common.something-went-wrong')),
+        bubble: agentBubbleOpts(e.ok ? 'completed' : 'failed', voice),
+      },
       since === undefined
         ? undefined
         : e.backend === 'nomi'
@@ -968,34 +903,24 @@ export class AgentProgressService {
             ? { source: e.backend, session: tab.cliSessionId, since }
             : undefined,
     );
-    notifyIsland({
-      kind: 'agent',
-      endpoint: e.backend,
-      status: e.ok ? 'done' : 'failed',
-      title: who,
-      body:
-        brief ||
-        (e.ok
-          ? tr('electron.common.this-turn-is-done')
-          : tr('electron.common.something-went-wrong')),
-    });
     broadcastMascotCommand({ type: 'motion', name: e.ok ? 'thumbs_up' : 'sorry' });
-    if (this.settings.osNotify) this.notify(label, text);
     this.lastRemindAt = this.now();
     this.d.logger.info('agent-progress endpoint finished', { backend: e.backend, ok: e.ok });
     this.broadcast();
   }
 
   /**
-   * 说出结束播报。消息语音播报开着且能查到「本次花费」时，在末尾补一句（最多等 3 秒，
-   * 查不到 / 超时就照常播原文，不让播报被用量统计拖住）。
+   * 发出结束 / 状态提醒（看板娘在 → 气泡，不在 → 灵动岛或系统通知）。消息语音播报开着且能查到
+   * 「本次花费」时，在气泡末尾补一句（最多等 3 秒，查不到 / 超时就照常发原文，不让提醒被用量统计拖住）。
    */
   private sayWithCost(
     text: string,
-    opts: ReturnType<typeof agentBubbleOpts>,
+    n: Omit<DesktopNotice, 'kind' | 'text'>,
     q?: { source: string; session?: string; since: number },
   ): void {
-    const send = (cost: string | null) => this.d.desktop.say(withCost(text, cost), opts);
+    const send = (cost: string | null) => {
+      this.d.desktop.notify({ ...n, kind: 'agent', text: withCost(text, cost) });
+    };
     if (!q || !this.settings.summaryEnabled || !this.d.taskCost) return send(null);
     let done = false;
     const once = (cost: string | null) => {
@@ -1012,15 +937,6 @@ export class AgentProgressService {
         () => once(null),
       )
       .finally(() => clearTimeout(timer));
-  }
-
-  private notify(title: string, body: string) {
-    try {
-      if (!Notification.isSupported()) return;
-      new Notification({ title, body: body.slice(0, 180), icon: iconImage() }).show();
-    } catch (e) {
-      this.d.logger.warn('agent notify failed', String(e));
-    }
   }
 
   private broadcast() {
@@ -1098,17 +1014,16 @@ export class AgentProgressService {
         .join('；');
       if (lines) text = `${head}：${lines}`;
     }
-    this.d.desktop.say(text.slice(0, 140), {
-      kind: 'digest',
-      voice: summary ? 'full' : 'none',
-    });
     const kinds = new Set(running.map((r) => r.kind));
-    notifyIsland({
+    this.d.desktop.notify({
       kind: 'agent',
       endpoint: kinds.size === 1 ? [...kinds][0] : undefined,
       status: 'running',
       title: tr('electron.common.coding-task-s-in-progress', running.length),
       body: summary ? text.slice(head.length + 1) || breakdown : breakdown,
+      text: text.slice(0, 140),
+      bubble: { kind: 'digest', voice: summary ? 'full' : 'none' },
+      passive: true,
     });
     this.d.logger.info('agent-progress digest', { running: running.length, summary });
     return true;

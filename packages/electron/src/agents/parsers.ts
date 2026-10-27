@@ -12,17 +12,11 @@
  *   event_msg.payload.type: task_started / task_complete / user_message / agent_message / error …
  *   旧格式 / `codex exec --json`：{ type: 'turn.started'|'turn.completed'|'turn.failed' … }
  * - Gemini CLI   ~/.gemini/tmp/<projectHash>/chats/session-*.json（整份 JSON，messages[]）
- * - Aider        <repo>/.aider.chat.history.md、~/.aider/analytics.jsonl
- * - Cline        ~/.cline/**（job.json / NDJSON，CLI 模式）
- * - Continue     ~/.continue/sessions/<id>.json
  * - Grok Build   ~/.grok/sessions/<cwd>/<uuid>/updates.jsonl（mtime；内容解析见用量模块）
- * - Cursor       cursor-agent CLI：~/.cursor/chats/<hash>/<id>/（SQLite store.db，无公开格式）
- *                ——只用 mtime + 进程存活判断，不解析内容。
  */
 import { cleanTitle, foldGeminiChat, geminiText, type GeminiChat } from '@nomi-ai/cli-plugins/main';
 
-export type AgentKind =
-  'codex' | 'claude' | 'dsh' | 'grok' | 'aider' | 'cline' | 'continue' | 'cursor' | 'gemini';
+export type AgentKind = 'codex' | 'claude' | 'dsh' | 'grok' | 'gemini';
 
 /**
  * running   正在干活（模型在输出或工具在跑）
@@ -56,19 +50,6 @@ export interface SessionInfo {
   detail?: string;
   /** 最后事件的时间戳（ms）；没有则 undefined */
   lastAt?: number;
-}
-
-export interface ParseResult {
-  status: AgentStatus;
-  summary?: string;
-}
-
-const TAIL = 64 * 1024;
-
-/** 读字符串尾部（兼容旧调用） */
-export function readTail(content: string, max = TAIL): string {
-  if (content.length <= max) return content;
-  return content.slice(content.length - max);
 }
 
 export function jsonlEvents(text: string, limit = 400): Array<Record<string, unknown>> {
@@ -489,94 +470,6 @@ export function parseDshSession(text: string, fallbackSessionId?: string): Sessi
   return info;
 }
 
-// ---------------------------------------------------------------- Aider / Cline / Continue（旧接口保留）
-
-/** Aider：`.aider.chat.history.md` */
-export function parseAiderHistory(content: string): ParseResult {
-  const tail = readTail(content, 16 * 1024);
-  if (/Applied edit to /i.test(tail) || /Tokens:|Cost:/i.test(tail)) {
-    return { status: 'running', summary: 'Aider 会话有更新' };
-  }
-  if (/^# aider chat started/im.test(tail)) {
-    return { status: 'running', summary: 'Aider 会话中' };
-  }
-  return { status: 'idle' };
-}
-
-export function parseAiderAnalytics(tail: string): ParseResult {
-  const events = jsonlEvents(tail, 40);
-  for (let i = events.length - 1; i >= 0; i--) {
-    const ev = String(events[i].event ?? '');
-    if (ev === 'exit') return { status: 'completed', summary: 'Aider 已退出' };
-    if (ev === 'message_send' || ev === 'cli session' || ev === 'launched') {
-      return { status: 'running', summary: 'Aider 运行中' };
-    }
-  }
-  return { status: 'idle' };
-}
-
-/** Cline：`job.json` 或 NDJSON */
-export function parseClineJob(raw: string): ParseResult {
-  try {
-    const j = JSON.parse(raw) as Record<string, unknown>;
-    const st = String(j.status ?? '').toLowerCase();
-    if (st === 'completed' || st === 'success' || st === 'done') {
-      return { status: 'completed', summary: String(j.command ?? 'Cline 任务完成').slice(0, 120) };
-    }
-    if (st === 'error' || st === 'failed' || st === 'timed_out') {
-      return {
-        status: 'failed',
-        summary: String(j.error ?? j.command ?? 'Cline 失败').slice(0, 120),
-      };
-    }
-    if (st === 'running' || st === 'active') {
-      return { status: 'running', summary: String(j.command ?? 'Cline 运行中').slice(0, 120) };
-    }
-  } catch {
-    /* not json object */
-  }
-  const events = jsonlEvents(raw, 40);
-  for (let i = events.length - 1; i >= 0; i--) {
-    const t = String(events[i].type ?? events[i].event ?? '');
-    if (/error|fail/i.test(t)) return { status: 'failed' };
-    if (/complete|done|result/i.test(t)) return { status: 'completed' };
-    if (/start|progress|tool/i.test(t)) return { status: 'running' };
-  }
-  return { status: 'idle' };
-}
-
-/** Continue：`~/.continue/sessions/<id>.json` */
-export function parseContinueSession(raw: string): ParseResult {
-  try {
-    const j = JSON.parse(raw) as { history?: unknown[]; title?: string };
-    const hist = Array.isArray(j.history) ? j.history : [];
-    if (!hist.length) return { status: 'idle' };
-    const last = hist[hist.length - 1] as Record<string, unknown>;
-    const msg = last.message as Record<string, unknown> | undefined;
-    const role = String(msg?.role ?? last.role ?? '');
-    if (role === 'assistant' || last.toolCallStates) {
-      return { status: 'completed', summary: (j.title || 'Continue 会话').slice(0, 80) };
-    }
-    return { status: 'running', summary: (j.title || 'Continue 运行中').slice(0, 80) };
-  } catch {
-    return { status: 'idle' };
-  }
-}
-
-/** ParseResult（旧接口：aider / cline / continue）→ LastPhase */
-export function phaseOf(r: ParseResult): LastPhase {
-  switch (r.status) {
-    case 'running':
-      return 'working';
-    case 'completed':
-      return 'task-done';
-    case 'failed':
-      return 'error';
-    default:
-      return 'unknown';
-  }
-}
-
 // ---------------------------------------------------------------- 状态判定（纯函数）
 
 export interface StatusInput {
@@ -592,7 +485,7 @@ export interface StatusInput {
  * 结合「最后事件语义 + 进程存活 + 写入新鲜度」得到状态。
  * - stalled 只在：进程活着 + 上一步是工具在跑 + 超过 stallMs 无写入
  * - 进程已退出：turn-done / task-done → completed；error → failed；其余 → idle（已结束）
- * - 进程状态未知（alive=undefined，如 Cursor 无法匹配）：只信写入新鲜度
+ * - 进程状态未知（alive=undefined）：只信写入新鲜度
  */
 export function decideStatus(i: StatusInput): AgentStatus {
   const { phase, alive, ageMs, stallMs } = i;
