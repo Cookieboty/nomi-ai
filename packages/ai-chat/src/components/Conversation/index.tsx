@@ -4,7 +4,7 @@
  * 运行中同样穿插；贴底自动跟随，上滑不抢滚动条；长对话分页。
  * 消息操作：复制 / 重新生成 / 编辑重发 / 停止；排队中的待发消息。
  */
-import { Icon, t } from '@nomi-ai/ui';
+import { Icon, t, useLocale } from '@nomi-ai/ui';
 import { ArrowDown, ArrowLeftRight, ChevronsUp, Layers, X } from 'lucide-react';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
@@ -614,5 +614,7 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
 
 /** Memoized: rerenders only when its props change (App rerenders on tabs / panels do not). */
 export const ConversationView = React.memo(function ConversationView(props: ConversationViewProps) {
+  // 语言切换时重渲染：memo 挡住了根组件的更新，这里自己订阅（#140）
+  useLocale();
   return <ConversationInner key={props.scopeId} {...props} />;
 });

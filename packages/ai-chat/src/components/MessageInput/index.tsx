@@ -1,4 +1,4 @@
-import { createLogger, t as tr, Icon } from '@nomi-ai/ui';
+import { createLogger, t as tr, Icon, useLocale } from '@nomi-ai/ui';
 import { BookOpen, Blocks, X, ArrowUp, ListPlus, Plus, Square } from 'lucide-react';
 import React, {
   memo,
@@ -132,6 +132,8 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   contextModel,
   fill,
 }) => {
+  // 语言切换时重渲染：memo 挡住了根组件的更新，这里自己订阅（#140）
+  useLocale();
   const bindings = useShortcutBindings();
   const [message, setMessage] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);

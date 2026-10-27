@@ -1,4 +1,4 @@
-import { t, Icon } from '@nomi-ai/ui';
+import { t, Icon, useLocale } from '@nomi-ai/ui';
 import { Ellipsis, Pencil, Trash2 } from 'lucide-react';
 import React from 'react';
 import { type RowComponentProps } from 'react-window';
@@ -154,6 +154,8 @@ const ThreadItemImpl: React.FC<{
   onMore,
   style,
 }) => {
+  // 语言切换时重渲染：memo 挡住了根组件的更新，这里自己订阅（#140）
+  useLocale();
   const cls = `${styles.thread} ${active ? styles.threadActive : ''}`;
   const lead = (
     <>

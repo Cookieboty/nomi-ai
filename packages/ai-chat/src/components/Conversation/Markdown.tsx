@@ -1,6 +1,6 @@
 /** 助手正文的 Markdown 渲染：react-markdown + remark-gfm + rehype-highlight；
  *  components 覆盖以维持代码块复制按钮、链接协议白名单、图片放大能力。 */
-import { Icon, t } from '@nomi-ai/ui';
+import { Icon, t, useLocale } from '@nomi-ai/ui';
 import { Check, Copy } from 'lucide-react';
 import React, { memo, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
@@ -265,6 +265,8 @@ const MarkdownChunk = memo(function MarkdownChunk({
   highlight: boolean;
   cite: boolean;
 }) {
+  // 语言切换时重渲染：memo 挡住了根组件的更新，这里自己订阅（#140）
+  useLocale();
   return settled ? renderChunkCached(text, highlight, cite) : renderChunk(text, highlight, cite);
 });
 
@@ -286,6 +288,8 @@ export const Markdown: React.FC<{
   /** 知识库回答：正文里的 [n] 渲染成引用按钮（需外层 CiteProvider 提供来源） */
   citations?: boolean;
 }> = memo(({ text: source, className, settled = false, streaming = false, citations = false }) => {
+  // 语言切换时重渲染：memo 挡住了根组件的更新，这里自己订阅（#140）
+  useLocale();
   const text = useThrottledText(
     source,
     streaming ? streamRenderIntervalMs(source.length) : 0,

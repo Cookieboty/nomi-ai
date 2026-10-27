@@ -2,7 +2,7 @@
  * MemoryPanel —— 长期记忆：对话记忆（摘要，可编辑 / 置顶 / 删除）、关于我（事实）、
  * 用户档案（persona.md）、设置与导出。数据全部在本机 userData/memory。
  */
-import { ErrorState, LoadingState, t as tr, Icon } from '@nomi-ai/ui';
+import { ErrorState, LoadingState, t as tr, Icon, useLocale } from '@nomi-ai/ui';
 import {
   Badge,
   Button,
@@ -62,6 +62,8 @@ const EpisodeCard = memo(function EpisodeCard({
   e: MemEpisode;
   onMsg: (m: string) => void;
 }) {
+  // 语言切换时重渲染：memo 挡住了根组件的更新，这里自己订阅（#140）
+  useLocale();
   const [edit, setEdit] = useState(false);
   const [title, setTitle] = useState(e.title);
   const [summary, setSummary] = useState(e.summary);
@@ -201,6 +203,8 @@ const EpisodeCard = memo(function EpisodeCard({
 });
 
 const FactRow = memo(function FactRow({ f, onMsg }: { f: MemFact; onMsg: (m: string) => void }) {
+  // 语言切换时重渲染：memo 挡住了根组件的更新，这里自己订阅（#140）
+  useLocale();
   const [edit, setEdit] = useState(false);
   const [text, setText] = useState(f.text);
   const [kind, setKind] = useState<FactKind>(f.kind);

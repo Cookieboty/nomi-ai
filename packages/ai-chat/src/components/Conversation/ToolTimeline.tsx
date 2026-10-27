@@ -3,7 +3,7 @@
  * 紧凑单行（图标 + 动作摘要 + 状态 + 耗时）、连续调用折叠成分组、命令显示输出、
  * 编辑显示 diff、子代理独立折叠块、思考可折叠。默认折叠，点击展开参数与输出。
  */
-import { Icon, t } from '@nomi-ai/ui';
+import { Icon, t, useLocale } from '@nomi-ai/ui';
 import {
   Bot,
   Brain,
@@ -274,6 +274,8 @@ const CallLabel: React.FC<{ call: ToolCall }> = ({ call }) => {
 };
 
 const ToolCallRowInner: React.FC<{ call: ToolCall }> = ({ call }) => {
+  // 语言切换时重渲染：memo 挡住了根组件的更新，这里自己订阅（#140）
+  useLocale();
   const kind = describeCall(call).kind;
   // 单个编辑默认展开：直接看到改了什么
   const diffOpen = (kind === 'edit' || kind === 'write') && diffsOf(call).length > 0;
@@ -331,6 +333,8 @@ const ToolGroupInner: React.FC<{ bucket: Bucket; calls: ToolCall[]; id: string }
   calls,
   id,
 }) => {
+  // 语言切换时重渲染：memo 挡住了根组件的更新，这里自己订阅（#140）
+  useLocale();
   const status: CallStatus = calls.some((c) => c.status === 'running')
     ? 'running'
     : calls.some((c) => c.status === 'error')
@@ -484,6 +488,8 @@ const Thinking = memo(function Thinking({
   startedAt?: number;
   endedAt?: number;
 }) {
+  // 语言切换时重渲染：memo 挡住了根组件的更新，这里自己订阅（#140）
+  useLocale();
   // 流式时默认展开；结束后自动折叠。用户手动切换过就尊重用户
   const [manual, setManual] = useState<boolean | undefined>(undefined);
   const open = manual ?? running;

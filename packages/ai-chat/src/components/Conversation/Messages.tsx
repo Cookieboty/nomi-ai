@@ -1,5 +1,5 @@
 /** 会话里的消息：用户气泡、助手消息（时间线 + 正文 + 元信息）、错误卡片、消息操作 */
-import { Icon, t } from '@nomi-ai/ui';
+import { Icon, t, useLocale } from '@nomi-ai/ui';
 import { Check, CircleAlert, Copy, Layers, OctagonX, Pencil, RefreshCw } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
@@ -194,6 +194,8 @@ export const UserMessage = memo(function UserMessage({
   onEdit?: (id: string, text: string) => void;
   slots?: ConvSlots;
 }) {
+  // 语言切换时重渲染：memo 挡住了根组件的更新，这里自己订阅（#140）
+  useLocale();
   // 文件附件块从正文里拆出来画成卡片；编辑只改文字，重发时附件原样带上
   const { text: bodyText, files } = useMemo(
     () => splitFileAttachments(message.text),
@@ -295,6 +297,8 @@ export const AssistantMessage = memo(function AssistantMessage({
   onRetry?: (id: string) => void;
   slots?: ConvSlots;
 }) {
+  // 语言切换时重渲染：memo 挡住了根组件的更新，这里自己订阅（#140）
+  useLocale();
   const full = formatFullTime(message.at);
   const body = slots?.body?.(message);
   const retry = canRetry && onRetry ? () => onRetry(message.id) : undefined;

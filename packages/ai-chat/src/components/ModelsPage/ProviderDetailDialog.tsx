@@ -22,6 +22,7 @@ import {
   Textarea,
   t,
   type SelectOption,
+  useLocale,
 } from '@nomi-ai/ui';
 import {
   ArrowDown,
@@ -237,6 +238,8 @@ const ModelRow = memo(function ModelRow({
   onSet: (id: string, x: Partial<GatewayModel>) => void;
   onRemove: (id: string) => void;
 }) {
+  // 语言切换时重渲染：memo 挡住了根组件的更新，这里自己订阅（#140）
+  useLocale();
   return (
     <div className={styles.modelRow} data-testid={`pd-model-${m.id}`}>
       <label className={styles.modelCheck}>

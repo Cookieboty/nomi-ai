@@ -1,11 +1,13 @@
 /** 助手 Markdown 中的图片：协议白名单 + 懒加载 + 加载失败兜底 + 点击放大。*/
-import { Modal, t } from '@nomi-ai/ui';
+import { Modal, t, useLocale } from '@nomi-ai/ui';
 import React, { memo, useState } from 'react';
 
 import { sanitizeImgSrc } from './Markdown.helpers';
 import styles from './MarkdownImage.module.css';
 
 export const MarkdownImage: React.FC<{ src: string; alt?: string }> = memo(({ src, alt }) => {
+  // 语言切换时重渲染：memo 挡住了根组件的更新，这里自己订阅（#140）
+  useLocale();
   const safe = sanitizeImgSrc(src);
   const [failed, setFailed] = useState(false);
   const [open, setOpen] = useState(false);
