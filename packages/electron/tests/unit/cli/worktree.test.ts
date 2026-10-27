@@ -90,7 +90,7 @@ describe('worktree isolation', () => {
     fs.writeFileSync(path.join(h.worktreePath!, 'b.txt'), 'b');
     expect(fs.existsSync(path.join(d, 'b.txt'))).toBe(false);
 
-    const applied = applyWorktreeToMain(h, ['b.txt']);
+    const applied = await applyWorktreeToMain(h, ['b.txt'], () => true);
     expect(applied.applied).toEqual(['b.txt']);
     expect(applied.conflicted).toEqual([]);
     expect(fs.readFileSync(path.join(d, 'b.txt'), 'utf8')).toBe('b');
@@ -112,10 +112,42 @@ describe('worktree isolation', () => {
     fs.writeFileSync(path.join(h.worktreePath!, 'a.txt'), 'delegate change');
     fs.writeFileSync(path.join(d, 'a.txt'), 'user change');
 
-    const applied = applyWorktreeToMain(h, ['a.txt']);
+    const applied = await applyWorktreeToMain(h, ['a.txt'], () => true);
     expect(applied.applied).toEqual([]);
     expect(applied.conflicted).toEqual(['a.txt']);
     expect(fs.readFileSync(path.join(d, 'a.txt'), 'utf8')).toBe('user change');
+
+    await releaseIsolation(h);
+  });
+
+  it('does not copy files outside the authorized scope back to the main worktree (#115)', async () => {
+    const d = mkTmp();
+    git(d, ['init']);
+    git(d, ['config', 'user.email', 't@t']);
+    git(d, ['config', 'user.name', 't']);
+    fs.mkdirSync(path.join(d, 'allowed'));
+    fs.mkdirSync(path.join(d, 'sibling'));
+    fs.writeFileSync(path.join(d, 'allowed', 'a.txt'), 'a');
+    fs.writeFileSync(path.join(d, 'sibling', 'file.txt'), 'orig');
+    git(d, ['add', '.']);
+    git(d, ['commit', '-m', 'init']);
+
+    const h = await prepareIsolation(path.join(d, 'allowed'), 'task-scope');
+    fs.writeFileSync(path.join(h.worktreePath!, 'allowed', 'a.txt'), 'new a');
+    fs.writeFileSync(path.join(h.worktreePath!, 'sibling', 'file.txt'), 'tampered');
+    fs.rmSync(path.join(h.worktreePath!, 'sibling', 'file.txt'));
+
+    const seen: string[] = [];
+    const scope = fs.realpathSync(path.join(d, 'allowed')) + path.sep;
+    const r = await applyWorktreeToMain(h, ['allowed/a.txt', 'sibling/file.txt'], (dest) => {
+      seen.push(dest);
+      return fs.realpathSync(path.dirname(dest)) + path.sep === scope;
+    });
+    expect(r.applied).toEqual(['allowed/a.txt']);
+    expect(r.denied).toEqual(['sibling/file.txt']);
+    expect(seen).toHaveLength(2);
+    expect(fs.readFileSync(path.join(d, 'allowed', 'a.txt'), 'utf8')).toBe('new a');
+    expect(fs.readFileSync(path.join(d, 'sibling', 'file.txt'), 'utf8')).toBe('orig');
 
     await releaseIsolation(h);
   });

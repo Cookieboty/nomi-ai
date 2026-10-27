@@ -806,11 +806,21 @@ export class DelegateService {
     let conflictedFiles: string[] = [];
     // P3：非取消时把 worktree 改动拷回主工作树；主工作树已有改动的文件不覆盖
     if (o.status !== 'cancelled' && task.isolation.kind === 'worktree' && changedFiles.length) {
-      const { applied, conflicted } = applyWorktreeToMain(task.isolation, changedFiles);
-      conflictedFiles = conflicted;
+      // 回填目标按用户当前授权逐个检查（委派时只授权了 cwd，不能借 worktree 改到同仓库其他目录）
+      const { applied, conflicted, denied } = await applyWorktreeToMain(
+        task.isolation,
+        changedFiles,
+        async (dest) => (await this.d.desktop.broker.guard(dest, 'write', true)).ok,
+      );
+      conflictedFiles = [...conflicted, ...denied];
       if (applied.length) changedFiles = applied.slice(0, 50);
       if (conflicted.length) {
         isolationNote += ` 未覆盖主工作树中已有改动的文件：${conflicted.slice(0, 20).join(', ')}`;
+      }
+      if (denied.length) {
+        isolationNote += ` 以下文件在未授权的目录里，没有拷回主工作树（仍在 worktree 中）：${denied
+          .slice(0, 20)
+          .join(', ')}`;
       }
     }
     if (o.status === 'cancelled') {
