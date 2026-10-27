@@ -12,7 +12,7 @@
       "meta.features.title": "功能 — Nomi·诺米",
       "meta.features.desc": "Nomi·诺米 v2.0：助手与工作台、委派编程助手、统一模型网关、模型质量对比、外部 CLI、权限与沙箱、本地优先。",
       "meta.download.title": "下载 — Nomi·诺米",
-      "meta.download.desc": "下载 Nomi·诺米 v2.0.2：Linux AppImage、Windows 安装包与 macOS DMG。",
+      "meta.download.desc": "下载 Nomi·诺米 v2.0.4：Linux AppImage、Windows 安装包与 macOS DMG。",
       "meta.docs.title": "文档 — Nomi·诺米",
       "meta.docs.desc": "Nomi·诺米文档中心：快速开始、功能说明、品牌规范与发布说明。",
       "meta.privacy.title": "隐私 — Nomi·诺米",
@@ -185,7 +185,7 @@
       "privacy.band.cta": "了解隐私承诺",
 
       "cta.title": "准备好认识 Nomi 了吗？",
-      "cta.lead": "最新版 v2.0.2。安装后跟着引导选语言、主题和模型，几分钟就能开始对话。",
+      "cta.lead": "最新版 v2.0.4。安装后跟着引导选语言、主题和模型，几分钟就能开始对话。",
       "cta.download": "前往下载",
       "cta.releases": "GitHub Releases",
 
@@ -502,7 +502,7 @@
       "meta.features.title": "Features — Nomi",
       "meta.features.desc": "Nomi v2.0: Assistant & Workbench, coding-agent handoff, unified model gateway, quality comparison, external CLIs, permissions & sandbox, local-first.",
       "meta.download.title": "Download — Nomi",
-      "meta.download.desc": "Download Nomi v2.0.2 for Linux, Windows, and macOS.",
+      "meta.download.desc": "Download Nomi v2.0.4 for Linux, Windows, and macOS.",
       "meta.docs.title": "Docs — Nomi",
       "meta.docs.desc": "Nomi docs hub: getting started, feature guides, brand guidelines, and release notes.",
       "meta.privacy.title": "Privacy — Nomi",
@@ -675,7 +675,7 @@
       "privacy.band.cta": "Read our privacy promise",
 
       "cta.title": "Ready to meet Nomi?",
-      "cta.lead": "Latest is v2.0.2. Follow setup for language, theme, and model — chatting in minutes.",
+      "cta.lead": "Latest is v2.0.4. Follow setup for language, theme, and model — chatting in minutes.",
       "cta.download": "Go to download",
       "cta.releases": "GitHub Releases",
 
