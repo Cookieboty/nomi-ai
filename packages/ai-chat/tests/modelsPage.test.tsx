@@ -199,7 +199,8 @@ const kimi = (o: Partial<ProviderView> = {}): ProviderView => ({
 });
 
 async function addFlow(presetId: string, key?: string) {
-  fireEvent.click(await screen.findByTestId(`models-preset-${presetId}`));
+  // 预设要等 gateway 状态与 presets 两段异步依次返回才渲染；慢 CI（macOS）上会超过默认 1s
+  fireEvent.click(await screen.findByTestId(`models-preset-${presetId}`, {}, { timeout: 5000 }));
   if (key) fireEvent.change(screen.getByTestId('models-provider-key'), { target: { value: key } });
   fireEvent.click(screen.getByTestId('models-provider-save'));
 }
