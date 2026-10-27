@@ -6,6 +6,7 @@
  * - 去重：记录带稳定键（消息 id / 累计值 / seq），账本同键只记一次；
  *   走了 Nomi 本地路由的请求以路由记录为准，日志里同一时段的同来源记录跳过。
  * - 首次扫描只看保留期内修改过的文件；每轮扫描让出事件循环，不卡主进程。
+ * - 找文件走异步遍历（并发上限）；目录 mtime 没变就复用上一轮的目录列表。
  */
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -85,42 +86,143 @@ interface Found {
   mode: 'jsonl' | 'whole' | 'db';
 }
 
-function safeStat(p: string): fs.Stats | null {
+async function statOf(p: string): Promise<fs.Stats | null> {
   try {
-    return fs.statSync(p);
+    return await fs.promises.stat(p);
   } catch {
     return null;
   }
 }
 
-function walk(
+/** 遍历最多看多少个目录项（与旧的同步实现一致：超过后不再进入新目录） */
+const MAX_WALK_ENTRIES = 50_000;
+/** 遍历时同时进行的 stat / readdir 数（走 libuv 线程池，不占主线程） */
+const WALK_CONCURRENCY = 16;
+/**
+ * 目录 mtime 离「列目录的时刻」太近时不缓存列表：同一时间刻度里紧接着新建的文件不会再改 mtime，
+ * 缓存下来就会一直看不到它（同 git 的 racy 判定）。
+ */
+const DIR_CACHE_RACY_MS = 2000;
+
+interface DirEnt {
+  name: string;
+  dir: boolean;
+  file: boolean;
+}
+
+/** 目录列表缓存：目录 mtime / inode 没变 = 子项没有增删改名，直接复用，不再 readdir */
+interface DirListing {
+  mtimeMs: number;
+  ino: number;
+  ents: DirEnt[];
+}
+
+/** 并发上限：超过的任务排队，前面的完成一个再放一个 */
+export function createLimiter(n: number): <T>(fn: () => Promise<T>) => Promise<T> {
+  let active = 0;
+  const queue: Array<() => void> = [];
+  const next = () => {
+    if (active >= n) return;
+    const run = queue.shift();
+    if (run) {
+      active++;
+      run();
+    }
+  };
+  return <T>(fn: () => Promise<T>) =>
+    new Promise<T>((resolve, reject) => {
+      queue.push(() => {
+        fn()
+          .then(resolve, reject)
+          .finally(() => {
+            active--;
+            next();
+          });
+      });
+      next();
+    });
+}
+
+/**
+ * 异步遍历（fs.promises + 并发上限）。结果与旧的同步深度优先遍历一致：子目录列表可以提前并发去取，
+ * 但仍按原顺序深度优先消费，50k 目录项的上限也按同样的顺序计数；候选文件最后再并发 stat。
+ * 文件本身仍要 stat：往文件里追加内容不会改目录的 mtime。
+ */
+export async function walkAsync(
   dir: string,
   pred: (name: string, full: string) => boolean,
   depth: number,
   since: number,
-): Array<{ path: string; mtime: number }> {
-  const out: Array<{ path: string; mtime: number }> = [];
-  let visited = 0;
-  const go = (d: string, dep: number) => {
-    if (dep < 0 || visited > 50_000) return;
-    let ents: fs.Dirent[];
-    try {
-      ents = fs.readdirSync(d, { withFileTypes: true });
-    } catch {
-      return;
+  cache?: Map<string, DirListing>,
+  seen?: Set<string>,
+): Promise<Array<{ path: string; mtime: number }>> {
+  const limit = createLimiter(WALK_CONCURRENCY);
+  const pending = new Map<string, Promise<DirEnt[] | null>>();
+  const list = (d: string): Promise<DirEnt[] | null> => {
+    let p = pending.get(d);
+    if (!p) {
+      p = limit(() => listDir(d, cache, seen));
+      pending.set(d, p);
     }
+    return p;
+  };
+  const files: string[] = [];
+  let visited = 0;
+  const go = async (d: string, dep: number): Promise<void> => {
+    if (dep < 0 || visited > MAX_WALK_ENTRIES) return;
+    const ents = await list(d);
+    pending.delete(d);
+    if (!ents) return;
+    // 预取下一层（只在还会进入时）；消费顺序不变
+    if (dep >= 1) for (const e of ents) if (e.dir) void list(path.join(d, e.name));
     for (const e of ents) {
       visited++;
       const full = path.join(d, e.name);
-      if (e.isDirectory()) go(full, dep - 1);
-      else if (e.isFile() && pred(e.name, full)) {
-        const st = safeStat(full);
-        if (st && st.mtimeMs >= since) out.push({ path: full, mtime: st.mtimeMs });
-      }
+      if (e.dir) await go(full, dep - 1);
+      else if (e.file && pred(e.name, full)) files.push(full);
     }
   };
-  go(dir, depth);
+  await go(dir, depth);
+  // 超过上限后没进入的预取目录：等它们收尾，免得遍历返回后还有悬空的读盘
+  await Promise.all(pending.values());
+  const stats = await Promise.all(files.map((f) => limit(() => statOf(f))));
+  const out: Array<{ path: string; mtime: number }> = [];
+  files.forEach((f, i) => {
+    const st = stats[i];
+    if (st && st.mtimeMs >= since) out.push({ path: f, mtime: st.mtimeMs });
+  });
   return out.sort((a, b) => b.mtime - a.mtime).slice(0, MAX_FILES_PER_KIND);
+}
+
+async function listDir(
+  d: string,
+  cache?: Map<string, DirListing>,
+  seen?: Set<string>,
+): Promise<DirEnt[] | null> {
+  if (!cache) return readDirEnts(d);
+  const st = await statOf(d);
+  if (!st?.isDirectory()) {
+    cache.delete(d);
+    return null;
+  }
+  seen?.add(d);
+  const hit = cache.get(d);
+  if (hit && hit.mtimeMs === st.mtimeMs && hit.ino === st.ino) return hit.ents;
+  const listedAt = Date.now();
+  const ents = await readDirEnts(d);
+  if (ents && st.mtimeMs < listedAt - DIR_CACHE_RACY_MS)
+    cache.set(d, { mtimeMs: st.mtimeMs, ino: st.ino, ents });
+  else cache.delete(d);
+  return ents;
+}
+
+async function readDirEnts(d: string): Promise<DirEnt[] | null> {
+  try {
+    const ents = await fs.promises.readdir(d, { withFileTypes: true });
+    return ents.map((e) => ({ name: e.name, dir: e.isDirectory(), file: e.isFile() }));
+  } catch {
+    return null;
+  }
 }
 
 /** chats 目录下的会话文件：直接子级要 session- 前缀，更深一层（subagent）任意 .json / .jsonl */
@@ -187,6 +289,8 @@ export class UsageLogScanner {
   private readonly grokHome: string;
   private readonly env: NodeJS.ProcessEnv;
   private running = false;
+  /** 目录列表缓存（按目录 mtime 失效），跨轮复用 */
+  private readonly dirCache = new Map<string, DirListing>();
 
   constructor(private readonly d: ScannerDeps) {
     this.home = d.home ?? os.homedir();
@@ -236,10 +340,18 @@ export class UsageLogScanner {
   }
 
   /** 候选文件（各工具 mtime 倒序；只含回看窗口内修改过的） */
-  find(): Found[] {
+  async find(): Promise<Found[]> {
     const keep = RETENTION_MS[this.d.retention()];
     const since = this.now() - Math.min(keep, MAX_LOOKBACK_MS);
     const out: Found[] = [];
+    // 本轮遍历到的目录：没再遇到的（被删除 / 超出范围）从列表缓存里清掉
+    const seen = new Set<string>();
+    const walk = (
+      dir: string,
+      pred: (name: string, full: string) => boolean,
+      depth: number,
+      at: number,
+    ) => walkAsync(dir, pred, depth, at, this.dirCache, seen);
     const add = (
       source: UsageSource,
       mode: Found['mode'],
@@ -247,18 +359,10 @@ export class UsageLogScanner {
     ) => {
       for (const f of list) out.push({ source, mode, ...f });
     };
-    add(
-      'claude',
-      'jsonl',
-      walk(this.claudeDir(), (n) => n.endsWith('.jsonl'), 4, since),
-    );
-    add(
-      'codex',
-      'jsonl',
-      walk(this.codexDir(), (n) => n.endsWith('.jsonl'), 4, since),
-    );
+    add('claude', 'jsonl', await walk(this.claudeDir(), (n) => n.endsWith('.jsonl'), 4, since));
+    add('codex', 'jsonl', await walk(this.codexDir(), (n) => n.endsWith('.jsonl'), 4, since));
     // dsh：明文 jsonl 可增量；.zstd 要整份解压
-    const dshFiles = walk(
+    const dshFiles = await walk(
       path.join(this.dshHome, 'sessions'),
       // V0 是 session.jsonl，之后是 session.v<N>.jsonl（可能 zstd 压缩）
       (n) => /^session(\.v\d+)?\.jsonl(\.zstd)?$/.test(n),
@@ -279,13 +383,13 @@ export class UsageLogScanner {
     add(
       'grok',
       'jsonl',
-      walk(path.join(this.grokHome, 'sessions'), (n) => n === 'updates.jsonl', 4, since),
+      await walk(path.join(this.grokHome, 'sessions'), (n) => n === 'updates.jsonl', 4, since),
     );
     // Gemini：chats/session-*.json(l)；subagent 在 chats/<父id>/<子id>.jsonl（要递归）
     add(
       'gemini',
       'whole',
-      walk(
+      await walk(
         path.join(geminiDir(this.home, this.env), 'tmp'),
         (n, full) => isGeminiChatFile(n, full),
         5,
@@ -296,7 +400,7 @@ export class UsageLogScanner {
     add(
       'qwen',
       'jsonl',
-      walk(
+      await walk(
         path.join(qwenDir(this.home, this.env), 'tmp'),
         (n, full) => n.endsWith('.jsonl') && full.includes(`${path.sep}chats${path.sep}`),
         4,
@@ -308,19 +412,20 @@ export class UsageLogScanner {
       add(
         'kimi',
         'jsonl',
-        walk(path.join(root, 'sessions'), (n) => n === 'wire.jsonl', 6, since),
+        await walk(path.join(root, 'sessions'), (n) => n === 'wire.jsonl', 6, since),
       );
     // SQLite：OpenCode / Copilot CLI（读之前先看库是否变过）
     for (const [source, file] of [
       ['opencode', this.opencodeDb()],
       ['copilot', this.copilotDb()],
     ] as const) {
-      const dbSt = safeStat(file);
+      const dbSt = await statOf(file);
       if (dbSt) add(source, 'db', [{ path: file, mtime: dbSt.mtimeMs }]);
     }
     const aider = path.join(this.home, '.aider', 'analytics.jsonl');
-    const st = safeStat(aider);
+    const st = await statOf(aider);
     if (st && st.mtimeMs >= since) add('aider', 'jsonl', [{ path: aider, mtime: st.mtimeMs }]);
+    for (const d of this.dirCache.keys()) if (!seen.has(d)) this.dirCache.delete(d);
     return out;
   }
 
@@ -333,7 +438,7 @@ export class UsageLogScanner {
     try {
       // 游标与路由去重都依赖完整账本：大账本后台载入完成前先等
       await this.d.ledger.whenReady();
-      for (const f of this.find()) {
+      for (const f of await this.find()) {
         if (this.d.routeBusy?.(f.source)) continue;
         try {
           const n =
@@ -429,7 +534,7 @@ export class UsageLogScanner {
   /** 增量读 jsonl；返回新增条数，-1 = 没有变化（跳过） */
   private async readJsonl(f: Found): Promise<number> {
     const { ledger } = this.d;
-    const st = safeStat(f.path);
+    const st = await statOf(f.path);
     if (!st) return -1;
     let cur = ledger.cursor(f.path);
     if (cur && st.size < cur.offset) cur = undefined; // 被截断 / 替换：从头读
@@ -540,7 +645,7 @@ export class UsageLogScanner {
   /** 整份解析（Gemini JSON / dsh zstd）；返回新增条数，-1 = 没有变化 */
   private async readWhole(f: Found): Promise<number> {
     const { ledger } = this.d;
-    const st = safeStat(f.path);
+    const st = await statOf(f.path);
     if (!st) return -1;
     const cur = ledger.cursor(f.path);
     if (cur && cur.size === st.size && cur.mtimeMs === st.mtimeMs) return -1;
@@ -600,7 +705,7 @@ export class UsageLogScanner {
       }
     }
     const added = this.ingest(recs);
-    const st = safeStat(f.path);
+    const st = await statOf(f.path);
     // 一批读满时不记 sig，下一轮继续追
     ledger.setCursor(f.path, {
       offset: st?.size ?? 0,
