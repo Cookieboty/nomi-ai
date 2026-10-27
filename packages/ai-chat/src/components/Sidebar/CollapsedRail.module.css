@@ -1,0 +1,103 @@
+/* 侧栏收起时的对话方块：和收起态的图标按钮同宽，竖向滚动 */
+.rail {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--cd-space-1);
+  min-height: 0;
+  padding: var(--cd-space-2) 0;
+  margin-top: var(--cd-space-1);
+  border-top: 1px solid var(--cd-panel-border);
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.rail::-webkit-scrollbar {
+  display: none;
+}
+.item {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--cd-control-h-md);
+  height: var(--cd-control-h-md);
+  border: 1px solid transparent;
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-color-surface-sunken);
+  color: var(--cd-color-text-muted);
+  cursor: pointer;
+  transition:
+    background-color var(--cd-duration-fast) var(--cd-ease),
+    color var(--cd-duration-fast) var(--cd-ease);
+}
+.item:hover {
+  background: var(--cd-color-hover);
+  color: var(--cd-color-text);
+}
+.item[data-active] {
+  background: var(--cd-color-selected-bg);
+  border-color: var(--cd-color-accent);
+  color: var(--cd-color-text);
+}
+.item:focus-visible,
+.more:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 1px;
+}
+/* 运行 / 新结果 / 出错：右上角状态点 */
+.dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+}
+.more {
+  flex: none;
+  min-height: var(--cd-control-h-xs);
+  padding: 0 var(--cd-space-1-5);
+  border: none;
+  border-radius: var(--cd-radius-md);
+  background: transparent;
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-subtle);
+  cursor: pointer;
+}
+.more:hover {
+  background: var(--cd-color-hover);
+  color: var(--cd-color-text);
+}
+@media (prefers-reduced-motion: reduce) {
+  .item {
+    transition: none;
+  }
+}
+/* 悬停 / 聚焦卡片：挂在 body 上，贴着方块右侧垂直居中，立即出现 */
+.peek {
+  position: fixed;
+  z-index: 3000;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 280px;
+  padding: var(--cd-space-1-5) var(--cd-space-2);
+  border: 1px solid var(--cd-panel-border);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-color-surface-raised);
+  box-shadow: var(--cd-shadow-md);
+  pointer-events: none;
+}
+.peekTitle {
+  overflow: hidden;
+  font-size: var(--cd-font-size-sm);
+  font-weight: var(--cd-font-weight-medium);
+  color: var(--cd-color-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.peekMeta {
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+  white-space: nowrap;
+}

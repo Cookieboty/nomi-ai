@@ -145,27 +145,24 @@ const renderCard = (
 };
 
 describe('按端信息卡（左下角）', () => {
-  it('展示端图标 / 名称 / 版本 / 安装状态 / 登录方式 / 套餐 / 迷你额度条 / 今日用量 / 运行中', async () => {
-    const { findByTestId, getByTestId } = renderCard();
+  it('精简：端图标 / 名称 / 套餐，只有最吃紧的一个额度窗口，今日花费；其余在抽屉里', async () => {
+    const { findByTestId, getByTestId, queryByTestId } = renderCard();
     const card = await findByTestId('endpoint-info-card');
-    await waitFor(() => expect(card.textContent).toContain('v0.46.0'));
+    await waitFor(() => expect(getByTestId('endpoint-card-auth').textContent).toBe('Plus'));
     expect(card.querySelector('[data-testid="endpoint-icon-codex"]')).toBeTruthy();
     expect(card.textContent).toContain('Codex');
-    expect(getByTestId('endpoint-card-install').textContent).toBe('已安装');
-    await waitFor(() =>
-      expect(getByTestId('endpoint-card-auth').textContent).toContain('账号登录'),
-    );
-    expect(card.textContent).toContain('Plus');
-    expect(getByTestId('endpoint-card-running').textContent).toContain('运行中 1');
-    // 迷你进度条：两个窗口，带 aria 值
-    await waitFor(() => expect(card.querySelectorAll('[role="progressbar"]')).toHaveLength(2));
-    const bars = card.querySelectorAll('[role="progressbar"]');
-    expect(bars[0]!.getAttribute('aria-valuenow')).toBe('32');
-    expect(bars[1]!.getAttribute('aria-valuenow')).toBe('74');
-    expect(card.textContent).toContain('5 小时');
+    expect(card.textContent).not.toContain('v0.46.0');
+    expect(card.textContent).not.toContain('已安装');
+    expect(card.textContent).not.toContain('账号登录');
+    expect(queryByTestId('endpoint-card-running')).toBeNull();
+    expect(queryByTestId('cli-default-source')).toBeNull();
+    // 只显示占用最高的那个窗口（每周 74%，不是 5 小时 32%）
+    await waitFor(() => expect(card.querySelectorAll('[role="progressbar"]')).toHaveLength(1));
+    expect(card.querySelector('[role="progressbar"]')!.getAttribute('aria-valuenow')).toBe('74');
     expect(card.textContent).toContain('每周');
-    await waitFor(() => expect(getByTestId('endpoint-card-usage').textContent).toContain('12.3K'));
-    expect(getByTestId('endpoint-card-usage').textContent).toContain('$0.120');
+    expect(card.textContent).not.toContain('5 小时');
+    await waitFor(() => expect(getByTestId('endpoint-card-usage').textContent).toContain('$0.120'));
+    expect(getByTestId('endpoint-card-usage').textContent).not.toContain('12.3K');
     // 卡片不展示默认模型或历史用量模型，避免混淆两种含义
     expect(card.textContent).not.toContain('gpt-5 · OpenAI');
   });
@@ -185,12 +182,13 @@ describe('按端信息卡（左下角）', () => {
     expect(document.querySelector('[data-testid="endpoint-drawer"]')).toBeNull();
   });
 
-  it('dsh（固定 API）：显示「API 计费，无订阅额度」，没有进度条；刷新只重读用量', async () => {
+  it('dsh（固定 API）：标「API 密钥」，没有进度条；刷新只重读用量', async () => {
     const { findByTestId, getByTestId } = renderCard('dsh');
     const card = await findByTestId('endpoint-info-card');
-    await waitFor(() => expect(card.textContent).toContain('API 计费，无订阅额度'));
+    await waitFor(() =>
+      expect(getByTestId('endpoint-card-auth').textContent).toContain('API 密钥'),
+    );
     expect(card.querySelector('[role="progressbar"]')).toBeNull();
-    expect(getByTestId('endpoint-card-auth').textContent).toContain('API 密钥');
     fireEvent.click(getByTestId('endpoint-card-refresh'));
     await waitFor(() =>
       expect(calls.filter((c) => c[0] === 'ai:usage:endpoint').length).toBeGreaterThanOrEqual(2),
@@ -211,8 +209,9 @@ describe('按端信息卡（左下角）', () => {
   it('安装状态以编程助手接入检测为准（mock / 自定义路径时 CLI 版本信息里没有路径也算已安装）', async () => {
     cli = [CLI('codex', { path: null, version: null, updateAvailable: false })];
     const { findByTestId, getByTestId } = renderCard('codex', '/mock/mock-codex.mjs');
-    await findByTestId('endpoint-info-card');
-    await waitFor(() => expect(getByTestId('endpoint-card-install').textContent).toBe('已安装'));
+    const card = await findByTestId('endpoint-info-card');
+    await waitFor(() => expect(getByTestId('endpoint-card-usage')).toBeTruthy());
+    expect(card.textContent).not.toContain('未安装');
     cleanup();
     const second = renderCard('codex', null);
     await waitFor(() =>
@@ -226,11 +225,13 @@ describe('按端信息卡（左下角）', () => {
     expect((await findByTestId('endpoint-card-error')).textContent).toContain('endpoint boom');
   });
 
-  it('Nomi：内置、无版本检查、无额度条', async () => {
-    const { findByTestId } = renderCard('nomi');
+  it('Nomi：标「API 密钥」、无额度条', async () => {
+    const { findByTestId, getByTestId } = renderCard('nomi');
     const card = await findByTestId('endpoint-info-card');
-    expect(card.textContent).toContain('内置');
-    await waitFor(() => expect(card.textContent).toContain('API 计费，无订阅额度'));
+    await waitFor(() =>
+      expect(getByTestId('endpoint-card-auth').textContent).toContain('API 密钥'),
+    );
+    expect(card.querySelector('[role="progressbar"]')).toBeNull();
   });
 });
 
@@ -238,7 +239,7 @@ describe('按端详情抽屉', () => {
   const openDrawer = async (backend: 'codex' | 'dsh' | 'nomi' = 'codex') => {
     const r = renderCard(backend);
     await r.findByTestId('endpoint-info-card');
-    await waitFor(() => expect(r.getByTestId('endpoint-card-install')).toBeTruthy());
+    await waitFor(() => expect(r.getByTestId('endpoint-card-usage')).toBeTruthy());
     fireEvent.click(r.getByTestId('endpoint-card-open'));
     const dlg = await r.findByTestId('endpoint-drawer');
     return { ...r, dlg };

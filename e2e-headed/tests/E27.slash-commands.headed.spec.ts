@@ -116,7 +116,7 @@ async function launch(
   await chat.setViewportSize({ width: 1100, height: 760 }).catch(() => undefined);
   if (dev) {
     await chat.locator('[data-testid="chat-mode-dev"]').click({ timeout: 30_000 });
-    await chat.locator('[data-testid="chat-tabs"]').waitFor({ timeout: 30_000 });
+    await chat.locator('[data-testid="list-view-all"]').waitFor({ timeout: 30_000 });
   }
   return { app, chat };
 }
@@ -155,9 +155,9 @@ const invoke = (chat: Page, channel: string, ...args: unknown[]) =>
   );
 
 async function newTab(chat: Page, backend: 'claude' | 'codex' | 'grok') {
-  await chat.click('[data-testid="chat-tab-add"]');
-  await chat.locator('[data-testid="chat-tab-menu"]').waitFor();
-  await chat.click(`[data-testid="chat-tab-new-${backend}"]`);
+  await chat.click('[data-testid="new-chat"]');
+  await chat.locator('[data-testid="new-chat-menu"]').waitFor();
+  await chat.click(`[data-testid="new-chat-${backend}"]`);
   await expect(chat.locator('[data-testid="chat-input"]')).toBeEnabled();
 }
 
@@ -342,12 +342,11 @@ test.describe('E27 · slash commands', () => {
     await chat.keyboard.press('Escape');
     await expect(panel).toBeHidden();
 
-    // 10) /new：同目录开新标签
-    const tabsBefore = await chat.locator('[data-testid^="chat-tab-"]').count();
+    // 10) /new：同目录开新会话（侧栏多一行）
+    const sessions = chat.locator('[data-testid="history-item"]:not([data-backend="nomi"])');
+    const tabsBefore = await sessions.count();
     await run(chat, '/new');
-    await expect
-      .poll(async () => chat.locator('[data-testid^="chat-tab-"]').count())
-      .toBeGreaterThan(tabsBefore);
+    await expect.poll(async () => sessions.count()).toBeGreaterThan(tabsBefore);
     await expect(chat.locator('[data-testid="cli-tab-empty"]')).toBeVisible();
   });
 

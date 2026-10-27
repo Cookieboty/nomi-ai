@@ -66,7 +66,7 @@ async function launch(
   await chat.setViewportSize({ width: 1100, height: 740 }).catch(() => undefined);
   if (dev) {
     await chat.locator('[data-testid="chat-mode-dev"]').click({ timeout: 30_000 });
-    await chat.locator('[data-testid="chat-tabs"]').waitFor({ timeout: 30_000 });
+    await chat.locator('[data-testid="list-view-all"]').waitFor({ timeout: 30_000 });
   }
   return { app, chat };
 }
@@ -212,9 +212,9 @@ function assertLayout(m: Measure, label: string) {
 }
 
 async function newTab(chat: Page, backend: 'claude' | 'codex' | 'grok' | 'dsh') {
-  await chat.click('[data-testid="chat-tab-add"]');
-  await chat.locator('[data-testid="chat-tab-menu"]').waitFor();
-  await chat.click(`[data-testid="chat-tab-new-${backend}"]`);
+  await chat.click('[data-testid="new-chat"]');
+  await chat.locator('[data-testid="new-chat-menu"]').waitFor();
+  await chat.click(`[data-testid="new-chat-${backend}"]`);
   await expect(chat.locator('[data-testid="chat-input"]')).toBeEnabled();
 }
 

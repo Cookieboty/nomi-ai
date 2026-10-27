@@ -41,12 +41,37 @@ describe('SettingsView', () => {
     const onClose = vi.fn();
     const { getByTestId } = render(<Harness onClose={onClose} />);
     for (const s of SETTINGS_SECTIONS) expect(getByTestId(`settings-nav-${s.id}`)).toBeTruthy();
-    expect(SETTINGS_SECTIONS.map((s) => s.label)).toContain('ui.chat-settings.local-tools');
+    expect(SETTINGS_SECTIONS.map((s) => s.label)).toContain('ui.chat-settings.usage-and-quality');
     expect(getByTestId('settings-privacy')).toBeTruthy();
     fireEvent.click(getByTestId('settings-nav-general'));
     expect(getByTestId('settings-nav-general').getAttribute('aria-current')).toBe('page');
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(onClose).toHaveBeenCalled();
+  });
+});
+
+describe('SettingsView 导航收起（跟随对话侧栏）', () => {
+  it('收起时只留图标：文字隐藏、按钮带名称，仍可切换分区', () => {
+    const onSection = vi.fn();
+    const r = render(
+      <AiChatContextProvider>
+        <SettingsView section="general" onSection={onSection} onClose={() => undefined} collapsed />
+      </AiChatContextProvider>,
+    );
+    expect(r.getByTestId('settings-nav').getAttribute('data-collapsed')).toBe('true');
+    const models = r.getByTestId('settings-nav-models');
+    expect(models.getAttribute('aria-label')).toBe('模型与供应商');
+    expect(models.getAttribute('title')).toBe('模型与供应商');
+    fireEvent.click(models);
+    expect(onSection).toHaveBeenCalledWith('models');
+    cleanup();
+    const open = render(
+      <AiChatContextProvider>
+        <SettingsView section="general" onSection={onSection} onClose={() => undefined} />
+      </AiChatContextProvider>,
+    );
+    expect(open.getByTestId('settings-nav').getAttribute('data-collapsed')).toBeNull();
+    expect(open.getByTestId('settings-nav-models').getAttribute('aria-label')).toBeNull();
   });
 });
 
@@ -57,14 +82,16 @@ describe('SettingsView 合并后的标签页分区', () => {
   it('隐私与权限：默认「隐私与数据」，可切到「桌面权限」，方向键切换且 aria 状态正确', () => {
     const r = render(<Harness onClose={() => undefined} />);
     const page = 'settings-privacy-page';
-    expect(tabs(r, page)).toHaveLength(3);
+    expect(tabs(r, page)).toHaveLength(4);
     expect(r.getByTestId(`${page}-tab-data`).getAttribute('aria-selected')).toBe('true');
     expect(r.getByTestId('settings-privacy')).toBeTruthy();
     // 数据页里的「文件夹授权与操作记录」跳到「桌面权限」标签
     fireEvent.click(r.getByText('文件夹授权与操作记录'));
     expect(r.getByTestId(`${page}-tab-desktop`).getAttribute('aria-selected')).toBe('true');
     expect(r.queryByTestId('settings-privacy')).toBeNull();
-    // 方向键循环并移动焦点
+    // 方向键循环并移动焦点：桌面权限 → 数据导出 → 回到隐私与数据
+    fireEvent.keyDown(r.getByTestId(`${page}-tabs`), { key: 'ArrowRight' });
+    expect(r.getByTestId(`${page}-tab-export`).getAttribute('aria-selected')).toBe('true');
     fireEvent.keyDown(r.getByTestId(`${page}-tabs`), { key: 'ArrowRight' });
     expect(r.getByTestId(`${page}-tab-data`).getAttribute('aria-selected')).toBe('true');
     expect(document.activeElement).toBe(r.getByTestId(`${page}-tab-data`));
@@ -84,14 +111,16 @@ describe('SettingsView 合并后的标签页分区', () => {
     expect(r.queryByTestId('settings-privacy')).toBeNull();
   });
 
-  it('深链接标签：desktop / memory / notes / calendar / screen 分别落在对应标签', () => {
+  it('深链接标签：desktop / export / memory / schedule / local / requests 分别落在对应标签', () => {
     const cases: Array<[SettingsSection, SettingsTab, string]> = [
       ['privacy', 'desktop', 'settings-privacy-page'],
       ['privacy', 'outbound', 'settings-privacy-page'],
+      ['privacy', 'export', 'settings-privacy-page'],
       ['knowledge', 'memory', 'settings-knowledge'],
-      ['knowledge', 'notes', 'settings-knowledge'],
-      ['schedule', 'calendar', 'settings-schedule'],
-      ['senses', 'screen', 'settings-senses'],
+      ['knowledge', 'schedule', 'settings-knowledge'],
+      ['general', 'notify', 'settings-general-page'],
+      ['models', 'local', 'settings-models-page'],
+      ['usage', 'requests', 'settings-usage-page'],
     ];
     for (const [section, tab, page] of cases) {
       const r = render(<Harness onClose={() => undefined} start={section} deepLink={{ tab }} />);
@@ -101,16 +130,13 @@ describe('SettingsView 合并后的标签页分区', () => {
     }
   });
 
-  it('知识与记忆、日程与日历：默认第一个标签，点击切换', () => {
+  it('知识与记忆：默认第一个标签，点击切换；日程是第三个标签', () => {
     const k = render(<Harness onClose={() => undefined} start="knowledge" />);
     expect(k.getByTestId('settings-knowledge').getAttribute('data-tab')).toBe('kb');
     fireEvent.click(k.getByTestId('settings-knowledge-tab-memory'));
     expect(k.getByTestId('settings-knowledge').getAttribute('data-tab')).toBe('memory');
-    cleanup();
-    const s = render(<Harness onClose={() => undefined} start="schedule" />);
-    expect(s.getByTestId('settings-schedule').getAttribute('data-tab')).toBe('reminders');
-    fireEvent.click(s.getByTestId('settings-schedule-tab-calendar'));
-    expect(s.getByTestId('settings-calendar')).toBeTruthy();
+    fireEvent.click(k.getByTestId('settings-knowledge-tab-schedule'));
+    expect(k.getByTestId('settings-schedule')).toBeTruthy();
   });
 
   it('侧栏品牌头；「通用」顶部是横幅且无可见页头；其余分区有标题 + 说明、无横幅', () => {
@@ -152,22 +178,22 @@ describe('SettingsView 合并后的标签页分区', () => {
       if (s.id !== 'general') expect(SECTION_HELP[s.id].length).toBeGreaterThan(0);
   });
 
-  it('快捷键：「应用内快捷键 / 全局快捷键」两个标签，全局只列系统注册的截图快捷键', () => {
-    const r = render(<Harness onClose={() => undefined} start="shortcuts" />);
-    const page = 'settings-shortcuts-page';
-    expect(r.getByTestId(`${page}-tab-app`).getAttribute('aria-selected')).toBe('true');
+  it('快捷键：只有应用内快捷键一张表，没有内层标签', () => {
+    const r = render(
+      <Harness onClose={() => undefined} start="general" deepLink={{ tab: 'shortcuts' }} />,
+    );
     expect(r.getByTestId('settings-shortcuts')).toBeTruthy();
-    fireEvent.click(r.getByTestId(`${page}-tab-global`));
-    expect(r.queryByTestId('settings-shortcuts')).toBeNull();
-    const global = r.getByTestId('settings-shortcuts-global');
-    expect(global.querySelectorAll('tbody tr')).toHaveLength(1);
-    expect(global.textContent).toContain('截图提问');
+    expect(r.queryByTestId('settings-shortcuts-page-tabs')).toBeNull();
+    expect(r.queryByTestId('settings-shortcuts-global')).toBeNull();
+    expect(r.getByTestId('settings-shortcuts').textContent).not.toContain('截图');
   });
 
   it('快捷键冲突时顶部出现横幅，列出冲突项；恢复后消失', async () => {
     const { setBinding, resetBindings } = await import('../src/services/shortcuts');
     setBinding('newChat', 'Mod+K'); // 与「命令面板」相同
-    const r = render(<Harness onClose={() => undefined} start="shortcuts" />);
+    const r = render(
+      <Harness onClose={() => undefined} start="general" deepLink={{ tab: 'shortcuts' }} />,
+    );
     const banner = r.getByTestId('shortcut-conflict-banner');
     expect(banner.textContent).toContain('命令面板');
     expect(banner.textContent).toContain('新对话');
@@ -196,17 +222,21 @@ describe('SettingsView 合并后的标签页分区', () => {
     expect(r.getByTestId('settings-reopen-onboarding')).toBeTruthy();
   });
 
-  it('「模型质量」在「模型」后面，点开懒加载面板', async () => {
+  it('「用量与质量」：默认用量与费用，切到「对比」懒加载质量面板（不再有自己的标签条）', async () => {
     const r = render(<Harness onClose={() => undefined} start="models" />);
-    fireEvent.click(r.getByTestId('settings-nav-quality'));
-    expect(r.getByTestId('settings-nav-quality').getAttribute('aria-current')).toBe('page');
-    expect(r.getByTestId('settings-section-title').textContent).toBe('模型质量');
-    expect(await r.findByTestId('settings-quality')).toBeTruthy();
-  });
+    fireEvent.click(r.getByTestId('settings-nav-usage'));
+    expect(r.getByTestId('settings-nav-usage').getAttribute('aria-current')).toBe('page');
+    expect(r.getByTestId('settings-section-title').textContent).toBe('用量与质量');
+    expect(r.getByTestId('settings-usage-page').getAttribute('data-tab')).toBe('cost');
+    fireEvent.click(r.getByTestId('settings-usage-page-tab-compare'));
+    // 懒加载 chunk 在 Windows CI 上冷启动可能超过默认 1s
+    const q = await r.findByTestId('settings-quality', {}, { timeout: 10_000 });
+    expect(q.querySelector('[role="tablist"]')).toBeNull();
+  }, 20_000);
 
   it('宽分区（模型质量）不显示右侧说明栏，页头「说明」按钮在页头下展开同一组说明', async () => {
     const { SECTION_HELP } = await import('../src/components/SettingsView/sectionHelp');
-    const r = render(<Harness onClose={() => undefined} start="quality" />);
+    const r = render(<Harness onClose={() => undefined} start="usage" />);
     expect(r.queryByTestId('settings-help')).toBeNull();
     expect(r.queryByTestId('settings-help-inline')).toBeNull();
     const toggle = r.getByTestId('settings-help-toggle');
@@ -214,7 +244,7 @@ describe('SettingsView 合并后的标签页分区', () => {
     fireEvent.click(toggle);
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
     const help = r.getByTestId('settings-help-inline');
-    expect(help.querySelectorAll('li')).toHaveLength(SECTION_HELP.quality.length);
+    expect(help.querySelectorAll('li')).toHaveLength(SECTION_HELP.usage.length);
     fireEvent.click(toggle);
     expect(r.queryByTestId('settings-help-inline')).toBeNull();
     // 普通分区没有这个按钮
@@ -223,58 +253,41 @@ describe('SettingsView 合并后的标签页分区', () => {
     expect(r.getByTestId('settings-help')).toBeTruthy();
   });
 
-  it('菜单只有合并后的 13 个分区', () => {
+  it('菜单只有合并后的 7 个分区', () => {
     const r = render(<Harness onClose={() => undefined} />);
     const ids = r
       .getAllByTestId(/^settings-nav-/)
       .map((e) => e.getAttribute('data-testid')!.replace('settings-nav-', ''));
-    expect(ids).toEqual([
-      'general',
-      'shortcuts',
-      'models',
-      'quality',
-      'coding',
-      'usage',
-      'senses',
-      'knowledge',
-      'schedule',
-      'notify',
-      'ext',
-      'local',
-      'privacy',
+    expect(ids).toEqual(['general', 'models', 'coding', 'usage', 'knowledge', 'ext', 'privacy']);
+  });
+
+  it('通用：默认「通用」，还有快捷键 / 语音 / 通知标签', () => {
+    const r = render(<Harness onClose={() => undefined} start="general" />);
+    const page = 'settings-general-page';
+    expect(r.getByTestId(page).getAttribute('data-tab')).toBe('basics');
+    expect([...tabs(r, page)].map((x) => x.textContent)).toEqual([
+      '通用',
+      '快捷键',
+      '语音',
+      '通知 / 灵动岛',
     ]);
+    fireEvent.click(r.getByTestId(`${page}-tab-notify`));
+    expect(r.getByTestId(page).getAttribute('data-tab')).toBe('notify');
   });
 
-  it('语音与屏幕：默认「语音」，可切到「屏幕」', () => {
-    const r = render(<Harness onClose={() => undefined} start="senses" />);
-    expect(r.getByTestId('settings-senses').getAttribute('data-tab')).toBe('voice');
-    fireEvent.click(r.getByTestId('settings-senses-tab-screen'));
-    expect(r.getByTestId('settings-senses').getAttribute('data-tab')).toBe('screen');
-  });
-
-  it('隐私页「屏幕记忆与排除」跳到 语音与屏幕 → 屏幕 → 隐私与排除；从侧栏再进入则回到默认', async () => {
+  it('隐私页「导出」按钮切到同页的「数据导出」标签', () => {
     const r = render(<Harness onClose={() => undefined} />);
-    fireEvent.click(r.getByText('屏幕记忆与排除'));
-    expect(r.getByTestId('settings-senses').getAttribute('data-tab')).toBe('screen');
-    // 屏幕面板是懒加载的：整仓并行跑时加载可能超过默认的 1 秒
-    const inner = await r.findByRole('tab', { name: '隐私与排除' }, { timeout: 5000 });
-    expect(inner.getAttribute('aria-selected')).toBe('true');
-    fireEvent.click(r.getByTestId('settings-nav-general'));
-    fireEvent.click(r.getByTestId('settings-nav-senses'));
-    fireEvent.click(r.getByTestId('settings-senses-tab-screen'));
-    const again = await r.findByRole('tab', { name: '隐私与排除' }, { timeout: 5000 });
-    expect(again.getAttribute('aria-selected')).toBe('false');
+    fireEvent.click(r.getByTestId('privacy-export'));
+    expect(r.getByTestId('settings-privacy-page').getAttribute('data-tab')).toBe('export');
+    expect(r.getByTestId('settings-nav-privacy').getAttribute('aria-current')).toBe('page');
   });
 
-  it('知识与记忆有「笔记」标签；桌面权限里不再有笔记 / 提醒', () => {
+  it('知识与记忆没有「笔记」标签；隐私页没有屏幕记忆入口', () => {
     const k = render(<Harness onClose={() => undefined} start="knowledge" />);
-    expect(k.getByTestId('settings-knowledge-tab-notes').textContent).toBe('笔记');
+    expect(k.queryByTestId('settings-knowledge-tab-notes')).toBeNull();
     cleanup();
-    const p = render(
-      <Harness onClose={() => undefined} start="privacy" deepLink={{ tab: 'desktop' }} />,
-    );
-    expect(p.queryByRole('tab', { name: '笔记' })).toBeNull();
-    expect(p.queryByRole('tab', { name: '提醒' })).toBeNull();
+    const p = render(<Harness onClose={() => undefined} start="privacy" />);
+    expect(p.queryByText('屏幕记忆与排除')).toBeNull();
   });
 });
 

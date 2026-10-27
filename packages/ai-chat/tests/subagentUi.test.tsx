@@ -3,7 +3,6 @@ import { cleanup, fireEvent, render, within } from '@testing-library/react';
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { tabDotStatus } from '../src/components/ChatTabs';
 import { ConversationView } from '../src/components/Conversation';
 import { liveOf } from '../src/components/Sidebar/SidebarRows';
 import type { HarnessTabMeta, HarnessTraceEvent } from '../src/services/harnessClient';
@@ -137,10 +136,6 @@ describe('标签圆点：空闲但有后台任务', () => {
     ...over,
   });
   it('顶栏与侧栏都显示「后台运行中」；运行中 / 未读优先', () => {
-    expect(tabDotStatus(tab({ background: 2 }))).toBe('background');
     expect(liveOf(tab({ background: 2 }))).toBe('background');
-    expect(tabDotStatus(tab({ background: 2, status: 'running' }))).toBe('running');
-    expect(tabDotStatus(tab({ background: 2, unread: 1 }))).toBe('unread');
-    expect(tabDotStatus(tab({}))).toBe('idle');
   });
 });

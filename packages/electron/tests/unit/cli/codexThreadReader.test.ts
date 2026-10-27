@@ -97,7 +97,7 @@ describe('CodexThreadReader（主进程 ↔ worker）', () => {
     const { r, spawn, workers } = setup();
     const p = r.read('/x/a');
     workers[0]!.crash();
-    await expect(p).rejects.toThrow('退出');
+    await expect(p).rejects.toThrow('exited');
     expect(workers[0]!.terminated).toBe(true);
     expect(await r.read('/x/b')).toEqual([{ id: 'b' }]);
     expect(spawn).toHaveBeenCalledTimes(2);
@@ -123,7 +123,7 @@ describe('CodexThreadReader（主进程 ↔ worker）', () => {
     await r.read('/x/a');
     workers[0]!.hang = true; // 之后的请求不再回复
     const q = r.read('/x/b');
-    await expect(q).rejects.toThrow('超时');
+    await expect(q).rejects.toThrow('timed out');
     expect(workers[0]!.terminated).toBe(true);
     expect(r.inProcess).toBe(false);
     expect(await r.read('/x/c')).toEqual([{ id: 'c' }]);
@@ -160,7 +160,7 @@ describe('CodexThreadReader（主进程 ↔ worker）', () => {
     const { r } = setup();
     const p = r.read('/x/a');
     r.shutdown();
-    await expect(p).rejects.toThrow('关闭');
+    await expect(p).rejects.toThrow('closed');
   });
 });
 
@@ -218,7 +218,9 @@ describe('SessionHistoryService：异步刷新 Codex 索引', () => {
     const a = svc.list('codex', { force: true });
     const b = svc.list('codex', { force: true });
     const c = svc.index('codex', { force: true });
-    await sleep(20);
+    // 查询前要先异步扫描 rollout 目录，慢的 runner 上 20ms 内可能还没走到查询：
+    // 等第一次查询真的发出再断言；之后的调用要么并入进行中的查询，要么看到指纹未变而不再查询
+    for (let i = 0; i < 500 && reader.mock.calls.length === 0; i++) await sleep(10);
     expect(reader).toHaveBeenCalledTimes(1);
     release([{ id, title: 'indexed title' }]);
     const [pa, pb] = await Promise.all([a, b, c]);
@@ -234,7 +236,7 @@ describe('SessionHistoryService：异步刷新 Codex 索引', () => {
     const reader = jest
       .fn<Promise<CodexThreadRow[]>, [string]>()
       .mockResolvedValueOnce([{ id, title: 'indexed title' }])
-      .mockRejectedValueOnce(new Error('Codex 索引 worker 退出（1）'))
+      .mockRejectedValueOnce(new Error('Codex index worker exited (1)'))
       .mockResolvedValueOnce([{ id, title: 'renamed' }]);
     const warn = jest.fn();
     const svc = new SessionHistoryService({

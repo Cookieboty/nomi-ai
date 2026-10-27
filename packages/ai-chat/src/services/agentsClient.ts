@@ -1,14 +1,12 @@
 import { t } from '@nomi-ai/ui';
 /** 编程助手进度客户端：`ai:agents:*` IPC（经 preload 的 window.aiIPC） */
-export type AgentKind =
-  'codex' | 'claude' | 'dsh' | 'grok' | 'aider' | 'cline' | 'continue' | 'cursor' | 'gemini';
+export type AgentKind = 'codex' | 'claude' | 'dsh' | 'grok' | 'gemini';
 export type AgentStatus = 'running' | 'waiting' | 'completed' | 'failed' | 'stalled' | 'idle';
 
 export interface AgentWatchSettings {
   enabled: boolean;
   stallMs: number;
   cooldownMs: number;
-  osNotify: boolean;
   /** 总结播报：定时汇总附带进度、任务结束播报完成总结（默认关） */
   summaryEnabled: boolean;
   tools: Record<AgentKind, boolean>;
@@ -55,10 +53,6 @@ export const AGENT_LABEL: Record<AgentKind, string> = {
   claude: 'Claude Code',
   dsh: 'dsh',
   grok: 'Grok',
-  aider: 'Aider',
-  cline: 'Cline',
-  continue: 'Continue',
-  cursor: 'Cursor',
   gemini: 'Gemini CLI',
 };
 

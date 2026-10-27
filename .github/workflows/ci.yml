@@ -94,7 +94,9 @@ jobs:
             turbo-${{ runner.os }}-
 
       - name: Typecheck / Lint / Test / Build
-        run: pnpm turbo run typecheck lint test build --cache-dir=.turbo/cache
+        # macOS runner 只有 3 核：turbo 默认并发 10，tsc / eslint / vite build 与 jsdom 测试抢 CPU，
+        # 单个本地 <1s 的用例会拖到 15s 超时（scaleInput、modelsPage 轮流挂）。macOS 上限 2 个任务并行。
+        run: pnpm turbo run typecheck lint test build --cache-dir=.turbo/cache --concurrency=${{ runner.os == 'macOS' && '2' || '10' }}
 
       - name: Root script tests
         run: pnpm run test:root
@@ -295,12 +297,57 @@ jobs:
   # 不要在 Linux box 上用 wine 交叉打 Win/Mac 当正式产物（原生依赖会对不上）。
   # 签名/公证：仅 tag 构建经 scripts/release/signing-env.mjs 门控注入 secret；其它事件不签名。
   # ---------------------------------------------------------------
+  # Tag 发版准备（#146）：tag 必须等于 v${version}；发版说明 docs/releases/<tag>.md 必须存在；
+  # 先建好唯一的草稿 Release，三个平台的 build-electron 都上传到它，避免并发各建一个草稿。
+  # ---------------------------------------------------------------
+  prepare-release:
+    name: prepare draft Release (tag)
+    needs: [quality]
+    if: ${{ startsWith(github.ref, 'refs/tags/v') && always() && (needs.quality.result == 'success' || needs.quality.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Check tag, release notes, then create the draft Release
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="$GITHUB_REF_NAME"
+          root_version=$(node -p "require('./package.json').version")
+          app_version=$(node -p "require('./packages/electron/package.json').version")
+          if [ "$tag" != "v$app_version" ] || [ "$tag" != "v$root_version" ]; then
+            echo "::error::Tag $tag does not match version (packages/electron: $app_version, root: $root_version); expected v$app_version"
+            exit 1
+          fi
+          notes="docs/releases/$tag.md"
+          if [ ! -f "$notes" ]; then
+            echo "::error::Release notes $notes not found"
+            exit 1
+          fi
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft > draft.txt 2>/dev/null; then
+            if [ "$(cat draft.txt)" = "true" ]; then
+              echo "Draft Release $tag already exists; reusing it"
+            else
+              echo "::error::Release $tag is already published; electron-builder would skip uploading to it"
+              exit 1
+            fi
+          else
+            gh release create "$tag" --repo "$GITHUB_REPOSITORY" --draft --verify-tag \
+              --title "诺米 ${tag#v}" --notes-file "$notes"
+          fi
+
+  # ---------------------------------------------------------------
   build-electron:
     name: build-electron (${{ matrix.os }})
-    needs: [quality]
+    needs: [quality, prepare-release]
     # package_only：quality 被 skip 时仍继续；quality 失败则拦住（非 package_only）
     # PR 上只有带 ci:full 标签才打包；push main / tag / 合并队列 / 手动触发照旧
-    if: ${{ always() && (needs.quality.result == 'success' || needs.quality.result == 'skipped') && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ci:full')) && !(github.event.action == 'labeled' && github.event.label.name != 'ci:full') }}
+    if: ${{ always() && (needs.quality.result == 'success' || needs.quality.result == 'skipped') && (needs.prepare-release.result == 'success' || (needs.prepare-release.result == 'skipped' && !startsWith(github.ref, 'refs/tags/v'))) && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ci:full')) && !(github.event.action == 'labeled' && github.event.label.name != 'ci:full') }}
     # Tag builds publish installers to the GitHub Release (electron-updater feed).
     permissions:
       contents: write
@@ -454,18 +501,28 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Check update metadata for every platform, then publish the draft
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Check every installer listed in latest*.yml is attached, then publish the draft
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
           set -euo pipefail
           tag="$GITHUB_REF_NAME"
-          assets=$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')
+          notes="docs/releases/$tag.md"
+          if [ ! -f "$notes" ]; then
+            echo "::error::Release notes $notes not found; leaving $tag as a draft"
+            exit 1
+          fi
+          gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' > assets.txt
+          mkdir -p update-meta
           for f in latest.yml latest-mac.yml latest-linux.yml; do
-            if ! grep -qx "$f" <<<"$assets"; then
-              echo "::error::Release $tag is missing $f; leaving it as a draft"
-              exit 1
+            if grep -qx "$f" assets.txt; then
+              gh release download "$tag" --repo "$GITHUB_REPOSITORY" --pattern "$f" --dir update-meta --clobber
             fi
           done
-          gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+          node scripts/release/check-release-assets.mjs update-meta assets.txt
+          gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --latest \
+            --title "诺米 ${tag#v}" --notes-file "$notes"

@@ -1,24 +1,17 @@
 /**
- * 对话 UI 偏好：普通/开发模式、界面模式（精简 / 全量）、侧栏「全部|按端」。
+ * 对话 UI 偏好：普通/开发模式、侧栏「全部|按端」。
  * 持久化在 localStorage（与 ConversationStore 同层）；桌面端无需主进程同步。
  */
 export type ChatMode = 'normal' | 'dev';
 export type ConversationListView = 'all' | 'by-endpoint';
-/**
- * 工作台的界面模式：full = 全量（默认，顶部对话标签 + 侧栏底部的编程助手信息卡）；
- * compact = 精简（隐藏这两块，只留会话列表与对话）。助手（普通）模式本来就没有这两块，不受影响。
- */
-export type LayoutDensity = 'full' | 'compact';
 
 const MODE_KEY = 'ai-chat:chatMode';
 const LIST_VIEW_KEY = 'ai-chat:conversationListView';
 const ENDPOINT_FILTER_KEY = 'ai-chat:endpointFilter';
-const DENSITY_KEY = 'ai-chat:layoutDensity';
 
 type Listener = () => void;
 const modeSubs = new Set<Listener>();
 const listSubs = new Set<Listener>();
-const densitySubs = new Set<Listener>();
 
 function read<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
   try {
@@ -51,29 +44,6 @@ export function setChatMode(mode: ChatMode): void {
 export function subscribeChatMode(fn: Listener): () => void {
   modeSubs.add(fn);
   return () => void modeSubs.delete(fn);
-}
-
-export function getLayoutDensity(): LayoutDensity {
-  return read(DENSITY_KEY, ['full', 'compact'] as const, 'full');
-}
-
-export function setLayoutDensity(density: LayoutDensity): void {
-  write(DENSITY_KEY, density);
-  densitySubs.forEach((fn) => fn());
-}
-
-export function subscribeLayoutDensity(fn: Listener): () => void {
-  densitySubs.add(fn);
-  // 其它窗口（对话窗口 / 设置窗口等）改了界面模式：同源 localStorage 的 storage 事件只在「别的」窗口触发，
-  // 在这里转成本窗口的订阅通知；key 为 null 表示被 clear()，也要刷新
-  const onStorage = (e: StorageEvent) => {
-    if (e.key === null || e.key === DENSITY_KEY) fn();
-  };
-  if (typeof window !== 'undefined') window.addEventListener('storage', onStorage);
-  return () => {
-    densitySubs.delete(fn);
-    if (typeof window !== 'undefined') window.removeEventListener('storage', onStorage);
-  };
 }
 
 export function getConversationListView(): ConversationListView {

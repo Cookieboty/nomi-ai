@@ -2,14 +2,14 @@
  * 设置 → 隐私与权限：
  * 「隐私与数据」= 数据只在本机的说明 + 管理 / 导出 / 清除的快捷入口（第一个标签）；
  * 「外发保护」= 发给第三方供应商之前对密钥的处理（docs/design/secret-privacy.md，数据流向而不是数据存放）；
- * 「桌面权限」= 文件夹授权、工具权限、云端与仅本地开关与操作记录（桌面能力面板）。
+ * 「桌面权限」= 文件夹授权、工具权限、云端与仅本地开关与操作记录（桌面能力面板）；
+ * 「数据导出」= 把本机数据打成 zip。
  */
 import { Button, SettingRow, SettingsGroup, t } from '@nomi-ai/ui';
 import React from 'react';
 
 import { useAiChatActions } from '../../contexts/aiChatStore';
-import { DesktopPanel } from '../lazyPanels';
-import type { ScreenTab } from '../ScreenPanel';
+import { DesktopPanel, LocalPanel } from '../lazyPanels';
 
 import { DiagnosticsSettings } from './DiagnosticsSettings';
 import styles from './index.module.css';
@@ -23,9 +23,8 @@ export const PrivacySection: React.FC<{
   tab: PrivacyTab;
   onTab: (tab: PrivacyTab) => void;
   /** 跳到别的分区（可带标签） */
-  go: (section: SettingsSection, tab?: SettingsTab, sub?: ScreenTab) => void;
-  onExport: () => void;
-}> = ({ tab, onTab, go, onExport }) => {
+  go: (section: SettingsSection, tab?: SettingsTab) => void;
+}> = ({ tab, onTab, go }) => {
   const { actions } = useAiChatActions();
   return (
     <SectionPage
@@ -47,14 +46,6 @@ export const PrivacySection: React.FC<{
             >
               <Button size="sm" onClick={() => go('knowledge', 'memory')}>
                 {t('ui.chat-settings.manage-memory')}
-              </Button>
-            </SettingRow>
-            <SettingRow
-              title={t('ui.chat-settings.screen-memory')}
-              description={t('ui.knowledge-local.stored-on-this-device-only-can-be-paused')}
-            >
-              <Button size="sm" onClick={() => go('senses', 'screen', 'privacy')}>
-                {t('ui.chat-settings.screen-memory-exclusions')}
               </Button>
             </SettingRow>
             <SettingRow
@@ -93,7 +84,7 @@ export const PrivacySection: React.FC<{
               title={t('ui.chat-settings.export-local-data')}
               description={t('ui.knowledge-local.pack-chats-memories-schedules-and-more-into-a')}
             >
-              <Button size="sm" data-testid="privacy-export" onClick={onExport}>
+              <Button size="sm" data-testid="privacy-export" onClick={() => onTab('export')}>
                 {t('ui.knowledge-local.export')}
               </Button>
             </SettingRow>
@@ -126,6 +117,8 @@ export const PrivacySection: React.FC<{
         <div className={styles.groups} data-testid="settings-outbound">
           <PrivacyModeSettings />
         </div>
+      ) : tab === 'export' ? (
+        <LocalPanel key="export" isVisible onClose={noop} tabs={['export']} />
       ) : (
         <DesktopPanel key="desktop" isVisible onClose={noop} />
       )}

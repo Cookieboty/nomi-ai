@@ -263,19 +263,17 @@ describe('CliVersionCard · task survives unmount (state lives in the main proce
     expect(calls.some(([c]) => c === 'ai:cli-update:dismiss')).toBe(true);
   });
 
-  it('another endpoint running disables this card action, and finishing re-enables it', async () => {
+  it('another endpoint running does not block this card (installs run in parallel)', async () => {
     const { emit } = setup({
       'ai:cli-update:inspect': () => [info({ kind: 'dsh', path: '/x/dsh', version: '0.1.0' })],
-      'ai:cli-update:busy': () => null,
+      'ai:cli-update:busy': () => ['claude'],
     });
     const r = render(<CliVersionCard kind="dsh" />);
     const action = () => r.getByTestId('cli-version-action-dsh') as HTMLButtonElement;
     await waitFor(() => expect(action().disabled).toBe(false));
     emit({ kind: 'claude', mode: 'update', phase: 'start', argv: ['claude', 'update'] });
-    await waitFor(() => expect(action().disabled).toBe(true));
-    expect(action().title).toBe('已有安装 / 更新在进行');
-    emit({ kind: 'claude', mode: 'update', phase: 'done', version: '2.0' });
-    await waitFor(() => expect(action().disabled).toBe(false));
+    await new Promise((res) => setTimeout(res, 20));
+    expect(action().disabled).toBe(false);
   });
 
   it('a successful run refreshes versions once via the done event, not again in confirm', async () => {

@@ -517,9 +517,7 @@ test.describe('PERF · chat', () => {
     // ---- 1b. 打开面板（每个开 3 次：首次含懒加载）----
     const panels: Record<string, number[][]> = {};
     for (const [btn, panel] of [
-      ['open-hub-panel', 'hub-panel'],
       ['open-ext-panel', 'ext-panel'],
-      ['open-local-panel', 'local-panel'],
       ['open-settings', '[data-testid^="settings-nav-"]'],
     ] as const) {
       panels[btn] = [];

@@ -54,25 +54,6 @@ describe('聊天区层级：输入区高于聊天内容', () => {
 });
 
 describe('全局背景层', () => {
-  it('嵌入顶栏的 Tab 撑满高度、无顶部和标签间隙，图标及操作按钮居中', () => {
-    const tabs = read('src/components/ChatTabs/index.module.css');
-    expect(ruleBody(tabs, '.bar[data-embedded]')).toContain('align-items: stretch');
-    expect(ruleBody(tabs, '.bar[data-embedded] .strip')).toContain('align-items: stretch');
-    expect(ruleBody(tabs, '.bar[data-embedded] .strip')).toContain('gap: 0');
-    expect(ruleBody(tabs, '.bar[data-embedded] .tab')).toContain('height: auto');
-    expect(ruleBody(tabs, '.bar[data-embedded] .tab')).toContain('border-radius: 0');
-    expect(ruleBody(tabs, '.bar[data-embedded] .add')).toContain('align-items: center');
-    expect(ruleBody(tabs, '.close')).toContain('justify-content: center');
-    const header = read('src/components/ChatHeader/index.module.css');
-    expect(ruleBody(header, '.header')).toContain('height: var(--cd-chat-header-h)');
-    expect(ruleBody(header, '.header[data-with-tabs]')).toContain('padding-left: 0');
-    expect(ruleBody(header, '.header[data-with-tabs] .actions')).toContain('align-self: stretch');
-    expect(ruleBody(header, '.header[data-with-tabs] .actions')).not.toContain('flex-end');
-    expect(ruleBody(header, '.header[data-with-tabs] .tabsSlot')).toContain(
-      'height: var(--cd-chat-header-h)',
-    );
-  });
-
   it('图片主题顶部与侧栏同色深，顶部底边、右栏和拖动分隔使用同一透明边框令牌', () => {
     const defaults = ruleBody(tokens, ':root');
     expect(defaults).toContain('--cd-panel-border: var(--cd-color-border)');
@@ -84,7 +65,6 @@ describe('全局背景层', () => {
     );
     const header = read('src/components/ChatHeader/index.module.css');
     expect(ruleBody(header, '.header')).toContain('--cd-chat-header-bg');
-    expect(ruleBody(header, '.header[data-with-tabs]')).toContain('--cd-panel-border');
     const sidebar = read('src/components/Sidebar/index.module.css');
     expect(ruleBody(sidebar, '.sidebar')).toContain('--cd-panel-border');
     expect(ruleBody(app, '.files-rail')).toContain('--cd-panel-border');
@@ -99,11 +79,6 @@ describe('全局背景层', () => {
     const workspace = read('src/components/SessionWorkspace/SessionWorkspace.module.css');
     expect(ruleBody(workspace, '.panelHead')).toContain('--cd-panel-border');
     expect(ruleBody(workspace, '.railTreePane')).toContain('--cd-panel-border');
-    const tabs = read('src/components/ChatTabs/index.module.css');
-    expect(ruleBody(tabs, ':global(html[data-chat-bg]) .bar[data-embedded] .active')).toContain(
-      '--cd-chat-hover-overlay',
-    );
-    expect(ruleBody(tabs, '.bar[data-embedded] .active::after')).toContain('display: none');
   });
 
   it('body 隔离层叠，背景固定在窗口最底层且不拦截点击', () => {
@@ -188,9 +163,6 @@ describe('全局背景层', () => {
     const tools = read('src/components/Conversation/Tool.module.css');
     expect(ruleBody(tools, '.pre')).toContain('--cd-chat-tool-detail-bg');
     expect(ruleBody(tools, '.diff')).toContain('--cd-chat-tool-detail-bg');
-    const tabs = read('src/components/ChatTabs/index.module.css');
-    expect(ruleBody(tabs, '.active')).toContain('--cd-chat-tab-bg');
-    expect(ruleBody(tabs, '.active::after')).toContain('--cd-chat-tab-bg');
     const input = read('src/components/MessageInput/index.module.css');
     expect(ruleBody(input, '.inputWrapper')).toContain('--cd-chat-input-bg');
     expect(ruleBody(app, 'html[data-chat-bg] .files-rail')).toContain('--cd-panel-bg-subtle');
@@ -213,11 +185,6 @@ describe('全局背景层', () => {
     expect(custom).toContain(
       '--cd-chat-hover-overlay: color-mix(in srgb, var(--cd-color-bg-subtle) 18%, transparent)',
     );
-    const tabs = read('src/components/ChatTabs/index.module.css');
-    for (const selector of ['.tab:hover', '.active:hover::after', '.addBtn:hover']) {
-      expect(ruleBody(tabs, selector)).toContain('--cd-chat-hover-bg');
-    }
-    expect(ruleBody(tabs, '.close:hover')).toContain('--cd-chat-hover-overlay');
     const tools = read('src/components/Conversation/Tool.module.css');
     for (const selector of ['.diffLayoutBtn:hover', '.earlier:hover']) {
       expect(ruleBody(tools, selector)).toContain('--cd-chat-hover-overlay');
@@ -227,7 +194,7 @@ describe('全局背景层', () => {
     );
     const sidebar = read('src/components/Sidebar/index.module.css');
     expect(ruleBody(sidebar, '.brandWrap:hover')).toContain('--cd-chat-hover-overlay');
-    for (const css of [tabs, tools, sidebar]) {
+    for (const css of [tools, sidebar]) {
       expect(css).toContain('background-color var(--cd-duration-fast) var(--cd-ease)');
       expect(css).toContain('color var(--cd-duration-fast) var(--cd-ease)');
       expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)\s*\{[^}]*transition: none/s);
@@ -357,7 +324,6 @@ describe('全局背景层', () => {
       'ProvidersPage/index.module.css',
       'KnowledgePanel/index.module.css',
       'MemoryPanel/index.module.css',
-      'ScreenPanel/index.module.css',
       'SchedulePanel/index.module.css',
       'UsagePanel/index.module.css',
       'QualityPanel/index.module.css',

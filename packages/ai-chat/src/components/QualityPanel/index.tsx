@@ -26,9 +26,11 @@ export const QualityPanel: React.FC<{
   onTab: (tab: QualityTab) => void;
   /** 跳到「设置 → 隐私与权限」（诊断日志 / 正文追踪） */
   onOpenPrivacy?: () => void;
+  /** 外层已有同名标签（设置 → 用量与质量）：不再渲染自己的标签条 */
+  hideTabs?: boolean;
   /** 测试注入：当前时间 */
   now?: () => number;
-}> = ({ tab: tabProp, onTab, onOpenPrivacy, now = Date.now }) => {
+}> = ({ tab: tabProp, onTab, onOpenPrivacy, hideTabs, now = Date.now }) => {
   const tab = tabProp === 'overview' ? 'compare' : tabProp;
   const [rangeId, setRangeId] = useState<RangeId>('7d');
   const [custom, setCustom] = useState<{ from: number; to: number }>(() => rangeOf('7d', now()));
@@ -151,17 +153,19 @@ export const QualityPanel: React.FC<{
           {msg}
         </p>
       )}
-      <Tabs<'compare' | 'trend' | 'requests'>
-        variant="underline"
-        aria-label={t('ui.model-quality.model-quality-sections')}
-        value={tab}
-        onChange={onTab}
-        items={[
-          { value: 'compare', label: t('ui.model-quality.compare') },
-          { value: 'trend', label: t('ui.usage-tools.trend') },
-          { value: 'requests', label: t('ui.model-quality.request-details') },
-        ]}
-      />
+      {!hideTabs && (
+        <Tabs<'compare' | 'trend' | 'requests'>
+          variant="underline"
+          aria-label={t('ui.model-quality.model-quality-sections')}
+          value={tab}
+          onChange={onTab}
+          items={[
+            { value: 'compare', label: t('ui.model-quality.compare') },
+            { value: 'trend', label: t('ui.usage-tools.trend') },
+            { value: 'requests', label: t('ui.model-quality.request-details') },
+          ]}
+        />
+      )}
       {tab === 'compare' && (
         <CompareTable
           base={base}

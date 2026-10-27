@@ -4,12 +4,14 @@
  */
 import React from 'react';
 
-export const NomiMark: React.FC<{ className?: string; size?: number }> = ({
+export const NomiMark: React.FC<{ className?: string; size?: number; testId?: string }> = ({
   className,
   size = 36,
+  testId,
 }) => (
   <svg
     className={className}
+    data-testid={testId}
     width={size}
     height={size}
     viewBox="24 20 216 206"

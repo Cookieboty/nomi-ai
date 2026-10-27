@@ -9,15 +9,12 @@ import React, { Suspense, lazy, useRef, useState, type ComponentType } from 'rea
 import { loadHighlighter } from './Conversation/markdownHighlight';
 import type { DesktopPanel as DesktopPanelT } from './DesktopPanel';
 import type { ExtensionsPanel as ExtensionsPanelT } from './ExtensionsPanel';
-import type { HubPanel as HubPanelT } from './HubPanel';
 import type { KnowledgePanel as KnowledgePanelT } from './KnowledgePanel';
 import type { LocalPanel as LocalPanelT } from './LocalPanel';
 import type { MemoryPanel as MemoryPanelT } from './MemoryPanel';
-import type { NotesPanel as NotesPanelT } from './NotesPanel';
 import { PanelFallback } from './PanelFallback';
 import type { QualityPanel as QualityPanelT } from './QualityPanel';
 import type { SchedulePanel as SchedulePanelT } from './SchedulePanel';
-import type { ScreenPanel as ScreenPanelT } from './ScreenPanel';
 import type { SettingsView as SettingsViewT } from './SettingsView';
 import type { UsagePanel as UsagePanelT } from './UsagePanel';
 
@@ -98,17 +95,8 @@ export const KnowledgePanel: React.FC<PropsOf<typeof KnowledgePanelT>> = lazyPan
 export const MemoryPanel: React.FC<PropsOf<typeof MemoryPanelT>> = lazyPanel(() =>
   import('./MemoryPanel').then((m) => m.MemoryPanel),
 );
-export const NotesPanel: React.FC<PropsOf<typeof NotesPanelT>> = lazyPanel(() =>
-  import('./NotesPanel').then((m) => m.NotesPanel),
-);
-export const HubPanel: React.FC<PropsOf<typeof HubPanelT>> = lazyPanel(() =>
-  import('./HubPanel').then((m) => m.HubPanel),
-);
 export const SchedulePanel: React.FC<PropsOf<typeof SchedulePanelT>> = lazyPanel(() =>
   import('./SchedulePanel').then((m) => m.SchedulePanel),
-);
-export const ScreenPanel: React.FC<PropsOf<typeof ScreenPanelT>> = lazyPanel(() =>
-  import('./ScreenPanel').then((m) => m.ScreenPanel),
 );
 export const ExtensionsPanel: React.FC<PropsOf<typeof ExtensionsPanelT>> = lazyPanel(() =>
   import('./ExtensionsPanel').then((m) => m.ExtensionsPanel),

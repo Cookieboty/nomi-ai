@@ -99,7 +99,7 @@ export class CodexThreadReader {
     const id = ++this.seq;
     return new Promise<CodexThreadRow[]>((resolve, reject) => {
       const timer = setTimeout(() => {
-        this.crash(w, new Error('Codex 索引查询超时'), false);
+        this.crash(w, new Error('Codex index query timed out'), false);
       }, this.timeoutMs);
       timer.unref?.();
       this.pending.set(id, { resolve, reject, timer });
@@ -117,7 +117,7 @@ export class CodexThreadReader {
     this.cancelIdle();
     const w = this.w;
     this.w = null;
-    this.failAll(new Error('Codex 索引读取已关闭'));
+    this.failAll(new Error('Codex index reader closed'));
     if (w) void Promise.resolve(w.terminate()).catch(() => undefined);
   }
 
@@ -140,7 +140,7 @@ export class CodexThreadReader {
     });
     w.on('error', (e: Error) => this.crash(w, e, true));
     w.on('exit', (code: number) =>
-      this.crash(w, new Error(`Codex 索引 worker 退出（${code}）`), true),
+      this.crash(w, new Error(`Codex index worker exited (${code})`), true),
     );
     this.w = w;
     return w;

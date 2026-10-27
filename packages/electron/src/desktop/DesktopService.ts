@@ -16,7 +16,7 @@ import {
 import { broadcastMascotCommand } from '../ai/mascotCommand';
 import { iconImage } from '../core/appIcon';
 import { t as tr } from '../i18n';
-import { notifyIsland } from '../island/IslandService';
+import { notifyIsland, type IslandKind, type IslandNotice } from '../island/IslandService';
 import { AgentBrowser } from '../sandbox/AgentBrowser';
 import { CodeSandbox } from '../sandbox/CodeSandbox';
 import { sanitizeRepeat } from '../schedule/recurrence';
@@ -25,7 +25,6 @@ import { guardedHandle } from '../security/guardedIpc';
 import { AppTrash } from './AppTrash';
 import { AuditLog } from './AuditLog';
 import { isLocalBaseURL, sanitizePolicy, type Policy } from './consent';
-import { NotesStore } from './notes/NotesStore';
 import { isSupported } from './parse/extract';
 import { parseFile } from './parse/runParse';
 import { guardPath } from './pathGuard';
@@ -36,6 +35,20 @@ import { UndoJournal } from './UndoJournal';
 
 type Logger = { info(m: string, d?: unknown): void; warn(m: string, d?: unknown): void };
 type Role = 'chat' | 'agent-tools' | 'summary';
+
+/** 一条要告诉用户的消息：气泡用 text；灵动岛 / 系统通知用 title + body（缺省 body = text） */
+export interface DesktopNotice {
+  kind: IslandKind;
+  title: string;
+  text: string;
+  body?: string;
+  status?: IslandNotice['status'];
+  endpoint?: string;
+  bubble?: Omit<DesktopBubble, 'text'>;
+  /** 被动消息（如定时汇总）：看板娘不在且灵动岛显示不了时就不弹系统通知 */
+  passive?: boolean;
+}
+export type NoticeChannel = 'bubble' | 'island' | 'notification' | 'none';
 
 export interface DesktopRuntimeHooks {
   /** 非流式调用 LLM（summary 角色） */
@@ -71,11 +84,10 @@ export class DesktopService {
   readonly audit: AuditLog;
   readonly trash: AppTrash;
   readonly journal: UndoJournal;
-  readonly notes: NotesStore;
   readonly reminders: ReminderStore;
   private remindersStarted = false;
   /** 免打扰 / 系统通知策略（由 SchedulerService 注入；未注入时始终提醒 + 系统通知） */
-  notifyPolicy: { quiet(): boolean; quietEndsAt(): number; osNotify(): boolean } | null = null;
+  notifyPolicy: { quiet(): boolean; quietEndsAt(): number } | null = null;
   private deferred: Reminder[] = [];
   private deferTimer: ReturnType<typeof setTimeout> | null = null;
   private runtime: DesktopRuntimeHooks | null = null;
@@ -97,7 +109,6 @@ export class DesktopService {
     this.audit = new AuditLog(path.join(root, 'audit'));
     this.trash = new AppTrash(path.join(root, 'trash'));
     this.journal = new UndoJournal(path.join(root, 'journal.jsonl'), this.trash);
-    this.notes = new NotesStore(path.join(root, 'notes'));
     this.reminders = new ReminderStore(path.join(root, 'reminders.json'));
     this.reminders.onFire = (r) => this.fireReminder(r);
     this.reminders.onChange(() => this.broadcast(DESKTOP_P2_CHANGED, { kind: 'reminders' }));
@@ -163,7 +174,50 @@ export class DesktopService {
     this.main()?.webContents.send('desktop:bubble', { text, ...opts });
   }
 
-  /** 到点：看板娘挥手 + 提醒卡片（气泡）+ 系统通知 */
+  /**
+   * 统一的提醒出口，一条消息只走一个渠道：
+   * - 看板娘在桌面上 → 只用她的气泡；
+   * - 看板娘已关闭 → 灵动岛；灵动岛关闭 / 不支持 / 不接这一类时退回系统通知（免打扰中不弹）。
+   * 点系统通知打开对话窗口。返回实际用到的渠道。
+   */
+  notify(n: DesktopNotice): NoticeChannel {
+    if (!this.mascotHidden() && this.main()) {
+      this.say(n.text, n.bubble);
+      return 'bubble';
+    }
+    try {
+      if (
+        notifyIsland({
+          kind: n.kind,
+          title: n.title,
+          body: n.body ?? n.text,
+          status: n.status,
+          endpoint: n.endpoint,
+        })
+      )
+        return 'island';
+    } catch (e) {
+      this.logger.warn('灵动岛通知失败', { error: String(e) });
+    }
+    if (n.passive || this.notifyPolicy?.quiet()) return 'none';
+    try {
+      if (!Notification.isSupported()) return 'none';
+      const note = new Notification({
+        title: n.title,
+        body: n.body ?? n.text,
+        silent: false,
+        icon: iconImage(),
+      });
+      note.on('click', () => void this.windows?.openChat().catch(() => undefined));
+      note.show();
+      return 'notification';
+    } catch (e) {
+      this.logger.warn('系统通知失败', { error: String(e) });
+      return 'none';
+    }
+  }
+
+  /** 到点：看板娘在 → 挥手 + 提醒卡片；看板娘已关闭 → 灵动岛或系统通知 */
   private fireReminder(r: Reminder): void {
     const pol = this.notifyPolicy;
     if (pol?.quiet()) {
@@ -182,103 +236,68 @@ export class DesktopService {
       });
       return;
     }
-    this.deliverReminder(r, pol?.osNotify() ?? true);
+    this.deliverReminders([r]);
   }
 
-  /** 免打扰结束：一次性补报 */
+  /** 免打扰结束：一次性补报（看板娘在时多条逐张出卡片并先说一句；不在时合成一条通知） */
   flushDeferred(): void {
     if (this.deferTimer) clearTimeout(this.deferTimer);
     this.deferTimer = null;
     const items = this.deferred;
     this.deferred = [];
     if (!items.length) return;
-    if (items.length > 1)
+    if (items.length > 1 && !this.mascotHidden())
       this.say(tr('electron.common.reminders-came-in-during-do-not-disturb-here', items.length));
-    for (const r of items) this.deliverReminder(r, this.notifyPolicy?.osNotify() ?? true);
+    this.deliverReminders(items);
   }
 
   deferredCount(): number {
     return this.deferred.length;
   }
 
-  private deliverReminder(r: Reminder, osNotify: boolean): void {
+  private deliverReminders(items: Reminder[]): void {
     const w = this.main();
-    this.logger.info('提醒触发', { id: r.id, hasWindow: !!w, mascotHidden: this.mascotHidden() });
-    // 看板娘已关闭 / 没有窗口：提醒卡片不发给隐藏的看板娘（否则看不见，下次打开她时还会冒出过期卡片），
-    // 改走灵动岛 + 系统通知，点通知打开对话窗口
+    this.logger.info('提醒触发', {
+      count: items.length,
+      hasWindow: !!w,
+      mascotHidden: this.mascotHidden(),
+    });
+    // 看板娘已关闭 / 没有窗口：提醒卡片不发给隐藏的看板娘（否则看不见，下次打开她时还会冒出过期卡片）
     if (!w || this.mascotHidden()) {
-      this.deliverReminderElsewhere([r], osNotify);
+      this.deliverReminderElsewhere(items);
       return;
     }
     if (!w.isVisible()) w.showInactive();
-    w.webContents.send('desktop:reminder', {
-      id: r.id,
-      text: r.text,
-      dueAt: r.dueAt,
-      missed: false,
-    });
+    for (const r of items) {
+      w.webContents.send('desktop:reminder', {
+        id: r.id,
+        text: r.text,
+        dueAt: r.dueAt,
+        missed: false,
+      });
+      this.audit.append({
+        tool: 'reminder_fire',
+        args: { id: r.id, text: r.text, via: 'bubble' },
+        decision: 'auto',
+        result: 'ok',
+        source: 'scheduler',
+      });
+    }
     broadcastMascotCommand({ type: 'motion', name: 'wave' });
     broadcastMascotCommand({ type: 'expression', name: 'happy' });
-    try {
-      if (osNotify && Notification.isSupported()) {
-        const n = new Notification({
-          title: tr('electron.common.reminder'),
-          body: r.text,
-          silent: false,
-          icon: iconImage(),
-        });
-        n.on('click', () => {
-          const mw = this.main();
-          if (mw && !mw.isVisible() && !this.mascotHidden()) mw.showInactive();
-        });
-        n.show();
-      }
-    } catch (e) {
-      this.logger.warn('系统通知失败', { error: String(e) });
-    }
-    this.audit.append({
-      tool: 'reminder_fire',
-      args: { id: r.id, text: r.text },
-      decision: 'auto',
-      result: 'ok',
-      source: 'scheduler',
-    });
   }
 
-  /**
-   * 看板娘不在时的提醒：灵动岛 + 系统通知（点击打开对话窗口）。
-   * 系统通知只在用户开着「系统通知」时发：关了就是关了，灵动岛也显示不了（关闭 / 免打扰 / 不支持）时
-   * 这条提醒不弹出，只记一条 via=none 的审计，方便事后排查。
-   */
-  private deliverReminderElsewhere(items: Reminder[], osNotify: boolean): void {
+  /** 看板娘不在时的提醒：多条合成一条，走灵动岛或系统通知；都显示不了时只记 via=none 的审计 */
+  private deliverReminderElsewhere(items: Reminder[]): void {
     if (!items.length) return;
     const title = tr('electron.common.reminder');
     const body =
       items.length === 1
         ? items[0]!.text
         : tr('electron.common.reminders', items.length, items.map((r) => r.text).join('；'));
-    let island = false;
-    try {
-      island = notifyIsland({ kind: 'reminder', title, body, status: 'attention' });
-    } catch (e) {
-      this.logger.warn('灵动岛提醒失败', { error: String(e) });
-    }
-    let notified = false;
-    try {
-      if (osNotify && Notification.isSupported()) {
-        const n = new Notification({ title, body, silent: false, icon: iconImage() });
-        n.on('click', () => {
-          void this.windows?.openChat().catch(() => undefined);
-        });
-        n.show();
-        notified = true;
-      }
-    } catch (e) {
-      this.logger.warn('系统通知失败', { error: String(e) });
-    }
-    const via = island ? 'island' : notified ? 'notification' : 'none';
+    const via = this.notify({ kind: 'reminder', status: 'attention', title, text: body });
     if (via === 'none')
-      this.logger.info('提醒没有可用的展示方式（看板娘已隐藏、灵动岛不可用、系统通知已关闭）', {
+      this.logger.info('提醒没有可用的展示方式（看板娘已隐藏、灵动岛与系统通知都不可用）', {
         count: items.length,
       });
     for (const r of items) {
@@ -310,7 +329,7 @@ export class DesktopService {
       this.reminders.markAnnounced(items.map((r) => r.id));
       // 看板娘已关闭：错过的提醒同样改走灵动岛 / 系统通知，不在隐藏的窗口里攒卡片
       if (this.mascotHidden()) {
-        this.deliverReminderElsewhere(items, this.notifyPolicy?.osNotify() ?? true);
+        this.deliverReminderElsewhere(items);
         return [];
       }
       broadcastMascotCommand({ type: 'motion', name: 'wave' });
@@ -411,9 +430,7 @@ export class DesktopService {
       describeProvider: (p) => this.receiverOf(p),
       pickFolder: (s) => this.pickFolder(s),
       p2: {
-        notes: this.notes,
         reminders: this.reminders,
-        trashNote: (f) => this.trash.trash(f),
         clipboard: {
           readText: () => clipboard.readText(),
           writeText: (t) => clipboard.writeText(t),
@@ -615,55 +632,10 @@ export class DesktopService {
       return true;
     });
 
-    // ---- 笔记 / 提醒面板（用户在设置面板里直接操作：不需要再确认，但记审计、可撤销）----
+    // ---- 提醒面板（用户在设置面板里直接操作：不需要再确认，但记审计、可撤销）----
     const userAudit = (tool: string, args: Record<string, unknown>, result = 'ok') =>
       this.audit.append({ tool, args, decision: 'user', result, source: 'settings' });
-    const notesChanged = () => this.broadcast(DESKTOP_P2_CHANGED, { kind: 'notes' });
     const str = (v: unknown, max: number) => (typeof v === 'string' ? v.slice(0, max) : '');
-    handle('ai:desktop:notes-list', (_e, q) =>
-      typeof q === 'string' && q.trim()
-        ? this.notes.search(q, 50)
-        : this.notes.list({ limit: 200 }),
-    );
-    handle('ai:desktop:notes-read', (_e, id) =>
-      typeof id === 'string' ? this.notes.get(id) : null,
-    );
-    handle('ai:desktop:notes-save', (_e, raw) => {
-      const o = (raw ?? {}) as { id?: string; title?: unknown; body?: unknown; tags?: unknown };
-      const title = str(o.title, 200).trim() || tr('electron.common.untitled');
-      const body = str(o.body, 200_000);
-      const tags = Array.isArray(o.tags) ? (o.tags as string[]) : undefined;
-      if (o.id) {
-        const { before, after } = this.notes.update(o.id, { title, body, tags });
-        this.journal.record('note_update', tr('electron.common.edit-note', after.title), [
-          { op: 'custom', kind: 'note-restore', payload: before },
-        ]);
-        userAudit('note_update', { id: after.id, title: after.title });
-        notesChanged();
-        return after;
-      }
-      const n = this.notes.create({ title, body, tags });
-      this.journal.record('note_create', tr('electron.common.new-note', n.title), [
-        { op: 'trash', path: this.notes.fileOf(n.id) },
-        { op: 'custom', kind: 'note-forget', payload: n.id },
-      ]);
-      userAudit('note_create', { id: n.id, title: n.title });
-      notesChanged();
-      return n;
-    });
-    handle('ai:desktop:notes-trash', async (_e, id) => {
-      const n = typeof id === 'string' ? this.notes.get(id) : null;
-      if (!n) return false;
-      const rec = await this.trash.trash(this.notes.fileOf(n.id));
-      this.notes.forget(n.id);
-      this.journal.record('note_trash', tr('electron.common.delete-note', n.title), [
-        { op: 'restore', stored: rec.stored, original: rec.original },
-        { op: 'custom', kind: 'note-forget', payload: n.id },
-      ]);
-      userAudit('note_trash', { id: n.id, title: n.title });
-      notesChanged();
-      return true;
-    });
     handle('ai:desktop:reminders-list', (_e, all) =>
       this.reminders.list({ includeEnded: all === true, limit: 200 }),
     );

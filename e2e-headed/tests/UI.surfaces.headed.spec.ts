@@ -156,11 +156,11 @@ test.describe('UI surfaces', () => {
     await chat.waitForTimeout(400);
     await shot(chat, '13-models-page');
     await chat.click('[data-testid="add-provider"]');
-    await chat.click('[data-testid="preset-deepseek"]');
-    await chat.fill('[data-testid="add-provider-keys"]', 'sk-demo-not-a-real-key-0000');
+    await chat.click('[data-testid="models-preset-deepseek"]');
+    await chat.fill('[data-testid="models-provider-key"]', 'sk-demo-not-a-real-key-0000');
     await shot(chat, '14-add-provider-draft');
-    await chat.keyboard.press('Escape');
-    await expect(chat.locator('[data-testid="add-provider-dialog"]')).toHaveCount(0);
+    await chat.click('[data-testid="models-provider-cancel"]');
+    await expect(chat.locator('[data-testid="models-provider-picker"]')).toHaveCount(0);
     await chat.keyboard.press('Escape');
     await expect(chat.locator('[data-testid="models-page"]')).toHaveCount(0);
 

@@ -10,13 +10,11 @@ import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { BrowserWindow, Notification, powerMonitor } from 'electron';
+import { BrowserWindow, powerMonitor } from 'electron';
 
 import { broadcastMascotCommand } from '../ai/mascotCommand';
-import { iconImage } from '../core/appIcon';
 import type { DesktopService } from '../desktop/DesktopService';
 import { t as tr } from '../i18n';
-import { notifyIsland } from '../island/IslandService';
 import { guardedHandle } from '../security/guardedIpc';
 
 import {
@@ -43,7 +41,6 @@ export const FREQ: Record<Frequency, { perDay: number; gapMin: number; label: st
 
 export interface SchedSettings {
   quiet: QuietHours;
-  osNotify: boolean;
   proactive: {
     enabled: boolean;
     frequency: Frequency;
@@ -57,7 +54,6 @@ export interface SchedSettings {
 
 export const DEFAULT_SCHED: SchedSettings = {
   quiet: { enabled: false, start: '22:30', end: '08:00' },
-  osNotify: true,
   proactive: {
     enabled: false,
     frequency: 'low',
@@ -79,7 +75,6 @@ export function sanitizeSched(raw: unknown, base: SchedSettings = DEFAULT_SCHED)
       start: t(q.start, base.quiet.start),
       end: t(q.end, base.quiet.end),
     },
-    osNotify: b(o.osNotify, base.osNotify),
     proactive: {
       enabled: b(p.enabled, base.proactive.enabled),
       frequency: p.frequency && p.frequency in FREQ ? p.frequency : base.proactive.frequency,
@@ -170,7 +165,6 @@ export class SchedulerService {
     d.desktop.notifyPolicy = {
       quiet: () => this.isQuiet(),
       quietEndsAt: () => quietEndsAt(this.data.settings.quiet, this.now()),
-      osNotify: () => this.data.settings.osNotify,
     };
   }
 
@@ -410,28 +404,18 @@ export class SchedulerService {
     return { ...res };
   }
 
-  /** 结果投递：对话窗口（始终）+ 看板娘气泡 / 系统通知（免打扰时不打扰） */
+  /** 结果投递：对话窗口（始终）+ 看板娘气泡或（她不在时）灵动岛 / 系统通知；免打扰时不打扰 */
   private deliver(r: TaskResult) {
     this.broadcast('ai:sched:result', r);
     if (this.isQuiet()) return;
     const short = r.text.length > 90 ? `${r.text.slice(0, 88)}…` : r.text;
-    this.d.desktop.say(
-      tr('{0}{1}：{2}', r.catchUp ? tr('electron.common.added') : '', r.name, short),
-    );
-    notifyIsland({ kind: 'reminder', title: r.name, body: short });
+    this.d.desktop.notify({
+      kind: 'reminder',
+      title: r.name,
+      body: short,
+      text: tr('{0}{1}：{2}', r.catchUp ? tr('electron.common.added') : '', r.name, short),
+    });
     broadcastMascotCommand({ type: 'motion', name: 'wave' });
-    if (this.data.settings.osNotify) this.notify(r.name, short);
-  }
-
-  private notify(title: string, body: string) {
-    try {
-      if (!Notification.isSupported()) return;
-      const n = new Notification({ title, body, icon: iconImage() });
-      n.on('click', () => this.d.openChat());
-      n.show();
-    } catch (e) {
-      this.d.logger.warn('系统通知失败', String(e));
-    }
   }
 
   // ---------- 调度 ----------
@@ -534,8 +518,7 @@ export class SchedulerService {
         lastAt: now,
       };
       this.save();
-      this.d.desktop.say(text);
-      notifyIsland({ kind: 'message', title: tr('Nomi'), body: text });
+      this.d.desktop.notify({ kind: 'message', title: tr('Nomi'), text });
       broadcastMascotCommand({ type: 'expression', name: 'happy' });
       broadcastMascotCommand({ type: 'motion', name: 'wave' });
       this.broadcast('ai:sched:proactive', { text, at: now });
@@ -560,13 +543,6 @@ export class SchedulerService {
         lastAt: st.lastAt,
         gate: this.proactiveGate(),
       },
-      notifySupported: (() => {
-        try {
-          return Notification.isSupported();
-        } catch {
-          return false;
-        }
-      })(),
     };
   }
 

@@ -4,7 +4,6 @@ import { z } from 'zod';
 import { describeRepeat, sanitizeRepeat } from '../schedule/recurrence';
 
 import type { Danger } from './consent';
-import { NOTE_ID, type Note, type NotesStore } from './notes/NotesStore';
 import {
   REMINDER_ID,
   resolveDue,
@@ -15,18 +14,11 @@ import { ToolError } from './toolError';
 import type { UndoJournal } from './UndoJournal';
 
 /**
- * P2 工具：笔记 / 提醒 / 剪贴板。复用 P0 的同意（broker.authorize）、审计（run）与撤销日志。
- * - 笔记按 id 访问应用自己的笔记库（不接受路径）；删除进应用回收站，可撤销
+ * P2 工具：提醒 / 剪贴板。复用 P0 的同意（broker.authorize）、审计（run）与撤销日志。
  * - 提醒持久化，应用运行时到点触发（看板娘挥手 + 气泡 + 系统通知）
  * - 剪贴板读取：每次运行首次需要确认（可在设置里改为每次询问）；内容按不可信数据包裹
  */
 export const P2_DANGER: Record<string, Danger> = {
-  note_create: 'write',
-  note_list: 'read',
-  note_search: 'read',
-  note_read: 'read',
-  note_update: 'write',
-  note_trash: 'destructive',
   reminder_create: 'write',
   reminder_list: 'read',
   reminder_cancel: 'write',
@@ -36,10 +28,7 @@ export const P2_DANGER: Record<string, Danger> = {
 };
 
 export interface P2Deps {
-  notes: NotesStore;
   reminders: ReminderStore;
-  /** 把笔记文件移到应用回收站，返回恢复所需信息 */
-  trashNote: (file: string) => Promise<{ stored: string; original: string }>;
   clipboard: { readText(): string | Promise<string>; writeText(t: string): void };
   /** 在看板娘气泡里说一句 */
   say: (text: string) => void;
@@ -90,54 +79,12 @@ export function createP2Tools(
   const { run, confirm, journal } = kit;
   const now = d.now ?? Date.now;
 
-  journal.registerCustom('note-restore', {
-    check: (p) => (d.notes.get((p as Note).id) ? null : '笔记已不存在'),
-    apply: (p) => d.notes.restore(p as Note),
-  });
-  journal.registerCustom('note-forget', {
-    check: () => null,
-    apply: (p) => {
-      d.notes.invalidate();
-      void p;
-    },
-  });
   journal.registerCustom('reminder-restore', {
     check: (p) => (d.reminders.get((p as Reminder).id) ? null : '提醒已不存在'),
     apply: (p) => d.reminders.restore(p as Reminder),
   });
 
-  const noteId = z.string().regex(NOTE_ID, 'note id 形如 n…（来自 note_list / note_search）');
   const remId = z.string().regex(REMINDER_ID, 'reminder id 形如 r…（来自 reminder_list）');
-  const tags = z.array(z.string().max(40)).max(20).optional();
-
-  const noteCreate = z
-    .object({ title: z.string().min(1).max(200), body: z.string().max(200_000).default(''), tags })
-    .strict();
-  const noteList = z
-    .object({
-      tag: z.string().max(40).optional(),
-      offset: z.number().int().min(0).default(0),
-      limit: z.number().int().min(1).max(200).default(50),
-    })
-    .strict();
-  const noteSearch = z
-    .object({
-      query: z.string().min(1).max(200),
-      limit: z.number().int().min(1).max(50).default(10),
-    })
-    .strict();
-  const noteRead = z.object({ id: noteId }).strict();
-  const noteUpdate = z
-    .object({
-      id: noteId,
-      title: z.string().min(1).max(200).optional(),
-      body: z.string().max(200_000).optional().describe('替换全文'),
-      append: z.string().max(50_000).optional().describe('追加到末尾（与 body 二选一）'),
-      tags,
-    })
-    .strict()
-    .refine((v) => !(v.body !== undefined && v.append !== undefined), 'body 与 append 只能二选一');
-  const noteTrash = z.object({ id: noteId }).strict();
 
   const remCreate = z
     .object({
@@ -209,117 +156,6 @@ export function createP2Tools(
   });
 
   return [
-    // ---------------- 笔记 ----------------
-    tool(
-      'note_create',
-      '新建一条本地 markdown 笔记（title、body、tags）。',
-      noteCreate,
-      async (i: z.infer<typeof noteCreate>, signal) => {
-        const decision = await confirm(
-          'note_create',
-          `新建笔记「${i.title}」？`,
-          { title: i.title, chars: i.body.length, tags: i.tags },
-          signal,
-          `${i.title}\n\n${i.body.slice(0, 600)}`,
-        );
-        const n = d.notes.create(i);
-        const e = journal.record('note_create', `新建笔记「${n.title}」`, [
-          { op: 'trash', path: d.notes.fileOf(n.id) },
-          { op: 'custom', kind: 'note-forget', payload: n.id },
-        ]);
-        return { data: { id: n.id, title: n.title, tags: n.tags, undoId: e.id }, decision };
-      },
-    ),
-    tool(
-      'note_list',
-      '列出笔记（按更新时间倒序，可按标签过滤）。',
-      noteList,
-      async (i: z.infer<typeof noteList>) => ({
-        data: {
-          notes: d.notes.list(i).map((n) => ({
-            ...n,
-            updated: new Date(n.updated).toISOString(),
-            created: new Date(n.created).toISOString(),
-          })),
-        },
-      }),
-    ),
-    tool(
-      'note_search',
-      '全文搜索笔记（标题 / 标签 / 正文，多个词同时命中），返回 id、标题和片段。',
-      noteSearch,
-      async (i: z.infer<typeof noteSearch>) => ({
-        data: {
-          hits: d.notes.search(i.query, i.limit).map((h) => ({
-            id: h.id,
-            title: h.title,
-            tags: h.tags,
-            snippet: h.snippet,
-            score: h.score,
-          })),
-        },
-      }),
-    ),
-    tool('note_read', '读取一条笔记的全文。', noteRead, async (i: z.infer<typeof noteRead>) => {
-      const n = d.notes.get(i.id);
-      if (!n) throw new ToolError('not_found', '笔记不存在');
-      return {
-        data: {
-          id: n.id,
-          title: n.title,
-          tags: n.tags,
-          body: n.body,
-          updated: new Date(n.updated).toISOString(),
-        },
-      };
-    }),
-    tool(
-      'note_update',
-      '修改笔记：改标题 / 标签，替换正文（body）或追加（append）。可撤销。',
-      noteUpdate,
-      async (i: z.infer<typeof noteUpdate>, signal) => {
-        const cur = d.notes.get(i.id);
-        if (!cur) throw new ToolError('not_found', '笔记不存在');
-        const what =
-          i.append !== undefined ? '追加内容到' : i.body !== undefined ? '替换正文：' : '修改';
-        const decision = await confirm(
-          'note_update',
-          `${what}笔记「${cur.title}」？`,
-          { id: i.id, title: i.title, tags: i.tags, chars: (i.body ?? i.append ?? '').length },
-          signal,
-          (i.append ?? i.body ?? '').slice(0, 600),
-        );
-        const { before, after } = d.notes.update(i.id, i);
-        const e = journal.record('note_update', `修改笔记「${after.title}」`, [
-          { op: 'custom', kind: 'note-restore', payload: before },
-        ]);
-        return { data: { id: after.id, title: after.title, undoId: e.id }, decision };
-      },
-    ),
-    tool(
-      'note_trash',
-      '把笔记移到应用回收站（可撤销）。破坏性操作：用户必须在对话框里确认。',
-      noteTrash,
-      async (i: z.infer<typeof noteTrash>, signal) => {
-        const n = d.notes.get(i.id);
-        if (!n) throw new ToolError('not_found', '笔记不存在');
-        const decision = await confirm(
-          'note_trash',
-          `要把笔记「${n.title}」移到回收站吗？`,
-          { id: n.id, title: n.title },
-          signal,
-          `${n.title}\n\n${n.body.slice(0, 600)}`,
-        );
-        const rec = await d.trashNote(d.notes.fileOf(n.id));
-        d.notes.forget(n.id);
-        const e = journal.record('note_trash', `删除笔记「${n.title}」`, [
-          { op: 'restore', stored: rec.stored, original: rec.original },
-          { op: 'custom', kind: 'note-forget', payload: n.id },
-        ]);
-        return { data: { trashed: n.id, undoId: e.id }, decision };
-      },
-    ),
-
     // ---------------- 提醒 ----------------
     tool(
       'reminder_create',

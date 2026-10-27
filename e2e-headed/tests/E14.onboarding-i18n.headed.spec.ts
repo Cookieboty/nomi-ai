@@ -69,7 +69,7 @@ test.describe('E14 · onboarding + i18n', () => {
     const shot = (n: string) => (shots ? chat.screenshot({ path: join(shots, n) }) : undefined);
     const ob = chat.locator('[data-testid="onboarding"]');
     await expect(ob).toBeVisible({ timeout: 30_000 });
-    await expect(chat.locator('[data-testid="onboarding-step-language"]')).toBeVisible();
+    await expect(chat.locator('[data-testid="onboarding-step-welcome"]')).toBeVisible();
     // 系统语言英文 → 默认 English
     await expect(chat.locator('[data-testid="onboarding-next"]')).toHaveText('Next');
     await expect(chat.locator('html')).toHaveAttribute('lang', 'en');
@@ -78,16 +78,24 @@ test.describe('E14 · onboarding + i18n', () => {
     // 切到中文：即时生效
     await chat.click('[data-testid="onb-lang-zh-CN"]');
     await expect(chat.locator('[data-testid="onboarding-next"]')).toHaveText('下一步');
-    await chat.click('[data-testid="onboarding-next"]');
+    // 主题与启动方式与语言在同一页
     await expect(chat.locator('[data-testid="onb-theme-ink"]')).toBeVisible();
     await expect(chat.locator('html')).toHaveAttribute('data-theme', 'sunset');
     await chat.click('[data-testid="onb-theme-system"]');
     await shot('e2e-02-onboarding-theme-zh.png');
-    // 每一步都能跳过
-    for (const s of ['theme', 'startup', 'layout', 'character', 'persona']) {
+    // 每一步都能跳过：一路「跳过这一步」直到供应商（不写死中间有哪些步骤，增删步骤不用改这里）
+    const seen: string[] = [];
+    for (let i = 0; i < 12; i++) {
+      const s = await ob.getAttribute('data-step');
+      if (s === 'provider') break;
+      expect(s).toBeTruthy();
+      expect(seen).not.toContain(s); // 每次跳过都前进一步
+      seen.push(s!);
       await expect(chat.locator(`[data-testid="onboarding-step-${s}"]`)).toBeVisible();
       await chat.click('[data-testid="onboarding-skip-step"]');
+      await expect(ob).not.toHaveAttribute('data-step', s!);
     }
+    expect(seen[0]).toBe('welcome');
     await expect(chat.locator('[data-testid="onboarding-step-provider"]')).toBeVisible();
     await chat.click('[data-testid="onboarding-skip-step"]');
     await expect(chat.locator('[data-testid="onboarding-step-privacy"]')).toBeVisible();

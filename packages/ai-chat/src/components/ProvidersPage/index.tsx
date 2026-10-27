@@ -112,64 +112,66 @@ export const ProvidersPage: React.FC<{
         ]}
       />
 
-      {view === 'delegate' ? (
-        <DelegateSettings />
-      ) : view === 'monitor' ? (
-        <div data-testid="providers-section-monitor">
-          <CodingMonitor onOpenedTab={onOpenedTab} onOpenNotify={onOpenNotify} />
-        </div>
-      ) : (
-        <>
-          <div
-            role="tablist"
-            aria-label={t('ui.providers-schedule.choose-a-coding-assistant')}
-            className={styles.picker}
-            data-testid="providers-endpoint-tabs"
-            onKeyDown={onKey}
-          >
-            {CLIS.map((b) => {
-              const st = statusOf(b);
-              const on = cli === b;
-              return (
-                <button
-                  key={b}
-                  type="button"
-                  role="tab"
-                  aria-selected={on}
-                  tabIndex={on ? 0 : -1}
-                  className={`${styles.pick} ${on ? styles.pickOn : ''}`}
-                  data-testid={`providers-endpoint-${b}`}
-                  onClick={() => pick(b)}
-                >
-                  <EndpointIcon backend={b} size={20} decorative />
-                  <span className={styles.pickText}>
-                    <span className={styles.pickName}>{t(ENDPOINT_NAME[b])}</span>
-                    {st && (
-                      <span
-                        className={styles.pickStatus}
-                        data-tone={st.tone}
-                        data-testid={`providers-endpoint-status-${b}`}
-                      >
-                        {st.label}
-                      </span>
-                    )}
-                  </span>
-                </button>
-              );
-            })}
+      <div className={styles.body}>
+        {view === 'delegate' ? (
+          <DelegateSettings />
+        ) : view === 'monitor' ? (
+          <div data-testid="providers-section-monitor">
+            <CodingMonitor onOpenedTab={onOpenedTab} onOpenNotify={onOpenNotify} />
           </div>
-          {cliOk ? (
-            <>
-              <CliEndpointSection key={cli} kind={cli} onOpenModels={onOpenModels} />
-              <ExternalClis onOpenedTab={onOpenedTab} />
-            </>
-          ) : (
-            <p className={styles.sub}>
-              {t('ui.mascot-theme.coding-agent-harness-requires-the-desktop-app')}
-            </p>
-          )}
-        </>
-      )}
+        ) : (
+          <>
+            <div
+              role="tablist"
+              aria-label={t('ui.providers-schedule.choose-a-coding-assistant')}
+              className={styles.picker}
+              data-testid="providers-endpoint-tabs"
+              onKeyDown={onKey}
+            >
+              {CLIS.map((b) => {
+                const st = statusOf(b);
+                const on = cli === b;
+                return (
+                  <button
+                    key={b}
+                    type="button"
+                    role="tab"
+                    aria-selected={on}
+                    tabIndex={on ? 0 : -1}
+                    className={`${styles.pick} ${on ? styles.pickOn : ''}`}
+                    data-testid={`providers-endpoint-${b}`}
+                    onClick={() => pick(b)}
+                  >
+                    <EndpointIcon backend={b} size={20} decorative />
+                    <span className={styles.pickText}>
+                      <span className={styles.pickName}>{t(ENDPOINT_NAME[b])}</span>
+                      {st && (
+                        <span
+                          className={styles.pickStatus}
+                          data-tone={st.tone}
+                          data-testid={`providers-endpoint-status-${b}`}
+                        >
+                          {st.label}
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            {cliOk ? (
+              <>
+                <CliEndpointSection key={cli} kind={cli} onOpenModels={onOpenModels} />
+                <ExternalClis onOpenedTab={onOpenedTab} />
+              </>
+            ) : (
+              <p className={styles.sub}>
+                {t('ui.mascot-theme.coding-agent-harness-requires-the-desktop-app')}
+              </p>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 };

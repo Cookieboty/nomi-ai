@@ -22,6 +22,7 @@ import {
   type SessionUsageView,
   type WatchedTab,
 } from '../../../src/agents/AgentProgressService';
+import { fakeDesktop } from '../helpers/fakeDesktop';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'cd-agents-usage-'));
 const flush = async () => {
@@ -84,7 +85,7 @@ describe('AgentProgressService：用量联动', () => {
       home,
       dshHome: path.join(home, '.dsh'),
       logger: { info: jest.fn(), warn: jest.fn() },
-      desktop: { say } as never,
+      desktop: fakeDesktop(say) as never,
       now: () => now,
       pollMs: 60_000,
       processes: () => [],

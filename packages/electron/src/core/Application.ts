@@ -52,14 +52,14 @@ import {
 import { IpcRegistry } from '../handlers/ipc/IpcRegistry';
 import { t as tr } from '../i18n';
 import { LocaleService } from '../i18n';
-import { getIslandService, initIslandService, notifyIsland } from '../island/IslandService';
+import { getIslandService, initIslandService } from '../island/IslandService';
 import { initKnowledgeService } from '../knowledge/KnowledgeService';
-import { getLocalHubService, initLocalHubService } from '../local/LocalHubService';
+import { initLocalHubService } from '../local/LocalHubService';
 import { getLocalModelService, initLocalModelService } from '../local/LocalModelService';
 import { getMemoryService, initMemoryService } from '../memory/MemoryService';
 import { OnboardingService } from '../onboarding/OnboardingService';
 import { getSchedulerService, initSchedulerService } from '../schedule/SchedulerService';
-import { getScreenService, initScreenService } from '../screen/ScreenService';
+import { initScreenService } from '../screen/ScreenService';
 import { appCspString } from '../security/csp';
 import { AdvancedTTSEngine } from '../services/AdvancedTTSEngine';
 import { CacheService } from '../services/CacheService';
@@ -83,6 +83,7 @@ import { initQualityService } from '../usage/quality/QualityService';
 import { getUsageService, initUsageService } from '../usage/UsageService';
 import { GlobalErrorHandler } from '../utils/ErrorHandler';
 import { perfMark } from '../utils/perfMarks';
+import { whenPrivateWritesIdle } from '../utils/privateFile';
 import { getVoiceService } from '../voice/VoiceService';
 
 import { initAppIcon } from './appIcon';
@@ -298,37 +299,16 @@ export class Application implements IApplication {
           } as never);
           return typeof resp?.content === 'string' ? resp.content : '';
         },
-        // 记忆 + 今日日历（日历服务在下方创建，这里按需读取）
-        memory: async (q) => {
-          const cal = (getLocalHubService()?.today() ?? [])
-            .map((o) =>
-              tr(
-                '- {0} {1}',
-                o.allDay
-                  ? tr('electron.common.all-day')
-                  : new Date(o.start).toTimeString().slice(0, 5),
-                o.summary,
-              ),
-            )
-            .join('\n');
-          return [(await mem.context(q)).text, cal && tr('electron.common.today-s-calendar', cal)]
-            .filter(Boolean)
-            .join('\n\n');
-        },
+        memory: async (q) => (await mem.context(q)).text,
         openChat: () => void this.windowManager.createAiChatWindow(),
       });
       sched.registerIpc();
 
-      // 截图提问 + 屏幕记忆（默认关闭；OCR 复用知识库语言包）
+      // 图片发送前的云端告知 / 仅本地检查；顺带清掉旧版本的屏幕记忆目录
       const scr = initScreenService({
         root: path.join(app.getPath('userData'), 'screen-memory'),
         logger: this.logger as never,
         desktop,
-        ocr: (img) => kb.ocr(img),
-        ocrReady: () => kb.ocrLangsReady().length > 0,
-        chatWindow: () => this.windowManager.getAiChatWindow(),
-        openChat: () => this.windowManager.createAiChatWindow(),
-        loadOverlay: (win) => this.windowManager.loadChatRoute(win, 'snip'),
       });
       scr.registerIpc();
 
@@ -341,7 +321,7 @@ export class Application implements IApplication {
       });
       ext.registerIpc();
 
-      // 本地中心：日历 / 剪贴板历史 / 数据导出；本地模型管理（llama.cpp + Ollama）
+      // 本地数据导出；本地模型管理（llama.cpp + Ollama）
       const hub = initLocalHubService({
         root: path.join(app.getPath('userData'), 'local'),
         userData: app.getPath('userData'),
@@ -441,11 +421,17 @@ export class Application implements IApplication {
           const l = accounts.officialLaunch(kind, null);
           return { dir: l.dir, args: l.args };
         },
-        // 预算 / 单任务提醒：看板娘气泡（只显示，不朗读）+ 灵动岛；免打扰中不弹，稍后重试
+        // 预算 / 单任务提醒：看板娘气泡（只显示，不朗读）或灵动岛 / 系统通知；免打扰中不弹，稍后重试
         alert: (a) => {
           if (desktop.notifyPolicy?.quiet() ?? false) return false;
-          desktop.say(a.text.slice(0, 140), { voice: 'none' });
-          notifyIsland({ kind: 'info', status: 'attention', title: a.title, body: a.text });
+          desktop.notify({
+            kind: 'info',
+            status: 'attention',
+            title: a.title,
+            body: a.text,
+            text: a.text.slice(0, 140),
+            bubble: { voice: 'none' },
+          });
           return true;
         },
       });
@@ -798,7 +784,6 @@ export class Application implements IApplication {
       }
       perfMark('ai-runtime-ready');
       void ext.start();
-      hub.start();
       void localLlm.autoStart();
 
       // 语音输入：本地 whisper.cpp / OpenAI 兼容识别、按需下载模型、打断 TTS、唤醒词
@@ -848,7 +833,6 @@ export class Application implements IApplication {
       // 提醒调度：主窗口创建后开始（错过的提醒要在看板娘气泡里播报）
       desktop.startReminders();
       sched.start();
-      scr.start();
 
       // 托盘：一键切换 AI provider
       this.startTray();
@@ -887,7 +871,8 @@ export class Application implements IApplication {
         },
         ttsProviders: [electronNativeTts],
         // 消息里的附件正文 / 委派汇报按实际接收者过「仅本地 / 云端首次发送」（#149 / #117）
-        prepareChat: (options, method) =>
+        // signal：用户在确认等待中停止该轮时撤掉还没答复的确认（#160）
+        prepareChat: (options, method, signal) =>
           guardOutboundMessages(options.messages, (what) => {
             const desktop = getDesktopService(this.logger);
             const fallback = method.startsWith('agent') ? 'agent-tools' : 'chat';
@@ -897,7 +882,7 @@ export class Application implements IApplication {
               options.role === 'summary'
                 ? options.role
                 : fallback;
-            return desktop.checkSendAll(desktop.receiversFor(undefined, [role]), undefined, what);
+            return desktop.checkSendAll(desktop.receiversFor(undefined, [role]), signal, what);
           }),
       });
       this.logger.info('AI runtime 启动完成', {
@@ -955,14 +940,6 @@ export class Application implements IApplication {
       },
       onActivate: () => this.raiseMainOnReactivate(),
       quit: () => app.quit(),
-      screenMemory: getScreenService()
-        ? {
-            active: () => getScreenService()!.active(),
-            onChange: (fn) => getScreenService()!.onChange(fn),
-            pause: (m) => getScreenService()!.pause(m),
-            open: () => void this.windowManager.openProviderPanel('ai:screen:open-panel'),
-          }
-        : undefined,
     });
     this.trayManager.start();
     // 兜底：应用被激活 / 窗口获得焦点时，如果托盘已被销毁就重建
@@ -978,8 +955,6 @@ export class Application implements IApplication {
     getMemoryService()?.flush();
     getSchedulerService()?.stop();
     getIslandService()?.destroy();
-    getScreenService()?.stop();
-    getLocalHubService()?.stop();
     void getLocalModelService()?.stop();
     try {
       getUpdateService(this.logger).stop();
@@ -1026,6 +1001,8 @@ export class Application implements IApplication {
 
       // 保存配置：退出路径同步落盘最新配置（日常保存走异步写，见 ConfigService.flushOnQuit）
       await this.configService.flushOnQuit();
+      // 其余服务排队中的异步私有文件写入（Windows 占用重试不挡主进程，#154）也等它们落盘
+      await whenPrivateWritesIdle();
 
       // 清理IPC处理器
       this.ipcRegistry.cleanup();

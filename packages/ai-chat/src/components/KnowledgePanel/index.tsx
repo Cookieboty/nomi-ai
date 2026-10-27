@@ -16,7 +16,7 @@ import {
   Switch,
   Tabs,
 } from '@nomi-ai/ui';
-import { FolderOpen, SearchX, Folder, Lock, NotebookPen, Plus, RefreshCw } from 'lucide-react';
+import { FolderOpen, SearchX, Folder, Lock, Plus, RefreshCw } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -478,8 +478,6 @@ export const KnowledgePanel: React.FC<Props> = ({ isVisible, onClose }) => {
     }
   };
 
-  const hasNotes = st?.sources.some((s) => s.kind === 'notes');
-
   return (
     <Modal
       open
@@ -544,17 +542,6 @@ export const KnowledgePanel: React.FC<Props> = ({ isVisible, onClose }) => {
                     <Icon icon={Plus} size={14} />
                     {tr('ui.knowledge-local.add-folder')}
                   </Button>
-                  {!hasNotes && (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => void kbClient.addNotes()}
-                      data-testid="kb-add-notes"
-                    >
-                      <Icon icon={Plus} size={14} />
-                      {tr('ui.knowledge-local.add-my-notes')}
-                    </Button>
-                  )}
                   <span className={styles.grow} />
                   <Button
                     size="sm"
@@ -589,10 +576,8 @@ export const KnowledgePanel: React.FC<Props> = ({ isVisible, onClose }) => {
                       data-testid="kb-source"
                       title={
                         <span className={styles.row}>
-                          <Icon icon={s.kind === 'notes' ? NotebookPen : Folder} size={14} />
-                          {s.kind === 'notes'
-                            ? tr('ui.knowledge-local.my-notes')
-                            : shortPath(s.path ?? '')}
+                          <Icon icon={Folder} size={14} />
+                          {shortPath(s.path ?? '')}
                         </span>
                       }
                       subtitle={tr(

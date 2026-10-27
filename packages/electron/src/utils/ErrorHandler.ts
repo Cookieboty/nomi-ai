@@ -9,6 +9,8 @@ import { eventBus } from '../core/EventBus';
 import { t } from '../i18n';
 import { type ILoggerService } from '../services/LoggerService';
 
+import { isBrokenStdioError } from './stdioGuard';
+
 export enum ErrorSeverity {
   LOW = 'low',
   MEDIUM = 'medium',
@@ -106,6 +108,8 @@ export class GlobalErrorHandler implements IErrorHandler {
    * 处理未捕获的异常
    */
   handleUncaughtException(error: Error): void {
+    // 终端断开后控制台写入失败（EIO / EPIPE）：只是丢了一行控制台输出，不是应用错误
+    if (isBrokenStdioError(error)) return;
     const errorInfo = this.createErrorInfo(
       error,
       { component: 'uncaughtException' },

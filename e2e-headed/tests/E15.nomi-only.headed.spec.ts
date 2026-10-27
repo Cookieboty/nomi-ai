@@ -240,21 +240,45 @@ test.describe('E15 · Nomi only', () => {
       const v = document.documentElement.dataset.mascotHead!.split(',').map(Number);
       return { x: (v[0] + v[1]) / 2, y: v[3] + 30 };
     });
+    const reaction = () =>
+      page.evaluate(() => document.documentElement.dataset.mascotReaction ?? '');
+    // Windows Playwright Electron can swallow real mouse buttons right after the window was
+    // moved (same as the drag fallback above).  Then replay the click as DOM pointer events on
+    // the sprite canvas so the renderer's own DragGate / ClickClassifier path is still exercised.
+    const domClicks = (n: number) =>
+      page.evaluate(
+        async ([x, y, count]) => {
+          const el = document.elementFromPoint(x, y);
+          const canvas = el instanceof HTMLCanvasElement ? el : document.querySelector('canvas');
+          if (!canvas) throw new Error('no mascot canvas');
+          const init = { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0 };
+          for (let i = 0; i < count; i++) {
+            canvas.dispatchEvent(
+              new PointerEvent('pointerdown', { ...init, buttons: 1, pointerId: 1 }),
+            );
+            canvas.dispatchEvent(
+              new PointerEvent('pointerup', { ...init, buttons: 0, pointerId: 1 }),
+            );
+            await new Promise((r) => setTimeout(r, 60));
+          }
+        },
+        [at.x, at.y, n] as [number, number, number],
+      );
+    const expectReaction = async (re: RegExp, real: () => Promise<void>, n: number) => {
+      await real();
+      try {
+        await expect.poll(reaction, { timeout: 3_000 }).toMatch(re);
+      } catch {
+        await sleep(1_000);
+        await domClicks(n);
+        await expect.poll(reaction, { timeout: 5_000 }).toMatch(re);
+      }
+    };
     await page.mouse.move(at.x, at.y);
     await sleep(200);
-    await page.mouse.click(at.x, at.y);
-    await expect
-      .poll(() => page.evaluate(() => document.documentElement.dataset.mascotReaction ?? ''), {
-        timeout: 5_000,
-      })
-      .toMatch(/^click:/);
+    await expectReaction(/^click:/, () => page.mouse.click(at.x, at.y), 1);
     await sleep(1_000);
-    await page.mouse.dblclick(at.x, at.y);
-    await expect
-      .poll(() => page.evaluate(() => document.documentElement.dataset.mascotReaction ?? ''), {
-        timeout: 5_000,
-      })
-      .toMatch(/^double:/);
+    await expectReaction(/^double:/, () => page.mouse.dblclick(at.x, at.y), 2);
     expect(await pos()).toEqual(p0);
   });
 });

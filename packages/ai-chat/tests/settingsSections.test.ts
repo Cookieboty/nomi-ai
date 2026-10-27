@@ -3,35 +3,25 @@ import { describe, expect, it } from 'vitest';
 import { SECTION_TABS, SETTINGS_SECTIONS, tabOf } from '../src/components/SettingsView/sections';
 
 describe('设置分区：合并后的菜单', () => {
-  it('13 个分区，高频在前；没有独立的「更新」「屏幕」「语音」', () => {
+  it('7 个分区；快捷键、语音、截图、通知并进「通用」，模型质量并进「用量与质量」', () => {
     expect(SETTINGS_SECTIONS.map((s) => s.id)).toEqual([
       'general',
-      'shortcuts',
       'models',
-      'quality',
       'coding',
       'usage',
-      'senses',
       'knowledge',
-      'schedule',
-      'notify',
       'ext',
-      'local',
       'privacy',
     ]);
+    // 命令面板的设置条目由分区生成：不再有单独的「快捷键」入口
+    expect(SETTINGS_SECTIONS.some((s) => (s.id as string) === 'shortcuts')).toBe(false);
     expect(SETTINGS_SECTIONS.map((s) => s.label)).toEqual([
       'ui.chat-settings.general',
-      'ui.chat-settings.shortcuts',
-      'ui.foundation.model',
-      'ui.model-quality.model-quality',
+      'ui.chat-settings.models-and-providers',
       'ui.providers-schedule.coding-agents',
-      'ui.usage-tools.usage-cost',
-      'ui.chat-settings.voice-screen',
+      'ui.chat-settings.usage-and-quality',
       'ui.chat-settings.knowledge-memory',
-      'ui.chat-settings.schedule-calendar',
-      'ui.mascot-theme.notifications-island',
       'ui.foundation.extensions-mcp',
-      'ui.chat-settings.local-tools',
       'ui.chat-settings.privacy-permissions',
     ]);
   });
@@ -42,17 +32,25 @@ describe('设置分区：合并后的菜单', () => {
       expect(new Set(ids).size).toBe(ids.length);
       expect(SETTINGS_SECTIONS.map((s) => s.id as string)).toContain(section);
     }
-    expect(SECTION_TABS.knowledge.map((t) => t.id)).toEqual(['kb', 'memory', 'notes']);
-    expect(SECTION_TABS.schedule.map((t) => t.id)).toEqual(['reminders', 'calendar']);
-    expect(SECTION_TABS.privacy.map((t) => t.id)).toEqual(['data', 'outbound', 'desktop']);
-    expect(SECTION_TABS.senses.map((t) => t.id)).toEqual(['voice', 'screen']);
-    expect(SECTION_TABS.quality.map((t) => t.id)).toEqual(['compare', 'trend', 'requests']);
-    expect(tabOf('quality', 'requests')).toBe('requests');
-    expect(tabOf('knowledge', 'notes')).toBe('notes');
-    expect(tabOf('knowledge', 'calendar')).toBeUndefined();
-    expect(tabOf('schedule', 'calendar')).toBe('calendar');
-    expect(tabOf('privacy', 'desktop')).toBe('desktop');
-    expect(tabOf('privacy', 'outbound')).toBe('outbound');
+    expect(SECTION_TABS.general.map((t) => t.id)).toEqual([
+      'basics',
+      'shortcuts',
+      'voice',
+      'notify',
+    ]);
+    expect(SECTION_TABS.models.map((t) => t.id)).toEqual(['providers', 'local']);
+    expect(SECTION_TABS.usage.map((t) => t.id)).toEqual(['cost', 'compare', 'trend', 'requests']);
+    expect(SECTION_TABS.knowledge.map((t) => t.id)).toEqual(['kb', 'memory', 'schedule']);
+    expect(SECTION_TABS.privacy.map((t) => t.id)).toEqual([
+      'data',
+      'outbound',
+      'desktop',
+      'export',
+    ]);
+    expect(tabOf('usage', 'requests')).toBe('requests');
+    expect(tabOf('knowledge', 'schedule')).toBe('schedule');
+    expect(tabOf('knowledge', 'notes')).toBeUndefined();
+    expect(tabOf('privacy', 'export')).toBe('export');
     expect(tabOf('privacy', undefined)).toBeUndefined();
   });
 });

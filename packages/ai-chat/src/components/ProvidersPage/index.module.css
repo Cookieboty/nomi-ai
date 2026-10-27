@@ -1,6 +1,21 @@
+/* 撑满设置主栏：顶部标签固定，下方内容滚动（左右留边再抵回，免得裁掉卡片阴影与焦点描边） */
 .page {
-  display: grid;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
   gap: var(--cd-space-4);
+}
+.body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: var(--cd-space-4);
+  overflow-y: auto;
+  overflow-x: hidden;
+  margin: 0 calc(-1 * var(--cd-space-1));
+  padding: var(--cd-space-0-5) var(--cd-space-1) var(--cd-space-8);
 }
 .sub {
   margin: 0;

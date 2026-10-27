@@ -11,7 +11,7 @@ import { type BrowserWindow, shell } from 'electron';
 
 const EXTERNAL_LINK_RE = /^https?:\/\//i;
 
-/** 仅允许同源同文档（仅 hash 不同）的导航，例如 #snip 路由。 */
+/** 仅允许同源同文档（仅 hash 不同）的导航。 */
 function isSameDocumentNavigation(currentUrl: string, nextUrl: string): boolean {
   if (!currentUrl || !nextUrl) return false;
   return currentUrl.split('#')[0] === nextUrl.split('#')[0];

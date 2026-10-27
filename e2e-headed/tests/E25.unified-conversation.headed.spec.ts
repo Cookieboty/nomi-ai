@@ -57,7 +57,7 @@ async function launch(
   await chat.setViewportSize({ width: 1100, height: 700 }).catch(() => undefined);
   if (dev) {
     await chat.locator('[data-testid="chat-mode-dev"]').click({ timeout: 30_000 });
-    await chat.locator('[data-testid="chat-tabs"]').waitFor({ timeout: 30_000 });
+    await chat.locator('[data-testid="list-view-all"]').waitFor({ timeout: 30_000 });
   }
   return { app, chat };
 }
@@ -86,9 +86,9 @@ const shot = async (p: Page, name: string) => {
 };
 
 async function newClaudeTab(chat: Page) {
-  await chat.click('[data-testid="chat-tab-add"]');
-  await chat.locator('[data-testid="chat-tab-menu"]').waitFor();
-  await chat.click('[data-testid="chat-tab-new-claude"]');
+  await chat.click('[data-testid="new-chat"]');
+  await chat.locator('[data-testid="new-chat-menu"]').waitFor();
+  await chat.click('[data-testid="new-chat-claude"]');
   await expect(chat.locator('[data-testid="chat-input"]')).toBeEnabled();
 }
 
@@ -279,6 +279,10 @@ test.describe('E25 · unified conversation view', () => {
     // stops: it keeps streaming until the client aborts, so "click Stop" can never race a turn
     // that finishes by itself (a slow runner / screenshot used to let it end in ~4s first).
     let streamRequests = 0;
+    // 第一轮回答发完正文后等测试放行再结束：Windows runner 上渲染慢，固定 3.6s 的流
+    // 可能在测试看到「进行中」状态、排上第二条之前就已结束
+    let releaseFirst: () => void = () => undefined;
+    let firstGate = Promise.resolve();
     test.beforeAll(async () => {
       server = createServer((req, res) => {
         let raw = '';
@@ -293,7 +297,9 @@ test.describe('E25 · unified conversation view', () => {
             return;
           }
           res.writeHead(200, { 'content-type': 'text/event-stream' });
-          const holdOpen = (streamRequests += 1) === 2;
+          const n = (streamRequests += 1);
+          const holdOpen = n === 2;
+          const gate = n === 1 ? firstGate : Promise.resolve();
           const send = (o: unknown) => res.write(`data: ${JSON.stringify(o)}\n\n`);
           const parts = [
             '## 回答\n\n',
@@ -308,12 +314,15 @@ test.describe('E25 · unified conversation view', () => {
               send({ choices: [{ index: 0, delta: { role: 'assistant', content: parts[i++] } }] });
               setTimeout(tick, 900);
             } else if (!holdOpen) {
-              send({ choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] });
-              send({
-                choices: [],
-                usage: { prompt_tokens: 120, completion_tokens: 34, total_tokens: 154 },
+              void gate.then(() => {
+                if (res.destroyed) return;
+                send({ choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] });
+                send({
+                  choices: [],
+                  usage: { prompt_tokens: 120, completion_tokens: 34, total_tokens: 154 },
+                });
+                res.end('data: [DONE]\n\n');
               });
-              res.end('data: [DONE]\n\n');
             }
           };
           tick();
@@ -328,6 +337,7 @@ test.describe('E25 · unified conversation view', () => {
     test('markdown body, time, copy, queue while streaming, stop, regenerate', async () => {
       test.setTimeout(240_000);
       streamRequests = 0;
+      firstGate = new Promise<void>((r) => (releaseFirst = r));
       userData = mkdtempSync(join(tmpdir(), 'e25-c-'));
       const port = (server!.address() as AddressInfo).port;
       let chat: Page;
@@ -354,6 +364,7 @@ test.describe('E25 · unified conversation view', () => {
         timeout: 30_000,
       });
       await shot(chat, '31-nomi-streaming-queued');
+      releaseFirst();
       // 第一轮结束 → 排队的第二条自动发送
       await expect(chat.locator('[data-testid="msg-user"]')).toHaveCount(2, { timeout: 60_000 });
       const first = chat.locator('[data-testid="msg-assistant"]').first();

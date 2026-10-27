@@ -227,16 +227,6 @@ export class KnowledgeService {
     return s;
   }
 
-  addNotes(): KbSource {
-    const existing = this.settings.sources.find((s) => s.kind === 'notes');
-    if (existing) return existing;
-    const s: KbSource = { id: randomUUID(), kind: 'notes', addedAt: Date.now(), enabled: true };
-    this.settings.sources.push(s);
-    this.save();
-    void this.reindex([s.id]);
-    return s;
-  }
-
   removeSource(id: string): boolean {
     const i = this.settings.sources.findIndex((s) => s.id === id);
     if (i < 0) return false;
@@ -246,7 +236,7 @@ export class KnowledgeService {
     this.save();
     this.d.desktop.audit.append({
       tool: 'kb_remove_source',
-      args: { path: s.path ?? tr('electron.common.notes') },
+      args: { path: s.path },
       decision: 'user',
       result: 'ok',
       source: 'settings',
@@ -511,15 +501,10 @@ export class KnowledgeService {
       const sources = this.settings.sources.filter(
         (s) => s.enabled && (!ids || ids.includes(s.id)),
       );
-      const work: Array<{ src: KbSource; file?: string; noteId?: string }> = [];
+      const work: Array<{ src: KbSource; file: string }> = [];
       for (const src of sources) {
         const seen = new Set<string>();
-        if (src.kind === 'notes') {
-          for (const n of this.d.desktop.notes.list({ limit: 100_000 })) {
-            seen.add(docIdOf(`note:${n.id}`));
-            work.push({ src, noteId: n.id });
-          }
-        } else if (src.path) {
+        if (src.path) {
           const g = await this.d.desktop.broker.guard(src.path, 'read');
           if (!g.ok) {
             // 授权被撤销 → 不再读取这个文件夹，清掉已有索引
@@ -551,11 +536,9 @@ export class KnowledgeService {
       let lastEmit = 0;
       for (const w of work) {
         if (ctrl.signal.aborted) break;
-        p.current = w.file ? path.basename(w.file) : tr('electron.common.notes');
+        p.current = path.basename(w.file);
         try {
-          const r = w.noteId
-            ? await this.indexNote(w.src, w.noteId, embedModel, ep, ctrl.signal, opts.force)
-            : await this.indexFile(w.src, w.file!, embedModel, ep, ctrl.signal, opts.force);
+          const r = await this.indexFile(w.src, w.file, embedModel, ep, ctrl.signal, opts.force);
           if (r === 'added') p.added++;
           else if (r === 'updated') p.updated++;
           else if (r === 'failed') p.failed++;
@@ -690,42 +673,6 @@ export class KnowledgeService {
     return prev ? 'updated' : 'added';
   }
 
-  private async indexNote(
-    src: KbSource,
-    noteId: string,
-    embedModel: string | undefined,
-    ep: Endpoint | null,
-    signal: AbortSignal,
-    force?: boolean,
-  ): Promise<'added' | 'updated' | 'same' | 'failed'> {
-    const n = this.d.desktop.notes.get(noteId);
-    const p = `note:${noteId}`;
-    const id = docIdOf(p);
-    if (!n) {
-      this.index.remove(id);
-      return 'same';
-    }
-    const prev = this.index.get(id);
-    if (!force && prev && prev.mtime === n.updated && prev.embedModel === embedModel) return 'same';
-    const text = `${n.title}\n${n.tags.map((t) => `#${t}`).join(' ')}\n\n${n.body}`;
-    const title = tr('electron.common.note', n.title);
-    const chunks = await this.withVectors(chunkText(text), id, title, ep, signal);
-    this.index.put({
-      id,
-      sourceId: src.id,
-      path: p,
-      title,
-      ext: 'note',
-      mtime: n.updated,
-      size: text.length,
-      indexedAt: Date.now(),
-      status: chunks.length ? 'ok' : 'empty',
-      ...(embedModel && chunks.length ? { embedModel } : {}),
-      chunks,
-    });
-    return prev ? 'updated' : 'added';
-  }
-
   // ---------- 检索 / 问答 ----------
   private enabledSourceIds(): string[] {
     return this.settings.sources.filter((s) => s.enabled).map((s) => s.id);
@@ -739,7 +686,7 @@ export class KnowledgeService {
     const revoked = new Set<string>();
     for (const id of ids) {
       const src = this.settings.sources.find((s) => s.id === id);
-      if (!src || src.kind === 'notes' || !src.path) continue;
+      if (!src || !src.path) continue;
       const g = await this.d.desktop.broker.guard(src.path, 'read');
       if (!g.ok) revoked.add(id);
     }
@@ -811,7 +758,7 @@ export class KnowledgeService {
   ): Promise<{ answer: string; sources: SourceRef[]; mode: string }> {
     const started = Date.now();
     if (!this.index.stats().chunks)
-      throw new KbError('empty', tr('electron.common.the-knowledge-base-is-empty-add-folders-or'));
+      throw new KbError('empty', tr('electron.common.the-knowledge-base-is-empty-add-folders'));
     const { hits, mode } = await this.search(question);
     if (!hits.length)
       return {
@@ -844,19 +791,13 @@ export class KnowledgeService {
     return { answer, sources, mode };
   }
 
-  /** 打开来源：文件（重新检查授权）用系统默认程序打开 / 在文件夹中显示；笔记返回全文给渲染层显示 */
+  /** 打开来源：文件（重新检查授权）用系统默认程序打开 / 在文件夹中显示 */
   async open(
     docId: string,
-    how: 'open' | 'reveal' | 'preview' = 'open',
-  ): Promise<{ ok: boolean; error?: string; note?: { title: string; body: string } }> {
+    how: 'open' | 'reveal' = 'open',
+  ): Promise<{ ok: boolean; error?: string }> {
     const d = this.index.get(docId);
     if (!d) return { ok: false, error: tr('electron.common.source-is-no-longer-in-the-index') };
-    if (d.path.startsWith('note:')) {
-      const n = this.d.desktop.notes.get(d.path.slice(5));
-      return n
-        ? { ok: true, note: { title: n.title, body: n.body } }
-        : { ok: false, error: tr('electron.common.note-deleted') };
-    }
     const g = await this.d.desktop.broker.guard(d.path, 'read');
     if (!g.ok)
       return { ok: false, error: tr('electron.common.this-file-is-no-longer-within-the-granted') };
@@ -1053,7 +994,6 @@ export class KnowledgeService {
     handle('ai:kb:state', () => this.state());
     handle('ai:kb:docs', (_e, id, f) => this.docs(String(id), typeof f === 'string' ? f : ''));
     handle('ai:kb:add-folder', () => this.addFolder());
-    handle('ai:kb:add-notes', () => this.addNotes());
     handle('ai:kb:remove-source', (_e, id) => this.removeSource(String(id)));
     handle('ai:kb:toggle-source', (_e, id, v) => this.setSourceEnabled(String(id), v === true));
     handle('ai:kb:set-settings', (_e, p) => this.setSettings(p));
@@ -1082,7 +1022,7 @@ export class KnowledgeService {
       ),
     );
     handle('ai:kb:open', (_e, id, how) =>
-      this.open(String(id), how === 'reveal' ? 'reveal' : how === 'preview' ? 'preview' : 'open'),
+      this.open(String(id), how === 'reveal' ? 'reveal' : 'open'),
     );
     handle('ai:kb:ocr-download', (_e, id) => this.downloadOcr(String(id)));
     handle('ai:kb:ocr-cancel', (_e, id) => this.cancelOcr(String(id)));

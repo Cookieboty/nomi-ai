@@ -245,7 +245,7 @@ describe('SileroClient（主进程 ↔ worker）', () => {
     const { c, spawn, workers } = setup({ timeoutMs: 30 });
     await c.run('a', model, frame(1));
     workers[0]!.hang = true;
-    await expect(c.run('a', model, frame(1))).rejects.toThrow('超时');
+    await expect(c.run('a', model, frame(1))).rejects.toThrow('timed out');
     expect(workers[0]!.terminated).toBe(true);
     expect(await c.run('a', model, frame(1))).toBe(512);
     expect(spawn).toHaveBeenCalledTimes(2);

@@ -296,6 +296,17 @@ html[data-chat-bg] .ai-chat-app::before {
   line-height: var(--cd-line-height);
 }
 
+.welcome-setup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--cd-space-3);
+  margin-bottom: var(--cd-space-6);
+}
+.welcome-setup .welcome-subtitle {
+  margin-bottom: 0;
+}
+
 .quick-actions {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -368,36 +379,6 @@ html[data-chat-bg] .ai-chat-app::before {
   }
   .quick-action-btn {
     min-height: 84px;
-  }
-}
-
-.screen-mem-indicator {
-  position: absolute;
-  top: 6px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 5;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cd-space-1-5);
-  padding: var(--cd-space-0-5) 10px;
-  border-radius: var(--cd-radius-full);
-  cursor: pointer;
-  font-size: var(--cd-font-size-xs);
-  color: var(--cd-color-text);
-  background: var(--cd-color-surface);
-  border: 1px solid var(--cd-color-danger);
-}
-.screen-mem-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--cd-color-danger);
-  animation: cd-pulse 1.6s ease-in-out infinite;
-}
-@keyframes cd-pulse {
-  50% {
-    opacity: 0.35;
   }
 }
 
@@ -492,6 +473,34 @@ html[data-platform='darwin'] .app-titlebar {
   padding-left: 78px; /* 红绿灯 */
   padding-right: 78px;
 }
+.app-titlebar-toggle {
+  position: absolute;
+  left: var(--cd-space-2);
+  top: 50%;
+  transform: translateY(-50%);
+  width: var(--cd-control-h-sm);
+  height: var(--cd-control-h-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--cd-radius-md);
+  background: transparent;
+  color: var(--cd-color-text-muted);
+  cursor: pointer;
+}
+/* macOS：紧跟红绿灯，位置固定（侧栏收起 / 展开都不动） */
+html[data-platform='darwin'] .app-titlebar-toggle {
+  left: 78px;
+}
+.app-titlebar-toggle:hover {
+  background: var(--cd-color-hover);
+  color: var(--cd-color-text);
+}
+.app-titlebar-toggle:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: -2px;
+}
 .app-titlebar-title {
   font: var(--cd-text-label);
   color: var(--cd-color-text-muted);
@@ -562,29 +571,4 @@ html[data-chat-bg] .main-content--with-changes [data-testid='center-preview-pane
   html[data-chat-bg] .files-rail-splitter::after {
     transition: none;
   }
-}
-
-/* 精简模式：顶栏不放对话标签条，只显示当前会话标题（与右侧按钮同高、贴底，同一中线） */
-.chat-compact-title {
-  display: flex;
-  align-items: center;
-  gap: var(--cd-space-1-5);
-  align-self: flex-end;
-  height: var(--cd-control-h-ms);
-  min-width: 0;
-  color: var(--cd-color-text);
-  font-size: var(--cd-font-size-md);
-}
-.chat-compact-title-text {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.chat-compact-title-dot {
-  flex: none;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--cd-color-accent);
 }

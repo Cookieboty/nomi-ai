@@ -65,6 +65,21 @@
   color: var(--cd-color-text-muted);
   cursor: pointer;
 }
+/* 刷新只在悬停 / 键盘聚焦卡片、或正在刷新时出现，平时不占视觉 */
+.refresh {
+  opacity: 0;
+  transition: opacity var(--cd-duration-fast) var(--cd-ease);
+}
+.card:hover .refresh,
+.card:focus-within .refresh,
+.card[data-busy] .refresh {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .refresh {
+    transition: none;
+  }
+}
 .refresh:hover:not(:disabled) {
   background: var(--cd-color-hover);
   color: var(--cd-color-text);

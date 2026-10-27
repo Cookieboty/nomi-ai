@@ -94,17 +94,61 @@
 .navItem.navActive .navIcon {
   color: var(--cd-color-accent-strong);
 }
+/* 收起：只留图标（与对话侧栏收起同宽），文字留给悬停提示与读屏 */
+.nav {
+  transition: width 0.18s ease;
+}
+.nav[data-collapsed] {
+  width: 52px;
+  padding-left: var(--cd-space-1);
+  padding-right: var(--cd-space-1);
+  overflow-x: hidden;
+}
+.nav[data-collapsed] .brand {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+.nav[data-collapsed] .brandText,
+.nav[data-collapsed] .navLabel {
+  display: none;
+}
+.nav[data-collapsed] .back,
+.nav[data-collapsed] .navItem {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+.navLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (prefers-reduced-motion: reduce) {
+  .nav {
+    transition: none;
+  }
+}
+/* 内容区不整体滚动：横幅、页头与标签固定，只有标签下的内容区（SectionPage 面板，否则主栏）滚动 */
 .content {
   flex: 1;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
   overflow-x: hidden;
+  overflow-y: hidden;
   min-width: 0;
 }
 .inner {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
   min-width: 0;
   max-width: 1240px;
   margin: 0 auto;
-  padding: 28px 40px 56px;
+  padding: 28px 40px 0;
   font-size: var(--cd-font-size-md);
 }
 .block {
@@ -352,6 +396,7 @@
 
 /* 页头：除「通用」外每个分区「大标题 + 一句说明」 */
 .pageHead {
+  flex: none;
   display: flex;
   align-items: center;
   gap: var(--cd-space-4);
@@ -401,6 +446,7 @@
   outline-offset: 2px;
 }
 .helpInline {
+  flex: none;
   margin: 0 0 var(--cd-space-5);
   padding: var(--cd-space-4);
   border: 1px solid var(--cd-panel-border);
@@ -425,6 +471,7 @@
 }
 /* 「通用」页顶部横幅：宽度与内容区一致；高度封顶，宽屏时裁掉上下而不是无限变高 */
 .banner {
+  flex: none;
   display: block;
   width: 100%;
   max-width: 1240px;
@@ -445,6 +492,27 @@
     linear-gradient(to bottom, #000 72%, transparent 100%);
   mask-composite: intersect;
 }
+/* 「通用」页横幅很高：整页一起滚，但横幅钉在原位当背景，标签与卡片从它上面滚过，
+   标签滚到顶部后吸顶（见 SectionPage stickyHead） */
+.contentGeneral {
+  overflow-y: auto;
+}
+.contentGeneral .inner,
+.contentGeneral .columns {
+  flex: none;
+}
+.contentGeneral .mainCol {
+  overflow: visible;
+}
+.contentGeneral .banner {
+  position: sticky;
+  top: 0;
+  z-index: 0;
+}
+.contentGeneral .inner {
+  position: relative;
+  z-index: 1;
+}
 /* 横幅下方内容：顶部留白收小，卡片紧跟横幅 */
 .innerAfterBanner {
   padding-top: var(--cd-space-2);
@@ -454,7 +522,7 @@
     width: 200px;
   }
   .inner {
-    padding: var(--cd-space-5) var(--cd-space-5) 40px;
+    padding: var(--cd-space-5) var(--cd-space-5) 0;
   }
 }
 /* 一页里的多个 SettingsGroup 纵向排列 */
@@ -512,36 +580,31 @@
 /* 主列 + 右侧「配置说明」 */
 .columns {
   display: flex;
+  flex: 1;
+  min-height: 0;
   align-items: flex-start;
   gap: var(--cd-space-5);
 }
+/* 主栏撑满剩余高度；面板自己没有滚动区时主栏兜底滚动 */
 .mainCol {
   flex: 1;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   min-width: 0;
   max-width: 960px;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
-/* 宽分区（宽表格）：没有右侧说明栏，用满内容区；高度也撑满，让表格吃掉剩余空间、在卡片里滚动 */
-.innerWide {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  padding-bottom: var(--cd-space-5);
-}
-.columnsWide {
-  flex: 1;
-  min-height: 0;
-  align-items: stretch;
-}
+/* 宽分区（宽表格）：没有右侧说明栏，用满内容区 */
 .mainColWide {
   max-width: none;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
 }
 .help {
-  position: sticky;
-  top: 0;
   width: 248px;
+  max-height: 100%;
+  overflow-y: auto;
   flex: none;
   padding: var(--cd-space-4);
   border: 1px solid var(--cd-panel-border);

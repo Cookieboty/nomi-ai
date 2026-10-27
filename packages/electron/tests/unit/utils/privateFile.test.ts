@@ -28,6 +28,8 @@ import {
   writePrivateFileAtomic,
 } from '../../../src/utils/privateFile';
 
+const REAL_PLATFORM = process.platform;
+
 describe('privateFile Windows ACL', () => {
   let dir: string;
   const originalPlatform = process.platform;
@@ -222,8 +224,12 @@ describe('privateFile Windows ACL 缓存', () => {
     const sub = path.join(root, 'accounts');
     fs.mkdirSync(sub);
     writePrivateFileAtomic(path.join(sub, 'a.json'), '1');
-    fs.rmSync(sub, { recursive: true });
+    // 旧目录先挪走、新目录建好后再删：Linux 上删掉立刻重建可能复用同一个 inode + birthtime，
+    // 身份撞上就测不出「重建」（真实场景里间隔很长，这里只为让测试稳定）
+    const old = `${sub}.old`;
+    fs.renameSync(sub, old);
     fs.mkdirSync(sub);
+    fs.rmSync(old, { recursive: true });
     calls.length = 0;
     writePrivateFileAtomic(path.join(sub, 'a.json'), '2');
     expect(calls).toEqual([[sub, ...dirGrant]]);
@@ -245,8 +251,10 @@ describe('privateFile Windows ACL 缓存', () => {
       writePrivateFile(f, 'y');
       expect(calls).toEqual([[f, ...fileGrant]]);
       // 文件被删除后重建：身份变了，重新收紧
-      fs.rmSync(f);
+      // 同上：旧文件挪走后再建新文件，保证 inode 不被复用
+      fs.renameSync(f, `${f}.old`);
       writePrivateFile(f, 'z');
+      fs.rmSync(`${f}.old`);
       expect(calls).toEqual([
         [f, ...fileGrant],
         [f, ...fileGrant],
@@ -318,7 +326,10 @@ describe('privateFile Windows ACL 缓存', () => {
     await writePrivateFileAtomicAsync(path.join(sub, 'c'), '3');
     expect(calls).toEqual([]);
     expect(asyncCalls).toEqual([]);
-    expect((fs.statSync(path.join(sub, 'a')).mode & 0o777).toString(8)).toBe('600');
+    // 真实 Windows 文件系统不支持 POSIX 权限位（总是 666），只在真 POSIX 上校验
+    if (REAL_PLATFORM !== 'win32') {
+      expect((fs.statSync(path.join(sub, 'a')).mode & 0o777).toString(8)).toBe('600');
+    }
   });
 });
 

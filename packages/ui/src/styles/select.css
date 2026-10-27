@@ -215,8 +215,10 @@
   border-radius: 0;
   border-width: 0 0 0 1px;
 }
-/* 内嵌：设置页里的分区，无遮罩、无阴影 */
+/* 内嵌：设置页里的分区，无遮罩、无阴影；放进纵向 flex 宿主时撑满剩余高度，面板可自行固定顶部、内容滚动 */
 .cd-modal--inline {
+  flex: 1;
+  min-height: 0;
   width: 100%;
   max-width: none;
   max-height: none;

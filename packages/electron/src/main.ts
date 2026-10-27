@@ -15,6 +15,10 @@ import { registerAppSchemePrivileges } from './schemePrivileges';
 import { LEGACY_DEV_NAMES, migrateLegacyUserData } from './utils/legacyUserData';
 import { createMainLogger } from './utils/log';
 import { perfMark } from './utils/perfMarks';
+import { guardStdio } from './utils/stdioGuard';
+
+// 最先装上：dev 结束时终端先断开，退出过程中的日志输出不能变成「应用错误」弹窗
+guardStdio();
 
 const log = createMainLogger('main');
 

@@ -48,8 +48,6 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
   const [loaded, setLoaded] = useState(() => cachedInfo(kind) !== null);
   const [plan, setPlan] = useState<CliInstallPlan | null>(null);
   const [running, setRunning] = useState(false);
-  /** 当前正在安装 / 更新的端点（全局同时只有一个）；不是本卡片时也要禁用操作 */
-  const [busyKind, setBusyKind] = useState<CliUpdatableKind | null>(null);
   const [lines, setLines] = useState<string[]>([]);
   const [result, setResult] = useState<CliRunResult | null>(null);
   const [error, setError] = useState('');
@@ -97,11 +95,6 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
     void load(false);
     let alive = true;
     const off = cliUpdateClient.onEvent((e) => {
-      // 任意端点开始 / 结束都更新全局忙碌态（同一时刻只允许一个安装 / 更新）
-      if (e.phase === 'start') setBusyKind(e.kind);
-      else if (e.phase === 'done' || e.phase === 'error') {
-        setBusyKind((b) => (b === e.kind ? null : b));
-      }
       if (e.kind !== kind) return;
       if (e.phase === 'start') {
         setRunning(true);
@@ -124,12 +117,6 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
         if (alive && j) applyJob(j);
       })
       .catch(() => undefined);
-    cliUpdateClient
-      .busy()
-      .then((b) => {
-        if (alive) setBusyKind(b);
-      })
-      .catch(() => undefined);
     return () => {
       alive = false;
       off();
@@ -143,8 +130,6 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
 
   const state = versionState(info);
   const name = NAME[kind];
-  // 别的端点正在装 / 更新时，本卡片操作一并禁用（全局同时只跑一个任务）
-  const otherBusy = Boolean(busyKind && busyKind !== kind);
 
   const openPlan = async (scope: CliInstallScope = 'global') => {
     setError('');
@@ -230,12 +215,7 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
             <Button
               size="sm"
               variant={state === 'missing' || state === 'outdated' ? 'primary' : 'secondary'}
-              disabled={checking || running || otherBusy || !info}
-              title={
-                otherBusy
-                  ? t('ui.foundation.another-install-update-is-already-in-progress')
-                  : undefined
-              }
+              disabled={checking || running || !info}
               data-testid={`cli-version-action-${kind}`}
               onClick={() => void openPlan()}
             >

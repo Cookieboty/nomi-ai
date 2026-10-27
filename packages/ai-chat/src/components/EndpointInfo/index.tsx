@@ -7,7 +7,7 @@
  */
 import { isBuiltinCliId } from '@nomi-ai/cli-plugins';
 import { Badge, Button, Modal, ModalHostContext, t } from '@nomi-ai/ui';
-import { KeyRound, LoaderCircle, RefreshCw, UserRound } from 'lucide-react';
+import { LoaderCircle, RefreshCw } from 'lucide-react';
 import React, { useState } from 'react';
 
 import { configPathsOf, useEndpointInfo, type EndpointInfo } from '../../hooks/useEndpointInfo';
@@ -110,8 +110,17 @@ export const EndpointInfoCard: React.FC<EndpointInfoProps> = (props) => {
   const name = ENDPOINT_FULL[backend]();
   const installed = installedOf(backend, bin, info);
   const auth = authOf(backend, info.quota);
-  const wins = shownWindows(info.quota);
-  const isApi = info.quota?.status === 'api' || info.quota?.auth === 'api';
+  // 卡片只放一个最吃紧的额度窗口；其余窗口、版本、登录方式、运行数都在详情抽屉里
+  const win = shownWindows(info.quota).reduce<UsageQuotaWindow | null>(
+    (m, w) => (!m || w.usedPercent > m.usedPercent ? w : m),
+    null,
+  );
+  // 一个标签说清计费方式：订阅档位（如 Max）；没有档位时只在 API Key 计费时标出来
+  const tag: Auth = info.quota?.plan
+    ? { text: info.quota.plan, tone: 'neutral' }
+    : auth?.tone === 'warning'
+      ? auth
+      : null;
   const today = info.usage?.today;
   const last = lastActivity(info, lastTabActivity);
   const canRefresh = isQuotaTool(backend) || !!info.usage;
@@ -135,31 +144,13 @@ export const EndpointInfoCard: React.FC<EndpointInfoProps> = (props) => {
           <span className={styles.head}>
             <EndpointIcon backend={backend} size={18} decorative />
             <b className={styles.name}>{name}</b>
-            {info.cli?.version ? <span className={styles.ver}>v{info.cli.version}</span> : null}
-            {backend === 'nomi' ? (
-              <span className={styles.ver}>{t('ui.chat-settings.built-in')}</span>
-            ) : null}
-          </span>
-          <span className={styles.badges}>
-            {backend === 'nomi' ? null : installed === false ? (
+            {installed === false ? (
               <Badge tone="warning" data-testid="endpoint-card-install">
                 {t('ui.mascot-theme.not-installed')}
               </Badge>
-            ) : installed ? (
-              <Badge tone="success" data-testid="endpoint-card-install">
-                {t('ui.knowledge-local.installed')}
-              </Badge>
-            ) : null}
-            {auth && installed !== false ? (
-              <Badge tone={auth.tone} data-testid="endpoint-card-auth">
-                <AppIcon icon={auth.tone === 'warning' ? KeyRound : UserRound} size={11} />{' '}
-                {auth.text}
-              </Badge>
-            ) : null}
-            {info.quota?.plan ? <Badge tone="neutral">{info.quota.plan}</Badge> : null}
-            {running > 0 ? (
-              <Badge tone="neutral" data-testid="endpoint-card-running">
-                {t('ui.usage-tools.running', running)}
+            ) : tag ? (
+              <Badge tone={tag.tone} data-testid="endpoint-card-auth">
+                {tag.text}
               </Badge>
             ) : null}
           </span>
@@ -169,20 +160,12 @@ export const EndpointInfoCard: React.FC<EndpointInfoProps> = (props) => {
             </span>
           ) : (
             <>
-              {wins.length > 0 ? (
-                <MiniBars windows={wins} />
-              ) : isApi || backend === 'nomi' || !hasOfficialAccount(backend) ? (
-                <span className={styles.dim}>
-                  {t('ui.usage-tools.api-billing-no-subscription-quota')}
-                </span>
-              ) : info.quota ? (
-                <span className={styles.dim}>{t('ui.usage-tools.no-quota-data')}</span>
-              ) : null}
+              {win ? <MiniBars windows={[win]} /> : null}
               <span className={styles.kv} data-testid="endpoint-card-usage">
                 <span>
                   {today && today.calls > 0 ? (
                     <>
-                      {t('ui.usage-tools.today')} <b>{formatTokens(today.total)}</b> ·{' '}
+                      {t('ui.usage-tools.today')}{' '}
                       <b>{formatMoney(today.costUsd, fx.currency, fx.rate)}</b>
                     </>
                   ) : (
@@ -209,8 +192,6 @@ export const EndpointInfoCard: React.FC<EndpointInfoProps> = (props) => {
             <RefreshGlyph busy={info.busy} />
           </button>
         )}
-        {/* 新标签默认用本机配置、官方账号还是第三方供应商（当前会话的供应商在输入框左下角换） */}
-        {isCliKind(backend) && installed !== false && <CliDefaultSource backend={backend} />}
         {info.error && (
           <span className={styles.err} role="status" data-testid="endpoint-card-error">
             {info.error}
@@ -288,6 +269,12 @@ const EndpointDrawer: React.FC<{
           </div>
         }
       >
+        {/* 这个编程助手以后新开的会话默认用本机登录、官方账号还是第三方供应商（当前会话在输入框左下角换） */}
+        {isCliKind(backend) && installed !== false && (
+          <section className={styles.panel} data-testid="endpoint-drawer-default-source">
+            <CliDefaultSource backend={backend} />
+          </section>
+        )}
         <section className={styles.panel} data-testid="endpoint-drawer-overview">
           <h3 className={styles.h3}>{t('ui.usage-tools.overview-short')}</h3>
           <div className={styles.badges}>

@@ -239,6 +239,8 @@ export class PermissionBroker {
     if (d.blocked) return 'blocked';
     if (!d.confirm) return 'auto';
     if (!this.ui) return 'denied'; // 没有界面可确认 → 拒绝
+    // 发起方已取消（如对话已停止）：不再弹出确认，按拒绝处理
+    if (i.signal?.aborted) return 'denied';
     const timeoutMs = this.opts.timeoutMs ?? CONFIRM_TIMEOUT_MS;
     const req: ConfirmRequest = {
       id: randomUUID(),

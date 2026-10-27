@@ -8,22 +8,15 @@
  */
 import { Icon, type ICON_SIZE } from '@nomi-ai/ui';
 import {
-  Activity,
   AudioLines,
   Bell,
-  BellRing,
   BookOpen,
   Bot,
   Blocks,
   Brain,
   Coins,
   Cpu,
-  Crop,
-  Eye,
-  Keyboard,
   LibraryBig,
-  Monitor,
-  PanelTop,
   Settings,
   ShieldCheck,
   SlidersHorizontal,
@@ -52,27 +45,16 @@ export function AppIcon({
 export const SETTINGS_ICONS = {
   /** 通用：偏好调节 */
   general: SlidersHorizontal,
-  shortcuts: Keyboard,
-  /** 模型：第三方供应商与模型分配 */
+  /** 模型与供应商：第三方供应商、模型分配与本机模型 */
   models: Boxes,
-  /** 模型质量：脉搏线（成功率、延迟、速度） */
-  quality: Activity,
   /** 编程助手：终端 */
   coding: SquareTerminal,
-  /** 用量与费用：硬币 */
+  /** 用量与质量：硬币 */
   usage: Coins,
-  /** 语音与屏幕：眼睛（Nomi 听你说、看你的屏幕） */
-  senses: Eye,
   /** 知识与记忆：大脑 */
   knowledge: Brain,
-  /** 日程与日历：响铃 */
-  schedule: BellRing,
-  /** 通知 / 灵动岛：顶部面板 */
-  notify: PanelTop,
   /** 扩展 / MCP：积木模块 */
   ext: Blocks,
-  /** 本机管理：芯片（剪贴板 / 数据导出 / 本机模型） */
-  local: Cpu,
   /** 隐私与权限：盾牌 */
   privacy: ShieldCheck,
 } as const;
@@ -80,13 +62,11 @@ export const SETTINGS_ICONS = {
 /** 输入框「更多」菜单等功能入口 */
 export const FEATURE_ICONS = {
   kb: BookOpen,
-  snip: Crop,
   model: Bot,
   settings: Settings,
   voice: AudioLines,
   /** 知识 · 记忆 · 日程 快速视图 */
   hub: LibraryBig,
-  screen: Monitor,
   ext: Blocks,
   desktop: ShieldCheck,
   local: Cpu,

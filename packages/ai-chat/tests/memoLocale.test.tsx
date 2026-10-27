@@ -5,6 +5,7 @@ import { act, render, screen } from '@testing-library/react';
 import React from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { AppEntries } from '../src/components/AppEntries';
 import { UserMessage } from '../src/components/Conversation/Messages';
 import type { ConvMessage } from '../src/types/conversation';
 
@@ -29,5 +30,19 @@ describe('memo 边界随语言更新', () => {
     expect(screen.queryByLabelText(zh)).toBeNull();
     act(() => applyLocale('zh-CN'));
     expect(screen.getByLabelText(zh)).toBeTruthy();
+  });
+
+  it('侧栏底部入口（App 里用 useMemo 缓存的 footer 元素）：切到 English 后文案刷新', () => {
+    applyLocale('zh-CN');
+    const noop = () => undefined;
+    const Footer = React.memo(function Footer() {
+      return (
+        <AppEntries collapsed={false} onHub={noop} onExt={noop} onLocal={noop} onSettings={noop} />
+      );
+    });
+    render(<Footer />);
+    expect(screen.getByTestId('open-settings').textContent).toContain('设置');
+    act(() => applyLocale('en'));
+    expect(screen.getByTestId('open-settings').textContent).toContain('Settings');
   });
 });

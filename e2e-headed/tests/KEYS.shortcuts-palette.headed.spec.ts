@@ -90,11 +90,17 @@ test.describe('Shortcuts and command palette', () => {
     await expect(pal).toBeVisible();
     await expect(chat.locator('[data-testid="palette-input"]')).toBeFocused();
     await shot(chat, 'palette-open');
+    // 命令面板里没有「跳转到快捷键」：搜不到任何条目
     await chat.keyboard.type('快捷键');
-    await expect(chat.locator('[data-testid^="palette-item-"]').first()).toBeVisible();
+    await expect(chat.locator('[data-testid^="palette-item-"]')).toHaveCount(0);
+    await chat.locator('[data-testid="palette-input"]').fill('');
+    // 快捷键是「通用」下的标签页：面板跳到「通用」，再点标签
+    await chat.keyboard.type('通用');
+    await expect(chat.locator('[data-testid="palette-item-settings-general"]')).toBeVisible();
     await shot(chat, 'palette-filtered');
-    await chat.keyboard.press('Enter');
+    await chat.click('[data-testid="palette-item-settings-general"]');
     await expect(pal).toHaveCount(0);
+    await chat.click('[data-testid="settings-general-page-tab-shortcuts"]');
     await expect(chat.locator('[data-testid="settings-shortcuts"]')).toBeVisible();
     await shot(chat, 'settings-shortcuts');
 
@@ -146,7 +152,8 @@ test.describe('Shortcuts and command palette', () => {
 
     // 改绑跨重启保留（localStorage）：设置页仍显示自定义组合
     await chat.keyboard.press(`${mod}+,`);
-    await chat.click('[data-testid="settings-nav-shortcuts"]');
+    await chat.click('[data-testid="settings-nav-general"]');
+    await chat.click('[data-testid="settings-general-page-tab-shortcuts"]');
     await expect(chat.locator('[data-testid="shortcut-combo-palette"]')).toHaveText(/P$/);
     await chat.click('[data-testid="shortcut-reset-all"]');
     await expect(chat.locator('[data-testid="shortcut-combo-palette"]')).toHaveText(/K$/);

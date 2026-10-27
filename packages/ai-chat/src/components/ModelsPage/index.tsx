@@ -42,10 +42,10 @@ import { providerDisplayName } from '../../services/providerClient';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { EndpointIcon } from '../EndpointIcon';
 
-import { AddProviderDialog } from './AddProviderDialog';
 import styles from './index.module.css';
 import { ModelsDataSyncCard } from './ModelsDataSyncCard';
 import { keyName, ProviderDetailDialog } from './ProviderDetailDialog';
+import { ProviderForm } from './ProviderForm';
 import { TerminalCommandsCard } from './TerminalCommandsCard';
 import { useCliInstall } from './useCliInstall';
 
@@ -82,11 +82,12 @@ const CLAUDE_TIERS: ReadonlyArray<{ id: TierId; label: string }> = [
 export const ModelsPage: React.FC = () => {
   const state = useGatewayState();
   const [adding, setAdding] = useState(false);
+  /** 刚保存的供应商：在「模型分配」里展开它的模型供挑选 */
+  const [fresh, setFresh] = useState<string | null>(null);
   const [showWire, setShowWire] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   /** 展开了「各档模型 / 更多」的编程助手 */
   const [openCli, setOpenCli] = useState<CliKind | null>(null);
-  const [offer, setOffer] = useState<ProviderView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [revokeSeen, setRevokeSeen] = useState(false);
   /** 模型页顶部「高级」：请求体上限等 */
@@ -113,17 +114,18 @@ export const ModelsPage: React.FC = () => {
       gatewayClient.setAssignment(kind, patch as Parameters<typeof gatewayClient.setAssignment>[1]),
     );
 
+  /** 保存后直接在下方挑模型；Nomi 对话还没模型时先填上推荐的（第一个启用的对话模型），用户可改 */
   const onSaved = (p: ProviderView) => {
     setAdding(false);
-    if (!nomi.main && p.models.some((m) => m.enabled)) setOffer(p);
-  };
-
-  /** 一键把新供应商的第一个模型设为 Nomi 对话的模型 */
-  const applyOffer = (p: ProviderView) => {
+    setFresh(p.id);
     const first = p.models.find((x) => x.enabled && x.toolCalling !== false);
-    if (first) assign({ main: `${p.id}/${first.id}` });
-    setOffer(null);
+    if (!nomi.main && first) assign({ main: `${p.id}/${first.id}` });
   };
+  const freshProvider = providers.find((p) => p.id === fresh) ?? null;
+  const freshModels =
+    freshProvider?.models.filter((m) => m.enabled && m.toolCalling !== false) ?? [];
+  const showForm = adding || (Boolean(state) && !providers.length);
+  const noModels = !picker.length;
 
   const status = state?.status;
   return (
@@ -231,25 +233,87 @@ export const ModelsPage: React.FC = () => {
         </p>
       )}
 
-      {offer && (
-        <div className={styles.offer} role="status" data-testid="models-offer">
-          <span>{t('ui.models.use-for-nomi-chat', offer.name)}</span>
-          <Button size="sm" variant="primary" onClick={() => applyOffer(offer)}>
-            {t('ui.models.fill-in')}
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => setOffer(null)}>
-            {t('ui.models.no-thanks')}
+      <section className={styles.card} aria-labelledby="models-providers">
+        <div className={styles.cardHeadRow}>
+          <h3 id="models-providers" className={styles.cardTitle}>
+            <span className={styles.stepNo}>1</span>
+            <Icon icon={Boxes} size={16} />
+            {t('ui.models.third-party-providers')}
+          </h3>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => setAdding(true)}
+            disabled={!state || showForm}
+            data-testid="add-provider"
+          >
+            <Icon icon={Plus} size={14} />
+            {t('ui.foundation.add')}
           </Button>
         </div>
-      )}
+        {state && !providers.length && (
+          <p className={styles.sub} data-testid="models-empty">
+            {t('ui.models.no-third-party-providers-yet-add-one-and')}
+          </p>
+        )}
+        {showForm && (
+          <ProviderForm
+            idPrefix="models"
+            onSaved={onSaved}
+            onCancel={providers.length ? () => setAdding(false) : undefined}
+          />
+        )}
+        {providers.map((p) => (
+          <ProviderRow key={p.id} p={p} onOpen={() => setEditing(p.id)} />
+        ))}
+      </section>
 
       <ModelsDataSyncCard gateway={state ?? null} />
 
-      <section className={styles.card} aria-labelledby="models-assign">
+      <section
+        className={`${styles.card} ${noModels ? styles.cardOff : ''}`}
+        aria-labelledby="models-assign"
+        aria-disabled={noModels}
+        data-testid="models-assign"
+        data-state={noModels ? 'disabled' : 'ready'}
+      >
         <h3 id="models-assign" className={styles.cardTitle}>
+          <span className={styles.stepNo}>2</span>
           <Icon icon={Waypoints} size={16} />
           {t('ui.models.assignments')}
         </h3>
+        {noModels && (
+          <p className={styles.sub} data-testid="models-assign-off">
+            {t('ui.models.configure-a-provider-first')}
+          </p>
+        )}
+        {freshProvider && freshModels.length > 0 && (
+          <div className={styles.fresh} data-testid="models-fresh">
+            <span className={styles.sub}>
+              {t('ui.models.pick-chat-model-from', freshProvider.name)}
+            </span>
+            <div className={styles.chips} role="radiogroup">
+              {freshModels.map((m) => {
+                const ref = `${freshProvider.id}/${m.id}`;
+                const on = nomi.main === ref;
+                return (
+                  <button
+                    key={ref}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    className={`${styles.chip} ${on ? styles.chipOn : ''}`}
+                    data-testid={`models-fresh-${m.id}`}
+                    onClick={() => assign({ main: ref })}
+                  >
+                    {on && <Icon icon={Check} size={14} />}
+                    {m.label ?? m.id}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
         <div className={styles.row}>
           <span className={styles.rowLabel}>{t('ui.usage-tools.nomi-chat')}</span>
           <ModelPicker
@@ -311,7 +375,7 @@ export const ModelsPage: React.FC = () => {
           <span />
           <span>{t('ui.models.third-party-models')}</span>
           <span />
-          <span>{t('ui.models.new-tabs-use')}</span>
+          <span>{t('ui.models.new-sessions-use')}</span>
         </div>
         {CLI_KINDS.map((kind) => (
           <CliRow
@@ -325,43 +389,15 @@ export const ModelsPage: React.FC = () => {
             onToggle={() => setOpenCli((x) => (x === kind ? null : kind))}
             onAssign={(patch) => assignCli(kind, patch)}
             missing={cli.missing(kind)}
-            installBusy={cli.busy}
+            installBusy={cli.busy(kind)}
             onInstall={() => cli.install(kind)}
           />
         ))}
       </section>
       {cli.dialog}
 
-      <section className={styles.card} aria-labelledby="models-providers">
-        <div className={styles.cardHeadRow}>
-          <h3 id="models-providers" className={styles.cardTitle}>
-            <Icon icon={Boxes} size={16} />
-            {t('ui.models.third-party-providers')}
-          </h3>
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => setAdding(true)}
-            disabled={!state}
-            data-testid="add-provider"
-          >
-            <Icon icon={Plus} size={14} />
-            {t('ui.foundation.add')}
-          </Button>
-        </div>
-        {state && !providers.length && (
-          <p className={styles.muted} data-testid="models-empty">
-            {t('ui.models.no-third-party-providers-yet-add-one-and')}
-          </p>
-        )}
-        {providers.map((p) => (
-          <ProviderRow key={p.id} p={p} onOpen={() => setEditing(p.id)} />
-        ))}
-      </section>
-
       <TerminalCommandsCard />
 
-      <AddProviderDialog open={adding} onClose={() => setAdding(false)} onSaved={onSaved} />
       <ProviderDetailDialog
         provider={editingProvider}
         providers={providers}
@@ -391,7 +427,8 @@ const CliRow: React.FC<{
   onAssign: (patch: CliAssignPatch) => void;
   /** 没安装：整行变灰，只显示「安装」 */
   missing: boolean;
-  installBusy: string | null;
+  /** 这一行的编程助手正在安装（其他行不受影响） */
+  installBusy: boolean;
   onInstall: () => void;
 }> = ({
   kind,
@@ -421,18 +458,13 @@ const CliRow: React.FC<{
         <Button
           size="sm"
           variant="secondary"
-          disabled={installBusy !== null}
-          title={
-            installBusy && installBusy !== kind
-              ? t('ui.foundation.another-install-update-is-already-in-progress')
-              : undefined
-          }
+          disabled={installBusy}
           onClick={onInstall}
           aria-label={t('ui.cli-monitor.install-named', name)}
           data-testid={`cli-install-${kind}`}
         >
           <Icon icon={Download} size={14} />
-          {installBusy === kind ? t('ui.cli-monitor.working') : t('ui.models.install')}
+          {installBusy ? t('ui.cli-monitor.working') : t('ui.models.install')}
         </Button>
       </div>
     );
@@ -505,7 +537,7 @@ const CliRow: React.FC<{
           options={sourceOptions}
           value={sourceValue}
           onChange={(e) => pickSource(e.target.value)}
-          aria-label={t('ui.models.new-tabs-use-named', name)}
+          aria-label={t('ui.models.new-sessions-use-named', name)}
           data-testid={`cli-source-${kind}`}
           menuMinWidth={240}
           title={accountsError ? t('ui.models.failed-to-load-accounts', accountsError) : undefined}

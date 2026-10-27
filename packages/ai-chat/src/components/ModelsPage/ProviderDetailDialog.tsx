@@ -53,9 +53,9 @@ import {
 import { pickerProviders } from '../../services/nomiModel';
 import { providerDisplayName } from '../../services/providerClient';
 
-import { NON_CHAT, storedProbes } from './AddProviderDialog';
 import styles from './index.module.css';
 import { metaSourceLabel, ModelLimitsGroups, userLimit } from './ModelLimitsGroups';
+import { NON_CHAT, storedProbes } from './providerSetup';
 
 /** Key 的显示名：用户起的名字原样显示，否则按顺序「主 Key / 备用 Key N」 */
 export const keyName = (k: { name?: string }, i: number): string =>

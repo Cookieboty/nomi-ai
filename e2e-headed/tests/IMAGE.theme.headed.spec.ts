@@ -232,9 +232,10 @@ for (const packaged of [false, true]) {
       await page.keyboard.press('Escape');
       const sidebar = page.getByTestId('chat-sidebar');
       const brand = page.getByTestId('sidebar-toggle');
-      await expect(page.getByTestId('app-titlebar').getByRole('button')).toHaveCount(0);
+      // 收起 / 展开侧栏按钮固定在标题栏红绿灯旁
+      await expect(page.getByTestId('titlebar-sidebar-toggle')).toBeVisible();
       await expect(brand).toHaveAttribute('aria-expanded', 'true');
-      await expect(brand.getByTestId('endpoint-icon-nomi')).toBeVisible();
+      await expect(brand.getByTestId('sidebar-brand-mark')).toBeVisible();
       const sidebarBackground = await sidebar.evaluate(
         (element) => getComputedStyle(element).backgroundColor,
       );
@@ -245,7 +246,7 @@ for (const packaged of [false, true]) {
             getComputedStyle(element.closest('[class*="inputWrapper"]')!).backgroundColor,
         );
       expect(composerBackground).toBe(sidebarBackground);
-      await brand.getByTestId('endpoint-icon-nomi').click();
+      await brand.getByTestId('sidebar-brand-mark').click();
       await expect(brand).toHaveAttribute('aria-expanded', 'false');
       await expect(brand).toHaveText('');
       await brand.press('Enter');

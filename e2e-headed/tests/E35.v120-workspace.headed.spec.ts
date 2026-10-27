@@ -53,7 +53,7 @@ async function launch(
   const chat = await chatWin;
   await chat.setViewportSize({ width: 1400, height: 860 }).catch(() => undefined);
   await chat.locator('[data-testid="chat-mode-dev"]').click({ timeout: 30_000 });
-  await chat.locator('[data-testid="chat-tabs"]').waitFor({ timeout: 30_000 });
+  await chat.locator('[data-testid="list-view-all"]').waitFor({ timeout: 30_000 });
   return { app, chat };
 }
 
@@ -124,9 +124,9 @@ test.describe('E35 · v1.2.0 codex-parity · context / multi-preview / edit', ()
     let chat: Page;
     ({ app, chat } = await launch(userData, { NOMI_MOCK_EDIT_ROOT: workDir }));
 
-    await chat.click('[data-testid="chat-tab-add"]');
-    await chat.locator('[data-testid="chat-tab-menu"]').waitFor();
-    await chat.click('[data-testid="chat-tab-new-claude"]');
+    await chat.click('[data-testid="new-chat"]');
+    await chat.locator('[data-testid="new-chat-menu"]').waitFor();
+    await chat.click('[data-testid="new-chat-claude"]');
 
     // 把会话 cwd 指到带 git 变更的临时工作区
     await chat.waitForFunction(
@@ -298,9 +298,9 @@ test.describe('E35 · v1.2.0 codex-parity · context / multi-preview / edit', ()
     await shot(chat, '12-git-workspace-tab');
 
     // dsh：附图应被明确拒绝
-    await chat.click('[data-testid="chat-tab-add"]');
-    await chat.locator('[data-testid="chat-tab-menu"]').waitFor();
-    const dshBtn = chat.locator('[data-testid="chat-tab-new-dsh"]');
+    await chat.click('[data-testid="new-chat"]');
+    await chat.locator('[data-testid="new-chat-menu"]').waitFor();
+    const dshBtn = chat.locator('[data-testid="new-chat-dsh"]');
     if (await dshBtn.count()) {
       await dshBtn.click();
       await expect(input).toBeEnabled();

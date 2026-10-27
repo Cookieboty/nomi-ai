@@ -394,7 +394,7 @@ const Body: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 { value: 'reminders', label: tr('ui.foundation.reminders') },
                 { value: 'tasks', label: tr('ui.providers-schedule.scheduled-tasks') },
                 { value: 'proactive', label: tr('ui.providers-schedule.proactive-chat') },
-                { value: 'quiet', label: tr('ui.providers-schedule.do-not-disturb-notifications') },
+                { value: 'quiet', label: tr('ui.chat-settings.do-not-disturb') },
               ]}
             />
             {msg && (
@@ -641,24 +641,6 @@ const Body: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                       onStart={(v) => set({ quiet: { start: v } })}
                       onEnd={(v) => set({ quiet: { end: v } })}
                       testIds={['quiet-start', 'quiet-end']}
-                    />
-                  </SettingRow>
-                </SettingsGroup>
-                <SettingsGroup title={tr('ui.chat-settings.notifications')}>
-                  <SettingRow
-                    title={tr('ui.providers-schedule.also-send-system-notifications')}
-                    description={
-                      st.notifySupported
-                        ? tr('ui.chat-settings.when-a-reminder-is-due-also-send-a')
-                        : tr(
-                            'ui.providers-schedule.notifications-aren-t-supported-on-this-system-reminders',
-                          )
-                    }
-                  >
-                    <Switch
-                      checked={st.settings.osNotify}
-                      onChange={(v) => set({ osNotify: v })}
-                      aria-label={tr('ui.providers-schedule.also-send-system-notifications')}
                     />
                   </SettingRow>
                 </SettingsGroup>

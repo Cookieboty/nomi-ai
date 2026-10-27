@@ -84,8 +84,10 @@ const binPath = resolveBin(binName);
 const childEnv = { ...process.env };
 // Turbo runs package scripts through pnpm. On restricted Windows sandboxes pnpm's
 // bundled runtime can fail while realpath-resolving the user temp directory; keep
-// the build's transient files inside the workspace instead.
-if (binName === 'turbo') {
+// the build's transient files inside the workspace instead. Opt-in only
+// (NOMI_WORKSPACE_TMP=1): a temp dir inside the repo makes tests' "outside a repo"
+// fixtures resolve to this repo, so git worktree / exclude writes hit the real .git.
+if (binName === 'turbo' && process.env.NOMI_WORKSPACE_TMP === '1') {
   const workspaceTmp = path.join(root, '.tmp', 'turbo-runtime');
   mkdirSync(workspaceTmp, { recursive: true });
   childEnv.TEMP = workspaceTmp;

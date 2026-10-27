@@ -17,6 +17,7 @@ import path from 'node:path';
 
 import { AgentProgressService, readSlice } from '../../../src/agents/AgentProgressService';
 import { ScanCache, limiter, readSliceAsync } from '../../../src/agents/fsScan';
+import { fakeDesktop } from '../helpers/fakeDesktop';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'cd-agents-scan-'));
 const HOUR = 3_600_000;
@@ -196,7 +197,11 @@ describe('ScanCache', () => {
 
       // 续写冷文件（不改目录 mtime）：平时看不到，整体复查那一轮看到
       fs.utimesSync(cold, new Date(now), new Date(now));
-      expect((await scan(c, root)).find((f) => f.path === cold)?.mtime).toBe(now - 10 * DAY);
+      // mtimeMs 由纳秒换算成浮点毫秒，可能差 0.001：只比到毫秒
+      expect((await scan(c, root)).find((f) => f.path === cold)?.mtime).toBeCloseTo(
+        now - 10 * DAY,
+        0,
+      );
       const full = await scan(c, root, opts(true));
       expect(full[0]?.path).toBe(cold);
       expect(full).toEqual(listFilesSync(root, jsonl, 3, 60));
@@ -221,7 +226,7 @@ describe('AgentProgressService 异步轮询', () => {
       root: tmp(),
       home,
       logger: { info: jest.fn(), warn: jest.fn() },
-      desktop: { say: jest.fn() } as never,
+      desktop: fakeDesktop(jest.fn()) as never,
       pollMs: 50,
       processes: () => [],
       lockedInodes: () => new Set(),
@@ -373,7 +378,7 @@ describe('AgentProgressService dsh 会话索引缓存', () => {
       home,
       dshHome,
       logger: { info: jest.fn(), warn: jest.fn() },
-      desktop: { say: jest.fn() } as never,
+      desktop: fakeDesktop(jest.fn()) as never,
       now: () => now,
       pollMs: 60_000,
       processes: () => [],

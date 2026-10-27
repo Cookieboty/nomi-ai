@@ -125,10 +125,12 @@ export const cliUpdateClient = {
       ? j
       : null;
   },
-  /** 当前正在安装 / 更新的端点（同一时刻只允许一个），没有则 null */
-  busy: async (): Promise<CliUpdatableKind | null> => {
+  /** 正在安装 / 更新的端点（不同端点可以同时进行） */
+  busy: async (): Promise<CliUpdatableKind[]> => {
     const b = await call<unknown>('busy');
-    return typeof b === 'string' && isBuiltinCliId(b) ? b : null;
+    return Array.isArray(b)
+      ? b.filter((k): k is CliUpdatableKind => typeof k === 'string' && isBuiltinCliId(k))
+      : [];
   },
   dismiss: (kind: CliUpdatableKind) => call<boolean>('dismiss', kind),
   onEvent: (fn: (e: CliUpdateEvent) => void) =>

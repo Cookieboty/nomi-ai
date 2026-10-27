@@ -28,6 +28,7 @@ import {
   type EndpointFinished,
   type WatchedTab,
 } from '../../../src/agents/AgentProgressService';
+import { fakeDesktop } from '../helpers/fakeDesktop';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'cd-agents-digest-'));
 const MIN = 60_000;
@@ -48,6 +49,7 @@ describe('编程助手：开始不打扰 + 每 10 分钟汇总 + 总结播报', 
   let tabs: WatchedTab[];
   let progress: Record<string, string | undefined>;
   let quiet: boolean;
+  let hidden = false;
   let svcs: AgentProgressService[];
   const say = jest.fn();
   let finished: (e: EndpointFinished) => void;
@@ -63,7 +65,7 @@ describe('编程助手：开始不打扰 + 每 10 分钟汇总 + 总结播报', 
       home,
       dshHome: path.join(home, '.dsh'),
       logger: { info: jest.fn(), warn: jest.fn() },
-      desktop: { say } as never,
+      desktop: fakeDesktop(say, { island, hidden: () => hidden }) as never,
       pollMs: 30_000,
       processes: () => [],
       lockedInodes: () => new Set(),
@@ -90,6 +92,7 @@ describe('编程助手：开始不打扰 + 每 10 分钟汇总 + 总结播报', 
     tabs = [];
     progress = {};
     quiet = false;
+    hidden = false;
     svcs = [];
     say.mockClear();
     island.mockClear();
@@ -136,6 +139,11 @@ describe('编程助手：开始不打扰 + 每 10 分钟汇总 + 总结播报', 
     expect(text).toContain('Codex 1');
     expect(text).not.toContain('Nomi');
     expect(opts).toEqual({ kind: 'digest', voice: 'none' });
+    expect(island).not.toHaveBeenCalled();
+    // 下一个周期再来一次；这次 Nomi 已关闭 → 只出灵动岛
+    hidden = true;
+    jest.advanceTimersByTime(DIGEST_INTERVAL_MS);
+    expect(say).toHaveBeenCalledTimes(1);
     expect(island).toHaveBeenCalledWith(
       expect.objectContaining({
         kind: 'agent',
@@ -143,9 +151,6 @@ describe('编程助手：开始不打扰 + 每 10 分钟汇总 + 总结播报', 
         body: 'Claude Code 2 · Codex 1',
       }),
     );
-    // 下一个周期再来一次
-    jest.advanceTimersByTime(DIGEST_INTERVAL_MS);
-    expect(say).toHaveBeenCalledTimes(2);
   });
 
   it('没有进行中的任务：不汇总', () => {
@@ -279,7 +284,7 @@ describe('编程助手：开始不打扰 + 每 10 分钟汇总 + 总结播报', 
         kind: 'fail',
         voice: 'cue',
       });
-      expect(island).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'failed' }));
+      expect(island).not.toHaveBeenCalled();
     });
 
     it('消息语音播报开：完成总结含任务、成败与结果，朗读（voice=full）', () => {
@@ -318,7 +323,7 @@ describe('编程助手：开始不打扰 + 每 10 分钟汇总 + 总结播报', 
         background: true,
       });
       expect(say).toHaveBeenCalledWith(expect.stringContaining('工具权限'), { voice: 'cue' });
-      expect(island).toHaveBeenCalledWith(expect.objectContaining({ status: 'attention' }));
+      expect(island).not.toHaveBeenCalled();
     });
   });
 });

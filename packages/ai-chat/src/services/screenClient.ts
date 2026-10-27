@@ -1,5 +1,5 @@
 import { t } from '@nomi-ai/ui';
-/** 截图提问 / 图片附件 / 屏幕记忆客户端：`ai:screen:*` IPC */
+/** 图片附件（粘贴 / 拖入）与发送前检查：`ai:screen:check-send` */
 
 export interface ImageAttachment {
   id: string;
@@ -13,41 +13,6 @@ export interface ImageAttachment {
   source: 'snip' | 'screen' | 'paste' | 'file';
 }
 
-export interface ScreenMemSettings {
-  enabled: boolean;
-  intervalSec: number;
-  retentionDays: number;
-  exclusions: string[];
-  pausedUntil: number;
-  snipHotkey: boolean;
-}
-
-export interface ScreenState {
-  settings: ScreenMemSettings;
-  active: boolean;
-  count: number;
-  ocrReady: boolean;
-  lastSkip: string;
-  chat: { id: string; name: string; local: boolean; model?: string } | null;
-  localOnly: boolean;
-}
-
-export interface ScreenEntry {
-  id: string;
-  at: number;
-  windows: string[];
-  text: string;
-  thumbUrl?: string;
-}
-
-export interface RawAttachment {
-  mime: ImageAttachment['mime'];
-  data: string;
-  width: number;
-  height: number;
-  source: ImageAttachment['source'];
-}
-
 interface AiBridge {
   invoke: (channel: string, ...args: unknown[]) => Promise<unknown>;
   on: (channel: string, fn: (payload: unknown) => void) => () => void;
@@ -59,14 +24,13 @@ const bridge = (): AiBridge | undefined => {
 };
 async function call<T>(method: string, ...args: unknown[]): Promise<T> {
   const b = bridge();
-  if (!b) throw new Error(t('ui.chat-settings.screenshots-require-the-desktop-app'));
+  if (!b) throw new Error(t('ui.chat-settings.sending-images-requires-the-desktop-app'));
   const r = (await b.invoke(`ai:screen:${method}`, ...args)) as T & {
     __error?: { code: string; message: string };
   };
   if (r && typeof r === 'object' && '__error' in r && r.__error) throw new Error(r.__error.message);
   return r;
 }
-const on = (ch: string, fn: (p: unknown) => void) => bridge()?.on(ch, fn) ?? (() => undefined);
 
 const MAX_SIDE = 1568;
 let seq = 0;
@@ -131,11 +95,6 @@ export async function attachmentFromFile(f: File): Promise<ImageAttachment> {
   return attachmentFromDataUrl(url, 'paste');
 }
 
-export async function fromRaw(r: RawAttachment | null): Promise<ImageAttachment | null> {
-  if (!r) return null;
-  return attachmentFromDataUrl(`data:${r.mime};base64,${r.data}`, r.source);
-}
-
 /** 只用于 UI 提示：模型名看起来是否支持图片 */
 export function likelyVision(model: string | undefined): boolean {
   if (!model) return false;
@@ -147,42 +106,6 @@ export function likelyVision(model: string | undefined): boolean {
 
 export const screenClient = {
   available: () => !!bridge(),
-  state: () => call<ScreenState>('state'),
-  setSettings: (p: Partial<ScreenMemSettings>) => call<ScreenMemSettings>('set-settings', p),
-  pause: (minutes: number) => call('pause', minutes),
-  resume: () => call('resume'),
-  snip: async () => fromRaw(await call<RawAttachment | null>('snip')),
-  captureFull: async () => fromRaw(await call<RawAttachment>('capture-full')),
-  snipSource: () => call<{ url: string; width: number; height: number } | null>('snip-source'),
-  snipDone: (
-    rect: { x: number; y: number; width: number; height: number } | null,
-    view?: { width: number; height: number },
-  ) => call('snip-done', rect, view),
   /** 发送图片前：云端告知 / 仅本地模式 */
   checkSend: () => call<'ok' | 'local_only' | 'user_denied'>('check-send'),
-  sampleNow: () => call<{ saved: boolean; reason: string }>('sample-now'),
-  search: (q: string) => call<ScreenEntry[]>('search', q),
-  remove: (id: string) => call<boolean>('remove', id),
-  clear: () => call<number>('clear'),
-  onChanged: (fn: (s: ScreenState) => void) => on('ai:screen:changed', (p) => fn(p as ScreenState)),
-  onAttachment: (fn: (a: ImageAttachment) => void) =>
-    on('ai:screen:attachment', (p) => {
-      void fromRaw(p as RawAttachment).then((a) => a && fn(a));
-    }),
-  onOpenPanel: (fn: () => void) => on('ai:screen:open-panel', () => fn()),
 };
-
-export const SKIP_REASONS: Record<string, string> = {
-  off: 'ui.chat-settings.off',
-  busy: 'ui.chat-settings.previous-frame-still-processing',
-  'ocr-missing': 'ui.chat-settings.ocr-language-data-not-downloaded-yet-knowledge-base',
-  idle: 'ui.chat-settings.computer-idle-skipped',
-  unchanged: 'ui.chat-settings.screen-unchanged',
-  'no-text': 'ui.chat-settings.no-recognizable-text-on-screen',
-  error: 'ui.chat-settings.sampling-error',
-};
-export function describeSkip(r: string): string {
-  if (r.startsWith('excluded:'))
-    return t('ui.chat-settings.excluded-window-detected-skipped', r.slice(9));
-  return SKIP_REASONS[r] ? t(SKIP_REASONS[r]) : r;
-}

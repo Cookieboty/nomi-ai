@@ -550,16 +550,13 @@ describe('性能', () => {
     return best;
   };
 
-  it('1 MiB 文本类请求体扫描不慢、随体积线性增长（防回退）', () => {
+  it('1 MiB 文本类请求体扫描不慢（防回退）', () => {
     const s = store([{ kind: 'API_KEY', value: 'zp-secret-value-123456' }]);
-    // 原来量 1 MiB 与 4 MiB 各 6 遍（共 30 MiB），慢的共享 runner 上总时长超过 5 s 的用例上限；
-    // 线性与否看 64 KiB → 1 MiB 的比值：线性约 16 倍、二次方约 256 倍，中间留足噪声余量
-    // （256 KiB → 1 MiB 只有 4 倍 vs 16 倍，macOS runner 上抖动就能到 19 倍）
-    const small = fastest(bodyOf(1 << 16), s, 8);
+    // 曾用 128 KiB → 1 MiB 的耗时比值判断线性，但 macOS runner 上小样本被 JIT / GC 放大，比值在
+    // 35～65 之间抖动（v2.0.4 CI），与二次方（约 64）无法区分，只会误报。改为只看 1 MiB 的绝对耗时：
+    // 本机约 13 ms；回溯 / 二次方回退会到秒级，500 ms 上限足以拦住，又不拦机器快慢。
     const large = fastest(bodyOf(1 << 20), s, 4);
-    // 本机 1 MiB 约 13 ms；阈值只拦灾难性回退（回溯 / 二次方会到秒级），不拦机器快慢
     expect(large).toBeLessThan(500);
-    expect(large / Math.max(small, 1)).toBeLessThan(64);
   });
 });
 
