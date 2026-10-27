@@ -543,144 +543,176 @@ export class DelegateService {
       );
     const sourceCwd = g.real;
 
-    const runningCount = [...this.tasks.values()].filter((x) => x.status === 'running').length;
-    if (runningCount >= MAX_PARALLEL_DELEGATES) {
-      throw new DelegateError(
-        'concurrency_limit',
-        `同时运行的委派已达上限（${MAX_PARALLEL_DELEGATES}）。等其中一个完成后再派，或用 delegate_status 查看进度`,
-      );
-    }
-
-    const isolationKey = `del-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-    let isolation: IsolationHandle;
+    // 先占名额再往下走（准备隔离、等用户确认都有 await）：同时进来的几次委派不会一起通过检查（#141）
+    const releaseSlot = this.reserveSlot();
     try {
-      isolation = await prepareIsolation(sourceCwd, isolationKey);
-    } catch (e) {
-      throw new DelegateError(
-        'isolation_failed',
-        e instanceof Error ? e.message : `无法准备委派隔离目录：${String(e)}`,
-      );
-    }
-    let cwd = isolation.cwd;
-    if (isolation.kind === 'worktree' && isolation.cwd !== sourceCwd) {
-      const gw = await broker.guard(isolation.cwd, 'write');
-      if (!gw.ok) {
-        await releaseIsolation(isolation);
+      const isolationKey = `del-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+      let isolation: IsolationHandle;
+      try {
+        isolation = await prepareIsolation(sourceCwd, isolationKey);
+      } catch (e) {
         throw new DelegateError(
-          'cwd_not_granted',
-          `委派 worktree 目录不可用：${gw.message}。请授权工作区根目录，或串行委派`,
+          'isolation_failed',
+          e instanceof Error ? e.message : `无法准备委派隔离目录：${String(e)}`,
         );
       }
-      cwd = gw.real;
-      isolation = { ...isolation, cwd };
-    }
+      let cwd = isolation.cwd;
+      if (isolation.kind === 'worktree' && isolation.cwd !== sourceCwd) {
+        const gw = await broker.guard(isolation.cwd, 'write');
+        if (!gw.ok) {
+          await releaseIsolation(isolation);
+          throw new DelegateError(
+            'cwd_not_granted',
+            `委派 worktree 目录不可用：${gw.message}。请授权工作区根目录，或串行委派`,
+          );
+        }
+        cwd = gw.real;
+        isolation = { ...isolation, cwd };
+      }
 
-    const decision = await broker.authorize({
-      tool: 'delegate_to_cli',
-      danger: 'write',
-      summary: `让 ${CLI_NAME[cli]} 在 ${sourceCwd} 里：${i.goal.slice(0, 80)}`,
-      args: { cli, cwd: sourceCwd, goal: i.goal, isolation: isolation.kind },
-      preview: buildDelegatePrompt({
+      const decision = await broker.authorize({
+        tool: 'delegate_to_cli',
+        danger: 'write',
+        summary: `让 ${CLI_NAME[cli]} 在 ${sourceCwd} 里：${i.goal.slice(0, 80)}`,
+        args: { cli, cwd: sourceCwd, goal: i.goal, isolation: isolation.kind },
+        preview: buildDelegatePrompt({
+          goal: i.goal,
+          context: i.context,
+          doneWhen: i.done_when,
+          outOfScope: i.out_of_scope,
+        }),
+        signal: ctx.signal,
+      });
+      if (decision === 'blocked' || decision === 'denied' || decision === 'timeout') {
+        await releaseIsolation(isolation);
+        if (decision === 'blocked')
+          throw new DelegateError(
+            'mode_blocked',
+            '当前是「计划」（只读）权限模式，不能派编程助手去改东西；先给出方案，等用户切换权限模式',
+          );
+        if (decision === 'denied')
+          throw new DelegateError('user_denied', '用户没有同意这次委派，不要重试');
+        throw new DelegateError('timeout_denied', '没有等到用户确认，已取消委派');
+      }
+
+      this.consumePin(turnId);
+
+      const overrides = resolveDelegateOverrides({
+        model: i.model,
+        reasoningEffort: i.reasoning_effort,
+        profile: i.profile,
+        settings: this.settingsCache,
+      });
+      if (!overrides.ok) throw new DelegateError(overrides.code, overrides.message);
+      if (overrides.model) {
+        if (!isValidModelId(overrides.model))
+          throw new DelegateError('invalid_model', `模型名不合法：${overrides.model}`);
+        // 第三方路径：必须在网关目录；官方路径由 createTab / CLI 处理原生名
+        const gw = this.d.gateway;
+        if (gw) {
+          const def = gw.defaults(cli as BuiltinCliId);
+          const thirdParty = def.source === 'thirdParty' && Boolean(def.model || overrides.model);
+          if (thirdParty && !gw.models().some((m) => m.ref === overrides.model))
+            throw new DelegateError(
+              'model_not_in_catalog',
+              `第三方模型不在网关目录：${overrides.model}`,
+            );
+        }
+      }
+
+      const nomiMode = broker.permissionMode() as HarnessPermissionMode;
+      let tab;
+      try {
+        tab = harness.createTab({
+          backend: cli,
+          cwd,
+          title: `Nomi · ${i.goal.trim().slice(0, 40)}`,
+          permissionMode: childPermissionMode(nomiMode, harness.listTabs().defaultPermissionMode),
+          activate: false,
+          delegation: { ...(ctx.toolCallId ? { callId: ctx.toolCallId } : {}), goal: i.goal },
+          ...(overrides.model ? { modelOverride: overrides.model } : {}),
+          ...(overrides.reasoningEffort !== undefined && overrides.reasoningEffort !== null
+            ? { reasoningEffort: overrides.reasoningEffort }
+            : {}),
+        });
+      } catch (e) {
+        await releaseIsolation(isolation);
+        throw e;
+      }
+
+      const before = await gitChanged(cwd);
+
+      // createTab / await 之后若已中止：关掉孤儿标签，不要再 sendTab
+      if (ctx.signal?.aborted) {
+        try {
+          harness.closeTab(tab.id);
+        } catch {
+          /* 标签可能已不存在 */
+        }
+        await releaseIsolation(isolation);
+        return this.resultForModel(
+          {
+            taskId: tab.id,
+            cli,
+            status: 'cancelled',
+            cancelledBy: 'nomi',
+            summary: '',
+            filesVerified: false,
+            approvals: { asked: 0, denied: 0, timedOut: 0 },
+            durationMs: Date.now() - t0,
+            isolationNote: this.publicIsolationNote(isolation),
+          },
+          ctx,
+        );
+      }
+
+      const prompt = buildDelegatePrompt({
         goal: i.goal,
         context: i.context,
         doneWhen: i.done_when,
         outOfScope: i.out_of_scope,
-      }),
-      signal: ctx.signal,
-    });
-    if (decision === 'blocked' || decision === 'denied' || decision === 'timeout') {
-      await releaseIsolation(isolation);
-      if (decision === 'blocked')
-        throw new DelegateError(
-          'mode_blocked',
-          '当前是「计划」（只读）权限模式，不能派编程助手去改东西；先给出方案，等用户切换权限模式',
-        );
-      if (decision === 'denied')
-        throw new DelegateError('user_denied', '用户没有同意这次委派，不要重试');
-      throw new DelegateError('timeout_denied', '没有等到用户确认，已取消委派');
-    }
-
-    this.consumePin(turnId);
-
-    const overrides = resolveDelegateOverrides({
-      model: i.model,
-      reasoningEffort: i.reasoning_effort,
-      profile: i.profile,
-      settings: this.settingsCache,
-    });
-    if (!overrides.ok) throw new DelegateError(overrides.code, overrides.message);
-    if (overrides.model) {
-      if (!isValidModelId(overrides.model))
-        throw new DelegateError('invalid_model', `模型名不合法：${overrides.model}`);
-      // 第三方路径：必须在网关目录；官方路径由 createTab / CLI 处理原生名
-      const gw = this.d.gateway;
-      if (gw) {
-        const def = gw.defaults(cli as BuiltinCliId);
-        const thirdParty = def.source === 'thirdParty' && Boolean(def.model || overrides.model);
-        if (thirdParty && !gw.models().some((m) => m.ref === overrides.model))
-          throw new DelegateError(
-            'model_not_in_catalog',
-            `第三方模型不在网关目录：${overrides.model}`,
-          );
-      }
-    }
-
-    const nomiMode = broker.permissionMode() as HarnessPermissionMode;
-    let tab;
-    try {
-      tab = harness.createTab({
-        backend: cli,
-        cwd,
-        title: `Nomi · ${i.goal.trim().slice(0, 40)}`,
-        permissionMode: childPermissionMode(nomiMode, harness.listTabs().defaultPermissionMode),
-        activate: false,
-        delegation: { ...(ctx.toolCallId ? { callId: ctx.toolCallId } : {}), goal: i.goal },
-        ...(overrides.model ? { modelOverride: overrides.model } : {}),
-        ...(overrides.reasoningEffort !== undefined && overrides.reasoningEffort !== null
-          ? { reasoningEffort: overrides.reasoningEffort }
-          : {}),
       });
-    } catch (e) {
-      await releaseIsolation(isolation);
-      throw e;
-    }
+      // 默认异步（业内主流）；显式 background:false 才同步等
+      const background = i.background !== false;
 
-    const before = await gitChanged(cwd);
-
-    // createTab / await 之后若已中止：关掉孤儿标签，不要再 sendTab
-    if (ctx.signal?.aborted) {
-      try {
-        harness.closeTab(tab.id);
-      } catch {
-        /* 标签可能已不存在 */
-      }
-      await releaseIsolation(isolation);
-      return this.resultForModel(
-        {
+      if (background) {
+        const task: BgTask = {
           taskId: tab.id,
           cli,
-          status: 'cancelled',
-          cancelledBy: 'nomi',
-          summary: '',
-          filesVerified: false,
-          approvals: { asked: 0, denied: 0, timedOut: 0 },
-          durationMs: Date.now() - t0,
-          isolationNote: this.publicIsolationNote(isolation),
-        },
-        ctx,
-      );
-    }
+          goal: i.goal,
+          cwd,
+          sourceCwd,
+          isolation,
+          startedAt: t0,
+          before,
+          status: 'running',
+          ctx,
+          ...(ctx.conversationId ? { conversationId: ctx.conversationId } : {}),
+        };
+        this.tasks.set(tab.id, task);
+        this.persistTasks();
+        void this.runChild(task, prompt, { linkAbort: false });
+        return this.resultForModel(
+          {
+            taskId: tab.id,
+            cli,
+            status: 'running',
+            summary:
+              `${CLI_NAME[cli]} 已在后台开始：${i.goal.slice(0, 80)}。` +
+              '可用 delegate_status 查询进度；完成后会在对话里通知。' +
+              (isolation.kind === 'worktree'
+                ? '（已使用 git worktree 隔离并行写入）'
+                : '（注意：工作目录不是 git 仓库，并行任务可能互相修改文件）'),
+            filesVerified: false,
+            approvals: { asked: 0, denied: 0, timedOut: 0 },
+            durationMs: Date.now() - t0,
+            isolationNote: this.publicIsolationNote(isolation),
+          },
+          ctx,
+        );
+      }
 
-    const prompt = buildDelegatePrompt({
-      goal: i.goal,
-      context: i.context,
-      doneWhen: i.done_when,
-      outOfScope: i.out_of_scope,
-    });
-    // 默认异步（业内主流）；显式 background:false 才同步等
-    const background = i.background !== false;
-
-    if (background) {
+      // 同步：Nomi 这一轮被停时连带停掉子任务
       const task: BgTask = {
         taskId: tab.id,
         cli,
@@ -696,44 +728,11 @@ export class DelegateService {
       };
       this.tasks.set(tab.id, task);
       this.persistTasks();
-      void this.runChild(task, prompt, { linkAbort: false });
-      return this.resultForModel(
-        {
-          taskId: tab.id,
-          cli,
-          status: 'running',
-          summary:
-            `${CLI_NAME[cli]} 已在后台开始：${i.goal.slice(0, 80)}。` +
-            '可用 delegate_status 查询进度；完成后会在对话里通知。' +
-            (isolation.kind === 'worktree'
-              ? '（已使用 git worktree 隔离并行写入）'
-              : '（注意：工作目录不是 git 仓库，并行任务可能互相修改文件）'),
-          filesVerified: false,
-          approvals: { asked: 0, denied: 0, timedOut: 0 },
-          durationMs: Date.now() - t0,
-          isolationNote: this.publicIsolationNote(isolation),
-        },
-        ctx,
-      );
+      return this.runChild(task, prompt, { linkAbort: true, signal: ctx.signal });
+    } finally {
+      // 任务已记为 running 的由它自己计数；没走到那一步（拒绝 / 出错）的名额在这里还回去
+      releaseSlot();
     }
-
-    // 同步：Nomi 这一轮被停时连带停掉子任务
-    const task: BgTask = {
-      taskId: tab.id,
-      cli,
-      goal: i.goal,
-      cwd,
-      sourceCwd,
-      isolation,
-      startedAt: t0,
-      before,
-      status: 'running',
-      ctx,
-      ...(ctx.conversationId ? { conversationId: ctx.conversationId } : {}),
-    };
-    this.tasks.set(tab.id, task);
-    this.persistTasks();
-    return this.runChild(task, prompt, { linkAbort: true, signal: ctx.signal });
   }
 
   /**
@@ -872,6 +871,26 @@ export class DelegateService {
     );
   }
 
+  /** 正在准备 / 等确认、还没记成 running 的委派占的名额 */
+  private reservedSlots = 0;
+
+  /** 占一个运行名额（running 任务 + 已占名额达到上限时拒绝）；返回的释放函数只生效一次 */
+  private reserveSlot(): () => void {
+    const running = [...this.tasks.values()].filter((x) => x.status === 'running').length;
+    if (running + this.reservedSlots >= MAX_PARALLEL_DELEGATES)
+      throw new DelegateError(
+        'concurrency_limit',
+        `同时运行的委派已达上限（${MAX_PARALLEL_DELEGATES}）。等其中一个完成后再派，或用 delegate_status 查看进度`,
+      );
+    this.reservedSlots++;
+    let held = true;
+    return () => {
+      if (!held) return;
+      held = false;
+      this.reservedSlots--;
+    };
+  }
+
   private async followup(
     taskId: string,
     message: string,
@@ -890,6 +909,23 @@ export class DelegateService {
     if (tab.delegation?.takenOver)
       throw new DelegateError('taken_over', '用户已接手这个标签，Nomi 不再往里发消息');
 
+    // 追问会让任务重新运行：与首次委派共用「同时运行最多 MAX_PARALLEL_DELEGATES 个」的名额（#141）。
+    // 等用户确认期间也占着名额
+    const releaseSlot = this.reserveSlot();
+    try {
+      return await this.followupAuthorized(task, taskId, message, ctx, t0);
+    } finally {
+      releaseSlot();
+    }
+  }
+
+  private async followupAuthorized(
+    task: BgTask,
+    taskId: string,
+    message: string,
+    ctx: ToolExecContext,
+    t0: number,
+  ): Promise<DelegateResult> {
     // 跟进前再确认一次（与首派同档）
     const decision = await this.d.desktop.broker.authorize({
       tool: 'delegate_followup',

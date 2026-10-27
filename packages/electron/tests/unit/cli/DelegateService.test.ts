@@ -528,6 +528,51 @@ describe('DelegateService · P2 异步委派', () => {
     expect(followR.data?.status).toBe('done');
   });
 
+  it('已有 3 个委派在跑时，追问已完成的任务也受上限约束；跑完一个后可以追问（#141）', async () => {
+    const gates: Array<(v: { text: string }) => void> = [];
+    let calls = 0;
+    const s = setup({
+      send: () => {
+        calls += 1;
+        // 第一个任务直接完成；后面的挂起
+        if (calls === 1) return Promise.resolve({ text: REPORT });
+        return new Promise((r) => gates.push(r));
+      },
+    });
+    const follow = s.svc.tools().find((x) => x.name === 'delegate_followup')!;
+    const a = await s.run({ background: true });
+    await new Promise((r) => setTimeout(r, 20));
+    for (let i = 0; i < 3; i++) expect((await s.run({ background: true })).ok).toBe(true);
+    // 第四个首次委派被拒
+    expect((await s.run({ background: true })).error?.code).toBe('concurrency_limit');
+    const r = (await follow.execute({ taskId: a.data!.taskId, message: '再看看' }, {})) as {
+      ok: boolean;
+      error?: { code: string };
+    };
+    expect(r.error?.code).toBe('concurrency_limit');
+    expect(calls).toBe(4);
+
+    // 完成一个，名额回来
+    gates[0]!({ text: REPORT });
+    await new Promise((r2) => setTimeout(r2, 20));
+    const p = follow.execute({ taskId: a.data!.taskId, message: '再看看' }, {});
+    await new Promise((r2) => setTimeout(r2, 20));
+    expect(calls).toBe(5);
+    gates[3]!({ text: REPORT });
+    expect(((await p) as { ok: boolean }).ok).toBe(true);
+  });
+
+  it('同时发起的首次委派不会一起越过上限；被拒 / 失败的不占名额', async () => {
+    const s = setup({ send: () => new Promise(() => undefined) });
+    const rs = await Promise.all(Array.from({ length: 5 }, () => s.run({ background: true })));
+    expect(rs.filter((r) => r.ok)).toHaveLength(3);
+    expect(rs.filter((r) => r.error?.code === 'concurrency_limit')).toHaveLength(2);
+
+    const denied = setup({ decision: 'denied', send: () => new Promise(() => undefined) });
+    for (let i = 0; i < 4; i++)
+      expect((await denied.run({ background: true })).error?.code).toBe('user_denied');
+  });
+
   it('异步派出后 Nomi abort 不连带停子任务', async () => {
     const ac = new AbortController();
     let reject!: (e: unknown) => void;
