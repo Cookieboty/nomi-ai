@@ -128,6 +128,41 @@
 .optionSmall {
   padding: 10px var(--cd-space-3);
 }
+.optionsPair {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+/* 语言：紧凑的分段按钮 */
+.segmented {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 3px;
+  gap: 2px;
+  border-radius: var(--cd-radius-md);
+  border: 1px solid var(--cd-color-border);
+  background: rgba(var(--onb-wash-rgb), 0.7);
+}
+.segment {
+  padding: 5px 14px;
+  border: 0;
+  border-radius: var(--cd-radius-sm);
+  background: transparent;
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-sm);
+  cursor: pointer;
+}
+.segment:hover {
+  color: var(--cd-color-text);
+}
+.segment:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 1px;
+}
+.segmentOn {
+  background: var(--cd-color-selected-bg);
+  color: var(--cd-color-selected-text);
+  font-weight: var(--cd-font-weight-bold);
+  box-shadow: 0 0 0 1px var(--cd-color-accent-strong) inset;
+}
 .optionOn {
   border-color: var(--cd-color-accent-strong);
   box-shadow: 0 0 0 1px var(--cd-color-accent-strong) inset;

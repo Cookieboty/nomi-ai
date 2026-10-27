@@ -32,7 +32,6 @@ import { useNomiModelStatus } from '../../hooks/useNomiModelStatus';
 import { startupClient, type StartupView } from '../../services/startupClient';
 import { ChatBackgroundSettings } from '../SettingsView/ChatBackgroundSettings';
 
-import appearanceArt from './art/appearance.webp';
 import profileArt from './art/profile.webp';
 import providerArt from './art/provider.webp';
 import welcomeArt from './art/welcome.webp';
@@ -46,12 +45,11 @@ import {
 import styles from './index.module.css';
 import { ProviderSetup } from './ProviderSetup';
 
-const STEPS = ['welcome', 'appearance', 'profile', 'provider', 'privacy'] as const;
+const STEPS = ['welcome', 'profile', 'provider', 'privacy'] as const;
 type Step = (typeof STEPS)[number];
 
 const STEP_TITLE: Record<Step, () => string> = {
   welcome: () => t('ui.mascot-theme.welcome-title'),
-  appearance: () => t('ui.mascot-theme.appearance-and-startup'),
   profile: () => t('ui.mascot-theme.about-you'),
   provider: () => t('ui.mascot-theme.connect-an-ai-model'),
   privacy: () => t('ui.mascot-theme.your-data-stays-on-this-computer'),
@@ -59,7 +57,6 @@ const STEP_TITLE: Record<Step, () => string> = {
 /** 看板娘在每一步说的话（最后一步视模型状态而定，见 lineFor） */
 const STEP_LINE: Record<Step, () => string> = {
   welcome: () => t('ui.mascot-theme.hi-i-m-nomi-your-ai-companion-who'),
-  appearance: () => t('ui.mascot-theme.pick-a-look-that-feels-comfortable-we-ll'),
   profile: () => t('ui.mascot-theme.tell-me-what-you-do-and-i-ll-suggest'),
   provider: () => t('ui.mascot-theme.connect-an-ai-model-and-i-can-help'),
   privacy: () => t('ui.mascot-theme.rest-assured-our-conversations-and-memories-stay-on'),
@@ -67,21 +64,16 @@ const STEP_LINE: Record<Step, () => string> = {
 /** 带插画的步骤：插画 + 一句介绍（窗口很矮时插画隐藏） */
 const STEP_ART: Record<Step, { src: string; intro?: () => string }> = {
   welcome: { src: welcomeArt, intro: () => t('ui.mascot-theme.intro-welcome') },
-  appearance: { src: appearanceArt, intro: () => t('ui.mascot-theme.intro-appearance') },
   profile: { src: profileArt, intro: () => t('ui.mascot-theme.intro-profile') },
   provider: { src: providerArt, intro: () => t('ui.mascot-theme.intro-provider') },
   privacy: { src: welcomeArt },
 };
 
-const LANGS: { id: LocalePref; label: () => string; hint: () => string }[] = [
-  {
-    id: 'system',
-    label: () => t('ui.mascot-theme.follow-system'),
-    hint: () => t('ui.mascot-theme.matches-your-computer-language'),
-  },
+const LANGS: { id: LocalePref; label: () => string }[] = [
+  { id: 'system', label: () => t('ui.mascot-theme.follow-system') },
   // i18n-ignore
-  { id: 'zh-CN', label: () => '中文', hint: () => '简体中文' },
-  { id: 'en', label: () => 'English', hint: () => 'English' },
+  { id: 'zh-CN', label: () => '简体中文' },
+  { id: 'en', label: () => 'English' },
 ];
 
 const STARTUPS: { id: StartupView; label: () => string; hint: () => string }[] = [
@@ -268,36 +260,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
 
   const body = (() => {
     switch (step) {
-      case 'welcome':
-        return (
-          <>
-            <div className={styles.subLabel}>{t('ui.mascot-theme.choose-your-language')}</div>
-            <div
-              className={styles.options}
-              role="radiogroup"
-              aria-label={t('ui.voice-mascot.language')}
-            >
-              {LANGS.map((l) => (
-                <button
-                  key={l.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={lang === l.id}
-                  data-testid={`onb-lang-${l.id}`}
-                  className={`${styles.option} ${lang === l.id ? styles.optionOn : ''}`}
-                  onClick={() => {
-                    setLang(l.id);
-                    void setLocalePref(l.id);
-                  }}
-                >
-                  <span className={styles.optionTitle}>{l.label()}</span>
-                  <span className={styles.optionHint}>{l.hint()}</span>
-                </button>
-              ))}
-            </div>
-          </>
-        );
-      case 'appearance': {
+      case 'welcome': {
         // 默认的日落橙与跟随系统排在前面；全部做成小卡片，一屏内能看到启动方式
         const themes = [
           ...THEMES.filter((x) => x.id === 'sunset' || x.id === 'system'),
@@ -332,6 +295,30 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
         );
         return (
           <>
+            <div className={styles.subLabel}>{t('ui.mascot-theme.choose-your-language')}</div>
+            <div
+              className={styles.segmented}
+              role="radiogroup"
+              aria-label={t('ui.voice-mascot.language')}
+            >
+              {LANGS.map((l) => (
+                <button
+                  key={l.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={lang === l.id}
+                  data-testid={`onb-lang-${l.id}`}
+                  className={`${styles.segment} ${lang === l.id ? styles.segmentOn : ''}`}
+                  onClick={() => {
+                    setLang(l.id);
+                    void setLocalePref(l.id);
+                  }}
+                >
+                  {l.label()}
+                </button>
+              ))}
+            </div>
+
             <div className={styles.subLabel}>{t('ui.chat-settings.theme')}</div>
 
             <div
@@ -346,7 +333,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
             <div className={styles.subLabel}>{t('ui.mascot-theme.startup-mode')}</div>
 
             <div
-              className={styles.options}
+              className={`${styles.options} ${styles.optionsPair}`}
               role="radiogroup"
               aria-label={t('ui.mascot-theme.startup-mode')}
             >
@@ -357,7 +344,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
                   role="radio"
                   aria-checked={startup === x.id}
                   data-testid={`onb-startup-${x.id}`}
-                  className={`${styles.option} ${startup === x.id ? styles.optionOn : ''}`}
+                  className={`${styles.option} ${styles.optionSmall} ${startup === x.id ? styles.optionOn : ''}`}
                   onClick={() => {
                     const prev = startup;
                     setStartup(x.id);
@@ -370,7 +357,6 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
               ))}
             </div>
             <p className={styles.note}>
-              {t('ui.mascot-theme.if-you-rely-on-scheduled-tasks-reminders-nomi')}
               {t('ui.mascot-theme.you-can-change-this-any-time-in-settings')}
             </p>
           </>

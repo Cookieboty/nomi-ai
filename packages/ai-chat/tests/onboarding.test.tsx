@@ -124,7 +124,7 @@ const skipTo = async (id: string, n: number) => {
 };
 
 describe('first-launch onboarding', () => {
-  it('walks welcome & language → look & startup → about you → model → privacy', async () => {
+  it('walks welcome & preferences → about you → model → privacy (4 steps)', async () => {
     render(<OnboardingHost />);
     await screen.findByTestId('onboarding-step-welcome');
     // 看板娘打招呼；欢迎页有插画与介绍
@@ -136,17 +136,14 @@ describe('first-launch onboarding', () => {
     expect(bg.style.backgroundImage).toMatch(/welcome/);
     expect(screen.getByTestId('onboarding').querySelector('img')).toBeNull();
     expect(screen.getByText('你好，我是 Nomi·诺米')).toBeTruthy();
+    expect(screen.getByText('第 1 步，共 4 步')).toBeTruthy();
+    expect(screen.queryByTestId('onboarding-step-appearance')).toBeNull();
 
-    // 1 语言：即时切换为英文
+    // 1 欢迎与偏好：语言（即时切换）、主题、启动方式都在同一页
     act(() => fireEvent.click(screen.getByTestId('onb-lang-en')));
     expect(getLocale()).toBe('en');
     expect(screen.getByTestId('onboarding-next').textContent).toBe('Next');
     act(() => fireEvent.click(screen.getByTestId('onb-lang-zh-CN')));
-    fireEvent.click(screen.getByTestId('onboarding-next'));
-
-    // 2 外观与启动：同一页里选主题与启动方式
-    await screen.findByTestId('onboarding-step-appearance');
-    expect(screen.getByTestId('onb-art').getAttribute('data-art')).toBe('appearance');
     expect(screen.getByTestId('onb-theme-sunset')).toBeTruthy();
     act(() => fireEvent.click(screen.getByTestId('onb-theme-system')));
     expect(currentTheme().pref).toBe('system');
@@ -154,7 +151,7 @@ describe('first-launch onboarding', () => {
     fireEvent.click(screen.getByTestId('onboarding-next'));
     expect(calls.some((c) => c[0] === 'ai:startup:set')).toBe(false);
 
-    // 3 关于你：称呼 + 职业（单选）+ 兴趣（多选，再点取消）→ 存进主进程，并写进 persona
+    // 2 关于你：称呼 + 职业（单选）+ 兴趣（多选，再点取消）→ 存进主进程，并写进 persona
     // 不再有声音、说话语气
     await screen.findByTestId('onboarding-step-profile');
     expect(screen.getByText('关于你')).toBeTruthy();
@@ -180,7 +177,7 @@ describe('first-launch onboarding', () => {
     expect(persona).not.toContain('语气');
     expect(persona.match(/<!-- onboarding -->/g)).toHaveLength(1);
 
-    // 4 模型：先配供应商，模型一栏置灰；不弹对话框、不内嵌整个模型页；可跳过
+    // 3 模型：先配供应商，模型一栏置灰；不弹对话框、不内嵌整个模型页；可跳过
     expect(screen.getByTestId('onb-art').getAttribute('data-art')).toBe('provider');
     await screen.findByTestId('onb-preset-deepseek');
     const models = screen.getByTestId('onb-model-section');
@@ -190,7 +187,7 @@ describe('first-launch onboarding', () => {
     expect(screen.queryByTestId('models-page')).toBeNull();
     fireEvent.click(screen.getByTestId('onboarding-skip-step'));
 
-    // 5 隐私：没有模型 →「还差一步」，看板娘也这么说
+    // 4 隐私：没有模型 →「还差一步」，看板娘也这么说
     await screen.findByTestId('onboarding-step-privacy');
     expect(screen.getByTestId('onb-one-step-left').textContent).toContain('还差一步：接上模型');
     await waitFor(() => expect(mascot().at(-1)?.text).toContain('还差一步'));
@@ -203,7 +200,7 @@ describe('first-launch onboarding', () => {
   it('model step: configure a provider inline, then pick its model for Nomi; finish says all set', async () => {
     render(<OnboardingHost />);
     await screen.findByTestId('onboarding-step-welcome');
-    await skipTo('provider', 3);
+    await skipTo('provider', 2);
     fireEvent.click(await screen.findByTestId('onb-preset-deepseek'));
     const save = screen.getByTestId('onb-provider-save') as HTMLButtonElement;
     expect(save.disabled).toBe(true);
@@ -253,7 +250,7 @@ describe('first-launch onboarding', () => {
     window.addEventListener(OPEN_MODELS_EVENT, onOpen);
     render(<OnboardingHost />);
     await screen.findByTestId('onboarding-step-welcome');
-    await skipTo('privacy', 4);
+    await skipTo('privacy', 3);
     fireEvent.click(screen.getByTestId('onb-go-models'));
     await waitFor(() => expect(opened).toBe(1));
     expect(screen.queryByTestId('onboarding')).toBeNull();
@@ -264,8 +261,6 @@ describe('first-launch onboarding', () => {
   it('lets the user open with the main window; choice is saved immediately and survives skipping', async () => {
     render(<OnboardingHost />);
     await screen.findByTestId('onboarding-step-welcome');
-    fireEvent.click(screen.getByTestId('onboarding-next'));
-    await screen.findByTestId('onboarding-step-appearance');
     expect(screen.getByTestId('onb-startup-mascot').textContent).toContain('以 Nomi 方式打开');
     expect(screen.getByTestId('onb-startup-main').textContent).toContain(
       '以控制台（主界面）方式打开',
@@ -282,10 +277,10 @@ describe('first-launch onboarding', () => {
     expect(startupView).toBe('main');
   });
 
-  it('look & startup step is skippable and keeps the mascot default', async () => {
+  it('welcome & preferences step is skippable and keeps the mascot default', async () => {
     render(<OnboardingHost />);
     await screen.findByTestId('onboarding-step-welcome');
-    await skipTo('profile', 2);
+    await skipTo('profile', 1);
     expect(startupView).toBe('mascot');
     expect(calls.some((c) => c[0] === 'ai:startup:set')).toBe(false);
   });
@@ -294,8 +289,6 @@ describe('first-launch onboarding', () => {
     startupView = 'main';
     render(<OnboardingHost />);
     await screen.findByTestId('onboarding-step-welcome');
-    fireEvent.click(screen.getByTestId('onboarding-next'));
-    await screen.findByTestId('onboarding-step-appearance');
     await waitFor(() =>
       expect(screen.getByTestId('onb-startup-main').getAttribute('aria-checked')).toBe('true'),
     );
@@ -321,7 +314,7 @@ describe('first-launch onboarding', () => {
     profile = { role: 'student', interests: ['learning'] };
     render(<OnboardingHost />);
     await screen.findByTestId('onboarding-step-welcome');
-    await skipTo('profile', 2);
+    await skipTo('profile', 1);
     await waitFor(() =>
       expect(screen.getByTestId('onb-role-student').getAttribute('aria-checked')).toBe('true'),
     );
@@ -344,7 +337,7 @@ describe('first-launch onboarding', () => {
     ].join('\n');
     render(<OnboardingHost />);
     await screen.findByTestId('onboarding-step-welcome');
-    await skipTo('profile', 2);
+    await skipTo('profile', 1);
     await waitFor(() =>
       expect((screen.getByTestId('onb-name') as HTMLInputElement).value).toBe('小林'),
     );
@@ -363,7 +356,7 @@ describe('first-launch onboarding', () => {
   it('Back / skip are disabled and Next is ignored while the step is still saving', async () => {
     render(<OnboardingHost />);
     await screen.findByTestId('onboarding-step-welcome');
-    await skipTo('profile', 2);
+    await skipTo('profile', 1);
     fireEvent.click(screen.getByTestId('onb-role-developer'));
     const btn = screen.getByTestId('onboarding-next');
     fireEvent.click(btn);
