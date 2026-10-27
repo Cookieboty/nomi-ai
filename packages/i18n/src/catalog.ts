@@ -3762,7 +3762,8 @@ export const getDictionary = (language: Language): Record<string, string> => {
   let d = merged.get(language);
   if (!d) {
     // 无原型：查 __proto__ / constructor 之类的键不会命中继承属性
-    d = Object.assign(Object.create(null), ...Object.values(DICTIONARIES[language]));
+    d = Object.create(null) as Record<string, string>;
+    Object.assign(d, ...Object.values(DICTIONARIES[language]));
     merged.set(language, d);
   }
   return d;
