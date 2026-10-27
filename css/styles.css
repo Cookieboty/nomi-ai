@@ -1338,7 +1338,7 @@ code {
 .cpop {
   position: fixed; z-index: 120; top: calc(var(--header-h) + 8px);
   right: max(1.25rem, calc((100vw - var(--max)) / 2));
-  width: 380px; max-width: calc(100vw - 2rem);
+  width: 460px; max-width: calc(100vw - 2rem);
   background: var(--nomi-card); border: 1px solid var(--nomi-border-strong);
   border-radius: var(--radius); box-shadow: var(--nomi-shadow-lg); padding: 16px 18px 14px;
 }
@@ -1346,8 +1346,7 @@ code {
 .cpop-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .cpop-head h2 { margin: 0; font-family: var(--font-display); font-size: 1.05rem; }
 .cpop-close { appearance: none; border: 0; background: rgba(51,41,31,.06); width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 18px; line-height: 1; color: var(--nomi-ink); }
-.cpop-grid { display: grid; grid-template-columns: 1fr; justify-items: center; gap: 12px; }
-.cpop-grid picture { width: min(240px, 100%); }
+.cpop-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .cpop-grid img { display: block; width: 100%; height: auto; border-radius: 14px; aspect-ratio: 3 / 4; background: var(--nomi-cream); }
 .cpop-hint { display: none; text-align: center; color: var(--nomi-warm-gray); font-size: .9rem; margin: 10px 0 0; }
 .cpop-issues { display: block; margin-top: 12px; font-size: .9rem; text-align: center; }

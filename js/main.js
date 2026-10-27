@@ -96,7 +96,7 @@
     });
     return;
   }
-  var V = "20261027qr", pop, backdrop, built = false, opener = null;
+  var V = "20261027qr2", pop, backdrop, built = false, opener = null;
   function card(name, altKey) {
     return '<picture><source type="image/webp" data-srcset="assets/contact/' + name + '.webp?v=' + V + '" />' +
       '<img width="360" height="480" decoding="async" data-src="assets/contact/' + name + '.png?v=' + V + '" alt="" data-i18n-alt="' + altKey + '" /></picture>';
@@ -107,7 +107,7 @@
     pop.setAttribute("role", "dialog"); pop.setAttribute("aria-modal", "true"); pop.setAttribute("aria-labelledby", "contact-pop-title");
     pop.innerHTML = '<div class="cpop-head"><h2 id="contact-pop-title" data-i18n="contactPop.title">联系我们</h2>' +
       '<button type="button" class="cpop-close" data-i18n-aria-label="contactPop.close" aria-label="关闭">&times;</button></div>' +
-      '<div class="cpop-grid">' + card("qr-author", "contactPop.author") + '</div>' +
+      '<div class="cpop-grid">' + card("qr-author-yxf", "contactPop.yxf") + card("qr-author", "contactPop.author") + '</div>' +
       '<p class="cpop-hint" data-i18n="contactPop.hint">长按识别二维码</p>' +
       '<a class="cpop-issues" href="https://github.com/Cookieboty/nomi-ai/issues" target="_blank" rel="noopener noreferrer" data-i18n="contactPop.issues">遇到问题或有新想法？去 GitHub Issues 反馈</a>';
     document.body.appendChild(backdrop); document.body.appendChild(pop);
