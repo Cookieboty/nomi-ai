@@ -4,12 +4,13 @@ import riveWasmUrl from '@rive-app/canvas-lite/rive.wasm?url';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import { createRiveBackend } from '../../mascot/backends/rive';
+import { getRiveConfig, useCharacterPackReady } from '../../mascot/characterConfig';
 import { mascotRegistry } from '../../mascot/MascotBackend';
 import { characterBox } from '../../mascot/spriteLayout';
 import MascotInteractionLayerLite, { type SpriteGeometry } from '../SpriteMascot/InteractionLite';
 
 export interface RiveCanvasProps {
-  /** URL of the high-fidelity .riv (default: public/assets/models/rive/nomi-complete.riv). */
+  /** URL of the high-fidelity .riv (default: overlay.riveUrl → character.generated → public path). */
   src?: string;
   style?: React.CSSProperties;
   /**
@@ -22,8 +23,6 @@ export interface RiveCanvasProps {
 /** Rive normally loads in a few seconds even on software rendering; beyond this we fall back. */
 export const RIVE_LOAD_TIMEOUT_MS = 20_000;
 
-const DEFAULT_SRC = './assets/models/rive/nomi-complete.riv';
-
 /**
  * Window-space geometry of the character, measured from the live layout every time it is read.
  * Interaction reports the body box to the main process, which uses it as the feet anchor while
@@ -31,14 +30,15 @@ const DEFAULT_SRC = './assets/models/rive/nomi-complete.riv';
  * ResizeObserver lags one resize behind the window and makes the anchor drift.
  */
 function measureGeometry(wrap: HTMLElement | null): SpriteGeometry {
-  if (!wrap) return { head: null, body: null };
+  if (!wrap) return { head: null, body: null, box: null };
   const b = characterBox(wrap.clientWidth, wrap.clientHeight);
-  if (b.w <= 0 || b.h <= 0) return { head: null, body: null };
+  if (b.w <= 0 || b.h <= 0) return { head: null, body: null, box: null };
   const r = wrap.getBoundingClientRect();
   const left = r.left + b.x;
   const top = r.top + b.y;
   const right = left + b.w;
   const bottom = top + b.h;
+  const box = { left, right, top, bottom };
   return {
     head: {
       left: left + b.w * 0.16,
@@ -46,7 +46,8 @@ function measureGeometry(wrap: HTMLElement | null): SpriteGeometry {
       top: top + b.h * 0.04,
       bottom: top + b.h * 0.42,
     },
-    body: { left, right, top, bottom },
+    body: box,
+    box,
   };
 }
 
@@ -54,17 +55,21 @@ function measureGeometry(wrap: HTMLElement | null): SpriteGeometry {
  * Rive renderer. The wasm is bundled — the
  * runtime's default CDN URL would be blocked by the app CSP (connect-src 'self') — and the page CSP
  * needs 'wasm-unsafe-eval' for it to compile (see docs/brand/rive-complete.md).
+ *
+ * `src` / artboard / stateMachine follow the live overlay (Scheme B) via getRiveConfig — never a
+ * module-load freeze of DEFAULT_SRC, so overlay packs actually load their `.riv`.
  */
-export const RiveCanvas: React.FC<RiveCanvasProps> = ({ src = DEFAULT_SRC, style, onFailure }) => {
+export const RiveCanvas: React.FC<RiveCanvasProps> = ({ src, style, onFailure }) => {
   const onFailureRef = useRef(onFailure);
   useEffect(() => {
     onFailureRef.current = onFailure;
   });
-  // The production scene has one source of truth: the full-body SVG-backed rig.
-  // Keep the artboard selection unconditional so the removed half-body rig cannot
-  // be selected by a stale query string or an old local preference.
-  const resolvedSrc = src;
-  const stateMachine = 'NomiFull';
+  const overlayReady = useCharacterPackReady();
+  // Re-read after overlay settles; explicit prop wins when provided.
+  const riveCfg = getRiveConfig();
+  const resolvedSrc = src ?? riveCfg.src;
+  const stateMachine = riveCfg.stateMachine;
+  const artboard = riveCfg.artboard;
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const geometry = useMemo(
@@ -78,6 +83,7 @@ export const RiveCanvas: React.FC<RiveCanvasProps> = ({ src = DEFAULT_SRC, style
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!overlayReady) return undefined;
     const wrap = wrapRef.current;
     const canvas = canvasRef.current;
     if (!wrap || !canvas) return undefined;
@@ -123,7 +129,7 @@ export const RiveCanvas: React.FC<RiveCanvasProps> = ({ src = DEFAULT_SRC, style
     try {
       rive = new Rive({
         src: resolvedSrc,
-        artboard: 'Nomi-full',
+        artboard,
         canvas,
         autoplay: true,
         autoBind: true,
@@ -175,12 +181,15 @@ export const RiveCanvas: React.FC<RiveCanvasProps> = ({ src = DEFAULT_SRC, style
       detach?.();
       rive?.cleanup();
     };
-  }, [resolvedSrc, stateMachine]);
+  }, [overlayReady, resolvedSrc, stateMachine, artboard]);
+
+  if (!overlayReady) return null;
 
   return (
     <div
       ref={wrapRef}
       data-testid="rive-canvas"
+      data-rive-src={resolvedSrc}
       style={{
         width: '100%',
         height: '100%',

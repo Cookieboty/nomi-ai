@@ -18,8 +18,18 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const modelDir = join(root, 'packages/renderer/public/assets/models/sprite/nomi');
+/** Override with CHARACTER_PACK_SPRITE_DIR / BRAND_LOCK_MODEL_DIR for forks. */
+const modelDir = resolve(
+  process.env.CHARACTER_PACK_SPRITE_DIR ||
+    process.env.BRAND_LOCK_MODEL_DIR ||
+    join(root, 'packages/renderer/public/assets/models/sprite/nomi'),
+);
 const lockPath = join(modelDir, 'brand-lock.json');
+
+if (process.env.CHARACTER_PACK_SKIP_BRAND_LOCK === '1') {
+  console.info('brand lock skipped (CHARACTER_PACK_SKIP_BRAND_LOCK=1)');
+  process.exit(0);
+}
 
 const sha = (file) => createHash('sha256').update(readFileSync(file)).digest('hex');
 
@@ -63,8 +73,8 @@ if (process.argv.includes('--check')) {
     console.error('brand-lock.json is out of date: brand layers changed.');
     process.exit(1);
   }
-  console.log(`brand lock ok (${Object.keys(files).length} files)`);
+  console.info(`brand lock ok (${Object.keys(files).length} files)`);
 } else {
   writeFileSync(lockPath, json);
-  console.log(`wrote ${relative(root, lockPath)} (${Object.keys(files).length} files)`);
+  console.info(`wrote ${relative(root, lockPath)} (${Object.keys(files).length} files)`);
 }

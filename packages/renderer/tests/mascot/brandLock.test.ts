@@ -19,14 +19,23 @@ import { ACTIONS } from '../../src/mascot/rig/actions';
  *  3. for every action, every frame: each brand layer is drawn, fully opaque, and through a rigid
  *     transform (rotation + uniform scale only — no shear, no squash) that keeps it on canvas.
  */
-const MODEL = path.join(__dirname, '../../public/assets/models/sprite/nomi');
-const manifest = JSON.parse(fs.readFileSync(path.join(MODEL, 'manifest.json'), 'utf8')) as {
-  rig: RigManifest;
-};
-const lock = JSON.parse(fs.readFileSync(path.join(MODEL, 'brand-lock.json'), 'utf8')) as {
-  layout: string;
-  files: Record<string, string>;
-};
+const MODEL = process.env.CHARACTER_PACK_SPRITE_DIR
+  ? path.resolve(process.env.CHARACTER_PACK_SPRITE_DIR)
+  : path.join(__dirname, '../../public/assets/models/sprite/nomi');
+
+const SKIP_BRAND = process.env.CHARACTER_PACK_SKIP_BRAND_LOCK === '1';
+const describeBrand = SKIP_BRAND ? describe.skip : describe;
+const manifest = SKIP_BRAND
+  ? ({ rig: { layers: {}, actions: {} } } as { rig: RigManifest })
+  : (JSON.parse(fs.readFileSync(path.join(MODEL, 'manifest.json'), 'utf8')) as {
+      rig: RigManifest;
+    });
+const lock = SKIP_BRAND
+  ? ({ layout: '', files: {} } as { layout: string; files: Record<string, string> })
+  : (JSON.parse(fs.readFileSync(path.join(MODEL, 'brand-lock.json'), 'utf8')) as {
+      layout: string;
+      files: Record<string, string>;
+    });
 const sha = (f: string) => createHash('sha256').update(fs.readFileSync(f)).digest('hex');
 
 /** layers that carry the brand identity (everything the user approved as artwork) */
@@ -45,7 +54,7 @@ const BRAND_LAYERS = [
 /** locked as art, but an arm attachment: it fades out while the right arm is posed (mesh sleeve) */
 const ARM_ATTACHMENTS = ['strap-r'];
 
-describe('brand lock: files', () => {
+describeBrand('brand lock: files', () => {
   it('every locked layer matches its committed sha256', () => {
     const names = Object.keys(lock.files);
     expect(names.length).toBeGreaterThanOrEqual(28);
@@ -191,7 +200,7 @@ const BASE_INPUT = {
   lookY: 0,
 };
 
-describe('brand lock: every action keeps the artwork rigid', () => {
+describeBrand('brand lock: every action keeps the artwork rigid', () => {
   const ids = ACTIONS.map((a) => a.id);
 
   it('idle frame draws every brand layer and arm attachment', () => {

@@ -6,6 +6,7 @@ import {
   loadSpriteManifest,
   type SpriteBackend,
 } from '../../mascot/backends/sprite';
+import { useCharacterPackReady } from '../../mascot/characterConfig';
 import {
   drawRig,
   paintRigFrame,
@@ -62,9 +63,11 @@ export const SpriteCanvas: React.FC<SpriteCanvasProps> = ({
   const rigRef = useRef<RigManifest | null>(null);
   const animRef = useRef<RigAnimator | null>(null);
   const rigImgs = useRef<RigImages>(new Map());
-  const geometry = useRef<SpriteGeometry>({ head: null, body: null });
+  const geometry = useRef<SpriteGeometry>({ head: null, body: null, box: null });
+  const overlayReady = useCharacterPackReady();
 
   useEffect(() => {
+    if (!overlayReady) return undefined;
     let cancelled = false;
     let detach: (() => void) | null = null;
     let raf = 0;
@@ -271,9 +274,17 @@ export const SpriteCanvas: React.FC<SpriteCanvasProps> = ({
             top: b.top + r.top,
             bottom: b.bottom + r.top,
           };
+        const bodyBox = shift(rigBodyBox(rig, rigImgs.current, view, w, h));
+        const char = {
+          left: r.left + box.x,
+          right: r.left + box.x + box.w,
+          top: r.top + box.y,
+          bottom: r.top + box.y + box.h,
+        };
         geometry.current = {
           head: shift(rigHeadBox(rig, rigImgs.current, pose, view)),
-          body: shift(rigBodyBox(rig, rigImgs.current, view, w, h)),
+          body: bodyBox,
+          box: char,
         };
         return;
       }
@@ -287,9 +298,17 @@ export const SpriteCanvas: React.FC<SpriteCanvasProps> = ({
       const lookOffY = -frame.lookY * 6;
       const x = cb.x + (cb.w - dw) / 2 + lookOffX;
       const y = cb.y + (cb.h - dh) / 2 + frame.bobY + lookOffY;
+      cachedRect ??= canvas.getBoundingClientRect();
+      const sr = cachedRect;
       geometry.current = {
         head: { left: x, right: x + dw, top: y, bottom: y + dh * 0.4 },
         body: { left: x, right: x + dw, top: y, bottom: y + dh },
+        box: {
+          left: sr.left + cb.x,
+          right: sr.left + cb.x + cb.w,
+          top: sr.top + cb.y,
+          bottom: sr.top + cb.y + cb.h,
+        },
       };
       if (styleKindRef.current === 'pixel') {
         ctx.imageSmoothingEnabled = false;
@@ -362,7 +381,9 @@ export const SpriteCanvas: React.FC<SpriteCanvasProps> = ({
       releaseImages(loadedRigImgs);
       delete document.documentElement.dataset.mascotRig;
     };
-  }, [manifestPath]);
+  }, [overlayReady, manifestPath]);
+
+  if (!overlayReady) return null;
 
   return (
     <div

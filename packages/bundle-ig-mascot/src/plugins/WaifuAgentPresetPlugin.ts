@@ -5,6 +5,7 @@ import {
   type UserProfileService,
 } from '@nomi-ai/bundle-ig-base';
 
+import characterGenerated from '../character.generated.json';
 import {
   AgentPresetRegistryKey,
   InMemoryAgentPresetRegistry,
@@ -45,7 +46,11 @@ export function buildWaifuSystemPrompt(
 
   const lines: string[] = [];
   if (opts.prefix) lines.push(opts.prefix.trim());
-  lines.push('你是 Nomi（诺米），住在用户桌面上的 AI 伙伴。');
+  const identity =
+    (typeof characterGenerated?.systemPromptIdentity === 'string' &&
+      characterGenerated.systemPromptIdentity.trim()) ||
+    '你是 Nomi（诺米），住在用户桌面上的 AI 伙伴。';
+  lines.push(identity);
   if (salutation) lines.push(salutation);
   lines.push(toneLine);
   if (opts.toolNames.length > 0) {

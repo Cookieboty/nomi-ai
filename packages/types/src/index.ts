@@ -40,6 +40,28 @@ export interface IpcApi {
   /** 主进程 → 看板娘指令：{ type: 'motion' | 'expression' | 'parameter', ... } */
   onMascotCommand?: (callback: (cmd: unknown) => void) => () => void;
 
+  /** Scheme B: active character-pack overlay (null fields = built-in) */
+  characterPack?: {
+    getActive: () => Promise<{
+      source: 'userData' | 'resources' | 'builtin';
+      id: string | null;
+      mode: string | null;
+      displayName: { zh: string; en: string } | null;
+      assetBaseUrl: string | null;
+      onboarding: Record<'welcome' | 'profile' | 'provider' | 'privacy', string> | null;
+      voiceBaseUrl: string | null;
+      riveUrl: string | null;
+      staticUrl: string | null;
+      spriteManifestUrl: string | null;
+      hitboxes: {
+        regions: Record<string, { top: number; bottom: number; left: number; right: number }>;
+        bubbleAnchor?: { x: number; y: number };
+      } | null;
+      rive: { artboard: string; stateMachine: string } | null;
+      reason?: string;
+    }>;
+  };
+
   /** 看板娘窗口互动 */
   mascotWindow?: MascotWindowApi;
   /** 桌面能力（确认 / 拖文件总结） */

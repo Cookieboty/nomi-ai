@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import type { FC, RefObject } from 'react';
 
+import { getHitboxes } from '../../mascot/characterConfig';
 import { ClickClassifier, PatDetector } from '../../mascot/interaction/gestures';
 import {
   DragGate,
@@ -24,6 +25,8 @@ const HOVER_DWELL_MS = 600;
 export interface SpriteGeometry {
   head: Box | null;
   body: Box | null;
+  /** Character box in window coords (for pack hitboxes ratios). */
+  box?: Box | null;
 }
 
 export interface InteractionLiteProps {
@@ -132,7 +135,7 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
 
     const regionAt = (x: number, y: number): BodyRegion => {
       const g = geometry.current;
-      return regionInSprite(x, y, g?.head ?? null, g?.body ?? null);
+      return regionInSprite(x, y, g?.head ?? null, g?.body ?? null, getHitboxes(), g?.box ?? null);
     };
 
     const offCursor = api?.onCursor((p) => {

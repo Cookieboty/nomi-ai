@@ -89,6 +89,10 @@ const aiChatAPI = {
       };
     },
   },
+  /** Scheme B 运行时角色包 overlay（无则 built-in） */
+  characterPack: {
+    getActive: () => ipcRenderer.invoke('character-pack:get-active'),
+  },
 };
 
 // 将API暴露给渲染进程

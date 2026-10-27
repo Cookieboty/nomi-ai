@@ -5,7 +5,7 @@
 
 export type CueEvent =
   | 'hover:face'
-  | 'hover:skirt'
+  | 'hover:hem'
   | 'hover:hands'
   | 'wall'
   | 'release'
@@ -37,7 +37,7 @@ export type CueEvent =
 
 export const CUE_LINES: Record<CueEvent, string[]> = {
   'hover:face': [],
-  'hover:skirt': [],
+  'hover:hem': [],
   'hover:hands': [],
   wall: [],
   release: [],
@@ -119,7 +119,7 @@ export const CUE_LINES: Record<CueEvent, string[]> = {
 /** 事件默认冷却（ms）与语音优先级（高可打断低） */
 export const CUE_META: Record<CueEvent, { cooldownMs: number; priority: number; sfx?: string }> = {
   'hover:face': { cooldownMs: 8000, priority: 1, sfx: 'hum' },
-  'hover:skirt': { cooldownMs: 8000, priority: 1, sfx: 'hum' },
+  'hover:hem': { cooldownMs: 8000, priority: 1, sfx: 'hum' },
   'hover:hands': { cooldownMs: 8000, priority: 1, sfx: 'pop' },
   wall: { cooldownMs: 4000, priority: 2, sfx: 'land' },
   release: { cooldownMs: 2500, priority: 2, sfx: 'pop' },

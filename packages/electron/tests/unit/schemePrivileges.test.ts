@@ -14,7 +14,7 @@ describe('registerAppSchemePrivileges', () => {
       scheme: string;
       privileges: Record<string, boolean>;
     }>;
-    expect(schemes.map((s) => s.scheme).sort()).toEqual(['chat-asset']);
+    expect(schemes.map((s) => s.scheme).sort()).toEqual(['character-pack', 'chat-asset']);
     for (const s of schemes) {
       expect(s.privileges).toMatchObject({ standard: true, secure: true, supportFetchAPI: true });
     }

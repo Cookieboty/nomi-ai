@@ -6,6 +6,7 @@
 import type { ModelConfig, ModelVoiceConfig } from '@nomi-ai/types';
 import { t } from '@nomi-ai/ui';
 
+import { CHARACTER, getCharacterId } from './characterConfig';
 import { isMascotMuted } from './presence';
 import {
   DEFAULT_SOFT_SPEECH,
@@ -18,12 +19,12 @@ import { isNoAudioLine, playPromptClip } from './voice/promptClips';
 
 const OVERRIDE_KEY = 'mascot.characterVoice.v1';
 
-/** Built-in softer defaults by model id / tag family. */
+/** Built-in softer defaults keyed by the active character pack id (official: nomi). */
 export const CHARACTER_VOICE_DEFAULTS: Record<string, ModelVoiceConfig> = {
-  nomi: {
-    voiceHint: 'nomi',
-    rate: 0.92,
-    pitch: 1.1,
+  [getCharacterId()]: {
+    voiceHint: CHARACTER.voice?.voiceHint || getCharacterId(),
+    rate: CHARACTER.voice?.rate ?? 0.92,
+    pitch: CHARACTER.voice?.pitch ?? 1.1,
   },
 };
 

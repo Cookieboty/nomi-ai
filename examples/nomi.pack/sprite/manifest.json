@@ -1,0 +1,199 @@
+{
+  "id": "nomi",
+  "displayName": "Nomi·诺米",
+  "style": "soft",
+  "license": "MIT",
+  "author": "Nomi-ai project owner (AI-generated artwork)",
+  "source": "docs/BRAND.md",
+  "description": "Nomi brand mascot. Owner-provided, AI-generated artwork, licensed by the project owner for use in this repository. Pseudo-3D layered rig cut from the approved clean half-body illustration (scripts/brand/build-nomi-rig.py).",
+  "expressions": {
+    "neutral": "neutral.png"
+  },
+  "thumbnail": "thumb.png",
+  "tags": ["sprite", "2d", "soft", "anime", "brand", "default", "layered"],
+  "rig": {
+    "size": [960, 1120],
+    "anchors": {
+      "neck": [474.0, 395.52],
+      "eyeL": [420.87, 271.86899999999997],
+      "eyeR": [527.13, 270.549],
+      "mouth": [474.99, 328.86],
+      "cheekL": [413.28, 291.9],
+      "cheekR": [534.72, 291.9],
+      "hairL": [342.0, 295.2],
+      "hairR": [609.3, 295.2],
+      "ribbon": [626.0, 213.0],
+      "headTop": [474.0, 97.19999999999999],
+      "irisL": [420.87, 257.90999999999997],
+      "irisR": [527.13, 256.59]
+    },
+    "layers": {
+      "arm-l": [68, 439],
+      "arm-r": [621, 439],
+      "badge": [322, 849],
+      "bangs": [359.15999999999997, 107.75999999999999, 0.66],
+      "body": [66, 291],
+      "crown": [310.98, 28.560000000000002, 0.66],
+      "eye-white-l": [395.46, 245.7, 0.66],
+      "eye-white-r": [505.02, 241.07999999999998, 0.66],
+      "iris-l": [404.7, 241.73999999999998, 0.66],
+      "iris-r": [510.96, 240.42, 0.66],
+      "lash-l": [379.62, 232.5, 0.66],
+      "lash-r": [501.72, 227.88, 0.66],
+      "strap-r": [652, 595],
+      "head": [264.12, 70.80000000000001, 0.66],
+      "hair-side-l": [264.12, 287.94, 0.66],
+      "hair-side-r": [582.9, 287.94, 0.66],
+      "ribbon": [610.01, 203.22, 0.66],
+      "mouth": [450.24, 325.56, 0.66],
+      "mouth-open": [450.24, 324.24, 0.66],
+      "mouth-o": [460.8, 322.26, 0.66],
+      "mouth-frown": [456.84, 324.9, 0.66],
+      "earring": [584.09, 279.02, 0.66],
+      "clip": [554.86, 163.27, 0.66],
+      "body-noarm": [66, 291]
+    },
+    "eyes": {
+      "l": {
+        "x0": 397.44,
+        "x1": 441.0,
+        "top": 245.7,
+        "bottom": 272.76,
+        "lash": 3.96,
+        "ovalX0": 396.78,
+        "ovalX1": 440.34,
+        "ovalTop": 247.01999999999998,
+        "ovalBottom": 271.44
+      },
+      "r": {
+        "x0": 505.68,
+        "x1": 549.9,
+        "top": 241.07999999999998,
+        "bottom": 271.44,
+        "lash": 3.96,
+        "ovalX0": 506.34000000000003,
+        "ovalX1": 549.24,
+        "ovalTop": 242.4,
+        "ovalBottom": 270.12
+      }
+    },
+    "lashColor": "#26150b",
+    "irisRadius": {
+      "l": 15.510000000000002,
+      "r": 15.510000000000002
+    },
+    "pivots": {
+      "arm-l": [300, 470],
+      "arm-r": [652, 474],
+      "badge": [381, 852],
+      "strap-r": [669, 598]
+    },
+    "dir": "layers/",
+    "hands": {
+      "wave": {
+        "file": "hands/hand-wave.png",
+        "w": 285,
+        "h": 675,
+        "ax": 155.0,
+        "ay": 675.0,
+        "sleeveW": 198.0,
+        "cuffY": 445.0
+      },
+      "fist": {
+        "file": "hands/hand-fist.png",
+        "w": 238,
+        "h": 487,
+        "ax": 113.5,
+        "ay": 487.0,
+        "sleeveW": 195.0,
+        "cuffY": 257.0
+      },
+      "thumbsup": {
+        "file": "hands/hand-thumbsup.png",
+        "w": 205,
+        "h": 480,
+        "ax": 99.5,
+        "ay": 480.0,
+        "sleeveW": 159.0,
+        "cuffY": 250.0
+      },
+      "point": {
+        "file": "hands/hand-point.png",
+        "w": 190,
+        "h": 583,
+        "ax": 91.5,
+        "ay": 583.0,
+        "sleeveW": 163.0,
+        "cuffY": 353.0
+      },
+      "rest": {
+        "file": "hands/hand-rest.png",
+        "w": 250,
+        "h": 574,
+        "ax": 101.0,
+        "ay": 574.0,
+        "sleeveW": 168.0,
+        "cuffY": 344.0
+      },
+      "peace": {
+        "file": "hands/hand-peace.png",
+        "w": 200,
+        "h": 558,
+        "ax": 87.0,
+        "ay": 558.0,
+        "sleeveW": 148.0,
+        "cuffY": 328.0
+      },
+      "prayer": {
+        "file": "hands/hand-prayer.png",
+        "w": 202,
+        "h": 539,
+        "ax": 100.5,
+        "ay": 539.0,
+        "sleeveW": 184.0,
+        "cuffY": 297.9,
+        "k": 1.2
+      },
+      "ok": {
+        "file": "hands/hand-ok.png",
+        "w": 342,
+        "h": 702,
+        "ax": 139.5,
+        "ay": 702.0,
+        "sleeveW": 184.0,
+        "cuffY": 460.0
+      },
+      "chest": {
+        "file": "hands/hand-chest.png",
+        "w": 242,
+        "h": 655,
+        "ax": 123.5,
+        "ay": 655.0,
+        "sleeveW": 184.0,
+        "cuffY": 413.1
+      }
+    },
+    "arms": {
+      "l": {
+        "layer": "arm-l",
+        "sgn": -1,
+        "theta": 0.17821,
+        "s0": [189.61, 0.0],
+        "smin": -8.6,
+        "smax": 694.2,
+        "nmin": -79.9,
+        "nmax": 102.2
+      },
+      "r": {
+        "layer": "arm-r",
+        "sgn": 1,
+        "theta": 0.17853,
+        "s0": [66.75, 0.0],
+        "smin": -8.7,
+        "smax": 694.1,
+        "nmin": -72.2,
+        "nmax": 85.9
+      }
+    }
+  }
+}
