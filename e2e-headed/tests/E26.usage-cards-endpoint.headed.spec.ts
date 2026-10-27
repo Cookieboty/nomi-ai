@@ -254,7 +254,8 @@ test.describe('E26 · 额度卡片 + 按端信息卡', () => {
     await chat.locator('[data-testid="endpoint-filter-codex"]').click();
     const card = chat.locator('[data-testid="endpoint-info-card"]');
     await expect(card).toBeVisible({ timeout: 20_000 });
-    await expect(chat.locator('[data-testid="endpoint-card-install"]')).toHaveText('已安装');
+    // 精简后的信息卡只在「未安装」时显示安装徽标；已安装时不显示
+    await expect(chat.locator('[data-testid="endpoint-card-install"]')).toHaveCount(0);
     await expect(chat.locator('[data-testid="endpoint-card-bars"]')).toBeVisible({
       timeout: 20_000,
     });

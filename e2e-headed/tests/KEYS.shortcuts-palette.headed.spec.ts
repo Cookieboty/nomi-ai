@@ -90,11 +90,13 @@ test.describe('Shortcuts and command palette', () => {
     await expect(pal).toBeVisible();
     await expect(chat.locator('[data-testid="palette-input"]')).toBeFocused();
     await shot(chat, 'palette-open');
-    await chat.keyboard.type('快捷键');
-    await expect(chat.locator('[data-testid^="palette-item-"]').first()).toBeVisible();
+    // 设置收成七个分区后「快捷键」是「通用」下的标签页：面板跳到「通用」，再点标签
+    await chat.keyboard.type('通用');
+    await expect(chat.locator('[data-testid="palette-item-settings-general"]')).toBeVisible();
     await shot(chat, 'palette-filtered');
-    await chat.keyboard.press('Enter');
+    await chat.click('[data-testid="palette-item-settings-general"]');
     await expect(pal).toHaveCount(0);
+    await chat.click('[data-testid="settings-general-page-tab-shortcuts"]');
     await expect(chat.locator('[data-testid="settings-shortcuts"]')).toBeVisible();
     await shot(chat, 'settings-shortcuts');
 

@@ -539,7 +539,11 @@ describe('刷新额度 · 清空后迟到的结果不回写', () => {
       return { stdout: USAGE_OK, code: 0 };
     });
     const p = t.svc.refreshQuota('claude');
-    await new Promise((r) => setTimeout(r, 30));
+    // 等 CLI 真正被拉起再清空：固定 30ms 在慢的 Windows runner 上可能还没走到 claudeRun
+    for (let i = 0; i < 500 && t.claudeRun.mock.calls.length === 0; i++) {
+      await new Promise((r) => setTimeout(r, 10));
+    }
+    expect(t.claudeRun).toHaveBeenCalledTimes(1);
     t.svc.clear();
     release();
     const r = await p;
