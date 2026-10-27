@@ -157,7 +157,7 @@ async function launch(
   const chat = await chatWin;
   await chat.setViewportSize({ width: 1180, height: 760 }).catch(() => undefined);
   await chat.locator('[data-testid="chat-mode-dev"]').click({ timeout: 30_000 });
-  await chat.locator('[data-testid="chat-tabs"]').waitFor({ timeout: 30_000 });
+  await chat.locator('[data-testid="list-view-all"]').waitFor({ timeout: 30_000 });
   return { app, chat };
 }
 

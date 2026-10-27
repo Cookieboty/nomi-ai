@@ -28,9 +28,9 @@ const shot = async (p: Page, name: string) => {
 };
 
 async function newTab(chat: Page, backend: 'claude' | 'codex') {
-  await chat.click('[data-testid="chat-tab-add"]');
-  await chat.locator('[data-testid="chat-tab-menu"]').waitFor();
-  await chat.click(`[data-testid="chat-tab-new-${backend}"]`);
+  await chat.click('[data-testid="new-chat"]');
+  await chat.locator('[data-testid="new-chat-menu"]').waitFor();
+  await chat.click(`[data-testid="new-chat-${backend}"]`);
   await expect(chat.locator('[data-testid="chat-input"]')).toBeEnabled();
 }
 
@@ -90,7 +90,7 @@ test.describe('E33 model / effort popover', () => {
     const chat = await chatWin;
     await chat.setViewportSize({ width: 1100, height: 740 }).catch(() => undefined);
     await chat.locator('[data-testid="chat-mode-dev"]').click({ timeout: 30_000 });
-    await chat.locator('[data-testid="chat-tabs"]').waitFor({ timeout: 30_000 });
+    await chat.locator('[data-testid="list-view-all"]').waitFor({ timeout: 30_000 });
 
     // Claude：按钮显示 CLI 默认用的模型名（mock initialize 的 default → Opus Mock）
     await newTab(chat, 'claude');

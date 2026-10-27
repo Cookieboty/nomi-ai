@@ -57,7 +57,7 @@ async function launch(
   const chat = await chatWin;
   await chat.setViewportSize({ width: 1100, height: 660 }).catch(() => undefined);
   await chat.locator('[data-testid="chat-mode-dev"]').click({ timeout: 30_000 });
-  await chat.locator('[data-testid="chat-tabs"]').waitFor({ timeout: 30_000 });
+  await chat.locator('[data-testid="list-view-all"]').waitFor({ timeout: 30_000 });
   return { app, chat };
 }
 
@@ -85,9 +85,9 @@ const shot = async (p: Page, name: string) => {
 };
 
 async function newTabAndSend(chat: Page, backend: 'claude' | 'grok', text: string) {
-  await chat.click('[data-testid="chat-tab-add"]');
-  await chat.locator('[data-testid="chat-tab-menu"]').waitFor();
-  await chat.click(`[data-testid="chat-tab-new-${backend}"]`);
+  await chat.click('[data-testid="new-chat"]');
+  await chat.locator('[data-testid="new-chat-menu"]').waitFor();
+  await chat.click(`[data-testid="new-chat-${backend}"]`);
   const input = chat.locator('[data-testid="chat-input"]');
   await expect(input).toBeEnabled();
   await input.fill(text);
@@ -227,7 +227,8 @@ test.describe('E24 · coding-agent conversation view · mock CLI', () => {
     await close(app);
     app = null;
     ({ app, chat } = await launch(userData));
-    await chat.locator('[role="tab"]').nth(1).click();
+    // 侧栏里点回 Claude Code 会话
+    await chat.locator('[data-testid="history-item"][data-backend="claude"]').first().click();
     await expect(
       chat.locator('[data-testid="tool-group"][data-bucket="explore"]').first(),
     ).toBeVisible({

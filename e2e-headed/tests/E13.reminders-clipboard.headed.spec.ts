@@ -12,9 +12,9 @@ import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
 /**
- * E13 · 真实应用 · 桌面能力 P2：笔记 / 提醒 / 剪贴板
+ * E13 · 真实应用 · 桌面能力 P2：提醒 / 剪贴板
  * mock 模型：用户消息 `CALL <tool> <json>` → 返回该工具调用；收到工具结果 → `TOOLRESULT <结果>`。
- * 覆盖：新建笔记（首次写入确认）→ 搜索 → 设置面板笔记 / 提醒页；几秒后到点的提醒（提醒卡片 + 气泡 + 挥手）；
+ * 覆盖：设置面板提醒页；几秒后到点的提醒（提醒卡片 + 气泡 + 挥手）；
  * 剪贴板读取需要确认（拒绝 → user_denied；允许 → 内容按不可信数据返回）；关闭期间错过的提醒在下次启动时播报。
  */
 interface Msg {
@@ -33,16 +33,6 @@ const aiChatBuild = resolve(repoRoot(), 'packages', 'ai-chat', 'dist', 'index.ht
 const shots = process.env.P2_SHOTS;
 const shot = (name: string) => (shots ? { path: join(shots, name) } : {});
 
-/** 截图前把对话列表滚到底 */
-async function scrollChat(p: Page): Promise<void> {
-  await p.evaluate(() =>
-    document.querySelectorAll<HTMLElement>('*').forEach((el) => {
-      if (el.scrollHeight > el.clientHeight + 4) el.scrollTop = el.scrollHeight;
-    }),
-  );
-  await p.waitForTimeout(300);
-}
-
 const text = (c: unknown) => (typeof c === 'string' ? c : JSON.stringify(c));
 
 function reply(body: MockBody): { text?: string; call?: { name: string; args: string } } {
@@ -59,7 +49,7 @@ function reply(body: MockBody): { text?: string; call?: { name: string; args: st
   return { text: 'plain answer' };
 }
 
-test.describe('E13 · real app · notes / reminders / clipboard', () => {
+test.describe('E13 · real app · reminders / clipboard', () => {
   let app: ElectronApplication | null = null;
   let server: Server | null = null;
   let userData = '';
@@ -168,7 +158,7 @@ test.describe('E13 · real app · notes / reminders / clipboard', () => {
     return main;
   };
 
-  test('note create/search, reminder fires, clipboard consent, missed on relaunch', async () => {
+  test('reminder fires, clipboard consent, missed on relaunch', async () => {
     test.skip(!existsSync(mainJs) || !existsSync(aiChatBuild), '需要先 pnpm build');
     test.setTimeout(300_000);
     let main = await launch();
@@ -213,31 +203,6 @@ test.describe('E13 · real app · notes / reminders / clipboard', () => {
       await expect(confirmBubble).toHaveCount(0);
     };
 
-    // ---- 1. 笔记：新建（首次写入要确认）→ 搜索 ----
-    await send(
-      `CALL note_create ${JSON.stringify({ title: 'Groceries', body: 'buy oat milk TOKENNOTE9', tags: ['home'] })}`,
-    );
-    await answer('note_create', true);
-    await expect(chat.locator('body')).toContainText(/TOOLRESULT.*"ok":true/, { timeout: 30_000 });
-    await send(`CALL note_search ${JSON.stringify({ query: 'oat milk' })}`);
-    await expect(chat.locator('body')).toContainText(/TOOLRESULT.*Groceries/, { timeout: 30_000 });
-    expect(JSON.stringify(requests.find((r) => r.tools?.length)?.tools)).toContain('note_search');
-    await scrollChat(chat);
-    await chat.screenshot(shot('01-chat-notes.png'));
-
-    // 设置 → 知识与记忆 → 笔记：能看到、能搜到
-    await chat.click('[data-testid="open-settings"]', { timeout: 30_000 });
-    await chat.click('[data-testid="settings-nav-knowledge"]');
-    await chat.click('[data-testid="settings-knowledge-tab-notes"]', { timeout: 30_000 });
-    await chat.waitForSelector('[data-testid="notes-panel"]', { timeout: 30_000 });
-    await expect(chat.locator('[data-testid="notes-list"]')).toContainText('Groceries');
-    await chat.fill('[data-testid="notes-search"]', 'TOKENNOTE9');
-    await expect(chat.locator('[data-testid="notes-list"]')).toContainText('Groceries');
-    await chat.screenshot(shot('02-panel-notes.png'));
-    await chat.fill('[data-testid="notes-search"]', 'zzz-no-match');
-    await expect(chat.locator('[data-testid="notes-list"]')).toHaveCount(0);
-    await chat.keyboard.press('Escape');
-
     // ---- 2. 提醒：几秒后到点 → 提醒卡片 + 气泡 ----
     await send(`CALL reminder_create ${JSON.stringify({ text: 'Stretch break', inSeconds: 4 })}`);
     await answer('reminder_create', true);
@@ -256,9 +221,10 @@ test.describe('E13 · real app · notes / reminders / clipboard', () => {
     await main.click('[data-testid="reminder-dismiss"]');
     await expect(card).toHaveCount(0);
 
-    // 设置 → 日程与日历 → 日程提醒（默认标签，里面的「提醒」子标签也是默认）
+    // 设置 → 知识与记忆 → 日程（「提醒」子标签是默认）
     await chat.click('[data-testid="open-settings"]');
-    await chat.click('[data-testid="settings-nav-schedule"]');
+    await chat.click('[data-testid="settings-nav-knowledge"]');
+    await chat.click('[data-testid="settings-knowledge-tab-schedule"]');
     await chat.waitForSelector('[data-testid="sched-panel"]');
     await chat.fill('[data-testid="reminder-text"]', 'Water the plants');
     await chat.click('[data-testid="reminder-add"]');

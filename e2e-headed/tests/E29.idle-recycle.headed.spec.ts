@@ -65,21 +65,23 @@ test.describe('E29 · idle recycling of coding-assistant processes · mock CLI',
     const chat = await chatWin;
     await chat.setViewportSize({ width: 1180, height: 780 }).catch(() => undefined);
     await chat.locator('[data-testid="chat-mode-dev"]').click({ timeout: 30_000 });
-    await chat.locator('[data-testid="chat-tabs"]').waitFor({ timeout: 30_000 });
+    await chat.locator('[data-testid="list-view-all"]').waitFor({ timeout: 30_000 });
 
     const input = chat.locator('[data-testid="chat-input"]');
-    const claudeTab = chat.locator('[role="tab"]').nth(1);
-    await chat.click('[data-testid="chat-tab-add"]');
-    await chat.click('[data-testid="chat-tab-new-claude"]');
+    // 侧栏里这个会话的状态点：回收后为「已休眠」
+    const claudeRow = chat.locator('[data-testid="history-item"][data-backend="claude"]');
+    await chat.click('[data-testid="new-chat"]');
+    await chat.click('[data-testid="new-chat-claude"]');
     await expect(input).toBeEnabled();
     await input.fill('first question');
     await input.press('Enter');
     await expect(chat.locator('.ai-chat-app')).toContainText('Mock Claude', { timeout: 30_000 });
-    await expect(claudeTab).toHaveAttribute('data-status', 'idle');
+    await expect(claudeRow).toHaveCount(1);
+    await expect(claudeRow.locator('[data-live="running"]')).toHaveCount(0);
     await expect(chat.locator('[data-testid="conv-dormant"]')).toHaveCount(0);
 
     // 空闲超过阈值 → 回收：圆点「已休眠」+ 会话内提示；转录还在
-    await expect(claudeTab).toHaveAttribute('data-status', 'dormant', { timeout: 20_000 });
+    await expect(claudeRow.locator('[data-live="dormant"]')).toHaveCount(1, { timeout: 20_000 });
     await expect(chat.locator('[data-testid="conv-dormant"]')).toContainText('自动续接');
     await expect(chat.locator('.ai-chat-app')).toContainText('first question');
 
@@ -90,6 +92,6 @@ test.describe('E29 · idle recycling of coding-assistant processes · mock CLI',
     await expect(chat.locator('.ai-chat-app')).toContainText('second question');
     await expect(chat.locator('[data-testid="conv-live"]')).toHaveCount(0, { timeout: 30_000 });
     await expect(chat.getByText('Mock Claude')).toHaveCount(2);
-    await expect(claudeTab).not.toHaveAttribute('data-status', 'dormant');
+    await expect(claudeRow.locator('[data-live="dormant"]')).toHaveCount(0);
   });
 });
