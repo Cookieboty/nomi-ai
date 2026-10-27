@@ -4,6 +4,7 @@ import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { PluginPanel } from '../src/components/PluginPanel';
+import { extClient } from '../src/services/extClient';
 
 import { entry } from './slashHelpers';
 
@@ -66,5 +67,37 @@ describe('PluginPanel（只读）', () => {
       />,
     );
     expect(getByTestId('plugin-panel-empty').textContent).toContain('dsh');
+  });
+
+  it('Nomi：显示自己的 Skills / MCP 目录，不显示 dsh 的不支持提示（#143）', async () => {
+    vi.spyOn(extClient, 'available').mockReturnValue(true);
+    vi.spyOn(extClient, 'skills').mockResolvedValue([
+      { name: 'summarize', description: '总结', builtin: true, enabled: true },
+    ] as never);
+    vi.spyOn(extClient, 'mcpList').mockResolvedValue({
+      servers: [
+        { id: 'fs', name: 'filesystem', transport: 'stdio', status: 'connected', tools: [{}] },
+      ],
+    } as never);
+    const { findAllByTestId, getByText, queryByText } = render(
+      <PluginPanel isVisible onClose={vi.fn()} backend="nomi" entries={[]} onRefresh={vi.fn()} />,
+    );
+    const rows = await findAllByTestId('plugin-panel-row');
+    expect(rows.map((r) => r.textContent).join('|')).toContain('/summarize');
+    expect(queryByText(/dsh/)).toBeNull();
+    fireEvent.click(getByText(/^MCP/));
+    expect(
+      (await findAllByTestId('plugin-panel-row')).map((r) => r.textContent).join('|'),
+    ).toContain('filesystem');
+    vi.restoreAllMocks();
+  });
+
+  it('Nomi 没有数据：显示该类别的空状态而不是 dsh 提示', async () => {
+    vi.spyOn(extClient, 'available').mockReturnValue(false);
+    const { getByTestId } = render(
+      <PluginPanel isVisible onClose={vi.fn()} backend="nomi" entries={[]} onRefresh={vi.fn()} />,
+    );
+    expect(getByTestId('plugin-panel-empty').textContent).not.toContain('dsh');
+    vi.restoreAllMocks();
   });
 });
