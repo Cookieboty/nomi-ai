@@ -135,6 +135,33 @@ describe('model quality · gateway capture', () => {
     monotonic(e);
   });
 
+  it('commit forced by metadata events (no content yet): first content = real content time, not the commit (#136)', async () => {
+    const t = await setup((_k, res) => {
+      sseHead(res);
+      // 9 个元事件：超过提交点的缓存上限，兜底提交；真正的内容 300ms 后才来
+      res.write(sse(...Array.from({ length: 9 }, () => role)));
+      setTimeout(() => res.write(sse(text('Hel'))), 300);
+      setTimeout(() => res.end(sse(text('lo'), stop, usage(2), '[DONE]')), 400);
+    });
+    await (await t.chat()).text();
+    const e = await t.one();
+    expect(e.outcome).toBe('ok');
+    expect(e.timing.firstContentMs).toBeGreaterThanOrEqual(250);
+    expect(e.firstByteMs).toBe(e.timing.firstContentMs);
+    monotonic(e);
+  });
+
+  it('commit forced but the stream ends without content: no first-content time', async () => {
+    const t = await setup((_k, res) => {
+      sseHead(res);
+      res.end(sse(...Array.from({ length: 9 }, () => role), stop, usage(0), '[DONE]'));
+    });
+    await (await t.chat()).text();
+    const e = await t.one();
+    expect(e.timing.firstContentMs).toBeUndefined();
+    expect(e.firstByteMs).toBeUndefined();
+  });
+
   it('upstream ends without a terminal marker after content → stream-break (no-terminal)', async () => {
     const t = await setup((_k, res) => {
       sseHead(res);

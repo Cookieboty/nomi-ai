@@ -752,7 +752,8 @@ export class GatewayServer {
     const errors: string[] = [];
     let attempts = 0;
     let last: Attempt | null = null;
-    let firstByteMs: number | undefined;
+    /** 第一个内容的时刻（epoch ms）：流式按提交点看到的内容事件；兜底提交时没有，交给旁路解码 */
+    let committedContentAt: number | undefined;
     /** 每个候选一次尝试（模型质量按尝试计数，§2.1） */
     const attemptsDetail: QualityAttempt[] = [];
     const noteFailure = (f: Extract<Attempt, { kind: 'failed' }>, began: number) => {
@@ -793,6 +794,8 @@ export class GatewayServer {
       )
         break;
       const cand = queue.shift()!;
+      /** 这次尝试的流式响应是否经过了提交点（首内容时间由它给出） */
+      let peeked = false;
       // 换到了需要外发保护的候选（初选时没算脱敏）：先补算；出错或命中拦截就不发给它，整个请求到此为止
       if (this.privacy.applies(cfg, cand)) {
         const refused = ensureMasked();
@@ -876,8 +879,11 @@ export class GatewayServer {
           status: 502,
           message: `上游中断（${(e as Error).message}）`,
         }));
-        if (peek.kind === 'commit') last = { ...got, res: peek.res };
-        else {
+        if (peek.kind === 'commit') {
+          last = { ...got, res: peek.res };
+          committedContentAt = peek.contentAt;
+          peeked = true;
+        } else {
           trace?.attemptResult(200, peek.message);
           const c: { outcome: QualityOutcome; errorKind?: string } = abort.signal.aborted
             ? { outcome: 'client-cancel' }
@@ -898,7 +904,7 @@ export class GatewayServer {
       else held = release;
       if (last.kind === 'failed') noteFailure(last, began);
       if (last.kind === 'response') {
-        firstByteMs = Date.now() - startedAt;
+        if (!peeked) committedContentAt = Date.now();
         wonAt = began;
         this.learner.success(cand);
         this.cooldowns.success(cand);
@@ -1088,9 +1094,12 @@ export class GatewayServer {
       body,
       inputTokens: measuredInputTokens(cand.wire, usage),
     });
-    // 时间点（相对 startedAt）：流式的第一个内容 = 提交点；之后的以旁路解码看到的为准，且不早于它
+    // 时间点（相对 startedAt）：流式的第一个内容 = 提交点看到的内容事件；兜底提交（期限 / 只有元事件）时
+    // 还没有内容，用旁路解码真正看到的；之后的以旁路解码为准，且不早于它
     const rel = (at: number | undefined) => (at === undefined ? undefined : at - startedAt);
-    const firstContentMs = out.streamed ? firstByteMs : rel(out.firstContentAt);
+    const firstContentMs = out.streamed
+      ? rel(committedContentAt ?? out.firstContentAt)
+      : rel(out.firstContentAt);
     const atLeast = (v: number | undefined) =>
       v === undefined || firstContentMs === undefined ? v : Math.max(v, firstContentMs);
     const firstTextMs = atLeast(rel(out.firstTextAt));

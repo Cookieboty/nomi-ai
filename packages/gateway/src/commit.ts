@@ -20,7 +20,15 @@ export const COMMIT_MAX_EVENTS = 8;
 export const COMMIT_MAX_MS = 10_000;
 
 export type PeekResult =
-  | { kind: 'commit'; res: Response }
+  | {
+      kind: 'commit';
+      res: Response;
+      /**
+       * 因为看到内容事件而提交时，看到它的时刻（epoch ms）。按期限 / 事件数 / 结束标记 / 读完兜底提交时
+       * 没有：那时还没有内容，首内容时间要以之后真正看到的为准（#136）
+       */
+      contentAt?: number;
+    }
   | {
       kind: 'error';
       message: string;
@@ -135,7 +143,8 @@ export async function peekCommit(
           await reader.cancel().catch(() => undefined);
           return { kind: 'error', message: e.message, ...statusOf(e.kind) };
         }
-        if (spec.isContent(ev) || spec.isTerminal(ev)) return commit();
+        if (spec.isContent(ev)) return { ...commit(), contentAt: now() } as PeekResult;
+        if (spec.isTerminal(ev)) return commit();
         if (++events >= maxEvents) return commit();
       }
     }
