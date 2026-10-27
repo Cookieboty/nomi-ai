@@ -1,12 +1,7 @@
 import type { ReleaseNotesEntry } from './types';
 import { RELEASE_NOTES_V205 } from './v2.0.5';
 
-export type {
-  ReleaseNotesBullet,
-  ReleaseNotesEntry,
-  ReleaseNotesSection,
-  ReleaseNotesSectionId,
-} from './types';
+export type { ReleaseNotesEntry, ReleaseNotesSection, ReleaseNotesSectionId } from './types';
 
 const BY_VERSION: Record<string, ReleaseNotesEntry> = {
   [RELEASE_NOTES_V205.version]: RELEASE_NOTES_V205,

@@ -1,16 +1,12 @@
-/** Structured product release notes (not raw markdown paths). */
-export type ReleaseNotesSectionId = 'new' | 'improvements' | 'fixes';
+import type { TranslationKey } from '@nomi-ai/i18n';
 
-export interface ReleaseNotesBullet {
-  /** English UI copy */
-  en: string;
-  /** Simplified Chinese UI copy */
-  zh: string;
-}
+/** Structured product release notes (catalog keys, not raw markdown paths). */
+export type ReleaseNotesSectionId = 'new' | 'improvements' | 'fixes';
 
 export interface ReleaseNotesSection {
   id: ReleaseNotesSectionId;
-  items: ReleaseNotesBullet[];
+  /** Stable i18n keys under ui.release-notes.* */
+  itemKeys: TranslationKey[];
 }
 
 export interface ReleaseNotesEntry {

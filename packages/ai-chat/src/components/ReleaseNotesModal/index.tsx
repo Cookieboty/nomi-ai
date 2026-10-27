@@ -56,11 +56,6 @@ function formatReleaseDate(iso: string, locale: string): string {
   });
 }
 
-function bulletText(entry: ReleaseNotesEntry, en: string, zh: string, locale: string): string {
-  void entry;
-  return locale === 'zh-CN' ? zh : en;
-}
-
 export interface ReleaseNotesModalProps {
   open: boolean;
   notes: ReleaseNotesEntry;
@@ -120,12 +115,12 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
         {intro}
       </p>
       {notes.sections.map((sec) =>
-        sec.items.length === 0 ? null : (
+        sec.itemKeys.length === 0 ? null : (
           <section key={sec.id} className={styles.section} data-testid={`release-notes-${sec.id}`}>
             <h4 className={styles.sectionTitle}>{SECTION_TITLE[sec.id]()}</h4>
             <ul className={styles.list}>
-              {sec.items.map((item, i) => (
-                <li key={i}>{bulletText(notes, item.en, item.zh, locale)}</li>
+              {sec.itemKeys.map((key) => (
+                <li key={key}>{t(key)}</li>
               ))}
             </ul>
           </section>
