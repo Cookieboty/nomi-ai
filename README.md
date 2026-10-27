@@ -57,16 +57,13 @@
 
 ## 💬 联系与交流 / Contact
 
-微信扫码添加作者，或加入 Nomi 用户交流群。<br>Scan with WeChat to add the author or join the Nomi user group.
+微信扫码添加作者。<br>Scan with WeChat to add the author.
 
 <table>
   <tr>
     <td align="center"><img src="docs/contact/qr-author.png" alt="作者微信 / Author WeChat" width="220"><br><sub>作者微信 / Author WeChat</sub></td>
-    <td align="center"><img src="docs/contact/qr-group.png" alt="Nomi 用户交流群 / Community group" width="220"><br><sub>用户交流群 / Community group</sub></td>
   </tr>
 </table>
-
-> 群二维码由微信定期刷新，如失效请先添加作者。<br>The group QR is refreshed by WeChat periodically; if it has expired, add the author instead.
 
 ## 中文
 
