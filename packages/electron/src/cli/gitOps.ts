@@ -627,8 +627,40 @@ export function gitDiscard(
         .map((f) => path.resolve(top, f)),
     );
     const base = real(cwd);
-    const untracked = list.filter((p) => others.has(path.resolve(base, p)));
-    const tracked = list.filter((p) => !others.has(path.resolve(base, p)));
+    // 列表里的路径可以是整个未跟踪目录（status 的 normal 模式只给 `?? newdir/`）：按其下有没有未跟踪 /
+    // 已跟踪文件分类，两种都有就两个 stash 各放一次（#153）
+    const hasUntracked = (p: string) => {
+      const abs = path.resolve(base, p);
+      if (others.has(abs)) return true;
+      const pre = abs + path.sep;
+      for (const f of others) if (f.startsWith(pre)) return true;
+      return false;
+    };
+    const untracked = list.filter(hasUntracked);
+    const dirs = untracked.filter((p) => !others.has(path.resolve(base, p)));
+    const mixed = new Set<string>();
+    // ls-files 没有 --pathspec-from-file：分批放进参数
+    for (let k = 0; k < dirs.length; k += 200) {
+      const batch = dirs.slice(k, k + 200);
+      const r = await run(cwd, [
+        '--literal-pathspecs',
+        'ls-files',
+        '-z',
+        '--cached',
+        '--',
+        ...batch,
+      ]);
+      if (r.code !== 0) return fail('error', r);
+      const known = r.stdout
+        .split('\0')
+        .filter(Boolean)
+        .map((f) => path.resolve(base, f));
+      for (const p of batch) {
+        const pre = path.resolve(base, p) + path.sep;
+        if (known.some((f) => f.startsWith(pre))) mixed.add(p);
+      }
+    }
+    const tracked = list.filter((p) => !untracked.includes(p) || mixed.has(p));
     const label = `${DISCARD_TAG} ${list.length} ${worktreeTag(top)}`;
     const stashes: string[] = [];
     if (tracked.length) {

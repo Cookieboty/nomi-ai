@@ -370,6 +370,45 @@ describe('gitOps', () => {
     expect(fs.readFileSync(path.join(repo, 'a.txt'), 'utf8')).toBe('changed in A\n');
   });
 
+  it('放弃整个未跟踪目录（status 只列出 `newdir/`）：嵌套 / 空格 / 非 ASCII 路径都能放弃并撤销（#153）', async () => {
+    write(path.join(repo, 'newdir', 'a.ts'), 'a\n');
+    write(path.join(repo, 'newdir', 'sub', 'b.ts'), 'b\n');
+    write(path.join(repo, '目录 x', 'c.txt'), 'c\n');
+    write(path.join(repo, '.gitignore'), 'newdir/ignored.log\n');
+    git(repo, 'add', '.gitignore');
+    git(repo, 'commit', '-q', '-m', 'ignore');
+    write(path.join(repo, 'newdir', 'ignored.log'), 'keep me\n');
+    write(path.join(repo, 'a.txt'), 'a2\n');
+    const r = await gitDiscard(repo, ['newdir/', '目录 x/', 'a.txt']);
+    expect(r.ok).toBe(true);
+    expect(fs.existsSync(path.join(repo, 'newdir', 'a.ts'))).toBe(false);
+    expect(fs.existsSync(path.join(repo, 'newdir', 'sub', 'b.ts'))).toBe(false);
+    expect(fs.existsSync(path.join(repo, '目录 x', 'c.txt'))).toBe(false);
+    // 忽略的文件不纳入
+    expect(fs.readFileSync(path.join(repo, 'newdir', 'ignored.log'), 'utf8')).toBe('keep me\n');
+    expect(fs.readFileSync(path.join(repo, 'a.txt'), 'utf8')).toBe('a\n');
+    expect(await gitDiscardUndo(repo, r.stashes)).toEqual({ ok: true });
+    expect(fs.readFileSync(path.join(repo, 'newdir', 'sub', 'b.ts'), 'utf8')).toBe('b\n');
+    expect(fs.readFileSync(path.join(repo, '目录 x', 'c.txt'), 'utf8')).toBe('c\n');
+    expect(fs.readFileSync(path.join(repo, 'a.txt'), 'utf8')).toBe('a2\n');
+  });
+
+  it('目录里既有已跟踪的改动又有未跟踪文件：两类都放弃', async () => {
+    write(path.join(repo, 'd', 'old.txt'), 'old\n');
+    git(repo, 'add', '.');
+    git(repo, 'commit', '-q', '-m', 'd');
+    write(path.join(repo, 'd', 'old.txt'), 'changed\n');
+    write(path.join(repo, 'd', 'new.txt'), 'new\n');
+    const r = await gitDiscard(repo, ['d']);
+    expect(r.ok).toBe(true);
+    expect(r.stashes).toHaveLength(2);
+    expect(fs.readFileSync(path.join(repo, 'd', 'old.txt'), 'utf8')).toBe('old\n');
+    expect(fs.existsSync(path.join(repo, 'd', 'new.txt'))).toBe(false);
+    expect(await gitDiscardUndo(repo, r.stashes)).toEqual({ ok: true });
+    expect(fs.readFileSync(path.join(repo, 'd', 'old.txt'), 'utf8')).toBe('changed\n');
+    expect(fs.readFileSync(path.join(repo, 'd', 'new.txt'), 'utf8')).toBe('new\n');
+  });
+
   it('放弃改动：没有可放弃的返回 nothing', async () => {
     expect((await gitDiscard(repo, ['a.txt'])).code).toBe('nothing');
   });
