@@ -50,6 +50,31 @@ describe('SettingsView', () => {
   });
 });
 
+describe('SettingsView 导航收起（跟随对话侧栏）', () => {
+  it('收起时只留图标：文字隐藏、按钮带名称，仍可切换分区', () => {
+    const onSection = vi.fn();
+    const r = render(
+      <AiChatContextProvider>
+        <SettingsView section="general" onSection={onSection} onClose={() => undefined} collapsed />
+      </AiChatContextProvider>,
+    );
+    expect(r.getByTestId('settings-nav').getAttribute('data-collapsed')).toBe('true');
+    const models = r.getByTestId('settings-nav-models');
+    expect(models.getAttribute('aria-label')).toBe('模型与供应商');
+    expect(models.getAttribute('title')).toBe('模型与供应商');
+    fireEvent.click(models);
+    expect(onSection).toHaveBeenCalledWith('models');
+    cleanup();
+    const open = render(
+      <AiChatContextProvider>
+        <SettingsView section="general" onSection={onSection} onClose={() => undefined} />
+      </AiChatContextProvider>,
+    );
+    expect(open.getByTestId('settings-nav').getAttribute('data-collapsed')).toBeNull();
+    expect(open.getByTestId('settings-nav-models').getAttribute('aria-label')).toBeNull();
+  });
+});
+
 describe('SettingsView 合并后的标签页分区', () => {
   const tabs = (r: ReturnType<typeof render>, page: string) =>
     r.getByTestId(`${page}-tabs`).querySelectorAll('[role="tab"]');

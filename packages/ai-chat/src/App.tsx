@@ -1036,6 +1036,7 @@ const AiChatContent: React.FC = () => {
             deepLink={settingsLink}
             onSection={setSettings}
             onClose={closeSettings}
+            collapsed={sidebarCollapsed}
           />
         </div>
       )}

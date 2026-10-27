@@ -94,6 +94,42 @@
 .navItem.navActive .navIcon {
   color: var(--cd-color-accent-strong);
 }
+/* 收起：只留图标（与对话侧栏收起同宽），文字留给悬停提示与读屏 */
+.nav {
+  transition: width 0.18s ease;
+}
+.nav[data-collapsed] {
+  width: 52px;
+  padding-left: var(--cd-space-1);
+  padding-right: var(--cd-space-1);
+  overflow-x: hidden;
+}
+.nav[data-collapsed] .brand {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+.nav[data-collapsed] .brandText,
+.nav[data-collapsed] .navLabel {
+  display: none;
+}
+.nav[data-collapsed] .back,
+.nav[data-collapsed] .navItem {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+.navLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (prefers-reduced-motion: reduce) {
+  .nav {
+    transition: none;
+  }
+}
 .content {
   flex: 1;
   overflow-y: auto;

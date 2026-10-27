@@ -54,11 +54,19 @@ interface Props {
    * 每次新建一个对象表示一次新的跳转；不传则用各分区的第一个标签。
    */
   deepLink?: { tab?: SettingsTab };
+  /** 左侧导航收起成图标（与对话侧栏同一个状态：标题栏按钮 / Ctrl+B 切换） */
+  collapsed?: boolean;
 }
 
 type TabState = Partial<Record<keyof typeof SECTION_TABS, string>>;
 
-export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, deepLink }) => {
+export const SettingsView: React.FC<Props> = ({
+  section,
+  onSection,
+  onClose,
+  deepLink,
+  collapsed = false,
+}) => {
   // 宽分区（不显示右侧说明栏）的页头「说明」是否展开
   const [helpOpen, setHelpOpen] = useState(false);
   // 有标签页的分区各自记住当前标签（离开设置页后重置）
@@ -219,9 +227,14 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
 
   return (
     <div className={styles.settings} data-testid="settings-view">
-      <nav className={styles.nav} aria-label={t('ui.chat-settings.settings-sections')}>
+      <nav
+        className={styles.nav}
+        data-collapsed={collapsed || undefined}
+        aria-label={t('ui.chat-settings.settings-sections')}
+        data-testid="settings-nav"
+      >
         <div className={styles.brand} data-testid="settings-brand">
-          <NomiMark className={styles.brandMark} />
+          <NomiMark className={styles.brandMark} size={collapsed ? 24 : 36} />
           <span className={styles.brandText}>
             <span className={styles.brandName}>{t('ui.chat-settings.nomi')}</span>
             <span className={styles.brandSub}>
@@ -235,9 +248,10 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
           onClick={onClose}
           data-testid="settings-back"
           title={t('ui.chat-settings.back-to-chat-esc')}
+          aria-label={collapsed ? t('ui.chat-settings.back-to-chat') : undefined}
         >
           <Icon icon={ChevronLeft} />
-          {t('ui.chat-settings.back-to-chat')}
+          <span className={styles.navLabel}>{t('ui.chat-settings.back-to-chat')}</span>
         </button>
         {SETTINGS_NAV_GROUPS.map((group, gi) => (
           <div key={gi} className={styles.navSection}>
@@ -251,11 +265,13 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
                   aria-current={s.id === section ? 'page' : undefined}
                   onClick={() => onSection(s.id)}
                   data-testid={`settings-nav-${s.id}`}
+                  title={collapsed ? t(s.label) : undefined}
+                  aria-label={collapsed ? t(s.label) : undefined}
                 >
                   <span className={styles.navIcon}>
                     <AppIcon icon={s.icon} size="nav" />
                   </span>
-                  {t(s.label)}
+                  <span className={styles.navLabel}>{t(s.label)}</span>
                 </button>
               ))}
           </div>
