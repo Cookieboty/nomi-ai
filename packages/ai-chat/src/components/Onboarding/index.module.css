@@ -344,17 +344,22 @@
   cursor: default;
 }
 
-/* 背景插画：高度铺满卡片（auto 100%），人物靠右下，始终完整；左侧奶油色渐变保证可读 */
+/* 背景插画：按卡片高度缩放，让人物头顶贴近卡片上沿（不留大片空白）；底部对齐。
+   应用内 webp 在原图上方用纯背景色补了 260px 画布（960×800，原图占下方 67.5%、顶边 36px 渐隐），
+   图高取卡片高的 128%，原图顶边约落在卡片高 13% 处；横向按每步原图里手/道具最靠左的位置
+   （--onb-art-l，占图宽比例）对齐到卡片 52% 处（伸进左侧内容区右缘的渐变里，被淡化），右侧多出的部分裁掉 */
+.cardArt {
+  container-type: size;
+}
 .bg {
+  --onb-art-h: 128cqh;
   position: absolute;
   inset: 0;
   z-index: -1;
   background-color: var(--onb-wash);
   background-repeat: no-repeat;
-  /* 按卡片宽度缩放（不再按高度铺满），让手和道具落在左侧内容区（~58%）之外；
-     每步按原图里手/道具最靠左的位置单独设定，底部对齐；应用内 webp 在原图上方用纯背景色补了 260px 画布、原图顶边 36px 渐隐（960×800），缩小后头顶不露出图片边缘 */
-  background-size: var(--onb-art-w, 88%) auto;
-  background-position: right bottom;
+  background-size: auto var(--onb-art-h);
+  background-position: left calc(52cqw - var(--onb-art-l, 0.44) * 1.2 * var(--onb-art-h)) bottom;
   pointer-events: none;
 }
 .bg::after {
@@ -369,17 +374,15 @@
     rgba(var(--onb-wash-rgb), 0) 60%
   );
 }
-.bg[data-art='welcome'] {
-  --onb-art-w: 86%;
+.bg[data-art='welcome'],
+.bg[data-art='provider'] {
+  --onb-art-l: 0.44;
 }
 .bg[data-art='profile'] {
-  --onb-art-w: 88%;
-}
-.bg[data-art='provider'] {
-  --onb-art-w: 96%;
+  --onb-art-l: 0.47;
 }
 .bg[data-art='privacy'] {
-  --onb-art-w: 96%;
+  --onb-art-l: 0.475;
 }
 .cardArt .step {
   width: 58%;
@@ -397,7 +400,7 @@
 .foot {
   position: relative;
 }
-/* 窄窗：内容占满，背景淡化成纹理，人物仍按高度完整缩放 */
+/* 窄窗：内容占满，背景淡化成纹理 */
 @media (max-width: 880px) {
   .cardArt .step {
     width: auto;
@@ -406,7 +409,7 @@
     opacity: 0.22;
   }
 }
-/* 矮窗：卡片变矮，人物随高度缩小但完整；再淡一些保证文字可读 */
+/* 矮窗：卡片变矮，人物随高度缩小；再淡一些保证文字可读 */
 @media (max-height: 640px) {
   .bg {
     opacity: 0.7;
