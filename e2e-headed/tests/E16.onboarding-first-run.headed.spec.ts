@@ -103,29 +103,30 @@ test.describe('E16 · first run: onboarding → provider setup → test connecti
       await expect(onb).not.toHaveAttribute('data-step', s!);
     }
     await expect(onb).toHaveAttribute('data-step', 'provider');
-    const step = chat.locator('[data-testid="onb-provider"]');
+    const step = chat.locator('[data-testid="onboarding-step-provider"]');
     await shot(chat, 'onboarding-2-provider');
 
-    // 「模型」页嵌在引导里：自定义地址 → 检测 → 保存 → 一键设为 Nomi 对话的模型
+    // 引导里内嵌供应商表单：自定义地址 → 填 Key → 检测并保存 → 选 Nomi 对话的模型
     chat.on('dialog', (d) => void d.accept()); // 本机地址确认
-    await step.locator('[data-testid="add-provider"]').click();
-    const dlg = chat.locator('[data-testid="add-provider-dialog"]');
-    await dlg.locator('[data-testid="preset-custom"]').click();
-    await dlg.locator('[data-testid="add-provider-name"]').fill('First Run');
-    await dlg.locator('[data-testid="add-provider-url"]').fill(`http://127.0.0.1:${mock.port}/v1`);
-    await dlg.locator('[data-testid="add-provider-keys"]').fill('sk-first-0123456789abcd');
-    await dlg.locator('[data-testid="add-provider-probe"]').click();
-    await expect(dlg.locator('[data-state="ok"]')).toHaveCount(1, { timeout: 15_000 });
+    await expect(step.locator('[data-testid="onb-model-section"]')).toHaveAttribute(
+      'data-state',
+      'disabled',
+    );
+    await step.locator('[data-testid="onb-preset-custom"]').click();
+    await step.locator('[data-testid="onb-provider-url"]').fill(`http://127.0.0.1:${mock.port}/v1`);
+    await step.locator('[data-testid="onb-provider-key"]').fill('sk-first-0123456789abcd');
+    await step.locator('[data-testid="onb-provider-save"]').click();
+    await expect(step.locator('[data-testid="onb-provider-configured"]')).toBeVisible({
+      timeout: 15_000,
+    });
     expect(mock.seen.some((r) => r.method === 'POST' && r.path === '/v1/chat/completions')).toBe(
       true,
     );
     await shot(chat, 'onboarding-3-test-ok');
-    await dlg.locator('[data-testid="add-provider-save"]').click();
-    await expect(dlg).toHaveCount(0);
-    await step.locator('[data-testid="models-offer"]').getByText('一键填好').click();
-    await expect(step.locator('[data-testid="assign-chat"]').locator('..')).toContainText(
-      'First Run / first-a',
-    );
+    const model = step.locator('[data-testid="onb-model-first-a"]');
+    await model.click();
+    await expect(model).toHaveAttribute('aria-checked', 'true');
+    await expect(step.locator('[data-testid="onb-model-ready"]')).toBeVisible();
 
     // 完成引导
     await chat.click('[data-testid="onboarding-next"]');

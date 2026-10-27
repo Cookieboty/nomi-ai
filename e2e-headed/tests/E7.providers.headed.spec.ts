@@ -217,31 +217,33 @@ test.describe('E7 · real app · third-party providers through the gateway', () 
       await expect(chat.locator('[data-testid="models-page"]')).toBeVisible();
       await chat.screenshot({ path: join(shotDir, '01-models-migrated.png') });
 
+      // 供应商表单内嵌在页面里：自定义地址 → 填 Key → 检测并保存（不再有名称输入，按新增顺序认 id）
+      const ids: string[] = [];
       for (const [i, spec] of SPECS.entries()) {
         const mock = mocks[i]!;
+        const before = new Set(
+          (await invoke<GwState>('ai:gateway:state')).providers.map((p) => p.id),
+        );
         await chat.click('[data-testid="add-provider"]');
-        const dlg = chat.locator('[data-testid="add-provider-dialog"]');
-        await expect(dlg).toBeVisible();
+        const form = chat.locator('[data-testid="models-provider-picker"]');
+        await expect(form).toBeVisible();
         if (i === 0) await chat.screenshot({ path: join(shotDir, '02-add-provider.png') });
-        await dlg.locator('[data-testid="preset-custom"]').click();
-        await dlg.locator('[data-testid="add-provider-name"]').fill(spec.name);
-        await dlg.locator('[data-testid="add-provider-url"]').fill(spec.url(mock.port));
-        await dlg.locator('[data-testid="add-provider-keys"]').fill(spec.key);
-        await dlg.locator('[data-testid="add-provider-probe"]').click();
-        const result = dlg.locator('[data-testid="add-provider-probe-result"]');
-        await expect(result.locator('[data-state="ok"]')).toHaveCount(1, { timeout: 30_000 });
-        await expect(result.locator('[data-state="ok"]')).toContainText(spec.wire);
+        await form.locator('[data-testid="models-preset-custom"]').click();
+        await form.locator('[data-testid="models-provider-url"]').fill(spec.url(mock.port));
+        await form.locator('[data-testid="models-provider-key"]').fill(spec.key);
+        await form.locator('[data-testid="models-provider-save"]').click();
+        await expect(form).toHaveCount(0, { timeout: 30_000 });
         // 探测请求真的发到了 mock，带着这个 Key
         const listed = mock.seen.find((r) => r.method === 'GET' && r.path === '/v1/models');
         expect(listed?.auth ?? listed?.apiKey).toContain(spec.key);
         expect(mock.seen.some((r) => r.method === 'POST' && r.path === spec.endpoint)).toBe(true);
-        for (const m of spec.models) await expect(dlg.getByText(m, { exact: true })).toBeVisible();
-        if (i === 0) await chat.screenshot({ path: join(shotDir, '03-add-provider-detected.png') });
-        await dlg.locator('[data-testid="add-provider-save"]').click();
-        await expect(dlg).toHaveCount(0);
+        const added = (await invoke<GwState>('ai:gateway:state')).providers.filter(
+          (p) => !before.has(p.id),
+        );
+        expect(added).toHaveLength(1);
+        ids.push(added[0]!.id);
       }
       const g1 = await invoke<GwState>('ai:gateway:state');
-      const ids = SPECS.map((sp) => g1.providers.find((p) => p.name === sp.name)!.id);
       for (const id of ids)
         await expect(chat.locator(`[data-testid="provider-${id}"]`)).toContainText('1 个 Key');
       await chat.screenshot({ path: join(shotDir, '04-models-providers.png'), fullPage: true });

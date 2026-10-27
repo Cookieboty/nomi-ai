@@ -94,7 +94,9 @@ jobs:
             turbo-${{ runner.os }}-
 
       - name: Typecheck / Lint / Test / Build
-        run: pnpm turbo run typecheck lint test build --cache-dir=.turbo/cache
+        # macOS runner 只有 3 核：turbo 默认并发 10，tsc / eslint / vite build 与 jsdom 测试抢 CPU，
+        # 单个本地 <1s 的用例会拖到 15s 超时（scaleInput、modelsPage 轮流挂）。macOS 上限 2 个任务并行。
+        run: pnpm turbo run typecheck lint test build --cache-dir=.turbo/cache --concurrency=${{ runner.os == 'macOS' && '2' || '10' }}
 
       - name: Root script tests
         run: pnpm run test:root
