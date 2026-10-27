@@ -377,9 +377,9 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
                   try {
                     await cliAccountClient.remove(a.id);
                   } catch (e) {
-                    const m = errorText(e);
+                    // 按错误码判断（文案随语言变）：无法确认外部 CLI 是否在用 → 让用户再确认一次后强制删除
                     if (
-                      /无法确认|强制删除|unknown/i.test(m) &&
+                      (e as { code?: unknown }).code === 'unknown-live' &&
                       window.confirm(
                         t('ui.chat-settings.nomi-could-not-confirm-whether-a-cli-is', a.label),
                       )

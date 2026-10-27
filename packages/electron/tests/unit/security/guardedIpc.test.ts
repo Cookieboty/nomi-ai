@@ -62,6 +62,21 @@ describe('guardedHandle', () => {
     });
   });
 
+  it('业务错误码随信封带给界面；不像错误码的（含系统 errno）不带', async () => {
+    const thrower = (code: unknown) => () => {
+      throw Object.assign(new Error('msg'), { code });
+    };
+    guardedHandle('ai:test:code', thrower('unknown-live'), { owner: 'T' });
+    guardedHandle('ai:test:errno', thrower('ENOENT'), { owner: 'T' });
+    guardedHandle('ai:test:weird', thrower({ x: 1 }), { owner: 'T' });
+    const call = (ch: string) => handlers.get(ch)!(ev('file:///app/index.html'));
+    await expect(call('ai:test:code')).resolves.toEqual({
+      __error: { message: 'msg', code: 'unknown-live' },
+    });
+    await expect(call('ai:test:errno')).resolves.toEqual({ __error: { message: 'msg' } });
+    await expect(call('ai:test:weird')).resolves.toEqual({ __error: { message: 'msg' } });
+  });
+
   it('同一所有者重复注册幂等，不同所有者抢同一通道直接抛错', () => {
     guardedHandle('ai:test:dup', () => 1, { owner: 'A' });
     expect(() => guardedHandle('ai:test:dup', () => 2, { owner: 'A' })).not.toThrow();

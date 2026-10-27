@@ -114,6 +114,68 @@ describe('OfficialAccounts', () => {
     expect(ipc.invoke).toHaveBeenCalledWith('ai:cli-account:remove', 'b', false);
   });
 
+  it('删除时无法确认外部 CLI 是否在用（unknown-live）：英文文案下也再确认一次，确认后只强制删除一次（#137）', async () => {
+    const calls: unknown[][] = [];
+    const ipc = mockIpc({
+      'ai:cli-account:remove': (...a) => {
+        calls.push(a);
+        return a[1] === true
+          ? undefined
+          : {
+              __error: {
+                message:
+                  'Could not confirm whether a CLI is still using this account. If you are sure, confirm to force-delete it.',
+                code: 'unknown-live',
+              },
+            };
+      },
+    });
+    const confirm = vi.fn(() => true);
+    (window as unknown as { confirm: typeof confirm }).confirm = confirm;
+    const r = render(<OfficialAccounts kind="codex" />);
+    await waitFor(() => expect(r.getAllByTestId('cli-account-remove')).toHaveLength(2));
+    await act(async () => fireEvent.click(r.getAllByTestId('cli-account-remove')[0]!));
+    await waitFor(() =>
+      expect(calls).toEqual([
+        ['b', false],
+        ['b', true],
+      ]),
+    );
+    expect(confirm).toHaveBeenCalledTimes(2);
+    expect(ipc.invoke).toHaveBeenCalledWith('ai:cli-account:remove', 'b', true);
+  });
+
+  it('删除：第二次确认取消、或者是别的错误（在用）都不强制删除', async () => {
+    const calls: unknown[][] = [];
+    mockIpc({
+      'ai:cli-account:remove': (...a) => {
+        calls.push(a);
+        return { __error: { message: 'Could not confirm', code: 'unknown-live' } };
+      },
+    });
+    let n = 0;
+    (window as unknown as { confirm: () => boolean }).confirm = () => n++ === 0;
+    const r = render(<OfficialAccounts kind="codex" />);
+    await waitFor(() => expect(r.getAllByTestId('cli-account-remove')).toHaveLength(2));
+    await act(async () => fireEvent.click(r.getAllByTestId('cli-account-remove')[0]!));
+    await waitFor(() => expect(calls).toEqual([['b', false]]));
+
+    cleanup();
+    calls.length = 0;
+    mockIpc({
+      'ai:cli-account:remove': (...a) => {
+        calls.push(a);
+        return { __error: { message: 'unknown error, force delete?', code: 'in-use' } };
+      },
+    });
+    (window as unknown as { confirm: () => boolean }).confirm = () => true;
+    const r2 = render(<OfficialAccounts kind="codex" />);
+    await waitFor(() => expect(r2.getAllByTestId('cli-account-remove')).toHaveLength(2));
+    await act(async () => fireEvent.click(r2.getAllByTestId('cli-account-remove')[0]!));
+    await waitFor(() => expect(r2.getByTestId('cli-accounts-msg')).toBeTruthy());
+    expect(calls).toEqual([['b', false]]);
+  });
+
   it('同一身份登录在两处：给出提示', async () => {
     mockIpc({
       'ai:cli-account:list': () => [acct({ id: 'x', label: 'x', duplicateOf: '本机登录' })],

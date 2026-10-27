@@ -65,9 +65,13 @@ async function call<T>(method: string, ...args: unknown[]): Promise<T> {
   const b = bridge();
   if (!b) throw new Error('aiIPC unavailable');
   const r = (await b.invoke(`ai:cli-account:${method}`, ...args)) as T & {
-    __error?: { message: string };
+    __error?: { message: string; code?: string };
   };
-  if (r && typeof r === 'object' && '__error' in r && r.__error) throw new Error(r.__error.message);
+  if (r && typeof r === 'object' && '__error' in r && r.__error)
+    throw Object.assign(
+      new Error(r.__error.message),
+      r.__error.code ? { code: r.__error.code } : {},
+    );
   return r;
 }
 

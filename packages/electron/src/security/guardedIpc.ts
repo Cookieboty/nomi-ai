@@ -63,7 +63,16 @@ export function guardedHandle(
     try {
       return await call(event, args);
     } catch (err) {
-      return { __error: { message: err instanceof Error ? err.message : String(err) } };
+      return { __error: errorEnvelope(err) };
     }
   });
+}
+
+/** 业务错误码（如账号删除的 unknown-live）：只带形如 kebab-case 的短 code，界面据此走控制流而不是匹配文案（#137） */
+const ERROR_CODE_RE = /^[a-z][a-z0-9-]{0,39}$/;
+
+function errorEnvelope(err: unknown): { message: string; code?: string } {
+  const message = err instanceof Error ? err.message : String(err);
+  const code = (err as { code?: unknown } | null)?.code;
+  return typeof code === 'string' && ERROR_CODE_RE.test(code) ? { message, code } : { message };
 }
