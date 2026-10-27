@@ -218,7 +218,9 @@ describe('SessionHistoryService：异步刷新 Codex 索引', () => {
     const a = svc.list('codex', { force: true });
     const b = svc.list('codex', { force: true });
     const c = svc.index('codex', { force: true });
-    await sleep(20);
+    // 查询前要先异步扫描 rollout 目录，慢的 runner 上 20ms 内可能还没走到查询：
+    // 等第一次查询真的发出再断言；之后的调用要么并入进行中的查询，要么看到指纹未变而不再查询
+    for (let i = 0; i < 500 && reader.mock.calls.length === 0; i++) await sleep(10);
     expect(reader).toHaveBeenCalledTimes(1);
     release([{ id, title: 'indexed title' }]);
     const [pa, pb] = await Promise.all([a, b, c]);
