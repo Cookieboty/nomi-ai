@@ -15,6 +15,15 @@
 appId: com.cookieboty.nomi
 productName: Nomi
 
+# 只保留 Chromium 自带界面字符串（右键菜单、原生对话框等）的英文与简体中文语言包，其余 locales/*.pak
+# （mac 为 *.lproj）在打包时删除。"en" 同时匹配 en-US / en-GB。应用自身的语言检测在主进程用
+# app.getPreferredSystemLanguages()（读系统设置，不受影响），渲染进程启动后经 ai:locale:get 跟随主进程，
+# 所以繁中等系统仍会解析到 zh-CN；被删语言的系统上 app.getLocale() / navigator.language 会回落 en-US。
+electronLanguages:
+  - en
+  - en-GB
+  - zh-CN
+
 files:
   - dist/**/*
   - assets/**/*
@@ -34,6 +43,20 @@ files:
   - '!**/node_modules/**/*.{md,markdown}'
   - '!**/node_modules/**/{test,tests,__tests__,__mocks__,docs,example,examples,coverage,.github}/**'
   - '!**/node_modules/**/{tsconfig*.json,.eslintrc*,.prettierrc*,.editorconfig,.npmignore}'
+  # onnxruntime-web（~135MB）：唯一使用方是主进程 voice/sileroNode.ts 的 import('onnxruntime-web')，
+  # Node 下走 exports.node → dist/ort.node.min.{mjs,js}，它只加载 ort-wasm-simd-threaded.mjs → .wasm。
+  # 浏览器 / WebGPU / WebGL / JSEP / JSPI / asyncify 构建全部用不到，只保留这 4 个文件（~14MB）。
+  # 升级 onnxruntime-web 后需重新核对 ort.node.min.mjs 引用的文件名。
+  - '!**/node_modules/onnxruntime-web/dist/ort.{js,mjs,min.js,min.mjs,bundle.min.mjs}'
+  - '!**/node_modules/onnxruntime-web/dist/ort.{all,jspi,wasm,webgl,webgpu}.*'
+  - '!**/node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.{asyncify,jsep,jspi}.*'
+  # tesseract.js-core（~43MB）：Node 下 tesseract.js 的 worker-script/node/getCore.js 用 wasm-feature-detect
+  # 选核心，Electron（Chromium ≥ 114）恒支持 relaxed SIMD，只会走 relaxedsimd 分支；simd / 无 SIMD
+  # 回退分支在 Electron 里不可达。tesseract.js 7.0.0 把布尔 lstmOnly 当 OEM 枚举比较，实际总是加载
+  # 非 LSTM 的 tesseract-core-relaxedsimd；两种 relaxedsimd 都保留，上游修好后无需改这里。
+  # *.wasm.js 是把 wasm 内联成 base64 的单文件变体；Node 用的 .js 直接读同名 .wasm，不需要。
+  - '!**/node_modules/tesseract.js-core/*.wasm.js'
+  - '!**/node_modules/tesseract.js-core/tesseract-core{,-lstm,-simd,-simd-lstm}.{js,wasm}'
 
 # 默认 normal：maximum 对已压缩的模型纹理收益极小、但显著拖慢打包
 compression: normal
