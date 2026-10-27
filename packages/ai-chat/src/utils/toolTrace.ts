@@ -142,6 +142,24 @@ export function reduceTrace(events: readonly HarnessTraceEvent[]): TraceEntry[] 
   return entries;
 }
 
+/**
+ * reduceTrace 的缓存版：同一个轨迹数组只归并一次（会话视图的状态行和助手正文共用结果）。
+ * 流式时轨迹只在有新事件时换新数组（AiChatContext 的 traceSnap、liveState 的 concat），
+ * 但仍按（数组, 长度）做键，防止有人就地追加后拿到旧结果。
+ * 返回值是共享的：调用方不得修改。
+ */
+const reducedCache = new WeakMap<
+  readonly HarnessTraceEvent[],
+  { len: number; entries: TraceEntry[] }
+>();
+export function reduceTraceCached(events: readonly HarnessTraceEvent[]): TraceEntry[] {
+  const hit = reducedCache.get(events);
+  if (hit && hit.len === events.length) return hit.entries;
+  const entries = reduceTrace(events);
+  reducedCache.set(events, { len: events.length, entries });
+  return entries;
+}
+
 /** 旧消息只存了 `["Read ✓", "Bash ✗", "Grep"]` 这样的字符串：还原成已结束的调用 */
 export function entriesFromLegacyTools(tools: readonly string[]): TraceEntry[] {
   return tools.map((label, i) => {
