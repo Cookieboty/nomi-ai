@@ -23,8 +23,10 @@ Linux AppImage：`chmod +x Nomi-<版本号>.AppImage && ./Nomi-<版本号>.AppIm
 
 ### 首次引导
 
-第一次启动会打开对话窗口并进入 7 步引导：**界面语言 → 主题 → 启动方式 → 角色与声音 → 称呼与语气 → 模型供应商 → 隐私**。
+第一次启动会打开对话窗口并进入 8 步引导：**界面语言 → 主题 → 启动方式 → 角色与声音 → 称呼与语气 → 职业与兴趣 → 模型供应商 → 隐私**。
 每一步都可以跳过，之后可在「设置 → 重新打开新手引导」再走一遍。
+
+「职业与兴趣」用来推荐任务：侧栏「开始使用」会推荐适合你的编程助手（如开发者推荐 Claude Code 与 Codex，其他职业都至少推荐 Codex）和功能（知识库、日程提醒、语音、MCP 与技能），欢迎屏的示例问题也会随之调整。编程助手可以同时安装。
 
 「启动方式」决定以后启动 Nomi 先看到什么：**看板娘**（默认，点她的「AI 对话」进入主界面）或**软件主界面**（直接进入主界面，看板娘仍在桌面待命，定时任务和提醒照常播报）。随时可在「设置 → 通用 → 启动 Nomi 后默认显示」修改，设计见 [启动默认界面](design/startup-default-view.md)。
 
@@ -36,7 +38,7 @@ Linux AppImage：`chmod +x Nomi-<版本号>.AppImage && ./Nomi-<版本号>.AppIm
 
 二选一：
 
-- **云端模型**：设置 →「编程助手」→ Nomi →「添加供应商」，选择预设（如 DeepSeek、OpenAI、Kimi），填入 API Key，点「获取模型」后勾选并设为默认。见 [供应商与 Token](features/providers.md)。
+- **云端模型**：设置 →「模型与供应商」→「添加供应商」，选择预设（如 DeepSeek、OpenAI、Kimi），填入 API Key，点「获取模型」后勾选并设为默认。见 [供应商与 Token](features/providers.md)。
 - **本地模型**：`Ctrl/⌘+Shift+J`（设置 → 模型与供应商 → 本机模型）→ 下载一个推荐的小模型并启动，它会自动成为可用的供应商。见 [本地模型](features/local-models.md)。
 
 ### 常用快捷键
@@ -76,7 +78,9 @@ The current builds are not signed / notarized. If Windows shows SmartScreen, cli
 
 ### First-run onboarding
 
-On first launch the chat window opens a 7-step guide: **UI language → theme → startup mode → character & voice → how to address you & tone → model provider → privacy**.
+On first launch the chat window opens an 8-step guide: **UI language → theme → startup mode → character & voice → how to address you & tone → occupation & interests → model provider → privacy**.
+
+Your occupation and interests drive the recommendations: the sidebar's Get started card suggests coding agents (Claude Code and Codex for developers, and at least Codex for everyone else) and features (knowledge base, reminders, voice, MCP and skills), and the welcome screen's example questions change to match. Coding agents can be installed at the same time.
 Every step is skippable; you can rerun it later from Settings → Reopen onboarding.
 
 Voice: nothing is downloaded on first run. With the Nomi character and the Chinese UI, Nomi speaks her common prompts with built-in prerecorded clips (Settings → General → Voice → Nomi prompt voice). AI replies are text-only by default; the realtime TTS engine options Edge / Azure / OpenAI are listed but not wired up yet. See [Voice](features/voice.md).
@@ -91,7 +95,7 @@ Switch to “Workbench” for three columns: sessions on the left, chat in the m
 
 Pick one:
 
-- **Cloud model**: Settings → Coding assistants → Nomi → Add provider, choose a preset (e.g. DeepSeek, OpenAI, Kimi), enter an API key, Fetch models, then enable and set default. See [Providers & tokens](features/providers.md).
+- **Cloud model**: Settings → Models & providers → Add provider, choose a preset (e.g. DeepSeek, OpenAI, Kimi), enter an API key, Fetch models, then enable and set default. See [Providers & tokens](features/providers.md).
 - **Local model**: `Ctrl/⌘+Shift+J` (Settings → Models & providers → Local models) → download a recommended small model and start it; it registers as a provider automatically. See [Local models](features/local-models.md).
 
 ### Common shortcuts

@@ -20,7 +20,7 @@ import { z } from 'zod';
 import type { DesktopService } from '../../desktop/DesktopService';
 import { t } from '../../i18n';
 import { guardedHandle } from '../../security/guardedIpc';
-import { writePrivateFileAtomic } from '../../utils/privateFile';
+import { writePrivateFileAtomicAsync } from '../../utils/privateFile';
 import { HarnessStoppedError, type HarnessOrchestrator } from '../CliHarnessService';
 import type { HarnessGateway } from '../harness/liveTypes';
 import { isValidModelId } from '../modelCatalog';
@@ -281,12 +281,15 @@ export class DelegateService {
       .sort((a, b) => b.startedAt - a.startedAt)
       .slice(0, MAX_PERSISTED_TASKS)
       .map(({ ctx: _ctx, ...task }) => task);
+    // 异步落盘（同一文件按调用顺序串行，#154）；失败不能阻止正在运行的委派
     try {
       fs.mkdirSync(this.d.root, { recursive: true });
-      writePrivateFileAtomic(this.tasksFile, JSON.stringify(tasks, null, 2));
     } catch {
-      // 状态落盘失败不能阻止正在运行的委派。
+      /* 下面的写入会失败，同样忽略 */
     }
+    void writePrivateFileAtomicAsync(this.tasksFile, JSON.stringify(tasks, null, 2)).catch(
+      () => undefined,
+    );
   }
 
   private load(): DelegateSettings {
@@ -312,14 +315,16 @@ export class DelegateService {
     };
   }
 
-  setSettings(raw: unknown): DelegateSettings {
+  async setSettings(raw: unknown): Promise<DelegateSettings> {
     // 与缓存合并，避免设置页只改开关/默认 CLI 时冲掉 profiles
     const merged =
       raw && typeof raw === 'object' ? { ...this.settingsCache, ...(raw as object) } : raw;
-    this.settingsCache = sanitizeDelegateSettings(merged);
+    const next = sanitizeDelegateSettings(merged);
+    this.settingsCache = next;
+    // 界面操作触发：Windows 文件被占用时的退避等待不挡主进程（#154）
     fs.mkdirSync(this.d.root, { recursive: true });
-    writePrivateFileAtomic(this.file, JSON.stringify(this.settingsCache, null, 2));
-    return this.settingsCache;
+    await writePrivateFileAtomicAsync(this.file, JSON.stringify(next, null, 2));
+    return next;
   }
 
   /** 已安装、可以委派的编程助手 */

@@ -42,6 +42,7 @@ import {
   _resetUpdateServiceForTests,
   type UpdaterLike,
 } from '../../../src/services/UpdateService';
+import { whenPrivateWritesIdle } from '../../../src/utils/privateFile';
 
 class FakeUpdater extends EventEmitter implements UpdaterLike {
   autoDownload = false;
@@ -406,6 +407,7 @@ describe('UpdateService', () => {
       const a = make();
       a.setAutoCheck(false);
       a.stop();
+      await whenPrivateWritesIdle();
 
       const spy = jest.spyOn(updater, 'checkForUpdates');
       const b = make();
@@ -445,9 +447,10 @@ describe('UpdateService', () => {
       expect(make().getState().autoCheck).toBe(true);
     });
 
-    it('文件带版本号且为 0600', () => {
+    it('文件带版本号且为 0600', async () => {
       const a = make();
       a.setAutoCheck(false);
+      await whenPrivateWritesIdle();
       expect(JSON.parse(fs.readFileSync(file, 'utf8'))).toEqual({ version: 1, autoCheck: false });
       if (process.platform !== 'win32') expect(fs.statSync(file).mode & 0o777).toBe(0o600);
     });

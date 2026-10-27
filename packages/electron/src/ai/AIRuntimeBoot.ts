@@ -77,7 +77,11 @@ export interface AIRuntimeBootOptions {
    */
   ttsProviders?: TtsProvider[];
   /** Nomi 对话请求发出前的外发检查，见 IPCTransportServerOptions.prepareChat */
-  prepareChat?: (options: Record<string, unknown>, method: string) => Promise<void>;
+  prepareChat?: (
+    options: Record<string, unknown>,
+    method: string,
+    signal?: AbortSignal,
+  ) => Promise<void>;
 }
 
 export interface AIRuntimeBootHandle {

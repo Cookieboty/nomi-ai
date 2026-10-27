@@ -20,6 +20,7 @@ import { AccountService, localAccountId } from '../../../src/cli/accounts/Accoun
 import { claudeKeychainService } from '../../../src/cli/accounts/adapters';
 import { canonicalDir, HOME_ENV } from '../../../src/cli/accounts/homes';
 import type { AccountKind } from '../../../src/cli/accounts/types';
+import { whenPrivateWritesIdle } from '../../../src/utils/privateFile';
 
 const tmp = (p: string) => fs.mkdtempSync(path.join(os.tmpdir(), p));
 
@@ -272,6 +273,7 @@ describe('AccountService（账号目录）', () => {
     expect(svc.sessionAccount('claude', 's-work')).toEqual({ id: b.id, label: 'Work' });
     expect(svc.sessionAccount('codex', 's-work')).toBeUndefined();
     // 文件里只有会话 id → 账号 id
+    await whenPrivateWritesIdle();
     const raw = fs.readFileSync(path.join(root, 'session-accounts.json'), 'utf8');
     expect(JSON.parse(raw)).toEqual({
       version: 1,

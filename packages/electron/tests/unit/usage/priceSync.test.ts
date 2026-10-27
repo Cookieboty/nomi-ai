@@ -13,6 +13,7 @@ import {
 } from '../../../src/usage/priceSync';
 import { findPrice } from '../../../src/usage/pricing';
 import { costUsd } from '../../../src/usage/pricing';
+import { whenPrivateWritesIdle } from '../../../src/utils/privateFile';
 
 const cost = (input: number, output: number, extra: object = {}) => ({ input, output, ...extra });
 const model = (id: string, c: unknown, extra: object = {}) => ({ id, name: id, cost: c, ...extra });
@@ -176,6 +177,7 @@ describe('PriceSync（mock fetch，不联网）', () => {
     });
     expect(sync.state().count).toBeGreaterThan(10);
     // 落盘后重新载入（回退用的缓存）
+    await whenPrivateWritesIdle();
     const again = new PriceSync({ root });
     expect(again.entries().length).toBe(sync.entries().length);
     // 文件权限仅当前用户（POSIX）

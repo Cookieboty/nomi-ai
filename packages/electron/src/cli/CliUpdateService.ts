@@ -262,8 +262,11 @@ export class CliUpdateService {
   /** 每个端点最近一次任务（运行中 / 已结束，直到用户关闭） */
   private readonly jobs = new Map<UpdatableCli, CliJobSnapshot>();
   private readonly inflight = new Map<UpdatableCli, Promise<CliRunResult>>();
-  /** 正在跑安装 / 更新的端点（同一时刻只允许一个，npm 全局操作并发会互相干扰） */
-  private busyWith: UpdatableCli | null = null;
+  /**
+   * 按安装位置排队的 npm 命令：同一个前缀上并发 `npm install -g` 会互相覆盖链接与 node_modules，
+   * 所以只把这一步串起来；不同端点的任务本身可以同时进行（自带 update、前置检查、探测都不排队）。
+   */
+  private readonly npmQueue = new Map<CliInstallScope, Promise<void>>();
   private readonly probe: CliProbe;
   private readonly runner: CliRunner;
 
@@ -557,15 +560,6 @@ export class CliUpdateService {
   run(kind: UpdatableCli, scope: CliInstallScope = 'global'): Promise<CliRunResult> {
     const cur = this.inflight.get(kind);
     if (cur) return cur;
-    // 另一个端点正在装 / 更新：直接拒绝，不留 running 占位任务（界面已禁用，这里是兜底）
-    if (this.busyWith && this.busyWith !== kind) {
-      return Promise.resolve({
-        ok: false,
-        log: t('electron.common.another-install-update-is-already-running'),
-        version: null,
-      });
-    }
-    this.busyWith = kind;
     this.jobs.set(kind, {
       kind,
       mode: 'update',
@@ -583,15 +577,37 @@ export class CliUpdateService {
       })
       .finally(() => {
         this.inflight.delete(kind);
-        this.busyWith = null;
       });
     this.inflight.set(kind, p);
     return p;
   }
 
-  /** 当前是否有安装 / 更新在跑（界面据此禁用所有端点的操作按钮） */
-  busyKind(): UpdatableCli | null {
-    return this.busyWith;
+  /** 正在安装 / 更新的端点（可以同时有多个） */
+  busyKinds(): UpdatableCli[] {
+    return [...this.inflight.keys()];
+  }
+
+  /** 在同一安装位置的 npm 队列里执行 `fn`；前面还有任务时先调 `onWait` */
+  private async inNpmQueue<T>(
+    scope: CliInstallScope,
+    onWait: () => void,
+    fn: () => Promise<T>,
+  ): Promise<T> {
+    const prev = this.npmQueue.get(scope);
+    let release: () => void = () => undefined;
+    const mine = new Promise<void>((r) => (release = r));
+    const tail = (prev ?? Promise.resolve()).then(() => mine);
+    this.npmQueue.set(scope, tail);
+    if (prev) {
+      onWait();
+      await prev;
+    }
+    try {
+      return await fn();
+    } finally {
+      release();
+      if (this.npmQueue.get(scope) === tail) this.npmQueue.delete(scope);
+    }
   }
 
   private async runJob(kind: UpdatableCli, scope: CliInstallScope): Promise<CliRunResult> {
@@ -643,11 +659,26 @@ export class CliUpdateService {
         const line = `$ ${commandLine(recipe.argv)}`;
         logs.push(line);
         this.broadcast({ kind, mode: plan.mode, phase: 'log', line });
-        const res = await this.runner(
-          recipe.argv,
-          (l) => this.broadcast({ kind, mode: plan.mode, phase: 'log', line: l }),
-          { timeoutMs: 10 * 60_000 },
-        );
+        const exec = () =>
+          this.runner(
+            recipe.argv,
+            (l) => this.broadcast({ kind, mode: plan.mode, phase: 'log', line: l }),
+            { timeoutMs: 10 * 60_000 },
+          );
+        const res =
+          recipe.via === 'npm'
+            ? await this.inNpmQueue(
+                scope,
+                () =>
+                  this.broadcast({
+                    kind,
+                    mode: plan.mode,
+                    phase: 'log',
+                    line: t('electron.common.waiting-for-another-npm-install-to-finish'),
+                  }),
+                exec,
+              )
+            : await exec();
         if (res.output) logs.push(res.output);
         if (res.code === 0) {
           ok = true;
@@ -727,7 +758,7 @@ export class CliUpdateService {
       this.previewUpdate(toUpdatable(kind), toScope(scope)),
     );
     handle('ai:cli-update:job', (kind) => this.job(toUpdatable(kind)));
-    handle('ai:cli-update:busy', () => this.busyKind());
+    handle('ai:cli-update:busy', () => this.busyKinds());
     handle('ai:cli-update:dismiss', (kind) => this.dismissJob(toUpdatable(kind)));
     handle('ai:cli-update:run', (kind, scope) => this.run(toUpdatable(kind), toScope(scope)));
   }

@@ -428,6 +428,11 @@ export function writePrivateFileAtomicAsync(file: string, data: string): Promise
   return run;
 }
 
+/** 等当前排队 / 进行中的异步原子写全部结束（不管成败）；单测与需要落盘确认的调用方用 */
+export async function whenPrivateWritesIdle(): Promise<void> {
+  while (writeQueues.size) await Promise.all(writeQueues.values());
+}
+
 async function writeAtomicNow(file: string, data: string): Promise<void> {
   const tmp = `${file}.${process.pid}.${++tmpSeq}.tmp`;
   const win = process.platform === 'win32';

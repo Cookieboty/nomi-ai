@@ -26,10 +26,10 @@ describe('StartupService', () => {
     });
   });
 
-  it('persists the choice and reloads it on the next launch', () => {
+  it('persists the choice and reloads it on the next launch', async () => {
     const f = file();
     const s = new StartupService(f);
-    expect(s.set({ defaultView: 'main' })).toEqual({
+    expect(await s.set({ defaultView: 'main' })).toEqual({
       defaultView: 'main',
       closeMain: 'hide',
       showMascot: true,
@@ -40,7 +40,7 @@ describe('StartupService', () => {
       showMascot: true,
     });
     expect(new StartupService(f).get().defaultView).toBe('main');
-    s.set({ defaultView: 'mascot' });
+    await s.set({ defaultView: 'mascot' });
     expect(new StartupService(f).get().defaultView).toBe('mascot');
   });
 
@@ -54,30 +54,30 @@ describe('StartupService', () => {
     expect(new StartupService(f).get().defaultView).toBe('mascot');
   });
 
-  it('rejects invalid values and keeps the previous choice', () => {
+  it('rejects invalid values and keeps the previous choice', async () => {
     const f = file();
     const s = new StartupService(f);
-    s.set({ defaultView: 'main' });
-    expect(() => s.set({ defaultView: 'tray' })).toThrow(/unknown startup view/);
-    expect(() => s.set(null)).toThrow();
+    await s.set({ defaultView: 'main' });
+    await expect(s.set({ defaultView: 'tray' })).rejects.toThrow(/unknown startup view/);
+    await expect(s.set(null)).rejects.toThrow();
     expect(s.get().defaultView).toBe('main');
     expect(new StartupService(f).get().defaultView).toBe('main');
   });
 
-  it('patches closeMain independently and reads old files without it as hide', () => {
+  it('patches closeMain independently and reads old files without it as hide', async () => {
     const f = file();
     fs.writeFileSync(f, JSON.stringify({ defaultView: 'main' }));
     const s = new StartupService(f);
     expect(s.get()).toEqual({ defaultView: 'main', closeMain: 'hide', showMascot: true });
-    expect(s.set({ closeMain: 'quit' })).toEqual({
+    expect(await s.set({ closeMain: 'quit' })).toEqual({
       defaultView: 'main',
       closeMain: 'quit',
       showMascot: true,
     });
     expect(new StartupService(f).get().closeMain).toBe('quit');
-    expect(() => s.set({ closeMain: 'minimize' })).toThrow(/unknown close action/);
-    expect(() => s.set({ defaultView: 'main', closeMain: 'bad' })).toThrow();
-    expect(() => s.set({})).toThrow(/empty/);
+    await expect(s.set({ closeMain: 'minimize' })).rejects.toThrow(/unknown close action/);
+    await expect(s.set({ defaultView: 'main', closeMain: 'bad' })).rejects.toThrow();
+    await expect(s.set({})).rejects.toThrow(/empty/);
     expect(new StartupService(f).get()).toEqual({
       defaultView: 'main',
       closeMain: 'quit',
@@ -85,25 +85,31 @@ describe('StartupService', () => {
     });
   });
 
-  it('closes the mascot from either default view; closing her while she is the default switches it to main (#55)', () => {
+  it('closes the mascot from either default view; closing her while she is the default switches it to main (#55)', async () => {
     const f = file();
     const s = new StartupService(f);
     const seen: Array<[boolean, string]> = [];
     const off = s.onChange((st) => seen.push([st.showMascot, st.defaultView]));
     // 默认看板娘时也能关：默认界面自动改为主界面，保证下次启动有界面
-    expect(s.set({ showMascot: false })).toMatchObject({ showMascot: false, defaultView: 'main' });
+    expect(await s.set({ showMascot: false })).toMatchObject({
+      showMascot: false,
+      defaultView: 'main',
+    });
     expect(new StartupService(f).get()).toMatchObject({ showMascot: false, defaultView: 'main' });
-    expect(() => s.set({ showMascot: 'no' })).toThrow(/invalid showMascot/);
+    await expect(s.set({ showMascot: 'no' })).rejects.toThrow(/invalid showMascot/);
     // 同一个补丁里既选看板娘为默认又关掉她：矛盾，拒绝且不落盘
-    expect(() => s.set({ defaultView: 'mascot', showMascot: false })).toThrow(/same time/);
+    await expect(s.set({ defaultView: 'mascot', showMascot: false })).rejects.toThrow(/same time/);
     expect(s.get().showMascot).toBe(false);
     // 重新打开：默认界面保持主界面（不擅自改回）
-    expect(s.set({ showMascot: true })).toMatchObject({ showMascot: true, defaultView: 'main' });
-    s.set({ showMascot: false });
+    expect(await s.set({ showMascot: true })).toMatchObject({
+      showMascot: true,
+      defaultView: 'main',
+    });
+    await s.set({ showMascot: false });
     // 切回看板娘 → 自动重新打开
-    expect(s.set({ defaultView: 'mascot' }).showMascot).toBe(true);
+    expect((await s.set({ defaultView: 'mascot' })).showMascot).toBe(true);
     off();
-    s.set({ defaultView: 'main' });
+    await s.set({ defaultView: 'main' });
     expect(seen).toEqual([
       [false, 'main'],
       [true, 'main'],

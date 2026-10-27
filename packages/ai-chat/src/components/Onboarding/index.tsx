@@ -1,11 +1,20 @@
 /**
- * 首次启动引导：语言 → 主题 → 启动方式 → 角色与声音 → 称呼与语气 → 供应商 → 隐私。
+ * 首次启动引导：语言 → 主题 → 启动方式 → 角色与声音 → 称呼与语气 → 职业与兴趣 → 供应商 → 隐私。
+ * 职业与兴趣存在主进程，侧栏「开始使用」与欢迎页据此推荐任务（services/recommendations）。
  * 每一步都能「跳过这一步」，右上角「跳过引导」直接结束；完成后可在「设置 → 通用」重新打开。
  * 看板娘在引导中打招呼、回应每一步的选择。
  */
 import {
+  USER_INTERESTS,
+  USER_ROLES,
+  type UserInterest,
+  type UserProfile,
+  type UserRole,
+} from '@nomi-ai/types';
+import {
   THEMES,
   currentTheme,
+  getLocale,
   getLocalePref,
   setLocalePref,
   setTheme,
@@ -49,6 +58,7 @@ const STEPS = [
   'startup',
   'character',
   'persona',
+  'profile',
   'provider',
   'privacy',
 ] as const;
@@ -60,6 +70,7 @@ const STEP_TITLE: Record<Step, () => string> = {
   startup: () => t('ui.mascot-theme.what-should-you-see-when-nomi-starts'),
   character: () => t('ui.mascot-theme.pick-a-voice-you-like'),
   persona: () => t('ui.mascot-theme.what-should-she-call-you'),
+  profile: () => t('ui.mascot-theme.what-do-you-mostly-do'),
   provider: () => t('ui.mascot-theme.connect-an-ai-model'),
   privacy: () => t('ui.mascot-theme.your-data-stays-on-this-computer'),
 };
@@ -70,6 +81,7 @@ const STEP_LINE: Record<Step, () => string> = {
   startup: () => t('ui.mascot-theme.should-i-show-up-on-your-desktop-first'),
   character: () => t('ui.mascot-theme.how-should-i-sound-when-i-talk-to'),
   persona: () => t('ui.mascot-theme.tell-me-what-to-call-you-i-ll'),
+  profile: () => t('ui.mascot-theme.tell-me-what-you-do-and-i-ll-suggest'),
   provider: () => t('ui.mascot-theme.connect-an-ai-model-and-i-can-help'),
   privacy: () => t('ui.mascot-theme.rest-assured-our-conversations-and-memories-stay-on'),
 };
@@ -144,6 +156,42 @@ const TONES: { id: string; label: () => string; desc: () => string }[] = [
   },
 ];
 
+const ROLE_LABEL: Record<UserRole, { label: () => string; hint: () => string }> = {
+  developer: {
+    label: () => t('ui.mascot-theme.role-developer'),
+    hint: () => t('ui.mascot-theme.role-developer-hint'),
+  },
+  product: {
+    label: () => t('ui.mascot-theme.role-product'),
+    hint: () => t('ui.mascot-theme.role-product-hint'),
+  },
+  creator: {
+    label: () => t('ui.mascot-theme.role-creator'),
+    hint: () => t('ui.mascot-theme.role-creator-hint'),
+  },
+  office: {
+    label: () => t('ui.mascot-theme.role-office'),
+    hint: () => t('ui.mascot-theme.role-office-hint'),
+  },
+  student: {
+    label: () => t('ui.mascot-theme.role-student'),
+    hint: () => t('ui.mascot-theme.role-student-hint'),
+  },
+  other: {
+    label: () => t('ui.mascot-theme.role-other'),
+    hint: () => t('ui.mascot-theme.role-other-hint'),
+  },
+};
+
+const INTEREST_LABEL: Record<UserInterest, () => string> = {
+  coding: () => t('ui.mascot-theme.interest-coding'),
+  writing: () => t('ui.mascot-theme.interest-writing'),
+  language: () => t('ui.mascot-theme.interest-language'),
+  learning: () => t('ui.mascot-theme.interest-learning'),
+  productivity: () => t('ui.mascot-theme.interest-productivity'),
+  automation: () => t('ui.mascot-theme.interest-automation'),
+};
+
 export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ onDone }) => {
   useLocale();
   const [i, setI] = useState(0);
@@ -156,11 +204,18 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
   const [voice, setVoice] = useState<VoiceStyle | null>(null);
   const [name, setName] = useState('');
   const [tone, setTone] = useState<string | null>(null);
+  const [role, setRole] = useState<UserRole | null>(null);
+  const [interests, setInterests] = useState<UserInterest[]>([]);
   // 启动方式：默认看板娘（保持历史行为）；点选即写入设置，跳过 / 不选则不改
   const [startup, setStartup] = useState<StartupView>('mascot');
 
   useEffect(() => {
     void startupClient.get().then(setStartup);
+    // 重新引导时带出上次选的职业与兴趣
+    void onboardingClient.profile().then((p) => {
+      setRole(p.role);
+      setInterests(p.interests);
+    });
   }, []);
   // 每进入一步，看板娘说一句
   useEffect(() => {
@@ -171,21 +226,43 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
     });
   }, [step]);
 
-  const savePersona = useCallback(async () => {
+  /** 称呼、语气、职业与兴趣一起写进「关于我」里引导的那一段；返回是否写了内容 */
+  const writePersona = useCallback(async (): Promise<boolean> => {
     const lines: string[] = [];
     if (name.trim()) lines.push(t('ui.mascot-theme.call-me', name.trim().slice(0, 40)));
     const tn = TONES.find((x) => x.id === tone);
     if (tn) lines.push(t('ui.mascot-theme.reply-tone', tn.label(), tn.desc()));
-    if (!lines.length) return;
+    if (role && role !== 'other')
+      lines.push(t('ui.mascot-theme.occupation-line', ROLE_LABEL[role].label()));
+    if (interests.length)
+      lines.push(
+        t(
+          'ui.mascot-theme.interests-line',
+          interests.map((x) => INTEREST_LABEL[x]()).join(getLocale() === 'en' ? ', ' : '、'),
+        ),
+      );
+    if (!lines.length) return false;
     const cur = await onboardingClient.persona();
     await onboardingClient.setPersona(mergePersona(cur, lines));
+    return true;
+  }, [name, tone, role, interests]);
+
+  const savePersona = useCallback(async () => {
+    if (!(await writePersona())) return;
     onboardingClient.mascot({
       type: 'say',
       text: name.trim()
         ? t('ui.mascot-theme.got-it-that-s-what-i-ll-call', name.trim().slice(0, 40))
         : t('ui.mascot-theme.noted'),
     });
-  }, [name, tone]);
+  }, [name, writePersona]);
+
+  const saveProfile = useCallback(async () => {
+    const profile: UserProfile = { role, interests };
+    await onboardingClient.setProfile(profile);
+    if (await writePersona())
+      onboardingClient.mascot({ type: 'say', text: t('ui.mascot-theme.noted') });
+  }, [role, interests, writePersona]);
 
   const finish = useCallback(
     async (skipped: boolean) => {
@@ -204,6 +281,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
 
   const next = async () => {
     if (step === 'persona') await savePersona();
+    if (step === 'profile') await saveProfile();
     if (i === STEPS.length - 1) return finish(false);
     setI(i + 1);
   };
@@ -391,6 +469,62 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
             </div>
             <p className={styles.note}>
               {t('ui.mascot-theme.saved-to-memory-about-me-you-can-change')}
+            </p>
+          </>
+        );
+      case 'profile':
+        return (
+          <>
+            <div className={styles.subLabel}>{t('ui.mascot-theme.occupation')}</div>
+            <div
+              className={styles.options}
+              role="radiogroup"
+              aria-label={t('ui.mascot-theme.occupation')}
+            >
+              {USER_ROLES.map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  role="radio"
+                  aria-checked={role === r}
+                  data-testid={`onb-role-${r}`}
+                  className={`${styles.option} ${styles.optionSmall} ${role === r ? styles.optionOn : ''}`}
+                  onClick={() => setRole(r)}
+                >
+                  <span className={styles.optionTitle}>{ROLE_LABEL[r].label()}</span>
+                  <span className={styles.optionHint}>{ROLE_LABEL[r].hint()}</span>
+                </button>
+              ))}
+            </div>
+            <div className={styles.subLabel} id="onb-interests-label">
+              {t('ui.mascot-theme.interests-pick-any')}
+            </div>
+            <div className={styles.options} role="group" aria-labelledby="onb-interests-label">
+              {USER_INTERESTS.map((x) => {
+                const on = interests.includes(x);
+                return (
+                  <button
+                    key={x}
+                    type="button"
+                    role="checkbox"
+                    aria-checked={on}
+                    data-testid={`onb-interest-${x}`}
+                    className={`${styles.option} ${styles.optionSmall} ${on ? styles.optionOn : ''}`}
+                    onClick={() =>
+                      setInterests((cur) =>
+                        on
+                          ? cur.filter((y) => y !== x)
+                          : USER_INTERESTS.filter((y) => y === x || cur.includes(y)),
+                      )
+                    }
+                  >
+                    <span className={styles.optionTitle}>{INTEREST_LABEL[x]()}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className={styles.note}>
+              {t('ui.mascot-theme.i-ll-suggest-coding-agents-example-questions')}
             </p>
           </>
         );

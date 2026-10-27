@@ -83,6 +83,7 @@ import { initQualityService } from '../usage/quality/QualityService';
 import { getUsageService, initUsageService } from '../usage/UsageService';
 import { GlobalErrorHandler } from '../utils/ErrorHandler';
 import { perfMark } from '../utils/perfMarks';
+import { whenPrivateWritesIdle } from '../utils/privateFile';
 import { getVoiceService } from '../voice/VoiceService';
 
 import { initAppIcon } from './appIcon';
@@ -870,7 +871,8 @@ export class Application implements IApplication {
         },
         ttsProviders: [electronNativeTts],
         // 消息里的附件正文 / 委派汇报按实际接收者过「仅本地 / 云端首次发送」（#149 / #117）
-        prepareChat: (options, method) =>
+        // signal：用户在确认等待中停止该轮时撤掉还没答复的确认（#160）
+        prepareChat: (options, method, signal) =>
           guardOutboundMessages(options.messages, (what) => {
             const desktop = getDesktopService(this.logger);
             const fallback = method.startsWith('agent') ? 'agent-tools' : 'chat';
@@ -880,7 +882,7 @@ export class Application implements IApplication {
               options.role === 'summary'
                 ? options.role
                 : fallback;
-            return desktop.checkSendAll(desktop.receiversFor(undefined, [role]), undefined, what);
+            return desktop.checkSendAll(desktop.receiversFor(undefined, [role]), signal, what);
           }),
       });
       this.logger.info('AI runtime 启动完成', {
@@ -999,6 +1001,8 @@ export class Application implements IApplication {
 
       // 保存配置：退出路径同步落盘最新配置（日常保存走异步写，见 ConfigService.flushOnQuit）
       await this.configService.flushOnQuit();
+      // 其余服务排队中的异步私有文件写入（Windows 占用重试不挡主进程，#154）也等它们落盘
+      await whenPrivateWritesIdle();
 
       // 清理IPC处理器
       this.ipcRegistry.cleanup();

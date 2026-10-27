@@ -210,20 +210,6 @@ describe('run with a mock npm', () => {
     expect(runner).not.toHaveBeenCalled();
   });
 
-  it('only one install / update at a time', async () => {
-    let release: () => void = () => undefined;
-    const gate = new Promise<void>((r) => (release = r));
-    const svc = make(probe(), async () => {
-      await gate;
-      return { code: 1, output: 'x' };
-    });
-    const first = svc.run('claude');
-    const second = await svc.run('codex');
-    expect(second.ok).toBe(false);
-    release();
-    await first;
-  });
-
   posix('updating an installed claude falls back from `claude update` to npm', async () => {
     const bin = path.join(tmp, '.local', 'share', 'claude', 'claude');
     fs.mkdirSync(path.dirname(bin), { recursive: true });
@@ -297,19 +283,56 @@ describe('job state lives in the main process', () => {
     expect(g.calls()).toBeLessThanOrEqual(2); // 至多一轮命令（含一次回退），不会并发起第二个任务
   });
 
-  it('refuses another endpoint while one is running and leaves no placeholder job', async () => {
+  it('runs different endpoints at the same time, queueing only npm on the same prefix', async () => {
     const g = gated();
     const svc = make(probe(), g.runner);
     const a = svc.run('codex');
     await waitFor(() => g.calls() >= 1);
-    expect(svc.busyKind()).toBe('codex');
-    const rejected = await svc.run('claude');
-    expect(rejected.ok).toBe(false);
-    expect(svc.job('claude')).toBeNull(); // 不留 running 占位任务
-    expect(g.calls()).toBe(1); // claude 没有触发任何命令
+    const b = svc.run('dsh');
+    // 两个任务都在跑；dsh 的 npm 命令排在 codex 后面，并在日志里说明在等
+    await waitFor(() =>
+      (svc.job('dsh')?.lines ?? []).some((l) => /npm/i.test(l) && /等|wait/i.test(l)),
+    );
+    expect(svc.busyKinds().sort()).toEqual(['codex', 'dsh']);
+    expect(svc.job('dsh')?.status).toBe('running');
+    expect(g.calls()).toBe(1);
     g.release();
-    await a;
-    expect(svc.busyKind()).toBeNull();
+    const [ra, rb] = await Promise.all([a, b]);
+    expect(g.calls()).toBe(2);
+    expect(ra.log).not.toMatch(/已有安装|already running/);
+    expect(rb.log).not.toMatch(/已有安装|already running/);
+    expect(svc.busyKinds()).toEqual([]);
+  });
+
+  it('npm installs into different prefixes (global / user) do not wait for each other', async () => {
+    const g = gated();
+    const svc = make(probe(), g.runner);
+    const a = svc.run('codex', 'global');
+    const b = svc.run('dsh', 'user');
+    await waitFor(() => g.calls() >= 2);
+    g.release();
+    await Promise.all([a, b]);
+  });
+
+  it('a failed npm install releases the queue for the next one', async () => {
+    let calls = 0;
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((r) => (release = r));
+    const svc = make(probe(), async () => {
+      calls++;
+      if (calls === 1) {
+        await gate;
+        return { code: 1, output: 'EACCES' };
+      }
+      return { code: 0, output: '' };
+    });
+    const a = svc.run('codex');
+    await waitFor(() => calls >= 1);
+    const b = svc.run('dsh');
+    release();
+    expect((await a).ok).toBe(false);
+    await b;
+    expect(calls).toBeGreaterThanOrEqual(2);
   });
 
   it('keeps the last result until dismissed, including failures', async () => {

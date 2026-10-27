@@ -165,3 +165,4 @@ export * from './models';
 
 export * from './quality';
 export * from './chatBackground';
+export * from './userProfile';

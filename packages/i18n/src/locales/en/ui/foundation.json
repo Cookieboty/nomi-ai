@@ -11,7 +11,6 @@
   "ui.foundation.all-desktop-ability-data-cleared": "All desktop ability data cleared",
   "ui.foundation.allowed": "Allowed",
   "ui.foundation.and-more-files": "…and {0} more files",
-  "ui.foundation.another-install-update-is-already-in-progress": "Another install/update is already in progress",
   "ui.foundation.api-key": "API key",
   "ui.foundation.app-shortcuts": "App shortcuts",
   "ui.foundation.arguments": "Arguments",
@@ -248,5 +247,19 @@
   "ui.foundation.getting-started-start-your-first-chat-desc": "Ask Nomi something in the box below.",
   "ui.foundation.getting-started-to-do": "To do",
   "ui.foundation.nomi-has-no-model-yet-add-one-to-start": "Nomi has no model yet. Add one to start chatting.",
-  "ui.foundation.pick-one-of-your-models-for-nomi-chat": "You already have models. Pick one for Nomi chat to start."
+  "ui.foundation.pick-one-of-your-models-for-nomi-chat": "You already have models. Pick one for Nomi chat to start.",
+  "ui.foundation.getting-started-recommended-for-you": "Recommended for you",
+  "ui.foundation.getting-started-recommended-clis-desc": "Picked for your occupation and interests. You can install them at the same time.",
+  "ui.foundation.getting-started-set-a-reminder": "Set a reminder or schedule",
+  "ui.foundation.getting-started-try-voice": "Try voice chat (hold F2 to talk)",
+  "ui.foundation.quick-write": "Writing ideas",
+  "ui.foundation.quick-write-prompt": "Give me 5 topics I could write about today, each with a catchy opening line",
+  "ui.foundation.quick-language": "Practice a language",
+  "ui.foundation.quick-language-prompt": "Chat with me in simple Spanish and correct my grammar as we go. Start by asking me a question",
+  "ui.foundation.quick-learn": "Learn something new",
+  "ui.foundation.quick-learn-prompt": "Explain an interesting idea in plain words, then give me a short quiz question",
+  "ui.foundation.quick-weekly": "Weekly report",
+  "ui.foundation.quick-weekly-prompt": "Build me a weekly report template (done this week, blockers, next week) and tell me how to fill each part",
+  "ui.foundation.quick-spec": "Draft a spec",
+  "ui.foundation.quick-spec-prompt": "Help me scope a new feature: ask me a few key questions first, then outline a spec"
 }

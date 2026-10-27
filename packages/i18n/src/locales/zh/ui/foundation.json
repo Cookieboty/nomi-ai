@@ -11,7 +11,6 @@
   "ui.foundation.all-desktop-ability-data-cleared": "已清除全部桌面能力数据",
   "ui.foundation.allowed": "已允许",
   "ui.foundation.and-more-files": "…另有 {0} 个文件",
-  "ui.foundation.another-install-update-is-already-in-progress": "已有安装 / 更新在进行",
   "ui.foundation.api-key": "API 密钥",
   "ui.foundation.app-shortcuts": "应用入口",
   "ui.foundation.arguments": "参数",
@@ -248,5 +247,19 @@
   "ui.foundation.getting-started-start-your-first-chat-desc": "在下方输入框里问 Nomi 点什么。",
   "ui.foundation.getting-started-to-do": "待完成",
   "ui.foundation.nomi-has-no-model-yet-add-one-to-start": "Nomi 还没有可用的模型，先添加一个就能开始聊。",
-  "ui.foundation.pick-one-of-your-models-for-nomi-chat": "已经添加了模型，选一个给 Nomi 对话用就能开始聊。"
+  "ui.foundation.pick-one-of-your-models-for-nomi-chat": "已经添加了模型，选一个给 Nomi 对话用就能开始聊。",
+  "ui.foundation.getting-started-recommended-for-you": "为你推荐",
+  "ui.foundation.getting-started-recommended-clis-desc": "根据你的职业与兴趣推荐，可以同时安装。",
+  "ui.foundation.getting-started-set-a-reminder": "设一个提醒或日程",
+  "ui.foundation.getting-started-try-voice": "试试语音对话（按住 F2 说话）",
+  "ui.foundation.quick-write": "写作灵感",
+  "ui.foundation.quick-write-prompt": "给我 5 个今天可以写的选题，每个配一句吸引人的开头",
+  "ui.foundation.quick-language": "练练外语",
+  "ui.foundation.quick-language-prompt": "用简单的英语和我聊天，顺便纠正我的语法错误。先问我一个问题吧",
+  "ui.foundation.quick-learn": "学个新知识",
+  "ui.foundation.quick-learn-prompt": "用通俗易懂的方式给我讲一个有趣的知识点，最后出一道小题考考我",
+  "ui.foundation.quick-weekly": "写周报",
+  "ui.foundation.quick-weekly-prompt": "帮我搭一个周报模板：本周完成、遇到的问题、下周计划，并告诉我每部分怎么写",
+  "ui.foundation.quick-spec": "梳理需求",
+  "ui.foundation.quick-spec-prompt": "帮我梳理一个新功能的需求：先问我几个关键问题，再整理成需求文档大纲"
 }

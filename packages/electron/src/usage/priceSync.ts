@@ -16,7 +16,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { writePrivateFileAtomic } from '../utils/privateFile';
+import { writePrivateFileAtomicAsync } from '../utils/privateFile';
 
 import { BUILTIN_PRICES, normalizeModel, VERSION_SUFFIX } from './pricing';
 import type { PriceEntry, PriceTier } from './types';
@@ -297,14 +297,17 @@ export class PriceSync {
     }
   }
 
+  /** 缓存写盘不阻塞主进程（Windows 文件被占用时的退避等待走定时器，#154）；失败只记日志 */
   private save(): void {
     if (!this.cache) return;
     try {
       fs.mkdirSync(this.d.root, { recursive: true });
-      writePrivateFileAtomic(this.file, JSON.stringify(this.cache));
-    } catch (e) {
-      this.d.logger?.warn('price sync cache write failed', String(e));
+    } catch {
+      /* 下面的写入会给出真正的错误 */
     }
+    void writePrivateFileAtomicAsync(this.file, JSON.stringify(this.cache)).catch((e) =>
+      this.d.logger?.warn('price sync cache write failed', String(e)),
+    );
   }
 
   /** 用户点击或启动时自动同步调用。失败不动已有缓存。 */

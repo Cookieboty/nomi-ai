@@ -91,6 +91,33 @@ describe('PermissionBroker', () => {
     expect(cancelled).toHaveLength(1);
   });
 
+  it('an already-aborted turn is denied without showing a prompt', async () => {
+    const { b, seen } = mk(1000);
+    const ac = new AbortController();
+    ac.abort();
+    expect(await b.checkSend({ id: 'deepseek', name: 'DeepSeek', local: false }, ac.signal)).toBe(
+      'user_denied',
+    );
+    expect(seen).toHaveLength(0);
+  });
+
+  it('stopping a chat while the first cloud send is pending withdraws the prompt (#160)', async () => {
+    const { b, seen, cancelled } = mk(1000);
+    const ac = new AbortController();
+    const p = b.checkSend({ id: 'deepseek', name: 'DeepSeek', local: false }, ac.signal);
+    await new Promise((r) => setTimeout(r, 0));
+    ac.abort();
+    expect(await p).toBe('user_denied');
+    expect(cancelled).toEqual([seen[0].id]);
+    // 已撤掉的确认再被答复不会记住该供应商：下次发送重新询问
+    b.answer(seen[0].id, true);
+    const again = b.checkSend({ id: 'deepseek', name: 'DeepSeek', local: false });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(seen).toHaveLength(2);
+    b.answer(seen[1].id, true);
+    expect(await again).toBeNull();
+  });
+
   it('no UI → denied', async () => {
     const { b } = mk();
     b.ui = null;

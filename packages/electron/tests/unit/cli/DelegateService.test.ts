@@ -12,7 +12,7 @@ import { runWithToolCaller } from '@nomi-ai/bundle-ig-base';
 
 import { HarnessStoppedError } from '../../../src/cli/CliHarnessService';
 import { DelegateService, untrusted } from '../../../src/cli/delegate/DelegateService';
-import { __setSpawnSyncForTest } from '../../../src/utils/privateFile';
+import { __setSpawnSyncForTest, whenPrivateWritesIdle } from '../../../src/utils/privateFile';
 
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
@@ -619,6 +619,7 @@ describe('DelegateService · P2 异步委派', () => {
     try {
       const done = await s.run({});
       expect(done.data?.status).toBe('done');
+      await whenPrivateWritesIdle();
 
       const restored = new DelegateService({
         root: s.root,
