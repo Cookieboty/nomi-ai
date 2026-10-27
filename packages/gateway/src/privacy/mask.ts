@@ -193,7 +193,25 @@ class Masking {
     if (s.length < 8 || s.startsWith('data:')) return s;
     if (mode === 'defs' && key !== 'description') return s;
     if (mode === 'normal' && (KEPT.has(key) || isIdKey(key))) return s;
-    return this.text(s, mode === 'args' && key === 'arguments');
+    if (mode === 'args' && key === 'arguments') return this.encodedArgs(s);
+    return this.text(s);
+  }
+
+  /**
+   * 协议把工具参数编成 JSON 字符串（Chat tool_calls / Responses function_call）：值里的引号、反斜线
+   * 已经转义，登记的原文不再是连续子串。能解析就在参数树上按原值识别，再编码回去（#151）；
+   * 解析不了（流式残片、非 JSON 的自定义输入）按转义文本扫描。
+   */
+  private encodedArgs(s: string): string {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(s);
+    } catch {
+      return this.text(s, true);
+    }
+    if (parsed === null || typeof parsed !== 'object') return this.text(s, true);
+    const out = this.walk(parsed, '', 'args');
+    return out === parsed ? s : JSON.stringify(out);
   }
 
   /** @param escaped 文本是 JSON 字符串的内容（工具参数），值按反转义后的原文登记 */

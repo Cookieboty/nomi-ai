@@ -203,6 +203,51 @@ describe('按路径遍历', () => {
     expect([...r.restore.values()]).toEqual([PEM]);
   });
 
+  it('登记的自定义值含引号 / 反斜线 / 换行时，在 JSON 编码的 arguments 里照样认出来（#151）', () => {
+    for (const secret of ['q"Ab7\\Cd8!', 'line1\nline2-xyz', 'plainCustom99']) {
+      const args = JSON.stringify({ cmd: `login ${secret}`, nested: [{ pw: secret }] });
+      const body = {
+        messages: [
+          {
+            role: 'assistant',
+            tool_calls: [{ id: 'c1', type: 'function', function: { name: 'w', arguments: args } }],
+          },
+        ],
+        input: [{ type: 'function_call', call_id: 'c2', name: 'w', arguments: args }],
+      };
+      const s = store([{ kind: 'CUSTOM', value: secret }]);
+      const r = maskBody(body, s, { key: KEY });
+      const out = r.body as {
+        messages: Array<{ tool_calls: Array<{ function: { arguments: string } }> }>;
+        input: Array<{ arguments: string }>;
+      };
+      for (const encoded of [
+        out.messages[0]!.tool_calls[0]!.function.arguments,
+        out.input[0]!.arguments,
+      ]) {
+        const parsed = JSON.parse(encoded) as { cmd: string; nested: Array<{ pw: string }> };
+        expect(JSON.stringify(parsed)).not.toContain(JSON.stringify(secret).slice(1, -1));
+        expect(parsed.nested[0]!.pw).toMatch(/^\{\{CUSTOM_[a-z2-7]{8}\}\}$/);
+        // 回程：占位符放回 arguments 后还原成原值，且仍是合法 JSON
+        const back = new Restorer(r.restore).text(encoded, true);
+        expect(JSON.parse(back)).toEqual({ cmd: `login ${secret}`, nested: [{ pw: secret }] });
+      }
+      expect([...r.restore.values()]).toEqual([secret]);
+      expect(
+        maskBody(body, store([{ kind: 'CUSTOM', value: secret }]), {
+          key: KEY,
+          actions: { CUSTOM: 'block' },
+        }).blocked,
+      ).toBe(true);
+    }
+  });
+
+  it('arguments 不是 JSON（残片 / 自定义输入）时按文本扫描', () => {
+    const body = { input: [{ type: 'function_call', arguments: `{"k": "${OPENAI}` }] };
+    const out = JSON.stringify(maskBody(body, store(), { key: KEY }).body);
+    expect(plain(out)).not.toContain(OPENAI);
+  });
+
   it('工具定义只遮 description', () => {
     const body = {
       tools: [
