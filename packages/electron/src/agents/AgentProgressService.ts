@@ -299,7 +299,8 @@ export class AgentProgressService {
   private dshLocks: Set<number> | null = null;
   /**
    * 会话文件解析结果（路径 → mtime + 结果）：文件没动就不再读头尾、重新解析。
-   * 每 8 秒一轮，近 3 天的会话文件逐个读 128KB 再解析会占主进程几十毫秒。dsh 依赖本轮锁快照，不缓存。
+   * 每 8 秒一轮，近 3 天的会话文件逐个读 128KB 再解析会占主进程几十毫秒。dsh 依赖本轮锁快照，不缓存
+   * （它的会话索引解析结果由 ScanCache.readParsed 按文件 mtime / size 缓存）。
    */
   private readonly inspected = new Map<string, { mtime: number; cand: Candidate }>();
   /** 目录列表 / 文件 mtime 缓存 + 异步并发池（轮询不在主进程同步遍历会话目录） */
@@ -539,12 +540,12 @@ export class AgentProgressService {
     } else if (kind === 'dsh') {
       const dir = path.dirname(filePath);
       const id = path.basename(dir);
-      const meta = parseDshProjcache(
-        await slice(
-          path.join(this.dshHome, 'storages', 'session_projcache', 'sessions', `${id}.json`),
-          'head',
-          256 * 1024,
-        ),
+      // 会话索引（最多 256KB）按 (mtime, size) 缓存解析结果：没变就不重读；
+      // 同一会话的 session.lock 与 session.v*.jsonl 在同一轮里共用一次读取
+      const meta = await this.scan.readParsed(
+        path.join(this.dshHome, 'storages', 'session_projcache', 'sessions', `${id}.json`),
+        256 * 1024,
+        parseDshProjcache,
       );
       const lock = await this.scan.stat(path.join(dir, 'session.lock'));
       const lockHeld = this.dshLocks && lock ? this.dshLocks.has(lock.ino) : undefined;

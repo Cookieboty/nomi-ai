@@ -278,3 +278,135 @@ describe('AgentProgressService 异步轮询', () => {
     }
   });
 });
+
+describe('ScanCache.readParsed（按 mtime / size 缓存解析结果）', () => {
+  const opened = () => jest.spyOn(fs.promises, 'open');
+  const readsOf = (spy: jest.SpyInstance, p: string) =>
+    spy.mock.calls.filter(([f]) => f === p).length;
+
+  it('文件没变：跨轮不重读；mtime 变了才重读重解析', async () => {
+    const f = path.join(tmp(), 'cache.json');
+    touch(f, Date.now() - DAY, '{"a":1}');
+    const c = new ScanCache();
+    const parse = jest.fn((raw: string) => (raw ? (JSON.parse(raw) as { a: number }) : null));
+    const open = opened();
+    try {
+      for (let i = 0; i < 3; i++) {
+        c.begin();
+        c.end();
+        expect(await c.readParsed(f, 1024, parse)).toEqual({ a: 1 });
+      }
+      expect(readsOf(open, f)).toBe(1);
+      expect(parse).toHaveBeenCalledTimes(1);
+
+      // 同样大小、只改 mtime：也要重读
+      fs.writeFileSync(f, '{"a":2}');
+      fs.utimesSync(f, new Date(Date.now() - HOUR), new Date(Date.now() - HOUR));
+      c.begin();
+      c.end();
+      expect(await c.readParsed(f, 1024, parse)).toEqual({ a: 2 });
+      expect(readsOf(open, f)).toBe(2);
+      expect(parse).toHaveBeenCalledTimes(2);
+    } finally {
+      open.mockRestore();
+    }
+  });
+
+  it('同一轮的并发请求共用一次读取；文件不存在等同读到空串', async () => {
+    const f = path.join(tmp(), 'cache.json');
+    touch(f, Date.now() - DAY, '{"a":1}');
+    const c = new ScanCache();
+    const parse = (raw: string) => (raw ? (JSON.parse(raw) as { a: number }) : null);
+    const open = opened();
+    try {
+      const res = await Promise.all(Array.from({ length: 5 }, () => c.readParsed(f, 1024, parse)));
+      expect(res).toEqual(Array.from({ length: 5 }, () => ({ a: 1 })));
+      expect(readsOf(open, f)).toBe(1);
+    } finally {
+      open.mockRestore();
+    }
+    fs.rmSync(f);
+    expect(await c.readParsed(f, 1024, parse)).toBeNull();
+  });
+
+  it('连续一整轮没用到的缓存项被清掉', async () => {
+    const f = path.join(tmp(), 'cache.json');
+    touch(f, Date.now() - DAY, '{"a":1}');
+    const c = new ScanCache();
+    const parse = jest.fn((raw: string) => raw);
+    await c.readParsed(f, 1024, parse);
+    c.begin();
+    c.end();
+    await c.readParsed(f, 1024, parse);
+    expect(parse).toHaveBeenCalledTimes(1);
+    c.begin();
+    c.end();
+    c.begin();
+    c.end();
+    await c.readParsed(f, 1024, parse);
+    expect(parse).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('AgentProgressService dsh 会话索引缓存', () => {
+  const now = Date.now();
+  const mkSession = (dshHome: string, id: string, title: string) => {
+    const dir = path.join(dshHome, 'sessions', '--w-app--', id);
+    touch(path.join(dir, 'session.lock'), now - 2_000, '');
+    touch(path.join(dir, 'session.v4.jsonl.zstd'), now - 2_000, 'zz');
+    const cache = path.join(dshHome, 'storages', 'session_projcache', 'sessions', `${id}.json`);
+    touch(
+      cache,
+      now - HOUR,
+      JSON.stringify({ record: { identity: { cwd: '/w/app' }, rows: { title: { val: title } } } }),
+    );
+    return cache;
+  };
+
+  it('每个会话每轮最多读一次索引；索引没变的后续轮不重读，变了才重读', async () => {
+    const home = tmp();
+    const dshHome = path.join(home, '.dsh');
+    const a = mkSession(dshHome, 'session-aaa', 'first');
+    const b = mkSession(dshHome, 'session-bbb', 'second');
+    const svc = new AgentProgressService({
+      root: tmp(),
+      home,
+      dshHome,
+      logger: { info: jest.fn(), warn: jest.fn() },
+      desktop: { say: jest.fn() } as never,
+      now: () => now,
+      pollMs: 60_000,
+      processes: () => [],
+      lockedInodes: () => new Set(),
+    });
+    const titles = () =>
+      Object.fromEntries(svc.state().sessions.map((s) => [s.id, s.title] as const));
+    const open = jest.spyOn(fs.promises, 'open');
+    const reads = (p: string) => open.mock.calls.filter(([f]) => f === p).length;
+    try {
+      // 每个会话目录有 session.lock 与 session.v4.jsonl.zstd 两个候选文件，索引只读一次
+      await svc.tick();
+      expect([reads(a), reads(b)]).toEqual([1, 1]);
+      expect(titles()).toEqual({ 'dsh:session-aaa': 'first', 'dsh:session-bbb': 'second' });
+
+      await svc.tick();
+      await svc.tick();
+      expect([reads(a), reads(b)]).toEqual([1, 1]);
+      expect(titles()).toEqual({ 'dsh:session-aaa': 'first', 'dsh:session-bbb': 'second' });
+
+      fs.writeFileSync(
+        a,
+        JSON.stringify({
+          record: { identity: { cwd: '/w/app' }, rows: { title: { val: 'renamed' } } },
+        }),
+      );
+      fs.utimesSync(a, new Date(now - 60_000), new Date(now - 60_000));
+      await svc.tick();
+      expect([reads(a), reads(b)]).toEqual([2, 1]);
+      expect(titles()).toEqual({ 'dsh:session-aaa': 'renamed', 'dsh:session-bbb': 'second' });
+    } finally {
+      open.mockRestore();
+      svc.stop();
+    }
+  });
+});

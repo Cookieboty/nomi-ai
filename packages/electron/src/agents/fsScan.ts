@@ -59,6 +59,13 @@ export class ScanCache {
     { mtime: number; ents: DirEnt[]; trusted: boolean; gen: number }
   >();
   private readonly files = new Map<string, { mtime: number; gen: number }>();
+  /** 解析结果缓存：路径 → (mtime, size) + 解析值；文件没变就不重新读、重新解析 */
+  private readonly parsed = new Map<
+    string,
+    { mtime: number; size: number; val: unknown; gen: number }
+  >();
+  /** 进行中的读取 + 解析：同一轮里多次请求同一路径只读一次 */
+  private readonly parsing = new Map<string, Promise<unknown>>();
   private gen = 0;
 
   constructor(readonly limit: Limit = limiter(16)) {}
@@ -71,6 +78,8 @@ export class ScanCache {
   end(): void {
     for (const [k, v] of this.dirs) if (v.gen !== this.gen) this.dirs.delete(k);
     for (const [k, v] of this.files) if (v.gen !== this.gen) this.files.delete(k);
+    // readParsed 在 end() 之后才被调用：保留上一轮和本轮用过的，连续一整轮没用到才清掉
+    for (const [k, v] of this.parsed) if (v.gen < this.gen - 1) this.parsed.delete(k);
   }
 
   async stat(p: string): Promise<fs.Stats | null> {
@@ -153,6 +162,33 @@ export class ScanCache {
     };
     const out = await walk(dir, depth);
     return out.sort((x, y) => y.mtime - x.mtime).slice(0, limit);
+  }
+
+  /**
+   * 读文件开头 bytes 字节并解析，结果按 (mtime, size) 缓存：文件没变就直接返回上次的解析值；
+   * 同一路径的并发请求共用一次读取。文件不存在时等同读到空串（与 readSlice 一致），不缓存。
+   * 同一路径必须始终用同一个 parse；返回值是共享对象，调用方不要原地修改。
+   */
+  readParsed<T>(p: string, bytes: number, parse: (raw: string) => T): Promise<T> {
+    const pending = this.parsing.get(p);
+    if (pending) return pending as Promise<T>;
+    const job = (async (): Promise<T> => {
+      const st = await this.stat(p);
+      if (!st) {
+        this.parsed.delete(p);
+        return parse('');
+      }
+      const hit = this.parsed.get(p);
+      if (hit && hit.mtime === st.mtimeMs && hit.size === st.size) {
+        hit.gen = this.gen;
+        return hit.val as T;
+      }
+      const val = parse(await this.readSlice(p, 'head', bytes));
+      this.parsed.set(p, { mtime: st.mtimeMs, size: st.size, val, gen: this.gen });
+      return val;
+    })().finally(() => this.parsing.delete(p));
+    this.parsing.set(p, job);
+    return job;
   }
 
   /** 读文件开头 / 结尾若干字节，不把几十 MB 的 JSONL 整个读进内存 */
