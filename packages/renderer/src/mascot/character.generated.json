@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "id": "nomi",
+  "displayName": {
+    "zh": "诺米",
+    "en": "Nomi"
+  },
+  "mode": "rive",
+  "voice": {
+    "voiceHint": "nomi",
+    "rate": 0.92,
+    "pitch": 1.1
+  },
+  "rive": {
+    "src": "./assets/models/rive/nomi-complete.riv",
+    "artboard": "Nomi-full",
+    "stateMachine": "NomiFull"
+  },
+  "promptClipBase": "./voice/nomi/zh/",
+  "systemPromptIdentity": "你是 Nomi（诺米），住在用户桌面上的 AI 伙伴。",
+  "wakePhrase": {
+    "zh": "你好，诺米",
+    "en": "Hi, Nomi"
+  },
+  "spriteManifestPath": "./assets/models/sprite/nomi/manifest.json"
+}

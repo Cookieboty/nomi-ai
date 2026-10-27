@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "id": "static-demo",
+  "displayName": { "zh": "静图示范", "en": "Static Demo" },
+  "version": "1.0.0",
+  "engines": { "nomiPack": ">=1 <2" },
+  "assets": {
+    "mode": "static",
+    "static": "static/character.webp",
+    "onboarding": "onboarding/",
+    "copy": "copy/",
+    "layout": "layout/"
+  },
+  "defaults": {
+    "wakePhrase": { "zh": "你好", "en": "Hello" },
+    "primaryLocale": "zh",
+    "voiceHint": "xiaoxiao",
+    "voiceRate": 0.9,
+    "voicePitch": 1.08
+  }
+}
