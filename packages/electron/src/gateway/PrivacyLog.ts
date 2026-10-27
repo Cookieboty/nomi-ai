@@ -10,7 +10,7 @@ import fs from 'fs';
 
 import type { UsageEvent } from '@nomi-ai/gateway';
 
-import { writePrivateFileAtomic, writePrivateFileAtomicAsync } from '../utils/privateFile';
+import { writePrivateFileAtomicAsync } from '../utils/privateFile';
 
 export interface PrivacyLogEntry {
   placeholder: string;
@@ -92,31 +92,35 @@ export class PrivacyLog {
     return [...this.entries.values()].reverse();
   }
 
-  clear(): void {
+  /**
+   * 清空内存并异步落盘空列表。与 schedule / flush 共用同一写队列，
+   * 在途的旧快照不会盖回磁盘（#164）。
+   */
+  clear(): Promise<void> {
     this.loaded = true;
     this.entries.clear();
-    this.flush();
+    return this.flushAsync();
   }
 
-  /** 退出时调用 */
+  /** 退出时调用：取消定时器并把当前快照排进异步写队列（Application 退出会等 whenPrivateWritesIdle） */
   flush(): void {
+    void this.flushAsync();
+  }
+
+  private flushAsync(): Promise<void> {
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
-    try {
-      writePrivateFileAtomic(this.file, JSON.stringify([...this.entries.values()]));
-    } catch {
-      /* 写不了就只在内存里 */
-    }
+    return writePrivateFileAtomicAsync(this.file, JSON.stringify([...this.entries.values()])).catch(
+      () => undefined,
+    );
   }
 
   private schedule(): void {
     if (this.timer) return;
-    // 定时落盘走异步写（Windows 文件被占用时不挡主进程，#154）；退出 / 清空仍用同步 flush
+    // 定时落盘与 clear/flush 共用异步写队列（#154 / #164）
     this.timer = setTimeout(() => {
       this.timer = null;
-      void writePrivateFileAtomicAsync(this.file, JSON.stringify([...this.entries.values()])).catch(
-        () => undefined,
-      );
+      void this.flushAsync();
     }, FLUSH_MS);
     this.timer.unref?.();
   }

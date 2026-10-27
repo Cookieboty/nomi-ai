@@ -46,7 +46,7 @@ import {
 
 import { t as tr } from '../i18n';
 import { guardedHandle } from '../security/guardedIpc';
-import { writePrivateFileAtomic } from '../utils/privateFile';
+import { writePrivateFileAtomicAsync } from '../utils/privateFile';
 
 import {
   agentLaunch,
@@ -377,7 +377,10 @@ export class GatewayService {
       return;
     }
     fs.mkdirSync(this.d.root, { recursive: true });
-    writePrivateFileAtomic(this.catalogFile, JSON.stringify(doc));
+    // 内存先更新；磁盘异步落盘，避免 Windows 占用重试卡住主进程（#154）
+    void writePrivateFileAtomicAsync(this.catalogFile, JSON.stringify(doc)).catch((e) =>
+      this.d.logger.warn('models catalog write failed', { error: String(e) }),
+    );
     setCatalogOverlay(doc);
     this.push();
     this.changed();

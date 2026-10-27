@@ -8,6 +8,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { PrivacyLog } from '../../../src/gateway/PrivacyLog';
+import { __renameDeps, whenPrivateWritesIdle } from '../../../src/utils/privateFile';
 
 const hit = (p: string, extra: Record<string, unknown> = {}) => ({
   kind: 'TOKEN',
@@ -24,7 +25,7 @@ const hit = (p: string, extra: Record<string, unknown> = {}) => ({
 describe('PrivacyLog', () => {
   const dir = () => fs.mkdtempSync(path.join(os.tmpdir(), 'privacy-log-'));
 
-  it('merges by placeholder, newest first, and survives a restart', () => {
+  it('merges by placeholder, newest first, and survives a restart', async () => {
     const file = path.join(dir(), 'privacy-log.json');
     let now = 1;
     const log = new PrivacyLog(file, () => now);
@@ -38,6 +39,7 @@ describe('PrivacyLog', () => {
       ['{{TOKEN_bbbbbbbb}}', 1, 0, ['codex']],
     ]);
     log.flush();
+    await whenPrivateWritesIdle();
     // Windows 没有 POSIX 权限位
     if (process.platform !== 'win32')
       expect((fs.statSync(file).mode & 0o777).toString(8)).toBe('600');
@@ -46,7 +48,8 @@ describe('PrivacyLog', () => {
       '{{TOKEN_aaaaaaaa}}',
       '{{TOKEN_bbbbbbbb}}',
     ]);
-    again.clear();
+    await again.clear();
+    await whenPrivateWritesIdle();
     expect(new PrivacyLog(file).list()).toEqual([]);
   });
 
@@ -56,5 +59,42 @@ describe('PrivacyLog', () => {
       log.note({ client: 'claude', redactions: [hit(`{{TOKEN_${String(i).padStart(8, 'a')}}}`)] });
     expect(log.list()).toHaveLength(200);
     expect(log.list()[0]!.placeholder).toBe('{{TOKEN_aaaaa229}}');
+  });
+
+  it('clear serializes past an in-flight async flush so old entries do not return (#164)', async () => {
+    const file = path.join(dir(), 'privacy-log.json');
+    let release!: () => void;
+    const gate = new Promise<void>((r) => {
+      release = r;
+    });
+    const real = __renameDeps.renameAsync;
+    let held = 0;
+    __renameDeps.renameAsync = async (from, to) => {
+      held += 1;
+      if (held === 1) await gate;
+      return real(from, to);
+    };
+    try {
+      const log = new PrivacyLog(file);
+      log.note({ client: 'codex', redactions: [hit('{{TOKEN_aaaaaaaa}}')] });
+      log.flush();
+      await waitForHeld();
+      expect(held).toBe(1);
+      // clear 会排在在途写之后；先启动再放行，避免 await 死锁
+      const cleared = log.clear();
+      await new Promise((r) => setTimeout(r, 10));
+      release();
+      await cleared;
+      await whenPrivateWritesIdle();
+      expect(JSON.parse(fs.readFileSync(file, 'utf8'))).toEqual([]);
+      expect(new PrivacyLog(file).list()).toEqual([]);
+    } finally {
+      __renameDeps.renameAsync = real;
+    }
+
+    async function waitForHeld() {
+      for (let i = 0; i < 50 && held === 0; i++) await new Promise((r) => setTimeout(r, 10));
+      expect(held).toBeGreaterThan(0);
+    }
   });
 });

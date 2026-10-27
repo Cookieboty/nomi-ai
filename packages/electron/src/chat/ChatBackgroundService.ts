@@ -20,7 +20,7 @@ import {
 import { BrowserWindow, dialog, ipcMain, nativeImage } from 'electron';
 
 import { t as tr } from '../i18n';
-import { writePrivateFileAtomic, writePrivateFileAtomicAsync } from '../utils/privateFile';
+import { writePrivateFileAtomicAsync } from '../utils/privateFile';
 
 import { getChatBackgroundPresetFile } from './backgroundPreset';
 
@@ -180,10 +180,9 @@ export class ChatBackgroundService {
     });
   }
 
-  /** 启动时同步写一次（还没有界面在等） */
+  /** 启动时也走异步写：不挡主进程；状态已在内存里，界面读 this.state（#154） */
   private persist(): void {
-    fs.mkdirSync(path.dirname(this.file), { recursive: true });
-    writePrivateFileAtomic(this.file, JSON.stringify(this.state, null, 2));
+    void this.persistAsync().catch(() => undefined);
   }
 
   /** 界面操作触发的写入：Windows 文件被占用时退避等待不挡主进程（#154） */
