@@ -228,9 +228,10 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
       }}
       title={tr('ui.foundation.extensions-mcp-skills')}
       size="lg"
+      bodyClassName={styles.pinnedBody}
       data-testid="ext-panel"
     >
-      <div className={styles.stack}>
+      <div className={styles.pinned}>
         <Tabs<Tab>
           items={[
             {
@@ -246,304 +247,310 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
           onChange={setTab}
           aria-label={tr('ui.foundation.extensions')}
         />
-        {err && <ErrorState detail={err} onRetry={() => void load()} data-testid="panel-error" />}
-        {!list && !err && <LoadingState rows={3} />}
+        <div className={`${styles.stack} ${styles.scroll}`}>
+          {err && <ErrorState detail={err} onRetry={() => void load()} data-testid="panel-error" />}
+          {!list && !err && <LoadingState rows={3} />}
 
-        {list && tab === 'mcp' && (
-          <div className={styles.stack}>
-            <div className={styles.toolbar}>
-              <span className={`${styles.hint} ${styles.toolbarText}`}>
-                {connectedTools
-                  ? tr('ui.foundation.extension-tools-available-to-the-model', connectedTools)
-                  : tr('ui.foundation.mcp-servers-give-the-assistant-new-tools-files')}
-              </span>
-              <span className={styles.toolbarActions}>
-                <Button size="sm" onClick={() => setMigrating(true)} data-testid="migrate-open">
-                  {tr('ui.foundation.import-from-other-tools')}
-                </Button>
-                <Button size="sm" onClick={() => setImporting('')} data-testid="mcp-import-open">
-                  {tr('ui.foundation.import-json')}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="primary"
-                  onClick={() => setDraft(emptyDraft())}
-                  data-testid="mcp-add"
-                >
-                  <Icon icon={Plus} size={14} />
-                  {tr('ui.foundation.add-server')}
-                </Button>
-              </span>
-            </div>
-            {!list.ready && (
-              <Notice tone="warning">
-                {tr('ui.foundation.the-ai-service-is-still-starting-connecting-will')}
-              </Notice>
-            )}
-            {servers.length === 0 && list.env.length === 0 ? (
-              <>
-                <EmptyState
-                  icon={Blocks}
-                  title={tr('ui.foundation.no-mcp-servers-yet')}
-                  description={tr('ui.foundation.start-from-the-popular-servers-below-or-add')}
-                />
-                <div className={styles.presets}>
-                  {list.presets.map((p) => (
-                    <button
-                      key={p.key}
-                      type="button"
-                      className={styles.preset}
-                      onClick={() => setDraft(fromPreset(p))}
-                      data-testid={`mcp-preset-${p.key}`}
-                    >
-                      <b>{tr(p.name)}</b>
-                      <span className={styles.hint}>{tr(p.description)}</span>
-                      {p.license !== '—' && (
-                        <span className={styles.hint}>
-                          {tr('ui.foundation.license')}
-                          {p.license} {tr('ui.foundation.downloaded-by-npx-on-first-connect')}
-                        </span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <div className={styles.list} data-testid="mcp-list">
-                {servers.map((s) => (
-                  <div key={s.id} className={styles.card} data-testid={`mcp-server-${s.id}`}>
-                    <div className={styles.cardHead}>
-                      <button
-                        type="button"
-                        className={styles.expand}
-                        onClick={() => setOpen(open === s.id ? null : s.id)}
-                        aria-expanded={open === s.id}
-                      >
-                        <Icon icon={open === s.id ? ChevronDown : ChevronRight} />
-                      </button>
-                      <b className={styles.grow}>{tr(s.name)}</b>
-                      <Badge tone={tone(s.status)} data-testid="mcp-status">
-                        {tr(STATUS_LABEL[s.status])}
-                      </Badge>
-                      {s.status === 'connected' && (
-                        <Badge tone="neutral">
-                          {s.tools.length} {tr('ui.foundation.tools')}
-                        </Badge>
-                      )}
-                      <Switch
-                        checked={s.enabled}
-                        onChange={(v) => void run(`t:${s.id}`, () => extClient.mcpToggle(s.id, v))}
-                        aria-label={tr('ui.foundation.enable', s.name)}
-                      />
-                    </div>
-                    <div className={styles.meta}>
-                      {s.transport === 'stdio' ? `$ ${s.command} ${joinArgs(s.args)}` : s.url}{' '}
-                      {tr('ui.foundation.calls')}
-                      {tr(TRUST_LABEL[s.trust])}
-                    </div>
-                    {s.error && <div className={styles.err}>{s.error}</div>}
-                    {open === s.id && (
-                      <div className={styles.stack}>
-                        {s.tools.length > 0 ? (
-                          <ul className={styles.tools}>
-                            {s.tools.map((t) => (
-                              <li key={t.name}>
-                                <code>{t.name.replace(`${s.id}__`, '')}</code>
-                                {t.readOnly && (
-                                  <Badge tone="success">{tr('ui.foundation.read-only')}</Badge>
-                                )}
-                                {t.dangerous && (
-                                  <Badge tone="danger">{tr('ui.foundation.destructive')}</Badge>
-                                )}
-                                <span className={styles.hint}>{tr(t.description)}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className={styles.hint}>
-                            {tr('ui.foundation.once-connected-the-server-s-tools-are-listed')}
-                          </p>
-                        )}
-                        <div className={styles.row}>
-                          {s.status === 'connected' ? (
-                            <Button
-                              size="sm"
-                              onClick={() =>
-                                void run(`c:${s.id}`, () => extClient.mcpDisconnect(s.id))
-                              }
-                            >
-                              {tr('ui.foundation.disconnect')}
-                            </Button>
-                          ) : (
-                            <Button
-                              size="sm"
-                              variant="primary"
-                              disabled={busy === `c:${s.id}`}
-                              onClick={() =>
-                                void run(`c:${s.id}`, () => extClient.mcpConnect(s.id))
-                              }
-                              data-testid="mcp-connect"
-                            >
-                              {busy === `c:${s.id}`
-                                ? tr('ui.foundation.connecting')
-                                : s.status === 'error'
-                                  ? tr('ui.foundation.retry')
-                                  : tr('ui.foundation.connect')}
-                            </Button>
-                          )}
-                          <Button size="sm" onClick={() => setDraft(fromServer(s))}>
-                            {tr('ui.foundation.edit')}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="danger"
-                            onClick={() => {
-                              if (window.confirm(tr('ui.foundation.delete-mcp-server', s.name)))
-                                void run(`r:${s.id}`, () => extClient.mcpRemove(s.id));
-                            }}
-                          >
-                            {tr('ui.foundation.delete')}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {list.env.map((s) => (
-                  <div key={s.id} className={styles.card}>
-                    <div className={styles.cardHead}>
-                      <b className={styles.grow}>{tr(s.name)}</b>
-                      <Badge tone="neutral">
-                        {tr('ui.foundation.from-the-mcp-servers-environment-variable')}
-                      </Badge>
-                      <Badge tone="success">
-                        {s.tools.length} {tr('ui.foundation.tools')}
-                      </Badge>
-                    </div>
-                    {s.tools.some((x) => x.dangerous) && (
-                      <p className={styles.hint}>
-                        {tr('ui.foundation.includes-write-execute-tools-every-call-will-ask')}
-                      </p>
-                    )}
-                  </div>
-                ))}
+          {list && tab === 'mcp' && (
+            <div className={styles.stack}>
+              <div className={styles.toolbar}>
+                <span className={`${styles.hint} ${styles.toolbarText}`}>
+                  {connectedTools
+                    ? tr('ui.foundation.extension-tools-available-to-the-model', connectedTools)
+                    : tr('ui.foundation.mcp-servers-give-the-assistant-new-tools-files')}
+                </span>
+                <span className={styles.toolbarActions}>
+                  <Button size="sm" onClick={() => setMigrating(true)} data-testid="migrate-open">
+                    {tr('ui.foundation.import-from-other-tools')}
+                  </Button>
+                  <Button size="sm" onClick={() => setImporting('')} data-testid="mcp-import-open">
+                    {tr('ui.foundation.import-json')}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={() => setDraft(emptyDraft())}
+                    data-testid="mcp-add"
+                  >
+                    <Icon icon={Plus} size={14} />
+                    {tr('ui.foundation.add-server')}
+                  </Button>
+                </span>
               </div>
-            )}
-            <p className={styles.hint}>
-              {tr('ui.foundation.before-calling-an-extension-tool-you-ll-be')}
-            </p>
-          </div>
-        )}
-
-        {skills && tab === 'skills' && (
-          <div className={styles.stack}>
-            <div className={styles.toolbar}>
-              <span className={`${styles.hint} ${styles.toolbarText}`}>
-                {tr('ui.foundation.a-skill-is-a-skill-md-guide-the')}
-              </span>
-              <span className={styles.toolbarActions}>
-                <IconButton
-                  size="sm"
-                  label={tr('ui.foundation.open-skills-folder')}
-                  icon={<Icon icon={FolderOpen} size={14} />}
-                  onClick={() => void extClient.skillOpen()}
-                />
-                <Button
-                  size="sm"
-                  onClick={() => setMigrating(true)}
-                  data-testid="migrate-open-skills"
-                >
-                  {tr('ui.foundation.import-from-other-tools')}
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => void run('import', () => extClient.skillImport())}
-                  data-testid="skill-import"
-                >
-                  {tr('ui.foundation.import-from-folder')}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="primary"
-                  onClick={() =>
-                    setSkill({ meta: { name: '', description: '' }, body: '', files: [] })
-                  }
-                  data-testid="skill-new"
-                >
-                  <Icon icon={Plus} size={14} />
-                  {tr('ui.foundation.new-skill')}
-                </Button>
-              </span>
-            </div>
-            {skills.length === 0 ? (
-              <EmptyState
-                icon={BookOpen}
-                title={tr('ui.foundation.no-skills-yet')}
-                description={tr('ui.foundation.create-one-or-import-a-folder-containing-skill')}
-              />
-            ) : (
-              <div className={styles.list} data-testid="skill-list">
-                {skills.map((s) => (
-                  <div key={s.dir} className={styles.card}>
-                    <div className={styles.cardHead}>
-                      <b className={styles.grow}>{tr(s.name)}</b>
-                      {s.builtin && (
-                        <Badge tone="accent">{tr('ui.foundation.built-in-example')}</Badge>
-                      )}
-                      {s.version && <Badge tone="neutral">v{s.version}</Badge>}
-                      {s.files.length > 0 && (
-                        <Badge tone="neutral">
-                          {s.files.length} {tr('ui.foundation.attachments')}
+              {!list.ready && (
+                <Notice tone="warning">
+                  {tr('ui.foundation.the-ai-service-is-still-starting-connecting-will')}
+                </Notice>
+              )}
+              {servers.length === 0 && list.env.length === 0 ? (
+                <>
+                  <EmptyState
+                    icon={Blocks}
+                    title={tr('ui.foundation.no-mcp-servers-yet')}
+                    description={tr('ui.foundation.start-from-the-popular-servers-below-or-add')}
+                  />
+                  <div className={styles.presets}>
+                    {list.presets.map((p) => (
+                      <button
+                        key={p.key}
+                        type="button"
+                        className={styles.preset}
+                        onClick={() => setDraft(fromPreset(p))}
+                        data-testid={`mcp-preset-${p.key}`}
+                      >
+                        <b>{tr(p.name)}</b>
+                        <span className={styles.hint}>{tr(p.description)}</span>
+                        {p.license !== '—' && (
+                          <span className={styles.hint}>
+                            {tr('ui.foundation.license')}
+                            {p.license} {tr('ui.foundation.downloaded-by-npx-on-first-connect')}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className={styles.list} data-testid="mcp-list">
+                  {servers.map((s) => (
+                    <div key={s.id} className={styles.card} data-testid={`mcp-server-${s.id}`}>
+                      <div className={styles.cardHead}>
+                        <button
+                          type="button"
+                          className={styles.expand}
+                          onClick={() => setOpen(open === s.id ? null : s.id)}
+                          aria-expanded={open === s.id}
+                        >
+                          <Icon icon={open === s.id ? ChevronDown : ChevronRight} />
+                        </button>
+                        <b className={styles.grow}>{tr(s.name)}</b>
+                        <Badge tone={tone(s.status)} data-testid="mcp-status">
+                          {tr(STATUS_LABEL[s.status])}
                         </Badge>
-                      )}
-                      {!s.error && (
-                        <IconButton
-                          size="sm"
-                          label={tr('ui.chat-settings.edit-skill', s.name)}
-                          icon={<Icon icon={Pencil} size={14} />}
-                          onClick={async () =>
-                            setSkill({
-                              ...(await extClient.skillGet(s.name)),
-                              originalName: s.name,
-                            })
-                          }
-                        />
-                      )}
-                      <IconButton
-                        size="sm"
-                        label={tr('ui.chat-settings.delete-skill', s.name)}
-                        icon={<Icon icon={Trash2} size={14} />}
-                        onClick={() => {
-                          if (
-                            window.confirm(tr('ui.foundation.delete-skill-and-its-folder', s.name))
-                          )
-                            void run(`d:${s.name}`, () => extClient.skillRemove(s.name));
-                        }}
-                      />
-                      {!s.error && (
+                        {s.status === 'connected' && (
+                          <Badge tone="neutral">
+                            {s.tools.length} {tr('ui.foundation.tools')}
+                          </Badge>
+                        )}
                         <Switch
                           checked={s.enabled}
                           onChange={(v) =>
-                            void run(`s:${s.name}`, () => extClient.skillToggle(s.name, v))
+                            void run(`t:${s.id}`, () => extClient.mcpToggle(s.id, v))
                           }
-                          aria-label={tr('ui.foundation.enable-skill', s.name)}
+                          aria-label={tr('ui.foundation.enable', s.name)}
                         />
+                      </div>
+                      <div className={styles.meta}>
+                        {s.transport === 'stdio' ? `$ ${s.command} ${joinArgs(s.args)}` : s.url}{' '}
+                        {tr('ui.foundation.calls')}
+                        {tr(TRUST_LABEL[s.trust])}
+                      </div>
+                      {s.error && <div className={styles.err}>{s.error}</div>}
+                      {open === s.id && (
+                        <div className={styles.stack}>
+                          {s.tools.length > 0 ? (
+                            <ul className={styles.tools}>
+                              {s.tools.map((t) => (
+                                <li key={t.name}>
+                                  <code>{t.name.replace(`${s.id}__`, '')}</code>
+                                  {t.readOnly && (
+                                    <Badge tone="success">{tr('ui.foundation.read-only')}</Badge>
+                                  )}
+                                  {t.dangerous && (
+                                    <Badge tone="danger">{tr('ui.foundation.destructive')}</Badge>
+                                  )}
+                                  <span className={styles.hint}>{tr(t.description)}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className={styles.hint}>
+                              {tr('ui.foundation.once-connected-the-server-s-tools-are-listed')}
+                            </p>
+                          )}
+                          <div className={styles.row}>
+                            {s.status === 'connected' ? (
+                              <Button
+                                size="sm"
+                                onClick={() =>
+                                  void run(`c:${s.id}`, () => extClient.mcpDisconnect(s.id))
+                                }
+                              >
+                                {tr('ui.foundation.disconnect')}
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="primary"
+                                disabled={busy === `c:${s.id}`}
+                                onClick={() =>
+                                  void run(`c:${s.id}`, () => extClient.mcpConnect(s.id))
+                                }
+                                data-testid="mcp-connect"
+                              >
+                                {busy === `c:${s.id}`
+                                  ? tr('ui.foundation.connecting')
+                                  : s.status === 'error'
+                                    ? tr('ui.foundation.retry')
+                                    : tr('ui.foundation.connect')}
+                              </Button>
+                            )}
+                            <Button size="sm" onClick={() => setDraft(fromServer(s))}>
+                              {tr('ui.foundation.edit')}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="danger"
+                              onClick={() => {
+                                if (window.confirm(tr('ui.foundation.delete-mcp-server', s.name)))
+                                  void run(`r:${s.id}`, () => extClient.mcpRemove(s.id));
+                              }}
+                            >
+                              {tr('ui.foundation.delete')}
+                            </Button>
+                          </div>
+                        </div>
                       )}
                     </div>
-                    {s.error ? (
-                      <div className={styles.err}>
-                        {tr('ui.foundation.couldn-t-read')}
-                        {s.error}
+                  ))}
+                  {list.env.map((s) => (
+                    <div key={s.id} className={styles.card}>
+                      <div className={styles.cardHead}>
+                        <b className={styles.grow}>{tr(s.name)}</b>
+                        <Badge tone="neutral">
+                          {tr('ui.foundation.from-the-mcp-servers-environment-variable')}
+                        </Badge>
+                        <Badge tone="success">
+                          {s.tools.length} {tr('ui.foundation.tools')}
+                        </Badge>
                       </div>
-                    ) : (
-                      <div className={styles.meta}>{tr(s.description)}</div>
-                    )}
-                  </div>
-                ))}
+                      {s.tools.some((x) => x.dangerous) && (
+                        <p className={styles.hint}>
+                          {tr('ui.foundation.includes-write-execute-tools-every-call-will-ask')}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className={styles.hint}>
+                {tr('ui.foundation.before-calling-an-extension-tool-you-ll-be')}
+              </p>
+            </div>
+          )}
+
+          {skills && tab === 'skills' && (
+            <div className={styles.stack}>
+              <div className={styles.toolbar}>
+                <span className={`${styles.hint} ${styles.toolbarText}`}>
+                  {tr('ui.foundation.a-skill-is-a-skill-md-guide-the')}
+                </span>
+                <span className={styles.toolbarActions}>
+                  <IconButton
+                    size="sm"
+                    label={tr('ui.foundation.open-skills-folder')}
+                    icon={<Icon icon={FolderOpen} size={14} />}
+                    onClick={() => void extClient.skillOpen()}
+                  />
+                  <Button
+                    size="sm"
+                    onClick={() => setMigrating(true)}
+                    data-testid="migrate-open-skills"
+                  >
+                    {tr('ui.foundation.import-from-other-tools')}
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => void run('import', () => extClient.skillImport())}
+                    data-testid="skill-import"
+                  >
+                    {tr('ui.foundation.import-from-folder')}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={() =>
+                      setSkill({ meta: { name: '', description: '' }, body: '', files: [] })
+                    }
+                    data-testid="skill-new"
+                  >
+                    <Icon icon={Plus} size={14} />
+                    {tr('ui.foundation.new-skill')}
+                  </Button>
+                </span>
               </div>
-            )}
-          </div>
-        )}
+              {skills.length === 0 ? (
+                <EmptyState
+                  icon={BookOpen}
+                  title={tr('ui.foundation.no-skills-yet')}
+                  description={tr('ui.foundation.create-one-or-import-a-folder-containing-skill')}
+                />
+              ) : (
+                <div className={styles.list} data-testid="skill-list">
+                  {skills.map((s) => (
+                    <div key={s.dir} className={styles.card}>
+                      <div className={styles.cardHead}>
+                        <b className={styles.grow}>{tr(s.name)}</b>
+                        {s.builtin && (
+                          <Badge tone="accent">{tr('ui.foundation.built-in-example')}</Badge>
+                        )}
+                        {s.version && <Badge tone="neutral">v{s.version}</Badge>}
+                        {s.files.length > 0 && (
+                          <Badge tone="neutral">
+                            {s.files.length} {tr('ui.foundation.attachments')}
+                          </Badge>
+                        )}
+                        {!s.error && (
+                          <IconButton
+                            size="sm"
+                            label={tr('ui.chat-settings.edit-skill', s.name)}
+                            icon={<Icon icon={Pencil} size={14} />}
+                            onClick={async () =>
+                              setSkill({
+                                ...(await extClient.skillGet(s.name)),
+                                originalName: s.name,
+                              })
+                            }
+                          />
+                        )}
+                        <IconButton
+                          size="sm"
+                          label={tr('ui.chat-settings.delete-skill', s.name)}
+                          icon={<Icon icon={Trash2} size={14} />}
+                          onClick={() => {
+                            if (
+                              window.confirm(
+                                tr('ui.foundation.delete-skill-and-its-folder', s.name),
+                              )
+                            )
+                              void run(`d:${s.name}`, () => extClient.skillRemove(s.name));
+                          }}
+                        />
+                        {!s.error && (
+                          <Switch
+                            checked={s.enabled}
+                            onChange={(v) =>
+                              void run(`s:${s.name}`, () => extClient.skillToggle(s.name, v))
+                            }
+                            aria-label={tr('ui.foundation.enable-skill', s.name)}
+                          />
+                        )}
+                      </div>
+                      {s.error ? (
+                        <div className={styles.err}>
+                          {tr('ui.foundation.couldn-t-read')}
+                          {s.error}
+                        </div>
+                      ) : (
+                        <div className={styles.meta}>{tr(s.description)}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* MCP 编辑 */}

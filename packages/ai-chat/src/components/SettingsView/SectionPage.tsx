@@ -21,6 +21,8 @@ interface Props<T extends string> {
   tabs: ReadonlyArray<SectionTabDef<T>>;
   value: T;
   onChange: (tab: T) => void;
+  /** 不在面板里滚动：随外层一起滚，标签滚到顶部后吸顶 */
+  stickyHead?: boolean;
   children: React.ReactNode;
 }
 
@@ -30,6 +32,7 @@ export function SectionPage<T extends string>({
   tabs,
   value,
   onChange,
+  stickyHead,
   children,
 }: Props<T>): React.ReactElement {
   const uid = useId();
@@ -50,7 +53,12 @@ export function SectionPage<T extends string>({
   };
 
   return (
-    <div className={styles.page} data-testid={testId} data-tab={value}>
+    <div
+      className={styles.page}
+      data-testid={testId}
+      data-tab={value}
+      data-sticky-head={stickyHead || undefined}
+    >
       <div className={styles.head}>
         <div
           role="tablist"

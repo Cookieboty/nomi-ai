@@ -109,6 +109,7 @@ export const SettingsView: React.FC<Props> = ({
         return (
           <SectionPage
             testId="settings-general-page"
+            stickyHead
             tabsLabel="ui.chat-settings.general-sections"
             tabs={SECTION_TABS.general}
             value={g}
@@ -277,7 +278,12 @@ export const SettingsView: React.FC<Props> = ({
           </div>
         ))}
       </nav>
-      <main className={styles.content} aria-label={t(current.label)}>
+      <main
+        className={
+          section === 'general' ? `${styles.content} ${styles.contentGeneral}` : styles.content
+        }
+        aria-label={t(current.label)}
+      >
         {section === 'general' && (
           // 「通用」页顶部横幅（纯装饰，读屏忽略）：铺满内容区顶部与两侧，四周渐隐进页面底色
           <img
@@ -290,11 +296,7 @@ export const SettingsView: React.FC<Props> = ({
           />
         )}
         <div
-          className={[
-            styles.inner,
-            section === 'general' ? styles.innerAfterBanner : '',
-            current.wide ? styles.innerWide : '',
-          ]
+          className={[styles.inner, section === 'general' ? styles.innerAfterBanner : '']
             .filter(Boolean)
             .join(' ')}
         >
@@ -352,9 +354,7 @@ export const SettingsView: React.FC<Props> = ({
               </ul>
             </aside>
           )}
-          <div
-            className={current.wide ? `${styles.columns} ${styles.columnsWide}` : styles.columns}
-          >
+          <div className={styles.columns}>
             <div
               className={current.wide ? `${styles.mainCol} ${styles.mainColWide}` : styles.mainCol}
               data-testid="settings-main-col"

@@ -3,6 +3,27 @@
   flex-direction: column;
   gap: var(--cd-space-3);
 }
+/* 顶部标签固定，下方列表滚动（弹窗与设置页内嵌都适用）；左右留边再抵回，免得裁掉阴影与焦点描边 */
+.pinnedBody {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.pinned {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: var(--cd-space-3);
+}
+.scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  margin: 0 calc(-1 * var(--cd-space-1));
+  padding: var(--cd-space-0-5) var(--cd-space-1);
+}
 .row {
   display: flex;
   gap: var(--cd-space-2);
