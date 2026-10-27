@@ -193,18 +193,17 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
 }
 .privacy li {
   display: flex;
   gap: var(--cd-space-3);
   align-items: flex-start;
-  padding: var(--cd-space-3) 14px;
-  border-radius: var(--cd-radius-lg);
-  background: var(--cd-color-surface);
-  border: 1px solid var(--cd-color-border);
+  padding: 6px 10px;
+  border-radius: var(--cd-radius-md);
+  background: rgba(var(--onb-wash-rgb), 0.7);
   font-size: var(--cd-font-size-sm);
-  line-height: 1.55;
+  line-height: 1.45;
 }
 .foot {
   display: flex;
@@ -276,12 +275,6 @@
 .calloutTitle {
   font-weight: var(--cd-font-weight-bold);
 }
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--cd-space-2);
-}
 .secondary {
   height: var(--cd-control-h-md);
   padding: 0 var(--cd-space-4);
@@ -339,9 +332,6 @@
     rgba(var(--onb-wash-rgb), 0) 72%
   );
 }
-.bgFaded {
-  opacity: 0.35;
-}
 .cardArt .step {
   width: 58%;
 }
@@ -369,7 +359,7 @@
 }
 /* 矮窗：卡片变矮，人物随高度缩小但完整；再淡一些保证文字可读 */
 @media (max-height: 640px) {
-  .bg:not(.bgFaded) {
+  .bg {
     opacity: 0.7;
   }
 }
@@ -435,22 +425,6 @@
 }
 .chip:hover {
   border-color: var(--cd-color-accent);
-}
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--cd-space-2);
-}
-.form .input {
-  height: var(--cd-control-h-md, 34px);
-}
-.spin {
-  animation: onb-spin 1s linear infinite;
-}
-@keyframes onb-spin {
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 /* 有背景插画时，页眉 / 页脚右侧的文字按钮压在插画上：垫一层底色保证可读 */

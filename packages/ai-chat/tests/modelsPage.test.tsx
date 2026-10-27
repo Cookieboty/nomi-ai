@@ -178,7 +178,6 @@ afterEach(() => {
   delete (window as unknown as { aiIPC?: unknown }).aiIPC;
 });
 
-const dialog = () => screen.getByTestId('add-provider-dialog');
 const detail = () => screen.getByTestId('provider-detail');
 const upserts = (m: ReturnType<typeof fakeMain>) =>
   m.calls.filter(([c]) => c === 'ai:gateway:upsert-provider').map(([, a]) => a[0] as ProviderInput);
@@ -200,24 +199,31 @@ const kimi = (o: Partial<ProviderView> = {}): ProviderView => ({
 });
 
 async function addFlow(presetId: string, key?: string) {
-  fireEvent.click(await screen.findByTestId('add-provider'));
-  fireEvent.click(await within(dialog()).findByTestId(`preset-${presetId}`));
-  if (key)
-    fireEvent.change(within(dialog()).getByTestId('add-provider-keys'), { target: { value: key } });
-  fireEvent.click(within(dialog()).getByTestId('add-provider-probe'));
+  fireEvent.click(await screen.findByTestId(`models-preset-${presetId}`));
+  if (key) fireEvent.change(screen.getByTestId('models-provider-key'), { target: { value: key } });
+  fireEvent.click(screen.getByTestId('models-provider-save'));
 }
 
 describe('ModelsPage', () => {
-  it('empty state, then add a preset: real detection, keys, models, and the one-click offer', async () => {
-    const m = fakeMain();
+  it('no provider: the inline form is open and model assignment is greyed out', async () => {
+    fakeMain();
     render(<ModelsPage />);
     expect(await screen.findByTestId('models-empty')).toBeTruthy();
-    await addFlow('deepseek', 'sk-aaaa1111\nsk-bbbb2222');
-    const result = await within(dialog()).findByTestId('add-provider-probe-result');
-    await waitFor(() => expect(result.querySelectorAll('[data-state="ok"]')).toHaveLength(1));
-    // 没探测到的协议只是跳过，探测失败的写明原因
-    expect(result.querySelectorAll('[data-state="skip"]')).toHaveLength(2);
-    expect(result.querySelector('[data-state="fail"]')!.textContent).toContain('HTTP 404');
+    expect(await screen.findByTestId('models-provider-picker')).toBeTruthy();
+    // 没有供应商时不弹对话框，也没有「取消」
+    expect(screen.queryByTestId('models-provider-cancel')).toBeNull();
+    const assign = screen.getByTestId('models-assign');
+    expect(assign.getAttribute('data-state')).toBe('disabled');
+    expect(assign.getAttribute('aria-disabled')).toBe('true');
+    expect(screen.getByTestId('models-assign-off').textContent).toContain('先配置好第三方供应商');
+    expect(screen.queryByTestId('models-offer')).toBeNull();
+  });
+
+  it('add a preset inline: real detection, keys, models; then pick the chat model below', async () => {
+    const m = fakeMain();
+    render(<ModelsPage />);
+    await addFlow('deepseek', 'sk-aaaa1111 sk-bbbb2222');
+    await screen.findByTestId('provider-deepseek');
     const detect = m.calls.find(([c]) => c === 'ai:gateway:detect')![1][0];
     // 预设写明的各协议地址直接拿去测，不再从 baseURL 推导
     expect(detect).not.toHaveProperty('url');
@@ -226,11 +232,6 @@ describe('ModelsPage', () => {
       keys: ['sk-aaaa1111', 'sk-bbbb2222'],
       fallbackModel: 'deepseek-v4-pro',
     });
-    // 预设推荐的默认启用，不能对话的模型列出来但不启用
-    const checks = within(dialog()).getAllByRole('checkbox') as HTMLInputElement[];
-    expect(checks.map((c) => c.checked)).toEqual([true, true, false]);
-    fireEvent.click(within(dialog()).getByTestId('add-provider-save'));
-    await waitFor(() => expect(screen.queryByTestId('add-provider-dialog')).toBeNull());
     const saved = m.calls.find(([c]) => c === 'ai:gateway:upsert-provider')![1][0];
     expect(saved).toMatchObject({
       name: 'DeepSeek',
@@ -240,8 +241,10 @@ describe('ModelsPage', () => {
       detected: { chat: { ok: true }, messages: { ok: false, status: 404 } },
       quirks: { reasoningPassback: true },
     });
-    // 预设整理的元数据随模型一起存
-    expect((saved as { models: unknown[] }).models[0]).toEqual({
+    // 预设推荐的默认启用，不能对话的模型存下但不启用；预设整理的元数据随模型一起存
+    const models = (saved as { models: Array<{ id: string; enabled: boolean }> }).models;
+    expect(models.map((x) => x.enabled)).toEqual([true, true, false]);
+    expect(models[0]).toEqual({
       id: 'deepseek-v4-pro',
       enabled: true,
       ctx: 1_000_000,
@@ -251,21 +254,54 @@ describe('ModelsPage', () => {
       toolCalling: true,
       metaSource: 'preset',
     });
-    const row = await screen.findByTestId('provider-deepseek');
+    const row = screen.getByTestId('provider-deepseek');
     expect(row.textContent).toContain('2 个 Key');
     expect(row.textContent).toContain('2 个模型');
-    // Nomi 对话还没模型：提示一键填好
-    fireEvent.click(within(await screen.findByTestId('models-offer')).getByText('一键填好'));
+    // 保存后表单收起，模型分配可用，推荐模型已默认填为 Nomi 对话的模型
+    await waitFor(() => expect(screen.queryByTestId('models-provider-picker')).toBeNull());
     await waitFor(() => expect(m.state.clients.nomi!.models.main).toBe('deepseek/deepseek-v4-pro'));
+    expect(screen.getByTestId('models-assign').getAttribute('data-state')).toBe('ready');
+    const fresh = await screen.findByTestId('models-fresh');
+    expect(within(fresh).queryByText('text-embedding-v4')).toBeNull();
+    await waitFor(() =>
+      expect(screen.getByTestId('models-fresh-deepseek-v4-pro').getAttribute('aria-checked')).toBe(
+        'true',
+      ),
+    );
+    // 用户可以改
+    fireEvent.click(screen.getByTestId('models-fresh-deepseek-v4-flash'));
+    await waitFor(() =>
+      expect(m.state.clients.nomi!.models.main).toBe('deepseek/deepseek-v4-flash'),
+    );
     await waitFor(() =>
       expect(screen.getByTestId('assign-chat').closest('div')?.textContent).toContain(
-        'DeepSeek / deepseek-v4-pro',
+        'DeepSeek / deepseek-v4-flash',
       ),
     );
   });
 
+  it('adding another provider keeps the chat model already chosen', async () => {
+    const m = fakeMain();
+    m.state.providers = [kimi()];
+    m.state.clients.nomi = { models: { main: 'kimi/kimi-k3' } };
+    render(<ModelsPage />);
+    expect(screen.queryByTestId('models-provider-picker')).toBeNull();
+    fireEvent.click(await screen.findByTestId('add-provider'));
+    expect(await screen.findByTestId('models-provider-picker')).toBeTruthy();
+    // 有供应商时可以取消
+    fireEvent.click(screen.getByTestId('models-provider-cancel'));
+    await waitFor(() => expect(screen.queryByTestId('models-provider-picker')).toBeNull());
+    fireEvent.click(screen.getByTestId('add-provider'));
+    await addFlow('deepseek', 'sk-aaaa1111');
+    await screen.findByTestId('models-fresh');
+    expect(m.state.clients.nomi!.models.main).toBe('kimi/kimi-k3');
+    expect(screen.getByTestId('models-fresh-deepseek-v4-pro').getAttribute('aria-checked')).toBe(
+      'false',
+    );
+  });
+
   it('cannot save when every protocol fails, and shows each reason', async () => {
-    fakeMain({
+    const m = fakeMain({
       detect: () => ({
         wires: {
           chat: {
@@ -283,37 +319,27 @@ describe('ModelsPage', () => {
     });
     render(<ModelsPage />);
     await addFlow('deepseek', 'sk-bad');
-    await waitFor(() =>
-      expect(within(dialog()).getByTestId('add-provider-probe-result').textContent).toContain(
-        'Key 无效或没有权限',
-      ),
-    );
-    expect((within(dialog()).getByTestId('add-provider-save') as HTMLButtonElement).disabled).toBe(
-      true,
-    );
-    expect(
-      within(dialog()).getByText('所有协议都不可用，不能保存。请检查上面每一条的原因。'),
-    ).toBeTruthy();
+    const err = await screen.findByTestId('models-provider-error');
+    expect(err.textContent).toContain('所有协议都不可用，不能保存');
+    expect(err.textContent).toContain('Key 无效或没有权限');
+    expect(upserts(m)).toHaveLength(0);
+    expect(screen.getByTestId('models-provider-form')).toBeTruthy();
   });
 
   it('custom address needs an address; local presets need no key and are confirmed automatically', async () => {
     const m = fakeMain();
     render(<ModelsPage />);
-    fireEvent.click(await screen.findByTestId('add-provider'));
-    fireEvent.click(await within(dialog()).findByTestId('preset-custom'));
-    fireEvent.change(within(dialog()).getByTestId('add-provider-keys'), {
-      target: { value: 'sk-1234' },
-    });
-    const probe = within(dialog()).getByTestId('add-provider-probe') as HTMLButtonElement;
-    expect(probe.disabled).toBe(true);
-    fireEvent.change(within(dialog()).getByTestId('add-provider-url'), {
+    fireEvent.click(await screen.findByTestId('models-preset-custom'));
+    fireEvent.change(screen.getByTestId('models-provider-key'), { target: { value: 'sk-1234' } });
+    const save = screen.getByTestId('models-provider-save') as HTMLButtonElement;
+    expect(save.disabled).toBe(true);
+    fireEvent.change(screen.getByTestId('models-provider-url'), {
       target: { value: 'https://relay.example.com/v1/chat/completions' },
     });
-    expect(probe.disabled).toBe(false);
-    fireEvent.click(within(dialog()).getByTestId('add-provider-back'));
-    fireEvent.click(within(dialog()).getByTestId('preset-ollama'));
-    expect(within(dialog()).getByText('本地服务不需要 Key。')).toBeTruthy();
-    fireEvent.click(within(dialog()).getByTestId('add-provider-probe'));
+    expect(save.disabled).toBe(false);
+    fireEvent.click(screen.getByTestId('models-preset-ollama'));
+    expect(screen.getByText('本地服务不需要 Key。')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('models-provider-save'));
     await waitFor(() => expect(m.state.allowedPrivateHosts).toEqual(['localhost:11434']));
     expect(window.confirm).not.toHaveBeenCalled();
   });
@@ -322,17 +348,14 @@ describe('ModelsPage', () => {
     const m = fakeMain();
     vi.mocked(window.confirm).mockReturnValue(false);
     render(<ModelsPage />);
-    fireEvent.click(await screen.findByTestId('add-provider'));
-    fireEvent.click(await within(dialog()).findByTestId('preset-custom'));
-    fireEvent.change(within(dialog()).getByTestId('add-provider-url'), {
+    fireEvent.click(await screen.findByTestId('models-preset-custom'));
+    fireEvent.change(screen.getByTestId('models-provider-url'), {
       target: { value: 'http://192.168.1.20:8000/v1' },
     });
-    fireEvent.change(within(dialog()).getByTestId('add-provider-keys'), {
-      target: { value: 'sk-1' },
-    });
-    fireEvent.click(within(dialog()).getByTestId('add-provider-probe'));
+    fireEvent.change(screen.getByTestId('models-provider-key'), { target: { value: 'sk-1' } });
+    fireEvent.click(screen.getByTestId('models-provider-save'));
     await waitFor(() => expect(window.confirm).toHaveBeenCalled());
-    await waitFor(() => expect(within(dialog()).getByTestId('add-provider-url')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('models-provider-url')).toBeTruthy());
     expect(m.calls.some(([c]) => c === 'ai:gateway:detect')).toBe(false);
     expect(m.state.allowedPrivateHosts).toEqual([]);
   });

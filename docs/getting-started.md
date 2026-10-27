@@ -42,7 +42,7 @@ Linux AppImage：`chmod +x Nomi-<版本号>.AppImage && ./Nomi-<版本号>.AppIm
 
 二选一：
 
-- **云端模型**：设置 →「模型与供应商」→「添加供应商」，选择预设（如 DeepSeek、OpenAI、Kimi），填入 API Key，点「获取模型」后勾选并设为默认。见 [供应商与 Token](features/providers.md)。
+- **云端模型**：设置 →「模型与供应商」，第 ① 步在页面里直接选预设（如 DeepSeek、OpenAI、Kimi）或自定义地址，填入 API Key 后点「检测并保存」；第 ② 步「模型分配」会列出它的模型，推荐的已默认选好，可以改。见 [供应商与 Token](features/providers.md)。
 - **本地模型**：`Ctrl/⌘+Shift+J`（设置 → 模型与供应商 → 本机模型）→ 下载一个推荐的小模型并启动，它会自动成为可用的供应商。见 [本地模型](features/local-models.md)。
 
 ### 常用快捷键
@@ -99,7 +99,7 @@ Switch to “Workbench” for three columns: sessions on the left, chat in the m
 
 Pick one:
 
-- **Cloud model**: Settings → Models & providers → Add provider, choose a preset (e.g. DeepSeek, OpenAI, Kimi), enter an API key, Fetch models, then enable and set default. See [Providers & tokens](features/providers.md).
+- **Cloud model**: Settings → Models & providers. In step ① pick a preset (e.g. DeepSeek, OpenAI, Kimi) or a custom address right on the page, enter an API key and click Check & save; step ② (model assignments) then lists its models with the recommended one preselected — change it if you like. See [Providers & tokens](features/providers.md).
 - **Local model**: `Ctrl/⌘+Shift+J` (Settings → Models & providers → Local models) → download a recommended small model and start it; it registers as a provider automatically. See [Local models](features/local-models.md).
 
 ### Common shortcuts

@@ -212,7 +212,6 @@
   "ui.chat-settings.model-and-reasoning-effort": "模型与思考深度：{0}",
   "ui.chat-settings.model-and-reasoning-effort-label": "模型与思考深度",
   "ui.chat-settings.model-id": "模型 id",
-  "ui.chat-settings.model-vendors": "模型厂商",
   "ui.chat-settings.models": "{0} 的模型",
   "ui.chat-settings.models-each-coding-assistant-uses-in-third-party": "各编程助手的新标签可以选默认、官方账号或三方供应商；这里设置三方模式使用的模型。",
   "ui.chat-settings.more-endpoints": "更多端点（{0}）",

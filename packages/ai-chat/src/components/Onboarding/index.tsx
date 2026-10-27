@@ -65,11 +65,12 @@ const STEP_LINE: Record<Step, () => string> = {
   privacy: () => t('ui.mascot-theme.rest-assured-our-conversations-and-memories-stay-on'),
 };
 /** 带插画的步骤：插画 + 一句介绍（窗口很矮时插画隐藏） */
-const STEP_ART: Partial<Record<Step, { src: string; intro: () => string }>> = {
+const STEP_ART: Record<Step, { src: string; intro?: () => string }> = {
   welcome: { src: welcomeArt, intro: () => t('ui.mascot-theme.intro-welcome') },
   appearance: { src: appearanceArt, intro: () => t('ui.mascot-theme.intro-appearance') },
   profile: { src: profileArt, intro: () => t('ui.mascot-theme.intro-profile') },
   provider: { src: providerArt, intro: () => t('ui.mascot-theme.intro-provider') },
+  privacy: { src: welcomeArt },
 };
 
 const LANGS: { id: LocalePref; label: () => string; hint: () => string }[] = [
@@ -502,18 +503,18 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
     <div className={styles.overlay} data-testid="onboarding" data-step={step}>
       <div
         ref={cardRef}
-        className={`${styles.card} ${art ? styles.cardArt : ''}`}
+        className={`${styles.card} ${styles.cardArt}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="onb-title"
       >
         {/* 插画铺满整张卡片做背景，人物靠右完整显示；没有插画的步骤用欢迎图的淡化版 */}
         <div
-          className={`${styles.bg} ${art ? '' : styles.bgFaded}`}
-          style={{ backgroundImage: `url(${(art ?? STEP_ART.welcome)!.src})` }}
+          className={styles.bg}
+          style={{ backgroundImage: `url(${art.src})` }}
           aria-hidden
           data-testid="onb-art"
-          data-art={art ? step : 'welcome-faded'}
+          data-art={step}
         />
         <header className={styles.head}>
           <div
@@ -541,7 +542,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
           <h1 id="onb-title" className={styles.title}>
             {STEP_TITLE[step]()}
           </h1>
-          {art && <p className={styles.intro}>{art.intro()}</p>}
+          {art.intro && <p className={styles.intro}>{art.intro()}</p>}
           <div className={styles.body}>{body}</div>
         </div>
         <footer className={styles.foot}>

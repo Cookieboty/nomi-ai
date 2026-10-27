@@ -212,7 +212,6 @@
   "ui.chat-settings.model-and-reasoning-effort": "Model and reasoning effort: {0}",
   "ui.chat-settings.model-and-reasoning-effort-label": "Model and reasoning effort",
   "ui.chat-settings.model-id": "Model id",
-  "ui.chat-settings.model-vendors": "Model vendors",
   "ui.chat-settings.models": "{0} models",
   "ui.chat-settings.models-each-coding-assistant-uses-in-third-party": "New tabs for each coding assistant can use the CLI default, an official account, or a third-party provider; set the third-party model here.",
   "ui.chat-settings.more-endpoints": "More endpoints ({0})",
