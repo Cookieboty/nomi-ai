@@ -279,11 +279,22 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
     [onDone],
   );
 
+  // 保存（写 persona / 职业与兴趣）期间再点「下一步」不能再前进一次，否则会连跳两步
+  const savingRef = useRef(false);
+  const [saving, setSaving] = useState(false);
   const next = async () => {
-    if (step === 'persona') await savePersona();
-    if (step === 'profile') await saveProfile();
-    if (i === STEPS.length - 1) return finish(false);
-    setI(i + 1);
+    if (savingRef.current) return;
+    savingRef.current = true;
+    setSaving(true);
+    try {
+      if (step === 'persona') await savePersona();
+      if (step === 'profile') await saveProfile();
+      if (i === STEPS.length - 1) return await finish(false);
+      setI(i + 1);
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
   };
   const skipStep = () => (i === STEPS.length - 1 ? void finish(false) : setI(i + 1));
 
@@ -628,6 +639,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
             type="button"
             className={styles.primary}
             data-testid={last ? 'onboarding-finish' : 'onboarding-next'}
+            disabled={saving}
             onClick={() => void next()}
           >
             {last ? t('ui.mascot-theme.get-started') : t('ui.mascot-theme.next')}

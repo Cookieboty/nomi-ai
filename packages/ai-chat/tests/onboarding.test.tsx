@@ -220,6 +220,22 @@ describe('first-launch onboarding', () => {
     expect(calls.some((c) => c[0] === 'ai:onboarding:set-profile')).toBe(false);
   });
 
+  it('clicking Next again while the step is still saving does not skip a step', async () => {
+    render(<OnboardingHost />);
+    await screen.findByTestId('onboarding-step-language');
+    for (let k = 0; k < 5; k++) fireEvent.click(await screen.findByTestId('onboarding-skip-step'));
+    await screen.findByTestId('onboarding-step-profile');
+    fireEvent.click(screen.getByTestId('onb-role-developer'));
+    const btn = screen.getByTestId('onboarding-next');
+    fireEvent.click(btn);
+    fireEvent.click(btn);
+    fireEvent.click(btn);
+    await screen.findByTestId('onboarding-step-provider');
+    await act(async () => undefined);
+    expect(screen.queryByTestId('onboarding-step-privacy')).toBeNull();
+    expect(calls.filter((c) => c[0] === 'ai:onboarding:set-profile')).toHaveLength(1);
+  });
+
   it('persona block is replaced, not duplicated, on re-run', () => {
     const a = mergePersona('原有内容', ['- 请称呼我：A']);
     const b = mergePersona(a, ['- 请称呼我：B']);

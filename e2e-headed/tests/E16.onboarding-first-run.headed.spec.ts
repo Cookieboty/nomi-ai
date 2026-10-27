@@ -95,8 +95,12 @@ test.describe('E16 · first run: onboarding → provider setup → test connecti
     await shot(chat, 'onboarding-1-language');
 
     // 前进到「模型服务」一步
-    for (let i = 0; i < 8 && (await onb.getAttribute('data-step')) !== 'provider'; i++) {
+    // 每次点完等步骤真的换了再读：有的步骤点「下一步」要先保存，期间再点会落到下一步上
+    for (let i = 0; i < 12; i++) {
+      const s = await onb.getAttribute('data-step');
+      if (s === 'provider') break;
       await chat.click('[data-testid="onboarding-next"]');
+      await expect(onb).not.toHaveAttribute('data-step', s!);
     }
     await expect(onb).toHaveAttribute('data-step', 'provider');
     const step = chat.locator('[data-testid="onb-provider"]');
