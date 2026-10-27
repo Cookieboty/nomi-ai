@@ -1540,6 +1540,7 @@ export type TranslationKey =
   | 'ui.foundation.getting-started-start-your-first-chat-desc'
   | 'ui.foundation.getting-started-to-do'
   | 'ui.foundation.nomi-has-no-model-yet-add-one-to-start'
+  | 'ui.foundation.pick-one-of-your-models-for-nomi-chat'
   | 'ui.knowledge-local.8000-ctrl-s-to-save'
   | 'ui.knowledge-local.about-me'
   | 'ui.knowledge-local.accept-license-and-download'

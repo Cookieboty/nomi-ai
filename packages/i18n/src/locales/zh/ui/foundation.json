@@ -247,5 +247,6 @@
   "ui.foundation.getting-started-start-your-first-chat": "开始第一个对话",
   "ui.foundation.getting-started-start-your-first-chat-desc": "在下方输入框里问 Nomi 点什么。",
   "ui.foundation.getting-started-to-do": "待完成",
-  "ui.foundation.nomi-has-no-model-yet-add-one-to-start": "Nomi 还没有可用的模型，先添加一个就能开始聊。"
+  "ui.foundation.nomi-has-no-model-yet-add-one-to-start": "Nomi 还没有可用的模型，先添加一个就能开始聊。",
+  "ui.foundation.pick-one-of-your-models-for-nomi-chat": "已经添加了模型，选一个给 Nomi 对话用就能开始聊。"
 }

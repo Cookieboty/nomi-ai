@@ -247,5 +247,6 @@
   "ui.foundation.getting-started-start-your-first-chat": "Start your first chat",
   "ui.foundation.getting-started-start-your-first-chat-desc": "Ask Nomi something in the box below.",
   "ui.foundation.getting-started-to-do": "To do",
-  "ui.foundation.nomi-has-no-model-yet-add-one-to-start": "Nomi has no model yet. Add one to start chatting."
+  "ui.foundation.nomi-has-no-model-yet-add-one-to-start": "Nomi has no model yet. Add one to start chatting.",
+  "ui.foundation.pick-one-of-your-models-for-nomi-chat": "You already have models. Pick one for Nomi chat to start."
 }

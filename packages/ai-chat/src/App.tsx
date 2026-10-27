@@ -60,7 +60,7 @@ import {
 } from './contexts/HarnessTabsContext';
 import { useChatMode } from './hooks/useChatMode';
 import { useHarnessState } from './hooks/useHarnessState';
-import { useModelReady } from './hooks/useModelReady';
+import { useNomiModelStatus } from './hooks/useNomiModelStatus';
 import { useRestoreNomiOnMain } from './hooks/useRestoreNomiOnMain';
 import { useSendQueue } from './hooks/useSendQueue';
 import { setProviderEndpoint } from './services/chatPrefs';
@@ -664,8 +664,8 @@ const AiChatContent: React.FC = () => {
   }, [openSettings]);
 
   const handleNewChat = useCallback(() => actions.newConversation(), [actions]);
-  // 欢迎屏：还没有可用模型时，快捷问题换成「添加模型」，免得一点就报错
-  const modelReady = useModelReady();
+  // 欢迎屏：Nomi 对话还没有模型时，快捷问题换成「添加模型」/「选择模型」，免得一点就报错
+  const modelStatus = useNomiModelStatus();
 
   const paletteCommands = useMemo<PaletteCommand[]>(
     () => [
@@ -878,17 +878,25 @@ const AiChatContent: React.FC = () => {
                     <h2 className="welcome-title">
                       {t('ui.foundation.what-would-you-like-to-do-today')}
                     </h2>
-                    {modelReady === false ? (
-                      <div className="welcome-setup" data-testid="welcome-needs-model">
+                    {modelStatus === 'none' || modelStatus === 'unassigned' ? (
+                      <div
+                        className="welcome-setup"
+                        data-testid="welcome-needs-model"
+                        data-status={modelStatus}
+                      >
                         <p className="welcome-subtitle">
-                          {t('ui.foundation.nomi-has-no-model-yet-add-one-to-start')}
+                          {modelStatus === 'none'
+                            ? t('ui.foundation.nomi-has-no-model-yet-add-one-to-start')
+                            : t('ui.foundation.pick-one-of-your-models-for-nomi-chat')}
                         </p>
                         <Button
                           variant="primary"
                           onClick={() => openSettings('models')}
                           data-testid="welcome-add-model"
                         >
-                          {t('ui.foundation.getting-started-add-a-model')}
+                          {modelStatus === 'none'
+                            ? t('ui.foundation.getting-started-add-a-model')
+                            : t('ui.models.choose-a-model')}
                         </Button>
                       </div>
                     ) : (

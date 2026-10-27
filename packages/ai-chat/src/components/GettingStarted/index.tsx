@@ -8,7 +8,7 @@ import { Button, Icon, IconButton, t } from '@nomi-ai/ui';
 import { CircleCheck, Circle, X } from 'lucide-react';
 import React, { useState } from 'react';
 
-import { useModelReady } from '../../hooks/useModelReady';
+import { useNomiModelStatus } from '../../hooks/useNomiModelStatus';
 import { cliUpdateClient } from '../../services/cliUpdateClient';
 import { useCliInstall } from '../ModelsPage/useCliInstall';
 import type { SettingsSection, SettingsTab } from '../SettingsView/sections';
@@ -53,17 +53,17 @@ interface Step {
 
 export const GettingStarted: React.FC<Props> = ({ mode, hasChats, onOpenSettings, onStart }) => {
   const [dismissed, setDismissed] = useState(readDismissed);
-  const modelReady = useModelReady();
+  const modelStatus = useNomiModelStatus();
   const [err, setErr] = useState('');
   const cli = useCliInstall(setErr);
 
   // 桌面桥不在（浏览器 / 单测）或还没查到状态：不显示，避免闪一下
   const checking =
-    modelReady === null || (cliUpdateClient.available() && cli.anyInstalled === null);
+    modelStatus === null || (cliUpdateClient.available() && cli.anyInstalled === null);
   if (dismissed || checking) return null;
-  if (modelReady === undefined && !cliUpdateClient.available()) return null;
+  if (modelStatus === undefined && !cliUpdateClient.available()) return null;
 
-  const model = !!modelReady;
+  const model = modelStatus === 'ready';
   const coding = !!cli.anyInstalled;
   const ready = model || coding;
   if (ready && hasChats) return null;
@@ -88,7 +88,10 @@ export const GettingStarted: React.FC<Props> = ({ mode, hasChats, onOpenSettings
     id: 'model',
     done: model,
     title: t('ui.foundation.getting-started-add-a-model'),
-    desc: t('ui.foundation.getting-started-add-a-model-desc'),
+    desc:
+      modelStatus === 'unassigned'
+        ? t('ui.foundation.pick-one-of-your-models-for-nomi-chat')
+        : t('ui.foundation.getting-started-add-a-model-desc'),
     optional: mode === 'workbench',
     action: (
       <Button
@@ -97,7 +100,9 @@ export const GettingStarted: React.FC<Props> = ({ mode, hasChats, onOpenSettings
         onClick={() => onOpenSettings('models')}
         data-testid="getting-started-add-model"
       >
-        {t('ui.foundation.getting-started-go-add')}
+        {modelStatus === 'unassigned'
+          ? t('ui.models.choose-a-model')
+          : t('ui.foundation.getting-started-go-add')}
       </Button>
     ),
   };

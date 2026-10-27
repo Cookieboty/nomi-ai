@@ -14,16 +14,25 @@ beforeEach(() => {
   localStorage.clear();
 });
 
-function mockIpc(opts: { model: boolean; installed: Array<'claude' | 'codex'> }) {
+function mockIpc(opts: { model: boolean | 'unassigned'; installed: Array<'claude' | 'codex'> }) {
   const invoke = vi.fn(async (ch: string, ..._a: unknown[]) => {
-    if (ch === 'ai:providers:state')
+    // Nomi 对话的模型以网关为准：clients.nomi.models.main
+    if (ch === 'ai:gateway:state')
       return {
-        providers: [],
-        envProviders: [],
-        routes: {},
-        roles: [],
-        encryption: 'safeStorage',
-        effectiveProviderId: opts.model ? 'p1' : undefined,
+        status: { running: true },
+        providers: opts.model
+          ? [
+              {
+                id: 'p1',
+                name: 'P1',
+                enabled: true,
+                source: 'user',
+                models: [{ id: 'm1', enabled: true }],
+                urls: {},
+              },
+            ]
+          : [],
+        clients: opts.model === true ? { nomi: { models: { main: 'p1/m1' } } } : {},
       };
     if (ch === 'ai:cli-update:inspect')
       return (['claude', 'codex'] as const).map((kind) => ({
@@ -111,6 +120,16 @@ describe('GettingStarted（侧栏「开始使用」清单）', () => {
     );
   });
 
+  it('已有模型但还没选给 Nomi：这一步提示「选择模型」，不是「添加」', async () => {
+    mockIpc({ model: 'unassigned', installed: [] });
+    const { r, onOpenSettings } = renderIt();
+    await waitFor(() => r.getByTestId('getting-started'));
+    expect(r.getByTestId('getting-started-step-model').getAttribute('data-done')).toBeNull();
+    expect(r.getByTestId('getting-started-add-model').textContent).toBe('选择模型');
+    fireEvent.click(r.getByTestId('getting-started-add-model'));
+    expect(onOpenSettings).toHaveBeenCalledWith('models');
+  });
+
   it('能用之后：「开始」可点，出现「还可以试试」，跳到知识库 / 扩展', async () => {
     mockIpc({ model: true, installed: [] });
     const { r, onOpenSettings, onStart } = renderIt();
@@ -127,7 +146,7 @@ describe('GettingStarted（侧栏「开始使用」清单）', () => {
   it('能用且已有对话：不再显示', async () => {
     const invoke = mockIpc({ model: true, installed: ['claude'] });
     const { r } = renderIt({ hasChats: true });
-    await waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:providers:state'));
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:gateway:state'));
     await new Promise((x) => setTimeout(x, 20));
     expect(r.queryByTestId('getting-started')).toBeNull();
   });
