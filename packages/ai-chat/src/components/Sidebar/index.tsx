@@ -55,6 +55,7 @@ import {
   SearchIcon,
   type SearchEntry,
 } from './searchSupport';
+import { beginSidebarRename } from './sidebarRename';
 import { rel, liveOf, RowActions, ThreadItem, VirtualRow } from './SidebarRows';
 import type { Meta } from './types';
 
@@ -518,12 +519,10 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     setSearchOpen(true);
     window.setTimeout(() => inputRef.current?.focus(), 0);
   });
-  /** 折叠态没有行内输入框：先展开再进入重命名（#163） */
-  const startRename = (id: string) => {
-    if (collapsed) onToggle();
-    setRenamingId(id);
-  };
-  useShortcutEvent('renameTab', () => highlightId && startRename(highlightId));
+  useShortcutEvent(
+    'renameTab',
+    () => highlightId && beginSidebarRename(highlightId, collapsed, onToggle, setRenamingId),
+  );
   useEffect(() => {
     if (searchOpen) inputRef.current?.focus();
   }, [searchOpen]);
@@ -1143,7 +1142,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
               y={ctx.y}
               isTab={Boolean(meta?.tabId)}
               onDismiss={() => setCtx(null)}
-              onRename={() => startRename(ctx.id)}
+              onRename={() => beginSidebarRename(ctx.id, collapsed, onToggle, setRenamingId)}
               onFork={() => onForkRequest?.(ctx.id, 'same')}
               // 跨端分叉只在开发模式提供；普通模式只有「分叉为新对话」（同端 Nomi）
               onForkCross={isDev ? () => onForkRequest?.(ctx.id, 'cross') : undefined}
