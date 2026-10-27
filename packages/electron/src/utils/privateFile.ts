@@ -278,6 +278,18 @@ async function dirIsPrivateAsync(dir: string): Promise<boolean> {
 }
 
 /**
+ * 自己创建文件（不经 writePrivateFile*）的调用方用：确保目录是私有目录（userData 子目录会自动收紧，
+ * 本进程同一目录只收紧一次），返回「目录里接下来新建的文件是否靠继承就是私有的」。
+ * - 非 Windows：恒为 true（权限靠新建时的 0600 mode，与 ACL 无关）
+ * - Windows：false 时调用方必须对自己新建的文件逐个收紧（tightenWindowsAclAsync）
+ * 注意：只对「新建」的文件成立；打开已存在的文件沿用它自己的旧 ACL，调用方应先删掉同名残留。
+ */
+export async function ensureInheritedPrivateDirAsync(dir: string): Promise<boolean> {
+  if (process.platform !== 'win32') return true;
+  return dirIsPrivateAsync(dir);
+}
+
+/**
  * 普通覆盖写之后的 Windows 收紧。dirPrivate = 写之前目录已是私有；before = 写之前文件的身份（不存在为 null）。
  * - 新建文件 + 私有目录：继承来的 ACE 已经私有，跳过
  * - 本进程收紧过的同一文件：覆盖写不改 ACL，跳过
@@ -382,6 +394,9 @@ export function writePrivateFileAtomic(file: string, data: string): void {
     }
   }
   fs.writeFileSync(tmp, data, { mode: 0o600 });
+  // 逐文件兜底在 rename 之前收紧临时文件：显式 ACE 随文件一起 rename，目标出现时就已私有；
+  // 失败时 rename 后再对目标补一次
+  const tmpPrivate = win && !dirPrivate && tightenWindowsAcl(tmp, 'file');
   renameWithRetry(tmp, file);
   try {
     fs.chmodSync(file, 0o600);
@@ -390,8 +405,8 @@ export function writePrivateFileAtomic(file: string, data: string): void {
   }
   if (!win) return;
   // 私有目录：rename 过来的新文件继承了私有 ACE，记下身份；否则逐文件兜底（原子写每次都是新文件）
-  if (dirPrivate) rememberPrivateFile(file, identity(file));
-  else if (tightenWindowsAcl(file, 'file')) rememberPrivateFile(file, identity(file));
+  if (dirPrivate || tmpPrivate || tightenWindowsAcl(file, 'file'))
+    rememberPrivateFile(file, identity(file));
 }
 
 /** 每个目标文件的写入队列：同一路径的异步原子写按调用顺序串行，最后一次调用的内容最后落盘 */
@@ -417,8 +432,11 @@ async function writeAtomicNow(file: string, data: string): Promise<void> {
   const tmp = `${file}.${process.pid}.${++tmpSeq}.tmp`;
   const win = process.platform === 'win32';
   const dirPrivate = win && (await dirIsPrivateAsync(path.dirname(file)));
+  let tmpPrivate: boolean;
   try {
     await fsp.writeFile(tmp, data, { mode: 0o600 });
+    // 同步版本的说明：兜底时先收紧临时文件，rename 后目标即私有，没有非私有的窗口期
+    tmpPrivate = win && !dirPrivate && (await tightenWindowsAclAsync(tmp, 'file'));
     const deadline = Date.now() + RENAME_RETRY_MS;
     for (let delay = 10; ; delay = Math.min(delay * 2, 100)) {
       try {
@@ -439,7 +457,7 @@ async function writeAtomicNow(file: string, data: string): Promise<void> {
     /* Windows 等平台忽略 */
   }
   if (!win) return;
-  if (dirPrivate || (await tightenWindowsAclAsync(file, 'file'))) {
+  if (dirPrivate || tmpPrivate || (await tightenWindowsAclAsync(file, 'file'))) {
     rememberPrivateFile(file, await identityAsync(file));
   }
 }

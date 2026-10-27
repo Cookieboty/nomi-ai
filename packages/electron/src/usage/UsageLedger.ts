@@ -16,7 +16,8 @@ import fsp from 'node:fs/promises';
 import path from 'node:path';
 
 import {
-  tightenWindowsAcl,
+  ensureInheritedPrivateDirAsync,
+  tightenWindowsAclAsync,
   writePrivateFile,
   writePrivateFileAtomicAsync,
 } from '../utils/privateFile';
@@ -654,6 +655,11 @@ export class UsageLedger {
     const tmp = `${this.file}.${process.pid}.${++tmpSeq}.tmp`;
     let fh: fsp.FileHandle | null = null;
     try {
+      // Windows：账本目录（userData/usage）是自动收紧的私有目录时，新建的临时文件继承私有 ACL，
+      // 不用逐文件 icacls；目录收紧不了才在 rename 前异步收紧临时文件（不挡主进程）
+      const inherits = await ensureInheritedPrivateDirAsync(path.dirname(this.file));
+      // 同名残留（崩溃后同 pid 复用序号）会沿用旧 ACL：先删掉，保证下面是新建
+      if (inherits) await fsp.rm(tmp, { force: true }).catch(() => undefined);
       fh = await fsp.open(tmp, 'w', 0o600);
       for (let i = 0; i < snap.length; i += COMPACT_BATCH) {
         if (this.closed || epoch !== this.epoch) break;
@@ -664,7 +670,8 @@ export class UsageLedger {
       }
       await fh.close();
       fh = null;
-      // 写临时文件期间被清空 / 服务已停止：这份快照过时了，放弃（原文件 + 追加的行仍完整）
+      if (!inherits) await tightenWindowsAclAsync(tmp, 'file');
+      // 写临时文件 / 收紧期间被清空 / 服务已停止：这份快照过时了，放弃（原文件 + 追加的行仍完整）
       if (this.closed || epoch !== this.epoch) {
         await fsp.rm(tmp, { force: true }).catch(() => undefined);
         return;
@@ -674,7 +681,7 @@ export class UsageLedger {
       } catch {
         /* Windows 等平台忽略 */
       }
-      tightenWindowsAcl(tmp, 'file');
+      // rename 与下面的补写放在同一个 tick（之间不能有 await）
       fs.renameSync(tmp, this.file);
     } catch (e) {
       await fh?.close().catch(() => undefined);

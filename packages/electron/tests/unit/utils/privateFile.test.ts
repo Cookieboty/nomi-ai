@@ -96,8 +96,9 @@ describe('privateFile Windows ACL', () => {
     calls.length = 0;
     writePrivateFileAtomic(file, 'secret2');
     expect(fs.readFileSync(file, 'utf8')).toBe('secret2');
+    // 原子写在 rename 之前收紧临时文件（ACE 随文件一起 rename）
     expect(calls).toEqual([
-      { cmd: 'icacls', args: [file, '/inheritance:r', '/grant:r', 'CORP\\alice:(F)'] },
+      { cmd: 'icacls', args: [`${file}.tmp`, '/inheritance:r', '/grant:r', 'CORP\\alice:(F)'] },
     ]);
 
     calls.length = 0;
@@ -233,8 +234,8 @@ describe('privateFile Windows ACL 缓存', () => {
     writePrivateFileAtomic(cfg, '1');
     writePrivateFileAtomic(cfg, '2');
     expect(calls).toEqual([
-      [cfg, ...fileGrant],
-      [cfg, ...fileGrant],
+      [`${cfg}.tmp`, ...fileGrant],
+      [`${cfg}.tmp`, ...fileGrant],
     ]);
     calls.length = 0;
     const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'pf-outside-'));
@@ -262,14 +263,16 @@ describe('privateFile Windows ACL 缓存', () => {
     status = 5;
     const f = path.join(sub, 'a.json');
     writePrivateFileAtomic(f, '1');
+    // icacls 全部失败：临时文件收紧失败后 rename 完再对目标补一次
     expect(calls).toEqual([
       [sub, ...dirGrant],
+      [`${f}.tmp`, ...fileGrant],
       [f, ...fileGrant],
     ]);
     status = 0;
     calls.length = 0;
     writePrivateFileAtomic(f, '2');
-    expect(calls).toEqual([[f, ...fileGrant]]);
+    expect(calls).toEqual([[`${f}.tmp`, ...fileGrant]]);
     warn.mockRestore();
   });
 
@@ -300,7 +303,9 @@ describe('privateFile Windows ACL 缓存', () => {
     // 兜底目录：每次异步逐文件收紧，不走同步 spawn
     const cfg = path.join(root, 'config.json');
     await writePrivateFileAtomicAsync(cfg, '1');
-    expect(asyncCalls.slice(1)).toEqual([[cfg, ...fileGrant]]);
+    expect(asyncCalls.slice(1)).toEqual([
+      [expect.stringMatching(/config\.json\.\d+\.\d+\.tmp$/), ...fileGrant],
+    ]);
     expect(calls).toEqual([]);
   });
 

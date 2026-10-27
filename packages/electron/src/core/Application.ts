@@ -1024,8 +1024,8 @@ export class Application implements IApplication {
       // 停止 AI runtime（务必先于 IPC 清理，避免通道注册器空指针）
       await this.stopAIRuntime();
 
-      // 保存配置
-      await this.configService.save();
+      // 保存配置：退出路径同步落盘最新配置（日常保存走异步写，见 ConfigService.flushOnQuit）
+      await this.configService.flushOnQuit();
 
       // 清理IPC处理器
       this.ipcRegistry.cleanup();
