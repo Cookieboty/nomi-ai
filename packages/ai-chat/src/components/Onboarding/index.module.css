@@ -344,7 +344,8 @@
   cursor: default;
 }
 
-/* 背景插画：高度铺满卡片（auto 100%），人物靠右下，始终完整；左侧奶油色渐变保证可读 */
+/* 背景插画：高度铺满卡片（auto 100%），靠右下；配图人物（到腰以下）只在原图右侧 ~33%，
+   所以在卡片右侧 ~40% 内完整露出动作；左侧奶油色渐变到 60% 截止，不洗白人物 */
 .bg {
   position: absolute;
   inset: 0;
@@ -362,9 +363,9 @@
   background: linear-gradient(
     90deg,
     var(--onb-wash) 0%,
-    var(--onb-wash) 46%,
-    rgba(var(--onb-wash-rgb), 0.82) 56%,
-    rgba(var(--onb-wash-rgb), 0) 72%
+    var(--onb-wash) 48%,
+    rgba(var(--onb-wash-rgb), 0.8) 54%,
+    rgba(var(--onb-wash-rgb), 0) 60%
   );
 }
 .cardArt .step {
