@@ -1,4 +1,9 @@
 /** 新手引导与主进程的通信（`ai:onboarding:*`）；没有 IPC（浏览器预览 / 测试）时退化为本地状态 */
+import { EMPTY_USER_PROFILE, normalizeUserProfile, type UserProfile } from '@nomi-ai/types';
+
+/** 同一窗口内广播职业与兴趣的变化 */
+const PROFILE_EVENT = 'cd:onboarding-profile';
+
 export interface OnboardingState {
   done: boolean;
   skipped?: boolean;
@@ -46,6 +51,31 @@ export const onboardingClient = {
     return () => {
       off?.();
       window.removeEventListener('cd:onboarding-show', fn);
+    };
+  },
+  /** 职业与兴趣（没选过为空） */
+  async profile(): Promise<UserProfile> {
+    const b = bridge();
+    if (!b) return EMPTY_USER_PROFILE;
+    return normalizeUserProfile(await b.invoke('ai:onboarding:profile').catch(() => null));
+  },
+  async setProfile(p: UserProfile): Promise<UserProfile> {
+    const saved = normalizeUserProfile(
+      (await bridge()
+        ?.invoke('ai:onboarding:set-profile', p)
+        .catch(() => null)) ?? p,
+    );
+    // 同一窗口立即生效（主进程也会广播 ai:onboarding:profile-changed）
+    window.dispatchEvent(new CustomEvent<UserProfile>(PROFILE_EVENT, { detail: saved }));
+    return saved;
+  },
+  onProfile(fn: (p: UserProfile) => void): () => void {
+    const off = bridge()?.on?.('ai:onboarding:profile-changed', (p) => fn(normalizeUserProfile(p)));
+    const local = (e: Event) => fn(normalizeUserProfile((e as CustomEvent<unknown>).detail));
+    window.addEventListener(PROFILE_EVENT, local);
+    return () => {
+      off?.();
+      window.removeEventListener(PROFILE_EVENT, local);
     };
   },
   async persona(): Promise<string> {

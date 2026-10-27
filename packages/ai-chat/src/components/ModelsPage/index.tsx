@@ -325,7 +325,7 @@ export const ModelsPage: React.FC = () => {
             onToggle={() => setOpenCli((x) => (x === kind ? null : kind))}
             onAssign={(patch) => assignCli(kind, patch)}
             missing={cli.missing(kind)}
-            installBusy={cli.busy}
+            installBusy={cli.busy(kind)}
             onInstall={() => cli.install(kind)}
           />
         ))}
@@ -391,7 +391,8 @@ const CliRow: React.FC<{
   onAssign: (patch: CliAssignPatch) => void;
   /** 没安装：整行变灰，只显示「安装」 */
   missing: boolean;
-  installBusy: string | null;
+  /** 这一行的编程助手正在安装（其他行不受影响） */
+  installBusy: boolean;
   onInstall: () => void;
 }> = ({
   kind,
@@ -421,18 +422,13 @@ const CliRow: React.FC<{
         <Button
           size="sm"
           variant="secondary"
-          disabled={installBusy !== null}
-          title={
-            installBusy && installBusy !== kind
-              ? t('ui.foundation.another-install-update-is-already-in-progress')
-              : undefined
-          }
+          disabled={installBusy}
           onClick={onInstall}
           aria-label={t('ui.cli-monitor.install-named', name)}
           data-testid={`cli-install-${kind}`}
         >
           <Icon icon={Download} size={14} />
-          {installBusy === kind ? t('ui.cli-monitor.working') : t('ui.models.install')}
+          {installBusy ? t('ui.cli-monitor.working') : t('ui.models.install')}
         </Button>
       </div>
     );

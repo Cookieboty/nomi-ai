@@ -12,12 +12,14 @@ let calls: Call[] = [];
 let persona = '我喜欢猫';
 let done = false;
 let startupView: 'mascot' | 'main' = 'mascot';
+let profile: unknown = { role: null, interests: [] };
 
 beforeEach(() => {
   calls = [];
   persona = '我喜欢猫';
   done = false;
   startupView = 'mascot';
+  profile = { role: null, interests: [] };
   (window as unknown as { aiIPC: unknown }).aiIPC = {
     invoke: async (ch: string, ...a: unknown[]) => {
       calls.push([ch, ...a]);
@@ -25,6 +27,11 @@ beforeEach(() => {
       if (ch === 'ai:onboarding:complete') {
         done = true;
         return { done };
+      }
+      if (ch === 'ai:onboarding:profile') return profile;
+      if (ch === 'ai:onboarding:set-profile') {
+        profile = a[0];
+        return profile;
       }
       if (ch === 'ai:startup:get') return { defaultView: startupView };
       if (ch === 'ai:startup:set') {
@@ -60,7 +67,7 @@ const mascot = () =>
   calls.filter((c) => c[0] === 'ai:onboarding:mascot').map((c) => c[1] as { type: string });
 
 describe('first-launch onboarding', () => {
-  it('walks language → theme → startup → layout → character & voice → name & tone → provider → privacy', async () => {
+  it('walks language → theme → startup → voice → name & tone → occupation & interests → provider → privacy', async () => {
     render(<OnboardingHost />);
     await screen.findByTestId('onboarding-step-language');
     // 看板娘打招呼
@@ -101,16 +108,33 @@ describe('first-launch onboarding', () => {
     fireEvent.change(screen.getByTestId('onb-name'), { target: { value: '小林' } });
     fireEvent.click(screen.getByTestId('onb-tone-concise'));
     fireEvent.click(screen.getByTestId('onboarding-next'));
-    await screen.findByTestId('onboarding-step-provider');
+    await screen.findByTestId('onboarding-step-profile');
     expect(persona).toContain('- 请称呼我：小林');
     expect(persona).toContain('简洁专业');
     expect(persona).toContain('我喜欢猫');
 
-    // 6 供应商：可跳过
+    // 6 职业（单选）与兴趣（多选，再点取消）→ 存进主进程，并写进 persona
+    fireEvent.click(screen.getByTestId('onb-role-office'));
+    fireEvent.click(screen.getByTestId('onb-role-developer'));
+    expect(screen.getByTestId('onb-role-office').getAttribute('aria-checked')).toBe('false');
+    fireEvent.click(screen.getByTestId('onb-interest-writing'));
+    fireEvent.click(screen.getByTestId('onb-interest-coding'));
+    fireEvent.click(screen.getByTestId('onb-interest-language'));
+    fireEvent.click(screen.getByTestId('onb-interest-language'));
+    expect(screen.getByTestId('onb-interest-coding').getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(screen.getByTestId('onboarding-next'));
+    await screen.findByTestId('onboarding-step-provider');
+    expect(profile).toEqual({ role: 'developer', interests: ['coding', 'writing'] });
+    expect(persona).toContain('- 我的职业：开发者');
+    expect(persona).toContain('- 我的兴趣：编程、写作');
+    expect(persona).toContain('- 请称呼我：小林');
+    expect(persona.match(/<!-- onboarding -->/g)).toHaveLength(1);
+
+    // 7 供应商：可跳过
     expect(screen.getByTestId('onb-provider')).toBeTruthy();
     fireEvent.click(screen.getByTestId('onboarding-skip-step'));
 
-    // 7 隐私 → 开始使用
+    // 8 隐私 → 开始使用
     await screen.findByTestId('onboarding-step-privacy');
     fireEvent.click(screen.getByTestId('onboarding-finish'));
     await waitFor(() => expect(screen.queryByTestId('onboarding')).toBeNull());
@@ -179,6 +203,21 @@ describe('first-launch onboarding', () => {
       window.dispatchEvent(new CustomEvent('cd:onboarding-show'));
     });
     expect(screen.getByTestId('onboarding-step-language')).toBeTruthy();
+  });
+
+  it('re-run preselects the saved occupation and interests; skipping the step saves nothing', async () => {
+    profile = { role: 'student', interests: ['learning'] };
+    render(<OnboardingHost />);
+    await screen.findByTestId('onboarding-step-language');
+    for (let k = 0; k < 5; k++) fireEvent.click(await screen.findByTestId('onboarding-skip-step'));
+    await screen.findByTestId('onboarding-step-profile');
+    await waitFor(() =>
+      expect(screen.getByTestId('onb-role-student').getAttribute('aria-checked')).toBe('true'),
+    );
+    expect(screen.getByTestId('onb-interest-learning').getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(screen.getByTestId('onboarding-skip-step'));
+    await screen.findByTestId('onboarding-step-provider');
+    expect(calls.some((c) => c[0] === 'ai:onboarding:set-profile')).toBe(false);
   });
 
   it('persona block is replaced, not duplicated, on re-run', () => {

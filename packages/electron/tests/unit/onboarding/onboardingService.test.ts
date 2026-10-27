@@ -53,4 +53,20 @@ describe('OnboardingService', () => {
     expect(s.mascot({ type: 'open-panel', panel: 'x' })).toBe(false);
     expect(s.mascot(null)).toBe(false);
   });
+  it('profile: validated, persisted, broadcast, and kept across complete / reopen', async () => {
+    const d = dir();
+    const s = make(d);
+    expect(s.profile()).toEqual({ role: null, interests: [] });
+    const saved = s.setProfile({
+      role: 'developer',
+      interests: ['writing', 'hacking', 'coding', 'coding'],
+    });
+    // 未知 id 丢掉，按固定顺序去重
+    expect(saved).toEqual({ role: 'developer', interests: ['coding', 'writing'] });
+    expect(sent).toContainEqual(['ai:onboarding:profile-changed', saved]);
+    s.complete();
+    await s.reopen();
+    expect(make(d).profile()).toEqual(saved);
+    expect(s.setProfile({ role: 'astronaut' })).toEqual({ role: null, interests: [] });
+  });
 });

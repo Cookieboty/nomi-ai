@@ -21,8 +21,8 @@ export interface CliInstallState {
   missing: (kind: CliKind) => boolean;
   /** 本机是否装了任一编程助手（还没查到结果时为 null） */
   anyInstalled: boolean | null;
-  /** 正在安装 / 更新的端点（同一时刻只有一个） */
-  busy: CliUpdatableKind | null;
+  /** 该端点正在安装 / 更新（不同端点可以同时进行） */
+  busy: (kind: CliKind) => boolean;
   install: (kind: CliKind) => void;
   dialog: React.ReactNode;
 }
@@ -30,7 +30,16 @@ export interface CliInstallState {
 export function useCliInstall(onError: (message: string) => void): CliInstallState {
   const [infos, setInfos] = useState<CliInstallInfo[] | null>(null);
   const [plan, setPlan] = useState<CliInstallPlan | null>(null);
-  const [busy, setBusy] = useState<CliUpdatableKind | null>(null);
+  const [busy, setBusy] = useState<ReadonlySet<CliUpdatableKind>>(() => new Set());
+  const mark = useCallback((kind: CliUpdatableKind, on: boolean) => {
+    setBusy((cur) => {
+      if (cur.has(kind) === on) return cur;
+      const next = new Set(cur);
+      if (on) next.add(kind);
+      else next.delete(kind);
+      return next;
+    });
+  }, []);
 
   const load = useCallback(() => {
     if (!cliUpdateClient.available()) return;
@@ -45,16 +54,16 @@ export function useCliInstall(onError: (message: string) => void): CliInstallSta
     load();
     cliUpdateClient
       .busy()
-      .then((b) => setBusy(b))
+      .then((kinds) => setBusy(new Set(kinds)))
       .catch(() => undefined);
     return cliUpdateClient.onEvent((e) => {
-      if (e.phase === 'start') setBusy(e.kind);
+      if (e.phase === 'start') mark(e.kind, true);
       else if (e.phase === 'done' || e.phase === 'error') {
-        setBusy((b) => (b === e.kind ? null : b));
+        mark(e.kind, false);
         load();
       }
     });
-  }, [load]);
+  }, [load, mark]);
 
   const openPlan = (kind: CliUpdatableKind, scope: CliInstallScope = 'global') =>
     cliUpdateClient
@@ -66,7 +75,7 @@ export function useCliInstall(onError: (message: string) => void): CliInstallSta
     if (!plan || plan.blockers.length) return;
     const { kind, scope } = plan;
     setPlan(null);
-    setBusy(kind);
+    mark(kind, true);
     cliUpdateClient
       .run(kind, scope)
       .then((r) => {
@@ -78,7 +87,7 @@ export function useCliInstall(onError: (message: string) => void): CliInstallSta
       })
       .catch((e: Error) => onError(e.message))
       .finally(() => {
-        setBusy((b) => (b === kind ? null : b));
+        mark(kind, false);
         load();
       });
   };
@@ -90,7 +99,7 @@ export function useCliInstall(onError: (message: string) => void): CliInstallSta
       return Boolean(info && !info.path);
     },
     anyInstalled: infos && infos.some((i) => !!i.path),
-    busy,
+    busy: (kind) => busy.has(kind as CliUpdatableKind),
     install: (kind) => void openPlan(kind),
     dialog: (
       // 设置页以内嵌方式渲染面板；确认框要浮在页面上方

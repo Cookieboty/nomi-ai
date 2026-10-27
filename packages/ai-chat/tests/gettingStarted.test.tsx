@@ -14,7 +14,15 @@ beforeEach(() => {
   localStorage.clear();
 });
 
-function mockIpc(opts: { model: boolean | 'unassigned'; installed: Array<'claude' | 'codex'> }) {
+type Kind = 'claude' | 'codex' | 'gemini';
+
+function mockIpc(opts: {
+  model: boolean | 'unassigned';
+  installed: Kind[];
+  profile?: { role: string | null; interests: string[] };
+  /** 安装命令一直不结束（测试并发） */
+  hangRun?: boolean;
+}) {
   const invoke = vi.fn(async (ch: string, ..._a: unknown[]) => {
     // Nomi 对话的模型以网关为准：clients.nomi.models.main
     if (ch === 'ai:gateway:state')
@@ -35,7 +43,7 @@ function mockIpc(opts: { model: boolean | 'unassigned'; installed: Array<'claude
         clients: opts.model === true ? { nomi: { models: { main: 'p1/m1' } } } : {},
       };
     if (ch === 'ai:cli-update:inspect')
-      return (['claude', 'codex'] as const).map((kind) => ({
+      return (['claude', 'codex', 'gemini'] as const).map((kind) => ({
         kind,
         path: opts.installed.includes(kind) ? `/usr/local/bin/${kind}` : null,
         version: null,
@@ -44,10 +52,13 @@ function mockIpc(opts: { model: boolean | 'unassigned'; installed: Array<'claude
         updateAvailable: false,
         updateSupported: true,
       }));
-    if (ch === 'ai:cli-update:busy') return null;
+    if (ch === 'ai:cli-update:busy') return [];
+    if (ch === 'ai:onboarding:profile') return opts.profile ?? null;
+    if (ch === 'ai:cli-update:run')
+      return opts.hangRun ? new Promise(() => undefined) : { ok: true };
     if (ch === 'ai:cli-update:preview')
       return {
-        kind: 'claude',
+        kind: _a[0] ?? 'claude',
         scope: 'global',
         argv: ['npm', 'i'],
         blockers: [],
@@ -161,6 +172,76 @@ describe('GettingStarted（侧栏「开始使用」清单）', () => {
     const second = renderIt().r;
     await new Promise((x) => setTimeout(x, 20));
     expect(second.queryByTestId('getting-started')).toBeNull();
+  });
+
+  it('按职业推荐：开发者在助手模式下也先装编程助手（不标可选），两个可以同时安装', async () => {
+    const invoke = mockIpc({
+      model: true,
+      installed: [],
+      profile: { role: 'developer', interests: [] },
+      hangRun: true,
+    });
+    const { r } = renderIt();
+    await waitFor(() => r.getByTestId('getting-started-step-cli'));
+    const first = r.container.querySelector('[data-testid^="getting-started-step-"]');
+    expect(first!.getAttribute('data-testid')).toBe('getting-started-step-cli');
+    expect(r.getByTestId('getting-started-step-cli').textContent).not.toContain('可选');
+    expect(r.queryByTestId('getting-started-install-gemini')).toBeNull();
+    expect(r.getByTestId('getting-started-tips').textContent).toContain('为你推荐');
+
+    fireEvent.click(r.getByTestId('getting-started-install-claude'));
+    fireEvent.click(await waitFor(() => r.getByTestId('cli-version-confirm')));
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('ai:cli-update:run', 'claude', 'global'),
+    );
+    // Claude Code 还在装：它的按钮显示「安装中」，Codex 照样可以点
+    expect(r.getByTestId('getting-started-install-claude')).toHaveProperty('disabled', true);
+    expect(r.getByTestId('getting-started-install-codex')).toHaveProperty('disabled', false);
+    fireEvent.click(r.getByTestId('getting-started-install-codex'));
+    fireEvent.click(await waitFor(() => r.getByTestId('cli-version-confirm')));
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('ai:cli-update:run', 'codex', 'global'),
+    );
+    expect(r.getByTestId('getting-started-install-codex')).toHaveProperty('disabled', true);
+  });
+
+  it('按职业推荐：学生推荐 Gemini + Codex；职场办公只推荐 Codex 兜底（标可选），推荐日程与知识库', async () => {
+    mockIpc({ model: true, installed: [], profile: { role: 'student', interests: [] } });
+    const student = renderIt().r;
+    await waitFor(() => student.getByTestId('getting-started-install-gemini'));
+    expect(student.getByTestId('getting-started-install-codex')).toBeTruthy();
+    expect(student.queryByTestId('getting-started-install-claude')).toBeNull();
+    cleanup();
+
+    mockIpc({ model: true, installed: [], profile: { role: 'office', interests: [] } });
+    const { r, onOpenSettings } = renderIt();
+    await waitFor(() => r.getByTestId('getting-started-tips'));
+    expect(r.getByTestId('getting-started-step-cli').textContent).toContain('可选');
+    expect(r.getByTestId('getting-started-install-codex')).toBeTruthy();
+    expect(r.queryByTestId('getting-started-install-claude')).toBeNull();
+    fireEvent.click(r.getByText('设一个提醒或日程'));
+    expect(onOpenSettings).toHaveBeenLastCalledWith('knowledge', 'schedule');
+    // 点过的功能不再列出
+    expect(r.queryByText('设一个提醒或日程')).toBeNull();
+    expect(r.getByText('加一个知识库文件夹')).toBeTruthy();
+  });
+
+  it('选了职业：有了第一个对话后只留「为你推荐」，做完才消失', async () => {
+    // 兜底的 Codex 还没装：留着这一步
+    mockIpc({ model: true, installed: [], profile: { role: 'creator', interests: [] } });
+    const before = renderIt({ hasChats: true }).r;
+    await waitFor(() => before.getByTestId('getting-started-install-codex'));
+    cleanup();
+
+    mockIpc({ model: true, installed: ['codex'], profile: { role: 'creator', interests: [] } });
+    const { r } = renderIt({ hasChats: true });
+    await waitFor(() => r.getByTestId('getting-started-tips'));
+    expect(r.queryByTestId('getting-started-step-cli')).toBeNull();
+    expect(r.queryByTestId('getting-started-step-model')).toBeNull();
+    expect(r.queryByTestId('getting-started-step-start')).toBeNull();
+    fireEvent.click(r.getByText('试试语音对话（按住 F2 说话）'));
+    fireEvent.click(r.getByText('加一个知识库文件夹'));
+    await waitFor(() => expect(r.queryByTestId('getting-started')).toBeNull());
   });
 
   it('没有桌面桥（浏览器）：不显示', () => {

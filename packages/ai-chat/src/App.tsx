@@ -63,6 +63,7 @@ import { useHarnessState } from './hooks/useHarnessState';
 import { useNomiModelStatus } from './hooks/useNomiModelStatus';
 import { useRestoreNomiOnMain } from './hooks/useRestoreNomiOnMain';
 import { useSendQueue } from './hooks/useSendQueue';
+import { useUserProfile } from './hooks/useUserProfile';
 import { setProviderEndpoint } from './services/chatPrefs';
 import { notifyConversationsChanged } from './services/conversationStore';
 import { desktopClient } from './services/desktopClient';
@@ -71,6 +72,7 @@ import { harnessClient, type ContextBreakdown } from './services/harnessClient';
 import { derivedSwitchTip } from './services/modelSwitchTip';
 import { nomiModelLabel, useGatewayState, watchNomiModel } from './services/nomiModel';
 import { providerClient } from './services/providerClient';
+import { QUICK_PROMPT_TEXT, recommend } from './services/recommendations';
 import type { ImageAttachment } from './services/screenClient';
 import {
   RENAME_CHAT_EVENT,
@@ -666,6 +668,8 @@ const AiChatContent: React.FC = () => {
   const handleNewChat = useCallback(() => actions.newConversation(), [actions]);
   // 欢迎屏：Nomi 对话还没有模型时，快捷问题换成「添加模型」/「选择模型」，免得一点就报错
   const modelStatus = useNomiModelStatus();
+  // 欢迎页的示例问题按新手引导里选的职业与兴趣推荐
+  const quickPrompts = recommend(useUserProfile()).prompts;
 
   const paletteCommands = useMemo<PaletteCommand[]>(
     () => [
@@ -901,26 +905,14 @@ const AiChatContent: React.FC = () => {
                       </div>
                     ) : (
                       <div className="quick-actions">
-                        {[
-                          [
-                            t('ui.foundation.hi-please-introduce-yourself'),
-                            t('ui.foundation.say-hello'),
-                          ],
-                          [
-                            t('ui.foundation.help-me-write-some-code'),
-                            t('ui.foundation.write-some-code'),
-                          ],
-                          [
-                            t('ui.foundation.help-me-organize-today-s-to-dos'),
-                            t('ui.foundation.organize-today-s-to-dos'),
-                          ],
-                        ].map(([prompt, label]) => (
+                        {quickPrompts.map((id) => (
                           <button
-                            key={label}
+                            key={id}
                             className="quick-action-btn"
-                            onClick={() => actions.sendMessage(prompt)}
+                            data-testid={`quick-action-${id}`}
+                            onClick={() => actions.sendMessage(t(QUICK_PROMPT_TEXT[id].prompt))}
                           >
-                            {label}
+                            {t(QUICK_PROMPT_TEXT[id].label)}
                           </button>
                         ))}
                       </div>
