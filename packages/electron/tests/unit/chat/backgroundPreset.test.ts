@@ -30,7 +30,7 @@ describe('bundled background preset', () => {
   it('ships the background only via extraResources, not inside asar', () => {
     const config = fs.readFileSync(path.join(packageRoot, 'electron-builder.yml'), 'utf8');
     expect(config).toMatch(/extraResources:[\s\S]*?- from: assets\s+to: assets/);
-    expect(config).toMatch(/^files:[\s\S]*?- '!assets\/backgrounds\/\*\*'/m);
+    expect(config).toMatch(/^files:[\s\S]*?- '!assets\/\*\*'/m);
     const preset = path.join(packageRoot, 'assets/backgrounds/nomi-preset.jpg');
     expect(fs.statSync(preset).size).toBeLessThan(600 * 1024);
     const manifest = JSON.parse(

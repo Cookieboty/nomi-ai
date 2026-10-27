@@ -26,7 +26,6 @@ electronLanguages:
 
 files:
   - dist/**/*
-  - assets/**/*
   - package.json
   # 打包后 renderer / ai-chat 从 process.resourcesPath 加载（见 extraResources），
   # dist/ 下由 copy-renderer 生成的副本只供未打包的本地运行使用 —— 不再重复塞进 asar（~224MB）。
@@ -35,8 +34,8 @@ files:
   # 预加载只用 esbuild 产物 *.bundle.js
   - '!dist/preload.js'
   - '!dist/ai-chat-preload.js'
-  # 运行时从 resources/assets 读（extraResources），asar 内不再带一份背景图
-  - '!assets/backgrounds/**'
+  # assets 全部走 extraResources（Windows Shell / tray / 背景图需磁盘路径），不进 asar
+  - '!assets/**'
   - '!**/*.map'
   - '!**/*.{ts,mts,cts,tsx}'
   - '!**/*.d.ts'
@@ -52,11 +51,27 @@ files:
   - '!**/node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.{asyncify,jsep,jspi}.*'
   # tesseract.js-core（~43MB）：Node 下 tesseract.js 的 worker-script/node/getCore.js 用 wasm-feature-detect
   # 选核心，Electron（Chromium ≥ 114）恒支持 relaxed SIMD，只会走 relaxedsimd 分支；simd / 无 SIMD
-  # 回退分支在 Electron 里不可达。tesseract.js 7.0.0 把布尔 lstmOnly 当 OEM 枚举比较，实际总是加载
-  # 非 LSTM 的 tesseract-core-relaxedsimd；两种 relaxedsimd 都保留，上游修好后无需改这里。
+  # 回退分支在 Electron 里不可达。
+  # 注意：worker-script 把布尔 lstmOnly 传给 getCore 的 oem 参数，而 node/getCore 用
+  # [OEM.DEFAULT, OEM.LSTM_ONLY].includes(oem)（数字 0/1）判断，导致布尔 true/false 都走非 LSTM 分支，
+  # 实际加载 tesseract-core-relaxedsimd。两种 relaxedsimd 都保留，上游修好后无需改这里。
   # *.wasm.js 是把 wasm 内联成 base64 的单文件变体；Node 用的 .js 直接读同名 .wasm，不需要。
   - '!**/node_modules/tesseract.js-core/*.wasm.js'
   - '!**/node_modules/tesseract.js-core/tesseract-core{,-lstm,-simd,-simd-lstm}.{js,wasm}'
+  # zlibjs：tesseract 在 Node 下 require('zlibjs') → bin/node-zlib.js（自包含）；其余 .dev/.pretty/.min 分文件不需要
+  - '!**/node_modules/zlibjs/bin/*.dev.js'
+  - '!**/node_modules/zlibjs/bin/*.dev.min.js'
+  - '!**/node_modules/zlibjs/bin/zlib.pretty*.js'
+  - '!**/node_modules/zlibjs/bin/{crc32,deflate,gunzip,gzip,inflate,inflate_stream,rawdeflate,rawinflate,unzip,zip,zlib,zlib_and_gzip}.min.js'
+  # @nomi-ai/i18n：主进程 require → dist-cjs；workspace 软链会把 src / ESM dist 一并拷进 asar，排除之
+  - '!**/node_modules/@nomi-ai/i18n/src/**'
+  - '!**/node_modules/@nomi-ai/i18n/dist/**'
+  # bare-*：移动端 prebuilds 永远不需要（当前平台桌面 arch 由 afterPack 再裁）
+  - '!**/node_modules/bare-*/prebuilds/android-*/**'
+  - '!**/node_modules/bare-*/prebuilds/ios-*/**'
+
+# asarUnpack 会在 app.asar 内留下重复副本；after-pack-slim 删掉 asar 内副本，并裁掉非当前平台的 bare-* prebuilds
+afterPack: ./scripts/after-pack-slim.mjs
 
 # 默认 normal：maximum 对已压缩的模型纹理收益极小、但显著拖慢打包
 compression: normal

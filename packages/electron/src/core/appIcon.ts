@@ -38,7 +38,7 @@ export function icoFile(assetsDir: string, v: IconVariant): string {
   return path.join(assetsDir, 'app-icons', v, 'app.ico');
 }
 
-/** dev：packages/electron/assets；打包：asar 内同一相对路径（files 含 assets/**） */
+/** dev：packages/electron/assets；打包后请用 diskAssetsDir（extraResources → resources/assets），勿读 asar 内 assets */
 export const assetsDir = (): string => path.join(__dirname, '..', '..', 'assets');
 
 /**
