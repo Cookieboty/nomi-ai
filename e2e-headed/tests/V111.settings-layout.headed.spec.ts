@@ -18,18 +18,15 @@ const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
 const shotDir = process.env.V111_SHOTS_DIR;
 const SECTIONS = [
   ['general', '通用'],
-  ['shortcuts', '快捷键'],
-  ['models', '模型'],
+  ['models', '模型与供应商'],
   ['coding', '编程助手'],
-  ['usage', '用量与费用'],
-  ['senses', '语音与屏幕'],
+  ['usage', '用量与质量'],
   ['knowledge', '知识与记忆'],
-  ['schedule', '日程与日历'],
-  ['notify', '通知 / 灵动岛'],
   ['ext', '扩展 / MCP'],
-  ['local', '本机管理'],
   ['privacy', '隐私与权限'],
 ] as const;
+/** 宽分区：不显示右侧「配置说明」栏（改为页头「说明」按钮） */
+const WIDE = new Set<string>(['usage']);
 
 test.describe('v1.1.1 settings layout', () => {
   let app: ElectronApplication | null = null;
@@ -120,8 +117,13 @@ test.describe('v1.1.1 settings layout', () => {
         const head = chat.locator('[data-testid="settings-page-head"]');
         await expect(head.locator('h1')).toHaveText(label);
         await expect(head.locator('p')).not.toBeEmpty();
-        // 宽窗口：右侧「配置说明」可见，在页头下方、主列右侧，不重叠
+        // 宽窗口：右侧「配置说明」可见，在页头下方、主列右侧，不重叠（宽分区没有右栏）
         const help = chat.locator('[data-testid="settings-help"]');
+        if (WIDE.has(id)) {
+          await expect(help).toHaveCount(0);
+          await shot(`settings-${id}`);
+          continue;
+        }
         await expect(help).toBeVisible();
         const hb = (await help.boundingBox())!;
         const pb = (await head.boundingBox())!;
@@ -132,10 +134,10 @@ test.describe('v1.1.1 settings layout', () => {
       await shot(`settings-${id}`);
     }
 
-    await chat.locator('[data-testid="settings-nav-shortcuts"]').click();
-    await chat.locator('[data-testid="settings-shortcuts-page-tab-global"]').click();
-    await expect(chat.locator('[data-testid="settings-shortcuts-global"]')).toBeVisible();
-    await shot('settings-shortcuts-global');
+    await chat.locator('[data-testid="settings-nav-general"]').click();
+    await chat.locator('[data-testid="settings-general-page-tab-shortcuts"]').click();
+    await expect(chat.locator('[data-testid="settings-shortcuts"]')).toBeVisible();
+    await shot('settings-shortcuts');
 
     await chat.locator('[data-testid="settings-nav-coding"]').click();
     await expect(chat.locator('[data-testid="providers-endpoint-claude"]')).toBeVisible();

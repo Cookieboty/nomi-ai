@@ -6,7 +6,6 @@ import ReactDOM from 'react-dom/client';
 import '@nomi-ai/ui/styles.css';
 import '@nomi-ai/voice/styles.css';
 import App from './App';
-import { SnipOverlay } from './components/SnipOverlay';
 import { initChatBackground } from './services/chatBackground';
 import { dropRetiredPrefs } from './services/chatPrefs';
 
@@ -33,10 +32,7 @@ if (!hasAiIpc) {
 
 const root = ReactDOM.createRoot(document.getElementById('root')!);
 
-if (window.location.hash === '#snip') {
-  // 截图框选遮罩：不加载对话应用本身
-  root.render(<LocaleRoot render={() => <SnipOverlay />} />);
-} else if (hasAiIpc) {
+if (hasAiIpc) {
   root.render(
     <React.StrictMode>
       <LocaleRoot

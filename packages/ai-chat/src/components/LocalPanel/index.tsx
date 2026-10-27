@@ -1,6 +1,6 @@
 /**
- * LocalPanel —— 本地中心：本机模型（llama.cpp 按需下载 / 启停 / 删除 / 设为聊天模型、Ollama）、
- * 本地日历（.ics / 订阅 / CalDAV）、剪贴板历史、全部数据导出。
+ * LocalPanel —— 本机管理：本机模型（llama.cpp 按需下载 / 启停 / 删除 / 设为聊天模型、Ollama）、
+ * 全部数据导出。
  */
 import { t, Icon } from '@nomi-ai/ui';
 import {
@@ -12,7 +12,6 @@ import {
   LoadingState,
   Modal,
   Notice,
-  Select,
   SettingRow,
   SettingsGroup,
   SkeletonList,
@@ -20,7 +19,7 @@ import {
   Tabs,
   IconButton,
 } from '@nomi-ai/ui';
-import { Cpu, CalendarDays, ClipboardList, MapPin, Plus, Trash2, X } from 'lucide-react';
+import { Cpu, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import {
@@ -28,43 +27,26 @@ import {
   STATUS_LABEL,
   collectConversations,
   fmtBytes,
-  fmtWhen,
   hubClient,
   localClient,
   pct,
-  type CalSource,
-  type ClipState,
   type LocalModel,
   type LocalState,
   type OllamaModel,
-  type Occurrence,
   type Progress,
 } from '../../services/localClient';
 
 import styles from './index.module.css';
 
 /** 「本机模型」同时管理内置 llama.cpp 与可选的 Ollama（原 Ollama 标签已并入） */
-type Tab = 'models' | 'calendar' | 'clipboard' | 'export';
-/** 剪贴板历史每条的时间：复用同一个格式器（toLocaleString 带参数时每次都新建 Intl.DateTimeFormat） */
-const clipTime = new Intl.DateTimeFormat('zh-CN', {
-  year: 'numeric',
-  month: 'numeric',
-  day: 'numeric',
-  hour: 'numeric',
-  minute: 'numeric',
-  second: 'numeric',
-  hour12: false,
-});
-const TABS: Tab[] = ['calendar', 'clipboard', 'export', 'models'];
+type Tab = 'models' | 'export';
+const TABS: Tab[] = ['export', 'models'];
 const EXPORT_ITEMS: Array<{ key: string; label: string }> = [
   { key: 'conversations', label: 'ui.knowledge-local.chat-history' },
   { key: 'memory', label: 'ui.foundation.memory' },
   { key: 'schedule', label: 'ui.knowledge-local.reminders-scheduled-tasks' },
-  { key: 'calendar', label: 'ui.knowledge-local.calendar' },
-  { key: 'clipboard', label: 'ui.knowledge-local.clipboard-history' },
   { key: 'skills', label: 'ui.knowledge-local.skill-packs' },
-  { key: 'screen', label: 'ui.knowledge-local.screen-memory-text-index' },
-  { key: 'settings', label: 'ui.knowledge-local.settings-notes-no-keys' },
+  { key: 'settings', label: 'ui.knowledge-local.settings-no-keys' },
 ];
 
 const Bar: React.FC<{ p?: Progress; label?: string }> = ({ p, label }) => (
@@ -95,11 +77,11 @@ export const LocalPanel: React.FC<{
   isVisible: boolean;
   onClose: () => void;
   initialTab?: Tab;
-  /** 只显示这些标签（默认全部）；设置页把「日历」与「本机管理」拆开用 */
+  /** 只显示这些标签（默认全部） */
   tabs?: Tab[];
 }> = ({ isVisible, onClose, initialTab, tabs: only }) => {
   const shown = TABS.filter((x) => !only || only.includes(x));
-  const [tab, setTab] = useState<Tab>(initialTab ?? shown[0] ?? 'calendar');
+  const [tab, setTab] = useState<Tab>(initialTab ?? shown[0] ?? 'export');
   const [st, setSt] = useState<LocalState | null>(null);
   const [prog, setProg] = useState<Record<string, Progress>>({});
   const [err, setErr] = useState('');
@@ -108,23 +90,6 @@ export const LocalPanel: React.FC<{
   const [ollama, setOllama] = useState<OllamaModel[] | null>(null);
   const [ollamaErr, setOllamaErr] = useState('');
   const [pullName, setPullName] = useState('');
-  const [sources, setSources] = useState<CalSource[] | null>(null);
-  const [events, setEvents] = useState<Occurrence[]>([]);
-  const [newEv, setNewEv] = useState<{
-    summary: string;
-    date: string;
-    time: string;
-    mins: string;
-    rrule: string;
-  } | null>(null);
-  const [newSrc, setNewSrc] = useState<{
-    kind: 'ics-url' | 'caldav';
-    name: string;
-    url: string;
-    username: string;
-    password: string;
-  } | null>(null);
-  const [clips, setClips] = useState<ClipState | null>(null);
   const [exp, setExp] = useState<Set<string>>(new Set(EXPORT_ITEMS.map((x) => x.key)));
   const [expDone, setExpDone] = useState('');
 
@@ -145,27 +110,6 @@ export const LocalPanel: React.FC<{
       setOllamaErr((e as Error).message);
     }
   }, []);
-  const loadCal = useCallback(async () => {
-    try {
-      const now = new Date();
-      now.setHours(0, 0, 0, 0);
-      const [s, ev] = await Promise.all([
-        hubClient.calState(),
-        hubClient.calRange(now.getTime(), now.getTime() + 14 * 86_400_000),
-      ]);
-      setSources(s.sources);
-      setEvents(ev);
-    } catch (e) {
-      setErr((e as Error).message);
-    }
-  }, []);
-  const loadClips = useCallback(async () => {
-    try {
-      setClips(await hubClient.clipState());
-    } catch (e) {
-      setErr((e as Error).message);
-    }
-  }, []);
 
   useEffect(() => {
     if (!isVisible) return;
@@ -175,21 +119,17 @@ export const LocalPanel: React.FC<{
     const offs = [
       localClient.onChanged(() => void load()),
       localClient.onProgress((p) => setProg((cur) => ({ ...cur, [p.id]: p }))),
-      hubClient.onChanged(() => void loadCal()),
-      hubClient.onClips(() => void loadClips()),
     ];
     /* eslint-enable react-hooks/set-state-in-effect */
     return () => offs.forEach((f) => f());
-  }, [isVisible, load, loadCal, loadClips]);
+  }, [isVisible, load]);
   useEffect(() => {
     if (!isVisible) return;
     // 切 Tab 时按需拉取（内部通过 await 后 setState，等效外部数据同步），豁免 set-state-in-effect
     /* eslint-disable react-hooks/set-state-in-effect */
     if (tab === 'models' && ollama === null) void loadOllama();
-    if (tab === 'calendar') void loadCal();
-    if (tab === 'clipboard') void loadClips();
     /* eslint-enable react-hooks/set-state-in-effect */
-  }, [isVisible, tab, ollama, loadOllama, loadCal, loadClips]);
+  }, [isVisible, tab, ollama, loadOllama]);
   // Alt+数字只在「可见标签」里切换；只有 1 个可见标签（标签栏已隐藏）时不响应
   const shownKey = shown.join(',');
   useEffect(() => {
@@ -579,467 +519,6 @@ export const LocalPanel: React.FC<{
     </SettingsGroup>
   );
 
-  const color = (cal: string) =>
-    sources?.find((s) => s.id === cal)?.color ?? 'var(--cd-color-accent)';
-  const today = new Date();
-  const ymd = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-  const saveEvent = async () => {
-    if (!newEv || !newEv.summary.trim()) return;
-    const start = new Date(`${newEv.date}T${newEv.time || '00:00'}`).getTime();
-    const mins = Math.max(5, Number(newEv.mins) || 60);
-    await run(
-      'ev',
-      () =>
-        hubClient.calUpsert({
-          summary: newEv.summary.trim(),
-          start,
-          end: newEv.time ? start + mins * 60_000 : start + 86_400_000,
-          allDay: !newEv.time,
-          rrule: newEv.rrule || undefined,
-        }),
-      loadCal,
-    );
-    setNewEv(null);
-  };
-  const calendar = (
-    <div className={styles.stack}>
-      <div className={styles.toolbar}>
-        <span className={`${styles.hint} ${styles.toolbarText}`}>
-          {t('ui.knowledge-local.events-for-the-next-two-weeks-the-assistant')}
-        </span>
-        <span className={styles.toolbarActions}>
-          <Button
-            size="sm"
-            onClick={() => void run('imp', () => hubClient.calImport(), loadCal)}
-            data-testid="cal-import"
-          >
-            {t('ui.knowledge-local.import-ics')}
-          </Button>
-          <Button
-            size="sm"
-            onClick={() =>
-              setNewSrc({ kind: 'ics-url', name: '', url: '', username: '', password: '' })
-            }
-            data-testid="cal-add-source"
-          >
-            {t('ui.knowledge-local.subscribe-caldav')}
-          </Button>
-          <Button
-            size="sm"
-            variant="primary"
-            onClick={() =>
-              setNewEv({ summary: '', date: ymd, time: '10:00', mins: '60', rrule: '' })
-            }
-            data-testid="cal-new"
-          >
-            <Icon icon={Plus} size={14} />
-            {t('ui.knowledge-local.new-event')}
-          </Button>
-        </span>
-      </div>
-      {newEv && (
-        <div className={styles.card} data-testid="cal-editor">
-          <div className={styles.row}>
-            <Input
-              className={styles.grow}
-              size="sm"
-              autoFocus
-              placeholder={t('ui.knowledge-local.title-e-g-group-meeting')}
-              value={t(newEv.summary)}
-              onChange={(e) => setNewEv({ ...newEv, summary: e.target.value })}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') void saveEvent();
-                if (e.key === 'Escape') {
-                  e.stopPropagation();
-                  setNewEv(null);
-                }
-              }}
-              data-testid="cal-summary"
-            />
-            <Input
-              size="sm"
-              type="date"
-              value={newEv.date}
-              onChange={(e) => setNewEv({ ...newEv, date: e.target.value })}
-            />
-            <Input
-              size="sm"
-              type="time"
-              value={newEv.time}
-              onChange={(e) => setNewEv({ ...newEv, time: e.target.value })}
-              aria-label={t('ui.knowledge-local.start-time-leave-empty-for-all-day')}
-            />
-          </div>
-          <div className={styles.row}>
-            <div className={styles.selectBox}>
-              <Select
-                size="sm"
-                value={newEv.mins}
-                onChange={(e) => setNewEv({ ...newEv, mins: e.target.value })}
-                options={[
-                  { value: '30', label: t('ui.knowledge-local.30-minutes') },
-                  { value: '60', label: t('ui.knowledge-local.1-hour') },
-                  { value: '90', label: t('ui.knowledge-local.1-5-hours') },
-                  { value: '120', label: t('ui.knowledge-local.2-hours') },
-                ]}
-              />
-            </div>
-            <div className={styles.selectBox}>
-              <Select
-                size="sm"
-                value={newEv.rrule}
-                onChange={(e) => setNewEv({ ...newEv, rrule: e.target.value })}
-                options={[
-                  { value: '', label: t('ui.foundation.does-not-repeat') },
-                  { value: 'FREQ=DAILY', label: t('ui.foundation.every-day') },
-                  { value: 'FREQ=WEEKLY', label: t('ui.knowledge-local.weekly') },
-                  { value: 'FREQ=MONTHLY', label: t('ui.foundation.monthly') },
-                ]}
-              />
-            </div>
-            <span className={styles.grow} />
-            <Button size="sm" onClick={() => setNewEv(null)}>
-              {t('ui.foundation.cancel')}
-            </Button>
-            <Button
-              size="sm"
-              variant="primary"
-              disabled={!newEv.summary.trim()}
-              onClick={() => void saveEvent()}
-              data-testid="cal-save"
-            >
-              {t('ui.foundation.save')}
-            </Button>
-          </div>
-        </div>
-      )}
-      {newSrc && (
-        <div className={styles.card} data-testid="cal-source-editor">
-          <div className={styles.row}>
-            <div className={styles.selectBox}>
-              <Select
-                size="sm"
-                value={newSrc.kind}
-                onChange={(e) =>
-                  setNewSrc({ ...newSrc, kind: e.target.value as 'ics-url' | 'caldav' })
-                }
-                options={[
-                  { value: 'ics-url', label: t('ui.knowledge-local.ics-subscription-url') },
-                  { value: 'caldav', label: t('ui.knowledge-local.caldav-calendar') },
-                ]}
-              />
-            </div>
-            <Input
-              size="sm"
-              placeholder={t('ui.foundation.name')}
-              value={t(newSrc.name)}
-              onChange={(e) => setNewSrc({ ...newSrc, name: e.target.value })}
-            />
-            <Input
-              className={styles.grow}
-              size="sm"
-              placeholder="https://…"
-              value={newSrc.url}
-              onChange={(e) => setNewSrc({ ...newSrc, url: e.target.value })}
-              data-testid="cal-source-url"
-            />
-          </div>
-          {newSrc.kind === 'caldav' && (
-            <div className={styles.row}>
-              <Input
-                size="sm"
-                placeholder={t('ui.knowledge-local.username')}
-                value={newSrc.username}
-                onChange={(e) => setNewSrc({ ...newSrc, username: e.target.value })}
-              />
-              <Input
-                size="sm"
-                type="password"
-                placeholder={t('ui.knowledge-local.password-app-password-stored-encrypted-locally')}
-                value={newSrc.password}
-                onChange={(e) => setNewSrc({ ...newSrc, password: e.target.value })}
-              />
-            </div>
-          )}
-          <div className={styles.row}>
-            <span className={styles.hint}>
-              {t('ui.knowledge-local.read-only-sync-refreshed-every-30-minutes')}
-            </span>
-            <span className={styles.grow} />
-            <Button size="sm" onClick={() => setNewSrc(null)}>
-              {t('ui.foundation.cancel')}
-            </Button>
-            <Button
-              size="sm"
-              variant="primary"
-              disabled={!/^https?:\/\//.test(newSrc.url)}
-              onClick={() => {
-                const s = newSrc;
-                setNewSrc(null);
-                void run(
-                  'src',
-                  () =>
-                    hubClient.calAddSource({
-                      ...s,
-                      name: s.name || t('ui.knowledge-local.subscribe-to-calendar'),
-                    }),
-                  loadCal,
-                );
-              }}
-              data-testid="cal-source-save"
-            >
-              {t('ui.knowledge-local.add-and-sync')}
-            </Button>
-          </div>
-        </div>
-      )}
-      {sources && sources.length > 0 && (
-        <div className={styles.row} data-testid="cal-sources">
-          {sources.map((s) => (
-            <span
-              key={s.id}
-              className={styles.check}
-              title={
-                s.lastError ||
-                (s.lastSync
-                  ? t(
-                      'ui.knowledge-local.last-synced',
-                      new Date(s.lastSync).toLocaleString('zh-CN', { hour12: false }),
-                    )
-                  : '')
-              }
-            >
-              <i className={styles.dot} style={{ background: s.color }} />
-              <Switch
-                checked={s.enabled}
-                onChange={(v) =>
-                  void run(`ct:${s.id}`, () => hubClient.calToggle(s.id, v), loadCal)
-                }
-                aria-label={t('ui.knowledge-local.show', s.name)}
-              />
-              {t(s.name)}
-              {s.count !== undefined ? ` · ${s.count}` : ''}
-              {s.lastError && <Badge tone="danger">{t('ui.knowledge-local.sync-failed')}</Badge>}
-              {s.passwordInsecure && (
-                <Badge
-                  tone="warning"
-                  title={t('ui.chat-settings.this-password-was-saved-in-plain-text-by')}
-                >
-                  {t('ui.chat-settings.password-not-encrypted')}
-                </Badge>
-              )}
-              {(s.kind === 'ics-url' || s.kind === 'caldav') && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => void run(`cs:${s.id}`, () => hubClient.calSync(s.id), loadCal)}
-                >
-                  {t('ui.knowledge-local.sync')}
-                </Button>
-              )}
-              {s.kind !== 'local' && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    if (window.confirm(t('ui.knowledge-local.remove-calendar', s.name)))
-                      void run(`cr:${s.id}`, () => hubClient.calRemoveSource(s.id), loadCal);
-                  }}
-                >
-                  {t('ui.knowledge-local.remove')}
-                </Button>
-              )}
-            </span>
-          ))}
-          <span className={styles.grow} />
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => void run('cx', () => hubClient.calExport())}
-          >
-            {t('ui.knowledge-local.export-ics')}
-          </Button>
-        </div>
-      )}
-      {sources === null ? (
-        <SkeletonList rows={3} />
-      ) : events.length === 0 ? (
-        <EmptyState
-          icon={CalendarDays}
-          title={t('ui.knowledge-local.no-events-in-the-next-two-weeks')}
-          description={t('ui.knowledge-local.create-one-or-import-subscribe-to-an-existing')}
-        />
-      ) : (
-        <div className={styles.list} data-testid="cal-events">
-          {events.map((o) => (
-            <div key={`${o.uid}:${o.start}`} className={styles.card}>
-              <div className={styles.cardHead}>
-                <i className={styles.dot} style={{ background: color(o.cal) }} />
-                <b className={styles.grow}>{t(o.summary)}</b>
-                <span className={styles.hint}>{fmtWhen(o)}</span>
-                {o.cal === 'local' && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() =>
-                      void run(`er:${o.uid}`, () => hubClient.calRemove(o.uid), loadCal)
-                    }
-                    aria-label={t('ui.knowledge-local.delete', o.summary)}
-                  >
-                    <Icon icon={X} />
-                  </Button>
-                )}
-              </div>
-              {o.location && (
-                <div className={styles.meta}>
-                  <Icon icon={MapPin} size={12} /> {o.location}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-
-  const clipboard = (
-    <div className={styles.stack}>
-      <SettingsGroup
-        title={t('ui.knowledge-local.clipboard-history')}
-        description={t('ui.knowledge-local.stored-on-this-device-only-off-by-default')}
-        actions={
-          clips?.items.length ? (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => {
-                if (window.confirm(t('ui.knowledge-local.clear-unpinned-clipboard-history')))
-                  void run('cc', () => hubClient.clipClear(), loadClips);
-              }}
-            >
-              {t('ui.knowledge-local.clear')}
-            </Button>
-          ) : undefined
-        }
-      >
-        <SettingRow title={t('ui.knowledge-local.record-clipboard-history')}>
-          <Switch
-            checked={!!clips?.settings.enabled}
-            onChange={(v) =>
-              void run('ce', () => hubClient.clipSettings({ enabled: v }), loadClips)
-            }
-            aria-label={t('ui.knowledge-local.record-clipboard-history')}
-            data-testid="clip-enabled"
-          />
-        </SettingRow>
-        <SettingRow title={t('ui.knowledge-local.include-images')}>
-          <Switch
-            checked={!!clips?.settings.images}
-            disabled={!clips?.settings.enabled}
-            onChange={(v) => void run('ci', () => hubClient.clipSettings({ images: v }), loadClips)}
-            aria-label={t('ui.knowledge-local.include-images')}
-          />
-        </SettingRow>
-      </SettingsGroup>
-      {clips === null ? (
-        <SkeletonList rows={3} />
-      ) : clips.items.length === 0 ? (
-        <EmptyState
-          icon={ClipboardList}
-          title={
-            clips.settings.enabled
-              ? t('ui.knowledge-local.nothing-copied-yet')
-              : t('ui.knowledge-local.clipboard-history-is-off')
-          }
-          description={
-            clips.settings.enabled
-              ? t('ui.knowledge-local.try-copying-some-text-or-an-image')
-              : t('ui.knowledge-local.when-on-recently-copied-items-appear-here')
-          }
-        />
-      ) : (
-        <div className={styles.list} data-testid="clip-list">
-          {clips.items.map((c) => (
-            <div key={c.id} className={styles.card} data-testid="clip-item">
-              <div className={styles.cardHead}>
-                <span className={styles.grow}>
-                  {c.kind === 'text' ? (
-                    <pre className={styles.clipText}>{t(c.text)}</pre>
-                  ) : (
-                    <img
-                      className={styles.clipImg}
-                      src={c.thumb}
-                      alt={t('ui.knowledge-local.clipboard-image', c.w, c.h)}
-                    />
-                  )}
-                </span>
-                {c.pinned && <Badge tone="accent">{t('ui.knowledge-local.pinned')}</Badge>}
-              </div>
-              <div className={styles.row}>
-                <span className={styles.hint}>{clipTime.format(c.at)}</span>
-                <span className={styles.grow} />
-                <Button
-                  size="sm"
-                  onClick={() => void run(`cp:${c.id}`, () => hubClient.clipCopy(c.id))}
-                  data-testid="clip-copy"
-                >
-                  {t('ui.knowledge-local.copy')}
-                </Button>
-                {c.kind === 'image' ? (
-                  <Button
-                    size="sm"
-                    onClick={async () => {
-                      try {
-                        const raw = await hubClient.clipImage(c.id);
-                        onClose();
-                        window.dispatchEvent(new CustomEvent('cd:attach-image', { detail: raw }));
-                      } catch (e) {
-                        setErr((e as Error).message);
-                      }
-                    }}
-                    data-testid="clip-to-chat"
-                  >
-                    {t('ui.knowledge-local.send-to-chat')}
-                  </Button>
-                ) : (
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      onClose();
-                      window.dispatchEvent(new CustomEvent('cd:insert-text', { detail: c.text }));
-                    }}
-                    data-testid="clip-to-chat"
-                  >
-                    {t('ui.knowledge-local.put-in-input-box')}
-                  </Button>
-                )}
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() =>
-                    void run(`pn:${c.id}`, () => hubClient.clipPin(c.id, !c.pinned), loadClips)
-                  }
-                >
-                  {c.pinned ? t('ui.foundation.unpin') : t('ui.knowledge-local.pin')}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() =>
-                    void run(`rm:${c.id}`, () => hubClient.clipRemove(c.id), loadClips)
-                  }
-                  aria-label={t('ui.foundation.delete')}
-                >
-                  <Icon icon={X} />
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-
   const exportTab = (
     <div className={styles.stack}>
       <SettingsGroup
@@ -1101,13 +580,7 @@ export const LocalPanel: React.FC<{
         if (confirm) return setConfirm(null);
         onClose();
       }}
-      title={
-        shown.length === 1 && shown[0] === 'calendar'
-          ? t('ui.knowledge-local.calendar')
-          : !shown.includes('calendar')
-            ? t('ui.chat-settings.local-tools')
-            : t('ui.knowledge-local.local-hub-calendar-clipboard-small-local-models-as')
-      }
+      title={t('ui.chat-settings.local-tools')}
       size="lg"
       data-testid="local-panel"
     >
@@ -1116,8 +589,6 @@ export const LocalPanel: React.FC<{
           <Tabs<Tab>
             items={(
               [
-                { value: 'calendar', label: t('ui.knowledge-local.calendar') },
-                { value: 'clipboard', label: t('ui.knowledge-local.clipboard') },
                 { value: 'export', label: t('ui.knowledge-local.data-export') },
                 {
                   value: 'models',
@@ -1140,8 +611,6 @@ export const LocalPanel: React.FC<{
             {ollamaGroup}
           </>
         )}
-        {tab === 'calendar' && calendar}
-        {tab === 'clipboard' && clipboard}
         {tab === 'export' && exportTab}
       </div>
       <Modal

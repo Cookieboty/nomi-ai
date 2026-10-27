@@ -83,7 +83,7 @@ async function launch(
   const chat = await chatWin;
   await chat.setViewportSize({ width: 1180, height: 780 }).catch(() => undefined);
   await chat.locator('[data-testid="chat-mode-dev"]').click({ timeout: 30_000 });
-  await chat.locator('[data-testid="chat-tabs"]').waitFor({ timeout: 30_000 });
+  await chat.locator('[data-testid="list-view-all"]').waitFor({ timeout: 30_000 });
   return { app, chat };
 }
 
@@ -227,9 +227,7 @@ test.describe('E19 · endpoints · history sessions · provider page', () => {
     await chat.click('[data-testid="list-view-all"]');
 
     // 侧栏顶部：logo + Nomi、搜索图标、新建图标（没有整行「新对话」）
-    await expect(
-      chat.locator('[data-testid="chat-sidebar"] [data-testid="endpoint-icon-nomi"]').first(),
-    ).toBeVisible();
+    await expect(chat.locator('[data-testid="sidebar-brand-mark"]')).toBeVisible();
     await shot(chat, '02a-sidebar-top');
     // 搜索：图标展开为搜索框，实时过滤，高亮；Esc 清空再 Esc 收起
     await chat.click('[data-testid="sidebar-search-toggle"]');
@@ -306,8 +304,9 @@ test.describe('E19 · endpoints · history sessions · provider page', () => {
 
     // 点击 Claude 历史 → 新标签，转录预填，续接后 Mock 回显 --resume 的 id
     await rows.first().click();
-    const tabs = chat.locator('[role="tab"]');
-    await expect(tabs).toHaveCount(2);
+    // 打开的编程助手会话在侧栏是一行（主 Nomi 对话不算）
+    const tabs = chat.locator('[data-testid="history-item"]:not([data-backend="nomi"])');
+    await expect(tabs).toHaveCount(1);
     await expect(chat.locator('.ai-chat-app')).toContainText('Fix the failing login test');
     await expect(chat.locator('.ai-chat-app')).toContainText('The test expected a 401; fixed.');
     await expect(rows).toHaveCount(seeded.dsh ? 3 : 2); // 已打开的不再重复列出
@@ -327,7 +326,7 @@ test.describe('E19 · endpoints · history sessions · provider page', () => {
 
     // Codex 历史
     await chat.locator('[data-testid="history-session-item"][data-backend="codex"]').click();
-    await expect(tabs).toHaveCount(3);
+    await expect(tabs).toHaveCount(2);
     await expect(chat.locator('.ai-chat-app')).toContainText('There are two files');
     await input.fill('and then?');
     await input.press('Enter');
@@ -337,7 +336,7 @@ test.describe('E19 · endpoints · history sessions · provider page', () => {
     );
     if (seeded.dsh) {
       await chat.locator('[data-testid="history-session-item"][data-backend="dsh"]').click();
-      await expect(tabs).toHaveCount(4);
+      await expect(tabs).toHaveCount(3);
       await expect(chat.locator('.ai-chat-app')).toContainText('Reply with just the word PONG');
       await input.fill('once more');
       await input.press('Enter');
@@ -423,15 +422,15 @@ test.describe('E19 · endpoints · history sessions · provider page', () => {
     // 回到对话：Claude 标签的输入栏只显示 Claude 自己启用的供应商 + 模型；Codex 标签显示默认
     await chat.locator('[data-testid="settings-back"]').click();
 
-    // 顶栏「知识 · 记忆 · 日程」→ 日程标签：没有「编程助手」标签
+    // 侧栏「知识 · 记忆 · 日程」→ 设置 → 知识与记忆 → 日程：没有「编程助手」标签
     await chat.click('[data-testid="open-hub-panel"]');
-    await chat.click('[data-testid="hub-tab-schedule"]');
+    await chat.click('[data-testid="settings-knowledge-tab-schedule"]');
     await expect(chat.locator('[data-testid="sched-panel"]')).toBeVisible();
     await expect(chat.locator('[data-testid="sched-panel"]').getByText('编程助手')).toHaveCount(0);
     await shot(chat, '16-schedule-no-coding-tab');
     await chat.keyboard.press('Escape');
     await expect(chat.locator('[data-testid="sched-panel"]')).toHaveCount(0);
-    await chat.locator('[data-testid="chat-tab-1"]').click();
+    await chat.locator('[data-testid="history-item"][data-backend="claude"]').first().click();
     // 供应商不在输入框下方选：新标签默认在侧栏信息卡（cli-default-source），已有会话用 /model 换
     await expect(chat.locator('[data-testid="cli-source-menu"]')).toHaveCount(0);
     // 第三方只作用于 Nomi 启动的进程：不写 CLI 的全局配置

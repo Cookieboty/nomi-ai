@@ -46,18 +46,18 @@ export const CliDefaultSource: React.FC<{ backend: CliKind }> = ({ backend }) =>
   const name = ENDPOINT_NAME[backend];
   return (
     <span className={styles.defaultSource} data-testid="cli-default-source" data-backend={backend}>
-      <span className={styles.defaultLabel}>{t('ui.chat-settings.new-tabs-use')}</span>
+      <span className={styles.defaultLabel}>{t('ui.chat-settings.new-sessions-use')}</span>
       <Select
         size="sm"
         variant="ghost"
         className={styles.select}
         data-testid="cli-default-source-switch"
-        aria-label={t('ui.models.new-tabs-use-named', name)}
+        aria-label={t('ui.models.new-sessions-use-named', name)}
         title={
           err ||
           (accountsError
             ? t('ui.models.failed-to-load-accounts', accountsError)
-            : t('ui.chat-settings.only-affects-tabs-opened-from-now-on-existing', name))
+            : t('ui.chat-settings.only-affects-sessions-opened-from-now-on', name))
         }
         value={value}
         onChange={(e) => void pick(e.target.value)}

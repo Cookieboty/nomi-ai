@@ -11,16 +11,12 @@ const AGENTS = {
     enabled: true,
     stallMs: 1,
     cooldownMs: 1,
-    osNotify: false,
     summaryEnabled: false,
     tools: {
       codex: true,
       claude: true,
       dsh: true,
-      aider: false,
-      cline: false,
-      continue: false,
-      cursor: false,
+      grok: false,
       gemini: false,
     },
   },
@@ -123,14 +119,14 @@ describe('ProvidersPage', () => {
     expect(r.getByTestId('cli-open-models')).toBeTruthy();
   });
 
-  it('「监视与会话」标签：监视开关、系统通知、检测到的工具、立即扫描；与提醒设置分开', async () => {
+  it('「监视与会话」标签：监视开关、检测到的工具、立即扫描；与提醒设置分开', async () => {
     const calls = setup();
     localStorage.setItem('ai-chat:providerEndpoint', 'monitor');
     const onNotify = vi.fn();
     const r = render(<ProvidersPage onOpenNotify={onNotify} />);
     await waitFor(() => r.getByTestId('coding-monitor'));
     await waitFor(() => r.getByTestId('agents-enabled'));
-    expect(r.getByTestId('agents-os-notify')).toBeTruthy();
+    expect(r.queryByTestId('agents-os-notify')).toBeNull();
     // 总结播报：默认关，打开后持久化到监视设置
     fireEvent.click(r.getByTestId('agents-summary'));
     await waitFor(() =>

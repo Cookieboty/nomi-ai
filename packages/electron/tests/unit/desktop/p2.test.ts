@@ -8,12 +8,6 @@ import * as path from 'path';
 
 import { AppTrash } from '../../../src/desktop/AppTrash';
 import { AuditLog } from '../../../src/desktop/AuditLog';
-import {
-  NotesStore,
-  parseNote,
-  scoreNote,
-  serializeNote,
-} from '../../../src/desktop/notes/NotesStore';
 import { PermissionBroker, type ConfirmRequest } from '../../../src/desktop/PermissionBroker';
 import { ReminderStore, resolveDue } from '../../../src/desktop/reminders/ReminderStore';
 import { createDesktopTools } from '../../../src/desktop/tools';
@@ -52,48 +46,6 @@ function fakeClock(start = 1_800_000_000_000) {
     },
   };
 }
-
-describe('NotesStore', () => {
-  it('round-trips front matter and survives odd titles', () => {
-    const n = {
-      id: 'nabc1234',
-      title: 'a: "b"\n---',
-      tags: ['x'],
-      created: 1,
-      updated: 2,
-      body: '---\nbody',
-    };
-    const back = parseNote(n.id, serializeNote(n));
-    expect(back).toMatchObject({ title: n.title, tags: ['x'], body: n.body });
-  });
-
-  it('create / list / search / update / persist', () => {
-    const root = tmp('notes-');
-    let t = 1000;
-    const s = new NotesStore(root, () => (t += 1000));
-    const a = s.create({ title: '购物清单', body: '牛奶、鸡蛋、面包', tags: ['#生活', '生活'] });
-    s.create({ title: 'Project plan', body: 'Ship desktop tools P2 next week', tags: ['work'] });
-    expect(a.tags).toEqual(['生活']);
-    expect(s.list().map((n) => n.title)).toEqual(['Project plan', '购物清单']);
-    expect(s.search('鸡蛋')[0]!.id).toBe(a.id);
-    expect(s.search('ship p2').map((h) => h.title)).toEqual(['Project plan']);
-    expect(s.search('ship 牛奶')).toEqual([]); // AND
-    expect(s.list({ tag: 'work' })).toHaveLength(1);
-    s.update(a.id, { append: '苹果' });
-    const fresh = new NotesStore(root);
-    expect(fresh.get(a.id)!.body).toBe('牛奶、鸡蛋、面包\n\n苹果');
-    expect(fresh.get('../etc')).toBeNull();
-    expect(() => fresh.fileOf('../x')).toThrow();
-  });
-
-  it('scores title above body and builds a snippet', () => {
-    const base = { id: 'n1234567', tags: [], created: 0, updated: 0 };
-    const t = scoreNote({ ...base, title: 'meeting', body: 'x' }, 'meeting')!;
-    const b = scoreNote({ ...base, title: 'x', body: 'the meeting notes' }, 'meeting')!;
-    expect(t.score).toBeGreaterThan(b.score);
-    expect(b.snippet).toContain('meeting');
-  });
-});
 
 describe('ReminderStore', () => {
   it('fires on time, persists, snoozes and cancels', () => {
@@ -180,7 +132,6 @@ describe('P2 tools', () => {
     };
     const trash = new AppTrash(path.join(data, 'trash'));
     const journal = new UndoJournal(path.join(data, 'journal.jsonl'), trash);
-    const notes = new NotesStore(path.join(data, 'notes'));
     const c = fakeClock(Date.now());
     const reminders = new ReminderStore(path.join(data, 'reminders.json'), c.now, c.timers);
     let clip = 'secret-token-123';
@@ -195,9 +146,7 @@ describe('P2 tools', () => {
       providerFor: () => null,
       pickFolder: async () => null,
       p2: {
-        notes,
         reminders,
-        trashNote: (f) => trash.trash(f),
         clipboard: { readText: () => clip, writeText: (t) => (clip = t) },
         say: (t) => said.push(t),
         now: c.now,
@@ -208,7 +157,6 @@ describe('P2 tools', () => {
     return {
       call,
       asks,
-      notes,
       reminders,
       journal,
       broker,
@@ -218,30 +166,6 @@ describe('P2 tools', () => {
       setAnswer: (f: typeof answer) => (answer = f),
     };
   }
-
-  it('notes: create (asks once per run) → search → read → update → trash → undo', async () => {
-    const t = setup();
-    const c = await t.call('note_create', { title: '周会', body: '讨论 P2 发布', tags: ['work'] });
-    expect(c.ok).toBe(true);
-    expect(t.asks.map((a) => a.tool)).toEqual(['note_create']);
-    const id = c.data!.id as string;
-    const s = await t.call('note_search', { query: 'P2' });
-    expect((s.data!.hits as Array<{ id: string }>)[0]!.id).toBe(id);
-    expect((await t.call('note_read', { id })).data!.body).toBe('讨论 P2 发布');
-    expect((await t.call('note_update', { id, append: '结论：周五' })).ok).toBe(true);
-    expect(t.notes.get(id)!.body).toContain('结论：周五');
-    // 撤销 update → 回到原文
-    await t.journal.undo(t.journal.last()!);
-    expect(t.notes.get(id)!.body).toBe('讨论 P2 发布');
-    // 删除是破坏性操作：必须走对话框
-    const tr = await t.call('note_trash', { id });
-    expect(tr.ok).toBe(true);
-    expect(t.asks.at(-1)!.dialog).toBe(true);
-    expect(t.notes.get(id)).toBeNull();
-    await t.journal.undo(t.journal.last()!);
-    expect(t.notes.get(id)!.title).toBe('周会');
-    expect((await t.call('note_read', { id: '../../etc/passwd' })).ok).toBe(false);
-  });
 
   it('reminders: create / list / snooze / cancel + undo cancel', async () => {
     const t = setup();

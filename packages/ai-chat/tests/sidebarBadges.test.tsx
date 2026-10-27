@@ -34,7 +34,7 @@ afterEach(() => {
 });
 
 describe('Sidebar rows', () => {
-  it('uses the Nomi icon and text as the toggle, retaining only the icon when collapsed', () => {
+  it('uses the Nomi mark (same as settings) and text as the toggle, only the mark when collapsed', () => {
     const onToggle = vi.fn();
     const props = { onToggle, onNewChat: () => undefined };
     const view = render(<Sidebar {...props} collapsed={false} />);
@@ -43,14 +43,14 @@ describe('Sidebar rows', () => {
     const toggle = view.getByTestId('sidebar-toggle');
     expect(toggle.getAttribute('aria-label')).toBe('收起侧边栏');
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
-    const brandIcon = toggle.querySelector('[data-testid="endpoint-icon-nomi"]')!;
+    const brandIcon = toggle.querySelector('[data-testid="sidebar-brand-mark"]')!;
     expect(brandIcon.getAttribute('width')).toBe('28');
     fireEvent.click(brandIcon);
     fireEvent.click(toggle.querySelector('span')!);
     expect(onToggle).toHaveBeenCalledTimes(2);
 
     view.rerender(<Sidebar {...props} collapsed />);
-    const icon = view.getByTestId('endpoint-icon-nomi');
+    const icon = view.getByTestId('sidebar-brand-mark');
     expect(icon.getAttribute('width')).toBe('24');
     expect(icon.getAttribute('aria-hidden')).toBe('true');
     expect(view.getByTestId('sidebar-toggle').textContent).toBe('');

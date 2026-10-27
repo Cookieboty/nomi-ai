@@ -146,7 +146,8 @@ test.describe('Shortcuts and command palette', () => {
 
     // 改绑跨重启保留（localStorage）：设置页仍显示自定义组合
     await chat.keyboard.press(`${mod}+,`);
-    await chat.click('[data-testid="settings-nav-shortcuts"]');
+    await chat.click('[data-testid="settings-nav-general"]');
+    await chat.click('[data-testid="settings-general-page-tab-shortcuts"]');
     await expect(chat.locator('[data-testid="shortcut-combo-palette"]')).toHaveText(/P$/);
     await chat.click('[data-testid="shortcut-reset-all"]');
     await expect(chat.locator('[data-testid="shortcut-combo-palette"]')).toHaveText(/K$/);

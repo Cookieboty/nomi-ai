@@ -34,9 +34,6 @@ import {
   MAX_ATTACHMENTS,
   attachmentFromFile,
   likelyVision,
-  fromRaw,
-  screenClient,
-  type RawAttachment,
   type ImageAttachment,
 } from '../../services/screenClient';
 import {
@@ -95,7 +92,6 @@ interface MessageInputProps {
   onDesktopClick?: () => void;
   /** 打开「知识 · 记忆 · 日程」快速视图 */
   onHubClick?: () => void;
-  onScreenClick?: () => void;
   onExtClick?: () => void;
   onLocalClick?: () => void;
   /** 打开统一设置页的某个分区 */
@@ -122,7 +118,6 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   onProvidersClick,
   onDesktopClick,
   onHubClick,
-  onScreenClick,
   onExtClick,
   onLocalClick,
   onSettingsClick,
@@ -212,15 +207,13 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     return () => window.removeEventListener('keydown', onKey);
   }, [kbAvailable, toggleKb]);
 
-  // ───── 图片附件：粘贴 / 拖入 / 截图提问 ─────
+  // ───── 图片附件：粘贴 / 拖入 ─────
   const [images, setImages] = useState<ImageAttachment[]>([]);
   /** 点缩略图放大查看的那张 */
   const [viewing, setViewing] = useState<ImageAttachment | null>(null);
   const closeViewer = useCallback(() => setViewing(null), []);
   const [imgErr, setImgErr] = useState('');
   const [dragOver, setDragOver] = useState(false);
-  const [snipping, setSnipping] = useState(false);
-  const screenOk = screenClient.available();
   const addImages = useCallback((list: ImageAttachment[]) => {
     setImgErr('');
     setImages((cur) => {
@@ -310,59 +303,6 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
       window.removeEventListener('drop', onDrop);
     };
   }, []);
-  const snip = useCallback(async () => {
-    if (!screenOk || snipping) return;
-    setSnipping(true);
-    setImgErr('');
-    try {
-      const a = await screenClient.snip();
-      if (a) {
-        addImages([a]);
-        if (!textareaRef.current?.value)
-          setMessage(tr('ui.knowledge-local.what-s-in-this-screenshot'));
-      }
-    } catch (e) {
-      setImgErr((e as Error).message);
-    } finally {
-      setSnipping(false);
-    }
-  }, [screenOk, snipping, addImages]);
-  // 全局快捷键截图后，主进程把附件推过来
-  useEffect(
-    () =>
-      screenClient.onAttachment((a) => {
-        addImages([a]);
-        setMessage((m) => m || tr('ui.knowledge-local.what-s-in-this-screenshot'));
-      }),
-    [addImages],
-  );
-  // 本地中心（剪贴板历史）发来的图片 / 文字
-  useEffect(() => {
-    const onImg = (e: Event) =>
-      void fromRaw((e as CustomEvent<RawAttachment>).detail).then((a) => a && addImages([a]));
-    const onText = (e: Event) => {
-      const t = String((e as CustomEvent<string>).detail ?? '');
-      setMessage((m) => (m ? `${m}\n${t}` : t));
-      requestAnimationFrame(() => textareaRef.current?.focus());
-    };
-    window.addEventListener('cd:attach-image', onImg);
-    window.addEventListener('cd:insert-text', onText);
-    return () => {
-      window.removeEventListener('cd:attach-image', onImg);
-      window.removeEventListener('cd:insert-text', onText);
-    };
-  }, [addImages]);
-  useEffect(() => {
-    if (!screenOk) return;
-    const onKey = (e: globalThis.KeyboardEvent) => {
-      if (matchShortcut(e, getBindings().snip)) {
-        e.preventDefault();
-        void snip();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [screenOk, snip]);
   const chatModel = nomiModelLabel() ?? '';
   // 模型元数据写明了视觉能力就以它为准，否则按名字猜
   const visionKnown = nomiModelMeta()?.vision;
@@ -610,16 +550,6 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
       active: kbMode,
     },
     {
-      id: 'snip',
-      icon: <AppIcon icon={FEATURE_ICONS.snip} />,
-      label: tr('ui.knowledge-local.ask-about-a-screenshot'),
-      hint: formatCombo(bindings.snip),
-      testId: 'snip-button',
-      menu: true,
-      run: () => void snip(),
-      show: screenOk && !isDisabled && !snipping,
-    },
-    {
       id: 'model',
       icon: <AppIcon icon={FEATURE_ICONS.model} />,
       label: tr('ui.knowledge-local.providers-models'),
@@ -647,15 +577,6 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
       show: !!onHubClick && (kbAvailable || memClient.available() || schedClient.available()),
     },
     {
-      id: 'screen',
-      icon: <AppIcon icon={FEATURE_ICONS.screen} />,
-      label: tr('ui.knowledge-local.screenshots-screen-memory'),
-      hint: formatCombo(bindings.screen),
-      testId: 'open-screen-panel',
-      run: () => onScreenClick?.(),
-      show: !!onScreenClick && screenOk,
-    },
-    {
       id: 'ext',
       icon: <AppIcon icon={FEATURE_ICONS.ext} />,
       label: tr('ui.foundation.extensions-mcp-skills'),
@@ -675,7 +596,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     {
       id: 'local',
       icon: <AppIcon icon={FEATURE_ICONS.local} />,
-      label: tr('ui.knowledge-local.local-hub-helpers'),
+      label: tr('ui.knowledge-local.local-models'),
       hint: formatCombo(bindings.local),
       testId: 'open-local-panel',
       run: () => onLocalClick?.(),
@@ -936,7 +857,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
                 onClick={() => setMenuOpen((v) => !v)}
                 aria-haspopup="menu"
                 aria-expanded={menuOpen}
-                title={tr('ui.knowledge-local.more-knowledge-base-q-a-screenshot-models-settings')}
+                title={tr('ui.knowledge-local.more-knowledge-base-q-a-models-settings')}
                 aria-label={tr('ui.knowledge-local.more')}
                 data-testid="composer-more"
               >

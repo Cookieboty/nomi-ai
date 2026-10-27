@@ -7,7 +7,6 @@ export type Frequency = 'low' | 'medium' | 'high';
 
 export interface SchedSettings {
   quiet: { enabled: boolean; start: string; end: string };
-  osNotify: boolean;
   proactive: {
     enabled: boolean;
     frequency: Frequency;
@@ -48,7 +47,6 @@ export interface SchedState {
   quietNow: boolean;
   deferred: number;
   proactive: { today: number; lastAt: number; gate: { ok: boolean; reason: string } };
-  notifySupported: boolean;
 }
 
 export const BRIEFING_PROMPT = 'ui.chat-settings.write-me-a-briefing-for-today-start-with';

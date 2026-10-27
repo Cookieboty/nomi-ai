@@ -2,7 +2,6 @@
 import { cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { tabDotStatus } from '../src/components/ChatTabs';
 import { ConversationView } from '../src/components/Conversation';
 import { liveOf } from '../src/components/Sidebar/SidebarRows';
 import type { HarnessTabMeta } from '../src/services/harnessClient';
@@ -24,14 +23,10 @@ const tab = (over: Partial<HarnessTabMeta> = {}): HarnessTabMeta => ({
 
 describe('dormant coding-assistant tab', () => {
   it('shows as dormant only when nothing more important is going on', () => {
-    expect(tabDotStatus(tab({ dormant: true }))).toBe('dormant');
     expect(liveOf(tab({ dormant: true }))).toBe('dormant');
     // 有新结果 / 运行中 / 出错优先
-    expect(tabDotStatus(tab({ dormant: true, unread: 2 }))).toBe('unread');
-    expect(tabDotStatus(tab({ dormant: true, status: 'error' }))).toBe('error');
     expect(liveOf(tab({ dormant: true, status: 'running' }))).toBe('running');
     // 普通空闲没有提示
-    expect(tabDotStatus(tab())).toBe('idle');
     expect(liveOf(tab())).toBe('');
   });
 

@@ -1,8 +1,7 @@
 /**
  * 回归 #18 / #35：
  * - 导出 ZIP 的 settings/mcp.json 不含任何 env / header 取值、URL 凭据与命令行令牌（无论落盘时是否加密）；
- * - 安全存储不可用 / encryptString 抛错时，MCP 密钥与 CalDAV 密码失败关闭，不写明文；
- * - calendar.json 为 0600。
+ * - 安全存储不可用 / encryptString 抛错时，MCP 密钥失败关闭，不写明文。
  */
 jest.unmock('fs');
 jest.unmock('path');
@@ -67,7 +66,7 @@ function makeHub(): LocalHubService {
 }
 function exported(hub: LocalHubService): Record<string, string> {
   const file = path.join(ud, 'out.zip');
-  hub.exportTo(file, { include: ['settings', 'calendar'] });
+  hub.exportTo(file, { include: ['settings'] });
   const z = unzipSync(new Uint8Array(fs.readFileSync(file)));
   return Object.fromEntries(Object.entries(z).map(([k, v]) => [k, strFromU8(v)]));
 }
@@ -203,120 +202,5 @@ describe('MCP 导出脱敏与密钥落盘（#18）', () => {
     expect(
       JSON.parse(fs.readFileSync(path.join(ud, 'extensions', 'mcp.json'), 'utf8'))[0].env.API_KEY,
     ).toBe('legacy');
-  });
-});
-
-describe('CalDAV 密码落盘（#35）', () => {
-  const src = {
-    name: 'work',
-    kind: 'caldav' as const,
-    url: 'https://cal.example.com/dav',
-    username: 'me',
-    password: SECRET,
-  };
-  beforeEach(() => {
-    ud = fs.mkdtempSync(path.join(os.tmpdir(), 'secret-'));
-    safe.available = true;
-    safe.throws = false;
-  });
-  afterEach(() => fs.rmSync(ud, { recursive: true, force: true }));
-
-  it.each([
-    ['safeStorage 不可用', () => (safe.available = false)],
-    ['encryptString 抛错', () => (safe.throws = true)],
-  ])('%s：addSource 失败关闭，calendar.json 里没有明文，也没有新增源', async (_n, arrange) => {
-    arrange();
-    const hub = makeHub();
-    await expect(hub.addSource(src)).rejects.toThrow(/安全存储不可用/);
-    expect(hub.calState().sources.map((s) => s.kind)).toEqual(['local']);
-    const f = path.join(ud, 'local', 'calendar.json');
-    if (fs.existsSync(f)) expect(fs.readFileSync(f, 'utf8')).not.toContain(SECRET);
-  });
-
-  it('安全存储可用：密码以 enc: 落盘，calendar.json 为 0600，公开状态与导出都不含密码', async () => {
-    const hub = makeHub();
-    jest.spyOn(hub, 'sync').mockResolvedValue(undefined as never);
-    const added = await hub.addSource(src);
-    expect(added).toMatchObject({ hasPassword: true });
-    const f = path.join(ud, 'local', 'calendar.json');
-    const raw = fs.readFileSync(f, 'utf8');
-    expect(raw).not.toContain(SECRET);
-    expect(raw).toContain('enc:');
-    if (process.platform !== 'win32') expect(fs.statSync(f).mode & 0o777).toBe(0o600);
-    expect(JSON.stringify(hub.calState())).not.toContain(SECRET);
-    expect(JSON.stringify(exported(hub))).not.toContain(SECRET);
-  });
-
-  const legacyCal = () => {
-    fs.mkdirSync(path.join(ud, 'local'), { recursive: true });
-    fs.writeFileSync(
-      path.join(ud, 'local', 'calendar.json'),
-      JSON.stringify({
-        sources: [
-          {
-            id: 'caldav-old',
-            name: 'old',
-            kind: 'caldav',
-            color: '#000',
-            url: 'https://cal.example.com/dav',
-            username: 'me',
-            secret: SECRET,
-            enabled: true,
-          },
-        ],
-        events: [],
-      }),
-    );
-  };
-
-  it('旧版明文密码：安全存储可用时启动即加密迁移', () => {
-    legacyCal();
-    const hub = makeHub();
-    const raw = fs.readFileSync(path.join(ud, 'local', 'calendar.json'), 'utf8');
-    expect(raw).not.toContain(`"secret":"${SECRET}"`);
-    expect(raw).toContain(`enc:${B64(SECRET)}`);
-    expect(hub.calState().sources.find((s) => s.id === 'caldav-old')).toMatchObject({
-      hasPassword: true,
-    });
-    expect(hub.calState().sources.find((s) => s.id === 'caldav-old')).not.toHaveProperty(
-      'passwordInsecure',
-    );
-  });
-
-  it('旧版明文密码：安全存储不可用时保留可用，但标出 passwordInsecure，导出不含密码', () => {
-    safe.available = false;
-    legacyCal();
-    const hub = makeHub();
-    expect(hub.calState().sources.find((s) => s.id === 'caldav-old')).toMatchObject({
-      hasPassword: true,
-      passwordInsecure: true,
-    });
-    expect(JSON.stringify(exported(hub))).not.toContain(SECRET);
-  });
-
-  it('地址里的账号口令挪到字段里；公开状态与导出的地址去掉口令、query 与令牌路径段', async () => {
-    const hub = makeHub();
-    jest.spyOn(hub, 'sync').mockResolvedValue(undefined as never);
-    const token = 'a8Fq3ZkLm0PqRsTuVwXyZ123456789ab';
-    await hub.addSource({
-      name: 'ics',
-      kind: 'ics-url',
-      url: `https://bob:${SECRET}@cal.example.com/ical/private-${token}/basic.ics?key=${SECRET}`,
-    });
-    const raw = JSON.parse(fs.readFileSync(path.join(ud, 'local', 'calendar.json'), 'utf8')) as {
-      sources: Array<{ kind: string; url?: string; username?: string; secret?: string }>;
-    };
-    const stored = raw.sources.find((s) => s.kind === 'ics-url')!;
-    expect(stored.username).toBe('bob');
-    expect(stored.secret).toBe(`enc:${B64(SECRET)}`);
-    expect(stored.url).not.toContain('bob');
-    expect(stored.url).not.toMatch(new RegExp(`${SECRET}@`));
-    const pub = JSON.stringify(hub.calState());
-    const out = JSON.stringify(exported(hub));
-    for (const s of [pub, out]) {
-      expect(s).not.toContain(SECRET);
-      expect(s).not.toContain(token);
-      expect(s).toContain('cal.example.com');
-    }
   });
 });

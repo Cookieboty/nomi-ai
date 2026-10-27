@@ -138,13 +138,6 @@ export interface TrayManagerOptions {
   /** 桌面能力设置（授权文件夹 / 权限 / 操作记录） */
   openDesktopPanel?: () => void;
   quit: () => void;
-  /** 屏幕记忆（开启时托盘提示 + 菜单「暂停」）；可选 */
-  screenMemory?: {
-    active(): boolean;
-    onChange(fn: () => void): () => void;
-    pause(minutes: number): void;
-    open(): void;
-  };
 }
 
 /** 托盘「看板娘动作」菜单项 */
@@ -177,25 +170,8 @@ const liveTrays = new Set<Tray>();
 export class TrayManager {
   private tray: Tray | null = null;
   private unsubscribe?: () => void;
-  private unsubscribeScreen?: () => void;
 
   constructor(private readonly opts: TrayManagerOptions) {}
-
-  /** 屏幕记忆开启时：托盘提示文字 + 菜单顶部醒目的状态与暂停入口 */
-  private screenMenu(): MenuItemConstructorOptions[] {
-    const sm = this.opts.screenMemory;
-    const on = !!sm?.active();
-    this.tray?.setToolTip(on ? t('electron.common.nomi-screen-memory-on') : 'Nomi');
-    if (!sm || !on) return [];
-    return [
-      {
-        label: t('electron.common.screen-memory-on-stored-only-on-this-device'),
-        click: () => sm.open(),
-      },
-      { label: t('electron.common.pause-screen-memory-for-1-hour'), click: () => sm.pause(60) },
-      { type: 'separator' },
-    ];
-  }
 
   /** 取一张一定非空的托盘图：macOS 单色 Template，其余彩色；读不到就退回应用图标 */
   private trayImage(): NativeImage {
@@ -246,7 +222,6 @@ export class TrayManager {
       this.rebuild();
       this.unsubscribe = this.opts.providers.onChange(() => this.rebuild());
       this.unsubscribeModels = this.opts.models?.onChange(() => this.rebuild());
-      this.unsubscribeScreen = this.opts.screenMemory?.onChange(() => this.rebuild());
       // 切换界面语言后立即重建托盘菜单
       this.unsubscribeLocale = onLocaleChange(() => this.rebuild());
     } catch (error) {
@@ -289,7 +264,6 @@ export class TrayManager {
       },
     }));
     const template: MenuItemConstructorOptions[] = [
-      ...this.screenMenu(),
       { label: t('electron.common.open-ai-chat'), click: () => this.opts.openChat() },
       { type: 'separator' },
       {
@@ -327,13 +301,11 @@ export class TrayManager {
     this.unsubscribeIcon?.();
     this.unsubscribe?.();
     this.unsubscribeModels?.();
-    this.unsubscribeScreen?.();
     this.unsubscribeLocale =
       this.unsubscribeIcon =
       this.unsubscribe =
       this.unsubscribeModels =
         undefined;
-    this.unsubscribeScreen = undefined;
   }
 
   dispose(): void {

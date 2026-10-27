@@ -576,12 +576,6 @@ export class WindowManager implements IWindowManager {
     await window.loadURL(startUrl);
   }
 
-  /** 用对话页的某个 hash 路由加载任意窗口（例如截图遮罩 #snip） */
-  async loadChatRoute(window: BrowserWindow, hash: string): Promise<void> {
-    if (isDevMode()) await window.loadURL(`${devChatUrl()}#${hash}`);
-    else await window.loadFile(this.getAiChatPath(), { hash });
-  }
-
   /**
    * 加载AI对话窗口内容
    */

@@ -69,7 +69,7 @@
 ## 中文
 
 Nomi·诺米 是运行在你电脑上的桌面 AI 伙伴：一位会动、会说话的 Nomi，加上一个干净好用的对话窗口。
-它能连接你喜欢的云端大模型，也能完全离线使用本地模型；它记得你、会主动提醒你，还能帮你读文件、看屏幕、管日程。
+它能连接你喜欢的云端大模型，也能完全离线使用本地模型；它记得你、会主动提醒你，还能帮你读文件、看截图、管日程。
 
 ### ✨ 功能
 
@@ -87,13 +87,13 @@ Nomi·诺米 是运行在你电脑上的桌面 AI 伙伴：一位会动、会说
 #### 💬 AI 对话
 
 - **简洁的对话窗口**：类 Codex 的平静布局，流式输出，会话列表、侧栏可收起；聊天背景铺满整个窗口，可分别调侧栏、对话区、右侧面板的模糊程度
-- **图片与截图提问**：`Ctrl/⌘+Alt+A` 框选屏幕任意区域，直接带图提问
+- **图片提问**：把图片粘贴或拖入输入框，直接带图提问
 - **快捷命令**：输入框里按 `/` 打开命令，`↑` 找回上一条提问
-- **首次引导**：几步完成语言、主题、启动方式、界面模式、角色与声音、称呼与语气、模型和隐私设置
+- **首次引导**：几步完成语言、主题、启动方式、角色与声音、称呼与语气、模型和隐私设置
 
 #### 🧑‍💻 编程助手
 
-- **一个窗口用遍 CLI**：Claude Code、Codex、Gemini CLI、Grok、dsh 多标签并行，工具调用、diff、子代理一目了然
+- **一个窗口用遍 CLI**：Claude Code、Codex、Gemini CLI、Grok、dsh 多会话并行，在侧栏里切换，在跑的显示「进行中」；工具调用、diff、子代理一目了然
 - **权限模式**：计划 / 逐项确认 / 自动改文件 / 自动 / 完全放开，输入栏一键切换或 `Shift+Tab`
 - **官方账号**：登录多个官方账号随时切换，也可改用第三方供应商
 - **切换工作目录**：可带上当前对话继续
@@ -109,7 +109,7 @@ Nomi·诺米 是运行在你电脑上的桌面 AI 伙伴：一位会动、会说
 - **上下文占用环**：输入栏旁的环形指示，悬停显示「当前上下文 xK / 最大」，默认只显示环形；用量取这一轮最后一次模型请求（Claude Code、Codex、Grok、Gemini、dsh 各按实测口径），窗口大小优先用 CLI 上报值（如 Claude 1M）
 - **附图给编程助手**：粘贴 / 拖入图片发给 Claude Code、Codex、Grok、Gemini；能否附图按当前模型能力判断，明确不支持时提示是哪个模型；dsh 明确拒绝附图
 - **思考深度**：minimal / low / medium / high / xhigh / max，Codex 另有 ultra（与 max 是两个独立档位）
-- **界面模式「精简 / 全量」**：设置 → 通用 → 外观（新手引导里也能选）；精简模式隐藏工作台顶部对话标签条与侧栏底部信息卡
+- **侧栏**：收起按钮固定在标题栏红绿灯旁；收起后是一列会话方块（端点图标 + 状态点），悬停立刻显示标题、时间与状态
 - **记住窗口位置与大小**：主界面关闭前的位置、大小（含最大化）下次打开时恢复；原位置已不在任何屏幕上时居中到主屏
 
 #### 🔑 第三方供应商与模型
@@ -123,7 +123,7 @@ Nomi·诺米 是运行在你电脑上的桌面 AI 伙伴：一位会动、会说
 
 #### 📚 知识库
 
-- 选几个文件夹或写几条笔记，Nomi 就能基于它们回答，并标出**可点击的引用来源**
+- 选几个文件夹，Nomi 就能基于它们回答，并标出**可点击的引用来源**
 - 支持 txt、Markdown、PDF、Word，以及图片里的文字（本地 OCR）
 - 增量更新索引；可选接入本地或云端向量模型提升检索效果
 
@@ -132,17 +132,12 @@ Nomi·诺米 是运行在你电脑上的桌面 AI 伙伴：一位会动、会说
 - 对话结束后自动整理成记忆，下次聊到相关话题时自然想起
 - 你的个人档案（称呼、偏好）随时可看、可改、可删、可导出
 
-#### ⏰ 主动日程与系统日历
+#### ⏰ 主动日程
 
 - **提醒**：支持重复规则；错过的提醒在下次启动时补上
-- **定时任务**：如「每日简报」，到点生成内容，用气泡 + 系统通知告诉你
+- **定时任务**：如「每日简报」，到点生成内容，告诉你并写进对话窗口
 - **主动聊天**（默认关闭）：按你设定的频率、活跃时段与免打扰时间偶尔搭话
-- **日历**：连接 macOS / Windows / Linux 系统日历，或导入 .ics、订阅日历链接、连接 CalDAV
-
-#### 🖥️ 屏幕问答
-
-- 框选屏幕直接提问
-- 可选的**屏幕记忆**（默认关闭）：定时截屏并在本机识别文字，之后可以问「我刚才看的那个页面说了什么」；支持排除应用与自动清理
+- **只提醒一次**：Nomi 在桌面上时用她的气泡；Nomi 关着时用灵动岛，灵动岛不可用时用系统通知；免打扰时段不打扰
 
 #### 🧩 MCP 与技能
 
@@ -159,7 +154,7 @@ Nomi·诺米 是运行在你电脑上的桌面 AI 伙伴：一位会动、会说
 #### 🤖 自动化
 
 - **桌面文件**：授权文件夹后，AI 可以列出、搜索、阅读、总结文件；写入需确认，删除只进回收站并可撤销
-- **笔记、提醒与剪贴板历史**（剪贴板默认关闭）
+- **提醒与剪贴板**：设提醒；读写剪贴板前先征得你的同意
 - **受控浏览器**：AI 可在独立、无痕的窗口中浏览公开网页，你能随时看到它在做什么
 - **代码沙箱**：在隔离的临时目录里运行 JavaScript / Python 片段
 - 所有操作都有本地审计日志
@@ -172,12 +167,12 @@ Nomi·诺米 是运行在你电脑上的桌面 AI 伙伴：一位会动、会说
 
 #### 👀 编程助手监视
 
-- 自动发现本机的 Claude Code、Codex、Cursor、Aider、Cline、Continue，任务完成或需要你操作时用气泡提醒你
+- 自动发现本机的 Claude Code、Codex、dsh、Grok、Gemini CLI，任务完成或需要你操作时用气泡提醒你
 - 只读取本机已有的日志与会话文件
 
 #### 🏝️ 灵动岛通知（macOS）
 
-- 消息、编程助手进度和提醒以刘海处的「灵动岛」样式出现；其他平台以顶部胶囊显示
+- Nomi 关着时，消息、编程助手进度和提醒以刘海处的「灵动岛」样式出现；其他平台可开启顶部胶囊
 
 #### 🎨 个性化
 
@@ -222,7 +217,7 @@ Nomi·诺米 是运行在你电脑上的桌面 AI 伙伴：一位会动、会说
 ### 🚀 快速开始
 
 1. 安装并打开 Nomi，跟着首次引导选择语言、主题和角色。
-2. 在「设置 → 模型」里添加一个第三方供应商（选预设或贴地址，填入 API Key），或在「本机管理」里下载一个本地模型。
+2. 在「设置 → 模型与供应商」里添加一个第三方供应商（选预设或贴地址，填入 API Key），或在同页的「本机模型」标签里下载一个本地模型。
 3. 点击 Nomi 或按 `Ctrl/⌘+N` 开始对话；按 `Ctrl/⌘+K` 浏览全部功能。
 
 ### 🛠️ 从源码构建
@@ -276,7 +271,7 @@ Nomi 构建在这些优秀的开源项目之上：
 ## English
 
 Nomi·诺米 is a desktop AI companion that runs on your computer: an animated, talking Nomi plus a clean chat window.
-Connect the cloud models you already like, or go fully offline with local models. Nomi remembers you, can nudge you with reminders, and helps with files, your screen, and your calendar.
+Connect the cloud models you already like, or go fully offline with local models. Nomi remembers you, can nudge you with reminders, and helps with files and images.
 
 ### ✨ Features
 
@@ -294,13 +289,13 @@ Connect the cloud models you already like, or go fully offline with local models
 #### 💬 AI chat
 
 - **Calm chat window**: Codex-like layout, streaming replies, session list, collapsible sidebar; the chat background fills the whole window, with separate blur levels for the sidebar, chat area and right panel
-- **Ask with images & screenshots**: `Ctrl/⌘+Alt+A` to select any screen region and ask with the image
+- **Ask with images**: paste or drop an image into the input and ask about it
 - **Slash commands**: press `/` in the input; `↑` recalls the last question
-- **First-run onboarding**: language, theme, startup mode, layout mode, character & voice, how to address you & tone, model, and privacy — in a few steps
+- **First-run onboarding**: language, theme, startup mode, character & voice, how to address you & tone, model, and privacy — in a few steps
 
 #### 🧑‍💻 Coding agents
 
-- **Every CLI in one window**: Claude Code, Codex, Gemini CLI, Grok and dsh in parallel tabs, with clear tool calls, diffs and subagents
+- **Every CLI in one window**: Claude Code, Codex, Gemini CLI, Grok and dsh as parallel sessions, switched from the sidebar (running ones show “Running”), with clear tool calls, diffs and subagents
 - **Permission modes**: plan / manual / accept edits / auto / full access, switched from the input bar or with `Shift+Tab`
 - **Official accounts**: sign in to several official accounts and switch any time, or use a third-party provider
 - **Switch workspace**: optionally carry the current conversation along
@@ -316,7 +311,7 @@ Connect the cloud models you already like, or go fully offline with local models
 - **Context ring**: a ring next to the input box; hover to see "current context xK / max" (ring only by default); usage is taken from the last model request of the turn (Claude Code, Codex, Grok, Gemini and dsh each measured their own way), and the window size prefers the value reported by the CLI (e.g. Claude 1M)
 - **Images for coding agents**: paste or drop images for Claude Code, Codex, Grok and Gemini; whether images are accepted depends on the current model, and the hint names the model when it is not; dsh explicitly refuses images
 - **Reasoning effort**: minimal / low / medium / high / xhigh / max, plus ultra for Codex (a separate level from max)
-- **UI mode "Compact / Full"**: Settings → General → Appearance (also in onboarding); Compact hides the conversation tab strip at the top of the workbench and the info card at the bottom of the sidebar
+- **Sidebar**: the collapse button sits in the title bar next to the traffic lights; collapsed, it shows a column of session squares (endpoint icon + status dot) with an instant hover card for title, time and status
 - **Window position & size memory**: the main window's position and size (including maximized) are restored on the next launch; if the saved position is no longer on any screen it is centred on the primary display
 
 #### 🔑 Providers & token management
@@ -331,7 +326,7 @@ Connect the cloud models you already like, or go fully offline with local models
 
 #### 📚 Knowledge base
 
-- Point Nomi at folders or notes; answers include **clickable citations**
+- Point Nomi at folders; answers include **clickable citations**
 - txt, Markdown, PDF, Word, plus text in images (local OCR)
 - Incremental indexing; optional local or cloud embedding models for better retrieval
 
@@ -340,17 +335,12 @@ Connect the cloud models you already like, or go fully offline with local models
 - Conversations are distilled into memories after chats; related topics come back naturally next time
 - Your profile (name, preferences) is viewable, editable, deletable, and exportable anytime
 
-#### ⏰ Proactive schedule & system calendar
+#### ⏰ Proactive schedule
 
 - **Reminders**: recurrence supported; missed ones catch up on next launch
-- **Scheduled jobs**: e.g. daily briefing — content arrives via bubble + system notification
+- **Scheduled jobs**: e.g. daily briefing — Nomi tells you, and the result is also saved in the chat window
 - **Proactive chat** (off by default): occasional hellos within your frequency, active hours, and do-not-disturb window
-- **Calendar**: connect macOS / Windows / Linux system calendars, import .ics, subscribe to feeds, or use CalDAV
-
-#### 🖥️ Screen Q&A
-
-- Select a screen region and ask directly
-- Optional **screen memory** (off by default): periodic screenshots with on-device OCR so you can ask “what did that page say?”; app exclusions and auto-cleanup supported
+- **One alert, one place**: Nomi's bubble while she's on your desktop; the Dynamic Island when she's closed, or a system notification if the island is unavailable; nothing during quiet hours
 
 #### 🧩 MCP & skills
 
@@ -367,7 +357,7 @@ Connect the cloud models you already like, or go fully offline with local models
 #### 🤖 Automation
 
 - **Desktop files**: after you grant folders, the AI can list, search, read, and summarize; writes need confirmation; deletes go to trash and can be undone
-- **Notes, reminders & clipboard history** (clipboard off by default)
+- **Reminders & clipboard**: set reminders; reading or writing the clipboard asks you first
 - **Controlled browser**: AI browses public pages in a separate, private window you can watch
 - **Code sandbox**: run JavaScript / Python snippets in an isolated temp directory
 - All actions have a local audit log
@@ -380,12 +370,12 @@ Connect the cloud models you already like, or go fully offline with local models
 
 #### 👀 Coding-agent monitor
 
-- Discovers Claude Code, Codex, Cursor, Aider, Cline, Continue on this machine; bubbles when a task finishes or needs you
+- Discovers Claude Code, Codex, dsh, Grok, Gemini CLI on this machine; bubbles when a task finishes or needs you
 - Reads only existing local logs and session files
 
 #### 🏝️ Dynamic Island notifications (macOS)
 
-- Messages, coding-agent progress, and reminders appear in a notch-style Dynamic Island; other platforms use a top capsule
+- While Nomi is closed, messages, coding-agent progress, and reminders appear in a notch-style Dynamic Island; other platforms can turn on a top capsule
 
 #### 🎨 Personalization
 
@@ -430,7 +420,7 @@ Open the [GitHub Releases](https://github.com/Cookieboty/nomi-ai/releases/latest
 ### 🚀 Quick start
 
 1. Install and open Nomi; follow onboarding for language, theme, and character.
-2. Add a provider under Coding assistants → Nomi (API key), or download a local model under Local management.
+2. Add a third-party provider under Settings → Models & providers (pick a preset or paste a URL, enter the API key), or download a local model in its Local models tab.
 3. Click Nomi or press `Ctrl/⌘+N` to chat; `Ctrl/⌘+K` opens everything else.
 
 ### 🛠️ Build from source

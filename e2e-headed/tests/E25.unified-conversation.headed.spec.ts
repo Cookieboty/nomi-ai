@@ -57,7 +57,7 @@ async function launch(
   await chat.setViewportSize({ width: 1100, height: 700 }).catch(() => undefined);
   if (dev) {
     await chat.locator('[data-testid="chat-mode-dev"]').click({ timeout: 30_000 });
-    await chat.locator('[data-testid="chat-tabs"]').waitFor({ timeout: 30_000 });
+    await chat.locator('[data-testid="list-view-all"]').waitFor({ timeout: 30_000 });
   }
   return { app, chat };
 }
@@ -86,9 +86,9 @@ const shot = async (p: Page, name: string) => {
 };
 
 async function newClaudeTab(chat: Page) {
-  await chat.click('[data-testid="chat-tab-add"]');
-  await chat.locator('[data-testid="chat-tab-menu"]').waitFor();
-  await chat.click('[data-testid="chat-tab-new-claude"]');
+  await chat.click('[data-testid="new-chat"]');
+  await chat.locator('[data-testid="new-chat-menu"]').waitFor();
+  await chat.click('[data-testid="new-chat-claude"]');
   await expect(chat.locator('[data-testid="chat-input"]')).toBeEnabled();
 }
 

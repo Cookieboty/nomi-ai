@@ -27,7 +27,7 @@ export const SourceList: React.FC<{ sources: KbSource[]; onPick: (s: KbSource) =
         type="button"
         className={styles.sourceChip}
         onClick={() => onPick(s)}
-        title={s.path.startsWith('note:') ? s.title : s.path}
+        title={s.path}
         data-testid="kb-source-chip"
       >
         <span className={styles.sourceNum}>{s.n}</span>
@@ -46,23 +46,19 @@ export const SourcePreview: React.FC<{ source: KbSource | null; onClose: () => v
   source,
   onClose,
 }) => {
-  const [note, setNote] = useState<{ title: string; body: string } | null>(null);
   const [err, setErr] = useState('');
   if (!source) return null;
-  const isNote = source.path.startsWith('note:');
-  const act = async (how: 'open' | 'reveal' | 'preview') => {
+  const act = async (how: 'open' | 'reveal') => {
     setErr('');
     try {
       const r = await kbClient.open(source.docId, how);
       if (!r.ok) setErr(r.error ?? t('ui.foundation.couldn-t-open'));
-      else if (r.note) setNote(r.note);
       else onClose();
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     }
   };
   const close = () => {
-    setNote(null);
     setErr('');
     onClose();
   };
@@ -74,28 +70,22 @@ export const SourcePreview: React.FC<{ source: KbSource | null; onClose: () => v
       title={`[${source.n}] ${source.title}`}
       data-testid="kb-source-preview"
       footer={
-        isNote ? (
-          <Button variant="primary" onClick={() => void act('preview')} disabled={!!note}>
-            {t('ui.knowledge-local.view-full-text')}
+        <>
+          <Button onClick={() => void act('reveal')}>
+            {t('ui.providers-schedule.show-in-folder')}
           </Button>
-        ) : (
-          <>
-            <Button onClick={() => void act('reveal')}>
-              {t('ui.providers-schedule.show-in-folder')}
-            </Button>
-            <Button variant="primary" onClick={() => void act('open')} data-testid="kb-open-file">
-              {t('ui.providers-schedule.open-file')}
-            </Button>
-          </>
-        )
+          <Button variant="primary" onClick={() => void act('open')} data-testid="kb-open-file">
+            {t('ui.providers-schedule.open-file')}
+          </Button>
+        </>
       }
     >
       <div className={styles.previewBody}>
         <div className={styles.previewPath}>
-          {isNote ? t('ui.providers-schedule.local-notes') : shortPath(source.path)}
+          {shortPath(source.path)}
           {source.page ? t('ui.knowledge-local.page', source.page) : ''}
         </div>
-        <blockquote className={styles.previewQuote}>{note ? note.body : source.snippet}</blockquote>
+        <blockquote className={styles.previewQuote}>{source.snippet}</blockquote>
         {err && <div className={styles.errorText}>{err}</div>}
       </div>
     </Modal>,

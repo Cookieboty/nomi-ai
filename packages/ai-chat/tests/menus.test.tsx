@@ -3,7 +3,6 @@ import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ChatTabs } from '../src/components/ChatTabs';
 import { Sidebar } from '../src/components/Sidebar';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import { setChatMode } from '../src/services/chatPrefs';
@@ -274,70 +273,18 @@ describe('one conversation context menu', () => {
     fireEvent.keyDown(r.getByTestId('conversation-context-menu'), { key: 'Escape' });
     expect(r.queryByTestId('conversation-context-menu')).toBeNull();
   });
-
-  it('the tab strip opens the same menu and forwards fork requests', async () => {
-    mockIpc();
-    const onForkTab = vi.fn();
-    const r = render(
-      <HarnessTabsProvider>
-        <ChatTabs onForkTab={onForkTab} />
-      </HarnessTabsProvider>,
-    );
-    await waitFor(() => r.getByTestId('chat-tab-1'));
-    // 主标签（Nomi）没有右键菜单
-    fireEvent.contextMenu(r.getByTestId('chat-tab-0'));
-    expect(r.queryByTestId('conversation-context-menu')).toBeNull();
-    fireEvent.contextMenu(r.getByTestId('chat-tab-1'));
-    expect(r.getByTestId('conversation-close')).toBeTruthy();
-    fireEvent.click(r.getByTestId('fork-cross'));
-    expect(onForkTab).toHaveBeenCalledWith('t1', 'cross');
-  });
-
-  it('the tab menu can close tabs to the left or right', async () => {
-    const invoke = mockIpc();
-    tabsState.tabs = [
-      tab({ id: 'main', backend: 'nomi', title: 'Nomi' }),
-      tab({ id: 'left', title: '左侧' }),
-      tab({ id: 't1', title: '当前' }),
-      tab({ id: 'right', title: '右侧' }),
-    ];
-    const r = render(
-      <HarnessTabsProvider>
-        <ChatTabs />
-      </HarnessTabsProvider>,
-    );
-    await waitFor(() => r.getByTestId('chat-tab-2'));
-    fireEvent.contextMenu(r.getByTestId('chat-tab-2'));
-    expect(r.getByTestId('conversation-close-left')).toBeTruthy();
-    expect(r.getByTestId('conversation-close-right')).toBeTruthy();
-    fireEvent.click(r.getByTestId('conversation-close-left'));
-    await waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:harness:tab-close', 'left'));
-    expect(invoke).not.toHaveBeenCalledWith('ai:harness:tab-close', 'right');
-
-    fireEvent.contextMenu(r.getByTestId('chat-tab-2'));
-    fireEvent.click(r.getByTestId('conversation-close-right'));
-    await waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:harness:tab-close', 'right'));
-  });
 });
 
 describe('one "new" menu', () => {
-  it('sidebar and tab strip render the same component (names, icons, 未安装)', async () => {
+  it('the sidebar new menu lists every endpoint (names, 未安装)', async () => {
     mockIpc();
     const r = render(
       <HarnessTabsProvider>
-        <ChatTabs />
         <Sidebar collapsed={false} onToggle={() => undefined} onNewChat={() => undefined} />
       </HarnessTabsProvider>,
     );
-    await waitFor(() => r.getByTestId('chat-tab-add'));
-    fireEvent.click(r.getByTestId('chat-tab-add'));
-    const tabMenu = await waitFor(() => r.getByTestId('chat-tab-menu'));
-    expect(r.getByTestId('chat-tab-new-claude').textContent).toContain('Claude Code');
-    fireEvent.click(r.getByTestId('chat-tab-add'));
-    await waitFor(() => expect(r.queryByTestId('chat-tab-menu')).toBeNull());
-    fireEvent.click(r.getByTestId('new-chat'));
+    fireEvent.click(await waitFor(() => r.getByTestId('new-chat')));
     const sideMenu = await waitFor(() => r.getByTestId('new-chat-menu'));
-    expect(tabMenu.getAttribute('role')).toBe('menu');
     expect(sideMenu.getAttribute('role')).toBe('menu');
     // 同样的名称；未安装的端点置灰（dsh 在侧栏里未探测到）
     expect(r.getByTestId('new-chat-claude').textContent).toBe('Claude Code');

@@ -1,5 +1,5 @@
 import { t } from '@nomi-ai/ui';
-/** 本地中心客户端：本机模型（llama.cpp / Ollama）、日历、剪贴板历史、数据导出（`ai:local:*` / `ai:hub:*`） */
+/** 本机管理客户端：本机模型（llama.cpp / Ollama）、数据导出（`ai:local:*` / `ai:hub:*`） */
 export type Fit = 'ok' | 'tight' | 'too-big';
 export interface Progress {
   received: number;
@@ -63,45 +63,6 @@ export interface OllamaModel {
   quant?: string;
   family?: string;
 }
-export interface CalSource {
-  id: string;
-  name: string;
-  kind: 'local' | 'file' | 'ics-url' | 'caldav' | 'system';
-  color: string;
-  url?: string;
-  username?: string;
-  hasPassword?: boolean;
-  /** 旧版本留下的明文密码，且当前安全存储不可用、无法迁移 */
-  passwordInsecure?: boolean;
-  enabled: boolean;
-  lastSync?: number;
-  lastError?: string;
-  count?: number;
-}
-export interface Occurrence {
-  uid: string;
-  summary: string;
-  start: number;
-  end: number;
-  allDay: boolean;
-  location?: string;
-  cal: string;
-}
-export interface ClipItem {
-  id: string;
-  at: number;
-  kind: 'text' | 'image';
-  text?: string;
-  w?: number;
-  h?: number;
-  pinned?: boolean;
-  thumb?: string;
-}
-export interface ClipState {
-  settings: { enabled: boolean; max: number; images: boolean };
-  items: ClipItem[];
-}
-
 interface AiBridge {
   invoke: (channel: string, ...args: unknown[]) => Promise<unknown>;
   on: (channel: string, fn: (payload: unknown) => void) => () => void;
@@ -144,45 +105,8 @@ export const localClient = {
 };
 
 export const hubClient = {
-  calState: () => H<{ sources: CalSource[] }>('cal-state'),
-  calRange: (from: number, to: number) => H<Occurrence[]>('cal-range', from, to),
-  calUpsert: (p: Partial<Occurrence> & { rrule?: string; description?: string }) =>
-    H('cal-upsert', p),
-  calRemove: (uid: string) => H('cal-remove', uid),
-  calImport: () => H('cal-import'),
-  calAddSource: (p: {
-    name: string;
-    kind: 'ics-url' | 'caldav';
-    url: string;
-    username?: string;
-    password?: string;
-  }) => H('cal-add-source', p),
-  calSync: (id: string) => H('cal-sync', id),
-  calToggle: (id: string, v: boolean) => H('cal-toggle', id, v),
-  calRemoveSource: (id: string) => H('cal-remove-source', id),
-  calExport: () => H('cal-export'),
-  calSystemInfo: () =>
-    H<{ provider: 'macos-calendar' | 'outlook-com' | 'evolution' | null; canCreate: boolean }>(
-      'cal-system-info',
-    ),
-  calSystemConnect: () => H<CalSource | undefined>('cal-system-connect'),
-  calSystemCreate: (p: { summary: string; start: number; end: number }) =>
-    H<{ ok: boolean; reason?: string; calendar?: string }>('cal-system-create', p),
-  clipState: () => H<ClipState>('clip-state'),
-  clipSettings: (p: Partial<ClipState['settings']>) => H('clip-settings', p),
-  clipCopy: (id: string) => H('clip-copy', id),
-  clipImage: (id: string) =>
-    H<{ mime: string; data: string; width: number; height: number; source: string }>(
-      'clip-image',
-      id,
-    ),
-  clipPin: (id: string, v: boolean) => H('clip-pin', id, v),
-  clipRemove: (id: string) => H('clip-remove', id),
-  clipClear: () => H('clip-clear'),
   exportAll: (include: string[], conversations?: unknown) =>
     H<{ file: string; bytes: number } | null>('export', { include, conversations }),
-  onChanged: (fn: () => void) => on('ai:hub:changed', () => fn()),
-  onClips: (fn: () => void) => on('ai:hub:clips', () => fn()),
 };
 
 export function fmtBytes(n: number): string {
@@ -223,15 +147,3 @@ export const STATUS_LABEL: Record<ServerStatus, string> = {
   running: 'ui.knowledge-local.running',
   error: 'ui.chat-settings.error',
 };
-
-/** 日程时间显示（24 小时制，避免 AM/PM 本地化差异） */
-export function fmtWhen(o: Pick<Occurrence, 'start' | 'end' | 'allDay'>, now = new Date()): string {
-  const s = new Date(o.start);
-  const hm = (d: Date) =>
-    `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-  const same = s.toDateString() === now.toDateString();
-  const day = same
-    ? t('ui.chat-settings.today')
-    : t('ui.chat-settings.message', s.getMonth() + 1, s.getDate());
-  return o.allDay ? t('ui.chat-settings.all-day', day) : `${day} ${hm(s)}–${hm(new Date(o.end))}`;
-}

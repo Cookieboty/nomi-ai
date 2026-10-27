@@ -311,7 +311,7 @@ export const ModelsPage: React.FC = () => {
           <span />
           <span>{t('ui.models.third-party-models')}</span>
           <span />
-          <span>{t('ui.models.new-tabs-use')}</span>
+          <span>{t('ui.models.new-sessions-use')}</span>
         </div>
         {CLI_KINDS.map((kind) => (
           <CliRow
@@ -505,7 +505,7 @@ const CliRow: React.FC<{
           options={sourceOptions}
           value={sourceValue}
           onChange={(e) => pickSource(e.target.value)}
-          aria-label={t('ui.models.new-tabs-use-named', name)}
+          aria-label={t('ui.models.new-sessions-use-named', name)}
           data-testid={`cli-source-${kind}`}
           menuMinWidth={240}
           title={accountsError ? t('ui.models.failed-to-load-accounts', accountsError) : undefined}

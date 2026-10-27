@@ -1,6 +1,6 @@
 /**
- * 对话窗口顶栏：只放与当前对话有关的东西——对话标签（工作台模式）与右侧的工作目录、变更栏开关等。
- * 应用级入口（设置 / 知识 · 记忆 · 日程 / 扩展 / 本机）在侧栏底部（AppEntries），
+ * 对话窗口顶栏：右侧放与当前会话有关的按钮（工作目录、改动栏开关等）。
+ * 会话切换在侧栏，这里不再显示会话标题；应用级入口（设置 / 知识 · 记忆 · 日程 / 扩展）在侧栏底部，
  * 助手 / 工作台切换在侧栏 Nomi 标志右侧。
  */
 import React from 'react';
@@ -8,21 +8,12 @@ import React from 'react';
 import styles from './index.module.css';
 
 interface Props {
-  /** 对话标签条（工作台模式） */
-  tabs?: React.ReactNode;
-  /** 右侧与当前对话有关的按钮（如变更栏开关） */
+  /** 右侧与当前会话有关的按钮（如变更栏开关） */
   trailing?: React.ReactNode;
-  children?: React.ReactNode;
 }
 
 export const ChatHeader: React.FC<Props> = (p) => (
-  <header
-    className={styles.header}
-    data-with-tabs={p.tabs ? 'true' : undefined}
-    data-testid="chat-header"
-  >
-    {p.tabs && <div className={styles.tabsSlot}>{p.tabs}</div>}
-    {p.children}
+  <header className={styles.header} data-testid="chat-header">
     {p.trailing && <div className={styles.actions}>{p.trailing}</div>}
   </header>
 );

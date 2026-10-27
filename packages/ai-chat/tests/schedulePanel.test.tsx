@@ -13,7 +13,6 @@ afterEach(() => {
 const state = (over: Record<string, unknown> = {}) => ({
   settings: {
     quiet: { enabled: true, start: '22:00', end: '08:00' },
-    osNotify: true,
     proactive: {
       enabled: false,
       frequency: 'low',
@@ -27,7 +26,6 @@ const state = (over: Record<string, unknown> = {}) => ({
   quietNow: true,
   deferred: 2,
   proactive: { today: 0, lastAt: 0, gate: { ok: false, reason: '未开启' } },
-  notifySupported: true,
   ...over,
 });
 
@@ -129,7 +127,7 @@ describe('schedule panel', () => {
     const labels = Array.from(r.container.ownerDocument.querySelectorAll('[role=tab]')).map(
       (e) => e.textContent,
     );
-    expect(labels).toEqual(['提醒', '定时任务', '主动聊天', '免打扰与通知']);
+    expect(labels).toEqual(['提醒', '定时任务', '主动聊天', '免打扰']);
     expect(r.queryByTestId('sched-agents')).toBeNull();
   });
 });

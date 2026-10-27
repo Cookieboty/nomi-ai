@@ -26,6 +26,7 @@ import {
   sanitizeRepeat,
 } from '../../../src/schedule/recurrence';
 import { SchedulerService, sanitizeSched } from '../../../src/schedule/SchedulerService';
+import { fakeDesktop } from '../helpers/fakeDesktop';
 
 const at = (y: number, mo: number, d: number, h = 0, mi = 0) =>
   new Date(y, mo - 1, d, h, mi).getTime();
@@ -121,10 +122,11 @@ describe('SchedulerService', () => {
       setTimeout: () => 1,
       clearTimeout: () => undefined,
     });
+    const say = jest.fn();
     const desktop = {
+      ...fakeDesktop(say),
       audit: { append: jest.fn() },
       reminders,
-      say: jest.fn(),
       flushDeferred: jest.fn(),
       deferredCount: () => 0,
       notifyPolicy: null as unknown,

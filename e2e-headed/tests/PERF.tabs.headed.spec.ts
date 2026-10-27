@@ -178,8 +178,12 @@ test.describe('PERF · workbench tabs', () => {
     const chat = await chatP;
     await chat.setViewportSize({ width: 1280, height: 860 }).catch(() => undefined);
     await chat.locator('[data-testid="chat-mode-dev"]').click({ timeout: 30_000 });
-    const tabs = chat.locator('[role="tab"]');
-    await expect(tabs).toHaveCount(TABS + 1, { timeout: 30_000 });
+    // 每个会话在侧栏是一行（按标题定位：标签条已移除，切换都在侧栏里做）
+    const tab = (i: number) =>
+      chat.locator('[data-testid="history-item"]', { hasText: `工作台 ${i}` }).first();
+    await expect(
+      chat.locator('[data-testid="history-item"]:not([data-backend="nomi"])'),
+    ).toHaveCount(TABS, { timeout: 30_000 });
     await chat.waitForTimeout(1500);
 
     const cpu = Number(process.env.NOMI_PERF_CPU ?? 1);
@@ -249,7 +253,7 @@ test.describe('PERF · workbench tabs', () => {
     const order = [0, 1, 2, 3, 4, 5, 6, 7, 1, 0, 5].filter((i) => i < TABS);
     for (const i of order) {
       const t0 = await now(chat);
-      const [first, full] = await timedClick(chat, () => tabs.nth(i + 1).click(), [
+      const [first, full] = await timedClick(chat, () => tab(i).click(), [
         `TABLAST-${i}-`,
         `TABLAST-${i}-${TURNS - 1}`,
       ]);

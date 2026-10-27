@@ -1,0 +1,140 @@
+/* 侧栏「开始使用」清单：和会话列表同宽，卡片背景略浮起，步骤之间留出呼吸感 */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-2);
+  margin: var(--cd-space-1) var(--cd-space-0-5) var(--cd-space-2);
+  padding: var(--cd-space-3);
+  border: 1px solid var(--cd-panel-border);
+  border-radius: var(--cd-radius-lg);
+  background: var(--cd-panel-surface);
+}
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cd-space-2);
+}
+.title {
+  font-size: var(--cd-font-size-md);
+  font-weight: var(--cd-font-weight-bold);
+  color: var(--cd-color-text);
+}
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.step {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  column-gap: var(--cd-space-2);
+}
+.mark {
+  display: inline-flex;
+  padding-top: 2px;
+  color: var(--cd-color-text-subtle);
+}
+.step[data-done='true'] .mark {
+  color: var(--cd-color-success);
+}
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-1);
+  min-width: 0;
+}
+.stepTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  font-size: var(--cd-font-size-sm);
+  font-weight: var(--cd-font-weight-medium);
+  color: var(--cd-color-text);
+}
+.step[data-done='true'] .stepTitle {
+  color: var(--cd-color-text-subtle);
+  text-decoration: line-through;
+}
+.optional {
+  font-size: var(--cd-font-size-xs);
+  font-weight: var(--cd-font-weight-regular);
+  color: var(--cd-color-text-subtle);
+}
+.desc {
+  font-size: var(--cd-font-size-xs);
+  line-height: 1.5;
+  color: var(--cd-color-text-muted);
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cd-space-1-5);
+  margin-top: var(--cd-space-0-5);
+}
+.err {
+  margin: 0;
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-danger);
+}
+.tips {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-1);
+  padding-top: var(--cd-space-2);
+  border-top: 1px solid var(--cd-panel-border);
+}
+.tipsTitle {
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-subtle);
+}
+.tipList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-0-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.tip,
+.tipStatic {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cd-space-2);
+  width: 100%;
+  min-height: var(--cd-control-h-xs);
+  padding: 0 var(--cd-space-1);
+  border-radius: var(--cd-radius-md);
+  font-size: var(--cd-font-size-sm);
+  color: var(--cd-color-text);
+}
+.tip {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+.tip:hover {
+  background: var(--cd-color-hover);
+}
+.tip:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 1px;
+}
+.kbd {
+  font-family: inherit;
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-subtle);
+}
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

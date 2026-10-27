@@ -5,7 +5,7 @@ import { t } from '@nomi-ai/ui';
  */
 export interface KbSourceView {
   id: string;
-  kind: 'folder' | 'notes';
+  kind: 'folder';
   path?: string;
   addedAt: number;
   enabled: boolean;
@@ -142,7 +142,6 @@ export const kbClient = {
   state: () => call<KbState>('state'),
   docs: (sourceId: string, filter = '') => call<KbDocView[]>('docs', sourceId, filter),
   addFolder: () => call<KbSourceView | null>('add-folder'),
-  addNotes: () => call<KbSourceView>('add-notes'),
   removeSource: (id: string) => call<boolean>('remove-source', id),
   toggleSource: (id: string, enabled: boolean) => call<boolean>('toggle-source', id, enabled),
   setSettings: (p: Partial<KbSettingsView>) => call<KbSettingsView>('set-settings', p),
@@ -154,12 +153,8 @@ export const kbClient = {
   search: (q: string) => call<{ hits: KbHit[]; mode: string }>('search', q),
   ask: (q: string, history: Array<{ role: string; content: string }>) =>
     call<{ answer: string; sources: KbSource[]; mode: string }>('ask', q, history),
-  open: (docId: string, how: 'open' | 'reveal' | 'preview' = 'open') =>
-    call<{ ok: boolean; error?: string; note?: { title: string; body: string } }>(
-      'open',
-      docId,
-      how,
-    ),
+  open: (docId: string, how: 'open' | 'reveal' = 'open') =>
+    call<{ ok: boolean; error?: string }>('open', docId, how),
   ocrDownload: (id: string) => call<{ ok: boolean; error?: string }>('ocr-download', id),
   ocrCancel: (id: string) => call<boolean>('ocr-cancel', id),
   ocrRemove: (id: string) => call<boolean>('ocr-remove', id),
@@ -175,7 +170,6 @@ export const fmtBytes = (n: number) =>
 
 /** 显示用：Windows / POSIX 路径都只取最后两级 */
 export function shortPath(p: string): string {
-  if (p.startsWith('note:')) return t('ui.foundation.notes');
   const parts = p.split(/[\\/]+/).filter(Boolean);
   return parts.length > 2 ? `…/${parts.slice(-2).join('/')}` : p;
 }

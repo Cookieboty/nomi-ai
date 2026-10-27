@@ -1,7 +1,7 @@
 /** 知识库设置（纯逻辑 + 校验） */
 export interface KbSource {
   id: string;
-  kind: 'folder' | 'notes';
+  kind: 'folder';
   /** kind=folder 时为文件夹绝对路径 */
   path?: string;
   addedAt: number;
@@ -49,12 +49,14 @@ export function sanitizeKbSettings(raw: unknown): KbSettings {
           (s) =>
             s &&
             typeof s.id === 'string' &&
-            (s.kind === 'notes' || (s.kind === 'folder' && typeof s.path === 'string' && s.path)),
+            s.kind === 'folder' &&
+            typeof s.path === 'string' &&
+            !!s.path,
         )
         .map((s) => ({
           id: String(s.id),
           kind: s.kind as KbSource['kind'],
-          ...(s.kind === 'folder' ? { path: String(s.path) } : {}),
+          path: String(s.path),
           addedAt: typeof s.addedAt === 'number' ? s.addedAt : 0,
           enabled: s.enabled !== false,
         }))

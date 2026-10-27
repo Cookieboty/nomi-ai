@@ -1,6 +1,6 @@
 # 第三方供应商与模型
 
-入口：设置 →「模型」，或对话区右上角模型选择器旁的按钮。Nomi 对话经本机的统一网关访问第三方供应商（设计见 [unified-gateway.md](../design/unified-gateway.md)）。
+入口：设置 →「模型与供应商」，或对话区右上角模型选择器旁的按钮。Nomi 对话经本机的统一网关访问第三方供应商（设计见 [unified-gateway.md](../design/unified-gateway.md)）。
 
 ## 一键切换
 
@@ -48,7 +48,7 @@
 
 ## 模型质量
 
-设置 →「模型质量」（在「模型」页旁边）持续记录每次请求的质量，用来比较供应商、模型和 Key（设计见 [model-quality](../design/model-quality.md)）。
+设置 →「用量与质量」里的「对比 / 趋势 / 请求明细」标签持续记录每次请求的质量，用来比较供应商、模型和 Key（设计见 [model-quality](../design/model-quality.md)）。
 
 - **两种测量口径**，界面上分开看：
   - **网关层**：经 Nomi 网关的请求（Nomi 对话、编程助手用第三方供应商），按 HTTP 请求计，有首字节、Key、每次尝试与回退。

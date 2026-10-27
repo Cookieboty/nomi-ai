@@ -27,15 +27,13 @@ import path from 'node:path';
 import { AgentProgressService, sanitizeAgentWatch } from '../../../src/agents/AgentProgressService';
 import {
   decideStatus,
-  parseAiderAnalytics,
   parseClaudeSession,
-  parseClineJob,
   parseCodexSession,
   parseGrokSession,
-  parseContinueSession,
   parseGeminiSession,
 } from '../../../src/agents/parsers';
 import { classify, parsePs, parseWinJson } from '../../../src/agents/processes';
+import { fakeDesktop } from '../helpers/fakeDesktop';
 
 describe('parsers', () => {
   it('codex new rollout format + legacy exec json', () => {
@@ -145,7 +143,6 @@ describe('parsers', () => {
       '101:claude',
       '102:claude',
       '104:codex',
-      '106:aider',
     ]);
     const win = parseWinJson(
       JSON.stringify([
@@ -154,22 +151,6 @@ describe('parsers', () => {
       ]),
     );
     expect(classify(win, 1)).toEqual([{ pid: 9, kind: 'claude' }]);
-  });
-
-  it('aider analytics / cline / continue', () => {
-    expect(parseAiderAnalytics('{"event":"message_send","time":1}\n')).toEqual({
-      status: 'running',
-      summary: 'Aider 运行中',
-    });
-    expect(parseClineJob(JSON.stringify({ status: 'running', command: 'npm test' }))).toEqual({
-      status: 'running',
-      summary: 'npm test',
-    });
-    expect(
-      parseContinueSession(
-        JSON.stringify({ title: 't', history: [{ message: { role: 'assistant' } }] }),
-      ),
-    ).toEqual({ status: 'completed', summary: 't' });
   });
 });
 
@@ -183,7 +164,7 @@ describe('AgentProgressService', () => {
       root: tmp(),
       home,
       logger: { info: jest.fn(), warn: jest.fn() },
-      desktop: { say } as never,
+      desktop: fakeDesktop(say) as never,
       now: () => opts.now,
       pollMs: 60_000,
       processes: opts.procs as never,
@@ -270,7 +251,7 @@ describe('AgentProgressService', () => {
       root: tmp(),
       home,
       logger: { info: jest.fn(), warn: jest.fn() },
-      desktop: { say } as never,
+      desktop: fakeDesktop(say) as never,
       now: () => now,
       pollMs: 60_000,
       processes: () => procs as never,
@@ -324,7 +305,7 @@ describe('AgentProgressService', () => {
       root: tmp(),
       home,
       logger: { info: jest.fn(), warn: jest.fn() },
-      desktop: { say } as never,
+      desktop: fakeDesktop(say) as never,
       now: () => now,
       pollMs: 60_000,
       processes: () => [{ pid: 1, kind: 'claude', cwd: '/w/a' }] as never,
@@ -368,7 +349,7 @@ describe('AgentProgressService', () => {
       root: tmp(),
       home,
       logger: { info: jest.fn(), warn: jest.fn() },
-      desktop: { say } as never,
+      desktop: fakeDesktop(say) as never,
       now: () => now,
       pollMs: 60_000,
       processes: () => [{ pid: 7, kind: 'codex' }],

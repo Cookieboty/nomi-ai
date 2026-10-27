@@ -42,7 +42,6 @@ describe('knowledge citations', () => {
   it('shortens Windows and POSIX paths', () => {
     expect(shortPath('C:\\Users\\me\\Docs\\a.pdf')).toBe('…/Docs/a.pdf');
     expect(shortPath('/home/me/a.md')).toBe('…/me/a.md');
-    expect(shortPath('note:n123456')).toBe('笔记');
   });
 
   it('renders clickable citations and opens a source through IPC', async () => {

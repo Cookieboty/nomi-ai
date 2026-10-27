@@ -2,21 +2,14 @@ import {
   Activity,
   AppWindow,
   BarChart3,
-  Bell,
   BookOpen,
   Boxes,
-  CalendarDays,
   ClipboardList,
   Cpu,
   Download,
   FolderLock,
   Gauge,
-  Globe,
-  Keyboard,
   Layers,
-  Mic,
-  MonitorSmartphone,
-  NotebookPen,
   Plug,
   ReceiptText,
   Shield,
@@ -38,18 +31,6 @@ export interface HelpItem {
 }
 
 export const SECTION_HELP: Record<Exclude<SettingsSection, 'general'>, HelpItem[]> = {
-  shortcuts: [
-    {
-      icon: Keyboard,
-      title: 'ui.chat-settings.in-app-shortcuts',
-      desc: 'ui.chat-settings.key-combos-in-the-chat-window-rebindable-with',
-    },
-    {
-      icon: Globe,
-      title: 'ui.chat-settings.global-shortcuts',
-      desc: 'ui.chat-settings.system-wide-hotkeys-that-work-even-when-nomi',
-    },
-  ],
   models: [
     {
       icon: Waypoints,
@@ -71,27 +52,10 @@ export const SECTION_HELP: Record<Exclude<SettingsSection, 'general'>, HelpItem[
       title: 'ui.models.terminal-commands',
       desc: 'ui.chat-settings.launch-coding-assistants-with-third-party-models-from',
     },
-  ],
-  quality: [
     {
-      icon: Gauge,
-      title: 'ui.model-quality.compare',
-      desc: 'ui.model-quality.multi-level-table-how-the-same-model-differs',
-    },
-    {
-      icon: BarChart3,
-      title: 'ui.usage-tools.trend',
-      desc: 'ui.model-quality.success-rate-latency-and-speed-over-time-by',
-    },
-    {
-      icon: ClipboardList,
-      title: 'ui.model-quality.request-details',
-      desc: 'ui.model-quality.per-request-timeline-outcome-and-fallbacks-the-former',
-    },
-    {
-      icon: Layers,
-      title: 'ui.model-quality.two-measurement-layers',
-      desc: 'ui.model-quality.the-gateway-layer-covers-requests-through-the-gateway',
+      icon: Cpu,
+      title: 'ui.knowledge-local.local-models',
+      desc: 'ui.knowledge-local.built-in-llama-cpp-local-models-plus-optional',
     },
   ],
   coding: [
@@ -137,24 +101,32 @@ export const SECTION_HELP: Record<Exclude<SettingsSection, 'general'>, HelpItem[
       title: 'ui.usage-tools.budget-and-privacy',
       desc: 'ui.chat-settings.spending-alert-thresholds-and-usage-record-options',
     },
-  ],
-  senses: [
     {
-      icon: Mic,
-      title: 'ui.chat-settings.voice',
-      desc: 'ui.chat-settings.voice-input-read-aloud-voice-and-hands-free',
+      icon: Gauge,
+      title: 'ui.model-quality.compare',
+      desc: 'ui.model-quality.multi-level-table-how-the-same-model-differs',
     },
     {
-      icon: MonitorSmartphone,
-      title: 'ui.chat-settings.screen',
-      desc: 'ui.chat-settings.screenshot-questions-the-screenshot-hotkey-and-screen-memory',
+      icon: BarChart3,
+      title: 'ui.usage-tools.trend',
+      desc: 'ui.model-quality.success-rate-latency-and-speed-over-time-by',
+    },
+    {
+      icon: ClipboardList,
+      title: 'ui.model-quality.request-details',
+      desc: 'ui.model-quality.per-request-timeline-outcome-and-fallbacks-the-former',
+    },
+    {
+      icon: Layers,
+      title: 'ui.model-quality.two-measurement-layers',
+      desc: 'ui.model-quality.the-gateway-layer-covers-requests-through-the-gateway',
     },
   ],
   knowledge: [
     {
       icon: BookOpen,
       title: 'ui.foundation.knowledge-base',
-      desc: 'ui.chat-settings.add-folders-and-notes-they-are-searched-and',
+      desc: 'ui.chat-settings.add-folders-they-are-searched-and-cited',
     },
     {
       icon: Sparkles,
@@ -162,28 +134,9 @@ export const SECTION_HELP: Record<Exclude<SettingsSection, 'general'>, HelpItem[
       desc: 'ui.chat-settings.preferences-and-facts-remembered-from-chats-view-and',
     },
     {
-      icon: NotebookPen,
-      title: 'ui.foundation.notes',
-      desc: 'ui.chat-settings.your-local-markdown-notes',
-    },
-  ],
-  schedule: [
-    {
       icon: Timer,
       title: 'ui.mascot-theme.schedule-reminders',
       desc: 'ui.chat-settings.reminders-scheduled-tasks-and-proactive-chat',
-    },
-    {
-      icon: CalendarDays,
-      title: 'ui.chat-settings.calendar-sources',
-      desc: 'ui.chat-settings.system-calendar-ics-and-caldav-events-feed-the',
-    },
-  ],
-  notify: [
-    {
-      icon: Bell,
-      title: 'ui.mascot-theme.dynamic-island-notifications',
-      desc: 'ui.chat-settings.how-you-are-alerted-when-a-coding-assistant',
     },
   ],
   ext: [
@@ -198,23 +151,6 @@ export const SECTION_HELP: Record<Exclude<SettingsSection, 'general'>, HelpItem[
       desc: 'ui.chat-settings.manage-skill-packs-the-assistant-can-use',
     },
   ],
-  local: [
-    {
-      icon: ClipboardList,
-      title: 'ui.knowledge-local.clipboard',
-      desc: 'ui.chat-settings.clipboard-history-on-this-machine',
-    },
-    {
-      icon: Download,
-      title: 'ui.knowledge-local.data-export',
-      desc: 'ui.chat-settings.export-chats-memory-schedules-and-more-to-local',
-    },
-    {
-      icon: Cpu,
-      title: 'ui.knowledge-local.local-models',
-      desc: 'ui.knowledge-local.built-in-llama-cpp-local-models-plus-optional',
-    },
-  ],
   privacy: [
     {
       icon: Shield,
@@ -225,6 +161,11 @@ export const SECTION_HELP: Record<Exclude<SettingsSection, 'general'>, HelpItem[
       icon: FolderLock,
       title: 'ui.chat-settings.desktop-permissions',
       desc: 'ui.chat-settings.accessible-folders-available-tools-and-the-action-log',
+    },
+    {
+      icon: Download,
+      title: 'ui.knowledge-local.data-export',
+      desc: 'ui.chat-settings.export-chats-memory-schedules-and-more-to-local',
     },
   ],
 };

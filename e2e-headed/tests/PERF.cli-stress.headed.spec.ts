@@ -71,7 +71,7 @@ async function launch(userData: string) {
   const chat = await chatWin;
   await chat.setViewportSize({ width: 1100, height: 700 }).catch(() => undefined);
   await chat.locator('[data-testid="chat-mode-dev"]').click({ timeout: 30_000 });
-  await chat.locator('[data-testid="chat-tabs"]').waitFor({ timeout: 30_000 });
+  await chat.locator('[data-testid="list-view-all"]').waitFor({ timeout: 30_000 });
   return { app, chat, main };
 }
 
@@ -169,9 +169,9 @@ test('stress: thousands of tool calls + long markdown stream, then 50 tab switch
     };
 
     const tabAdd = async (backend: 'claude') => {
-      await chat.click('[data-testid="chat-tab-add"]');
-      await chat.locator('[data-testid="chat-tab-menu"]').waitFor();
-      await chat.click(`[data-testid="chat-tab-new-${backend}"]`);
+      await chat.click('[data-testid="new-chat"]');
+      await chat.locator('[data-testid="new-chat-menu"]').waitFor();
+      await chat.click(`[data-testid="new-chat-${backend}"]`);
     };
 
     await tabAdd('claude');
@@ -232,24 +232,25 @@ test('stress: thousands of tool calls + long markdown stream, then 50 tab switch
     await tabAdd('claude');
     await chat.waitForTimeout(500);
     const switchStart = Date.now();
-    const tabs = chat.locator('[role="tab"]');
+    // 标签条已移除：用 Mod+数字 在第 1、2 个编程助手会话间切换（Mod+1 是主对话）
+    const mod = await chat.evaluate(() => (/Mac/.test(navigator.platform) ? 'Meta' : 'Control'));
     const renderMs: number[] = [];
     for (let i = 0; i < 50; i++) {
       const target = i % 2 === 0 ? 1 : 2;
       const t1 = Date.now();
-      await tabs.nth(target).click();
+      await chat.keyboard.press(`${mod}+${target + 1}`);
       if (target === 1) await chat.locator('[data-testid="msg-assistant"]').first().waitFor();
       renderMs.push(Date.now() - t1);
       if (i % 10 === 9) await sample('switching');
     }
     const switchMs = Date.now() - switchStart;
-    await tabs.nth(2).click();
+    await chat.keyboard.press(`${mod}+3`);
     await chat.waitForTimeout(1500);
     const afterSwitch = await sample('after-switch', true);
 
     // 重开历史：切回长会话的首屏渲染耗时
     const t2 = Date.now();
-    await tabs.nth(1).click();
+    await chat.keyboard.press(`${mod}+2`);
     await chat.locator('[data-testid="msg-assistant"]').first().waitFor();
     const reopenMs = Date.now() - t2;
     await chat.waitForTimeout(1000);

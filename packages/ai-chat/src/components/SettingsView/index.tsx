@@ -12,7 +12,6 @@ import { AppIcon } from '../AppIcons';
 import { ExtensionsPanel, LocalPanel, QualityPanel, UsagePanel } from '../lazyPanels';
 import { onboardingClient } from '../Onboarding/client';
 import { ProvidersPage } from '../ProvidersPage';
-import type { ScreenTab } from '../ScreenPanel';
 
 import { AppIconSettings } from './AppIconSettings';
 import { GeneralHero } from './GeneralHero';
@@ -20,14 +19,12 @@ import styles from './index.module.css';
 import { IslandSettings } from './IslandSettings';
 import { KnowledgeSection } from './KnowledgeSection';
 import { LanguageSettings } from './LanguageSettings';
-import { LayoutDensitySettings } from './LayoutDensitySettings';
 import { MascotSizeSettings } from './MascotSizeSettings';
 import { NomiMark } from './NomiMark';
 import { PrivacySection } from './PrivacySection';
-import { ScheduleSection } from './ScheduleSection';
 import { SECTION_HELP } from './sectionHelp';
+import { SectionPage } from './SectionPage';
 import {
-  LOCAL_MANAGE_TABS,
   SECTION_TABS,
   SETTINGS_NAV_GROUPS,
   SETTINGS_SECTIONS,
@@ -35,11 +32,11 @@ import {
   type SettingsSection,
   type SettingsTab,
 } from './sections';
-import { SensesSection } from './SensesSection';
 import { ShortcutSettings } from './ShortcutSettings';
 import { StartupSettings } from './StartupSettings';
 import { ThemeSettings } from './ThemeSettings';
 import { UpdateSettings } from './UpdateSettings';
+import { VoiceSection } from './VoiceSection';
 
 export { SETTINGS_NAV_GROUPS, SETTINGS_SECTIONS, type SettingsSection, type SettingsTab };
 
@@ -57,14 +54,19 @@ interface Props {
    * 每次新建一个对象表示一次新的跳转；不传则用各分区的第一个标签。
    */
   deepLink?: { tab?: SettingsTab };
+  /** 左侧导航收起成图标（与对话侧栏同一个状态：标题栏按钮 / Ctrl+B 切换） */
+  collapsed?: boolean;
 }
 
 type TabState = Partial<Record<keyof typeof SECTION_TABS, string>>;
 
-export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, deepLink }) => {
-  // 站内跳转指定的「屏幕」内层标签；从侧栏进入其它分区时清掉
-  const [screenSub, setScreenSub] = useState<ScreenTab | undefined>();
-  const [localTab, setLocalTab] = useState<'export' | undefined>();
+export const SettingsView: React.FC<Props> = ({
+  section,
+  onSection,
+  onClose,
+  deepLink,
+  collapsed = false,
+}) => {
   // 宽分区（不显示右侧说明栏）的页头「说明」是否展开
   const [helpOpen, setHelpOpen] = useState(false);
   // 有标签页的分区各自记住当前标签（离开设置页后重置）
@@ -83,9 +85,8 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
   const setTab = (s: keyof typeof SECTION_TABS, tab: string) =>
     setTabs((p) => ({ ...p, [s]: tab }));
   /** 站内跳转：可同时指定目标分区的标签 */
-  const go = (s: SettingsSection, tab?: SettingsTab, sub?: ScreenTab) => {
+  const go = (s: SettingsSection, tab?: SettingsTab) => {
     if (tab && s in SECTION_TABS) setTab(s as keyof typeof SECTION_TABS, tab);
-    setScreenSub(sub);
     onSection(s);
   };
   // 每个分区都有统一页头（标题 + 说明），内嵌面板自己的标题只留给读屏
@@ -103,123 +104,137 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
   const current = SETTINGS_SECTIONS.find((s) => s.id === section) ?? SETTINGS_SECTIONS[0]!;
   const body = (() => {
     switch (section) {
-      case 'general':
+      case 'general': {
+        const g = tabOf('general');
         return (
-          <div className={styles.groups}>
-            <GeneralHero />
-            <SettingsGroup
-              title={t('ui.chat-settings.appearance')}
-              description={t('ui.chat-settings.theme-layout-app-icon-and-chat-background-applied')}
-              id="settings-appearance"
-              data-testid="settings-appearance"
-            >
-              <ThemeSettings />
-              <LayoutDensitySettings />
-              <AppIconSettings />
-            </SettingsGroup>
-            <StartupSettings
-              language={<LanguageSettings />}
-              mascotSize={(shown) => <MascotSizeSettings disabled={!shown} />}
-            />
-            <UpdateSettings>
-              <SettingRow
-                title={t('ui.mascot-theme.getting-started-guide')}
-                description={t(
-                  'ui.chat-settings.go-through-it-again-language-theme-startup-layout',
-                )}
-              >
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  data-testid="settings-reopen-onboarding"
-                  onClick={() => {
-                    onClose();
-                    void onboardingClient.reopen();
-                  }}
+          <SectionPage
+            testId="settings-general-page"
+            tabsLabel="ui.chat-settings.general-sections"
+            tabs={SECTION_TABS.general}
+            value={g}
+            onChange={(x) => setTab('general', x)}
+          >
+            {g === 'basics' && (
+              <div className={styles.groups}>
+                <GeneralHero />
+                <SettingsGroup
+                  title={t('ui.chat-settings.appearance')}
+                  description={t(
+                    'ui.chat-settings.theme-layout-app-icon-and-chat-background-applied',
+                  )}
+                  id="settings-appearance"
+                  data-testid="settings-appearance"
                 >
-                  {t('ui.chat-settings.reopen')}
-                </Button>
-              </SettingRow>
-            </UpdateSettings>
-          </div>
+                  <ThemeSettings />
+                  <AppIconSettings />
+                </SettingsGroup>
+                <StartupSettings
+                  language={<LanguageSettings />}
+                  mascotSize={(shown) => <MascotSizeSettings disabled={!shown} />}
+                />
+                <UpdateSettings>
+                  <SettingRow
+                    title={t('ui.mascot-theme.getting-started-guide')}
+                    description={t(
+                      'ui.chat-settings.go-through-it-again-language-theme-startup-layout',
+                    )}
+                  >
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      data-testid="settings-reopen-onboarding"
+                      onClick={() => {
+                        onClose();
+                        void onboardingClient.reopen();
+                      }}
+                    >
+                      {t('ui.chat-settings.reopen')}
+                    </Button>
+                  </SettingRow>
+                </UpdateSettings>
+              </div>
+            )}
+            {g === 'shortcuts' && <ShortcutSettings />}
+            {g === 'voice' && <VoiceSection />}
+            {g === 'notify' && <IslandSettings />}
+          </SectionPage>
         );
-      case 'shortcuts':
-        return <ShortcutSettings />;
+      }
       case 'models':
         return (
-          <Suspense fallback={null}>
-            <ModelsPage />
-          </Suspense>
+          <SectionPage
+            testId="settings-models-page"
+            tabsLabel="ui.chat-settings.models-and-providers-sections"
+            tabs={SECTION_TABS.models}
+            value={tabOf('models')}
+            onChange={(x) => setTab('models', x)}
+          >
+            {tabOf('models') === 'local' ? (
+              <LocalPanel key="local" isVisible onClose={noop} tabs={['models']} />
+            ) : (
+              <Suspense fallback={null}>
+                <ModelsPage />
+              </Suspense>
+            )}
+          </SectionPage>
         );
       case 'coding':
         return harnessClient.available() ? (
           <ProvidersPage
             onOpenedTab={onClose}
-            onOpenNotify={() => onSection('notify')}
-            onOpenModels={() => onSection('models')}
+            onOpenNotify={() => go('general', 'notify')}
+            onOpenModels={() => go('models', 'providers')}
           />
         ) : (
           <p className={styles.note}>
             {t('ui.cli-monitor.coding-assistant-settings-are-only-available-in-the')}
           </p>
         );
-      case 'quality':
+      case 'usage': {
+        const u = tabOf('usage');
         return (
-          <QualityPanel
-            tab={tabOf('quality')}
-            onTab={(x) => setTab('quality', x)}
-            onOpenPrivacy={() => go('privacy', 'data')}
-          />
+          <SectionPage
+            testId="settings-usage-page"
+            tabsLabel="ui.chat-settings.usage-and-quality-sections"
+            tabs={SECTION_TABS.usage}
+            value={u}
+            onChange={(x) => setTab('usage', x)}
+          >
+            {u === 'cost' ? (
+              <UsagePanel onOpenRequests={() => setTab('usage', 'requests')} />
+            ) : (
+              <QualityPanel
+                tab={u}
+                onTab={(x) => setTab('usage', x)}
+                onOpenPrivacy={() => go('privacy', 'data')}
+                hideTabs
+              />
+            )}
+          </SectionPage>
         );
-      case 'usage':
-        return <UsagePanel onOpenRequests={() => go('quality', 'requests')} />;
-      case 'senses':
-        return (
-          <SensesSection
-            tab={tabOf('senses')}
-            onTab={(x) => setTab('senses', x)}
-            screenTab={screenSub}
-          />
-        );
+      }
       case 'knowledge':
         return <KnowledgeSection tab={tabOf('knowledge')} onTab={(x) => setTab('knowledge', x)} />;
-      case 'schedule':
-        return <ScheduleSection tab={tabOf('schedule')} onTab={(x) => setTab('schedule', x)} />;
-      case 'notify':
-        return <IslandSettings />;
       case 'ext':
         return <ExtensionsPanel isVisible onClose={noop} />;
-      case 'local':
-        return (
-          <LocalPanel
-            key={localTab ?? 'first'}
-            isVisible
-            onClose={noop}
-            initialTab={localTab}
-            tabs={[...LOCAL_MANAGE_TABS]}
-          />
-        );
       case 'privacy':
         return (
-          <PrivacySection
-            tab={tabOf('privacy')}
-            onTab={(x) => setTab('privacy', x)}
-            go={go}
-            onExport={() => {
-              setLocalTab('export');
-              onSection('local');
-            }}
-          />
+          <PrivacySection tab={tabOf('privacy')} onTab={(x) => setTab('privacy', x)} go={go} />
         );
     }
   })();
 
   return (
     <div className={styles.settings} data-testid="settings-view">
-      <nav className={styles.nav} aria-label={t('ui.chat-settings.settings-sections')}>
+      <nav
+        className={styles.nav}
+        data-collapsed={collapsed || undefined}
+        aria-label={t('ui.chat-settings.settings-sections')}
+        data-testid="settings-nav"
+      >
         <div className={styles.brand} data-testid="settings-brand">
-          <NomiMark className={styles.brandMark} />
+          <NomiMark className={styles.brandMark} size={collapsed ? 24 : 36} />
           <span className={styles.brandText}>
             <span className={styles.brandName}>{t('ui.chat-settings.nomi')}</span>
             <span className={styles.brandSub}>
@@ -233,9 +248,10 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
           onClick={onClose}
           data-testid="settings-back"
           title={t('ui.chat-settings.back-to-chat-esc')}
+          aria-label={collapsed ? t('ui.chat-settings.back-to-chat') : undefined}
         >
           <Icon icon={ChevronLeft} />
-          {t('ui.chat-settings.back-to-chat')}
+          <span className={styles.navLabel}>{t('ui.chat-settings.back-to-chat')}</span>
         </button>
         {SETTINGS_NAV_GROUPS.map((group, gi) => (
           <div key={gi} className={styles.navSection}>
@@ -247,17 +263,15 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
                   type="button"
                   className={`${styles.navItem} ${s.id === section ? styles.navActive : ''}`}
                   aria-current={s.id === section ? 'page' : undefined}
-                  onClick={() => {
-                    setLocalTab(undefined);
-                    setScreenSub(undefined);
-                    onSection(s.id);
-                  }}
+                  onClick={() => onSection(s.id)}
                   data-testid={`settings-nav-${s.id}`}
+                  title={collapsed ? t(s.label) : undefined}
+                  aria-label={collapsed ? t(s.label) : undefined}
                 >
                   <span className={styles.navIcon}>
                     <AppIcon icon={s.icon} size="nav" />
                   </span>
-                  {t(s.label)}
+                  <span className={styles.navLabel}>{t(s.label)}</span>
                 </button>
               ))}
           </div>
