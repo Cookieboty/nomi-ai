@@ -119,6 +119,7 @@
   "ui.mascot-theme.new-event-title": "New event title",
   "ui.mascot-theme.new-result": "New result",
   "ui.mascot-theme.new-session": "{0} · new session",
+  "ui.mascot-theme.new-version-still-publishing": "A new version is being published and the installer for this platform isn't up yet. Check again later.",
   "ui.mascot-theme.next": "Next",
   "ui.mascot-theme.next-tab": "Next tab",
   "ui.mascot-theme.no-matches": "No matches",

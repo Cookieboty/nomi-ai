@@ -441,3 +441,31 @@ jobs:
             dist/latest*.yml
           if-no-files-found: error
           retention-days: ${{ startsWith(github.ref, 'refs/tags/v') && 14 || 3 }}
+
+  # ---------------------------------------------------------------
+  # Tag 发版：三个平台都上传到草稿 Release 之后再统一发布（#146）。
+  # 草稿期间 electron-updater 看不到它，不会出现「最新 Release 缺本平台 latest*.yml」的 404。
+  # ---------------------------------------------------------------
+  publish-release:
+    name: publish GitHub Release (tag)
+    needs: [build-electron]
+    if: ${{ startsWith(github.ref, 'refs/tags/v') && needs.build-electron.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check update metadata for every platform, then publish the draft
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="$GITHUB_REF_NAME"
+          assets=$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')
+          for f in latest.yml latest-mac.yml latest-linux.yml; do
+            if ! grep -qx "$f" <<<"$assets"; then
+              echo "::error::Release $tag is missing $f; leaving it as a draft"
+              exit 1
+            fi
+          done
+          gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --latest

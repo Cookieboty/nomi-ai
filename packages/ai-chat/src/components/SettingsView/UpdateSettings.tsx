@@ -30,6 +30,8 @@ export interface UpdateState {
   errorStage?: 'check' | 'download' | 'install';
   checkedAt?: number;
   autoCheck: boolean;
+  /** 新版本还在发布（最新 Release 还没有本平台的更新文件）：按暂无更新显示，提示稍后再检查 */
+  releasePending?: boolean;
 }
 
 interface UpdatesApi {
@@ -53,7 +55,9 @@ export function statusLabel(s: UpdateState): string {
     case 'available':
       return t('ui.mascot-theme.update-is-available').replace('{0}', s.availableVersion ?? '');
     case 'not-available':
-      return t('ui.mascot-theme.you-are-up-to-date');
+      return s.releasePending
+        ? t('ui.mascot-theme.new-version-still-publishing')
+        : t('ui.mascot-theme.you-are-up-to-date');
     case 'downloading':
       return t('ui.mascot-theme.downloading-update').replace(
         '{0}',

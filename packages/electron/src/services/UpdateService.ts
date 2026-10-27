@@ -49,6 +49,19 @@ export interface UpdateState {
   /** last successful check (ms since epoch) */
   checkedAt?: number;
   autoCheck: boolean;
+  /**
+   * 最新的 Release 还没有本平台的 latest*.yml（新版本正在发布，安装包还没传完）：按「暂无可用更新」处理，
+   * 界面提示稍后再检查，不当成错误（#146）
+   */
+  releasePending?: boolean;
+}
+
+/** electron-updater 找不到本平台更新元数据（latest.yml / latest-mac.yml / latest-linux.yml）的错误 */
+export function isMissingUpdateMetadata(err: unknown): boolean {
+  const code = (err as { code?: unknown } | null)?.code;
+  if (code === 'ERR_UPDATER_CHANNEL_FILE_NOT_FOUND') return true;
+  const msg = err instanceof Error ? err.message : String(err);
+  return /Cannot find [\w.-]+\.yml in the latest release artifacts/i.test(msg);
 }
 
 /** Narrow surface we need from electron-updater (injectable for unit tests). */
@@ -200,6 +213,7 @@ export class UpdateService {
     this.updater.on('update-available', (info) => {
       const i = info as UpdateInfo;
       this.patch({
+        releasePending: undefined,
         status: 'available',
         availableVersion: i.version,
         releaseName: i.releaseName,
@@ -210,6 +224,7 @@ export class UpdateService {
     });
     this.updater.on('update-not-available', () =>
       this.patch({
+        releasePending: undefined,
         status: 'not-available',
         availableVersion: undefined,
         checkedAt: Date.now(),
@@ -239,7 +254,8 @@ export class UpdateService {
     this.updater.on('error', (err) => {
       const msg = err instanceof Error ? err.message : String(err);
       this.logger.warn('[updater] error', { error: msg });
-      this.fail(msg);
+      if (this.state.status === 'checking' && isMissingUpdateMetadata(err)) this.releasePending();
+      else this.fail(msg);
     });
 
     if (!this.packaged) {
@@ -293,18 +309,39 @@ export class UpdateService {
     }
     // 上一次的自动下载还挂着（卡住 / 失败后重试）：先取消，否则 electron-updater 会一直复用它
     this.cancelDownload();
-    this.patch({ status: 'checking', error: undefined, errorStage: undefined });
+    this.patch({
+      status: 'checking',
+      error: undefined,
+      errorStage: undefined,
+      releasePending: undefined,
+    });
     try {
       const r = await this.updater.checkForUpdates();
       this.downloadToken = r?.cancellationToken ?? null;
       // 自动下载的失败已经通过 error 事件反映到状态上；这里只防止未处理的 rejection
       void r?.downloadPromise?.catch(() => undefined);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      this.fail(msg, 'check');
-      this.patch({ checkedAt: Date.now() });
+      if (isMissingUpdateMetadata(err)) this.releasePending();
+      else {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.fail(msg, 'check');
+        this.patch({ checkedAt: Date.now() });
+      }
     }
     return this.getState();
+  }
+
+  /** 新版本还在发布：当作暂无可用更新 */
+  private releasePending(): void {
+    this.downloadToken = null;
+    this.patch({
+      status: 'not-available',
+      availableVersion: undefined,
+      releasePending: true,
+      error: undefined,
+      errorStage: undefined,
+      checkedAt: Date.now(),
+    });
   }
 
   async download(): Promise<UpdateState> {

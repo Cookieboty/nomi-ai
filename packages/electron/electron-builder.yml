@@ -135,6 +135,8 @@ publish:
   provider: github
   owner: Cookieboty
   repo: nomi-ai
-  # v* tags create a published Release so installed apps can update.
+  # v* tags upload to a draft Release; CI job publish-release publishes it once all three
+  # platforms (and their latest*.yml) are uploaded, so installed apps never see a Release
+  # without their platform's update metadata (#146).
   # Do not push a tag until you are ready for users to receive it (see docs/RELEASE.md).
-  releaseType: release
+  releaseType: draft

@@ -12,7 +12,7 @@ Nomi ships installers for **Windows (NSIS)**, **macOS (DMG, x64+arm64)** and **L
 | 来源                                                                     | 用途                                                                            |
 | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
 | `CI` → job `build-electron` → artifact `installer-{linux,mac,win}-<sha>` | push main / 带 `ci:full` 的 PR / `workflow_dispatch` 的可安装包（未签名也可测） |
-| tag `v*` → 同 job + `package:publish:*`                                  | 写入 GitHub Release，供 `electron-updater` 使用                                 |
+| tag `v*` → 同 job + `package:publish:*` → job `publish-release`          | 先传到草稿 Release，三平台齐了再发布，供 `electron-updater` 使用                |
 
 - Runner：**ubuntu-latest** → AppImage；**windows-latest** → NSIS `Nomi Setup *.exe`；**macos-latest** → DMG（x64+arm64）。
 - **不要**在 Linux 开发机 / box 上用 wine 交叉打 Win/Mac 当正式产物（原生依赖会打成错误平台）。
@@ -51,7 +51,8 @@ Auto-check can be toggled off in Settings. Periodic re-check is every 6 hours wh
 ## Cut a release · 如何发一版
 
 > Do **not** push a `v*` tag until CI on `main` (or the release branch) is green and you intend
-> users to receive that build. Tags trigger a **published** GitHub Release.
+> users to receive that build. Tags upload to a **draft** GitHub Release, and CI publishes it
+> automatically once all three platforms are uploaded.
 
 1. **Bump the version** in sync (semver, no leading `v` in the JSON fields):
    - `package.json` (workspace root)
@@ -72,7 +73,12 @@ Auto-check can be toggled off in Settings. Periodic re-check is every 6 hours wh
 4. **CI** (`.github/workflows/ci.yml` → `build-electron`):
    - Builds win / mac / linux with signing secrets when present
    - Runs `pnpm --filter @nomi-ai/electron run package:publish:{win,mac,linux}` (`--publish always`)
-   - Uploads installers + `latest*.yml` / `.blockmap` to the GitHub Release for that tag
+   - Uploads installers + `latest*.yml` / `.blockmap` to a **draft** GitHub Release for that tag
+     (`releaseType: draft`), so installed apps don't see it while platforms are still uploading
+   - Job `publish-release` (after all three `build-electron` jobs succeed) checks that
+     `latest.yml`, `latest-mac.yml` and `latest-linux.yml` are attached, then publishes the draft
+     and marks it latest. If a platform failed, the Release stays a draft: fix and re-run, or
+     publish it by hand once the missing files are attached
    - On macOS, runs `scripts/release/check-mac-update.mjs`: the job fails if `latest-mac.yml` does not list both the x64 and arm64 zip, or a listed file is missing or its size / sha512 differ. It prints a warning when the build is unsigned, because Squirrel.Mac rejects unsigned updates
 5. **Verify the Release** page has, at least:
    - Windows: `Nomi Setup x.y.z.exe` + `latest.yml` + `.blockmap`
@@ -190,5 +196,7 @@ GH_TOKEN=… pnpm --filter @nomi-ai/electron run package:publish:linux   # or :w
 
 - **Settings always “unavailable”** — you are on `pnpm dev` / unpackaged. Package and install first.
 - **Check fails with 404** — no Release (or no `latest*.yml`) for a _newer_ version than the installed app.
+  When the newest Release simply has no `latest*.yml` for this platform yet, the app shows
+  "a new version is still being published" instead of an error (#146).
 - **Download stalls** — corporate proxy; electron-updater uses HTTPS to `api.github.com` / release assets.
 - **Install does nothing** — status must be `downloaded`; click **Restart and install** and confirm the dialog.

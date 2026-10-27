@@ -146,6 +146,41 @@ describe('UpdateService', () => {
     expect(await svc.check()).toMatchObject({ status: 'error', errorStage: 'check' });
   });
 
+  it('最新 Release 还没有本平台的 latest.yml（404）：当作暂无可用更新并提示正在发布（#146）', async () => {
+    const err = Object.assign(
+      new Error(
+        'Cannot find latest.yml in the latest release artifacts (https://github.com/Cookieboty/nomi-ai/releases/download/v2.0.3/latest.yml): HttpError: 404',
+      ),
+      { code: 'ERR_UPDATER_CHANNEL_FILE_NOT_FOUND' },
+    );
+    updater.checkForUpdates = async () => {
+      updater.emit('checking-for-update');
+      updater.emit('error', err);
+      throw err;
+    };
+    svc.start();
+    const s = await svc.check();
+    expect(s).toMatchObject({ status: 'not-available', releasePending: true });
+    expect(s.error).toBeUndefined();
+
+    // 发布完成后再检查：提示消失
+    updater.checkForUpdates = FakeUpdater.prototype.checkForUpdates;
+    updater.checkResult = null;
+    const again = await svc.check();
+    expect(again.status).toBe('not-available');
+    expect(again.releasePending).toBeUndefined();
+  });
+
+  it('只看消息也能认出缺 latest-mac.yml；别的 404 仍是检查失败', async () => {
+    updater.checkError = new Error(
+      'Cannot find latest-mac.yml in the latest release artifacts (…): HttpError: 404',
+    );
+    svc.start();
+    expect(await svc.check()).toMatchObject({ status: 'not-available', releasePending: true });
+    updater.checkError = new Error('HttpError: 404 Not Found');
+    expect(await svc.check()).toMatchObject({ status: 'error', errorStage: 'check' });
+  });
+
   describe('失败后能重试', () => {
     /** 模拟 electron-updater：检查后自动下载（autoDownload），返回取消令牌与下载 promise */
     const autoDownloadUpdater = (initial: 'fail' | 'stall' | 'ok') => {

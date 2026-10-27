@@ -119,6 +119,7 @@
   "ui.mascot-theme.new-event-title": "新事件标题",
   "ui.mascot-theme.new-result": "有新结果",
   "ui.mascot-theme.new-session": "{0} · 新会话",
+  "ui.mascot-theme.new-version-still-publishing": "新版本正在发布，本平台的安装包还没上传完，稍后再检查",
   "ui.mascot-theme.next": "下一步",
   "ui.mascot-theme.next-tab": "下一个标签",
   "ui.mascot-theme.no-matches": "无匹配项",
