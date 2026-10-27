@@ -85,7 +85,7 @@ export class SileroClient {
     const id = ++this.seq;
     return new Promise<number>((resolve, reject) => {
       const timer = setTimeout(() => {
-        this.crash(w, new Error('Silero VAD 推理超时'));
+        this.crash(w, new Error('Silero VAD inference timed out'));
       }, this.timeoutMs);
       timer.unref?.();
       this.pending.set(id, { resolve, reject, timer });
@@ -113,7 +113,7 @@ export class SileroClient {
     this.cancelIdle();
     const w = this.w;
     this.w = null;
-    this.failAll(new Error('Silero VAD 已关闭'));
+    this.failAll(new Error('Silero VAD closed'));
     if (w) void Promise.resolve(w.terminate()).catch(() => undefined);
   }
 

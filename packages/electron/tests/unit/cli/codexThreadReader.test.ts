@@ -234,7 +234,7 @@ describe('SessionHistoryService：异步刷新 Codex 索引', () => {
     const reader = jest
       .fn<Promise<CodexThreadRow[]>, [string]>()
       .mockResolvedValueOnce([{ id, title: 'indexed title' }])
-      .mockRejectedValueOnce(new Error('Codex 索引 worker 退出（1）'))
+      .mockRejectedValueOnce(new Error('Codex index worker exited (1)'))
       .mockResolvedValueOnce([{ id, title: 'renamed' }]);
     const warn = jest.fn();
     const svc = new SessionHistoryService({
