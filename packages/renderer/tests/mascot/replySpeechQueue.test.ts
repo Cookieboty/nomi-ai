@@ -99,4 +99,52 @@ describe('ReplySpeechQueue', () => {
     t.q.handle({ op: 'stop', id: 'old' });
     expect(t.stopAudio).not.toHaveBeenCalled();
   });
+
+  it('after a push-to-talk stop (no id), late sentences of the same reply stay silent (#148)', async () => {
+    const t = setup();
+    t.q.handle({ op: 'say', id: 'r1', text: '一。' });
+    await flush();
+    t.q.handle({ op: 'stop' });
+    t.finishers[0]!('interrupted');
+    await flush();
+    t.q.handle({ op: 'say', id: 'r1', text: '迟到的二。' });
+    t.q.handle({ op: 'say', id: 'r1', text: '迟到的三。' });
+    await flush();
+    expect(t.synthed).toEqual(['一。']);
+    expect(t.played).toEqual(['一。']);
+    // 新回复照常朗读
+    t.q.handle({ op: 'say', id: 'r2', text: '新回复。' });
+    await flush();
+    expect(t.played).toEqual(['一。', '新回复。']);
+    // 迟到的 stop(r1) 不影响 r2
+    t.q.handle({ op: 'stop', id: 'r1' });
+    expect(t.q.currentId).toBe('r2');
+  });
+
+  it('late sentences after preemption or before playback started stay silent', async () => {
+    const t = setup();
+    t.q.handle({ op: 'say', id: 'r1', text: '一。' });
+    await flush();
+    t.finishers[0]!('interrupted');
+    await flush();
+    t.q.handle({ op: 'say', id: 'r1', text: '二。' });
+    await flush();
+    expect(t.played).toEqual(['一。']);
+
+    // 还没开始合成就被停
+    t.q.handle({ op: 'say', id: 'r3', text: 'a。' });
+    t.q.cancel();
+    t.q.handle({ op: 'say', id: 'r3', text: 'b。' });
+    await flush();
+    expect(t.played).toEqual(['一。']);
+  });
+
+  it('keeps a bounded list of cancelled replies', async () => {
+    const t = setup();
+    for (let i = 0; i < 100; i++) t.q.handle({ op: 'stop', id: `old-${i}` });
+    t.q.handle({ op: 'say', id: 'old-0', text: '早就取消的。' });
+    await flush();
+    // 最早的那些已经被挤出去：当作新回复
+    expect(t.played).toEqual(['早就取消的。']);
+  });
 });

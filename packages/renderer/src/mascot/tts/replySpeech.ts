@@ -2,6 +2,7 @@
  * 朗读 AI 回复（看板娘窗口一侧）：对话窗口边生成边把整句经主进程（tts:reply → mascot:command）发过来，
  * 这里按到达顺序排队，经 tts:speak 合成（预取下一句）后用 playSynthesized 播放，口型同步与打断
  * 跟其它语音共用。新回复（id 变了）/ stop / 按住说话 / 别的语音抢占 → 立即停止并清空队列。
+ * 被 stop / 按住说话 / 抢占停下的回复记为已取消：文字生成还在继续，同一回复后来的分句不再朗读（#148）。
  * 合成失败一律静默（文字仍在对话里）。
  */
 import type { TTSSpeakResult } from '@nomi-ai/types';
@@ -31,8 +32,12 @@ interface Item {
   audio: Promise<TTSSpeakResult | null> | null;
 }
 
+/** 记住最近这么多条被取消的回复 id（够覆盖还在生成的回复，不无限增长） */
+const CANCELLED_MAX = 32;
+
 export class ReplySpeechQueue {
   private id: string | null = null;
+  private readonly cancelled = new Set<string>();
   private items: Item[] = [];
   private pumping = false;
   /** 每次停止 +1：旧的循环看到 token 变了就退出 */
@@ -51,10 +56,12 @@ export class ReplySpeechQueue {
   handle(msg: ReplySpeechMessage): void {
     const id = typeof msg.id === 'string' ? msg.id : undefined;
     if (msg.op === 'stop') {
-      if (!id || id === this.id) this.stop();
+      if (!id || id === this.id) this.cancel();
+      else this.markCancelled(id);
       return;
     }
     if (msg.op !== 'say' || !id || typeof msg.text !== 'string' || !msg.text.trim()) return;
+    if (this.cancelled.has(id)) return;
     if (this.d.muted()) return;
     if (id !== this.id) {
       this.stop();
@@ -63,6 +70,19 @@ export class ReplySpeechQueue {
     this.items.push({ text: msg.text, audio: null });
     this.prefetch();
     void this.pump();
+  }
+
+  /** 停止并取消当前回复：它后面迟到的分句也不再朗读 */
+  cancel(): void {
+    if (this.id) this.markCancelled(this.id);
+    this.stop();
+  }
+
+  private markCancelled(id: string): void {
+    this.cancelled.delete(id);
+    this.cancelled.add(id);
+    while (this.cancelled.size > CANCELLED_MAX)
+      this.cancelled.delete(this.cancelled.values().next().value!);
   }
 
   /** 停止朗读（只停自己发起的播放：不在朗读时不碰别的语音） */
@@ -108,6 +128,7 @@ export class ReplySpeechQueue {
         if (token !== this.token) return;
         if (how === 'interrupted') {
           // 被别的语音（或打断）抢占：这条回复不再继续
+          if (this.id) this.markCancelled(this.id);
           this.items = [];
           this.id = null;
           break;
@@ -135,7 +156,7 @@ function getQueue(): ReplySpeechQueue {
     muted: isMascotMuted,
   });
   const q = queue;
-  registerSpeechStopper(() => q.stop());
+  registerSpeechStopper(() => q.cancel());
   return q;
 }
 
