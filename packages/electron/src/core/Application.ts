@@ -833,22 +833,27 @@ export class Application implements IApplication {
         return permission === 'media' || permission === 'clipboard-sanitized-write';
       });
 
+      // 知识库 / 记忆不依赖看板娘窗口：先于窗口启动，对话窗口并行打开时召回与授权变化即刻可用
+      kb.start();
+      mem.start();
+
+      // 默认界面为「软件主界面」：对话窗口与看板娘窗口并行创建 / 加载，不再排在看板娘页面加载之后；
+      // 看板娘以 showInactive 出现，不会从主界面抢走焦点。失败只记日志，仍可用看板娘
+      const openMainNow = startupPlan.openMain && startupPlan.delayMs === 0;
+      if (openMainNow) this.openMainInterface(startupPlan);
+
       // 创建看板娘窗口（始终创建：定时任务 / 提醒 / 编程助手进度都靠它播报；
       // 默认界面为「软件主界面」时它不抢焦点）
       await this.windowManager.createMainWindow({ activate: startupPlan.activateMascot });
       // 提醒调度：主窗口创建后开始（错过的提醒要在看板娘气泡里播报）
       desktop.startReminders();
-      kb.start();
-      mem.start();
       sched.start();
       scr.start();
 
       // 托盘：一键切换 AI provider
       this.startTray();
 
-      // 默认界面为「软件主界面」：看板娘就绪后直接打开主界面；失败只记日志，仍可用看板娘
       this.launched = true;
-      if (startupPlan.openMain && startupPlan.delayMs === 0) this.openMainInterface(startupPlan);
 
       this.logger.info('应用启动完成');
       eventBus.emit('app:started');
