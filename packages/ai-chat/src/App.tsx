@@ -72,6 +72,15 @@ import { useSendQueue } from './hooks/useSendQueue';
 import { setProviderEndpoint } from './services/chatPrefs';
 import { notifyConversationsChanged } from './services/conversationStore';
 import { desktopClient } from './services/desktopClient';
+import {
+  FILES_RAIL_W_DEFAULT,
+  FILES_RAIL_W_KEY,
+  FILES_RAIL_W_MAX,
+  FILES_RAIL_W_MIN,
+  persistFilesRailOpen,
+  readFilesRailOpen,
+  readFilesRailWidth,
+} from './services/filesRailPrefs';
 import { forkCrossBackend, forkSameBackend } from './services/forkConversation';
 import { harnessClient, type ContextBreakdown } from './services/harnessClient';
 import { derivedSwitchTip } from './services/modelSwitchTip';
@@ -129,42 +138,6 @@ const NomiConversation: React.FC<Omit<React.ComponentProps<typeof ConversationVi
   );
   return <ConversationView {...props} live={live} modelSwitchTip={modelSwitchTip} />;
 };
-
-const FILES_RAIL_W_KEY = 'nomi.filesRailWidth';
-const FILES_RAIL_W_DEFAULT = 260;
-const FILES_RAIL_W_MIN = 200;
-const FILES_RAIL_W_MAX = 420;
-
-const FILES_RAIL_OPEN_KEY = 'nomi.filesRailOpen';
-
-/** 右栏开关：默认收起，只有用户展开过才记住为展开 */
-function readFilesRailOpen(): boolean {
-  try {
-    return localStorage.getItem(FILES_RAIL_OPEN_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function persistFilesRailOpen(open: boolean): void {
-  try {
-    localStorage.setItem(FILES_RAIL_OPEN_KEY, open ? '1' : '0');
-  } catch {
-    /* ignore */
-  }
-}
-
-function readFilesRailWidth(): number {
-  try {
-    const n = Number(localStorage.getItem(FILES_RAIL_W_KEY));
-    if (Number.isFinite(n)) {
-      return Math.min(FILES_RAIL_W_MAX, Math.max(FILES_RAIL_W_MIN, Math.round(n)));
-    }
-  } catch {
-    /* ignore */
-  }
-  return FILES_RAIL_W_DEFAULT;
-}
 
 const AiChatContent: React.FC = () => {
   const [filesRailWidth, setFilesRailWidth] = useState(readFilesRailWidth);
