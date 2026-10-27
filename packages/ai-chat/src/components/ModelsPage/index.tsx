@@ -41,6 +41,7 @@ import { pickerProviders, useGatewayState } from '../../services/nomiModel';
 import { providerDisplayName } from '../../services/providerClient';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { EndpointIcon } from '../EndpointIcon';
+import { MediaAssignRow, MediaPrefsCard } from '../Media/MediaSettings';
 
 import { AddProviderDialog } from './AddProviderDialog';
 import styles from './index.module.css';
@@ -297,6 +298,7 @@ export const ModelsPage: React.FC = () => {
             data-testid="assign-summary"
           />
         </div>
+        <MediaAssignRow rowClassName={styles.row} labelClassName={styles.rowLabel} />
       </section>
 
       <section className={styles.card} aria-labelledby="models-cli" data-testid="models-cli">
@@ -331,6 +333,8 @@ export const ModelsPage: React.FC = () => {
         ))}
       </section>
       {cli.dialog}
+
+      <MediaPrefsCard className={styles.card} titleClassName={styles.cardTitle} />
 
       <section className={styles.card} aria-labelledby="models-providers">
         <div className={styles.cardHeadRow}>

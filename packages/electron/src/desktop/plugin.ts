@@ -4,6 +4,7 @@ import { getDelegateService } from '../cli/delegate/DelegateService';
 import { getExtensionsService } from '../extensions/ExtensionsService';
 import { getKnowledgeService } from '../knowledge/KnowledgeService';
 import { getLocalHubService } from '../local/LocalHubService';
+import { getMediaService } from '../media/MediaService';
 import { getMemoryService } from '../memory/MemoryService';
 import { getScreenService } from '../screen/ScreenService';
 
@@ -22,6 +23,7 @@ export const DesktopToolsPlugin = definePlugin<Record<string, never>>({
     for (const t of getDesktopService().tools()) registry.register(t);
     // 本地知识库检索（kb_search）
     for (const t of getKnowledgeService()?.tools() ?? []) registry.register(t);
+    for (const t of getMediaService()?.tools() ?? []) registry.register(t);
     // 长期记忆（memory_search / memory_remember）
     for (const t of getMemoryService()?.tools() ?? []) registry.register(t);
     // 屏幕记忆（screen_memory_search，默认关闭）

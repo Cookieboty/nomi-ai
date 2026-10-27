@@ -84,8 +84,10 @@ const binPath = resolveBin(binName);
 const childEnv = { ...process.env };
 // Turbo runs package scripts through pnpm. On restricted Windows sandboxes pnpm's
 // bundled runtime can fail while realpath-resolving the user temp directory; keep
-// the build's transient files inside the workspace instead.
-if (binName === 'turbo') {
+// the build's transient files inside the workspace instead. Windows only: on Linux/macOS
+// os.tmpdir() also honours TMP/TEMP, which would put every test's temp dir inside this
+// git repo and break the "not a git repo" cases (worktree / gitDiff / delegate tests).
+if (binName === 'turbo' && process.platform === 'win32') {
   const workspaceTmp = path.join(root, '.tmp', 'turbo-runtime');
   mkdirSync(workspaceTmp, { recursive: true });
   childEnv.TEMP = workspaceTmp;

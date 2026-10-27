@@ -55,6 +55,8 @@ import { getIslandService, initIslandService, notifyIsland } from '../island/Isl
 import { initKnowledgeService } from '../knowledge/KnowledgeService';
 import { getLocalHubService, initLocalHubService } from '../local/LocalHubService';
 import { getLocalModelService, initLocalModelService } from '../local/LocalModelService';
+import { broadcastMedia, registerMediaIpc } from '../media/ipc';
+import { getMediaService, initMediaService } from '../media/MediaService';
 import { getMemoryService, initMemoryService } from '../memory/MemoryService';
 import { OnboardingService } from '../onboarding/OnboardingService';
 import { getSchedulerService, initSchedulerService } from '../schedule/SchedulerService';
@@ -262,6 +264,21 @@ export class Application implements IApplication {
       kb.registerIpc();
       this.lifecycle.register({ name: 'knowledge', stop: () => kb.dispose() });
       this.lifecycle.register({ name: 'reminders', stop: () => desktop.reminders.stop() });
+
+      // 生图：复用用户配置的第三方供应商（同一份 Key / 地址 / 启用开关）
+      const media = initMediaService({
+        root: path.join(app.getPath('userData'), 'media'),
+        chatRoot: path.join(app.getPath('userData'), 'chat'),
+        logger: this.logger as never,
+        // 复用第三方供应商配置（网关稍后初始化，按需取）；Key 只在主进程内取用
+        providers: {
+          list: () => getGatewayService()?.mediaProviders() ?? [],
+          apiKey: (id) => getGatewayService()?.mediaApiKey(id) ?? '',
+        },
+        localOnly: () => desktop.broker.localOnly,
+        broadcast: broadcastMedia,
+      });
+      registerMediaIpc(media);
 
       // 长期记忆：对话摘要 + 召回（复用知识库的 BM25 / 向量服务），工具随桌面工具注册
       const mem = initMemoryService({
@@ -624,11 +641,14 @@ export class Application implements IApplication {
         broadcast: (channel, payload) => {
           for (const w of BrowserWindow.getAllWindows())
             if (!w.isDestroyed()) w.webContents.send(channel, payload);
+          // 生图复用这份供应商配置：供应商 / Key / 模型变了就让生图校正默认并刷新
+          if (channel === 'ai:gateway:changed') getMediaService()?.providersChanged();
         },
       });
       gateway.registerIpc();
       // 先迁移（读旧存储里「启用中」的标记），再撤销旧版本写进全局配置的东西（会清掉这些标记）
       gateway.init();
+      getMediaService()?.providersChanged();
       // 启动时自动同步模型数据（用户可在「模型」页关闭；距上次核对不足 12 小时不联网）
       void usage.autoSync().catch((e) => this.logger.warn('models data auto sync failed', e));
       // 终端启动命令（unified-gateway §12.6，默认关）：端口 / 令牌 / 分配变化时重新生成脚本

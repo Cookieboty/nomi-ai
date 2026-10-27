@@ -639,5 +639,13 @@
   "electron.common.you-denied-this-tool-call-so-this-turn": "You denied this tool call, so this turn ended",
   "electron.common.you-haven-t-agreed-to-send-file-chunks": "You haven't agreed to send file chunks to “{0}” yet",
   "electron.common.you-re-away-from-the-computer": "You're away from the computer",
-  "electron.common.you-were-just-chatting": "You were just chatting"
+  "electron.common.you-were-just-chatting": "You were just chatting",
+  "electron.common.media-not-configured": "No image model is configured yet. Choose a model and provider in Settings → Models → Per-task assignment → Image generation.",
+  "electron.common.media-local-only": "\"Local models only\" is on, so cloud image generation is disabled.",
+  "electron.common.media-prompt-required": "Please describe the image",
+  "electron.common.media-key-unavailable": "Couldn't read this provider's API key. Please enter it again in Settings.",
+  "electron.common.media-empty-result": "The provider returned no image",
+  "electron.common.media-tool-prompt": "A detailed description of the image to generate (subject, style, composition, lighting…), written in the user's language",
+  "electron.common.media-tool-description": "Generate images with the image model the user chose in Settings. Only call this when the user explicitly asks for a picture. Aspect ratio, count and other parameters are optional. If it returns not_configured, tell the user to set it up in Settings; do not try another way to generate.",
+  "electron.common.media-tool-note": "The images are already shown in the UI; do not repeat image links or Markdown images in your reply."
 }

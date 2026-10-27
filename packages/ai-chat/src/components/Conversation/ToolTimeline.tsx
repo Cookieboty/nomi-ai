@@ -39,6 +39,7 @@ import {
   groupDuration,
   groupStats,
   groupTitle,
+  IMAGE_GEN_TOOL,
   parseInput,
   type Bucket,
   type CallStatus,
@@ -46,6 +47,7 @@ import {
   type ToolCall,
   type ToolKind,
 } from '../../utils/toolTrace';
+import { ImageGenCard } from '../Media/ImageGenCard';
 
 import { useAgentForCall } from './agentContext';
 import { DelegateCard, DelegateGroup } from './DelegateCard';
@@ -579,6 +581,8 @@ export const ToolTimeline: React.FC<{ items: TimelineItem[]; nested?: boolean }>
               />
             );
           case 'call':
+            if (it.call.name === IMAGE_GEN_TOOL)
+              return <ImageGenCard key={it.call.id} call={it.call} />;
             return <ToolCallRow key={it.call.id} call={it.call} />;
           case 'group':
             return <ToolGroup key={it.id} id={it.id} bucket={it.bucket} calls={it.calls} />;

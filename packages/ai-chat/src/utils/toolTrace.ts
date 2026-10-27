@@ -29,6 +29,9 @@ export type TraceEntry =
   | { type: 'thinking'; id: string; text: string; at?: number; lastAt?: number; textAt?: number }
   | { type: 'tool'; call: ToolCall; textAt?: number };
 
+/** 主进程注册的生图工具名（结果渲染为图片卡） */
+export const IMAGE_GEN_TOOL = 'generate_image';
+
 /** 分组桶：同桶的连续调用折叠成一组 */
 export type Bucket = 'explore' | 'command' | 'edit' | 'other';
 
@@ -570,6 +573,12 @@ export function buildTimeline(
           call: e.call,
           children: build(childrenOf.get(e.call.id) ?? [], isLive && e.call.status === 'running'),
         });
+        return;
+      }
+      if (e.call.name === IMAGE_GEN_TOOL) {
+        // 生图结果要直接显示图片卡，不折进分组
+        flush();
+        items.push({ type: 'call', call: e.call });
         return;
       }
       const b = bucketOf(kind);

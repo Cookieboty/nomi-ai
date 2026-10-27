@@ -72,6 +72,9 @@ body {
   position: relative;
   z-index: 1;
 }
+.main-content[hidden] {
+  display: none;
+}
 
 /* Codex 四栏：有变更 Diff 时 main-content 内横排 chat-column | Diff（全高）。
    chat 默认占主要宽度（见 chatColumnWidth），Diff flex:1 吃剩余。 */

@@ -20,6 +20,7 @@
   "ai-runtime.providers.preset-openrouter": "OpenRouter",
   "ai-runtime.providers.preset-siliconflow": "SiliconFlow 硅基流动",
   "ai-runtime.providers.preset-amux": "Amux",
+  "ai-runtime.providers.preset-fal": "fal.ai",
   "ai-runtime.providers.preset-ollama": "Ollama（本地）",
   "ai-runtime.providers.preset-lmstudio": "LM Studio（本地）",
   "ai-runtime.providers.hint-custom": "手动填写请求地址和 API Key",
@@ -28,6 +29,7 @@
   "ai-runtime.providers.hint-coding-plan": "编程套餐专用 Key",
   "ai-runtime.providers.hint-openrouter": "openrouter.ai · 用「获取模型」选择",
   "ai-runtime.providers.hint-amux": "amux.ai · 用「获取模型」选择（ID 形如 vendor/model）",
+  "ai-runtime.providers.hint-fal": "fal.ai · 只用于生图（Flux、Seedream 等图片模型）",
   "ai-runtime.providers.hint-ollama": "本地服务 · 用「获取模型」列出已下载的模型",
   "ai-runtime.providers.hint-lmstudio": "本地服务 · 用「获取模型」列出已加载的模型"
 }

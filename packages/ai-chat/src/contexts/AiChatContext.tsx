@@ -32,6 +32,7 @@ import {
 } from '../services/harnessClient';
 import { createIPCClient } from '../services/IPCClient';
 import { kbClient } from '../services/kbClient';
+import { mediaClient, rememberOriginal } from '../services/mediaClient';
 import { ingestConversation, memoryContext } from '../services/memClient';
 import { nomiModelLabel } from '../services/nomiModel';
 import { schedClient } from '../services/schedClient';
@@ -537,6 +538,15 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
             throw new Error(t('ui.chat-settings.cancelled-the-image-wasn-t-sent-to-the'));
         }
 
+        // 上传图入素材库（开关默认关；主进程按开关决定是否落盘，失败不影响发送）
+        if (images?.length && mediaClient.available())
+          void mediaClient
+            .ingestUploads(
+              images.map((i) => ({ mime: i.mime, data: i.data })),
+              turn.convoId,
+            )
+            .catch(() => undefined);
+
         // `/agent`：按会话 chip → 按 turnId 钉到主进程；钉住失败则中止发送
         bindNextDelegateConversation(turn.convoId);
         let delegateTo: Awaited<ReturnType<typeof consumeNextDelegate>> = null;
@@ -567,6 +577,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
               }
             : {}),
         };
+        images?.forEach((i) => rememberOriginal(i.thumb, i.mime, i.data));
         const history = override?.history ?? s.messages;
         dispatch({ type: 'ADD_MESSAGE', payload: userMessage });
         schedClient.activity();

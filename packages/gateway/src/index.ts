@@ -83,3 +83,5 @@ export * from './trace';
 // 模型质量：每次请求的结果分类、时间点与尝试（docs/design/model-quality.md §4.1）
 export * from './quality';
 export * from './metrics';
+// 媒体生成（生图 P0）：模型 schema、约束纯函数、供应商绑定与协议适配（docs: 2.1.0 生图 MRD）
+export * as media from './media/index';

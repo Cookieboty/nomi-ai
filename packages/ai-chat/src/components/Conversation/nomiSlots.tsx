@@ -7,9 +7,11 @@ import { ChevronRight } from 'lucide-react';
 import React, { useState } from 'react';
 
 import type { KbSource } from '../../services/kbClient';
+import { originalOf } from '../../services/mediaClient';
 import type { ChatMessage } from '../../types/chat';
 import type { ConvMessage } from '../../types/conversation';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
+import { MediaImageMenu } from '../Media/MediaImageMenu';
 
 import { SourceList, SourcePreview } from './Citations';
 import styles from './Citations.module.css';
@@ -73,17 +75,23 @@ export const nomiSlots: ConvSlots = {
         {!!raw.images?.length && (
           <div className={styles.imageRow} data-testid="message-images">
             {raw.images.map((im, i) => (
-              <img
+              <MediaImageMenu
                 key={i}
                 src={im.thumb}
-                alt={
-                  im.source === 'snip'
-                    ? t('ui.providers-schedule.screenshot')
-                    : t('ui.providers-schedule.image')
-                }
-                className={styles.imageThumb}
-                title={`${im.width}×${im.height}`}
-              />
+                original={originalOf(im.thumb)}
+                source="chat_upload"
+              >
+                <img
+                  src={im.thumb}
+                  alt={
+                    im.source === 'snip'
+                      ? t('ui.providers-schedule.screenshot')
+                      : t('ui.providers-schedule.image')
+                  }
+                  className={styles.imageThumb}
+                  title={`${im.width}×${im.height}`}
+                />
+              </MediaImageMenu>
             ))}
           </div>
         )}

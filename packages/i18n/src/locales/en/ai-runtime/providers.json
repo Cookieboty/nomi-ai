@@ -20,6 +20,7 @@
   "ai-runtime.providers.preset-openrouter": "OpenRouter",
   "ai-runtime.providers.preset-siliconflow": "SiliconFlow",
   "ai-runtime.providers.preset-amux": "Amux",
+  "ai-runtime.providers.preset-fal": "fal.ai",
   "ai-runtime.providers.preset-ollama": "Ollama (local)",
   "ai-runtime.providers.preset-lmstudio": "LM Studio (local)",
   "ai-runtime.providers.hint-custom": "Fill in the request URL and API key manually",
@@ -28,6 +29,7 @@
   "ai-runtime.providers.hint-coding-plan": "Dedicated key for the coding plan",
   "ai-runtime.providers.hint-openrouter": "openrouter.ai · Use the model list to choose",
   "ai-runtime.providers.hint-amux": "amux.ai · Use the model list to choose (IDs look like vendor/model)",
+  "ai-runtime.providers.hint-fal": "fal.ai · Image generation only (Flux, Seedream and other image models)",
   "ai-runtime.providers.hint-ollama": "Local service · use the model list to show downloaded models",
   "ai-runtime.providers.hint-lmstudio": "Local service · use the model list to show loaded models"
 }

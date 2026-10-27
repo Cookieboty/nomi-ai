@@ -135,3 +135,17 @@ describe('resolveChatAssetUrl · realpath 防符号链接逃逸', () => {
     expect(resolved).toMatch(/real-images[\\/]+a\.png$/);
   });
 });
+
+describe('resolveChatAssetUrl media 区域', () => {
+  it('仅在显式传入 extraRoots 时开放 media 区域，且不能越界', async () => {
+    const { root } = await makeRoot(true);
+    const mediaRoot = tmp();
+    await fsp.writeFile(path.join(mediaRoot, 'abc.png'), Buffer.from([0]));
+    expect(await resolveChatAssetUrl(root, 'chat-asset://media/abc.png')).toBeNull();
+    const ok = await resolveChatAssetUrl(root, 'chat-asset://media/abc.png', { media: mediaRoot });
+    expect(ok).toBe(await fsp.realpath(path.join(mediaRoot, 'abc.png')));
+    expect(
+      await resolveChatAssetUrl(root, 'chat-asset://media/../secret.png', { media: mediaRoot }),
+    ).toBeNull();
+  });
+});
