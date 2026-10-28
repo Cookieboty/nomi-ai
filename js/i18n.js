@@ -193,7 +193,7 @@
       "gallery.localModelsAlt": "本机管理：本地模型与离线运行设置",
 
       "privacy.band.title": "本地优先，边界由你掌控",
-      "privacy.band.desc": "对话、记忆与知识库默认保存在你的电脑上。接入哪些外部服务由你决定，外发前会对敏感内容做保护；也可以开启「仅本地模型」。",
+      "privacy.band.desc": "对话、记忆与知识库默认保存在你的电脑上。接入哪些外部服务由你决定，外发前会对密钥等敏感信息做保护；也可以设置为只让本地模型读取文件。",
       "privacy.band.cta": "了解隐私承诺",
 
       "cta.download": "前往下载",
@@ -711,7 +711,7 @@
       "gallery.localModelsAlt": "Local management: on-device models and offline settings",
 
       "privacy.band.title": "Local first. You set the boundaries.",
-      "privacy.band.desc": "Conversations, memory and knowledge are stored on your computer by default. You decide which external services to connect, sensitive content is protected before it leaves, and you can switch to local-only models.",
+      "privacy.band.desc": "Conversations, memory and knowledge are stored on your computer by default. You decide which external services to connect, API keys and other secrets are protected before they leave, and you can let only local models read your files.",
       "privacy.band.cta": "Read our privacy promise",
 
       "cta.download": "Go to download",
