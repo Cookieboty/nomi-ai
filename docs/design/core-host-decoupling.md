@@ -399,7 +399,8 @@ interface CallerContext {
 
 - **传输层负责填 caller**：Electron 根据 webContents id 与加载的 URL 判断；WebSocket 用启动时下发的一次性 token，并且只监听 `127.0.0.1`。
 - **router 中间件负责判定**：契约里每个过程可以声明 `surfaces: ['chat']`；`dangerous: true` 的过程只接受 `trusted` 调用者，必要时要求视图内确认。
-- preload 只暴露 `window.nomiTransport` 这一个对象，暴露面比现在更小。
+- preload 只暴露 `window.nomiTransport` 与 `window.nomiHost` 两个对象，暴露面比现在更小。
+- **视图能决定的入参都不可信**：契约过程的入参来自视图代码，页面里的任意脚本（XSS、被篡改的依赖）都能填。凡是「入参本身就是授权」的能力（如拖入文件的本机路径，内核会临时授权读取并发给模型），不做成契约过程，由 preload 自己取得并提交（`nomiHost.dropFile`，主进程 `host/nomiHostIpc.ts`）。
 - 外部请求仍走 `netGuard`，命令参数仍用 `shellEscape`，这些都在内核里，与宿主无关。
 
 ## 9. 宿主特有能力
@@ -572,7 +573,9 @@ renderer 只保留：透明窗口壳、气泡、工具栏、右键菜单，以�
 > 处理函数在 `electron/src/host/contract/<域>.ts`）。收尾批次：
 >
 > - preload 只暴露 `window.nomiTransport`（契约传输）与 `window.nomiHost`（`pathForFile(file)`：拖入 / 粘贴文件的本机路径，
->   `webUtils.getPathForFile` 只能在 preload 里对真实 File 调用，不能进契约）；`window.aiIPC` / `window.electronAPI`、
+>   `webUtils.getPathForFile` 只能在 preload 里对真实 File 调用，不能进契约；`dropFile(file)`：看板娘窗口拖入文件，
+>   路径在 preload 里解析并经专用通道 `desktop:drop-file` 直接提交（主进程 `host/nomiHostIpc.ts`，再校验发送方是看板娘窗口）。
+>   拖入总结不做成契约过程：过程的入参由视图决定，页面里的任意脚本就能让内核读任意路径并发给模型）；`window.aiIPC` / `window.electronAPI`、
 >   `mkAiPreload`、`packages/types` 的 `IpcApi` / `MascotWindowApi` / `DesktopApi` / `PersonaApi` 已删除；
 >   `WindowManager` 的 preload 守护改为探测这两个全局；
 > - 主进程的旧注册层全部删除：各服务的 `registerIpc()`、`handlers/ipc/*`（`IpcRegistry` / `ConfigIpcHandler` /

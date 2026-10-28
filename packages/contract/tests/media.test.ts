@@ -52,7 +52,6 @@ describe('media 契约', () => {
         .sort();
     expect(only('mascot')).toEqual([
       'desktop.confirmAnswer',
-      'desktop.dropFile',
       'desktop.reminderAction',
       'desktop.takeMissedReminders',
       'nav.openVoiceSettings',
@@ -141,7 +140,8 @@ describe('media 契约', () => {
     expect(p['desktop.reminderAction'].input.safeParse({ id: 'r1', action: 'later' }).success).toBe(
       false,
     );
-    expect(p['desktop.dropFile'].input.safeParse({ path: '' }).success).toBe(false);
+    // 视图不能提交路径：拖入文件只经 preload（nomiHost.dropFile）
+    expect(p).not.toHaveProperty('desktop.dropFile');
     expect(p['screen.checkSend'].output.safeParse('ok').success).toBe(true);
     expect(p['screen.checkSend'].output.safeParse('denied').success).toBe(false);
 

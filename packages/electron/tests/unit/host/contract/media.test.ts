@@ -371,8 +371,6 @@ describe('media handlers', () => {
 
       await mascot.desktop.confirmAnswer({ id: 'c1', allow: true, remember: false });
       expect(t.desktop.answerConfirm).toHaveBeenCalledWith(7, 'c1', true, false);
-      await mascot.desktop.dropFile({ path: '/tmp/a.txt' });
-      expect(t.desktop.dropFile).toHaveBeenCalledWith(7, '/tmp/a.txt');
       await mascot.desktop.reminderAction({ id: 'r1', action: 'snooze', minutes: 10 });
       expect(t.desktop.reminderAction).toHaveBeenCalledWith(7, 'r1', 'snooze', 10);
       await expect(mascot.desktop.takeMissedReminders()).resolves.toEqual([
@@ -392,9 +390,6 @@ describe('media handlers', () => {
       await expect(
         chat.desktop.confirmAnswer({ id: 'c1', allow: true, remember: true }),
       ).rejects.toMatchObject({ code: 'FORBIDDEN' });
-      await expect(chat.desktop.dropFile({ path: '/a' })).rejects.toMatchObject({
-        code: 'FORBIDDEN',
-      });
       for (const call of [
         () => untrusted.desktop.confirmAnswer({ id: 'c1', allow: true, remember: true }),
         () => untrusted.desktop.grant({ mode: 'read-write' }),
@@ -408,6 +403,18 @@ describe('media handlers', () => {
       expect(t.desktop.answerConfirm).not.toHaveBeenCalled();
       expect(t.desktop.grantFolder).not.toHaveBeenCalled();
       expect(t.voice.ackCloud).not.toHaveBeenCalled();
+    } finally {
+      t.close();
+    }
+  });
+
+  it('拖入文件不在契约里：看板娘页面里的脚本不能经契约提交任意路径', async () => {
+    const t = setup();
+    try {
+      await expect(
+        t.router.call('desktop.dropFile', { path: '~/.ssh/id_rsa' }, { caller: MASCOT }),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+      expect(t.desktop.dropFile).not.toHaveBeenCalled();
     } finally {
       t.close();
     }

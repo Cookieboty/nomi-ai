@@ -769,7 +769,10 @@ export class DesktopService {
     this.rehideMascotIfIdle();
   }
 
-  /** 拖到看板娘身上的文件（路径由 preload 从真实 File 对象取得） */
+  /**
+   * 拖到看板娘身上的文件。路径由看板娘窗口的 preload 从真实 File 取得并经专用通道提交
+   * （nomiHost.dropFile → host/nomiHostIpc.ts）；视图代码选不了路径，所以这里不是契约过程。
+   */
   dropFile(senderId: number | undefined, p: unknown): void {
     if (!this.isMascotSender(senderId) || typeof p !== 'string' || !p) return;
     void this.summarizeDropped(p);

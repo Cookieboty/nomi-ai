@@ -56,6 +56,7 @@ import {
 import { serveContractOverIpc } from '../host/contractIpc';
 import { createElectronPorts, lazyWindowHost } from '../host/electronPorts';
 import { MascotWindowActions } from '../host/mascotWindowActions';
+import { serveNomiHostIpc } from '../host/nomiHostIpc';
 import { t as tr } from '../i18n';
 import { getLocale, LocaleService, onLocaleChange } from '../i18n';
 import { getIslandService, initIslandService } from '../island/IslandService';
@@ -279,6 +280,9 @@ export class Application implements IApplication {
         openChat: () => this.windowManager.createAiChatWindow(),
         mascotHidden: () => this.windowManager.mascotHidden(),
       });
+      // 拖到看板娘身上的文件：preload 从真实 File 取路径后经专用通道直接提交（不经契约，视图选不了路径）
+      const stopNomiHost = serveNomiHostIpc({ dropFile: (id, p) => desktop.dropFile(id, p) });
+      this.lifecycle.register({ name: 'nomi-host-ipc', stop: stopNomiHost });
 
       // 本地知识库：先于 AI runtime 创建（kb_search 工具随桌面工具注册），LLM 调用延迟绑定
       const kb = initKnowledgeService({

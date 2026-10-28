@@ -4,7 +4,8 @@
  * - `api`：`createAppClient()` 建在窗口共享的契约传输上（`window.nomiTransport`），与 AIProvider 里的
  *   `ClientAIClient` 共用一个会话；视图里只有这个文件建客户端，其余代码 `import { api } from '…/services/api'`；
  * - `hasTransport()`：preload 是否暴露了契约传输（浏览器预览 / 测试里为 false，调用方据此退回本地状态）；
- * - `hostPathForFile(file)`：拖入 / 粘贴文件的本机路径（preload 的 `window.nomiHost`，唯一不走契约的宿主能力）；
+ * - `hostDropFile(file)`：拖到看板娘身上的文件交给内核（preload 的 `window.nomiHost` 解析路径并提交，
+ *   视图选不了路径，所以不走契约）；
  * - `installHostBackends()`：入口最先调用一次，把契约接到共享包（`@nomi-ai/ui`、`@nomi-ai/voice`）
  *   留的注入点上；每个域一个文件（`./hostBackends/<域>.ts`），域代理只改自己的那个。
  *
@@ -32,17 +33,20 @@ export function hasTransport(): boolean {
 }
 
 interface NomiHost {
-  pathForFile(file: File): string;
+  dropFile(file: File): boolean;
 }
 
-/** 真实 File → 本机绝对路径；浏览器预览 / 测试里没有桥，或文件不在本地（网页拖来的内容）时为空串 */
-export function hostPathForFile(file: File): string {
-  if (typeof window === 'undefined') return '';
+/**
+ * 真实拖入的 File → 交给内核临时授权并总结；路径在 preload 里解析。浏览器预览 / 测试里没有桥，
+ * 或文件不在本地（网页拖来的内容）时返回 false
+ */
+export function hostDropFile(file: File): boolean {
+  if (typeof window === 'undefined') return false;
   const host = (window as unknown as Record<string, NomiHost | undefined>)[NOMI_HOST_GLOBAL];
   try {
-    return host?.pathForFile(file) ?? '';
+    return host?.dropFile(file) ?? false;
   } catch {
-    return '';
+    return false;
   }
 }
 

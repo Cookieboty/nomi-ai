@@ -260,13 +260,8 @@ export const mediaProcedures = {
     surfaces: ['mascot'],
     dangerous: true,
   },
-  /** 拖到看板娘身上的文件：临时只读授权并总结（结果经气泡与 desktop.summary 回来） */
-  'desktop.dropFile': {
-    kind: 'mutation',
-    input: z.object({ path: z.string().min(1) }),
-    output: z.void(),
-    surfaces: ['mascot'],
-  },
+  // 拖到看板娘身上的文件不在契约里：路径必须由 preload 从真实 File 取得并直接提交（window.nomiHost.dropFile，
+  // 主进程 host/nomiHostIpc.ts），视图代码选不了路径。做成接收路径的过程会让页面里的任意脚本读任意文件。
   'desktop.reminderAction': {
     kind: 'mutation',
     input: z.object({

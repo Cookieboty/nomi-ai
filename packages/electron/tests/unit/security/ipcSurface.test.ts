@@ -1,7 +1,9 @@
 /**
  * 主进程的 IPC 面只有契约传输（docs/design/core-host-decoupling.md §8、§11.1、§12 P1b）：
  * - 视图的调用只经 `contract:request`（host/contractIpc.ts，sender 白名单 + surface / dangerous 守卫）；
- * - 推送只经 `contract:frame`（契约事件，由应用事件总线 → 事件桥发出）。
+ * - 推送只经 `contract:frame`（契约事件，由应用事件总线 → 事件桥发出）；
+ * - 唯一的例外是看板娘 preload 的 `desktop:drop-file`（host/nomiHostIpc.ts）：路径由 preload 从真实 File
+ *   取得，不能做成视图可以随意传参的契约过程。
  *
  * 静态扫描 src：宿主目录之外不得注册 ipcMain 通道，任何地方都不得直接 `webContents.send`
  * （绕过契约的推送，preload 也收不到）。lint 规则拦新代码，这里再兜一层，覆盖 lint 抓不到的写法。
@@ -44,6 +46,14 @@ describe('主进程 IPC 面', () => {
       .filter((f) => /\bipcMain\s*\.\s*(handle|handleOnce|on|once|addListener)\s*\(/.test(code(f)))
       .map(rel);
     expect(hits).toEqual([]);
+  });
+
+  it('宿主目录里只有 preload 专用通道（host/nomiHostIpc.ts：desktop:drop-file）直接用 ipcMain', () => {
+    const hits = files
+      .filter((f) => rel(f).startsWith('host/'))
+      .filter((f) => /\bipcMain\b/.test(code(f)))
+      .map(rel);
+    expect(hits).toEqual(['host/nomiHostIpc.ts']);
   });
 
   it('没有绕过契约的 webContents.send 推送', () => {
