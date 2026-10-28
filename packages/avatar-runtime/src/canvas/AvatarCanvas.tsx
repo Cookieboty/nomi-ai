@@ -1,6 +1,6 @@
 import React, { lazy, Suspense, useCallback, useState } from 'react';
 
-import { assetUrl, type AvatarCharacter } from '../host';
+import { assetUrl, useAvatarContext, type AvatarCharacter } from '../host';
 
 // Rive is the default 2D renderer; the layered Canvas2D rig (SpriteCanvas) stays as the fallback
 // for machines where the Rive wasm / scene cannot start. Static packs skip both.
@@ -20,11 +20,12 @@ export interface AvatarCanvasProps {
  * - static: single image (no riv / 43 actions)
  */
 export const AvatarCanvas: React.FC<AvatarCanvasProps> = ({ character, resolveAsset }) => {
+  const { runtime } = useAvatarContext();
   const [riveFailed, setRiveFailed] = useState(false);
   const onRiveFailure = useCallback(() => {
-    document.documentElement.dataset.mascotRenderer = 'sprite-fallback';
+    runtime.flag('mascotRenderer', 'sprite-fallback');
     setRiveFailed(true);
-  }, []);
+  }, [runtime]);
 
   const { mode, assets } = character;
   let canvas: React.ReactElement;

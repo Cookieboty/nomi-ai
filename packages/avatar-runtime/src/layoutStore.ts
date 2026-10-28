@@ -21,7 +21,7 @@ export interface LayoutSnapshot {
 }
 
 type Listener = (s: LayoutSnapshot) => void;
-let snap: LayoutSnapshot = { box: null, cursor: null, head: null, gutter: null, charBox: null };
+
 const same = (a: Box | null, b: Box | null, eps = 0) =>
   !!a &&
   !!b &&
@@ -29,45 +29,61 @@ const same = (a: Box | null, b: Box | null, eps = 0) =>
   Math.abs(a.right - b.right) <= eps &&
   Math.abs(a.top - b.top) <= eps &&
   Math.abs(a.bottom - b.bottom) <= eps;
-const listeners = new Set<Listener>();
 
-export const layoutStore = {
-  get: (): LayoutSnapshot => snap,
-  setBox(box: Box) {
-    const b = snap.box;
-    if (
-      b &&
-      b.left === box.left &&
-      b.right === box.right &&
-      b.top === box.top &&
-      b.bottom === box.bottom
-    )
-      return;
-    snap = { ...snap, box };
-    listeners.forEach((l) => l(snap));
-  },
+export interface LayoutStore {
+  get(): LayoutSnapshot;
+  setBox(box: Box): void;
   /** 头部矩形：变化 < 3px 不广播（待机动画的微动） */
-  setHead(head: Box | null) {
-    if (head === snap.head || same(head, snap.head, 3)) return;
-    snap = { ...snap, head };
+  setHead(head: Box | null): void;
+  setCharBox(charBox: Box | null): void;
+  setGutter(gutter: Box | null): void;
+  setCursor(c: { x: number; y: number; inside: boolean }): void;
+  subscribe(l: Listener): () => void;
+}
+
+/** 每个运行时一份（runtime.ts）；页面主运行时的就是 `layoutStore` */
+export function createLayoutStore(): LayoutStore {
+  let snap: LayoutSnapshot = { box: null, cursor: null, head: null, gutter: null, charBox: null };
+  const listeners = new Set<Listener>();
+  const set = (next: LayoutSnapshot) => {
+    snap = next;
     listeners.forEach((l) => l(snap));
-  },
-  setCharBox(charBox: Box | null) {
-    if (charBox === snap.charBox || same(charBox, snap.charBox, 3)) return;
-    snap = { ...snap, charBox };
-    listeners.forEach((l) => l(snap));
-  },
-  setGutter(gutter: Box | null) {
-    if (gutter === snap.gutter || same(gutter, snap.gutter)) return;
-    snap = { ...snap, gutter };
-    listeners.forEach((l) => l(snap));
-  },
-  setCursor(c: { x: number; y: number; inside: boolean }) {
-    snap = { ...snap, cursor: c };
-    listeners.forEach((l) => l(snap));
-  },
-  subscribe(l: Listener): () => void {
-    listeners.add(l);
-    return () => listeners.delete(l);
-  },
-};
+  };
+  return {
+    get: () => snap,
+    setBox(box) {
+      const b = snap.box;
+      if (
+        b &&
+        b.left === box.left &&
+        b.right === box.right &&
+        b.top === box.top &&
+        b.bottom === box.bottom
+      )
+        return;
+      set({ ...snap, box });
+    },
+    setHead(head) {
+      if (head === snap.head || same(head, snap.head, 3)) return;
+      set({ ...snap, head });
+    },
+    setCharBox(charBox) {
+      if (charBox === snap.charBox || same(charBox, snap.charBox, 3)) return;
+      set({ ...snap, charBox });
+    },
+    setGutter(gutter) {
+      if (gutter === snap.gutter || same(gutter, snap.gutter)) return;
+      set({ ...snap, gutter });
+    },
+    setCursor(c) {
+      set({ ...snap, cursor: c });
+    },
+    subscribe(l) {
+      listeners.add(l);
+      return () => listeners.delete(l);
+    },
+  };
+}
+
+/** 页面主运行时（`defaultAvatarRuntime`）的布局 */
+export const layoutStore: LayoutStore = createLayoutStore();

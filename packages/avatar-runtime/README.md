@@ -38,7 +38,16 @@ AVATAR_DEMO_PACK=characters/nomi pnpm --filter @nomi-ai/avatar-runtime demo # �
 ```
 
 `demo/` 是一个 Vite 开发页：假的事件源（按钮、口型正弦波）+ 互动输出日志，没有窗口宿主（不拖窗口、不点击穿透）。
-`tests/runtime.test.tsx` 在 happy-dom 里用替身角色包与假事件源挂载运行时。
+`tests/runtime.test.tsx` 在 happy-dom 里用替身角色包与假事件源挂载运行时；`tests/multiRuntime.test.tsx`
+在同一页面挂两个不同角色包的运行时实例。
+
+## 运行时实例
+
+可变状态（后端注册表、布局、互动设置、映射、情绪与自动动作冷却、互动反应冷却、调试标记）都在运行时实例里
+（`src/runtime.ts`）。`AvatarStage` / `mountAvatar` 不传 `runtime` 时用页面主运行时 `defaultAvatarRuntime`：
+模块级出口 `mascotRegistry`、`layoutStore`、`interactionSettings`、`applyDirective`、`react` 等都是它的成员，
+它写 `<html data-mascot-*>`、把互动设置存进 localStorage。同一页面再挂一个角色时传 `runtime={createAvatarRuntime()}`，
+它的状态与标记都只在自己的实例里。
 
 ## 结构
 
@@ -48,7 +57,8 @@ AVATAR_DEMO_PACK=characters/nomi pnpm --filter @nomi-ai/avatar-runtime demo # �
 | `src/host.ts`、`src/events.ts`                                       | 输入输出接口、`createAvatarEventHub`、`avatarCharacterFromPack`                             |
 | `src/driver.ts`                                                      | 语义事件 → 当前后端（口型、说话姿态、表情导演、流式情绪）                                   |
 | `src/canvas/`                                                        | 按 `mode` 选画布（Rive 失败回退分层 2D）、三种画布、`InteractionLite`                       |
-| `src/MascotBackend.ts`、`src/backends/`                              | 后端抽象与全局注册表、Rive / sprite / static 实现                                           |
+| `src/runtime.ts`                                                     | 运行时实例：`createAvatarRuntime()` / `defaultAvatarRuntime`                                |
+| `src/MascotBackend.ts`、`src/backends/`                              | 后端抽象与注册表、Rive / sprite / static 实现                                               |
 | `src/expressionDirector.ts`、`emotion.ts`、`mood.ts`、`voiceMood.ts` | 事件 / 文本 → 表情与动作，自动动作冷却                                                      |
 | `src/layeredRig.ts`、`src/rig/`、`src/motion/`                       | 分层 2D 骨架、43 个命名动作与显示名 key                                                     |
 | `src/interaction/`、`spriteInteraction.ts`、`layoutStore.ts`         | 命中区、手势、互动反应、互动设置（经 `setInteractionConfigBackend` 推给宿主）、布局共享状态 |

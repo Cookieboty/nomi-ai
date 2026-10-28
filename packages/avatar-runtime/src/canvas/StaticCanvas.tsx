@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import { createStaticBackend } from '../backends/static';
 import { useAvatarContext } from '../host';
-import { mascotRegistry } from '../MascotBackend';
 import { characterBox } from '../spriteLayout';
 
 import MascotInteractionLayerLite, { type SpriteGeometry } from './InteractionLite';
@@ -47,7 +46,7 @@ export const StaticCanvas: React.FC<StaticCanvasProps> = ({
   blinkSrc,
   style,
 }) => {
-  const { mark } = useAvatarContext();
+  const { mark, runtime } = useAvatarContext();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [blink, setBlink] = useState(false);
   const geometry = useMemo(
@@ -61,8 +60,8 @@ export const StaticCanvas: React.FC<StaticCanvasProps> = ({
 
   useEffect(() => {
     const backend = createStaticBackend();
-    const detach = mascotRegistry.attach(backend);
-    document.documentElement.dataset.mascotRenderer = 'static';
+    const detach = runtime.registry.attach(backend);
+    runtime.flag('mascotRenderer', 'static');
     mark('mascot-model-loaded');
     mark('static-model-loaded');
     return () => {
@@ -158,7 +157,7 @@ export const StaticCanvas: React.FC<StaticCanvasProps> = ({
       <MascotInteractionLayerLite
         canvasRef={canvasRef}
         geometry={geometry}
-        registry={mascotRegistry}
+        registry={runtime.registry}
       />
     </div>
   );

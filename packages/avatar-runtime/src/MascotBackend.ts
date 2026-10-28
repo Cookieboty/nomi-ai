@@ -3,7 +3,7 @@
  *
  * 看板娘的所有「驱动」（口型、表情、视线、眨眼）都只面向本接口编程；
  * 具体渲染器（Rive 见 backends/rive.ts，分层 2D 见 backends/sprite.ts）在加载模型后
- * 通过 `mascotRegistry.attach()` 挂上来。
+ * 通过所在运行时的 `registry.attach()` 挂上来（runtime.ts；页面主运行时的就是 `mascotRegistry`）。
  */
 
 /** 通用表情名。 */
@@ -59,10 +59,20 @@ export interface MascotBackend {
 
 type Listener = (backend: MascotBackend | null) => void;
 
-/** 当前挂载的后端（全局唯一，同一时刻只有一个看板娘）。 */
-class MascotRegistry {
+export interface MascotRegistryOptions {
+  /**
+   * 当前后端写到哪（e2e / 调试观察）：页面主运行时写 `<html data-mascot-backend …>`，同一页面再挂的角色
+   * 写自己运行时的 dataset，免得互相覆盖。
+   */
+  dataset?: () => Record<string, string | undefined> | null;
+}
+
+/** 一个运行时实例挂载的后端（每个运行时同一时刻只有一个角色）。 */
+export class MascotRegistry {
   private backend: MascotBackend | null = null;
   private readonly listeners = new Set<Listener>();
+
+  constructor(private readonly options: MascotRegistryOptions = {}) {}
 
   attach(backend: MascotBackend): () => void {
     this.backend = backend;
@@ -92,9 +102,9 @@ class MascotRegistry {
   }
 
   private emit(): void {
-    // 供 e2e / 调试观察：<html data-mascot-backend="vrm" data-mascot-lipsync="true">
-    if (typeof document !== 'undefined') {
-      const ds = document.documentElement.dataset;
+    // 供 e2e / 调试观察：<html data-mascot-backend="sprite" data-mascot-lipsync="true">
+    const ds = this.options.dataset?.();
+    if (ds) {
       const caps = this.backend?.capabilities();
       ds.mascotBackend = this.backend?.kind ?? 'none';
       ds.mascotLipsync = String(!!caps?.lipSync);
@@ -111,4 +121,7 @@ class MascotRegistry {
   }
 }
 
-export const mascotRegistry = new MascotRegistry();
+/** 页面主运行时（`defaultAvatarRuntime`）的后端注册表；再挂角色用 `createAvatarRuntime()` */
+export const mascotRegistry = new MascotRegistry({
+  dataset: () => (typeof document === 'undefined' ? null : document.documentElement.dataset),
+});

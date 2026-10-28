@@ -6,7 +6,8 @@
  * 引擎的默认映射（与官方包 `characters/nomi/mapping.json` 相同，测试保证两者一致），这样只换了
  * 立绘、沿用内置骨架动作的旧包行为不变。
  *
- * 运行时同一页面只挂一个角色（见 MascotBackend 的注册表），当前映射也是全局一份。
+ * 映射跟着运行时实例走（`AvatarMapping`，runtime.ts）：同一页面挂两个角色时各用各的包的映射。
+ * 下面的模块级函数读写页面主运行时的那一份。
  */
 import {
   isLegacyMapping,
@@ -86,25 +87,6 @@ export const DEFAULT_AVATAR_MAPPING: Readonly<Required<PackMapping>> = {
   },
 };
 
-let active: PackMapping = DEFAULT_AVATAR_MAPPING;
-
-/**
- * 设置当前角色的映射；`null` / `undefined`（包没有 mapping.json）用引擎默认映射。2.0.5 模板形状的
- * 映射（情绪指向动作名，见 character-contract `isLegacyMapping`）validatePack 已经丢掉，这里再兜一次底，
- * 防止没经过 validatePack 的宿主把它传进来。返回值恢复成默认映射（卸载时调用）。
- */
-export function setAvatarMapping(mapping: PackMapping | null | undefined): () => void {
-  const next = mapping && !isLegacyMapping(mapping) ? mapping : DEFAULT_AVATAR_MAPPING;
-  active = next;
-  return () => {
-    if (active === next) active = DEFAULT_AVATAR_MAPPING;
-  };
-}
-
-export function currentAvatarMapping(): PackMapping {
-  return active;
-}
-
 function pick(target: string | string[] | undefined, rand: () => number): string | null {
   if (target === undefined) return null;
   if (typeof target === 'string') return target || null;
@@ -112,19 +94,64 @@ function pick(target: string | string[] | undefined, rand: () => number): string
   return target[Math.floor(rand() * target.length)] ?? null;
 }
 
-/** 语义情绪 → 包的表情；不是词表里的名字或没有映射时返回 null。 */
+/** 一个运行时当前角色的映射 */
+export class AvatarMapping {
+  private active: PackMapping = DEFAULT_AVATAR_MAPPING;
+
+  /**
+   * 设置当前角色的映射；`null` / `undefined`（包没有 mapping.json）用引擎默认映射。2.0.5 模板形状的
+   * 映射（情绪指向动作名，见 character-contract `isLegacyMapping`）validatePack 已经丢掉，这里再兜一次底，
+   * 防止没经过 validatePack 的宿主把它传进来。返回值恢复成默认映射（卸载时调用）。
+   */
+  set(mapping: PackMapping | null | undefined): () => void {
+    const next = mapping && !isLegacyMapping(mapping) ? mapping : DEFAULT_AVATAR_MAPPING;
+    this.active = next;
+    return () => {
+      if (this.active === next) this.active = DEFAULT_AVATAR_MAPPING;
+    };
+  }
+
+  current(): PackMapping {
+    return this.active;
+  }
+
+  /** 语义情绪 → 包的表情；不是词表里的名字或没有映射时返回 null。 */
+  emotionTarget(name: string, rand: () => number = Math.random): string | null {
+    return isSemanticEmotion(name) ? pick(this.active.emotions?.[name], rand) : null;
+  }
+
+  /** 语义活动 → 保持姿态的动作（`idle` 没有资源，返回 null）。 */
+  activityTarget(name: string, rand: () => number = Math.random): string | null {
+    return isSemanticActivity(name) ? pick(this.active.activities?.[name], rand) : null;
+  }
+
+  /** 语义手势 → 包的动作。 */
+  gestureTarget(name: string, rand: () => number = Math.random): string | null {
+    return isSemanticGesture(name) ? pick(this.active.gestures?.[name], rand) : null;
+  }
+}
+
+/** 页面主运行时（`defaultAvatarRuntime`）的映射 */
+export const avatarMapping = new AvatarMapping();
+
+export function setAvatarMapping(mapping: PackMapping | null | undefined): () => void {
+  return avatarMapping.set(mapping);
+}
+
+export function currentAvatarMapping(): PackMapping {
+  return avatarMapping.current();
+}
+
 export function emotionTarget(name: string, rand: () => number = Math.random): string | null {
-  return isSemanticEmotion(name) ? pick(active.emotions?.[name], rand) : null;
+  return avatarMapping.emotionTarget(name, rand);
 }
 
-/** 语义活动 → 保持姿态的动作（`idle` 没有资源，返回 null）。 */
 export function activityTarget(name: string, rand: () => number = Math.random): string | null {
-  return isSemanticActivity(name) ? pick(active.activities?.[name], rand) : null;
+  return avatarMapping.activityTarget(name, rand);
 }
 
-/** 语义手势 → 包的动作。 */
 export function gestureTarget(name: string, rand: () => number = Math.random): string | null {
-  return isSemanticGesture(name) ? pick(active.gestures?.[name], rand) : null;
+  return avatarMapping.gestureTarget(name, rand);
 }
 
 /** 当前角色能表现的语义名（有映射的），宿主据此报告场景（`scene` 输出）。 */
@@ -134,7 +161,9 @@ export interface AvatarSemanticCapabilities {
   gestures: SemanticGesture[];
 }
 
-export function mappedSemantics(mapping: PackMapping = active): AvatarSemanticCapabilities {
+export function mappedSemantics(
+  mapping: PackMapping = avatarMapping.current(),
+): AvatarSemanticCapabilities {
   const has = (v: string | string[] | undefined) => (Array.isArray(v) ? v.length > 0 : !!v);
   return {
     emotions: SEMANTIC_EMOTIONS.filter((n) => has(mapping.emotions?.[n])),

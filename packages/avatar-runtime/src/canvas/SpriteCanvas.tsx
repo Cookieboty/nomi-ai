@@ -13,7 +13,6 @@ import {
   type RigImages,
   type RigManifest,
 } from '../layeredRig';
-import { mascotRegistry } from '../MascotBackend';
 import { IdleBehavior } from '../rig/idleBehavior';
 import { characterBox } from '../spriteLayout';
 
@@ -59,7 +58,7 @@ export const SpriteCanvas: React.FC<SpriteCanvasProps> = ({
   const animRef = useRef<RigAnimator | null>(null);
   const rigImgs = useRef<RigImages>(new Map());
   const geometry = useRef<SpriteGeometry>({ head: null, body: null, box: null });
-  const { mark, debugHandles } = useAvatarContext();
+  const { mark, debugHandles, runtime } = useAvatarContext();
 
   useEffect(() => {
     let cancelled = false;
@@ -76,7 +75,7 @@ export const SpriteCanvas: React.FC<SpriteCanvasProps> = ({
         if (cancelled) return;
         const backend = createSpriteBackend(manifest, baseUrl);
         backendRef.current = backend;
-        detach = mascotRegistry.attach(backend);
+        detach = runtime.registry.attach(backend);
         if (debugHandles) {
           // dev-only handle for visual checks / screenshots over CDP
           (globalThis as { __nomiMascot?: SpriteBackend }).__nomiMascot = backend;
@@ -121,8 +120,8 @@ export const SpriteCanvas: React.FC<SpriteCanvasProps> = ({
               throw new Error('rig layers missing');
             }
             setReady(true);
-            document.documentElement.dataset.mascotModel = manifest.id;
-            document.documentElement.dataset.mascotRig = 'layered';
+            runtime.flag('mascotModel', manifest.id);
+            runtime.flag('mascotRig', 'layered');
             mark('mascot-model-loaded');
             mark('sprite-model-loaded', manifest.id);
           });
@@ -149,7 +148,7 @@ export const SpriteCanvas: React.FC<SpriteCanvasProps> = ({
         return Promise.all(loads).then(() => {
           if (cancelled) return;
           setReady(true);
-          document.documentElement.dataset.mascotModel = manifest.id;
+          runtime.flag('mascotModel', manifest.id);
           mark('mascot-model-loaded');
           mark('sprite-model-loaded', manifest.id);
         });
@@ -374,7 +373,7 @@ export const SpriteCanvas: React.FC<SpriteCanvasProps> = ({
       backendRef.current = null;
       releaseImages(loadedImgs);
       releaseImages(loadedRigImgs);
-      delete document.documentElement.dataset.mascotRig;
+      runtime.flag('mascotRig');
     };
     // mark / debugHandles are stable per stage; the rig only reloads when its manifest changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -406,7 +405,7 @@ export const SpriteCanvas: React.FC<SpriteCanvasProps> = ({
         <MascotInteractionLayerLite
           canvasRef={canvasRef}
           geometry={geometry}
-          registry={mascotRegistry}
+          registry={runtime.registry}
         />
       )}
       {!ready && !error && (

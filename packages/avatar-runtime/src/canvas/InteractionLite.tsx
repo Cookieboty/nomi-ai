@@ -4,11 +4,9 @@ import type { FC, RefObject } from 'react';
 import { useAvatarContext } from '../host';
 import { ClickClassifier, PatDetector, type ReactionKind } from '../interaction/gestures';
 import { DragGate, HitHysteresis, hitRadius, inPaddedRects } from '../interaction/pointerPolicy';
-import { react as runReaction } from '../interaction/reactions';
 import type { BodyRegion } from '../interaction/regions';
-import { interactionSettings } from '../interaction/settings';
 import { alphaSpans, rectsKey, type Rect } from '../interaction/shape';
-import { layoutStore, type Box } from '../layoutStore';
+import type { Box } from '../layoutStore';
 import { regionInSprite, type MascotRegistryLike } from '../spriteInteraction';
 import { onWindowResized } from '../windowResize';
 
@@ -41,7 +39,7 @@ export interface InteractionLiteProps {
  * - look-at follows the global cursor relative to the head
  */
 const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, registry }) => {
-  const { hitboxes, onInteraction, windowHost, events } = useAvatarContext();
+  const { hitboxes, onInteraction, windowHost, events, runtime } = useAvatarContext();
   const hitboxesRef = useRef(hitboxes);
   const emitRef = useRef(onInteraction);
   useEffect(() => {
@@ -53,8 +51,10 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
     if (!canvas) return undefined;
     // 透明桌面窗口（点击穿透 / 拖动窗口）；浏览器页面 / 测试里没有窗口宿主时不上报
     const host = windowHost;
+    // 这个运行时自己的布局、互动设置与反应冷却（同一页面的另一个角色不受影响）
+    const { layout: layoutStore, interaction: interactionSettings, dataset } = runtime;
     const react = (kind: ReactionKind, region: BodyRegion | 'any' = 'any', cooldownMs = 0) =>
-      runReaction(kind, region, cooldownMs, (e) => emitRef.current(e));
+      runtime.reactions.react(kind, region, cooldownMs, (e) => emitRef.current(e));
     let platform = '';
     if (host)
       void host.platform().then(
@@ -163,7 +163,7 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
         s.cursor = { x: e.x, y: e.y, inside: e.inside, fresh: true };
         layoutStore.setCursor({ x: e.x, y: e.y, inside: e.inside });
       } else if (e.type === 'physics') {
-        document.documentElement.dataset.mascotPhysics = e.kind;
+        dataset.mascotPhysics = e.kind;
         if (e.kind === 'grab') react('grab', 'any', 3000);
         else if (e.kind === 'land' && e.speed > 900) react('land', 'any', 4000);
         else if (e.kind === 'wall' && e.speed > 900) react('wall', 'any', 3000);
@@ -171,12 +171,12 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
     });
 
     const endDrag = (why: string) => {
-      document.documentElement.dataset.mascotDragEnd = why;
+      dataset.mascotDragEnd = why;
       host?.dragEnd();
       s.dragging = false;
       s.hit = null;
       s.cursor.fresh = true;
-      document.documentElement.dataset.mascotDragging = '0';
+      dataset.mascotDragging = '0';
     };
     /** Chromium emits both pointermove and a compatibility mousemove; without
      *  dedupe every drag IPC (and gate sample) runs twice and doubles main-process work. */
@@ -198,7 +198,7 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
           host.dragStart({ screenX: s.down.sx, screenY: s.down.sy });
           host.dragMove({ screenX: e.screenX, screenY: e.screenY });
         }
-        document.documentElement.dataset.mascotDragging = '1';
+        dataset.mascotDragging = '1';
       } else if (r === 'cancel' || (!gate.isDown && s.down && !s.buttonHeld)) {
         // button released without a pointerup (lost during a click-through toggle)
         if (s.dragging) endDrag('buttons');
@@ -236,7 +236,7 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
     // pointerup, or on the next move without the button held (DragGate 'cancel').
     const onCancel = (e: Event) => {
       if (s.dragging) {
-        document.documentElement.dataset.mascotDragIgnored = e.type;
+        dataset.mascotDragIgnored = e.type;
         return;
       }
       gate.cancel();
@@ -297,7 +297,7 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
               }
             : null,
         );
-        document.documentElement.dataset.mascotHead = `${h.left},${h.right},${h.top},${h.bottom}`;
+        dataset.mascotHead = `${h.left},${h.right},${h.top},${h.bottom}`;
       }
       // body box (toolbar slot + main-process physics), 2 Hz with 8 px hysteresis
       if (g?.body && now - s.geomAt > 500) {
@@ -321,7 +321,7 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
         if (changed && !s.dragging && !s.down) {
           s.lastGeom = `${box.left},${box.right},${box.top},${box.bottom}`;
           host?.setGeometry({ ...box, vw: window.innerWidth, vh: window.innerHeight });
-          document.documentElement.dataset.mascotBox = s.lastGeom;
+          dataset.mascotBox = s.lastGeom;
         }
       }
       // look-at relative to the head
@@ -387,7 +387,7 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
       if (eff !== s.hit) {
         s.hit = eff;
         host?.setHit(eff);
-        document.documentElement.dataset.mascotHit = eff ? '1' : '0';
+        dataset.mascotHit = eff ? '1' : '0';
       }
       // hover / pat reactions
       const region = raw && !s.dragging && !s.down ? regionAt(c.x, c.y) : null;
@@ -396,7 +396,7 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
         s.hoverSince = t;
         s.hoverFired = false;
         pat.reset();
-        document.documentElement.dataset.mascotHover = region ?? '';
+        dataset.mascotHover = region ?? '';
       }
       if (region && !s.hoverFired && t - s.hoverSince >= HOVER_DWELL_MS) {
         s.hoverFired = true;
@@ -423,7 +423,7 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
       layoutStore.setHead(null);
       layoutStore.setCharBox(null);
     };
-  }, [canvasRef, geometry, registry, windowHost, events]);
+  }, [canvasRef, geometry, registry, windowHost, events, runtime]);
   return null;
 };
 

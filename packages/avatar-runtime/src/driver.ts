@@ -9,8 +9,7 @@ import { isSemanticEmotion } from '@nomi-ai/character-contract';
 import { StreamEmotionTracker } from './emotion';
 import type { AvatarEvent, AvatarEventSource } from './events';
 import { directiveForActivity, directiveForEvent } from './expressionDirector';
-import { mascotRegistry } from './MascotBackend';
-import { applyDirective, playGesture, playMotionNow } from './mood';
+import { defaultAvatarRuntime, type AvatarRuntime } from './runtime';
 import { voiceDirective } from './voiceMood';
 
 /** 口型包络超过它算在说话 */
@@ -19,17 +18,21 @@ export const TALK_RMS = 0.04;
 export const TALK_RELEASE_MS = 1200;
 
 /** 结束保持姿态的动作（托腮思考 / 打字工作）；仅 2D 骨架支持 */
-function releaseHeldMotion(): void {
-  const b = mascotRegistry.current();
+function releaseHeldMotion(runtime: AvatarRuntime): void {
+  const b = runtime.registry.current();
   if (b?.kind === 'sprite') b.playMotion('release');
 }
 
 /** 显式语义情绪：不在词表里的忽略；返回是否执行（没有映射时执行了也不会变表情） */
-export function applyEmotion(raw: string, weight?: number): boolean {
+export function applyEmotion(
+  raw: string,
+  weight?: number,
+  runtime: AvatarRuntime = defaultAvatarRuntime,
+): boolean {
   const name = String(raw ?? '');
   if (!isSemanticEmotion(name)) return false;
   const w = typeof weight === 'number' && Number.isFinite(weight) ? weight : undefined;
-  applyDirective({
+  runtime.mood.applyDirective({
     // 情绪名经映射成为表情；没有映射的（例如官方包的 shy）不变表情
     expression: name,
     holdMs: name === 'neutral' ? 0 : 5000,
@@ -39,27 +42,35 @@ export function applyEmotion(raw: string, weight?: number): boolean {
 }
 
 /** 语义活动：thinking / toolRunning 保持姿态，idle 结束保持的姿态 */
-export function applyActivity(name: string): boolean {
+export function applyActivity(
+  name: string,
+  runtime: AvatarRuntime = defaultAvatarRuntime,
+): boolean {
   if (name === 'idle') {
-    releaseHeldMotion();
+    releaseHeldMotion(runtime);
     return true;
   }
   if (name !== 'thinking' && name !== 'toolRunning') return false;
-  applyDirective(directiveForActivity(name));
+  runtime.mood.applyDirective(directiveForActivity(name));
   return true;
 }
 
 /**
- * 订阅事件源并驱动当前挂载的后端；返回值停止驱动（清掉说话计时器）。
- * 同一时刻只应有一个驱动（后端注册表是全局唯一的）。
+ * 订阅事件源并驱动这个运行时挂载的后端；返回值停止驱动（清掉说话计时器）。
+ * 每个运行时同一时刻只应有一个驱动。
  */
-export function driveAvatar(source: AvatarEventSource): () => void {
+export function driveAvatar(
+  source: AvatarEventSource,
+  runtime: AvatarRuntime = defaultAvatarRuntime,
+): () => void {
+  const { registry, mood } = runtime;
+  const applyDirective = mood.applyDirective.bind(mood);
   let talking = false;
   let silenceTimer: ReturnType<typeof setTimeout> | null = null;
   const tracker = new StreamEmotionTracker();
 
   const onSpeaking = (rms: number): void => {
-    const backend = mascotRegistry.current();
+    const backend = registry.current();
     backend?.setMouthOpen(rms);
     if (rms > TALK_RMS) {
       if (silenceTimer) clearTimeout(silenceTimer);
@@ -72,7 +83,7 @@ export function driveAvatar(source: AvatarEventSource): () => void {
       silenceTimer = setTimeout(() => {
         talking = false;
         silenceTimer = null;
-        mascotRegistry.current()?.setTalking(false);
+        registry.current()?.setTalking(false);
       }, TALK_RELEASE_MS);
     }
   };
@@ -95,28 +106,28 @@ export function driveAvatar(source: AvatarEventSource): () => void {
           );
         } else if (e.phase === 'complete') {
           const early = tracker.finish();
-          releaseHeldMotion();
+          releaseHeldMotion(runtime);
           const d = directiveForEvent({ kind: 'message:complete', text: e.text });
           // 中途已经用同一情绪做过手势 → 结尾只保持表情，不重复动作
           if (d && early && early.emotion === d.expression) delete d.gesture;
           applyDirective(d);
         } else if (e.phase === 'waiting' || e.phase === 'settled') {
           // 引擎控制（不是包资源）：分层 2D 骨架保持 / 放下思考的神态，其它后端忽略
-          playMotionNow(e.phase === 'waiting' ? 'think-on' : 'think-off');
+          mood.playMotionNow(e.phase === 'waiting' ? 'think-on' : 'think-off');
         } else {
           tracker.reset();
-          releaseHeldMotion();
+          releaseHeldMotion(runtime);
           applyDirective(directiveForEvent({ kind: 'stopped-by-user' }));
         }
         return;
       case 'emotion':
-        applyEmotion(e.name, e.weight);
+        applyEmotion(e.name, e.weight, runtime);
         return;
       case 'gesture':
-        playGesture(e.name);
+        mood.playGesture(e.name);
         return;
       case 'activity':
-        applyActivity(e.name);
+        applyActivity(e.name, runtime);
         return;
       case 'voice': {
         const d = voiceDirective(e.phase, e.prev);

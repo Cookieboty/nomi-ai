@@ -3,7 +3,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import { createRiveBackend } from '../backends/rive';
 import { useAvatarContext } from '../host';
-import { mascotRegistry } from '../MascotBackend';
 import { characterBox } from '../spriteLayout';
 
 import MascotInteractionLayerLite, { type SpriteGeometry } from './InteractionLite';
@@ -69,7 +68,7 @@ export const RiveCanvas: React.FC<RiveCanvasProps> = ({
   useEffect(() => {
     onFailureRef.current = onFailure;
   });
-  const { riveWasmUrl, mark, debugHandles } = useAvatarContext();
+  const { riveWasmUrl, mark, debugHandles, runtime } = useAvatarContext();
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const geometry = useMemo(
@@ -142,7 +141,7 @@ export const RiveCanvas: React.FC<RiveCanvasProps> = ({
           // CSS viewport was measured before Rive existed.
           place(true);
           const backend = createRiveBackend(() => rive?.viewModelInstance);
-          detach = mascotRegistry.attach(backend);
+          detach = runtime.registry.attach(backend);
           if (debugHandles) {
             (globalThis as { __nomiMascot?: unknown }).__nomiMascot = backend;
           }
@@ -157,7 +156,7 @@ export const RiveCanvas: React.FC<RiveCanvasProps> = ({
           const clip = names.find(
             (n): n is string => typeof n === 'string' && n.startsWith('full.') && n !== 'full.idle',
           );
-          document.documentElement.dataset.mascotAction = clip ? clip.slice('full.'.length) : '';
+          runtime.flag('mascotAction', clip ? clip.slice('full.'.length) : '');
         },
         onLoadError: () => fail('Rive load failed'),
       });
@@ -213,7 +212,7 @@ export const RiveCanvas: React.FC<RiveCanvasProps> = ({
       <MascotInteractionLayerLite
         canvasRef={canvasRef}
         geometry={geometry}
-        registry={mascotRegistry}
+        registry={runtime.registry}
       />
       {error && (
         <div

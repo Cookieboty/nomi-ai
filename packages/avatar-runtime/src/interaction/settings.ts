@@ -24,15 +24,10 @@ type Listener = (cfg: MascotInteractionConfig) => void;
 
 /** 设置推给宿主（桌面版：主进程的看板娘窗口控制器）；宿主启动时注入，没有就只存本地 */
 export type InteractionConfigBackend = (cfg: MascotInteractionConfig) => Promise<unknown> | void;
-let backend: InteractionConfigBackend | null = null;
 
-export function setInteractionConfigBackend(fn: InteractionConfigBackend | null): void {
-  backend = fn;
-}
-
-function load(): MascotInteractionConfig {
+function load(key: string): MascotInteractionConfig {
   try {
-    const raw = JSON.parse(localStorage.getItem(KEY) ?? '{}') as Partial<MascotInteractionConfig>;
+    const raw = JSON.parse(localStorage.getItem(key) ?? '{}') as Partial<MascotInteractionConfig>;
     const out = { ...DEFAULT_INTERACTION };
     for (const k of Object.keys(out) as Array<keyof MascotInteractionConfig>) {
       if (typeof raw[k] === 'boolean') out[k] = raw[k] as boolean;
@@ -43,11 +38,28 @@ function load(): MascotInteractionConfig {
   }
 }
 
-/** 互动设置：本地持久化 + 经注入的后端同步给宿主 */
-class InteractionSettings {
-  private cfg: MascotInteractionConfig =
-    typeof localStorage === 'undefined' ? { ...DEFAULT_INTERACTION } : load();
+export interface InteractionSettingsOptions {
+  /** 持久化用的 localStorage key；`null` = 只在内存里（同一页面再挂的角色） */
+  storageKey?: string | null;
+}
+
+/** 互动设置：本地持久化 + 经注入的后端同步给宿主。每个运行时一份（runtime.ts） */
+export class InteractionSettings {
+  private readonly key: string | null;
+  private cfg: MascotInteractionConfig;
   private readonly listeners = new Set<Listener>();
+  private backend: InteractionConfigBackend | null = null;
+
+  constructor(options: InteractionSettingsOptions = {}) {
+    this.key = options.storageKey ?? null;
+    this.cfg =
+      this.key && typeof localStorage !== 'undefined' ? load(this.key) : { ...DEFAULT_INTERACTION };
+  }
+
+  /** 宿主注入推送设置的后端（`null` 取消） */
+  setBackend(fn: InteractionConfigBackend | null): void {
+    this.backend = fn;
+  }
 
   get(): MascotInteractionConfig {
     return this.cfg;
@@ -55,10 +67,12 @@ class InteractionSettings {
 
   set(patch: Partial<MascotInteractionConfig>): void {
     this.cfg = { ...this.cfg, ...patch };
-    try {
-      localStorage.setItem(KEY, JSON.stringify(this.cfg));
-    } catch {
-      /* 隐私模式等：仅本次生效 */
+    if (this.key) {
+      try {
+        localStorage.setItem(this.key, JSON.stringify(this.cfg));
+      } catch {
+        /* 隐私模式等：仅本次生效 */
+      }
     }
     this.push();
     for (const l of this.listeners) l(this.cfg);
@@ -66,6 +80,7 @@ class InteractionSettings {
 
   /** 把当前设置推给宿主（启动时调用一次） */
   push(): void {
+    const backend = this.backend;
     if (!backend) return;
     try {
       void Promise.resolve(backend({ ...this.cfg })).catch(() => undefined);
@@ -80,4 +95,10 @@ class InteractionSettings {
   }
 }
 
-export const interactionSettings = new InteractionSettings();
+/** 页面主运行时（`defaultAvatarRuntime`）的互动设置：持久化到 `mascot.interaction.v2` */
+export const interactionSettings = new InteractionSettings({ storageKey: KEY });
+
+/** 给页面主运行时注入推送后端（宿主启动时调用） */
+export function setInteractionConfigBackend(fn: InteractionConfigBackend | null): void {
+  interactionSettings.setBackend(fn);
+}

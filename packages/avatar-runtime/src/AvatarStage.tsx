@@ -12,7 +12,8 @@ import {
   type AvatarRuntimeOptions,
 } from './host';
 import type { BodyRegion } from './interaction/regions';
-import { mappedSemantics, setAvatarMapping } from './mapping';
+import { mappedSemantics } from './mapping';
+import { defaultAvatarRuntime } from './runtime';
 
 export type AvatarStageProps = AvatarRuntimeOptions;
 
@@ -51,6 +52,7 @@ export const AvatarStage: FC<AvatarStageProps> = ({
   riveWasmUrl,
   onMark,
   debugHandles = false,
+  runtime = defaultAvatarRuntime,
 }) => {
   // 回调走 ref：宿主每次渲染给新函数时不重建画布
   const interactionRef = useRef(onInteraction);
@@ -65,12 +67,18 @@ export const AvatarStage: FC<AvatarStageProps> = ({
   // 当前角色的映射（语义 → 资源）；卸载时回到默认映射。随后报告场景：角色与能表现的语义名
   const { id: characterId, mapping } = character;
   useEffect(() => {
-    const restore = setAvatarMapping(mapping);
-    avatarEventRef.current?.({ type: 'scene', characterId, ...mappedSemantics() });
+    const restore = runtime.mapping.set(mapping);
+    avatarEventRef.current?.({
+      type: 'scene',
+      characterId,
+      ...mappedSemantics(runtime.mapping.current()),
+    });
     return restore;
-  }, [characterId, mapping]);
+  }, [characterId, mapping, runtime]);
 
-  useEffect(() => (events ? driveAvatar(events) : undefined), [events]);
+  useEffect(() => (events ? driveAvatar(events, runtime) : undefined), [events, runtime]);
+  // 卸载时清掉这个运行时的表情回落计时器与冷却
+  useEffect(() => () => runtime.mood.reset(), [runtime]);
 
   const ctx = useMemo<AvatarContextValue>(
     () => ({
@@ -86,8 +94,9 @@ export const AvatarStage: FC<AvatarStageProps> = ({
       riveWasmUrl,
       mark: (name: string, ...detail: unknown[]) => markRef.current?.(name, ...detail),
       debugHandles,
+      runtime,
     }),
-    [character, events, windowHost, riveWasmUrl, debugHandles],
+    [character, events, windowHost, riveWasmUrl, debugHandles, runtime],
   );
 
   return (

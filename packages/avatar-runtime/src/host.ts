@@ -22,6 +22,7 @@ import type { ReactionKind } from './interaction/gestures';
 import type { BodyRegion } from './interaction/regions';
 import type { Rect } from './interaction/shape';
 import type { Box } from './layoutStore';
+import { defaultAvatarRuntime, type AvatarRuntime } from './runtime';
 import type { PackHitboxes } from './spriteInteraction';
 
 /** 运行时需要的角色数据：manifest 里与引擎有关的部分。 */
@@ -99,6 +100,11 @@ export interface AvatarRuntimeOptions {
   onMark?: (name: string, ...detail: unknown[]) => void;
   /** 开发态：把后端挂到 globalThis.__nomiMascot / __nomiRig 供 CDP 调试 */
   debugHandles?: boolean;
+  /**
+   * 运行时实例（后端注册表、布局、互动设置、映射、冷却）。缺省是页面主运行时 `defaultAvatarRuntime`；
+   * 同一页面再挂一个角色时传 `createAvatarRuntime()`，两个角色互不影响（runtime.ts）。
+   */
+  runtime?: AvatarRuntime;
 }
 
 /** 已经是 URL（scheme、`./`、`../`、`/` 开头）的路径原样使用，其余经 resolveAsset。 */
@@ -162,6 +168,7 @@ export interface AvatarContextValue {
   riveWasmUrl?: string;
   mark: (name: string, ...detail: unknown[]) => void;
   debugHandles: boolean;
+  runtime: AvatarRuntime;
 }
 
 const noop = (): void => undefined;
@@ -174,6 +181,7 @@ export const DEFAULT_AVATAR_CONTEXT: AvatarContextValue = {
   windowHost: null,
   mark: noop,
   debugHandles: false,
+  runtime: defaultAvatarRuntime,
 };
 
 export const AvatarContext = createContext<AvatarContextValue>(DEFAULT_AVATAR_CONTEXT);
