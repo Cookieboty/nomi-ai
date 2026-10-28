@@ -62,11 +62,24 @@ export interface IWindowManager {
   getAiChatWindow(): BrowserWindow | null;
   closeAllWindows(): void;
   setAlwaysOnTop(windowType: 'main' | 'aiChat', flag: boolean): void;
-  /** 显示 / 隐藏桌面看板娘；隐藏时窗口保留（提醒、确认框仍有宿主）但静音 */
+  /**
+   * 显示 / 关闭桌面看板娘。关闭时销毁窗口（连同渲染进程与 Rive 的 WASM / 画布一起释放），
+   * 位置先落盘，重新显示时按配置重建；提醒改走灵动岛 / 系统通知，确认框临时召回（summonMascot）
+   */
   setMascotVisible(visible: boolean): void;
+  /** 看板娘已关闭时临时建出窗口（桌面工具确认框需要宿主）；已有窗口时直接显示 */
+  summonMascot(): void;
+  /** 临时召回结束：看板娘仍是关闭状态就再次释放窗口 */
+  releaseMascot(): void;
   /** 打开对话窗口并发送面板通道（默认「供应商设置」） */
   openProviderPanel(event?: ChatNavEvent): Promise<void>;
 }
+
+/**
+ * 对话窗口隐藏（不是关闭）后空闲多久回收（毫秒）。取得较长：销毁后主进程仍留着 20–40 MiB
+ * （共享内存 / 分配器保留），频繁重建得不偿失
+ */
+export const CHAT_IDLE_DESTROY_MS = 10 * 60_000;
 
 /** 对话窗口的最小尺寸（设置是全窗布局，再小放不下） */
 const CHAT_MIN_SIZE = { width: 760, height: 560 };
@@ -80,7 +93,20 @@ export class WindowManager implements IWindowManager {
   requestQuit: () => void = () => app.quit();
   /** 看板娘是否被关闭（「关闭看板娘」/ 设置；Application 注入，默认显示） */
   mascotHidden: () => boolean = () => false;
+  /**
+   * 某个 webContents 上是否还有进行中的契约调用 / 流（Application 按 IPC 传输注入）。
+   * 隐藏的对话窗口只有空闲时才回收；缺省视为忙，不回收
+   */
+  webContentsBusy: (webContentsId: number) => boolean = () => true;
+  /** 隐藏的对话窗口空闲多久后回收（测试可调） */
+  chatIdleDestroyMs = CHAT_IDLE_DESTROY_MS;
   private mainWindow: BrowserWindow | null = null;
+  /** 正在创建中的看板娘窗口（并发 createMainWindow 共用） */
+  private mainWindowPromise?: Promise<BrowserWindow>;
+  /** 看板娘关闭期间被临时召回（确认框）：ready-to-show 时要显示出来 */
+  private mascotSummoned = false;
+  /** 正在回收隐藏的对话窗口（'closed' 里不当作用户关闭主界面） */
+  private chatRecycling = false;
   private aiChatWindow: BrowserWindow | null = null;
   /** 正在创建中的 AI 对话窗口（并发 createAiChatWindow 共用） */
   private aiChatWindowPromise?: Promise<BrowserWindow>;
@@ -104,7 +130,18 @@ export class WindowManager implements IWindowManager {
       if (!this.mascotHidden()) this.mainWindow.focus();
       return this.mainWindow;
     }
+    this.mainWindowPromise ??= this.buildMainWindow(opts).finally(() => {
+      this.mainWindowPromise = undefined;
+    });
+    return this.mainWindowPromise;
+  }
 
+  /** 看板娘窗口应保持隐藏：已关闭且没有被临时召回 */
+  private mascotStaysHidden(): boolean {
+    return this.mascotHidden() && !this.mascotSummoned;
+  }
+
+  private async buildMainWindow(opts: ShowOptions): Promise<BrowserWindow> {
     try {
       const { width, height } = screen.getPrimaryDisplay().workAreaSize;
       const config = this.configService.getConfig();
@@ -139,7 +176,8 @@ export class WindowManager implements IWindowManager {
         windowKind: 'mascot',
       };
 
-      this.mainWindow = await this.createWindow(windowOptions, 'main');
+      const win = await this.createWindow(windowOptions, 'main');
+      this.mainWindow = win;
       if (process.platform === 'win32') setWindowBounds(this.mainWindow, { x, y, ...size });
       // 看板娘已关闭：整窗静音（音效 / TTS 音频），渲染端另外跳过朗读
       this.mainWindow.webContents.setAudioMuted(this.mascotHidden());
@@ -148,11 +186,13 @@ export class WindowManager implements IWindowManager {
       this.setupMainWindowEvents(this.mainWindow);
 
       // 加载应用页面
-      await this.loadMainWindowContent(this.mainWindow);
+      await this.loadMainWindowContent(win);
 
       this.logger.info('主窗口创建成功');
+      // 创建期间看板娘被关闭：直接释放，不留一个隐藏的渲染进程
+      if (this.mascotStaysHidden()) this.releaseMascotWindow();
 
-      return this.mainWindow;
+      return win;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error('主窗口创建失败', { error: errorMessage });
@@ -283,15 +323,63 @@ export class WindowManager implements IWindowManager {
   }
 
   setMascotVisible(visible: boolean): void {
-    const win = this.mainWindow;
-    if (!win || win.isDestroyed()) {
-      if (visible) void this.createMainWindow({ activate: false });
+    if (!visible) {
+      this.mascotSummoned = false;
+      this.releaseMascotWindow();
+      this.logger.info('看板娘已关闭，窗口已释放');
       return;
     }
-    win.webContents.setAudioMuted(!visible);
-    if (visible) win.showInactive();
-    else win.hide();
-    this.logger.info(visible ? '看板娘已显示' : '看板娘已关闭');
+    const win = this.mainWindow;
+    if (!win || win.isDestroyed()) {
+      void this.createMainWindow({ activate: false }).catch((error) =>
+        this.logger.error('重新显示看板娘失败', { error: String(error) }),
+      );
+      return;
+    }
+    win.webContents.setAudioMuted(false);
+    win.showInactive();
+    this.logger.info('看板娘已显示');
+  }
+
+  summonMascot(): void {
+    const win = this.mainWindow;
+    if (win && !win.isDestroyed()) {
+      if (!win.isVisible()) win.showInactive();
+      return;
+    }
+    this.mascotSummoned = true;
+    void this.createMainWindow({ activate: false }).catch((error) =>
+      this.logger.error('临时召回看板娘失败', { error: String(error) }),
+    );
+  }
+
+  releaseMascot(): void {
+    this.mascotSummoned = false;
+    if (this.mascotHidden()) this.releaseMascotWindow();
+  }
+
+  /**
+   * 销毁看板娘窗口：先把位置落盘（防抖的保存可能还没跑），再 destroy()。
+   * destroy() 不触发 'close'（那里接的是退出应用），只触发 'closed'。
+   */
+  private releaseMascotWindow(): void {
+    const win = this.mainWindow;
+    if (!win) return;
+    this.mainWindow = null;
+    if (win.isDestroyed()) return;
+    try {
+      const [x, y] = win.getPosition();
+      this.configService.set('windowPosition.x', x);
+      this.configService.set('windowPosition.y', y);
+      this.configService.save().catch((error) => {
+        this.logger.error('保存窗口位置失败', { error: String(error) });
+      });
+    } catch (error) {
+      this.logger.warn('读取看板娘位置失败', { error: String(error) });
+    }
+    this.mascotController?.dispose();
+    this.mascotController = null;
+    win.destroy();
   }
 
   /**
@@ -381,7 +469,7 @@ export class WindowManager implements IWindowManager {
     window.once('ready-to-show', () => {
       perfMark(`${type}-shown`);
       // 看板娘已关闭：窗口保持隐藏（已静音），设置里重新打开时再显示
-      const keepHidden = type === 'main' && this.mascotHidden();
+      const keepHidden = type === 'main' && this.mascotStaysHidden();
       if (keepHidden) this.logger.info('看板娘已关闭，窗口保持隐藏');
       else if (options.showInactive) window.showInactive();
       else window.show();
@@ -402,7 +490,7 @@ export class WindowManager implements IWindowManager {
 
     window.on('closed', () => {
       if (type === 'main') {
-        this.mainWindow = null;
+        if (this.mainWindow === window) this.mainWindow = null;
       } else if (type === 'aiChat') {
         this.aiChatWindow = null;
       }
@@ -507,9 +595,39 @@ export class WindowManager implements IWindowManager {
     window.on('unmaximize', saveSoon);
     window.on('close', saveBounds);
 
+    // 隐藏（不是关闭）后空闲一段时间：没有进行中的请求 / 流就销毁窗口，重开时重建（位置大小已记住）
+    let idleTimer: ReturnType<typeof setTimeout> | null = null;
+    const cancelIdle = () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = null;
+    };
+    const scheduleIdle = () => {
+      cancelIdle();
+      idleTimer = setTimeout(() => {
+        idleTimer = null;
+        if (window.isDestroyed() || window.isVisible()) return;
+        if (this.webContentsBusy(window.webContents.id)) {
+          scheduleIdle();
+          return;
+        }
+        this.logger.info('对话窗口隐藏后空闲，回收窗口');
+        saveBounds();
+        // destroy() 不触发 'close'；'closed' 照常清理。这不是用户关闭主界面，不走「关闭即退出」
+        this.chatRecycling = true;
+        window.destroy();
+      }, this.chatIdleDestroyMs);
+    };
+    window.on('hide', scheduleIdle);
+    window.on('show', cancelIdle);
+
     window.on('closed', () => {
+      cancelIdle();
       if (saveTimer) clearTimeout(saveTimer);
-      this.aiChatWindow = null;
+      if (this.aiChatWindow === window) this.aiChatWindow = null;
+      if (this.chatRecycling) {
+        this.chatRecycling = false;
+        return;
+      }
       this.logger.info('AI对话窗口已关闭');
       // 「关闭主界面时：退出 Nomi」：走统一退出流程（看板娘、托盘、后台服务一起收尾）
       if (this.shouldQuitOnChatClose()) {

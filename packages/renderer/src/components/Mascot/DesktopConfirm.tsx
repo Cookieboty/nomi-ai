@@ -16,6 +16,12 @@ const desktop = {
   onConfirmCancel: (cb: (id: string) => void) => api.on('desktop.confirmCancel', cb),
   onBubble: (cb: (p: DesktopBubble) => void) =>
     api.on('desktop.bubble', (p) => cb(p as DesktopBubble)),
+  /** 还在等答复的确认请求：看板娘关闭时窗口是为确认框临时建的，建好前发出的请求要补拉 */
+  pending: () =>
+    api.desktop
+      .state()
+      .then((s) => (s.pending ?? []) as DesktopConfirmRequest[])
+      .catch(() => [] as DesktopConfirmRequest[]),
   answer: (id: string, allow: boolean, remember: boolean) =>
     void api.desktop.confirmAnswer({ id, allow, remember }).catch(() => undefined),
 };
@@ -119,7 +125,13 @@ export const DesktopConfirm: React.FC = () => {
     const off3 = bridge.onBubble((p) =>
       window.dispatchEvent(new CustomEvent('mascot:say', { detail: { text: p.text, ms: 9000 } })),
     );
+    let live = true;
+    void bridge.pending().then((list) => {
+      if (!live || list.length === 0) return;
+      setQueue((q) => [...q, ...list.filter((r) => !q.some((x) => x.id === r.id))]);
+    });
     return () => {
+      live = false;
       off1();
       off2();
       off3();

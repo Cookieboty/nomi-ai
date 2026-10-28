@@ -60,7 +60,6 @@ export interface DesktopMascotWindow {
   isDestroyed(): boolean;
   isVisible(): boolean;
   showInactive(): void;
-  hide(): void;
   readonly webContents: { readonly id: number };
 }
 
@@ -74,6 +73,10 @@ export interface DesktopWindows {
   openChat(): Promise<DesktopChatWindow>;
   /** 看板娘已关闭（窗口隐藏且静音）：提醒不再把她叫出来（系统通知 / 灵动岛照常）；确认框临时显示，答完再藏起 */
   mascotHidden?(): boolean;
+  /** 看板娘已关闭（窗口已释放）时为确认框临时建出窗口；窗口加载后自己补拉待答复的请求 */
+  summonMascot?(): void;
+  /** 临时召回结束（确认框都答完了）：看板娘仍是关闭状态就再次释放窗口 */
+  releaseMascot?(): void;
   /** 灵动岛提醒（宿主的灵动岛窗口）：显示了返回 true；关闭 / 不支持 / 不接这一类时返回 false */
   island?(n: IslandNotice): boolean;
 }
@@ -171,11 +174,10 @@ export class DesktopService {
     return this.windows?.mascotHidden?.() ?? false;
   }
 
-  /** 看板娘已关闭时，确认框全部处理完就把临时显示的窗口再藏起来 */
+  /** 看板娘已关闭时，确认框全部处理完就把临时召回的窗口再释放掉 */
   private rehideMascotIfIdle(): void {
     if (!this.mascotHidden() || this.broker.pendingRequests().length > 0) return;
-    const w = this.main();
-    if (w?.isVisible()) w.hide();
+    this.windows?.releaseMascot?.();
   }
 
   private broadcast(ch: AppEventName, payload: unknown): void {
@@ -196,7 +198,11 @@ export class DesktopService {
   private sendConfirm(req: ConfirmRequest): void {
     const w = this.main();
     this.logger.info('桌面工具确认请求', { tool: req.tool, danger: req.danger, hasWindow: !!w });
-    if (!w) return;
+    if (!w) {
+      // 看板娘已关闭、窗口已释放：临时建出来，页面加载后经 desktop.state 补拉这条请求
+      if (this.mascotHidden()) this.windows?.summonMascot?.();
+      return;
+    }
     if (!w.isVisible()) w.showInactive();
     this.events.publish('desktop.confirmRequest', req, { surface: 'mascot' });
     avatarGesture(this.events, 'think');
