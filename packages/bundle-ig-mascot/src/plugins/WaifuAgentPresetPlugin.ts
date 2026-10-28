@@ -5,12 +5,21 @@ import {
   type UserProfileService,
 } from '@nomi-ai/bundle-ig-base';
 
-import characterGenerated from '../character.generated.json';
 import {
   AgentPresetRegistryKey,
   InMemoryAgentPresetRegistry,
+  PersonaIdentityKey,
   type AgentPreset,
   type AgentPresetRegistry,
+} from '../seams/agentPreset';
+
+// 主进程单独装载 `./plugins` 入口时，Service Key 必须与插件来自同一份模块实例
+export {
+  AgentPresetRegistryKey,
+  PersonaIdentityKey,
+  type AgentPreset,
+  type AgentPresetRegistry,
+  type PersonaIdentity,
 } from '../seams/agentPreset';
 
 export interface WaifuAgentPresetPluginConfig {
@@ -22,6 +31,11 @@ export interface WaifuAgentPresetPluginConfig {
   disable?: string[];
   /** 允许 profile 覆盖 systemPrompt 前缀 */
   systemPromptPrefix?: string;
+  /**
+   * 角色身份段（主进程按 PersonaService 传入）。ctx 里有 PersonaIdentityKey 时以它为准；
+   * 两者都没有时不写身份段——插件包里不内置任何角色人设。
+   */
+  identity?: string;
 }
 
 const TONE_TABLE: Record<string, string> = {
@@ -37,7 +51,7 @@ const TONE_TABLE: Record<string, string> = {
  */
 export function buildWaifuSystemPrompt(
   profile: UserProfileService | undefined,
-  opts: { prefix?: string; toolNames: string[] } = { toolNames: [] },
+  opts: { prefix?: string; identity?: string; toolNames: string[] } = { toolNames: [] },
 ): string {
   const tone = profile?.getPath<{ value: string }>('preferences.tone')?.value ?? 'cute';
   const toneLine = TONE_TABLE[tone] ?? TONE_TABLE.cute!;
@@ -46,11 +60,8 @@ export function buildWaifuSystemPrompt(
 
   const lines: string[] = [];
   if (opts.prefix) lines.push(opts.prefix.trim());
-  const identity =
-    (typeof characterGenerated?.systemPromptIdentity === 'string' &&
-      characterGenerated.systemPromptIdentity.trim()) ||
-    '你是 Nomi（诺米），住在用户桌面上的 AI 伙伴。';
-  lines.push(identity);
+  const identity = opts.identity?.trim();
+  if (identity) lines.push(identity);
   if (salutation) lines.push(salutation);
   lines.push(toneLine);
   if (opts.toolNames.length > 0) {
@@ -76,12 +87,21 @@ export const WaifuAgentPresetPlugin = definePlugin<WaifuAgentPresetPluginConfig>
 
     const toolNames = ['avatar_gesture', 'avatar_emotion', ...builtinTools];
 
+    if (!ctx.inject(PersonaIdentityKey) && !cfg.identity?.trim()) {
+      ctx.logger.warn(
+        'WaifuAgentPresetPlugin: no persona identity (PersonaIdentityKey / config.identity); systemPrompt has no identity line',
+      );
+    }
+
     const preset: AgentPreset = {
       name: presetName,
       systemPrompt: () => {
         const profile = ctx.inject(UserProfileKey);
+        // 每次生成时读取：换角色包 / 换界面语言即时生效
+        const identity = ctx.inject(PersonaIdentityKey)?.systemPromptIdentity() ?? cfg.identity;
         return buildWaifuSystemPrompt(profile, {
           prefix: cfg.systemPromptPrefix,
+          identity,
           toolNames,
         });
       },

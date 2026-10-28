@@ -57,12 +57,44 @@ export class CharacterPackService {
     reason: 'not yet resolved',
   };
 
+  private readonly listeners = new Set<(resolved: ResolvedPack) => void>();
+  private protocolRegistered = false;
+
   /** Call once after app.whenReady (needs app.getPath). */
   init(logger?: { info: (m: string) => void; warn: (m: string) => void }): void {
+    this.reload(logger);
+    if (!this.protocolRegistered) {
+      registerCharacterPackProtocol(protocol, () => this.resolved.root);
+      this.protocolRegistered = true;
+    }
+  }
+
+  /**
+   * Re-resolve the active pack (userData → resources → built-in) and notify `onChange` listeners
+   * (persona, …). Listeners re-read the pack and decide themselves whether anything changed.
+   */
+  reload(logger?: { info: (m: string) => void; warn: (m: string) => void }): void {
     const userDataPack = path.join(app.getPath('userData'), 'character-pack');
     const resourcesPack = path.join(process.resourcesPath || app.getAppPath(), 'character-pack');
-    const result = resolveCharacterPack({ userDataPack, resourcesPack });
-    for (const s of result.skipped) {
+    this.apply(resolveCharacterPack({ userDataPack, resourcesPack }), logger);
+  }
+
+  /** Called after every (re-)resolution of the active pack. Returns unsubscribe. */
+  onChange(fn: (resolved: ResolvedPack) => void): () => void {
+    this.listeners.add(fn);
+    return () => {
+      this.listeners.delete(fn);
+    };
+  }
+
+  /** Swap in a resolution result (used by `reload`; tests pass a result directly). */
+  apply(
+    result: ResolvedPack & {
+      skipped?: Array<{ source: PackSource; root: string; reason: string }>;
+    },
+    logger?: { info: (m: string) => void; warn: (m: string) => void },
+  ): void {
+    for (const s of result.skipped ?? []) {
       logger?.warn(`character-pack overlay skipped (${s.source}): ${s.reason} @ ${s.root}`);
     }
     const { skipped: _s, ...resolved } = result;
@@ -74,7 +106,13 @@ export class CharacterPackService {
         `character-pack: overlay source=${resolved.source} id=${resolved.manifest?.id} @ ${resolved.root}`,
       );
     }
-    registerCharacterPackProtocol(protocol, () => this.resolved.root);
+    for (const fn of [...this.listeners]) {
+      try {
+        fn(resolved);
+      } catch (e) {
+        logger?.warn(`character-pack change listener failed: ${String(e)}`);
+      }
+    }
   }
 
   getRoot(): string | null {

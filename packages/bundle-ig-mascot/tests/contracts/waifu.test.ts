@@ -135,7 +135,8 @@ describe('WaifuToolsPlugin', () => {
 describe('buildWaifuSystemPrompt', () => {
   it('picks cute tone by default when profile absent', () => {
     const prompt = buildWaifuSystemPrompt(undefined, { toolNames: [] });
-    expect(prompt).toContain('Nomi');
+    // 插件包不内置角色人设：没有注入身份时不出现任何角色名
+    expect(prompt).not.toMatch(/Nomi|诺米/);
     expect(prompt).toContain('可爱');
   });
 

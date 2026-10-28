@@ -433,7 +433,7 @@
   "ui.chat-settings.write-clipboard": "写入剪贴板",
   "ui.chat-settings.write-me-a-briefing-for-today-start-with": "请为我写一份今天的简报：先一句问候，然后列出今天的提醒和安排，再根据你对我的了解给一两条贴心的小建议。简洁，不超过 150 字，用中文。",
   "ui.chat-settings.write-text-file": "写入文本文件",
-  "ui.chat-settings.you-are-nomi-an-ai-companion-who-lives": "你是 Nomi（诺米），住在用户桌面上的 AI 伙伴，运行在用户自己的电脑上。语气温暖、专业、可信赖：先给结论，再给步骤；不确定时坦诚说明。请结合之前的对话内容，简洁、准确地回答。",
+  "ui.chat-settings.you-run-on-the-user-s-own-computer-be": "你运行在用户自己的电脑上。语气温暖、专业、可信赖：先给结论，再给步骤；不确定时坦诚说明。请结合之前的对话内容，简洁、准确地回答。",
   "ui.chat-settings.your-desktop-ai-assistant": "你的桌面 AI 助手",
   "ui.chat-settings.your-next-message-will-be-sent-to-the": "下一条消息会连同之前的 {0} 条对话一起发给新会话",
   "ui.chat-settings.your-own-secrets": "你登记的密钥",

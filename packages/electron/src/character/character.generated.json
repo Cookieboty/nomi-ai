@@ -17,7 +17,17 @@
     "stateMachine": "NomiFull"
   },
   "promptClipBase": "./voice/nomi/zh/",
-  "systemPromptIdentity": "你是 Nomi（诺米），住在用户桌面上的 AI 伙伴。",
+  "persona": {
+    "displayName": "诺米",
+    "systemPromptIdentity": "你是 Nomi（诺米），住在用户桌面上的 AI 伙伴。",
+    "greetings": []
+  },
+  "personaLocales": {
+    "en": {
+      "displayName": "Nomi",
+      "systemPromptIdentity": "You are Nomi, an AI companion living on the user desktop."
+    }
+  },
   "wakePhrase": {
     "zh": "你好，诺米",
     "en": "Hi, Nomi"

@@ -1,5 +1,5 @@
 import { mkAiPreload } from '@nomi-ai/ai-sdk-client/preload';
-import { type DesktopBubble, type IpcApi } from '@nomi-ai/types';
+import { type DesktopBubble, type IpcApi, type Persona } from '@nomi-ai/types';
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
 
 // 挂载 ai IPC 桥：`window.aiIPC.invoke/on/off` 走白名单校验的 `ai:` 通道。
@@ -156,6 +156,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   /** Scheme B 运行时角色包 overlay（无则 built-in） */
   characterPack: {
     getActive: () => ipcRenderer.invoke('character-pack:get-active'),
+  },
+  /** 当前角色人设（persona/PersonaService.ts）：character:get-persona / character:persona-changed */
+  persona: {
+    get: () => ipcRenderer.invoke('character:get-persona'),
+    onChanged: (cb: (p: Persona) => void) => {
+      const l = (_: unknown, p: Persona) => cb(p);
+      ipcRenderer.on('character:persona-changed', l);
+      return () => {
+        ipcRenderer.removeListener('character:persona-changed', l);
+      };
+    },
   },
   /** 主进程 → 看板娘指令（AI 工具 / 托盘：播放动作、切换表情）。返回取消订阅函数。 */
   onMascotCommand: (callback: (cmd: unknown) => void) => {

@@ -88,12 +88,34 @@ export function rel(path) {
   return relative(ROOT, path).split('\\').join('/');
 }
 
+/**
+ * 官方角色 Nomi 的人设——全仓库唯一的一份（docs/design/core-host-decoupling.md §10.4）。
+ * 形状与角色包相同：`persona` 是主语言（zh）的 persona.json，`personaLocales.<lang>` 覆盖对应语言的字段。
+ * `systemPromptIdentity` 只写身份；对话行为的要求（先给结论、结合上下文作答等）由使用方各自追加。
+ * 写进 character.generated.json 后由主进程 PersonaService 读取；character:init 导出示例包时也从这里取。
+ */
+export const OFFICIAL_PERSONA = {
+  displayName: '诺米',
+  systemPromptIdentity: '你是 Nomi（诺米），住在用户桌面上的 AI 伙伴。',
+  greetings: [],
+};
+export const OFFICIAL_PERSONA_LOCALES = {
+  en: {
+    displayName: 'Nomi',
+    systemPromptIdentity: 'You are Nomi, an AI companion living on the user desktop.',
+  },
+};
+export const OFFICIAL_WAKE_PHRASE = { zh: '你好，诺米', en: 'Hi, Nomi' };
+
 /** Default generated config for official Nomi (zero behavior change). */
 export function officialGenerated() {
   return {
     schema: 1,
     id: 'nomi',
-    displayName: { zh: '诺米', en: 'Nomi' },
+    displayName: {
+      zh: OFFICIAL_PERSONA.displayName,
+      en: OFFICIAL_PERSONA_LOCALES.en.displayName,
+    },
     mode: 'rive',
     voice: { voiceHint: 'nomi', rate: 0.92, pitch: 1.1 },
     rive: {
@@ -102,10 +124,52 @@ export function officialGenerated() {
       stateMachine: 'NomiFull',
     },
     promptClipBase: './voice/nomi/zh/',
-    systemPromptIdentity: '你是 Nomi（诺米），住在用户桌面上的 AI 伙伴。',
-    wakePhrase: { zh: '你好，诺米', en: 'Hi, Nomi' },
+    persona: { ...OFFICIAL_PERSONA, greetings: [...OFFICIAL_PERSONA.greetings] },
+    personaLocales: { en: { ...OFFICIAL_PERSONA_LOCALES.en } },
+    wakePhrase: { ...OFFICIAL_WAKE_PHRASE },
     spriteManifestPath: './assets/models/sprite/nomi/manifest.json',
   };
+}
+
+const nonEmpty = (v) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
+
+/** 包里的人设：persona.json 优先，否则从旧 copy/ 与 persona/system-prompt.md 推出（与 character-contract 的迁移一致）。 */
+function packPersona(packDir, copyZh, copyEn, zhName, enName) {
+  const personaJson = join(packDir, 'persona.json');
+  let persona = null;
+  if (existsSync(personaJson)) {
+    const raw = readJson(personaJson);
+    if (nonEmpty(raw?.displayName) && nonEmpty(raw?.systemPromptIdentity)) {
+      persona = {
+        ...raw,
+        greetings: Array.isArray(raw.greetings) ? raw.greetings : [],
+      };
+    }
+  }
+  if (!persona) {
+    const promptPath = join(packDir, 'persona/system-prompt.md');
+    const prompt = existsSync(promptPath) ? readFileSync(promptPath, 'utf8').trim() : '';
+    const identity =
+      nonEmpty(copyZh.systemPromptIdentity) ||
+      nonEmpty(prompt.split('\n').find((l) => l.trim())) ||
+      `你是 ${enName}（${zhName}），住在用户桌面上的 AI 伙伴。`;
+    persona = {
+      displayName: nonEmpty(copyZh.displayName) || zhName,
+      systemPromptIdentity: identity,
+      greetings: [],
+    };
+  }
+  const personaLocales = {};
+  const localeFile = join(packDir, 'locales/en.json');
+  const enLocale = existsSync(localeFile) ? readJson(localeFile)?.persona : null;
+  const en = {
+    displayName: nonEmpty(enLocale?.displayName) || nonEmpty(copyEn.displayName) || enName,
+    systemPromptIdentity:
+      nonEmpty(enLocale?.systemPromptIdentity) || nonEmpty(copyEn.systemPromptIdentity),
+  };
+  if (!en.systemPromptIdentity) delete en.systemPromptIdentity;
+  personaLocales.en = en;
+  return { persona, personaLocales };
 }
 
 /** Read layout/hitboxes.json; normalize skirt→hem. Returns null if missing/invalid. */
@@ -138,14 +202,10 @@ export function generatedFromManifest(manifest, packDir) {
   const copyEn = existsSync(join(packDir, 'copy/en.json'))
     ? readJson(join(packDir, 'copy/en.json'))
     : {};
-  const personaPath = join(packDir, 'persona/system-prompt.md');
-  const persona = existsSync(personaPath) ? readFileSync(personaPath, 'utf8').trim() : '';
   const dn = manifest.displayName || {};
   const zhName = typeof dn === 'string' ? dn : dn.zh || manifest.id;
   const enName = typeof dn === 'string' ? dn : dn.en || zhName;
-  const identity =
-    copyZh.systemPromptIdentity ||
-    (persona ? persona.split('\n')[0] : `你是 ${enName}（${zhName}），住在用户桌面上的 AI 伙伴。`);
+  const { persona, personaLocales } = packPersona(packDir, copyZh, copyEn, zhName, enName);
   const rive = {
     src: './assets/models/rive/nomi-complete.riv',
     artboard: manifest.rive?.artboard || 'Nomi-full',
@@ -163,7 +223,8 @@ export function generatedFromManifest(manifest, packDir) {
     },
     rive,
     promptClipBase: './voice/nomi/zh/',
-    systemPromptIdentity: identity,
+    persona,
+    personaLocales,
     wakePhrase: manifest.defaults?.wakePhrase || {
       zh: copyZh.wakePhrase || `你好，${zhName}`,
       en: copyEn.wakePhrase || `Hi, ${enName}`,

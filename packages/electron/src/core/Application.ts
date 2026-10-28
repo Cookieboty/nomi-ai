@@ -52,13 +52,20 @@ import {
 } from '../gateway/TerminalCommands';
 import { IpcRegistry } from '../handlers/ipc/IpcRegistry';
 import { t as tr } from '../i18n';
-import { LocaleService } from '../i18n';
+import { getLocale, LocaleService, onLocaleChange } from '../i18n';
 import { getIslandService, initIslandService } from '../island/IslandService';
 import { initKnowledgeService } from '../knowledge/KnowledgeService';
 import { initLocalHubService } from '../local/LocalHubService';
 import { getLocalModelService, initLocalModelService } from '../local/LocalModelService';
 import { getMemoryService, initMemoryService } from '../memory/MemoryService';
 import { OnboardingService } from '../onboarding/OnboardingService';
+import { registerPersonaIpc } from '../persona/ipc';
+import {
+  officialPersonaSource,
+  packPersonaSource,
+  PersonaService,
+  setPersonaService,
+} from '../persona/PersonaService';
 import { getSchedulerService, initSchedulerService } from '../schedule/SchedulerService';
 import { initScreenService } from '../screen/ScreenService';
 import { appCspString } from '../security/csp';
@@ -83,6 +90,7 @@ import {
 import { initQualityService } from '../usage/quality/QualityService';
 import { getUsageService, initUsageService } from '../usage/UsageService';
 import { GlobalErrorHandler } from '../utils/ErrorHandler';
+import { createMainLogger } from '../utils/log';
 import { perfMark } from '../utils/perfMarks';
 import { whenPrivateWritesIdle } from '../utils/privateFile';
 import { getVoiceService } from '../voice/VoiceService';
@@ -232,6 +240,8 @@ export class Application implements IApplication {
       const characterPack = getCharacterPackService();
       characterPack.init(this.logger);
       characterPack.registerIpc();
+      // 角色人设唯一来源（当前角色包 → 官方角色数据），须早于 AI runtime 与界面窗口
+      this.startPersona(characterPack);
 
       // Auto-update (electron-updater → GitHub Releases). Packaged builds only.
       const updates = getUpdateService(this.logger);
@@ -856,6 +866,35 @@ export class Application implements IApplication {
       this.logger.error('应用启动失败', { error: errorMessage });
       throw error;
     }
+  }
+
+  /**
+   * 人设服务（docs/design/core-host-decoupling.md §10.4）：当前角色包优先，官方角色数据兜底；
+   * 角色包重新解析或界面语言变化时重新取人设，有变化才推送给窗口。
+   */
+  private startPersona(characterPack: ReturnType<typeof getCharacterPackService>): void {
+    const logger = createMainLogger('persona');
+    const persona = new PersonaService({
+      sources: [
+        packPersonaSource(() => characterPack.getResolved(), { logger }),
+        officialPersonaSource(),
+      ],
+      locale: getLocale,
+      logger,
+    });
+    setPersonaService(persona);
+    characterPack.onChange(() => persona.reload());
+    onLocaleChange(() => persona.localeChanged());
+    registerPersonaIpc(persona, {
+      broadcast: (channel, payload) => {
+        for (const w of BrowserWindow.getAllWindows()) {
+          if (!w.isDestroyed() && !w.webContents.isDestroyed())
+            w.webContents.send(channel, payload);
+        }
+      },
+    });
+    const p = persona.get();
+    this.logger.info(`persona: ${p.characterId} (${p.displayName})`);
   }
 
   /**

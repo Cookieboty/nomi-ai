@@ -1111,7 +1111,7 @@ export type TranslationKey =
   | 'ui.chat-settings.write-clipboard'
   | 'ui.chat-settings.write-me-a-briefing-for-today-start-with'
   | 'ui.chat-settings.write-text-file'
-  | 'ui.chat-settings.you-are-nomi-an-ai-companion-who-lives'
+  | 'ui.chat-settings.you-run-on-the-user-s-own-computer-be'
   | 'ui.chat-settings.your-desktop-ai-assistant'
   | 'ui.chat-settings.your-next-message-will-be-sent-to-the'
   | 'ui.chat-settings.your-own-secrets'

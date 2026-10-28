@@ -146,7 +146,7 @@ pnpm build
 `apply` 会：
 
 1. 按模式覆盖落地路径（见下表）
-2. 写入 `character.generated.json`（renderer + mascot bundle）
+2. 写入 `character.generated.json`（renderer + electron；人设由主进程 `PersonaService` 统一读取）
 3. 非官方 `id` 时同步 `model-list.json` 首项身份字段
 
 | 素材       | v1 覆盖目标                                                     |
@@ -172,7 +172,7 @@ git checkout -- \
   packages/renderer/public/voice/nomi/ \
   packages/ai-chat/src/components/Onboarding/art/ \
   packages/renderer/src/mascot/character.generated.json \
-  packages/bundle-ig-mascot/src/character.generated.json
+  packages/electron/src/character/character.generated.json
 # 若曾 apply 过 static，一并删掉额外目录：
 rm -rf packages/renderer/public/assets/models/static
 

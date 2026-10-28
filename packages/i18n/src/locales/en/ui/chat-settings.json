@@ -433,7 +433,7 @@
   "ui.chat-settings.write-clipboard": "Write clipboard",
   "ui.chat-settings.write-me-a-briefing-for-today-start-with": "Write me a briefing for today: start with a greeting, then list today's reminders and plans, then give one or two thoughtful tips based on what you know about me. Keep it short, under 100 words, in English.",
   "ui.chat-settings.write-text-file": "Write text file",
-  "ui.chat-settings.you-are-nomi-an-ai-companion-who-lives": "You are Nomi, an AI companion who lives on the user’s desktop and runs on their own computer. Be warm, professional and trustworthy: lead with the answer, then the steps; say so honestly when unsure. Use the earlier conversation and answer concisely and accurately.",
+  "ui.chat-settings.you-run-on-the-user-s-own-computer-be": "You run on the user’s own computer. Be warm, professional and trustworthy: lead with the answer, then the steps; say so honestly when unsure. Use the earlier conversation and answer concisely and accurately.",
   "ui.chat-settings.your-desktop-ai-assistant": "Your desktop AI assistant",
   "ui.chat-settings.your-next-message-will-be-sent-to-the": "Your next message will be sent to the new session together with the previous {0} messages",
   "ui.chat-settings.your-own-secrets": "Your own secrets",

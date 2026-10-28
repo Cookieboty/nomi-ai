@@ -93,6 +93,17 @@ const aiChatAPI = {
   characterPack: {
     getActive: () => ipcRenderer.invoke('character-pack:get-active'),
   },
+  /** 当前角色人设（persona/PersonaService.ts）：character:get-persona / character:persona-changed */
+  persona: {
+    get: () => ipcRenderer.invoke('character:get-persona'),
+    onChanged: (cb: (p: unknown) => void) => {
+      const l = (_: unknown, p: unknown) => cb(p);
+      ipcRenderer.on('character:persona-changed', l);
+      return () => {
+        ipcRenderer.removeListener('character:persona-changed', l);
+      };
+    },
+  },
 };
 
 // 将API暴露给渲染进程

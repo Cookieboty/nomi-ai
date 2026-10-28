@@ -41,6 +41,8 @@ import { app, safeStorage } from 'electron';
 import { desktopIgPlugins } from '../desktop/plugin';
 import { getExtensionsService } from '../extensions/ExtensionsService';
 import { getGatewayService } from '../gateway/GatewayService';
+import { createPersonaIdentityPlugin } from '../persona/igPlugin';
+import { getPersonaService } from '../persona/PersonaService';
 import { isTrustedAiSender } from '../security/ipcSenderGuard';
 import type { ILoggerService } from '../services/LoggerService';
 import { getUsageService } from '../usage/UsageService';
@@ -198,7 +200,11 @@ export async function startAIRuntime(
     createAiSdkBooter({
       logger: runtimeLogger,
       // FileSessionStorePlugin 提供 ProfileStorageKey → 用户画像持久化到 userData/ai-chat/memory
-      before: [{ plugin: FileSessionStorePlugin }],
+      // 角色身份（PersonaService → PersonaIdentityKey）：角色 preset 从这里读人设，插件包里不写角色
+      before: [
+        { plugin: FileSessionStorePlugin },
+        { plugin: createPersonaIdentityPlugin(() => getPersonaService()?.get()) },
+      ],
       // 看板娘动作 / 表情工具（avatar_gesture / avatar_emotion）→ IPC → 渲染进程
       after: [...mascotIgPlugins, ...desktopIgPlugins],
       // env(MCP_SERVERS) 来的工具同样强制走用户确认 + 审计（ExtensionsService.guardEnvTool）

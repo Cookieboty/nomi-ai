@@ -17,9 +17,14 @@ export const TARGETS = {
   modelList: join(ROOT, 'packages/renderer/public/assets/models/model-list.json'),
 };
 
+/**
+ * character:apply / character:init 写出的官方角色数据（同一份内容）。
+ * renderer 读外观与语音；electron 主进程的 PersonaService 读人设（persona / personaLocales），
+ * 系统提示的身份段只从这里来（docs/design/core-host-decoupling.md §10.4）。
+ */
 export const GENERATED = {
   renderer: join(ROOT, 'packages/renderer/src/mascot/character.generated.json'),
-  mascotBundle: join(ROOT, 'packages/bundle-ig-mascot/src/character.generated.json'),
+  electron: join(ROOT, 'packages/electron/src/character/character.generated.json'),
 };
 
 /** 契约唯一来源：@nomi-ai/character-contract（docs/character-pack 只放说明）。 */

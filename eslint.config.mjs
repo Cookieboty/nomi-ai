@@ -8,6 +8,12 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 import { CLI_LITERAL_ALLOWLIST } from './scripts/eslint/cli-literal-allowlist.mjs';
+import {
+  ELECTRON_DYNAMIC_ALLOWLIST,
+  ELECTRON_FREE_PACKAGES,
+  ELECTRON_HOST_FILES,
+  ELECTRON_IMPORT_ALLOWLIST,
+} from './scripts/eslint/electron-boundary.mjs';
 import nomiPlugin from './scripts/eslint/nomi-plugin.mjs';
 
 export default tseslint.config(
@@ -162,6 +168,63 @@ export default tseslint.config(
     ignores: ['packages/electron/src/cli/**', ...CLI_LITERAL_ALLOWLIST],
     plugins: { nomi: nomiPlugin },
     rules: { 'nomi/no-cli-literal': 'error' },
+  },
+
+  // Electron 边界（docs/design/core-host-decoupling.md §7.2、§11.1、§12 P0）：
+  // packages/electron/src 里只有宿主区域能 import electron；P0 时已有的业务模块列在
+  // scripts/eslint/electron-boundary.mjs 的白名单里（shrink only, see docs/design/core-host-decoupling.md §12）。
+  {
+    files: ['packages/electron/src/**/*.{ts,tsx,mts,cts,js,mjs,cjs}'],
+    ignores: [...ELECTRON_HOST_FILES, ...ELECTRON_IMPORT_ALLOWLIST],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'electron',
+              message:
+                '业务模块不能直接依赖 electron：平台能力走宿主端口，窗口广播走事件（docs/design/core-host-decoupling.md §6）；宿主代码放 src/host/。',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  // 内核 / 契约 / 端口 / 角色契约等包整个都不能依赖 electron（§3.2、§11.1）
+  {
+    files: ELECTRON_FREE_PACKAGES.map((p) => `packages/${p}/**/*.{ts,tsx,mts,cts,js,mjs,cjs}`),
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'electron',
+              message:
+                '这个包不能依赖 electron（docs/design/core-host-decoupling.md §3.2、§11.1）。',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  // 动态加载 electron（require / nodeRequire()(…) / createRequire(…)(…) / import()）绕过了静态 import 检查：
+  // 宿主区域之外一律禁止；既有用法在 ELECTRON_DYNAMIC_ALLOWLIST（shrink only）。
+  {
+    files: [
+      'packages/*/src/**/*.{ts,tsx,mts,cts,js,mjs,cjs}',
+      ...ELECTRON_FREE_PACKAGES.map((p) => `packages/${p}/**/*.{ts,tsx,mts,cts,js,mjs,cjs}`),
+    ],
+    ignores: [
+      ...ELECTRON_HOST_FILES,
+      ...ELECTRON_DYNAMIC_ALLOWLIST,
+      '**/*.{test,spec}.{ts,tsx}',
+      '**/tests/**',
+      '**/__tests__/**',
+    ],
+    plugins: { nomi: nomiPlugin },
+    rules: { 'nomi/no-dynamic-electron': 'error' },
   },
 
   // 测试文件放宽

@@ -5,7 +5,17 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
-import { copyFile, copyTree, loadContract, officialGenerated, rel, writeJson } from './lib.mjs';
+import {
+  copyFile,
+  copyTree,
+  loadContract,
+  OFFICIAL_PERSONA,
+  OFFICIAL_PERSONA_LOCALES,
+  OFFICIAL_WAKE_PHRASE,
+  officialGenerated,
+  rel,
+  writeJson,
+} from './lib.mjs';
 import { EXAMPLES_NOMI, GENERATED, TARGETS } from './paths.mjs';
 
 const pack = EXAMPLES_NOMI;
@@ -14,7 +24,7 @@ const contract = loadContract();
 const manifest = {
   schema: 1,
   id: 'nomi',
-  displayName: { zh: '诺米', en: 'Nomi' },
+  displayName: { zh: OFFICIAL_PERSONA.displayName, en: OFFICIAL_PERSONA_LOCALES.en.displayName },
   version: '1.0.0',
   engines: { nomiPack: '>=1 <2' },
   assets: {
@@ -31,7 +41,7 @@ const manifest = {
     stateMachine: contract.rive.stateMachine,
   },
   defaults: {
-    wakePhrase: { zh: '你好，诺米', en: 'Hi, Nomi' },
+    wakePhrase: { ...OFFICIAL_WAKE_PHRASE },
     primaryLocale: 'zh',
     voiceHint: 'nomi',
     voiceRate: 0.92,
@@ -52,20 +62,21 @@ for (const f of contract.onboarding.files) {
   copyFile(join(TARGETS.onboardingDir, f), join(pack, 'onboarding', f));
 }
 
+// 人设文本只在 lib.mjs 的 OFFICIAL_PERSONA 里写一份，这里按旧版包格式导出
 writeJson(join(pack, 'copy/zh.json'), {
-  displayName: '诺米',
-  wakePhrase: '你好，诺米',
-  systemPromptIdentity: '你是 Nomi（诺米），住在用户桌面上的 AI 伙伴。',
+  displayName: OFFICIAL_PERSONA.displayName,
+  wakePhrase: OFFICIAL_WAKE_PHRASE.zh,
+  systemPromptIdentity: OFFICIAL_PERSONA.systemPromptIdentity,
 });
 writeJson(join(pack, 'copy/en.json'), {
-  displayName: 'Nomi',
-  wakePhrase: 'Hi, Nomi',
-  systemPromptIdentity: 'You are Nomi, an AI companion living on the user desktop.',
+  displayName: OFFICIAL_PERSONA_LOCALES.en.displayName,
+  wakePhrase: OFFICIAL_WAKE_PHRASE.en,
+  systemPromptIdentity: OFFICIAL_PERSONA_LOCALES.en.systemPromptIdentity,
 });
 
 const persona = join(pack, 'persona/system-prompt.md');
 mkdirSync(dirname(persona), { recursive: true });
-writeFileSync(persona, '你是 Nomi（诺米），住在用户桌面上的 AI 伙伴。\n保持简短、有情感的回复。\n');
+writeFileSync(persona, `${OFFICIAL_PERSONA.systemPromptIdentity}\n保持简短、有情感的回复。\n`);
 
 writeJson(join(pack, 'layout/hitboxes.json'), {
   note: 'ratios of character box; hem is the lower garment region',

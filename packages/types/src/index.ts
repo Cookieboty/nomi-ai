@@ -1,4 +1,5 @@
 import type { DesktopApi, MascotWindowApi } from './models';
+import type { PersonaApi } from './persona';
 
 // 定义IPC通信接口
 export interface IpcApi {
@@ -37,7 +38,10 @@ export interface IpcApi {
   /** 打开对话窗口的「设置 → 语音与屏幕 → 语音」（朗读引擎等） */
   openVoiceSettings?: () => Promise<{ success: boolean; error?: string }>;
 
-  /** 主进程 → 看板娘指令：{ type: 'motion' | 'expression' | 'parameter', ... } */
+  /**
+   * 主进程 → 看板娘指令（`mascot:command`，见 electron/src/ai/mascotCommand.ts）：
+   * `motion` / `expression` / `open-panel` / `reply-speech`
+   */
   onMascotCommand?: (callback: (cmd: unknown) => void) => () => void;
 
   /** Scheme B: active character-pack overlay (null fields = built-in) */
@@ -66,6 +70,8 @@ export interface IpcApi {
   mascotWindow?: MascotWindowApi;
   /** 桌面能力（确认 / 拖文件总结） */
   desktop?: DesktopApi;
+  /** 当前角色人设（主进程 PersonaService） */
+  persona?: PersonaApi;
 }
 
 // 在渲染进程中可用的Electron API
@@ -188,3 +194,4 @@ export * from './models';
 export * from './quality';
 export * from './chatBackground';
 export * from './userProfile';
+export * from './persona';

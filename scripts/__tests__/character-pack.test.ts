@@ -39,12 +39,22 @@ describe('character pack scripts', () => {
     expect(gen.rive.stateMachine).toBe('NomiFull');
   });
 
-  it('generated config files exist for renderer and mascot bundle', () => {
+  it('generated config files exist for renderer and the main process', () => {
     expect(existsSync(join(root, 'packages/renderer/src/mascot/character.generated.json'))).toBe(
       true,
     );
-    expect(existsSync(join(root, 'packages/bundle-ig-mascot/src/character.generated.json'))).toBe(
+    expect(existsSync(join(root, 'packages/electron/src/character/character.generated.json'))).toBe(
       true,
     );
+  });
+
+  it('official persona lives in the generated data (identity only, one per language)', () => {
+    const gen = JSON.parse(
+      readFileSync(join(root, 'packages/electron/src/character/character.generated.json'), 'utf8'),
+    );
+    expect(gen.persona.systemPromptIdentity).toContain('Nomi');
+    expect(gen.personaLocales.en.systemPromptIdentity).toMatch(/^You are Nomi/);
+    expect(gen.persona.systemPromptIdentity).not.toContain('简洁');
+    expect(gen.systemPromptIdentity).toBeUndefined();
   });
 });

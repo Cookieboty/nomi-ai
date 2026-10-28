@@ -25,6 +25,17 @@ export interface AgentPresetRegistry {
 
 export const AgentPresetRegistryKey = defineService<AgentPresetRegistry>('ctx.agentPresets');
 
+/**
+ * 角色身份（docs/design/core-host-decoupling.md §10.4）：由主进程 PersonaService 提供，
+ * 插件包里不写任何角色名或人设文本。每次生成 systemPrompt 时读取，换角色包 / 换语言即时生效。
+ */
+export interface PersonaIdentity {
+  /** 系统提示里的身份段；没有可用人设时返回 undefined */
+  systemPromptIdentity(): string | undefined;
+}
+
+export const PersonaIdentityKey = defineService<PersonaIdentity>('ctx.personaIdentity');
+
 /** 骨架期的默认内存实现；消费方也可 provide 自己的 registry。 */
 export class InMemoryAgentPresetRegistry implements AgentPresetRegistry {
   private readonly map = new Map<string, AgentPreset>();
