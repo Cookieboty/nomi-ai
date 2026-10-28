@@ -8,7 +8,7 @@
 | 浏览器冒烟   | `scripts/dev-web/smoke.mjs`                | `pnpm smoke:web`       | ai-chat 开发页在 Playwright 的 Chromium 里经 WebSocket 连开发态内核（`pnpm dev:web`）                                                                         |
 | 真实应用 E2E | `e2e-headed/tests`                         | `pnpm test:e2e:headed` | Playwright 启动真实 Electron，操作界面                                                                                                                        |
 
-## 无界面 E2E（`e2e/`，Vitest，7 个文件 / 21 个用例）
+## 无界面 E2E（`e2e/`，Vitest，8 个文件 / 24 个用例）
 
 每个用例用 `e2e/helpers/headlessCore.ts` 起一个真实内核：`@nomi-ai/host-node/core` 的 `startHeadlessCore()`（临时目录、
 内存密钥、记录下来的对话框 / 通知 / 窗口调用），视图侧的 `ClientAIClient` 经 in-process 传输连进来（一个连接 = 一个窗口）。
@@ -22,6 +22,7 @@
 - `E6.core-twice`：同一进程里两个内核互不相干（服务、事件、router、AI runtime、主题 / 用户画像 / 网关供应商 / 记忆的数据与目录）；没有宿主片段时窗口过程 UNAVAILABLE
 - `E7.websocket-transport`：WebSocket 传输对真实内核的握手、查询、修改与事件订阅；错 token 与外站 Origin 被拒绝
 - `E8.stand-in-character`：替身角色验收（[内核宿主分离 §11.3](../design/core-host-decoupling.md)）的无界面部分：无界面宿主上的真实内核按 `CHARACTER_PACK` 解析出 `characters/test-dummy`，ai-chat 的真实 `SdkIPCClient` 经契约发给模型的系统提示、角色 preset 的身份段、发给界面的人设与角色包快照里都没有官方角色名
+- `E9.avatar-semantic-events`：语义事件协议（[§10.5](../design/core-host-decoupling.md)）在真实内核上：`ctx.avatar`、工具 `avatar_gesture`、`ai.avatar.*` 与首次引导经内核事件总线发 `avatar.event`，只有看板娘窗口收到；资源名过不了线；看板娘窗口报的 `touched` 到 `ctx.avatar` 与订阅了的窗口
 
 ## 浏览器里的视图（`pnpm dev:web` / `pnpm smoke:web`）
 
