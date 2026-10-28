@@ -1,3 +1,4 @@
+import { layoutStore } from '@nomi-ai/avatar-runtime';
 import { createLogger, t as tr } from '@nomi-ai/ui';
 import { Switch, Tooltip } from '@nomi-ai/ui';
 import {
@@ -25,6 +26,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import { VoiceService } from '../../services/VoiceService';
 import { VoiceSettings } from '../VoiceSettings';
 
+import { placeGutter, type GutterPlacement } from './gutter';
 import {
   loadToolbarPrefs,
   saveToolbarPrefs,
@@ -36,7 +38,6 @@ import styles from './style.module.css';
 
 import { useMascot } from '@/contexts/MascotContext';
 import { useWaifuMessage } from '@/hooks/useWaifuMessage';
-import { layoutStore, placeGutter, type GutterPlacement } from '@/mascot/layoutStore';
 import { closeMascot } from '@/mascot/presence';
 import { scalePercent, scaleStore, useMascotScale } from '@/mascot/scaleStore';
 import { registerSpeechStopper, stopAllSpeech } from '@/mascot/speechStop';

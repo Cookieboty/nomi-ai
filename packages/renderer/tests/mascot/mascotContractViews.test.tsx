@@ -3,12 +3,15 @@
  * D5 视图经契约访问主进程（docs/design/core-host-decoupling.md §12 P1b）：模型名缓存、互动设置推送、
  * 主进程的看板娘指令。没有传输（浏览器预览）时退回本地行为。
  */
+import { interactionSettings, setInteractionConfigBackend } from '@nomi-ai/avatar-runtime';
 import { cleanup, render } from '@testing-library/react';
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { interactionSettings } from '../../src/mascot/interaction/settings';
+import { avatarEvents } from '../../src/avatar/events';
 import MascotDriver from '../../src/mascot/MascotDriver';
+import { api } from '../../src/services/api';
+import { installMascotBackends } from '../../src/services/hostBackends/mascot';
 import { getCache, setCache } from '../../src/utils/cache';
 
 import { installMascotHost, publishMascotEvent, resetMascotHost } from './mascotHost';
@@ -28,6 +31,7 @@ afterEach(() => {
   resetMascotHost();
   localStorage.clear();
   h.commands.length = 0;
+  setInteractionConfigBackend(null);
 });
 
 describe('D5 views · contract', () => {
@@ -56,6 +60,8 @@ describe('D5 views · contract', () => {
   it('互动设置推给主进程（mascot.setInteractionConfig，看板娘窗口）', async () => {
     const setConfig = vi.fn();
     installMascotHost({ 'mascot.setInteractionConfig': (cfg) => setConfig(cfg) });
+    // 入口的 installHostBackends() 把契约接到 avatar-runtime 的注入点上
+    installMascotBackends(api);
     interactionSettings.set({ gravity: true });
     await vi.waitFor(() => expect(setConfig).toHaveBeenCalled());
     expect(setConfig.mock.calls.at(-1)![0]).toMatchObject({ gravity: true, clickThrough: true });
@@ -69,5 +75,28 @@ describe('D5 views · contract', () => {
     view.unmount();
     await publishMascotEvent('mascot.command', { type: 'motion', name: 'nod' });
     expect(h.commands).toHaveLength(1);
+  });
+
+  it('光标、物理事件与 TTS 口型转成 avatar-runtime 的语义事件', async () => {
+    const { lipSyncStore } = await import('../../src/ai/lipSyncStore');
+    installMascotHost({});
+    const got: unknown[] = [];
+    const off = avatarEvents.subscribe((e) => got.push(e));
+    const view = render(<MascotDriver />);
+    await publishMascotEvent('mascot.cursor', { x: 10, y: 20, inside: true });
+    await publishMascotEvent('mascot.physicsEvent', { type: 'land', speed: 1200 });
+    await publishMascotEvent('mascot.physicsEvent', { type: 'grab' });
+    lipSyncStore.set(0.5);
+    window.dispatchEvent(new CustomEvent('mascot:motion', { detail: { name: 'wave' } }));
+    expect(got).toEqual([
+      { type: 'cursor', x: 10, y: 20, inside: true },
+      { type: 'physics', kind: 'land', speed: 1200 },
+      { type: 'physics', kind: 'grab', speed: 0 },
+      { type: 'speaking', level: 0.5 },
+    ]);
+    expect(h.commands).toEqual([{ type: 'motion', name: 'wave' }]);
+    view.unmount();
+    lipSyncStore.reset();
+    off();
   });
 });

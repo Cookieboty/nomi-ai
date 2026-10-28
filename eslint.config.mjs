@@ -69,6 +69,7 @@ export default tseslint.config(
       'packages/renderer/**/*.{ts,tsx}',
       'packages/ai-chat/**/*.{ts,tsx}',
       'packages/ai-sdk-client/**/*.{ts,tsx}',
+      'packages/avatar-runtime/**/*.{ts,tsx}',
     ],
     languageOptions: {
       globals: { ...globals.browser, ...globals.es2022 },
@@ -263,6 +264,55 @@ export default tseslint.config(
               message: '内核不能依赖视图包与 ui：视图只经契约访问内核（§3.2）。',
             },
           ],
+        },
+      ],
+    },
+  },
+  // avatar-runtime 是纯浏览器的角色引擎（§3.2、§10.6、§11.1）：经注入的 AvatarEventSource 接 AI，
+  // 不依赖契约、electron、AI SDK 客户端或任何视图包（renderer 的 services/api 等）；也不用 ui。
+  // 这条放在 ELECTRON_FREE_PACKAGES 之后，覆盖那里的 no-restricted-imports（electron 也在下面）。
+  {
+    files: ['packages/avatar-runtime/**/*.{ts,tsx,mts,cts,js,mjs,cjs}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            { name: 'electron', message: 'avatar-runtime 不能依赖 electron（§3.2、§11.1）。' },
+          ],
+          patterns: [
+            {
+              group: [
+                '@nomi-ai/contract',
+                '@nomi-ai/contract/*',
+                '@nomi-ai/ai-sdk',
+                '@nomi-ai/ai-sdk/*',
+                '@nomi-ai/ai-sdk-client',
+                '@nomi-ai/ai-sdk-client/*',
+                '@nomi-ai/host-*',
+                '@nomi-ai/core',
+                '@nomi-ai/core/*',
+                '@nomi-ai/renderer',
+                '@nomi-ai/renderer/*',
+                '@nomi-ai/ai-chat',
+                '@nomi-ai/ai-chat/*',
+                '@nomi-ai/ui',
+                '@nomi-ai/ui/*',
+                '**/services/api',
+                '**/renderer/src/**',
+              ],
+              message:
+                'avatar-runtime 只依赖 character-contract 与浏览器 API：AI 与宿主能力经注入的 AvatarEventSource / AvatarWindowHost / 回调接入（§10.6）。',
+            },
+          ],
+        },
+      ],
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            'MemberExpression[property.name=/^(aiIPC|electronAPI|nomiTransport|nomiHost)$/], MemberExpression[computed=true][property.value=/^(aiIPC|electronAPI|nomiTransport|nomiHost)$/]',
+          message: 'avatar-runtime 不访问宿主全局：宿主能力经注入的接口传进来（§10.6）。',
         },
       ],
     },

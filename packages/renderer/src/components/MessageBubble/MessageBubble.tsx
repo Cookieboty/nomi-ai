@@ -1,3 +1,4 @@
+import { bubbleAnchorBox, layoutStore } from '@nomi-ai/avatar-runtime';
 import { t as tr } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
@@ -12,8 +13,6 @@ import {
   type BubblePlacement,
 } from '@/mascot/bubblePlacement';
 import { getHitboxes } from '@/mascot/characterConfig';
-import { layoutStore } from '@/mascot/layoutStore';
-import { bubbleAnchorBox } from '@/mascot/spriteInteraction';
 import { toBubbleText } from '@/security/bubbleText';
 import { api, hasTransport } from '@/services/api';
 

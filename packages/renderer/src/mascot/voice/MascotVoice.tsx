@@ -7,15 +7,13 @@ import { t } from '@nomi-ai/ui';
 import { MicButton, VoiceStatus, useVoice } from '@nomi-ai/voice';
 import React, { useCallback, useEffect, useRef } from 'react';
 
-import { directiveForEvent } from '../expressionDirector';
-import { applyDirective } from '../mood';
+import { avatarEvents } from '../../avatar/events';
 import { openVoiceSettings } from '../openVoiceSettings';
 import { useMascotShown } from '../presence';
 import { stopAllSpeech } from '../speechStop';
 
 import styles from './MascotVoice.module.css';
 import { CLIP_HINTS } from './promptClips';
-import { voiceDirective } from './voiceMood';
 
 import { playBubbleClip, useWaifuMessage } from '@/hooks/useWaifuMessage';
 
@@ -67,7 +65,7 @@ export const MascotVoiceBridge: React.FC = () => {
   const onText = useCallback(
     (text: string, via: string) => {
       // 唤醒词 + 指令一句说完：直接点头回应
-      if (via === 'wake') applyDirective({ expression: 'happy', holdMs: 2000, motion: 'nod' });
+      if (via === 'wake') avatarEvents.emit({ type: 'cue', cue: { kind: 'voice:wake' } });
       showMessage(`🎙「${text.length > 40 ? `${text.slice(0, 40)}…` : text}」`, 3000, 8);
       void apiRef.current?.sendToChat(text);
     },
@@ -102,11 +100,10 @@ export const MascotVoiceBridge: React.FC = () => {
     playBubbleClip(err.message, err.code === 'mic_failed' ? CLIP_HINTS.micFailed : undefined);
   }, [err]);
 
-  // 表情 / 动作
+  // 表情 / 动作（avatar-runtime 按语音状态决定）
   useEffect(() => {
-    const d = voiceDirective(v.state.phase, prev.current);
+    avatarEvents.emit({ type: 'voice', phase: v.state.phase, prev: prev.current });
     prev.current = v.state.phase;
-    if (d) applyDirective(d);
     if (v.state.phase === 'awake') showMessage(t('ui.voice-mascot.i-m-here-go-ahead'), 2500, 9);
   }, [v.state.phase, showMessage]);
 
@@ -117,7 +114,7 @@ export const MascotVoiceBridge: React.FC = () => {
         ? v.api.onBargeIn(() => {
             stopAllSpeech();
             // 被打断：轻微受惊，然后专心听
-            applyDirective(directiveForEvent({ kind: 'barge-in' }));
+            avatarEvents.emit({ type: 'cue', cue: { kind: 'barge-in' } });
           })
         : undefined,
     [v.api],

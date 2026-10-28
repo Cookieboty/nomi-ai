@@ -1,5 +1,6 @@
-import { MASCOT_EXPRESSIONS, type MascotExpression } from './MascotBackend';
-import { applyDirective, playMotionNow } from './mood';
+import { MASCOT_EXPRESSIONS, type MascotExpression } from '@nomi-ai/avatar-runtime';
+
+import { avatarEvents } from '../avatar/events';
 
 /** 主进程（AI 工具 / 托盘）或渲染进程内部发来的看板娘指令 */
 export type MascotCommand =
@@ -8,17 +9,19 @@ export type MascotCommand =
   | { type: 'open-panel'; panel: string }
   | { type: string; [k: string]: unknown };
 
-/** 执行指令；返回是否被识别并执行。 */
+/** 执行指令；返回是否被识别。动作 / 表情转成语义事件交给 avatar-runtime。 */
 export function handleMascotCommand(raw: unknown): boolean {
   const cmd = raw as MascotCommand | null;
   if (!cmd || typeof cmd !== 'object' || typeof cmd.type !== 'string') return false;
   switch (cmd.type) {
     case 'motion':
-      return typeof cmd.name === 'string' && playMotionNow(cmd.name);
+      if (typeof cmd.name !== 'string') return false;
+      avatarEvents.emit({ type: 'gesture', name: cmd.name });
+      return true;
     case 'expression': {
       const name = String(cmd.name ?? '').toLowerCase() as MascotExpression;
       if (!MASCOT_EXPRESSIONS.includes(name)) return false;
-      applyDirective({ expression: name, holdMs: name === 'neutral' ? 0 : 5000 });
+      avatarEvents.emit({ type: 'emotion', name });
       return true;
     }
     case 'open-panel':
@@ -33,7 +36,7 @@ export function handleMascotCommand(raw: unknown): boolean {
           detail: { text: cmd.text.slice(0, 200), ms: 6000, priority: 10 },
         }),
       );
-      if (typeof cmd.motion === 'string') playMotionNow(cmd.motion);
+      if (typeof cmd.motion === 'string') avatarEvents.emit({ type: 'gesture', name: cmd.motion });
       return true;
     }
     case 'reply-speech': {

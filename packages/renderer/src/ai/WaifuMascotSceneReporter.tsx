@@ -1,10 +1,10 @@
+import { MASCOT_EXPRESSIONS } from '@nomi-ai/avatar-runtime';
 import { useEffect } from 'react';
 import type { FC } from 'react';
 
 import { waifuSceneStore } from './waifuSceneStore';
 
 import { useMascot } from '@/contexts/MascotContext';
-import { MASCOT_EXPRESSIONS } from '@/mascot/MascotBackend';
 
 /** 把当前看板娘场景（模型 / 可选模型 / 表情）汇报给 waifuSceneStore，供 AI 工具读取。 */
 const WaifuMascotSceneReporter: FC = () => {

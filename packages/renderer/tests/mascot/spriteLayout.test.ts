@@ -1,5 +1,15 @@
 import { readFileSync, readdirSync } from 'node:fs';
 
+import {
+  rigBodyBox,
+  rigHeadBox,
+  rigTransform,
+  type RigImages,
+  type RigManifest,
+  regionInSprite,
+  characterBox,
+  MASCOT_PAD,
+} from '@nomi-ai/avatar-runtime';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -9,15 +19,6 @@ import {
   migrateMascotSize,
 } from '../../../core/src/mascot/mascotSize';
 import { intersects, placeBubble } from '../../src/mascot/bubblePlacement';
-import {
-  rigBodyBox,
-  rigHeadBox,
-  rigTransform,
-  type RigImages,
-  type RigManifest,
-} from '../../src/mascot/layeredRig';
-import { regionInSprite } from '../../src/mascot/spriteInteraction';
-import { characterBox, MASCOT_PAD } from '../../src/mascot/spriteLayout';
 
 const dir = new URL('../../../../characters/nomi/sprite/', import.meta.url);
 const rig = JSON.parse(readFileSync(new URL('manifest.json', dir), 'utf8')).rig as RigManifest;

@@ -9,6 +9,8 @@ module.exports = {
   sources: [
     { dir: 'packages/ai-chat/src', project: 'ui' },
     { dir: 'packages/renderer/src', project: 'ui' },
+    // 角色引擎把动作名 / 反应台词的界面 key 作为数据交给 renderer 显示
+    { dir: 'packages/avatar-runtime/src', project: 'ui' },
     { dir: 'packages/voice/src', project: 'ui' },
     { dir: 'packages/ui/src', project: 'ui' },
     { dir: 'packages/core/src', project: 'electron' },

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { createDragReporter, type DragPoint } from '../../src/mascot/interaction/dragReporter';
+import { createDragReporter, type DragPoint } from '../../src/avatar/dragReporter';
 
 /** 可手动结算的 sink：记录调用顺序，每次调用返回一个待结算的 promise */
 function fakeSink() {

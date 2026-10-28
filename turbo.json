@@ -110,6 +110,18 @@
         "$TURBO_ROOT$/packages/core/src/mascot/mascotSize.ts"
       ]
     },
+    "@nomi-ai/avatar-runtime#test": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!README.md",
+        "!CHANGELOG.md",
+        "!coverage/**",
+        "!dist/**",
+        "$TURBO_ROOT$/characters/**"
+      ]
+    },
     "@nomi-ai/ai-sdk-client#test": {
       "dependsOn": ["^build"],
       "outputs": ["coverage/**"],

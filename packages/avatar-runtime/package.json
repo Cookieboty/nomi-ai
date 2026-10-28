@@ -1,0 +1,50 @@
+{
+  "name": "@nomi-ai/avatar-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "description": "角色引擎（纯浏览器）：Rive / sprite / static 渲染后端、表情与动作驱动、命中区与互动、口型消费；经注入的 AvatarEventSource 接 AI，不依赖 contract / electron（docs/design/core-host-decoupling.md §10.6）",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "node ../../scripts/run-bin.mjs rimraf dist && node ../../scripts/run-bin.mjs tsc -p tsconfig.json",
+    "clean": "node ../../scripts/run-bin.mjs rimraf dist",
+    "typecheck": "node ../../scripts/run-bin.mjs tsc -p tsconfig.check.json",
+    "test": "node ../../scripts/run-bin.mjs vitest run",
+    "lint": "eslint . --max-warnings=0"
+  },
+  "dependencies": {
+    "@nomi-ai/character-contract": "workspace:*",
+    "@rive-app/canvas-lite": "2.44.2"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "happy-dom": "^20.14.6",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "rimraf": "^6.1.3",
+    "typescript": "^6.0.3",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.3"
+  }
+}

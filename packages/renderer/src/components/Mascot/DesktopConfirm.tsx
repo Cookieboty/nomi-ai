@@ -1,3 +1,4 @@
+import { layoutStore } from '@nomi-ai/avatar-runtime';
 import type { DesktopBubble, DesktopConfirmRequest } from '@nomi-ai/types';
 import { t as tr } from '@nomi-ai/ui';
 import { Badge, Button, Checkbox, Modal } from '@nomi-ai/ui';
@@ -6,7 +7,6 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import styles from './DesktopConfirm.module.css';
 
 import { placeConfirmBubble, type BubblePlacement } from '@/mascot/bubblePlacement';
-import { layoutStore } from '@/mascot/layoutStore';
 import { api, hasTransport } from '@/services/api';
 
 /** 桌面能力（看板娘窗口）：确认请求 / 取消 / 气泡经契约事件，答复经 `desktop.confirmAnswer` */

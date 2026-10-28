@@ -13,6 +13,7 @@
   "license": "MIT",
   "dependencies": {
     "@nomi-ai/ai-sdk-client": "workspace:*",
+    "@nomi-ai/avatar-runtime": "workspace:*",
     "@nomi-ai/contract": "workspace:*",
     "@nomi-ai/ui": "workspace:*",
     "@nomi-ai/voice": "workspace:*",

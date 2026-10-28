@@ -1,12 +1,16 @@
+import {
+  applyDirective,
+  directiveForEvent,
+  expressionForText,
+  mascotRegistry,
+  type MascotBackend,
+} from '@nomi-ai/avatar-runtime';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { mascotReducer, type MascotState } from '../../src/contexts/MascotContext';
 import { parseCatalog, pickModel, type MascotModel } from '../../src/mascot/catalog';
 import { BUNDLED_PACK } from '../../src/mascot/characterConfig';
 import { bubbleText, characterLine } from '../../src/mascot/characterCopy';
-import { directiveForEvent, expressionForText } from '../../src/mascot/expressionDirector';
-import { mascotRegistry, type MascotBackend } from '../../src/mascot/MascotBackend';
-import { applyDirective } from '../../src/mascot/mood';
 import { CHARACTER_LINE_IDS, greetingFor, MOUSEOVER_TIPS } from '../../src/mascot/tips';
 
 const model = (name: string): MascotModel => ({

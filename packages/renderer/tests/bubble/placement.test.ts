@@ -1,7 +1,7 @@
+import type { Box } from '@nomi-ai/avatar-runtime';
 import { describe, expect, it } from 'vitest';
 
 import { bubbleScale, intersects, placeBubble, shortReply } from '../../src/mascot/bubblePlacement';
-import type { Box } from '../../src/mascot/layoutStore';
 
 const view = { width: 420, height: 450 };
 // 默认模型的大致头部矩形（窗口顶部附近）

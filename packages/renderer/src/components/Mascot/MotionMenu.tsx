@@ -1,3 +1,9 @@
+import {
+  ACTION_LABELS,
+  MOTION_LABELS,
+  mascotRegistry,
+  playMotionNow,
+} from '@nomi-ai/avatar-runtime';
 import { t } from '@nomi-ai/ui';
 import { Button, Modal } from '@nomi-ai/ui';
 import React, { useEffect, useState } from 'react';
@@ -5,10 +11,6 @@ import React, { useEffect, useState } from 'react';
 import styles from './style.module.css';
 
 import { useMascot } from '@/contexts/MascotContext';
-import { mascotRegistry } from '@/mascot/MascotBackend';
-import { playMotionNow } from '@/mascot/mood';
-import { MOTION_LABELS } from '@/mascot/motion/labels';
-import { ACTION_LABELS } from '@/mascot/rig/actions';
 
 /** 动作菜单：列出当前模型可播放的动作（工具栏右键 / 托盘同源）。 */
 export const MotionMenu: React.FC = () => {

@@ -1,8 +1,7 @@
 import { createLogger } from '@nomi-ai/ui';
 import { useEffect } from 'react';
 
-import { directiveForEvent } from '@/mascot/expressionDirector';
-import { applyDirective } from '@/mascot/mood';
+import { avatarEvents } from '@/avatar/events';
 import { hasTransport, hostDropFile } from '@/services/api';
 
 const log = createLogger('FileDrop');
@@ -39,7 +38,7 @@ export function useFileDropSummarize(elementId = 'mascot-canvas'): void {
         log.debug('拖入的文件没有本机路径，忽略');
         return;
       }
-      applyDirective(directiveForEvent({ kind: 'file:drop' }));
+      avatarEvents.emit({ type: 'cue', cue: { kind: 'file:drop' } });
     };
     el.addEventListener('dragover', over);
     el.addEventListener('dragleave', leave);

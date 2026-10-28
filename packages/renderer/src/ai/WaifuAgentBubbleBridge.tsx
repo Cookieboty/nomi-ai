@@ -1,4 +1,5 @@
 import { useAgent, useAIEvents } from '@nomi-ai/ai-sdk-client/react';
+import { interactionSettings } from '@nomi-ai/avatar-runtime';
 import { useCallback, useEffect, useRef } from 'react';
 import type { FC } from 'react';
 
@@ -13,7 +14,6 @@ import {
 } from './bubbleReducer';
 
 import { useWaifuMessage } from '@/hooks/useWaifuMessage';
-import { interactionSettings } from '@/mascot/interaction/settings';
 
 const WaifuAgentBubbleBridge: FC = () => {
   const { lastStep } = useAgent();
