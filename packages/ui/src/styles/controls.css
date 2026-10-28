@@ -165,3 +165,36 @@
     transition: none;
   }
 }
+
+/* ---------------------------------------------------------------- Disclosure */
+/* :where 降到 0 优先级：调用方的 summaryClassName（内边距、宽度、底色）总能覆盖 */
+:where(.cd-disclosure__summary) {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  max-width: 100%;
+  padding: 0;
+  border: none;
+  border-radius: var(--cd-radius-xs);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.cd-disclosure__summary:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 1px;
+}
+.cd-disclosure__chevron {
+  flex: none;
+  transition: transform var(--cd-duration-fast) var(--cd-ease);
+}
+.cd-disclosure[data-open] > .cd-disclosure__summary .cd-disclosure__chevron {
+  transform: rotate(90deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .cd-disclosure__chevron {
+    transition: none;
+  }
+}

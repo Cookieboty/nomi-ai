@@ -43,7 +43,8 @@
   overflow: hidden;
 }
 
-.errorDetails summary {
+.errorSummary {
+  width: 100%;
   padding: var(--cd-space-3) var(--cd-space-4);
   background-color: var(--cd-color-surface-sunken);
   cursor: pointer;
@@ -51,7 +52,7 @@
   border-bottom: 1px solid var(--cd-color-border);
 }
 
-.errorDetails summary:hover {
+.errorSummary:hover {
   background-color: var(--cd-color-hover);
 }
 

@@ -2,7 +2,7 @@
  * 右栏「改动」的提交区（固定在底部）与分支栏的同步按钮（docs/design/changes-panel-git.md）。
  * git 由主进程执行（cli/gitOps.ts）：钩子照常跑，拉取只快进，推送从不强推。
  */
-import { Button, Checkbox, t } from '@nomi-ai/ui';
+import { Button, Checkbox, Disclosure, t } from '@nomi-ai/ui';
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
@@ -366,10 +366,13 @@ const NoticeLine: React.FC<{ ops: GitOps }> = ({ ops }) => {
         </button>
       </div>
       {n.output ? (
-        <details className={pane.gitOutput}>
-          <summary>{t('ui.session-workspace.git-output')}</summary>
+        <Disclosure
+          className={pane.gitOutput}
+          summaryClassName={pane.gitOutputSummary}
+          summary={t('ui.session-workspace.git-output')}
+        >
           <pre data-testid="git-notice-output">{n.output}</pre>
-        </details>
+        </Disclosure>
       ) : null}
     </div>
   );

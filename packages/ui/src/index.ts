@@ -19,6 +19,8 @@ export { FloatingTip, Tooltip } from './Tooltip';
 export { Checkbox } from './Checkbox';
 export type { CheckboxProps } from './Checkbox';
 export { DateTimeField } from './DateTimeField';
+export { Disclosure } from './Disclosure';
+export type { DisclosureProps } from './Disclosure';
 export { NumberField } from './NumberField';
 export type { NumberFieldProps } from './NumberField';
 export { Slider } from './Slider';
