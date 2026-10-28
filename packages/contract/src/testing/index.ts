@@ -7,7 +7,7 @@
  * 与真实传输一样不会同步重入。
  */
 
-import { createClient, type Client } from '../client';
+import { createClient, type Client, type ClientOptions } from '../client';
 import type { AnyContract } from '../contract';
 import { ContractError } from '../errors';
 import { createFrameClientTransport, type FrameClientTransport } from '../frameClient';
@@ -195,6 +195,8 @@ export interface TestClientOptions extends InProcessOptions {
   /** 调用者身份（默认 TEST_CALLER）；测 surfaces / dangerous 时改成 `{ surface: 'mascot', trusted: true }` 等 */
   caller?: CallerContext;
   implement?: ImplementOptions;
+  /** 客户端一侧的校验（默认全开）；视图测试的假内核只给关心的字段时关掉 output / events */
+  clientValidate?: ClientOptions['validate'];
 }
 
 export interface TestClient<C extends AnyContract> {
@@ -221,7 +223,10 @@ export function createTestClient<C extends AnyContract>(
   const server = createInProcessServer(options);
   const stop = server.serve(router as unknown as Router);
   const transport = server.connect(options.caller);
-  const api = createClient(contract, transport, { handshake: 'off' });
+  const api = createClient(contract, transport, {
+    handshake: 'off',
+    ...(options.clientValidate ? { validate: options.clientValidate } : {}),
+  });
   return {
     api,
     router,
