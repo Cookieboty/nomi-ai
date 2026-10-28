@@ -5,7 +5,11 @@
  * 安全（开发态也按「本机上别的网页 / 进程会来试」设计）：
  * - 只监听回环地址（默认 127.0.0.1），远端地址不是回环的连接直接拒绝；
  * - 每次启动一个随机 token（`createDevToken()`），视图在子协议 `nomi-token.<token>` 里带上；比较用
- *   `timingSafeEqual`；日志里只出现 token 的前 4 位；
+ *   `timingSafeEqual`；日志里只出现 token 的前 4 位。token 是唯一挡住本机其他进程的东西：Origin / Host 头
+ *   浏览器之外的进程可以随意伪造，所以 token **不能**放在任何本机进程都能拿到的地方——dev:web 的开发服务器
+ *   只往页面注入地址，token 只在打印给开发者的地址片段（`#nomi-token=…`，不发给服务器）里，页面存进
+ *   sessionStorage（`resolveDevTransport`，`@nomi-ai/contract/app`）；
+ * - 下面的 Origin / Host 检查挡的是浏览器里的别的网页（它们改不了这两个头），不是本机进程；
  * - 校验 Origin：必须**完全等于** `allowedOrigins` 里的一项（开发服务器的地址），没有 Origin 的连接也拒绝；
  * - 校验 Host（防 DNS rebinding）：只接受 `127.0.0.1:<port>` / `localhost:<port>` / `[::1]:<port>`；
  * - 界面（`nomi-surface.<surface>`）必须在 `surfaces` 里；caller 记为 `{ surface, trusted: true }`；

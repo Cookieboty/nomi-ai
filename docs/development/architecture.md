@@ -17,7 +17,7 @@ Electron 主进程（packages/host-electron）
 
 - 内核不认识 Electron，同一个 `createCore` 也跑在无界面宿主上（`packages/host-node`，纯 Node，见 [core-host-decoupling](../design/core-host-decoupling.md) §11.3）：
   - `pnpm test:e2e`：无界面 E2E 在 Vitest 里用 `startHeadlessCore()`（`@nomi-ai/host-node/core`）起真实内核，视图侧客户端经 in-process 传输连进来，不需要 Electron 与显示环境；
-  - `pnpm dev:web`：在 Node 里起内核，挂只监听 `127.0.0.1` 的 WebSocket 传输（`@nomi-ai/host-node/websocket`，每次启动一个随机 token，校验 Origin），再起 ai-chat 的开发服务器；在 Chrome 打开 `http://127.0.0.1:6128` 即可，页面经 WebSocket 调内核，对话经统一网关（Node 子进程，端口由系统分配）。开发服务器把地址与 token 以 `window.nomiDevTransport` 注入页面，ai-chat 的 `services/api.ts` 只在开发构建、且没有 preload 桥时用它；生产构建里出现 WebSocket 传输会让构建失败（`scripts/dev-web/vite-plugin.mjs`）。`pnpm smoke:web` 用 Playwright 的 Chromium 跑一遍冒烟。
+  - `pnpm dev:web`：在 Node 里起内核，挂只监听 `127.0.0.1` 的 WebSocket 传输（`@nomi-ai/host-node/websocket`，每次启动一个随机 token，校验 Origin），再起 ai-chat 的开发服务器；在 Chrome 打开终端打印的地址（`http://127.0.0.1:6128/#nomi-token=…`）即可，页面经 WebSocket 调内核，对话经统一网关（Node 子进程，端口由系统分配）。开发服务器只把地址以 `window.nomiDevTransport` 注入页面（token 在地址片段里，页面存 sessionStorage 后从地址栏抹掉），ai-chat 的 `services/api.ts` 只在开发构建、且没有 preload 桥时用它；生产构建里出现 WebSocket 传输会让构建失败（`scripts/dev-web/vite-plugin.mjs`）。`pnpm smoke:web` 用 Playwright 的 Chromium 跑一遍冒烟。
 
 ## 包
 

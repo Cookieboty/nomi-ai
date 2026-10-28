@@ -207,8 +207,13 @@ Nothing in the source tree is overwritten.
 Run time (`CharacterPackService`): `userData/character-pack` → `resources/character-pack` → the
 built-in pack (`resources/renderer/character` when packaged; the repository pack in development).
 Every candidate goes through `validatePack`; invalid packs are skipped (logged). Overlays are
-validated with `lenient: true`: the non-structural checks in `NON_STRUCTURAL_ISSUES` (rive file
-size, missing fallback assets, voice manifests) only warn, structural errors still reject the pack.
+validated with `lenient: true` so packs that loaded on 2.0.5 still load: only what 2.0.5 required
+(manifest `schema: 1`, a non-empty string `id`, a known mode, onboarding art, the mode's main asset)
+rejects the pack. The non-structural checks in `NON_STRUCTURAL_ISSUES` (rive file size, missing
+fallback assets, voice manifests), field-level manifest problems (an `id` outside `[a-z0-9_-]`, kept
+as written; unknown hitbox ids and invalid regions, dropped; other invalid optional fields, dropped)
+and invalid `persona.json` / `mapping.json` / `locales/*.json` (ignored) only warn. Built-in packs and
+`character:check` stay strict.
 Overlay assets are served via `character-pack://pack/…`; the views ask `character-pack:get-active`,
 whose snapshot also carries the pack's `locales` lines. See [`REPLACING.md`](./REPLACING.md).
 

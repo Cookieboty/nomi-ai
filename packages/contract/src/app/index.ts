@@ -122,15 +122,81 @@ export const NOMI_HOST_GLOBAL = 'nomiHost';
  * 开发态（`pnpm dev:web`）由 Vite 开发服务器注入页面的全局：视图在普通浏览器里运行、没有 preload 桥时，
  * 用它经 WebSocket 连开发态内核（§5.2、§11.3）。只在开发服务器注入（`scripts/dev-web/vite-plugin.mjs`），
  * 构建产物里没有；视图只在 `services/api.ts` 里、`import.meta.env.DEV` 时读它。
+ *
+ * 全局里只有 WebSocket 地址，**没有 token**：任何本机进程都能请求开发服务器的 index.html，token 放在页面里
+ * 就等于公开。token 由 dev:web 打印的地址带在 URL 片段里（`#nomi-token=<token>`，片段不会发给服务器），
+ * 页面读到后存进 sessionStorage 并从地址栏抹掉（`resolveDevTransport`）。
  */
 export const NOMI_DEV_TRANSPORT_GLOBAL = 'nomiDevTransport';
 
 /** `window.nomiDevTransport` 的形状 */
+export interface DevTransportGlobal {
+  /** `ws://127.0.0.1:<port>` */
+  url: string;
+}
+
+/** 视图建 WebSocket 传输用的配置 */
 export interface DevTransportConfig {
   /** `ws://127.0.0.1:<port>` */
   url: string;
   /** 开发态内核本次启动的随机 token */
   token: string;
+}
+
+/** dev:web 打印的页面地址里带 token 的片段参数（`#nomi-token=<token>`） */
+export const NOMI_DEV_TOKEN_FRAGMENT = 'nomi-token';
+/** 页面把片段里的 token 存进 sessionStorage 的键（刷新后仍能连；关掉标签页即失效） */
+export const NOMI_DEV_TOKEN_STORAGE_KEY = 'nomi.devToken';
+
+const DEV_TOKEN_PATTERN = /^[A-Za-z0-9_-]{16,256}$/;
+
+/** `resolveDevTransport` 读写的页面状态（视图的 services/api.ts 传入 location / sessionStorage / history） */
+export interface DevTokenSource {
+  /** `location.hash` */
+  hash: string;
+  /** `sessionStorage`；不可用（隐私模式等）时为 null */
+  storage: Pick<Storage, 'getItem' | 'setItem'> | null;
+  /** 把地址栏里的片段换成 `rest`（去掉 token 后剩下的片段，可能为空），不产生历史记录 */
+  replaceFragment(rest: string): void;
+}
+
+/**
+ * 开发态 WebSocket 配置：地址来自注入的全局，token 来自 URL 片段（读到后存 sessionStorage 并从地址栏抹掉），
+ * 片段里没有时用 sessionStorage 里存的（刷新页面）。缺任何一项返回 null。
+ */
+export function resolveDevTransport(
+  global: unknown,
+  src: DevTokenSource,
+): DevTransportConfig | null {
+  if (!global || typeof global !== 'object') return null;
+  const { url } = global as Partial<DevTransportGlobal>;
+  if (typeof url !== 'string') return null;
+  let token: string | null = null;
+  const hash = src.hash.replace(/^#/, '');
+  if (hash) {
+    const params = new URLSearchParams(hash);
+    const fromHash = params.get(NOMI_DEV_TOKEN_FRAGMENT);
+    if (fromHash !== null) {
+      params.delete(NOMI_DEV_TOKEN_FRAGMENT);
+      src.replaceFragment(params.toString());
+      if (DEV_TOKEN_PATTERN.test(fromHash)) {
+        token = fromHash;
+        try {
+          src.storage?.setItem(NOMI_DEV_TOKEN_STORAGE_KEY, fromHash);
+        } catch {
+          /* 存不下：本页照常连，刷新后要重新打开 dev:web 打印的地址 */
+        }
+      }
+    }
+  }
+  if (!token) {
+    try {
+      token = src.storage?.getItem(NOMI_DEV_TOKEN_STORAGE_KEY) ?? null;
+    } catch {
+      token = null;
+    }
+  }
+  return token && DEV_TOKEN_PATTERN.test(token) ? { url, token } : null;
 }
 
 export {

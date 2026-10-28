@@ -2,8 +2,9 @@
 // pnpm dev:web —— 视图在普通浏览器里运行（docs/design/core-host-decoupling.md §11.3「视图在普通浏览器运行」）。
 //
 // 在 Node 里用无界面宿主（@nomi-ai/host-node）起一个内核，挂上只监听 127.0.0.1 的 WebSocket 传输，再起 ai-chat
-// （对话窗口）与 renderer（看板娘）的 Vite 开发服务器；开发服务器把 WebSocket 地址与本次的随机 token 注入页面
-// （scripts/dev-web/vite-plugin.mjs）。在 Chrome 里打开打印出来的地址即可，页面经 WebSocket 调内核、收事件。
+// （对话窗口）与 renderer（看板娘）的 Vite 开发服务器；开发服务器只把 WebSocket 地址注入页面
+// （scripts/dev-web/vite-plugin.mjs），本次的随机 token 只在打印出来的地址片段里（`#nomi-token=…`）。在 Chrome 里
+// 打开打印出来的完整地址即可（页面把 token 存进 sessionStorage 并从地址栏抹掉），页面经 WebSocket 调内核、收事件。
 //
 //   pnpm build                       # 先构建（内核与 host-node 从 dist 加载）
 //   pnpm dev:web                     # 数据放在临时目录，退出时删除
@@ -25,7 +26,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { DEV_HOST, PORT_ENV, PORTS } from '../ports.mjs';
 
-import { DEV_WS_TOKEN_ENV, DEV_WS_URL_ENV } from './vite-plugin.mjs';
+import { DEV_WS_URL_ENV, devPageUrl } from './vite-plugin.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -154,7 +155,6 @@ export async function startDevWeb(opts = {}) {
         ...process.env,
         [portEnv]: String(port),
         [DEV_WS_URL_ENV]: server.url,
-        [DEV_WS_TOKEN_ENV]: token,
       },
     });
     vites.push(child);
@@ -186,6 +186,7 @@ export async function startDevWeb(opts = {}) {
     }
   }
 
+  // 日志里不带 token；完整地址（片段里带 token）只打印到终端（见文件末尾）/ 返回给冒烟脚本
   log.info('[dev-web] ready', {
     chat: chatUrl,
     ...(mascotUrl ? { mascot: mascotUrl } : {}),
@@ -204,6 +205,9 @@ export async function startDevWeb(opts = {}) {
     server,
     chatUrl,
     mascotUrl,
+    /** 带 token 片段的页面地址：在浏览器里打开它们 */
+    chatPageUrl: devPageUrl(chatUrl, token),
+    mascotPageUrl: mascotUrl ? devPageUrl(mascotUrl, token) : null,
     stop() {
       stopping ??= (async () => {
         await Promise.all(
@@ -240,8 +244,8 @@ function parseArgs(argv) {
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const dev = await startDevWeb(parseArgs(process.argv.slice(2)));
   process.stdout.write(
-    `\n  Nomi dev:web — open ${dev.chatUrl} in Chrome` +
-      (dev.mascotUrl ? `, mascot: ${dev.mascotUrl}` : '') +
+    `\n  Nomi dev:web — open ${dev.chatPageUrl} in Chrome` +
+      (dev.mascotPageUrl ? `, mascot: ${dev.mascotPageUrl}` : '') +
       ` (core: ${dev.server.url})\n\n`,
   );
   let exiting = false;

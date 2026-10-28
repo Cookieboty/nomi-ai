@@ -131,7 +131,14 @@ try {
     if (msg.type() === 'error') viteLog.push(`[console] ${msg.text()}`);
   });
 
-  await page.goto(dev.chatUrl, { waitUntil: 'load' });
+  // token 不进页面 HTML：本机任何进程都能请求开发服务器（页面经 dev:web 打印的地址片段拿 token）
+  const tokenValue = new URL(dev.chatPageUrl).hash.split('=')[1];
+  for (const base of [dev.chatUrl, dev.mascotUrl].filter(Boolean)) {
+    const html = await (await fetch(base)).text();
+    if (!tokenValue || html.includes(tokenValue)) fail(`${base} serves the dev token in its HTML`);
+  }
+
+  await page.goto(dev.chatPageUrl, { waitUntil: 'load' });
 
   // 1. 渲染出来了，且不是靠 preload 桥
   await page.waitForFunction(
@@ -147,6 +154,15 @@ try {
   }));
   if (globals.preload !== 'undefined') fail('the page unexpectedly has a preload bridge');
   if (globals.dev !== 'object') fail('the dev server did not inject window.nomiDevTransport');
+  // 片段里的 token 存进 sessionStorage，并从地址栏抹掉
+  const tokenState = await page.evaluate(() => ({
+    hash: window.location.hash,
+    stored: window.sessionStorage.getItem('nomi.devToken'),
+    injected: JSON.stringify(window.nomiDevTransport),
+  }));
+  if (tokenState.hash) fail(`the token fragment was not cleared from the URL (${tokenState.hash})`);
+  if (tokenState.stored !== tokenValue) fail('the page did not keep the token in sessionStorage');
+  if (tokenState.injected.includes(tokenValue)) fail('window.nomiDevTransport carries the token');
 
   // 2. 调用结果回到页面：内核设的主题 / 语言
   await page.waitForFunction(() => document.documentElement.dataset.theme === 'ink', null, {
@@ -230,7 +246,7 @@ try {
   mascot.on('console', (msg) => {
     if (msg.type() === 'error') mascotErrors.push(`[console] ${msg.text()}`);
   });
-  await mascot.goto(dev.mascotUrl, { waitUntil: 'load' });
+  await mascot.goto(dev.mascotPageUrl, { waitUntil: 'load' });
   const mascotGlobals = await mascot.evaluate(() => ({
     preload: typeof window.nomiTransport,
     dev: typeof window.nomiDevTransport,
