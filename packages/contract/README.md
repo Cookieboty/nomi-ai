@@ -55,6 +55,18 @@ const off = api.on('usage.updated', (u) => …);
 | 版本（§4.3）   | 客户端默认第一次调用前握手（`meta.version`），major 不一致时所有调用以 `VERSION_MISMATCH` 失败；`auto` 模式下握手成功前收到的事件先缓存（每个监听最多 256 条），成功后按序投递，major 不一致时丢弃；minor 只增不删；`deprecated` 的过程第一次调用时 warn                                                                                                                                                                                                       |
 | 序列化（§4.2） | 只用 JSON 值和 `Uint8Array`。服务端会话的 `strictSerialize`（`createServerSession` / `createIpcServerTransport` 的选项；默认 `NODE_ENV !== 'production'` 时开启，即开发与测试）对每个出站帧跑 `findUnserializable`：Electron IPC 的 structuredClone 能放过的 `Date` / `Map` / `Set` 等也会被拦下，结果 / chunk 以 `BAD_OUTPUT` 失败（流随之停止），事件丢弃并 warn，以后换 WebSocket 不会出问题。in-process 传输按自己的 `serialize` 模式（默认 `strict`）检查 |
 
+## 应用契约 `@nomi-ai/contract/app`
+
+`appContract` 是视图与内核之间实际使用的契约（版本 1.0）。本批只含 AI 门面：
+
+| 内容       | 说明                                                                                                                                                |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 过程       | `ai.<facade>.<method>`（36 个，取代两份 `IPC_METHODS`）；读用 query、写用 mutation、流用 stream；`ai.tools.confirm` 为 `dangerous`                  |
+| 位置参数   | `AI_METHODS` 记录门面方法的参数怎么打包成入参（`aiArgsToInput`），`ClientAIClient` 据此保持 `AIClient` 的签名                                       |
+| 事件       | `AI_EVENTS`：`AIClient.on` 的 12 个业务事件 → `ai.<domain>.<name>`；payload 来自插件事件总线，schema 有意放宽（已知字段可缺省、未知字段透传）       |
+| DTO schema | `aiSchemas`：手写对照 ai-sdk / seam 类型，一致性由 ai-runtime 的 `implement(appContract, …)` 编译期检查；`raw`、`signal` 这类不可序列化字段不进契约 |
+| 传输       | 内核 `createAiRouter`（ai-runtime）→ Electron `host/contractIpc.ts`；视图经 preload 的 `window.nomiTransport`（`NOMI_TRANSPORT_GLOBAL`）            |
+
 ## 线协议
 
 客户端发 `req` / `abort` / `sub` / `unsub`，服务端回 `res` / `chunk` / `end` / `err` / `event`，帧格式见 `src/protocol.ts`。所有传输共用 `createServerSession`（服务端）与 `createFrameClientTransport`（客户端），线协议只在这两处解释。
