@@ -6,7 +6,7 @@
  *   （含看板娘、对话窗口和其他辅助窗口，和原来一样）；
  * - 指定 surface：`mascot` → 看板娘窗口，`chat` / `settings` → 对话窗口；窗口不存在就不发。
  *
- * 通道名原样透传，渲染进程的监听不用改。单个窗口发送失败（如页面正在销毁）只记日志，
+ * 通道名原样透传，渲染进程的监听不用改。单个窗口发送失败（如页面正在销毁）记 warn 日志，
  * 不影响其他窗口，也不抛回给发布方。
  */
 import type { Surface } from '@nomi-ai/host-ports';
@@ -28,7 +28,7 @@ export interface ElectronAppEventsDeps {
   };
   /** 默认 `BrowserWindow.getAllWindows()`（测试用） */
   allWindows?: () => readonly EventTargetWindow[];
-  logger?: { debug(message: string, meta?: unknown): void };
+  logger?: { warn(message: string, meta?: unknown): void };
 }
 
 export function createElectronAppEvents(deps: ElectronAppEventsDeps): AppEvents {
@@ -54,7 +54,7 @@ export function createElectronAppEvents(deps: ElectronAppEventsDeps): AppEvents 
         try {
           w.webContents.send(channel, payload);
         } catch (error) {
-          deps.logger?.debug('窗口事件发送失败', {
+          deps.logger?.warn('窗口事件发送失败', {
             channel,
             error: error instanceof Error ? error.message : String(error),
           });

@@ -68,15 +68,15 @@ describe('createElectronAppEvents', () => {
   it('单个窗口发送失败只记日志，不影响其他窗口也不抛给发布方', () => {
     const bad = win({ throws: true });
     const good = win();
-    const debug = jest.fn();
+    const warn = jest.fn();
     const events = createElectronAppEvents({
       windows: { getMainWindow: () => null, getAiChatWindow: () => null },
       allWindows: () => [bad, good],
-      logger: { debug },
+      logger: { warn },
     });
     expect(() => events.publish('ai:usage:changed', null)).not.toThrow();
     expect(good.webContents.send).toHaveBeenCalledWith('ai:usage:changed', null);
-    expect(debug).toHaveBeenCalledWith('窗口事件发送失败', {
+    expect(warn).toHaveBeenCalledWith('窗口事件发送失败', {
       channel: 'ai:usage:changed',
       error: 'Render frame was disposed',
     });
