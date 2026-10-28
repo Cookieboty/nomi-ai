@@ -6,6 +6,7 @@
  * 表达「打开 / 聚焦 / 隐藏某个界面」，不暴露 BrowserWindow。
  *
  * 剪贴板与截屏复用现有的 ClipboardGateway / ScreenCapture，行为与 AI 能力层一致。
+ * 系统通知的图标用应用当前图标（core/appIcon），工具子进程是 `utilityProcess`。
  */
 import path from 'node:path';
 
@@ -22,16 +23,20 @@ import {
   app,
   BrowserWindow,
   dialog,
+  nativeImage,
   nativeTheme,
+  Notification,
   type OpenDialogOptions,
   powerMonitor,
   safeStorage,
   type SaveDialogOptions,
   shell,
+  utilityProcess,
 } from 'electron';
 
 import { ClipboardGateway } from '../ai/ClipboardGateway';
 import { ScreenCapture } from '../ai/ScreenCapture';
+import { iconImage } from '../core/appIcon';
 
 /** 窗口端口需要的最小窗口能力（BrowserWindow 结构上满足） */
 export interface HostWindow {
@@ -112,6 +117,11 @@ export function electronCapabilities(platform: HostPlatform): HostCapabilities {
 
 function toBytes(buf: Uint8Array): Uint8Array {
   return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
+}
+
+/** 不复制地把 Uint8Array 视为 Buffer（nativeImage / safeStorage 只收 Buffer） */
+function toBuffer(bytes: Uint8Array): Buffer {
+  return Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 }
 
 /** 只放入调用方给了的字段，保持与现有 dialog 调用的选项一致 */
@@ -306,6 +316,55 @@ export function createElectronPorts(deps: ElectronPortsDeps): HostPorts {
         if (nativeTheme.themeSource !== mode) nativeTheme.themeSource = mode;
       },
       onChange: (fn) => subscribe(nativeTheme, 'updated', fn),
+    },
+
+    notifications: {
+      supported: () => Notification.isSupported(),
+      show(n, onClick) {
+        const note = new Notification({
+          title: n.title,
+          body: n.body,
+          silent: n.silent ?? false,
+          icon: iconImage(),
+        });
+        if (onClick) note.on('click', () => onClick());
+        note.show();
+      },
+    },
+
+    image: {
+      async size(data) {
+        const img = nativeImage.createFromBuffer(toBuffer(data));
+        return img.isEmpty() ? null : img.getSize();
+      },
+      async resize(data, opts) {
+        const img = nativeImage.createFromBuffer(toBuffer(data));
+        if (img.isEmpty()) throw new Error('image decode failed');
+        const out = img.resize({
+          ...(opts.width !== undefined ? { width: opts.width } : {}),
+          ...(opts.height !== undefined ? { height: opts.height } : {}),
+          quality: 'best',
+        });
+        return toBytes(opts.format === 'png' ? out.toPNG() : out.toJPEG(opts.quality ?? 85));
+      },
+    },
+
+    processes: {
+      available: () => typeof utilityProcess?.fork === 'function',
+      fork(modulePath, opts = {}) {
+        const child = utilityProcess.fork(modulePath, opts.args ?? [], {
+          ...(opts.execArgv ? { execArgv: opts.execArgv } : {}),
+          ...(opts.serviceName ? { serviceName: opts.serviceName } : {}),
+          stdio: opts.stdio ?? 'ignore',
+        });
+        return {
+          postMessage: (message) => child.postMessage(message),
+          on: (event: 'message' | 'exit', fn: (arg: never) => void) => {
+            child.on(event as 'message', fn as (message: unknown) => void);
+          },
+          kill: () => child.kill(),
+        };
+      },
     },
 
     windows: {

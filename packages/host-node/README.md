@@ -8,6 +8,9 @@
 - `shell`、`windows`、`lifecycle`：只记录调用（`control.shellCalls` / `windowCalls` / `quitCount`）；
 - `power` / `lifecycle` 事件由 `control.emitSuspend()`、`runBeforeQuit()` 等手动触发；
 - `appearance`：默认浅色，`control.setSystemDark()` 模拟系统切换；
+- `notifications`：只记录（`control.notifications`），`control.clickNotification()` 模拟点击；
+- `image`：默认解码不了任何图片（`size` 返回 null、`resize` 抛错），`options.image` 注入实现；
+- `processes`：默认不可用，`options.fork` 注入工具子进程实现；
 - `capabilities` 全部关闭。
 
 ```ts

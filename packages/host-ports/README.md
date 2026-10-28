@@ -14,6 +14,9 @@
 | `power`         | `powerMonitor.getSystemIdleTime`、`suspend` / `resume`                                           |
 | `lifecycle`     | `app.whenReady` / `quit` / `exit`、`before-quit` / `activate`                                    |
 | `appearance`    | `nativeTheme.shouldUseDarkColors` / `themeSource`、`updated`                                     |
+| `notifications` | `Notification`（图标由宿主给）                                                                   |
+| `image`         | `nativeImage.createFromBuffer` / `getSize` / `resize` / `toPNG` / `toJPEG`                       |
+| `processes`     | `utilityProcess.fork`（子进程经 `process.parentPort` 收发消息）                                  |
 | `windows`       | 声明式：打开 / 聚焦 / 隐藏界面，不暴露窗口对象                                                   |
 | `capabilities`  | 宿主特有能力声明（透明窗口、托盘、灵动岛等）                                                     |
 

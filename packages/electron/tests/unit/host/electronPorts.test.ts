@@ -19,6 +19,8 @@ const mockPower = Object.assign(new EventEmitter(), {
 const mockFocused = { id: 'focused' };
 const mockAllWindows: Array<{ isFocused?: () => boolean }> = [];
 
+const mockNotes: Array<{ opts: Record<string, unknown>; click?: () => void }> = [];
+
 const mockNativeTheme = Object.assign(new EventEmitter(), {
   shouldUseDarkColors: false,
   themeSource: 'system' as 'system' | 'dark' | 'light',
@@ -54,6 +56,20 @@ jest.mock('electron', () => ({
     read: jest.fn(async () => []),
   },
   nativeImage: { createFromBuffer: jest.fn() },
+  Notification: Object.assign(
+    jest.fn().mockImplementation((o: Record<string, unknown>) => {
+      const rec: { opts: Record<string, unknown>; click?: () => void } = { opts: o };
+      mockNotes.push(rec);
+      return {
+        on: (ev: string, fn: () => void) => {
+          if (ev === 'click') rec.click = fn;
+        },
+        show: jest.fn(),
+      };
+    }),
+    { isSupported: jest.fn(() => true) },
+  ),
+  utilityProcess: { fork: jest.fn() },
   screen: {
     getAllDisplays: jest.fn(() => [
       { id: 7, label: 'Built-in', bounds: { x: 0, y: 0, width: 100, height: 50 }, scaleFactor: 2 },
@@ -63,7 +79,18 @@ jest.mock('electron', () => ({
   desktopCapturer: { getSources: jest.fn() },
 }));
 
-import { BrowserWindow, clipboard, dialog, safeStorage, shell } from 'electron';
+jest.mock('../../../src/core/appIcon', () => ({ iconImage: () => 'app-icon' }));
+
+import {
+  BrowserWindow,
+  clipboard,
+  dialog,
+  nativeImage,
+  Notification,
+  safeStorage,
+  shell,
+  utilityProcess,
+} from 'electron';
 
 import type { WindowManager } from '../../../src/core/WindowManager';
 import {
@@ -397,5 +424,67 @@ describe('createElectronPorts', () => {
     // 只做类型层面的检查：编译失败即说明接口漂移
     const check = (wm: WindowManager): WindowHost => wm;
     expect(typeof check).toBe('function');
+  });
+
+  it('notifications：用应用图标弹 Notification，点击回调直通', () => {
+    const ports = createElectronPorts({ windows: fakeHost() });
+    const onClick = jest.fn();
+    expect(ports.notifications.supported()).toBe(true);
+    ports.notifications.show({ title: 't', body: 'b' }, onClick);
+    const note = mockNotes.at(-1);
+    expect(note?.opts).toEqual({ title: 't', body: 'b', silent: false, icon: 'app-icon' });
+    note?.click?.();
+    expect(onClick).toHaveBeenCalledTimes(1);
+    (Notification.isSupported as jest.Mock).mockReturnValueOnce(false);
+    expect(ports.notifications.supported()).toBe(false);
+  });
+
+  it('image：nativeImage 解码 / 缩放，空图返回 null 或抛错', async () => {
+    const ports = createElectronPorts({ windows: fakeHost() });
+    const resize = jest.fn(() => ({
+      toPNG: () => Buffer.from('png'),
+      toJPEG: (q: number) => Buffer.from(`jpeg${q}`),
+    }));
+    const create = nativeImage.createFromBuffer as jest.Mock;
+    create.mockReturnValue({
+      isEmpty: () => false,
+      getSize: () => ({ width: 4000, height: 3000 }),
+      resize,
+    });
+    const data = new Uint8Array([1, 2, 3]);
+    await expect(ports.image.size(data)).resolves.toEqual({ width: 4000, height: 3000 });
+    const jpg = await ports.image.resize(data, { width: 2560, format: 'jpeg' });
+    expect(Buffer.from(jpg).toString()).toBe('jpeg85');
+    expect(resize).toHaveBeenLastCalledWith({ width: 2560, quality: 'best' });
+    const png = await ports.image.resize(data, { height: 2560, format: 'png' });
+    expect(Buffer.from(png).toString()).toBe('png');
+    expect(resize).toHaveBeenLastCalledWith({ height: 2560, quality: 'best' });
+    create.mockReturnValue({ isEmpty: () => true });
+    await expect(ports.image.size(data)).resolves.toBeNull();
+    await expect(ports.image.resize(data, { width: 1, format: 'png' })).rejects.toThrow();
+  });
+
+  it('processes：utilityProcess.fork 只带调用方给的选项，stdio 默认 ignore', () => {
+    const ports = createElectronPorts({ windows: fakeHost() });
+    const child = { postMessage: jest.fn(), on: jest.fn(), kill: jest.fn(() => true) };
+    (utilityProcess.fork as jest.Mock).mockReturnValue(child);
+    expect(ports.processes.available()).toBe(true);
+    const p = ports.processes.fork('/w.js', { serviceName: 'nomi-gateway' });
+    expect(utilityProcess.fork).toHaveBeenLastCalledWith('/w.js', [], {
+      serviceName: 'nomi-gateway',
+      stdio: 'ignore',
+    });
+    ports.processes.fork('/p.js', { execArgv: ['--max-old-space-size=256'], serviceName: 's' });
+    expect(utilityProcess.fork).toHaveBeenLastCalledWith('/p.js', [], {
+      execArgv: ['--max-old-space-size=256'],
+      serviceName: 's',
+      stdio: 'ignore',
+    });
+    const fn = jest.fn();
+    p.on('exit', fn);
+    p.postMessage({ a: 1 });
+    expect(child.on).toHaveBeenCalledWith('exit', fn);
+    expect(child.postMessage).toHaveBeenCalledWith({ a: 1 });
+    expect(p.kill()).toBe(true);
   });
 });

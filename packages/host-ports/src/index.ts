@@ -275,6 +275,89 @@ export interface AppearancePort {
   onChange(fn: () => void): Unsubscribe;
 }
 
+// ───────────────────────── notifications ─────────────────────────
+
+export interface SystemNotification {
+  title: string;
+  body: string;
+  /** 不播放提示音，默认 false */
+  silent?: boolean;
+}
+
+/**
+ * 系统通知（Electron 下是 `Notification`，图标用应用当前图标）。
+ *
+ * 什么时候弹（免打扰、看板娘在不在、灵动岛优先）是内核的策略，这里只负责「弹出来」。
+ */
+export interface NotificationsPort {
+  /** 当前系统能否显示通知 */
+  supported(): boolean;
+  /** 显示一条通知；`onClick` 在用户点通知时调用。显示失败时抛错 */
+  show(notification: SystemNotification, onClick?: () => void): void;
+}
+
+// ───────────────────────── image ─────────────────────────
+
+export interface ImageSize {
+  width: number;
+  height: number;
+}
+
+export interface ImageResizeOptions {
+  /** 目标宽度；只给宽或高时按比例缩放 */
+  width?: number;
+  /** 目标高度 */
+  height?: number;
+  /** 输出编码 */
+  format: 'png' | 'jpeg';
+  /** JPEG 质量 0–100，默认 85；PNG 忽略 */
+  quality?: number;
+}
+
+/**
+ * 图片解码与缩放（Electron 下是 `nativeImage`）。输入是编码后的图片字节（PNG / JPEG / WebP 等，
+ * 支持的格式由宿主决定），输出也是编码后的字节。
+ */
+export interface ImagePort {
+  /** 解码得到尺寸；不是图片或解码失败时返回 null */
+  size(data: Uint8Array): Promise<ImageSize | null>;
+  /** 解码、按 `width` / `height` 缩放（尽量高质量）后重新编码；解码失败时抛错 */
+  resize(data: Uint8Array, opts: ImageResizeOptions): Promise<Uint8Array>;
+}
+
+// ───────────────────────── processes ─────────────────────────
+
+export interface UtilityProcessOptions {
+  args?: string[];
+  /** 子进程的 Node 启动参数，如 `--max-old-space-size=256` */
+  execArgv?: string[];
+  /** 进程名（任务管理器 / 崩溃报告里显示） */
+  serviceName?: string;
+  /** 默认 `ignore` */
+  stdio?: 'ignore' | 'inherit' | 'pipe';
+}
+
+/** 工具子进程句柄（结构同 Electron `UtilityProcess` 用到的部分） */
+export interface UtilityProcess {
+  /** 发给子进程（子进程经 `process.parentPort` 收）；消息走结构化克隆 */
+  postMessage(message: unknown): void;
+  on(event: 'message', fn: (message: unknown) => void): void;
+  on(event: 'exit', fn: (code: number) => void): void;
+  /** 结束子进程；已经退出时返回 false */
+  kill(): boolean;
+}
+
+/**
+ * 隔离的工具子进程（Electron 下是 `utilityProcess`）：文档解析、统一网关这类要和主进程隔开
+ * （崩溃、内存上限、超时可杀）的工作。子进程脚本经 `process.parentPort` 收发消息。
+ */
+export interface ProcessesPort {
+  /** 宿主能否拉起工具子进程；不能时调用方退回进程内执行或报不可用 */
+  available(): boolean;
+  /** 拉起子进程运行 `modulePath`；不可用时抛错 */
+  fork(modulePath: string, opts?: UtilityProcessOptions): UtilityProcess;
+}
+
 // ───────────────────────── windows（声明式，§6.2） ─────────────────────────
 
 export interface WindowIntent {
@@ -334,6 +417,9 @@ export interface HostPorts {
   power: PowerPort;
   lifecycle: LifecyclePort;
   appearance: AppearancePort;
+  notifications: NotificationsPort;
+  image: ImagePort;
+  processes: ProcessesPort;
   windows: WindowsPort;
   /** 静态声明，宿主启动后不变 */
   capabilities: Readonly<HostCapabilities>;

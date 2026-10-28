@@ -266,3 +266,43 @@ describe('windows / capabilities', () => {
     expect(Object.isFrozen(ports.capabilities)).toBe(true);
   });
 });
+
+describe('notifications / image / processes', () => {
+  it('通知只记录，可模拟点击；不支持时 show 抛错', () => {
+    const { ports, control } = create();
+    const onClick = vi.fn();
+    expect(ports.notifications.supported()).toBe(true);
+    ports.notifications.show({ title: 't', body: 'b' }, onClick);
+    ports.notifications.show({ title: 't2', body: 'b2', silent: true });
+    expect(control.notifications.map((n) => n.notification.title)).toEqual(['t', 't2']);
+    control.clickNotification(0);
+    control.clickNotification();
+    expect(onClick).toHaveBeenCalledTimes(1);
+    control.setNotificationsSupported(false);
+    expect(ports.notifications.supported()).toBe(false);
+    expect(() => ports.notifications.show({ title: 'x', body: 'y' })).toThrow();
+  });
+
+  it('图片默认解码不了；可注入实现', async () => {
+    const data = new Uint8Array([1, 2, 3]);
+    const { ports } = create();
+    await expect(ports.image.size(data)).resolves.toBeNull();
+    await expect(ports.image.resize(data, { width: 1, format: 'png' })).rejects.toThrow();
+    const injected = create({
+      image: { size: async () => ({ width: 4, height: 2 }), resize: async () => data },
+    }).ports;
+    await expect(injected.image.size(data)).resolves.toEqual({ width: 4, height: 2 });
+    await expect(injected.image.resize(data, { width: 2, format: 'jpeg' })).resolves.toBe(data);
+  });
+
+  it('工具子进程默认不可用；注入 fork 后转交参数', () => {
+    expect(create().ports.processes.available()).toBe(false);
+    expect(() => create().ports.processes.fork('/w.js')).toThrow();
+    const child = { postMessage: vi.fn(), on: vi.fn(), kill: vi.fn(() => true) };
+    const fork = vi.fn(() => child);
+    const { ports } = create({ fork });
+    expect(ports.processes.available()).toBe(true);
+    expect(ports.processes.fork('/w.js', { serviceName: 's' })).toBe(child);
+    expect(fork).toHaveBeenCalledWith('/w.js', { serviceName: 's' });
+  });
+});

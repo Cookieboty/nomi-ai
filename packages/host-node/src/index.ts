@@ -6,6 +6,9 @@
  * - `dialogs` 按队列返回预设答案，队列空时视为用户取消；
  * - `shell` / `windows` / `lifecycle` 只记录调用；
  * - `appearance` 默认浅色，`control.setSystemDark()` 模拟系统切换；
+ * - `notifications` 只记录（`control.notifications`，`clickNotification()` 模拟点击）；
+ * - `image` 默认解码不了任何图片（`size` 返回 null、`resize` 抛错），可用选项注入；
+ * - `processes` 默认不可用（工具子进程依赖宿主的 `parentPort`），可用选项注入 fork；
  * - `capabilities` 全部为 false / `none`。
  *
  * 返回值除了 `HostPorts` 本身，还带一个 `control` 句柄，测试用它预设答案、触发事件、读记录。
@@ -22,13 +25,17 @@ import type {
   HostCapabilities,
   HostPlatform,
   HostPorts,
+  ImagePort,
   NativeAppearance,
   PathsPort,
   PickDirectoryOptions,
   PickFilesOptions,
   SaveFileOptions,
   Surface,
+  SystemNotification,
   Unsubscribe,
+  UtilityProcess,
+  UtilityProcessOptions,
   WindowIntent,
 } from '@nomi-ai/host-ports';
 
@@ -57,6 +64,11 @@ export type WindowCall =
   | { method: 'open'; surface: Surface; intent?: WindowIntent }
   | { method: 'focus'; surface: Surface }
   | { method: 'hide'; surface: Surface };
+
+export interface NotificationRecord {
+  notification: SystemNotification;
+  onClick?: () => void;
+}
 
 export interface NodeHostPortsOptions {
   /** 所有目录的根；缺省时在系统临时目录下新建，`dispose()` 时删除 */
@@ -95,6 +107,12 @@ export interface NodeHostPortsOptions {
   focused?: boolean;
   /** 覆盖能力声明（默认全部关闭） */
   capabilities?: Partial<HostCapabilities>;
+  /** 系统通知是否可用，默认 true */
+  notificationsSupported?: boolean;
+  /** 图片解码 / 缩放的实现；缺省时解码不了任何图片 */
+  image?: Partial<ImagePort>;
+  /** 工具子进程的实现；缺省时 `processes.available()` 为 false */
+  fork?: (modulePath: string, opts: UtilityProcessOptions) => UtilityProcess;
 }
 
 export interface NodeHostControl {
@@ -106,6 +124,11 @@ export interface NodeHostControl {
   readonly dialogCalls: readonly DialogCall[];
   readonly shellCalls: readonly ShellCall[];
   readonly windowCalls: readonly WindowCall[];
+  /** 已显示的系统通知（按顺序） */
+  readonly notifications: readonly NotificationRecord[];
+  /** 模拟用户点第 `index` 条通知（默认最后一条） */
+  clickNotification(index?: number): void;
+  setNotificationsSupported(supported: boolean): void;
   /** 当前可见的界面 */
   visibleSurfaces(): Surface[];
   setIdleSeconds(seconds: number): void;
@@ -185,6 +208,8 @@ export function createNodeHostPorts(options: NodeHostPortsOptions = {}): NodeHos
   const dialogCalls: DialogCall[] = [];
   const shellCalls: ShellCall[] = [];
   const windowCalls: WindowCall[] = [];
+  const notifications: NotificationRecord[] = [];
+  let notificationsSupported = options.notificationsSupported ?? true;
   const visible = new Set<Surface>();
 
   let secretsAvailable = options.secretsAvailable ?? true;
@@ -330,6 +355,28 @@ export function createNodeHostPorts(options: NodeHostPortsOptions = {}): NodeHos
       },
       onChange: (fn) => appearanceChanged.add(fn),
     },
+    notifications: {
+      supported: () => notificationsSupported,
+      show(notification, onClick) {
+        if (!notificationsSupported) throw new Error('notifications are not supported');
+        notifications.push(onClick ? { notification, onClick } : { notification });
+      },
+    },
+    image: {
+      size: options.image?.size ?? (async () => null),
+      resize:
+        options.image?.resize ??
+        (async () => {
+          throw new Error('image decoding is not available');
+        }),
+    },
+    processes: {
+      available: () => !!options.fork,
+      fork(modulePath, opts = {}) {
+        if (!options.fork) throw new Error('utility processes are not available');
+        return options.fork(modulePath, opts);
+      },
+    },
     windows: {
       async open(surface, intent) {
         windowCalls.push(
@@ -359,6 +406,13 @@ export function createNodeHostPorts(options: NodeHostPortsOptions = {}): NodeHos
     dialogCalls,
     shellCalls,
     windowCalls,
+    notifications,
+    clickNotification(index = notifications.length - 1) {
+      notifications[index]?.onClick?.();
+    },
+    setNotificationsSupported(supported) {
+      notificationsSupported = supported;
+    },
     visibleSurfaces: () => [...visible],
     setFocused(value) {
       focused = value;
