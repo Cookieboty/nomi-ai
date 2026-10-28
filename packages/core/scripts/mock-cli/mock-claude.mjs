@@ -7,6 +7,7 @@
  *   长驻：-p --input-format stream-json --output-format stream-json
  *     （stdin 逐行 NDJSON user / control_response；每轮 result 后进程不退出）
  * Env: NOMI_MOCK_CLAUDE_REPLY, NOMI_MOCK_SESSION, NOMI_MOCK_ASK_PERMISSION,
+ *      NOMI_MOCK_HOLD_PROMPT（内容包含它的那一轮挂起到被中断）,
  *      NOMI_MOCK_PERMISSION_ID, NOMI_MOCK_TOOLS（1 = 单个 Bash；rich = 多种工具调用演示）,
  *      NOMI_MOCK_STEP_MS（rich 场景下每个事件之间的停顿）, NOMI_MOCK_DELAY_MS,
  *      NOMI_MOCK_CLAUDE_BOOT_LOG（可选：每次进程启动 append「pid 参数」一行，测复用）,
@@ -410,6 +411,10 @@ async function runOnce(_prompt) {
 
   const firstToken = Number(process.env.NOMI_MOCK_FIRST_TOKEN_MS || 0);
   if (firstToken > 0 && isSlow(_prompt)) await sleepCancellable('turn', firstToken);
+  // NOMI_MOCK_HOLD_PROMPT：内容包含它的那一轮停在首字之前，直到被中断（interrupt 叫醒并结束这一轮）。
+  // e2e 要在「进行中」时点停止：不和这一轮自己跑完赛跑
+  const hold = process.env.NOMI_MOCK_HOLD_PROMPT;
+  if (hold && String(_prompt ?? '').includes(hold)) await sleepCancellable('turn', 10 * 60_000);
   if (process.env.NOMI_MOCK_FAIL === '1') {
     emit({
       type: 'result',
