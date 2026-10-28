@@ -29,7 +29,11 @@ export const P2_DANGER: Record<string, Danger> = {
 
 export interface P2Deps {
   reminders: ReminderStore;
-  clipboard: { readText(): string | Promise<string>; writeText(t: string): void };
+  clipboard: {
+    readText(): string | Promise<string>;
+    /** 写入失败（宿主剪贴板不可用等）要抛回来，算这次工具调用失败 */
+    writeText(t: string): void | Promise<void>;
+  };
   /** 在看板娘气泡里说一句 */
   say: (text: string) => void;
   now?: () => number;
@@ -293,7 +297,7 @@ export function createP2Tools(
           signal,
           i.text.slice(0, 600),
         );
-        d.clipboard.writeText(i.text);
+        await d.clipboard.writeText(i.text);
         d.say('已复制到剪贴板');
         return { data: { chars: i.text.length }, decision };
       },

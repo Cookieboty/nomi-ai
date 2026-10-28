@@ -135,6 +135,7 @@ describe('P2 tools', () => {
     const c = fakeClock(Date.now());
     const reminders = new ReminderStore(path.join(data, 'reminders.json'), c.now, c.timers);
     let clip = 'secret-token-123';
+    let writeError: Error | null = null;
     const said: string[] = [];
     const tools = createDesktopTools({
       broker,
@@ -147,7 +148,13 @@ describe('P2 tools', () => {
       pickFolder: async () => null,
       p2: {
         reminders,
-        clipboard: { readText: () => clip, writeText: (t) => (clip = t) },
+        clipboard: {
+          readText: () => clip,
+          writeText: async (t) => {
+            if (writeError) throw writeError;
+            clip = t;
+          },
+        },
         say: (t) => said.push(t),
         now: c.now,
       },
@@ -163,6 +170,7 @@ describe('P2 tools', () => {
       clock: c,
       said,
       clip: () => clip,
+      failWrite: (e: Error) => (writeError = e),
       setAnswer: (f: typeof answer) => (answer = f),
     };
   }
@@ -217,5 +225,16 @@ describe('P2 tools', () => {
     expect(t.asks.at(-1)!.reason).toBe('tainted');
     expect(t.clip()).toBe('你好');
     expect(t.said).toContain('已复制到剪贴板');
+  });
+
+  it('clipboard write failure stays inside the tool call', async () => {
+    const t = setup();
+    t.setAnswer(() => [true, true]);
+    t.failWrite(new Error('clipboard unavailable'));
+    const r = await t.call('clipboard_write', { text: '你好' });
+    expect(r.ok).toBe(false);
+    expect(r.error).toMatchObject({ code: 'internal_error', message: 'clipboard unavailable' });
+    expect(t.clip()).toBe('secret-token-123');
+    expect(t.said).not.toContain('已复制到剪贴板');
   });
 });

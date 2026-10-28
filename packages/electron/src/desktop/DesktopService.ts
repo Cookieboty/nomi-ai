@@ -439,7 +439,7 @@ export class DesktopService {
         reminders: this.reminders,
         clipboard: {
           readText: () => this.ports.clipboard.readText(),
-          writeText: (t) => void this.ports.clipboard.writeText(t),
+          writeText: (t) => this.ports.clipboard.writeText(t),
         },
         say: (t) => this.say(t),
       },
