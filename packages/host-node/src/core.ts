@@ -45,6 +45,12 @@ export interface HeadlessCoreOptions {
    * 默认 false（e2e 不需要网关，也不拉子进程）；`pnpm dev:web` 打开
    */
   processes?: boolean;
+  /**
+   * 内置角色包目录（绝对路径，例如仓库里的 `characters/nomi` 或 `characters/test-dummy`）；缺省 null：没有内置包，
+   * 人设为中性。无界面宿主没有构建产物，不按应用目录找；不读 `CHARACTER_PACK` 环境变量（同一进程里的内核可以
+   * 各用各的包）。`config.builtinCharacterPack` 给了时以它为准
+   */
+  characterPack?: string | null;
   /** 宿主钩子（无界面 e2e 用 `aiPluginsAfter` 换上假的 LLM / 工具） */
   host?: CoreHostHooks;
   /** 宿主片段与 router 中间件 */
@@ -106,7 +112,12 @@ export async function startHeadlessCore(options: HeadlessCoreOptions = {}): Prom
   const core = createCore({
     ports,
     logger,
-    config: { autoSyncModels: false, gatewayPort: 0, ...options.config },
+    config: {
+      autoSyncModels: false,
+      gatewayPort: 0,
+      builtinCharacterPack: options.characterPack ?? null,
+      ...options.config,
+    },
     ...(options.host ? { host: options.host } : {}),
     ...(options.contract ? { contract: options.contract } : {}),
   });

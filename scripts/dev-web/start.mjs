@@ -101,6 +101,8 @@ export async function startDevWeb(opts = {}) {
   const chatPort = opts.chatPort ?? PORTS.chat;
   const headless = await startHeadlessCore({
     ports: opts.dataDir ? { root: path.resolve(opts.dataDir) } : {},
+    // 内置角色包：仓库里的包（CHARACTER_PACK 相对仓库根，缺省官方包），与 Electron 开发态一致
+    characterPack: path.resolve(ROOT, process.env.CHARACTER_PACK?.trim() || 'characters/nomi'),
     logLevel: opts.logLevel ?? 'info',
     processes: opts.processes ?? true,
     ...(opts.contract ? { contract: opts.contract } : {}),

@@ -1,8 +1,8 @@
 /**
  * E8 · 替身角色验收（docs/design/core-host-decoupling.md §11.3 第三行，G5）· 无界面部分
  *
- * 真实内核（`createCore`）跑在无界面宿主 `@nomi-ai/host-node` 上，内置包按 `CHARACTER_PACK` 取仓库里的
- * `characters/test-dummy`（static 模式、一张占位图、名字与人设完全不同），走内核自己的解析 → 人设链路：
+ * 真实内核（`createCore`）跑在无界面宿主 `@nomi-ai/host-node` 上，内置包经内核选项 `builtinCharacterPack`
+ * 给仓库里的 `characters/test-dummy`（static 模式、一张占位图、名字与人设完全不同），走内核自己的解析 → 人设链路：
  *   CharacterPackService → PersonaService
  *     ├─ 角色 preset（PersonaIdentityPlugin → CompanionAgentPresetPlugin，内核插件宿主里装好的）的系统提示
  *     └─ 对话窗口 SdkIPCClient（ai-chat 的真实实现，人设经契约 `persona.get` 取）→ ClientAIClient →
@@ -10,13 +10,12 @@
  * 断言：发出去的系统提示、发给界面的人设与角色包快照里都没有官方角色名（诺米 / Nomi），且用的是替身的身份。
  * 界面文本的那一半在 e2e-headed 的 G5.stand-in-character（真实应用、替身构建）。
  *
- * 无界面宿主的应用目录是临时目录，没有构建产物：未打包、非开发态时内置包的候选是
- * `<appPath>/dist/renderer/character`（不存在）与按 `CHARACTER_PACK` 解析的源码目录，这里给绝对路径。
+ * 内置包是内核实例的选项、不是进程环境变量：同一进程里别的用例的内核仍用官方包。
  */
 import path from 'node:path';
 
 import { AgentPresetRegistryKey } from '@nomi-ai/bundle-ig-mascot/plugins';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { SdkIPCClient } from '../../packages/ai-chat/src/services/IPCClient';
 import { findCharacterLeaks } from '../../scripts/lib/characterLeak.mjs';
@@ -28,20 +27,10 @@ const STAND_IN = path.join(REPO, 'characters', 'test-dummy');
 const OFFICIAL = /Nomi|诺米/;
 
 describe('E8 · stand-in character (test-dummy) · no official name in what the AI is told', () => {
-  let saved: string | undefined;
   let core: E2eCore;
 
-  beforeAll(() => {
-    saved = process.env.CHARACTER_PACK;
-    process.env.CHARACTER_PACK = STAND_IN;
-  });
-  afterAll(() => {
-    if (saved === undefined) delete process.env.CHARACTER_PACK;
-    else process.env.CHARACTER_PACK = saved;
-  });
-
   beforeEach(async () => {
-    core = await startE2eCore({ llmId: 'fake' });
+    core = await startE2eCore({ llmId: 'fake', characterPack: STAND_IN });
   });
   afterEach(async () => {
     // 界面语言是进程级的（§12 P4「剩下的」）：还原成跟随系统，免得影响同一进程里后面的用例

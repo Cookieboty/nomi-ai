@@ -133,6 +133,12 @@ export interface CoreConfig {
    * 无界面宿主用它，不和本机装着的 Nomi 抢默认端口
    */
   gatewayPort?: number;
+  /**
+   * 内置角色包目录（绝对路径），由宿主决定：Electron 给打包进来的那个，无界面宿主 / e2e 给仓库里的
+   * `characters/nomi` 或 `characters/test-dummy`；`null` = 没有内置包（人设为中性）。缺省按端口的默认布局找
+   * （见 CharacterPackService）。内核不读 `CHARACTER_PACK` 环境变量，同一进程里的内核可以用不同的内置包
+   */
+  builtinCharacterPack?: string | null;
 }
 
 /** 宿主钩子：都是可选的，缺省时对应能力不可用或不做 */
@@ -325,8 +331,13 @@ export function createCore(deps: CoreDeps): Core {
     // 界面语言（默认跟随系统：zh* → 中文，其余 → English）；须早于托盘 / 通知等主进程文案
     services.locale = new LocaleService({ file: userData('locale.json'), ports, events });
 
-    // 角色包：userData/character-pack → resources/character-pack → 内置包（默认 characters/nomi）
-    const characterPack = new CharacterPackService({ ports });
+    // 角色包：userData/character-pack → resources/character-pack → 内置包（宿主给的 builtinCharacterPack）
+    const characterPack = new CharacterPackService({
+      ports,
+      ...(cfg.builtinCharacterPack !== undefined
+        ? { builtinPackDir: cfg.builtinCharacterPack }
+        : {}),
+    });
     if (host.characterPackProtocol) characterPack.init(host.characterPackProtocol, logger);
     else characterPack.reload(logger);
     services.characterPack = characterPack;

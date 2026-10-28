@@ -12,6 +12,7 @@
 import path from 'node:path';
 
 import { FileSessionStorePlugin } from '@nomi-ai/bundle-ig-electron-caps';
+import { builtinPackDir } from '@nomi-ai/core/character/packResolve';
 import { BootstrapManager } from '@nomi-ai/core/core/BootstrapManager';
 import { createShutdown, LifecycleRegistry } from '@nomi-ai/core/core/lifecycle';
 import type { IServiceContainer } from '@nomi-ai/core/core/ServiceContainer';
@@ -62,6 +63,22 @@ export interface IApplication {
 
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
+/**
+ * 这个构建带的内置角色包目录（§10、§12）：打包后是 `resources/renderer/character`；未打包时是
+ * `dist/renderer/character`（copy-renderer）或仓库里的包（开发态按 `CHARACTER_PACK`，缺省 `characters/nomi`）。
+ * 环境变量只在宿主读一次，经 `createCore` 的选项交给内核。找不到时为 null（内核记 warn，人设为中性）。
+ */
+function bundledCharacterPack(ports: HostPorts): string | null {
+  const packaged = ports.app.isPackaged();
+  return builtinPackDir({
+    packaged,
+    dev: !packaged && process.env.NODE_ENV === 'development',
+    resourcesPath: ports.paths.resources(),
+    appPath: ports.paths.appPath(),
+    characterPack: process.env.CHARACTER_PACK,
+  });
+}
+
 export class Application implements IApplication {
   /** 宿主端口：窗口相关的部分每次调用时才找 WindowManager，所以先于窗口管理器创建也没问题 */
   private readonly ports: HostPorts;
@@ -103,6 +120,8 @@ export class Application implements IApplication {
           this.ports.app.isPackaged(),
           this.ports.paths.resources(),
         ),
+        // 内置角色包：打包进来的那个（开发态按构建时的 CHARACTER_PACK 从仓库读）
+        builtinCharacterPack: bundledCharacterPack(this.ports),
       },
       host: {
         // Auto-update (electron-updater → GitHub Releases). Packaged builds only.

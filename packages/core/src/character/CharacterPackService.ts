@@ -74,6 +74,14 @@ export type CharacterPackProtocolHost = Parameters<typeof registerCharacterPackP
 export interface CharacterPackServiceDeps {
   /** userData / resources / appPath decide where overlays and the built-in pack are looked up */
   ports: Pick<HostPorts, 'paths' | 'app'>;
+  /**
+   * The built-in pack directory, chosen by the host (Electron: the bundled pack; headless hosts and
+   * e2e: a pack from the repository). `null` = no built-in pack (neutral persona). Omitted: the
+   * default layout under `ports.paths` (packaged `resources/renderer/character`, unpacked
+   * `<appPath>/dist/renderer/character` or `characters/nomi`). Never read from the process
+   * environment, so cores in one process can use different built-in packs.
+   */
+  builtinPackDir?: string | null;
 }
 
 type PackLogger = { info: (m: string) => void; warn: (m: string) => void };
@@ -81,10 +89,12 @@ type PackLogger = { info: (m: string) => void; warn: (m: string) => void };
 export class CharacterPackService {
   private readonly paths: HostPorts['paths'];
   private readonly appInfo: Pick<HostPorts['app'], 'isPackaged'>;
+  private readonly builtinOverride: string | null | undefined;
 
   constructor(deps: CharacterPackServiceDeps) {
     this.paths = deps.ports.paths;
     this.appInfo = deps.ports.app;
+    this.builtinOverride = deps.builtinPackDir;
   }
 
   private resolved: ResolvedPack = {
@@ -120,17 +130,22 @@ export class CharacterPackService {
       this.paths.resources() || this.paths.appPath(),
       'character-pack',
     );
+    const builtinPack =
+      this.builtinOverride !== undefined ? this.builtinOverride : this.defaultBuiltinPack();
+    if (!builtinPack) logger?.warn('character-pack: built-in pack not found');
+    this.builtinRoot = builtinPack;
+    this.apply(resolveCharacterPack({ userDataPack, resourcesPack, builtinPack }), logger);
+  }
+
+  /** The built-in pack of the default layout (the host did not choose one) */
+  private defaultBuiltinPack(): string | null {
     const packaged = this.appInfo.isPackaged();
-    const builtinPack = builtinPackDir({
+    return builtinPackDir({
       packaged,
       dev: !packaged && process.env.NODE_ENV === 'development',
       resourcesPath: this.paths.resources(),
       appPath: this.paths.appPath(),
-      characterPack: process.env.CHARACTER_PACK,
     });
-    if (!builtinPack) logger?.warn('character-pack: built-in pack not found');
-    this.builtinRoot = builtinPack;
-    this.apply(resolveCharacterPack({ userDataPack, resourcesPack, builtinPack }), logger);
   }
 
   /** Called after every (re-)resolution of the active pack. Returns unsubscribe. */

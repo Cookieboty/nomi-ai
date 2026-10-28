@@ -1,6 +1,7 @@
 /**
  * Resolve the active character pack. Order: userData/character-pack → resources/character-pack →
- * the built-in pack (the one this build ships: characters/nomi unless CHARACTER_PACK was set).
+ * the built-in pack (the one this build ships: characters/nomi unless the build chose another one;
+ * the host passes its directory to createCore, see CharacterPackService).
  * The official character is an ordinary pack and goes through the same validation as any overlay;
  * invalid candidates are skipped with a reason for logging.
  *
@@ -147,7 +148,10 @@ export interface BuiltinPackEnv {
   resourcesPath: string | undefined;
   /** app.getAppPath(): packages/host-electron when unpacked */
   appPath: string;
-  /** CHARACTER_PACK (relative to the repository root), unpacked runs only */
+  /**
+   * The pack the build selected (CHARACTER_PACK, relative to the repository root), unpacked runs only.
+   * Only hosts pass it (Electron reads its build-time environment); core never reads the env.
+   */
   characterPack?: string;
 }
 

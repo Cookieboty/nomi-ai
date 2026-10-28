@@ -9,6 +9,8 @@
  * - 拿到插件上下文，用 `emit()` 发插件事件（TTS 分片、回合结束、工具执行…），由真实 AIClient 桥接成契约事件。
  */
 
+import path from 'node:path';
+
 import { ClientAIClient } from '@nomi-ai/ai-sdk-client';
 import {
   definePlugin,
@@ -33,6 +35,9 @@ import {
   type ToolDenial,
 } from './fakeSeams';
 
+/** 仓库里的官方角色包（无界面宿主没有构建产物，内置包要显式给） */
+export const OFFICIAL_PACK = path.resolve(__dirname, '../../characters/nomi');
+
 export interface E2eCoreOptions {
   /** 额外注册到真实工具表的工具 */
   tools?: ToolDefinition[];
@@ -40,6 +45,8 @@ export interface E2eCoreOptions {
   llmId?: string;
   /** 交给假的危险工具防线的工具名 */
   dangerTools?: string[];
+  /** 内置角色包目录；缺省仓库里的官方包 `characters/nomi`（E8 给替身 `characters/test-dummy`） */
+  characterPack?: string;
 }
 
 export interface E2eWindow {
@@ -91,6 +98,7 @@ export async function startE2eCore(opts: E2eCoreOptions = {}): Promise<E2eCore> 
 
   const headless = await startHeadlessCore({
     logLevel: 'warn',
+    characterPack: opts.characterPack ?? OFFICIAL_PACK,
     host: { aiPluginsAfter: () => [{ plugin: probe }] },
   });
   // AI runtime 启动失败时内核只记日志、其余域照常可用；e2e 要的就是 AI runtime，直接失败
