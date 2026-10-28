@@ -1,14 +1,14 @@
 /**
  * ObservabilityBridge · 集成测试（P9-2/P9-3 · Polish C）
  *
- * 通过 EventBroadcaster 触发真实 插件宿主 → AIClient 事件桥接，断言 metrics/tracing 埋点。
+ * 通过 createAiRouter 触发真实 插件宿主 → AIClient 事件桥接，断言 metrics/tracing 埋点。
  */
 
 import { AIClient } from '@nomi-ai/ai-sdk';
 import { LLMRegistryKey, ToolRegistryKey, UserProfileKey } from '@nomi-ai/bundle-ig-base';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { EventBroadcaster } from '../src/EventBroadcaster';
+import { createAiRouter } from '../src/AiContractRouter';
 import { NoopRuntimeLogger } from '../src/logger';
 import {
   configureTracing,
@@ -19,7 +19,6 @@ import {
 } from '../src/observability';
 import { createObservabilityBridge } from '../src/ObservabilityBridge';
 
-import { createFakeIpcAdapter } from './helpers/fakeIpc';
 import { createFakeSdkCtx } from './helpers/fakeSdkCtx';
 import {
   createFakeLLM,
@@ -34,7 +33,6 @@ function bootstrap() {
   ctx.provide(ToolRegistryKey, createFakeToolRegistry());
   ctx.provide(UserProfileKey, createFakeProfileService());
   const client = new AIClient(ctx);
-  const adapter = createFakeIpcAdapter();
   const tracer = configureTracing({
     idGenerator: {
       traceId: () => 'trace-fixed-0000000000000000000000',
@@ -49,13 +47,8 @@ function bootstrap() {
     })(),
   });
   const bridge = createObservabilityBridge({ tracer });
-  const broadcaster = new EventBroadcaster({
-    adapter,
-    logger: NoopRuntimeLogger,
-    observability: bridge,
-  });
-  broadcaster.start(client);
-  return { ctx, client, adapter, broadcaster, tracer, bridge };
+  const ai = createAiRouter({ client, logger: NoopRuntimeLogger, observability: bridge });
+  return { ctx, client, ai, tracer, bridge };
 }
 
 describe('ObservabilityBridge · P9-2 metrics', () => {
@@ -131,14 +124,8 @@ describe('ObservabilityBridge · P9-2 metrics', () => {
     ctx.provide(ToolRegistryKey, createFakeToolRegistry());
     ctx.provide(UserProfileKey, createFakeProfileService());
     const client = new AIClient(ctx);
-    const adapter = createFakeIpcAdapter();
     const bridge = createObservabilityBridge({ metricsEnabled: false, tracingEnabled: false });
-    const broadcaster = new EventBroadcaster({
-      adapter,
-      logger: NoopRuntimeLogger,
-      observability: bridge,
-    });
-    broadcaster.start(client);
+    createAiRouter({ client, logger: NoopRuntimeLogger, observability: bridge });
 
     await ctx.triggerEvent('tools/post-execute', {
       toolName: 'write_file',
@@ -164,19 +151,13 @@ describe('ObservabilityBridge · P9-3 tracing', () => {
     disableTracing();
   });
 
-  it('EventBroadcaster.observability: true 默认启用 bridge，不抛错', async () => {
+  it('createAiRouter observability: true 默认启用 bridge，不抛错', async () => {
     const ctx = createFakeSdkCtx();
     ctx.provide(LLMRegistryKey, createFakeLLMRegistry(createFakeLLM()));
     ctx.provide(ToolRegistryKey, createFakeToolRegistry());
     ctx.provide(UserProfileKey, createFakeProfileService());
     const client = new AIClient(ctx);
-    const adapter = createFakeIpcAdapter();
-    const broadcaster = new EventBroadcaster({
-      adapter,
-      logger: NoopRuntimeLogger,
-      observability: true,
-    });
-    broadcaster.start(client);
+    const ai = createAiRouter({ client, logger: NoopRuntimeLogger, observability: true });
 
     await expect(
       ctx.triggerEvent('agent/turn-end', {
@@ -186,7 +167,7 @@ describe('ObservabilityBridge · P9-3 tracing', () => {
       }),
     ).resolves.toBeUndefined();
 
-    broadcaster.stop();
+    ai.dispose();
   });
 
   it('agent:turn-end 关闭 chat.turn span（含 attributes / status.ok）', async () => {
@@ -219,24 +200,24 @@ describe('ObservabilityBridge · P9-3 tracing', () => {
     expect(span!.status).toEqual({ code: 'error', message: 'stopped-by-user' });
   });
 
-  it('broadcaster.stop() 主动 dispose 未结束的 span（标记为 disposed before turn-end）', async () => {
-    const { ctx, broadcaster, tracer } = bootstrap();
+  it('ai.dispose() 主动 dispose 未结束的 span（标记为 disposed before turn-end）', async () => {
+    const { ctx, ai, tracer } = bootstrap();
     // 先制造一个未结束的 turn：只发 confirm-required 会自动创建 turn（实际不会），
     // 这里用 tools/post-execute 之前先手动触发一次 turn-end 会关闭；
-    // 更直接：使用 broadcaster 内部的 bridge —— confirm-required 不会创建 turn，
+    // 更直接：使用 router 内部的 bridge —— confirm-required 不会创建 turn，
     // 直接用 stopped-by-user 的反面：发一个 turn-end 之后 dispose 时应无残留。
     await ctx.triggerEvent('agent/turn-end', {
       sessionId: 's-clean',
       turnId: 't-clean',
       ok: true,
     });
-    broadcaster.stop();
+    ai.dispose();
     // 已 finish 的仍在 recorder 里；未 finish 的这个用例场景下没有
     expect(tracer.recorder.finishedSpans.every((s) => s.endTimeMs !== undefined)).toBe(true);
   });
 });
 
-describe('EventBroadcaster · observability opt-in', () => {
+describe('createAiRouter · observability opt-in', () => {
   beforeEach(() => {
     defaultRegistry.reset();
   });
@@ -247,9 +228,7 @@ describe('EventBroadcaster · observability opt-in', () => {
     ctx.provide(ToolRegistryKey, createFakeToolRegistry());
     ctx.provide(UserProfileKey, createFakeProfileService());
     const client = new AIClient(ctx);
-    const adapter = createFakeIpcAdapter();
-    const broadcaster = new EventBroadcaster({ adapter, logger: NoopRuntimeLogger });
-    broadcaster.start(client);
+    createAiRouter({ client, logger: NoopRuntimeLogger });
 
     await ctx.triggerEvent('tools/post-execute', {
       toolName: 'write_file',

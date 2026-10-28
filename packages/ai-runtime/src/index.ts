@@ -30,9 +30,7 @@ export * from './IgPluginHost';
 export * from './igPlugins';
 export * from './ElectronLifecycle';
 export * from './IpcAdapter';
-export * from './channels';
-export * from './IPCTransportServer';
-export * from './EventBroadcaster';
+export * from './AiContractRouter';
 export * from './CapabilityIpcServer';
 export * from './legacy/AiChatCompat';
 

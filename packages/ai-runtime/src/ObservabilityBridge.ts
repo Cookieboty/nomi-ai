@@ -1,13 +1,13 @@
 /**
  * ai-runtime · 事件 → metrics / tracing 埋点桥（P9-2/P9-3 · Polish C）
  *
- * 目标：给 [EventBroadcaster](file:///./EventBroadcaster.ts) 一个可插拔的**副作用回调**，
+ * 目标：给 [createAiRouter](file:///./AiContractRouter.ts) 的事件发布一个可插拔的**副作用回调**，
  * 把 AIClient 12 个业务事件翻译成 [AI_METRICS](file:///./observability/metrics.ts) 与
  * [Tracer](file:///./observability/tracing.ts) 的调用，实现 P9 计划 §P9-2 表格。
  *
  * 设计要点：
- * - **零成本**：`configureObservabilityBridge()` 不主动订阅 client；调用方（Broadcaster）
- *   在每次广播前后 `notify(evt, payload)`；未开启 tracer / metrics 时全为 no-op；
+ * - **零成本**：`configureObservabilityBridge()` 不主动订阅 client；调用方（createAiRouter）
+ *   在每次发布契约事件之后 `notify(evt, payload)`；未开启 tracer / metrics 时全为 no-op；
  * - **turn 生命周期跟踪**：`agent:step` 累加、`agent:turn-end` 触发
  *   `ai.agent.steps.per_turn` histogram + span 结束；
  * - **tool 耗时**：`tool:confirm-required` / `tools/pre-execute` 事件不在此路径 fire，
@@ -50,12 +50,12 @@ interface TurnState {
 export interface ObservabilityBridge {
   /** 收到一条 AIClient 事件时调用；返回值仅用于测试。 */
   notify<E extends AIClientEvent>(evt: E, data: AIClientEventMap[E]): void;
-  /** 用于 `EventBroadcaster.stop()` 主动清理未 end 的 span。 */
+  /** 用于 `createAiRouter(...).dispose()` 主动清理未 end 的 span。 */
   dispose(): void;
 }
 
 /**
- * 构建 observability bridge。业务方一般在 `EventBroadcaster` 构造时挂上。
+ * 构建 observability bridge。业务方一般作为 `createAiRouter({ observability })` 传入。
  */
 export function createObservabilityBridge(
   opts: ObservabilityBridgeOptions = {},

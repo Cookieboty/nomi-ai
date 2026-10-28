@@ -11,8 +11,10 @@ import { nodeRequire } from './nodeRequire';
 export interface IpcInvokeEvent {
   /** 发起窗口的 id；不可信但足以做白名单过滤 */
   senderId: number;
-  /** 发起窗口所在 frame 的 url，仅用于日志 */
+  /** 发起窗口（主 frame）的 url：来源白名单据此判定 */
   senderUrl?: string;
+  /** 实际发起调用的 frame 的 url（可能是被嵌入的子 frame）；有值时也必须受信 */
+  senderFrameUrl?: string;
   /** 直接对发送方 send 事件（chunk 通道用） */
   send(channel: string, payload: unknown): void;
   /** 发送方窗口 / webContents 是否已销毁（长流式调用中途窗口被关闭时用来停止推送） */
@@ -64,9 +66,11 @@ export function createElectronIpcAdapter(): IpcAdapter {
       isDestroyed?: () => boolean;
       send(channel: string, payload: unknown): void;
     };
+    senderFrame?: { url?: string } | null;
   }): IpcInvokeEvent => ({
     senderId: e.sender.id,
     senderUrl: e.sender.getURL?.(),
+    senderFrameUrl: frameUrlOf(e),
     send: (ch, payload) => e.sender.send(ch, payload),
     isDestroyed: () => e.sender.isDestroyed?.() ?? false,
   });
@@ -110,6 +114,15 @@ export function createElectronIpcAdapter(): IpcAdapter {
       return webContents.getAllWebContents();
     },
   };
+}
+
+/** senderFrame 在 frame 已导航 / 销毁时可能为 null 或访问即抛错 */
+function frameUrlOf(e: { senderFrame?: { url?: string } | null }): string | undefined {
+  try {
+    return e.senderFrame?.url || undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /**

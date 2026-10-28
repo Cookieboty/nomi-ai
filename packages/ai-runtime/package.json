@@ -51,6 +51,7 @@
     "@ai-sdk/mcp": "^2.0.73",
     "@ai-sdk/openai": "^4.0.91",
     "@ai-sdk/openai-compatible": "^3.0.67",
+    "@nomi-ai/contract": "workspace:*",
     "ai": "^7.0.136",
     "zod": "^4.6.6"
   }

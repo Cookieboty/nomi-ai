@@ -46,6 +46,9 @@ importers:
       '@nomi-ai/bundle-ig-mascot':
         specifier: workspace:*
         version: link:packages/bundle-ig-mascot
+      '@nomi-ai/contract':
+        specifier: workspace:*
+        version: link:packages/contract
       '@playwright/test':
         specifier: ^1.64.0
         version: 1.64.0
@@ -185,6 +188,9 @@ importers:
       '@ai-sdk/openai-compatible':
         specifier: ^3.0.67
         version: 3.0.67(zod@4.6.7)
+      '@nomi-ai/contract':
+        specifier: workspace:*
+        version: link:../contract
       ai:
         specifier: ^7.0.136
         version: 7.0.136(zod@4.6.7)
@@ -246,6 +252,10 @@ importers:
         version: 5.0.3(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(@vitest/coverage-v8@5.0.3)(happy-dom@20.14.6)(vite@8.3.4(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.6.1)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
 
   packages/ai-sdk-client:
+    dependencies:
+      '@nomi-ai/contract':
+        specifier: workspace:*
+        version: link:../contract
     devDependencies:
       '@nomi-ai/ai-sdk':
         specifier: workspace:*
@@ -460,6 +470,9 @@ importers:
       '@nomi-ai/cli-sdk':
         specifier: workspace:*
         version: link:../cli-sdk
+      '@nomi-ai/contract':
+        specifier: workspace:*
+        version: link:../contract
       '@nomi-ai/gateway':
         specifier: workspace:*
         version: link:../gateway
