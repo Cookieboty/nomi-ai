@@ -140,6 +140,8 @@ export interface HarnessTabMessage {
   stopped?: true;
   /** CLI 在没有用户消息的情况下自发的一轮（后台子代理完成后主代理的跟进） */
   origin?: 'background';
+  /** 用户消息：CLI 给这一轮的 id（Codex app-server 的 turn.id）及所在会话；重试 / 编辑时原地回退用 */
+  cliTurn?: { sessionId: string; turnId: string };
   /** Gemini 因为不信任这个文件夹而拒绝运行（错误卡片上提供「信任此文件夹」） */
   geminiTrust?: {
     folder: string;

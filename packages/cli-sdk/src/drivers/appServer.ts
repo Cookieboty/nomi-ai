@@ -178,7 +178,7 @@ export class AppServerDriver implements SessionDriver {
     }
   }
 
-  private finish(turn: AppTurn, done: { status?: unknown; error?: unknown }) {
+  private finish(turn: AppTurn, done: { id?: unknown; status?: unknown; error?: unknown }) {
     if (this.turn === turn) this.turn = null;
     this.cancelPermissions();
     if (turn.settled) return;
@@ -187,11 +187,14 @@ export class AppServerDriver implements SessionDriver {
     const err = done.error as { message?: unknown } | null | undefined;
     const turnUsage = codexTurnUsage(turn.totalsBefore, this.totals);
     const usage = turnUsage && this.context ? { ...turnUsage, ...this.context } : turnUsage;
+    // turn/completed 可能先于 turn/start 的应答处理（serverId 还没写上）：用它带的 id
+    const cliTurnId = turn.serverId ?? (typeof done.id === 'string' ? done.id : null);
     turn.resolve({
       turnId: turn.localId,
       stopReason: status,
       text: turn.text,
       sessionId: this.threadId,
+      ...(cliTurnId ? { cliTurnId } : {}),
       ...(status === 'failed'
         ? {
             error: (typeof err?.message === 'string' && err.message) || turn.lastError || undefined,

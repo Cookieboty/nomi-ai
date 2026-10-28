@@ -32,15 +32,18 @@ export const CliConversation: React.FC<Props> = (props) => {
     },
     [],
   );
-  /** 重新生成 / 重试：从这条助手消息之前的用户消息重发 */
+  /** 重新生成 / 重试：删掉之前那条用户消息及之后的内容，从它开新会话重发 */
   const onRetry = useCallback((id: string) => {
-    const { messages, send } = tabsRef.current;
+    const { messages, resendFrom } = tabsRef.current;
     const i = messages.findIndex((m) => m.id === id);
-    for (let k = i - 1; k >= 0; k--)
-      if (messages[k]!.role === 'user') return void send(messages[k]!.content);
+    for (let k = i - 1; k >= 0; k--) {
+      const m = messages[k]!;
+      if (m.role === 'user') return void resendFrom(m.id, m.content).catch(() => undefined);
+    }
   }, []);
-  const onEdit = useCallback((_: string, text: string) => {
-    void tabsRef.current.send(text);
+  /** 编辑：同样截断到这条用户消息之前，再发改过的内容 */
+  const onEdit = useCallback((id: string, text: string) => {
+    void tabsRef.current.resendFrom(id, text).catch(() => undefined);
   }, []);
   const scopeId = props.scopeId;
   // 会话中途换了模型、还没发送：弱提示（发送后消失，切回原模型也消失）

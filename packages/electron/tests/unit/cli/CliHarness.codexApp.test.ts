@@ -150,6 +150,58 @@ describe('CliHarnessService Codex over app-server', () => {
   const codexLive = (h: CliHarnessService) =>
     (h as unknown as { codexLive: Map<string, { ready: Promise<void> }> }).codexLive;
 
+  it('重试 / 编辑：thread/revert 原地回退同一个线程，进程保留，不带前文', async () => {
+    const { h } = mk();
+    const tab = h.createTab({ backend: 'codex' });
+    await h.sendTab(tab.id, '第一句');
+    await h.sendTab(tab.id, '写错的第二句');
+    const users = h.tabMessages(tab.id).filter((m) => m.role === 'user');
+    expect(users.map((m) => m.cliTurn)).toEqual([
+      { sessionId: 'mock-codex-thread-1', turnId: expect.any(String) },
+      { sessionId: 'mock-codex-thread-1', turnId: expect.any(String) },
+    ]);
+    const live = codexLive(h).get(tab.id);
+    const kept = await h.rewindTab(tab.id, users[1]!.id);
+    expect(kept).toHaveLength(2);
+    const reverts = calls().filter((c) => c.method === 'thread/revert');
+    expect(reverts).toEqual([
+      {
+        method: 'thread/revert',
+        params: { threadId: 'mock-codex-thread-1', beforeTurnId: users[1]!.cliTurn!.turnId },
+      },
+    ]);
+    const meta = h.listTabs().tabs.find((x) => x.id === tab.id)!;
+    expect(meta.cliSessionId).toBe('mock-codex-thread-1');
+    expect(meta.carriedMessages).toBeUndefined();
+    expect(codexLive(h).get(tab.id)).toBe(live);
+    await h.sendTab(tab.id, '改过的第二句');
+    // 同一个进程、同一个线程，消息原样发出（没有前文）
+    expect(count('initialize')).toBe(1);
+    expect(turnStarts().at(-1)!.params).toMatchObject({ threadId: 'mock-codex-thread-1' });
+    expect(JSON.stringify(turnStarts().at(-1)!.params)).not.toContain('previous_conversation');
+  }, 20_000);
+
+  it('回退到线程第一轮 / 没记下轮次：不调 thread/revert，改为带前文开新会话', async () => {
+    const { h } = mk();
+    const tab = h.createTab({ backend: 'codex' });
+    await h.sendTab(tab.id, '第一句');
+    await h.sendTab(tab.id, '第二句');
+    const users = h.tabMessages(tab.id).filter((m) => m.role === 'user');
+    // 旧版本落盘的消息没有 cliTurn
+    delete users[1]!.cliTurn;
+    await h.rewindTab(tab.id, users[1]!.id);
+    expect(count('thread/revert')).toBe(0);
+    expect(h.listTabs().tabs.find((x) => x.id === tab.id)).toMatchObject({
+      cliSessionId: null,
+      carriedMessages: 2,
+    });
+    await h.sendTab(tab.id, '再来');
+    const first = h.tabMessages(tab.id).find((m) => m.role === 'user')!;
+    await h.rewindTab(tab.id, first.id);
+    expect(count('thread/revert')).toBe(0);
+    expect(h.listTabs().tabs.find((x) => x.id === tab.id)?.cliSessionId).toBeNull();
+  }, 20_000);
+
   it('多轮复用同一个 app-server：流式正文、工具、思考、每轮用量与线程 id', async () => {
     const { h, events } = mk();
     const tab = h.createTab({ backend: 'codex' });

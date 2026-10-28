@@ -540,6 +540,9 @@ export const harnessClient = {
   setTabCwd: (id: string, cwd: string, opts: { carry?: boolean } = {}) =>
     call<HarnessTabMeta>('tab-cwd', id, cwd, opts),
   clearTabCarry: (id: string) => call<HarnessTabMeta>('tab-carry-clear', id),
+  /** 删掉这条用户消息及之后的全部消息并丢弃 CLI 会话（重试 / 编辑前）；返回截断后的消息 */
+  rewindTab: (id: string, messageId: string) =>
+    call<HarnessTabMessage[]>('tab-rewind', id, messageId),
   /** 原生文件夹选择器（不绑定标签）；取消返回 null */
   pickDir: (defaultPath?: string) => call<string | null>('pick-dir', defaultPath),
   recentCwds: () => call<string[]>('recent-cwds'),

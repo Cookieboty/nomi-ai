@@ -89,6 +89,34 @@ describe('carrying context across a workspace switch (all CLIs share this path)'
     const r = await h.sendTab(tab.id, '接着说');
     expect(r.text).toContain('Assistant: 之前的回答');
   }, 20_000);
+
+  it('Gemini / Grok / dsh: rewind only drops the visible messages and keeps sending in the same session', async () => {
+    const { h } = mk();
+    const tab = h.createTab({ backend: 'gemini' });
+    await h.sendTab(tab.id, '第一句');
+    await h.sendTab(tab.id, '写错的第二句');
+    const sid = h.listTabs().tabs.find((x) => x.id === tab.id)?.cliSessionId;
+    expect(sid).toBeTruthy();
+    const target = h.tabMessages(tab.id).filter((m) => m.role === 'user')[1]!;
+    const kept = await h.rewindTab(tab.id, target.id);
+    expect(kept.map((m) => m.content)).toEqual(['第一句', 'Mock Gemini: 第一句']);
+    expect(h.tabMessages(tab.id)).toHaveLength(2);
+    const meta = h.listTabs().tabs.find((x) => x.id === tab.id)!;
+    expect(meta.cliSessionId).toBe(sid);
+    expect(meta.carriedMessages).toBeUndefined();
+    // 原会话里直接发，不带前文
+    const r = await h.sendTab(tab.id, '改过的第二句');
+    expect(r.text).toBe('Mock Gemini: 改过的第二句');
+    expect(h.tabMessages(tab.id).map((m) => m.content)).not.toContain('写错的第二句');
+  }, 20_000);
+
+  it('unknown message ids are rejected', async () => {
+    const { h } = mk();
+    const tab = h.createTab({ backend: 'gemini' });
+    await h.sendTab(tab.id, 'hello');
+    await expect(h.rewindTab(tab.id, 'nope')).rejects.toThrow();
+    expect(h.tabMessages(tab.id)).toHaveLength(2);
+  }, 20_000);
 });
 
 describe('carry on every CLI: the new session’s first turn receives the previous conversation', () => {
@@ -146,4 +174,117 @@ describe('carry on every CLI: the new session’s first turn receives the previo
     },
     30_000,
   );
+});
+
+describe('Claude retry / edit rewinds the same session in place (--resume-session-at)', () => {
+  const mockClaude = path.resolve(__dirname, '../../../scripts/mock-cli/mock-claude.mjs');
+  const keys = [
+    'NOMI_CLAUDE_BIN',
+    'NOMI_MOCK_CLAUDE_BOOT_LOG',
+    'NOMI_MOCK_SESSION',
+    'NOMI_USE_MOCK_CLI',
+    'CLAUDE_CONFIG_DIR',
+  ];
+  let saved: Record<string, string | undefined> = {};
+  const harnesses: CliHarnessService[] = [];
+  beforeEach(() => {
+    saved = Object.fromEntries(keys.map((k) => [k, process.env[k]]));
+    delete process.env.NOMI_USE_MOCK_CLI;
+    delete process.env.CLAUDE_CONFIG_DIR;
+    process.env.NOMI_CLAUDE_BIN = mockClaude;
+    // 真实的会话 id 是 uuid；回退点只认这种形状
+    process.env.NOMI_MOCK_SESSION = '60f459a6-862d-4f6e-9ae0-d49831ac82fe';
+  });
+  afterEach(() => {
+    for (const h of harnesses) h.dispose();
+    harnesses.length = 0;
+    for (const k of keys) {
+      if (saved[k] === undefined) delete process.env[k];
+      else process.env[k] = saved[k];
+    }
+  });
+  const mk = () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-rewind-'));
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-rewind-home-'));
+    const boot = path.join(root, 'boot.log');
+    process.env.NOMI_MOCK_CLAUDE_BOOT_LOG = boot;
+    const h = new CliHarnessService({
+      root,
+      home,
+      logger: { info() {}, warn() {} },
+      defaultCwd: root,
+    });
+    harnesses.push(h);
+    return { h, root, home, boot };
+  };
+  const ATT1 = 'aaaaaaaa-0000-4000-8000-000000000001';
+  /** 按 Claude 的会话记录格式写一份：每轮 = 附件 → 用户消息（uuid = Nomi 消息 id）→ 助手 */
+  const writeTranscript = (home: string, cwd: string, sid: string, userIds: string[]) => {
+    const dir = path.join(home, '.claude', 'projects', cwd.replace(/[^a-zA-Z0-9]/g, '-'));
+    fs.mkdirSync(dir, { recursive: true });
+    let parent: string | null = null;
+    const lines: string[] = [];
+    userIds.forEach((u, i) => {
+      const att = `aaaaaaaa-0000-4000-8000-00000000000${i}`;
+      lines.push(JSON.stringify({ type: 'attachment', uuid: att, parentUuid: parent }));
+      lines.push(
+        JSON.stringify({ type: 'user', uuid: u, parentUuid: att, message: { content: 'q' } }),
+      );
+      parent = `bbbbbbbb-0000-4000-8000-00000000000${i}`;
+      lines.push(JSON.stringify({ type: 'assistant', uuid: parent, parentUuid: u, message: {} }));
+    });
+    fs.writeFileSync(path.join(dir, `${sid}.jsonl`), `${lines.join('\n')}\n`);
+  };
+
+  it('keeps the session and resumes at the entry before the retried message', async () => {
+    const { h, root, home, boot } = mk();
+    const tab = h.createTab({ backend: 'claude', cwd: root });
+    await h.sendTab(tab.id, '第一句');
+    await h.sendTab(tab.id, '写错的第二句');
+    const sid = h.listTabs().tabs.find((x) => x.id === tab.id)!.cliSessionId!;
+    expect(sid).toBeTruthy();
+    const users = h.tabMessages(tab.id).filter((m) => m.role === 'user');
+    writeTranscript(
+      home,
+      root,
+      sid,
+      users.map((m) => m.id),
+    );
+    const kept = await h.rewindTab(tab.id, users[1]!.id);
+    expect(kept.map((m) => m.role)).toEqual(['user', 'assistant']);
+    const meta = h.listTabs().tabs.find((x) => x.id === tab.id)!;
+    expect(meta.cliSessionId).toBe(sid);
+    expect(meta.claudeResumeAt).toEqual({ sessionId: sid, at: ATT1 });
+    expect(meta.carriedMessages).toBeUndefined();
+    await h.sendTab(tab.id, '改过的第二句');
+    const last = fs.readFileSync(boot, 'utf8').trim().split('\n').at(-1)!;
+    expect(last).toContain(`--resume ${sid} --resume-session-at ${ATT1}`);
+    // 回退点只用一次
+    expect(h.listTabs().tabs.find((x) => x.id === tab.id)?.claudeResumeAt).toBeUndefined();
+  }, 20_000);
+
+  it('falls back to a new session with carried context when the transcript has no such message', async () => {
+    const { h, root } = mk();
+    const tab = h.createTab({ backend: 'claude', cwd: root });
+    await h.sendTab(tab.id, '第一句');
+    await h.sendTab(tab.id, '第二句');
+    const second = h.tabMessages(tab.id).filter((m) => m.role === 'user')[1]!;
+    await h.rewindTab(tab.id, second.id);
+    const meta = h.listTabs().tabs.find((x) => x.id === tab.id)!;
+    expect(meta).toMatchObject({ cliSessionId: null, carriedMessages: 2 });
+    expect(meta.claudeResumeAt).toBeUndefined();
+  }, 20_000);
+
+  it('rewinding to the first turn of the session starts over instead of resuming', async () => {
+    const { h, root, home } = mk();
+    const tab = h.createTab({ backend: 'claude', cwd: root });
+    await h.sendTab(tab.id, '第一句');
+    const sid = h.listTabs().tabs.find((x) => x.id === tab.id)!.cliSessionId!;
+    const first = h.tabMessages(tab.id)[0]!;
+    writeTranscript(home, root, sid, [first.id]);
+    expect(await h.rewindTab(tab.id, first.id)).toEqual([]);
+    const meta = h.listTabs().tabs.find((x) => x.id === tab.id)!;
+    expect(meta.cliSessionId).toBeNull();
+    expect(meta.claudeResumeAt).toBeUndefined();
+  }, 20_000);
 });

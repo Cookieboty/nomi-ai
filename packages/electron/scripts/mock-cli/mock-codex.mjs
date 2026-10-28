@@ -86,7 +86,7 @@ if (args.includes('update')) {
 
 /**
  * codex app-server（stdio JSON-RPC，形状对齐 0.163.0 实测）：initialize / thread/start / thread/resume /
- * turn/start / turn/interrupt；条目经 item/started、item/agentMessage/delta、item/completed 推送，
+ * turn/start / turn/interrupt / thread/revert；条目经 item/started、item/agentMessage/delta、item/completed 推送，
  * 线程累计用量经 thread/tokenUsage/updated，一轮以 turn/completed 结束。
  * Env: NOMI_MOCK_CODEX_APP_LOG=<file>（逐条记下请求）, NOMI_MOCK_CODEX_PERM=1（逐项确认档下先请求执行命令的审批）,
  *      NOMI_MOCK_FIRST_TOKEN_MS（回复前异步等待，期间可 turn/interrupt）, NOMI_MOCK_CODEX_FAIL=1（这一轮 failed）,
@@ -245,6 +245,9 @@ if (args[0] === 'app-server') {
         void runTurn(p.threadId, turnId, p);
         return;
       }
+      case 'thread/revert':
+        reply(j.id, { thread: { id: p.threadId, turns: [] } });
+        return notify('thread/reverted', { threadId: p.threadId });
       case 'turn/interrupt':
         interrupted.add(p.turnId);
         wake(p.turnId);

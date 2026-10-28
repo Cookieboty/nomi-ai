@@ -42,6 +42,8 @@ export interface TurnResult {
   usage?: HarnessUsage;
   /** 协议给出的错误信息（stopReason 为失败类时） */
   error?: string;
+  /** CLI 自己给这一轮的 id（app-server 的 turn.id）；回退会话（thread/revert）时用 */
+  cliTurnId?: string;
   /** 本轮有工具调用被用户拒绝（有的 CLI 因此提前结束整轮，不应当成「已中止」） */
   denied?: boolean;
   /** 协议原始的结束数据（_meta 等），供插件定制 */

@@ -221,6 +221,7 @@
   "electron.common.long-history-only-the-most-recent-messages-are": "历史较长，只显示了最近的部分消息",
   "electron.common.meeting-minutes-output-three-parts-decisions-action-items": "# 会议纪要\n\n- 输出三部分：**结论**、**待办**（表格：事项 / 负责人 / 截止时间）、**未决问题**。\n- 只根据原文整理，不要编造；原文没有负责人或时间的写“待定”。\n- 如果用户同意，可以用 reminder_create 为带截止时间的待办创建提醒（先列出来让用户确认）。\n- 详细格式示例见同目录的 template.md（需要时用 skill_read_file 读取）。",
   "electron.common.message-is-empty": "消息为空",
+  "electron.common.message-not-found": "找不到这条消息，请刷新后重试",
   "electron.common.missing-description": "缺少 description",
   "electron.common.missing-description-one-sentence-on-when-to-use": "缺少 description（一句话说明何时使用这个技能）",
   "electron.common.model": "模型",

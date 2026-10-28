@@ -236,3 +236,36 @@ export async function claudeTranscriptContext(
   cache.set(file, { key, value });
   return value;
 }
+
+/**
+ * 原地回退（重试 / 编辑）的续接点：会话记录里 uuid 为 userUuid 的用户消息的上一条记录，
+ * 给 `--resume-session-at` 用（Nomi 发给 Claude 的用户消息 uuid 就是标签里这条消息的 id）。
+ * 找不到这条消息、或它之前还没有完整的一轮（回退到会话开头）时返回 null，调用方改为带前文开新会话。
+ */
+export async function claudeRewindPoint(
+  configDir: string,
+  cwd: string,
+  sessionId: string,
+  userUuid: string,
+): Promise<string | null> {
+  if (!/^[0-9a-f-]{8,64}$/i.test(sessionId)) return null;
+  const file = await findTranscript(configDir, cwd, sessionId);
+  if (!file) return null;
+  const text = await fs.promises.readFile(file, 'utf8').catch(() => null);
+  if (!text) return null;
+  let answered = false;
+  for (const line of text.split('\n')) {
+    if (!line.includes('"uuid"')) continue;
+    let j: { type?: unknown; uuid?: unknown; parentUuid?: unknown; isSidechain?: unknown };
+    try {
+      j = JSON.parse(line) as typeof j;
+    } catch {
+      continue;
+    }
+    if (j.isSidechain === true) continue;
+    if (j.type === 'user' && j.uuid === userUuid)
+      return answered && typeof j.parentUuid === 'string' ? j.parentUuid : null;
+    if (j.type === 'assistant') answered = true;
+  }
+  return null;
+}

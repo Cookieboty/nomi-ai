@@ -164,6 +164,11 @@ export interface HarnessTabMeta {
    * 成功一轮后清除。前文本身只在主进程（不广播）。
    */
   carriedMessages?: number;
+  /**
+   * Claude 原地回退（重试 / 编辑）：下次拉起进程时带 `--resume-session-at at`，从这条记录之后接着写，
+   * 丢掉之后的轮次。只对同一个 sessionId 生效；成功一轮后清除。
+   */
+  claudeResumeAt?: { sessionId: string; at: string };
 }
 
 export interface HarnessTabsState {

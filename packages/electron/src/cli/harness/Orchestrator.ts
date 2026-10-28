@@ -141,7 +141,7 @@ import {
 } from '../slashDiscovery';
 import '../pluginI18n';
 import { foldAssistantEvent } from '../textCursor';
-import { claudeTranscriptContext } from '../transcriptContext';
+import { claudeRewindPoint, claudeTranscriptContext } from '../transcriptContext';
 import type {
   HarnessBackend,
   HarnessEvent,
@@ -880,6 +880,115 @@ export class HarnessOrchestrator {
     this.setCarried(tab, null);
     this.changed();
     return { ...tab };
+  }
+
+  /**
+   * 从某条用户消息重新发送（重试 / 编辑）：删掉它和之后的全部消息。CLI 自己的会话里还有那段回答，
+   * 原样续接会让模型看到要重来的内容，所以：
+   * - Claude：原地回退，下次拉起进程带 `--resume-session-at`（同一个会话，完整上下文都在）；
+   * - Codex（app-server）：`thread/revert` 把这一轮及之后的轮次从同一个线程里删掉；
+   * - Claude / Codex 找不到这一轮、或回退到会话开头（分叉带进来的前文就在第一轮里）：
+   *   丢弃 CLI 会话，剩下的可见对话作为前文开新会话；
+   * - Grok / Gemini / dsh / 外部 CLI 没有回退能力：只删界面上的消息，照旧在原会话里继续发。
+   * 返回截断后的消息列表，渲染层直接替换缓存。
+   */
+  async rewindTab(id: string, messageId: string): Promise<HarnessTabMessage[]> {
+    const tab = this.requireTab(id);
+    if (id === MAIN_TAB_ID)
+      throw new Error(t('electron.common.cannot-write-a-cli-transcript-on-the-main'));
+    const busy = () => tab.status === 'running' || tab.status === 'queued';
+    if (busy()) throw new Error(t('electron.common.previous-turn-still-running'));
+    const find = () =>
+      this.tabMessages(id).findIndex((m) => m.id === messageId && m.role === 'user');
+    const start = find();
+    if (start < 0) throw new Error(t('electron.common.message-not-found'));
+    if (tab.backend !== 'claude' && tab.backend !== 'codex') {
+      const list = this.tabMessages(id);
+      list.length = start;
+      this.persistMessages(id);
+      this.progress.delete(id);
+      this.changed();
+      return [...list];
+    }
+    const sessionId = tab.cliSessionId;
+    let claudeAt: string | null = null;
+    let codexReverted = false;
+    if (sessionId && tab.backend === 'claude') {
+      claudeAt = await claudeRewindPoint(
+        claudeConfigDir(this.home, { ...process.env, ...this.launchEnvOf(tab) }),
+        tab.cwd,
+        sessionId,
+        messageId,
+      ).catch(() => null);
+    } else if (sessionId && tab.backend === 'codex') {
+      const turnId = codexRevertTarget(this.tabMessages(id), start, sessionId);
+      if (turnId) codexReverted = await this.revertCodexThread(tab, sessionId, turnId);
+    }
+    // 读会话记录 / 回退线程期间标签可能已经开始新一轮
+    if (busy()) throw new Error(t('electron.common.previous-turn-still-running'));
+    const list = this.tabMessages(id);
+    const idx = find();
+    if (idx < 0) throw new Error(t('electron.common.message-not-found'));
+    // 回退过的 Codex 进程里线程已经是新的样子，留着直接接下一轮；其它情况拆掉全部长驻进程
+    if (codexReverted) this.teardownAcpLive(id);
+    else this.teardownClaudeLive(id);
+    list.length = idx;
+    this.persistMessages(id);
+    const same = sessionId !== null && tab.cliSessionId === sessionId;
+    if (same && claudeAt) {
+      tab.claudeResumeAt = { sessionId, at: claudeAt };
+      this.setCarried(tab, null);
+    } else if (same && codexReverted) {
+      delete tab.claudeResumeAt;
+      this.setCarried(tab, null);
+    } else {
+      delete tab.claudeResumeAt;
+      tab.cliSessionId = null;
+      this.setCarried(tab, list.length ? list : null, tab.cwd);
+    }
+    this.progress.delete(id);
+    this.changed();
+    return [...list];
+  }
+
+  /** Codex `thread/revert`：去掉 beforeTurnId 这一轮及之后的轮次（同一个线程）；失败返回 false，调用方改开新会话 */
+  private async revertCodexThread(
+    tab: HarnessTabMeta,
+    threadId: string,
+    beforeTurnId: string,
+  ): Promise<boolean> {
+    if (!this.usesCodexApp()) return false;
+    try {
+      const live = await this.ensureCodexLive(tab);
+      if (live.turn || live.threadId !== threadId) return false;
+      await live.driver.conn.request('thread/revert', { threadId, beforeTurnId });
+      return true;
+    } catch (e) {
+      this.d.logger.warn('harness codex thread/revert failed', e);
+      return false;
+    }
+  }
+
+  /** 给这条用户消息记下 CLI 的轮次 id（只在主进程用，不广播） */
+  private noteCliTurn(
+    tabId: string,
+    messageId: string,
+    turn: { sessionId: string; turnId: string },
+  ) {
+    if (!this.tabs.has(tabId)) return;
+    const msg = this.tabMessages(tabId).find((m) => m.id === messageId);
+    if (!msg) return;
+    msg.cliTurn = turn;
+    this.persistMessages(tabId);
+  }
+
+  /** 标签进程的注入变量（账号目录 / 第三方私有配置目录）；拿不到时按默认目录 */
+  private launchEnvOf(tab: HarnessTabMeta): Record<string, string> {
+    try {
+      return this.launchFor(tab).env;
+    } catch {
+      return {};
+    }
   }
 
   setCwd(cwd: string, opts: { carry?: boolean } = {}): State {
@@ -2312,8 +2421,10 @@ export class HarnessOrchestrator {
     // 这一轮用的模型（展示在助手消息上）：发送时定下，进行中换模型只影响下一轮
     const modelOf = this.turnModelResolver(current);
     const thumbs = normalized.length ? imageThumbsForMessage(normalized) : undefined;
+    // Claude 的这一轮用同一个 uuid 发出：重试 / 编辑时按它在会话记录里找回退点（rewindTab）
+    const userMessageId = randomUUID();
     this.appendMessage(id, {
-      id: randomUUID(),
+      id: userMessageId,
       role: 'user',
       content: text,
       ...(thumbs?.length ? { images: thumbs } : {}),
@@ -2367,18 +2478,25 @@ export class HarnessOrchestrator {
       if (stageDir && normalized.length) staged = stageImages(stageDir, normalized);
       const result =
         backend === 'claude'
-          ? await this.runClaude(current, toCli, abort.signal, normalized)
+          ? await this.runClaude(current, toCli, abort.signal, normalized, userMessageId)
           : backend === 'dsh'
             ? await this.runDsh(current, toCli)
             : backend === 'grok'
               ? await this.runGrokTurn(current, toCli, abort.signal, normalized)
               : backend === 'gemini' || backend === 'external'
                 ? await this.runAcp(current, toCli, abort.signal, normalized)
-                : await this.runCodexTurn(current, toCli, abort.signal, staged);
+                : await this.runCodexTurn(current, toCli, abort.signal, staged, (turn) =>
+                    this.noteCliTurn(id, userMessageId, turn),
+                  );
       if (result.sessionId && current.backend === backend && current.cwd === runCwd)
         this.bindCliSession(current, result.sessionId);
       // 前文已经进了新会话：清掉，之后的轮次靠 CLI 自己续接
       if (stored) this.setCarried(tab, null);
+      // 回退点已经生效（新的一轮接在它后面），之后按会话最新位置续接
+      if (current.claudeResumeAt) {
+        delete current.claudeResumeAt;
+        this.changed();
+      }
       current.status = this.claudeLive.get(id)?.auto ? 'running' : 'idle';
       // 去重保序：同一 tool_use 后出现的 done/error 覆盖开始态标签
       const toolEvents = result.events.filter(
@@ -2651,6 +2769,7 @@ export class HarnessOrchestrator {
     prompt: string,
     signal?: AbortSignal,
     images?: NormalizedImage[],
+    uuid?: string,
   ): Promise<HarnessSendResult> {
     // 刚切过权限模式、后端还没确认：先等结果。确认了就复用进程；失败时进程已拆，下面按标签档位
     // 重新拉起。不会把这一轮发进档位未确认的进程（#72）
@@ -2679,7 +2798,7 @@ export class HarnessOrchestrator {
       };
       live.turn = turn;
       live.prewarmed = false;
-      live.turnUuid = randomUUID();
+      live.turnUuid = uuid ?? randomUUID();
       live.turnStarted = false;
       live.lastActivityAt = Date.now();
       this.children.set(tab.id, live.child);
@@ -2813,7 +2932,13 @@ export class HarnessOrchestrator {
       ...overrideArgs('claude', overrides),
       ...launch.args,
     ];
-    if (tab.cliSessionId) argv.push('--resume', tab.cliSessionId);
+    if (tab.cliSessionId) {
+      argv.push('--resume', tab.cliSessionId);
+      // 重试 / 编辑后的原地回退：只认同一个会话，且必须是记录 uuid（它会作为参数传给 CLI）
+      const back = tab.claudeResumeAt;
+      if (back?.sessionId === tab.cliSessionId && /^[0-9a-f-]{8,64}$/i.test(back.at))
+        argv.push('--resume-session-at', back.at);
+    }
     const child = spawnHarness(useNode ? process.execPath : bin, useNode ? [bin, ...argv] : argv, {
       cwd: tab.cwd,
       env: this.childEnv(useNode, spawnLaunch ?? launch),
@@ -3796,10 +3921,11 @@ export class HarnessOrchestrator {
     prompt: string,
     signal: AbortSignal,
     staged: StagedImage[] = [],
+    onTurn?: (turn: { sessionId: string; turnId: string }) => void,
   ): Promise<HarnessSendResult> {
     if (this.usesCodexApp()) {
       try {
-        return await this.runCodexLive(tab, prompt, signal, staged);
+        return await this.runCodexLive(tab, prompt, signal, staged, onTurn);
       } catch (e) {
         if (!(e instanceof AcpUnavailableError) || signal.aborted) throw e;
         this.codexAppUnavailable = true;
@@ -3936,6 +4062,7 @@ export class HarnessOrchestrator {
     prompt: string,
     signal: AbortSignal,
     staged: StagedImage[] = [],
+    onTurn?: (turn: { sessionId: string; turnId: string }) => void,
   ): Promise<HarnessSendResult> {
     let live = await this.ensureCodexLive(tab, signal);
     // 清掉了覆盖、又不知道 CLI 的默认值：换新进程（按 config.toml 的默认模型 / 档位续接）
@@ -3998,6 +4125,9 @@ export class HarnessOrchestrator {
             // turn/start 已被接受：覆盖已下发
             live.model = want.model;
             live.effort = want.effort;
+            // 完成 / 中断 / 失败的轮次都在线程里：都记下，重试时按它回退
+            if (r.cliTurnId && live.threadId)
+              onTurn?.({ sessionId: live.threadId, turnId: r.cliTurnId });
             this.finishCodexTurn(tab.id, live, turn, r);
           },
           (e: unknown) => {
@@ -4821,6 +4951,9 @@ export class HarnessOrchestrator {
     });
     handle('ai:harness:set-backend', (b) => this.setBackend(b as HarnessBackend));
     handle('ai:harness:tab-carry-clear', (id) => this.clearTabCarry(String(id)));
+    handle('ai:harness:tab-rewind', (id, messageId) =>
+      this.rewindTab(String(id), String(messageId ?? '')),
+    );
     handle('ai:harness:set-cwd', (c, o) =>
       this.setCwd(String(c), { carry: (o as { carry?: unknown } | undefined)?.carry === true }),
     );
@@ -5257,6 +5390,23 @@ function slimResult(r: HarnessSendResult): HarnessSendReply {
 }
 
 /** 播种（分叉 / 历史恢复）消息时保留的结构化字段：轨迹、耗时、用量、中断标记 */
+/**
+ * Codex 原地回退的目标轮次：这条用户消息记着它在当前线程里的 turn id，且它之前还有这个线程的轮次
+ * （回退到线程开头时改开新会话，免得丢掉分叉带进第一轮的前文）。
+ */
+function codexRevertTarget(
+  list: readonly HarnessTabMessage[],
+  idx: number,
+  threadId: string,
+): string | null {
+  const turn = list[idx]?.cliTurn;
+  if (turn?.sessionId !== threadId) return null;
+  const earlier = list
+    .slice(0, idx)
+    .some((m) => m.role === 'user' && m.cliTurn?.sessionId === threadId);
+  return earlier ? turn.turnId : null;
+}
+
 function seedExtras(m: HarnessTabMessage): Partial<HarnessTabMessage> {
   return {
     ...(Array.isArray(m.trace) && m.trace.length ? { trace: m.trace.slice(0, 300) } : {}),
