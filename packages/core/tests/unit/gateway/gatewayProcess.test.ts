@@ -33,7 +33,7 @@ const cfg = (port = 18721): GatewayConfig => ({
   clients: {},
 });
 
-function setup() {
+function setup(lazy = false) {
   const children: FakeChild[] = [];
   const statuses: GatewayStatus[] = [];
   const usage: unknown[] = [];
@@ -46,6 +46,7 @@ function setup() {
       return c;
     },
     backoffMs: () => 1,
+    lazy,
     onStatus: (s) => statuses.push(s),
     onUsage: (e) => usage.push(e),
     onLearn: (e) => learned.push(e),
@@ -146,5 +147,50 @@ describe('GatewayProcess', () => {
     t.children[0]!.die(0);
     await tick();
     expect(t.children).toHaveLength(1);
+  });
+
+  describe('按需启动（lazy）', () => {
+    it('apply 只记配置；第一次 whenReady 才拉起进程，之后照常推配置', async () => {
+      const t = setup(true);
+      t.gp.apply(cfg());
+      expect(t.children).toHaveLength(0);
+      expect(t.gp.getStatus().state).toBe('stopped');
+      const ready = t.gp.whenReady(1000);
+      expect(t.children).toHaveLength(1);
+      expect(t.children[0]!.sent[0]).toEqual({ type: 'config', config: cfg() });
+      t.children[0]!.say({ type: 'listening', port: 18721, url: 'http://127.0.0.1:18721' });
+      await expect(ready).resolves.toBe(true);
+      t.gp.apply(cfg(18722));
+      expect(t.children).toHaveLength(1);
+      expect(t.children[0]!.sent[1]).toEqual({ type: 'config', config: cfg(18722) });
+    });
+
+    it('ensureStarted 在配置到达前调用：配置一到就拉起；重复调用不多起进程', () => {
+      const t = setup(true);
+      t.gp.ensureStarted();
+      expect(t.children).toHaveLength(0);
+      t.gp.apply(cfg());
+      expect(t.children).toHaveLength(1);
+      t.gp.ensureStarted();
+      t.gp.ensureStarted();
+      expect(t.children).toHaveLength(1);
+    });
+
+    it('拉起后崩溃照样重启并熔断；熔断后 ensureStarted / whenReady 不再拉起，retry 才重来', async () => {
+      const t = setup(true);
+      t.gp.apply(cfg());
+      t.gp.ensureStarted();
+      for (let i = 0; i < 5; i++) {
+        t.children[t.children.length - 1]!.die(1);
+        await tick();
+      }
+      expect(t.gp.getStatus().state).toBe('failed');
+      const n = t.children.length;
+      t.gp.ensureStarted();
+      await expect(t.gp.whenReady(50)).resolves.toBe(false);
+      expect(t.children).toHaveLength(n);
+      t.gp.retry();
+      expect(t.children).toHaveLength(n + 1);
+    });
   });
 });

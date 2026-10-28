@@ -643,6 +643,8 @@ export function createCore(deps: CoreDeps): Core {
       root: userData('gateway'),
       processes: ports.processes,
       ...(cfg.gatewayPort !== undefined ? { port: cfg.gatewayPort } : {}),
+      // 按需启动：第一次有人要网关时才拉起网关进程（端口为 0 时照常启动）
+      lazy: true,
       cipher: createSafeStorageCipher(safeStorageFromSecrets(ports.secrets)),
       logger: logger as never,
       // 网关事件不计入用量账本（CLI 以会话日志为准），进模型质量
@@ -693,6 +695,7 @@ export function createCore(deps: CoreDeps): Core {
       root: userData('gateway'),
       source: gatewayTerminalSource(gateway),
       logger: logger as never,
+      onEnabled: () => gateway.ensureStarted(),
     });
     services.terminal = terminal;
     terminal.refresh();
