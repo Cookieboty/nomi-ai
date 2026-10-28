@@ -10,7 +10,7 @@ import path from 'node:path';
 import { mappingSchema, type PackMapping } from '@nomi-ai/character-contract';
 import { validatePackDirSync } from '@nomi-ai/character-contract/node';
 import { act } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import {
   avatarCharacterFromPack,
@@ -57,6 +57,12 @@ function spyBackend(): MascotBackend & Record<string, ReturnType<typeof vi.fn>> 
 
 let handle: AvatarHandle | null = null;
 let host: HTMLElement | null = null;
+
+// 画布按 mode 懒加载（React.lazy + import()）。Vitest 第一次 import 时才转换这个模块，全量并行时可能超过
+// vi.waitFor 的 1 秒：先把它载入模块缓存，下面的等待就只剩 React 提交这一步
+beforeAll(async () => {
+  await import('../src/canvas/StaticCanvas');
+});
 
 afterEach(() => {
   act(() => handle?.dispose());

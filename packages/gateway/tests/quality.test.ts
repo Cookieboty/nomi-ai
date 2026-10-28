@@ -31,6 +31,17 @@ const okStream = sse(role, text('Hello'), stop, usage(1), '[DONE]');
 const sseHead = (res: http.ServerResponse) =>
   res.writeHead(200, { 'content-type': 'text/event-stream' });
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+/**
+ * 按间隔依次执行写入：每一步在上一步执行之后再等 gapMs。不要一次排好多个绝对时间的定时器——全量并行时
+ * 事件循环一卡，到期的定时器会在同一轮里一起触发，「间隔着来」的内容就成了一次到达（被判成 burst、
+ * last − first 小于预期）。链式等待保证相邻两步之间真的隔了 gapMs。
+ */
+function writeSpaced(steps: Array<[gapMs: number, write: () => void]>): void {
+  void steps.reduce<Promise<void>>(
+    (prev, [gap, write]) => prev.then(() => sleep(gap)).then(write),
+    Promise.resolve(),
+  );
+}
 
 async function setup(script: Script, hooks: GatewayHooks = {}) {
   let n = 0;
@@ -109,8 +120,10 @@ describe('model quality · gateway capture', () => {
       sseHead(res);
       res.write(sse(role));
       // Windows CI 定时器分辨率粗，20/60 常被合并成同一 tick → last−first < 20；拉开间隔
-      setTimeout(() => res.write(sse(text('Hel'))), 100);
-      setTimeout(() => res.end(sse(text('lo'), stop, usage(2), '[DONE]')), 250);
+      writeSpaced([
+        [100, () => res.write(sse(text('Hel')))],
+        [150, () => res.end(sse(text('lo'), stop, usage(2), '[DONE]'))],
+      ]);
     });
     await (await t.chat()).text();
     const e = await t.one();
@@ -140,8 +153,10 @@ describe('model quality · gateway capture', () => {
       sseHead(res);
       // 9 个元事件：超过提交点的缓存上限，兜底提交；真正的内容 300ms 后才来
       res.write(sse(...Array.from({ length: 9 }, () => role)));
-      setTimeout(() => res.write(sse(text('Hel'))), 300);
-      setTimeout(() => res.end(sse(text('lo'), stop, usage(2), '[DONE]')), 400);
+      writeSpaced([
+        [300, () => res.write(sse(text('Hel')))],
+        [100, () => res.end(sse(text('lo'), stop, usage(2), '[DONE]'))],
+      ]);
     });
     await (await t.chat()).text();
     const e = await t.one();
@@ -318,8 +333,10 @@ describe('model quality · gateway capture', () => {
     const paced = await setup((_k, res) => {
       sseHead(res);
       res.write(sse(role));
-      chunks.forEach((c, i) => setTimeout(() => res.write(sse(c)), 10 + i * 8));
-      setTimeout(() => res.end(sse(stop, usage(30), '[DONE]')), 10 + chunks.length * 8 + 20);
+      writeSpaced([
+        ...chunks.map((c, i): [number, () => void] => [i ? 8 : 10, () => res.write(sse(c))]),
+        [20, () => res.end(sse(stop, usage(30), '[DONE]'))],
+      ]);
     });
     await (await paced.chat()).text();
     expect((await paced.one()).burst).toBeUndefined();

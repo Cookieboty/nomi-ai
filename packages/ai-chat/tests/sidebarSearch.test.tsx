@@ -179,8 +179,19 @@ describe('sidebar search', () => {
   it('settles after mount instead of refreshing the list in a loop', async () => {
     const r = mount();
     await waitFor(() => r.getAllByTestId('history-session-item'));
+    // 挂载时几路数据（会话、标签、磁盘历史）各自到达，各自可能触发一次刷新；全量并行时它们会晚于首批行出现，
+    // 落进下面的观察窗口。先等调用数停下来（100ms 内不再增长）：真在循环刷新时它永远停不下来，这一步就会超时失败
+    const sleep = (ms: number) => act(() => new Promise<void>((res) => setTimeout(res, ms)));
+    await waitFor(
+      async () => {
+        const n = listConversations.mock.calls.length;
+        await sleep(100);
+        expect(listConversations.mock.calls.length).toBe(n);
+      },
+      { timeout: 5_000 },
+    );
     const settled = listConversations.mock.calls.length;
-    await act(() => new Promise((res) => setTimeout(res, 300)));
+    await sleep(300);
     expect(listConversations.mock.calls.length - settled).toBeLessThanOrEqual(2);
   });
 
