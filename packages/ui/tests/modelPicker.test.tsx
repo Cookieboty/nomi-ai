@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React, { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -43,9 +43,20 @@ function Harness(
 }
 
 const optionTexts = () => screen.getAllByRole('option').map((o) => o.textContent ?? '');
+/** 悬停某一行，等自绘提示出现（完整名称 + 能力说明），返回提示文字 */
+async function tipOf(name: string): Promise<string> {
+  const row = screen.getAllByRole('option').find((o) => o.textContent?.includes(name))!;
+  fireEvent.mouseMove(row);
+  const tip = await screen.findByRole('tooltip');
+  expect(row.getAttribute('aria-describedby')).toBe(tip.id);
+  const text = tip.textContent ?? '';
+  fireEvent.mouseLeave(screen.getByRole('listbox'));
+  await waitFor(() => expect(screen.queryByRole('tooltip')).toBeNull());
+  return text;
+}
 
 describe('ModelPicker', () => {
-  it('shows "provider / model" on the trigger and groups models by provider with capabilities', () => {
+  it('shows "provider / model" on the trigger, groups by provider, capabilities only on hover', async () => {
     render(<Harness />);
     const trigger = screen.getByRole('combobox');
     expect(trigger.textContent).toContain('DeepSeek / deepseek-v4-pro');
@@ -53,18 +64,22 @@ describe('ModelPicker', () => {
     expect(screen.getByText('DeepSeek')).toBeTruthy();
     expect(screen.getByText('Relay')).toBeTruthy();
     const texts = optionTexts();
-    expect(texts.find((x) => x.includes('deepseek-v4-pro'))).toContain('128K');
-    expect(texts.find((x) => x.includes('vendor/model-x'))).toContain('1M');
+    // 不用系统 title，改用自绘提示
+    expect(screen.getAllByRole('option').every((o) => !o.hasAttribute('title'))).toBe(true);
+    expect(await tipOf('deepseek-v4-pro')).toContain('128K');
+    expect(await tipOf('vendor/model-x')).toContain('1M');
+    // 能力说明不占选项行（避免模型名被截断）
+    expect(texts.find((x) => x.includes('deepseek-v4-pro'))).not.toContain('128K');
     // 协议标签默认不显示
     expect(texts.join('|')).not.toContain('Anthropic');
   });
 
-  it('for coding assistants hides models without tool calling and flags unknown limits', () => {
+  it('for coding assistants hides models without tool calling and flags unknown limits', async () => {
     render(<Harness purpose="coding" />);
     fireEvent.click(screen.getByRole('combobox'));
     const texts = optionTexts();
     expect(texts.some((x) => x.includes('deepseek-embed'))).toBe(false);
-    expect(texts.find((x) => x.includes('mystery'))).toContain('参数未知');
+    expect(await tipOf('mystery')).toContain('参数未知');
   });
 
   it('puts recent models first, filters by provider/ prefix, and returns provider/model refs', () => {

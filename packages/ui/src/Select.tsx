@@ -15,6 +15,7 @@ import { createPortal } from 'react-dom';
 import { cx } from './cx';
 import { getLocale, t as tr } from './i18n';
 import { Icon } from './icons';
+import { FloatingTip } from './Tooltip';
 
 export interface SelectOption {
   value: string;
@@ -24,6 +25,8 @@ export interface SelectOption {
   group?: string;
   /** 右侧次要说明（如模型来源） */
   description?: React.ReactNode;
+  /** 只在悬停提示里显示的说明（如模型能力），不占选项行的宽度 */
+  hint?: string;
   /** 左侧图标 */
   icon?: React.ReactNode;
   /** 搜索用文本（label 不是字符串时提供） */
@@ -51,6 +54,8 @@ export interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectE
 const SEARCH_THRESHOLD = 8;
 const MENU_MAX_H = 296;
 const GAP = 4;
+/** 停留多久才出悬停提示（ms） */
+const TIP_DELAY = 350;
 
 function textOf(node: React.ReactNode): string {
   if (node == null || typeof node === 'boolean') return '';
@@ -102,6 +107,7 @@ const MenuOption = React.memo(function MenuOption({
   id,
   active,
   selected,
+  describedBy,
   setActive,
   onPick,
 }: {
@@ -110,6 +116,7 @@ const MenuOption = React.memo(function MenuOption({
   id: string;
   active: boolean;
   selected: boolean;
+  describedBy?: string;
   setActive: (i: number) => void;
   onPick: (o: SelectOption) => void;
 }) {
@@ -122,19 +129,13 @@ const MenuOption = React.memo(function MenuOption({
       aria-selected={selected}
       aria-disabled={o.disabled || undefined}
       className={cx('cd-dropdown__option', active && 'is-active', selected && 'is-selected')}
+      aria-describedby={describedBy}
       onMouseMove={() => !active && setActive(index)}
       onMouseDown={(e) => e.preventDefault()}
       onClick={() => onPick(o)}
     >
       {o.icon && <span className="cd-dropdown__icon">{o.icon}</span>}
-      <span
-        className="cd-dropdown__label cd-truncate"
-        title={[tr(textOf(o.label)), o.description ? tr(o.description) : '']
-          .filter(Boolean)
-          .join(' · ')}
-      >
-        {tr(o.label)}
-      </span>
+      <span className="cd-dropdown__label cd-truncate">{tr(o.label)}</span>
       {o.description && <span className="cd-dropdown__desc">{tr(o.description)}</span>}
       <span className="cd-dropdown__checkslot">{selected && <Check />}</span>
     </div>
@@ -204,6 +205,12 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(-1);
   const [pos, setPos] = useState<MenuPos | null>(null);
+  // 自绘悬停提示（不用原生 title）：鼠标 / 方向键停在某一行一会儿后，在菜单旁显示完整名称与说明
+  const tipId = useId();
+  const [tipArmed, setTipArmed] = useState(false);
+  const [tipFor, setTipFor] = useState(-1);
+  const [triggerTip, setTriggerTip] = useState(false);
+  const triggerTipTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [uncontrolled, setUncontrolled] = useState<string>(
     defaultValue != null ? String(defaultValue) : (all[0]?.value ?? ''),
   );
@@ -242,6 +249,10 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
     if (disabled) return;
     place();
     setQuery('');
+    setTipArmed(false);
+    setTipFor(-1);
+    clearTimeout(triggerTipTimer.current);
+    setTriggerTip(false);
     setActive(
       Math.max(
         0,
@@ -312,6 +323,15 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
       ?.scrollIntoView({ block: 'nearest' });
   }, [active, open]);
 
+  useEffect(() => {
+    setTipFor(-1);
+    if (!open || !tipArmed || active < 0) return;
+    const timer = setTimeout(() => setTipFor(active), TIP_DELAY);
+    return () => clearTimeout(timer);
+  }, [open, tipArmed, active, filtered]);
+
+  useEffect(() => () => clearTimeout(triggerTipTimer.current), []);
+
   const move = (delta: number) => {
     if (!filtered.length) return;
     let i = active;
@@ -326,10 +346,12 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
+        setTipArmed(true);
         move(1);
         break;
       case 'ArrowUp':
         e.preventDefault();
+        setTipArmed(true);
         move(-1);
         break;
       case 'Home':
@@ -364,6 +386,46 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
       e.preventDefault();
       openMenu();
     }
+  };
+
+  // 只在有额外信息时提示：有说明 / 能力，或名称被截断
+  const tipOption = open && tipFor >= 0 ? filtered[tipFor] : undefined;
+  const tipRow = tipOption
+    ? (menuRef.current?.querySelector<HTMLElement>(`[data-index="${tipFor}"]`) ?? null)
+    : null;
+  const tipLabel = tipRow?.querySelector<HTMLElement>('.cd-dropdown__label');
+  const showOptionTip =
+    !!tipOption &&
+    !!tipRow &&
+    !!(
+      tipOption.hint ||
+      tipOption.description ||
+      (tipLabel && tipLabel.scrollWidth > tipLabel.clientWidth)
+    );
+  const optionTip = showOptionTip ? (
+    <FloatingTip id={tipId} anchor={tipRow} boundary={menuRef.current} placement="side">
+      {tr(tipOption.label)}
+      {(tipOption.description || tipOption.hint) && (
+        <span className="cd-floating-tip__meta">
+          {tipOption.description && tr(tipOption.description)}
+          {tipOption.description && tipOption.hint && ' · '}
+          {tipOption.hint && tr(tipOption.hint)}
+        </span>
+      )}
+    </FloatingTip>
+  ) : null;
+
+  const onTriggerEnter = () => {
+    clearTimeout(triggerTipTimer.current);
+    if (open) return;
+    const v = triggerRef.current?.querySelector<HTMLElement>('.cd-dropdown__value');
+    const truncated = !!v && v.scrollWidth > v.clientWidth;
+    if (!title && !(truncated && selected)) return;
+    triggerTipTimer.current = setTimeout(() => setTriggerTip(true), TIP_DELAY);
+  };
+  const onTriggerLeave = () => {
+    clearTimeout(triggerTipTimer.current);
+    setTriggerTip(false);
   };
 
   let lastGroup: string | undefined;
@@ -409,6 +471,9 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
               role="listbox"
               className="cd-dropdown__list"
               style={{ maxHeight: pos.maxHeight - (showSearch ? 44 : 0) }}
+              onMouseMove={() => !tipArmed && setTipArmed(true)}
+              onMouseLeave={() => setTipArmed(false)}
+              onScroll={() => setTipFor(-1)}
             >
               {filtered.length === 0 && (
                 <div className="cd-dropdown__empty">{tr('ui.mascot-theme.no-matches')}</div>
@@ -430,6 +495,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
                       id={`${listId}-${i}`}
                       active={i === active}
                       selected={o.value === current}
+                      describedBy={showOptionTip && i === tipFor ? tipId : undefined}
                       setActive={setActive}
                       onPick={commit}
                     />
@@ -437,6 +503,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
                 );
               })}
             </div>
+            {optionTip}
           </div>,
           document.body,
         )
@@ -479,8 +546,10 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
         aria-expanded={open}
         aria-controls={open ? listId : undefined}
         aria-label={ariaLabel}
-        title={title ?? (selected ? tr(textOf(selected.label)) : undefined)}
+        aria-describedby={triggerTip ? `${tipId}-trigger` : undefined}
         disabled={disabled}
+        onMouseEnter={onTriggerEnter}
+        onMouseLeave={onTriggerLeave}
         onClick={() => (open ? close() : openMenu())}
         onKeyDown={onTriggerKey}
       >
@@ -495,6 +564,11 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
         <Chevron />
       </button>
       {menu}
+      {triggerTip && !open && (
+        <FloatingTip id={`${tipId}-trigger`} anchor={triggerRef.current}>
+          {title ?? (selected ? tr(selected.label) : null)}
+        </FloatingTip>
+      )}
     </div>
   );
 });

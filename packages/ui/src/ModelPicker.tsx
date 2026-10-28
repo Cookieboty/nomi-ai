@@ -125,7 +125,9 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
           value: ref,
           group: p.name,
           label: m.label ?? m.id,
-          description: [caps, showWire ? m.wire : ''].filter(Boolean).join('  ') || undefined,
+          // 能力（推理 · 视觉 …）只放悬停提示：选项行留给模型名，避免被截断
+          ...(caps ? { hint: caps } : {}),
+          ...(showWire && m.wire ? { description: m.wire } : {}),
           searchText: `${p.id}/${m.id} ${p.name} ${m.label ?? ''}`,
         });
       }
