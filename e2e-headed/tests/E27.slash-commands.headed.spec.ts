@@ -244,12 +244,19 @@ test.describe('E27 · slash commands', () => {
     // 只有 "hello" 一条用户消息：命令没有发给 CLI
     await expect(chat.locator('[data-testid="msg-user"]')).toHaveCount(1);
 
-    // 5) /model：与输入框的模型按钮一致——列当前标签的模型（mock-claude 的 initialize 目录），只切当前标签
+    // 5) /model 不带参数：打开输入框的模型浮层（与模型按钮同一个界面，79641ead），不往对话里插卡片；
+    // 列当前标签的模型（mock-claude 的 initialize 目录），只切当前标签
+    const cardsBefore = await cards(chat).count();
     await run(chat, '/model');
-    const list = chat.locator('[data-testid="slash-card-list"]').last();
-    await expect(list).toContainText('Sonnet Mock', SLOW);
-    await expect(list).toContainText('默认模型');
+    const menu = chat.locator('[data-testid="model-menu"]');
+    await expect(menu).toBeVisible(SLOW);
+    await expect(menu).toContainText('Sonnet Mock', SLOW);
+    await expect(menu).toContainText('默认模型');
+    await expect(cards(chat)).toHaveCount(cardsBefore);
     await shot(chat, '06-model-list');
+    await chat.keyboard.press('Escape');
+    await expect(menu).toHaveCount(0);
+    // 参数唯一命中：直接切换，留一条结果卡片
     await run(chat, '/model sonnet');
     await expect(cards(chat).last()).toContainText('已切换到 Sonnet Mock', SLOW);
     await expect(chat.locator('[data-testid="model-chip"]')).toContainText('Sonnet Mock', SLOW);
@@ -267,9 +274,11 @@ test.describe('E27 · slash commands', () => {
       model: `${glm.id}/glm-4.6`,
     });
     await run(chat, '/model');
-    const provList = chat.locator('[data-testid="slash-card-list"]').last();
-    await expect(provList).toContainText('glm-4.6', SLOW);
-    await expect(provList).toContainText('MockGLM');
+    await expect(menu).toBeVisible(SLOW);
+    await expect(menu).toContainText('glm-4.6', SLOW);
+    await expect(menu).toContainText('MockGLM');
+    await chat.keyboard.press('Escape');
+    await expect(menu).toHaveCount(0);
     await run(chat, '/status');
     await expect(chat.locator('[data-testid="slash-card-status"]').last()).toContainText(
       'MockGLM / glm-4.6（第三方）',

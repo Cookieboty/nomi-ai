@@ -5,7 +5,7 @@
  * 2. 空闲超过阈值（NOMI_HARNESS_IDLE_MS=2000）后进程被回收：标签圆点变为「已休眠」，会话里出现提示，转录仍在；
  * 3. 再发一条消息：自动续接（--resume）拉起新进程，收到回复，休眠标记消失。
  */
-import { mkdtempSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -46,6 +46,8 @@ test.describe('E29 · idle recycling of coding-assistant processes · mock CLI',
       NOMI_USE_MOCK_CLI: '1',
       NOMI_MOCK_DELAY_MS: '200',
       NOMI_HARNESS_IDLE_MS: '2000',
+      // Mock Claude 每次进程启动记一行「pid 参数」：续接是新进程带 --resume
+      NOMI_MOCK_CLAUDE_BOOT_LOG: join(userData, 'claude-boot.log'),
     };
     delete env.NODE_ENV;
     app = await electron.launch({
@@ -82,13 +84,42 @@ test.describe('E29 · idle recycling of coding-assistant processes · mock CLI',
     await expect(chat.locator('[data-testid="conv-dormant"]')).toContainText('自动续接');
     await expect(chat.locator('.ai-chat-app')).toContainText('first question');
 
-    // 再发一条：自动续接，收到第二条回复，休眠标记消失
+    // 再发一条：自动续接，收到第二条回复，休眠标记消失。
+    // 回复完又空闲 2 秒就会再次回收、标记重新出现（这是对的）：负载下断言可能晚于这 2 秒，所以在页面里
+    // 记下「标记消失过」，而不是断言「此刻没有」
+    await chat.evaluate(() => {
+      const seen = { dormantGone: false, rowAwake: false };
+      (window as unknown as { __e29: typeof seen }).__e29 = seen;
+      const sample = () => {
+        if (!document.querySelector('[data-testid="conv-dormant"]')) seen.dormantGone = true;
+        const row = document.querySelector('[data-testid="history-item"][data-backend="claude"]');
+        if (row && !row.querySelector('[data-live="dormant"]')) seen.rowAwake = true;
+      };
+      new MutationObserver(sample).observe(document.body, {
+        subtree: true,
+        childList: true,
+        attributes: true,
+      });
+    });
+    const seen = () =>
+      chat.evaluate(
+        () => (window as unknown as { __e29: { dormantGone: boolean; rowAwake: boolean } }).__e29,
+      );
+    const bootLog = join(userData, 'claude-boot.log');
+    const boots = () =>
+      existsSync(bootLog) ? readFileSync(bootLog, 'utf8').split('\n').filter(Boolean) : [];
+    const before = boots().length;
     await input.fill('second question');
     await input.press('Enter');
-    await expect(chat.locator('[data-testid="conv-dormant"]')).toHaveCount(0);
     await expect(chat.locator('.ai-chat-app')).toContainText('second question');
     await expect(chat.locator('[data-testid="conv-live"]')).toHaveCount(0, { timeout: 30_000 });
     await expect(chat.getByText('Mock Claude')).toHaveCount(2);
-    await expect(claudeRow.locator('[data-live="dormant"]')).toHaveCount(0);
+    await expect.poll(seen).toEqual({ dormantGone: true, rowAwake: true });
+    // 回收后新拉起的进程续接同一个会话（--resume）
+    expect(
+      boots()
+        .slice(before)
+        .some((l) => l.includes('--resume')),
+    ).toBe(true);
   });
 });
