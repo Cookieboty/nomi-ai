@@ -127,4 +127,34 @@ describe('TrayManager lifecycle', () => {
     expect(trayInstances[0]!.destroyed).toBe(true);
     expect(m.isAlive()).toBe(false);
   });
+
+  it('rebuilds the menu with the new character name when the character changes', () => {
+    let name = '诺米';
+    let notify: (() => void) | null = null;
+    const off = jest.fn();
+    const m = new TrayManager({
+      providers: providers as never,
+      logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as never,
+      openChat: jest.fn(),
+      openProviderPanel: jest.fn(),
+      quit: jest.fn(),
+      characterName: () => name,
+      onCharacterChange: (fn) => {
+        notify = fn;
+        return off;
+      },
+    });
+    m.start();
+    const labels = () =>
+      (trayInstances[0]!.setContextMenu.mock.calls.at(-1)![0] as Array<{ label?: string }>).map(
+        (i) => i.label ?? '',
+      );
+    expect(labels().some((l) => l.includes('诺米'))).toBe(true);
+    name = '小纸';
+    notify!();
+    expect(labels().some((l) => l.includes('小纸'))).toBe(true);
+    expect(labels().some((l) => l.includes('诺米'))).toBe(false);
+    m.dispose();
+    expect(off).toHaveBeenCalled();
+  });
 });

@@ -134,6 +134,8 @@ export interface TrayManagerOptions {
   providers: ProviderService;
   /** 当前角色名（人设，当前界面语言）：「<角色名>的动作」子菜单用，不写死官方角色名（§10.1） */
   characterName?: () => string | undefined;
+  /** 角色名可能变了（换角色包 / 换界面语言后人设更新）：托盘菜单重建；返回取消订阅 */
+  onCharacterChange?: (fn: () => void) => () => void;
   models?: TrayModelSource;
   logger: ILoggerService;
   openChat: () => void;
@@ -239,6 +241,8 @@ export class TrayManager {
       this.unsubscribeModels = this.opts.models?.onChange(() => this.rebuild());
       // 切换界面语言后立即重建托盘菜单
       this.unsubscribeLocale = onLocaleChange(() => this.rebuild());
+      // 换角色包 / 人设随语言更新后，「<角色名>的动作」跟着变
+      this.unsubscribeCharacter = this.opts.onCharacterChange?.(() => this.rebuild());
     } catch (error) {
       this.opts.logger.warn('托盘创建失败（不影响主功能）', {
         error: error instanceof Error ? error.message : String(error),
@@ -248,6 +252,7 @@ export class TrayManager {
   }
 
   private unsubscribeLocale?: () => void;
+  private unsubscribeCharacter?: () => void;
   private unsubscribeModels?: () => void;
   private unsubscribeIcon?: () => void;
   /** 仅测试用：当前是否持有存活的托盘 */
@@ -316,10 +321,12 @@ export class TrayManager {
 
   private teardownSubscriptions(): void {
     this.unsubscribeLocale?.();
+    this.unsubscribeCharacter?.();
     this.unsubscribeIcon?.();
     this.unsubscribe?.();
     this.unsubscribeModels?.();
     this.unsubscribeLocale =
+      this.unsubscribeCharacter =
       this.unsubscribeIcon =
       this.unsubscribe =
       this.unsubscribeModels =

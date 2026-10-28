@@ -374,6 +374,7 @@ export class Application implements IApplication {
     this.trayManager = new TrayManager({
       providers,
       characterName: () => this.core.services.persona?.get().displayName,
+      onCharacterChange: (fn) => this.core.services.persona?.onChange(() => fn()) ?? (() => {}),
       models: gateway
         ? {
             state: () => gateway.state(),
