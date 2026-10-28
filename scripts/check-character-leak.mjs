@@ -4,8 +4,9 @@
  * `characters/nomi` 与产品品牌模块里出现。产品名统一用 `brand.appName`（`@nomi-ai/types`）；
  * 角色名、人设、台词从当前角色包读。判定规则（`诺米`、角色语境下的 `Nomi`）见 ./lib/characterLeak.mjs。
  *
- * 扫描范围：会进产物的源码与文案——`packages/<pkg>/src`、`packages/<pkg>/config`、
- * `packages/host-electron/electron-builder.yml`、其它角色包 `characters/<id>`（`nomi` 除外）。
+ * 扫描范围：会进产物的源码与文案——`packages/<pkg>/src`、`packages/<pkg>/config`、`packages/<pkg>/public`、
+ * `packages/<pkg>/index.html`、`packages/host-electron/electron-builder.yml`、其它角色包
+ * `characters/<id>`（`nomi` 除外；那里任何 `Nomi` 都算，包里没有产品语境）。
  * 测试、文档、构建产物不扫（测试里需要写官方名来断言它不出现）。
  *
  * 允许清单写在下面的 ALLOW 里，每一条都要写理由；只放确实不能改的地方。
@@ -29,7 +30,8 @@ export const OWNERS = ['characters/nomi/', 'packages/types/src/brand.ts'];
  */
 export const ALLOW = [];
 
-const SCAN_DIRS = ['src', 'config'];
+const SCAN_DIRS = ['src', 'config', 'public'];
+const SCAN_PKG_FILES = ['index.html'];
 const SCAN_FILES = ['packages/host-electron/electron-builder.yml'];
 const TEXT_EXT = /\.(?:[cm]?[jt]sx?|json|ya?ml|html|css|md|txt)$/;
 const SKIP_DIR = /^(?:node_modules|dist|coverage|tests?|__tests__|__mocks__|\.turbo)$/;
@@ -55,6 +57,10 @@ export function scanTargets(root) {
   if (fs.existsSync(pkgs)) {
     for (const pkg of fs.readdirSync(pkgs).sort()) {
       for (const d of SCAN_DIRS) walk(path.join(pkgs, pkg, d), files);
+      for (const f of SCAN_PKG_FILES) {
+        const p = path.join(pkgs, pkg, f);
+        if (fs.existsSync(p)) files.push(p);
+      }
     }
   }
   for (const f of SCAN_FILES) if (fs.existsSync(path.join(root, f))) files.push(path.join(root, f));
@@ -79,9 +85,10 @@ export function checkCharacterLeak({ root, allow = ALLOW }) {
   for (const file of scanTargets(root)) {
     const r = rel(root, file);
     if (OWNERS.some((o) => (o.endsWith('/') ? r.startsWith(o) : r === o))) continue;
+    const anyNomi = r.startsWith('characters/');
     const lines = fs.readFileSync(file, 'utf8').split('\n');
     lines.forEach((text, i) => {
-      for (const match of findCharacterLeaks(text)) {
+      for (const match of findCharacterLeaks(text, { anyNomi })) {
         const a = allow.find((x) => x.file === r && x.match === match);
         if (a) {
           used.add(a);

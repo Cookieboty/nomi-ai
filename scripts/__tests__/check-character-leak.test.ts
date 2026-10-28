@@ -23,6 +23,12 @@ describe('findCharacterLeaks', () => {
     ["Nomi's bubble lets you know", "Nomi's bubble"],
     ['桌面上先出现 Nomi，点她的「AI 对话」', 'Nomi，点她'],
     ["artboard || 'Nomi-full'", 'Nomi-full'],
+    ['Nomi is thinking…', 'Nomi is thinking'],
+    ['Nomi says hello', 'Nomi says'],
+    ['Pet Nomi', 'Pet Nomi'],
+    ['Nomi 正在思考', 'Nomi 正在'],
+    ['Nomi 说：「早上好」', 'Nomi 说'],
+    ['摸摸 Nomi', '摸摸 Nomi'],
   ])('flags character use: %s', (text, hit) => {
     expect(findCharacterLeaks(text).join('|')).toContain(hit);
   });
@@ -39,6 +45,10 @@ describe('findCharacterLeaks', () => {
     '不显示 Nomi 的模型提示',
     'brand.appName',
     'nomi-ai/host-electron',
+    '让 Nomi 选',
+    '让 Nomi 每天早上给你一份简报',
+    '也可以直接对 Nomi 说「记住…」',
+    'Nomi will quit and install the update',
   ])('leaves product use alone: %s', (text) => {
     expect(findCharacterLeaks(text)).toEqual([]);
   });
@@ -72,6 +82,21 @@ describe('checkCharacterLeak', () => {
       'characters/other/persona.json:1',
       'packages/app/config/default.json:1',
       'packages/app/src/bad.ts:2',
+    ]);
+  });
+
+  it('any Nomi in another pack is a leak; index.html and public/ are scanned', () => {
+    root = mkdtempSync(join(tmpdir(), 'char-leak-'));
+    put('characters/test-dummy/locales/en.json', '{ "lines": { "hi": "Hello from Nomi" } }\n');
+    put('characters/nomi/locales/en.json', '{ "lines": { "hi": "Hello from Nomi" } }\n');
+    put('packages/app/index.html', '<title>Nomi</title>\n<p>我是诺米</p>\n');
+    put('packages/app/public/readme.txt', 'Pet Nomi\n');
+    put('packages/app/src/ok.ts', "export const t = 'Hello from Nomi';\n");
+    const { leaks } = checkCharacterLeak({ root, allow: [] });
+    expect(leaks.map((l) => `${l.file}:${l.line}:${l.match}`).sort()).toEqual([
+      'characters/test-dummy/locales/en.json:1:Nomi',
+      'packages/app/index.html:2:诺米',
+      'packages/app/public/readme.txt:1:Pet Nomi',
     ]);
   });
 

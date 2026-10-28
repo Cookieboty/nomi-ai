@@ -9,6 +9,7 @@
  *     `Nomi · <供应商>` 这类的是产品名，不算。
  *
  * scripts/check-character-leak.mjs（静态扫描）与替身角色的 e2e（界面文本、系统提示）共用这份规则。
+ * 其它角色包（`characters/<id>`，`nomi` 除外）没有产品语境，任何 `Nomi` 都算（`anyNomi`）。
  * 新加角色语境的写法时在这里补一条正则，并在 scripts/__tests__/check-character-leak.test.ts 加例子。
  */
 
@@ -25,6 +26,12 @@ export const CHARACTER_NOMI = [
   /\b(?:Show|Hide|Close|Desktop|Drop onto|Open with|Interrupt|interrupts)\s+Nomi\b/g,
   /\bNomi\s+(?:size|toolbar|panel|motions|bubble|is hidden|is closed|stays on|waits on|appears|is reading|prompt voice|waves|mascot)\b/g,
   /\bNomi[’']s\s+(?:bubble|voice|prerecorded|lines|replies|motions|size|toolbar)\b/g,
+  // 以角色口吻描述它在做什么、或对它做动作（「Nomi 正在思考」「Nomi says」「Pet Nomi」）
+  /\bNomi\s+(?:is\s+(?:thinking|listening|speaking|talking|sleeping|napping|waving|here)|says|said|thinks|smiles|waves|nods|blushes|giggles|misses you|loves you)\b/g,
+  // 「对 Nomi 说」是对助手（产品）说话，不算
+  /(?<![对跟和向]\s*)\bNomi\s*(?:正在|在想|在听|说|觉得|想你|陪你|累了|困了|睡了|笑了)/g,
+  /\b(?:Pet|Pat|Poke|Hug|Tickle)\s+Nomi\b/g,
+  /(?:摸摸|戳戳|抱抱|拍拍)\s*Nomi\b/g,
   // 「点她的」「她不在桌面时」：角色的人称代词（产品不用她 / her）
   /\bNomi\b[^。.!?！？\n]{0,40}(?:\bher\b|\bshe\b|她)/g,
   // 官方角色的资源名（Rive artboard / state machine）只能在角色包里
@@ -32,13 +39,21 @@ export const CHARACTER_NOMI = [
 ];
 
 /**
+ * 其它角色包里没有产品语境：包里的文案全是那个角色自己的，出现 `Nomi` 就是抄了官方角色。
+ */
+export const ANY_NOMI = /\bNomi\b/g;
+
+/**
  * 在一段文本里找角色名泄漏，返回命中的片段（去重）。
  * @param {string} text
+ * @param {{ anyNomi?: boolean }} [opts] `anyNomi`：任何 `Nomi` 都算（扫其它角色包时用）
  * @returns {string[]}
  */
-export function findCharacterLeaks(text) {
+export function findCharacterLeaks(text, opts = {}) {
   const hits = new Set();
-  for (const re of [CHARACTER_ONLY, ...CHARACTER_NOMI]) {
+  // anyNomi 时 ANY_NOMI 已经包含角色语境的写法，不重复报
+  const rules = [CHARACTER_ONLY, ...(opts.anyNomi ? [ANY_NOMI] : CHARACTER_NOMI)];
+  for (const re of rules) {
     re.lastIndex = 0;
     for (const m of text.matchAll(new RegExp(re.source, re.flags))) hits.add(m[0]);
   }
