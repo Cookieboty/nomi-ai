@@ -30,7 +30,7 @@ import { safeRm } from '../fixtures/fsutil';
 import { ISOLATED_HOME_ARGS } from '../fixtures/homeEnv';
 
 const electronPkgDir = resolve(repoRoot(), 'packages', 'host-electron');
-const FIX = resolve(electronPkgDir, 'tests', 'fixtures', 'history');
+const FIX = resolve(repoRoot(), 'packages', 'core', 'tests', 'fixtures', 'history');
 const shotDir = process.env.CHAT_V2_SHOTS_DIR;
 
 async function launch(
