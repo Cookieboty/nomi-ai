@@ -85,7 +85,7 @@ describe('official persona (built-in pack characters/nomi)', () => {
     const svc = new PersonaService({ sources: [officialPersonaSource()], locale: () => 'zh-CN' });
     expect(svc.get().characterId).toBe('nomi');
     expect(svc.get().systemPromptIdentity).toContain('诺米');
-    // 对话行为的要求不在身份段里（由 ai-chat 追加）
+    // 对话行为的要求不在身份段里（由内核 persona/systemPrompt.ts 追加）
     expect(svc.get().systemPromptIdentity).not.toContain('简洁');
     const en = new PersonaService({ sources: [officialPersonaSource()], locale: () => 'en' });
     expect(en.get().systemPromptIdentity).toMatch(/^You are Nomi/);

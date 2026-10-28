@@ -2,7 +2,7 @@
  * 验收（docs/design/core-host-decoupling.md §10.4、§12 P0「换皮后系统提示不再是 Nomi」）：
  * 当前角色包的人设与官方不同时，对话窗口拿到的人设（character:get-persona）与角色 preset 的身份段
  * 都来自角色包；包切回内置时恢复官方人设并推送变化。
- * ai-chat 侧把 persona 拼进默认系统提示的部分见 packages/ai-chat/tests/ipcClientPersona.test.ts。
+ * 内核把 persona 拼成默认系统提示的部分见 tests/unit/persona/systemPrompt.test.ts（视图经契约 persona.systemPrompt 取）。
  */
 jest.unmock('fs');
 jest.unmock('path');

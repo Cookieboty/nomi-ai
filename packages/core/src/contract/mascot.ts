@@ -13,6 +13,9 @@
 import type { MascotProcedureName } from '@nomi-ai/contract/app';
 import { CHAT_BG_ERROR } from '@nomi-ai/types';
 
+import { t } from '../i18n';
+import { defaultSystemPrompt } from '../persona/systemPrompt';
+
 import { need, type AppHandlerContext, type ContractDeps, type DomainHandlers } from './types';
 
 /** 内核实现的 D5 过程 */
@@ -21,6 +24,7 @@ type MascotCoreProcedureName =
   | 'mascot.getSavedModel'
   | 'character.getActivePack'
   | 'persona.get'
+  | 'persona.systemPrompt'
   | 'chatBg.get'
   | 'chatBg.set'
   | 'chatBg.reset'
@@ -73,6 +77,8 @@ export function createMascotCoreHandlers(deps: ContractDeps): MascotCoreHandlers
     'character.getActivePack': () =>
       plain(need(services.characterPack, 'characterPack').getActive()),
     'persona.get': () => plain(need(services.persona, 'persona').get()),
+    'persona.systemPrompt': () =>
+      defaultSystemPrompt(need(services.persona, 'persona').get(), (key) => t(key)),
 
     // —— 聊天主面板背景（只在对话窗口调用：选图对话框挂在对话窗口上）
     'chatBg.get': () => plain(need(services.chatBg, 'chatBg').get()),

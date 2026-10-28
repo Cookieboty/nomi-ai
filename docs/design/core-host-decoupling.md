@@ -496,7 +496,7 @@ interface Persona {
 }
 ```
 
-- 角色 preset（`CompanionAgentPresetPlugin`，C3 前叫 `WaifuAgentPresetPlugin`）与 ai-chat 的默认系统提示都从这里读。
+- 角色 preset（`CompanionAgentPresetPlugin`，C3 前叫 `WaifuAgentPresetPlugin`）与对话的默认系统提示都从这里读。默认系统提示由内核拼装（`core/src/persona/systemPrompt.ts`：身份段 + 与角色无关的对话要求，跟随界面语言），ai-chat 经契约 `persona.systemPrompt` 取，界面包里不拼人设。
 - 删除两处硬编码：`WaifuAgentPresetPlugin.ts`（现 `CompanionAgentPresetPlugin.ts`）的「你是 Nomi（诺米）……」兜底，以及 `IPCClient.ts` 使用的 `you-are-nomi-an-ai-companion-who-lives` key（文本搬进 `characters/nomi/persona.json`，同时删 `en.json` 对应条目）。
 - 两份 `character.generated.json` 删除，由 `PersonaService` 和 `avatar-runtime` 从同一个解析结果读取。
 
@@ -964,7 +964,7 @@ stop() }`；宿主 `packages/host-electron/src/host/Application.ts`（宿主区�
 >
 > - §11.3 替身角色（G5）没有达成：替身包有了映射，运行时与内核的单测走真实路径（人设、系统提示身份段、发给界面的快照不含官方名），
 >   但用它跑一轮 e2e、断言界面文本不含 Nomi，要先做界面文案里产品名 / 角色名的分拣（§10.1）与 `scripts/check-character-leak`（§11.2）；
-> - `companion` preset 已注册，还没有消费方：对话的系统提示仍由 ai-chat（`IPCClient`）拼，会话的 `agentPreset` 只是透传字段；
+> - `companion` preset 已注册，还没有消费方：对话的默认系统提示由内核拼（`core/src/persona/systemPrompt.ts`，契约 `persona.systemPrompt`，2.0.5 起；原来在 ai-chat 的 `IPCClient`），会话的 `agentPreset` 只是透传字段；
 > - `touched` / `clicked` / `scene` 到了 `ctx.avatar`，还没有 AI 功能订阅（例如把触摸作为感官输入注入会话）；
 > - 互动反应表（`interaction/gestures.ts`：摸头、点击等）仍直接用引擎动作名、不经映射：这是角色对用户操作的反应，不来自 AI；
 >   看板娘窗口的动作菜单列的也是当前后端的动作（资源名，直接交给引擎）。
