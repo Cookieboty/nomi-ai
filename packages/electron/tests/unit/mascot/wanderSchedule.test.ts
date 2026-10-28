@@ -3,6 +3,7 @@
  * +15s mark. Once that elapsed, the next idle tick (e.g. free-place dragEnd)
  * immediately re-entered walking and the e2e assert saw mode === 'walking'.
  */
+import { mascotWindowSize } from '@nomi-ai/core/mascot/mascotSize';
 import type { BrowserWindow } from 'electron';
 
 jest.mock('electron', () => ({
@@ -13,8 +14,6 @@ jest.mock('electron', () => ({
     getCursorScreenPoint: jest.fn(() => ({ x: 960, y: 500 })),
   },
 }));
-
-import { mascotWindowSize } from '@nomi-ai/core/mascot/mascotSize';
 
 import { MascotWindowController } from '../../../src/mascot/MascotWindowController';
 

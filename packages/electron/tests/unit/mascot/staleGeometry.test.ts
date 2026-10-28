@@ -2,6 +2,7 @@
  * #64 · E23（Windows）脚底锚点偏移 44px：缩放后，渲染进程按「旧窗口尺寸」量出的包围盒
  * 晚于主进程按比例推算的新包围盒到达，把它覆盖回旧值。主进程按上报里的视口尺寸丢弃这类旧测量。
  */
+import { mascotWindowSize } from '@nomi-ai/core/mascot/mascotSize';
 import type { BrowserWindow } from 'electron';
 
 jest.mock('electron', () => ({
@@ -12,8 +13,6 @@ jest.mock('electron', () => ({
     getCursorScreenPoint: jest.fn(() => ({ x: 0, y: 0 })),
   },
 }));
-
-import { mascotWindowSize } from '@nomi-ai/core/mascot/mascotSize';
 
 import {
   isStaleGeometry,

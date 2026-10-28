@@ -37,16 +37,8 @@ import type { AppEvents } from '@nomi-ai/core/core/appEvents';
 import { eventBus } from '@nomi-ai/core/core/EventBus';
 import { createShutdown, LifecycleRegistry } from '@nomi-ai/core/core/lifecycle';
 import { ServiceContainer, type IServiceContainer } from '@nomi-ai/core/core/ServiceContainer';
+import { APP_EVENTS, HOST_PORTS } from '@nomi-ai/core/core/serviceTokens';
 import { getDesktopService } from '@nomi-ai/core/desktop/DesktopService';
-import type { ProviderQuirks } from '@nomi-ai/gateway';
-import type { HostPorts } from '@nomi-ai/host-ports';
-import { app, protocol, session, shell } from 'electron';
-
-import { startAIRuntime, type AIRuntimeBootHandle } from '../ai/AIRuntimeBoot';
-import { TtsElectronNativeProvider } from '../ai/TtsElectronNativeProvider';
-
-import { getChatBackgroundPresetFile } from '../chat/backgroundPreset';
-
 import { guardOutboundMessages } from '@nomi-ai/core/desktop/outboundGuard';
 import { DiagnosticsService } from '@nomi-ai/core/diagnostics/DiagnosticsService';
 import { initExtensionsService } from '@nomi-ai/core/extensions/ExtensionsService';
@@ -60,26 +52,8 @@ import {
   gatewayTerminalSource,
   initTerminalCommands,
 } from '@nomi-ai/core/gateway/TerminalCommands';
-
-import { AgentBrowser } from '../host/AgentBrowser';
-import { registerChatAssetProtocol } from '../host/assetProtocol';
-import {
-  APP_EVENT_BRIDGE,
-  createAppRouter,
-  createContractEventBridge,
-  createContractServices,
-  type ContractEventBridge,
-} from '../host/contract';
-import { serveContractOverIpc } from '../host/contractIpc';
-import { createElectronPorts, lazyWindowHost } from '../host/electronPorts';
-import { MascotWindowActions } from '../host/mascotWindowActions';
-import { serveNomiHostIpc } from '../host/nomiHostIpc';
-
 import { t as tr } from '@nomi-ai/core/i18n';
 import { getLocale, LocaleService, onLocaleChange } from '@nomi-ai/core/i18n';
-
-import { getIslandService, initIslandService, notifyIsland } from '../island/IslandService';
-
 import { initKnowledgeService } from '@nomi-ai/core/knowledge/KnowledgeService';
 import { initLocalHubService } from '@nomi-ai/core/local/LocalHubService';
 import { getLocalModelService, initLocalModelService } from '@nomi-ai/core/local/LocalModelService';
@@ -94,18 +68,11 @@ import {
 } from '@nomi-ai/core/persona/PersonaService';
 import { getSchedulerService, initSchedulerService } from '@nomi-ai/core/schedule/SchedulerService';
 import { initScreenService } from '@nomi-ai/core/screen/ScreenService';
-
-import { appCspString } from '../security/csp';
-
 import { safeStorageFromSecrets } from '@nomi-ai/core/security/secretStorage';
-
-import { AdvancedTTSEngine } from '../services/AdvancedTTSEngine';
-
 import { CacheService } from '@nomi-ai/core/services/CacheService';
 import { ConfigService } from '@nomi-ai/core/services/ConfigService';
 import { LoggerService, LogLevel } from '@nomi-ai/core/services/LoggerService';
 import { getUpdateService, type UpdaterLike } from '@nomi-ai/core/services/UpdateService';
-import { autoUpdater } from 'electron-updater';
 import {
   openAfterReady,
   planStartup,
@@ -123,21 +90,38 @@ import {
 } from '@nomi-ai/core/usage/GatewayRequestLog';
 import { initQualityService } from '@nomi-ai/core/usage/quality/QualityService';
 import { getUsageService, initUsageService } from '@nomi-ai/core/usage/UsageService';
-
-import { GlobalErrorHandler } from '../utils/ErrorHandler';
-
 import { createMainLogger } from '@nomi-ai/core/utils/log';
-
-import { perfMark } from '../utils/perfMarks';
-
 import { whenPrivateWritesIdle } from '@nomi-ai/core/utils/privateFile';
 import { getVoiceService } from '@nomi-ai/core/voice/VoiceService';
+import type { ProviderQuirks } from '@nomi-ai/gateway';
+import type { HostPorts } from '@nomi-ai/host-ports';
+import { app, protocol, session, shell } from 'electron';
+import { autoUpdater } from 'electron-updater';
+
+import { startAIRuntime, type AIRuntimeBootHandle } from '../ai/AIRuntimeBoot';
+import { TtsElectronNativeProvider } from '../ai/TtsElectronNativeProvider';
+import { getChatBackgroundPresetFile } from '../chat/backgroundPreset';
+import { AgentBrowser } from '../host/AgentBrowser';
+import { registerChatAssetProtocol } from '../host/assetProtocol';
+import {
+  APP_EVENT_BRIDGE,
+  createAppRouter,
+  createContractEventBridge,
+  createContractServices,
+  type ContractEventBridge,
+} from '../host/contract';
+import { serveContractOverIpc } from '../host/contractIpc';
+import { createElectronPorts, lazyWindowHost } from '../host/electronPorts';
+import { MascotWindowActions } from '../host/mascotWindowActions';
+import { serveNomiHostIpc } from '../host/nomiHostIpc';
+import { getIslandService, initIslandService, notifyIsland } from '../island/IslandService';
+import { appCspString } from '../security/csp';
+import { AdvancedTTSEngine } from '../services/AdvancedTTSEngine';
+import { GlobalErrorHandler } from '../utils/ErrorHandler';
+import { perfMark } from '../utils/perfMarks';
 
 import { initAppIcon } from './appIcon';
 import { BootstrapManager } from './BootstrapManager';
-
-import { APP_EVENTS, HOST_PORTS } from '@nomi-ai/core/core/serviceTokens';
-
 import { applyTitleBarTheme } from './titleBar';
 import { TrayManager } from './TrayManager';
 import { WindowManager } from './WindowManager';

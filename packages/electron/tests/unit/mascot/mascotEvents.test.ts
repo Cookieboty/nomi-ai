@@ -3,6 +3,9 @@
  * 窗口控制器的大小 / 物理推送经 `events.publish` 发布，事件桥转成契约事件；大小变化只发布一次
  * （看板娘 + 对话窗口）。没接上之前没有订阅者，推送直接丢弃，不再直接发给窗口。
  */
+import { createRecordingAppEvents } from '@nomi-ai/core/core/appEvents';
+import { setMascotAppEvents } from '@nomi-ai/core/mascot/mascotEvents';
+import { mascotWindowSize } from '@nomi-ai/core/mascot/mascotSize';
 import type { BrowserWindow } from 'electron';
 
 jest.mock('electron', () => ({
@@ -13,10 +16,6 @@ jest.mock('electron', () => ({
     getCursorScreenPoint: jest.fn(() => ({ x: 0, y: 0 })),
   },
 }));
-
-import { createRecordingAppEvents } from '@nomi-ai/core/core/appEvents';
-import { setMascotAppEvents } from '@nomi-ai/core/mascot/mascotEvents';
-import { mascotWindowSize } from '@nomi-ai/core/mascot/mascotSize';
 
 import { MascotWindowController } from '../../../src/mascot/MascotWindowController';
 
