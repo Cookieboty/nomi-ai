@@ -7,10 +7,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { CliHarnessService, type HarnessGateway } from '../../../src/cli/CliHarnessService';
 import type { HarnessEvent } from '../../../src/cli/types';
 import { testGateway } from '../../helpers/gateway';
 import { until } from '../../helpers/wait';
+import { CliHarnessService, type HarnessGateway } from '../helpers/harness';
 
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },

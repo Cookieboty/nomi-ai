@@ -9,10 +9,10 @@ import path from 'node:path';
 
 import { codexExecItem, codexTurnPolicy, codexTurnUsage } from '@nomi-ai/cli-sdk';
 
-import { CliHarnessService } from '../../../src/cli/CliHarnessService';
 import { permissionLaunch } from '../../../src/cli/permissionMode';
 import type { HarnessEvent } from '../../../src/cli/types';
 import { until } from '../../helpers/wait';
+import { CliHarnessService } from '../helpers/harness';
 
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },

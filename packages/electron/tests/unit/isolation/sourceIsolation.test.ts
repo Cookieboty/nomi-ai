@@ -12,7 +12,6 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { CliHarnessService } from '../../../src/cli/CliHarnessService';
 import {
   agentLaunch,
   STRIP,
@@ -20,6 +19,7 @@ import {
   type AgentKind,
 } from '../../../src/gateway/agents';
 import { testGateway } from '../../helpers/gateway';
+import { CliHarnessService } from '../helpers/harness';
 
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },

@@ -304,6 +304,9 @@ function realDir(p: string): string {
   }
 }
 
+/** 编排层用到的宿主端口 */
+export type HarnessPorts = Pick<HostPorts, 'dialogs' | 'windows'>;
+
 /**
  * 编排层（docs/design/cli-plugin-architecture.md §5.4）：标签、持久化、来源 / 账号、回收、权限队列与界面广播。
  * 各 CLI 的会话协议在 cli-sdk 的共享驱动里，各 CLI 的差异（档位、账号目录、历史、收尾规则）在
@@ -437,9 +440,9 @@ export class HarnessOrchestrator {
       quality?: { addCli(record: QualityRecord): void };
       /**
        * 宿主端口：dialogs 选工作目录；windows.anyFocused() 判断应用是否在前台，决定一轮结束算不算
-       * 「后台完成」（未读 / 通知）。缺省（测试）时选择器按「取消」处理、按不在前台处理。
+       * 「后台完成」（未读 / 通知）。测试经 tests/unit/helpers/harness.ts 补默认值（取消、不在前台）。
        */
-      ports?: Pick<HostPorts, 'dialogs' | 'windows'>;
+      ports: HarnessPorts;
       /** 长驻 CLI 进程空闲多久后回收（毫秒，0 = 不回收）；缺省读 NOMI_HARNESS_IDLE_MS，再缺省 30 分钟 */
       idleReclaimMs?: number;
       /** Gemini 一轮多久没有任何动静就判定卡死并取消（毫秒）；缺省 GEMINI_PROMPT_IDLE_MS */
@@ -609,9 +612,7 @@ export class HarnessOrchestrator {
 
   /** 不挂父窗口的文件夹选择器（允许新建文件夹）；取消返回 null */
   private async showDirectoryPicker(defaultPath?: string): Promise<string | null> {
-    const dialogs = this.d.ports?.dialogs;
-    if (!dialogs) return null;
-    return dialogs.pickDirectory({
+    return this.d.ports.dialogs.pickDirectory({
       title: t('electron.common.choose-coding-assistant-working-directory'),
       createDirectory: true,
       ...(defaultPath ? { defaultPath } : {}),
@@ -621,7 +622,7 @@ export class HarnessOrchestrator {
   /** 应用是否在前台（宿主 windows.anyFocused）；读不到按不在前台 */
   private appFocused(): boolean {
     try {
-      return this.d.ports?.windows.anyFocused() ?? false;
+      return this.d.ports.windows.anyFocused();
     } catch {
       return false;
     }

@@ -8,10 +8,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { CliHarnessService, MAIN_TAB_ID } from '../../../src/cli/CliHarnessService';
 import type { HarnessTabsState } from '../../../src/cli/types';
 import { testGateway } from '../../helpers/gateway';
 import { until } from '../../helpers/wait';
+import { CliHarnessService, MAIN_TAB_ID } from '../helpers/harness';
 
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },

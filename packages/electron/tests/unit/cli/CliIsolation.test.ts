@@ -8,9 +8,9 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { buildCliEnv, isNomiInternalEnv } from '../../../src/cli/cliEnv';
-import { CliHarnessService } from '../../../src/cli/CliHarnessService';
 import { claudeSettingsPath, codexAuthPath, codexConfigPath } from '../../../src/cli/configPatch';
 import { TEST_GATEWAY_TOKEN, TEST_GATEWAY_URL, testGateway } from '../../helpers/gateway';
+import { CliHarnessService } from '../helpers/harness';
 
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },

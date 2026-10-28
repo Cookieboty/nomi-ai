@@ -11,7 +11,7 @@ import {
   CliHarnessService,
   materializeGeneratedImages,
   rewriteGeneratedImageLinks,
-} from '../../../src/cli/CliHarnessService';
+} from '../helpers/harness';
 
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },

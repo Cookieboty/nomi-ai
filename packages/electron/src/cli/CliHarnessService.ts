@@ -14,6 +14,7 @@ export {
   rewriteGeneratedImageLinks,
   resolveHarnessBin,
   type HarnessGateway,
+  type HarnessPorts,
   type HarnessOfficialAccounts,
   type HarnessExternalPlugins,
   type AccountBackend,

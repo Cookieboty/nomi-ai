@@ -37,11 +37,11 @@ jest.mock('electron', () => ({
   dialog: { showOpenDialog: async () => ({ canceled: true, filePaths: [] }) },
 }));
 
-import { CliHarnessService } from '../../../src/cli/CliHarnessService';
 import {
   RendererSubscribers,
   type SubscriberContents,
 } from '../../../src/cli/harness/rendererSubscribers';
+import { CliHarnessService } from '../helpers/harness';
 
 class FakeContents implements SubscriberContents {
   readonly sent: Array<{ channel: string; payload: unknown }> = [];

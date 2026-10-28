@@ -9,7 +9,6 @@ import os from 'node:os';
 import path from 'node:path';
 import zlib from 'node:zlib';
 
-import { CliHarnessService } from '../../../src/cli/CliHarnessService';
 import { parseTranscript } from '../../../src/cli/historyTranscript';
 import {
   parseClaudeTranscript,
@@ -21,6 +20,7 @@ import {
   DSH_META_MAX_ZSTD_BYTES,
   SessionHistoryService,
 } from '../../../src/cli/SessionHistoryService';
+import { CliHarnessService } from '../helpers/harness';
 
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },

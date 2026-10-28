@@ -23,8 +23,8 @@ jest.mock('electron', () => ({
   dialog: { showOpenDialog: async () => ({ canceled: true, filePaths: [] }) },
 }));
 
-import { CliHarnessService } from '../../../src/cli/CliHarnessService';
 import { until } from '../../helpers/wait';
+import { CliHarnessService } from '../helpers/harness';
 
 describe('CliHarnessService persistence', () => {
   let root: string;

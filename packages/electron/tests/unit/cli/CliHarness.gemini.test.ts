@@ -9,11 +9,11 @@ import path from 'node:path';
 
 import { createGeminiMapper, permissionSummary, pickPermissionOption } from '@nomi-ai/cli-sdk';
 
-import { CliHarnessService } from '../../../src/cli/CliHarnessService';
 import { innermostMessage } from '../../../src/cli/gemini/acp';
 import { geminiModeId } from '../../../src/cli/permissionMode';
 import { TEST_GATEWAY_TOKEN, testGateway } from '../../helpers/gateway';
 import { until } from '../../helpers/wait';
+import { CliHarnessService } from '../helpers/harness';
 
 // 每个用例都起真实的假 CLI 进程：全量测试并行负载下启动可能要好几秒，默认 10 秒不够
 jest.setTimeout(30_000);

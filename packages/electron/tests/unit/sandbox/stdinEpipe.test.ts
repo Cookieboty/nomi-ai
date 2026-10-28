@@ -16,8 +16,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { CliHarnessService } from '../../../src/cli/CliHarnessService';
 import { CodeSandbox } from '../../../src/sandbox/CodeSandbox';
+import { CliHarnessService } from '../helpers/harness';
 
 const itPosix = process.platform === 'win32' ? it.skip : it;
 

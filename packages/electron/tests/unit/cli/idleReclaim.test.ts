@@ -7,7 +7,6 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { CliHarnessService } from '../../../src/cli/CliHarnessService';
 import {
   DEFAULT_IDLE_RECLAIM_MS,
   pickIdle,
@@ -17,6 +16,7 @@ import {
 } from '../../../src/cli/idleReclaim';
 import type { HarnessTabsState } from '../../../src/cli/types';
 import { until } from '../../helpers/wait';
+import { CliHarnessService } from '../helpers/harness';
 
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },

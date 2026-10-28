@@ -7,9 +7,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { CliHarnessService, type HarnessGateway } from '../../../src/cli/CliHarnessService';
 import { testGateway } from '../../helpers/gateway';
 import { until } from '../../helpers/wait';
+import { CliHarnessService, type HarnessGateway } from '../helpers/harness';
 
 // 每个用例都起真实的假 CLI 进程：全量测试并行负载下启动可能要好几秒，默认 10 秒不够
 jest.setTimeout(30_000);

@@ -7,11 +7,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import {
-  CliHarnessService,
-  DELEGATED_PERMISSION_TIMEOUT_MS,
-} from '../../../src/cli/CliHarnessService';
 import { HarnessStoppedError } from '../../../src/cli/harness/liveTypes';
+import { CliHarnessService, DELEGATED_PERMISSION_TIMEOUT_MS } from '../helpers/harness';
 
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },

@@ -13,8 +13,8 @@ import path from 'node:path';
 
 import type { QualityRecord } from '@nomi-ai/types';
 
-import { CliHarnessService } from '../../../src/cli/CliHarnessService';
 import { testGateway } from '../../helpers/gateway';
+import { CliHarnessService } from '../helpers/harness';
 
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },

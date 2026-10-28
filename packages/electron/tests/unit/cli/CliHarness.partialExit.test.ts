@@ -6,7 +6,7 @@ jest.unmock('node:path');
 import os from 'node:os';
 import path from 'node:path';
 
-import { CliHarnessService } from '../../../src/cli/CliHarnessService';
+import { CliHarnessService } from '../helpers/harness';
 
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
