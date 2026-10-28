@@ -130,3 +130,17 @@ export {
   type IpcServerOptions,
   type IpcServerTransport,
 } from './ipc';
+
+export { base64ToBytes, bytesToBase64, decodeWireFrame, encodeWireFrame } from './wire';
+
+export {
+  createWebSocketClientTransport,
+  WS_PROTOCOL,
+  WS_SURFACE_PREFIX,
+  WS_TOKEN_PATTERN,
+  WS_TOKEN_PREFIX,
+  type WebSocketClientOptions,
+  type WebSocketClientTransport,
+  type WebSocketFactory,
+  type WebSocketLike,
+} from './websocket';
