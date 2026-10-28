@@ -105,7 +105,14 @@ directories:
   buildResources: assets
   output: ../../dist
 
+# 运行时应用名固定为 @nomi-ai/electron（包改名为 @nomi-ai/host-electron 之前的名字）：
+# Electron 取 package.json 的 productName（没有则 name）作 app.name，userData 目录、macOS 钥匙串里
+# safeStorage 的服务名 / 账户名都由它决定，变了已安装用户就会看到空的配置且解不开已存的 API Key。
+# package.json 的 productName 管 Electron 运行时（开发态与打包后），这里的 name 管 electron-builder
+# 自己用的包名（electron-updater 缓存目录 <name>-updater、NSIS 的 APP_PACKAGE_NAME）。
+# 安装包与窗口显示的名字仍是上面的 productName: Nomi。见 scripts/__tests__/electron-builder-app-name.test.ts。
 extraMetadata:
+  name: '@nomi-ai/electron'
   main: dist/main.js
 
 protocols:

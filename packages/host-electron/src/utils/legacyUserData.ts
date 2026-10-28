@@ -1,13 +1,16 @@
 /**
- * 开发态包名变更（@ig-live/electron → @nomi-ai/electron → @nomi-ai/host-electron）后，
- * Electron 的 userData 目录会随之变化。未打包运行时，若新目录尚无应用数据而旧目录存在，则复制过来
+ * 开发态包名变更（@ig-live/electron → @nomi-ai/electron）后，Electron 的 userData
+ * 目录会随之变化。未打包运行时，若新目录尚无应用数据而旧目录存在，则复制过来
  * （不删除旧目录）。打包产物不再从旧品牌目录迁移。必须在 `app.whenReady()` 之前调用。
  */
 import * as fs from 'fs';
 import * as path from 'path';
 
-/** 未打包（开发）运行时 Electron 用 package.json name 作为目录名；按从新到旧的顺序尝试 */
-export const LEGACY_DEV_NAMES = ['@nomi-ai/electron', '@ig-live/electron'] as const;
+/**
+ * 未打包（开发）运行时 Electron 用 package.json 的 productName（没有则 name）作为目录名。
+ * 包改名为 @nomi-ai/host-electron 后 productName 仍是 @nomi-ai/electron，目录不变，不需要再迁移。
+ */
+export const LEGACY_DEV_NAMES = ['@ig-live/electron'] as const;
 
 export interface MigrateResult {
   migrated: boolean;

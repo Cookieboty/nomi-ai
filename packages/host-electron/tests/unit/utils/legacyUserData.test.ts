@@ -27,14 +27,14 @@ describe('migrateLegacyUserData', () => {
   });
 
   it('does nothing when the new directory already holds app data', () => {
-    const target = path.join(appData, '@nomi-ai', 'host-electron');
+    const target = path.join(appData, '@nomi-ai', 'electron');
     fs.mkdirSync(target, { recursive: true });
     fs.writeFileSync(path.join(target, 'ai-providers.json'), '{}');
     expect(migrateLegacyUserData(appData, target, LEGACY_DEV_NAMES).migrated).toBe(false);
   });
 
   it('does nothing without a legacy directory', () => {
-    const target = path.join(appData, '@nomi-ai', 'host-electron');
+    const target = path.join(appData, '@nomi-ai', 'electron');
     expect(migrateLegacyUserData(appData, target, LEGACY_DEV_NAMES).migrated).toBe(false);
     expect(fs.existsSync(target)).toBe(false);
   });
@@ -43,27 +43,15 @@ describe('migrateLegacyUserData', () => {
     const dev = path.join(appData, '@ig-live', 'electron');
     fs.mkdirSync(dev, { recursive: true });
     fs.writeFileSync(path.join(dev, 'settings.json'), '{}');
-    const target = path.join(appData, '@nomi-ai', 'host-electron');
+    const target = path.join(appData, '@nomi-ai', 'electron');
     expect(migrateLegacyUserData(appData, target, LEGACY_DEV_NAMES).from).toBe(dev);
-  });
-
-  it('migrates the previous dev directory (@nomi-ai/electron) before older ones', () => {
-    const prev = path.join(appData, '@nomi-ai', 'electron');
-    fs.mkdirSync(prev, { recursive: true });
-    fs.writeFileSync(path.join(prev, 'ai-providers.json'), '{}');
-    const older = path.join(appData, '@ig-live', 'electron');
-    fs.mkdirSync(older, { recursive: true });
-    fs.writeFileSync(path.join(older, 'settings.json'), '{}');
-    const target = path.join(appData, '@nomi-ai', 'host-electron');
-    expect(migrateLegacyUserData(appData, target, LEGACY_DEV_NAMES).from).toBe(prev);
-    expect(fs.existsSync(path.join(target, 'ai-providers.json'))).toBe(true);
   });
 
   it('still migrates when Chromium already created boot-only entries (Crashpad)', () => {
     const dev = path.join(appData, '@ig-live', 'electron');
     fs.mkdirSync(dev, { recursive: true });
     fs.writeFileSync(path.join(dev, 'ai-providers.json'), '{}');
-    const target = path.join(appData, '@nomi-ai', 'host-electron');
+    const target = path.join(appData, '@nomi-ai', 'electron');
     fs.mkdirSync(path.join(target, 'Crashpad'), { recursive: true });
     expect(migrateLegacyUserData(appData, target, LEGACY_DEV_NAMES).migrated).toBe(true);
     expect(fs.existsSync(path.join(target, 'ai-providers.json'))).toBe(true);
