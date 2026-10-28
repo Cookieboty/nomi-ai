@@ -174,5 +174,6 @@
   "ui.slash-commands.user-commands": "用户命令",
   "ui.slash-commands.when-names-clash-the-cli-only-runs-the": "同名时 CLI 只会执行{0}版的 /{1}，没有指定其他版本的写法，Nomi 不会替它发送，以免执行成别的命令。",
   "ui.slash-commands.workflow": "工作流",
-  "ui.slash-commands.your-messages": "你的消息"
+  "ui.slash-commands.your-messages": "你的消息",
+  "ui.slash-commands.no-matching-model": "没有匹配的模型"
 }

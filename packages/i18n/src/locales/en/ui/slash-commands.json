@@ -174,5 +174,6 @@
   "ui.slash-commands.user-commands": "User commands",
   "ui.slash-commands.when-names-clash-the-cli-only-runs-the": "When names clash, the CLI only runs the {0} version of /{1} and has no syntax to target another version, so Nomi will not send this one, to avoid running a different command.",
   "ui.slash-commands.workflow": "Workflow",
-  "ui.slash-commands.your-messages": "Your messages"
+  "ui.slash-commands.your-messages": "Your messages",
+  "ui.slash-commands.no-matching-model": "No matching model"
 }

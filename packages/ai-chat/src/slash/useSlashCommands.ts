@@ -12,13 +12,14 @@ import {
   type HarnessTabMeta,
   type SlashDiscoveryEntry,
 } from '../services/harnessClient';
+import { NOMI_MODEL_MENU, openModelMenu } from '../services/modelMenu';
 import { setNomiModel } from '../services/nomiModel';
 import type { ConversationBackend } from '../types/chat';
 import type { ConvMessage } from '../types/conversation';
 import { ENDPOINT_FULL } from '../utils/endpointBadge';
 
 import { adapterFor, scopeOrderFor } from './adapters';
-import { notice } from './cards';
+import { modelArgOptions, notice } from './cards';
 import { loadSlashData } from './data';
 import { buildRegistry, executeSlash } from './registry';
 import type {
@@ -244,6 +245,12 @@ export function useSlashCommands(p: SlashHookParams): SlashHook {
       },
       openPlugins: () => latest.current.onOpenPlugins(),
       openProviders: () => latest.current.onOpenProviders(),
+      openModelMenu: (query) => {
+        // 浮层属于当前显示的会话：命令发出后用户切走了就不开
+        if (target.scopeKey !== latest.current.scopeKey) return false;
+        const key = target.backend === 'nomi' ? NOMI_MODEL_MENU : target.tabId;
+        return key ? openModelMenu(key, query) : false;
+      },
       openSettings: () => latest.current.onOpenSettings(),
       switchNomiModel: async (ref) => {
         await setNomiModel(ref);
@@ -336,34 +343,42 @@ export function useSlashCommands(p: SlashHookParams): SlashHook {
           );
       }
     };
+    /** 入口固定归属：之后无论用户切到哪个标签，这条命令的一切产出都回到这里 */
+    const contextFor = (all: SlashCommand[]): { target: SlashTarget; ctx: SlashContext } => {
+      const L = latest.current;
+      const target: SlashTarget = {
+        scopeKey: L.scopeKey,
+        backend: L.backend,
+        cwd: L.cwd,
+        tabId: L.tabId ?? null,
+        startedAt: Date.now(),
+      };
+      const ctx: SlashContext = {
+        backend: target.backend,
+        cwd: target.cwd,
+        messages: L.messages,
+        session: L.session,
+        commands: () => all,
+        load: () => loadSlashData(target.backend, target.tabId),
+        actions: makeActions(target),
+      };
+      return { target, ctx };
+    };
     return {
       compose: (extra) => buildRegistry([...raw, ...extra], order),
       refresh,
       scope: () => latest.current.scopeKey,
       run: async (text, all) => {
-        const L = latest.current;
-        // 入口固定归属：之后无论用户切到哪个标签，这条命令的一切产出都回到这里
-        const target: SlashTarget = {
-          scopeKey: L.scopeKey,
-          backend: L.backend,
-          cwd: L.cwd,
-          tabId: L.tabId ?? null,
-          startedAt: Date.now(),
-        };
-        const ctx: SlashContext = {
-          backend: target.backend,
-          cwd: target.cwd,
-          messages: L.messages,
-          session: L.session,
-          commands: () => all,
-          load: () => loadSlashData(target.backend, target.tabId),
-          actions: makeActions(target),
-        };
+        const { target, ctx } = contextFor(all);
         const r = await executeSlash(text, all, ctx);
         if (!r.handled)
           return { handled: false, ...(r.text !== undefined ? { text: r.text } : {}) };
         await apply(target, r.command, r.kind, r.outcome);
         return { handled: true };
+      },
+      modelOptions: async () => {
+        const { ctx } = contextFor([]);
+        return modelArgOptions(ctx, await ctx.load());
       },
     };
   }, [raw, order, refresh, addCard, deliver, makeActions]);

@@ -28,6 +28,7 @@ import type {
   CardAction,
   CardListItem,
   CardRow,
+  ModelArgOption,
   SlashCardInput,
   SlashCommand,
   SlashContext,
@@ -260,6 +261,8 @@ interface ModelChoice {
   label: string;
   provider: string;
   model: string;
+  /** `供应商/模型`（Nomi 的候选：不同供应商可能有同名模型，补全时填它才能唯一命中） */
+  ref?: string;
   active: boolean;
   run: () => Promise<void>;
 }
@@ -269,6 +272,7 @@ function nomiChoices(ctx: SlashContext, data: SlashData): ModelChoice[] {
     label: c.label,
     provider: c.provider,
     model: c.model,
+    ref: c.ref,
     active: c.current,
     run: () => ctx.actions.switchNomiModel(c.ref),
   }));
@@ -431,6 +435,42 @@ async function tabModelCard(
       .filter(Boolean)
       .join(' '),
   };
+}
+
+/**
+ * `/model ` 参数补全的候选：与 `/model <参数>` 匹配的是同一份列表——这个标签的模型目录
+ * （第三方是网关的模型）+ 另一种来源的候选；Nomi 对话是网关里启用的模型。不含「默认模型」。
+ */
+export async function modelArgOptions(
+  ctx: SlashContext,
+  data: SlashData,
+): Promise<ModelArgOption[]> {
+  if (ctx.backend === 'nomi')
+    return nomiChoices(ctx, data).map((c) => ({
+      value: c.ref ?? c.model,
+      label: c.label,
+      hint: c.provider,
+      active: c.active,
+    }));
+  const tm = await ctx.actions.tabModels();
+  const session =
+    tm.source === 'thirdParty'
+      ? sessionRefOf({ lastServedRef: tm.lastServedRef }, data.nomiGateway)
+      : null;
+  const current = tm.current ?? session;
+  const own = (tm.catalog?.models ?? []).map((m) => ({
+    value: m.id,
+    label: m.label ?? m.id,
+    active: current === m.id,
+  }));
+  const others =
+    tm.source === 'thirdParty'
+      ? [officialChoice(ctx, data, tm.source)]
+      : thirdPartyChoices(ctx, data, tm.source);
+  return [
+    ...own,
+    ...others.map((c) => ({ value: c.model, label: c.label, hint: c.provider, active: c.active })),
+  ];
 }
 
 /** `/model` 的结果：无参数 = 列表；有参数且唯一命中 = 直接切换 */

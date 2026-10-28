@@ -9,6 +9,7 @@ import type {
   HarnessTabMeta,
   ReasoningEffort,
 } from '../src/services/harnessClient';
+import { openModelMenu } from '../src/services/modelMenu';
 
 /** 形状与主进程从 CLI 读到的目录一致（Codex：config 未指定默认模型时 defaultModel = null） */
 const codexLevels: ReasoningEffort[] = ['low', 'medium', 'high', 'xhigh'];
@@ -151,6 +152,20 @@ describe('ModelControls', () => {
       }),
     );
     expect(getByTestId('effort-slider')).toBeTruthy();
+  });
+
+  it('/model 打开同一个浮层：直接到模型列表（不插卡片）', async () => {
+    const { findByTestId, queryByTestId } = setup({ catalog });
+    await findByTestId('model-chip');
+    expect(queryByTestId('model-menu')).toBeNull();
+    let opened = false;
+    act(() => {
+      opened = openModelMenu('cx');
+    });
+    expect(opened).toBe(true);
+    expect(await findByTestId('model-menu')).toBeTruthy();
+    expect(await findByTestId('model-gpt-6-pro')).toBeTruthy();
+    expect(openModelMenu('other-tab')).toBe(false);
   });
 
   it('只能从目录里选模型：没有「自定义模型 id」入口；当前模型不在目录里时照样显示出来', async () => {

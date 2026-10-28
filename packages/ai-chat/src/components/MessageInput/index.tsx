@@ -43,9 +43,10 @@ import {
   useShortcutBindings,
 } from '../../services/shortcuts';
 import { agentArgQuery, filterAgents, type AgentOption } from '../../slash/agentComplete';
+import { filterModelOptions, modelArgQuery } from '../../slash/modelComplete';
 import { argPhase, paletteQuery } from '../../slash/parse';
 import { buildRegistry, findCommand, flattenGroups, searchCommands } from '../../slash/registry';
-import type { SlashBridge, SlashCommand } from '../../slash/types';
+import type { ModelArgOption, SlashBridge, SlashCommand } from '../../slash/types';
 import type { ConvMessage } from '../../types/conversation';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { CYCLE_PERMISSION_EVENT, type CyclePermissionDetail } from '../../utils/permissionModes';
@@ -56,7 +57,7 @@ import { FileChip } from '../FileAttachment';
 import { ComposerChangesPill } from '../SessionWorkspace/ComposerChangesPill';
 import { ContextUsageBar } from '../SessionWorkspace/ContextUsageBar';
 import type { SettingsSection } from '../SettingsView/sections';
-import { AgentPalette, SlashPalette } from '../SlashPalette';
+import { AgentPalette, ModelArgPalette, SlashPalette } from '../SlashPalette';
 import { VoiceButtons, VoiceSettingsModal, VoiceStatusRow, useChatVoice } from '../VoiceInput';
 
 import { ImageLightbox } from './ImageLightbox';
@@ -136,6 +137,10 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   const menuRef = useRef<HTMLDivElement>(null);
   const [isComposing, setIsComposing] = useState(false);
   const [agentIdx, setAgentIdx] = useState(0);
+  /** `/model ` 补全：候选（null = 还在读）、高亮项、按 Esc 关掉时的输入 */
+  const [modelOpts, setModelOpts] = useState<ModelArgOption[] | null>(null);
+  const [modelIdx, setModelIdx] = useState(0);
+  const [modelClosed, setModelClosed] = useState<string | null>(null);
   /** 按 Esc 关掉助手列表时的输入；输入一变就重新出现 */
   const [agentClosed, setAgentClosed] = useState<string | null>(null);
   /** `/agent ` 补全用的已安装编程助手（委派设置里的检测结果）；null = 还没读到 */
@@ -415,6 +420,31 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
       }
     }
 
+    // `/model ` 后选模型：↑↓ 选择，Tab / Enter 补全模型名（再按 Enter 切换），Esc 关闭列表
+    if (modelOpen) {
+      const n = modelOptions.length;
+      if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && n) {
+        e.preventDefault();
+        const d = e.key === 'ArrowDown' ? 1 : -1;
+        setModelIdx((i) => (i + d + n) % n);
+        return;
+      }
+      const o = modelOptions[Math.min(modelIdx, n - 1)];
+      // 已经敲全（如 `/model opus`）时 Enter 照常执行命令
+      const typed = (modelQuery ?? '').toLowerCase();
+      const exact = !!typed && modelOptions.some((x) => x.value.toLowerCase() === typed);
+      if (o && ((e.key === 'Enter' && !e.shiftKey && !exact) || (e.key === 'Tab' && !e.shiftKey))) {
+        e.preventDefault();
+        pickModelArg(o);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setModelClosed(message);
+        return;
+      }
+    }
+
     // 斜杠命令：↑↓ 选择，Enter 执行（需要参数的先补全），Tab 补全，Esc 关闭
     if (slashOpen) {
       const n = slashFlat.length;
@@ -665,10 +695,36 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
       live = false;
     };
   }, [agentPhase]);
+  const modelQuery = slash ? modelArgQuery(message, registry) : null;
+  const modelOptions = modelQuery === null ? [] : filterModelOptions(modelOpts, modelQuery);
+  const modelOpen = modelQuery !== null && modelClosed !== message && !!slash?.modelOptions;
+  function pickModelArg(o: ModelArgOption) {
+    const a = argPhase(message);
+    if (!a) return;
+    setMessage(`/${a.name} ${o.value}`);
+    setModelIdx(0);
+    textareaRef.current?.focus();
+  }
+  // 进入 `/model ` 参数阶段时读一次候选（会话的模型目录 / 网关模型），离开时清掉
+  const modelPhase = modelQuery !== null;
+  const loadModelOptions = slash?.modelOptions;
+  useEffect(() => {
+    if (!modelPhase || !loadModelOptions) return;
+    let live = true;
+    void loadModelOptions()
+      .then((v) => live && setModelOpts(v))
+      .catch(() => live && setModelOpts([]));
+    return () => {
+      live = false;
+      setModelOpts(null);
+      setModelIdx(0);
+    };
+  }, [modelPhase, loadModelOptions]);
   const argState = slash ? argPhase(message) : null;
   const argCmd = argState ? findCommand(registry, argState.name) : null;
   // 命令名已定、正在输参数：显示参数提示
-  const argHint = argCmd?.args && !argCmd.disabled && !argState?.args && !agentOpen ? argCmd : null;
+  const argHint =
+    argCmd?.args && !argCmd.disabled && !argState?.args && !agentOpen && !modelOpen ? argCmd : null;
   function runCommand(c: Cmd | undefined) {
     if (!c) return;
     setMenuOpen(false);
@@ -760,6 +816,14 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
             active={Math.min(agentIdx, Math.max(0, agentOptions.length - 1))}
             onPick={pickAgent}
             onHover={setAgentIdx}
+          />
+        )}
+        {modelOpen && (
+          <ModelArgPalette
+            options={modelOpts === null ? null : modelOptions}
+            active={Math.min(modelIdx, Math.max(0, modelOptions.length - 1))}
+            onPick={pickModelArg}
+            onHover={setModelIdx}
           />
         )}
         {argHint?.args && (

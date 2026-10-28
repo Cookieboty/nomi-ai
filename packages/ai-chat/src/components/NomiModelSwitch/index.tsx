@@ -4,9 +4,10 @@
  * 与编程助手标签的模型按钮（ModelControls）同位置、同形（胶囊、ms 高）。
  */
 import { ModelPicker, t } from '@nomi-ai/ui';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import { gatewayClientAvailable } from '../../services/gatewayClient';
+import { NOMI_MODEL_MENU, registerModelMenu } from '../../services/modelMenu';
 import {
   nomiMainRef,
   pickerProviders,
@@ -42,9 +43,20 @@ export const NomiModelSwitch: React.FC<{ className?: string }> = ({ className })
     return providerClient.onChanged(apply);
   }, []);
 
+  // `/model` 打开同一个下拉（点一下触发器）；锁定 / 没有模型时不登记，命令退回卡片说明原因
+  const ref = useRef<HTMLSpanElement>(null);
+  const usable = !override && providers.length > 0;
+  useEffect(() => {
+    if (!usable) return;
+    return registerModelMenu(NOMI_MODEL_MENU, () =>
+      ref.current?.querySelector<HTMLButtonElement>('[role="combobox"]')?.click(),
+    );
+  }, [usable]);
+
   if (!gatewayClientAvailable() || !state) return null;
   return (
     <span
+      ref={ref}
       className={[styles.switch, className].filter(Boolean).join(' ')}
       data-testid="nomi-model-switch"
     >

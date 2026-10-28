@@ -54,6 +54,8 @@ export function makeCtx(
     openPlugins: vi.fn(),
     openProviders: vi.fn(),
     openSettings: vi.fn(),
+    // 默认没有可打开的模型浮层：/model 退回卡片
+    openModelMenu: vi.fn((_query: string) => false),
     switchNomiModel: vi.fn(async () => undefined),
     setTabSource: vi.fn(async (_source: TabSource, _model?: string) => true),
     tabModels: vi.fn(async () => ({

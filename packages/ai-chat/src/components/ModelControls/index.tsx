@@ -47,6 +47,7 @@ import {
   type TabSource,
 } from '../../services/harnessClient';
 import { longContextFor, type LongContextInfo } from '../../services/longContext';
+import { registerModelMenu } from '../../services/modelMenu';
 import { useGatewayState } from '../../services/nomiModel';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 
@@ -484,6 +485,19 @@ const ModelChip: React.FC<{
       setNote(e instanceof Error ? e.message : String(e));
     }
   };
+
+  // `/model` 打开同一个浮层：直接到模型列表，有搜索框时填上参数
+  const searchableNow = catalog.models.length > MODEL_SEARCH_THRESHOLD;
+  useEffect(
+    () =>
+      registerModelMenu(tab.id, (q) => {
+        setView('model');
+        setQuery(searchableNow ? q : '');
+        setPreview(null);
+        setOpen(true);
+      }),
+    [tab.id, searchableNow],
+  );
 
   const toggle = () => {
     setView(provider ? 'model' : 'effort');

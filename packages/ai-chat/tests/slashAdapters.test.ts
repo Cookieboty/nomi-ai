@@ -5,6 +5,8 @@ import type { CliInstallInfo } from '../src/services/cliUpdateClient';
 import type { GatewayState } from '../src/services/gatewayClient';
 import type { BackendModelCatalog, HarnessTabMeta } from '../src/services/harnessClient';
 import type { ProviderState } from '../src/services/providerClient';
+import { modelArgOptions } from '../src/slash/cards';
+import { filterModelOptions, modelArgQuery } from '../src/slash/modelComplete';
 import { executeSlash, findCommand, flattenGroups, searchCommands } from '../src/slash/registry';
 
 import { asst, entry, makeCtx, user } from './slashHelpers';
@@ -506,6 +508,48 @@ describe('/model', () => {
     const b = await run('nomi', '/status', { data: { nomiGateway: empty, nomiProviders: nomi() } });
     expect(JSON.stringify(cardOf(b.r))).toContain('OpenAI');
   });
+  it('有模型浮层时：/model 打开它而不插卡片；多个命中带着参数打开；唯一命中仍直接切换', async () => {
+    const { ctx, commands, actions } = makeCtx('nomi', { data: { nomiGateway: gateway() } });
+    actions.openModelMenu.mockReturnValue(true);
+    const a = await executeSlash('/model', commands, ctx);
+    expect(a.handled && a.outcome.type).toBe('noop');
+    expect(actions.openModelMenu).toHaveBeenLastCalledWith('');
+    const b = await executeSlash('/model gpt', commands, ctx);
+    expect(b.handled && b.outcome.type).toBe('noop');
+    expect(actions.openModelMenu).toHaveBeenLastCalledWith('gpt');
+    expect(actions.switchNomiModel).not.toHaveBeenCalled();
+    const c = await executeSlash('/model gpt-5-mini', commands, ctx);
+    expect(actions.switchNomiModel).toHaveBeenCalledWith('a/gpt-5-mini');
+    expect(c.handled && c.outcome.type === 'card' && c.outcome.card.kind).toBe('notice');
+  });
+
+  it('参数补全的候选：标签目录 + 另一种来源，标出当前；不含「默认模型」', async () => {
+    const { ctx, actions } = makeCtx('claude', { data: { nomiGateway: gateway() } });
+    actions.tabModels.mockResolvedValue({
+      catalog: tabCatalog,
+      current: 'fable',
+      source: 'official',
+    });
+    const opts = await modelArgOptions(ctx, await ctx.load());
+    expect(opts.map((o) => [o.value, o.active])).toEqual([
+      ['opus', false],
+      ['fable', true],
+      ['a/gpt-5', false],
+      ['a/gpt-5-mini', false],
+    ]);
+    expect(filterModelOptions(opts, 'mini').map((o) => o.value)).toEqual(['a/gpt-5-mini']);
+    expect(filterModelOptions(opts, 'gpt').map((o) => o.value)).toEqual([
+      'a/gpt-5',
+      'a/gpt-5-mini',
+    ]);
+    expect(modelArgQuery('/model fa', commands())).toBe('fa');
+    // 整个参数是一个模型名：带空格也继续补全
+    expect(modelArgQuery('/model Qwen 3', commands())).toBe('Qwen 3');
+    function commands() {
+      return makeCtx('claude').commands;
+    }
+  });
+
   it('多个命中 → 只列表不切换；切换失败 → 错误卡片', async () => {
     const m = await run('nomi', '/model gpt', { data: { nomiGateway: gateway() } });
     expect(m.actions.switchNomiModel).not.toHaveBeenCalled();

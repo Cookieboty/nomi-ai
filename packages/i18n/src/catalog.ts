@@ -2991,6 +2991,7 @@ export type TranslationKey =
   | 'ui.slash-commands.when-names-clash-the-cli-only-runs-the'
   | 'ui.slash-commands.workflow'
   | 'ui.slash-commands.your-messages'
+  | 'ui.slash-commands.no-matching-model'
   | 'ui.usage-tools.1-year'
   | 'ui.usage-tools.30-days'
   | 'ui.usage-tools.7-days'
