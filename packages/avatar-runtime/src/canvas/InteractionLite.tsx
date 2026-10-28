@@ -242,6 +242,12 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
       gate.cancel();
       finish(false, e.type);
     };
+    // 窗口失焦才算取消。捕获阶段的 blur 也会收到页面里元素的失焦（例如先点了别的按钮、焦点离开
+    // 输入框），那不是窗口失焦，不能取消这次按下。元素 / 文档都是 Node，window 不是
+    const onBlur = (e: FocusEvent) => {
+      if (e.target instanceof Node) return;
+      onCancel(e);
+    };
     const onMouseUp = (e: MouseEvent) => {
       // pointerup can be swallowed after a lost capture; the compat mouseup still arrives
       if (e.button === 0 && (s.dragging || s.down)) finish(true, 'mouseup');
@@ -258,7 +264,7 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
     window.addEventListener('pointerup', onUp, capture);
     window.addEventListener('mouseup', onMouseUp, capture);
     window.addEventListener('pointercancel', onCancel, capture);
-    window.addEventListener('blur', onCancel, capture);
+    window.addEventListener('blur', onBlur, capture);
     canvas.addEventListener('lostpointercapture', onCancel, capture);
 
     let raf = 0;
@@ -417,7 +423,7 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
       window.removeEventListener('pointerup', onUp, capture);
       window.removeEventListener('mouseup', onMouseUp, capture);
       window.removeEventListener('pointercancel', onCancel, capture);
-      window.removeEventListener('blur', onCancel, capture);
+      window.removeEventListener('blur', onBlur, capture);
       canvas.removeEventListener('lostpointercapture', onCancel, capture);
       if (s.dragging) host?.dragEnd();
       layoutStore.setHead(null);
