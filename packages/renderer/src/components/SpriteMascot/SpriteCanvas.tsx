@@ -45,7 +45,7 @@ export interface SpriteCanvasProps {
 }
 
 /**
- * 2D expression-swapped mascot (soft PNG or pixel pet). No Live2D / no three.js.
+ * 2D expression-swapped mascot (soft PNG or pixel pet), no three.js.
  */
 export const SpriteCanvas: React.FC<SpriteCanvasProps> = ({
   manifestPath,

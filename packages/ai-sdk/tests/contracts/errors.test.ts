@@ -36,10 +36,10 @@ describe('P9-4 errors · IPC 契约', () => {
   });
 
   it('未列入默认表的 code 默认 retryable=false / hint=undefined', () => {
-    const e = new AIClientError(ErrorCodes.LIVE2D_NOT_AVAILABLE, 'x');
+    const e = new AIClientError(ErrorCodes.SEAM_NOT_INJECTED, 'x');
     expect(e.retryable).toBe(false);
     expect(e.hint).toBeUndefined();
-    expect(e.message).toBe('[LIVE2D_NOT_AVAILABLE|0] x');
+    expect(e.message).toBe('[SEAM_NOT_INJECTED|0] x');
   });
 
   it('formatIpcMessage / parseIpcMessage 对称', () => {

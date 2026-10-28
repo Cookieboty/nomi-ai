@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
-import { Live2dSeamPlugin } from '../../src/plugins/Live2dSeamPlugin';
+import { AvatarSeamPlugin } from '../../src/plugins/AvatarSeamPlugin';
 import {
   AgentSensoryInjectEvent,
   TouchCooldown,
   TouchInjectPlugin,
   type AgentSensoryInjectPayload,
 } from '../../src/plugins/TouchInjectPlugin';
-import { Live2dKey } from '../../src/seams/live2d';
+import { AvatarKey } from '../../src/seams/avatar';
+import { createFakeAvatarHost } from '../helpers/fakeAvatarHost';
 import { createFakeCtx } from '../helpers/fakeCtx';
-import { createFakeLive2dHost } from '../helpers/fakeLive2dHost';
 
 describe('TouchCooldown', () => {
   it('admits first hit and rejects subsequent within window', () => {
@@ -38,9 +38,9 @@ describe('TouchCooldown', () => {
 describe('TouchInjectPlugin', () => {
   async function setup(cfg: Parameters<typeof TouchInjectPlugin.apply>[1] = {}) {
     const ctx = createFakeCtx();
-    await Live2dSeamPlugin.apply(ctx, {});
-    const svc = ctx.inject(Live2dKey)!;
-    const host = createFakeLive2dHost();
+    await AvatarSeamPlugin.apply(ctx, {});
+    const svc = ctx.inject(AvatarKey)!;
+    const host = createFakeAvatarHost();
     svc.attachHost(host);
     await TouchInjectPlugin.apply(ctx, cfg);
     return { ctx, host };
@@ -89,7 +89,7 @@ describe('TouchInjectPlugin', () => {
     });
   });
 
-  it('warns and no-ops when ctx.live2d is not provided', async () => {
+  it('warns and no-ops when ctx.avatar is not provided', async () => {
     const ctx = createFakeCtx();
     await TouchInjectPlugin.apply(ctx, {});
     expect(ctx.logs.some((l) => l.level === 'warn' && l.msg.includes('not available'))).toBe(true);

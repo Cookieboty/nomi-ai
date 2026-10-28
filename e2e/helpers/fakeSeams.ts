@@ -7,7 +7,7 @@
  * 额外提供：
  * - `createFakeTtsService`：满足 TtsFacade.list/synth/stream/listVoices 契约，
  *   支持"手动 push chunk"以便 E1 触发嘴型链路；
- * - `createFakeLive2dService`：满足 Live2dFacade.driveLipSync/on 契约，
+ * - `createFakeAvatarService`：满足 AvatarFacade.driveLipSync/on 契约，
  *   记录 rms 序列供 E1 断言；
  * - `createEchoTool`：一个可控的工具，触发后 emit `tools/post-execute`
  *   插件事件，供 E2 断言 `tool:executed` 广播。
@@ -38,9 +38,9 @@ import type {
   TtsVoice,
 } from '@nomi-ai/bundle-ig-electron-caps/seams';
 import type {
-  Live2dEvent,
-  Live2dEventPayload,
-  Live2dService,
+  AvatarEvent,
+  AvatarEventPayload,
+  AvatarService,
 } from '@nomi-ai/bundle-ig-mascot/seams';
 
 export interface FakeLLM extends LLMProvider {
@@ -245,29 +245,26 @@ export function createFakeTtsService(): FakeTtsService {
 }
 
 /* --------------------------------------------------- *
- * Live2d service —— 记录 driveLipSync + on(touch) 序列 *
+ * Avatar service —— 记录 driveLipSync + on(touch) 序列 *
  * --------------------------------------------------- */
 
-export interface FakeLive2dService extends Live2dService {
+export interface FakeAvatarService extends AvatarService {
   driveLipSyncCalls: number[];
   motionCalls: Array<{ group: string; index?: number }>;
   expressionCalls: string[];
-  parameterCalls: Array<{ id: string; value: number }>;
-  fire<E extends Live2dEvent>(evt: E, payload: Live2dEventPayload<E>): void;
+  fire<E extends AvatarEvent>(evt: E, payload: AvatarEventPayload<E>): void;
 }
 
-export function createFakeLive2dService(): FakeLive2dService {
+export function createFakeAvatarService(): FakeAvatarService {
   const driveLipSyncCalls: number[] = [];
   const motionCalls: Array<{ group: string; index?: number }> = [];
   const expressionCalls: string[] = [];
-  const parameterCalls: Array<{ id: string; value: number }> = [];
-  const listeners = new Map<Live2dEvent, Set<(p: unknown) => void>>();
+  const listeners = new Map<AvatarEvent, Set<(p: unknown) => void>>();
 
-  const svc: FakeLive2dService = {
+  const svc: FakeAvatarService = {
     driveLipSyncCalls,
     motionCalls,
     expressionCalls,
-    parameterCalls,
     async playMotion(group, index) {
       motionCalls.push({ group, index });
     },
@@ -276,9 +273,6 @@ export function createFakeLive2dService(): FakeLive2dService {
     },
     driveLipSync(rms) {
       driveLipSyncCalls.push(rms);
-    },
-    setParameter(id, value) {
-      parameterCalls.push({ id, value });
     },
     on(evt, fn) {
       if (!listeners.has(evt)) listeners.set(evt, new Set());

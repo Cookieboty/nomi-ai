@@ -108,8 +108,8 @@ describe('MascotContext reducer', () => {
 });
 
 describe('misc', () => {
-  it('has original tips without Live2D selectors', () => {
+  it('has greetings and mouseover tips', () => {
     expect(t(greetingFor(8))).toMatch(/早上好/);
-    expect(MOUSEOVER_TIPS.some((tip) => tip.selector.includes('live2d'))).toBe(false);
+    expect(MOUSEOVER_TIPS.length).toBeGreaterThan(0);
   });
 });

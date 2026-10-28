@@ -17,8 +17,8 @@ const appPath = path.join('/repo', 'packages', 'electron');
 
 describe('normalizeRendererRelativePath', () => {
   it('去掉 ./ 与 / 前缀', () => {
-    expect(normalizeRendererRelativePath('./assets/live2d.min.js')).toBe('assets/live2d.min.js');
-    expect(normalizeRendererRelativePath('/assets/live2d.min.js')).toBe('assets/live2d.min.js');
+    expect(normalizeRendererRelativePath('./assets/mascot.min.js')).toBe('assets/mascot.min.js');
+    expect(normalizeRendererRelativePath('/assets/mascot.min.js')).toBe('assets/mascot.min.js');
     expect(normalizeRendererRelativePath('.//assets/a.json')).toBe('assets/a.json');
   });
 
@@ -53,11 +53,11 @@ describe('resolveUnpackagedAssetPath', () => {
       'renderer',
       'public',
       'assets',
-      'live2d.min.js',
+      'mascot.min.js',
     );
     const resolved = resolveUnpackagedAssetPath(
       appPath,
-      './assets/live2d.min.js',
+      './assets/mascot.min.js',
       (p) => p === existing,
     );
     expect(resolved).toBe(existing);

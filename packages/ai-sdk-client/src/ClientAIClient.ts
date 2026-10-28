@@ -9,7 +9,7 @@
  * - **事件订阅**：所有 插件事件走单一 `ai:event` 通道，由 `ClientAIClient` 本地做
  *   pub/sub 二次分发；`on(evt, fn)` 语义与 P5 `AIClient.on` 一致；
  * - **错误还原**：`bridge.invoke` 抛错时用 [`SDKError.fromIpc`](file:///./errors.ts) 复原 code/message；
- * - **Live2d**：因为 `isAvailable()` 是同步方法，本客户端把 IPC 结果**懒缓存**在本地一次，
+ * - **Avatar**：因为 `isAvailable()` 是同步方法，本客户端把 IPC 结果**懒缓存**在本地一次，
  *   之后同步返回；首次未调用时保守返回 `false`，与 P5 语义一致；
  * - **memory 扁平化**：P6 IPCTransportServer 把 `memory.userProfile/facts/summaries`
  *   拉平到通道前缀（例如 `ai:userProfile:set`）；本客户端相应地把 `memory.userProfile`
@@ -26,8 +26,8 @@ export interface ClientAIClientOptions {
   bridge?: IPCBridge;
   /** window 上的桥接名，默认 `aiIPC`，与 mkAiPreload 保持一致。 */
   bridgeName?: string;
-  /** 可选：预置 live2d isAvailable 的默认值，避免首次 UI 判断闪烁。 */
-  live2dAvailable?: boolean;
+  /** 可选：预置 avatar isAvailable 的默认值，避免首次 UI 判断闪烁。 */
+  avatarAvailable?: boolean;
 }
 
 /**
@@ -60,7 +60,7 @@ export class ClientAIClient {
   };
   readonly asr: Record<string, unknown>;
   readonly tts: Record<string, unknown>;
-  readonly live2d: Record<string, unknown>;
+  readonly avatar: Record<string, unknown>;
 
   private readonly bridge: IPCBridge;
   private readonly listeners = new Map<string, Set<Listener>>();
@@ -68,18 +68,18 @@ export class ClientAIClient {
   /** 进行中的流：dispose 时统一释放（退订 + 唤醒挂起的 next + chat 流通知中止） */
   private readonly activeStreams = new Set<() => void>();
   private disposed = false;
-  private live2dAvailableCache: boolean;
+  private avatarAvailableCache: boolean;
 
   constructor(opts: ClientAIClientOptions = {}) {
     this.bridge = opts.bridge ?? getGlobalBridge(opts.bridgeName ?? 'aiIPC');
-    this.live2dAvailableCache = opts.live2dAvailable ?? false;
+    this.avatarAvailableCache = opts.avatarAvailable ?? false;
 
     this.chat = this.makeFacade('chat');
     this.sessions = this.makeFacade('sessions');
     this.tools = this.makeFacade('tools');
     this.asr = this.makeFacade('asr');
     this.tts = this.makeFacade('tts');
-    this.live2d = this.makeLive2dFacade();
+    this.avatar = this.makeAvatarFacade();
     this.memory = {
       facts: this.makeFacade('facts'),
       summaries: this.makeFacade('summaries'),
@@ -164,14 +164,14 @@ export class ClientAIClient {
     });
   }
 
-  private makeLive2dFacade(): Record<string, unknown> {
-    const base = this.makeFacade('live2d');
+  private makeAvatarFacade(): Record<string, unknown> {
+    const base = this.makeFacade('avatar');
     return new Proxy(base, {
       get: (_t, prop) => {
-        if (prop === 'isAvailable') return () => this.live2dAvailableCache;
+        if (prop === 'isAvailable') return () => this.avatarAvailableCache;
         if (prop === 'on') {
           return (evt: string, fn: (p: unknown) => void) => {
-            const local = evt.startsWith('live2d:') ? evt : `live2d:${evt}`;
+            const local = evt.startsWith('avatar:') ? evt : `avatar:${evt}`;
             return this.on(local, fn);
           };
         }

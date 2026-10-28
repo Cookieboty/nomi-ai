@@ -113,7 +113,6 @@ test.describe('E5 · real app · dist/main.js 生产模式冒烟', () => {
         lipSync: ds.mascotLipsync,
         expressions: (ds.mascotExpressions ?? '').split(','),
         hasCanvas: !!document.querySelector('#mascot-canvas canvas'),
-        live2dGone: typeof (w as { Live2D?: unknown }).Live2D === 'undefined',
         modelsApi: 'models' in ((w.electronAPI ?? {}) as object),
       };
     });
@@ -123,7 +122,6 @@ test.describe('E5 · real app · dist/main.js 生产模式冒烟', () => {
       model: 'nomi',
       lipSync: 'true',
       hasCanvas: true,
-      live2dGone: true,
       modelsApi: false,
     });
     // Rive 是默认渲染器；只有它起不来时才回退到分层 2D sprite（并打上 data-mascot-renderer）

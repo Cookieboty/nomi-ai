@@ -34,8 +34,8 @@ const ALL_EVENTS: AIClientEvent[] = [
   'tts:chunk',
   'tts:end',
   'userProfile:changed',
-  'live2d:touch',
-  'live2d:motion-end',
+  'avatar:touch',
+  'avatar:motion-end',
 ];
 
 export const EVENT_BROADCAST_CHANNEL = 'ai:event';

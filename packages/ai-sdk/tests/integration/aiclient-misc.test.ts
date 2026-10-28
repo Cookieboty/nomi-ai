@@ -1,5 +1,5 @@
 /**
- * P5-7 单测 · Session/Asr/Tts/Live2d Facade 的错误路径与基础 CRUD。
+ * P5-7 单测 · Session/Asr/Tts/Avatar Facade 的错误路径与基础 CRUD。
  */
 
 import { describe, expect, it } from 'vitest';
@@ -41,15 +41,15 @@ describe('AsrFacade / TtsFacade — seam not injected', () => {
   });
 });
 
-describe('Live2dFacade — availability & error', () => {
-  it('isAvailable returns false when Live2dKey not injected', () => {
+describe('AvatarFacade — availability & error', () => {
+  it('isAvailable returns false when AvatarKey not injected', () => {
     const client = new AIClient(createFakeSdkCtx());
-    expect(client.live2d.isAvailable()).toBe(false);
+    expect(client.avatar.isAvailable()).toBe(false);
   });
 
-  it('any call throws LIVE2D_NOT_AVAILABLE when not injected', async () => {
+  it('any call throws SEAM_NOT_INJECTED when not injected', async () => {
     const client = new AIClient(createFakeSdkCtx());
-    expect(() => client.live2d.driveLipSync(0.5)).toThrow(/LIVE2D_NOT_AVAILABLE/);
-    await expect(client.live2d.playMotion('g')).rejects.toThrow(/LIVE2D_NOT_AVAILABLE/);
+    expect(() => client.avatar.driveLipSync(0.5)).toThrow(/SEAM_NOT_INJECTED/);
+    await expect(client.avatar.playMotion('g')).rejects.toThrow(/SEAM_NOT_INJECTED/);
   });
 });

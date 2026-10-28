@@ -6,7 +6,6 @@ import type { ReplySpeechCommand } from '../tts/replySpeech';
 export type MascotCommand =
   | { type: 'motion'; name: string }
   | { type: 'expression'; name: string }
-  | { type: 'parameter'; id: string; value: number }
   | { type: 'open-panel'; panel: 'interaction' | 'credits' | 'motions' }
   | ReplySpeechCommand;
 

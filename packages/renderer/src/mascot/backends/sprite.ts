@@ -88,7 +88,7 @@ function approach(current: number, target: number, rate: number, dt: number): nu
 }
 
 /**
- * Expression-swapped 2D sprite backend (no Live2D).
+ * Expression-swapped 2D sprite backend.
  * Soft PNG plates or pixel pets — lip sync / blink / look are overlays + bob.
  */
 export function createSpriteBackend(manifest: SpriteManifest, baseUrl: string): SpriteBackend {

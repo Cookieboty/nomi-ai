@@ -23,7 +23,6 @@ describe('loadAppConfig — positive cases', () => {
     [{ ui: { theme: 'dark', language: 'zh-CN' } }, 'ui full fields'],
     [{ shortcuts: [{ command: 'agent.stop', accelerator: 'Esc' }] }, 'shortcut ok'],
     [{ autoAcceptTools: ['echo'] }, 'auto accept tools'],
-    [{ live2dEnabled: true }, 'live2d enabled'],
     [DEFAULT_APP_CONFIG, 'default config'],
     [
       {
@@ -31,7 +30,6 @@ describe('loadAppConfig — positive cases', () => {
         shortcuts: [{ command: 'a', accelerator: 'A' }],
         ui: { theme: 'system', fontSizePx: 14 },
         autoAcceptTools: [],
-        live2dEnabled: false,
       },
       'fully populated valid',
     ],

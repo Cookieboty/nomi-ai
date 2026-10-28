@@ -26,4 +26,4 @@ animated with Rive by default, falling back to the Canvas2D layered rig if Rive 
 Only Nomi is bundled; there is no character switching, store or import. `pnpm check:licenses` rejects assets without an
 allowlisted open license (CC0 / CC-BY / MIT, etc.) or missing from `assets-licenses.json`.
 
-> 历史 / History：v1 曾使用 Live2D Cubism 2 运行时与第三方模型；因许可原因已整体移除。之后的 VRM 3D 渲染器也已移除。 / v1 used Live2D Cubism 2 runtime and third-party models; removed for licensing reasons. The later VRM 3D renderer has been removed as well.
+> 历史 / History：v1 曾使用第三方 2D 模型运行时与模型；因许可原因已整体移除。之后的 VRM 3D 渲染器也已移除。 / v1 used a third-party 2D model runtime and models; removed for licensing reasons. The later VRM 3D renderer has been removed as well.

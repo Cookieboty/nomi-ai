@@ -3,7 +3,7 @@ import { defineConfig } from 'tsup';
 /**
  * bundle-ig-mascot 主入口是 React/渲染进程代码（ESM only），
  * 但 `./seams` 只导出 Service Key / 类型 / 契约，是纯 Node/浏览器双兼容代码，
- * 且被 `@nomi-ai/ai-sdk` 的 CJS build 作为**运行时值**引用（Live2dKey 需要注入）。
+ * 且被 `@nomi-ai/ai-sdk` 的 CJS build 作为**运行时值**引用（AvatarKey 需要注入）。
  *
  * 因此拆两条 tsup 流水线：
  * 1) 主入口 `src/index.ts` → 浏览器 ESM

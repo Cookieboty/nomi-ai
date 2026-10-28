@@ -1,6 +1,6 @@
 import { definePlugin, type HookContext, type PluginContext } from '@nomi-ai/bundle-ig-base';
 
-import { Live2dKey, type Live2dService } from '../seams/live2d';
+import { AvatarKey, type AvatarService } from '../seams/avatar';
 
 export interface TtsLipSyncPluginConfig {
   /** 目标嘴型驱动帧率（Hz），默认 20；本 plugin 用最小间隔 = 1000/targetFps 节流 */
@@ -57,11 +57,11 @@ const disposers = new WeakMap<PluginContext, () => void>();
 
 export const TtsLipSyncPlugin = definePlugin<TtsLipSyncPluginConfig>({
   name: 'TtsLipSyncPlugin',
-  requires: ['Live2dSeamPlugin'],
+  requires: ['AvatarSeamPlugin'],
   apply(ctx: PluginContext, cfg: TtsLipSyncPluginConfig) {
-    const live2d: Live2dService | undefined = ctx.inject(Live2dKey);
-    if (!live2d) {
-      ctx.logger.warn('[TtsLipSyncPlugin] ctx.live2d not available; skipping');
+    const avatar: AvatarService | undefined = ctx.inject(AvatarKey);
+    if (!avatar) {
+      ctx.logger.warn('[TtsLipSyncPlugin] ctx.avatar not available; skipping');
       return;
     }
 
@@ -78,7 +78,7 @@ export const TtsLipSyncPlugin = definePlugin<TtsLipSyncPluginConfig>({
         const now = Date.now();
         if (!throttler.admit(now, isFinal)) return;
         const value = typeof rms === 'number' ? rms : 0;
-        live2d.driveLipSync(value);
+        avatar.driveLipSync(value);
       },
     );
 
@@ -87,9 +87,9 @@ export const TtsLipSyncPlugin = definePlugin<TtsLipSyncPluginConfig>({
       async (_hookCtx: HookContext<TtsEndEventPayload>) => {
         throttler.reset();
         if (!resetOnEnd) return;
-        live2d.driveLipSync(0);
+        avatar.driveLipSync(0);
         try {
-          await live2d.playMotion(idleGroup);
+          await avatar.playMotion(idleGroup);
         } catch (err) {
           ctx.logger.debug(`[TtsLipSyncPlugin] fallback to idle failed: ${(err as Error).message}`);
         }

@@ -70,11 +70,10 @@ export const IPC_METHODS: readonly IpcMethodSpec[] = Object.freeze([
   { facade: 'tts', method: 'stream', kind: 'stream' },
   { facade: 'tts', method: 'stop', kind: 'sync-return' },
 
-  { facade: 'live2d', method: 'isAvailable', kind: 'sync-return' },
-  { facade: 'live2d', method: 'playMotion', kind: 'return' },
-  { facade: 'live2d', method: 'setExpression', kind: 'return' },
-  { facade: 'live2d', method: 'driveLipSync', kind: 'sync-return' },
-  { facade: 'live2d', method: 'setParameter', kind: 'sync-return' },
+  { facade: 'avatar', method: 'isAvailable', kind: 'sync-return' },
+  { facade: 'avatar', method: 'playMotion', kind: 'return' },
+  { facade: 'avatar', method: 'setExpression', kind: 'return' },
+  { facade: 'avatar', method: 'driveLipSync', kind: 'sync-return' },
 ]);
 
 /**

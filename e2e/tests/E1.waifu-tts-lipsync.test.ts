@@ -5,7 +5,7 @@
  * - 主进程侧真实构造 `AIClient` + `IPCTransportServer` + `EventBroadcaster`（无 Electron，
  *   IPC 走 FakeIpcAdapter；LLM/Tool/UserProfile seams 由 e2e/helpers/fakeSeams 提供）；
  * - 一个"waifu 主渲染窗口"通过 `ClientAIClient` 订阅 AI 事件；
- * - 触发 插件事件 `tts/chunk` → 渲染窗口收到 `tts:chunk`，其 `rms>0` 可驱动 `live2d.driveLipSync`；
+ * - 触发 插件事件 `tts/chunk` → 渲染窗口收到 `tts:chunk`，其 `rms>0` 可驱动 `avatar.driveLipSync`；
  * - 触发 插件事件 `agent/turn-end`（等价于 P8-3 里的"turn 完成/消息完成"信号）→ 广播到全部窗口。
  *
  * 本用例不启动 Electron，以 `agent:turn-end` 作为回合完成信号；真实界面由 e2e-headed 覆盖，
@@ -17,7 +17,7 @@ import { ClientAIClient } from '@nomi-ai/ai-sdk-client';
 import { describe, expect, it, afterEach, beforeEach } from 'vitest';
 
 import { createE2eRuntime, type E2eRuntimeHandle } from '../helpers/e2eRuntime';
-import { createFakeLive2dService } from '../helpers/fakeSeams';
+import { createFakeAvatarService } from '../helpers/fakeSeams';
 
 describe('E1 · waifu · tts chunk → lip sync + turn 完成广播', () => {
   let handle: E2eRuntimeHandle;
@@ -30,20 +30,20 @@ describe('E1 · waifu · tts chunk → lip sync + turn 完成广播', () => {
     handle.dispose();
   });
 
-  it('tts:chunk 广播到所有渲染窗口，rms > 0 可驱动 live2d.driveLipSync', async () => {
+  it('tts:chunk 广播到所有渲染窗口，rms > 0 可驱动 avatar.driveLipSync', async () => {
     const waifuMain = handle.createRendererClient({ id: 501 });
     const waifuOverlay = handle.createRendererClient({ id: 502 });
     const clientA = new ClientAIClient({ bridge: waifuMain.bridge });
     const clientB = new ClientAIClient({ bridge: waifuOverlay.bridge });
 
-    const live2d = createFakeLive2dService();
+    const avatar = createFakeAvatarService();
     const chunkAtA: Array<{ rms: number }> = [];
     const chunkAtB: Array<{ rms: number }> = [];
 
     const offA = clientA.on('tts:chunk', (p) => {
       const payload = p as { rms?: number };
       if (typeof payload.rms === 'number') {
-        live2d.driveLipSync(payload.rms);
+        avatar.driveLipSync(payload.rms);
         chunkAtA.push({ rms: payload.rms });
       }
     });
@@ -70,8 +70,8 @@ describe('E1 · waifu · tts chunk → lip sync + turn 完成广播', () => {
 
     expect(chunkAtA).toEqual([{ rms: 0.65 }, { rms: 0.42 }]);
     expect(chunkAtB).toEqual([{ rms: 0.65 }, { rms: 0.42 }]);
-    expect(live2d.driveLipSyncCalls).toEqual([0.65, 0.42]);
-    expect(live2d.driveLipSyncCalls.every((v) => v > 0)).toBe(true);
+    expect(avatar.driveLipSyncCalls).toEqual([0.65, 0.42]);
+    expect(avatar.driveLipSyncCalls.every((v) => v > 0)).toBe(true);
 
     offA();
     offB();

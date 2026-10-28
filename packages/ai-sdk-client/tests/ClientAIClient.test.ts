@@ -139,10 +139,10 @@ describe('ClientAIClient · IPC 通道映射', () => {
     expect(() => client.on('agent:step', () => undefined)).toThrowError(SDKError);
   });
 
-  it('live2d.isAvailable 使用本地缓存', () => {
+  it('avatar.isAvailable 使用本地缓存', () => {
     const bridge = new FakeBridge();
-    const client = new ClientAIClient({ bridge, live2dAvailable: true });
-    const l = client.live2d as { isAvailable: () => boolean };
+    const client = new ClientAIClient({ bridge, avatarAvailable: true });
+    const l = client.avatar as { isAvailable: () => boolean };
     expect(l.isAvailable()).toBe(true);
   });
 

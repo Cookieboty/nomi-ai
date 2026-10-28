@@ -74,7 +74,7 @@ export const WaifuAgentPresetPlugin = definePlugin<WaifuAgentPresetPluginConfig>
       ctx.provide(AgentPresetRegistryKey, registry);
     }
 
-    const toolNames = ['live2d_play_motion', 'live2d_set_expression', ...builtinTools];
+    const toolNames = ['avatar_gesture', 'avatar_emotion', ...builtinTools];
 
     const preset: AgentPreset = {
       name: presetName,

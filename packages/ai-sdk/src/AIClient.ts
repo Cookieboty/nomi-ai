@@ -5,8 +5,8 @@
  * - `new AIClient(ctx, { logger?, config? })` 构造即完成 7 Facade 装配；
  * - Facade 内部只做**薄封装 + DTO 映射**，绝不实现业务逻辑；
  * - 对外唯一事件入口是 `AIClient.on(evt, fn)`；桥接由本类完成，插件事件对外不可见；
- * - `Live2dFacade` 通过 `isAvailable()` 探测；若消费方是非渲染 profile，任何具体调用
- *   都会抛 `LIVE2D_NOT_AVAILABLE`。
+ * - `AvatarFacade` 通过 `isAvailable()` 探测；未注入时任何具体调用
+ *   都会抛 `SEAM_NOT_INJECTED`。
  */
 
 import type { AppConfig } from './config/AppConfig';
@@ -14,8 +14,8 @@ import { NoopLogger, type ILogger } from './di/ILogger';
 import type { SdkContext } from './di/SdkContext';
 import { AIClientError, ErrorCodes } from './errors';
 import { createAsrFacade, type AsrFacade } from './facade/AsrFacade';
+import { createAvatarFacade, type AvatarFacade } from './facade/AvatarFacade';
 import { createChatFacade, type ChatFacade } from './facade/ChatFacade';
-import { createLive2dFacade, type Live2dFacade } from './facade/Live2dFacade';
 import { createMemoryFacade, type MemoryFacade } from './facade/MemoryFacade';
 import { createSessionFacade, type SessionFacade } from './facade/SessionFacade';
 import { createToolsFacade, type ToolsFacade } from './facade/ToolsFacade';
@@ -35,7 +35,7 @@ export class AIClient {
   readonly memory: MemoryFacade;
   readonly asr: AsrFacade;
   readonly tts: TtsFacade;
-  readonly live2d: Live2dFacade;
+  readonly avatar: AvatarFacade;
 
   private readonly logger: ILogger;
   private readonly listeners = new Map<AIClientEvent, Set<(payload: never) => void>>();
@@ -54,7 +54,7 @@ export class AIClient {
     this.memory = createMemoryFacade(ctx);
     this.asr = createAsrFacade(ctx);
     this.tts = createTtsFacade(ctx);
-    this.live2d = createLive2dFacade(ctx);
+    this.avatar = createAvatarFacade(ctx);
 
     this.bindRuntimeBridges();
     this.logger.info('AIClient ready', { config: opts.config });
@@ -169,9 +169,9 @@ export class AIClient {
       this.bridgeDisposers.push(off);
     }
 
-    if (this.live2d.isAvailable()) {
-      this.bridgeDisposers.push(this.live2d.on('touch', (t) => push('live2d:touch', t)));
-      this.bridgeDisposers.push(this.live2d.on('motion:end', (m) => push('live2d:motion-end', m)));
+    if (this.avatar.isAvailable()) {
+      this.bridgeDisposers.push(this.avatar.on('touch', (t) => push('avatar:touch', t)));
+      this.bridgeDisposers.push(this.avatar.on('motion:end', (m) => push('avatar:motion-end', m)));
     }
   }
 

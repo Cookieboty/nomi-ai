@@ -1,5 +1,5 @@
 /**
- * Pseudo-3D layered 2D rig (Live2D-like feel without Live2D or WebGL).
+ * Pseudo-3D layered 2D rig (parameter-driven layers, no WebGL).
  *
  * A rig is a handful of transparent PNG layers cut from one illustration
  * (body, head, side hair, ribbon, eyes, mouth + painted variants). The

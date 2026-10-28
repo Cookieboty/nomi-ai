@@ -35,8 +35,6 @@ export interface AppConfig {
   ui: UiPreferences;
   /** 允许的危险工具白名单（会在 runtime 层与 UI 二次确认合并） */
   autoAcceptTools?: string[];
-  /** 是否启用看板娘（仅在渲染 profile 有效） */
-  live2dEnabled?: boolean;
 }
 
 export const DEFAULT_APP_CONFIG: AppConfig = {
@@ -44,5 +42,4 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
   shortcuts: [],
   ui: { theme: 'system' },
   autoAcceptTools: [],
-  live2dEnabled: false,
 };

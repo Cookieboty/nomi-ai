@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { Live2dSeamPlugin } from '../../src/plugins/Live2dSeamPlugin';
+import { AvatarSeamPlugin } from '../../src/plugins/AvatarSeamPlugin';
 import { RmsThrottler, TtsLipSyncPlugin } from '../../src/plugins/TtsLipSyncPlugin';
-import { Live2dKey } from '../../src/seams/live2d';
+import { AvatarKey } from '../../src/seams/avatar';
+import { createFakeAvatarHost } from '../helpers/fakeAvatarHost';
 import { createFakeCtx } from '../helpers/fakeCtx';
-import { createFakeLive2dHost } from '../helpers/fakeLive2dHost';
 
 describe('RmsThrottler', () => {
   it('admits first sample and rejects until minGapMs passes', () => {
@@ -42,9 +42,9 @@ describe('TtsLipSyncPlugin', () => {
 
   async function setup(cfg: Parameters<typeof TtsLipSyncPlugin.apply>[1] = {}) {
     const ctx = createFakeCtx();
-    await Live2dSeamPlugin.apply(ctx, {});
-    const svc = ctx.inject(Live2dKey)!;
-    const host = createFakeLive2dHost();
+    await AvatarSeamPlugin.apply(ctx, {});
+    const svc = ctx.inject(AvatarKey)!;
+    const host = createFakeAvatarHost();
     svc.attachHost(host);
     await TtsLipSyncPlugin.apply(ctx, cfg);
     return { ctx, host };

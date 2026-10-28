@@ -106,7 +106,7 @@ export class ConfigIpcHandler extends BaseIpcHandler {
 
     // 保存语音设置：由 VoiceIpcHandler 统一注册（同名通道只能有一个所有者）
 
-    // 旧版本的显示模式（Live2D / 自定义图片）已移除：清理持久化的 displayMode，统一为 3D 看板娘
+    // 旧版本的显示模式（Live2D / 自定义图片）已移除：清理用户磁盘上持久化的 displayMode
     this.migrateLegacyDisplayMode();
 
     // 获取应用信息

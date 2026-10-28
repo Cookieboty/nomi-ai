@@ -10,18 +10,16 @@ describe('mascotBridge', () => {
     });
     await host.playMotion('wave');
     await host.setExpression('happy');
-    host.setParameter('ParamAngleX', 0.5);
     expect(sent).toEqual([
       { type: 'motion', name: 'wave' },
       { type: 'expression', name: 'happy' },
-      { type: 'parameter', id: 'ParamAngleX', value: 0.5 },
     ]);
     expect(typeof host.on('touch', jest.fn())).toBe('function');
   });
 
   it('registers the seam, the tools plugin and the IPC host in order', () => {
     expect(mascotIgPlugins.map((e) => e.plugin.name)).toEqual([
-      'Live2dSeamPlugin',
+      'AvatarSeamPlugin',
       'WaifuToolsPlugin',
       'MascotIpcHostPlugin',
     ]);

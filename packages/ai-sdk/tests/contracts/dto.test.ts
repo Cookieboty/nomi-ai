@@ -110,8 +110,8 @@ describe('DTO contracts', () => {
       'tts:chunk',
       'tts:end',
       'userProfile:changed',
-      'live2d:touch',
-      'live2d:motion-end',
+      'avatar:touch',
+      'avatar:motion-end',
     ];
     // 保证字符串没有被误改
     expect(new Set(events).size).toBe(events.length);

@@ -8,7 +8,7 @@ import {
 } from '@nomi-ai/bundle-ig-base';
 import { describe, expect, it } from 'vitest';
 
-import { Live2dSeamPlugin } from '../../src/plugins/Live2dSeamPlugin';
+import { AvatarSeamPlugin } from '../../src/plugins/AvatarSeamPlugin';
 import {
   buildWaifuSystemPrompt,
   WaifuAgentPresetPlugin,
@@ -19,9 +19,9 @@ import {
   WaifuToolsPlugin,
 } from '../../src/plugins/WaifuToolsPlugin';
 import { AgentPresetRegistryKey } from '../../src/seams/agentPreset';
-import { Live2dKey } from '../../src/seams/live2d';
+import { AvatarKey } from '../../src/seams/avatar';
+import { createFakeAvatarHost } from '../helpers/fakeAvatarHost';
 import { createFakeCtx } from '../helpers/fakeCtx';
-import { createFakeLive2dHost } from '../helpers/fakeLive2dHost';
 
 function createFakeRegistry(): ToolRegistry {
   const map = new Map<string, ToolDefinition>();
@@ -55,7 +55,7 @@ function createFakeProfile(data: Partial<Record<string, unknown>>): UserProfileS
 }
 
 describe('WaifuToolsPlugin schema', () => {
-  it('play_motion accepts valid input', () => {
+  it('avatar_gesture accepts valid input', () => {
     expect(playMotionInputSchema.parse({ group: 'idle', index: 0 })).toEqual({
       group: 'idle',
       index: 0,
@@ -63,13 +63,13 @@ describe('WaifuToolsPlugin schema', () => {
     expect(playMotionInputSchema.parse({ group: 'idle' })).toEqual({ group: 'idle' });
   });
 
-  it('play_motion rejects extra keys and negative index', () => {
+  it('avatar_gesture rejects extra keys and negative index', () => {
     expect(() => playMotionInputSchema.parse({ group: 'idle', extra: 1 })).toThrow();
     expect(() => playMotionInputSchema.parse({ group: 'idle', index: -1 })).toThrow();
     expect(() => playMotionInputSchema.parse({ group: '' })).toThrow();
   });
 
-  it('set_expression validates non-empty name', () => {
+  it('avatar_emotion validates non-empty name', () => {
     expect(() => setExpressionInputSchema.parse({ name: '' })).toThrow();
     expect(setExpressionInputSchema.parse({ name: 'smile' })).toEqual({ name: 'smile' });
   });
@@ -78,9 +78,9 @@ describe('WaifuToolsPlugin schema', () => {
 describe('WaifuToolsPlugin', () => {
   async function setup(cfg: Parameters<typeof WaifuToolsPlugin.apply>[1] = {}) {
     const ctx = createFakeCtx();
-    await Live2dSeamPlugin.apply(ctx, {});
-    const svc = ctx.inject(Live2dKey)!;
-    const host = createFakeLive2dHost();
+    await AvatarSeamPlugin.apply(ctx, {});
+    const svc = ctx.inject(AvatarKey)!;
+    const host = createFakeAvatarHost();
     svc.attachHost(host);
     const registry = createFakeRegistry();
     ctx.provide(ToolRegistryKey, registry);
@@ -88,14 +88,14 @@ describe('WaifuToolsPlugin', () => {
     return { ctx, host, registry };
   }
 
-  it('registers live2d_play_motion and live2d_set_expression', async () => {
+  it('registers avatar_gesture and avatar_emotion', async () => {
     const { registry } = await setup();
     expect(
       registry
         .list()
         .map((t) => t.name)
         .sort(),
-    ).toEqual(['live2d_play_motion', 'live2d_set_expression']);
+    ).toEqual(['avatar_emotion', 'avatar_gesture']);
   });
 
   it('autoConfirm=true marks tools as dangerous=false', async () => {
@@ -112,10 +112,10 @@ describe('WaifuToolsPlugin', () => {
     }
   });
 
-  it('tool execute drives Live2dService and returns ok', async () => {
+  it('tool execute drives AvatarService and returns ok', async () => {
     const { registry, host } = await setup();
-    const play = registry.get('live2d_play_motion')!;
-    const expr = registry.get('live2d_set_expression')!;
+    const play = registry.get('avatar_gesture')!;
+    const expr = registry.get('avatar_emotion')!;
     await expect(play.execute({ group: 'idle', index: 2 }, {})).resolves.toEqual({ ok: true });
     await expect(expr.execute({ name: 'smile' }, {})).resolves.toEqual({ ok: true });
     expect(host.record.playMotion).toEqual([{ group: 'idle', index: 2 }]);
@@ -124,7 +124,7 @@ describe('WaifuToolsPlugin', () => {
 
   it('warns and skips when tool registry not available', async () => {
     const ctx = createFakeCtx();
-    await Live2dSeamPlugin.apply(ctx, {});
+    await AvatarSeamPlugin.apply(ctx, {});
     await WaifuToolsPlugin.apply(ctx, {});
     expect(
       ctx.logs.some((l) => l.level === 'warn' && l.msg.includes('ctx.tools not available')),
@@ -153,12 +153,12 @@ describe('buildWaifuSystemPrompt', () => {
       'identity.nickname': '小明',
     });
     const prompt = buildWaifuSystemPrompt(profile, {
-      toolNames: ['live2d_play_motion', 'echo'],
+      toolNames: ['avatar_gesture', 'echo'],
       prefix: '（内部前缀）',
     });
     expect(prompt.startsWith('（内部前缀）')).toBe(true);
     expect(prompt).toContain('小明');
-    expect(prompt).toContain('live2d_play_motion, echo');
+    expect(prompt).toContain('avatar_gesture, echo');
     expect(prompt).toContain('轻松');
   });
 
@@ -174,9 +174,9 @@ describe('buildWaifuSystemPrompt', () => {
 describe('WaifuAgentPresetPlugin', () => {
   async function setup(cfg: Parameters<typeof WaifuAgentPresetPlugin.apply>[1] = {}) {
     const ctx = createFakeCtx();
-    await Live2dSeamPlugin.apply(ctx, {});
-    const svc = ctx.inject(Live2dKey)!;
-    svc.attachHost(createFakeLive2dHost());
+    await AvatarSeamPlugin.apply(ctx, {});
+    const svc = ctx.inject(AvatarKey)!;
+    svc.attachHost(createFakeAvatarHost());
     ctx.provide(ToolRegistryKey, createFakeRegistry());
     await WaifuToolsPlugin.apply(ctx, {});
     const profile = createFakeProfile({ 'preferences.tone': { value: 'cute' } });
@@ -192,8 +192,8 @@ describe('WaifuAgentPresetPlugin', () => {
     const preset = registry!.get('waifu');
     expect(preset).toBeDefined();
     expect(preset!.toolWhitelist).toEqual([
-      'live2d_play_motion',
-      'live2d_set_expression',
+      'avatar_gesture',
+      'avatar_emotion',
       'time_now',
       'random',
       'echo',
@@ -207,7 +207,7 @@ describe('WaifuAgentPresetPlugin', () => {
     const preset = registry.get('waifu')!;
     const prompt = await preset.systemPrompt();
     expect(prompt).toContain('可爱');
-    expect(prompt).toContain('live2d_play_motion');
+    expect(prompt).toContain('avatar_gesture');
   });
 
   it('supports custom preset name / tools / disable via config', async () => {
@@ -219,11 +219,7 @@ describe('WaifuAgentPresetPlugin', () => {
     const registry = ctx.inject(AgentPresetRegistryKey)!;
     const preset = registry.get('waifu-plus');
     expect(preset).toBeDefined();
-    expect(preset!.toolWhitelist).toEqual([
-      'live2d_play_motion',
-      'live2d_set_expression',
-      'time_now',
-    ]);
+    expect(preset!.toolWhitelist).toEqual(['avatar_gesture', 'avatar_emotion', 'time_now']);
     expect(preset!.disable).toEqual(['mcp']);
     expect(registry.get('waifu')).toBeUndefined();
   });

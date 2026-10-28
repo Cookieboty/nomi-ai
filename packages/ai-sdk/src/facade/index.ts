@@ -5,4 +5,4 @@ export * from './ToolsFacade';
 export * from './MemoryFacade';
 export * from './AsrFacade';
 export * from './TtsFacade';
-export * from './Live2dFacade';
+export * from './AvatarFacade';

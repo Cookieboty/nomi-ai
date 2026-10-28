@@ -6,7 +6,7 @@
  *
  * 双重保障：
  * 1. **compile-time**：`expectTypeOf<ClientKeys>().toEqualTypeOf<SdkKeys>()`——
- *    直接靠 TS 的键集比较，任何顶层 facade（chat/sessions/tools/memory/asr/tts/live2d）
+ *    直接靠 TS 的键集比较，任何顶层 facade（chat/sessions/tools/memory/asr/tts/avatar）
  *    在两侧命名漂移都会编译失败。
  * 2. **runtime**：把 P5 每个 facade 的 method key 汇总，逐一在 `ClientAIClient`
  *    的 Proxy facade 上取值，断言得到 `function`。用 IPC_METHODS 白名单反查通道
@@ -26,8 +26,8 @@ import { ClientAIClient } from '../src/ClientAIClient';
 
 import { FakeBridge } from './FakeBridge';
 
-type SdkTopKeys = 'chat' | 'sessions' | 'tools' | 'memory' | 'asr' | 'tts' | 'live2d';
-type ClientTopKeys = 'chat' | 'sessions' | 'tools' | 'memory' | 'asr' | 'tts' | 'live2d';
+type SdkTopKeys = 'chat' | 'sessions' | 'tools' | 'memory' | 'asr' | 'tts' | 'avatar';
+type ClientTopKeys = 'chat' | 'sessions' | 'tools' | 'memory' | 'asr' | 'tts' | 'avatar';
 
 describe('P7 契约 · ClientAIClient ≡ AIClient 结构等价', () => {
   it('顶层 facade 键集完全一致（compile-time）', () => {
@@ -60,7 +60,7 @@ describe('P7 契约 · ClientAIClient ≡ AIClient 结构等价', () => {
     summaries: ['get', 'put'],
     asr: ['list', 'transcribe'],
     tts: ['list', 'listVoices', 'synth', 'stream', 'stop'],
-    live2d: ['isAvailable', 'playMotion', 'setExpression', 'driveLipSync', 'setParameter'],
+    avatar: ['isAvailable', 'playMotion', 'setExpression', 'driveLipSync'],
   };
 
   it('IPC_METHODS 覆盖所有可暴露方法且不多不少', () => {
@@ -89,7 +89,7 @@ describe('P7 契约 · ClientAIClient ≡ AIClient 结构等价', () => {
       tools: client.tools,
       asr: client.asr,
       tts: client.tts,
-      live2d: client.live2d,
+      avatar: client.avatar,
       userProfile: client.memory.userProfile,
       facts: client.memory.facts,
       summaries: client.memory.summaries,

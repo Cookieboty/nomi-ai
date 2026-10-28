@@ -236,6 +236,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 ### Refactoring
 
 - **logging:** central logger; debug/info output is silent in production (set NOMI_DEBUG=1 or localStorage nomi.debug=1 to enable).
+- **mascot:** the AI tools that drive the mascot are renamed from `live2d_play_motion` / `live2d_set_expression` to `avatar_gesture` / `avatar_emotion` (same arguments). The old names are gone with no aliases; the app never shipped a Live2D runtime, so the remaining `live2d` names (IPC facade `ai:live2d:*` → `ai:avatar:*`, event `live2d:touch` → `avatar:touch`, `Live2dSeamPlugin` → `AvatarSeamPlugin`) are renamed too, and the unused `setParameter` call and `LIVE2D_NOT_AVAILABLE` error code are removed.
 - **tts:** 删除内置语音模型下载相关文案，新增「诺米提示语音」与实时朗读引擎（无 / Edge / Azure / OpenAI）文案。 (`@nomi-ai/i18n` patch)
 - **tts:** 移除 Fish / legacy 旧音色相关设置与许可文案。 (`@nomi-ai/i18n` patch)
 - **tts:** 移除 Fish 与 legacy 旧音色：删除 Fish（本地 / 云）与自建 legacy 朗读引擎、内置 `nomi` 参考音色及相关设置项和许可说明。旧配置里的 fish-local / fish-cloud / legacy 按「无」加载，不报错。目前没有实现任何实时朗读引擎，AI 普通回复不出声，只有诺米预录提示语音会播放。 (`@nomi-ai/electron` patch, `@nomi-ai/renderer` patch, `@nomi-ai/ai-chat` patch, `@nomi-ai/types` patch)

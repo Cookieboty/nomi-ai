@@ -1,5 +1,5 @@
 /**
- * Live2D-style parameter bag for the Nomi 2D rig.
+ * Named parameter bag for the Nomi 2D layered rig.
  *
  * Every pose is a set of named, bounded parameters. Actions (keyframe tracks) write parameters,
  * the animator reads them. Values live in one preallocated Float32Array so the per-frame hot path

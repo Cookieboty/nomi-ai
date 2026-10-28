@@ -236,7 +236,7 @@ export function createObservabilityBridge(
         break;
       }
       default:
-        // 其它事件（userProfile:changed / live2d:*）当前不需要 metrics/trace
+        // 其它事件（userProfile:changed / avatar:*）当前不需要 metrics/trace
         break;
     }
   }

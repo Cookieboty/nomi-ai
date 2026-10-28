@@ -40,7 +40,6 @@ export const AppConfigSchema = z
     shortcuts: z.array(shortcutBindingSchema).default([]),
     ui: uiPreferencesSchema.default({}),
     autoAcceptTools: z.array(z.string().min(1)).optional(),
-    live2dEnabled: z.boolean().optional(),
   })
   .strict()
   .superRefine((cfg, ctx) => {

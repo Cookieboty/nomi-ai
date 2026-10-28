@@ -199,7 +199,7 @@ export async function startAIRuntime(
       logger: runtimeLogger,
       // FileSessionStorePlugin 提供 ProfileStorageKey → 用户画像持久化到 userData/ai-chat/memory
       before: [{ plugin: FileSessionStorePlugin }],
-      // 看板娘动作 / 表情工具（live2d_play_motion / live2d_set_expression）→ IPC → 渲染进程
+      // 看板娘动作 / 表情工具（avatar_gesture / avatar_emotion）→ IPC → 渲染进程
       after: [...mascotIgPlugins, ...desktopIgPlugins],
       // env(MCP_SERVERS) 来的工具同样强制走用户确认 + 审计（ExtensionsService.guardEnvTool）
       mcpToolGuard: (server, def) => getExtensionsService()?.guardEnvTool(server, def) ?? def,

@@ -49,7 +49,7 @@ export type BubbleEvent =
   | { kind: 'agent:step'; payload: BubbleAgentStep }
   | { kind: 'message:complete'; payload: BubbleMessageComplete }
   | { kind: 'tool:executed'; payload: BubbleToolExecuted }
-  | { kind: 'live2d:touch'; payload: BubbleMascotTouch };
+  | { kind: 'avatar:touch'; payload: BubbleMascotTouch };
 
 export const BUBBLE_PRIORITY = {
   agentStep: 6,
@@ -130,7 +130,7 @@ export function deriveBubble(evt: BubbleEvent): BubbleDirective | null {
         timeout: BUBBLE_TIMEOUT.toolExecuted,
       };
     }
-    case 'live2d:touch': {
+    case 'avatar:touch': {
       const hit = evt.payload.hitArea || 'body';
       return {
         text: t('ui.chat-settings.touched', hit),

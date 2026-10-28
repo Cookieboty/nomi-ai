@@ -23,8 +23,8 @@ export type AIClientEvent =
   | 'tts:chunk'
   | 'tts:end'
   | 'userProfile:changed'
-  | 'live2d:touch'
-  | 'live2d:motion-end';
+  | 'avatar:touch'
+  | 'avatar:motion-end';
 
 export interface MessageDeltaPayload {
   sessionId: string;
@@ -85,14 +85,14 @@ export interface UserProfileChangedPayload {
   profile: UserProfile;
 }
 
-export interface Live2dTouchPayload {
+export interface AvatarTouchPayload {
   hitArea: string;
   x?: number;
   y?: number;
   at: number;
 }
 
-export interface Live2dMotionEndPayload {
+export interface AvatarMotionEndPayload {
   group: string;
   index?: number;
   interrupted?: boolean;
@@ -109,8 +109,8 @@ export interface AIClientEventMap {
   'tts:chunk': TtsChunkPayload;
   'tts:end': TtsEndPayload;
   'userProfile:changed': UserProfileChangedPayload;
-  'live2d:touch': Live2dTouchPayload;
-  'live2d:motion-end': Live2dMotionEndPayload;
+  'avatar:touch': AvatarTouchPayload;
+  'avatar:motion-end': AvatarMotionEndPayload;
 }
 
 export type AIClientEventPayload<E extends AIClientEvent> = AIClientEventMap[E];

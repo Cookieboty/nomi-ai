@@ -1,5 +1,5 @@
 /**
- * Nomi action library — keyframe actions over the Live2D-style parameters (see params.ts).
+ * Nomi action library — keyframe actions over the 2D layered rig parameters (see params.ts).
  *
  * Authoring rules
  *  - Only action / pose parameters are driven here. Brand layers (hair clips, ribbon, N logo, tag,

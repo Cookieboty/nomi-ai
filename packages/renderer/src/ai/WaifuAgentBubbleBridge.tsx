@@ -69,10 +69,10 @@ const WaifuAgentBubbleBridge: FC = () => {
     );
   });
 
-  useAIEvents('live2d:touch', (payload) => {
+  useAIEvents('avatar:touch', (payload) => {
     emit(
       deriveBubble({
-        kind: 'live2d:touch',
+        kind: 'avatar:touch',
         payload: payload as BubbleMascotTouch,
       }),
     );

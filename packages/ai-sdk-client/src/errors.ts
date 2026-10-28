@@ -21,7 +21,6 @@ const IPC_PREFIX_RE = /^\[([A-Z_][A-Z0-9_]*)(\|[^\]]*)?\]\s?(.*)$/s;
  */
 export const SDKErrorCodes = {
   // 既有（P5 引入）
-  LIVE2D_NOT_AVAILABLE: 'LIVE2D_NOT_AVAILABLE',
   SEAM_NOT_INJECTED: 'SEAM_NOT_INJECTED',
   TOOL_NOT_FOUND: 'TOOL_NOT_FOUND',
   TOOL_CONFIRM_INVALID: 'TOOL_CONFIRM_INVALID',

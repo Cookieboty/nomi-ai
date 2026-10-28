@@ -1,6 +1,6 @@
 import { definePlugin, type PluginContext } from '@nomi-ai/bundle-ig-base';
 
-import { Live2dKey, type Live2dTouchPayload } from '../seams/live2d';
+import { AvatarKey, type AvatarTouchPayload } from '../seams/avatar';
 
 export interface TouchInjectPluginConfig {
   /** 同一 hitArea 冷却时间（ms），默认 5000 */
@@ -54,11 +54,11 @@ const disposers = new WeakMap<PluginContext, () => void>();
 
 export const TouchInjectPlugin = definePlugin<TouchInjectPluginConfig>({
   name: 'TouchInjectPlugin',
-  requires: ['Live2dSeamPlugin'],
+  requires: ['AvatarSeamPlugin'],
   apply(ctx: PluginContext, cfg: TouchInjectPluginConfig) {
-    const live2d = ctx.inject(Live2dKey);
-    if (!live2d) {
-      ctx.logger.warn('[TouchInjectPlugin] ctx.live2d not available; skipping');
+    const avatar = ctx.inject(AvatarKey);
+    if (!avatar) {
+      ctx.logger.warn('[TouchInjectPlugin] ctx.avatar not available; skipping');
       return;
     }
 
@@ -66,7 +66,7 @@ export const TouchInjectPlugin = definePlugin<TouchInjectPluginConfig>({
     const channel = cfg.channel ?? 'touch';
     const whitelist = cfg.hitAreaWhitelist ?? null;
 
-    const off = live2d.on('touch', (payload: Live2dTouchPayload) => {
+    const off = avatar.on('touch', (payload: AvatarTouchPayload) => {
       if (whitelist && !whitelist.includes(payload.hitArea)) {
         ctx.logger.debug(`[TouchInjectPlugin] area not whitelisted: ${payload.hitArea}`);
         return;

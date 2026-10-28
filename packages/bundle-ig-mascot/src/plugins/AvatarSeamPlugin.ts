@@ -1,14 +1,14 @@
 import { definePlugin, type PluginContext } from '@nomi-ai/bundle-ig-base';
 
 import {
-  Live2dKey,
-  type Live2dEvent,
-  type Live2dEventPayload,
-  type Live2dHost,
-  type Live2dService,
-} from '../seams/live2d';
+  AvatarKey,
+  type AvatarEvent,
+  type AvatarEventPayload,
+  type AvatarHost,
+  type AvatarService,
+} from '../seams/avatar';
 
-export interface Live2dSeamPluginConfig {
+export interface AvatarSeamPluginConfig {
   /** 若为 true，未挂 host 时 playMotion / setExpression 会 no-op 而不是抛错。默认 true */
   tolerateNoHost?: boolean;
 }
@@ -23,30 +23,30 @@ function clamp01(n: number): number {
 }
 
 /**
- * RendererLive2dProvider —— ctx.live2d 的默认实现。
+ * RendererAvatarProvider —— ctx.avatar 的默认实现。
  *
  * 采用 host 注入模式：本 service 不直接引用 renderer 单例，
  * 消费方（P8 renderer 启动时）通过 `service.attachHost(host)` 传入实际渲染桥。
- * 未挂 host 时，playMotion/setExpression 走 warn 兜底，driveLipSync/setParameter 静默。
+ * 未挂 host 时，playMotion/setExpression 走 warn 兜底，driveLipSync 静默。
  * on(evt, fn) 支持挂 host 前后随时订阅；本 service 维护自己的 fan-out 表并转发。
  */
-export class RendererLive2dProvider implements Live2dService {
-  private host: Live2dHost | undefined;
+export class RendererAvatarProvider implements AvatarService {
+  private host: AvatarHost | undefined;
   private hostDetach: Array<() => void> = [];
-  private readonly listeners = new Map<Live2dEvent, Set<Listener>>();
+  private readonly listeners = new Map<AvatarEvent, Set<Listener>>();
 
   constructor(
     private readonly logger: PluginContext['logger'],
-    private readonly cfg: Required<Live2dSeamPluginConfig>,
+    private readonly cfg: Required<AvatarSeamPluginConfig>,
   ) {}
 
   hasHost(): boolean {
     return this.host !== undefined;
   }
 
-  attachHost(host: Live2dHost): () => void {
+  attachHost(host: AvatarHost): () => void {
     if (this.host) {
-      this.logger.warn('[Live2dSeam] host already attached; replacing');
+      this.logger.warn('[AvatarSeam] host already attached; replacing');
       this.detachHost();
     }
     this.host = host;
@@ -55,7 +55,7 @@ export class RendererLive2dProvider implements Live2dService {
       const off = host.on(evt, (payload) => this.fire(evt, payload));
       this.hostDetach.push(off);
     }
-    this.logger.info('[Live2dSeam] host attached');
+    this.logger.info('[AvatarSeam] host attached');
     return () => this.detachHost();
   }
 
@@ -76,7 +76,7 @@ export class RendererLive2dProvider implements Live2dService {
     try {
       await this.host.playMotion(group, index);
     } catch (err) {
-      this.logger.warn(`[Live2dSeam] playMotion failed: ${(err as Error).message}`);
+      this.logger.warn(`[AvatarSeam] playMotion failed: ${(err as Error).message}`);
     }
   }
 
@@ -85,7 +85,7 @@ export class RendererLive2dProvider implements Live2dService {
     try {
       await this.host.setExpression(name);
     } catch (err) {
-      this.logger.warn(`[Live2dSeam] setExpression failed: ${(err as Error).message}`);
+      this.logger.warn(`[AvatarSeam] setExpression failed: ${(err as Error).message}`);
     }
   }
 
@@ -94,20 +94,11 @@ export class RendererLive2dProvider implements Live2dService {
     try {
       this.host.driveLipSync(clamp01(rms));
     } catch (err) {
-      this.logger.debug(`[Live2dSeam] driveLipSync failed: ${(err as Error).message}`);
+      this.logger.debug(`[AvatarSeam] driveLipSync failed: ${(err as Error).message}`);
     }
   }
 
-  setParameter(id: string, value: number): void {
-    if (!this.host) return;
-    try {
-      this.host.setParameter(id, value);
-    } catch (err) {
-      this.logger.debug(`[Live2dSeam] setParameter failed: ${(err as Error).message}`);
-    }
-  }
-
-  on<E extends Live2dEvent>(evt: E, fn: (p: Live2dEventPayload<E>) => void): () => void {
+  on<E extends AvatarEvent>(evt: E, fn: (p: AvatarEventPayload<E>) => void): () => void {
     if (!this.listeners.has(evt)) this.listeners.set(evt, new Set());
     const set = this.listeners.get(evt)!;
     set.add(fn as Listener);
@@ -116,7 +107,7 @@ export class RendererLive2dProvider implements Live2dService {
     };
   }
 
-  private fire(evt: Live2dEvent, payload: unknown): void {
+  private fire(evt: AvatarEvent, payload: unknown): void {
     this.listeners.get(evt)?.forEach((fn) => {
       try {
         fn(payload);
@@ -128,21 +119,21 @@ export class RendererLive2dProvider implements Live2dService {
 
   private noHost(op: string, arg: unknown): void {
     if (this.cfg.tolerateNoHost) {
-      this.logger.warn(`[Live2dSeam] no host attached, ${op} noop`, arg);
+      this.logger.warn(`[AvatarSeam] no host attached, ${op} noop`, arg);
       return;
     }
-    throw new Error(`[Live2dSeam] no host attached for ${op}`);
+    throw new Error(`[AvatarSeam] no host attached for ${op}`);
   }
 }
 
-export const Live2dSeamPlugin = definePlugin<Live2dSeamPluginConfig>({
-  name: 'Live2dSeamPlugin',
-  apply(ctx: PluginContext, cfg: Live2dSeamPluginConfig) {
-    const merged: Required<Live2dSeamPluginConfig> = {
+export const AvatarSeamPlugin = definePlugin<AvatarSeamPluginConfig>({
+  name: 'AvatarSeamPlugin',
+  apply(ctx: PluginContext, cfg: AvatarSeamPluginConfig) {
+    const merged: Required<AvatarSeamPluginConfig> = {
       tolerateNoHost: cfg.tolerateNoHost ?? true,
     };
-    const svc = new RendererLive2dProvider(ctx.logger, merged);
-    ctx.provide(Live2dKey, svc);
-    ctx.logger.info(`Live2dSeamPlugin ready (tolerateNoHost=${merged.tolerateNoHost})`);
+    const svc = new RendererAvatarProvider(ctx.logger, merged);
+    ctx.provide(AvatarKey, svc);
+    ctx.logger.info(`AvatarSeamPlugin ready (tolerateNoHost=${merged.tolerateNoHost})`);
   },
 });

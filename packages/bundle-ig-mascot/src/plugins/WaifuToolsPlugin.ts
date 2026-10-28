@@ -6,7 +6,7 @@ import {
 } from '@nomi-ai/bundle-ig-base';
 import { z } from 'zod';
 
-import { Live2dKey, type Live2dService } from '../seams/live2d';
+import { AvatarKey, type AvatarService } from '../seams/avatar';
 
 export interface WaifuToolsPluginConfig {
   /** 为 true 时工具标记 dangerous=false（免 UI 确认），默认 true */
@@ -31,11 +31,11 @@ export const setExpressionInputSchema = z
 export type SetExpressionInput = z.infer<typeof setExpressionInputSchema>;
 
 export function createPlayMotionTool(
-  live2d: Live2dService,
+  avatar: AvatarService,
   opts: { dangerous: boolean },
 ): ToolDefinition<PlayMotionInput, { ok: true }> {
   return {
-    name: 'live2d_play_motion',
+    name: 'avatar_gesture',
     description:
       '让 Nomi 做一个动作。group 为动作名（均为中文菜单同名动作）：' +
       'wave（挥手）、hello（打招呼）、nod（点头）、shake_head（摇头）、bow（鞠躬）、salute（敬礼）、' +
@@ -50,25 +50,25 @@ export function createPlayMotionTool(
     dangerous: opts.dangerous,
     async execute(input: PlayMotionInput) {
       const parsed = playMotionInputSchema.parse(input);
-      await live2d.playMotion(parsed.group, parsed.index);
+      await avatar.playMotion(parsed.group, parsed.index);
       return { ok: true } as const;
     },
   };
 }
 
 export function createSetExpressionTool(
-  live2d: Live2dService,
+  avatar: AvatarService,
   opts: { dangerous: boolean },
 ): ToolDefinition<SetExpressionInput, { ok: true }> {
   return {
-    name: 'live2d_set_expression',
+    name: 'avatar_emotion',
     description:
       '切换 Nomi 表情：happy / angry / sad / relaxed / surprised / neutral（数秒后自动恢复）。',
     input: setExpressionInputSchema,
     dangerous: opts.dangerous,
     async execute(input: SetExpressionInput) {
       const parsed = setExpressionInputSchema.parse(input);
-      await live2d.setExpression(parsed.name);
+      await avatar.setExpression(parsed.name);
       return { ok: true } as const;
     },
   };
@@ -76,11 +76,11 @@ export function createSetExpressionTool(
 
 export const WaifuToolsPlugin = definePlugin<WaifuToolsPluginConfig>({
   name: 'WaifuToolsPlugin',
-  requires: ['Live2dSeamPlugin', 'ToolsBuiltinPlugin'],
+  requires: ['AvatarSeamPlugin', 'ToolsBuiltinPlugin'],
   apply(ctx: PluginContext, cfg: WaifuToolsPluginConfig) {
-    const live2d = ctx.inject(Live2dKey);
-    if (!live2d) {
-      ctx.logger.warn('[WaifuToolsPlugin] ctx.live2d not available; skipping');
+    const avatar = ctx.inject(AvatarKey);
+    if (!avatar) {
+      ctx.logger.warn('[WaifuToolsPlugin] ctx.avatar not available; skipping');
       return;
     }
     const registry = ctx.inject(ToolRegistryKey);
@@ -91,11 +91,11 @@ export const WaifuToolsPlugin = definePlugin<WaifuToolsPluginConfig>({
 
     const dangerous = !(cfg.autoConfirm ?? true);
 
-    registry.register(createPlayMotionTool(live2d, { dangerous }));
-    registry.register(createSetExpressionTool(live2d, { dangerous }));
+    registry.register(createPlayMotionTool(avatar, { dangerous }));
+    registry.register(createSetExpressionTool(avatar, { dangerous }));
 
     ctx.logger.info(
-      `WaifuToolsPlugin ready (dangerous=${dangerous}, tools=live2d_play_motion,live2d_set_expression)`,
+      `WaifuToolsPlugin ready (dangerous=${dangerous}, tools=avatar_gesture,avatar_emotion)`,
     );
   },
 });
