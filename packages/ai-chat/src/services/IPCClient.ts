@@ -353,7 +353,7 @@ export class SdkIPCClient implements IPCClient {
     const local = readStorage<ChatConfig>(LOCAL_CONFIG_KEY);
     if (local) return withDefaults(local);
     try {
-      const profile = this.userProfile.get();
+      const profile = await this.userProfile.get();
       const chatCfg = (profile as { chat?: Partial<ChatConfig> } | undefined)?.chat;
       if (chatCfg) return withDefaults(chatCfg);
     } catch {
