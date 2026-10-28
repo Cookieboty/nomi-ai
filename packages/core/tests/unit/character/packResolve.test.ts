@@ -274,6 +274,96 @@ describe('built-in pack location', () => {
   });
 });
 
+describe('overlays that loaded on 2.0.5 (lenient manifest)', () => {
+  const DEMO = path.resolve(__dirname, '../../../../../examples/static-demo.pack');
+  const NO_RESOURCES = path.join(os.tmpdir(), 'no-such-resources-pack');
+
+  /** examples/static-demo.pack 的副本，manifest 由 edit 改动 */
+  async function demoVariant(edit: (m: Record<string, any>) => void): Promise<string> {
+    const root = tmp();
+    await fsp.cp(DEMO, root, { recursive: true });
+    const file = path.join(root, 'manifest.json');
+    const m = JSON.parse(await fsp.readFile(file, 'utf8')) as Record<string, any>;
+    edit(m);
+    await fsp.writeFile(file, JSON.stringify(m));
+    return root;
+  }
+
+  it.each<[string, (m: Record<string, any>) => void]>([
+    ['an id with capitals', (m) => void (m.id = 'MyChar')],
+    [
+      'an extra hitbox key',
+      (m) => void (m.layout.hitboxes.tail = { top: 0, bottom: 1, left: 0, right: 1 }),
+    ],
+    ['a ratio outside 0..1', (m) => void (m.layout.hitboxes.head.top = 1.5)],
+    [
+      'top >= bottom',
+      (m) => void (m.layout.hitboxes.face = { top: 0.5, bottom: 0.2, left: 0, right: 1 }),
+    ],
+    ['an empty displayName', (m) => void (m.displayName = '')],
+    ['an empty rive.artboard', (m) => void (m.rive = { artboard: '' })],
+  ])('accepts %s as an overlay (strict still rejects it)', async (_name, edit) => {
+    const root = await demoVariant(edit);
+    try {
+      expect(loadPackAt(root).ok).toBe(false);
+      const r = resolveCharacterPack({ userDataPack: root, resourcesPack: NO_RESOURCES });
+      expect(r.skipped).toEqual([]);
+      expect(r.source).toBe('userData');
+      expect(r.downgraded?.length).toBeGreaterThan(0);
+    } finally {
+      await fsp.rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('keeps the id as written, drops unknown / invalid hitboxes, keeps the valid ones', async () => {
+    const root = await demoVariant((m) => {
+      m.id = 'MyChar';
+      m.layout.hitboxes.tail = { top: 0, bottom: 1, left: 0, right: 1 };
+      m.layout.hitboxes.face = { top: 0.5, bottom: 0.2, left: 0, right: 1 };
+      m.layout.hitboxes.head.top = -0.1;
+    });
+    try {
+      const r = resolveCharacterPack({ userDataPack: root, resourcesPack: NO_RESOURCES });
+      expect(r.source).toBe('userData');
+      expect(r.manifest?.id).toBe('MyChar');
+      expect(Object.keys(r.hitboxes?.regions ?? {}).sort()).toEqual(['body', 'hand', 'hem']);
+      expect(r.downgraded?.join('\n')).toMatch(/tail/);
+    } finally {
+      await fsp.rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('still rejects what 2.0.5 rejected (empty id, unknown mode, wrong schema)', async () => {
+    for (const edit of [
+      (m: Record<string, any>) => void (m.id = ''),
+      (m: Record<string, any>) => void (m.assets.mode = 'live2d'),
+      (m: Record<string, any>) => void (m.schema = 2),
+    ]) {
+      const root = await demoVariant(edit);
+      try {
+        const r = resolveCharacterPack({ userDataPack: root, resourcesPack: NO_RESOURCES });
+        expect(r.source).toBe('builtin');
+        expect(r.skipped[0]?.source).toBe('userData');
+      } finally {
+        await fsp.rm(root, { recursive: true, force: true });
+      }
+    }
+  });
+
+  it('ignores an invalid persona.json in an overlay (2.0.5 never read it)', async () => {
+    const root = await demoVariant(() => undefined);
+    try {
+      await fsp.writeFile(path.join(root, 'persona.json'), JSON.stringify({ displayName: '' }));
+      expect(loadPackAt(root).ok).toBe(false);
+      const r = resolveCharacterPack({ userDataPack: root, resourcesPack: NO_RESOURCES });
+      expect(r.source).toBe('userData');
+      expect(r.pack?.persona).toBeNull();
+    } finally {
+      await fsp.rm(root, { recursive: true, force: true });
+    }
+  });
+});
+
 describe('real example pack (Scheme B fixture)', () => {
   it('loads examples/static-demo.pack (current layout) as userData overlay', () => {
     const pack = path.resolve(__dirname, '../../../../../examples/static-demo.pack');

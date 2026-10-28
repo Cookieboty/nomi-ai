@@ -6,15 +6,17 @@
  * invalid candidates are skipped with a reason for logging.
  *
  * Validation is `validatePack` from @nomi-ai/character-contract (no hand-written checks here).
- * Overlays are validated leniently: structural errors (manifest, schema, the mode's main asset,
- * onboarding art) still reject the pack, but non-structural checks (asset size, fallback assets,
- * voice manifests — `NON_STRUCTURAL_ISSUES`) only warn, so packs that loaded on 2.0.5 still load.
+ * Overlays are validated leniently so packs that loaded on 2.0.5 still load: only what 2.0.5
+ * required (manifest schema 1, a non-empty id, a known mode, the mode's main asset, onboarding art)
+ * rejects the pack; non-structural checks, field-level manifest problems (odd ids, unknown or invalid
+ * hitboxes, empty optional strings) and invalid files 2.0.5 never read only warn
+ * (`isLenientDowngrade`). Built-in packs are validated strictly.
  */
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 
 import type { NormalizedPack, PackManifest } from '@nomi-ai/character-contract';
-import { NON_STRUCTURAL_ISSUES } from '@nomi-ai/character-contract';
+import { isLenientDowngrade } from '@nomi-ai/character-contract';
 import { validatePackDirSync } from '@nomi-ai/character-contract/node';
 
 export type PackSource = 'userData' | 'resources' | 'builtin';
@@ -71,7 +73,7 @@ export function loadPackAt(root: string, opts: LoadPackOptions = {}): LoadPackRe
   const res = validatePackDirSync(root, { lenient: opts.lenient });
   if (res.ok && res.pack) {
     const downgraded = res.warnings
-      .filter((w) => NON_STRUCTURAL_ISSUES.includes(w.code))
+      .filter((w) => isLenientDowngrade(w))
       .map((w) => `${w.file}: ${w.message}`);
     return { ok: true, pack: res.pack, downgraded };
   }
