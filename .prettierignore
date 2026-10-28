@@ -11,3 +11,9 @@ characters/*/sprite/**
 characters/*/voice/**
 # 手写的 Rive 换装契约（保留表格与行尾硬换行的原排版）
 docs/mascot/CLOTHING-SWAP-CONTRACT.md
+# Rive 角色制作流水线（scripts/rive-complete/*.py）的输出：rig / 报告 JSON 由 json.dump 生成，
+# 服装审计由 round31_clothing_swap_audit.py 生成；重新生成会覆盖格式，保持生成器输出原样
+rive/nomi-complete/**/*.json
+scripts/rive-complete/**/*.json
+docs/mascot/CLOTHING-SWAP-AUDIT.md
+docs/mascot/clothing-swap-inventory.json
