@@ -192,6 +192,7 @@ const TimeRange: React.FC<{
     <Input
       size="sm"
       type="time"
+      className={styles.timeInput}
       value={start}
       disabled={disabled}
       onChange={(e) => onStart(e.target.value)}
@@ -202,6 +203,7 @@ const TimeRange: React.FC<{
     <Input
       size="sm"
       type="time"
+      className={styles.timeInput}
       value={end}
       disabled={disabled}
       onChange={(e) => onEnd(e.target.value)}
