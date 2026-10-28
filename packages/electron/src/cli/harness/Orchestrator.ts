@@ -435,13 +435,11 @@ export class HarnessOrchestrator {
        * 记录出错不影响这一轮。
        */
       quality?: { addCli(record: QualityRecord): void };
-      /** 工作目录选择器（宿主的 dialogs 端口）；缺省（测试）时选择器按「取消」处理 */
-      ports?: Pick<HostPorts, 'dialogs'>;
       /**
-       * 应用是否有窗口在前台（任一窗口获得焦点）：决定一轮结束算不算「后台完成」（未读 / 通知）。
-       * 缺省（测试）为 false，与没有窗口时一致。
+       * 宿主端口：dialogs 选工作目录；windows.anyFocused() 判断应用是否在前台，决定一轮结束算不算
+       * 「后台完成」（未读 / 通知）。缺省（测试）时选择器按「取消」处理、按不在前台处理。
        */
-      isAppFocused?: () => boolean;
+      ports?: Pick<HostPorts, 'dialogs' | 'windows'>;
       /** 长驻 CLI 进程空闲多久后回收（毫秒，0 = 不回收）；缺省读 NOMI_HARNESS_IDLE_MS，再缺省 30 分钟 */
       idleReclaimMs?: number;
       /** Gemini 一轮多久没有任何动静就判定卡死并取消（毫秒）；缺省 GEMINI_PROMPT_IDLE_MS */
@@ -620,10 +618,10 @@ export class HarnessOrchestrator {
     });
   }
 
-  /** 应用是否在前台（见 isAppFocused）；读不到按不在前台 */
+  /** 应用是否在前台（宿主 windows.anyFocused）；读不到按不在前台 */
   private appFocused(): boolean {
     try {
-      return this.d.isAppFocused?.() ?? false;
+      return this.d.ports?.windows.anyFocused() ?? false;
     } catch {
       return false;
     }

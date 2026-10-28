@@ -67,6 +67,8 @@ export interface NodeHostPortsOptions {
     name?: string;
     version?: string;
     locale?: string;
+    /** 系统首选语言列表，默认 `[locale]` */
+    preferredLanguages?: readonly string[];
     isPackaged?: boolean;
     platform?: HostPlatform;
   };
@@ -89,6 +91,8 @@ export interface NodeHostPortsOptions {
   idleSeconds?: number;
   /** 系统是否深色，默认 false */
   systemDark?: boolean;
+  /** 是否有窗口获得焦点，默认 false（无界面宿主没有窗口） */
+  focused?: boolean;
   /** 覆盖能力声明（默认全部关闭） */
   capabilities?: Partial<HostCapabilities>;
 }
@@ -105,6 +109,8 @@ export interface NodeHostControl {
   /** 当前可见的界面 */
   visibleSurfaces(): Surface[];
   setIdleSeconds(seconds: number): void;
+  /** 模拟应用窗口获得 / 失去焦点（`windows.anyFocused()`） */
+  setFocused(focused: boolean): void;
   setSecretsAvailable(available: boolean): void;
   setClipboardImage(image: ClipboardImage | null): void;
   /** 模拟系统深浅色切换；值变化时通知 `appearance.onChange` */
@@ -186,6 +192,7 @@ export function createNodeHostPorts(options: NodeHostPortsOptions = {}): NodeHos
   let clipboardText = options.clipboard?.text ?? '';
   let clipboardImage = options.clipboard?.image ?? null;
   let systemDark = options.systemDark ?? false;
+  let focused = options.focused ?? false;
   let windowAppearance: NativeAppearance = 'system';
   let quitCount = 0;
   let exitCode: number | null = null;
@@ -224,6 +231,7 @@ export function createNodeHostPorts(options: NodeHostPortsOptions = {}): NodeHos
       name: () => app.name ?? 'nomi-ai',
       version: () => app.version ?? '0.0.0',
       locale: () => app.locale ?? 'zh-CN',
+      preferredLanguages: () => [...(app.preferredLanguages ?? [app.locale ?? 'zh-CN'])],
       isPackaged: () => app.isPackaged ?? false,
       platform: () => app.platform ?? process.platform,
     },
@@ -337,6 +345,7 @@ export function createNodeHostPorts(options: NodeHostPortsOptions = {}): NodeHos
         windowCalls.push({ method: 'hide', surface });
         visible.delete(surface);
       },
+      anyFocused: () => focused,
     },
     capabilities: Object.freeze({ ...NODE_HOST_CAPABILITIES, ...options.capabilities }),
   };
@@ -351,6 +360,9 @@ export function createNodeHostPorts(options: NodeHostPortsOptions = {}): NodeHos
     shellCalls,
     windowCalls,
     visibleSurfaces: () => [...visible],
+    setFocused(value) {
+      focused = value;
+    },
     setIdleSeconds(seconds) {
       idleSeconds = seconds;
     },

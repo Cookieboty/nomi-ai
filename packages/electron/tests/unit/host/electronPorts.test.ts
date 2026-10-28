@@ -7,6 +7,7 @@ const mockApp = Object.assign(new EventEmitter(), {
   getName: jest.fn(() => 'Nomi'),
   getVersion: jest.fn(() => '2.0.4'),
   getLocale: jest.fn(() => 'zh-CN'),
+  getPreferredSystemLanguages: jest.fn((): string[] => ['en-GB', 'zh-Hans-CN']),
   isPackaged: false,
   whenReady: jest.fn(() => Promise.resolve()),
   quit: jest.fn(),
@@ -16,6 +17,7 @@ const mockPower = Object.assign(new EventEmitter(), {
   getSystemIdleTime: jest.fn(() => 42),
 });
 const mockFocused = { id: 'focused' };
+const mockAllWindows: Array<{ isFocused?: () => boolean }> = [];
 
 const mockNativeTheme = Object.assign(new EventEmitter(), {
   shouldUseDarkColors: false,
@@ -26,7 +28,10 @@ jest.mock('electron', () => ({
   app: mockApp,
   nativeTheme: mockNativeTheme,
   powerMonitor: mockPower,
-  BrowserWindow: { getFocusedWindow: jest.fn(() => mockFocused) },
+  BrowserWindow: {
+    getFocusedWindow: jest.fn(() => mockFocused),
+    getAllWindows: jest.fn(() => mockAllWindows),
+  },
   dialog: {
     showOpenDialog: jest.fn(),
     showSaveDialog: jest.fn(),
@@ -112,7 +117,14 @@ describe('createElectronPorts', () => {
     expect(ports.app.name()).toBe('Nomi');
     expect(ports.app.version()).toBe('2.0.4');
     expect(ports.app.locale()).toBe('zh-CN');
+    expect(ports.app.preferredLanguages()).toEqual(['en-GB', 'zh-Hans-CN']);
     expect(ports.app.isPackaged()).toBe(false);
+  });
+
+  it('app.preferredLanguages：拿不到时返回空数组', () => {
+    const ports = createElectronPorts({ windows: fakeHost() });
+    mockApp.getPreferredSystemLanguages.mockReturnValueOnce(undefined as never);
+    expect(ports.app.preferredLanguages()).toEqual([]);
   });
 
   it('secrets 用 safeStorage，返回普通 Uint8Array', () => {
@@ -300,6 +312,17 @@ describe('createElectronPorts', () => {
       ports.windows.hide('mascot');
       expect(host.setMascotVisible).toHaveBeenCalledWith(false);
       ports.windows.focus('mascot'); // 不存在时什么都不做
+    });
+
+    it('anyFocused：所有窗口里任一获得焦点即为 true', () => {
+      const ports = createElectronPorts({ windows: fakeHost() });
+      mockAllWindows.splice(0);
+      expect(ports.windows.anyFocused()).toBe(false);
+      mockAllWindows.push({ isFocused: () => false }, {});
+      expect(ports.windows.anyFocused()).toBe(false);
+      mockAllWindows.push({ isFocused: () => true });
+      expect(ports.windows.anyFocused()).toBe(true);
+      mockAllWindows.splice(0);
     });
 
     it('已销毁的窗口视为不存在', () => {

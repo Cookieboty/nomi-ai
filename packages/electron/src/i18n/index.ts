@@ -1,7 +1,7 @@
 /**
  * 主进程 i18n（托盘、原生对话框、系统通知、看板娘主动消息、返回给界面的错误提示）。
  * 词典和稳定 key 由 @nomi-ai/i18n 统一管理；这里负责偏好持久化与广播。
- * 不依赖 Electron：系统语言经宿主端口（app.locale）与注入的 preferredLanguages，广播经 AppEvents。
+ * 不依赖 Electron：系统语言经宿主端口（app.preferredLanguages / app.locale），广播经 AppEvents。
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -47,21 +47,16 @@ export const LOCALE_CHANGED = 'ai:locale:changed';
 export interface LocaleServiceDeps {
   /** 偏好文件（userData/locale.json） */
   file: string;
-  /** 系统界面语言的兜底（app.getLocale） */
+  /** 系统首选语言列表（app.preferredLanguages）；为空时退回系统界面语言（app.locale） */
   ports: Pick<HostPorts, 'app'>;
   events: AppEvents;
-  /**
-   * 系统首选语言列表（Electron：`app.getPreferredSystemLanguages()`）；没有或为空时用 `ports.app.locale()`。
-   * host-ports 的 AppInfoPort 还没有这一项，先由组合根注入。
-   */
-  preferredLanguages?: () => readonly string[] | undefined;
 }
 
 function systemLanguages(deps: LocaleServiceDeps): string[] {
   // 测试 / e2e 可用 CD_LOCALE 固定语言
   if (process.env.CD_LOCALE) return [process.env.CD_LOCALE];
   try {
-    const l = deps.preferredLanguages?.();
+    const l = deps.ports.app.preferredLanguages();
     if (l?.length) return [...l];
   } catch {
     /* ignore */

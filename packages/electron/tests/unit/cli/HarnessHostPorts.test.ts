@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import type { DialogsPort, PickDirectoryOptions } from '@nomi-ai/host-ports';
+import type { DialogsPort, PickDirectoryOptions, WindowsPort } from '@nomi-ai/host-ports';
 
 // 只剩 guardedIpc 还要 ipcMain
 jest.mock('electron', () => ({
@@ -20,6 +20,9 @@ jest.mock('electron', () => ({
 import { CliHarnessService } from '../../../src/cli/CliHarnessService';
 
 const logger = { info() {}, warn() {} };
+
+/** 只关心 anyFocused 的窗口端口 */
+const windows = (focused = false) => ({ anyFocused: () => focused }) as unknown as WindowsPort;
 
 function fakeDialogs(result: string | null) {
   const pickDirectory = jest.fn(async (_o?: PickDirectoryOptions) => result);
@@ -48,7 +51,7 @@ describe('HarnessOrchestrator · 宿主端口', () => {
   it('pickDirectory：不挂父窗口、允许新建文件夹，传入初始目录', async () => {
     const picked = tmp('harness-picked-');
     const { dialogs, pickDirectory } = fakeDialogs(picked);
-    const h = make({ ports: { dialogs } });
+    const h = make({ ports: { dialogs, windows: windows() } });
     await expect(h.pickDirectory('/start/here')).resolves.toBe(picked);
     expect(pickDirectory).toHaveBeenCalledTimes(1);
     const opts = pickDirectory.mock.calls[0]![0]!;
@@ -59,7 +62,7 @@ describe('HarnessOrchestrator · 宿主端口', () => {
 
   it('pickDirectory：取消返回 null；没有初始目录时不传 defaultPath', async () => {
     const { dialogs, pickDirectory } = fakeDialogs(null);
-    const h = make({ ports: { dialogs } });
+    const h = make({ ports: { dialogs, windows: windows() } });
     await expect(h.pickDirectory()).resolves.toBeNull();
     expect(pickDirectory.mock.calls[0]![0]).not.toHaveProperty('defaultPath');
   });
@@ -69,7 +72,9 @@ describe('HarnessOrchestrator · 宿主端口', () => {
     const picked = tmp('harness-picked-');
     let result: string | null = picked;
     const pickDirectory = jest.fn(async (_o?: PickDirectoryOptions) => result);
-    const h = make({ ports: { dialogs: { pickDirectory } as unknown as DialogsPort } });
+    const h = make({
+      ports: { dialogs: { pickDirectory } as unknown as DialogsPort, windows: windows() },
+    });
     const tab = h.createTab({ backend: 'claude', cwd: proj });
     const moved = await h.pickTabCwd(tab.id);
     expect(pickDirectory.mock.calls[0]![0]).toMatchObject({ defaultPath: proj });

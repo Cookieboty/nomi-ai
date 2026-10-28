@@ -17,7 +17,7 @@ import {
 import { isBuiltinCliId } from '@nomi-ai/cli-plugins';
 import type { ProviderQuirks } from '@nomi-ai/gateway';
 import type { HostPorts } from '@nomi-ai/host-ports';
-import { app, BrowserWindow, protocol, safeStorage, session, shell } from 'electron';
+import { app, protocol, safeStorage, session, shell } from 'electron';
 
 import { getAgentProgressService, initAgentProgressService } from '../agents/AgentProgressService';
 import { startAIRuntime, type AIRuntimeBootHandle } from '../ai/AIRuntimeBoot';
@@ -227,7 +227,6 @@ export class Application implements IApplication {
         file: path.join(this.ports.paths.userData(), 'locale.json'),
         ports: this.ports,
         events: this.events,
-        preferredLanguages: () => app.getPreferredSystemLanguages?.(),
       }).registerIpc();
       // 应用图标变体（窗口 / 任务栏 / Dock / 托盘 / 通知）
       initAppIcon(path.join(app.getPath('userData'), 'app-icon.json'));
@@ -719,7 +718,6 @@ export class Application implements IApplication {
         // 模型质量 CLI 层：Nomi 里运行的编程助手（官方账号与第三方）每轮一条（model-quality.md §4.4）
         quality: { addCli: (r) => void quality.addCli(r) },
         ports: this.ports,
-        isAppFocused: () => BrowserWindow.getAllWindows().some((w) => w.isFocused?.()),
         // 官方标签按账号目录启动（docs/design/cli-plugin-architecture.md §5.10）
         accounts: {
           launch: (kind, accountId) => accounts.officialLaunch(kind, accountId),

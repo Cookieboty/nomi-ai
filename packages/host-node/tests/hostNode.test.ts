@@ -60,6 +60,9 @@ describe('app', () => {
     expect(ports.app.version()).toBe('9.9.9');
     expect(ports.app.locale()).toBe('en-US');
     expect(ports.app.platform()).toBe('linux');
+    expect(ports.app.preferredLanguages()).toEqual(['en-US']);
+    const langs = create({ app: { preferredLanguages: ['fr-FR', 'en-US'] } }).ports.app;
+    expect(langs.preferredLanguages()).toEqual(['fr-FR', 'en-US']);
   });
 });
 
@@ -245,6 +248,14 @@ describe('windows / capabilities', () => {
       { method: 'focus', surface: 'chat' },
       { method: 'hide', surface: 'mascot' },
     ]);
+  });
+
+  it('anyFocused 默认 false，可由 control 切换', () => {
+    const { ports, control } = create();
+    expect(ports.windows.anyFocused()).toBe(false);
+    control.setFocused(true);
+    expect(ports.windows.anyFocused()).toBe(true);
+    expect(create({ focused: true }).ports.windows.anyFocused()).toBe(true);
   });
 
   it('能力默认全部关闭，可覆盖且只读', () => {

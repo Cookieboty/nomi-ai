@@ -90,6 +90,7 @@ export function featureHost(o: FeatureHostOptions = {}): FeatureHost {
       name: () => 'Nomi',
       version: () => o.version ?? '0.0.0-test',
       locale: () => 'zh-CN',
+      preferredLanguages: () => ['zh-CN'],
       isPackaged: () => o.packaged ?? true,
       platform: () => process.platform,
     },

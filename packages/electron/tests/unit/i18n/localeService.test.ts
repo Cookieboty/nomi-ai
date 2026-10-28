@@ -18,9 +18,10 @@ let events: RecordingAppEvents = createRecordingAppEvents();
 const make = (file: string) =>
   new LocaleService({
     file,
-    ports: { app: { locale: () => sysLangs[0] ?? '' } as never },
+    ports: {
+      app: { locale: () => sysLangs[0] ?? '', preferredLanguages: () => sysLangs } as never,
+    },
     events,
-    preferredLanguages: () => sysLangs,
   });
 
 const tmp = () => path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'locale-')), 'locale.json');

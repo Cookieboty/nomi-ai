@@ -44,12 +44,17 @@ export interface PathsPort {
 
 // ───────────────────────── app ─────────────────────────
 
-/** 应用本身的元信息（`app.getVersion` / `getName` / `getLocale` / `isPackaged`） */
+/** 应用本身的元信息（`app.getVersion` / `getName` / `getLocale` / `getPreferredSystemLanguages` / `isPackaged`） */
 export interface AppInfoPort {
   name(): string;
   version(): string;
   /** 系统界面语言（BCP 47，如 `zh-CN`）；宿主就绪前可能为空串 */
   locale(): string;
+  /**
+   * 系统首选语言列表（按用户偏好排序，Electron：`app.getPreferredSystemLanguages()`）；
+   * 宿主拿不到时返回空数组，调用方退回 `locale()`
+   */
+  preferredLanguages(): readonly string[];
   /** 是否为正式打包产物（关闭开发特性、日志降噪等） */
   isPackaged(): boolean;
   /** 运行平台（同 `process.platform`） */
@@ -294,6 +299,8 @@ export interface WindowsPort {
   isVisible(surface: Surface): boolean;
   /** 隐藏界面（窗口保留，如看板娘隐藏时仍要承载提醒） */
   hide(surface: Surface): void;
+  /** 本应用是否有任一窗口获得焦点（判断「后台完成」：未读、通知） */
+  anyFocused(): boolean;
 }
 
 // ───────────────────────── capabilities（§9） ─────────────────────────

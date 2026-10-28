@@ -66,6 +66,7 @@ export function fakeHostPorts(o: FakeHostPortsOptions = {}): FakeHostPorts {
       name: () => o.name ?? 'Test App',
       version: () => o.version ?? '1.0.0',
       locale: () => 'zh-CN',
+      preferredLanguages: () => ['zh-CN'],
       isPackaged: () => o.packaged ?? false,
       platform: () => o.platform ?? 'linux',
     },

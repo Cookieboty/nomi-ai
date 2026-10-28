@@ -339,6 +339,8 @@ await core.start();
 4. **测试不 mock 平台能力**：传假端口（或 `@nomi-ai/host-node`）和 `createRecordingAppEvents()`，断言 `events.published`；`jest.mock('electron')` 只留给还没迁移的依赖（如 `guardedIpc`）。
 5. **从 `scripts/eslint/electron-boundary.mjs` 的白名单删掉该文件**，lint 保证它不再回退。
 
+例外：组合根把原始的 Electron `protocol` 传给 `characterPack.init(protocol, logger)`，不为它加端口。注册 `character-pack://` 协议是宿主的事（§7.2 右列）；`CharacterPackService` 只认结构类型 `CharacterPackProtocolHost`，本身不 import electron，P3 拆分时协议注册随宿主 main 走。
+
 参考实现是 `theme/ThemeService.ts`：
 
 ```ts

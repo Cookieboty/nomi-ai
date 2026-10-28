@@ -207,6 +207,7 @@ export function createElectronPorts(deps: ElectronPortsDeps): HostPorts {
       name: () => app.getName(),
       version: () => app.getVersion(),
       locale: () => app.getLocale(),
+      preferredLanguages: () => app.getPreferredSystemLanguages?.() ?? [],
       isPackaged: () => app.isPackaged,
       platform: () => platform,
     },
@@ -321,6 +322,8 @@ export function createElectronPorts(deps: ElectronPortsDeps): HostPorts {
         if (surface === 'mascot') windows.setMascotVisible(false);
         else windowOf(surface)?.hide();
       },
+      // 所有窗口（含看板娘、对话窗口与辅助窗口）里任一获得焦点
+      anyFocused: () => BrowserWindow.getAllWindows().some((w) => w.isFocused?.()),
     },
 
     capabilities: Object.freeze(electronCapabilities(platform)),
