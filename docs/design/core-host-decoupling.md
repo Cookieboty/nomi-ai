@@ -751,6 +751,25 @@ coalescedWriter,redact}`、`services/{Logger,Config,Cache,Update}Service`、`mas
 >   独立开发页里能看到）；
 > - 动作显示名的翻译检查与 `docs/features/mascot.md` 对照留在 renderer 测试（`motionDocs.test.ts`），运行时不依赖 `ui`。
 
+> P3 与 C2 合流（`refactor/c2-avatar` 变基到 `refactor/p3-core` 后快进合入，`refactor/p3-core` 同时包含两条线）：
+>
+> - 冲突只在 ESLint 与文档：`eslint.config.mjs` 里内核块与 avatar-runtime 块并存（内核块本来就禁止 import
+>   `@nomi-ai/avatar-runtime`）；架构文档的包表在新表（`core` / `host-electron`）上加 avatar-runtime 行、换 renderer 行；
+>   本节两份进度说明与阶段表合并（P3 行用 P3 的，C2 行用 C2 的）；锁文件自动合并，`pnpm install --frozen-lockfile` 通过；
+> - 顺手改的：`core/src/mascot/mascotSize.ts` 注释指向 `avatar-runtime/src/spriteLayout.ts`（C2 留下的路径问题）；
+>   AGENTS.md 包表加 avatar-runtime 行；e2e-headed 的 E19 改从 `packages/core/tests/fixtures/history` 读历史样例
+>   （P3 第二步随 CLI 模块搬走，原路径已不存在）；
+> - 验证：构建、typecheck、lint、单测（只有 `changesets.test.ts` 已知的 6 个失败）、无界面 e2e、i18n、许可、格式（只有
+>   已知文件）通过；macOS 上 e2e-headed 跑了一整轮，看板娘与启动相关（E1、E4、E5、E9、E11、E12、E15、E22、E23、E30）
+>   与对话（E2、E6、E16、E18、E24、E28）通过。
+>
+> 剩下的：
+>
+> - e2e-headed 里有几条与这次合流无关、看起来是用例落后于界面的失败：E19（历史会话行现在有删除按钮，用例断言没有）、
+>   E25 A / B 与 E29（编程助手标签页的重新生成 / 重试与空闲回收）、E27 A（`/model` 卡片）；`IMAGE.theme` 还在调用已删除的
+>   `registerIpc` 与 `dist/theme`、`dist/chat` 旧路径（P1b 起就跑不通）；`A11Y.surfaces` 单跑通过、整轮偶发失败。
+>   这些没有在合流前的基线上复跑确认，要在 Linux + xvfb 的完整一轮里一起处理。
+
 | 阶段 | 内容                                                                                                                                                                                    | 完成标准                                                                                                            |
 | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | P0   | ① lint 护栏：`packages/electron/src` 中除宿主目录（§7.2 右列）外，新增 electron import 报错（已有的列入白名单，只减不增）；② `PersonaService`，删两处人设硬编码                         | 护栏进 CI；换皮后系统提示不再是 Nomi                                                                                |
