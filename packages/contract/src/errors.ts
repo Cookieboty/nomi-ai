@@ -35,28 +35,19 @@ export interface ErrorPayload {
 }
 
 /**
- * `ContractError` 的品牌：本包同时发 ESM 与 CommonJS，一个进程里可能加载两份（例如 CommonJS 的内核 +
- * ESM 的测试 / 无界面宿主），两份类互相 `instanceof` 不成立，内核抛的业务码会被当成 INTERNAL。
- * 用 `Symbol.for` 的品牌判断，跨副本也认得出来（`instanceof` 经 `Symbol.hasInstance` 走同一个判断）。
+ * `ContractError` 按名称 + 错误码识别，不用 `instanceof`：本包同时发 ESM 与 CommonJS，一个进程里可能加载
+ * 两份（CommonJS 的内核 + ESM 的测试 / 无界面宿主），跨副本、跨 realm（worker、vm、iframe）时 `instanceof`
+ * 都不成立。判断只看结构：`name === 'ContractError'`，`code` / `message` 是字符串。
  */
-const CONTRACT_ERROR_BRAND = Symbol.for('nomi.contract.ContractError');
+export const CONTRACT_ERROR_NAME = 'ContractError';
 
 export class ContractError<Code extends string = string> extends Error {
-  static override [Symbol.hasInstance](value: unknown): boolean {
-    return (
-      typeof value === 'object' &&
-      value !== null &&
-      (value as Record<symbol, unknown>)[CONTRACT_ERROR_BRAND] === true
-    );
-  }
-
-  override readonly name = 'ContractError';
+  override readonly name = CONTRACT_ERROR_NAME;
   readonly code: Code;
   readonly data?: unknown;
 
   constructor(code: Code, message: string, data?: unknown) {
     super(message);
-    Object.defineProperty(this, CONTRACT_ERROR_BRAND, { value: true });
     this.code = code;
     if (data !== undefined) this.data = data;
   }
@@ -68,13 +59,25 @@ export class ContractError<Code extends string = string> extends Error {
   }
 }
 
-export function isContractError(value: unknown): value is ContractError {
-  return value instanceof ContractError;
+/** 是不是契约错误（按名称与错误码判断，跨副本 / 跨 realm 都认得）；传 `code` 时还要求错误码一致 */
+export function isContractError<Code extends string = string>(
+  value: unknown,
+  code?: Code,
+): value is ContractError<Code> {
+  if (typeof value !== 'object' || value === null) return false;
+  const v = value as { name?: unknown; code?: unknown; message?: unknown };
+  if (v.name !== CONTRACT_ERROR_NAME) return false;
+  if (typeof v.code !== 'string' || typeof v.message !== 'string') return false;
+  return code === undefined || v.code === code;
 }
 
 /** 把任意异常转成线上错误形态；非 ContractError 一律记为 INTERNAL */
 export function toErrorPayload(err: unknown): ErrorPayload {
-  if (err instanceof ContractError) return err.toJSON();
+  if (isContractError(err)) {
+    return err.data === undefined
+      ? { code: err.code, message: err.message }
+      : { code: err.code, message: err.message, data: err.data };
+  }
   const message =
     err instanceof Error ? err.message : typeof err === 'string' ? err : 'Unknown error';
   return { code: 'INTERNAL', message };

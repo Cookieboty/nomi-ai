@@ -53,6 +53,7 @@ export {
   BUILTIN_ERROR_CODES,
   ContractError,
   fromErrorPayload,
+  CONTRACT_ERROR_NAME,
   isContractError,
   toErrorPayload,
   type BuiltinErrorCode,

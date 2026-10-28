@@ -30,7 +30,7 @@ import {
   type Schema,
   type ServerInfo,
 } from './contract';
-import { abortedError, ContractError } from './errors';
+import { abortedError, ContractError, isContractError } from './errors';
 import { PushStream, type ContractStream } from './stream';
 import type { CallOptions, ClientTransport, ContractLogger } from './transport';
 
@@ -164,7 +164,7 @@ export function createClient<C extends AnyContract>(
     connecting = attempt;
     // 版本不一致是确定的结论，缓存失败；传输类失败允许下次重试
     attempt.catch((err) => {
-      if (err instanceof ContractError && err.code === 'VERSION_MISMATCH') {
+      if (isContractError(err, 'VERSION_MISMATCH')) {
         mismatched = true;
         const pending = [...waiting];
         waiting.clear();

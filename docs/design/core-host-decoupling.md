@@ -189,13 +189,13 @@ export const contract = defineContract({
 
 现在只有 Electron IPC，但契约从一开始就按「内核可能在另一个进程、通过网络访问」来约束。理由：换成 Tauri 时后端是 Rust，Node 内核只能作为 sidecar 进程运行，视图需要通过 WebSocket 访问它。
 
-| 约束         | 规则                                                                                |
-| ------------ | ----------------------------------------------------------------------------------- |
-| 可序列化     | 参数、返回值、事件只用 JSON 可表达的值；二进制用 `Uint8Array`；不传函数、class 实例 |
-| 流式         | `stream` = 请求 id + 若干 chunk 事件 + 结束 / 错误；取消用显式 `abort(id)`          |
-| 不用同步调用 | 现有 `kind: 'sync-return'` 一律改为异步（它在 Electron 里也只是 `invoke`）          |
-| 错误         | 统一 `{ code, message, data? }`，`code` 在契约里枚举；不透传 Error 对象             |
-| 大文件       | 不经契约传内容；传路径或宿主签发的 `asset://` URL                                   |
+| 约束         | 规则                                                                                                                                                                       |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 可序列化     | 参数、返回值、事件只用 JSON 可表达的值；二进制用 `Uint8Array`；不传函数、class 实例                                                                                        |
+| 流式         | `stream` = 请求 id + 若干 chunk 事件 + 结束 / 错误；取消用显式 `abort(id)`                                                                                                 |
+| 不用同步调用 | 现有 `kind: 'sync-return'` 一律改为异步（它在 Electron 里也只是 `invoke`）                                                                                                 |
+| 错误         | 统一 `{ code, message, data? }`，`code` 在契约里枚举；不透传 Error 对象                                                                                                    |
+| 错误         | 统一 `{ code, message, data? }`，`code` 在契约里枚举；不透传 Error 对象；按名称 + 错误码识别（`isContractError(err, code?)`），不用 `instanceof`（跨副本 / 跨 realm 安全） |
 
 ### 4.3 版本与兼容
 
@@ -880,7 +880,7 @@ stop() }`；宿主 `packages/host-electron/src/host/Application.ts`（宿主区�
 >   router、AI runtime 与数据（主题、用户画像、网关供应商（Key 不以明文落盘）、记忆）互不相干；E7 经 WebSocket 传输测
 >   真实内核（握手、查询、修改、事件订阅、错 token / 外站 Origin 被拒绝）。全部用例不需要 Electron 与 xvfb；
 > - 用真实内核跑出来的问题（都修了）：契约包与 `bundle-ig-base` 同时发 ESM 与 CommonJS，同一进程里两份副本互不相认——
->   `ContractError` 改用 `Symbol.for` 品牌（`Symbol.hasInstance`），插件服务键改用 `Symbol.for('nomi.ig.service:<名字>')`
+>   `ContractError` 改为按名称与错误码识别（`isContractError(err, code?)`，不用 `instanceof`，跨副本、跨 realm 都认得），插件服务键改用 `Symbol.for('nomi.ig.service:<名字>')`
 >   （上一步「剩下的」里的格式问题就此解决，E6 不再需要按 CommonJS 加载契约）；`UserPreferenceMemoryPlugin` 发的
 >   `userProfile/changed` 是裸画像，与声明的 `{ profile }` 不符（视图侧两种都认，界面上没有变化）；`ai-sdk-client` 的主入口与
 >   `react` 入口各打包一份共享传输表，Electron 里每个窗口其实开了两个会话（表改放 `globalThis`）；

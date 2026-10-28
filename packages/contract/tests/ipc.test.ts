@@ -7,6 +7,7 @@ import { z } from 'zod';
 
 import {
   ContractError,
+  isContractError,
   createClient,
   createIpcClientTransport,
   createIpcServerTransport,
@@ -158,8 +159,7 @@ describe('IPC transport adapters', () => {
       createIpcClientTransport(ipc.window('file:///tmp/x.html').bridge),
     );
     const err = await api.sessions.list().catch((e: unknown) => e);
-    expect(err).toBeInstanceOf(ContractError);
-    expect(err).toMatchObject({ code: 'FORBIDDEN' });
+    expect(isContractError(err, 'FORBIDDEN')).toBe(true);
   });
 
   it('starts a fresh session when the page navigates to another surface', async () => {

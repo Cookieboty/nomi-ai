@@ -1,3 +1,5 @@
+import vm from 'node:vm';
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -9,6 +11,7 @@ import {
   createWebSocketClientTransport,
   decodeWireFrame,
   encodeWireFrame,
+  isContractError,
   toErrorPayload,
   WS_PROTOCOL,
   type WebSocketLike,
@@ -46,24 +49,38 @@ describe('wire codec', () => {
   });
 });
 
-describe('ContractError across package copies', () => {
-  it('recognises an error branded by another copy of the class', () => {
-    // 模拟另一份（ESM / CJS）ContractError 的实例：同一个全局品牌，不同的类
+describe('ContractError across package copies and realms', () => {
+  it('is identified by name + code, not instanceof', () => {
+    // 另一份（ESM / CJS）ContractError：不同的类，同样的名称与错误码
     class OtherCopy extends Error {
+      override readonly name = 'ContractError';
       readonly code = 'SESSION_NOT_FOUND';
-      constructor() {
-        super('missing');
-        Object.defineProperty(this, Symbol.for('nomi.contract.ContractError'), { value: true });
-      }
-      toJSON() {
-        return { code: this.code, message: this.message };
-      }
     }
-    const err = new OtherCopy();
-    expect(err).toBeInstanceOf(ContractError);
+    const err = new OtherCopy('missing');
+    expect(err).not.toBeInstanceOf(ContractError);
+    expect(isContractError(err)).toBe(true);
+    expect(isContractError(err, 'SESSION_NOT_FOUND')).toBe(true);
+    expect(isContractError(err, 'NOT_FOUND')).toBe(false);
     expect(toErrorPayload(err)).toEqual({ code: 'SESSION_NOT_FOUND', message: 'missing' });
-    expect(new Error('plain')).not.toBeInstanceOf(ContractError);
+    expect(isContractError(new Error('plain'))).toBe(false);
     expect(toErrorPayload(new Error('plain')).code).toBe('INTERNAL');
+  });
+
+  it('recognises an error created in another realm', () => {
+    const ctx = vm.createContext({});
+    const err = vm.runInContext(
+      "const e = new Error('gone'); e.name = 'ContractError'; e.code = 'BUSY'; e",
+      ctx,
+    ) as unknown;
+    expect(err instanceof Error).toBe(false);
+    expect(isContractError(err, 'BUSY')).toBe(true);
+    expect(toErrorPayload(err)).toEqual({ code: 'BUSY', message: 'gone' });
+  });
+
+  it('rejects look-alikes without a string code', () => {
+    expect(isContractError({ name: 'ContractError', message: 'x' })).toBe(false);
+    expect(isContractError({ name: 'ContractError', code: 1, message: 'x' })).toBe(false);
+    expect(isContractError(null)).toBe(false);
   });
 });
 
