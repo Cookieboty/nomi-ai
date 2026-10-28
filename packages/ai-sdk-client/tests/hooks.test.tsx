@@ -2,14 +2,13 @@
  * React hooks 端到端测试：AIProvider + useChat / useAgent / useAIEvents / useTTSLipSync / useUserProfile。
  *
  * - happy-dom 提供 DOM；`testing-library/react` 触发 render & unmount；
- * - 依赖 FakeBridge 完全 in-process 模拟 IPC。
+ * - 内核侧是用应用契约实现的假门面（tests/fakeServer.ts），经 in-process 传输连接。
  */
 
 import { act, render, renderHook, waitFor } from '@testing-library/react';
 import type { PropsWithChildren } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-import { AI_EVENT_CHANNEL, IPC_METHODS, channelName, chunkChannelName } from '../src/channels';
 import { AIProvider } from '../src/react/AIProvider';
 import { useAgent } from '../src/react/useAgent';
 import { useAIEvents } from '../src/react/useAIEvents';
@@ -17,84 +16,69 @@ import { useChat } from '../src/react/useChat';
 import { useTTSLipSync } from '../src/react/useTTSLipSync';
 import { useUserProfile } from '../src/react/useUserProfile';
 
-import { FakeBridge } from './FakeBridge';
+import { createFakeServer, flush, makeProfile, type FakeServer } from './fakeServer';
 
-function wrapperFactory(bridge: FakeBridge) {
+function wrapperFactory(server: FakeServer) {
+  const transport = server.connect();
   const Wrapper = ({ children }: PropsWithChildren) => (
-    <AIProvider bridge={bridge}>{children}</AIProvider>
+    <AIProvider transport={transport}>{children}</AIProvider>
   );
   Wrapper.displayName = 'TestAIProviderWrapper';
   return Wrapper;
 }
 
 describe('useAIEvents', () => {
-  it('订阅事件，unmount 后停止接收', () => {
-    const bridge = new FakeBridge();
+  it('订阅事件，unmount 后停止接收', async () => {
+    const server = createFakeServer();
     const seen: unknown[] = [];
-    const wrapper = wrapperFactory(bridge);
+    const wrapper = wrapperFactory(server);
     const { unmount } = renderHook(() => useAIEvents('tts:end', (p) => seen.push(p)), { wrapper });
-    act(() => bridge.emit(AI_EVENT_CHANNEL, { evt: 'tts:end', data: { reqId: 'r1' } }));
+    await act(() => flush());
+    await act(async () => {
+      server.publish('ai.tts.end', { reqId: 'r1' });
+      await flush();
+    });
     expect(seen).toEqual([{ reqId: 'r1' }]);
     unmount();
-    act(() => bridge.emit(AI_EVENT_CHANNEL, { evt: 'tts:end', data: { reqId: 'r2' } }));
+    await flush();
+    server.publish('ai.tts.end', { reqId: 'r2' });
+    await flush();
     expect(seen).toHaveLength(1);
   });
 });
 
 describe('useChat', () => {
-  it('send 触发 stream 并累积 deltaText 到 assistant 消息', async () => {
-    const bridge = new FakeBridge();
-    const spec = IPC_METHODS.find((s) => s.facade === 'chat' && s.method === 'stream')!;
-    const chunkCh = chunkChannelName(spec);
-    bridge.handle(channelName(spec), async (opts) => {
-      const reqId = (opts as { reqId?: string }).reqId!;
-      queueMicrotask(() => {
-        bridge.emit(chunkCh, { reqId, done: false, value: { deltaText: 'hi ' } });
-        bridge.emit(chunkCh, { reqId, done: false, value: { deltaText: 'nya!' } });
-        bridge.emit(chunkCh, { reqId, done: true });
-      });
-      return { ok: true, reqId };
+  const setup = (chunks: unknown[]) => {
+    const server = createFakeServer({
+      'ai.chat.stream': async function* () {
+        for (const c of chunks) yield c;
+      },
     });
+    return renderHook(() => useChat(), { wrapper: wrapperFactory(server) });
+  };
 
-    const wrapper = wrapperFactory(bridge);
-    const { result } = renderHook(() => useChat(), { wrapper });
+  it('send 触发 stream 并累积助手文本', async () => {
+    const { result } = setup([
+      { type: 'delta', content: 'hi ' },
+      { type: 'delta', content: 'nya!' },
+    ]);
     await act(async () => {
       await result.current.send('你好');
     });
-
-    await waitFor(() => {
-      expect(result.current.streaming).toBe(false);
-    });
+    await waitFor(() => expect(result.current.streaming).toBe(false));
     const [userMsg, assistantMsg] = result.current.messages;
     expect(userMsg?.role).toBe('user');
     expect(userMsg?.content).toBe('你好');
     expect(assistantMsg?.role).toBe('assistant');
     expect(assistantMsg?.content).toBe('hi nya!');
   });
-});
-
-describe('useChat · 真实 ChatChunk 契约（#51）', () => {
-  const setup = (chunks: unknown[]) => {
-    const bridge = new FakeBridge();
-    const spec = IPC_METHODS.find((s) => s.facade === 'chat' && s.method === 'stream')!;
-    const chunkCh = chunkChannelName(spec);
-    bridge.handle(channelName(spec), async (opts) => {
-      const reqId = (opts as { reqId?: string }).reqId!;
-      queueMicrotask(() => {
-        for (const value of chunks) bridge.emit(chunkCh, { reqId, done: false, value });
-        bridge.emit(chunkCh, { reqId, done: true });
-      });
-      return { ok: true, reqId };
-    });
-    return renderHook(() => useChat(), { wrapper: wrapperFactory(bridge) });
-  };
 
   it('{type:"delta", content} 累积成助手文本；usage / done / reasoning 不进正文', async () => {
     const { result } = setup([
       { type: 'reasoning', content: '想一想' },
       { type: 'delta', content: '你好，' },
       { type: 'delta', content: '世界' },
-      { type: 'usage', usage: { inputTokens: 1, outputTokens: 2 } },
+      { type: 'usage', usage: { promptTokens: 1, completionTokens: 2, totalTokens: 3 } },
       { type: 'done', finishReason: 'stop' },
     ]);
     await act(async () => {
@@ -120,120 +104,99 @@ describe('useChat · 真实 ChatChunk 契约（#51）', () => {
 
 describe('useAgent', () => {
   it('agent:step 更新 lastStep，tool:confirm-required 加入队列', async () => {
-    const bridge = new FakeBridge();
-    bridge.handle('ai:tools:confirm', () => undefined);
-    const wrapper = wrapperFactory(bridge);
+    const server = createFakeServer({ 'ai.tools.confirm': () => undefined });
+    const wrapper = wrapperFactory(server);
     const { result } = renderHook(() => useAgent(), { wrapper });
+    await act(() => flush());
+
+    act(() => server.publish('ai.agent.step', { sessionId: 's', step: 3, reason: 'llm-call' }));
+    await waitFor(() => expect(result.current.lastStep?.step).toBe(3));
 
     act(() =>
-      bridge.emit(AI_EVENT_CHANNEL, {
-        evt: 'agent:step',
-        data: { sessionId: 's', step: 3, reason: 'llm-call' },
+      server.publish('ai.tool.confirmRequired', {
+        reqId: 'c1',
+        toolName: 'fs.write',
+        argumentsJson: '{}',
+        createdAt: 1,
       }),
     );
-    await waitFor(() => {
-      expect(result.current.lastStep?.step).toBe(3);
-    });
-
-    act(() =>
-      bridge.emit(AI_EVENT_CHANNEL, {
-        evt: 'tool:confirm-required',
-        data: {
-          reqId: 'c1',
-          toolName: 'fs.write',
-          argumentsJson: '{}',
-          createdAt: 1,
-        },
-      }),
-    );
-    await waitFor(() => {
-      expect(result.current.pendingConfirms).toHaveLength(1);
-    });
+    await waitFor(() => expect(result.current.pendingConfirms).toHaveLength(1));
 
     await act(async () => result.current.confirm('c1', true));
     expect(result.current.pendingConfirms).toHaveLength(0);
-    expect(bridge.invokeLog.find((l) => l.channel === 'ai:tools:confirm')).toBeTruthy();
+    expect(server.calls.find((c) => c.name === 'ai.tools.confirm')?.input).toEqual({
+      reqId: 'c1',
+      ok: true,
+    });
   });
 });
 
 describe('useTTSLipSync', () => {
   it('每次 tts:chunk 更新 rms，tts:end 归零', async () => {
-    const bridge = new FakeBridge();
-    const wrapper = wrapperFactory(bridge);
-    const { result } = renderHook(() => useTTSLipSync({ minIntervalMs: 0 }), {
-      wrapper,
-    });
-    act(() =>
-      bridge.emit(AI_EVENT_CHANNEL, {
-        evt: 'tts:chunk',
-        data: { reqId: 'r', rms: 0.8 },
-      }),
-    );
+    const server = createFakeServer();
+    const wrapper = wrapperFactory(server);
+    const { result } = renderHook(() => useTTSLipSync({ minIntervalMs: 0 }), { wrapper });
+    await act(() => flush());
+    act(() => server.publish('ai.tts.chunk', { reqId: 'r', rms: 0.8 }));
     await waitFor(() => expect(result.current).toBe(0.8));
-
-    act(() =>
-      bridge.emit(AI_EVENT_CHANNEL, {
-        evt: 'tts:end',
-        data: { reqId: 'r' },
-      }),
-    );
+    act(() => server.publish('ai.tts.end', { reqId: 'r' }));
     await waitFor(() => expect(result.current).toBe(0));
   });
 });
 
 describe('useUserProfile', () => {
   it('挂载时拉取 profile，subscribe 后收到更新', async () => {
-    const bridge = new FakeBridge();
-    bridge.handle('ai:userProfile:get', () => ({ id: 'u1', nickname: 'nya' }));
-    bridge.handle('ai:userProfile:set', (patch) => ({
-      id: 'u1',
-      nickname: 'nya',
-      ...(patch as object),
-    }));
-    const wrapper = wrapperFactory(bridge);
-    const { result } = renderHook(() => useUserProfile<{ id: string; nickname: string }>(), {
-      wrapper,
+    const server = createFakeServer({
+      'ai.memory.userProfile.get': () => makeProfile({ nickname: 'nya' }),
+      'ai.memory.userProfile.set': (input) =>
+        makeProfile({ nickname: (input as { patch: { nickname: string } }).patch.nickname }),
     });
-    await waitFor(() => expect(result.current.profile).toEqual({ id: 'u1', nickname: 'nya' }));
+    const wrapper = wrapperFactory(server);
+    const { result } = renderHook(() => useUserProfile<{ nickname: string }>(), { wrapper });
+    await waitFor(() => expect(result.current.profile?.nickname).toBe('nya'));
 
     // 事件推送应触发更新
     act(() =>
-      bridge.emit(AI_EVENT_CHANNEL, {
-        evt: 'userProfile:changed',
-        data: { profile: { id: 'u1', nickname: 'senpai' } },
-      }),
+      server.publish('ai.userProfile.changed', { profile: makeProfile({ nickname: 'senpai' }) }),
     );
     await waitFor(() => expect(result.current.profile?.nickname).toBe('senpai'));
 
     // set 也应更新
     await act(async () => {
-      await result.current.set({ nickname: 'ai' });
+      // 门面的 set 收 ProfilePatch（{ patch, source }）
+      await result.current.set({ patch: { nickname: 'ai' }, source: 'user' } as never);
     });
     expect(result.current.profile?.nickname).toBe('ai');
   });
 });
 
 describe('AIProvider', () => {
-  it('unmount 时会 dispose 自建 client', async () => {
-    const bridge = new FakeBridge();
-    const disposeSpy = vi.fn();
-    // 用一个占位组件确保 Provider 卸载路径被走
-    const Placeholder = () => null;
+  it('unmount 时会 dispose 自建 client（连接随之关闭）', async () => {
+    const server = createFakeServer({ 'ai.sessions.list': () => [] });
+    const transport = server.connect();
+    let seen = 0;
+    const Probe = () => {
+      useAIEvents('agent:step', () => {
+        seen += 1;
+      });
+      return null;
+    };
     const { unmount } = render(
-      <AIProvider bridge={bridge}>
-        <Placeholder />
+      <AIProvider transport={transport}>
+        <Probe />
       </AIProvider>,
     );
-    // 无法直接监听 dispose；用 listeners size 侧证：先加事件订阅，
-    // 卸载后再 emit 不再触发（即 ai:event 侧的监听已被 dispose 清空）。
-    bridge.emit(AI_EVENT_CHANNEL, { evt: 'agent:step', data: {} });
-    const hit = bridge.listeners.get(AI_EVENT_CHANNEL)?.size ?? 0;
-    expect(hit).toBeGreaterThan(0);
-    unmount();
-    expect(disposeSpy).not.toHaveBeenCalled();
-    await waitFor(() => {
-      expect(bridge.listeners.get(AI_EVENT_CHANNEL)?.size ?? 0).toBe(0);
+    await act(() => flush());
+    await act(async () => {
+      server.publish('ai.agent.step', {});
+      await flush();
     });
+    expect(seen).toBe(1);
+    unmount();
+    await flush(10);
+    server.publish('ai.agent.step', {});
+    await flush();
+    expect(seen).toBe(1);
   });
 });
 
@@ -241,7 +204,8 @@ describe('AIProvider · StrictMode', () => {
   it('StrictMode 双挂载不会 dispose 仍在使用的 client；真正卸载后才 dispose', async () => {
     const { StrictMode } = await import('react');
     const { useAIClient } = await import('../src/react/AIProvider');
-    const bridge = new FakeBridge();
+    const server = createFakeServer();
+    const transport = server.connect();
     let seen: { disposed?: boolean } | undefined;
     const Probe = () => {
       seen = useAIClient() as unknown as { disposed?: boolean };
@@ -249,7 +213,7 @@ describe('AIProvider · StrictMode', () => {
     };
     const { unmount } = render(
       <StrictMode>
-        <AIProvider bridge={bridge}>
+        <AIProvider transport={transport}>
           <Probe />
         </AIProvider>
       </StrictMode>,

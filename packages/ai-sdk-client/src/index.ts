@@ -1,18 +1,17 @@
 /**
  * @nomi-ai/ai-sdk-client · 主入口
  *
- * 渲染进程薄客户端（P7 · L3）——把主进程 `@nomi-ai/ai-runtime` 暴露的 `ai:*` IPC
- * 通道封装为与 [P5 AIClient](file:///../../ai-sdk/src/AIClient.ts) 类型签名完全一致
- * 的 [`ClientAIClient`](file:///./ClientAIClient.ts)，让 UI/CLI 侧感知不到 IPC。
+ * 渲染进程薄客户端——在应用契约（`@nomi-ai/contract/app`）上实现与
+ * [AIClient](file:///../../ai-sdk/src/AIClient.ts) 签名一致的 [`ClientAIClient`](file:///./ClientAIClient.ts)，
+ * 让 UI 侧感知不到传输（Electron IPC 经 preload 的 `window.nomiTransport`）。
  *
  * 子入口：
  * - `@nomi-ai/ai-sdk-client` —— `ClientAIClient` + `IPCBridge` 类型（浏览器可用）
  * - `@nomi-ai/ai-sdk-client/react` —— `AIProvider` + 5 个 React Hook
- * - `@nomi-ai/ai-sdk-client/preload` —— `mkAiPreload` + `assertChannel` 白名单
+ * - `@nomi-ai/ai-sdk-client/preload` —— `mkNomiTransportPreload`（契约传输）与 `mkAiPreload`（其余 `ai:*` 通道）
  */
 
 export * from './ClientAIClient';
 export * from './IPCBridge';
-export * from './channels';
 export * from './errors';
 export * from './errorHint';
