@@ -3,7 +3,7 @@
  * 受控组件：由调用方决定如何应用（更改正在运行的 CLI 会话 / 新建标签时的初始目录）。
  */
 import { t, Icon } from '@nomi-ai/ui';
-import { Check, Folder, FolderOpen } from 'lucide-react';
+import { Check, Folder, FolderOpen, FolderX } from 'lucide-react';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -25,6 +25,9 @@ export const WorkspacePicker: React.FC<{
   size?: 'sm' | 'ms';
   /** outline：带边框（默认）；ghost：无边框，对话顶栏用 */
   variant?: 'outline' | 'ghost';
+  /** 可以不用工作区（Nomi 对话）：菜单底部多一项「不使用工作区」；没有值时按钮显示 emptyLabel */
+  onClear?: () => void;
+  emptyLabel?: string;
 }> = ({
   value,
   onChange,
@@ -35,6 +38,8 @@ export const WorkspacePicker: React.FC<{
   className,
   size = 'sm',
   variant = 'outline',
+  onClear,
+  emptyLabel,
 }) => {
   const [open, setOpen] = useState(false);
   const [recent, setRecent] = useState<string[]>([]);
@@ -100,7 +105,10 @@ export const WorkspacePicker: React.FC<{
         disabled={disabled}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={t('ui.cli-monitor.workspace', value || t('ui.cli-monitor.not-set'))}
+        aria-label={t(
+          'ui.cli-monitor.workspace',
+          value || emptyLabel || t('ui.cli-monitor.not-set'),
+        )}
         title={
           value
             ? [t('ui.cli-monitor.workspace-label'), value].join('\n')
@@ -112,7 +120,7 @@ export const WorkspacePicker: React.FC<{
         <Icon icon={Folder} size={14} />
         {label && <span className={styles.label}>{label}</span>}
         <span className={styles.path} data-testid={`${testId}-path`}>
-          {shortenPath(value) || t('ui.cli-monitor.choose-folder')}
+          {shortenPath(value) || emptyLabel || t('ui.cli-monitor.choose-folder')}
         </span>
       </button>
       {open &&
@@ -154,6 +162,23 @@ export const WorkspacePicker: React.FC<{
               </span>
               {t('ui.cli-monitor.choose-folder-ellipsis')}
             </button>
+            {onClear && value && (
+              <button
+                type="button"
+                role="menuitem"
+                className={`${styles.item} ${styles.browse}`}
+                data-testid="workspace-clear"
+                onClick={() => {
+                  setOpen(false);
+                  onClear();
+                }}
+              >
+                <span className={styles.check}>
+                  <Icon icon={FolderX} size={14} />
+                </span>
+                {t('ui.cli-monitor.no-workspace')}
+              </button>
+            )}
           </div>,
           document.body,
         )}

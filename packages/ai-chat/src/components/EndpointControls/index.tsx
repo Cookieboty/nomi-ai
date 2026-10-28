@@ -14,6 +14,7 @@ import React, { useState } from 'react';
 import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
 import { useChatMode } from '../../hooks/useChatMode';
 import { useHarnessState } from '../../hooks/useHarnessState';
+import { useNomiWorkspace } from '../../hooks/useNomiWorkspace';
 import { gatewayClientAvailable } from '../../services/gatewayClient';
 import { MAIN_TAB_ID, harnessClient } from '../../services/harnessClient';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
@@ -83,6 +84,8 @@ export const PermissionTip: React.FC = () => {
   const { tabs, cli, tab } = useEndpoint();
   const modeTab = tab ?? tabs.state?.tabs.find((x) => x.id === MAIN_TAB_ID) ?? null;
   if (!cli || !modeTab) return null;
+  // 「全部自动」开着时完全放开就是默认档：不再每个标签都弹提示（权限按钮仍标红）
+  if (tabs.state?.autoApprove) return null;
   const def = tabs.state?.defaultPermissionMode;
   return <BypassTip tab={modeTab} exitMode={def && def !== 'bypass' ? def : 'acceptEdits'} />;
 };
@@ -195,10 +198,36 @@ function useCwdSwitch() {
   };
 }
 
+/**
+ * Nomi 对话的工作区：存在当前会话上，选了之后 Nomi 的文件 / 命令工具只能在里面用；
+ * 没有 CLI 会话要续接，换工作区不用确认，下一轮起生效。可以「不使用工作区」回到按授权文件夹。
+ */
+const NomiWorkspaceControl: React.FC<{ mainCwd: string | undefined }> = ({ mainCwd }) => {
+  const ws = useNomiWorkspace(mainCwd);
+  return (
+    <WorkspacePicker
+      value={ws.cwd}
+      onChange={ws.set}
+      onClear={ws.clear}
+      emptyLabel={t('ui.cli-monitor.no-workspace')}
+      size="ms"
+      variant="ghost"
+      testId="nomi-workspace"
+    />
+  );
+};
+
 /** 对话顶栏右侧：当前标签的工作目录（与「改动 · 文件」开关相邻，说的都是这个目录；分支在右栏顶部） */
 export const WorkspaceControl: React.FC = () => {
   const { cli, cwd, changeCwd, modal } = useCwdSwitch();
-  if (!cli) return null;
+  const { tabs, harness } = useEndpoint();
+  // Nomi 对话（主标签在 Nomi 后端）：工作区按会话存；等标签列表到了再判断，避免先闪一下
+  if (!cli) {
+    const onMain = !tabs.isCliTab && harness?.backend === 'nomi';
+    return onMain && harnessClient.available() ? (
+      <NomiWorkspaceControl mainCwd={harness.cwd} />
+    ) : null;
+  }
   return (
     <>
       <WorkspacePicker

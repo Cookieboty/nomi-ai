@@ -260,6 +260,33 @@ describe('one conversation context menu', () => {
     ).toBeTruthy();
   });
 
+  it('新建 Nomi 对话带上新建菜单里选的工作区；没选时交给默认（主标签目录）', async () => {
+    const invoke = mockIpc();
+    invoke.mockImplementation(async (ch: string) => {
+      if (ch === 'harness.tabs') return tabsState;
+      if (ch === 'harness.state')
+        return { backend: 'nomi', cwd: '/w', bins: { claude: '/c', codex: '/x', dsh: null } };
+      if (ch === 'harness.recentCwds') return ['/proj/one'];
+      if (ch === 'history.list') return { items: [], nextOffset: null, hasMore: false };
+      return {};
+    });
+    const onNewChat = vi.fn(async () => undefined);
+    const r = render(
+      <HarnessTabsProvider>
+        <Sidebar collapsed={false} onToggle={() => undefined} onNewChat={onNewChat} />
+      </HarnessTabsProvider>,
+    );
+    await waitFor(() => expect(r.getAllByTestId('history-item')).toHaveLength(2));
+    fireEvent.click(r.getByTestId('new-chat'));
+    fireEvent.click(r.getByTestId('new-chat-nomi'));
+    await waitFor(() => expect(onNewChat).toHaveBeenCalledWith(undefined));
+    fireEvent.click(r.getByTestId('new-chat'));
+    fireEvent.click(r.getByTestId('new-chat-workspace-button'));
+    fireEvent.click(await r.findByTestId('workspace-recent-item'));
+    fireEvent.click(r.getByTestId('new-chat-nomi'));
+    await waitFor(() => expect(onNewChat).toHaveBeenLastCalledWith({ cwd: '/proj/one' }));
+  });
+
   it('deleting the last Nomi conversation clears the pane without creating a new one', async () => {
     mockIpc();
     const onNewChat = vi.fn();

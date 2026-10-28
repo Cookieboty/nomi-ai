@@ -90,6 +90,11 @@ export interface HarnessTabsState {
   defaultPermissionMode?: PermissionMode;
   /** Codex 在自动改文件档允许联网 */
   codexNetwork?: boolean;
+  /**
+   * 「全部自动」（默认开）：新标签与 Nomi 委派的编程助手默认完全放开，
+   * Nomi 对话工作区里的文件 / 命令操作不确认；关掉后回到逐项询问
+   */
+  autoApprove?: boolean;
 }
 
 export interface HarnessImageInput {
@@ -523,8 +528,11 @@ export const harnessClient = {
     call<HarnessTabMeta & { degraded?: boolean }>(() =>
       api.harness.tabPermissionMode({ id, mode, confirmed: opts.confirmed, expect: opts.expect }),
     ),
-  setPermissionDefaults: (o: { defaultPermissionMode?: PermissionMode; codexNetwork?: boolean }) =>
-    call<HarnessTabsState>(() => api.harness.permissionDefaults(o)),
+  setPermissionDefaults: (o: {
+    defaultPermissionMode?: PermissionMode;
+    codexNetwork?: boolean;
+    autoApprove?: boolean;
+  }) => call<HarnessTabsState>(() => api.harness.permissionDefaults(o)),
   /**
    * 模型目录：官方来源从 CLI 读（主进程缓存），第三方来源（source: 'thirdParty'）是网关里能给编程助手用的模型；
    * 不支持切换模型的后端返回 null；refresh 强制重读

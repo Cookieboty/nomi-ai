@@ -1,6 +1,6 @@
 /**
  * 唯一的「新建」菜单：侧栏「新对话」与标签栏「+」共用。
- * 端点（图标 + 名称，未安装置灰）+ 工作目录（仅对 CLI 端点生效）。
+ * 端点（图标 + 名称，未安装置灰）+ 工作目录（CLI 标签的目录 / Nomi 对话的工作区）。
  */
 import { t } from '@nomi-ai/ui';
 import React, { useEffect, useRef } from 'react';

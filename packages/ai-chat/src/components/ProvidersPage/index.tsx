@@ -20,6 +20,7 @@ import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { CodingMonitor } from '../CodingMonitor';
 import { EndpointIcon } from '../EndpointIcon';
 
+import { AutoApproveSetting } from './AutoApproveSetting';
 import { CliEndpointSection } from './CliEndpointSection';
 import { DelegateSettings } from './DelegateSettings';
 import { ExternalClis } from './ExternalClis';
@@ -121,6 +122,7 @@ export const ProvidersPage: React.FC<{
           </div>
         ) : (
           <>
+            <AutoApproveSetting />
             <div
               role="tablist"
               aria-label={t('ui.providers-schedule.choose-a-coding-assistant')}

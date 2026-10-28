@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { t } from '@nomi-ai/ui';
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -10,6 +11,7 @@ import {
 import { WorkspacePicker } from '../src/components/WorkspacePicker';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import { setChatMode } from '../src/services/chatPrefs';
+import { ConversationStore } from '../src/services/conversationStore';
 import type { HarnessTabMeta, HarnessTabsState } from '../src/services/harnessClient';
 import { shortenPath } from '../src/utils/workspacePath';
 
@@ -17,9 +19,11 @@ import { installFakeApi, resetFakeApi, type FakeApi } from './helpers/fakeApi';
 
 vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
+/** Nomi 对话的会话存储（Nomi 工作区用）；缺省没有 */
+let chatIpc: unknown;
 vi.mock('../src/contexts/AiChatContext', () => ({
   useAiChat: () => ({
-    state: { messages: [] },
+    state: { messages: [], ipcClient: chatIpc },
     actions: { newConversation: async () => undefined },
   }),
 }));
@@ -129,11 +133,65 @@ describe('EndpointControls workspace for CLI tabs', () => {
     );
   });
 
-  it('is not shown for the Nomi main tab', async () => {
+  it('shows the Nomi conversation workspace (not the CLI one) on the Nomi main tab', async () => {
     const invoke = mockIpc({ ...state(), activeTabId: 'main' });
     const r = mount();
     await waitFor(() => expect(invoke).toHaveBeenCalledWith('harness.tabs'));
     expect(r.queryByTestId('cli-workspace')).toBeNull();
+    // 还没有会话：显示新会话会用的默认工作区（主标签目录）
+    await waitFor(() => expect(r.getByTestId('nomi-workspace-path').textContent).toBe('/w'));
+  });
+
+  describe('Nomi conversation workspace', () => {
+    const nomiStore = () => {
+      const store = new ConversationStore();
+      chatIpc = {
+        conversationStore: () => store,
+        currentConversationId: () => store.currentId(),
+        ensureConversationId: () => store.nomiTarget(),
+      };
+      return store;
+    };
+    afterEach(() => {
+      chatIpc = undefined;
+    });
+
+    it('is stored per conversation; picking one also moves the main tab there', async () => {
+      const store = nomiStore();
+      const c = store.create({ cwd: '/w' });
+      const invoke = mockIpc({ ...state(), activeTabId: 'main' });
+      const r = mount();
+      await waitFor(() => expect(r.getByTestId('nomi-workspace-path').textContent).toBe('/w'));
+      fireEvent.click(r.getByTestId('nomi-workspace-button'));
+      await waitFor(() => r.getAllByTestId('workspace-recent-item'));
+      fireEvent.click(r.getAllByTestId('workspace-recent-item')[1]!);
+      await waitFor(() =>
+        expect(invoke).toHaveBeenCalledWith('harness.setCwd', { cwd: '/recent/two' }),
+      );
+      expect(store.get(c.id)?.cwd).toBe('/recent/two');
+      // 没有 CLI 会话要续接：不弹换目录确认
+      expect(r.queryByTestId('cli-cwd-switch')).toBeNull();
+    });
+
+    it('can be cleared (back to granted folders) and syncs the main tab when switching', async () => {
+      const store = nomiStore();
+      store.create({ cwd: '/w' });
+      const other = store.create({ cwd: '/elsewhere' });
+      const invoke = mockIpc({ ...state(), activeTabId: 'main' });
+      const r = mount();
+      // 当前会话的工作区与主标签目录不同：主标签跟上
+      await waitFor(() =>
+        expect(invoke).toHaveBeenCalledWith('harness.setCwd', { cwd: '/elsewhere' }),
+      );
+      fireEvent.click(r.getByTestId('nomi-workspace-button'));
+      fireEvent.click(await r.findByTestId('workspace-clear'));
+      await waitFor(() => expect(store.get(other.id)?.cwd).toBeUndefined());
+      await waitFor(() =>
+        expect(r.getByTestId('nomi-workspace-path').textContent).toBe(
+          t('ui.cli-monitor.no-workspace'),
+        ),
+      );
+    });
   });
 
   const history = [

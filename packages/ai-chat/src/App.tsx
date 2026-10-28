@@ -648,7 +648,10 @@ const AiChatContent: React.FC = () => {
     };
   }, [openSettings]);
 
-  const handleNewChat = useCallback(() => actions.newConversation(), [actions]);
+  const handleNewChat = useCallback(
+    (opts?: { cwd?: string }) => actions.newConversation(opts),
+    [actions],
+  );
   // 欢迎屏：Nomi 对话还没有模型时，快捷问题换成「添加模型」/「选择模型」，免得一点就报错
   const modelStatus = useNomiModelStatus();
   // 欢迎页的示例问题按新手引导里选的职业与兴趣推荐

@@ -170,7 +170,8 @@ export interface AiChatActions {
   askKnowledge: (content: string, override?: { history: ChatMessage[] }) => Promise<void>;
   loadChatHistory: () => Promise<void>;
   clearChatHistory: () => Promise<void>;
-  newConversation: () => Promise<void>;
+  /** cwd：新 Nomi 对话的工作区；缺省用主标签当前的目录 */
+  newConversation: (opts?: { cwd?: string }) => Promise<void>;
   loadConfig: () => Promise<void>;
   updateConfig: (config: Partial<ChatConfig>) => Promise<void>;
 }
@@ -822,20 +823,26 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
   }, []);
 
   // 新建会话（旧会话保留在本地存储中；进行中的流继续写回旧会话）
-  const newConversation = useCallback(async () => {
-    historySeq.current++;
-    stopReplySpeech();
-    dispatch({ type: 'SET_ERROR', payload: undefined });
-    try {
-      ingestCurrent();
-      await stateRef.current.ipcClient.newConversation();
+  const newConversation = useCallback(
+    async (opts?: { cwd?: string }) => {
       historySeq.current++;
-      dispatch({ type: 'CLEAR_MESSAGES' });
-      notifyConversationsChanged();
-    } catch (error) {
-      dispatch({ type: 'SET_ERROR', payload: errorMessage(error) });
-    }
-  }, [ingestCurrent]);
+      stopReplySpeech();
+      dispatch({ type: 'SET_ERROR', payload: undefined });
+      try {
+        ingestCurrent();
+        await stateRef.current.ipcClient.newConversation(
+          undefined,
+          opts?.cwd ? { cwd: opts.cwd } : undefined,
+        );
+        historySeq.current++;
+        dispatch({ type: 'CLEAR_MESSAGES' });
+        notifyConversationsChanged();
+      } catch (error) {
+        dispatch({ type: 'SET_ERROR', payload: errorMessage(error) });
+      }
+    },
+    [ingestCurrent],
+  );
 
   // 加载配置
   const loadConfig = useCallback(async () => {

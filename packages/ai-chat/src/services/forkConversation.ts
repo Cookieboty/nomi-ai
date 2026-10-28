@@ -107,6 +107,7 @@ export async function forkSameBackend(
     name: title,
     backend: 'nomi',
     messages: kept,
+    ...(opts.cwd ? { cwd: opts.cwd } : {}),
   });
   if (harnessClient.available()) {
     await harnessClient.activateTab(MAIN_TAB_ID).catch(() => undefined);
@@ -168,10 +169,17 @@ export async function forkCrossBackend(
     };
   }
 
+  // 分到 Nomi：工作区用菜单里选的，否则沿用源编程助手标签的目录
+  let cwd = opts.cwd;
+  if (!cwd && meta.tabId) {
+    const st = await harnessClient.tabs().catch(() => null);
+    cwd = st?.tabs.find((x) => x.id === meta.tabId)?.cwd;
+  }
   const forked = store.fork(sourceId, {
     name: title,
     backend: 'nomi',
     messages: compact,
+    ...(cwd ? { cwd } : {}),
   });
   if (harnessClient.available()) {
     await harnessClient.activateTab(MAIN_TAB_ID).catch(() => undefined);

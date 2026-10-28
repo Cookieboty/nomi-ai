@@ -54,13 +54,16 @@ export interface IPCClient {
   listConversations(): Promise<Array<Omit<ChatSession, 'messages'>>>;
   newConversation(
     name?: string,
-    opts?: { backend?: ConversationBackend; tabId?: string },
+    /** cwd：Nomi 对话的工作区；缺省时 Nomi 对话用主标签当前的目录（默认 文稿/nomi） */
+    opts?: { backend?: ConversationBackend; tabId?: string; cwd?: string },
   ): Promise<string>;
   switchConversation(id: string): Promise<void>;
   /** 更新会话元信息（标题 / 后端 / tabId / CLI session id） */
   updateConversation?(
     id: string,
-    patch: Partial<Pick<ChatSession, 'name' | 'backend' | 'tabId' | 'cliSessionId' | 'updatedAt'>>,
+    patch: Partial<
+      Pick<ChatSession, 'name' | 'backend' | 'tabId' | 'cliSessionId' | 'updatedAt' | 'cwd'>
+    >,
   ): Promise<Omit<ChatSession, 'messages'>>;
   /** 同端或跨端分叉（复制可见消息） */
   forkConversation?(
@@ -69,6 +72,7 @@ export interface IPCClient {
       backend?: ConversationBackend;
       tabId?: string;
       name?: string;
+      cwd?: string;
       messages?: ChatMessage[];
     },
   ): Promise<Omit<ChatSession, 'messages'>>;

@@ -101,7 +101,7 @@ export const ForkTargetMenu: React.FC<{
                   data-testid={`fork-target-${b}`}
                   onClick={() =>
                     onPick(b, {
-                      ...(b === 'nomi' ? {} : { cwd: ws.chosen }),
+                      ...(ws.chosen ? { cwd: ws.chosen } : {}),
                       turns: pickedTurns,
                     })
                   }
@@ -119,7 +119,7 @@ export const ForkTargetMenu: React.FC<{
         {cross && (
           <div className={styles.ws}>
             <span className={styles.wsLabel}>
-              {t('ui.cli-monitor.workspace-when-the-target-is-a-coding-agent')}
+              {t('ui.cli-monitor.workspace-for-the-new-conversation')}
             </span>
             <WorkspacePicker value={ws.cwd} onChange={ws.set} testId="fork-workspace" />
           </div>

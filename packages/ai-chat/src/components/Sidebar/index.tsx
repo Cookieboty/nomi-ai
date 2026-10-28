@@ -64,7 +64,7 @@ import { useSidebarRename, useSidebarSearchShortcut } from './useSidebarRename';
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
-  onNewChat: () => void | Promise<void>;
+  onNewChat: (opts?: { cwd?: string }) => void | Promise<void>; // cwd：新建菜单里选的工作区
   onForkRequest?: (id: string, mode: 'same' | 'cross') => void;
   /** 打开历史会话失败 / 有提示时 */
   onNotice?: (message: string) => void;
@@ -287,7 +287,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       if (harnessClient.available()) await harnessClient.setBackend('nomi').catch(() => undefined);
       // 新建是异步操作。必须等它创建并切换到新的 Nomi 会话后再刷新侧栏，
       // 否则 ensureCurrent() 可能读到旧的 CLI 镜像项并把它改写成 Nomi。
-      await onNewChat();
+      await onNewChat(ws.chosen ? { cwd: ws.chosen } : undefined);
       refresh();
       return;
     }

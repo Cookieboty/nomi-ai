@@ -13,6 +13,7 @@ import { chunkToTrace, chunkToUsage } from '../utils/chunkTrace';
 
 import { api, hasTransport } from './api';
 import { ConversationStore } from './conversationStore';
+import { harnessClient } from './harnessClient';
 import { buildProviderMessages } from './history';
 import { upstreamErrorText } from './upstreamErrorText';
 
@@ -110,9 +111,20 @@ export class SdkIPCClient implements IPCClient {
   private readonly owned: boolean;
   private readonly store = new ConversationStore();
   private readonly defaultSystemPrompt: SystemPromptGetter;
+  /** 主标签（Nomi 对话）当前的目录：新 Nomi 对话的默认工作区（默认 文稿/nomi） */
+  private mainCwd: string | undefined;
+  private offHarness: (() => void) | undefined;
 
   constructor(client?: ClientAIClient, opts: { defaultSystemPrompt?: SystemPromptGetter } = {}) {
     this.defaultSystemPrompt = opts.defaultSystemPrompt ?? systemPromptFromCore;
+    this.store.defaultNomiCwd = () => this.mainCwd;
+    if (harnessClient.available()) {
+      void harnessClient
+        .state()
+        .then((s) => (this.mainCwd = s.cwd || undefined))
+        .catch(() => undefined);
+      this.offHarness = harnessClient.onChanged((s) => (this.mainCwd = s.cwd || this.mainCwd));
+    }
     if (client) {
       this.client = client;
       this.owned = false;
@@ -123,6 +135,7 @@ export class SdkIPCClient implements IPCClient {
   }
 
   async dispose(): Promise<void> {
+    this.offHarness?.();
     if (this.owned) await this.client.dispose();
   }
 
@@ -189,10 +202,12 @@ export class SdkIPCClient implements IPCClient {
     const signal = streamOpts?.signal;
     try {
       const conversationId = this.currentConversationId();
+      // Nomi 对话的工作区：内核校验后才生效（文件 / 命令工具与委派的编程助手都限在这里）
+      const cwd = conversationId ? this.store.get(conversationId)?.cwd : undefined;
       const opts = {
         messages: await this.buildMessages(message, history, extraSystem, images),
         ...(reqId ? { reqId } : {}),
-        ...(conversationId ? { extra: { conversationId } } : {}),
+        ...(conversationId ? { extra: { conversationId, ...(cwd ? { cwd } : {}) } } : {}),
       };
       if (signal?.aborted) return;
       // 对话走工具循环（role 仍是 chat，按 chat 路由选 provider）
@@ -293,9 +308,15 @@ export class SdkIPCClient implements IPCClient {
 
   async newConversation(
     name?: string,
-    opts?: { backend?: ConversationBackend; tabId?: string },
+    opts?: { backend?: ConversationBackend; tabId?: string; cwd?: string },
   ): Promise<string> {
-    return this.store.create({ name, backend: opts?.backend, tabId: opts?.tabId }).id;
+    // 新的 Nomi 对话没给工作区时由 store 用主标签当前的目录（defaultNomiCwd）
+    return this.store.create({
+      name,
+      backend: opts?.backend,
+      tabId: opts?.tabId,
+      ...(opts?.cwd ? { cwd: opts.cwd } : {}),
+    }).id;
   }
 
   async switchConversation(id: string): Promise<void> {
@@ -304,7 +325,9 @@ export class SdkIPCClient implements IPCClient {
 
   async updateConversation(
     id: string,
-    patch: Partial<Pick<ChatSession, 'name' | 'backend' | 'tabId' | 'cliSessionId' | 'updatedAt'>>,
+    patch: Partial<
+      Pick<ChatSession, 'name' | 'backend' | 'tabId' | 'cliSessionId' | 'updatedAt' | 'cwd'>
+    >,
   ) {
     return this.store.updateMeta(id, patch);
   }
@@ -315,6 +338,7 @@ export class SdkIPCClient implements IPCClient {
       backend?: ConversationBackend;
       tabId?: string;
       name?: string;
+      cwd?: string;
       messages?: ChatMessage[];
     },
   ) {
