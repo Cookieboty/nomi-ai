@@ -7,7 +7,10 @@
 //
 //   pnpm build                       # 先构建（内核与 host-node 从 dist 加载）
 //   pnpm dev:web                     # 数据放在临时目录，退出时删除
-//   pnpm dev:web -- --data .nomi-web # 数据放在指定目录，保留
+//   pnpm dev:web -- --data .nomi-web # 数据放在指定目录，保留（.nomi-web/ 已在 .gitignore 里）
+//
+// 注意：无界面宿主的 secrets 只是可逆编码、不是加密，在浏览器里填的 API Key 会以明文存在数据目录里；
+// 指定目录时别放在会被提交的位置，启动时也会打一条警告。
 //
 // 只用于开发：没有窗口、托盘、看板娘（要用窗口对象的过程返回 UNAVAILABLE）；token 只在日志里露前 4 位。
 // 统一网关在 Node 子进程里跑、监听系统分配的端口（不和本机装着的 Nomi 抢默认端口），对话照常经网关。
@@ -103,6 +106,12 @@ export async function startDevWeb(opts = {}) {
     ...(opts.contract ? { contract: opts.contract } : {}),
   });
   const log = headless.core.logger;
+  if (opts.dataDir) {
+    // host-node 的 secrets 是可逆编码，不是加密：浏览器里填的 API Key 会以明文落在数据目录
+    log.warn('[dev-web] secrets in the data dir are NOT encrypted; keep it out of git', {
+      data: headless.control.root,
+    });
+  }
   const token = ws.createDevToken();
   let server;
   try {

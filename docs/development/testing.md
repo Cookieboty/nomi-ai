@@ -29,7 +29,7 @@
 ```bash
 pnpm build
 pnpm dev:web                       # 内核在 Node 里跑（数据在临时目录），打开 http://127.0.0.1:6128
-pnpm dev:web -- --data .nomi-web   # 数据放在指定目录，保留
+pnpm dev:web -- --data .nomi-web   # 数据放在指定目录，保留（已 gitignore；secrets 未加密）
 pnpm exec playwright install chromium   # 第一次跑冒烟前
 pnpm smoke:web [-- --screenshot test-results/dev-web.png]
 ```

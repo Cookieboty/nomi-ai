@@ -78,3 +78,6 @@ task
 AppData/
 **/__pycache__/
 *.pyc
+
+# pnpm dev:web -- --data .nomi-web：无界面宿主的数据目录，secrets 未加密（scripts/dev-web/start.mjs）
+.nomi-web/
