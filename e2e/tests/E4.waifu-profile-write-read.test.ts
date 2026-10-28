@@ -2,62 +2,56 @@
  * E4 · waifu · userProfile.set → userProfile:changed → 下一次 chat 拿到最新值
  *
  * 语义对齐：
- * - 一个 waifu 主渲染窗口调用 `client.memory.userProfile.set({ patch })` 更新偏好；
- * - FakeProfileService 在 set 内部触发 `changed`，`createE2eRuntime` 桥接为 插件事件
- *   `userProfile/changed`，AIClient 的 UserProfileFacade 会把它映射为 `userProfile:changed`
- *   业务事件，经契约事件 `ai.userProfile.changed` 推给订阅了的窗口；
+ * - 真实内核跑在无界面宿主上，用户画像是内核插件宿主里真实的 `UserPreferenceMemoryPlugin`（无界面宿主没有
+ *   文件存储插件，画像只在内存里）；
+ * - 一个看板娘窗口调用 `client.memory.userProfile.set({ patch })`，画像变化经插件事件 `userProfile/changed`
+ *   由 AIClient 映射成契约事件 `ai.userProfile.changed`，推给订阅了的窗口；
  * - 断言：
- *   1. 广播 payload.profile 与 set 后的 getPath 一致；
- *   2. 后续 chat.sendMessage 前后 profile.get() 拿到的是"最新"版本；
- *   3. 一个 second 渲染窗口也能收到 userProfile:changed。
+ *   1. 两个窗口都收到变化，payload.profile 与 set 后的 get 一致；
+ *   2. 下一次 chat.sendMessage 时内核里的画像服务已是最新值。
  */
 
-import { ClientAIClient } from '@nomi-ai/ai-sdk-client';
-import { describe, expect, it, afterEach, beforeEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { createE2eRuntime, type E2eRuntimeHandle } from '../helpers/e2eRuntime';
+import { startE2eCore, type E2eCore } from '../helpers/headlessCore';
+
+interface UserProfileApi {
+  set(input: { patch: Record<string, unknown>; source: 'user' }): Promise<unknown>;
+  get(): Promise<unknown>;
+}
 
 describe('E4 · waifu · userProfile.set 后立即广播 & 下一次 chat 拿到最新值', () => {
-  let handle: E2eRuntimeHandle;
+  let core: E2eCore;
 
-  beforeEach(() => {
-    handle = createE2eRuntime();
+  beforeEach(async () => {
+    core = await startE2eCore();
   });
 
-  afterEach(() => {
-    handle.dispose();
+  afterEach(async () => {
+    await core.stop();
   });
 
-  it('set → userProfile:changed 立即广播到所有窗口，且 getPath 返回最新值', async () => {
-    const primary = handle.createRendererClient({ id: 701 });
-    const secondary = handle.createRendererClient({ id: 702 });
-    const client = new ClientAIClient({ bridge: primary.bridge });
-    const bystander = new ClientAIClient({ bridge: secondary.bridge });
+  it('set → userProfile:changed 推到订阅了的窗口，且 get 返回最新值', async () => {
+    const primary = core.openWindow({ surface: 'mascot', trusted: true });
+    const secondary = core.openWindow();
 
     const primaryChanges: unknown[] = [];
     const secondaryChanges: unknown[] = [];
-    client.on('userProfile:changed', (p) => primaryChanges.push(p));
-    bystander.on('userProfile:changed', (p) => secondaryChanges.push(p));
-    await handle.settle(); // 订阅帧到达内核
+    primary.client.on('userProfile:changed', (p) => primaryChanges.push(p));
+    secondary.client.on('userProfile:changed', (p) => secondaryChanges.push(p));
+    await core.settle(); // 订阅帧到达内核
 
-    const userProfile = client.memory.userProfile as unknown as {
-      set(input: { patch: Record<string, unknown>; source: 'user' }): Promise<unknown>;
-      get(): Promise<unknown>;
-    };
-
+    const userProfile = primary.client.memory.userProfile as unknown as UserProfileApi;
     const setResult = await userProfile.set({
-      patch: {
-        identity: { nickname: 'e2e-alice' },
-      },
+      patch: { identity: { nickname: 'e2e-alice' } },
       source: 'user',
     });
     expect(setResult).toBeTruthy();
+    await core.settle(); // 事件帧到达两个窗口
 
-    await handle.settle(); // 事件帧到达两个窗口
-
-    expect(primaryChanges).toHaveLength(1);
-    expect(secondaryChanges).toHaveLength(1);
-    expect(primaryChanges[0]).toMatchObject({
+    expect(primaryChanges.length).toBeGreaterThanOrEqual(1);
+    expect(secondaryChanges).toEqual(primaryChanges);
+    expect(primaryChanges.at(-1)).toMatchObject({
       profile: expect.objectContaining({
         identity: expect.objectContaining({ nickname: 'e2e-alice' }),
       }),
@@ -65,22 +59,13 @@ describe('E4 · waifu · userProfile.set 后立即广播 & 下一次 chat 拿到
 
     const latest = (await userProfile.get()) as { identity?: { nickname?: string } };
     expect(latest.identity?.nickname).toBe('e2e-alice');
-
-    await client.dispose();
-    await bystander.dispose();
   });
 
-  it('下一次 chat.sendMessage 时，AIClient 侧 UserProfileService 已持有最新 nickname', async () => {
-    const winA = handle.createRendererClient({ id: 711 });
-    const client = new ClientAIClient({ bridge: winA.bridge });
+  it('下一次 chat.sendMessage 时，内核的 UserProfileService 已持有最新 nickname', async () => {
+    const { client } = core.openWindow();
 
-    const userProfile = client.memory.userProfile as unknown as {
-      set(input: { patch: Record<string, unknown>; source: 'user' }): Promise<unknown>;
-    };
-    await userProfile.set({
-      patch: {
-        identity: { nickname: 'e2e-bob' },
-      },
+    await (client.memory.userProfile as unknown as UserProfileApi).set({
+      patch: { identity: { nickname: 'e2e-bob' } },
       source: 'user',
     });
 
@@ -91,8 +76,7 @@ describe('E4 · waifu · userProfile.set 后立即广播 & 下一次 chat 拿到
         messages: Array<{ role: string; content: string }>;
       }): Promise<{ content: string }>;
     };
-
-    handle.llm.nextContent = 'greeted';
+    core.llm.nextContent = 'greeted';
     const resp = await chat.sendMessage({
       provider: 'fake',
       model: 'default',
@@ -100,9 +84,7 @@ describe('E4 · waifu · userProfile.set 后立即广播 & 下一次 chat 拿到
     });
     expect(resp.content).toBe('greeted');
 
-    const snapshot = handle.profileService.get() as { identity?: { nickname?: string } };
+    const snapshot = core.profile().get() as { identity?: { nickname?: string } };
     expect(snapshot.identity?.nickname).toBe('e2e-bob');
-
-    await client.dispose();
   });
 });
