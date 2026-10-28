@@ -322,6 +322,60 @@ await core.start();
 - `LoggerService` / `createMainLogger` 改为注入的 `LoggerFactory`；日志文件路径来自 `ports.paths.logs()`。
 - 主进程 i18n（`electron/src/i18n`）与平台无关，搬入内核；界面语言变化通过 `settings.changed` 事件通知。
 
+#### 实施约定（P2 起，P3 搬家前）
+
+`createCore` 落地之前，组合根仍是 `core/Application.ts`。它在构造时紧跟日志创建两样东西，登记到 `ServiceContainer`：
+
+| 令牌（`core/serviceTokens.ts`） | 类型                                                   | Electron 实现                                                         |
+| ------------------------------- | ------------------------------------------------------ | --------------------------------------------------------------------- |
+| `HOST_PORTS`                    | `HostPorts`（`@nomi-ai/host-ports`）                   | `host/electronPorts.ts`；窗口经 `lazyWindowHost` 在调用时找窗口管理器 |
+| `APP_EVENTS`                    | `AppEvents`（`core/appEvents.ts`，不 import electron） | `host/electronAppEvents.ts`                                           |
+
+迁移一个服务时：
+
+1. **依赖从构造参数（或 `initXxxService(deps)`）进来**，类型写最小子集 `Pick<HostPorts, …>`。服务里不 `import 'electron'`，也不从容器里取（容器只给组合根用）。
+2. **平台调用换端口**：`app.getPath('userData')` → `ports.paths.userData()`，`nativeTheme` → `ports.appearance` 等；端口缺能力就先在 `host-ports` 里加，同时补 `electronPorts` 与 `host-node` 两份实现。
+3. **窗口广播换 `events.publish(channel, payload, { surface? })`**：通道名不变；不指定 `surface` 等于原来的 `BrowserWindow.getAllWindows()` 广播（跳过已销毁的窗口），`surface: 'mascot'` / `'chat'` 对应原来只发给看板娘 / 对话窗口的写法。
+4. **测试不 mock 平台能力**：传假端口（或 `@nomi-ai/host-node`）和 `createRecordingAppEvents()`，断言 `events.published`；`jest.mock('electron')` 只留给还没迁移的依赖（如 `guardedIpc`）。
+5. **从 `scripts/eslint/electron-boundary.mjs` 的白名单删掉该文件**，lint 保证它不再回退。
+
+参考实现是 `theme/ThemeService.ts`：
+
+```ts
+// 服务：只认端口和事件
+export interface ThemeServiceDeps {
+  file: string;
+  ports: Pick<HostPorts, 'appearance' | 'app'>;
+  events: AppEvents;
+}
+export class ThemeService {
+  constructor(deps: ThemeServiceDeps) {
+    /* … */
+    deps.ports.appearance.onChange(() => {
+      if (this.pref === 'system') this.broadcast();
+    });
+  }
+  private broadcast(): void {
+    this.events.publish(THEME_CHANGED, this.get()); // 原来：遍历 BrowserWindow.getAllWindows()
+  }
+}
+
+// 组合根（Application.ts）
+const themes = new ThemeService({
+  file: path.join(this.ports.paths.userData(), 'theme.json'),
+  ports: this.ports,
+  events: this.events,
+});
+
+// 测试
+const events = createRecordingAppEvents();
+const svc = new ThemeService({ file, ports: { appearance: fakeAppearance, app }, events });
+svc.set('ink');
+expect(events.last(THEME_CHANGED)).toEqual({ pref: 'ink', resolved: 'ink' });
+```
+
+`registerIpc()`（`guardedHandle` / `ipcMain`）不在 P2 范围：它属于旧 IPC 注册层，P1 由契约传输层取代。
+
 ### 7.2 内核里留什么
 
 | 进内核                                                                                                                                                                                                                                                                                                     | 留在宿主                                                                                                                                                                                                                       |
@@ -479,7 +533,7 @@ renderer 只保留：透明窗口壳、气泡、工具栏、右键菜单，以�
 
 ## 12. 迁移计划
 
-> 进度（2026-10-28，分支 `refactor/core-host-decoupling`）：第一批已完成 live2d 清理（§10.5 的改名部分）、`contract` / `host-ports` / `host-node` / `character-contract` 四个新包骨架、Electron 端口实现（`electron/src/host/electronPorts.ts`）、P0。P1a（AI 门面上契约）已在分支 `refactor/p1-contract` 完成；P1b、P2、搬目录（P3）、C1 资产搬迁尚未开始。
+> 进度（2026-10-28，分支 `refactor/core-host-decoupling`）：第一批已完成 live2d 清理（§10.5 的改名部分）、`contract` / `host-ports` / `host-node` / `character-contract` 四个新包骨架、Electron 端口实现（`electron/src/host/electronPorts.ts`）、P0。P1a（AI 门面上契约）已在分支 `refactor/p1-contract` 完成。P2 的基础已就位：组合根登记 `HOST_PORTS` / `APP_EVENTS`，`ThemeService` 作为参考迁移完成（§7.1「实施约定」）。P1b、其余 P2 调用方迁移、搬目录（P3）、C1 资产搬迁尚未开始。
 
 | 阶段 | 内容                                                                                                                                                                | 完成标准                                               |
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
