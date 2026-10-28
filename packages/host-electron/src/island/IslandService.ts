@@ -260,16 +260,3 @@ export function applyIslandWorkspaceBehavior(win: {
     skipTransformProcessType: true,
   });
 }
-
-let inst: IslandService | null = null;
-export function initIslandService(d: Deps): IslandService {
-  inst = new IslandService(d);
-  return inst;
-}
-/** 其它服务调用：未初始化 / 关闭时静默 no-op */
-export function notifyIsland(n: IslandNotice): boolean {
-  return inst?.notify(n) ?? false;
-}
-export function getIslandService(): IslandService | null {
-  return inst;
-}
