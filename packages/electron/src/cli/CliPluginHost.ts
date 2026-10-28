@@ -31,8 +31,8 @@ import {
   type CliPlugin,
   type ExternalCliSpec,
 } from '@nomi-ai/cli-sdk';
-import { BrowserWindow } from 'electron';
 
+import type { AppEvents } from '../core/appEvents';
 import { guardedHandle } from '../security/guardedIpc';
 
 import { ExternalPluginStore } from './externalPlugins';
@@ -94,7 +94,8 @@ export interface CliPluginHostDeps {
   version?: (id: string) => Promise<string | null>;
   /** 宿主补上的能力（内置插件的转录解析等） */
   extend?: (id: string, impl: CliMainImpl) => CliMainImpl;
-  broadcast?: (channel: string, payload: unknown) => void;
+  /** 注册表变化通知界面（ai:cli:registry-changed） */
+  events: AppEvents;
   /**
    * 运行中检测到 CLI 换了版本（应用内升级或用户在终端里升级，P9.6）：编排层在空闲时重启续接。
    * 第一次读到版本（from = null）不算。
@@ -416,13 +417,7 @@ export class CliPluginHost {
   }
 
   private changed(): void {
-    const snap = this.snapshot();
-    if (this.d.broadcast) {
-      this.d.broadcast('ai:cli:registry-changed', snap);
-      return;
-    }
-    for (const w of BrowserWindow.getAllWindows())
-      if (!w.isDestroyed()) w.webContents.send('ai:cli:registry-changed', snap);
+    this.d.events.publish('ai:cli:registry-changed', this.snapshot());
   }
 }
 

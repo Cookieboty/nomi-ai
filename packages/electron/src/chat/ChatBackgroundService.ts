@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
 
+import type { DialogParent, HostPorts } from '@nomi-ai/host-ports';
 import {
   CHAT_BG_IMAGE_URL_PREFIX,
   CHAT_BG_ERROR,
@@ -17,12 +18,12 @@ import {
   sanitizeChatBg,
   type ChatBackgroundState,
 } from '@nomi-ai/types';
-import { BrowserWindow, dialog, ipcMain, nativeImage } from 'electron';
+// 仍需 Electron：nativeImage 缩放大图（没有对应端口），registerIpc 用 ipcMain（P1 由契约传输层取代）
+import { ipcMain, nativeImage } from 'electron';
 
+import type { AppEvents } from '../core/appEvents';
 import { t as tr } from '../i18n';
 import { writePrivateFileAtomicAsync } from '../utils/privateFile';
-
-import { getChatBackgroundPresetFile } from './backgroundPreset';
 
 export {
   CHAT_BG_PRESET_URL,
@@ -36,18 +37,37 @@ export const CHAT_BG_IMAGE_STEM = 'panel-bg';
 
 const IMG_EXT = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif']);
 
+export interface ChatBackgroundDeps {
+  /** 设置文件（userData/chat-background.json） */
+  file: string;
+  /** 用户图片目录（userData/chat/images） */
+  imagesDir: string;
+  /** 内置预设图（getChatBackgroundPresetFile） */
+  presetFile: string;
+  /** 选择图片 */
+  ports: Pick<HostPorts, 'dialogs'>;
+  /** 通知界面（`chat-bg:changed` 发给所有窗口） */
+  events: AppEvents;
+}
+
 export class ChatBackgroundService {
   private state: ChatBackgroundState;
   /** 改动按顺序执行：每次都基于上一次落盘后的状态合并，失败只回滚自己这一次 */
   private ops: Promise<unknown> = Promise.resolve();
-  constructor(
-    private readonly file: string,
-    private readonly imagesDir: string,
-    private readonly presetFile = getChatBackgroundPresetFile(),
-  ) {
+  private readonly file: string;
+  private readonly imagesDir: string;
+  private readonly presetFile: string;
+  private readonly ports: ChatBackgroundDeps['ports'];
+  private readonly events: AppEvents;
+  constructor(deps: ChatBackgroundDeps) {
+    this.file = deps.file;
+    this.imagesDir = deps.imagesDir;
+    this.presetFile = deps.presetFile;
+    this.ports = deps.ports;
+    this.events = deps.events;
     let saved: unknown = null;
     try {
-      saved = JSON.parse(fs.readFileSync(file, 'utf8'));
+      saved = JSON.parse(fs.readFileSync(this.file, 'utf8'));
     } catch {
       /* first run */
     }
@@ -100,17 +120,15 @@ export class ChatBackgroundService {
     return this.get();
   }
 
-  async pickImage(parent?: BrowserWindow | null): Promise<ChatBackgroundState> {
-    const opts: Electron.OpenDialogOptions = {
+  /** 选择图片并导入；`parent` 是对话框挂靠的界面（IPC 从对话窗口发起时为 `chat`） */
+  async pickImage(parent: DialogParent = 'none'): Promise<ChatBackgroundState> {
+    const [picked] = await this.ports.dialogs.pickFiles({
       title: tr('electron.common.choose-chat-background-image'),
-      properties: ['openFile'],
       filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }],
-    };
-    const r = parent
-      ? await dialog.showOpenDialog(parent, opts)
-      : await dialog.showOpenDialog(opts);
-    if (r.canceled || !r.filePaths[0]) return this.get();
-    return this.importImage(r.filePaths[0]);
+      parent,
+    });
+    if (!picked) return this.get();
+    return this.importImage(picked);
   }
 
   /**
@@ -180,10 +198,8 @@ export class ChatBackgroundService {
     ipcMain.handle('chat-bg:get', () => this.get());
     ipcMain.handle('chat-bg:set', (_e, patch: unknown) => this.set(patch));
     ipcMain.handle('chat-bg:reset', () => this.reset());
-    ipcMain.handle('chat-bg:pick-image', (e) => {
-      const win = BrowserWindow.fromWebContents(e.sender);
-      return this.pickImage(win);
-    });
+    // chat-bg:* 只由对话窗口的 preload（ai-chat-preload）暴露，发起方就是对话窗口
+    ipcMain.handle('chat-bg:pick-image', () => this.pickImage('chat'));
   }
 
   /** 界面操作触发的写入：Windows 文件被占用时退避等待不挡主进程（#154） */
@@ -232,10 +248,7 @@ export class ChatBackgroundService {
   }
 
   private broadcast(): void {
-    const s = this.get();
-    for (const w of BrowserWindow.getAllWindows()) {
-      if (!w.isDestroyed()) w.webContents.send('chat-bg:changed', s);
-    }
+    this.events.publish('chat-bg:changed', this.get());
   }
 
   private removeImageFiles(keep?: string): void {

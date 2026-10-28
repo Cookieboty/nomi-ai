@@ -23,6 +23,7 @@ import type { CliPlugin } from '@nomi-ai/cli-sdk';
 import { checkPlugin, type HistoryFixture } from '@nomi-ai/cli-sdk/testing';
 
 import { CliPluginHost, inRange } from '../../../src/cli/CliPluginHost';
+import { createRecordingAppEvents } from '../../../src/core/appEvents';
 
 const FIXTURES = path.resolve(__dirname, '../../../../cli-plugins/fixtures/history');
 
@@ -76,7 +77,7 @@ describe('CliPluginHost', () => {
       logger,
       root: '/tmp/nomi-plugins',
       plugins: { grok: good, broken, throws },
-      broadcast: (_c, p) => sent.push(p),
+      events: { publish: (_c, p) => sent.push(p) },
     });
     await host.start();
     const snap = host.snapshot();
@@ -106,7 +107,7 @@ describe('CliPluginHost', () => {
       root: '/tmp/nomi-plugins',
       plugins: { gated },
       version: async () => version,
-      broadcast: () => undefined,
+      events: createRecordingAppEvents(),
       onVersionChange: (id, from, to) => changes.push(`${id}:${from}->${to}`),
     });
     await host.start();
@@ -123,7 +124,11 @@ describe('CliPluginHost', () => {
   });
 
   it('默认加载全部内置插件；注册表快照经 ai:cli:registry 给界面', async () => {
-    const host = new CliPluginHost({ logger, root: '/tmp/nomi-plugins' });
+    const host = new CliPluginHost({
+      logger,
+      root: '/tmp/nomi-plugins',
+      events: createRecordingAppEvents(),
+    });
     await host.start();
     host.registerIpc();
     const fn = handlers.get('ai:cli:registry');

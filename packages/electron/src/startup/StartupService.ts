@@ -8,8 +8,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { BrowserWindow } from 'electron';
-
+import type { AppEvents } from '../core/appEvents';
 import { guardedHandle } from '../security/guardedIpc';
 import { writePrivateFileAtomicAsync } from '../utils/privateFile';
 
@@ -35,7 +34,18 @@ export interface StartupState {
   showMascot: boolean;
 }
 
+/** 界面监听的启动设置变化通道 */
+export const STARTUP_CHANGED = 'ai:startup:changed';
+
+export interface StartupServiceDeps {
+  /** 偏好文件（userData/startup.json） */
+  file: string;
+  events: AppEvents;
+}
+
 export class StartupService {
+  private readonly file: string;
+  private readonly events: AppEvents;
   private state: StartupState = {
     defaultView: DEFAULT_STARTUP_VIEW,
     closeMain: DEFAULT_CLOSE_MAIN_ACTION,
@@ -43,9 +53,11 @@ export class StartupService {
   };
   private listeners = new Set<(s: StartupState) => void>();
 
-  constructor(private readonly file: string) {
+  constructor(deps: StartupServiceDeps) {
+    this.file = deps.file;
+    this.events = deps.events;
     try {
-      const raw = JSON.parse(fs.readFileSync(file, 'utf8')) as {
+      const raw = JSON.parse(fs.readFileSync(this.file, 'utf8')) as {
         defaultView?: unknown;
         closeMain?: unknown;
         showMascot?: unknown;
@@ -117,8 +129,7 @@ export class StartupService {
     fs.mkdirSync(path.dirname(this.file), { recursive: true });
     await writePrivateFileAtomicAsync(this.file, JSON.stringify(next, null, 2));
     for (const fn of this.listeners) fn(next);
-    for (const w of BrowserWindow.getAllWindows())
-      if (!w.isDestroyed()) w.webContents.send('ai:startup:changed', next);
+    this.events.publish(STARTUP_CHANGED, next);
     return next;
   }
 

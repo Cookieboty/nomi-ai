@@ -7,13 +7,9 @@ import * as path from 'path';
 
 import { LoggerService, LogLevel } from '../../../src/services/LoggerService';
 import { testUtils } from '../../setup';
+import { fakeHostPorts } from '../helpers/fakeHostPorts';
 
-// 模拟app模块
-jest.mock('electron', () => ({
-  app: {
-    getPath: jest.fn(() => '/tmp/test-logs'),
-  },
-}));
+const ports = fakeHostPorts({ userData: '/tmp/test-logs' });
 
 describe('LoggerService', () => {
   let loggerService: LoggerService;
@@ -35,7 +31,7 @@ describe('LoggerService', () => {
       atime: new Date(),
     } as any);
     testUtils.silenceConsole();
-    loggerService = new LoggerService();
+    loggerService = new LoggerService({ ports });
   });
 
   afterEach(() => {
@@ -149,7 +145,7 @@ describe('LoggerService', () => {
     test('应该创建日志目录', () => {
       mockFs.existsSync.mockReturnValue(false);
 
-      loggerService = new LoggerService();
+      loggerService = new LoggerService({ ports });
       loggerService.info('test message');
       loggerService.flushSync();
 
@@ -193,7 +189,7 @@ describe('LoggerService', () => {
       });
 
       const errorSpy = jest.spyOn(console, 'error');
-      loggerService = new LoggerService();
+      loggerService = new LoggerService({ ports });
       loggerService.info('test message');
       loggerService.flushSync();
 
@@ -219,7 +215,7 @@ describe('LoggerService', () => {
     test('多条日志合成一次异步写入，不再逐条同步写盘', () => {
       jest.useFakeTimers();
       try {
-        const logger = new LoggerService();
+        const logger = new LoggerService({ ports });
         (mockFs.appendFile as unknown as jest.Mock).mockImplementation(
           (_f: string, _d: string, cb: (e: null) => void) => cb(null),
         );
@@ -250,7 +246,7 @@ describe('LoggerService', () => {
     test('错误日志立即写出', () => {
       jest.useFakeTimers();
       try {
-        const logger = new LoggerService();
+        const logger = new LoggerService({ ports });
         logger.error('boom');
         jest.advanceTimersByTime(0);
         expect(mockFs.appendFile).toHaveBeenCalledTimes(1);

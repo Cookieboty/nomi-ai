@@ -14,6 +14,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { createRecordingAppEvents } from '../../../src/core/appEvents';
 import { claudeOAuthPresent } from '../../../src/usage/authMode';
 import { SNAPSHOT_FILE } from '../../../src/usage/claudeStatusline';
 import { readGrokAuthStatus } from '../../../src/usage/grokAuth';
@@ -42,6 +43,7 @@ function setup(
   // 官方额度读取一律「找不到 CLI」：这里只关心登录探测有没有被启动
   const none = { resolveBin: async () => null };
   const svc = new UsageService({
+    events: createRecordingAppEvents(),
     root,
     home,
     dshHome: path.join(home, '.dsh'),

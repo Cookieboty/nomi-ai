@@ -26,6 +26,7 @@ import {
   packPersonaSource,
   PersonaService,
 } from '../../../src/persona/PersonaService';
+import { fakeHostPorts } from '../helpers/fakeHostPorts';
 
 function writeStaticPack(root: string) {
   const put = (rel: string, data: string | Buffer) => {
@@ -87,7 +88,9 @@ describe('persona follows the active character pack', () => {
       });
 
     // 与 Application.startPersona 相同的接线
-    const packs = new CharacterPackService();
+    const packs = new CharacterPackService({
+      ports: fakeHostPorts({ userData, resources }),
+    });
     let locale = 'zh-CN';
     const persona = new PersonaService({
       sources: [packPersonaSource(() => packs.getResolved()), officialPersonaSource()],

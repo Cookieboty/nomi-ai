@@ -8,9 +8,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { normalizeUserProfile, type UserProfile } from '@nomi-ai/types';
-import { BrowserWindow } from 'electron';
 
 import { broadcastMascotCommand, type MascotCommand } from '../ai/mascotCommand';
+import type { AppEvents } from '../core/appEvents';
 import { guardedHandle } from '../security/guardedIpc';
 
 export interface OnboardingState {
@@ -20,6 +20,10 @@ export interface OnboardingState {
   profile?: UserProfile;
 }
 
+/** 界面监听的通道：重新打开引导 / 职业与兴趣变化 */
+export const ONBOARDING_SHOW = 'ai:onboarding:show';
+export const ONBOARDING_PROFILE_CHANGED = 'ai:onboarding:profile-changed';
+
 /** 引导里允许转发给看板娘的指令（不开放任意指令） */
 const ALLOWED = new Set(['say', 'motion']);
 
@@ -27,6 +31,7 @@ export interface OnboardingDeps {
   userData: string;
   /** 打开对话窗口（引导显示在里面） */
   openChat: () => void | Promise<void>;
+  events: AppEvents;
 }
 
 export class OnboardingService {
@@ -78,9 +83,7 @@ export class OnboardingService {
     this.state = { ...this.keep(), done: false };
     this.save();
     await this.deps.openChat();
-    for (const w of BrowserWindow.getAllWindows()) {
-      if (!w.isDestroyed()) w.webContents.send('ai:onboarding:show', this.get());
-    }
+    this.deps.events.publish(ONBOARDING_SHOW, this.get());
     return this.get();
   }
 
@@ -98,9 +101,7 @@ export class OnboardingService {
     const profile = normalizeUserProfile(v);
     this.state = { ...this.state, profile };
     this.save();
-    for (const w of BrowserWindow.getAllWindows()) {
-      if (!w.isDestroyed()) w.webContents.send('ai:onboarding:profile-changed', profile);
-    }
+    this.deps.events.publish(ONBOARDING_PROFILE_CHANGED, profile);
     return profile;
   }
 

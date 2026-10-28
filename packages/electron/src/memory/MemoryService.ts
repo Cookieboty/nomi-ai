@@ -8,10 +8,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import type { ToolDefinition } from '@nomi-ai/bundle-ig-base';
-import { BrowserWindow, dialog, shell } from 'electron';
+import type { HostPorts } from '@nomi-ai/host-ports';
 import { z } from 'zod';
 
 import { broadcastMascotCommand } from '../ai/mascotCommand';
+import type { AppEvents } from '../core/appEvents';
 import type { DesktopService } from '../desktop/DesktopService';
 import { t as tr } from '../i18n';
 import { b64ToVec, vecToB64 } from '../knowledge/vector';
@@ -52,6 +53,10 @@ export interface MemoryDeps {
   embed(texts: string[]): Promise<Float32Array[] | null>;
   /** 主进程 AIClient.memory（MemoryFacade）：情节 / 事实同步进去，偏好从这里读 */
   facade(): MemoryFacadeLike | null;
+  /** 打开档案文件、导出时选保存位置 */
+  ports: Pick<HostPorts, 'dialogs' | 'shell'>;
+  /** 通知界面（`ai:mem:changed` 发给所有窗口） */
+  events: AppEvents;
 }
 
 interface Store {
@@ -187,7 +192,7 @@ export class MemoryService {
   }
   async openPersona(): Promise<boolean> {
     if (!fs.existsSync(this.personaFile)) this.setPersona('');
-    return (await shell.openPath(this.personaFile)) === '';
+    return (await this.d.ports.shell.openPath(this.personaFile)) === '';
   }
 
   // ---------- 摘要 ----------
@@ -509,9 +514,8 @@ export class MemoryService {
   }
 
   async exportToFile(format: 'json' | 'md'): Promise<{ ok: boolean; path?: string }> {
-    const win = BrowserWindow.getFocusedWindow();
     const stamp = new Date().toISOString().slice(0, 10);
-    const opts = {
+    const filePath = await this.d.ports.dialogs.saveFile({
       title: tr('electron.common.export-memories'),
       defaultPath: `nomi-memory-${stamp}.${format}`,
       filters: [
@@ -519,9 +523,9 @@ export class MemoryService {
           ? { name: 'Markdown', extensions: ['md'] }
           : { name: 'JSON', extensions: ['json'] },
       ],
-    };
-    const r = win ? await dialog.showSaveDialog(win, opts) : await dialog.showSaveDialog(opts);
-    if (r.canceled || !r.filePath) return { ok: false };
+      parent: 'focused',
+    });
+    if (!filePath) return { ok: false };
     const data = this.exportData();
     const body =
       format === 'md'
@@ -532,12 +536,12 @@ export class MemoryService {
             exportedAt: data.exportedAt,
           })
         : JSON.stringify(data, null, 2);
-    fs.writeFileSync(r.filePath, body, { mode: 0o600 });
+    fs.writeFileSync(filePath, body, { mode: 0o600 });
     this.audit('memory_export', {
       format,
-      sha: createHash('sha1').update(r.filePath).digest('hex').slice(0, 8),
+      sha: createHash('sha1').update(filePath).digest('hex').slice(0, 8),
     });
-    return { ok: true, path: r.filePath };
+    return { ok: true, path: filePath };
   }
 
   state() {
@@ -644,8 +648,7 @@ export class MemoryService {
     }
   }
   private broadcast(ch: string, payload: unknown): void {
-    for (const w of BrowserWindow.getAllWindows())
-      if (!w.isDestroyed()) w.webContents.send(ch, payload);
+    this.d.events.publish(ch, payload);
   }
 
   registerIpc(): void {

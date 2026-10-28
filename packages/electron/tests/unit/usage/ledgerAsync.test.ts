@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { createRecordingAppEvents } from '../../../src/core/appEvents';
 import type { UsageRecord } from '../../../src/usage/types';
 import { UsageLedger } from '../../../src/usage/UsageLedger';
 import { UsageService } from '../../../src/usage/UsageService';
@@ -232,6 +233,7 @@ describe('UsageLedger：异步压缩与游标写入', () => {
 describe('UsageService：后台载入与查询缓存', () => {
   const mk = (root = tmp(), extra: Record<string, unknown> = {}) =>
     new UsageService({
+      events: createRecordingAppEvents(),
       root,
       home: tmp(),
       scanMs: 0,

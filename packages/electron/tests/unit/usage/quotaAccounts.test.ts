@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { createRecordingAppEvents } from '../../../src/core/appEvents';
 import { QUOTA_AUTO_MS, UsageService } from '../../../src/usage/UsageService';
 
 import { fakeServer, type Handler } from './fakeCodexServer';
@@ -66,6 +67,7 @@ function setup(dirs: Partial<Record<'claude' | 'codex' | 'grok', string | null>>
     };
   });
   const svc = new UsageService({
+    events: createRecordingAppEvents(),
     root,
     home,
     dshHome: path.join(home, '.dsh'),

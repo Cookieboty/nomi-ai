@@ -15,8 +15,6 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { app } from 'electron';
-
 import { ConfigService } from '../../../src/services/ConfigService';
 import {
   __renameDeps,
@@ -25,6 +23,7 @@ import {
   __setSpawnAsyncForTest,
   __setSpawnSyncForTest,
 } from '../../../src/utils/privateFile';
+import { fakeHostPorts } from '../helpers/fakeHostPorts';
 
 describe('ConfigService 写盘', () => {
   let dir: string;
@@ -43,7 +42,6 @@ describe('ConfigService 写盘', () => {
 
   beforeEach(() => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-cfg-save-'));
-    (app.getPath as jest.Mock).mockImplementation(() => dir);
     syncCalls.length = 0;
     asyncCalls.length = 0;
     __resetAclCacheForTest();
@@ -69,7 +67,7 @@ describe('ConfigService 写盘', () => {
   });
 
   it('save()：Windows 上 icacls 走异步 spawn，不同步阻塞', async () => {
-    const c = new ConfigService();
+    const c = new ConfigService({ ports: fakeHostPorts({ userData: dir }) });
     c.set('x', 1);
     await c.save();
     expect(readX()).toBe(1);
@@ -87,7 +85,7 @@ describe('ConfigService 写盘', () => {
       await gate;
       return realRenameAsync(from, to);
     };
-    const c = new ConfigService();
+    const c = new ConfigService({ ports: fakeHostPorts({ userData: dir }) });
     c.set('x', 1);
     const p1 = c.save();
     await new Promise((r) => setTimeout(r, 10)); // 第一次写已经在跑（卡在 rename）
@@ -110,7 +108,7 @@ describe('ConfigService 写盘', () => {
       await gate;
       return realRenameAsync(from, to);
     };
-    const c = new ConfigService();
+    const c = new ConfigService({ ports: fakeHostPorts({ userData: dir }) });
     c.set('x', 1);
     const p1 = c.save();
     await new Promise((r) => setTimeout(r, 10));
@@ -134,7 +132,7 @@ describe('ConfigService 写盘', () => {
       await gate;
       return realRenameAsync(from, to);
     };
-    const c = new ConfigService();
+    const c = new ConfigService({ ports: fakeHostPorts({ userData: dir }) });
     c.set('x', 1);
     const p1 = c.save();
     await new Promise((r) => setTimeout(r, 10));
@@ -150,7 +148,7 @@ describe('ConfigService 写盘', () => {
   });
 
   it('不需要排队时 flushOnQuit 直接同步写', async () => {
-    const c = new ConfigService();
+    const c = new ConfigService({ ports: fakeHostPorts({ userData: dir }) });
     c.set('x', 7);
     await c.flushOnQuit();
     expect(readX()).toBe(7);
@@ -159,7 +157,7 @@ describe('ConfigService 写盘', () => {
   });
 
   it('reload / backup 先等未落盘的保存写完', async () => {
-    const c = new ConfigService();
+    const c = new ConfigService({ ports: fakeHostPorts({ userData: dir }) });
     c.set('modelName', 'm1');
     void c.save();
     const backupPath = await c.backup();

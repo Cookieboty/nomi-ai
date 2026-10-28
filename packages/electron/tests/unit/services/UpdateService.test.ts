@@ -7,14 +7,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+// UpdateService 不再 import electron；只有 registerIpc 经 guardedIpc 用到 ipcMain
 jest.mock('electron', () => ({
-  app: {
-    isPackaged: true,
-    getVersion: () => '1.0.0',
-  },
-  BrowserWindow: {
-    getAllWindows: () => [],
-  },
   ipcMain: {
     handle: jest.fn(),
     removeHandler: jest.fn(),
@@ -37,12 +31,15 @@ jest.mock('electron-updater', () => ({
   },
 }));
 
+import { createRecordingAppEvents, type RecordingAppEvents } from '../../../src/core/appEvents';
 import {
+  UPDATE_IPC,
   UpdateService,
   _resetUpdateServiceForTests,
   type UpdaterLike,
 } from '../../../src/services/UpdateService';
 import { whenPrivateWritesIdle } from '../../../src/utils/privateFile';
+import { fakeHostPorts } from '../helpers/fakeHostPorts';
 
 class FakeUpdater extends EventEmitter implements UpdaterLike {
   autoDownload = false;
@@ -84,6 +81,18 @@ class FakeUpdater extends EventEmitter implements UpdaterLike {
   }
 }
 
+// 默认设置文件：userData 取不到时不持久化（与以前测试里没有 app.getPath 时一致）
+const ports = {
+  ...fakeHostPorts({ version: '1.0.0' }),
+  paths: {
+    ...fakeHostPorts().paths,
+    userData: (): string => {
+      throw new Error('no userData in unit tests');
+    },
+  },
+};
+let events: RecordingAppEvents = createRecordingAppEvents();
+
 const logger = {
   info: jest.fn(),
   warn: jest.fn(),
@@ -96,9 +105,12 @@ describe('UpdateService', () => {
   let svc: UpdateService;
 
   beforeEach(() => {
+    events = createRecordingAppEvents();
     _resetUpdateServiceForTests();
     updater = new FakeUpdater();
     svc = new UpdateService(logger as never, {
+      ports,
+      events,
       updater,
       packaged: true,
       launchDelayMs: 0,
@@ -120,6 +132,13 @@ describe('UpdateService', () => {
       currentVersion: '1.0.0',
       autoCheck: true,
     });
+  });
+
+  it('publishes every state change on updates:changed to all windows', async () => {
+    svc.start();
+    const state = await svc.check();
+    const last = events.published.at(-1);
+    expect(last).toEqual({ channel: UPDATE_IPC.changed, payload: state, surfaces: null });
   });
 
   it('check() reports available then download() reaches downloaded', async () => {
@@ -224,6 +243,8 @@ describe('UpdateService', () => {
     it('下载失败：标成「下载失败」，再检查会重新下载直到完成', async () => {
       const { u, ctl } = autoDownloadUpdater('fail');
       const s = new UpdateService(logger as never, {
+        ports,
+        events,
         updater: u,
         packaged: true,
         launchDelayMs: 0,
@@ -245,6 +266,8 @@ describe('UpdateService', () => {
       try {
         const { u, tokens } = autoDownloadUpdater('stall');
         const s = new UpdateService(logger as never, {
+          ports,
+          events,
           updater: u,
           packaged: true,
           launchDelayMs: 0,
@@ -279,6 +302,8 @@ describe('UpdateService', () => {
           return hang ? new Promise(() => undefined) : Promise.resolve(null);
         }) as never;
         const s = new UpdateService(logger as never, {
+          ports,
+          events,
           updater: u,
           packaged: true,
           launchDelayMs: 0,
@@ -308,6 +333,8 @@ describe('UpdateService', () => {
       try {
         const { u } = autoDownloadUpdater('stall');
         const s = new UpdateService(logger as never, {
+          ports,
+          events,
           updater: u,
           packaged: true,
           launchDelayMs: 0,
@@ -363,6 +390,8 @@ describe('UpdateService', () => {
 
   it('unpackaged builds stay unavailable', async () => {
     const dev = new UpdateService(logger as never, {
+      ports,
+      events,
       updater,
       packaged: false,
       launchDelayMs: 0,
@@ -386,6 +415,8 @@ describe('UpdateService', () => {
     let file: string;
     const make = (opts: { launchDelayMs?: number; intervalMs?: number } = {}) =>
       new UpdateService(logger as never, {
+        ports,
+        events,
         updater,
         packaged: true,
         launchDelayMs: opts.launchDelayMs ?? 15_000,

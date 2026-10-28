@@ -7,7 +7,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-import { app } from 'electron';
+import type { HostPorts } from '@nomi-ai/host-ports';
 
 import { redact } from '../utils/redact';
 
@@ -35,7 +35,13 @@ export interface ILoggerService {
   getLevel(): LogLevel;
 }
 
+export interface LoggerServiceDeps {
+  /** 日志目录来自 paths.logs()；打包产物降噪看 app.isPackaged() */
+  ports: Pick<HostPorts, 'paths' | 'app'>;
+}
+
 export class LoggerService implements ILoggerService {
+  private readonly appInfo: LoggerServiceDeps['ports']['app'];
   private level: LogLevel = LogLevel.INFO;
   private logDir: string;
   private logFile: string;
@@ -53,8 +59,9 @@ export class LoggerService implements ILoggerService {
   private dirReady = false;
   private static readonly FLUSH_MS = 100;
 
-  constructor() {
-    this.logDir = path.join(app.getPath('userData'), 'logs');
+  constructor(deps: LoggerServiceDeps) {
+    this.appInfo = deps.ports.app;
+    this.logDir = deps.ports.paths.logs();
     this.logFile = path.join(this.logDir, 'app.log');
     this.ensureLogDirectory();
     process.once('exit', () => this.flushSync());
@@ -130,7 +137,8 @@ export class LoggerService implements ILoggerService {
    */
   private logToConsole(entry: LogEntry): void {
     // 打包后控制台只输出 WARN / ERROR（INFO / DEBUG 仍写入日志文件）；NOMI_DEBUG=1 可恢复
-    if (entry.level > LogLevel.WARN && app.isPackaged && process.env.NOMI_DEBUG !== '1') return;
+    if (entry.level > LogLevel.WARN && this.appInfo.isPackaged() && process.env.NOMI_DEBUG !== '1')
+      return;
     const levelName = LogLevel[entry.level];
     const contextStr = entry.context ? `[${entry.context}] ` : '';
     const metaStr = entry.meta ? ` ${JSON.stringify(entry.meta)}` : '';

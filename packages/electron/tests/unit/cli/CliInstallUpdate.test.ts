@@ -17,12 +17,14 @@ import {
   type CliRunner,
 } from '../../../src/cli/CliUpdateService';
 import { resetCliBinCache } from '../../../src/cli/detect';
+import { createRecordingAppEvents } from '../../../src/core/appEvents';
 
 const posix = process.platform === 'win32' ? it.skip : it;
 
 let tmp = '';
 const saved = { ...process.env };
 let events: Array<Record<string, unknown>> = [];
+let appEvents = createRecordingAppEvents();
 
 beforeEach(() => {
   tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-install-'));
@@ -43,6 +45,7 @@ beforeEach(() => {
   for (const k of ['NVM_BIN', 'NVM_DIR', 'VOLTA_HOME', 'PNPM_HOME', 'NPM_CONFIG_PREFIX'])
     delete process.env[k];
   events = [];
+  appEvents = createRecordingAppEvents();
   resetCliBinCache();
 });
 afterEach(() => {
@@ -67,7 +70,7 @@ const make = (p: CliProbe, runner: CliRunner = async () => ({ code: 0, output: '
     logger: { info: jest.fn(), warn: jest.fn() },
     probe: p,
     runner,
-    silent: true,
+    events: appEvents,
     emit: (e) => events.push(e as Record<string, unknown>),
   });
 
@@ -157,6 +160,10 @@ describe('run with a mock npm', () => {
         kind: 'dsh',
         mode: 'install',
       });
+      // 每个进度事件原样发给所有窗口（ai:cli-update:event）
+      expect(appEvents.published.map((e) => [e.channel, e.payload, e.surfaces])).toEqual(
+        events.map((e) => ['ai:cli-update:event', e, null]),
+      );
       // PATH 上没有 ~/.local/bin → 给出提示
       expect(res.note).toContain('PATH');
       // 装完再看就是「更新」模式
@@ -378,7 +385,7 @@ describe('升级策略（P9.6）', () => {
       logger: { info: jest.fn(), warn: jest.fn() },
       probe: probe({ npmPrefix: () => tmp }),
       runner,
-      silent: true,
+      events: createRecordingAppEvents(),
       platform: o.platform,
       drain: o.drain as never,
       onUpdated: (k, v) => updated.push([k, v]),

@@ -20,6 +20,7 @@ import { AccountService, localAccountId } from '../../../src/cli/accounts/Accoun
 import { claudeKeychainService } from '../../../src/cli/accounts/adapters';
 import { canonicalDir, HOME_ENV } from '../../../src/cli/accounts/homes';
 import type { AccountKind } from '../../../src/cli/accounts/types';
+import { createRecordingAppEvents } from '../../../src/core/appEvents';
 import { whenPrivateWritesIdle } from '../../../src/utils/privateFile';
 
 const tmp = (p: string) => fs.mkdtempSync(path.join(os.tmpdir(), p));
@@ -70,6 +71,7 @@ function mk(
   const keychain = { get: jest.fn(), set: jest.fn(), remove: jest.fn(async () => undefined) };
   const liveState = o.live ?? 'idle';
   const svc = new AccountService({
+    events: createRecordingAppEvents(),
     root,
     logger: { info() {}, warn() {} },
     env: { USER: 'tester', PATH: process.env.PATH } as NodeJS.ProcessEnv,
@@ -282,7 +284,11 @@ describe('AccountService（账号目录）', () => {
         ['claude:s-work', b.id],
       ],
     });
-    const again = new AccountService({ root, logger: { info() {}, warn() {} } });
+    const again = new AccountService({
+      events: createRecordingAppEvents(),
+      root,
+      logger: { info() {}, warn() {} },
+    });
     expect(again.sessionAccount('claude', 's-work')?.id).toBe(b.id);
     await svc.remove(b.id);
     expect(svc.sessionAccount('claude', 's-work')).toBeUndefined();
@@ -310,7 +316,13 @@ describe('AccountService（账号目录）', () => {
     fs.writeFileSync(path.join(root, 'backups', 'codex', '1.enc'), 'x');
     fs.mkdirSync(path.join(root, 'staging', 'abc'), { recursive: true });
     fs.writeFileSync(path.join(root, 'staging', 'abc', 'auth.json'), '{"tokens":{}}');
-    const svc = new AccountService({ root, logger: { info() {}, warn() {} }, home, env: {} });
+    const svc = new AccountService({
+      events: createRecordingAppEvents(),
+      root,
+      logger: { info() {}, warn() {} },
+      home,
+      env: {},
+    });
     const list = svc.list('codex');
     expect(list).toHaveLength(2);
     expect(list[1]).toMatchObject({
@@ -337,6 +349,7 @@ describe('AccountService（账号目录）', () => {
     fs.writeFileSync(path.join(root, 'backups', 'x.enc'), 'x');
     const warns: unknown[] = [];
     const svc = new AccountService({
+      events: createRecordingAppEvents(),
       root,
       logger: {
         info() {},
@@ -378,6 +391,7 @@ describe('AccountService（账号目录）', () => {
     // 让 accounts.json 无法原子写（同名目录占位 → writeFileSync 失败）
     fs.mkdirSync(path.join(root, 'accounts.json'));
     const svc = new AccountService({
+      events: createRecordingAppEvents(),
       root,
       logger: { info() {}, warn() {} },
       home,

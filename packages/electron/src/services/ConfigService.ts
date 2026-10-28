@@ -6,7 +6,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-import { app } from 'electron';
+import type { HostPorts } from '@nomi-ai/host-ports';
 
 import { t } from '../i18n';
 import { DEFAULT_MASCOT_SCALE, migrateMascotSize } from '../mascot/mascotSize';
@@ -56,9 +56,16 @@ export interface IConfigService {
   validateConfig(config: any): { isValid: boolean; errors: string[]; warnings: string[] };
 }
 
+export interface ConfigServiceDeps {
+  /** 只用到 paths.userData（config.json 与备份都在 userData 根） */
+  ports: Pick<HostPorts, 'paths'>;
+  logger?: ILoggerService;
+}
+
 export class ConfigService implements IConfigService {
   private config: AppConfig;
   private configPath: string;
+  private readonly userData: string;
   private logger?: ILoggerService;
   private defaultConfig: AppConfig;
   /**
@@ -69,9 +76,10 @@ export class ConfigService implements IConfigService {
   private inflight: Promise<void> | null = null;
   private queued: Promise<void> | null = null;
 
-  constructor(logger?: ILoggerService) {
-    this.logger = logger;
-    this.configPath = path.join(app.getPath('userData'), 'config.json');
+  constructor(deps: ConfigServiceDeps) {
+    this.logger = deps.logger;
+    this.userData = deps.ports.paths.userData();
+    this.configPath = path.join(this.userData, 'config.json');
 
     // 默认配置
     this.defaultConfig = {
@@ -358,7 +366,7 @@ export class ConfigService implements IConfigService {
    */
   async backup(): Promise<string> {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const backupPath = path.join(app.getPath('userData'), `config-backup-${timestamp}.json`);
+    const backupPath = path.join(this.userData, `config-backup-${timestamp}.json`);
 
     try {
       // 备份的是磁盘上的文件：先等还没落盘的保存写完

@@ -17,7 +17,7 @@ import {
 import { isBuiltinCliId } from '@nomi-ai/cli-plugins';
 import type { ProviderQuirks } from '@nomi-ai/gateway';
 import type { HostPorts } from '@nomi-ai/host-ports';
-import { app, BrowserWindow, safeStorage, session, shell } from 'electron';
+import { app, BrowserWindow, protocol, safeStorage, session, shell } from 'electron';
 
 import { getAgentProgressService, initAgentProgressService } from '../agents/AgentProgressService';
 import { startAIRuntime, type AIRuntimeBootHandle } from '../ai/AIRuntimeBoot';
@@ -26,8 +26,9 @@ import { ScreenCapture } from '../ai/ScreenCapture';
 import { TtsElectronNativeProvider } from '../ai/TtsElectronNativeProvider';
 import { getCharacterPackService } from '../character/CharacterPackService';
 import { registerChatAssetProtocol } from '../chat/assetProtocol';
+import { getChatBackgroundPresetFile } from '../chat/backgroundPreset';
 import { ChatBackgroundService } from '../chat/ChatBackgroundService';
-import { AccountLogin, broadcastLogin } from '../cli/accounts/AccountLogin';
+import { AccountLogin, loginBroadcaster } from '../cli/accounts/AccountLogin';
 import { AccountService } from '../cli/accounts/AccountService';
 import { ACCOUNT_KINDS, type AccountKind } from '../cli/accounts/types';
 import { initCliHarnessService } from '../cli/CliHarnessService';
@@ -36,7 +37,7 @@ import { initCliUpdateService } from '../cli/CliUpdateService';
 import { initDelegateService } from '../cli/delegate/DelegateService';
 import { resolveCliBinAsync, readVersionAsync } from '../cli/detect';
 import { cliChildEnv, isScript, spawnHarness } from '../cli/harness/spawn';
-import { decryptLegacyCliKey } from '../cli/legacyCliKey';
+import { legacyCliKeyDecryptor } from '../cli/legacyCliKey';
 import { initSessionHistoryService } from '../cli/SessionHistoryService';
 import type { CliKind } from '../cli/types';
 import { getDesktopService } from '../desktop/DesktopService';
@@ -222,7 +223,12 @@ export class Application implements IApplication {
       perfMark('app-ready');
 
       // 界面语言（默认跟随系统：zh* → 中文，其余 → English）；须早于托盘 / 通知等主进程文案
-      new LocaleService(path.join(app.getPath('userData'), 'locale.json')).registerIpc();
+      new LocaleService({
+        file: path.join(this.ports.paths.userData(), 'locale.json'),
+        ports: this.ports,
+        events: this.events,
+        preferredLanguages: () => app.getPreferredSystemLanguages?.(),
+      }).registerIpc();
       // 应用图标变体（窗口 / 任务栏 / Dock / 托盘 / 通知）
       initAppIcon(path.join(app.getPath('userData'), 'app-icon.json'));
 
@@ -242,22 +248,22 @@ export class Application implements IApplication {
       this.logger.info('Electron应用准备就绪');
 
       // 会话消息中的 Markdown 图片本地协议：chat-asset:// → userData/chat/images/<rel>
-      registerChatAssetProtocol();
+      registerChatAssetProtocol(this.ports);
 
       // Scheme B：userData/character-pack → resources/character-pack → built-in
-      const characterPack = getCharacterPackService();
-      characterPack.init(this.logger);
+      const characterPack = getCharacterPackService({ ports: this.ports });
+      characterPack.init(protocol, this.logger);
       characterPack.registerIpc();
       // 角色人设唯一来源（当前角色包 → 官方角色数据），须早于 AI runtime 与界面窗口
       this.startPersona(characterPack);
 
       // Auto-update (electron-updater → GitHub Releases). Packaged builds only.
-      const updates = getUpdateService(this.logger);
+      const updates = getUpdateService(this.logger, { ports: this.ports, events: this.events });
       updates.registerIpc();
       updates.start();
 
       // 桌面能力（文件工具的权限 / 审计 / 撤销）：先于 AI runtime，插件注册工具时要用
-      const desktop = getDesktopService(this.logger);
+      const desktop = getDesktopService(this.logger, { ports: this.ports, events: this.events });
       desktop.registerIpc();
       desktop.attachWindows({
         main: () => this.windowManager.getMainWindow(),
@@ -270,6 +276,8 @@ export class Application implements IApplication {
         root: path.join(app.getPath('userData'), 'knowledge'),
         logger: this.logger as never,
         desktop,
+        ports: this.ports,
+        events: this.events,
         listProviders: () => this.aiRuntime?.listProviders() ?? [],
         credentials: (id) => this.aiRuntime?.providerCredentials(id) ?? null,
         chatProvider: () => desktop.providerFor('chat'),
@@ -293,6 +301,8 @@ export class Application implements IApplication {
         root: path.join(app.getPath('userData'), 'memory'),
         logger: this.logger as never,
         desktop,
+        ports: this.ports,
+        events: this.events,
         complete: async (messages, signal) => {
           const rt = this.aiRuntime;
           if (!rt) throw new Error(tr('electron.common.ai-service-not-ready'));
@@ -313,6 +323,8 @@ export class Application implements IApplication {
         root: path.join(app.getPath('userData'), 'schedule'),
         logger: this.logger as never,
         desktop,
+        ports: this.ports,
+        events: this.events,
         complete: async (messages, signal) => {
           const rt = this.aiRuntime;
           if (!rt) throw new Error(tr('electron.common.ai-service-not-ready'));
@@ -342,6 +354,8 @@ export class Application implements IApplication {
         skillsRoot: path.join(app.getPath('userData'), 'skills'),
         logger: this.logger as never,
         desktop,
+        ports: this.ports,
+        events: this.events,
       });
       ext.registerIpc();
 
@@ -351,6 +365,7 @@ export class Application implements IApplication {
         userData: app.getPath('userData'),
         logger: this.logger as never,
         desktop,
+        ports: this.ports,
       });
       hub.registerIpc();
       const localLlm = initLocalModelService({
@@ -358,6 +373,7 @@ export class Application implements IApplication {
         logger: this.logger as never,
         desktop,
         gateway: () => getGatewayService(),
+        events: this.events,
       });
       localLlm.registerIpc();
 
@@ -369,10 +385,16 @@ export class Application implements IApplication {
       });
       themes.registerIpc();
       // 图片主题背景（设置 → 通用 → 主题 → 图片主题）
-      const chatBg = new ChatBackgroundService(
-        path.join(app.getPath('userData'), 'chat-background.json'),
-        path.join(app.getPath('userData'), 'chat', 'images'),
-      );
+      const chatBg = new ChatBackgroundService({
+        file: path.join(app.getPath('userData'), 'chat-background.json'),
+        imagesDir: path.join(app.getPath('userData'), 'chat', 'images'),
+        presetFile: getChatBackgroundPresetFile(
+          this.ports.app.isPackaged(),
+          this.ports.paths.resources(),
+        ),
+        ports: this.ports,
+        events: this.events,
+      });
       chatBg.registerIpc();
       // 对话窗口一体化标题栏跟随主题（窗口底色 + Windows / Linux 原生按钮配色）
       this.windowManager.chromeTheme = () => themes.get().resolved;
@@ -383,15 +405,19 @@ export class Application implements IApplication {
 
       // 首次启动引导（语言 / 主题 / 声音 / 称呼与语气 / 供应商 / 隐私），显示在对话窗口里
       const onboarding = new OnboardingService({
-        userData: app.getPath('userData'),
+        userData: this.ports.paths.userData(),
         openChat: async () => {
           await this.windowManager.createAiChatWindow();
         },
+        events: this.events,
       });
       onboarding.registerIpc();
 
       // 启动后默认界面（看板娘 / 软件主界面）：设置与引导里都能改，默认看板娘（历史行为）
-      const startup = new StartupService(path.join(app.getPath('userData'), 'startup.json'));
+      const startup = new StartupService({
+        file: path.join(this.ports.paths.userData(), 'startup.json'),
+        events: this.events,
+      });
       startup.registerIpc();
       this.startupService = startup;
       // 看板娘显示开关（工具栏「关闭看板娘」/ 设置里重新打开）：立即显隐，隐藏时静音
@@ -434,6 +460,7 @@ export class Application implements IApplication {
       const usage = initUsageService({
         root: path.join(app.getPath('userData'), 'usage'),
         logger: this.logger as never,
+        events: this.events,
         providerName: (id) => this.aiRuntime?.listProviders().find((p) => p.id === id)?.name,
         // Grok 额度指纹用账号模块记录的身份（来自 CLI 自己报告），不读 auth.json（§5.10 S7）
         grokAccountKey: () => accounts.identityKey('grok'),
@@ -469,6 +496,7 @@ export class Application implements IApplication {
       const agents = initAgentProgressService({
         root: path.join(app.getPath('userData'), 'agents'),
         logger: this.logger as never,
+        events: this.events,
         desktop,
         isQuiet: () => desktop.notifyPolicy?.quiet() ?? false,
         // CodingMonitor 显示会话累计用量；任务结束播报（总结播报开着时）附带「本次花费」
@@ -489,6 +517,7 @@ export class Application implements IApplication {
       const cliUpdate = initCliUpdateService({
         root: path.join(app.getPath('userData'), 'cli-update'),
         logger: this.logger as never,
+        events: this.events,
         // CLI 升级策略（P9.6）：Windows 上先排空（拆空闲进程，最多等 30 秒让进行中的轮次结束）；
         // 升级成功后空闲时用新版本重启会话并续接
         drain: async (kind) => {
@@ -504,6 +533,7 @@ export class Application implements IApplication {
       const cliPlugins = initCliPluginHost({
         root: path.join(app.getPath('userData'), 'cli-plugins'),
         logger: this.logger as never,
+        events: this.events,
         version: async (id) => {
           const bin = await resolveCliBinAsync(id as CliKind).catch(() => null);
           return bin ? readVersionAsync(bin) : null;
@@ -556,6 +586,7 @@ export class Application implements IApplication {
       const diagnostics = new DiagnosticsService({
         userData: app.getPath('userData'),
         logger: this.logger,
+        ports: this.ports,
         traceDir: path.join(app.getPath('userData'), 'gateway', 'trace'),
         legacyEnabled: () => readLegacyGatewayTrace(path.join(app.getPath('userData'), 'gateway')),
         onChange: () => {
@@ -571,6 +602,8 @@ export class Application implements IApplication {
       const quality = initQualityService({
         dir: path.join(app.getPath('userData'), 'usage', 'quality'),
         logger: this.logger as never,
+        events: this.events,
+        ports: this.ports,
         enabled: () => getUsageService()?.getSettings().enabled ?? true,
         cost: (model, tokens) => getUsageService()?.costOf(model, tokens),
         labelOf: (dim, key) => {
@@ -627,7 +660,7 @@ export class Application implements IApplication {
         legacy: {
           nomiFile: path.join(app.getPath('userData'), 'ai-providers.json'),
           cliRoot,
-          cliDecrypt: decryptLegacyCliKey,
+          cliDecrypt: legacyCliKeyDecryptor(this.ports.secrets),
           normalizeNomi: (raw) => migrateStoreData(raw).data,
           token: legacyToken,
           // 旧本地路由不再启动：网关接管它的端口
@@ -657,7 +690,7 @@ export class Application implements IApplication {
           home: os.homedir(),
           cliRoot,
           backupRoot: path.join(app.getPath('userData'), 'gateway', 'backups'),
-          decrypt: decryptLegacyCliKey,
+          decrypt: legacyCliKeyDecryptor(this.ports.secrets),
           logger: this.logger as never,
         });
         gateway.setLegacyRevoke(legacyRevoke);
@@ -670,6 +703,7 @@ export class Application implements IApplication {
       const accounts: AccountService = new AccountService({
         root: path.join(app.getPath('userData'), 'cli-accounts'),
         logger: this.logger as never,
+        events: this.events,
         onDefaultChanged: (kind) => {
           harness.recycleDefaultAccount(kind);
           // 换了号：上一个账号的订阅额度不能再显示
@@ -687,6 +721,8 @@ export class Application implements IApplication {
         gateway: harnessGateway(gateway),
         // 模型质量 CLI 层：Nomi 里运行的编程助手（官方账号与第三方）每轮一条（model-quality.md §4.4）
         quality: { addCli: (r) => void quality.addCli(r) },
+        ports: this.ports,
+        isAppFocused: () => BrowserWindow.getAllWindows().some((w) => w.isFocused?.()),
         // 官方标签按账号目录启动（docs/design/cli-plugin-architecture.md §5.10）
         accounts: {
           launch: (kind, accountId) => accounts.officialLaunch(kind, accountId),
@@ -735,7 +771,8 @@ export class Application implements IApplication {
       const accountLogin = new AccountLogin({
         accounts,
         logger: this.logger as never,
-        emit: broadcastLogin,
+        emit: loginBroadcaster(this.events),
+        ports: this.ports,
       });
       accountLogin.registerIpc();
       this.lifecycle.register({ name: 'cli-account-login', stop: () => accountLogin.dispose() });
@@ -752,6 +789,7 @@ export class Application implements IApplication {
         harness,
         desktop: getDesktopService(this.logger),
         gateway: harnessGateway(gateway),
+        events: this.events,
       }).registerIpc();
       initSessionHistoryService({
         logger: this.logger as never,
@@ -828,6 +866,7 @@ export class Application implements IApplication {
         localOnly: () => desktop.broker.view().localOnly,
         audit: (e) => desktop.audit.append({ ...e, source: 'voice' }),
         openChat: () => this.windowManager.createAiChatWindow(),
+        events: this.events,
       });
       voice.registerIpc();
       // 麦克风：只允许本应用窗口申请「音频」采集（不允许摄像头 / 屏幕）；
@@ -1094,19 +1133,23 @@ export class Application implements IApplication {
    * 设置服务
    */
   private setupServices(): void {
-    // 注册日志服务（单例）
-    this.container.registerSingleton('logger', () => {
-      return new LoggerService();
-    });
-    this.logger = this.container.get<LoggerService>('logger');
-
-    // 宿主端口与界面事件：紧跟日志创建，供后面所有服务注入。窗口相关的部分每次调用时才找
+    // 宿主端口与界面事件：最先创建，供后面所有服务（含日志）注入。窗口相关的部分每次调用时才找
     // WindowManager，所以先于窗口管理器创建也没问题（建好之前查询为空、打开类调用抛错）。
+    // 端口自己的告警经 this.logger 转发（日志在下一步创建，端口创建时不会告警）。
     const windowManager = (): WindowManager | undefined => this.windowManager;
     this.container.registerSingleton(HOST_PORTS, () =>
-      createElectronPorts({ windows: lazyWindowHost(windowManager), logger: this.logger }),
+      createElectronPorts({
+        windows: lazyWindowHost(windowManager),
+        logger: { warn: (message, meta) => this.logger?.warn(message, meta) },
+      }),
     );
     this.ports = this.container.get(HOST_PORTS);
+
+    // 注册日志服务（单例）：日志目录来自 ports.paths.logs()
+    this.container.registerSingleton('logger', () => {
+      return new LoggerService({ ports: this.ports });
+    });
+    this.logger = this.container.get<LoggerService>('logger');
     this.container.registerSingleton(APP_EVENTS, () =>
       createElectronAppEvents({
         windows: {
@@ -1120,7 +1163,7 @@ export class Application implements IApplication {
 
     // 注册配置服务（单例）
     this.container.registerSingleton('config', () => {
-      return new ConfigService(this.logger);
+      return new ConfigService({ ports: this.ports, logger: this.logger });
     });
     this.configService = this.container.get<ConfigService>('config');
 
@@ -1133,7 +1176,7 @@ export class Application implements IApplication {
 
     // 注册错误处理器（单例）
     this.container.registerSingleton('errorHandler', () => {
-      return new GlobalErrorHandler(this.logger);
+      return new GlobalErrorHandler(this.logger, this.ports);
     });
     this.errorHandler = this.container.get<GlobalErrorHandler>('errorHandler');
 
@@ -1150,6 +1193,7 @@ export class Application implements IApplication {
         configService: this.configService,
         cacheService: this.cacheService,
         windowManager: this.windowManager,
+        ports: this.ports,
       });
     });
     this.ipcRegistry = this.container.get<IpcRegistry>('ipcRegistry');

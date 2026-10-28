@@ -4,17 +4,23 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
+import type { HostPorts } from '@nomi-ai/host-ports';
 import type { TTSConfig } from '@nomi-ai/types';
 import { DEFAULT_TTS_CONFIG } from '@nomi-ai/types';
-import { app } from 'electron';
 
 import { writePrivateFile } from '../utils/privateFile';
 
 import { normalizeTtsConfig, validateTtsConfig } from './ttsConfig';
 
+export interface TtsConfigStoreDeps {
+  paths: Pick<HostPorts['paths'], 'userData'>;
+}
+
 export class TtsConfigStore {
+  constructor(private readonly deps: TtsConfigStoreDeps) {}
+
   private configPath(): string {
-    return path.join(app.getPath('userData'), 'tts-config.json');
+    return path.join(this.deps.paths.userData(), 'tts-config.json');
   }
 
   load(): TTSConfig {
@@ -39,9 +45,4 @@ export class TtsConfigStore {
     const p = this.configPath();
     if (fs.existsSync(p)) fs.unlinkSync(p);
   }
-}
-
-let store: TtsConfigStore | null = null;
-export function getTtsConfigStore(): TtsConfigStore {
-  return (store ??= new TtsConfigStore());
 }

@@ -10,9 +10,10 @@ import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { BrowserWindow, powerMonitor } from 'electron';
+import type { HostPorts } from '@nomi-ai/host-ports';
 
 import { broadcastMascotCommand } from '../ai/mascotCommand';
+import type { AppEvents } from '../core/appEvents';
 import type { DesktopService } from '../desktop/DesktopService';
 import { t as tr } from '../i18n';
 import { guardedHandle } from '../security/guardedIpc';
@@ -131,8 +132,10 @@ export interface SchedDeps {
   memory(query: string): Promise<string>;
   openChat(): void;
   now?: () => number;
-  /** 测试注入：用户空闲秒数 */
-  idleSeconds?: () => number;
+  /** 用户空闲秒数（主动聊天判断用户在不在电脑前） */
+  ports: Pick<HostPorts, 'power'>;
+  /** 通知界面（`ai:sched:*` 发给所有窗口） */
+  events: AppEvents;
 }
 
 interface Persist {
@@ -478,7 +481,7 @@ export class SchedulerService {
       return { ok: false, reason: tr('electron.common.too-soon-since-the-last-chat') };
     if (now - this.lastChatAt < p.skipIfChattedMin * 60_000)
       return { ok: false, reason: tr('electron.common.you-were-just-chatting') };
-    const idle = (this.d.idleSeconds ?? (() => powerMonitor.getSystemIdleTime()))();
+    const idle = this.d.ports.power.idleSeconds();
     if (idle > 600)
       return { ok: false, reason: tr('electron.common.you-re-away-from-the-computer') };
     return { ok: true, reason: '' };
@@ -562,8 +565,7 @@ export class SchedulerService {
     }
   }
   private broadcast(ch: string, payload: unknown) {
-    for (const w of BrowserWindow.getAllWindows())
-      if (!w.isDestroyed()) w.webContents.send(ch, payload);
+    this.d.events.publish(ch, payload);
   }
 
   registerIpc(): void {

@@ -40,14 +40,19 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
+import { createRecordingAppEvents } from '../../../src/core/appEvents';
 import { DesktopService } from '../../../src/desktop/DesktopService';
 import type { Reminder } from '../../../src/desktop/reminders/ReminderStore';
+import { fakeHostPorts } from '../helpers/fakeHostPorts';
 
 const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() };
 
 function setup(opts: { hidden: boolean; window?: boolean; quiet?: boolean }) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'remind-route-'));
-  const svc = new DesktopService(root, logger as never);
+  const svc = new DesktopService(root, logger as never, {
+    ports: fakeHostPorts({ userData: '/tmp', home: '/tmp' }),
+    events: createRecordingAppEvents(),
+  });
   const send = jest.fn();
   const win = {
     isDestroyed: () => false,

@@ -29,6 +29,7 @@ import { gunzipSync, gzipSync } from 'node:zlib';
 
 import { WebSocketServer, type WebSocket as ServerSocket } from 'ws';
 
+import { createRecordingAppEvents } from '../../../src/core/appEvents';
 import { VoiceService, pcmToWav } from '../../../src/voice/VoiceService';
 import {
   MSG,
@@ -471,6 +472,7 @@ describe('VoiceService · volc', () => {
       volcUrl: url,
       volcPaceMs: 0,
       volcTimeouts: { connectMs: 2000, finalMs: 1000, probeWaitMs: 100 },
+      events: createRecordingAppEvents(),
       ...extra,
     });
   const ready = (v: VoiceService) => {

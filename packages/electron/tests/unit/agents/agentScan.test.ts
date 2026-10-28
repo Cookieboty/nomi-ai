@@ -17,6 +17,7 @@ import path from 'node:path';
 
 import { AgentProgressService, readSlice } from '../../../src/agents/AgentProgressService';
 import { ScanCache, limiter, readSliceAsync } from '../../../src/agents/fsScan';
+import { createRecordingAppEvents } from '../../../src/core/appEvents';
 import { fakeDesktop } from '../helpers/fakeDesktop';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'cd-agents-scan-'));
@@ -223,6 +224,7 @@ describe('AgentProgressService 异步轮询', () => {
         '\n',
     );
     const svc = new AgentProgressService({
+      events: createRecordingAppEvents(),
       root: tmp(),
       home,
       logger: { info: jest.fn(), warn: jest.fn() },
@@ -374,6 +376,7 @@ describe('AgentProgressService dsh 会话索引缓存', () => {
     const a = mkSession(dshHome, 'session-aaa', 'first');
     const b = mkSession(dshHome, 'session-bbb', 'second');
     const svc = new AgentProgressService({
+      events: createRecordingAppEvents(),
       root: tmp(),
       home,
       dshHome,

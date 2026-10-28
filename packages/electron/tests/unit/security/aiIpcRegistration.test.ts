@@ -44,6 +44,7 @@ import { KnowledgeService } from '../../../src/knowledge/KnowledgeService';
 import { MemoryService } from '../../../src/memory/MemoryService';
 import { ThemeService } from '../../../src/theme/ThemeService';
 import { UsageService } from '../../../src/usage/UsageService';
+import { featureDeps } from '../helpers/featureHost';
 
 const SRC = path.resolve(__dirname, '../../../src');
 
@@ -125,6 +126,7 @@ describe('ai:* 通道注册入口（#30）', () => {
         complete: jest.fn(),
         embed: jest.fn(),
         facade: () => ({}) as never,
+        ...featureDeps(),
       } as never);
       const state = jest.spyOn(svc, 'state');
       svc.registerIpc();
@@ -149,6 +151,7 @@ describe('ai:* 通道注册入口（#30）', () => {
         credentials: () => null,
         chatProvider: () => null,
         complete: async () => '',
+        ...featureDeps(),
       } as never);
       const spies = [
         jest.spyOn(svc as never, 'addFolder' as never),
@@ -168,12 +171,18 @@ describe('ai:* 通道注册入口（#30）', () => {
 
     it('DesktopService：外站 / 不可信子框架不能关闭仅本地限制或改工具策略', async () => {
       const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-desk-'));
-      const svc = new DesktopService(root, {
-        info() {},
-        warn() {},
-        error() {},
-        debug() {},
-      } as never);
+      const svc = new DesktopService(
+        root,
+        { info() {}, warn() {}, error() {}, debug() {} } as never,
+        {
+          ports: {
+            paths: { home: () => '/tmp', userData: () => '/tmp' } as never,
+            dialogs: {} as never,
+            clipboard: {} as never,
+          },
+          events: createRecordingAppEvents(),
+        },
+      );
       svc.broker.setLocalOnly(true);
       const policy = jest.spyOn(svc.broker, 'setPolicy');
       svc.registerIpc();
@@ -199,6 +208,7 @@ describe('ai:* 通道注册入口（#30）', () => {
         skillsRoot: path.join(root, 'skills'),
         logger: { info() {}, warn() {}, error() {} } as never,
         desktop: {} as never,
+        ...featureDeps(),
       });
       const upsert = jest.spyOn(svc as never, 'upsert' as never);
       const connect = jest.spyOn(svc as never, 'connect' as never);
@@ -219,6 +229,7 @@ describe('ai:* 通道注册入口（#30）', () => {
     it('UsageService：ai:usage:* 全部拒绝外站 sender / 子框架，受信照常', async () => {
       const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-usage-'));
       const svc = new UsageService({
+        events: createRecordingAppEvents(),
         root,
         home: root,
         scanMs: 0,

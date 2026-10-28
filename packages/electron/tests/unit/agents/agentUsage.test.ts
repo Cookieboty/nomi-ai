@@ -22,6 +22,7 @@ import {
   type SessionUsageView,
   type WatchedTab,
 } from '../../../src/agents/AgentProgressService';
+import { createRecordingAppEvents } from '../../../src/core/appEvents';
 import { fakeDesktop } from '../helpers/fakeDesktop';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'cd-agents-usage-'));
@@ -81,6 +82,7 @@ describe('AgentProgressService：用量联动', () => {
     const home = tmp();
     const say = jest.fn();
     const svc = new AgentProgressService({
+      events: createRecordingAppEvents(),
       root: tmp(),
       home,
       dshHome: path.join(home, '.dsh'),

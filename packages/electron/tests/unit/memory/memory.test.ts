@@ -1,10 +1,9 @@
 jest.unmock('fs');
 jest.unmock('path');
+// MemoryService 不再 import electron；只有 guardedIpc / mascotCommand 还用到
 jest.mock('electron', () => ({
-  BrowserWindow: { getAllWindows: () => [], getFocusedWindow: () => null },
+  BrowserWindow: { getAllWindows: () => [] },
   ipcMain: { handle: jest.fn(), removeHandler: jest.fn() },
-  dialog: { showSaveDialog: jest.fn() },
-  shell: { openPath: jest.fn(async () => '') },
 }));
 
 import fs from 'node:fs';
@@ -23,6 +22,7 @@ import {
   type Fact,
 } from '../../../src/memory/episodes';
 import { MemoryService } from '../../../src/memory/MemoryService';
+import { featureHost, type FeatureHostOptions } from '../helpers/featureHost';
 
 const ep = (id: string, title: string, summary: string, extra: Partial<Episode> = {}): Episode => ({
   id,
@@ -122,7 +122,9 @@ describe('MemoryService', () => {
   const mk = (
     complete: jest.Mock,
     embed: (t: string[]) => Promise<Float32Array[] | null> = async () => null,
+    hostOpts: FeatureHostOptions = {},
   ) => {
+    const host = featureHost(hostOpts);
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'mem-'));
     const audit = { append: jest.fn() };
     const facts = new Map<string, unknown>();
@@ -140,8 +142,10 @@ describe('MemoryService', () => {
         summaries: { put: jest.fn() },
         userProfile: { get: () => ({ identity: {} }), reset: jest.fn(async () => ({})) },
       }),
+      ports: host.ports,
+      events: host.events,
     });
-    return { svc, root, audit, facts };
+    return { svc, root, audit, facts, host };
   };
   const conv = [
     { role: 'user' as const, content: '我叫小林，下个月要搬去杭州' },
@@ -343,5 +347,29 @@ describe('MemoryService', () => {
     };
     expect((await tool.execute({ text: '我对花生过敏', kind: 'note' })).data.saved).toBe(true);
     expect((await tool.execute({ text: '我对花生过敏。', kind: 'note' })).data.saved).toBe(false);
+  });
+
+  it('announces changes on ai:mem:changed and opens the persona file via the shell port', async () => {
+    const { svc, root, host } = mk(jest.fn());
+    svc.setPersona('我喜欢猫');
+    expect(host.events.published).toContainEqual({
+      channel: 'ai:mem:changed',
+      payload: null,
+      surfaces: null,
+    });
+    expect(await svc.openPersona()).toBe(true);
+    expect(host.calls.openPath).toEqual([path.join(root, 'persona.md')]);
+  });
+
+  it('exports to the path picked in the save dialog (focused window), cancel writes nothing', async () => {
+    const out = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'mem-out-')), 'm.md');
+    const { svc, host } = mk(jest.fn(), undefined, { saveFile: [out, null] });
+    expect(await svc.exportToFile('md')).toEqual({ ok: true, path: out });
+    expect(fs.readFileSync(out, 'utf8')).toBeTruthy();
+    expect(host.calls.saveFile[0]).toMatchObject({
+      parent: 'focused',
+      filters: [{ name: 'Markdown', extensions: ['md'] }],
+    });
+    expect(await svc.exportToFile('json')).toEqual({ ok: false });
   });
 });

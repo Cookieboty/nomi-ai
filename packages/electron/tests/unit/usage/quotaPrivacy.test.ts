@@ -49,6 +49,7 @@ import type * as UTIL from 'node:util';
 
 import ts from 'typescript';
 
+import { createRecordingAppEvents } from '../../../src/core/appEvents';
 import { CLAUDE_USAGE_ARGS } from '../../../src/usage/claudeSubscription';
 import { CODEX_APP_SERVER_ARGS } from '../../../src/usage/codexRateLimits';
 import { UsageService } from '../../../src/usage/UsageService';
@@ -166,6 +167,7 @@ process.stdin.on('end',()=>process.exit(0));`,
         '{"claudeAiOauth":"SECRET"}',
       );
       const svc = new UsageService({
+        events: createRecordingAppEvents(),
         root,
         home,
         dshHome: path.join(home, '.dsh'),

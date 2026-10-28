@@ -41,6 +41,7 @@ import { strFromU8, unzipSync } from 'fflate';
 import { ExtensionsService } from '../../../src/extensions/ExtensionsService';
 import { redactServerForExport } from '../../../src/extensions/mcpConfig';
 import { LocalHubService } from '../../../src/local/LocalHubService';
+import { featureDeps } from '../helpers/featureHost';
 
 const SECRET = 'TEST_MCP_SECRET_12345';
 const B64 = (s: string) => Buffer.from(`CIPHER<${s}>`).toString('base64');
@@ -54,6 +55,7 @@ function makeExt(): ExtensionsService {
     skillsRoot: path.join(ud, 'skills'),
     logger: { info() {}, warn() {}, error() {} } as never,
     desktop: { audit: { append: jest.fn() } } as never,
+    ...featureDeps(),
   });
 }
 function makeHub(): LocalHubService {
@@ -62,6 +64,7 @@ function makeHub(): LocalHubService {
     userData: ud,
     logger: { info() {}, warn() {}, error() {} },
     desktop: { audit: { append: jest.fn() } },
+    ...featureDeps(),
   } as never);
 }
 function exported(hub: LocalHubService): Record<string, string> {

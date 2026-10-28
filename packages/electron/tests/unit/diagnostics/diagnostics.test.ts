@@ -6,11 +6,9 @@ jest.unmock('fs');
 jest.unmock('path');
 jest.unmock('node:fs');
 jest.unmock('node:path');
+// DiagnosticsService 不再 import electron（打包状态、版本、对话框、shell 经宿主端口）
 jest.mock('electron', () => ({
-  app: { isPackaged: true, getVersion: () => '9.9.9' },
-  shell: { openPath: jest.fn(async () => '') },
-  dialog: { showSaveDialog: jest.fn() },
-  BrowserWindow: { getAllWindows: () => [], getFocusedWindow: () => null },
+  BrowserWindow: { getAllWindows: () => [] },
   ipcMain: { handle: jest.fn(), removeHandler: jest.fn() },
 }));
 
@@ -30,6 +28,7 @@ import {
   traceCliChild,
 } from '../../../src/diagnostics/cliTrace';
 import { DiagnosticsService } from '../../../src/diagnostics/DiagnosticsService';
+import { featureHost } from '../helpers/featureHost';
 
 const tmp = (p: string) => fs.mkdtempSync(path.join(os.tmpdir(), p));
 const logger = () => ({ info: jest.fn(), warn: jest.fn(), setLevel: jest.fn() });
@@ -37,7 +36,9 @@ const logger = () => ({ info: jest.fn(), warn: jest.fn(), setLevel: jest.fn() })
 function mk(
   o: {
     root?: string;
-    dev?: boolean;
+    /** 缺省 false；传 null 表示不指定，按 ports.app.isPackaged() 决定 */
+    dev?: boolean | null;
+    packaged?: boolean;
     env?: NodeJS.ProcessEnv;
     legacy?: boolean;
     pick?: string | null;
@@ -45,19 +46,35 @@ function mk(
 ) {
   const root = o.root ?? tmp('nomi-diag-');
   const onChange = jest.fn();
+  const host = featureHost({
+    saveFile: [o.pick === undefined ? path.join(root, 'out.zip') : o.pick],
+    packaged: o.packaged ?? true,
+    version: '9.9.9',
+  });
   const svc = new DiagnosticsService({
     userData: root,
     logger: logger() as never,
-    dev: o.dev ?? false,
+    ports: host.ports,
+    ...(o.dev === null ? {} : { dev: o.dev ?? false }),
     env: o.env ?? {},
     onChange,
     legacyEnabled: () => o.legacy === true,
-    pickSavePath: async () => (o.pick === undefined ? path.join(root, 'out.zip') : o.pick),
   });
-  return { svc, root, onChange };
+  return { svc, root, onChange, host };
 }
 
 describe('DiagnosticsService', () => {
+  it('不指定 dev 时按宿主的打包状态决定是否必开；导出挂在焦点窗口上', async () => {
+    expect(mk({ dev: null, packaged: false }).svc.view().forced).toBe(true);
+    expect(mk({ dev: null, packaged: true }).svc.view().forced).toBe(false);
+    const { svc, host } = mk({ pick: null });
+    expect(await svc.exportBundle()).toEqual({ ok: false });
+    expect(host.calls.saveFile[0]).toMatchObject({
+      parent: 'focused',
+      filters: [{ name: 'Zip', extensions: ['zip'] }],
+    });
+  });
+
   it('正式版默认关；打开后持久化（0600）并通知网关', () => {
     const { svc, root, onChange } = mk();
     expect(svc.view()).toMatchObject({ enabled: false, forced: false, bodyTrace: false });
@@ -119,6 +136,7 @@ describe('DiagnosticsService', () => {
     expect(all).not.toContain('nomi-gw-abcdef123456');
     expect(all).toContain('[REDACTED]');
     expect(strFromU8(z['README.txt']!)).toContain('conversation');
+    expect(strFromU8(z['README.txt']!)).toContain('version: 9.9.9');
 
     expect(await mk({ pick: null }).svc.exportBundle()).toEqual({ ok: false });
   });

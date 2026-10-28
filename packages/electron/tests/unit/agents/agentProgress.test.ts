@@ -1,11 +1,7 @@
 jest.unmock('fs');
 jest.unmock('path');
-const mockWindows: Array<{
-  isDestroyed: () => boolean;
-  webContents: { isDestroyed: () => boolean; send: jest.Mock };
-}> = [];
 jest.mock('electron', () => ({
-  BrowserWindow: { getAllWindows: () => mockWindows },
+  BrowserWindow: { getAllWindows: () => [] },
   ipcMain: { handle: jest.fn(), removeHandler: jest.fn() },
   Notification: Object.assign(
     jest.fn(() => ({ show: jest.fn() })),
@@ -33,6 +29,7 @@ import {
   parseGeminiSession,
 } from '../../../src/agents/parsers';
 import { classify, parsePs, parseWinJson } from '../../../src/agents/processes';
+import { createRecordingAppEvents } from '../../../src/core/appEvents';
 import { fakeDesktop } from '../helpers/fakeDesktop';
 
 describe('parsers', () => {
@@ -161,6 +158,7 @@ describe('AgentProgressService', () => {
   const mk = (opts: { now: number; procs: () => unknown }) => {
     const home = tmp();
     const svc = new AgentProgressService({
+      events: createRecordingAppEvents(),
       root: tmp(),
       home,
       logger: { info: jest.fn(), warn: jest.fn() },
@@ -248,6 +246,7 @@ describe('AgentProgressService', () => {
     let procs: unknown[] = [{ pid: 1, kind: 'claude', cwd: '/w/a' }];
     const home = tmp();
     const svc = new AgentProgressService({
+      events: createRecordingAppEvents(),
       root: tmp(),
       home,
       logger: { info: jest.fn(), warn: jest.fn() },
@@ -301,7 +300,9 @@ describe('AgentProgressService', () => {
   it('轮询结果没变就不广播；会话状态变化才通知渲染进程', async () => {
     let now = Date.parse('2026-10-14T10:00:00Z');
     const home = tmp();
+    const events = createRecordingAppEvents();
     const svc = new AgentProgressService({
+      events,
       root: tmp(),
       home,
       logger: { info: jest.fn(), warn: jest.fn() },
@@ -310,42 +311,41 @@ describe('AgentProgressService', () => {
       pollMs: 60_000,
       processes: () => [{ pid: 1, kind: 'claude', cwd: '/w/a' }] as never,
     });
-    const send = jest.fn();
-    mockWindows.push({ isDestroyed: () => false, webContents: { isDestroyed: () => false, send } });
-    const changed = () => send.mock.calls.filter(([ch]) => ch === 'ai:agents:changed').length;
-    try {
-      const file = path.join(home, '.claude', 'projects', '-w-a', 's.jsonl');
-      write(file, claudeLines('s', '/w/a', '跑测试', toolUse), now);
-      await svc.tick();
-      expect(changed()).toBe(1);
+    // 发给所有窗口（不指定 surface），不带数据：界面收到后自己重新拉
+    const changed = () =>
+      events.published.filter(
+        (e) => e.channel === 'ai:agents:changed' && e.payload === null && e.surfaces === null,
+      ).length;
+    const file = path.join(home, '.claude', 'projects', '-w-a', 's.jsonl');
+    write(file, claudeLines('s', '/w/a', '跑测试', toolUse), now);
+    await svc.tick();
+    expect(changed()).toBe(1);
 
-      // 时间推进但文件与进程都没变：不再广播
-      now += 5_000;
-      await svc.tick();
-      now += 5_000;
-      await svc.tick();
-      expect(changed()).toBe(1);
+    // 时间推进但文件与进程都没变：不再广播
+    now += 5_000;
+    await svc.tick();
+    now += 5_000;
+    await svc.tick();
+    expect(changed()).toBe(1);
 
-      // 写入 end_turn：状态变了 → 广播
-      write(
-        file,
-        claudeLines('s', '/w/a', '跑测试', {
-          type: 'assistant',
-          message: { stop_reason: 'end_turn', content: [{ type: 'text', text: '好了' }] },
-        }),
-        now,
-      );
-      await svc.tick();
-      expect(changed()).toBe(2);
-    } finally {
-      mockWindows.length = 0;
-    }
+    // 写入 end_turn：状态变了 → 广播
+    write(
+      file,
+      claudeLines('s', '/w/a', '跑测试', {
+        type: 'assistant',
+        message: { stop_reason: 'end_turn', content: [{ type: 'text', text: '好了' }] },
+      }),
+      now,
+    );
+    await svc.tick();
+    expect(changed()).toBe(2);
   });
 
   it('codex: no start reminder; remind when running → waiting, dedupe by session id', async () => {
     let now = Date.parse('2026-10-14T10:00:00Z');
     const home = tmp();
     const svc = new AgentProgressService({
+      events: createRecordingAppEvents(),
       root: tmp(),
       home,
       logger: { info: jest.fn(), warn: jest.fn() },

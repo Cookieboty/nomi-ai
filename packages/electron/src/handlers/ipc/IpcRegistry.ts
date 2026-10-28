@@ -3,6 +3,8 @@
  * 负责IPC处理器的注册、初始化和清理
  */
 
+import type { HostPorts } from '@nomi-ai/host-ports';
+
 import { type IWindowManager } from '../../core/WindowManager';
 import { t } from '../../i18n';
 import { type ICacheService } from '../../services/CacheService';
@@ -20,6 +22,8 @@ export interface IpcRegistryOptions {
   configService: IConfigService;
   cacheService?: ICacheService;
   windowManager: IWindowManager;
+  /** 宿主端口（ConfigIpcHandler 的应用信息与 userData 路径） */
+  ports: Pick<HostPorts, 'paths' | 'app'>;
 }
 
 export interface IIpcRegistry {
@@ -57,7 +61,11 @@ export class IpcRegistry implements IIpcRegistry {
       this.registerHandler('window', windowHandler);
 
       // 注册配置处理器
-      const configHandler = new ConfigIpcHandler(this.options.logger, this.options.configService);
+      const configHandler = new ConfigIpcHandler(
+        this.options.logger,
+        this.options.configService,
+        this.options.ports,
+      );
       this.registerHandler('config', configHandler);
 
       // 注册语音处理器

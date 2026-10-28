@@ -11,7 +11,6 @@ jest.mock('electron', () => ({
   app: { isPackaged: true, getPath: () => '/tmp' },
   BrowserWindow: { getAllWindows: () => [] },
   ipcMain: { removeHandler: () => undefined, handle: () => undefined },
-  dialog: { showOpenDialog: async () => ({ canceled: true, filePaths: [] }) },
 }));
 
 import * as fs from 'fs';
@@ -22,6 +21,7 @@ import { PermissionBroker } from '../../../src/desktop/PermissionBroker';
 import type { DocRec } from '../../../src/knowledge/KnowledgeIndex';
 import { KnowledgeService } from '../../../src/knowledge/KnowledgeService';
 import { until } from '../../helpers/wait';
+import { featureDeps } from '../helpers/featureHost';
 
 function setup() {
   // 用 native realpath：与 PermissionBroker / 索引（fs.promises.realpath，libuv）同一口径。
@@ -64,6 +64,7 @@ function setup() {
       asked.push(JSON.stringify(m));
       return 'answer';
     },
+    ...featureDeps(),
   } as never);
   const priv = svc as unknown as {
     settings: { sources: Array<Record<string, unknown>>; embed: unknown };

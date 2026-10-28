@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { createRecordingAppEvents } from '../../../src/core/appEvents';
 import {
   UsageService,
   endpointSourceOf,
@@ -20,6 +21,7 @@ const mk = (now = () => Date.now()) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-usage-svc-'));
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-usage-svc-home-'));
   const svc = new UsageService({
+    events: createRecordingAppEvents(),
     root,
     home,
     dshHome: path.join(home, '.dsh'),
@@ -166,6 +168,7 @@ describe('UsageService：采集 / 开关 / 查询', () => {
     svc.clear();
     expect(svc.query('90d').summary.calls).toBe(0);
     const again = new UsageService({
+      events: createRecordingAppEvents(),
       root,
       home,
       scanMs: 0,
@@ -221,6 +224,7 @@ describe('UsageService：手动价格同步', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-usage-svc-'));
     const home = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-usage-svc-home-'));
     return new UsageService({
+      events: createRecordingAppEvents(),
       root,
       home,
       scanMs: 0,
@@ -263,6 +267,7 @@ describe('UsageService：启动时自动同步模型数据', () => {
     const f = jest.fn().mockImplementation(async () => new Response(JSON.stringify(api())));
     const onData = jest.fn();
     const svc = new UsageService({
+      events: createRecordingAppEvents(),
       root,
       home: fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-usage-auto-home-')),
       scanMs: 0,

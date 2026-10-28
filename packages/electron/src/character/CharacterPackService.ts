@@ -2,10 +2,13 @@
  * Scheme B runtime overlay service.
  * Resolves userData/character-pack → resources/character-pack → built-in;
  * exposes IPC snapshot + character-pack:// protocol.
+ *
+ * No electron import: directories come from host ports; the host hands its protocol registrar
+ * (Electron `protocol`) to `init`, so the scheme registration itself stays on the host side.
  */
 import path from 'node:path';
 
-import { app, protocol } from 'electron';
+import type { HostPorts } from '@nomi-ai/host-ports';
 
 import { guardedHandle } from '../security/guardedIpc';
 
@@ -48,7 +51,23 @@ function displayNameOf(m: NonNullable<ResolvedPack['manifest']>): { zh: string; 
   return { zh: dn.zh || m.id, en: dn.en || dn.zh || m.id };
 }
 
+/** The host's custom-scheme registrar (Electron `protocol` satisfies it). */
+export type CharacterPackProtocolHost = Parameters<typeof registerCharacterPackProtocol>[0];
+
+export interface CharacterPackServiceDeps {
+  /** userData / resources / appPath decide where overlays are looked up */
+  ports: Pick<HostPorts, 'paths'>;
+}
+
+type PackLogger = { info: (m: string) => void; warn: (m: string) => void };
+
 export class CharacterPackService {
+  private readonly paths: HostPorts['paths'];
+
+  constructor(deps: CharacterPackServiceDeps) {
+    this.paths = deps.ports.paths;
+  }
+
   private resolved: ResolvedPack = {
     source: 'builtin',
     root: null,
@@ -60,8 +79,8 @@ export class CharacterPackService {
   private readonly listeners = new Set<(resolved: ResolvedPack) => void>();
   private protocolRegistered = false;
 
-  /** Call once after app.whenReady (needs app.getPath). */
-  init(logger?: { info: (m: string) => void; warn: (m: string) => void }): void {
+  /** Call once after the host is ready (paths resolved, protocol registrar usable). */
+  init(protocol: CharacterPackProtocolHost, logger?: PackLogger): void {
     this.reload(logger);
     if (!this.protocolRegistered) {
       registerCharacterPackProtocol(protocol, () => this.resolved.root);
@@ -73,9 +92,12 @@ export class CharacterPackService {
    * Re-resolve the active pack (userData → resources → built-in) and notify `onChange` listeners
    * (persona, …). Listeners re-read the pack and decide themselves whether anything changed.
    */
-  reload(logger?: { info: (m: string) => void; warn: (m: string) => void }): void {
-    const userDataPack = path.join(app.getPath('userData'), 'character-pack');
-    const resourcesPack = path.join(process.resourcesPath || app.getAppPath(), 'character-pack');
+  reload(logger?: PackLogger): void {
+    const userDataPack = path.join(this.paths.userData(), 'character-pack');
+    const resourcesPack = path.join(
+      this.paths.resources() || this.paths.appPath(),
+      'character-pack',
+    );
     this.apply(resolveCharacterPack({ userDataPack, resourcesPack }), logger);
   }
 
@@ -92,7 +114,7 @@ export class CharacterPackService {
     result: ResolvedPack & {
       skipped?: Array<{ source: PackSource; root: string; reason: string }>;
     },
-    logger?: { info: (m: string) => void; warn: (m: string) => void },
+    logger?: PackLogger,
   ): void {
     for (const s of result.skipped ?? []) {
       logger?.warn(`character-pack overlay skipped (${s.source}): ${s.reason} @ ${s.root}`);
@@ -186,8 +208,12 @@ export class CharacterPackService {
 
 let singleton: CharacterPackService | null = null;
 
-export function getCharacterPackService(): CharacterPackService {
-  if (!singleton) singleton = new CharacterPackService();
+/** The first call creates the service and must pass its deps. */
+export function getCharacterPackService(deps?: CharacterPackServiceDeps): CharacterPackService {
+  if (!singleton) {
+    if (!deps) throw new Error('CharacterPackService requires host ports on first call');
+    singleton = new CharacterPackService(deps);
+  }
   return singleton;
 }
 

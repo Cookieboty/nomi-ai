@@ -1,6 +1,8 @@
 import { promises as fsp } from 'node:fs';
 import path from 'node:path';
 
+import type { HostPorts } from '@nomi-ai/host-ports';
+// 宿主代码：chat-asset:// 协议注册（protocol.handle）只能在 Electron 里做，P3 随协议注册移入宿主
 import { app, protocol } from 'electron';
 
 import { CHAT_BG_PRESET_URL, getChatBackgroundPresetFile } from './backgroundPreset';
@@ -20,7 +22,7 @@ const AREAS = new Set(['images', 'presets']);
 export async function resolveChatAssetUrl(
   root: string,
   rawUrl: string,
-  presetFile = getChatBackgroundPresetFile(),
+  presetFile = getChatBackgroundPresetFile(app.isPackaged),
 ): Promise<string | null> {
   let u: URL;
   try {
@@ -70,9 +72,9 @@ export const CHAT_ASSET_SCHEME_PRIVILEGES: Electron.CustomScheme = {
 };
 
 /** app ready 后调用：用户图片从 userData/chat 读取，预设从应用资源读取。*/
-export function registerChatAssetProtocol(): void {
-  const root = path.join(app.getPath('userData'), 'chat');
-  const presetFile = getChatBackgroundPresetFile();
+export function registerChatAssetProtocol(ports: Pick<HostPorts, 'paths' | 'app'>): void {
+  const root = path.join(ports.paths.userData(), 'chat');
+  const presetFile = getChatBackgroundPresetFile(ports.app.isPackaged(), ports.paths.resources());
   protocol.handle(CHAT_ASSET_SCHEME, async (req) => {
     const file = await resolveChatAssetUrl(root, req.url, presetFile);
     if (!file) return new Response('not found', { status: 404 });

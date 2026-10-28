@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { createRecordingAppEvents } from '../../../src/core/appEvents';
 import { parseCodexRateLimits } from '../../../src/usage/logParsers';
 import { QuotaRegistry, sanitizeWindows } from '../../../src/usage/quota';
 import { UsageService } from '../../../src/usage/UsageService';
@@ -126,6 +127,7 @@ describe('UsageService.quota：从 Codex 日志读额度快照', () => {
   const mk = (root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-quota-'))) => {
     const home = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-quota-home-'));
     const svc = new UsageService({
+      events: createRecordingAppEvents(),
       root,
       home,
       dshHome: path.join(home, '.dsh'),
@@ -165,6 +167,7 @@ describe('UsageService.quota：从 Codex 日志读额度快照', () => {
     expect(q.nomi!.status).toBe('unavailable');
 
     const again = new UsageService({
+      events: createRecordingAppEvents(),
       root,
       home: fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-quota-h2-')),
       env: {},

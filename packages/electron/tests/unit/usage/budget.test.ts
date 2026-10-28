@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { createRecordingAppEvents } from '../../../src/core/appEvents';
 import { UsageService, type UsageAlert } from '../../../src/usage/UsageService';
 
 /** gpt-4o：输入 2.5 USD / 百万。1M 输入 token = 2.5 USD */
@@ -21,6 +22,7 @@ function mk(opts: { root?: string; deliver?: () => boolean } = {}) {
   const alerts: UsageAlert[] = [];
   const state = { deliver: opts.deliver ?? (() => true) };
   const svc = new UsageService({
+    events: createRecordingAppEvents(),
     root,
     home,
     dshHome: path.join(home, '.dsh'),

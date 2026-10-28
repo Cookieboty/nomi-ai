@@ -14,9 +14,9 @@ import * as path from 'path';
 import { getToolCallerTabId } from '@nomi-ai/bundle-ig-base';
 import type { ToolDefinition, ToolExecContext } from '@nomi-ai/bundle-ig-base';
 import type { BuiltinCliId } from '@nomi-ai/cli-plugins';
-import { BrowserWindow } from 'electron';
 import { z } from 'zod';
 
+import type { AppEvents } from '../../core/appEvents';
 import type { DesktopService } from '../../desktop/DesktopService';
 import { t } from '../../i18n';
 import { guardedHandle } from '../../security/guardedIpc';
@@ -215,6 +215,8 @@ export interface DelegateDeps {
   desktop: DesktopService;
   /** 可选：第三方路径下校验 model 是否在网关目录 */
   gateway?: Pick<HarnessGateway, 'defaults' | 'models'>;
+  /** 任务进度 / 完成通知界面（ai:delegate:*） */
+  events: AppEvents;
 }
 
 export class DelegateService {
@@ -959,8 +961,7 @@ export class DelegateService {
   }
 
   private broadcast(ch: string, payload: unknown): void {
-    for (const w of BrowserWindow.getAllWindows())
-      if (!w.isDestroyed()) w.webContents.send(ch, payload);
+    this.d.events.publish(ch, payload);
   }
 
   private publicIsolationNote(isolation: IsolationHandle): string {

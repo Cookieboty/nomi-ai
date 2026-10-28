@@ -1,13 +1,7 @@
 jest.unmock('fs');
-const sent: unknown[] = [];
+// i18n 不再 import electron；只有 registerIpc 经 guardedIpc 用到 ipcMain
 let sysLangs = ['en-US'];
 jest.mock('electron', () => ({
-  app: { getPreferredSystemLanguages: () => sysLangs, getLocale: () => sysLangs[0] },
-  BrowserWindow: {
-    getAllWindows: () => [
-      { isDestroyed: () => false, webContents: { send: (_c: string, p: unknown) => sent.push(p) } },
-    ],
-  },
   ipcMain: { handle: jest.fn(), removeHandler: jest.fn() },
 }));
 
@@ -17,13 +11,23 @@ import path from 'node:path';
 
 import { getDictionary } from '@nomi-ai/i18n';
 
-import { LocaleService, onLocaleChange, resolveLocale, t } from '../../../src/i18n';
+import { createRecordingAppEvents, type RecordingAppEvents } from '../../../src/core/appEvents';
+import { LOCALE_CHANGED, LocaleService, onLocaleChange, resolveLocale, t } from '../../../src/i18n';
+
+let events: RecordingAppEvents = createRecordingAppEvents();
+const make = (file: string) =>
+  new LocaleService({
+    file,
+    ports: { app: { locale: () => sysLangs[0] ?? '' } as never },
+    events,
+    preferredLanguages: () => sysLangs,
+  });
 
 const tmp = () => path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'locale-')), 'locale.json');
 
 describe('main-process i18n', () => {
   beforeEach(() => {
-    sent.length = 0;
+    events = createRecordingAppEvents();
     delete process.env.CD_LOCALE;
   });
 
@@ -35,22 +39,26 @@ describe('main-process i18n', () => {
 
   it('follows the system for new users and respects a saved choice', () => {
     sysLangs = ['zh-CN'];
-    expect(new LocaleService(tmp()).get()).toEqual({ pref: 'system', locale: 'zh-CN' });
+    expect(make(tmp()).get()).toEqual({ pref: 'system', locale: 'zh-CN' });
     expect(t('electron.common.quit')).toBe('退出');
     sysLangs = ['en-US'];
     const f = tmp();
     fs.writeFileSync(f, JSON.stringify({ locale: 'zh-CN' }));
-    expect(new LocaleService(f).get()).toEqual({ pref: 'zh-CN', locale: 'zh-CN' });
+    expect(make(f).get()).toEqual({ pref: 'zh-CN', locale: 'zh-CN' });
   });
 
   it('switches live: persists, broadcasts and notifies (tray rebuild)', () => {
     sysLangs = ['zh-CN'];
     const f = tmp();
-    const s = new LocaleService(f);
+    const s = make(f);
     const seen: string[] = [];
     const off = onLocaleChange((l) => seen.push(l));
     expect(s.set('en')).toEqual({ pref: 'en', locale: 'en' });
-    expect(sent.at(-1)).toEqual({ pref: 'en', locale: 'en' });
+    expect(events.published.at(-1)).toEqual({
+      channel: LOCALE_CHANGED,
+      payload: { pref: 'en', locale: 'en' },
+      surfaces: null,
+    });
     expect(seen).toEqual(['en']);
     expect(JSON.parse(fs.readFileSync(f, 'utf8'))).toEqual({ locale: 'en' });
     expect(t('electron.common.quit')).toBe('Quit');

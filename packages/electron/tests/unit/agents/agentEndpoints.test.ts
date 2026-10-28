@@ -28,6 +28,7 @@ import {
 } from '../../../src/agents/AgentProgressService';
 import { parseDshProjcache } from '../../../src/agents/parsers';
 import { classify, parseProcLocks } from '../../../src/agents/processes';
+import { createRecordingAppEvents } from '../../../src/core/appEvents';
 import { fakeDesktop } from '../helpers/fakeDesktop';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'cd-agents-ep-'));
@@ -85,6 +86,7 @@ describe('dsh session detection', () => {
     mkSession(dshHome, 'session-old', '/w/app', 'old', now - 5 * 24 * 3_600_000);
     let locks = new Set<number>([ino]);
     const svc = new AgentProgressService({
+      events: createRecordingAppEvents(),
       root: tmp(),
       home,
       dshHome,
@@ -132,6 +134,7 @@ describe('Nomi tabs in the aggregated monitor', () => {
     const home = tmp();
     const say = jest.fn();
     const svc = new AgentProgressService({
+      events: createRecordingAppEvents(),
       root: tmp(),
       home,
       dshHome: path.join(home, '.dsh'),

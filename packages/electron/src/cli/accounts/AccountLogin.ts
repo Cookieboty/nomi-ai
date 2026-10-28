@@ -3,14 +3,17 @@
  * （登录必须走官方自己的流程），把输出里的授权链接 / 设备码 / 「粘贴授权码」提示转成界面事件。
  * 凭据由 CLI 自己写进账号目录（或按目录区分的钥匙串条目），Nomi 不读取、不保存（S7）；
  * 登录完成后只读身份（邮箱 / 套餐）。新建账号的登录被取消或失败时，删掉这个空账号。
+ *
+ * 不依赖 Electron：打开授权页经 `ports.shell`，登录进度经 `loginBroadcaster(events)` 通知界面。
  */
 import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { BrowserWindow, shell } from 'electron';
+import type { HostPorts } from '@nomi-ai/host-ports';
 
+import type { AppEvents } from '../../core/appEvents';
 import { t } from '../../i18n';
 import { guardedHandle } from '../../security/guardedIpc';
 import { buildCliEnv } from '../cliEnv';
@@ -113,6 +116,8 @@ export class AccountLogin {
     private readonly d: {
       accounts: AccountService;
       emit: (e: LoginEvent) => void;
+      /** 打开授权页（ai:cli-account:open-url） */
+      ports: Pick<HostPorts, 'shell'>;
       logger: { warn(m: string, d?: unknown): void };
       /** 登录超时（测试用；默认 15 分钟） */
       timeoutMs?: number;
@@ -340,7 +345,7 @@ export class AccountLogin {
       'ai:cli-account:open-url',
       async (u) => {
         if (!isLoginUrl(String(u))) return false;
-        await shell.openExternal(String(u));
+        await this.d.ports.shell.openExternal(String(u));
         return true;
       },
       { owner },
@@ -370,7 +375,10 @@ export function isLoginUrl(raw: string): boolean {
   }
 }
 
-export function broadcastLogin(e: LoginEvent): void {
-  for (const w of BrowserWindow.getAllWindows())
-    if (!w.isDestroyed()) w.webContents.send('ai:cli-account:login', e);
+/** 界面监听的登录进度通道 */
+export const LOGIN_EVENT_CHANNEL = 'ai:cli-account:login';
+
+/** 登录进度发给所有窗口（AccountLogin 的 emit） */
+export function loginBroadcaster(events: AppEvents): (e: LoginEvent) => void {
+  return (e) => events.publish(LOGIN_EVENT_CHANNEL, e);
 }

@@ -19,6 +19,7 @@ jest.mock('../../../src/cli/detect', () => ({
 import { CliUpdateService } from '../../../src/cli/CliUpdateService';
 import * as detect from '../../../src/cli/detect';
 import type { CliInstallInfo } from '../../../src/cli/types';
+import { createRecordingAppEvents } from '../../../src/core/appEvents';
 
 const resolveBin = detect.resolveCliBinAsync as jest.Mock;
 const fetchLatest = detect.fetchNpmLatest as jest.Mock;
@@ -38,7 +39,7 @@ const make = () =>
   new CliUpdateService({
     root: tmp,
     logger: { info: jest.fn(), warn: jest.fn() } as never,
-    silent: true,
+    events: createRecordingAppEvents(),
   });
 const claude = (rows: CliInstallInfo[]) => rows.find((r) => r.kind === 'claude')!;
 const writeCache = (checkedAt: number, latest: string) =>

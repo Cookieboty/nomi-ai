@@ -11,11 +11,12 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 import type { ToolDefinition, ToolExecContext } from '@nomi-ai/bundle-ig-base';
-import { BrowserWindow, dialog, shell, type IpcMainInvokeEvent } from 'electron';
+import type { HostPorts } from '@nomi-ai/host-ports';
 import type * as Tess from 'tesseract.js';
 import { z } from 'zod';
 
 import { broadcastMascotCommand } from '../ai/mascotCommand';
+import type { AppEvents } from '../core/appEvents';
 import { isLocalBaseURL } from '../desktop/consent';
 import type { DesktopService } from '../desktop/DesktopService';
 import { extOf, isSupported } from '../desktop/parse/extract';
@@ -47,6 +48,10 @@ export interface KnowledgeDeps {
   credentials(id: string): { id: string; name: string; baseURL: string; apiKey?: string } | null;
   complete(messages: Msg[], signal?: AbortSignal): Promise<string>;
   chatProvider(): { id: string; name: string; local: boolean } | null;
+  /** 选择来源文件夹、打开 / 定位来源文件 */
+  ports: Pick<HostPorts, 'dialogs' | 'shell'>;
+  /** 通知界面（`ai:kb:*` 发给所有窗口） */
+  events: AppEvents;
 }
 
 export interface KbProgress {
@@ -181,15 +186,13 @@ export class KnowledgeService {
 
   // ---------- 来源 ----------
   async addFolder(): Promise<KbSource | null> {
-    const win = BrowserWindow.getFocusedWindow();
-    const opts: Electron.OpenDialogOptions = {
+    const picked = await this.d.ports.dialogs.pickDirectory({
       title: tr('electron.common.choose-a-folder-to-add-to-the-knowledge'),
       buttonLabel: tr('electron.common.add-to-knowledge-base'),
-      properties: ['openDirectory'],
-    };
-    const r = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts);
-    if (r.canceled || !r.filePaths[0]) return null;
-    return this.addFolderPath(r.filePaths[0]);
+      parent: 'focused',
+    });
+    if (!picked) return null;
+    return this.addFolderPath(picked);
   }
 
   /** 用户在系统对话框里选中的路径（或测试注入）→ 授予只读作用域 + 加入来源 */
@@ -802,10 +805,10 @@ export class KnowledgeService {
     if (!g.ok)
       return { ok: false, error: tr('electron.common.this-file-is-no-longer-within-the-granted') };
     if (how === 'reveal') {
-      shell.showItemInFolder(g.real);
+      this.d.ports.shell.showItemInFolder(g.real);
       return { ok: true };
     }
-    const err = await shell.openPath(g.real);
+    const err = await this.d.ports.shell.openPath(g.real);
     return err ? { ok: false, error: err } : { ok: true };
   }
 
@@ -970,17 +973,17 @@ export class KnowledgeService {
   }
 
   private broadcast(ch: string, payload: unknown): void {
-    for (const w of BrowserWindow.getAllWindows())
-      if (!w.isDestroyed()) w.webContents.send(ch, payload);
+    this.d.events.publish(ch, payload);
   }
 
   registerIpc(): void {
     if (this.ipcDone) return;
     this.ipcDone = true;
-    const handle = (ch: string, fn: (e: IpcMainInvokeEvent, ...a: unknown[]) => unknown) =>
+    // 处理函数不用 IPC 事件本身，只按位置占住第一个参数
+    const handle = (ch: string, fn: (e: unknown, ...a: unknown[]) => unknown) =>
       guardedHandle(
         ch,
-        async (e: IpcMainInvokeEvent, ...a: unknown[]) => {
+        async (e: unknown, ...a: unknown[]) => {
           try {
             return await fn(e, ...a);
           } catch (err) {

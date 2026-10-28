@@ -5,19 +5,17 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { app } from 'electron';
-
 import { ConfigService } from '../../../src/services/ConfigService';
+import { fakeHostPorts } from '../helpers/fakeHostPorts';
 
 describe('voiceSettings.enabled default (TTS model downloaded on demand)', () => {
   let dir: string;
   beforeEach(() => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-cfg-'));
-    (app.getPath as jest.Mock).mockImplementation(() => dir);
   });
 
   it('new install: voice is off', async () => {
-    const c = new ConfigService();
+    const c = new ConfigService({ ports: fakeHostPorts({ userData: dir }) });
     await c.load();
     expect(c.get<{ enabled: boolean }>('voiceSettings').enabled).toBe(false);
   });
@@ -27,7 +25,7 @@ describe('voiceSettings.enabled default (TTS model downloaded on demand)', () =>
       path.join(dir, 'config.json'),
       JSON.stringify({ voiceSettings: { enabled: true, volume: 0.5 } }),
     );
-    const c = new ConfigService();
+    const c = new ConfigService({ ports: fakeHostPorts({ userData: dir }) });
     await c.load();
     expect(c.get<{ enabled: boolean; volume: number }>('voiceSettings')).toMatchObject({
       enabled: true,
@@ -40,7 +38,7 @@ describe('voiceSettings.enabled default (TTS model downloaded on demand)', () =>
       path.join(dir, 'config.json'),
       JSON.stringify({ voiceSettings: { enabled: false } }),
     );
-    const c = new ConfigService();
+    const c = new ConfigService({ ports: fakeHostPorts({ userData: dir }) });
     await c.load();
     expect(c.get<{ enabled: boolean }>('voiceSettings').enabled).toBe(false);
   });

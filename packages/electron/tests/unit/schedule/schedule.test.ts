@@ -9,7 +9,6 @@ jest.mock('electron', () => ({
       isSupported: () => false,
     },
   ),
-  powerMonitor: { getSystemIdleTime: () => 0 },
 }));
 
 import fs from 'node:fs';
@@ -27,6 +26,7 @@ import {
 } from '../../../src/schedule/recurrence';
 import { SchedulerService, sanitizeSched } from '../../../src/schedule/SchedulerService';
 import { fakeDesktop } from '../helpers/fakeDesktop';
+import { featureHost } from '../helpers/featureHost';
 
 const at = (y: number, mo: number, d: number, h = 0, mi = 0) =>
   new Date(y, mo - 1, d, h, mi).getTime();
@@ -116,7 +116,8 @@ describe('repeating reminders', () => {
 });
 
 describe('SchedulerService', () => {
-  const mk = (complete: jest.Mock, now: { t: number }) => {
+  const mk = (complete: jest.Mock, now: { t: number }, idleSeconds = 5) => {
+    const host = featureHost({ idleSeconds });
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sched-'));
     const reminders = new ReminderStore(path.join(root, 'r.json'), () => now.t, {
       setTimeout: () => 1,
@@ -139,9 +140,10 @@ describe('SchedulerService', () => {
       memory: async () => '【用户档案】叫我小林',
       openChat: jest.fn(),
       now: () => now.t,
-      idleSeconds: () => 5,
+      ports: host.ports,
+      events: host.events,
     });
-    return { svc, desktop, reminders, root };
+    return { svc, desktop, reminders, root, events: host.events };
   };
 
   it('runs a daily briefing with reminders + memory context and reschedules', async () => {
@@ -225,5 +227,15 @@ describe('SchedulerService', () => {
     now.t = at(2026, 10, 12, 22);
     svc.setSettings({ proactive: { frequency: 'high' } });
     expect(svc.proactiveGate().reason).toContain('不在活跃时段');
+  });
+
+  it('proactive gate reads idle time from the power port and publishes changes', () => {
+    const now = { t: at(2026, 10, 12, 10) };
+    const { svc, events } = mk(jest.fn(), now, 601);
+    svc.setSettings({ proactive: { enabled: true, frequency: 'low' } });
+    expect(svc.proactiveGate()).toMatchObject({ ok: false });
+    expect(svc.proactiveGate().reason).toContain('不在电脑前');
+    expect(events.published.map((e) => e.channel)).toContain('ai:sched:changed');
+    expect(events.published.every((e) => e.surfaces === null)).toBe(true);
   });
 });

@@ -1,10 +1,12 @@
 /**
  * 主进程 i18n（托盘、原生对话框、系统通知、看板娘主动消息、返回给界面的错误提示）。
- * 词典和稳定 key 由 @nomi-ai/i18n 统一管理；这里负责 Electron 的偏好持久化与广播。
+ * 词典和稳定 key 由 @nomi-ai/i18n 统一管理；这里负责偏好持久化与广播。
+ * 不依赖 Electron：系统语言经宿主端口（app.locale）与注入的 preferredLanguages，广播经 AppEvents。
  */
 import fs from 'node:fs';
 import path from 'node:path';
 
+import type { HostPorts } from '@nomi-ai/host-ports';
 import {
   createTranslator,
   getDictionary,
@@ -12,8 +14,8 @@ import {
   resolveLocale,
   type LocalePref as CatalogLocalePref,
 } from '@nomi-ai/i18n';
-import { BrowserWindow, app } from 'electron';
 
+import type { AppEvents } from '../core/appEvents';
 import { guardedHandle } from '../security/guardedIpc';
 
 export type Locale = 'zh-CN' | 'en';
@@ -39,31 +41,50 @@ export function onLocaleChange(fn: (l: Locale) => void): () => void {
   return () => listeners.delete(fn);
 }
 
-function systemLanguages(): string[] {
+/** 界面监听的语言变化通道 */
+export const LOCALE_CHANGED = 'ai:locale:changed';
+
+export interface LocaleServiceDeps {
+  /** 偏好文件（userData/locale.json） */
+  file: string;
+  /** 系统界面语言的兜底（app.getLocale） */
+  ports: Pick<HostPorts, 'app'>;
+  events: AppEvents;
+  /**
+   * 系统首选语言列表（Electron：`app.getPreferredSystemLanguages()`）；没有或为空时用 `ports.app.locale()`。
+   * host-ports 的 AppInfoPort 还没有这一项，先由组合根注入。
+   */
+  preferredLanguages?: () => readonly string[] | undefined;
+}
+
+function systemLanguages(deps: LocaleServiceDeps): string[] {
   // 测试 / e2e 可用 CD_LOCALE 固定语言
   if (process.env.CD_LOCALE) return [process.env.CD_LOCALE];
   try {
-    const l = app.getPreferredSystemLanguages?.();
-    if (l?.length) return l;
+    const l = deps.preferredLanguages?.();
+    if (l?.length) return [...l];
   } catch {
     /* ignore */
   }
   try {
-    return [app.getLocale()];
+    return [deps.ports.app.locale()];
   } catch {
     return [];
   }
 }
 
 export class LocaleService {
-  constructor(private readonly file: string) {
+  private readonly file: string;
+
+  constructor(private readonly deps: LocaleServiceDeps) {
+    this.file = deps.file;
     try {
-      const raw = JSON.parse(fs.readFileSync(file, 'utf8')) as { locale?: unknown };
+      const raw = JSON.parse(fs.readFileSync(this.file, 'utf8')) as { locale?: unknown };
       if (isLocalePref(raw.locale)) pref = raw.locale;
     } catch {
       /* 首次运行：跟随系统 */
     }
-    locale = resolveLocale(pref, systemLanguages());
+    locale = resolveLocale(pref, systemLanguages(deps));
   }
 
   get(): { pref: LocalePref; locale: Locale } {
@@ -73,15 +94,13 @@ export class LocaleService {
   set(p: unknown): { pref: LocalePref; locale: Locale } {
     if (!isLocalePref(p)) throw new Error(`unknown locale: ${String(p)}`);
     pref = p;
-    const next = resolveLocale(p, systemLanguages());
+    const next = resolveLocale(p, systemLanguages(this.deps));
     const changed = next !== locale;
     locale = next;
     fs.mkdirSync(path.dirname(this.file), { recursive: true });
     fs.writeFileSync(this.file, JSON.stringify({ locale: p }, null, 2), 'utf8');
     const s = this.get();
-    for (const w of BrowserWindow.getAllWindows()) {
-      if (!w.isDestroyed()) w.webContents.send('ai:locale:changed', s);
-    }
+    this.deps.events.publish(LOCALE_CHANGED, s);
     if (changed) listeners.forEach((f) => f(locale));
     return s;
   }

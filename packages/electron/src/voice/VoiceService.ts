@@ -13,9 +13,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { BrowserWindow, type IpcMainInvokeEvent, type WebContents } from 'electron';
-
 import { broadcastMascotCommand } from '../ai/mascotCommand';
+import type { AppEvents } from '../core/appEvents';
 import { t as tr } from '../i18n';
 import { guardedHandle } from '../security/guardedIpc';
 import { canEncryptSecrets, decryptSecret, encryptSecret } from '../security/secretStorage';
@@ -44,6 +43,29 @@ import { findCliIn, findCliOnPath, runWhisperCli } from './whisperCpp';
 
 type Logger = Pick<Console, 'info' | 'warn' | 'error'>;
 
+/**
+ * 发起请求的窗口（IPC 事件的 sender；Electron 的 WebContents 结构上满足）。流式识别的临时结果与
+ * VAD 会话只属于发起的窗口，不是广播，所以仍按 sender 回复（旧 IPC 层，P1 由契约传输层取代）。
+ */
+export interface VoiceSender {
+  readonly id: number;
+  isDestroyed(): boolean;
+  send(channel: string, ...args: unknown[]): void;
+  once(event: 'destroyed', listener: () => void): unknown;
+}
+
+/** 对话窗口（BrowserWindow 结构上满足）：投递识别结果前要等页面加载完 */
+export interface VoiceChatWindow {
+  isDestroyed(): boolean;
+  webContents: {
+    send(channel: string, ...args: unknown[]): void;
+    isLoading(): boolean;
+    once(event: 'did-finish-load', listener: () => void): unknown;
+  };
+}
+
+type VoiceInvokeEvent = { sender: VoiceSender };
+
 export type VoiceActivity = 'idle' | 'listening' | 'hearing' | 'transcribing' | 'wake-armed';
 
 export interface VoiceDeps {
@@ -62,7 +84,9 @@ export interface VoiceDeps {
     ms?: number;
     provider?: string;
   }) => void;
-  openChat?: () => Promise<BrowserWindow>;
+  openChat?: () => Promise<VoiceChatWindow>;
+  /** 语音活动、下载进度、barge-in 广播给所有窗口 */
+  events: AppEvents;
   isLocalURL?: (u: string) => boolean;
   /** 测试注入：豆包 WebSocket 传输与地址（生产固定为官方端点） */
   volcWs?: WsFactory;
@@ -655,12 +679,12 @@ export class VoiceService {
     throw new VoiceError(code, message);
   }
 
-  private sendStream(wc: WebContents, payload: Record<string, unknown>) {
+  private sendStream(wc: VoiceSender, payload: Record<string, unknown>) {
     if (!wc.isDestroyed()) wc.send('ai:voice:stream', payload);
   }
 
   streamStart(
-    wc: WebContents,
+    wc: VoiceSender,
     source: string,
   ): { ok: true; id: string } | { ok: false; code: VoiceError['code']; error: string } {
     if (this.settings.engine !== 'volc')
@@ -709,12 +733,12 @@ export class VoiceService {
     return { ok: true, id };
   }
 
-  private ownStream(wc: WebContents, id: string): VolcStream | null {
+  private ownStream(wc: VoiceSender, id: string): VolcStream | null {
     const rec = this.streams.get(id);
     return rec && rec.owner === wc.id ? rec : null;
   }
 
-  streamPush(wc: WebContents, id: string, pcm: unknown): boolean {
+  streamPush(wc: VoiceSender, id: string, pcm: unknown): boolean {
     const rec = this.ownStream(wc, id);
     if (!rec || rec.phase !== 'recording') return false;
     const buf =
@@ -743,7 +767,7 @@ export class VoiceService {
   }
 
   async streamStop(
-    wc: WebContents,
+    wc: VoiceSender,
     id: string,
   ): Promise<
     | { ok: true; text: string; fallback?: boolean }
@@ -825,7 +849,7 @@ export class VoiceService {
   }
 
   /** 取消（录音中或结束中）：关连接、丢弃结果；别的窗口不能取消 */
-  streamCancel(wc: WebContents, id: string): boolean {
+  streamCancel(wc: VoiceSender, id: string): boolean {
     const rec = this.ownStream(wc, id);
     if (!rec) return false;
     this.revokeStream(id, rec);
@@ -916,14 +940,13 @@ export class VoiceService {
   }
 
   private broadcast(ch: string, payload: unknown) {
-    for (const w of BrowserWindow.getAllWindows())
-      if (!w.isDestroyed()) w.webContents.send(ch, payload);
+    this.d.events.publish(ch, payload);
   }
 
   registerIpc(): void {
     if (this.ipcDone) return;
     this.ipcDone = true;
-    const handle = (ch: string, fn: (e: IpcMainInvokeEvent, ...a: unknown[]) => unknown) =>
+    const handle = (ch: string, fn: (e: VoiceInvokeEvent, ...a: unknown[]) => unknown) =>
       guardedHandle(ch, fn, { owner: 'VoiceService', wrapErrors: false, passEvent: true });
     handle('ai:voice:state', () => this.state());
     handle('ai:voice:setSettings', (_e, patch) => this.setSettings(patch));

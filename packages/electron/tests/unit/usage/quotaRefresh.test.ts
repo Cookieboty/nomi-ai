@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { createRecordingAppEvents } from '../../../src/core/appEvents';
 import { SNAPSHOT_FILE } from '../../../src/usage/claudeStatusline';
 import {
   UsageService,
@@ -101,6 +102,7 @@ function setup(opts: Opts = {}) {
   const spawnFn = jest.fn(() => fakeServer(handler).child);
   const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-qr-tmp-'));
   const svc = new UsageService({
+    events: createRecordingAppEvents(),
     root,
     home,
     dshHome: path.join(home, '.dsh'),
@@ -631,6 +633,7 @@ describe('额度缓存跨重启保留（每次打开都先显示上一次的值�
   const restart = (t: ReturnType<typeof setup>) => {
     const run = jest.fn(async () => ({ stdout: USAGE_OK, code: 0 as number | null }));
     const svc = new UsageService({
+      events: createRecordingAppEvents(),
       root: t.root,
       home: t.home,
       dshHome: path.join(t.home, '.dsh'),

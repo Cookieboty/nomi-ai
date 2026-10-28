@@ -2,16 +2,9 @@ jest.unmock('fs');
 jest.unmock('path');
 jest.mock('../../../src/i18n', () => ({ t: (s: string) => s }));
 
+// 选图经 ports.dialogs、广播经 events；仍 mock 的是 nativeImage（缩放）与 ipcMain（registerIpc）
 jest.mock('electron', () => ({
-  app: { isPackaged: false },
-  BrowserWindow: {
-    getAllWindows: () => [],
-    fromWebContents: () => null,
-  },
   ipcMain: { handle: jest.fn(), removeHandler: jest.fn() },
-  dialog: {
-    showOpenDialog: jest.fn(async () => ({ canceled: true, filePaths: [] })),
-  },
   nativeImage: {
     createFromBuffer: jest.fn(() => ({
       isEmpty: () => true,
@@ -24,20 +17,51 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import type { PickFilesOptions } from '@nomi-ai/host-ports';
 import { CHAT_BG_ERROR, CHAT_BG_MAX_BYTES, CHAT_BG_MAX_EDGE } from '@nomi-ai/types';
 
+import { getChatBackgroundPresetFile } from '../../../src/chat/backgroundPreset';
 import {
   ChatBackgroundService,
   CHAT_BG_PRESET_URL,
   DEFAULT_CHAT_BG,
   sanitizeChatBg,
 } from '../../../src/chat/ChatBackgroundService';
+import { createRecordingAppEvents, type RecordingAppEvents } from '../../../src/core/appEvents';
 import { __renameDeps, whenPrivateWritesIdle } from '../../../src/utils/privateFile';
 
 const tmpRoot = () => fs.mkdtempSync(path.join(os.tmpdir(), 'chat-bg-'));
 const PRESET_DEFAULTS = { ...DEFAULT_CHAT_BG, imageUrl: CHAT_BG_PRESET_URL };
 
+/** 文件选择器：返回选中的路径，空数组 = 取消 */
+const pickFiles = jest.fn(async (_opts?: PickFilesOptions): Promise<string[]> => []);
+let events: RecordingAppEvents = createRecordingAppEvents();
+const make = (
+  file: string,
+  imagesDir: string,
+  presetFile = getChatBackgroundPresetFile(false),
+): ChatBackgroundService =>
+  new ChatBackgroundService({
+    file,
+    imagesDir,
+    presetFile,
+    ports: {
+      dialogs: {
+        pickFiles,
+        pickDirectory: async () => null,
+        saveFile: async () => null,
+        showError: () => undefined,
+      },
+    },
+    events,
+  });
+
 describe('ChatBackgroundService', () => {
+  beforeEach(() => {
+    pickFiles.mockReset();
+    pickFiles.mockResolvedValue([]);
+    events = createRecordingAppEvents();
+  });
   afterEach(async () => {
     await whenPrivateWritesIdle();
   });
@@ -65,7 +89,7 @@ describe('ChatBackgroundService', () => {
     const root = tmpRoot();
     const file = path.join(root, 'chat-background.json');
     const images = path.join(root, 'images');
-    const s = new ChatBackgroundService(file, images);
+    const s = make(file, images);
     expect(s.get()).toEqual(PRESET_DEFAULTS);
     expect(await s.set({ blur: 3, opacity: 0.5 })).toMatchObject({ blur: 3, opacity: 0.5 });
     expect(JSON.parse(fs.readFileSync(file, 'utf8'))).toMatchObject({ blur: 3, opacity: 0.5 });
@@ -76,7 +100,7 @@ describe('ChatBackgroundService', () => {
   it('concurrent set calls apply in order and keep the last state (#154)', async () => {
     const root = tmpRoot();
     const file = path.join(root, 'chat-background.json');
-    const s = new ChatBackgroundService(file, path.join(root, 'images'));
+    const s = make(file, path.join(root, 'images'));
     const results = await Promise.all([
       s.set({ blur: 1 }),
       s.set({ opacity: 0.4 }),
@@ -93,7 +117,7 @@ describe('ChatBackgroundService', () => {
       file,
       JSON.stringify({ mode: 'solid', solidColor: '#123456', blurCenter: 7, opacity: 0.42 }),
     );
-    const service = new ChatBackgroundService(file, path.join(root, 'images'));
+    const service = make(file, path.join(root, 'images'));
     expect(service.get()).toEqual({ ...PRESET_DEFAULTS, opacity: 0.42 });
     await service.flush();
     expect(Object.keys(JSON.parse(fs.readFileSync(file, 'utf8'))).sort()).toEqual([
@@ -103,17 +127,32 @@ describe('ChatBackgroundService', () => {
     ]);
   });
 
+  it('picks through the dialogs port and publishes chat-bg:changed to every window', async () => {
+    const root = tmpRoot();
+    const src = path.join(root, 'src.png');
+    fs.writeFileSync(src, 'fake-png');
+    pickFiles.mockResolvedValueOnce([src]);
+    const s = make(path.join(root, 'chat-background.json'), path.join(root, 'images'));
+    const st = await s.pickImage('chat');
+    expect(pickFiles).toHaveBeenCalledWith(
+      expect.objectContaining({
+        parent: 'chat',
+        filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }],
+      }),
+    );
+    expect(events.published).toEqual([{ channel: 'chat-bg:changed', payload: st, surfaces: null }]);
+    expect(await s.pickImage()).toEqual(st);
+    expect(pickFiles).toHaveBeenLastCalledWith(expect.objectContaining({ parent: 'none' }));
+  });
+
   it('copies picked image into chat-asset images dir', async () => {
-    const { dialog } = jest.requireMock('electron') as {
-      dialog: { showOpenDialog: jest.Mock };
-    };
     const root = tmpRoot();
     const file = path.join(root, 'chat-background.json');
     const images = path.join(root, 'images');
     const src = path.join(root, 'src.png');
     fs.writeFileSync(src, 'fake-png');
-    dialog.showOpenDialog.mockResolvedValueOnce({ canceled: false, filePaths: [src] });
-    const s = new ChatBackgroundService(file, images);
+    pickFiles.mockResolvedValueOnce([src]);
+    const s = make(file, images);
     const st = await s.pickImage();
     expect(st.imageUrl).toMatch(/^chat-asset:\/\/images\/panel-bg\.[\w-]+\.png$/);
     expect(fs.readFileSync(path.join(images, new URL(st.imageUrl!).pathname), 'utf8')).toBe(
@@ -124,15 +163,12 @@ describe('ChatBackgroundService', () => {
   });
 
   it('replacing an image changes its URL and retains only the latest file', async () => {
-    const { dialog } = jest.requireMock('electron') as {
-      dialog: { showOpenDialog: jest.Mock };
-    };
     const root = tmpRoot();
     const file = path.join(root, 'chat-background.json');
     const images = path.join(root, 'images');
     const src = path.join(root, 'src.png');
-    const service = new ChatBackgroundService(file, images);
-    dialog.showOpenDialog.mockResolvedValue({ canceled: false, filePaths: [src] });
+    const service = make(file, images);
+    pickFiles.mockResolvedValue([src]);
     fs.writeFileSync(src, 'first-png');
     const first = await service.pickImage();
     fs.writeFileSync(src, 'second-png');
@@ -144,7 +180,7 @@ describe('ChatBackgroundService', () => {
     );
     expect(JSON.parse(fs.readFileSync(file, 'utf8')).imageUrl).toBe(second.imageUrl);
     fs.unlinkSync(src);
-    expect(new ChatBackgroundService(file, images).get()).toEqual(second);
+    expect(make(file, images).get()).toEqual(second);
     expect(fs.readdirSync(images)).toHaveLength(1);
   });
 
@@ -158,9 +194,7 @@ describe('ChatBackgroundService', () => {
       file,
       JSON.stringify({ mode: 'image', imageUrl: 'chat-asset://images/panel-bg.png' }),
     );
-    expect(new ChatBackgroundService(file, images).get().imageUrl).toBe(
-      'chat-asset://images/panel-bg.png',
-    );
+    expect(make(file, images).get().imageUrl).toBe('chat-asset://images/panel-bg.png');
     expect(fs.readdirSync(images)).toEqual(['panel-bg.png']);
   });
 
@@ -171,7 +205,7 @@ describe('ChatBackgroundService', () => {
     fs.mkdirSync(images);
     fs.writeFileSync(path.join(images, 'panel-bg.png'), 'old-png');
     fs.writeFileSync(file, JSON.stringify({ imageUrl: null, blur: 0, opacity: 0.39 }));
-    expect(new ChatBackgroundService(file, images).get()).toEqual({
+    expect(make(file, images).get()).toEqual({
       imageUrl: CHAT_BG_PRESET_URL,
       blur: 0,
       opacity: 0.39,
@@ -179,13 +213,12 @@ describe('ChatBackgroundService', () => {
   });
 
   it('re-validates on an empty patch and falls back to the preset when the image vanished', async () => {
-    const { dialog } = jest.requireMock('electron') as { dialog: { showOpenDialog: jest.Mock } };
     const root = tmpRoot();
     const images = path.join(root, 'images');
     const src = path.join(root, 'src.png');
     fs.writeFileSync(src, 'png');
-    dialog.showOpenDialog.mockResolvedValueOnce({ canceled: false, filePaths: [src] });
-    const service = new ChatBackgroundService(path.join(root, 'bg.json'), images);
+    pickFiles.mockResolvedValueOnce([src]);
+    const service = make(path.join(root, 'bg.json'), images);
     const picked = await service.pickImage();
     fs.unlinkSync(path.join(images, new URL(picked.imageUrl!).pathname));
     expect((await service.set({})).imageUrl).toBe(CHAT_BG_PRESET_URL);
@@ -197,7 +230,7 @@ describe('ChatBackgroundService', () => {
     const src = path.join(root, 'huge.png');
     fs.writeFileSync(src, '');
     fs.truncateSync(src, CHAT_BG_MAX_BYTES + 1);
-    const service = new ChatBackgroundService(path.join(root, 'bg.json'), images);
+    const service = make(path.join(root, 'bg.json'), images);
     const before = service.get();
     await expect(service.importImage(src)).rejects.toThrow(CHAT_BG_ERROR.tooLarge);
     expect(service.get()).toEqual(before);
@@ -224,7 +257,7 @@ describe('ChatBackgroundService', () => {
     const images = path.join(root, 'images');
     const src = path.join(root, name);
     fs.writeFileSync(src, 'raw');
-    const service = new ChatBackgroundService(path.join(root, 'bg.json'), images);
+    const service = make(path.join(root, 'bg.json'), images);
     const st = await service.importImage(src);
     return {
       st,
@@ -258,10 +291,7 @@ describe('ChatBackgroundService', () => {
     const root = tmpRoot();
     const src = path.join(root, 'src.png');
     fs.writeFileSync(src, 'png');
-    const service = new ChatBackgroundService(
-      path.join(root, 'bg.json'),
-      path.join(root, 'images'),
-    );
+    const service = make(path.join(root, 'bg.json'), path.join(root, 'images'));
     await service.flush();
     const realRename = __renameDeps.renameAsync;
     __renameDeps.renameAsync = async () => {
@@ -279,28 +309,27 @@ describe('ChatBackgroundService', () => {
   });
 
   it('uses the preset at first run and resets to it without deleting it', async () => {
-    const { dialog } = jest.requireMock('electron') as { dialog: { showOpenDialog: jest.Mock } };
     const root = tmpRoot();
     const file = path.join(root, 'chat-background.json');
     const images = path.join(root, 'images');
     const preset = path.join(root, 'app-assets', 'nomi-preset.jpg');
     fs.mkdirSync(path.dirname(preset));
     fs.writeFileSync(preset, 'preset');
-    const service = new ChatBackgroundService(file, images, preset);
+    const service = make(file, images, preset);
     const defaults = { ...DEFAULT_CHAT_BG, imageUrl: CHAT_BG_PRESET_URL };
     expect(service.get()).toEqual(defaults);
     const source = path.join(root, 'custom.png');
     fs.writeFileSync(source, 'custom');
-    dialog.showOpenDialog.mockResolvedValueOnce({ canceled: false, filePaths: [source] });
+    pickFiles.mockResolvedValueOnce([source]);
     await service.set({ blur: 17, opacity: 0.6 });
     const selected = await service.pickImage();
     expect(selected).toMatchObject({ blur: 17, opacity: 0.6 });
     expect(selected.imageUrl).not.toBe(CHAT_BG_PRESET_URL);
-    expect(new ChatBackgroundService(file, images, preset).get()).toEqual(selected);
+    expect(make(file, images, preset).get()).toEqual(selected);
     expect(await service.reset()).toEqual(defaults);
     expect(fs.readFileSync(preset, 'utf8')).toBe('preset');
     expect(fs.readdirSync(images)).toEqual([]);
-    expect(new ChatBackgroundService(file, images, preset).get()).toEqual(defaults);
+    expect(make(file, images, preset).get()).toEqual(defaults);
   });
 
   it('falls back to the preset when the saved custom image is missing or unsafe', async () => {
@@ -317,7 +346,7 @@ describe('ChatBackgroundService', () => {
       'https://example.com/image.png',
     ]) {
       fs.writeFileSync(file, JSON.stringify({ imageUrl, blur: 0, opacity: 0.75 }));
-      const service = new ChatBackgroundService(file, images, preset);
+      const service = make(file, images, preset);
       expect(service.get()).toMatchObject({
         imageUrl: CHAT_BG_PRESET_URL,
         blur: 0,
@@ -331,10 +360,10 @@ describe('ChatBackgroundService', () => {
     const root = tmpRoot();
     const file = path.join(root, 'bg.json');
     const images = path.join(root, 'chat', 'images');
-    const service = new ChatBackgroundService(file, images);
+    const service = make(file, images);
     expect(service.get()).toEqual(PRESET_DEFAULTS);
     expect(fs.existsSync(path.join(root, 'chat'))).toBe(false);
-    expect(new ChatBackgroundService(file, images).get()).toEqual(PRESET_DEFAULTS);
+    expect(make(file, images).get()).toEqual(PRESET_DEFAULTS);
   });
 
   it('does not use a userData preset when the bundled resource is missing', () => {
@@ -345,21 +374,20 @@ describe('ChatBackgroundService', () => {
     fs.mkdirSync(path.dirname(localPreset), { recursive: true });
     fs.writeFileSync(localPreset, 'obsolete-local-preset');
     fs.writeFileSync(file, JSON.stringify(PRESET_DEFAULTS));
-    const service = new ChatBackgroundService(file, images, path.join(root, 'missing.jpg'));
+    const service = make(file, images, path.join(root, 'missing.jpg'));
     expect(service.get()).toEqual(DEFAULT_CHAT_BG);
     expect(fs.readFileSync(localPreset, 'utf8')).toBe('obsolete-local-preset');
   });
 
   it('keeps the previous cached image when a replacement cannot be persisted', async () => {
-    const { dialog } = jest.requireMock('electron') as { dialog: { showOpenDialog: jest.Mock } };
     const root = tmpRoot();
     const file = path.join(root, 'bg.json');
     const images = path.join(root, 'images');
     const source = path.join(root, 'source.png');
-    const service = new ChatBackgroundService(file, images);
+    const service = make(file, images);
     await service.flush();
     fs.writeFileSync(source, 'first');
-    dialog.showOpenDialog.mockResolvedValue({ canceled: false, filePaths: [source] });
+    pickFiles.mockResolvedValue([source]);
     const previous = await service.pickImage();
     fs.writeFileSync(source, 'replacement');
     const realRename = __renameDeps.renameAsync;
@@ -380,19 +408,12 @@ describe('ChatBackgroundService', () => {
   });
 
   it('leaves settings intact on cancel or invalid selection', async () => {
-    const { dialog } = jest.requireMock('electron') as { dialog: { showOpenDialog: jest.Mock } };
     const root = tmpRoot();
-    const service = new ChatBackgroundService(
-      path.join(root, 'bg.json'),
-      path.join(root, 'images'),
-    );
+    const service = make(path.join(root, 'bg.json'), path.join(root, 'images'));
     const before = await service.set({ blur: 0, opacity: 1 });
-    dialog.showOpenDialog.mockResolvedValueOnce({ canceled: true, filePaths: [] });
+    pickFiles.mockResolvedValueOnce([]);
     expect(await service.pickImage()).toEqual(before);
-    dialog.showOpenDialog.mockResolvedValueOnce({
-      canceled: false,
-      filePaths: [path.join(root, 'bad.txt')],
-    });
+    pickFiles.mockResolvedValueOnce([path.join(root, 'bad.txt')]);
     await expect(service.pickImage()).rejects.toThrow(CHAT_BG_ERROR.unsupported);
     expect(service.get()).toEqual(before);
   });

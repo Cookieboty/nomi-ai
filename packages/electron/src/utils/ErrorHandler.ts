@@ -3,7 +3,7 @@
  * 提供错误分类、日志记录和用户友好提示
  */
 
-import { dialog, app } from 'electron';
+import type { HostPorts } from '@nomi-ai/host-ports';
 
 import { eventBus } from '../core/EventBus';
 import { t } from '../i18n';
@@ -45,14 +45,22 @@ export interface IErrorHandler {
   clearErrorHistory(): void;
 }
 
+/** 致命错误提示走 dialogs.showError，生产环境退出走 lifecycle.quit */
+export type ErrorHandlerPorts = {
+  dialogs: Pick<HostPorts['dialogs'], 'showError'>;
+  lifecycle: Pick<HostPorts['lifecycle'], 'quit'>;
+};
+
 export class GlobalErrorHandler implements IErrorHandler {
   private logger: ILoggerService;
+  private readonly ports: ErrorHandlerPorts;
   private errorHistory: ErrorInfo[] = [];
   private maxHistorySize = 100;
   private errorCounter = 0;
 
-  constructor(logger: ILoggerService) {
+  constructor(logger: ILoggerService, ports: ErrorHandlerPorts) {
     this.logger = logger;
+    this.ports = ports;
     this.setupGlobalHandlers();
   }
 
@@ -130,7 +138,7 @@ export class GlobalErrorHandler implements IErrorHandler {
     // 在生产环境中退出应用
     if (process.env.NODE_ENV === 'production') {
       setTimeout(() => {
-        app.quit();
+        this.ports.lifecycle.quit();
       }, 5000);
     }
   }
@@ -242,7 +250,7 @@ export class GlobalErrorHandler implements IErrorHandler {
    */
   private showCriticalErrorDialog(errorInfo: ErrorInfo): void {
     try {
-      dialog.showErrorBox(
+      this.ports.dialogs.showError(
         t('electron.common.app-error'),
         t('electron.common.the-app-hit-a-serious-error-and-will', errorInfo.message, errorInfo.id),
       );

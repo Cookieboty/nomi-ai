@@ -15,8 +15,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
-import { BrowserWindow } from 'electron';
-
+import type { AppEvents } from '../core/appEvents';
 import { t } from '../i18n';
 import { guardedHandle } from '../security/guardedIpc';
 
@@ -276,8 +275,8 @@ export class CliUpdateService {
       logger: Logger;
       probe?: CliProbe;
       runner?: CliRunner;
-      /** 测试：不向窗口广播 */
-      silent?: boolean;
+      /** 进度通知界面（ai:cli-update:event） */
+      events: AppEvents;
       /** 观察所有进度事件（测试 / 日志） */
       emit?: (payload: unknown) => void;
       /** 平台（测试注入） */
@@ -740,14 +739,7 @@ export class CliUpdateService {
       if (job.lines.length > 400) job.lines.splice(0, job.lines.length - 400);
     }
     this.d.emit?.(payload);
-    if (this.d.silent) return;
-    for (const w of BrowserWindow.getAllWindows()) {
-      try {
-        w.webContents.send('ai:cli-update:event', payload);
-      } catch {
-        /* */
-      }
-    }
+    this.d.events.publish('ai:cli-update:event', payload);
   }
 
   registerIpc(): void {
@@ -768,6 +760,7 @@ let inst: CliUpdateService | null = null;
 export function initCliUpdateService(d: {
   root: string;
   logger: Logger;
+  events: AppEvents;
   probe?: CliProbe;
   runner?: CliRunner;
   drain?: (kind: UpdatableCli) => Promise<number>;

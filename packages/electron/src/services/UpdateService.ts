@@ -7,17 +7,22 @@
  *
  * Dev / unpackaged: status stays "idle" / "unavailable"; check() returns a clear reason so
  * Settings can explain that updates only apply to installed builds.
+ *
+ * No electron import: app info / userData come from host ports, state changes go out through
+ * AppEvents. The install action itself is electron-updater's quitAndInstall (host side, injected
+ * as `updater`); see docs/design/core-host-decoupling.md §7.2.
  */
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { BrowserWindow, app } from 'electron';
+import type { HostPorts } from '@nomi-ai/host-ports';
 import {
   autoUpdater as defaultAutoUpdater,
   type ProgressInfo,
   type UpdateInfo,
 } from 'electron-updater';
 
+import type { AppEvents } from '../core/appEvents';
 import { guardedHandle } from '../security/guardedIpc';
 import { writePrivateFileAtomicAsync } from '../utils/privateFile';
 
@@ -83,6 +88,10 @@ export interface UpdaterLike {
 }
 
 export interface UpdateServiceOptions {
+  /** app.version / app.isPackaged and the default settings file under paths.userData */
+  ports: Pick<HostPorts, 'paths' | 'app'>;
+  /** `updates:changed` goes to every window */
+  events: AppEvents;
   updater?: UpdaterLike;
   /** delay before the first automatic check (ms); 0 = skip launch check */
   launchDelayMs?: number;
@@ -104,9 +113,9 @@ interface StoredUpdateSettings {
   autoCheck: boolean;
 }
 
-function defaultSettingsFile(): string | null {
+function defaultSettingsFile(paths: HostPorts['paths']): string | null {
   try {
-    return path.join(app.getPath('userData'), 'update-settings.json');
+    return path.join(paths.userData(), 'update-settings.json');
   } catch {
     return null;
   }
@@ -155,22 +164,27 @@ export class UpdateService {
   private stallTimer: ReturnType<typeof setTimeout> | null = null;
   /** 正在进行的自动下载的取消令牌（来自 checkForUpdates 的返回） */
   private downloadToken: { cancel(): void } | null = null;
+  private readonly appInfo: HostPorts['app'];
+  private readonly events: AppEvents;
 
   constructor(
     private readonly logger: ILoggerService,
-    opts: UpdateServiceOptions = {},
+    opts: UpdateServiceOptions,
   ) {
+    this.appInfo = opts.ports.app;
+    this.events = opts.events;
     this.updater = opts.updater ?? (defaultAutoUpdater as unknown as UpdaterLike);
-    this.packaged = opts.packaged ?? app.isPackaged;
+    this.packaged = opts.packaged ?? this.appInfo.isPackaged();
     this.launchDelayMs = opts.launchDelayMs ?? DEFAULT_LAUNCH_DELAY;
     this.intervalMs = opts.intervalMs ?? DEFAULT_INTERVAL;
     this.stallMs = opts.stallMs ?? DEFAULT_STALL_MS;
     // 必须在 start() 之前就恢复用户的选择：启动检查 / 定时器都读这个值
-    this.settingsFile = opts.settingsFile === undefined ? defaultSettingsFile() : opts.settingsFile;
+    this.settingsFile =
+      opts.settingsFile === undefined ? defaultSettingsFile(opts.ports.paths) : opts.settingsFile;
     this.autoCheck = loadAutoCheck(this.settingsFile);
     this.state = {
       status: this.packaged ? 'idle' : 'unavailable',
-      currentVersion: app.getVersion(),
+      currentVersion: this.appInfo.version(),
       autoCheck: this.autoCheck,
     };
   }
@@ -446,7 +460,7 @@ export class UpdateService {
     this.state = {
       ...this.state,
       ...partial,
-      currentVersion: app.getVersion(),
+      currentVersion: this.appInfo.version(),
       autoCheck: this.autoCheck,
     };
     if (this.state.status !== 'error') this.state.errorStage = undefined;
@@ -455,10 +469,7 @@ export class UpdateService {
   }
 
   private broadcast(): void {
-    const snap = this.getState();
-    for (const w of BrowserWindow.getAllWindows()) {
-      if (!w.isDestroyed()) w.webContents.send(CHANNEL.changed, snap);
-    }
+    this.events.publish(CHANNEL.changed, this.getState());
   }
 }
 
@@ -469,7 +480,8 @@ export function getUpdateService(
   opts?: UpdateServiceOptions,
 ): UpdateService {
   if (!singleton) {
-    if (!logger) throw new Error('UpdateService requires a logger on first call');
+    if (!logger || !opts)
+      throw new Error('UpdateService requires a logger and ports on first call');
     singleton = new UpdateService(logger, opts);
   }
   return singleton;

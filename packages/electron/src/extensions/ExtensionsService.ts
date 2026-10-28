@@ -1,7 +1,7 @@
 /**
  * 扩展管理：MCP 服务器（图形界面增删改、连接、工具一览、调用确认）+ SKILL.md 技能包。
  *
- * - MCP 配置存 userData/extensions/mcp.json；env / headers 里的敏感值用 safeStorage 加密。
+ * - MCP 配置存 userData/extensions/mcp.json；env / headers 里的敏感值用系统安全存储（secretStorage）加密。
  *   连接后把该服务器的每个工具包一层：按信任级别弹出 PermissionBroker 确认，并写审计日志。
  *   环境变量 MCP_SERVERS 里的服务器照常工作，界面里只读展示。
  * - 技能放在 userData/skills/<name>/SKILL.md；模型先只看到名称 + 描述，需要时 skill_load。
@@ -18,10 +18,11 @@ import {
   type ToolDefinition,
   type ToolRegistry,
 } from '@nomi-ai/bundle-ig-base';
-import { BrowserWindow, dialog, shell } from 'electron';
+import type { HostPorts } from '@nomi-ai/host-ports';
 import { z } from 'zod';
 
 import { broadcastMascotCommand } from '../ai/mascotCommand';
+import type { AppEvents } from '../core/appEvents';
 import type { DesktopService } from '../desktop/DesktopService';
 import { t } from '../i18n';
 import { guardedHandle } from '../security/guardedIpc';
@@ -73,8 +74,10 @@ export interface ExtDeps {
   /** 从其他工具导入（#58）时扫描的用户目录；默认 os.homedir()，测试可注入 */
   home?: () => string;
   env?: () => Record<string, string | undefined>;
-  /** 选择项目文件夹（默认系统对话框），测试可注入 */
-  pickDir?: () => Promise<string | null>;
+  /** 选择技能 / 项目文件夹、打开技能目录 */
+  ports: Pick<HostPorts, 'dialogs' | 'shell'>;
+  /** 通知界面（`ai:ext:changed` 发给所有窗口） */
+  events: AppEvents;
 }
 
 export type MigrateAction = 'skip' | 'rename' | 'overwrite';
@@ -175,7 +178,7 @@ export class ExtensionsService {
     }
   }
   private writeJson(p: string, v: unknown) {
-    // mcp.json 含 env / headers 敏感值（safeStorage 加密串），收紧为 0600
+    // mcp.json 含 env / headers 敏感值（secretStorage 加密串），收紧为 0600
     writePrivateFileAtomic(p, JSON.stringify(v, null, 2));
   }
   /**
@@ -276,8 +279,7 @@ export class ExtensionsService {
   }
 
   private broadcast(ch: string, payload: unknown) {
-    for (const w of BrowserWindow.getAllWindows())
-      if (!w.isDestroyed()) w.webContents.send(ch, payload);
+    this.d.events.publish(ch, payload);
   }
   private changed() {
     this.skillsCache = null;
@@ -669,12 +671,11 @@ export class ExtensionsService {
     return meta;
   }
   async importSkillDialog() {
-    const r = await dialog.showOpenDialog({
+    const dir = await this.d.ports.dialogs.pickDirectory({
       title: t('electron.common.choose-a-skill-folder-containing-skill-md'),
-      properties: ['openDirectory'],
     });
-    if (r.canceled || !r.filePaths[0]) return null;
-    return this.importSkillDir(r.filePaths[0]);
+    if (!dir) return null;
+    return this.importSkillDir(dir);
   }
   skillsContext(): string {
     return skillsContext(this.listSkills().filter((s) => s.enabled && !s.error));
@@ -755,7 +756,9 @@ export class ExtensionsService {
   async migrateScan(opts: { pickProject?: boolean; clearProject?: boolean } = {}) {
     if (opts.clearProject) this.migrateProject = null;
     if (opts.pickProject) {
-      const dir = await (this.d.pickDir ?? pickDirDialog)();
+      const dir = await this.d.ports.dialogs.pickDirectory({
+        title: t('electron.common.choose-a-project-folder-reads-its-mcp-json'),
+      });
       if (dir) this.migrateProject = dir;
     }
     const scan: MigrateScan = discoverMigrations({
@@ -872,7 +875,7 @@ export class ExtensionsService {
       taken,
     );
     e.enabled = false; // 导入后默认不连，先让用户检查
-    // 导入的 env / headers 走 safeStorage；不可用时拒绝（#35）
+    // 导入的 env / headers 走系统安全存储；不可用时拒绝（#35）
     this.assertCanStoreSecrets([e]);
     if (prev && action === 'overwrite') {
       await this.disconnect(prev.id).catch(() => undefined);
@@ -991,21 +994,15 @@ export class ExtensionsService {
     h('skill-remove', (n: string) => this.removeSkill(n));
     h('skill-toggle', (n: string, v: boolean) => this.toggleSkill(n, !!v));
     h('skill-import', () => this.importSkillDialog());
-    h('skill-open', (n?: string) => shell.openPath(n ? this.skillDir(n) : this.d.skillsRoot));
+    h('skill-open', (n?: string) =>
+      this.d.ports.shell.openPath(n ? this.skillDir(n) : this.d.skillsRoot),
+    );
     h('skills-context', () => this.skillsContext());
     h('migrate-scan', (o?: { pickProject?: boolean; clearProject?: boolean }) =>
       this.migrateScan({ pickProject: !!o?.pickProject, clearProject: !!o?.clearProject }),
     );
     h('migrate-import', (items: MigrateChoice[]) => this.migrateImport(items));
   }
-}
-
-async function pickDirDialog(): Promise<string | null> {
-  const r = await dialog.showOpenDialog({
-    title: t('electron.common.choose-a-project-folder-reads-its-mcp-json'),
-    properties: ['openDirectory'],
-  });
-  return r.canceled || !r.filePaths[0] ? null : r.filePaths[0];
 }
 
 function argsHaveSecret(e: McpServerEntry): boolean {

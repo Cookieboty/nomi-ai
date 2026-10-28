@@ -10,6 +10,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { createRecordingAppEvents } from '../../../src/core/appEvents';
 import {
   SCRIPT_FILE,
   SNAPSHOT_FILE,
@@ -190,6 +191,7 @@ describe('UsageService：Claude 额度（订阅 + 快照）与按登录方式过
     put(path.join(home, '.claude', 'projects', 'p', 's.jsonl'), '');
     put(path.join(home, '.codex', 'sessions', '2026', '10', '16', 'rollout-x.jsonl'), '');
     const svc = new UsageService({
+      events: createRecordingAppEvents(),
       root,
       home,
       dshHome: path.join(home, '.dsh'),

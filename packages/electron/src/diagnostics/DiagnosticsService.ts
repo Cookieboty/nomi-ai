@@ -13,7 +13,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { app, BrowserWindow, dialog, shell } from 'electron';
+import type { HostPorts } from '@nomi-ai/host-ports';
 
 import { t } from '../i18n';
 import { guardedHandle } from '../security/guardedIpc';
@@ -49,7 +49,9 @@ export interface DiagnosticsExportResult {
 export interface DiagnosticsDeps {
   userData: string;
   logger: LoggerService;
-  /** 未打包（开发版）：必开 */
+  /** 是否打包、版本号；导出时选保存位置；打开日志目录 */
+  ports: Pick<HostPorts, 'app' | 'dialogs' | 'shell'>;
+  /** 未打包（开发版）：必开；缺省按 `ports.app.isPackaged()` */
   dev?: boolean;
   /** 开关变化（网关据此刷新追踪目录） */
   onChange?: (enabled: boolean) => void;
@@ -59,8 +61,6 @@ export interface DiagnosticsDeps {
   traceDir?: string;
   /** 环境变量（测试注入），默认 process.env */
   env?: NodeJS.ProcessEnv;
-  /** 导出时选保存位置（测试注入）；返回 null = 取消 */
-  pickSavePath?: (defaultName: string) => Promise<string | null>;
   now?: () => number;
 }
 
@@ -71,7 +71,7 @@ export class DiagnosticsService {
   private readonly logDir: string;
 
   constructor(private readonly d: DiagnosticsDeps) {
-    this.forced = d.dev ?? !app.isPackaged;
+    this.forced = d.dev ?? !d.ports.app.isPackaged();
     this.file = path.join(d.userData, FILE);
     this.logDir = path.join(d.userData, 'logs');
     this.saveLogs = this.load();
@@ -102,7 +102,12 @@ export class DiagnosticsService {
   async exportBundle(): Promise<DiagnosticsExportResult> {
     const now = this.d.now?.() ?? Date.now();
     const name = `nomi-diagnostics-${new Date(now).toISOString().replace(/[:.]/g, '-')}.zip`;
-    const file = await (this.d.pickSavePath ?? pickSavePath)(name);
+    const file = await this.d.ports.dialogs.saveFile({
+      title: t('electron.common.export-diagnostics-bundle'),
+      defaultPath: name,
+      filters: [{ name: 'Zip', extensions: ['zip'] }],
+      parent: 'focused',
+    });
     if (!file) return { ok: false };
     try {
       // 收发记录是缓冲异步写的：打包前先把还在内存里的写完
@@ -112,7 +117,7 @@ export class DiagnosticsService {
           logDir: this.logDir,
           traceDir: this.d.traceDir ?? path.join(this.d.userData, 'gateway', 'trace'),
         },
-        { now, meta: { version: app.getVersion?.() ?? '', platform: process.platform } },
+        { now, meta: { version: this.d.ports.app.version(), platform: process.platform } },
       );
       fs.writeFileSync(file, data, { mode: 0o600 });
       try {
@@ -153,7 +158,7 @@ export class DiagnosticsService {
       'diagnostics:open-folder',
       async () => {
         fs.mkdirSync(this.logDir, { recursive: true });
-        const err = await shell.openPath(this.logDir);
+        const err = await this.d.ports.shell.openPath(this.logDir);
         if (err) throw new Error(err);
         return true;
       },
@@ -190,15 +195,4 @@ export class DiagnosticsService {
     const dev = process.env.NODE_ENV === 'development';
     this.d.logger.setLevel(this.enabled() || dev ? LogLevel.DEBUG : LogLevel.INFO);
   }
-}
-
-async function pickSavePath(defaultName: string): Promise<string | null> {
-  const win = BrowserWindow.getFocusedWindow();
-  const opts = {
-    title: t('electron.common.export-diagnostics-bundle'),
-    defaultPath: defaultName,
-    filters: [{ name: 'Zip', extensions: ['zip'] }],
-  };
-  const r = win ? await dialog.showSaveDialog(win, opts) : await dialog.showSaveDialog(opts);
-  return r.canceled || !r.filePath ? null : r.filePath;
 }

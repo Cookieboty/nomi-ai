@@ -7,9 +7,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { BrowserWindow } from 'electron';
-
 import { broadcastMascotCommand } from '../ai/mascotCommand';
+import type { AppEvents } from '../core/appEvents';
 import type { DesktopNotice, DesktopService } from '../desktop/DesktopService';
 import { t as tr } from '../i18n';
 import { guardedHandle } from '../security/guardedIpc';
@@ -136,6 +135,8 @@ interface Candidate {
 type Deps = {
   root: string;
   logger: Logger;
+  /** 进度变化通知界面（ai:agents:changed） */
+  events: AppEvents;
   desktop: DesktopService;
   home?: string;
   now?: () => number;
@@ -940,10 +941,7 @@ export class AgentProgressService {
   }
 
   private broadcast() {
-    for (const w of BrowserWindow.getAllWindows()) {
-      if (w.isDestroyed()) continue;
-      w.webContents.send('ai:agents:changed', null);
-    }
+    this.d.events.publish('ai:agents:changed', null);
   }
 
   start(): void {

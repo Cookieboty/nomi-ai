@@ -16,8 +16,8 @@ import path from 'node:path';
 
 import { claude, codex, gemini, grok, terminalLine } from '@nomi-ai/cli-plugins/main';
 import type { TerminalCapability } from '@nomi-ai/cli-sdk';
-import { BrowserWindow } from 'electron';
 
+import type { AppEvents } from '../../core/appEvents';
 import { t } from '../../i18n';
 import { guardedHandle } from '../../security/guardedIpc';
 import { runLimited, STDOUT_LIMIT } from '../../usage/limitedProcess';
@@ -113,6 +113,8 @@ export class AccountService {
     private readonly d: {
       root: string;
       logger: Logger;
+      /** 账号列表变化通知界面（ai:cli-account:changed） */
+      events: AppEvents;
       env?: NodeJS.ProcessEnv;
       home?: string;
       platform?: NodeJS.Platform;
@@ -665,8 +667,7 @@ export class AccountService {
 
   /** 通知各窗口刷新账号列表（不带任何数据） */
   broadcastChanged(): void {
-    for (const w of BrowserWindow.getAllWindows())
-      if (!w.isDestroyed()) w.webContents.send('ai:cli-account:changed', null);
+    this.d.events.publish('ai:cli-account:changed', null);
   }
 
   registerIpc(): void {

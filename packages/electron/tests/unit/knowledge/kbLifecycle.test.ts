@@ -8,11 +8,11 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { KnowledgeService } from '../../../src/knowledge/KnowledgeService';
+import { featureDeps } from '../helpers/featureHost';
 
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
   ipcMain: { removeHandler: () => undefined, handle: () => undefined },
-  dialog: { showOpenDialog: async () => ({ canceled: true, filePaths: [] }) },
 }));
 
 function make() {
@@ -26,6 +26,7 @@ function make() {
     credentials: () => null,
     chatProvider: () => null,
     complete: async () => '',
+    ...featureDeps(),
   } as never);
   const reindex = jest
     .spyOn(svc as never, 'reindex' as never)

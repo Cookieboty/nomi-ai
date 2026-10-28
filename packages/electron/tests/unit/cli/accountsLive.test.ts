@@ -22,6 +22,7 @@ import { AccountService } from '../../../src/cli/accounts/AccountService';
 import { mapCodexAccount, readCodexAccount } from '../../../src/cli/accounts/codexAccount';
 import { codexIdentity } from '../../../src/cli/accounts/identity';
 import { liveProcesses, type LiveCheck } from '../../../src/cli/accounts/liveProcesses';
+import { createRecordingAppEvents } from '../../../src/core/appEvents';
 import { fakeServer, type Handler } from '../usage/fakeCodexServer';
 
 const tmp = (p: string) => fs.mkdtempSync(path.join(os.tmpdir(), p));
@@ -95,6 +96,7 @@ function mkService(live: LiveCheck, codexAccount?: jest.Mock) {
   fs.mkdirSync(path.join(home, '.claude'), { recursive: true });
   fs.mkdirSync(path.join(home, '.codex'), { recursive: true });
   return new AccountService({
+    events: createRecordingAppEvents(),
     root,
     logger: { info() {}, warn() {} },
     env: { USER: 'tester', PATH: process.env.PATH } as NodeJS.ProcessEnv,

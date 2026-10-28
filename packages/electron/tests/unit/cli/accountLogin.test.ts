@@ -7,12 +7,9 @@ jest.unmock('path');
 jest.unmock('node:fs');
 jest.unmock('node:path');
 
+// 只剩 guardedIpc 还要 ipcMain；打开链接与广播经假端口 / 事件
 jest.mock('electron', () => ({
-  app: { getPath: () => '/tmp' },
-  BrowserWindow: { getAllWindows: () => [] },
-  shell: { openExternal: jest.fn() },
   ipcMain: { handle: jest.fn(), removeHandler: jest.fn() },
-  dialog: {},
 }));
 
 import fs from 'node:fs';
@@ -22,11 +19,14 @@ import path from 'node:path';
 import {
   AccountLogin,
   isLoginUrl,
+  LOGIN_EVENT_CHANNEL,
+  loginBroadcaster,
   parseLoginOutput,
   tightenTree,
   type LoginEvent,
 } from '../../../src/cli/accounts/AccountLogin';
 import { AccountService } from '../../../src/cli/accounts/AccountService';
+import { createRecordingAppEvents } from '../../../src/core/appEvents';
 
 const mock = (n: string) => path.resolve(__dirname, '../../../scripts/mock-cli', `mock-${n}.mjs`);
 
@@ -60,6 +60,16 @@ describe('parseLoginOutput（真机输出，码已脱敏）', () => {
     expect(isLoginUrl('http://auth.openai.com/x')).toBe(false);
     expect(isLoginUrl('https://auth.openai.com.evil.com/x')).toBe(false);
     expect(isLoginUrl('file:///etc/passwd')).toBe(false);
+  });
+
+  it('登录进度经事件总线发给所有窗口（ai:cli-account:login）', () => {
+    const events = createRecordingAppEvents();
+    const e: LoginEvent = { id: 'l1', kind: 'codex', state: 'waiting', code: 'ABCD' };
+    loginBroadcaster(events)(e);
+    expect(events.published).toEqual([
+      { channel: LOGIN_EVENT_CHANNEL, payload: e, surfaces: null },
+    ]);
+    expect(LOGIN_EVENT_CHANNEL).toBe('ai:cli-account:login');
   });
 });
 
@@ -97,6 +107,7 @@ describe('AccountLogin（在账号目录里走 CLI 自己的登录，§5.10）',
     const home = fs.mkdtempSync(path.join(os.tmpdir(), 'login-home-'));
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'login-root-'));
     const accounts = new AccountService({
+      events: createRecordingAppEvents(),
       root,
       logger: { info() {}, warn() {} },
       home,
@@ -124,6 +135,9 @@ describe('AccountLogin（在账号目录里走 CLI 自己的登录，§5.10）',
         opts.onEvent?.(e, login);
       },
       logger: { warn() {} },
+      ports: {
+        shell: { openExternal: jest.fn(), openPath: jest.fn(), showItemInFolder: jest.fn() },
+      },
       ...(opts.timeoutMs ? { timeoutMs: opts.timeoutMs } : {}),
     });
     logins.push(login);

@@ -12,6 +12,7 @@ import { runWithToolCaller } from '@nomi-ai/bundle-ig-base';
 
 import { HarnessStoppedError } from '../../../src/cli/CliHarnessService';
 import { DelegateService, untrusted } from '../../../src/cli/delegate/DelegateService';
+import { createRecordingAppEvents } from '../../../src/core/appEvents';
 import { __setSpawnSyncForTest, whenPrivateWritesIdle } from '../../../src/utils/privateFile';
 
 jest.mock('electron', () => ({
@@ -105,7 +106,9 @@ function setup(
       checkSend: async () => (o.localOnlyBlocks ? 'local_only' : null),
     },
   };
+  const events = createRecordingAppEvents();
   const svc = new DelegateService({
+    events,
     root,
     harness: harness as never,
     desktop: desktop as never,
@@ -128,6 +131,7 @@ function setup(
     }>;
   return {
     svc,
+    events,
     run,
     created,
     cancelled,
@@ -372,7 +376,12 @@ describe('DelegateService · delegate_to_cli', () => {
         checkSend: async () => null,
       },
     };
-    const svc = new DelegateService({ root, harness: harness as never, desktop: desktop as never });
+    const svc = new DelegateService({
+      events: createRecordingAppEvents(),
+      root,
+      harness: harness as never,
+      desktop: desktop as never,
+    });
     const tool = svc.tools()[0]!;
     const r = (await tool.execute({ goal: 'x', done_when: 'y' }, { signal: ac.signal })) as {
       ok: boolean;
@@ -458,6 +467,10 @@ describe('DelegateService · P2 异步委派', () => {
     expect(done?.status).toBe('done');
     expect(String(done?.report?.done)).toContain('修好了登录');
     expect(String(done?.report?.done)).toContain('<cli-output>');
+    // 完成通知经事件总线发给所有窗口（原来遍历 BrowserWindow.getAllWindows()）
+    const completed = s.events.published.filter((e) => e.channel === 'ai:delegate:completed');
+    expect(completed).toHaveLength(1);
+    expect(completed[0]).toMatchObject({ payload: { taskId: 't1' }, surfaces: null });
   });
 
   it('默认（不传 background）即异步', async () => {
@@ -622,6 +635,7 @@ describe('DelegateService · P2 异步委派', () => {
       await whenPrivateWritesIdle();
 
       const restored = new DelegateService({
+        events: createRecordingAppEvents(),
         root: s.root,
         harness: s.harness as never,
         desktop: s.desktop as never,
@@ -653,6 +667,7 @@ describe('DelegateService · P2 异步委派', () => {
         ]),
       );
       const restored = new DelegateService({
+        events: createRecordingAppEvents(),
         root: s.root,
         harness: s.harness as never,
         desktop: s.desktop as never,

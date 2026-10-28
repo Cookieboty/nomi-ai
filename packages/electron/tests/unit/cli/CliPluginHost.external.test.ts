@@ -21,6 +21,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { CliPluginHost } from '../../../src/cli/CliPluginHost';
+import { createRecordingAppEvents } from '../../../src/core/appEvents';
 
 const mockAcp = path.resolve(__dirname, '../../../scripts/mock-cli/mock-acp.mjs');
 const logger = { info: jest.fn(), warn: jest.fn() };
@@ -47,7 +48,7 @@ function mk() {
     spawnExternal: (command, args, cwd) =>
       spawn(process.execPath, [command, ...args], { cwd, env: { ...process.env } }),
     onExternalRemoved: (id) => removed.push(id),
-    broadcast: (_ch, p) => broadcasts.push(p),
+    events: { publish: (_ch, p) => broadcasts.push(p) },
   });
   return { host, root, removed, broadcasts };
 }
@@ -87,7 +88,7 @@ describe('CliPluginHost 外部插件（§5.9）', () => {
       path.join(root, 'external', 'evil.json'),
       JSON.stringify(spec({ id: 'evil', env: ['TOKEN=abc'] })),
     );
-    const again = new CliPluginHost({ root, logger });
+    const again = new CliPluginHost({ root, logger, events: createRecordingAppEvents() });
     await again.start();
     const byId = Object.fromEntries(again.snapshot().plugins.map((p) => [p.id, p]));
     expect(byId['my-agent']?.status).toBe('ready');

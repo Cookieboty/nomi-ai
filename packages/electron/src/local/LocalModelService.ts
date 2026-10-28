@@ -12,9 +12,8 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 
-import { BrowserWindow } from 'electron';
-
 import { broadcastMascotCommand } from '../ai/mascotCommand';
+import type { AppEvents } from '../core/appEvents';
 import type { DesktopService } from '../desktop/DesktopService';
 import { t as tr } from '../i18n';
 import { guardedHandle } from '../security/guardedIpc';
@@ -58,6 +57,8 @@ export interface LocalDeps {
   /** GatewayStore 是唯一供应商来源；本机 llama.cpp 只登记到网关 */
   gateway: () => GatewayLike | null;
   fetchImpl?: typeof fetch;
+  /** 通知界面（`ai:local:*` 发给所有窗口） */
+  events: AppEvents;
 }
 
 interface Settings {
@@ -122,7 +123,7 @@ export class LocalModelService {
     fs.writeFileSync(this.settingsFile, JSON.stringify(this.settings, null, 2));
   }
   private broadcast(ch: string, p: unknown) {
-    for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.webContents.send(ch, p);
+    this.d.events.publish(ch, p);
   }
   private changed() {
     this.broadcast('ai:local:changed', null);

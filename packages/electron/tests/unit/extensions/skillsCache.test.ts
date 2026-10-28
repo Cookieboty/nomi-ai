@@ -19,6 +19,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { ExtensionsService } from '../../../src/extensions/ExtensionsService';
+import { featureDeps } from '../helpers/featureHost';
 
 let ud = '';
 beforeEach(() => {
@@ -35,6 +36,7 @@ const make = () =>
     skillsRoot: path.join(ud, 'skills'),
     logger: { info() {}, warn() {}, error() {} } as never,
     desktop: { audit: { append: jest.fn() } } as never,
+    ...featureDeps(),
   });
 
 const md = (name: string, desc: string) =>

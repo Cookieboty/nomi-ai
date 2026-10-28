@@ -5,7 +5,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { dialog } from 'electron';
+import type { HostPorts } from '@nomi-ai/host-ports';
 import { zipSync, strToU8 } from 'fflate';
 
 import { broadcastMascotCommand } from '../ai/mascotCommand';
@@ -24,6 +24,8 @@ export interface HubDeps {
   userData: string;
   logger: Logger;
   desktop: DesktopService;
+  /** 导出时选保存位置 */
+  ports: Pick<HostPorts, 'dialogs'>;
 }
 
 export class LocalHubService {
@@ -54,13 +56,13 @@ export class LocalHubService {
   // ───────────── 导出 ─────────────
   /** 打包 userData 下的本地数据（不含模型、索引、缓存；密钥类文件只导出脱敏版本） */
   async exportAll(opts: { conversations?: unknown; include?: string[] } = {}) {
-    const r = await dialog.showSaveDialog({
+    const file = await this.d.ports.dialogs.saveFile({
       title: tr('electron.common.export-all-local-data'),
       defaultPath: `nomi-export-${new Date().toISOString().slice(0, 10)}.zip`,
       filters: [{ name: 'Zip', extensions: ['zip'] }],
     });
-    if (r.canceled || !r.filePath) return null;
-    return this.exportTo(r.filePath, opts);
+    if (!file) return null;
+    return this.exportTo(file, opts);
   }
   exportTo(file: string, opts: { conversations?: unknown; include?: string[] } = {}) {
     const files: Record<string, Uint8Array> = {};

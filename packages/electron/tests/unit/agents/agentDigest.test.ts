@@ -28,6 +28,7 @@ import {
   type EndpointFinished,
   type WatchedTab,
 } from '../../../src/agents/AgentProgressService';
+import { createRecordingAppEvents } from '../../../src/core/appEvents';
 import { fakeDesktop } from '../helpers/fakeDesktop';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'cd-agents-digest-'));
@@ -61,6 +62,7 @@ describe('编程助手：开始不打扰 + 每 10 分钟汇总 + 总结播报', 
     if (Object.keys(settings).length)
       fs.writeFileSync(path.join(root, 'settings.json'), JSON.stringify(settings));
     const svc = new AgentProgressService({
+      events: createRecordingAppEvents(),
       root,
       home,
       dshHome: path.join(home, '.dsh'),

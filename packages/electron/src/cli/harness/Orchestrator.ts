@@ -50,8 +50,8 @@ import {
   type ExternalCliSpec,
   type TurnResult,
 } from '@nomi-ai/cli-sdk';
+import type { HostPorts } from '@nomi-ai/host-ports';
 import type { QualityOutcome, QualityRecord } from '@nomi-ai/types';
-import { BrowserWindow, dialog } from 'electron';
 
 import { t } from '../../i18n';
 import { guardedHandle } from '../../security/guardedIpc';
@@ -435,6 +435,13 @@ export class HarnessOrchestrator {
        * 记录出错不影响这一轮。
        */
       quality?: { addCli(record: QualityRecord): void };
+      /** 工作目录选择器（宿主的 dialogs 端口）；缺省（测试）时选择器按「取消」处理 */
+      ports?: Pick<HostPorts, 'dialogs'>;
+      /**
+       * 应用是否有窗口在前台（任一窗口获得焦点）：决定一轮结束算不算「后台完成」（未读 / 通知）。
+       * 缺省（测试）为 false，与没有窗口时一致。
+       */
+      isAppFocused?: () => boolean;
       /** 长驻 CLI 进程空闲多久后回收（毫秒，0 = 不回收）；缺省读 NOMI_HARNESS_IDLE_MS，再缺省 30 分钟 */
       idleReclaimMs?: number;
       /** Gemini 一轮多久没有任何动静就判定卡死并取消（毫秒）；缺省 GEMINI_PROMPT_IDLE_MS */
@@ -599,13 +606,27 @@ export class HarnessOrchestrator {
 
   /** 原生文件夹选择器（不绑定到任何标签），取消返回 null */
   async pickDirectory(defaultPath?: string): Promise<string | null> {
-    const r = await dialog.showOpenDialog({
+    return this.showDirectoryPicker(defaultPath);
+  }
+
+  /** 不挂父窗口的文件夹选择器（允许新建文件夹）；取消返回 null */
+  private async showDirectoryPicker(defaultPath?: string): Promise<string | null> {
+    const dialogs = this.d.ports?.dialogs;
+    if (!dialogs) return null;
+    return dialogs.pickDirectory({
       title: t('electron.common.choose-coding-assistant-working-directory'),
-      properties: ['openDirectory', 'createDirectory'],
+      createDirectory: true,
       ...(defaultPath ? { defaultPath } : {}),
     });
-    if (r.canceled || !r.filePaths[0]) return null;
-    return r.filePaths[0];
+  }
+
+  /** 应用是否在前台（见 isAppFocused）；读不到按不在前台 */
+  private appFocused(): boolean {
+    try {
+      return this.d.isAppFocused?.() ?? false;
+    } catch {
+      return false;
+    }
   }
 
   // ───────────────────────── 持久化 ─────────────────────────
@@ -2318,13 +2339,9 @@ export class HarnessOrchestrator {
 
   async pickTabCwd(id: string): Promise<HarnessTabMeta> {
     const tab = this.requireTab(id);
-    const r = await dialog.showOpenDialog({
-      title: t('electron.common.choose-coding-assistant-working-directory'),
-      properties: ['openDirectory', 'createDirectory'],
-      defaultPath: tab.cwd,
-    });
-    if (r.canceled || !r.filePaths[0]) return { ...tab };
-    return this.setTabCwd(id, r.filePaths[0]);
+    const picked = await this.showDirectoryPicker(tab.cwd);
+    if (!picked) return { ...tab };
+    return this.setTabCwd(id, picked);
   }
 
   /**
@@ -2759,7 +2776,7 @@ export class HarnessOrchestrator {
 
   private finish(tab: HarnessTabMeta, ok: boolean, text: string, error?: string) {
     this.progress.delete(tab.id);
-    const background = this.activeTabId !== tab.id || !anyWindowFocused();
+    const background = this.activeTabId !== tab.id || !this.appFocused();
     if (background && tab.id !== MAIN_TAB_ID) tab.unread += 1;
     this.changed();
     const ev: HarnessTabFinished = {
@@ -2798,7 +2815,7 @@ export class HarnessOrchestrator {
       title: tab.title,
       backend: tab.backend,
       summary: ev.summary,
-      background: this.activeTabId !== tab.id || !anyWindowFocused(),
+      background: this.activeTabId !== tab.id || !this.appFocused(),
     });
   }
 
@@ -3149,7 +3166,7 @@ export class HarnessOrchestrator {
                 : ev.agent
                   ? t('electron.common.subagent', ev.agent, ev.summary)
                   : ev.summary,
-            background: this.activeTabId !== tabId || !anyWindowFocused(),
+            background: this.activeTabId !== tabId || !this.appFocused(),
           });
         if (ev.kind === 'approve-plan') notify();
         else this.allowIfBypass(tabId, ev.id, notify);
@@ -3464,7 +3481,7 @@ export class HarnessOrchestrator {
             title: tab?.title ?? acpDisplayName(live.backend),
             backend: live.backend as HarnessBackend,
             summary: ev.summary,
-            background: this.activeTabId !== tabId || !anyWindowFocused(),
+            background: this.activeTabId !== tabId || !this.appFocused(),
           });
         if (ev.kind === 'approve-plan') notify();
         else this.allowIfBypass(tabId, ev.id, notify);
@@ -4236,7 +4253,7 @@ export class HarnessOrchestrator {
             title: tab?.title ?? 'Codex',
             backend: 'codex' as HarnessBackend,
             summary: ev.summary,
-            background: this.activeTabId !== tabId || !anyWindowFocused(),
+            background: this.activeTabId !== tabId || !this.appFocused(),
           });
         if (ev.kind === 'approve-plan') notify();
         else this.allowIfBypass(tabId, ev.id, notify);
@@ -4565,7 +4582,7 @@ export class HarnessOrchestrator {
             title: tab.title,
             backend: tab.backend,
             summary: ev.summary,
-            background: this.activeTabId !== tab.id || !anyWindowFocused(),
+            background: this.activeTabId !== tab.id || !this.appFocused(),
           });
         if (ev.kind === 'approve-plan') notify();
         else this.allowIfBypass(tab.id, ev.id, notify);
@@ -5416,14 +5433,6 @@ function validDir(cwd: string): string {
     throw new Error(t('electron.common.invalid-working-directory'));
   }
   return abs;
-}
-
-function anyWindowFocused(): boolean {
-  try {
-    return BrowserWindow.getAllWindows().some((w) => w.isFocused?.());
-  } catch {
-    return false;
-  }
 }
 
 function asSlashBackend(b: unknown): SlashBackend {

@@ -21,6 +21,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
+import { createRecordingAppEvents } from '../../../src/core/appEvents';
 import { AppTrash } from '../../../src/desktop/AppTrash';
 import { AuditLog } from '../../../src/desktop/AuditLog';
 import { DesktopService } from '../../../src/desktop/DesktopService';
@@ -29,6 +30,8 @@ import { PermissionBroker, type ConfirmRequest } from '../../../src/desktop/Perm
 import { createDesktopTools, type ProviderInfo } from '../../../src/desktop/tools';
 import { UndoJournal } from '../../../src/desktop/UndoJournal';
 import { KnowledgeService } from '../../../src/knowledge/KnowledgeService';
+import { fakeHostPorts } from '../helpers/fakeHostPorts';
+import { featureDeps } from '../helpers/featureHost';
 
 type Role = 'chat' | 'agent-tools' | 'summary';
 type R = { ok: boolean; data?: Record<string, unknown>; error?: { code: string } };
@@ -174,12 +177,14 @@ describe('工具按实际接收者校验（#17）', () => {
 describe('知识库 kb_search（#17）', () => {
   function kb(routes: Record<Role, ProviderInfo>) {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-route-'));
-    const desktop = new DesktopService(path.join(root, 'desktop'), {
-      info() {},
-      warn() {},
-      error() {},
-      debug() {},
-    } as never);
+    const desktop = new DesktopService(
+      path.join(root, 'desktop'),
+      { info() {}, warn() {}, error() {}, debug() {} } as never,
+      {
+        ports: fakeHostPorts({ userData: '/tmp', home: '/tmp' }),
+        events: createRecordingAppEvents(),
+      },
+    );
     desktop.attachRuntime({
       complete: async () => '',
       resolveProvider: (r) => ({
@@ -197,6 +202,7 @@ describe('知识库 kb_search（#17）', () => {
       credentials: () => null,
       chatProvider: () => null,
       complete: async () => '',
+      ...featureDeps(),
     } as never);
     const search = jest.spyOn(svc as never, 'search' as never).mockResolvedValue({
       hits: [{ title: 'doc', text: 'KB SNIPPET', path: '/x' }],

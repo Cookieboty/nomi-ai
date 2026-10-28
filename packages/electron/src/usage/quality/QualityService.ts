@@ -6,6 +6,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import type { HostPorts } from '@nomi-ai/host-ports';
 import {
   QUALITY_IPC,
   type QualityDimension,
@@ -23,8 +24,8 @@ import {
   type QualityStats,
   type QualityTokens,
 } from '@nomi-ai/types';
-import { BrowserWindow, dialog } from 'electron';
 
+import type { AppEvents } from '../../core/appEvents';
 import { t } from '../../i18n';
 import { guardedHandle } from '../../security/guardedIpc';
 import { writePrivateFile } from '../../utils/privateFile';
@@ -92,9 +93,10 @@ export interface QualityServiceDeps {
   now?: () => number;
   /** 写盘攒批（ms），默认 500；0 = 立即写（测试） */
   flushMs?: number;
-  broadcast?: (channel: string, payload: unknown) => void;
-  /** 测试注入：导出时的保存路径（不弹对话框） */
-  pickSavePath?: (defaultName: string) => Promise<string | null>;
+  /** 数据变化通知界面（ai:quality:changed） */
+  events: AppEvents;
+  /** 导出 CSV 的保存对话框 */
+  ports: Pick<HostPorts, 'dialogs'>;
 }
 
 export class QualityService {
@@ -360,7 +362,7 @@ export class QualityService {
       rows = items.length;
       name = `nomi-requests-${stamp}.csv`;
     }
-    const file = await (this.d.pickSavePath ?? pickSavePath)(name);
+    const file = await pickSavePath(this.d.ports, name);
     if (!file) return { ok: false, rows };
     writePrivateFile(file, csv);
     return { ok: true, path: file, rows };
@@ -372,12 +374,7 @@ export class QualityService {
     if (this.broadcastTimer) return;
     this.broadcastTimer = setTimeout(() => {
       this.broadcastTimer = null;
-      if (this.d.broadcast) {
-        this.d.broadcast(QUALITY_IPC.changed, null);
-        return;
-      }
-      for (const w of BrowserWindow.getAllWindows())
-        if (!w.isDestroyed()) w.webContents.send(QUALITY_IPC.changed, null);
+      this.d.events.publish(QUALITY_IPC.changed, null);
     }, BROADCAST_MS);
     (this.broadcastTimer as { unref?: () => void }).unref?.();
   }
@@ -407,15 +404,17 @@ export class QualityService {
   }
 }
 
-async function pickSavePath(defaultName: string): Promise<string | null> {
-  const win = BrowserWindow.getFocusedWindow();
-  const opts = {
+/** 保存对话框挂在当前获得焦点的窗口上（没有时独立弹出），取消返回 null */
+function pickSavePath(
+  ports: Pick<HostPorts, 'dialogs'>,
+  defaultName: string,
+): Promise<string | null> {
+  return ports.dialogs.saveFile({
     title: t('electron.common.export-csv'),
     defaultPath: defaultName,
     filters: [{ name: 'CSV', extensions: ['csv'] }],
-  };
-  const r = win ? await dialog.showSaveDialog(win, opts) : await dialog.showSaveDialog(opts);
-  return r.canceled || !r.filePath ? null : r.filePath;
+    parent: 'focused',
+  });
 }
 
 let inst: QualityService | null = null;

@@ -43,6 +43,7 @@ import {
   nomiSkillName,
   readConfigFile,
 } from '../../../src/extensions/migrate';
+import { featureDeps } from '../helpers/featureHost';
 
 const SECRET = 'sk-ant-TESTSECRET0123456789abcdef';
 let tmp: string;
@@ -356,7 +357,7 @@ describe('ExtensionsService migrate', () => {
       desktop: { audit: { append: jest.fn() } } as never,
       home: () => home,
       env: () => env,
-      pickDir: async () => pick,
+      ...featureDeps({ pickDirectory: [pick] }),
     });
   }
   const mcpFile = () => fs.readFileSync(path.join(ud, 'extensions', 'mcp.json'), 'utf8');

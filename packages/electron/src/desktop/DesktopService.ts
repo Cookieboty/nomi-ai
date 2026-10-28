@@ -2,18 +2,14 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 import type { ToolCallProvider, ToolDefinition } from '@nomi-ai/bundle-ig-base';
+import type { HostPorts } from '@nomi-ai/host-ports';
 import type { DesktopBubble } from '@nomi-ai/types';
-import {
-  app,
-  BrowserWindow,
-  clipboard,
-  dialog,
-  ipcMain,
-  Notification,
-  type IpcMainInvokeEvent,
-} from 'electron';
+// 仍需 electron 的部分：旧 IPC 注册层（ipcMain，P1 由契约传输层取代）、系统通知（host-ports 还没有
+// notifications 端口）、看板娘窗口对象（显示 / 隐藏 / 按 sender 校验）与窗口数量。
+import { BrowserWindow, ipcMain, Notification, type IpcMainInvokeEvent } from 'electron';
 
 import { broadcastMascotCommand } from '../ai/mascotCommand';
+import type { AppEvents } from '../core/appEvents';
 import { iconImage } from '../core/appIcon';
 import { t as tr } from '../i18n';
 import { notifyIsland, type IslandKind, type IslandNotice } from '../island/IslandService';
@@ -70,6 +66,16 @@ export interface DesktopWindows {
   mascotHidden?(): boolean;
 }
 
+/** 平台能力：home / userData 路径、文件夹选择器、剪贴板 */
+export type DesktopPorts = Pick<HostPorts, 'paths' | 'dialogs' | 'clipboard'>;
+
+export interface DesktopServiceOptions {
+  ports: DesktopPorts;
+  /** 状态变化广播给所有窗口 */
+  events: AppEvents;
+  denyRoots?: string[];
+}
+
 export const DESKTOP_CHANGED = 'ai:desktop:changed';
 export const DESKTOP_SUMMARY = 'ai:desktop:summary';
 export const DESKTOP_OPEN_PANEL = 'ai:desktop:open-panel';
@@ -94,14 +100,18 @@ export class DesktopService {
   private windows: DesktopWindows | null = null;
   private toolDefs: ToolDefinition[] | null = null;
   private ipcRegistered = false;
+  private readonly ports: DesktopPorts;
+  private readonly events: AppEvents;
 
   constructor(
     private readonly root: string,
     private readonly logger: Logger,
-    opts: { denyRoots?: string[] } = {},
+    opts: DesktopServiceOptions,
   ) {
+    this.ports = opts.ports;
+    this.events = opts.events;
     this.broker = new PermissionBroker(path.join(root, 'settings.json'), {
-      home: app.getPath('home'),
+      home: this.ports.paths.home(),
       platform: process.platform,
       realpath: (p) => fs.promises.realpath(p),
       denyRoots: opts.denyRoots ?? [],
@@ -153,8 +163,7 @@ export class DesktopService {
   }
 
   private broadcast(ch: string, payload: unknown): void {
-    for (const w of BrowserWindow.getAllWindows())
-      if (!w.isDestroyed()) w.webContents.send(ch, payload);
+    this.events.publish(ch, payload);
   }
 
   private sendConfirm(req: ConfirmRequest): void {
@@ -403,19 +412,16 @@ export class DesktopService {
   }
 
   async pickFolder(suggested?: string): Promise<string | null> {
-    const parent = this.windows ? BrowserWindow.getFocusedWindow() : null;
-    const opts: Electron.OpenDialogOptions = {
+    return this.ports.dialogs.pickDirectory({
       title: tr('electron.common.grant-nomi-access-to-this-folder'),
       buttonLabel: tr('electron.common.grant'),
-      properties: ['openDirectory', 'createDirectory'],
+      createDirectory: true,
+      // 挂到当前焦点窗口（窗口还没接上时独立弹出）
+      parent: this.windows ? 'focused' : 'none',
       ...(suggested
-        ? { defaultPath: suggested.replace(/^~(?=$|[\\/])/, app.getPath('home')) }
+        ? { defaultPath: suggested.replace(/^~(?=$|[\\/])/, this.ports.paths.home()) }
         : {}),
-    };
-    const r = parent
-      ? await dialog.showOpenDialog(parent, opts)
-      : await dialog.showOpenDialog(opts);
-    return r.canceled || !r.filePaths[0] ? null : r.filePaths[0];
+    });
   }
 
   tools(): ToolDefinition[] {
@@ -432,8 +438,8 @@ export class DesktopService {
       p2: {
         reminders: this.reminders,
         clipboard: {
-          readText: () => clipboard.readText(),
-          writeText: (t) => clipboard.writeText(t),
+          readText: () => this.ports.clipboard.readText(),
+          writeText: (t) => void this.ports.clipboard.writeText(t),
         },
         say: (t) => this.say(t),
       },
@@ -481,7 +487,7 @@ export class DesktopService {
       raw,
       {
         scopes: [{ id: 'probe', path: raw, mode: 'read', kind: 'file', grantedAt: Date.now() }],
-        home: app.getPath('home'),
+        home: this.ports.paths.home(),
         platform: process.platform,
         realpath: (p) => fs.promises.realpath(p),
       },
@@ -732,10 +738,16 @@ export class DesktopService {
 
 let instance: DesktopService | null = null;
 
-export function getDesktopService(logger?: Logger): DesktopService {
+/** 第一次调用（组合根）要传 ports / events；之后的调用直接拿单例 */
+export function getDesktopService(
+  logger?: Logger,
+  deps?: Pick<DesktopServiceOptions, 'ports' | 'events'>,
+): DesktopService {
   if (!instance) {
-    const userData = app.getPath('userData');
+    if (!deps) throw new Error('DesktopService requires host ports on first call');
+    const userData = deps.ports.paths.userData();
     instance = new DesktopService(path.join(userData, 'desktop'), logger ?? console, {
+      ...deps,
       // 应用自己的数据目录（provider key、对话记录、模型…）永远不对工具开放
       denyRoots: [userData],
     });

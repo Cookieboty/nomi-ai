@@ -5,19 +5,20 @@ jest.unmock('fs');
 jest.unmock('path');
 jest.unmock('node:fs');
 jest.unmock('node:path');
+// 只剩 guardedIpc 还要 ipcMain；保存对话框与广播都经假端口 / 事件
 jest.mock('electron', () => ({
-  BrowserWindow: { getAllWindows: () => [], getFocusedWindow: () => null },
   ipcMain: { handle: jest.fn(), removeHandler: jest.fn() },
-  dialog: { showSaveDialog: jest.fn() },
 }));
 
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import type { DialogsPort, SaveFileOptions } from '@nomi-ai/host-ports';
 import { QUALITY_IPC } from '@nomi-ai/types';
 import { ipcMain } from 'electron';
 
+import { createRecordingAppEvents } from '../../../src/core/appEvents';
 import { GatewayRequestLog } from '../../../src/usage/GatewayRequestLog';
 import { QualityService } from '../../../src/usage/quality/QualityService';
 
@@ -40,6 +41,15 @@ const ev = (o: Record<string, unknown> = {}) => ({
   ...o,
 });
 
+/** 保存对话框的假端口：直接返回 file（null = 取消），记下调用参数 */
+function savingTo(file: string | null) {
+  const saveFile = jest.fn(async (_opts?: SaveFileOptions) => file);
+  return { dialogs: { saveFile } as unknown as DialogsPort };
+}
+
+/** 不关心广播与导出的用例 */
+const quiet = () => ({ events: createRecordingAppEvents(), ports: savingTo(null) });
+
 function make(o: { enabled?: boolean; dir?: string } = {}) {
   const state = { enabled: o.enabled ?? true };
   const broadcast = jest.fn();
@@ -51,7 +61,8 @@ function make(o: { enabled?: boolean; dir?: string } = {}) {
     enabled: () => state.enabled,
     cost: (model) => (model === 'p1/m' || model === 'm' ? 0.5 : undefined),
     labelOf: (dim, key) => (dim === 'provider' && key === 'p1' ? 'Provider One' : undefined),
-    broadcast,
+    events: { publish: broadcast },
+    ports: savingTo(null),
   });
   return { svc, state, broadcast };
 }
@@ -154,12 +165,14 @@ describe('QualityService', () => {
 
   it('导出 CSV：请求明细 / 分组表，0600，带 BOM；取消保存返回 ok:false', async () => {
     const out = path.join(tmp(), 'q.csv');
+    const ports = savingTo(out);
     const svc = new QualityService({
       dir: tmp(),
       logger,
       now: () => NOW,
       flushMs: 0,
-      pickSavePath: async () => out,
+      events: createRecordingAppEvents(),
+      ports,
     });
     svc.addGateway(ev({ error: '=cmd()', status: 500 }));
     svc.addGateway(ev());
@@ -168,6 +181,14 @@ describe('QualityService', () => {
       query: { from: NOW - 3600_000, to: NOW + 1, limit: 10 },
     });
     expect(r).toEqual({ ok: true, path: out, rows: 2 });
+    // 保存对话框挂在获得焦点的窗口上，只给 CSV
+    expect(ports.dialogs.saveFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        defaultPath: expect.stringMatching(/^nomi-requests-.*\.csv$/),
+        filters: [{ name: 'CSV', extensions: ['csv'] }],
+        parent: 'focused',
+      }),
+    );
     const text = fs.readFileSync(out, 'utf8');
     expect(text.startsWith('\uFEFFtime,layer,client')).toBe(true);
     // 以 = 开头的文本不会被表格软件当公式
@@ -183,7 +204,8 @@ describe('QualityService', () => {
       dir: tmp(),
       logger,
       flushMs: 0,
-      pickSavePath: async () => null,
+      events: createRecordingAppEvents(),
+      ports: savingTo(null),
     });
     expect(await none.exportCsv({ kind: 'requests', query: {} })).toEqual({ ok: false, rows: 0 });
   });
@@ -219,7 +241,7 @@ describe('「最近请求」迁移到模型质量账本', () => {
         ],
       }),
     );
-    const q = new QualityService({ dir: qDir, logger, now: () => NOW, flushMs: 0 });
+    const q = new QualityService({ dir: qDir, logger, now: () => NOW, flushMs: 0, ...quiet() });
     const log = new GatewayRequestLog({
       root: gwRoot,
       logger,
@@ -250,7 +272,13 @@ describe('「最近请求」迁移到模型质量账本', () => {
 
   it('importLegacy throws when flushSync fails so source file is kept (#127)', () => {
     const qDir = tmp();
-    const q = new QualityService({ dir: qDir, logger, now: () => NOW, flushMs: 60_000 });
+    const q = new QualityService({
+      dir: qDir,
+      logger,
+      now: () => NOW,
+      flushMs: 60_000,
+      ...quiet(),
+    });
     const ledger = (q as unknown as { ledger: { flushSync: () => boolean } }).ledger;
     jest.spyOn(ledger, 'flushSync').mockReturnValue(false);
     expect(() =>

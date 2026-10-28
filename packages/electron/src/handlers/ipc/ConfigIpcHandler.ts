@@ -3,6 +3,7 @@
  * 处理应用配置、模型配置等相关的IPC通信
  */
 
+import type { HostPorts } from '@nomi-ai/host-ports';
 import {
   type TTSConfig,
   type TTSPreviewRequest,
@@ -10,7 +11,6 @@ import {
   type TTSSpeakResult,
   type TTSTestResult,
 } from '@nomi-ai/types';
-import { app } from 'electron';
 
 import { broadcastMascotCommand } from '../../ai/mascotCommand';
 import { t } from '../../i18n';
@@ -19,17 +19,22 @@ import { type ILoggerService } from '../../services/LoggerService';
 import { EdgeTtsService } from '../../tts/edge/EdgeTtsService';
 import { BUILTIN_ZH_VOICES, listChineseVoices } from '../../tts/edge/edgeVoices';
 import { replySpeechCommand } from '../../tts/replySpeech';
-import { getTtsConfigStore } from '../../tts/TtsConfigStore';
+import { TtsConfigStore } from '../../tts/TtsConfigStore';
 import { TtsRouter, applyTtsEnvOverride } from '../../tts/ttsRouter';
 
 import { BaseIpcHandler } from './BaseIpcHandler';
 
+/** 应用信息与 userData 路径来自宿主端口 */
+export type ConfigIpcPorts = Pick<HostPorts, 'paths' | 'app'>;
+
 export class ConfigIpcHandler extends BaseIpcHandler {
   private configService: IConfigService;
+  private readonly ports: ConfigIpcPorts;
 
-  constructor(logger: ILoggerService, configService: IConfigService) {
+  constructor(logger: ILoggerService, configService: IConfigService, ports: ConfigIpcPorts) {
     super(logger);
     this.configService = configService;
+    this.ports = ports;
   }
 
   /**
@@ -112,10 +117,10 @@ export class ConfigIpcHandler extends BaseIpcHandler {
     // 获取应用信息
     this.registerHandler('get-app-info', async () => {
       const appInfo = {
-        version: app.getVersion(),
-        name: app.getName(),
-        userDataPath: app.getPath('userData'),
-        isPackaged: app.isPackaged,
+        version: this.ports.app.version(),
+        name: this.ports.app.name(),
+        userDataPath: this.ports.paths.userData(),
+        isPackaged: this.ports.app.isPackaged(),
         platform: process.platform,
         arch: process.arch,
         electronVersion: process.versions.electron,
@@ -176,7 +181,7 @@ export class ConfigIpcHandler extends BaseIpcHandler {
 
     // 获取配置文件路径
     this.registerHandler('get-config-path', async () => {
-      const configPath = app.getPath('userData') + '/config.json';
+      const configPath = this.ports.paths.userData() + '/config.json';
       this.logger.debug('获取配置文件路径', { configPath });
       return configPath;
     });
@@ -188,7 +193,7 @@ export class ConfigIpcHandler extends BaseIpcHandler {
         const exportData = {
           config,
           timestamp: new Date().toISOString(),
-          appVersion: app.getVersion(),
+          appVersion: this.ports.app.version(),
         };
 
         this.logger.info('配置导出成功');
@@ -245,7 +250,7 @@ export class ConfigIpcHandler extends BaseIpcHandler {
    * 任何失败都静默（渲染层只显示文字），连续失败次数经 tts:status 给设置页显示提示。
    */
   private initializeTTSHandlers(): void {
-    const store = getTtsConfigStore();
+    const store = new TtsConfigStore({ paths: this.ports.paths });
     const edge = new EdgeTtsService();
     const router = new TtsRouter({
       getConfig: () => applyTtsEnvOverride(store.load()),

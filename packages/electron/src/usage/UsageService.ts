@@ -9,10 +9,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import type { BuiltinCliId } from '@nomi-ai/cli-plugins';
-import { BrowserWindow } from 'electron';
 
 import { officialAccountEnv } from '../cli/accounts/homes';
 import { withCliPath } from '../cli/detect';
+import type { AppEvents } from '../core/appEvents';
 import { t as tr } from '../i18n';
 import { guardedHandle } from '../security/guardedIpc';
 import { writePrivateFile } from '../utils/privateFile';
@@ -163,6 +163,8 @@ function amount(v: unknown, d: number): number {
 type Deps = {
   root: string;
   logger: Logger;
+  /** 用量变化通知界面（ai:usage:changed） */
+  events: AppEvents;
   home?: string;
   dshHome?: string;
   now?: () => number;
@@ -1679,10 +1681,7 @@ export class UsageService {
     if (this.broadcastTimer) return;
     this.broadcastTimer = setTimeout(() => {
       this.broadcastTimer = null;
-      for (const w of BrowserWindow.getAllWindows()) {
-        if (w.isDestroyed()) continue;
-        w.webContents.send('ai:usage:changed', null);
-      }
+      this.d.events.publish('ai:usage:changed', null);
     }, 1500);
     (this.broadcastTimer as { unref?: () => void }).unref?.();
   }
