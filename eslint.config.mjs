@@ -297,6 +297,62 @@ export default tseslint.config(
       'no-console': 'off',
     },
   },
+  // 视图只经契约访问内核（docs/design/core-host-decoupling.md §8、§11.1）：preload 只暴露
+  // `window.nomiTransport`（契约传输）与 `window.nomiHost`（拖入文件路径），两者都只能在每个视图包唯一的
+  // `services/api.ts` 里读；旧桥 `window.aiIPC` / `window.electronAPI` 已删除，也不许再声明或访问。
+  {
+    files: [
+      'packages/ai-chat/src/**/*.{ts,tsx}',
+      'packages/renderer/src/**/*.{ts,tsx}',
+      'packages/ui/src/**/*.{ts,tsx}',
+      'packages/voice/src/**/*.{ts,tsx}',
+    ],
+    ignores: ['**/src/services/api.ts', '**/*.{test,spec}.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            'MemberExpression[property.name=/^(aiIPC|electronAPI|nomiTransport|nomiHost)$/], MemberExpression[computed=true][property.value=/^(aiIPC|electronAPI|nomiTransport|nomiHost)$/]',
+          message:
+            '视图不直接访问 preload 全局：调用内核用 services/api 的 api.*，文件路径用 hostPathForFile（§11.1）。',
+        },
+        {
+          selector: 'Identifier[name=/^(aiIPC|electronAPI)$/]',
+          message:
+            'window.aiIPC / window.electronAPI 已删除：改用 services/api 的契约客户端（§11.1）。',
+        },
+        {
+          selector:
+            'ImportSpecifier[imported.name=/^(NOMI_TRANSPORT_GLOBAL|NOMI_HOST_GLOBAL|getGlobalBridge|getSharedTransport|lazyGlobalTransport|createAppClient)$/]',
+          message:
+            '契约客户端只在 services/api.ts 里建一次，其余代码 import { api } from services/api（§11.1）。',
+        },
+        {
+          selector: "ImportSpecifier[imported.name='ipcRenderer']",
+          message: '视图不发原始 IPC：调用内核用 services/api 的 api.*（§11.1）。',
+        },
+      ],
+    },
+  },
+
+  // 主进程只经契约传输（host/contractIpc.ts）接收视图的调用：宿主目录之外不注册 ipcMain 通道（§11.1）。
+  {
+    files: ['packages/electron/src/**/*.{ts,tsx,mts,cts,js,mjs,cjs}'],
+    ignores: ['packages/electron/src/host/**'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "ImportSpecifier[imported.name='ipcMain'], MemberExpression[property.name='ipcMain']",
+          message:
+            '不注册 ipcMain 通道：视图的调用经契约（contract/src/app/<域>.ts + host/contract/<域>.ts），推送经 events.publish（§11.1）。',
+        },
+      ],
+    },
+  },
+
   // 集中日志：产品源码只能用 createLogger / createMainLogger（生产环境静默 debug / info），
   // console.warn / console.error 仍允许（始终输出）。日志实现文件自行 eslint-disable。
   {

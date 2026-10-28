@@ -49,10 +49,7 @@ export const ELECTRON_IMPORT_ALLOWLIST = [
   'packages/electron/src/security/secretStorage.ts',
   'packages/electron/src/utils/log.ts',
   'packages/electron/src/utils/privateFile.ts',
-  // 旧 IPC 注册层（ipcMain）→ P1 由契约传输层取代
-  'packages/electron/src/handlers/ipc/BaseIpcHandler.ts',
-  'packages/electron/src/handlers/ipc/WindowIpcHandler.ts',
-  'packages/electron/src/security/guardedIpc.ts',
+  // 契约传输的 sender 白名单（app.isPackaged）→ P3 随宿主搬家
   'packages/electron/src/security/ipcSenderGuard.ts',
   // 窗口相关但还不在宿主目录 → P3 随宿主搬家
   'packages/electron/src/sandbox/AgentBrowser.ts',
