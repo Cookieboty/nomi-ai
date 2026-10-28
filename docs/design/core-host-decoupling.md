@@ -132,15 +132,15 @@
 
 ### 3.2 依赖规则
 
-| 包                        | 可以依赖                                                                                                             | 不得依赖                                                           |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| `contract`                | `zod`、`types`                                                                                                       | 任何运行时包                                                       |
-| `host-ports`              | `types`                                                                                                              | 任何运行时包                                                       |
-| `core`                    | `contract`、`host-ports`、`gateway`、`cli-sdk`、`ai-runtime`（去掉 Electron 适配器后）、`character-contract`、`i18n` | `electron`、任何视图包、`ui`                                       |
-| `host-electron`           | 以上全部 + `electron`                                                                                                | 视图包的源码（只加载它们的构建产物）                               |
-| 视图（ai-chat、renderer） | `contract` 的 client、`ui`、`i18n`、`avatar-runtime`                                                                 | `core`、`host-*`、`electron`、`window.*IPC` / `window.electronAPI` |
-| `avatar-runtime`          | `character-contract`、浏览器 API                                                                                     | `electron`、`contract`（通过注入的事件源接 AI，§10.5）             |
-| `characters/*`            | 无（不含代码）                                                                                                       | —                                                                  |
+| 包                        | 可以依赖                                                                                                                                                                                                                                                                                      | 不得依赖                                                           |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `contract`                | `zod`、`types`                                                                                                                                                                                                                                                                                | 任何运行时包                                                       |
+| `host-ports`              | `types`                                                                                                                                                                                                                                                                                       | 任何运行时包                                                       |
+| `core`                    | `contract`、`host-ports`、`gateway`、`cli-sdk`、`ai-runtime`（去掉 Electron 适配器后）、`character-contract`、`i18n`、`types`、`cli-plugins`（内置编程助手插件）、`bundle-ig-base` 与 `bundle-ig-mascot`（插件包，不 import electron；`bundle-ig-electron-caps` 只能作可选 peer，由宿主提供） | `electron`、任何视图包、`ui`                                       |
+| `host-electron`           | 以上全部 + `electron`                                                                                                                                                                                                                                                                         | 视图包的源码（只加载它们的构建产物）                               |
+| 视图（ai-chat、renderer） | `contract` 的 client、`ui`、`i18n`、`avatar-runtime`                                                                                                                                                                                                                                          | `core`、`host-*`、`electron`、`window.*IPC` / `window.electronAPI` |
+| `avatar-runtime`          | `character-contract`、浏览器 API                                                                                                                                                                                                                                                              | `electron`、`contract`（通过注入的事件源接 AI，§10.5）             |
+| `characters/*`            | 无（不含代码）                                                                                                                                                                                                                                                                                | —                                                                  |
 
 ### 3.3 包划分
 
@@ -496,7 +496,7 @@ AI 不再知道动作名和 clip 名：
 
 从 `renderer/src/mascot` 拆出，纯浏览器包：
 
-- **内容**：`MascotBackend` 接口与 `backends/`（rive / sprite / static）、`expressionDirector`、`mood`、`motion`、`rig`、`layeredRig`、`interaction`（命中区）、口型消费、`characterVoice`。
+- **内容**：`MascotBackend` 接口与 `backends/`（rive / sprite / static）、`expressionDirector`、`mood`、`motion`、`rig`、`layeredRig`、`interaction`（命中区）、口型消费。`characterVoice`（角色语音偏好）留在 renderer：它属于宿主的朗读链路，运行时只经 `onInteraction` 报出「这句要朗读」（见 §12 C2 的进度说明）。
 - **输入**：`manifest + mapping + resolveAsset(path) → url` + 一个 `AvatarEventSource`（语义事件流）。
 - **输出**：交互事件（`touched`、`clicked`）。
 - **不依赖** `contract`、`electron`、`ai-sdk-client`。`AvatarEventSource` 由 renderer 用契约 client 实现并注入，所以 avatar-runtime 可以单独在网页里运行（`packages/avatar-runtime/demo`）。
@@ -703,9 +703,9 @@ coalescedWriter,redact}`、`services/{Logger,Config,Cache,Update}Service`、`mas
 >   素材许可登记（`assets-licenses.json`、`CREDITS.md`、`THIRD_PARTY_NOTICES.md`）、changeset 配置的 `ignore` 与待发布
 >   changeset 的包名、AGENTS.md 与文档；`pnpm-workspace.yaml` 用 `packages/*`，不用改；各包 CHANGELOG 与本节之前的进度
 >   说明保留旧名；
-> - 开发态 userData 目录名随包名变成 `@nomi-ai/host-electron`：`utils/legacyUserData.ts` 的 `LEGACY_DEV_NAMES` 加上
->   `@nomi-ai/electron`（排在 `@ig-live/electron` 前），新目录还没有应用数据时从旧目录复制；打包产物的目录名来自
->   `productName`（Nomi），不受影响；
+> - 运行时应用名不随包名变（评审修正，见下方「P3 评审修正」）：`package.json` 加 `productName: @nomi-ai/electron`，
+>   `electron-builder.yml` 的 `extraMetadata` 加 `name: '@nomi-ai/electron'`，开发态与打包后的 userData 目录、钥匙串条目、
+>   更新缓存目录都和改名前一样；
 > - 在 macOS 上从改名后的包启动真实应用跑了 e2e-headed 的 E5（生产模式冒烟）与 E17（契约驱动 harness），
 >   `electron-builder --dir`（macOS arm64）打包通过。
 >
@@ -770,6 +770,22 @@ coalescedWriter,redact}`、`services/{Logger,Config,Cache,Update}Service`、`mas
 >   `registerIpc` 与 `dist/theme`、`dist/chat` 旧路径（P1b 起就跑不通）；`A11Y.surfaces` 单跑通过、整轮偶发失败。
 >   这些没有在合流前的基线上复跑确认，要在 Linux + xvfb 的完整一轮里一起处理。
 
+> P3 评审修正（`refactor/p3-core`）：
+>
+> - 改包名为 `@nomi-ai/host-electron` 时把运行时应用名也改了。Electron 用打包后 `package.json` 的 `productName`（没有则
+>   `name`）作 `app.name`，userData 目录（`<appData>/<app.name>`）与 macOS 钥匙串里 safeStorage 的服务名 / 账户名都由它
+>   决定；electron-builder 的 `productName: Nomi` 只管安装包、`.app` 与窗口名，不写进打包后的 `package.json`。原来的
+>   进度说明说打包产物不受影响，是错的：已安装的 2.0.x 用户升级后会看到空配置（设置、网关、供应商、会话、记忆、知识库），
+>   已存的 API Key 也解不开；更新缓存目录（`<name>-updater`）与 NSIS 的 `APP_PACKAGE_NAME` 也会变。
+>   `electron-builder --dir` 从全新目录启动，发现不了；
+> - 修正：`packages/host-electron/package.json` 加 `productName: @nomi-ai/electron`（Electron 运行时，开发态与打包后），
+>   `electron-builder.yml` 的 `extraMetadata` 加 `name: '@nomi-ai/electron'`（electron-builder 自己用的包名）；开发态目录也
+>   不变，`legacyUserData.ts` 去掉上一步加的 `@nomi-ai/electron` 迁移项（复制过去的目录在 macOS 上也解不开钥匙串里的
+>   密钥）；`scripts/__tests__/electron-builder-app-name.test.ts` 守住这两个名字；重新 `electron-builder --dir` 后读 app.asar
+>   里的 `package.json`，`name` 与 `productName` 都是 `@nomi-ai/electron`；
+> - 文档对齐代码：§3.2 的 `core` 行补上实际依赖（`types`、`cli-plugins`、`bundle-ig-base`、`bundle-ig-mascot`），§10.6 写明
+>   `characterVoice` 留在 renderer，§12.1 的命令与路径改成 `host-electron`，§13.1 的 userData 风险改成现在的做法。
+
 | 阶段 | 内容                                                                                                                                                                                    | 完成标准                                                                                                            |
 | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | P0   | ① lint 护栏：`packages/electron/src` 中除宿主目录（§7.2 右列）外，新增 electron import 报错（已有的列入白名单，只减不增）；② `PersonaService`，删两处人设硬编码                         | 护栏进 CI；换皮后系统提示不再是 Nomi                                                                                |
@@ -829,12 +845,12 @@ coalescedWriter,redact}`、`services/{Logger,Config,Cache,Update}Service`、`mas
    共享包（`ui`、`voice`）不 import 契约：在包里加注入点（`setXxxBackend`），在 `hostBackends/<f>.ts` 里接上。
    本域文件里用到别的域的能力：对方有客户端模块就经它调用，没有就保持原样并在汇报里列出，由收尾批次处理。
 9. **测试**：契约 `contract/tests/<f>.test.ts`（过程名 / kind / surfaces / dangerous 快照，schema 接受与拒绝）；
-   宿主 `electron/tests/unit/host/contract/<f>.test.ts`（`createContractServices()` + 假服务 →
+   宿主 `host-electron/tests/unit/host/contract/<f>.test.ts`（P3 前在 `packages/electron`）（`createContractServices()` + 假服务 →
    `createAppRouter` 或 `createTestClient`，断言委派、FORBIDDEN、事件桥）；视图把 `window.aiIPC` 的 mock 换成
    `vi.mock('…/services/api')`，返回 `@nomi-ai/contract/testing` 的 `createTestClient(appContract, {…}).api`。
 10. **构建**：视图与主进程读契约的 dist。改完契约后重建，并且与依赖它的类型检查一起放在锁里，避免并行时 tsup 清空
     dist：`node scripts/with-lock.mjs contract pnpm --filter @nomi-ai/contract build`、
-    `node scripts/with-lock.mjs contract pnpm --filter @nomi-ai/electron typecheck`。
+    `node scripts/with-lock.mjs contract pnpm --filter @nomi-ai/host-electron typecheck`（P3 前包名是 `@nomi-ai/electron`）。
 
 收尾批次（不属于任何域，已完成，见上文进度）：删 preload 里的 `aiIPC` / `electronAPI` 与 `packages/types` 的 `IpcApi`、各服务的
 `registerIpc` 与旧处理器（及 `ProviderIpcServer` / `CapabilityIpcServer` / `AiChatCompat`）、事件桥里旧通道的广播；
@@ -844,14 +860,14 @@ e2e-headed 改走契约；lint 禁止视图访问 `window.aiIPC` / `window.elect
 
 ### 13.1 风险
 
-| 风险                                 | 应对                                                                                |
-| ------------------------------------ | ----------------------------------------------------------------------------------- |
-| P2 广播替换面广，容易漏掉事件        | 先在 `EventBroadcaster` 侧加「未声明事件」告警；契约事件表与实际 publish 做对照测试 |
-| 契约序列化约束导致现有接口要改形状   | 先列出所有传函数 / 实例 / 同步调用的接口，P1 开工前评估                             |
-| 搬家（P3）冲掉进行中的分支           | 选在发版后的窗口一次性搬；用 `git mv` 保留历史；提前通知                            |
-| 开发态 userData 路径变化             | `paths` 端口的 Electron 实现沿用 `utils/legacyUserData.ts` 的迁移逻辑               |
-| 工具改名影响已保存的会话与外部提示词 | 已定不保留别名：历史会话里的旧工具调用只作展示，不重放；changeset 写明改名          |
-| WebSocket 传输带来新的本机攻击面     | 只在开发态和 sidecar 宿主启用；只监听 `127.0.0.1`；一次性 token；仍经 §8 中间件     |
+| 风险                                 | 应对                                                                                        |
+| ------------------------------------ | ------------------------------------------------------------------------------------------- |
+| P2 广播替换面广，容易漏掉事件        | 先在 `EventBroadcaster` 侧加「未声明事件」告警；契约事件表与实际 publish 做对照测试         |
+| 契约序列化约束导致现有接口要改形状   | 先列出所有传函数 / 实例 / 同步调用的接口，P1 开工前评估                                     |
+| 搬家（P3）冲掉进行中的分支           | 选在发版后的窗口一次性搬；用 `git mv` 保留历史；提前通知                                    |
+| 改包名导致 userData 路径变化         | 运行时应用名固定为 `@nomi-ai/electron`（`productName` 与 `extraMetadata.name`），有回归测试 |
+| 工具改名影响已保存的会话与外部提示词 | 已定不保留别名：历史会话里的旧工具调用只作展示，不重放；changeset 写明改名                  |
+| WebSocket 传输带来新的本机攻击面     | 只在开发态和 sidecar 宿主启用；只监听 `127.0.0.1`；一次性 token；仍经 §8 中间件             |
 
 ### 13.2 待决
 
