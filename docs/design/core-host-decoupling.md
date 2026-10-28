@@ -421,7 +421,7 @@ interface CallerContext {
 }
 ```
 
-- **传输层负责填 caller**：Electron 根据 webContents id 与加载的 URL 判断；WebSocket 用启动时下发的一次性 token，并且只监听 `127.0.0.1`。
+- **传输层负责填 caller**：Electron 根据 webContents id 与加载的 URL 判断；WebSocket 用启动时下发的一次性 token，并且只监听 `127.0.0.1`。token 是挡住本机其他进程的唯一凭据（本机进程可以伪造 Origin / Host），所以它不进任何本机进程都能请求的页面 HTML：dev:web 只把地址注入页面，token 放在打印给开发者的地址片段 `#nomi-token=…` 里（片段不发给服务器），页面读到后存 sessionStorage 并用 `history.replaceState` 从地址栏抹掉。
 - **router 中间件负责判定**：契约里每个过程可以声明 `surfaces: ['chat']`；`dangerous: true` 的过程只接受 `trusted` 调用者，必要时要求视图内确认。
 - **事件也按界面限定**：契约的 `eventSurfaces` 列出只给某些界面的事件（确认请求、气泡、光标只给看板娘；编程助手会话、拖入总结、面板导航只给对话窗口），传输层在订阅时按调用者的界面过滤，其它界面的订阅被忽略。服务 `events.publish` 时写的 `surface` 只是意图，不决定投递。
 - preload 只暴露 `window.nomiTransport` 与 `window.nomiHost` 两个对象，暴露面比现在更小。
@@ -891,12 +891,13 @@ stop() }`；宿主 `packages/host-electron/src/host/Application.ts`（宿主区�
 >   caller 记为 `{ surface, trusted: true }`；普通 HTTP 回 426，只收文本帧，单条消息与连接数有上限。每个连接一个
 >   `createServerSession`，与 Electron IPC / in-process 共用帧处理；断开后不重连（开发态内核重启后刷新页面）；
 > - 视图在浏览器里：ai-chat 的 `services/api.ts` 仍是唯一选传输的地方——有 preload 桥（`window.nomiTransport`）用它；
->   没有桥、且是开发构建（`import.meta.env.DEV`）并且开发服务器注入了 `window.nomiDevTransport` 时，用 WebSocket 传输并经
+>   没有桥、且是开发构建（`import.meta.env.DEV`）并且开发服务器注入了 `window.nomiDevTransport`（只有地址；token 来自地址片段
+>   `#nomi-token=…`，存 sessionStorage 后从地址栏抹掉，见 `resolveDevTransport`）时，用 WebSocket 传输并经
 >   `installSharedTransport` 换掉窗口共享的传输（模块加载时就建好的客户端也跟着走）。§11.1 的 lint 规则加上新全局与
 >   `createWebSocketClientTransport` / `installSharedTransport` 等工厂，只有 `services/api.ts` 能用；
 > - 开发入口：`pnpm dev:web`（`scripts/dev-web/start.mjs`）在 Node 里用无界面宿主起内核（网关在 Node 子进程里），挂 WebSocket
 >   传输，再起 ai-chat 的 Vite 开发服务器（自己一个进程组，停的时候整组停）；Vite 插件（`scripts/dev-web/vite-plugin.mjs`）
->   只在开发服务器、且拿到地址与 token 的环境变量时把它们注入页面，同时把开发服务器的 CORS 收紧到自己的地址；构建时
+>   只在开发服务器、且拿到地址的环境变量时把地址注入页面（token 不进页面，只在终端打印的地址片段里），同时把开发服务器的 CORS 收紧到自己的地址；构建时
 >   产物里出现 WebSocket 传输（子协议标记或全局名）就让构建失败——生产构建里 `import.meta.env.DEV` 为 false，这段代码与
 >   传输一起被摇掉，打包的 Electron 应用里没有 WebSocket 路径（去掉 DEV 判断构建确实失败）；`host-electron` 不依赖
 >   `host-node`；

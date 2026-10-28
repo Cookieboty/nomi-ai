@@ -28,13 +28,13 @@
 
 ```bash
 pnpm build
-pnpm dev:web                       # 内核在 Node 里跑（数据在临时目录），打开 http://127.0.0.1:6128
+pnpm dev:web                       # 内核在 Node 里跑（数据在临时目录），打开终端打印的 http://127.0.0.1:6128/#nomi-token=…
 pnpm dev:web -- --data .nomi-web   # 数据放在指定目录，保留（已 gitignore；secrets 未加密）
 pnpm exec playwright install chromium   # 第一次跑冒烟前
 pnpm smoke:web [-- --screenshot test-results/dev-web.png]
 ```
 
-- `dev:web`（`scripts/dev-web/start.mjs`）用无界面宿主起内核（统一网关在 Node 子进程里跑，监听系统分配的端口，不和本机装着的 Nomi 抢 18721），WebSocket 传输只监听 `127.0.0.1`、每次启动一个随机 token（日志只露前 4 位）、只接受开发服务器的 Origin；ai-chat 开发服务器把地址与 token 以 `window.nomiDevTransport` 注入页面，并把 CORS 收紧到自己的地址。没有窗口、托盘与看板娘，要用窗口对象的过程（看板娘大小、灵动岛、应用图标）报不可用。
+- `dev:web`（`scripts/dev-web/start.mjs`）用无界面宿主起内核（统一网关在 Node 子进程里跑，监听系统分配的端口，不和本机装着的 Nomi 抢 18721），WebSocket 传输只监听 `127.0.0.1`、每次启动一个随机 token（日志只露前 4 位）、只接受开发服务器的 Origin；开发服务器只把 WebSocket 地址以 `window.nomiDevTransport` 注入页面（任何本机进程都能请求页面，token 放进去就等于公开），token 只在终端打印的地址片段里（`http://127.0.0.1:6128/#nomi-token=…`），页面读到后存 sessionStorage 并从地址栏抹掉，所以要打开打印出来的完整地址；开发服务器的 CORS 收紧到自己的地址。`smoke:web` 断言页面 HTML 里没有 token、片段被抹掉。没有窗口、托盘与看板娘，要用窗口对象的过程（看板娘大小、灵动岛、应用图标）报不可用。
 - `smoke:web` 起同样的环境（空闲端口，不和正在跑的开发服务器冲突），用 Playwright 的 Chromium（不是 Electron）打开页面，断言页面渲染、没有未捕获异常、调用经 WebSocket 到了内核、内核里预设的主题与语言出现在页面上、内核换主题后页面跟着变；最后在页面的首次引导里添加指向本机假上游（OpenAI Chat 协议）的供应商、选模型、完成引导，发一条消息，回复经统一网关回到页面。
 - 生产构建不含 WebSocket 传输：ai-chat 只在 `import.meta.env.DEV` 时读注入的全局，Vite 插件在构建产物里发现 WebSocket 传输就让构建失败。
 

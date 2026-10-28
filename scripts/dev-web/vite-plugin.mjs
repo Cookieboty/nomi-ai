@@ -1,15 +1,17 @@
 // 视图在普通浏览器里连开发态内核（docs/design/core-host-decoupling.md §5.2、§11.3；`pnpm dev:web`）。
 //
 // devTransportPlugin() 返回两个 Vite 插件：
-// - serve：`scripts/dev-web/start.mjs` 启动开发服务器时通过环境变量给出 WebSocket 地址与一次性 token，
-//   这里把它们以 `window.nomiDevTransport` 注入 index.html（视图的 services/api.ts 只在开发构建里读）；
-//   同时把开发服务器的 CORS 收紧到它自己的地址，别的网页读不到注入了 token 的页面。没有这两个环境变量
-//   时什么都不做（普通 `pnpm dev` / Electron 开发态不受影响）；
+// - serve：`scripts/dev-web/start.mjs` 启动开发服务器时通过环境变量给出 WebSocket 地址，这里把它以
+//   `window.nomiDevTransport = { url }` 注入 index.html（视图的 services/api.ts 只在开发构建里读）。
+//   **token 不进页面**：本机任何进程都能请求 index.html，放在页面里就等于公开；token 只在 dev:web 打印的地址
+//   片段里（`#nomi-token=…`，片段不发给服务器），页面读到后存 sessionStorage 并从地址栏抹掉。同时把开发服务器的
+//   CORS 收紧到它自己的地址。没有这个环境变量时什么都不做（普通 `pnpm dev` / Electron 开发态不受影响）；
 // - build：生产构建里不允许出现 WebSocket 传输（子协议标记、全局名）；出现就让构建失败，防止开发态的
 //   入口被打进打包的 Electron 应用。
 
 export const DEV_WS_URL_ENV = 'NOMI_DEV_WS_URL';
-export const DEV_WS_TOKEN_ENV = 'NOMI_DEV_WS_TOKEN';
+/** 与 @nomi-ai/contract/app 的 NOMI_DEV_TOKEN_FRAGMENT 一致 */
+export const DEV_TOKEN_FRAGMENT = 'nomi-token';
 /** 与 @nomi-ai/contract/app 的 NOMI_DEV_TRANSPORT_GLOBAL 一致 */
 export const DEV_TRANSPORT_GLOBAL = 'nomiDevTransport';
 
@@ -18,15 +20,17 @@ const FORBIDDEN_IN_BUILD = ['nomi-token.', 'nomi-surface.', DEV_TRANSPORT_GLOBAL
 
 function readDevTransport(env) {
   const url = env[DEV_WS_URL_ENV];
-  const token = env[DEV_WS_TOKEN_ENV];
-  if (!url && !token) return null;
-  if (!/^ws:\/\/127\.0\.0\.1:\d{1,5}$/.test(url ?? '')) {
+  if (!url) return null;
+  if (!/^ws:\/\/127\.0\.0\.1:\d{1,5}$/.test(url)) {
     throw new Error(`[dev-web] ${DEV_WS_URL_ENV} must be ws://127.0.0.1:<port>`);
   }
-  if (!/^[A-Za-z0-9_-]{16,256}$/.test(token ?? '')) {
-    throw new Error(`[dev-web] ${DEV_WS_TOKEN_ENV} is missing or malformed`);
-  }
-  return { url, token };
+  // 只注入地址：token 不进页面（见文件头）
+  return { url };
+}
+
+/** dev:web 打印 / 冒烟打开的页面地址：token 放在片段里 */
+export function devPageUrl(base, token) {
+  return `${base}#${DEV_TOKEN_FRAGMENT}=${encodeURIComponent(token)}`;
 }
 
 /** JSON 放进 <script>：转义 `<`，避免值里出现 `</script>` */
