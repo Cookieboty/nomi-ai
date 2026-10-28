@@ -16,12 +16,7 @@ import { PassThrough } from 'node:stream';
 import { strFromU8, unzipSync } from 'fflate';
 
 import { buildDiagnosticsBundle } from '../../../src/diagnostics/bundle';
-import {
-  configureCliTrace,
-  flushCliTrace,
-  flushCliTraceSync,
-  traceCliChild,
-} from '../../../src/diagnostics/cliTrace';
+import { CliTrace } from '../../../src/diagnostics/cliTrace';
 import { DiagnosticsService } from '../../../src/diagnostics/DiagnosticsService';
 import { featureHost } from '../helpers/featureHost';
 
@@ -160,16 +155,16 @@ describe('cliTrace：编程助手子进程收发', () => {
 
   it('开着时记 spawn / in / out / err / exit，带标签 id，脱敏', () => {
     const dir = tmp('nomi-clitrace-');
-    configureCliTrace({ dir, enabled: () => true });
+    const tr = new CliTrace({ dir, enabled: () => true });
     const c = fakeChild();
-    traceCliChild(c as never, '/usr/bin/claude', ['-p', '--token', 'nomi-tab-abcdef123456'], {
+    tr.tap(c as never, '/usr/bin/claude', ['-p', '--token', 'nomi-tab-abcdef123456'], {
       tabId: 'tab-1',
     });
     c.stdin.write('{"auth":"Bearer abcdefghijklmnop"}\n');
     c.stdout.write('hello');
     c.stderr.write('warn');
     c.emit('close', 0, null);
-    flushCliTraceSync();
+    tr.flushSync();
     const f = fs.readdirSync(dir).find((n) => n.startsWith('cli-'))!;
     const raw = fs.readFileSync(path.join(dir, f), 'utf8');
     const recs = raw
@@ -186,10 +181,10 @@ describe('cliTrace：编程助手子进程收发', () => {
 
   it('关着时什么都不做（不包 stdin，不写文件）', () => {
     const dir = tmp('nomi-clitrace-off-');
-    configureCliTrace({ dir, enabled: () => false });
+    const tr = new CliTrace({ dir, enabled: () => false });
     const c = fakeChild();
     const orig = c.stdin.write;
-    traceCliChild(c as never, 'codex', []);
+    tr.tap(c as never, 'codex', []);
     expect(c.stdin.write).toBe(orig);
     expect(fs.readdirSync(dir)).toEqual([]);
   });
@@ -197,13 +192,13 @@ describe('cliTrace：编程助手子进程收发', () => {
   it('启动时开着、中途关掉：后续 write 不再落盘（#119）', () => {
     const dir = tmp('nomi-clitrace-flip-');
     let on = true;
-    configureCliTrace({ dir, enabled: () => on });
+    const tr = new CliTrace({ dir, enabled: () => on });
     const c = fakeChild();
-    traceCliChild(c as never, 'claude', [], { tabId: 't' });
+    tr.tap(c as never, 'claude', [], { tabId: 't' });
     c.stdout.write('before');
     on = false;
     c.stdout.write('after');
-    flushCliTraceSync();
+    tr.flushSync();
     const f = fs.readdirSync(dir).find((n) => n.startsWith('cli-'))!;
     const raw = fs.readFileSync(path.join(dir, f), 'utf8');
     expect(raw).toContain('before');
@@ -222,15 +217,15 @@ describe('cliTrace：编程助手子进程收发', () => {
 
   it('缓冲写：data 事件当场不落盘，定时器到点后异步批量追加，顺序不变', async () => {
     const dir = tmp('nomi-clitrace-buf-');
-    configureCliTrace({ dir, enabled: () => true });
+    const tr = new CliTrace({ dir, enabled: () => true });
     const c = fakeChild();
-    traceCliChild(c as never, 'claude', [], { tabId: 't' });
+    tr.tap(c as never, 'claude', [], { tabId: 't' });
     for (let i = 0; i < 50; i++) c.stdout.write(`chunk-${i}`);
     c.stderr.write('oops');
     // 同步路径上不碰文件
     expect(readRecs(dir)).toEqual([]);
     await new Promise((r) => setTimeout(r, 300));
-    await flushCliTrace();
+    await tr.flush();
     const recs = readRecs(dir);
     expect(recs.map((r) => r.ev)).toEqual(['spawn', ...Array(50).fill('out'), 'err']);
     expect(recs.slice(1, 51).map((r) => r.data)).toEqual(
@@ -238,17 +233,17 @@ describe('cliTrace：编程助手子进程收发', () => {
     );
   });
 
-  it('写入在途时继续产生的记录排在后面；flushCliTrace 等全部落盘', async () => {
+  it('写入在途时继续产生的记录排在后面；flush() 等全部落盘', async () => {
     const dir = tmp('nomi-clitrace-order-');
-    configureCliTrace({ dir, enabled: () => true });
+    const tr = new CliTrace({ dir, enabled: () => true });
     const c = fakeChild();
-    traceCliChild(c as never, 'codex', []);
+    tr.tap(c as never, 'codex', []);
     c.stdout.write('a');
-    const first = flushCliTrace();
+    const first = tr.flush();
     c.stdout.write('b');
     c.stdout.write('Bearer abcdefghijklmnopqrstuvwxyz');
     await first;
-    await flushCliTrace();
+    await tr.flush();
     const recs = readRecs(dir);
     expect(recs.map((r) => r.data ?? r.ev)).toEqual([
       'spawn',
@@ -260,33 +255,45 @@ describe('cliTrace：编程助手子进程收发', () => {
 
   it('同步 flush（进程退出 / 换目录）把剩下的写完，并且只建一次目录', () => {
     const dir = path.join(tmp('nomi-clitrace-sync-'), 'logs');
-    configureCliTrace({ dir, enabled: () => true });
+    const tr = new CliTrace({ dir, enabled: () => true });
     const mkdir = jest.spyOn(fs, 'mkdirSync');
     const c = fakeChild();
-    traceCliChild(c as never, 'claude', []);
+    tr.tap(c as never, 'claude', []);
     c.stdout.write('x');
-    flushCliTraceSync();
+    tr.flushSync();
     c.stdout.write('y');
-    flushCliTraceSync();
+    tr.flushSync();
     expect(mkdir.mock.calls.filter((a) => a[0] === dir)).toHaveLength(1);
     mkdir.mockRestore();
     expect(readRecs(dir).map((r) => r.data ?? r.ev)).toEqual(['spawn', 'x', 'y']);
+  });
 
-    // 换目录前把旧目录的缓冲写完
-    c.stdout.write('z');
-    const next = tmp('nomi-clitrace-next-');
-    configureCliTrace({ dir: next, enabled: () => true });
-    expect(readRecs(dir).map((r) => r.data ?? r.ev)).toEqual(['spawn', 'x', 'y', 'z']);
-    expect(fs.readdirSync(next)).toEqual([]);
+  it('每个实例写自己的目录，互不影响（同一进程里的多个内核）', () => {
+    const a = tmp('nomi-clitrace-a-');
+    const b = tmp('nomi-clitrace-b-');
+    const ta = new CliTrace({ dir: a, enabled: () => true });
+    const tb = new CliTrace({ dir: b, enabled: () => false });
+    const ca = fakeChild();
+    const cb = fakeChild();
+    ta.tap(ca as never, 'claude', []);
+    tb.tap(cb as never, 'codex', []);
+    ca.stdout.write('only-a');
+    cb.stdout.write('never');
+    ta.flushSync();
+    tb.flushSync();
+    expect(readRecs(a).map((r) => r.data ?? r.ev)).toEqual(['spawn', 'only-a']);
+    expect(fs.readdirSync(b)).toEqual([]);
+    ta.dispose();
+    expect(process.listeners('exit')).not.toContain(ta.flushSync);
   });
 
   it('退出钩子：process exit 时同步写完缓冲', () => {
     const dir = tmp('nomi-clitrace-exit-');
-    configureCliTrace({ dir, enabled: () => true });
+    const tr = new CliTrace({ dir, enabled: () => true });
     const c = fakeChild();
-    traceCliChild(c as never, 'claude', []);
+    tr.tap(c as never, 'claude', []);
     c.stdout.write('bye');
-    const hooks = process.listeners('exit').filter((f) => f === flushCliTraceSync);
+    const hooks = process.listeners('exit').filter((f) => f === tr.flushSync);
     expect(hooks).toHaveLength(1);
     (hooks[0] as () => void)();
     expect(readRecs(dir).map((r) => r.data ?? r.ev)).toEqual(['spawn', 'bye']);
@@ -314,12 +321,12 @@ describe('S8：登录进程从不做收发记录', () => {
     };
     walk(root);
     const calls = files.flatMap((f) =>
-      (fs.readFileSync(f, 'utf8').match(/traceCliChild\(/g) ?? []).map(() => f),
+      (fs.readFileSync(f, 'utf8').match(/cliTrace\?\.tap\(/g) ?? []).map(() => f),
     );
     // 整个 cli/ 目录只有一处调用：harness/spawn.ts 的 spawnHarness
     expect(calls.map((f) => path.relative(root, f))).toEqual([path.join('harness', 'spawn.ts')]);
     const spawnSrc = fs.readFileSync(path.join(root, 'harness', 'spawn.ts'), 'utf8');
     const body = spawnSrc.slice(spawnSrc.indexOf('export function spawnHarness('));
-    expect(body.slice(0, body.indexOf('\n}\n')).includes('traceCliChild(')).toBe(true);
+    expect(body.slice(0, body.indexOf('\n}\n')).includes('cliTrace?.tap(')).toBe(true);
   });
 });

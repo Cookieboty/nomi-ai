@@ -855,10 +855,10 @@ stop() }`；宿主 `packages/host-electron/src/host/Application.ts`（宿主区�
 >
 > 剩下的：
 >
-> - 仍是进程级、两个内核共用的：界面语言（`i18n` 的 `t()` 与 `LocaleService` 写的当前语言）、日志开关与私有文件根目录
->   （宿主的 `processDefaults`）、诊断日志写入器（`diagnostics/cliTrace`，最后一个 `DiagnosticsService` 的目录生效）、
->   子进程 / worker 的缓存（`codexThreadReader`、`sileroNode`、CLI 路径探测、登录 shell 的 PATH），以及 `createMainLogger`；
->   无界面 e2e 同进程起两个内核时，界面语言与诊断日志目录会互相覆盖；
+> - 界面语言、日志开关、私有文件根目录与诊断日志写入器已改为每个内核一份（2.0.5：`core/scope.ts` 的 `CoreScope`，
+>   `createCore` 用 AsyncLocalStorage 把构造、启停与每个契约处理器包进本内核的作用域；宿主经 `core.i18n` 拿翻译函数）；
+>   作用域之外 `t()` 用不可变的进程默认（`CD_LOCALE` 或中文）。仍是进程级的：子进程 / worker 的缓存
+>   （`codexThreadReader`、`sileroNode`、CLI 路径探测、登录 shell 的 PATH）以及 `createMainLogger`；
 > - `ai-runtime` 的 `package.json` 仍把 `bundle-ig-electron-caps` 与（可选的）`electron` 列为 peer（源码已不引用）；
 > - 契约包同时发 ESM 与 CommonJS：同一进程里混用两种格式会有两份 `ContractError`，服务端用 `instanceof` 判断，内核抛的
 >   业务码会变成 INTERNAL。P4 第二步（`e2e/` 改跑无界面宿主）要统一格式或改成按 `name` / `code` 判断；
@@ -911,8 +911,7 @@ stop() }`；宿主 `packages/host-electron/src/host/Application.ts`（宿主区�
 >
 > 剩下的：
 >
-> - 仍是进程级、两个内核共用的状态没有变（见第一步的「剩下的」：界面语言、日志开关与私有文件根目录、诊断日志写入器、
->   子进程 / worker 缓存、`createMainLogger`），E6 不断言它们；
+> - 仍是进程级的子进程 / worker 缓存与 `createMainLogger`（见第一步的「剩下的」）E6 不断言；
 > - 只有 ai-chat 接了 WebSocket 开发传输；看板娘窗口（renderer）是透明窗口壳，依赖宿主窗口，没有接。`dev:web` 里要用
 >   窗口对象的过程（看板娘大小、灵动岛、应用图标、旧窗口通道）报 UNAVAILABLE，拖入文件（`nomiHost`）不可用；
 > - 无界面宿主的资源目录是空的：角色包解析不到内置包（日志「built-in pack not found」，人设为中性），替身角色验收

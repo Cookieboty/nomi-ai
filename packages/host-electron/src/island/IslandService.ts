@@ -11,7 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import type { IslandKind, IslandNotice } from '@nomi-ai/core/desktop/islandNotice';
-import { t as tr } from '@nomi-ai/core/i18n';
+import type { Translate } from '@nomi-ai/core/i18n';
 import { BrowserWindow, screen } from 'electron';
 
 import { brand } from '../brand';
@@ -58,6 +58,8 @@ export function sanitizeIsland(raw: unknown, platform: NodeJS.Platform): IslandS
 
 type Deps = {
   file: string;
+  /** 内核实例的翻译函数（`core.i18n.t`） */
+  t: Translate;
   isQuiet?: () => boolean;
   openChat?: () => void;
   platform?: NodeJS.Platform;
@@ -241,7 +243,7 @@ export class IslandService {
       {
         kind: 'message',
         title: brand.appName,
-        body: tr('electron.common.this-is-what-an-island-notification-looks-like'),
+        body: this.d.t('electron.common.this-is-what-an-island-notification-looks-like'),
         durationMs: 4000,
       },
       true,

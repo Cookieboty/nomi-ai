@@ -15,6 +15,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { t } from '@nomi-ai/core/i18n';
+
 import {
   clampIslandHeight,
   hasNotch,
@@ -187,7 +189,7 @@ describe('IslandService policy', () => {
 
   it('respects the toggle, per-kind switches and quiet hours (DND)', () => {
     let quiet = false;
-    const s = new IslandService({ file: file(), platform: 'darwin', isQuiet: () => quiet });
+    const s = new IslandService({ t, file: file(), platform: 'darwin', isQuiet: () => quiet });
     const n = { kind: 'agent' as const, title: 'Claude Code', body: 'done' };
     expect(s.accepts(n)).toBe(true);
     quiet = true;
@@ -199,7 +201,7 @@ describe('IslandService policy', () => {
     expect(s.accepts({ ...n, kind: 'reminder' })).toBe(true);
     s.set({ enabled: false });
     expect(s.accepts({ ...n, kind: 'reminder' })).toBe(false);
-    const w = new IslandService({ file: file(), platform: 'win32' });
+    const w = new IslandService({ t, file: file(), platform: 'win32' });
     expect(w.accepts(n)).toBe(false);
   });
 });

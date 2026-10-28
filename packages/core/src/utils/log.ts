@@ -6,8 +6,11 @@
  * - warn / error：始终输出。
  *
  * 「是否正式打包」由宿主在启动时告诉这里（Electron：host/processDefaults.ts 接 `app.isPackaged`）；
- * 没设置的进程（工具子进程、单测）按开发态处理。
+ * 没设置的进程（工具子进程、单测）按开发态处理。内核作用域里（见 core/scope.ts）按该内核的
+ * `ports.app.isPackaged()` 判断，同一进程里的多个内核互不影响。
  */
+
+import { currentCoreScope } from '../core/scope';
 
 export interface MainLogger {
   debug(...args: unknown[]): void;
@@ -26,6 +29,9 @@ export function setMainLogPackaged(fn: (() => boolean) | null): void {
 export function isVerboseMainLogging(): boolean {
   if (process.env.NOMI_DEBUG === '1') return true;
   try {
+    // 内核实例自己的设置（createCore：未打包才输出）优先于宿主进程的设置
+    const scoped = currentCoreScope()?.verboseLogging;
+    if (scoped) return scoped();
     return !isPackaged?.();
   } catch {
     return true;

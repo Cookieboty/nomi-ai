@@ -143,7 +143,9 @@ export class Application implements IApplication {
           { plugin: FileSessionStorePlugin, config: { rootDir: this.ports.paths.userData() } },
         ],
         // 系统 TTS（say / PowerShell / espeak）注册为 electron-native TtsProvider
-        ttsProviders: () => [new TtsElectronNativeProvider({ engine: new AdvancedTTSEngine() })],
+        ttsProviders: () => [
+          new TtsElectronNativeProvider({ engine: new AdvancedTTSEngine(this.core.i18n.t) }),
+        ],
       },
       contract: {
         hostHandlers: () =>
@@ -154,7 +156,7 @@ export class Application implements IApplication {
           }),
       },
     });
-    this.errorHandler = new GlobalErrorHandler(this.logger, this.ports);
+    this.errorHandler = new GlobalErrorHandler(this.logger, this.ports, this.core.i18n.t);
     this.windowManager = new WindowManager(this.logger, this.core.config, this.core.events);
     this.bootstrapManager = new BootstrapManager(this.logger);
   }
@@ -224,6 +226,7 @@ export class Application implements IApplication {
       // 编程助手进度 / 提醒的灵动岛式通知（macOS 刘海 / 顶部胶囊；免打扰时段内不弹）
       this.island = new IslandService({
         file: path.join(this.ports.paths.userData(), 'island.json'),
+        t: this.core.i18n.t,
         isQuiet: () => services.sched?.isQuiet() ?? false,
         openChat: () => void this.windowManager.createAiChatWindow(),
         logger: this.logger as never,
@@ -385,6 +388,7 @@ export class Application implements IApplication {
             onChange: (fn) => gateway.onChange(fn),
           }
         : undefined,
+      i18n: this.core.i18n,
       logger: this.logger,
       events: this.core.events,
       openChat: () => {
