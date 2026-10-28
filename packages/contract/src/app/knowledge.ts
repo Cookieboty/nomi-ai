@@ -244,15 +244,26 @@ export const knowledgeProcedures = {
   },
 
   // ---------- ext：MCP 服务器 + 技能包（ExtensionsService） ----------
+  /*
+   * MCP 服务器的授权（§8「授予权限的过程写 dangerous」）：新建 / 修改决定了启动什么命令、连哪个地址、带哪些
+   * 密钥，以及信任级别（`auto` = 工具调用不再确认）；启用 / 连接让 AI 能调用它的工具（连接时还会启动配置的
+   * 命令）。这三个只接受受信调用者。删除、断开只收回能力；导入（JSON / 迁移）一律是 `ask`、默认不连，都不算。
+   */
   'ext.mcpList': { kind: 'query', input: none, output: McpList },
-  'ext.mcpUpsert': { kind: 'mutation', input: McpServerInput, output: McpServerEntry },
+  'ext.mcpUpsert': {
+    kind: 'mutation',
+    input: McpServerInput,
+    output: McpServerEntry,
+    dangerous: true,
+  },
   'ext.mcpRemove': { kind: 'mutation', input: id, output: ok },
   'ext.mcpToggle': {
     kind: 'mutation',
     input: z.object({ id: z.string(), enabled: z.boolean() }),
     output: ok,
+    dangerous: true,
   },
-  'ext.mcpConnect': { kind: 'mutation', input: id, output: McpLive },
+  'ext.mcpConnect': { kind: 'mutation', input: id, output: McpLive, dangerous: true },
   'ext.mcpDisconnect': { kind: 'mutation', input: id, output: z.void() },
   /** 从 JSON（其他客户端的 mcpServers 配置）导入，导入后默认不连 */
   'ext.mcpImport': {

@@ -32,7 +32,13 @@ describe('knowledge 契约', () => {
     const dangerous = Object.entries(knowledgeProcedures)
       .filter(([, d]) => (d as { dangerous?: boolean }).dangerous)
       .map(([n]) => n);
-    expect(dangerous.sort()).toEqual(['kb.consentCloud', 'local.offline']);
+    expect(dangerous.sort()).toEqual([
+      'ext.mcpConnect',
+      'ext.mcpToggle',
+      'ext.mcpUpsert',
+      'kb.consentCloud',
+      'local.offline',
+    ]);
     for (const d of Object.values(knowledgeProcedures)) {
       expect((d as { surfaces?: unknown }).surfaces).toBeUndefined();
     }

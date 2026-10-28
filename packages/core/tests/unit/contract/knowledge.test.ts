@@ -80,6 +80,9 @@ function fakes() {
       openSkill: jest.fn(async () => ''),
       migrateScan: jest.fn(async () => ({ project: null, sources: [], mcp: [], skills: [] })),
       disconnect: jest.fn(async () => undefined),
+      upsert: jest.fn(),
+      toggle: jest.fn(async () => true),
+      connect: jest.fn(),
     },
   };
 }
@@ -194,10 +197,23 @@ describe('contract/knowledge', () => {
       await expect(api.local.offline({ enabled: true })).rejects.toMatchObject({
         code: 'FORBIDDEN',
       });
+      // MCP 授权：改命令 / 信任级别、启用、连接
+      await expect(
+        api.ext.mcpUpsert({ name: 'x', transport: 'stdio', command: 'sh', trust: 'auto' }),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+      await expect(api.ext.mcpToggle({ id: 'x', enabled: true })).rejects.toMatchObject({
+        code: 'FORBIDDEN',
+      });
+      await expect(api.ext.mcpConnect({ id: 'x' })).rejects.toMatchObject({ code: 'FORBIDDEN' });
       expect(f.kb.consentCloud).not.toHaveBeenCalled();
       expect(f.localModels.setOffline).not.toHaveBeenCalled();
-      // 非 dangerous 过程照常可用
+      expect(f.ext.upsert).not.toHaveBeenCalled();
+      expect(f.ext.toggle).not.toHaveBeenCalled();
+      expect(f.ext.connect).not.toHaveBeenCalled();
+      // 非 dangerous 过程照常可用（收回能力的断开不是 dangerous）
       expect(await api.kb.toggleSource({ id: 's', enabled: true })).toBe(true);
+      await api.ext.mcpDisconnect({ id: 'x' });
+      expect(f.ext.disconnect).toHaveBeenCalledWith('x');
     } finally {
       close();
     }
