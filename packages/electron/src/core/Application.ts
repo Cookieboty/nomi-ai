@@ -666,10 +666,7 @@ export class Application implements IApplication {
           // 旧本地路由不再启动：网关接管它的端口
           routeListening: () => false,
         },
-        broadcast: (channel, payload) => {
-          for (const w of BrowserWindow.getAllWindows())
-            if (!w.isDestroyed()) w.webContents.send(channel, payload);
-        },
+        broadcast: (channel, payload) => this.events.publish(channel, payload),
       });
       gateway.registerIpc();
       // 先迁移（读旧存储里「启用中」的标记），再撤销旧版本写进全局配置的东西（会清掉这些标记）
@@ -937,12 +934,7 @@ export class Application implements IApplication {
     characterPack.onChange(() => persona.reload());
     onLocaleChange(() => persona.localeChanged());
     registerPersonaIpc(persona, {
-      broadcast: (channel, payload) => {
-        for (const w of BrowserWindow.getAllWindows()) {
-          if (!w.isDestroyed() && !w.webContents.isDestroyed())
-            w.webContents.send(channel, payload);
-        }
-      },
+      broadcast: (channel, payload) => this.events.publish(channel, payload),
     });
     const p = persona.get();
     this.logger.info(`persona: ${p.characterId} (${p.displayName})`);
