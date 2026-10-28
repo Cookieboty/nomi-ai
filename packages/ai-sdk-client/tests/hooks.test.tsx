@@ -146,10 +146,13 @@ describe('useTTSLipSync', () => {
 
 describe('useUserProfile', () => {
   it('挂载时拉取 profile，subscribe 后收到更新', async () => {
+    const setInputs: unknown[] = [];
     const server = createFakeServer({
       'ai.memory.userProfile.get': () => makeProfile({ nickname: 'nya' }),
-      'ai.memory.userProfile.set': (input) =>
-        makeProfile({ nickname: (input as { patch: { nickname: string } }).patch.nickname }),
+      'ai.memory.userProfile.set': (input) => {
+        setInputs.push(input);
+        return makeProfile({ nickname: (input as { patch: { nickname: string } }).patch.nickname });
+      },
     });
     const wrapper = wrapperFactory(server);
     const { result } = renderHook(() => useUserProfile<{ nickname: string }>(), { wrapper });
@@ -161,12 +164,17 @@ describe('useUserProfile', () => {
     );
     await waitFor(() => expect(result.current.profile?.nickname).toBe('senpai'));
 
-    // set 也应更新
+    // set 收裸补丁，包成 ProfilePatch（{ patch, source: 'user' }）再发，也应更新
     await act(async () => {
-      // 门面的 set 收 ProfilePatch（{ patch, source }）
-      await result.current.set({ patch: { nickname: 'ai' }, source: 'user' } as never);
+      await result.current.set({ nickname: 'ai' });
     });
+    expect(setInputs).toEqual([{ patch: { nickname: 'ai' }, source: 'user' }]);
     expect(result.current.profile?.nickname).toBe('ai');
+
+    await act(async () => {
+      await result.current.set({ nickname: 'x' }, { reason: 'settings' });
+    });
+    expect(setInputs[1]).toEqual({ patch: { nickname: 'x' }, source: 'user', reason: 'settings' });
   });
 });
 
