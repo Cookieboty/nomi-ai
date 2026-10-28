@@ -175,21 +175,29 @@ test.describe('E37 · real app · Nomi conversation workspace', () => {
         .poll(async () => (await callContract<{ cwd: string }>(chat, 'harness.state')).cwd)
         .toBe(ws);
 
-      const send = async (msg: string, expectText: string | RegExp) => {
+      /** 发一条 CALL，等 mock 收到这一轮的工具结果，返回结果正文 */
+      const toolTurns = () => requests.filter((r) => r.messages.at(-1)?.role === 'tool');
+      const send = async (msg: string): Promise<string> => {
+        const before = toolTurns().length;
         await chat.fill('textarea', msg, { timeout: 60_000 });
         await chat.press('textarea', 'Enter');
-        await expect(chat.locator('body')).toContainText(expectText, { timeout: 30_000 });
+        await expect.poll(() => toolTurns().length, { timeout: 30_000 }).toBeGreaterThan(before);
+        const result = text(toolTurns().at(-1)!.messages.at(-1)!.content);
+        // 回复渲染完（输入框可以再用）再发下一条
+        await expect(chat.locator('body')).toContainText(`TOOLRESULT ${result.slice(0, 20)}`, {
+          timeout: 30_000,
+        });
+        return result;
       };
 
       // ---- 2. 工作区里读写：相对路径、不要授权、不弹确认 ----
-      await send(
-        `CALL fs_read_text ${JSON.stringify({ path: 'readme.md' })}`,
-        /TOOLRESULT.*TOKENWS1/,
+      expect(await send(`CALL fs_read_text ${JSON.stringify({ path: 'readme.md' })}`)).toContain(
+        'TOKENWS1',
       );
-      await send(
+      const written = await send(
         `CALL fs_write_text ${JSON.stringify({ path: 'notes/../hello.txt', text: 'HELLO-E37', mode: 'create' })}`,
-        /TOOLRESULT.*hello\.txt/,
       );
+      expect(written).toContain('"ok":true');
       expect(readFileSync(join(ws, 'hello.txt'), 'utf8')).toBe('HELLO-E37');
       await expect(main.locator('[data-testid="desktop-confirm-bubble"]')).toHaveCount(0);
       // 模型拿到了工作区说明与 workspace_run
@@ -198,26 +206,27 @@ test.describe('E37 · real app · Nomi conversation workspace', () => {
       expect(text(toolReq.messages[0]?.content)).toContain(ws);
 
       // ---- 3. 工作区外的路径被拒 ----
-      await send(
-        `CALL fs_read_text ${JSON.stringify({ path: join(outside, 'secret.txt') })}`,
-        /TOOLRESULT.*outside_scope/,
-      );
-      await send(
-        `CALL fs_write_text ${JSON.stringify({ path: '../elsewhere/x.txt', text: 'x', mode: 'create' })}`,
-        /TOOLRESULT.*outside_scope/,
-      );
+      expect(
+        await send(`CALL fs_read_text ${JSON.stringify({ path: join(outside, 'secret.txt') })}`),
+      ).toContain('outside_scope');
+      expect(
+        await send(
+          `CALL fs_write_text ${JSON.stringify({ path: '../elsewhere/x.txt', text: 'x', mode: 'create' })}`,
+        ),
+      ).toContain('outside_scope');
       expect(existsSync(join(outside, 'x.txt'))).toBe(false);
       expect(requests.map((r) => JSON.stringify(r.messages)).join('')).not.toContain(
         'OUTSIDESECRET',
       );
 
       // ---- 4. 命令在工作区里执行 ----
-      if (process.platform !== 'win32')
-        await send(
+      if (process.platform !== 'win32') {
+        const ran = await send(
           `CALL workspace_run ${JSON.stringify({ command: 'ls && echo RUN-$((20+17))' })}`,
-          /TOOLRESULT.*RUN-37/,
         );
-      await expect(chat.locator('body')).toContainText('hello.txt');
+        expect(ran).toContain('RUN-37');
+        expect(ran).toContain('hello.txt');
+      }
     } catch (e) {
       console.warn(`[E37] diagnostics\n${diag.slice(-80).join('\n')}`);
       throw e;
