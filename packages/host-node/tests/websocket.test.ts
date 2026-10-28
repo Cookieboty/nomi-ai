@@ -136,8 +136,8 @@ describe('serveContractOverWebSocket', () => {
     expect(ticks).toEqual([{ n: 7 }]);
 
     transport.close();
-    await new Promise((r) => setTimeout(r, 20));
-    expect(s.connectionCount).toBe(0);
+    // 服务端的 close 事件在客户端关闭握手之后到；整套测试并行时 20ms 不够，等到它为止
+    await expect.poll(() => s.connectionCount, { timeout: 2000, interval: 10 }).toBe(0);
   });
 
   it('rejects a wrong token, a foreign or missing Origin, an unknown surface and a foreign Host', async () => {
