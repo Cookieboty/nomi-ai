@@ -9,6 +9,7 @@ import type {
   PickDirectoryOptions,
   PickFilesOptions,
   SaveFileOptions,
+  SecretsPort,
 } from '@nomi-ai/host-ports';
 
 import { createRecordingAppEvents, type RecordingAppEvents } from '../../../src/core/appEvents';
@@ -22,6 +23,35 @@ export interface FeatureHostOptions {
   idleSeconds?: number;
   packaged?: boolean;
   version?: string;
+  /** 系统安全存储；默认 `fakeSecrets()`（可用） */
+  secrets?: SecretsPort;
+}
+
+/** 安全存储假实现的开关：测试改这两个字段模拟钥匙串不可用 / 加密抛错 */
+export interface FakeSecretsState {
+  available: boolean;
+  throws?: boolean;
+}
+
+/**
+ * 系统安全存储的假实现：「密文」是 `CIPHER<明文>` 的字节（与以前 mock 的 safeStorage 一致），
+ * 每次调用时读 `state`，测试可以中途切换可用性。
+ */
+export function fakeSecrets(state: FakeSecretsState = { available: true }): SecretsPort {
+  return {
+    available: () => state.available,
+    backend: () => null,
+    encrypt: (plain) => {
+      if (!state.available) throw new Error('secrets unavailable');
+      if (state.throws) throw new Error('keychain locked');
+      return new Uint8Array(Buffer.from(`CIPHER<${plain}>`));
+    },
+    decrypt: (cipher) =>
+      Buffer.from(cipher)
+        .toString('utf8')
+        .replace(/^CIPHER</, '')
+        .replace(/>$/, ''),
+  };
 }
 
 export interface FeatureHostCalls {
@@ -32,7 +62,10 @@ export interface FeatureHostCalls {
   showItemInFolder: string[];
 }
 
-export type FeaturePorts = Pick<HostPorts, 'dialogs' | 'shell' | 'power' | 'app' | 'processes'>;
+export type FeaturePorts = Pick<
+  HostPorts,
+  'dialogs' | 'shell' | 'power' | 'app' | 'processes' | 'secrets'
+>;
 
 export interface FeatureHost {
   ports: FeaturePorts;
@@ -94,6 +127,7 @@ export function featureHost(o: FeatureHostOptions = {}): FeatureHost {
       isPackaged: () => o.packaged ?? true,
       platform: () => process.platform,
     },
+    secrets: o.secrets ?? fakeSecrets(),
     // 单测里没有工具子进程：文档解析退回进程内
     processes: {
       available: () => false,

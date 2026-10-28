@@ -44,9 +44,6 @@ export const ELECTRON_IMPORT_ALLOWLIST = [
   'packages/electron/src/ai/ClipboardGateway.ts',
   'packages/electron/src/ai/ScreenCapture.ts',
   'packages/electron/src/chat/assetProtocol.ts',
-  'packages/electron/src/security/secretStorage.ts',
-  'packages/electron/src/utils/log.ts',
-  'packages/electron/src/utils/privateFile.ts',
   // 契约传输的 sender 白名单（app.isPackaged）→ P3 随宿主搬家
   'packages/electron/src/security/ipcSenderGuard.ts',
   // 窗口相关但还不在宿主目录 → P3 随宿主搬家

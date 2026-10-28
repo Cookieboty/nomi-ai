@@ -4,8 +4,6 @@ import fsp from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import { app } from 'electron';
-
 /**
  * 写入含敏感信息的配置文件并强制仅当前用户可读写。
  * - POSIX：0600（writeFileSync 的 mode 只在新建时生效，故对已存在文件再 chmod 一次）
@@ -166,9 +164,20 @@ const privateFiles = new Map<string, string>();
 /** 同一目录并发的异步收紧只跑一次 icacls */
 const dirInflight = new Map<string, Promise<boolean>>();
 
-/** undefined = 按 electron app 的 userData 推断；null = 不自动收紧任何目录 */
+/** undefined = 按宿主设置的根目录（setPrivateRoot）推断；null = 不自动收紧任何目录 */
 let autoRootOverride: string | null | undefined;
 let autoRootCached: string | null | undefined;
+/** 宿主给的根目录（Electron：userData，见 host/processDefaults.ts）；工具子进程等没有宿主的环境里为 null */
+let autoRootResolver: (() => string | null) | null = null;
+
+/**
+ * 宿主启动时设置允许自动收紧的根目录（其子目录可自动收紧）。取值在第一次用到时才做并缓存，
+ * 所以可以在 userData 路径确定之前设置。传 null 恢复默认（不自动收紧）。
+ */
+export function setPrivateRoot(resolve: (() => string | null) | null): void {
+  autoRootResolver = resolve;
+  autoRootCached = undefined;
+}
 
 /** @internal 单测注入：允许自动收紧的根目录（其子目录可自动收紧） */
 export function __setPrivateRootForTest(root: string | null | undefined): void {
@@ -188,9 +197,10 @@ export function __resetAclCacheForTest(): void {
 function autoRoot(): string | null {
   if (autoRootOverride !== undefined) return autoRootOverride;
   if (autoRootCached !== undefined) return autoRootCached;
+  // 宿主还没设置（工具进程等没有宿主的环境）：不自动收紧，也不缓存，设置后再取
+  if (!autoRootResolver) return null;
   try {
-    // 工具进程等没有 app 的环境里拿不到，视为不自动收紧
-    autoRootCached = app?.getPath?.('userData') || null;
+    autoRootCached = autoRootResolver() || null;
   } catch {
     autoRootCached = null;
   }

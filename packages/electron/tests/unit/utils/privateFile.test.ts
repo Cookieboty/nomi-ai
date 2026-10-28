@@ -24,6 +24,7 @@ import {
   ensurePrivateDir,
   tightenWindowsAcl,
   windowsAclUser,
+  setPrivateRoot,
   writePrivateFile,
   writePrivateFileAtomic,
 } from '../../../src/utils/privateFile';
@@ -187,6 +188,24 @@ describe('privateFile Windows ACL 缓存', () => {
     if (envSnap.USERDOMAIN === undefined) delete process.env.USERDOMAIN;
     else process.env.USERDOMAIN = envSnap.USERDOMAIN;
     fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it('宿主用 setPrivateRoot 给根目录；设置之前不自动收紧、也不缓存这个结果', () => {
+    __setPrivateRootForTest(undefined);
+    const sub = path.join(root, 'usage');
+    fs.mkdirSync(sub);
+    const a = path.join(sub, 'a.json');
+    try {
+      writePrivateFile(a, '1');
+      expect(calls).toEqual([[a, ...fileGrant]]);
+      calls.length = 0;
+      __resetAclCacheForTest();
+      setPrivateRoot(() => root);
+      writePrivateFile(path.join(sub, 'b.json'), '1');
+      expect(calls).toEqual([[sub, ...dirGrant]]);
+    } finally {
+      setPrivateRoot(null);
+    }
   });
 
   it('userData 子目录：首次写只收紧目录一次，之后同目录的写入（普通 / 原子 / 新文件）都不再 icacls', () => {

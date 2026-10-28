@@ -16,7 +16,7 @@ import path from 'node:path';
 import { broadcastMascotCommand } from '../ai/mascotCommand';
 import type { AppEvents } from '../core/appEvents';
 import { t as tr } from '../i18n';
-import { canEncryptSecrets, decryptSecret, encryptSecret } from '../security/secretStorage';
+import { createSecretBox, type SecretBox, type SecretBoxPort } from '../security/secretStorage';
 
 import { assetsFor, findAsset, type VoiceAsset } from './catalog';
 import { transcribeOpenAICompat } from './cloudAsr';
@@ -70,6 +70,8 @@ export type VoiceActivity = 'idle' | 'listening' | 'hearing' | 'transcribing' | 
 export interface VoiceDeps {
   root: string;
   logger: Logger;
+  /** 宿主的系统安全存储（云识别 API Key 加密落盘） */
+  secrets: SecretBoxPort;
   providers?: () => Array<{ id: string; name: string; baseURL: string }>;
   credentials?: (
     id: string,
@@ -159,8 +161,11 @@ export class VoiceService {
   private readonly streams = new Map<string, VolcStream>();
   private readonly streamOwners = new Set<number>();
   private streamSeq = 0;
+  /** 云识别 API Key 的加解密（`enc:` 前缀，失败关闭） */
+  private readonly secrets: SecretBox;
 
   constructor(private readonly d: VoiceDeps) {
+    this.secrets = createSecretBox(d.secrets);
     this.settings = this.load();
   }
 
@@ -178,7 +183,7 @@ export class VoiceService {
   private volcKey(): string {
     try {
       const j = JSON.parse(fs.readFileSync(this.volcKeyFile, 'utf8')) as { key?: unknown };
-      return typeof j.key === 'string' ? decryptSecret(j.key) : '';
+      return typeof j.key === 'string' ? this.secrets.decrypt(j.key) : '';
     } catch {
       return '';
     }
@@ -194,10 +199,10 @@ export class VoiceService {
     if (!key || key.length > 256 || /\s/.test(key))
       return { ok: false, error: tr('electron.common.invalid-api-key-format') };
     const unavailable = tr('electron.common.system-secure-storage-is-unavailable-so-the-api');
-    if (!canEncryptSecrets()) return { ok: false, error: unavailable };
+    if (!this.secrets.canEncrypt()) return { ok: false, error: unavailable };
     let enc: string;
     try {
-      enc = encryptSecret(key, unavailable);
+      enc = this.secrets.encrypt(key, unavailable);
     } catch (e) {
       return { ok: false, error: (e as Error).message };
     }
@@ -417,7 +422,7 @@ export class VoiceService {
         hasKey: this.hasVolcKey(),
         host: VOLC_ASR_HOST,
         resources: [...VOLC_RESOURCES],
-        canStoreKey: canEncryptSecrets(),
+        canStoreKey: this.secrets.canEncrypt(),
         /** 回退用的本地识别是否就绪（引擎 + 已选模型都在） */
         fallbackReady: this.localReady(),
       },

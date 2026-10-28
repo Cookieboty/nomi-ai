@@ -3,6 +3,9 @@
  * 简化架构，使用Application类管理应用生命周期
  */
 
+// 最先加载：日志是否静默、私有文件的根目录（模块级宿主设置，其余模块加载时就可能用到）
+import './host/processDefaults';
+
 import * as path from 'path';
 
 import { app, BrowserWindow } from 'electron';

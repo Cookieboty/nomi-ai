@@ -9,15 +9,6 @@ const safe = { available: true };
 jest.mock('electron', () => ({
   app: { getPath: () => '/tmp' },
   BrowserWindow: { getAllWindows: () => [] },
-  safeStorage: {
-    isEncryptionAvailable: () => safe.available,
-    encryptString: (s: string) => Buffer.from(`CIPHER<${s}>`),
-    decryptString: (b: Buffer) =>
-      b
-        .toString('utf8')
-        .replace(/^CIPHER</, '')
-        .replace(/>$/, ''),
-  },
 }));
 
 import fs from 'node:fs';
@@ -46,6 +37,7 @@ import {
   resultText,
 } from '../../../src/voice/volcAsr';
 import { until } from '../../helpers/wait';
+import { fakeSecrets } from '../helpers/featureHost';
 
 const KEY = 'volc-test-key-0123456789abcdef';
 const RES = 'volc.seedasr.sauc.duration';
@@ -466,6 +458,7 @@ describe('VoiceService · volc', () => {
   const make = (url = 'ws://127.0.0.1:1/x', extra: Record<string, unknown> = {}) =>
     new VoiceService({
       root,
+      secrets: fakeSecrets(safe),
       logger: { info() {}, warn() {}, error() {} },
       localOnly: () => localOnly,
       audit,

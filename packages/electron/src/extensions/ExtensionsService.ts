@@ -25,7 +25,7 @@ import { broadcastMascotCommand } from '../ai/mascotCommand';
 import type { AppEvents } from '../core/appEvents';
 import type { DesktopService } from '../desktop/DesktopService';
 import { t } from '../i18n';
-import { canEncryptSecrets, decryptSecret, encryptSecret } from '../security/secretStorage';
+import { createSecretBox, type SecretBox } from '../security/secretStorage';
 import { writePrivateFileAtomic } from '../utils/privateFile';
 
 import {
@@ -74,7 +74,8 @@ export interface ExtDeps {
   home?: () => string;
   env?: () => Record<string, string | undefined>;
   /** 选择技能 / 项目文件夹、打开技能目录 */
-  ports: Pick<HostPorts, 'dialogs' | 'shell'>;
+  /** 选目录 / 打开目录；MCP 密钥加密落盘（secrets） */
+  ports: Pick<HostPorts, 'dialogs' | 'shell' | 'secrets'>;
   /** 通知界面（`ai:ext:changed` 发给所有窗口） */
   events: AppEvents;
 }
@@ -154,8 +155,11 @@ export class ExtensionsService {
   private migrateCache = new Map<string, McpCandidate | SkillCandidate>();
   /** 用户在导入对话框里选的项目文件夹（渲染进程永远不传路径） */
   private migrateProject: string | null = null;
+  /** MCP env / headers 密钥的加解密（`enc:` 前缀，失败关闭） */
+  private readonly secrets: SecretBox;
 
   constructor(private readonly d: ExtDeps) {
+    this.secrets = createSecretBox(d.ports.secrets);
     fs.mkdirSync(d.root, { recursive: true });
     fs.mkdirSync(d.skillsRoot, { recursive: true });
     this.servers = this.loadServers();
@@ -187,13 +191,13 @@ export class ExtensionsService {
   private enc(v: string): string {
     if (!v || v.startsWith('enc:')) return v;
     try {
-      return encryptSecret(v, '');
+      return this.secrets.encrypt(v, '');
     } catch {
       return v;
     }
   }
   private dec(v: string): string {
-    return decryptSecret(v);
+    return this.secrets.decrypt(v);
   }
   /** 新写入 / 修改的 env、headers 密钥必须能加密，否则整次保存失败关闭 */
   private assertCanStoreSecrets(next: McpServerEntry[], prev?: McpServerEntry): void {
@@ -208,7 +212,7 @@ export class ExtensionsService {
     const changed = next.some(
       (e) => differs(e.env, prev?.env, false) || differs(e.headers, prev?.headers, true),
     );
-    if (changed && !canEncryptSecrets())
+    if (changed && !this.secrets.canEncrypt())
       throw new McpConfigError(
         t('electron.common.system-secure-storage-is-unavailable-so-mcp-secrets'),
       );

@@ -4,8 +4,10 @@
  *
  * - debug / info：开发环境（未打包）输出；打包后静默，设置环境变量 NOMI_DEBUG=1 可打开。
  * - warn / error：始终输出。
+ *
+ * 「是否正式打包」由宿主在启动时告诉这里（Electron：host/processDefaults.ts 接 `app.isPackaged`）；
+ * 没设置的进程（工具子进程、单测）按开发态处理。
  */
-import { app } from 'electron';
 
 export interface MainLogger {
   debug(...args: unknown[]): void;
@@ -14,10 +16,17 @@ export interface MainLogger {
   error(...args: unknown[]): void;
 }
 
+let isPackaged: (() => boolean) | null = null;
+
+/** 宿主设置「是否正式打包」的取值函数；传 null 恢复默认（按开发态处理） */
+export function setMainLogPackaged(fn: (() => boolean) | null): void {
+  isPackaged = fn;
+}
+
 export function isVerboseMainLogging(): boolean {
   if (process.env.NOMI_DEBUG === '1') return true;
   try {
-    return !app?.isPackaged;
+    return !isPackaged?.();
   } catch {
     return true;
   }

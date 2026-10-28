@@ -17,7 +17,7 @@ import {
 import { isBuiltinCliId } from '@nomi-ai/cli-plugins';
 import type { ProviderQuirks } from '@nomi-ai/gateway';
 import type { HostPorts } from '@nomi-ai/host-ports';
-import { app, protocol, safeStorage, session, shell } from 'electron';
+import { app, protocol, session, shell } from 'electron';
 
 import { getAgentProgressService, initAgentProgressService } from '../agents/AgentProgressService';
 import { startAIRuntime, type AIRuntimeBootHandle } from '../ai/AIRuntimeBoot';
@@ -76,6 +76,7 @@ import {
 import { getSchedulerService, initSchedulerService } from '../schedule/SchedulerService';
 import { initScreenService } from '../screen/ScreenService';
 import { appCspString } from '../security/csp';
+import { safeStorageFromSecrets } from '../security/secretStorage';
 import { AdvancedTTSEngine } from '../services/AdvancedTTSEngine';
 import { CacheService } from '../services/CacheService';
 import { ConfigService } from '../services/ConfigService';
@@ -662,7 +663,7 @@ export class Application implements IApplication {
       const gateway = initGatewayService({
         root: path.join(app.getPath('userData'), 'gateway'),
         processes: this.ports.processes,
-        cipher: createSafeStorageCipher(safeStorage),
+        cipher: createSafeStorageCipher(safeStorageFromSecrets(this.ports.secrets)),
         logger: this.logger as never,
         // 网关事件不计入用量账本（CLI 以会话日志为准），进模型质量
         onUsage: (e) => quality.addGateway(e),
@@ -896,6 +897,7 @@ export class Application implements IApplication {
       const rtv = this.aiRuntime;
       const voice = getVoiceService({
         root: path.join(app.getPath('userData'), 'voice'),
+        secrets: this.ports.secrets,
         logger: this.logger as never,
         providers: () => rtv?.listProviders() ?? [],
         credentials: (id) => rtv?.providerCredentials(id) ?? null,

@@ -19,15 +19,6 @@ jest.mock('electron', () => ({
   dialog: {},
   nativeImage: {},
   shell: {},
-  safeStorage: {
-    isEncryptionAvailable: () => safe.available,
-    encryptString: (s: string) => Buffer.from(`CIPHER<${s}>`),
-    decryptString: (b: Buffer) =>
-      b
-        .toString('utf8')
-        .replace(/^CIPHER</, '')
-        .replace(/>$/, ''),
-  },
 }));
 
 import fs from 'node:fs';
@@ -43,7 +34,7 @@ import {
   nomiSkillName,
   readConfigFile,
 } from '../../../src/extensions/migrate';
-import { featureDeps } from '../helpers/featureHost';
+import { fakeSecrets, featureDeps } from '../helpers/featureHost';
 
 const SECRET = 'sk-ant-TESTSECRET0123456789abcdef';
 let tmp: string;
@@ -357,7 +348,7 @@ describe('ExtensionsService migrate', () => {
       desktop: { audit: { append: jest.fn() } } as never,
       home: () => home,
       env: () => env,
-      ...featureDeps({ pickDirectory: [pick] }),
+      ...featureDeps({ pickDirectory: [pick], secrets: fakeSecrets(safe) }),
     });
   }
   const mcpFile = () => fs.readFileSync(path.join(ud, 'extensions', 'mcp.json'), 'utf8');
