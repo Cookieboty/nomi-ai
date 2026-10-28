@@ -170,8 +170,9 @@ export class AIClient {
     }
 
     if (this.avatar.isAvailable()) {
-      this.bridgeDisposers.push(this.avatar.on('touch', (t) => push('avatar:touch', t)));
-      this.bridgeDisposers.push(this.avatar.on('motion:end', (m) => push('avatar:motion-end', m)));
+      this.bridgeDisposers.push(this.avatar.on('touched', (t) => push('avatar:touched', t)));
+      this.bridgeDisposers.push(this.avatar.on('clicked', (c) => push('avatar:clicked', c)));
+      this.bridgeDisposers.push(this.avatar.on('scene', (s) => push('avatar:scene', s)));
     }
   }
 

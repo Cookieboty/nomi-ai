@@ -21,7 +21,7 @@ export function playBubbleClip(keyOrText: string, clip: string | null | undefine
 }
 
 /** 在看板娘气泡中显示消息（带优先级与自动消失）。 */
-export function useWaifuMessage() {
+export function useCompanionMessage() {
   const { state, dispatch } = useMascot();
 
   const showMessage = useCallback(

@@ -1,19 +1,19 @@
 import { test, expect } from '../fixtures/electronApp';
 
 /**
- * E4 · waifu profile · profile write-read headed 复刻
+ * E4 · companion profile · profile write-read headed 复刻
  *
- * 语义对齐 e2e/tests/E4.waifu-profile-write-read.test.ts：
+ * 语义对齐 e2e/tests/E4.companion-profile-write-read.test.ts：
  * - renderer 经契约调 `ai.memory.userProfile.set`（{ patch, source }）更新 nickname；
  * - 主进程 UserProfileService 落盘 + 触发 userProfile/changed 插件事件；
  * - 契约事件 `ai.userProfile.changed` 推给订阅了的窗口；
  * - renderer 经契约调 `ai.memory.userProfile.get` 拉到最新值。
  */
-test.describe('E4 · waifu · userProfile:set → 广播 + get 一致', () => {
+test.describe('E4 · companion · userProfile:set → 广播 + get 一致', () => {
   test('nickname 修改后 renderer 收到 userProfile:changed 广播且 get 返回新值', async ({
     launchHeaded,
   }) => {
-    const { page } = await launchHeaded({ profile: 'waifu' });
+    const { page } = await launchHeaded({ profile: 'companion' });
     expect(page).not.toBeNull();
     await page!.waitForFunction(() => typeof (window as any).__e2eProbe !== 'undefined');
     await page!.evaluate(() => (window as any).__e2eProbe.clear());

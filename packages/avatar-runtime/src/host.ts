@@ -3,7 +3,8 @@
  *
  * - 输入：角色（manifest 的引擎相关字段 + mapping，类型来自 `@nomi-ai/character-contract`）、
  *   `resolveAsset(path) → url`、一个语义事件源 `AvatarEventSource`（./events.ts）；
- * - 输出：互动事件（`onInteraction`：点击、双击、摸头、悬停、抓起、落地……）；
+ * - 输出：互动事件（`onInteraction`：点击、双击、摸头、悬停、抓起、落地……，带台词，宿主显示气泡）与
+ *   语义事件（`onAvatarEvent`：touched / clicked / scene，宿主经契约交给 AI）；
  *   放在透明桌面窗口里时，再经可选的 `AvatarWindowHost` 报告命中（点击穿透）、拖拽与包围盒。
  *
  * 宿主（renderer）用契约客户端实现这些接口；运行时自己不访问任何宿主全局。
@@ -16,7 +17,7 @@ import type {
 } from '@nomi-ai/character-contract';
 import { createContext, useContext } from 'react';
 
-import type { AvatarEventSource } from './events';
+import type { AvatarEventSource, AvatarOutputEvent } from './events';
 import type { ReactionKind } from './interaction/gestures';
 import type { BodyRegion } from './interaction/regions';
 import type { Rect } from './interaction/shape';
@@ -42,8 +43,8 @@ export interface AvatarCharacter {
   layout?: PackLayout | null;
   capabilities?: PackCapabilities;
   /**
-   * 语义 → 引擎资源（§10.5）。C2 只接收并保存，C3 才按它翻译情绪 / 活动 / 手势；
-   * 现在的表情与动作仍由表情导演直接给出。
+   * 语义 → 引擎资源（§10.5，mapping.json）：情绪、活动、手势都按它翻译，没有映射的忽略。
+   * `null` / 缺省（包没有 mapping.json）用引擎默认映射（mapping.ts）。
    */
   mapping?: PackMapping | null;
 }
@@ -89,6 +90,8 @@ export interface AvatarRuntimeOptions {
   /** 语义事件源；不提供时角色只做待机与互动 */
   events?: AvatarEventSource | null;
   onInteraction?: (event: AvatarInteractionEvent) => void;
+  /** 角色 → AI 的语义事件（touched / clicked / scene） */
+  onAvatarEvent?: (event: AvatarOutputEvent) => void;
   windowHost?: AvatarWindowHost | null;
   /** Rive wasm 的 URL（宿主打包进来的那份；CSP 不允许 CDN）。缺省用 Rive 运行时自带的地址 */
   riveWasmUrl?: string;

@@ -45,6 +45,7 @@ export function currentAvatarCharacter(manifestPath: string): AvatarCharacter {
         }
       : null,
     capabilities: overlay ? undefined : BUNDLED_PACK.capabilities,
-    mapping: overlay ? null : BUNDLED_PACK.mapping,
+    // 覆盖包带自己的 mapping.json；没有时为 null（运行时用引擎默认映射）
+    mapping: overlay ? (overlay.mapping ?? null) : BUNDLED_PACK.mapping,
   };
 }

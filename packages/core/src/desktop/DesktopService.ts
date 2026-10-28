@@ -6,7 +6,7 @@ import type { HostPorts } from '@nomi-ai/host-ports';
 import type { DesktopBubble } from '@nomi-ai/types';
 // （显示 / 隐藏 / 按 sender 校验）与窗口数量。
 
-import { sendMascotCommand } from '../ai/mascotCommand';
+import { avatarEmotion, avatarGesture } from '../ai/mascotCommand';
 import type { AppEvents } from '../core/appEvents';
 import { t as tr } from '../i18n';
 import { CodeSandbox } from '../sandbox/CodeSandbox';
@@ -210,11 +210,8 @@ export class DesktopService {
     if (!w) return;
     if (!w.isVisible()) w.showInactive();
     this.events.publish('desktop:confirm-request', req, { surface: 'mascot' });
-    sendMascotCommand(this.events, { type: 'motion', name: 'think' });
-    sendMascotCommand(this.events, {
-      type: 'expression',
-      name: req.danger === 'destructive' ? 'surprised' : 'relaxed',
-    });
+    avatarGesture(this.events, 'think');
+    avatarEmotion(this.events, req.danger === 'destructive' ? 'surprised' : 'relaxed');
   }
 
   say(text: string, opts: Omit<DesktopBubble, 'text'> = {}): void {
@@ -325,8 +322,8 @@ export class DesktopService {
         source: 'scheduler',
       });
     }
-    sendMascotCommand(this.events, { type: 'motion', name: 'wave' });
-    sendMascotCommand(this.events, { type: 'expression', name: 'happy' });
+    avatarGesture(this.events, 'wave');
+    avatarEmotion(this.events, 'happy');
   }
 
   /** 看板娘不在时的提醒：多条合成一条，走灵动岛或系统通知；都显示不了时只记 via=none 的审计 */
@@ -374,7 +371,7 @@ export class DesktopService {
         this.deliverReminderElsewhere(items);
         return [];
       }
-      sendMascotCommand(this.events, { type: 'motion', name: 'wave' });
+      avatarGesture(this.events, 'wave');
     }
     return items.map((r) => ({ id: r.id, text: r.text, dueAt: r.dueAt }));
   }
@@ -504,7 +501,7 @@ export class DesktopService {
     const say = (text: string) => this.toMascot('desktop:bubble', { text });
     const fail = (code: string, text: string) => {
       say(text);
-      sendMascotCommand(this.events, { type: 'expression', name: 'sad' });
+      avatarEmotion(this.events, 'sad');
       this.audit.append({
         tool: 'drop_summarize',
         args: { path: raw },
@@ -538,7 +535,7 @@ export class DesktopService {
     this.broker.grant(probe.real, 'read', 'file', true);
     const name = path.basename(probe.real);
     say(tr('electron.common.reading', name));
-    sendMascotCommand(this.events, { type: 'motion', name: 'think' });
+    avatarGesture(this.events, 'think');
     const parsed = await parseFile(probe.real, { processes: this.ports.processes });
     if (!parsed.ok) return fail(parsed.code, tr('electron.common.read-failed', parsed.message));
     if (!parsed.text.trim())
@@ -576,8 +573,8 @@ export class DesktopService {
         ? tr('electron.common.full-text-in-the-chat-window', short.slice(0, 90))
         : short,
     );
-    sendMascotCommand(this.events, { type: 'motion', name: 'nod' });
-    sendMascotCommand(this.events, { type: 'expression', name: 'happy' });
+    avatarGesture(this.events, 'nod');
+    avatarEmotion(this.events, 'happy');
     if (this.windows) {
       const existed = this.windows.chatOpen?.() ?? false;
       const chat = await this.windows.openChat();

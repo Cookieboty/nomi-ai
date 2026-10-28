@@ -2,8 +2,12 @@ jest.unmock('fs');
 jest.unmock('path');
 const island = jest.fn();
 const mascot = jest.fn();
+// 内核只发语义事件（§10.5）：这里把手势 / 情绪记成语义 cue
 jest.mock('../../../src/ai/mascotCommand', () => ({
   sendMascotCommand: (_e: unknown, c: unknown) => mascot(c),
+  publishAvatarCue: (_e: unknown, c: unknown) => mascot(c),
+  avatarGesture: (_e: unknown, name: string) => mascot({ type: 'gesture', name }),
+  avatarEmotion: (_e: unknown, name: string) => mascot({ type: 'emotion', name }),
 }));
 
 import fs from 'node:fs';
@@ -206,7 +210,7 @@ describe('Nomi tabs in the aggregated monitor', () => {
     shown.needPerm(perm);
     expect(shown.say).toHaveBeenCalledWith(expect.stringContaining('工具权限'), { voice: 'cue' });
     expect(island).not.toHaveBeenCalled();
-    expect(mascot).toHaveBeenCalledWith({ type: 'motion', name: 'think' });
+    expect(mascot).toHaveBeenCalledWith({ type: 'gesture', name: 'think' });
     const hidden = setup([], true);
     hidden.needPerm(perm);
     expect(hidden.say).not.toHaveBeenCalled();
@@ -234,7 +238,7 @@ describe('Nomi tabs in the aggregated monitor', () => {
       voice: 'cue',
     });
     expect(island).not.toHaveBeenCalled();
-    expect(mascot).toHaveBeenCalledWith({ type: 'motion', name: 'thumbs_up' });
+    expect(mascot).toHaveBeenCalledWith({ type: 'gesture', name: 'thumbsUp' });
     const closed = setup([], true);
     closed.finish({
       tabId: 'b',
@@ -249,7 +253,7 @@ describe('Nomi tabs in the aggregated monitor', () => {
     expect(island).toHaveBeenLastCalledWith(
       expect.objectContaining({ endpoint: 'dsh', status: 'failed', body: 'rate limited' }),
     );
-    expect(mascot).toHaveBeenLastCalledWith({ type: 'motion', name: 'sorry' });
+    expect(mascot).toHaveBeenLastCalledWith({ type: 'gesture', name: 'apologize' });
     // 正在前台看的标签：不打扰
     say.mockClear();
     finish({ tabId: 'c', title: 'x', backend: 'claude', ok: true, text: 'y', background: false });

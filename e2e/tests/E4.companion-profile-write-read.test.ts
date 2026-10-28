@@ -1,5 +1,5 @@
 /**
- * E4 · waifu · userProfile.set → userProfile:changed → 下一次 chat 拿到最新值
+ * E4 · companion · userProfile.set → userProfile:changed → 下一次 chat 拿到最新值
  *
  * 语义对齐：
  * - 真实内核跑在无界面宿主上，用户画像是内核插件宿主里真实的 `UserPreferenceMemoryPlugin`（无界面宿主没有
@@ -20,7 +20,7 @@ interface UserProfileApi {
   get(): Promise<unknown>;
 }
 
-describe('E4 · waifu · userProfile.set 后立即广播 & 下一次 chat 拿到最新值', () => {
+describe('E4 · companion · userProfile.set 后立即广播 & 下一次 chat 拿到最新值', () => {
   let core: E2eCore;
 
   beforeEach(async () => {

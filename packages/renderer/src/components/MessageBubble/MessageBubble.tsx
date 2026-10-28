@@ -158,7 +158,7 @@ export const MessageBubble: React.FC = () => {
     <>
       <div
         ref={bubbleRef}
-        id="waifu-tips-independent"
+        id="companion-tips-independent"
         data-mascot-ui={active && (scrolls || more) ? '' : undefined}
         data-scroll={scrolls ? '' : undefined}
         data-testid="mascot-bubble"

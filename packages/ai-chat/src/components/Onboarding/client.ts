@@ -1,4 +1,5 @@
 /** 新手引导与主进程的通信（应用契约 `onboarding.*`）；没有契约传输（浏览器预览 / 测试）时退化为本地状态 */
+import type { SemanticGesture } from '@nomi-ai/character-contract';
 import { EMPTY_USER_PROFILE, normalizeUserProfile, type UserProfile } from '@nomi-ai/types';
 
 import { api, hasTransport } from '../../services/api';
@@ -13,8 +14,11 @@ export interface OnboardingState {
   done: boolean;
   skipped?: boolean;
 }
+/** 对话窗口 → 看板娘（只有语义名，§10.5）：说一句（可带语义手势）、语义手势、正在等回复 */
 export type MascotCmd =
-  { type: 'say'; text: string; motion?: string } | { type: 'motion'; name: string };
+  | { type: 'say'; text: string; gesture?: SemanticGesture }
+  | { type: 'gesture'; name: SemanticGesture }
+  | { type: 'reply'; phase: 'waiting' | 'settled' };
 
 export const onboardingClient = {
   available: () => hasTransport(),

@@ -166,11 +166,16 @@ describe('shell · schema', () => {
     ).toBe(false);
   });
 
-  it('引导转发给看板娘的指令只开放 say / motion', () => {
+  it('引导转发给看板娘的指令只开放 say / gesture / reply，且只有语义名', () => {
     expect(
-      S.OnboardingMascotCmd.safeParse({ type: 'say', text: 'hi', motion: 'wave' }).success,
+      S.OnboardingMascotCmd.safeParse({ type: 'say', text: 'hi', gesture: 'wave' }).success,
     ).toBe(true);
-    expect(S.OnboardingMascotCmd.safeParse({ type: 'motion', name: 'nod' }).success).toBe(true);
+    expect(S.OnboardingMascotCmd.safeParse({ type: 'gesture', name: 'nod' }).success).toBe(true);
+    expect(S.OnboardingMascotCmd.safeParse({ type: 'reply', phase: 'waiting' }).success).toBe(true);
+    expect(S.OnboardingMascotCmd.safeParse({ type: 'motion', name: 'nod' }).success).toBe(false);
+    expect(S.OnboardingMascotCmd.safeParse({ type: 'gesture', name: 'think-on' }).success).toBe(
+      false,
+    );
     expect(S.OnboardingMascotCmd.safeParse({ type: 'open-panel', panel: 'x' }).success).toBe(false);
   });
 

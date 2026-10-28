@@ -2,11 +2,11 @@ import { AIProvider } from '@nomi-ai/ai-sdk-client/react';
 import React, { useMemo } from 'react';
 import type { FC, PropsWithChildren } from 'react';
 
-import WaifuLipSyncBridge from './WaifuLipSyncBridge';
+import CompanionLipSyncBridge from './CompanionLipSyncBridge';
 
 import { hasTransport } from '@/services/api';
 
-const WaifuAIRoot: FC<PropsWithChildren> = ({ children }) => {
+const CompanionAIRoot: FC<PropsWithChildren> = ({ children }) => {
   const ready = useMemo(() => hasTransport(), []);
 
   if (!ready) {
@@ -15,10 +15,10 @@ const WaifuAIRoot: FC<PropsWithChildren> = ({ children }) => {
 
   return (
     <AIProvider>
-      <WaifuLipSyncBridge />
+      <CompanionLipSyncBridge />
       {children}
     </AIProvider>
   );
 };
 
-export default WaifuAIRoot;
+export default CompanionAIRoot;

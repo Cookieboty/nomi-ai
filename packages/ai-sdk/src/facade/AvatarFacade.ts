@@ -1,5 +1,7 @@
 /**
- * AvatarFacade —— 看板娘（角色形象）操作薄封装。
+ * AvatarFacade —— 角色操作薄封装。只有语义事件（docs/design/core-host-decoupling.md §10.5）：
+ * AI → 角色 `emotion / gesture / activity / speaking`，角色 → AI `report` 与 `on('touched' | 'clicked' | 'scene')`。
+ * 名字来自 `@nomi-ai/character-contract` 的词表，具体资源由角色包的 mapping.json 决定。
  *
  * 仅在注入了 `AvatarKey`（装载 AvatarSeamPlugin）的 profile 可用；否则抛 `SEAM_NOT_INJECTED`。
  *
@@ -11,6 +13,8 @@ import {
   AvatarKey,
   type AvatarEvent,
   type AvatarEventPayload,
+  type AvatarHost,
+  type AvatarReport,
   type AvatarService,
 } from '@nomi-ai/bundle-ig-mascot/seams';
 
@@ -19,9 +23,12 @@ import { AIClientError, ErrorCodes } from '../errors';
 
 export interface AvatarFacade {
   isAvailable(): boolean;
-  playMotion(group: string, index?: number): Promise<void>;
-  setExpression(name: string): Promise<void>;
-  driveLipSync(rms: number): void;
+  emotion(name: Parameters<AvatarHost['emotion']>[0], weight?: number): Promise<void>;
+  gesture(name: Parameters<AvatarHost['gesture']>[0]): Promise<void>;
+  activity(name: Parameters<AvatarHost['activity']>[0]): Promise<void>;
+  speaking(level: number): void;
+  /** 角色窗口报告被摸 / 被点 / 场景 */
+  report(event: AvatarReport): void;
   on<E extends AvatarEvent>(evt: E, fn: (p: AvatarEventPayload<E>) => void): () => void;
 }
 
@@ -39,9 +46,11 @@ export function createAvatarFacade(ctx: SdkContext): AvatarFacade {
   };
   return {
     isAvailable: () => Boolean(tryGet()),
-    playMotion: async (g, i) => require().playMotion(g, i),
-    setExpression: async (n) => require().setExpression(n),
-    driveLipSync: (rms) => require().driveLipSync(rms),
+    emotion: async (n, w) => require().emotion(n, w),
+    gesture: async (n) => require().gesture(n),
+    activity: async (n) => require().activity(n),
+    speaking: (level) => require().speaking(level),
+    report: (e) => require().report(e),
     on: (evt, fn) => require().on(evt, fn),
   };
 }

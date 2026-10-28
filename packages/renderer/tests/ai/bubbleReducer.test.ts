@@ -137,16 +137,6 @@ describe('deriveBubble', () => {
     expect(bubble!.text.startsWith('⚠️')).toBe(true);
     expect(bubble!.text).toContain('not found');
   });
-
-  it('maps avatar:touch to bubble with hit area', () => {
-    const bubble = deriveBubble({
-      kind: 'avatar:touch',
-      payload: { hitArea: 'head' },
-    });
-    expect(bubble).not.toBeNull();
-    expect(bubble!.text).toContain('head');
-    expect(bubble!.priority).toBe(BUBBLE_PRIORITY.touch);
-  });
 });
 
 describe('shouldSuppress', () => {

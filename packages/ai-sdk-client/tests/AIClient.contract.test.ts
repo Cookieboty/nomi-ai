@@ -59,7 +59,7 @@ describe('P7 契约 · ClientAIClient ≡ AIClient 结构等价', () => {
     summaries: ['get', 'put'],
     asr: ['list', 'transcribe'],
     tts: ['list', 'listVoices', 'synth', 'stream', 'stop'],
-    avatar: ['isAvailable', 'playMotion', 'setExpression', 'driveLipSync'],
+    avatar: ['isAvailable', 'emotion', 'gesture', 'activity', 'speaking', 'report'],
   };
 
   it('AI_METHODS 覆盖所有可暴露方法且不多不少', () => {

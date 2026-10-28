@@ -201,8 +201,8 @@ describe('host/contract · shell', () => {
       expect(f.onboarding.complete).toHaveBeenCalledWith(true);
       await api.onboarding.complete({});
       expect(f.onboarding.complete).toHaveBeenLastCalledWith(false);
-      expect(await api.onboarding.mascot({ type: 'motion', name: 'nod' })).toBe(true);
-      expect(f.onboarding.mascot).toHaveBeenCalledWith({ type: 'motion', name: 'nod' });
+      expect(await api.onboarding.mascot({ type: 'gesture', name: 'nod' })).toBe(true);
+      expect(f.onboarding.mascot).toHaveBeenCalledWith({ type: 'gesture', name: 'nod' });
       await api.onboarding.setProfile({ role: 'developer', interests: [] });
       expect(f.onboarding.setProfile).toHaveBeenCalledWith({ role: 'developer', interests: [] });
     } finally {

@@ -3,6 +3,7 @@
  * 不修改 mascot/**；互动 SPEAK_KINDS 已由 reactions 朗读，此处只加音效。
  */
 import { useAIEvents } from '@nomi-ai/ai-sdk-client/react';
+import { gestureTarget } from '@nomi-ai/avatar-runtime';
 import type { DesktopBubble, DesktopReminderEvent } from '@nomi-ai/types';
 import { createLogger, t as tr } from '@nomi-ai/ui';
 import { useEffect, useRef } from 'react';
@@ -165,11 +166,16 @@ export const MascotAudioBridge: FC = () => {
 
   useEffect(() => {
     if (!hasTransport()) return;
-    const off = api.on('mascot.command', (cmd) => {
-      const c = cmd as { type?: string; name?: string } | null;
-      if (!c || c.type !== 'motion' || typeof c.name !== 'string') return;
-      // 仅音效；完整台词等 desktop:bubble，避免双读
-      mascotCueService.motionSfx(c.name);
+    const off = api.on('avatar.event', (e) => {
+      // 对话窗口开始 / 结束等回复：与以前的 think-on / think-off 指令一样只有一声轻响
+      if (e.type === 'reply') {
+        sfxService.play('pop', { cooldownMs: 150 });
+        return;
+      }
+      if (e.type !== 'gesture') return;
+      // 仅音效（按当前角色映射到的动作挑）；完整台词等 desktop:bubble，避免双读
+      const motion = gestureTarget(e.name);
+      if (motion) mascotCueService.motionSfx(motion);
     });
     return off;
   }, []);

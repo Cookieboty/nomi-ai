@@ -5,7 +5,7 @@ import React, { useMemo } from 'react';
 
 import { currentAvatarCharacter, resolveBundledAsset } from '../../avatar/character';
 import { avatarEvents } from '../../avatar/events';
-import { handleAvatarInteraction } from '../../avatar/interaction';
+import { handleAvatarInteraction, reportAvatarEvent } from '../../avatar/interaction';
 import { createMascotWindowHost } from '../../avatar/windowHost';
 import { useCharacterPackReady } from '../../mascot/characterConfig';
 import { hasTransport } from '../../services/api';
@@ -20,8 +20,8 @@ const DEV = process.env.NODE_ENV === 'development';
 /**
  * Mascot window → avatar-runtime adapter: waits for the Scheme B overlay so mode / asset URLs are
  * final before first paint, then mounts `AvatarStage` with the window's event hub, the contract
- * window host (click-through / drag; only when the contract transport exists) and the bubble /
- * speech handler for interaction output.
+ * window host (click-through / drag; only when the contract transport exists), the bubble /
+ * speech handler for interaction output and the semantic reporter (touched / clicked / scene → AI).
  */
 export const Nomi2DCanvas: React.FC<Nomi2DCanvasProps> = ({ manifestPath }) => {
   const overlayReady = useCharacterPackReady();
@@ -41,6 +41,7 @@ export const Nomi2DCanvas: React.FC<Nomi2DCanvasProps> = ({ manifestPath }) => {
       resolveAsset={resolveBundledAsset}
       events={avatarEvents}
       onInteraction={handleAvatarInteraction}
+      onAvatarEvent={reportAvatarEvent}
       windowHost={windowHost}
       riveWasmUrl={riveWasmUrl}
       onMark={perfMark}

@@ -38,7 +38,7 @@ export * from './AiContractRouter';
  * import { runtime, createAiSdkBooter } from '@nomi-ai/ai-runtime';
  * // lifecycle 由宿主提供（Electron：lifecycle 端口的 onBeforeQuit）
  * await runtime.configure({ booter: createAiSdkBooter(), lifecycle: { onBeforeQuit } })
- *              .start('waifu', { home });
+ *              .start('companion', { home });
  * ```
  * 允许多次 configure 但只能在未启动状态。
  */

@@ -1,3 +1,5 @@
+import type { SemanticGesture } from '@nomi-ai/character-contract';
+
 import type { MascotExpression } from './MascotBackend';
 
 /**
@@ -85,18 +87,18 @@ export function expressionForEmotion(e: Emotion): MascotExpression {
   return e === 'neutral' ? 'neutral' : e;
 }
 
-/** 情绪 + 强度 → 身体动作 */
-export function motionForEmotion(r: EmotionResult): string | undefined {
+/** 情绪 + 强度 → 语义手势 */
+export function gestureForEmotion(r: EmotionResult): SemanticGesture | undefined {
   const strong = r.intensity >= 0.7;
   switch (r.emotion) {
     case 'happy':
       return strong ? 'cheer' : r.intensity >= 0.35 ? 'clap' : 'nod';
     case 'sad':
-      return strong ? 'bow' : 'shake';
+      return strong ? 'bow' : 'shakeHead';
     case 'angry':
-      return 'shake';
+      return 'shakeHead';
     case 'surprised':
-      return 'flinch';
+      return 'startle';
     default:
       return undefined;
   }

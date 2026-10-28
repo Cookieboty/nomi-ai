@@ -12,7 +12,7 @@
  * 2. 挂应用契约（`createAiRouter` + `@nomi-ai/contract` 的 IPC 传输）；
  * 3. 打开 1 个 BrowserWindow 载入 renderer.html，preload 暴露 `window.nomiTransport`
  *    （契约传输）与 `window.nomiHost`，与真实 preload 一致；
- * 4. `--profile=xxx` CLI 参数切换 waifu / chat-only / mcp-headless；
+ * 4. `--profile=xxx` CLI 参数切换 companion / chat-only / mcp-headless；
  *    `--no-window` 时不开窗口（供 E3 用）。
  */
 
@@ -87,7 +87,7 @@ const { LLMRegistryKey, ToolRegistryKey, UserProfileKey, makeDefaultUserProfile 
 // CLI 参数解析
 // ---------------------------------------------------------------------------
 function parseArgs() {
-  const out = { profile: 'waifu', noWindow: false };
+  const out = { profile: 'companion', noWindow: false };
   for (const raw of process.argv.slice(1)) {
     if (raw.startsWith('--profile=')) out.profile = raw.slice('--profile='.length);
     if (raw === '--no-window') out.noWindow = true;

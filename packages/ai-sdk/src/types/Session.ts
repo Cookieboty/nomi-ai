@@ -7,7 +7,7 @@ export interface Session {
   title: string;
   createdAt: number;
   updatedAt: number;
-  /** 可选的会话预设（例如 'waifu'），P4/P6 会在装配时使用 */
+  /** 可选的会话预设（例如 'companion'），P4/P6 会在装配时使用 */
   agentPreset?: string;
   meta?: Record<string, string | number | boolean>;
 }

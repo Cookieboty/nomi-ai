@@ -1,18 +1,18 @@
 import { test, expect } from '../fixtures/electronApp';
 
 /**
- * E1 · waifu profile · headed 复刻
+ * E1 · companion profile · headed 复刻
  *
- * 语义对齐 e2e/tests/E1.waifu-tts-lipsync.test.ts：
+ * 语义对齐 e2e/tests/E1.companion-tts-lipsync.test.ts：
  * - 主进程 emit `tts/chunk` → 契约事件 `ai.tts.chunk` 推给订阅了的窗口
  *   → renderer preload 的契约客户端捕获到 buffer 里；
  * - renderer 中 `window.__e2eProbe.getTtsChunks()` 返回的 rms 序列与主进程发出的一致；
  * - 同一时刻多个渲染窗口场景在 headed 里通过 `app.evaluate` 只使用 1 个 primary window
  *   验证（多窗广播已在 headless E1 覆盖）。
  */
-test.describe('E1 · waifu · tts chunk → renderer 收到 rms 序列', () => {
+test.describe('E1 · companion · tts chunk → renderer 收到 rms 序列', () => {
   test('主进程 emit tts/chunk 后 renderer 收到匹配 rms 序列', async ({ launchHeaded }) => {
-    const { app, page } = await launchHeaded({ profile: 'waifu' });
+    const { app, page } = await launchHeaded({ profile: 'companion' });
     expect(page, 'headed E1 需要主窗口').not.toBeNull();
 
     // 等 preload/event 通道就绪
@@ -53,7 +53,7 @@ test.describe('E1 · waifu · tts chunk → renderer 收到 rms 序列', () => {
   });
 
   test('agent/turn-end 推给窗口（契约事件 ai.agent.turnEnd）', async ({ launchHeaded }) => {
-    const { app, page } = await launchHeaded({ profile: 'waifu' });
+    const { app, page } = await launchHeaded({ profile: 'companion' });
     expect(page).not.toBeNull();
     await page!.waitForFunction(() => typeof (window as any).__e2eProbe !== 'undefined');
     await page!.evaluate(() => (window as any).__e2eProbe.clear());

@@ -15,7 +15,7 @@ import type { HostPorts } from '@nomi-ai/host-ports';
 import type * as Tess from 'tesseract.js';
 import { z } from 'zod';
 
-import { sendMascotCommand } from '../ai/mascotCommand';
+import { avatarGesture } from '../ai/mascotCommand';
 import type { AppEvents } from '../core/appEvents';
 import { isLocalBaseURL } from '../desktop/consent';
 import type { DesktopService } from '../desktop/DesktopService';
@@ -776,10 +776,10 @@ export class KnowledgeService {
         tr('electron.common.ok-knowledge-base-content-won-t-be-sent'),
       );
     // 看板娘：翻资料时「思考」，找到答案后点头
-    sendMascotCommand(this.d.events, { type: 'motion', name: 'think' });
+    avatarGesture(this.d.events, 'think');
     const answer = (await this.d.complete(buildAskMessages(question, hits, history))).trim();
     const sources = toSources(hits, answer);
-    sendMascotCommand(this.d.events, { type: 'motion', name: sources.length ? 'nod' : 'shake' });
+    avatarGesture(this.d.events, sources.length ? 'nod' : 'shakeHead');
     this.d.desktop.audit.append({
       tool: 'kb_ask',
       args: { question: question.slice(0, 80), sources: sources.length },

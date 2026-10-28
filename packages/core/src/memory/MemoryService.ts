@@ -11,7 +11,7 @@ import type { ToolDefinition } from '@nomi-ai/bundle-ig-base';
 import type { HostPorts } from '@nomi-ai/host-ports';
 import { z } from 'zod';
 
-import { sendMascotCommand } from '../ai/mascotCommand';
+import { avatarGesture } from '../ai/mascotCommand';
 import type { AppEvents } from '../core/appEvents';
 import type { DesktopService } from '../desktop/DesktopService';
 import { t as tr } from '../i18n';
@@ -281,7 +281,7 @@ export class MemoryService {
         'ok',
         Date.now() - t0,
       );
-      sendMascotCommand(this.d.events, { type: 'motion', name: 'nod' });
+      avatarGesture(this.d.events, 'nod');
       return { episode: this.view(ep) };
     } catch (e) {
       this.lastError = e instanceof Error ? e.message : String(e);
@@ -630,7 +630,7 @@ export class MemoryService {
               data: { saved: false, reason: tr('electron.common.already-remembered') },
             };
           const f = await this.upsertFact(i);
-          sendMascotCommand(this.d.events, { type: 'motion', name: 'nod' });
+          avatarGesture(this.d.events, 'nod');
           return { ok: true, data: { saved: true, id: f.id } };
         },
       } as unknown as ToolDefinition,

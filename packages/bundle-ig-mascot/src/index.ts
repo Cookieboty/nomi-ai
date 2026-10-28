@@ -1,12 +1,11 @@
 /**
  * @nomi-ai/bundle-ig-mascot
  *
- * 插件包：看板娘渲染进程能力（渲染后端无关，契约见 seams/avatar.ts）
- *   - AvatarSeamPlugin：ctx.avatar 服务与事件桥
- *   - TouchInjectPlugin：hitArea 触摸 → agent/sensory-inject（5s/area 冷却）
- *   - TtsLipSyncPlugin：tts/chunk → driveLipSync（20fps 节流）+ tts/end 归零
- *   - WaifuToolsPlugin：avatar_gesture / avatar_emotion（白名单自动确认）
- *   - WaifuAgentPresetPlugin：preset:waifu，systemPrompt 取 userProfile.preferences.tone
+ * 插件包：陪伴角色能力（渲染后端无关，只有语义事件，契约见 seams/avatar.ts）
+ *   - AvatarSeamPlugin：ctx.avatar 服务（AI → 角色的 emotion / gesture / activity / speaking，
+ *     角色 → AI 的 touched / clicked / scene）
+ *   - CompanionToolsPlugin：avatar_gesture / avatar_emotion（语义名，白名单自动确认）
+ *   - CompanionAgentPresetPlugin：preset:companion，systemPrompt 取角色身份 + userProfile.preferences.tone
  *
  * 入口即执行渲染进程守卫；测试环境（VITEST）旁路。
  */

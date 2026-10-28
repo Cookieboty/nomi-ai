@@ -98,6 +98,7 @@ export const mascotEventBridge: EventBridgeMap<MascotEventName> = {
   'mascot:body': 'mascot.body',
   'mascot:physics-event': 'mascot.physicsEvent',
   'mascot:command': 'mascot.command',
+  'avatar:event': 'avatar.event',
   'character:persona-changed': 'persona.changed',
   'chat-bg:changed': 'chatBg.changed',
   // 旧通道不带 payload

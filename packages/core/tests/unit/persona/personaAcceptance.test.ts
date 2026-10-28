@@ -11,7 +11,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { AgentPresetRegistryKey, WaifuAgentPresetPlugin } from '@nomi-ai/bundle-ig-mascot/plugins';
+import {
+  AgentPresetRegistryKey,
+  CompanionAgentPresetPlugin,
+} from '@nomi-ai/bundle-ig-mascot/plugins';
 
 import { CharacterPackService } from '../../../src/character/CharacterPackService';
 import { resolveCharacterPack } from '../../../src/character/packResolve';
@@ -116,13 +119,13 @@ describe('persona follows the active character pack', () => {
       expect.objectContaining({ characterId: 'test-dummy' }),
     );
 
-    // ② 角色 preset 的身份段（主进程 AI 插件宿主：PersonaIdentityPlugin → WaifuAgentPresetPlugin）
+    // ② 角色 preset 的身份段（主进程 AI 插件宿主：PersonaIdentityPlugin → CompanionAgentPresetPlugin）
     const ctx = fakeCtx();
     await createPersonaIdentityPlugin(() => persona.get()).apply(ctx as never, {});
-    await WaifuAgentPresetPlugin.apply(ctx as never, {});
+    await CompanionAgentPresetPlugin.apply(ctx as never, {});
     const preset = (
       ctx.inject(AgentPresetRegistryKey) as { get(n: string): { systemPrompt(): Promise<string> } }
-    ).get('waifu');
+    ).get('companion');
     const prompt = await preset.systemPrompt();
     expect(prompt).toContain('你是小纸，一个住在纸箱里的机器人。');
     expect(prompt).not.toMatch(/Nomi|诺米/);

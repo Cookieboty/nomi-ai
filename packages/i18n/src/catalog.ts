@@ -1050,7 +1050,6 @@ export type TranslationKey =
   | 'ui.chat-settings.tool-calls'
   | 'ui.chat-settings.toolbar-icons'
   | 'ui.chat-settings.touch-reactions'
-  | 'ui.chat-settings.touched'
   | 'ui.chat-settings.try-it'
   | 'ui.chat-settings.turn-off-hands-free'
   | 'ui.chat-settings.turn-off-hands-free-ctrl-shift-h'

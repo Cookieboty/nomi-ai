@@ -58,7 +58,7 @@ describe('DTO contracts', () => {
       title: 't',
       createdAt: 1,
       updatedAt: 2,
-      agentPreset: 'waifu',
+      agentPreset: 'companion',
       meta: { pinned: true },
     };
     expect(Object.keys(s).sort()).toEqual(
@@ -110,8 +110,9 @@ describe('DTO contracts', () => {
       'tts:chunk',
       'tts:end',
       'userProfile:changed',
-      'avatar:touch',
-      'avatar:motion-end',
+      'avatar:touched',
+      'avatar:clicked',
+      'avatar:scene',
     ];
     // 保证字符串没有被误改
     expect(new Set(events).size).toBe(events.length);

@@ -76,7 +76,8 @@ const RANDOM_POOL = ACTIONS.filter((a) =>
   ['greet', 'emotion', 'celebrate', 'agree'].includes(a.category),
 ).map((a) => a.id);
 
-function resolveRigMotion(name: string): string | null {
+/** 动作名（含旧名 / 别名）→ 2D 骨架的关键帧动作 id；找不到时 null。exported for test */
+export function resolveRigMotion(name: string): string | null {
   if (name === 'random') return RANDOM_POOL[Math.floor(Math.random() * RANDOM_POOL.length)];
   const id = MOTION_ALIAS[name] ?? name;
   if (RIG_ACTION_IDS.includes(id) || LEGACY_GESTURES.includes(id)) return id;

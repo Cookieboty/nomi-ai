@@ -9,17 +9,17 @@ vi.mock('@/mascot/catalog', async (orig) => ({
 }));
 
 import { MascotProvider, useMascot } from '../../src/contexts/MascotContext';
+import { useCompanionMessage } from '../../src/hooks/useCompanionMessage';
 import { GREETING_DELAY_MS, GREETING_PRIORITY, useMascotTips } from '../../src/hooks/useMascotTips';
-import { useWaifuMessage } from '../../src/hooks/useWaifuMessage';
 
 type Api = {
-  show: ReturnType<typeof useWaifuMessage>['showMessage'];
+  show: ReturnType<typeof useCompanionMessage>['showMessage'];
   dispatch: ReturnType<typeof useMascot>['dispatch'];
   msg: string | null;
 };
 const api: Api = { show: () => undefined, dispatch: () => undefined, msg: null };
 const Probe: React.FC = () => {
-  const { showMessage } = useWaifuMessage();
+  const { showMessage } = useCompanionMessage();
   const { state, dispatch } = useMascot();
   api.show = showMessage;
   api.dispatch = dispatch;

@@ -1,4 +1,4 @@
-/** 语音状态 → 角色表情 / 动作（纯函数，便于测试） */
+/** 语音状态 → 角色情绪 / 手势（纯函数，便于测试；输出语义名，经 mapping 翻译） */
 import type { ExpressionDirective } from './expressionDirector';
 
 export function voiceDirective(phase: string, prev: string): ExpressionDirective | null {
@@ -9,12 +9,12 @@ export function voiceDirective(phase: string, prev: string): ExpressionDirective
       return {
         expression: 'relaxed',
         holdMs: 0,
-        motion: prev === 'idle' || prev === 'listening' ? 'nod' : undefined,
+        gesture: prev === 'idle' || prev === 'listening' ? 'nod' : undefined,
       };
     case 'transcribing':
-      return { expression: 'neutral', holdMs: 0, motion: 'think' };
+      return { expression: 'neutral', holdMs: 0, gesture: 'think' };
     case 'awake':
-      return { expression: 'happy', holdMs: 2500, motion: 'wave' };
+      return { expression: 'happy', holdMs: 2500, gesture: 'wave' };
     case 'idle':
     case 'listening':
     case 'wake-armed':

@@ -23,8 +23,9 @@ export type AIClientEvent =
   | 'tts:chunk'
   | 'tts:end'
   | 'userProfile:changed'
-  | 'avatar:touch'
-  | 'avatar:motion-end';
+  | 'avatar:touched'
+  | 'avatar:clicked'
+  | 'avatar:scene';
 
 export interface MessageDeltaPayload {
   sessionId: string;
@@ -85,17 +86,26 @@ export interface UserProfileChangedPayload {
   profile: UserProfile;
 }
 
-export interface AvatarTouchPayload {
-  hitArea: string;
-  x?: number;
-  y?: number;
+/** 角色被摸（语义事件，§10.5） */
+export interface AvatarTouchedPayload {
+  hitbox: string;
   at: number;
 }
 
-export interface AvatarMotionEndPayload {
-  group: string;
-  index?: number;
-  interrupted?: boolean;
+/** 角色被点击 */
+export interface AvatarClickedPayload {
+  hitbox: string;
+  double?: boolean;
+  at: number;
+}
+
+/** 角色窗口报告的场景：角色与它能表现的语义名 */
+export interface AvatarScenePayload {
+  characterId: string;
+  emotions: string[];
+  activities: string[];
+  gestures: string[];
+  at: number;
 }
 
 export interface AIClientEventMap {
@@ -109,8 +119,9 @@ export interface AIClientEventMap {
   'tts:chunk': TtsChunkPayload;
   'tts:end': TtsEndPayload;
   'userProfile:changed': UserProfileChangedPayload;
-  'avatar:touch': AvatarTouchPayload;
-  'avatar:motion-end': AvatarMotionEndPayload;
+  'avatar:touched': AvatarTouchedPayload;
+  'avatar:clicked': AvatarClickedPayload;
+  'avatar:scene': AvatarScenePayload;
 }
 
 export type AIClientEventPayload<E extends AIClientEvent> = AIClientEventMap[E];

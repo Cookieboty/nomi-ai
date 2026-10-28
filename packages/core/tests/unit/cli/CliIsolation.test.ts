@@ -25,7 +25,7 @@ describe('buildCliEnv', () => {
       NOMI_DSH_API_KEY: 'leak',
       NOMI_MOCK_DELAY_MS: '5',
       NOMI_PROVIDER: 'amux',
-      IG_AI_PROFILE: 'waifu',
+      IG_AI_PROFILE: 'companion',
       CD_LOCALE: 'zh',
       MCP_SERVERS: '[]',
     });

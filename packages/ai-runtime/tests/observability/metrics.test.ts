@@ -105,9 +105,9 @@ describe('MetricsRegistry · gauge', () => {
   it('set / inc / dec 都工作正常', () => {
     const reg = new MetricsRegistry();
     const g = reg.createGauge({ name: 'active', help: '', labelNames: ['profile'] });
-    g.set(3, { profile: 'waifu' });
-    g.inc({ profile: 'waifu' });
-    g.dec({ profile: 'waifu' }, 2);
+    g.set(3, { profile: 'companion' });
+    g.inc({ profile: 'companion' });
+    g.dec({ profile: 'companion' }, 2);
     const snap = reg.snapshot()[0] as GaugeSnapshot;
     expect(snap.kind).toBe('gauge');
     expect(snap.values[0]!.value).toBe(2);

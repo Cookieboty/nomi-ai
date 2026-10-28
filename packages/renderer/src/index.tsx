@@ -5,7 +5,7 @@ import ReactDOM from 'react-dom/client';
 import '@nomi-ai/ui/styles.css';
 import '@nomi-ai/voice/styles.css';
 
-import { WaifuAIRoot } from './ai';
+import { CompanionAIRoot } from './ai';
 import App from './App';
 import { initMascotPresence } from './mascot/presence';
 import { installHostBackends } from './services/api';
@@ -27,9 +27,9 @@ const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement)
 root.render(
   <LocaleRoot
     render={() => (
-      <WaifuAIRoot>
+      <CompanionAIRoot>
         <App />
-      </WaifuAIRoot>
+      </CompanionAIRoot>
     )}
   />,
 );

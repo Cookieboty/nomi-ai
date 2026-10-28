@@ -37,7 +37,7 @@ import {
 import styles from './style.module.css';
 
 import { useMascot } from '@/contexts/MascotContext';
-import { useWaifuMessage } from '@/hooks/useWaifuMessage';
+import { useCompanionMessage } from '@/hooks/useCompanionMessage';
 import { closeMascot } from '@/mascot/presence';
 import { scalePercent, scaleStore, useMascotScale } from '@/mascot/scaleStore';
 import { registerSpeechStopper, stopAllSpeech } from '@/mascot/speechStop';
@@ -107,7 +107,7 @@ export const ToolBar: React.FC = () => {
     config: { tools: configTools = [] },
     dispatch: mascotDispatch,
   } = useMascot();
-  const { showMessage: say } = useWaifuMessage();
+  const { showMessage: say } = useCompanionMessage();
   const showMessage = useCallback(
     (message: string, timeout: number = 4000, clip?: string) =>
       say(message, timeout, 9, false, clip ? { clip } : {}),
@@ -238,7 +238,7 @@ export const ToolBar: React.FC = () => {
 
   // 关闭应用
   const quitApp = useCallback(async () => {
-    await setCache('waifu-display', Date.now());
+    await setCache('companion-display', Date.now());
     showMessage(tr('ui.voice-mascot.bye-see-you-next-time'), 2000);
 
     if (hasTransport()) {
@@ -691,7 +691,7 @@ export const ToolBar: React.FC = () => {
         <button
           type="button"
           className={`${styles.btn} ${toolId === 'ai-chat' ? styles.primary : ''} ${toolId === 'quit' ? styles.danger : ''}`}
-          id={`waifu-tool-${toolId}`}
+          id={`companion-tool-${toolId}`}
           data-testid={`tool-${toolId}`}
           aria-label={label.split('\n')[0]}
           aria-pressed={pressed(toolId)}
@@ -715,7 +715,7 @@ export const ToolBar: React.FC = () => {
         type="button"
         role="menuitem"
         className={`${styles.subItem} ${toolId === 'quit' ? styles.danger : ''}`}
-        id={`waifu-tool-${toolId}`}
+        id={`companion-tool-${toolId}`}
         data-testid={`tool-${toolId}`}
         aria-pressed={pressed(toolId)}
         title={label}

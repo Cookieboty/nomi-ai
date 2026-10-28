@@ -149,7 +149,7 @@ export interface IgPluginsOptions {
 }
 
 /**
- * profile → ig 插件清单。waifu / chat-only / mcp-headless 共用 bundle-ig-base 能力；
+ * profile → ig 插件清单。companion / chat-only / mcp-headless 共用 bundle-ig-base 能力；
  * 渲染侧的 bundle-ig-mascot 插件不在主进程装载。
  */
 export function defaultIgPlugins(_profile: string, opts: IgPluginsOptions = {}): IgPluginEntry[] {

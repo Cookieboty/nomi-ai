@@ -8,7 +8,12 @@
 import * as path from 'path';
 
 import type { ProviderService, ProviderState } from '@nomi-ai/ai-runtime';
-import { sendMascotCommand, type MascotCommand } from '@nomi-ai/core/ai/mascotCommand';
+import type { SemanticGesture } from '@nomi-ai/character-contract';
+import {
+  avatarGesture,
+  sendMascotCommand,
+  type MascotCommand,
+} from '@nomi-ai/core/ai/mascotCommand';
 import type { AppEvents } from '@nomi-ai/core/core/appEvents';
 import type { GatewayStateView } from '@nomi-ai/core/gateway/GatewayService';
 import { onLocaleChange, t } from '@nomi-ai/core/i18n';
@@ -144,20 +149,21 @@ export interface TrayManagerOptions {
 }
 
 /** 托盘「看板娘动作」菜单项 */
-export const TRAY_MOTIONS: Array<[string, string]> = [
+/** 托盘「动作」菜单：语义手势（§10.5）→ 菜单文案；当前角色包没有映射的手势点了也不动 */
+export const TRAY_MOTIONS: Array<[SemanticGesture, string]> = [
   ['wave', 'electron.common.wave'],
   ['nod', 'electron.common.nod'],
-  ['shake', 'electron.common.shake-head'],
+  ['shakeHead', 'electron.common.shake-head'],
   ['bow', 'electron.common.bow'],
   ['think', 'electron.common.chin-rest-thinking'],
   ['heart', 'electron.common.heart-gesture'],
   ['cheer', 'electron.common.cheer-fist-pump'],
-  ['thumbs_up', 'electron.common.thumbs-up'],
+  ['thumbsUp', 'electron.common.thumbs-up'],
   ['peace', 'electron.common.peace-sign'],
   ['celebrate', 'electron.common.celebrate'],
   ['clap', 'electron.common.clap'],
   ['shy', 'electron.common.shy'],
-  ['sorry', 'electron.common.apologise'],
+  ['apologize', 'electron.common.apologise'],
   ['surprise', 'electron.common.surprised'],
   ['yawn', 'electron.common.yawn'],
   ['stretch', 'electron.common.stretch'],
@@ -290,7 +296,7 @@ export class TrayManager {
         label: t('electron.common.nomi-motions'),
         submenu: TRAY_MOTIONS.map(([name, label]) => ({
           label: t(label),
-          click: () => this.mascot({ type: 'motion', name }),
+          click: () => avatarGesture(this.opts.events, name),
         })),
       },
       {

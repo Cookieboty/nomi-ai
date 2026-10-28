@@ -344,3 +344,47 @@ export const TtsResult = z.object({
   data: Bytes,
   durationMs: z.number().optional(),
 });
+
+// ---------------------------------------------------------------------------
+// avatar（AI ⇄ 角色只传语义事件，docs/design/core-host-decoupling.md §10.5）
+// 词表在 @nomi-ai/character-contract（SEMANTIC_*）；契约不依赖它，只要求名字是语义名的形状
+// （驼峰，没有下划线 / 连字符），角色包的资源名（`thumbs_up`、`think-on`）过不了线。
+// ---------------------------------------------------------------------------
+
+export const AvatarSemanticName = z
+  .string()
+  .regex(/^[a-z][a-zA-Z]{0,31}$/, 'semantic name (camelCase), not a clip / motion id');
+
+export const AvatarEmotionInput = z.object({
+  name: AvatarSemanticName,
+  /** 强度 0..1，缺省 1 */
+  weight: z.number().min(0).max(1).optional(),
+});
+export const AvatarGestureInput = z.object({ name: AvatarSemanticName });
+export const AvatarActivityInput = z.object({ name: AvatarSemanticName });
+/** 说话的口型包络 0..1（0 = 停止） */
+export const AvatarSpeakingInput = z.object({ level: z.number().min(0).max(1) });
+
+/** 内核 → 角色窗口：情绪 / 手势 / 活动，以及对话窗口的「正在等回复」 */
+export const AvatarCue = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('emotion'), ...AvatarEmotionInput.shape }),
+  z.object({ type: z.literal('gesture'), ...AvatarGestureInput.shape }),
+  z.object({ type: z.literal('activity'), ...AvatarActivityInput.shape }),
+  z.object({ type: z.literal('reply'), phase: z.enum(['waiting', 'settled']) }),
+]);
+
+/** 角色身上的命中区（契约命中区名，any = 没有落在具体区域） */
+export const AvatarHitbox = z.enum(['head', 'face', 'body', 'hand', 'hem', 'legs', 'any']);
+
+/** 角色 → AI：被摸、被点、当前场景（角色与它能表现的语义名） */
+export const AvatarReport = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('touched'), hitbox: AvatarHitbox }),
+  z.object({ type: z.literal('clicked'), hitbox: AvatarHitbox, double: z.boolean().optional() }),
+  z.object({
+    type: z.literal('scene'),
+    characterId: z.string().min(1).max(64),
+    emotions: z.array(AvatarSemanticName).max(64),
+    activities: z.array(AvatarSemanticName).max(64),
+    gestures: z.array(AvatarSemanticName).max(128),
+  }),
+]);

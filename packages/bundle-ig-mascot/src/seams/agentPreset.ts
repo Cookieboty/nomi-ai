@@ -7,7 +7,7 @@ import { defineService } from '@nomi-ai/bundle-ig-base';
  * 会读取本注册中心。
  */
 export interface AgentPreset {
-  /** 唯一 id，例如 'waifu' */
+  /** 唯一 id，例如 'companion' */
   name: string;
   /** systemPrompt 生成器；每次会话开始时调用一次，可读取 ctx.userProfile 等运行期状态 */
   systemPrompt: () => string | Promise<string>;

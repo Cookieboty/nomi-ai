@@ -10,7 +10,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 export interface HeadedLaunchOptions {
-  profile?: 'waifu' | 'chat-only' | 'mcp-headless';
+  profile?: 'companion' | 'chat-only' | 'mcp-headless';
   noWindow?: boolean;
 }
 

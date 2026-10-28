@@ -16,9 +16,16 @@ import { getCache, setCache } from '../../src/utils/cache';
 
 import { installMascotHost, publishMascotEvent, resetMascotHost } from './mascotHost';
 
-const h = vi.hoisted(() => ({ commands: [] as unknown[] }));
+const h = vi.hoisted(() => ({ commands: [] as unknown[], playMotionNow: [] as string[] }));
 
 vi.mock('../../src/services/api', async () => (await import('./mascotHost')).mascotApiModule());
+vi.mock('@nomi-ai/avatar-runtime', async (orig) => ({
+  ...(await orig<Record<string, unknown>>()),
+  playMotionNow: (name: string) => {
+    h.playMotionNow.push(name);
+    return true;
+  },
+}));
 vi.mock('../../src/mascot/commands', () => ({
   handleMascotCommand: (cmd: unknown) => {
     h.commands.push(cmd);
@@ -31,6 +38,7 @@ afterEach(() => {
   resetMascotHost();
   localStorage.clear();
   h.commands.length = 0;
+  h.playMotionNow.length = 0;
   setInteractionConfigBackend(null);
 });
 
@@ -70,11 +78,31 @@ describe('D5 views · contract', () => {
   it('主进程的看板娘指令（契约事件 mascot.command）交给 handleMascotCommand', async () => {
     installMascotHost({});
     const view = render(<MascotDriver />);
-    await publishMascotEvent('mascot.command', { type: 'motion', name: 'wave' });
-    expect(h.commands).toEqual([{ type: 'motion', name: 'wave' }]);
+    await publishMascotEvent('mascot.command', { type: 'open-panel', panel: 'motions' });
+    expect(h.commands).toEqual([{ type: 'open-panel', panel: 'motions' }]);
     view.unmount();
-    await publishMascotEvent('mascot.command', { type: 'motion', name: 'nod' });
+    await publishMascotEvent('mascot.command', { type: 'open-panel', panel: 'credits' });
     expect(h.commands).toHaveLength(1);
+  });
+
+  it('内核的语义事件（契约事件 avatar.event）原样交给 avatar-runtime', async () => {
+    installMascotHost({});
+    const got: unknown[] = [];
+    const off = avatarEvents.subscribe((e) => got.push(e));
+    const view = render(<MascotDriver />);
+    await publishMascotEvent('avatar.event', { type: 'gesture', name: 'thumbsUp' });
+    await publishMascotEvent('avatar.event', { type: 'emotion', name: 'happy', weight: 0.5 });
+    await publishMascotEvent('avatar.event', { type: 'activity', name: 'toolRunning' });
+    await publishMascotEvent('avatar.event', { type: 'reply', phase: 'waiting' });
+    expect(got).toEqual([
+      { type: 'gesture', name: 'thumbsUp' },
+      { type: 'emotion', name: 'happy', weight: 0.5 },
+      { type: 'activity', name: 'toolRunning' },
+      { type: 'reply', phase: 'waiting' },
+    ]);
+    expect(h.commands).toEqual([]);
+    view.unmount();
+    off();
   });
 
   it('光标、物理事件与 TTS 口型转成 avatar-runtime 的语义事件', async () => {
@@ -87,14 +115,16 @@ describe('D5 views · contract', () => {
     await publishMascotEvent('mascot.physicsEvent', { type: 'land', speed: 1200 });
     await publishMascotEvent('mascot.physicsEvent', { type: 'grab' });
     lipSyncStore.set(0.5);
-    window.dispatchEvent(new CustomEvent('mascot:motion', { detail: { name: 'wave' } }));
+    // 本窗口的动作菜单直接交给引擎（资源名，不经映射，也不是语义事件）
+    window.dispatchEvent(new CustomEvent('mascot:motion', { detail: { name: 'thumbs_up' } }));
+    expect(h.playMotionNow).toEqual(['thumbs_up']);
     expect(got).toEqual([
       { type: 'cursor', x: 10, y: 20, inside: true },
       { type: 'physics', kind: 'land', speed: 1200 },
       { type: 'physics', kind: 'grab', speed: 0 },
       { type: 'speaking', level: 0.5 },
     ]);
-    expect(h.commands).toEqual([{ type: 'motion', name: 'wave' }]);
+    expect(h.commands).toEqual([]);
     view.unmount();
     lipSyncStore.reset();
     off();

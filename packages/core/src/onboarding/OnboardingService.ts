@@ -7,9 +7,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { isSemanticGesture } from '@nomi-ai/character-contract';
 import { normalizeUserProfile, type UserProfile } from '@nomi-ai/types';
 
-import { sendMascotCommand, type MascotCommand } from '../ai/mascotCommand';
+import { avatarGesture, publishAvatarCue, sendMascotCommand } from '../ai/mascotCommand';
 import type { AppEvents } from '../core/appEvents';
 
 export interface OnboardingState {
@@ -24,7 +25,6 @@ export const ONBOARDING_SHOW = 'ai:onboarding:show';
 export const ONBOARDING_PROFILE_CHANGED = 'ai:onboarding:profile-changed';
 
 /** 引导里允许转发给看板娘的指令（不开放任意指令） */
-const ALLOWED = new Set(['say', 'motion']);
 
 export interface OnboardingDeps {
   userData: string;
@@ -115,11 +115,45 @@ export class OnboardingService {
     return !this.state.done;
   }
 
+  /**
+   * 对话窗口 → 看板娘：说一句（可带语义手势）、语义手势、正在等回复。只转发语义名（§10.5），
+   * 资源名与其它指令一律拒绝。返回是否有看板娘窗口收到。
+   */
   mascot(cmd: unknown): boolean {
-    const c = cmd as MascotCommand | null;
-    if (!c || typeof c !== 'object' || !ALLOWED.has(String((c as { type?: unknown }).type)))
-      return false;
-    sendMascotCommand(this.deps.events, c);
+    if (!cmd || typeof cmd !== 'object') return false;
+    const c = cmd as {
+      type?: unknown;
+      text?: unknown;
+      gesture?: unknown;
+      name?: unknown;
+      phase?: unknown;
+    };
+    switch (c.type) {
+      case 'say': {
+        if (typeof c.text !== 'string') return false;
+        const gesture = isSemanticGesture(c.gesture) ? c.gesture : undefined;
+        sendMascotCommand(this.deps.events, {
+          type: 'say',
+          text: c.text,
+          ...(gesture ? { gesture } : {}),
+        });
+        return this.delivered();
+      }
+      case 'gesture':
+        if (!isSemanticGesture(c.name)) return false;
+        avatarGesture(this.deps.events, c.name);
+        return this.delivered();
+      case 'reply':
+        if (c.phase !== 'waiting' && c.phase !== 'settled') return false;
+        publishAvatarCue(this.deps.events, { type: 'reply', phase: c.phase });
+        return this.delivered();
+      default:
+        return false;
+    }
+  }
+
+  /** 看板娘指令只在宿主有存活窗口时算送达 */
+  private delivered(): boolean {
     return (this.deps.liveWindows?.() ?? 0) > 0;
   }
 }

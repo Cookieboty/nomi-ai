@@ -8,7 +8,7 @@ import path from 'node:path';
 import type { HostPorts } from '@nomi-ai/host-ports';
 import { zipSync, strToU8 } from 'fflate';
 
-import { sendMascotCommand } from '../ai/mascotCommand';
+import { avatarGesture } from '../ai/mascotCommand';
 import type { AppEvents } from '../core/appEvents';
 import type { DesktopService } from '../desktop/DesktopService';
 import { redactServerForExport } from '../extensions/mcpConfig';
@@ -142,7 +142,7 @@ export class LocalHubService {
     const zip = zipSync(files, { level: 6 });
     fs.writeFileSync(file, zip);
     this.audit('data_export', { files: Object.keys(files).length, bytes: zip.length });
-    sendMascotCommand(this.d.events, { type: 'motion', name: 'nod' });
+    avatarGesture(this.d.events, 'nod');
     return { file, files: Object.keys(files).length, bytes: zip.length };
   }
 }

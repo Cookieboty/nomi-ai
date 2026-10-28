@@ -4,7 +4,7 @@ import type { FC } from 'react';
 
 import { lipSyncStore } from './lipSyncStore';
 
-const WaifuLipSyncBridge: FC = () => {
+const CompanionLipSyncBridge: FC = () => {
   const rms = useTTSLipSync();
 
   useEffect(() => {
@@ -20,4 +20,4 @@ const WaifuLipSyncBridge: FC = () => {
   return null;
 };
 
-export default WaifuLipSyncBridge;
+export default CompanionLipSyncBridge;

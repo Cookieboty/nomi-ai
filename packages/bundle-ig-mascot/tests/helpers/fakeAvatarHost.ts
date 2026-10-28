@@ -1,57 +1,45 @@
-import type { AvatarEvent, AvatarEventPayload, AvatarHost } from '../../src/seams/avatar';
+import type { AvatarHost } from '../../src/seams/avatar';
 
 /**
- * FakeAvatarHost —— 单测用假 host。
- * - 记录所有 host 方法调用
- * - 提供 emit(evt, payload) 主动触发 seam 转发
+ * FakeAvatarHost —— 单测用假 host：记录收到的语义事件，可以让某个方法失败。
  */
 export interface FakeAvatarHostRecord {
-  playMotion: Array<{ group: string; index?: number }>;
-  setExpression: string[];
-  driveLipSync: number[];
+  emotion: Array<{ name: string; weight?: number }>;
+  gesture: string[];
+  activity: string[];
+  speaking: number[];
 }
+
+type Method = 'emotion' | 'gesture' | 'activity';
 
 export interface FakeAvatarHost extends AvatarHost {
   readonly record: FakeAvatarHostRecord;
-  emit<E extends AvatarEvent>(evt: E, payload: AvatarEventPayload<E>): void;
-  fail(kind: 'playMotion' | 'setExpression', err: Error): void;
+  fail(kind: Method, err: Error): void;
 }
 
 export function createFakeAvatarHost(): FakeAvatarHost {
-  const listeners = new Map<AvatarEvent, Set<(p: unknown) => void>>();
-  const failures = new Map<'playMotion' | 'setExpression', Error>();
-
-  const record: FakeAvatarHostRecord = {
-    playMotion: [],
-    setExpression: [],
-    driveLipSync: [],
+  const failures = new Map<Method, Error>();
+  const record: FakeAvatarHostRecord = { emotion: [], gesture: [], activity: [], speaking: [] };
+  const check = (kind: Method) => {
+    const err = failures.get(kind);
+    if (err) throw err;
   };
-
   return {
     record,
-    async playMotion(group, index) {
-      const err = failures.get('playMotion');
-      if (err) throw err;
-      record.playMotion.push({ group, index });
+    async emotion(name, weight) {
+      check('emotion');
+      record.emotion.push(weight === undefined ? { name } : { name, weight });
     },
-    async setExpression(name) {
-      const err = failures.get('setExpression');
-      if (err) throw err;
-      record.setExpression.push(name);
+    async gesture(name) {
+      check('gesture');
+      record.gesture.push(name);
     },
-    driveLipSync(rms) {
-      record.driveLipSync.push(rms);
+    async activity(name) {
+      check('activity');
+      record.activity.push(name);
     },
-    on(evt, fn) {
-      if (!listeners.has(evt)) listeners.set(evt, new Set());
-      const set = listeners.get(evt)!;
-      set.add(fn as (p: unknown) => void);
-      return () => {
-        set.delete(fn as (p: unknown) => void);
-      };
-    },
-    emit(evt, payload) {
-      listeners.get(evt)?.forEach((fn) => fn(payload));
+    speaking(level) {
+      record.speaking.push(level);
     },
     fail(kind, err) {
       failures.set(kind, err);

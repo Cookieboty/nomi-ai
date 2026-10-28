@@ -46,6 +46,13 @@ describe('OnboardingService', () => {
       surfaces: null,
     });
     expect(s.mascot({ type: 'say', text: 'hi' })).toBe(true);
+    expect(s.mascot({ type: 'say', text: 'yo', gesture: 'wave' })).toBe(true);
+    expect(s.mascot({ type: 'gesture', name: 'cheer' })).toBe(true);
+    expect(s.mascot({ type: 'reply', phase: 'waiting' })).toBe(true);
+    // 只转发语义名：资源名、旧的 motion 指令与其它指令都拒绝
+    expect(s.mascot({ type: 'gesture', name: 'think-on' })).toBe(false);
+    expect(s.mascot({ type: 'motion', name: 'wave' })).toBe(false);
+    expect(s.mascot({ type: 'reply', phase: 'later' })).toBe(false);
     expect(s.mascot({ type: 'open-panel', panel: 'x' })).toBe(false);
     expect(s.mascot(null)).toBe(false);
   });

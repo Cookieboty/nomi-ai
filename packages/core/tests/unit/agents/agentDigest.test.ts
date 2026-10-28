@@ -2,8 +2,12 @@ jest.unmock('fs');
 jest.unmock('path');
 const island = jest.fn();
 const mascot = jest.fn();
+// 内核只发语义事件（§10.5）：这里把手势 / 情绪记成语义 cue
 jest.mock('../../../src/ai/mascotCommand', () => ({
   sendMascotCommand: (_e: unknown, c: unknown) => mascot(c),
+  publishAvatarCue: (_e: unknown, c: unknown) => mascot(c),
+  avatarGesture: (_e: unknown, name: string) => mascot({ type: 'gesture', name }),
+  avatarEmotion: (_e: unknown, name: string) => mascot({ type: 'emotion', name }),
 }));
 
 import fs from 'node:fs';

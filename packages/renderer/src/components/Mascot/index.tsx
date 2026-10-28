@@ -13,8 +13,7 @@ import { MotionMenu } from './MotionMenu';
 import { ReminderCard } from './ReminderCard';
 import styles from './style.module.css';
 
-import WaifuAgentBubbleBridge from '@/ai/WaifuAgentBubbleBridge';
-import WaifuMascotSceneReporter from '@/ai/WaifuMascotSceneReporter';
+import CompanionAgentBubbleBridge from '@/ai/CompanionAgentBubbleBridge';
 import { useMascot } from '@/contexts/MascotContext';
 import { useFileDropSummarize } from '@/hooks/useFileDropSummarize';
 import { useMascotTips } from '@/hooks/useMascotTips';
@@ -41,7 +40,7 @@ export const MascotHost: React.FC = () => {
 
   return (
     <div className={styles.root}>
-      {aiReady && <WaifuAgentBubbleBridge />}
+      {aiReady && <CompanionAgentBubbleBridge />}
       {aiReady && (
         <Suspense fallback={null}>
           <MascotAIBridge />
@@ -55,7 +54,6 @@ export const MascotHost: React.FC = () => {
           <MascotAiCueBridge />
         </Suspense>
       )}
-      <WaifuMascotSceneReporter />
       <MessageBubble />
       <ToolBar />
       <MotionMenu />

@@ -8,7 +8,16 @@ import { describe, expect, it } from 'vitest';
 import { appContract, mascotEvents, mascotProcedures } from '../src/app';
 import { createTestClient } from '../src/testing';
 
-const NAMESPACES = ['mascot', 'character', 'persona', 'island', 'chatBg', 'files', 'window'];
+const NAMESPACES = [
+  'mascot',
+  'character',
+  'persona',
+  'island',
+  'chatBg',
+  'files',
+  'window',
+  'avatar',
+];
 
 const scale = (s: number) => ({
   scale: s,
@@ -134,8 +143,23 @@ describe('mascot 契约', () => {
     expect(
       e['mascot.body'].safeParse({ mode: 'flying', vx: 0, vy: 0, ax: 0, ay: 0, dir: 0 }).success,
     ).toBe(false);
-    expect(e['mascot.command'].safeParse({ type: 'motion', name: 'wave' }).success).toBe(true);
+    // 角色的情绪 / 手势只走语义事件 avatar.event；指令里不再有动作 / 表情
+    expect(e['mascot.command'].safeParse({ type: 'motion', name: 'wave' }).success).toBe(false);
+    expect(
+      e['mascot.command'].safeParse({ type: 'say', text: 'hi', gesture: 'wave' }).success,
+    ).toBe(true);
+    expect(e['mascot.command'].safeParse({ type: 'reply-speech', op: 'stop' }).success).toBe(true);
     expect(e['mascot.command'].safeParse({ name: 'wave' }).success).toBe(false);
+    expect(e['avatar.event'].safeParse({ type: 'gesture', name: 'thumbsUp' }).success).toBe(true);
+    expect(e['avatar.event'].safeParse({ type: 'gesture', name: 'thumbs_up' }).success).toBe(false);
+    expect(e['avatar.event'].safeParse({ type: 'emotion', name: 'happy', weight: 1 }).success).toBe(
+      true,
+    );
+    expect(e['avatar.event'].safeParse({ type: 'activity', name: 'toolRunning' }).success).toBe(
+      true,
+    );
+    expect(e['avatar.event'].safeParse({ type: 'reply', phase: 'waiting' }).success).toBe(true);
+    expect(e['avatar.event'].safeParse({ type: 'motion', name: 'wave' }).success).toBe(false);
     expect(e['window.mouseEnter'].safeParse(null).success).toBe(true);
     expect(e['window.mouseEnter'].safeParse(undefined).success).toBe(false);
   });
@@ -181,12 +205,20 @@ describe('mascot 契约', () => {
       const off = api.on('mascot.command', (c) => got.push(c));
       const offEnter = api.on('window.mouseEnter', (v) => got.push(['enter', v]));
       await new Promise((r) => setTimeout(r, 0));
-      router.events.publish('mascot.command', { type: 'motion', name: 'wave' });
+      const offAvatar = api.on('avatar.event', (c) => got.push(['avatar', c]));
+      await new Promise((r) => setTimeout(r, 0));
+      router.events.publish('mascot.command', { type: 'open-panel', panel: 'motions' });
+      router.events.publish('avatar.event', { type: 'gesture', name: 'wave' });
       router.events.publish('window.mouseEnter', null);
       await new Promise((r) => setTimeout(r, 0));
-      expect(got).toEqual([{ type: 'motion', name: 'wave' }, ['enter', null]]);
+      expect(got).toEqual([
+        { type: 'open-panel', panel: 'motions' },
+        ['avatar', { type: 'gesture', name: 'wave' }],
+        ['enter', null],
+      ]);
       off();
       offEnter();
+      offAvatar();
     } finally {
       close();
     }

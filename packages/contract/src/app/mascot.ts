@@ -2,7 +2,7 @@
  * D5 · 看板娘窗口 / 角色 / 灵动岛 / 聊天背景 / 文件 / 窗口（docs/design/core-host-decoupling.md §12 P1b）。
  *
  * 本文件只属于 D5：过程、事件、业务错误码都在这里声明，`app/index.ts` 负责汇总。
- * 命名空间：mascot、character、persona、island、chatBg、files、window（过程 / 事件名 `<命名空间>.<方法>`，驼峰，不用连字符）。
+ * 命名空间：mascot、character、persona、island、chatBg、files、window、avatar（过程 / 事件名 `<命名空间>.<方法>`，驼峰，不用连字符）。
  *
  * 旧面（迁入后由收尾批次删除）：
  * - `mascot:*`（mascot/MascotWindowController.ts、ai/mascotCommand.ts；electronAPI.mascotWindow / mascot / onMascotCommand）
@@ -23,6 +23,8 @@
 import { z } from 'zod';
 
 import type { EventMap, ProcedureMap, Surface } from '../contract';
+
+import { AvatarCue, AvatarSemanticName } from './schemas';
 
 // ---------------------------------------------------------------------------
 // schema（照 @nomi-ai/types 与主进程服务的返回类型写；zod 4 的 number 已拒绝 NaN / Infinity）
@@ -92,10 +94,14 @@ export const MascotPhysicsEvent = z.discriminatedUnion('type', [
 ]);
 
 /**
- * 主进程 → 看板娘指令（electron `ai/mascotCommand.ts` 的 `MascotCommand`）：
- * `motion` / `expression` / `open-panel` / `reply-speech`。指令种类随功能增加，按 `type` 透传。
+ * 主进程 → 看板娘指令（core `ai/mascotCommand.ts` 的 `MascotCommand`）：打开面板、说一句（可带语义手势）、
+ * 朗读回复。角色的情绪 / 手势 / 活动不走这里，走语义事件 `avatar.event`（§10.5）。
  */
-export const MascotCommand = z.looseObject({ type: z.string() });
+export const MascotCommand = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('open-panel'), panel: z.string() }),
+  z.object({ type: z.literal('say'), text: z.string(), gesture: AvatarSemanticName.optional() }),
+  z.looseObject({ type: z.literal('reply-speech') }),
+]);
 
 /** 只读快照（e2e / 调试）—— `mascot.debugSnapshot` */
 export const MascotDebugSnapshot = z.looseObject({
@@ -155,6 +161,15 @@ export const CharacterPackSnapshot = z.looseObject({
     })
     .nullable(),
   rive: z.object({ artboard: z.string(), stateMachine: z.string() }).nullable(),
+  /** 语义 → 资源（mapping.json，§10.5）；包没有 mapping.json 时为 null。旧主进程不发这个字段 */
+  mapping: z
+    .object({
+      emotions: z.record(z.string(), z.union([z.string(), z.array(z.string())])).optional(),
+      activities: z.record(z.string(), z.union([z.string(), z.array(z.string())])).optional(),
+      gestures: z.record(z.string(), z.union([z.string(), z.array(z.string())])).optional(),
+    })
+    .nullable()
+    .optional(),
   /** 角色文案（`locales/<lang>.json` 的 lines） */
   locales: z
     .record(z.string(), z.object({ lines: z.record(z.string(), z.string()).optional() }).optional())
@@ -487,8 +502,10 @@ export const mascotEvents = {
   'mascot.body': MascotBodyEvent,
   /** mascot:physics-event */
   'mascot.physicsEvent': MascotPhysicsEvent,
-  /** mascot:command（AI 工具 / 托盘 / 服务 → 看板娘：动作、表情、打开面板、朗读） */
+  /** mascot:command（托盘 / 服务 → 看板娘：打开面板、说一句、朗读） */
   'mascot.command': MascotCommand,
+  /** avatar:event（AI 工具 / 托盘 / 内核服务 → 角色：语义情绪、手势、活动，§10.5） */
+  'avatar.event': AvatarCue,
   /** character:persona-changed */
   'persona.changed': Persona,
   /** chat-bg:changed */
@@ -504,6 +521,7 @@ export const mascotEventSurfaces = {
   'mascot.cursor': ['mascot'],
   'mascot.body': ['mascot'],
   'mascot.physicsEvent': ['mascot'],
+  'avatar.event': ['mascot'],
   'window.mouseEnter': ['mascot'],
   'window.mouseLeave': ['mascot'],
 } as const satisfies Partial<Record<keyof typeof mascotEvents, readonly Surface[]>>;

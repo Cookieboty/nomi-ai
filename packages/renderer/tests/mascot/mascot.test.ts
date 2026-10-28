@@ -1,5 +1,6 @@
 import {
   applyDirective,
+  directiveForActivity,
   directiveForEvent,
   expressionForText,
   mascotRegistry,
@@ -63,7 +64,7 @@ describe('expressionDirector', () => {
   });
 
   it('maps events to directives', () => {
-    expect(directiveForEvent({ kind: 'agent:step' })?.expression).toBe('relaxed');
+    expect(directiveForActivity('thinking')).toMatchObject({ expression: 'relaxed', hold: true });
     expect(directiveForEvent({ kind: 'tool:executed', ok: false })?.expression).toBe('sad');
     expect(directiveForEvent({ kind: 'tool:executed', ok: true })?.expression).toBe('happy');
     expect(directiveForEvent({ kind: 'message:complete', text: 'sorry' })?.expression).toBe('sad');

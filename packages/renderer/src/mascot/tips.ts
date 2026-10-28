@@ -11,17 +11,17 @@ export interface TipRule {
 export const MOUSEOVER_TIPS: TipRule[] = [
   { selector: '#mascot-canvas', text: ['tip-want-to-chat-about-something'] },
   {
-    selector: '#waifu-tool-ai-chat',
+    selector: '#companion-tool-ai-chat',
     text: ['tip-open-the-chat-window-and-talk-to-me', 'tip-ask-me-anything'],
   },
   {
-    selector: '#waifu-tool-voice-settings',
+    selector: '#companion-tool-voice-settings',
     text: ['tip-voice-settings-are-here-right-click-to-fine'],
   },
-  { selector: '#waifu-tool-motion', text: ['tip-want-to-see-me-do-a-move-right'] },
-  { selector: '#waifu-tool-close-mascot', text: ['tip-want-me-to-step-away-you-can-bring'] },
+  { selector: '#companion-tool-motion', text: ['tip-want-to-see-me-do-a-move-right'] },
+  { selector: '#companion-tool-close-mascot', text: ['tip-want-me-to-step-away-you-can-bring'] },
   {
-    selector: '#waifu-tool-quit',
+    selector: '#companion-tool-quit',
     text: ['tip-time-for-a-break-see-you-next-time', 'tip-come-back-soon-okay'],
   },
 ];

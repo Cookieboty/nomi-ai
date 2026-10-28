@@ -21,7 +21,7 @@ import {
 import type { HostPorts } from '@nomi-ai/host-ports';
 import { z } from 'zod';
 
-import { sendMascotCommand } from '../ai/mascotCommand';
+import { avatarGesture } from '../ai/mascotCommand';
 import type { AppEvents } from '../core/appEvents';
 import type { DesktopService } from '../desktop/DesktopService';
 import { t } from '../i18n';
@@ -438,7 +438,7 @@ export class ExtensionsService {
       const live: Live = { status: 'connected', tools, at: Date.now() };
       this.live.set(id, live);
       this.audit('mcp_connect', { id, tools: tools.length }, 'user', 'ok', 'mcp', Date.now() - t0);
-      sendMascotCommand(this.d.events, { type: 'motion', name: 'nod' });
+      avatarGesture(this.d.events, 'nod');
       this.changed();
       return live;
     } catch (err) {
@@ -668,7 +668,7 @@ export class ExtensionsService {
       fs.copyFileSync(path.join(src, f), to);
     }
     this.audit('skill_import', { name: meta.name }, 'user', 'ok', 'settings');
-    sendMascotCommand(this.d.events, { type: 'motion', name: 'clap' });
+    avatarGesture(this.d.events, 'clap');
     this.changed();
     return meta;
   }
@@ -719,7 +719,7 @@ export class ExtensionsService {
             enabled(name);
             const s = this.getSkill(name);
             this.audit('skill_load', { name }, 'auto', 'ok', 'skill');
-            sendMascotCommand(this.d.events, { type: 'motion', name: 'think' });
+            avatarGesture(this.d.events, 'think');
             return { ok: true, data: { name, instructions: s.body, files: s.files } };
           } catch (e) {
             return { ok: false, error: { code: 'skill', message: (e as Error).message } };
@@ -855,7 +855,7 @@ export class ExtensionsService {
     );
     if (res.imported.length) {
       this.changed();
-      sendMascotCommand(this.d.events, { type: 'motion', name: 'clap' });
+      avatarGesture(this.d.events, 'clap');
     }
     return res;
   }

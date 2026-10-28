@@ -15,7 +15,7 @@ import { stopAllSpeech } from '../speechStop';
 import styles from './MascotVoice.module.css';
 import { CLIP_HINTS } from './promptClips';
 
-import { playBubbleClip, useWaifuMessage } from '@/hooks/useWaifuMessage';
+import { playBubbleClip, useCompanionMessage } from '@/hooks/useCompanionMessage';
 
 let toggleImpl: (() => Promise<void>) | null = null;
 
@@ -33,7 +33,7 @@ export const MascotMicTool: React.FC<{
   const continuous = v.state.mode === 'handsfree';
   return (
     <span
-      id="waifu-tool-voice-input"
+      id="companion-tool-voice-input"
       onContextMenu={(e) => {
         e.preventDefault();
         // 右键后让出焦点：否则聚焦触发的提示会一直挡在角色脸前
@@ -60,7 +60,7 @@ export const MascotMicTool: React.FC<{
 };
 
 export const MascotVoiceBridge: React.FC = () => {
-  const { showMessage } = useWaifuMessage();
+  const { showMessage } = useCompanionMessage();
   const apiRef = useRef<ReturnType<typeof useVoice>['api']>(null);
   const onText = useCallback(
     (text: string, via: string) => {

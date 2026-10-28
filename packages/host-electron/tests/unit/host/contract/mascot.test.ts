@@ -7,7 +7,7 @@
 
 import { createClient, type Surface } from '@nomi-ai/contract';
 import { createInProcessServer } from '@nomi-ai/contract/testing';
-import { sendMascotCommand } from '@nomi-ai/core/ai/mascotCommand';
+import { avatarGesture, sendMascotCommand } from '@nomi-ai/core/ai/mascotCommand';
 import { createContractEventBridge } from '@nomi-ai/core/contract/eventBridge';
 import { mascotEventBridge } from '@nomi-ai/core/contract/mascot';
 import { APP_EVENT_BRIDGE, createAppRouter } from '@nomi-ai/core/contract/router';
@@ -334,11 +334,18 @@ describe('D5：内核 + 宿主片段', () => {
     }
   });
 
-  it('看板娘指令经内核实例的事件总线发给所有窗口（没有模块级出口）', () => {
+  it('看板娘指令与语义事件经内核实例的事件总线发给所有窗口（没有模块级出口）', () => {
     const events = createRecordingAppEvents();
-    sendMascotCommand(events, { type: 'motion', name: 'wave' });
+    sendMascotCommand(events, { type: 'open-panel', panel: 'motions' });
+    // 角色的手势 / 情绪是语义事件（§10.5），经 avatar:event → 契约事件 avatar.event
+    avatarGesture(events, 'thumbsUp');
     expect(events.published).toEqual([
-      { channel: 'mascot:command', payload: { type: 'motion', name: 'wave' }, surfaces: null },
+      {
+        channel: 'mascot:command',
+        payload: { type: 'open-panel', panel: 'motions' },
+        surfaces: null,
+      },
+      { channel: 'avatar:event', payload: { type: 'gesture', name: 'thumbsUp' }, surfaces: null },
     ]);
   });
 
@@ -352,6 +359,7 @@ describe('D5：内核 + 宿主片段', () => {
     bridge.publish('mascot:scale-changed', scale(0.5), { surface: ['mascot', 'chat'] });
     bridge.publish('character:persona-changed', persona);
     bridge.publish('chat-bg:changed', bg);
+    bridge.publish('avatar:event', { type: 'emotion', name: 'happy' });
     bridge.publish('window-mouse-enter', undefined, { surface: 'mascot' });
     bridge.publish('window-mouse-leave', null, { surface: 'mascot' });
     expect(sink.publish.mock.calls).toEqual([
@@ -359,6 +367,7 @@ describe('D5：内核 + 宿主片段', () => {
       ['mascot.scaleChanged', scale(0.5)],
       ['persona.changed', persona],
       ['chatBg.changed', bg],
+      ['avatar.event', { type: 'emotion', name: 'happy' }],
       ['window.mouseEnter', null],
       ['window.mouseLeave', null],
     ]);
@@ -368,6 +377,7 @@ describe('D5：内核 + 宿主片段', () => {
       'mascot:scale-changed',
       'character:persona-changed',
       'chat-bg:changed',
+      'avatar:event',
       'window-mouse-enter',
       'window-mouse-leave',
     ]);

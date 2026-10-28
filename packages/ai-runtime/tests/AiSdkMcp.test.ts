@@ -176,7 +176,7 @@ describe('AiSdkMcpService', () => {
 
 describe('defaultAiSdkPlugins MCP wiring', () => {
   it('inserts AiSdkMcpPlugin before McpBridgePlugin', () => {
-    const names = defaultAiSdkPlugins('waifu', {
+    const names = defaultAiSdkPlugins('companion', {
       env: {
         MCP_SERVERS: JSON.stringify([
           { id: 'x', name: 'X', transport: 'sse', url: 'https://x/sse' },
@@ -194,7 +194,7 @@ describe('defaultAiSdkPlugins MCP wiring', () => {
       logger: NoopRuntimeLogger,
       env: { DEEPSEEK_API_KEY: 'sk-test' },
     });
-    const ctx = await booter.boot('waifu', { home: '/tmp' });
+    const ctx = await booter.boot('companion', { home: '/tmp' });
     expect(ctx.inject(McpKey)).toBeInstanceOf(AiSdkMcpService);
     expect(
       ctx

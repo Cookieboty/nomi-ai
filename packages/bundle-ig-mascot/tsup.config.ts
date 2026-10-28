@@ -12,7 +12,11 @@ import { defineConfig } from 'tsup';
  * 两条流水线并行执行，`clean: true` 会在主入口的 DTS 阶段删掉 seams 的 .d.ts（竞态），
  * 所以这里都不 clean，改由 build 脚本先 `rimraf dist`。
  */
-const externals = ['@nomi-ai/bundle-ig-base', '@nomi-ai/bundle-ig-electron-caps'];
+const externals = [
+  '@nomi-ai/bundle-ig-base',
+  '@nomi-ai/bundle-ig-electron-caps',
+  '@nomi-ai/character-contract',
+];
 
 // tsup DTS 子编译会注入已弃用的 baseUrl（TypeScript 6），见 tsup.base.ts
 const dts = { compilerOptions: { ignoreDeprecations: '6.0' } };

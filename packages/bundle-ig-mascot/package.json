@@ -2,7 +2,7 @@
   "name": "@nomi-ai/bundle-ig-mascot",
   "version": "0.0.1",
   "private": true,
-  "description": "插件包：Nomi 渲染进程能力（mascot seam / 触摸感官注入 / TTS 嘴型联动 / 桌宠专属工具 + agent preset）",
+  "description": "插件包：陪伴角色能力（语义 avatar seam / 角色工具 avatar_gesture、avatar_emotion / companion preset）",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -45,6 +45,7 @@
     }
   },
   "dependencies": {
+    "@nomi-ai/character-contract": "workspace:*",
     "zod": "^4.6.6"
   },
   "devDependencies": {

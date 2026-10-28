@@ -74,7 +74,7 @@ assertDisjoint(
 );
 
 export const appContract = defineContract({
-  version: { major: 1, minor: 1 },
+  version: { major: 2, minor: 0 },
   procedures: {
     ...aiProcedures,
     ...mediaProcedures,

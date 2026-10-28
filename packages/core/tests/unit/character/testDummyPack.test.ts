@@ -10,7 +10,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { AgentPresetRegistryKey, WaifuAgentPresetPlugin } from '@nomi-ai/bundle-ig-mascot/plugins';
+import {
+  AgentPresetRegistryKey,
+  CompanionAgentPresetPlugin,
+} from '@nomi-ai/bundle-ig-mascot/plugins';
 
 import { CharacterPackService } from '../../../src/character/CharacterPackService';
 import { resolveCharacterPack } from '../../../src/character/packResolve';
@@ -36,11 +39,11 @@ function fakeCtx() {
 async function presetPrompt(persona: PersonaService): Promise<string> {
   const ctx = fakeCtx();
   await createPersonaIdentityPlugin(() => persona.get()).apply(ctx as never, {});
-  await WaifuAgentPresetPlugin.apply(ctx as never, {});
+  await CompanionAgentPresetPlugin.apply(ctx as never, {});
   const registry = ctx.inject(AgentPresetRegistryKey) as {
     get(n: string): { systemPrompt(): Promise<string> };
   };
-  return registry.get('waifu').systemPrompt();
+  return registry.get('companion').systemPrompt();
 }
 
 const nowhere = (name: string) => path.join(os.tmpdir(), `no-such-${name}-${process.pid}`);

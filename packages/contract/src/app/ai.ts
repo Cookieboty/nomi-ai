@@ -17,6 +17,11 @@ import {
   Bytes,
   AsrProviderInfo,
   AsrResult,
+  AvatarActivityInput,
+  AvatarEmotionInput,
+  AvatarGestureInput,
+  AvatarReport,
+  AvatarSpeakingInput,
   ChatChunk,
   ChatOptions,
   ChatResponse,
@@ -128,23 +133,14 @@ export const aiProcedures = {
   },
   'ai.tts.stop': { kind: 'mutation', input: z.object({ reqId: z.string() }), output: z.void() },
 
-  // avatar
+  // avatar（只有语义名，§10.5）
   'ai.avatar.isAvailable': { kind: 'query', input: z.void(), output: z.boolean() },
-  'ai.avatar.playMotion': {
-    kind: 'mutation',
-    input: z.object({ group: z.string(), index: z.number().optional() }),
-    output: z.void(),
-  },
-  'ai.avatar.setExpression': {
-    kind: 'mutation',
-    input: z.object({ name: z.string() }),
-    output: z.void(),
-  },
-  'ai.avatar.driveLipSync': {
-    kind: 'mutation',
-    input: z.object({ rms: z.number() }),
-    output: z.void(),
-  },
+  'ai.avatar.emotion': { kind: 'mutation', input: AvatarEmotionInput, output: z.void() },
+  'ai.avatar.gesture': { kind: 'mutation', input: AvatarGestureInput, output: z.void() },
+  'ai.avatar.activity': { kind: 'mutation', input: AvatarActivityInput, output: z.void() },
+  'ai.avatar.speaking': { kind: 'mutation', input: AvatarSpeakingInput, output: z.void() },
+  /** 角色 → AI：角色窗口报告被摸 / 被点 / 场景，经 AI 插件宿主的 ctx.avatar 转给订阅者 */
+  'ai.avatar.report': { kind: 'mutation', input: AvatarReport, output: z.void() },
 } as const;
 
 export type AiProcedureName = keyof typeof aiProcedures;
@@ -217,9 +213,11 @@ export const AI_METHODS: readonly AiMethodSpec[] = Object.freeze([
   m('tts', 'stream', ['text', 'opts']),
   m('tts', 'stop', ['reqId']),
   m('avatar', 'isAvailable', []),
-  m('avatar', 'playMotion', ['group', 'index']),
-  m('avatar', 'setExpression', ['name']),
-  m('avatar', 'driveLipSync', ['rms']),
+  m('avatar', 'emotion', ['name', 'weight']),
+  m('avatar', 'gesture', ['name']),
+  m('avatar', 'activity', ['name']),
+  m('avatar', 'speaking', ['level']),
+  m('avatar', 'report', 'value'),
 ]);
 
 /** 位置参数 → 过程入参（undefined 字段不写入，保持可序列化且不污染可选字段） */
@@ -289,16 +287,14 @@ export const aiEvents = {
   }),
   'ai.tts.end': loose({ reqId: z.string(), ok: z.boolean(), durationMs: z.number() }),
   'ai.userProfile.changed': loose({ profile: z.unknown() }),
-  'ai.avatar.touch': loose({
-    hitArea: z.string(),
-    x: z.number(),
-    y: z.number(),
+  'ai.avatar.touched': loose({ hitbox: z.string(), at: z.number() }),
+  'ai.avatar.clicked': loose({ hitbox: z.string(), double: z.boolean(), at: z.number() }),
+  'ai.avatar.scene': loose({
+    characterId: z.string(),
+    emotions: z.array(z.string()),
+    activities: z.array(z.string()),
+    gestures: z.array(z.string()),
     at: z.number(),
-  }),
-  'ai.avatar.motionEnd': loose({
-    group: z.string(),
-    index: z.number(),
-    interrupted: z.boolean(),
   }),
 } as const;
 
@@ -316,8 +312,9 @@ export const AI_EVENTS = Object.freeze({
   'tts:chunk': 'ai.tts.chunk',
   'tts:end': 'ai.tts.end',
   'userProfile:changed': 'ai.userProfile.changed',
-  'avatar:touch': 'ai.avatar.touch',
-  'avatar:motion-end': 'ai.avatar.motionEnd',
+  'avatar:touched': 'ai.avatar.touched',
+  'avatar:clicked': 'ai.avatar.clicked',
+  'avatar:scene': 'ai.avatar.scene',
 } as const satisfies Record<string, AiContractEvent>);
 
 export type AiClientEventName = keyof typeof AI_EVENTS;

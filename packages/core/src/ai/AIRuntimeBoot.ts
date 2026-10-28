@@ -44,7 +44,7 @@ import type { ILoggerService } from '../services/LoggerService';
 import type { UsageService } from '../usage/UsageService';
 
 import { splitGatewayUsage } from './gatewayUsage';
-import { createMascotIgPlugins } from './mascotBridge';
+import { COMPANION_PRESET, createMascotIgPlugins } from './mascotBridge';
 
 type AIClient = AIRuntimeService['client'];
 
@@ -174,7 +174,7 @@ export async function startAIRuntime(
   opts: AIRuntimeBootOptions,
 ): Promise<AIRuntimeBootHandle> {
   const { ports, services } = opts;
-  const profile = opts.profile ?? process.env.IG_AI_PROFILE ?? 'waifu';
+  const profile = opts.profile ?? process.env.IG_AI_PROFILE ?? COMPANION_PRESET;
   const home = opts.home ?? ports.paths.appPath();
   const runtimeLogger = toRuntimeLogger(logger);
 
@@ -223,7 +223,7 @@ export async function startAIRuntime(
         ...(opts.hostPlugins ?? []),
         { plugin: createPersonaIdentityPlugin(() => services.persona()?.get()) },
       ],
-      // 看板娘动作 / 表情工具（avatar_gesture / avatar_emotion）→ 事件总线 → 渲染进程
+      // 角色工具（avatar_gesture / avatar_emotion，语义名）、companion preset → 事件总线 → 角色窗口
       after: [
         ...createMascotIgPlugins(opts.events),
         ...createDesktopIgPlugins(opts.desktopTools),

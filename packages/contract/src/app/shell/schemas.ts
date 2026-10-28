@@ -9,6 +9,8 @@
 
 import { z } from 'zod';
 
+import { AvatarSemanticName } from '../schemas';
+
 type Shape = Record<string, z.ZodType>;
 
 /**
@@ -83,9 +85,11 @@ export const OnboardingState = loose({
 });
 export const OnboardingCompleteInput = z.object({ skipped: z.boolean().optional() });
 /** 引导里转发给看板娘的指令：只开放 say / motion（主进程再校验一次） */
+/** 对话窗口 → 看板娘：说一句（可带语义手势）、语义手势、正在等回复（§10.5，只有语义名） */
 export const OnboardingMascotCmd = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('say'), text: z.string(), motion: z.string().optional() }),
-  z.object({ type: z.literal('motion'), name: z.string() }),
+  z.object({ type: z.literal('say'), text: z.string(), gesture: AvatarSemanticName.optional() }),
+  z.object({ type: z.literal('gesture'), name: AvatarSemanticName }),
+  z.object({ type: z.literal('reply'), phase: z.enum(['waiting', 'settled']) }),
 ]);
 
 // ---------------------------------------------------------------------------

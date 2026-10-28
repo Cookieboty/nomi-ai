@@ -60,10 +60,10 @@ describe('AIRuntimeService', () => {
   it('start() returns AIClient and marks isStarted', async () => {
     const { booter } = fakeBooter();
     const svc = new AIRuntimeService({ booter });
-    const client = await svc.start('waifu', { home: '/tmp' });
+    const client = await svc.start('companion', { home: '/tmp' });
     expect(client).toBeDefined();
     expect(svc.isStarted).toBe(true);
-    expect(svc.profile).toBe('waifu');
+    expect(svc.profile).toBe('companion');
   });
 
   it('start() logs "AI runtime booted (<profile>)"', async () => {
@@ -84,7 +84,7 @@ describe('AIRuntimeService', () => {
     const { booter, dispose } = fakeBooter();
     const { lifecycle, off } = fakeLifecycle();
     const svc = new AIRuntimeService({ booter, lifecycle });
-    await svc.start('waifu', { home: '/tmp' });
+    await svc.start('companion', { home: '/tmp' });
     await svc.stop();
     expect(dispose).toHaveBeenCalledTimes(1);
     expect(off).toHaveBeenCalledTimes(1);
@@ -100,8 +100,8 @@ describe('AIRuntimeService', () => {
   it('double start throws RuntimeAlreadyStartedError', async () => {
     const { booter } = fakeBooter();
     const svc = new AIRuntimeService({ booter });
-    await svc.start('waifu', { home: '/tmp' });
-    await expect(svc.start('waifu', { home: '/tmp' })).rejects.toBeInstanceOf(
+    await svc.start('companion', { home: '/tmp' });
+    await expect(svc.start('companion', { home: '/tmp' })).rejects.toBeInstanceOf(
       RuntimeAlreadyStartedError,
     );
     await svc.stop();
@@ -112,7 +112,7 @@ describe('runtime singleton', () => {
   it('configure → start → stop full cycle', async () => {
     const { booter } = fakeBooter();
     const svc = runtime.configure({ booter });
-    await svc.start('waifu', { home: '/tmp' });
+    await svc.start('companion', { home: '/tmp' });
     expect(runtime.client).toBeDefined();
     await runtime.stop();
   });
@@ -120,7 +120,7 @@ describe('runtime singleton', () => {
   it('configure while started throws', async () => {
     const { booter } = fakeBooter();
     const svc = runtime.configure({ booter });
-    await svc.start('waifu', { home: '/tmp' });
+    await svc.start('companion', { home: '/tmp' });
     expect(() => runtime.configure({ booter })).toThrow(/already started/);
     await runtime.stop();
   });

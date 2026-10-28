@@ -10,7 +10,7 @@
  */
 import path from 'node:path';
 
-import { CONTRACT } from '@nomi-ai/character-contract';
+import { CONTRACT, type PackMapping } from '@nomi-ai/character-contract';
 import type { HostPorts } from '@nomi-ai/host-ports';
 
 import { characterPackAssetUrl, registerCharacterPackProtocol } from './packProtocol';
@@ -40,6 +40,11 @@ export interface CharacterPackActiveSnapshot {
   rive: { artboard: string; stateMachine: string } | null;
   /** Character copy per language (`locales/<lang>.json` → lines) */
   locales: Partial<Record<string, { lines?: Record<string, string> }>> | null;
+  /**
+   * 语义 → 资源（mapping.json，§10.5）；包没有 mapping.json 时为 null（运行时用引擎默认映射）。
+   * 内置包也填，渲染进程以构建时打进去的那份为准。
+   */
+  mapping: PackMapping | null;
   reason?: string;
 }
 
@@ -210,6 +215,7 @@ export class CharacterPackService {
       hitboxes: null,
       rive: null,
       locales: null,
+      mapping: null,
       reason: r.reason,
     };
     if (!r.root || !r.pack) return empty;
@@ -220,6 +226,7 @@ export class CharacterPackService {
       displayName: displayNameOf(pack),
       hitboxes: r.hitboxes,
       locales: linesOf(pack),
+      mapping: pack.mapping,
     };
     if (r.source === 'builtin') return { ...empty, ...identity };
     const onboardingDir = `${pack.assets.onboardingDir}/`;

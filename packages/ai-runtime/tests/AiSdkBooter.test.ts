@@ -12,7 +12,7 @@ describe('createAiSdkBooter', () => {
       logger: NoopRuntimeLogger,
       env: { DEEPSEEK_API_KEY: 'sk-test', DEEPSEEK_BASE_URL: 'http://127.0.0.1:9/v1' },
     });
-    const ctx = await booter.boot('waifu', { home: '/tmp' });
+    const ctx = await booter.boot('companion', { home: '/tmp' });
     const ids = ctx
       .inject(LLMRegistryKey)!
       .list()
@@ -31,7 +31,7 @@ describe('createAiSdkBooter', () => {
   });
 
   it('defaultAiSdkPlugins swaps LLMProvidersPlugin for AiSdkLLMProvidersPlugin', () => {
-    const names = defaultAiSdkPlugins('waifu').map((e) => e.plugin.name);
+    const names = defaultAiSdkPlugins('companion').map((e) => e.plugin.name);
     expect(names).toContain('AiSdkLLMProvidersPlugin');
     expect(names).not.toContain('LLMProvidersPlugin');
   });

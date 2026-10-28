@@ -1,11 +1,8 @@
-export { default as WaifuAIRoot } from './WaifuAIRoot';
-export { default as WaifuLipSyncBridge } from './WaifuLipSyncBridge';
-export { default as WaifuAgentBubbleBridge } from './WaifuAgentBubbleBridge';
-export { default as WaifuMascotSceneReporter } from './WaifuMascotSceneReporter';
+export { default as CompanionAIRoot } from './CompanionAIRoot';
+export { default as CompanionLipSyncBridge } from './CompanionLipSyncBridge';
+export { default as CompanionAgentBubbleBridge } from './CompanionAgentBubbleBridge';
 export { lipSyncStore } from './lipSyncStore';
 export type { LipSyncListener } from './lipSyncStore';
-export { waifuSceneStore } from './waifuSceneStore';
-export type { WaifuSceneListener, WaifuSceneSnapshot } from './waifuSceneStore';
 export {
   AGENT_STEP_LABEL,
   BUBBLE_PRIORITY,
@@ -19,7 +16,6 @@ export type {
   BubbleAgentStep,
   BubbleDirective,
   BubbleEvent,
-  BubbleMascotTouch,
   BubbleMessage,
   BubbleMessageComplete,
   BubbleMessagePart,

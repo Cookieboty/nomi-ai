@@ -46,7 +46,10 @@ jest.mock('../../../src/core/appIcon', () => ({
     };
   },
 }));
-jest.mock('@nomi-ai/core/ai/mascotCommand', () => ({ sendMascotCommand: jest.fn() }));
+jest.mock('@nomi-ai/core/ai/mascotCommand', () => ({
+  sendMascotCommand: jest.fn(),
+  avatarGesture: jest.fn(),
+}));
 
 import { TrayManager } from '../../../src/core/TrayManager';
 import { applyIslandWorkspaceBehavior } from '../../../src/island/IslandService';

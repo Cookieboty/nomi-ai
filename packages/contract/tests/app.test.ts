@@ -32,7 +32,7 @@ const procedures = Object.fromEntries(
 const aiEventNames = Object.keys(appContract.events).filter((n) => n.startsWith('ai.'));
 
 describe('appContract · 过程表', () => {
-  it('快照：35 个 AI 门面过程的 kind / dangerous', () => {
+  it('快照：37 个 AI 门面过程的 kind / dangerous', () => {
     const table = Object.entries(procedures).map(
       ([name, def]) => `${name}:${def.kind}${def.dangerous ? ':dangerous' : ''}`,
     );
@@ -69,13 +69,16 @@ describe('appContract · 过程表', () => {
       'ai.tts.stream:stream',
       'ai.tts.stop:mutation',
       'ai.avatar.isAvailable:query',
-      'ai.avatar.playMotion:mutation',
-      'ai.avatar.setExpression:mutation',
-      'ai.avatar.driveLipSync:mutation',
+      'ai.avatar.emotion:mutation',
+      'ai.avatar.gesture:mutation',
+      'ai.avatar.activity:mutation',
+      'ai.avatar.speaking:mutation',
+      'ai.avatar.report:mutation',
     ]);
-    expect(Object.keys(aiProcedures)).toHaveLength(35);
-    expect(Object.keys(procedures)).toHaveLength(35);
-    expect(appContract.version).toEqual({ major: 1, minor: 1 });
+    expect(Object.keys(aiProcedures)).toHaveLength(37);
+    expect(Object.keys(procedures)).toHaveLength(37);
+    // C3：ai.avatar.* 改成语义过程（不留旧名）→ major
+    expect(appContract.version).toEqual({ major: 2, minor: 0 });
     expect(NOMI_TRANSPORT_GLOBAL).toBe('nomiTransport');
   });
 
@@ -99,11 +102,35 @@ describe('appContract · 过程表', () => {
       opts: { voiceId: 'v' },
     });
     expect(aiArgsToInput(by('ai.sessions.list'), [])).toBeUndefined();
+    expect(aiArgsToInput(by('ai.avatar.emotion'), ['happy'])).toEqual({ name: 'happy' });
+  });
+
+  it('avatar：只收语义名，资源名（下划线 / 连字符）过不了线', () => {
+    const gesture = procedures['ai.avatar.gesture']!.input;
+    expect(gesture.safeParse({ name: 'thumbsUp' }).success).toBe(true);
+    expect(gesture.safeParse({ name: 'thumbs_up' }).success).toBe(false);
+    expect(gesture.safeParse({ name: 'think-on' }).success).toBe(false);
+    const emotion = procedures['ai.avatar.emotion']!.input;
+    expect(emotion.safeParse({ name: 'happy', weight: 0.4 }).success).toBe(true);
+    expect(emotion.safeParse({ name: 'happy', weight: 2 }).success).toBe(false);
+    const report = procedures['ai.avatar.report']!.input;
+    expect(report.safeParse({ type: 'touched', hitbox: 'head' }).success).toBe(true);
+    expect(report.safeParse({ type: 'clicked', hitbox: 'body', double: true }).success).toBe(true);
+    expect(
+      report.safeParse({
+        type: 'scene',
+        characterId: 'nomi',
+        emotions: ['happy'],
+        activities: ['idle'],
+        gestures: ['thumbsUp'],
+      }).success,
+    ).toBe(true);
+    expect(report.safeParse({ type: 'touched', hitbox: 'tail' }).success).toBe(false);
   });
 });
 
 describe('appContract · 事件', () => {
-  it('AI_EVENTS 覆盖 AIClient 的 12 个业务事件，且都声明在契约里', () => {
+  it('AI_EVENTS 覆盖 AIClient 的 13 个业务事件，且都声明在契约里', () => {
     expect(Object.keys(AI_EVENTS).sort()).toEqual(
       [
         'message:delta',
@@ -116,8 +143,9 @@ describe('appContract · 事件', () => {
         'tts:chunk',
         'tts:end',
         'userProfile:changed',
-        'avatar:touch',
-        'avatar:motion-end',
+        'avatar:touched',
+        'avatar:clicked',
+        'avatar:scene',
       ].sort(),
     );
     expect(Object.values(AI_EVENTS).sort()).toEqual(aiEventNames.sort());

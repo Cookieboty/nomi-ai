@@ -365,11 +365,11 @@ const AiChatContent: React.FC = () => {
       else window.clearTimeout(id);
     };
   }, []);
-  // mascot holds a thinking pose while a reply is being generated
+  // mascot holds a thinking pose while a reply is being generated (semantic event, §10.5)
   useEffect(() => {
     if (!isLoading) return;
-    onboardingClient.mascot({ type: 'motion', name: 'think-on' });
-    return () => onboardingClient.mascot({ type: 'motion', name: 'think-off' });
+    onboardingClient.mascot({ type: 'reply', phase: 'waiting' });
+    return () => onboardingClient.mascot({ type: 'reply', phase: 'settled' });
   }, [isLoading]);
   const [showDesktop, setShowDesktop] = useState(false);
   // 托盘「桌面能力…」→ 打开桌面能力面板

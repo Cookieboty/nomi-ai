@@ -2,7 +2,8 @@
  * Fake seams —— 无界面 E2E 专用，由 `headlessCore.ts` 的探针插件装进真实内核的插件宿主。
  *
  * - `createFakeLLM` / `createFakeLLMRegistry`：确定的对话结果，记录调用；
- * - `createFakeAvatarService`：记录 driveLipSync 的 rms 序列（E1 视图侧的嘴型驱动）；
+ * - `createFakeAvatarService`：AvatarService 的语义事件契约（speaking / gesture / emotion / report / on），
+ *   记录口型包络序列（E1 视图侧的嘴型驱动）；
  * - `createWriteFileTool` + `installDangerToolGuardrail`：危险工具与 GuardrailsPlugin 的危险工具分支（E5）。
  */
 
@@ -15,11 +16,7 @@ import type {
   PluginContext,
   ToolDefinition,
 } from '@nomi-ai/bundle-ig-base';
-import type {
-  AvatarEvent,
-  AvatarEventPayload,
-  AvatarService,
-} from '@nomi-ai/bundle-ig-mascot/seams';
+import type { AvatarEvent, AvatarService } from '@nomi-ai/bundle-ig-mascot/seams';
 
 export interface FakeLLM extends LLMProvider {
   chatCalls: ChatRequest[];
@@ -76,35 +73,49 @@ export function createFakeLLMRegistry(...providers: LLMProvider[]): LLMRegistry 
   };
 }
 
-/* --------------------------------------------------- *
- * Avatar service —— 记录 driveLipSync + on(touch) 序列 *
- * --------------------------------------------------- */
+/* ----------------------------------------------------------- *
+ * Avatar service —— 记录语义事件（speaking / gesture / emotion） *
+ * ----------------------------------------------------------- */
 
 export interface FakeAvatarService extends AvatarService {
-  driveLipSyncCalls: number[];
-  motionCalls: Array<{ group: string; index?: number }>;
-  expressionCalls: string[];
-  fire<E extends AvatarEvent>(evt: E, payload: AvatarEventPayload<E>): void;
+  speakingCalls: number[];
+  gestureCalls: string[];
+  emotionCalls: Array<{ name: string; weight?: number }>;
+  activityCalls: string[];
 }
 
 export function createFakeAvatarService(): FakeAvatarService {
-  const driveLipSyncCalls: number[] = [];
-  const motionCalls: Array<{ group: string; index?: number }> = [];
-  const expressionCalls: string[] = [];
+  const speakingCalls: number[] = [];
+  const gestureCalls: string[] = [];
+  const emotionCalls: Array<{ name: string; weight?: number }> = [];
+  const activityCalls: string[] = [];
   const listeners = new Map<AvatarEvent, Set<(p: unknown) => void>>();
+  const fire = (evt: AvatarEvent, payload: unknown) =>
+    listeners.get(evt)?.forEach((fn) => fn(payload));
 
   const svc: FakeAvatarService = {
-    driveLipSyncCalls,
-    motionCalls,
-    expressionCalls,
-    async playMotion(group, index) {
-      motionCalls.push({ group, index });
+    speakingCalls,
+    gestureCalls,
+    emotionCalls,
+    activityCalls,
+    async gesture(name) {
+      gestureCalls.push(name);
     },
-    async setExpression(name) {
-      expressionCalls.push(name);
+    async emotion(name, weight) {
+      emotionCalls.push(weight === undefined ? { name } : { name, weight });
     },
-    driveLipSync(rms) {
-      driveLipSyncCalls.push(rms);
+    async activity(name) {
+      activityCalls.push(name);
+    },
+    speaking(level) {
+      speakingCalls.push(level);
+    },
+    report(event) {
+      const { type, ...rest } = event;
+      fire(type, { ...rest, at: Date.now() });
+    },
+    scene() {
+      return null;
     },
     on(evt, fn) {
       if (!listeners.has(evt)) listeners.set(evt, new Set());
@@ -117,9 +128,6 @@ export function createFakeAvatarService(): FakeAvatarService {
     },
     hasHost() {
       return true;
-    },
-    fire(evt, payload) {
-      listeners.get(evt)?.forEach((fn) => fn(payload));
     },
   };
   return svc;

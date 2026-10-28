@@ -6,20 +6,22 @@ import {
   type UserProfile,
   type UserProfileService,
 } from '@nomi-ai/bundle-ig-base';
+import { SEMANTIC_EMOTIONS, SEMANTIC_GESTURES } from '@nomi-ai/character-contract';
 import { describe, expect, it } from 'vitest';
 
 import { AvatarSeamPlugin } from '../../src/plugins/AvatarSeamPlugin';
 import {
-  buildWaifuSystemPrompt,
-  WaifuAgentPresetPlugin,
-} from '../../src/plugins/WaifuAgentPresetPlugin';
+  buildCompanionSystemPrompt,
+  COMPANION_PRESET,
+  CompanionAgentPresetPlugin,
+} from '../../src/plugins/CompanionAgentPresetPlugin';
 import {
-  createPlayMotionTool,
-  createSetExpressionTool,
-  playMotionInputSchema,
-  setExpressionInputSchema,
-  WaifuToolsPlugin,
-} from '../../src/plugins/WaifuToolsPlugin';
+  CompanionToolsPlugin,
+  createEmotionTool,
+  createGestureTool,
+  emotionInputSchema,
+  gestureInputSchema,
+} from '../../src/plugins/CompanionToolsPlugin';
 import { AgentPresetRegistryKey } from '../../src/seams/agentPreset';
 import { AvatarKey } from '../../src/seams/avatar';
 import { createFakeAvatarHost } from '../helpers/fakeAvatarHost';
@@ -56,39 +58,46 @@ function createFakeProfile(data: Partial<Record<string, unknown>>): UserProfileS
   };
 }
 
-describe('WaifuToolsPlugin schema', () => {
-  it('avatar_gesture accepts valid input', () => {
-    expect(playMotionInputSchema.parse({ group: 'idle', index: 0 })).toEqual({
-      group: 'idle',
-      index: 0,
+describe('CompanionToolsPlugin schema (semantic names only, §10.5)', () => {
+  it('avatar_gesture accepts every semantic gesture and nothing else', () => {
+    for (const name of SEMANTIC_GESTURES) {
+      expect(gestureInputSchema.parse({ name })).toEqual({ name });
+    }
+    // 资源名 / 旧的动作参数过不了
+    expect(() => gestureInputSchema.parse({ name: 'thumbs_up' })).toThrow();
+    expect(() => gestureInputSchema.parse({ name: 'think-on' })).toThrow();
+    expect(() => gestureInputSchema.parse({ group: 'wave' })).toThrow();
+    expect(() => gestureInputSchema.parse({ name: 'wave', index: 0 })).toThrow();
+  });
+
+  it('avatar_emotion accepts every semantic emotion with an optional weight', () => {
+    for (const name of SEMANTIC_EMOTIONS) {
+      expect(emotionInputSchema.parse({ name })).toEqual({ name });
+    }
+    expect(emotionInputSchema.parse({ name: 'happy', weight: 0.5 })).toEqual({
+      name: 'happy',
+      weight: 0.5,
     });
-    expect(playMotionInputSchema.parse({ group: 'idle' })).toEqual({ group: 'idle' });
+    expect(() => emotionInputSchema.parse({ name: 'smile' })).toThrow();
+    expect(() => emotionInputSchema.parse({ name: 'happy', weight: 2 })).toThrow();
   });
 
-  it('avatar_gesture rejects extra keys and negative index', () => {
-    expect(() => playMotionInputSchema.parse({ group: 'idle', extra: 1 })).toThrow();
-    expect(() => playMotionInputSchema.parse({ group: 'idle', index: -1 })).toThrow();
-    expect(() => playMotionInputSchema.parse({ group: '' })).toThrow();
-  });
-
-  it('avatar_emotion validates non-empty name', () => {
-    expect(() => setExpressionInputSchema.parse({ name: '' })).toThrow();
-    expect(setExpressionInputSchema.parse({ name: 'smile' })).toEqual({ name: 'smile' });
-  });
-
-  it('tool descriptions do not hard-code a character name', () => {
+  it('tool descriptions name the semantic vocabulary and no character', () => {
     const avatar = {} as never;
-    for (const tool of [
-      createPlayMotionTool(avatar, { dangerous: false }),
-      createSetExpressionTool(avatar, { dangerous: false }),
-    ]) {
+    const gesture = createGestureTool(avatar, { dangerous: false });
+    const emotion = createEmotionTool(avatar, { dangerous: false });
+    for (const g of SEMANTIC_GESTURES) expect(gesture.description).toContain(g);
+    for (const e of SEMANTIC_EMOTIONS) expect(emotion.description).toContain(e);
+    for (const tool of [gesture, emotion]) {
       expect(tool.description).not.toMatch(/Nomi|诺米/);
+      // 不出现任何资源名（下划线 / 连字符形状）
+      expect(tool.description).not.toMatch(/[a-z]+[_-][a-z]+/);
     }
   });
 });
 
-describe('WaifuToolsPlugin', () => {
-  async function setup(cfg: Parameters<typeof WaifuToolsPlugin.apply>[1] = {}) {
+describe('CompanionToolsPlugin', () => {
+  async function setup(cfg: Parameters<typeof CompanionToolsPlugin.apply>[1] = {}) {
     const ctx = createFakeCtx();
     await AvatarSeamPlugin.apply(ctx, {});
     const svc = ctx.inject(AvatarKey)!;
@@ -96,7 +105,7 @@ describe('WaifuToolsPlugin', () => {
     svc.attachHost(host);
     const registry = createFakeRegistry();
     ctx.provide(ToolRegistryKey, registry);
-    await WaifuToolsPlugin.apply(ctx, cfg);
+    await CompanionToolsPlugin.apply(ctx, cfg);
     return { ctx, host, registry };
   }
 
@@ -128,25 +137,27 @@ describe('WaifuToolsPlugin', () => {
     const { registry, host } = await setup();
     const play = registry.get('avatar_gesture')!;
     const expr = registry.get('avatar_emotion')!;
-    await expect(play.execute({ group: 'idle', index: 2 }, {})).resolves.toEqual({ ok: true });
-    await expect(expr.execute({ name: 'smile' }, {})).resolves.toEqual({ ok: true });
-    expect(host.record.playMotion).toEqual([{ group: 'idle', index: 2 }]);
-    expect(host.record.setExpression).toEqual(['smile']);
+    await expect(play.execute({ name: 'thumbsUp' }, {})).resolves.toEqual({ ok: true });
+    await expect(expr.execute({ name: 'happy', weight: 0.4 }, {})).resolves.toEqual({ ok: true });
+    expect(host.record.gesture).toEqual(['thumbsUp']);
+    expect(host.record.emotion).toEqual([{ name: 'happy', weight: 0.4 }]);
+    await expect(play.execute({ name: 'idle' } as never, {})).rejects.toThrow();
+    expect(host.record.gesture).toEqual(['thumbsUp']);
   });
 
   it('warns and skips when tool registry not available', async () => {
     const ctx = createFakeCtx();
     await AvatarSeamPlugin.apply(ctx, {});
-    await WaifuToolsPlugin.apply(ctx, {});
+    await CompanionToolsPlugin.apply(ctx, {});
     expect(
       ctx.logs.some((l) => l.level === 'warn' && l.msg.includes('ctx.tools not available')),
     ).toBe(true);
   });
 });
 
-describe('buildWaifuSystemPrompt', () => {
+describe('buildCompanionSystemPrompt', () => {
   it('picks cute tone by default when profile absent', () => {
-    const prompt = buildWaifuSystemPrompt(undefined, { toolNames: [] });
+    const prompt = buildCompanionSystemPrompt(undefined, { toolNames: [] });
     // 插件包不内置角色人设：没有注入身份时不出现任何角色名
     expect(prompt).not.toMatch(/Nomi|诺米/);
     expect(prompt).toContain('可爱');
@@ -156,7 +167,7 @@ describe('buildWaifuSystemPrompt', () => {
     const profile = createFakeProfile({
       'preferences.tone': { value: 'strict' },
     });
-    const prompt = buildWaifuSystemPrompt(profile, { toolNames: [] });
+    const prompt = buildCompanionSystemPrompt(profile, { toolNames: [] });
     expect(prompt).toContain('严谨');
   });
 
@@ -165,7 +176,7 @@ describe('buildWaifuSystemPrompt', () => {
       'preferences.tone': { value: 'casual' },
       'identity.nickname': '小明',
     });
-    const prompt = buildWaifuSystemPrompt(profile, {
+    const prompt = buildCompanionSystemPrompt(profile, {
       toolNames: ['avatar_gesture', 'echo'],
       prefix: '（内部前缀）',
     });
@@ -179,30 +190,31 @@ describe('buildWaifuSystemPrompt', () => {
     const profile = createFakeProfile({
       'preferences.tone': { value: 'martian' },
     });
-    const prompt = buildWaifuSystemPrompt(profile, { toolNames: [] });
+    const prompt = buildCompanionSystemPrompt(profile, { toolNames: [] });
     expect(prompt).toContain('可爱');
   });
 });
 
-describe('WaifuAgentPresetPlugin', () => {
-  async function setup(cfg: Parameters<typeof WaifuAgentPresetPlugin.apply>[1] = {}) {
+describe('CompanionAgentPresetPlugin', () => {
+  async function setup(cfg: Parameters<typeof CompanionAgentPresetPlugin.apply>[1] = {}) {
     const ctx = createFakeCtx();
     await AvatarSeamPlugin.apply(ctx, {});
     const svc = ctx.inject(AvatarKey)!;
     svc.attachHost(createFakeAvatarHost());
     ctx.provide(ToolRegistryKey, createFakeRegistry());
-    await WaifuToolsPlugin.apply(ctx, {});
+    await CompanionToolsPlugin.apply(ctx, {});
     const profile = createFakeProfile({ 'preferences.tone': { value: 'cute' } });
     ctx.provide(UserProfileKey, profile);
-    await WaifuAgentPresetPlugin.apply(ctx, cfg);
+    await CompanionAgentPresetPlugin.apply(ctx, cfg);
     return { ctx };
   }
 
-  it('registers a waifu preset with expected whitelist', async () => {
+  it('registers the companion preset with expected whitelist', async () => {
     const { ctx } = await setup();
     const registry = ctx.inject(AgentPresetRegistryKey);
     expect(registry).toBeDefined();
-    const preset = registry!.get('waifu');
+    expect(COMPANION_PRESET).toBe('companion');
+    const preset = registry!.get('companion');
     expect(preset).toBeDefined();
     expect(preset!.toolWhitelist).toEqual([
       'avatar_gesture',
@@ -217,7 +229,7 @@ describe('WaifuAgentPresetPlugin', () => {
   it('systemPrompt is dynamic and reads current UserProfile', async () => {
     const { ctx } = await setup();
     const registry = ctx.inject(AgentPresetRegistryKey)!;
-    const preset = registry.get('waifu')!;
+    const preset = registry.get('companion')!;
     const prompt = await preset.systemPrompt();
     expect(prompt).toContain('可爱');
     expect(prompt).toContain('avatar_gesture');
@@ -225,15 +237,15 @@ describe('WaifuAgentPresetPlugin', () => {
 
   it('supports custom preset name / tools / disable via config', async () => {
     const { ctx } = await setup({
-      presetName: 'waifu-plus',
+      presetName: 'companion-plus',
       builtinTools: ['time_now'],
       disable: ['mcp'],
     });
     const registry = ctx.inject(AgentPresetRegistryKey)!;
-    const preset = registry.get('waifu-plus');
+    const preset = registry.get('companion-plus');
     expect(preset).toBeDefined();
     expect(preset!.toolWhitelist).toEqual(['avatar_gesture', 'avatar_emotion', 'time_now']);
     expect(preset!.disable).toEqual(['mcp']);
-    expect(registry.get('waifu')).toBeUndefined();
+    expect(registry.get('companion')).toBeUndefined();
   });
 });

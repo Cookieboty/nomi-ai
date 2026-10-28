@@ -29,8 +29,20 @@ export {
   type AvatarEventHub,
   type AvatarEventListener,
   type AvatarEventSource,
+  type AvatarHitbox,
+  type AvatarOutputEvent,
 } from './events';
-export { applyEmotion, driveAvatar, TALK_RELEASE_MS, TALK_RMS } from './driver';
+export { applyActivity, applyEmotion, driveAvatar, TALK_RELEASE_MS, TALK_RMS } from './driver';
+export {
+  activityTarget,
+  currentAvatarMapping,
+  DEFAULT_AVATAR_MAPPING,
+  emotionTarget,
+  gestureTarget,
+  mappedSemantics,
+  setAvatarMapping,
+  type AvatarSemanticCapabilities,
+} from './mapping';
 
 // 后端抽象与注册表
 export * from './MascotBackend';
@@ -48,7 +60,13 @@ export { isRiveExperimentEnabled, RIVE_FLAG_KEY } from './riveFlag';
 // 表情 / 情绪 / 动作
 export * from './emotion';
 export * from './expressionDirector';
-export { applyDirective, AUTO_MOTION_COOLDOWN_MS, playMotionNow, resetMoodForTests } from './mood';
+export {
+  applyDirective,
+  AUTO_MOTION_COOLDOWN_MS,
+  playGesture,
+  playMotionNow,
+  resetMoodForTests,
+} from './mood';
 export { voiceDirective } from './voiceMood';
 export { MOTION_LABELS } from './motion/labels';
 export { ACTION_LABELS, ACTIONS } from './rig/actions';

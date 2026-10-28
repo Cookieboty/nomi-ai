@@ -141,7 +141,7 @@ describe('first-launch onboarding', () => {
     render(<OnboardingHost />);
     await screen.findByTestId('onboarding-step-welcome');
     // 看板娘打招呼；欢迎页有插画与介绍
-    await waitFor(() => expect(mascot()[0]).toMatchObject({ type: 'say', motion: 'wave' }));
+    await waitFor(() => expect(mascot()[0]).toMatchObject({ type: 'say', gesture: 'wave' }));
     // 插画是整张卡片的背景（不是横幅 img），人物靠右完整显示
     const bg = screen.getByTestId('onb-art');
     expect(bg.tagName).toBe('DIV');
@@ -254,7 +254,7 @@ describe('first-launch onboarding', () => {
     expect(screen.queryByTestId('onb-one-step-left')).toBeNull();
     fireEvent.click(screen.getByTestId('onboarding-finish'));
     await waitFor(() => expect(screen.queryByTestId('onboarding')).toBeNull());
-    expect(mascot().at(-1)).toMatchObject({ motion: 'cheer' });
+    expect(mascot().at(-1)).toMatchObject({ gesture: 'cheer' });
   });
 
   it('"connect a model" ends the guide and asks the chat window to open Settings → Models', async () => {

@@ -2,20 +2,24 @@
  * avatar-runtime 独立开发页：一个假的语义事件源（按钮 / 口型正弦波）+ 互动输出日志。
  * 没有窗口宿主，所以拖拽与点击穿透不发生；点击、摸头等互动照常反应并记入日志。
  */
+import {
+  SEMANTIC_ACTIVITIES,
+  SEMANTIC_EMOTIONS,
+  SEMANTIC_GESTURES,
+} from '@nomi-ai/character-contract';
 import riveWasmUrl from '@rive-app/canvas-lite/rive.wasm?url';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import pack from 'virtual:character-pack';
 
 import {
-  ACTIONS,
   AvatarStage,
   avatarCharacterFromPack,
   createAvatarEventHub,
-  MASCOT_EXPRESSIONS,
-  mascotRegistry,
+  gestureTarget,
   type AvatarEvent,
   type AvatarInteractionEvent,
+  type AvatarOutputEvent,
   type MascotEvent,
 } from '../src';
 
@@ -25,8 +29,6 @@ const resolveAsset = (p: string): string => `${pack.base}${p}`;
 
 const CUES: MascotEvent[] = [
   { kind: 'greeting' },
-  { kind: 'agent:step' },
-  { kind: 'tool:running' },
   { kind: 'tool:executed', ok: true },
   { kind: 'tool:executed', ok: false },
   { kind: 'task:done', all: true },
@@ -50,21 +52,12 @@ const row: React.CSSProperties = {
   margin: '6px 0 14px',
 };
 
-function useBackendMotions(): string[] {
-  const [motions, setMotions] = useState<string[]>([]);
-  useEffect(() => mascotRegistry.subscribe((b) => setMotions(b?.capabilities().motions ?? [])), []);
-  return motions;
-}
-
 const Demo: React.FC = () => {
   const [log, setLog] = useState<string[]>([]);
   const [talking, setTalking] = useState(false);
   const [reply, setReply] = useState('太好了！！任务完成啦 🎉');
-  const motions = useBackendMotions();
-  const gestures = useMemo(
-    () => (motions.length ? motions : ACTIONS.map((a) => a.id)).slice(0, 24),
-    [motions],
-  );
+  // 语义手势：没有映射的灰掉（运行时会忽略它们）
+  const [scene, setScene] = useState<string>('');
 
   const push = useCallback((line: string) => setLog((l) => [line, ...l].slice(0, 50)), []);
   const emit = useCallback(
@@ -76,6 +69,13 @@ const Demo: React.FC = () => {
   );
   const onInteraction = useCallback(
     (e: AvatarInteractionEvent) => push(`← ${JSON.stringify(e)}`),
+    [push],
+  );
+  const onAvatarEvent = useCallback(
+    (e: AvatarOutputEvent) => {
+      if (e.type === 'scene') setScene(e.characterId);
+      push(`⇠ ${JSON.stringify(e)}`);
+    },
     [push],
   );
 
@@ -101,6 +101,7 @@ const Demo: React.FC = () => {
           resolveAsset={resolveAsset}
           events={events}
           onInteraction={onInteraction}
+          onAvatarEvent={onAvatarEvent}
           riveWasmUrl={riveWasmUrl}
           onMark={(name) => push(`mark ${name}`)}
           debugHandles
@@ -112,16 +113,28 @@ const Demo: React.FC = () => {
         </h3>
         <div>Emotion</div>
         <div style={row}>
-          {MASCOT_EXPRESSIONS.map((name) => (
+          {SEMANTIC_EMOTIONS.map((name) => (
             <button key={name} onClick={() => emit({ type: 'emotion', name })}>
               {name}
             </button>
           ))}
         </div>
-        <div>Gesture{motions.length ? '' : ' (this backend plays none)'}</div>
+        <div>Activity</div>
         <div style={row}>
-          {gestures.map((name) => (
-            <button key={name} onClick={() => emit({ type: 'gesture', name })}>
+          {SEMANTIC_ACTIVITIES.map((name) => (
+            <button key={name} onClick={() => emit({ type: 'activity', name })}>
+              {name}
+            </button>
+          ))}
+        </div>
+        <div>Gesture (greyed = not mapped by {scene || 'this pack'})</div>
+        <div style={row}>
+          {SEMANTIC_GESTURES.map((name) => (
+            <button
+              key={name}
+              style={{ opacity: scene && gestureTarget(name) ? 1 : 0.4 }}
+              onClick={() => emit({ type: 'gesture', name })}
+            >
               {name}
             </button>
           ))}
@@ -145,7 +158,7 @@ const Demo: React.FC = () => {
           </button>
           <button onClick={() => setTalking((v) => !v)}>{talking ? 'stop' : 'talk'}</button>
         </div>
-        <div>Log (→ events in, ← interactions out)</div>
+        <div>Log (→ events in, ← interactions out, ⇠ semantic events out)</div>
         <pre data-testid="log" style={{ whiteSpace: 'pre-wrap', fontSize: 12 }}>
           {log.join('\n')}
         </pre>

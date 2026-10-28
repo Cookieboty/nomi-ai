@@ -15,9 +15,9 @@
 内核的插件宿主里多一个探针插件（宿主钩子 `aiPluginsAfter`）：换上假 LLM、往真实工具表里加测试工具、拿插件上下文发插件事件。
 `e2e/setup/isolateEnv.ts` 把 HOME、PATH 指到空目录，去掉环境变量里的供应商 Key，关掉离线 TTS 与首次引导，结果不随开发机变。
 
-- `E1.waifu-tts-lipsync`：TTS 分片与回合结束事件推给订阅了的窗口，没订阅的连接一帧都收不到
+- `E1.companion-tts-lipsync`：TTS 分片（口型包络）与回合结束事件推给订阅了的窗口，没订阅的连接一帧都收不到
 - `E2.chat-only-send-and-tool`：对话窗口经内核的外发检查发消息到假 LLM、工具执行事件、内置工具列表
-- `E4.waifu-profile-write-read`：用户画像（内核真实的 `UserPreferenceMemoryPlugin`）写入后推给多个窗口，下一次对话读到最新值
+- `E4.companion-profile-write-read`：用户画像（内核真实的 `UserPreferenceMemoryPlugin`）写入后推给多个窗口，下一次对话读到最新值
 - `E5.write-file-confirm`：危险工具 `write_file` 需要确认，拒绝后不执行并返回 `E_TOOL_DENIED`
 - `E6.core-twice`：同一进程里两个内核互不相干（服务、事件、router、AI runtime、主题 / 用户画像 / 网关供应商 / 记忆的数据与目录）；没有宿主片段时窗口过程 UNAVAILABLE
 - `E7.websocket-transport`：WebSocket 传输对真实内核的握手、查询、修改与事件订阅；错 token 与外站 Origin 被拒绝

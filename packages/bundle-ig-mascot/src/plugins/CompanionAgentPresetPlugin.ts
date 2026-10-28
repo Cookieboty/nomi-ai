@@ -22,10 +22,13 @@ export {
   type PersonaIdentity,
 } from '../seams/agentPreset';
 
-export interface WaifuAgentPresetPluginConfig {
-  /** preset 注册名，默认 'waifu' */
+/** 陪伴角色的 preset 名（主进程 AI runtime 的 profile 也用它） */
+export const COMPANION_PRESET = 'companion';
+
+export interface CompanionAgentPresetPluginConfig {
+  /** preset 注册名，默认 'companion' */
   presetName?: string;
-  /** 除 waifu 专属工具外，暴露的 P2 内置工具 */
+  /** 除角色工具（avatar_gesture / avatar_emotion）外，暴露的内置工具 */
   builtinTools?: string[];
   /** 明确禁用的能力（bundle 名 / seam 名） */
   disable?: string[];
@@ -46,10 +49,10 @@ const TONE_TABLE: Record<string, string> = {
 };
 
 /**
- * 从 UserProfile 构造 waifu systemPrompt。exported for test。
+ * 从 UserProfile 构造陪伴角色（companion preset）的 systemPrompt。exported for test。
  * 输出稳定顺序，便于快照对比。
  */
-export function buildWaifuSystemPrompt(
+export function buildCompanionSystemPrompt(
   profile: UserProfileService | undefined,
   opts: { prefix?: string; identity?: string; toolNames: string[] } = { toolNames: [] },
 ): string {
@@ -71,11 +74,11 @@ export function buildWaifuSystemPrompt(
   return lines.join('\n');
 }
 
-export const WaifuAgentPresetPlugin = definePlugin<WaifuAgentPresetPluginConfig>({
-  name: 'WaifuAgentPresetPlugin',
-  requires: ['WaifuToolsPlugin'],
-  apply(ctx: PluginContext, cfg: WaifuAgentPresetPluginConfig) {
-    const presetName = cfg.presetName ?? 'waifu';
+export const CompanionAgentPresetPlugin = definePlugin<CompanionAgentPresetPluginConfig>({
+  name: 'CompanionAgentPresetPlugin',
+  requires: ['CompanionToolsPlugin'],
+  apply(ctx: PluginContext, cfg: CompanionAgentPresetPluginConfig) {
+    const presetName = cfg.presetName ?? COMPANION_PRESET;
     const builtinTools = cfg.builtinTools ?? ['time_now', 'random', 'echo'];
     const disable = cfg.disable ?? ['mcp', 'http_get_readonly'];
 
@@ -89,7 +92,7 @@ export const WaifuAgentPresetPlugin = definePlugin<WaifuAgentPresetPluginConfig>
 
     if (!ctx.inject(PersonaIdentityKey) && !cfg.identity?.trim()) {
       ctx.logger.warn(
-        'WaifuAgentPresetPlugin: no persona identity (PersonaIdentityKey / config.identity); systemPrompt has no identity line',
+        'CompanionAgentPresetPlugin: no persona identity (PersonaIdentityKey / config.identity); systemPrompt has no identity line',
       );
     }
 
@@ -99,7 +102,7 @@ export const WaifuAgentPresetPlugin = definePlugin<WaifuAgentPresetPluginConfig>
         const profile = ctx.inject(UserProfileKey);
         // 每次生成时读取：换角色包 / 换界面语言即时生效
         const identity = ctx.inject(PersonaIdentityKey)?.systemPromptIdentity() ?? cfg.identity;
-        return buildWaifuSystemPrompt(profile, {
+        return buildCompanionSystemPrompt(profile, {
           prefix: cfg.systemPromptPrefix,
           identity,
           toolNames,
@@ -112,7 +115,7 @@ export const WaifuAgentPresetPlugin = definePlugin<WaifuAgentPresetPluginConfig>
     registry.register(preset);
 
     ctx.logger.info(
-      `WaifuAgentPresetPlugin ready (preset=${presetName}, tools=${toolNames.length}, disable=[${disable.join(',')}])`,
+      `CompanionAgentPresetPlugin ready (preset=${presetName}, tools=${toolNames.length}, disable=[${disable.join(',')}])`,
     );
   },
 });

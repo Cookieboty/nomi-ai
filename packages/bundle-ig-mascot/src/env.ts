@@ -1,5 +1,5 @@
 /**
- * 渲染进程守卫：本 bundle 面向 waifu 渲染进程（DOM + WebGL），
+ * 渲染进程守卫：本 bundle 的主入口面向角色渲染进程（DOM + WebGL），
  * 不能在纯 node 脚本 / Electron 主进程 crash 时载入。
  *
  * 单测通过 `skipInTest: true` 旁路（依赖 VITEST 环境变量）。

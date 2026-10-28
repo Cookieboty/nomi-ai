@@ -1,6 +1,11 @@
 jest.unmock('fs');
 jest.unmock('path');
-jest.mock('../../../src/ai/mascotCommand', () => ({ sendMascotCommand: jest.fn() }));
+jest.mock('../../../src/ai/mascotCommand', () => ({
+  sendMascotCommand: jest.fn(),
+  avatarGesture: jest.fn(),
+  avatarEmotion: jest.fn(),
+  publishAvatarCue: jest.fn(),
+}));
 
 import fs from 'node:fs';
 import os from 'node:os';

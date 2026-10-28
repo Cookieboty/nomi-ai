@@ -331,11 +331,13 @@ export function createAiHandlers(opts: AiRouterOptions): AiHandlersHandle {
     'ai.tts.stream': ({ text, opts: o }) => batchTextChunks(client.tts.stream(text, o), batchMs),
     'ai.tts.stop': ({ reqId }) => client.tts.stop(reqId),
 
-    // avatar
+    // avatar（语义名；不在词表里的由 ctx.avatar 忽略）
     'ai.avatar.isAvailable': () => client.avatar.isAvailable(),
-    'ai.avatar.playMotion': ({ group, index }) => client.avatar.playMotion(group, index),
-    'ai.avatar.setExpression': ({ name }) => client.avatar.setExpression(name),
-    'ai.avatar.driveLipSync': ({ rms }) => client.avatar.driveLipSync(rms),
+    'ai.avatar.emotion': ({ name, weight }) => client.avatar.emotion(name as never, weight),
+    'ai.avatar.gesture': ({ name }) => client.avatar.gesture(name as never),
+    'ai.avatar.activity': ({ name }) => client.avatar.activity(name as never),
+    'ai.avatar.speaking': ({ level }) => client.avatar.speaking(level),
+    'ai.avatar.report': (event) => client.avatar.report(event),
   };
 
   const disposers: Array<() => void> = [];

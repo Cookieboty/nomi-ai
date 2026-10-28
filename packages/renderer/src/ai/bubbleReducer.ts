@@ -30,11 +30,6 @@ export interface BubbleToolExecuted {
   error?: string;
 }
 
-export interface BubbleMascotTouch {
-  hitArea: string;
-  at?: number;
-}
-
 export interface BubbleDirective {
   text: string;
   priority: number;
@@ -48,20 +43,17 @@ export interface BubbleDirective {
 export type BubbleEvent =
   | { kind: 'agent:step'; payload: BubbleAgentStep }
   | { kind: 'message:complete'; payload: BubbleMessageComplete }
-  | { kind: 'tool:executed'; payload: BubbleToolExecuted }
-  | { kind: 'avatar:touch'; payload: BubbleMascotTouch };
+  | { kind: 'tool:executed'; payload: BubbleToolExecuted };
 
 export const BUBBLE_PRIORITY = {
   agentStep: 6,
   toolExecuted: 7,
-  touch: 6,
   messageComplete: 9,
 } as const;
 
 export const BUBBLE_TIMEOUT = {
   agentStep: 2500,
   toolExecuted: 3000,
-  touch: 3000,
   messageComplete: 6000,
 } as const;
 
@@ -128,14 +120,6 @@ export function deriveBubble(evt: BubbleEvent): BubbleDirective | null {
         text: truncateForBubble(text),
         priority: BUBBLE_PRIORITY.toolExecuted,
         timeout: BUBBLE_TIMEOUT.toolExecuted,
-      };
-    }
-    case 'avatar:touch': {
-      const hit = evt.payload.hitArea || 'body';
-      return {
-        text: t('ui.chat-settings.touched', hit),
-        priority: BUBBLE_PRIORITY.touch,
-        timeout: BUBBLE_TIMEOUT.touch,
       };
     }
     default:

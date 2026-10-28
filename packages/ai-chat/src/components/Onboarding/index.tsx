@@ -189,7 +189,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
     onboardingClient.mascot({
       type: 'say',
       text: line,
-      motion: step === 'welcome' ? 'wave' : undefined,
+      gesture: step === 'welcome' ? 'wave' : undefined,
     });
   }, [step, line]);
 
@@ -235,7 +235,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
           : modelReady
             ? t('ui.mascot-theme.all-set-i-m-here-to-help-turn')
             : t('ui.mascot-theme.one-step-left-line'),
-        motion: skipped || !modelReady ? undefined : 'cheer',
+        gesture: skipped || !modelReady ? undefined : 'cheer',
       });
       onDone(skipped);
     },

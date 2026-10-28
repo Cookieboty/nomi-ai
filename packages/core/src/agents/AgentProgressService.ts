@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { sendMascotCommand } from '../ai/mascotCommand';
+import { avatarGesture } from '../ai/mascotCommand';
 import type { AppEvents } from '../core/appEvents';
 import type { DesktopNotice, DesktopService } from '../desktop/DesktopService';
 import { t as tr } from '../i18n';
@@ -787,10 +787,10 @@ export class AgentProgressService {
           }
         : undefined,
     );
-    sendMascotCommand(this.d.events, {
-      type: 'motion',
-      name: next.status === 'failed' || next.status === 'stalled' ? 'sorry' : 'thumbs_up',
-    });
+    avatarGesture(
+      this.d.events,
+      next.status === 'failed' || next.status === 'stalled' ? 'apologize' : 'thumbsUp',
+    );
     next.lastRemindStatus = next.status;
     next.lastRemindAt = this.now();
     this.lastRemindAt = next.lastRemindAt;
@@ -855,7 +855,7 @@ export class AgentProgressService {
       text: text.slice(0, 140),
       bubble: { voice: this.settings.summaryEnabled ? 'full' : 'cue' },
     });
-    sendMascotCommand(this.d.events, { type: 'motion', name: 'think' });
+    avatarGesture(this.d.events, 'think');
     this.lastRemindAt = this.now();
     this.d.logger.info('agent-progress permission needed', {
       backend: e.backend,
@@ -903,7 +903,7 @@ export class AgentProgressService {
             ? { source: e.backend, session: tab.cliSessionId, since }
             : undefined,
     );
-    sendMascotCommand(this.d.events, { type: 'motion', name: e.ok ? 'thumbs_up' : 'sorry' });
+    avatarGesture(this.d.events, e.ok ? 'thumbsUp' : 'apologize');
     this.lastRemindAt = this.now();
     this.d.logger.info('agent-progress endpoint finished', { backend: e.backend, ok: e.ok });
     this.broadcast();

@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { createSpriteBackend } from '../src/backends/sprite';
-import { directiveForEvent } from '../src/expressionDirector';
+import { directiveForActivity, directiveForEvent } from '../src/expressionDirector';
 import { RigAnimator } from '../src/layeredRig';
+import { activityTarget, gestureTarget } from '../src/mapping';
 import { MOTION_LABELS } from '../src/motion/labels';
 import { ActionManager } from '../src/rig/actionManager';
 import { ACTIONS, ACTION_LABELS } from '../src/rig/actions';
@@ -396,43 +397,41 @@ describe('sprite backend: motions', () => {
 });
 
 describe('behaviour mapping', () => {
-  const motion = (e: Parameters<typeof directiveForEvent>[0]) => directiveForEvent(e)?.motion;
+  // 表情导演给语义手势 / 活动，经默认映射（= 官方包 mapping.json）落到骨架动作
+  const motion = (e: Parameters<typeof directiveForEvent>[0]) => {
+    const d = directiveForEvent(e);
+    return d?.gesture ? gestureTarget(d.gesture) : undefined;
+  };
   it('maps app events to actions that exist', () => {
     expect(motion({ kind: 'task:done' })).toBe('thumbs_up');
     expect(motion({ kind: 'task:done', all: true })).toBe('celebrate');
     expect(motion({ kind: 'task:failed' })).toBe('sorry');
-    expect(motion({ kind: 'agent:step' })).toBe('think');
-    expect(motion({ kind: 'tool:running' })).toBe('work');
+    expect(activityTarget(directiveForActivity('thinking').activity!)).toBe('think');
+    expect(activityTarget(directiveForActivity('toolRunning').activity!)).toBe('work');
     expect(motion({ kind: 'greeting' })).toBe('wave');
     expect(motion({ kind: 'night' })).toBe('goodnight');
     expect(motion({ kind: 'file:drop' })).toBe('surprise');
     const ids = ACTIONS.map((a) => a.id);
-    for (const k of [
-      'task:done',
-      'task:failed',
-      'agent:step',
-      'tool:running',
-      'greeting',
-      'night',
-      'file:drop',
-    ] as const) {
+    for (const k of ['task:done', 'task:failed', 'greeting', 'night', 'file:drop'] as const) {
       expect(ids).toContain(motion({ kind: k }));
     }
+    expect(ids).toContain(activityTarget('thinking'));
+    expect(ids).toContain(activityTarget('toolRunning'));
   });
 
   it('task events outrank normal actions; thinking and working are held', () => {
     expect(directiveForEvent({ kind: 'task:failed' })?.priority).toBe(3);
     expect(directiveForEvent({ kind: 'file:drop' })?.priority).toBe(2);
-    expect(directiveForEvent({ kind: 'agent:step' })?.hold).toBe(true);
-    expect(directiveForEvent({ kind: 'tool:running' })?.hold).toBe(true);
+    expect(directiveForActivity('thinking').hold).toBe(true);
+    expect(directiveForActivity('toolRunning').hold).toBe(true);
   });
 
-  it('a long answer without a keyword motion is explained with the pointing hand', () => {
+  it('a long answer without a keyword gesture is explained with the pointing hand', () => {
     const d = directiveForEvent({
       kind: 'message:complete',
       text: 'lorem ipsum dolor sit amet '.repeat(40),
     });
-    expect(d?.motion).toBe('explain');
+    expect(d?.gesture).toBe('explain');
   });
 });
 

@@ -7,17 +7,20 @@ import {
   deriveBubble,
   shouldSuppress,
   type BubbleDirective,
-  type BubbleMascotTouch,
   type BubbleMessageComplete,
   type BubbleToolExecuted,
   type DedupeState,
 } from './bubbleReducer';
 
-import { useWaifuMessage } from '@/hooks/useWaifuMessage';
+import { useCompanionMessage } from '@/hooks/useCompanionMessage';
 
-const WaifuAgentBubbleBridge: FC = () => {
+/**
+ * AI 门面事件（Agent 步骤、回复完成、工具结果）→ 看板娘气泡。被摸 / 被点的气泡由角色运行时的
+ * 互动反应给出（avatar/interaction.ts），这里不再重复。
+ */
+const CompanionAgentBubbleBridge: FC = () => {
   const { lastStep } = useAgent();
-  const { showMessage } = useWaifuMessage();
+  const { showMessage } = useCompanionMessage();
   const lastAgentAtRef = useRef<number>(0);
   const dedupeRef = useRef<DedupeState>({});
 
@@ -69,16 +72,7 @@ const WaifuAgentBubbleBridge: FC = () => {
     );
   });
 
-  useAIEvents('avatar:touch', (payload) => {
-    emit(
-      deriveBubble({
-        kind: 'avatar:touch',
-        payload: payload as BubbleMascotTouch,
-      }),
-    );
-  });
-
   return null;
 };
 
-export default WaifuAgentBubbleBridge;
+export default CompanionAgentBubbleBridge;

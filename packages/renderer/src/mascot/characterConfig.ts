@@ -7,6 +7,7 @@
  * Overlay load is async; UI must subscribe via `useCharacterPackReady` (or
  * `subscribeCharacterPackOverlay`) so mode / asset URLs re-render after resolve.
  */
+import type { PackMapping } from '@nomi-ai/character-contract';
 import { useSyncExternalStore } from 'react';
 import bundledPack from 'virtual:character-pack';
 
@@ -46,6 +47,8 @@ export interface CharacterPackOverlay {
   rive: { artboard: string; stateMachine: string } | null;
   /** Character copy per language; absent on older main processes. */
   locales?: Partial<Record<string, CharacterLocaleLines>> | null;
+  /** Semantic → resource mapping (mapping.json); null when the pack has none. */
+  mapping?: PackMapping | null;
 }
 
 /** The pack bundled with this build. */

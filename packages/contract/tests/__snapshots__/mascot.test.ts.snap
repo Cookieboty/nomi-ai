@@ -46,6 +46,7 @@ exports[`mascot 契约 > 过程名 / kind / surfaces / dangerous 2`] = `
   "mascot.body",
   "mascot.physicsEvent",
   "mascot.command",
+  "avatar.event",
   "persona.changed",
   "chatBg.changed",
   "window.mouseEnter",

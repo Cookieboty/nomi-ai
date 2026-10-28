@@ -28,19 +28,19 @@ describe('ClientAIClient · 门面 → 契约过程', () => {
     const server = createFakeServer({
       'ai.sessions.rename': (input) => ({ ...session, title: (input as { title: string }).title }),
       'ai.tools.confirm': () => undefined,
-      'ai.avatar.playMotion': () => undefined,
+      'ai.avatar.gesture': () => undefined,
     });
     const client = new ClientAIClient({ transport: server.connect() });
     const sessions = client.sessions as { rename: (id: string, t: string) => Promise<unknown> };
     await expect(sessions.rename('a', 'new')).resolves.toMatchObject({ title: 'new' });
     const tools = client.tools as { confirm: (...a: unknown[]) => Promise<void> };
     await tools.confirm('c1', false, 'nope');
-    const avatar = client.avatar as { playMotion: (g: string) => Promise<void> };
-    await avatar.playMotion('idle');
+    const avatar = client.avatar as { gesture: (g: string) => Promise<void> };
+    await avatar.gesture('wave');
     expect(server.calls.map((c) => c.input)).toEqual([
       { id: 'a', title: 'new' },
       { reqId: 'c1', ok: false, reason: 'nope' },
-      { group: 'idle' },
+      { name: 'wave' },
     ]);
   });
 
@@ -273,18 +273,18 @@ describe('ClientAIClient · 事件', () => {
     const client = new ClientAIClient({ transport: server.connect() });
     const touches: unknown[] = [];
     const profiles: unknown[] = [];
-    (client.avatar as { on: (e: string, f: (p: unknown) => void) => void }).on('touch', (p) =>
+    (client.avatar as { on: (e: string, f: (p: unknown) => void) => void }).on('touched', (p) =>
       touches.push(p),
     );
     (client.memory.userProfile as { subscribe: (f: (p: unknown) => void) => void }).subscribe((p) =>
       profiles.push(p),
     );
     await flush();
-    server.publish('ai.avatar.touch', { hitArea: 'head', at: 1 });
+    server.publish('ai.avatar.touched', { hitbox: 'head', at: 1 });
     server.publish('ai.userProfile.changed', { profile: { version: 2 } });
     server.publish('ai.userProfile.changed', { version: 3 });
     await flush();
-    expect(touches).toEqual([{ hitArea: 'head', at: 1 }]);
+    expect(touches).toEqual([{ hitbox: 'head', at: 1 }]);
     expect(profiles).toEqual([{ version: 2 }, { version: 3 }]);
   });
 

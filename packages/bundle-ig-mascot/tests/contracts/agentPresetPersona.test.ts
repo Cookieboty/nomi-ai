@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildWaifuSystemPrompt, WaifuAgentPresetPlugin } from '../../src/plugins';
+import { buildCompanionSystemPrompt, CompanionAgentPresetPlugin } from '../../src/plugins';
 import { AgentPresetRegistryKey, PersonaIdentityKey } from '../../src/seams/agentPreset';
 import { createFakeCtx } from '../helpers/fakeCtx';
 
-describe('WaifuAgentPresetPlugin · persona identity (docs/design/core-host-decoupling.md §10.4)', () => {
-  it('buildWaifuSystemPrompt puts the injected identity right after the prefix', () => {
-    const prompt = buildWaifuSystemPrompt(undefined, {
+describe('CompanionAgentPresetPlugin · persona identity (docs/design/core-host-decoupling.md §10.4)', () => {
+  it('buildCompanionSystemPrompt puts the injected identity right after the prefix', () => {
+    const prompt = buildCompanionSystemPrompt(undefined, {
       prefix: '（前缀）',
       identity: '  You are Pip, a paper robot.  ',
       toolNames: [],
@@ -20,8 +20,8 @@ describe('WaifuAgentPresetPlugin · persona identity (docs/design/core-host-deco
     const ctx = createFakeCtx();
     let identity = 'You are Pip, a paper robot.';
     ctx.provide(PersonaIdentityKey, { systemPromptIdentity: () => identity });
-    await WaifuAgentPresetPlugin.apply(ctx, { identity: 'config identity' });
-    const preset = ctx.inject(AgentPresetRegistryKey)!.get('waifu')!;
+    await CompanionAgentPresetPlugin.apply(ctx, { identity: 'config identity' });
+    const preset = ctx.inject(AgentPresetRegistryKey)!.get('companion')!;
 
     const first = await preset.systemPrompt();
     expect(first).toContain('You are Pip, a paper robot.');
@@ -36,15 +36,15 @@ describe('WaifuAgentPresetPlugin · persona identity (docs/design/core-host-deco
   it('falls back to config.identity when the seam yields nothing', async () => {
     const ctx = createFakeCtx();
     ctx.provide(PersonaIdentityKey, { systemPromptIdentity: () => undefined });
-    await WaifuAgentPresetPlugin.apply(ctx, { identity: 'You are Pip.' });
-    const preset = ctx.inject(AgentPresetRegistryKey)!.get('waifu')!;
+    await CompanionAgentPresetPlugin.apply(ctx, { identity: 'You are Pip.' });
+    const preset = ctx.inject(AgentPresetRegistryKey)!.get('companion')!;
     expect(await preset.systemPrompt()).toContain('You are Pip.');
   });
 
   it('never invents a character when no identity is injected', async () => {
     const ctx = createFakeCtx();
-    await WaifuAgentPresetPlugin.apply(ctx, {});
-    const preset = ctx.inject(AgentPresetRegistryKey)!.get('waifu')!;
+    await CompanionAgentPresetPlugin.apply(ctx, {});
+    const preset = ctx.inject(AgentPresetRegistryKey)!.get('companion')!;
     expect(await preset.systemPrompt()).not.toMatch(/Nomi|诺米/);
     expect(ctx.logs.some((l) => l.level === 'warn' && l.msg.includes('no persona identity'))).toBe(
       true,

@@ -4,8 +4,10 @@
  * 不经 renderer、契约或 Electron，用替身角色包 characters/test-dummy（manifest + mapping）、
  * 一个假的事件源和互动回调把运行时挂到页面上，驱动它并收它的输出，最后完整卸载。
  */
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
+import { mappingSchema, type PackMapping } from '@nomi-ai/character-contract';
 import { validatePackDirSync } from '@nomi-ai/character-contract/node';
 import { act } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -18,10 +20,14 @@ import {
   resetMoodForTests,
   type AvatarHandle,
   type AvatarInteractionEvent,
+  type AvatarOutputEvent,
   type MascotBackend,
 } from '../src';
 
 const DUMMY = path.join(__dirname, '../../../characters/test-dummy');
+const NOMI_MAPPING: PackMapping = mappingSchema.parse(
+  JSON.parse(readFileSync(path.join(__dirname, '../../../characters/nomi/mapping.json'), 'utf8')),
+);
 
 function dummyCharacter() {
   const { pack } = validatePackDirSync(DUMMY);
@@ -61,20 +67,27 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-async function mount(onInteraction = vi.fn()) {
+async function mount(
+  onInteraction = vi.fn(),
+  opts: { mapping?: PackMapping; onAvatarEvent?: (e: AvatarOutputEvent) => void } = {},
+) {
   host = document.createElement('div');
   host.style.width = '400px';
   host.style.height = '450px';
   document.body.appendChild(host);
   const events = createAvatarEventHub();
   const marks: string[] = [];
-  const character = dummyCharacter();
+  const character = {
+    ...dummyCharacter(),
+    ...(opts.mapping ? { mapping: opts.mapping } : {}),
+  };
   await act(async () => {
     handle = mountAvatar(host!, {
       character,
       resolveAsset: (p) => `/character/${p}`,
       events,
       onInteraction,
+      onAvatarEvent: opts.onAvatarEvent,
       onMark: (name) => marks.push(name),
     });
   });
@@ -88,7 +101,11 @@ describe('avatar-runtime standalone', () => {
     const { marks, character } = await mount();
     expect(character.id).toBe('test-dummy');
     expect(character.mode).toBe('static');
-    expect(character.mapping).toEqual({ emotions: {}, activities: {}, gestures: {} });
+    expect(character.mapping).toEqual({
+      emotions: { neutral: 'neutral' },
+      activities: {},
+      gestures: {},
+    });
     const el = host!.querySelector('[data-testid="static-canvas"]')!;
     expect(el.getAttribute('data-static-src')).toBe('/character/static/character.webp');
     expect(mascotRegistry.current()?.kind).toBe('static');
@@ -96,8 +113,8 @@ describe('avatar-runtime standalone', () => {
     expect(marks).toContain('mascot-model-loaded');
   });
 
-  it('drives the attached backend from the fake event source', async () => {
-    const { events } = await mount();
+  it('drives the attached backend through the pack mapping (official mapping)', async () => {
+    const { events } = await mount(vi.fn(), { mapping: NOMI_MAPPING });
     const b = spyBackend();
     const detach = mascotRegistry.attach(b);
 
@@ -105,24 +122,64 @@ describe('avatar-runtime standalone', () => {
     expect(b.setMouthOpen).toHaveBeenLastCalledWith(0.5);
     expect(b.setTalking).toHaveBeenLastCalledWith(true);
 
-    events.emit({ type: 'emotion', name: 'HAPPY' });
-    expect(b.setExpression).toHaveBeenLastCalledWith('happy');
-    events.emit({ type: 'emotion', name: 'not-an-expression' });
+    events.emit({ type: 'emotion', name: 'happy', weight: 0.6 });
+    expect(b.setExpression).toHaveBeenLastCalledWith('happy', 0.6);
+    events.emit({ type: 'emotion', name: 'not-an-emotion' });
     expect(b.setExpression).toHaveBeenCalledTimes(1);
 
-    events.emit({ type: 'gesture', name: 'wave' });
-    expect(b.playMotion).toHaveBeenLastCalledWith('wave');
+    events.emit({ type: 'activity', name: 'toolRunning' });
+    expect(b.playMotion).toHaveBeenLastCalledWith('work', { priority: 1, hold: true });
+    expect(b.setExpression).toHaveBeenLastCalledWith('relaxed');
+    events.emit({ type: 'activity', name: 'idle' });
+    expect(b.playMotion).toHaveBeenLastCalledWith('release'); // 结束保持的姿态
+
+    // 显式手势不受自动动作冷却限制
+    events.emit({ type: 'gesture', name: 'thumbsUp' });
+    expect(b.playMotion).toHaveBeenLastCalledWith('thumbs_up');
+    events.emit({ type: 'gesture', name: 'backflip' });
+    expect(b.playMotion).toHaveBeenCalledTimes(3);
 
     events.emit({ type: 'cue', cue: { kind: 'tool:executed', ok: false } });
     expect(b.setExpression).toHaveBeenLastCalledWith('sad');
 
     events.emit({ type: 'reply', phase: 'complete', text: '好的，没问题' });
-    expect(b.playMotion).toHaveBeenCalledWith('release'); // 结束思考 / 工作的保持姿态
     expect(b.setExpression).toHaveBeenLastCalledWith('happy');
+
+    events.emit({ type: 'reply', phase: 'waiting' });
+    expect(b.playMotion).toHaveBeenLastCalledWith('think-on');
+    events.emit({ type: 'reply', phase: 'settled' });
+    expect(b.playMotion).toHaveBeenLastCalledWith('think-off');
 
     events.emit({ type: 'voice', phase: 'transcribing', prev: 'recording' });
     expect(b.setExpression).toHaveBeenLastCalledWith('neutral');
     detach();
+  });
+
+  it('ignores semantic names the test-dummy pack does not map', async () => {
+    const { events } = await mount();
+    const b = spyBackend();
+    const detach = mascotRegistry.attach(b);
+    events.emit({ type: 'emotion', name: 'happy' });
+    events.emit({ type: 'gesture', name: 'wave' });
+    events.emit({ type: 'activity', name: 'thinking' });
+    events.emit({ type: 'cue', cue: { kind: 'task:done', all: true } });
+    expect(b.setExpression).not.toHaveBeenCalled();
+    expect(b.playMotion).not.toHaveBeenCalled();
+    events.emit({ type: 'emotion', name: 'neutral' });
+    expect(b.setExpression).toHaveBeenCalledWith('neutral');
+    detach();
+  });
+
+  it('reports the scene (character + mapped semantic names) on mount', async () => {
+    const onAvatarEvent = vi.fn<(e: AvatarOutputEvent) => void>();
+    await mount(vi.fn(), { onAvatarEvent });
+    expect(onAvatarEvent).toHaveBeenCalledWith({
+      type: 'scene',
+      characterId: 'test-dummy',
+      emotions: ['neutral'],
+      activities: ['idle'],
+      gestures: [],
+    });
   });
 
   it('reports interactions (here: being grabbed by the window) through onInteraction', async () => {

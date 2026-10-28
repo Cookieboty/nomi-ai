@@ -10,7 +10,7 @@ import { createFakeSdkCtx } from '../helpers/fakeSdkCtx';
 describe('SessionFacade (in-memory)', () => {
   it('create → get → list → rename → fork → delete', () => {
     const client = new AIClient(createFakeSdkCtx());
-    const s = client.sessions.create({ title: 'first', agentPreset: 'waifu' });
+    const s = client.sessions.create({ title: 'first', agentPreset: 'companion' });
     expect(client.sessions.get(s.id)?.title).toBe('first');
     expect(client.sessions.list()).toHaveLength(1);
     const renamed = client.sessions.rename(s.id, 'second');
@@ -49,7 +49,10 @@ describe('AvatarFacade — availability & error', () => {
 
   it('any call throws SEAM_NOT_INJECTED when not injected', async () => {
     const client = new AIClient(createFakeSdkCtx());
-    expect(() => client.avatar.driveLipSync(0.5)).toThrow(/SEAM_NOT_INJECTED/);
-    await expect(client.avatar.playMotion('g')).rejects.toThrow(/SEAM_NOT_INJECTED/);
+    expect(() => client.avatar.speaking(0.5)).toThrow(/SEAM_NOT_INJECTED/);
+    await expect(client.avatar.gesture('wave')).rejects.toThrow(/SEAM_NOT_INJECTED/);
+    expect(() => client.avatar.report({ type: 'touched', hitbox: 'head' })).toThrow(
+      /SEAM_NOT_INJECTED/,
+    );
   });
 });

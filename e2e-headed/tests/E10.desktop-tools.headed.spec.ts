@@ -322,7 +322,7 @@ test.describe('E10 · real app · desktop file tools', () => {
       expect(dropped).toBe('note.md');
       await expect(main.locator('body')).toContainText('SUMMARY[TOKENMD42]', { timeout: 20_000 });
       await main.waitForTimeout(800); // 气泡淡入
-      await expect(main.locator('#waifu-tips-independent')).toHaveCSS('opacity', '1');
+      await expect(main.locator('#companion-tips-independent')).toHaveCSS('opacity', '1');
       await main.screenshot(shot('07-mascot-drop-summary-bubble.png'));
       await expect(chat.locator('body')).toContainText('总结文件：note.md', { timeout: 15_000 });
       await scrollChat(chat);
