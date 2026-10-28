@@ -31,6 +31,7 @@ import { z } from 'zod';
 import type { EventMap, ProcedureMap, Surface } from '../contract';
 
 import {
+  ChatNavEvent,
   DesktopAuditEntry,
   DesktopBubble,
   DesktopConfirmRequest,
@@ -279,6 +280,16 @@ export const mediaProcedures = {
     output: z.array(DesktopReminderEvent),
     surfaces: ['mascot'],
   },
+  /**
+   * 对话窗口挂载时拉取还没送达的拖入总结（发布 `desktop.summary` 时没有对话窗口订阅：窗口刚打开、
+   * 页面还在加载）；拉取即取走，没有时为 null。已经开着的窗口照常收事件
+   */
+  'desktop.takePendingSummary': {
+    kind: 'mutation',
+    input: z.void(),
+    output: DesktopSummaryEvent.nullable(),
+    surfaces: ['chat', 'settings'],
+  },
 
   // ── 屏幕 / 图片 ────────────────────────────────────────────────────────
   /** 发送图片前：云端告知 / 仅本地模式 */
@@ -291,6 +302,16 @@ export const mediaProcedures = {
     input: z.void(),
     output: z.void(),
     surfaces: ['mascot'],
+  },
+  /**
+   * 对话窗口挂载时拉取还没送达的面板导航（宿主打开对话窗口后发布 `providers.openPanel` / `nav.*Requested`
+   * 时还没有对话窗口订阅）：最近的一次，拉取即取走，没有时为 null。已经开着的窗口照常收事件
+   */
+  'nav.takePending': {
+    kind: 'mutation',
+    input: z.void(),
+    output: z.object({ event: ChatNavEvent }).nullable(),
+    surfaces: ['chat', 'settings'],
   },
 } as const satisfies ProcedureMap;
 

@@ -113,10 +113,6 @@ export class Application implements IApplication {
         desktopWindows: {
           main: () => this.windowManager.getMainWindow(),
           openChat: () => this.windowManager.createAiChatWindow(),
-          chatOpen: () => {
-            const chat = this.windowManager.getAiChatWindow();
-            return !!chat && !chat.isDestroyed();
-          },
           mascotHidden: () => this.windowManager.mascotHidden(),
           island: (n) => this.island?.notify(n) ?? false,
         },

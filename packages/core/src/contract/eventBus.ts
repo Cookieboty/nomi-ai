@@ -8,16 +8,21 @@
  *
  * - router 建好之前（启动早期）没有订阅者，发布的事件直接丢弃；
  * - payload 不符合契约 schema 的事件只记 warn，不影响发布方（事件名由 `AppEventName` 在编译期限定）；
- * - `tap`（可选）：每次发布都原样转给它（测试与无界面宿主用来记录）。
+ * - `tap`（可选）：每次发布都原样转给它（测试与无界面宿主用来记录）；
+ * - `pending`（可选）：每次发布告诉它有没有订阅者，没送达的面板导航 / 拖入总结由它留着，等对话窗口挂载后
+ *   拉取（core/pendingEvents.ts）。
  */
 
 import type { AppEventName, AppEvents, PublishOptions } from '../core/appEvents';
+import type { PendingEvents } from '../core/pendingEvents';
 
 import type { ContractLoggerLike } from './types';
 
 /** router.events 的最小形状 */
 export interface ContractEventSink {
   publish(event: string, data: unknown): void;
+  /** 订阅了这个事件的监听者数；没有时视为没人订阅 */
+  subscribers?(event: string): number;
 }
 
 export interface ContractEventBus extends AppEvents {
@@ -28,11 +33,13 @@ export interface ContractEventBus extends AppEvents {
 export function createContractEventBus(
   tap: AppEvents | null,
   logger?: Pick<ContractLoggerLike, 'warn'>,
+  pending?: PendingEvents,
 ): ContractEventBus {
   let sink: ContractEventSink | null = null;
 
   const publish = (event: AppEventName, payload: unknown, opts?: PublishOptions): void => {
     tap?.publish(event, payload, opts);
+    pending?.offer(event, payload, (sink?.subscribers?.(event) ?? 0) > 0);
     if (!sink) return;
     try {
       sink.publish(event, payload);

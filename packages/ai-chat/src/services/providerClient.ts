@@ -1,6 +1,7 @@
 import { t } from '@nomi-ai/ui';
 
 import { api, hasTransport } from './api';
+import { onChatNav } from './pendingNav';
 /**
  * 旧 `ai:providers:*` 垫片（应用契约 `providers.*`）：只剩预设列表（添加第三方供应商时选）和只读状态 /
  * `setActive`（环境变量切换的兼容）。供应商与模型配置的唯一来源是统一网关（gatewayClient）。
@@ -196,9 +197,8 @@ export const providerClient = {
     if (!hasTransport()) return () => undefined;
     return api.on('providers.changed', (p) => fn(remember(p as ProviderState)));
   },
-  /** 托盘 / 菜单「打开供应商面板」 */
+  /** 托盘 / 菜单「打开供应商面板」（窗口挂载前发出的那一次由内核留着，见 ./pendingNav） */
   onOpenPanel(fn: () => void): () => void {
-    if (!hasTransport()) return () => undefined;
-    return api.on('providers.openPanel', () => fn());
+    return onChatNav('providers.openPanel', fn);
   },
 };

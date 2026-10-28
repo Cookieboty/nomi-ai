@@ -107,6 +107,11 @@ export interface RouterEvents<C extends AnyContract> extends EventPublisher<C> {
   /** 传输层订阅事件（已校验后的数据） */
   subscribe(event: string, fn: (data: unknown) => void): () => void;
   has(event: string): boolean;
+  /**
+   * 现在订阅了这个事件的监听者数（传输层每个订阅了的窗口一个）。发布方据此判断事件有没有送达：
+   * 例如对话窗口还没挂载时发的面板导航由内核留着，等窗口挂载后拉取
+   */
+  subscribers(event: string): number;
 }
 
 export interface Router<C extends AnyContract = AnyContract> {
@@ -239,6 +244,9 @@ export function implement<C extends AnyContract>(
     },
     has(event) {
       return getEventSchema(contract, event) !== undefined;
+    },
+    subscribers(event) {
+      return listeners.get(event)?.size ?? 0;
     },
   };
   const publisher: EventPublisher<C> = { publish: events.publish };

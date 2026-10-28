@@ -441,6 +441,19 @@ describe('events', () => {
     offB();
   });
 
+  it('counts the wire subscriptions of an event (one per connection)', async () => {
+    const { api, router } = setup();
+    expect(router.events.subscribers('persona.changed')).toBe(0);
+    const offA = api.on('persona.changed', vi.fn());
+    const offB = api.on('persona.changed', vi.fn());
+    await api.sessions.list();
+    expect(router.events.subscribers('persona.changed')).toBe(1);
+    offA();
+    offB();
+    await api.sessions.list();
+    expect(router.events.subscribers('persona.changed')).toBe(0);
+  });
+
   it('rejects undeclared or invalid events at publish time', () => {
     const router = makeRouter();
     expect(() =>

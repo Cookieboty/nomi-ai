@@ -385,3 +385,11 @@ export const SendCheck = z.enum(['ok', 'local_only', 'user_denied']);
 
 /** 导航事件：对话窗口切到某个面板（payload 目前是空对象） */
 export const NavRequest = z.looseObject({});
+
+/** 对话窗口的面板导航事件名（`nav.takePending` 返回其中之一） */
+export const ChatNavEvent = z.enum([
+  'providers.openPanel',
+  'nav.desktopPanelRequested',
+  'nav.scheduleRequested',
+  'nav.voiceSettingsRequested',
+]);

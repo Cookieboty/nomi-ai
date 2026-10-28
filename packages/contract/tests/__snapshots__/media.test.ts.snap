@@ -54,8 +54,10 @@ exports[`media 契约 > 过程名 / kind / surfaces / dangerous 1`] = `
   "desktop.confirmAnswer mutation mascot dangerous",
   "desktop.reminderAction mutation mascot",
   "desktop.takeMissedReminders mutation mascot",
+  "desktop.takePendingSummary mutation chat|settings",
   "screen.checkSend mutation *",
   "nav.openVoiceSettings mutation mascot",
+  "nav.takePending mutation chat|settings",
 ]
 `;
 

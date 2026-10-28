@@ -1,6 +1,7 @@
 import { t } from '@nomi-ai/ui';
 
 import { api, hasTransport } from './api';
+import { onChatNav, onDesktopSummary } from './pendingNav';
 /**
  * 桌面能力（文件授权 / 工具权限 / 审计 / 撤销）客户端：契约 `desktop.*`（docs/design/core-host-decoupling.md
  * §12 P1b，原 `ai:desktop:*`）。授权文件夹一律由主进程弹出系统选择框，渲染层无法直接传入路径授权。
@@ -139,15 +140,14 @@ export const desktopClient = {
     call<boolean>(() => api.desktop.remindersSnooze({ id, minutes })),
   onP2Changed: (fn: (kind: 'reminders') => void) =>
     on(() => api.on('desktop.p2Changed', (p) => fn(p.kind as 'reminders'))),
+  // 面板导航与拖入总结：窗口挂载前发出的那一次由内核留着，第一次订阅后拉取（./pendingNav）
   /** 托盘「桌面能力」→ 打开桌面能力面板 */
-  onOpenPanel: (fn: () => void) => on(() => api.on('nav.desktopPanelRequested', () => fn())),
+  onOpenPanel: (fn: () => void) => onChatNav('nav.desktopPanelRequested', fn),
   /** 看板娘工具栏「任务看板」→ 打开「知识 · 记忆 · 日程」面板的日程页 */
-  onOpenSchedule: (fn: () => void) => on(() => api.on('nav.scheduleRequested', () => fn())),
+  onOpenSchedule: (fn: () => void) => onChatNav('nav.scheduleRequested', fn),
   /** 看板娘「TTS 语音配置」/ 语音错误「去设置」→ 设置 → 语音与屏幕 → 语音 */
-  onOpenVoiceSettings: (fn: () => void) =>
-    on(() => api.on('nav.voiceSettingsRequested', () => fn())),
-  onSummary: (fn: (e: DesktopSummaryEvent) => void) =>
-    on(() => api.on('desktop.summary', (p) => fn(p as DesktopSummaryEvent))),
+  onOpenVoiceSettings: (fn: () => void) => onChatNav('nav.voiceSettingsRequested', fn),
+  onSummary: (fn: (e: DesktopSummaryEvent) => void) => onDesktopSummary(fn),
 };
 
 export const TOOL_LABELS: Record<string, string> = {

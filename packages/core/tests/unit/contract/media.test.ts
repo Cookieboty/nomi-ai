@@ -31,6 +31,7 @@ import { createAppRouter } from '../../../src/contract/router';
 import type { CoreContractServices } from '../../../src/contract/services';
 import type { ContractDeps } from '../../../src/contract/types';
 import { createRecordingAppEvents } from '../../../src/core/appEvents';
+import { CORE_PENDING_GROUPS, createPendingEvents } from '../../../src/core/pendingEvents';
 import type { VoiceSender } from '../../../src/voice/VoiceService';
 
 const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
@@ -166,6 +167,7 @@ function setup() {
     return createClient(app.router.contract, transport, { handshake: 'off' });
   };
   return {
+    services,
     voice,
     desktop,
     screen,
@@ -487,6 +489,42 @@ describe('media events', () => {
       ]);
     } finally {
       offs.forEach((f) => f());
+      detach();
+      t.close();
+    }
+  });
+
+  it('面板导航 / 拖入总结：没有对话窗口订阅时内核留着，挂载后拉取；已订阅的窗口直接收到', async () => {
+    const t = setup();
+    const pending = createPendingEvents({ groups: CORE_PENDING_GROUPS });
+    t.services.pendingEvents = pending;
+    const bus = createContractEventBus(null, logger, pending);
+    const detach = bus.attach(t.router.events);
+    const summary = { name: 'a.txt', path: '/tmp/a.txt', summary: '摘要', at: 1 };
+    try {
+      // 窗口还没打开 / 还没订阅：留着
+      bus.publish('nav.scheduleRequested', {}, { surface: 'chat' });
+      bus.publish('desktop.summary', summary, { surface: 'chat' });
+      const chat = t.connect(CHAT);
+      await expect(chat.nav.takePending()).resolves.toEqual({ event: 'nav.scheduleRequested' });
+      await expect(chat.nav.takePending()).resolves.toBeNull();
+      await expect(chat.desktop.takePendingSummary()).resolves.toEqual(summary);
+      await expect(chat.desktop.takePendingSummary()).resolves.toBeNull();
+      // 只给对话窗口
+      await expect(t.connect(MASCOT).nav.takePending()).rejects.toMatchObject({
+        code: 'FORBIDDEN',
+      });
+
+      // 窗口已订阅：事件直接送达，不再留着
+      const got: unknown[] = [];
+      const off = chat.on('providers.openPanel', (p) => got.push(p));
+      await chat.nav.takePending();
+      bus.publish('providers.openPanel', {}, { surface: 'chat' });
+      await new Promise((r) => setTimeout(r, 0));
+      expect(got).toEqual([{}]);
+      await expect(chat.nav.takePending()).resolves.toBeNull();
+      off();
+    } finally {
       detach();
       t.close();
     }

@@ -66,6 +66,7 @@ import { createAppRouter, type AppRouterHandle } from './contract/router';
 import type { CoreContractServices } from './contract/services';
 import type { AppHandlers, ContractDeps, Middleware } from './contract/types';
 import { createShutdown, LifecycleRegistry } from './core/lifecycle';
+import { CORE_PENDING_GROUPS, createPendingEvents } from './core/pendingEvents';
 import { ServiceContainer, type IServiceContainer } from './core/ServiceContainer';
 import { APP_EVENTS, HOST_PORTS } from './core/serviceTokens';
 import { createDesktopService, type DesktopWindows } from './desktop/DesktopService';
@@ -232,8 +233,9 @@ export function createCore(deps: CoreDeps): Core {
   const container = new ServiceContainer();
   container.registerSingleton(HOST_PORTS, () => ports);
   container.registerSingleton('logger', () => logger);
-  // 契约事件（router 建好后 attach）；只推给订阅了的窗口
-  const events = createContractEventBus(null, logger);
+  // 契约事件（router 建好后 attach）；只推给订阅了的窗口。没送达的面板导航 / 拖入总结留着，对话窗口挂载时拉取
+  const pendingEvents = createPendingEvents({ groups: CORE_PENDING_GROUPS });
+  const events = createContractEventBus(null, logger, pendingEvents);
   container.registerSingleton(APP_EVENTS, () => events);
   const config = new ConfigService({ ports, logger });
   container.registerSingleton('config', () => config);
@@ -244,7 +246,11 @@ export function createCore(deps: CoreDeps): Core {
   const lifecycle = new LifecycleRegistry();
   lifecycle.register({ name: 'cache', stop: () => cache.destroy() });
   /** 契约处理函数在调用时读取的服务实例（创建服务时登记） */
-  const services: CoreContractServices = { config, callerWindows: host.callerWindows };
+  const services: CoreContractServices = {
+    config,
+    callerWindows: host.callerWindows,
+    pendingEvents,
+  };
 
   let appRouter: AppRouterHandle | undefined;
   let started = false;

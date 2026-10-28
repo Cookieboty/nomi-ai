@@ -64,20 +64,14 @@ export interface DesktopMascotWindow {
   readonly webContents: { readonly id: number };
 }
 
-/** 对话窗口用到的部分（BrowserWindow 结构上满足；拖入总结要等新开的页面加载完再发） */
+/** 对话窗口用到的部分（BrowserWindow 结构上满足） */
 export interface DesktopChatWindow {
   isDestroyed(): boolean;
-  readonly webContents: {
-    isLoading(): boolean;
-    once(event: 'did-finish-load', listener: () => void): unknown;
-  };
 }
 
 export interface DesktopWindows {
   main(): DesktopMascotWindow | null;
   openChat(): Promise<DesktopChatWindow>;
-  /** 对话窗口当前是否已存在（拖入总结：已开着就不用等页面挂监听）；缺省视为不存在 */
-  chatOpen?(): boolean;
   /** 看板娘已关闭（窗口隐藏且静音）：提醒不再把她叫出来（系统通知 / 灵动岛照常）；确认框临时显示，答完再藏起 */
   mascotHidden?(): boolean;
   /** 灵动岛提醒（宿主的灵动岛窗口）：显示了返回 true；关闭 / 不支持 / 不接这一类时返回 false */
@@ -571,17 +565,14 @@ export class DesktopService {
     avatarGesture(this.events, 'nod');
     avatarEmotion(this.events, 'happy');
     if (this.windows) {
-      const existed = this.windows.chatOpen?.() ?? false;
-      const chat = await this.windows.openChat();
-      const payload = { name, path: probe.real, summary, at: Date.now() };
-      // 等页面加载完再发（新开的窗口要先挂上监听）；送达由事件总线负责（只发对话窗口）
-      const deliver = () => {
-        if (!chat.isDestroyed())
-          this.events.publish('desktop.summary', payload, { surface: 'chat' });
-      };
-      if (chat.webContents.isLoading())
-        chat.webContents.once('did-finish-load', () => setTimeout(deliver, 600));
-      else setTimeout(deliver, existed ? 0 : 600);
+      await this.windows.openChat();
+      // 对话窗口已经开着并订阅了：直接收到；刚打开、还没订阅：内核留着这次总结，窗口挂载时拉取
+      // （`desktop.takePendingSummary`，见 core/pendingEvents.ts）
+      this.events.publish(
+        'desktop.summary',
+        { name, path: probe.real, summary, at: Date.now() },
+        { surface: 'chat' },
+      );
     }
     return { ok: true };
   }

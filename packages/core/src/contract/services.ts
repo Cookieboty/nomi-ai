@@ -21,6 +21,7 @@ import type { CliUpdateService } from '../cli/CliUpdateService';
 import type { DelegateService } from '../cli/delegate/DelegateService';
 import type { HarnessOrchestrator } from '../cli/harness/Orchestrator';
 import type { SessionHistoryService } from '../cli/SessionHistoryService';
+import type { PendingEvents } from '../core/pendingEvents';
 import type { DesktopService } from '../desktop/DesktopService';
 import type { DiagnosticsService } from '../diagnostics/DiagnosticsService';
 import type { ExtensionsService } from '../extensions/ExtensionsService';
@@ -53,6 +54,8 @@ export interface CoreContractServices {
   aiRuntime?: AIRuntimeBootHandle;
   /** 宿主报告调用方窗口的存活（Electron：按 webContents id 找窗口）；无界面宿主不提供 */
   callerWindows?: CallerWindows;
+  /** 没送达的面板导航 / 拖入总结（`nav.takePending`、`desktop.takePendingSummary`） */
+  pendingEvents?: PendingEvents;
 
   // D1 media
   voice?: VoiceService;

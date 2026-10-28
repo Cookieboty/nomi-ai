@@ -28,6 +28,7 @@ vi.mock('../src/services/api', () => ({
 
 import { desktopClient } from '../src/services/desktopClient';
 import { contractVoiceApi } from '../src/services/hostBackends/media';
+import { __resetPendingNavForTest } from '../src/services/pendingNav';
 import { startReplySpeech, stopReplySpeech } from '../src/services/replySpeech';
 import { screenClient } from '../src/services/screenClient';
 import { DEFAULT_TTS_CONFIG, ttsConfigClient } from '../src/services/ttsConfigClient';
@@ -112,6 +113,39 @@ describe('desktopClient', () => {
     expect(p2).toHaveBeenCalledWith('reminders');
     expect(summary).toHaveBeenCalledWith({ name: 'a', path: '/a', summary: 's', at: 1 });
     offs.forEach((off) => off());
+  });
+
+  it('挂载时拉取窗口打开前发出的面板导航与拖入总结（每页一次），之后照常收事件', async () => {
+    __resetPendingNavForTest();
+    const pendingSummary = { name: 'b.txt', path: '/b.txt', summary: '全文', at: 2 };
+    const takeNav = vi.fn(() => ({ event: 'nav.scheduleRequested' as const }));
+    const takeSummary = vi.fn(() => pendingSummary);
+    const t = install({ 'nav.takePending': takeNav, 'desktop.takePendingSummary': takeSummary });
+    const schedule = vi.fn();
+    const voice = vi.fn();
+    const summary = vi.fn();
+    // 同一轮挂载里登记的处理函数都能拿到拉取结果
+    const offs = [
+      desktopClient.onOpenSchedule(schedule),
+      desktopClient.onOpenVoiceSettings(voice),
+      desktopClient.onSummary(summary),
+    ];
+    await tick();
+    await tick();
+    expect(takeNav).toHaveBeenCalledTimes(1);
+    expect(takeSummary).toHaveBeenCalledTimes(1);
+    expect(schedule).toHaveBeenCalledTimes(1);
+    expect(voice).not.toHaveBeenCalled();
+    expect(summary).toHaveBeenCalledWith(pendingSummary);
+
+    // 再订阅不再拉取；已经开着的窗口经事件收到
+    const off = desktopClient.onOpenVoiceSettings(voice);
+    t.router.events.publish('nav.voiceSettingsRequested', {});
+    await tick();
+    expect(takeNav).toHaveBeenCalledTimes(1);
+    expect(voice).toHaveBeenCalledTimes(2);
+    off();
+    offs.forEach((o) => o());
   });
 });
 

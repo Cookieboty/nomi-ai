@@ -243,18 +243,12 @@ export class WindowManager implements IWindowManager {
 
   /**
    * 打开 AI 对话窗口并弹出某个面板（托盘 / 菜单 / 看板娘入口）。`event` 是面板导航的契约事件
-   * （`providers.openPanel` / `nav.*`），只发给对话窗口。
+   * （`providers.openPanel` / `nav.*`），只发给对话窗口。窗口已经开着并订阅了就直接收到；刚建的窗口还没订阅时
+   * 由内核留着，页面挂载后经 `nav.takePending` 拉取（不再固定等 400 ms）。
    */
   async openProviderPanel(event: ChatNavEvent = 'providers.openPanel'): Promise<void> {
-    const existed = Boolean(this.aiChatWindow);
     const win = await this.createAiChatWindow();
-    // 新建窗口时给 React 挂载、订阅契约事件留一点时间
-    setTimeout(
-      () => {
-        if (!win.isDestroyed()) this.events?.publish(event, {}, { surface: 'chat' });
-      },
-      existed ? 0 : 400,
-    );
+    if (!win.isDestroyed()) this.events?.publish(event, {}, { surface: 'chat' });
   }
 
   /**

@@ -15,6 +15,7 @@ import { PushStream } from '@nomi-ai/contract';
 import type { MediaProcedureName } from '@nomi-ai/contract/app';
 import type { TTSConfig, TTSPreviewRequest, VoiceSettings } from '@nomi-ai/types';
 
+import { isChatNavEvent } from '../core/chatNav';
 import { getMascotVoiceSettings, saveMascotVoiceSettings } from '../voice/mascotVoiceSettings';
 
 import { createVoiceStreams, type VoiceStreamChunk, type VoiceStreams } from './media/voiceSenders';
@@ -157,9 +158,15 @@ export function createMediaHandlers(
       desktop().reminderAction(callerWebContentsId(ctx), id, action, minutes),
     'desktop.takeMissedReminders': (_input, ctx) =>
       desktop().takeMissedFor(callerWebContentsId(ctx)),
+    'desktop.takePendingSummary': () =>
+      out(need(services.pendingEvents, 'pendingEvents').take('summary')?.payload ?? null),
 
     // ── 屏幕 / 导航 ──
     'screen.checkSend': () => need(services.screen, 'screen').checkSend(),
     'nav.openVoiceSettings': () => deps.ports.windows.open('chat', { route: 'voice' }),
+    'nav.takePending': () => {
+      const p = need(services.pendingEvents, 'pendingEvents').take('nav');
+      return p && isChatNavEvent(p.event) ? { event: p.event } : null;
+    },
   };
 }
