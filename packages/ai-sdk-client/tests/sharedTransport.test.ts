@@ -15,6 +15,7 @@ import type { IPCBridge } from '../src/IPCBridge';
 import {
   createAppClient,
   getSharedTransport,
+  installSharedTransport,
   resetSharedTransportForTest,
 } from '../src/sharedTransport';
 
@@ -89,5 +90,21 @@ describe('getSharedTransport / createAppClient', () => {
     await expect(api.ai.sessions.list()).rejects.toThrow(/nomiTransport/);
     installBridge();
     await expect(api.ai.sessions.list()).resolves.toEqual([session]);
+  });
+});
+
+describe('installSharedTransport', () => {
+  it('没有 preload 桥的页面：换上别的传输后，已经建好的客户端也走它', async () => {
+    const server = createFakeServer({ 'ai.sessions.list': () => [session] });
+    // 在换传输之前就建好（视图的 api 与 AIProvider 的 ClientAIClient 都在模块加载时建）
+    const api = createAppClient();
+    const ai = new ClientAIClient();
+    installSharedTransport(server.connect({ surface: 'chat', trusted: true }));
+    await expect(api.ai.sessions.list()).resolves.toEqual([session]);
+    await expect((ai.sessions as { list: () => Promise<unknown> }).list()).resolves.toEqual([
+      session,
+    ]);
+    expect(server.sessionCount).toBe(1);
+    expect((globalThis as Record<string, unknown>).nomiTransport).toBeUndefined();
   });
 });

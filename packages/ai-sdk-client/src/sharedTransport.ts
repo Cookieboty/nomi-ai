@@ -62,27 +62,52 @@ export function lazyGlobalTransport(bridgeName: string = NOMI_TRANSPORT_GLOBAL):
   };
 }
 
-const shared = new Map<string, { inner: ClientTransport; outer: ClientTransport }>();
+interface SharedEntry {
+  inner: ClientTransport;
+  outer: ClientTransport;
+}
+
+const shared = new Map<string, SharedEntry>();
+
+function sharedEntry(bridgeName: string): SharedEntry {
+  let entry = shared.get(bridgeName);
+  if (!entry) {
+    // outer 每次调用时才读 entry.inner：installSharedTransport 换掉内层后，已经建好的客户端也走新传输
+    const e: SharedEntry = {
+      inner: lazyGlobalTransport(bridgeName),
+      outer: {
+        call: (name, input, opts) => e.inner.call(name, input, opts),
+        stream: (name, input, opts) => e.inner.stream(name, input, opts),
+        subscribe: (event, fn) => e.inner.subscribe(event, fn),
+      },
+    };
+    entry = e;
+    shared.set(bridgeName, entry);
+  }
+  return entry;
+}
 
 /**
  * 本窗口共享的契约传输（按桥名各一个）。返回的对象没有 `close`：共享传输随页面存活，
  * 某个客户端 `$close()` / `dispose()` 不会断开别人。
  */
 export function getSharedTransport(bridgeName: string = NOMI_TRANSPORT_GLOBAL): ClientTransport {
-  let entry = shared.get(bridgeName);
-  if (!entry) {
-    const inner = lazyGlobalTransport(bridgeName);
-    entry = {
-      inner,
-      outer: {
-        call: (name, input, opts) => inner.call(name, input, opts),
-        stream: (name, input, opts) => inner.stream(name, input, opts),
-        subscribe: (event, fn) => inner.subscribe(event, fn),
-      },
-    };
-    shared.set(bridgeName, entry);
-  }
-  return entry.outer;
+  return sharedEntry(bridgeName).outer;
+}
+
+/**
+ * 把本窗口共享的契约传输换成给定的传输（没有 preload 桥的页面，例如开发态在浏览器里经 WebSocket 连内核，
+ * docs/design/core-host-decoupling.md §5.2）。视图只在 `services/api.ts` 里、建客户端之前调用；
+ * 原来的惰性桥还没用过，直接丢掉。
+ */
+export function installSharedTransport(
+  transport: ClientTransport,
+  bridgeName: string = NOMI_TRANSPORT_GLOBAL,
+): void {
+  const entry = sharedEntry(bridgeName);
+  const previous = entry.inner;
+  entry.inner = transport;
+  if (previous !== transport) previous.close?.();
 }
 
 /** 测试用：丢掉共享传输（关闭底层连接），下次 getSharedTransport 重新建 */
