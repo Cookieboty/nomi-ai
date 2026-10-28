@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { applyLocale } from '@nomi-ai/ui';
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -15,7 +16,7 @@ import {
   resetCharacterPackOverlayForTest,
   useCharacterPackReady,
 } from '../../src/mascot/characterConfig';
-import { availableLines, characterLine } from '../../src/mascot/characterCopy';
+import { availableLines, characterLine, characterName } from '../../src/mascot/characterCopy';
 
 import { installMascotHost, packSnapshot, resetMascotHost } from './mascotHost';
 
@@ -177,5 +178,27 @@ describe('Scheme B overlay readiness', () => {
     expect(availableLines(['tip-ask-me-anything', 'greet-welcome-back'])).toEqual([
       'greet-welcome-back',
     ]);
+  });
+
+  it('names the figure after the active character, never the official one (§10.1)', async () => {
+    // 内置包（这次构建打进去的包）的人设名
+    expect(characterName()).toBe(BUNDLED_PACK.persona?.displayName);
+    stubGetActive(async () => ({
+      source: 'userData',
+      id: 'test-dummy',
+      mode: 'static',
+      displayName: { zh: '小纸', en: 'Pip' },
+      riveUrl: null,
+      staticUrl: 'character-pack://pack/static/character.webp',
+      voiceBaseUrl: null,
+      spriteManifestUrl: null,
+      hitboxes: null,
+      rive: null,
+    }));
+    await ensureCharacterPackOverlay();
+    expect(characterName()).toBe('小纸');
+    applyLocale('en');
+    expect(characterName()).toBe('Pip');
+    applyLocale('zh-CN');
   });
 });

@@ -22,7 +22,7 @@ export type VoiceSettings = {
 /**
  * Realtime TTS engine: edge (default — Microsoft Edge online read-aloud, needs network),
  * none (text only), or Azure / OpenAI (not implemented yet: selecting one stays silent).
- * Nomi's fixed prompt lines use prerecorded clips, not this engine.
+ * The character's fixed prompt lines use the pack's prerecorded clips, not this engine.
  */
 export type TTSProvider = 'none' | 'edge' | 'azure' | 'openai';
 
@@ -32,7 +32,7 @@ export type TTSProvider = 'none' | 'edge' | 'azure' | 'openai';
  */
 export interface TTSConfig {
   enabled: boolean;
-  /** 诺米提示语音：Nomi 固定台词播放预录音频（默认开）。 */
+  /** 角色提示语音：角色固定台词播放角色包里的预录音频（默认开）。 */
   promptVoice?: boolean;
   /** Realtime engine. Default: edge (failures stay silent, text only). */
   provider: TTSProvider;
@@ -115,3 +115,4 @@ export * from './quality';
 export * from './chatBackground';
 export * from './userProfile';
 export * from './persona';
+export * from './brand';

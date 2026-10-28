@@ -78,7 +78,7 @@ describe('appContract · 过程表', () => {
     expect(Object.keys(aiProcedures)).toHaveLength(37);
     expect(Object.keys(procedures)).toHaveLength(37);
     // C3：ai.avatar.* 改成语义过程（不留旧名）→ major
-    expect(appContract.version).toEqual({ major: 2, minor: 0 });
+    expect(appContract.version).toEqual({ major: 2, minor: 1 });
     expect(NOMI_TRANSPORT_GLOBAL).toBe('nomiTransport');
   });
 

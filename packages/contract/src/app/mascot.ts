@@ -170,9 +170,17 @@ export const CharacterPackSnapshot = z.looseObject({
     })
     .nullable()
     .optional(),
-  /** 角色文案（`locales/<lang>.json` 的 lines） */
+  /** 角色文案（`locales/<lang>.json` 的 lines 与唤醒词 wakePhrase）；旧主进程只发 lines */
   locales: z
-    .record(z.string(), z.object({ lines: z.record(z.string(), z.string()).optional() }).optional())
+    .record(
+      z.string(),
+      z
+        .object({
+          lines: z.record(z.string(), z.string()).optional(),
+          wakePhrase: z.string().optional(),
+        })
+        .optional(),
+    )
     .nullable()
     .optional(),
   reason: z.string().optional(),

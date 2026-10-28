@@ -1,3 +1,4 @@
+import { brand } from '@nomi-ai/types';
 import { Icon, t } from '@nomi-ai/ui';
 import { PanelLeft } from 'lucide-react';
 import React from 'react';
@@ -43,7 +44,7 @@ export const AppTitleBar: React.FC<{
       >
         <Icon icon={PanelLeft} size={16} />
       </button>
-      <span className="app-titlebar-title">Nomi</span>
+      <span className="app-titlebar-title">{brand.appName}</span>
     </div>
   );
 };

@@ -102,7 +102,7 @@
   "ui.chat-settings.don-t-bring-the-context": "Don't bring the context",
   "ui.chat-settings.done": "✅ Done: {0}",
   "ui.chat-settings.drag-to-reorder": "Drag to reorder",
-  "ui.chat-settings.drop-onto-nomi-to-summarize": "Drop onto Nomi to summarize",
+  "ui.chat-settings.drop-onto-nomi-to-summarize": "Summarize a dropped file",
   "ui.chat-settings.due-reminders-and-scheduled-task-results": "Due reminders and scheduled task results",
   "ui.chat-settings.dynamic-island": "Dynamic Island",
   "ui.chat-settings.edit-skill": "Edit skill {0}",
@@ -224,10 +224,9 @@
   "ui.chat-settings.no-past-conversations": "No past conversations",
   "ui.chat-settings.no-reasoning-effort": "No reasoning effort",
   "ui.chat-settings.no-restrictions-can-change-any-file-and-run": "No restrictions: can change any file and run any command",
-  "ui.chat-settings.nomi": "Nomi",
   "ui.chat-settings.nomi-can-hand-specific-coding-writing-review-and": "Nomi can hand specific coding, writing, review, and research tasks to the coding assistants on this computer and bring the results back to the chat. Type /agent followed by a name in the chat to pick one for the next request.",
   "ui.chat-settings.nomi-could-not-confirm-whether-a-cli-is": "Nomi could not confirm whether a CLI is still using this account. Quit the related CLI in a terminal first. If no process is using it, force-delete “{0}” anyway?",
-  "ui.chat-settings.nomi-is-hidden-show-it-to-adjust-its": "Nomi is hidden; show it to adjust its size.",
+  "ui.chat-settings.nomi-is-hidden-show-it-to-adjust-its": "{0} is hidden; show it to adjust its size.",
   "ui.chat-settings.nomi-starting-a-chat-daily-briefings-and-more": "Nomi starting a chat, daily briefings and more",
   "ui.chat-settings.nomi-won-t-start-a-chat-outside-these": "Nomi won't start a chat outside these hours.",
   "ui.chat-settings.not-a-secret": "Not a secret",
@@ -444,5 +443,5 @@
   "ui.chat-settings.token-usage-cost-and-how-each-provider-performs": "Token usage and cost, plus success rate, latency and speed for each provider and model. Counted on this computer only.",
   "ui.chat-settings.usage-and-quality": "Usage & quality",
   "ui.chat-settings.usage-and-quality-sections": "Usage & quality sections",
-  "ui.chat-settings.when-off-system-notifications-are-used-while-nomi": "When off, system notifications are used while Nomi is closed."
+  "ui.chat-settings.when-off-system-notifications-are-used-while-nomi": "When off, system notifications are used while {0} is closed."
 }

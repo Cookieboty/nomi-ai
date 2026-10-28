@@ -255,7 +255,7 @@
   "electron.common.nomi-doesn-t-support-a-working-directory-cwd": "Nomi doesn't support a working directory (cwd); ignored",
   "electron.common.nomi-doesn-t-support-mcp-servers-yet": "Nomi doesn't support {0} MCP servers yet",
   "electron.common.nomi-model-must-be-followed-by-provider-model": "--nomi-model must be followed by provider/model",
-  "electron.common.nomi-motions": "Nomi motions",
+  "electron.common.nomi-motions": "{0} motions",
   "electron.common.not-a-file": "Not a file",
   "electron.common.not-found": "not found",
   "electron.common.not-valid-json": "Not valid JSON",

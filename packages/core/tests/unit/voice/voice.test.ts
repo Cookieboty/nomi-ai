@@ -8,6 +8,7 @@ import path from 'node:path';
 
 import { strToU8, zipSync, gzipSync } from 'fflate';
 
+import { createRecordingAppEvents } from '../../../src/core/appEvents';
 import { VOICE_ASSETS, assetsFor, findAsset } from '../../../src/voice/catalog';
 import { downloadVerified, extractTarGz, extractZip, safeJoin } from '../../../src/voice/download';
 import {
@@ -16,7 +17,9 @@ import {
   sanitizeVoiceSettings,
 } from '../../../src/voice/settings';
 import { toFloat32 } from '../../../src/voice/sileroNode';
+import { VoiceService } from '../../../src/voice/VoiceService';
 import { buildArgs, cleanTranscript } from '../../../src/voice/whisperCpp';
+import { fakeSecrets } from '../helpers/featureHost';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'cd-voice-'));
 
@@ -56,12 +59,41 @@ describe('voice catalog', () => {
 
 describe('voice settings', () => {
   it('wake word is data matched against speech, never a translation key', () => {
-    // 唤醒功能早于多语言：唤醒词与识别结果比对，不随界面语言翻译，也不能被替换成 key
-    expect(DEFAULT_VOICE_SETTINGS.wakeWord.phrase).toBe('你好，诺米');
-    expect(sanitizeVoiceSettings({}).wakeWord.phrase).toBe('你好，诺米');
-    expect(sanitizeVoiceSettings({ wakeWord: { phrase: 'Hey Nomi' } }).wakeWord.phrase).toBe(
-      'Hey Nomi',
+    // 唤醒功能早于多语言：唤醒词与识别结果比对，不随界面语言翻译，也不能被替换成 key。
+    // 默认为空 = 跟着当前角色走（角色包的 wakePhrase），不写死官方角色名（§10.1）
+    expect(DEFAULT_VOICE_SETTINGS.wakeWord.phrase).toBe('');
+    expect(sanitizeVoiceSettings({}).wakeWord.phrase).toBe('');
+    expect(sanitizeVoiceSettings({ wakeWord: { phrase: 'Hey Pip' } }).wakeWord.phrase).toBe(
+      'Hey Pip',
     );
+  });
+
+  it('wake word: the active character supplies the default; a saved phrase wins', () => {
+    const root = tmp();
+    let packPhrase: string | undefined = '你好，小纸';
+    const v = new VoiceService({
+      root,
+      secrets: fakeSecrets(),
+      logger: { info() {}, warn() {}, error() {} },
+      events: createRecordingAppEvents(),
+      defaultWakePhrase: () => packPhrase,
+    });
+    expect(v.getSettings().wakeWord.phrase).toBe('你好，小纸');
+    expect(v.state().settings.wakeWord.phrase).toBe('你好，小纸');
+    // 换了角色包：跟着变（默认值不写回磁盘）
+    packPhrase = 'Hi, Pip';
+    v.setSettings({ autoSend: false });
+    expect(v.getSettings().wakeWord.phrase).toBe('Hi, Pip');
+    expect(
+      JSON.parse(fs.readFileSync(path.join(root, 'settings.json'), 'utf8')).wakeWord.phrase,
+    ).toBe('');
+    // 用户自己设的唤醒词优先
+    v.setSettings({ wakeWord: { enabled: true, phrase: '嘿，助手', windowSec: 8 } });
+    expect(v.getSettings().wakeWord.phrase).toBe('嘿，助手');
+    packPhrase = undefined;
+    v.setSettings({ wakeWord: { enabled: true, phrase: '', windowSec: 8 } });
+    expect(v.getSettings().wakeWord.phrase).toBe('');
+    fs.rmSync(root, { recursive: true, force: true });
   });
 
   it('defaults: local engine, wake word off', () => {
@@ -81,7 +113,7 @@ describe('voice settings', () => {
     expect(s.vadThreshold).toBe(0.9);
     expect(s.customBaseURL).toBe('');
     expect(s.language).toBe(DEFAULT_VOICE_SETTINGS.language);
-    expect(s.wakeWord.phrase).toBe('你好，诺米');
+    expect(s.wakeWord.phrase).toBe('');
     expect(s.wakeWord.windowSec).toBe(30);
   });
   it('cloud target id', () => {

@@ -1,3 +1,4 @@
+import { brand } from '@nomi-ai/types';
 import { t, Icon, useLocale } from '@nomi-ai/ui';
 import { RefreshCw, X, SquarePen } from 'lucide-react';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -708,7 +709,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
             size={collapsed ? 24 : 28}
             testId="sidebar-brand-mark"
           />
-          {!collapsed && <span className={styles.brand}>Nomi</span>}
+          {!collapsed && <span className={styles.brand}>{brand.appName}</span>}
         </button>
         {!collapsed && (
           <>
@@ -1170,7 +1171,7 @@ const CLIENT_LABELS: Record<HistoryClient, string> = {
   desktop: 'Desktop',
   ide: 'IDE',
   exec: 'exec',
-  nomi: 'Nomi',
+  nomi: brand.appName,
 };
 
 /** 行内只标出非官方线路，官方会话不加标签，保持列表干净 */

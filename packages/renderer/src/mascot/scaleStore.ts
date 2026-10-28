@@ -4,7 +4,7 @@ import { useEffect, useSyncExternalStore } from 'react';
 import { api, hasTransport } from '../services/api';
 
 /**
- * Nomi 大小（渲染进程侧）：真实状态在主进程（MascotWindowController：夹紧到屏幕、窗口随之
+ * 看板娘大小（渲染进程侧）：真实状态在主进程（MascotWindowController：夹紧到屏幕、窗口随之
  * 调整并保持脚底中心不动、持久化到配置），这里只缓存最近一次状态并转发操作。
  * 滚轮事件会很密：同一帧内的 deltaY 先累加，每帧最多向主进程发一次。
  */

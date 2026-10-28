@@ -1,11 +1,13 @@
 /**
- * 设置 → 通用：「启动与窗口」（语言 + 启动后默认显示 + 关闭主界面时）与「桌面 Nomi」（显示开关 + 大小）两组。
+ * 设置 → 通用：「启动与窗口」（语言 + 启动后默认显示 + 关闭主界面时）与「桌面<角色名>」（显示开关 + 大小）两组。
+ * 指桌面角色的地方用当前角色名（services/characterName），不写死官方角色名（§10.1）。
  * 默认界面与看板娘开关互相联动，所以两组由同一个组件持有状态；语言行和大小滑块由调用方以插槽传入。
  * 主进程 startup/StartupService（ai:startup:*）持久化，下次启动生效；首次引导里有同一个选项。
  */
 import { SegmentedControl, SettingRow, SettingsGroup, Switch, t, useLocale } from '@nomi-ai/ui';
 import React, { useEffect, useState } from 'react';
 
+import { characterName, useCharacterName } from '../../services/characterName';
 import {
   startupClient,
   type CloseMainAction,
@@ -17,13 +19,13 @@ import base from './index.module.css';
 const OPTIONS: { id: StartupView; label: () => string; hint: () => string }[] = [
   {
     id: 'mascot',
-    label: () => t('ui.mascot-theme.nomi'),
-    hint: () => t('ui.mascot-theme.startup-mascot-first'),
+    label: () => characterName(),
+    hint: () => t('ui.mascot-theme.startup-mascot-first', characterName()),
   },
   {
     id: 'main',
     label: () => t('ui.mascot-theme.main-window'),
-    hint: () => t('ui.mascot-theme.open-the-main-window-right-after-launch-nomi'),
+    hint: () => t('ui.mascot-theme.open-the-main-window-right-after-launch-nomi', characterName()),
   },
 ];
 
@@ -31,23 +33,25 @@ const CLOSE_OPTIONS: { id: CloseMainAction; label: () => string; hint: () => str
   {
     id: 'hide',
     label: () => t('ui.mascot-theme.hide-to-tray'),
-    hint: () => t('ui.mascot-theme.only-the-main-window-closes-nomi-and-the'),
+    hint: () => t('ui.mascot-theme.only-the-main-window-closes-nomi-and-the', characterName()),
   },
   {
     id: 'quit',
     label: () => t('ui.mascot-theme.quit-nomi'),
-    hint: () => t('ui.mascot-theme.closing-the-main-window-quits-nomi-completely-including'),
+    hint: () =>
+      t('ui.mascot-theme.closing-the-main-window-quits-nomi-completely-including', characterName()),
   },
 ];
 
 export const StartupSettings: React.FC<{
   /** 放在「启动与窗口」最上面的行（语言） */
   language?: React.ReactNode;
-  /** 「桌面 Nomi」组里开关下面的行（大小）；参数为看板娘当前是否显示 */
+  /** 「桌面<角色名>」组里开关下面的行（大小）；参数为看板娘当前是否显示 */
   mascotSize?: (shown: boolean) => React.ReactNode;
 }> = ({ language, mascotSize }) => {
   // 中文句子之间不加空格，英文要
   const sep = useLocale() === 'zh-CN' ? '' : ' ';
+  const name = useCharacterName();
   const [view, setView] = useState<StartupView | null>(null);
   const [closeMain, setCloseMain] = useState<CloseMainAction | null>(null);
   const [showMascot, setShowMascot] = useState<boolean | null>(null);
@@ -166,25 +170,28 @@ export const StartupSettings: React.FC<{
         </SettingRow>
       </SettingsGroup>
 
-      <SettingsGroup title={t('ui.mascot-theme.desktop-nomi')} data-testid="settings-mascot-group">
+      <SettingsGroup
+        title={t('ui.mascot-theme.desktop-nomi', name)}
+        data-testid="settings-mascot-group"
+      >
         <SettingRow
-          title={t('ui.mascot-theme.show-nomi')}
+          title={t('ui.mascot-theme.show-nomi', name)}
           description={
             view === 'mascot'
-              ? t('ui.mascot-theme.when-off-nomi-is-hidden-from-your-desktop')
-              : t('ui.mascot-theme.when-off-mascot-hidden-island-ok')
+              ? t('ui.mascot-theme.when-off-nomi-is-hidden-from-your-desktop', name)
+              : t('ui.mascot-theme.when-off-mascot-hidden-island-ok', name)
           }
         >
           <Switch
             checked={showMascot}
             onChange={toggleMascot}
-            aria-label={t('ui.mascot-theme.show-nomi')}
+            aria-label={t('ui.mascot-theme.show-nomi', name)}
             data-testid="startup-show-mascot"
           />
         </SettingRow>
         {switchedNotice && (
           <p className={base.muted} role="status" data-testid="startup-mascot-switched">
-            {t('ui.mascot-theme.nomi-is-closed-show-on-startup-has-been')}
+            {t('ui.mascot-theme.nomi-is-closed-show-on-startup-has-been', name)}
           </p>
         )}
         {mascotSize?.(showMascot)}

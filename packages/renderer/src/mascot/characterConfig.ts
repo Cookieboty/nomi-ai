@@ -38,6 +38,8 @@ export interface CharacterPackOverlay {
   source: CharacterPackSource;
   id: string | null;
   mode: string | null;
+  /** Character name per UI language (persona.json / locales/en.json persona) */
+  displayName?: { zh: string; en: string } | null;
   riveUrl: string | null;
   staticUrl: string | null;
   voiceBaseUrl: string | null;
@@ -153,9 +155,10 @@ export function getPromptClipBase(): string {
   return overlay?.voiceBaseUrl || `${BUNDLED_PACK.base}${BUNDLED_PACK.assets.voiceDir}/zh/`;
 }
 
-export function getRiveConfig(): { src: string; artboard: string; stateMachine: string } {
-  const artboard = overlay?.rive?.artboard || BUNDLED_PACK.rive?.artboard || 'Nomi-full';
-  const stateMachine = overlay?.rive?.stateMachine || BUNDLED_PACK.rive?.stateMachine || 'NomiFull';
+/** Rive file + artboard / state machine; a pack that names neither gets the file's defaults. */
+export function getRiveConfig(): { src: string; artboard?: string; stateMachine?: string } {
+  const artboard = overlay?.rive?.artboard || BUNDLED_PACK.rive?.artboard || undefined;
+  const stateMachine = overlay?.rive?.stateMachine || BUNDLED_PACK.rive?.stateMachine || undefined;
   return {
     src: overlay?.riveUrl || bundledUrl(BUNDLED_PACK.assets.rive) || '',
     artboard,

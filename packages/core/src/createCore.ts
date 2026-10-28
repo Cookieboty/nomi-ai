@@ -857,6 +857,7 @@ export function createCore(deps: CoreDeps): Core {
       audit: (e) => desktop.audit.append({ ...e, source: 'voice' }),
       ...(host.voiceChatWindow ? { openChat: host.voiceChatWindow } : {}),
       events,
+      defaultWakePhrase: () => services.characterPack?.wakePhrase(),
     });
 
     // 知识库 / 记忆不依赖看板娘窗口：先于窗口启动，对话窗口并行打开时召回与授权变化即刻可用

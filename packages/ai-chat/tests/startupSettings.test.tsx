@@ -8,6 +8,7 @@ import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { StartupSettings } from '../src/components/SettingsView/StartupSettings';
+import { setCharacterNameForTest } from '../src/services/characterName';
 import { startupClient } from '../src/services/startupClient';
 
 // D2 的过程经契约替身转发到下面的旧桥假实现（见 helpers/shellApi）
@@ -72,7 +73,9 @@ describe('Settings → General → startup default view', () => {
     expect(screen.getByRole('radiogroup', { name: '启动 Nomi 后默认显示' })).toBeTruthy();
     expect(mascot.getAttribute('aria-checked')).toBe('true');
     expect(main.getAttribute('aria-checked')).toBe('false');
-    expect(mascot.textContent).toContain('诺米');
+    // 没有人设时用通用称呼；指桌面角色的文案不写死官方角色名（§10.1）
+    expect(mascot.textContent).toContain('看板娘');
+    expect(mascot.textContent).not.toMatch(/Nomi|诺米/);
     expect(main.textContent).toContain('软件主界面');
   });
 
@@ -114,7 +117,7 @@ describe('Settings → General → startup default view', () => {
     expect(main.getAttribute('aria-checked')).toBe('true');
     expect(screen.getByRole('radiogroup', { name: 'Show on startup' })).toBeTruthy();
     expect(main.textContent).toContain('Main window');
-    expect(screen.getByTestId('startup-view-mascot').textContent).toContain('Nomi');
+    expect(screen.getByTestId('startup-view-mascot').textContent).toContain('Mascot');
   });
 
   it('close main window: defaults to hide to tray, can switch to quit and persists', async () => {
@@ -159,9 +162,13 @@ describe('Settings → General → startup default view', () => {
 
   it('desktop mascot switch: closes / reopens with the main window as default view', async () => {
     stored = { defaultView: 'main', closeMain: 'hide', showMascot: true };
+    // 角色名来自当前角色的人设（persona.get）
+    setCharacterNameForTest('小纸');
     render(<StartupSettings />);
     const sw = await screen.findByTestId('startup-show-mascot');
-    expect(sw.getAttribute('aria-label')).toBe('显示 Nomi');
+    expect(sw.getAttribute('aria-label')).toBe('显示小纸');
+    expect(screen.getByTestId('settings-mascot-group').textContent).toContain('桌面小纸');
+    setCharacterNameForTest('');
     fireEvent.click(sw);
     await waitFor(() => expect(stored).toMatchObject({ showMascot: false }));
     expect(calls).toContainEqual(['ai:startup:set', { showMascot: false }]);

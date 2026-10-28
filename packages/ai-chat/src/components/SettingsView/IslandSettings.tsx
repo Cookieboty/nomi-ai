@@ -5,6 +5,7 @@ import { Button, SettingRow, SettingsGroup, Switch, t } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import { api, hasTransport } from '../../services/api';
+import { useCharacterName } from '../../services/characterName';
 
 import styles from './index.module.css';
 
@@ -17,6 +18,7 @@ interface IslandState {
 }
 
 export const IslandSettings: React.FC = () => {
+  const name = useCharacterName();
   const [s, setS] = useState<IslandState | null>(null);
   const load = useCallback(() => {
     if (hasTransport()) void api.island.get().then(setS, () => undefined);
@@ -58,7 +60,7 @@ export const IslandSettings: React.FC = () => {
             ? s.mode === 'notch'
               ? t('ui.mascot-theme.notch-display-detected-notifications-expand-out-of-the')
               : t('ui.mascot-theme.no-notch-on-this-display-notifications-appear-as')
-            : t('ui.mascot-theme.on-windows-linux-this-is-an-optional-top')
+            : t('ui.mascot-theme.on-windows-linux-this-is-an-optional-top', name)
         }
         actions={
           <Button
@@ -75,7 +77,10 @@ export const IslandSettings: React.FC = () => {
       >
         <SettingRow
           title={t('ui.mascot-theme.enable-dynamic-island-notifications')}
-          description={t('ui.chat-settings.when-off-system-notifications-are-used-while-nomi')}
+          description={t(
+            'ui.chat-settings.when-off-system-notifications-are-used-while-nomi',
+            name,
+          )}
         >
           <Switch
             checked={s.enabled}

@@ -10,7 +10,7 @@
  */
 import path from 'node:path';
 
-import { CONTRACT, type PackMapping } from '@nomi-ai/character-contract';
+import { CONTRACT, PRIMARY_CHARACTER_LOCALE, type PackMapping } from '@nomi-ai/character-contract';
 import type { HostPorts } from '@nomi-ai/host-ports';
 
 import { characterPackAssetUrl, registerCharacterPackProtocol } from './packProtocol';
@@ -38,8 +38,8 @@ export interface CharacterPackActiveSnapshot {
   spriteManifestUrl: string | null;
   hitboxes: PackHitboxes | null;
   rive: { artboard: string; stateMachine: string } | null;
-  /** Character copy per language (`locales/<lang>.json` → lines) */
-  locales: Partial<Record<string, { lines?: Record<string, string> }>> | null;
+  /** Character copy per language (`locales/<lang>.json` → lines, wakePhrase) */
+  locales: Partial<Record<string, { lines?: Record<string, string>; wakePhrase?: string }>> | null;
   /**
    * 语义 → 资源（mapping.json，§10.5）；包没有 mapping.json 时为 null（运行时用引擎默认映射）。
    * 内置包也填，渲染进程以构建时打进去的那份为准。
@@ -60,7 +60,10 @@ function displayNameOf(pack: NonNullable<ResolvedPack['pack']>): { zh: string; e
 function linesOf(pack: NonNullable<ResolvedPack['pack']>): CharacterPackActiveSnapshot['locales'] {
   const out: NonNullable<CharacterPackActiveSnapshot['locales']> = {};
   for (const [lang, data] of Object.entries(pack.locales)) {
-    if (data?.lines) out[lang] = { lines: { ...data.lines } };
+    const entry: NonNullable<(typeof out)[string]> = {};
+    if (data?.lines) entry.lines = { ...data.lines };
+    if (data?.wakePhrase) entry.wakePhrase = data.wakePhrase;
+    if (entry.lines || entry.wakePhrase) out[lang] = entry;
   }
   return out;
 }
@@ -193,6 +196,18 @@ export class CharacterPackService {
       };
     }
     return this.builtinCache.resolved;
+  }
+
+  /**
+   * Wake phrase of the active character (primary locale — wake detection runs on the zh model):
+   * the active pack, else the built-in pack. Used when the user has not set one (§10.1).
+   */
+  wakePhrase(): string | undefined {
+    for (const r of [this.resolved, this.getBuiltin()]) {
+      const phrase = r?.pack?.locales[PRIMARY_CHARACTER_LOCALE]?.wakePhrase?.trim();
+      if (phrase) return phrase;
+    }
+    return undefined;
   }
 
   /**

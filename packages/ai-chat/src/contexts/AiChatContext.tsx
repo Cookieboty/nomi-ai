@@ -634,7 +634,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
 
         activeStream.current = { reqId, convoId: turn.convoId, controller };
         owned = true;
-        // 朗读 AI 回复：只念普通诺米对话（`/agent` 委派给编程助手的这一轮不念）
+        // 朗读 AI 回复：只念普通 Nomi 对话（`/agent` 委派给编程助手的这一轮不念）
         if (!delegateTo) speaker = startReplySpeech(reqId);
         dispatch({ type: 'SET_STREAMING', payload: true });
 

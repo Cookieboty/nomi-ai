@@ -93,7 +93,7 @@ export const MascotVoiceBridge: React.FC = () => {
     };
   }, [setContinuous, state.mode, config]);
 
-  // 语音出错：诺米提示语音念出固定句（详情只在状态胶囊里显示）
+  // 语音出错：角色提示语音念出固定句（详情只在状态胶囊里显示）
   const err = v.state.error;
   useEffect(() => {
     if (!err) return;

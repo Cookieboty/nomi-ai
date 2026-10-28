@@ -11,6 +11,7 @@ import { type IConfigService } from '@nomi-ai/core/services/ConfigService';
 import { type ILoggerService } from '@nomi-ai/core/services/LoggerService';
 import { BrowserWindow, screen, app, type BrowserWindowConstructorOptions } from 'electron';
 
+import { brand } from '../brand';
 import { setWindowBounds } from '../host/windowBounds';
 import { MascotWindowController } from '../mascot/MascotWindowController';
 import { installWindowGuards } from '../security/windowGuards';
@@ -211,7 +212,7 @@ export class WindowManager implements IWindowManager {
         resizable: true,
         show: false,
         showInactive: opts.activate === false,
-        title: 'Nomi',
+        title: brand.appName,
         preloadScript: 'ai-chat-preload.bundle.js',
         chrome: {
           ...titleBarOptions(process.platform, this.chromeTheme()),

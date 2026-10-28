@@ -2,6 +2,7 @@
  * 原生命令的结果卡片构造（纯函数：输入数据 → 卡片内容）。
  * 卡片显示在会话流里，不发给模型。
  */
+import { brand } from '@nomi-ai/types';
 import { t } from '@nomi-ai/ui';
 
 import {
@@ -589,7 +590,7 @@ const KIND_LABEL: Record<SlashKind, () => string> = {
 export const kindLabel = (k: SlashKind): string => KIND_LABEL[k]();
 
 const SOURCE_LABEL: Record<string, () => string> = {
-  builtin: () => 'Nomi',
+  builtin: () => brand.appName,
   endpoint: () => t('ui.slash-commands.this-endpoint'),
   project: () => t('ui.slash-commands.project-commands'),
   user: () => t('ui.slash-commands.user-commands'),

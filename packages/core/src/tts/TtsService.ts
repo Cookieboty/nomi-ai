@@ -76,7 +76,7 @@ export class TtsService {
     });
   }
 
-  /** 无文件时返回默认（Edge 实时朗读 + 诺米提示语音开）；读取失败返回 null */
+  /** 无文件时返回默认（Edge 实时朗读 + 角色提示语音开）；读取失败返回 null */
   getConfig(): TTSConfig | null {
     try {
       return this.store.load();
@@ -177,7 +177,7 @@ export class TtsService {
     return true;
   }
 
-  /** 诺米提示语音开关：看板娘窗口据此决定是否播放预录提示语 */
+  /** 角色提示语音开关：看板娘窗口据此决定是否播放预录提示语 */
   promptVoice(): boolean {
     try {
       return this.store.load().promptVoice !== false;

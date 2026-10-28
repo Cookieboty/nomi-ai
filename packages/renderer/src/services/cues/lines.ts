@@ -48,7 +48,8 @@ export const CUE_LINES: Record<CueEvent, string[]> = {
   greet: [
     'ui.cli-monitor.i-m-here',
     'ui.cli-monitor.let-s-do-our-best-today',
-    'ui.cli-monitor.hi-i-m-nomi',
+    // 自我介绍带角色名：角色台词，来自角色包（没有这句的包就不说）
+    'greet-hello',
   ],
   sleep: ['ui.cli-monitor.rest-early-okay'],
   'agent:done': [

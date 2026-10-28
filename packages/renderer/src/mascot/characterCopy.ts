@@ -5,13 +5,25 @@
  */
 import { getLocale, t } from '@nomi-ai/ui';
 
-import { getCharacterLocales } from './characterConfig';
+import { BUNDLED_PACK, getCharacterLocales, getOverlay } from './characterConfig';
 import { CHARACTER_LINE_IDS } from './tips';
 
 const PRIMARY = 'zh';
 
 function lang(): string {
   return (getLocale() || '').toLowerCase().startsWith('zh') ? 'zh' : 'en';
+}
+
+/**
+ * The active character's name in the UI language (§10.1): wherever the UI names the figure on the
+ * desktop ("Close X", "X toolbar"), never the official name. Overlay pack → bundled pack persona.
+ */
+export function characterName(): string {
+  const l = lang();
+  const fromOverlay = getOverlay()?.displayName;
+  if (fromOverlay) return (l === 'en' ? fromOverlay.en : fromOverlay.zh) || fromOverlay.zh;
+  const zh = BUNDLED_PACK.persona?.displayName || BUNDLED_PACK.id;
+  return l === 'en' ? BUNDLED_PACK.locales.en?.persona?.displayName || zh : zh;
 }
 
 /** Is `key` a character line id (as opposed to a UI catalog key or plain text)? */

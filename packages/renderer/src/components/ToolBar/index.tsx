@@ -1,4 +1,5 @@
 import { layoutStore } from '@nomi-ai/avatar-runtime';
+import { brand } from '@nomi-ai/types';
 import { createLogger, t as tr } from '@nomi-ai/ui';
 import { Switch, Tooltip } from '@nomi-ai/ui';
 import {
@@ -38,6 +39,7 @@ import styles from './style.module.css';
 
 import { useMascot } from '@/contexts/MascotContext';
 import { useCompanionMessage } from '@/hooks/useCompanionMessage';
+import { characterName } from '@/mascot/characterCopy';
 import { closeMascot } from '@/mascot/presence';
 import { scalePercent, scaleStore, useMascotScale } from '@/mascot/scaleStore';
 import { registerSpeechStopper, stopAllSpeech } from '@/mascot/speechStop';
@@ -65,14 +67,14 @@ let globalVoiceService: VoiceService | null = null;
 const NEAR_PX = 0;
 /** 离开后延迟收起（设计稿：200–300ms） */
 const HIDE_DELAY_MS = 250;
-/** 工具栏与角色的间距：Nomi 左右各留 60px，44 宽的胶囊 + 8 间距 + 6 边距放得下，靠右时能翻到左边 */
+/** 工具栏与角色的间距：看板娘左右各留 60px，44 宽的胶囊 + 8 间距 + 6 边距放得下，靠右时能翻到左边 */
 const BAR_GAP = 8;
 
 /** 工具的标题与一行说明（提示 = 标题\n说明；面板行 = 标题 + 说明） */
 const TOOL_META: Record<string, { title: () => string; desc: () => string }> = {
   'ai-chat': {
     title: () => tr('ui.voice-mascot.ai-chat'),
-    desc: () => tr('ui.voice-mascot.chat-with-nomi'),
+    desc: () => tr('ui.voice-mascot.chat-with-nomi', characterName()),
   },
   'voice-input': {
     title: () => tr('ui.voice-mascot.voice'),
@@ -201,7 +203,9 @@ export const ToolBar: React.FC = () => {
   const hideMascot = useCallback(async () => {
     stopAllSpeech();
     if (!(await closeMascot()))
-      showMessage(tr('ui.voice-mascot.couldn-t-close-nomi-please-try-again-later'));
+      showMessage(
+        tr('ui.voice-mascot.couldn-t-close-nomi-please-try-again-later', characterName()),
+      );
   }, [showMessage]);
 
   // 拍照功能
@@ -622,7 +626,7 @@ export const ToolBar: React.FC = () => {
       case 'quit':
         return tr('ui.voice-mascot.quit-app');
       case 'close-mascot':
-        return tr('ui.voice-mascot.close-nomi-reopen-it-in-settings');
+        return tr('ui.voice-mascot.close-nomi-reopen-it-in-settings', characterName());
       case 'voice-settings':
         return voiceEnabled
           ? [
@@ -816,7 +820,7 @@ export const ToolBar: React.FC = () => {
           ref={barRef}
           className={styles.bar}
           role="toolbar"
-          aria-label={tr('ui.voice-mascot.nomi-toolbar')}
+          aria-label={tr('ui.voice-mascot.nomi-toolbar', characterName())}
           aria-orientation="vertical"
         >
           {primary.map(iconButton)}
@@ -832,7 +836,7 @@ export const ToolBar: React.FC = () => {
           <div
             className={styles.panel}
             role="menu"
-            aria-label={tr('ui.voice-mascot.nomi-panel')}
+            aria-label={tr('ui.voice-mascot.nomi-panel', characterName())}
             data-testid="toolbar-menu"
             ref={menuRef}
             data-dense={panelBox?.dense ? '' : undefined}
@@ -849,7 +853,7 @@ export const ToolBar: React.FC = () => {
           >
             <div className={styles.panelHead}>
               <span className={styles.brand}>
-                Nomi
+                {brand.appName}
                 <Sparkle size={11} strokeWidth={2.2} className={styles.brandMark} aria-hidden />
               </span>
               <button

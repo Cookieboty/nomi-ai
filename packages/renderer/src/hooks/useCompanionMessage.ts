@@ -8,7 +8,7 @@ import { toBubbleText } from '@/security/bubbleText';
 import { mascotCueService } from '@/services/cues/MascotCueService';
 
 /**
- * 气泡同时尝试播放诺米预录片段（仅清单里有的固定台词，或 opts.clip 指定的片段）；
+ * 气泡同时尝试播放角色预录片段（仅清单里有的固定台词，或 opts.clip 指定的片段）；
  * 这里从不调用实时朗读，没有片段就只显示文字。
  */
 export function playBubbleClip(keyOrText: string, clip: string | null | undefined): void {

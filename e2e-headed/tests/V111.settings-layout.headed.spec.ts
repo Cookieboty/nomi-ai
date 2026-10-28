@@ -76,7 +76,7 @@ test.describe('v1.1.1 settings layout', () => {
     await chat.locator('body').click({ position: { x: 5, y: 300 } });
     await chat.keyboard.press(`${mod}+Comma`);
     await expect(chat.locator('[data-testid="settings-view"]')).toBeVisible();
-    await expect(chat.locator('[data-testid="settings-brand"]')).toContainText('Nomi · 诺米');
+    await expect(chat.locator('[data-testid="settings-brand"]')).toContainText('Nomi');
     await expect(chat.locator('[data-testid="settings-sidebar-foot"]')).toHaveCount(0);
 
     const shot = async (name: string) => {

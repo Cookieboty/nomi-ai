@@ -48,6 +48,10 @@ export const TIME_GREETINGS: Array<{ from: number; to: number; text: string }> =
 export const MESSAGES = {
   welcome: 'greet-companion',
   visibility: 'greet-welcome-back',
+  /** 自我介绍（带角色名，所以在角色包里） */
+  hello: 'greet-hello',
+  /** 语音设置「试听」念的句子 */
+  preview: 'greet-lets-go',
 };
 
 export function greetingFor(hour: number): string {

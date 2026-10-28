@@ -339,7 +339,7 @@ export class MascotWindowController {
     }
     if (!this.cfg.wander && this.body.mode === 'walking')
       this.body = { ...this.body, mode: 'idle', vx: 0 };
-    this.logger.info('Nomi 互动设置', this.cfg);
+    this.logger.info('看板娘互动设置', this.cfg);
   }
 
   /** 角色脚底所在显示器允许的最大缩放 */

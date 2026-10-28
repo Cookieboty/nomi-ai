@@ -34,7 +34,7 @@ export const ReminderCard: React.FC = () => {
   useEffect(() => {
     if (!bridge) return;
     // priority 11 > messageComplete (9): late AI replies must not replace a live reminder
-    // clip：诺米提示语音播固定句，气泡显示带内容的完整文字
+    // clip：角色提示语音播固定句，气泡显示带内容的完整文字
     const say = (text: string, clip: string, ms = 15000) =>
       window.dispatchEvent(
         new CustomEvent('mascot:say', { detail: { text, ms, priority: 11, clip } }),

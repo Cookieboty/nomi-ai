@@ -3,6 +3,7 @@ import { createLogger, t as tr } from '@nomi-ai/ui';
 import { Modal, SectionTitle, Slider, Switch } from '@nomi-ai/ui';
 import React, { useState, useEffect, useCallback } from 'react';
 
+import { characterLine } from '../../mascot/characterCopy';
 import {
   clearCharacterVoiceOverride,
   getActiveCharacter,
@@ -10,6 +11,7 @@ import {
   speakForActiveCharacter,
   type SoftSpeechPrefs,
 } from '../../mascot/characterVoice';
+import { MESSAGES } from '../../mascot/tips';
 import { type VoiceService } from '../../services/VoiceService';
 
 import styles from './style.module.css';
@@ -135,9 +137,13 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
             data-testid="char-speech-test"
             disabled={off}
             onClick={() =>
-              speakForActiveCharacter(tr('ui.voice-mascot.hi-i-m-nomi-let-s-do-our'), {
-                prefs: { ...charPrefs, volume: settings.volume },
-              })
+              // 试听念角色包里的句子（带角色名）；包里没有就念它的问候
+              speakForActiveCharacter(
+                characterLine(MESSAGES.preview) !== undefined ? MESSAGES.preview : MESSAGES.welcome,
+                {
+                  prefs: { ...charPrefs, volume: settings.volume },
+                },
+              )
             }
           >
             {tr('ui.voice-mascot.preview-this-character')}

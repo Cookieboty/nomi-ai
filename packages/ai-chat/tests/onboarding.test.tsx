@@ -11,6 +11,7 @@ import {
   mergePersona,
   personaBlockLines,
 } from '../src/components/Onboarding/client';
+import { setCharacterNameForTest } from '../src/services/characterName';
 
 import { shellTest } from './helpers/shellApi';
 
@@ -68,6 +69,8 @@ const gatewayState = () => ({
 });
 
 beforeEach(() => {
+  // 角色名来自当前角色的人设（persona.get）；这里用替身角色的名字，断言界面不写死官方角色名
+  setCharacterNameForTest('小纸');
   calls = [];
   persona = '我喜欢猫';
   done = false;
@@ -148,7 +151,8 @@ describe('first-launch onboarding', () => {
     expect(bg.getAttribute('data-art')).toBe('welcome');
     expect(bg.style.backgroundImage).toMatch(/welcome/);
     expect(screen.getByTestId('onboarding').querySelector('img')).toBeNull();
-    expect(screen.getByText('你好，我是 Nomi·诺米')).toBeTruthy();
+    expect(screen.getByText('你好，我是小纸')).toBeTruthy();
+    expect(screen.getByTestId('onboarding').textContent).not.toMatch(/诺米/);
     expect(screen.getByText('第 1 步，共 4 步')).toBeTruthy();
     expect(screen.queryByTestId('onboarding-step-appearance')).toBeNull();
 
@@ -274,7 +278,7 @@ describe('first-launch onboarding', () => {
   it('lets the user open with the main window; choice is saved immediately and survives skipping', async () => {
     render(<OnboardingHost />);
     await screen.findByTestId('onboarding-step-welcome');
-    expect(screen.getByTestId('onb-startup-mascot').textContent).toContain('以 Nomi 方式打开');
+    expect(screen.getByTestId('onb-startup-mascot').textContent).toContain('以小纸方式打开');
     expect(screen.getByTestId('onb-startup-main').textContent).toContain(
       '以控制台（主界面）方式打开',
     );

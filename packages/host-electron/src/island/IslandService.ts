@@ -14,6 +14,7 @@ import type { IslandKind, IslandNotice } from '@nomi-ai/core/desktop/islandNotic
 import { t as tr } from '@nomi-ai/core/i18n';
 import { BrowserWindow, screen } from 'electron';
 
+import { brand } from '../brand';
 import { setWindowBounds } from '../host/windowBounds';
 
 import {
@@ -160,7 +161,7 @@ export class IslandService {
       alwaysOnTop: true,
       enableLargerThanScreen: true,
       backgroundColor: '#00000000',
-      title: 'Nomi Island',
+      title: `${brand.appName} Island`,
       ...(this.platform === 'darwin' ? { type: 'panel' as const } : {}),
       webPreferences: {
         contextIsolation: true,
@@ -239,7 +240,7 @@ export class IslandService {
     return this.notify(
       {
         kind: 'message',
-        title: tr('Nomi'),
+        title: brand.appName,
         body: tr('electron.common.this-is-what-an-island-notification-looks-like'),
         durationMs: 4000,
       },

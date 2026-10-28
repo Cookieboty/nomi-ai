@@ -102,7 +102,7 @@
   "ui.chat-settings.don-t-bring-the-context": "不带前文",
   "ui.chat-settings.done": "✅ 已完成：{0}",
   "ui.chat-settings.drag-to-reorder": "拖动调整顺序",
-  "ui.chat-settings.drop-onto-nomi-to-summarize": "拖到 Nomi 总结",
+  "ui.chat-settings.drop-onto-nomi-to-summarize": "拖入文件总结",
   "ui.chat-settings.due-reminders-and-scheduled-task-results": "到点的提醒与定时任务结果",
   "ui.chat-settings.dynamic-island": "灵动岛",
   "ui.chat-settings.edit-skill": "编辑技能 {0}",
@@ -224,10 +224,9 @@
   "ui.chat-settings.no-past-conversations": "还没有历史对话",
   "ui.chat-settings.no-reasoning-effort": "无思考深度",
   "ui.chat-settings.no-restrictions-can-change-any-file-and-run": "不做任何限制，可以改任何文件、运行任何命令",
-  "ui.chat-settings.nomi": "Nomi · 诺米",
   "ui.chat-settings.nomi-can-hand-specific-coding-writing-review-and": "Nomi 可以把具体的开发、文档、审查、调研任务交给本机的编程助手去做，做完把结果带回对话。对话里用 /agent 名字 可以临时指定交给谁。",
   "ui.chat-settings.nomi-could-not-confirm-whether-a-cli-is": "无法确认是否还有 CLI 在用这个账号。请先在终端退出相关 CLI。确认没有进程占用后，仍要强制删除「{0}」吗？",
-  "ui.chat-settings.nomi-is-hidden-show-it-to-adjust-its": "Nomi 已隐藏，打开后才能调整大小。",
+  "ui.chat-settings.nomi-is-hidden-show-it-to-adjust-its": "{0}已隐藏，打开后才能调整大小。",
   "ui.chat-settings.nomi-starting-a-chat-daily-briefings-and-more": "Nomi 主动搭话、每日简报等",
   "ui.chat-settings.nomi-won-t-start-a-chat-outside-these": "这个时段之外不会主动搭话。",
   "ui.chat-settings.not-a-secret": "这不是密钥",
@@ -444,5 +443,5 @@
   "ui.chat-settings.token-usage-cost-and-how-each-provider-performs": "Token 用量与费用，以及每个供应商 / 模型的成功率、延迟与速度。数据只在本机统计。",
   "ui.chat-settings.usage-and-quality": "用量与质量",
   "ui.chat-settings.usage-and-quality-sections": "用量与质量分区",
-  "ui.chat-settings.when-off-system-notifications-are-used-while-nomi": "关闭后，Nomi 不在桌面时改用系统通知。"
+  "ui.chat-settings.when-off-system-notifications-are-used-while-nomi": "关闭后，{0}不在桌面时改用系统通知。"
 }

@@ -39,7 +39,7 @@
   "ui.providers-schedule.enabled": "{0} enabled",
   "ui.providers-schedule.external-cli": "External CLI",
   "ui.providers-schedule.frequency": "Frequency",
-  "ui.providers-schedule.generated-with-the-current-chat-model-when-due": "Generated with the current chat model when due; results go to the chat window, and Nomi's bubble lets you know (the Dynamic Island or a system notification while she is closed). Ctrl/⌘ + Enter to save",
+  "ui.providers-schedule.generated-with-the-current-chat-model-when-due": "Generated with the current chat model when due; results go to the chat window, and the mascot's bubble lets you know (the Dynamic Island or a system notification while the mascot is closed). Ctrl/⌘ + Enter to save",
   "ui.providers-schedule.handshake-succeeded-resume-images": "Handshake succeeded: {0}{1}. Resume: {2}; images: {3}.",
   "ui.providers-schedule.have-nomi-give-you-a-briefing-every-morning": "Have Nomi give you a briefing every morning, or remind you to write your weekly report every Friday.",
   "ui.providers-schedule.image": "Image",

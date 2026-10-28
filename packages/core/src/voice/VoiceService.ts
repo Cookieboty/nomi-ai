@@ -88,6 +88,8 @@ export interface VoiceDeps {
   openChat?: () => Promise<VoiceChatWindow>;
   /** 语音活动、下载进度、barge-in 广播给所有窗口 */
   events: AppEvents;
+  /** 用户没设唤醒词时用的默认值：当前角色包的 `wakePhrase`（§10.1，不写死官方角色名） */
+  defaultWakePhrase?: () => string | undefined;
   isLocalURL?: (u: string) => boolean;
   /** 测试注入：豆包 WebSocket 传输与地址（生产固定为官方端点） */
   volcWs?: WsFactory;
@@ -245,7 +247,14 @@ export class VoiceService {
   }
 
   getSettings(): VoiceSettings {
-    return this.settings;
+    return this.effective();
+  }
+
+  /** 存的唤醒词为空时补上当前角色的唤醒词（不写回磁盘：换角色包后跟着变） */
+  private effective(s: VoiceSettings = this.settings): VoiceSettings {
+    if (s.wakeWord.phrase) return s;
+    const phrase = (this.d.defaultWakePhrase?.() ?? '').trim().slice(0, 24);
+    return phrase ? { ...s, wakeWord: { ...s.wakeWord, phrase } } : s;
   }
 
   setSettings(patch: unknown): VoiceSettings {
@@ -260,7 +269,7 @@ export class VoiceService {
     if (this.settings.engine !== 'volc') this.cancelStreams();
     this.save();
     this.broadcast('ai:voice:changed', null);
-    return this.settings;
+    return this.effective();
   }
 
   assetDir(a: VoiceAsset): string {
@@ -399,7 +408,7 @@ export class VoiceService {
 
   state() {
     return {
-      settings: this.settings,
+      settings: this.effective(),
       platform: `${process.platform}-${process.arch}`,
       assets: assetsFor().map((a) => {
         const dl = this.downloads.get(a.id);
@@ -594,7 +603,7 @@ export class VoiceService {
   }
 
   private async localTranscribe(wav: Uint8Array, purpose?: 'command' | 'wake'): Promise<string> {
-    const s = this.settings;
+    const s = this.effective();
     const opts = { purpose };
     const cli = this.locateCli();
     if (!cli) throw new VoiceError('no_engine', tr('electron.common.whisper-cpp-engine-not-found'));

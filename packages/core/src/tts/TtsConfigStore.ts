@@ -1,5 +1,5 @@
 /**
- * userData/tts-config.json：实时朗读引擎 + 诺米提示语音开关。
+ * userData/tts-config.json：实时朗读引擎 + 角色提示语音开关。
  */
 import * as fs from 'fs';
 import * as path from 'path';

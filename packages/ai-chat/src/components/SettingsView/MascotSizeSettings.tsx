@@ -1,5 +1,5 @@
 /**
- * 设置 → 通用：Nomi 大小（滑块 + 重置）。
+ * 设置 → 通用：看板娘大小（滑块 + 重置）。
  * 主进程 mascot/MascotWindowController.ts（mascot:scale-*）负责夹紧到当前屏幕、调整窗口并保持
  * 脚底中心不动、持久化；看板娘本体上的 Ctrl/⌘+滚轮、右键菜单、工具栏「更多」是另外几个入口，
  * 它们改动后会广播到这里，滑块同步。
@@ -10,6 +10,7 @@ import { Minus, Plus } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 
 import { api, hasTransport } from '../../services/api';
+import { useCharacterName } from '../../services/characterName';
 
 import styles from './index.module.css';
 
@@ -17,8 +18,9 @@ const ignore = (): undefined => undefined;
 
 const pct = (v: number) => Math.round(v * 100);
 
-/** 一行设置（放在「桌面 Nomi」分组里）；看板娘隐藏时整行置灰 */
+/** 一行设置（放在「桌面<角色名>」分组里）；看板娘隐藏时整行置灰 */
 export const MascotSizeSettings: React.FC<{ disabled?: boolean }> = ({ disabled = false }) => {
+  const name = useCharacterName();
   const [state, setState] = useState<MascotScaleState | null>(null);
   const [value, setValue] = useState<number | null>(null);
   const dragging = useRef(false);
@@ -54,11 +56,11 @@ export const MascotSizeSettings: React.FC<{ disabled?: boolean }> = ({ disabled 
   return (
     <SettingRow
       data-testid="settings-mascot-size"
-      title={t('ui.usage-tools.nomi-size')}
+      title={t('ui.usage-tools.nomi-size', name)}
       description={
         <>
           {disabled
-            ? t('ui.chat-settings.nomi-is-hidden-show-it-to-adjust-its')
+            ? t('ui.chat-settings.nomi-is-hidden-show-it-to-adjust-its', name)
             : t('ui.usage-tools.you-can-also-hold-ctrl-on-macos-and')}
           {s && s.max < s.hardMax - 1e-6 && (
             <>
@@ -90,7 +92,7 @@ export const MascotSizeSettings: React.FC<{ disabled?: boolean }> = ({ disabled 
           step={0.01}
           value={shown}
           disabled={off}
-          aria-label={t('ui.usage-tools.nomi-size')}
+          aria-label={t('ui.usage-tools.nomi-size', name)}
           aria-valuetext={`${pct(shown)}%`}
           data-testid="mascot-size-slider"
           onPointerDown={() => {

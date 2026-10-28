@@ -9,7 +9,7 @@ export type TtsProvider = 'none' | 'edge' | 'azure' | 'openai';
 
 export interface TtsEngineConfig {
   enabled: boolean;
-  /** 诺米提示语音（预录短句）开关 */
+  /** 角色提示语音（预录短句）开关 */
   promptVoice: boolean;
   provider: TtsProvider;
   /** Edge 音色，如 zh-CN-XiaoyiNeural */

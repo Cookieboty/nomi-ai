@@ -29,6 +29,7 @@ import { CheckCircle2, Cloud, FolderLock, KeyRound, Lock, PlugZap } from 'lucide
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useNomiModelStatus } from '../../hooks/useNomiModelStatus';
+import { characterName, useCharacterName } from '../../services/characterName';
 import { startupClient, type StartupView } from '../../services/startupClient';
 import { ChatBackgroundSettings } from '../SettingsView/ChatBackgroundSettings';
 
@@ -47,14 +48,14 @@ const STEPS = ['welcome', 'profile', 'provider', 'privacy'] as const;
 type Step = (typeof STEPS)[number];
 
 const STEP_TITLE: Record<Step, () => string> = {
-  welcome: () => t('ui.mascot-theme.welcome-title'),
+  welcome: () => t('ui.mascot-theme.welcome-title', characterName()),
   profile: () => t('ui.mascot-theme.about-you'),
   provider: () => t('ui.mascot-theme.connect-an-ai-model'),
   privacy: () => t('ui.mascot-theme.your-data-stays-on-this-computer'),
 };
 /** 看板娘在每一步说的话（最后一步视模型状态而定，见 lineFor） */
 const STEP_LINE: Record<Step, () => string> = {
-  welcome: () => t('ui.mascot-theme.hi-i-m-nomi-your-ai-companion-who'),
+  welcome: () => t('ui.mascot-theme.hi-i-m-nomi-your-ai-companion-who', characterName()),
   profile: () => t('ui.mascot-theme.tell-me-what-you-do-and-i-ll-suggest'),
   provider: () => t('ui.mascot-theme.connect-an-ai-model-and-i-can-help'),
   privacy: () => t('ui.mascot-theme.rest-assured-our-conversations-and-memories-stay-on'),
@@ -77,13 +78,13 @@ const LANGS: { id: LocalePref; label: () => string }[] = [
 const STARTUPS: { id: StartupView; label: () => string; hint: () => string }[] = [
   {
     id: 'mascot',
-    label: () => t('ui.mascot-theme.open-with-nomi'),
-    hint: () => t('ui.mascot-theme.nomi-appears-on-your-desktop-first-click-her'),
+    label: () => t('ui.mascot-theme.open-with-nomi', characterName()),
+    hint: () => t('ui.mascot-theme.nomi-appears-on-your-desktop-first-click-her', characterName()),
   },
   {
     id: 'main',
     label: () => t('ui.mascot-theme.open-with-the-console-main-window'),
-    hint: () => t('ui.mascot-theme.open-the-main-window-right-away-nomi-waits'),
+    hint: () => t('ui.mascot-theme.open-the-main-window-right-away-nomi-waits', characterName()),
   },
 ];
 
@@ -145,6 +146,8 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
   const cardRef = useRef<HTMLDivElement>(null);
   useFocusTrap(cardRef, true);
   const step = STEPS[i]!;
+  // 角色名到达 / 变化时重新渲染（标题与看板娘台词里有它）
+  useCharacterName();
   const model = useNomiModelStatus();
   const modelReady = model === 'ready';
   const [lang, setLang] = useState<LocalePref>(getLocalePref);

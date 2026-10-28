@@ -11,6 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import type { HostPorts } from '@nomi-ai/host-ports';
+import { brand } from '@nomi-ai/types';
 
 import { avatarEmotion, avatarGesture } from '../ai/mascotCommand';
 import type { AppEvents } from '../core/appEvents';
@@ -519,7 +520,7 @@ export class SchedulerService {
         lastAt: now,
       };
       this.save();
-      this.d.desktop.notify({ kind: 'message', title: tr('Nomi'), text });
+      this.d.desktop.notify({ kind: 'message', title: brand.appName, text });
       avatarEmotion(this.d.events, 'happy');
       avatarGesture(this.d.events, 'wave');
       this.broadcast('ai:sched:proactive', { text, at: now });

@@ -1,13 +1,14 @@
 /**
  * 设置 → 语音与屏幕 → 语音：
- * - 「诺米提示语音」开关：提示 / 提醒等短句播放预录的诺米语音（只在中文界面、诺米形象下），立即保存；
- * - 「实时朗读引擎」：没有预录片段的诺米台词用它朗读。Edge 在线朗读（默认，需联网）/ 无 / Azure / OpenAI；
+ * - 「角色提示语音」开关：提示 / 提醒等短句播放当前角色预录的语音（只在中文界面、角色带预录片段时），立即保存；
+ * - 「实时朗读引擎」：没有预录片段的角色台词用它朗读。Edge 在线朗读（默认，需联网）/ 无 / Azure / OpenAI；
  *   Edge 可选中文音色（在线列表，失败用内置几个）、调语速、试听；连续失败时显示白话提示。
  *   Azure / OpenAI 暂未接入，选了保持静默。
  */
 import { Button, FormField, Input, Notice, Select, SettingsGroup, Switch, t } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
+import { characterName } from '../../services/characterName';
 import {
   DEFAULT_TTS_CONFIG,
   TTS_FAILURE_HINT_THRESHOLD,
@@ -99,7 +100,10 @@ export const TtsEngineCard: React.FC = () => {
     setResult(null);
     try {
       previewAudio.current?.pause();
-      const url = await ttsConfigClient.preview(draft(), t('ui.voice-mascot.preview-sentence'));
+      const url = await ttsConfigClient.preview(
+        draft(),
+        t('ui.voice-mascot.preview-sentence', characterName()),
+      );
       if (!url) {
         setResult({ ok: false, text: t('ui.voice-mascot.preview-unavailable') });
         return;

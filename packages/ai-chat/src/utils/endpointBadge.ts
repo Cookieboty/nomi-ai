@@ -1,13 +1,14 @@
 /**
  * 端点徽标：短标签 + 与灵动岛一致的色调（claude 橙、codex 蓝、dsh 蓝紫、grok 黑、nomi 珊瑚）。
  */
+import { brand } from '@nomi-ai/types';
 import { t } from '@nomi-ai/ui';
 
 import type { ConversationBackend } from '../types/chat';
 
 /** 端点名称：统一为 Nomi / Claude Code / Codex / dsh / Grok / Gemini（专有名词不翻译） */
 export const ENDPOINT_NAME: Record<ConversationBackend, string> = {
-  nomi: 'Nomi',
+  nomi: brand.appName,
   claude: 'Claude Code',
   codex: 'Codex',
   dsh: 'dsh',
@@ -18,7 +19,7 @@ export const ENDPOINT_NAME: Record<ConversationBackend, string> = {
 };
 
 export const ENDPOINT_FULL: Record<ConversationBackend, () => string> = {
-  nomi: () => t('Nomi'),
+  nomi: () => brand.appName,
   claude: () => t('Claude Code'),
   codex: () => t('Codex'),
   dsh: () => 'dsh',

@@ -95,6 +95,10 @@ describe.each([
     expect(snap.id).toBe('test-dummy');
     expect(snap.displayName).toEqual({ zh: '小纸', en: 'Pip' });
     expect(Object.keys(snap.locales ?? {})).toEqual(expect.arrayContaining(['zh', 'en']));
+    // 唤醒词跟着角色包（语音的默认唤醒词，§10.1）
+    expect(snap.locales?.zh?.wakePhrase).toBe('你好，小纸');
+    expect(snap.locales?.en?.wakePhrase).toBe('Hi, Pip');
+    expect(packs.wakePhrase()).toBe('你好，小纸');
     expect(JSON.stringify(snap)).not.toMatch(OFFICIAL_NAME);
   });
 

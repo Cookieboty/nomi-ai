@@ -33,7 +33,10 @@ export interface VoiceSettings {
   bargeIn: boolean;
   /** 免按键（VAD）灵敏度 0.3..0.9：越高越不容易误触发 */
   vadThreshold: number;
-  /** 唤醒词（默认关；需本地 whisper.cpp + Silero VAD；从不上传） */
+  /**
+   * 唤醒词（默认关；需本地 whisper.cpp + Silero VAD；从不上传）。`phrase` 为空 = 用当前角色的唤醒词
+   * （角色包 `locales/<lang>.json` 的 `wakePhrase`，见 VoiceDeps.defaultWakePhrase）
+   */
   wakeWord: { enabled: boolean; phrase: string; windowSec: number };
 }
 
@@ -51,8 +54,8 @@ export const DEFAULT_VOICE_SETTINGS: VoiceSettings = {
   autoSend: true,
   bargeIn: true,
   vadThreshold: 0.5,
-  // 唤醒词与语音识别结果比对，是数据不是界面文案
-  wakeWord: { enabled: false, phrase: '你好，诺米', windowSec: 8 }, // i18n-ignore
+  // 唤醒词默认跟着角色走（空 = 当前角色包的 wakePhrase），不写死官方角色名（§10.1）
+  wakeWord: { enabled: false, phrase: '', windowSec: 8 },
 };
 
 const str = (v: unknown, d: string, max = 300) =>
@@ -95,7 +98,7 @@ export function sanitizeVoiceSettings(
     vadThreshold: num(r.vadThreshold, base.vadThreshold, 0.3, 0.9),
     wakeWord: {
       enabled: bool(ww.enabled, base.wakeWord.enabled),
-      phrase: str(ww.phrase, base.wakeWord.phrase, 24) || DEFAULT_VOICE_SETTINGS.wakeWord.phrase,
+      phrase: str(ww.phrase, base.wakeWord.phrase, 24),
       windowSec: num(ww.windowSec, base.wakeWord.windowSec, 3, 30),
     },
   };

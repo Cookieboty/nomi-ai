@@ -26,7 +26,7 @@ import {
   type NativeImage,
 } from 'electron';
 
-import { APP_DISPLAY_NAME } from '../brand';
+import { APP_NAME } from '../brand';
 
 import { assetsDir, iconImage, onTrayIcon } from './appIcon';
 
@@ -132,6 +132,8 @@ export interface TrayModelSource {
 
 export interface TrayManagerOptions {
   providers: ProviderService;
+  /** 当前角色名（人设，当前界面语言）：「<角色名>的动作」子菜单用，不写死官方角色名（§10.1） */
+  characterName?: () => string | undefined;
   models?: TrayModelSource;
   logger: ILoggerService;
   openChat: () => void;
@@ -219,7 +221,7 @@ export class TrayManager {
       this.unsubscribeIcon = onTrayIcon((img) => {
         if (!img.isEmpty() && this.tray && !this.tray.isDestroyed()) this.tray.setImage(img);
       });
-      this.tray.setToolTip(APP_DISPLAY_NAME);
+      this.tray.setToolTip(APP_NAME);
       if (process.platform === 'win32' && this.opts.onActivate) {
         const onActivate = this.opts.onActivate;
         this.tray.on('click', () => {
@@ -293,7 +295,10 @@ export class TrayManager {
       },
       { type: 'separator' },
       {
-        label: t('electron.common.nomi-motions'),
+        label: t(
+          'electron.common.nomi-motions',
+          this.opts.characterName?.() || t('ui.mascot-theme.the-mascot'),
+        ),
         submenu: TRAY_MOTIONS.map(([name, label]) => ({
           label: t(label),
           click: () => avatarGesture(this.opts.events, name),

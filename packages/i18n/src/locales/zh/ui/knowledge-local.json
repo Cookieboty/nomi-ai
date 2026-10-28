@@ -103,7 +103,7 @@
   "ui.knowledge-local.index-text-in-images-png-jpg-webp-bmp": "索引图片中的文字（png / jpg / webp / bmp / tiff）",
   "ui.knowledge-local.index-text-in-png-jpg-webp-bmp-tiff": "索引 png / jpg / webp / bmp / tiff 里的文字。使用 tesseract.js 在本机离线识别，需要先下载对应语言的识别数据；开启后点「更新索引」。",
   "ui.knowledge-local.installed": "已安装",
-  "ui.knowledge-local.interrupt-nomi-when-you-start-speaking": "开口即打断 Nomi 说话",
+  "ui.knowledge-local.interrupt-nomi-when-you-start-speaking": "开口即打断朗读",
   "ui.knowledge-local.introduce-yourself-in-your-own-words-what-to": "用你自己的话介绍自己：称呼、工作、习惯、希望助手怎样回答。每次对话都会参考（保存在 persona.md，可用任何编辑器修改）。",
   "ui.knowledge-local.is-ready": "{0} 已就绪",
   "ui.knowledge-local.items": "{0} 条",
@@ -256,7 +256,7 @@
   "ui.knowledge-local.when-off-the-text-goes-into-the-input": "关闭则填入输入框，便于修改。",
   "ui.knowledge-local.when-summarizing-long-term-facts-you-stated-explicitly": "整理对话时会自动提取你明确说过的长期信息（称呼、偏好、目标…）。也可以直接对 Nomi 说「记住…」。",
   "ui.knowledge-local.when-the-window-closes-a-new-chat-starts": "关闭窗口、新建对话或每 10 条消息时",
-  "ui.knowledge-local.while-nomi-is-reading-aloud-speaking-stops-it": "Nomi 朗读时你一开口，朗读就停下（barge-in）。",
+  "ui.knowledge-local.while-nomi-is-reading-aloud-speaking-stops-it": "朗读时你一开口，朗读就停下（barge-in）。",
   "ui.knowledge-local.you-re-asked-the-first-time-file-contents": "第一次把文件内容发给某个云端模型时会弹出提示。",
   "ui.knowledge-local.your-data-stays-on-this-device": "数据都在本机"
 }

@@ -103,7 +103,7 @@
   "ui.knowledge-local.index-text-in-images-png-jpg-webp-bmp": "Index text in images (png / jpg / webp / bmp / tiff)",
   "ui.knowledge-local.index-text-in-png-jpg-webp-bmp-tiff": "Index text in png / jpg / webp / bmp / tiff files. Recognition runs offline on this device with tesseract.js; download the language data first, then click \"Update index\" after turning it on.",
   "ui.knowledge-local.installed": "Installed",
-  "ui.knowledge-local.interrupt-nomi-when-you-start-speaking": "Interrupt Nomi when you start speaking",
+  "ui.knowledge-local.interrupt-nomi-when-you-start-speaking": "Interrupt read-aloud when you start speaking",
   "ui.knowledge-local.introduce-yourself-in-your-own-words-what-to": "Introduce yourself in your own words: what to call you, your work, habits, how you'd like answers. Used in every conversation (saved in persona.md, editable in any editor).",
   "ui.knowledge-local.is-ready": "{0} is ready",
   "ui.knowledge-local.items": "{0} items",
@@ -256,7 +256,7 @@
   "ui.knowledge-local.when-off-the-text-goes-into-the-input": "When off, the text goes into the input box so you can edit it.",
   "ui.knowledge-local.when-summarizing-long-term-facts-you-stated-explicitly": "When summarizing, long-term facts you stated explicitly (name, preferences, goals…) are extracted automatically. You can also tell Nomi “Remember…”.",
   "ui.knowledge-local.when-the-window-closes-a-new-chat-starts": "When the window closes, a new chat starts, or every 10 messages",
-  "ui.knowledge-local.while-nomi-is-reading-aloud-speaking-stops-it": "While Nomi is reading aloud, speaking stops it (barge-in).",
+  "ui.knowledge-local.while-nomi-is-reading-aloud-speaking-stops-it": "While reading aloud, speaking stops it (barge-in).",
   "ui.knowledge-local.you-re-asked-the-first-time-file-contents": "You're asked the first time file contents are sent to a cloud model.",
   "ui.knowledge-local.your-data-stays-on-this-device": "Your data stays on this device"
 }

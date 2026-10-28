@@ -41,7 +41,7 @@ type OverrideMap = Record<string, ModelVoiceConfig>;
 let activeModelName: string | null = null;
 let activeModelConfig: ModelConfig | undefined;
 
-/** 当前看板娘模型名（诺米提示语音据此判断是否适用） */
+/** 当前看板娘模型名（角色提示语音据此判断是否适用） */
 export function getActiveModelName(): string | null {
   return activeModelName;
 }
@@ -149,7 +149,7 @@ export function speakForActiveCharacter(key: string, opts: SpeakSoftOptions = {}
     return false;
   }
 
-  // 顺序：诺米预录片段 → 已配置的实时朗读引擎 → 静默（只剩气泡）
+  // 顺序：角色预录片段 → 已配置的实时朗读引擎 → 静默（只剩气泡）
   void (async () => {
     try {
       const clip = await playPromptClip(key, {

@@ -7,6 +7,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { brand } from '@nomi-ai/types';
+
 import { avatarGesture } from '../ai/mascotCommand';
 import type { AppEvents } from '../core/appEvents';
 import type { DesktopNotice, DesktopService } from '../desktop/DesktopService';
@@ -1048,7 +1050,7 @@ export class AgentProgressService {
 }
 
 const ENDPOINT_LABEL: Record<WatchedTab['backend'], string> = {
-  nomi: 'Nomi',
+  nomi: brand.appName,
   claude: 'Claude Code',
   codex: 'Codex',
   dsh: 'dsh',

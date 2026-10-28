@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import type { BuiltinCliId } from '@nomi-ai/cli-plugins';
+import { brand } from '@nomi-ai/types';
 
 import { officialAccountEnv } from '../cli/accounts/homes';
 import { withCliPath } from '../cli/detect';
@@ -263,7 +264,7 @@ export interface SessionUsage {
 }
 
 const SOURCE_LABEL: Record<string, string> = {
-  nomi: 'Nomi',
+  nomi: brand.appName,
   claude: 'Claude Code',
   codex: 'Codex',
   dsh: 'dsh',
@@ -760,7 +761,7 @@ export class UsageService {
       { id: 'codex', label: 'Codex' },
       { id: 'dsh', label: 'dsh' },
       { id: 'grok', label: 'Grok' },
-      { id: 'nomi', label: 'Nomi' },
+      { id: 'nomi', label: brand.appName },
     ]);
   }
 

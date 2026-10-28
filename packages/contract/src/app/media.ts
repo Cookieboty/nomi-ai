@@ -194,7 +194,7 @@ export const mediaProcedures = {
     output: TtsTestResult,
     surfaces: ['mascot'],
   },
-  /** 诺米提示语音开关（默认开） */
+  /** 角色提示语音开关（默认开） */
   'tts.promptVoice': { kind: 'query', input: z.void(), output: z.boolean(), surfaces: ['mascot'] },
 
   // ── 桌面能力（ai:desktop:*，两个窗口都有）──────────────────────────────

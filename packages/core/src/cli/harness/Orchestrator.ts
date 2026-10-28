@@ -51,7 +51,7 @@ import {
   type TurnResult,
 } from '@nomi-ai/cli-sdk';
 import type { HostPorts } from '@nomi-ai/host-ports';
-import type { QualityOutcome, QualityRecord } from '@nomi-ai/types';
+import { brand, type QualityOutcome, type QualityRecord } from '@nomi-ai/types';
 
 import type { AppEvents } from '../../core/appEvents';
 import { t } from '../../i18n';
@@ -271,7 +271,7 @@ function isBackend(v: unknown): v is HarnessBackend {
 
 /** 标签默认标题：内置插件清单里的名称 */
 const BACKEND_TITLE: Record<HarnessBackend, string> = {
-  nomi: 'Nomi',
+  nomi: brand.appName,
   ...(Object.fromEntries(
     BUILTIN_CLI_IDS.map((id) => [id, BUILTIN_MANIFESTS[id].displayName]),
   ) as Record<BuiltinBackend, string>),
