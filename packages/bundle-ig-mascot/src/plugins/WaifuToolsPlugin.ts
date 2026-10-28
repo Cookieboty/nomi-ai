@@ -37,7 +37,7 @@ export function createPlayMotionTool(
   return {
     name: 'avatar_gesture',
     description:
-      '让 Nomi 做一个动作。group 为动作名（均为中文菜单同名动作）：' +
+      '让桌面角色做一个动作。group 为动作名（均为中文菜单同名动作）：' +
       'wave（挥手）、hello（打招呼）、nod（点头）、shake_head（摇头）、bow（鞠躬）、salute（敬礼）、' +
       'think（托腮思考）、explain（讲解）、eureka（灵光一闪）、puzzled（疑惑歪头）、listen（倾听）、' +
       'look_around（张望）、look_lr（左顾右盼）、peek（偷看）、heart（比心）、blow_kiss（送飞吻）、' +
@@ -63,7 +63,7 @@ export function createSetExpressionTool(
   return {
     name: 'avatar_emotion',
     description:
-      '切换 Nomi 表情：happy / angry / sad / relaxed / surprised / neutral（数秒后自动恢复）。',
+      '切换桌面角色的表情：happy / angry / sad / relaxed / surprised / neutral（数秒后自动恢复）。',
     input: setExpressionInputSchema,
     dangerous: opts.dangerous,
     async execute(input: SetExpressionInput) {

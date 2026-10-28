@@ -14,6 +14,8 @@ import {
   WaifuAgentPresetPlugin,
 } from '../../src/plugins/WaifuAgentPresetPlugin';
 import {
+  createPlayMotionTool,
+  createSetExpressionTool,
   playMotionInputSchema,
   setExpressionInputSchema,
   WaifuToolsPlugin,
@@ -72,6 +74,16 @@ describe('WaifuToolsPlugin schema', () => {
   it('avatar_emotion validates non-empty name', () => {
     expect(() => setExpressionInputSchema.parse({ name: '' })).toThrow();
     expect(setExpressionInputSchema.parse({ name: 'smile' })).toEqual({ name: 'smile' });
+  });
+
+  it('tool descriptions do not hard-code a character name', () => {
+    const avatar = {} as never;
+    for (const tool of [
+      createPlayMotionTool(avatar, { dangerous: false }),
+      createSetExpressionTool(avatar, { dangerous: false }),
+    ]) {
+      expect(tool.description).not.toMatch(/Nomi|诺米/);
+    }
   });
 });
 
