@@ -187,6 +187,58 @@ export function sessionModelGroups(
   });
 }
 
+/** 模型按钮里「切到默认来源」的一组（标签来源与「新标签默认用」不同时） */
+export interface SourceSwitch {
+  target: TabSource;
+  /** 分组标题：「默认 · 官方账号」/「默认供应商 · B」 */
+  title: string;
+  /** 官方：一项（切到官方账号）；第三方：默认供应商的全部模型（model = `供应商/模型`） */
+  items: Array<{ id: string; label: string; model?: string }>;
+}
+
+/**
+ * 标签的来源（官方 / 第三方）与这个编程助手的「新标签默认用」不同时，模型按钮里多一组，
+ * 一步切到默认来源：默认是官方 → 「切换到官方账号」；默认是第三方 → 默认供应商的全部模型。
+ * 来源相同（或网关状态还没到、外部 CLI）返回 null。
+ */
+export function defaultSourceSwitch(
+  tab: Pick<HarnessTabMeta, 'backend' | 'source'>,
+  s: GatewayState | null,
+): SourceSwitch | null {
+  const kind = tab.backend;
+  if (!isCliKind(kind)) return null;
+  const client = s?.clients[kind];
+  if (!client) return null;
+  const main = client.models.main ?? null;
+  const choices = codingModelChoices(s);
+  const target: TabSource =
+    client.newTabSource === 'thirdParty' && choices.some((m) => m.ref === main)
+      ? 'thirdParty'
+      : 'official';
+  if (target === tabSourceOf(tab)) return null;
+  if (target === 'official')
+    return {
+      target,
+      title: t('ui.models.default-official'),
+      items: [
+        {
+          id: 'official',
+          label: hasOfficialAccount(kind)
+            ? t('ui.models.switch-to-official')
+            : t('ui.models.dsh-built-in-config'),
+        },
+      ],
+    };
+  const pid = providerOfRef(main)!;
+  return {
+    target,
+    title: t('ui.models.default-provider-named', providerLabel(s, pid)),
+    items: choices
+      .filter((m) => m.providerId === pid)
+      .map((m) => ({ id: m.ref, label: m.label.slice(m.provider.length + 3), model: m.ref })),
+  };
+}
+
 /** `供应商/模型` →「供应商 / 模型」；供应商不在网关里时原样返回 */
 export function refSlashLabel(s: GatewayState | null, ref: string): string {
   const r = splitRef(ref);

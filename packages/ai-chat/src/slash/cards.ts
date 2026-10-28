@@ -7,6 +7,7 @@ import { t } from '@nomi-ai/ui';
 import {
   codingModelChoices,
   refSlashLabel,
+  sessionRefOf,
   tabSourceOf,
   thirdPartyRefOf,
 } from '../services/cliSource';
@@ -320,6 +321,11 @@ async function tabModelCard(
   tabSource: TabSource,
   /** 另一种来源的候选（官方标签列第三方模型，第三方标签列「官方」） */
   others: ModelChoice[],
+  /**
+   * 聊过的第三方会话：不列「默认模型」——清掉选择回到的是会话上次用的模型，不是「模型」页的默认
+   * （current 已经是实际下发的那个）
+   */
+  sessionStarted = false,
 ): Promise<SlashCardInput> {
   const thirdParty = tabSource === 'thirdParty';
   const source =
@@ -328,15 +334,19 @@ async function tabModelCard(
   const defaultLabel = catalog.defaultModel?.label ?? catalog.defaultModel?.id;
   const pick = (model: string) => ctx.actions.setTabModel(model, tabSource);
   const choices: ModelChoice[] = [
-    {
-      label: defaultLabel
-        ? t('ui.slash-commands.default-model', defaultLabel)
-        : t('ui.providers-schedule.default-model'),
-      provider: source,
-      model: '',
-      active: !current,
-      run: () => pick(''),
-    },
+    ...(sessionStarted
+      ? []
+      : [
+          {
+            label: defaultLabel
+              ? t('ui.slash-commands.default-model', defaultLabel)
+              : t('ui.providers-schedule.default-model'),
+            provider: source,
+            model: '',
+            active: !current,
+            run: () => pick(''),
+          },
+        ]),
     ...catalog.models.map((m) => ({
       label: m.label ?? m.id,
       provider: source,
@@ -434,14 +444,19 @@ export async function modelCard(
     const tm = await ctx.actions.tabModels();
     const official = officialChoice(ctx, data, tm.source);
     const third = thirdPartyChoices(ctx, data, tm.source);
+    const session =
+      tm.source === 'thirdParty'
+        ? sessionRefOf({ lastServedRef: tm.lastServedRef }, data.nomiGateway)
+        : null;
     if (tm.catalog)
       return tabModelCard(
         ctx,
         tm.catalog,
-        tm.current,
+        tm.current ?? session,
         args,
         tm.source,
         tm.source === 'thirdParty' ? [official] : third,
+        !!session,
       );
     // 不能按标签切模型的 CLI（如 Gemini / dsh 官方）：只列来源
     choices = [official, ...third];

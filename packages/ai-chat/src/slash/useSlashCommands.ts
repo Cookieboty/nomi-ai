@@ -271,7 +271,12 @@ export function useSlashCommands(p: SlashHookParams): SlashHook {
             source === 'thirdParty' ? { source } : {},
           )
           .catch(() => null);
-        return { catalog, current: tab?.modelOverride?.trim() || null, source };
+        return {
+          catalog,
+          current: tab?.modelOverride?.trim() || null,
+          source,
+          ...(tab?.lastServedRef ? { lastServedRef: tab.lastServedRef } : {}),
+        };
       },
       setTabModel: async (model, expectSource) => {
         if (!target.tabId) throw new Error(t('ui.slash-commands.the-session-was-closed-or-reset'));

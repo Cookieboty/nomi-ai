@@ -167,7 +167,7 @@
   "ui.models.third-party-models": "Third-party models",
   "ui.models.third-party-no-model-set": "Third-party · no model set",
   "ui.models.third-party-providers": "Third-party providers",
-  "ui.models.third-party-reasoning-can-t-be-sent-to": "Third-party reasoning can't be sent to the official API, so this will continue in a new session that carries the context. The original session is kept. Continue?",
+  "ui.models.third-party-reasoning-can-t-be-sent-to": "This tab and its conversation stay as they are. Third-party reasoning can't be sent to the official API, so the CLI continues in a fresh session that carries the conversation so far. Continue?",
   "ui.models.this-computer-s-sign-in": "This computer’s sign-in",
   "ui.models.this-name-looks-like-a-key-the-name": "This name looks like a key. The name is only a label; it doesn't change the key used for requests.",
   "ui.models.this-provider-comes-from-environment-variables-and-is": "This provider comes from environment variables and is read-only. To change it, edit the environment variables and restart Nomi.",
@@ -186,5 +186,7 @@
   "ui.models.when-this-provider-s-models-all-fail-use": "When this provider's models all fail, use the models below in order.",
   "ui.models.without-nomi": "Without Nomi",
   "ui.models.this-chat-s-provider": "This chat's provider · {0}",
-  "ui.models.default-provider-named": "Default provider · {0}"
+  "ui.models.default-provider-named": "Default provider · {0}",
+  "ui.models.default-official": "Default · Official account",
+  "ui.models.switch-to-official": "Switch to the official account"
 }

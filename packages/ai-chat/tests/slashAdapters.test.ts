@@ -402,6 +402,28 @@ describe('/model', () => {
     expect(actions.setTabModel).not.toHaveBeenCalled();
   });
 
+  it('聊过的第三方会话：不列「默认模型」，勾在会话上次用的模型上', async () => {
+    const { ctx, commands, actions } = makeCtx('codex', { data: { nomiGateway: gateway() } });
+    actions.tabModels.mockResolvedValue({
+      catalog: {
+        backend: 'codex',
+        provider: { id: 'gateway', name: '第三方模型' },
+        defaultModel: { id: 'a/gpt-5', label: 'OpenAI / gpt-5', reasoning: false, efforts: [] },
+        models: [
+          { id: 'a/gpt-5', label: 'OpenAI / gpt-5', reasoning: false, efforts: [] },
+          { id: 'a/gpt-5-mini', label: 'OpenAI / gpt-5-mini', reasoning: false, efforts: [] },
+        ],
+      } as BackendModelCatalog,
+      current: null,
+      source: 'thirdParty',
+      lastServedRef: 'a/gpt-5-mini',
+    });
+    const c = cardOf(await executeSlash('/model', commands, ctx));
+    if (c.kind !== 'list') throw new Error('list');
+    expect(c.items.map((i) => i.label)).toEqual(['OpenAI / gpt-5', 'OpenAI / gpt-5-mini', '官方']);
+    expect(c.items.filter((i) => i.active).map((i) => i.label)).toEqual(['OpenAI / gpt-5-mini']);
+  });
+
   it('不能按标签切模型的 CLI：列「官方」+ 网关的第三方模型，标出当前来源', async () => {
     const { r } = await run('claude', '/model', { data: { nomiGateway: gateway() } });
     const c = cardOf(r);

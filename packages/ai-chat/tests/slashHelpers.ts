@@ -60,6 +60,7 @@ export function makeCtx(
       catalog: null as BackendModelCatalog | null,
       current: null as string | null,
       source: 'official' as TabSource,
+      lastServedRef: undefined as string | undefined,
     })),
     setTabModel: vi.fn(async () => undefined),
     gitDiff: vi.fn(async () => ({ ok: true, status: '', stat: '', diff: '', truncated: false })),

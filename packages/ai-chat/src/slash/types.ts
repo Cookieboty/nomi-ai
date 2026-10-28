@@ -216,6 +216,8 @@ export interface SlashActions {
     catalog: BackendModelCatalog | null;
     current: string | null;
     source: TabSource;
+    /** 第三方会话上次用的模型（主进程记的；没手动选模型时下发的就是它） */
+    lastServedRef?: string;
   }>;
   /** CLI 标签：切换这个标签的模型（空串 = 默认模型），下一条消息起生效 */
   setTabModel: (model: string, expectSource?: TabSource) => Promise<void>;

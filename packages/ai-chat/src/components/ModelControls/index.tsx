@@ -27,12 +27,15 @@ import {
   type CliAccount,
 } from '../../services/cliAccountClient';
 import {
+  defaultSourceSwitch,
   scopeCatalogToProvider,
   scopeCatalogToProviders,
   sessionModelGroups,
+  switchTabSource,
   tabSourceOf,
   thirdPartyRefOf,
   type SessionModelGroup,
+  type SourceSwitch,
 } from '../../services/cliSource';
 import { gatewayClient, gatewayClientAvailable } from '../../services/gatewayClient';
 import {
@@ -336,7 +339,18 @@ const ModelChip: React.FC<{
   sessionRef?: string | null;
   /** 列了几个供应商时的分组（原来的供应商 / 默认供应商）；不到两组不分 */
   groups?: SessionModelGroup[] | null;
-}> = ({ tab, catalog, refreshing, onRefresh, long = null, sessionRef = null, groups = null }) => {
+  /** 标签来源与「新标签默认用」不同时，切到默认来源的一组（官方账号 / 默认供应商的模型） */
+  sourceSwitch?: SourceSwitch | null;
+}> = ({
+  tab,
+  catalog,
+  refreshing,
+  onRefresh,
+  long = null,
+  sessionRef = null,
+  groups = null,
+  sourceSwitch = null,
+}) => {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<'effort' | 'model' | 'account'>('effort');
   const [accounts, setAccounts] = useState<CliAccount[]>([]);
@@ -416,17 +430,39 @@ const ModelChip: React.FC<{
         defaultAccount?.label ?? t('ui.models.this-computer-s-sign-in'),
       );
 
+  // 第三方标签可切到官方账号时，也读账号列表：「切换到官方账号」后面写上默认账号
+  const listKind =
+    accountKind ??
+    (sourceSwitch?.target === 'official' && ACCOUNT_KINDS.includes(tab.backend as AccountKind)
+      ? (tab.backend as AccountKind)
+      : null);
   useEffect(() => {
-    if (!open || !accountKind) return;
+    if (!open || !listKind) return;
     let alive = true;
     void cliAccountClient
-      .list(accountKind)
+      .list(listKind)
       .then((l) => alive && setAccounts(l))
       .catch(() => undefined);
     return () => {
       alive = false;
     };
-  }, [open, accountKind]);
+  }, [open, listKind]);
+
+  /**
+   * 切到默认来源（主进程 setTabSource）：官方 → 第三方在原会话上续接；第三方 → 官方时第三方的推理内容
+   * 不能发给官方接口，CLI 换一个会话、带上现在的对话作前文（标签和对话都不变，已有对话时先确认）
+   */
+  const pickSource = (item: SourceSwitch['items'][number]) => {
+    if (!sourceSwitch) return;
+    setOpen(false);
+    setQuery('');
+    void run(() =>
+      switchTabSource(tab, sourceSwitch.target, {
+        model: item.model,
+        hasMessages: !!tab.cliSessionId || (tab.carriedMessages ?? 0) > 0,
+      }),
+    );
+  };
 
   const pickAccount = (id: string | null) => {
     setView('effort');
@@ -466,6 +502,9 @@ const ModelChip: React.FC<{
   };
 
   const q = query.trim().toLowerCase();
+  const switchItems = sourceSwitch
+    ? sourceSwitch.items.filter((i) => !q || i.label.toLowerCase().includes(q))
+    : [];
   const searchable = catalog.models.length > MODEL_SEARCH_THRESHOLD;
   const shownModels = q
     ? catalog.models.filter((m) =>
@@ -843,6 +882,33 @@ const ModelChip: React.FC<{
                     <Icon icon={Check} size={14} />
                   </button>
                 )}
+                {switchItems.length > 0 && (
+                  <>
+                    <div
+                      className={styles.groupLabel}
+                      role="presentation"
+                      data-testid="model-group-switch"
+                    >
+                      {sourceSwitch!.title}
+                    </div>
+                    {switchItems.map((i) => (
+                      <button
+                        key={i.id}
+                        type="button"
+                        role="option"
+                        aria-selected={false}
+                        className={styles.item}
+                        data-testid={`model-switch-${i.id}`}
+                        onClick={() => pickSource(i)}
+                      >
+                        <span className={styles.itemLabel}>{i.label}</span>
+                        {sourceSwitch!.target === 'official' && defaultAccount && (
+                          <span className={styles.itemHint}>{defaultAccount.label}</span>
+                        )}
+                      </button>
+                    ))}
+                  </>
+                )}
               </div>
             </>
           )}
@@ -898,6 +964,7 @@ export const ModelControls: React.FC<{ tab: HarnessTabMeta }> = ({ tab }) => {
     () => (source === 'thirdParty' ? sessionModelGroups(tab, tab.backend, gateway) : null),
     [source, tab, gateway],
   );
+  const sourceSwitch = useMemo(() => defaultSourceSwitch(tab, gateway), [tab, gateway]);
   // 第三方：只列当前供应商（或上面几组）的模型
   const scoped = useMemo(
     () =>
@@ -923,6 +990,7 @@ export const ModelControls: React.FC<{ tab: HarnessTabMeta }> = ({ tab }) => {
       long={longContextFor(tab, gateway)}
       sessionRef={groups ? thirdRef : null}
       groups={groups}
+      sourceSwitch={sourceSwitch}
     />
   );
 };

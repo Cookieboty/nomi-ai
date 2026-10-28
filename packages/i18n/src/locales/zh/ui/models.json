@@ -167,7 +167,7 @@
   "ui.models.third-party-models": "第三方模型",
   "ui.models.third-party-no-model-set": "第三方 · 未设置模型",
   "ui.models.third-party-providers": "第三方供应商",
-  "ui.models.third-party-reasoning-can-t-be-sent-to": "第三方的推理内容不能发给官方接口，将用带上下文的新会话继续，原会话保留。继续吗？",
+  "ui.models.third-party-reasoning-can-t-be-sent-to": "这个标签和里面的对话都会保留。第三方模型的推理内容不能发给官方接口，CLI 会换一个会话，带上现在的对话接着聊。继续吗？",
   "ui.models.this-computer-s-sign-in": "本机登录",
   "ui.models.this-name-looks-like-a-key-the-name": "名称看起来像一个 Key。名称只是备注，不会改变请求用的 Key。",
   "ui.models.this-provider-comes-from-environment-variables-and-is": "这个供应商来自环境变量，只能查看；要修改请改环境变量后重启 Nomi。",
@@ -186,5 +186,7 @@
   "ui.models.when-this-provider-s-models-all-fail-use": "这个供应商的模型都失败时，按顺序改用下面的模型。",
   "ui.models.without-nomi": "不经 Nomi",
   "ui.models.this-chat-s-provider": "本会话原来的供应商 · {0}",
-  "ui.models.default-provider-named": "默认供应商 · {0}"
+  "ui.models.default-provider-named": "默认供应商 · {0}",
+  "ui.models.default-official": "默认 · 官方账号",
+  "ui.models.switch-to-official": "切换到官方账号"
 }

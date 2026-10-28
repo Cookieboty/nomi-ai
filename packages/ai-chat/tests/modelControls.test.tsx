@@ -661,5 +661,41 @@ describe('ModelControls（会话的供应商分组）', () => {
       expect(within(m2).getByTestId('model-default')).toBeTruthy();
       expect(within(m2).queryByTestId('model-old/glm-a')).toBeNull();
     });
+    it('默认是官方账号：第三方会话的模型列表最后有「切换到官方账号」，选中即切换来源', async () => {
+      const { r, invoke } = await open({
+        ...baseTab,
+        source: 'thirdParty',
+        lastServedRef: 'old/glm-b',
+      });
+      fireEvent.click(await r.findByTestId('model-chip'));
+      const menu = await r.findByTestId('model-menu');
+      expect(within(menu).getByTestId('model-group-switch').textContent).toBe('默认 · 官方账号');
+      fireEvent.click(within(menu).getByTestId('model-switch-official'));
+      await waitFor(() =>
+        expect(invoke).toHaveBeenCalledWith('ai:harness:tab-source', 'cx', 'official'),
+      );
+    });
+
+    it('默认是第三方供应商：官方标签的模型页附上默认供应商的全部模型，选中即切到第三方', async () => {
+      const gw = {
+        ...gatewayState,
+        clients: { codex: { newTabSource: 'thirdParty', models: { main: 'neu/ds-x' } } },
+      };
+      const { r, invoke } = await open({ ...baseTab, source: 'official' }, gw, catalog);
+      fireEvent.click(await r.findByTestId('model-chip'));
+      fireEvent.click(await r.findByTestId('model-open'));
+      const menu = await r.findByTestId('model-menu');
+      expect(within(menu).getByTestId('model-group-switch').textContent).toBe('默认供应商 · NewCo');
+      expect(within(menu).queryByTestId('model-switch-old/glm-a')).toBeNull();
+      fireEvent.click(within(menu).getByTestId('model-switch-neu/ds-x'));
+      await waitFor(() =>
+        expect(invoke).toHaveBeenCalledWith(
+          'ai:harness:tab-source',
+          'cx',
+          'thirdParty',
+          'neu/ds-x',
+        ),
+      );
+    });
   });
 });
