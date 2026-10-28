@@ -113,6 +113,7 @@ export function featureHost(o: FeatureHostOptions = {}): FeatureHost {
       showItemInFolder: (target) => {
         calls.showItemInFolder.push(target);
       },
+      trashItem: async () => undefined,
     },
     power: {
       idleSeconds: () => o.idleSeconds ?? 0,

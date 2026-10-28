@@ -43,6 +43,7 @@ jest.mock('electron', () => ({
     openExternal: jest.fn(async () => undefined),
     openPath: jest.fn(async () => ''),
     showItemInFolder: jest.fn(),
+    trashItem: jest.fn(async () => undefined),
   },
   safeStorage: {
     isEncryptionAvailable: jest.fn(() => true),
@@ -231,6 +232,8 @@ describe('createElectronPorts', () => {
     await ports.shell.openExternal('https://x');
     expect(await ports.shell.openPath('/f')).toBe('');
     ports.shell.showItemInFolder('/f');
+    await ports.shell.trashItem('/old');
+    expect(shell.trashItem).toHaveBeenCalledWith('/old');
     expect(shell.openExternal).toHaveBeenCalledWith('https://x');
     expect(shell.openPath).toHaveBeenCalledWith('/f');
     expect(shell.showItemInFolder).toHaveBeenCalledWith('/f');

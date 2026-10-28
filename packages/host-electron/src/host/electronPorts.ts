@@ -271,6 +271,7 @@ export function createElectronPorts(deps: ElectronPortsDeps): HostPorts {
       openExternal: (url) => shell.openExternal(url),
       openPath: (target) => shell.openPath(target),
       showItemInFolder: (target) => shell.showItemInFolder(target),
+      trashItem: (target) => shell.trashItem(target),
     },
 
     clipboard: {

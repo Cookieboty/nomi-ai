@@ -123,11 +123,13 @@ describe('shell', () => {
     expect(await ports.shell.openPath('/ok')).toBe('');
     expect(await ports.shell.openPath('/missing')).toBe('not found');
     ports.shell.showItemInFolder('/ok/file');
+    await ports.shell.trashItem('/ok/old');
     expect(control.shellCalls).toEqual([
       { method: 'openExternal', target: 'https://example.com' },
       { method: 'openPath', target: '/ok' },
       { method: 'openPath', target: '/missing' },
       { method: 'showItemInFolder', target: '/ok/file' },
+      { method: 'trashItem', target: '/ok/old' },
     ]);
   });
 });

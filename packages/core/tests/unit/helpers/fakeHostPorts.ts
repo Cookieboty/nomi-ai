@@ -106,6 +106,7 @@ export function fakeHostPorts(o: FakeHostPortsOptions = {}): FakeHostPorts {
         return '';
       },
       showItemInFolder: () => undefined,
+      trashItem: async () => undefined,
     },
     clipboard: {
       readText: async () => clip,

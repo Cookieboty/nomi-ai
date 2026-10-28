@@ -58,7 +58,8 @@ export type DialogCall =
 export type ShellCall =
   | { method: 'openExternal'; target: string }
   | { method: 'openPath'; target: string }
-  | { method: 'showItemInFolder'; target: string };
+  | { method: 'showItemInFolder'; target: string }
+  | { method: 'trashItem'; target: string };
 
 export type WindowCall =
   | { method: 'open'; surface: Surface; intent?: WindowIntent }
@@ -307,6 +308,10 @@ export function createNodeHostPorts(options: NodeHostPortsOptions = {}): NodeHos
       },
       showItemInFolder(target) {
         shellCalls.push({ method: 'showItemInFolder', target });
+      },
+      // 只记录，不动文件（与其它 shell 调用一致）
+      async trashItem(target) {
+        shellCalls.push({ method: 'trashItem', target });
       },
     },
     clipboard: {

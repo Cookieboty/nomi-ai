@@ -131,7 +131,12 @@ describe('AccountLogin（在账号目录里走 CLI 自己的登录，§5.10）',
       },
       logger: { warn() {} },
       ports: {
-        shell: { openExternal: jest.fn(), openPath: jest.fn(), showItemInFolder: jest.fn() },
+        shell: {
+          openExternal: jest.fn(),
+          openPath: jest.fn(),
+          showItemInFolder: jest.fn(),
+          trashItem: jest.fn(),
+        },
       },
       ...(opts.timeoutMs ? { timeoutMs: opts.timeoutMs } : {}),
     });

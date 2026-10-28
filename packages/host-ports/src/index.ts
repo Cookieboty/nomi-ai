@@ -156,6 +156,8 @@ export interface ShellPort {
   openPath(path: string): Promise<string>;
   /** 在文件管理器中定位 */
   showItemInFolder(path: string): void;
+  /** 把文件 / 目录移到系统废纸篓（删除历史会话等可恢复的删除） */
+  trashItem(path: string): Promise<void>;
 }
 
 // ───────────────────────── clipboard ─────────────────────────
