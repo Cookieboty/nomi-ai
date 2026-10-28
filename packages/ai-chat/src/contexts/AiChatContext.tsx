@@ -75,7 +75,11 @@ export type AiChatAction =
 const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
-const buildInitialState = (): AiChatState => ({
+/**
+ * 首屏状态。有外层 <AIProvider> 的 client 时直接绑定它：不再另建一个自带 ClientAIClient 的
+ * IPCClient（那会在同一窗口多开一个契约会话，见 contract 的 maxSessionsPerSender）。
+ */
+const buildInitialState = (client?: ClientAIClient): AiChatState => ({
   messages: [],
   config: {
     theme: 'light',
@@ -86,7 +90,7 @@ const buildInitialState = (): AiChatState => ({
   },
   isLoading: false,
   streaming: false,
-  ipcClient: createIPCClient(),
+  ipcClient: createIPCClient(client),
 });
 
 /** Every field of `patch` is already identical on `cur`. */
@@ -221,7 +225,9 @@ interface ActiveStream {
 }
 
 export function AiChatContextProvider({ children, client }: AiChatContextProviderProps) {
-  const [state, dispatch] = useReducer(aiChatReducer, undefined, buildInitialState);
+  const [state, dispatch] = useReducer(aiChatReducer, client, buildInitialState);
+  /** 首屏绑定的 client 与 IPCClient：client 未变时复用，不重复构造 */
+  const [initial] = useState(() => ({ client, ipcClient: state.ipcClient }));
   // actions 保持引用稳定（useCallback）：读最新 state 一律走 ref，避免每次渲染重建 value
   const stateRef = useRef(state);
   useLayoutEffect(() => {
@@ -231,10 +237,11 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
   /** 历史加载序号：切换会话时后发起的加载为准，先发起的晚到结果直接丢弃 */
   const historySeq = useRef(0);
 
-  // 当外部提供 ClientAIClient 时，构造一个绑定该 client 的 IPCClient；
+  // 当外部提供 ClientAIClient 时，使用绑定该 client 的 IPCClient（首屏已绑定的直接复用）；
   // 否则沿用初始化时通过工厂函数产出的实例（可能是 Mock）。
   const ipcClient = useMemo(() => {
     if (!client) return state.ipcClient;
+    if (client === initial.client) return initial.ipcClient;
     return createIPCClient(client);
     // 只在 client 引用变化时重新绑定；state.ipcClient 用作首屏兜底。
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -101,15 +101,16 @@ export interface IpcServerOptions {
   frameChannel?: string;
   logger?: ContractLogger;
   /**
-   * 单个发送方（senderId）同时保留的会话上限（默认 4）。超出时关闭最早建立的会话（它进行中的
-   * 调用被取消、订阅被移除）。这只是兜底：宿主仍须在导航 / 销毁时调用 `disconnect(senderId)`。
+   * 单个发送方（senderId）同时保留的会话上限（默认 16）。超出时关闭最早建立的会话（它进行中的
+   * 调用被取消、订阅被移除），并以 warn 记录。这只是兜底：宿主仍须在导航 / 销毁时调用
+   * `disconnect(senderId)`。一个窗口里可能有多个客户端（各自一个会话），上限要留足余量。
    */
   maxSessionsPerSender?: number;
   /** 见 `ServerSessionOptions.strictSerialize`（默认：非 production 时开启） */
   strictSerialize?: boolean;
 }
 
-export const DEFAULT_MAX_SESSIONS_PER_SENDER = 4;
+export const DEFAULT_MAX_SESSIONS_PER_SENDER = 16;
 
 export interface IpcServerTransport extends ServerTransport {
   /**
@@ -145,6 +146,7 @@ export function createIpcServerTransport(
       if (!victim) break;
       options.logger?.warn('[contract] too many IPC sessions for one sender; closing the oldest', {
         senderId,
+        limit: maxPerSender,
       });
       victim.session.close(
         new ContractError('TRANSPORT', 'Session evicted: too many sessions for this sender'),

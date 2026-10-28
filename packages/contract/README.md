@@ -61,7 +61,7 @@ const off = api.on('usage.updated', (u) => …);
 
 | 内容       | 说明                                                                                                                                                |
 | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 过程       | `ai.<facade>.<method>`（36 个，取代两份 `IPC_METHODS`）；读用 query、写用 mutation、流用 stream；`ai.tools.confirm` 为 `dangerous`                  |
+| 过程       | `ai.<facade>.<method>`（35 个，取代两份 `IPC_METHODS`）；读用 query、写用 mutation、流用 stream；`ai.tools.confirm` 为 `dangerous`                  |
 | 位置参数   | `AI_METHODS` 记录门面方法的参数怎么打包成入参（`aiArgsToInput`），`ClientAIClient` 据此保持 `AIClient` 的签名                                       |
 | 事件       | `AI_EVENTS`：`AIClient.on` 的 12 个业务事件 → `ai.<domain>.<name>`；payload 来自插件事件总线，schema 有意放宽（已知字段可缺省、未知字段透传）       |
 | DTO schema | `aiSchemas`：手写对照 ai-sdk / seam 类型，一致性由 ai-runtime 的 `implement(appContract, …)` 编译期检查；`raw`、`signal` 这类不可序列化字段不进契约 |
@@ -81,7 +81,7 @@ const off = api.on('usage.updated', (u) => …);
 
 IPC 只用两个通道：`contract:request`（invoke，视图 → 内核）和 `contract:frame`（send，内核 → 视图），载荷带客户端实例 id。
 
-服务端看不到渲染进程里旧客户端的消失，**宿主必须在窗口导航（含刷新）与 webContents 销毁时调用 `transport.disconnect(senderId)`**。作为兜底，每个 senderId 最多保留 `maxSessionsPerSender`（默认 4，`DEFAULT_MAX_SESSIONS_PER_SENDER`）个会话，超出时关闭最早建立的那个：它进行中的调用以 `TRANSPORT` 失败、订阅被移除（客户端再调用会重建会话，但不会自动恢复订阅）。
+服务端看不到渲染进程里旧客户端的消失，**宿主必须在窗口导航（含刷新）与 webContents 销毁时调用 `transport.disconnect(senderId)`**。作为兜底，每个 senderId 最多保留 `maxSessionsPerSender`（默认 16，`DEFAULT_MAX_SESSIONS_PER_SENDER`）个会话，超出时关闭最早建立的那个（以 warn 记录）：它进行中的调用以 `TRANSPORT` 失败、订阅被移除（客户端再调用会重建会话，但不会自动恢复订阅）。
 
 ```bash
 pnpm --filter @nomi-ai/contract typecheck   # 含 tests/ 里的类型断言

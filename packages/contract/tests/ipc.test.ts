@@ -201,17 +201,18 @@ describe('IPC transport adapters', () => {
     const other = ipc.window();
     await createClient(testContract, createIpcClientTransport(other.bridge)).sessions.list();
     const seen: number[] = [];
-    for (let i = 0; i < 6; i++) {
+    const N = DEFAULT_MAX_SESSIONS_PER_SENDER;
+    for (let i = 0; i < N + 2; i++) {
       const api = createClient(testContract, createIpcClientTransport(one.bridge));
       await api.sessions.list();
       api.on('persona.changed', () => seen.push(i));
       await api.sessions.list();
     }
-    // 4 个属于 one（默认上限），1 个属于 other
+    // N 个属于 one（默认上限），1 个属于 other
     expect(transport.sessionCount).toBe(DEFAULT_MAX_SESSIONS_PER_SENDER + 1);
     router.events.publish('persona.changed', { name: 'x' });
     await vi.waitFor(() => expect(seen).toHaveLength(DEFAULT_MAX_SESSIONS_PER_SENDER));
-    expect(seen.sort()).toEqual([2, 3, 4, 5]);
+    expect(seen.sort((a, b) => a - b)).toEqual(Array.from({ length: N }, (_, i) => i + 2));
     transport.disconnect(one.win.id);
     expect(transport.sessionCount).toBe(1);
   });
