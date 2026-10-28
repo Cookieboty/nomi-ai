@@ -20,6 +20,7 @@
   "scripts": {
     "build": "node ../../scripts/run-bin.mjs rimraf dist && node ../../scripts/run-bin.mjs tsc -p tsconfig.json",
     "clean": "node ../../scripts/run-bin.mjs rimraf dist",
+    "demo": "node ../../scripts/run-bin.mjs vite --config demo/vite.config.mts",
     "typecheck": "node ../../scripts/run-bin.mjs tsc -p tsconfig.check.json",
     "test": "node ../../scripts/run-bin.mjs vitest run",
     "lint": "eslint . --max-warnings=0"
