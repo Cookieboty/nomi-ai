@@ -112,8 +112,17 @@ export function scopeCatalogToProvider(
   s: GatewayState | null,
 ): BackendModelCatalog {
   const pid = providerOfRef(ref);
-  if (!pid) return catalog;
-  const prefix = `${pid}/`;
+  return pid ? scopeCatalogToProviders(catalog, [pid], s) : catalog;
+}
+
+/** 同上，列几个供应商的模型（按 pids 的顺序）；目录的 provider 是第一个 */
+export function scopeCatalogToProviders(
+  catalog: BackendModelCatalog,
+  pids: readonly string[],
+  s: GatewayState | null,
+): BackendModelCatalog {
+  if (!pids.length) return catalog;
+  const owner = (id: string) => pids.find((p) => id.startsWith(`${p}/`));
   type Model = BackendModelCatalog['models'][number];
   const strip = (m: Model): Model => {
     const cut = m.label?.indexOf(' / ') ?? -1;
@@ -122,10 +131,60 @@ export function scopeCatalogToProvider(
   const def = catalog.defaultModel;
   return {
     ...catalog,
-    models: catalog.models.filter((m) => m.id.startsWith(prefix)).map(strip),
-    defaultModel: def && def.id.startsWith(prefix) ? strip(def) : null,
-    provider: { id: catalog.provider?.id ?? 'gateway', name: providerLabel(s, pid) },
+    models: pids.flatMap((p) => catalog.models.filter((m) => owner(m.id) === p).map(strip)),
+    defaultModel: def && owner(def.id) ? strip(def) : null,
+    provider: { id: catalog.provider?.id ?? 'gateway', name: providerLabel(s, pids[0]!) },
   };
+}
+
+/** 会话上次用的第三方模型（主进程记的 lastServedRef），已不在网关里时为 null */
+export function sessionRefOf(
+  tab: Pick<HarnessTabMeta, 'lastServedRef'> | null | undefined,
+  s: GatewayState | null,
+): string | null {
+  const last = tab?.lastServedRef;
+  return last && codingModelChoices(s).some((m) => m.ref === last) ? last : null;
+}
+
+export interface SessionModelGroup {
+  /** 供应商 id */
+  id: string;
+  /** 供应商显示名 */
+  name: string;
+  /** 分组标题：「本会话原来的供应商 · A」/「默认供应商 · B」 */
+  label: string;
+}
+
+/**
+ * 聊过的第三方会话在模型按钮里列哪几个供应商：会话原来的供应商（上次用的模型所在）、
+ * 当前选中的模型所在的供应商、这个编程助手在「模型」页的默认供应商，去重后按这个顺序。
+ * 会话还没聊过（没有 lastServedRef）返回 null，按钮只列当前供应商。
+ * 换到默认供应商并聊过一轮后，原来的供应商就是默认供应商，只剩一组。
+ */
+export function sessionModelGroups(
+  tab: Pick<HarnessTabMeta, 'modelOverride' | 'lastServedRef'>,
+  kind: string,
+  s: GatewayState | null,
+): SessionModelGroup[] | null {
+  const session = providerOfRef(sessionRefOf(tab, s));
+  if (!session) return null;
+  const current = providerOfRef(thirdPartyRefOf(tab, kind, s));
+  const main = isCliKind(kind) ? s?.clients[kind]?.models.main : null;
+  const def = codingModelChoices(s).some((m) => m.ref === main) ? providerOfRef(main) : null;
+  const ids = [...new Set([session, current, def].filter((x): x is string => !!x))];
+  return ids.map((id) => {
+    const name = providerLabel(s, id);
+    return {
+      id,
+      name,
+      label:
+        id === session
+          ? t('ui.models.this-chat-s-provider', name)
+          : id === def
+            ? t('ui.models.default-provider-named', name)
+            : name,
+    };
+  });
 }
 
 /** `供应商/模型` →「供应商 / 模型」；供应商不在网关里时原样返回 */
@@ -146,8 +205,8 @@ export function thirdPartyRefOf(
   const own = tab?.modelOverride?.trim();
   if (own) return own;
   // 与主进程 effectiveOverrides 同规则：聊过的会话留在上次用的模型上（还在网关里时）
-  const last = tab?.lastServedRef;
-  if (last && codingModelChoices(s).some((m) => m.ref === last)) return last;
+  const last = sessionRefOf(tab, s);
+  if (last) return last;
   return isCliKind(kind) ? (s?.clients[kind]?.models.main ?? null) : null;
 }
 

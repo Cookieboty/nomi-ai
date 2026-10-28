@@ -184,5 +184,7 @@
   "ui.models.vision": "视觉",
   "ui.models.when-on-parameters-the-model-doesn-t-support": "开着时，模型不支持的参数（如思考档位、温度）直接报错；关着时网关去掉或调整这些参数并在「最近请求」里注明",
   "ui.models.when-this-provider-s-models-all-fail-use": "这个供应商的模型都失败时，按顺序改用下面的模型。",
-  "ui.models.without-nomi": "不经 Nomi"
+  "ui.models.without-nomi": "不经 Nomi",
+  "ui.models.this-chat-s-provider": "本会话原来的供应商 · {0}",
+  "ui.models.default-provider-named": "默认供应商 · {0}"
 }

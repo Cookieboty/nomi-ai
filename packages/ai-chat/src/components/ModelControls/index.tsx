@@ -34,7 +34,14 @@ import {
   type AccountKind,
   type CliAccount,
 } from '../../services/cliAccountClient';
-import { scopeCatalogToProvider, tabSourceOf, thirdPartyRefOf } from '../../services/cliSource';
+import {
+  scopeCatalogToProvider,
+  scopeCatalogToProviders,
+  sessionModelGroups,
+  tabSourceOf,
+  thirdPartyRefOf,
+  type SessionModelGroup,
+} from '../../services/cliSource';
 import { gatewayClient, gatewayClientAvailable } from '../../services/gatewayClient';
 import {
   harnessClient,
@@ -330,7 +337,14 @@ const ModelChip: React.FC<{
   onRefresh: () => void;
   /** 第三方模型可开长上下文时的信息（§12.7.2）；null = 不显示「上下文」一组 */
   long?: LongContextInfo | null;
-}> = ({ tab, catalog, refreshing, onRefresh, long = null }) => {
+  /**
+   * 聊过的第三方会话实际在用的模型（没手动选时就是会话上次用的）：勾选打在它上面，
+   * 不再显示「默认模型」一行（清掉选择回到的是会话上次的模型，不是「模型」页的默认）
+   */
+  sessionRef?: string | null;
+  /** 列了几个供应商时的分组（原来的供应商 / 默认供应商）；不到两组不分 */
+  groups?: SessionModelGroup[] | null;
+}> = ({ tab, catalog, refreshing, onRefresh, long = null, sessionRef = null, groups = null }) => {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<'effort' | 'model' | 'account'>('effort');
   const [accounts, setAccounts] = useState<CliAccount[]>([]);
@@ -344,7 +358,8 @@ const ModelChip: React.FC<{
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const current = tab.modelOverride?.trim() || null;
+  const current = tab.modelOverride?.trim() || sessionRef || null;
+  const grouped = !!groups && groups.length > 1;
   // 第三方来源的目录：直接是模型列表，没有思考深度页
   const thirdParty = tabSourceOf(tab) === 'thirdParty';
   const provider =
@@ -378,8 +393,13 @@ const ModelChip: React.FC<{
 
   const defaultLabel = catalog.defaultModel?.label ?? catalog.defaultModel?.id;
   // 没选模型时显示 CLI 默认用的那个模型名（浮层里再标「默认」）
+  // 分组时同名模型可能出现在两家：按钮上带上供应商名
+  const groupOf = (id: string) => groups?.find((g) => id.startsWith(`${g.id}/`));
+  const currentGroupName = grouped && current ? (groupOf(current)?.name ?? null) : null;
   const modelLabel = current
-    ? (currentModel?.label ?? current)
+    ? currentGroupName
+      ? `${currentGroupName} / ${currentModel?.label ?? current}`
+      : (currentModel?.label ?? current)
     : (defaultLabel ?? t('ui.providers-schedule.default-model'));
   // 没有显式覆盖时也显示 CLI 的实际默认档位，让底部按钮直接反映当前设置。
   const chipEffort = effort ?? defaultEffort;
@@ -659,7 +679,9 @@ const ModelChip: React.FC<{
               <div className={styles.modelHead}>
                 {provider ? (
                   <span className={styles.back} data-testid="model-provider">
-                    {t('ui.chat-settings.models', provider.name)}
+                    {grouped
+                      ? t('ui.models.third-party-models')
+                      : t('ui.chat-settings.models', provider.name)}
                   </span>
                 ) : (
                   <button
@@ -766,7 +788,7 @@ const ModelChip: React.FC<{
                 />
               )}
               <div className={styles.models} role="listbox" aria-label={t('ui.foundation.model')}>
-                {!q && (
+                {!q && !sessionRef && (
                   <button
                     type="button"
                     role="option"
@@ -788,25 +810,36 @@ const ModelChip: React.FC<{
                     {t('ui.session-workspace.no-models-match', query.trim())}
                   </div>
                 )}
-                {shownModels.map((m) => (
-                  <button
-                    key={m.id}
-                    type="button"
-                    role="option"
-                    aria-selected={current === m.id}
-                    className={styles.item}
-                    data-testid={`model-${m.id}`}
-                    title={m.description ? `${m.id} · ${m.description}` : m.id}
-                    onClick={() => pickModel(m.id)}
-                  >
-                    <span className={styles.itemLabel}>{m.label ?? m.id}</span>
-                    {!m.reasoning && !provider && (
-                      <span className={styles.itemHint}>
-                        {t('ui.chat-settings.no-reasoning-effort')}
-                      </span>
-                    )}
-                    {current === m.id && <Icon icon={Check} size={14} />}
-                  </button>
+                {shownModels.map((m, i) => (
+                  <React.Fragment key={m.id}>
+                    {grouped &&
+                      groupOf(m.id) !== (i ? groupOf(shownModels[i - 1]!.id) : undefined) && (
+                        <div
+                          className={styles.groupLabel}
+                          role="presentation"
+                          data-testid={`model-group-${groupOf(m.id)?.id}`}
+                        >
+                          {groupOf(m.id)?.label}
+                        </div>
+                      )}
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={current === m.id}
+                      className={styles.item}
+                      data-testid={`model-${m.id}`}
+                      title={m.description ? `${m.id} · ${m.description}` : m.id}
+                      onClick={() => pickModel(m.id)}
+                    >
+                      <span className={styles.itemLabel}>{m.label ?? m.id}</span>
+                      {!m.reasoning && !provider && (
+                        <span className={styles.itemHint}>
+                          {t('ui.chat-settings.no-reasoning-effort')}
+                        </span>
+                      )}
+                      {current === m.id && <Icon icon={Check} size={14} />}
+                    </button>
+                  </React.Fragment>
                 ))}
                 {current && !currentModel && !q && (
                   <button
@@ -919,10 +952,24 @@ export const ModelControls: React.FC<{ tab: HarnessTabMeta }> = ({ tab }) => {
   const { catalog, refreshing, refresh } = useCatalog(tab.backend, source);
   const gateway = useGatewayState();
   const thirdRef = source === 'thirdParty' ? thirdPartyRefOf(tab, tab.backend, gateway) : null;
-  // 第三方：只列当前供应商的模型
+  // 聊过的会话：原来的供应商与默认供应商不同时两家都列（全部模型）
+  const groups = useMemo(
+    () => (source === 'thirdParty' ? sessionModelGroups(tab, tab.backend, gateway) : null),
+    [source, tab, gateway],
+  );
+  // 第三方：只列当前供应商（或上面几组）的模型
   const scoped = useMemo(
-    () => (catalog && thirdRef ? scopeCatalogToProvider(catalog, thirdRef, gateway) : catalog),
-    [catalog, thirdRef, gateway],
+    () =>
+      catalog && thirdRef
+        ? groups
+          ? scopeCatalogToProviders(
+              catalog,
+              groups.map((g) => g.id),
+              gateway,
+            )
+          : scopeCatalogToProvider(catalog, thirdRef, gateway)
+        : catalog,
+    [catalog, thirdRef, groups, gateway],
   );
   if (scoped === null) return null;
   if (scoped === undefined) return <LoadingChip tab={tab} />;
@@ -933,6 +980,8 @@ export const ModelControls: React.FC<{ tab: HarnessTabMeta }> = ({ tab }) => {
       refreshing={refreshing}
       onRefresh={refresh}
       long={longContextFor(tab, gateway)}
+      sessionRef={groups ? thirdRef : null}
+      groups={groups}
     />
   );
 };

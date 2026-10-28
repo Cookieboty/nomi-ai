@@ -575,3 +575,90 @@ describe('ModelControls', () => {
     expect(getByTestId('effort-hint').textContent).toMatch(/dsh.*思考深度|不会假装/);
   });
 });
+
+// 放在文件最后：网关状态是模块级共享缓存，前面不依赖网关状态的用例不受这里设的默认供应商影响
+describe('ModelControls（会话的供应商分组）', () => {
+  describe('聊过的第三方会话：原来的供应商与默认供应商', () => {
+    const prov = (id: string, name: string, models: string[]) => ({
+      id,
+      name,
+      enabled: true,
+      urls: {},
+      keys: [],
+      models: models.map((m) => ({ id: m, enabled: true, toolCalling: true })),
+    });
+    const gatewayState = {
+      status: { state: 'running', port: 1, url: 'http://127.0.0.1:1' },
+      providers: [prov('old', 'OldCo', ['glm-a', 'glm-b']), prov('neu', 'NewCo', ['ds-x'])],
+      clients: { codex: { models: { main: 'neu/ds-x' } } },
+      allowedPrivateHosts: [],
+      port: 1,
+    };
+    const gwCatalog: BackendModelCatalog = {
+      backend: 'codex',
+      provider: { id: 'gateway', name: '第三方模型' },
+      defaultModel: { id: 'neu/ds-x', label: 'NewCo / ds-x', reasoning: false, efforts: [] },
+      models: [
+        { id: 'old/glm-a', label: 'OldCo / glm-a', reasoning: false, efforts: [] },
+        { id: 'old/glm-b', label: 'OldCo / glm-b', reasoning: false, efforts: [] },
+        { id: 'neu/ds-x', label: 'NewCo / ds-x', reasoning: false, efforts: [] },
+      ],
+    };
+    const open = async (tab: HarnessTabMeta) => {
+      const invoke = vi.fn(async (ch: string, ...a: unknown[]) => {
+        if (ch === 'ai:gateway:state') return gatewayState;
+        if (ch === 'ai:harness:model-catalog') return gwCatalog;
+        if (ch === 'ai:harness:tab-model') return { ...tab, modelOverride: String(a[1]) };
+        return {};
+      });
+      (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
+      const r = render(<ModelControls tab={tab} />);
+      await waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:gateway:state'));
+      await act(async () => {});
+      return { r, invoke };
+    };
+
+    it('两家不同：两组都列出全部模型，勾在会话上次用的模型上，没有「默认模型」一行', async () => {
+      const tab = { ...baseTab, source: 'thirdParty' as const, lastServedRef: 'old/glm-b' };
+      const { r, invoke } = await open(tab);
+      const chip = await r.findByTestId('model-chip');
+      expect(chip.textContent).toContain('OldCo / glm-b');
+      fireEvent.click(chip);
+      const menu = await r.findByTestId('model-menu');
+      expect(within(menu).getByTestId('model-group-old').textContent).toBe(
+        '本会话原来的供应商 · OldCo',
+      );
+      expect(within(menu).getByTestId('model-group-neu').textContent).toBe('默认供应商 · NewCo');
+      expect(within(menu).getByTestId('model-old/glm-a')).toBeTruthy();
+      expect(within(menu).getByTestId('model-old/glm-b').getAttribute('aria-selected')).toBe(
+        'true',
+      );
+      expect(within(menu).queryByTestId('model-default')).toBeNull();
+      fireEvent.click(within(menu).getByTestId('model-neu/ds-x'));
+      await waitFor(() =>
+        expect(invoke).toHaveBeenCalledWith('ai:harness:tab-model', 'cx', 'neu/ds-x', {
+          expectSource: 'thirdParty',
+        }),
+      );
+    });
+
+    it('换到默认供应商并聊过一轮后只剩一组；没聊过的会话照旧只列默认供应商', async () => {
+      const { r } = await open({
+        ...baseTab,
+        source: 'thirdParty',
+        lastServedRef: 'neu/ds-x',
+      });
+      fireEvent.click(await r.findByTestId('model-chip'));
+      const menu = await r.findByTestId('model-menu');
+      expect(within(menu).queryByTestId('model-group-neu')).toBeNull();
+      expect(within(menu).queryByTestId('model-old/glm-a')).toBeNull();
+      expect(within(menu).getByTestId('model-neu/ds-x').getAttribute('aria-selected')).toBe('true');
+      cleanup();
+      const fresh = await open({ ...baseTab, source: 'thirdParty' });
+      fireEvent.click(await fresh.r.findByTestId('model-chip'));
+      const m2 = await fresh.r.findByTestId('model-menu');
+      expect(within(m2).getByTestId('model-default')).toBeTruthy();
+      expect(within(m2).queryByTestId('model-old/glm-a')).toBeNull();
+    });
+  });
+});

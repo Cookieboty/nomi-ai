@@ -436,3 +436,9 @@
   font-size: var(--cd-font-size-xs);
   line-height: 1.5;
 }
+/* 模型列表里的供应商分组标题（会话原来的供应商 / 默认供应商） */
+.groupLabel {
+  padding: var(--cd-space-2) var(--cd-space-2) var(--cd-space-1);
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+}

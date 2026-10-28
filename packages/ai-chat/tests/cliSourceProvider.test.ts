@@ -6,6 +6,7 @@ import {
   newTabSelectValue,
   providerEntryRef,
   scopeCatalogToProvider,
+  sessionModelGroups,
   thirdPartyRefOf,
 } from '../src/services/cliSource';
 import type { GatewayState } from '../src/services/gatewayClient';
@@ -57,6 +58,23 @@ describe('第三方供应商（输入框左下角只切供应商，模型在模�
     // 原供应商已删除 / 停用：回到分配的模型
     expect(thirdPartyRefOf({ lastServedRef: 'gone/x' }, 'claude', gateway)).toBe('amux/kimi-k3');
     expect(thirdPartyRefOf({}, 'claude', gateway)).toBe('amux/kimi-k3');
+  });
+
+  it('sessionModelGroups：会话原来的供应商、当前选中的、默认供应商，去重；没聊过返回 null', () => {
+    expect(sessionModelGroups({}, 'claude', gateway)).toBeNull();
+    expect(
+      sessionModelGroups({ lastServedRef: 'deep/ds-v4' }, 'claude', gateway)?.map((g) => [
+        g.id,
+        g.label,
+      ]),
+    ).toEqual([
+      ['deep', '本会话原来的供应商 · DeepX'],
+      ['amux', '默认供应商 · Amux'],
+    ]);
+    // 已换到默认供应商并聊过：只剩一组
+    expect(sessionModelGroups({ lastServedRef: 'amux/gpt-x' }, 'claude', gateway)?.length).toBe(1);
+    // 原供应商已不在网关里：当作没聊过
+    expect(sessionModelGroups({ lastServedRef: 'gone/x' }, 'claude', gateway)).toBeNull();
   });
 
   it('scopeCatalogToProvider：只留当前供应商的模型，去掉名字里的「供应商 / 」', () => {

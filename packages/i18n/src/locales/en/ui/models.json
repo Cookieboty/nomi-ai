@@ -184,5 +184,7 @@
   "ui.models.vision": "Vision",
   "ui.models.when-on-parameters-the-model-doesn-t-support": "When on, parameters the model doesn't support (such as reasoning effort or temperature) cause an error; when off, the gateway removes or adjusts them and notes it in Recent requests",
   "ui.models.when-this-provider-s-models-all-fail-use": "When this provider's models all fail, use the models below in order.",
-  "ui.models.without-nomi": "Without Nomi"
+  "ui.models.without-nomi": "Without Nomi",
+  "ui.models.this-chat-s-provider": "This chat's provider · {0}",
+  "ui.models.default-provider-named": "Default provider · {0}"
 }

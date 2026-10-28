@@ -2475,6 +2475,8 @@ export type TranslationKey =
   | 'ui.models.when-on-parameters-the-model-doesn-t-support'
   | 'ui.models.when-this-provider-s-models-all-fail-use'
   | 'ui.models.without-nomi'
+  | 'ui.models.this-chat-s-provider'
+  | 'ui.models.default-provider-named'
   | 'ui.providers-schedule.a-command-is-required-and-can-t-contain'
   | 'ui.providers-schedule.a-name-is-required-up-to-60-characters'
   | 'ui.providers-schedule.absolute-path-of-the-executable-or-a-name'
