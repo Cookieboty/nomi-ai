@@ -235,6 +235,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 
 ### Refactoring
 
+- **character:** the official character is now an ordinary character pack, `characters/nomi`, loaded through the same path and validation as third-party packs. Builds read the selected pack directly (`CHARACTER_PACK=<dir> pnpm build`, default `characters/nomi`) instead of overwriting files in the tree; `pnpm character:apply` only validates, `pnpm character:init -- <dir>` scaffolds a new pack. The mascot's tips and greetings come from the active pack's `locales/{zh,en}.json`, so a different pack no longer speaks Nomi's lines, and the mascot tool descriptions no longer name the character.
 - **logging:** central logger; debug/info output is silent in production (set NOMI_DEBUG=1 or localStorage nomi.debug=1 to enable).
 - **mascot:** the AI tools that drive the mascot are renamed from `live2d_play_motion` / `live2d_set_expression` to `avatar_gesture` / `avatar_emotion` (same arguments). The old names are gone with no aliases; the app never shipped a Live2D runtime, so the remaining `live2d` names (IPC facade `ai:live2d:*` → `ai:avatar:*`, event `live2d:touch` → `avatar:touch`, `Live2dSeamPlugin` → `AvatarSeamPlugin`) are renamed too, and the unused `setParameter` call and `LIVE2D_NOT_AVAILABLE` error code are removed.
 - **tts:** 删除内置语音模型下载相关文案，新增「诺米提示语音」与实时朗读引擎（无 / Edge / Azure / OpenAI）文案。 (`@nomi-ai/i18n` patch)

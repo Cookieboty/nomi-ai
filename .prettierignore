@@ -6,3 +6,6 @@
 **/*.min.js
 packages/renderer/public/**
 pnpm-lock.yaml
+# 角色包里由工具生成的素材清单（sprite rig、语音 manifest），保持生成器输出原样
+characters/*/sprite/**
+characters/*/voice/**

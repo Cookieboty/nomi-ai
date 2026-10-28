@@ -1,33 +1,18 @@
 /**
- * Scheme B: resolve a single runtime character-pack overlay.
- * Order: userData/character-pack → resources/character-pack → built-in (null).
- * Invalid packs fall back to built-in and surface a reason for logging.
+ * Resolve the active character pack. Order: userData/character-pack → resources/character-pack →
+ * the built-in pack (the one this build ships: characters/nomi unless CHARACTER_PACK was set).
+ * The official character is an ordinary pack and goes through the same validation as any overlay;
+ * invalid candidates are skipped with a reason for logging.
+ *
+ * Validation is `validatePack` from @nomi-ai/character-contract (no hand-written checks here).
  */
-import { existsSync, readFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 
-import { normalizePackRelPath } from './packProtocol';
+import type { NormalizedPack, PackManifest } from '@nomi-ai/character-contract';
+import { validatePackDirSync } from '@nomi-ai/character-contract/node';
 
 export type PackSource = 'userData' | 'resources' | 'builtin';
-
-export interface PackManifestLite {
-  schema: number;
-  id: string;
-  displayName?: string | { zh?: string; en?: string };
-  version?: string;
-  assets?: {
-    mode?: string;
-    static?: string;
-    rive?: string;
-    sprite?: string;
-    voice?: string;
-    onboarding?: string;
-    layout?: string;
-  };
-  mode?: string;
-  rive?: { artboard?: string; stateMachine?: string };
-  defaults?: Record<string, unknown>;
-}
 
 export interface HitboxRegion {
   top: number;
@@ -36,6 +21,7 @@ export interface HitboxRegion {
   right: number;
 }
 
+/** Hitboxes in the shape the renderer consumes (ratios of the character box). */
 export interface PackHitboxes {
   regions: Record<string, HitboxRegion>;
   bubbleAnchor?: { x: number; y: number };
@@ -43,8 +29,10 @@ export interface PackHitboxes {
 
 export interface ResolvedPack {
   source: PackSource;
+  /** null only when not even the built-in pack could be loaded */
   root: string | null;
-  manifest: PackManifestLite | null;
+  manifest: PackManifest | null;
+  pack: NormalizedPack | null;
   hitboxes: PackHitboxes | null;
   reason?: string;
 }
@@ -52,133 +40,118 @@ export interface ResolvedPack {
 export interface ResolvePackPaths {
   userDataPack: string;
   resourcesPack: string;
+  /** Built-in pack directory (see builtinPackDir); omitted → no built-in fallback */
+  builtinPack?: string | null;
 }
 
-const ONBOARDING_FILES = ['welcome.webp', 'profile.webp', 'provider.webp', 'privacy.webp'] as const;
-
-export function readManifestAt(root: string): PackManifestLite | null {
-  const path = join(root, 'manifest.json');
-  if (!existsSync(path)) return null;
-  try {
-    return JSON.parse(readFileSync(path, 'utf8')) as PackManifestLite;
-  } catch {
-    return null;
-  }
+export interface SkippedPack {
+  source: PackSource;
+  root: string;
+  reason: string;
 }
 
-/** Minimal validation for a runtime overlay pack. Returns error message or null if OK. */
+export type LoadPackResult =
+  { ok: true; pack: NormalizedPack } | { ok: false; reason: string; pack: null };
+
+/** Validate a pack directory with the contract; the reason is the first error. */
+export function loadPackAt(root: string): LoadPackResult {
+  const res = validatePackDirSync(root);
+  if (res.ok && res.pack) return { ok: true, pack: res.pack };
+  const first = res.errors[0];
+  const reason = first ? `${first.file}: ${first.message}` : 'invalid character pack';
+  return { ok: false, reason, pack: null };
+}
+
+/** Error message for an invalid pack, or null when it validates. */
 export function validatePackRoot(root: string): string | null {
-  if (!existsSync(root) || !statSync(root).isDirectory()) return 'missing pack directory';
-  const m = readManifestAt(root);
-  if (!m) return 'missing or invalid manifest.json';
-  if (m.schema !== 1) return `unsupported pack schema: ${m.schema}`;
-  if (!m.id || typeof m.id !== 'string') return 'manifest.id required';
-  const mode = m.assets?.mode || m.mode || 'rive';
-  if (!['rive', 'sprite', 'static'].includes(mode)) return `unknown mode: ${mode}`;
+  const r = loadPackAt(root);
+  return r.ok ? null : r.reason;
+}
 
-  const onboardingRel = normalizePackRelPath(m.assets?.onboarding || 'onboarding');
-  if (!onboardingRel) return 'invalid assets.onboarding path';
-  const onboardingDir = join(root, onboardingRel);
-  for (const f of ONBOARDING_FILES) {
-    if (!existsSync(join(onboardingDir, f))) return `missing onboarding/${f}`;
-  }
+export function hitboxesOf(pack: NormalizedPack): PackHitboxes | null {
+  const { hitboxes, bubbleAnchor } = pack.layout;
+  if (!hitboxes || Object.keys(hitboxes).length === 0) return null;
+  return {
+    regions: hitboxes as Record<string, HitboxRegion>,
+    ...(bubbleAnchor ? { bubbleAnchor } : {}),
+  };
+}
 
-  if (mode === 'static') {
-    if (!resolveStaticRel(root, m)) return 'static mode missing static/character.webp';
-  } else if (mode === 'rive') {
-    const riveRel = normalizePackRelPath(m.assets?.rive || 'rive/character.riv');
-    if (!riveRel) return 'invalid assets.rive path';
-    if (!existsSync(join(root, riveRel))) return `missing ${riveRel}`;
-  } else if (mode === 'sprite') {
-    if (!normalizePackRelPath(m.assets?.sprite || 'sprite')) return 'invalid assets.sprite path';
-    if (!resolveSpriteManifestRel(root, m)) return 'sprite/manifest.json required';
-  }
-  return null;
+function resolved(source: PackSource, root: string, pack: NormalizedPack): ResolvedPack {
+  return { source, root, manifest: pack.manifest, pack, hitboxes: hitboxesOf(pack) };
 }
 
 /**
- * Static image actually present in the pack: declared assets.static first, then the conventional
- * webp / png. Validation and the served URL must agree on the same file.
- */
-export function resolveStaticRel(root: string, m: PackManifestLite): string | null {
-  const declared = normalizePackRelPath(m.assets?.static || 'static/character.webp');
-  for (const rel of [declared, 'static/character.webp', 'static/character.png']) {
-    if (rel && existsSync(join(root, rel))) return rel;
-  }
-  return null;
-}
-
-/** sprite/manifest.json when the pack ships one (optional outside sprite mode). */
-export function resolveSpriteManifestRel(root: string, m: PackManifestLite): string | null {
-  const dir = normalizePackRelPath(m.assets?.sprite || 'sprite');
-  if (!dir) return null;
-  const rel = `${dir.replace(/\/$/, '')}/manifest.json`;
-  return existsSync(join(root, rel)) ? rel : null;
-}
-
-export function loadHitboxes(root: string, manifest: PackManifestLite): PackHitboxes | null {
-  const layoutRel = normalizePackRelPath(manifest.assets?.layout || 'layout') || 'layout';
-  const path = join(root, layoutRel, 'hitboxes.json');
-  if (!existsSync(path)) return null;
-  try {
-    const raw = JSON.parse(readFileSync(path, 'utf8')) as {
-      regions?: Record<string, HitboxRegion>;
-      bubbleAnchor?: { x: number; y: number };
-      aliases?: Record<string, string>;
-    };
-    if (!raw.regions || typeof raw.regions !== 'object') return null;
-    const regions: Record<string, HitboxRegion> = { ...raw.regions };
-    // Normalize legacy skirt → hem if a pack still ships skirt
-    if (regions.skirt && !regions.hem) {
-      regions.hem = regions.skirt;
-      delete regions.skirt;
-    }
-    return { regions, bubbleAnchor: raw.bubbleAnchor };
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Resolve the active overlay. First valid candidate wins; invalid candidates are skipped
- * (caller should log `skipped` reasons). When nothing validates → builtin.
+ * Resolve the active pack. First valid candidate wins; invalid candidates are skipped (caller
+ * should log `skipped` reasons). Overlay directories without a manifest are not candidates
+ * (the packaged resources/character-pack placeholder only holds a README).
  */
 export function resolveCharacterPack(
   paths: ResolvePackPaths,
-): ResolvedPack & { skipped: Array<{ source: PackSource; root: string; reason: string }> } {
-  const skipped: Array<{ source: PackSource; root: string; reason: string }> = [];
-  const candidates: Array<{ source: Exclude<PackSource, 'builtin'>; root: string }> = [
+): ResolvedPack & { skipped: SkippedPack[] } {
+  const skipped: SkippedPack[] = [];
+  const overlays: Array<{ source: Exclude<PackSource, 'builtin'>; root: string }> = [
     { source: 'userData', root: paths.userDataPack },
     { source: 'resources', root: paths.resourcesPack },
   ];
-  for (const c of candidates) {
-    // No manifest = no overlay (the packaged resources/character-pack placeholder only holds a
-    // README); only a pack that ships a manifest and fails validation is worth a warning.
-    if (!existsSync(join(c.root, 'manifest.json'))) continue;
-    const err = validatePackRoot(c.root);
-    if (err) {
-      skipped.push({ source: c.source, root: c.root, reason: err });
+  for (const c of overlays) {
+    if (!existsSync(path.join(c.root, 'manifest.json'))) continue;
+    const r = loadPackAt(c.root);
+    if (!r.ok) {
+      skipped.push({ source: c.source, root: c.root, reason: r.reason });
       continue;
     }
-    const manifest = readManifestAt(c.root)!;
-    return {
-      source: c.source,
-      root: c.root,
-      manifest,
-      hitboxes: loadHitboxes(c.root, manifest),
-      skipped,
-    };
+    return { ...resolved(c.source, c.root, r.pack), skipped };
+  }
+  const overlayReason = skipped.length ? 'overlay invalid — using built-in' : 'no overlay present';
+  if (paths.builtinPack) {
+    const r = loadPackAt(paths.builtinPack);
+    if (r.ok) {
+      return { ...resolved('builtin', paths.builtinPack, r.pack), reason: overlayReason, skipped };
+    }
+    skipped.push({ source: 'builtin', root: paths.builtinPack, reason: r.reason });
   }
   return {
     source: 'builtin',
     root: null,
     manifest: null,
+    pack: null,
     hitboxes: null,
-    reason: skipped.length ? 'overlay invalid — using built-in' : 'no overlay present',
+    reason: paths.builtinPack ? 'built-in pack invalid' : overlayReason,
     skipped,
   };
 }
 
-export function packModeOf(m: PackManifestLite): string {
-  return m.assets?.mode || m.mode || 'rive';
+export interface BuiltinPackEnv {
+  packaged: boolean;
+  /** development run (renderer from the Vite dev server) */
+  dev: boolean;
+  resourcesPath: string | undefined;
+  /** app.getAppPath(): packages/electron when unpacked */
+  appPath: string;
+  /** CHARACTER_PACK (relative to the repository root), unpacked runs only */
+  characterPack?: string;
+}
+
+/**
+ * Candidate directories of the built-in pack, best first. The renderer build emits the selected
+ * pack into renderer/dist/character, which ships as resources/renderer/character (packaged) or
+ * dist/renderer/character (copy-renderer, unpacked). In development the pack is read straight
+ * from the repository (CHARACTER_PACK or characters/nomi).
+ */
+export function builtinPackCandidates(env: BuiltinPackEnv): string[] {
+  if (env.packaged) {
+    return env.resourcesPath ? [path.join(env.resourcesPath, 'renderer', 'character')] : [];
+  }
+  const repo = path.resolve(env.appPath, '..', '..');
+  const fromSource = env.characterPack?.trim()
+    ? path.resolve(repo, env.characterPack.trim())
+    : path.join(repo, 'characters', 'nomi');
+  const fromBuild = path.join(env.appPath, 'dist', 'renderer', 'character');
+  return env.dev ? [fromSource] : [fromBuild, fromSource];
+}
+
+/** First built-in candidate that exists (validation happens in resolveCharacterPack). */
+export function builtinPackDir(env: BuiltinPackEnv): string | null {
+  return builtinPackCandidates(env).find((p) => existsSync(path.join(p, 'manifest.json'))) ?? null;
 }

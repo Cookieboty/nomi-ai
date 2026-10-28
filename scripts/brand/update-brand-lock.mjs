@@ -22,7 +22,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const modelDir = resolve(
   process.env.CHARACTER_PACK_SPRITE_DIR ||
     process.env.BRAND_LOCK_MODEL_DIR ||
-    join(root, 'packages/renderer/public/assets/models/sprite/nomi'),
+    join(root, 'characters/nomi/sprite'),
 );
 const lockPath = join(modelDir, 'brand-lock.json');
 

@@ -2,8 +2,8 @@
 /**
  * Licence gate (CI):
  *   1. assets — every file under assets-licenses.json `roots` must match an entry whose licence is allow-listed;
- *      model-list.json entries must carry an allow-listed licence and point at existing files;
- *      only Nomi may be bundled; no .vrm ships in packages/renderer/public.
+ *      the official character pack (characters/nomi) must carry allow-listed credits (the bundled
+ *      model list is generated from it); no .vrm ships.
  *   2. deps  — production dependencies (`pnpm licenses list --prod -r --json`) must use allow-listed
  *      SPDX licences, or be a reviewed per-package exception below.
  *
@@ -163,30 +163,23 @@ function checkAssets() {
     }
   }
 
-  const listPath = path.join(ROOT, 'packages/renderer/public/assets/models/model-list.json');
-  const list = JSON.parse(fs.readFileSync(listPath, 'utf8'));
-  const listed = new Set();
-  for (const m of list.models ?? []) {
-    if (!allow.has(m.license))
-      errors.push(`assets: model ${m.name} licence "${m.license}" not allow-listed`);
-    if (!m.author || !m.source) errors.push(`assets: model ${m.name} needs author and source`);
-    for (const key of ['path', 'thumbnail']) {
-      if (!m[key]) continue;
-      const file = path.join(ROOT, 'packages/renderer/public', m[key]);
-      if (!fs.existsSync(file)) errors.push(`assets: model ${m.name} ${key} missing: ${m[key]}`);
-      if (key === 'path') listed.add(path.resolve(file));
-    }
+  // The bundled model list is generated from the official pack's manifest at build time
+  // (scripts/character/pack.mjs → modelListFor); check the credits it will carry.
+  const official = JSON.parse(
+    fs.readFileSync(path.join(ROOT, 'characters/nomi/manifest.json'), 'utf8'),
+  );
+  const credits = official.credits ?? {};
+  if (!allow.has(credits.license))
+    errors.push(`assets: characters/nomi credits.license "${credits.license}" not allow-listed`);
+  if (!credits.author || !credits.source)
+    errors.push('assets: characters/nomi credits need author and source');
+  for (const vrm of [
+    ...walk(path.join(ROOT, 'packages/renderer/public')),
+    ...walk(path.join(ROOT, 'characters')),
+  ].filter((f) => f.endsWith('.vrm'))) {
+    errors.push(`assets: ${path.basename(vrm)} — VRM models are not bundled`);
   }
-  // Only Nomi is bundled (no character store or import).
-  for (const m of list.models ?? [])
-    if (m.name !== 'nomi') errors.push(`assets: only Nomi may be bundled (found ${m.name})`);
-  for (const vrm of walk(path.join(ROOT, 'packages/renderer/public')).filter((f) =>
-    f.endsWith('.vrm'),
-  )) {
-    if (!listed.has(path.resolve(vrm)))
-      errors.push(`assets: ${path.basename(vrm)} is not listed in model-list.json`);
-  }
-  console.log(`assets: checked ${files} files, ${(list.models ?? []).length} models`);
+  console.info(`assets: checked ${files} files, official pack ${official.id}`);
 }
 
 if (!args.has('--deps-only')) checkAssets();

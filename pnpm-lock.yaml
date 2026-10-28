@@ -140,6 +140,9 @@ importers:
         specifier: ^4
         version: 4.0.1
     devDependencies:
+      '@nomi-ai/character-contract':
+        specifier: workspace:*
+        version: link:../character-contract
       '@nomi-ai/types':
         specifier: workspace:*
         version: link:../types
@@ -633,6 +636,9 @@ importers:
         specifier: ^19.3.0
         version: 19.3.0(react@19.3.0)
     devDependencies:
+      '@nomi-ai/character-contract':
+        specifier: workspace:*
+        version: link:../character-contract
       '@nomi-ai/types':
         specifier: workspace:*
         version: link:../types

@@ -1,45 +1,53 @@
 #!/usr/bin/env node
 /**
- * Shared paths for character-pack tooling (v1 overwrite-in-place targets).
+ * Shared paths for character-pack tooling.
+ *
+ * The official character is an ordinary pack (characters/nomi). Builds read the selected pack
+ * directly — `CHARACTER_PACK=<dir>` or the default — and never overwrite files in the tree.
  */
-import { dirname, join, resolve } from 'node:path';
+import { existsSync, statSync } from 'node:fs';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 export const ROOT = resolve(__dirname, '../..');
 
-/** Official Nomi landing paths — packs overwrite these; do not rename in v1. */
-export const TARGETS = {
-  rive: join(ROOT, 'packages/renderer/public/assets/models/rive/nomi-complete.riv'),
-  spriteDir: join(ROOT, 'packages/renderer/public/assets/models/sprite/nomi'),
-  voiceDir: join(ROOT, 'packages/renderer/public/voice/nomi'),
-  onboardingDir: join(ROOT, 'packages/ai-chat/src/components/Onboarding/art'),
-  modelList: join(ROOT, 'packages/renderer/public/assets/models/model-list.json'),
-};
-
-/**
- * character:apply / character:init 写出的官方角色数据（同一份内容）。
- * renderer 读外观与语音；electron 主进程的 PersonaService 读人设（persona / personaLocales），
- * 系统提示的身份段只从这里来（docs/design/core-host-decoupling.md §10.4）。
- */
-export const GENERATED = {
-  renderer: join(ROOT, 'packages/renderer/src/mascot/character.generated.json'),
-  electron: join(ROOT, 'packages/electron/src/character/character.generated.json'),
-};
-
-/** 契约唯一来源：@nomi-ai/character-contract（docs/character-pack 只放说明）。 */
-export const CONTRACT_JSON = join(ROOT, 'packages/character-contract/contract.json');
-export const VOICE_IDS_JSON = join(ROOT, 'packages/character-contract/voice-ids.json');
-export const EXAMPLES_NOMI = join(ROOT, 'examples/nomi.pack');
+/** Top-level directory holding the in-repo packs (not workspace packages). */
+export const CHARACTERS_DIR = join(ROOT, 'characters');
+export const DEFAULT_PACK_ID = 'nomi';
+export const DEFAULT_PACK_DIR = join(CHARACTERS_DIR, DEFAULT_PACK_ID);
+export const TEST_DUMMY_PACK_DIR = join(CHARACTERS_DIR, 'test-dummy');
 export const EXAMPLES_STATIC = join(ROOT, 'examples/static-demo.pack');
 
-/** Brand-lock sprite dir (overridable for forks). */
-export function brandLockModelDir() {
-  return (
-    process.env.CHARACTER_PACK_SPRITE_DIR || process.env.BRAND_LOCK_MODEL_DIR || TARGETS.spriteDir
+/** Contract data: @nomi-ai/character-contract is the only source. */
+export const CONTRACT_JSON = join(ROOT, 'packages/character-contract/contract.json');
+export const VOICE_IDS_JSON = join(ROOT, 'packages/character-contract/voice-ids.json');
+
+/** Resolve a pack directory argument (relative to the repo root); throws when it is not a dir. */
+export function resolvePackDir(input) {
+  const p = resolve(ROOT, input);
+  if (!existsSync(p)) throw new Error(`character pack not found: ${p}`);
+  if (!statSync(p).isDirectory()) throw new Error(`character pack must be a directory: ${p}`);
+  return p;
+}
+
+/** The pack a build ships: `CHARACTER_PACK` when set, otherwise characters/nomi. */
+export function selectedPackDir(env = process.env) {
+  const fromEnv = env.CHARACTER_PACK?.trim();
+  return fromEnv ? resolvePackDir(fromEnv) : DEFAULT_PACK_DIR;
+}
+
+/** Brand-lock sprite dir: the official pack's sprite (overridable for forks). */
+export function brandLockModelDir(env = process.env) {
+  return resolve(
+    env.CHARACTER_PACK_SPRITE_DIR || env.BRAND_LOCK_MODEL_DIR || join(DEFAULT_PACK_DIR, 'sprite'),
   );
 }
 
-export function skipBrandLock() {
-  return process.env.CHARACTER_PACK_SKIP_BRAND_LOCK === '1';
+export function skipBrandLock(env = process.env) {
+  return env.CHARACTER_PACK_SKIP_BRAND_LOCK === '1';
+}
+
+export function rel(path) {
+  return relative(ROOT, path).split('\\').join('/') || '.';
 }

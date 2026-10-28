@@ -21,12 +21,10 @@ import {
   PERSONA_GET_CHANNEL,
   registerPersonaIpc,
 } from '../../../src/persona/ipc';
-import {
-  officialPersonaSource,
-  packPersonaSource,
-  PersonaService,
-} from '../../../src/persona/PersonaService';
+import { packPersonaSource, PersonaService } from '../../../src/persona/PersonaService';
 import { fakeHostPorts } from '../helpers/fakeHostPorts';
+
+const NOMI_DIR = path.resolve(__dirname, '../../../../../characters/nomi');
 
 function writeStaticPack(root: string) {
   const put = (rel: string, data: string | Buffer) => {
@@ -80,20 +78,24 @@ describe('persona follows the active character pack', () => {
   });
 
   it('chat persona IPC and the preset identity both use the pack persona', async () => {
-    writeStaticPack(path.join(userData, 'character-pack'));
     const resolve = () =>
       resolveCharacterPack({
         userDataPack: path.join(userData, 'character-pack'),
         resourcesPack: path.join(resources, 'character-pack'),
+        builtinPack: NOMI_DIR,
       });
 
     // 与 Application.startPersona 相同的接线
     const packs = new CharacterPackService({
       ports: fakeHostPorts({ userData, resources }),
     });
+    packs.apply(resolve());
     let locale = 'zh-CN';
     const persona = new PersonaService({
-      sources: [packPersonaSource(() => packs.getResolved()), officialPersonaSource()],
+      sources: [
+        packPersonaSource(() => packs.getResolved()),
+        packPersonaSource(() => packs.getBuiltin()),
+      ],
       locale: () => locale,
     });
     packs.onChange(() => persona.reload());
@@ -101,8 +103,11 @@ describe('persona follows the active character pack', () => {
     const broadcast = jest.fn();
     registerPersonaIpc(persona, { broadcast, handle: (ch, fn) => handlers.set(ch, fn) });
 
-    // 还没解析角色包：官方人设
+    // 没有覆盖包：内置包 characters/nomi
+    expect(packs.getResolved().source).toBe('builtin');
     expect(persona.get().characterId).toBe('nomi');
+
+    writeStaticPack(path.join(userData, 'character-pack'));
 
     packs.apply(resolve());
     expect(packs.getResolved().source).toBe('userData');

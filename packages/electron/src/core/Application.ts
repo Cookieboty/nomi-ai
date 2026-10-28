@@ -65,7 +65,7 @@ import { getMemoryService, initMemoryService } from '../memory/MemoryService';
 import { OnboardingService } from '../onboarding/OnboardingService';
 import { registerPersonaIpc } from '../persona/ipc';
 import {
-  officialPersonaSource,
+  neutralPersonaSource,
   packPersonaSource,
   PersonaService,
   setPersonaService,
@@ -249,11 +249,11 @@ export class Application implements IApplication {
       // 会话消息中的 Markdown 图片本地协议：chat-asset:// → userData/chat/images/<rel>
       registerChatAssetProtocol(this.ports);
 
-      // Scheme B：userData/character-pack → resources/character-pack → built-in
+      // 角色包：userData/character-pack → resources/character-pack → 内置包（默认 characters/nomi）
       const characterPack = getCharacterPackService({ ports: this.ports });
       characterPack.init(protocol, this.logger);
       characterPack.registerIpc();
-      // 角色人设唯一来源（当前角色包 → 官方角色数据），须早于 AI runtime 与界面窗口
+      // 角色人设唯一来源（当前角色包 → 内置角色包），须早于 AI runtime 与界面窗口
       this.startPersona(characterPack);
 
       // Auto-update (electron-updater → GitHub Releases). Packaged builds only.
@@ -915,7 +915,7 @@ export class Application implements IApplication {
   }
 
   /**
-   * 人设服务（docs/design/core-host-decoupling.md §10.4）：当前角色包优先，官方角色数据兜底；
+   * 人设服务（docs/design/core-host-decoupling.md §10.4）：当前角色包优先，内置角色包兜底；
    * 角色包重新解析或界面语言变化时重新取人设，有变化才推送给窗口。
    */
   private startPersona(characterPack: ReturnType<typeof getCharacterPackService>): void {
@@ -923,7 +923,8 @@ export class Application implements IApplication {
     const persona = new PersonaService({
       sources: [
         packPersonaSource(() => characterPack.getResolved(), { logger }),
-        officialPersonaSource(),
+        packPersonaSource(() => characterPack.getBuiltin(), { id: 'builtin-pack', logger }),
+        neutralPersonaSource(),
       ],
       locale: getLocale,
       logger,

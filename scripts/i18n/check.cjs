@@ -219,6 +219,62 @@ for (const dir of cfg.keySources) {
   }
 }
 
+// Character copy lives in the character packs (characters/<id>/locales/{zh,en}.json), not in the
+// UI catalog: every pack needs both languages with the same lines, placeholders and persona fields.
+const charactersRoot = path.join(root, cfg.characters || 'characters');
+let characterPacks = 0;
+for (const id of fs.existsSync(charactersRoot) ? fs.readdirSync(charactersRoot).sort() : []) {
+  const packDir = path.join(charactersRoot, id);
+  if (!fs.statSync(packDir).isDirectory()) continue;
+  if (!fs.existsSync(path.join(packDir, 'manifest.json'))) continue;
+  characterPacks += 1;
+  const where = (lang) => path.relative(root, path.join(packDir, 'locales', `${lang}.json`));
+  const read = (lang) => {
+    const file = path.join(packDir, 'locales', `${lang}.json`);
+    if (!fs.existsSync(file)) {
+      errors.push(`${where(lang)}: missing (character packs need zh and en copy)`);
+      return null;
+    }
+    try {
+      return JSON.parse(fs.readFileSync(file, 'utf8'));
+    } catch (error) {
+      errors.push(`${where(lang)}: invalid JSON (${error.message})`);
+      return null;
+    }
+  };
+  const zh = read('zh');
+  const en = read('en');
+  if (!zh || !en) continue;
+  const zhLines = zh.lines || {};
+  const enLines = en.lines || {};
+  for (const [key, value] of Object.entries(zhLines)) {
+    if (!(key in enLines)) errors.push(`${where('en')}: missing line ${key}`);
+    else if (placeholders(value) !== placeholders(enLines[key]))
+      errors.push(`${where('en')}: placeholder mismatch for line ${key}`);
+  }
+  for (const key of Object.keys(enLines)) {
+    if (!(key in zhLines)) errors.push(`${where('en')}: extra line not present in zh: ${key}`);
+  }
+  for (const [lang, data] of [
+    ['zh', zh],
+    ['en', en],
+  ]) {
+    for (const [key, value] of Object.entries(data.lines || {})) {
+      if (typeof value !== 'string' || !value.trim())
+        errors.push(`${where(lang)}: line ${key} must be a non-empty string`);
+    }
+  }
+  if (!!zh.wakePhrase !== !!en.wakePhrase)
+    errors.push(`${where('en')}: wakePhrase must be given in both zh and en`);
+  // zh persona is persona.json itself; en must override the identity fields
+  if (fs.existsSync(path.join(packDir, 'persona.json'))) {
+    for (const field of ['displayName', 'systemPromptIdentity']) {
+      if (!en.persona || typeof en.persona[field] !== 'string' || !en.persona[field].trim())
+        errors.push(`${where('en')}: persona.${field} is required (persona.json is zh)`);
+    }
+  }
+}
+
 const dead = Object.keys(dictionaries[baseLanguage] || {}).filter((key) => !used.has(key));
 if (dead.length) errors.push(`dead i18n keys (${dead.length}): ${dead.join(', ')}`);
 
@@ -228,5 +284,5 @@ if (errors.length) {
 }
 
 console.log(
-  `i18n: ${Object.keys(dictionaries[baseLanguage] || {}).length} stable keys, ${languages.join('/') || 'no languages'} complete, no duplicate or dead keys`,
+  `i18n: ${Object.keys(dictionaries[baseLanguage] || {}).length} stable keys, ${languages.join('/') || 'no languages'} complete, no duplicate or dead keys; ${characterPacks} character pack(s) with zh/en copy`,
 );

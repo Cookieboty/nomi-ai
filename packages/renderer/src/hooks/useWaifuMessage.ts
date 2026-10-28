@@ -1,7 +1,7 @@
-import { t } from '@nomi-ai/ui';
 import { useCallback } from 'react';
 
 import { useMascot } from '@/contexts/MascotContext';
+import { availableLines, bubbleText } from '@/mascot/characterCopy';
 import { getActiveModelName } from '@/mascot/characterVoice';
 import { playPromptClip } from '@/mascot/voice/promptClips';
 import { toBubbleText } from '@/security/bubbleText';
@@ -34,9 +34,12 @@ export function useWaifuMessage() {
     ) => {
       if (!text || (Array.isArray(text) && text.length === 0)) return;
       if (!clearPrevious && state.currentMessage && state.messagePriority > priority) return;
-      // 台词常量（提示 / 互动反应 / 整点报时 / mascot:say）存的是 key，显示前晚翻译；普通文本原样返回
-      const raw = Array.isArray(text) ? text[Math.floor(Math.random() * text.length)]! : text;
-      const selected = toBubbleText(t(raw));
+      // 台词常量（提示 / 互动反应 / 整点报时 / mascot:say）存的是 key，显示前晚翻译；普通文本原样返回。
+      // 角色台词从当前角色包取，包里没有的那句不显示。
+      const pool = availableLines(Array.isArray(text) ? text : [text]);
+      if (pool.length === 0) return;
+      const raw = pool[Math.floor(Math.random() * pool.length)]!;
+      const selected = toBubbleText(bubbleText(raw));
       if (!selected) return;
       playBubbleClip(raw, opts.clip);
       if (clearPrevious) dispatch({ type: 'CLEAR_MESSAGE' });

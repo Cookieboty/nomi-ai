@@ -44,6 +44,7 @@
     },
     "@nomi-ai/renderer#build": {
       "dependsOn": ["^build"],
+      "env": ["CHARACTER_PACK"],
       "outputs": ["dist/**", "build/**", ".turbo/**"],
       "inputs": [
         "$TURBO_DEFAULT$",
@@ -51,12 +52,15 @@
         "!CHANGELOG.md",
         "!coverage/**",
         "!dist/**",
+        "$TURBO_ROOT$/characters/**",
+        "$TURBO_ROOT$/scripts/character/**",
         "$TURBO_ROOT$/scripts/ports.mjs",
         "$TURBO_ROOT$/packages/electron/src/security/csp.ts"
       ]
     },
     "@nomi-ai/ai-chat#build": {
       "dependsOn": ["^build"],
+      "env": ["CHARACTER_PACK"],
       "outputs": ["dist/**", "build/**", ".turbo/**"],
       "inputs": [
         "$TURBO_DEFAULT$",
@@ -64,6 +68,8 @@
         "!CHANGELOG.md",
         "!coverage/**",
         "!dist/**",
+        "$TURBO_ROOT$/characters/**",
+        "$TURBO_ROOT$/scripts/character/**",
         "$TURBO_ROOT$/scripts/ports.mjs",
         "$TURBO_ROOT$/packages/electron/src/security/csp.ts"
       ]
@@ -98,6 +104,9 @@
         "!CHANGELOG.md",
         "!coverage/**",
         "!dist/**",
+        "$TURBO_ROOT$/characters/**",
+        "$TURBO_ROOT$/scripts/character/**",
+        "$TURBO_ROOT$/scripts/character/pack.mjs",
         "$TURBO_ROOT$/packages/electron/src/mascot/mascotSize.ts"
       ]
     },
@@ -122,6 +131,7 @@
         "!CHANGELOG.md",
         "!coverage/**",
         "!dist/**",
+        "$TURBO_ROOT$/characters/**",
         "$TURBO_ROOT$/assets-licenses.json"
       ]
     },

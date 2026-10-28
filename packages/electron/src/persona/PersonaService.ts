@@ -4,7 +4,8 @@
  * 来源按顺序取第一个有效的：
  *   1. 当前角色包（CharacterPackService 解析出的目录）：`persona.json`；没有时用旧包字段
  *      （`copy/<lang>.json` 的 `systemPromptIdentity`、`persona/system-prompt.md` 首行、manifest.displayName）；
- *   2. 官方角色数据（scripts/character 生成的 `character/character.generated.json` 的 persona 块）。
+ *   2. 内置角色包（本次构建携带的包，默认 characters/nomi；官方角色也只是一个普通角色包）；
+ *   3. 中性兜底（内置包缺失时，不冒充任何角色）。
  * 再按界面语言取文案：主语言（zh）是 persona 本身，其他语言用 `locales/<lang>.json` 的 persona 覆盖。
  *
  * 文件格式与校验全部来自 `@nomi-ai/character-contract`。本模块不依赖 electron（将随 P3 进入内核）：
@@ -26,8 +27,6 @@ import {
   type PersonaData,
 } from '@nomi-ai/character-contract';
 import type { Persona } from '@nomi-ai/types';
-
-import officialCharacter from '../character/character.generated.json';
 
 export type { Persona };
 
@@ -80,25 +79,21 @@ export function resolvePersona(bundle: PersonaBundle, uiLocale: string): Persona
   return persona;
 }
 
-const partialPersona = personaSchema.partial();
-
-/** 官方角色数据（character.generated.json）→ PersonaBundle；数据坏了是构建错误，直接抛出 */
-export function parseOfficialCharacter(raw: unknown): PersonaBundle {
-  const r = (raw ?? {}) as { id?: unknown; persona?: unknown; personaLocales?: unknown };
-  if (typeof r.id !== 'string' || !r.id) throw new Error('official character data has no id');
-  const persona = personaSchema.parse(r.persona);
-  const locales: PersonaBundle['locales'] = {};
-  const rawLocales = (r.personaLocales ?? {}) as Record<string, unknown>;
-  for (const lang of CHARACTER_LOCALES) {
-    if (rawLocales[lang] !== undefined) locales[lang] = partialPersona.parse(rawLocales[lang]);
-  }
-  return { characterId: r.id, persona, locales };
-}
-
-/** 官方角色数据来源（随应用打包，scripts/character 生成） */
-export function officialPersonaSource(raw: unknown = officialCharacter): PersonaSource {
-  const bundle = parseOfficialCharacter(raw);
-  return { id: 'official', load: () => bundle };
+/**
+ * 最后的兜底：内置角色包缺失或损坏（构建错误）时仍能对话，但不冒充任何角色。
+ * 只是模型可见的身份段，不是界面文案。
+ */
+export function neutralPersonaSource(): PersonaSource {
+  const bundle: PersonaBundle = {
+    characterId: 'none',
+    persona: {
+      displayName: 'AI',
+      systemPromptIdentity: 'You are an AI companion living on the user desktop.',
+      greetings: [],
+    },
+    locales: {},
+  };
+  return { id: 'neutral', load: () => bundle };
 }
 
 /** 当前启用的角色包（CharacterPackService.getResolved() 的子集） */
@@ -116,13 +111,17 @@ const isObject = (v: unknown): v is Record<string, unknown> =>
  */
 export function packPersonaSource(
   getPack: () => ActivePack | null | undefined,
-  opts: { readFile?: (file: string) => string | undefined; logger?: PersonaLogger } = {},
+  opts: {
+    id?: string;
+    readFile?: (file: string) => string | undefined;
+    logger?: PersonaLogger;
+  } = {},
 ): PersonaSource {
   const readFile =
     opts.readFile ??
     ((file: string) => (fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : undefined));
   return {
-    id: 'character-pack',
+    id: opts.id ?? 'character-pack',
     load: () => {
       const pack = getPack();
       if (!pack?.root || !isObject(pack.manifest)) return null;

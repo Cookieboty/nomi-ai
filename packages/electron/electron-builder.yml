@@ -84,6 +84,8 @@ asarUnpack:
   - '**/node_modules/tesseract.js-core/**'
 
 extraResources:
+  # renderer/dist 内含构建时选定的角色包（dist/character，CHARACTER_PACK 或 characters/nomi），
+  # 主进程把 resources/renderer/character 当作内置角色包（packages/electron/src/character/packResolve.ts）
   - from: ../renderer/dist
     to: renderer
   - from: ../ai-chat/dist

@@ -4,9 +4,9 @@
  * Overrides persist in localStorage.
  */
 import type { ModelConfig, ModelVoiceConfig } from '@nomi-ai/types';
-import { t } from '@nomi-ai/ui';
 
-import { CHARACTER, isActivePackModel } from './characterConfig';
+import { BUNDLED_PACK, isActivePackModel } from './characterConfig';
+import { bubbleText } from './characterCopy';
 import { isMascotMuted } from './presence';
 import {
   DEFAULT_SOFT_SPEECH,
@@ -20,15 +20,15 @@ import { isNoAudioLine, playPromptClip } from './voice/promptClips';
 const OVERRIDE_KEY = 'mascot.characterVoice.v1';
 
 /**
- * Built-in softer defaults keyed by the build-time pack id (official: nomi). Keyed statically —
+ * Built-in softer defaults keyed by the bundled pack id (manifest.defaults). Keyed statically —
  * the Scheme B overlay settles asynchronously; lookups go through isActivePackModel instead.
  */
-const PACK_ID = CHARACTER.id || 'nomi';
+const PACK_ID = BUNDLED_PACK.id;
 export const CHARACTER_VOICE_DEFAULTS: Record<string, ModelVoiceConfig> = {
   [PACK_ID]: {
-    voiceHint: CHARACTER.voice?.voiceHint || PACK_ID,
-    rate: CHARACTER.voice?.rate ?? 0.92,
-    pitch: CHARACTER.voice?.pitch ?? 1.1,
+    voiceHint: BUNDLED_PACK.defaults.voiceHint || 'xiaoxiao',
+    rate: BUNDLED_PACK.defaults.voiceRate ?? 0.92,
+    pitch: BUNDLED_PACK.defaults.voicePitch ?? 1.1,
   },
 };
 
@@ -130,7 +130,11 @@ export function resolvePrefsForCharacter(
 
 export function speakForActiveCharacter(key: string, opts: SpeakSoftOptions = {}): boolean {
   // 模块常量里的台词（提示音 / 触摸反应 / 整点报时）存的是 key，朗读前晚翻译；普通文本原样返回
-  const text = t(key);
+  const text = bubbleText(key);
+  if (!text) {
+    opts.onEnd?.();
+    return false;
+  }
   // 看板娘已关闭：不再播放语音
   if (isMascotMuted()) {
     opts.onEnd?.();

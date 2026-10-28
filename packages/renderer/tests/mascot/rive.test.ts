@@ -65,7 +65,7 @@ describe('rive backend', () => {
     const fire = vi.fn();
     const b = createRiveBackend(() => ({ trigger: (name) => ({ trigger: () => fire(name) }) }));
     const riv = fs.readFileSync(
-      path.join(__dirname, '../../public/assets/models/rive/nomi-complete.riv'),
+      path.join(__dirname, '../../../../characters/nomi/rive/character.riv'),
     );
     for (const clip of ['squat', 'step', 'walk', 'run']) {
       expect(b.playMotion(clip), clip).toBe(true);
@@ -124,7 +124,7 @@ describe('rive backend', () => {
   });
 });
 
-const RIV = path.join(__dirname, '../../public/assets/models/rive/nomi-complete.riv');
+const RIV = path.join(__dirname, '../../../../characters/nomi/rive/character.riv');
 const REPO = path.join(__dirname, '../../../..');
 const PNG_SIG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const IEND = Buffer.from('IEND');

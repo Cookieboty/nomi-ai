@@ -6,7 +6,6 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import officialJson from '../../../src/character/character.generated.json';
 import {
   PERSONA_CHANGED_CHANNEL,
   PERSONA_GET_CHANNEL,
@@ -15,15 +14,25 @@ import {
 import {
   characterLocaleOf,
   getPersonaService,
-  officialPersonaSource,
+  neutralPersonaSource,
   packPersonaSource,
-  parseOfficialCharacter,
   PersonaService,
   resolvePersona,
   setPersonaService,
   type PersonaBundle,
   type PersonaSource,
 } from '../../../src/persona/PersonaService';
+
+/** The official character is the built-in pack characters/nomi (same wiring as Application). */
+const NOMI_DIR = path.resolve(__dirname, '../../../../../characters/nomi');
+const officialPersonaSource = (): PersonaSource =>
+  packPersonaSource(
+    () => ({
+      root: NOMI_DIR,
+      manifest: JSON.parse(fs.readFileSync(path.join(NOMI_DIR, 'manifest.json'), 'utf8')),
+    }),
+    { id: 'builtin-pack' },
+  );
 
 const dummy: PersonaBundle = {
   characterId: 'test-dummy',
@@ -74,7 +83,7 @@ describe('characterLocaleOf / resolvePersona', () => {
   });
 });
 
-describe('official persona (scripts/character → character.generated.json)', () => {
+describe('official persona (built-in pack characters/nomi)', () => {
   it('is the Nomi character, identity only, in both languages', () => {
     const svc = new PersonaService({ sources: [officialPersonaSource()], locale: () => 'zh-CN' });
     expect(svc.get().characterId).toBe('nomi');
@@ -83,12 +92,15 @@ describe('official persona (scripts/character → character.generated.json)', ()
     expect(svc.get().systemPromptIdentity).not.toContain('简洁');
     const en = new PersonaService({ sources: [officialPersonaSource()], locale: () => 'en' });
     expect(en.get().systemPromptIdentity).toMatch(/^You are Nomi/);
-    expect(parseOfficialCharacter(officialJson).characterId).toBe('nomi');
   });
 
-  it('throws on invalid official data (build-time mistake, not a runtime fallback)', () => {
-    expect(() => officialPersonaSource({ id: 'nomi' })).toThrow();
-    expect(() => officialPersonaSource({ persona: dummy.persona })).toThrow();
+  it('falls back to a neutral identity that names no character', () => {
+    const svc = new PersonaService({
+      sources: [fixed('pack', null), neutralPersonaSource()],
+      locale: () => 'zh-CN',
+    });
+    expect(svc.get().characterId).toBe('none');
+    expect(JSON.stringify(svc.get())).not.toMatch(/Nomi|诺米/);
   });
 });
 

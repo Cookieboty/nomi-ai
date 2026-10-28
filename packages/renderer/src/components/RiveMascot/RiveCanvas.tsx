@@ -10,7 +10,7 @@ import { characterBox } from '../../mascot/spriteLayout';
 import MascotInteractionLayerLite, { type SpriteGeometry } from '../SpriteMascot/InteractionLite';
 
 export interface RiveCanvasProps {
-  /** URL of the high-fidelity .riv (default: overlay.riveUrl → character.generated → public path). */
+  /** URL of the high-fidelity .riv (default: overlay.riveUrl → bundled pack ./character/…). */
   src?: string;
   style?: React.CSSProperties;
   /**

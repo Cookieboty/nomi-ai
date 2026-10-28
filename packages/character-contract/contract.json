@@ -212,11 +212,9 @@
   },
   "hitboxIds": ["head", "face", "body", "hand", "hem"],
   "modes": ["rive", "sprite", "static"],
-  "overwriteTargets": {
-    "rive": "packages/renderer/public/assets/models/rive/nomi-complete.riv",
-    "sprite": "packages/renderer/public/assets/models/sprite/nomi/",
-    "voice": "packages/renderer/public/voice/nomi/",
-    "onboarding": "packages/ai-chat/src/components/Onboarding/art/"
+  "packs": {
+    "dir": "characters",
+    "default": "nomi"
   },
   "persona": {
     "file": "persona.json",

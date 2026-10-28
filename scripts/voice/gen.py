@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-生成诺米提示语音（预录片段）：packages/renderer/public/voice/nomi/zh/<key>.mp3 + manifest.json。
+生成诺米提示语音（预录片段）：characters/nomi/voice/zh/<key>.mp3 + manifest.json。
 
-- 台词文字取自 @nomi-ai/i18n 中文文案（packages/i18n/src/locales/zh/**），key 列表取自现有 manifest；
+- 台词文字取自角色包台词（characters/nomi/locales/zh.json 的 lines，按稳定 id）与 @nomi-ai/i18n 中文文案
+  （packages/i18n/src/locales/zh/**，按 manifest 的 i18nKey），key 列表取自现有 manifest；
   带变量的台词用 VARIABLE_LINES 里的固定句。
 - 默认用 edge-tts（微软 Edge 在线 Neural 朗读，zh-CN-XiaoyiNeural，语速 -5%，音调 +0Hz）。
   Edge 在线服务输出的再分发许可不明确：正式发布前请用 Azure Speech 订阅（同一音色）重新生成。
@@ -26,7 +27,8 @@ import subprocess
 import sys
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-OUT_DIR = os.path.join(ROOT, "packages/renderer/public/voice/nomi/zh")
+PACK_DIR = os.path.join(ROOT, "characters/nomi")
+OUT_DIR = os.path.join(PACK_DIR, "voice/zh")
 LOCALE_GLOB = os.path.join(ROOT, "packages/i18n/src/locales/zh/**/*.json")
 
 VOICE = "zh-CN-XiaoyiNeural"
@@ -53,6 +55,9 @@ def load_zh() -> dict[str, str]:
     for f in glob.glob(LOCALE_GLOB, recursive=True):
         with open(f, encoding="utf-8") as fh:
             zh.update(json.load(fh))
+    # 角色台词（提示、问候）在角色包里，按稳定 id
+    with open(os.path.join(PACK_DIR, "locales/zh.json"), encoding="utf-8") as fh:
+        zh.update(json.load(fh).get("lines", {}))
     return zh
 
 
@@ -125,7 +130,7 @@ async def main() -> None:
         if key in VARIABLE_LINES:
             jobs.append(synth(key, VARIABLE_LINES[key], "variable", sem))
             continue
-        text = zh.get(key)
+        text = zh.get(key) or zh.get(existing.get(key, {}).get("i18nKey", ""))
         if text is None:
             sys.exit(f"{key}: 中文文案里没有这个 key（台词已删除？先从 manifest 移除）")
         if re.search(r"\{\d+\}", text):

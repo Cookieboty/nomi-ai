@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { readPackDir, validatePackDir } from '../src/node';
+import { readPackDir, validatePackDir, validatePackDirSync } from '../src/node';
 
 import { legacyRivePack, staticPack } from './fixtures';
 
@@ -52,5 +52,34 @@ describe('node entry', () => {
     const res = await validatePackDir(join(tmpdir(), 'definitely-not-a-pack-dir-xyz'));
     expect(res.ok).toBe(false);
     expect(res.errors[0]?.code).toBe('manifest-missing');
+  });
+
+  it('validates synchronously with the same result', async () => {
+    const dir = writePack(staticPack());
+    const sync = validatePackDirSync(dir);
+    const async_ = await validatePackDir(dir);
+    expect(sync.ok).toBe(true);
+    expect(sync.pack?.persona).toEqual(async_.pack?.persona);
+    expect(validatePackDirSync(join(dir, 'missing')).errors[0]?.code).toBe('manifest-missing');
+  });
+});
+
+describe('packs in the repository', () => {
+  const repo = join(__dirname, '../../..');
+
+  it('official characters/nomi is a valid pack with complete voice', async () => {
+    const res = await validatePackDir(join(repo, 'characters/nomi'), {
+      requireCompleteVoice: true,
+    });
+    expect(res.errors).toEqual([]);
+    expect(res.pack?.mode).toBe('rive');
+    expect(res.pack?.personaSource).toBe('persona.json');
+    expect(res.warnings.map((w) => w.code)).not.toContain('locale-key-missing');
+  });
+
+  it('characters/test-dummy is a valid static pack', async () => {
+    const res = await validatePackDir(join(repo, 'characters/test-dummy'));
+    expect(res.errors).toEqual([]);
+    expect(res.pack?.mode).toBe('static');
   });
 });

@@ -1,0 +1,30 @@
+{
+  "emotions": {
+    "happy": "nod",
+    "sad": "tears",
+    "angry": "angry",
+    "surprised": "surprise",
+    "shy": "shy",
+    "confused": "puzzled",
+    "sleepy": "yawn"
+  },
+  "activities": {
+    "thinking": "think",
+    "toolRunning": ["work", "typing"]
+  },
+  "gestures": {
+    "wave": "wave",
+    "greet": "hello",
+    "nod": "nod",
+    "shakeHead": ["shake", "shake_head"],
+    "bow": "bow",
+    "clap": "clap",
+    "cheer": "cheer",
+    "celebrate": "celebrate",
+    "thumbsUp": "thumbs_up",
+    "apologize": ["apology", "sorry"],
+    "think": "think",
+    "explain": "explain",
+    "heart": "heart"
+  }
+}

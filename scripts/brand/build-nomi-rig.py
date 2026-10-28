@@ -3,7 +3,7 @@
 
 Local-only (numpy, Pillow, opencv-python-headless; no hosted services).
 Usage: python3 scripts/brand/build-nomi-rig.py <nomi-clean-halfbody.jpg> <out-dir/>
-Then copy out-dir/*.png to packages/renderer/public/assets/models/sprite/nomi/layers/
+Then copy out-dir/*.png to characters/nomi/sprite/layers/
 (thumb.png one level up) and paste rig.json into manifest.json under "rig".
 Occluded areas (skin under eyes/mouth, hair under the ribbon, neck under the
 chin, collar under the swaying side hair) are filled with OpenCV Telea inpainting;

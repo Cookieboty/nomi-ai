@@ -20,7 +20,7 @@ export interface Nomi2DCanvasProps {
 }
 
 /**
- * Bundled 2D mascot host: mode from character.generated.json, overridden by Scheme B overlay
+ * Bundled 2D mascot host: mode from the bundled character pack, overridden by Scheme B overlay
  * once `useCharacterPackReady` settles (avoids racing sync getCharacterMode before overlay IPC).
  * - rive: Rive first, sprite fallback
  * - sprite: layered rig only

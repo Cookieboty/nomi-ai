@@ -82,11 +82,13 @@ jobs:
       - name: i18n check (every user-facing string has an English translation)
         run: pnpm check:i18n
 
-      - name: Character pack contract (default nomi pack)
+      - name: Character pack contract (official characters/nomi)
         run: pnpm character:check
 
-      - name: Character pack contract (static demo pack)
-        run: node scripts/character/check.mjs examples/static-demo.pack
+      - name: Character pack contract (test-dummy and legacy static demo packs)
+        run: |
+          node scripts/character/check.mjs characters/test-dummy
+          node scripts/character/check.mjs examples/static-demo.pack
 
       - name: Frontend architecture check (file budgets and registered exceptions)
         run: pnpm check:frontend

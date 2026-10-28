@@ -13,12 +13,20 @@ import {
   resolveCharacterPackUrl,
 } from '../../../src/character/packProtocol';
 import {
+  builtinPackCandidates,
+  builtinPackDir,
+  hitboxesOf,
+  loadPackAt,
   resolveCharacterPack,
-  resolveSpriteManifestRel,
-  resolveStaticRel,
   validatePackRoot,
-  loadHitboxes,
 } from '../../../src/character/packResolve';
+
+const REPO = path.resolve(__dirname, '../../../../..');
+const packOf = (root: string) => {
+  const r = loadPackAt(root);
+  if (!r.ok) throw new Error(r.reason);
+  return r.pack;
+};
 
 const tmp = () => mkdtempSync(path.join(os.tmpdir(), 'char-pack-'));
 
@@ -57,7 +65,7 @@ describe('validatePackRoot', () => {
     await writeMinimalStaticPack(root);
     expect(validatePackRoot(root)).toBeNull();
     await fsp.rm(path.join(root, 'onboarding', 'welcome.webp'));
-    expect(validatePackRoot(root)).toMatch(/missing onboarding/);
+    expect(validatePackRoot(root)).toMatch(/onboarding\/welcome\.webp/);
     await fsp.rm(root, { recursive: true, force: true });
   });
 });
@@ -84,6 +92,28 @@ describe('resolveCharacterPack', () => {
     expect(c.source).toBe('builtin');
     expect(c.root).toBeNull();
 
+    // the built-in pack goes through the same validation
+    const builtin = tmp();
+    await writeMinimalStaticPack(builtin, 'builtin-pack');
+    const d = resolveCharacterPack({
+      userDataPack: user,
+      resourcesPack: res,
+      builtinPack: builtin,
+    });
+    expect(d.source).toBe('builtin');
+    expect(d.root).toBe(builtin);
+    expect(d.manifest?.id).toBe('builtin-pack');
+    expect(d.reason).toBe('overlay invalid — using built-in');
+    await fsp.rm(path.join(builtin, 'onboarding', 'privacy.webp'));
+    const e = resolveCharacterPack({
+      userDataPack: user,
+      resourcesPack: res,
+      builtinPack: builtin,
+    });
+    expect(e.root).toBeNull();
+    expect(e.skipped.some((s) => s.source === 'builtin')).toBe(true);
+    await fsp.rm(builtin, { recursive: true, force: true });
+
     await fsp.rm(user, { recursive: true, force: true });
     await fsp.rm(res, { recursive: true, force: true });
   });
@@ -104,23 +134,20 @@ describe('resolveCharacterPack', () => {
     await writeMinimalStaticPack(root);
     await fsp.rm(path.join(root, 'static', 'character.webp'));
     writeFileSync(path.join(root, 'static', 'character.png'), Buffer.from([1]));
-    const m = { schema: 1, id: 'x', assets: { mode: 'static' } };
     expect(validatePackRoot(root)).toBeNull();
-    expect(resolveStaticRel(root, m)).toBe('static/character.png');
+    expect(packOf(root).assets.static).toBe('static/character.png');
     await fsp.rm(path.join(root, 'static', 'character.png'));
-    expect(resolveStaticRel(root, m)).toBeNull();
-    expect(validatePackRoot(root)).toMatch(/static mode missing/);
+    expect(validatePackRoot(root)).toMatch(/static mode requires/);
     await fsp.rm(root, { recursive: true, force: true });
   });
 
   it('reports a sprite manifest only when the pack ships one', async () => {
     const root = tmp();
     await writeMinimalStaticPack(root);
-    const m = { schema: 1, id: 'x', assets: { sprite: './sprite/' } };
-    expect(resolveSpriteManifestRel(root, m)).toBeNull();
+    expect(packOf(root).assets.spriteManifest).toBeNull();
     mkdirSync(path.join(root, 'sprite'), { recursive: true });
     writeFileSync(path.join(root, 'sprite', 'manifest.json'), '{}');
-    expect(resolveSpriteManifestRel(root, m)).toBe('sprite/manifest.json');
+    expect(packOf(root).assets.spriteManifest).toBe('sprite/manifest.json');
     await fsp.rm(root, { recursive: true, force: true });
   });
 
@@ -133,7 +160,7 @@ describe('resolveCharacterPack', () => {
         regions: { skirt: { top: 0.7, bottom: 1, left: 0.2, right: 0.8 } },
       }),
     );
-    const hb = loadHitboxes(root, { schema: 1, id: 'x' });
+    const hb = hitboxesOf(packOf(root));
     expect(hb?.regions.hem).toEqual({ top: 0.7, bottom: 1, left: 0.2, right: 0.8 });
     expect(hb?.regions.skirt).toBeUndefined();
     await fsp.rm(root, { recursive: true, force: true });
@@ -162,6 +189,48 @@ describe('character-pack protocol helpers', () => {
       await resolveCharacterPackUrl(root, 'character-pack://other/onboarding/welcome.webp'),
     ).toBeNull();
     await fsp.rm(root, { recursive: true, force: true });
+  });
+});
+
+describe('built-in pack location', () => {
+  it('packaged: resources/renderer/character', () => {
+    expect(
+      builtinPackCandidates({ packaged: true, dev: false, resourcesPath: '/r', appPath: '/a' }),
+    ).toEqual([path.join('/r', 'renderer', 'character')]);
+  });
+
+  it('unpacked: renderer build output first, then the repository pack', () => {
+    const appPath = path.join(REPO, 'packages', 'electron');
+    expect(
+      builtinPackCandidates({ packaged: false, dev: false, resourcesPath: '', appPath }),
+    ).toEqual([
+      path.join(appPath, 'dist', 'renderer', 'character'),
+      path.join(REPO, 'characters', 'nomi'),
+    ]);
+    expect(
+      builtinPackCandidates({
+        packaged: false,
+        dev: true,
+        resourcesPath: '',
+        appPath,
+        characterPack: 'characters/test-dummy',
+      }),
+    ).toEqual([path.join(REPO, 'characters', 'test-dummy')]);
+    expect(builtinPackDir({ packaged: false, dev: true, resourcesPath: '', appPath })).toBe(
+      path.join(REPO, 'characters', 'nomi'),
+    );
+  });
+
+  it('the official characters/nomi validates as the built-in pack', () => {
+    const r = resolveCharacterPack({
+      userDataPack: path.join(os.tmpdir(), 'no-such-user-pack'),
+      resourcesPack: path.join(os.tmpdir(), 'no-such-resources-pack'),
+      builtinPack: path.join(REPO, 'characters', 'nomi'),
+    });
+    expect(r.source).toBe('builtin');
+    expect(r.manifest?.id).toBe('nomi');
+    expect(r.pack?.mode).toBe('rive');
+    expect(r.skipped).toEqual([]);
   });
 });
 
@@ -200,7 +269,7 @@ describe('normalizePackRelPath', () => {
     for (const f of ['welcome.webp', 'profile.webp', 'provider.webp', 'privacy.webp']) {
       writeFileSync(path.join(root, 'onboarding', f), Buffer.from([0]));
     }
-    writeFileSync(path.join(root, 'rive', 'character.riv'), Buffer.from([1]));
+    writeFileSync(path.join(root, 'rive', 'character.riv'), Buffer.alloc(2048, 1));
     writeFileSync(
       path.join(root, 'manifest.json'),
       JSON.stringify({

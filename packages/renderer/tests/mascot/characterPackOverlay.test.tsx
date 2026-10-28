@@ -13,6 +13,7 @@ import {
   resetCharacterPackOverlayForTest,
   useCharacterPackReady,
 } from '../../src/mascot/characterConfig';
+import { availableLines, characterLine } from '../../src/mascot/characterCopy';
 
 function ReadyProbe({ children }: { children: (ready: boolean) => React.ReactNode }) {
   const ready = useCharacterPackReady();
@@ -143,5 +144,27 @@ describe('Scheme B overlay readiness', () => {
     }));
     await ensureCharacterPackOverlay();
     expect(getSpriteManifestPath(builtin)).toBe('character-pack://pack/sprite/manifest.json');
+  });
+
+  it('reads character copy from the overlay pack only (no fallback to the bundled lines)', async () => {
+    expect(characterLine('greet-welcome-back')).toBeTruthy();
+    stubGetActive(async () => ({
+      source: 'userData',
+      id: 'test-dummy',
+      mode: 'static',
+      riveUrl: null,
+      staticUrl: 'character-pack://pack/static/character.webp',
+      voiceBaseUrl: null,
+      spriteManifestUrl: null,
+      hitboxes: null,
+      rive: null,
+      locales: { zh: { lines: { 'greet-welcome-back': '哔哔，欢迎回来。' } } },
+    }));
+    await ensureCharacterPackOverlay();
+    expect(characterLine('greet-welcome-back')).toBe('哔哔，欢迎回来。');
+    expect(characterLine('tip-ask-me-anything')).toBeUndefined();
+    expect(availableLines(['tip-ask-me-anything', 'greet-welcome-back'])).toEqual([
+      'greet-welcome-back',
+    ]);
   });
 });

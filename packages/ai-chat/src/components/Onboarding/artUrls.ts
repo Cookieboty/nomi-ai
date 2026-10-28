@@ -1,19 +1,18 @@
 /**
- * Onboarding illustrations: bundled Vite imports by default; Scheme B overlay
- * swaps in character-pack:// URLs when an active pack ships onboarding/*.webp.
+ * Onboarding illustrations come from the character pack this build ships: the Vite plugin
+ * (scripts/character/vite-plugin.mjs) serves / emits the pack's onboarding/*.webp at
+ * `./character/onboarding/`. A Scheme B overlay swaps in character-pack:// URLs when the active
+ * pack ships its own.
  */
-import privacyArt from './art/privacy.webp';
-import profileArt from './art/profile.webp';
-import providerArt from './art/provider.webp';
-import welcomeArt from './art/welcome.webp';
-
 export type OnboardingStep = 'welcome' | 'profile' | 'provider' | 'privacy';
 
+const BUILTIN_BASE = './character/onboarding/';
+
 export const BUILTIN_ONBOARDING_ART: Record<OnboardingStep, string> = {
-  welcome: welcomeArt,
-  profile: profileArt,
-  provider: providerArt,
-  privacy: privacyArt,
+  welcome: `${BUILTIN_BASE}welcome.webp`,
+  profile: `${BUILTIN_BASE}profile.webp`,
+  provider: `${BUILTIN_BASE}provider.webp`,
+  privacy: `${BUILTIN_BASE}privacy.webp`,
 };
 
 export async function resolveOnboardingArt(): Promise<Record<OnboardingStep, string>> {

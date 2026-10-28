@@ -21,7 +21,7 @@ import { ACTIONS } from '../../src/mascot/rig/actions';
  */
 const MODEL = process.env.CHARACTER_PACK_SPRITE_DIR
   ? path.resolve(process.env.CHARACTER_PACK_SPRITE_DIR)
-  : path.join(__dirname, '../../public/assets/models/sprite/nomi');
+  : path.join(__dirname, '../../../../characters/nomi/sprite');
 
 const SKIP_BRAND = process.env.CHARACTER_PACK_SKIP_BRAND_LOCK === '1';
 const describeBrand = SKIP_BRAND ? describe.skip : describe;

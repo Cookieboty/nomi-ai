@@ -67,7 +67,7 @@ describe('promptClips', () => {
     await expect(playPromptClip('ui.cli-monitor.okay', { modelName: 'nomi' })).resolves.toBe(
       'played',
     );
-    expect(h.play).toHaveBeenCalledWith('./voice/nomi/zh/ack-okay.mp3', {
+    expect(h.play).toHaveBeenCalledWith('./character/voice/zh/ack-okay.mp3', {
       volume: undefined,
       onEnd: undefined,
     });
@@ -121,7 +121,7 @@ describe('bundled manifest', () => {
   it('has a file for every clip and covers the variable-line hints', async () => {
     const fs = await import('node:fs');
     const path = await import('node:path');
-    const dir = path.resolve(__dirname, '../../public/voice/nomi/zh');
+    const dir = path.resolve(__dirname, '../../../../characters/nomi/voice/zh');
     const m = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8')) as {
       voice: string;
       idSchema?: string;
@@ -144,7 +144,7 @@ describe('legacyClipIds rename mapping', () => {
     const legacy = JSON.parse(
       fs.readFileSync(path.resolve(__dirname, '../../src/mascot/voice/legacyClipIds.json'), 'utf8'),
     ) as { byLegacyKey: Record<string, string> };
-    const dir = path.resolve(__dirname, '../../public/voice/nomi/zh');
+    const dir = path.resolve(__dirname, '../../../../characters/nomi/voice/zh');
     const m = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8')) as {
       clips: Array<{ id?: string; key: string }>;
     };

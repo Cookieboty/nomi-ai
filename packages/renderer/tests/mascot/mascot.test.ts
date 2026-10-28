@@ -1,12 +1,13 @@
-import { t } from '@nomi-ai/ui';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { mascotReducer, type MascotState } from '../../src/contexts/MascotContext';
 import { parseCatalog, pickModel, type MascotModel } from '../../src/mascot/catalog';
+import { BUNDLED_PACK } from '../../src/mascot/characterConfig';
+import { bubbleText, characterLine } from '../../src/mascot/characterCopy';
 import { directiveForEvent, expressionForText } from '../../src/mascot/expressionDirector';
 import { mascotRegistry, type MascotBackend } from '../../src/mascot/MascotBackend';
 import { applyDirective } from '../../src/mascot/mood';
-import { greetingFor, MOUSEOVER_TIPS } from '../../src/mascot/tips';
+import { CHARACTER_LINE_IDS, greetingFor, MOUSEOVER_TIPS } from '../../src/mascot/tips';
 
 const model = (name: string): MascotModel => ({
   name,
@@ -33,17 +34,17 @@ describe('catalog', () => {
     expect(pickModel(list, null)?.name).toBe('a');
   });
 
-  it('bundles only Nomi (no VRM or other sprites)', async () => {
-    const fs = await import('node:fs');
-    const raw = JSON.parse(
-      fs.readFileSync(
-        new URL('../../public/assets/models/model-list.json', import.meta.url),
-        'utf8',
-      ),
+  it('bundles only the selected pack (generated from characters/nomi, no VRM)', async () => {
+    // @ts-expect-error -- plain .mjs build helper without type declarations
+    const { loadPack, modelListFor } = await import('../../../../scripts/character/pack.mjs');
+    const { fileURLToPath } = await import('node:url');
+    const { pack } = await loadPack(
+      fileURLToPath(new URL('../../../../characters/nomi', import.meta.url)),
     );
-    const list = parseCatalog(raw);
+    const list = parseCatalog(modelListFor(pack));
     expect(list.map((m) => m.name)).toEqual(['nomi']);
     expect(list[0].license).toBe('MIT'); // owner-provided, AI-generated
+    expect(list[0].path).toBe('./character/sprite/manifest.json');
     expect(list.some((m) => m.path.endsWith('.vrm'))).toBe(false);
   });
 });
@@ -108,8 +109,15 @@ describe('MascotContext reducer', () => {
 });
 
 describe('misc', () => {
-  it('has greetings and mouseover tips', () => {
-    expect(t(greetingFor(8))).toMatch(/早上好/);
+  it('has greetings and mouseover tips (text from the character pack)', () => {
+    expect(characterLine(greetingFor(8))).toMatch(/早上好/);
     expect(MOUSEOVER_TIPS.length).toBeGreaterThan(0);
+    // every line id the mascot uses exists in the bundled pack, in both languages
+    for (const id of CHARACTER_LINE_IDS) {
+      expect(BUNDLED_PACK.locales.zh?.lines?.[id]).toBeTruthy();
+      expect(BUNDLED_PACK.locales.en?.lines?.[id]).toBeTruthy();
+    }
+    // a UI catalog key is still translated, character lines never go through the catalog
+    expect(bubbleText('tip-ask-me-anything')).toBe(characterLine('tip-ask-me-anything'));
   });
 });

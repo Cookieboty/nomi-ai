@@ -19,7 +19,7 @@ import {
 import { regionInSprite } from '../../src/mascot/spriteInteraction';
 import { characterBox, MASCOT_PAD } from '../../src/mascot/spriteLayout';
 
-const dir = new URL('../../public/assets/models/sprite/nomi/', import.meta.url);
+const dir = new URL('../../../../characters/nomi/sprite/', import.meta.url);
 const rig = JSON.parse(readFileSync(new URL('manifest.json', dir), 'utf8')).rig as RigManifest;
 const imgs: RigImages = new Map();
 for (const f of readdirSync(new URL('layers/', dir))) {

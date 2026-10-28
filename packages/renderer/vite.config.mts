@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite';
+import { characterPackPlugin } from '../../scripts/character/vite-plugin.mjs';
 import { DEV_HOST, PORTS } from '../../scripts/ports.mjs';
 import react from '@vitejs/plugin-react';
 import path from 'path';
@@ -13,6 +14,8 @@ export default defineConfig({
   // 插件配置
   plugins: [
     react(),
+    // 当前角色包（CHARACTER_PACK 或 characters/nomi）：开发态直接读包，构建时输出到 dist/character
+    characterPackPlugin({ scope: 'all' }),
     {
       // 生产构建：给看板娘窗口注入 CSP（开发模式 HMR 需要内联脚本，不注入）
       name: 'mascot-csp',
