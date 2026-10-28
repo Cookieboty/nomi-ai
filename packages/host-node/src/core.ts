@@ -28,13 +28,23 @@ import {
 import { LoggerService, LogLevel } from '@nomi-ai/core/services/LoggerService';
 import type { HostPorts } from '@nomi-ai/host-ports';
 
+import { forkUtilityProcess } from './processes';
+
 import { createNodeHostPorts, type NodeHostControl, type NodeHostPortsOptions } from './index';
 
 export interface HeadlessCoreOptions {
   /** 端口选项（根目录、预设对话框答案、能力声明…） */
   ports?: NodeHostPortsOptions;
-  /** 内核配置；`autoSyncModels` 缺省为 false（不联网） */
+  /**
+   * 内核配置；`autoSyncModels` 缺省为 false（不联网），`gatewayPort` 缺省为 0（系统分配，不和本机装着的
+   * Nomi 抢默认端口）
+   */
   config?: CoreConfig;
+  /**
+   * 用真实的 Node 子进程实现工具子进程端口（`forkUtilityProcess`），统一网关与文档解析才起得来。
+   * 默认 false（e2e 不需要网关，也不拉子进程）；`pnpm dev:web` 打开
+   */
+  processes?: boolean;
   /** 宿主钩子（无界面 e2e 用 `aiPluginsAfter` 换上假的 LLM / 工具） */
   host?: CoreHostHooks;
   /** 宿主片段与 router 中间件 */
@@ -88,12 +98,15 @@ function createLogger(ports: HostPorts, level: keyof typeof LEVELS): LoggerServi
 
 /** 建端口、建内核并 `start()`；返回后 router 已就绪 */
 export async function startHeadlessCore(options: HeadlessCoreOptions = {}): Promise<HeadlessCore> {
-  const { ports, control } = createNodeHostPorts(options.ports);
+  const { ports, control } = createNodeHostPorts({
+    ...options.ports,
+    ...(options.processes && !options.ports?.fork ? { fork: forkUtilityProcess } : {}),
+  });
   const logger = options.logger ?? createLogger(ports, options.logLevel ?? 'info');
   const core = createCore({
     ports,
     logger,
-    config: { autoSyncModels: false, ...options.config },
+    config: { autoSyncModels: false, gatewayPort: 0, ...options.config },
     ...(options.host ? { host: options.host } : {}),
     ...(options.contract ? { contract: options.contract } : {}),
   });

@@ -8,7 +8,7 @@
  * - `appearance` 默认浅色，`control.setSystemDark()` 模拟系统切换；
  * - `notifications` 只记录（`control.notifications`，`clickNotification()` 模拟点击）；
  * - `image` 默认解码不了任何图片（`size` 返回 null、`resize` 抛错），可用选项注入；
- * - `processes` 默认不可用（工具子进程依赖宿主的 `parentPort`），可用选项注入 fork；
+ * - `processes` 默认不可用，可用选项注入 fork（`forkUtilityProcess` 是 Node 子进程的实现）；
  * - `capabilities` 全部为 false / `none`。
  *
  * 返回值除了 `HostPorts` 本身，还带一个 `control` 句柄，测试用它预设答案、触发事件、读记录。
@@ -453,3 +453,5 @@ export function createNodeHostPorts(options: NodeHostPortsOptions = {}): NodeHos
 
   return { ports, control };
 }
+
+export { forkUtilityProcess } from './processes';
