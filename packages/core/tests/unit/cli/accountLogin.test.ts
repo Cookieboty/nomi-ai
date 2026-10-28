@@ -14,7 +14,6 @@ import path from 'node:path';
 import {
   AccountLogin,
   isLoginUrl,
-  LOGIN_EVENT_CHANNEL,
   loginBroadcaster,
   parseLoginOutput,
   tightenTree,
@@ -61,10 +60,8 @@ describe('parseLoginOutput（真机输出，码已脱敏）', () => {
     const events = createRecordingAppEvents();
     const e: LoginEvent = { id: 'l1', kind: 'codex', state: 'waiting', code: 'ABCD' };
     loginBroadcaster(events)(e);
-    expect(events.published).toEqual([
-      { channel: LOGIN_EVENT_CHANNEL, payload: e, surfaces: null },
-    ]);
-    expect(LOGIN_EVENT_CHANNEL).toBe('ai:cli-account:login');
+    expect(events.published).toEqual([{ event: 'cliAccount.login', payload: e, surfaces: null }]);
+    expect('cliAccount.login').toBe('cliAccount.login');
   });
 });
 

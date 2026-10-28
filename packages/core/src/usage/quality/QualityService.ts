@@ -1,6 +1,6 @@
 /**
  * 模型质量服务（docs/design/model-quality.md）：持有 QualityLedger，接收网关层 / CLI 层记录，
- * 提供查询、时间序列、请求明细、设置、清空与 CSV 导出（IPC 见 @nomi-ai/types QUALITY_IPC）。
+ * 提供查询、时间序列、请求明细、设置、清空与 CSV 导出（契约 `quality.*`）。
  * 只存元数据，受「用量统计」总开关控制：关着时不记录。
  */
 import fs from 'node:fs';
@@ -8,7 +8,6 @@ import path from 'node:path';
 
 import type { HostPorts } from '@nomi-ai/host-ports';
 import {
-  QUALITY_IPC,
   type QualityDimension,
   type QualityExportRequest,
   type QualityExportResult,
@@ -92,7 +91,7 @@ export interface QualityServiceDeps {
   now?: () => number;
   /** 写盘攒批（ms），默认 500；0 = 立即写（测试） */
   flushMs?: number;
-  /** 数据变化通知界面（ai:quality:changed） */
+  /** 数据变化通知界面（quality.changed） */
   events: AppEvents;
   /** 导出 CSV 的保存对话框 */
   ports: Pick<HostPorts, 'dialogs'>;
@@ -373,7 +372,7 @@ export class QualityService {
     if (this.broadcastTimer) return;
     this.broadcastTimer = setTimeout(() => {
       this.broadcastTimer = null;
-      this.d.events.publish(QUALITY_IPC.changed, null);
+      this.d.events.publish('quality.changed', null);
     }, BROADCAST_MS);
     (this.broadcastTimer as { unref?: () => void }).unref?.();
   }

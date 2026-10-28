@@ -1,16 +1,15 @@
 /**
- * D3 的处理函数与事件桥（docs/design/core-host-decoupling.md §12「P1b 实施约定」）。
+ * D3 的处理函数（docs/design/core-host-decoupling.md §12「P1b 实施约定」）。
  *
  * 本文件只属于 D3。契约声明在 packages/contract/src/app/coding.ts；这里：
  * - `createCodingHandlers(deps)`：每个过程一个处理函数，委派给服务的公开方法（服务从
- *   `deps.services` 在调用时读取，缺了用 `need()` 报 UNAVAILABLE）；
- * - `codingEventBridge`：服务仍在 `events.publish` 的旧通道 → 契约事件。
+ *   `deps.services` 在调用时读取，缺了用 `need()` 报 UNAVAILABLE）。服务直接发布契约事件。
  *
  * 编排器（HarnessOrchestrator）原来只把推送发给调过 ai:harness:* 的窗口；这里在建 router 与每次调用时把
- * 应用事件总线接给它（`attachEvents`），推送改为 `events.publish(…, { surface: 'chat' })`，经事件桥发成契约事件。
+ * 应用事件总线接给它（`attachEvents`），推送改为 `events.publish('harness.*', …, { surface: 'chat' })`。
  */
 
-import type { CodingEventName, CodingProcedureName } from '@nomi-ai/contract/app';
+import type { CodingProcedureName } from '@nomi-ai/contract/app';
 
 import { AccountError, parseAccountKind } from '../cli/accounts/AccountService';
 import { toScope, toUpdatable } from '../cli/CliUpdateService';
@@ -23,13 +22,7 @@ import type {
   HarnessTabMessage,
 } from '../cli/types';
 
-import {
-  need,
-  type AppHandlerContext,
-  type ContractDeps,
-  type DomainHandlers,
-  type EventBridgeMap,
-} from './types';
+import { need, type AppHandlerContext, type ContractDeps, type DomainHandlers } from './types';
 
 export type CodingHandlers = DomainHandlers<CodingProcedureName>;
 
@@ -249,17 +242,3 @@ export function createCodingHandlers(deps: ContractDeps): CodingHandlers {
       wireP(history().remove(backend as HistoryBackend, sessionId)),
   };
 }
-
-/** 旧通道 → 契约事件（服务照旧 `events.publish(<旧通道>)`；编排器的推送只发给对话窗口） */
-export const codingEventBridge: EventBridgeMap<CodingEventName> = {
-  'ai:harness:changed': 'harness.changed',
-  'ai:harness:tabs': 'harness.tabsChanged',
-  'ai:harness:events': 'harness.events',
-  'ai:harness:tab-message': 'harness.tabMessage',
-  'ai:cli:registry-changed': 'cli.registryChanged',
-  'ai:cli-account:changed': 'cliAccount.changed',
-  'ai:cli-account:login': 'cliAccount.login',
-  'ai:cli-update:event': 'cliUpdate.event',
-  'ai:delegate:completed': 'delegate.completed',
-  'ai:agents:changed': 'agents.changed',
-};

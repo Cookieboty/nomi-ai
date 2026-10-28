@@ -1,4 +1,4 @@
-import type { AppEvents } from '@nomi-ai/core/core/appEvents';
+import type { AppEventName, AppEvents } from '@nomi-ai/core/core/appEvents';
 import {
   DEFAULT_MASCOT_SCALE,
   MASCOT_BASE,
@@ -149,7 +149,7 @@ export class MascotWindowController {
     private readonly logger: Logger,
     private readonly rnd: () => number = Math.random,
     private readonly scaleHooks?: MascotScaleHooks,
-    /** 内核的应用事件总线（推送经它发布，事件桥转成契约事件）；不给时推送直接丢弃 */
+    /** 内核的应用事件总线（推送经它发布契约事件）；不给时推送直接丢弃 */
     private readonly events?: AppEvents,
   ) {}
 
@@ -411,8 +411,8 @@ export class MascotWindowController {
     const state = this.scaleState();
     if (userPref) this.scaleHooks?.save(this.pref);
     if (notify) {
-      // 看板娘与对话窗口（设置页的大小滑块）都要知道；事件桥转成契约事件 mascot.scaleChanged
-      this.events?.publish('mascot:scale-changed', state, { surface: ['mascot', 'chat'] });
+      // 看板娘与对话窗口（设置页的大小滑块）都要知道：契约事件 mascot.scaleChanged
+      this.events?.publish('mascot.scaleChanged', state, { surface: ['mascot', 'chat'] });
     }
     return state;
   }
@@ -525,7 +525,7 @@ export class MascotWindowController {
     this.applyIgnore(false);
     this.body = { x, y, vx: 0, vy: 0, mode: 'held' };
     this.tracker.reset(x, y, performance.now());
-    this.send('mascot:physics-event', { type: 'grab' });
+    this.send('mascot.physicsEvent', { type: 'grab' });
   }
 
   private dragEnd(): void {
@@ -566,7 +566,7 @@ export class MascotWindowController {
     // User just placed/released — don't let an overdue auto-wander steal the pose
     // on the next tick (manual wander-now used to leave nextWanderAt in the past).
     this.scheduleNextWander();
-    this.send('mascot:physics-event', { type: 'release', vx: v.vx, vy: v.vy });
+    this.send('mascot.physicsEvent', { type: 'release', vx: v.vx, vy: v.vy });
   }
 
   /** Next auto-wander in 20–60s (same window as the idle tick scheduler). */
@@ -682,7 +682,7 @@ export class MascotWindowController {
     const moving = this.body.mode !== 'idle' || Math.abs(this.body.vx) + Math.abs(this.body.vy) > 1;
     if (moving) this.lastActivityAt = now;
     if (moving || this.frame % 30 === 0) {
-      this.send('mascot:body', {
+      this.send('mascot.body', {
         mode: this.body.mode,
         vx: this.body.vx,
         vy: this.body.vy,
@@ -691,7 +691,7 @@ export class MascotWindowController {
         dir: Math.sign(this.body.vx),
       });
     }
-    for (const e of events) this.send('mascot:physics-event', e);
+    for (const e of events) this.send('mascot.physicsEvent', e);
 
     const nx = Math.round(this.body.x);
     const ny = Math.round(this.body.y);
@@ -705,7 +705,7 @@ export class MascotWindowController {
         this.lastCursorAt = now;
         this.lastCursor = { x: rx, y: ry };
         const [w, h] = this.win.getSize();
-        this.send('mascot:cursor', {
+        this.send('mascot.cursor', {
           x: rx,
           y: ry,
           inside: rx >= 0 && ry >= 0 && rx < w && ry < h,
@@ -720,8 +720,8 @@ export class MascotWindowController {
     this.schedule(busy ? TICK_MS : IDLE_TICK_MS);
   }
 
-  /** 推给看板娘窗口：经应用事件总线发布（同时成为契约事件）；没有事件总线时丢弃 */
-  private send(ch: string, payload: unknown): void {
+  /** 推给看板娘窗口：经应用事件总线发布契约事件；没有事件总线时丢弃 */
+  private send(ch: AppEventName, payload: unknown): void {
     if (this.win.isDestroyed()) return;
     this.events?.publish(ch, payload, { surface: 'mascot' });
   }

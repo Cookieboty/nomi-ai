@@ -1,18 +1,13 @@
 /**
  * D4（contract/knowledge.ts）：kb / mem / sched / local / hub / ext 的处理函数委派给服务、
- * 服务错误码换成契约码、dangerous 过程拒绝不可信调用者、旧通道桥接成契约事件。
+ * 服务错误码换成契约码、dangerous 过程拒绝不可信调用者。
  */
 
 import { appContract } from '@nomi-ai/contract/app';
 import { createTestClient } from '@nomi-ai/contract/testing';
 import type { HostPorts } from '@nomi-ai/host-ports';
 
-import { createContractEventBridge } from '../../../src/contract/eventBridge';
-import {
-  createKnowledgeHandlers,
-  knowledgeErrorCode,
-  knowledgeEventBridge,
-} from '../../../src/contract/knowledge';
+import { createKnowledgeHandlers, knowledgeErrorCode } from '../../../src/contract/knowledge';
 import type { CoreContractServices } from '../../../src/contract/services';
 import type { ContractDeps } from '../../../src/contract/types';
 import { createRecordingAppEvents } from '../../../src/core/appEvents';
@@ -216,33 +211,5 @@ describe('contract/knowledge', () => {
     } finally {
       close();
     }
-  });
-
-  it('事件桥：旧通道 → 契约事件，payload 不变', () => {
-    const inner = createRecordingAppEvents();
-    const bridge = createContractEventBridge(inner, knowledgeEventBridge);
-    const sink = { publish: jest.fn() };
-    bridge.attach(sink);
-    bridge.publish('ai:kb:changed', null);
-    bridge.publish('ai:local:progress', { id: 'm', received: 1, total: 2 });
-    bridge.publish('ai:sched:proactive', { text: 'hi', at: 1 });
-    expect(sink.publish.mock.calls).toEqual([
-      ['kb.changed', null],
-      ['local.progress', { id: 'm', received: 1, total: 2 }],
-      ['sched.proactive', { text: 'hi', at: 1 }],
-    ]);
-    expect(Object.keys(knowledgeEventBridge).sort()).toEqual([
-      'ai:ext:changed',
-      'ai:kb:changed',
-      'ai:kb:download',
-      'ai:kb:progress',
-      'ai:local:changed',
-      'ai:local:progress',
-      'ai:mem:changed',
-      'ai:mem:status',
-      'ai:sched:changed',
-      'ai:sched:proactive',
-      'ai:sched:result',
-    ]);
   });
 });

@@ -14,7 +14,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { sendMascotCommand } from '../ai/mascotCommand';
-import type { AppEvents } from '../core/appEvents';
+import type { AppEventName, AppEvents } from '../core/appEvents';
 import { t as tr } from '../i18n';
 import { createSecretBox, type SecretBox, type SecretBoxPort } from '../security/secretStorage';
 
@@ -216,7 +216,7 @@ export class VoiceService {
       decision: 'user',
       result: 'ok',
     });
-    this.broadcast('ai:voice:changed', null);
+    this.broadcast('voice.changed', null);
     return { ok: true };
   }
 
@@ -229,7 +229,7 @@ export class VoiceService {
       decision: 'user',
       result: 'ok',
     });
-    this.broadcast('ai:voice:changed', null);
+    this.broadcast('voice.changed', null);
     return true;
   }
 
@@ -268,7 +268,7 @@ export class VoiceService {
     // 不再使用豆包时立即停止进行中的云端会话
     if (this.settings.engine !== 'volc') this.cancelStreams();
     this.save();
-    this.broadcast('ai:voice:changed', null);
+    this.broadcast('voice.changed', null);
     return this.effective();
   }
 
@@ -513,7 +513,7 @@ export class VoiceService {
       return { ok: false, error: msg };
     } finally {
       this.downloads.delete(id);
-      this.broadcast('ai:voice:changed', null);
+      this.broadcast('voice.changed', null);
     }
   }
 
@@ -527,7 +527,7 @@ export class VoiceService {
     const a = findAsset(id);
     if (!a) return false;
     fs.rmSync(this.assetDir(a), { recursive: true, force: true });
-    this.broadcast('ai:voice:changed', null);
+    this.broadcast('voice.changed', null);
     return true;
   }
 
@@ -924,7 +924,7 @@ export class VoiceService {
   setActivity(a: VoiceActivity, source: string): void {
     const prev = this.activity;
     this.activity = a;
-    this.broadcast('ai:voice:activity', { activity: a, source });
+    this.broadcast('voice.activity', { activity: a, source });
     // 按住说话：无论是否开启 barge-in，都立即停掉正在朗读的 AI 回复
     if (a === 'listening' && source.endsWith(':ptt') && prev !== a)
       sendMascotCommand(this.d.events, { type: 'reply-speech', op: 'stop' });
@@ -934,7 +934,7 @@ export class VoiceService {
       (a === 'hearing' || (a === 'listening' && source.endsWith(':ptt'))) &&
       prev !== a
     )
-      this.broadcast('ai:voice:bargeIn', { source });
+      this.broadcast('voice.bargeIn', { source });
   }
 
   async sendToChat(text: string): Promise<void> {
@@ -943,8 +943,7 @@ export class VoiceService {
     const payload = { text: text.trim(), autoSend: this.settings.autoSend };
     // 等页面加载完再发（新开的窗口要先挂上监听）；送达由事件总线负责（只发对话窗口）
     const deliver = () => {
-      if (!chat.isDestroyed())
-        this.d.events.publish('ai:voice:inject', payload, { surface: 'chat' });
+      if (!chat.isDestroyed()) this.d.events.publish('voice.inject', payload, { surface: 'chat' });
     };
     if (chat.webContents.isLoading())
       chat.webContents.once('did-finish-load', () => setTimeout(deliver, 500));
@@ -952,10 +951,10 @@ export class VoiceService {
   }
 
   private progress(id: string, received: number, total: number, phase: string, error?: string) {
-    this.broadcast('ai:voice:progress', { id, received, total, phase, error });
+    this.broadcast('voice.progress', { id, received, total, phase, error });
   }
 
-  private broadcast(ch: string, payload: unknown) {
+  private broadcast(ch: AppEventName, payload: unknown) {
     this.d.events.publish(ch, payload);
   }
 

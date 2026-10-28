@@ -136,7 +136,7 @@ interface Candidate {
 type Deps = {
   root: string;
   logger: Logger;
-  /** 进度变化通知界面（ai:agents:changed） */
+  /** 进度变化通知界面（agents.changed） */
   events: AppEvents;
   desktop: DesktopService;
   home?: string;
@@ -942,7 +942,7 @@ export class AgentProgressService {
   }
 
   private broadcast() {
-    this.d.events.publish('ai:agents:changed', null);
+    this.d.events.publish('agents.changed', null);
   }
 
   start(): void {

@@ -52,14 +52,14 @@ describe('CliHarnessService persistence', () => {
 
   it('window broadcasts are coalesced per microtask turn', async () => {
     const h = make();
-    // 推送经应用事件总线（事件桥转成契约事件 harness.*）
+    // 推送经应用事件总线（契约事件 harness.*）
     h.attachEvents({ publish: (channel) => sent.push(channel) });
     sent.length = 0;
     for (let i = 0; i < 5; i++) h.createTab({ backend: 'claude' });
-    expect(sent.filter((c) => c === 'ai:harness:tabs')).toHaveLength(0);
+    expect(sent.filter((c) => c === 'harness.tabsChanged')).toHaveLength(0);
     await Promise.resolve();
-    expect(sent.filter((c) => c === 'ai:harness:tabs')).toHaveLength(1);
-    expect(sent.filter((c) => c === 'ai:harness:changed')).toHaveLength(1);
+    expect(sent.filter((c) => c === 'harness.tabsChanged')).toHaveLength(1);
+    expect(sent.filter((c) => c === 'harness.changed')).toHaveLength(1);
   });
 
   it('dispose flushes; a new instance on the same root sees unflushed state', () => {

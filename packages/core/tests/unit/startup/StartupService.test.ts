@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { createRecordingAppEvents, type RecordingAppEvents } from '../../../src/core/appEvents';
-import { STARTUP_CHANGED, StartupService } from '../../../src/startup/StartupService';
+import { StartupService } from '../../../src/startup/StartupService';
 
 let events: RecordingAppEvents = createRecordingAppEvents();
 const make = (f: string) => new StartupService({ file: f, events });
@@ -17,7 +17,7 @@ describe('StartupService', () => {
   it('publishes ai:startup:changed to every window after a change', async () => {
     const s = make(file());
     const next = await s.set({ closeMain: 'quit' });
-    expect(events.published).toEqual([{ channel: STARTUP_CHANGED, payload: next, surfaces: null }]);
+    expect(events.published).toEqual([{ event: 'startup.changed', payload: next, surfaces: null }]);
   });
 
   it('defaults to mascot when the file does not exist (existing users / fresh install)', () => {

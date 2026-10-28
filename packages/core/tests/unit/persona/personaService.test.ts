@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { forwardPersonaChanges, PERSONA_CHANGED_CHANNEL } from '../../../src/persona/events';
+import { forwardPersonaChanges } from '../../../src/persona/events';
 import {
   characterLocaleOf,
   neutralPersonaSource,
@@ -244,17 +244,16 @@ describe('PersonaService', () => {
 });
 
 describe('forwardPersonaChanges', () => {
-  it('publishes changes as character:persona-changed until cancelled', () => {
+  it('publishes changes as persona.changed until cancelled', () => {
     let locale = 'en';
     const svc = new PersonaService({ sources: [fixed('pack', dummy)], locale: () => locale });
     const publish = jest.fn();
     const off = forwardPersonaChanges(svc, publish);
 
-    expect(PERSONA_CHANGED_CHANNEL).toBe('character:persona-changed');
     locale = 'zh-CN';
     svc.localeChanged();
     expect(publish).toHaveBeenCalledWith(
-      PERSONA_CHANGED_CHANNEL,
+      'persona.changed',
       expect.objectContaining({ displayName: '小纸' }),
     );
 

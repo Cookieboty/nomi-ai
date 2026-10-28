@@ -7,7 +7,7 @@ import path from 'node:path';
 import { getDictionary } from '@nomi-ai/i18n';
 
 import { createRecordingAppEvents, type RecordingAppEvents } from '../../../src/core/appEvents';
-import { LOCALE_CHANGED, LocaleService, onLocaleChange, resolveLocale, t } from '../../../src/i18n';
+import { LocaleService, onLocaleChange, resolveLocale, t } from '../../../src/i18n';
 
 let events: RecordingAppEvents = createRecordingAppEvents();
 const make = (file: string) =>
@@ -51,7 +51,7 @@ describe('main-process i18n', () => {
     const off = onLocaleChange((l) => seen.push(l));
     expect(s.set('en')).toEqual({ pref: 'en', locale: 'en' });
     expect(events.published.at(-1)).toEqual({
-      channel: LOCALE_CHANGED,
+      event: 'locale.changed',
       payload: { pref: 'en', locale: 'en' },
       surfaces: null,
     });

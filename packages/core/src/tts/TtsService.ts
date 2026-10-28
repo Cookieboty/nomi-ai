@@ -38,9 +38,9 @@ export interface TtsServiceDeps {
   env?: Record<string, string | undefined>;
   /** 测试注入 */
   edge?: EdgeTtsService;
-  /** 应用事件总线：朗读回复默认经 mascot:command 转给看板娘窗口 */
+  /** 应用事件总线：朗读回复默认经 mascot.command 转给看板娘窗口 */
   events?: AppEvents;
-  /** 测试注入：替代经 events 的 mascot:command */
+  /** 测试注入：替代经 events 的 mascot.command */
   sendToMascot?: (cmd: ReplySpeechCommand) => void;
 }
 
@@ -160,7 +160,7 @@ export class TtsService {
   }
 
   /**
-   * 朗读 AI 回复：对话窗口把整句转发到看板娘窗口（沿用 mascot:command → tts:speak 播放链路）。
+   * 朗读 AI 回复：对话窗口把整句转发到看板娘窗口（沿用 mascot.command → tts:speak 播放链路）。
    * 停止由看板娘窗口处理（它在朗读回复时才停播放并取消合成），不在这里误停别的台词。
    */
   reply(msg: unknown): boolean {

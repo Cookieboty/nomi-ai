@@ -1,28 +1,17 @@
 /**
- * D4 的处理函数与事件桥（docs/design/core-host-decoupling.md §12「P1b 实施约定」）。
+ * D4 的处理函数（docs/design/core-host-decoupling.md §12「P1b 实施约定」）。
  *
  * 本文件只属于 D4。契约声明在 packages/contract/src/app/knowledge.ts；这里：
  * - `createKnowledgeHandlers(deps)`：每个过程一个处理函数，委派给服务的公开方法（服务从
- *   `deps.services` 在调用时读取，缺了用 `need()` 报 UNAVAILABLE）；
- * - `knowledgeEventBridge`：服务仍在 `events.publish` 的旧通道 → 契约事件。
+ *   `deps.services` 在调用时读取，缺了用 `need()` 报 UNAVAILABLE）。服务直接发布契约事件。
  *
  * 服务抛的 `KbError` / `MemError` / `SchedError` 带旧码（`not-found`）：这里换成契约里声明的
  * `<前缀>_<旧码大写>`（`MEM_NOT_FOUND`）；其余异常照常抛出（INTERNAL，消息原样带给视图）。
  */
 
-import {
-  APP_DOMAINS,
-  type KnowledgeEventName,
-  type KnowledgeProcedureName,
-} from '@nomi-ai/contract/app';
+import { APP_DOMAINS, type KnowledgeProcedureName } from '@nomi-ai/contract/app';
 
-import {
-  need,
-  type AppHandlerContext,
-  type ContractDeps,
-  type DomainHandlers,
-  type EventBridgeMap,
-} from './types';
+import { need, type AppHandlerContext, type ContractDeps, type DomainHandlers } from './types';
 
 export type KnowledgeHandlers = DomainHandlers<KnowledgeProcedureName>;
 
@@ -171,18 +160,3 @@ export function createKnowledgeHandlers(deps: ContractDeps): KnowledgeHandlers {
     'ext.migrateImport': async ({ items }) => out(await ext().migrateImport(out(items))),
   };
 }
-
-/** 服务仍在 publish 的旧通道 → 契约事件（payload 形状不变） */
-export const knowledgeEventBridge: EventBridgeMap<KnowledgeEventName> = {
-  'ai:kb:changed': 'kb.changed',
-  'ai:kb:progress': 'kb.progress',
-  'ai:kb:download': 'kb.download',
-  'ai:mem:changed': 'mem.changed',
-  'ai:mem:status': 'mem.status',
-  'ai:sched:changed': 'sched.changed',
-  'ai:sched:result': 'sched.result',
-  'ai:sched:proactive': 'sched.proactive',
-  'ai:local:changed': 'local.changed',
-  'ai:local:progress': 'local.progress',
-  'ai:ext:changed': 'ext.changed',
-};

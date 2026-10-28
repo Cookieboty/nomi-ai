@@ -78,7 +78,7 @@ describe('one channel per alert', () => {
   it('mascot visible: reminder card on the mascot only — no island, no system notification', () => {
     const t = setup({ hidden: false });
     t.fire();
-    expect(t.send).toHaveBeenCalledWith('desktop:reminder', expect.objectContaining({ id: 'r1' }));
+    expect(t.send).toHaveBeenCalledWith('desktop.reminder', expect.objectContaining({ id: 'r1' }));
     expect(island).not.toHaveBeenCalled();
     expect(shown).toHaveLength(0);
   });
@@ -86,7 +86,7 @@ describe('one channel per alert', () => {
   it('mascot hidden: no card / no show on the hidden mascot; the island alone delivers it', () => {
     const t = setup({ hidden: true });
     t.fire();
-    expect(t.send).not.toHaveBeenCalledWith('desktop:reminder', expect.anything());
+    expect(t.send).not.toHaveBeenCalledWith('desktop.reminder', expect.anything());
     expect(t.win.showInactive).not.toHaveBeenCalled();
     expect(island).toHaveBeenCalledWith(
       expect.objectContaining({ kind: 'reminder', body: 'drink water' }),
@@ -146,12 +146,12 @@ describe('one channel per alert', () => {
     };
     const visible = setup({ hidden: false });
     expect(visible.svc.notify(n)).toBe('bubble');
-    expect(visible.send).toHaveBeenCalledWith('desktop:bubble', { text: 'done', voice: 'cue' });
+    expect(visible.send).toHaveBeenCalledWith('desktop.bubble', { text: 'done', voice: 'cue' });
     expect(island).not.toHaveBeenCalled();
 
     const hidden = setup({ hidden: true });
     expect(hidden.svc.notify(n)).toBe('island');
-    expect(hidden.send).not.toHaveBeenCalledWith('desktop:bubble', expect.anything());
+    expect(hidden.send).not.toHaveBeenCalledWith('desktop.bubble', expect.anything());
     expect(shown).toHaveLength(0);
 
     island.mockReturnValue(false);

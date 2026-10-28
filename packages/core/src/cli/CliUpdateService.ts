@@ -6,7 +6,7 @@
  * - 执行前先出「计划」：确切命令 + 前置检查（Node 版本 / npm / 写权限）。不满足就给出原因，不执行。
  * - 全局目录没有写权限时**不会**偷偷用 sudo：提示用户改装到用户目录（`--prefix ~/.local`，不需要管理员权限）
  *   或自行在终端处理。
- * - 输出按行通过 `ai:cli-update:event` 推给界面（进度 / 日志 / 错误）。
+ * - 输出按行通过 `cliUpdate.event` 推给界面（进度 / 日志 / 错误）。
  * - dsh 没有自更新命令，只走 npm 全局安装；Grok 支持 `grok update` 与 npm。
  */
 import { execFile, spawn } from 'node:child_process';
@@ -275,7 +275,7 @@ export class CliUpdateService {
       logger: Logger;
       probe?: CliProbe;
       runner?: CliRunner;
-      /** 进度通知界面（ai:cli-update:event） */
+      /** 进度通知界面（cliUpdate.event） */
       events: AppEvents;
       /** 观察所有进度事件（测试 / 日志） */
       emit?: (payload: unknown) => void;
@@ -739,6 +739,6 @@ export class CliUpdateService {
       if (job.lines.length > 400) job.lines.splice(0, job.lines.length - 400);
     }
     this.d.emit?.(payload);
-    this.d.events.publish('ai:cli-update:event', payload);
+    this.d.events.publish('cliUpdate.event', payload);
   }
 }

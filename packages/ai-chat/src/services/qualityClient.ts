@@ -3,7 +3,6 @@
  * 只读元数据，不含对话内容。
  */
 import type {
-  QUALITY_IPC as QualityIpc,
   QualityExportRequest,
   QualityExportResult,
   QualityFacets,
@@ -37,29 +36,6 @@ export type {
   QualitySettings,
   QualityStats,
 } from '@nomi-ai/types';
-
-/**
- * 旧通道名：与 @nomi-ai/types 的 QUALITY_IPC 相同（类型上校验一致），只为保留导出的
- * QUALITY_EXPORT_CHANNEL；调用已改走应用契约。不在运行时从 types 包导入值：
- * 它编译成 CommonJS，开发态 Vite 不预构建工作区包。
- */
-const QUALITY_IPC = {
-  query: 'ai:quality:query',
-  series: 'ai:quality:series',
-  requests: 'ai:quality:requests',
-  settingsGet: 'ai:quality:settings-get',
-  settingsSet: 'ai:quality:settings-set',
-  clear: 'ai:quality:clear',
-  export: 'ai:quality:export',
-  facets: 'ai:quality:facets',
-  changed: 'ai:quality:changed',
-} as const satisfies typeof QualityIpc;
-type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : never) : never;
-const _ipcInSync: Same<typeof QUALITY_IPC, typeof QualityIpc> = true;
-void _ipcInSync;
-
-/** CSV 导出（主进程弹保存对话框写文件） */
-export const QUALITY_EXPORT_CHANNEL = QUALITY_IPC.export;
 
 export interface QualityRequestsPage {
   items: QualityRequestItem[];

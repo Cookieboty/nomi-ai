@@ -88,7 +88,7 @@ describe('MascotWindowController scale', () => {
       events,
     );
     c.start();
-    const changed = () => events.published.filter((e) => e.channel === 'mascot:scale-changed');
+    const changed = () => events.published.filter((e) => e.event === 'mascot.scaleChanged');
     return { ...f, c, saved, changed };
   }
 

@@ -15,9 +15,6 @@ import type { HostPorts } from '@nomi-ai/host-ports';
 
 import type { AppEvents } from '../core/appEvents';
 
-/** 界面监听的主题变化通道 */
-export const THEME_CHANGED = 'ai:theme:changed';
-
 export const THEME_IDS = ['mist', 'graphite', 'ink', 'cream', 'sunset'] as const;
 export type ThemeId = (typeof THEME_IDS)[number];
 export type ThemePref = ThemeId | 'system' | 'image';
@@ -115,6 +112,6 @@ export class ThemeService {
   private broadcast(): void {
     const s = this.get();
     for (const fn of this.listeners) fn(s);
-    this.events.publish(THEME_CHANGED, s);
+    this.events.publish('theme.changed', s);
   }
 }

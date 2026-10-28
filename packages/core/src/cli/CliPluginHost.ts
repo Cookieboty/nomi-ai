@@ -93,7 +93,7 @@ export interface CliPluginHostDeps {
   version?: (id: string) => Promise<string | null>;
   /** 宿主补上的能力（内置插件的转录解析等） */
   extend?: (id: string, impl: CliMainImpl) => CliMainImpl;
-  /** 注册表变化通知界面（ai:cli:registry-changed） */
+  /** 注册表变化通知界面（cli.registryChanged） */
   events: AppEvents;
   /**
    * 运行中检测到 CLI 换了版本（应用内升级或用户在终端里升级，P9.6）：编排层在空闲时重启续接。
@@ -406,6 +406,6 @@ export class CliPluginHost {
   }
 
   private changed(): void {
-    this.d.events.publish('ai:cli:registry-changed', this.snapshot());
+    this.d.events.publish('cli.registryChanged', this.snapshot());
   }
 }

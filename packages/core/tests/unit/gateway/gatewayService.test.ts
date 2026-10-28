@@ -332,7 +332,7 @@ describe('GatewayService', () => {
     });
     expect(t.lastConfig().providers[0]!.keys.map((k) => k.value)).toEqual(['sk-b', 'sk-c']);
     expect(a).toBeDefined();
-    expect(t.broadcasts).toContain('ai:gateway:changed');
+    expect(t.broadcasts).toContain('gateway.changed');
     t.svc.removeProvider('relay');
     expect(t.lastConfig().providers).toEqual([]);
   });

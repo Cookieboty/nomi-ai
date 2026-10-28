@@ -13,7 +13,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { avatarGesture } from '../ai/mascotCommand';
-import type { AppEvents } from '../core/appEvents';
+import type { AppEventName, AppEvents } from '../core/appEvents';
 import type { DesktopService } from '../desktop/DesktopService';
 import { t as tr } from '../i18n';
 import { downloadVerified, extractTarGz, extractZip } from '../voice/download';
@@ -56,7 +56,7 @@ export interface LocalDeps {
   /** GatewayStore 是唯一供应商来源；本机 llama.cpp 只登记到网关 */
   gateway: () => GatewayLike | null;
   fetchImpl?: typeof fetch;
-  /** 通知界面（`ai:local:*` 发给所有窗口） */
+  /** 通知界面（契约事件 `local.*`，推给订阅了的窗口） */
   events: AppEvents;
 }
 
@@ -120,11 +120,11 @@ export class LocalModelService {
   private save() {
     fs.writeFileSync(this.settingsFile, JSON.stringify(this.settings, null, 2));
   }
-  private broadcast(ch: string, p: unknown) {
+  private broadcast(ch: AppEventName, p: unknown) {
     this.d.events.publish(ch, p);
   }
   private changed() {
-    this.broadcast('ai:local:changed', null);
+    this.broadcast('local.changed', null);
   }
   private audit(tool: string, args: Record<string, unknown>, result: string, ms = 0) {
     this.d.desktop.audit.append({
@@ -240,7 +240,7 @@ export class LocalModelService {
         onProgress: (p) => {
           rec.received = p.received;
           rec.total = p.total || total;
-          this.broadcast('ai:local:progress', { id, received: rec.received, total: rec.total });
+          this.broadcast('local.progress', { id, received: rec.received, total: rec.total });
         },
         fetchImpl: this.d.fetchImpl as never,
       });
@@ -563,7 +563,7 @@ export class LocalModelService {
             rec.total = j.total;
             rec.received = j.completed ?? 0;
           }
-          this.broadcast('ai:local:progress', {
+          this.broadcast('local.progress', {
             id,
             received: rec.received,
             total: rec.total,

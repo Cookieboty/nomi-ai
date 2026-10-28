@@ -10,6 +10,7 @@
  */
 import path from 'node:path';
 
+import type { ChatNavEvent } from '@nomi-ai/core/core/chatNav';
 import type {
   DialogParent,
   HostCapabilities,
@@ -58,8 +59,8 @@ export interface WindowHost {
   getMainWindow(): HostWindow | null;
   getAiChatWindow(): HostWindow | null;
   setMascotVisible(visible: boolean): void;
-  /** 打开对话窗口并发送面板通道 */
-  openProviderPanel(channel?: string): Promise<void>;
+  /** 打开对话窗口并发布面板导航事件 */
+  openProviderPanel(event?: ChatNavEvent): Promise<void>;
 }
 
 /**
@@ -78,7 +79,7 @@ export function lazyWindowHost(resolve: () => WindowHost | undefined): WindowHos
     getMainWindow: () => resolve()?.getMainWindow() ?? null,
     getAiChatWindow: () => resolve()?.getAiChatWindow() ?? null,
     setMascotVisible: (visible) => need().setMascotVisible(visible),
-    openProviderPanel: (channel) => need().openProviderPanel(channel),
+    openProviderPanel: (event) => need().openProviderPanel(event),
   };
 }
 
@@ -93,16 +94,16 @@ export interface ElectronPortsDeps {
   platform?: HostPlatform;
   /** 默认 process.resourcesPath（测试用） */
   resourcesPath?: string;
-  /** 覆盖 / 补充 route → 对话窗口面板通道的映射 */
-  routes?: Record<string, string>;
+  /** 覆盖 / 补充 route → 对话窗口面板导航事件的映射 */
+  routes?: Record<string, ChatNavEvent>;
 }
 
-/** 声明式 route 对应的对话窗口面板通道（WindowManager.openProviderPanel 发布的应用事件，事件桥转成契约 `providers.openPanel` / `nav.*`） */
-export const ELECTRON_WINDOW_ROUTES: Readonly<Record<string, string>> = Object.freeze({
-  providers: 'ai:providers:open-panel',
-  desktop: 'ai:desktop:open-panel',
-  schedule: 'ai:hub:open-schedule',
-  voice: 'ai:settings:open-voice',
+/** 声明式 route 对应的对话窗口面板导航事件（WindowManager.openProviderPanel 发布的契约事件） */
+export const ELECTRON_WINDOW_ROUTES: Readonly<Record<string, ChatNavEvent>> = Object.freeze({
+  providers: 'providers.openPanel',
+  desktop: 'nav.desktopPanelRequested',
+  schedule: 'nav.scheduleRequested',
+  voice: 'nav.voiceSettingsRequested',
 });
 
 export function electronCapabilities(platform: HostPlatform): HostCapabilities {
@@ -137,7 +138,7 @@ function commonDialogOptions(o: { title?: string; buttonLabel?: string; defaultP
 export function createElectronPorts(deps: ElectronPortsDeps): HostPorts {
   const { windows, logger } = deps;
   const platform = deps.platform ?? process.platform;
-  const routes: Record<string, string> = { ...ELECTRON_WINDOW_ROUTES, ...deps.routes };
+  const routes: Record<string, ChatNavEvent> = { ...ELECTRON_WINDOW_ROUTES, ...deps.routes };
   const clipboard = new ClipboardGateway({ pollIntervalMs: 0 });
   const screen = new ScreenCapture();
 
@@ -178,11 +179,11 @@ export function createElectronPorts(deps: ElectronPortsDeps): HostPorts {
     };
   };
 
-  const routeChannel = (route: string | undefined): string | undefined => {
+  const routeEvent = (route: string | undefined): ChatNavEvent | undefined => {
     if (!route) return undefined;
-    const channel = routes[route];
-    if (!channel) logger?.warn('未知的窗口 route，只打开界面', { route });
-    return channel;
+    const event = routes[route];
+    if (!event) logger?.warn('未知的窗口 route，只打开界面', { route });
+    return event;
   };
 
   const openSurface = async (surface: Surface, intent: WindowIntent = {}): Promise<void> => {
@@ -196,10 +197,10 @@ export function createElectronPorts(deps: ElectronPortsDeps): HostPorts {
       if (activate) windowOf('mascot')?.focus();
       return;
     }
-    const channel =
-      routeChannel(intent.route) ??
+    const event =
+      routeEvent(intent.route) ??
       (surface === 'settings' ? ELECTRON_WINDOW_ROUTES.providers : undefined);
-    if (channel) await windows.openProviderPanel(channel);
+    if (event) await windows.openProviderPanel(event);
     else await windows.createAiChatWindow({ activate });
   };
 

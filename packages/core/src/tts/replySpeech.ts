@@ -1,5 +1,5 @@
 /**
- * 朗读 AI 回复：对话窗口发来的整句（tts:reply）→ 看板娘窗口的 mascot:command。
+ * 朗读 AI 回复：对话窗口发来的整句（tts:reply）→ 看板娘窗口的 mascot.command。
  * 纯函数：是否转发由配置决定（引擎可用 + 开关打开）；stop 总是转发，CD_TTS=off 时一律不转发。
  */
 import type { TTSConfig } from '@nomi-ai/types';

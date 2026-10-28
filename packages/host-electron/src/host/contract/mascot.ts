@@ -2,12 +2,12 @@
  * D5 里要用窗口的处理函数（docs/design/core-host-decoupling.md §7.1、§12「P1b 实施约定」）：宿主片段。
  *
  * 契约声明在 packages/contract/src/app/mascot.ts。角色包 / 人设、聊天背景、旧的角色模型名、
- * `window.platform` 与 D5 的事件桥在内核（`@nomi-ai/core/contract/mascot`）；这里只实现：
+ * `window.platform` 在内核（`@nomi-ai/core/contract/mascot`）；这里只实现：
  * - 看板娘窗口互动与大小（`mascot.*`，`MascotWindowController` 的公开方法）；
  * - 灵动岛（`island.*`，宿主的灵动岛窗口）；
  * - 旧窗口通道（`window.*`，`host/mascotWindowActions.ts`）。
  *
- * 看板娘窗口控制器的推送经内核的应用事件总线发布（窗口管理器建控制器时传入），由内核的事件桥转成契约事件。
+ * 看板娘窗口控制器的推送经内核的应用事件总线发布契约事件（窗口管理器建控制器时传入）。
  * `files.pathFor` 不能过线（只能在 preload 里对真实 File 调用），不在契约里。
  */
 

@@ -1,7 +1,7 @@
 /**
  * D1（contract/media.ts）：voice / tts / desktop / screen / nav 的处理函数委派给服务、
  * 按窗口的操作用调用方的 webContents id、surfaces 与 dangerous 由内置守卫拒绝、流式识别的推送
- * 进到 `voice.streamStart` 的流里、旧通道桥接成契约事件。
+ * 进到 `voice.streamStart` 的流里、服务发布的契约事件送到订阅了的窗口。
  */
 
 const fakeTts = {
@@ -25,10 +25,9 @@ import { createClient, type CallerContext } from '@nomi-ai/contract';
 import { createInProcessServer } from '@nomi-ai/contract/testing';
 import type { HostPorts } from '@nomi-ai/host-ports';
 
-import { createContractEventBridge } from '../../../src/contract/eventBridge';
-import { mediaEventBridge } from '../../../src/contract/media';
+import { createContractEventBus } from '../../../src/contract/eventBus';
 import { createVoiceStreams } from '../../../src/contract/media/voiceSenders';
-import { APP_EVENT_BRIDGE, createAppRouter } from '../../../src/contract/router';
+import { createAppRouter } from '../../../src/contract/router';
 import type { CoreContractServices } from '../../../src/contract/services';
 import type { ContractDeps } from '../../../src/contract/types';
 import { createRecordingAppEvents } from '../../../src/core/appEvents';
@@ -446,37 +445,11 @@ describe('media handlers', () => {
   });
 });
 
-describe('media event bridge', () => {
-  it('旧通道都在合并表里，且映射到契约事件', () => {
-    for (const [channel, entry] of Object.entries(mediaEventBridge)) {
-      expect(APP_EVENT_BRIDGE[channel]).toBe(entry);
-    }
-    expect(Object.keys(mediaEventBridge).sort()).toEqual(
-      [
-        'ai:voice:changed',
-        'ai:voice:progress',
-        'ai:voice:activity',
-        'ai:voice:bargeIn',
-        'ai:voice:inject',
-        'voice-settings:changed',
-        'ai:desktop:changed',
-        'ai:desktop:p2-changed',
-        'ai:desktop:summary',
-        'desktop:confirm-request',
-        'desktop:confirm-cancel',
-        'desktop:bubble',
-        'desktop:reminder',
-        'ai:desktop:open-panel',
-        'ai:hub:open-schedule',
-        'ai:settings:open-voice',
-      ].sort(),
-    );
-  });
-
-  it('服务发布旧通道：旧通道照常送达，订阅了的窗口收到契约事件（payload 过 schema）', async () => {
+describe('media events', () => {
+  it('服务发布契约事件：tap 收到每次发布，订阅了的窗口收到事件（payload 过 schema）', async () => {
     const t = setup();
     const inner = createRecordingAppEvents();
-    const bridge = createContractEventBridge(inner, APP_EVENT_BRIDGE, logger);
+    const bridge = createContractEventBus(inner, logger);
     const detach = bridge.attach(t.router.events);
     const mascot = t.connect(MASCOT);
     const got: unknown[] = [];
@@ -488,10 +461,10 @@ describe('media event bridge', () => {
     ];
     try {
       await new Promise((r) => setTimeout(r, 0));
-      bridge.publish('desktop:bubble', { text: 'hi', voice: 'cue' }, { surface: 'mascot' });
-      bridge.publish('desktop:confirm-cancel', 'c1', { surface: 'mascot' });
-      bridge.publish('ai:voice:changed', null);
-      bridge.publish('desktop:reminder', { id: 'r', text: 't', dueAt: 1, missed: false });
+      bridge.publish('desktop.bubble', { text: 'hi', voice: 'cue' }, { surface: 'mascot' });
+      bridge.publish('desktop.confirmCancel', 'c1', { surface: 'mascot' });
+      bridge.publish('voice.changed', null);
+      bridge.publish('desktop.reminder', { id: 'r', text: 't', dueAt: 1, missed: false });
       await new Promise((r) => setTimeout(r, 0));
       expect(got).toEqual([
         ['bubble', { text: 'hi', voice: 'cue' }],
@@ -499,13 +472,12 @@ describe('media event bridge', () => {
         ['changed', null],
         ['reminder', { id: 'r', text: 't', dueAt: 1, missed: false }],
       ]);
-      expect(inner.published.map((e) => e.channel)).toEqual([
-        'desktop:bubble',
-        'desktop:confirm-cancel',
-        'ai:voice:changed',
-        'desktop:reminder',
+      expect(inner.published.map((e) => e.event)).toEqual([
+        'desktop.bubble',
+        'desktop.confirmCancel',
+        'voice.changed',
+        'desktop.reminder',
       ]);
-      expect(bridge.contractEventOf('ai:settings:open-voice')).toBe('nav.voiceSettingsRequested');
     } finally {
       offs.forEach((f) => f());
       detach();

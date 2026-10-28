@@ -296,7 +296,7 @@ export interface GatewayServiceDeps {
   detectImpl?: typeof detect;
   /** 测试注入：环境变量（NOMI_ROUTE_PLAN）；默认 process.env */
   env?: NodeJS.ProcessEnv;
-  broadcast?: (channel: string, payload: unknown) => void;
+  broadcast?: (event: 'gateway.changed', payload: null) => void;
 }
 
 /** 同步到的模型目录至少要有这么多条，否则视为异常响应 */
@@ -522,7 +522,7 @@ export class GatewayService {
   }
 
   private changed(): void {
-    this.d.broadcast?.('ai:gateway:changed', null);
+    this.d.broadcast?.('gateway.changed', null);
     for (const fn of this.listeners) {
       try {
         fn();

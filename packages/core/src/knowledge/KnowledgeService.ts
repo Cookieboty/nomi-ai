@@ -16,7 +16,7 @@ import type * as Tess from 'tesseract.js';
 import { z } from 'zod';
 
 import { avatarGesture } from '../ai/mascotCommand';
-import type { AppEvents } from '../core/appEvents';
+import type { AppEventName, AppEvents } from '../core/appEvents';
 import { isLocalBaseURL } from '../desktop/consent';
 import type { DesktopService } from '../desktop/DesktopService';
 import { extOf, isSupported } from '../desktop/parse/extract';
@@ -145,7 +145,7 @@ export class KnowledgeService {
   private save(): void {
     fs.mkdirSync(this.d.root, { recursive: true });
     fs.writeFileSync(this.settingsFile, JSON.stringify(this.settings, null, 2), { mode: 0o600 });
-    this.broadcast('ai:kb:changed', null);
+    this.broadcast('kb.changed', null);
   }
 
   getSettings(): KbSettings {
@@ -273,7 +273,7 @@ export class KnowledgeService {
     const rec = { ctrl, received: 0, total: a.bytes };
     this.downloads.set(id, rec);
     const emit = (phase: string, error?: string) =>
-      this.broadcast('ai:kb:download', {
+      this.broadcast('kb.download', {
         id,
         received: rec.received,
         total: rec.total,
@@ -314,7 +314,7 @@ export class KnowledgeService {
       return { ok: false, error: msg };
     } finally {
       this.downloads.delete(id);
-      this.broadcast('ai:kb:changed', null);
+      this.broadcast('kb.changed', null);
     }
   }
 
@@ -329,7 +329,7 @@ export class KnowledgeService {
     if (!a) return false;
     fs.rmSync(this.ocrAssetPath(a), { force: true });
     void this.disposeOcr();
-    this.broadcast('ai:kb:changed', null);
+    this.broadcast('kb.changed', null);
     return true;
   }
 
@@ -456,7 +456,7 @@ export class KnowledgeService {
   }
 
   private emitProgress(): void {
-    this.broadcast('ai:kb:progress', this.progress());
+    this.broadcast('kb.progress', this.progress());
   }
 
   private async walk(root: string, signal: AbortSignal, out: string[]): Promise<void> {
@@ -566,7 +566,7 @@ export class KnowledgeService {
       this.last = { ...p };
       this.job = null;
       this.emitProgress();
-      this.broadcast('ai:kb:changed', null);
+      this.broadcast('kb.changed', null);
       this.d.desktop.audit.append({
         tool: 'kb_index',
         args: { added: p.added, updated: p.updated, removed: p.removed, failed: p.failed },
@@ -701,7 +701,7 @@ export class KnowledgeService {
     for (const id of gone) removed += this.index.removeSource(id);
     if (removed) {
       this.index.save();
-      this.broadcast('ai:kb:changed', null);
+      this.broadcast('kb.changed', null);
     }
   }
 
@@ -952,7 +952,7 @@ export class KnowledgeService {
     this.offBroker = this.d.desktop.broker.onChange(() => {
       // 授权变化（含撤销文件夹授权）：立即清掉失去授权的来源缓存，不等 30 分钟的增量索引
       void this.pruneRevoked().catch(() => undefined);
-      this.broadcast('ai:kb:changed', null);
+      this.broadcast('kb.changed', null);
     });
   }
 
@@ -970,11 +970,11 @@ export class KnowledgeService {
     await this.disposeOcr();
   }
 
-  private broadcast(ch: string, payload: unknown): void {
+  private broadcast(ch: AppEventName, payload: unknown): void {
     this.d.events.publish(ch, payload);
   }
 
-  /** 后台开始重建索引，立即返回当前进度（之后的进度经 `ai:kb:progress` 推送） */
+  /** 后台开始重建索引，立即返回当前进度（之后的进度经 `kb.progress` 推送） */
   startReindex(force = false): KbProgress {
     void this.reindex(undefined, { force });
     return this.progress();
@@ -984,7 +984,7 @@ export class KnowledgeService {
   clear(): boolean {
     this.index.clear();
     this.index.save();
-    this.broadcast('ai:kb:changed', null);
+    this.broadcast('kb.changed', null);
     return true;
   }
 

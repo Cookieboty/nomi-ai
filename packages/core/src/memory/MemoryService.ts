@@ -12,7 +12,7 @@ import type { HostPorts } from '@nomi-ai/host-ports';
 import { z } from 'zod';
 
 import { avatarGesture } from '../ai/mascotCommand';
-import type { AppEvents } from '../core/appEvents';
+import type { AppEventName, AppEvents } from '../core/appEvents';
 import type { DesktopService } from '../desktop/DesktopService';
 import { t as tr } from '../i18n';
 import { b64ToVec, vecToB64 } from '../knowledge/vector';
@@ -54,7 +54,7 @@ export interface MemoryDeps {
   facade(): MemoryFacadeLike | null;
   /** 打开档案文件、导出时选保存位置 */
   ports: Pick<HostPorts, 'dialogs' | 'shell'>;
-  /** 通知界面（`ai:mem:changed` 发给所有窗口） */
+  /** 通知界面（契约事件 `mem.*`，推给订阅了的窗口） */
   events: AppEvents;
 }
 
@@ -133,7 +133,7 @@ export class MemoryService {
     };
     if (now) run();
     else this.saveTimer = setTimeout(run, 300);
-    this.broadcast('ai:mem:changed', null);
+    this.broadcast('mem.changed', null);
   }
   flush() {
     if (this.saveTimer) this.persist(true);
@@ -167,7 +167,7 @@ export class MemoryService {
       ...(patch && typeof patch === 'object' ? patch : {}),
     });
     this.writeJson('settings.json', this.settings);
-    this.broadcast('ai:mem:changed', null);
+    this.broadcast('mem.changed', null);
     return this.getSettings();
   }
 
@@ -185,7 +185,7 @@ export class MemoryService {
     fs.mkdirSync(this.d.root, { recursive: true });
     fs.writeFileSync(this.personaFile, String(text).slice(0, 8000), { mode: 0o600 });
     this.audit('memory_persona_save', {});
-    this.broadcast('ai:mem:changed', null);
+    this.broadcast('mem.changed', null);
     return true;
   }
   async openPersona(): Promise<boolean> {
@@ -219,7 +219,7 @@ export class MemoryService {
     if (prev?.edited && !opts.force) return { skipped: 'edited' };
     if (this.busy.has(conversationId)) return { skipped: 'busy' };
     this.busy.add(conversationId);
-    this.broadcast('ai:mem:status', { busy: [...this.busy] });
+    this.broadcast('mem.status', { busy: [...this.busy] });
     const t0 = Date.now();
     try {
       const raw = await this.d.complete(summaryPrompt(clean), AbortSignal.timeout(90_000));
@@ -291,7 +291,7 @@ export class MemoryService {
         : new MemError('summarize-failed', tr('electron.common.summarize-failed', this.lastError));
     } finally {
       this.busy.delete(conversationId);
-      this.broadcast('ai:mem:status', { busy: [...this.busy] });
+      this.broadcast('mem.status', { busy: [...this.busy] });
     }
   }
 
@@ -490,7 +490,7 @@ export class MemoryService {
   async resetProfile(): Promise<boolean> {
     await this.d.facade()?.userProfile.reset();
     this.audit('memory_profile_reset', {});
-    this.broadcast('ai:mem:changed', null);
+    this.broadcast('mem.changed', null);
     return true;
   }
 
@@ -645,7 +645,7 @@ export class MemoryService {
       /* ignore */
     }
   }
-  private broadcast(ch: string, payload: unknown): void {
+  private broadcast(ch: AppEventName, payload: unknown): void {
     this.d.events.publish(ch, payload);
   }
 

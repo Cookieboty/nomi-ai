@@ -7,7 +7,7 @@ import type { DesktopBubble } from '@nomi-ai/types';
 // （显示 / 隐藏 / 按 sender 校验）与窗口数量。
 
 import { avatarEmotion, avatarGesture } from '../ai/mascotCommand';
-import type { AppEvents } from '../core/appEvents';
+import type { AppEventName, AppEvents } from '../core/appEvents';
 import { t as tr } from '../i18n';
 import { CodeSandbox } from '../sandbox/CodeSandbox';
 import { sanitizeRepeat } from '../schedule/recurrence';
@@ -102,11 +102,6 @@ export interface DesktopServiceOptions {
   browser?: () => AgentBrowserApi;
 }
 
-export const DESKTOP_CHANGED = 'ai:desktop:changed';
-export const DESKTOP_SUMMARY = 'ai:desktop:summary';
-export const DESKTOP_OPEN_PANEL = 'ai:desktop:open-panel';
-export const DESKTOP_P2_CHANGED = 'ai:desktop:p2-changed';
-
 /**
  * 桌面能力服务（主进程）：组装权限中枢 / 审计 / 撤销 / 回收站 / 解析子进程，
  * 为 AI 工具循环提供 ToolDefinition，并处理设置面板、确认气泡、拖文件到看板娘等 IPC。
@@ -148,7 +143,7 @@ export class DesktopService {
     this.journal = new UndoJournal(path.join(root, 'journal.jsonl'), this.trash);
     this.reminders = new ReminderStore(path.join(root, 'reminders.json'));
     this.reminders.onFire = (r) => this.fireReminder(r);
-    this.reminders.onChange(() => this.broadcast(DESKTOP_P2_CHANGED, { kind: 'reminders' }));
+    this.reminders.onChange(() => this.broadcast('desktop.p2Changed', { kind: 'reminders' }));
     try {
       this.trash.purge(30);
       this.audit.rotate();
@@ -158,11 +153,11 @@ export class DesktopService {
     this.broker.ui = {
       request: (req) => this.sendConfirm(req),
       cancel: (id) => {
-        this.toMascot('desktop:confirm-cancel', id);
+        this.toMascot('desktop.confirmCancel', id);
         this.rehideMascotIfIdle();
       },
     };
-    this.broker.onChange(() => this.broadcast(DESKTOP_CHANGED, this.state()));
+    this.broker.onChange(() => this.broadcast('desktop.changed', this.state()));
   }
 
   attachRuntime(h: DesktopRuntimeHooks): void {
@@ -189,12 +184,12 @@ export class DesktopService {
     if (w?.isVisible()) w.hide();
   }
 
-  private broadcast(ch: string, payload: unknown): void {
+  private broadcast(ch: AppEventName, payload: unknown): void {
     this.events.publish(ch, payload);
   }
 
   /** 只发给看板娘窗口（确认请求 / 气泡 / 提醒）；看板娘窗口不存在时不发 */
-  private toMascot(ch: string, payload: unknown): void {
+  private toMascot(ch: AppEventName, payload: unknown): void {
     if (this.main()) this.events.publish(ch, payload, { surface: 'mascot' });
   }
 
@@ -209,13 +204,13 @@ export class DesktopService {
     this.logger.info('桌面工具确认请求', { tool: req.tool, danger: req.danger, hasWindow: !!w });
     if (!w) return;
     if (!w.isVisible()) w.showInactive();
-    this.events.publish('desktop:confirm-request', req, { surface: 'mascot' });
+    this.events.publish('desktop.confirmRequest', req, { surface: 'mascot' });
     avatarGesture(this.events, 'think');
     avatarEmotion(this.events, req.danger === 'destructive' ? 'surprised' : 'relaxed');
   }
 
   say(text: string, opts: Omit<DesktopBubble, 'text'> = {}): void {
-    this.toMascot('desktop:bubble', { text, ...opts });
+    this.toMascot('desktop.bubble', { text, ...opts });
   }
 
   /**
@@ -310,7 +305,7 @@ export class DesktopService {
     if (!w.isVisible()) w.showInactive();
     for (const r of items) {
       this.events.publish(
-        'desktop:reminder',
+        'desktop.reminder',
         { id: r.id, text: r.text, dueAt: r.dueAt, missed: false },
         { surface: 'mascot' },
       );
@@ -498,7 +493,7 @@ export class DesktopService {
   /** 把文件拖到看板娘身上：临时授权该文件（只读、仅本次运行）→ 总结 → 气泡 + 对话窗口 */
   async summarizeDropped(raw: string): Promise<{ ok: boolean; code?: string }> {
     const t0 = Date.now();
-    const say = (text: string) => this.toMascot('desktop:bubble', { text });
+    const say = (text: string) => this.toMascot('desktop.bubble', { text });
     const fail = (code: string, text: string) => {
       say(text);
       avatarEmotion(this.events, 'sad');
@@ -581,7 +576,8 @@ export class DesktopService {
       const payload = { name, path: probe.real, summary, at: Date.now() };
       // 等页面加载完再发（新开的窗口要先挂上监听）；送达由事件总线负责（只发对话窗口）
       const deliver = () => {
-        if (!chat.isDestroyed()) this.events.publish(DESKTOP_SUMMARY, payload, { surface: 'chat' });
+        if (!chat.isDestroyed())
+          this.events.publish('desktop.summary', payload, { surface: 'chat' });
       };
       if (chat.webContents.isLoading())
         chat.webContents.once('did-finish-load', () => setTimeout(deliver, 600));
@@ -646,7 +642,7 @@ export class DesktopService {
 
   clearAudit(): boolean {
     this.audit.clear();
-    this.broadcast(DESKTOP_CHANGED, this.state());
+    this.broadcast('desktop.changed', this.state());
     return true;
   }
 
@@ -666,7 +662,7 @@ export class DesktopService {
         result: 'ok',
         source: 'settings',
       });
-      this.broadcast(DESKTOP_CHANGED, this.state());
+      this.broadcast('desktop.changed', this.state());
       return { ok: true, undone: e.summary };
     } catch (err) {
       return { ok: false, error: err instanceof Error ? err.message : String(err) };

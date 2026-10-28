@@ -2,7 +2,7 @@
  * 应用契约在 Electron 宿主上的部分（docs/design/core-host-decoupling.md §4、§7.1、§8）。
  *
  * router 由内核组装（`@nomi-ai/core/createCore` → `contract/router.ts` 的 `createAppRouter`：AI 门面 + 内核
- * 的域处理函数 + 宿主片段，事件桥也在内核）。宿主只提供**片段**：要用窗口的过程。
+ * 的域处理函数 + 宿主片段，事件总线也在内核）。宿主只提供**片段**：要用窗口的过程。
  *
  * - `createHostHandlers`：看板娘窗口互动与大小、灵动岛、旧窗口通道（`./mascot.ts`）与应用图标
  *   （`appIcon.*`，窗口 / 任务栏 / Dock / 托盘图标）。组合根把它作为 `contract.hostHandlers` 传给

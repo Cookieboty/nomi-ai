@@ -163,7 +163,7 @@ function amount(v: unknown, d: number): number {
 type Deps = {
   root: string;
   logger: Logger;
-  /** 用量变化通知界面（ai:usage:changed） */
+  /** 用量变化通知界面（usage.changed） */
   events: AppEvents;
   home?: string;
   dshHome?: string;
@@ -406,7 +406,7 @@ export class UsageService {
     priceVer: number;
     map: Map<string, SessionUsage>;
   } | null = null;
-  /** 热力图缓存：账本 / 价格 / 日期都没变时直接复用（界面每次 ai:usage:changed 都会重查） */
+  /** 热力图缓存：账本 / 价格 / 日期都没变时直接复用（界面每次 usage.changed 都会重查） */
   private heatCache: {
     ver: number;
     prices: unknown;
@@ -1681,7 +1681,7 @@ export class UsageService {
     if (this.broadcastTimer) return;
     this.broadcastTimer = setTimeout(() => {
       this.broadcastTimer = null;
-      this.d.events.publish('ai:usage:changed', null);
+      this.d.events.publish('usage.changed', null);
     }, 1500);
     (this.broadcastTimer as { unref?: () => void }).unref?.();
   }

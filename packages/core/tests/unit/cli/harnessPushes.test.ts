@@ -1,5 +1,5 @@
 /**
- * 编排器的推送（ai:harness:*）只经应用事件总线发给对话窗口（surface 'chat'），由事件桥转成契约事件
+ * 编排器的推送（harness.*）只经应用事件总线发给对话窗口（surface 'chat'），即契约事件
  * `harness.*`；接上事件总线之前没有订阅者，推送直接丢弃。
  */
 jest.unmock('fs');
@@ -17,11 +17,10 @@ describe('CliHarnessService push delivery', () => {
   let root: string;
   let h: CliHarnessService;
   const flushMicrotasks = () => new Promise((r) => setImmediate(r));
-  let published: Array<{ channel: string; payload: unknown; surface: unknown }>;
+  let published: Array<{ event: string; payload: unknown; surface: unknown }>;
   const attach = () =>
     h.attachEvents({
-      publish: (channel, payload, opts) =>
-        published.push({ channel, payload, surface: opts?.surface }),
+      publish: (event, payload, opts) => published.push({ event, payload, surface: opts?.surface }),
     });
 
   beforeEach(() => {
@@ -38,20 +37,20 @@ describe('CliHarnessService push delivery', () => {
     attach();
     h.createTab({ backend: 'claude' });
     await flushMicrotasks();
-    expect(published.map(({ channel, surface }) => ({ channel, surface }))).toEqual([
-      { channel: 'ai:harness:changed', surface: 'chat' },
-      { channel: 'ai:harness:tabs', surface: 'chat' },
+    expect(published.map(({ event, surface }) => ({ event, surface }))).toEqual([
+      { event: 'harness.changed', surface: 'chat' },
+      { event: 'harness.tabsChanged', surface: 'chat' },
     ]);
   });
 
-  it('live event batches are published as ai:harness:events', async () => {
+  it('live event batches are published as harness.events', async () => {
     attach();
     (h as unknown as { emitEvent(tabId: string, ev: unknown): void }).emitEvent('main', {
       type: 'text-delta',
       text: 'hi',
     });
     await new Promise((r) => setTimeout(r, 50));
-    const batch = published.find((s) => s.channel === 'ai:harness:events');
+    const batch = published.find((s) => s.event === 'harness.events');
     expect(batch?.payload).toEqual([
       expect.objectContaining({ tabId: 'main', type: 'text-delta' }),
     ]);

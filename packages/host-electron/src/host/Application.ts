@@ -1,7 +1,7 @@
 /**
  * Electron 宿主的组合根（docs/design/core-host-decoupling.md §7.1）。
  *
- * 内核（`@nomi-ai/core/createCore`）建服务、AI runtime、应用契约的 router 与事件桥；这里只做宿主的事：
+ * 内核（`@nomi-ai/core/createCore`）建服务、AI runtime、应用契约的 router 与事件总线；这里只做宿主的事：
  * - 创建 Electron 端口（`host/electronPorts.ts`）与日志，调用 `createCore`；
  * - 宿主钩子：看板娘 / 对话窗口、灵动岛、自动更新（electron-updater）、受控浏览器、`character-pack://`
  *   协议、系统 TTS 与用户画像存储插件（`bundle-ig-electron-caps`）；
@@ -375,7 +375,7 @@ export class Application implements IApplication {
         void this.windowManager.openProviderPanel();
       },
       openDesktopPanel: () => {
-        void this.windowManager.openProviderPanel('ai:desktop:open-panel');
+        void this.windowManager.openProviderPanel('nav.desktopPanelRequested');
       },
       onActivate: () => this.raiseMainOnReactivate(),
       quit: () => app.quit(),

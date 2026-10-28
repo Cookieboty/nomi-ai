@@ -1,6 +1,6 @@
 /**
  * 内核组合根（docs/design/core-host-decoupling.md §7.1）：`createCore(deps)` 建好内核的服务、应用契约的
- * router 与事件桥，宿主只负责端口、窗口、托盘、协议与传输。
+ * router 与事件总线，宿主只负责端口、窗口、托盘、协议与传输。
  *
  * ```ts
  * const core = createCore({ ports, logger, host: { … } });
@@ -60,9 +60,9 @@ import { cliChildEnv, isScript, spawnHarness } from './cli/harness/spawn';
 import { legacyCliKeyDecryptor } from './cli/legacyCliKey';
 import { SessionHistoryService } from './cli/SessionHistoryService';
 import type { CliKind } from './cli/types';
-import { createContractEventBridge, type ContractEventBridge } from './contract/eventBridge';
+import { createContractEventBus, type ContractEventBus } from './contract/eventBus';
 import type { CallerWindows } from './contract/media/voiceSenders';
-import { APP_EVENT_BRIDGE, createAppRouter, type AppRouterHandle } from './contract/router';
+import { createAppRouter, type AppRouterHandle } from './contract/router';
 import type { CoreContractServices } from './contract/services';
 import type { AppHandlers, ContractDeps, Middleware } from './contract/types';
 import { createShutdown, LifecycleRegistry } from './core/lifecycle';
@@ -182,8 +182,8 @@ export type CoreServices = Readonly<CoreContractServices>;
 export interface Core {
   readonly ports: HostPorts;
   readonly logger: LoggerService;
-  /** 应用事件总线（已接上契约事件桥）：服务与宿主的窗口控制器 `events.publish(<旧通道>, …)` */
-  readonly events: ContractEventBridge;
+  /** 应用事件总线（接在 router 上）：服务与宿主的窗口控制器直接发布契约事件 */
+  readonly events: ContractEventBus;
   /** 配置（config.json）；createCore 时就有，start() 里加载 */
   readonly config: ConfigService;
   readonly container: IServiceContainer;
@@ -232,8 +232,8 @@ export function createCore(deps: CoreDeps): Core {
   const container = new ServiceContainer();
   container.registerSingleton(HOST_PORTS, () => ports);
   container.registerSingleton('logger', () => logger);
-  // 应用事件 → 契约事件（router 建好后 attach）；只推给订阅了的窗口
-  const events = createContractEventBridge(null, APP_EVENT_BRIDGE, logger);
+  // 契约事件（router 建好后 attach）；只推给订阅了的窗口
+  const events = createContractEventBus(null, logger);
   container.registerSingleton(APP_EVENTS, () => events);
   const config = new ConfigService({ ports, logger });
   container.registerSingleton('config', () => config);
@@ -297,7 +297,7 @@ export function createCore(deps: CoreDeps): Core {
     characterPack.onChange(() => persona.reload());
     const offLocale = onLocaleChange(() => persona.localeChanged());
     if (typeof offLocale === 'function') stoppers.push(offLocale);
-    forwardPersonaChanges(persona, (channel, payload) => events.publish(channel, payload));
+    forwardPersonaChanges(persona, (event, payload) => events.publish(event, payload));
     const p = persona.get();
     logger.info(`persona: ${p.characterId} (${p.displayName})`);
     return persona;
@@ -914,7 +914,7 @@ export function createCore(deps: CoreDeps): Core {
     }
   };
 
-  /** 组装应用契约的 router；事件桥从此把应用事件发成契约事件 */
+  /** 组装应用契约的 router；事件总线从此把事件交给它 */
   const startContract = (): void => {
     const app = createAppRouter({
       deps: contractDeps,

@@ -6,12 +6,7 @@ import path from 'node:path';
 import type { HostPlatform, NativeAppearance } from '@nomi-ai/host-ports';
 
 import { createRecordingAppEvents, type RecordingAppEvents } from '../../../src/core/appEvents';
-import {
-  THEME_CHANGED,
-  ThemeService,
-  appearanceFor,
-  resolveTheme,
-} from '../../../src/theme/ThemeService';
+import { ThemeService, appearanceFor, resolveTheme } from '../../../src/theme/ThemeService';
 
 const tmp = () => path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'theme-')), 'theme.json');
 
@@ -72,7 +67,7 @@ describe('ThemeService', () => {
     expect(service.set('image')).toEqual({ pref: 'image', resolved: 'graphite' });
     expect(native.themeSource).toBe('dark');
     expect(events.published.at(-1)).toEqual({
-      channel: THEME_CHANGED,
+      event: 'theme.changed',
       payload: { pref: 'image', resolved: 'graphite' },
       surfaces: null, // 与迁移前一样发给所有窗口
     });
@@ -90,7 +85,7 @@ describe('ThemeService', () => {
     expect(s.set('system')).toEqual({ pref: 'system', resolved: 'graphite' });
     n.systemDark = false;
     n.fire();
-    expect(events.last(THEME_CHANGED)).toEqual({ pref: 'system', resolved: 'cream' });
+    expect(events.last('theme.changed')).toEqual({ pref: 'system', resolved: 'cream' });
     expect(resolveTheme('cream', true)).toBe('cream');
     expect(() => s.set('neon')).toThrow();
   });

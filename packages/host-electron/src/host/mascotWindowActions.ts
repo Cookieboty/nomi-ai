@@ -51,7 +51,7 @@ export class MascotWindowActions {
   /** 看板娘「任务看板」：打开对话窗口并切到「知识 · 记忆 · 日程」的日程页 */
   async openTaskBoard(): Promise<OpenResult> {
     try {
-      await this.windowManager.openProviderPanel('ai:hub:open-schedule');
+      await this.windowManager.openProviderPanel('nav.scheduleRequested');
       return { success: true };
     } catch (error) {
       this.logger.error('打开任务看板失败', {
@@ -64,7 +64,7 @@ export class MascotWindowActions {
   /** 看板娘「TTS 语音配置」/ 语音错误「去设置」：打开对话窗口的「设置 → 语音与屏幕 → 语音」 */
   async openVoiceSettings(): Promise<OpenResult> {
     try {
-      await this.windowManager.openProviderPanel('ai:settings:open-voice');
+      await this.windowManager.openProviderPanel('nav.voiceSettingsRequested');
       return { success: true };
     } catch (error) {
       this.logger.error('打开语音设置失败', {

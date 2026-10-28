@@ -1,6 +1,6 @@
 /**
  * 本地数据导出与本地模型管理经宿主端口 / 事件总线工作（设计稿 §7.1「实施约定」）：
- * 导出用 dialogs.saveFile 选位置（取消不写文件），设置变化经 events 发 `ai:local:changed`。
+ * 导出用 dialogs.saveFile 选位置（取消不写文件），设置变化经 events 发 `local.changed`。
  */
 jest.unmock('fs');
 jest.unmock('path');
@@ -73,7 +73,7 @@ describe('LocalModelService events', () => {
     });
     svc.setSettings({ autoStart: true });
     expect(host.events.published).toEqual([
-      { channel: 'ai:local:changed', payload: null, surfaces: null },
+      { event: 'local.changed', payload: null, surfaces: null },
     ]);
   });
 });

@@ -301,7 +301,7 @@ describe('AgentProgressService', () => {
     // 发给所有窗口（不指定 surface），不带数据：界面收到后自己重新拉
     const changed = () =>
       events.published.filter(
-        (e) => e.channel === 'ai:agents:changed' && e.payload === null && e.surfaces === null,
+        (e) => e.event === 'agents.changed' && e.payload === null && e.surfaces === null,
       ).length;
     const file = path.join(home, '.claude', 'projects', '-w-a', 's.jsonl');
     write(file, claudeLines('s', '/w/a', '跑测试', toolUse), now);

@@ -112,7 +112,7 @@ export class AccountService {
     private readonly d: {
       root: string;
       logger: Logger;
-      /** 账号列表变化通知界面（ai:cli-account:changed） */
+      /** 账号列表变化通知界面（cliAccount.changed） */
       events: AppEvents;
       env?: NodeJS.ProcessEnv;
       home?: string;
@@ -666,7 +666,7 @@ export class AccountService {
 
   /** 通知各窗口刷新账号列表（不带任何数据） */
   broadcastChanged(): void {
-    this.d.events.publish('ai:cli-account:changed', null);
+    this.d.events.publish('cliAccount.changed', null);
   }
 }
 

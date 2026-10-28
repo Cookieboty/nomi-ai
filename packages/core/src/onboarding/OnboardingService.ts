@@ -20,10 +20,6 @@ export interface OnboardingState {
   profile?: UserProfile;
 }
 
-/** 界面监听的通道：重新打开引导 / 职业与兴趣变化 */
-export const ONBOARDING_SHOW = 'ai:onboarding:show';
-export const ONBOARDING_PROFILE_CHANGED = 'ai:onboarding:profile-changed';
-
 /** 引导里允许转发给看板娘的指令（不开放任意指令） */
 
 export interface OnboardingDeps {
@@ -87,7 +83,7 @@ export class OnboardingService {
     this.state = { ...this.keep(), done: false };
     this.save();
     await this.deps.openChat();
-    this.deps.events.publish(ONBOARDING_SHOW, this.get());
+    this.deps.events.publish('onboarding.show', this.get());
     return this.get();
   }
 
@@ -105,7 +101,7 @@ export class OnboardingService {
     const profile = normalizeUserProfile(v);
     this.state = { ...this.state, profile };
     this.save();
-    this.deps.events.publish(ONBOARDING_PROFILE_CHANGED, profile);
+    this.deps.events.publish('onboarding.profileChanged', profile);
     return profile;
   }
 

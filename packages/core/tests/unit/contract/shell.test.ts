@@ -1,7 +1,7 @@
 /**
  * D2（contract/shell.ts）：theme / locale / startup / onboarding / providers / gateway / usage /
  * quality / updates / diagnostics 的处理函数委派给服务、`appIcon.*` 由宿主片段补上、服务缺失时 UNAVAILABLE、
- * 只在对话窗口的过程拒绝看板娘、dangerous 过程拒绝不可信调用者、旧通道桥接成契约事件、
+ * 只在对话窗口的过程拒绝看板娘、dangerous 过程拒绝不可信调用者、服务发布契约事件、
  * 供应商变化经应用事件总线发出。
  */
 
@@ -9,10 +9,8 @@ import { createClient } from '@nomi-ai/contract';
 import { createInProcessServer } from '@nomi-ai/contract/testing';
 import type { HostPorts } from '@nomi-ai/host-ports';
 
-import { createContractEventBridge } from '../../../src/contract/eventBridge';
-import { APP_EVENT_BRIDGE, createAppRouter } from '../../../src/contract/router';
+import { createAppRouter } from '../../../src/contract/router';
 import type { CoreContractServices } from '../../../src/contract/services';
-import { PROVIDERS_CHANGED, shellEventBridge } from '../../../src/contract/shell';
 import type { AppHandlers, ContractDeps } from '../../../src/contract/types';
 import { createRecordingAppEvents } from '../../../src/core/appEvents';
 
@@ -339,54 +337,13 @@ describe('host/contract · shell', () => {
     }
   });
 
-  it('供应商状态变化经应用事件总线发出旧通道（桥再转成 providers.changed）', () => {
+  it('供应商状态变化经应用事件总线发布 providers.changed', () => {
     const { f, events, close } = setup();
     try {
       f.fireProvidersChanged();
-      expect(events.last(PROVIDERS_CHANGED)).toEqual(providerState);
+      expect(events.last('providers.changed')).toEqual(providerState);
     } finally {
       close();
     }
-  });
-});
-
-describe('host/contract · shell 事件桥', () => {
-  it('旧通道 → 契约事件（含 null 事件与 open-panel 的 payload 归一）', () => {
-    expect(shellEventBridge).toMatchObject({
-      'ai:theme:changed': 'theme.changed',
-      'ai:locale:changed': 'locale.changed',
-      'ai:startup:changed': 'startup.changed',
-      'ai:onboarding:show': 'onboarding.show',
-      'ai:onboarding:profile-changed': 'onboarding.profileChanged',
-      'ai:providers:changed': 'providers.changed',
-      'ai:gateway:changed': 'gateway.changed',
-      'ai:usage:changed': 'usage.changed',
-      'ai:quality:changed': 'quality.changed',
-      'updates:changed': 'updates.changed',
-    });
-    const inner = createRecordingAppEvents();
-    const bridge = createContractEventBridge(inner, APP_EVENT_BRIDGE);
-    const sink = { publish: jest.fn() };
-    bridge.attach(sink);
-    bridge.publish('ai:theme:changed', theme);
-    bridge.publish('ai:gateway:changed', null);
-    bridge.publish('updates:changed', update);
-    bridge.publish('ai:providers:open-panel', undefined);
-    expect(sink.publish.mock.calls).toEqual([
-      ['theme.changed', theme],
-      ['gateway.changed', null],
-      ['updates.changed', update],
-      ['providers.openPanel', {}],
-    ]);
-    // 旧通道照常广播
-    expect(inner.published.map((e) => e.channel)).toEqual([
-      'ai:theme:changed',
-      'ai:gateway:changed',
-      'updates:changed',
-      'ai:providers:open-panel',
-    ]);
-    expect(bridge.contractEventOf('ai:onboarding:profile-changed')).toBe(
-      'onboarding.profileChanged',
-    );
   });
 });

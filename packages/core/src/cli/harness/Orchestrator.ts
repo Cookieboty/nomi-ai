@@ -53,7 +53,7 @@ import {
 import type { HostPorts } from '@nomi-ai/host-ports';
 import { brand, type QualityOutcome, type QualityRecord } from '@nomi-ai/types';
 
-import type { AppEvents } from '../../core/appEvents';
+import type { AppEventName, AppEvents } from '../../core/appEvents';
 import { t } from '../../i18n';
 import { claudeConfigDir } from '../../usage/cliHomes';
 import { qualityLedgerInput } from '../../usage/quality/cliTokens';
@@ -347,7 +347,7 @@ export class HarnessOrchestrator {
   private readonly takeoverInFlight = new Map<string, Promise<void>>();
   /** 实时事件按帧合批后再广播（见 eventBatcher） */
   private readonly eventBatcher = new EventBatcher<HarnessEvent & { tabId: string }>((batch) =>
-    this.broadcast('ai:harness:events', batch),
+    this.broadcast('harness.events', batch),
   );
   /** tabId → requestId → timer；超时自动拒绝 */
   private readonly pendingPermissions = new Map<
@@ -849,7 +849,7 @@ export class HarnessOrchestrator {
     list.push(msg);
     if (list.length > MAX_TAB_MESSAGES) list.splice(0, list.length - MAX_TAB_MESSAGES);
     this.persistMessages(id);
-    this.post('ai:harness:tab-message', { tabId: id, message: msg });
+    this.post('harness.tabMessage', { tabId: id, message: msg });
   }
 
   // ───────────────────────── 旧接口（main 标签） ─────────────────────────
@@ -888,7 +888,7 @@ export class HarnessOrchestrator {
     const stale = CLI_BACKENDS.filter((b) => peekCliBin(b) === undefined);
     if (!stale.length) return Promise.resolve();
     return Promise.all(stale.map((b) => refreshCliBin(b))).then(() => {
-      this.post('ai:harness:changed', this.state());
+      this.post('harness.changed', this.state());
     });
   }
 
@@ -3709,7 +3709,7 @@ export class HarnessOrchestrator {
     if (tabId === MAIN_TAB_ID) {
       // 主标签的消息由渲染层存进 Nomi 历史：广播出去由它落盘
       tab.updatedAt = msg.timestamp;
-      this.post('ai:harness:tab-message', { tabId, message: msg });
+      this.post('harness.tabMessage', { tabId, message: msg });
     } else {
       this.appendMessage(tabId, msg);
     }
@@ -4604,21 +4604,21 @@ export class HarnessOrchestrator {
 
   // ───────────────────────── 广播 / IPC ─────────────────────────
 
-  private post(channel: string, payload: unknown) {
+  private post(channel: AppEventName, payload: unknown) {
     // 其它通道的消息（tab-message / tabs / changed）必须排在已入队的实时事件之后
     this.eventBatcher.flush();
     this.broadcast(channel, payload);
   }
 
   /**
-   * 推送只发给对话窗口：`events.publish(…, { surface: 'chat' })`，事件桥转成契约事件 `harness.*`
+   * 推送只发给对话窗口：`events.publish('harness.*', …, { surface: 'chat' })`，即契约事件 `harness.*`
    * （只推给订阅了的窗口）。没接上事件总线之前（契约处理函数 attachEvents 之前）没有订阅者，直接丢弃。
    */
-  private broadcast(channel: string, payload: unknown) {
+  private broadcast(channel: AppEventName, payload: unknown) {
     this.appEvents?.publish(channel, payload, { surface: 'chat' });
   }
 
-  /** 应用事件总线（经契约事件桥） */
+  /** 应用事件总线（发布契约事件） */
   private appEvents: AppEvents | null = null;
 
   /** 推送改走应用事件总线（host/contract/coding.ts 在建 router 与每次调用时接上；重复调用无副作用） */
@@ -4722,8 +4722,8 @@ export class HarnessOrchestrator {
     queueMicrotask(() => {
       this.broadcastQueued = false;
       if (this.disposed) return;
-      this.post('ai:harness:changed', this.state());
-      this.post('ai:harness:tabs', this.listTabs());
+      this.post('harness.changed', this.state());
+      this.post('harness.tabsChanged', this.listTabs());
     });
   }
 

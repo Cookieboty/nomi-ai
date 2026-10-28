@@ -22,7 +22,7 @@ jest.mock('electron-updater', () => ({
 }));
 
 import { createRecordingAppEvents, type RecordingAppEvents } from '../../../src/core/appEvents';
-import { UPDATE_IPC, UpdateService, type UpdaterLike } from '../../../src/services/UpdateService';
+import { UpdateService, type UpdaterLike } from '../../../src/services/UpdateService';
 import { whenPrivateWritesIdle } from '../../../src/utils/privateFile';
 import { fakeHostPorts } from '../helpers/fakeHostPorts';
 
@@ -121,7 +121,7 @@ describe('UpdateService', () => {
     svc.start();
     const state = await svc.check();
     const last = events.published.at(-1);
-    expect(last).toEqual({ channel: UPDATE_IPC.changed, payload: state, surfaces: null });
+    expect(last).toEqual({ event: 'updates.changed', payload: state, surfaces: null });
   });
 
   it('check() reports available then download() reaches downloaded', async () => {

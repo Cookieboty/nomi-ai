@@ -1,25 +1,19 @@
 /**
- * D5 里不碰窗口的处理函数与 D5 的事件桥（docs/design/core-host-decoupling.md §7.1、§12「P1b 实施约定」）。
+ * D5 里不碰窗口的处理函数（docs/design/core-host-decoupling.md §7.1、§12「P1b 实施约定」）。
  *
  * 契约声明在 packages/contract/src/app/mascot.ts。这里实现角色包 / 人设、聊天背景、旧的角色模型名与
  * `window.platform`；看板娘窗口互动（`mascot.*` 的光标 / 拖拽 / 大小）、灵动岛（`island.*`）与旧窗口
  * 通道（`window.*`）要用宿主的窗口，由宿主的契约片段实现（`MascotHostProcedureName`；Electron：
  * host-electron `host/contract/mascot.ts`）。
  *
- * 事件桥覆盖整个 D5：看板娘窗口控制器（光标 / 运动 / 物理 / 大小）、看板娘指令与窗口鼠标进出都经应用
- * 事件总线 `events.publish(<旧通道>)` 发布，在这里转成契约事件。
+ * D5 的事件（看板娘窗口控制器的光标 / 运动 / 物理 / 大小、看板娘指令与窗口鼠标进出）由服务与宿主的窗口
+ * 控制器直接经事件总线发布契约事件（`events.publish('mascot.cursor', …)`）。
  */
 
-import type { MascotEventName, MascotProcedureName } from '@nomi-ai/contract/app';
+import type { MascotProcedureName } from '@nomi-ai/contract/app';
 import { CHAT_BG_ERROR } from '@nomi-ai/types';
 
-import {
-  need,
-  type AppHandlerContext,
-  type ContractDeps,
-  type DomainHandlers,
-  type EventBridgeMap,
-} from './types';
+import { need, type AppHandlerContext, type ContractDeps, type DomainHandlers } from './types';
 
 /** 内核实现的 D5 过程 */
 type MascotCoreProcedureName =
@@ -90,18 +84,3 @@ export function createMascotCoreHandlers(deps: ContractDeps): MascotCoreHandlers
     'window.platform': () => deps.ports.app.platform(),
   };
 }
-
-/** 旧通道 → 契约事件（服务 / 宿主的窗口控制器照旧 `events.publish(<旧通道>)`） */
-export const mascotEventBridge: EventBridgeMap<MascotEventName> = {
-  'mascot:scale-changed': 'mascot.scaleChanged',
-  'mascot:cursor': 'mascot.cursor',
-  'mascot:body': 'mascot.body',
-  'mascot:physics-event': 'mascot.physicsEvent',
-  'mascot:command': 'mascot.command',
-  'avatar:event': 'avatar.event',
-  'character:persona-changed': 'persona.changed',
-  'chat-bg:changed': 'chatBg.changed',
-  // 旧通道不带 payload
-  'window-mouse-enter': { event: 'window.mouseEnter', map: () => null },
-  'window-mouse-leave': { event: 'window.mouseLeave', map: () => null },
-};

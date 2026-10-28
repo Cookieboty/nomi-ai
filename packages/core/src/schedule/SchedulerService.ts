@@ -14,7 +14,7 @@ import type { HostPorts } from '@nomi-ai/host-ports';
 import { brand } from '@nomi-ai/types';
 
 import { avatarEmotion, avatarGesture } from '../ai/mascotCommand';
-import type { AppEvents } from '../core/appEvents';
+import type { AppEventName, AppEvents } from '../core/appEvents';
 import type { DesktopService } from '../desktop/DesktopService';
 import { t as tr } from '../i18n';
 
@@ -134,7 +134,7 @@ export interface SchedDeps {
   now?: () => number;
   /** 用户空闲秒数（主动聊天判断用户在不在电脑前） */
   ports: Pick<HostPorts, 'power'>;
-  /** 通知界面（`ai:sched:*` 发给所有窗口） */
+  /** 通知界面（契约事件 `sched.*`，推给订阅了的窗口） */
   events: AppEvents;
 }
 
@@ -200,7 +200,7 @@ export class SchedulerService {
     const tmp = `${this.file}.tmp`;
     fs.writeFileSync(tmp, JSON.stringify(this.data, null, 2), { mode: 0o600 });
     fs.renameSync(tmp, this.file);
-    this.broadcast('ai:sched:changed', null);
+    this.broadcast('sched.changed', null);
   }
 
   isQuiet(): boolean {
@@ -344,7 +344,7 @@ export class SchedulerService {
     if (!t) throw new SchedError('not-found', tr('electron.common.task-not-found'));
     if (this.running.has(id)) throw new SchedError('busy', tr('electron.common.task-is-running'));
     this.running.add(id);
-    this.broadcast('ai:sched:changed', null);
+    this.broadcast('sched.changed', null);
     const t0 = this.now();
     let res: TaskResult;
     try {
@@ -408,7 +408,7 @@ export class SchedulerService {
 
   /** 结果投递：对话窗口（始终）+ 看板娘气泡或（她不在时）灵动岛 / 系统通知；免打扰时不打扰 */
   private deliver(r: TaskResult) {
-    this.broadcast('ai:sched:result', r);
+    this.broadcast('sched.result', r);
     if (this.isQuiet()) return;
     const short = r.text.length > 90 ? `${r.text.slice(0, 88)}…` : r.text;
     this.d.desktop.notify({
@@ -523,7 +523,7 @@ export class SchedulerService {
       this.d.desktop.notify({ kind: 'message', title: brand.appName, text });
       avatarEmotion(this.d.events, 'happy');
       avatarGesture(this.d.events, 'wave');
-      this.broadcast('ai:sched:proactive', { text, at: now });
+      this.broadcast('sched.proactive', { text, at: now });
       this.audit('proactive_chat', { manual: force }, 'ok');
       return text;
     } finally {
@@ -563,7 +563,7 @@ export class SchedulerService {
       /* ignore */
     }
   }
-  private broadcast(ch: string, payload: unknown) {
+  private broadcast(ch: AppEventName, payload: unknown) {
     this.d.events.publish(ch, payload);
   }
 

@@ -348,7 +348,7 @@ describe('MemoryService', () => {
     const { svc, root, host } = mk(jest.fn());
     svc.setPersona('我喜欢猫');
     expect(host.events.published).toContainEqual({
-      channel: 'ai:mem:changed',
+      event: 'mem.changed',
       payload: null,
       surfaces: null,
     });

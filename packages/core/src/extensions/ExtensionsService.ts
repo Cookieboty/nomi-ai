@@ -22,7 +22,7 @@ import type { HostPorts } from '@nomi-ai/host-ports';
 import { z } from 'zod';
 
 import { avatarGesture } from '../ai/mascotCommand';
-import type { AppEvents } from '../core/appEvents';
+import type { AppEventName, AppEvents } from '../core/appEvents';
 import type { DesktopService } from '../desktop/DesktopService';
 import { t } from '../i18n';
 import { createSecretBox, type SecretBox } from '../security/secretStorage';
@@ -76,7 +76,7 @@ export interface ExtDeps {
   /** 选择技能 / 项目文件夹、打开技能目录 */
   /** 选目录 / 打开目录；MCP 密钥加密落盘（secrets） */
   ports: Pick<HostPorts, 'dialogs' | 'shell' | 'secrets'>;
-  /** 通知界面（`ai:ext:changed` 发给所有窗口） */
+  /** 通知界面（`ext.changed` 发给所有窗口） */
   events: AppEvents;
 }
 
@@ -280,12 +280,12 @@ export class ExtensionsService {
     this.saveSkillState();
   }
 
-  private broadcast(ch: string, payload: unknown) {
+  private broadcast(ch: AppEventName, payload: unknown) {
     this.d.events.publish(ch, payload);
   }
   private changed() {
     this.skillsCache = null;
-    this.broadcast('ai:ext:changed', null);
+    this.broadcast('ext.changed', null);
   }
   private audit(
     tool: string,

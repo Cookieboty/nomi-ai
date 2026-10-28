@@ -44,7 +44,7 @@ export interface ChatBackgroundDeps {
   presetFile: string;
   /** 选择图片（dialogs）、缩放大图（image） */
   ports: Pick<HostPorts, 'dialogs' | 'image'>;
-  /** 通知界面（`chat-bg:changed` 发给所有窗口） */
+  /** 通知界面（`chatBg.changed` 发给所有窗口） */
   events: AppEvents;
 }
 
@@ -231,7 +231,7 @@ export class ChatBackgroundService {
   }
 
   private broadcast(): void {
-    this.events.publish('chat-bg:changed', this.get());
+    this.events.publish('chatBg.changed', this.get());
   }
 
   private removeImageFiles(keep?: string): void {

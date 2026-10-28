@@ -7,7 +7,6 @@
  *   - 宿主片段只能**补**内核没有实现的过程，和内核重名时报错（不静默覆盖内核行为）；
  *   - 谁都没实现的过程以 UNAVAILABLE 失败（无界面宿主没有窗口片段；AI runtime 没起来时 `ai.*` 也是这样），
  *     其余过程照常可用；
- * - `APP_EVENT_BRIDGE`：五个域的「旧通道 → 契约事件」表，交给 `createContractEventBridge`；
  * - 调用者：surface 与 trusted 由传输层填写，契约里声明的 `surfaces` / `dangerous` 由内置守卫判定
  *   （不可关闭）；这里的中间件只记审计日志。
  */
@@ -21,19 +20,13 @@ import {
 } from '@nomi-ai/contract';
 import { appContract, type AppContract } from '@nomi-ai/contract/app';
 
-import { codingEventBridge, createCodingHandlers } from './coding';
-import { createKnowledgeHandlers, knowledgeEventBridge } from './knowledge';
-import { createMascotCoreHandlers, mascotEventBridge } from './mascot';
-import { createMediaHandlers, mediaEventBridge } from './media';
+import { createCodingHandlers } from './coding';
+import { createKnowledgeHandlers } from './knowledge';
+import { createMascotCoreHandlers } from './mascot';
+import { createMediaHandlers } from './media';
 import type { VoiceStreams } from './media/voiceSenders';
-import { createShellHandlers, shellEventBridge } from './shell';
-import type {
-  AppHandlers,
-  ContractDeps,
-  ContractLoggerLike,
-  EventBridgeEntry,
-  EventBridgeMap,
-} from './types';
+import { createShellHandlers } from './shell';
+import type { AppHandlers, ContractDeps, ContractLoggerLike } from './types';
 
 /** `ai.*` 处理函数（ai-runtime 的 AiHandlersHandle 的结构子集） */
 type AiHandlerTable = Pick<AppHandlers, keyof AppHandlers & `ai.${string}`>;
@@ -58,33 +51,6 @@ export interface AppRouterHandle {
   router: Router<AppContract>;
   dispose(): void;
 }
-
-function mergeBridges(parts: Record<string, EventBridgeMap<string>>): EventBridgeMap<string> {
-  const out: Record<string, EventBridgeEntry<string>> = {};
-  const owner = new Map<string, string>();
-  for (const [part, map] of Object.entries(parts)) {
-    for (const [channel, entry] of Object.entries(map)) {
-      const prev = owner.get(channel);
-      if (prev !== undefined) {
-        throw new TypeError(
-          `[contract] legacy channel '${channel}' is bridged by ${prev} and ${part}`,
-        );
-      }
-      owner.set(channel, part);
-      out[channel] = entry;
-    }
-  }
-  return Object.freeze(out);
-}
-
-/** 五个域的事件桥合并表；同一旧通道只能由一个域桥接 */
-export const APP_EVENT_BRIDGE: EventBridgeMap<string> = mergeBridges({
-  media: mediaEventBridge,
-  shell: shellEventBridge,
-  coding: codingEventBridge,
-  knowledge: knowledgeEventBridge,
-  mascot: mascotEventBridge,
-});
 
 /** 没有实现的过程：以 UNAVAILABLE 失败（stream 在第一次 next() 时失败） */
 function unavailableHandlers(): AppHandlers {

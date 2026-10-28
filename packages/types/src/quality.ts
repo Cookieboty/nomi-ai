@@ -291,21 +291,6 @@ export interface QualitySettings {
   retentionDays: number;
 }
 
-/** 质量服务的通道名：迁到契约（`quality.*`）前的旧名；`changed` 仍是应用事件通道（事件桥转成 `quality.changed`） */
-export const QUALITY_IPC = {
-  query: 'ai:quality:query',
-  series: 'ai:quality:series',
-  requests: 'ai:quality:requests',
-  settingsGet: 'ai:quality:settings-get',
-  settingsSet: 'ai:quality:settings-set',
-  clear: 'ai:quality:clear',
-  /** 导出 CSV（弹保存对话框）：参数 QualityExportRequest，返回 QualityExportResult */
-  export: 'ai:quality:export',
-  /** 筛选项：这段时间里出现过的客户端 / 供应商 / 模型族 / Key（参数 QualityQuery，返回 QualityFacets） */
-  facets: 'ai:quality:facets',
-  changed: 'ai:quality:changed',
-} as const;
-
 /** 导出：请求明细，或按维度分组的对比表 */
 export type QualityExportRequest =
   { kind: 'requests'; query: QualityRequestsQuery } | { kind: 'table'; query: QualityQuery };

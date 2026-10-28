@@ -144,7 +144,7 @@ describe('ChatBackgroundService', () => {
         filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }],
       }),
     );
-    expect(events.published).toEqual([{ channel: 'chat-bg:changed', payload: st, surfaces: null }]);
+    expect(events.published).toEqual([{ event: 'chatBg.changed', payload: st, surfaces: null }]);
     expect(await s.pickImage()).toEqual(st);
     expect(pickFiles).toHaveBeenLastCalledWith(expect.objectContaining({ parent: 'none' }));
   });

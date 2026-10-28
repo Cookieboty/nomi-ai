@@ -6,6 +6,7 @@ import * as path from 'path';
 import * as url from 'url';
 
 import type { AppEvents } from '@nomi-ai/core/core/appEvents';
+import type { ChatNavEvent } from '@nomi-ai/core/core/chatNav';
 import { fitMascotScale, maxScaleForArea, mascotWindowSize } from '@nomi-ai/core/mascot/mascotSize';
 import { type IConfigService } from '@nomi-ai/core/services/ConfigService';
 import { type ILoggerService } from '@nomi-ai/core/services/LoggerService';
@@ -62,7 +63,7 @@ export interface IWindowManager {
   /** 显示 / 隐藏桌面看板娘；隐藏时窗口保留（提醒、确认框仍有宿主）但静音 */
   setMascotVisible(visible: boolean): void;
   /** 打开对话窗口并发送面板通道（默认「供应商设置」） */
-  openProviderPanel(channel?: string): Promise<void>;
+  openProviderPanel(event?: ChatNavEvent): Promise<void>;
 }
 
 /** 对话窗口的最小尺寸（设置是全窗布局，再小放不下） */
@@ -241,16 +242,16 @@ export class WindowManager implements IWindowManager {
   }
 
   /**
-   * 打开 AI 对话窗口并弹出某个面板（托盘 / 菜单 / 看板娘入口）。`channel` 是面板的应用事件
-   * （`ai:providers:open-panel` 等），事件桥转成契约事件（`providers.openPanel` / `nav.*`），只发给对话窗口。
+   * 打开 AI 对话窗口并弹出某个面板（托盘 / 菜单 / 看板娘入口）。`event` 是面板导航的契约事件
+   * （`providers.openPanel` / `nav.*`），只发给对话窗口。
    */
-  async openProviderPanel(channel = 'ai:providers:open-panel'): Promise<void> {
+  async openProviderPanel(event: ChatNavEvent = 'providers.openPanel'): Promise<void> {
     const existed = Boolean(this.aiChatWindow);
     const win = await this.createAiChatWindow();
     // 新建窗口时给 React 挂载、订阅契约事件留一点时间
     setTimeout(
       () => {
-        if (!win.isDestroyed()) this.events?.publish(channel, {}, { surface: 'chat' });
+        if (!win.isDestroyed()) this.events?.publish(event, {}, { surface: 'chat' });
       },
       existed ? 0 : 400,
     );
@@ -541,8 +542,7 @@ export class WindowManager implements IWindowManager {
 
         if (isInWindow !== mouseInWindow) {
           mouseInWindow = isInWindow;
-          const eventName = isInWindow ? 'window-mouse-enter' : 'window-mouse-leave';
-          // 事件桥转成契约事件 window.mouseEnter / mouseLeave
+          const eventName = isInWindow ? 'window.mouseEnter' : 'window.mouseLeave';
           this.events?.publish(eventName, null, { surface: 'mascot' });
         }
       } catch (error) {

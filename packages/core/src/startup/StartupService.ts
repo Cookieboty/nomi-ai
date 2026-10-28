@@ -33,9 +33,6 @@ export interface StartupState {
   showMascot: boolean;
 }
 
-/** 界面监听的启动设置变化通道 */
-export const STARTUP_CHANGED = 'ai:startup:changed';
-
 export interface StartupServiceDeps {
   /** 偏好文件（userData/startup.json） */
   file: string;
@@ -117,7 +114,7 @@ export class StartupService {
         : ((p.showMascot as boolean | undefined) ?? this.state.showMascot);
     // 默认界面为看板娘时关掉她（#55）：默认界面改为软件主界面，保证下次启动有界面可用
     if (!showMascot && defaultView === 'mascot') defaultView = 'main';
-    // 调用方从返回值 / ai:startup:changed 拿到新的 defaultView，自行提示「默认界面已改为主界面」
+    // 调用方从返回值 / startup.changed 拿到新的 defaultView，自行提示「默认界面已改为主界面」
     this.state = {
       defaultView,
       closeMain: (p.closeMain as CloseMainAction | undefined) ?? this.state.closeMain,
@@ -128,7 +125,7 @@ export class StartupService {
     fs.mkdirSync(path.dirname(this.file), { recursive: true });
     await writePrivateFileAtomicAsync(this.file, JSON.stringify(next, null, 2));
     for (const fn of this.listeners) fn(next);
-    this.events.publish(STARTUP_CHANGED, next);
+    this.events.publish('startup.changed', next);
     return next;
   }
 

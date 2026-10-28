@@ -161,8 +161,8 @@ describe('run with a mock npm', () => {
         mode: 'install',
       });
       // 每个进度事件原样发给所有窗口（ai:cli-update:event）
-      expect(appEvents.published.map((e) => [e.channel, e.payload, e.surfaces])).toEqual(
-        events.map((e) => ['ai:cli-update:event', e, null]),
+      expect(appEvents.published.map((e) => [e.event, e.payload, e.surfaces])).toEqual(
+        events.map((e) => ['cliUpdate.event', e, null]),
       );
       // PATH 上没有 ~/.local/bin → 给出提示
       expect(res.note).toContain('PATH');

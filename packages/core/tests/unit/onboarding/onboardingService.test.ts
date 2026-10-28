@@ -5,11 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { createRecordingAppEvents, type RecordingAppEvents } from '../../../src/core/appEvents';
-import {
-  ONBOARDING_PROFILE_CHANGED,
-  ONBOARDING_SHOW,
-  OnboardingService,
-} from '../../../src/onboarding/OnboardingService';
+import { OnboardingService } from '../../../src/onboarding/OnboardingService';
 
 const dir = () => fs.mkdtempSync(path.join(os.tmpdir(), 'onb-'));
 let events: RecordingAppEvents = createRecordingAppEvents();
@@ -41,7 +37,7 @@ describe('OnboardingService', () => {
     await s.reopen();
     expect(open).toHaveBeenCalled();
     expect(events.published).toContainEqual({
-      channel: ONBOARDING_SHOW,
+      event: 'onboarding.show',
       payload: s.get(),
       surfaces: null,
     });
@@ -66,7 +62,7 @@ describe('OnboardingService', () => {
     });
     // 未知 id 丢掉，按固定顺序去重
     expect(saved).toEqual({ role: 'developer', interests: ['coding', 'writing'] });
-    expect(events.last(ONBOARDING_PROFILE_CHANGED)).toEqual(saved);
+    expect(events.last('onboarding.profileChanged')).toEqual(saved);
     s.complete();
     await s.reopen();
     expect(make(d).profile()).toEqual(saved);

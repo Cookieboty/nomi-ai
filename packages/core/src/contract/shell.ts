@@ -1,30 +1,26 @@
 /**
- * D2 的处理函数与事件桥（docs/design/core-host-decoupling.md §12「P1b 实施约定」）。
+ * D2 的处理函数（docs/design/core-host-decoupling.md §12「P1b 实施约定」）。
  *
  * 本文件只属于 D2。契约声明在 packages/contract/src/app/shell.ts；这里（`appIcon.*` 除外，见下）：
  * - `createShellHandlers(deps)`：每个过程一个处理函数，委派给服务的公开方法（服务从
- *   `deps.services` 在调用时读取，缺了用 `need()` 报 UNAVAILABLE）；
- * - `shellEventBridge`：服务仍在 `events.publish` 的旧通道 → 契约事件。
+ *   `deps.services` 在调用时读取，缺了用 `need()` 报 UNAVAILABLE）。服务直接发布契约事件。
  *
  * 供应商（`providers.*`）的服务是 AI runtime 的 ProviderService：它不认识应用事件总线，所以这里订阅
- * 它的 onChange，经 `deps.events` 发布 `ai:providers:changed`，再由事件桥转成 `providers.changed`。
+ * 它的 onChange，经 `deps.events` 发布契约事件 `providers.changed`。
  */
 
-import type { ShellEventName, ShellProcedureName } from '@nomi-ai/contract/app';
+import type { ShellProcedureName } from '@nomi-ai/contract/app';
 
 import type { GatewayService, ProviderInput } from '../gateway/GatewayService';
 import type { UsageSettings } from '../usage/UsageService';
 
-import type { ContractDeps, DomainHandlers, EventBridgeMap } from './types';
+import type { ContractDeps, DomainHandlers } from './types';
 import { need } from './types';
 
 /** 应用图标（窗口 / 任务栏 / Dock / 托盘图标）是宿主的事：`appIcon.*` 由宿主的片段实现 */
 export type ShellHostProcedureName = 'appIcon.get' | 'appIcon.set';
 
 export type ShellHandlers = DomainHandlers<Exclude<ShellProcedureName, ShellHostProcedureName>>;
-
-/** 供应商状态变化的应用事件通道（事件桥转成 `providers.changed`） */
-export const PROVIDERS_CHANGED = 'ai:providers:changed';
 
 /** 错误信息里形似 Key 的片段打码，不挂原始错误 */
 function redactProviderError(err: unknown): Error {
@@ -35,7 +31,7 @@ function redactProviderError(err: unknown): Error {
 /** 供应商状态变化（面板 / 托盘 / 工具栏任一入口）→ 应用事件总线 */
 function bindProviderEvents(deps: ContractDeps): void {
   const providers = deps.services.aiRuntime?.providers;
-  providers?.onChange(() => deps.events.publish(PROVIDERS_CHANGED, providers.state()));
+  providers?.onChange(() => deps.events.publish('providers.changed', providers.state()));
 }
 
 export function createShellHandlers(deps: ContractDeps): ShellHandlers {
@@ -151,21 +147,3 @@ export function createShellHandlers(deps: ContractDeps): ShellHandlers {
     'diagnostics.export': () => diagnostics().exportBundle(),
   };
 }
-
-/** 旧通道 → 契约事件（服务照旧 `events.publish(<旧通道>, payload)`） */
-export const shellEventBridge: EventBridgeMap<ShellEventName> = {
-  'ai:theme:changed': 'theme.changed',
-  'ai:locale:changed': 'locale.changed',
-  'ai:startup:changed': 'startup.changed',
-  'ai:onboarding:show': 'onboarding.show',
-  'ai:onboarding:profile-changed': 'onboarding.profileChanged',
-  [PROVIDERS_CHANGED]: 'providers.changed',
-  'ai:providers:open-panel': {
-    event: 'providers.openPanel',
-    map: (p) => (p && typeof p === 'object' ? p : {}),
-  },
-  'ai:gateway:changed': 'gateway.changed',
-  'ai:usage:changed': 'usage.changed',
-  'ai:quality:changed': 'quality.changed',
-  'updates:changed': 'updates.changed',
-};

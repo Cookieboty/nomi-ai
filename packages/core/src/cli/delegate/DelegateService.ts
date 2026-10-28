@@ -16,7 +16,7 @@ import type { ToolDefinition, ToolExecContext } from '@nomi-ai/bundle-ig-base';
 import type { BuiltinCliId } from '@nomi-ai/cli-plugins';
 import { z } from 'zod';
 
-import type { AppEvents } from '../../core/appEvents';
+import type { AppEventName, AppEvents } from '../../core/appEvents';
 import type { DesktopService } from '../../desktop/DesktopService';
 import { t } from '../../i18n';
 import { writePrivateFileAtomicAsync } from '../../utils/privateFile';
@@ -956,10 +956,10 @@ export class DelegateService {
   }
 
   private broadcastCompleted(result: DelegateResult): void {
-    this.broadcast('ai:delegate:completed', result);
+    this.broadcast('delegate.completed', result);
   }
 
-  private broadcast(ch: string, payload: unknown): void {
+  private broadcast(ch: AppEventName, payload: unknown): void {
     this.d.events.publish(ch, payload);
   }
 

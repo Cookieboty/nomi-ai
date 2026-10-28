@@ -1,7 +1,7 @@
 /**
  * D3（contract/coding.ts）：harness / cli / cliAccount / cliUpdate / delegate / agents / history
  * 的处理函数委派给服务、账号错误码换成契约码、dangerous 过程拒绝不可信调用者、编排器推送接到事件总线、
- * 旧通道桥接成契约事件。
+ * 服务发布契约事件。
  */
 
 import { appContract } from '@nomi-ai/contract/app';
@@ -9,8 +9,7 @@ import { createTestClient } from '@nomi-ai/contract/testing';
 import type { HostPorts } from '@nomi-ai/host-ports';
 
 import { AccountError } from '../../../src/cli/accounts/AccountService';
-import { codingEventBridge, createCodingHandlers } from '../../../src/contract/coding';
-import { createContractEventBridge } from '../../../src/contract/eventBridge';
+import { createCodingHandlers } from '../../../src/contract/coding';
 import type { CoreContractServices } from '../../../src/contract/services';
 import type { ContractDeps } from '../../../src/contract/types';
 import { createRecordingAppEvents } from '../../../src/core/appEvents';
@@ -133,7 +132,7 @@ function setup(trusted = true) {
 describe('contract/coding', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('建 router 时把应用事件总线接给编排器（推送经事件桥发成契约事件）', () => {
+  it('建 router 时把应用事件总线接给编排器（推送发布契约事件）', () => {
     const { f, events, close } = setup();
     try {
       expect(f.harness.attachEvents).toHaveBeenCalledWith(events);
@@ -318,38 +317,5 @@ describe('contract/coding', () => {
     } finally {
       close();
     }
-  });
-
-  it('事件桥：旧通道 → 契约事件，payload 不变', () => {
-    const inner = createRecordingAppEvents();
-    const bridge = createContractEventBridge(inner, codingEventBridge);
-    const sink = { publish: jest.fn() };
-    bridge.attach(sink);
-    bridge.publish('ai:harness:tabs', tabs, { surface: 'chat' });
-    bridge.publish('ai:harness:events', [{ tabId: 't1', type: 'text-delta', text: 'hi' }], {
-      surface: 'chat',
-    });
-    bridge.publish('ai:cli-account:changed', null);
-    bridge.publish('ai:cli-account:login', { id: 'l1', kind: 'claude', state: 'done' });
-    expect(sink.publish.mock.calls).toEqual([
-      ['harness.tabsChanged', tabs],
-      ['harness.events', [{ tabId: 't1', type: 'text-delta', text: 'hi' }]],
-      ['cliAccount.changed', null],
-      ['cliAccount.login', { id: 'l1', kind: 'claude', state: 'done' }],
-    ]);
-    // 旧通道照常按 surface 送达（对话窗口）
-    expect(inner.published[0]).toMatchObject({ channel: 'ai:harness:tabs', surfaces: ['chat'] });
-    expect(Object.keys(codingEventBridge).sort()).toEqual([
-      'ai:agents:changed',
-      'ai:cli-account:changed',
-      'ai:cli-account:login',
-      'ai:cli-update:event',
-      'ai:cli:registry-changed',
-      'ai:delegate:completed',
-      'ai:harness:changed',
-      'ai:harness:events',
-      'ai:harness:tab-message',
-      'ai:harness:tabs',
-    ]);
   });
 });

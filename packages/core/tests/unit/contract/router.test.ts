@@ -3,7 +3,7 @@
  * - createAppRouter：AI runtime 没起来时 `ai.*` 以 UNAVAILABLE 失败；给了 AI 处理函数就用它，并接上事件；
  * - 宿主片段只补内核没有的过程，和内核重名时报错；谁都没实现的过程 UNAVAILABLE；
  * - dangerous 过程走审计中间件，不可信调用者被内置守卫拒绝；
- * - 事件桥：旧通道照常广播，桥接表里的通道在 attach 之后同时发成契约事件，map 可以转换 payload；
+ * - 事件总线：服务直接发布契约事件，attach 之后交给 router 的 events；tap 收到每次发布；
  * - need()：服务缺失时 UNAVAILABLE。
  */
 
@@ -12,12 +12,8 @@ import { appContract, type AppContract } from '@nomi-ai/contract/app';
 import { createInProcessServer } from '@nomi-ai/contract/testing';
 import type { HostPorts } from '@nomi-ai/host-ports';
 
-import { createContractEventBridge } from '../../../src/contract/eventBridge';
-import {
-  APP_EVENT_BRIDGE,
-  createAppRouter,
-  type AiContractPart,
-} from '../../../src/contract/router';
+import { createContractEventBus } from '../../../src/contract/eventBus';
+import { createAppRouter, type AiContractPart } from '../../../src/contract/router';
 import { need, type ContractDeps } from '../../../src/contract/types';
 import { createRecordingAppEvents } from '../../../src/core/appEvents';
 
@@ -133,72 +129,62 @@ describe('createAppRouter', () => {
   });
 });
 
-describe('createContractEventBridge', () => {
-  it('attach 之后桥接表里的通道发成契约事件；tap 收到每次发布；表外通道只警告一次', () => {
+describe('createContractEventBus', () => {
+  it('attach 之后事件交给契约 sink；tap 收到每次发布；detach 后不再交给 sink', () => {
     const inner = createRecordingAppEvents();
-    const warn = jest.fn();
-    const bridge = createContractEventBridge(
-      inner,
-      {
-        'x:changed': 'x.changed',
-        'x:mapped': { event: 'x.mapped', map: (p) => ({ wrapped: p }) },
-      },
-      { warn },
-    );
+    const bus = createContractEventBus(inner, { warn: jest.fn() });
     const sink = { publish: jest.fn() };
 
-    bridge.publish('x:changed', 1, { surface: 'chat' });
+    bus.publish('theme.changed', 1, { surface: 'chat' });
     expect(sink.publish).not.toHaveBeenCalled();
 
-    const detach = bridge.attach(sink);
-    bridge.publish('x:changed', 2);
-    bridge.publish('x:mapped', 3);
-    bridge.publish('x:other', 4);
-    bridge.publish('x:other', 4);
-    expect(warn).toHaveBeenCalledTimes(1);
-    expect(warn).toHaveBeenCalledWith(expect.any(String), { channel: 'x:other' });
-    expect(inner.published.map((e) => [e.channel, e.payload, e.surfaces])).toEqual([
-      ['x:changed', 1, ['chat']],
-      ['x:changed', 2, null],
-      ['x:mapped', 3, null],
-      ['x:other', 4, null],
-      ['x:other', 4, null],
+    const detach = bus.attach(sink);
+    bus.publish('theme.changed', 2);
+    bus.publish('window.mouseEnter', null);
+    expect(inner.published.map((e) => [e.event, e.payload, e.surfaces])).toEqual([
+      ['theme.changed', 1, ['chat']],
+      ['theme.changed', 2, null],
+      ['window.mouseEnter', null, null],
     ]);
     expect(sink.publish.mock.calls).toEqual([
-      ['x.changed', 2],
-      ['x.mapped', { wrapped: 3 }],
+      ['theme.changed', 2],
+      ['window.mouseEnter', null],
     ]);
-    expect(bridge.contractEventOf('x:mapped')).toBe('x.mapped');
-    expect(bridge.contractEventOf('toString')).toBeUndefined();
 
     detach();
-    bridge.publish('x:changed', 5);
+    bus.publish('theme.changed', 5);
     expect(sink.publish).toHaveBeenCalledTimes(2);
   });
 
-  it('契约事件发布失败只记 warn，不影响发布方', () => {
+  it('契约事件发布失败（schema 不符）只记 warn，不影响发布方', () => {
     const inner = createRecordingAppEvents();
     const warn = jest.fn();
-    const bridge = createContractEventBridge(inner, { 'x:changed': 'x.changed' }, { warn });
-    bridge.attach({
+    const bus = createContractEventBus(inner, { warn });
+    bus.attach({
       publish: () => {
         throw new ContractError('BAD_OUTPUT', 'Invalid event');
       },
     });
-    expect(() => bridge.publish('x:changed', 1)).not.toThrow();
-    expect(inner.last('x:changed')).toBe(1);
+    expect(() => bus.publish('theme.changed', 1)).not.toThrow();
+    expect(inner.last('theme.changed')).toBe(1);
     expect(warn).toHaveBeenCalledWith(
       '契约事件发布失败',
-      expect.objectContaining({ channel: 'x:changed', event: 'x.changed' }),
+      expect.objectContaining({ event: 'theme.changed' }),
     );
   });
 
-  it('APP_EVENT_BRIDGE 的每个目标都是契约里声明的事件', () => {
+  it('接在真实 router 上：payload 按契约 schema 校验，订阅者收到校验后的数据', () => {
     const app = createAppRouter({ deps: deps() });
-    for (const entry of Object.values(APP_EVENT_BRIDGE)) {
-      const event = typeof entry === 'string' ? entry : entry.event;
-      expect(app.router.events.has(event)).toBe(true);
-    }
+    const warn = jest.fn();
+    const bus = createContractEventBus(null, { warn });
+    bus.attach(app.router.events);
+    const seen: unknown[] = [];
+    const off = app.router.events.subscribe('window.mouseLeave', (d) => seen.push(d));
+    bus.publish('window.mouseLeave', null);
+    bus.publish('window.mouseLeave', { not: 'null' });
+    expect(seen).toEqual([null]);
+    expect(warn).toHaveBeenCalledTimes(1);
+    off();
   });
 });
 
@@ -212,25 +198,22 @@ describe('need', () => {
 });
 
 describe('按窗口投递（契约 eventSurfaces，§8）', () => {
-  const bridge = createContractEventBridge(null, APP_EVENT_BRIDGE);
   const scoped: Array<[string, 'mascot' | 'chat']> = [
-    ['desktop:confirm-request', 'mascot'],
-    ['desktop:confirm-cancel', 'mascot'],
-    ['desktop:bubble', 'mascot'],
-    ['mascot:cursor', 'mascot'],
-    ['ai:desktop:summary', 'chat'],
-    ['ai:desktop:open-panel', 'chat'],
-    ['ai:hub:open-schedule', 'chat'],
-    ['ai:settings:open-voice', 'chat'],
-    ['ai:harness:events', 'chat'],
-    ['ai:harness:tab-message', 'chat'],
+    ['desktop.confirmRequest', 'mascot'],
+    ['desktop.confirmCancel', 'mascot'],
+    ['desktop.bubble', 'mascot'],
+    ['mascot.cursor', 'mascot'],
+    ['desktop.summary', 'chat'],
+    ['nav.desktopPanelRequested', 'chat'],
+    ['nav.scheduleRequested', 'chat'],
+    ['nav.voiceSettingsRequested', 'chat'],
+    ['harness.events', 'chat'],
+    ['harness.tabMessage', 'chat'],
   ];
 
-  it.each(scoped)('%s 只有 %s 窗口能订阅', (channel, only) => {
-    const event = bridge.contractEventOf(channel);
-    expect(event).toBeDefined();
+  it.each(scoped)('%s 只有 %s 窗口能订阅', (event, only) => {
     const other = only === 'mascot' ? 'chat' : 'mascot';
-    expect(canSubscribe(appContract, event!, only)).toBe(true);
-    expect(canSubscribe(appContract, event!, other)).toBe(false);
+    expect(canSubscribe(appContract, event, only)).toBe(true);
+    expect(canSubscribe(appContract, event, other)).toBe(false);
   });
 });

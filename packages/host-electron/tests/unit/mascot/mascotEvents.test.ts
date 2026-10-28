@@ -1,6 +1,6 @@
 /**
  * 看板娘推送经内核的应用事件总线（窗口管理器建控制器时传入）：
- * 窗口控制器的大小 / 物理推送经 `events.publish` 发布，事件桥转成契约事件；大小变化只发布一次
+ * 窗口控制器的大小 / 物理推送经 `events.publish` 发布契约事件；大小变化只发布一次
  * （看板娘 + 对话窗口）。没有事件总线时推送直接丢弃，不再直接发给窗口。
  */
 import { createRecordingAppEvents, type AppEvents } from '@nomi-ai/core/core/appEvents';
@@ -85,14 +85,14 @@ describe('MascotWindowController · 应用事件总线', () => {
     expect(st.scale).toBe(0.6);
     expect(s.sent).toHaveLength(0);
     expect(events.published).toEqual([
-      { channel: 'mascot:scale-changed', payload: st, surfaces: ['mascot', 'chat'] },
+      { event: 'mascot.scaleChanged', payload: st, surfaces: ['mascot', 'chat'] },
     ]);
 
     s.c.reportGeometry({ left: 10, right: 200, top: 10, bottom: 300 });
     s.c.beginDrag(1100, 900);
     s.c.moveDrag(1110, 905);
     s.c.endDrag();
-    const physics = events.published.filter((p) => p.channel === 'mascot:physics-event');
+    const physics = events.published.filter((p) => p.event === 'mascot.physicsEvent');
     expect(physics.map((p) => (p.payload as { type: string }).type)).toEqual(['grab', 'release']);
     for (const p of physics) expect(p.surfaces).toEqual(['mascot']);
     expect(s.sent).toHaveLength(0);

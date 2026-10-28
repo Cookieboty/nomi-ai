@@ -354,10 +354,7 @@ export function isLoginUrl(raw: string): boolean {
   }
 }
 
-/** 界面监听的登录进度通道 */
-export const LOGIN_EVENT_CHANNEL = 'ai:cli-account:login';
-
 /** 登录进度发给所有窗口（AccountLogin 的 emit） */
 export function loginBroadcaster(events: AppEvents): (e: LoginEvent) => void {
-  return (e) => events.publish(LOGIN_EVENT_CHANNEL, e);
+  return (e) => events.publish('cliAccount.login', e);
 }

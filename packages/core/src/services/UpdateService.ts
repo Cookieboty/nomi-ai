@@ -103,7 +103,7 @@ export interface UpdaterLike {
 export interface UpdateServiceOptions {
   /** app.version / app.isPackaged and the default settings file under paths.userData */
   ports: Pick<HostPorts, 'paths' | 'app'>;
-  /** `updates:changed` goes to every window */
+  /** `updates.changed` goes to every window */
   events: AppEvents;
   /** electron-updater's autoUpdater (host) or a fake in tests */
   updater: UpdaterLike;
@@ -145,15 +145,6 @@ function loadAutoCheck(file: string | null): boolean {
     return true;
   }
 }
-
-const CHANNEL = {
-  get: 'updates:get',
-  check: 'updates:check',
-  download: 'updates:download',
-  install: 'updates:install',
-  setAutoCheck: 'updates:set-auto-check',
-  changed: 'updates:changed',
-} as const;
 
 const DEFAULT_LAUNCH_DELAY = 15_000;
 /**
@@ -467,8 +458,6 @@ export class UpdateService {
   }
 
   private broadcast(): void {
-    this.events.publish(CHANNEL.changed, this.getState());
+    this.events.publish('updates.changed', this.getState());
   }
 }
-
-export const UPDATE_IPC = CHANNEL;

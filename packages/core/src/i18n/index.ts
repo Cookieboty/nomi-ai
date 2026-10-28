@@ -40,9 +40,6 @@ export function onLocaleChange(fn: (l: Locale) => void): () => void {
   return () => listeners.delete(fn);
 }
 
-/** 界面监听的语言变化通道 */
-export const LOCALE_CHANGED = 'ai:locale:changed';
-
 export interface LocaleServiceDeps {
   /** 偏好文件（userData/locale.json） */
   file: string;
@@ -94,7 +91,7 @@ export class LocaleService {
     fs.mkdirSync(path.dirname(this.file), { recursive: true });
     fs.writeFileSync(this.file, JSON.stringify({ locale: p }, null, 2), 'utf8');
     const s = this.get();
-    this.deps.events.publish(LOCALE_CHANGED, s);
+    this.deps.events.publish('locale.changed', s);
     if (changed) listeners.forEach((f) => f(locale));
     return s;
   }

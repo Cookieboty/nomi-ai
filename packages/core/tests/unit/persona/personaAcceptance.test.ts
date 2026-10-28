@@ -18,7 +18,7 @@ import {
 
 import { CharacterPackService } from '../../../src/character/CharacterPackService';
 import { resolveCharacterPack } from '../../../src/character/packResolve';
-import { forwardPersonaChanges, PERSONA_CHANGED_CHANNEL } from '../../../src/persona/events';
+import { forwardPersonaChanges } from '../../../src/persona/events';
 import { createPersonaIdentityPlugin } from '../../../src/persona/igPlugin';
 import { packPersonaSource, PersonaService } from '../../../src/persona/PersonaService';
 import { fakeHostPorts } from '../helpers/fakeHostPorts';
@@ -115,7 +115,7 @@ describe('persona follows the active character pack', () => {
     expect(forChat.characterId).toBe('test-dummy');
     expect(forChat.systemPromptIdentity).toBe('你是小纸，一个住在纸箱里的机器人。');
     expect(broadcast).toHaveBeenCalledWith(
-      PERSONA_CHANGED_CHANNEL,
+      'persona.changed',
       expect.objectContaining({ characterId: 'test-dummy' }),
     );
 

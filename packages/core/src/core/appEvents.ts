@@ -1,14 +1,18 @@
 /**
- * 主进程 → 界面的事件总线（docs/design/core-host-decoupling.md §5.3、§7.1「实施约定」）。
+ * 内核 → 界面的事件总线（docs/design/core-host-decoupling.md §5.3、§7.1「实施约定」）。
  *
- * 服务只说「发生了什么」：`events.publish('ai:theme:changed', state)`，不知道有哪些窗口、
- * 怎么送达。送达由宿主负责：Electron 上是契约事件桥（host/contract/eventBridge.ts），按表转成
- * 契约事件（`theme.changed`），推给订阅了的窗口。本文件不得 import electron。
+ * 服务只说「发生了什么」：`events.publish('theme.changed', state)`，事件名就是应用契约里声明的事件
+ * （`<命名空间>.<事件>`），payload 按契约的事件 schema 校验。服务不知道有哪些窗口、怎么送达：契约传输把事件
+ * 推给**订阅了**它的窗口（内核的 `contract/eventBus.ts` 接到 router 上）。本文件不得 import electron。
  *
- * 和 `core/EventBus.ts` 的区别：EventBus 是主进程内部的发布订阅；AppEvents 的订阅方在界面里，
- * 通道名沿用迁移前的 IPC 通道名，事件桥里登记了它对应的契约事件。
+ * 和 `core/EventBus.ts` 的区别：EventBus 是内核内部的发布订阅；AppEvents 的订阅方在界面里。
  */
+import type { EventName } from '@nomi-ai/contract';
+import type { AppContract } from '@nomi-ai/contract/app';
 import type { Surface } from '@nomi-ai/host-ports';
+
+/** 应用契约里声明的事件名 */
+export type AppEventName = EventName<AppContract>;
 
 export interface PublishOptions {
   /**
@@ -19,13 +23,16 @@ export interface PublishOptions {
 }
 
 export interface AppEvents {
-  /** 通道名沿用现有 IPC 通道（如 `ai:theme:changed`）；payload 必须可结构化克隆 */
-  publish(channel: string, payload?: unknown, opts?: PublishOptions): void;
+  /**
+   * `event` 是契约事件名（编译期限定）；payload 必须符合契约的事件 schema，发布时在运行时校验（服务的
+   * interface 没有索引签名，对不上契约的 loose schema 的类型，所以这里不在类型上约束 payload）
+   */
+  publish(event: AppEventName, payload: unknown, opts?: PublishOptions): void;
 }
 
 /** 一次 publish 的记录（测试与无界面宿主用） */
 export interface PublishedEvent {
-  channel: string;
+  event: AppEventName;
   payload: unknown;
   surfaces: readonly Surface[] | null;
 }
@@ -40,20 +47,20 @@ export function targetSurfaces(opts?: PublishOptions): readonly Surface[] | null
 /** 只记录、不送达的实现：单元测试与无界面宿主用 */
 export interface RecordingAppEvents extends AppEvents {
   readonly published: PublishedEvent[];
-  /** 某个通道最近一次的 payload；没有时为 undefined */
-  last(channel: string): unknown;
+  /** 某个事件最近一次的 payload；没有时为 undefined */
+  last(event: AppEventName): unknown;
 }
 
 export function createRecordingAppEvents(): RecordingAppEvents {
   const published: PublishedEvent[] = [];
   return {
     published,
-    publish(channel, payload, opts) {
-      published.push({ channel, payload, surfaces: targetSurfaces(opts) });
+    publish(event, payload, opts) {
+      published.push({ event, payload, surfaces: targetSurfaces(opts) });
     },
-    last(channel) {
+    last(event) {
       for (let i = published.length - 1; i >= 0; i--) {
-        if (published[i]!.channel === channel) return published[i]!.payload;
+        if (published[i]!.event === event) return published[i]!.payload;
       }
       return undefined;
     },

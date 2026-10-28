@@ -1,10 +1,10 @@
 /**
- * D1 的处理函数与事件桥（docs/design/core-host-decoupling.md §12「P1b 实施约定」）。
+ * D1 的处理函数（docs/design/core-host-decoupling.md §12「P1b 实施约定」）。
  *
  * 本文件只属于 D1。契约声明在 packages/contract/src/app/media.ts；这里：
  * - `createMediaHandlers(deps)`：每个过程一个处理函数，委派给服务的公开方法（服务从
- *   `deps.services` 在调用时读取，缺了用 `need()` 报 UNAVAILABLE）；
- * - `mediaEventBridge`：服务仍在 `events.publish` 的旧通道 → 契约事件。
+ *   `deps.services` 在调用时读取，缺了用 `need()` 报 UNAVAILABLE）。服务直接发布契约事件
+ *   （`events.publish('voice.changed', …)`），这里不做转换。
  *
  * 按窗口的会话（VAD、流式识别）与只接受看板娘窗口的操作（确认答复、提醒卡片、拖文件）用
  * `callerWebContentsId(ctx)` 代替旧的 `event.sender`，窗口存活由宿主经 `services.callerWindows` 报告，
@@ -12,7 +12,7 @@
  */
 
 import { PushStream } from '@nomi-ai/contract';
-import type { MediaEventName, MediaProcedureName } from '@nomi-ai/contract/app';
+import type { MediaProcedureName } from '@nomi-ai/contract/app';
 import type { TTSConfig, TTSPreviewRequest, VoiceSettings } from '@nomi-ai/types';
 
 import { getMascotVoiceSettings, saveMascotVoiceSettings } from '../voice/mascotVoiceSettings';
@@ -24,7 +24,6 @@ import {
   type AppHandlerContext,
   type ContractDeps,
   type DomainHandlers,
-  type EventBridgeMap,
 } from './types';
 
 export type MediaHandlers = DomainHandlers<MediaProcedureName>;
@@ -34,12 +33,6 @@ export type MediaHandlers = DomainHandlers<MediaProcedureName>;
  * TS 不认两者兼容；形状由契约在运行时校验（BAD_OUTPUT），这里只在类型上放行。
  */
 const out = <T>(v: unknown): T => v as T;
-
-/**
- * 「设置 → 语音与屏幕 → 语音」面板的应用事件通道（宿主打开对话窗口后发布，桥接成
- * `nav.voiceSettingsRequested`；Electron 端口的 route `voice` 对应它）
- */
-const OPEN_VOICE_SETTINGS = 'ai:settings:open-voice';
 
 /** `streams`：进行中的流式识别会话（每个 router 一份；测试可传入以观察） */
 export function createMediaHandlers(
@@ -165,23 +158,3 @@ export function createMediaHandlers(
     'nav.openVoiceSettings': () => deps.ports.windows.open('chat', { route: 'voice' }),
   };
 }
-
-export const mediaEventBridge: EventBridgeMap<MediaEventName> = {
-  'ai:voice:changed': 'voice.changed',
-  'ai:voice:progress': 'voice.progress',
-  'ai:voice:activity': 'voice.activity',
-  'ai:voice:bargeIn': 'voice.bargeIn',
-  'ai:voice:inject': 'voice.inject',
-  'voice-settings:changed': 'voice.mascotSettingsChanged',
-  'ai:desktop:changed': 'desktop.changed',
-  'ai:desktop:p2-changed': 'desktop.p2Changed',
-  'ai:desktop:summary': 'desktop.summary',
-  'desktop:confirm-request': 'desktop.confirmRequest',
-  'desktop:confirm-cancel': 'desktop.confirmCancel',
-  'desktop:bubble': 'desktop.bubble',
-  'desktop:reminder': 'desktop.reminder',
-  // 导航：宿主打开对话窗口后经事件总线发布面板通道（Electron：WindowManager.openProviderPanel）
-  'ai:desktop:open-panel': 'nav.desktopPanelRequested',
-  'ai:hub:open-schedule': 'nav.scheduleRequested',
-  [OPEN_VOICE_SETTINGS]: 'nav.voiceSettingsRequested',
-};

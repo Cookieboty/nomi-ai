@@ -1,5 +1,5 @@
 import { createIpcMascotHost, createMascotIgPlugins } from '../../../src/ai/mascotBridge';
-import { AVATAR_EVENT_CHANNEL, type AvatarCue } from '../../../src/ai/mascotCommand';
+import { type AvatarCue } from '../../../src/ai/mascotCommand';
 import { createRecordingAppEvents } from '../../../src/core/appEvents';
 
 describe('mascotBridge', () => {
@@ -47,7 +47,7 @@ describe('mascotBridge', () => {
     await hostPlugin.apply(ctx as never, {} as never);
     await attached!.gesture('wave');
     expect(events.published).toEqual([
-      { channel: AVATAR_EVENT_CHANNEL, payload: { type: 'gesture', name: 'wave' }, surfaces: null },
+      { event: 'avatar.event', payload: { type: 'gesture', name: 'wave' }, surfaces: null },
     ]);
   });
 });

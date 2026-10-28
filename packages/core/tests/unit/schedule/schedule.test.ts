@@ -225,7 +225,7 @@ describe('SchedulerService', () => {
     svc.setSettings({ proactive: { enabled: true, frequency: 'low' } });
     expect(svc.proactiveGate()).toMatchObject({ ok: false });
     expect(svc.proactiveGate().reason).toContain('不在电脑前');
-    expect(events.published.map((e) => e.channel)).toContain('ai:sched:changed');
+    expect(events.published.map((e) => e.event)).toContain('sched.changed');
     expect(events.published.every((e) => e.surfaces === null)).toBe(true);
   });
 });

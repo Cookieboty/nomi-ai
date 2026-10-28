@@ -462,7 +462,7 @@ describe('DelegateService · P2 异步委派', () => {
     expect(String(done?.report?.done)).toContain('修好了登录');
     expect(String(done?.report?.done)).toContain('<cli-output>');
     // 完成通知经事件总线发给所有窗口（原来遍历 BrowserWindow.getAllWindows()）
-    const completed = s.events.published.filter((e) => e.channel === 'ai:delegate:completed');
+    const completed = s.events.published.filter((e) => e.event === 'delegate.completed');
     expect(completed).toHaveLength(1);
     expect(completed[0]).toMatchObject({ payload: { taskId: 't1' }, surfaces: null });
   });
