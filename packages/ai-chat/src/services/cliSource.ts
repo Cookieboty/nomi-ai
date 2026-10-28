@@ -137,14 +137,17 @@ export function refSlashLabel(s: GatewayState | null, ref: string): string {
   return `${providerDisplayName(p.name)} / ${m?.label ?? r.model}`;
 }
 
-/** 第三方标签实际用的模型：标签自己的选择，没有就用这个 CLI 在「模型」页分配的默认模型 */
+/** 第三方标签实际用的模型：标签自己的选择 → 会话上次用的模型 → 这个 CLI 在「模型」页分配的默认模型 */
 export function thirdPartyRefOf(
-  tab: Pick<HarnessTabMeta, 'modelOverride'> | null | undefined,
+  tab: Pick<HarnessTabMeta, 'modelOverride' | 'lastServedRef'> | null | undefined,
   kind: string,
   s: GatewayState | null,
 ): string | null {
   const own = tab?.modelOverride?.trim();
   if (own) return own;
+  // 与主进程 effectiveOverrides 同规则：聊过的会话留在上次用的模型上（还在网关里时）
+  const last = tab?.lastServedRef;
+  if (last && codingModelChoices(s).some((m) => m.ref === last)) return last;
   return isCliKind(kind) ? (s?.clients[kind]?.models.main ?? null) : null;
 }
 

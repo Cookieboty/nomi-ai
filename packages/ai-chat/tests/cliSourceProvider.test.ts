@@ -6,6 +6,7 @@ import {
   newTabSelectValue,
   providerEntryRef,
   scopeCatalogToProvider,
+  thirdPartyRefOf,
 } from '../src/services/cliSource';
 import type { GatewayState } from '../src/services/gatewayClient';
 import type { BackendModelCatalog } from '../src/services/harnessClient';
@@ -42,6 +43,20 @@ describe('第三方供应商（输入框左下角只切供应商，模型在模�
     expect(providerEntryRef(gateway, 'amux', 'claude', 'deep/ds-v4')).toBe('amux/kimi-k3');
     expect(providerEntryRef(gateway, 'deep', 'claude', 'amux/gpt-x')).toBe('deep/ds-v4');
     expect(providerEntryRef(gateway, 'nope', 'claude', null)).toBeNull();
+  });
+
+  it('thirdPartyRefOf：标签的选择 > 会话上次用的模型（还在网关里时）> 「模型」页分配的模型', () => {
+    expect(
+      thirdPartyRefOf(
+        { modelOverride: 'amux/gpt-x', lastServedRef: 'deep/ds-v4' },
+        'claude',
+        gateway,
+      ),
+    ).toBe('amux/gpt-x');
+    expect(thirdPartyRefOf({ lastServedRef: 'deep/ds-v4' }, 'claude', gateway)).toBe('deep/ds-v4');
+    // 原供应商已删除 / 停用：回到分配的模型
+    expect(thirdPartyRefOf({ lastServedRef: 'gone/x' }, 'claude', gateway)).toBe('amux/kimi-k3');
+    expect(thirdPartyRefOf({}, 'claude', gateway)).toBe('amux/kimi-k3');
   });
 
   it('scopeCatalogToProvider：只留当前供应商的模型，去掉名字里的「供应商 / 」', () => {

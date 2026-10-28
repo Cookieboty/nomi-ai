@@ -132,6 +132,7 @@ import {
   type NormalizedImage,
   type StagedImage,
 } from '../promptImages';
+import { SessionModelTable } from '../sessionModels';
 import {
   discoverSlash,
   expandSlash,
@@ -398,6 +399,8 @@ export class HarnessOrchestrator {
   private recent: string[] = [];
   /** state.json / tabs.json / tabs/<id>.json: coalesced ~200 ms, async, atomic (flushed on dispose) */
   private readonly writer: CoalescedWriter;
+  /** 会话上一次成功一轮用的第三方模型：打开历史会话时回到原供应商 */
+  private readonly sessionModels: SessionModelTable;
   /** JSON length of each tab's last message-file write: decides compaction without a 2nd stringify */
   private readonly tabFileBytes = new Map<string, number>();
   private broadcastQueued = false;
@@ -463,6 +466,7 @@ export class HarnessOrchestrator {
     this.tabsPath = path.join(d.root, 'tabs.json');
     this.tabsDir = path.join(d.root, 'tabs');
     this.recentPath = path.join(d.root, 'recent-cwds.json');
+    this.sessionModels = new SessionModelTable(d.root, (msg, e) => d.logger.warn(msg, e));
     this.writer = new CoalescedWriter(PERSIST_DEBOUNCE_MS, (file, e) =>
       d.logger.warn('harness persist failed', { file: path.basename(file), e }),
     );
@@ -660,6 +664,8 @@ export class HarnessOrchestrator {
         };
         this.restoreOverrides(restored, tab);
         restored.longContext = sanitizeLongContext(tab.longContext);
+        if (typeof tab.lastServedRef !== 'string' || !isValidModelId(tab.lastServedRef))
+          delete restored.lastServedRef;
         this.tabs.set(tab.id, restored);
       }
       if (raw.activeTabId && this.tabs.has(raw.activeTabId)) this.activeTabId = raw.activeTabId;
@@ -1062,6 +1068,8 @@ export class HarnessOrchestrator {
       reasoningEffort?: string | null;
       /** 来源；缺省按「模型」页给这个编程助手设的「新标签默认用」 */
       source?: HarnessTabSource;
+      /** 第三方历史会话上一次用的模型 `供应商/模型`（打开历史会话时按原供应商续接） */
+      lastServedRef?: string;
       /** 官方来源下用哪个官方账号（打开历史会话时按原账号续接） */
       accountId?: string | null;
       /** backend = 'external' 时：外部插件 id（§5.9） */
@@ -1127,6 +1135,15 @@ export class HarnessOrchestrator {
     );
     if (opts.modelOverride && isValidModelId(opts.modelOverride))
       tab.modelOverride = opts.modelOverride;
+    // 历史会话记得原来的第三方模型：按它续接，不沿用别的标签最近选的模型
+    if (
+      this.sourceOf(tab) === 'thirdParty' &&
+      opts.lastServedRef &&
+      isValidModelId(opts.lastServedRef)
+    ) {
+      tab.lastServedRef = opts.lastServedRef;
+      tab.modelOverride = null;
+    }
     if (opts.reasoningEffort && isReasoningEffort(opts.reasoningEffort))
       tab.reasoningEffort = opts.reasoningEffort;
     this.tabs.set(tab.id, tab);
@@ -1199,6 +1216,8 @@ export class HarnessOrchestrator {
     permissionMode?: HarnessPermissionMode;
     permissionModeSource?: 'history-cli';
     source?: HarnessTabSource;
+    /** 第三方会话上一次用的模型 `供应商/模型`（Nomi 记下的，或网关的会话归属表） */
+    lastServedRef?: string;
     /** 会话原本所在的官方账号（Nomi 启动时记下的）：按原账号续接 */
     accountId?: string | null;
   }): { tab: HarnessTabMeta; reused: boolean } {
@@ -1216,12 +1235,14 @@ export class HarnessOrchestrator {
       messages: o.messages,
       cliSessionId: o.sessionId,
       // 第三方续接：历史里记的是上游裸模型名，不属于网关的「供应商/模型」命名空间，
-      // 不能作为第三方模型覆盖（否则按裸名解析可能歧义）；用网关给这个助手分配的默认模型。
+      // 不能作为第三方模型覆盖（否则按裸名解析可能歧义）；用记下的原模型（lastServedRef），
+      // 没有记录时才用网关给这个助手分配的默认模型。
       ...(o.source !== 'thirdParty' && o.modelOverride ? { modelOverride: o.modelOverride } : {}),
       reasoningEffort: o.reasoningEffort,
       permissionMode: o.permissionMode,
       permissionModeSource: o.permissionModeSource,
       ...(o.source ? { source: o.source } : {}),
+      ...(o.lastServedRef ? { lastServedRef: o.lastServedRef } : {}),
       ...(o.accountId ? { accountId: o.accountId } : {}),
     });
     return { tab, reused: false };
@@ -1355,6 +1376,7 @@ export class HarnessOrchestrator {
       else tab.source = this.defaultSource(backend);
       tab.modelScope = this.scopeOf(tab);
       delete tab.modelByScope;
+      delete tab.lastServedRef;
     }
     // 新后端不支持当前档位时降到更安全的一档
     tab.permissionMode = effectiveMode(backend, tab.permissionMode).mode;
@@ -1892,6 +1914,16 @@ export class HarnessOrchestrator {
   }
 
   /**
+   * 已经开始的第三方会话没手动选过模型时，留在它上一次用的模型上（「模型」页改了这个编程助手的
+   * 默认供应商，旧会话不会悄悄换到新供应商）；那个模型已不在网关里（供应商删除 / 停用）就不用。
+   */
+  private sessionRef(tab: HarnessTabMeta): string | null {
+    const ref = tab.lastServedRef;
+    if (!ref || !this.d.gateway) return null;
+    return this.d.gateway.models().some((m) => m.ref === ref) ? ref : null;
+  }
+
+  /**
    * 本轮实际下发的模型 / 思考深度。只下发属于当前来源的选择（官方账号下选的模型名不发到网关，
    * 反之亦然）。第三方来源没选模型时用「模型」页给这个编程助手分配的模型；第三方不带思考深度。
    */
@@ -1900,7 +1932,11 @@ export class HarnessOrchestrator {
     if (scope) {
       const own = (tab.modelScope ?? null) === scope ? tab.modelOverride?.trim() : '';
       return {
-        model: own || this.d.gateway?.defaults(tab.backend as BuiltinBackend).model || null,
+        model:
+          own ||
+          this.sessionRef(tab) ||
+          this.d.gateway?.defaults(tab.backend as BuiltinBackend).model ||
+          null,
         effort: null,
       };
     }
@@ -2028,6 +2064,24 @@ export class HarnessOrchestrator {
     for (const tab of this.tabs.values())
       if (tab.backend === 'external' && tab.pluginId === pluginId) this.teardownAcpLive(tab.id);
     this.changed();
+  }
+
+  /**
+   * 第三方的一轮成功跑完：记下这一轮用的模型。之后没手动选模型时留在它上面（sessionRef），
+   * 打开历史会话时也按它回到原供应商。切到别的供应商并聊过一轮后，原供应商就不再是这个会话的了。
+   */
+  private noteServed(tab: HarnessTabMeta, ref: string): void {
+    if (this.sourceOf(tab) !== 'thirdParty') return;
+    if (tab.lastServedRef !== ref) {
+      tab.lastServedRef = ref;
+      this.changed();
+    }
+    if (tab.cliSessionId) this.sessionModels.note(tab.backend, tab.cliSessionId, ref);
+  }
+
+  /** 第三方会话上一次成功一轮用的模型（打开历史会话时用） */
+  sessionModel(backend: HarnessBackend, sessionId: string): string | undefined {
+    return this.sessionModels.get(backend, sessionId);
   }
 
   /** 标签绑定 CLI 会话；官方来源时把会话记到所用账号名下 */
@@ -2420,6 +2474,8 @@ export class HarnessOrchestrator {
     }
     // 这一轮用的模型（展示在助手消息上）：发送时定下，进行中换模型只影响下一轮
     const modelOf = this.turnModelResolver(current);
+    const servedRef =
+      this.sourceOf(current) === 'thirdParty' ? this.effectiveOverrides(current).model : null;
     const thumbs = normalized.length ? imageThumbsForMessage(normalized) : undefined;
     // Claude 的这一轮用同一个 uuid 发出：重试 / 编辑时按它在会话记录里找回退点（rewindTab）
     const userMessageId = randomUUID();
@@ -2490,6 +2546,7 @@ export class HarnessOrchestrator {
                   );
       if (result.sessionId && current.backend === backend && current.cwd === runCwd)
         this.bindCliSession(current, result.sessionId);
+      if (servedRef && current.backend === backend) this.noteServed(current, servedRef);
       // 前文已经进了新会话：清掉，之后的轮次靠 CLI 自己续接
       if (stored) this.setCarried(tab, null);
       // 回退点已经生效（新的一轮接在它后面），之后按会话最新位置续接

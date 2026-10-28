@@ -519,6 +519,90 @@ describe('CliHarnessService model / effort overrides', () => {
       await expect(h.sendTab(tab.id, 'hi')).rejects.toThrow(/网关/);
     });
 
+    describe('会话上次用的模型（lastServedRef）', () => {
+      // 「模型」页可以改这个编程助手的默认供应商 / 模型；models 也可以变（供应商停用）
+      const mutableGateway = () => {
+        const state = { main: 'gw/a', refs: ['gw/a', 'gw/b'] };
+        const base = fakeGateway({ source: 'thirdParty' }).gateway;
+        const gateway: HarnessGateway = {
+          ...base,
+          defaults: () => ({ source: 'thirdParty', model: state.main, accountId: null }),
+          models: () => state.refs.map((ref) => ({ ref, provider: 'GW', label: ref })),
+        };
+        return { gateway, state };
+      };
+
+      it('改了默认供应商：聊过的会话留在原模型上，新标签用新的默认', async () => {
+        const { gateway, state } = mutableGateway();
+        const h = mk({ gateway } as never);
+        const tab = h.createTab({ backend: 'codex' });
+        await h.sendTab(tab.id, 'one');
+        expect(h.listTabs().tabs.find((x) => x.id === tab.id)?.lastServedRef).toBe('gw/a');
+        state.main = 'gw/b';
+        await h.sendTab(tab.id, 'two');
+        expect(readArgv().at(-1)!).toContain('model="gw/a"');
+        const fresh = h.createTab({ backend: 'codex' });
+        await h.sendTab(fresh.id, 'new');
+        expect(readArgv().at(-1)!).toContain('model="gw/b"');
+      });
+
+      it('切到别的模型并聊过一轮后，原模型不再是这个会话的', async () => {
+        const { gateway, state } = mutableGateway();
+        const h = mk({ gateway } as never);
+        const tab = h.createTab({ backend: 'codex' });
+        await h.sendTab(tab.id, 'one');
+        state.main = 'gw/b';
+        h.setTabModel(tab.id, 'gw/b');
+        // 还没发：原模型仍记着，清掉选择就回到它
+        expect(h.setTabModel(tab.id, '').lastServedRef).toBe('gw/a');
+        h.setTabModel(tab.id, 'gw/b');
+        await h.sendTab(tab.id, 'two');
+        expect(h.setTabModel(tab.id, '').lastServedRef).toBe('gw/b');
+        await h.sendTab(tab.id, 'three');
+        expect(readArgv().at(-1)!).toContain('model="gw/b"');
+      });
+
+      it('原模型已不在网关里（供应商删除 / 停用）：退回默认模型', async () => {
+        const { gateway, state } = mutableGateway();
+        const h = mk({ gateway } as never);
+        const tab = h.createTab({ backend: 'codex' });
+        await h.sendTab(tab.id, 'one');
+        state.main = 'gw/b';
+        state.refs = ['gw/b'];
+        await h.sendTab(tab.id, 'two');
+        expect(readArgv().at(-1)!).toContain('model="gw/b"');
+      });
+
+      it('按会话记下模型，跨重启保留；打开历史会话时按它续接，不沿用别的标签最近选的', async () => {
+        const { gateway, state } = mutableGateway();
+        const h = mk({ gateway } as never);
+        const tab = h.createTab({ backend: 'codex' });
+        await h.sendTab(tab.id, 'one');
+        const sid = h.listTabs().tabs.find((x) => x.id === tab.id)!.cliSessionId!;
+        expect(h.sessionModel('codex', sid)).toBe('gw/a');
+        // 记录是异步落盘的
+        await new Promise((r) => setTimeout(r, 50));
+        h.dispose();
+        state.main = 'gw/b';
+        const again = mk({ gateway } as never);
+        expect(again.sessionModel('codex', sid)).toBe('gw/a');
+        // 别的标签最近选了 gw/b（新会话会沿用它），历史会话仍回到 gw/a
+        again.setTabModel(again.createTab({ backend: 'codex' }).id, 'gw/b');
+        const { tab: opened } = again.openHistorySession({
+          backend: 'codex',
+          sessionId: 'hist-1',
+          cwd: root,
+          title: 'old',
+          messages: [],
+          source: 'thirdParty',
+          lastServedRef: 'gw/a',
+        });
+        expect(opened).toMatchObject({ lastServedRef: 'gw/a', modelOverride: null });
+        await again.sendTab(opened.id, 'resume');
+        expect(readArgv().at(-1)!).toContain('model="gw/a"');
+      });
+    });
+
     it('新会话只沿用同一来源下的模型', async () => {
       const h = mk({ gateway: fakeGateway({ source: 'thirdParty' }).gateway } as never);
       const a = h.createTab({ backend: 'codex' });

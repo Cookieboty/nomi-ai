@@ -176,9 +176,16 @@ export interface SessionHistoryDeps {
     permissionModeSource?: 'history-cli';
     /** 会话原本的来源（由历史线路推断）：避免用新标签默认来源续接，官方 / 第三方互相串用 */
     source?: HarnessTabSource;
+    /** 第三方会话上一次用的模型 `供应商/模型`：按原供应商续接 */
+    lastServedRef?: string;
     /** 会话原本所在的官方账号 */
     accountId?: string;
   }) => { tab: HarnessTabMeta; reused: boolean };
+  /**
+   * 第三方会话上一次成功一轮用的模型 `供应商/模型`（Nomi 记下的，没有时看网关的会话归属表）。
+   * CLI 的历史文件里只有上游裸模型名，看不出是哪个供应商。
+   */
+  sessionModel?: (backend: HistoryBackend, sessionId: string) => string | undefined;
   /** 会话是否经统一网关跑过（网关会话归属表）：历史里没记线路的后端（Claude）据此推断来源（#90） */
   gatewaySession?: (backend: HistoryBackend, sessionId: string) => boolean;
   /** 会话的官方账号 id → 展示用的标签（邮箱 / 名称）；对不上返回 undefined */
@@ -738,6 +745,11 @@ export class SessionHistoryService {
         ...(route
           ? { source: route === 'gateway' ? ('thirdParty' as const) : ('official' as const) }
           : {}),
+        ...(() => {
+          if (route !== 'gateway') return {};
+          const ref = this.d.sessionModel?.(backend, sessionId);
+          return ref ? { lastServedRef: ref } : {};
+        })(),
       });
       const notice = r.reused
         ? undefined

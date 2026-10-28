@@ -146,8 +146,14 @@ export interface HarnessTabMeta {
    * 换了模型就不匹配、回到新模型的默认（「模型」页按模型设的）；null / 缺省 = 跟随模型默认。
    */
   longContext?: { model: string; on: boolean } | null;
-  /** 来源；缺省 = 官方。第三方时 modelOverride 是 `供应商/模型`（null = 「模型」页给这个编程助手分配的） */
+  /** 来源；缺省 = 官方。第三方时 modelOverride 是 `供应商/模型`（null = 见 lastServedRef） */
   source?: HarnessTabSource;
+  /**
+   * 第三方来源下这个会话最近一次成功跑完一轮用的模型 `供应商/模型`。modelOverride 为 null 时
+   * 先用它（还在网关里时），没有才用「模型」页给这个编程助手分配的模型：改了默认供应商，
+   * 已经聊过的会话仍留在原供应商上。
+   */
+  lastServedRef?: string;
   /**
    * 官方来源下用哪个官方账号（docs/design/cli-plugin-architecture.md §5.10）：账号 id；
    * null / 缺省 = 跟随默认账号。账号被删除后自动回到默认账号。

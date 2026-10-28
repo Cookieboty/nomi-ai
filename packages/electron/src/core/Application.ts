@@ -739,6 +739,9 @@ export class Application implements IApplication {
         openTab: (o) => harness.openHistorySession(o),
         trash: (p) => shell.trashItem(p),
         gatewaySession: (backend, sessionId) => gateway.servedSession(backend, sessionId),
+        // Nomi 记下的优先；Claude 会话还能从网关的会话归属表里找回
+        sessionModel: (backend, sessionId) =>
+          harness.sessionModel(backend, sessionId) ?? gateway.servedSessionRef(backend, sessionId),
         accountLabel: (backend, accountId) => {
           // eslint-disable-next-line nomi/no-cli-literal -- 只有 Codex 的历史记录了 creator_account_id
           if (backend !== 'codex') return undefined;

@@ -849,6 +849,23 @@ describe('SessionHistoryService', () => {
     expect(arg(1)).not.toHaveProperty('source');
   });
 
+  it('open: a third-party session resumes on the model it last used, not the current default', async () => {
+    writeClaude('a', 'via gateway', 2_000_000);
+    writeClaude('b', 'official', 1_000_000);
+    const openTab = jest.fn(() => ({ tab: { id: 't1' } as never, reused: false }));
+    const svc = mk({
+      openTab,
+      gatewaySession: (_b, id) => id === 'a',
+      // 官方会话即使有记录也不带
+      sessionModel: () => 'old-provider/glm',
+    });
+    await svc.open('claude', 'a');
+    await svc.open('claude', 'b');
+    const arg = (i: number) => (openTab.mock.calls[i] as unknown as [Record<string, unknown>])[0];
+    expect(arg(0)).toMatchObject({ source: 'thirdParty', lastServedRef: 'old-provider/glm' });
+    expect(arg(1)).not.toHaveProperty('lastServedRef');
+  });
+
   it('official account provenance (S9): list shows the account Nomi ran it in; open resumes in it', async () => {
     writeClaude('a', 'work task', 2_000_000);
     writeClaude('b', 'local task', 1_000_000);

@@ -64,9 +64,12 @@ export interface HarnessTabMeta {
   accountId?: string | null;
   /**
    * 标签级模型覆盖。官方来源：CLI 的模型 id，null/缺省 = 沿用 CLI 默认模型（进程级参数注入，不改全局配置）；
-   * 第三方来源：网关的 `供应商/模型`，null = 这个 CLI 在「模型」页分配的默认模型。
+   * 第三方来源：网关的 `供应商/模型`，null = 会话上次用的模型（lastServedRef），没有时用这个 CLI
+   * 在「模型」页分配的默认模型。
    */
   modelOverride?: string | null;
+  /** 第三方来源下这个会话最近一次成功一轮用的模型 `供应商/模型`（主进程记录） */
+  lastServedRef?: string;
   /** 标签级思考深度覆盖（仅推理模型）；null = 沿用 CLI 默认档位 */
   reasoningEffort?: string | null;
   /** 第三方模型的长上下文选择：只对记下的模型生效；null / 缺省 = 跟随模型默认 */

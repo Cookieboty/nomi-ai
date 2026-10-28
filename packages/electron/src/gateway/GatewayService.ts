@@ -745,16 +745,27 @@ export class GatewayService {
    * 只有 Claude 的会话键带 CLI 会话 id（x-claude-code-session-id）；查不到（含 30 天淘汰）返回 false。
    */
   servedSession(kind: AgentKind, sessionId: string): boolean {
+    return this.sessionOwner(kind, sessionId) !== null;
+  }
+
+  /** 网关最后一次服务这个会话的模型 `供应商/模型`（会话归属表里记的）；没有记录返回 undefined */
+  servedSessionRef(kind: AgentKind, sessionId: string): string | undefined {
+    const model = (this.sessionOwner(kind, sessionId) as { model?: unknown } | null)?.model;
+    return typeof model === 'string' && model.includes('/') ? model : undefined;
+  }
+
+  private sessionOwner(kind: AgentKind, sessionId: string): unknown {
     // eslint-disable-next-line nomi/no-cli-literal -- 只有 Claude 的会话键带 CLI 会话 id（x-claude-code-session-id）
-    if (kind !== 'claude' || !sessionId) return false;
+    if (kind !== 'claude' || !sessionId) return null;
     try {
       const raw = JSON.parse(fs.readFileSync(path.join(this.d.root, 'sessions.json'), 'utf8')) as {
         sessions?: Array<[string, unknown]>;
       };
       const key = `claude:cc:${sessionId}`;
-      return (raw.sessions ?? []).some(([k]) => k === key);
+      const hit = (raw.sessions ?? []).find(([k]) => k === key);
+      return hit ? (hit[1] ?? {}) : null;
     } catch {
-      return false;
+      return null;
     }
   }
 
