@@ -562,6 +562,22 @@ describe('CliHarnessService model / effort overrides', () => {
         expect(readArgv().at(-1)!).toContain('model="gw/b"');
       });
 
+      it('模型名带空格（如「Qwen 3 Max」）：能选、能下发、跨重启保留', async () => {
+        const { gateway, state } = mutableGateway();
+        state.refs = ['gw/a', 'gw/Qwen 3 Max'];
+        const h = mk({ gateway } as never);
+        const tab = h.createTab({ backend: 'codex' });
+        expect(h.setTabModel(tab.id, 'gw/Qwen 3 Max').modelOverride).toBe('gw/Qwen 3 Max');
+        await h.sendTab(tab.id, 'one');
+        expect(readArgv().at(-1)!).toContain('model="gw/Qwen 3 Max"');
+        h.dispose();
+        expect(
+          mk({ gateway } as never)
+            .listTabs()
+            .tabs.find((x) => x.id === tab.id),
+        ).toMatchObject({ modelOverride: 'gw/Qwen 3 Max', lastServedRef: 'gw/Qwen 3 Max' });
+      });
+
       it('原模型已不在网关里（供应商删除 / 停用）：退回默认模型', async () => {
         const { gateway, state } = mutableGateway();
         const h = mk({ gateway } as never);

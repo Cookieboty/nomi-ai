@@ -523,6 +523,26 @@ describe('/model', () => {
     expect(c.handled && c.outcome.type === 'card' && c.outcome.card.kind).toBe('notice');
   });
 
+  it('模型名带空格：/model 按整个参数完全匹配 id 或显示名，直接切换', async () => {
+    const { ctx, commands, actions } = makeCtx('claude');
+    actions.tabModels.mockResolvedValue({
+      catalog: {
+        ...tabCatalog,
+        models: [
+          ...tabCatalog.models,
+          { id: 'Opus 5', label: 'Opus 5', reasoning: true, efforts: [] },
+        ],
+      },
+      current: null,
+      source: 'official',
+    });
+    await executeSlash('/model Opus 5', commands, ctx);
+    expect(actions.setTabModel).toHaveBeenLastCalledWith('Opus 5', 'official');
+    // 显示名「Opus 5.5」也唯一命中（模糊匹配会同时命中 Opus 5）
+    await executeSlash('/model opus 5.5', commands, ctx);
+    expect(actions.setTabModel).toHaveBeenLastCalledWith('opus', 'official');
+  });
+
   it('参数补全的候选：标签目录 + 另一种来源，标出当前；不含「默认模型」', async () => {
     const { ctx, actions } = makeCtx('claude', { data: { nomiGateway: gateway() } });
     actions.tabModels.mockResolvedValue({

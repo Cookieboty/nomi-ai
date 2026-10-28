@@ -293,7 +293,10 @@ describe('modelCatalog', () => {
     expect(isAllowedModelId('codex', 'Tifa-6-astra')).toBe(true);
     expect(isAllowedModelId('claude', 'claude-opus-5-5[1m]')).toBe(true);
     expect(isAllowedModelId('codex', '--evil')).toBe(false);
-    expect(isAllowedModelId('codex', 'a b')).toBe(false);
+    // 模型名中间可以有单个空格（如「Qwen 3 Max」）；换行 / 连续空格仍然不行
+    expect(isAllowedModelId('codex', 'a b')).toBe(true);
+    expect(isAllowedModelId('codex', 'a  b')).toBe(false);
+    expect(isAllowedModelId('codex', 'a\nb')).toBe(false);
     expect(isAllowedModelId('codex', 'a"b')).toBe(false);
     expect(isAllowedModelId('dsh', 'x')).toBe(false);
   });

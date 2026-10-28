@@ -63,11 +63,16 @@ export interface BackendModelCatalog {
   provider?: { id: string; name: string };
 }
 
-/** 厂商模型 id 字符集（字母数字 . _ - : / [ ]），不能以 - 开头，不含空白与引号，最长 128 */
+/**
+ * 厂商模型 id 字符集（字母数字 . _ - : / [ ]），不能以 - 开头，不含引号，最长 128。
+ * 中间可以有单个空格（有的供应商模型名就带空格，如「Qwen 3 Max」）：模型名总是作为单个 argv
+ * 元素传给 CLI（Windows 走 cmd.exe 时逐项加引号），Codex 的 `-c model="…"` 也带引号；
+ * 换行、Tab、连续空格与首尾空格仍然不行。
+ */
 export function isValidModelId(model: string): boolean {
   const id = model.trim();
   if (!id || id.length > 128) return false;
-  return /^[A-Za-z0-9_][A-Za-z0-9._:/[\]-]*$/.test(id);
+  return /^[A-Za-z0-9_][A-Za-z0-9._:/[\]-]*(?: [A-Za-z0-9._:/[\]-]+)*$/.test(id);
 }
 
 /**

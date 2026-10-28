@@ -267,6 +267,15 @@ interface ModelChoice {
   run: () => Promise<void>;
 }
 
+/**
+ * `/model <参数>` 完全一致才算唯一命中：模型 id、`供应商/模型`、显示名都认。
+ * 模型 id 与显示名都可能带空格（如「Qwen 3 Max」「Opus 5.5」），整个参数当一个名字比较。
+ */
+function exactChoice(c: ModelChoice, q: string): boolean {
+  const want = q.toLowerCase();
+  return [c.model, c.ref, c.label].some((v) => !!v && v.toLowerCase() === want);
+}
+
 function nomiChoices(ctx: SlashContext, data: SlashData): ModelChoice[] {
   return nomiModelChoices(data.nomiGateway).map((c) => ({
     label: c.label,
@@ -384,7 +393,7 @@ async function tabModelCard(
       { text: c.model, weight: 3 },
       { text: c.label, weight: 1 },
     ]);
-    const exact = ranked.filter((r) => r.item.model.toLowerCase() === q.toLowerCase());
+    const exact = choices.filter((c) => exactChoice(c, q)).map((item) => ({ item }));
     const hit = exact.length === 1 ? exact : ranked.length === 1 ? ranked : null;
     try {
       if (hit) {
@@ -524,7 +533,7 @@ export async function modelCard(
       { text: c.provider, weight: 2 },
       { text: c.label, weight: 1 },
     ]);
-    const exact = ranked.filter((r) => r.item.model.toLowerCase() === q.toLowerCase());
+    const exact = choices.filter((c) => exactChoice(c, q)).map((item) => ({ item }));
     const hit = exact.length === 1 ? exact : ranked.length === 1 ? ranked : null;
     if (hit) {
       const c = hit[0]!.item;
