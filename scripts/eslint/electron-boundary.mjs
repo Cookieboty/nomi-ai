@@ -34,51 +34,23 @@ export const ELECTRON_HOST_FILES = [
  * packages/electron/src 里宿主区域之外、P0 时已经 import electron 的文件。不得新增条目。
  */
 export const ELECTRON_IMPORT_ALLOWLIST = [
-  // 组合根与角色包协议注册：P3 拆成内核 createCore + 宿主 main
+  // 组合根：P3 拆成内核 createCore + 宿主 main
   'packages/electron/src/core/Application.ts',
-  'packages/electron/src/character/CharacterPackService.ts',
-  // 窗口广播（BrowserWindow.getAllWindows / webContents.send）→ P2 改为 ctx.events.publish
-  'packages/electron/src/agents/AgentProgressService.ts',
+  // 窗口广播（BrowserWindow.getAllWindows / webContents.send）→ 改为 ctx.events.publish
   'packages/electron/src/ai/mascotCommand.ts',
-  'packages/electron/src/cli/accounts/AccountService.ts',
-  'packages/electron/src/cli/CliPluginHost.ts',
-  'packages/electron/src/cli/CliUpdateService.ts',
-  'packages/electron/src/cli/delegate/DelegateService.ts',
-  'packages/electron/src/i18n/index.ts',
-  'packages/electron/src/local/LocalModelService.ts',
-  'packages/electron/src/onboarding/OnboardingService.ts',
-  'packages/electron/src/startup/StartupService.ts',
-  'packages/electron/src/usage/UsageService.ts',
-  'packages/electron/src/voice/VoiceService.ts',
-  // 平台能力（app.getPath / safeStorage / dialog / shell / clipboard / desktopCapturer / powerMonitor）→ P2 宿主端口
+  // 平台能力（app.getPath / safeStorage / shell / clipboard / desktopCapturer / protocol /
+  // Notification / nativeImage / ipcMain）→ 宿主端口
   'packages/electron/src/ai/AIRuntimeBoot.ts',
   'packages/electron/src/ai/ClipboardGateway.ts',
   'packages/electron/src/ai/ScreenCapture.ts',
   'packages/electron/src/chat/assetProtocol.ts',
-  'packages/electron/src/chat/backgroundPreset.ts',
   'packages/electron/src/chat/ChatBackgroundService.ts',
-  'packages/electron/src/cli/accounts/AccountLogin.ts',
-  'packages/electron/src/cli/harness/Orchestrator.ts',
-  'packages/electron/src/cli/legacyCliKey.ts',
   'packages/electron/src/desktop/DesktopService.ts',
-  'packages/electron/src/diagnostics/DiagnosticsService.ts',
-  'packages/electron/src/extensions/ExtensionsService.ts',
-  'packages/electron/src/knowledge/KnowledgeService.ts',
-  'packages/electron/src/local/LocalHubService.ts',
-  'packages/electron/src/memory/MemoryService.ts',
-  'packages/electron/src/schedule/SchedulerService.ts',
   'packages/electron/src/security/secretStorage.ts',
-  'packages/electron/src/services/ConfigService.ts',
-  'packages/electron/src/services/LoggerService.ts',
-  'packages/electron/src/services/UpdateService.ts',
-  'packages/electron/src/tts/TtsConfigStore.ts',
-  'packages/electron/src/usage/quality/QualityService.ts',
-  'packages/electron/src/utils/ErrorHandler.ts',
   'packages/electron/src/utils/log.ts',
   'packages/electron/src/utils/privateFile.ts',
   // 旧 IPC 注册层（ipcMain）→ P1 由契约传输层取代
   'packages/electron/src/handlers/ipc/BaseIpcHandler.ts',
-  'packages/electron/src/handlers/ipc/ConfigIpcHandler.ts',
   'packages/electron/src/handlers/ipc/WindowIpcHandler.ts',
   'packages/electron/src/security/guardedIpc.ts',
   'packages/electron/src/security/ipcSenderGuard.ts',
