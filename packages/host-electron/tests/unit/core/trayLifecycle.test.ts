@@ -51,9 +51,12 @@ jest.mock('@nomi-ai/core/ai/mascotCommand', () => ({
   avatarGesture: jest.fn(),
 }));
 
+import { t, tName } from '@nomi-ai/core/i18n';
+
 import { TrayManager } from '../../../src/core/TrayManager';
 import { applyIslandWorkspaceBehavior } from '../../../src/island/IslandService';
 
+const i18n = { t, tName, onChange: () => () => undefined };
 const providers = {
   state: () => ({ providers: [], envProviders: [], effectiveProviderId: null, overrideId: null }),
   onChange: () => () => undefined,
@@ -61,6 +64,7 @@ const providers = {
 const make = () =>
   new TrayManager({
     providers: providers as never,
+    i18n,
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as never,
     openChat: jest.fn(),
     openProviderPanel: jest.fn(),
@@ -134,6 +138,7 @@ describe('TrayManager lifecycle', () => {
     const off = jest.fn();
     const m = new TrayManager({
       providers: providers as never,
+      i18n,
       logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as never,
       openChat: jest.fn(),
       openProviderPanel: jest.fn(),

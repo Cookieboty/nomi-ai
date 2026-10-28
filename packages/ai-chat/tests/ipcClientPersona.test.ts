@@ -1,12 +1,7 @@
 // @vitest-environment happy-dom
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-
-import type { Persona } from '@nomi-ai/types';
-import { t } from '@nomi-ai/ui';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { defaultSystemPrompt, SdkIPCClient } from '../src/services/IPCClient';
+import { SdkIPCClient } from '../src/services/IPCClient';
 
 import { installMascotHost, resetMascotHost } from './helpers/mascotHost';
 
@@ -14,16 +9,10 @@ vi.mock('../src/services/api', async () =>
   (await import('./helpers/mascotHost')).mascotApiModule(),
 );
 
-// 默认系统提示从当前角色人设取（docs/design/core-host-decoupling.md §10.4）
-const GUIDANCE = 'ui.chat-settings.you-run-on-the-user-s-own-computer-be';
+// 默认系统提示由内核拼装（契约 persona.systemPrompt，docs/design/core-host-decoupling.md §10.4）；
+// 拼装与官方文案的逐字固定见 core tests/unit/persona/systemPrompt.test.ts
 const LEGACY_KEY = 'ui.chat-settings.you-are-nomi-an-ai-companion-who-lives'; // i18n-ignore
-
-const pip: Persona = {
-  characterId: 'test-dummy',
-  displayName: 'Pip',
-  systemPromptIdentity: 'You are Pip, a paper robot.',
-  greetings: [],
-};
+const PIP = 'You are Pip, a paper robot.\nBe concise.';
 
 type Msg = { role: string; content: string };
 
@@ -57,56 +46,38 @@ afterEach(() => {
   window.localStorage.clear();
 });
 
-describe('SdkIPCClient · default system prompt comes from the persona', () => {
-  it('uses the active pack persona identity plus the character-neutral chat guidance', async () => {
+describe('SdkIPCClient · default system prompt comes from the kernel', () => {
+  it('sends the kernel default system prompt verbatim', async () => {
     const { client, calls } = capture();
-    const ipc = new SdkIPCClient(client as never, { persona: async () => pip });
+    const ipc = new SdkIPCClient(client as never, { defaultSystemPrompt: async () => PIP });
     await ipc.sendMessage('hi');
-    const sys = systemOf(calls[0]!)!;
-    expect(sys.startsWith('You are Pip, a paper robot.')).toBe(true);
-    expect(sys).toContain(t(GUIDANCE));
-    expect(sys).not.toMatch(/Nomi|诺米/);
+    expect(systemOf(calls[0]!)).toBe(PIP);
   });
 
-  // 官方角色发给模型的默认系统提示（中文界面）：与 2.0.5 逐字一致。界面上的角色名（全名 / 简称）
-  // 是另一条路径，改它不能动到这里（docs/BRAND.md）。
-  it('pins the official default system prompt', () => {
-    const official = JSON.parse(
-      readFileSync(resolve(__dirname, '../../../characters/nomi/persona.json'), 'utf8'),
-    ) as Persona;
-    expect(defaultSystemPrompt({ ...official, characterId: 'nomi' })).toBe(
-      '你是 Nomi（诺米），住在用户桌面上的 AI 伙伴。\n' +
-        '你运行在用户自己的电脑上。语气温暖、专业、可信赖：先给结论，再给步骤；不确定时坦诚说明。' +
-        '请结合之前的对话内容，简洁、准确地回答。',
-    );
-  });
-
-  it('guidance text carries no character identity', () => {
-    expect(t(GUIDANCE)).not.toMatch(/Nomi|诺米/);
-    expect(t(GUIDANCE)).not.toBe(GUIDANCE);
-    expect(defaultSystemPrompt(undefined)).toBe(t(GUIDANCE));
-  });
-
-  it('reads the persona on every turn (pack / UI language switches apply at once)', async () => {
+  it('sends no system prompt when the kernel is unreachable', async () => {
     const { client, calls } = capture();
-    let identity = 'You are Pip.';
-    const ipc = new SdkIPCClient(client as never, {
-      persona: async () => ({ ...pip, systemPromptIdentity: identity }),
-    });
+    const ipc = new SdkIPCClient(client as never, { defaultSystemPrompt: async () => undefined });
     await ipc.sendMessage('hi');
-    identity = '你是小纸。';
+    expect(systemOf(calls[0]!)).toBeUndefined();
+  });
+
+  it('asks the kernel on every turn (pack / UI language switches apply at once)', async () => {
+    const { client, calls } = capture();
+    let prompt = 'You are Pip.';
+    const ipc = new SdkIPCClient(client as never, { defaultSystemPrompt: async () => prompt });
+    await ipc.sendMessage('hi');
+    prompt = '你是小纸。';
     await ipc.sendMessage('hi', [], 'memory recall');
-    expect(systemOf(calls[0]!)).toBe(`You are Pip.\n${t(GUIDANCE)}`);
-    expect(systemOf(calls[1]!)).toBe(`你是小纸。\n${t(GUIDANCE)}\n\nmemory recall`);
+    expect(systemOf(calls[0]!)).toBe('You are Pip.');
+    expect(systemOf(calls[1]!)).toBe('你是小纸。\n\nmemory recall');
   });
 
   it('treats the legacy stored i18n key as "not customised"', async () => {
     const { client, calls } = capture({ chat: { systemPrompt: LEGACY_KEY } });
-    const ipc = new SdkIPCClient(client as never, { persona: async () => pip });
+    const ipc = new SdkIPCClient(client as never, { defaultSystemPrompt: async () => PIP });
     expect((await ipc.getConfig()).systemPrompt).toBeUndefined();
     await ipc.sendMessage('hi');
-    expect(systemOf(calls[0]!)).toContain('You are Pip, a paper robot.');
-    expect(systemOf(calls[0]!)).not.toContain(LEGACY_KEY);
+    expect(systemOf(calls[0]!)).toBe(PIP);
   });
 
   it('migrates the legacy key from local storage too, and does not persist it back', async () => {
@@ -115,7 +86,7 @@ describe('SdkIPCClient · default system prompt comes from the persona', () => {
       JSON.stringify({ theme: 'dark', systemPrompt: LEGACY_KEY }),
     );
     const { client } = capture();
-    const ipc = new SdkIPCClient(client as never, { persona: async () => pip });
+    const ipc = new SdkIPCClient(client as never, { defaultSystemPrompt: async () => PIP });
     await ipc.updateConfig({ fontSize: 16 });
     const saved = JSON.parse(window.localStorage.getItem('ai-chat:config')!);
     expect(saved.systemPrompt).toBeUndefined();
@@ -124,26 +95,26 @@ describe('SdkIPCClient · default system prompt comes from the persona', () => {
 
   it('keeps a user-written prompt (and an explicitly cleared one) as is', async () => {
     const { client, calls } = capture();
-    const persona = vi.fn(async () => pip);
-    const ipc = new SdkIPCClient(client as never, { persona });
+    const defaultSystemPrompt = vi.fn(async () => PIP);
+    const ipc = new SdkIPCClient(client as never, { defaultSystemPrompt });
     await ipc.updateConfig({ systemPrompt: 'Custom prompt' });
     await ipc.sendMessage('hi');
     await ipc.updateConfig({ systemPrompt: '' });
     await ipc.sendMessage('hi');
     expect(systemOf(calls[0]!)).toBe('Custom prompt');
     expect(systemOf(calls[1]!)).toBeUndefined();
-    expect(persona).not.toHaveBeenCalled();
+    expect(defaultSystemPrompt).not.toHaveBeenCalled();
   });
 
-  it('reads the persona from the host (contract persona.get) by default', async () => {
-    const get = vi.fn(async () => pip);
-    installMascotHost({ 'persona.get': () => get() });
+  it('reads the default prompt from the kernel (contract persona.systemPrompt) by default', async () => {
+    const get = vi.fn(async () => PIP);
+    installMascotHost({ 'persona.systemPrompt': () => get() });
     try {
       const { client, calls } = capture();
       const ipc = new SdkIPCClient(client as never);
       await ipc.sendMessage('hi');
       expect(get).toHaveBeenCalled();
-      expect(systemOf(calls[0]!)).toContain('You are Pip, a paper robot.');
+      expect(systemOf(calls[0]!)).toBe(PIP);
     } finally {
       resetMascotHost();
     }

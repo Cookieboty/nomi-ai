@@ -1,6 +1,6 @@
 /**
  * 驱动用到的子进程形状（Node `ChildProcessWithoutNullStreams` 的子集）。驱动不自己 spawn：
- * 宿主负责可执行文件解析、环境注入、诊断记录（spawnHarness → traceCliChild），把子进程交给驱动；
+ * 宿主负责可执行文件解析、环境注入、诊断记录（spawnHarness → 当前内核的 CliTrace），把子进程交给驱动；
  * 测试可以注入假的子进程。
  */
 export interface ChildLike {

@@ -2031,6 +2031,7 @@ export type TranslationKey =
   | 'ui.mascot-theme.takes-effect-on-the-next-launch'
   | 'ui.mascot-theme.tell-me-what-you-do-and-i-ll-suggest'
   | 'ui.mascot-theme.the-mascot'
+  | 'ui.mascot-theme.the-mascot-pronoun'
   | 'ui.mascot-theme.this-tab-is-still-running-closing-it-will'
   | 'ui.mascot-theme.toggle-hands-free-voice'
   | 'ui.mascot-theme.type-to-search-commands'

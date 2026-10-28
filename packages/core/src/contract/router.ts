@@ -20,6 +20,8 @@ import {
 } from '@nomi-ai/contract';
 import { appContract, type AppContract } from '@nomi-ai/contract/app';
 
+import { runInCoreScope, scopeIterable, type CoreScope } from '../core/scope';
+
 import { createCodingHandlers } from './coding';
 import { createKnowledgeHandlers } from './knowledge';
 import { createMascotCoreHandlers } from './mascot';
@@ -45,6 +47,8 @@ export interface CreateAppRouterOptions {
   middleware?: readonly Middleware[];
   /** 测试用：媒体域的流式识别会话表 */
   voiceStreams?: VoiceStreams;
+  /** 内核实例作用域：每次调用（含流的每一步）都在其中执行，处理函数读到本内核的界面语言等状态 */
+  scope?: CoreScope;
 }
 
 export interface AppRouterHandle {
@@ -101,6 +105,19 @@ export function createCoreHandlers(
   };
 }
 
+/** 让每个处理函数在内核作用域里执行；stream 的每一次 next / return / throw 也在其中 */
+function scopeHandlers(handlers: AppHandlers, scope: CoreScope): AppHandlers {
+  const out: Record<string, unknown> = {};
+  const procs = appContract.procedures as Record<string, { kind: string }>;
+  for (const [name, h] of Object.entries(handlers) as Array<[string, (...a: unknown[]) => never]>) {
+    out[name] =
+      procs[name]?.kind === 'stream'
+        ? (...a: unknown[]) => scopeIterable(scope, () => h(...a))
+        : (...a: unknown[]) => runInCoreScope(scope, () => h(...a));
+  }
+  return out as AppHandlers;
+}
+
 export function createAppRouter(opts: CreateAppRouterOptions): AppRouterHandle {
   const { deps } = opts;
   const core: Partial<AppHandlers> = {
@@ -112,7 +129,8 @@ export function createAppRouter(opts: CreateAppRouterOptions): AppRouterHandle {
       throw new TypeError(`[contract] host handler '${name}' would replace the core handler`);
     }
   }
-  const handlers: AppHandlers = { ...unavailableHandlers(), ...core, ...opts.hostHandlers };
+  const all: AppHandlers = { ...unavailableHandlers(), ...core, ...opts.hostHandlers };
+  const handlers = opts.scope ? scopeHandlers(all, opts.scope) : all;
   const router = implement(appContract, handlers, {
     middleware: [auditMiddleware(deps.logger), ...(opts.middleware ?? [])],
     logger: { warn: (message, data) => deps.logger.warn(message, data) },

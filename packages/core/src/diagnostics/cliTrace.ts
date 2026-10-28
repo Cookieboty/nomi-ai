@@ -5,11 +5,15 @@
  * 单日超过上限后停写并留一行说明。
  * 文本按常见密钥格式脱敏（Bearer、sk-…等）；令牌只在子进程环境变量里，环境变量不记录。
  * 文件与 app.log 在同一目录，随旧日志清理一起删除（7 天）。
+ *
+ * 每个内核实例（DiagnosticsService）持有自己的 CliTrace；spawnHarness 经内核作用域找到当前内核的记录器。
  */
 import fs from 'node:fs';
 import path from 'node:path';
 
 import { redactText } from '@nomi-ai/gateway';
+
+import type { ScopedCliTrace } from '../core/scope';
 
 /** 单日文件上限 */
 const MAX_DAY_BYTES = 200 * 1024 * 1024;
@@ -22,36 +26,6 @@ interface TapTarget {
   stdout: NodeJS.ReadableStream;
   stderr: NodeJS.ReadableStream;
   on(event: 'close', fn: (code: number | null, signal: NodeJS.Signals | null) => void): unknown;
-}
-
-let dir: string | null = null;
-let enabled: () => boolean = () => false;
-let day = '';
-let written = 0;
-let capped = false;
-
-/** 主进程启动时配置一次：日志目录与「现在开没开」 */
-export function configureCliTrace(o: { dir: string; enabled: () => boolean }): void {
-  // 换目录前把旧目录的缓冲写完
-  flushCliTraceSync();
-  if (o.dir !== dir) day = '';
-  dir = o.dir;
-  enabled = o.enabled;
-}
-
-function file(now: Date): string | null {
-  if (!dir) return null;
-  const d = now.toISOString().slice(0, 10);
-  if (d !== day) {
-    day = d;
-    capped = false;
-    try {
-      written = fs.statSync(path.join(dir, `cli-${d}.jsonl`)).size;
-    } catch {
-      written = 0;
-    }
-  }
-  return path.join(dir, `cli-${d}.jsonl`);
 }
 
 /*
@@ -69,149 +43,193 @@ interface Pending {
   line: string;
 }
 
-let pending: Pending[] = [];
-let pendingBytes = 0;
-let writing: Promise<void> | null = null;
-let flushTimer: NodeJS.Timeout | null = null;
-let readyDir: string | null = null;
-let exitHooked = false;
-
-function ensureDir(f: string): void {
-  const d = path.dirname(f);
-  if (readyDir === d) return;
-  fs.mkdirSync(d, { recursive: true });
-  readyDir = d;
-}
-
-function scheduleFlush(ms: number): void {
-  if (flushTimer) {
-    if (ms > 0) return;
-    clearTimeout(flushTimer);
-  }
-  flushTimer = setTimeout(() => {
-    flushTimer = null;
-    void flushCliTrace();
-  }, ms);
-  flushTimer.unref?.();
-}
-
-/** 取出缓冲，按目标文件把相邻的行合成一批（保持顺序） */
-function takeBatches(): Pending[] {
-  const out: Pending[] = [];
-  for (const p of pending) {
-    const last = out[out.length - 1];
-    if (last && last.file === p.file) last.line += p.line;
-    else out.push({ ...p });
-  }
-  pending = [];
-  pendingBytes = 0;
-  return out;
-}
-
-async function appendBatch(b: Pending): Promise<void> {
-  try {
-    ensureDir(b.file);
-    await fs.promises.appendFile(b.file, b.line, { mode: 0o600 });
-  } catch (e) {
-    if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
-    readyDir = null;
-    ensureDir(b.file);
-    await fs.promises.appendFile(b.file, b.line, { mode: 0o600 });
-  }
-}
-
-/** 异步写出缓冲；返回的 Promise 在当前已入队的记录全部落盘（或写失败被丢弃）后完成 */
-export function flushCliTrace(): Promise<void> {
-  if (flushTimer) {
-    clearTimeout(flushTimer);
-    flushTimer = null;
-  }
-  if (writing) {
-    // 有写入在途：等它写完再接着写，保证顺序
-    return writing.then(() => flushCliTrace());
-  }
-  if (!pending.length) return Promise.resolve();
-  const batches = takeBatches();
-  writing = (async () => {
-    for (const b of batches) {
-      try {
-        await appendBatch(b);
-      } catch {
-        /* 诊断日志写不了不能影响编程助手 */
-      }
-    }
-  })().finally(() => {
-    writing = null;
-    if (pending.length) scheduleFlush(0);
-  });
-  return writing;
-}
-
-/** 同步写出缓冲（进程退出 / 测试）。在途的异步写入不等，剩下的直接同步追加。 */
-export function flushCliTraceSync(): void {
-  if (flushTimer) {
-    clearTimeout(flushTimer);
-    flushTimer = null;
-  }
-  for (const b of takeBatches()) {
-    try {
-      ensureDir(b.file);
-      fs.appendFileSync(b.file, b.line, { mode: 0o600 });
-    } catch {
-      /* 诊断日志写不了不能影响编程助手 */
-    }
-  }
-}
-
-function write(rec: Record<string, unknown>): void {
-  if (!enabled()) return;
-  const now = new Date();
-  const f = file(now);
-  if (!f || capped) return;
-  let line = `${JSON.stringify({ t: now.toISOString(), ...rec })}\n`;
-  if (written + line.length > MAX_DAY_BYTES) {
-    capped = true;
-    line = `${JSON.stringify({ t: now.toISOString(), note: 'daily size limit reached, stop logging' })}\n`;
-  }
-  written += line.length;
-  pending.push({ file: f, line });
-  pendingBytes += line.length;
-  if (!exitHooked) {
-    exitHooked = true;
-    process.once('exit', flushCliTraceSync);
-  }
-  scheduleFlush(pendingBytes >= FLUSH_BYTES ? 0 : FLUSH_MS);
-}
-
 function text(chunk: unknown): string {
   const s = Buffer.isBuffer(chunk) ? chunk.toString('utf8') : String(chunk);
   const cut = s.length > MAX_CHUNK_CHARS ? `${s.slice(0, MAX_CHUNK_CHARS)}…[truncated]` : s;
   return redactText(cut);
 }
 
-/**
- * 给一个刚 spawn 的 CLI 子进程挂上记录：没开诊断日志时什么都不做。
- * stdout / stderr 加的是额外的 data 监听，不影响原有的读取。
- */
-export function traceCliChild(
-  child: TapTarget,
-  command: string,
-  args: readonly string[],
-  meta: { tabId?: string } = {},
-): void {
-  if (!enabled()) return;
-  const cli = path.basename(command);
-  const pid = child.pid;
-  const tab = meta.tabId;
-  const rec = (r: Record<string, unknown>) => write({ pid, cli, ...(tab ? { tab } : {}), ...r });
-  rec({ ev: 'spawn', args: args.map((a) => redactText(a)) });
-  const stdin = child.stdin as unknown as { write: (...a: unknown[]) => boolean };
-  const orig = stdin.write.bind(stdin);
-  stdin.write = (...a: unknown[]) => {
-    rec({ ev: 'in', data: text(a[0]) });
-    return orig(...a);
+export interface CliTraceOptions {
+  /** 日志目录（userData/logs） */
+  dir: string;
+  /** 现在开没开（每条记录写入前都会问） */
+  enabled: () => boolean;
+}
+
+export class CliTrace implements ScopedCliTrace {
+  private readonly dir: string;
+  private readonly enabled: () => boolean;
+  private day = '';
+  private written = 0;
+  private capped = false;
+  private pending: Pending[] = [];
+  private pendingBytes = 0;
+  private writing: Promise<void> | null = null;
+  private flushTimer: NodeJS.Timeout | null = null;
+  private readyDir: string | null = null;
+  private exitHooked = false;
+  /** 进程退出时同步写完缓冲 */
+  readonly flushSync = (): void => {
+    if (this.flushTimer) {
+      clearTimeout(this.flushTimer);
+      this.flushTimer = null;
+    }
+    for (const b of this.takeBatches()) {
+      try {
+        this.ensureDir(b.file);
+        fs.appendFileSync(b.file, b.line, { mode: 0o600 });
+      } catch {
+        /* 诊断日志写不了不能影响编程助手 */
+      }
+    }
   };
-  child.stdout.on('data', (c: unknown) => rec({ ev: 'out', data: text(c) }));
-  child.stderr.on('data', (c: unknown) => rec({ ev: 'err', data: text(c) }));
-  child.on('close', (code, signal) => rec({ ev: 'exit', code, signal }));
+
+  constructor(o: CliTraceOptions) {
+    this.dir = o.dir;
+    this.enabled = o.enabled;
+  }
+
+  private file(now: Date): string {
+    const d = now.toISOString().slice(0, 10);
+    const f = path.join(this.dir, `cli-${d}.jsonl`);
+    if (d !== this.day) {
+      this.day = d;
+      this.capped = false;
+      try {
+        this.written = fs.statSync(f).size;
+      } catch {
+        this.written = 0;
+      }
+    }
+    return f;
+  }
+
+  private ensureDir(f: string): void {
+    const d = path.dirname(f);
+    if (this.readyDir === d) return;
+    fs.mkdirSync(d, { recursive: true });
+    this.readyDir = d;
+  }
+
+  private scheduleFlush(ms: number): void {
+    if (this.flushTimer) {
+      if (ms > 0) return;
+      clearTimeout(this.flushTimer);
+    }
+    this.flushTimer = setTimeout(() => {
+      this.flushTimer = null;
+      void this.flush();
+    }, ms);
+    this.flushTimer.unref?.();
+  }
+
+  /** 取出缓冲，按目标文件把相邻的行合成一批（保持顺序） */
+  private takeBatches(): Pending[] {
+    const out: Pending[] = [];
+    for (const p of this.pending) {
+      const last = out[out.length - 1];
+      if (last && last.file === p.file) last.line += p.line;
+      else out.push({ ...p });
+    }
+    this.pending = [];
+    this.pendingBytes = 0;
+    return out;
+  }
+
+  private async appendBatch(b: Pending): Promise<void> {
+    try {
+      this.ensureDir(b.file);
+      await fs.promises.appendFile(b.file, b.line, { mode: 0o600 });
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
+      this.readyDir = null;
+      this.ensureDir(b.file);
+      await fs.promises.appendFile(b.file, b.line, { mode: 0o600 });
+    }
+  }
+
+  /** 异步写出缓冲；返回的 Promise 在当前已入队的记录全部落盘（或写失败被丢弃）后完成 */
+  flush(): Promise<void> {
+    if (this.flushTimer) {
+      clearTimeout(this.flushTimer);
+      this.flushTimer = null;
+    }
+    if (this.writing) {
+      // 有写入在途：等它写完再接着写，保证顺序
+      return this.writing.then(() => this.flush());
+    }
+    if (!this.pending.length) return Promise.resolve();
+    const batches = this.takeBatches();
+    this.writing = (async () => {
+      for (const b of batches) {
+        try {
+          await this.appendBatch(b);
+        } catch {
+          /* 诊断日志写不了不能影响编程助手 */
+        }
+      }
+    })().finally(() => {
+      this.writing = null;
+      if (this.pending.length) this.scheduleFlush(0);
+    });
+    return this.writing;
+  }
+
+  /** 停用：写完缓冲并摘掉退出钩子（内核停止时） */
+  dispose(): void {
+    this.flushSync();
+    if (this.exitHooked) {
+      process.removeListener('exit', this.flushSync);
+      this.exitHooked = false;
+    }
+  }
+
+  private write(rec: Record<string, unknown>): void {
+    if (!this.enabled()) return;
+    const now = new Date();
+    const f = this.file(now);
+    if (this.capped) return;
+    let line = `${JSON.stringify({ t: now.toISOString(), ...rec })}\n`;
+    if (this.written + line.length > MAX_DAY_BYTES) {
+      this.capped = true;
+      line = `${JSON.stringify({ t: now.toISOString(), note: 'daily size limit reached, stop logging' })}\n`;
+    }
+    this.written += line.length;
+    this.pending.push({ file: f, line });
+    this.pendingBytes += line.length;
+    if (!this.exitHooked) {
+      this.exitHooked = true;
+      process.once('exit', this.flushSync);
+    }
+    this.scheduleFlush(this.pendingBytes >= FLUSH_BYTES ? 0 : FLUSH_MS);
+  }
+
+  /**
+   * 给一个刚 spawn 的 CLI 子进程挂上记录：没开诊断日志时什么都不做。
+   * stdout / stderr 加的是额外的 data 监听，不影响原有的读取。
+   */
+  tap(
+    target: unknown,
+    command: string,
+    args: readonly string[],
+    meta: { tabId?: string } = {},
+  ): void {
+    if (!this.enabled()) return;
+    const child = target as TapTarget;
+    const cli = path.basename(command);
+    const pid = child.pid;
+    const tab = meta.tabId;
+    const rec = (r: Record<string, unknown>) =>
+      this.write({ pid, cli, ...(tab ? { tab } : {}), ...r });
+    rec({ ev: 'spawn', args: args.map((a) => redactText(a)) });
+    const stdin = child.stdin as unknown as { write: (...a: unknown[]) => boolean };
+    const orig = stdin.write.bind(stdin);
+    stdin.write = (...a: unknown[]) => {
+      rec({ ev: 'in', data: text(a[0]) });
+      return orig(...a);
+    };
+    child.stdout.on('data', (c: unknown) => rec({ ev: 'out', data: text(c) }));
+    child.stderr.on('data', (c: unknown) => rec({ ev: 'err', data: text(c) }));
+    child.on('close', (code, signal) => rec({ ev: 'exit', code, signal }));
+  }
 }

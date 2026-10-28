@@ -14,7 +14,7 @@
  */
 
 import { canSubscribe } from './contract';
-import { abortedError, ContractError, toErrorPayload } from './errors';
+import { abortedError, type ContractError, isContractError, toErrorPayload } from './errors';
 import {
   clientFrameSchema,
   findUnserializable,
@@ -130,7 +130,7 @@ export function createServerSession(router: Router, opts: ServerSessionOptions):
   const send = (frame: ServerFrame): boolean => sendFrame(frame) !== 'closed';
 
   const sendError = (id: string, err: unknown): void => {
-    if (!(err instanceof ContractError)) {
+    if (!isContractError(err)) {
       opts.logger?.warn('[contract] handler threw', err);
     }
     send({ t: 'err', id, error: toErrorPayload(err) });

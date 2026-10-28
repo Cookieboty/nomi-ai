@@ -15,7 +15,7 @@ import {
 } from '@nomi-ai/ui';
 import React, { useEffect, useState } from 'react';
 
-import { characterName, useCharacterName } from '../../services/characterName';
+import { characterName, characterPronoun, useCharacterName } from '../../services/characterName';
 import {
   startupClient,
   type CloseMainAction,
@@ -28,7 +28,12 @@ const OPTIONS: { id: StartupView; label: () => string; hint: () => string }[] = 
   {
     id: 'mascot',
     label: () => characterName(),
-    hint: () => tName('ui.mascot-theme.startup-mascot-first', characterName()),
+    hint: () =>
+      tName(
+        'ui.mascot-theme.startup-mascot-first',
+        characterName(),
+        characterPronoun('possessive'),
+      ),
   },
   {
     id: 'main',

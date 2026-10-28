@@ -126,6 +126,11 @@ export const personaSchema = z.object({
   /** 简称：之后再提到时用；缺省时同 displayName（见 `personaNames`） */
   shortName: nonEmpty.optional(),
   systemPromptIdentity: nonEmpty,
+  /**
+   * 界面里指代角色的人称代词（「点她的『AI 对话』」）；按语言给，英文用主格（she / he / it / they）。
+   * 缺省为中性的「它」/ it（见 `personaPronoun`），不沿用主语言的值。
+   */
+  pronoun: nonEmpty.optional(),
   /** 角色对用户的称呼 */
   addressUser: nonEmpty.optional(),
   /** 问候语；可以为空数组，validatePack 会给警告 */

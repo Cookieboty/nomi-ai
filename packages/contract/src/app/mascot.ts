@@ -196,6 +196,8 @@ export const Persona = z.looseObject({
   /** 简称；旧主进程不发，用 displayName */
   shortName: z.string().optional(),
   systemPromptIdentity: z.string(),
+  /** 指代角色的代词（当前界面语言） */
+  pronoun: z.string().optional(),
   addressUser: z.string().optional(),
   greetings: z.array(z.string()),
 });
@@ -386,6 +388,13 @@ export const mascotProcedures = {
     input: z.void(),
     output: Persona,
     description: 'character:get-persona',
+  },
+  'persona.systemPrompt': {
+    kind: 'query',
+    input: z.void(),
+    output: z.string(),
+    surfaces: CHAT,
+    description: '默认系统提示：当前角色的身份段 + 与角色无关的对话要求（内核拼装，跟随界面语言）',
   },
 
   // —— 灵动岛（只在对话窗口 preload）

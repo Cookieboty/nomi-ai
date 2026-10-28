@@ -20,7 +20,7 @@ import { LogLevel, type LoggerService } from '../services/LoggerService';
 import { writePrivateFile } from '../utils/privateFile';
 
 import { buildDiagnosticsBundle } from './bundle';
-import { configureCliTrace, flushCliTrace } from './cliTrace';
+import { CliTrace } from './cliTrace';
 
 const FILE = 'diagnostics.json';
 
@@ -68,13 +68,15 @@ export class DiagnosticsService {
   private readonly forced: boolean;
   private readonly file: string;
   private readonly logDir: string;
+  /** 本内核的编程助手收发记录（spawnHarness 经内核作用域找到它） */
+  readonly cliTrace: CliTrace;
 
   constructor(private readonly d: DiagnosticsDeps) {
     this.forced = d.dev ?? !d.ports.app.isPackaged();
     this.file = path.join(d.userData, FILE);
     this.logDir = path.join(d.userData, 'logs');
     this.saveLogs = this.load();
-    configureCliTrace({ dir: this.logDir, enabled: () => this.enabled() });
+    this.cliTrace = new CliTrace({ dir: this.logDir, enabled: () => this.enabled() });
     this.apply();
   }
 
@@ -110,7 +112,7 @@ export class DiagnosticsService {
     if (!file) return { ok: false };
     try {
       // 收发记录是缓冲异步写的：打包前先把还在内存里的写完
-      await flushCliTrace();
+      await this.cliTrace.flush();
       const { data, files } = buildDiagnosticsBundle(
         {
           logDir: this.logDir,

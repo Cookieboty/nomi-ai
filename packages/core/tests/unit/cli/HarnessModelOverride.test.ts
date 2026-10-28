@@ -590,8 +590,12 @@ describe('CliHarnessService model / effort overrides', () => {
         await h.sendTab(tab.id, 'one');
         const sid = h.listTabs().tabs.find((x) => x.id === tab.id)!.cliSessionId!;
         expect(h.sessionModel('codex', sid)).toBe('gw/a');
-        // 记录是异步落盘的
-        await new Promise((r) => setTimeout(r, 50));
+        // 记录是异步落盘的：等文件里真有这条再重启（固定等 50ms 在慢的 Windows runner 上不够）
+        const file = path.join(root, 'session-models.json');
+        for (let i = 0; i < 200; i++) {
+          if (fs.existsSync(file) && fs.readFileSync(file, 'utf8').includes(sid)) break;
+          await new Promise((r) => setTimeout(r, 25));
+        }
         h.dispose();
         state.main = 'gw/b';
         const again = mk({ gateway } as never);

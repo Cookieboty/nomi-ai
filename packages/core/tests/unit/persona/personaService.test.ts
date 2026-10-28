@@ -65,6 +65,7 @@ describe('characterLocaleOf / resolvePersona', () => {
       characterId: 'test-dummy',
       displayName: '小纸',
       shortName: '小纸',
+      pronoun: '它',
       systemPromptIdentity: '你是小纸，一个纸片机器人。',
       addressUser: '船长',
       greetings: ['哔！'],
@@ -77,6 +78,15 @@ describe('characterLocaleOf / resolvePersona', () => {
     // 覆盖里没有的字段沿用主语言
     expect(en.greetings).toEqual(['哔！']);
     expect(en.addressUser).toBe('船长');
+    expect(en.pronoun).toBe('it');
+  });
+
+  it('takes the pronoun per language and never reuses the Chinese one for English', () => {
+    const she: PersonaBundle = { ...dummy, persona: { ...dummy.persona, pronoun: '她' } };
+    expect(resolvePersona(she, 'zh-CN').pronoun).toBe('她');
+    expect(resolvePersona(she, 'en').pronoun).toBe('it');
+    const both: PersonaBundle = { ...she, locales: { en: { pronoun: 'she' } } };
+    expect(resolvePersona(both, 'en').pronoun).toBe('she');
   });
 });
 
@@ -85,7 +95,7 @@ describe('official persona (built-in pack characters/nomi)', () => {
     const svc = new PersonaService({ sources: [officialPersonaSource()], locale: () => 'zh-CN' });
     expect(svc.get().characterId).toBe('nomi');
     expect(svc.get().systemPromptIdentity).toContain('诺米');
-    // 对话行为的要求不在身份段里（由 ai-chat 追加）
+    // 对话行为的要求不在身份段里（由内核 persona/systemPrompt.ts 追加）
     expect(svc.get().systemPromptIdentity).not.toContain('简洁');
     const en = new PersonaService({ sources: [officialPersonaSource()], locale: () => 'en' });
     expect(en.get().systemPromptIdentity).toMatch(/^You are Nomi/);
@@ -97,12 +107,14 @@ describe('official persona (built-in pack characters/nomi)', () => {
     expect(zh.get().systemPromptIdentity).toBe('你是 Nomi（诺米），住在用户桌面上的 AI 伙伴。');
     expect(zh.get().displayName).toBe('Nomi·诺米');
     expect(zh.get().shortName).toBe('Nomi');
+    expect(zh.get().pronoun).toBe('她');
     const en = new PersonaService({ sources: [officialPersonaSource()], locale: () => 'en' });
     expect(en.get().systemPromptIdentity).toBe(
       'You are Nomi, an AI companion living on the user desktop.',
     );
     expect(en.get().displayName).toBe('Nomi');
     expect(en.get().shortName).toBe('Nomi');
+    expect(en.get().pronoun).toBe('she');
   });
 
   it('falls back to a neutral identity that names no character', () => {

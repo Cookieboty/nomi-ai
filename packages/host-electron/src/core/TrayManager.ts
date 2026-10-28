@@ -16,7 +16,7 @@ import {
 } from '@nomi-ai/core/ai/mascotCommand';
 import type { AppEvents } from '@nomi-ai/core/core/appEvents';
 import type { GatewayStateView } from '@nomi-ai/core/gateway/GatewayService';
-import { onLocaleChange, t, tName } from '@nomi-ai/core/i18n';
+import type { CoreI18n, Translate } from '@nomi-ai/core/i18n';
 import type { ILoggerService } from '@nomi-ai/core/services/LoggerService';
 import {
   Menu,
@@ -45,6 +45,7 @@ export interface ProviderMenuEntry {
  */
 export function gatewayMenuEntries(
   view: Pick<GatewayStateView, 'providers' | 'clients' | 'recentNomi'>,
+  t: Translate,
 ): ProviderMenuEntry[] {
   const main = view.clients.nomi?.models.main ?? '';
   const find = (ref: string) => {
@@ -61,7 +62,7 @@ export function gatewayMenuEntries(
   if (recent.length)
     return recent.map(({ ref, hit }) => ({
       id: hit!.p.id,
-      label: t('{0} · {1}', providerName(hit!.p.name), hit!.m.label ?? hit!.m.id),
+      label: t('{0} · {1}', providerName(hit!.p.name, t), hit!.m.label ?? hit!.m.id),
       checked: ref === main,
       enabled: true,
       ref,
@@ -78,7 +79,7 @@ export function gatewayMenuEntries(
       return [
         {
           id: p.id,
-          label: t('{0} · {1}', providerName(p.name), model),
+          label: t('{0} · {1}', providerName(p.name, t), model),
           checked: false,
           enabled: true,
           ref: `${p.id}/${model}`,
@@ -88,14 +89,14 @@ export function gatewayMenuEntries(
 }
 
 /** 供应商显示名：预设名与「（环境变量）」后缀按当前语言翻译，用户自定义名字原样保留。 */
-function providerName(name: string): string {
+function providerName(name: string, t: Translate): string {
   const env = /^(.*)（环境变量）$/.exec(name);
-  if (env) return t('electron.common.env', providerName(env[1]!));
+  if (env) return t('electron.common.env', providerName(env[1]!, t));
   return t(name);
 }
 
 /** 纯函数：state → 「切换 provider」菜单项（便于单测）。 */
-export function providerMenuEntries(state: ProviderState): ProviderMenuEntry[] {
+export function providerMenuEntries(state: ProviderState, t: Translate): ProviderMenuEntry[] {
   const current = state.effectiveProviderId;
   const entries: ProviderMenuEntry[] = state.providers
     .filter((p) => p.enabled)
@@ -103,7 +104,7 @@ export function providerMenuEntries(state: ProviderState): ProviderMenuEntry[] {
       id: p.id,
       label: t(
         '{0} · {1}{2}',
-        providerName(p.name),
+        providerName(p.name, t),
         p.defaultModel,
         p.keys.length === 0 && !['ollama', 'lmstudio', 'custom'].includes(p.presetId)
           ? t('electron.common.no-key-configured')
@@ -115,7 +116,7 @@ export function providerMenuEntries(state: ProviderState): ProviderMenuEntry[] {
   for (const e of state.envProviders) {
     entries.push({
       id: e.id,
-      label: t('{0}{1}', providerName(e.name), e.hasKey ? '' : t('electron.common.no-key')),
+      label: t('{0}{1}', providerName(e.name, t), e.hasKey ? '' : t('electron.common.no-key')),
       checked: e.id === current,
       enabled: e.hasKey,
     });
@@ -137,6 +138,8 @@ export interface TrayManagerOptions {
   /** 角色名可能变了（换角色包 / 换界面语言后人设更新）：托盘菜单重建；返回取消订阅 */
   onCharacterChange?: (fn: () => void) => () => void;
   models?: TrayModelSource;
+  /** 内核实例的界面语言（`core.i18n`）：菜单文案按它翻译，切换语言后重建 */
+  i18n: Pick<CoreI18n, 't' | 'tName' | 'onChange'>;
   logger: ILoggerService;
   openChat: () => void;
   /**
@@ -240,7 +243,7 @@ export class TrayManager {
       this.unsubscribe = this.opts.providers.onChange(() => this.rebuild());
       this.unsubscribeModels = this.opts.models?.onChange(() => this.rebuild());
       // 切换界面语言后立即重建托盘菜单
-      this.unsubscribeLocale = onLocaleChange(() => this.rebuild());
+      this.unsubscribeLocale = this.opts.i18n.onChange(() => this.rebuild());
       // 换角色包 / 人设随语言更新后，「<角色名>的动作」跟着变
       this.unsubscribeCharacter = this.opts.onCharacterChange?.(() => this.rebuild());
     } catch (error) {
@@ -262,10 +265,11 @@ export class TrayManager {
 
   rebuild(): void {
     if (!this.tray || this.tray.isDestroyed()) return;
+    const { t, tName } = this.opts.i18n;
     const state = this.opts.providers.state();
     const gw = this.opts.models?.state();
     // GatewayStore 是唯一来源：有 models API 就用网关菜单（可为空，引导去「模型」页）
-    const entries = gw ? gatewayMenuEntries(gw) : providerMenuEntries(state);
+    const entries = gw ? gatewayMenuEntries(gw, t) : providerMenuEntries(state, t);
     const providerItems: MenuItemConstructorOptions[] = entries.map((e) => ({
       label: e.label,
       type: 'radio',

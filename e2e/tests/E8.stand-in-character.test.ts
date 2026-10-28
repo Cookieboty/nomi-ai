@@ -5,7 +5,7 @@
  * 给仓库里的 `characters/test-dummy`（static 模式、一张占位图、名字与人设完全不同），走内核自己的解析 → 人设链路：
  *   CharacterPackService → PersonaService
  *     ├─ 角色 preset（PersonaIdentityPlugin → CompanionAgentPresetPlugin，内核插件宿主里装好的）的系统提示
- *     └─ 对话窗口 SdkIPCClient（ai-chat 的真实实现，人设经契约 `persona.get` 取）→ ClientAIClient →
+ *     └─ 对话窗口 SdkIPCClient（ai-chat 的真实实现，默认系统提示经契约 `persona.systemPrompt` 由内核拼）→ ClientAIClient →
  *        in-process 传输 → 内核的 AI 路由 → LLM
  * 断言：发出去的系统提示、发给界面的人设与角色包快照里都没有官方角色名（诺米 / Nomi），且用的是替身的身份。
  * 界面文本的那一半在 e2e-headed 的 G5.stand-in-character（真实应用、替身构建）。
@@ -54,7 +54,9 @@ describe('E8 · stand-in character (test-dummy) · no official name in what the 
   ])('chat window → core: the system prompt sent to the LLM (%s)', async (l, identity) => {
     const win = core.openWindow();
     await win.api.locale.set({ pref: l });
-    const chat = new SdkIPCClient(win.client, { persona: () => win.api.persona.get() });
+    const chat = new SdkIPCClient(win.client, {
+      defaultSystemPrompt: () => win.api.persona.systemPrompt(),
+    });
     core.llm.nextContent = 'beep';
 
     expect(await chat.sendMessage('你好')).toBe('beep');

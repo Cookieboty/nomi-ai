@@ -7,7 +7,8 @@ import path from 'node:path';
 import { getDictionary } from '@nomi-ai/i18n';
 
 import { createRecordingAppEvents, type RecordingAppEvents } from '../../../src/core/appEvents';
-import { LocaleService, onLocaleChange, resolveLocale, t } from '../../../src/i18n';
+import { createCoreScope, runInCoreScope } from '../../../src/core/scope';
+import { getLocale, LocaleService, resolveLocale, t } from '../../../src/i18n';
 
 let events: RecordingAppEvents = createRecordingAppEvents();
 const make = (file: string) =>
@@ -35,8 +36,9 @@ describe('main-process i18n', () => {
 
   it('follows the system for new users and respects a saved choice', () => {
     sysLangs = ['zh-CN'];
-    expect(make(tmp()).get()).toEqual({ pref: 'system', locale: 'zh-CN' });
-    expect(t('electron.common.quit')).toBe('退出');
+    const s0 = make(tmp());
+    expect(s0.get()).toEqual({ pref: 'system', locale: 'zh-CN' });
+    expect(s0.t('electron.common.quit')).toBe('退出');
     sysLangs = ['en-US'];
     const f = tmp();
     fs.writeFileSync(f, JSON.stringify({ locale: 'zh-CN' }));
@@ -48,7 +50,7 @@ describe('main-process i18n', () => {
     const f = tmp();
     const s = make(f);
     const seen: string[] = [];
-    const off = onLocaleChange((l) => seen.push(l));
+    const off = s.onChange((l) => seen.push(l));
     expect(s.set('en')).toEqual({ pref: 'en', locale: 'en' });
     expect(events.published.at(-1)).toEqual({
       event: 'locale.changed',
@@ -57,14 +59,46 @@ describe('main-process i18n', () => {
     });
     expect(seen).toEqual(['en']);
     expect(JSON.parse(fs.readFileSync(f, 'utf8'))).toEqual({ locale: 'en' });
-    expect(t('electron.common.quit')).toBe('Quit');
-    expect(t('electron.common.read-failed', 'x')).toBe('Read failed: x');
+    expect(s.t('electron.common.quit')).toBe('Quit');
+    expect(s.t('electron.common.read-failed', 'x')).toBe('Read failed: x');
     // 常量标签作为参数时一并翻译；非字符串原样返回
-    expect(t('{0} · {1}', 'Nomi', 'electron.common.model')).toBe('Nomi · model');
-    expect(t(undefined)).toBeUndefined();
+    expect(s.t('{0} · {1}', 'Nomi', 'electron.common.model')).toBe('Nomi · model');
+    expect(s.t(undefined)).toBeUndefined();
     expect(() => s.set('fr')).toThrow();
     off();
     s.set('zh-CN');
+  });
+
+  it('each instance owns its locale; module t() follows the current core scope', async () => {
+    sysLangs = ['zh-CN'];
+    const zh = make(tmp());
+    const en = make(tmp());
+    en.set('en');
+    expect(zh.locale()).toBe('zh-CN');
+    expect(en.locale()).toBe('en');
+    const a = createCoreScope({ i18n: zh });
+    const b = createCoreScope({ i18n: en });
+    expect(runInCoreScope(a, () => t('electron.common.quit'))).toBe('退出');
+    expect(runInCoreScope(b, () => t('electron.common.quit'))).toBe('Quit');
+    // 异步延续沿用进入时的作用域
+    const later = await runInCoreScope(b, async () => {
+      await new Promise((r) => setTimeout(r, 1));
+      return [t('electron.common.quit'), getLocale()];
+    });
+    expect(later).toEqual(['Quit', 'en']);
+    // 不在任何内核里：不可变默认（中文），不受实例切换影响
+    expect(t('electron.common.quit')).toBe('退出');
+    expect(getLocale()).toBe('zh-CN');
+    process.env.CD_LOCALE = 'en-US';
+    expect(t('electron.common.quit')).toBe('Quit');
+  });
+
+  it('t / tName can be destructured off the instance (tray menu does)', () => {
+    sysLangs = ['en'];
+    const { t: tt, tName } = make(tmp());
+    expect(tt('{0} · {1}', 'a', 'b')).toBe('a · b');
+    expect(() => tName('{0} · {1}', 'Dummy', 'x')).not.toThrow();
+    expect(tName('{0} · {1}', 'Dummy', 'x')).toContain('Dummy');
   });
 
   it('every English entry keeps the placeholders of the Chinese entry', () => {

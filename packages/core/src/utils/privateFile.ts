@@ -4,6 +4,8 @@ import fsp from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
+import { currentCoreScope } from '../core/scope';
+
 /**
  * 写入含敏感信息的配置文件并强制仅当前用户可读写。
  * - POSIX：0600（writeFileSync 的 mode 只在新建时生效，故对已存在文件再 chmod 一次）
@@ -196,6 +198,15 @@ export function __resetAclCacheForTest(): void {
 
 function autoRoot(): string | null {
   if (autoRootOverride !== undefined) return autoRootOverride;
+  // 内核实例自己的根目录（createCore：ports.paths.userData）优先于宿主进程的设置
+  const scoped = currentCoreScope()?.privateRoot;
+  if (scoped) {
+    try {
+      return scoped() || null;
+    } catch {
+      return null;
+    }
+  }
   if (autoRootCached !== undefined) return autoRootCached;
   // 宿主还没设置（工具进程等没有宿主的环境）：不自动收紧，也不缓存，设置后再取
   if (!autoRootResolver) return null;

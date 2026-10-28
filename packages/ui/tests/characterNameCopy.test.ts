@@ -5,11 +5,14 @@ import { applyLocale, tName } from '../src';
 
 // 带角色名的界面文案（docs/BRAND.md）：「Nomi·诺米」是一个完整的名字。官方角色的全名「Nomi·诺米」只在
 // 第一次提到时用，之后用简称「Nomi」；中文里不单独写「诺米」。官方角色下这些文案与 2.0.5 一致，
-// 例外：2.0.5 单独写「诺米」的地方（改为 Nomi），以及 G5 把「她 / her」改成中性的「它 / it」。
+// 例外：2.0.5 单独写「诺米」的地方（改为 Nomi）。
 const FULL = { zh: 'Nomi·诺米', en: 'Nomi' };
 const SHORT = { zh: 'Nomi', en: 'Nomi' };
 
-const CASES: Array<[key: string, name: 'full' | 'short', zh: string, en: string]> = [
+// 指代角色的代词来自角色包（persona.pronoun，官方为「她」/ she，其他包缺省「它」/ it），作为 `{1}` 传入。
+const CASES: Array<
+  [key: string, name: 'full' | 'short', zh: string, en: string, pronoun?: [zh: string, en: string]]
+> = [
   ['ui.mascot-theme.welcome-title', 'full', '你好，我是 Nomi·诺米', "Hi, I'm Nomi"],
   [
     'ui.mascot-theme.hi-i-m-nomi-your-ai-companion-who',
@@ -21,8 +24,9 @@ const CASES: Array<[key: string, name: 'full' | 'short', zh: string, en: string]
   [
     'ui.chat-settings.nomi-is-hidden-show-it-to-adjust-its',
     'short',
-    'Nomi 已隐藏，打开后才能调整大小。',
-    'Nomi is hidden; show it to adjust its size.',
+    'Nomi 已隐藏，打开她后才能调整大小。',
+    'Nomi is hidden; show her to adjust the size.',
+    ['她', 'her'],
   ],
   [
     'ui.chat-settings.when-off-system-notifications-are-used-while-nomi',
@@ -40,8 +44,9 @@ const CASES: Array<[key: string, name: 'full' | 'short', zh: string, en: string]
   [
     'ui.mascot-theme.nomi-appears-on-your-desktop-first-click-her',
     'short',
-    '桌面上先出现 Nomi，点它的「AI 对话」进入主界面（默认）',
-    'Nomi appears on your desktop first; click its “AI chat” to open the main window (default)',
+    '桌面上先出现 Nomi，点她的「AI 对话」进入主界面（默认）',
+    'Nomi appears on your desktop first; click her “AI chat” to open the main window (default)',
+    ['她', 'her'],
   ],
   [
     'ui.mascot-theme.nomi-is-closed-show-on-startup-has-been',
@@ -78,8 +83,9 @@ const CASES: Array<[key: string, name: 'full' | 'short', zh: string, en: string]
   [
     'ui.mascot-theme.startup-mascot-first',
     'short',
-    '桌面上先出现 Nomi，需要时点它的「AI 对话」进入主界面（默认）。',
-    'Nomi appears on your desktop first; click its “AI chat” to open the main window when needed (default).',
+    '桌面上先出现 Nomi，需要时点她的「AI 对话」进入主界面（默认）。',
+    'Nomi appears on your desktop first; click her “AI chat” to open the main window when needed (default).',
+    ['她', 'her'],
   ],
   [
     'ui.mascot-theme.when-off-mascot-hidden-island-ok',
@@ -121,12 +127,23 @@ const CASES: Array<[key: string, name: 'full' | 'short', zh: string, en: string]
 afterEach(() => applyLocale('zh-CN'));
 
 describe('character-name copy with the official pack (docs/BRAND.md)', () => {
-  it.each(CASES)('%s (%s name)', (key, which, zh, en) => {
+  it.each(CASES)('%s (%s name)', (key, which, zh, en, pronoun) => {
     const names = which === 'full' ? FULL : SHORT;
     applyLocale('zh-CN');
-    expect(tName(key, names.zh)).toBe(zh);
+    expect(tName(key, names.zh, ...(pronoun ? [pronoun[0]] : []))).toBe(zh);
     applyLocale('en');
-    expect(tName(key, names.en)).toBe(en);
+    expect(tName(key, names.en, ...(pronoun ? [pronoun[1]] : []))).toBe(en);
+  });
+
+  it('a pack without a pronoun reads as 它 / it', () => {
+    applyLocale('zh-CN');
+    expect(tName('ui.mascot-theme.startup-mascot-first', '小纸', '它')).toBe(
+      '桌面上先出现小纸，需要时点它的「AI 对话」进入主界面（默认）。',
+    );
+    applyLocale('en');
+    expect(tName('ui.chat-settings.nomi-is-hidden-show-it-to-adjust-its', 'Pip', 'it')).toBe(
+      'Pip is hidden; show it to adjust the size.',
+    );
   });
 
   it('the schedule preview keeps the spacing around the name', () => {

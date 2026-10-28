@@ -323,13 +323,9 @@ describe('SdkIPCClient · multi-turn', () => {
 
   it('sends system prompt + prior turns for both non-stream and stream', async () => {
     const { client, calls } = fakeClient();
+    // 默认系统提示由内核拼装（契约 persona.systemPrompt）；这里替身直接给出
     const ipc = new SdkIPCClient(client as never, {
-      persona: async () => ({
-        characterId: 'test-dummy',
-        displayName: 'Pip',
-        systemPromptIdentity: 'You are Pip, a paper robot.',
-        greetings: [],
-      }),
+      defaultSystemPrompt: async () => 'You are Pip, a paper robot.',
     });
     const history = [msg('1', 'user', 'q1'), msg('2', 'assistant', 'a1')];
 

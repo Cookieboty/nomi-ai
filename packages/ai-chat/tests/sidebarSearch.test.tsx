@@ -178,7 +178,8 @@ describe('sidebar search', () => {
 
   it('settles after mount instead of refreshing the list in a loop', async () => {
     const r = mount();
-    await waitFor(() => r.getAllByTestId('history-session-item'));
+    // 全量并行（尤其 Windows runner）时首批行可能晚于默认的 1s 才出现
+    await waitFor(() => r.getAllByTestId('history-session-item'), { timeout: 5_000 });
     // 挂载时几路数据（会话、标签、磁盘历史）各自到达，各自可能触发一次刷新；全量并行时它们会晚于首批行出现，
     // 落进下面的观察窗口。先等调用数停下来（100ms 内不再增长）：真在循环刷新时它永远停不下来，这一步就会超时失败
     const sleep = (ms: number) => act(() => new Promise<void>((res) => setTimeout(res, ms)));

@@ -7,7 +7,7 @@ import path from 'node:path';
 
 import type { BuiltinCliId } from '@nomi-ai/cli-plugins';
 
-import { traceCliChild } from '../../diagnostics/cliTrace';
+import { currentCoreScope } from '../../core/scope';
 import { buildCliEnv } from '../cliEnv';
 import { resolveHarnessLaunch } from '../cliLaunch';
 import { peekCliBin, resolveCliBinCached, withCliPath } from '../detect';
@@ -60,8 +60,8 @@ export function spawnHarness(
     windowsHide: true,
     ...(launch.verbatim ? { windowsVerbatimArguments: true } : {}),
   });
-  // 诊断日志开着时记录收发原文（脱敏；环境变量不记）；关着什么都不做
-  traceCliChild(child, command, args, { tabId: opts.tabId });
+  // 当前内核的诊断日志开着时记录收发原文（脱敏；环境变量不记）；关着什么都不做
+  currentCoreScope()?.cliTrace?.tap(child, command, args, { tabId: opts.tabId });
   // 子进程先退出时，之后的 stdin 写入（NDJSON / control_response / end）会异步 EPIPE；
   // 没有监听就成了主进程 uncaughtException。轮次的失败由 close / error 事件负责（#46）
   child.stdin.on('error', () => {});
