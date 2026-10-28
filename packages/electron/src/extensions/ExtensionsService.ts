@@ -25,7 +25,6 @@ import { broadcastMascotCommand } from '../ai/mascotCommand';
 import type { AppEvents } from '../core/appEvents';
 import type { DesktopService } from '../desktop/DesktopService';
 import { t } from '../i18n';
-import { guardedHandle } from '../security/guardedIpc';
 import { canEncryptSecrets, decryptSecret, encryptSecret } from '../security/secretStorage';
 import { writePrivateFileAtomic } from '../utils/privateFile';
 
@@ -151,7 +150,6 @@ export class ExtensionsService {
   private skillsCache: { sig: string; list: SkillInfo[] } | null = null;
   private mcp: (() => McpService | undefined) | null = null;
   private registry: ToolRegistry | null = null;
-  private ipcDone = false;
   /** 最近一次「从其他工具导入」扫描结果（含明文密钥，只在主进程内存里） */
   private migrateCache = new Map<string, McpCandidate | SkillCandidate>();
   /** 用户在导入对话框里选的项目文件夹（渲染进程永远不传路径） */
@@ -968,42 +966,6 @@ export class ExtensionsService {
     this.disabledSkills.delete(name);
     this.saveSkillState();
     return name;
-  }
-
-  registerIpc(): void {
-    if (this.ipcDone) return;
-    this.ipcDone = true;
-    const h = (ch: string, fn: (...a: never[]) => unknown) =>
-      guardedHandle(
-        `ai:ext:${ch}`,
-        async (...a: unknown[]) => {
-          try {
-            return await fn(...(a as never[]));
-          } catch (err) {
-            return { __error: { code: 'ext', message: (err as Error).message } };
-          }
-        },
-        { owner: 'ExtensionsService', wrapErrors: false },
-      );
-    h('mcp-list', () => this.listMcp());
-    h('mcp-upsert', (p: never) => this.upsert(p));
-    h('mcp-remove', (id: string) => this.remove(id));
-    h('mcp-toggle', (id: string, v: boolean) => this.toggle(id, !!v));
-    h('mcp-connect', (id: string) => this.connect(id));
-    h('mcp-disconnect', (id: string) => this.disconnect(id));
-    h('mcp-import', (text: string) => this.importJson(String(text ?? '')));
-    h('skills-list', () => this.listSkills());
-    h('skill-get', (n: string) => this.getSkill(n));
-    h('skill-save', (p: never) => this.saveSkill(p));
-    h('skill-remove', (n: string) => this.removeSkill(n));
-    h('skill-toggle', (n: string, v: boolean) => this.toggleSkill(n, !!v));
-    h('skill-import', () => this.importSkillDialog());
-    h('skill-open', (n?: string) => this.openSkill(n));
-    h('skills-context', () => this.skillsContext());
-    h('migrate-scan', (o?: { pickProject?: boolean; clearProject?: boolean }) =>
-      this.migrateScan({ pickProject: !!o?.pickProject, clearProject: !!o?.clearProject }),
-    );
-    h('migrate-import', (items: MigrateChoice[]) => this.migrateImport(items));
   }
 }
 

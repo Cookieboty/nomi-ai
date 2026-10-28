@@ -2,11 +2,11 @@
  * 主进程 → 界面的事件总线（docs/design/core-host-decoupling.md §5.3、§7.1「实施约定」）。
  *
  * 服务只说「发生了什么」：`events.publish('ai:theme:changed', state)`，不知道有哪些窗口、
- * 怎么送达。送达由宿主适配器负责（Electron：`host/electronAppEvents.ts`，按今天的广播规则
- * 发给窗口）。本文件不得 import electron。
+ * 怎么送达。送达由宿主负责：Electron 上是契约事件桥（host/contract/eventBridge.ts），按表转成
+ * 契约事件（`theme.changed`），推给订阅了的窗口。本文件不得 import electron。
  *
  * 和 `core/EventBus.ts` 的区别：EventBus 是主进程内部的发布订阅；AppEvents 的订阅方在界面里，
- * 通道名就是渲染进程监听的 IPC 通道名（P1 之后由契约传输层承接）。
+ * 通道名沿用迁移前的 IPC 通道名，事件桥里登记了它对应的契约事件。
  */
 import type { Surface } from '@nomi-ai/host-ports';
 

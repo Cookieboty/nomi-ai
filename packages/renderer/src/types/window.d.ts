@@ -3,8 +3,6 @@
  * @file Define the type of the global window object.
  * @module types/window
  */
-import type { IpcApi } from '@nomi-ai/types';
-
 interface Window {
   /**
    * Asteroids game class.
@@ -31,9 +29,4 @@ interface Window {
    * @type {boolean}
    */
   isInitialized?: boolean;
-  /**
-   * Electron API
-   * @type {IpcApi}
-   */
-  electronAPI: IpcApi;
 }

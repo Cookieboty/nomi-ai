@@ -21,8 +21,6 @@ import { app, protocol, safeStorage, session, shell } from 'electron';
 
 import { getAgentProgressService, initAgentProgressService } from '../agents/AgentProgressService';
 import { startAIRuntime, type AIRuntimeBootHandle } from '../ai/AIRuntimeBoot';
-import { ClipboardGateway } from '../ai/ClipboardGateway';
-import { ScreenCapture } from '../ai/ScreenCapture';
 import { TtsElectronNativeProvider } from '../ai/TtsElectronNativeProvider';
 import { getCharacterPackService } from '../character/CharacterPackService';
 import { registerChatAssetProtocol } from '../chat/assetProtocol';
@@ -47,12 +45,7 @@ import { initExtensionsService } from '../extensions/ExtensionsService';
 import { getGatewayService, initGatewayService } from '../gateway/GatewayService';
 import { harnessGateway } from '../gateway/harnessGateway';
 import { revokeLegacyGlobalConfig, type RevokeLegacyResult } from '../gateway/revokeLegacy';
-import {
-  gatewayTerminalSource,
-  initTerminalCommands,
-  registerTerminalIpc,
-} from '../gateway/TerminalCommands';
-import { IpcRegistry } from '../handlers/ipc/IpcRegistry';
+import { gatewayTerminalSource, initTerminalCommands } from '../gateway/TerminalCommands';
 import {
   APP_EVENT_BRIDGE,
   createAppRouter,
@@ -61,8 +54,8 @@ import {
   type ContractEventBridge,
 } from '../host/contract';
 import { serveContractOverIpc } from '../host/contractIpc';
-import { createElectronAppEvents } from '../host/electronAppEvents';
 import { createElectronPorts, lazyWindowHost } from '../host/electronPorts';
+import { MascotWindowActions } from '../host/mascotWindowActions';
 import { t as tr } from '../i18n';
 import { getLocale, LocaleService, onLocaleChange } from '../i18n';
 import { getIslandService, initIslandService } from '../island/IslandService';
@@ -71,7 +64,7 @@ import { initLocalHubService } from '../local/LocalHubService';
 import { getLocalModelService, initLocalModelService } from '../local/LocalModelService';
 import { getMemoryService, initMemoryService } from '../memory/MemoryService';
 import { OnboardingService } from '../onboarding/OnboardingService';
-import { registerPersonaIpc } from '../persona/ipc';
+import { forwardPersonaChanges } from '../persona/events';
 import {
   neutralPersonaSource,
   packPersonaSource,
@@ -94,6 +87,7 @@ import {
 } from '../startup/startupPlan';
 import { StartupService } from '../startup/StartupService';
 import { ThemeService } from '../theme/ThemeService';
+import { initTtsService } from '../tts/TtsService';
 import {
   getGatewayRequestLog,
   initGatewayRequestLog,
@@ -157,10 +151,8 @@ export class Application implements IApplication {
   /** 契约处理函数在调用时读取的服务实例（host/contract/services.ts），创建服务时登记 */
   private readonly contractServices = createContractServices();
   private errorHandler!: GlobalErrorHandler;
-  private ipcRegistry!: IpcRegistry;
   private bootstrapManager!: BootstrapManager;
   private aiRuntime?: AIRuntimeBootHandle;
-  private clipboardGateway?: ClipboardGateway;
   private trayManager?: TrayManager;
   private startupService?: StartupService;
   /** start() 走完后才为 true：之前的 macOS activate 等事件不应触发「打开主界面」 */
@@ -240,12 +232,11 @@ export class Application implements IApplication {
         ports: this.ports,
         events: this.events,
       });
-      locale.registerIpc();
       // 契约处理函数在调用时读取的服务实例（host/contract/services.ts）
       const services = this.contractServices;
       services.windowManager = this.windowManager;
       services.config = this.configService;
-      services.ipcRegistry = this.ipcRegistry;
+      services.windowActions = new MascotWindowActions(this.logger, this.windowManager);
       services.locale = locale;
       // 应用图标变体（窗口 / 任务栏 / Dock / 托盘 / 通知）
       initAppIcon(path.join(app.getPath('userData'), 'app-icon.json'));
@@ -271,20 +262,17 @@ export class Application implements IApplication {
       // 角色包：userData/character-pack → resources/character-pack → 内置包（默认 characters/nomi）
       const characterPack = getCharacterPackService({ ports: this.ports });
       characterPack.init(protocol, this.logger);
-      characterPack.registerIpc();
       services.characterPack = characterPack;
       // 角色人设唯一来源（当前角色包 → 内置角色包），须早于 AI runtime 与界面窗口
       this.startPersona(characterPack);
 
       // Auto-update (electron-updater → GitHub Releases). Packaged builds only.
       const updates = getUpdateService(this.logger, { ports: this.ports, events: this.events });
-      updates.registerIpc();
       services.updates = updates;
       updates.start();
 
       // 桌面能力（文件工具的权限 / 审计 / 撤销）：先于 AI runtime，插件注册工具时要用
       const desktop = getDesktopService(this.logger, { ports: this.ports, events: this.events });
-      desktop.registerIpc();
       services.desktop = desktop;
       desktop.attachWindows({
         main: () => this.windowManager.getMainWindow(),
@@ -313,7 +301,6 @@ export class Application implements IApplication {
           return typeof resp?.content === 'string' ? resp.content : '';
         },
       });
-      kb.registerIpc();
       services.kb = kb;
       this.lifecycle.register({ name: 'knowledge', stop: () => kb.dispose() });
       this.lifecycle.register({ name: 'reminders', stop: () => desktop.reminders.stop() });
@@ -338,7 +325,6 @@ export class Application implements IApplication {
         embed: (texts) => kb.embedTexts(texts),
         facade: () => (this.aiRuntime?.client.memory as never) ?? null,
       });
-      mem.registerIpc();
       services.mem = mem;
 
       // 主动日程：免打扰 / 系统通知策略、定时任务（每日简报）、主动聊天（默认关闭）
@@ -361,7 +347,6 @@ export class Application implements IApplication {
         memory: async (q) => (await mem.context(q)).text,
         openChat: () => void this.windowManager.createAiChatWindow(),
       });
-      sched.registerIpc();
       services.sched = sched;
 
       // 图片发送前的云端告知 / 仅本地检查；顺带清掉旧版本的屏幕记忆目录
@@ -370,7 +355,6 @@ export class Application implements IApplication {
         logger: this.logger as never,
         desktop,
       });
-      scr.registerIpc();
       services.screen = scr;
 
       // 扩展：GUI 管理的 MCP 服务器 + SKILL.md 技能包
@@ -382,7 +366,6 @@ export class Application implements IApplication {
         ports: this.ports,
         events: this.events,
       });
-      ext.registerIpc();
       services.ext = ext;
 
       // 本地数据导出；本地模型管理（llama.cpp + Ollama）
@@ -393,7 +376,6 @@ export class Application implements IApplication {
         desktop,
         ports: this.ports,
       });
-      hub.registerIpc();
       services.localHub = hub;
       const localLlm = initLocalModelService({
         root: path.join(app.getPath('userData'), 'local'),
@@ -402,7 +384,6 @@ export class Application implements IApplication {
         gateway: () => getGatewayService(),
         events: this.events,
       });
-      localLlm.registerIpc();
       services.localModels = localLlm;
 
       // 界面主题（设置 → 通用 → 主题），对话窗口与看板娘同步
@@ -411,7 +392,6 @@ export class Application implements IApplication {
         ports: this.ports,
         events: this.events,
       });
-      themes.registerIpc();
       services.theme = themes;
       // 图片主题背景（设置 → 通用 → 主题 → 图片主题）
       const chatBg = new ChatBackgroundService({
@@ -424,7 +404,6 @@ export class Application implements IApplication {
         ports: this.ports,
         events: this.events,
       });
-      chatBg.registerIpc();
       services.chatBg = chatBg;
       // 对话窗口一体化标题栏跟随主题（窗口底色 + Windows / Linux 原生按钮配色）
       this.windowManager.chromeTheme = () => themes.get().resolved;
@@ -441,7 +420,6 @@ export class Application implements IApplication {
         },
         events: this.events,
       });
-      onboarding.registerIpc();
       services.onboarding = onboarding;
 
       // 启动后默认界面（看板娘 / 软件主界面）：设置与引导里都能改，默认看板娘（历史行为）
@@ -449,7 +427,6 @@ export class Application implements IApplication {
         file: path.join(this.ports.paths.userData(), 'startup.json'),
         events: this.events,
       });
-      startup.registerIpc();
       services.startup = startup;
       this.startupService = startup;
       // 看板娘显示开关（工具栏「关闭看板娘」/ 设置里重新打开）：立即显隐，隐藏时静音
@@ -486,7 +463,6 @@ export class Application implements IApplication {
         openChat: () => void this.windowManager.createAiChatWindow(),
         logger: this.logger as never,
       });
-      island.registerIpc();
       services.island = island;
 
       // 用量与计费：Nomi 对话 / 本地路由 / 编程工具会话日志，全部只存本机
@@ -523,7 +499,6 @@ export class Application implements IApplication {
           return true;
         },
       });
-      usage.registerIpc();
       services.usage = usage;
       usage.start();
 
@@ -544,7 +519,6 @@ export class Application implements IApplication {
           return u.taskCostLine({ source: q.source as never, session: q.session, since: q.since });
         },
       });
-      agents.registerIpc();
       services.agents = agents;
       if (agents.state().settings.enabled) agents.start();
 
@@ -563,7 +537,6 @@ export class Application implements IApplication {
         },
         onUpdated: () => void cliPlugins.refreshVersions(),
       });
-      cliUpdate.registerIpc();
       services.cliUpdate = cliUpdate;
       // 编程助手插件宿主（docs/design/cli-plugin-architecture.md §5、§7）：清单校验、有效能力、注册表快照
       const cliPlugins = initCliPluginHost({
@@ -592,7 +565,6 @@ export class Application implements IApplication {
         },
         onExternalRemoved: (id) => harness.externalRemoved(id),
       });
-      cliPlugins.registerIpc();
       services.cliPlugins = cliPlugins;
       void cliPlugins.start();
       // 终端里升级了 CLI 也要发现：每 30 分钟重读一次版本（每个 CLI 起一次 --version）
@@ -651,7 +623,6 @@ export class Application implements IApplication {
           return k ? (k.name ?? k.masked) : undefined;
         },
       });
-      quality.registerIpc();
       services.quality = quality;
       this.lifecycle.register({ name: 'model-quality', stop: () => quality.dispose() });
       // 网关正文追踪目录（跟随诊断日志开关）；旧「最近请求」导入模型质量账本一次后删除
@@ -661,7 +632,6 @@ export class Application implements IApplication {
         traceOn: () => diagnostics.bodyTrace(),
         importLegacy: (records) => quality.importLegacy(records),
       });
-      diagnostics.registerIpc();
       services.diagnostics = diagnostics;
       this.lifecycle.register({ name: 'gateway-requests', stop: () => gatewayRequests.dispose() });
       const gateway = initGatewayService({
@@ -707,7 +677,6 @@ export class Application implements IApplication {
         },
         broadcast: (channel, payload) => this.events.publish(channel, payload),
       });
-      gateway.registerIpc();
       services.gateway = gateway;
       // 先迁移（读旧存储里「启用中」的标记），再撤销旧版本写进全局配置的东西（会清掉这些标记）
       gateway.init();
@@ -719,7 +688,6 @@ export class Application implements IApplication {
         source: gatewayTerminalSource(gateway),
         logger: this.logger as never,
       });
-      registerTerminalIpc(terminal);
       services.terminal = terminal;
       terminal.refresh();
       gateway.onChange(() => terminal.refresh());
@@ -804,7 +772,6 @@ export class Application implements IApplication {
           return typeof resp?.content === 'string' ? resp.content : '';
         },
       });
-      accounts.registerIpc();
       services.accounts = accounts;
       const accountLogin = new AccountLogin({
         accounts,
@@ -812,10 +779,8 @@ export class Application implements IApplication {
         emit: loginBroadcaster(this.events),
         ports: this.ports,
       });
-      accountLogin.registerIpc();
       services.accountLogin = accountLogin;
       this.lifecycle.register({ name: 'cli-account-login', stop: () => accountLogin.dispose() });
-      harness.registerIpc();
       services.harness = harness;
       this.lifecycle.register({ name: 'cli-harness', stop: () => harness.dispose() });
       // Nomi 对话的权限模式（输入栏的权限按钮）作用在 Nomi 自己的工具上；「完全放开」不适用
@@ -831,7 +796,6 @@ export class Application implements IApplication {
         gateway: harnessGateway(gateway),
         events: this.events,
       });
-      delegate.registerIpc();
       services.delegate = delegate;
       const history = initSessionHistoryService({
         logger: this.logger as never,
@@ -859,7 +823,6 @@ export class Application implements IApplication {
           return accounts.list(backend).length > 1 ? a : { id: a.id };
         },
       });
-      history.registerIpc();
       services.history = history;
       // 监视器汇总 Nomi 标签；任一标签一轮结束 → 看板娘 / 灵动岛
       agents.attachHarness({
@@ -915,7 +878,6 @@ export class Application implements IApplication {
         openChat: () => this.windowManager.createAiChatWindow(),
         events: this.events,
       });
-      voice.registerIpc();
       services.voice = voice;
       // 麦克风：只允许本应用窗口申请「音频」采集（不允许摄像头 / 屏幕）；
       // 剪贴板只放行写入（复制按钮用 navigator.clipboard.writeText），读取仍拒绝；
@@ -986,15 +948,13 @@ export class Application implements IApplication {
     this.contractServices.persona = persona;
     characterPack.onChange(() => persona.reload());
     onLocaleChange(() => persona.localeChanged());
-    registerPersonaIpc(persona, {
-      broadcast: (channel, payload) => this.events.publish(channel, payload),
-    });
+    forwardPersonaChanges(persona, (channel, payload) => this.events.publish(channel, payload));
     const p = persona.get();
     this.logger.info(`persona: ${p.characterId} (${p.displayName})`);
   }
 
   /**
-   * 启动 AI runtime（插件宿主 + IPC 通道 + seams）
+   * 启动 AI runtime（插件宿主 + AI 门面的契约处理函数）
    *
    * 幂等：重复调用会直接返回。失败时记录日志但不抛出——AI 功能对应用启动
    * 不是强依赖；后续可以通过 `getAIRuntime()` 判断可用性。
@@ -1005,15 +965,9 @@ export class Application implements IApplication {
       return;
     }
     try {
-      this.clipboardGateway = new ClipboardGateway();
-      const screen = new ScreenCapture();
       const ttsEngine = new AdvancedTTSEngine();
       const electronNativeTts = new TtsElectronNativeProvider({ engine: ttsEngine });
       this.aiRuntime = await startAIRuntime(this.logger, {
-        seams: {
-          clipboard: this.clipboardGateway,
-          screen,
-        },
         ttsProviders: [electronNativeTts],
         // 消息里的附件正文 / 委派汇报按实际接收者过「仅本地 / 云端首次发送」（#149 / #117）
         // signal：用户在确认等待中停止该轮时撤掉还没答复的确认（#160）
@@ -1154,12 +1108,6 @@ export class Application implements IApplication {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.warn('AI runtime 停止时出现异常', { error: errorMessage });
     }
-    try {
-      this.clipboardGateway?.dispose();
-    } catch {
-      /* ignore */
-    }
-    this.clipboardGateway = undefined;
   }
 
   /**
@@ -1181,9 +1129,6 @@ export class Application implements IApplication {
       await this.configService.flushOnQuit();
       // 其余服务排队中的异步私有文件写入（Windows 占用重试不挡主进程，#154）也等它们落盘
       await whenPrivateWritesIdle();
-
-      // 清理IPC处理器
-      this.ipcRegistry.cleanup();
 
       // 关闭所有窗口
       this.windowManager.closeAllWindows();
@@ -1228,18 +1173,8 @@ export class Application implements IApplication {
       return new LoggerService({ ports: this.ports });
     });
     this.logger = this.container.get<LoggerService>('logger');
-    // 旧通道照常按窗口广播；在桥接表里的通道同时发成契约事件（router 建好后 attach，见 startContract）
-    this.contractEvents = createContractEventBridge(
-      createElectronAppEvents({
-        windows: {
-          getMainWindow: () => windowManager()?.getMainWindow() ?? null,
-          getAiChatWindow: () => windowManager()?.getAiChatWindow() ?? null,
-        },
-        logger: this.logger,
-      }),
-      APP_EVENT_BRIDGE,
-      this.logger,
-    );
+    // 应用事件 → 契约事件（router 建好后 attach，见 startContract）；只推给订阅了的窗口
+    this.contractEvents = createContractEventBridge(null, APP_EVENT_BRIDGE, this.logger);
     this.container.registerSingleton(APP_EVENTS, () => this.contractEvents);
     this.events = this.container.get(APP_EVENTS);
 
@@ -1264,21 +1199,9 @@ export class Application implements IApplication {
 
     // 注册窗口管理器（单例）
     this.container.registerSingleton('windowManager', () => {
-      return new WindowManager(this.logger, this.configService);
+      return new WindowManager(this.logger, this.configService, this.events);
     });
     this.windowManager = this.container.get<WindowManager>('windowManager');
-
-    // 注册IPC注册器（单例）
-    this.container.registerSingleton('ipcRegistry', () => {
-      return new IpcRegistry({
-        logger: this.logger,
-        configService: this.configService,
-        cacheService: this.cacheService,
-        windowManager: this.windowManager,
-        ports: this.ports,
-      });
-    });
-    this.ipcRegistry = this.container.get<IpcRegistry>('ipcRegistry');
 
     // 注册启动管理器（单例）
     this.container.registerSingleton('bootstrapManager', () => {
@@ -1310,12 +1233,13 @@ export class Application implements IApplication {
       dependencies: ['load-config'],
     });
 
-    // 关键任务：IPC处理器初始化
+    // 关键任务：朗读配置服务（契约 `tts.*`）与旧配置清理
     this.bootstrapManager.addTask({
-      name: 'initialize-ipc',
+      name: 'init-config-services',
       priority: 'critical',
       execute: async () => {
-        this.ipcRegistry.initialize();
+        initTtsService({ paths: this.ports.paths, logger: this.logger });
+        this.migrateLegacyDisplayMode();
       },
       dependencies: ['load-config'],
     });
@@ -1466,6 +1390,21 @@ export class Application implements IApplication {
     }
   }
 
+  /** 旧版 displayMode（'live2d' / 'custom-image'）不再使用：读取到就删掉，避免残留配置 */
+  private migrateLegacyDisplayMode(): void {
+    try {
+      const legacy = this.configService.get<unknown>('displayMode', undefined);
+      if (legacy === undefined) return;
+      this.configService.set('displayMode', undefined);
+      void this.configService.save();
+      this.logger.info('已清理旧的显示模式配置', { legacy });
+    } catch (error) {
+      this.logger.warn('清理旧显示模式配置失败', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
   /**
    * 获取应用状态
    */
@@ -1475,7 +1414,6 @@ export class Application implements IApplication {
       mainWindow: !!this.windowManager.getMainWindow(),
       aiChatWindow: !!this.windowManager.getAiChatWindow(),
       config: this.configService.getConfig(),
-      ipc: this.ipcRegistry.getStats(),
       cache: this.cacheService.getStats(),
       bootstrap: {
         taskStatus: this.bootstrapManager.getTaskStatus(),

@@ -6,29 +6,21 @@
  * 2. 启动 IgPluginHost + AI SDK providers，得到 `AIClient`；
  * 3. 用应用契约实现 AI 门面（`createAiHandlers`：`ai.*` 处理函数 + 事件），交给宿主与 P1b 各域的
  *    处理函数一起组装成 router（host/contract/index.ts 的 `createAppRouter`），由组合根经契约 IPC 传输
- *    （host/contractIpc.ts，preload 的 `window.nomiTransport`）暴露给视图；另挂
- *    `CapabilityIpcServer`（seams 通道）、`AiChatCompat`（旧通道兼容）；
+ *    （host/contractIpc.ts，preload 的 `window.nomiTransport`）暴露给视图；供应商的契约过程
+ *    （`providers.*`）由宿主直接调 `providers`（ProviderService）；
  * 4. 可选：把遗留 `AdvancedTTSEngine` 注册为 `electron-native` TtsProvider（P8-5 尾巴）；
  * 5. 在 `dispose()` 时逆序清理。
- *
- * 依赖注入通过 `AIRuntimeBootOptions.seams` 提供；未提供的 seam 只是 IPC 通道会返回
- * `SEAM_NOT_INJECTED`，不影响业务门面。
  */
 
 import {
-  AiChatCompat,
-  CapabilityIpcServer,
   createAiHandlers,
   GATEWAY_PROVIDER_ID,
-  ProviderIpcServer,
   ProviderService,
   ProviderStore,
   createAiSdkBooter,
   createSafeStorageCipher,
   llmProvidersFromEnv,
   providerOverrideFromEnv,
-  createElectronIpcAdapter,
-  createGuardedIpcAdapter,
   createElectronLifecycle,
   runtime,
   type AiHandlersHandle,
@@ -46,7 +38,6 @@ import { getExtensionsService } from '../extensions/ExtensionsService';
 import { getGatewayService } from '../gateway/GatewayService';
 import { createPersonaIdentityPlugin } from '../persona/igPlugin';
 import { getPersonaService } from '../persona/PersonaService';
-import { isTrustedAiSender } from '../security/ipcSenderGuard';
 import type { ILoggerService } from '../services/LoggerService';
 import { getUsageService } from '../usage/UsageService';
 
@@ -54,20 +45,10 @@ import { splitGatewayUsage } from './gatewayUsage';
 import { mascotIgPlugins } from './mascotBridge';
 import type { TtsProvider } from './TtsElectronNativeProvider';
 
-export interface AIRuntimeBootSeams {
-  clipboard?: unknown;
-  screen?: unknown;
-}
-
 export interface AIRuntimeBootOptions {
   profile?: string;
   home?: string;
   booter?: Booter;
-  seams?: AIRuntimeBootSeams;
-  /** 是否启用旧 `ai-chat:*` 通道兼容层，默认 true */
-  enableLegacyCompat?: boolean;
-  /** 是否挂 CapabilityIpcServer（若 seams 均未注入，可跳过），默认 true */
-  enableCapabilityIpc?: boolean;
   /** 是否把 AIClient 事件发布为契约事件（推给订阅了的窗口），默认 true */
   enableEventBroadcast?: boolean;
   /**
@@ -75,7 +56,7 @@ export interface AIRuntimeBootOptions {
    * [TtsElectronNativeProvider](file:///./TtsElectronNativeProvider.ts)）。
    *
    * 语义：
-   *   - 注入时机在 `client` 就绪之后、契约传输 / CapabilityIpc 挂载之前；
+   *   - 注入时机在 `client` 就绪之后、契约处理函数建好之前；
    *   - 若当前 profile 未装载 `bundle-ig-electron-caps` 的 `TtsPlugin`，
    *     `client.tts.register` 会抛 `SEAM_NOT_INJECTED`，本函数**吞掉**该错误
    *     并 `logger.warn` 提示（避免阻塞主流程）；其它异常照常向外抛。
@@ -232,11 +213,6 @@ export async function startAIRuntime(
     tryRegisterTtsProviders(client, opts.ttsProviders, logger);
   }
 
-  // 所有 ai:* 通道统一套 sender origin 白名单（file:// 生产页面 / 127.0.0.1 dev server）
-  const adapter = createGuardedIpcAdapter(createElectronIpcAdapter(), (event) =>
-    isTrustedAiSender(event),
-  );
-
   // AI 门面：应用契约的 ai.* 处理函数 + 事件。router 与传输由组合根组装（host/contract），
   // 调用者判定（sender 白名单 + surface）在传输层，dangerous 过程只接受受信调用者
   const ai = createAiHandlers({
@@ -246,33 +222,6 @@ export async function startAIRuntime(
     publishEvents: opts.enableEventBroadcast !== false,
   });
   const procedures = Object.keys(appContract.procedures).filter((n) => n.startsWith('ai.'));
-
-  let capability: CapabilityIpcServer | undefined;
-  if (opts.enableCapabilityIpc !== false) {
-    const seams = opts.seams ?? {};
-    capability = new CapabilityIpcServer({
-      adapter,
-      logger: runtimeLogger,
-      injector: {
-        getScreen: () => seams.screen,
-        getClipboard: () => seams.clipboard,
-      },
-    });
-    capability.start();
-  }
-
-  const providerIpc = new ProviderIpcServer({
-    adapter,
-    service: providerService,
-    logger: runtimeLogger,
-  });
-  providerIpc.start();
-
-  let compat: AiChatCompat | undefined;
-  if (opts.enableLegacyCompat !== false) {
-    compat = new AiChatCompat({ adapter, client, logger: runtimeLogger });
-    compat.start();
-  }
 
   logger.info(`AI runtime ready (profile=${profile})`, {
     procedures: procedures.length,
@@ -314,25 +263,10 @@ export async function startAIRuntime(
     ai,
     async dispose() {
       try {
-        providerIpc.stop();
         providerStore.flush();
         registry?.dispose();
       } catch (err) {
-        logger.warn('ProviderIpcServer.stop threw', {
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-      try {
-        compat?.stop();
-      } catch (err) {
-        logger.warn('AiChatCompat.stop threw', {
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-      try {
-        capability?.stop();
-      } catch (err) {
-        logger.warn('CapabilityIpcServer.stop threw', {
+        logger.warn('provider store flush threw', {
           error: err instanceof Error ? err.message : String(err),
         });
       }

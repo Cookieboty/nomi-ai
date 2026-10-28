@@ -10,7 +10,6 @@ import { AcpConnection, AcpTimeoutError } from '../../../src/cli/gemini/acp';
 jest.mock('electron', () => ({
   app: { getPath: () => '/tmp', getLocale: () => 'zh-CN' },
   BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: jest.fn(), removeHandler: jest.fn() },
 }));
 
 function fakeChild() {

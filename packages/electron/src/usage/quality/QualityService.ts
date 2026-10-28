@@ -27,7 +27,6 @@ import {
 
 import type { AppEvents } from '../../core/appEvents';
 import { t } from '../../i18n';
-import { guardedHandle } from '../../security/guardedIpc';
 import { writePrivateFile } from '../../utils/privateFile';
 
 import {
@@ -377,22 +376,6 @@ export class QualityService {
       this.d.events.publish(QUALITY_IPC.changed, null);
     }, BROADCAST_MS);
     (this.broadcastTimer as { unref?: () => void }).unref?.();
-  }
-
-  registerIpc(): void {
-    const handle = (ch: string, fn: (...a: unknown[]) => unknown) =>
-      guardedHandle(ch, fn, { owner: 'QualityService' });
-    handle(QUALITY_IPC.query, (q) => this.query(q));
-    handle(QUALITY_IPC.series, (q) => this.series(q));
-    handle(QUALITY_IPC.requests, (q) => this.requests(q));
-    handle(QUALITY_IPC.settingsGet, () => this.getSettings());
-    handle(QUALITY_IPC.settingsSet, (s) => this.setSettings(s));
-    handle(QUALITY_IPC.clear, async () => {
-      await this.clear();
-      return true;
-    });
-    handle(QUALITY_IPC.export, (r) => this.exportCsv(r));
-    handle(QUALITY_IPC.facets, (q) => this.facets(q));
   }
 
   dispose(): void {

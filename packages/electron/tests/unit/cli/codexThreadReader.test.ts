@@ -19,7 +19,6 @@ import { SessionHistoryService } from '../../../src/cli/SessionHistoryService';
 
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { removeHandler: () => undefined, handle: () => undefined },
 }));
 
 // 崩溃 / 回退路径会打 warn 日志，测试里静音

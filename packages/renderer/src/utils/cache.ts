@@ -3,19 +3,11 @@
  * @module cache
  */
 
-import { type IpcApi } from '@nomi-ai/types';
 import { createLogger } from '@nomi-ai/ui';
 
 import { api, hasTransport } from '../services/api';
 
 const log = createLogger('Cache');
-
-// 声明全局电子API类型
-declare global {
-  interface Window {
-    electronAPI: IpcApi;
-  }
-}
 
 /**
  * 缓存前缀

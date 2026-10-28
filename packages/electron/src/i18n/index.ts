@@ -16,7 +16,6 @@ import {
 } from '@nomi-ai/i18n';
 
 import type { AppEvents } from '../core/appEvents';
-import { guardedHandle } from '../security/guardedIpc';
 
 export type Locale = 'zh-CN' | 'en';
 export type LocalePref = CatalogLocalePref;
@@ -103,12 +102,5 @@ export class LocaleService {
   /** 英文词典（稳定 key → 译文）：为诊断和插件接口保留的统一查询能力 */
   dict(): Record<string, string> {
     return getDictionary('en');
-  }
-
-  registerIpc(): void {
-    const opts = { owner: 'LocaleService', wrapErrors: false };
-    guardedHandle('ai:locale:get', () => this.get(), opts);
-    guardedHandle('ai:locale:set', (p) => this.set(p), opts);
-    guardedHandle('ai:locale:dict', () => this.dict(), opts);
   }
 }

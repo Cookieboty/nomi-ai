@@ -1,8 +1,8 @@
 /**
  * D1：把契约接到共享包的注入点上（只属于 D1，见 ../api.ts）。
  *
- * `@nomi-ai/voice` 不 import 契约：这里把 `voice.*` 过程与事件包成它的 `VoiceApi`（形状与旧的
- * `voiceApi(window.aiIPC)` 一致），经 `setVoiceBackend` 注入。流式识别（`voice.streamStart`）的第一条
+ * `@nomi-ai/voice` 不 import 契约：这里把 `voice.*` 过程与事件包成它的 `VoiceApi`，经
+ * `setVoiceBackend` 注入。流式识别（`voice.streamStart`）的第一条
  * chunk 是启动结果，之后的临时结果 / 错误转给 `onStream` 的订阅者（控制器按会话 id 过滤）。
  *
  * 看板娘窗口（renderer）有一份同样的适配：两个视图各自只有自己的 `services/api.ts` 与 hostBackends。

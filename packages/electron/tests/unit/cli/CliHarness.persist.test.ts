@@ -12,14 +12,8 @@ import os from 'node:os';
 import path from 'node:path';
 
 const sent: string[] = [];
-const handlers = new Map<string, (event: unknown, ...args: unknown[]) => unknown>();
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: {
-    removeHandler: () => undefined,
-    handle: (ch: string, fn: (event: unknown, ...args: unknown[]) => unknown) =>
-      handlers.set(ch, fn),
-  },
   dialog: { showOpenDialog: async () => ({ canceled: true, filePaths: [] }) },
 }));
 
@@ -62,17 +56,8 @@ describe('CliHarnessService persistence', () => {
 
   it('window broadcasts are coalesced per microtask turn', async () => {
     const h = make();
-    h.registerIpc();
-    // 对话窗口挂载时先调一次 ai:harness:tabs，成为推送接收方
-    const chat = {
-      id: 1,
-      getURL: () => 'file:///app/ai-chat/index.html',
-      isDestroyed: () => false,
-      send: (c: string) => sent.push(c),
-      once: () => undefined,
-    };
-    await handlers.get('ai:harness:tabs')!({ sender: chat });
-    await Promise.resolve();
+    // 推送经应用事件总线（事件桥转成契约事件 harness.*）
+    h.attachEvents({ publish: (channel) => sent.push(channel) });
     sent.length = 0;
     for (let i = 0; i < 5; i++) h.createTab({ backend: 'claude' });
     expect(sent.filter((c) => c === 'ai:harness:tabs')).toHaveLength(0);

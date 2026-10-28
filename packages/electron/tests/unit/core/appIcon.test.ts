@@ -7,7 +7,6 @@ import path from 'node:path';
 jest.mock('electron', () => ({
   app: { isPackaged: false, on: jest.fn() },
   BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: jest.fn(), removeHandler: jest.fn() },
   nativeImage: { createFromPath: jest.fn() },
 }));
 

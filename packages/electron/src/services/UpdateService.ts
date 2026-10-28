@@ -23,7 +23,6 @@ import {
 } from 'electron-updater';
 
 import type { AppEvents } from '../core/appEvents';
-import { guardedHandle } from '../security/guardedIpc';
 import { writePrivateFileAtomicAsync } from '../utils/privateFile';
 
 import { type ILoggerService } from './LoggerService';
@@ -191,22 +190,6 @@ export class UpdateService {
 
   getState(): UpdateState {
     return { ...this.state };
-  }
-
-  registerIpc(): void {
-    const opts = { owner: 'UpdateService', wrapErrors: false };
-    guardedHandle(CHANNEL.get, () => this.getState(), opts);
-    guardedHandle(CHANNEL.check, () => this.check(), opts);
-    guardedHandle(CHANNEL.download, () => this.download(), opts);
-    guardedHandle(CHANNEL.install, () => this.install(), opts);
-    guardedHandle(
-      CHANNEL.setAutoCheck,
-      (on) => {
-        this.setAutoCheck(on === true);
-        return this.getState();
-      },
-      opts,
-    );
   }
 
   /** Wire updater events and schedule launch / periodic checks. Safe to call once. */

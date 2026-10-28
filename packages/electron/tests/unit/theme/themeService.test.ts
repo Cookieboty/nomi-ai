@@ -1,9 +1,4 @@
 jest.unmock('fs');
-// ThemeService 本身不再 import electron；只有 registerIpc 经 guardedIpc 用到 ipcMain
-jest.mock('electron', () => ({
-  ipcMain: { handle: jest.fn(), removeHandler: jest.fn() },
-}));
-
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';

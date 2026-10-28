@@ -10,7 +10,6 @@ jest.unmock('node:path');
 
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: jest.fn(), removeHandler: jest.fn() },
 }));
 
 import { spawn } from 'node:child_process';

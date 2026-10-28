@@ -6,7 +6,7 @@
  * `waitForDebuggerOnStart` 自动附加（Playwright `_electron.launch` 的 CDP 连接、
  * 远程调试等），该阶段会与调试器恢复执行发生竞态：index.html 照常加载完毕，
  * 但 Electron 的渲染侧初始化（含 preload、内部 IPC 处理）从未运行：无
- * `window.electronAPI` / `window.aiIPC`，主进程发起的 `executeJavaScript` 也永远得不到
+ * `window.nomiTransport` / `window.nomiHost`，主进程发起的 `executeJavaScript` 也永远得不到
  * 回应（它依赖同一套渲染侧内部 IPC）。表现即「首启空白窗口」。
  *
  * 处理：每次主框架 `did-finish-load` 后在主世界探测 preload 暴露的全局；超时或缺失时

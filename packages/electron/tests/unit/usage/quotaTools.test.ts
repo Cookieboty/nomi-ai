@@ -3,7 +3,6 @@
  */
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: jest.fn(), removeHandler: jest.fn() },
 }));
 
 import { BUILTIN_MANIFESTS } from '@nomi-ai/cli-plugins';

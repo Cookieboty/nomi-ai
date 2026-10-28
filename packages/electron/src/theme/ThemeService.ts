@@ -14,7 +14,6 @@ import path from 'node:path';
 import type { HostPorts } from '@nomi-ai/host-ports';
 
 import type { AppEvents } from '../core/appEvents';
-import { guardedHandle } from '../security/guardedIpc';
 
 /** 界面监听的主题变化通道 */
 export const THEME_CHANGED = 'ai:theme:changed';
@@ -117,11 +116,5 @@ export class ThemeService {
     const s = this.get();
     for (const fn of this.listeners) fn(s);
     this.events.publish(THEME_CHANGED, s);
-  }
-
-  registerIpc(): void {
-    const opts = { owner: 'ThemeService', wrapErrors: false };
-    guardedHandle('ai:theme:get', () => this.get(), opts);
-    guardedHandle('ai:theme:set', (id) => this.set(id), opts);
   }
 }

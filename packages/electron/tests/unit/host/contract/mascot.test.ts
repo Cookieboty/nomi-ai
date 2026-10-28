@@ -86,7 +86,7 @@ function fakes() {
     scaleWheel: jest.fn(() => scale(0.7)),
     scaleReset: jest.fn(() => scale(0.5)),
   };
-  const windowIpc = {
+  const windowActions = {
     quitApp: jest.fn(),
     setAlwaysOnTop: jest.fn(),
     moveWindow: jest.fn(),
@@ -99,9 +99,8 @@ function fakes() {
   const store: Record<string, unknown> = { modelName: 'nomi' };
   return {
     controller,
-    windowIpc,
+    windowActions,
     windowManager: { mascotController: controller as unknown },
-    ipcRegistry: { getHandler: jest.fn((n: string) => (n === 'window' ? windowIpc : undefined)) },
     config: {
       get: jest.fn((k: string, d?: unknown) => (k in store ? store[k] : d)),
       set: jest.fn((k: string, v: unknown) => {
@@ -139,7 +138,7 @@ function setup(surface: Surface = 'mascot', trusted = true) {
   const f = fakes();
   const services: ContractServices = Object.assign(createContractServices(), {
     windowManager: f.windowManager,
-    ipcRegistry: f.ipcRegistry,
+    windowActions: f.windowActions,
     config: f.config,
     characterPack: f.characterPack,
     persona: f.persona,
@@ -213,7 +212,7 @@ describe('host/contract/mascot', () => {
     }
   });
 
-  it('看板娘窗口：旧窗口通道、模型名、角色包、人设、平台', async () => {
+  it('看板娘窗口：窗口操作、模型名、角色包、人设、平台', async () => {
     const { f, api, close } = setup('mascot');
     try {
       await api.window.quit();
@@ -225,10 +224,10 @@ describe('host/contract/mascot', () => {
       expect(await api.window.openAiChat()).toEqual({ success: true });
       expect(await api.window.openTaskBoard()).toEqual({ success: false, error: 'boom' });
       expect(await api.window.platform()).toBe('linux');
-      expect(f.windowIpc.quitApp).toHaveBeenCalled();
-      expect(f.windowIpc.setAlwaysOnTop).toHaveBeenCalledWith(false);
-      expect(f.windowIpc.moveWindow).toHaveBeenCalledWith(5, -5);
-      expect(f.windowIpc.setPosition).toHaveBeenCalledWith(1, 2);
+      expect(f.windowActions.quitApp).toHaveBeenCalled();
+      expect(f.windowActions.setAlwaysOnTop).toHaveBeenCalledWith(false);
+      expect(f.windowActions.moveWindow).toHaveBeenCalledWith(5, -5);
+      expect(f.windowActions.setPosition).toHaveBeenCalledWith(1, 2);
 
       expect(await api.mascot.getSavedModel()).toBe('nomi');
       await api.mascot.saveModel({ modelName: '' });
@@ -289,7 +288,7 @@ describe('host/contract/mascot', () => {
       await expect(chat.api.window.quit()).rejects.toMatchObject({ code: 'FORBIDDEN' });
       await expect(chat.api.mascot.getSavedModel()).rejects.toMatchObject({ code: 'FORBIDDEN' });
       expect(chat.f.controller.reportHit).not.toHaveBeenCalled();
-      expect(chat.f.windowIpc.quitApp).not.toHaveBeenCalled();
+      expect(chat.f.windowActions.quitApp).not.toHaveBeenCalled();
     } finally {
       chat.close();
     }

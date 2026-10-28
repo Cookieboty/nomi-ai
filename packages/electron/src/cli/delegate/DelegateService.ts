@@ -19,7 +19,6 @@ import { z } from 'zod';
 import type { AppEvents } from '../../core/appEvents';
 import type { DesktopService } from '../../desktop/DesktopService';
 import { t } from '../../i18n';
-import { guardedHandle } from '../../security/guardedIpc';
 import { writePrivateFileAtomicAsync } from '../../utils/privateFile';
 import { HarnessStoppedError, type HarnessOrchestrator } from '../CliHarnessService';
 import type { HarnessGateway } from '../harness/liveTypes';
@@ -1000,24 +999,6 @@ export class DelegateService {
       if (r) return false;
     }
     return true;
-  }
-
-  registerIpc(): void {
-    const owner = 'DelegateService';
-    guardedHandle('ai:delegate:settings', () => this.settings(), { owner });
-    guardedHandle('ai:delegate:set-settings', (raw) => this.setSettings(raw), { owner });
-    guardedHandle('ai:delegate:pin', (name, turnId) => this.pin(name, turnId), { owner });
-    guardedHandle(
-      'ai:delegate:clear-pin',
-      (turnId) => {
-        this.clearPin(turnId);
-        return true;
-      },
-      { owner },
-    );
-    guardedHandle('ai:delegate:status', (taskId) => this.statusOf(String(taskId ?? '')), {
-      owner,
-    });
   }
 }
 

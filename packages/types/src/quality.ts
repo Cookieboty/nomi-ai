@@ -291,7 +291,7 @@ export interface QualitySettings {
   retentionDays: number;
 }
 
-/** IPC（主进程 QualityService，经 guardedHandle） */
+/** 质量服务的通道名：迁到契约（`quality.*`）前的旧名；`changed` 仍是应用事件通道（事件桥转成 `quality.changed`） */
 export const QUALITY_IPC = {
   query: 'ai:quality:query',
   series: 'ai:quality:series',

@@ -16,7 +16,6 @@ import { broadcastMascotCommand } from '../ai/mascotCommand';
 import type { AppEvents } from '../core/appEvents';
 import type { DesktopService } from '../desktop/DesktopService';
 import { t as tr } from '../i18n';
-import { guardedHandle } from '../security/guardedIpc';
 
 import {
   describeRepeat,
@@ -158,7 +157,6 @@ export class SchedulerService {
   private timer: ReturnType<typeof setInterval> | null = null;
   private running = new Set<string>();
   private lastChatAt = 0;
-  private ipcDone = false;
   private proactiveBusy = false;
   private readonly now: () => number;
 
@@ -573,38 +571,6 @@ export class SchedulerService {
     const t = await this.maybeProactive(true);
     if (!t) throw new SchedError('empty', tr('electron.common.couldn-t-think-of-what-to-say-this'));
     return t;
-  }
-
-  registerIpc(): void {
-    if (this.ipcDone) return;
-    this.ipcDone = true;
-    const handle = (ch: string, fn: (...a: unknown[]) => unknown) =>
-      guardedHandle(
-        ch,
-        async (...a: unknown[]) => {
-          try {
-            return await fn(...a);
-          } catch (err) {
-            if (err instanceof SchedError)
-              return { __error: { code: err.code, message: err.message } };
-            throw err;
-          }
-        },
-        { owner: 'SchedulerService', wrapErrors: false },
-      );
-    handle('ai:sched:state', () => this.state());
-    handle('ai:sched:set-settings', (p) => this.setSettings(p));
-    handle('ai:sched:upsert-task', (p) => this.upsertTask(p));
-    handle('ai:sched:toggle-task', (id, v) => this.setTaskEnabled(String(id), v === true));
-    handle('ai:sched:remove-task', (id) => this.removeTask(String(id)));
-    handle('ai:sched:run-task', (id) => this.runTask(String(id), { manual: true }));
-    handle('ai:sched:results', () => this.results());
-    handle('ai:sched:clear-results', () => this.clearResults());
-    handle('ai:sched:proactive-now', () => this.proactiveNow());
-    handle('ai:sched:activity', () => {
-      this.noteActivity();
-      return true;
-    });
   }
 }
 

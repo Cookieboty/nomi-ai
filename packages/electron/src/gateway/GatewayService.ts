@@ -45,7 +45,6 @@ import {
 } from '@nomi-ai/gateway';
 
 import { t as tr } from '../i18n';
-import { guardedHandle } from '../security/guardedIpc';
 import { writePrivateFileAtomicAsync } from '../utils/privateFile';
 
 import {
@@ -1469,7 +1468,7 @@ export class GatewayService {
     });
   }
 
-  /* ------------------------------ 界面入口（旧 IPC 与应用契约共用） ------------------------------ */
+  /* ------------------------------ 界面入口（应用契约） ------------------------------ */
 
   /** 界面改某个客户端的模型分配：只接受 nomi 与内置 CLI，未知客户端报错 */
   setAssignmentFor(client: unknown, patch: Parameters<GatewayService['setAssignment']>[1]): void {
@@ -1489,35 +1488,6 @@ export class GatewayService {
   /** 清空「最近隐藏的密钥」 */
   clearPrivacyLog(): Promise<void> {
     return this.privacyLog.clear();
-  }
-
-  registerIpc(): void {
-    const handle = (ch: string, fn: (...a: unknown[]) => unknown) =>
-      guardedHandle(ch, fn, { owner: 'GatewayService' });
-    handle('ai:gateway:state', () => this.state());
-    handle('ai:gateway:upsert-provider', (input) => this.upsertProvider(input as ProviderInput));
-    handle('ai:gateway:remove-provider', (id) => this.removeProvider(String(id)));
-    handle('ai:gateway:detect', (input) =>
-      this.detect((input ?? {}) as Parameters<GatewayService['detect']>[0]),
-    );
-    handle('ai:gateway:set-assignment', (client, patch) =>
-      this.setAssignmentFor(client, patch as Parameters<GatewayService['setAssignment']>[1]),
-    );
-    handle('ai:gateway:reset-token', (client) => this.resetTokenFor(client));
-    handle('ai:gateway:clear-learned', (id) => this.clearLearned(String(id)));
-    handle('ai:gateway:confirm-private-host', (hp) => this.confirmPrivateHost(String(hp)));
-    handle('ai:gateway:retry', () => this.retry());
-    handle('ai:gateway:set-options', (patch) =>
-      this.setOptions((patch ?? {}) as GatewayOptionsPatch),
-    );
-    handle('ai:gateway:privacy-set-action', (kind, action) => this.setPrivacyAction(kind, action));
-    handle('ai:gateway:privacy-add-secret', (input) => this.addPrivacySecret(input));
-    handle('ai:gateway:privacy-remove-secret', (id) => this.removePrivacySecret(id));
-    handle('ai:gateway:privacy-add-allow', (input) => this.addPrivacyAllow(input));
-    handle('ai:gateway:privacy-remove-allow', (tag) => this.removePrivacyAllow(tag));
-    handle('ai:gateway:privacy-log', () => this.privacyLogEntries());
-    handle('ai:gateway:privacy-clear-log', () => this.clearPrivacyLog());
-    handle('ai:gateway:privacy-preview', (text) => this.previewPrivacy(text));
   }
 
   dispose(): void {

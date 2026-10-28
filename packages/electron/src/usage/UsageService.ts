@@ -14,7 +14,6 @@ import { officialAccountEnv } from '../cli/accounts/homes';
 import { withCliPath } from '../cli/detect';
 import type { AppEvents } from '../core/appEvents';
 import { t as tr } from '../i18n';
-import { guardedHandle } from '../security/guardedIpc';
 import { writePrivateFile } from '../utils/privateFile';
 
 import {
@@ -1686,7 +1685,7 @@ export class UsageService {
     (this.broadcastTimer as { unref?: () => void }).unref?.();
   }
 
-  /* -------------------- 界面入口（旧 IPC 与应用契约共用）：读账本的查询先等载入完成 -------------------- */
+  /* -------------------- 界面入口（应用契约）：读账本的查询先等载入完成 -------------------- */
 
   /** 界面传来的明细筛选 → DetailQuery（缺省近 90 天、按时间倒序、100 条） */
   private detailQueryOf(v: unknown): DetailQuery {
@@ -1749,26 +1748,6 @@ export class UsageService {
   clearWithState(): ReturnType<UsageService['state']> {
     this.clear();
     return this.state();
-  }
-
-  registerIpc(): void {
-    // 经 guardedHandle：sender + senderFrame 校验、通道认领；业务错误仍以 { __error } 信封返回
-    const handle = (ch: string, fn: (...a: unknown[]) => unknown | Promise<unknown>) =>
-      guardedHandle(ch, fn, { owner: 'UsageService' });
-    handle('ai:usage:state', () => this.readState());
-    handle('ai:usage:query', (r) => this.readQuery(r));
-    handle('ai:usage:heatmap', () => this.readHeatmap());
-    handle('ai:usage:endpoint', (id) => this.readEndpoint(id));
-    handle('ai:usage:details', (q) => this.readDetails(q));
-    handle('ai:usage:csv', (q) => this.readCsv(q));
-    handle('ai:usage:set-settings', (p) => this.setSettings((p ?? {}) as Partial<UsageSettings>));
-    handle('ai:usage:quota', () => this.quotaViewed());
-    handle('ai:usage:quota-refresh', (tool) => this.refreshQuota(quotaToolOf(tool)));
-    handle('ai:usage:quota-hook', () => this.quotaHookStatus());
-    handle('ai:usage:quota-hook-set', (v) => this.setQuotaHook(v === true));
-    handle('ai:usage:price-sync', () => this.syncPrices());
-    handle('ai:usage:scan', () => this.scanWithState());
-    handle('ai:usage:clear', () => this.clearWithState());
   }
 }
 

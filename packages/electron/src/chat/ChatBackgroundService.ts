@@ -18,8 +18,8 @@ import {
   sanitizeChatBg,
   type ChatBackgroundState,
 } from '@nomi-ai/types';
-// 仍需 Electron：nativeImage 缩放大图（没有对应端口），registerIpc 用 ipcMain（P1 由契约传输层取代）
-import { ipcMain, nativeImage } from 'electron';
+// 仍需 Electron：nativeImage 缩放大图（没有对应端口）
+import { nativeImage } from 'electron';
 
 import type { AppEvents } from '../core/appEvents';
 import { t as tr } from '../i18n';
@@ -188,18 +188,6 @@ export class ChatBackgroundService {
     this.removeImageFiles(destName);
     this.broadcast();
     return this.get();
-  }
-
-  registerIpc(): void {
-    ipcMain.removeHandler('chat-bg:get');
-    ipcMain.removeHandler('chat-bg:set');
-    ipcMain.removeHandler('chat-bg:reset');
-    ipcMain.removeHandler('chat-bg:pick-image');
-    ipcMain.handle('chat-bg:get', () => this.get());
-    ipcMain.handle('chat-bg:set', (_e, patch: unknown) => this.set(patch));
-    ipcMain.handle('chat-bg:reset', () => this.reset());
-    // chat-bg:* 只由对话窗口的 preload（ai-chat-preload）暴露，发起方就是对话窗口
-    ipcMain.handle('chat-bg:pick-image', () => this.pickImage('chat'));
   }
 
   /** 界面操作触发的写入：Windows 文件被占用时退避等待不挡主进程（#154） */

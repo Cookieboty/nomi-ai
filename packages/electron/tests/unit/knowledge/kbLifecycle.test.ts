@@ -12,7 +12,6 @@ import { featureDeps } from '../helpers/featureHost';
 
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { removeHandler: () => undefined, handle: () => undefined },
 }));
 
 function make() {

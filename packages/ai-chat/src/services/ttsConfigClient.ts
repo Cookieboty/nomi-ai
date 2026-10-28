@@ -1,6 +1,6 @@
 /**
  * 朗读引擎配置（userData/tts-config.json，主进程 tts/TtsService）：
- * 设置 → 语音与屏幕 → 语音里的「实时朗读引擎」卡片读写它。经契约 `tts.*`（原 electronAPI.tts）。
+ * 设置 → 语音与屏幕 → 语音里的「实时朗读引擎」卡片读写它。经契约 `tts.*`。
  */
 import { api, hasTransport } from './api';
 

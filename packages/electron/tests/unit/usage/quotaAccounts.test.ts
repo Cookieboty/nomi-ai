@@ -2,7 +2,6 @@ jest.unmock('fs');
 jest.unmock('path');
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: jest.fn(), removeHandler: jest.fn() },
 }));
 
 import fs from 'node:fs';

@@ -7,7 +7,6 @@ jest.unmock('fs');
 jest.unmock('path');
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: jest.fn(), removeHandler: jest.fn() },
 }));
 
 const spawned: Array<{ cmd: string; args: string[] }> = [];
@@ -282,8 +281,13 @@ describe('源码级约束：价格同步（priceSync.ts）只做一次公开 GET
       'utf8',
     );
     const calls = svc.match(/syncPrices\(|priceSync\.sync\(/g) ?? [];
-    expect(calls).toHaveLength(4); // 方法定义 + 其中的 priceSync.sync() + IPC 处理器 + autoSync
-    expect(svc).toMatch(/handle\('ai:usage:price-sync', \(\) => this\.syncPrices\(\)\)/);
+    expect(calls).toHaveLength(3); // 方法定义 + 其中的 priceSync.sync() + autoSync
+    // 用户点击：契约 usage.priceSync 的处理函数直接调 syncPrices()
+    const host = fs.readFileSync(
+      path.resolve(__dirname, '../../../src/host/contract/shell.ts'),
+      'utf8',
+    );
+    expect(host.match(/syncPrices\(/g)).toHaveLength(1);
     const auto = svc.slice(svc.indexOf('async autoSync()'), svc.indexOf('query(rangeId'));
     expect(auto).toContain('this.settings.modelsSyncAuto');
     expect(auto).toContain('MODELS_SYNC_INTERVAL_MS');

@@ -1,84 +1,3 @@
-import type { DesktopApi, MascotWindowApi } from './models';
-import type { PersonaApi } from './persona';
-
-// 定义IPC通信接口
-export interface IpcApi {
-  quit: () => void;
-  setAlwaysOnTop: (flag: boolean) => void;
-  moveWindow: (deltaX: number, deltaY: number) => void;
-  getPosition: () => Promise<[number, number]>;
-  setPosition: (x: number, y: number) => void;
-  saveModel: (modelName: string) => void;
-  getSavedModel: () => Promise<string>;
-  getCursorPosition: () => Promise<{ x: number; y: number }>;
-  onWindowMouseEnter: (callback: () => void) => void;
-  onWindowMouseLeave: (callback: () => void) => void;
-  removeWindowMouseListeners: () => void;
-
-  // 语音相关API - 简化后只保留必要的
-  getVoiceSettings: () => Promise<VoiceSettings>;
-  saveVoiceSettings: (settings: VoiceSettings) => void;
-  /** 主进程改了语音开关（TTS 模型下载失败回滚等）；返回取消订阅 */
-  onVoiceSettingsChanged?: (callback: (settings: Partial<VoiceSettings>) => void) => () => void;
-
-  // 实时朗读（Edge / Azure / OpenAI，均未接入；默认无）；配置在对话窗口的设置里
-  /** Main-process TTS synthesize; on failure renderer stays silent */
-  ttsSpeak?: (req: TTSSpeakRequest) => Promise<TTSSpeakResult>;
-  ttsHealth?: (config?: Partial<TTSConfig>) => Promise<TTSTestResult>;
-  /** 打断：取消主进程里还在合成的请求 */
-  ttsStop?: () => Promise<boolean>;
-  /** 诺米提示语音开关（TTSConfig.promptVoice，默认开） */
-  ttsPromptVoice?: () => Promise<boolean>;
-
-  // AI对话相关API
-  openAiChat: () => Promise<{ success: boolean; error?: string }>;
-  /** 打开对话窗口的日程页（看板娘工具栏「任务看板」） */
-  openTaskBoard?: () => Promise<{ success: boolean; error?: string }>;
-
-  /** 打开对话窗口的「设置 → 语音与屏幕 → 语音」（朗读引擎等） */
-  openVoiceSettings?: () => Promise<{ success: boolean; error?: string }>;
-
-  /**
-   * 主进程 → 看板娘指令（`mascot:command`，见 electron/src/ai/mascotCommand.ts）：
-   * `motion` / `expression` / `open-panel` / `reply-speech`
-   */
-  onMascotCommand?: (callback: (cmd: unknown) => void) => () => void;
-
-  /** Scheme B: active character-pack overlay (null fields = built-in) */
-  characterPack?: {
-    getActive: () => Promise<{
-      source: 'userData' | 'resources' | 'builtin';
-      id: string | null;
-      mode: string | null;
-      displayName: { zh: string; en: string } | null;
-      assetBaseUrl: string | null;
-      onboarding: Record<'welcome' | 'profile' | 'provider' | 'privacy', string> | null;
-      voiceBaseUrl: string | null;
-      riveUrl: string | null;
-      staticUrl: string | null;
-      spriteManifestUrl: string | null;
-      hitboxes: {
-        regions: Record<string, { top: number; bottom: number; left: number; right: number }>;
-        bubbleAnchor?: { x: number; y: number };
-      } | null;
-      rive: { artboard: string; stateMachine: string } | null;
-      reason?: string;
-    }>;
-  };
-
-  /** 看板娘窗口互动 */
-  mascotWindow?: MascotWindowApi;
-  /** 桌面能力（确认 / 拖文件总结） */
-  desktop?: DesktopApi;
-  /** 当前角色人设（主进程 PersonaService） */
-  persona?: PersonaApi;
-}
-
-// 在渲染进程中可用的Electron API
-export interface ElectronApi {
-  electronAPI: IpcApi;
-}
-
 // 语音相关类型定义
 export interface VoiceContribute {
   keywords: string[];
@@ -89,7 +8,8 @@ export interface VoiceConfig {
   contributes: VoiceContribute[];
 }
 
-export interface VoiceSettings {
+/** type 而不是 interface：要能直接作为契约 `voice.saveMascotSettings` 的 loose 入参 */
+export type VoiceSettings = {
   enabled: boolean;
   volume: number;
   timeAnnouncement: boolean;
@@ -97,7 +17,7 @@ export interface VoiceSettings {
   voiceMode: 'fixed' | 'tts' | 'mixed';
   /** 看板娘动作音效（程序合成），默认开 */
   sfxEnabled?: boolean;
-}
+};
 
 /**
  * Realtime TTS engine: edge (default — Microsoft Edge online read-aloud, needs network),

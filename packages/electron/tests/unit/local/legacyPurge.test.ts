@@ -10,7 +10,6 @@ jest.unmock('node:path');
 jest.mock('electron', () => ({
   app: { getPath: () => '/tmp' },
   BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: jest.fn(), on: jest.fn(), removeHandler: jest.fn() },
   dialog: {},
   shell: {},
   safeStorage: { isEncryptionAvailable: () => false },

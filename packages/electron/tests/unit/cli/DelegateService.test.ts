@@ -17,7 +17,6 @@ import { __setSpawnSyncForTest, whenPrivateWritesIdle } from '../../../src/utils
 
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { removeHandler: () => undefined, handle: () => undefined },
   dialog: { showOpenDialog: async () => ({ canceled: true, filePaths: [] }) },
 }));
 

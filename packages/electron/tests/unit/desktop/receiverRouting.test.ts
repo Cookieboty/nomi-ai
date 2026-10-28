@@ -14,7 +14,6 @@ jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [], getFocusedWindow: () => null },
   dialog: {},
   shell: {},
-  ipcMain: { handle: jest.fn(), removeHandler: jest.fn(), on: jest.fn() },
 }));
 
 import * as fs from 'fs';

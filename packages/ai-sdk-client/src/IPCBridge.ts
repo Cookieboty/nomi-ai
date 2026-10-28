@@ -7,8 +7,8 @@
  * - 抽象成 interface 后，测试里可以直接 mock，无需拉起 Electron；
  * - 允许业务侧自定义 bridge（例如 WebWorker / iframe postMessage）。
  *
- * 与 preload 的对齐：`mkNomiTransportPreload` / `mkAiPreload` 都创建实现本接口的对象，
- * 通过 contextBridge 暴露到 `window[bridgeName]`。
+ * 与 preload 的对齐：`mkNomiTransportPreload` 创建实现本接口的对象，通过 contextBridge 暴露到
+ * `window[bridgeName]`。
  */
 
 import { SDKError, SDKErrorCodes } from './errors';

@@ -51,7 +51,7 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
     if (!canvas) return undefined;
     // 主进程窗口控制（契约 mascot.* / window.platform）；浏览器预览 / 测试里没有传输时不上报
     const live = hasTransport();
-    /** 上报是即发即弃的（原 ipcRenderer.send）：失败不影响交互 */
+    /** 上报是即发即弃的（原来是单向消息）：失败不影响交互 */
     const fire = (p: Promise<unknown>): void => void p.catch(() => undefined);
     let platform = '';
     if (live)

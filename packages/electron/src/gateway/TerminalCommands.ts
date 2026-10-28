@@ -16,7 +16,6 @@ import path from 'path';
 import type { ClientModels } from '@nomi-ai/gateway';
 
 import { t as tr } from '../i18n';
-import { guardedHandle } from '../security/guardedIpc';
 import { shQuote } from '../security/shellEscape';
 import { ensurePrivateDir, writePrivateFile } from '../utils/privateFile';
 
@@ -644,22 +643,4 @@ export function initTerminalCommands(d: TerminalDeps): TerminalCommands {
 
 export function getTerminalCommands(): TerminalCommands | null {
   return inst;
-}
-
-/** IPC：ai:gateway:terminal-state / ai:gateway:terminal-set（§15 的命名与 guardedHandle） */
-export function registerTerminalIpc(t: TerminalCommands): void {
-  const opts = { owner: 'TerminalCommands' };
-  guardedHandle('ai:gateway:terminal-state', () => t.state(), opts);
-  guardedHandle(
-    'ai:gateway:terminal-set',
-    (input) => {
-      const o = (input ?? {}) as { enabled?: unknown; addToPath?: unknown };
-      if (typeof o.enabled !== 'boolean') throw new Error(tr('electron.common.invalid-arguments'));
-      return t.set({
-        enabled: o.enabled,
-        ...(typeof o.addToPath === 'boolean' ? { addToPath: o.addToPath } : {}),
-      });
-    },
-    opts,
-  );
 }

@@ -62,7 +62,7 @@ const ACCOUNT_CODES: Record<string, string> = {
 };
 
 async function call<T>(run: () => Promise<unknown>): Promise<T> {
-  if (!hasTransport()) throw new Error('aiIPC unavailable');
+  if (!hasTransport()) throw new Error('desktop app connection unavailable');
   try {
     return (await run()) as T;
   } catch (e) {

@@ -9,7 +9,7 @@
  * - `@nomi-ai/ai-sdk-client` —— `ClientAIClient`、`createAppClient`（应用契约客户端，窗口共享一个会话）
  *   + `IPCBridge` 类型（浏览器可用）
  * - `@nomi-ai/ai-sdk-client/react` —— `AIProvider` + 5 个 React Hook
- * - `@nomi-ai/ai-sdk-client/preload` —— `mkNomiTransportPreload`（契约传输）与 `mkAiPreload`（其余 `ai:*` 通道）
+ * - `@nomi-ai/ai-sdk-client/preload` —— `mkNomiTransportPreload`（契约传输）与 `mkNomiHostPreload`（宿主能力）
  */
 
 export * from './ClientAIClient';

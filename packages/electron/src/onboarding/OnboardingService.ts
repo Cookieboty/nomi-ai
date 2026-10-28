@@ -11,7 +11,6 @@ import { normalizeUserProfile, type UserProfile } from '@nomi-ai/types';
 
 import { broadcastMascotCommand, type MascotCommand } from '../ai/mascotCommand';
 import type { AppEvents } from '../core/appEvents';
-import { guardedHandle } from '../security/guardedIpc';
 
 export interface OnboardingState {
   done: boolean;
@@ -116,18 +115,5 @@ export class OnboardingService {
     if (!c || typeof c !== 'object' || !ALLOWED.has(String((c as { type?: unknown }).type)))
       return false;
     return broadcastMascotCommand(c) > 0;
-  }
-
-  registerIpc(): void {
-    const h = (ch: string, fn: (...a: unknown[]) => unknown) =>
-      guardedHandle(ch, fn, { owner: 'OnboardingService', wrapErrors: false });
-    h('ai:onboarding:get', () => this.get());
-    h('ai:onboarding:complete', (o) =>
-      this.complete(Boolean((o as { skipped?: boolean })?.skipped)),
-    );
-    h('ai:onboarding:reopen', () => this.reopen());
-    h('ai:onboarding:mascot', (cmd) => this.mascot(cmd));
-    h('ai:onboarding:profile', () => this.profile());
-    h('ai:onboarding:set-profile', (p) => this.setProfile(p));
   }
 }

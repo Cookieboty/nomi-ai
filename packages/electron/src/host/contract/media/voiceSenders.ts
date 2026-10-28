@@ -1,7 +1,7 @@
 /**
  * D1：语音服务按「发起的窗口」管理的会话（VAD、豆包流式识别）在契约上的适配。
  *
- * 旧 IPC 把 Electron 的 `event.sender` 直接交给 VoiceService：会话归属看 `sender.id`，窗口销毁时
+ * VoiceService 按 Electron 的 sender 管理会话（原来直接拿 IPC 的 `event.sender`）：会话归属看 `sender.id`，窗口销毁时
  * （`once('destroyed')`）释放，流式识别的临时结果用 `sender.send('ai:voice:stream', …)` 只回给它。
  * 契约里调用方只有 `caller.id`（webContents id），这里据此找回窗口，并把 `ai:voice:stream` 的推送
  * 改投到对应会话的 `voice.streamStart` 流里（按会话 id 分发；推音频时的错误也回到发起的那条流）。

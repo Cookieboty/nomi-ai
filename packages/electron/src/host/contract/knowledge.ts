@@ -6,7 +6,6 @@
  *   `deps.services` 在调用时读取，缺了用 `need()` 报 UNAVAILABLE）；
  * - `knowledgeEventBridge`：服务仍在 `events.publish` 的旧通道 → 契约事件。
  *
- * 旧的 `registerIpc()`（`ai:kb:*` 等）还在，e2e-headed 与旧 preload 仍在用，由收尾批次删除。
  * 服务抛的 `KbError` / `MemError` / `SchedError` 带旧码（`not-found`）：这里换成契约里声明的
  * `<前缀>_<旧码大写>`（`MEM_NOT_FOUND`）；其余异常照常抛出（INTERNAL，消息原样带给视图）。
  */

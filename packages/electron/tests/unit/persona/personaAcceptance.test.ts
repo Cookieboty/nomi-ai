@@ -15,12 +15,8 @@ import { AgentPresetRegistryKey, WaifuAgentPresetPlugin } from '@nomi-ai/bundle-
 
 import { CharacterPackService } from '../../../src/character/CharacterPackService';
 import { resolveCharacterPack } from '../../../src/character/packResolve';
+import { forwardPersonaChanges, PERSONA_CHANGED_CHANNEL } from '../../../src/persona/events';
 import { createPersonaIdentityPlugin } from '../../../src/persona/igPlugin';
-import {
-  PERSONA_CHANGED_CHANNEL,
-  PERSONA_GET_CHANNEL,
-  registerPersonaIpc,
-} from '../../../src/persona/ipc';
 import { packPersonaSource, PersonaService } from '../../../src/persona/PersonaService';
 import { fakeHostPorts } from '../helpers/fakeHostPorts';
 
@@ -99,9 +95,8 @@ describe('persona follows the active character pack', () => {
       locale: () => locale,
     });
     packs.onChange(() => persona.reload());
-    const handlers = new Map<string, () => unknown>();
     const broadcast = jest.fn();
-    registerPersonaIpc(persona, { broadcast, handle: (ch, fn) => handlers.set(ch, fn) });
+    forwardPersonaChanges(persona, broadcast);
 
     // 没有覆盖包：内置包 characters/nomi
     expect(packs.getResolved().source).toBe('builtin');
@@ -112,11 +107,8 @@ describe('persona follows the active character pack', () => {
     packs.apply(resolve());
     expect(packs.getResolved().source).toBe('userData');
 
-    // ① 对话窗口经 character:get-persona 取到的人设（ai-chat 默认系统提示的身份段）
-    const forChat = (await handlers.get(PERSONA_GET_CHANNEL)!()) as {
-      characterId: string;
-      systemPromptIdentity: string;
-    };
+    // ① 对话窗口经契约 persona.get 取到的人设（ai-chat 默认系统提示的身份段）
+    const forChat = persona.get();
     expect(forChat.characterId).toBe('test-dummy');
     expect(forChat.systemPromptIdentity).toBe('你是小纸，一个住在纸箱里的机器人。');
     expect(broadcast).toHaveBeenCalledWith(
@@ -139,9 +131,7 @@ describe('persona follows the active character pack', () => {
     locale = 'en';
     persona.localeChanged();
     expect(await preset.systemPrompt()).toContain('You are Pip, a robot living in a box.');
-    expect(
-      ((await handlers.get(PERSONA_GET_CHANNEL)!()) as { displayName: string }).displayName,
-    ).toBe('Pip');
+    expect(persona.get().displayName).toBe('Pip');
 
     // 移除角色包后重新解析：回到官方人设
     fs.rmSync(path.join(userData, 'character-pack'), { recursive: true, force: true });

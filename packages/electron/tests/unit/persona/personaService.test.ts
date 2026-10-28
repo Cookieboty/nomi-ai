@@ -6,11 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import {
-  PERSONA_CHANGED_CHANNEL,
-  PERSONA_GET_CHANNEL,
-  registerPersonaIpc,
-} from '../../../src/persona/ipc';
+import { forwardPersonaChanges, PERSONA_CHANGED_CHANNEL } from '../../../src/persona/events';
 import {
   characterLocaleOf,
   getPersonaService,
@@ -257,20 +253,17 @@ describe('PersonaService', () => {
   });
 });
 
-describe('registerPersonaIpc', () => {
-  it('handles character:get-persona and forwards changes as character:persona-changed', async () => {
+describe('forwardPersonaChanges', () => {
+  it('publishes changes as character:persona-changed until cancelled', () => {
     let locale = 'en';
     const svc = new PersonaService({ sources: [fixed('pack', dummy)], locale: () => locale });
-    const handlers = new Map<string, () => unknown>();
-    const broadcast = jest.fn();
-    const off = registerPersonaIpc(svc, { broadcast, handle: (ch, fn) => handlers.set(ch, fn) });
+    const publish = jest.fn();
+    const off = forwardPersonaChanges(svc, publish);
 
-    expect(PERSONA_GET_CHANNEL).toBe('character:get-persona');
-    expect(await handlers.get(PERSONA_GET_CHANNEL)!()).toEqual(svc.get());
-
+    expect(PERSONA_CHANGED_CHANNEL).toBe('character:persona-changed');
     locale = 'zh-CN';
     svc.localeChanged();
-    expect(broadcast).toHaveBeenCalledWith(
+    expect(publish).toHaveBeenCalledWith(
       PERSONA_CHANGED_CHANNEL,
       expect.objectContaining({ displayName: '小纸' }),
     );
@@ -278,18 +271,6 @@ describe('registerPersonaIpc', () => {
     off();
     locale = 'en';
     svc.localeChanged();
-    expect(broadcast).toHaveBeenCalledTimes(1);
-  });
-
-  it('registers through guardedHandle (sender-checked) by default', () => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { ipcMain } = require('electron') as {
-      ipcMain: { handle: jest.Mock; removeHandler?: jest.Mock };
-    };
-    ipcMain.handle.mockClear();
-    ipcMain.removeHandler ??= jest.fn();
-    const svc = new PersonaService({ sources: [fixed('pack', dummy)], locale: () => 'en' });
-    registerPersonaIpc(svc, { broadcast: jest.fn() });
-    expect(ipcMain.handle).toHaveBeenCalledWith(PERSONA_GET_CHANNEL, expect.any(Function));
+    expect(publish).toHaveBeenCalledTimes(1);
   });
 });

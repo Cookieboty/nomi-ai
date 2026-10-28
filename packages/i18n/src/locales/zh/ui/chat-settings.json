@@ -426,7 +426,7 @@
   "ui.chat-settings.when-input-is-empty": "↑（输入框为空时）",
   "ui.chat-settings.when-off-nomi-won-t-hand-off-subtasks": "关闭后 Nomi 不会派出子任务，/agent 也不可用。",
   "ui.chat-settings.which-model-override-to-use-when-handing-off": "派出编程助手时默认用哪套模型覆盖。default 沿用 CLI；cheap 可用下方便宜模型；也可在工具参数里传 profile / model。",
-  "ui.chat-settings.window-aiipc-is-unavailable": "window.aiIPC 不可用",
+  "ui.chat-settings.window-aiipc-is-unavailable": "桌面应用连接不可用",
   "ui.chat-settings.with-context": "待带入前文 · {0} 条",
   "ui.chat-settings.working-on-it": "正在动手做事…",
   "ui.chat-settings.write": "写入",

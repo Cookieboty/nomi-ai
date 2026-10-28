@@ -117,12 +117,17 @@ describe('createAppRouter', () => {
 });
 
 describe('createContractEventBridge', () => {
-  it('旧通道照常广播；attach 之后桥接表里的通道同时发成契约事件', () => {
+  it('attach 之后桥接表里的通道发成契约事件；tap 收到每次发布；表外通道只警告一次', () => {
     const inner = createRecordingAppEvents();
-    const bridge = createContractEventBridge(inner, {
-      'x:changed': 'x.changed',
-      'x:mapped': { event: 'x.mapped', map: (p) => ({ wrapped: p }) },
-    });
+    const warn = jest.fn();
+    const bridge = createContractEventBridge(
+      inner,
+      {
+        'x:changed': 'x.changed',
+        'x:mapped': { event: 'x.mapped', map: (p) => ({ wrapped: p }) },
+      },
+      { warn },
+    );
     const sink = { publish: jest.fn() };
 
     bridge.publish('x:changed', 1, { surface: 'chat' });
@@ -132,10 +137,14 @@ describe('createContractEventBridge', () => {
     bridge.publish('x:changed', 2);
     bridge.publish('x:mapped', 3);
     bridge.publish('x:other', 4);
+    bridge.publish('x:other', 4);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(expect.any(String), { channel: 'x:other' });
     expect(inner.published.map((e) => [e.channel, e.payload, e.surfaces])).toEqual([
       ['x:changed', 1, ['chat']],
       ['x:changed', 2, null],
       ['x:mapped', 3, null],
+      ['x:other', 4, null],
       ['x:other', 4, null],
     ]);
     expect(sink.publish.mock.calls).toEqual([
@@ -150,7 +159,7 @@ describe('createContractEventBridge', () => {
     expect(sink.publish).toHaveBeenCalledTimes(2);
   });
 
-  it('契约事件发布失败只记 warn，不影响旧通道与发布方', () => {
+  it('契约事件发布失败只记 warn，不影响发布方', () => {
     const inner = createRecordingAppEvents();
     const warn = jest.fn();
     const bridge = createContractEventBridge(inner, { 'x:changed': 'x.changed' }, { warn });

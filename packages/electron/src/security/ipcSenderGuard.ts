@@ -1,12 +1,12 @@
 /**
- * ai:* IPC 通道 sender 白名单。
+ * 契约传输（`contract:request`）的 sender 白名单。
  *
  * 仅放行加载了受信内容的渲染窗口：
  * - 打包环境：`file://`（随包页面）；
  * - 开发环境：额外放行 renderer / chat 两个 127.0.0.1 dev server 端口。
  *
  * 若窗口被导航到任意外部站点（即使导航守卫被绕过），其 sender URL 不在白名单内，
- * 所有 ai:* 调用（LLM 对话、工具执行、剪贴板、截屏、provider 密钥写入等）一律拒绝。
+ * 所有契约调用（LLM 对话、工具执行、provider 密钥写入等）一律拒绝。
  */
 
 import type { IpcInvokeEvent } from '@nomi-ai/ai-runtime';
@@ -41,10 +41,6 @@ export function isTrustedSenderUrl(raw: string | undefined | null): boolean {
   }
 
   return false;
-}
-
-export function isTrustedAiSender(event: IpcInvokeEvent): boolean {
-  return isTrustedSenderUrl(event.senderUrl);
 }
 
 /**

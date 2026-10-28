@@ -11,7 +11,6 @@ import { CliHarnessService, type HarnessGateway } from '../helpers/harness';
 
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { removeHandler: () => undefined, handle: () => undefined },
   dialog: { showOpenDialog: async () => ({ canceled: true, filePaths: [] }) },
 }));
 

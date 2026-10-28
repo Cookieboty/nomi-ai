@@ -4,19 +4,7 @@
  */
 import type { BrowserWindow } from 'electron';
 
-const handlers = new Map<string, (e: unknown, ...a: unknown[]) => unknown>();
-const listeners = new Map<string, (e: unknown, ...a: unknown[]) => unknown>();
 jest.mock('electron', () => ({
-  ipcMain: {
-    on: jest.fn((ch: string, fn: (e: unknown, ...a: unknown[]) => unknown) =>
-      listeners.set(ch, fn),
-    ),
-    handle: jest.fn((ch: string, fn: (e: unknown, ...a: unknown[]) => unknown) =>
-      handlers.set(ch, fn),
-    ),
-    removeHandler: jest.fn((ch: string) => handlers.delete(ch)),
-    removeListener: jest.fn(),
-  },
   screen: {
     on: jest.fn(),
     removeListener: jest.fn(),
@@ -64,16 +52,13 @@ function setup(scale = 0.5) {
     { get: () => scale, save: () => undefined },
   );
   c.start();
-  const geometry = (box: Record<string, number>) =>
-    listeners.get('mascot:geometry')!({ sender: wc }, box);
-  const call = (ch: string, ...a: unknown[]) => handlers.get(ch)!({ sender: wc }, ...a);
-  return { b, c, geometry, call };
+  // 契约 mascot.setGeometry / mascot.scaleSet 直接调这些公开方法
+  const geometry = (box: Record<string, number>) => c.reportGeometry(box);
+  return { b, c, geometry };
 }
 
 describe('MascotWindowController · stale geometry after a resize', () => {
   beforeEach(() => {
-    handlers.clear();
-    listeners.clear();
     jest.useFakeTimers();
   });
   afterEach(() => jest.useRealTimers());
@@ -89,7 +74,7 @@ describe('MascotWindowController · stale geometry after a resize', () => {
     expect(isStaleGeometry(540, 580, cur, null)).toBe(false); // 还没缩放过
   });
 
-  it('a box measured before the resize does not overwrite the projected box', async () => {
+  it('a box measured before the resize does not overwrite the projected box', () => {
     const s = setup(1);
     const w0 = mascotWindowSize(1);
     // 1.0 时角色居中：窗口宽 540，包围盒中心 270
@@ -100,7 +85,7 @@ describe('MascotWindowController · stale geometry after a resize', () => {
     };
     const before = feet();
 
-    await s.call('mascot:scale-set', 1.2);
+    s.c.scaleSet(1.2);
     const w1 = mascotWindowSize(1.2);
     expect([s.b.width, s.b.height]).toEqual([w1.width, w1.height]);
     const projected = s.c.snapshot().box!;

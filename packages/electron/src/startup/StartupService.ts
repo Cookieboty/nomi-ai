@@ -9,7 +9,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import type { AppEvents } from '../core/appEvents';
-import { guardedHandle } from '../security/guardedIpc';
 import { writePrivateFileAtomicAsync } from '../utils/privateFile';
 
 import {
@@ -137,11 +136,5 @@ export class StartupService {
   onChange(fn: (s: StartupState) => void): () => void {
     this.listeners.add(fn);
     return () => this.listeners.delete(fn);
-  }
-
-  registerIpc(): void {
-    const opts = { owner: 'StartupService', wrapErrors: false };
-    guardedHandle('ai:startup:get', () => this.get(), opts);
-    guardedHandle('ai:startup:set', (patch) => this.set(patch), opts);
   }
 }

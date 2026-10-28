@@ -12,11 +12,6 @@ import path from 'node:path';
 
 import type { DialogsPort, PickDirectoryOptions, WindowsPort } from '@nomi-ai/host-ports';
 
-// 只剩 guardedIpc 还要 ipcMain
-jest.mock('electron', () => ({
-  ipcMain: { removeHandler: () => undefined, handle: () => undefined },
-}));
-
 import { CliHarnessService, type HarnessTabFinished } from '../helpers/harness';
 
 const logger = { info() {}, warn() {} };

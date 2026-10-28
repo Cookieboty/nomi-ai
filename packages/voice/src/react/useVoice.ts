@@ -1,25 +1,15 @@
 import { t } from '@nomi-ai/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import {
-  defaultVoiceApi,
-  voiceApi,
-  type VoiceApi,
-  type VoiceBridge,
-  type VoiceStateView,
-} from '../bridge';
+import { defaultVoiceApi, type VoiceApi, type VoiceStateView } from '../bridge';
 import { VoiceController, type VoiceMode, type VoiceState } from '../controller';
 
 const controllers = new Map<string, VoiceController>();
 
 /** 每个窗口每种来源一个控制器（多个组件共享同一个麦克风会话） */
-export function getController(
-  source: 'chat' | 'mascot',
-  bridge: VoiceBridge | VoiceApi,
-): VoiceController {
+export function getController(source: 'chat' | 'mascot', api: VoiceApi): VoiceController {
   let c = controllers.get(source);
   if (!c) {
-    const api = 'invoke' in bridge ? voiceApi(bridge) : bridge;
     c = new VoiceController({ api, source });
     controllers.set(source, c);
   }

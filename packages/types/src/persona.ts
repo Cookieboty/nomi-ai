@@ -15,10 +15,3 @@ export interface Persona {
   /** 问候语（当前界面语言） */
   greetings: string[];
 }
-
-/** preload 白名单 `persona`：`character:get-persona` 与 `character:persona-changed` */
-export interface PersonaApi {
-  get: () => Promise<Persona>;
-  /** 换角色包或界面语言后推送；返回取消订阅 */
-  onChanged: (callback: (persona: Persona) => void) => () => void;
-}

@@ -11,7 +11,6 @@ import { broadcastMascotCommand } from '../ai/mascotCommand';
 import type { AppEvents } from '../core/appEvents';
 import type { DesktopNotice, DesktopService } from '../desktop/DesktopService';
 import { t as tr } from '../i18n';
-import { guardedHandle } from '../security/guardedIpc';
 
 import { ScanCache } from './fsScan';
 import {
@@ -1045,16 +1044,6 @@ export class AgentProgressService {
   async scanNow(): Promise<AgentWatchState> {
     await this.tick();
     return this.state();
-  }
-
-  registerIpc(): void {
-    const handle = (ch: string, fn: (...a: unknown[]) => unknown) =>
-      guardedHandle(ch, fn, { owner: 'AgentProgressService' });
-    handle('ai:agents:state', () => this.state());
-    handle('ai:agents:set-settings', (p) =>
-      this.setSettings((p ?? {}) as Partial<AgentWatchSettings>),
-    );
-    handle('ai:agents:scan', () => this.scanNow());
   }
 }
 

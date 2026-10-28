@@ -49,7 +49,7 @@
   "ui.voice-mascot.edge-network-note": "Edge 朗读要联网，用的是微软 Edge 浏览器的在线朗读服务，不是微软公开的官方接口，以后可能失效。",
   "ui.voice-mascot.edge-rate": "朗读语速：{0}%",
   "ui.voice-mascot.edge-voice": "音色",
-  "ui.voice-mascot.electronapi-ready-timeout": "electronAPI准备超时",
+  "ui.voice-mascot.electronapi-ready-timeout": "等待桌面应用连接超时",
   "ui.voice-mascot.enable-voice": "启用语音功能",
   "ui.voice-mascot.engine-azure": "Azure 语音（暂未接入）",
   "ui.voice-mascot.engine-edge": "Edge 在线朗读（默认，需联网）",

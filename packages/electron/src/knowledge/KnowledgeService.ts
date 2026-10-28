@@ -22,7 +22,6 @@ import type { DesktopService } from '../desktop/DesktopService';
 import { extOf, isSupported } from '../desktop/parse/extract';
 import { parseFile } from '../desktop/parse/runParse';
 import { t as tr } from '../i18n';
-import { guardedHandle } from '../security/guardedIpc';
 import { downloadVerified } from '../voice/download';
 
 import { buildAskMessages, toSources, type SourceRef } from './answer';
@@ -121,7 +120,6 @@ export class KnowledgeService {
   /** 取消订阅权限变更广播 */
   private offBroker: (() => void) | null = null;
   private started = false;
-  private ipcDone = false;
 
   constructor(private readonly d: KnowledgeDeps) {
     this.settings = this.load();
@@ -1009,45 +1007,6 @@ export class KnowledgeService {
             }))
         : [],
     );
-  }
-
-  registerIpc(): void {
-    if (this.ipcDone) return;
-    this.ipcDone = true;
-    // 处理函数不用 IPC 事件本身，只按位置占住第一个参数
-    const handle = (ch: string, fn: (e: unknown, ...a: unknown[]) => unknown) =>
-      guardedHandle(
-        ch,
-        async (e: unknown, ...a: unknown[]) => {
-          try {
-            return await fn(e, ...a);
-          } catch (err) {
-            if (err instanceof KbError)
-              return { __error: { code: err.code, message: err.message } };
-            throw err;
-          }
-        },
-        { owner: 'KnowledgeService', wrapErrors: false, passEvent: true },
-      );
-    handle('ai:kb:state', () => this.state());
-    handle('ai:kb:docs', (_e, id, f) => this.docs(String(id), typeof f === 'string' ? f : ''));
-    handle('ai:kb:add-folder', () => this.addFolder());
-    handle('ai:kb:remove-source', (_e, id) => this.removeSource(String(id)));
-    handle('ai:kb:toggle-source', (_e, id, v) => this.setSourceEnabled(String(id), v === true));
-    handle('ai:kb:set-settings', (_e, p) => this.setSettings(p));
-    handle('ai:kb:consent-cloud', (_e, id) => this.consentCloud(String(id)));
-    handle('ai:kb:test', (_e, k) => this.testEndpoint(k === 'rerank' ? 'rerank' : 'embed'));
-    handle('ai:kb:reindex', (_e, force) => this.startReindex(force === true));
-    handle('ai:kb:cancel', () => this.cancelIndex());
-    handle('ai:kb:search', (_e, q) => this.search(String(q ?? '')));
-    handle('ai:kb:ask', (_e, q, h) => this.askFromView(String(q ?? ''), h));
-    handle('ai:kb:open', (_e, id, how) =>
-      this.open(String(id), how === 'reveal' ? 'reveal' : 'open'),
-    );
-    handle('ai:kb:ocr-download', (_e, id) => this.downloadOcr(String(id)));
-    handle('ai:kb:ocr-cancel', (_e, id) => this.cancelOcr(String(id)));
-    handle('ai:kb:ocr-remove', (_e, id) => this.removeOcr(String(id)));
-    handle('ai:kb:clear', () => this.clear());
   }
 }
 

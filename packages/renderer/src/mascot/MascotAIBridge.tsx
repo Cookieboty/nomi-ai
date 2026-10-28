@@ -24,7 +24,7 @@ function deltaText(p: unknown): string {
  * 聊天 / Agent / 工具事件 → 看板娘表情与动作。
  * - 流式回复中途出现强烈情绪就提前反应（StreamEmotionTracker）
  * - 用户停止生成 / 智能体请求确认 也有对应反应
- * 仅在 preload 注入 aiIPC（AIProvider 可用）时挂载。
+ * 仅在契约传输就绪（AIProvider 可用）时挂载。
  */
 const MascotAIBridge: FC = () => {
   const { lastStep } = useAgent();

@@ -1,12 +1,4 @@
 jest.unmock('fs');
-const handlers = new Map<string, (...a: unknown[]) => unknown>();
-jest.mock('electron', () => ({
-  ipcMain: {
-    handle: (ch: string, fn: (...a: unknown[]) => unknown) => handlers.set(ch, fn),
-    removeHandler: jest.fn(),
-  },
-}));
-
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -134,12 +126,5 @@ describe('StartupService', () => {
     expect(make(f).get().showMascot).toBe(true);
     fs.writeFileSync(f, JSON.stringify({ defaultView: 'main', showMascot: false }));
     expect(make(f).get().showMascot).toBe(false);
-  });
-
-  it('exposes ai:startup:get / ai:startup:set over IPC', () => {
-    handlers.clear();
-    const s = make(file());
-    s.registerIpc();
-    expect([...handlers.keys()].sort()).toEqual(['ai:startup:get', 'ai:startup:set']);
   });
 });

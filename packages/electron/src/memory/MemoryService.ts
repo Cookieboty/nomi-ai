@@ -16,7 +16,6 @@ import type { AppEvents } from '../core/appEvents';
 import type { DesktopService } from '../desktop/DesktopService';
 import { t as tr } from '../i18n';
 import { b64ToVec, vecToB64 } from '../knowledge/vector';
-import { guardedHandle } from '../security/guardedIpc';
 
 import {
   DEFAULT_MEMORY_SETTINGS,
@@ -84,7 +83,6 @@ export class MemoryService {
   private data: Store;
   private busy = new Set<string>();
   private saveTimer: ReturnType<typeof setTimeout> | null = null;
-  private ipcDone = false;
   private lastError = '';
 
   constructor(private readonly d: MemoryDeps) {
@@ -668,43 +666,6 @@ export class MemoryService {
           }))
       : [];
     return this.ingest(conversationId, msgs, { force });
-  }
-
-  registerIpc(): void {
-    if (this.ipcDone) return;
-    this.ipcDone = true;
-    const handle = (ch: string, fn: (...a: unknown[]) => unknown) =>
-      guardedHandle(
-        ch,
-        async (...a: unknown[]) => {
-          try {
-            return await fn(...a);
-          } catch (err) {
-            if (err instanceof MemError)
-              return { __error: { code: err.code, message: err.message } };
-            throw err;
-          }
-        },
-        { owner: 'MemoryService', wrapErrors: false },
-      );
-    handle('ai:mem:state', () => this.state());
-    handle('ai:mem:list', (f) => this.list(typeof f === 'string' ? f : ''));
-    handle('ai:mem:set-settings', (p) => this.setSettings(p));
-    handle('ai:mem:persona', () => this.persona());
-    handle('ai:mem:set-persona', (t) => this.setPersona(String(t ?? '')));
-    handle('ai:mem:open-persona', () => this.openPersona());
-    handle('ai:mem:ingest', (id, h, force) =>
-      this.ingestFromView(String(id ?? ''), h, force === true),
-    );
-    handle('ai:mem:context', (q) => this.context(String(q ?? '').slice(0, 4000)));
-    handle('ai:mem:update-episode', (id, p) => this.updateEpisode(String(id), p));
-    handle('ai:mem:upsert-fact', (p) => this.upsertFact(p));
-    handle('ai:mem:remove', (k, id) => this.remove(k === 'fact' ? 'fact' : 'episode', String(id)));
-    handle('ai:mem:clear', () => this.clearAll());
-    handle('ai:mem:backfill', () => this.backfillVectors());
-    handle('ai:mem:profile', () => this.profile());
-    handle('ai:mem:reset-profile', () => this.resetProfile());
-    handle('ai:mem:export', (fmt) => this.exportToFile(fmt === 'md' ? 'md' : 'json'));
   }
 }
 

@@ -91,7 +91,7 @@ export interface ElectronPortsDeps {
   routes?: Record<string, string>;
 }
 
-/** 声明式 route 对应的对话窗口面板通道（与托盘、WindowIpcHandler 现用的通道一致） */
+/** 声明式 route 对应的对话窗口面板通道（WindowManager.openProviderPanel 发布的应用事件，事件桥转成契约 `providers.openPanel` / `nav.*`） */
 export const ELECTRON_WINDOW_ROUTES: Readonly<Record<string, string>> = Object.freeze({
   providers: 'ai:providers:open-panel',
   desktop: 'ai:desktop:open-panel',

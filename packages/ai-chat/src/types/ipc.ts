@@ -93,14 +93,3 @@ export interface UpdateStateView {
   checkedAt?: number;
   autoCheck: boolean;
 }
-
-export interface ElectronAPI {
-  updates?: {
-    get: () => Promise<UpdateStateView>;
-    check: () => Promise<UpdateStateView>;
-    download: () => Promise<UpdateStateView>;
-    install: () => Promise<UpdateStateView>;
-    setAutoCheck: (on: boolean) => Promise<UpdateStateView>;
-    onChanged: (cb: (s: UpdateStateView) => void) => () => void;
-  };
-}

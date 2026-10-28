@@ -31,8 +31,6 @@ export * from './igPlugins';
 export * from './ElectronLifecycle';
 export * from './IpcAdapter';
 export * from './AiContractRouter';
-export * from './CapabilityIpcServer';
-export * from './legacy/AiChatCompat';
 
 /**
  * `runtime` 单例。业务方在 Electron 主进程中：

@@ -13,7 +13,6 @@ import { MotionMenu } from './MotionMenu';
 import { ReminderCard } from './ReminderCard';
 import styles from './style.module.css';
 
-import { isAiIpcReady } from '@/ai/env';
 import WaifuAgentBubbleBridge from '@/ai/WaifuAgentBubbleBridge';
 import WaifuMascotSceneReporter from '@/ai/WaifuMascotSceneReporter';
 import { useMascot } from '@/contexts/MascotContext';
@@ -21,6 +20,7 @@ import { useFileDropSummarize } from '@/hooks/useFileDropSummarize';
 import { useMascotTips } from '@/hooks/useMascotTips';
 import MascotDriver from '@/mascot/MascotDriver';
 import { useMascotZoomInput } from '@/mascot/scaleStore';
+import { hasTransport } from '@/services/api';
 
 // Rive is the default 2D mascot renderer (with the layered 2D rig as fallback if it cannot start).
 // The scene embeds the locked Nomi art layers and is loaded lazily to keep the first paint light.
@@ -34,7 +34,7 @@ const MascotVoiceBridge = lazy(() => import('@/mascot/voice/MascotVoice'));
  */
 export const MascotHost: React.FC = () => {
   const { currentModel } = useMascot();
-  const aiReady = useMemo(() => isAiIpcReady(), []);
+  const aiReady = useMemo(() => hasTransport(), []);
   useMascotTips();
   useMascotZoomInput();
   useFileDropSummarize('mascot-canvas');

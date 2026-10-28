@@ -102,20 +102,6 @@ export function describeRepeat(r?: RepeatRule): string {
   }
 }
 
-/** 导航事件仍经旧通道：主进程 WindowManager.openProviderPanel 直接发给对话窗口（见 contract media.ts 的 nav.*） */
-interface AiBridge {
-  on: (channel: string, fn: (payload: unknown) => void) => () => void;
-}
-
-function legacyBridge(): AiBridge | undefined {
-  if (typeof window === 'undefined') return undefined;
-  const b = (window as unknown as { aiIPC?: AiBridge }).aiIPC;
-  return b && typeof b.on === 'function' ? b : undefined;
-}
-
-const onLegacy = (ch: string, fn: (p: unknown) => void) =>
-  legacyBridge()?.on(ch, fn) ?? (() => undefined);
-
 /** 没有契约传输（浏览器预览 / 测试）时与原来一样报「需要桌面应用」 */
 async function call<T>(run: () => Promise<unknown>): Promise<T> {
   if (!hasTransport())
@@ -153,11 +139,13 @@ export const desktopClient = {
     call<boolean>(() => api.desktop.remindersSnooze({ id, minutes })),
   onP2Changed: (fn: (kind: 'reminders') => void) =>
     on(() => api.on('desktop.p2Changed', (p) => fn(p.kind as 'reminders'))),
-  onOpenPanel: (fn: () => void) => onLegacy('ai:desktop:open-panel', () => fn()),
+  /** 托盘「桌面能力」→ 打开桌面能力面板 */
+  onOpenPanel: (fn: () => void) => on(() => api.on('nav.desktopPanelRequested', () => fn())),
   /** 看板娘工具栏「任务看板」→ 打开「知识 · 记忆 · 日程」面板的日程页 */
-  onOpenSchedule: (fn: () => void) => onLegacy('ai:hub:open-schedule', () => fn()),
+  onOpenSchedule: (fn: () => void) => on(() => api.on('nav.scheduleRequested', () => fn())),
   /** 看板娘「TTS 语音配置」/ 语音错误「去设置」→ 设置 → 语音与屏幕 → 语音 */
-  onOpenVoiceSettings: (fn: () => void) => onLegacy('ai:settings:open-voice', () => fn()),
+  onOpenVoiceSettings: (fn: () => void) =>
+    on(() => api.on('nav.voiceSettingsRequested', () => fn())),
   onSummary: (fn: (e: DesktopSummaryEvent) => void) =>
     on(() => api.on('desktop.summary', (p) => fn(p as DesktopSummaryEvent))),
 };

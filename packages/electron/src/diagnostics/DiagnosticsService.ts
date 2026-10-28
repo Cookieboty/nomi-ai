@@ -16,7 +16,6 @@ import path from 'node:path';
 import type { HostPorts } from '@nomi-ai/host-ports';
 
 import { t } from '../i18n';
-import { guardedHandle } from '../security/guardedIpc';
 import { LogLevel, type LoggerService } from '../services/LoggerService';
 import { writePrivateFile } from '../utils/privateFile';
 
@@ -155,14 +154,6 @@ export class DiagnosticsService {
     const err = await this.d.ports.shell.openPath(this.logDir);
     if (err) throw new Error(err);
     return true;
-  }
-
-  registerIpc(): void {
-    const opts = { owner: 'DiagnosticsService' };
-    guardedHandle('diagnostics:get', () => this.view(), opts);
-    guardedHandle('diagnostics:set', (on) => this.set(on === true), opts);
-    guardedHandle('diagnostics:export', () => this.exportBundle(), opts);
-    guardedHandle('diagnostics:open-folder', () => this.openLogFolder(), opts);
   }
 
   private load(): boolean {

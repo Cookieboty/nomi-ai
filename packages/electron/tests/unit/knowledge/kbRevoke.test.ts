@@ -10,7 +10,6 @@ jest.unmock('node:path');
 jest.mock('electron', () => ({
   app: { isPackaged: true, getPath: () => '/tmp' },
   BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { removeHandler: () => undefined, handle: () => undefined },
 }));
 
 import * as fs from 'fs';

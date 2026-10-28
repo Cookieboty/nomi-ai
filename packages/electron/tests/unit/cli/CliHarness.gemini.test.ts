@@ -20,7 +20,6 @@ jest.setTimeout(30_000);
 
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { removeHandler: () => undefined, handle: () => undefined },
   dialog: { showOpenDialog: async () => ({ canceled: true, filePaths: [] }) },
 }));
 

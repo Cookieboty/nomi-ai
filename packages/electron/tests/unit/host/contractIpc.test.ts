@@ -11,7 +11,6 @@ const mockApp = { isPackaged: true, on: jest.fn(), off: jest.fn() };
 jest.mock('electron', () => ({
   app: mockApp,
   webContents: { getAllWebContents: () => [] },
-  ipcMain: { handle: jest.fn(), removeHandler: jest.fn(), on: jest.fn(), off: jest.fn() },
 }));
 // 只用到 IpcAdapter 的类型；不加载 ai-runtime 的运行时（它依赖 ESM 的 AI SDK 包）
 jest.mock('@nomi-ai/ai-runtime', () => ({ createElectronIpcAdapter: jest.fn() }));

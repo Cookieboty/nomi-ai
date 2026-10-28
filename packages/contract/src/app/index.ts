@@ -106,6 +106,12 @@ export type AppContract = typeof appContract;
 /** preload 暴露到视图全局的传输桥名（§5.2）；形状见 `IpcBridgeLike` */
 export const NOMI_TRANSPORT_GLOBAL = 'nomiTransport';
 
+/**
+ * preload 暴露的宿主能力桥名：只放不能做成契约调用的能力（`pathForFile(file)`：拖入文件的本机路径，
+ * 只能在 preload 里对真实 File 调用）。视图只在 `services/api.ts` 里读它。
+ */
+export const NOMI_HOST_GLOBAL = 'nomiHost';
+
 export {
   AI_EVENTS,
   AI_METHODS,

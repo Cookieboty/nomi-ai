@@ -11,7 +11,7 @@
  * 整个契约（含 zod）拖进每个窗口的 preload；与契约常量一致由单测保证。
  */
 
-import type { PreloadContextBridgeLike, PreloadIpcRendererLike } from './mkAiPreload';
+import type { PreloadContextBridgeLike, PreloadIpcRendererLike } from './types';
 
 /** = `@nomi-ai/contract` 的 IPC_REQUEST_CHANNEL / IPC_FRAME_CHANNEL */
 export const NOMI_TRANSPORT_REQUEST_CHANNEL = 'contract:request';

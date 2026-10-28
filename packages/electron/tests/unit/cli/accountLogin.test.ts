@@ -7,11 +7,6 @@ jest.unmock('path');
 jest.unmock('node:fs');
 jest.unmock('node:path');
 
-// 只剩 guardedIpc 还要 ipcMain；打开链接与广播经假端口 / 事件
-jest.mock('electron', () => ({
-  ipcMain: { handle: jest.fn(), removeHandler: jest.fn() },
-}));
-
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';

@@ -17,7 +17,6 @@ import { promisify } from 'node:util';
 
 import type { AppEvents } from '../core/appEvents';
 import { t } from '../i18n';
-import { guardedHandle } from '../security/guardedIpc';
 
 import {
   CLI_MIN_NODE_MAJOR,
@@ -143,7 +142,7 @@ export function isUpdatable(kind: CliKind): kind is UpdatableCli {
   );
 }
 
-/** 渲染层传来的 id → 可更新的 CLI；认不出时按 claude（旧 IPC 与契约处理函数共用） */
+/** 渲染层传来的 id → 可更新的 CLI；认不出时按 claude（契约处理函数用） */
 export function toUpdatable(kind: unknown): UpdatableCli {
   return kind === 'codex' || kind === 'dsh' || kind === 'grok' || kind === 'gemini'
     ? kind
@@ -741,19 +740,6 @@ export class CliUpdateService {
     }
     this.d.emit?.(payload);
     this.d.events.publish('ai:cli-update:event', payload);
-  }
-
-  registerIpc(): void {
-    const handle = (ch: string, fn: (...a: unknown[]) => unknown) =>
-      guardedHandle(ch, fn, { owner: 'CliUpdateService' });
-    handle('ai:cli-update:inspect', (refresh) => this.inspect(refresh === true));
-    handle('ai:cli-update:preview', (kind, scope) =>
-      this.previewUpdate(toUpdatable(kind), toScope(scope)),
-    );
-    handle('ai:cli-update:job', (kind) => this.job(toUpdatable(kind)));
-    handle('ai:cli-update:busy', () => this.busyKinds());
-    handle('ai:cli-update:dismiss', (kind) => this.dismissJob(toUpdatable(kind)));
-    handle('ai:cli-update:run', (kind, scope) => this.run(toUpdatable(kind), toScope(scope)));
   }
 }
 

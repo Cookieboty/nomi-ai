@@ -5,19 +5,7 @@
  */
 import type { BrowserWindow } from 'electron';
 
-const handlers = new Map<string, (e: unknown, ...a: unknown[]) => unknown>();
-const listeners = new Map<string, (e: unknown, ...a: unknown[]) => unknown>();
 jest.mock('electron', () => ({
-  ipcMain: {
-    on: jest.fn((ch: string, fn: (e: unknown, ...a: unknown[]) => unknown) =>
-      listeners.set(ch, fn),
-    ),
-    handle: jest.fn((ch: string, fn: (e: unknown, ...a: unknown[]) => unknown) =>
-      handlers.set(ch, fn),
-    ),
-    removeHandler: jest.fn((ch: string) => handlers.delete(ch)),
-    removeListener: jest.fn(),
-  },
   screen: {
     on: jest.fn(),
     removeListener: jest.fn(),
@@ -63,7 +51,16 @@ function setup(Ctrl: typeof MascotWindowController = MascotWindowController) {
     { get: () => 1, save: () => undefined },
   );
   c.start();
-  const emit = (ch: string, ...a: unknown[]) => listeners.get(ch)!({ sender: wc }, ...a);
+  // 渲染进程的上报（契约 mascot.*，host/contract/mascot.ts）直接调这些公开方法
+  const reports: Record<string, (a: unknown[]) => void> = {
+    'mascot:geometry': (a) => c.reportGeometry(a[0]),
+    'mascot:drag-start': (a) => c.beginDrag(a[0], a[1]),
+    'mascot:drag-move': (a) => c.moveDrag(a[0], a[1]),
+    'mascot:drag-end': () => c.endDrag(),
+    'mascot:interaction-config': (a) => c.setConfig(a[0]),
+    'mascot:wander-now': () => c.wanderNow(),
+  };
+  const emit = (ch: string, ...a: unknown[]) => reports[ch]!(a);
   const w0 = mascotWindowSize(1);
   emit('mascot:geometry', {
     left: 150,
@@ -102,8 +99,6 @@ function withPlatform<T>(
 
 describe('MascotWindowController · drag and wander scheduling', () => {
   beforeEach(() => {
-    handlers.clear();
-    listeners.clear();
     jest.useFakeTimers();
   });
   afterEach(() => {

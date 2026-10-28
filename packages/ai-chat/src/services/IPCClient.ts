@@ -9,7 +9,7 @@ import {
   type ChatSession,
   type ConversationBackend,
 } from '../types/chat';
-import { type IPCClient, type ElectronAPI, type StreamSendOptions } from '../types/ipc';
+import { type IPCClient, type StreamSendOptions } from '../types/ipc';
 import { chunkToTrace, chunkToUsage } from '../utils/chunkTrace';
 
 import { api, hasTransport } from './api';
@@ -18,13 +18,6 @@ import { buildProviderMessages } from './history';
 import { upstreamErrorText } from './upstreamErrorText';
 
 const log = createLogger('IPC');
-
-declare global {
-  interface Window {
-    electronAPI?: ElectronAPI;
-    aiIPC?: unknown;
-  }
-}
 
 const LOCAL_CONFIG_KEY = 'ai-chat:config';
 
@@ -452,9 +445,7 @@ export class MockIPCClient implements IPCClient {
 
 export const createIPCClient = (client?: ClientAIClient): IPCClient => {
   if (client) return new SdkIPCClient(client);
-  if (typeof window !== 'undefined' && (window as { aiIPC?: unknown }).aiIPC) {
-    return new SdkIPCClient();
-  }
-  log.warn('window.aiIPC 未就绪，使用 Mock 客户端（开发/测试模式）');
+  if (hasTransport()) return new SdkIPCClient();
+  log.warn('契约传输未就绪，使用 Mock 客户端（开发/测试模式）');
   return new MockIPCClient();
 };

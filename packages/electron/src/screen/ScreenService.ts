@@ -10,7 +10,6 @@ import path from 'node:path';
 
 import type { DesktopService } from '../desktop/DesktopService';
 import { t } from '../i18n';
-import { guardedHandle } from '../security/guardedIpc';
 
 interface Logger {
   info(m: string, x?: unknown): void;
@@ -25,7 +24,6 @@ export interface ScreenDeps {
 }
 
 export class ScreenService {
-  private ipcDone = false;
   /** 启动时清理旧数据的异步任务（测试可 await） */
   readonly legacyPurged: Promise<void>;
 
@@ -42,7 +40,7 @@ export class ScreenService {
     );
   }
 
-  /** 发送图片前：云端告知 / 仅本地模式（旧 IPC 与契约 screen.checkSend 共用） */
+  /** 发送图片前：云端告知 / 仅本地模式（契约 screen.checkSend） */
   async checkSend(): Promise<'ok' | 'local_only' | 'user_denied'> {
     const r = await this.d.desktop.broker.checkSend(
       this.d.desktop.providerFor('chat'),
@@ -50,22 +48,6 @@ export class ScreenService {
       t('electron.common.images-attached'),
     );
     return r ?? 'ok';
-  }
-
-  registerIpc(): void {
-    if (this.ipcDone) return;
-    this.ipcDone = true;
-    guardedHandle(
-      'ai:screen:check-send',
-      async () => {
-        try {
-          return await this.checkSend();
-        } catch (err) {
-          return { __error: { code: 'screen', message: (err as Error).message } };
-        }
-      },
-      { owner: 'ScreenService', wrapErrors: false },
-    );
   }
 }
 

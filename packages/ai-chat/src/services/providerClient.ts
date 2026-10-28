@@ -134,19 +134,6 @@ export interface ProviderState {
   overrideId?: string;
 }
 
-/**
- * 托盘 / 菜单「打开供应商面板」：主进程 WindowManager 仍直接向对话窗口发送旧通道，还没经应用事件总线，
- * 契约事件 `providers.openPanel` 收不到；迁移完成前同时听旧通道（收尾批次删除）。
- */
-interface LegacyBridge {
-  on: (channel: string, fn: (payload: unknown) => void) => () => void;
-}
-function legacyBridge(): LegacyBridge | undefined {
-  if (typeof window === 'undefined') return undefined;
-  const b = (window as unknown as { aiIPC?: LegacyBridge }).aiIPC;
-  return b && typeof b.on === 'function' ? b : undefined;
-}
-
 export const providerClientAvailable = (): boolean => hasTransport();
 
 const call = async <T>(fn: () => Promise<unknown>): Promise<T> => {
@@ -209,11 +196,9 @@ export const providerClient = {
     if (!hasTransport()) return () => undefined;
     return api.on('providers.changed', (p) => fn(remember(p as ProviderState)));
   },
+  /** 托盘 / 菜单「打开供应商面板」 */
   onOpenPanel(fn: () => void): () => void {
-    const offs: Array<() => void> = [];
-    if (hasTransport()) offs.push(api.on('providers.openPanel', () => fn()));
-    const legacy = legacyBridge();
-    if (legacy) offs.push(legacy.on('ai:providers:open-panel', () => fn()));
-    return () => offs.forEach((off) => off());
+    if (!hasTransport()) return () => undefined;
+    return api.on('providers.openPanel', () => fn());
   },
 };

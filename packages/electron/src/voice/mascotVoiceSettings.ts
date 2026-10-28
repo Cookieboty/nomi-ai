@@ -1,8 +1,7 @@
 /**
  * 看板娘的旧语音设置（config.json 的 `voiceSettings`：音量、整点报时、音效开关…）。
  *
- * 旧 IPC（`get-voice-settings` / `save-voice-settings`，handlers/ipc/VoiceIpcHandler.ts）与契约
- * （`voice.getMascotSettings` / `voice.saveMascotSettings`，host/contract/media.ts）共用。
+ * 契约 `voice.getMascotSettings` / `voice.saveMascotSettings`（host/contract/media.ts）用。
  */
 import type { VoiceSettings } from '@nomi-ai/types';
 

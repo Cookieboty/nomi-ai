@@ -263,7 +263,7 @@ export const gatewayClientAvailable = (): boolean => hasTransport();
 
 /** 没有契约传输时抛错，调用方按「网关不可用」处理；主进程的错误原样抛出（message 不变） */
 async function call<T>(fn: () => Promise<unknown>): Promise<T> {
-  if (!hasTransport()) throw new Error('aiIPC unavailable');
+  if (!hasTransport()) throw new Error('desktop app connection unavailable');
   return (await fn()) as T;
 }
 

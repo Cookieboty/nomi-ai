@@ -6,13 +6,8 @@ jest.unmock('path');
 jest.unmock('node:fs');
 jest.unmock('node:path');
 
-const handlers = new Map<string, (...a: unknown[]) => unknown>();
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: {
-    handle: jest.fn((ch: string, fn: (...a: unknown[]) => unknown) => handlers.set(ch, fn)),
-    removeHandler: jest.fn(),
-  },
 }));
 
 import { spawn } from 'node:child_process';
@@ -132,17 +127,4 @@ describe('CliPluginHost 外部插件（§5.9）', () => {
     const invalid = await host.testExternal(spec({ command: '' }), root);
     expect(invalid).toEqual({ ok: false, errors: ['command is required'] });
   }, 20_000);
-
-  it('IPC：plugin-add / plugin-remove / plugin-test 已登记', async () => {
-    const { host } = mk();
-    await host.start();
-    host.registerIpc();
-    for (const ch of [
-      'ai:cli:registry',
-      'ai:cli:plugin-add',
-      'ai:cli:plugin-remove',
-      'ai:cli:plugin-test',
-    ])
-      expect(handlers.has(ch)).toBe(true);
-  });
 });

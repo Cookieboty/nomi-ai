@@ -4,9 +4,9 @@ import * as path from 'path';
 import type { ToolCallProvider, ToolDefinition } from '@nomi-ai/bundle-ig-base';
 import type { HostPorts } from '@nomi-ai/host-ports';
 import type { DesktopBubble } from '@nomi-ai/types';
-// 仍需 electron 的部分：旧 IPC 注册层（ipcMain，P1 由契约传输层取代）、系统通知（host-ports 还没有
-// notifications 端口）、看板娘窗口对象（显示 / 隐藏 / 按 sender 校验）与窗口数量。
-import { BrowserWindow, ipcMain, Notification, type IpcMainInvokeEvent } from 'electron';
+// 仍需 electron 的部分：系统通知（host-ports 还没有 notifications 端口）、看板娘窗口对象
+// （显示 / 隐藏 / 按 sender 校验）与窗口数量。
+import { BrowserWindow, Notification } from 'electron';
 
 import { broadcastMascotCommand } from '../ai/mascotCommand';
 import type { AppEvents } from '../core/appEvents';
@@ -16,7 +16,6 @@ import { notifyIsland, type IslandKind, type IslandNotice } from '../island/Isla
 import { AgentBrowser } from '../sandbox/AgentBrowser';
 import { CodeSandbox } from '../sandbox/CodeSandbox';
 import { sanitizeRepeat } from '../schedule/recurrence';
-import { guardedHandle } from '../security/guardedIpc';
 
 import { AppTrash } from './AppTrash';
 import { AuditLog, type AuditEntry } from './AuditLog';
@@ -99,7 +98,6 @@ export class DesktopService {
   private runtime: DesktopRuntimeHooks | null = null;
   private windows: DesktopWindows | null = null;
   private toolDefs: ToolDefinition[] | null = null;
-  private ipcRegistered = false;
   private readonly ports: DesktopPorts;
   private readonly events: AppEvents;
 
@@ -570,7 +568,7 @@ export class DesktopService {
     return { ok: true };
   }
 
-  // ---- 设置面板 / 看板娘窗口的操作（旧 IPC 与契约 host/contract/media.ts 共用）----
+  // ---- 设置面板 / 看板娘窗口的操作（契约 host/contract/media.ts）----
 
   /** 弹出系统选择框授权文件夹；用户取消返回 null */
   async grantFolder(mode: unknown): Promise<Scope | null> {
@@ -775,40 +773,6 @@ export class DesktopService {
   dropFile(senderId: number | undefined, p: unknown): void {
     if (!this.isMascotSender(senderId) || typeof p !== 'string' || !p) return;
     void this.summarizeDropped(p);
-  }
-
-  registerIpc(): void {
-    if (this.ipcRegistered) return;
-    this.ipcRegistered = true;
-    const handle = (ch: string, fn: (e: IpcMainInvokeEvent, ...a: unknown[]) => unknown) =>
-      guardedHandle(ch, fn, { owner: 'DesktopService', wrapErrors: false, passEvent: true });
-    handle('ai:desktop:state', () => this.state());
-    handle('ai:desktop:grant', (_e, mode) => this.grantFolder(mode));
-    handle('ai:desktop:revoke', (_e, id) => this.revokeScope(id));
-    handle('ai:desktop:set-policy', (_e, tool, policy) => this.setToolPolicy(tool, policy));
-    handle('ai:desktop:set-local-only', (_e, v) => this.setLocalOnly(v));
-    handle('ai:desktop:reset-cloud-acks', () => this.resetCloudAcks());
-    handle('ai:desktop:audit', (_e, limit) => this.auditList(limit));
-    handle('ai:desktop:audit-clear', () => this.clearAudit());
-    handle('ai:desktop:journal', () => this.journalList());
-    handle('ai:desktop:undo-last', () => this.undoLast());
-    handle('ai:desktop:reset-all', () => this.resetAll());
-    handle('ai:desktop:reminders-list', (_e, all) => this.remindersList(all));
-    handle('ai:desktop:reminders-create', (_e, raw) => this.createReminder(raw));
-    handle('ai:desktop:reminders-update', (_e, id, raw) => this.updateReminder(id, raw));
-    handle('ai:desktop:reminders-cancel', (_e, id) => this.cancelReminder(id));
-    handle('ai:desktop:reminders-snooze', (_e, id, minutes) => this.snoozeReminder(id, minutes));
-    ipcMain.removeHandler('desktop:reminders-missed');
-    ipcMain.handle('desktop:reminders-missed', (e) => this.takeMissedFor(e.sender.id));
-    // 提醒卡片（看板娘窗口）：好的 / 稍后
-    ipcMain.on('desktop:reminder-action', (e, id, action, minutes) =>
-      this.reminderAction(e.sender.id, id, action, minutes),
-    );
-    // 确认答复：不走 ai:* 通道，模型与对话窗口都无法伪造
-    ipcMain.on('desktop:confirm-answer', (e, id, allow, remember) =>
-      this.answerConfirm(e.sender.id, id, allow, remember),
-    );
-    ipcMain.on('desktop:drop-file', (e, p) => this.dropFile(e.sender.id, p));
   }
 }
 

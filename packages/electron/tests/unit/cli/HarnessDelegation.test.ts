@@ -12,7 +12,6 @@ import { CliHarnessService, DELEGATED_PERMISSION_TIMEOUT_MS } from '../helpers/h
 
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { removeHandler: () => undefined, handle: () => undefined },
   dialog: { showOpenDialog: async () => ({ canceled: true, filePaths: [] }) },
 }));
 

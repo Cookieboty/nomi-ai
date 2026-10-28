@@ -18,7 +18,7 @@ export interface TerminalCommandsState {
 }
 
 async function call<T>(fn: () => Promise<unknown>): Promise<T> {
-  if (!hasTransport()) throw new Error('aiIPC unavailable');
+  if (!hasTransport()) throw new Error('desktop app connection unavailable');
   return (await fn()) as T;
 }
 

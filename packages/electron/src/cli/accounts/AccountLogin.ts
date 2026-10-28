@@ -15,7 +15,6 @@ import type { HostPorts } from '@nomi-ai/host-ports';
 
 import type { AppEvents } from '../../core/appEvents';
 import { t } from '../../i18n';
-import { guardedHandle } from '../../security/guardedIpc';
 import { buildCliEnv } from '../cliEnv';
 import { resolveHarnessBin } from '../CliHarnessService';
 import { resolveHarnessLaunch } from '../cliLaunch';
@@ -323,25 +322,6 @@ export class AccountLogin {
   /** 退出：取消所有进行中的登录 */
   async dispose(): Promise<void> {
     for (const id of [...this.sessions.keys()]) this.cancel(id);
-  }
-
-  registerIpc(): void {
-    const owner = 'AccountLogin';
-    guardedHandle(
-      'ai:cli-account:login-start',
-      (k, accountId) =>
-        this.start(String(k) as AccountKind, accountId ? String(accountId) : undefined),
-      { owner },
-    );
-    guardedHandle(
-      'ai:cli-account:login-input',
-      (id, text) => this.input(String(id), String(text)),
-      {
-        owner,
-      },
-    );
-    guardedHandle('ai:cli-account:login-cancel', (id) => this.cancel(String(id)), { owner });
-    guardedHandle('ai:cli-account:open-url', (u) => this.openUrl(String(u)), { owner });
   }
 
   /** 只打开官方登录页（https + 已知域名）；其他链接不打开，返回 false */

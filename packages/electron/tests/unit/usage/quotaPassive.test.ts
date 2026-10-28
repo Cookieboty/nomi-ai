@@ -2,7 +2,6 @@ jest.unmock('fs');
 jest.unmock('path');
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: jest.fn(), removeHandler: jest.fn() },
 }));
 // Grok 登录探测会 spawn 官方 ACP：用 mock 观察它有没有被调用（解析函数保持真实实现）
 jest.mock('../../../src/usage/grokAuth', () => ({

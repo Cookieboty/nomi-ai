@@ -14,8 +14,6 @@ import path from 'node:path';
 
 import { app, BrowserWindow, nativeImage, type NativeImage } from 'electron';
 
-import { guardedHandle } from '../security/guardedIpc';
-
 export const ICON_VARIANTS = ['ink', 'cream', 'sunset'] as const;
 export type IconVariant = (typeof ICON_VARIANTS)[number];
 export const DEFAULT_ICON: IconVariant = 'sunset';
@@ -154,9 +152,4 @@ export function initAppIcon(configFile: string): void {
   app.on?.('browser-window-created', (_e, w) =>
     applyToWindow(w, { platform: process.platform, image: iconImage('window'), ico: currentIco() }),
   );
-  guardedHandle('app-icon:get', () => appIconState(), { owner: 'AppIcon', wrapErrors: false });
-  guardedHandle('app-icon:set', (v: unknown) => setIconVariant(v), {
-    owner: 'AppIcon',
-    wrapErrors: false,
-  });
 }

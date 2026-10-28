@@ -16,7 +16,6 @@ import { broadcastMascotCommand } from '../ai/mascotCommand';
 import type { AppEvents } from '../core/appEvents';
 import type { DesktopService } from '../desktop/DesktopService';
 import { t as tr } from '../i18n';
-import { guardedHandle } from '../security/guardedIpc';
 import { downloadVerified, extractTarGz, extractZip } from '../voice/download';
 
 import {
@@ -86,7 +85,6 @@ export class LocalModelService {
   private running?: string;
   private lastError = '';
   private log: string[] = [];
-  private ipcDone = false;
 
   constructor(private readonly d: LocalDeps) {
     fs.mkdirSync(this.modelsDir, { recursive: true });
@@ -590,37 +588,6 @@ export class LocalModelService {
     this.audit('ollama_delete', { name }, 'ok');
     this.changed();
     return true;
-  }
-
-  registerIpc() {
-    if (this.ipcDone) return;
-    this.ipcDone = true;
-    const h = (ch: string, fn: (...a: never[]) => unknown) =>
-      guardedHandle(
-        `ai:local:${ch}`,
-        async (...a: unknown[]) => {
-          try {
-            return await fn(...(a as never[]));
-          } catch (err) {
-            return { __error: { code: 'local', message: (err as Error).message } };
-          }
-        },
-        { owner: 'LocalModelService', wrapErrors: false },
-      );
-    h('state', () => this.state());
-    h('set-settings', (p: never) => this.setSettings(p));
-    h('download', (id: string) => this.download(String(id)));
-    h('download-runtime', () => this.downloadRuntime());
-    h('cancel', (id: string) => this.cancel(String(id)));
-    h('remove', (id: string) => this.remove(String(id)));
-    h('remove-runtime', () => this.removeRuntime());
-    h('start', (id: string) => this.start(String(id)));
-    h('stop', () => this.stop());
-    h('use', () => this.useAsChat());
-    h('offline', (on: boolean) => this.setOffline(!!on));
-    h('ollama-list', () => this.ollamaList());
-    h('ollama-pull', (n: string) => this.ollamaPull(String(n)));
-    h('ollama-delete', (n: string) => this.ollamaDelete(String(n)));
   }
 }
 

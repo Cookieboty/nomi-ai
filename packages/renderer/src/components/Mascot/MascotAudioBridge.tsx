@@ -164,13 +164,14 @@ export const MascotAudioBridge: FC = () => {
   }, []);
 
   useEffect(() => {
-    const off = window.electronAPI?.onMascotCommand?.((cmd) => {
+    if (!hasTransport()) return;
+    const off = api.on('mascot.command', (cmd) => {
       const c = cmd as { type?: string; name?: string } | null;
       if (!c || c.type !== 'motion' || typeof c.name !== 'string') return;
       // 仅音效；完整台词等 desktop:bubble，避免双读
       mascotCueService.motionSfx(c.name);
     });
-    return () => off?.();
+    return off;
   }, []);
 
   useEffect(() => {

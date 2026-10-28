@@ -1,18 +1,11 @@
 /**
- * 看板娘推送接上应用事件总线后（mascot/mascotEvents.ts，契约 router 建好时由 host/contract/mascot.ts 接上）：
- * 窗口控制器的大小 / 物理推送经 `events.publish` 发布（旧通道照常送达，事件桥同时发成契约事件），
- * 大小变化只发布一次（看板娘 + 对话窗口），不再走 changed 钩子直接发给对话窗口；
- * 渲染进程上报的公开方法与旧 IPC 共用。
+ * 看板娘推送经应用事件总线（mascot/mascotEvents.ts，契约 router 建好时由 host/contract/mascot.ts 接上）：
+ * 窗口控制器的大小 / 物理推送经 `events.publish` 发布，事件桥转成契约事件；大小变化只发布一次
+ * （看板娘 + 对话窗口）。没接上之前没有订阅者，推送直接丢弃，不再直接发给窗口。
  */
 import type { BrowserWindow } from 'electron';
 
 jest.mock('electron', () => ({
-  ipcMain: {
-    on: jest.fn(),
-    handle: jest.fn(),
-    removeHandler: jest.fn(),
-    removeListener: jest.fn(),
-  },
   screen: {
     on: jest.fn(),
     removeListener: jest.fn(),
@@ -66,21 +59,18 @@ describe('MascotWindowController · 应用事件总线', () => {
 
   function setup() {
     const f = fakeWindow(0.5, 1000, 1040 - mascotWindowSize(0.5).height);
-    const changed: unknown[] = [];
     const c = new MascotWindowController(f.win, logger, () => 0.5, {
       get: () => 0.5,
       save: () => undefined,
-      changed: (s) => changed.push(s),
     });
     c.start();
-    return { ...f, c, changed };
+    return { ...f, c };
   }
 
-  it('没接上时直接发给窗口，大小变化经 changed 钩子通知对话窗口（原行为）', () => {
+  it('没接上时推送直接丢弃，不发给窗口', () => {
     const s = setup();
-    s.c.scaleStep(1);
-    expect(s.sent.map(([ch]) => ch)).toContain('mascot:scale-changed');
-    expect(s.changed).toHaveLength(1);
+    expect(s.c.scaleStep(1).scale).toBe(0.6);
+    expect(s.sent).toHaveLength(0);
     s.c.dispose();
   });
 
@@ -90,7 +80,6 @@ describe('MascotWindowController · 应用事件总线', () => {
     const s = setup();
     const st = s.c.scaleStep(1);
     expect(st.scale).toBe(0.6);
-    expect(s.changed).toHaveLength(0);
     expect(s.sent).toHaveLength(0);
     expect(events.published).toEqual([
       { channel: 'mascot:scale-changed', payload: st, surfaces: ['mascot', 'chat'] },
@@ -107,7 +96,7 @@ describe('MascotWindowController · 应用事件总线', () => {
     s.c.dispose();
   });
 
-  it('上报的公开方法忽略非法值（与旧 IPC 相同）', () => {
+  it('上报的公开方法忽略非法值', () => {
     const s = setup();
     expect(s.c.scaleSet('big')).toMatchObject({ scale: 0.5 });
     expect(s.c.scaleWheel(Number.NaN)).toMatchObject({ scale: 0.5 });

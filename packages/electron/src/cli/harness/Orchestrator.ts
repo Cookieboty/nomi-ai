@@ -55,7 +55,6 @@ import type { QualityOutcome, QualityRecord } from '@nomi-ai/types';
 
 import type { AppEvents } from '../../core/appEvents';
 import { t } from '../../i18n';
-import { guardedHandle } from '../../security/guardedIpc';
 import { claudeConfigDir } from '../../usage/cliHomes';
 import { qualityLedgerInput } from '../../usage/quality/cliTokens';
 import { CoalescedWriter, flushPendingWritesSync } from '../../utils/coalescedWriter';
@@ -190,7 +189,6 @@ import {
   withPermissionExpiry,
   type ApprovePlanChoice,
 } from './permissionQueue';
-import { RendererSubscribers } from './rendererSubscribers';
 import { cliChildEnv, isScript, peekHarnessBin, resolveHarnessBin, spawnHarness } from './spawn';
 export type {
   AccountBackend,
@@ -347,8 +345,6 @@ export class HarnessOrchestrator {
   private readonly sendAborts = new Map<string, AbortController>();
   /** 用户接管委派标签时，按标签串行化取消与等待，避免重复发送竞态。 */
   private readonly takeoverInFlight = new Map<string, Promise<void>>();
-  /** ai:harness:* 推送的接收方：在 IPC 调用里登记发起方 webContents（见 registerIpc） */
-  private readonly subscribers = new RendererSubscribers();
   /** 实时事件按帧合批后再广播（见 eventBatcher） */
   private readonly eventBatcher = new EventBatcher<HarnessEvent & { tabId: string }>((batch) =>
     this.broadcast('ai:harness:events', batch),
@@ -2439,7 +2435,6 @@ export class HarnessOrchestrator {
   /** 测试 / 应用退出：拆除所有长驻 Claude 与残留子进程（含其子孙进程）、清掉所有定时器 */
   dispose(): void {
     this.disposed = true;
-    this.subscribers.clear();
     this.writer.dispose();
     this.stopIdleSweep();
     this.eventBatcher.dispose();
@@ -4616,17 +4611,14 @@ export class HarnessOrchestrator {
   }
 
   /**
-   * 推送只发给对话窗口，不再广播到看板娘 / 岛 / 截图浮层等从不监听的窗口：
-   * - 接上应用事件总线后（契约处理函数 attachEvents）：`events.publish(…, { surface: 'chat' })`，
-   *   旧通道照常发给对话窗口，事件桥同时发成契约事件（`harness.*`，只推给订阅了的窗口）；
-   * - 之前：只发给调过 ai:harness:* 的窗口（见 rendererSubscribers）。
+   * 推送只发给对话窗口：`events.publish(…, { surface: 'chat' })`，事件桥转成契约事件 `harness.*`
+   * （只推给订阅了的窗口）。没接上事件总线之前（契约处理函数 attachEvents 之前）没有订阅者，直接丢弃。
    */
   private broadcast(channel: string, payload: unknown) {
-    if (this.appEvents) this.appEvents.publish(channel, payload, { surface: 'chat' });
-    else this.subscribers.send(channel, payload);
+    this.appEvents?.publish(channel, payload, { surface: 'chat' });
   }
 
-  /** 应用事件总线（P1b：经契约事件桥）；没接上时推送走 subscribers */
+  /** 应用事件总线（经契约事件桥） */
   private appEvents: AppEvents | null = null;
 
   /** 推送改走应用事件总线（host/contract/coding.ts 在建 router 与每次调用时接上；重复调用无副作用） */
@@ -5017,7 +5009,7 @@ export class HarnessOrchestrator {
     this.pendingPermissions.delete(tabId);
   }
 
-  // ─────────────── 渲染层入口（旧 IPC 与契约处理函数共用；cwd 先核对是已知工作区） ───────────────
+  // ─────────────── 渲染层入口（契约处理函数用；cwd 先核对是已知工作区） ───────────────
 
   /** 渲染层读状态：先确认各 CLI 的可执行文件（后台探测好的缓存），再返回主标签状态 */
   async stateFresh(): Promise<ReturnType<HarnessOrchestrator['state']>> {
@@ -5125,168 +5117,6 @@ export class HarnessOrchestrator {
     if (c !== 'acceptEdits' && c !== 'manual' && c !== 'deny')
       throw new Error(t('electron.common.invalid-approve-plan-choice'));
     return this.replyApprovePlan(tabId, requestId, c);
-  }
-
-  registerIpc(): void {
-    // 发起调用的窗口就是推送通道的接收方（guardedHandle 已先校验 sender 受信）
-    const handle = (ch: string, fn: (...a: unknown[]) => unknown) =>
-      guardedHandle(
-        ch,
-        (event, ...a) => {
-          this.subscribers.add(event?.sender);
-          return fn(...a);
-        },
-        { owner: 'CliHarnessService', passEvent: true },
-      );
-    // 启动时就在后台把各 CLI 的可执行文件探测好，之后的状态读取都只读缓存
-    void this.refreshBins().catch(() => undefined);
-    handle('ai:harness:state', () => this.stateFresh());
-    handle('ai:harness:set-backend', (b) => this.setBackend(b as HarnessBackend));
-    handle('ai:harness:tab-carry-clear', (id) => this.clearTabCarry(String(id)));
-    handle('ai:harness:tab-rewind', (id, messageId) =>
-      this.rewindTab(String(id), String(messageId ?? '')),
-    );
-    handle('ai:harness:set-cwd', (c, o) =>
-      this.setCwd(String(c), { carry: (o as { carry?: unknown } | undefined)?.carry === true }),
-    );
-    handle('ai:harness:pick-cwd', () => this.pickCwd());
-    handle('ai:harness:send', (p) => this.sendReply(String(p ?? '')));
-    handle('ai:harness:tabs', () => this.listTabs());
-    handle('ai:harness:tab-create', (o) =>
-      this.createTab(
-        (o ?? {}) as {
-          backend?: HarnessBackend;
-          cwd?: string;
-          title?: string;
-          messages?: HarnessTabMessage[];
-          permissionMode?: HarnessPermissionMode;
-        },
-      ),
-    );
-    handle('ai:harness:tab-seed', (id, msgs) =>
-      this.seedTabMessages(String(id), (msgs ?? []) as HarnessTabMessage[]),
-    );
-    handle('ai:harness:tab-close', (id) => this.closeTab(String(id)));
-    handle('ai:harness:tab-rename', (id, title) => this.renameTab(String(id), String(title)));
-    handle('ai:harness:tab-activate', (id) => this.setActiveTab(String(id)));
-    handle('ai:harness:tab-backend', (id, b) =>
-      this.setTabBackend(String(id), b as HarnessBackend),
-    );
-    handle('ai:harness:tab-cwd', (id, c, o) =>
-      this.setTabCwd(String(id), String(c), {
-        carry: (o as { carry?: unknown } | undefined)?.carry === true,
-      }),
-    );
-    handle('ai:harness:tab-permission-mode', (id, m, o) => {
-      const raw = o as { confirmed?: unknown; expect?: unknown } | undefined;
-      // 等长驻进程确认后再回复：后端拒绝 / 超时时界面拿到错误，而不是把没生效的档位当成已生效（#72）
-      return this.applyTabPermissionMode(String(id), m as HarnessPermissionMode, {
-        confirmed: raw?.confirmed === true,
-        // 原样核对：类型不对的值与标签不相等，按「已变化」拒绝
-        expect:
-          raw?.expect && typeof raw.expect === 'object'
-            ? (raw.expect as { backend?: string; cwd?: string })
-            : undefined,
-      });
-    });
-    handle('ai:harness:model-catalog', (b, o) =>
-      this.modelCatalogFor(String(b ?? '') as HarnessBackend, {
-        refresh: (o as { refresh?: unknown } | undefined)?.refresh === true,
-        source:
-          (o as { source?: unknown } | undefined)?.source === 'thirdParty'
-            ? 'thirdParty'
-            : 'official',
-      }),
-    );
-    handle('ai:harness:tab-source', (id, src, m) =>
-      this.setTabSource(
-        String(id),
-        src as HarnessTabSource,
-        m === undefined || m === null ? undefined : String(m),
-      ),
-    );
-    handle('ai:harness:tab-model', (id, m, o) => {
-      const want = (o as { expectSource?: unknown } | undefined)?.expectSource;
-      return this.setTabModel(String(id), String(m ?? ''), {
-        ...(want === 'official' || want === 'thirdParty' ? { expectSource: want } : {}),
-      });
-    });
-    handle('ai:harness:tab-account', (id, accountId) =>
-      this.setTabAccount(String(id), accountId ? String(accountId) : null),
-    );
-    handle('ai:harness:tab-long-context', (id, on) =>
-      this.setTabLongContext(String(id), typeof on === 'boolean' ? on : null),
-    );
-    handle('ai:harness:tab-effort', (id, e) =>
-      this.setTabReasoningEffort(String(id), e === null || e === undefined ? null : String(e)),
-    );
-    handle('ai:harness:permission-defaults', (o) =>
-      this.setPermissionDefaults(
-        (o ?? {}) as { defaultPermissionMode?: HarnessPermissionMode; codexNetwork?: boolean },
-      ),
-    );
-    handle('ai:harness:tab-pick-cwd', (id) => this.pickTabCwd(String(id)));
-    handle('ai:harness:pick-dir', (p) => this.pickDirectory(p ? String(p) : undefined));
-    handle('ai:harness:recent-cwds', () => this.recentCwds());
-    handle('ai:harness:tab-messages', (id) => this.tabMessages(String(id)));
-    handle('ai:harness:tab-send', (id, p, images) =>
-      this.sendTabReply(
-        String(id),
-        String(p ?? ''),
-        Array.isArray(images) ? (images as HarnessImageInput[]) : undefined,
-      ),
-    );
-    handle('ai:harness:tab-cancel', (id) => this.cancelTab(String(id)));
-    handle('ai:harness:stop-agent', (id, agentId) =>
-      this.stopAgent(String(id), String(agentId ?? '')),
-    );
-    // 斜杠命令：只读发现 / 按 id 展开 / 只读 git diff（见 slashDiscovery.ts）
-    handle('ai:harness:slash-discover', (b, cwd) => this.slashDiscoverIn(b, cwd));
-    handle('ai:harness:slash-expand', (b, cwd, id, args) => this.slashExpandIn(b, cwd, id, args));
-    handle('ai:harness:git-diff', (cwd) => this.gitDiffIn(cwd));
-    handle('ai:harness:git-branch', (cwd) => this.gitBranchIn(cwd));
-    // 右栏「改动」的写操作（见 gitOps.ts）：暂存、提交、拉取只快进、推送不强推
-    handle('ai:harness:git-sync-status', (cwd) => this.gitSyncStatusIn(cwd));
-    handle('ai:harness:git-stage', (cwd, paths) => this.gitStageIn(cwd, paths));
-    handle('ai:harness:git-unstage', (cwd, paths) => this.gitUnstageIn(cwd, paths));
-    handle('ai:harness:git-commit', (cwd, message, paths) => this.gitCommitIn(cwd, message, paths));
-    handle('ai:harness:git-commit-undo', (cwd, sha) => this.gitCommitUndoIn(cwd, sha));
-    handle('ai:harness:git-fetch', (cwd) => this.gitFetchIn(cwd));
-    handle('ai:harness:git-pull', (cwd) => this.gitPullIn(cwd));
-    handle('ai:harness:git-push', (cwd) => this.gitPushIn(cwd));
-    handle('ai:harness:git-worktrees', (cwd) => this.listWorktrees(cwd));
-    handle('ai:harness:git-discard', (cwd, paths) => this.gitDiscardIn(cwd, paths));
-    handle('ai:harness:git-discard-undo', (cwd, sha) => this.gitDiscardUndoIn(cwd, sha));
-    handle('ai:harness:git-suggest-message', (cwd, paths) =>
-      this.suggestCommitMessage(cwd, paths ?? undefined),
-    );
-    handle('ai:harness:workspace-read', (cwd, filePath) => this.workspaceReadIn(cwd, filePath));
-    handle('ai:harness:workspace-write', (cwd, filePath, content) =>
-      this.workspaceWriteIn(cwd, filePath, content),
-    );
-    handle('ai:harness:workspace-delete', (cwd, filePath) => this.workspaceDeleteIn(cwd, filePath));
-    handle('ai:harness:workspace-git-checkout', (cwd, filePath) =>
-      this.workspaceGitCheckoutIn(cwd, filePath),
-    );
-    handle('ai:harness:workspace-list', (cwd) => this.workspaceListIn(cwd));
-    // 上下文环：Claude 标签空闲时以 CLI 自己的会话记录为准（见 transcriptContext.ts）
-    handle('ai:harness:tab-context', (tabId) => this.tabContext(String(tabId)));
-    handle('ai:harness:gemini-trust-folder', (tabId, messageId, o) =>
-      this.trustGeminiFolder(String(tabId), String(messageId ?? ''), {
-        confirmed: (o as { confirmed?: unknown } | undefined)?.confirmed === true,
-      }),
-    );
-    handle('ai:harness:reply-permission', (tabId, requestId, allow, extra) =>
-      this.answerPermission(
-        String(tabId),
-        String(requestId),
-        Boolean(allow),
-        (extra as { approvePlan?: unknown } | undefined)?.approvePlan,
-      ),
-    );
-    handle('ai:harness:reply-approve-plan', (tabId, requestId, choice) =>
-      this.answerApprovePlan(String(tabId), String(requestId), choice),
-    );
   }
 }
 

@@ -9,14 +9,13 @@
  * 看板娘窗口控制器（光标 / 运动 / 物理 / 大小）、看板娘指令与窗口鼠标进出原来直接 `webContents.send`；
  * 建 router 时把应用事件总线接到 `mascot/mascotEvents.ts`，它们从此经 `events.publish` 发布并桥接成契约事件。
  *
- * 旧窗口通道的逻辑在 `WindowIpcHandler` 的公开方法里（新旧两边共用）；看板娘互动在
+ * 窗口操作在 `host/mascotWindowActions.ts`；看板娘互动在
  * `MascotWindowController` 的公开方法里。`files.pathFor` 不能过线（只能在 preload 里对真实 File 调用），不在契约里。
  */
 
 import type { MascotEventName, MascotProcedureName } from '@nomi-ai/contract/app';
 import { CHAT_BG_ERROR } from '@nomi-ai/types';
 
-import type { WindowIpcHandler } from '../../handlers/ipc/WindowIpcHandler';
 import type { IslandSettings } from '../../island/IslandService';
 import { setMascotAppEvents } from '../../mascot/mascotEvents';
 import type { MascotWindowController } from '../../mascot/MascotWindowController';
@@ -55,15 +54,11 @@ export function createMascotHandlers(deps: ContractDeps): MascotHandlers {
   // 看板娘相关推送从此经应用事件总线（同时成为契约事件），见 mascot/mascotEvents.ts
   setMascotAppEvents(deps.events);
 
-  /** 看板娘窗口还没建好时为 null：原来的 ipcMain 监听也还没注册，上报直接丢弃 */
+  /** 看板娘窗口还没建好时为 null：上报直接丢弃 */
   const controller = (): MascotWindowController | null =>
     services.windowManager?.mascotController ?? null;
   const ctl = (): MascotWindowController => need(controller(), 'mascotController');
-  const win = (): WindowIpcHandler =>
-    need(
-      need(services.ipcRegistry, 'ipcRegistry').getHandler<WindowIpcHandler>('window'),
-      'windowIpc',
-    );
+  const win = () => need(services.windowActions, 'windowActions');
   const config = () => need(services.config, 'config');
 
   return {
@@ -85,7 +80,7 @@ export function createMascotHandlers(deps: ContractDeps): MascotHandlers {
     'mascot.scaleWheel': ({ deltaY, deltaMode }) => plain(ctl().scaleWheel(deltaY, deltaMode)),
     'mascot.scaleReset': () => plain(ctl().scaleReset()),
 
-    // —— 旧的角色模型名（与 ConfigIpcHandler 的 save-model / get-saved-model 相同：写配置并异步落盘）
+    // —— 旧的角色模型名（写配置并异步落盘）
     'mascot.saveModel': ({ modelName }) => {
       config().set('modelName', modelName);
       config()

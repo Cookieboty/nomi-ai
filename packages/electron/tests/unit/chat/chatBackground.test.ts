@@ -2,9 +2,8 @@ jest.unmock('fs');
 jest.unmock('path');
 jest.mock('../../../src/i18n', () => ({ t: (s: string) => s }));
 
-// 选图经 ports.dialogs、广播经 events；仍 mock 的是 nativeImage（缩放）与 ipcMain（registerIpc）
+// 选图经 ports.dialogs、广播经 events；仍 mock 的是 nativeImage（缩放）
 jest.mock('electron', () => ({
-  ipcMain: { handle: jest.fn(), removeHandler: jest.fn() },
   nativeImage: {
     createFromBuffer: jest.fn(() => ({
       isEmpty: () => true,

@@ -26,7 +26,6 @@ import type { DiagnosticsService } from '../../diagnostics/DiagnosticsService';
 import type { ExtensionsService } from '../../extensions/ExtensionsService';
 import type { GatewayService } from '../../gateway/GatewayService';
 import type { TerminalCommands } from '../../gateway/TerminalCommands';
-import type { IpcRegistry } from '../../handlers/ipc/IpcRegistry';
 import type { LocaleService } from '../../i18n';
 import type { IslandService } from '../../island/IslandService';
 import type { KnowledgeService } from '../../knowledge/KnowledgeService';
@@ -44,14 +43,15 @@ import type { ThemeService } from '../../theme/ThemeService';
 import type { QualityService } from '../../usage/quality/QualityService';
 import type { UsageService } from '../../usage/UsageService';
 import type { VoiceService } from '../../voice/VoiceService';
+import type { MascotWindowActions } from '../mascotWindowActions';
 
 /** 全部可选：服务创建失败（或还没创建）时为 undefined，处理函数用 `need()` 报 UNAVAILABLE */
 export interface ContractServices {
   // 宿主 / 旧注册层
   windowManager?: WindowManager;
   config?: IConfigService;
-  /** 旧 IPC 处理器（handlers/ipc/*），迁移期间复用其中的逻辑 */
-  ipcRegistry?: IpcRegistry;
+  /** 看板娘窗口的宿主操作（契约 `window.*`） */
+  windowActions?: MascotWindowActions;
   aiRuntime?: AIRuntimeBootHandle;
 
   // D1 media

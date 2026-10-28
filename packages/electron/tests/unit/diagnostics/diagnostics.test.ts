@@ -9,7 +9,6 @@ jest.unmock('node:path');
 // DiagnosticsService 不再 import electron（打包状态、版本、对话框、shell 经宿主端口）
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: jest.fn(), removeHandler: jest.fn() },
 }));
 
 import { EventEmitter } from 'node:events';

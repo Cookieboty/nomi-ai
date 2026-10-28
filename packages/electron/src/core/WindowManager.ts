@@ -7,7 +7,6 @@ import * as url from 'url';
 
 import { BrowserWindow, screen, app, type BrowserWindowConstructorOptions } from 'electron';
 
-import { mascotAppEvents } from '../mascot/mascotEvents';
 import { fitMascotScale, maxScaleForArea, mascotWindowSize } from '../mascot/mascotSize';
 import { MascotWindowController } from '../mascot/MascotWindowController';
 import { installWindowGuards } from '../security/windowGuards';
@@ -17,6 +16,7 @@ import { perfEnabled, perfMark } from '../utils/perfMarks';
 import { installPreloadGuard } from '../utils/preloadGuard';
 import { setWindowBounds } from '../utils/windowBounds';
 
+import type { AppEvents } from './appEvents';
 import { windowIconPath } from './appIcon';
 import { restoreChatBounds } from './chatWindowBounds';
 import { devChatUrl, devRendererUrl } from './devPorts';
@@ -82,9 +82,13 @@ export class WindowManager implements IWindowManager {
   private logger: ILoggerService;
   private configService: IConfigService;
 
-  constructor(logger: ILoggerService, configService: IConfigService) {
+  /** 应用事件总线（面板导航、窗口鼠标进出）；测试里可以不给，推送直接丢弃 */
+  private readonly events?: AppEvents;
+
+  constructor(logger: ILoggerService, configService: IConfigService, events?: AppEvents) {
     this.logger = logger;
     this.configService = configService;
+    this.events = events;
   }
 
   /**
@@ -237,15 +241,16 @@ export class WindowManager implements IWindowManager {
   }
 
   /**
-   * 打开 AI 对话窗口并弹出 Provider 配置面板（托盘 / 菜单入口）。
+   * 打开 AI 对话窗口并弹出某个面板（托盘 / 菜单 / 看板娘入口）。`channel` 是面板的应用事件
+   * （`ai:providers:open-panel` 等），事件桥转成契约事件（`providers.openPanel` / `nav.*`），只发给对话窗口。
    */
   async openProviderPanel(channel = 'ai:providers:open-panel'): Promise<void> {
     const existed = Boolean(this.aiChatWindow);
     const win = await this.createAiChatWindow();
-    // 新建窗口时给 React 挂载监听留一点时间
+    // 新建窗口时给 React 挂载、订阅契约事件留一点时间
     setTimeout(
       () => {
-        if (!win.isDestroyed()) win.webContents.send(channel, {});
+        if (!win.isDestroyed()) this.events?.publish(channel, {}, { surface: 'chat' });
       },
       existed ? 0 : 400,
     );
@@ -346,7 +351,7 @@ export class WindowManager implements IWindowManager {
     // 禁止整页导航到外部站点、拒绝应用内开窗（http(s) 外链转系统浏览器）
     installWindowGuards(window);
 
-    // preload 抛错或渲染进程退出时 renderer 会缺少 window.electronAPI 而表现为空白窗口；
+    // preload 抛错或渲染进程退出时页面会缺少 window.nomiTransport 而表现为空白窗口；
     // 记到主进程日志里，便于定位（例如 E6 在全新 userData 首启时偶发的空白窗口）
     window.webContents.on('preload-error', (_event, preloadPath, error) => {
       this.logger.error(`[${type}] preload 脚本执行失败`, {
@@ -366,7 +371,7 @@ export class WindowManager implements IWindowManager {
     // 「页面加载完但 preload 没跑」的空白窗口：探测 + 自动恢复（见 utils/preloadGuard.ts）
     installPreloadGuard(window.webContents, {
       label: type,
-      globals: ['electronAPI', 'aiIPC'],
+      globals: ['nomiTransport', 'nomiHost'],
       logger: this.logger,
     });
     window.webContents.on('render-process-gone', (_event, details) => {
@@ -451,15 +456,6 @@ export class WindowManager implements IWindowManager {
           });
         }, 400);
       },
-      changed: (state) => {
-        const chat = this.aiChatWindow;
-        if (chat && !chat.isDestroyed()) chat.webContents.send('mascot:scale-changed', state);
-      },
-      trusted: (sender) =>
-        sender === window.webContents ||
-        (!!this.aiChatWindow &&
-          !this.aiChatWindow.isDestroyed() &&
-          sender === this.aiChatWindow.webContents),
     });
     this.mascotController.start();
 
@@ -543,10 +539,8 @@ export class WindowManager implements IWindowManager {
         if (isInWindow !== mouseInWindow) {
           mouseInWindow = isInWindow;
           const eventName = isInWindow ? 'window-mouse-enter' : 'window-mouse-leave';
-          // 契约 router 建好后经应用事件总线发布（同时成为契约事件 window.mouseEnter / mouseLeave）
-          const events = mascotAppEvents();
-          if (events) events.publish(eventName, null, { surface: 'mascot' });
-          else window.webContents.send(eventName);
+          // 事件桥转成契约事件 window.mouseEnter / mouseLeave
+          this.events?.publish(eventName, null, { surface: 'mascot' });
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);

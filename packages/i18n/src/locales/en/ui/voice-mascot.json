@@ -49,7 +49,7 @@
   "ui.voice-mascot.edge-network-note": "Edge read-aloud needs a network connection. It uses the online read-aloud service behind Microsoft Edge, which is not an official public Microsoft API and may stop working.",
   "ui.voice-mascot.edge-rate": "Speech rate: {0}%",
   "ui.voice-mascot.edge-voice": "Voice",
-  "ui.voice-mascot.electronapi-ready-timeout": "electronAPI ready timeout",
+  "ui.voice-mascot.electronapi-ready-timeout": "Timed out waiting for the desktop app connection",
   "ui.voice-mascot.enable-voice": "Enable voice",
   "ui.voice-mascot.engine-azure": "Azure Speech (not available yet)",
   "ui.voice-mascot.engine-edge": "Edge online read-aloud (default, needs network)",

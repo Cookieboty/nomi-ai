@@ -684,31 +684,3 @@ describe('ProviderService', () => {
     expect((await svc.test(v.id)).ok).toBe(true);
   });
 });
-
-describe('ProviderIpcServer', () => {
-  it('exposes only the remaining read / switch channels, broadcasts masked state on change', async () => {
-    const { createFakeIpcAdapter } = await import('./helpers/fakeIpc');
-    const { ProviderIpcServer, PROVIDERS_CHANGED_EVENT } = await import('../src/providers');
-    const adapter = createFakeIpcAdapter();
-    const wc = adapter.addWebContents(7);
-    const store = new ProviderStore({ cipher: fakeCipher });
-    const svc = new ProviderService({ store, envEntries: [], getRegistry: () => undefined });
-    const server = new ProviderIpcServer({ adapter, service: svc });
-    server.start();
-    // 增删改、任务路由、Key 管理已由统一网关取代
-    expect([...server.channels].sort()).toEqual([
-      'ai:providers:meta',
-      'ai:providers:presets',
-      'ai:providers:setActive',
-      'ai:providers:state',
-    ]);
-    const view = svc.upsert({ presetId: 'qwen', apiKey: 'dashscope-secret-1' });
-    await adapter.invoke(7, 'ai:providers:setActive', view.id);
-    const changed = wc.sent.filter((s) => s.channel === PROVIDERS_CHANGED_EVENT);
-    expect(changed.length).toBeGreaterThanOrEqual(2);
-    expect(JSON.stringify(wc.sent)).not.toContain('dashscope-secret-1');
-    await expect(adapter.invoke(7, 'ai:providers:setActive', 42)).rejects.toThrow(/字符串/);
-    server.stop();
-    expect(adapter.handlers.size).toBe(0);
-  });
-});

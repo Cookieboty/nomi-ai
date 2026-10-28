@@ -12,7 +12,6 @@ import { broadcastMascotCommand } from '../ai/mascotCommand';
 import type { DesktopService } from '../desktop/DesktopService';
 import { redactServerForExport } from '../extensions/mcpConfig';
 import { t as tr } from '../i18n';
-import { guardedHandle } from '../security/guardedIpc';
 
 interface Logger {
   info(m: string, x?: unknown): void;
@@ -29,7 +28,6 @@ export interface HubDeps {
 }
 
 export class LocalHubService {
-  private ipcDone = false;
   /** 启动时清理旧数据的异步任务（测试可 await） */
   readonly legacyPurged: Promise<void>;
 
@@ -143,22 +141,6 @@ export class LocalHubService {
     this.audit('data_export', { files: Object.keys(files).length, bytes: zip.length });
     broadcastMascotCommand({ type: 'motion', name: 'nod' });
     return { file, files: Object.keys(files).length, bytes: zip.length };
-  }
-
-  registerIpc() {
-    if (this.ipcDone) return;
-    this.ipcDone = true;
-    guardedHandle(
-      'ai:hub:export',
-      async (o: unknown) => {
-        try {
-          return await this.exportAll(o as never);
-        } catch (err) {
-          return { __error: { code: 'hub', message: (err as Error).message } };
-        }
-      },
-      { owner: 'LocalHubService', wrapErrors: false },
-    );
   }
 }
 

@@ -2,7 +2,6 @@ jest.unmock('fs');
 jest.unmock('path');
 jest.mock('electron', () => ({
   BrowserWindow: jest.fn(),
-  ipcMain: { handle: jest.fn(), removeHandler: jest.fn() },
   screen: {
     getPrimaryDisplay: () => ({
       bounds: { x: 0, y: 0, width: 1512, height: 982 },

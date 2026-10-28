@@ -10,7 +10,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { BrowserWindow, ipcMain, screen } from 'electron';
+import { BrowserWindow, screen } from 'electron';
 
 import { t as tr } from '../i18n';
 import { setWindowBounds } from '../utils/windowBounds';
@@ -255,18 +255,6 @@ export class IslandService {
       },
       true,
     );
-  }
-
-  /** 旧 IPC（收尾批次删除）；契约见 host/contract/mascot.ts 的 island.* */
-  registerIpc(): void {
-    ipcMain.removeHandler('island:get');
-    ipcMain.removeHandler('island:set');
-    ipcMain.removeHandler('island:test');
-    ipcMain.handle('island:get', () => this.get());
-    ipcMain.handle('island:set', (_e, p: unknown) =>
-      this.set((p && typeof p === 'object' ? p : {}) as Partial<IslandSettings>),
-    );
-    ipcMain.handle('island:test', () => this.test());
   }
 }
 

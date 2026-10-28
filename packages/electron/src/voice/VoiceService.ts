@@ -16,7 +16,6 @@ import path from 'node:path';
 import { broadcastMascotCommand } from '../ai/mascotCommand';
 import type { AppEvents } from '../core/appEvents';
 import { t as tr } from '../i18n';
-import { guardedHandle } from '../security/guardedIpc';
 import { canEncryptSecrets, decryptSecret, encryptSecret } from '../security/secretStorage';
 
 import { assetsFor, findAsset, type VoiceAsset } from './catalog';
@@ -44,8 +43,8 @@ import { findCliIn, findCliOnPath, runWhisperCli } from './whisperCpp';
 type Logger = Pick<Console, 'info' | 'warn' | 'error'>;
 
 /**
- * 发起请求的窗口（IPC 事件的 sender；Electron 的 WebContents 结构上满足）。流式识别的临时结果与
- * VAD 会话只属于发起的窗口，不是广播，所以仍按 sender 回复（旧 IPC 层，P1 由契约传输层取代）。
+ * 发起请求的窗口（契约调用方对应的窗口，见 host/contract/media/voiceSenders.ts）。流式识别的临时结果与
+ * VAD 会话只属于发起的窗口，不是广播，所以按 sender 回复（由 voiceSenders 转进对应的契约流）。
  */
 export interface VoiceSender {
   readonly id: number;
@@ -157,7 +156,6 @@ export class VoiceService {
   private readonly vadOwners = new Set<number>();
   private vadSeq = 0;
   private vadErrAt = 0;
-  private ipcDone = false;
   private readonly streams = new Map<string, VolcStream>();
   private readonly streamOwners = new Set<number>();
   private streamSeq = 0;
@@ -1018,40 +1016,6 @@ export class VoiceService {
     const ok = ['idle', 'listening', 'hearing', 'transcribing', 'wake-armed'].includes(String(a));
     if (ok) this.setActivity(a as VoiceActivity, String(source ?? ''));
     return ok;
-  }
-
-  registerIpc(): void {
-    if (this.ipcDone) return;
-    this.ipcDone = true;
-    const handle = (ch: string, fn: (e: VoiceInvokeEvent, ...a: unknown[]) => unknown) =>
-      guardedHandle(ch, fn, { owner: 'VoiceService', wrapErrors: false, passEvent: true });
-    handle('ai:voice:state', () => this.state());
-    handle('ai:voice:setSettings', (_e, patch) => this.setSettings(patch));
-    handle('ai:voice:ackCloud', () => this.ackCloud());
-    handle('ai:voice:download', (_e, id) => this.download(String(id)));
-    handle('ai:voice:cancel', (_e, id) => this.cancel(String(id)));
-    handle('ai:voice:remove', (_e, id) => this.remove(String(id)));
-    // VAD：每个窗口一个 Silero 会话；没有模型时渲染进程退回能量检测
-    handle('ai:voice:vadOpen', (e) => this.vadOpen(e.sender));
-    handle('ai:voice:vadProb', (e, h, frame) => this.vadProb(e.sender.id, String(h), frame));
-    handle('ai:voice:vadClose', (e, h) => this.vadClose(e.sender.id, String(h)));
-    handle('ai:voice:transcribe', (_e, wav, opts) => {
-      const o = (opts ?? {}) as { source?: string; purpose?: 'command' | 'wake' };
-      const buf = wav instanceof Uint8Array ? wav : new Uint8Array(wav as ArrayBuffer);
-      return this.transcribeResult(buf, { source: String(o.source ?? 'chat'), purpose: o.purpose });
-    });
-    handle('ai:voice:activity', (_e, a, source) => this.reportActivity(a, source));
-    handle('ai:voice:sendToChat', (_e, text) => this.sendToChat(String(text ?? '').slice(0, 4000)));
-    // 豆包流式语音识别 2.0（#61）
-    handle('ai:voice:volcSetKey', (_e, key) => this.setVolcKey(key));
-    handle('ai:voice:volcClearKey', () => this.clearVolcKey());
-    handle('ai:voice:volcTest', () => this.volcTest());
-    handle('ai:voice:streamStart', (e, o) =>
-      this.streamStart(e.sender, String((o as { source?: unknown } | null)?.source ?? 'chat')),
-    );
-    handle('ai:voice:streamPush', (e, id, pcm) => this.streamPush(e.sender, String(id), pcm));
-    handle('ai:voice:streamStop', (e, id) => this.streamStop(e.sender, String(id)));
-    handle('ai:voice:streamCancel', (e, id) => this.streamCancel(e.sender, String(id)));
   }
 }
 

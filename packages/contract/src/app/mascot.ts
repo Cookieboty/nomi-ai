@@ -37,7 +37,7 @@ export const MascotShapeRect = z.object({
   height: z.number(),
 });
 
-/** 角色包围盒（窗口像素）；vw / vh = 测量时的视口尺寸 —— `MascotWindowApi.setGeometry` */
+/** 角色包围盒（窗口像素）；vw / vh = 测量时的视口尺寸 —— `mascot.setGeometry` */
 export const MascotGeometry = z.object({
   left: z.number(),
   right: z.number(),
@@ -97,7 +97,7 @@ export const MascotPhysicsEvent = z.discriminatedUnion('type', [
  */
 export const MascotCommand = z.looseObject({ type: z.string() });
 
-/** 只读快照（e2e / 调试）—— `MascotWindowApi.snapshot` */
+/** 只读快照（e2e / 调试）—— `mascot.debugSnapshot` */
 export const MascotDebugSnapshot = z.looseObject({
   body: z.object({
     x: z.number(),

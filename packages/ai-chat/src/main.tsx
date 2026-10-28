@@ -45,15 +45,15 @@ dropRetiredPrefs();
   }
 }
 
-const hasAiIpc = typeof window !== 'undefined' && Boolean((window as { aiIPC?: unknown }).aiIPC);
+const hasHost = hasTransport();
 
-if (!hasAiIpc) {
-  log.warn('当前运行在开发模式：window.aiIPC 未就绪，将使用 Mock 数据');
+if (!hasHost) {
+  log.warn('当前运行在开发模式：契约传输未就绪，将使用 Mock 数据');
 }
 
 const root = ReactDOM.createRoot(document.getElementById('root')!);
 
-if (hasAiIpc) {
+if (hasHost) {
   root.render(
     <React.StrictMode>
       <LocaleRoot
@@ -66,7 +66,7 @@ if (hasAiIpc) {
     </React.StrictMode>,
   );
 } else {
-  // 开发/预览模式下不构造 ClientAIClient，避免其在 window.aiIPC 缺失时抛错
+  // 开发/预览模式下不构造 ClientAIClient，避免其在契约传输缺失时抛错
   root.render(
     <React.StrictMode>
       <LocaleRoot render={() => <App />} />

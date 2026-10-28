@@ -1,5 +1,5 @@
 import type { MascotScaleState } from '@nomi-ai/types';
-import { type BrowserWindow, ipcMain, screen } from 'electron';
+import { type BrowserWindow, screen } from 'electron';
 
 import { moveWindowTo, setWindowBounds } from '../utils/windowBounds';
 
@@ -60,13 +60,6 @@ export interface MascotScaleHooks {
   get(): number;
   /** 用户操作后持久化（主进程防抖落盘） */
   save(scale: number): void;
-  /**
-   * 状态变化后广播给其它窗口（设置页）。接上应用事件总线（mascotEvents.ts）后不再调用：
-   * 控制器直接按 `['mascot', 'chat']` 发布一次
-   */
-  changed?(state: MascotScaleState): void;
-  /** 允许调用缩放 IPC 的窗口；默认只有看板娘窗口自己 */
-  trusted?(sender: Electron.WebContents): boolean;
 }
 
 type Logger = { info(m: string, d?: unknown): void; warn(m: string, d?: unknown): void };
@@ -187,40 +180,6 @@ export class MascotWindowController {
       screen.removeListener('display-metrics-changed', onDisplays);
     });
 
-    const on = (ch: string, fn: (e: Electron.IpcMainEvent, ...a: unknown[]) => void) => {
-      const h = (e: Electron.IpcMainEvent, ...a: unknown[]) => {
-        if (e.sender === this.win.webContents) fn(e, ...a);
-      };
-      ipcMain.on(ch, h);
-      this.disposers.push(() => ipcMain.removeListener(ch, h));
-    };
-    // 旧 IPC（收尾批次删除）与契约（host/contract/mascot.ts）共用下面的公开方法
-    on('mascot:hit', (_e, hit) => this.reportHit(hit));
-    on('mascot:shape', (_e, rects) => this.reportShape(rects));
-    on('mascot:geometry', (_e, box) => this.reportGeometry(box));
-    on('mascot:drag-start', (_e, sx, sy) => this.beginDrag(sx, sy));
-    on('mascot:drag-move', (_e, sx, sy) => this.moveDrag(sx, sy));
-    on('mascot:drag-end', () => this.endDrag());
-    on('mascot:interaction-config', (_e, cfg) => this.setConfig(cfg));
-    on('mascot:wander-now', () => this.wanderNow());
-
-    // 大小：Ctrl/⌘+滚轮、菜单、设置页滑块、快捷键
-    const handle = (ch: string, fn: (...a: unknown[]) => unknown) => {
-      ipcMain.removeHandler(ch);
-      ipcMain.handle(ch, (e, ...a) => {
-        const ok = this.scaleHooks?.trusted
-          ? this.scaleHooks.trusted(e.sender)
-          : e.sender === this.win.webContents;
-        return ok ? fn(...a) : this.scaleState();
-      });
-      this.disposers.push(() => ipcMain.removeHandler(ch));
-    };
-    handle('mascot:scale-get', () => this.scaleState());
-    handle('mascot:scale-set', (v) => this.scaleSet(v));
-    handle('mascot:scale-step', (d) => this.scaleStep(d));
-    handle('mascot:scale-wheel', (dy, mode) => this.scaleWheel(dy, mode));
-    handle('mascot:scale-reset', () => this.scaleReset());
-
     // Ctrl/⌘ + =/+ 在部分键盘布局下会被 Chromium 的默认菜单当作 zoomIn accelerator
     // 吃掉，不派发到 renderer 的 keydown。before-input-event 在页面与内置快捷键之前触发，
     // preventDefault() 后由我们直接走窗口尺寸缩放，保证 +/-/0 快捷键在任意布局下都生效。
@@ -264,10 +223,6 @@ export class MascotWindowController {
       wc.off('before-input-event', onBeforeInput);
     });
 
-    // 只读快照（e2e / 调试）
-    ipcMain.removeHandler('mascot:debug-snapshot');
-    ipcMain.handle('mascot:debug-snapshot', () => this.snapshot());
-    this.disposers.push(() => ipcMain.removeHandler('mascot:debug-snapshot'));
     this.win.on('closed', () => this.dispose());
     // 从隐藏 / 最小化恢复：立即提频，不必等下一个 1s 保活 tick
     const wake = () => {
@@ -310,7 +265,7 @@ export class MascotWindowController {
     return { ...this.cfg };
   }
 
-  // —— 渲染进程上报与操作（旧 IPC 与契约共用；入参按 IPC 的 unknown 处理，非法值忽略）
+  // —— 渲染进程上报与操作（契约 mascot.*；入参按 unknown 处理，非法值忽略）
 
   /** 光标是否命中角色 / 界面（切换点击穿透） */
   reportHit(hit: unknown): void {
@@ -454,14 +409,8 @@ export class MascotWindowController {
     const state = this.scaleState();
     if (userPref) this.scaleHooks?.save(this.pref);
     if (notify) {
-      const events = mascotAppEvents();
-      if (events) {
-        // 经应用事件总线：旧通道发给看板娘与对话窗口（与下面两路相同），同时发成契约事件（一次）
-        events.publish('mascot:scale-changed', state, { surface: ['mascot', 'chat'] });
-      } else {
-        this.send('mascot:scale-changed', state);
-        this.scaleHooks?.changed?.(state);
-      }
+      // 看板娘与对话窗口（设置页的大小滑块）都要知道；事件桥转成契约事件 mascot.scaleChanged
+      mascotAppEvents()?.publish('mascot:scale-changed', state, { surface: ['mascot', 'chat'] });
     }
     return state;
   }
@@ -772,9 +721,7 @@ export class MascotWindowController {
   /** 推给看板娘窗口：接上应用事件总线后经它发布（同时成为契约事件），否则直接发 */
   private send(ch: string, payload: unknown): void {
     if (this.win.isDestroyed()) return;
-    const events = mascotAppEvents();
-    if (events) events.publish(ch, payload, { surface: 'mascot' });
-    else this.win.webContents.send(ch, payload);
+    mascotAppEvents()?.publish(ch, payload, { surface: 'mascot' });
   }
 
   /** 测试 / 调试用 */

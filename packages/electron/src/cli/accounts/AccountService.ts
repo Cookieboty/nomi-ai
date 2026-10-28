@@ -19,7 +19,6 @@ import type { TerminalCapability } from '@nomi-ai/cli-sdk';
 
 import type { AppEvents } from '../../core/appEvents';
 import { t } from '../../i18n';
-import { guardedHandle } from '../../security/guardedIpc';
 import { runLimited, STDOUT_LIMIT } from '../../usage/limitedProcess';
 import { writePrivateFileAtomic, writePrivateFileAtomicAsync } from '../../utils/privateFile';
 import { resolveCliBinAsync, withCliPath } from '../detect';
@@ -669,27 +668,9 @@ export class AccountService {
   broadcastChanged(): void {
     this.d.events.publish('ai:cli-account:changed', null);
   }
-
-  registerIpc(): void {
-    const owner = 'AccountService';
-    const kindOf = parseAccountKind;
-    guardedHandle('ai:cli-account:list', (k) => this.list(k ? kindOf(k) : undefined), { owner });
-    guardedHandle('ai:cli-account:refresh', (k) => this.refreshAll(kindOf(k)), { owner });
-    guardedHandle('ai:cli-account:set-default', (k, id) => this.setDefault(kindOf(k), String(id)), {
-      owner,
-    });
-    guardedHandle('ai:cli-account:rename', (id, label) => this.rename(String(id), String(label)), {
-      owner,
-    });
-    guardedHandle(
-      'ai:cli-account:remove',
-      (id, force) => this.remove(String(id), { force: force === true }),
-      { owner },
-    );
-  }
 }
 
-/** 渲染层传来的编程助手 id → 有官方账号的 CLI；其他值报错（旧 IPC 与契约处理函数共用） */
+/** 渲染层传来的编程助手 id → 有官方账号的 CLI；其他值报错（契约处理函数用） */
 export function parseAccountKind(v: unknown): AccountKind {
   if (typeof v === 'string' && (ACCOUNT_KINDS as readonly string[]).includes(v))
     return v as AccountKind;

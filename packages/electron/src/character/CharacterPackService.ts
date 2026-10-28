@@ -13,8 +13,6 @@ import path from 'node:path';
 import { CONTRACT } from '@nomi-ai/character-contract';
 import type { HostPorts } from '@nomi-ai/host-ports';
 
-import { guardedHandle } from '../security/guardedIpc';
-
 import { characterPackAssetUrl, registerCharacterPackProtocol } from './packProtocol';
 import {
   builtinPackDir,
@@ -251,13 +249,6 @@ export class CharacterPackService {
           : null,
       reason: undefined,
     };
-  }
-
-  registerIpc(): void {
-    guardedHandle('character-pack:get-active', () => this.getActive(), {
-      owner: 'CharacterPackService',
-      wrapErrors: false,
-    });
   }
 }
 

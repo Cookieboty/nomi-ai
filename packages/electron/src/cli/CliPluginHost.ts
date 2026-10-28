@@ -33,7 +33,6 @@ import {
 } from '@nomi-ai/cli-sdk';
 
 import type { AppEvents } from '../core/appEvents';
-import { guardedHandle } from '../security/guardedIpc';
 
 import { ExternalPluginStore } from './externalPlugins';
 import { parseSemver } from './semver';
@@ -394,14 +393,6 @@ export class CliPluginHost {
       });
     }
     return { plugins };
-  }
-
-  registerIpc(): void {
-    const opts = { owner: 'CliPluginHost' };
-    guardedHandle('ai:cli:registry', () => this.snapshot(), opts);
-    guardedHandle('ai:cli:plugin-add', (raw) => this.addExternal(raw), opts);
-    guardedHandle('ai:cli:plugin-remove', (id) => this.removeExternal(String(id)), opts);
-    guardedHandle('ai:cli:plugin-test', (raw) => this.testExternalInTemp(raw), opts);
   }
 
   /** 试运行在临时目录里做：不让对方 CLI 在用户的项目里留下任何东西 */

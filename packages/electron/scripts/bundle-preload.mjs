@@ -2,8 +2,8 @@
 //
 // Electron >= 20 默认对渲染进程启用 sandbox，sandbox 下的 preload 只能 require
 // `electron` 及少量内建模块，无法加载 `@nomi-ai/ai-sdk-client/preload` 这类 workspace 包。
-// tsc 输出的 dist/preload.js 会因此抛出 "module not found"，导致 window.electronAPI /
-// window.aiIPC 均不可用。这里用 tsup(esbuild) 把依赖内联进去，仅保留 `electron` 为外部依赖，
+// tsc 输出的 dist/preload.js 会因此抛出 "module not found"，导致 window.nomiTransport /
+// window.nomiHost 均不可用。这里用 tsup(esbuild) 把依赖内联进去，仅保留 `electron` 为外部依赖，
 // 输出为 dist/*.bundle.js（WindowManager 加载的就是这些文件）。使用独立文件名，
 // 避免与 `tsc -w` 的输出互相覆盖。
 //

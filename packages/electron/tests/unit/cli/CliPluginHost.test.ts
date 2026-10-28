@@ -6,13 +6,8 @@ jest.unmock('path');
 jest.unmock('node:fs');
 jest.unmock('node:path');
 
-const handlers = new Map<string, (...a: unknown[]) => unknown>();
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: {
-    handle: jest.fn((ch: string, fn: (...a: unknown[]) => unknown) => handlers.set(ch, fn)),
-    removeHandler: jest.fn(),
-  },
 }));
 
 import fs from 'node:fs';
@@ -123,16 +118,13 @@ describe('CliPluginHost', () => {
     expect(changes).toEqual(['gated:1.9.0->2.1.0']);
   });
 
-  it('默认加载全部内置插件；注册表快照经 ai:cli:registry 给界面', async () => {
+  it('默认加载全部内置插件；注册表快照给界面（契约 cli.registry）', async () => {
     const host = new CliPluginHost({
       logger,
       root: '/tmp/nomi-plugins',
       events: createRecordingAppEvents(),
     });
     await host.start();
-    host.registerIpc();
-    const fn = handlers.get('ai:cli:registry');
-    expect(fn).toBeDefined();
     const snap = host.snapshot();
     expect(snap.plugins.map((p) => p.id).sort()).toEqual([
       'claude',

@@ -14,7 +14,6 @@ jest.mock('electron', () => ({
   dialog: {},
   shell: {},
   nativeImage: { createFromPath: () => ({ isEmpty: () => true }) },
-  ipcMain: { handle: jest.fn(), removeHandler: jest.fn(), on: jest.fn() },
   Notification: Object.assign(
     jest.fn().mockImplementation((o: { title: string; body: string }) => {
       const rec: { title: string; body: string; click?: () => void } = { ...o };

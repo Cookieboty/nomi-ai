@@ -27,8 +27,8 @@ const logger = () => ({ info: jest.fn(), warn: jest.fn(), error: jest.fn() });
 
 describe('preloadGuard', () => {
   it('builds a probe over all globals', () => {
-    expect(buildProbeScript(['electronAPI', 'aiIPC'])).toBe(
-      `(typeof window["electronAPI"] !== 'undefined' && typeof window["aiIPC"] !== 'undefined')`,
+    expect(buildProbeScript(['nomiTransport', 'nomiHost'])).toBe(
+      `(typeof window["nomiTransport"] !== 'undefined' && typeof window["nomiHost"] !== 'undefined')`,
     );
   });
 
@@ -41,7 +41,7 @@ describe('preloadGuard', () => {
   it('does nothing when preload is present', async () => {
     const { wc } = fakeWc([true]);
     const log = logger();
-    const g = installPreloadGuard(wc, { label: 'main', globals: ['electronAPI'], logger: log });
+    const g = installPreloadGuard(wc, { label: 'main', globals: ['nomiTransport'], logger: log });
     expect(await g.check()).toBe('ok');
     expect(wc.reloadIgnoringCache).not.toHaveBeenCalled();
     expect(log.warn).not.toHaveBeenCalled();
@@ -52,7 +52,7 @@ describe('preloadGuard', () => {
     const log = logger();
     const g = installPreloadGuard(wc, {
       label: 'main',
-      globals: ['electronAPI'],
+      globals: ['nomiTransport'],
       logger: log,
       probeTimeoutMs: 10,
     });
@@ -84,7 +84,7 @@ describe('preloadGuard', () => {
   it('runs on did-finish-load and ignores navigation errors', async () => {
     const { wc, fire } = fakeWc([]);
     wc.executeJavaScript.mockImplementationOnce(() => Promise.reject(new Error('navigated')));
-    installPreloadGuard(wc, { label: 'aiChat', globals: ['aiIPC'], logger: logger() });
+    installPreloadGuard(wc, { label: 'aiChat', globals: ['nomiHost'], logger: logger() });
     fire();
     await new Promise((r) => setTimeout(r, 0));
     expect(wc.executeJavaScript).toHaveBeenCalled();

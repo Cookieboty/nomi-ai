@@ -1,15 +1,6 @@
 import type { BrowserWindow } from 'electron';
 
-const handlers = new Map<string, (e: unknown, ...a: unknown[]) => unknown>();
 jest.mock('electron', () => ({
-  ipcMain: {
-    on: jest.fn(),
-    handle: jest.fn((ch: string, fn: (e: unknown, ...a: unknown[]) => unknown) =>
-      handlers.set(ch, fn),
-    ),
-    removeHandler: jest.fn((ch: string) => handlers.delete(ch)),
-    removeListener: jest.fn(),
-  },
   screen: {
     on: jest.fn(),
     removeListener: jest.fn(),
@@ -18,6 +9,8 @@ jest.mock('electron', () => ({
   },
 }));
 
+import { createRecordingAppEvents, type RecordingAppEvents } from '../../../src/core/appEvents';
+import { setMascotAppEvents } from '../../../src/mascot/mascotEvents';
 import { MASCOT_PAD, mascotWindowSize } from '../../../src/mascot/mascotSize';
 import { MascotWindowController } from '../../../src/mascot/MascotWindowController';
 
@@ -70,68 +63,67 @@ function fakeWindow(scale: number, x: number, y: number) {
 }
 
 const logger = { info: jest.fn(), warn: jest.fn() };
-const call = (ch: string, sender: unknown, ...a: unknown[]) => handlers.get(ch)!({ sender }, ...a);
 
-describe('MascotWindowController scale IPC', () => {
+// 契约 mascot.scale*（host/contract/mascot.ts）直接调这些公开方法；哪些窗口能调由契约的 surfaces 判定
+describe('MascotWindowController scale', () => {
+  let events: RecordingAppEvents;
   beforeEach(() => {
-    handlers.clear();
+    events = createRecordingAppEvents();
+    setMascotAppEvents(events);
     jest.useFakeTimers();
   });
-  afterEach(() => jest.useRealTimers());
+  afterEach(() => {
+    setMascotAppEvents(null);
+    jest.useRealTimers();
+  });
 
   function setup(scale = 0.5) {
     const f = fakeWindow(scale, 1000, 1040 - mascotWindowSize(scale).height);
     const saved: number[] = [];
-    const changed: unknown[] = [];
     const c = new MascotWindowController(f.win, logger, Math.random, {
       get: () => scale,
       save: (s) => saved.push(s),
-      changed: (s) => changed.push(s),
     });
     c.start();
+    const changed = () => events.published.filter((e) => e.channel === 'mascot:scale-changed');
     return { ...f, c, saved, changed };
   }
 
   it('reports state, resizes around the feet, persists and notifies', async () => {
     const s = setup();
-    const st0 = (await call('mascot:scale-get', s.wc)) as { scale: number; max: number };
+    const st0 = s.c.scaleState();
     expect(st0).toMatchObject({ scale: 0.5, min: 0.3, max: 1.5, hardMax: 1.5, default: 0.5 });
     const feetBefore = { x: s.b.x + s.b.width / 2, y: s.b.y + s.b.height };
 
-    const st = (await call('mascot:scale-step', s.wc, 1)) as { scale: number };
+    const st = s.c.scaleStep(1);
     expect(st.scale).toBe(0.6);
     expect(s.b.width).toBe(mascotWindowSize(0.6).width);
     expect(s.b.height).toBe(mascotWindowSize(0.6).height);
     expect(Math.abs(s.b.x + s.b.width / 2 - feetBefore.x)).toBeLessThanOrEqual(1);
     expect(s.b.y + s.b.height).toBe(feetBefore.y);
     expect(s.saved).toEqual([0.6]);
-    expect(s.changed).toHaveLength(1);
-    expect(s.sent.some(([ch]) => ch === 'mascot:scale-changed')).toBe(true);
+    // 一次发布，看板娘与对话窗口（设置页滑块）都要知道
+    expect(s.changed()).toEqual([
+      expect.objectContaining({ payload: st, surfaces: ['mascot', 'chat'] }),
+    ]);
     s.c.dispose();
   });
 
-  it('wheel / set / reset, clamped; junk is ignored; other senders are refused', async () => {
+  it('wheel / set / reset, clamped; junk is ignored', () => {
     const s = setup();
-    expect(
-      ((await call('mascot:scale-wheel', s.wc, -100, 0)) as { scale: number }).scale,
-    ).toBeGreaterThan(0.5);
-    expect(((await call('mascot:scale-set', s.wc, 99)) as { scale: number }).scale).toBe(1.5);
+    expect(s.c.scaleWheel(-100, 0).scale).toBeGreaterThan(0.5);
+    expect(s.c.scaleSet(99).scale).toBe(1.5);
     expect(s.b.y).toBeGreaterThanOrEqual(0);
     expect(s.b.y + s.b.height).toBeLessThanOrEqual(1040);
-    expect(((await call('mascot:scale-set', s.wc, 0)) as { scale: number }).scale).toBe(0.3);
-    expect(((await call('mascot:scale-set', s.wc, 'x')) as { scale: number }).scale).toBe(0.3);
-    expect(((await call('mascot:scale-reset', s.wc)) as { scale: number }).scale).toBe(0.5);
-    const n = s.saved.length;
-    // an unknown webContents cannot resize the mascot
-    const st = (await call('mascot:scale-set', { other: true }, 1)) as { scale: number };
-    expect(st.scale).toBe(0.5);
-    expect(s.saved).toHaveLength(n);
+    expect(s.c.scaleSet(0).scale).toBe(0.3);
+    expect(s.c.scaleSet('x').scale).toBe(0.3);
+    expect(s.c.scaleReset().scale).toBe(0.5);
     s.c.dispose();
   });
 
-  it('keeps the physics body and the pointer-drag offset on the moved window', async () => {
+  it('keeps the physics body and the pointer-drag offset on the moved window', () => {
     const s = setup();
-    await call('mascot:scale-set', s.wc, 1.2);
+    s.c.scaleSet(1.2);
     const snap = s.c.snapshot();
     expect(snap.body.x).toBe(s.b.x);
     expect(snap.body.y).toBe(s.b.y);
@@ -139,11 +131,11 @@ describe('MascotWindowController scale IPC', () => {
     s.c.dispose();
   });
 
-  it('small displays: the cap follows the work area and never exceeds it', async () => {
+  it('small displays: the cap follows the work area and never exceeds it', () => {
     const { screen } = jest.requireMock('electron') as { screen: { getAllDisplays: jest.Mock } };
     screen.getAllDisplays.mockReturnValue([{ workArea: { x: 0, y: 0, width: 1366, height: 728 } }]);
     const s = setup();
-    const st = (await call('mascot:scale-set', s.wc, 1.5)) as { scale: number; max: number };
+    const st = s.c.scaleSet(1.5);
     expect(st.max).toBeLessThan(1.5);
     expect(st.scale).toBe(st.max);
     expect(s.b.height).toBeLessThanOrEqual(728);

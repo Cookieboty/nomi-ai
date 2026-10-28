@@ -42,7 +42,6 @@ import {
   parseDshProjcache,
 } from '../agents/parsers';
 import { t } from '../i18n';
-import { guardedHandle } from '../security/guardedIpc';
 import { claudeConfigDir, codexHomeDir, geminiDir, grokHomeDir } from '../usage/cliHomes';
 import { dbSignature } from '../usage/sqliteRead';
 
@@ -887,25 +886,6 @@ export class SessionHistoryService {
       }
     }
     this.codexIndex = { sig, rows };
-  }
-
-  registerIpc(): void {
-    const handle = (ch: string, fn: (...a: unknown[]) => Promise<unknown>) =>
-      guardedHandle(ch, fn, { owner: 'SessionHistoryService' });
-    handle('ai:history:list', (b, o) =>
-      this.list(
-        b as HistoryBackend,
-        (o ?? {}) as { offset?: number; limit?: number; force?: boolean },
-      ),
-    );
-    handle('ai:history:index', (b, o) =>
-      this.index(
-        b as HistoryBackend,
-        (o ?? {}) as { offset?: number; limit?: number; force?: boolean },
-      ),
-    );
-    handle('ai:history:open', (b, id) => this.open(b as HistoryBackend, String(id)));
-    handle('ai:history:delete', (b, id) => this.remove(b as HistoryBackend, String(id)));
   }
 }
 

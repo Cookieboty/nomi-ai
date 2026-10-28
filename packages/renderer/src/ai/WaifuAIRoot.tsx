@@ -2,17 +2,12 @@ import { AIProvider } from '@nomi-ai/ai-sdk-client/react';
 import React, { useMemo } from 'react';
 import type { FC, PropsWithChildren } from 'react';
 
-import { isAiIpcReady } from './env';
 import WaifuLipSyncBridge from './WaifuLipSyncBridge';
 
-declare global {
-  interface Window {
-    aiIPC?: unknown;
-  }
-}
+import { hasTransport } from '@/services/api';
 
 const WaifuAIRoot: FC<PropsWithChildren> = ({ children }) => {
-  const ready = useMemo(() => isAiIpcReady(), []);
+  const ready = useMemo(() => hasTransport(), []);
 
   if (!ready) {
     return <>{children}</>;

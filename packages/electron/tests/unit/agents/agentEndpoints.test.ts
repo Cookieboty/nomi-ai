@@ -2,7 +2,6 @@ jest.unmock('fs');
 jest.unmock('path');
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: jest.fn(), removeHandler: jest.fn() },
   Notification: Object.assign(
     jest.fn(() => ({ show: jest.fn() })),
     { isSupported: () => false },

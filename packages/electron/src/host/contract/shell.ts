@@ -6,9 +6,8 @@
  *   `deps.services` 在调用时读取，缺了用 `need()` 报 UNAVAILABLE）；
  * - `shellEventBridge`：服务仍在 `events.publish` 的旧通道 → 契约事件。
  *
- * 供应商（`providers.*`）的服务是 AI runtime 的 ProviderService：旧的 ProviderIpcServer 直接向各窗口
- * `webContents.send('ai:providers:changed')`，不经应用事件总线，所以这里订阅它的 onChange，经
- * `deps.events` 发布同名旧通道，再由事件桥转成 `providers.changed`（收尾批次删掉 ProviderIpcServer 后仍成立）。
+ * 供应商（`providers.*`）的服务是 AI runtime 的 ProviderService：它不认识应用事件总线，所以这里订阅
+ * 它的 onChange，经 `deps.events` 发布 `ai:providers:changed`，再由事件桥转成 `providers.changed`。
  */
 
 import type { ShellEventName, ShellProcedureName } from '@nomi-ai/contract/app';
@@ -22,10 +21,10 @@ import { need } from './types';
 
 export type ShellHandlers = DomainHandlers<ShellProcedureName>;
 
-/** ProviderIpcServer 广播的旧通道（ai-runtime PROVIDERS_CHANGED_EVENT；这里不加载 ai-runtime） */
+/** 供应商状态变化的应用事件通道（事件桥转成 `providers.changed`） */
 export const PROVIDERS_CHANGED = 'ai:providers:changed';
 
-/** 与 ProviderIpcServer 一致：错误信息里形似 Key 的片段打码，不挂原始错误 */
+/** 错误信息里形似 Key 的片段打码，不挂原始错误 */
 function redactProviderError(err: unknown): Error {
   const msg = err instanceof Error ? err.message : String(err);
   return new Error(msg.replace(/\b(sk|key|AIza)[-_A-Za-z0-9]{12,}\b/g, '***').slice(0, 300));

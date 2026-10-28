@@ -5,18 +5,11 @@ jest.unmock('fs');
 jest.unmock('path');
 jest.unmock('node:fs');
 jest.unmock('node:path');
-// 只剩 guardedIpc 还要 ipcMain；保存对话框与广播都经假端口 / 事件
-jest.mock('electron', () => ({
-  ipcMain: { handle: jest.fn(), removeHandler: jest.fn() },
-}));
-
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
 import type { DialogsPort, SaveFileOptions } from '@nomi-ai/host-ports';
-import { QUALITY_IPC } from '@nomi-ai/types';
-import { ipcMain } from 'electron';
 
 import { createRecordingAppEvents } from '../../../src/core/appEvents';
 import { GatewayRequestLog } from '../../../src/usage/GatewayRequestLog';
@@ -154,13 +147,6 @@ describe('QualityService', () => {
     t.svc.addGateway(ev());
     await t.svc.clear();
     expect(t.svc.query({ from: NOW - 3600_000, to: NOW + 1 }).total.requests).toBe(0);
-  });
-
-  it('IPC：登记全部通道', () => {
-    make().svc.registerIpc();
-    const chans = (ipcMain.handle as jest.Mock).mock.calls.map((c) => c[0]);
-    for (const ch of Object.values(QUALITY_IPC).filter((c) => c !== QUALITY_IPC.changed))
-      expect(chans).toContain(ch);
   });
 
   it('导出 CSV：请求明细 / 分组表，0600，带 BOM；取消保存返回 ok:false', async () => {

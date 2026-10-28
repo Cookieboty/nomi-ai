@@ -7,10 +7,8 @@ jest.unmock('path');
 jest.unmock('node:fs');
 jest.unmock('node:path');
 
-// 两个服务都不再 import electron；只有 guardedIpc / mascotCommand 还用到
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: jest.fn(), removeHandler: jest.fn() },
 }));
 
 import fs from 'node:fs';

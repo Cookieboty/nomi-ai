@@ -12,5 +12,5 @@ import { serviceToken } from './ServiceContainer';
 /** 宿主端口（Electron：createElectronPorts） */
 export const HOST_PORTS = serviceToken<HostPorts>('hostPorts');
 
-/** 主进程 → 界面事件（Electron：createElectronAppEvents） */
+/** 主进程 → 界面事件（Electron：契约事件桥 createContractEventBridge） */
 export const APP_EVENTS = serviceToken<AppEvents>('appEvents');

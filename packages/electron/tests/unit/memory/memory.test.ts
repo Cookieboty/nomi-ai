@@ -1,9 +1,8 @@
 jest.unmock('fs');
 jest.unmock('path');
-// MemoryService 不再 import electron；只有 guardedIpc / mascotCommand 还用到
+// 只有 ai/mascotCommand（看板娘指令数窗口）还用到 BrowserWindow
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: jest.fn(), removeHandler: jest.fn() },
 }));
 
 import fs from 'node:fs';

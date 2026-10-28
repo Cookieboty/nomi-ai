@@ -3,8 +3,7 @@
  * 健康状态、把 AI 回复转给看板娘朗读。Azure / OpenAI 尚未接入。
  *
  * 任何合成失败都静默（渲染层只显示文字），连续失败次数经 `status()` 给设置页显示提示。
- * 旧 IPC（getTTSConfig / saveTTSConfig / tts:* ，handlers/ipc/ConfigIpcHandler.ts）与契约
- * （host/contract/media.ts 的 `tts.*`）共用这一个实例：打断（stop）要能取消同一个引擎里的请求。
+ * 契约（host/contract/media.ts 的 `tts.*`）只用这一个实例：打断（stop）要能取消同一个引擎里的请求。
  */
 import type { HostPorts } from '@nomi-ai/host-ports';
 import type {
@@ -198,7 +197,7 @@ export class TtsService {
 
 let instance: TtsService | null = null;
 
-/** 组合根（ConfigIpcHandler 初始化时）创建；重复调用替换实例 */
+/** 组合根（启动任务 init-config-services）创建；重复调用替换实例 */
 export function initTtsService(deps: TtsServiceDeps): TtsService {
   instance = new TtsService(deps);
   return instance;

@@ -13,7 +13,6 @@ jest.mock('electron', () => ({
       },
     ],
   },
-  ipcMain: { handle: jest.fn(), removeHandler: jest.fn() },
 }));
 
 import fs from 'node:fs';
