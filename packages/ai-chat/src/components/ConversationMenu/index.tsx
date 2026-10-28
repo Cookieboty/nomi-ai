@@ -1,7 +1,8 @@
 /**
  * 唯一的对话右键菜单：侧栏条目与顶部标签共用。
- * 重命名 / 分叉为新对话 / 分叉到其他端 /（CLI 标签）关闭标签 / 关闭左右标签 /（Nomi 对话）删除对话。
- * 关闭 = 仅关掉标签，CLI 会话仍在磁盘，可从历史重新打开；删除 = 永久移除 Nomi 对话。
+ * 重命名 / 分叉为新对话 / 分叉到其他端 /（CLI 标签）关闭标签 / 关闭左右标签 / 删除对话。
+ * 关闭 = 仅关掉标签，CLI 会话仍在磁盘，可从历史重新打开；删除 = 永久移除 Nomi 对话，
+ * CLI 会话（标签或本机历史）则把 CLI 的会话记录移到系统废纸篓。
  */
 import { t } from '@nomi-ai/ui';
 import React, { useEffect, useRef } from 'react';
@@ -15,7 +16,7 @@ export interface ConversationMenuProps {
   y: number;
   /** 该对话是否对应一个 CLI 标签 */
   isTab: boolean;
-  /** 磁盘历史会话（只读）没有重命名 / 分叉 / 删除，只给 onOpen */
+  /** 磁盘历史会话没有重命名 / 分叉，只给 onOpen 与 onDelete */
   onOpen?: () => void;
   onRename?: () => void;
   onFork?: () => void;

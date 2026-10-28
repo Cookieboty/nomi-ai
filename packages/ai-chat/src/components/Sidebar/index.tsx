@@ -22,7 +22,7 @@ import { CONVERSATIONS_CHANGED_EVENT } from '../../services/conversationStore';
 import { MAIN_TAB_ID, harnessClient, type HarnessTabMeta } from '../../services/harnessClient';
 import {
   HISTORY_BACKENDS,
-  historyClient,
+  isHistoryBackend,
   type HistoryBackend,
   type HistoryClient,
   type HistorySession,
@@ -33,6 +33,7 @@ import { CONVERSATION_BACKENDS } from '../../types/chat';
 import { ENDPOINT_FULL } from '../../utils/endpointBadge';
 import { rankItems } from '../../utils/fuzzy';
 import { ChatModeSwitch } from '../ChatModeSwitch';
+import { confirmDialog } from '../ConfirmDialog';
 import { ConversationMenu } from '../ConversationMenu';
 import { EndpointIcon } from '../EndpointIcon';
 import { EndpointInfoCard } from '../EndpointInfo';
@@ -57,6 +58,7 @@ import {
 } from './searchSupport';
 import { rel, liveOf, RowActions, ThreadItem, VirtualRow } from './SidebarRows';
 import type { Meta } from './types';
+import { useSessionActions } from './useSessionActions';
 import { useSidebarRename, useSidebarSearchShortcut } from './useSidebarRename';
 
 interface SidebarProps {
@@ -316,7 +318,9 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       const st = tabById.get(meta.tabId)?.status;
       if (
         (st === 'running' || st === 'queued') &&
-        !window.confirm(t('ui.mascot-theme.this-tab-is-still-running-closing-it-will'))
+        !(await confirmDialog({
+          message: t('ui.mascot-theme.this-tab-is-still-running-closing-it-will'),
+        }))
       )
         return;
       await tabs.close(meta.tabId);
@@ -385,6 +389,12 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   const histBackends = useMemo(() => HISTORY_BACKENDS.filter((b) => Boolean(bins[b])), [bins]);
   const tabsKey = (tabs.state?.tabs ?? []).map((x) => `${x.id}:${x.cliSessionId ?? ''}`).join('|');
   const history = useCliHistory(isDev, histBackends, tabsKey);
+  const { openingKey, openHistory, deleteHistory, deleteTab } = useSessionActions({
+    tabs,
+    onNotice,
+    refresh,
+    refreshHistory: history.refresh,
+  });
   // 镜像条目与本机历史使用同一个稳定键：CLI 后端 + 原生会话 id。
   // 主进程会尽量提前排除已打开的会话，但这里还要防住历史扫描与标签同步的竞态，
   // 也要覆盖搜索索引返回得比侧栏列表更早的情况。
@@ -414,7 +424,6 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     !histScopeSupported || (view === 'by-endpoint' && endpointFilter === 'nomi')
       ? []
       : historyItems(histScope);
-  const [openingKey, setOpeningKey] = useState<string | null>(null);
 
   // 侧栏「按端」：对话数（CLI 标签已镜像进对话列表）+ 磁盘历史；都为 0 且没有显式设置的端点不显示
   const endpointActivity = useMemo(() => {
@@ -466,21 +475,6 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     histScopeSupported &&
     !(view === 'by-endpoint' && endpointFilter === 'nomi');
   const histScanning = histVisible && histItems.length === 0 && history.loading && !history.loaded;
-
-  const openHistory = async (h: HistorySession) => {
-    if (openingKey) return;
-    setOpeningKey(h.key);
-    try {
-      const r = await historyClient.open(h.backend, h.sessionId);
-      if (!r.ok) onNotice?.(r.error || t('ui.cli-monitor.could-not-open-the-history-session'));
-      else if (r.notice) onNotice?.(r.notice);
-    } catch (e) {
-      onNotice?.(e instanceof Error ? e.message : String(e));
-    } finally {
-      setOpeningKey(null);
-      history.refresh();
-    }
-  };
 
   // ── 模式切换：普通模式下当前会话若是 CLI 会话，自动换到最近的 Nomi 会话（没有则新建）；
   //    切回开发模式时回到离开前选中的会话。CLI 标签一直在后台运行。
@@ -1085,9 +1079,10 @@ const SidebarImpl: React.FC<SidebarProps> = ({
                     </span>
                     <span className={styles.threadTime}>{rel(h.updatedAt)}</span>
                   </button>
-                  {/* 磁盘历史是只读的：没有重命名 / 删除，「更多」里只有「在标签中打开」 */}
+                  {/* 磁盘历史：没有重命名；删除 = 把 CLI 的会话记录移到废纸篓 */}
                   <RowActions
                     kind="hist"
+                    onDelete={() => void deleteHistory(h)}
                     onMore={(a) => {
                       setCtx(null);
                       setHistMenu({ h, x: a.right - 184, y: a.bottom + 2 });
@@ -1141,7 +1136,14 @@ const SidebarImpl: React.FC<SidebarProps> = ({
               // 跨端分叉只在开发模式提供；普通模式只有「分叉为新对话」（同端 Nomi）
               onForkCross={isDev ? () => onForkRequest?.(ctx.id, 'cross') : undefined}
               onClose={meta?.tabId ? () => void removeItem(ctx.id) : undefined}
-              onDelete={meta?.tabId ? undefined : () => void removeItem(ctx.id)}
+              // CLI 标签：删除 = 关标签 + 把 CLI 的会话记录移到废纸篓（外部 CLI 没有本机历史，只能关闭）
+              onDelete={
+                !meta?.tabId
+                  ? () => void removeItem(ctx.id)
+                  : isHistoryBackend(meta.backend)
+                    ? () => void deleteTab(meta)
+                    : undefined
+              }
             />
           );
         })()}
@@ -1153,6 +1155,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
           isTab={false}
           onDismiss={() => setHistMenu(null)}
           onOpen={() => void openHistory(histMenu.h)}
+          onDelete={() => void deleteHistory(histMenu.h)}
         />
       )}
     </aside>

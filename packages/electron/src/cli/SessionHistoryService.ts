@@ -116,6 +116,13 @@ export interface HistoryPage {
   hasMore: boolean;
 }
 
+export interface HistoryDeleteResult {
+  ok: boolean;
+  /** 移到废纸篓的文件 / 目录数 */
+  removed?: number;
+  error?: string;
+}
+
 export interface HistoryOpenResult {
   ok: boolean;
   tab?: HarnessTabMeta;
@@ -184,6 +191,11 @@ export interface SessionHistoryDeps {
     backend: HistoryBackend,
     sessionId: string,
   ) => { id: string; label?: string } | undefined;
+  /**
+   * 删除会话时把文件 / 目录移到系统废纸篓（Application 传 shell.trashItem）。
+   * 不给就不支持删除：会话文件属于各 CLI，只移进废纸篓、不直接抹掉，误删还能找回。
+   */
+  trash?: (p: string) => Promise<void>;
   /** 读 Codex 索引（state_5.sqlite 的 threads 表，测试注入）；默认在 worker 线程里查，不阻塞主进程 */
   codexThreads?: (file: string) => Promise<CodexThreadRow[]>;
 }
@@ -739,6 +751,98 @@ export class SessionHistoryService {
     }
   }
 
+  /**
+   * 删除一条历史会话：同一会话 id 的所有文件（Codex 续接会写多个 rollout）连同附属目录一起移到废纸篓。
+   * 正在标签里打开的会话不删（CLI 进程还在写），由界面先关标签。Codex 的 state_5.sqlite 索引不改：
+   * 那是 Codex 自己的库，Nomi 只读；rollout 没了它也就不再出现在 Nomi 的列表里。
+   */
+  async remove(backend: HistoryBackend, sessionId: string): Promise<HistoryDeleteResult> {
+    try {
+      if (!BACKENDS.includes(backend)) throw new Error(t('electron.common.unknown-backend'));
+      if (!this.d.trash)
+        throw new Error(t('electron.common.deleting-history-sessions-is-not-supported-here'));
+      const key = `${backend}:${sessionId}`;
+      if (this.d.openKeys?.().has(key))
+        return { ok: false, error: t('electron.common.this-session-is-open-in-a-tab-close') };
+      const files = await this.sessionFiles(backend, key);
+      if (!files.length)
+        return {
+          ok: false,
+          error: t('electron.common.session-not-found-it-may-have-been-deleted'),
+        };
+      const targets = new Set<string>();
+      for (const f of files)
+        for (const p of this.deletionTargets(backend, f, sessionId)) targets.add(p);
+      const roots = this.deletionRoots(backend);
+      let removed = 0;
+      for (const p of targets) {
+        if (!fs.existsSync(p)) continue;
+        if (!insideRoots(p, roots)) {
+          this.d.logger?.warn('history delete: target outside session roots, skipped', p);
+          continue;
+        }
+        await this.d.trash(p);
+        removed++;
+      }
+      this.listCache.delete(backend);
+      for (const f of files) this.parsed.delete(f.path);
+      this.byKey.delete(key);
+      return { ok: true, removed };
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  }
+
+  /** 这条会话的全部文件（不只是列表里展示的最新那个） */
+  private async sessionFiles(backend: HistoryBackend, key: string): Promise<FileEntry[]> {
+    const entries = await this.candidates(backend, true);
+    const out: FileEntry[] = [];
+    for (let i = 0; i < entries.length; i += 16) {
+      const batch = entries.slice(i, i + 16);
+      const metas = await Promise.all(batch.map((f) => this.parsedOf(backend, f)));
+      metas.forEach((m, k) => {
+        if (m?.key === key) out.push(batch[k]!);
+      });
+    }
+    return out;
+  }
+
+  /** 一个会话文件对应要移走的路径（各 CLI 的目录布局见 @nomi-ai/cli-plugins 的 history.scan） */
+  private deletionTargets(backend: HistoryBackend, f: FileEntry, sessionId: string): string[] {
+    const dir = path.dirname(f.path);
+    switch (backend) {
+      case 'claude':
+        // <project>/<id>.jsonl，旁边可能有同名目录（子代理 / 工具结果）
+        return [f.path, path.join(dir, path.basename(f.path, '.jsonl'))];
+      case 'gemini':
+        // chats/session-*.jsonl，子代理在 chats/<会话 id>/
+        return [f.path, path.join(dir, sessionId)];
+      case 'grok':
+        // sessions/<cwd>/<id>/updates.jsonl：整个会话目录
+        return [dir];
+      case 'dsh':
+        // sessions/<项目>/session-*/ 整个目录，外加列表用的明文索引
+        return [
+          dir,
+          path.join(
+            this.dshHome,
+            'storages',
+            'session_projcache',
+            'sessions',
+            `${f.dirId ?? sessionId}.json`,
+          ),
+        ];
+      default:
+        return [f.path];
+    }
+  }
+
+  private deletionRoots(backend: HistoryBackend): string[] {
+    const roots = [this.historyRoot(backend)];
+    if (backend === 'dsh') roots.push(path.join(this.dshHome, 'storages', 'session_projcache'));
+    return roots;
+  }
+
   private refreshCodexIndex(file: string): Promise<void> {
     this.codexRefresh ??= this.doRefreshCodexIndex(file).finally(() => {
       this.codexRefresh = null;
@@ -789,7 +893,32 @@ export class SessionHistoryService {
       ),
     );
     handle('ai:history:open', (b, id) => this.open(b as HistoryBackend, String(id)));
+    handle('ai:history:delete', (b, id) => this.remove(b as HistoryBackend, String(id)));
   }
+}
+
+/**
+ * 删除目标必须严格位于某个会话根目录之内（不能是根本身）。按真实路径比较：
+ * 会话目录里的符号链接不能把删除带到根目录外面。
+ */
+function insideRoots(p: string, roots: string[]): boolean {
+  let parent: string;
+  try {
+    parent = fs.realpathSync(path.dirname(path.resolve(p)));
+  } catch {
+    return false;
+  }
+  const name = path.basename(p);
+  if (!name || name === '.' || name === '..') return false;
+  return roots.some((r) => {
+    let root: string;
+    try {
+      root = fs.realpathSync(r);
+    } catch {
+      return false;
+    }
+    return parent === root || parent.startsWith(root + path.sep);
+  });
 }
 
 function isDir(p: string): boolean {

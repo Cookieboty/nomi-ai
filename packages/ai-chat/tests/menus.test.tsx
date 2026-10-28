@@ -1,8 +1,9 @@
 // @vitest-environment happy-dom
-import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { resetConfirmDialogForTest } from '../src/components/ConfirmDialog';
 import { Sidebar } from '../src/components/Sidebar';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import { setChatMode } from '../src/services/chatPrefs';
@@ -120,6 +121,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  resetConfirmDialogForTest();
   localStorage.clear();
   delete (window as { aiIPC?: unknown }).aiIPC;
 });
@@ -132,16 +134,49 @@ const mountSidebar = () =>
   );
 
 describe('one conversation context menu', () => {
-  it('CLI conversation: rename / fork / fork-cross / close, no delete', async () => {
+  it('CLI conversation: rename / fork / fork-cross / close / delete', async () => {
     mockIpc();
     const r = mountSidebar();
     await waitFor(() => expect(r.getAllByTestId('history-item')).toHaveLength(2));
     fireEvent.contextMenu(r.getAllByTestId('history-item')[0]!);
     const m = r.getByTestId('conversation-context-menu');
-    expect(m.querySelectorAll('[role=menuitem]').length).toBe(4);
-    for (const id of ['conversation-rename', 'fork-same', 'fork-cross', 'conversation-close'])
+    expect(m.querySelectorAll('[role=menuitem]').length).toBe(5);
+    for (const id of [
+      'conversation-rename',
+      'fork-same',
+      'fork-cross',
+      'conversation-close',
+      'conversation-delete',
+    ])
       expect(r.getByTestId(id)).toBeTruthy();
-    expect(r.queryByTestId('conversation-delete')).toBeNull();
+  });
+
+  it('deleting a CLI conversation confirms in-app, closes the tab, then trashes the CLI session record', async () => {
+    const invoke = mockIpc();
+    list[0]!.cliSessionId = 'sess-1';
+    const r = mountSidebar();
+    await waitFor(() => expect(r.getAllByTestId('history-item')).toHaveLength(2));
+    const chans = () => invoke.mock.calls.map((c) => c[0]);
+    fireEvent.contextMenu(r.getAllByTestId('history-item')[0]!);
+    fireEvent.click(r.getByTestId('conversation-delete'));
+    // 应用内确认框（不是 window.confirm）；取消：什么都不动
+    const dialog = await screen.findByTestId('confirm-dialog');
+    expect(dialog.textContent).toContain('修复登录');
+    fireEvent.click(screen.getByTestId('confirm-dialog-cancel'));
+    await waitFor(() => expect(screen.queryByTestId('confirm-dialog')).toBeNull());
+    expect(chans()).not.toContain('ai:harness:tab-close');
+    expect(chans()).not.toContain('ai:history:delete');
+
+    fireEvent.contextMenu(r.getAllByTestId('history-item')[0]!);
+    fireEvent.click(r.getByTestId('conversation-delete'));
+    fireEvent.click(await screen.findByTestId('confirm-dialog-ok'));
+    await waitFor(() => expect(chans()).toContain('ai:history:delete'));
+    const closeAt = chans().indexOf('ai:harness:tab-close');
+    const delAt = chans().indexOf('ai:history:delete');
+    expect(closeAt).toBeGreaterThanOrEqual(0);
+    expect(closeAt).toBeLessThan(delAt);
+    expect(invoke.mock.calls[delAt]!.slice(1)).toEqual(['codex', 'sess-1']);
+    expect(deleteConversation).not.toHaveBeenCalled();
   });
 
   it('Nomi conversation: rename / fork / fork-cross / delete, no close', async () => {

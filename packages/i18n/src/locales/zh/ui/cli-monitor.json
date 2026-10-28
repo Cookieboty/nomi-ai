@@ -32,6 +32,7 @@
   "ui.cli-monitor.copies-visible-messages-into-a-new-chat-across": "复制可见对话到新会话。跨 CLI 仅作上下文参考，不能续接原会话。",
   "ui.cli-monitor.copy": "{0} (副本)",
   "ui.cli-monitor.could-not-be-installed-updated": "{0} 没有安装 / 更新成功：",
+  "ui.cli-monitor.could-not-delete-the-session": "删除会话失败",
   "ui.cli-monitor.could-not-open-the-history-session": "打开历史会话失败",
   "ui.cli-monitor.cover-face": "捂脸",
   "ui.cli-monitor.daze": "发呆",
@@ -168,5 +169,7 @@
   "ui.cli-monitor.workspace-when-the-target-is-a-coding-agent": "目标为编程助手时的工作目录",
   "ui.cli-monitor.yawn": "打哈欠",
   "ui.cli-monitor.you-dropped-it-i-ll-read-it": "拖给我的，我来读。",
-  "ui.cli-monitor.you-ve-got-this-i-m-here": "加油，我陪你。"
+  "ui.cli-monitor.you-ve-got-this-i-m-here": "加油，我陪你。",
+  "ui.cli-monitor.delete-session-title": "删除「{0}」？",
+  "ui.cli-monitor.delete-cli-session-body": "{0} 在本机保存的会话记录会移到废纸篓（回收站），之后 Nomi 与 {0} 都无法续接它。"
 }

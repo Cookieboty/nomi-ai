@@ -56,6 +56,13 @@ export interface HistoryOpenResult {
   error?: string;
 }
 
+export interface HistoryDeleteResult {
+  ok: boolean;
+  /** 移到废纸篓的文件 / 目录数 */
+  removed?: number;
+  error?: string;
+}
+
 interface AiBridge {
   invoke: (channel: string, ...args: unknown[]) => Promise<unknown>;
 }
@@ -82,4 +89,10 @@ export const historyClient = {
     call<HistoryPage>('ai:history:index', backend, o),
   open: (backend: HistoryBackend, sessionId: string) =>
     call<HistoryOpenResult>('ai:history:open', backend, sessionId),
+  /** 把 CLI 的会话记录移到系统废纸篓；会话还开在标签里时主进程拒绝，调用方先关标签 */
+  delete: (backend: HistoryBackend, sessionId: string) =>
+    call<HistoryDeleteResult>('ai:history:delete', backend, sessionId),
 };
+
+export const isHistoryBackend = (b: string): b is HistoryBackend =>
+  (HISTORY_BACKENDS as readonly string[]).includes(b);

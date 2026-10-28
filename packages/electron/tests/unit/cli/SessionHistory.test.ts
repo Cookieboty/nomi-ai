@@ -1058,6 +1058,113 @@ describe('SessionHistoryService', () => {
     expect(r.notice).toBeTruthy();
     expect((openTab.mock.calls[0] as unknown as [{ messages: unknown[] }])[0].messages).toEqual([]);
   });
+
+  describe('remove', () => {
+    /** 测试里的「废纸篓」：记下路径并真正移走，后续列表才看得到效果 */
+    const trashed: string[] = [];
+    const trash = jest.fn(async (p: string) => {
+      trashed.push(p);
+      fs.rmSync(p, { recursive: true, force: true });
+    });
+    beforeEach(() => {
+      trashed.length = 0;
+      trash.mockClear();
+    });
+
+    it('claude: trashes the session file and its sibling directory, then drops it from the list', async () => {
+      const p = writeClaude('a', 'task a', 2_000_000);
+      writeClaude('b', 'task b', 1_000_000);
+      const side = path.join(claudeDir(), 'a');
+      fs.mkdirSync(path.join(side, 'subagents'), { recursive: true });
+      const svc = mk({ trash });
+      expect((await svc.list('claude')).items.map((x) => x.sessionId)).toEqual(['a', 'b']);
+      const r = await svc.remove('claude', 'a');
+      expect(r).toEqual({ ok: true, removed: 2 });
+      expect(trashed.sort()).toEqual([p, side].sort());
+      expect((await svc.list('claude')).items.map((x) => x.sessionId)).toEqual(['b']);
+    });
+
+    it('refuses sessions open in a tab, unknown sessions, and hosts without a trash', async () => {
+      writeClaude('a', 'task a', 1_000_000);
+      const open = mk({ trash, openKeys: () => new Set(['claude:a']) });
+      expect((await open.remove('claude', 'a')).ok).toBe(false);
+      expect(trash).not.toHaveBeenCalled();
+      expect((await mk({ trash }).remove('claude', 'nope')).ok).toBe(false);
+      expect((await mk().remove('claude', 'a')).ok).toBe(false);
+      expect(fs.existsSync(path.join(claudeDir(), 'a.jsonl'))).toBe(true);
+    });
+
+    it('codex: every rollout of the same session id is trashed, other sessions stay', async () => {
+      const id = '01a0a531-1d64-7361-bb69-ebd1c7349662';
+      const otherId = '01a0a3b7-aaaa-7361-bb69-ebd1c7349662';
+      const base = fx('codex-rollout.jsonl')
+        .replace(/"cwd":\s*"\/tmp"/g, `"cwd":${JSON.stringify(work)}`)
+        .split('01a13a9b-34b0-7612-ba36-613a55008483')
+        .join(id);
+      const put = (day: string, sid: string, body: string) => {
+        const dir = path.join(home, '.codex', 'sessions', '2026', '10', day);
+        fs.mkdirSync(dir, { recursive: true });
+        const p = path.join(dir, `rollout-2026-10-${day}T09-00-00-${sid}.jsonl`);
+        fs.writeFileSync(p, body);
+        return p;
+      };
+      const a = put('13', id, base);
+      const b = put('15', id, base);
+      const keep = put('14', otherId, base.split(id).join(otherId));
+      const svc = mk({ trash });
+      const r = await svc.remove('codex', id);
+      expect(r.ok).toBe(true);
+      expect(trashed.sort()).toEqual([a, b].sort());
+      expect(fs.existsSync(keep)).toBe(true);
+      expect((await svc.list('codex')).items.map((x) => x.sessionId)).toEqual([otherId]);
+    });
+
+    it('grok: trashes the whole session directory', async () => {
+      const id = 'grok-session-1';
+      const dir = path.join(home, '.grok', 'sessions', encodeURIComponent(work), id);
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(
+        path.join(dir, 'updates.jsonl'),
+        JSON.stringify({
+          sessionId: id,
+          cwd: work,
+          sessionUpdate: 'user_message',
+          content: [{ type: 'text', text: 'hi' }],
+        }) + '\n',
+      );
+      const r = await mk({ trash }).remove('grok', id);
+      expect(r).toEqual({ ok: true, removed: 1 });
+      expect(trashed).toEqual([dir]);
+      expect(fs.existsSync(path.dirname(dir))).toBe(true);
+    });
+
+    it('dsh: trashes the session directory and its plaintext index entry', async () => {
+      const id = 'session-887fa07d-22ae-4013-849f-2b2fafcba3c3';
+      if (!dshSetup(id)) return; // 没有 zstd 工具的环境：跳过
+      const dir = path.join(home, '.dsh', 'sessions', '--work--', id);
+      const idx = path.join(
+        home,
+        '.dsh',
+        'storages',
+        'session_projcache',
+        'sessions',
+        `${id}.json`,
+      );
+      const r = await mk({ trash }).remove('dsh', id);
+      expect(r).toEqual({ ok: true, removed: 2 });
+      expect(trashed.sort()).toEqual([dir, idx].sort());
+    });
+
+    it('gemini: trashes the chat file and its sub-agent directory', async () => {
+      const id = 'aaaaaaaa-1111-2222-3333-444444444444';
+      writeGemini('proj', id, 1_000_000);
+      const chats = path.join(home, '.gemini', 'tmp', 'proj', 'chats');
+      const file = path.join(chats, `session-2026-10-19T00-00-${id.slice(0, 8)}.jsonl`);
+      const r = await mk({ trash }).remove('gemini', id);
+      expect(r).toEqual({ ok: true, removed: 2 });
+      expect(trashed.sort()).toEqual([file, path.join(chats, id)].sort());
+    });
+  });
 });
 
 describe('resume through the tab layer (mock CLIs)', () => {

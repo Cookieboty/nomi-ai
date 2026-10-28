@@ -32,6 +32,7 @@
   "ui.cli-monitor.copies-visible-messages-into-a-new-chat-across": "Copies visible messages into a new chat. Across CLIs this is context only — not a resumed session.",
   "ui.cli-monitor.copy": "{0} (copy)",
   "ui.cli-monitor.could-not-be-installed-updated": "{0} could not be installed / updated:",
+  "ui.cli-monitor.could-not-delete-the-session": "Could not delete the session",
   "ui.cli-monitor.could-not-open-the-history-session": "Could not open the history session",
   "ui.cli-monitor.cover-face": "Cover face",
   "ui.cli-monitor.daze": "Daze",
@@ -168,5 +169,7 @@
   "ui.cli-monitor.workspace-when-the-target-is-a-coding-agent": "Workspace when the target is a coding agent",
   "ui.cli-monitor.yawn": "Yawn",
   "ui.cli-monitor.you-dropped-it-i-ll-read-it": "You dropped it—I'll read it.",
-  "ui.cli-monitor.you-ve-got-this-i-m-here": "You've got this—I'm here."
+  "ui.cli-monitor.you-ve-got-this-i-m-here": "You've got this—I'm here.",
+  "ui.cli-monitor.delete-session-title": "Delete \"{0}\"?",
+  "ui.cli-monitor.delete-cli-session-body": "The session record {0} saved on this computer will be moved to the Trash (Recycle Bin), and neither Nomi nor {0} can resume it afterwards."
 }

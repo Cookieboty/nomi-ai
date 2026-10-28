@@ -16,7 +16,7 @@ import {
 } from '@nomi-ai/ai-runtime';
 import { isBuiltinCliId } from '@nomi-ai/cli-plugins';
 import type { ProviderQuirks } from '@nomi-ai/gateway';
-import { app, BrowserWindow, safeStorage, session } from 'electron';
+import { app, BrowserWindow, safeStorage, session, shell } from 'electron';
 
 import { getAgentProgressService, initAgentProgressService } from '../agents/AgentProgressService';
 import { startAIRuntime, type AIRuntimeBootHandle } from '../ai/AIRuntimeBoot';
@@ -737,6 +737,7 @@ export class Application implements IApplication {
         openTitle: (backend, sessionId, title) =>
           harness.syncOpenSessionTitle(backend, sessionId, title),
         openTab: (o) => harness.openHistorySession(o),
+        trash: (p) => shell.trashItem(p),
         gatewaySession: (backend, sessionId) => gateway.servedSession(backend, sessionId),
         accountLabel: (backend, accountId) => {
           // eslint-disable-next-line nomi/no-cli-literal -- 只有 Codex 的历史记录了 creator_account_id

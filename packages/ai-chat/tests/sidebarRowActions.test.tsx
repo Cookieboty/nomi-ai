@@ -1,8 +1,9 @@
 // @vitest-environment happy-dom
-import { act, cleanup, fireEvent, render, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { resetConfirmDialogForTest } from '../src/components/ConfirmDialog';
 import { Sidebar } from '../src/components/Sidebar';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import { setChatMode } from '../src/services/chatPrefs';
@@ -88,6 +89,7 @@ function mockIpc() {
       return { items: b === 'codex' ? [hist] : [], nextOffset: null, hasMore: false };
     }
     if (ch === 'ai:history:open') return { ok: true };
+    if (ch === 'ai:history:delete') return { ok: true, removed: 1 };
     return {};
   });
   (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
@@ -139,6 +141,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  resetConfirmDialogForTest();
   localStorage.clear();
   delete (window as { aiIPC?: unknown }).aiIPC;
   vi.restoreAllMocks();
@@ -222,32 +225,31 @@ describe('sidebar row actions', () => {
     await waitFor(() => expect(deleteConversation).toHaveBeenCalledWith('n2'));
   });
 
-  it('cli tab: trash closes the tab; a running tab keeps the close confirmation', async () => {
+  it('cli tab: trash closes the tab; a running tab keeps the close confirmation (in-app)', async () => {
     tabStatus = 'running';
-    const confirm = vi.fn(() => false);
-    window.confirm = confirm;
     const r = mount();
     await waitFor(() => r.getAllByTestId('history-item'));
     await waitFor(() => expect(within(row(r, 'c1')).getByTestId('row-delete')).toBeTruthy());
     fireEvent.click(within(row(r, 'c1')).getByTestId('row-delete'));
-    expect(confirm).toHaveBeenCalledWith('该标签仍在运行，关闭会中止它。确定关闭？');
-    await new Promise((x) => setTimeout(x, 20));
+    expect((await screen.findByTestId('confirm-dialog')).textContent).toContain(
+      '该标签仍在运行，关闭会中止它。确定关闭？',
+    );
+    fireEvent.click(screen.getByTestId('confirm-dialog-cancel'));
+    await waitFor(() => expect(screen.queryByTestId('confirm-dialog')).toBeNull());
     expect(calls.some(([ch]) => ch === 'ai:harness:tab-close')).toBe(false);
-    confirm.mockImplementation(() => true);
     fireEvent.click(within(row(r, 'c1')).getByTestId('row-delete'));
+    fireEvent.click(await screen.findByTestId('confirm-dialog-ok'));
     await waitFor(() =>
       expect(calls.some(([ch, a]) => ch === 'ai:harness:tab-close' && a[0] === 't1')).toBe(true),
     );
   });
 
   it('idle cli tab closes without asking', async () => {
-    const confirm = vi.fn(() => false);
-    window.confirm = confirm;
     const r = mount();
     await waitFor(() => r.getAllByTestId('history-item'));
     fireEvent.click(within(row(r, 'c1')).getByTestId('row-delete'));
     await waitFor(() => expect(calls.some(([ch]) => ch === 'ai:harness:tab-close')).toBe(true));
-    expect(confirm).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('confirm-dialog')).toBeNull();
   });
 
   it('"more" opens the shared conversation menu on demand (same as right click)', async () => {
@@ -268,21 +270,44 @@ describe('sidebar row actions', () => {
     ).toBeTruthy();
   });
 
-  it('disk history rows are read-only: only "more" with an open-in-tab item', async () => {
+  it('disk history rows: no rename / fork; "more" opens in a tab or deletes', async () => {
     const r = mount();
     const item = await waitFor(() => r.getByTestId('history-session-item'));
     const hrow = item.closest('[data-testid="history-session-row"]') as HTMLElement;
     const w = within(hrow);
     expect(w.queryByTestId('row-rename')).toBeNull();
-    expect(w.queryByTestId('row-delete')).toBeNull();
+    expect(w.getByTestId('row-delete')).toBeTruthy();
     fireEvent.click(w.getByTestId('row-more'));
     const menu = r.getByTestId('conversation-context-menu');
     expect(within(menu).queryByTestId('conversation-rename')).toBeNull();
-    expect(within(menu).queryByTestId('conversation-delete')).toBeNull();
+    expect(within(menu).getByTestId('conversation-delete')).toBeTruthy();
     expect(within(menu).queryByTestId('fork-same')).toBeNull();
     fireEvent.click(within(menu).getByTestId('conversation-open'));
     await waitFor(() =>
       expect(calls.some(([ch, a]) => ch === 'ai:history:open' && a[1] === 's9')).toBe(true),
+    );
+  });
+
+  it('deleting a disk history row asks in-app first, then trashes it and refreshes the list', async () => {
+    const r = mount();
+    const item = await waitFor(() => r.getByTestId('history-session-item'));
+    const w = within(item.closest('[data-testid="history-session-row"]') as HTMLElement);
+    fireEvent.click(w.getByTestId('row-delete'));
+    expect((await screen.findByTestId('confirm-dialog')).textContent).toContain(
+      'disk codex session',
+    );
+    fireEvent.click(screen.getByTestId('confirm-dialog-cancel'));
+    await waitFor(() => expect(screen.queryByTestId('confirm-dialog')).toBeNull());
+    expect(calls.some(([ch]) => ch === 'ai:history:delete')).toBe(false);
+
+    const listsBefore = calls.filter(([ch]) => ch === 'ai:history:list').length;
+    fireEvent.click(w.getByTestId('row-delete'));
+    fireEvent.click(await screen.findByTestId('confirm-dialog-ok'));
+    await waitFor(() =>
+      expect(calls.some(([ch, a]) => ch === 'ai:history:delete' && a[1] === 's9')).toBe(true),
+    );
+    await waitFor(() =>
+      expect(calls.filter(([ch]) => ch === 'ai:history:list').length).toBeGreaterThan(listsBefore),
     );
   });
 
