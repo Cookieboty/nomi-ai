@@ -275,7 +275,7 @@ describe('built-in pack location', () => {
 });
 
 describe('real example pack (Scheme B fixture)', () => {
-  it('loads examples/static-demo.pack as userData overlay', () => {
+  it('loads examples/static-demo.pack (current layout) as userData overlay', () => {
     const pack = path.resolve(__dirname, '../../../../../examples/static-demo.pack');
     expect(validatePackRoot(pack)).toBeNull();
     const r = resolveCharacterPack({
@@ -286,6 +286,69 @@ describe('real example pack (Scheme B fixture)', () => {
     expect(r.manifest?.id).toBe('static-demo');
     expect(r.hitboxes?.regions.hem).toBeTruthy();
     expect(r.hitboxes?.bubbleAnchor).toBeTruthy();
+    expect(r.pack?.persona?.displayName).toBe('静图示范');
+    expect(r.pack?.locales.en?.wakePhrase).toBe('Hello');
+  });
+});
+
+/**
+ * 旧布局（`layout/hitboxes.json`、`copy/<lang>.json`，2.0.x 的第三方包可能还这样放在用户磁盘上）：
+ * 示范包已经换成新布局，迁移读取由这个固定样例守住。
+ */
+describe('legacy pack layout on disk (migration)', () => {
+  it('reads layout/hitboxes.json and copy/<lang>.json through the migrations', async () => {
+    const root = tmp();
+    const put = (rel: string, data: string | Buffer) => {
+      mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
+      writeFileSync(path.join(root, rel), data);
+    };
+    put(
+      'manifest.json',
+      JSON.stringify({
+        schema: 1,
+        id: 'legacy-static',
+        displayName: { zh: '旧静图', en: 'Old Static' },
+        engines: { nomiPack: '>=1 <2' },
+        assets: {
+          mode: 'static',
+          static: 'static/character.webp',
+          onboarding: 'onboarding/',
+          copy: 'copy/',
+          layout: 'layout/',
+        },
+      }),
+    );
+    put('static/character.webp', Buffer.from([0]));
+    for (const f of ['welcome', 'profile', 'provider', 'privacy'])
+      put(`onboarding/${f}.webp`, Buffer.from([0]));
+    put(
+      'layout/hitboxes.json',
+      JSON.stringify({
+        regions: { head: { top: 0.05, bottom: 0.3, left: 0.2, right: 0.8 } },
+        bubbleAnchor: { x: 0.7, y: 0.2 },
+      }),
+    );
+    put(
+      'copy/zh.json',
+      JSON.stringify({
+        displayName: '旧静图',
+        wakePhrase: '你好，旧静图',
+        systemPromptIdentity: '你是旧静图。',
+      }),
+    );
+    put('copy/en.json', JSON.stringify({ displayName: 'Old Static', wakePhrase: 'Hi, Old' }));
+    expect(validatePackRoot(root)).toBeNull();
+    const r = resolveCharacterPack({
+      userDataPack: root,
+      resourcesPack: path.join(os.tmpdir(), 'no-such-resources-pack'),
+    });
+    expect(r.source).toBe('userData');
+    expect(r.manifest?.id).toBe('legacy-static');
+    expect(r.hitboxes?.regions.head).toBeTruthy();
+    expect(r.hitboxes?.bubbleAnchor).toEqual({ x: 0.7, y: 0.2 });
+    expect(r.pack?.persona?.systemPromptIdentity).toBe('你是旧静图。');
+    expect(r.pack?.locales.zh?.wakePhrase).toBe('你好，旧静图');
+    await fsp.rm(root, { recursive: true, force: true });
   });
 });
 

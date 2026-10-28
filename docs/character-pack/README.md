@@ -48,4 +48,4 @@ CHARACTER_PACK=../my-character.pack pnpm build
 - [CONTRACT.md](./CONTRACT.md) — 契约说明
 - [contract.json](../../packages/character-contract/contract.json) / [voice-ids.json](../../packages/character-contract/voice-ids.json) — 机器可读契约（`@nomi-ai/character-contract`，含 schema、`validatePack` 与迁移函数）
 - [designer-checklist.md](./designer-checklist.md) — 设计师检查表
-- 包：`characters/nomi`（官方）、`characters/test-dummy`（替身）、`examples/static-demo.pack`（旧格式示范）
+- 包：`characters/nomi`（官方）、`characters/test-dummy`（替身）、`examples/static-demo.pack`（静图示范）

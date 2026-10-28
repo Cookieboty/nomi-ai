@@ -88,7 +88,7 @@ jobs:
       - name: Character pack contract (official characters/nomi)
         run: pnpm character:check
 
-      - name: Character pack contract (test-dummy and legacy static demo packs)
+      - name: Character pack contract (test-dummy and static demo packs)
         run: |
           node scripts/character/check.mjs characters/test-dummy
           node scripts/character/check.mjs examples/static-demo.pack

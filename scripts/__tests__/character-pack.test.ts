@@ -27,7 +27,7 @@ describe('character pack scripts', () => {
     expect(out).toContain('OK');
   });
 
-  it('check passes on the test-dummy and the legacy static-demo packs', () => {
+  it('check passes on the test-dummy and the static-demo packs', () => {
     expect(run('check.mjs', {}, ['characters/test-dummy'])).toContain('mode=static');
     const out = run('check.mjs', {}, ['examples/static-demo.pack']);
     expect(out).toContain('mode=static');
