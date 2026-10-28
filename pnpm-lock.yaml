@@ -227,7 +227,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^5.0.3
-        version: 5.0.3(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(@vitest/coverage-v8@5.0.3)(happy-dom@20.14.6)(vite@8.3.4(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.6.1)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
+        version: 5.0.3(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(@vitest/coverage-v8@5.0.3)(happy-dom@20.14.6)(vite@8.3.4(@types/node@24.13.3)(esbuild@0.27.7)(jiti@2.6.1)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
 
   packages/ai-sdk:
     dependencies:
@@ -255,7 +255,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^5.0.3
-        version: 5.0.3(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(@vitest/coverage-v8@5.0.3)(happy-dom@20.14.6)(vite@8.3.4(@types/node@24.13.3)(esbuild@0.27.7)(jiti@2.6.1)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
+        version: 5.0.3(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(@vitest/coverage-v8@5.0.3)(happy-dom@20.14.6)(vite@8.3.4(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.6.1)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
 
   packages/ai-sdk-client:
     dependencies:
@@ -435,6 +435,82 @@ importers:
         specifier: ^5.0.3
         version: 5.0.3(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(@vitest/coverage-v8@5.0.3)(happy-dom@20.14.6)(vite@8.3.4(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.6.1)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
 
+  packages/core:
+    dependencies:
+      '@nomi-ai/ai-runtime':
+        specifier: workspace:*
+        version: link:../ai-runtime
+      '@nomi-ai/bundle-ig-base':
+        specifier: workspace:*
+        version: link:../bundle-ig-base
+      '@nomi-ai/bundle-ig-mascot':
+        specifier: workspace:*
+        version: link:../bundle-ig-mascot
+      '@nomi-ai/character-contract':
+        specifier: workspace:*
+        version: link:../character-contract
+      '@nomi-ai/cli-plugins':
+        specifier: workspace:*
+        version: link:../cli-plugins
+      '@nomi-ai/cli-sdk':
+        specifier: workspace:*
+        version: link:../cli-sdk
+      '@nomi-ai/contract':
+        specifier: workspace:*
+        version: link:../contract
+      '@nomi-ai/gateway':
+        specifier: workspace:*
+        version: link:../gateway
+      '@nomi-ai/host-ports':
+        specifier: workspace:*
+        version: link:../host-ports
+      '@nomi-ai/i18n':
+        specifier: workspace:*
+        version: link:../i18n
+      '@nomi-ai/types':
+        specifier: workspace:*
+        version: link:../types
+      fflate:
+        specifier: ^0.8.3
+        version: 0.8.3
+      onnxruntime-web:
+        specifier: 1.30.0
+        version: 1.30.0
+      smol-toml:
+        specifier: 1.9.0
+        version: 1.9.0
+      tesseract.js:
+        specifier: 7.0.0
+        version: 7.0.0
+      unpdf:
+        specifier: ^1.8.1
+        version: 1.8.1
+      ws:
+        specifier: 8.21.3
+        version: 8.21.3
+      zod:
+        specifier: ^4.6.6
+        version: 4.6.7
+    devDependencies:
+      '@types/jest':
+        specifier: ^30.0.0
+        version: 30.0.0
+      '@types/ws':
+        specifier: 8.18.2
+        version: 8.18.2
+      jest:
+        specifier: ^30.5.2
+        version: 30.5.2(@types/node@24.13.3)
+      rimraf:
+        specifier: ^6.1.3
+        version: 6.1.3
+      ts-jest:
+        specifier: ^29.4.14
+        version: 29.4.14(@babel/core@7.29.7)(@jest/transform@30.5.2)(@jest/types@30.5.1)(babel-jest@30.5.2(@babel/core@7.29.7))(esbuild@0.28.2)(jest-util@30.5.1)(jest@30.5.2(@types/node@24.13.3))(typescript@6.0.3)
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+
   packages/electron:
     dependencies:
       '@ai-sdk/anthropic':
@@ -479,6 +555,9 @@ importers:
       '@nomi-ai/contract':
         specifier: workspace:*
         version: link:../contract
+      '@nomi-ai/core':
+        specifier: workspace:*
+        version: link:../core
       '@nomi-ai/gateway':
         specifier: workspace:*
         version: link:../gateway
@@ -497,30 +576,12 @@ importers:
       electron-updater:
         specifier: ^6.6.2
         version: 6.8.9
-      fflate:
-        specifier: ^0.8.3
-        version: 0.8.3
-      onnxruntime-web:
-        specifier: 1.30.0
-        version: 1.30.0
-      smol-toml:
-        specifier: 1.9.0
-        version: 1.9.0
       tar-stream:
         specifier: 3.2.2
         version: 3.2.2
-      tesseract.js:
-        specifier: 7.0.0
-        version: 7.0.0
       unbzip2-stream:
         specifier: 1.4.3
         version: 1.4.3
-      unpdf:
-        specifier: ^1.8.1
-        version: 1.8.1
-      ws:
-        specifier: 8.21.3
-        version: 8.21.3
     devDependencies:
       '@types/jest':
         specifier: ^30.0.0
@@ -528,9 +589,6 @@ importers:
       '@types/tar-stream':
         specifier: 3.1.5
         version: 3.1.5
-      '@types/ws':
-        specifier: 8.18.2
-        version: 8.18.2
       cross-env:
         specifier: ^10.1.0
         version: 10.1.0

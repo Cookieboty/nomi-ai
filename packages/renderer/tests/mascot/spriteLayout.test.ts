@@ -7,7 +7,7 @@ import {
   MASCOT_PAD as MAIN_PAD,
   mascotWindowSize,
   migrateMascotSize,
-} from '../../../electron/src/mascot/mascotSize';
+} from '../../../core/src/mascot/mascotSize';
 import { intersects, placeBubble } from '../../src/mascot/bubblePlacement';
 import {
   rigBodyBox,

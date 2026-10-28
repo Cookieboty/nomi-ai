@@ -9,9 +9,10 @@ jest.mock('electron', () => ({
   },
 }));
 
-import { createRecordingAppEvents, type RecordingAppEvents } from '../../../src/core/appEvents';
-import { setMascotAppEvents } from '../../../src/mascot/mascotEvents';
-import { MASCOT_PAD, mascotWindowSize } from '../../../src/mascot/mascotSize';
+import { createRecordingAppEvents, type RecordingAppEvents } from '@nomi-ai/core/core/appEvents';
+import { setMascotAppEvents } from '@nomi-ai/core/mascot/mascotEvents';
+import { MASCOT_PAD, mascotWindowSize } from '@nomi-ai/core/mascot/mascotSize';
+
 import { MascotWindowController } from '../../../src/mascot/MascotWindowController';
 
 function fakeWindow(scale: number, x: number, y: number) {

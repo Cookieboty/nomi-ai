@@ -9,9 +9,9 @@
 import { canSubscribe, ContractError, createClient, type EventPublisher } from '@nomi-ai/contract';
 import { appContract, type AppContract } from '@nomi-ai/contract/app';
 import { createInProcessServer } from '@nomi-ai/contract/testing';
+import { createRecordingAppEvents } from '@nomi-ai/core/core/appEvents';
 import type { HostPorts } from '@nomi-ai/host-ports';
 
-import { createRecordingAppEvents } from '../../../src/core/appEvents';
 import {
   APP_EVENT_BRIDGE,
   createAppRouter,

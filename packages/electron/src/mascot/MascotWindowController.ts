@@ -1,3 +1,19 @@
+import { mascotAppEvents } from '@nomi-ai/core/mascot/mascotEvents';
+import {
+  DEFAULT_MASCOT_SCALE,
+  MASCOT_BASE,
+  MASCOT_PAD,
+  MASCOT_SCALE_STEP,
+  MAX_MASCOT_SCALE,
+  MIN_MASCOT_SCALE,
+  fitMascotScale,
+  maxScaleForArea,
+  mascotWindowSize,
+  resizeMascotBounds,
+  roundMascotScale,
+  stepMascotScale,
+  wheelMascotScale,
+} from '@nomi-ai/core/mascot/mascotSize';
 import type { MascotScaleState } from '@nomi-ai/types';
 import { type BrowserWindow, screen } from 'electron';
 
@@ -17,22 +33,6 @@ import {
   type PhysicsEvent,
   type Rect,
 } from './desktopPhysics';
-import { mascotAppEvents } from './mascotEvents';
-import {
-  DEFAULT_MASCOT_SCALE,
-  MASCOT_BASE,
-  MASCOT_PAD,
-  MASCOT_SCALE_STEP,
-  MAX_MASCOT_SCALE,
-  MIN_MASCOT_SCALE,
-  fitMascotScale,
-  maxScaleForArea,
-  mascotWindowSize,
-  resizeMascotBounds,
-  roundMascotScale,
-  stepMascotScale,
-  wheelMascotScale,
-} from './mascotSize';
 
 export interface InteractionConfig {
   /** 透明区域点击穿透 */

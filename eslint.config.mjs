@@ -162,10 +162,14 @@ export default tseslint.config(
   },
 
   // 核心目录不按内置编程助手名字分支（§7.3）：差异放进插件，核心按能力位判断。
-  // electron/src/cli 是插件宿主与内置 CLI 的适配层（编排、驱动接线），不在此列。
+  // core/src/cli 是插件宿主与内置 CLI 的适配层（编排、驱动接线），不在此列。
   {
-    files: ['packages/electron/src/**/*.ts', 'packages/ai-chat/src/**/*.{ts,tsx}'],
-    ignores: ['packages/electron/src/cli/**', ...CLI_LITERAL_ALLOWLIST],
+    files: [
+      'packages/core/src/**/*.ts',
+      'packages/electron/src/**/*.ts',
+      'packages/ai-chat/src/**/*.{ts,tsx}',
+    ],
+    ignores: ['packages/core/src/cli/**', ...CLI_LITERAL_ALLOWLIST],
     plugins: { nomi: nomiPlugin },
     rules: { 'nomi/no-cli-literal': 'error' },
   },
@@ -236,9 +240,9 @@ export default tseslint.config(
     },
   },
 
-  // 遗留 electron 主进程代码（P0 之前既存业务代码，待 P3 迁移时再逐个清理）
+  // 遗留 electron 主进程代码（P0 之前既存业务代码，P3 搬进 packages/core 后沿用同样的放宽，再逐个清理）
   {
-    files: ['packages/electron/**/*.{ts,tsx,js,cjs,mjs}'],
+    files: ['packages/electron/**/*.{ts,tsx,js,cjs,mjs}', 'packages/core/**/*.{ts,tsx,js,cjs,mjs}'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/no-namespace': 'warn',
@@ -367,7 +371,12 @@ export default tseslint.config(
   // 确认 / 输入用 ai-chat 的 confirmDialog / promptDialog（components/ConfirmDialog）。
   {
     files: ['packages/*/src/**/*.{ts,tsx}'],
-    ignores: ['**/*.{test,spec}.{ts,tsx}', '**/tests/**', 'packages/electron/**'],
+    ignores: [
+      '**/*.{test,spec}.{ts,tsx}',
+      '**/tests/**',
+      'packages/electron/**',
+      'packages/core/**',
+    ],
     rules: {
       'no-restricted-globals': [
         'error',

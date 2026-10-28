@@ -1,0 +1,424 @@
+jest.unmock('fs');
+jest.unmock('path');
+jest.mock('../../../src/i18n', () => ({ t: (s: string) => s }));
+
+// 选图经 ports.dialogs、缩放经 ports.image、广播经 events
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+
+import type { ImagePort, ImageSize, PickFilesOptions } from '@nomi-ai/host-ports';
+import { CHAT_BG_ERROR, CHAT_BG_MAX_BYTES, CHAT_BG_MAX_EDGE } from '@nomi-ai/types';
+
+import {
+  ChatBackgroundService,
+  CHAT_BG_PRESET_URL,
+  DEFAULT_CHAT_BG,
+  sanitizeChatBg,
+} from '../../../src/chat/ChatBackgroundService';
+import { createRecordingAppEvents, type RecordingAppEvents } from '../../../src/core/appEvents';
+import { __renameDeps, whenPrivateWritesIdle } from '../../../src/utils/privateFile';
+
+const tmpRoot = () => fs.mkdtempSync(path.join(os.tmpdir(), 'chat-bg-'));
+/** 内置预设图（宿主从打包资源目录给出路径；这里用临时目录里的一张 JPEG 头代替） */
+const BUNDLED_PRESET = (() => {
+  const file = path.join(tmpRoot(), 'assets', 'backgrounds', 'nomi-preset.jpg');
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, Buffer.from([0xff, 0xd8, 0xff, 0xe0]));
+  return file;
+})();
+const PRESET_DEFAULTS = { ...DEFAULT_CHAT_BG, imageUrl: CHAT_BG_PRESET_URL };
+
+/** 文件选择器：返回选中的路径，空数组 = 取消 */
+const pickFiles = jest.fn(async (_opts?: PickFilesOptions): Promise<string[]> => []);
+/** 图片端口：默认解码不了（不缩放，原样复制） */
+const imageSize = jest.fn<Promise<ImageSize | null>, [Uint8Array]>(async () => null);
+const imageResize = jest.fn<ReturnType<ImagePort['resize']>, Parameters<ImagePort['resize']>>(
+  async () => new Uint8Array(),
+);
+let events: RecordingAppEvents = createRecordingAppEvents();
+const make = (
+  file: string,
+  imagesDir: string,
+  presetFile = BUNDLED_PRESET,
+): ChatBackgroundService =>
+  new ChatBackgroundService({
+    file,
+    imagesDir,
+    presetFile,
+    ports: {
+      dialogs: {
+        pickFiles,
+        pickDirectory: async () => null,
+        saveFile: async () => null,
+        showError: () => undefined,
+      },
+      image: { size: imageSize, resize: imageResize },
+    },
+    events,
+  });
+
+describe('ChatBackgroundService', () => {
+  beforeEach(() => {
+    pickFiles.mockReset();
+    pickFiles.mockResolvedValue([]);
+    imageSize.mockClear();
+    imageResize.mockClear();
+    events = createRecordingAppEvents();
+  });
+  afterEach(async () => {
+    await whenPrivateWritesIdle();
+  });
+
+  it('sanitizes and defaults', () => {
+    expect(sanitizeChatBg(null)).toEqual(DEFAULT_CHAT_BG);
+    expect(sanitizeChatBg({ mode: 'solid', solidColor: '#ff0000', blur: 99, opacity: 2 })).toEqual({
+      imageUrl: null,
+      blur: 40,
+      opacity: 1,
+    });
+    expect(sanitizeChatBg({ imageUrl: 'http://evil' }).imageUrl).toBeNull();
+  });
+
+  it('clamps blur and ignores removed per-panel blur fields', () => {
+    expect(sanitizeChatBg({ blur: 8 }).blur).toBe(8);
+    expect(sanitizeChatBg({ blur: -1 }).blur).toBe(0);
+    expect(sanitizeChatBg({ blur: Infinity }).blur).toBe(DEFAULT_CHAT_BG.blur);
+    expect(sanitizeChatBg({ blurLeft: 4, blurCenter: 12, blurRight: 20 }).blur).toBe(
+      DEFAULT_CHAT_BG.blur,
+    );
+  });
+
+  it('persists set/reset to disk', async () => {
+    const root = tmpRoot();
+    const file = path.join(root, 'chat-background.json');
+    const images = path.join(root, 'images');
+    const s = make(file, images);
+    expect(s.get()).toEqual(PRESET_DEFAULTS);
+    expect(await s.set({ blur: 3, opacity: 0.5 })).toMatchObject({ blur: 3, opacity: 0.5 });
+    expect(JSON.parse(fs.readFileSync(file, 'utf8'))).toMatchObject({ blur: 3, opacity: 0.5 });
+    expect(await s.reset()).toEqual(PRESET_DEFAULTS);
+    expect(JSON.parse(fs.readFileSync(file, 'utf8'))).toEqual(PRESET_DEFAULTS);
+  });
+
+  it('concurrent set calls apply in order and keep the last state (#154)', async () => {
+    const root = tmpRoot();
+    const file = path.join(root, 'chat-background.json');
+    const s = make(file, path.join(root, 'images'));
+    const results = await Promise.all([
+      s.set({ blur: 1 }),
+      s.set({ opacity: 0.4 }),
+      s.set({ blur: 5 }),
+    ]);
+    expect(results[2]).toMatchObject({ blur: 5, opacity: 0.4 });
+    expect(JSON.parse(fs.readFileSync(file, 'utf8'))).toMatchObject({ blur: 5, opacity: 0.4 });
+  });
+
+  it('drops removed fields from saved settings', async () => {
+    const root = tmpRoot();
+    const file = path.join(root, 'chat-background.json');
+    fs.writeFileSync(
+      file,
+      JSON.stringify({ mode: 'solid', solidColor: '#123456', blurCenter: 7, opacity: 0.42 }),
+    );
+    const service = make(file, path.join(root, 'images'));
+    expect(service.get()).toEqual({ ...PRESET_DEFAULTS, opacity: 0.42 });
+    await service.flush();
+    expect(Object.keys(JSON.parse(fs.readFileSync(file, 'utf8'))).sort()).toEqual([
+      'blur',
+      'imageUrl',
+      'opacity',
+    ]);
+  });
+
+  it('picks through the dialogs port and publishes chat-bg:changed to every window', async () => {
+    const root = tmpRoot();
+    const src = path.join(root, 'src.png');
+    fs.writeFileSync(src, 'fake-png');
+    pickFiles.mockResolvedValueOnce([src]);
+    const s = make(path.join(root, 'chat-background.json'), path.join(root, 'images'));
+    const st = await s.pickImage('chat');
+    expect(pickFiles).toHaveBeenCalledWith(
+      expect.objectContaining({
+        parent: 'chat',
+        filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }],
+      }),
+    );
+    expect(events.published).toEqual([{ channel: 'chat-bg:changed', payload: st, surfaces: null }]);
+    expect(await s.pickImage()).toEqual(st);
+    expect(pickFiles).toHaveBeenLastCalledWith(expect.objectContaining({ parent: 'none' }));
+  });
+
+  it('copies picked image into chat-asset images dir', async () => {
+    const root = tmpRoot();
+    const file = path.join(root, 'chat-background.json');
+    const images = path.join(root, 'images');
+    const src = path.join(root, 'src.png');
+    fs.writeFileSync(src, 'fake-png');
+    pickFiles.mockResolvedValueOnce([src]);
+    const s = make(file, images);
+    const st = await s.pickImage();
+    expect(st.imageUrl).toMatch(/^chat-asset:\/\/images\/panel-bg\.[\w-]+\.png$/);
+    expect(fs.readFileSync(path.join(images, new URL(st.imageUrl!).pathname), 'utf8')).toBe(
+      'fake-png',
+    );
+    await s.reset();
+    expect(fs.readdirSync(images)).toEqual([]);
+  });
+
+  it('replacing an image changes its URL and retains only the latest file', async () => {
+    const root = tmpRoot();
+    const file = path.join(root, 'chat-background.json');
+    const images = path.join(root, 'images');
+    const src = path.join(root, 'src.png');
+    const service = make(file, images);
+    pickFiles.mockResolvedValue([src]);
+    fs.writeFileSync(src, 'first-png');
+    const first = await service.pickImage();
+    fs.writeFileSync(src, 'second-png');
+    const second = await service.pickImage();
+    expect(second.imageUrl).not.toBe(first.imageUrl);
+    expect(fs.readdirSync(images)).toHaveLength(1);
+    expect(fs.readFileSync(path.join(images, new URL(second.imageUrl!).pathname), 'utf8')).toBe(
+      'second-png',
+    );
+    expect(JSON.parse(fs.readFileSync(file, 'utf8')).imageUrl).toBe(second.imageUrl);
+    fs.unlinkSync(src);
+    expect(make(file, images).get()).toEqual(second);
+    expect(fs.readdirSync(images)).toHaveLength(1);
+  });
+
+  it('restores existing cached images on startup', () => {
+    const root = tmpRoot();
+    const file = path.join(root, 'chat-background.json');
+    const images = path.join(root, 'images');
+    fs.mkdirSync(images);
+    fs.writeFileSync(path.join(images, 'panel-bg.png'), 'old-png');
+    fs.writeFileSync(
+      file,
+      JSON.stringify({ mode: 'image', imageUrl: 'chat-asset://images/panel-bg.png' }),
+    );
+    expect(make(file, images).get().imageUrl).toBe('chat-asset://images/panel-bg.png');
+    expect(fs.readdirSync(images)).toEqual(['panel-bg.png']);
+  });
+
+  it('does not adopt orphan cached images when none is saved', () => {
+    const root = tmpRoot();
+    const file = path.join(root, 'chat-background.json');
+    const images = path.join(root, 'images');
+    fs.mkdirSync(images);
+    fs.writeFileSync(path.join(images, 'panel-bg.png'), 'old-png');
+    fs.writeFileSync(file, JSON.stringify({ imageUrl: null, blur: 0, opacity: 0.39 }));
+    expect(make(file, images).get()).toEqual({
+      imageUrl: CHAT_BG_PRESET_URL,
+      blur: 0,
+      opacity: 0.39,
+    });
+  });
+
+  it('re-validates on an empty patch and falls back to the preset when the image vanished', async () => {
+    const root = tmpRoot();
+    const images = path.join(root, 'images');
+    const src = path.join(root, 'src.png');
+    fs.writeFileSync(src, 'png');
+    pickFiles.mockResolvedValueOnce([src]);
+    const service = make(path.join(root, 'bg.json'), images);
+    const picked = await service.pickImage();
+    fs.unlinkSync(path.join(images, new URL(picked.imageUrl!).pathname));
+    expect((await service.set({})).imageUrl).toBe(CHAT_BG_PRESET_URL);
+  });
+
+  it('rejects images over the size limit without touching state', async () => {
+    const root = tmpRoot();
+    const images = path.join(root, 'images');
+    const src = path.join(root, 'huge.png');
+    fs.writeFileSync(src, '');
+    fs.truncateSync(src, CHAT_BG_MAX_BYTES + 1);
+    const service = make(path.join(root, 'bg.json'), images);
+    const before = service.get();
+    await expect(service.importImage(src)).rejects.toThrow(CHAT_BG_ERROR.tooLarge);
+    expect(service.get()).toEqual(before);
+    expect(fs.existsSync(images)).toBe(false);
+  });
+
+  const mockDecoded = (width: number, height: number) => {
+    imageSize.mockResolvedValueOnce({ width, height });
+    imageResize.mockImplementationOnce(async (_data, opts) =>
+      Buffer.from(opts.format === 'png' ? 'small-png' : 'small-jpg'),
+    );
+    return imageResize;
+  };
+  const importAs = async (name: string) => {
+    const root = tmpRoot();
+    const images = path.join(root, 'images');
+    const src = path.join(root, name);
+    fs.writeFileSync(src, 'raw');
+    const service = make(path.join(root, 'bg.json'), images);
+    const st = await service.importImage(src);
+    return {
+      st,
+      saved: fs.readFileSync(path.join(images, new URL(st.imageUrl!).pathname), 'utf8'),
+    };
+  };
+
+  it('downscales wide images to the max edge as jpg', async () => {
+    const resize = mockDecoded(4000, 3000);
+    const { st, saved } = await importAs('wide.jpeg');
+    expect(resize).toHaveBeenCalledWith(expect.anything(), {
+      width: CHAT_BG_MAX_EDGE,
+      format: 'jpeg',
+      quality: 85,
+    });
+    expect(st.imageUrl).toMatch(/\.jpg$/);
+    expect(saved).toBe('small-jpg');
+  });
+
+  it('downscales tall images by height', async () => {
+    const resize = mockDecoded(1200, 6000);
+    const { st } = await importAs('tall.webp');
+    expect(resize).toHaveBeenCalledWith(expect.anything(), {
+      height: CHAT_BG_MAX_EDGE,
+      format: 'jpeg',
+      quality: 85,
+    });
+    expect(st.imageUrl).toMatch(/\.jpg$/);
+  });
+
+  it('keeps large png as png so transparency survives', async () => {
+    mockDecoded(4000, 3000);
+    const { st, saved } = await importAs('wide.png');
+    expect(st.imageUrl).toMatch(/\.png$/);
+    expect(saved).toBe('small-png');
+  });
+
+  it('keeps the original persist error when cleanup unlink also fails', async () => {
+    const root = tmpRoot();
+    const src = path.join(root, 'src.png');
+    fs.writeFileSync(src, 'png');
+    const service = make(path.join(root, 'bg.json'), path.join(root, 'images'));
+    await service.flush();
+    const realRename = __renameDeps.renameAsync;
+    __renameDeps.renameAsync = async () => {
+      throw new Error('disk unavailable');
+    };
+    const unlink = jest.spyOn(fs, 'unlinkSync').mockImplementationOnce(() => {
+      throw new Error('unlink failed');
+    });
+    try {
+      await expect(service.importImage(src)).rejects.toThrow('disk unavailable');
+    } finally {
+      __renameDeps.renameAsync = realRename;
+      unlink.mockRestore();
+    }
+  });
+
+  it('uses the preset at first run and resets to it without deleting it', async () => {
+    const root = tmpRoot();
+    const file = path.join(root, 'chat-background.json');
+    const images = path.join(root, 'images');
+    const preset = path.join(root, 'app-assets', 'nomi-preset.jpg');
+    fs.mkdirSync(path.dirname(preset));
+    fs.writeFileSync(preset, 'preset');
+    const service = make(file, images, preset);
+    const defaults = { ...DEFAULT_CHAT_BG, imageUrl: CHAT_BG_PRESET_URL };
+    expect(service.get()).toEqual(defaults);
+    const source = path.join(root, 'custom.png');
+    fs.writeFileSync(source, 'custom');
+    pickFiles.mockResolvedValueOnce([source]);
+    await service.set({ blur: 17, opacity: 0.6 });
+    const selected = await service.pickImage();
+    expect(selected).toMatchObject({ blur: 17, opacity: 0.6 });
+    expect(selected.imageUrl).not.toBe(CHAT_BG_PRESET_URL);
+    expect(make(file, images, preset).get()).toEqual(selected);
+    expect(await service.reset()).toEqual(defaults);
+    expect(fs.readFileSync(preset, 'utf8')).toBe('preset');
+    expect(fs.readdirSync(images)).toEqual([]);
+    expect(make(file, images, preset).get()).toEqual(defaults);
+  });
+
+  it('falls back to the preset when the saved custom image is missing or unsafe', async () => {
+    const root = tmpRoot();
+    const file = path.join(root, 'chat-background.json');
+    const images = path.join(root, 'images');
+    const preset = path.join(root, 'app-assets', 'nomi-preset.jpg');
+    fs.mkdirSync(path.dirname(preset));
+    fs.writeFileSync(preset, 'preset');
+    for (const imageUrl of [
+      'chat-asset://images/panel-bg.missing.png',
+      'chat-asset://images/%2e%2e%2fsecret.png',
+      'chat-asset://images/panel-bg.%ZZ.png',
+      'https://example.com/image.png',
+    ]) {
+      fs.writeFileSync(file, JSON.stringify({ imageUrl, blur: 0, opacity: 0.75 }));
+      const service = make(file, images, preset);
+      expect(service.get()).toMatchObject({
+        imageUrl: CHAT_BG_PRESET_URL,
+        blur: 0,
+        opacity: 0.75,
+      });
+      await service.flush();
+    }
+  });
+
+  it('uses the bundled preset without a local preset or image directory', () => {
+    const root = tmpRoot();
+    const file = path.join(root, 'bg.json');
+    const images = path.join(root, 'chat', 'images');
+    const service = make(file, images);
+    expect(service.get()).toEqual(PRESET_DEFAULTS);
+    expect(fs.existsSync(path.join(root, 'chat'))).toBe(false);
+    expect(make(file, images).get()).toEqual(PRESET_DEFAULTS);
+  });
+
+  it('does not use a userData preset when the bundled resource is missing', () => {
+    const root = tmpRoot();
+    const file = path.join(root, 'bg.json');
+    const images = path.join(root, 'chat', 'images');
+    const localPreset = path.join(root, 'chat', 'presets', 'background.jpg');
+    fs.mkdirSync(path.dirname(localPreset), { recursive: true });
+    fs.writeFileSync(localPreset, 'obsolete-local-preset');
+    fs.writeFileSync(file, JSON.stringify(PRESET_DEFAULTS));
+    const service = make(file, images, path.join(root, 'missing.jpg'));
+    expect(service.get()).toEqual(DEFAULT_CHAT_BG);
+    expect(fs.readFileSync(localPreset, 'utf8')).toBe('obsolete-local-preset');
+  });
+
+  it('keeps the previous cached image when a replacement cannot be persisted', async () => {
+    const root = tmpRoot();
+    const file = path.join(root, 'bg.json');
+    const images = path.join(root, 'images');
+    const source = path.join(root, 'source.png');
+    const service = make(file, images);
+    await service.flush();
+    fs.writeFileSync(source, 'first');
+    pickFiles.mockResolvedValue([source]);
+    const previous = await service.pickImage();
+    fs.writeFileSync(source, 'replacement');
+    const realRename = __renameDeps.renameAsync;
+    __renameDeps.renameAsync = async () => {
+      throw new Error('disk unavailable');
+    };
+    try {
+      await expect(service.pickImage()).rejects.toThrow('disk unavailable');
+      expect(service.get()).toEqual(previous);
+      expect(JSON.parse(fs.readFileSync(file, 'utf8'))).toEqual(previous);
+      expect(fs.readdirSync(images)).toHaveLength(1);
+      expect(fs.readFileSync(path.join(images, new URL(previous.imageUrl!).pathname), 'utf8')).toBe(
+        'first',
+      );
+    } finally {
+      __renameDeps.renameAsync = realRename;
+    }
+  });
+
+  it('leaves settings intact on cancel or invalid selection', async () => {
+    const root = tmpRoot();
+    const service = make(path.join(root, 'bg.json'), path.join(root, 'images'));
+    const before = await service.set({ blur: 0, opacity: 1 });
+    pickFiles.mockResolvedValueOnce([]);
+    expect(await service.pickImage()).toEqual(before);
+    pickFiles.mockResolvedValueOnce([path.join(root, 'bad.txt')]);
+    await expect(service.pickImage()).rejects.toThrow(CHAT_BG_ERROR.unsupported);
+    expect(service.get()).toEqual(before);
+  });
+});

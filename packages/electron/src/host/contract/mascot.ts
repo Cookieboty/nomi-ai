@@ -14,10 +14,10 @@
  */
 
 import type { MascotEventName, MascotProcedureName } from '@nomi-ai/contract/app';
+import { setMascotAppEvents } from '@nomi-ai/core/mascot/mascotEvents';
 import { CHAT_BG_ERROR } from '@nomi-ai/types';
 
 import type { IslandSettings } from '../../island/IslandService';
-import { setMascotAppEvents } from '../../mascot/mascotEvents';
 import type { MascotWindowController } from '../../mascot/MascotWindowController';
 
 import {

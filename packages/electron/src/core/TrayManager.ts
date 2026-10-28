@@ -8,6 +8,10 @@
 import * as path from 'path';
 
 import type { ProviderService, ProviderState } from '@nomi-ai/ai-runtime';
+import { broadcastMascotCommand } from '@nomi-ai/core/ai/mascotCommand';
+import type { GatewayStateView } from '@nomi-ai/core/gateway/GatewayService';
+import { onLocaleChange, t } from '@nomi-ai/core/i18n';
+import type { ILoggerService } from '@nomi-ai/core/services/LoggerService';
 import {
   Menu,
   Tray,
@@ -16,11 +20,7 @@ import {
   type NativeImage,
 } from 'electron';
 
-import { broadcastMascotCommand } from '../ai/mascotCommand';
 import { APP_DISPLAY_NAME } from '../brand';
-import type { GatewayStateView } from '../gateway/GatewayService';
-import { onLocaleChange, t } from '../i18n';
-import type { ILoggerService } from '../services/LoggerService';
 
 import { assetsDir, iconImage, onTrayIcon } from './appIcon';
 

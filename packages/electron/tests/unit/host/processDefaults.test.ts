@@ -10,9 +10,9 @@ jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [live, dead, live] },
 }));
 
-import { broadcastMascotCommand, setMascotLiveWindows } from '../../../src/ai/mascotCommand';
-import { isVerboseMainLogging, setMainLogPackaged } from '../../../src/utils/log';
-import { setPrivateRoot } from '../../../src/utils/privateFile';
+import { broadcastMascotCommand, setMascotLiveWindows } from '@nomi-ai/core/ai/mascotCommand';
+import { isVerboseMainLogging, setMainLogPackaged } from '@nomi-ai/core/utils/log';
+import { setPrivateRoot } from '@nomi-ai/core/utils/privateFile';
 
 describe('host/processDefaults', () => {
   const debug = process.env.NOMI_DEBUG;

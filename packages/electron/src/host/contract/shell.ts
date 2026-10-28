@@ -11,10 +11,10 @@
  */
 
 import type { ShellEventName, ShellProcedureName } from '@nomi-ai/contract/app';
+import type { GatewayService, ProviderInput } from '@nomi-ai/core/gateway/GatewayService';
+import type { UsageSettings } from '@nomi-ai/core/usage/UsageService';
 
 import { appIconState, setIconVariant } from '../../core/appIcon';
-import type { GatewayService, ProviderInput } from '../../gateway/GatewayService';
-import type { UsageSettings } from '../../usage/UsageService';
 
 import type { ContractDeps, DomainHandlers, EventBridgeMap } from './types';
 import { need } from './types';

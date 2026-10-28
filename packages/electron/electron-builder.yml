@@ -66,6 +66,10 @@ files:
   # @nomi-ai/i18n：主进程 require → dist-cjs；workspace 软链会把 src / ESM dist 一并拷进 asar，排除之
   - '!**/node_modules/@nomi-ai/i18n/src/**'
   - '!**/node_modules/@nomi-ai/i18n/dist/**'
+  # @nomi-ai/core：主进程 require 它的 tsc 产物 dist/（含工具子进程与 worker 脚本）；源码、测试与开发用的
+  # mock CLI 不进 asar
+  - '!**/node_modules/@nomi-ai/core/{src,tests,scripts,coverage,.turbo}/**'
+  - '!**/node_modules/@nomi-ai/core/jest.config.js'
   # bare-*：移动端 prebuilds 永远不需要（当前平台桌面 arch 由 afterPack 再裁）
   - '!**/node_modules/bare-*/prebuilds/android-*/**'
   - '!**/node_modules/bare-*/prebuilds/ios-*/**'

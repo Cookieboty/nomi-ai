@@ -10,10 +10,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import type { IslandKind, IslandNotice } from '@nomi-ai/core/desktop/islandNotice';
+import { t as tr } from '@nomi-ai/core/i18n';
 import { BrowserWindow, screen } from 'electron';
 
 import { setWindowBounds } from '../host/windowBounds';
-import { t as tr } from '../i18n';
 
 import {
   clampIslandHeight,
@@ -23,18 +24,7 @@ import {
 } from './geometry';
 import { islandHtml } from './islandPage';
 
-export type IslandKind = 'message' | 'agent' | 'reminder' | 'info';
-
-export interface IslandNotice {
-  kind: IslandKind;
-  title: string;
-  body?: string;
-  durationMs?: number;
-  /** 编程助手端点（claude / codex / dsh / nomi …），岛上显示端点徽标 */
-  endpoint?: string;
-  /** 端点事件：完成 / 出错 / 需要注意 / 运行中 */
-  status?: 'done' | 'failed' | 'attention' | 'running';
-}
+export type { IslandKind, IslandNotice };
 
 export interface IslandSettings {
   enabled: boolean;

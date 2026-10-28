@@ -4,10 +4,10 @@
  * open-ai-chat 等通道，P1b 起只经契约）。
  */
 
+import { type ILoggerService } from '@nomi-ai/core/services/LoggerService';
 import { app, screen } from 'electron';
 
 import { type IWindowManager } from '../core/WindowManager';
-import { type ILoggerService } from '../services/LoggerService';
 
 /** type 而不是 interface：要能赋给契约的 loose 输出（带索引签名） */
 export type OpenResult = { success: boolean; error?: string };

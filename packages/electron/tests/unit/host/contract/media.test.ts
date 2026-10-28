@@ -21,13 +21,14 @@ const fakeTts = {
   promptVoice: jest.fn(() => false),
   health: jest.fn(() => ({ success: true, message: 'ok' })),
 };
-jest.mock('../../../../src/tts/TtsService', () => ({ getTtsService: () => fakeTts }));
+jest.mock('@nomi-ai/core/tts/TtsService', () => ({ getTtsService: () => fakeTts }));
 
 import { createClient, type CallerContext } from '@nomi-ai/contract';
 import { createInProcessServer } from '@nomi-ai/contract/testing';
+import { createRecordingAppEvents } from '@nomi-ai/core/core/appEvents';
+import type { VoiceSender } from '@nomi-ai/core/voice/VoiceService';
 import type { HostPorts } from '@nomi-ai/host-ports';
 
-import { createRecordingAppEvents } from '../../../../src/core/appEvents';
 import {
   APP_EVENT_BRIDGE,
   createAppRouter,
@@ -38,7 +39,6 @@ import {
 } from '../../../../src/host/contract';
 import { mediaEventBridge } from '../../../../src/host/contract/media';
 import { openVoiceStreamCount } from '../../../../src/host/contract/media/voiceSenders';
-import type { VoiceSender } from '../../../../src/voice/VoiceService';
 
 const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
 

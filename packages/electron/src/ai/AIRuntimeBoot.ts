@@ -30,19 +30,18 @@ import {
 import type { AIClient } from '@nomi-ai/ai-sdk';
 import { FileSessionStorePlugin } from '@nomi-ai/bundle-ig-electron-caps';
 import { appContract } from '@nomi-ai/contract/app';
+import { splitGatewayUsage } from '@nomi-ai/core/ai/gatewayUsage';
+import { mascotIgPlugins } from '@nomi-ai/core/ai/mascotBridge';
+import { desktopIgPlugins } from '@nomi-ai/core/desktop/plugin';
+import { getExtensionsService } from '@nomi-ai/core/extensions/ExtensionsService';
+import { getGatewayService } from '@nomi-ai/core/gateway/GatewayService';
+import { createPersonaIdentityPlugin } from '@nomi-ai/core/persona/igPlugin';
+import { getPersonaService } from '@nomi-ai/core/persona/PersonaService';
+import { safeStorageFromSecrets } from '@nomi-ai/core/security/secretStorage';
+import type { ILoggerService } from '@nomi-ai/core/services/LoggerService';
+import { getUsageService } from '@nomi-ai/core/usage/UsageService';
 import type { HostPorts } from '@nomi-ai/host-ports';
 
-import { desktopIgPlugins } from '../desktop/plugin';
-import { getExtensionsService } from '../extensions/ExtensionsService';
-import { getGatewayService } from '../gateway/GatewayService';
-import { createPersonaIdentityPlugin } from '../persona/igPlugin';
-import { getPersonaService } from '../persona/PersonaService';
-import { safeStorageFromSecrets } from '../security/secretStorage';
-import type { ILoggerService } from '../services/LoggerService';
-import { getUsageService } from '../usage/UsageService';
-
-import { splitGatewayUsage } from './gatewayUsage';
-import { mascotIgPlugins } from './mascotBridge';
 import type { TtsProvider } from './TtsElectronNativeProvider';
 
 export interface AIRuntimeBootOptions {

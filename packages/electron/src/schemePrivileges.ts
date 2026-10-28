@@ -1,6 +1,6 @@
+import { CHARACTER_PACK_SCHEME_PRIVILEGES } from '@nomi-ai/core/character/packProtocol';
 import { protocol } from 'electron';
 
-import { CHARACTER_PACK_SCHEME_PRIVILEGES } from './character/packProtocol';
 import { CHAT_ASSET_SCHEME_PRIVILEGES } from './host/assetProtocol';
 
 /**

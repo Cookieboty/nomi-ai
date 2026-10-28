@@ -2,9 +2,9 @@ import { spawn, type ChildProcess } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 
-import { t } from '../i18n';
-import { psQuote } from '../security/shellEscape';
-import { createMainLogger } from '../utils/log';
+import { t } from '@nomi-ai/core/i18n';
+import { psQuote } from '@nomi-ai/core/security/shellEscape';
+import { createMainLogger } from '@nomi-ai/core/utils/log';
 
 const log = createMainLogger('TTS');
 

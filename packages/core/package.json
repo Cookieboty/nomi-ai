@@ -1,0 +1,64 @@
+{
+  "name": "@nomi-ai/core",
+  "version": "0.0.1",
+  "private": true,
+  "description": "应用内核：编程助手、用量、统一网关、记忆、知识库、日程、扩展、语音等业务模块（纯 Node，不依赖 Electron；平台能力经 @nomi-ai/host-ports）",
+  "exports": {
+    "./i18n": {
+      "types": "./dist/i18n/index.d.ts",
+      "default": "./dist/i18n/index.js"
+    },
+    "./gateway/agents": {
+      "types": "./dist/gateway/agents/index.d.ts",
+      "default": "./dist/gateway/agents/index.js"
+    },
+    "./cli/harness": {
+      "types": "./dist/cli/harness/index.d.ts",
+      "default": "./dist/cli/harness/index.js"
+    },
+    "./*": {
+      "types": "./dist/*.d.ts",
+      "default": "./dist/*.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "node ../../scripts/run-bin.mjs rimraf dist && node ../../scripts/run-bin.mjs tsc -p tsconfig.json",
+    "dev": "node ../../scripts/run-bin.mjs tsc -w -p tsconfig.json --preserveWatchOutput",
+    "typecheck": "node ../../scripts/run-bin.mjs tsc --noEmit -p tsconfig.json",
+    "lint": "eslint src tests",
+    "test": "jest --watchman=false",
+    "clean": "node ../../scripts/run-bin.mjs rimraf dist coverage .turbo"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@nomi-ai/ai-runtime": "workspace:*",
+    "@nomi-ai/bundle-ig-base": "workspace:*",
+    "@nomi-ai/bundle-ig-mascot": "workspace:*",
+    "@nomi-ai/character-contract": "workspace:*",
+    "@nomi-ai/cli-plugins": "workspace:*",
+    "@nomi-ai/cli-sdk": "workspace:*",
+    "@nomi-ai/contract": "workspace:*",
+    "@nomi-ai/gateway": "workspace:*",
+    "@nomi-ai/host-ports": "workspace:*",
+    "@nomi-ai/i18n": "workspace:*",
+    "@nomi-ai/types": "workspace:*",
+    "fflate": "^0.8.3",
+    "onnxruntime-web": "1.30.0",
+    "smol-toml": "1.9.0",
+    "tesseract.js": "7.0.0",
+    "unpdf": "^1.8.1",
+    "ws": "8.21.3",
+    "zod": "^4.6.6"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/ws": "8.18.2",
+    "jest": "^30.5.2",
+    "rimraf": "^6.1.3",
+    "ts-jest": "^29.4.14",
+    "typescript": "^6.0.3"
+  }
+}

@@ -42,7 +42,7 @@ describe('character pack scripts', () => {
     expect(existsSync(join(root, 'packages/renderer/src/mascot/character.generated.json'))).toBe(
       false,
     );
-    expect(existsSync(join(root, 'packages/electron/src/character/character.generated.json'))).toBe(
+    expect(existsSync(join(root, 'packages/core/src/character/character.generated.json'))).toBe(
       false,
     );
   });

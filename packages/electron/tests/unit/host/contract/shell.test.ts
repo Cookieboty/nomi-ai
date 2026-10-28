@@ -7,9 +7,9 @@
 
 import { createClient } from '@nomi-ai/contract';
 import { createInProcessServer } from '@nomi-ai/contract/testing';
+import { createRecordingAppEvents } from '@nomi-ai/core/core/appEvents';
 import type { HostPorts } from '@nomi-ai/host-ports';
 
-import { createRecordingAppEvents } from '../../../../src/core/appEvents';
 import {
   APP_EVENT_BRIDGE,
   createAppRouter,

@@ -6,10 +6,11 @@
 
 import { createClient, type Surface } from '@nomi-ai/contract';
 import { createInProcessServer } from '@nomi-ai/contract/testing';
+import { broadcastMascotCommand, setMascotLiveWindows } from '@nomi-ai/core/ai/mascotCommand';
+import { createRecordingAppEvents } from '@nomi-ai/core/core/appEvents';
+import { mascotAppEvents, setMascotAppEvents } from '@nomi-ai/core/mascot/mascotEvents';
 import type { HostPorts } from '@nomi-ai/host-ports';
 
-import { broadcastMascotCommand, setMascotLiveWindows } from '../../../../src/ai/mascotCommand';
-import { createRecordingAppEvents } from '../../../../src/core/appEvents';
 import {
   APP_EVENT_BRIDGE,
   createAppRouter,
@@ -19,7 +20,6 @@ import {
   type ContractServices,
 } from '../../../../src/host/contract';
 import { mascotEventBridge } from '../../../../src/host/contract/mascot';
-import { mascotAppEvents, setMascotAppEvents } from '../../../../src/mascot/mascotEvents';
 
 const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
 

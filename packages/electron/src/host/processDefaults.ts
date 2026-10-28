@@ -7,11 +7,11 @@
  * main.ts 第一个 import 本文件：其余模块加载时打的日志也按正式包处理。工具子进程不加载它，
  * 那里的日志按开发态、私有文件不自动收紧目录（与以前拿不到 `app` 时一致）。
  */
-import { app, BrowserWindow } from 'electron';
 
-import { setMascotLiveWindows } from '../ai/mascotCommand';
-import { setMainLogPackaged } from '../utils/log';
-import { setPrivateRoot } from '../utils/privateFile';
+import { setMascotLiveWindows } from '@nomi-ai/core/ai/mascotCommand';
+import { setMainLogPackaged } from '@nomi-ai/core/utils/log';
+import { setPrivateRoot } from '@nomi-ai/core/utils/privateFile';
+import { app, BrowserWindow } from 'electron';
 
 setMainLogPackaged(() => app.isPackaged);
 setPrivateRoot(() => app.getPath('userData'));

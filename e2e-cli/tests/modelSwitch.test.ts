@@ -2,7 +2,7 @@
  * 第三方标签换模型（docs/design/cli-plugin-architecture.md §6.7）：真实 CLI + 真实编排器 + 真实 GatewayService。
  *
  * 和单测不同，这里不用网关替身：编排器的网关依赖就是应用里用的 harnessGateway(GatewayService)，
- * 网关进程入口（electron/src/gateway/worker.ts，含插件客户端规格的登记）在测试进程里运行，
+ * 网关进程入口（core/src/gateway/worker.ts，含插件客户端规格的登记）在测试进程里运行，
  * 假上游记录每个请求实际收到的模型。每个 CLI：模型 A → 换到 B → 换回 A → 回收后续接，
  * 每一轮的全部请求（含标题 / 摘要等辅助请求）都必须是这个标签当时选的模型。
  * 本机没装的 CLI 跳过。
@@ -16,20 +16,11 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import type { CliHarnessService } from '../../packages/electron/src/cli/CliHarnessService';
-import type { GatewayChild } from '../../packages/electron/src/gateway/GatewayProcess';
-import type { GatewayService } from '../../packages/electron/src/gateway/GatewayService';
+import type { CliHarnessService } from '../../packages/core/src/cli/CliHarnessService';
+import type { GatewayChild } from '../../packages/core/src/gateway/GatewayProcess';
+import type { GatewayService } from '../../packages/core/src/gateway/GatewayService';
 import { hasCli, type CliName } from '../helpers/cli';
 import { messagesStream, responsesStream } from '../helpers/upstream';
-
-vi.mock('electron', () => ({
-  app: { getPath: () => os.tmpdir(), isPackaged: false, getLocale: () => 'zh-CN' },
-  BrowserWindow: { getAllWindows: () => [], getFocusedWindow: () => null },
-  ipcMain: { removeHandler: () => undefined, handle: () => undefined, on: () => undefined },
-  dialog: { showOpenDialog: async () => ({ canceled: true, filePaths: [] }) },
-  shell: {},
-  safeStorage: { isEncryptionAvailable: () => false },
-}));
 
 const MODEL_A = 'model-a';
 const MODEL_B = 'model-b';
@@ -92,7 +83,7 @@ async function startUpstream() {
 type Listener = (m: never) => void;
 
 /**
- * GatewayProcess 的 fork 替身：把 electron/src/gateway/worker.ts 放在测试进程里跑（同一份入口代码，
+ * GatewayProcess 的 fork 替身：把 core/src/gateway/worker.ts 放在测试进程里跑（同一份入口代码，
  * 含插件客户端规格的登记）；推送的配置把端口改成 0，不和开着的 Nomi 抢 18721。
  */
 async function inProcessFork() {
@@ -106,7 +97,7 @@ async function inProcessFork() {
         for (const fn of toMain) (fn as (m: unknown) => void)(m);
       }),
   };
-  await import('../../packages/electron/src/gateway/worker');
+  await import('../../packages/core/src/gateway/worker');
   return (): GatewayChild => ({
     postMessage: (m) => {
       const msg =
@@ -174,10 +165,10 @@ beforeAll(async () => {
   process.env.GEMINI_CLI_TRUST_WORKSPACE = 'true';
 
   const fork = await inProcessFork();
-  const { GatewayProcess } = await import('../../packages/electron/src/gateway/GatewayProcess');
-  const { GatewayService } = await import('../../packages/electron/src/gateway/GatewayService');
-  const { harnessGateway } = await import('../../packages/electron/src/gateway/harnessGateway');
-  const { CliHarnessService } = await import('../../packages/electron/src/cli/CliHarnessService');
+  const { GatewayProcess } = await import('../../packages/core/src/gateway/GatewayProcess');
+  const { GatewayService } = await import('../../packages/core/src/gateway/GatewayService');
+  const { harnessGateway } = await import('../../packages/core/src/gateway/harnessGateway');
+  const { CliHarnessService } = await import('../../packages/core/src/cli/CliHarnessService');
   const logger = { info() {}, warn() {}, error() {}, debug() {} } as never;
   const proc = new GatewayProcess({
     logger,

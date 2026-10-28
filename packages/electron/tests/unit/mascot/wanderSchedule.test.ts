@@ -14,7 +14,8 @@ jest.mock('electron', () => ({
   },
 }));
 
-import { mascotWindowSize } from '../../../src/mascot/mascotSize';
+import { mascotWindowSize } from '@nomi-ai/core/mascot/mascotSize';
+
 import { MascotWindowController } from '../../../src/mascot/MascotWindowController';
 
 function setup(Ctrl: typeof MascotWindowController = MascotWindowController) {

@@ -3,11 +3,10 @@
  * 提供错误分类、日志记录和用户友好提示
  */
 
+import { eventBus } from '@nomi-ai/core/core/EventBus';
+import { t } from '@nomi-ai/core/i18n';
+import { type ILoggerService } from '@nomi-ai/core/services/LoggerService';
 import type { HostPorts } from '@nomi-ai/host-ports';
-
-import { eventBus } from '../core/EventBus';
-import { t } from '../i18n';
-import { type ILoggerService } from '../services/LoggerService';
 
 import { isBrokenStdioError } from './stdioGuard';
 

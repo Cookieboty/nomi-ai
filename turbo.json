@@ -107,7 +107,7 @@
         "$TURBO_ROOT$/characters/**",
         "$TURBO_ROOT$/scripts/character/**",
         "$TURBO_ROOT$/scripts/character/pack.mjs",
-        "$TURBO_ROOT$/packages/electron/src/mascot/mascotSize.ts"
+        "$TURBO_ROOT$/packages/core/src/mascot/mascotSize.ts"
       ]
     },
     "@nomi-ai/ai-sdk-client#test": {
@@ -133,6 +133,20 @@
         "!dist/**",
         "$TURBO_ROOT$/characters/**",
         "$TURBO_ROOT$/assets-licenses.json"
+      ]
+    },
+    "@nomi-ai/core#test": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!README.md",
+        "!CHANGELOG.md",
+        "!coverage/**",
+        "!dist/**",
+        "$TURBO_ROOT$/characters/**",
+        "$TURBO_ROOT$/packages/electron/src/core/Application.ts",
+        "$TURBO_ROOT$/packages/electron/src/host/contract/shell.ts"
       ]
     },
     "@nomi-ai/electron#package": {

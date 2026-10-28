@@ -13,7 +13,8 @@ jest.mock('electron', () => ({
   },
 }));
 
-import { mascotWindowSize } from '../../../src/mascot/mascotSize';
+import { mascotWindowSize } from '@nomi-ai/core/mascot/mascotSize';
+
 import {
   isStaleGeometry,
   MascotWindowController,

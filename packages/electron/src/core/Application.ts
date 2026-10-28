@@ -15,36 +15,52 @@ import {
   migrateStoreData,
 } from '@nomi-ai/ai-runtime';
 import { isBuiltinCliId } from '@nomi-ai/cli-plugins';
+import {
+  getAgentProgressService,
+  initAgentProgressService,
+} from '@nomi-ai/core/agents/AgentProgressService';
+import { getCharacterPackService } from '@nomi-ai/core/character/CharacterPackService';
+import { ChatBackgroundService } from '@nomi-ai/core/chat/ChatBackgroundService';
+import { AccountLogin, loginBroadcaster } from '@nomi-ai/core/cli/accounts/AccountLogin';
+import { AccountService } from '@nomi-ai/core/cli/accounts/AccountService';
+import { ACCOUNT_KINDS, type AccountKind } from '@nomi-ai/core/cli/accounts/types';
+import { initCliHarnessService } from '@nomi-ai/core/cli/CliHarnessService';
+import { initCliPluginHost } from '@nomi-ai/core/cli/CliPluginHost';
+import { initCliUpdateService } from '@nomi-ai/core/cli/CliUpdateService';
+import { initDelegateService } from '@nomi-ai/core/cli/delegate/DelegateService';
+import { resolveCliBinAsync, readVersionAsync } from '@nomi-ai/core/cli/detect';
+import { cliChildEnv, isScript, spawnHarness } from '@nomi-ai/core/cli/harness/spawn';
+import { legacyCliKeyDecryptor } from '@nomi-ai/core/cli/legacyCliKey';
+import { initSessionHistoryService } from '@nomi-ai/core/cli/SessionHistoryService';
+import type { CliKind } from '@nomi-ai/core/cli/types';
+import type { AppEvents } from '@nomi-ai/core/core/appEvents';
+import { eventBus } from '@nomi-ai/core/core/EventBus';
+import { createShutdown, LifecycleRegistry } from '@nomi-ai/core/core/lifecycle';
+import { ServiceContainer, type IServiceContainer } from '@nomi-ai/core/core/ServiceContainer';
+import { getDesktopService } from '@nomi-ai/core/desktop/DesktopService';
 import type { ProviderQuirks } from '@nomi-ai/gateway';
 import type { HostPorts } from '@nomi-ai/host-ports';
 import { app, protocol, session, shell } from 'electron';
 
-import { getAgentProgressService, initAgentProgressService } from '../agents/AgentProgressService';
 import { startAIRuntime, type AIRuntimeBootHandle } from '../ai/AIRuntimeBoot';
 import { TtsElectronNativeProvider } from '../ai/TtsElectronNativeProvider';
-import { getCharacterPackService } from '../character/CharacterPackService';
+
 import { getChatBackgroundPresetFile } from '../chat/backgroundPreset';
-import { ChatBackgroundService } from '../chat/ChatBackgroundService';
-import { AccountLogin, loginBroadcaster } from '../cli/accounts/AccountLogin';
-import { AccountService } from '../cli/accounts/AccountService';
-import { ACCOUNT_KINDS, type AccountKind } from '../cli/accounts/types';
-import { initCliHarnessService } from '../cli/CliHarnessService';
-import { initCliPluginHost } from '../cli/CliPluginHost';
-import { initCliUpdateService } from '../cli/CliUpdateService';
-import { initDelegateService } from '../cli/delegate/DelegateService';
-import { resolveCliBinAsync, readVersionAsync } from '../cli/detect';
-import { cliChildEnv, isScript, spawnHarness } from '../cli/harness/spawn';
-import { legacyCliKeyDecryptor } from '../cli/legacyCliKey';
-import { initSessionHistoryService } from '../cli/SessionHistoryService';
-import type { CliKind } from '../cli/types';
-import { getDesktopService } from '../desktop/DesktopService';
-import { guardOutboundMessages } from '../desktop/outboundGuard';
-import { DiagnosticsService } from '../diagnostics/DiagnosticsService';
-import { initExtensionsService } from '../extensions/ExtensionsService';
-import { getGatewayService, initGatewayService } from '../gateway/GatewayService';
-import { harnessGateway } from '../gateway/harnessGateway';
-import { revokeLegacyGlobalConfig, type RevokeLegacyResult } from '../gateway/revokeLegacy';
-import { gatewayTerminalSource, initTerminalCommands } from '../gateway/TerminalCommands';
+
+import { guardOutboundMessages } from '@nomi-ai/core/desktop/outboundGuard';
+import { DiagnosticsService } from '@nomi-ai/core/diagnostics/DiagnosticsService';
+import { initExtensionsService } from '@nomi-ai/core/extensions/ExtensionsService';
+import { getGatewayService, initGatewayService } from '@nomi-ai/core/gateway/GatewayService';
+import { harnessGateway } from '@nomi-ai/core/gateway/harnessGateway';
+import {
+  revokeLegacyGlobalConfig,
+  type RevokeLegacyResult,
+} from '@nomi-ai/core/gateway/revokeLegacy';
+import {
+  gatewayTerminalSource,
+  initTerminalCommands,
+} from '@nomi-ai/core/gateway/TerminalCommands';
+
 import { AgentBrowser } from '../host/AgentBrowser';
 import { registerChatAssetProtocol } from '../host/assetProtocol';
 import {
@@ -58,60 +74,70 @@ import { serveContractOverIpc } from '../host/contractIpc';
 import { createElectronPorts, lazyWindowHost } from '../host/electronPorts';
 import { MascotWindowActions } from '../host/mascotWindowActions';
 import { serveNomiHostIpc } from '../host/nomiHostIpc';
-import { t as tr } from '../i18n';
-import { getLocale, LocaleService, onLocaleChange } from '../i18n';
-import { getIslandService, initIslandService } from '../island/IslandService';
-import { initKnowledgeService } from '../knowledge/KnowledgeService';
-import { initLocalHubService } from '../local/LocalHubService';
-import { getLocalModelService, initLocalModelService } from '../local/LocalModelService';
-import { getMemoryService, initMemoryService } from '../memory/MemoryService';
-import { OnboardingService } from '../onboarding/OnboardingService';
-import { forwardPersonaChanges } from '../persona/events';
+
+import { t as tr } from '@nomi-ai/core/i18n';
+import { getLocale, LocaleService, onLocaleChange } from '@nomi-ai/core/i18n';
+
+import { getIslandService, initIslandService, notifyIsland } from '../island/IslandService';
+
+import { initKnowledgeService } from '@nomi-ai/core/knowledge/KnowledgeService';
+import { initLocalHubService } from '@nomi-ai/core/local/LocalHubService';
+import { getLocalModelService, initLocalModelService } from '@nomi-ai/core/local/LocalModelService';
+import { getMemoryService, initMemoryService } from '@nomi-ai/core/memory/MemoryService';
+import { OnboardingService } from '@nomi-ai/core/onboarding/OnboardingService';
+import { forwardPersonaChanges } from '@nomi-ai/core/persona/events';
 import {
   neutralPersonaSource,
   packPersonaSource,
   PersonaService,
   setPersonaService,
-} from '../persona/PersonaService';
-import { getSchedulerService, initSchedulerService } from '../schedule/SchedulerService';
-import { initScreenService } from '../screen/ScreenService';
+} from '@nomi-ai/core/persona/PersonaService';
+import { getSchedulerService, initSchedulerService } from '@nomi-ai/core/schedule/SchedulerService';
+import { initScreenService } from '@nomi-ai/core/screen/ScreenService';
+
 import { appCspString } from '../security/csp';
-import { safeStorageFromSecrets } from '../security/secretStorage';
+
+import { safeStorageFromSecrets } from '@nomi-ai/core/security/secretStorage';
+
 import { AdvancedTTSEngine } from '../services/AdvancedTTSEngine';
-import { CacheService } from '../services/CacheService';
-import { ConfigService } from '../services/ConfigService';
-import { LoggerService, LogLevel } from '../services/LoggerService';
-import { getUpdateService } from '../services/UpdateService';
+
+import { CacheService } from '@nomi-ai/core/services/CacheService';
+import { ConfigService } from '@nomi-ai/core/services/ConfigService';
+import { LoggerService, LogLevel } from '@nomi-ai/core/services/LoggerService';
+import { getUpdateService, type UpdaterLike } from '@nomi-ai/core/services/UpdateService';
+import { autoUpdater } from 'electron-updater';
 import {
   openAfterReady,
   planStartup,
   shouldQuitOnMainClose,
   shouldRaiseMainOnReactivate,
   type StartupPlan,
-} from '../startup/startupPlan';
-import { StartupService } from '../startup/StartupService';
-import { ThemeService } from '../theme/ThemeService';
-import { initTtsService } from '../tts/TtsService';
+} from '@nomi-ai/core/startup/startupPlan';
+import { StartupService } from '@nomi-ai/core/startup/StartupService';
+import { ThemeService } from '@nomi-ai/core/theme/ThemeService';
+import { initTtsService } from '@nomi-ai/core/tts/TtsService';
 import {
   getGatewayRequestLog,
   initGatewayRequestLog,
   readLegacyGatewayTrace,
-} from '../usage/GatewayRequestLog';
-import { initQualityService } from '../usage/quality/QualityService';
-import { getUsageService, initUsageService } from '../usage/UsageService';
-import { GlobalErrorHandler } from '../utils/ErrorHandler';
-import { createMainLogger } from '../utils/log';
-import { perfMark } from '../utils/perfMarks';
-import { whenPrivateWritesIdle } from '../utils/privateFile';
-import { getVoiceService } from '../voice/VoiceService';
+} from '@nomi-ai/core/usage/GatewayRequestLog';
+import { initQualityService } from '@nomi-ai/core/usage/quality/QualityService';
+import { getUsageService, initUsageService } from '@nomi-ai/core/usage/UsageService';
 
-import type { AppEvents } from './appEvents';
+import { GlobalErrorHandler } from '../utils/ErrorHandler';
+
+import { createMainLogger } from '@nomi-ai/core/utils/log';
+
+import { perfMark } from '../utils/perfMarks';
+
+import { whenPrivateWritesIdle } from '@nomi-ai/core/utils/privateFile';
+import { getVoiceService } from '@nomi-ai/core/voice/VoiceService';
+
 import { initAppIcon } from './appIcon';
 import { BootstrapManager } from './BootstrapManager';
-import { eventBus } from './EventBus';
-import { createShutdown, LifecycleRegistry } from './lifecycle';
-import { ServiceContainer, type IServiceContainer } from './ServiceContainer';
-import { APP_EVENTS, HOST_PORTS } from './serviceTokens';
+
+import { APP_EVENTS, HOST_PORTS } from '@nomi-ai/core/core/serviceTokens';
+
 import { applyTitleBarTheme } from './titleBar';
 import { TrayManager } from './TrayManager';
 import { WindowManager } from './WindowManager';
@@ -277,7 +303,11 @@ export class Application implements IApplication {
       this.startPersona(characterPack);
 
       // Auto-update (electron-updater → GitHub Releases). Packaged builds only.
-      const updates = getUpdateService(this.logger, { ports: this.ports, events: this.events });
+      const updates = getUpdateService(this.logger, {
+        ports: this.ports,
+        events: this.events,
+        updater: autoUpdater as unknown as UpdaterLike,
+      });
       services.updates = updates;
       updates.start();
 
@@ -296,6 +326,7 @@ export class Application implements IApplication {
           return !!chat && !chat.isDestroyed();
         },
         mascotHidden: () => this.windowManager.mascotHidden(),
+        island: (n) => notifyIsland(n),
       });
       // 拖到看板娘身上的文件：preload 从真实 File 取路径后经专用通道直接提交（不经契约，视图选不了路径）
       const stopNomiHost = serveNomiHostIpc({ dropFile: (id, p) => desktop.dropFile(id, p) });

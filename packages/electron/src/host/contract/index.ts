@@ -1,7 +1,8 @@
 /**
  * 应用契约在 Electron 宿主上的组装（docs/design/core-host-decoupling.md §4、§8、§12 P1b）。
  *
- * - `createAppRouter`：AI 门面（ai-runtime 的 `createAiHandlers`）+ 五个域的处理函数 →
+ * - `createAppRouter`：AI 门面（ai-runtime 的 `createAiHandlers`）+ 五个域的处理函数（coding / knowledge
+ *   与事件桥在内核 `@nomi-ai/core/contract/*`；media / shell / mascot 还要用窗口与 AI runtime，留在这里）→
  *   `implement(appContract, …)`；AI runtime 没起来时 `ai.*` 以 UNAVAILABLE 失败，其余域照常可用；
  * - `APP_EVENT_BRIDGE`：五个域的「旧通道 → 契约事件」表，交给 `createContractEventBridge`；
  * - 调用者：surface 与 trusted 由传输层填写（host/contractIpc.ts → resolveAiCaller），
@@ -18,9 +19,9 @@ import {
   type Router,
 } from '@nomi-ai/contract';
 import { appContract, type AppContract } from '@nomi-ai/contract/app';
+import { codingEventBridge, createCodingHandlers } from '@nomi-ai/core/contract/coding';
+import { createKnowledgeHandlers, knowledgeEventBridge } from '@nomi-ai/core/contract/knowledge';
 
-import { codingEventBridge, createCodingHandlers } from './coding';
-import { createKnowledgeHandlers, knowledgeEventBridge } from './knowledge';
 import { createMascotHandlers, mascotEventBridge } from './mascot';
 import { createMediaHandlers, mediaEventBridge } from './media';
 import { createShellHandlers, shellEventBridge } from './shell';
@@ -134,6 +135,9 @@ export function createAppRouter(opts: CreateAppRouterOptions): AppRouterHandle {
   };
 }
 
-export { createContractEventBridge, type ContractEventBridge } from './eventBridge';
+export {
+  createContractEventBridge,
+  type ContractEventBridge,
+} from '@nomi-ai/core/contract/eventBridge';
 export { createContractServices, type ContractServices } from './services';
 export * from './types';

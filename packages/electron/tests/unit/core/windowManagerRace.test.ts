@@ -192,7 +192,7 @@ describe('WindowManager 关闭主界面时', () => {
   };
 
   it('quit → emits app:quit; hide → keeps running', () => {
-    const { eventBus } = jest.requireActual('../../../src/core/EventBus') as {
+    const { eventBus } = jest.requireActual('@nomi-ai/core/core/EventBus') as {
       eventBus: { on: (e: string, fn: () => void) => void; off?: unknown };
     };
     const quit = jest.fn();

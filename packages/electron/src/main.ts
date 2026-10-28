@@ -8,15 +8,15 @@ import './host/processDefaults';
 
 import * as path from 'path';
 
+import { defaultProbe } from '@nomi-ai/core/cli/CliUpdateService';
+import { forgetMissingCliBins, npmPrefixBinDir, rememberCliDir } from '@nomi-ai/core/cli/detect';
+import { loadLoginShellPath } from '@nomi-ai/core/cli/shellPath';
+import { createMainLogger } from '@nomi-ai/core/utils/log';
 import { app, BrowserWindow } from 'electron';
 
-import { defaultProbe } from './cli/CliUpdateService';
-import { forgetMissingCliBins, npmPrefixBinDir, rememberCliDir } from './cli/detect';
-import { loadLoginShellPath } from './cli/shellPath';
 import { Application } from './core/Application';
 import { registerAppSchemePrivileges } from './schemePrivileges';
 import { LEGACY_DEV_NAMES, migrateLegacyUserData } from './utils/legacyUserData';
-import { createMainLogger } from './utils/log';
 import { perfMark } from './utils/perfMarks';
 import { guardStdio } from './utils/stdioGuard';
 

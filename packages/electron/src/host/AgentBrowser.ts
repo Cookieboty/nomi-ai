@@ -1,8 +1,7 @@
+import type { AgentBrowserApi, PageSnapshot } from '@nomi-ai/core/desktop/p3tools';
+import { ToolError } from '@nomi-ai/core/desktop/toolError';
+import { checkRequestUrlSync, createRequestGuard } from '@nomi-ai/core/sandbox/agentBrowserGuard';
 import { BrowserWindow, session } from 'electron';
-
-import type { AgentBrowserApi, PageSnapshot } from '../desktop/p3tools';
-import { ToolError } from '../desktop/toolError';
-import { checkRequestUrlSync, createRequestGuard } from '../sandbox/agentBrowserGuard';
 
 const PARTITION = 'agent-browser'; // 非 persist：仅内存，关闭应用即清除
 

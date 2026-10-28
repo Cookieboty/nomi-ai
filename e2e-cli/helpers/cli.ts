@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { patchDshYaml } from '../../packages/electron/src/cli/configPatch';
+import { patchDshYaml } from '../../packages/core/src/cli/configPatch';
 
 import { TOKENS } from './gateway';
 

@@ -12,10 +12,12 @@
 
 import { PushStream } from '@nomi-ai/contract';
 import type { MediaEventName, MediaProcedureName } from '@nomi-ai/contract/app';
+import { getTtsService } from '@nomi-ai/core/tts/TtsService';
+import {
+  getMascotVoiceSettings,
+  saveMascotVoiceSettings,
+} from '@nomi-ai/core/voice/mascotVoiceSettings';
 import type { TTSConfig, TTSPreviewRequest, VoiceSettings } from '@nomi-ai/types';
-
-import { getTtsService } from '../../tts/TtsService';
-import { getMascotVoiceSettings, saveMascotVoiceSettings } from '../../voice/mascotVoiceSettings';
 
 import {
   closeVoiceStream,

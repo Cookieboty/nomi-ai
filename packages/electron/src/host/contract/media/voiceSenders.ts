@@ -9,8 +9,8 @@
 
 import type { HandlerChunkOf, PushStream } from '@nomi-ai/contract';
 import type { AppContract } from '@nomi-ai/contract/app';
+import type { VoiceSender } from '@nomi-ai/core/voice/VoiceService';
 
-import type { VoiceSender } from '../../../voice/VoiceService';
 import type { ContractServices } from '../services';
 
 export type VoiceStreamChunk = HandlerChunkOf<AppContract['procedures']['voice.streamStart']>;

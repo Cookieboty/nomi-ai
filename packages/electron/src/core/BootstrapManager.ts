@@ -3,10 +3,9 @@
  * 实现延迟加载、异步初始化和启动性能监控
  */
 
-import { t as tr } from '../i18n';
-import { type ILoggerService } from '../services/LoggerService';
-
-import { eventBus } from './EventBus';
+import { eventBus } from '@nomi-ai/core/core/EventBus';
+import { t as tr } from '@nomi-ai/core/i18n';
+import { type ILoggerService } from '@nomi-ai/core/services/LoggerService';
 
 export interface BootstrapTask {
   name: string;

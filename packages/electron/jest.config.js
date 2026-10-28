@@ -36,14 +36,15 @@ module.exports = {
     ...pathsToModuleNameMapper(compilerOptions.paths || {}, {
       prefix: '<rootDir>/',
     }),
+    // 内核（@nomi-ai/core）在测试里直接用源码：不用先构建，jest.mock('@nomi-ai/core/…') 与内核内部的
+    // 相对 import 指向同一个模块
+    '^@nomi-ai/core/(.*)$': '<rootDir>/../core/src/$1',
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@tests/(.*)$': '<rootDir>/tests/$1',
   },
 
   // 覆盖率配置
   collectCoverage: true,
-  // 独立启动器通过函数序列化在子进程执行；插桩会引入无法序列化的覆盖率闭包。
-  coveragePathIgnorePatterns: ['/src/gateway/windowsTerminal.ts$'],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html', 'json'],
   collectCoverageFrom: [

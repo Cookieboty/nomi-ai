@@ -5,22 +5,22 @@
 import * as path from 'path';
 import * as url from 'url';
 
+import type { AppEvents } from '@nomi-ai/core/core/appEvents';
+import { eventBus } from '@nomi-ai/core/core/EventBus';
+import { fitMascotScale, maxScaleForArea, mascotWindowSize } from '@nomi-ai/core/mascot/mascotSize';
+import { type IConfigService } from '@nomi-ai/core/services/ConfigService';
+import { type ILoggerService } from '@nomi-ai/core/services/LoggerService';
 import { BrowserWindow, screen, app, type BrowserWindowConstructorOptions } from 'electron';
 
 import { setWindowBounds } from '../host/windowBounds';
-import { fitMascotScale, maxScaleForArea, mascotWindowSize } from '../mascot/mascotSize';
 import { MascotWindowController } from '../mascot/MascotWindowController';
 import { installWindowGuards } from '../security/windowGuards';
-import { type IConfigService } from '../services/ConfigService';
-import { type ILoggerService } from '../services/LoggerService';
 import { perfEnabled, perfMark } from '../utils/perfMarks';
 import { installPreloadGuard } from '../utils/preloadGuard';
 
-import type { AppEvents } from './appEvents';
 import { windowIconPath } from './appIcon';
 import { restoreChatBounds } from './chatWindowBounds';
 import { devChatUrl, devRendererUrl } from './devPorts';
-import { eventBus } from './EventBus';
 import { type ChromeTheme, titleBarOptions } from './titleBar';
 import { onGeometryChange } from './windowGeometryEvents';
 
