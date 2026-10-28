@@ -4,6 +4,14 @@
  * 1. 新建 Claude Code 标签并发一条消息 → 回复完成；
  * 2. 空闲超过阈值（NOMI_HARNESS_IDLE_MS=2000）后进程被回收：标签圆点变为「已休眠」，会话里出现提示，转录仍在；
  * 3. 再发一条消息：自动续接（--resume）拉起新进程，收到回复，休眠标记消失。
+ *
+ * 不依赖时序与系统焦点：
+ * - 回合结束时应用不在前台，标签记一条未读（Orchestrator.finish → appFocused()），侧栏圆点显示「未读」
+ *   （未读优先于休眠，见 Sidebar liveOf）。单跑时窗口在前台；整套跑时焦点可能在别处（前一个用例的窗口、
+ *   Xvfb 没有窗口管理器），圆点就一直是「未读」、等不到「已休眠」。这里把窗口固定为「在前台」，
+ *   测的是空闲回收而不是未读；
+ * - 阈值 2 秒、巡检 0.5 秒：负载下回复出现到下一条断言之间可能已经过了 2 秒并被回收，所以「回收前没有休眠
+ *   标记」在页面里记录，不断言「此刻没有」。
  */
 import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -66,18 +74,37 @@ test.describe('E29 · idle recycling of coding-assistant processes · mock CLI',
     await chat.locator('[data-testid="chat-mode-dev"]').click({ timeout: 30_000 });
     await chat.locator('[data-testid="list-view-all"]').waitFor({ timeout: 30_000 });
 
+    // 回合结束时按「用户正看着这个标签」算（不记未读）：整套跑时系统焦点不受本用例控制（见文件头）
+    await app.evaluate(({ BrowserWindow }) => {
+      for (const w of BrowserWindow.getAllWindows()) w.isFocused = () => true;
+    });
+
     const input = chat.locator('[data-testid="chat-input"]');
     // 侧栏里这个会话的状态点：回收后为「已休眠」
     const claudeRow = chat.locator('[data-testid="history-item"][data-backend="claude"]');
     await chat.click('[data-testid="new-chat"]');
     await chat.click('[data-testid="new-chat-claude"]');
     await expect(input).toBeEnabled();
+    // 回复出现之前不该有休眠标记（在页面里记录：回复后 2 秒就会回收，断言「此刻没有」会和回收赛跑）
+    await chat.evaluate(() => {
+      const w = window as unknown as { __e29early: boolean };
+      w.__e29early = false;
+      const sample = () => {
+        const replied = document
+          .querySelector('.ai-chat-app')
+          ?.textContent?.includes('Mock Claude');
+        if (!replied && document.querySelector('[data-testid="conv-dormant"]')) w.__e29early = true;
+      };
+      new MutationObserver(sample).observe(document.body, { subtree: true, childList: true });
+    });
     await input.fill('first question');
     await input.press('Enter');
     await expect(chat.locator('.ai-chat-app')).toContainText('Mock Claude', { timeout: 30_000 });
     await expect(claudeRow).toHaveCount(1);
     await expect(claudeRow.locator('[data-live="running"]')).toHaveCount(0);
-    await expect(chat.locator('[data-testid="conv-dormant"]')).toHaveCount(0);
+    expect(
+      await chat.evaluate(() => (window as unknown as { __e29early: boolean }).__e29early),
+    ).toBe(false);
 
     // 空闲超过阈值 → 回收：圆点「已休眠」+ 会话内提示；转录还在
     await expect(claudeRow.locator('[data-live="dormant"]')).toHaveCount(1, { timeout: 20_000 });
