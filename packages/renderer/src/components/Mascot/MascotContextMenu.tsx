@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 
 import styles from './ContextMenu.module.css';
 
+import { characterName } from '@/mascot/characterCopy';
 import { scalePercent, scaleStore, useMascotScale } from '@/mascot/scaleStore';
 import { hasTransport } from '@/services/api';
 
@@ -74,7 +75,7 @@ export const MascotContextMenu: React.FC = () => {
       ref={ref}
       className={styles.menu}
       role="menu"
-      aria-label={t('ui.usage-tools.nomi-size')}
+      aria-label={t('ui.usage-tools.nomi-size', characterName())}
       data-mascot-ui=""
       data-testid="mascot-context-menu"
       style={{ left: pos.x, top: pos.y, width: MENU_W }}

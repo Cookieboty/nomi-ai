@@ -915,7 +915,7 @@ export const ToolBar: React.FC = () => {
                   <div
                     className={styles.menuRow}
                     role="group"
-                    aria-label={tr('ui.usage-tools.nomi-size')}
+                    aria-label={tr('ui.usage-tools.nomi-size', characterName())}
                   >
                     <span>{tr('ui.usage-tools.size')}</span>
                     <div className={styles.sizeCtl}>
