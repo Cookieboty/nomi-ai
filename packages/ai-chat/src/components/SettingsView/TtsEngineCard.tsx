@@ -16,6 +16,7 @@ import {
   type TtsProvider,
   type TtsVoiceOption,
 } from '../../services/ttsConfigClient';
+import { confirmDialog } from '../ConfirmDialog';
 
 import styles from './index.module.css';
 import card from './TtsEngineCard.module.css';
@@ -133,8 +134,11 @@ export const TtsEngineCard: React.FC = () => {
   };
 
   const reset = async () => {
-    if (!window.confirm(t('ui.voice-mascot.reset-tts-settings-to-default-this-clears-saved')))
-      return;
+    const ok = await confirmDialog({
+      message: t('ui.voice-mascot.reset-tts-settings-to-default-this-clears-saved'),
+      danger: true,
+    });
+    if (!ok) return;
     setBusy('reset');
     try {
       await ttsConfigClient.reset();

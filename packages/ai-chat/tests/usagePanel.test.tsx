@@ -7,6 +7,8 @@ import { UsagePanel } from '../src/components/UsagePanel';
 import { priceSyncMessage } from '../src/components/UsagePanel/Pricing';
 import { resetToolQuotaMemo } from '../src/hooks/useToolQuota';
 
+vi.mock('../src/components/ConfirmDialog', () => import('./helpers/confirmViaWindow'));
+
 // findBy* / waitFor default to a 1s budget. The panel renders after several mocked IPC round-trips
 // plus happy-dom layout of the charts, which exceeds 1s on the slower macOS / Windows runners
 // ("cannot find usage-quota-card"). Same assertions, just a patient timeout for async lookups.

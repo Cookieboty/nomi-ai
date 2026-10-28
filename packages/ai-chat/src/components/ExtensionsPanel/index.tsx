@@ -43,6 +43,7 @@ import {
   type SkillInfo,
   type Trust,
 } from '../../services/extClient';
+import { confirmDialog } from '../ConfirmDialog';
 
 import styles from './index.module.css';
 import { MigrateDialog } from './MigrateDialog';
@@ -401,8 +402,13 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
                             <Button
                               size="sm"
                               variant="danger"
-                              onClick={() => {
-                                if (window.confirm(tr('ui.foundation.delete-mcp-server', s.name)))
+                              onClick={async () => {
+                                if (
+                                  await confirmDialog({
+                                    message: tr('ui.foundation.delete-mcp-server', s.name),
+                                    danger: true,
+                                  })
+                                )
                                   void run(`r:${s.id}`, () => extClient.mcpRemove(s.id));
                               }}
                             >
@@ -517,11 +523,12 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
                           size="sm"
                           label={tr('ui.chat-settings.delete-skill', s.name)}
                           icon={<Icon icon={Trash2} size={14} />}
-                          onClick={() => {
+                          onClick={async () => {
                             if (
-                              window.confirm(
-                                tr('ui.foundation.delete-skill-and-its-folder', s.name),
-                              )
+                              await confirmDialog({
+                                message: tr('ui.foundation.delete-skill-and-its-folder', s.name),
+                                danger: true,
+                              })
                             )
                               void run(`d:${s.name}`, () => extClient.skillRemove(s.name));
                           }}

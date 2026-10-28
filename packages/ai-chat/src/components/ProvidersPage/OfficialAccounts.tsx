@@ -13,6 +13,7 @@ import {
   type CliAccount,
   type LoginEvent,
 } from '../../services/cliAccountClient';
+import { confirmDialog, promptDialog } from '../ConfirmDialog';
 import { EndpointIcon } from '../EndpointIcon';
 import ppStyles from '../ProviderPanel/index.module.css';
 
@@ -348,8 +349,11 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
             size="sm"
             variant="ghost"
             disabled={!!busy}
-            onClick={() => {
-              const next = window.prompt(t('ui.chat-settings.account-name'), a.label);
+            onClick={async () => {
+              const next = await promptDialog({
+                title: t('ui.chat-settings.account-name'),
+                defaultValue: a.label,
+              });
               if (next && next.trim() && next.trim() !== a.label)
                 void run(`r:${a.id}`, () => cliAccountClient.rename(a.id, next.trim()));
             }}
@@ -362,15 +366,16 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
               variant="ghost"
               disabled={!!busy}
               data-testid="cli-account-remove"
-              onClick={() => {
+              onClick={async () => {
                 if (
-                  !window.confirm(
-                    t(
+                  !(await confirmDialog({
+                    message: t(
                       'ui.providers-schedule.remove-the-account-will-be-signed-out-in',
                       a.label,
                       NAME[kind],
                     ),
-                  )
+                    danger: true,
+                  }))
                 )
                   return;
                 void run(`d:${a.id}`, async () => {
@@ -380,9 +385,13 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
                     // 按错误码判断（文案随语言变）：无法确认外部 CLI 是否在用 → 让用户再确认一次后强制删除
                     if (
                       (e as { code?: unknown }).code === 'unknown-live' &&
-                      window.confirm(
-                        t('ui.chat-settings.nomi-could-not-confirm-whether-a-cli-is', a.label),
-                      )
+                      (await confirmDialog({
+                        message: t(
+                          'ui.chat-settings.nomi-could-not-confirm-whether-a-cli-is',
+                          a.label,
+                        ),
+                        danger: true,
+                      }))
                     ) {
                       await cliAccountClient.remove(a.id, { force: true });
                       return;

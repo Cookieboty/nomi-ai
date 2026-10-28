@@ -15,6 +15,7 @@ import { join, resolve } from 'node:path';
 import { _electron as electron, test, expect } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 
+import { autoAcceptConfirms } from '../fixtures/confirmDialog';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
@@ -275,7 +276,7 @@ test.describe('E36 · real app · Nomi delegates to coding assistants', () => {
       );
       const chat: Page = await chatWindow;
       await chat.setViewportSize({ width: 1100, height: 860 }).catch(() => undefined);
-      chat.on('dialog', (d) => void d.accept());
+      await autoAcceptConfirms(chat);
       const invoke = <T>(channel: string) =>
         chat.evaluate(
           async (c) =>

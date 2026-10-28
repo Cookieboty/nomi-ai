@@ -4,6 +4,7 @@
  */
 import { t, type SelectOption } from '@nomi-ai/ui';
 
+import { confirmDialog } from '../components/ConfirmDialog';
 import { hasOfficialAccount } from '../utils/cliCaps';
 
 import type { CliAccount } from './cliAccountClient';
@@ -316,7 +317,7 @@ export async function switchTabSource(
     tabSourceOf(tab) === 'thirdParty' &&
     source === 'official' &&
     opts.hasMessages &&
-    !window.confirm(THIRD_PARTY_TO_OFFICIAL())
+    !(await confirmDialog({ message: THIRD_PARTY_TO_OFFICIAL() }))
   )
     return null;
   return harnessClient.setTabSource(tab.id, source, opts.model);

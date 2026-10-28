@@ -25,6 +25,7 @@ import {
 } from '../../services/gatewayClient';
 import { useGatewayState } from '../../services/nomiModel';
 import { formatFullTime } from '../../utils/convTime';
+import { confirmDialog } from '../ConfirmDialog';
 
 import styles from './index.module.css';
 
@@ -97,10 +98,13 @@ export const PrivacyModeSettings: React.FC = () => {
       .finally(() => setBusy(false));
   };
 
-  const setMode = (next: boolean) => {
+  const setMode = async (next: boolean) => {
     if (
       !next &&
-      !window.confirm(t('ui.chat-settings.turn-off-privacy-mode-keys-will-be-sent-as-is'))
+      !(await confirmDialog({
+        message: t('ui.chat-settings.turn-off-privacy-mode-keys-will-be-sent-as-is'),
+        danger: true,
+      }))
     )
       return;
     void run(gatewayClient.setOptions({ privacyMode: next }));

@@ -13,6 +13,7 @@ import {
   type UsageState,
 } from '../../services/usageClient';
 import { AppIcon } from '../AppIcons';
+import { confirmDialog } from '../ConfirmDialog';
 
 import { currencySymbol } from './format';
 import styles from './index.module.css';
@@ -81,9 +82,10 @@ export const Budget: React.FC<Props> = ({ state, onSettings, onCleared }) => {
   };
   const clear = async () => {
     if (
-      !window.confirm(
-        t('ui.usage-tools.clear-all-usage-records-your-price-table-and', state.records),
-      )
+      !(await confirmDialog({
+        message: t('ui.usage-tools.clear-all-usage-records-your-price-table-and', state.records),
+        danger: true,
+      }))
     )
       return;
     setBusy(true);

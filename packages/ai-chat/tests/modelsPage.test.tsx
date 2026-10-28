@@ -15,6 +15,8 @@ import type {
   ProviderView,
 } from '../src/services/gatewayClient';
 
+vi.mock('../src/components/ConfirmDialog', () => import('./helpers/confirmViaWindow'));
+
 const PRESETS = [
   {
     id: 'deepseek',
@@ -522,7 +524,7 @@ describe('ModelsPage', () => {
     fireEvent.click(within(dlg).getByTestId('pd-key-delete-k2'));
     expect(within(dlg).queryByTestId('pd-key-k2')).toBeTruthy();
     fireEvent.click(within(dlg).getByTestId('pd-key-delete-k2'));
-    expect(within(dlg).queryByTestId('pd-key-k2')).toBeNull();
+    await waitFor(() => expect(within(dlg).queryByTestId('pd-key-k2')).toBeNull());
     fireEvent.change(within(dlg).getByTestId('pd-keys-input'), {
       target: { value: 'sk-new-aaaa1111\n\n  sk-new-bbbb2222 \nsk-new-aaaa1111' },
     });

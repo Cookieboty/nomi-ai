@@ -19,6 +19,7 @@ import {
   type GitOpResult,
   type GitSyncStatus,
 } from '../../services/harnessClient';
+import { confirmDialog } from '../ConfirmDialog';
 
 import pane from './WorkspacePane.module.css';
 
@@ -186,7 +187,7 @@ export function useGitOps(cwd: string | null | undefined, refresh: () => void) {
       paths.length === 1
         ? t('ui.session-workspace.discard-unstaged-changes-in', paths[0]!)
         : t('ui.session-workspace.discard-unstaged-changes-in-n-files', String(paths.length));
-    if (!window.confirm(ask)) return;
+    if (!(await confirmDialog({ message: ask, danger: true }))) return;
     const r = await exec('discard', () => harnessClient.gitDiscard(cwd, paths));
     if (r?.ok && r.stashes?.length && here(cwd))
       setNotice({

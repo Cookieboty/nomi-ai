@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path';
 import { _electron as electron, expect, test } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 
+import { autoAcceptConfirms } from '../fixtures/confirmDialog';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 import { startMockLlm, type MockLlm } from '../fixtures/mockLlm';
@@ -107,7 +108,7 @@ test.describe('E16 · first run: onboarding → provider setup → test connecti
     await shot(chat, 'onboarding-2-provider');
 
     // 引导里内嵌供应商表单：自定义地址 → 填 Key → 检测并保存 → 选 Nomi 对话的模型
-    chat.on('dialog', (d) => void d.accept()); // 本机地址确认
+    await autoAcceptConfirms(chat); // 本机地址确认（应用内确认框）
     await expect(step.locator('[data-testid="onb-model-section"]')).toHaveAttribute(
       'data-state',
       'disabled',

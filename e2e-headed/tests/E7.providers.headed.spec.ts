@@ -6,6 +6,7 @@ import { join, resolve } from 'node:path';
 import { _electron as electron, test, expect } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 
+import { autoAcceptConfirms } from '../fixtures/confirmDialog';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 import { startMockLlm, type MockLlm, type MockProtocol } from '../fixtures/mockLlm';
@@ -173,7 +174,7 @@ test.describe('E7 · real app · third-party providers through the gateway', () 
       const chat: Page = await chatWindow;
       await chat.setViewportSize({ width: 1100, height: 860 }).catch(() => undefined);
       // 自定义的本机地址：确认允许访问
-      chat.on('dialog', (d) => void d.accept());
+      await autoAcceptConfirms(chat);
 
       const invoke = <T>(channel: string) =>
         chat.evaluate(

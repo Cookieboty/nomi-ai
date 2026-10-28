@@ -243,4 +243,30 @@ export default tseslint.config(
       'no-console': ['error', { allow: ['warn', 'error'] }],
     },
   },
+
+  // 不用系统弹窗：macOS / Windows 样式不一、按钮跟系统语言走。
+  // 确认 / 输入用 ai-chat 的 confirmDialog / promptDialog（components/ConfirmDialog）。
+  {
+    files: ['packages/*/src/**/*.{ts,tsx}'],
+    ignores: ['**/*.{test,spec}.{ts,tsx}', '**/tests/**', 'packages/electron/**'],
+    rules: {
+      'no-restricted-globals': [
+        'error',
+        ...['alert', 'confirm', 'prompt'].map((name) => ({
+          name,
+          message:
+            '不用系统弹窗：确认 / 输入用 confirmDialog / promptDialog（ai-chat/components/ConfirmDialog）',
+        })),
+      ],
+      'no-restricted-properties': [
+        'error',
+        ...['alert', 'confirm', 'prompt'].map((property) => ({
+          object: 'window',
+          property,
+          message:
+            '不用系统弹窗：确认 / 输入用 confirmDialog / promptDialog（ai-chat/components/ConfirmDialog）',
+        })),
+      ],
+    },
+  },
 );

@@ -6,6 +6,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useGitOps } from '../src/components/SessionWorkspace/GitCommitBox';
 import { harnessClient, type GitOpResult } from '../src/services/harnessClient';
 
+vi.mock('../src/components/ConfirmDialog', () => import('./helpers/confirmViaWindow'));
+
 vi.mock('../src/services/harnessClient', () => ({
   harnessClient: {
     gitDiscard: vi.fn(),

@@ -5,6 +5,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PrivacyModeSettings } from '../src/components/SettingsView/PrivacyModeSettings';
 import type { GatewayState, PrivacyLogEntry } from '../src/services/gatewayClient';
 
+vi.mock('../src/components/ConfirmDialog', () => import('./helpers/confirmViaWindow'));
+
 const h = vi.hoisted(() => ({
   state: null as Partial<GatewayState> | null,
   client: {
@@ -69,7 +71,7 @@ describe('PrivacyModeSettings', () => {
     expect(render(<PrivacyModeSettings />).queryByTestId('settings-privacy-mode')).toBeNull();
   });
 
-  it('默认开；点关先确认，取消就不改', () => {
+  it('默认开；点关先确认，取消就不改', async () => {
     h.state = { privacyMode: true };
     const r = render(<PrivacyModeSettings />);
     expect(checked(sw(r))).toBe(true);
@@ -79,10 +81,11 @@ describe('PrivacyModeSettings', () => {
     window.confirm = confirm;
     fireEvent.click(sw(r));
     expect(confirm).toHaveBeenCalledOnce();
+    await Promise.resolve();
     expect(h.client.setOptions).not.toHaveBeenCalled();
     confirm.mockReturnValue(true);
     fireEvent.click(sw(r));
-    expect(h.client.setOptions).toHaveBeenCalledWith({ privacyMode: false });
+    await waitFor(() => expect(h.client.setOptions).toHaveBeenCalledWith({ privacyMode: false }));
   });
 
   it('关着时重新打开不需要确认', () => {

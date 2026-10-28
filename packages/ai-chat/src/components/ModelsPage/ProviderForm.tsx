@@ -21,6 +21,7 @@ import {
   providerClientAvailable,
   type ProviderPreset,
 } from '../../services/providerClient';
+import { confirmDialog } from '../ConfirmDialog';
 
 import styles from './ProviderForm.module.css';
 import {
@@ -99,7 +100,12 @@ export const ProviderForm: React.FC<Props> = ({ idPrefix, onSaved, onCancel }) =
       if (isPrivateUrl(baseUrl)) {
         const hp = hostPortOf(baseUrl);
         if (hp) {
-          if (custom && !window.confirm(t('ui.models.is-a-local-or-lan-address-allow-nomi', hp)))
+          if (
+            custom &&
+            !(await confirmDialog({
+              message: t('ui.models.is-a-local-or-lan-address-allow-nomi', hp),
+            }))
+          )
             return;
           await gatewayClient.confirmPrivateHost(hp);
         }

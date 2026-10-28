@@ -47,6 +47,7 @@ Linux 无显示器时 Electron 相关命令前加 `xvfb-run -a`。
 - **日志**：不用 `console.log`；主进程用 `LoggerService` / `createMainLogger`，渲染进程用 `@nomi-ai/ui` 的 `createLogger`。
 - **安全**：preload 只暴露具名白名单接口；IPC 通道命名 `'<领域>:<动作>'`，`ai:*` 经 `security/ipcSenderGuard.ts`；外部请求走 `netGuard`，命令参数用 `shellEscape`，私有文件用 `utils/privateFile`；API Key 存 `safeStorage`。开发态 userData 包名迁移见 `utils/legacyUserData.ts`。
 - **界面**：CSS Modules + `var(--cd-*)` 令牌；面板懒加载；无障碍（aria-label、`Esc` 关闭、焦点管理、减少动态效果）。
+- **弹窗**：不用系统弹窗（`window.confirm` / `alert` / `prompt`，eslint 会拦）；确认与输入用 `packages/ai-chat/src/components/ConfirmDialog` 的 `confirmDialog` / `promptDialog`，macOS / Windows 样式一致、文案跟界面语言。
 - **样式一致性**：同一行的控件用同一个高度令牌（`--cd-control-h-*`：2xs 20 / xs 24 / sm 28 / ms 32 / md 36 / lg 40；对话区右上角 sm，输入栏工具行与对话头部 ms），同一行同一种形状与字号；尺寸 / 外观通过组件的 `size` / `variant` 改（如 `Select variant="ghost" | "chip"`），不在外部用 `:global(.cd-*)` 覆盖共享组件；hover 用 `--cd-color-hover`，键盘焦点用 `2px solid var(--cd-color-accent-strong)` 描边；字号、颜色、圆角、间距只用令牌（`pnpm check:frontend` 会拦下未定义的 `--cd-*`）。
 - **提交**：Conventional Commits（commitlint，标题与正文每行 ≤ 100 字符）；pre-commit 跑 lint-staged。
 - **Git**：不 force-push、不改写已推送的历史；不打 release tag，不自行合并 PR。

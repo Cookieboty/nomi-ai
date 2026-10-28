@@ -8,6 +8,7 @@ import React, { useState } from 'react';
 
 import { harnessClient } from '../../services/harnessClient';
 import type { ConvMessage } from '../../types/conversation';
+import { confirmDialog } from '../ConfirmDialog';
 
 import styles from './index.module.css';
 
@@ -29,15 +30,15 @@ export const GeminiTrustAction: React.FC<{
   tabId: string;
   message: ConvMessage;
   retry?: () => void;
-  /** 测试注入；默认 window.confirm */
-  confirm?: (text: string) => boolean;
+  /** 测试注入；默认应用内确认框 */
+  confirm?: (text: string) => boolean | Promise<boolean>;
 }> = ({ tabId, message, retry, confirm }) => {
   const [state, setState] = useState<State>({ kind: 'idle' });
   const trust = message.geminiTrust;
   if (!trust) return null;
   const onClick = async () => {
-    const ask = confirm ?? ((text: string) => window.confirm(text));
-    if (!ask(geminiTrustConfirmText(trust.folder, !!trust.broad))) return;
+    const ask = confirm ?? ((text: string) => confirmDialog({ message: text }));
+    if (!(await ask(geminiTrustConfirmText(trust.folder, !!trust.broad)))) return;
     setState({ kind: 'busy' });
     try {
       await harnessClient.trustGeminiFolder(tabId, message.id);
