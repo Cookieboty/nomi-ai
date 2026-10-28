@@ -978,8 +978,13 @@ stop() }`；宿主 `packages/host-electron/src/host/Application.ts`（宿主区�
 > - 角色名：指桌面上那个角色的文案（「显示 X」「桌面 X」「X 已隐藏」「X 工具栏」「关闭 X」「你好，我是 X」等约 25 条）改为带 `{0}`，
 >   填当前角色的人设名（当前界面语言）：ai-chat 经 `services/characterName`（契约 `persona.get` / `persona.changed`），renderer 经
 >   `mascot/characterCopy.characterName()`（覆盖包快照的 `displayName`，否则内置包人设），托盘经 `PersonaService`；拿不到时用通用称呼
->   「看板娘 / Mascot」。官方构建英文界面不变（en 人设名就是 Nomi），中文界面这些地方从「Nomi」变成「诺米」。「她 / her」改成中性写法；
+>   「看板娘 / Mascot」。「她 / her」改成中性写法；
 >   不需要名字的改成通用说法（「诺米提示语音」→「角色提示语音」、朗读打断、预算提醒的「看板娘气泡」、活动记录的「拖入文件总结」）；
+> - 角色名分全名与简称（修正，docs/BRAND.md）：「Nomi·诺米」是一个完整的名字，界面上不单独写「诺米」。人设加 `shortName`
+>   （官方包 `displayName`「Nomi·诺米」、`shortName`「Nomi」；缺省同 `displayName`，见 `personaNames`）；欢迎语用全名
+>   （`characterFullName`），其余用简称（`characterName`），句子经 `tName` 拼名字、中文里名字与汉字之间补空格（`spaceAround`），
+>   官方构建的这些文案与 2.0.5 一致（「显示 Nomi」「你好，我是 Nomi·诺米」）。发给模型的身份句不变（测试钉住）。
+>   `check:character-leak` 还扫官方包里单独的「诺米」，例外（唤醒词、身份句、预录合成输入）写在 `BARE_ALLOW`；
 > - 角色文案进角色包：带名字的自我介绍（原 `ui.cli-monitor.hi-i-m-nomi`、`ui.voice-mascot.hi-i-m-nomi-let-s-do-our`）改为角色台词
 >   `greet-hello` / `greet-lets-go`（id 就是原来的预录片段 id），写进 `characters/nomi/locales` 与替身包，全局词典删掉这两条；
 >   语音设置「试听」念 `greet-lets-go`，包里没有就念 `greet-companion`；
