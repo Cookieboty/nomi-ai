@@ -2,7 +2,7 @@
   "name": "@nomi-ai/ai-runtime",
   "version": "0.0.1",
   "private": true,
-  "description": "Electron 主进程运行时：IgPluginHost + Vercel AI SDK Booter + AIClient + IPC",
+  "description": "AI 运行时（纯 Node）：IgPluginHost + Vercel AI SDK Booter + AIClient + 契约处理函数",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -28,19 +28,11 @@
   },
   "peerDependencies": {
     "@nomi-ai/ai-sdk": "workspace:*",
-    "@nomi-ai/bundle-ig-base": "workspace:*",
-    "@nomi-ai/bundle-ig-electron-caps": "workspace:*",
-    "electron": ">=28"
-  },
-  "peerDependenciesMeta": {
-    "electron": {
-      "optional": true
-    }
+    "@nomi-ai/bundle-ig-base": "workspace:*"
   },
   "devDependencies": {
     "@nomi-ai/ai-sdk": "workspace:*",
     "@nomi-ai/bundle-ig-base": "workspace:*",
-    "@nomi-ai/bundle-ig-electron-caps": "workspace:*",
     "rimraf": "^6.1.3",
     "tsup": "^8.3.5",
     "typescript": "^6.0.3",

@@ -10,8 +10,12 @@
  */
 
 import { AIClient } from '@nomi-ai/ai-sdk';
-import { LLMRegistryKey, ToolRegistryKey, UserProfileKey } from '@nomi-ai/bundle-ig-base';
-import { TtsKey } from '@nomi-ai/bundle-ig-electron-caps/seams';
+import {
+  defineService,
+  LLMRegistryKey,
+  ToolRegistryKey,
+  UserProfileKey,
+} from '@nomi-ai/bundle-ig-base';
 import { ContractError, createClient } from '@nomi-ai/contract';
 import { appContract } from '@nomi-ai/contract/app';
 import { createInProcessServer } from '@nomi-ai/contract/testing';
@@ -28,6 +32,12 @@ import {
   createFakeToolRegistry,
   type FakeLLM,
 } from './helpers/fakeSeams';
+
+/**
+ * TTS 服务键：插件服务键按名字取全局 Symbol（`Symbol.for('nomi.ig.service:ctx.tts')`），与
+ * bundle-ig-electron-caps 的 `TtsKey` 是同一个键；ai-runtime 不依赖那个 Electron 插件包
+ */
+const TtsKey = defineService<unknown>('ctx.tts');
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
