@@ -12,6 +12,8 @@ export interface Persona {
   shortName?: string;
   /** 系统提示里的身份段（只描述「你是谁」，不含对话行为要求） */
   systemPromptIdentity: string;
+  /** 指代角色的代词（当前界面语言，英文为主格）；内核总会给，角色包没写时为「它」/ it */
+  pronoun?: string;
   /** 角色对用户的称呼 */
   addressUser?: string;
   /** 问候语（当前界面语言） */

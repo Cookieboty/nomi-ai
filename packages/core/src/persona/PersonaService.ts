@@ -23,6 +23,7 @@ import {
   migrateLegacyPersona,
   normalizePackPath,
   personaNames,
+  personaPronoun,
   personaSchema,
   type CharacterLocale,
   type PersonaData,
@@ -75,6 +76,10 @@ export function resolvePersona(bundle: PersonaBundle, uiLocale: string): Persona
     systemPromptIdentity: override?.systemPromptIdentity ?? base.systemPromptIdentity,
     greetings: [...(override?.greetings ?? base.greetings)],
   };
+  persona.pronoun = personaPronoun(
+    lang,
+    lang === PRIMARY_CHARACTER_LOCALE ? base.pronoun : override?.pronoun,
+  );
   const addressUser = override?.addressUser ?? base.addressUser;
   if (addressUser) persona.addressUser = addressUser;
   return persona;

@@ -10,7 +10,7 @@ import { Minus, Plus } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 
 import { api, hasTransport } from '../../services/api';
-import { useCharacterName } from '../../services/characterName';
+import { characterPronoun, useCharacterName } from '../../services/characterName';
 
 import styles from './index.module.css';
 
@@ -60,7 +60,11 @@ export const MascotSizeSettings: React.FC<{ disabled?: boolean }> = ({ disabled 
       description={
         <>
           {disabled
-            ? tName('ui.chat-settings.nomi-is-hidden-show-it-to-adjust-its', name)
+            ? tName(
+                'ui.chat-settings.nomi-is-hidden-show-it-to-adjust-its',
+                name,
+                characterPronoun('object'),
+              )
             : t('ui.usage-tools.you-can-also-hold-ctrl-on-macos-and')}
           {s && s.max < s.hardMax - 1e-6 && (
             <>

@@ -27,7 +27,7 @@ Packs contain **data only** — no code. Engines are app-side plugins selected b
 ```text
 my-character.pack/
   manifest.json        id, contractVersion, assets.mode, capabilities, layout
-  persona.json         displayName, shortName?, systemPromptIdentity, addressUser?, greetings[], tips?
+  persona.json         displayName, shortName?, pronoun?, systemPromptIdentity, addressUser?, greetings[], tips?
   mapping.json         semantic emotion / activity / gesture → engine resource ids (optional)
   locales/zh.json      character copy: lines, wakePhrase, persona overrides
   locales/en.json
@@ -69,6 +69,7 @@ Product name / appId stay in the host brand and are never taken from the pack.
 {
   "displayName": "Nomi·诺米",
   "shortName": "Nomi",
+  "pronoun": "她",
   "systemPromptIdentity": "你是 Nomi（诺米），住在用户桌面上的 AI 伙伴。",
   "addressUser": "你",
   "greetings": ["你好呀，今天想聊点什么？"],
@@ -81,6 +82,11 @@ validation warns). `displayName` is the full name, used where the UI first names
 (「你好，我是 Nomi·诺米」); `shortName` (optional, defaults to `displayName`) is used for later
 mentions (「显示 Nomi」「Nomi 大小」). A locale override that sets `displayName` without
 `shortName` uses that `displayName` as its short name too. Per-language overrides go in `locales/<lang>.json` → `persona`.
+`pronoun` (optional) is how the UI refers to the character in a sentence (「点她的『AI 对话』」,
+"click her “AI chat”"). Give it per language — Chinese in `persona.json`, English in
+`locales/en.json` → `persona.pronoun` as the subject form (`she` / `he` / `it` / `they`; the UI
+derives her / him / its / their). A language without its own value gets the neutral 「它」/ `it`;
+the Chinese value is never reused for English. The official pack uses 「她」/ `she`.
 Legacy packs without `persona.json` are migrated from `copy/<lang>.json` and
 `persona/system-prompt.md` (first non-empty line), with a warning.
 

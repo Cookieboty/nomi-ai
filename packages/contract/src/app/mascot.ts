@@ -196,6 +196,8 @@ export const Persona = z.looseObject({
   /** 简称；旧主进程不发，用 displayName */
   shortName: z.string().optional(),
   systemPromptIdentity: z.string(),
+  /** 指代角色的代词（当前界面语言） */
+  pronoun: z.string().optional(),
   addressUser: z.string().optional(),
   greetings: z.array(z.string()),
 });
