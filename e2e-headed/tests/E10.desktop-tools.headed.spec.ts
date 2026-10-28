@@ -220,6 +220,12 @@ test.describe('E10 · real app · desktop file tools', () => {
       await chat.keyboard.press('Escape');
       await expect(chat.locator('[data-testid="desktop-panel"]')).toHaveCount(0);
 
+      // 新的 Nomi 对话默认带工作区（文稿/nomi），工作区里只认工作区；这里测的是「授权文件夹」流程，
+      // 先在对话顶栏改成「不使用工作区」（工作区流程见 E37）
+      await chat.click('[data-testid="nomi-workspace-button"]');
+      await chat.click('[data-testid="workspace-clear"]');
+      await expect(chat.locator('[data-testid="nomi-workspace-path"]')).toHaveText('不使用工作区');
+
       const send = async (msg: string, expectText: string | RegExp) => {
         await chat.fill('textarea', msg);
         await chat.press('textarea', 'Enter');

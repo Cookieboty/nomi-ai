@@ -246,6 +246,8 @@ test.describe('E24 · coding-agent conversation view · mock CLI', () => {
         NOMI_MOCK_ASK_PERMISSION: '1',
         NOMI_MOCK_STEP_MS: '0',
       }));
+      // 「全部自动」开着时新标签完全放开、不弹确认：这里看确认卡片，先关掉
+      await callContract(chat, 'harness.permissionDefaults', { autoApprove: false });
       await newTabAndSend(chat, 'claude', '删除临时文件');
       const card = chat.locator('[data-testid="conv-permission-card"]');
       await expect(card).toBeVisible({ timeout: 30_000 });

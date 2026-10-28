@@ -281,6 +281,17 @@ test.describe('E36 · real app · Nomi delegates to coding assistants', () => {
         .toBe('running');
       await chat.waitForSelector('textarea', { timeout: 20_000 });
 
+      // 「全部自动」关掉：这里要看卡片里的审批（全部自动时委派的编程助手完全放开，不再请求权限）
+      await callContract(chat, 'harness.permissionDefaults', { autoApprove: false });
+      // 对话工作区选已授权的仓库（经最近列表）：委派的编程助手在工作区里开工
+      await callContract(chat, 'harness.setCwd', { cwd: work });
+      await chat.click('[data-testid="nomi-workspace-button"]');
+      await chat.locator('[data-testid="workspace-recent-item"]', { hasText: 'e36-work' }).click();
+      await expect(chat.locator('[data-testid="nomi-workspace-button"]')).toHaveAttribute(
+        'title',
+        new RegExp(work.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
+      );
+
       const send = async (text: string) => {
         await chat.fill('textarea', text);
         await chat.press('textarea', 'Enter');
