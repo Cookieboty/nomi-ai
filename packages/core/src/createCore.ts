@@ -12,9 +12,11 @@
  * ```
  *
  * - **没有模块级单例**：服务实例都在这一次调用的闭包里，`core.services` 是只读视图；一个进程里可以有
- *   多个内核（P4 的无界面 e2e），彼此的服务、事件总线与 router 互不相干。仍是进程级的只有：界面语言
- *   （`i18n` 的 `t()`）、日志开关与私有文件根目录（宿主的进程设置）、诊断日志的写入器（`cliTrace`），
- *   以及子进程 / worker 的缓存，见 §12 P4 进度说明；
+ *   多个内核（P4 的无界面 e2e），彼此的服务、事件总线与 router 互不相干。界面语言（`core.i18n`）、
+ *   debug 日志开关、私有文件根目录与诊断日志的写入器也属于内核实例：内核代码经实例作用域
+ *   （`core/scope.ts`，AsyncLocalStorage）读到「当前内核」的状态；建服务、start / stop / startReminders
+ *   与每次契约调用都在作用域里执行，宿主自己的代码用 `core.i18n` / `core.run()`。进程级的只剩按路径
+ *   记录的文件权限缓存与子进程 / worker 的缓存；
  * - **宿主片段**：要用窗口的契约过程（Electron：看板娘窗口互动、灵动岛、旧窗口通道、应用图标）由宿主在
  *   `contract.hostHandlers` 里传进来，与内核的处理函数在同一次 `implement` 里组装；宿主片段只能补内核
  *   没有实现的过程，谁都没实现的以 UNAVAILABLE 失败（无界面宿主没有窗口片段）；
@@ -67,6 +69,7 @@ import type { CoreContractServices } from './contract/services';
 import type { AppHandlers, ContractDeps, Middleware } from './contract/types';
 import { createShutdown, LifecycleRegistry } from './core/lifecycle';
 import { CORE_PENDING_GROUPS, createPendingEvents } from './core/pendingEvents';
+import { createCoreScope, runInCoreScope, type CoreScope } from './core/scope';
 import { ServiceContainer, type IServiceContainer } from './core/ServiceContainer';
 import { APP_EVENTS, HOST_PORTS } from './core/serviceTokens';
 import { createDesktopService, type DesktopWindows } from './desktop/DesktopService';
@@ -77,7 +80,7 @@ import { GatewayService } from './gateway/GatewayService';
 import { harnessGateway } from './gateway/harnessGateway';
 import { revokeLegacyGlobalConfig, type RevokeLegacyResult } from './gateway/revokeLegacy';
 import { gatewayTerminalSource, TerminalCommands } from './gateway/TerminalCommands';
-import { getLocale, LocaleService, onLocaleChange, t as tr } from './i18n';
+import { LocaleService, t as tr, type CoreI18n } from './i18n';
 import { KnowledgeService } from './knowledge/KnowledgeService';
 import { LocalHubService } from './local/LocalHubService';
 import { LocalModelService } from './local/LocalModelService';
@@ -189,6 +192,10 @@ export type CoreServices = Readonly<CoreContractServices>;
 export interface Core {
   readonly ports: HostPorts;
   readonly logger: LoggerService;
+  /** 本内核的界面语言：宿主的托盘、原生对话框、错误提示按它翻译，切换后经 onChange 重建 */
+  readonly i18n: CoreI18n;
+  /** 在本内核的作用域里执行（宿主回调里要调用内核模块、读到本内核的语言等状态时） */
+  run<T>(fn: () => T): T;
   /** 应用事件总线（接在 router 上）：服务与宿主的窗口控制器直接发布契约事件 */
   readonly events: ContractEventBus;
   /** 配置（config.json）；createCore 时就有，start() 里加载 */
@@ -230,6 +237,11 @@ function noopUpdater(): UpdaterLike {
 }
 
 export function createCore(deps: CoreDeps): Core {
+  const scope = createCoreScope();
+  return runInCoreScope(scope, () => buildCore(deps, scope));
+}
+
+function buildCore(deps: CoreDeps, scope: CoreScope): Core {
   const { ports } = deps;
   const host = deps.host ?? {};
   const cfg = deps.config ?? {};
@@ -243,6 +255,12 @@ export function createCore(deps: CoreDeps): Core {
   const pendingEvents = createPendingEvents({ groups: CORE_PENDING_GROUPS });
   const events = createContractEventBus(null, logger, pendingEvents);
   container.registerSingleton(APP_EVENTS, () => events);
+  // 本内核的界面语言（第一次用到时才解析系统语言）、debug 日志开关与私有文件根目录
+  const i18n = new LocaleService({ file: userData('locale.json'), ports, events });
+  scope.i18n = i18n;
+  scope.verboseLogging = () => !ports.app.isPackaged();
+  scope.privateRoot = () => ports.paths.userData();
+  const run = <T>(fn: () => T): T => runInCoreScope(scope, fn);
   const config = new ConfigService({ ports, logger });
   container.registerSingleton('config', () => config);
   const cache = new CacheService({ maxSize: 500, defaultTtl: 10 * 60 * 1000 }, logger);
@@ -303,12 +321,11 @@ export function createCore(deps: CoreDeps): Core {
         packPersonaSource(() => characterPack.getBuiltin(), { id: 'builtin-pack', logger: plog }),
         neutralPersonaSource(),
       ],
-      locale: getLocale,
+      locale: () => i18n.locale(),
       logger: plog,
     });
     characterPack.onChange(() => persona.reload());
-    const offLocale = onLocaleChange(() => persona.localeChanged());
-    if (typeof offLocale === 'function') stoppers.push(offLocale);
+    stoppers.push(i18n.onChange(() => persona.localeChanged()));
     forwardPersonaChanges(persona, (event, payload) => events.publish(event, payload));
     const p = persona.get();
     logger.info(`persona: ${p.characterId} (${p.displayName})`);
@@ -329,7 +346,8 @@ export function createCore(deps: CoreDeps): Core {
     );
 
     // 界面语言（默认跟随系统：zh* → 中文，其余 → English）；须早于托盘 / 通知等主进程文案
-    services.locale = new LocaleService({ file: userData('locale.json'), ports, events });
+    services.locale = i18n;
+    i18n.get();
 
     // 角色包：userData/character-pack → resources/character-pack → 内置包（宿主给的 builtinCharacterPack）
     const characterPack = new CharacterPackService({
@@ -610,6 +628,9 @@ export function createCore(deps: CoreDeps): Core {
         services.gateway?.refresh();
       },
     });
+    // 本内核的编程助手收发记录：spawnHarness 经作用域找到它
+    scope.cliTrace = diagnostics.cliTrace;
+    stoppers.push(() => diagnostics.cliTrace.dispose());
     // 模型质量（docs/design/model-quality.md）：网关层 / CLI 层的请求质量，只存元数据，受用量总开关控制
     const providerOf = (pid: string) =>
       services.gateway?.store.providers().find((x) => x.id === pid);
@@ -938,6 +959,7 @@ export function createCore(deps: CoreDeps): Core {
       ai: services.aiRuntime?.ai,
       hostHandlers: deps.contract?.hostHandlers?.(contractDeps),
       middleware: deps.contract?.middleware,
+      scope,
     });
     appRouter = app;
     const detach = events.attach(app.router.events);
@@ -994,6 +1016,8 @@ export function createCore(deps: CoreDeps): Core {
   });
 
   return {
+    i18n,
+    run,
     ports,
     logger,
     events,
@@ -1008,15 +1032,17 @@ export function createCore(deps: CoreDeps): Core {
       return started;
     },
     start() {
-      starting ??= doStart().then(() => {
+      starting ??= run(doStart).then(() => {
         started = true;
       });
       return starting;
     },
     startReminders() {
-      services.desktop?.startReminders();
-      services.sched?.start();
+      run(() => {
+        services.desktop?.startReminders();
+        services.sched?.start();
+      });
     },
-    stop: () => shutdown.stop(),
+    stop: () => run(() => shutdown.stop()),
   };
 }

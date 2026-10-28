@@ -46,6 +46,39 @@ export function personaNames(
   return { displayName, shortName };
 }
 
+/** 没有给代词时的中性默认（`zh` → 它，其他语言 → it） */
+export const DEFAULT_PRONOUN: Readonly<Record<string, string>> = { zh: '它', en: 'it' };
+
+/**
+ * 某语言下指代角色的代词：这一语言自己给的值（主语言是 persona.json，其他语言是 `locales/<lang>.json`
+ * 的 persona）；没给时用中性默认，不沿用另一种语言的值（「她」不能当英文用）。
+ */
+export function personaPronoun(lang: string, own?: string): string {
+  const v = own?.trim();
+  if (v) return v;
+  return DEFAULT_PRONOUN[baseLocale(lang)] ?? DEFAULT_PRONOUN.en!;
+}
+
+const EN_FORMS: Readonly<Record<string, readonly [object: string, possessive: string]>> = {
+  she: ['her', 'her'],
+  he: ['him', 'his'],
+  it: ['it', 'its'],
+  they: ['them', 'their'],
+};
+
+/**
+ * 代词放进句子时的两种形式（宾格、所有格）。中文两者都是代词本身（模板里自己写「的」）；英文按主格
+ * 查表，不认识的代词宾格用原词、所有格加 `’s`。
+ */
+export function pronounForms(
+  lang: string,
+  pronoun: string,
+): { object: string; possessive: string } {
+  if (baseLocale(lang) === 'zh') return { object: pronoun, possessive: pronoun };
+  const f = EN_FORMS[pronoun.toLowerCase()];
+  return f ? { object: f[0], possessive: f[1] } : { object: pronoun, possessive: `${pronoun}’s` };
+}
+
 /**
  * 台词 / 字幕：先查目标语言，再查主语言；key 可以是稳定 clip id 或旧 i18n key。
  * 找不到返回 undefined（由调用方决定回退）。

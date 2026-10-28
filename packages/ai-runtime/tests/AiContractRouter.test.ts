@@ -16,7 +16,7 @@ import {
   ToolRegistryKey,
   UserProfileKey,
 } from '@nomi-ai/bundle-ig-base';
-import { ContractError, createClient } from '@nomi-ai/contract';
+import { createClient, isContractError, type ContractError } from '@nomi-ai/contract';
 import { appContract } from '@nomi-ai/contract/app';
 import { createInProcessServer } from '@nomi-ai/contract/testing';
 import { describe, expect, it } from 'vitest';
@@ -122,7 +122,7 @@ describe('createAiRouter · 门面方法', () => {
     const err = await api.ai.tools
       .setEnabled({ name: 'nope', enabled: true })
       .catch((e: unknown) => e);
-    expect(err).toBeInstanceOf(ContractError);
+    expect(isContractError(err, 'INTERNAL')).toBe(true);
     expect((err as ContractError).code).toBe('INTERNAL');
     expect((err as ContractError).message).toMatch(/^\[TOOL_NOT_FOUND/);
   });

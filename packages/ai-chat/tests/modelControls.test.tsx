@@ -167,11 +167,14 @@ describe('ModelControls', () => {
     const { findByTestId, queryByTestId } = setup({ catalog });
     await findByTestId('model-chip');
     expect(queryByTestId('model-menu')).toBeNull();
-    let opened = false;
-    act(() => {
-      opened = openModelMenu('cx');
+    // 浮层的打开方法在目录到手后的 effect 里登记；负载高时芯片可能先于登记渲染出来
+    await waitFor(() => {
+      let opened = false;
+      act(() => {
+        opened = openModelMenu('cx');
+      });
+      expect(opened).toBe(true);
     });
-    expect(opened).toBe(true);
     expect(await findByTestId('model-menu')).toBeTruthy();
     expect(await findByTestId('model-gpt-6-pro')).toBeTruthy();
     expect(openModelMenu('other-tab')).toBe(false);

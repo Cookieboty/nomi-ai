@@ -4,7 +4,7 @@
  */
 
 import type { IEventBus } from '@nomi-ai/core/core/EventBus';
-import { t } from '@nomi-ai/core/i18n';
+import type { Translate } from '@nomi-ai/core/i18n';
 import { type ILoggerService } from '@nomi-ai/core/services/LoggerService';
 import type { HostPorts } from '@nomi-ai/host-ports';
 
@@ -61,6 +61,8 @@ export class GlobalErrorHandler implements IErrorHandler {
   constructor(
     logger: ILoggerService,
     ports: ErrorHandlerPorts,
+    /** 内核实例的翻译函数（`core.i18n.t`）：错误提示按当前界面语言 */
+    private readonly t: Translate,
     private readonly bus?: Pick<IEventBus, 'emit'>,
   ) {
     this.logger = logger;
@@ -255,8 +257,12 @@ export class GlobalErrorHandler implements IErrorHandler {
   private showCriticalErrorDialog(errorInfo: ErrorInfo): void {
     try {
       this.ports.dialogs.showError(
-        t('electron.common.app-error'),
-        t('electron.common.the-app-hit-a-serious-error-and-will', errorInfo.message, errorInfo.id),
+        this.t('electron.common.app-error'),
+        this.t(
+          'electron.common.the-app-hit-a-serious-error-and-will',
+          errorInfo.message,
+          errorInfo.id,
+        ),
       );
     } catch (error) {
       console.error('显示错误对话框失败:', error);
@@ -271,7 +277,7 @@ export class GlobalErrorHandler implements IErrorHandler {
       // 发送到渲染进程显示通知
       this.bus?.emit('notification:show', {
         type: 'error',
-        title: t('electron.common.operation-failed'),
+        title: this.t('electron.common.operation-failed'),
         message: this.getUserFriendlyMessage(errorInfo.message),
         timeout: 5000,
       });
@@ -286,11 +292,11 @@ export class GlobalErrorHandler implements IErrorHandler {
   private getUserFriendlyMessage(errorMessage: string): string {
     // 错误消息映射表
     const messageMap: { [key: string]: string } = {
-      ENOENT: t('electron.common.file-or-folder-doesn-t-exist'),
-      EACCES: t('electron.common.permission-denied'),
-      ECONNREFUSED: t('electron.common.network-connection-refused'),
-      ETIMEDOUT: t('electron.common.operation-timed-out'),
-      ENOTFOUND: t('electron.common.network-address-not-found'),
+      ENOENT: this.t('electron.common.file-or-folder-doesn-t-exist'),
+      EACCES: this.t('electron.common.permission-denied'),
+      ECONNREFUSED: this.t('electron.common.network-connection-refused'),
+      ETIMEDOUT: this.t('electron.common.operation-timed-out'),
+      ENOTFOUND: this.t('electron.common.network-address-not-found'),
     };
 
     // 查找匹配的友好消息
@@ -358,7 +364,7 @@ export class GlobalErrorHandler implements IErrorHandler {
 
     // 检查关键错误
     if (stats.critical > 0) {
-      issues.push(t('electron.common.critical-errors-detected', stats.critical));
+      issues.push(this.t('electron.common.critical-errors-detected', stats.critical));
     }
 
     // 检查高级错误频率
@@ -368,7 +374,7 @@ export class GlobalErrorHandler implements IErrorHandler {
 
     if (recentHighErrors > 5) {
       issues.push(
-        t('electron.common.high-severity-errors-in-the-last-5-minutes', recentHighErrors),
+        this.t('electron.common.high-severity-errors-in-the-last-5-minutes', recentHighErrors),
       );
     }
 

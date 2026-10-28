@@ -9,7 +9,8 @@
  * 来源是内核的人设（契约 `persona.get` / `persona.changed`，已按界面语言取好），跟着角色包与语言变化。
  * 还没拿到（或没有契约传输，例如测试与浏览器预览）时用通用称呼「看板娘」。
  */
-import { t } from '@nomi-ai/ui';
+import { pronounForms } from '@nomi-ai/character-contract';
+import { getLocale, t } from '@nomi-ai/ui';
 import { useSyncExternalStore } from 'react';
 
 import { api, hasTransport } from './api';
@@ -17,20 +18,25 @@ import { api, hasTransport } from './api';
 interface Names {
   full: string;
   short: string;
+  /** 角色包给的代词（当前界面语言）；空时用通用的「它」/ it */
+  pronoun: string;
 }
 
-let names: Names = { full: '', short: '' };
+let names: Names = { full: '', short: '', pronoun: '' };
 let started = false;
 const subs = new Set<() => void>();
 
 const str = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
 
-function set(p: { displayName?: unknown; shortName?: unknown } | undefined): void {
+function set(
+  p: { displayName?: unknown; shortName?: unknown; pronoun?: unknown } | undefined,
+): void {
   const full = str(p?.displayName);
   if (!full) return;
   const short = str(p?.shortName) || full;
-  if (full === names.full && short === names.short) return;
-  names = { full, short };
+  const pronoun = str(p?.pronoun);
+  if (full === names.full && short === names.short && pronoun === names.pronoun) return;
+  names = { full, short, pronoun };
   subs.forEach((f) => f());
 }
 
@@ -57,6 +63,15 @@ export function characterFullName(): string {
   return names.full || t('ui.mascot-theme.the-mascot');
 }
 
+/**
+ * 指代当前角色的代词，放进句子用：`object` 宾格（「打开她」/ show her），`possessive` 所有格
+ * （中文是代词本身，模板里自己写「的」；英文 her / its）。作为角色名之后的 `{1}` 传给 `tName`。
+ */
+export function characterPronoun(form: 'object' | 'possessive'): string {
+  start();
+  return pronounForms(getLocale(), names.pronoun || t('ui.mascot-theme.the-mascot-pronoun'))[form];
+}
+
 /** React 组件用：角色名变化（换角色包、换语言）时重新渲染；返回简称 */
 export function useCharacterName(): string {
   start();
@@ -72,8 +87,8 @@ export function useCharacterName(): string {
   return characterName();
 }
 
-/** 测试用：直接设定角色名（只给一个时全名与简称相同） */
-export function setCharacterNameForTest(short: string, full: string = short): void {
-  names = { full, short };
+/** 测试用：直接设定角色名（只给一个时全名与简称相同）与代词 */
+export function setCharacterNameForTest(short: string, full: string = short, pronoun = ''): void {
+  names = { full, short, pronoun };
   subs.forEach((f) => f());
 }

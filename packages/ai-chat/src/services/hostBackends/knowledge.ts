@@ -7,18 +7,13 @@
  */
 
 import type { AppClient } from '@nomi-ai/ai-sdk-client';
+import { isContractError } from '@nomi-ai/contract';
 
 export function installKnowledgeBackends(_api: AppClient): void {}
 
-/**
- * 认出契约调用抛的错误（`ContractError`，线上传来的 `{ code, message }`），取出错误码。
- * 按 name 认而不用 instanceof：错误对象由 ai-sdk-client 里的契约运行时创建，与视图 import 的类
- * 不一定是同一个。
- */
+/** 契约调用抛的错误（`ContractError`，按名称与错误码识别）的错误码；不是契约错误时为 undefined */
 export function contractErrorCode(err: unknown): string | undefined {
-  if (!(err instanceof Error) || err.name !== 'ContractError') return undefined;
-  const code = (err as { code?: unknown }).code;
-  return typeof code === 'string' ? code : undefined;
+  return isContractError(err) ? err.code : undefined;
 }
 
 /** 契约错误换回旧客户端抛的普通 Error（只带 message）：调用方照旧显示 `e.message` */

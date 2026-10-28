@@ -25,7 +25,7 @@
 - 形象：`rive` / `sprite` / `static`（三选一为主模式）
 - 引导插画：`onboarding/*.webp`（welcome / profile / provider / privacy）
 - 语音 clip：`voice/<locale>/`（可缺，缺则回退 TTS / 静音，check 会警告）
-- 身份：`persona.json`（`displayName`、`systemPromptIdentity`、`addressUser`、`greetings`、`tips`）——对话的系统提示身份段只从这里来
+- 身份：`persona.json`（`displayName`、`shortName`、`pronoun`、`systemPromptIdentity`、`addressUser`、`greetings`、`tips`）——对话的系统提示身份段只从这里来；`pronoun` 是界面里指代角色的代词（「点她的『AI 对话』」），不写时为「它」/ it，英文在 `locales/en.json` 的 persona 里单独给（如 `"pronoun": "he"`）
 - 角色文案（台词、提示语、问候、语音字幕）：`locales/zh.json`、`locales/en.json`——跟着角色包走，不进应用的全局 i18n 词典；包里没有的那句提示，看板娘就不说
 - 可选语义映射：`mapping.json`（情绪 / 活动 / 手势 → 引擎资源 id）
 - 可选布局：`manifest.layout`（窗口尺寸、命中区、bubbleAnchor；`skirt` 会规范为 `hem`）
@@ -90,12 +90,21 @@ my-character.pack/
 `persona.json`（主语言 zh）与 `locales/en.json`：
 
 ```json
-{ "displayName": "小纸", "systemPromptIdentity": "你是小纸，一个住在纸箱里的机器人。", "greetings": ["哔！"] }
+{
+  "displayName": "小纸",
+  "pronoun": "它",
+  "systemPromptIdentity": "你是小纸，一个住在纸箱里的机器人。",
+  "greetings": ["哔！"]
+}
 ```
 
 ```json
 {
-  "persona": { "displayName": "Pip", "systemPromptIdentity": "You are Pip, a robot living in a cardboard box." },
+  "persona": {
+    "displayName": "Pip",
+    "pronoun": "it",
+    "systemPromptIdentity": "You are Pip, a robot living in a cardboard box."
+  },
   "wakePhrase": "Hi, Pip",
   "lines": { "greet-companion": "Beep! Pip is online." }
 }

@@ -17,7 +17,7 @@
  */
 
 import {
-  ContractError,
+  isContractError,
   createClient,
   createIpcClientTransport,
   type Client,
@@ -65,7 +65,7 @@ const DONE: IteratorResult<unknown> = { value: undefined, done: true };
 /** 契约错误 → SDKError：INTERNAL 的 message 里带着内核 AIClientError 的 `[CODE|…]` 前缀 */
 function toSDKError(err: unknown): SDKError {
   if (err instanceof SDKError) return err;
-  if (err instanceof ContractError && err.code !== 'INTERNAL') {
+  if (isContractError(err) && err.code !== 'INTERNAL') {
     return new SDKError(SDKErrorCodes.IPC_ERROR, `${err.code}: ${err.message}`, { cause: err });
   }
   return SDKError.fromIpc(err);

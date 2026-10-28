@@ -12,6 +12,7 @@ import {
 } from '@nomi-ai/avatar-runtime';
 import { describe, expect, it } from 'vitest';
 
+// eslint-disable-next-line no-restricted-imports -- 一致性测试：断言渲染侧的窗口留白与内核算的窗口尺寸相同，只在测试里读内核源码
 import {
   DEFAULT_MASCOT_SCALE,
   MASCOT_PAD as MAIN_PAD,

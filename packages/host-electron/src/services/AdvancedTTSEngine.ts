@@ -2,7 +2,7 @@ import { spawn, type ChildProcess } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 
-import { t } from '@nomi-ai/core/i18n';
+import type { Translate } from '@nomi-ai/core/i18n';
 import { psQuote } from '@nomi-ai/core/security/shellEscape';
 import { createMainLogger } from '@nomi-ai/core/utils/log';
 
@@ -48,7 +48,8 @@ export class AdvancedTTSEngine {
   private config: TTSConfig | null = null;
   private currentProcess: ChildProcess | null = null;
 
-  constructor() {
+  /** t：内核实例的翻译函数（`core.i18n.t`），音色名与试听文本按当前界面语言 */
+  constructor(private readonly t: Translate) {
     this.loadConfig();
   }
 
@@ -101,7 +102,7 @@ export class AdvancedTTSEngine {
       currentVoice: 'soft-zh-female',
       voices: {
         'soft-zh-female': {
-          name: t('electron.common.soft-chinese-female-voice'),
+          name: this.t('electron.common.soft-chinese-female-voice'),
           systemVoice,
           platform: process.platform as 'darwin' | 'win32' | 'linux',
           language: 'zh-CN',
@@ -109,7 +110,7 @@ export class AdvancedTTSEngine {
           style: 'soft',
         },
         default: {
-          name: t('electron.common.system-default'),
+          name: this.t('electron.common.system-default'),
           systemVoice: process.platform === 'darwin' ? 'Meijia' : systemVoice,
           platform: process.platform as 'darwin' | 'win32' | 'linux',
           language: 'zh-CN',
@@ -376,7 +377,7 @@ export class AdvancedTTSEngine {
    */
   public async testVoice(
     voiceId: string,
-    testText: string = t('electron.common.this-is-a-voice-test'),
+    testText: string = this.t('electron.common.this-is-a-voice-test'),
   ): Promise<boolean> {
     if (!this.config || !this.config.voices[voiceId]) {
       return false;

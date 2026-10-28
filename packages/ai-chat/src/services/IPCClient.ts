@@ -1,5 +1,4 @@
 import { ClientAIClient } from '@nomi-ai/ai-sdk-client';
-import type { Persona } from '@nomi-ai/types';
 import { t } from '@nomi-ai/ui';
 import { createLogger } from '@nomi-ai/ui';
 
@@ -70,8 +69,8 @@ const writeStorage = (key: string, value: unknown): void => {
 };
 
 /**
- * systemPrompt 没有默认值：未自定义时 = 当前角色的身份段（主进程 PersonaService，
- * docs/design/core-host-decoupling.md §10.4）+ 下面这段与角色无关的对话要求。界面包里不写任何角色人设。
+ * systemPrompt 没有默认值：未自定义时用内核拼装的默认系统提示（契约 `persona.systemPrompt`：当前角色的
+ * 身份段 + 与角色无关的对话要求，docs/design/core-host-decoupling.md §10.4）。界面包里不写任何角色人设。
  */
 const DEFAULT_CONFIG: ChatConfig = {
   theme: 'light',
@@ -80,9 +79,6 @@ const DEFAULT_CONFIG: ChatConfig = {
   autoSave: true,
   maxHistoryLength: 1000,
 };
-
-/** 默认系统提示里的对话要求（不含身份）：跟随界面语言 */
-const CHAT_GUIDANCE_KEY = 'ui.chat-settings.you-run-on-the-user-s-own-computer-be';
 
 /**
  * 旧版本把默认人设存成这个翻译 key（会随 updateConfig 写进本地配置 / 用户画像），词典里已删除。
@@ -96,35 +92,27 @@ const withDefaults = (cfg: Partial<ChatConfig>): ChatConfig => {
   return merged;
 };
 
-/** 当前角色人设；取不到（旧主进程 / 浏览器开发 / 测试）时返回 undefined */
-export type PersonaGetter = () => Promise<Persona | undefined>;
+/** 内核拼装的默认系统提示；取不到（没有内核连接）时返回 undefined，不发系统提示 */
+export type SystemPromptGetter = () => Promise<string | undefined>;
 
-const personaFromPreload: PersonaGetter = async () => {
+const systemPromptFromCore: SystemPromptGetter = async () => {
   try {
     if (!hasTransport()) return undefined;
-    return await api.persona.get();
+    return await api.persona.systemPrompt();
   } catch (e) {
-    log.warn('persona unavailable', e);
+    log.warn('default system prompt unavailable', e);
     return undefined;
   }
 };
-
-/** 默认系统提示 = 角色身份 + 对话要求；没有人设时只发对话要求，不冒充任何角色 */
-export function defaultSystemPrompt(persona: Persona | undefined): string {
-  return [persona?.systemPromptIdentity, t(CHAT_GUIDANCE_KEY)]
-    .filter((s): s is string => !!s && !!s.trim())
-    .map((s) => s.trim())
-    .join('\n');
-}
 
 export class SdkIPCClient implements IPCClient {
   private readonly client: ClientAIClient;
   private readonly owned: boolean;
   private readonly store = new ConversationStore();
-  private readonly persona: PersonaGetter;
+  private readonly defaultSystemPrompt: SystemPromptGetter;
 
-  constructor(client?: ClientAIClient, opts: { persona?: PersonaGetter } = {}) {
-    this.persona = opts.persona ?? personaFromPreload;
+  constructor(client?: ClientAIClient, opts: { defaultSystemPrompt?: SystemPromptGetter } = {}) {
+    this.defaultSystemPrompt = opts.defaultSystemPrompt ?? systemPromptFromCore;
     if (client) {
       this.client = client;
       this.owned = false;
@@ -153,9 +141,8 @@ export class SdkIPCClient implements IPCClient {
     images?: Array<{ mime: string; data: string }>,
   ) {
     const { systemPrompt } = await this.getConfig();
-    // 没有自定义时每轮现取当前角色人设（换角色包 / 换界面语言即时生效）；用户自填的原样保留（含清空）
-    const base =
-      systemPrompt === undefined ? defaultSystemPrompt(await this.persona()) : systemPrompt;
+    // 没有自定义时每轮现取内核的默认系统提示（换角色包 / 换界面语言即时生效）；用户自填的原样保留（含清空）
+    const base = systemPrompt === undefined ? await this.defaultSystemPrompt() : systemPrompt;
     const sys = [base, extra].filter((s) => s && s.trim()).join('\n\n');
     return buildProviderMessages(history, message, sys, images);
   }

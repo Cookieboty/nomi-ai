@@ -30,7 +30,12 @@ import { CheckCircle2, Cloud, FolderLock, KeyRound, Lock, PlugZap } from 'lucide
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useNomiModelStatus } from '../../hooks/useNomiModelStatus';
-import { characterFullName, characterName, useCharacterName } from '../../services/characterName';
+import {
+  characterFullName,
+  characterName,
+  characterPronoun,
+  useCharacterName,
+} from '../../services/characterName';
 import { startupClient, type StartupView } from '../../services/startupClient';
 import { ChatBackgroundSettings } from '../SettingsView/ChatBackgroundSettings';
 
@@ -81,7 +86,11 @@ const STARTUPS: { id: StartupView; label: () => string; hint: () => string }[] =
     id: 'mascot',
     label: () => tName('ui.mascot-theme.open-with-nomi', characterName()),
     hint: () =>
-      tName('ui.mascot-theme.nomi-appears-on-your-desktop-first-click-her', characterName()),
+      tName(
+        'ui.mascot-theme.nomi-appears-on-your-desktop-first-click-her',
+        characterName(),
+        characterPronoun('possessive'),
+      ),
   },
   {
     id: 'main',

@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import {
   ContractError,
+  isContractError,
   createClient,
   createServerSession,
   defineContract,
@@ -42,7 +43,7 @@ async function rejection(p: Promise<unknown>): Promise<ContractError> {
   try {
     await p;
   } catch (err) {
-    expect(err).toBeInstanceOf(ContractError);
+    expect(isContractError(err)).toBe(true);
     return err as ContractError;
   }
   throw new Error('expected rejection');
@@ -461,7 +462,7 @@ describe('events', () => {
         used: number;
         limit: number;
       }),
-    ).toThrow(ContractError);
+    ).toThrow(expect.objectContaining({ name: 'ContractError' }));
     expect(() => (router.events.publish as (n: string, d: unknown) => void)('nope', {})).toThrow(
       /not declared/,
     );

@@ -189,13 +189,12 @@ export const contract = defineContract({
 
 现在只有 Electron IPC，但契约从一开始就按「内核可能在另一个进程、通过网络访问」来约束。理由：换成 Tauri 时后端是 Rust，Node 内核只能作为 sidecar 进程运行，视图需要通过 WebSocket 访问它。
 
-| 约束         | 规则                                                                                |
-| ------------ | ----------------------------------------------------------------------------------- |
-| 可序列化     | 参数、返回值、事件只用 JSON 可表达的值；二进制用 `Uint8Array`；不传函数、class 实例 |
-| 流式         | `stream` = 请求 id + 若干 chunk 事件 + 结束 / 错误；取消用显式 `abort(id)`          |
-| 不用同步调用 | 现有 `kind: 'sync-return'` 一律改为异步（它在 Electron 里也只是 `invoke`）          |
-| 错误         | 统一 `{ code, message, data? }`，`code` 在契约里枚举；不透传 Error 对象             |
-| 大文件       | 不经契约传内容；传路径或宿主签发的 `asset://` URL                                   |
+| 约束         | 规则                                                                                                                                                                       |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 可序列化     | 参数、返回值、事件只用 JSON 可表达的值；二进制用 `Uint8Array`；不传函数、class 实例                                                                                        |
+| 流式         | `stream` = 请求 id + 若干 chunk 事件 + 结束 / 错误；取消用显式 `abort(id)`                                                                                                 |
+| 不用同步调用 | 现有 `kind: 'sync-return'` 一律改为异步（它在 Electron 里也只是 `invoke`）                                                                                                 |
+| 错误         | 统一 `{ code, message, data? }`，`code` 在契约里枚举；不透传 Error 对象；按名称 + 错误码识别（`isContractError(err, code?)`），不用 `instanceof`（跨副本 / 跨 realm 安全） |
 
 ### 4.3 版本与兼容
 
@@ -463,7 +462,7 @@ interface HostCapabilities {
 ```
 characters/nomi/
   manifest.json        id、contractVersion、assets.mode、capabilities、layout（窗口尺寸、命中区、气泡锚点）
-  persona.json         displayName、systemPromptIdentity、addressUser、greetings、tips
+  persona.json         displayName、systemPromptIdentity、pronoun、addressUser、greetings、tips
   mapping.json         语义 → 引擎资源（§10.5）
   locales/{zh,en}.json 角色台词、提示语、语音字幕
   rive/ sprite/ static/
@@ -491,12 +490,13 @@ interface Persona {
   characterId: string;
   displayName: string;
   systemPromptIdentity: string;
+  pronoun?: string; // 界面里指代角色的人称；没给时「它 / it」
   addressUser?: string;
   greetings: string[];
 }
 ```
 
-- 角色 preset（`CompanionAgentPresetPlugin`，C3 前叫 `WaifuAgentPresetPlugin`）与 ai-chat 的默认系统提示都从这里读。
+- 角色 preset（`CompanionAgentPresetPlugin`，C3 前叫 `WaifuAgentPresetPlugin`）与对话的默认系统提示都从这里读。默认系统提示由内核拼装（`core/src/persona/systemPrompt.ts`：身份段 + 与角色无关的对话要求，跟随界面语言），ai-chat 经契约 `persona.systemPrompt` 取，界面包里不拼人设。
 - 删除两处硬编码：`WaifuAgentPresetPlugin.ts`（现 `CompanionAgentPresetPlugin.ts`）的「你是 Nomi（诺米）……」兜底，以及 `IPCClient.ts` 使用的 `you-are-nomi-an-ai-companion-who-lives` key（文本搬进 `characters/nomi/persona.json`，同时删 `en.json` 对应条目）。
 - 两份 `character.generated.json` 删除，由 `PersonaService` 和 `avatar-runtime` 从同一个解析结果读取。
 
@@ -546,7 +546,7 @@ renderer 只保留：透明窗口壳、气泡、工具栏、右键菜单，以�
 - 视图禁止 import `core`、`host-*`；内核禁止 import 任何视图包与 `ui`。
 - 任何包禁止 import `characters/*`，只能经包解析读取。
 
-工具：ESLint `no-restricted-imports` + `no-restricted-globals` 覆盖大部分；包级依赖方向用 dependency-cruiser（MIT）或在 `scripts/` 写检查脚本。
+工具：ESLint `no-restricted-imports` + `no-restricted-syntax` / `no-restricted-globals` 与自定义规则 `nomi/no-dynamic-electron`，全部 error 级（`eslint.config.mjs`）：第一条由 `ELECTRON_FREE_PACKAGES` 与动态加载规则守住（白名单为空）；第二条禁止视图访问上述全局；第三条是视图（`renderer`、`ai-chat`、`ai-sdk-client`、`ui`、`voice`）不 import `@nomi-ai/core` / `@nomi-ai/host-*`，内核不 import 视图包与 `ui`；第四条是所有包的 `CHARACTER_PACK_IMPORT`（`**/characters/**`）。唯一的例外是 renderer 的 `spriteLayout.test.ts` 读内核的窗口尺寸做一致性断言，行内注明理由。
 
 ### 11.2 名字扫描
 
@@ -855,13 +855,13 @@ stop() }`；宿主 `packages/host-electron/src/host/Application.ts`（宿主区�
 >
 > 剩下的：
 >
-> - 仍是进程级、两个内核共用的：界面语言（`i18n` 的 `t()` 与 `LocaleService` 写的当前语言）、日志开关与私有文件根目录
->   （宿主的 `processDefaults`）、诊断日志写入器（`diagnostics/cliTrace`，最后一个 `DiagnosticsService` 的目录生效）、
->   子进程 / worker 的缓存（`codexThreadReader`、`sileroNode`、CLI 路径探测、登录 shell 的 PATH），以及 `createMainLogger`；
->   无界面 e2e 同进程起两个内核时，界面语言与诊断日志目录会互相覆盖；
+> - 界面语言、日志开关、私有文件根目录与诊断日志写入器已改为每个内核一份（2.0.5：`core/scope.ts` 的 `CoreScope`，
+>   `createCore` 用 AsyncLocalStorage 把构造、启停与每个契约处理器包进本内核的作用域；宿主经 `core.i18n` 拿翻译函数）；
+>   作用域之外 `t()` 用不可变的进程默认（`CD_LOCALE` 或中文）。仍是进程级的：子进程 / worker 的缓存
+>   （`codexThreadReader`、`sileroNode`、CLI 路径探测、登录 shell 的 PATH）以及 `createMainLogger`；
 > - `ai-runtime` 的 `package.json` 仍把 `bundle-ig-electron-caps` 与（可选的）`electron` 列为 peer（源码已不引用）；
-> - 契约包同时发 ESM 与 CommonJS：同一进程里混用两种格式会有两份 `ContractError`，服务端用 `instanceof` 判断，内核抛的
->   业务码会变成 INTERNAL。P4 第二步（`e2e/` 改跑无界面宿主）要统一格式或改成按 `name` / `code` 判断；
+> - 契约包同时发 ESM 与 CommonJS，同一进程里可能有两份 `ContractError`：服务端与客户端按 `name` / `code` 识别
+>   （`isContractError`，见 P4 第二步），内核抛的业务码不会变成 INTERNAL；
 > - P4 本身（`e2e/` 改跑无界面宿主、WebSocket 传输，§11.3 前两项）未开始。
 
 > P4 第二步完成（分支 `refactor/p4-host-node`）：§11.3 前两项通过，P4 完成。
@@ -880,7 +880,7 @@ stop() }`；宿主 `packages/host-electron/src/host/Application.ts`（宿主区�
 >   router、AI runtime 与数据（主题、用户画像、网关供应商（Key 不以明文落盘）、记忆）互不相干；E7 经 WebSocket 传输测
 >   真实内核（握手、查询、修改、事件订阅、错 token / 外站 Origin 被拒绝）。全部用例不需要 Electron 与 xvfb；
 > - 用真实内核跑出来的问题（都修了）：契约包与 `bundle-ig-base` 同时发 ESM 与 CommonJS，同一进程里两份副本互不相认——
->   `ContractError` 改用 `Symbol.for` 品牌（`Symbol.hasInstance`），插件服务键改用 `Symbol.for('nomi.ig.service:<名字>')`
+>   `ContractError` 改为按名称与错误码识别（`isContractError(err, code?)`，不用 `instanceof`，跨副本、跨 realm 都认得），插件服务键改用 `Symbol.for('nomi.ig.service:<名字>')`
 >   （上一步「剩下的」里的格式问题就此解决，E6 不再需要按 CommonJS 加载契约）；`UserPreferenceMemoryPlugin` 发的
 >   `userProfile/changed` 是裸画像，与声明的 `{ profile }` 不符（视图侧两种都认，界面上没有变化）；`ai-sdk-client` 的主入口与
 >   `react` 入口各打包一份共享传输表，Electron 里每个窗口其实开了两个会话（表改放 `globalThis`）；
@@ -911,8 +911,7 @@ stop() }`；宿主 `packages/host-electron/src/host/Application.ts`（宿主区�
 >
 > 剩下的：
 >
-> - 仍是进程级、两个内核共用的状态没有变（见第一步的「剩下的」：界面语言、日志开关与私有文件根目录、诊断日志写入器、
->   子进程 / worker 缓存、`createMainLogger`），E6 不断言它们；
+> - 仍是进程级的子进程 / worker 缓存与 `createMainLogger`（见第一步的「剩下的」）E6 不断言；
 > - 只有 ai-chat 接了 WebSocket 开发传输；看板娘窗口（renderer）是透明窗口壳，依赖宿主窗口，没有接。`dev:web` 里要用
 >   窗口对象的过程（看板娘大小、灵动岛、应用图标、旧窗口通道）报 UNAVAILABLE，拖入文件（`nomiHost`）不可用；
 > - 无界面宿主的资源目录是空的：角色包解析不到内置包（日志「built-in pack not found」，人设为中性），替身角色验收
@@ -964,7 +963,7 @@ stop() }`；宿主 `packages/host-electron/src/host/Application.ts`（宿主区�
 >
 > - §11.3 替身角色（G5）没有达成：替身包有了映射，运行时与内核的单测走真实路径（人设、系统提示身份段、发给界面的快照不含官方名），
 >   但用它跑一轮 e2e、断言界面文本不含 Nomi，要先做界面文案里产品名 / 角色名的分拣（§10.1）与 `scripts/check-character-leak`（§11.2）；
-> - `companion` preset 已注册，还没有消费方：对话的系统提示仍由 ai-chat（`IPCClient`）拼，会话的 `agentPreset` 只是透传字段；
+> - `companion` preset 已注册，还没有消费方：对话的默认系统提示由内核拼（`core/src/persona/systemPrompt.ts`，契约 `persona.systemPrompt`，2.0.5 起；原来在 ai-chat 的 `IPCClient`），会话的 `agentPreset` 只是透传字段；
 > - `touched` / `clicked` / `scene` 到了 `ctx.avatar`，还没有 AI 功能订阅（例如把触摸作为感官输入注入会话）；
 > - 互动反应表（`interaction/gestures.ts`：摸头、点击等）仍直接用引擎动作名、不经映射：这是角色对用户操作的反应，不来自 AI；
 >   看板娘窗口的动作菜单列的也是当前后端的动作（资源名，直接交给引擎）。
@@ -1016,7 +1015,10 @@ stop() }`；宿主 `packages/host-electron/src/host/Application.ts`（宿主区�
 >   （契约包的数据，不在扫描范围）。要不要改成「不填就用 .riv 默认」，等第三方 rive 包的模板定下来再决定；
 > - 中文界面的角色语境从「Nomi」变成人设名「诺米」，与 `docs/BRAND.md`「中文首次写 Nomi·诺米、之后写 Nomi」的口径不同：品牌文档要按
 >   「产品叫 Nomi，角色叫诺米」改写；
-> - 「她 / her」之类不带名字的人称（例如「摸她的头」）没有改：不泄漏名字，但对非女性角色不合适，可以以后按角色包给的人称处理；
+> - 界面里指代角色的人称来自角色包：`persona.json` 的 `pronoun`（中文）与 `locales/en.json` 的 `persona.pronoun`（英文主格），
+>   没写时用中性的「它 / it」，不拿另一种语言的值顶替；官方包是「她 / she」。`character-contract` 的 `personaPronoun` /
+>   `pronounForms` 给出宾格与所有格（ai-chat `characterPronoun()`），「点{1}的『AI 对话』」「打开{1}后」这类文案经参数传入；
+>   其余不需要人称的文案改成不带人称的写法（「摸头、戳脸…」「除非你逐个文件夹授权，否则看不到你的文件」）；
 > - 托盘菜单在建菜单时取一次角色名，换角色包 / 换语言后要等菜单重建才更新。
 
 > P4 与 C3 / G5 合流（`refactor/c3-semantic` 变基到 `refactor/p4-host-node` 之上，再快进合入 P4 分支）：两条线都从 `release/2.0.5` 的
@@ -1042,9 +1044,9 @@ stop() }`；宿主 `packages/host-electron/src/host/Application.ts`（宿主区�
 >
 > 剩下的：
 >
-> - 同一进程里多个内核共用的进程级状态（P4「剩下的」第一条）没有变；E8 改界面语言后还原成跟随系统，免得影响同进程后面的用例；
-> - `CHARACTER_PACK` 是进程环境变量：E8 在用例文件里设、跑完还原；要在同一进程里同时起官方与替身两个内核，需要给 `createCore` /
->   无界面宿主加显式的内置包目录选项。
+> - 界面语言、日志开关、私有文件根目录与诊断日志写入器按内核实例隔离（`CoreScope`，见 P4 第一步「剩下的」第一条）；仍是进程级的是
+>   子进程 / worker 缓存与 `createMainLogger`；
+> - 内置角色包是内核实例的选项（`CoreConfig.builtinCharacterPack`），不是进程环境变量：E8 给替身包的路径，同一进程里别的内核仍用官方包。
 
 > 合流后的评审修正（`refactor/p4-host-node`）：
 >

@@ -20,6 +20,7 @@ exports[`mascot 契约 > 过程名 / kind / surfaces / dangerous 1`] = `
   "mascot.getSavedModel query mascot",
   "character.getActivePack query *",
   "persona.get query *",
+  "persona.systemPrompt query chat",
   "island.get query chat",
   "island.set mutation chat",
   "island.test mutation chat",

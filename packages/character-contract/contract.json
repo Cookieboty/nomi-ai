@@ -219,7 +219,7 @@
   "persona": {
     "file": "persona.json",
     "required": ["displayName", "systemPromptIdentity", "greetings"],
-    "optional": ["addressUser", "tips"],
+    "optional": ["shortName", "pronoun", "addressUser", "tips"],
     "legacyFile": "persona/system-prompt.md"
   },
   "locales": {
