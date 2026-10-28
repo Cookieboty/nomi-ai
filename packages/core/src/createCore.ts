@@ -127,6 +127,11 @@ export interface CoreConfig {
   chatBackgroundPresetFile?: string;
   /** 启动时按计划同步模型数据（models.dev，联网），默认 true；测试关掉 */
   autoSyncModels?: boolean;
+  /**
+   * 统一网关本次运行监听的端口（0 = 系统分配），覆盖用户设置但不保存；缺省用设置里的端口。
+   * 无界面宿主用它，不和本机装着的 Nomi 抢默认端口
+   */
+  gatewayPort?: number;
 }
 
 /** 宿主钩子：都是可选的，缺省时对应能力不可用或不做 */
@@ -620,6 +625,7 @@ export function createCore(deps: CoreDeps): Core {
     const gateway = new GatewayService({
       root: userData('gateway'),
       processes: ports.processes,
+      ...(cfg.gatewayPort !== undefined ? { port: cfg.gatewayPort } : {}),
       cipher: createSafeStorageCipher(safeStorageFromSecrets(ports.secrets)),
       logger: logger as never,
       // 网关事件不计入用量账本（CLI 以会话日志为准），进模型质量

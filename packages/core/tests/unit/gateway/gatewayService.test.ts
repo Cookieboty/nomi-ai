@@ -42,7 +42,12 @@ class FakeChild extends EventEmitter {
 }
 
 function setup(
-  o: { routeListening?: boolean; legacyNomi?: unknown; detectImpl?: typeof detect } = {},
+  o: {
+    routeListening?: boolean;
+    legacyNomi?: unknown;
+    detectImpl?: typeof detect;
+    port?: number;
+  } = {},
 ) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gw-svc-'));
   const nomiFile = path.join(root, 'ai-providers.json');
@@ -72,6 +77,7 @@ function setup(
     },
     broadcast: (ch) => broadcasts.push(ch),
     detectImpl: o.detectImpl,
+    ...(o.port !== undefined ? { port: o.port } : {}),
   });
   const lastConfig = () =>
     (
@@ -273,6 +279,14 @@ describe('GatewayService', () => {
     const t = setup({ routeListening: true });
     t.svc.init();
     expect(t.lastConfig().port).toBe(0);
+  });
+
+  it('a host port override applies to this run only and is not written back', () => {
+    const t = setup({ port: 0 });
+    t.svc.init();
+    expect(t.lastConfig().port).toBe(0);
+    const stored = JSON.parse(fs.readFileSync(path.join(t.root, 'gateway', 'store.json'), 'utf8'));
+    expect(stored.port).toBe(18721);
   });
 
   it('state never exposes key material or tokens', () => {

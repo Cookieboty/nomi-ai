@@ -266,6 +266,11 @@ export interface GatewayServiceDeps {
   process?: GatewayProcess;
   /** 宿主的工具子进程（网关进程经它拉起）；缺省时网关起不来，状态为 failed */
   processes?: ProcessesPort;
+  /**
+   * 本次运行监听的端口，覆盖存储里的端口但不写回（0 = 系统分配）。无界面宿主（e2e、`pnpm dev:web`）用它，
+   * 不和本机装着的 Nomi 抢默认端口；客户端经网关状态里的实际端口连过来
+   */
+  port?: number;
   legacy?: {
     nomiFile: string;
     cliRoot: string;
@@ -431,6 +436,7 @@ export class GatewayService {
     const rp = (this.d.env ?? process.env).NOMI_ROUTE_PLAN;
     if (rp === 'shadow') cfg.routePlan = 'shadow';
     else cfg.routePlan = 'active';
+    if (this.d.port !== undefined) cfg.port = this.d.port;
     // 旧路由占着端口时先用临时端口
     if (this.d.legacy?.routeListening()) cfg.port = 0;
     return cfg;
