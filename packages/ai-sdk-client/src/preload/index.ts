@@ -14,3 +14,4 @@
 export * from './mkNomiHostPreload';
 export * from './mkNomiTransportPreload';
 export * from './types';
+export * from './windowKind';

@@ -4,7 +4,7 @@
 // `electron` 及少量内建模块，无法加载 `@nomi-ai/ai-sdk-client/preload` 这类 workspace 包。
 // tsc 输出的 dist/preload.js 会因此抛出 "module not found"，导致 window.nomiTransport /
 // window.nomiHost 均不可用。这里用 tsup(esbuild) 把依赖内联进去，仅保留 `electron` 为外部依赖，
-// 输出为 dist/*.bundle.js（WindowManager 加载的就是这些文件）。使用独立文件名，
+// 输出为 dist/preload.bundle.js（两个窗口共用，WindowManager 加载的就是它）。使用独立文件名，
 // 避免与 `tsc -w` 的输出互相覆盖。
 //
 // 用法：node scripts/bundle-preload.mjs [--watch]
@@ -19,7 +19,6 @@ const watch = process.argv.includes('--watch');
 await build({
   entry: {
     'preload.bundle': path.join(root, 'src/preload.ts'),
-    'ai-chat-preload.bundle': path.join(root, 'src/ai-chat-preload.ts'),
   },
   outDir: path.join(root, 'dist'),
   format: ['cjs'],

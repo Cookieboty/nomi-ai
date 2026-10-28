@@ -18,7 +18,6 @@ export const ELECTRON_HOST_FILES = [
   'packages/host-electron/src/host/**',
   'packages/host-electron/src/main.ts',
   'packages/host-electron/src/preload.ts',
-  'packages/host-electron/src/ai-chat-preload.ts',
   'packages/host-electron/src/schemePrivileges.ts',
   'packages/host-electron/src/core/WindowManager.ts',
   'packages/host-electron/src/core/TrayManager.ts',

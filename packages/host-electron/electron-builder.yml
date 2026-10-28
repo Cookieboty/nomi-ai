@@ -33,7 +33,6 @@ files:
   - '!dist/ai-chat/**'
   # 预加载只用 esbuild 产物 *.bundle.js
   - '!dist/preload.js'
-  - '!dist/ai-chat-preload.js'
   # assets 全部走 extraResources（Windows Shell / tray / 背景图需磁盘路径），不进 asar
   - '!assets/**'
   - '!**/*.map'

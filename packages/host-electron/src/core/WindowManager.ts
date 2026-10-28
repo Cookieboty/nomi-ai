@@ -5,6 +5,7 @@
 import * as path from 'path';
 import * as url from 'url';
 
+import { nomiWindowArg, type NomiWindowKind } from '@nomi-ai/ai-sdk-client/preload';
 import type { AppEvents } from '@nomi-ai/core/core/appEvents';
 import type { ChatNavEvent } from '@nomi-ai/core/core/chatNav';
 import { fitMascotScale, maxScaleForArea, mascotWindowSize } from '@nomi-ai/core/mascot/mascotSize';
@@ -41,7 +42,8 @@ export interface WindowOptions {
   /** 窗口准备好后显示但不抢占焦点（开机自启 / 看板娘让位给主界面） */
   showInactive?: boolean;
   title?: string;
-  preloadScript?: string;
+  /** preload 侧的窗口类型（`--nomi-window=<kind>`）：只有看板娘窗口的 `nomiHost.dropFile` 会提交 */
+  windowKind: NomiWindowKind;
   /** 额外的 BrowserWindow 选项（标题栏样式等） */
   chrome?: Partial<BrowserWindowConstructorOptions>;
 }
@@ -134,7 +136,7 @@ export class WindowManager implements IWindowManager {
         alwaysOnTop: true,
         show: false,
         showInactive: opts.activate === false,
-        preloadScript: 'preload.bundle.js',
+        windowKind: 'mascot',
       };
 
       this.mainWindow = await this.createWindow(windowOptions, 'main');
@@ -214,7 +216,7 @@ export class WindowManager implements IWindowManager {
         show: false,
         showInactive: opts.activate === false,
         title: brand.appName,
-        preloadScript: 'ai-chat-preload.bundle.js',
+        windowKind: 'chat',
         chrome: {
           ...titleBarOptions(process.platform, this.chromeTheme()),
           minWidth: CHAT_MIN_SIZE.width,
@@ -334,7 +336,9 @@ export class WindowManager implements IWindowManager {
       backgroundColor: type === 'main' ? '#00000000' : undefined,
       ...(options.chrome ?? {}),
       webPreferences: {
-        preload: path.join(__dirname, '..', options.preloadScript || 'preload.bundle.js'),
+        // 两个窗口共用一个 preload 包；窗口类型经参数传给 preload（只决定 dropFile 是否可用）
+        preload: path.join(__dirname, '..', 'preload.bundle.js'),
+        additionalArguments: [nomiWindowArg(options.windowKind)],
         contextIsolation: true,
         nodeIntegration: false,
         sandbox: true,

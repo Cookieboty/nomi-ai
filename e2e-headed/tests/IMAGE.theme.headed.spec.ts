@@ -100,7 +100,7 @@ for (const packaged of [false, true]) {
             width: 1280,
             height: 900,
             webPreferences: {
-              preload: resolve(electronDirectory, 'dist/ai-chat-preload.bundle.js'),
+              preload: resolve(electronDirectory, 'dist/preload.bundle.js'),
               contextIsolation: true,
               nodeIntegration: false,
               sandbox: false,

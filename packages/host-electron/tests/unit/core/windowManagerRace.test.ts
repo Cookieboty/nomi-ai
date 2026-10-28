@@ -73,6 +73,15 @@ describe('WindowManager.createAiChatWindow 并发', () => {
     expect(win.focus).toHaveBeenCalled();
   });
 
+  it('对话窗口按 chat 窗口类型建（共用 preload 里拿不到 dropFile 的提交通道）', async () => {
+    const { wm, createWindow, release } = make();
+    const pending = wm.createAiChatWindow();
+    release();
+    await pending;
+    expect(createWindow.mock.calls[0]![0]).toMatchObject({ windowKind: 'chat' });
+    expect(createWindow.mock.calls[0]![1]).toBe('aiChat');
+  });
+
   it('创建失败后可以重试（in-flight 标记被清除）', async () => {
     const { wm, release } = make();
     const internals = wm as unknown as Internals;

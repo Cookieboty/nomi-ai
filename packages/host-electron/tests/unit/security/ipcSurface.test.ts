@@ -73,12 +73,18 @@ describe('主进程 IPC 面', () => {
     expect(hits).toEqual([]);
   });
 
-  it('preload 只暴露契约传输与宿主能力两个全局', () => {
-    for (const preload of ['preload.ts', 'ai-chat-preload.ts']) {
-      const src = code(path.join(SRC, preload));
-      expect(src).toMatch(/mkNomiTransportPreload\(/);
-      expect(src).toMatch(/mkNomiHostPreload\(/);
-      expect(src).not.toMatch(/exposeInMainWorld|ipcRenderer\s*\.\s*(invoke|send|on)\s*\(/);
-    }
+  it('两个窗口共用一个 preload，只暴露契约传输与宿主能力两个全局', () => {
+    const preloads = fs.readdirSync(SRC).filter((f) => /preload\.ts$/.test(f));
+    expect(preloads).toEqual(['preload.ts']);
+    const src = code(path.join(SRC, 'preload.ts'));
+    expect(src).toMatch(/mkNomiTransportPreload\(/);
+    expect(src).toMatch(/mkNomiHostPreload\(/);
+    expect(src).not.toMatch(/exposeInMainWorld|ipcRenderer\s*\.\s*(invoke|send|on)\s*\(/);
+    // dropFile 的提交通道只交给看板娘窗口（窗口类型由主进程经 additionalArguments 给）
+    expect(src).toMatch(/nomiWindowKindFromArgv\(process\.argv\) === 'mascot'/);
+    const wm = code(path.join(SRC, 'core/WindowManager.ts'));
+    expect(wm).toMatch(/additionalArguments: \[nomiWindowArg\(options\.windowKind\)\]/);
+    expect(wm).toMatch(/windowKind: 'mascot'/);
+    expect(wm).toMatch(/windowKind: 'chat'/);
   });
 });

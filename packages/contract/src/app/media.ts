@@ -17,7 +17,7 @@
  *
  * 安全（§8）：
  * - `ai:*` 两个窗口都有，不写 surfaces；只在一个 preload 里暴露的写 surfaces：看板娘（preload.ts 的
- *   electronAPI）`['mascot']`，对话窗口（ai-chat-preload.ts 的 electronAPI.tts）`['chat']`；`tts:stop` 两边都有；
+ *   electronAPI）`['mascot']`，对话窗口（原 ai-chat-preload.ts 的 electronAPI.tts）`['chat']`；`tts:stop` 两边都有；
  * - 回答用户确认、授予权限的写 `dangerous: true`：确认答复、授权文件夹、工具策略、仅本地开关、全部重置、
  *   语音云端告知确认。
  *
