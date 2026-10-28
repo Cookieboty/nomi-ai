@@ -39,6 +39,21 @@ export interface AgentBrowserApi {
   isOpen(): boolean;
 }
 
+/** 宿主没有受控浏览器时的占位：打开 / 操作网页都报不可用 */
+export function unavailableBrowser(): AgentBrowserApi {
+  const fail = (): never => {
+    throw new ToolError('unavailable', '当前环境没有受控浏览器');
+  };
+  return {
+    open: async () => fail(),
+    read: async () => fail(),
+    click: async () => fail(),
+    type: async () => fail(),
+    close: () => undefined,
+    isOpen: () => false,
+  };
+}
+
 export type CodeLanguage = 'javascript' | 'python';
 export type CodeSandboxKind =
   'node-permission' | 'sandbox-exec' | 'bwrap' | 'job' | 'none' | 'fallback';

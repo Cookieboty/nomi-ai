@@ -43,6 +43,7 @@ import {
   readCatalogFile,
   setCatalogOverlay,
 } from '@nomi-ai/gateway';
+import type { ProcessesPort } from '@nomi-ai/host-ports';
 
 import { t as tr } from '../i18n';
 import { writePrivateFileAtomicAsync } from '../utils/privateFile';
@@ -263,6 +264,8 @@ export interface GatewayServiceDeps {
   cipher: SecretCipher;
   logger: Logger;
   process?: GatewayProcess;
+  /** 宿主的工具子进程（网关进程经它拉起）；缺省时网关起不来，状态为 failed */
+  processes?: ProcessesPort;
   legacy?: {
     nomiFile: string;
     cliRoot: string;
@@ -315,6 +318,7 @@ export class GatewayService {
       d.process ??
       new GatewayProcess({
         logger: d.logger,
+        processes: d.processes,
         onUsage: (e) => {
           this.notePrivacy(e);
           d.onUsage?.(e);

@@ -18,8 +18,6 @@ import {
   sanitizeChatBg,
   type ChatBackgroundState,
 } from '@nomi-ai/types';
-// 仍需 Electron：nativeImage 缩放大图（没有对应端口）
-import { nativeImage } from 'electron';
 
 import type { AppEvents } from '../core/appEvents';
 import { t as tr } from '../i18n';
@@ -44,8 +42,8 @@ export interface ChatBackgroundDeps {
   imagesDir: string;
   /** 内置预设图（getChatBackgroundPresetFile） */
   presetFile: string;
-  /** 选择图片 */
-  ports: Pick<HostPorts, 'dialogs'>;
+  /** 选择图片（dialogs）、缩放大图（image） */
+  ports: Pick<HostPorts, 'dialogs' | 'image'>;
   /** 通知界面（`chat-bg:changed` 发给所有窗口） */
   events: AppEvents;
 }
@@ -151,19 +149,16 @@ export class ChatBackgroundService {
       );
     }
     await fsp.mkdir(this.imagesDir, { recursive: true });
-    let resized: Buffer | null = null;
+    let resized: Uint8Array | null = null;
     if (ext !== '.gif') {
-      const img = nativeImage.createFromBuffer(await fsp.readFile(src));
-      const { width, height } = img.isEmpty() ? { width: 0, height: 0 } : img.getSize();
+      const data = await fsp.readFile(src);
+      const { width, height } = (await this.ports.image.size(data)) ?? { width: 0, height: 0 };
       if (Math.max(width, height) > CHAT_BG_MAX_EDGE) {
-        const out = img.resize(
-          width >= height
-            ? { width: CHAT_BG_MAX_EDGE, quality: 'best' }
-            : { height: CHAT_BG_MAX_EDGE, quality: 'best' },
-        );
-        if (ext === '.png') resized = out.toPNG();
+        const edge = width >= height ? { width: CHAT_BG_MAX_EDGE } : { height: CHAT_BG_MAX_EDGE };
+        if (ext === '.png')
+          resized = await this.ports.image.resize(data, { ...edge, format: 'png' });
         else {
-          resized = out.toJPEG(85);
+          resized = await this.ports.image.resize(data, { ...edge, format: 'jpeg', quality: 85 });
           ext = '.jpg';
         }
       }

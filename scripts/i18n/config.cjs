@@ -31,6 +31,7 @@ module.exports = {
     /electron[\\/]src[\\/]agents[\\/]parsers\.ts$/,
     /electron[\\/]src[\\/]memory[\\/]episodes\.ts$/,
     /electron[\\/]src[\\/]sandbox[\\/]/,
+    /electron[\\/]src[\\/]host[\\/]AgentBrowser\.ts$/,
     /electron[\\/]src[\\/]desktop[\\/]parse[\\/]/,
   ],
 };

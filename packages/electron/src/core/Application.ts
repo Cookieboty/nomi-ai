@@ -46,6 +46,7 @@ import { getGatewayService, initGatewayService } from '../gateway/GatewayService
 import { harnessGateway } from '../gateway/harnessGateway';
 import { revokeLegacyGlobalConfig, type RevokeLegacyResult } from '../gateway/revokeLegacy';
 import { gatewayTerminalSource, initTerminalCommands } from '../gateway/TerminalCommands';
+import { AgentBrowser } from '../host/AgentBrowser';
 import {
   APP_EVENT_BRIDGE,
   createAppRouter,
@@ -280,11 +281,19 @@ export class Application implements IApplication {
       updates.start();
 
       // 桌面能力（文件工具的权限 / 审计 / 撤销）：先于 AI runtime，插件注册工具时要用
-      const desktop = getDesktopService(this.logger, { ports: this.ports, events: this.events });
+      const desktop = getDesktopService(this.logger, {
+        ports: this.ports,
+        events: this.events,
+        browser: () => new AgentBrowser(),
+      });
       services.desktop = desktop;
       desktop.attachWindows({
         main: () => this.windowManager.getMainWindow(),
         openChat: () => this.windowManager.createAiChatWindow(),
+        chatOpen: () => {
+          const chat = this.windowManager.getAiChatWindow();
+          return !!chat && !chat.isDestroyed();
+        },
         mascotHidden: () => this.windowManager.mascotHidden(),
       });
       // 拖到看板娘身上的文件：preload 从真实 File 取路径后经专用通道直接提交（不经契约，视图选不了路径）
@@ -652,6 +661,7 @@ export class Application implements IApplication {
       this.lifecycle.register({ name: 'gateway-requests', stop: () => gatewayRequests.dispose() });
       const gateway = initGatewayService({
         root: path.join(app.getPath('userData'), 'gateway'),
+        processes: this.ports.processes,
         cipher: createSafeStorageCipher(safeStorage),
         logger: this.logger as never,
         // 网关事件不计入用量账本（CLI 以会话日志为准），进模型质量

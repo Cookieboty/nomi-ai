@@ -7,33 +7,14 @@ jest.unmock('path');
 jest.unmock('node:fs');
 jest.unmock('node:path');
 
-const shown: Array<{ title: string; body: string; click?: () => void }> = [];
-jest.mock('electron', () => ({
-  app: { isPackaged: true, getPath: () => '/tmp' },
-  BrowserWindow: { getAllWindows: () => [], getFocusedWindow: () => null },
-  dialog: {},
-  shell: {},
-  nativeImage: { createFromPath: () => ({ isEmpty: () => true }) },
-  Notification: Object.assign(
-    jest.fn().mockImplementation((o: { title: string; body: string }) => {
-      const rec: { title: string; body: string; click?: () => void } = { ...o };
-      return {
-        on: (ev: string, fn: () => void) => {
-          if (ev === 'click') rec.click = fn;
-        },
-        show: () => shown.push(rec),
-      };
-    }),
-    { isSupported: () => true },
-  ),
-}));
+// 系统通知经 ports.notifications（fakeHostPorts 记在 calls.notifications）
+let shown: Array<{ title: string; body: string; click?: () => void }> = [];
 
 const island = jest.fn((_n: unknown) => true);
 jest.mock('../../../src/island/IslandService', () => ({
   notifyIsland: (n: unknown) => island(n),
 }));
 jest.mock('../../../src/ai/mascotCommand', () => ({ broadcastMascotCommand: jest.fn() }));
-jest.mock('../../../src/core/appIcon', () => ({ iconImage: () => undefined }));
 
 import * as fs from 'fs';
 import * as os from 'os';
@@ -49,10 +30,9 @@ const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest
 function setup(opts: { hidden: boolean; window?: boolean; quiet?: boolean }) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'remind-route-'));
   const events = createRecordingAppEvents();
-  const svc = new DesktopService(root, logger as never, {
-    ports: fakeHostPorts({ userData: '/tmp', home: '/tmp' }),
-    events,
-  });
+  const ports = fakeHostPorts({ userData: '/tmp', home: '/tmp' });
+  shown = ports.calls.notifications;
+  const svc = new DesktopService(root, logger as never, { ports, events });
   // 发给看板娘窗口的事件（经事件总线，surface = mascot）
   const send = jest.fn();
   const publish = events.publish.bind(events);
@@ -88,7 +68,6 @@ function setup(opts: { hidden: boolean; window?: boolean; quiet?: boolean }) {
 
 describe('one channel per alert', () => {
   beforeEach(() => {
-    shown.length = 0;
     island.mockReset();
     island.mockReturnValue(true);
   });

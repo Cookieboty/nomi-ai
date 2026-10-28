@@ -32,7 +32,7 @@ export interface FeatureHostCalls {
   showItemInFolder: string[];
 }
 
-export type FeaturePorts = Pick<HostPorts, 'dialogs' | 'shell' | 'power' | 'app'>;
+export type FeaturePorts = Pick<HostPorts, 'dialogs' | 'shell' | 'power' | 'app' | 'processes'>;
 
 export interface FeatureHost {
   ports: FeaturePorts;
@@ -93,6 +93,13 @@ export function featureHost(o: FeatureHostOptions = {}): FeatureHost {
       preferredLanguages: () => ['zh-CN'],
       isPackaged: () => o.packaged ?? true,
       platform: () => process.platform,
+    },
+    // 单测里没有工具子进程：文档解析退回进程内
+    processes: {
+      available: () => false,
+      fork: () => {
+        throw new Error('utility processes are not available');
+      },
     },
   };
   return { ports, events: createRecordingAppEvents(), calls, answers };

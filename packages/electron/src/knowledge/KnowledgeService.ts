@@ -48,7 +48,7 @@ export interface KnowledgeDeps {
   complete(messages: Msg[], signal?: AbortSignal): Promise<string>;
   chatProvider(): { id: string; name: string; local: boolean } | null;
   /** 选择来源文件夹、打开 / 定位来源文件 */
-  ports: Pick<HostPorts, 'dialogs' | 'shell'>;
+  ports: Pick<HostPorts, 'dialogs' | 'shell' | 'processes'>;
   /** 通知界面（`ai:kb:*` 发给所有窗口） */
   events: AppEvents;
 }
@@ -651,7 +651,7 @@ export class KnowledgeService {
       chunks = chunkText(text);
       ocr = true;
     } else {
-      const r = await parseFile(g.real);
+      const r = await parseFile(g.real, { processes: this.d.ports.processes });
       if (!r.ok) {
         this.index.put({ ...base, status: 'error', error: r.message, chunks: [] });
         return 'failed';

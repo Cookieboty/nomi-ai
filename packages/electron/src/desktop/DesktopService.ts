@@ -4,22 +4,19 @@ import * as path from 'path';
 import type { ToolCallProvider, ToolDefinition } from '@nomi-ai/bundle-ig-base';
 import type { HostPorts } from '@nomi-ai/host-ports';
 import type { DesktopBubble } from '@nomi-ai/types';
-// 仍需 electron 的部分：系统通知（host-ports 还没有 notifications 端口）、看板娘窗口对象
 // （显示 / 隐藏 / 按 sender 校验）与窗口数量。
-import { BrowserWindow, Notification } from 'electron';
 
 import { broadcastMascotCommand } from '../ai/mascotCommand';
 import type { AppEvents } from '../core/appEvents';
-import { iconImage } from '../core/appIcon';
 import { t as tr } from '../i18n';
 import { notifyIsland, type IslandKind, type IslandNotice } from '../island/IslandService';
-import { AgentBrowser } from '../sandbox/AgentBrowser';
 import { CodeSandbox } from '../sandbox/CodeSandbox';
 import { sanitizeRepeat } from '../schedule/recurrence';
 
 import { AppTrash } from './AppTrash';
 import { AuditLog, type AuditEntry } from './AuditLog';
 import { isLocalBaseURL, sanitizePolicy, type Policy } from './consent';
+import { unavailableBrowser, type AgentBrowserApi } from './p3tools';
 import { isSupported } from './parse/extract';
 import { parseFile } from './parse/runParse';
 import { guardPath, type Scope } from './pathGuard';
@@ -58,21 +55,49 @@ export interface DesktopRuntimeHooks {
   lookupProvider?(id: string): { id: string; name: string; baseURL?: string } | null;
 }
 
+/** 看板娘窗口用到的部分（BrowserWindow 结构上满足；确认框要临时显示 / 再藏起，答复要核对发送方） */
+export interface DesktopMascotWindow {
+  isDestroyed(): boolean;
+  isVisible(): boolean;
+  showInactive(): void;
+  hide(): void;
+  readonly webContents: { readonly id: number };
+}
+
+/** 对话窗口用到的部分（BrowserWindow 结构上满足；拖入总结要等新开的页面加载完再发） */
+export interface DesktopChatWindow {
+  isDestroyed(): boolean;
+  readonly webContents: {
+    isLoading(): boolean;
+    once(event: 'did-finish-load', listener: () => void): unknown;
+  };
+}
+
 export interface DesktopWindows {
-  main(): BrowserWindow | null;
-  openChat(): Promise<BrowserWindow>;
+  main(): DesktopMascotWindow | null;
+  openChat(): Promise<DesktopChatWindow>;
+  /** 对话窗口当前是否已存在（拖入总结：已开着就不用等页面挂监听）；缺省视为不存在 */
+  chatOpen?(): boolean;
   /** 看板娘已关闭（窗口隐藏且静音）：提醒不再把她叫出来（系统通知 / 灵动岛照常）；确认框临时显示，答完再藏起 */
   mascotHidden?(): boolean;
 }
 
-/** 平台能力：home / userData 路径、文件夹选择器、剪贴板 */
-export type DesktopPorts = Pick<HostPorts, 'paths' | 'dialogs' | 'clipboard'>;
+/** 平台能力：home / userData 路径、文件夹选择器、剪贴板、系统通知、解析子进程 */
+export type DesktopPorts = Pick<
+  HostPorts,
+  'paths' | 'dialogs' | 'clipboard' | 'notifications' | 'processes'
+>;
 
 export interface DesktopServiceOptions {
   ports: DesktopPorts;
   /** 状态变化广播给所有窗口 */
   events: AppEvents;
   denyRoots?: string[];
+  /**
+   * 受控浏览器（browser_* 工具）。宿主提供（Electron：host/AgentBrowser，独立内存分区的可见窗口）；
+   * 缺省时这些工具报「不可用」。每次组装工具时调用一次。
+   */
+  browser?: () => AgentBrowserApi;
 }
 
 export const DESKTOP_CHANGED = 'ai:desktop:changed';
@@ -100,6 +125,7 @@ export class DesktopService {
   private toolDefs: ToolDefinition[] | null = null;
   private readonly ports: DesktopPorts;
   private readonly events: AppEvents;
+  private readonly browser: () => AgentBrowserApi;
 
   constructor(
     private readonly root: string,
@@ -108,6 +134,7 @@ export class DesktopService {
   ) {
     this.ports = opts.ports;
     this.events = opts.events;
+    this.browser = opts.browser ?? unavailableBrowser;
     this.broker = new PermissionBroker(path.join(root, 'settings.json'), {
       home: this.ports.paths.home(),
       platform: process.platform,
@@ -144,7 +171,7 @@ export class DesktopService {
     this.windows = w;
   }
 
-  private main(): BrowserWindow | null {
+  private main(): DesktopMascotWindow | null {
     const w = this.windows?.main();
     return w && !w.isDestroyed() ? w : null;
   }
@@ -219,15 +246,11 @@ export class DesktopService {
     }
     if (n.passive || this.notifyPolicy?.quiet()) return 'none';
     try {
-      if (!Notification.isSupported()) return 'none';
-      const note = new Notification({
-        title: n.title,
-        body: n.body ?? n.text,
-        silent: false,
-        icon: iconImage(),
-      });
-      note.on('click', () => void this.windows?.openChat().catch(() => undefined));
-      note.show();
+      if (!this.ports.notifications.supported()) return 'none';
+      this.ports.notifications.show(
+        { title: n.title, body: n.body ?? n.text, silent: false },
+        () => void this.windows?.openChat().catch(() => undefined),
+      );
       return 'notification';
     } catch (e) {
       this.logger.warn('系统通知失败', { error: String(e) });
@@ -438,7 +461,7 @@ export class DesktopService {
       audit: this.audit,
       journal: this.journal,
       trash: this.trash,
-      parse: (p) => parseFile(p),
+      parse: (p) => parseFile(p, { processes: this.ports.processes }),
       summarize: (t, i, s) => this.summarize(t, i, s),
       providerFor: (r) => this.providerFor(r),
       describeProvider: (p) => this.receiverOf(p),
@@ -451,7 +474,7 @@ export class DesktopService {
         },
         say: (t) => this.say(t),
       },
-      p3: { browser: new AgentBrowser(), code: new CodeSandbox() },
+      p3: { browser: this.browser(), code: new CodeSandbox() },
     });
     return this.toolDefs;
   }
@@ -514,7 +537,7 @@ export class DesktopService {
     const name = path.basename(probe.real);
     say(tr('electron.common.reading', name));
     broadcastMascotCommand({ type: 'motion', name: 'think' });
-    const parsed = await parseFile(probe.real);
+    const parsed = await parseFile(probe.real, { processes: this.ports.processes });
     if (!parsed.ok) return fail(parsed.code, tr('electron.common.read-failed', parsed.message));
     if (!parsed.text.trim())
       return fail('empty', tr('electron.common.no-text-found-it-may-be-a-scanned'));
@@ -554,7 +577,7 @@ export class DesktopService {
     broadcastMascotCommand({ type: 'motion', name: 'nod' });
     broadcastMascotCommand({ type: 'expression', name: 'happy' });
     if (this.windows) {
-      const existed = BrowserWindow.getAllWindows().length > 1;
+      const existed = this.windows.chatOpen?.() ?? false;
       const chat = await this.windows.openChat();
       const payload = { name, path: probe.real, summary, at: Date.now() };
       // 等页面加载完再发（新开的窗口要先挂上监听）；送达由事件总线负责（只发对话窗口）
@@ -786,7 +809,7 @@ let instance: DesktopService | null = null;
 /** 第一次调用（组合根）要传 ports / events；之后的调用直接拿单例 */
 export function getDesktopService(
   logger?: Logger,
-  deps?: Pick<DesktopServiceOptions, 'ports' | 'events'>,
+  deps?: Pick<DesktopServiceOptions, 'ports' | 'events' | 'browser'>,
 ): DesktopService {
   if (!instance) {
     if (!deps) throw new Error('DesktopService requires host ports on first call');

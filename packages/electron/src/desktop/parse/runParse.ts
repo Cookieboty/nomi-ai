@@ -1,47 +1,28 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
+import type { ProcessesPort } from '@nomi-ai/host-ports';
+
 import { extract, type Extracted } from './extract';
 
 export interface ParseOptions {
   timeoutMs?: number;
   maxBytes?: number;
   memoryMb?: number;
+  /** 宿主的工具子进程（Electron：utilityProcess）；缺省或不可用时在进程内解析 */
+  processes?: Pick<ProcessesPort, 'available' | 'fork'>;
 }
 
 export type ParseResult = ({ ok: true } & Extracted) | { ok: false; code: string; message: string };
 
-type Utility = {
-  fork(
-    modulePath: string,
-    args?: string[],
-    opts?: { execArgv?: string[]; serviceName?: string; stdio?: 'ignore' | 'inherit' | 'pipe' },
-  ): {
-    postMessage(m: unknown): void;
-    on(ev: 'message', fn: (m: unknown) => void): void;
-    on(ev: 'exit', fn: (code: number) => void): void;
-    kill(): boolean;
-  };
-};
-
-function utility(): Utility | null {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports -- 单测（纯 Node）里没有 electron
-    const e = require('electron') as { utilityProcess?: Utility };
-    return e && typeof e === 'object' && e.utilityProcess ? e.utilityProcess : null;
-  } catch {
-    return null;
-  }
-}
-
 /**
- * 在独立的 utilityProcess 中解析文档：超时（默认 20s）或内存超限（默认 256MB 堆）即杀死并返回错误。
- * 没有 Electron（单测）时退回进程内解析（仍有大小上限）。
+ * 在独立的工具子进程（宿主的 processes 端口）中解析文档：超时（默认 20s）或内存超限（默认 256MB 堆）
+ * 即杀死并返回错误。宿主没有工具子进程（单测、无界面宿主）时退回进程内解析（仍有大小上限）。
  */
 export async function parseFile(filePath: string, opts: ParseOptions = {}): Promise<ParseResult> {
   const timeoutMs = opts.timeoutMs ?? 20_000;
   const maxBytes = opts.maxBytes ?? 50 * 1024 * 1024;
-  const up = utility();
+  const up = opts.processes?.available() ? opts.processes : null;
   const workerPath = path.join(__dirname, 'worker.js');
   if (!up || !fs.existsSync(workerPath)) {
     try {
@@ -59,7 +40,7 @@ export async function parseFile(filePath: string, opts: ParseOptions = {}): Prom
     }
   }
   return new Promise<ParseResult>((resolve) => {
-    const child = up.fork(workerPath, [], {
+    const child = up.fork(workerPath, {
       execArgv: [`--max-old-space-size=${opts.memoryMb ?? 256}`],
       serviceName: 'nomi-parse',
       stdio: 'ignore',

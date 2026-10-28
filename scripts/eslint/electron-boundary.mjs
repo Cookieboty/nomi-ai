@@ -44,15 +44,12 @@ export const ELECTRON_IMPORT_ALLOWLIST = [
   'packages/electron/src/ai/ClipboardGateway.ts',
   'packages/electron/src/ai/ScreenCapture.ts',
   'packages/electron/src/chat/assetProtocol.ts',
-  'packages/electron/src/chat/ChatBackgroundService.ts',
-  'packages/electron/src/desktop/DesktopService.ts',
   'packages/electron/src/security/secretStorage.ts',
   'packages/electron/src/utils/log.ts',
   'packages/electron/src/utils/privateFile.ts',
   // 契约传输的 sender 白名单（app.isPackaged）→ P3 随宿主搬家
   'packages/electron/src/security/ipcSenderGuard.ts',
   // 窗口相关但还不在宿主目录 → P3 随宿主搬家
-  'packages/electron/src/sandbox/AgentBrowser.ts',
   'packages/electron/src/utils/windowBounds.ts',
 ];
 
@@ -66,9 +63,6 @@ export const ELECTRON_DYNAMIC_ALLOWLIST = [
   'packages/ai-runtime/src/IpcAdapter.ts',
   // electron-caps 插件包的惰性加载器（createRequire(...)('electron')）：随插件能力端口化处理
   'packages/bundle-ig-electron-caps/src/electronLoader.ts',
-  // utilityProcess 子进程（require('electron')）：P2 改由宿主端口提供
-  'packages/electron/src/desktop/parse/runParse.ts',
-  'packages/electron/src/gateway/GatewayProcess.ts',
 ];
 
 /** 不得依赖 electron 的包（§3.2、§11.1）；尚未建立的包也先列上 */

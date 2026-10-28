@@ -1,10 +1,10 @@
 /**
  * 网关子进程守护（docs/design/unified-gateway.md §5.3）：
- * - 用 utilityProcess 拉起网关，推送配置快照；配置变了就推新的（进程不重启，进行中的请求用旧快照）；
+ * - 用宿主的工具子进程（processes 端口，Electron：utilityProcess）拉起网关，推送配置快照；配置变了就推新的（进程不重启，进行中的请求用旧快照）；
  * - 进程意外退出后按指数退避重启（1s、2s、4s…，最长 30s）；
  * - 崩溃熔断：滑动窗口内失败次数超预算（默认 60s 内 5 次）则停止自动重启并标 failed，界面「重试」清零计数；
  * - 网关就绪前发起的请求由调用方用 whenReady() 等待（最长 10 秒）。
- * fork 可注入：单测里不需要 Electron。
+ * fork 可注入：单测里不需要宿主。
  */
 import * as fs from 'fs';
 import * as path from 'path';
@@ -19,6 +19,7 @@ import type {
   WorkerInbound,
   WorkerOutbound,
 } from '@nomi-ai/gateway';
+import type { ProcessesPort } from '@nomi-ai/host-ports';
 
 import { t as tr } from '../i18n';
 
@@ -45,23 +46,19 @@ export const CRASH_FUSE_MAX = 5;
 export const CRASH_FUSE_WINDOW_MS = 60_000;
 const READY_TIMEOUT_MS = 10_000;
 
-function defaultFork(): ForkGateway | null {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports -- 单测（纯 Node）里没有 electron
-    const e = require('electron') as {
-      utilityProcess?: {
-        fork(
-          p: string,
-          a?: string[],
-          o?: { serviceName?: string; stdio?: 'ignore' | 'inherit' | 'pipe' },
-        ): GatewayChild;
-      };
+/** 经宿主的工具子进程拉起网关；宿主没有工具子进程时返回 null */
+function portFork(processes: ProcessesPort | undefined): ForkGateway | null {
+  if (!processes?.available()) return null;
+  return (modulePath) => {
+    const child = processes.fork(modulePath, { serviceName: 'nomi-gateway', stdio: 'ignore' });
+    return {
+      postMessage: (m) => child.postMessage(m),
+      on: (event: 'message' | 'exit', fn: (arg: never) => void) => {
+        child.on(event as 'message', fn as (message: unknown) => void);
+      },
+      kill: () => child.kill(),
     };
-    const up = e?.utilityProcess;
-    return up ? (p) => up.fork(p, [], { serviceName: 'nomi-gateway', stdio: 'ignore' }) : null;
-  } catch {
-    return null;
-  }
+  };
 }
 
 export class GatewayProcess {
@@ -81,6 +78,9 @@ export class GatewayProcess {
       onLearn?: (e: LearnEvent) => void;
       onKeyStatus?: (e: KeyStatusEvent) => void;
       onStatus?: (s: GatewayStatus) => void;
+      /** 宿主的工具子进程（默认的 fork 来源） */
+      processes?: ProcessesPort;
+      /** 直接注入 fork（测试）；优先于 processes */
       fork?: ForkGateway;
       /** 网关入口文件（默认与本文件同目录的 worker.js） */
       modulePath?: string;
@@ -174,7 +174,7 @@ export class GatewayProcess {
   }
 
   private spawn(): void {
-    const fork = this.d.fork ?? defaultFork();
+    const fork = this.d.fork ?? portFork(this.d.processes);
     const modulePath = this.d.modulePath ?? path.join(__dirname, 'worker.js');
     if (!fork || (!this.d.fork && !fs.existsSync(modulePath))) {
       this.setStatus({

@@ -2,21 +2,12 @@ jest.unmock('fs');
 jest.unmock('path');
 jest.mock('../../../src/i18n', () => ({ t: (s: string) => s }));
 
-// 选图经 ports.dialogs、广播经 events；仍 mock 的是 nativeImage（缩放）
-jest.mock('electron', () => ({
-  nativeImage: {
-    createFromBuffer: jest.fn(() => ({
-      isEmpty: () => true,
-      getSize: () => ({ width: 0, height: 0 }),
-    })),
-  },
-}));
-
+// 选图经 ports.dialogs、缩放经 ports.image、广播经 events
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import type { PickFilesOptions } from '@nomi-ai/host-ports';
+import type { ImagePort, ImageSize, PickFilesOptions } from '@nomi-ai/host-ports';
 import { CHAT_BG_ERROR, CHAT_BG_MAX_BYTES, CHAT_BG_MAX_EDGE } from '@nomi-ai/types';
 
 import { getChatBackgroundPresetFile } from '../../../src/chat/backgroundPreset';
@@ -34,6 +25,11 @@ const PRESET_DEFAULTS = { ...DEFAULT_CHAT_BG, imageUrl: CHAT_BG_PRESET_URL };
 
 /** 文件选择器：返回选中的路径，空数组 = 取消 */
 const pickFiles = jest.fn(async (_opts?: PickFilesOptions): Promise<string[]> => []);
+/** 图片端口：默认解码不了（不缩放，原样复制） */
+const imageSize = jest.fn<Promise<ImageSize | null>, [Uint8Array]>(async () => null);
+const imageResize = jest.fn<ReturnType<ImagePort['resize']>, Parameters<ImagePort['resize']>>(
+  async () => new Uint8Array(),
+);
 let events: RecordingAppEvents = createRecordingAppEvents();
 const make = (
   file: string,
@@ -51,6 +47,7 @@ const make = (
         saveFile: async () => null,
         showError: () => undefined,
       },
+      image: { size: imageSize, resize: imageResize },
     },
     events,
   });
@@ -59,6 +56,8 @@ describe('ChatBackgroundService', () => {
   beforeEach(() => {
     pickFiles.mockReset();
     pickFiles.mockResolvedValue([]);
+    imageSize.mockClear();
+    imageResize.mockClear();
     events = createRecordingAppEvents();
   });
   afterEach(async () => {
@@ -237,19 +236,11 @@ describe('ChatBackgroundService', () => {
   });
 
   const mockDecoded = (width: number, height: number) => {
-    const { nativeImage } = jest.requireMock('electron') as {
-      nativeImage: { createFromBuffer: jest.Mock };
-    };
-    const resize = jest.fn(() => ({
-      toJPEG: () => Buffer.from('small-jpg'),
-      toPNG: () => Buffer.from('small-png'),
-    }));
-    nativeImage.createFromBuffer.mockReturnValueOnce({
-      isEmpty: () => false,
-      getSize: () => ({ width, height }),
-      resize,
-    });
-    return resize;
+    imageSize.mockResolvedValueOnce({ width, height });
+    imageResize.mockImplementationOnce(async (_data, opts) =>
+      Buffer.from(opts.format === 'png' ? 'small-png' : 'small-jpg'),
+    );
+    return imageResize;
   };
   const importAs = async (name: string) => {
     const root = tmpRoot();
@@ -267,7 +258,11 @@ describe('ChatBackgroundService', () => {
   it('downscales wide images to the max edge as jpg', async () => {
     const resize = mockDecoded(4000, 3000);
     const { st, saved } = await importAs('wide.jpeg');
-    expect(resize).toHaveBeenCalledWith({ width: CHAT_BG_MAX_EDGE, quality: 'best' });
+    expect(resize).toHaveBeenCalledWith(expect.anything(), {
+      width: CHAT_BG_MAX_EDGE,
+      format: 'jpeg',
+      quality: 85,
+    });
     expect(st.imageUrl).toMatch(/\.jpg$/);
     expect(saved).toBe('small-jpg');
   });
@@ -275,7 +270,11 @@ describe('ChatBackgroundService', () => {
   it('downscales tall images by height', async () => {
     const resize = mockDecoded(1200, 6000);
     const { st } = await importAs('tall.webp');
-    expect(resize).toHaveBeenCalledWith({ height: CHAT_BG_MAX_EDGE, quality: 'best' });
+    expect(resize).toHaveBeenCalledWith(expect.anything(), {
+      height: CHAT_BG_MAX_EDGE,
+      format: 'jpeg',
+      quality: 85,
+    });
     expect(st.imageUrl).toMatch(/\.jpg$/);
   });
 
