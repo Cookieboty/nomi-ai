@@ -2,13 +2,13 @@
 
 | 层级         | 位置                                       | 运行                   | 跑什么                                                                                                                                                        |
 | ------------ | ------------------------------------------ | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 单元测试     | `packages/*/src/**`、`packages/*/tests/**` | `pnpm test`            | 各包逻辑；`core` 与 `electron` 用 Jest（`packages/{core,electron}/tests/unit`），其余包用 Vitest                                                              |
-| 脚本测试     | `scripts/__tests__`                        | `pnpm test:root`       | changelog 与签名环境脚本                                                                                                                                      |
+| 单元测试     | `packages/*/src/**`、`packages/*/tests/**` | `pnpm test`            | 各包逻辑；`core` 与 `host-electron` 用 Jest（`packages/{core,host-electron}/tests/unit`），其余包用 Vitest；跑完各包再跑脚本测试                              |
+| 脚本测试     | `scripts/__tests__`                        | `pnpm test:root`       | 仓库级规则：changelog / changeset、发布与签名、electron-builder 配置、turbo 输入、品牌名、角色名扫描、语义事件名、体积预算                                    |
 | 无界面 E2E   | `e2e/tests`                                | `pnpm test:e2e`        | 不启动 Electron：真实内核（`createCore`）跑在无界面宿主 `host-node` 上，视图侧客户端经 in-process / WebSocket 传输连进来，假 LLM 与测试工具装进内核的插件宿主 |
 | 浏览器冒烟   | `scripts/dev-web/smoke.mjs`                | `pnpm smoke:web`       | ai-chat 开发页在 Playwright 的 Chromium 里经 WebSocket 连开发态内核（`pnpm dev:web`）                                                                         |
 | 真实应用 E2E | `e2e-headed/tests`                         | `pnpm test:e2e:headed` | Playwright 启动真实 Electron，操作界面                                                                                                                        |
 
-## 无界面 E2E（`e2e/`，Vitest，8 个文件 / 24 个用例）
+## 无界面 E2E（`e2e/`，Vitest，8 个文件 / 23 个用例）
 
 每个用例用 `e2e/helpers/headlessCore.ts` 起一个真实内核：`@nomi-ai/host-node/core` 的 `startHeadlessCore()`（临时目录、
 内存密钥、记录下来的对话框 / 通知 / 窗口调用），视图侧的 `ClientAIClient` 经 in-process 传输连进来（一个连接 = 一个窗口）。
@@ -38,16 +38,20 @@ pnpm smoke:web [-- --screenshot test-results/dev-web.png]
 - `smoke:web` 起同样的环境（空闲端口，不和正在跑的开发服务器冲突），用 Playwright 的 Chromium（不是 Electron）打开页面，断言页面渲染、没有未捕获异常、调用经 WebSocket 到了内核、内核里预设的主题与语言出现在页面上、内核换主题后页面跟着变；最后在页面的首次引导里添加指向本机假上游（OpenAI Chat 协议）的供应商、选模型、完成引导，发一条消息，回复经统一网关回到页面。
 - 生产构建不含 WebSocket 传输：ai-chat 只在 `import.meta.env.DEV` 时读注入的全局，Vite 插件在构建产物里发现 WebSocket 传输就让构建失败。
 
-## 真实应用 E2E（`e2e-headed/`，Playwright，21 个文件 / 23 个用例）
+## 真实应用 E2E（`e2e-headed/`，Playwright，45 个文件 / 56 个用例）
 
-看板娘与内置 2D 角色 Nomi（E1、E4、E15、E22、E23）、对话与历史（E2、E6）、MCP（E3）、整机冒烟（E5）、供应商（E7）、互动（E9）、桌面能力（E10）、气泡安全与工具栏（E11、E12）、提醒 / 剪贴板（E13）、引导与语言（E14、E16）、无障碍（A11Y）、快捷键与命令面板（KEYS）、英文界面（I18N）、界面截图（UI、ANIM）。
+看板娘与内置角色诺米（E1、E4、E15、E22、E23）、对话与历史（E2、E6、E19）、MCP（E3）、整机冒烟（E5）、供应商与网关（E7、E26、E34）、互动（E9）、桌面能力（E10）、气泡安全与工具栏（E11、E12）、提醒 / 剪贴板（E13）、引导与语言（E14、E16）、编程助手（E17、E18、E20、E24、E25、E27、E29、E32、E33、E35、E36）、灵动岛（E21）、输入栏与启动视图（E28、E30）、图片主题（IMAGE）、设置布局（V111）、无障碍（A11Y）、快捷键与命令面板（KEYS）、英文界面（I18N）、性能（PERF）、界面截图（UI、ANIM）、替身角色（G5）。用 `pnpm exec playwright test --config playwright.config.ts --list` 看完整清单。
 
 ```bash
-# 在仓库根目录运行（先 pnpm build && pnpm --filter @nomi-ai/host-electron run copy-renderer）
-xvfb-run -a pnpm test:e2e:headed
+# 在仓库根目录运行，先 pnpm build（host-electron 的构建最后一步把两个视图复制进它的 dist）
+xvfb-run -a pnpm test:e2e:headed     # macOS / Windows 不用 xvfb-run
 ```
 
-`playwright.config.ts` 固定界面语言为中文（`CD_LOCALE=zh-CN`），默认关闭首次引导（`CD_ONBOARDING=off`），并关闭离线语音合成（`CD_TTS=off`）。除下面的替身用例外，所有用例都使用内置 2D 角色 Nomi（Rive，起不来时回退到分层 2D sprite），不下载任何测试模型。
+`playwright.config.ts` 固定界面语言为中文（`CD_LOCALE=zh-CN`），默认关闭首次引导（`CD_ONBOARDING=off`），并关闭离线语音合成（`CD_TTS=off`）。除下面的替身用例外，所有用例都使用内置角色诺米（Rive，起不来时回退到分层 2D sprite），不下载任何测试模型。
+
+`pnpm build` 之后 `packages/host-electron/dist` 就能直接运行：turbo 的 `@nomi-ai/host-electron#build` 依赖 renderer 与
+ai-chat 的构建，最后由 `scripts/copy-renderer.js` 把它们复制到 `dist/renderer`、`dist/ai-chat`（缓存命中时一起恢复）。
+只重建了某个视图（例如直接跑它的 Vite）时，再手动 `pnpm --filter @nomi-ai/host-electron copy-renderer`。
 
 ### 替身角色构建（G5）
 
@@ -56,9 +60,12 @@ xvfb-run -a pnpm test:e2e:headed
 （含 aria-label / title）没有官方角色名、该写角色名的地方是「小纸」，发给模型的系统提示是替身的身份。
 判定规则与 `pnpm check:character-leak` 共用（`scripts/lib/characterLeak.mjs`）。
 
+`pnpm check:character-leak`（`scripts/check-character-leak.mjs`，CI 的 quality 里跑）静态扫描源码、界面文案、
+`packages/*/index.html` 与 `packages/*/public`、非官方角色包，指桌面角色的地方不得写死官方角色名（规则见
+[内核宿主分离 §11.2](../design/core-host-decoupling.md)），允许清单里每一项都要写理由且必须命中。
+
 ```bash
 pnpm build:stand-in      # = CHARACTER_PACK=characters/test-dummy pnpm build（跨平台写法）
-pnpm --filter @nomi-ai/host-electron run copy-renderer
 pnpm test:e2e:headed e2e-headed/tests/G5.stand-in-character.headed.spec.ts
 pnpm build               # 换回官方构建再跑其它用例（turbo 按 CHARACTER_PACK 分开缓存）
 ```
@@ -96,7 +103,7 @@ pnpm -F @nomi-ai/gateway exec tsx scripts/trace-to-fixture.ts <trace.json>... [-
 
 ## 性能基准与体积预算
 
-先 `pnpm build && node packages/host-electron/scripts/copy-renderer.js`，Linux 无显示器时前面加 `xvfb-run -a`：
+先 `pnpm build`，Linux 无显示器时前面加 `xvfb-run -a`：
 
 ```bash
 node scripts/measure-session-switch.mjs [--scenario nomi|cli] [--cpu 4]   # 切换会话：点击 → 内容绘制耗时、长任务、主线程脚本 / 布局
@@ -110,7 +117,7 @@ node scripts/check-bundle-budget.mjs [--strict]                           # 首�
 
 `.github/workflows/ci.yml`（什么事件跑哪些 job 见 [CI 触发规则](ci.md)：普通 PR 只跑 Linux quality + changeset，带 `ci:full` 标签才跑完整矩阵）：
 
-- `quality`（Ubuntu / Windows / macOS）：许可、i18n、typecheck、lint、单元测试、构建；Ubuntu 上追加首屏体积预算报告（不阻塞）
+- `quality`（Ubuntu / Windows / macOS）：许可、i18n、角色名扫描（`check:character-leak`）、typecheck、lint、单元测试、构建；Ubuntu 上追加首屏体积预算报告（不阻塞）
 - `e2e-headless`、`e2e-headed`（Ubuntu / Windows）；`e2e-headless` 在 Ubuntu 上追加浏览器冒烟（`pnpm smoke:web`）
 - `dev-smoke`（Ubuntu）
 - `changeset status`
