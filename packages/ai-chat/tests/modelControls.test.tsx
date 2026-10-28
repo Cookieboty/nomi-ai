@@ -153,19 +153,16 @@ describe('ModelControls', () => {
     expect(getByTestId('effort-slider')).toBeTruthy();
   });
 
-  it('自定义模型 id 输入后提交 tab-model', async () => {
-    const { findByTestId, getByTestId, invoke } = setup({ catalog });
+  it('只能从目录里选模型：没有「自定义模型 id」入口；当前模型不在目录里时照样显示出来', async () => {
+    const { findByTestId, getByTestId, queryByTestId } = setup({
+      catalog,
+      tabOver: { modelOverride: 'gpt-7-codex' },
+    });
     fireEvent.click(await findByTestId('model-chip'));
     fireEvent.click(getByTestId('model-open'));
-    fireEvent.click(getByTestId('model-custom-toggle'));
-    const input = getByTestId('model-custom-input') as HTMLInputElement;
-    fireEvent.change(input, { target: { value: 'gpt-7-codex' } });
-    fireEvent.click(getByTestId('model-custom-ok'));
-    await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-model', 'cx', 'gpt-7-codex', {
-        expectSource: 'official',
-      }),
-    );
+    expect(queryByTestId('model-custom-toggle')).toBeNull();
+    expect(queryByTestId('model-custom-input')).toBeNull();
+    expect(getByTestId('model-current-custom').textContent).toContain('gpt-7-codex');
   });
 
   it('键盘 ← → 调档发起 tab-effort；「恢复默认」发 null', async () => {
@@ -490,7 +487,7 @@ describe('ModelControls', () => {
     expect(r.getByTestId('effort-hint').textContent).toContain('当前模型无思考深度');
   });
 
-  it('读不到目录：只有默认与自定义，显示原因；刷新按钮让主进程重读', async () => {
+  it('读不到目录：只有默认，显示原因；刷新按钮让主进程重读', async () => {
     const { findByTestId, getByTestId, queryByTestId, invoke } = setup({
       catalog: { backend: 'grok', models: [], defaultModel: null, error: 'not authenticated' },
       tabOver: { backend: 'grok' },
@@ -502,7 +499,7 @@ describe('ModelControls', () => {
     fireEvent.click(getByTestId('model-open'));
     expect(getByTestId('model-error').textContent).toContain('not authenticated');
     expect(getByTestId('model-default')).toBeTruthy();
-    expect(getByTestId('model-custom-toggle')).toBeTruthy();
+    expect(queryByTestId('model-custom-toggle')).toBeNull();
     fireEvent.click(getByTestId('model-refresh'));
     await waitFor(() =>
       expect(invoke).toHaveBeenCalledWith('ai:harness:model-catalog', 'grok', { refresh: true }),
@@ -604,10 +601,14 @@ describe('ModelControls（会话的供应商分组）', () => {
         { id: 'neu/ds-x', label: 'NewCo / ds-x', reasoning: false, efforts: [] },
       ],
     };
-    const open = async (tab: HarnessTabMeta) => {
+    const open = async (
+      tab: HarnessTabMeta,
+      gw: object = gatewayState,
+      cat: BackendModelCatalog = gwCatalog,
+    ) => {
       const invoke = vi.fn(async (ch: string, ...a: unknown[]) => {
-        if (ch === 'ai:gateway:state') return gatewayState;
-        if (ch === 'ai:harness:model-catalog') return gwCatalog;
+        if (ch === 'ai:gateway:state') return gw;
+        if (ch === 'ai:harness:model-catalog') return cat;
         if (ch === 'ai:harness:tab-model') return { ...tab, modelOverride: String(a[1]) };
         return {};
       });

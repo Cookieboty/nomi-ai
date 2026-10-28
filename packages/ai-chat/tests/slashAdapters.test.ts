@@ -346,14 +346,15 @@ describe('/model', () => {
     expect(actions.setTabSource).toHaveBeenLastCalledWith('thirdParty', 'a/gpt-5-mini');
     expect(m.handled && m.outcome.type === 'card' && m.outcome.card.kind).toBe('notice');
   });
-  it('CLI 标签：/model opus 直接切换当前标签；目录里没有的完整 id 当自定义模型', async () => {
+  it('CLI 标签：/model opus 直接切换当前标签；目录里没有的 id 不当自定义模型', async () => {
     const { ctx, commands, actions } = makeCtx('claude');
     actions.tabModels.mockResolvedValue({ catalog: tabCatalog, current: null, source: 'official' });
     const a = await executeSlash('/model opus', commands, ctx);
     expect(actions.setTabModel).toHaveBeenCalledWith('opus', 'official');
     expect(a.handled && a.outcome.type === 'card' && a.outcome.card.kind).toBe('notice');
+    actions.setTabModel.mockClear();
     await executeSlash('/model claude-opus-4-6', commands, ctx);
-    expect(actions.setTabModel).toHaveBeenLastCalledWith('claude-opus-4-6', 'official');
+    expect(actions.setTabModel).not.toHaveBeenCalled();
   });
   it('第三方标签：列网关的模型（tab-model），附「官方」一项（切回官方）；不接受自定义 id', async () => {
     const { ctx, commands, actions } = makeCtx('codex', {

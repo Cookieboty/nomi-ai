@@ -9,23 +9,15 @@
  * 交互参考 Codex：一个按钮显示「模型 · 档位」，点开一个浮层，节省输入栏空间；
  * - 默认页：大字显示当前档位，下面「模型名 ›」，再下面是分档滑杆（只在推理模型上出现）；
  *   不选档位 = 不发覆盖参数，沿用 CLI 默认；CLI 告诉我们默认档位时滑块定位到该档位；
- * - 点「模型名 ›」进入模型页：跟随 CLI 默认 / 目录内模型 / 自定义模型 id，选完回到滑杆。
+ * - 点「模型名 ›」进入模型页：跟随 CLI 默认 / 目录内模型，选完回到滑杆（不提供自定义模型 id）。
  * 官方来源的模型列表、每个模型的档位与默认档位全部来自 CLI 自己（主进程读取并缓存，见
- * electron/src/cli/modelDiscovery.ts），这里不写死任何模型或档位；读不到时只保留默认与自定义。
+ * electron/src/cli/modelDiscovery.ts），这里不写死任何模型或档位；读不到时只保留默认。
  * 覆盖是标签级的，主进程在每轮启动时以进程级参数注入
  * （codex `-c model=...`、grok `-m ... --reasoning-effort ...`、claude `--model ... --effort ...`），
  * 不改写用户的全局 CLI 配置；每轮新进程的后端下一条消息即生效，Claude 长驻进程空闲时重启复用。
  */
 import { formatContext, Icon, Input, t } from '@nomi-ai/ui';
-import {
-  Check,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  Cpu,
-  PencilLine,
-  RefreshCw,
-} from 'lucide-react';
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Cpu, RefreshCw } from 'lucide-react';
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -349,8 +341,6 @@ const ModelChip: React.FC<{
   const [view, setView] = useState<'effort' | 'model' | 'account'>('effort');
   const [accounts, setAccounts] = useState<CliAccount[]>([]);
   const [note, setNote] = useState<string | null>(null);
-  const [customOpen, setCustomOpen] = useState(false);
-  const [customName, setCustomName] = useState('');
   /** 模型页的搜索词（模型多于 MODEL_SEARCH_THRESHOLD 个时显示搜索框，与共享的 Select 一致） */
   const [query, setQuery] = useState('');
   /** 拖动滑杆时的预览档位（松手提交后清空，回到以主进程广播的 tab 为准） */
@@ -461,7 +451,6 @@ const ModelChip: React.FC<{
 
   const toggle = () => {
     setView(provider ? 'model' : 'effort');
-    setCustomOpen(false);
     setQuery('');
     setPreview(null);
     setOpen((o) => !o);
@@ -469,7 +458,6 @@ const ModelChip: React.FC<{
 
   // 选完模型回到滑杆页，接着调档位（与 Codex 一致的「一次选完」）
   const pickModel = (model: string) => {
-    setCustomOpen(false);
     setQuery('');
     setView('effort');
     if (provider) setOpen(false);
@@ -856,53 +844,6 @@ const ModelChip: React.FC<{
                   </button>
                 )}
               </div>
-              {/* 第三方的模型只能从网关的列表里选（值是 `供应商/模型`），不提供自定义 id */}
-              {!thirdParty && (
-                <div className={styles.custom}>
-                  {customOpen ? (
-                    <form
-                      className={styles.customForm}
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        const name = customName.trim();
-                        if (name) pickModel(name);
-                      }}
-                    >
-                      <input
-                        autoFocus
-                        className={styles.customInput}
-                        value={customName}
-                        onChange={(e) => setCustomName(e.target.value)}
-                        placeholder={t('ui.chat-settings.model-id')}
-                        aria-label={t('ui.chat-settings.custom-model-id')}
-                        maxLength={128}
-                        data-testid="model-custom-input"
-                      />
-                      <button
-                        type="submit"
-                        className={styles.link}
-                        disabled={!customName.trim()}
-                        data-testid="model-custom-ok"
-                      >
-                        {t('ui.chat-settings.use')}
-                      </button>
-                    </form>
-                  ) : (
-                    <button
-                      type="button"
-                      className={styles.link}
-                      data-testid="model-custom-toggle"
-                      onClick={() => {
-                        setCustomName(current ?? '');
-                        setCustomOpen(true);
-                      }}
-                    >
-                      <Icon icon={PencilLine} size={13} />
-                      {t('ui.chat-settings.custom-model-id')}
-                    </button>
-                  )}
-                </div>
-              )}
             </>
           )}
         </ChipMenu>

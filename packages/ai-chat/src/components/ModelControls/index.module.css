@@ -116,13 +116,6 @@
   font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-muted);
 }
-.custom {
-  display: flex;
-  align-items: center;
-  min-height: 28px;
-  padding: var(--cd-space-1) var(--cd-space-2) var(--cd-space-0-5);
-  border-top: 1px solid var(--cd-color-border);
-}
 /* 默认页：「思考深度 / 恢复默认」→ 分档滑杆 → 模型行（参考 Codex 推理强度浮层） */
 .effortView {
   display: flex;
@@ -372,31 +365,9 @@
   opacity: 0.5;
   cursor: default;
 }
-.customForm {
-  display: flex;
-  align-items: center;
-  gap: var(--cd-space-2);
-  width: 100%;
-}
 /* 菜单是纵向 flex：搜索框不能参与收缩，否则列表一长就被压扁 */
 .search {
   flex: none;
-}
-.customInput {
-  flex: 1;
-  min-width: 0;
-  height: 28px;
-  padding: 0 var(--cd-space-2);
-  border: 1px solid var(--cd-color-border);
-  border-radius: var(--cd-radius-sm);
-  background: var(--cd-color-surface);
-  color: var(--cd-color-text);
-  font: inherit;
-  font-size: var(--cd-font-size-xs);
-}
-.customInput:focus {
-  outline: none;
-  border-color: var(--cd-color-accent-strong);
 }
 @media (prefers-reduced-motion: reduce) {
   .chip {

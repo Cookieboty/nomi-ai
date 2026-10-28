@@ -86,7 +86,6 @@
   "ui.slash-commands.no-commands-available": "No commands available.",
   "ui.slash-commands.no-matching-coding-agent": "No matching coding agent",
   "ui.slash-commands.no-matching-models": "No matching models.",
-  "ui.slash-commands.no-matching-models-you-can-also-enter-a": "No matching models. You can also enter a full model id: /model <model id>",
   "ui.slash-commands.no-uncommitted-changes": "No uncommitted changes.",
   "ui.slash-commands.nomi-chat-has-no-compact-context-feature-yet": "Nomi chat has no “compact context” feature yet. Use /clear to start a new conversation.",
   "ui.slash-commands.nomi-s-own-skills-and-mcp-servers-type": "Nomi's own Skills and MCP servers. Type / to use a Skill directly.",

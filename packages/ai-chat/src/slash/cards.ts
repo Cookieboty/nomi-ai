@@ -307,13 +307,10 @@ function thirdPartyChoices(ctx: SlashContext, data: SlashData, source: TabSource
   }));
 }
 
-/** 与输入框模型按钮、主进程同一套模型 id 字符集（自定义模型 id 用） */
-const MODEL_ID = /^[A-Za-z0-9_][A-Za-z0-9._:/[\]-]{0,127}$/;
-
 /**
  * CLI 标签的 `/model`：与输入框的模型按钮一致——列这个标签的模型目录（官方来源读 CLI 自己，
  * 第三方来源是网关的模型），再附上另一种来源的候选（切换来源）。只作用于当前标签、下一条消息起生效；
- * 官方来源时参数可以是自定义模型 id。
+ * 参数只能命中列表里的模型（不接受目录外的自定义模型 id）。
  */
 async function tabModelCard(
   ctx: SlashContext,
@@ -383,11 +380,6 @@ async function tabModelCard(
         await c.run();
         return done(c.label);
       }
-      // 目录里没有：和模型按钮的「自定义模型 id」一样直接用（第三方只能从网关的模型里选）
-      if (!thirdParty && !ranked.length && MODEL_ID.test(q)) {
-        await pick(q);
-        return done(t('ui.slash-commands.custom', q));
-      }
     } catch (e) {
       return notice(
         t('ui.slash-commands.switch-failed'),
@@ -411,9 +403,7 @@ async function tabModelCard(
         },
       },
     })),
-    empty: thirdParty
-      ? t('ui.slash-commands.no-matching-models')
-      : t('ui.slash-commands.no-matching-models-you-can-also-enter-a'),
+    empty: t('ui.slash-commands.no-matching-models'),
     actions: [
       {
         id: 'open-models',

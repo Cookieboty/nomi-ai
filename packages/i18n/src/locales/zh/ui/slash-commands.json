@@ -86,7 +86,6 @@
   "ui.slash-commands.no-commands-available": "没有可用命令。",
   "ui.slash-commands.no-matching-coding-agent": "没有匹配的编程助手",
   "ui.slash-commands.no-matching-models": "没有匹配的模型。",
-  "ui.slash-commands.no-matching-models-you-can-also-enter-a": "没有匹配的模型。也可以输入完整的模型 id：/model <模型 id>",
   "ui.slash-commands.no-uncommitted-changes": "没有未提交的更改。",
   "ui.slash-commands.nomi-chat-has-no-compact-context-feature-yet": "Nomi 对话暂时没有「压缩上下文」功能。可以用 /clear 开新对话。",
   "ui.slash-commands.nomi-s-own-skills-and-mcp-servers-type": "Nomi 自带的 Skills 和 MCP 服务器。输入 / 可直接使用 Skills。",
