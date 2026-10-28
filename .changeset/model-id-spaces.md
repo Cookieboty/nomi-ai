@@ -1,6 +1,6 @@
 ---
 '@nomi-ai/cli-sdk': patch
-'@nomi-ai/electron': patch
+'@nomi-ai/host-electron': patch
 '@nomi-ai/ai-chat': patch
 ---
 

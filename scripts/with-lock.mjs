@@ -6,7 +6,7 @@
  * 重建契约与依赖它的类型检查都放在同一把锁里跑：
  *
  *   node scripts/with-lock.mjs contract pnpm --filter @nomi-ai/contract build
- *   node scripts/with-lock.mjs contract pnpm --filter @nomi-ai/electron typecheck
+ *   node scripts/with-lock.mjs contract pnpm --filter @nomi-ai/host-electron typecheck
  *
  * 锁是 `node_modules/.locks/<锁名>` 目录（mkdir 原子创建）；持锁进程退出或超过 10 分钟视为过期。
  */

@@ -27,7 +27,7 @@ interface MockBody {
   messages: Array<{ role: string; content: string }>;
 }
 
-const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
+const electronPkgDir = resolve(repoRoot(), 'packages', 'host-electron');
 const mainJs = resolve(electronPkgDir, 'dist', 'main.js');
 const aiChatBuild = resolve(repoRoot(), 'packages', 'ai-chat', 'dist', 'index.html');
 

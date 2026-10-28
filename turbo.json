@@ -55,7 +55,7 @@
         "$TURBO_ROOT$/characters/**",
         "$TURBO_ROOT$/scripts/character/**",
         "$TURBO_ROOT$/scripts/ports.mjs",
-        "$TURBO_ROOT$/packages/electron/src/security/csp.ts"
+        "$TURBO_ROOT$/packages/host-electron/src/security/csp.ts"
       ]
     },
     "@nomi-ai/ai-chat#build": {
@@ -71,7 +71,7 @@
         "$TURBO_ROOT$/characters/**",
         "$TURBO_ROOT$/scripts/character/**",
         "$TURBO_ROOT$/scripts/ports.mjs",
-        "$TURBO_ROOT$/packages/electron/src/security/csp.ts"
+        "$TURBO_ROOT$/packages/host-electron/src/security/csp.ts"
       ]
     },
     "typecheck": {
@@ -122,7 +122,7 @@
         "$TURBO_ROOT$/packages/ai-runtime/src/channels.ts"
       ]
     },
-    "@nomi-ai/electron#test": {
+    "@nomi-ai/host-electron#test": {
       "dependsOn": ["^build"],
       "outputs": ["coverage/**"],
       "inputs": [
@@ -145,13 +145,17 @@
         "!coverage/**",
         "!dist/**",
         "$TURBO_ROOT$/characters/**",
-        "$TURBO_ROOT$/packages/electron/src/core/Application.ts",
-        "$TURBO_ROOT$/packages/electron/src/host/contract/shell.ts"
+        "$TURBO_ROOT$/packages/host-electron/src/core/Application.ts",
+        "$TURBO_ROOT$/packages/host-electron/src/host/contract/shell.ts"
       ]
     },
-    "@nomi-ai/electron#package": {
+    "@nomi-ai/host-electron#package": {
       "cache": false,
-      "dependsOn": ["@nomi-ai/electron#build", "@nomi-ai/renderer#build", "@nomi-ai/ai-chat#build"]
+      "dependsOn": [
+        "@nomi-ai/host-electron#build",
+        "@nomi-ai/renderer#build",
+        "@nomi-ai/ai-chat#build"
+      ]
     },
     "package:prod:mac": {
       "cache": false,

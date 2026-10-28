@@ -49,7 +49,7 @@ const messages: ConvMessage[] = [
         name: 'Edit',
         status: 'done',
         input: JSON.stringify({
-          file_path: 'packages/electron/src/mascot/MascotWindowController.ts',
+          file_path: 'packages/host-electron/src/mascot/MascotWindowController.ts',
           old_string: 'a\n',
           new_string: 'b\n',
         }),
@@ -59,7 +59,7 @@ const messages: ConvMessage[] = [
         name: 'Edit',
         status: 'done',
         input: JSON.stringify({
-          file_path: 'packages/electron/src/utils/windowBounds.ts',
+          file_path: 'packages/host-electron/src/utils/windowBounds.ts',
           old_string: 'x\n',
           new_string: 'y\nz\n',
         }),
@@ -78,7 +78,7 @@ const OpenBtn: React.FC = () => {
         openWorkbench({
           messageId: 'a1',
           entries: undefined,
-          file: 'packages/electron/src/mascot/MascotWindowController.ts',
+          file: 'packages/host-electron/src/mascot/MascotWindowController.ts',
           sourceLabel: '上一轮',
         })
       }
@@ -184,7 +184,7 @@ describe('Codex four-column changes layout', () => {
     const files = screen.getAllByTestId('composer-change-file');
     expect(files).toHaveLength(2);
     expect(files[0]!.getAttribute('data-file')).toBe(
-      'packages/electron/src/mascot/MascotWindowController.ts',
+      'packages/host-electron/src/mascot/MascotWindowController.ts',
     );
     expect(files[0].textContent).toMatch(/MascotWindowController\.ts/);
     expect(files[0].textContent).toMatch(/\+1/);
@@ -280,12 +280,12 @@ describe('Codex four-column changes layout', () => {
   it('git repo: 改动 lists git status, marks assistant files, and fills a commit prompt', async () => {
     vi.mocked(harnessClient.gitDiff).mockResolvedValue({
       ok: true,
-      status: ' M packages/electron/src/utils/windowBounds.ts\n?? notes.md',
+      status: ' M packages/host-electron/src/utils/windowBounds.ts\n?? notes.md',
       stat: '',
       diff: [
-        'diff --git a/packages/electron/src/utils/windowBounds.ts b/packages/electron/src/utils/windowBounds.ts',
-        '--- a/packages/electron/src/utils/windowBounds.ts',
-        '+++ b/packages/electron/src/utils/windowBounds.ts',
+        'diff --git a/packages/host-electron/src/utils/windowBounds.ts b/packages/host-electron/src/utils/windowBounds.ts',
+        '--- a/packages/host-electron/src/utils/windowBounds.ts',
+        '+++ b/packages/host-electron/src/utils/windowBounds.ts',
         '@@ -1 +1,2 @@',
         '-x',
         '+y',
@@ -306,7 +306,7 @@ describe('Codex four-column changes layout', () => {
     const rows = screen.getAllByTestId('git-row');
     expect(rows.map((r) => r.getAttribute('data-file'))).toEqual([
       'notes.md',
-      'packages/electron/src/utils/windowBounds.ts',
+      'packages/host-electron/src/utils/windowBounds.ts',
     ]);
     // 只有助手改过的文件带标记；MascotWindowController 已不在 git 里（已提交 / 已还原），不显示
     expect(rows[1]!.querySelector('[data-testid="git-row-session"]')).toBeTruthy();
@@ -317,7 +317,7 @@ describe('Codex four-column changes layout', () => {
 
     fireEvent.click(screen.getByTestId('rail-ask-commit'));
     const text = screen.getByTestId('fill-probe').textContent ?? '';
-    expect(text).toContain('- packages/electron/src/utils/windowBounds.ts');
+    expect(text).toContain('- packages/host-electron/src/utils/windowBounds.ts');
     expect(text).not.toContain('notes.md');
     expect(text).toContain('只提交，不要推送');
 

@@ -14,9 +14,12 @@ import {
   slimNodeModulesTree,
   dropUnpackedDuplicates,
   collectRelFiles,
-} from '../../packages/electron/scripts/after-pack-slim.mjs';
+} from '../../packages/host-electron/scripts/after-pack-slim.mjs';
 
-const yml = readFileSync(join(__dirname, '../../packages/electron/electron-builder.yml'), 'utf8');
+const yml = readFileSync(
+  join(__dirname, '../../packages/host-electron/electron-builder.yml'),
+  'utf8',
+);
 
 describe('electron-builder slim (2.0.5 easy wins)', () => {
   it('registers afterPack slim hook', () => {

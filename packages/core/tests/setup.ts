@@ -1,5 +1,5 @@
 /**
- * Jest 测试环境设置（从 packages/electron/tests/setup.ts 搬来，去掉了 electron 模拟：内核不依赖 electron）
+ * Jest 测试环境设置（从 packages/host-electron/tests/setup.ts 搬来，去掉了 electron 模拟：内核不依赖 electron）
  */
 
 import * as fs from 'node:fs';

@@ -272,7 +272,7 @@ describe('源码级约束：价格同步（priceSync.ts）只做一次公开 GET
     expect(code.match(/(?<![.\w])fetch\s*\(/g)).toHaveLength(1);
   });
 
-  const HOST_SRC = path.resolve(__dirname, '../../../../electron/src');
+  const HOST_SRC = path.resolve(__dirname, '../../../../host-electron/src');
 
   it('只由用户点击或启动时的 autoSync 触发：没有定时轮询；autoSync 先看开关与 12 小时间隔', () => {
     const svc = fs.readFileSync(

@@ -1,6 +1,6 @@
 /**
  * 用量与计费客户端：应用契约 `usage.*`（主进程 usage/UsageService）。
- * 类型与主进程 electron/src/usage 的返回结构一一对应（渲染进程不引用主进程代码）。
+ * 类型与内核 core/src/usage 的返回结构一一对应（渲染进程不引用主进程代码）。
  */
 import { t } from '@nomi-ai/ui';
 

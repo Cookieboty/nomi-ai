@@ -1,5 +1,5 @@
 ---
-'@nomi-ai/electron': patch
+'@nomi-ai/host-electron': patch
 ---
 
 dsh 上游报错（例如第三方供应商的密钥、模型名或接口格式不对）时，对话里显示 dsh 给出的原因，不再只显示「（无文本输出）」。

@@ -1,5 +1,5 @@
 ---
-'@nomi-ai/electron': patch
+'@nomi-ai/host-electron': patch
 ---
 
 修复第三方 Claude Code 标签换主模型后，各档位 / 小模型仍停在旧模型（#99）：这些跟随主模型的变量变了就重启长驻进程（后台任务还在跑时等它结束）；档位单独指定、不受影响时仍原地切换。

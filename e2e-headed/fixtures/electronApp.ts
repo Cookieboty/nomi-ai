@@ -32,19 +32,19 @@ export function repoRoot(): string {
 /**
  * 定位 electron 可执行文件的**绝对路径**。
  *
- * 以 packages/electron 为起点做模块解析（pnpm 可能把 electron 提升到根 node_modules），
- * 拿到 `@nomi-ai/electron` 声明的那份 electron。Electron >= 44 不再在 postinstall 中
+ * 以 packages/host-electron 为起点做模块解析（pnpm 可能把 electron 提升到根 node_modules），
+ * 拿到 `@nomi-ai/host-electron` 声明的那份 electron。Electron >= 44 不再在 postinstall 中
  * 下载二进制：`require('electron')` 会在缺少 path.txt 时按需下载并返回可执行文件路径，
  * 因此直接用它（同时兼容 Windows 的 electron.exe 路径）。
  */
 export function resolveElectronExecutable(): string {
-  const req = createRequire(resolve(repoRoot(), 'packages', 'electron', 'package.json'));
+  const req = createRequire(resolve(repoRoot(), 'packages', 'host-electron', 'package.json'));
   let abs: unknown;
   try {
     abs = req('electron');
   } catch (err) {
     throw new Error(
-      `[e2e-headed] 无法从 packages/electron 解析/下载 electron；请先运行 pnpm install（${String(err)}）`,
+      `[e2e-headed] 无法从 packages/host-electron 解析/下载 electron；请先运行 pnpm install（${String(err)}）`,
       { cause: err },
     );
   }

@@ -196,7 +196,7 @@ jobs:
 
       # Electron >= 44 不再在 postinstall 下载二进制，需显式安装
       - name: Download Electron binary
-        run: pnpm --filter @nomi-ai/electron exec install-electron
+        run: pnpm --filter @nomi-ai/host-electron exec install-electron
 
       - name: Install xvfb
         if: runner.os == 'Linux'
@@ -210,7 +210,7 @@ jobs:
       - name: Build workspaces + copy renderer bundles
         run: |
           pnpm turbo run build
-          pnpm --filter @nomi-ai/electron run copy-renderer
+          pnpm --filter @nomi-ai/host-electron run copy-renderer
 
       - name: Run headed E2E (Linux / xvfb)
         if: runner.os == 'Linux'
@@ -327,9 +327,9 @@ jobs:
           set -euo pipefail
           tag="$GITHUB_REF_NAME"
           root_version=$(node -p "require('./package.json').version")
-          app_version=$(node -p "require('./packages/electron/package.json').version")
+          app_version=$(node -p "require('./packages/host-electron/package.json').version")
           if [ "$tag" != "v$app_version" ] || [ "$tag" != "v$root_version" ]; then
-            echo "::error::Tag $tag does not match version (packages/electron: $app_version, root: $root_version); expected v$app_version"
+            echo "::error::Tag $tag does not match version (packages/host-electron: $app_version, root: $root_version); expected v$app_version"
             exit 1
           fi
           notes="docs/releases/$tag.md"
@@ -466,7 +466,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         # matrix.artifact is linux | mac | win → package:publish:{linux,mac,win}
-        run: pnpm --filter @nomi-ai/electron run package:publish:${{ matrix.artifact }}
+        run: pnpm --filter @nomi-ai/host-electron run package:publish:${{ matrix.artifact }}
 
       # 自动更新载荷（#21）：latest-mac.yml 必须列出 x64 / arm64 两个 zip，且文件、大小、sha512 一致；
       # 未签名时打印 ::warning::（Squirrel.Mac 不接受未签名的更新）

@@ -16,7 +16,7 @@ import { revealToolbar } from './toolbarReveal';
  * 断言界面上不再出现中文（漏翻 / 未经 t() 的硬编码文案）。
  * 失败时把各界面的残留中文列出来；SHOTS_DIR 设置时顺便截图。
  */
-const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
+const electronPkgDir = resolve(repoRoot(), 'packages', 'host-electron');
 const shotDir = process.env.I18N_SHOTS_DIR;
 /** 允许出现的中文：语言选项本身的名字、用户输入 */
 const ALLOWED = [/简体中文/, /^中文$/, /诺米/, /日本語/, /한국어/, /繁體中文/];

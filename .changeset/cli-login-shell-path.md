@@ -1,5 +1,5 @@
 ---
-'@nomi-ai/electron': patch
+'@nomi-ai/host-electron': patch
 ---
 
 修复从 Dock / 开始菜单启动时找不到用 nvm、volta、fnm、asdf、mise、pnpm、bun 或自定义 npm prefix 安装的 Claude Code / Codex / dsh 等（#76）：

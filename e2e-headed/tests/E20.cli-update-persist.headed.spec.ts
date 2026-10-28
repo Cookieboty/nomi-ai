@@ -18,7 +18,7 @@ import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 import { ISOLATED_HOME_ARGS } from '../fixtures/homeEnv';
 
-const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
+const electronPkgDir = resolve(repoRoot(), 'packages', 'host-electron');
 const shotDir = process.env.CHAT_V2_SHOTS_DIR;
 
 test.skip(process.platform === 'win32', 'mock CLI scripts are POSIX shell');

@@ -18,7 +18,7 @@ import { callContract } from '../fixtures/contract';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
-const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
+const electronPkgDir = resolve(repoRoot(), 'packages', 'host-electron');
 const N = Number(process.env.PERF_N || 1000);
 const TURNS = Number(process.env.PERF_TURNS || 12);
 const TEXT_KB = Number(process.env.PERF_TEXT_KB || 200);

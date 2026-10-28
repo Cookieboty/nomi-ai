@@ -12,7 +12,7 @@ export function normalizeRendererRelativePath(filePath: string): string {
 /**
  * 未打包（`electron .`）时 renderer 资源的候选路径，按优先级排列。
  *
- * `app.getAppPath()` 指向 packages/electron（package.json 所在目录），因此：
+ * `app.getAppPath()` 指向 packages/host-electron（package.json 所在目录），因此：
  * 1. `<appPath>/<filePath>`                    —— 显式相对 electron 包的路径
  * 2. `<appPath>/dist/renderer/<rel>`           —— scripts/copy-renderer.js 复制后的产物（生产模式加载的就是这里）
  * 3. `<appPath>/../renderer/dist/<rel>`        —— renderer 自身的构建产物

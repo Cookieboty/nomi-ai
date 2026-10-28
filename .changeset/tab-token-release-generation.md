@@ -1,5 +1,5 @@
 ---
-'@nomi-ai/electron': patch
+'@nomi-ai/host-electron': patch
 ---
 
 修复第三方 Codex / Grok 标签空闲回收后发下一条消息报「这个标签的会话还没准备好」：旧进程退出得晚，把新进程刚登记的令牌一起作废了。现在进程退出只作废它自己那一代的令牌。

@@ -24,7 +24,7 @@ import { shellErrors, shellEvents, shellProcedures } from './shell';
  */
 export const APP_ERRORS = ['UNAVAILABLE'] as const;
 
-/** P1b 的五个域（D1..D5）：键是 `contract/src/app/<文件>.ts` 与 `electron/src/host/contract/<文件>.ts` 的文件名 */
+/** P1b 的五个域（D1..D5）：键是 `contract/src/app/<文件>.ts` 与 `host-electron/src/host/contract/<文件>.ts` 的文件名 */
 export const APP_DOMAINS = Object.freeze({
   media: { key: 'D1', procedures: mediaProcedures, events: mediaEvents, errors: mediaErrors },
   shell: { key: 'D2', procedures: shellProcedures, events: shellEvents, errors: shellErrors },

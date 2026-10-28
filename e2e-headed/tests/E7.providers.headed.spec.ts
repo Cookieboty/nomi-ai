@@ -22,7 +22,7 @@ import { startMockLlm, type MockLlm, type MockProtocol } from '../fixtures/mockL
  * - 右上角模型选择器逐个切换 → 下一条请求的 path / model / 鉴权头都对（网关同协议透传，无需重启）；
  * - 渲染进程拿到的状态与磁盘文件里没有明文 Key。
  */
-const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
+const electronPkgDir = resolve(repoRoot(), 'packages', 'host-electron');
 const mainJs = resolve(electronPkgDir, 'dist', 'main.js');
 const aiChatBuild = resolve(repoRoot(), 'packages', 'ai-chat', 'dist', 'index.html');
 const shotDir =

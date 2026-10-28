@@ -19,7 +19,7 @@ import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 import { isolatedHomeEnv } from '../fixtures/homeEnv';
 
-const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
+const electronPkgDir = resolve(repoRoot(), 'packages', 'host-electron');
 const shotDir = process.env.MODEL_SHOTS_DIR;
 
 const shot = async (p: Page, name: string) => {

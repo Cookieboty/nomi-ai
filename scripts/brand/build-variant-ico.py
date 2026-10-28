@@ -2,7 +2,7 @@
 """
 为每个应用图标变体生成 Windows .ico（#56：运行时 win.setAppDetails 需要磁盘上的 .ico）。
 
-输出 packages/electron/assets/app-icons/<变体>/app.ico，尺寸 16/24/32/48/64/128/256：
+输出 packages/host-electron/assets/app-icons/<变体>/app.ico，尺寸 16/24/32/48/64/128/256：
 16–48px 用 nomi-<变体>-flat-small.svg，≥64px 用 nomi-<变体>-flat.svg（与 assets/icon.ico 同规则）。
 
 依赖：Pillow + 一个 headless Chrome / Chromium（CHROME 环境变量或 PATH 中的 google-chrome / chromium）。

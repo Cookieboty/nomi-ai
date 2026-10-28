@@ -1,6 +1,6 @@
 # electron-builder 配置 · P9-9 Polish B
 #
-# 本文件由 [packages/electron/package.json](package.json)
+# 本文件由 [packages/host-electron/package.json](package.json)
 # 的 `package:*` 脚本消费。相较此前内嵌在 package.json 的 `build` 字段，独立成
 # YAML 后：
 # - 便于按 target/env 变量差分（AppImage / DMG / NSIS / notarize / sign）；
@@ -89,7 +89,7 @@ asarUnpack:
 
 extraResources:
   # renderer/dist 内含构建时选定的角色包（dist/character，CHARACTER_PACK 或 characters/nomi），
-  # 主进程把 resources/renderer/character 当作内置角色包（packages/electron/src/character/packResolve.ts）
+  # 主进程把 resources/renderer/character 当作内置角色包（packages/host-electron/src/character/packResolve.ts）
   - from: ../renderer/dist
     to: renderer
   - from: ../ai-chat/dist

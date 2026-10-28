@@ -1,6 +1,6 @@
 ---
 '@nomi-ai/ai-chat': patch
-'@nomi-ai/electron': patch
+'@nomi-ai/host-electron': patch
 ---
 
 设置页版面与 Claude Code 后台模型：

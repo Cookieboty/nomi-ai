@@ -4,7 +4,7 @@
  * 内核（@nomi-ai/core）只经这些端口使用平台能力；Electron、无界面 Node、以后的
  * Tauri sidecar 等宿主各自实现一份。设计见 docs/design/core-host-decoupling.md §6、§9。
  *
- * 方法集按 `packages/electron/src` 现有调用逐一对应（附录 A），下一步迁移可以 1:1 替换：
+ * 方法集按 `packages/host-electron/src` 现有调用逐一对应（附录 A），下一步迁移可以 1:1 替换：
  * - 平台本来就同步的（`app.getPath`、`safeStorage`、`powerMonitor.getSystemIdleTime`）保持同步，
  *   否则调用链要整体改成 async；
  * - 平台本来就异步的（文件选择器、剪贴板、截屏、`shell.openPath`）是 Promise；
@@ -34,7 +34,7 @@ export interface PathsPort {
   temp(): string;
   /** 打包后的资源目录（`process.resourcesPath`）；开发态可能指向运行时自带目录，调用方先看 `app.isPackaged()` */
   resources(): string;
-  /** 应用代码根目录（`app.getAppPath()`；开发态是 packages/electron） */
+  /** 应用代码根目录（`app.getAppPath()`；开发态是 packages/host-electron） */
   appPath(): string;
   /** 用户主目录（`app.getPath('home')`） */
   home(): string;

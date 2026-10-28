@@ -1,5 +1,5 @@
 ---
-'@nomi-ai/electron': minor
+'@nomi-ai/host-electron': minor
 '@nomi-ai/ai-chat': minor
 '@nomi-ai/bundle-ig-base': patch
 ---

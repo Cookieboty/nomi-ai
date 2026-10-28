@@ -1,5 +1,5 @@
 ---
-'@nomi-ai/electron': patch
+'@nomi-ai/host-electron': patch
 ---
 
 修复 macOS 上系统为浅色、Nomi 为深色主题时，窗口失焦后红绿灯看不见：窗口外观改为跟随所选主题（「跟随系统」时仍交给系统）

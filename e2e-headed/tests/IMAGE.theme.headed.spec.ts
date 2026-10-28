@@ -15,7 +15,7 @@ import type { ElectronApplication, Page } from '@playwright/test';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
-const electronDirectory = resolve(repoRoot(), 'packages/electron');
+const electronDirectory = resolve(repoRoot(), 'packages/host-electron');
 
 for (const packaged of [false, true]) {
   test(`image theme persists custom overrides and restores bundled preset (${packaged ? 'packaged resources' : 'development'})`, async () => {

@@ -21,7 +21,7 @@ import { safeRm } from '../fixtures/fsutil';
  *   a plain click / double-click still reacts and does not move the window
  * E15_SHOTS=<dir> saves window screenshots (+ full-screen grabs on X11 with ffmpeg).
  */
-const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
+const electronPkgDir = resolve(repoRoot(), 'packages', 'host-electron');
 const mainJs = resolve(electronPkgDir, 'dist', 'main.js');
 const shots = process.env.E15_SHOTS;
 const hasFfmpeg =

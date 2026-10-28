@@ -18,7 +18,7 @@ import { safeRm } from '../fixtures/fsutil';
  * - 全程帧间隔不退化（软件渲染 CI 的宽松预算；原来的 Canvas2D 绘制耗时探针只属于旧 sprite 渲染器）
  * - 设置 E22_SHOTS=<dir> 时，每个动作在中段截一张图
  */
-const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
+const electronPkgDir = resolve(repoRoot(), 'packages', 'host-electron');
 const mainJs = resolve(electronPkgDir, 'dist', 'main.js');
 const shots = process.env.E22_SHOTS;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));

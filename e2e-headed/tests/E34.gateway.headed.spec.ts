@@ -21,7 +21,7 @@ import { resolveElectronExecutable } from '../fixtures/electronApp';
 import { isolatedHomeEnv, ISOLATED_HOME_ARGS } from '../fixtures/homeEnv';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const electronPkgDir = resolve(__dirname, '..', '..', 'packages', 'electron');
+const electronPkgDir = resolve(__dirname, '..', '..', 'packages', 'host-electron');
 
 async function launch(
   userData: string,

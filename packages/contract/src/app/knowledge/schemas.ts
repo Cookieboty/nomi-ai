@@ -1,7 +1,7 @@
 /**
  * D4 的 zod schema（知识库 / 记忆 / 日程 / 本地模型 / 数据导出 / 扩展）。
  *
- * 照主进程服务的返回类型（electron/src/{knowledge,memory,schedule,local,extensions}）与视图客户端
+ * 照主进程服务的返回类型（core/src/{knowledge,memory,schedule,local,extensions}）与视图客户端
  * （ai-chat/src/services/{kb,mem,sched,local,ext}Client.ts）的接口写。字段多、会演进的返回值一律
  * `z.looseObject`（未知字段透传，与原 IPC 一致）；补丁类入参也用 `z.looseObject`，由服务自己清洗。
  */

@@ -680,7 +680,7 @@ export function getMemoryService(): MemoryService | null {
   return instance;
 }
 
-/** 会话存储默认最多保留的消息数（electron/config/default.json 的 maxMessages）：到上限后条数不再增长 */
+/** 会话存储默认最多保留的消息数（host-electron/config/default.json 的 maxMessages）：到上限后条数不再增长 */
 const HISTORY_CAP = 1000;
 /** 回找上次摘要位置时最多往前看的消息数 */
 const RESYNC_LOOKBACK = 200;

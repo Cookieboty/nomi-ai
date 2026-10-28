@@ -15,7 +15,7 @@ import { safeRm } from '../fixtures/fsutil';
  * 每一步可跳过；语言切换即时生效；完成后写入 onboarding.json；设置里可重新打开。
  * SHOTS_DIR 设置时保存截图。
  */
-const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
+const electronPkgDir = resolve(repoRoot(), 'packages', 'host-electron');
 const mainJs = resolve(electronPkgDir, 'dist', 'main.js');
 const aiChatBuild = resolve(repoRoot(), 'packages', 'ai-chat', 'dist', 'index.html');
 const shots = process.env.SHOTS_DIR;

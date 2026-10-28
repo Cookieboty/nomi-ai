@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-把 docs/brand/icon-variants/*.svg 栅格化（headless Chrome）并用 Pillow 打包成 packages/electron/assets 下的
+把 docs/brand/icon-variants/*.svg 栅格化（headless Chrome）并用 Pillow 打包成 packages/host-electron/assets 下的
 全部应用图标资源（文件名 / 尺寸 / 格式与既有资源一致）：
 
 - icon.icns                      ink-mac：128/256/512/1024 + @2x（32/64/256/512），带 TOC

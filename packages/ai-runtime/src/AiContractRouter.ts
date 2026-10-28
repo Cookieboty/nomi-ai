@@ -6,7 +6,7 @@
  * `AIClient.on(evt)` 的 12 个业务事件转成契约事件 `ctx.events.publish(...)`，由传输层按
  * 每个连接的订阅推送（取代 EventBroadcaster 的「按窗口订阅子集」）。
  *
- * 本文件不认识窗口，也不 import electron：Electron 的 IPC 传输由宿主挂上（electron/src/host）。
+ * 本文件不认识窗口，也不 import electron：Electron 的 IPC 传输由宿主挂上（host-electron/src/host）。
  *
  * 保留的行为：
  * - 流式文本片段按帧（16 ms）合批，其它 chunk 顺序不变；
@@ -388,7 +388,7 @@ export function createAiHandlers(opts: AiRouterOptions): AiHandlersHandle {
 
 /**
  * 只有 AI 门面的 router（测试与无界面宿主用）；契约里其余过程由 `extra.handlers` 补，缺的以 NOT_FOUND 失败。
- * Electron 宿主改用 `createAiHandlers` + 宿主的 `createAppRouter`（electron/src/host/contract）。
+ * Electron 宿主改用 `createAiHandlers` + 宿主的 `createAppRouter`（host-electron/src/host/contract）。
  */
 export function createAiRouter(
   opts: AiRouterOptions,

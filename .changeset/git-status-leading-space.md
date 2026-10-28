@@ -1,5 +1,5 @@
 ---
-'@nomi-ai/electron': patch
+'@nomi-ai/host-electron': patch
 ---
 
 修复右栏「改动」把排在第一个的未暂存文件显示成「已暂存」（而且没有增删行数）：读 git status 时把第一行开头表示「未暂存」的空格去掉了。

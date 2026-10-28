@@ -20,7 +20,7 @@ describe('turbo.json inputs', () => {
       const inputs = turbo.tasks[t].inputs ?? [];
       expect(inputs).toContain('$TURBO_DEFAULT$');
       expect(inputs).toContain('$TURBO_ROOT$/scripts/ports.mjs');
-      expect(inputs).toContain('$TURBO_ROOT$/packages/electron/src/security/csp.ts');
+      expect(inputs).toContain('$TURBO_ROOT$/packages/host-electron/src/security/csp.ts');
     }
   });
 

@@ -14,7 +14,7 @@ import { callContract, waitForTransport } from '../fixtures/contract';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
-const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
+const electronPkgDir = resolve(repoRoot(), 'packages', 'host-electron');
 const shotDir =
   process.env.V120_SHOTS_DIR ||
   join(process.env.NOMI_E2E_SHOTS_DIR || join(tmpdir(), 'nomi-e2e-shots'), 'v1.2.0-codex-parity');

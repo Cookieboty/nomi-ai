@@ -1,6 +1,6 @@
 /**
  * 插件 gateway 入口导出的客户端规格（docs/design/cli-plugin-architecture.md §5.5、§6.6）：纯数据，
- * 形状与 @nomi-ai/gateway 的 ClientSpec 一致（插件包不依赖网关内核；宿主 electron/src/gateway/worker.ts
+ * 形状与 @nomi-ai/gateway 的 ClientSpec 一致（插件包不依赖网关内核；内核 core/src/gateway/worker.ts
  * 把它交给 registerClientSpec，类型在那里由编译器核对）。
  */
 

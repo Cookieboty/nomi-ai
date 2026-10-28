@@ -1,5 +1,5 @@
 ---
-'@nomi-ai/electron': patch
+'@nomi-ai/host-electron': patch
 ---
 
 修复 Codex 分叉会话用量可能重复统计（#86）：判断开头的父会话重放段时，正文等非用量行也参与行间距判断，不再因为只看用量行而把重放误判为真实请求。

@@ -22,7 +22,7 @@ import { safeRm } from '../fixtures/fsutil';
  * 真实光标需要 xdotool（Linux / xvfb）；其它平台只跑不依赖光标的部分。
  * 设置 E9_SHOTS=<dir> 时保存整屏截图 / 帧序列（ffmpeg x11grab）。
  */
-const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
+const electronPkgDir = resolve(repoRoot(), 'packages', 'host-electron');
 const mainJs = resolve(electronPkgDir, 'dist', 'main.js');
 const hasXdo =
   process.platform === 'linux' &&

@@ -16,7 +16,7 @@ import { safeRm } from '../fixtures/fsutil';
  *   ANIM_SHOTS_DIR=/workspace/screenshots/anim-fix/after xvfb-run -a pnpm test:e2e:headed -g "ANIM"
  */
 const dir = process.env.ANIM_SHOTS_DIR;
-const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
+const electronPkgDir = resolve(repoRoot(), 'packages', 'host-electron');
 
 test('ANIM capture every clip', async () => {
   test.skip(!dir || !existsSync(resolve(electronPkgDir, 'dist', 'main.js')), 'set ANIM_SHOTS_DIR');

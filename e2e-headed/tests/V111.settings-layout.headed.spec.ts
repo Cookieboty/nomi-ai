@@ -15,7 +15,7 @@ import { safeRm } from '../fixtures/fsutil';
  * 快捷键页「应用内 / 全局」标签；编程助手页顶部为助手卡片。
  * 设 V111_SHOTS_DIR 时把每个分区截图存进去。
  */
-const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
+const electronPkgDir = resolve(repoRoot(), 'packages', 'host-electron');
 const shotDir = process.env.V111_SHOTS_DIR;
 const SECTIONS = [
   ['general', '通用'],

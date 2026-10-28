@@ -24,7 +24,7 @@ import { revealToolbar } from './toolbarReveal';
 const XSS =
   '<img src=x onerror="window.__pwned=1">XSSMARK<script>window.__pwned=2</script><b>bold</b>';
 
-const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
+const electronPkgDir = resolve(repoRoot(), 'packages', 'host-electron');
 const mainJs = resolve(electronPkgDir, 'dist', 'main.js');
 const aiChatBuild = resolve(repoRoot(), 'packages', 'ai-chat', 'dist', 'index.html');
 const shots = process.env.TOOLBAR_SHOTS;

@@ -1,5 +1,5 @@
 /**
- * 豆包 / 火山引擎「流式语音识别 2.0」WebSocket 二进制协议（与 packages/electron/src/voice/volcAsr.ts 同一份规格；
+ * 豆包 / 火山引擎「流式语音识别 2.0」WebSocket 二进制协议（与 packages/host-electron/src/voice/volcAsr.ts 同一份规格；
  * 两边各自实现是因为 electron 主进程无法直接解析本包的子入口，等价性由各自的单测保证）。
  *
  * 依据：火山引擎文档「大模型流式语音识别API」（docs/6561/1354869，2026-08-06 版，2026-10-19 核对）。

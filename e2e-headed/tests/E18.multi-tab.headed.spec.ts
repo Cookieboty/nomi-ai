@@ -18,7 +18,7 @@ import { callContract } from '../fixtures/contract';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
-const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
+const electronPkgDir = resolve(repoRoot(), 'packages', 'host-electron');
 const shotDir = process.env.MULTI_TAB_SHOTS_DIR;
 
 async function launch(userData: string): Promise<{ app: ElectronApplication; chat: Page }> {

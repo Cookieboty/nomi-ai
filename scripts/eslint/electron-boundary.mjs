@@ -2,7 +2,7 @@
 /**
  * Electron 依赖边界（docs/design/core-host-decoupling.md §7.2 / §11.1 / §12 P0）。
  *
- * - `ELECTRON_HOST_FILES`：宿主区域（§7.2 右列），可以 import electron。新宿主代码放 `packages/electron/src/host/`。
+ * - `ELECTRON_HOST_FILES`：宿主区域（§7.2 右列），可以 import electron。新宿主代码放 `packages/host-electron/src/host/`。
  * - `ELECTRON_IMPORT_ALLOWLIST`：P0 时业务模块里已有的 electron import（含 `import type`）。
  * - `ELECTRON_DYNAMIC_ALLOWLIST`：非宿主代码里已有的动态加载（`require('electron')`、
  *   `nodeRequire()('electron')`、`createRequire(...)('electron')`）。
@@ -15,29 +15,29 @@
 
 /** 宿主区域（glob，相对仓库根目录） */
 export const ELECTRON_HOST_FILES = [
-  'packages/electron/src/host/**',
-  'packages/electron/src/main.ts',
-  'packages/electron/src/preload.ts',
-  'packages/electron/src/ai-chat-preload.ts',
-  'packages/electron/src/schemePrivileges.ts',
-  'packages/electron/src/core/WindowManager.ts',
-  'packages/electron/src/core/TrayManager.ts',
-  'packages/electron/src/core/titleBar.ts',
-  'packages/electron/src/core/appIcon.ts',
-  'packages/electron/src/core/chatWindowBounds.ts',
-  'packages/electron/src/mascot/**',
-  'packages/electron/src/island/**',
-  'packages/electron/src/security/windowGuards.ts',
+  'packages/host-electron/src/host/**',
+  'packages/host-electron/src/main.ts',
+  'packages/host-electron/src/preload.ts',
+  'packages/host-electron/src/ai-chat-preload.ts',
+  'packages/host-electron/src/schemePrivileges.ts',
+  'packages/host-electron/src/core/WindowManager.ts',
+  'packages/host-electron/src/core/TrayManager.ts',
+  'packages/host-electron/src/core/titleBar.ts',
+  'packages/host-electron/src/core/appIcon.ts',
+  'packages/host-electron/src/core/chatWindowBounds.ts',
+  'packages/host-electron/src/mascot/**',
+  'packages/host-electron/src/island/**',
+  'packages/host-electron/src/security/windowGuards.ts',
 ];
 
 /**
  * shrink only, see docs/design/core-host-decoupling.md §12
- * packages/electron/src 里宿主区域之外、P0 时已经 import electron 的文件。不得新增条目。
+ * packages/host-electron/src 里宿主区域之外、P0 时已经 import electron 的文件。不得新增条目。
  */
 export const ELECTRON_IMPORT_ALLOWLIST = [
   // 组合根（宿主工作）：创建窗口管理器与端口、注册协议与会话权限、接 IPC 传输；
   // 搬家时拆成内核 createCore + 宿主 main，内核那一半不再 import electron
-  'packages/electron/src/core/Application.ts',
+  'packages/host-electron/src/core/Application.ts',
 ];
 
 /**

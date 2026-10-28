@@ -6,7 +6,7 @@
  *      掉帧（相邻两帧间隔 > 50ms）与输入框打字延迟（Event Timing）。
  * 结果打印到控制台，并写到 NOMI_PERF_OUT（JSON）便于前后对比。
  *
- *   pnpm build && pnpm --filter @nomi-ai/electron run copy-renderer
+ *   pnpm build && pnpm --filter @nomi-ai/host-electron run copy-renderer
  *   NOMI_PERF=1 NOMI_PERF_OUT=/tmp/perf.json pnpm exec playwright test PERF.chat
  */
 import { mkdtempSync, writeFileSync } from 'node:fs';
@@ -22,7 +22,7 @@ import { callContract } from '../fixtures/contract';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
-const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
+const electronPkgDir = resolve(repoRoot(), 'packages', 'host-electron');
 const RUN = process.env.NOMI_PERF === '1';
 
 // ---------- 预置数据 ----------

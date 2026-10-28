@@ -1,6 +1,6 @@
 ---
 '@nomi-ai/ai-chat': minor
-'@nomi-ai/electron': minor
+'@nomi-ai/host-electron': minor
 ---
 
 订阅额度改成卡片网格（Codex / Claude Code / Grok 各一张，沿用「概览明细」的行与进度条样式），每张卡有自己的「刷新」按钮和刷新中 / 失败 / 更新于状态，另保留「全部刷新」；主进程 `ai:usage:quota-refresh` 按工具参数化，单工具刷新只拉起该工具自己的官方 CLI，不同工具并行、互不阻塞，同工具并发合并。
