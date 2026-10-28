@@ -41,6 +41,7 @@
     "@nomi-ai/character-contract": "workspace:*",
     "@nomi-ai/cli-plugins": "workspace:*",
     "@nomi-ai/cli-sdk": "workspace:*",
+    "@nomi-ai/contract": "workspace:*",
     "@nomi-ai/gateway": "workspace:*",
     "@nomi-ai/host-ports": "workspace:*",
     "@nomi-ai/i18n": "workspace:*",

@@ -55,6 +55,7 @@
     "@nomi-ai/bundle-ig-base": "workspace:*",
     "@nomi-ai/bundle-ig-electron-caps": "workspace:*",
     "@nomi-ai/bundle-ig-mascot": "workspace:*",
+    "@nomi-ai/contract": "workspace:*",
     "@playwright/test": "^1.64.0",
     "@types/node": "^24.13.3",
     "@vitest/coverage-v8": "^5.0.3",

@@ -4,7 +4,8 @@
  * 责任：
  * 1. 装配 `@nomi-ai/ai-runtime` 单例（Booter + Lifecycle + Logger）；
  * 2. 启动 IgPluginHost + AI SDK providers，得到 `AIClient`；
- * 3. 挂上 `IPCTransportServer`（业务方法反射）、`EventBroadcaster`（事件广播）、
+ * 3. 用应用契约实现 AI 门面（`createAiRouter`：过程 + 事件），经宿主的契约 IPC 传输
+ *    （host/contractIpc.ts，preload 的 `window.nomiTransport`）暴露给视图；另挂
  *    `CapabilityIpcServer`（seams 通道）、`AiChatCompat`（旧通道兼容）；
  * 4. 可选：把遗留 `AdvancedTTSEngine` 注册为 `electron-native` TtsProvider（P8-5 尾巴）；
  * 5. 在 `dispose()` 时逆序清理。
@@ -16,9 +17,8 @@
 import {
   AiChatCompat,
   CapabilityIpcServer,
-  EventBroadcaster,
+  createAiRouter,
   GATEWAY_PROVIDER_ID,
-  IPCTransportServer,
   ProviderIpcServer,
   ProviderService,
   ProviderStore,
@@ -36,11 +36,13 @@ import {
 } from '@nomi-ai/ai-runtime';
 import type { AIClient } from '@nomi-ai/ai-sdk';
 import { FileSessionStorePlugin } from '@nomi-ai/bundle-ig-electron-caps';
+import { appContract } from '@nomi-ai/contract/app';
 import { app, safeStorage } from 'electron';
 
 import { desktopIgPlugins } from '../desktop/plugin';
 import { getExtensionsService } from '../extensions/ExtensionsService';
 import { getGatewayService } from '../gateway/GatewayService';
+import { serveContractOverIpc } from '../host/contractIpc';
 import { createPersonaIdentityPlugin } from '../persona/igPlugin';
 import { getPersonaService } from '../persona/PersonaService';
 import { isTrustedAiSender } from '../security/ipcSenderGuard';
@@ -65,20 +67,20 @@ export interface AIRuntimeBootOptions {
   enableLegacyCompat?: boolean;
   /** 是否挂 CapabilityIpcServer（若 seams 均未注入，可跳过），默认 true */
   enableCapabilityIpc?: boolean;
-  /** 是否挂事件广播，默认 true */
+  /** 是否把 AIClient 事件发布为契约事件（推给订阅了的窗口），默认 true */
   enableEventBroadcast?: boolean;
   /**
    * 额外要注入到 `client.tts` 的本地 TtsProvider 列表（例如
    * [TtsElectronNativeProvider](file:///./TtsElectronNativeProvider.ts)）。
    *
    * 语义：
-   *   - 注入时机在 `client` 就绪之后、CapabilityIpc / EventBroadcaster 挂载之前；
+   *   - 注入时机在 `client` 就绪之后、契约传输 / CapabilityIpc 挂载之前；
    *   - 若当前 profile 未装载 `bundle-ig-electron-caps` 的 `TtsPlugin`，
    *     `client.tts.register` 会抛 `SEAM_NOT_INJECTED`，本函数**吞掉**该错误
    *     并 `logger.warn` 提示（避免阻塞主流程）；其它异常照常向外抛。
    */
   ttsProviders?: TtsProvider[];
-  /** Nomi 对话请求发出前的外发检查，见 IPCTransportServerOptions.prepareChat */
+  /** Nomi 对话请求发出前的外发检查，见 AiRouterOptions.prepareChat */
   prepareChat?: (
     options: Record<string, unknown>,
     method: string,
@@ -104,6 +106,7 @@ export interface AIRuntimeBootHandle {
   /** 已保存 provider 列表（不含 key） */
   listProviders(): Array<{ id: string; name: string; baseURL: string }>;
   channels: {
+    /** 视图可调用的契约过程（`ai.*`） */
     business: readonly string[];
   };
   dispose(): Promise<void>;
@@ -231,19 +234,19 @@ export async function startAIRuntime(
     isTrustedAiSender(event),
   );
 
-  const transport = new IPCTransportServer({
+  // AI 门面：应用契约（ai.* 过程 + 事件）。调用者判定（sender 白名单 + surface）在传输层，
+  // dangerous 过程只接受受信调用者；窗口导航 / 销毁时断开它的会话
+  const ai = createAiRouter({
     client,
-    adapter,
     logger: runtimeLogger,
     prepareChat: opts.prepareChat,
+    publishEvents: opts.enableEventBroadcast !== false,
   });
-  transport.start();
-
-  let broadcaster: EventBroadcaster | undefined;
-  if (opts.enableEventBroadcast !== false) {
-    broadcaster = new EventBroadcaster({ adapter, logger: runtimeLogger });
-    broadcaster.start(client);
-  }
+  const contractIpc = serveContractOverIpc({
+    router: ai.router,
+    logger: { warn: (msg, data) => runtimeLogger.warn(msg, data) },
+  });
+  const procedures = Object.keys(appContract.procedures);
 
   let capability: CapabilityIpcServer | undefined;
   if (opts.enableCapabilityIpc !== false) {
@@ -273,7 +276,7 @@ export async function startAIRuntime(
   }
 
   logger.info(`AI runtime ready (profile=${profile})`, {
-    channels: transport.channels.length,
+    procedures: procedures.length,
     home,
   });
 
@@ -307,7 +310,7 @@ export async function startAIRuntime(
       return getGatewayService()?.listOpenAiCompatible() ?? [];
     },
     channels: {
-      business: transport.channels,
+      business: procedures,
     },
     async dispose() {
       try {
@@ -334,16 +337,10 @@ export async function startAIRuntime(
         });
       }
       try {
-        broadcaster?.stop();
+        contractIpc.stop();
+        ai.dispose();
       } catch (err) {
-        logger.warn('EventBroadcaster.stop threw', {
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-      try {
-        transport.stop();
-      } catch (err) {
-        logger.warn('IPCTransportServer.stop threw', {
+        logger.warn('contract transport stop threw', {
           error: err instanceof Error ? err.message : String(err),
         });
       }

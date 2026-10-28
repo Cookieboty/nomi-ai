@@ -9,8 +9,9 @@
  * 本文件只保留 headed 复跑所必需的最小片段：
  * 1. 通过 `AIRuntimeService.configure({ booter: FakeBooter, ... })` 启动一个
  *    完全内存化的 插件环境（LLM/Tool/UserProfile seams 全部用 fake）；
- * 2. 挂 `IPCTransportServer + EventBroadcaster + CapabilityIpcServer`；
- * 3. 打开 1 个 BrowserWindow 载入 renderer.html，用 mkAiPreload 暴露 `window.aiIPC`；
+ * 2. 挂应用契约（`createAiRouter` + `@nomi-ai/contract` 的 IPC 传输）与 `CapabilityIpcServer`；
+ * 3. 打开 1 个 BrowserWindow 载入 renderer.html，preload 暴露 `window.nomiTransport`
+ *    （契约传输）与 `window.aiIPC`（其余 `ai:*` 通道）；
  * 4. `--profile=xxx` CLI 参数切换 waifu / chat-only / mcp-headless；
  *    `--no-window` 时不开窗口（供 E3 用）。
  */
@@ -45,12 +46,12 @@ try {
 }
 
 const {
-  IPCTransportServer,
-  EventBroadcaster,
+  createAiRouter,
   CapabilityIpcServer,
   runtime,
   NoopRuntimeLogger,
 } = require('@nomi-ai/ai-runtime');
+const { createIpcServerTransport } = require('@nomi-ai/contract');
 
 const { AIClient, toSdkContext } = require('@nomi-ai/ai-sdk');
 const bundleBase = require('@nomi-ai/bundle-ig-base');
@@ -350,10 +351,13 @@ async function main() {
 
   // 2) 挂 IPC 通道
   const adapter = makeAdapter();
-  const transport = new IPCTransportServer({ client, adapter, logger: NoopRuntimeLogger });
-  transport.start();
-  const broadcaster = new EventBroadcaster({ adapter, logger: NoopRuntimeLogger });
-  broadcaster.start(client);
+  // AI 门面：应用契约（ai.* 过程 + 事件），经 contract:request / contract:frame 两个通道
+  const ai = createAiRouter({ client, logger: NoopRuntimeLogger });
+  const contractTransport = createIpcServerTransport(adapter, {
+    // harness 只加载自家的 renderer.html
+    resolveCaller: () => ({ surface: 'test', trusted: true }),
+  });
+  contractTransport.serve(ai.router);
   const capability = new CapabilityIpcServer({
     adapter,
     logger: NoopRuntimeLogger,
@@ -364,7 +368,7 @@ async function main() {
   });
   capability.start();
 
-  logger.info(`AI runtime ready (channels=${transport.channels.length})`);
+  logger.info(`AI runtime ready (procedures=${Object.keys(ai.router.contract.procedures).length})`);
 
   // 3) 暴露 ctx / seams 到全局，供 E1 从主进程 side triggerEvent
   //    Playwright 通过 `electronApp.evaluate(({ app }) => globalThis.__aiE2eProbe.emitTts(...))` 触发
@@ -373,7 +377,9 @@ async function main() {
   //    （hook），因此这里必须调 `runHooks` 而不是 `triggerEvent`（后者是 event bus）。
   globalThis.__aiE2eProbe = {
     async emitTts(payload) {
-      await fakeCtx.runHooks('tts/chunk', payload);
+      // app.evaluate 只能传 JSON：音频字节在这里还原成 Uint8Array（契约事件要求二进制）
+      const data = Array.isArray(payload.data) ? Uint8Array.from(payload.data) : payload.data;
+      await fakeCtx.runHooks('tts/chunk', { ...payload, data });
     },
     async emitTurnEnd(payload) {
       await fakeCtx.runHooks('agent/turn-end', payload);

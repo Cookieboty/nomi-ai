@@ -77,6 +77,7 @@ describe('E5 · chat-only · write_file 危险工具拒绝路径', () => {
     client.on('tool:confirm-required', (payload) => {
       confirmEvents.push(payload as { tool?: string; reqId?: string; args?: unknown });
     });
+    await handle.settle(); // 订阅帧到达内核
 
     try {
       await handle.ctx.triggerEvent('tools/pre-execute', {
@@ -88,6 +89,7 @@ describe('E5 · chat-only · write_file 危险工具拒绝路径', () => {
     } catch {
       /* 期望 reject */
     }
+    await handle.settle(); // 事件帧到达窗口
 
     expect(confirmEvents).toHaveLength(1);
     expect(confirmEvents[0]).toMatchObject({
@@ -107,6 +109,7 @@ describe('E5 · chat-only · write_file 危险工具拒绝路径', () => {
     client.on('tool:executed', (payload) => {
       executed.push(payload as { toolName?: string; ok?: boolean; code?: string });
     });
+    await handle.settle();
 
     // 拒绝路径：Agent/主进程编排在 catch 后应显式广播一次"用户拒绝"的 post-execute
     await handle.ctx.triggerEvent('tools/post-execute', {
@@ -116,6 +119,7 @@ describe('E5 · chat-only · write_file 危险工具拒绝路径', () => {
       code: 'E_TOOL_DENIED',
       durationMs: 0,
     });
+    await handle.settle();
 
     expect(executed).toHaveLength(1);
     expect(executed[0]).toMatchObject({

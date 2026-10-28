@@ -3,7 +3,7 @@
  *
  * 语义对齐：
  * - 一个 ai-chat 渲染窗口通过 `ClientAIClient.chat.sendMessage(...)` 发消息；
- * - 主进程 IPCTransportServer 反射到 `chat.sendMessage` facade，调用 FakeLLM 拿到响应；
+ * - 主进程契约过程 `ai.chat.sendMessage` 委派到 chat facade，调用 FakeLLM 拿到响应；
  * - 触发 插件事件 `tools/post-execute` → 广播为 `tool:executed` 到该窗口；
  * - `client.tools.list()` 能列出预注册的 `echo` 工具。
  */
@@ -78,6 +78,7 @@ describe('E2 · chat-only · sendMessage + tool:executed', () => {
     client.on('tool:executed', (payload) => {
       received.push(payload as { toolName: string; ok: boolean });
     });
+    await handle.settle(); // 订阅帧到达内核
 
     await handle.ctx.triggerEvent('tools/post-execute', {
       toolName: 'echo',
@@ -85,6 +86,7 @@ describe('E2 · chat-only · sendMessage + tool:executed', () => {
       ok: true,
       durationMs: 5,
     });
+    await handle.settle(); // 事件帧到达窗口
 
     expect(received).toHaveLength(1);
     expect(received[0]).toMatchObject({ toolName: 'echo', ok: true });

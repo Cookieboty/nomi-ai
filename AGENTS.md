@@ -18,7 +18,7 @@ pnpm 9 + Turborepo monorepo，Electron 桌面应用（React 19 + Vite）。Node 
 | `packages/host-ports`、`host-node`  | 宿主端口接口（路径、密钥、对话框、窗口等）/ 无界面宿主实现（测试与开发），见同上 §6                                                              |
 | `packages/character-contract`       | 角色包契约：manifest / persona / mapping 的 schema、校验与迁移，见同上 §10                                                                       |
 | `packages/cli-plugins`              | 内置编程助手插件（claude / codex / grok / gemini / dsh），按 `<cli>/{manifest,main,gateway,renderer}` 分子路径；`BuiltinCliId` 由 `gen:ids` 生成 |
-| `packages/ai-sdk` / `ai-sdk-client` | 主进程 AI 门面 / 渲染进程客户端与 preload 桥（`window.aiIPC`）                                                                                   |
+| `packages/ai-sdk` / `ai-sdk-client` | 主进程 AI 门面 / 渲染进程客户端（基于 `@nomi-ai/contract/app`）与 preload 桥（`window.nomiTransport`、`window.aiIPC`）                           |
 | `packages/bundle-ig-*`              | 插件包：`base`（不得 import electron）、`electron-caps`、`mascot`                                                                                |
 | `packages/ui`                       | 设计令牌、主题、组件、i18n（`src/locales/en.json`）                                                                                              |
 | `packages/voice`、`packages/types`  | 语音、共享类型                                                                                                                                   |

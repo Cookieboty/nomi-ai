@@ -2,17 +2,17 @@
  * E1 · waifu profile · headless smoke
  *
  * 语义对齐：
- * - 主进程侧真实构造 `AIClient` + `IPCTransportServer` + `EventBroadcaster`（无 Electron，
- *   IPC 走 FakeIpcAdapter；LLM/Tool/UserProfile seams 由 e2e/helpers/fakeSeams 提供）；
+ * - 主进程侧真实构造 `AIClient` + `createAiRouter`（应用契约）+ 契约 IPC 传输（无 Electron，
+ *   IPC 走内存版 ipcMain；LLM/Tool/UserProfile seams 由 e2e/helpers/fakeSeams 提供）；
  * - 一个"waifu 主渲染窗口"通过 `ClientAIClient` 订阅 AI 事件；
  * - 触发 插件事件 `tts/chunk` → 渲染窗口收到 `tts:chunk`，其 `rms>0` 可驱动 `avatar.driveLipSync`；
- * - 触发 插件事件 `agent/turn-end`（等价于 P8-3 里的"turn 完成/消息完成"信号）→ 广播到全部窗口。
+ * - 触发 插件事件 `agent/turn-end`（等价于 P8-3 里的"turn 完成/消息完成"信号）→ 推给每个订阅了的窗口，
+ *   没订阅的窗口收不到（取代原 EventBroadcaster 的「按窗口订阅子集」）。
  *
  * 本用例不启动 Electron，以 `agent:turn-end` 作为回合完成信号；真实界面由 e2e-headed 覆盖，
  * 两套 E2E 的分工见 docs/development/testing.md。
  */
 
-import { EVENT_BROADCAST_CHANNEL } from '@nomi-ai/ai-runtime';
 import { ClientAIClient } from '@nomi-ai/ai-sdk-client';
 import { describe, expect, it, afterEach, beforeEach } from 'vitest';
 
@@ -51,6 +51,7 @@ describe('E1 · waifu · tts chunk → lip sync + turn 完成广播', () => {
       const payload = p as { rms?: number };
       if (typeof payload.rms === 'number') chunkAtB.push({ rms: payload.rms });
     });
+    await handle.settle(); // 订阅帧到达内核
 
     await handle.ctx.triggerEvent('tts/chunk', {
       reqId: 'r-tts-1',
@@ -67,6 +68,7 @@ describe('E1 · waifu · tts chunk → lip sync + turn 完成广播', () => {
       rms: 0.42,
       isFinal: true,
     });
+    await handle.settle(); // 事件帧到达两个窗口
 
     expect(chunkAtA).toEqual([{ rms: 0.65 }, { rms: 0.42 }]);
     expect(chunkAtB).toEqual([{ rms: 0.65 }, { rms: 0.42 }]);
@@ -79,30 +81,32 @@ describe('E1 · waifu · tts chunk → lip sync + turn 完成广播', () => {
     await clientB.dispose();
   });
 
-  it('agent/turn-end（等价 message-complete）被广播到所有 web contents', async () => {
+  it('agent/turn-end（等价 message-complete）推给订阅了的窗口，未订阅的窗口收不到', async () => {
     const waifuMain = handle.createRendererClient({ id: 511 });
     const waifuOverlay = handle.createRendererClient({ id: 512 });
+    const bystander = handle.createRendererClient({ id: 513 });
     const client = new ClientAIClient({ bridge: waifuMain.bridge });
+    const overlay = new ClientAIClient({ bridge: waifuOverlay.bridge });
     const events: Array<unknown> = [];
+    const overlayEvents: Array<unknown> = [];
     client.on('agent:turn-end', (p) => events.push(p));
+    overlay.on('agent:turn-end', (p) => overlayEvents.push(p));
+    await handle.settle(); // 订阅帧到达内核
 
     await handle.ctx.triggerEvent('agent/turn-end', {
       sessionId: 's-e1',
       turnId: 't-1',
       ok: true,
     });
+    await handle.settle();
 
     expect(events).toHaveLength(1);
     expect(events[0]).toMatchObject({ sessionId: 's-e1', turnId: 't-1', ok: true });
-
-    for (const wc of [waifuMain.webContents, waifuOverlay.webContents]) {
-      const broadcast = wc.sent.filter((m) => m.channel === EVENT_BROADCAST_CHANNEL);
-      const turnEnd = broadcast.find(
-        (m) => (m.payload as { evt: string }).evt === 'agent:turn-end',
-      );
-      expect(turnEnd, `wc#${wc.id} 缺少 agent:turn-end 广播`).toBeTruthy();
-    }
+    expect(overlayEvents).toEqual(events);
+    // 没有客户端订阅的窗口一帧都收不到
+    expect(bystander.webContents.sent).toEqual([]);
 
     await client.dispose();
+    await overlay.dispose();
   });
 });

@@ -10,6 +10,7 @@
  */
 
 import type { IpcInvokeEvent } from '@nomi-ai/ai-runtime';
+import type { CallerContext, Surface } from '@nomi-ai/contract';
 import { app } from 'electron';
 
 import { DEV_HOST, devChatUrl, devRendererUrl } from '../core/devPorts';
@@ -44,4 +45,32 @@ export function isTrustedSenderUrl(raw: string | undefined | null): boolean {
 
 export function isTrustedAiSender(event: IpcInvokeEvent): boolean {
   return isTrustedSenderUrl(event.senderUrl);
+}
+
+/**
+ * 受信页面属于哪个界面（docs/design/core-host-decoupling.md §8）：
+ * 对话窗口（打包后 `…/ai-chat/index.html`，开发态 chat dev server）为 `chat`，其余为看板娘 `mascot`。
+ * 只在 URL 已判定受信之后调用。
+ */
+export function aiSurfaceForUrl(raw: string): Surface {
+  try {
+    const url = new URL(raw);
+    if (url.protocol === 'file:') {
+      return /\/ai-chat\/[^/]*$/.test(decodeURIComponent(url.pathname)) ? 'chat' : 'mascot';
+    }
+    return url.port === new URL(devChatUrl()).port ? 'chat' : 'mascot';
+  } catch {
+    return 'mascot';
+  }
+}
+
+/**
+ * 契约传输的调用者判定（`createIpcServerTransport` 的 `resolveCaller`）：
+ * 主 frame 与实际发起调用的 frame 都必须受信，否则返回 null（这个发送方的所有调用都被拒绝，
+ * 与原 `ai:*` 通道的 sender 白名单一致）；受信来源按 URL 给出 surface，`trusted: true`。
+ */
+export function resolveAiCaller(event: IpcInvokeEvent): CallerContext | null {
+  if (!isTrustedSenderUrl(event.senderUrl)) return null;
+  if (event.senderFrameUrl && !isTrustedSenderUrl(event.senderFrameUrl)) return null;
+  return { surface: aiSurfaceForUrl(event.senderUrl as string), trusted: true };
 }

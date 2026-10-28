@@ -12,8 +12,8 @@ Electron 主进程（packages/electron）
 ```
 
 - 入口 `packages/electron/src/main.ts` → `core/Application.ts`；窗口由 `WindowManager` 管理。
-- 所有窗口开启上下文隔离与沙箱；页面只能通过 preload 暴露的**具名白名单**接口访问主进程（AI 能力为 `window.aiIPC`）。
-- IPC 通道命名为 `'<领域>:<动作>'`；`ai:*` 调用会经 `security/ipcSenderGuard.ts` 校验发送方。
+- 所有窗口开启上下文隔离与沙箱；页面只能通过 preload 暴露的**具名白名单**接口访问主进程：AI 门面走应用契约（`@nomi-ai/contract/app`，preload 的 `window.nomiTransport`，只有 `contract:request` / `contract:frame` 两个通道），其余 `ai:*` 服务通道暂经 `window.aiIPC`。
+- IPC 通道命名为 `'<领域>:<动作>'`；`ai:*` 调用与契约传输都经 `security/ipcSenderGuard.ts` 校验发送方（契约传输由它给出调用者的 surface / trusted，`dangerous` 过程只接受受信调用者）。
 
 ## 包
 

@@ -32,21 +32,13 @@
         const write = (msg) => {
           log.textContent += msg + '\n';
         };
-        if (!window.aiIPC) {
-          status.textContent = 'aiIPC missing (preload failed)';
-          write('[fatal] window.aiIPC missing');
+        if (!window.nomiTransport || !window.aiIPC) {
+          status.textContent = 'nomiTransport / aiIPC missing (preload failed)';
+          write('[fatal] window.nomiTransport / window.aiIPC missing');
           return;
         }
-        status.textContent = 'aiIPC ready';
+        status.textContent = 'nomiTransport ready';
         write('[boot] preload done');
-        // 探针订阅：把关键事件顺带 dump 到 UI，便于失败时截图观察
-        window.aiIPC.on('ai:event', (payload) => {
-          try {
-            write('[evt] ' + JSON.stringify(payload).slice(0, 200));
-          } catch (err) {
-            write('[evt] <unserializable>');
-          }
-        });
       })();
     </script>
   </body>

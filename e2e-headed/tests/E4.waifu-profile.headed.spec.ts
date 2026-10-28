@@ -4,10 +4,10 @@ import { test, expect } from '../fixtures/electronApp';
  * E4 · waifu profile · profile write-read headed 复刻
  *
  * 语义对齐 e2e/tests/E4.waifu-profile-write-read.test.ts：
- * - renderer 调 window.aiIPC.invoke('ai:userProfile:set', patch) 更新 nickname；
+ * - renderer 经契约调 `ai.memory.userProfile.set`（{ patch, source }）更新 nickname；
  * - 主进程 UserProfileService 落盘 + 触发 userProfile/changed 插件事件；
- * - EventBroadcaster 广播 `ai:event { evt:'userProfile:changed' }` 给全部窗口；
- * - renderer 通过 window.aiIPC.invoke('ai:userProfile:get') 拉到最新值。
+ * - 契约事件 `ai.userProfile.changed` 推给订阅了的窗口；
+ * - renderer 经契约调 `ai.memory.userProfile.get` 拉到最新值。
  */
 test.describe('E4 · waifu · userProfile:set → 广播 + get 一致', () => {
   test('nickname 修改后 renderer 收到 userProfile:changed 广播且 get 返回新值', async ({
@@ -15,14 +15,15 @@ test.describe('E4 · waifu · userProfile:set → 广播 + get 一致', () => {
   }) => {
     const { page } = await launchHeaded({ profile: 'waifu' });
     expect(page).not.toBeNull();
-    await page!.waitForFunction(() => typeof (window as any).aiIPC !== 'undefined');
+    await page!.waitForFunction(() => typeof (window as any).__e2eProbe !== 'undefined');
     await page!.evaluate(() => (window as any).__e2eProbe.clear());
 
     const NEW_NICK = 'HeadedNick_' + Date.now();
 
     await page!.evaluate(async (nick) => {
-      await (window as any).aiIPC.invoke('ai:userProfile:set', {
+      await (window as any).__e2eProbe.call('ai.memory.userProfile.set', {
         patch: { identity: { nickname: nick } },
+        source: 'user',
       });
     }, NEW_NICK);
 
@@ -39,7 +40,7 @@ test.describe('E4 · waifu · userProfile:set → 广播 + get 一致', () => {
 
     // 再拉一次确认落盘
     const readBack = await page!.evaluate(async () => {
-      const profile = (await (window as any).aiIPC.invoke('ai:userProfile:get')) as {
+      const profile = (await (window as any).__e2eProbe.call('ai.memory.userProfile.get')) as {
         identity?: { nickname?: string };
       };
       return profile?.identity?.nickname;

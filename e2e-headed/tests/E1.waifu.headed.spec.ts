@@ -4,8 +4,8 @@ import { test, expect } from '../fixtures/electronApp';
  * E1 · waifu profile · headed 复刻
  *
  * 语义对齐 e2e/tests/E1.waifu-tts-lipsync.test.ts：
- * - 主进程 emit `tts/chunk` → EventBroadcaster 广播 `ai:event { evt:'tts:chunk' }`
- *   → renderer preload 捕获到 buffer 里；
+ * - 主进程 emit `tts/chunk` → 契约事件 `ai.tts.chunk` 推给订阅了的窗口
+ *   → renderer preload 的契约客户端捕获到 buffer 里；
  * - renderer 中 `window.__e2eProbe.getTtsChunks()` 返回的 rms 序列与主进程发出的一致；
  * - 同一时刻多个渲染窗口场景在 headed 里通过 `app.evaluate` 只使用 1 个 primary window
  *   验证（多窗广播已在 headless E1 覆盖）。
@@ -52,7 +52,7 @@ test.describe('E1 · waifu · tts chunk → renderer 收到 rms 序列', () => {
     expect(chunks.every((c) => c.rms > 0)).toBe(true);
   });
 
-  test('agent/turn-end 被广播为 ai:event { evt: agent:turn-end }', async ({ launchHeaded }) => {
+  test('agent/turn-end 推给窗口（契约事件 ai.agent.turnEnd）', async ({ launchHeaded }) => {
     const { app, page } = await launchHeaded({ profile: 'waifu' });
     expect(page).not.toBeNull();
     await page!.waitForFunction(() => typeof (window as any).__e2eProbe !== 'undefined');

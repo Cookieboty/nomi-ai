@@ -1,9 +1,11 @@
-import { mkAiPreload } from '@nomi-ai/ai-sdk-client/preload';
+import { mkAiPreload, mkNomiTransportPreload } from '@nomi-ai/ai-sdk-client/preload';
 import { type DesktopBubble, type IpcApi, type Persona } from '@nomi-ai/types';
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
 
-// 挂载 ai IPC 桥：`window.aiIPC.invoke/on/off` 走白名单校验的 `ai:` 通道。
-// 与旧 `electronAPI` 并存；ai-sdk-client 的 ClientAIClient 会自动查找 `window.aiIPC`。
+// 契约传输：`window.nomiTransport` 只放行 contract:request / contract:frame 两个通道，
+// AI 门面（ClientAIClient）走这里（docs/design/core-host-decoupling.md §5.2）。
+mkNomiTransportPreload({ contextBridge, ipcRenderer });
+// 其余 `ai:*` 服务通道（语音、主题、偏好等）迁入契约前仍经 `window.aiIPC`（白名单校验 `ai:` 前缀）。
 mkAiPreload({ contextBridge, ipcRenderer });
 
 // 向渲染进程暴露安全的 API
