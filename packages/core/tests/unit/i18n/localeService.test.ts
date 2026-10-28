@@ -7,7 +7,7 @@ import path from 'node:path';
 import { getDictionary } from '@nomi-ai/i18n';
 
 import { createRecordingAppEvents, type RecordingAppEvents } from '../../../src/core/appEvents';
-import { createCoreScope, runInCoreScope } from '../../../src/core/scope';
+import { createCoreScope, registerLiveCoreScope, runInCoreScope } from '../../../src/core/scope';
 import { getLocale, LocaleService, resolveLocale, t } from '../../../src/i18n';
 
 let events: RecordingAppEvents = createRecordingAppEvents();
@@ -91,6 +91,26 @@ describe('main-process i18n', () => {
     expect(getLocale()).toBe('zh-CN');
     process.env.CD_LOCALE = 'en-US';
     expect(t('electron.common.quit')).toBe('Quit');
+  });
+
+  it('outside any scope: follows the single live core, falls back when several are live', () => {
+    sysLangs = ['zh-CN'];
+    const en = make(tmp());
+    en.set('en');
+    const zh = make(tmp());
+    // 宿主原生回调（拖放文件、托盘菜单）不在作用域里：进程里只有一个内核时跟随它的语言
+    const offEn = registerLiveCoreScope(createCoreScope({ i18n: en }));
+    expect(t('electron.common.quit')).toBe('Quit');
+    expect(getLocale()).toBe('en');
+    // 两个内核同时存活：无法判断归属，回到不可变默认；作用域里各是各的
+    const zhScope = createCoreScope({ i18n: zh });
+    const offZh = registerLiveCoreScope(zhScope);
+    expect(t('electron.common.quit')).toBe('退出');
+    expect(runInCoreScope(zhScope, () => t('electron.common.quit'))).toBe('退出');
+    offZh();
+    expect(t('electron.common.quit')).toBe('Quit');
+    offEn();
+    expect(t('electron.common.quit')).toBe('退出');
   });
 
   it('t / tName can be destructured off the instance (tray menu does)', () => {

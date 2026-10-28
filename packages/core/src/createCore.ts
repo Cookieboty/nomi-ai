@@ -69,7 +69,12 @@ import type { CoreContractServices } from './contract/services';
 import type { AppHandlers, ContractDeps, Middleware } from './contract/types';
 import { createShutdown, LifecycleRegistry } from './core/lifecycle';
 import { CORE_PENDING_GROUPS, createPendingEvents } from './core/pendingEvents';
-import { createCoreScope, runInCoreScope, type CoreScope } from './core/scope';
+import {
+  createCoreScope,
+  registerLiveCoreScope,
+  runInCoreScope,
+  type CoreScope,
+} from './core/scope';
 import { ServiceContainer, type IServiceContainer } from './core/ServiceContainer';
 import { APP_EVENTS, HOST_PORTS } from './core/serviceTokens';
 import { createDesktopService, type DesktopWindows } from './desktop/DesktopService';
@@ -238,10 +243,17 @@ function noopUpdater(): UpdaterLike {
 
 export function createCore(deps: CoreDeps): Core {
   const scope = createCoreScope();
-  return runInCoreScope(scope, () => buildCore(deps, scope));
+  // 宿主从原生回调直接调进内核（不在作用域里）时，进程里只有这一个内核就按它的语言等设置走
+  const unregister = registerLiveCoreScope(scope);
+  try {
+    return runInCoreScope(scope, () => buildCore(deps, scope, unregister));
+  } catch (error) {
+    unregister();
+    throw error;
+  }
 }
 
-function buildCore(deps: CoreDeps, scope: CoreScope): Core {
+function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Core {
   const { ports } = deps;
   const host = deps.host ?? {};
   const cfg = deps.config ?? {};
@@ -1006,9 +1018,13 @@ function buildCore(deps: CoreDeps, scope: CoreScope): Core {
 
   const shutdown = createShutdown({
     work: async () => {
-      // 还在启动：等它走完（或失败）再停，避免停到一半又建出服务
-      await starting?.catch(() => undefined);
-      await doStop();
+      try {
+        // 还在启动：等它走完（或失败）再停，避免停到一半又建出服务
+        await starting?.catch(() => undefined);
+        await doStop();
+      } finally {
+        unregister();
+      }
     },
     timeoutMs: CORE_STOP_TIMEOUT_MS,
     exit: () => undefined,

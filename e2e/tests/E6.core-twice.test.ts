@@ -6,7 +6,10 @@
  * - 没有宿主片段时，要用窗口对象的过程（看板娘窗口、灵动岛、应用图标…）以 UNAVAILABLE 失败；
  * - 打开语音设置走声明式窗口意图（ports.windows.open），只记在发起的那个宿主上；stop() 可重入。
  *
- * 仍是进程级、两个内核共用的状态（界面语言、诊断日志目录等）见 §12 P4 进度说明，本用例不断言它们。
+ * - 界面语言按内核实例：作用域里各是各的；宿主从原生回调（拖放文件等）直接调进内核时不在作用域里，
+ *   进程里只有一个内核就跟随它的语言，同时存活多个时落到进程默认值。
+ *
+ * 仍是进程级、两个内核共用的状态（诊断日志目录等）见 §12 P4 进度说明，本用例不断言它们。
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -132,5 +135,41 @@ describe('E6 · createCore：同一进程里的两个内核', () => {
     expect(a.core.stop()).toBe(first);
     await first;
     await a.stop();
+  });
+
+  it('界面语言按内核实例隔离；不在作用域里的宿主回调跟随唯一存活的内核', async () => {
+    const MASCOT_ID = 7;
+    const a = await make();
+    await a.connect().api.locale.set({ pref: 'en' });
+    const desktop = a.core.services.desktop!;
+    desktop.attachWindows({
+      main: () => ({
+        isDestroyed: () => false,
+        isVisible: () => true,
+        showInactive: () => undefined,
+        hide: () => undefined,
+        webContents: { id: MASCOT_ID },
+      }),
+      openChat: async () => ({ isDestroyed: () => false }),
+    });
+    const bubbles: string[] = [];
+    a.connect({ surface: 'mascot', trusted: true, id: String(MASCOT_ID) }).api.on(
+      'desktop.bubble',
+      (e) => bubbles.push((e as { text: string }).text),
+    );
+    await tick();
+    // 宿主的拖放通道（nomiHostIpc）直接调 desktop.dropFile：这里不在任何内核作用域里
+    desktop.dropFile(MASCOT_ID, path.join(a.ports.paths.userData(), 'missing', 'nope.txt'));
+    await expect.poll(() => bubbles.length, { timeout: 5000 }).toBeGreaterThan(0);
+    expect(bubbles[0]).toMatch(/[A-Za-z]/);
+    expect(bubbles[0]).not.toMatch(/[\u4e00-\u9fff]/);
+
+    // 第二个内核（中文）：两边的契约调用各按自己的语言
+    const b = await make();
+    await b.connect().api.locale.set({ pref: 'zh-CN' });
+    expect((await a.connect().api.locale.get()).locale).toBe('en');
+    expect((await b.connect().api.locale.get()).locale).toBe('zh-CN');
+    expect(a.core.run(() => a.core.i18n.t('electron.common.quit'))).toBe('Quit');
+    expect(b.core.run(() => b.core.i18n.t('electron.common.quit'))).toBe('退出');
   });
 });

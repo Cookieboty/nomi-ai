@@ -238,7 +238,10 @@ export class Application implements IApplication {
       // 拖到看板娘身上的文件：preload 从真实 File 取路径后经专用通道直接提交（不经契约，视图选不了路径）
       const desktop = services.desktop;
       if (desktop) {
-        const stopNomiHost = serveNomiHostIpc({ dropFile: (id, p) => desktop.dropFile(id, p) });
+        // 原生 IPC 回调不在内核作用域里：进内核作用域，拖入总结的气泡按用户的界面语言
+        const stopNomiHost = serveNomiHostIpc({
+          dropFile: (id, p) => this.core.run(() => desktop.dropFile(id, p)),
+        });
         this.lifecycle.register({ name: 'nomi-host-ipc', stop: stopNomiHost });
       }
 
@@ -384,7 +387,9 @@ export class Application implements IApplication {
       models: gateway
         ? {
             state: () => gateway.state(),
-            select: (ref) => gateway.setAssignment('nomi', { models: { main: ref } }),
+            // 托盘菜单回调不在内核作用域里：进作用域，重新生成的终端脚本按用户的界面语言
+            select: (ref) =>
+              this.core.run(() => gateway.setAssignment('nomi', { models: { main: ref } })),
             onChange: (fn) => gateway.onChange(fn),
           }
         : undefined,

@@ -5,7 +5,10 @@
  * 内核里的模块（契约处理函数、服务、提醒、CLI 编排…）在调用时经 AsyncLocalStorage 找到「当前内核」，
  * 不再读模块级的全局状态。createCore 在建服务、start / stop / startReminders 与每次契约调用时进入
  * 自己的作用域，异步回调（定时器、Promise、子进程事件）沿用进入时的作用域。
- * 不在任何内核作用域里的代码（宿主进程自身、工具子进程、单测）落到不可变的进程默认值。
+ * 宿主从原生回调（托盘菜单、拖放文件、IPC、子进程事件）直接调进内核时不在作用域里：
+ * 进程里只有一个存活的内核（桌面应用的常态）时就用它的作用域，界面语言等仍跟随用户设置；
+ * 同时存活多个内核（测试 / 多实例）时无法判断归属，落到不可变的进程默认值。
+ * 宿主自己的入口仍应包一层 `core.run()`，不依赖这个兜底。
  */
 import { AsyncLocalStorage } from 'node:async_hooks';
 
@@ -30,6 +33,16 @@ export interface CoreScope {
 }
 
 const storage = new AsyncLocalStorage<CoreScope>();
+/** 进程里存活的内核作用域（createCore 时登记，core.stop() 后注销） */
+const live = new Set<CoreScope>();
+
+/** 登记一个存活的内核作用域；返回注销函数 */
+export function registerLiveCoreScope(scope: CoreScope): () => void {
+  live.add(scope);
+  return () => {
+    live.delete(scope);
+  };
+}
 
 export function createCoreScope(init: CoreScope = {}): CoreScope {
   return { ...init };
@@ -40,9 +53,14 @@ export function runInCoreScope<T>(scope: CoreScope, fn: () => T): T {
   return storage.run(scope, fn);
 }
 
-/** 当前内核作用域；不在任何内核里时为 undefined */
+/**
+ * 当前内核作用域。不在任何作用域里时：进程里恰好一个存活内核就用它，否则为 undefined
+ */
 export function currentCoreScope(): CoreScope | undefined {
-  return storage.getStore();
+  const s = storage.getStore();
+  if (s) return s;
+  if (live.size === 1) return live.values().next().value;
+  return undefined;
 }
 
 /** 把异步迭代器的每一步都放进作用域里执行（流式契约处理函数） */
