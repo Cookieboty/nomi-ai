@@ -9,18 +9,20 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import type * as dns from 'node:dns';
 import type { LookupAddress } from 'node:dns';
 
-import {
-  Agent,
-  EnvHttpProxyAgent,
-  fetch as undiciFetch,
-  type Dispatcher,
-  type RequestInit as UndiciRequestInit,
-} from 'undici';
+import type * as Undici from 'undici';
+import type { Dispatcher, RequestInit as UndiciRequestInit } from 'undici';
 
 import { resolveUpstreamAddresses, type UpstreamGuardOpts } from './upstreamGuard';
 
 export type { UpstreamGuardOpts };
 export { resolveUpstreamAddresses } from './upstreamGuard';
+
+/**
+ * undici 按需加载：这个模块也被主进程（经内核的网关辅助代码）引入，主进程平时不发上游请求，
+ * 不该为它常驻 undici（上百个模块）。第一次真正发请求时才加载
+ */
+let undiciModule: Promise<typeof Undici> | undefined;
+const loadUndici = () => (undiciModule ??= import('undici'));
 
 const CONNECT_TIMEOUT_MS = 10_000;
 const HEADERS_TIMEOUT_MS = 60_000;
@@ -100,7 +102,10 @@ export interface UpstreamDispatcherOptions {
 }
 
 /** 创建共享 dispatcher：有代理走 EnvHttpProxyAgent，否则普通 Agent；lookup 钉 IP */
-export function createUpstreamDispatcher(o: UpstreamDispatcherOptions = {}): Dispatcher {
+export async function createUpstreamDispatcher(
+  o: UpstreamDispatcherOptions = {},
+): Promise<Dispatcher> {
+  const { Agent, EnvHttpProxyAgent } = await loadUndici();
   const getGuard = o.getGuard ?? (() => ({}));
   const connect = {
     timeout: o.connectTimeoutMs ?? CONNECT_TIMEOUT_MS,
@@ -132,17 +137,23 @@ export interface CreateUpstreamFetchOptions extends UpstreamDispatcherOptions {
  * 调用方仍应 redirect: 'manual'（默认也是 manual）。
  */
 export function createUpstreamFetch(o: CreateUpstreamFetchOptions = {}): UpstreamFetch {
-  const dispatcher = o.dispatcher ?? createUpstreamDispatcher(o);
+  let dispatcher: Promise<Dispatcher> | undefined = o.dispatcher
+    ? Promise.resolve(o.dispatcher)
+    : undefined;
   const getGuard = o.getGuard ?? (() => ({}));
   return async (input, init = {}) => {
     const raw = typeof input === 'string' ? input : input.toString();
     const { addresses } = await resolveUpstreamAddresses(raw, getGuard());
+    const [{ fetch: undiciFetch }, d] = await Promise.all([
+      loadUndici(),
+      (dispatcher ??= createUpstreamDispatcher(o)),
+    ]);
     return pinStore.run(
       addresses,
       () =>
         undiciFetch(raw, {
           ...(init as UndiciRequestInit),
-          dispatcher,
+          dispatcher: d,
           redirect: (init.redirect as UndiciRequestInit['redirect']) ?? 'manual',
         }) as unknown as Promise<Response>,
     );
