@@ -69,7 +69,7 @@
   "ui.providers-schedule.no-official-accounts-yet": "No official accounts yet.",
   "ui.providers-schedule.no-quiet-hours": "No quiet hours",
   "ui.providers-schedule.no-scheduled-tasks-yet": "No scheduled tasks yet",
-  "ui.providers-schedule.nomi-says": "Nomi says: “{0}”",
+  "ui.providers-schedule.nomi-says": "{0} says: “{1}”",
   "ui.providers-schedule.nomi-won-t-start-chats": "Nomi won’t start chats",
   "ui.providers-schedule.none": "None",
   "ui.providers-schedule.not-chatting-now": "Not chatting now: {0}",

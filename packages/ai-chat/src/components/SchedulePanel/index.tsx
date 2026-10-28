@@ -19,6 +19,7 @@ import {
 import { ListChecks, Bell, MessageCircle, Moon, Plus, Sun } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 
+import { characterName } from '../../services/characterName';
 import { describeRepeat, type RepeatRule } from '../../services/desktopClient';
 import {
   BRIEFING_PROMPT,
@@ -604,7 +605,9 @@ const Body: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                       setBusy(true);
                       void schedClient
                         .proactiveNow()
-                        .then((t) => setMsg(tr('ui.providers-schedule.nomi-says', t)))
+                        .then((t) =>
+                          setMsg(tr('ui.providers-schedule.nomi-says', characterName(), t)),
+                        )
                         .catch((e) => setMsg(errText(e)))
                         .finally(() => setBusy(false));
                     }}
