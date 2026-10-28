@@ -8,7 +8,7 @@
 | 浏览器冒烟   | `scripts/dev-web/smoke.mjs`                | `pnpm smoke:web`       | ai-chat 开发页在 Playwright 的 Chromium 里经 WebSocket 连开发态内核（`pnpm dev:web`）                                                                         |
 | 真实应用 E2E | `e2e-headed/tests`                         | `pnpm test:e2e:headed` | Playwright 启动真实 Electron，操作界面                                                                                                                        |
 
-## 无界面 E2E（`e2e/`，Vitest，6 个文件 / 16 个用例）
+## 无界面 E2E（`e2e/`，Vitest，7 个文件 / 21 个用例）
 
 每个用例用 `e2e/helpers/headlessCore.ts` 起一个真实内核：`@nomi-ai/host-node/core` 的 `startHeadlessCore()`（临时目录、
 内存密钥、记录下来的对话框 / 通知 / 窗口调用），视图侧的 `ClientAIClient` 经 in-process 传输连进来（一个连接 = 一个窗口）。
@@ -21,6 +21,7 @@
 - `E5.write-file-confirm`：危险工具 `write_file` 需要确认，拒绝后不执行并返回 `E_TOOL_DENIED`
 - `E6.core-twice`：同一进程里两个内核互不相干（服务、事件、router、AI runtime、主题 / 用户画像 / 网关供应商 / 记忆的数据与目录）；没有宿主片段时窗口过程 UNAVAILABLE
 - `E7.websocket-transport`：WebSocket 传输对真实内核的握手、查询、修改与事件订阅；错 token 与外站 Origin 被拒绝
+- `E8.stand-in-character`：替身角色验收（[内核宿主分离 §11.3](../design/core-host-decoupling.md)）的无界面部分：无界面宿主上的真实内核按 `CHARACTER_PACK` 解析出 `characters/test-dummy`，ai-chat 的真实 `SdkIPCClient` 经契约发给模型的系统提示、角色 preset 的身份段、发给界面的人设与角色包快照里都没有官方角色名
 
 ## 浏览器里的视图（`pnpm dev:web` / `pnpm smoke:web`）
 
@@ -45,7 +46,21 @@ pnpm smoke:web [-- --screenshot test-results/dev-web.png]
 xvfb-run -a pnpm test:e2e:headed
 ```
 
-`playwright.config.ts` 固定界面语言为中文（`CD_LOCALE=zh-CN`），默认关闭首次引导（`CD_ONBOARDING=off`），并关闭离线语音合成（`CD_TTS=off`）。所有用例都使用内置 2D 角色 Nomi（Rive，起不来时回退到分层 2D sprite），不下载任何测试模型。
+`playwright.config.ts` 固定界面语言为中文（`CD_LOCALE=zh-CN`），默认关闭首次引导（`CD_ONBOARDING=off`），并关闭离线语音合成（`CD_TTS=off`）。除下面的替身用例外，所有用例都使用内置 2D 角色 Nomi（Rive，起不来时回退到分层 2D sprite），不下载任何测试模型。
+
+### 替身角色构建（G5）
+
+`G5.stand-in-character` 只在**替身构建**上跑（官方构建上自动跳过）：用 `characters/test-dummy`（static 模式、
+占位图、名字「小纸」/ Pip）构建整个应用，走一遍首次引导、对话、设置 → 通用与看板娘窗口，断言界面文本
+（含 aria-label / title）没有官方角色名、该写角色名的地方是「小纸」，发给模型的系统提示是替身的身份。
+判定规则与 `pnpm check:character-leak` 共用（`scripts/lib/characterLeak.mjs`）。
+
+```bash
+pnpm build:stand-in      # = CHARACTER_PACK=characters/test-dummy pnpm build（跨平台写法）
+pnpm --filter @nomi-ai/host-electron run copy-renderer
+pnpm test:e2e:headed e2e-headed/tests/G5.stand-in-character.headed.spec.ts
+pnpm build               # 换回官方构建再跑其它用例（turbo 按 CHARACTER_PACK 分开缓存）
+```
 
 ## 为什么是两套 E2E
 

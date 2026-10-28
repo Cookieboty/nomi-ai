@@ -185,6 +185,8 @@ CHARACTER_PACK_SKIP_BRAND_LOCK=1 node scripts/brand/update-brand-lock.mjs --chec
 | `pnpm character:init -- <dir> [id]` | 以 `characters/test-dummy` 为模板新建包                         |
 | `pnpm character:apply`              | 预检将要构建的包（`CHARACTER_PACK` 或 `characters/nomi`），只读 |
 | `CHARACTER_PACK=<dir> pnpm build`   | 用指定包构建                                                    |
+| `pnpm build:stand-in`               | 用替身包 `characters/test-dummy` 构建（e2e-headed 的 G5 用例）  |
+| `pnpm check:character-leak`         | 官方角色名只在 `characters/nomi` 与产品品牌模块里出现           |
 | `pnpm check:i18n`                   | 含 `characters/*/locales` 的 zh / en 一致性检查                 |
 
 CI（quality job）会对 `characters/nomi`、`characters/test-dummy`、`examples/static-demo.pack` 跑 check。

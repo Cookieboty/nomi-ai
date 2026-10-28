@@ -19,6 +19,8 @@ export interface SeenRequest {
   apiKey?: string;
   anthropicVersion?: string;
   ping: boolean;
+  /** 请求里的系统提示（OpenAI 的 system 消息 / Responses 的 instructions / Anthropic 的 system） */
+  system?: string;
 }
 
 export interface MockLlm {
@@ -33,6 +35,27 @@ export interface MockLlm {
 
 const sse = (event: string | undefined, data: unknown) =>
   `${event ? `event: ${event}\n` : ''}data: ${JSON.stringify(data)}\n\n`;
+
+const textOf = (c: unknown): string =>
+  typeof c === 'string'
+    ? c
+    : Array.isArray(c)
+      ? c.map((p) => (p as { text?: string }).text ?? '').join('')
+      : '';
+
+/** 三种协议里的系统提示，拼成一段 */
+function systemText(body: Record<string, unknown>): string | undefined {
+  const parts: string[] = [];
+  if (body.system !== undefined) parts.push(textOf(body.system));
+  if (typeof body.instructions === 'string') parts.push(body.instructions);
+  const msgs = (body.messages ?? body.input) as
+    Array<{ role?: string; content?: unknown }> | undefined;
+  if (Array.isArray(msgs))
+    for (const m of msgs)
+      if (m.role === 'system' || m.role === 'developer') parts.push(textOf(m.content));
+  const out = parts.filter(Boolean).join('\n');
+  return out || undefined;
+}
 
 function lastUserText(body: Record<string, unknown>): string {
   const msgs = (body.messages ?? body.input) as
@@ -65,6 +88,7 @@ export async function startMockLlm(
         apiKey: req.headers['x-api-key'] as string | undefined,
         anthropicVersion: req.headers['anthropic-version'] as string | undefined,
         ping: text === 'ping',
+        system: systemText(body),
       });
       const url = req.url ?? '';
       if (req.method === 'GET' && url.startsWith('/v1/models')) {

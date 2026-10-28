@@ -9,6 +9,7 @@
     "dev:libs": "node scripts/run-bin.mjs turbo run dev --filter=./packages/* --filter=!@nomi-ai/core --filter=!@nomi-ai/host-electron --filter=!@nomi-ai/renderer --filter=!@nomi-ai/ai-chat --concurrency=20",
     "dev:web": "node scripts/dev-web/start.mjs",
     "build": "node scripts/run-bin.mjs turbo run build",
+    "build:stand-in": "node scripts/character/build-stand-in.mjs",
     "build:renderer": "node scripts/run-bin.mjs turbo run build --filter=@nomi-ai/renderer",
     "build:electron": "node scripts/run-bin.mjs turbo run build --filter=@nomi-ai/host-electron",
     "package": "node scripts/run-bin.mjs turbo run package",
