@@ -49,6 +49,15 @@ importers:
       '@nomi-ai/contract':
         specifier: workspace:*
         version: link:packages/contract
+      '@nomi-ai/core':
+        specifier: workspace:*
+        version: link:packages/core
+      '@nomi-ai/host-node':
+        specifier: workspace:*
+        version: link:packages/host-node
+      '@nomi-ai/host-ports':
+        specifier: workspace:*
+        version: link:packages/host-ports
       '@playwright/test':
         specifier: ^1.64.0
         version: 1.64.0
