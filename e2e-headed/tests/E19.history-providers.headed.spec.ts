@@ -238,18 +238,26 @@ test.describe('E19 · endpoints · history sessions · provider page', () => {
     await expect(sq).toHaveCount(0);
     await expect(rows.first()).toBeVisible();
 
-    // 行尾操作：悬浮 / 键盘焦点 / 选中行显示；磁盘历史只读，只有「更多」
+    // 行尾操作：悬浮 / 键盘焦点 / 选中行显示；磁盘历史不能改名，可以删除（移到废纸篓，74a98755）
     const histRow = chat.locator('[data-testid="history-session-row"]').first();
     const histActions = histRow.locator('[data-testid="row-actions"]');
     await expect(histActions).toHaveCSS('opacity', '0');
     await histRow.hover();
     await expect(histActions).toHaveCSS('opacity', '1');
     await expect(histRow.locator('[data-testid="row-rename"]')).toHaveCount(0);
-    await expect(histRow.locator('[data-testid="row-delete"]')).toHaveCount(0);
+    await expect(histRow.locator('[data-testid="row-delete"]')).toBeVisible();
     await shot(chat, '02d-row-actions-hover');
+    // 删除先弹应用内确认框；这里取消（确定会把文件移到用户真实的废纸篓），历史不变
+    await histRow.locator('[data-testid="row-delete"]').click();
+    await expect(chat.locator('[data-testid="confirm-dialog"]')).toBeVisible();
+    await chat.locator('[data-testid="confirm-dialog-cancel"]').click();
+    await expect(chat.locator('[data-testid="confirm-dialog"]')).toHaveCount(0);
+    await expect(rows).toHaveCount(seeded.dsh ? 4 : 3);
+    await histRow.hover();
     await histRow.locator('[data-testid="row-more"]').click();
     const hmenu = chat.locator('[data-testid="conversation-context-menu"]');
     await expect(hmenu.locator('[data-testid="conversation-open"]')).toBeVisible();
+    await expect(hmenu.locator('[data-testid="conversation-delete"]')).toBeVisible();
     await expect(hmenu.locator('[data-testid="conversation-rename"]')).toHaveCount(0);
     await shot(chat, '02e-row-more-menu-history');
     await chat.keyboard.press('Escape');
