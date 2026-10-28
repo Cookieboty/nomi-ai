@@ -111,7 +111,12 @@ export function createMediaHandlers(
     },
     'voice.getMascotSettings': () => out(getMascotVoiceSettings(config()) ?? null),
     'voice.saveMascotSettings': (settings) =>
-      saveMascotVoiceSettings(config(), settings as Partial<VoiceSettings>, deps.logger),
+      saveMascotVoiceSettings(
+        config(),
+        settings as Partial<VoiceSettings>,
+        deps.logger,
+        deps.events,
+      ),
 
     // ── 朗读 ──
     'tts.getConfig': () => out(tts().getConfig()),

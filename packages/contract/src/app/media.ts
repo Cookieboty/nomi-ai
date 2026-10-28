@@ -140,7 +140,7 @@ export const mediaProcedures = {
     output: MascotVoiceSettings.nullable(),
     surfaces: ['mascot'],
   },
-  /** 合并保存（不广播）：electronAPI.saveVoiceSettings */
+  /** 合并保存，保存后发 `voice.mascotSettingsChanged`：electronAPI.saveVoiceSettings */
   'voice.saveMascotSettings': {
     kind: 'mutation',
     input: MascotVoiceSettings,
@@ -302,7 +302,7 @@ export const mediaEvents = {
   'voice.bargeIn': z.looseObject({ source: z.string() }),
   /** 看板娘说的话投递到对话窗口 */
   'voice.inject': VoiceInjectEvent,
-  /** 主进程改了看板娘的旧语音设置（旧通道 voice-settings:changed） */
+  /** 看板娘的旧语音设置保存了（`voice.saveMascotSettings`）：合并后的完整设置 */
   'voice.mascotSettingsChanged': MascotVoiceSettings,
   'desktop.changed': DesktopState,
   'desktop.p2Changed': z.looseObject({ kind: z.string() }),

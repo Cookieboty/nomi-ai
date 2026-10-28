@@ -125,7 +125,8 @@ export class VoiceService {
   }
 
   /**
-   * 主进程改了语音开关（设置页开启 / 模型下载失败回滚 / 删除模型）→ 同步本地状态与工具栏，不回写。
+   * 看板娘语音设置保存了（内核在 `voice.saveMascotSettings` 后发布，含自己保存的那一次）→ 同步本地状态与
+   * 工具栏，不回写。
    */
   private subscribeMainVoiceSettings() {
     if (!hasTransport()) return;

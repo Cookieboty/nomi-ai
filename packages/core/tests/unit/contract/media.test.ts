@@ -148,10 +148,11 @@ function setup() {
   };
   const windows = { open: jest.fn(async () => undefined) };
   Object.assign(services, { voice, desktop, screen, config, tts: fakeTts });
+  const events = createRecordingAppEvents();
   const deps: ContractDeps = {
     services,
     ports: { windows } as unknown as HostPorts,
-    events: createRecordingAppEvents(),
+    events,
     logger,
   };
   const voiceStreams = createVoiceStreams();
@@ -170,6 +171,7 @@ function setup() {
     screen,
     config,
     windows,
+    events,
     voiceStreams,
     router: app.router,
     connect,
@@ -283,7 +285,7 @@ describe('media handlers', () => {
     }
   });
 
-  it('看板娘旧语音设置：读 / 合并保存 config.voiceSettings，只给看板娘窗口', async () => {
+  it('看板娘旧语音设置：读 / 合并保存 config.voiceSettings 并发 voice.mascotSettingsChanged，只给看板娘窗口', async () => {
     const t = setup();
     const mascot = t.connect(MASCOT);
     const chat = t.connect(CHAT);
@@ -294,6 +296,11 @@ describe('media handlers', () => {
       });
       await mascot.voice.saveMascotSettings({ sfxEnabled: false });
       expect(t.config.set).toHaveBeenCalledWith('voiceSettings', {
+        enabled: true,
+        volume: 0.5,
+        sfxEnabled: false,
+      });
+      expect(t.events.last('voice.mascotSettingsChanged')).toEqual({
         enabled: true,
         volume: 0.5,
         sfxEnabled: false,
