@@ -220,10 +220,9 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
-      - name: Build workspaces + copy renderer bundles
-        run: |
-          pnpm turbo run build
-          pnpm --filter @nomi-ai/host-electron run copy-renderer
+      # host-electron 的 build 依赖两个视图的 build，最后一步把它们复制进 dist（copy-renderer）
+      - name: Build workspaces
+        run: pnpm turbo run build
 
       - name: Run headed E2E (Linux / xvfb)
         if: runner.os == 'Linux'

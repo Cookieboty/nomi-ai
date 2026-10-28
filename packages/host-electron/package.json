@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "prebuild": "npm run clean",
-    "build": "node ../../scripts/run-bin.mjs tsc && node scripts/bundle-preload.mjs",
+    "build": "node ../../scripts/run-bin.mjs tsc && node scripts/bundle-preload.mjs && node scripts/copy-renderer.js",
     "copy-renderer": "node scripts/copy-renderer.js",
     "clean": "node ../../scripts/run-bin.mjs rimraf dist",
     "typecheck": "node ../../scripts/run-bin.mjs tsc --noEmit -p tsconfig.json",

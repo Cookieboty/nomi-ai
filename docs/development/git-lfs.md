@@ -27,7 +27,7 @@ CI 的 `actions/checkout` 需 `lfs: true`，否则打包/测试读到的是 poin
 ## 运行时与打包
 
 - 开发 / 测试：直接读 `characters/nomi/rive/character.riv`（Vitest；Vite 经角色包插件提供）。
-- 生产：`copy-renderer` → `packages/renderer/dist` → electron-builder `extraResources` 的 `renderer/`（**不在 asar 内**），无需 `asarUnpack`。
+- 生产：`packages/renderer/dist` → electron-builder `extraResources` 的 `renderer/`（**不在 asar 内**），无需 `asarUnpack`。
 - 切勿对 LFS 文件做「历史 rewrite」；新增大文件时先确认已被 `.gitattributes` 覆盖，再 `git add`。
 
 ## 本地把已跟踪大文件转为 pointer（维护者）

@@ -58,6 +58,12 @@
         "$TURBO_ROOT$/packages/host-electron/src/security/csp.ts"
       ]
     },
+    "@nomi-ai/host-electron#build": {
+      "dependsOn": ["^build", "@nomi-ai/renderer#build", "@nomi-ai/ai-chat#build"],
+      "env": ["CHARACTER_PACK"],
+      "outputs": ["dist/**", "build/**", ".turbo/**"],
+      "inputs": ["$TURBO_DEFAULT$", "!README.md", "!CHANGELOG.md", "!coverage/**", "!dist/**"]
+    },
     "@nomi-ai/ai-chat#build": {
       "dependsOn": ["^build"],
       "env": ["CHARACTER_PACK"],

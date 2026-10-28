@@ -1,47 +1,32 @@
+/**
+ * 把两个视图的构建产物复制进 host-electron 的 dist，供未打包的生产模式加载（`electron .`、e2e-headed、
+ * 测量脚本）：
+ *
+ *   packages/renderer/dist → dist/renderer（看板娘窗口；dist/renderer/character 是构建时选定的内置角色包）
+ *   packages/ai-chat/dist  → dist/ai-chat（对话窗口，WindowManager 在未打包时从这里加载）
+ *
+ * `build` 的最后一步就是它（turbo 的 `@nomi-ai/host-electron#build` 依赖两个视图的 build），所以
+ * `pnpm build` 之后 dist 就是完整可运行的；单独重建了某个视图后也可以手动跑 `pnpm --filter
+ * @nomi-ai/host-electron copy-renderer`。打包时两个视图走 electron-builder 的 extraResources，
+ * 这里的副本不进 asar（electron-builder.yml 的 files 排除了它们）。
+ */
 const fs = require('fs');
 const path = require('path');
-const { promisify } = require('util');
 
-const copydir = require('fs-extra').copy;
+const VIEWS = [
+  { name: '@nomi-ai/renderer', src: '../../renderer/dist', dest: '../dist/renderer' },
+  { name: '@nomi-ai/ai-chat', src: '../../ai-chat/dist', dest: '../dist/ai-chat' },
+];
 
-// 路径设置
-const srcDir = path.join(__dirname, '../../renderer/dist');
-const destDir = path.join(__dirname, '../dist/renderer');
-// AI 对话窗口（@nomi-ai/ai-chat）构建产物：WindowManager 在未打包的生产模式下从 dist/ai-chat 加载
-const aiChatSrcDir = path.join(__dirname, '../../ai-chat/dist');
-const aiChatDestDir = path.join(__dirname, '../dist/ai-chat');
-
-// 确保目标目录存在
-if (!fs.existsSync(destDir)) {
-  fs.mkdirSync(destDir, { recursive: true });
-}
-
-async function copyRenderer() {
-  try {
-    // 检查源目录是否存在
-    if (!fs.existsSync(srcDir)) {
-      console.error(`错误: 渲染器构建产物目录不存在 (${srcDir})`);
-      console.error('请先运行 "pnpm run build" 在 renderer 包中');
-      process.exit(1);
-    }
-
-    // 复制目录
-    await copydir(srcDir, destDir);
-    console.log(`✅ 已复制渲染器构建产物到 ${destDir}`);
-
-    // tts-config.html 由 renderer 的 vite 多页面构建输出到 dist/，已随上面一起复制
-
-    // 复制 AI 对话窗口构建产物
-    if (fs.existsSync(path.join(aiChatSrcDir, 'index.html'))) {
-      await copydir(aiChatSrcDir, aiChatDestDir);
-      console.log(`✅ 已复制 AI 对话窗口构建产物到 ${aiChatDestDir}`);
-    } else {
-      console.warn(`⚠️  AI 对话窗口构建产物不存在: ${aiChatSrcDir}（请先构建 @nomi-ai/ai-chat）`);
-    }
-  } catch (err) {
-    console.error('复制渲染器构建产物时出错:', err);
+for (const view of VIEWS) {
+  const src = path.join(__dirname, view.src);
+  const dest = path.join(__dirname, view.dest);
+  if (!fs.existsSync(path.join(src, 'index.html'))) {
+    console.error(`错误: ${view.name} 的构建产物不存在 (${src})，先构建它（pnpm build）`);
     process.exit(1);
   }
+  // 先删再复制：带 hash 的旧 chunk 不留在副本里
+  fs.rmSync(dest, { recursive: true, force: true });
+  fs.cpSync(src, dest, { recursive: true });
+  console.log(`已复制 ${view.name} 的构建产物到 ${dest}`);
 }
-
-copyRenderer();
