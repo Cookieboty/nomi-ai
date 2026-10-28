@@ -456,7 +456,7 @@ interface HostCapabilities {
 | 角色 | 角色名、人设、立绘、语音、台词            | `characters/<id>`               |
 | 引擎 | Rive / sprite / static 渲染与驱动         | `avatar-runtime`                |
 
-`host-electron/src/brand.ts` 只留产品常量；`APP_DISPLAY_NAME_ZH = 'Nomi·诺米'` 里的「诺米」属于角色，改为从角色包读取。全仓库的 `Nomi` / `诺米` 逐一归类：产品用法改用 `brand.appName`，角色用法改从人设读取（§11.2 的检查依赖这一步）。
+产品常量只有一个来源：`@nomi-ai/types` 的 `brand`（`appName`、`appId`；`host-electron/src/brand.ts` 只是转出，`electron-builder.yml` 的 `productName` / `appId` 由测试守住一致）。原来 `APP_DISPLAY_NAME_ZH = 'Nomi·诺米'` 里的「诺米」属于角色，已删。全仓库的 `Nomi` / `诺米` 逐一归类（G5 已完成，见 §12）：产品用法（应用名、「Nomi 对话」「Nomi 网关」）用 `brand.appName` 或保留产品名；指桌面上那个角色的用法（「显示 X」「X 工具栏」「你好，我是 X」）用当前角色的人设 `displayName`，自我介绍等台词进角色包 `locales/`；§11.2 的检查守住。
 
 ### 10.2 角色包只含数据
 
@@ -552,14 +552,16 @@ renderer 只保留：透明窗口壳、气泡、工具栏、右键菜单，以�
 
 `scripts/check-character-leak`：`characters/nomi` 与 `brand` 之外不得出现角色名（`诺米`、角色语境下的 `Nomi`）。产品名统一用 `brand.appName`。允许清单写在脚本里，加条目要说明理由。
 
+已实现（`pnpm check:character-leak`，CI 与 `check:i18n` 并列）：扫 `packages/*/src`、`packages/*/config`、`electron-builder.yml` 与 `characters/nomi` 以外的角色包；判定规则在 `scripts/lib/characterLeak.mjs`（「诺米」出现即算；「Nomi」只在角色语境下算：自称、「显示 / 关闭 / 桌面 Nomi」「Nomi 工具栏」「Nomi's bubble」、同句里的她 / her、官方 Rive 画板名），替身 e2e 复用同一份规则。测试与文档不扫。允许清单现在是空的。
+
 ### 11.3 替身验收（最关键）
 
-| 验收                 | 做法                                                                                                                                                     | 证明   |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| 无界面宿主跑通 e2e   | `host-node` + in-process 传输，在 Vitest 里启动整个内核，跑现有 `e2e/` 用例；不需要 Electron 和 xvfb                                                     | G1、G4 |
-| 视图在普通浏览器运行 | 开发态内核开 WebSocket 传输，ai-chat 在 Chrome 直接打开 6128 也能对话                                                                                    | G2     |
-| 替身角色             | `characters/test-dummy`：static 模式、一张占位图、名字与人设完全不同；用它跑 e2e，断言界面文本与发出的系统提示中都不含 `Nomi` / `诺米`（产品名区域除外） | G5     |
-| 契约兼容             | 契约 major 不变时，旧视图构建对新内核跑一遍冒烟                                                                                                          | G3     |
+| 验收                 | 做法                                                                                                                                                                                                                                                                                         | 证明   |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| 无界面宿主跑通 e2e   | `host-node` + in-process 传输，在 Vitest 里启动整个内核，跑现有 `e2e/` 用例；不需要 Electron 和 xvfb                                                                                                                                                                                         | G1、G4 |
+| 视图在普通浏览器运行 | 开发态内核开 WebSocket 传输，ai-chat 在 Chrome 直接打开 6128 也能对话                                                                                                                                                                                                                        | G2     |
+| 替身角色             | `characters/test-dummy`：static 模式、一张占位图、名字与人设完全不同；用它跑 e2e，断言界面文本与发出的系统提示中都不含 `Nomi` / `诺米`（产品名区域除外）。已通过：`e2e/tests/E6.stand-in-character`（无界面）与 `e2e-headed/tests/G5.stand-in-character`（`pnpm build:stand-in` 的替身构建） | G5     |
+| 契约兼容             | 契约 major 不变时，旧视图构建对新内核跑一遍冒烟                                                                                                                                                                                                                                              | G3     |
 
 ## 12. 迁移计划
 
@@ -967,17 +969,62 @@ stop() }`；宿主 `packages/host-electron/src/host/Application.ts`（宿主区�
 > - 互动反应表（`interaction/gestures.ts`：摸头、点击等）仍直接用引擎动作名、不经映射：这是角色对用户操作的反应，不来自 AI；
 >   看板娘窗口的动作菜单列的也是当前后端的动作（资源名，直接交给引擎）。
 
-| 阶段 | 内容                                                                                                                                                                                                             | 完成标准                                                                                                        |
-| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| P0   | ① lint 护栏：`packages/electron/src` 中除宿主目录（§7.2 右列）外，新增 electron import 报错（已有的列入白名单，只减不增）；② `PersonaService`，删两处人设硬编码                                                  | 护栏进 CI；换皮后系统提示不再是 Nomi                                                                            |
-| P1a  | **已完成**。建 `contract` 与 `defineContract`；AI 门面（35 个 `ai.*` 过程 + 12 个事件）上契约，取代两份 `channels.ts`；`ClientAIClient` 改走 `window.nomiTransport`                                              | AI 门面只经契约访问；两份 `channels.ts` 删除                                                                    |
-| P1b  | **已完成**。其余 `ai:*` 服务通道与 `window.electronAPI` 的能力逐个进契约；视图改用 client；删除 `window.aiIPC` / `window.electronAPI`                                                                            | 视图中不再出现 `window.aiIPC` / `window.electronAPI`                                                            |
-| P2   | 建 `host-ports`；替换 `app.getPath`（10）、`safeStorage`（9）、`dialog/shell/clipboard` 等（15）；29 处窗口广播改为 `ctx.events.publish`                                                                         | `packages/electron/src` 中业务模块不再 import electron                                                          |
-| P3   | **已完成**（P0 白名单在 P4 第一步清空，见上方进度说明）。物理搬家：业务模块 → `packages/core`；`packages/electron` → `packages/host-electron`（`@nomi-ai/host-electron`）；ai-runtime 的 Electron 适配器移入宿主 | 目录与 §3.3 一致；P0 白名单清空                                                                                 |
-| P4   | **已完成**（见上方 P4 两步的进度说明）。内核组合根 `createCore`，同一进程可起多个内核；`host-node` + in-process / WebSocket 传输；`e2e/` 改跑无界面宿主                                                          | §11.3 前两项通过                                                                                                |
-| C1   | `character-contract` 包；官方资产与人设集中到 `characters/nomi`；删 Scheme A 原地覆盖与两份 `character.generated.json`                                                                                           | 官方构建与白标构建走同一路径                                                                                    |
-| C2   | **已完成**。拆出 `avatar-runtime`；renderer 只留窗口壳                                                                                                                                                           | avatar-runtime 能单独运行（开发页 `demo/` 与挂载测试；仓库没有 Storybook）                                      |
-| C3   | **基本完成**（见上方 C3 进度说明）。语义事件协议 + `mapping.json`；工具与 preset 改名（不保留别名）                                                                                                              | AI 侧代码中不出现 clip / motion 名（已达成，扫描测试守住）；§11.3 替身角色通过（未达成，等 §10.1 分拣与 §11.2） |
+> G5 完成（分支 `refactor/c3-semantic`，接在 C3 之后）：§10.1 的产品名 / 角色名分拣、§11.2 的名字扫描、§11.3 第三行的替身验收，以及 C1 后续里剩下的几条。
+>
+> - 产品名：`@nomi-ai/types` 的 `brand`（`appName: 'Nomi'`、`appId`）是唯一来源，`host-electron/src/brand.ts` 只转出它，删掉
+>   `APP_DISPLAY_NAME_ZH`；窗口 / 灵动岛标题、托盘提示、侧栏 / 标题栏 / 设置页 / 看板娘面板的品牌字样、日程通知标题、各处端点名「Nomi」
+>   都用 `brand.appName`；`scripts/__tests__/brand.test.ts` 守住 `electron-builder.yml` 的 `productName` / `appId` 与它一致。设置页品牌头
+>   从「Nomi · 诺米」改为「Nomi」。句子里的产品名（「Nomi 对话」「Nomi 网关」「退出 Nomi」）保留字面量：词序由翻译决定，扫描只拦角色语境；
+> - 角色名：指桌面上那个角色的文案（「显示 X」「桌面 X」「X 已隐藏」「X 工具栏」「关闭 X」「你好，我是 X」等约 25 条）改为带 `{0}`，
+>   填当前角色的人设名（当前界面语言）：ai-chat 经 `services/characterName`（契约 `persona.get` / `persona.changed`），renderer 经
+>   `mascot/characterCopy.characterName()`（覆盖包快照的 `displayName`，否则内置包人设），托盘经 `PersonaService`；拿不到时用通用称呼
+>   「看板娘 / Mascot」。官方构建英文界面不变（en 人设名就是 Nomi），中文界面这些地方从「Nomi」变成「诺米」。「她 / her」改成中性写法；
+>   不需要名字的改成通用说法（「诺米提示语音」→「角色提示语音」、朗读打断、预算提醒的「看板娘气泡」、活动记录的「拖入文件总结」）；
+> - 角色文案进角色包：带名字的自我介绍（原 `ui.cli-monitor.hi-i-m-nomi`、`ui.voice-mascot.hi-i-m-nomi-let-s-do-our`）改为角色台词
+>   `greet-hello` / `greet-lets-go`（id 就是原来的预录片段 id），写进 `characters/nomi/locales` 与替身包，全局词典删掉这两条；
+>   语音设置「试听」念 `greet-lets-go`，包里没有就念 `greet-companion`；
+> - 唤醒词：默认值不再写死「你好，诺米」，存的为空时用当前角色包主语言的 `wakePhrase`（`CharacterPackService.wakePhrase()` →
+>   `VoiceDeps.defaultWakePhrase`，不写回磁盘，换包跟着变）；用户自己存过的唤醒词照旧。`character.getActivePack` 的 `locales` 多带
+>   `wakePhrase`，契约 schema 同步声明（版本 2.1，只加字段）——C1 后续里「get-active 的身份字段进契约」这条：`id` / `mode` /
+>   `displayName` / `locales` 在 P1b 已声明，这次补齐 `wakePhrase`；
+> - Rive：`getRiveConfig` 不再回退到官方画板名（`Nomi-full` / `NomiFull`），包没写就用 .riv 的默认画板与状态机；
+> - 名字扫描（§11.2）：`scripts/check-character-leak.mjs` + `scripts/lib/characterLeak.mjs`，`pnpm check:character-leak` 进 CI 与 AGENTS.md
+>   命令表，单测 `scripts/__tests__/check-character-leak.test.ts`（规则正反例、扫描范围、允许清单必须有理由且必须命中、仓库本身通过）。
+>   注释里的「诺米」也一起改掉了，所以规则可以简单：扫到就算；
+> - 替身验收（§11.3 第三行）：`e2e/tests/E8.stand-in-character`（无界面；变基到 P4 之前是 E6，跑在假运行时上）在无界面宿主的真实内核上
+>   按 `CHARACTER_PACK` 解析出 `characters/test-dummy`，经内核自己的 `CharacterPackService` → `PersonaService`，ai-chat 真实的
+>   `SdkIPCClient` 经契约取人设、发到内核的 AI 路由，断言模型收到的系统提示、
+>   `companion` preset 的身份段、人设与角色包快照都是替身、没有官方名；`e2e-headed/tests/G5.stand-in-character`（真实应用，只在替身构建上跑，
+>   官方构建上跳过）走首次引导每一步、配好本地 mock 供应商后对话、设置 → 通用与看板娘窗口，界面文本（含 aria-label / title / alt）不含
+>   官方角色名、该写角色名处是「小纸」，mock 收到的系统提示是替身身份。构建开关：`pnpm build:stand-in`（=
+>   `CHARACTER_PACK=characters/test-dummy pnpm build`，跨平台），见 `docs/development/testing.md`；
+> - `examples/static-demo.pack` 换成新布局（命中区进 `manifest.layout`，`persona.json` + `locales/`），`character:check` 只剩缺语音的警告。
+>   旧布局的迁移读取保留：2.0.x 的第三方包可能还以旧布局放在用户磁盘上；改由 core `packResolve.test.ts` 的固定样例（与 character-contract
+>   已有的旧包样例）守住，不再靠示范包；
+> - 验证：构建、typecheck、lint、单测（只有 `changesets.test.ts` 已知的 6 个失败；全量并行时 ai-chat 的 `confirmDialog` 偶发超时，单跑与整包
+>   重跑通过）、无界面 e2e（变基前：5 个文件 16 个用例）、i18n、许可、`check:frontend`、`check:character-leak` 通过；macOS 上 e2e-headed 的 E1、E4、
+>   E5、E7、E9、E11、E14、E15、E16、E22、E23、E30、I18N、V111 在官方构建上通过，G5 在替身构建上通过。
+>
+> 剩下的：
+>
+> - `character-contract/contract.json` 的 `rive.artboard` / `stateMachine` 缺省值仍是官方画板名：内核给没写 `rive` 段的 rive 覆盖包补的就是它
+>   （契约包的数据，不在扫描范围）。要不要改成「不填就用 .riv 默认」，等第三方 rive 包的模板定下来再决定；
+> - 中文界面的角色语境从「Nomi」变成人设名「诺米」，与 `docs/BRAND.md`「中文首次写 Nomi·诺米、之后写 Nomi」的口径不同：品牌文档要按
+>   「产品叫 Nomi，角色叫诺米」改写；
+> - 「她 / her」之类不带名字的人称（例如「摸她的头」）没有改：不泄漏名字，但对非女性角色不合适，可以以后按角色包给的人称处理；
+> - 托盘菜单在建菜单时取一次角色名，换角色包 / 换语言后要等菜单重建才更新。
+
+| 阶段 | 内容                                                                                                                                                                                                             | 完成标准                                                                                                           |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| P0   | ① lint 护栏：`packages/electron/src` 中除宿主目录（§7.2 右列）外，新增 electron import 报错（已有的列入白名单，只减不增）；② `PersonaService`，删两处人设硬编码                                                  | 护栏进 CI；换皮后系统提示不再是 Nomi                                                                               |
+| P1a  | **已完成**。建 `contract` 与 `defineContract`；AI 门面（35 个 `ai.*` 过程 + 12 个事件）上契约，取代两份 `channels.ts`；`ClientAIClient` 改走 `window.nomiTransport`                                              | AI 门面只经契约访问；两份 `channels.ts` 删除                                                                       |
+| P1b  | **已完成**。其余 `ai:*` 服务通道与 `window.electronAPI` 的能力逐个进契约；视图改用 client；删除 `window.aiIPC` / `window.electronAPI`                                                                            | 视图中不再出现 `window.aiIPC` / `window.electronAPI`                                                               |
+| P2   | 建 `host-ports`；替换 `app.getPath`（10）、`safeStorage`（9）、`dialog/shell/clipboard` 等（15）；29 处窗口广播改为 `ctx.events.publish`                                                                         | `packages/electron/src` 中业务模块不再 import electron                                                             |
+| P3   | **已完成**（P0 白名单在 P4 第一步清空，见上方进度说明）。物理搬家：业务模块 → `packages/core`；`packages/electron` → `packages/host-electron`（`@nomi-ai/host-electron`）；ai-runtime 的 Electron 适配器移入宿主 | 目录与 §3.3 一致；P0 白名单清空                                                                                    |
+| P4   | **已完成**（见上方 P4 两步的进度说明）。内核组合根 `createCore`，同一进程可起多个内核；`host-node` + in-process / WebSocket 传输；`e2e/` 改跑无界面宿主                                                          | §11.3 前两项通过                                                                                                   |
+| C1   | `character-contract` 包；官方资产与人设集中到 `characters/nomi`；删 Scheme A 原地覆盖与两份 `character.generated.json`                                                                                           | 官方构建与白标构建走同一路径                                                                                       |
+| C2   | **已完成**。拆出 `avatar-runtime`；renderer 只留窗口壳                                                                                                                                                           | avatar-runtime 能单独运行（开发页 `demo/` 与挂载测试；仓库没有 Storybook）                                         |
+| C3   | **已完成**（见上方 C3 与 G5 进度说明）。语义事件协议 + `mapping.json`；工具与 preset 改名（不保留别名）                                                                                                          | AI 侧代码中不出现 clip / motion 名（扫描测试守住）；§11.3 替身角色通过（E8 / G5 替身 e2e，`check:character-leak`） |
 
 - **P1a 的行为变化**：AI 门面的业务事件（`ai.agent.step`、`ai.tts.chunk`、`ai.userProfile.changed` 等）改由契约传输按订阅分发，**只推给订阅了该事件的窗口**；以前 `EventBroadcaster` 经 `ai:event` 通道广播给所有存活窗口（可选按窗口过滤），该通道已删除。没有经契约订阅的窗口（含直接监听 `ai:event` 的页面）收不到这些事件，P1b 迁移视图时要改成显式订阅；窗口导航或刷新后订阅随会话一起失效，由新页面重新订阅。
 - **P1 与 P2 可以并行**：一个改视图一侧，一个改内核一侧，中间靠契约对齐。
