@@ -9,10 +9,15 @@ describe('seams exports', () => {
   });
 
   it('service key symbols carry readable descriptions', () => {
-    expect(KeyStoreKey.key.description).toBe('ctx.keyStore');
-    expect(ScreenKey.key.description).toBe('ctx.screen');
-    expect(ClipboardKey.key.description).toBe('ctx.clipboard');
-    expect(AsrKey.key.description).toBe('ctx.asr');
-    expect(TtsKey.key.description).toBe('ctx.tts');
+    expect(KeyStoreKey.key.description).toBe('nomi.ig.service:ctx.keyStore');
+    expect(ScreenKey.key.description).toBe('nomi.ig.service:ctx.screen');
+    expect(ClipboardKey.key.description).toBe('nomi.ig.service:ctx.clipboard');
+    expect(AsrKey.key.description).toBe('nomi.ig.service:ctx.asr');
+    expect(TtsKey.key.description).toBe('nomi.ig.service:ctx.tts');
+  });
+
+  it('service keys are global symbols: another copy of the package resolves the same key', () => {
+    // ESM 与 CommonJS 两份产物各自 defineService 时也要对得上（docs/design/core-host-decoupling.md §12 P4）
+    expect(TtsKey.key).toBe(Symbol.for('nomi.ig.service:ctx.tts'));
   });
 });

@@ -41,8 +41,13 @@ export interface ServiceKey<T> {
   readonly typeMarker?: T; // 仅用于类型推断，不会在运行时出现
 }
 
+/**
+ * 服务键用全局注册的 symbol（`Symbol.for`）：本包同时发 ESM 与 CommonJS，一个进程里可能加载两份（CommonJS 的
+ * 内核 + ESM 的无界面宿主 / 测试），各自 `Symbol(name)` 时同名服务键互不相认，provide / inject 对不上。
+ * 服务名在全仓库唯一（`ctx.<名字>`）。
+ */
 export function defineService<T>(name: string): ServiceKey<T> {
-  return { key: Symbol(name) } as ServiceKey<T>;
+  return { key: Symbol.for(`nomi.ig.service:${name}`) } as ServiceKey<T>;
 }
 
 /** 插件上下文（占位；子集） */
