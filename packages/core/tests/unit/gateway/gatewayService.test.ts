@@ -983,6 +983,10 @@ describe('GatewayService', () => {
       const t = setup({ lazy: true });
       t.svc.init();
       expect(t.children).toHaveLength(0);
+      // 只解析路由（启动时模型注册表就会解析）不拉起
+      t.svc.nomiRoute('chat');
+      t.svc.helperRoute('claude', null);
+      expect(t.children).toHaveLength(0);
       expect(t.svc.endpoint('nomi')).toMatchObject({ url: 'http://127.0.0.1:18721' });
       expect(t.children).toHaveLength(1);
       t.children[0]!.say({ type: 'listening', port: 18721, url: 'http://127.0.0.1:18721' });

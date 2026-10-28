@@ -386,16 +386,23 @@ export class GatewayService {
   }
 
   /**
-   * 网关当前（或即将）监听的地址：运行中取实际地址；还没起 / 正在起时取配置端口推出的地址，
-   * 顺带把网关拉起来；已熔断、或地址推不出来时 null
+   * 网关当前（或即将）监听的地址：运行中取实际地址；还没起 / 正在起时取配置端口推出的地址；
+   * 已熔断、或地址推不出来时 null。start = 顺带把网关拉起来（马上要连的调用方，如 CLI 启动）；
+   * 只是解析路由的（Nomi 对话、辅助请求）不拉起，真正发请求时由 readyFetch 拉起
    */
-  private liveUrl(): string | null {
+  private liveUrl(start: boolean): string | null {
     const s = this.proc.getStatus();
     if (s.state === 'running') return s.url;
     if (s.state === 'failed') return null;
     const url = this.configuredUrl();
-    if (url) this.proc.ensureStarted();
+    if (url && start) this.proc.ensureStarted();
     return url;
+  }
+
+  private address(client: ClientId, start: boolean): { url: string; token: string } | null {
+    const token = this.store.clientToken(client);
+    const url = token ? this.liveUrl(start) : null;
+    return url && token ? { url, token } : null;
   }
 
   /**
@@ -584,9 +591,7 @@ export class GatewayService {
 
   /** 网关当前地址与某个客户端的令牌（主进程内部用：生成 CLI 注入参数、Nomi 对话），不经 IPC */
   endpoint(client: ClientId): { url: string; token: string } | null {
-    const token = this.store.clientToken(client);
-    const url = token ? this.liveUrl() : null;
-    return url && token ? { url, token } : null;
+    return this.address(client, true);
   }
 
   /**
@@ -602,7 +607,7 @@ export class GatewayService {
     receiver: { id: string; baseURL: string };
     fetch: typeof fetch;
   } | null {
-    const ep = this.endpoint('nomi');
+    const ep = this.address('nomi', false);
     const picked = this.nomiPick(role);
     if (!ep || !picked) return null;
     const receiver = { id: picked.receiver.providerId, baseURL: picked.receiver.url };
@@ -915,7 +920,7 @@ export class GatewayService {
     kind: string,
     tabModel: string | null,
   ): { model: string; receiver: { id: string; name: string; local: boolean } } | null {
-    if (!this.endpoint('nomi')) return null;
+    if (!this.address('nomi', false)) return null;
     const m = this.store.snapshot().clients[kind as ClientId]?.models;
     const cfg = this.config();
     for (const ref of [m?.summary, m?.tiers?.haiku, m?.small, tabModel, m?.main]) {
@@ -938,7 +943,7 @@ export class GatewayService {
     messages: Array<{ role: string; content: string }>,
     signal: AbortSignal,
   ): Promise<string> {
-    const ep = this.endpoint('nomi');
+    const ep = this.address('nomi', false);
     if (!ep) throw new Error(tr('electron.common.ai-service-not-ready'));
     const res = await this.readyFetch(`${ep.url}/v1/chat/completions`, {
       method: 'POST',
