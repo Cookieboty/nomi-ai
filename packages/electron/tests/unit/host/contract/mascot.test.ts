@@ -212,6 +212,23 @@ describe('host/contract/mascot', () => {
     }
   });
 
+  it('看板娘窗口：不等回应连发的拖拽上报按发出顺序到达窗口控制器', async () => {
+    const { f, api, close } = setup('mascot');
+    const order: string[] = [];
+    f.controller.beginDrag.mockImplementation(() => void order.push('start'));
+    f.controller.moveDrag.mockImplementation((x: number) => void order.push(`move ${x}`));
+    f.controller.endDrag.mockImplementation(() => void order.push('end'));
+    try {
+      const pending: Array<Promise<unknown>> = [api.mascot.dragStart({ screenX: 0, screenY: 0 })];
+      for (let i = 1; i <= 5; i++) pending.push(api.mascot.dragMove({ screenX: i, screenY: i }));
+      pending.push(api.mascot.dragEnd());
+      await Promise.all(pending);
+      expect(order).toEqual(['start', 'move 1', 'move 2', 'move 3', 'move 4', 'move 5', 'end']);
+    } finally {
+      close();
+    }
+  });
+
   it('看板娘窗口：窗口操作、模型名、角色包、人设、平台', async () => {
     const { f, api, close } = setup('mascot');
     try {

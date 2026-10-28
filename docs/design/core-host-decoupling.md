@@ -602,7 +602,8 @@ renderer 只保留：透明窗口壳、气泡、工具栏、右键菜单，以�
 > - ai-chat 的部分视图测试仍用旧形状的假 `window.aiIPC`，经 `tests/helpers/{codingApi,shellApi}.ts` 把契约调用转回旧通道名，
 >   以后改成契约层的假实现；
 > - e2e-headed 只在 macOS 上跑过部分用例（E5、E17 等），完整一轮要在 Linux + xvfb 上跑；看板娘拖拽 / 点击上报从单向消息
->   变成契约往返，Windows 上的拖拽手感需要在真机确认；
+>   变成契约往返，拖拽上报已串行化并按帧合并 move（renderer `mascot/interaction/dragReporter.ts`，上一条回应前不发下一条），
+>   发布前仍要在 Windows 真机上确认拖拽手感；
 > - 两个 preload 内容已相同，可以合成一个包；`security/ipcSenderGuard.ts` 仍在 electron import 白名单里（P3 随宿主搬家）；
 > - `voice-settings:changed`（→ `voice.mascotSettingsChanged`）主进程没有发布方；MCP 信任级别（`ext.mcpUpsert` 等）
 >   是否算 `dangerous` 待定。

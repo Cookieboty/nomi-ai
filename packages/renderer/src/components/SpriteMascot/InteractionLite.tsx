@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import type { FC, RefObject } from 'react';
 
 import { getHitboxes } from '../../mascot/characterConfig';
+import { createDragReporter } from '../../mascot/interaction/dragReporter';
 import { ClickClassifier, PatDetector } from '../../mascot/interaction/gestures';
 import {
   DragGate,
@@ -53,6 +54,12 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
     const live = hasTransport();
     /** 上报是即发即弃的（原来是单向消息）：失败不影响交互 */
     const fire = (p: Promise<unknown>): void => void p.catch(() => undefined);
+    /** 拖拽上报串行、按帧合并 move（每次都是契约往返，指针事件频率远高于刷新率） */
+    const drag = createDragReporter({
+      dragStart: (p) => api.mascot.dragStart(p),
+      dragMove: (p) => api.mascot.dragMove(p),
+      dragEnd: () => api.mascot.dragEnd(),
+    });
     let platform = '';
     if (live)
       void api.window.platform().then(
@@ -166,7 +173,7 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
 
     const endDrag = (why: string) => {
       document.documentElement.dataset.mascotDragEnd = why;
-      if (live) fire(api.mascot.dragEnd());
+      if (live) drag.end();
       s.dragging = false;
       s.hit = null;
       s.cursor.fresh = true;
@@ -183,14 +190,13 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
       // Prefer our own held flag: under setPointerCapture / click-through toggles,
       // Chromium on Windows frequently delivers move events with buttons=0.
       const buttons = s.buttonHeld ? e.buttons | 1 : e.buttons;
-      if (live && s.dragging && buttons & 1)
-        fire(api.mascot.dragMove({ screenX: e.screenX, screenY: e.screenY }));
+      if (live && s.dragging && buttons & 1) drag.move({ screenX: e.screenX, screenY: e.screenY });
       const r = gate.move(e.clientX, e.clientY, performance.now(), buttons);
       if (r === 'start' && s.down) {
         s.dragging = true;
         if (live) {
-          fire(api.mascot.dragStart({ screenX: s.down.sx, screenY: s.down.sy }));
-          fire(api.mascot.dragMove({ screenX: e.screenX, screenY: e.screenY }));
+          drag.start({ screenX: s.down.sx, screenY: s.down.sy });
+          drag.move({ screenX: e.screenX, screenY: e.screenY });
         }
         document.documentElement.dataset.mascotDragging = '1';
       } else if (r === 'cancel' || (!gate.isDown && s.down && !s.buttonHeld)) {
@@ -415,7 +421,7 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
       window.removeEventListener('pointercancel', onCancel, capture);
       window.removeEventListener('blur', onCancel, capture);
       canvas.removeEventListener('lostpointercapture', onCancel, capture);
-      if (s.dragging && live) fire(api.mascot.dragEnd());
+      if (s.dragging && live) drag.end();
       layoutStore.setHead(null);
       layoutStore.setCharBox(null);
     };
