@@ -241,6 +241,9 @@ interface ServerTransport {
 | in-process   | `contract/testing`    | 单元测试与 `host-node` e2e，内核与视图逻辑在同一进程                           |
 | WebSocket    | `host-node`（开发态） | 视图在普通浏览器运行；以后作为 sidecar 宿主的生产传输                          |
 
+WebSocket 的服务端是 `@nomi-ai/host-node/websocket`，视图侧是 `@nomi-ai/contract` 的 `createWebSocketClientTransport`；
+帧按文本发（`wire.ts`：JSON，`Uint8Array` 编成 base64）。握手、Origin 与 token 的规则见 §12 P4 第二步的进度说明。
+
 ### 5.3 事件分发
 
 内核只调用 `ctx.events.publish('cli.progress', data)`，**不知道窗口**。由传输层根据订阅关系推给对应的客户端。现有 `EventBroadcaster` 的「按窗口订阅子集」能力并入传输层。
@@ -293,7 +296,7 @@ interface WindowsPort {
 | 实现            | 内容                                                                                                                                                                                      |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `host-electron` | Electron 实现（`src/host/electronPorts.ts`）；`ai-runtime` 的 `createElectronIpcAdapter` 已搬到 `src/host/electronIpcAdapter.ts`，`createElectronLifecycle` 删除（改用 `lifecycle` 端口） |
-| `host-node`     | `paths` 指向临时目录；`secrets` 用内存或明文（仅测试）；`dialogs` 返回预设值；`windows` 记录调用                                                                                          |
+| `host-node`     | `paths` 指向临时目录；`secrets` 用内存或明文（仅测试）；`dialogs` 返回预设值；`windows` 记录调用；`processes` 可选用 Node 子进程（`forkUtilityProcess`）；`/core` 起无界面内核            |
 
 `safeStorage` 只是 `secrets` 端口的一种实现。现有 `security/secretStorage.ts` 的逻辑（可用性检查、迁移）留在内核，只把 `safeStorage.encryptString` 调用换成端口。
 
@@ -858,6 +861,65 @@ stop() }`；宿主 `packages/host-electron/src/host/Application.ts`（宿主区�
 >   业务码会变成 INTERNAL。P4 第二步（`e2e/` 改跑无界面宿主）要统一格式或改成按 `name` / `code` 判断；
 > - P4 本身（`e2e/` 改跑无界面宿主、WebSocket 传输，§11.3 前两项）未开始。
 
+> P4 第二步完成（分支 `refactor/p4-host-node`）：§11.3 前两项通过，P4 完成。
+>
+> - 无界面宿主：`@nomi-ai/host-node/core` 的 `startHeadlessCore()` 用 `createNodeHostPorts` 的端口（临时目录、内存密钥、
+>   记录下来的对话框 / 通知 / 窗口调用）建内核并 `start()`，`connect(caller?)` 经 in-process 传输给出类型化的契约客户端
+>   （一个连接 = 一个窗口，缺省 `{ surface: 'chat', trusted: true }`），`stop()` 停内核、断连接、先写完日志再删临时目录。
+>   内核加了两个宿主选项：`CoreHostHooks.aiPluginsAfter`（宿主插件装在内置插件之后，后 provide 的覆盖前面的）与
+>   `CoreConfig.gatewayPort`（统一网关本次运行的端口，不写回设置；无界面内核缺省 0，不和本机装着的 Nomi 抢 18721）。
+>   `processes: true` 时工具子进程用 Node 子进程（`forkUtilityProcess`：`node -e` 引导，经 IPC 在子进程里补上 Electron
+>   约定的 `process.parentPort`，结构化克隆），统一网关与文档解析在无界面宿主上也能起来；
+> - `e2e/` 改跑无界面宿主：E1、E2、E4、E5 起真实内核（`createCore` + 生产的插件宿主与 `AIClient`），视图侧的
+>   `ClientAIClient` 经 in-process 传输连进来；探针插件（`aiPluginsAfter`）换上假 LLM、往真实工具表里加测试工具、
+>   拿插件上下文发插件事件。原来的假运行时（`e2eRuntime` / `rendererIpc` / `fakeSdkCtx`）删除。`e2e/setup/isolateEnv.ts`
+>   把 HOME、PATH 指到空目录、去掉环境变量里的供应商 Key。E6 改用 `startHeadlessCore`，断言两个内核的服务、事件、
+>   router、AI runtime 与数据（主题、用户画像、网关供应商（Key 不以明文落盘）、记忆）互不相干；E7 经 WebSocket 传输测
+>   真实内核（握手、查询、修改、事件订阅、错 token / 外站 Origin 被拒绝）。全部用例不需要 Electron 与 xvfb；
+> - 用真实内核跑出来的问题（都修了）：契约包与 `bundle-ig-base` 同时发 ESM 与 CommonJS，同一进程里两份副本互不相认——
+>   `ContractError` 改用 `Symbol.for` 品牌（`Symbol.hasInstance`），插件服务键改用 `Symbol.for('nomi.ig.service:<名字>')`
+>   （上一步「剩下的」里的格式问题就此解决，E6 不再需要按 CommonJS 加载契约）；`UserPreferenceMemoryPlugin` 发的
+>   `userProfile/changed` 是裸画像，与声明的 `{ profile }` 不符（视图侧两种都认，界面上没有变化）；`ai-sdk-client` 的主入口与
+>   `react` 入口各打包一份共享传输表，Electron 里每个窗口其实开了两个会话（表改放 `globalThis`）；
+> - WebSocket 传输：视图侧 `createWebSocketClientTransport`（`@nomi-ai/contract`，不依赖 Node 内置模块）；服务端
+>   `serveContractOverWebSocket`（`@nomi-ai/host-node/websocket`，`ws`，MIT，内核原来就依赖）。只监听回环地址，校验 Host
+>   （防 DNS rebinding）、Origin（完全匹配允许清单，没有 Origin 也拒绝）、子协议里的一次性 token（`createDevToken()`，
+>   32 字节随机数，`timingSafeEqual`，日志只露前 4 位）与界面（`nomi-surface.<surface>`，dev:web 只放 chat），通过后
+>   caller 记为 `{ surface, trusted: true }`；普通 HTTP 回 426，只收文本帧，单条消息与连接数有上限。每个连接一个
+>   `createServerSession`，与 Electron IPC / in-process 共用帧处理；断开后不重连（开发态内核重启后刷新页面）；
+> - 视图在浏览器里：ai-chat 的 `services/api.ts` 仍是唯一选传输的地方——有 preload 桥（`window.nomiTransport`）用它；
+>   没有桥、且是开发构建（`import.meta.env.DEV`）并且开发服务器注入了 `window.nomiDevTransport` 时，用 WebSocket 传输并经
+>   `installSharedTransport` 换掉窗口共享的传输（模块加载时就建好的客户端也跟着走）。§11.1 的 lint 规则加上新全局与
+>   `createWebSocketClientTransport` / `installSharedTransport` 等工厂，只有 `services/api.ts` 能用；
+> - 开发入口：`pnpm dev:web`（`scripts/dev-web/start.mjs`）在 Node 里用无界面宿主起内核（网关在 Node 子进程里），挂 WebSocket
+>   传输，再起 ai-chat 的 Vite 开发服务器（自己一个进程组，停的时候整组停）；Vite 插件（`scripts/dev-web/vite-plugin.mjs`）
+>   只在开发服务器、且拿到地址与 token 的环境变量时把它们注入页面，同时把开发服务器的 CORS 收紧到自己的地址；构建时
+>   产物里出现 WebSocket 传输（子协议标记或全局名）就让构建失败——生产构建里 `import.meta.env.DEV` 为 false，这段代码与
+>   传输一起被摇掉，打包的 Electron 应用里没有 WebSocket 路径（去掉 DEV 判断构建确实失败）；`host-electron` 不依赖
+>   `host-node`；
+> - 证明：Vitest 的 E7（真实内核）与 `host-node`、`contract` 的单测（安全检查逐项：错 token、外站 / 缺失 Origin、外站
+>   Host、未知界面、错路径、缺协议、非回环绑定、二进制帧）；`pnpm smoke:web`（`scripts/dev-web/smoke.mjs`）用 Playwright 的
+>   Chromium（不是 Electron）打开 ai-chat 开发页：页面渲染、没有 preload 桥、调用经 WebSocket 到内核（内核侧中间件记录）、
+>   内核预设的主题与语言出现在页面上、内核换主题后页面跟着变，再在页面里走完首次引导（添加指向本机假上游的供应商、选
+>   模型）并发一条消息，回复经统一网关回到页面。CI 的 e2e-headless 在 Linux 上追加这个冒烟；
+> - 验证：构建、typecheck、lint、单测（只有 `changesets.test.ts` 已知的 6 个失败）、无界面 e2e（6 个文件 / 16 个用例）、
+>   i18n、许可、`pnpm smoke:web` 通过；macOS 上 e2e-headed 的 E1、E5、E16、E17 通过（E16 第一次失败是因为另一个工作区的
+>   Electron 占着 18721，那个进程退出后通过）。
+>
+> 剩下的：
+>
+> - 仍是进程级、两个内核共用的状态没有变（见第一步的「剩下的」：界面语言、日志开关与私有文件根目录、诊断日志写入器、
+>   子进程 / worker 缓存、`createMainLogger`），E6 不断言它们；
+> - 只有 ai-chat 接了 WebSocket 开发传输；看板娘窗口（renderer）是透明窗口壳，依赖宿主窗口，没有接。`dev:web` 里要用
+>   窗口对象的过程（看板娘大小、灵动岛、应用图标、旧窗口通道）报 UNAVAILABLE，拖入文件（`nomiHost`）不可用；
+> - 无界面宿主的资源目录是空的：角色包解析不到内置包（日志「built-in pack not found」，人设为中性），替身角色验收
+>   （§11.3 第三项，G5）仍归 C3；`image` 端口没有实现，背景图不缩放；
+> - e2e-headed 的用例都要 Electron，不能搬到无界面宿主：透明置顶的看板娘窗口与命中区、拖拽与窗口位置、托盘、灵动岛、
+>   preload 与 `nomiHost`、系统对话框、全局快捷键、窗口截图（UI、ANIM）、打包产物的生产模式冒烟（E5）；
+> - `ai-runtime` 的 `package.json` 仍把 `bundle-ig-electron-caps` 与（可选的）`electron` 列为 peer（源码已不引用）；
+> - WebSocket 传输按开发态设计（一次性 token、没有重连、没有会话恢复），作为 sidecar 宿主的生产传输前要补：重连与
+>   订阅恢复、token 的下发方式（不经页面全局）、调用者身份细分（目前一律 trusted）。
+
 | 阶段 | 内容                                                                                                                                                                                                             | 完成标准                                                                   |
 | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
 | P0   | ① lint 护栏：`packages/electron/src` 中除宿主目录（§7.2 右列）外，新增 electron import 报错（已有的列入白名单，只减不增）；② `PersonaService`，删两处人设硬编码                                                  | 护栏进 CI；换皮后系统提示不再是 Nomi                                       |
@@ -865,7 +927,7 @@ stop() }`；宿主 `packages/host-electron/src/host/Application.ts`（宿主区�
 | P1b  | **已完成**。其余 `ai:*` 服务通道与 `window.electronAPI` 的能力逐个进契约；视图改用 client；删除 `window.aiIPC` / `window.electronAPI`                                                                            | 视图中不再出现 `window.aiIPC` / `window.electronAPI`                       |
 | P2   | 建 `host-ports`；替换 `app.getPath`（10）、`safeStorage`（9）、`dialog/shell/clipboard` 等（15）；29 处窗口广播改为 `ctx.events.publish`                                                                         | `packages/electron/src` 中业务模块不再 import electron                     |
 | P3   | **已完成**（P0 白名单在 P4 第一步清空，见上方进度说明）。物理搬家：业务模块 → `packages/core`；`packages/electron` → `packages/host-electron`（`@nomi-ai/host-electron`）；ai-runtime 的 Electron 适配器移入宿主 | 目录与 §3.3 一致；P0 白名单清空                                            |
-| P4   | 第一步已完成：内核组合根 `createCore`，同一进程可起多个内核。`host-node` + in-process / WebSocket 传输；`e2e/` 改跑无界面宿主                                                                                    | §11.3 前两项通过                                                           |
+| P4   | **已完成**（见上方 P4 两步的进度说明）。内核组合根 `createCore`，同一进程可起多个内核；`host-node` + in-process / WebSocket 传输；`e2e/` 改跑无界面宿主                                                          | §11.3 前两项通过                                                           |
 | C1   | `character-contract` 包；官方资产与人设集中到 `characters/nomi`；删 Scheme A 原地覆盖与两份 `character.generated.json`                                                                                           | 官方构建与白标构建走同一路径                                               |
 | C2   | **已完成**。拆出 `avatar-runtime`；renderer 只留窗口壳                                                                                                                                                           | avatar-runtime 能单独运行（开发页 `demo/` 与挂载测试；仓库没有 Storybook） |
 | C3   | 语义事件协议 + `mapping.json`；工具与 preset 改名（不保留别名）                                                                                                                                                  | AI 侧代码中不出现 clip / motion 名；§11.3 替身角色通过                     |
