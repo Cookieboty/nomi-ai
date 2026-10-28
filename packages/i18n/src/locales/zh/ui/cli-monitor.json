@@ -171,5 +171,10 @@
   "ui.cli-monitor.you-dropped-it-i-ll-read-it": "拖给我的，我来读。",
   "ui.cli-monitor.you-ve-got-this-i-m-here": "加油，我陪你。",
   "ui.cli-monitor.delete-session-title": "删除「{0}」？",
-  "ui.cli-monitor.delete-cli-session-body": "{0} 在本机保存的会话记录会移到废纸篓（回收站），之后 Nomi 与 {0} 都无法续接它。"
+  "ui.cli-monitor.delete-cli-session-body": "{0} 在本机保存的会话记录会移到废纸篓（回收站），之后 Nomi 与 {0} 都无法续接它。",
+  "ui.cli-monitor.context-to-carry": "带入上下文",
+  "ui.cli-monitor.all-turns": "全部轮次",
+  "ui.cli-monitor.last-n-turns": "最近 {0} 轮",
+  "ui.cli-monitor.fork": "分叉",
+  "ui.cli-monitor.copies-the-chosen-turns-into-a-new-chat": "把选中的轮次复制到新对话。"
 }

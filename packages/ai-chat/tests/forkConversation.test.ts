@@ -7,6 +7,7 @@ import {
   createMemoryStorage,
 } from '../src/services/conversationStore';
 import { forkCrossBackend, forkSameBackend } from '../src/services/forkConversation';
+import { harnessClient } from '../src/services/harnessClient';
 import type { ChatMessage } from '../src/types/chat';
 
 const msg = (id: string, role: ChatMessage['role'], content: string) =>
@@ -74,6 +75,19 @@ describe('forkConversation', () => {
     expect(r.title).toContain('副本');
     expect(store.getMessages(r.conversationId).map((m) => m.content)).toEqual(['hi', 'hello']);
     expect(store.getMessages(a.id)).toHaveLength(2);
+  });
+
+  it('只带最近几轮：同端新对话与跨端标签都只有这几轮', async () => {
+    const a = store.create({ name: 'A', backend: 'nomi' });
+    store.append(msg('1', 'user', 'q1'));
+    store.append(msg('2', 'assistant', 'a1'));
+    store.append(msg('3', 'user', 'q2'));
+    store.append(msg('4', 'assistant', 'a2'));
+    const same = await forkSameBackend(store, a.id, { turns: 1 });
+    expect(store.getMessages(same.conversationId).map((m) => m.content)).toEqual(['q2', 'a2']);
+    const cross = await forkCrossBackend(store, a.id, 'gemini', { turns: 1 });
+    const seeded = (await harnessClient.tabMessages(cross.tabId!)) as Array<{ content: string }>;
+    expect(seeded.map((m) => m.content)).toEqual(['q2', 'a2']);
   });
 
   it('forks cross-backend into a CLI tab with seeded messages', async () => {

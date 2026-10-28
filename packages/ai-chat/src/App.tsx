@@ -16,7 +16,7 @@ import type { ConvSlots } from './components/Conversation/Messages';
 import { nomiSlots } from './components/Conversation/nomiSlots';
 import { SessionControls, WorkspaceControl } from './components/EndpointControls';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { ForkTargetMenu } from './components/ForkMenu';
+import { ForkTargetMenu, type ForkPick } from './components/ForkMenu';
 import {
   DesktopPanel,
   ExtensionsPanel,
@@ -338,13 +338,14 @@ const AiChatContent: React.FC = () => {
   const [forkCross, setForkCross] = useState<{
     id: string;
     backend: ConversationBackend;
+    mode: 'same' | 'cross';
   } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   // 切到普通模式时关掉已打开的「分叉到其他端」选择框（渲染期根据 isDev 变化重置，避免 effect 内 setState 触发级联渲染）
   const [prevIsDev, setPrevIsDev] = useState(isDev);
   if (prevIsDev !== isDev) {
     setPrevIsDev(isDev);
-    if (!isDev && forkCross !== null) setForkCross(null);
+    if (!isDev && forkCross?.mode === 'cross') setForkCross(null);
   }
   useEffect(() => {
     if (!toast) return;
@@ -487,11 +488,12 @@ const AiChatContent: React.FC = () => {
   }, [actions, focusInput]);
 
   const runForkSame = useCallback(
-    async (id: string) => {
+    async (id: string, pick: ForkPick = {}) => {
       const store = ipcClient.conversationStore?.();
       if (!store) return;
+      setForkCross(null);
       try {
-        const r = await forkSameBackend(store, id);
+        const r = await forkSameBackend(store, id, { turns: pick.turns });
         if (r.backend !== 'nomi') setMode('dev');
         if (r.tabId) await tabs.activate(r.tabId);
         else {
@@ -509,12 +511,12 @@ const AiChatContent: React.FC = () => {
   );
 
   const runForkCross = useCallback(
-    async (id: string, target: ConversationBackend, cwd?: string) => {
+    async (id: string, target: ConversationBackend, pick: ForkPick) => {
       const store = ipcClient.conversationStore?.();
       if (!store) return;
       setForkCross(null);
       try {
-        const r = await forkCrossBackend(store, id, target, { cwd });
+        const r = await forkCrossBackend(store, id, target, pick);
         if (r.backend !== 'nomi') setMode('dev');
         if (r.tabId) await tabs.activate(r.tabId);
         else {
@@ -535,10 +537,10 @@ const AiChatContent: React.FC = () => {
       const store = ipcClient.conversationStore?.();
       const meta = store?.get(id);
       if (!meta) return;
-      if (mode === 'same') void runForkSame(id);
-      else if (isDev) setForkCross({ id, backend: meta.backend }); // 普通模式不允许分叉到其他端
+      // 都先选带入几轮；普通模式不允许分叉到其他端
+      if (mode === 'same' || isDev) setForkCross({ id, backend: meta.backend, mode });
     },
-    [ipcClient, runForkSame, isDev],
+    [ipcClient, isDev],
   );
 
   useEffect(() => {
@@ -1036,9 +1038,14 @@ const AiChatContent: React.FC = () => {
       </ModalHostContext.Provider>
       <ForkTargetMenu
         open={!!forkCross}
+        mode={forkCross?.mode}
         current={forkCross?.backend ?? 'nomi'}
         onClose={() => setForkCross(null)}
-        onPick={(b, cwd) => forkCross && void runForkCross(forkCross.id, b, cwd)}
+        onPick={(b, pick) => {
+          if (!forkCross) return;
+          if (forkCross.mode === 'same') void runForkSame(forkCross.id, pick);
+          else void runForkCross(forkCross.id, b, pick);
+        }}
       />
       {toast && (
         <div
