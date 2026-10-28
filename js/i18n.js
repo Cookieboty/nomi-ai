@@ -196,8 +196,6 @@
       "privacy.band.desc": "对话、记忆、知识库与日程都只保存在你的电脑上。可开启「仅本地模型」，敏感内容不发往云端。",
       "privacy.band.cta": "了解隐私承诺",
 
-      "cta.title": "让 AI 成为你工作的一部分",
-      "cta.lead": "从一个问题开始，也可以从一个复杂任务开始。",
       "cta.download": "前往下载",
       "cta.releases": "GitHub Releases",
 
@@ -716,8 +714,6 @@
       "privacy.band.desc": "Chats, memory, knowledge base, and schedules stay on your computer. Enable local-only mode so sensitive content never leaves.",
       "privacy.band.cta": "Read our privacy promise",
 
-      "cta.title": "Your AI. Your workflow.",
-      "cta.lead": "One place to bring your AI tools together, and the freedom to put them to work your way.",
       "cta.download": "Go to download",
       "cta.releases": "GitHub Releases",
 
