@@ -6,7 +6,8 @@
  * toolbar slot (sides) and the speech bubble (above the head). Transparent pixels are
  * click-through (per-pixel hit test), so the margin never blocks the desktop.
  *
- * Keep MASCOT_PAD in sync with packages/renderer/src/mascot/spriteLayout.ts (tested there).
+ * Keep MASCOT_PAD in sync with packages/avatar-runtime/src/spriteLayout.ts
+ * (checked by packages/renderer/tests/mascot/spriteLayout.test.ts).
  */
 export const MASCOT_BASE = { width: 420, height: 450 } as const;
 export const MASCOT_PAD = { x: 60, top: 130 } as const;

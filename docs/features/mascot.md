@@ -13,7 +13,7 @@ Nomi 住在一个透明、置顶的小窗口里，只有角色本身可以点击
 
 ## 动作
 
-Nomi 有 **43 个命名动作**（`packages/renderer/src/mascot/rig/actions.ts`），工具栏右键「动作」菜单、托盘、AI 工具 `avatar_gesture` 都使用同一套名字。
+Nomi 有 **43 个命名动作**（`packages/avatar-runtime/src/rig/actions.ts`），工具栏右键「动作」菜单、托盘、AI 工具 `avatar_gesture` 都使用同一套名字。
 
 | 动作          | 名称             | 类别 | 时长         | 优先级 | 触发场景                                    | 应用内自动触发                                  |
 | ------------- | ---------------- | ---- | ------------ | ------ | ------------------------------------------- | ----------------------------------------------- |
@@ -133,5 +133,5 @@ Nomi 有 **43 个命名动作**（`packages/renderer/src/mascot/rig/actions.ts`�
 
 ## 技术说明
 
-- Nomi 由透明 PNG 图层在 Canvas2D 上合成（`packages/renderer/src/mascot/layeredRig.ts`），不依赖 WebGL；动作系统见上文「动作」。
+- Nomi 由透明 PNG 图层在 Canvas2D 上合成（`packages/avatar-runtime/src/layeredRig.ts`），不依赖 WebGL；动作系统见上文「动作」。
 - Linux 的点击穿透用窗口形状实现；Wayland 下全局光标位置不可用。

@@ -499,7 +499,7 @@ AI 不再知道动作名和 clip 名：
 - **内容**：`MascotBackend` 接口与 `backends/`（rive / sprite / static）、`expressionDirector`、`mood`、`motion`、`rig`、`layeredRig`、`interaction`（命中区）、口型消费、`characterVoice`。
 - **输入**：`manifest + mapping + resolveAsset(path) → url` + 一个 `AvatarEventSource`（语义事件流）。
 - **输出**：交互事件（`touched`、`clicked`）。
-- **不依赖** `contract`、`electron`、`ai-sdk-client`。`AvatarEventSource` 由 renderer 用契约 client 实现并注入，所以 avatar-runtime 可以单独在 Storybook 或网页里运行。
+- **不依赖** `contract`、`electron`、`ai-sdk-client`。`AvatarEventSource` 由 renderer 用契约 client 实现并注入，所以 avatar-runtime 可以单独在网页里运行（`packages/avatar-runtime/demo`）。
 
 renderer 只保留：透明窗口壳、气泡、工具栏、右键菜单，以及把契约事件接到 `AvatarEventSource` 的薄适配层（现在的 `src/ai`）。
 
@@ -720,6 +720,37 @@ coalescedWriter,redact}`、`services/{Logger,Config,Cache,Update}Service`、`mas
 >   `electron` 为 peer，见上一条进度说明；
 > - e2e-headed 完整一轮仍要在 Linux + xvfb 上跑。
 
+> C2 已完成（分支 `refactor/c2-avatar`，已变基到 `refactor/p3-core`）：角色引擎拆成纯浏览器包 `packages/avatar-runtime`（`git mv` 保留历史）：
+> `MascotBackend` 与 `backends/`（rive / sprite / static）、`expressionDirector` / `emotion` / `mood` / `voiceMood`、
+> `motion` / `rig` / `layeredRig`、`interaction`（命中区、手势、反应、互动设置）、`spriteInteraction` / `layoutStore`、
+> 三种画布与 `InteractionLite`、按 `mode` 选画布（Rive 失败回退分层 2D），以及原来分散在 `MascotDriver` /
+> `MascotAIBridge` / 语音桥里的决策（`driver.ts`：口型与说话姿态、流式情绪、结尾去重、保持姿态的释放）。
+>
+> - 输入：`AvatarCharacter`（manifest 的引擎字段 + mapping，类型来自 `character-contract`）、`resolveAsset(path)`、
+>   `AvatarEventSource`（语义事件：`speaking` / `cue` / `reply` / `emotion` / `gesture` / `voice` / `cursor` / `physics`）；
+>   输出：`onInteraction`（click / double / pat / hover / grab / land / wall，带区域与台词 key）与可选的
+>   `AvatarWindowHost`（命中、拖拽、身体框、Linux 窗口形状）。Rive wasm URL、就绪打点、开发态调试句柄由宿主传入，
+>   包里没有 Vite 专用 import、`process.env` 或 `@nomi-ai/ui`；互动设置经 `setInteractionConfigBackend` 推给宿主；
+> - 边界：eslint（`eslint.config.mjs` 的 avatar-runtime 块，error）禁止 import `contract` / `ai-sdk(-client)` / `host-*` /
+>   `core` / 视图包 / `ui` / `services/api` 与访问宿主全局；`tests/boundary.test.ts` 再查 package.json 依赖与动态加载；
+> - renderer 只留透明窗口壳、气泡、工具栏、右键菜单与适配层：`src/avatar/`（事件中枢 `avatarEvents`、契约窗口宿主、
+>   互动输出 → `mascot:say` 与朗读、当前角色 → `AvatarCharacter`），`MascotDriver` / `MascotAIBridge` / 语音桥 /
+>   拖入文件只把契约与本地事件翻译成语义事件；`mascot.command` 的动作 / 表情也走事件源；
+> - 单独运行（完成标准；仓库没有 Storybook，不引入）：`pnpm --filter @nomi-ai/avatar-runtime demo` 是 Vite 开发页，
+>   默认加载 `characters/test-dummy`（`AVATAR_DEMO_PACK=characters/nomi` 换官方包），假事件源 + 互动日志；
+>   `tests/runtime.test.tsx` 在 happy-dom 里用替身包和假事件源挂载、驱动、卸载运行时（工作区没有 jsdom，用已有的 happy-dom）；
+> - 行为不变：e2e-headed 的 E1、E5、E9、E11、E12、E15、E22、E23 在 macOS 上通过；看板娘首屏 JS 没有变大。
+>
+> 剩下的：
+>
+> - `characterVoice` 仍在 renderer：它是宿主朗读链路（预录片段、实时朗读经契约、静音状态、角色文案）的角色语音偏好，
+>   运行时只经 `onInteraction` 报出「这句要朗读」；`lipSyncStore` 也留在 renderer 汇总 TTS 包络，消费在运行时；
+> - `mapping.json` 只传进运行时、还没用（C3 按它翻译情绪 / 活动 / 手势，并把工具与 preset 改名）；
+> - 运行时仍是全局单例（后端注册表、`layoutStore`、互动设置、自动动作冷却），同一页面只挂一个角色；多角色前要改成实例；
+> - `InteractionLite` 在 window 上以捕获方式监听 `blur`，元素失焦（例如先点了别的按钮）也会取消一次按下（原有行为，
+>   独立开发页里能看到）；
+> - 动作显示名的翻译检查与 `docs/features/mascot.md` 对照留在 renderer 测试（`motionDocs.test.ts`），运行时不依赖 `ui`。
+
 | 阶段 | 内容                                                                                                                                                                                    | 完成标准                                                                                                            |
 | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | P0   | ① lint 护栏：`packages/electron/src` 中除宿主目录（§7.2 右列）外，新增 electron import 报错（已有的列入白名单，只减不增）；② `PersonaService`，删两处人设硬编码                         | 护栏进 CI；换皮后系统提示不再是 Nomi                                                                                |
@@ -729,7 +760,7 @@ coalescedWriter,redact}`、`services/{Logger,Config,Cache,Update}Service`、`mas
 | P3   | **基本完成**（见上方 P3 小结）。物理搬家：业务模块 → `packages/core`；`packages/electron` → `packages/host-electron`（`@nomi-ai/host-electron`）；ai-runtime 的 Electron 适配器移入宿主 | 目录与 §3.3 一致；P0 白名单清空（还剩组合根 `core/Application.ts` 与 `electronLoader`，随 P4 的 `createCore` 清空） |
 | P4   | `host-node` + in-process / WebSocket 传输；`e2e/` 改跑无界面宿主                                                                                                                        | §11.3 前两项通过                                                                                                    |
 | C1   | `character-contract` 包；官方资产与人设集中到 `characters/nomi`；删 Scheme A 原地覆盖与两份 `character.generated.json`                                                                  | 官方构建与白标构建走同一路径                                                                                        |
-| C2   | 拆出 `avatar-runtime`；renderer 只留窗口壳                                                                                                                                              | avatar-runtime 能在 Storybook 单独运行                                                                              |
+| C2   | **已完成**。拆出 `avatar-runtime`；renderer 只留窗口壳                                                                                                                                  | avatar-runtime 能单独运行（开发页 `demo/` 与挂载测试；仓库没有 Storybook）                                          |
 | C3   | 语义事件协议 + `mapping.json`；工具与 preset 改名（不保留别名）                                                                                                                         | AI 侧代码中不出现 clip / motion 名；§11.3 替身角色通过                                                              |
 
 - **P1a 的行为变化**：AI 门面的业务事件（`ai.agent.step`、`ai.tts.chunk`、`ai.userProfile.changed` 等）改由契约传输按订阅分发，**只推给订阅了该事件的窗口**；以前 `EventBroadcaster` 经 `ai:event` 通道广播给所有存活窗口（可选按窗口过滤），该通道已删除。没有经契约订阅的窗口（含直接监听 `ai:event` 的页面）收不到这些事件，P1b 迁移视图时要改成显式订阅；窗口导航或刷新后订阅随会话一起失效，由新页面重新订阅。

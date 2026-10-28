@@ -22,7 +22,7 @@ const electronPkgDir = resolve(repoRoot(), 'packages', 'host-electron');
 const mainJs = resolve(electronPkgDir, 'dist', 'main.js');
 const shots = process.env.E22_SHOTS;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-// 别名 → 原生动作，与 packages/renderer/src/mascot/backends/rive.ts 的 RIVE_MOTION_ALIASES 一致
+// 别名 → 原生动作，与 packages/avatar-runtime/src/backends/rive.ts 的 RIVE_MOTION_ALIASES 一致
 // （测试里独立列出，防止实现与测试一起错）
 const RIVE_MOTION_ALIASES: Record<string, string> = {
   greet: 'hello',

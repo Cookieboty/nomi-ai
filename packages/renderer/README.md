@@ -9,14 +9,16 @@ animated with Rive by default, falling back to the Canvas2D layered rig if Rive 
 
 ## 结构 / Structure
 
-- `src/mascot/MascotBackend.ts` — 渲染后端抽象（表情 / 口型 / 视线 / 眨眼）与 `mascotRegistry` / backend abstraction (expression / lip / gaze / blink) + `mascotRegistry`
-- `src/mascot/backends/rive.ts`、`backends/sprite.ts` — Rive 与分层 2D 实现
-- `src/mascot/catalog.ts` — 读取 `model-list.json`（每个模型必须有 `license` / `author` / `source`）
-- `src/mascot/expressionDirector.ts` — 聊天 / Agent / 工具事件 → 表情（纯函数）
-- `src/mascot/MascotDriver.tsx` — TTS 音量 → 口型、鼠标 → 视线
-- `src/mascot/MascotAIBridge.tsx` — AI 事件 → 表情
-- `src/mascot/tips.ts` — 原创提示文案（MIT）
-- `src/components/Mascot/` — 宿主组件（气泡、工具栏、动作菜单、致谢等）
+角色引擎（渲染后端、表情 / 动作驱动、命中区与互动、口型消费）在 [`@nomi-ai/avatar-runtime`](../avatar-runtime/README.md)；
+这里只剩窗口壳与适配层。 / The character engine lives in `@nomi-ai/avatar-runtime`; this package is the window shell
+plus a thin adapter.
+
+- `src/components/Mascot/` — 宿主组件（气泡、工具栏、右键菜单、动作菜单、致谢等）；`Nomi2DCanvas.tsx` 等角色包就绪后挂 `AvatarStage`
+- `src/avatar/` — 适配层：事件中枢 `avatarEvents`（`AvatarEventSource`）、契约窗口宿主（命中 / 拖拽 / 形状）、互动输出 → 气泡与朗读、当前角色 → `AvatarCharacter`
+- `src/mascot/MascotDriver.tsx` — TTS 口型、主进程光标 / 物理事件、看板娘指令 → 语义事件
+- `src/mascot/MascotAIBridge.tsx` — AI 事件（契约）→ 语义事件
+- `src/mascot/characterConfig.ts` — 内置包 + Scheme B 覆盖包；`catalog.ts` 读取 `model-list.json`
+- `src/mascot/tips.ts`、`characterCopy.ts`、`characterVoice.ts`、`tts/`、`voice/` — 台词、角色语音偏好、朗读与语音输入
 
 ## 素材 / Assets
 
