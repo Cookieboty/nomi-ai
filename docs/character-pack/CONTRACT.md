@@ -42,19 +42,19 @@ licence check; the official pack must carry an allow-listed licence.
 
 ## manifest.json
 
-| Field                 | Required | Notes                                                                                      |
-| --------------------- | -------- | ------------------------------------------------------------------------------------------ |
-| `schema`              | yes      | `1`                                                                                        |
-| `id`                  | yes      | lowercase letters, digits, `-`, `_` (≤ 64)                                                 |
-| `contractVersion`     | yes\*    | integer; packs newer than the app's `CHARACTER_CONTRACT_VERSION` are rejected              |
-| `assets.mode`         | yes\*    | `rive` (default) / `sprite` / `static`                                                     |
-| `assets.*`            | no       | relative paths inside the pack (`rive`, `sprite`, `static`, `voice`, `onboarding`)         |
-| `capabilities`        | no       | `riveMotions`, `spriteActions`, `voiceClipIds`, `lipSync`, `blink`; runtime degrades       |
-| `layout.window`       | no       | `{ width, height }` in px                                                                  |
-| `layout.hitboxes`     | no       | `{ head \| face \| body \| hand \| hem: { top, bottom, left, right } }`, ratios of the box |
-| `layout.bubbleAnchor` | no       | `{ x, y }`, ratios of the box                                                              |
-| `rive`                | no       | `{ artboard, stateMachine }` overrides                                                     |
-| `catalog`             | no       | model-list entry: `displayName`, `description`, `author`, `tags`, `version`, `lastUpdated` |
+| Field                 | Required | Notes                                                                                               |
+| --------------------- | -------- | --------------------------------------------------------------------------------------------------- |
+| `schema`              | yes      | `1`                                                                                                 |
+| `id`                  | yes      | lowercase letters, digits, `-`, `_` (≤ 64)                                                          |
+| `contractVersion`     | yes\*    | integer; packs newer than the app's `CHARACTER_CONTRACT_VERSION` are rejected                       |
+| `assets.mode`         | yes\*    | `rive` (default) / `sprite` / `static`                                                              |
+| `assets.*`            | no       | relative paths inside the pack (`rive`, `sprite`, `static`, `voice`, `onboarding`)                  |
+| `capabilities`        | no       | `riveMotions`, `spriteActions`, `expressions`, `voiceClipIds`, `lipSync`, `blink`; runtime degrades |
+| `layout.window`       | no       | `{ width, height }` in px                                                                           |
+| `layout.hitboxes`     | no       | `{ head \| face \| body \| hand \| hem: { top, bottom, left, right } }`, ratios of the box          |
+| `layout.bubbleAnchor` | no       | `{ x, y }`, ratios of the box                                                                       |
+| `rive`                | no       | `{ artboard, stateMachine }` overrides                                                              |
+| `catalog`             | no       | model-list entry: `displayName`, `description`, `author`, `tags`, `version`, `lastUpdated`          |
 
 \* Filled in by migration for legacy packs: `contractVersion` from `engines.nomiPack` (else `1`),
 top-level `mode` moves to `assets.mode`, `layout/hitboxes.json` (`{ regions, bubbleAnchor }`)
@@ -82,8 +82,13 @@ Legacy packs without `persona.json` are migrated from `copy/<lang>.json` and
 
 ## mapping.json
 
-AI and character only exchange **semantic** events; the pack maps them to its own resources.
-Values are one resource id or a list (runtime picks one). Unmapped names are skipped.
+AI and character only exchange **semantic** events (`emotion(name, weight)`, `activity(name)`,
+`gesture(name)`); the pack maps them to its own resources. `emotions` point at expressions,
+`activities` and `gestures` at motions. Values are one resource id or a list (runtime picks one).
+Names outside the vocabulary and names the pack does not map are ignored. A pack **without**
+`mapping.json` gets the engine default mapping (the same as the official pack,
+[`characters/nomi/mapping.json`](../../characters/nomi/mapping.json)); a pack with one gets exactly
+what it maps.
 
 ```json
 {
@@ -93,15 +98,17 @@ Values are one resource id or a list (runtime picks one). Unmapped names are ski
 }
 ```
 
-Vocabulary (`contract.json` → `mapping`):
+Vocabulary (`contract.json` → `mapping`, typed as `SEMANTIC_*` in `@nomi-ai/character-contract`):
 
-| Section      | Names                                                                                                              |
-| ------------ | ------------------------------------------------------------------------------------------------------------------ |
-| `emotions`   | `neutral` `happy` `sad` `angry` `surprised` `shy` `confused` `sleepy`                                              |
-| `activities` | `idle` `thinking` `toolRunning`                                                                                    |
-| `gestures`   | `wave` `greet` `nod` `shakeHead` `bow` `clap` `cheer` `celebrate` `thumbsUp` `apologize` `think` `explain` `heart` |
+| Section      | Names                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `emotions`   | `neutral` `happy` `sad` `angry` `surprised` `relaxed` `shy` `confused` `sleepy`                                                                                                                                                                                                                                                                                                                                               |
+| `activities` | `idle` `thinking` `toolRunning` (`idle` ends the held pose and needs no mapping)                                                                                                                                                                                                                                                                                                                                              |
+| `gestures`   | `wave` `greet` `nod` `shakeHead` `bow` `salute` `pray` `okHand` `think` `explain` `eureka` `puzzled` `listen` `lookAround` `lookLeftRight` `peek` `heart` `blowKiss` `shy` `coverFace` `apologize` `surprise` `startle` `sigh` `smug` `aggrieved` `tears` `angry` `coldSweat` `daze` `cheer` `thumbsUp` `peace` `celebrate` `clap` `hop` `wink` `tongue` `cute` `reachOut` `work` `yawn` `stretch` `goodnight` `hum` `random` |
 
-Unknown names and targets not declared in `capabilities` produce warnings, not errors.
+`random` as a target is reserved for the engine (pick a random gesture). Unknown names and targets
+not declared in `capabilities` (`expressions` for emotions, `riveMotions` / `spriteActions` for the
+rest) produce warnings, not errors.
 
 ## locales/
 

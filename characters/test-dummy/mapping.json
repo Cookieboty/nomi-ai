@@ -1,5 +1,7 @@
 {
-  "emotions": {},
+  "emotions": {
+    "neutral": "neutral"
+  },
   "activities": {},
   "gestures": {}
 }

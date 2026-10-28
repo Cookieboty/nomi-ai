@@ -106,7 +106,10 @@ describe('validatePack — new-shape static pack', () => {
     const res = validatePack(
       createPackSource(
         staticPack({
-          'mapping.json': { emotions: { ecstatic: 'wave', happy: 'backflip' } },
+          'mapping.json': {
+            emotions: { ecstatic: 'happy', happy: 'backflip' },
+            gestures: { wave: 'wave', nod: 'headbang', random: 'random' },
+          },
         }),
       ),
     );
@@ -115,6 +118,7 @@ describe('validatePack — new-shape static pack', () => {
     expect(mapping.map((w) => [w.code, w.path.join('.')])).toEqual([
       ['mapping-unknown-semantic', 'emotions.ecstatic'],
       ['mapping-target-undeclared', 'emotions.happy'],
+      ['mapping-target-undeclared', 'gestures.nod'],
     ]);
   });
 

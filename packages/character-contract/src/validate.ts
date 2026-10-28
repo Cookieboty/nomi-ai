@@ -11,6 +11,7 @@ import {
   CHARACTER_CONTRACT_VERSION,
   CHARACTER_LOCALES,
   CONTRACT,
+  MAPPING_RESERVED_TARGETS,
   ONBOARDING_FILES,
   PACK_FILES,
   PRIMARY_CHARACTER_LOCALE,
@@ -498,8 +499,12 @@ export function validatePack(src: PackSource, opts: ValidatePackOptions = {}): V
       gestures: SEMANTIC_GESTURES,
     };
     const caps = manifest.capabilities;
-    const declared = new Set([...(caps?.riveMotions ?? []), ...(caps?.spriteActions ?? [])]);
+    const motions = new Set([...(caps?.riveMotions ?? []), ...(caps?.spriteActions ?? [])]);
+    const expressions = new Set(caps?.expressions ?? []);
+    const reserved: readonly string[] = MAPPING_RESERVED_TARGETS;
     for (const section of Object.keys(vocab) as Array<keyof PackMapping>) {
+      // 情绪 → 表情，活动 / 手势 → 动作；manifest 没声明对应能力时不检查目标
+      const declared = section === 'emotions' ? expressions : motions;
       for (const [name, target] of Object.entries(mapping[section] ?? {})) {
         if (!vocab[section].includes(name)) {
           sink(
@@ -512,7 +517,7 @@ export function validatePack(src: PackSource, opts: ValidatePackOptions = {}): V
         }
         if (declared.size === 0) continue;
         for (const t of mappingTargets(target)) {
-          if (!declared.has(t)) {
+          if (!declared.has(t) && !reserved.includes(t)) {
             sink(
               'warning',
               'mapping-target-undeclared',

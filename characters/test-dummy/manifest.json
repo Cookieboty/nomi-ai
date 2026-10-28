@@ -20,6 +20,7 @@
     "voicePitch": 1
   },
   "capabilities": {
+    "expressions": ["neutral"],
     "lipSync": false,
     "blink": false
   },

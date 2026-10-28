@@ -24,40 +24,95 @@ export const ONBOARDING_FILES = [
   'privacy.webp',
 ] as const;
 
-/** 语义情绪（AI → 角色）。mapping.json 把它们翻译成引擎资源；未映射的忽略。 */
+/**
+ * 语义事件词表（docs/design/core-host-decoupling.md §10.5）。AI 侧（工具、内核服务）只说这些名字，
+ * 角色包的 mapping.json 把它们翻译成自己的资源；没有映射的名字运行时忽略。
+ */
+
+/** 语义情绪（AI → 角色，`emotion(name, weight)`）：映射到包的表情。 */
 export const SEMANTIC_EMOTIONS = [
   'neutral',
   'happy',
   'sad',
   'angry',
   'surprised',
+  'relaxed',
   'shy',
   'confused',
   'sleepy',
 ] as const;
 export type SemanticEmotion = (typeof SEMANTIC_EMOTIONS)[number];
 
-/** 语义活动状态（AI → 角色）。 */
+/**
+ * 语义活动状态（AI → 角色，`activity(name)`）：映射到保持姿态的动作。`idle` 结束当前活动，
+ * 不需要映射。
+ */
 export const SEMANTIC_ACTIVITIES = ['idle', 'thinking', 'toolRunning'] as const;
 export type SemanticActivity = (typeof SEMANTIC_ACTIVITIES)[number];
 
-/** 语义手势（AI → 角色）。 */
+/** 语义手势（AI → 角色，`gesture(name)`）：映射到包的动作。`random` 由引擎随机挑一个手势。 */
 export const SEMANTIC_GESTURES = [
   'wave',
   'greet',
   'nod',
   'shakeHead',
   'bow',
-  'clap',
-  'cheer',
-  'celebrate',
-  'thumbsUp',
-  'apologize',
+  'salute',
+  'pray',
+  'okHand',
   'think',
   'explain',
+  'eureka',
+  'puzzled',
+  'listen',
+  'lookAround',
+  'lookLeftRight',
+  'peek',
   'heart',
+  'blowKiss',
+  'shy',
+  'coverFace',
+  'apologize',
+  'surprise',
+  'startle',
+  'sigh',
+  'smug',
+  'aggrieved',
+  'tears',
+  'angry',
+  'coldSweat',
+  'daze',
+  'cheer',
+  'thumbsUp',
+  'peace',
+  'celebrate',
+  'clap',
+  'hop',
+  'wink',
+  'tongue',
+  'cute',
+  'reachOut',
+  'work',
+  'yawn',
+  'stretch',
+  'goodnight',
+  'hum',
+  'random',
 ] as const;
 export type SemanticGesture = (typeof SEMANTIC_GESTURES)[number];
+
+/** 引擎保留的映射目标：不是包里的资源，由引擎解释（`random` = 随机手势）。 */
+export const MAPPING_RESERVED_TARGETS = ['random'] as const;
+
+export function isSemanticEmotion(name: unknown): name is SemanticEmotion {
+  return (SEMANTIC_EMOTIONS as readonly unknown[]).includes(name);
+}
+export function isSemanticActivity(name: unknown): name is SemanticActivity {
+  return (SEMANTIC_ACTIVITIES as readonly unknown[]).includes(name);
+}
+export function isSemanticGesture(name: unknown): name is SemanticGesture {
+  return (SEMANTIC_GESTURES as readonly unknown[]).includes(name);
+}
 
 /** 角色文案的语言。主语言 `zh`；`zh`、`en` 都推荐提供。 */
 export const CHARACTER_LOCALES = ['zh', 'en'] as const;

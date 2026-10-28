@@ -62,6 +62,8 @@ export type PackAssets = z.infer<typeof assetsSchema>;
 export const capabilitiesSchema = z.looseObject({
   riveMotions: z.array(nonEmpty).optional(),
   spriteActions: z.array(nonEmpty).optional(),
+  /** 包的表情名（mapping.json 的 emotions 指向它们） */
+  expressions: z.array(nonEmpty).optional(),
   voiceClipIds: z.array(nonEmpty).optional(),
   /** 是否带口型 / 眨眼等可选能力 */
   lipSync: z.boolean().optional(),
@@ -134,7 +136,8 @@ const semanticMap = z.record(nonEmpty, resourceRef);
 
 /**
  * mapping.json：语义 → 引擎资源 id（一个或多个，多个时运行时任选）。
- * 键可以是契约词表外的名字（向前兼容），validatePack 只给警告。
+ * `emotions` 指向表情，`activities` / `gestures` 指向动作。
+ * 键可以是契约词表外的名字（向前兼容），validatePack 只给警告；运行时忽略没有映射的名字。
  */
 export const mappingSchema = z.object({
   emotions: semanticMap.optional(),

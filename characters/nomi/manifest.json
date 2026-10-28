@@ -34,6 +34,7 @@
     "voicePitch": 1.1
   },
   "capabilities": {
+    "expressions": ["neutral", "happy", "angry", "sad", "relaxed", "surprised"],
     "riveMotions": [
       "wave",
       "hello",

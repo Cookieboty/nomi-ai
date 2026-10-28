@@ -17,7 +17,7 @@ export function staticPack(overrides: Record<string, unknown> = {}): Record<stri
       contractVersion: 1,
       version: '1.0.0',
       assets: { mode: 'static', static: 'static/character.webp' },
-      capabilities: { spriteActions: ['wave', 'nod'] },
+      capabilities: { spriteActions: ['wave', 'nod'], expressions: ['neutral', 'happy'] },
       layout: {
         window: { width: 320, height: 480 },
         hitboxes: { head: { top: 0, bottom: 0.3, left: 0.2, right: 0.8 } },
@@ -34,7 +34,7 @@ export function staticPack(overrides: Record<string, unknown> = {}): Record<stri
       tips: ['记得喝水'],
     },
     'mapping.json': {
-      emotions: { happy: 'wave' },
+      emotions: { happy: 'happy' },
       activities: { thinking: ['nod'] },
       gestures: { wave: 'wave' },
     },
