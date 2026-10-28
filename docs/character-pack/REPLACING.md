@@ -144,7 +144,7 @@ CHARACTER_PACK=../my-character.pack pnpm build
 把**完整**角色包放到其一即可（先到先得）：
 
 1. `{userData}/character-pack/`（开发：Electron `app.getPath('userData')`）
-2. `{resources}/character-pack/`（安装包 `extraResources`，源目录 `packages/electron/character-pack-resources/`）
+2. `{resources}/character-pack/`（安装包 `extraResources`，源目录 `packages/host-electron/character-pack-resources/`）
 
 校验失败 → 打日志 → 回退内置包。界面通过 `character-pack:get-active` + `character-pack://pack/…` 取资源与文案。
 

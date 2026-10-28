@@ -19,7 +19,7 @@
 看板娘与内置 2D 角色 Nomi（E1、E4、E15、E22、E23）、对话与历史（E2、E6）、MCP（E3）、整机冒烟（E5）、供应商（E7）、互动（E9）、桌面能力（E10）、气泡安全与工具栏（E11、E12）、提醒 / 剪贴板（E13）、引导与语言（E14、E16）、无障碍（A11Y）、快捷键与命令面板（KEYS）、英文界面（I18N）、界面截图（UI、ANIM）。
 
 ```bash
-# 在仓库根目录运行（先 pnpm build && pnpm --filter @nomi-ai/electron run copy-renderer）
+# 在仓库根目录运行（先 pnpm build && pnpm --filter @nomi-ai/host-electron run copy-renderer）
 xvfb-run -a pnpm test:e2e:headed
 ```
 
@@ -58,7 +58,7 @@ pnpm -F @nomi-ai/gateway exec tsx scripts/trace-to-fixture.ts <trace.json>... [-
 
 ## 性能基准与体积预算
 
-先 `pnpm build && node packages/electron/scripts/copy-renderer.js`，Linux 无显示器时前面加 `xvfb-run -a`：
+先 `pnpm build && node packages/host-electron/scripts/copy-renderer.js`，Linux 无显示器时前面加 `xvfb-run -a`：
 
 ```bash
 node scripts/measure-session-switch.mjs [--scenario nomi|cli] [--cpu 4]   # 切换会话：点击 → 内容绘制耗时、长任务、主线程脚本 / 布局

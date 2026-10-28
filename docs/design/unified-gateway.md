@@ -229,7 +229,7 @@ packages/core/src/gateway/
   agents/{claude,codex,gemini,grok,dsh}.ts   # 每个 CLI 第三方会话的启动参数 / 环境变量 / 私有叠加配置（§12）
 ```
 
-迁移完成后，`packages/electron/src/cli/routing/` 和 `CliProviderBridge` 里按 CLI 区分的存储逻辑删除。`configPatch.ts` 里的 `unpatch*` 只在迁移撤销旧配置时用一次（§6.3 第 7 步），「撤销旧配置」的代码（`unpatch*`）要保留到迁移入口和「重新导入旧配置」都移除为止，不按版本数删除，因为跨多个版本升级的用户首次启动新版本时仍然需要它；之后删除写全局配置的 `patch*` 函数。
+迁移完成后，`packages/host-electron/src/cli/routing/` 和 `CliProviderBridge` 里按 CLI 区分的存储逻辑删除。`configPatch.ts` 里的 `unpatch*` 只在迁移撤销旧配置时用一次（§6.3 第 7 步），「撤销旧配置」的代码（`unpatch*`）要保留到迁移入口和「重新导入旧配置」都移除为止，不按版本数删除，因为跨多个版本升级的用户首次启动新版本时仍然需要它；之后删除写全局配置的 `patch*` 函数。
 
 ### 5.3 进程模型
 
@@ -1159,18 +1159,18 @@ GLM Coding Plan、Kimi 的编程套餐等，Key 往往只能用专用地址，�
 
 ## 17. 测试计划
 
-| 层级         | 内容                                                                                                                                                                                                                                                                  | 位置                                   |
-| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
-| 单元         | 4×4 请求转换矩阵：每个方向一组固定用例（文本、图片、并行工具、custom 工具、thinking 带签名、sealed、结构化输出、停止原因）；同协议往返字节一致                                                                                                                        | `packages/gateway/tests/ir/*`          |
-| 单元         | 4×4 流式转换矩阵：录制的真实 SSE 片段作为输入，对输出做快照；断流、上游报错、JSON 回落成 SSE                                                                                                                                                                          | `packages/gateway/tests/stream/*`      |
-| 单元         | `pickWire` 决策表、`resolve` 候选展开、回退与冷却（假时钟）、亲和、§7.4 学习、§11.3 每个修正                                                                                                                                                                          | `packages/gateway/tests/route/*`       |
-| 单元         | 地址规范化表（20+ 种用户输入）、探测判定表                                                                                                                                                                                                                            | `packages/gateway/tests/probe/*`       |
-| 单元         | 官方登录隔离：第三方会话启动前后，`~/.claude/settings.json`、`~/.claude.json`、`~/.codex/config.toml`、`~/.codex/auth.json`、`~/.gemini/*`、`~/.grok/*` 字节一致；官方会话的环境变量里没有网关变量；官方账号切换不重启第三方标签（扩展现有 `CliIsolation.test.ts`）   | `packages/electron/tests/unit/gateway` |
-| 单元         | 历史共享：多账号（不同 `creator_account_id`）、多客户端（CLI / Desktop / IDE）、多供应商（`openai` / `nomi_gateway` / `custom`）、已归档的会话全部列出且标签正确；`state_5.sqlite` 读不到时退回解析文件；去掉推理内容的副本只去掉推理项和 thinking 块，原文件字节不变 | `packages/electron/tests/unit/cli`     |
-| 单元         | 迁移：6 份旧存储（含 `ai-providers.json`）的各种组合 → 合并结果；撤销旧版本全局配置时只删 Nomi 写入的值，用户改过的值和官方登录字段不动                                                                                                                               | `packages/electron/tests/unit/gateway` |
-| 集成         | 本地起 4 个模拟上游（各协议一个），网关跑完整的 Claude Code / Codex / Gemini 请求序列                                                                                                                                                                                 | `e2e/gateway.test.ts`                  |
-| 真实应用     | 添加供应商 → 检测 → 选模型 → 在 Nomi 里分别用 Claude Code 和 Codex 跑一轮工具调用                                                                                                                                                                                     | `e2e-headed/`                          |
-| 核心场景验收 | 见下方「核心场景验收矩阵」                                                                                                                                                                                                                                            | 验收清单 + `e2e-headed/`               |
+| 层级         | 内容                                                                                                                                                                                                                                                                  | 位置                                        |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| 单元         | 4×4 请求转换矩阵：每个方向一组固定用例（文本、图片、并行工具、custom 工具、thinking 带签名、sealed、结构化输出、停止原因）；同协议往返字节一致                                                                                                                        | `packages/gateway/tests/ir/*`               |
+| 单元         | 4×4 流式转换矩阵：录制的真实 SSE 片段作为输入，对输出做快照；断流、上游报错、JSON 回落成 SSE                                                                                                                                                                          | `packages/gateway/tests/stream/*`           |
+| 单元         | `pickWire` 决策表、`resolve` 候选展开、回退与冷却（假时钟）、亲和、§7.4 学习、§11.3 每个修正                                                                                                                                                                          | `packages/gateway/tests/route/*`            |
+| 单元         | 地址规范化表（20+ 种用户输入）、探测判定表                                                                                                                                                                                                                            | `packages/gateway/tests/probe/*`            |
+| 单元         | 官方登录隔离：第三方会话启动前后，`~/.claude/settings.json`、`~/.claude.json`、`~/.codex/config.toml`、`~/.codex/auth.json`、`~/.gemini/*`、`~/.grok/*` 字节一致；官方会话的环境变量里没有网关变量；官方账号切换不重启第三方标签（扩展现有 `CliIsolation.test.ts`）   | `packages/host-electron/tests/unit/gateway` |
+| 单元         | 历史共享：多账号（不同 `creator_account_id`）、多客户端（CLI / Desktop / IDE）、多供应商（`openai` / `nomi_gateway` / `custom`）、已归档的会话全部列出且标签正确；`state_5.sqlite` 读不到时退回解析文件；去掉推理内容的副本只去掉推理项和 thinking 块，原文件字节不变 | `packages/host-electron/tests/unit/cli`     |
+| 单元         | 迁移：6 份旧存储（含 `ai-providers.json`）的各种组合 → 合并结果；撤销旧版本全局配置时只删 Nomi 写入的值，用户改过的值和官方登录字段不动                                                                                                                               | `packages/host-electron/tests/unit/gateway` |
+| 集成         | 本地起 4 个模拟上游（各协议一个），网关跑完整的 Claude Code / Codex / Gemini 请求序列                                                                                                                                                                                 | `e2e/gateway.test.ts`                       |
+| 真实应用     | 添加供应商 → 检测 → 选模型 → 在 Nomi 里分别用 Claude Code 和 Codex 跑一轮工具调用                                                                                                                                                                                     | `e2e-headed/`                               |
+| 核心场景验收 | 见下方「核心场景验收矩阵」                                                                                                                                                                                                                                            | 验收清单 + `e2e-headed/`                    |
 
 **核心场景验收矩阵**（M2 定出 `preferWire`，M3 / M4 全部通过才算完成）：
 

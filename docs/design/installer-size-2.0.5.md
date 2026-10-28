@@ -20,6 +20,6 @@ tesseract.js-core：2.0.4 已只留 relaxedsimd 双变体。`createWorker(..., 1
 
 ## 关键入口
 
-- `packages/electron/electron-builder.yml`（files / asarUnpack / afterPack）
-- `packages/electron/scripts/after-pack-slim.mjs`
+- `packages/host-electron/electron-builder.yml`（files / asarUnpack / afterPack）
+- `packages/host-electron/scripts/after-pack-slim.mjs`
 - 回归：`scripts/__tests__/electron-builder-slim.test.ts`

@@ -54,7 +54,7 @@ Nomi 首先要有用：每一句暖心的话旁边，都要有一件真正帮上
 
 ## 4. Logo
 
-文件：[`brand/nomi-mark.svg`](brand/nomi-mark.svg)（浅色底）、[`brand/nomi-mark-light.svg`](brand/nomi-mark-light.svg)（深色底）、[`brand/nomi-wordmark.svg`](brand/nomi-wordmark.svg)、[`brand/nomi-app-icon.svg`](brand/nomi-app-icon.svg)、[`brand/nomi-tray.svg`](brand/nomi-tray.svg)（单色 / 模板）。应用图标：`packages/electron/assets/icon.{png,ico,icns}`、`icons/16–1024`。
+文件：[`brand/nomi-mark.svg`](brand/nomi-mark.svg)（浅色底）、[`brand/nomi-mark-light.svg`](brand/nomi-mark-light.svg)（深色底）、[`brand/nomi-wordmark.svg`](brand/nomi-wordmark.svg)、[`brand/nomi-app-icon.svg`](brand/nomi-app-icon.svg)、[`brand/nomi-tray.svg`](brand/nomi-tray.svg)（单色 / 模板）。应用图标：`packages/host-electron/assets/icon.{png,ico,icns}`、`icons/16–1024`。
 
 寓意：流畅曲线组成 **N，代表 Nomi**；四角**星光**代表灵感；**流畅曲线**代表轻松与陪伴。
 
