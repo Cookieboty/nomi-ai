@@ -9,7 +9,7 @@ import path from 'node:path';
 
 import { normalizeUserProfile, type UserProfile } from '@nomi-ai/types';
 
-import { broadcastMascotCommand, type MascotCommand } from '../ai/mascotCommand';
+import { sendMascotCommand, type MascotCommand } from '../ai/mascotCommand';
 import type { AppEvents } from '../core/appEvents';
 
 export interface OnboardingState {
@@ -31,6 +31,11 @@ export interface OnboardingDeps {
   /** 打开对话窗口（引导显示在里面） */
   openChat: () => void | Promise<void>;
   events: AppEvents;
+  /**
+   * 宿主当前存活的窗口数（Electron：没销毁的 BrowserWindow）；看板娘指令只在有窗口时算送达。
+   * 缺省（无界面宿主、单测）按 0 算。
+   */
+  liveWindows?: () => number;
 }
 
 export class OnboardingService {
@@ -114,6 +119,7 @@ export class OnboardingService {
     const c = cmd as MascotCommand | null;
     if (!c || typeof c !== 'object' || !ALLOWED.has(String((c as { type?: unknown }).type)))
       return false;
-    return broadcastMascotCommand(c) > 0;
+    sendMascotCommand(this.deps.events, c);
+    return (this.deps.liveWindows?.() ?? 0) > 0;
   }
 }

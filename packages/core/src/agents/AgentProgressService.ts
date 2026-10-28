@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { broadcastMascotCommand } from '../ai/mascotCommand';
+import { sendMascotCommand } from '../ai/mascotCommand';
 import type { AppEvents } from '../core/appEvents';
 import type { DesktopNotice, DesktopService } from '../desktop/DesktopService';
 import { t as tr } from '../i18n';
@@ -787,7 +787,7 @@ export class AgentProgressService {
           }
         : undefined,
     );
-    broadcastMascotCommand({
+    sendMascotCommand(this.d.events, {
       type: 'motion',
       name: next.status === 'failed' || next.status === 'stalled' ? 'sorry' : 'thumbs_up',
     });
@@ -855,7 +855,7 @@ export class AgentProgressService {
       text: text.slice(0, 140),
       bubble: { voice: this.settings.summaryEnabled ? 'full' : 'cue' },
     });
-    broadcastMascotCommand({ type: 'motion', name: 'think' });
+    sendMascotCommand(this.d.events, { type: 'motion', name: 'think' });
     this.lastRemindAt = this.now();
     this.d.logger.info('agent-progress permission needed', {
       backend: e.backend,
@@ -903,7 +903,7 @@ export class AgentProgressService {
             ? { source: e.backend, session: tab.cliSessionId, since }
             : undefined,
     );
-    broadcastMascotCommand({ type: 'motion', name: e.ok ? 'thumbs_up' : 'sorry' });
+    sendMascotCommand(this.d.events, { type: 'motion', name: e.ok ? 'thumbs_up' : 'sorry' });
     this.lastRemindAt = this.now();
     this.d.logger.info('agent-progress endpoint finished', { backend: e.backend, ok: e.ok });
     this.broadcast();
@@ -1144,13 +1144,4 @@ function agentBubbleOpts(
 
 function nowGap(from: number, to: number) {
   return Math.max(0, to - from);
-}
-
-let inst: AgentProgressService | null = null;
-export function initAgentProgressService(d: Deps): AgentProgressService {
-  inst = new AgentProgressService(d);
-  return inst;
-}
-export function getAgentProgressService(): AgentProgressService | null {
-  return inst;
 }

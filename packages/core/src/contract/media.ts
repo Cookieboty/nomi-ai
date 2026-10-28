@@ -3,28 +3,21 @@
  *
  * 本文件只属于 D1。契约声明在 packages/contract/src/app/media.ts；这里：
  * - `createMediaHandlers(deps)`：每个过程一个处理函数，委派给服务的公开方法（服务从
- *   `deps.services` 在调用时读取，缺了用 `need()` 报 UNAVAILABLE；朗读服务用 `getTtsService()`）；
+ *   `deps.services` 在调用时读取，缺了用 `need()` 报 UNAVAILABLE）；
  * - `mediaEventBridge`：服务仍在 `events.publish` 的旧通道 → 契约事件。
  *
  * 按窗口的会话（VAD、流式识别）与只接受看板娘窗口的操作（确认答复、提醒卡片、拖文件）用
- * `callerWebContentsId(ctx)` 代替旧的 `event.sender`，见 ./media/voiceSenders.ts。
+ * `callerWebContentsId(ctx)` 代替旧的 `event.sender`，窗口存活由宿主经 `services.callerWindows` 报告，
+ * 见 ./media/voiceSenders.ts。打开语音设置走声明式窗口意图（`ports.windows.open('chat', { route: 'voice' })`）。
  */
 
 import { PushStream } from '@nomi-ai/contract';
 import type { MediaEventName, MediaProcedureName } from '@nomi-ai/contract/app';
-import { getTtsService } from '@nomi-ai/core/tts/TtsService';
-import {
-  getMascotVoiceSettings,
-  saveMascotVoiceSettings,
-} from '@nomi-ai/core/voice/mascotVoiceSettings';
 import type { TTSConfig, TTSPreviewRequest, VoiceSettings } from '@nomi-ai/types';
 
-import {
-  closeVoiceStream,
-  openVoiceStream,
-  voiceSenderFor,
-  type VoiceStreamChunk,
-} from './media/voiceSenders';
+import { getMascotVoiceSettings, saveMascotVoiceSettings } from '../voice/mascotVoiceSettings';
+
+import { createVoiceStreams, type VoiceStreamChunk, type VoiceStreams } from './media/voiceSenders';
 import {
   callerWebContentsId,
   need,
@@ -42,17 +35,24 @@ export type MediaHandlers = DomainHandlers<MediaProcedureName>;
  */
 const out = <T>(v: unknown): T => v as T;
 
-/** 「设置 → 语音与屏幕 → 语音」面板的旧通道（WindowManager.openProviderPanel 发给对话窗口） */
+/**
+ * 「设置 → 语音与屏幕 → 语音」面板的应用事件通道（宿主打开对话窗口后发布，桥接成
+ * `nav.voiceSettingsRequested`；Electron 端口的 route `voice` 对应它）
+ */
 const OPEN_VOICE_SETTINGS = 'ai:settings:open-voice';
 
-export function createMediaHandlers(deps: ContractDeps): MediaHandlers {
+/** `streams`：进行中的流式识别会话（每个 router 一份；测试可传入以观察） */
+export function createMediaHandlers(
+  deps: ContractDeps,
+  streams: VoiceStreams = createVoiceStreams(),
+): MediaHandlers {
   const { services } = deps;
   const voice = () => need(services.voice, 'voice');
   const desktop = () => need(services.desktop, 'desktop');
-  const tts = () => need(getTtsService(), 'tts');
+  const tts = () => need(services.tts, 'tts');
   const config = () => need(services.config, 'config');
   const sender = (ctx: Pick<AppHandlerContext, 'caller'>) =>
-    voiceSenderFor(services, callerWebContentsId(ctx));
+    streams.senderFor(services.callerWindows, callerWebContentsId(ctx));
 
   return {
     // ── 语音输入 ──
@@ -88,14 +88,14 @@ export function createMediaHandlers(deps: ContractDeps): MediaHandlers {
       }
       const sid = r.id;
       id = sid;
-      openVoiceStream(sid, wc.id, stream);
+      streams.open(sid, wc.id, stream);
       stream.push({ type: 'start', ok: true, id: sid });
       // 调用被取消（abort 帧、窗口断开）时流可能还在等下一条 chunk：直接撤销并结束它
       ctx.signal.addEventListener(
         'abort',
         () => {
           svc.streamCancel(wc, sid);
-          closeVoiceStream(sid, wc.id);
+          streams.close(sid, wc.id);
         },
         { once: true },
       );
@@ -107,13 +107,13 @@ export function createMediaHandlers(deps: ContractDeps): MediaHandlers {
       try {
         return await voice().streamStop(wc, id);
       } finally {
-        closeVoiceStream(id, wc.id);
+        streams.close(id, wc.id);
       }
     },
     'voice.streamCancel': ({ id }, ctx) => {
       const wc = sender(ctx);
       const ok = voice().streamCancel(wc, id);
-      closeVoiceStream(id, wc.id);
+      streams.close(id, wc.id);
       return ok;
     },
     'voice.getMascotSettings': () => out(getMascotVoiceSettings(config()) ?? null),
@@ -162,8 +162,7 @@ export function createMediaHandlers(deps: ContractDeps): MediaHandlers {
 
     // ── 屏幕 / 导航 ──
     'screen.checkSend': () => need(services.screen, 'screen').checkSend(),
-    'nav.openVoiceSettings': () =>
-      need(services.windowManager, 'windowManager').openProviderPanel(OPEN_VOICE_SETTINGS),
+    'nav.openVoiceSettings': () => deps.ports.windows.open('chat', { route: 'voice' }),
   };
 }
 
@@ -181,7 +180,7 @@ export const mediaEventBridge: EventBridgeMap<MediaEventName> = {
   'desktop:confirm-cancel': 'desktop.confirmCancel',
   'desktop:bubble': 'desktop.bubble',
   'desktop:reminder': 'desktop.reminder',
-  // 导航：WindowManager.openProviderPanel 目前直接 webContents.send，改走事件总线后这里生效
+  // 导航：宿主打开对话窗口后经事件总线发布面板通道（Electron：WindowManager.openProviderPanel）
   'ai:desktop:open-panel': 'nav.desktopPanelRequested',
   'ai:hub:open-schedule': 'nav.scheduleRequested',
   [OPEN_VOICE_SETTINGS]: 'nav.voiceSettingsRequested',

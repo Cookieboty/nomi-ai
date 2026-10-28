@@ -1,4 +1,4 @@
-import { mascotAppEvents } from '../mascot/mascotEvents';
+import type { AppEvents } from '../core/appEvents';
 import type { ReplySpeechCommand } from '../tts/replySpeech';
 
 /** 主进程 → 看板娘渲染进程的指令（channel: `mascot:command`，契约事件 `mascot.command`） */
@@ -10,22 +10,11 @@ export type MascotCommand =
 
 export const MASCOT_COMMAND_CHANNEL = 'mascot:command';
 
-let liveWindows: (() => number) | null = null;
-
 /**
- * 宿主设置「当前存活的窗口数」的取值函数（Electron：host/processDefaults.ts 数 BrowserWindow）；
- * 没设置时（单测、无界面宿主）按 0 算。传 null 恢复默认。
- */
-export function setMascotLiveWindows(count: (() => number) | null): void {
-  liveWindows = count;
-}
-
-/**
- * 经应用事件总线发布（事件桥转成契约事件 `mascot.command`，订阅了的窗口都收到），返回当前存活的窗口数。
+ * 经服务自己的应用事件总线发布（事件桥转成契约事件 `mascot.command`，订阅了的窗口都收到）。
+ * 每个内核实例有自己的事件总线（docs/design/core-host-decoupling.md §7.1），所以这里不用模块级的出口；
  * 契约 router 建好之前（启动早期）没有订阅者，指令直接丢弃。
  */
-export function broadcastMascotCommand(cmd: MascotCommand): number {
-  const live = liveWindows?.() ?? 0;
-  mascotAppEvents()?.publish(MASCOT_COMMAND_CHANNEL, cmd);
-  return live;
+export function sendMascotCommand(events: AppEvents | null | undefined, cmd: MascotCommand): void {
+  events?.publish(MASCOT_COMMAND_CHANNEL, cmd);
 }

@@ -1,10 +1,9 @@
 /**
- * 看板娘推送经应用事件总线（mascot/mascotEvents.ts，契约 router 建好时由 host/contract/mascot.ts 接上）：
+ * 看板娘推送经内核的应用事件总线（窗口管理器建控制器时传入）：
  * 窗口控制器的大小 / 物理推送经 `events.publish` 发布，事件桥转成契约事件；大小变化只发布一次
- * （看板娘 + 对话窗口）。没接上之前没有订阅者，推送直接丢弃，不再直接发给窗口。
+ * （看板娘 + 对话窗口）。没有事件总线时推送直接丢弃，不再直接发给窗口。
  */
-import { createRecordingAppEvents } from '@nomi-ai/core/core/appEvents';
-import { setMascotAppEvents } from '@nomi-ai/core/mascot/mascotEvents';
+import { createRecordingAppEvents, type AppEvents } from '@nomi-ai/core/core/appEvents';
 import { mascotWindowSize } from '@nomi-ai/core/mascot/mascotSize';
 import type { BrowserWindow } from 'electron';
 
@@ -54,30 +53,34 @@ describe('MascotWindowController · 应用事件总线', () => {
   beforeEach(() => jest.useFakeTimers());
   afterEach(() => {
     jest.useRealTimers();
-    setMascotAppEvents(null);
   });
 
-  function setup() {
+  function setup(events?: AppEvents) {
     const f = fakeWindow(0.5, 1000, 1040 - mascotWindowSize(0.5).height);
-    const c = new MascotWindowController(f.win, logger, () => 0.5, {
-      get: () => 0.5,
-      save: () => undefined,
-    });
+    const c = new MascotWindowController(
+      f.win,
+      logger,
+      () => 0.5,
+      {
+        get: () => 0.5,
+        save: () => undefined,
+      },
+      events,
+    );
     c.start();
     return { ...f, c };
   }
 
-  it('没接上时推送直接丢弃，不发给窗口', () => {
+  it('没有事件总线时推送直接丢弃，不发给窗口', () => {
     const s = setup();
     expect(s.c.scaleStep(1).scale).toBe(0.6);
     expect(s.sent).toHaveLength(0);
     s.c.dispose();
   });
 
-  it('接上后经 events.publish：大小变化发布一次（看板娘 + 对话窗口），物理事件只发看板娘', () => {
+  it('经 events.publish：大小变化发布一次（看板娘 + 对话窗口），物理事件只发看板娘', () => {
     const events = createRecordingAppEvents();
-    setMascotAppEvents(events);
-    const s = setup();
+    const s = setup(events);
     const st = s.c.scaleStep(1);
     expect(st.scale).toBe(0.6);
     expect(s.sent).toHaveLength(0);

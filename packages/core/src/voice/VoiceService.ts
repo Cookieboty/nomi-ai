@@ -13,7 +13,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { broadcastMascotCommand } from '../ai/mascotCommand';
+import { sendMascotCommand } from '../ai/mascotCommand';
 import type { AppEvents } from '../core/appEvents';
 import { t as tr } from '../i18n';
 import { createSecretBox, type SecretBox, type SecretBoxPort } from '../security/secretStorage';
@@ -918,7 +918,7 @@ export class VoiceService {
     this.broadcast('ai:voice:activity', { activity: a, source });
     // 按住说话：无论是否开启 barge-in，都立即停掉正在朗读的 AI 回复
     if (a === 'listening' && source.endsWith(':ptt') && prev !== a)
-      broadcastMascotCommand({ type: 'reply-speech', op: 'stop' });
+      sendMascotCommand(this.d.events, { type: 'reply-speech', op: 'stop' });
     // 用户一开口就打断正在播报的 TTS（barge-in）
     if (
       this.settings.bargeIn &&
@@ -1042,13 +1042,4 @@ export function pcmToWav(pcm: Uint8Array): Uint8Array {
   out.writeUInt32LE(pcm.byteLength, 40);
   out.set(pcm, 44);
   return out;
-}
-
-let instance: VoiceService | null = null;
-export function getVoiceService(deps?: VoiceDeps): VoiceService {
-  if (!instance) {
-    if (!deps) throw new Error('VoiceService not initialised');
-    instance = new VoiceService(deps);
-  }
-  return instance;
 }

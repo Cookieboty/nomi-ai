@@ -252,14 +252,3 @@ export class PersonaService {
     throw new Error('no persona source produced a persona');
   }
 }
-
-let instance: PersonaService | undefined;
-
-/** 主进程单例（Application 启动时设置）；未设置时返回 undefined */
-export function getPersonaService(): PersonaService | undefined {
-  return instance;
-}
-
-export function setPersonaService(svc: PersonaService | undefined): void {
-  instance = svc;
-}

@@ -12,7 +12,7 @@ import path from 'node:path';
 
 import type { HostPorts } from '@nomi-ai/host-ports';
 
-import { broadcastMascotCommand } from '../ai/mascotCommand';
+import { sendMascotCommand } from '../ai/mascotCommand';
 import type { AppEvents } from '../core/appEvents';
 import type { DesktopService } from '../desktop/DesktopService';
 import { t as tr } from '../i18n';
@@ -416,7 +416,7 @@ export class SchedulerService {
       body: short,
       text: tr('{0}{1}：{2}', r.catchUp ? tr('electron.common.added') : '', r.name, short),
     });
-    broadcastMascotCommand({ type: 'motion', name: 'wave' });
+    sendMascotCommand(this.d.events, { type: 'motion', name: 'wave' });
   }
 
   // ---------- 调度 ----------
@@ -520,8 +520,8 @@ export class SchedulerService {
       };
       this.save();
       this.d.desktop.notify({ kind: 'message', title: tr('Nomi'), text });
-      broadcastMascotCommand({ type: 'expression', name: 'happy' });
-      broadcastMascotCommand({ type: 'motion', name: 'wave' });
+      sendMascotCommand(this.d.events, { type: 'expression', name: 'happy' });
+      sendMascotCommand(this.d.events, { type: 'motion', name: 'wave' });
       this.broadcast('ai:sched:proactive', { text, at: now });
       this.audit('proactive_chat', { manual: force }, 'ok');
       return text;
@@ -581,13 +581,4 @@ export class SchedError extends Error {
   ) {
     super(message);
   }
-}
-
-let instance: SchedulerService | null = null;
-export function initSchedulerService(d: SchedDeps): SchedulerService {
-  instance ??= new SchedulerService(d);
-  return instance;
-}
-export function getSchedulerService(): SchedulerService | null {
-  return instance;
 }

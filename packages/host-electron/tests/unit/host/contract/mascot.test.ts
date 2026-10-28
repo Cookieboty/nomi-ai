@@ -1,25 +1,22 @@
 /**
- * D5（host/contract/mascot.ts）：mascot / character / persona / island / chatBg / window 的处理函数
- * 委派给窗口控制器与服务、surfaces 按原 preload 拒绝别的窗口、背景图错误换成契约码、
- * 建 router 时把应用事件总线接给看板娘推送、旧通道桥接成契约事件。
+ * D5：宿主片段（host/contract/mascot.ts：mascot 窗口互动与大小 / island / window）与内核的 D5
+ * （@nomi-ai/core/contract/mascot：character / persona / chatBg / 模型名 / 平台）在内核的
+ * createAppRouter 里组装：委派给窗口控制器与服务、surfaces 按原 preload 拒绝别的窗口、背景图错误换成
+ * 契约码、看板娘指令经内核的事件总线、旧通道桥接成契约事件。
  */
 
 import { createClient, type Surface } from '@nomi-ai/contract';
 import { createInProcessServer } from '@nomi-ai/contract/testing';
-import { broadcastMascotCommand, setMascotLiveWindows } from '@nomi-ai/core/ai/mascotCommand';
+import { sendMascotCommand } from '@nomi-ai/core/ai/mascotCommand';
+import { createContractEventBridge } from '@nomi-ai/core/contract/eventBridge';
+import { mascotEventBridge } from '@nomi-ai/core/contract/mascot';
+import { APP_EVENT_BRIDGE, createAppRouter } from '@nomi-ai/core/contract/router';
+import type { CoreContractServices } from '@nomi-ai/core/contract/services';
+import type { ContractDeps } from '@nomi-ai/core/contract/types';
 import { createRecordingAppEvents } from '@nomi-ai/core/core/appEvents';
-import { mascotAppEvents, setMascotAppEvents } from '@nomi-ai/core/mascot/mascotEvents';
 import type { HostPorts } from '@nomi-ai/host-ports';
 
-import {
-  APP_EVENT_BRIDGE,
-  createAppRouter,
-  createContractEventBridge,
-  createContractServices,
-  type ContractDeps,
-  type ContractServices,
-} from '../../../../src/host/contract';
-import { mascotEventBridge } from '../../../../src/host/contract/mascot';
+import { createMascotHostHandlers } from '../../../../src/host/contract/mascot';
 
 const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
 
@@ -130,19 +127,21 @@ function fakes() {
 
 function setup(surface: Surface = 'mascot', trusted = true) {
   const f = fakes();
-  const services: ContractServices = Object.assign(createContractServices(), {
-    windowManager: f.windowManager,
-    windowActions: f.windowActions,
+  const services = {
     config: f.config,
     characterPack: f.characterPack,
     persona: f.persona,
-    island: f.island,
     chatBg: f.chatBg,
-  } as never);
+  } as unknown as CoreContractServices;
   const events = createRecordingAppEvents();
   const ports = { app: { platform: () => 'linux' } } as unknown as HostPorts;
   const deps: ContractDeps = { services, ports, events, logger };
-  const app = createAppRouter({ deps });
+  const hostHandlers = createMascotHostHandlers({
+    windowManager: () => f.windowManager as never,
+    windowActions: () => f.windowActions as never,
+    island: () => f.island as never,
+  });
+  const app = createAppRouter({ deps, hostHandlers });
   const server = createInProcessServer();
   const stop = server.serve(app.router as never);
   const transport = server.connect({ surface, trusted });
@@ -156,12 +155,11 @@ function setup(surface: Surface = 'mascot', trusted = true) {
       transport.disconnect();
       stop();
       app.dispose();
-      setMascotAppEvents(null);
     },
   };
 }
 
-describe('host/contract/mascot', () => {
+describe('D5：内核 + 宿主片段', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('看板娘窗口：互动上报与大小委派给窗口控制器（原位置参数）', async () => {
@@ -336,21 +334,12 @@ describe('host/contract/mascot', () => {
     }
   });
 
-  it('建 router 时把应用事件总线接给看板娘推送：看板娘指令经事件总线发给所有窗口', () => {
-    const { events, close } = setup('mascot');
-    try {
-      expect(mascotAppEvents()).toBe(events);
-      // 存活窗口数由宿主报告（Electron：host/processDefaults.ts）
-      setMascotLiveWindows(() => 1);
-      expect(broadcastMascotCommand({ type: 'motion', name: 'wave' })).toBe(1);
-      expect(events.published).toEqual([
-        { channel: 'mascot:command', payload: { type: 'motion', name: 'wave' }, surfaces: null },
-      ]);
-    } finally {
-      setMascotLiveWindows(null);
-      close();
-    }
-    expect(mascotAppEvents()).toBeNull();
+  it('看板娘指令经内核实例的事件总线发给所有窗口（没有模块级出口）', () => {
+    const events = createRecordingAppEvents();
+    sendMascotCommand(events, { type: 'motion', name: 'wave' });
+    expect(events.published).toEqual([
+      { channel: 'mascot:command', payload: { type: 'motion', name: 'wave' }, surfaces: null },
+    ]);
   });
 
   it('旧通道桥接成契约事件（window-mouse-* 没有 payload → null）', () => {

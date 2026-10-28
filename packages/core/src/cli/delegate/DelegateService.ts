@@ -1080,14 +1080,3 @@ export function gitChanged(cwd: string): Promise<string[] | null> {
     );
   });
 }
-
-let inst: DelegateService | null = null;
-
-export function initDelegateService(d: DelegateDeps): DelegateService {
-  inst = new DelegateService(d);
-  return inst;
-}
-
-export function getDelegateService(): DelegateService | null {
-  return inst;
-}

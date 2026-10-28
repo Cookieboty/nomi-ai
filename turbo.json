@@ -156,9 +156,7 @@
         "!CHANGELOG.md",
         "!coverage/**",
         "!dist/**",
-        "$TURBO_ROOT$/characters/**",
-        "$TURBO_ROOT$/packages/host-electron/src/core/Application.ts",
-        "$TURBO_ROOT$/packages/host-electron/src/host/contract/shell.ts"
+        "$TURBO_ROOT$/characters/**"
       ]
     },
     "@nomi-ai/host-electron#package": {

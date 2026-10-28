@@ -6,7 +6,6 @@ import * as path from 'path';
 import * as url from 'url';
 
 import type { AppEvents } from '@nomi-ai/core/core/appEvents';
-import { eventBus } from '@nomi-ai/core/core/EventBus';
 import { fitMascotScale, maxScaleForArea, mascotWindowSize } from '@nomi-ai/core/mascot/mascotSize';
 import { type IConfigService } from '@nomi-ai/core/services/ConfigService';
 import { type ILoggerService } from '@nomi-ai/core/services/LoggerService';
@@ -73,6 +72,8 @@ export class WindowManager implements IWindowManager {
   chromeTheme: () => ChromeTheme = () => 'sunset';
   /** 主界面关闭后是否退出整个应用（「关闭主界面时：退出 Nomi」；Application 注入，默认不退出） */
   shouldQuitOnChatClose: () => boolean = () => false;
+  /** 关闭看板娘窗口 / 「关闭主界面时退出」：走宿主的统一退出（组合根设置；缺省 app.quit → before-quit） */
+  requestQuit: () => void = () => app.quit();
   /** 看板娘是否被关闭（「关闭看板娘」/ 设置；Application 注入，默认显示） */
   mascotHidden: () => boolean = () => false;
   private mainWindow: BrowserWindow | null = null;
@@ -146,7 +147,6 @@ export class WindowManager implements IWindowManager {
       await this.loadMainWindowContent(this.mainWindow);
 
       this.logger.info('主窗口创建成功');
-      eventBus.emit('window:main:created', this.mainWindow);
 
       return this.mainWindow;
     } catch (error) {
@@ -230,7 +230,6 @@ export class WindowManager implements IWindowManager {
       await this.loadAiChatWindowContent(this.aiChatWindow);
 
       this.logger.info('AI对话窗口创建成功');
-      eventBus.emit('window:aiChat:created', this.aiChatWindow);
 
       return this.aiChatWindow;
     } catch (error) {
@@ -399,8 +398,6 @@ export class WindowManager implements IWindowManager {
       if (isDevMode()) {
         window.webContents.openDevTools({ mode: 'detach' });
       }
-
-      eventBus.emit(`window:${type}:ready`, window);
     });
 
     window.on('closed', () => {
@@ -409,7 +406,6 @@ export class WindowManager implements IWindowManager {
       } else if (type === 'aiChat') {
         this.aiChatWindow = null;
       }
-      eventBus.emit(`window:${type}:closed`);
     });
 
     return window;
@@ -440,28 +436,34 @@ export class WindowManager implements IWindowManager {
     // 桌面互动：点击穿透 / 拖拽 / 重力 / 漫步 / 全局光标
     this.mascotController?.dispose();
     let scaleSaveTimer: ReturnType<typeof setTimeout> | null = null;
-    this.mascotController = new MascotWindowController(window, this.logger, Math.random, {
-      get: () => this.configService.getConfig().mascotScale,
-      save: (scale) => {
-        // 滚轮缩放时每秒很多次：防抖后连同新位置（脚底中心不动，左上角会变）一起落盘
-        this.configService.set('mascotScale', scale);
-        if (scaleSaveTimer) clearTimeout(scaleSaveTimer);
-        scaleSaveTimer = setTimeout(() => {
-          if (window.isDestroyed()) return;
-          const [px, py] = window.getPosition();
-          this.configService.set('windowPosition.x', px);
-          this.configService.set('windowPosition.y', py);
-          this.configService.save().catch((error) => {
-            this.logger.error('保存看板娘大小失败', { error: error.message });
-          });
-        }, 400);
+    this.mascotController = new MascotWindowController(
+      window,
+      this.logger,
+      Math.random,
+      {
+        get: () => this.configService.getConfig().mascotScale,
+        save: (scale) => {
+          // 滚轮缩放时每秒很多次：防抖后连同新位置（脚底中心不动，左上角会变）一起落盘
+          this.configService.set('mascotScale', scale);
+          if (scaleSaveTimer) clearTimeout(scaleSaveTimer);
+          scaleSaveTimer = setTimeout(() => {
+            if (window.isDestroyed()) return;
+            const [px, py] = window.getPosition();
+            this.configService.set('windowPosition.x', px);
+            this.configService.set('windowPosition.y', py);
+            this.configService.save().catch((error) => {
+              this.logger.error('保存看板娘大小失败', { error: error.message });
+            });
+          }, 400);
+        },
       },
-    });
+      this.events,
+    );
     this.mascotController.start();
 
     // 窗口关闭事件
     window.on('close', () => {
-      eventBus.emit('app:quit');
+      this.requestQuit();
     });
   }
 
@@ -512,7 +514,7 @@ export class WindowManager implements IWindowManager {
       // 「关闭主界面时：退出 Nomi」：走统一退出流程（看板娘、托盘、后台服务一起收尾）
       if (this.shouldQuitOnChatClose()) {
         this.logger.info('关闭主界面 → 退出 Nomi');
-        eventBus.emit('app:quit');
+        this.requestQuit();
       }
     });
   }

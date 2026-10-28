@@ -979,12 +979,3 @@ function normalizePermissionMode(
   // 握手时读取 currentModeId。对于没有 ACP 握手的后端，调用方仍会采用安全默认值。
   return fromCliPermissionMode(backend, raw) ?? undefined;
 }
-
-let inst: SessionHistoryService | null = null;
-export function initSessionHistoryService(d: SessionHistoryDeps): SessionHistoryService {
-  inst = new SessionHistoryService(d);
-  return inst;
-}
-export function getSessionHistoryService(): SessionHistoryService | null {
-  return inst;
-}

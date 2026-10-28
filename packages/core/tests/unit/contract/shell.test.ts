@@ -1,38 +1,33 @@
 /**
- * D2（host/contract/shell.ts）：theme / locale / startup / onboarding / providers / gateway / usage /
- * quality / updates / diagnostics / appIcon 的处理函数委派给服务、服务缺失时 UNAVAILABLE、
+ * D2（contract/shell.ts）：theme / locale / startup / onboarding / providers / gateway / usage /
+ * quality / updates / diagnostics 的处理函数委派给服务、`appIcon.*` 由宿主片段补上、服务缺失时 UNAVAILABLE、
  * 只在对话窗口的过程拒绝看板娘、dangerous 过程拒绝不可信调用者、旧通道桥接成契约事件、
  * 供应商变化经应用事件总线发出。
  */
 
 import { createClient } from '@nomi-ai/contract';
 import { createInProcessServer } from '@nomi-ai/contract/testing';
-import { createRecordingAppEvents } from '@nomi-ai/core/core/appEvents';
 import type { HostPorts } from '@nomi-ai/host-ports';
 
-import {
-  APP_EVENT_BRIDGE,
-  createAppRouter,
-  createContractEventBridge,
-  createContractServices,
-  type ContractDeps,
-  type ContractServices,
-} from '../../../../src/host/contract';
-import { PROVIDERS_CHANGED, shellEventBridge } from '../../../../src/host/contract/shell';
+import { createContractEventBridge } from '../../../src/contract/eventBridge';
+import { APP_EVENT_BRIDGE, createAppRouter } from '../../../src/contract/router';
+import type { CoreContractServices } from '../../../src/contract/services';
+import { PROVIDERS_CHANGED, shellEventBridge } from '../../../src/contract/shell';
+import type { AppHandlers, ContractDeps } from '../../../src/contract/types';
+import { createRecordingAppEvents } from '../../../src/core/appEvents';
 
-jest.mock('../../../../src/core/appIcon', () => ({
+/** 应用图标是宿主的事：这里用假的宿主片段 */
+const appIcon = {
   appIconState: jest.fn(() => ({
-    variant: 'sunset',
-    platform: 'darwin',
+    variant: 'sunset' as const,
+    platform: 'darwin' as const,
     previews: { sunset: 'data:a', cream: 'data:b', ink: 'data:c' },
   })),
-  setIconVariant: jest.fn((v: unknown) => (v === 'ink' ? 'ink' : 'sunset')),
-}));
-
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const appIcon = require('../../../../src/core/appIcon') as {
-  appIconState: jest.Mock;
-  setIconVariant: jest.Mock;
+  setIconVariant: jest.fn((v: unknown) => (v === 'ink' ? ('ink' as const) : ('sunset' as const))),
+};
+const hostHandlers: Partial<AppHandlers> = {
+  'appIcon.get': () => appIcon.appIconState(),
+  'appIcon.set': ({ variant }) => appIcon.setIconVariant(variant),
 };
 
 const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
@@ -151,7 +146,7 @@ function setup(
   opts: { surface?: 'chat' | 'mascot'; trusted?: boolean; withServices?: boolean } = {},
 ) {
   const f = fakes();
-  const services: ContractServices = createContractServices();
+  const services: CoreContractServices = {};
   if (opts.withServices !== false) {
     Object.assign(services, {
       theme: f.theme,
@@ -169,7 +164,7 @@ function setup(
   }
   const events = createRecordingAppEvents();
   const deps: ContractDeps = { services, ports: {} as HostPorts, events, logger };
-  const app = createAppRouter({ deps });
+  const app = createAppRouter({ deps, hostHandlers });
   const server = createInProcessServer();
   const stop = server.serve(app.router as never);
   const transport = server.connect({

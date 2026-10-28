@@ -8,7 +8,8 @@ import path from 'node:path';
 import type { HostPorts } from '@nomi-ai/host-ports';
 import { zipSync, strToU8 } from 'fflate';
 
-import { broadcastMascotCommand } from '../ai/mascotCommand';
+import { sendMascotCommand } from '../ai/mascotCommand';
+import type { AppEvents } from '../core/appEvents';
 import type { DesktopService } from '../desktop/DesktopService';
 import { redactServerForExport } from '../extensions/mcpConfig';
 import { t as tr } from '../i18n';
@@ -25,6 +26,8 @@ export interface HubDeps {
   desktop: DesktopService;
   /** 导出时选保存位置 */
   ports: Pick<HostPorts, 'dialogs'>;
+  /** 看板娘指令（导出完成点头）经应用事件总线；缺省时不发 */
+  events?: AppEvents;
 }
 
 export class LocalHubService {
@@ -139,16 +142,7 @@ export class LocalHubService {
     const zip = zipSync(files, { level: 6 });
     fs.writeFileSync(file, zip);
     this.audit('data_export', { files: Object.keys(files).length, bytes: zip.length });
-    broadcastMascotCommand({ type: 'motion', name: 'nod' });
+    sendMascotCommand(this.d.events, { type: 'motion', name: 'nod' });
     return { file, files: Object.keys(files).length, bytes: zip.length };
   }
-}
-
-let inst: LocalHubService | null = null;
-export function initLocalHubService(d: HubDeps) {
-  inst = new LocalHubService(d);
-  return inst;
-}
-export function getLocalHubService() {
-  return inst;
 }

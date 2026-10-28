@@ -1,18 +1,21 @@
 /**
- * AIRuntimeBoot - 主进程 AI 运行时引导器
+ * AIRuntimeBoot - AI 运行时引导器（内核，纯 Node；docs/design/core-host-decoupling.md §7.1）
  *
  * 责任：
- * 1. 装配 `@nomi-ai/ai-runtime` 单例（Booter + Lifecycle + Logger）；
+ * 1. 按内核实例创建 `AIRuntimeService`（Booter + Lifecycle + Logger；不用 ai-runtime 的模块级 `runtime`，
+ *    一个进程可以有多个内核）；
  * 2. 启动 IgPluginHost + AI SDK providers，得到 `AIClient`；
- * 3. 用应用契约实现 AI 门面（`createAiHandlers`：`ai.*` 处理函数 + 事件），交给宿主与 P1b 各域的
- *    处理函数一起组装成 router（host/contract/index.ts 的 `createAppRouter`），由组合根经契约 IPC 传输
- *    （host/contractIpc.ts，preload 的 `window.nomiTransport`）暴露给视图；供应商的契约过程
- *    （`providers.*`）由宿主直接调 `providers`（ProviderService）；
- * 4. 可选：把遗留 `AdvancedTTSEngine` 注册为 `electron-native` TtsProvider（P8-5 尾巴）；
+ * 3. 用应用契约实现 AI 门面（`createAiHandlers`：`ai.*` 处理函数 + 事件），由 `createCore` 与其余域的
+ *    处理函数一起组装成 router；供应商的契约过程（`providers.*`）直接调 `providers`（ProviderService）；
+ * 4. 宿主给的插件与本地 TtsProvider：Electron 宿主注入 `bundle-ig-electron-caps` 的
+ *    `FileSessionStorePlugin`（用户画像）与系统 TTS（`electron-native`），内核不 import 宿主插件包；
  * 5. 在 `dispose()` 时逆序清理。
+ *
+ * 用到的内核服务（网关、用量、扩展、人设）经 `services` 在调用时读取，不再取模块级单例。
  */
 
 import {
+  AIRuntimeService,
   createAiHandlers,
   GATEWAY_PROVIDER_ID,
   ProviderService,
@@ -21,28 +24,45 @@ import {
   createSafeStorageCipher,
   llmProvidersFromEnv,
   providerOverrideFromEnv,
-  runtime,
   type AiHandlersHandle,
   type Booter,
+  type IgPluginEntry,
   type RoutedLLMRegistry,
   type RuntimeLogger,
 } from '@nomi-ai/ai-runtime';
-import type { AIClient } from '@nomi-ai/ai-sdk';
-import { FileSessionStorePlugin } from '@nomi-ai/bundle-ig-electron-caps';
 import { appContract } from '@nomi-ai/contract/app';
-import { splitGatewayUsage } from '@nomi-ai/core/ai/gatewayUsage';
-import { mascotIgPlugins } from '@nomi-ai/core/ai/mascotBridge';
-import { desktopIgPlugins } from '@nomi-ai/core/desktop/plugin';
-import { getExtensionsService } from '@nomi-ai/core/extensions/ExtensionsService';
-import { getGatewayService } from '@nomi-ai/core/gateway/GatewayService';
-import { createPersonaIdentityPlugin } from '@nomi-ai/core/persona/igPlugin';
-import { getPersonaService } from '@nomi-ai/core/persona/PersonaService';
-import { safeStorageFromSecrets } from '@nomi-ai/core/security/secretStorage';
-import type { ILoggerService } from '@nomi-ai/core/services/LoggerService';
-import { getUsageService } from '@nomi-ai/core/usage/UsageService';
 import type { HostPorts } from '@nomi-ai/host-ports';
 
-import type { TtsProvider } from './TtsElectronNativeProvider';
+import type { AppEvents } from '../core/appEvents';
+import { createDesktopIgPlugins, type DesktopToolSources } from '../desktop/plugin';
+import type { ExtensionsService } from '../extensions/ExtensionsService';
+import type { GatewayService } from '../gateway/GatewayService';
+import { createPersonaIdentityPlugin } from '../persona/igPlugin';
+import type { PersonaService } from '../persona/PersonaService';
+import { safeStorageFromSecrets } from '../security/secretStorage';
+import type { ILoggerService } from '../services/LoggerService';
+import type { UsageService } from '../usage/UsageService';
+
+import { splitGatewayUsage } from './gatewayUsage';
+import { createMascotIgPlugins } from './mascotBridge';
+
+type AIClient = AIRuntimeService['client'];
+
+/**
+ * 宿主注入的本地 TtsProvider（`ctx.tts.register(...)` 的注册对象）的最小形状；完整契约在
+ * `bundle-ig-electron-caps/seams` 的 `TtsProvider`（Electron 宿主的 TtsElectronNativeProvider 结构上满足）。
+ */
+export interface TtsProviderLike {
+  info: { id: string };
+}
+
+/** AI runtime 在调用时读取的内核服务（内核实例的服务表） */
+export interface AIRuntimeServices {
+  gateway(): GatewayService | null | undefined;
+  usage(): UsageService | null | undefined;
+  ext(): ExtensionsService | null | undefined;
+  persona(): PersonaService | null | undefined;
+}
 
 export interface AIRuntimeBootOptions {
   /** 宿主端口：应用目录（插件宿主 home）、provider token 加密（secrets）、退出前收尾（lifecycle） */
@@ -53,9 +73,17 @@ export interface AIRuntimeBootOptions {
   booter?: Booter;
   /** 是否把 AIClient 事件发布为契约事件（推给订阅了的窗口），默认 true */
   enableEventBroadcast?: boolean;
+  /** 内核服务（调用时读取） */
+  services: AIRuntimeServices;
+  /** 桌面工具插件读取的服务（桌面 / 知识库 / 记忆 / 委派 / 扩展） */
+  desktopTools: DesktopToolSources;
+  /** 看板娘指令（avatar_gesture / avatar_emotion）经这个事件总线发给看板娘窗口 */
+  events: AppEvents;
+  /** 宿主插件，装在内置插件之前（Electron：FileSessionStorePlugin 提供用户画像存储） */
+  hostPlugins?: IgPluginEntry[];
   /**
-   * 额外要注入到 `client.tts` 的本地 TtsProvider 列表（例如
-   * [TtsElectronNativeProvider](file:///./TtsElectronNativeProvider.ts)）。
+   * 额外要注入到 `client.tts` 的本地 TtsProvider 列表（例如 Electron 宿主的
+   * `TtsElectronNativeProvider`）。
    *
    * 语义：
    *   - 注入时机在 `client` 就绪之后、契约处理函数建好之前；
@@ -63,7 +91,7 @@ export interface AIRuntimeBootOptions {
    *     `client.tts.register` 会抛 `SEAM_NOT_INJECTED`，本函数**吞掉**该错误
    *     并 `logger.warn` 提示（避免阻塞主流程）；其它异常照常向外抛。
    */
-  ttsProviders?: TtsProvider[];
+  ttsProviders?: TtsProviderLike[];
   /** Nomi 对话请求发出前的外发检查，见 AiRouterOptions.prepareChat */
   prepareChat?: (
     options: Record<string, unknown>,
@@ -111,17 +139,15 @@ function toRuntimeLogger(l: ILoggerService): RuntimeLogger {
 
 function tryRegisterTtsProviders(
   client: AIClient,
-  providers: TtsProvider[],
+  providers: TtsProviderLike[],
   logger: ILoggerService,
 ): void {
   if (providers.length === 0) return;
   for (const provider of providers) {
     try {
       // client.tts.register 内部会 `require()` TtsService；未注入时抛 SEAM_NOT_INJECTED。
-      // 这里对 register 参数做一次协变转型：electron 侧本地契约与 seams 结构等价，
-      // 但 electron tsconfig `moduleResolution: node` 无法直接解析 `@nomi-ai/bundle-ig-electron-caps/seams`
-      // 子入口，故用 unknown 中转，等价性靠单测保证。
-      (client.tts.register as (p: TtsProvider) => void)(provider);
+      // 宿主的本地契约与 seams 结构等价（内核不 import 宿主插件包），这里只按最小形状转型。
+      (client.tts.register as (p: TtsProviderLike) => void)(provider);
       logger.info(`TtsProvider registered: id=${provider.info.id}`);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -139,13 +165,13 @@ function tryRegisterTtsProviders(
 }
 
 /**
- * 启动 AI runtime；调用方一般在 Application.start() → app.whenReady() 后调用。
+ * 启动 AI runtime；由 `createCore` 的 `start()` 调用（宿主已就绪之后）。
  */
 export async function startAIRuntime(
   logger: ILoggerService,
   opts: AIRuntimeBootOptions,
 ): Promise<AIRuntimeBootHandle> {
-  const { ports } = opts;
+  const { ports, services } = opts;
   const profile = opts.profile ?? process.env.IG_AI_PROFILE ?? 'waifu';
   const home = opts.home ?? ports.paths.appPath();
   const runtimeLogger = toRuntimeLogger(logger);
@@ -157,7 +183,7 @@ export async function startAIRuntime(
     cipher,
     // 用量与计费：每次成功调用记一条（响应 usage；没有才估算并标「估算」）
     onCall: (e) =>
-      getUsageService()?.record({
+      services.usage()?.record({
         ts: e.at,
         dur: e.durationMs,
         source: 'nomi',
@@ -189,20 +215,20 @@ export async function startAIRuntime(
     opts.booter ??
     createAiSdkBooter({
       logger: runtimeLogger,
-      // FileSessionStorePlugin 提供 ProfileStorageKey → 用户画像持久化到 userData/ai-chat/memory
-      // 角色身份（PersonaService → PersonaIdentityKey）：角色 preset 从这里读人设，插件包里不写角色
+      // 宿主插件（Electron：FileSessionStorePlugin 提供 ProfileStorageKey → 用户画像持久化到
+      // userData/ai-chat/memory）；角色身份（PersonaService → PersonaIdentityKey）：角色 preset 从这里读人设
       before: [
-        { plugin: FileSessionStorePlugin },
-        { plugin: createPersonaIdentityPlugin(() => getPersonaService()?.get()) },
+        ...(opts.hostPlugins ?? []),
+        { plugin: createPersonaIdentityPlugin(() => services.persona()?.get()) },
       ],
-      // 看板娘动作 / 表情工具（avatar_gesture / avatar_emotion）→ IPC → 渲染进程
-      after: [...mascotIgPlugins, ...desktopIgPlugins],
+      // 看板娘动作 / 表情工具（avatar_gesture / avatar_emotion）→ 事件总线 → 渲染进程
+      after: [...createMascotIgPlugins(opts.events), ...createDesktopIgPlugins(opts.desktopTools)],
       // env(MCP_SERVERS) 来的工具同样强制走用户确认 + 审计（ExtensionsService.guardEnvTool）
-      mcpToolGuard: (server, def) => getExtensionsService()?.guardEnvTool(server, def) ?? def,
+      mcpToolGuard: (server, def) => services.ext()?.guardEnvTool(server, def) ?? def,
       providers: {
         store: providerStore,
         // 统一网关：Nomi 对话 / agent-tools / summary 只走网关（无旧存储回退）
-        gateway: { resolve: (role) => getGatewayService()?.nomiRoute(role) ?? null },
+        gateway: { resolve: (role) => services.gateway()?.nomiRoute(role) ?? null },
         onRegistry: (r) => {
           registry = r;
         },
@@ -212,14 +238,15 @@ export async function startAIRuntime(
   const lifecycle = {
     onBeforeQuit: (fn: () => void | Promise<void>) => ports.lifecycle.onBeforeQuit(fn),
   };
-  const service = runtime.configure({ booter, lifecycle, logger: runtimeLogger });
+  // 按内核实例创建（不用模块级 runtime 单例）
+  const service = new AIRuntimeService({ booter, lifecycle, logger: runtimeLogger });
   const client = await service.start(profile, { home });
 
   if (opts.ttsProviders && opts.ttsProviders.length > 0) {
     tryRegisterTtsProviders(client, opts.ttsProviders, logger);
   }
 
-  // AI 门面：应用契约的 ai.* 处理函数 + 事件。router 与传输由组合根组装（host/contract），
+  // AI 门面：应用契约的 ai.* 处理函数 + 事件。router 由 createCore 组装、传输由宿主挂，
   // 调用者判定（sender 白名单 + surface）在传输层，dangerous 过程只接受受信调用者
   const ai = createAiHandlers({
     client,
@@ -242,14 +269,14 @@ export async function startAIRuntime(
       const p = registry?.resolve(role)?.provider;
       if (!p) return null;
       // 经统一网关：报真正的上游供应商与地址（网关本身是本机回环，不能据此判断本地）
-      if (p.id === GATEWAY_PROVIDER_ID) return getGatewayService()?.nomiProvider(role) ?? null;
+      if (p.id === GATEWAY_PROVIDER_ID) return services.gateway()?.nomiProvider(role) ?? null;
       const st = providerService.state();
       const v =
         st.providers.find((x) => x.id === p.id) ?? st.envProviders.find((x) => x.id === p.id);
       return { id: p.id, name: v?.name ?? p.id, baseURL: v?.baseURL };
     },
     lookupProvider(id) {
-      const gw = getGatewayService()?.providerInfo(id) ?? null;
+      const gw = services.gateway()?.providerInfo(id) ?? null;
       if (gw) return gw;
       // 仅环境变量垫片（ProviderService.envProviders），不读旧 ai-providers.json
       const st = providerService.state();
@@ -258,10 +285,10 @@ export async function startAIRuntime(
     },
     providerCredentials(id) {
       // 只走网关（「模型」页与迁移后的供应商）；知识库 / 语音设置里的旧 id 在迁移后应已对应网关 id
-      return getGatewayService()?.credentials(id) ?? null;
+      return services.gateway()?.credentials(id) ?? null;
     },
     listProviders() {
-      return getGatewayService()?.listOpenAiCompatible() ?? [];
+      return services.gateway()?.listOpenAiCompatible() ?? [];
     },
     channels: {
       business: procedures,
@@ -283,7 +310,7 @@ export async function startAIRuntime(
           error: err instanceof Error ? err.message : String(err),
         });
       }
-      await runtime.stop();
+      await service.stop();
       logger.info('AI runtime stopped');
     },
   };

@@ -5,11 +5,13 @@
  * （`need(deps.services.theme, 'theme')`），所以创建顺序与 router 建好的时间无关。
  * 只放类型引用（`import type`），本文件不加载任何服务模块。
  *
- * 宿主自己的槽位（窗口管理器、看板娘窗口操作、灵动岛、AI runtime 句柄）在宿主的
- * `ContractServices`（electron `host/contract/services.ts`）里扩展。
+ * 宿主自己的东西（窗口管理器、看板娘窗口操作、灵动岛、应用图标）不进这张表：宿主的契约片段
+ * （`createCore` 的 `contract.hostHandlers`）在自己的闭包里拿它们。宿主只经 `callerWindows`
+ * 报告调用方窗口的存活（语音会话随窗口释放）。
  */
 
 import type { AgentProgressService } from '../agents/AgentProgressService';
+import type { AIRuntimeBootHandle } from '../ai/AIRuntimeBoot';
 import type { CharacterPackService } from '../character/CharacterPackService';
 import type { ChatBackgroundService } from '../chat/ChatBackgroundService';
 import type { AccountLogin } from '../cli/accounts/AccountLogin';
@@ -37,16 +39,24 @@ import type { IConfigService } from '../services/ConfigService';
 import type { UpdateService } from '../services/UpdateService';
 import type { StartupService } from '../startup/StartupService';
 import type { ThemeService } from '../theme/ThemeService';
+import type { TtsService } from '../tts/TtsService';
 import type { QualityService } from '../usage/quality/QualityService';
 import type { UsageService } from '../usage/UsageService';
 import type { VoiceService } from '../voice/VoiceService';
 
+import type { CallerWindows } from './media/voiceSenders';
+
 /** 全部可选：服务创建失败（或还没创建）时为 undefined，处理函数用 `need()` 报 UNAVAILABLE */
 export interface CoreContractServices {
   config?: IConfigService;
+  /** AI runtime（AI 门面、供应商）；启动失败时为 undefined */
+  aiRuntime?: AIRuntimeBootHandle;
+  /** 宿主报告调用方窗口的存活（Electron：按 webContents id 找窗口）；无界面宿主不提供 */
+  callerWindows?: CallerWindows;
 
   // D1 media
   voice?: VoiceService;
+  tts?: TtsService;
   desktop?: DesktopService;
   screen?: ScreenService;
 

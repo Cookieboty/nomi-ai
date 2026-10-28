@@ -1,5 +1,4 @@
 import { createRecordingAppEvents, type RecordingAppEvents } from '@nomi-ai/core/core/appEvents';
-import { setMascotAppEvents } from '@nomi-ai/core/mascot/mascotEvents';
 import { MASCOT_PAD, mascotWindowSize } from '@nomi-ai/core/mascot/mascotSize';
 import type { BrowserWindow } from 'electron';
 
@@ -69,21 +68,25 @@ describe('MascotWindowController scale', () => {
   let events: RecordingAppEvents;
   beforeEach(() => {
     events = createRecordingAppEvents();
-    setMascotAppEvents(events);
     jest.useFakeTimers();
   });
   afterEach(() => {
-    setMascotAppEvents(null);
     jest.useRealTimers();
   });
 
   function setup(scale = 0.5) {
     const f = fakeWindow(scale, 1000, 1040 - mascotWindowSize(scale).height);
     const saved: number[] = [];
-    const c = new MascotWindowController(f.win, logger, Math.random, {
-      get: () => scale,
-      save: (s) => saved.push(s),
-    });
+    const c = new MascotWindowController(
+      f.win,
+      logger,
+      Math.random,
+      {
+        get: () => scale,
+        save: (s) => saved.push(s),
+      },
+      events,
+    );
     c.start();
     const changed = () => events.published.filter((e) => e.channel === 'mascot:scale-changed');
     return { ...f, c, saved, changed };

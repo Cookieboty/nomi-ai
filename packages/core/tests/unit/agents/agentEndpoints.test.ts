@@ -3,7 +3,7 @@ jest.unmock('path');
 const island = jest.fn();
 const mascot = jest.fn();
 jest.mock('../../../src/ai/mascotCommand', () => ({
-  broadcastMascotCommand: (c: unknown) => mascot(c),
+  sendMascotCommand: (_e: unknown, c: unknown) => mascot(c),
 }));
 
 import fs from 'node:fs';

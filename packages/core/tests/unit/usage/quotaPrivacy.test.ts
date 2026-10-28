@@ -272,7 +272,7 @@ describe('源码级约束：价格同步（priceSync.ts）只做一次公开 GET
     expect(code.match(/(?<![.\w])fetch\s*\(/g)).toHaveLength(1);
   });
 
-  const HOST_SRC = path.resolve(__dirname, '../../../../host-electron/src');
+  const CORE_SRC = path.resolve(__dirname, '../../../src');
 
   it('只由用户点击或启动时的 autoSync 触发：没有定时轮询；autoSync 先看开关与 12 小时间隔', () => {
     const svc = fs.readFileSync(
@@ -281,16 +281,16 @@ describe('源码级约束：价格同步（priceSync.ts）只做一次公开 GET
     );
     const calls = svc.match(/syncPrices\(|priceSync\.sync\(/g) ?? [];
     expect(calls).toHaveLength(3); // 方法定义 + 其中的 priceSync.sync() + autoSync
-    // 用户点击：契约 usage.priceSync 的处理函数直接调 syncPrices()（处理函数与组合根在 Electron 宿主包里）
-    const host = fs.readFileSync(path.resolve(HOST_SRC, 'host/contract/shell.ts'), 'utf8');
-    expect(host.match(/syncPrices\(/g)).toHaveLength(1);
+    // 用户点击：契约 usage.priceSync 的处理函数直接调 syncPrices()（处理函数与组合根都在内核）
+    const shell = fs.readFileSync(path.resolve(CORE_SRC, 'contract/shell.ts'), 'utf8');
+    expect(shell.match(/syncPrices\(/g)).toHaveLength(1);
     const auto = svc.slice(svc.indexOf('async autoSync()'), svc.indexOf('query(rangeId'));
     expect(auto).toContain('this.settings.modelsSyncAuto');
     expect(auto).toContain('MODELS_SYNC_INTERVAL_MS');
     // 用量服务有扫描日志等别的定时器，但没有一个会触发同步
     expect(svc).not.toMatch(/set(Interval|Timeout)\([^;]*(syncPrices|autoSync|priceSync)/);
-    // 应用只在启动时调一次 autoSync
-    const app = fs.readFileSync(path.resolve(HOST_SRC, 'core/Application.ts'), 'utf8');
+    // 应用只在启动时调一次 autoSync（内核组合根 createCore）
+    const app = fs.readFileSync(path.resolve(CORE_SRC, 'createCore.ts'), 'utf8');
     expect(app.match(/\.autoSync\(/g)).toHaveLength(1);
   });
 });

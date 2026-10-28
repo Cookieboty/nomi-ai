@@ -4,7 +4,6 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { setMascotLiveWindows } from '../../../src/ai/mascotCommand';
 import { createRecordingAppEvents, type RecordingAppEvents } from '../../../src/core/appEvents';
 import {
   ONBOARDING_PROFILE_CHANGED,
@@ -15,16 +14,14 @@ import {
 const dir = () => fs.mkdtempSync(path.join(os.tmpdir(), 'onb-'));
 let events: RecordingAppEvents = createRecordingAppEvents();
 const make = (userData: string, openChat = jest.fn()) =>
-  new OnboardingService({ userData, openChat, events });
+  new OnboardingService({ userData, openChat, events, liveWindows: () => 1 });
 
 describe('OnboardingService', () => {
   beforeEach(() => {
-    // 看板娘指令经 ai/mascotCommand 发布；存活窗口数由宿主报告（这里假装有一个窗口）
-    setMascotLiveWindows(() => 1);
+    // 看板娘指令经应用事件总线发布；存活窗口数由宿主报告（make() 里假装有一个窗口）
     events = createRecordingAppEvents();
     delete process.env.CD_ONBOARDING;
   });
-  afterAll(() => setMascotLiveWindows(null));
   it('new users see it once; complete persists; existing users are not bothered', () => {
     const d = dir();
     const s = make(d);

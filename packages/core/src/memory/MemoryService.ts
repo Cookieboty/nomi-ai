@@ -11,7 +11,7 @@ import type { ToolDefinition } from '@nomi-ai/bundle-ig-base';
 import type { HostPorts } from '@nomi-ai/host-ports';
 import { z } from 'zod';
 
-import { broadcastMascotCommand } from '../ai/mascotCommand';
+import { sendMascotCommand } from '../ai/mascotCommand';
 import type { AppEvents } from '../core/appEvents';
 import type { DesktopService } from '../desktop/DesktopService';
 import { t as tr } from '../i18n';
@@ -281,7 +281,7 @@ export class MemoryService {
         'ok',
         Date.now() - t0,
       );
-      broadcastMascotCommand({ type: 'motion', name: 'nod' });
+      sendMascotCommand(this.d.events, { type: 'motion', name: 'nod' });
       return { episode: this.view(ep) };
     } catch (e) {
       this.lastError = e instanceof Error ? e.message : String(e);
@@ -630,7 +630,7 @@ export class MemoryService {
               data: { saved: false, reason: tr('electron.common.already-remembered') },
             };
           const f = await this.upsertFact(i);
-          broadcastMascotCommand({ type: 'motion', name: 'nod' });
+          sendMascotCommand(this.d.events, { type: 'motion', name: 'nod' });
           return { ok: true, data: { saved: true, id: f.id } };
         },
       } as unknown as ToolDefinition,
@@ -670,15 +670,6 @@ export class MemoryService {
 }
 
 type ParsedLike = { facts: unknown };
-
-let instance: MemoryService | null = null;
-export function initMemoryService(d: MemoryDeps): MemoryService {
-  instance ??= new MemoryService(d);
-  return instance;
-}
-export function getMemoryService(): MemoryService | null {
-  return instance;
-}
 
 /** 会话存储默认最多保留的消息数（host-electron/config/default.json 的 maxMessages）：到上限后条数不再增长 */
 const HISTORY_CAP = 1000;

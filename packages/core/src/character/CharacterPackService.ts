@@ -251,19 +251,3 @@ export class CharacterPackService {
     };
   }
 }
-
-let singleton: CharacterPackService | null = null;
-
-/** The first call creates the service and must pass its deps. */
-export function getCharacterPackService(deps?: CharacterPackServiceDeps): CharacterPackService {
-  if (!singleton) {
-    if (!deps) throw new Error('CharacterPackService requires host ports on first call');
-    singleton = new CharacterPackService(deps);
-  }
-  return singleton;
-}
-
-/** Test helper */
-export function resetCharacterPackServiceForTest(): void {
-  singleton = null;
-}

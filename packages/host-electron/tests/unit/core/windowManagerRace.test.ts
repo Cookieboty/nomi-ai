@@ -176,10 +176,11 @@ describe('WindowManager 对话窗口记住上次的位置与大小', () => {
 });
 
 describe('WindowManager 关闭主界面时', () => {
-  const closedHandler = (shouldQuit: boolean) => {
+  const closedHandler = (shouldQuit: boolean, quit: () => void) => {
     const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() };
     const wm = new WindowManager(logger as never, {} as never);
     wm.shouldQuitOnChatClose = () => shouldQuit;
+    wm.requestQuit = quit;
     const handlers: Record<string, () => void> = {};
     const win = {
       on: (ev: string, fn: () => void) => (handlers[ev] = fn),
@@ -191,15 +192,11 @@ describe('WindowManager 关闭主界面时', () => {
     return handlers.closed!;
   };
 
-  it('quit → emits app:quit; hide → keeps running', () => {
-    const { eventBus } = jest.requireActual('@nomi-ai/core/core/EventBus') as {
-      eventBus: { on: (e: string, fn: () => void) => void; off?: unknown };
-    };
+  it('quit → requests the unified quit; hide → keeps running', () => {
     const quit = jest.fn();
-    eventBus.on('app:quit', quit);
-    closedHandler(false)();
+    closedHandler(false, quit)();
     expect(quit).not.toHaveBeenCalled();
-    closedHandler(true)();
+    closedHandler(true, quit)();
     expect(quit).toHaveBeenCalledTimes(1);
   });
 });

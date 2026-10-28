@@ -17,8 +17,6 @@ export {
 export {
   HarnessOrchestrator,
   CliHarnessService,
-  initCliHarnessService,
-  getCliHarnessService,
   materializeGeneratedImages,
   rewriteGeneratedImageLinks,
   resolveHarnessBin,

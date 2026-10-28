@@ -8,8 +8,6 @@ export {
   HarnessStoppedError,
   MAIN_TAB_ID,
   DELEGATED_PERMISSION_TIMEOUT_MS,
-  initCliHarnessService,
-  getCliHarnessService,
   materializeGeneratedImages,
   rewriteGeneratedImageLinks,
   resolveHarnessBin,

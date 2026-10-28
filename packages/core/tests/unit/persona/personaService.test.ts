@@ -9,12 +9,10 @@ import path from 'node:path';
 import { forwardPersonaChanges, PERSONA_CHANGED_CHANNEL } from '../../../src/persona/events';
 import {
   characterLocaleOf,
-  getPersonaService,
   neutralPersonaSource,
   packPersonaSource,
   PersonaService,
   resolvePersona,
-  setPersonaService,
   type PersonaBundle,
   type PersonaSource,
 } from '../../../src/persona/PersonaService';
@@ -242,14 +240,6 @@ describe('PersonaService', () => {
     svc.localeChanged();
     expect(ok).toHaveBeenCalledTimes(1);
     expect(warn).toHaveBeenCalled();
-  });
-
-  it('module singleton', () => {
-    const svc = new PersonaService({ sources: [officialPersonaSource()], locale: () => 'en' });
-    setPersonaService(svc);
-    expect(getPersonaService()).toBe(svc);
-    setPersonaService(undefined);
-    expect(getPersonaService()).toBeUndefined();
   });
 });
 

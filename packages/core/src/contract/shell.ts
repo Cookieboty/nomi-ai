@@ -1,7 +1,7 @@
 /**
  * D2 的处理函数与事件桥（docs/design/core-host-decoupling.md §12「P1b 实施约定」）。
  *
- * 本文件只属于 D2。契约声明在 packages/contract/src/app/shell.ts；这里：
+ * 本文件只属于 D2。契约声明在 packages/contract/src/app/shell.ts；这里（`appIcon.*` 除外，见下）：
  * - `createShellHandlers(deps)`：每个过程一个处理函数，委派给服务的公开方法（服务从
  *   `deps.services` 在调用时读取，缺了用 `need()` 报 UNAVAILABLE）；
  * - `shellEventBridge`：服务仍在 `events.publish` 的旧通道 → 契约事件。
@@ -11,15 +11,17 @@
  */
 
 import type { ShellEventName, ShellProcedureName } from '@nomi-ai/contract/app';
-import type { GatewayService, ProviderInput } from '@nomi-ai/core/gateway/GatewayService';
-import type { UsageSettings } from '@nomi-ai/core/usage/UsageService';
 
-import { appIconState, setIconVariant } from '../../core/appIcon';
+import type { GatewayService, ProviderInput } from '../gateway/GatewayService';
+import type { UsageSettings } from '../usage/UsageService';
 
 import type { ContractDeps, DomainHandlers, EventBridgeMap } from './types';
 import { need } from './types';
 
-export type ShellHandlers = DomainHandlers<ShellProcedureName>;
+/** 应用图标（窗口 / 任务栏 / Dock / 托盘图标）是宿主的事：`appIcon.*` 由宿主的片段实现 */
+export type ShellHostProcedureName = 'appIcon.get' | 'appIcon.set';
+
+export type ShellHandlers = DomainHandlers<Exclude<ShellProcedureName, ShellHostProcedureName>>;
 
 /** 供应商状态变化的应用事件通道（事件桥转成 `providers.changed`） */
 export const PROVIDERS_CHANGED = 'ai:providers:changed';
@@ -147,9 +149,6 @@ export function createShellHandlers(deps: ContractDeps): ShellHandlers {
     'diagnostics.set': ({ on }) => diagnostics().set(on),
     'diagnostics.openFolder': () => diagnostics().openLogFolder(),
     'diagnostics.export': () => diagnostics().exportBundle(),
-
-    'appIcon.get': () => appIconState(),
-    'appIcon.set': ({ variant }) => setIconVariant(variant),
   };
 }
 

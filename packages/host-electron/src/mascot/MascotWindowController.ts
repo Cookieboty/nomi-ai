@@ -1,4 +1,4 @@
-import { mascotAppEvents } from '@nomi-ai/core/mascot/mascotEvents';
+import type { AppEvents } from '@nomi-ai/core/core/appEvents';
 import {
   DEFAULT_MASCOT_SCALE,
   MASCOT_BASE,
@@ -149,6 +149,8 @@ export class MascotWindowController {
     private readonly logger: Logger,
     private readonly rnd: () => number = Math.random,
     private readonly scaleHooks?: MascotScaleHooks,
+    /** 内核的应用事件总线（推送经它发布，事件桥转成契约事件）；不给时推送直接丢弃 */
+    private readonly events?: AppEvents,
   ) {}
 
   /** 生效缩放（窗口当前大小对应的 scale）与用户偏好（屏幕变小时只临时压低，不改写偏好） */
@@ -410,7 +412,7 @@ export class MascotWindowController {
     if (userPref) this.scaleHooks?.save(this.pref);
     if (notify) {
       // 看板娘与对话窗口（设置页的大小滑块）都要知道；事件桥转成契约事件 mascot.scaleChanged
-      mascotAppEvents()?.publish('mascot:scale-changed', state, { surface: ['mascot', 'chat'] });
+      this.events?.publish('mascot:scale-changed', state, { surface: ['mascot', 'chat'] });
     }
     return state;
   }
@@ -718,10 +720,10 @@ export class MascotWindowController {
     this.schedule(busy ? TICK_MS : IDLE_TICK_MS);
   }
 
-  /** 推给看板娘窗口：接上应用事件总线后经它发布（同时成为契约事件），否则直接发 */
+  /** 推给看板娘窗口：经应用事件总线发布（同时成为契约事件）；没有事件总线时丢弃 */
   private send(ch: string, payload: unknown): void {
     if (this.win.isDestroyed()) return;
-    mascotAppEvents()?.publish(ch, payload, { surface: 'mascot' });
+    this.events?.publish(ch, payload, { surface: 'mascot' });
   }
 
   /** 测试 / 调试用 */

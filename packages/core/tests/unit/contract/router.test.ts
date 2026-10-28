@@ -1,6 +1,7 @@
 /**
- * P1b 基础（host/contract）：
+ * 契约组装（contract/router.ts）：
  * - createAppRouter：AI runtime 没起来时 `ai.*` 以 UNAVAILABLE 失败；给了 AI 处理函数就用它，并接上事件；
+ * - 宿主片段只补内核没有的过程，和内核重名时报错；谁都没实现的过程 UNAVAILABLE；
  * - dangerous 过程走审计中间件，不可信调用者被内置守卫拒绝；
  * - 事件桥：旧通道照常广播，桥接表里的通道在 attach 之后同时发成契约事件，map 可以转换 payload；
  * - need()：服务缺失时 UNAVAILABLE。
@@ -9,24 +10,22 @@
 import { canSubscribe, ContractError, createClient, type EventPublisher } from '@nomi-ai/contract';
 import { appContract, type AppContract } from '@nomi-ai/contract/app';
 import { createInProcessServer } from '@nomi-ai/contract/testing';
-import { createRecordingAppEvents } from '@nomi-ai/core/core/appEvents';
 import type { HostPorts } from '@nomi-ai/host-ports';
 
+import { createContractEventBridge } from '../../../src/contract/eventBridge';
 import {
   APP_EVENT_BRIDGE,
   createAppRouter,
-  createContractEventBridge,
-  createContractServices,
-  need,
   type AiContractPart,
-  type ContractDeps,
-} from '../../../src/host/contract';
+} from '../../../src/contract/router';
+import { need, type ContractDeps } from '../../../src/contract/types';
+import { createRecordingAppEvents } from '../../../src/core/appEvents';
 
 const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
 
 function deps(): ContractDeps {
   return {
-    services: createContractServices(),
+    services: {},
     ports: {} as HostPorts,
     events: createRecordingAppEvents(),
     logger,
@@ -89,6 +88,24 @@ describe('createAppRouter', () => {
       app.dispose();
     }
     expect(unbind).toHaveBeenCalledTimes(1);
+  });
+
+  it('宿主片段：补上内核没有的过程；和内核重名时报错；都没有的 UNAVAILABLE', async () => {
+    const app = createAppRouter({
+      deps: deps(),
+      hostHandlers: { 'appIcon.set': () => 'ink' as const },
+    });
+    const { api, close } = connect(app.router);
+    try {
+      await expect(api.appIcon.set({ variant: 'ink' })).resolves.toBe('ink');
+      await expect(api.appIcon.get()).rejects.toMatchObject({ code: 'UNAVAILABLE' });
+      await expect(api.mascot.scaleGet()).rejects.toMatchObject({ code: 'UNAVAILABLE' });
+    } finally {
+      close();
+    }
+    expect(() =>
+      createAppRouter({ deps: deps(), hostHandlers: { 'theme.get': () => ({}) as never } }),
+    ).toThrow(/theme\.get/);
   });
 
   it('dangerous 过程：受信调用者记审计日志，不可信调用者 FORBIDDEN', async () => {

@@ -83,6 +83,3 @@ export class ServiceContainer implements IServiceContainer {
     this.factories.clear();
   }
 }
-
-// 全局服务容器实例
-export const serviceContainer = new ServiceContainer();

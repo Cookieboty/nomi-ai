@@ -22,12 +22,7 @@ jest.mock('electron-updater', () => ({
 }));
 
 import { createRecordingAppEvents, type RecordingAppEvents } from '../../../src/core/appEvents';
-import {
-  UPDATE_IPC,
-  UpdateService,
-  _resetUpdateServiceForTests,
-  type UpdaterLike,
-} from '../../../src/services/UpdateService';
+import { UPDATE_IPC, UpdateService, type UpdaterLike } from '../../../src/services/UpdateService';
 import { whenPrivateWritesIdle } from '../../../src/utils/privateFile';
 import { fakeHostPorts } from '../helpers/fakeHostPorts';
 
@@ -96,7 +91,6 @@ describe('UpdateService', () => {
 
   beforeEach(() => {
     events = createRecordingAppEvents();
-    _resetUpdateServiceForTests();
     updater = new FakeUpdater();
     svc = new UpdateService(logger as never, {
       ports,
@@ -110,7 +104,6 @@ describe('UpdateService', () => {
 
   afterEach(() => {
     svc.stop();
-    _resetUpdateServiceForTests();
   });
 
   it('starts with idle and wires autoDownload + consent-only install', () => {

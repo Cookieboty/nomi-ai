@@ -3,7 +3,7 @@
  * 提供错误分类、日志记录和用户友好提示
  */
 
-import { eventBus } from '@nomi-ai/core/core/EventBus';
+import type { IEventBus } from '@nomi-ai/core/core/EventBus';
 import { t } from '@nomi-ai/core/i18n';
 import { type ILoggerService } from '@nomi-ai/core/services/LoggerService';
 import type { HostPorts } from '@nomi-ai/host-ports';
@@ -57,7 +57,12 @@ export class GlobalErrorHandler implements IErrorHandler {
   private maxHistorySize = 100;
   private errorCounter = 0;
 
-  constructor(logger: ILoggerService, ports: ErrorHandlerPorts) {
+  /** 错误事件（`error:*` / `notification:show`）发到 `bus`；不给就不发（没有模块级总线） */
+  constructor(
+    logger: ILoggerService,
+    ports: ErrorHandlerPorts,
+    private readonly bus?: Pick<IEventBus, 'emit'>,
+  ) {
     this.logger = logger;
     this.ports = ports;
     this.setupGlobalHandlers();
@@ -108,7 +113,7 @@ export class GlobalErrorHandler implements IErrorHandler {
     });
 
     // 发送到渲染进程（如果需要）
-    eventBus.emit('error:unhandledRejection', errorInfo);
+    this.bus?.emit('error:unhandledRejection', errorInfo);
   }
 
   /**
@@ -209,7 +214,7 @@ export class GlobalErrorHandler implements IErrorHandler {
     });
 
     // 发送事件
-    eventBus.emit('error:recorded', errorInfo);
+    this.bus?.emit('error:recorded', errorInfo);
   }
 
   /**
@@ -217,7 +222,7 @@ export class GlobalErrorHandler implements IErrorHandler {
    */
   private handleCriticalError(errorInfo: ErrorInfo): void {
     this.showCriticalErrorDialog(errorInfo);
-    eventBus.emit('error:critical', errorInfo);
+    this.bus?.emit('error:critical', errorInfo);
   }
 
   /**
@@ -225,7 +230,7 @@ export class GlobalErrorHandler implements IErrorHandler {
    */
   private handleHighError(errorInfo: ErrorInfo): void {
     this.showErrorNotification(errorInfo);
-    eventBus.emit('error:high', errorInfo);
+    this.bus?.emit('error:high', errorInfo);
   }
 
   /**
@@ -233,7 +238,7 @@ export class GlobalErrorHandler implements IErrorHandler {
    */
   private handleMediumError(errorInfo: ErrorInfo): void {
     // 可以选择性显示通知
-    eventBus.emit('error:medium', errorInfo);
+    this.bus?.emit('error:medium', errorInfo);
   }
 
   /**
@@ -241,7 +246,7 @@ export class GlobalErrorHandler implements IErrorHandler {
    */
   private handleLowError(errorInfo: ErrorInfo): void {
     // 仅记录日志，不显示用户界面
-    eventBus.emit('error:low', errorInfo);
+    this.bus?.emit('error:low', errorInfo);
   }
 
   /**
@@ -264,7 +269,7 @@ export class GlobalErrorHandler implements IErrorHandler {
   private showErrorNotification(errorInfo: ErrorInfo): void {
     try {
       // 发送到渲染进程显示通知
-      eventBus.emit('notification:show', {
+      this.bus?.emit('notification:show', {
         type: 'error',
         title: t('electron.common.operation-failed'),
         message: this.getUserFriendlyMessage(errorInfo.message),

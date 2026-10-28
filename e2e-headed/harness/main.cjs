@@ -3,7 +3,7 @@
 /**
  * e2e-headed 测试专用主进程（P9-11 Polish C）
  *
- * 不复用 packages/host-electron/src/core/Application.ts —— 那条链路会拉真实 AI runtime boot、
+ * 不复用 packages/host-electron/src/host/Application.ts（内核 createCore）—— 那条链路会拉真实 AI runtime boot、
  * SafeKey、ScreenCapture 等重量级依赖，headed E2E 里不需要。
  *
  * 本文件只保留 headed 复跑所必需的最小片段：

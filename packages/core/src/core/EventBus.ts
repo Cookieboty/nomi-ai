@@ -1,6 +1,6 @@
 /**
  * 事件总线 - 用于模块间解耦通信
- * 实现发布-订阅模式
+ * 实现发布-订阅模式。没有模块级实例：谁需要谁 new 一个（一个进程可以有多个内核，§7.1）。
  */
 
 export interface IEventBus {
@@ -86,6 +86,3 @@ export class EventBus implements IEventBus {
     return Array.from(this.listeners.keys());
   }
 }
-
-// 全局事件总线实例
-export const eventBus = new EventBus();

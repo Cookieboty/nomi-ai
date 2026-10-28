@@ -1,5 +1,5 @@
 /**
- * D1（host/contract/media.ts）：voice / tts / desktop / screen / nav 的处理函数委派给服务、
+ * D1（contract/media.ts）：voice / tts / desktop / screen / nav 的处理函数委派给服务、
  * 按窗口的操作用调用方的 webContents id、surfaces 与 dangerous 由内置守卫拒绝、流式识别的推送
  * 进到 `voice.streamStart` 的流里、旧通道桥接成契约事件。
  */
@@ -21,24 +21,18 @@ const fakeTts = {
   promptVoice: jest.fn(() => false),
   health: jest.fn(() => ({ success: true, message: 'ok' })),
 };
-jest.mock('@nomi-ai/core/tts/TtsService', () => ({ getTtsService: () => fakeTts }));
-
 import { createClient, type CallerContext } from '@nomi-ai/contract';
 import { createInProcessServer } from '@nomi-ai/contract/testing';
-import { createRecordingAppEvents } from '@nomi-ai/core/core/appEvents';
-import type { VoiceSender } from '@nomi-ai/core/voice/VoiceService';
 import type { HostPorts } from '@nomi-ai/host-ports';
 
-import {
-  APP_EVENT_BRIDGE,
-  createAppRouter,
-  createContractEventBridge,
-  createContractServices,
-  type ContractDeps,
-  type ContractServices,
-} from '../../../../src/host/contract';
-import { mediaEventBridge } from '../../../../src/host/contract/media';
-import { openVoiceStreamCount } from '../../../../src/host/contract/media/voiceSenders';
+import { createContractEventBridge } from '../../../src/contract/eventBridge';
+import { mediaEventBridge } from '../../../src/contract/media';
+import { createVoiceStreams } from '../../../src/contract/media/voiceSenders';
+import { APP_EVENT_BRIDGE, createAppRouter } from '../../../src/contract/router';
+import type { CoreContractServices } from '../../../src/contract/services';
+import type { ContractDeps } from '../../../src/contract/types';
+import { createRecordingAppEvents } from '../../../src/core/appEvents';
+import type { VoiceSender } from '../../../src/voice/VoiceService';
 
 const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
 
@@ -144,7 +138,7 @@ const MASCOT: CallerContext = { surface: 'mascot', trusted: true, id: '7' };
 const CHAT: CallerContext = { surface: 'chat', trusted: true, id: '8' };
 
 function setup() {
-  const services: ContractServices = createContractServices();
+  const services: CoreContractServices = {};
   const voice = fakeVoice();
   const desktop = fakeDesktop();
   const screen = { checkSend: jest.fn(async () => 'local_only' as const) };
@@ -153,19 +147,16 @@ function setup() {
     set: jest.fn(),
     save: jest.fn(async () => undefined),
   };
-  const windowManager = {
-    openProviderPanel: jest.fn(async () => undefined),
-    getMainWindow: () => null,
-    getAiChatWindow: () => null,
-  };
-  Object.assign(services, { voice, desktop, screen, config, windowManager });
+  const windows = { open: jest.fn(async () => undefined) };
+  Object.assign(services, { voice, desktop, screen, config, tts: fakeTts });
   const deps: ContractDeps = {
     services,
-    ports: {} as HostPorts,
+    ports: { windows } as unknown as HostPorts,
     events: createRecordingAppEvents(),
     logger,
   };
-  const app = createAppRouter({ deps });
+  const voiceStreams = createVoiceStreams();
+  const app = createAppRouter({ deps, voiceStreams });
   const server = createInProcessServer();
   const stop = server.serve(app.router as never);
   const clients: Array<{ disconnect(): void }> = [];
@@ -179,7 +170,8 @@ function setup() {
     desktop,
     screen,
     config,
-    windowManager,
+    windows,
+    voiceStreams,
     router: app.router,
     connect,
     close: () => {
@@ -260,7 +252,7 @@ describe('media handlers', () => {
         text: 'done',
       });
       await expect(it.next()).resolves.toMatchObject({ done: true });
-      expect(openVoiceStreamCount()).toBe(0);
+      expect(t.voiceStreams.count()).toBe(0);
     } finally {
       t.close();
     }
@@ -286,7 +278,7 @@ describe('media handlers', () => {
       for (let i = 0; i < 20 && !t.voice.streamCancel.mock.calls.length; i++)
         await new Promise((r) => setTimeout(r, 0));
       expect(t.voice.streamCancel).toHaveBeenCalledWith(expect.objectContaining({ id: 8 }), '8:9');
-      expect(openVoiceStreamCount()).toBe(0);
+      expect(t.voiceStreams.count()).toBe(0);
     } finally {
       t.close();
     }
@@ -427,7 +419,7 @@ describe('media handlers', () => {
     try {
       await expect(chat.screen.checkSend()).resolves.toBe('local_only');
       await mascot.nav.openVoiceSettings();
-      expect(t.windowManager.openProviderPanel).toHaveBeenCalledWith('ai:settings:open-voice');
+      expect(t.windows.open).toHaveBeenCalledWith('chat', { route: 'voice' });
       await expect(chat.nav.openVoiceSettings()).rejects.toMatchObject({ code: 'FORBIDDEN' });
     } finally {
       t.close();
@@ -435,7 +427,7 @@ describe('media handlers', () => {
   });
 
   it('服务缺失时 UNAVAILABLE', async () => {
-    const services = createContractServices();
+    const services: CoreContractServices = {};
     const app = createAppRouter({
       deps: { services, ports: {} as HostPorts, events: createRecordingAppEvents(), logger },
     });

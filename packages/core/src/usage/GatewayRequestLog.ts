@@ -96,13 +96,3 @@ export function readLegacyGatewayTrace(root: string): boolean {
     return false;
   }
 }
-
-let inst: GatewayRequestLog | null = null;
-export function initGatewayRequestLog(d: GatewayRequestLogDeps): GatewayRequestLog {
-  inst?.dispose();
-  inst = new GatewayRequestLog(d);
-  return inst;
-}
-export function getGatewayRequestLog(): GatewayRequestLog | null {
-  return inst;
-}

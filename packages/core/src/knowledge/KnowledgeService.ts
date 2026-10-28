@@ -15,7 +15,7 @@ import type { HostPorts } from '@nomi-ai/host-ports';
 import type * as Tess from 'tesseract.js';
 import { z } from 'zod';
 
-import { broadcastMascotCommand } from '../ai/mascotCommand';
+import { sendMascotCommand } from '../ai/mascotCommand';
 import type { AppEvents } from '../core/appEvents';
 import { isLocalBaseURL } from '../desktop/consent';
 import type { DesktopService } from '../desktop/DesktopService';
@@ -776,10 +776,10 @@ export class KnowledgeService {
         tr('electron.common.ok-knowledge-base-content-won-t-be-sent'),
       );
     // 看板娘：翻资料时「思考」，找到答案后点头
-    broadcastMascotCommand({ type: 'motion', name: 'think' });
+    sendMascotCommand(this.d.events, { type: 'motion', name: 'think' });
     const answer = (await this.d.complete(buildAskMessages(question, hits, history))).trim();
     const sources = toSources(hits, answer);
-    broadcastMascotCommand({ type: 'motion', name: sources.length ? 'nod' : 'shake' });
+    sendMascotCommand(this.d.events, { type: 'motion', name: sources.length ? 'nod' : 'shake' });
     this.d.desktop.audit.append({
       tool: 'kb_ask',
       args: { question: question.slice(0, 80), sources: sources.length },
@@ -1008,13 +1008,4 @@ export class KnowledgeService {
         : [],
     );
   }
-}
-
-let instance: KnowledgeService | null = null;
-export function initKnowledgeService(d: KnowledgeDeps): KnowledgeService {
-  instance ??= new KnowledgeService(d);
-  return instance;
-}
-export function getKnowledgeService(): KnowledgeService | null {
-  return instance;
 }

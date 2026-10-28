@@ -8,7 +8,8 @@
 import * as path from 'path';
 
 import type { ProviderService, ProviderState } from '@nomi-ai/ai-runtime';
-import { broadcastMascotCommand } from '@nomi-ai/core/ai/mascotCommand';
+import { sendMascotCommand, type MascotCommand } from '@nomi-ai/core/ai/mascotCommand';
+import type { AppEvents } from '@nomi-ai/core/core/appEvents';
 import type { GatewayStateView } from '@nomi-ai/core/gateway/GatewayService';
 import { onLocaleChange, t } from '@nomi-ai/core/i18n';
 import type { ILoggerService } from '@nomi-ai/core/services/LoggerService';
@@ -138,6 +139,8 @@ export interface TrayManagerOptions {
   /** 桌面能力设置（授权文件夹 / 权限 / 操作记录） */
   openDesktopPanel?: () => void;
   quit: () => void;
+  /** 内核的应用事件总线：托盘里的看板娘动作 / 互动设置经它发给看板娘窗口；缺省时不发 */
+  events?: AppEvents;
 }
 
 /** 托盘「看板娘动作」菜单项 */
@@ -172,6 +175,10 @@ export class TrayManager {
   private unsubscribe?: () => void;
 
   constructor(private readonly opts: TrayManagerOptions) {}
+
+  private mascot(cmd: MascotCommand): void {
+    sendMascotCommand(this.opts.events, cmd);
+  }
 
   /** 取一张一定非空的托盘图：macOS 单色 Template，其余彩色；读不到就退回应用图标 */
   private trayImage(): NativeImage {
@@ -283,12 +290,12 @@ export class TrayManager {
         label: t('electron.common.nomi-motions'),
         submenu: TRAY_MOTIONS.map(([name, label]) => ({
           label: t(label),
-          click: () => broadcastMascotCommand({ type: 'motion', name }),
+          click: () => this.mascot({ type: 'motion', name }),
         })),
       },
       {
         label: t('electron.common.interaction-settings-click-through-gravity-stroll'),
-        click: () => broadcastMascotCommand({ type: 'open-panel', panel: 'interaction' }),
+        click: () => this.mascot({ type: 'open-panel', panel: 'interaction' }),
       },
       { type: 'separator' },
       { label: t('electron.common.quit'), click: () => this.opts.quit() },

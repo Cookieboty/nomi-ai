@@ -1,143 +1,49 @@
 /**
- * 应用契约在 Electron 宿主上的组装（docs/design/core-host-decoupling.md §4、§8、§12 P1b）。
+ * 应用契约在 Electron 宿主上的部分（docs/design/core-host-decoupling.md §4、§7.1、§8）。
  *
- * - `createAppRouter`：AI 门面（ai-runtime 的 `createAiHandlers`）+ 五个域的处理函数（coding / knowledge
- *   与事件桥在内核 `@nomi-ai/core/contract/*`；media / shell / mascot 还要用窗口与 AI runtime，留在这里）→
- *   `implement(appContract, …)`；AI runtime 没起来时 `ai.*` 以 UNAVAILABLE 失败，其余域照常可用；
- * - `APP_EVENT_BRIDGE`：五个域的「旧通道 → 契约事件」表，交给 `createContractEventBridge`；
+ * router 由内核组装（`@nomi-ai/core/createCore` → `contract/router.ts` 的 `createAppRouter`：AI 门面 + 内核
+ * 的域处理函数 + 宿主片段，事件桥也在内核）。宿主只提供**片段**：要用窗口的过程。
+ *
+ * - `createHostHandlers`：看板娘窗口互动与大小、灵动岛、旧窗口通道（`./mascot.ts`）与应用图标
+ *   （`appIcon.*`，窗口 / 任务栏 / Dock / 托盘图标）。组合根把它作为 `contract.hostHandlers` 传给
+ *   `createCore`；片段只能补内核没有实现的过程，重名时 `createAppRouter` 报错；
+ * - `electronCallerWindows`：按调用方的 webContents id 找回窗口，语音会话随窗口销毁释放；
  * - 调用者：surface 与 trusted 由传输层填写（host/contractIpc.ts → resolveAiCaller），
- *   契约里声明的 `surfaces` / `dangerous` 由内置守卫判定（不可关闭）；这里的中间件只记审计日志。
- *
- * 本文件属于 P1b 基础；域代理只改自己的 `<域>.ts`。
+ *   契约里声明的 `surfaces` / `dangerous` 由内置守卫判定（不可关闭）。
  */
 
-import {
-  ContractError,
-  implement,
-  type CallInfo,
-  type Middleware,
-  type Router,
-} from '@nomi-ai/contract';
-import { appContract, type AppContract } from '@nomi-ai/contract/app';
-import { codingEventBridge, createCodingHandlers } from '@nomi-ai/core/contract/coding';
-import { createKnowledgeHandlers, knowledgeEventBridge } from '@nomi-ai/core/contract/knowledge';
+import type { CallerWindows } from '@nomi-ai/core/contract/media/voiceSenders';
+import type { AppHandlers } from '@nomi-ai/core/contract/types';
 
-import { createMascotHandlers, mascotEventBridge } from './mascot';
-import { createMediaHandlers, mediaEventBridge } from './media';
-import { createShellHandlers, shellEventBridge } from './shell';
-import type {
-  AppHandlers,
-  ContractDeps,
-  ContractLoggerLike,
-  EventBridgeEntry,
-  EventBridgeMap,
-} from './types';
+import { appIconState, setIconVariant } from '../../core/appIcon';
+import type { WindowManager } from '../../core/WindowManager';
 
-/** `ai.*` 处理函数（ai-runtime 的 AiHandlersHandle 的结构子集；不在这里加载 ai-runtime） */
-type AiHandlerTable = Pick<AppHandlers, keyof AppHandlers & `ai.${string}`>;
+import { createMascotHostHandlers, type MascotHostDeps } from './mascot';
 
-export interface AiContractPart {
-  handlers: AiHandlerTable;
-  bindEvents(publisher: Router<AppContract>['events']): () => void;
-}
+export type HostContractDeps = MascotHostDeps;
 
-export interface CreateAppRouterOptions {
-  deps: ContractDeps;
-  /** AI runtime 的契约处理函数；没有（启动失败）时 `ai.*` 以 UNAVAILABLE 失败 */
-  ai?: AiContractPart;
-  middleware?: readonly Middleware[];
-}
-
-export interface AppRouterHandle {
-  router: Router<AppContract>;
-  dispose(): void;
-}
-
-function mergeBridges(parts: Record<string, EventBridgeMap<string>>): EventBridgeMap<string> {
-  const out: Record<string, EventBridgeEntry<string>> = {};
-  const owner = new Map<string, string>();
-  for (const [part, map] of Object.entries(parts)) {
-    for (const [channel, entry] of Object.entries(map)) {
-      const prev = owner.get(channel);
-      if (prev !== undefined) {
-        throw new TypeError(
-          `[contract] legacy channel '${channel}' is bridged by ${prev} and ${part}`,
-        );
-      }
-      owner.set(channel, part);
-      out[channel] = entry;
-    }
-  }
-  return Object.freeze(out);
-}
-
-/** 五个域的事件桥合并表；同一旧通道只能由一个域桥接 */
-export const APP_EVENT_BRIDGE: EventBridgeMap<string> = mergeBridges({
-  media: mediaEventBridge,
-  shell: shellEventBridge,
-  coding: codingEventBridge,
-  knowledge: knowledgeEventBridge,
-  mascot: mascotEventBridge,
-});
-
-function unavailableAiHandlers(): AiHandlerTable {
-  const table: Record<string, unknown> = {};
-  for (const [name, def] of Object.entries(appContract.procedures)) {
-    if (!name.startsWith('ai.')) continue;
-    const fail = (): never => {
-      throw new ContractError('UNAVAILABLE', 'AI runtime is not available');
-    };
-    table[name] =
-      (def as { kind: string }).kind === 'stream'
-        ? // eslint-disable-next-line require-yield -- 第一次 next() 就失败
-          async function* () {
-            fail();
-          }
-        : fail;
-  }
-  return table as AiHandlerTable;
-}
-
-/** 审计：dangerous 过程的每次调用记一条（谁、从哪个界面）；不改变调用结果 */
-export function auditMiddleware(logger: Pick<ContractLoggerLike, 'info'>): Middleware {
-  return async (call: CallInfo, next) => {
-    if (call.procedure.dangerous) {
-      logger.info('contract dangerous call', {
-        name: call.name,
-        surface: call.caller.surface,
-        caller: call.caller.id,
-      });
-    }
-    return next();
-  };
-}
-
-export function createAppRouter(opts: CreateAppRouterOptions): AppRouterHandle {
-  const { deps } = opts;
-  const handlers: AppHandlers = {
-    ...(opts.ai?.handlers ?? unavailableAiHandlers()),
-    ...createMediaHandlers(deps),
-    ...createShellHandlers(deps),
-    ...createCodingHandlers(deps),
-    ...createKnowledgeHandlers(deps),
-    ...createMascotHandlers(deps),
-  };
-  const router = implement(appContract, handlers, {
-    middleware: [auditMiddleware(deps.logger), ...(opts.middleware ?? [])],
-    logger: { warn: (message, data) => deps.logger.warn(message, data) },
-  });
-  const unbind = opts.ai?.bindEvents(router.events);
+/** 宿主片段：只含要用窗口 / 宿主资源的过程 */
+export function createHostHandlers(deps: HostContractDeps): Partial<AppHandlers> {
   return {
-    router,
-    dispose() {
-      unbind?.();
+    ...createMascotHostHandlers(deps),
+    'appIcon.get': () => appIconState(),
+    'appIcon.set': ({ variant }) => setIconVariant(variant),
+  };
+}
+
+/** 调用方窗口（看板娘 / 对话窗口）按 webContents id 找回；辅助窗口与测试调用方找不到 */
+export function electronCallerWindows(
+  windowManager: () => Pick<WindowManager, 'getMainWindow' | 'getAiChatWindow'> | undefined,
+): CallerWindows {
+  return {
+    find(id) {
+      const wm = windowManager();
+      for (const w of [wm?.getMainWindow(), wm?.getAiChatWindow()]) {
+        if (w && !w.isDestroyed() && w.webContents.id === id) return w.webContents;
+      }
+      return null;
     },
   };
 }
 
-export {
-  createContractEventBridge,
-  type ContractEventBridge,
-} from '@nomi-ai/core/contract/eventBridge';
-export { createContractServices, type ContractServices } from './services';
-export * from './types';
+export { createMascotHostHandlers, type MascotHostDeps } from './mascot';

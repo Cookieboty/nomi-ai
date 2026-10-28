@@ -633,14 +633,3 @@ export function gatewayTerminalSource(g: GatewayService): () => TerminalSource |
     };
   };
 }
-
-let inst: TerminalCommands | null = null;
-
-export function initTerminalCommands(d: TerminalDeps): TerminalCommands {
-  inst = new TerminalCommands(d);
-  return inst;
-}
-
-export function getTerminalCommands(): TerminalCommands | null {
-  return inst;
-}

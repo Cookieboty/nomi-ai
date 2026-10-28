@@ -1,11 +1,15 @@
 /**
  * 启动管理器 - 优化应用启动流程
- * 实现延迟加载、异步初始化和启动性能监控
+ * 实现延迟加载、异步初始化和启动性能监控。
+ *
+ * 纯 Node、与平台无关（P4 从宿主搬进内核）：宿主用它排自己的启动任务（应用事件、进程信号、日志清理…）。
+ * 进度事件（`bootstrap:*`）发到构造时给的事件总线；不给就不发（没有模块级总线）。
  */
 
-import { eventBus } from '@nomi-ai/core/core/EventBus';
-import { t as tr } from '@nomi-ai/core/i18n';
-import { type ILoggerService } from '@nomi-ai/core/services/LoggerService';
+import { t as tr } from '../i18n';
+import { type ILoggerService } from '../services/LoggerService';
+
+import type { IEventBus } from './EventBus';
 
 export interface BootstrapTask {
   name: string;
@@ -44,7 +48,10 @@ export class BootstrapManager implements IBootstrapManager {
   private metrics: BootstrapMetrics | null = null;
   private logger: ILoggerService;
 
-  constructor(logger: ILoggerService) {
+  constructor(
+    logger: ILoggerService,
+    private readonly bus?: Pick<IEventBus, 'emit'>,
+  ) {
     this.logger = logger;
   }
 
@@ -112,7 +119,7 @@ export class BootstrapManager implements IBootstrapManager {
         totalTasks: this.tasks.size,
       });
 
-      eventBus.emit('bootstrap:critical-complete', this.metrics);
+      this.bus?.emit('bootstrap:critical-complete', this.metrics);
       return this.metrics;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -217,7 +224,7 @@ export class BootstrapManager implements IBootstrapManager {
           await new Promise((resolve) => setTimeout(resolve, 50));
         }
         this.logger.info('低优先级任务执行完成');
-        eventBus.emit('bootstrap:all-complete', this.metrics);
+        this.bus?.emit('bootstrap:all-complete', this.metrics);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         this.logger.error('低优先级任务执行失败', { error: errorMessage });
@@ -286,7 +293,7 @@ export class BootstrapManager implements IBootstrapManager {
       });
 
       this.logger.info(`启动任务执行成功: ${task.name}`, { duration: `${duration}ms` });
-      eventBus.emit('bootstrap:task-complete', { name: task.name, duration });
+      this.bus?.emit('bootstrap:task-complete', { name: task.name, duration });
     } catch (error) {
       const taskEndTime = Date.now();
       const duration = taskEndTime - taskStartTime;
@@ -309,7 +316,7 @@ export class BootstrapManager implements IBootstrapManager {
         duration: `${duration}ms`,
       });
 
-      eventBus.emit('bootstrap:task-error', { name: task.name, error: errorMessage });
+      this.bus?.emit('bootstrap:task-error', { name: task.name, error: errorMessage });
 
       // 关键和高优先级任务失败时抛出错误
       if (task.priority === 'critical' || task.priority === 'high') {

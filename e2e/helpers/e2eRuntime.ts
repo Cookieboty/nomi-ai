@@ -29,7 +29,7 @@ export interface E2eRuntimeOptions {
 export interface E2eRuntimeHandle {
   ctx: FakeSdkCtx;
   client: AIClient;
-  /** 应用契约的 AI 实现（与主进程 AIRuntimeBoot 相同） */
+  /** 应用契约的 AI 实现（与内核 AIRuntimeBoot 相同） */
   ai: AiRouterHandle;
   /** 契约的 IPC 传输（与主进程 host/contractIpc.ts 相同） */
   transport: IpcServerTransport;

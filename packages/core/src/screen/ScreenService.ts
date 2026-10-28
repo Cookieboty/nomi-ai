@@ -50,9 +50,3 @@ export class ScreenService {
     return r ?? 'ok';
   }
 }
-
-let inst: ScreenService | null = null;
-export function initScreenService(d: ScreenDeps): ScreenService {
-  inst = new ScreenService(d);
-  return inst;
-}

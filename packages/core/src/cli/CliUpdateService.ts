@@ -742,20 +742,3 @@ export class CliUpdateService {
     this.d.events.publish('ai:cli-update:event', payload);
   }
 }
-
-let inst: CliUpdateService | null = null;
-export function initCliUpdateService(d: {
-  root: string;
-  logger: Logger;
-  events: AppEvents;
-  probe?: CliProbe;
-  runner?: CliRunner;
-  drain?: (kind: UpdatableCli) => Promise<number>;
-  onUpdated?: (kind: UpdatableCli, version: string | null) => void;
-}): CliUpdateService {
-  inst = new CliUpdateService(d);
-  return inst;
-}
-export function getCliUpdateService(): CliUpdateService | null {
-  return inst;
-}

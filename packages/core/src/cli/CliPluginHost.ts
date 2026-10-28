@@ -409,14 +409,3 @@ export class CliPluginHost {
     this.d.events.publish('ai:cli:registry-changed', this.snapshot());
   }
 }
-
-let inst: CliPluginHost | null = null;
-
-export function initCliPluginHost(d: CliPluginHostDeps): CliPluginHost {
-  inst = new CliPluginHost(d);
-  return inst;
-}
-
-export function getCliPluginHost(): CliPluginHost | null {
-  return inst;
-}

@@ -15,7 +15,8 @@ import type {
   TTSTestResult,
 } from '@nomi-ai/types';
 
-import { broadcastMascotCommand } from '../ai/mascotCommand';
+import { sendMascotCommand } from '../ai/mascotCommand';
+import type { AppEvents } from '../core/appEvents';
 import { t } from '../i18n';
 
 import { EdgeTtsService } from './edge/EdgeTtsService';
@@ -37,7 +38,9 @@ export interface TtsServiceDeps {
   env?: Record<string, string | undefined>;
   /** 测试注入 */
   edge?: EdgeTtsService;
-  /** 默认经 mascot:command 转给看板娘窗口 */
+  /** 应用事件总线：朗读回复默认经 mascot:command 转给看板娘窗口 */
+  events?: AppEvents;
+  /** 测试注入：替代经 events 的 mascot:command */
   sendToMascot?: (cmd: ReplySpeechCommand) => void;
 }
 
@@ -169,7 +172,8 @@ export class TtsService {
     }
     const cmd = replySpeechCommand(msg, cfg, this.env);
     if (!cmd) return false;
-    (this.d.sendToMascot ?? broadcastMascotCommand)(cmd);
+    if (this.d.sendToMascot) this.d.sendToMascot(cmd);
+    else sendMascotCommand(this.d.events, cmd);
     return true;
   }
 
@@ -193,17 +197,4 @@ export class TtsService {
     const res = this.notAvailable(provider);
     return res.success ? { ...res, success: false } : res;
   }
-}
-
-let instance: TtsService | null = null;
-
-/** 组合根（启动任务 init-config-services）创建；重复调用替换实例 */
-export function initTtsService(deps: TtsServiceDeps): TtsService {
-  instance = new TtsService(deps);
-  return instance;
-}
-
-/** 还没初始化时为 null（契约处理函数据此报 UNAVAILABLE） */
-export function getTtsService(): TtsService | null {
-  return instance;
 }

@@ -35,9 +35,7 @@ export const ELECTRON_HOST_FILES = [
  * packages/host-electron/src 里宿主区域之外、P0 时已经 import electron 的文件。不得新增条目。
  */
 export const ELECTRON_IMPORT_ALLOWLIST = [
-  // 组合根（宿主工作）：创建窗口管理器与端口、注册协议与会话权限、接 IPC 传输；
-  // 搬家时拆成内核 createCore + 宿主 main，内核那一半不再 import electron
-  'packages/host-electron/src/core/Application.ts',
+  // P4 清空：组合根拆成内核 createCore（packages/core）与宿主组合根 host/Application.ts（宿主区域）
 ];
 
 /**

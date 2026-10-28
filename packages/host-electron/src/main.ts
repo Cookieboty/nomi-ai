@@ -14,7 +14,7 @@ import { loadLoginShellPath } from '@nomi-ai/core/cli/shellPath';
 import { createMainLogger } from '@nomi-ai/core/utils/log';
 import { app, BrowserWindow } from 'electron';
 
-import { Application } from './core/Application';
+import { Application } from './host/Application';
 import { registerAppSchemePrivileges } from './schemePrivileges';
 import { LEGACY_DEV_NAMES, migrateLegacyUserData } from './utils/legacyUserData';
 import { perfMark } from './utils/perfMarks';

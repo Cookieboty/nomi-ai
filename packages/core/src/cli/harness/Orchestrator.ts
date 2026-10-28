@@ -5359,17 +5359,6 @@ function asSlashBackend(b: unknown): SlashBackend {
   return b === 'claude' || b === 'codex' || b === 'grok' || b === 'dsh' ? b : 'nomi';
 }
 
-let inst: HarnessOrchestrator | null = null;
-export function initCliHarnessService(
-  d: ConstructorParameters<typeof HarnessOrchestrator>[0],
-): HarnessOrchestrator {
-  inst = new HarnessOrchestrator(d);
-  return inst;
-}
-export function getCliHarnessService(): HarnessOrchestrator | null {
-  return inst;
-}
-
 function slimResult(r: HarnessSendResult): HarnessSendReply {
   const { events: _events, ...rest } = r;
   return rest;

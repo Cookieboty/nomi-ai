@@ -12,7 +12,7 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 
-import { broadcastMascotCommand } from '../ai/mascotCommand';
+import { sendMascotCommand } from '../ai/mascotCommand';
 import type { AppEvents } from '../core/appEvents';
 import type { DesktopService } from '../desktop/DesktopService';
 import { t as tr } from '../i18n';
@@ -255,7 +255,7 @@ export class LocalModelService {
         if (process.platform !== 'win32') fs.chmodSync(bin, 0o755);
       }
       this.audit('local_model_download', { id }, 'ok', Date.now() - t0);
-      broadcastMascotCommand({ type: 'motion', name: 'clap' });
+      sendMascotCommand(this.d.events, { type: 'motion', name: 'clap' });
       return { ok: true };
     } catch (e) {
       const aborted = ctrl.signal.aborted;
@@ -371,7 +371,7 @@ export class LocalModelService {
     this.settings.activeModel = id;
     this.save();
     this.audit('local_model_start', { id, port: this.port }, 'ok', Date.now() - t0);
-    broadcastMascotCommand({ type: 'motion', name: 'nod' });
+    sendMascotCommand(this.d.events, { type: 'motion', name: 'nod' });
     this.d.desktop.say(tr('electron.common.local-model-is-ready-your-chats-won-t', m.name));
     this.changed();
     return { baseURL, providerId };
@@ -604,11 +604,3 @@ function freePort(): Promise<number> {
 }
 
 export { RUNTIME_ID };
-let inst: LocalModelService | null = null;
-export function initLocalModelService(d: LocalDeps) {
-  inst = new LocalModelService(d);
-  return inst;
-}
-export function getLocalModelService() {
-  return inst;
-}

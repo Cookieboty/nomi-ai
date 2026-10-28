@@ -471,24 +471,4 @@ export class UpdateService {
   }
 }
 
-let singleton: UpdateService | null = null;
-
-export function getUpdateService(
-  logger?: ILoggerService,
-  opts?: UpdateServiceOptions,
-): UpdateService {
-  if (!singleton) {
-    if (!logger || !opts)
-      throw new Error('UpdateService requires a logger and ports on first call');
-    singleton = new UpdateService(logger, opts);
-  }
-  return singleton;
-}
-
-/** test-only */
-export function _resetUpdateServiceForTests(): void {
-  singleton?.stop();
-  singleton = null;
-}
-
 export const UPDATE_IPC = CHANNEL;

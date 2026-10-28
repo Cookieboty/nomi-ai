@@ -6,7 +6,7 @@ import type { HostPorts } from '@nomi-ai/host-ports';
 import type { DesktopBubble } from '@nomi-ai/types';
 // （显示 / 隐藏 / 按 sender 校验）与窗口数量。
 
-import { broadcastMascotCommand } from '../ai/mascotCommand';
+import { sendMascotCommand } from '../ai/mascotCommand';
 import type { AppEvents } from '../core/appEvents';
 import { t as tr } from '../i18n';
 import { CodeSandbox } from '../sandbox/CodeSandbox';
@@ -210,8 +210,8 @@ export class DesktopService {
     if (!w) return;
     if (!w.isVisible()) w.showInactive();
     this.events.publish('desktop:confirm-request', req, { surface: 'mascot' });
-    broadcastMascotCommand({ type: 'motion', name: 'think' });
-    broadcastMascotCommand({
+    sendMascotCommand(this.events, { type: 'motion', name: 'think' });
+    sendMascotCommand(this.events, {
       type: 'expression',
       name: req.danger === 'destructive' ? 'surprised' : 'relaxed',
     });
@@ -325,8 +325,8 @@ export class DesktopService {
         source: 'scheduler',
       });
     }
-    broadcastMascotCommand({ type: 'motion', name: 'wave' });
-    broadcastMascotCommand({ type: 'expression', name: 'happy' });
+    sendMascotCommand(this.events, { type: 'motion', name: 'wave' });
+    sendMascotCommand(this.events, { type: 'expression', name: 'happy' });
   }
 
   /** 看板娘不在时的提醒：多条合成一条，走灵动岛或系统通知；都显示不了时只记 via=none 的审计 */
@@ -374,7 +374,7 @@ export class DesktopService {
         this.deliverReminderElsewhere(items);
         return [];
       }
-      broadcastMascotCommand({ type: 'motion', name: 'wave' });
+      sendMascotCommand(this.events, { type: 'motion', name: 'wave' });
     }
     return items.map((r) => ({ id: r.id, text: r.text, dueAt: r.dueAt }));
   }
@@ -504,7 +504,7 @@ export class DesktopService {
     const say = (text: string) => this.toMascot('desktop:bubble', { text });
     const fail = (code: string, text: string) => {
       say(text);
-      broadcastMascotCommand({ type: 'expression', name: 'sad' });
+      sendMascotCommand(this.events, { type: 'expression', name: 'sad' });
       this.audit.append({
         tool: 'drop_summarize',
         args: { path: raw },
@@ -538,7 +538,7 @@ export class DesktopService {
     this.broker.grant(probe.real, 'read', 'file', true);
     const name = path.basename(probe.real);
     say(tr('electron.common.reading', name));
-    broadcastMascotCommand({ type: 'motion', name: 'think' });
+    sendMascotCommand(this.events, { type: 'motion', name: 'think' });
     const parsed = await parseFile(probe.real, { processes: this.ports.processes });
     if (!parsed.ok) return fail(parsed.code, tr('electron.common.read-failed', parsed.message));
     if (!parsed.text.trim())
@@ -576,8 +576,8 @@ export class DesktopService {
         ? tr('electron.common.full-text-in-the-chat-window', short.slice(0, 90))
         : short,
     );
-    broadcastMascotCommand({ type: 'motion', name: 'nod' });
-    broadcastMascotCommand({ type: 'expression', name: 'happy' });
+    sendMascotCommand(this.events, { type: 'motion', name: 'nod' });
+    sendMascotCommand(this.events, { type: 'expression', name: 'happy' });
     if (this.windows) {
       const existed = this.windows.chatOpen?.() ?? false;
       const chat = await this.windows.openChat();
@@ -806,21 +806,15 @@ export class DesktopService {
 
 const clip = (v: unknown, max: number) => (typeof v === 'string' ? v.slice(0, max) : '');
 
-let instance: DesktopService | null = null;
-
-/** 第一次调用（组合根）要传 ports / events；之后的调用直接拿单例 */
-export function getDesktopService(
-  logger?: Logger,
-  deps?: Pick<DesktopServiceOptions, 'ports' | 'events' | 'browser'>,
+/** 组合根创建桌面服务：数据在 `<userData>/desktop`；应用自己的数据目录永远不对工具开放 */
+export function createDesktopService(
+  logger: Logger,
+  deps: Pick<DesktopServiceOptions, 'ports' | 'events' | 'browser'>,
 ): DesktopService {
-  if (!instance) {
-    if (!deps) throw new Error('DesktopService requires host ports on first call');
-    const userData = deps.ports.paths.userData();
-    instance = new DesktopService(path.join(userData, 'desktop'), logger ?? console, {
-      ...deps,
-      // 应用自己的数据目录（provider key、对话记录、模型…）永远不对工具开放
-      denyRoots: [userData],
-    });
-  }
-  return instance;
+  const userData = deps.ports.paths.userData();
+  return new DesktopService(path.join(userData, 'desktop'), logger, {
+    ...deps,
+    // 应用自己的数据目录（provider key、对话记录、模型…）永远不对工具开放
+    denyRoots: [userData],
+  });
 }

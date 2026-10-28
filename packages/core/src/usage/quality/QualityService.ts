@@ -399,13 +399,3 @@ function pickSavePath(
     parent: 'focused',
   });
 }
-
-let inst: QualityService | null = null;
-export function initQualityService(d: QualityServiceDeps): QualityService {
-  inst?.dispose();
-  inst = new QualityService(d);
-  return inst;
-}
-export function getQualityService(): QualityService | null {
-  return inst;
-}

@@ -1500,15 +1500,6 @@ export class GatewayService {
   }
 }
 
-let inst: GatewayService | null = null;
-export function initGatewayService(d: GatewayServiceDeps): GatewayService {
-  inst = new GatewayService(d);
-  return inst;
-}
-export function getGatewayService(): GatewayService | null {
-  return inst;
-}
-
 /** 插件清单声明的占位模型名（gateway 方式换模型）；没有就是 undefined */
 function placeholderModelOf(kind: string): string | undefined {
   if (!isBuiltinCliId(kind)) return undefined;

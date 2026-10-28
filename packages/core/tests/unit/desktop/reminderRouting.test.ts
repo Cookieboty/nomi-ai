@@ -11,7 +11,7 @@ jest.unmock('node:path');
 let shown: Array<{ title: string; body: string; click?: () => void }> = [];
 
 const island = jest.fn((_n: unknown) => true);
-jest.mock('../../../src/ai/mascotCommand', () => ({ broadcastMascotCommand: jest.fn() }));
+jest.mock('../../../src/ai/mascotCommand', () => ({ sendMascotCommand: jest.fn() }));
 
 import * as fs from 'fs';
 import * as os from 'os';
