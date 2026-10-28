@@ -245,6 +245,31 @@ export interface LifecyclePort {
   exit(code?: number): void;
 }
 
+// ───────────────────────── appearance ─────────────────────────
+
+/** 原生窗口外观：跟随系统，或强制深色 / 浅色 */
+export type NativeAppearance = 'system' | 'dark' | 'light';
+
+/**
+ * 系统深浅色与原生窗口外观（Electron 下是 `nativeTheme`）。
+ *
+ * 界面主题本身（Graphite / Cream……）是内核的偏好值，不在这里；宿主只报告「系统现在是不是深色」，
+ * 并按内核要求设置原生控件（标题栏、红绿灯、滚动条）的外观。
+ */
+export interface AppearancePort {
+  /**
+   * 原生控件当前是否按深色绘制（`nativeTheme.shouldUseDarkColors`）：
+   * 外观为 `system` 时就是系统设置，强制深色 / 浅色时跟着强制值。
+   */
+  isDark(): boolean;
+  /** 当前原生窗口外观（`nativeTheme.themeSource`） */
+  windowAppearance(): NativeAppearance;
+  /** 设置原生窗口外观；与当前值相同时不做任何事 */
+  setWindowAppearance(mode: NativeAppearance): void;
+  /** 系统深浅色或原生外观变化（`nativeTheme` 的 `updated`） */
+  onChange(fn: () => void): Unsubscribe;
+}
+
 // ───────────────────────── windows（声明式，§6.2） ─────────────────────────
 
 export interface WindowIntent {
@@ -301,6 +326,7 @@ export interface HostPorts {
   screenCapture: ScreenCapturePort;
   power: PowerPort;
   lifecycle: LifecyclePort;
+  appearance: AppearancePort;
   windows: WindowsPort;
   /** 静态声明，宿主启动后不变 */
   capabilities: Readonly<HostCapabilities>;

@@ -5,6 +5,7 @@
  * - `secrets` 用内存里的可逆编码（**不是加密**，仅测试）；
  * - `dialogs` 按队列返回预设答案，队列空时视为用户取消；
  * - `shell` / `windows` / `lifecycle` 只记录调用；
+ * - `appearance` 默认浅色，`control.setSystemDark()` 模拟系统切换；
  * - `capabilities` 全部为 false / `none`。
  *
  * 返回值除了 `HostPorts` 本身，还带一个 `control` 句柄，测试用它预设答案、触发事件、读记录。
@@ -21,6 +22,7 @@ import type {
   HostCapabilities,
   HostPlatform,
   HostPorts,
+  NativeAppearance,
   PathsPort,
   PickDirectoryOptions,
   PickFilesOptions,
@@ -85,6 +87,8 @@ export interface NodeHostPortsOptions {
   };
   /** 用户空闲秒数，默认 0 */
   idleSeconds?: number;
+  /** 系统是否深色，默认 false */
+  systemDark?: boolean;
   /** 覆盖能力声明（默认全部关闭） */
   capabilities?: Partial<HostCapabilities>;
 }
@@ -103,6 +107,8 @@ export interface NodeHostControl {
   setIdleSeconds(seconds: number): void;
   setSecretsAvailable(available: boolean): void;
   setClipboardImage(image: ClipboardImage | null): void;
+  /** 模拟系统深浅色切换；值变化时通知 `appearance.onChange` */
+  setSystemDark(dark: boolean): void;
   /** 触发电源事件 */
   emitSuspend(): void;
   emitResume(): void;
@@ -179,12 +185,15 @@ export function createNodeHostPorts(options: NodeHostPortsOptions = {}): NodeHos
   let idleSeconds = options.idleSeconds ?? 0;
   let clipboardText = options.clipboard?.text ?? '';
   let clipboardImage = options.clipboard?.image ?? null;
+  let systemDark = options.systemDark ?? false;
+  let windowAppearance: NativeAppearance = 'system';
   let quitCount = 0;
   let exitCode: number | null = null;
 
   const suspend = listeners();
   const resume = listeners();
   const activate = listeners();
+  const appearanceChanged = listeners();
   const beforeQuit = new Set<() => void | Promise<void>>();
 
   const runBeforeQuit = async () => {
@@ -302,6 +311,17 @@ export function createNodeHostPorts(options: NodeHostPortsOptions = {}): NodeHos
         exitCode = code;
       },
     },
+    appearance: {
+      // 与 Electron 一致：强制深色 / 浅色时以强制值为准
+      isDark: () => (windowAppearance === 'system' ? systemDark : windowAppearance === 'dark'),
+      windowAppearance: () => windowAppearance,
+      setWindowAppearance(mode) {
+        if (mode === windowAppearance) return;
+        windowAppearance = mode;
+        appearanceChanged.emit();
+      },
+      onChange: (fn) => appearanceChanged.add(fn),
+    },
     windows: {
       async open(surface, intent) {
         windowCalls.push(
@@ -339,6 +359,11 @@ export function createNodeHostPorts(options: NodeHostPortsOptions = {}): NodeHos
     },
     setClipboardImage(image) {
       clipboardImage = image;
+    },
+    setSystemDark(dark) {
+      if (dark === systemDark) return;
+      systemDark = dark;
+      appearanceChanged.emit();
     },
     emitSuspend: () => suspend.emit(),
     emitResume: () => resume.emit(),

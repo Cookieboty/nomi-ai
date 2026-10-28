@@ -13,6 +13,7 @@
 | `screenCapture` | `desktopCapturer` + `screen`                                                                     |
 | `power`         | `powerMonitor.getSystemIdleTime`、`suspend` / `resume`                                           |
 | `lifecycle`     | `app.whenReady` / `quit` / `exit`、`before-quit` / `activate`                                    |
+| `appearance`    | `nativeTheme.shouldUseDarkColors` / `themeSource`、`updated`                                     |
 | `windows`       | 声明式：打开 / 聚焦 / 隐藏界面，不暴露窗口对象                                                   |
 | `capabilities`  | 宿主特有能力声明（透明窗口、托盘、灵动岛等）                                                     |
 

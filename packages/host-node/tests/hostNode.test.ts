@@ -203,6 +203,31 @@ describe('power / lifecycle', () => {
   });
 });
 
+describe('appearance', () => {
+  it('默认浅色；系统切换通知订阅者，强制外观以强制值为准', () => {
+    const { ports, control } = create();
+    const fn = vi.fn();
+    const off = ports.appearance.onChange(fn);
+    expect(ports.appearance.isDark()).toBe(false);
+    expect(ports.appearance.windowAppearance()).toBe('system');
+
+    control.setSystemDark(true);
+    expect(ports.appearance.isDark()).toBe(true);
+    control.setSystemDark(true);
+    expect(fn).toHaveBeenCalledTimes(1);
+
+    ports.appearance.setWindowAppearance('light');
+    expect(ports.appearance.isDark()).toBe(false);
+    ports.appearance.setWindowAppearance('light');
+    expect(fn).toHaveBeenCalledTimes(2);
+
+    off();
+    control.setSystemDark(false);
+    expect(fn).toHaveBeenCalledTimes(2);
+    expect(create({ systemDark: true }).ports.appearance.isDark()).toBe(true);
+  });
+});
+
 describe('windows / capabilities', () => {
   it('记录调用并跟踪可见性', async () => {
     const { ports, control } = create();

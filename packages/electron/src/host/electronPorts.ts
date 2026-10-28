@@ -22,6 +22,7 @@ import {
   app,
   BrowserWindow,
   dialog,
+  nativeTheme,
   type OpenDialogOptions,
   powerMonitor,
   safeStorage,
@@ -53,6 +54,26 @@ export interface WindowHost {
   setMascotVisible(visible: boolean): void;
   /** 打开对话窗口并发送面板通道 */
   openProviderPanel(channel?: string): Promise<void>;
+}
+
+/**
+ * 窗口管理器还没建好时也能先创建端口：每次调用时才取 WindowHost。
+ * 取不到时查询返回「没有窗口」，打开类调用抛错（组合根的顺序问题，应尽早暴露）。
+ */
+export function lazyWindowHost(resolve: () => WindowHost | undefined): WindowHost {
+  const need = (): WindowHost => {
+    const host = resolve();
+    if (!host) throw new Error('window host is not ready');
+    return host;
+  };
+  return {
+    createMainWindow: (opts) => need().createMainWindow(opts),
+    createAiChatWindow: (opts) => need().createAiChatWindow(opts),
+    getMainWindow: () => resolve()?.getMainWindow() ?? null,
+    getAiChatWindow: () => resolve()?.getAiChatWindow() ?? null,
+    setMascotVisible: (visible) => need().setMascotVisible(visible),
+    openProviderPanel: (channel) => need().openProviderPanel(channel),
+  };
 }
 
 export interface ElectronPortsLogger {
@@ -275,6 +296,15 @@ export function createElectronPorts(deps: ElectronPortsDeps): HostPorts {
       onActivate: (fn) => subscribe(app, 'activate', fn),
       quit: () => app.quit(),
       exit: (code = 0) => app.exit(code),
+    },
+
+    appearance: {
+      isDark: () => nativeTheme.shouldUseDarkColors,
+      windowAppearance: () => nativeTheme.themeSource,
+      setWindowAppearance(mode) {
+        if (nativeTheme.themeSource !== mode) nativeTheme.themeSource = mode;
+      },
+      onChange: (fn) => subscribe(nativeTheme, 'updated', fn),
     },
 
     windows: {

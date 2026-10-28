@@ -17,8 +17,14 @@ const mockPower = Object.assign(new EventEmitter(), {
 });
 const mockFocused = { id: 'focused' };
 
+const mockNativeTheme = Object.assign(new EventEmitter(), {
+  shouldUseDarkColors: false,
+  themeSource: 'system' as 'system' | 'dark' | 'light',
+});
+
 jest.mock('electron', () => ({
   app: mockApp,
+  nativeTheme: mockNativeTheme,
   powerMonitor: mockPower,
   BrowserWindow: { getFocusedWindow: jest.fn(() => mockFocused) },
   dialog: {
@@ -58,6 +64,7 @@ import type { WindowManager } from '../../../src/core/WindowManager';
 import {
   createElectronPorts,
   ELECTRON_WINDOW_ROUTES,
+  lazyWindowHost,
   type HostWindow,
   type WindowHost,
 } from '../../../src/host/electronPorts';
@@ -321,6 +328,46 @@ describe('createElectronPorts', () => {
     expect(
       createElectronPorts({ windows: fakeHost(), platform: 'linux' }).capabilities.nativeTitleBar,
     ).toBe('none');
+  });
+
+  it('appearance：读写 nativeTheme，相同外观不重复设置，updated 订阅可退订', () => {
+    const ports = createElectronPorts({ windows: fakeHost() });
+    mockNativeTheme.shouldUseDarkColors = true;
+    expect(ports.appearance.isDark()).toBe(true);
+    const set = jest.fn();
+    let source: 'system' | 'dark' | 'light' = 'system';
+    Object.defineProperty(mockNativeTheme, 'themeSource', {
+      configurable: true,
+      get: () => source,
+      set: (v: typeof source) => {
+        set(v);
+        source = v;
+      },
+    });
+    ports.appearance.setWindowAppearance('dark');
+    ports.appearance.setWindowAppearance('dark');
+    expect(set).toHaveBeenCalledTimes(1);
+    expect(ports.appearance.windowAppearance()).toBe('dark');
+    const fn = jest.fn();
+    const off = ports.appearance.onChange(fn);
+    mockNativeTheme.emit('updated');
+    off();
+    mockNativeTheme.emit('updated');
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it('lazyWindowHost：窗口管理器建好之前查询返回空、打开类调用抛错，之后直通', async () => {
+    const slot: { host?: WindowHost } = {};
+    const ports = createElectronPorts({ windows: lazyWindowHost(() => slot.host) });
+    expect(ports.windows.isVisible('chat')).toBe(false);
+    ports.windows.focus('mascot');
+    await expect(ports.windows.open('chat')).rejects.toThrow(/not ready/);
+    const chat = fakeWindow();
+    const real = fakeHost(null, chat);
+    slot.host = real;
+    expect(ports.windows.isVisible('chat')).toBe(true);
+    await ports.windows.open('chat', { route: 'voice' });
+    expect(real.openProviderPanel).toHaveBeenCalledWith(ELECTRON_WINDOW_ROUTES.voice);
   });
 
   it('现有 WindowManager 结构上满足 WindowHost', () => {

@@ -7,6 +7,7 @@
 - `dialogs`：按队列返回预设答案（`options.dialogs` / `control.queueDialog`），队列空时视为取消；
 - `shell`、`windows`、`lifecycle`：只记录调用（`control.shellCalls` / `windowCalls` / `quitCount`）；
 - `power` / `lifecycle` 事件由 `control.emitSuspend()`、`runBeforeQuit()` 等手动触发；
+- `appearance`：默认浅色，`control.setSystemDark()` 模拟系统切换；
 - `capabilities` 全部关闭。
 
 ```ts
