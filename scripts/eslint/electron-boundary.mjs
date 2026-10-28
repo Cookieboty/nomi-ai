@@ -48,7 +48,6 @@ export const ELECTRON_IMPORT_ALLOWLIST = [
   'packages/electron/src/local/LocalModelService.ts',
   'packages/electron/src/onboarding/OnboardingService.ts',
   'packages/electron/src/startup/StartupService.ts',
-  'packages/electron/src/theme/ThemeService.ts',
   'packages/electron/src/usage/UsageService.ts',
   'packages/electron/src/voice/VoiceService.ts',
   // 平台能力（app.getPath / safeStorage / dialog / shell / clipboard / desktopCapturer / powerMonitor）→ P2 宿主端口

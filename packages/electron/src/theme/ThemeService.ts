@@ -1,17 +1,23 @@
 /**
  * 界面主题：用户选择持久化到 userData/theme.json，广播给所有窗口（对话窗口 + 看板娘）。
- * 「跟随系统」用 nativeTheme 解析：深色 → Graphite，浅色 → Cream，系统切换时实时更新。
+ * 「跟随系统」用宿主的 appearance 端口解析：深色 → Graphite，浅色 → Cream，系统切换时实时更新。
  * 新用户默认 Sunset Orange；已保存的选择优先。历史 id `paper` 读入时映射为 `cream` 并写回。
  *
- * macOS 窗口外观（nativeTheme.themeSource）跟随所选主题：否则系统是浅色、主题是深色时，
+ * macOS 原生窗口外观（appearance.setWindowAppearance）跟随所选主题：否则系统是浅色、主题是深色时，
  * 失焦窗口的红绿灯按浅色外观画成半透明深灰，落在深色标题栏上就看不见了。
+ *
+ * 不依赖 Electron：平台能力经 `ports`，通知界面经 `events`（设计稿 §7.1「实施约定」的参考实现）。
  */
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { BrowserWindow, nativeTheme } from 'electron';
+import type { HostPorts } from '@nomi-ai/host-ports';
 
+import type { AppEvents } from '../core/appEvents';
 import { guardedHandle } from '../security/guardedIpc';
+
+/** 界面监听的主题变化通道 */
+export const THEME_CHANGED = 'ai:theme:changed';
 
 export const THEME_IDS = ['mist', 'graphite', 'ink', 'cream', 'sunset'] as const;
 export type ThemeId = (typeof THEME_IDS)[number];
@@ -44,28 +50,32 @@ export interface ThemeState {
   resolved: ThemeId;
 }
 
-interface NativeThemeLike {
-  shouldUseDarkColors: boolean;
-  themeSource?: 'system' | 'dark' | 'light';
-  on(ev: 'updated', fn: () => void): unknown;
+export interface ThemeServiceDeps {
+  /** 偏好文件（userData/theme.json） */
+  file: string;
+  /** 只用到 appearance 与 app.platform */
+  ports: Pick<HostPorts, 'appearance' | 'app'>;
+  events: AppEvents;
 }
 
 export class ThemeService {
   private pref: ThemePref = DEFAULT_THEME;
   private listeners = new Set<(s: ThemeState) => void>();
+  private readonly file: string;
+  private readonly ports: ThemeServiceDeps['ports'];
+  private readonly events: AppEvents;
 
   /** 主题变化（含「跟随系统」时系统切换）回调；返回取消订阅 */
   onChange(fn: (s: ThemeState) => void): () => void {
     this.listeners.add(fn);
     return () => this.listeners.delete(fn);
   }
-  constructor(
-    private readonly file: string,
-    private readonly native: NativeThemeLike = nativeTheme,
-    private readonly platform: NodeJS.Platform = process.platform,
-  ) {
+  constructor(deps: ThemeServiceDeps) {
+    this.file = deps.file;
+    this.ports = deps.ports;
+    this.events = deps.events;
     try {
-      const raw = JSON.parse(fs.readFileSync(file, 'utf8')) as { theme?: unknown };
+      const raw = JSON.parse(fs.readFileSync(this.file, 'utf8')) as { theme?: unknown };
       const n = normalizeThemePref(raw.theme);
       if (n) this.pref = n;
       if (n && n !== raw.theme) this.persist();
@@ -73,20 +83,20 @@ export class ThemeService {
       /* 首次运行：用默认 */
     }
     this.syncAppearance();
-    this.native.on('updated', () => {
+    this.ports.appearance.onChange(() => {
       if (this.pref === 'system') this.broadcast();
     });
   }
 
   get(): ThemeState {
-    return { pref: this.pref, resolved: resolveTheme(this.pref, this.native.shouldUseDarkColors) };
+    return { pref: this.pref, resolved: resolveTheme(this.pref, this.ports.appearance.isDark()) };
   }
 
   set(id: unknown): ThemeState {
     const n = normalizeThemePref(id);
     if (!n) throw new Error(`unknown theme: ${String(id)}`);
     this.pref = n;
-    // 先切外观再解析：从固定主题切回「跟随系统」时，shouldUseDarkColors 要按系统重新算
+    // 先切外观再解析：从固定主题切回「跟随系统」时，isDark() 要按系统重新算
     this.syncAppearance();
     this.persist();
     this.broadcast();
@@ -99,17 +109,14 @@ export class ThemeService {
   }
 
   private syncAppearance(): void {
-    if (this.platform !== 'darwin') return;
-    const next = appearanceFor(this.pref);
-    if (this.native.themeSource !== next) this.native.themeSource = next;
+    if (this.ports.app.platform() !== 'darwin') return;
+    this.ports.appearance.setWindowAppearance(appearanceFor(this.pref));
   }
 
   private broadcast(): void {
     const s = this.get();
     for (const fn of this.listeners) fn(s);
-    for (const w of BrowserWindow.getAllWindows()) {
-      if (!w.isDestroyed()) w.webContents.send('ai:theme:changed', s);
-    }
+    this.events.publish(THEME_CHANGED, s);
   }
 
   registerIpc(): void {

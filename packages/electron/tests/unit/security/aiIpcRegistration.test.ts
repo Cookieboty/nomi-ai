@@ -33,6 +33,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { createRecordingAppEvents } from '../../../src/core/appEvents';
 import { DesktopService } from '../../../src/desktop/DesktopService';
 import { ExtensionsService } from '../../../src/extensions/ExtensionsService';
 import {
@@ -241,7 +242,19 @@ describe('ai:* 通道注册入口（#30）', () => {
     });
 
     it('ThemeService：外站不能改主题，受信可以', async () => {
-      const svc = new ThemeService(path.join(os.tmpdir(), `ipc-theme-${Date.now()}.json`));
+      const svc = new ThemeService({
+        file: path.join(os.tmpdir(), `ipc-theme-${Date.now()}.json`),
+        ports: {
+          appearance: {
+            isDark: () => false,
+            windowAppearance: () => 'system',
+            setWindowAppearance: () => undefined,
+            onChange: () => () => undefined,
+          },
+          app: { platform: () => 'linux' } as never,
+        },
+        events: createRecordingAppEvents(),
+      });
       const set = jest.spyOn(svc, 'set');
       svc.registerIpc();
       await expect(handlers.get('ai:theme:set')!(evil, 'ink')).rejects.toThrow(/untrusted/);
