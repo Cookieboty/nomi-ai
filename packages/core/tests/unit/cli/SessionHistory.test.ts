@@ -36,6 +36,9 @@ function zstdCompress(text: string): Buffer | null {
   }
 }
 
+// 有几条用例要写几百个会话文件：Windows runner 的文件系统慢，默认 10s 不够
+jest.setTimeout(60_000);
+
 describe('history transcript parsers (fixtures)', () => {
   it('claude: user/assistant text, tool names merged, no tool_result / meta / sidechain', () => {
     const m = parseClaudeTranscript(fx('claude-tools.jsonl'));
