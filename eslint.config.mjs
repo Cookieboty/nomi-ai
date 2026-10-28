@@ -213,6 +213,62 @@ export default tseslint.config(
       ],
     },
   },
+  // 内核（@nomi-ai/core）的依赖方向（docs/design/core-host-decoupling.md §3.2、§11.1）：不依赖 electron
+  // （包括 electron-updater 这类只能在 Electron 里跑的包），也不依赖宿主包、视图包与 ui。
+  // 宿主能力经 @nomi-ai/host-ports 的端口注入，视图只经契约访问内核。
+  {
+    files: ['packages/core/**/*.{ts,tsx,mts,cts,js,mjs,cjs}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'electron',
+              message:
+                '内核不能依赖 electron：平台能力走宿主端口（docs/design/core-host-decoupling.md §3.2、§6）。',
+            },
+          ],
+          patterns: [
+            {
+              group: ['electron/*', 'electron-*', '@electron/*'],
+              message:
+                '内核不能依赖 Electron 专用的包：由宿主实现后注入（docs/design/core-host-decoupling.md §3.2）。',
+            },
+            {
+              group: [
+                '@nomi-ai/electron',
+                '@nomi-ai/electron/*',
+                '@nomi-ai/host-electron',
+                '@nomi-ai/host-electron/*',
+                '@nomi-ai/bundle-ig-electron-caps',
+                '@nomi-ai/bundle-ig-electron-caps/*',
+                '**/electron/src/**',
+              ],
+              message: '内核不能依赖宿主包：宿主能力经 @nomi-ai/host-ports 的端口注入（§3.2）。',
+            },
+            {
+              group: [
+                '@nomi-ai/ui',
+                '@nomi-ai/ui/*',
+                '@nomi-ai/ai-chat',
+                '@nomi-ai/ai-chat/*',
+                '@nomi-ai/renderer',
+                '@nomi-ai/renderer/*',
+                '@nomi-ai/ai-sdk-client',
+                '@nomi-ai/ai-sdk-client/*',
+                '@nomi-ai/voice',
+                '@nomi-ai/voice/*',
+                '@nomi-ai/avatar-runtime',
+                '@nomi-ai/avatar-runtime/*',
+              ],
+              message: '内核不能依赖视图包与 ui：视图只经契约访问内核（§3.2）。',
+            },
+          ],
+        },
+      ],
+    },
+  },
   // 动态加载 electron（require / nodeRequire()(…) / createRequire(…)(…) / import()）绕过了静态 import 检查：
   // 宿主区域之外一律禁止；既有用法在 ELECTRON_DYNAMIC_ALLOWLIST（shrink only）。
   {
