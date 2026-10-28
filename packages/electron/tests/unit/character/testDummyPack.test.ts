@@ -16,6 +16,7 @@ import { CharacterPackService } from '../../../src/character/CharacterPackServic
 import { resolveCharacterPack } from '../../../src/character/packResolve';
 import { createPersonaIdentityPlugin } from '../../../src/persona/igPlugin';
 import { packPersonaSource, PersonaService } from '../../../src/persona/PersonaService';
+import { fakeHostPorts } from '../helpers/fakeHostPorts';
 
 const REPO = path.resolve(__dirname, '../../../../..');
 const DUMMY = path.join(REPO, 'characters', 'test-dummy');
@@ -56,7 +57,8 @@ describe.each([
     source: 'builtin',
   },
 ])('test-dummy character pack $name', ({ paths, source }) => {
-  const packs = new CharacterPackService();
+  // apply() takes a resolution result directly; ports only matter for reload()
+  const packs = new CharacterPackService({ ports: fakeHostPorts() });
   packs.apply(resolveCharacterPack(paths));
   let locale = 'zh-CN';
   const persona = new PersonaService({

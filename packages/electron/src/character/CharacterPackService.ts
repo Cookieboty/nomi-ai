@@ -136,10 +136,7 @@ export class CharacterPackService {
   }
 
   /** Swap in a resolution result (used by `reload`; tests pass a result directly). */
-  apply(
-    result: ResolvedPack & { skipped?: SkippedPack[] },
-    logger?: PackLogger,
-  ): void {
+  apply(result: ResolvedPack & { skipped?: SkippedPack[] }, logger?: PackLogger): void {
     for (const s of result.skipped ?? []) {
       logger?.warn(`character-pack skipped (${s.source}): ${s.reason} @ ${s.root}`);
     }
