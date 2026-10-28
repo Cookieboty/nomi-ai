@@ -67,7 +67,14 @@ interface SharedEntry {
   outer: ClientTransport;
 }
 
-const shared = new Map<string, SharedEntry>();
+/**
+ * 按窗口（全局对象）存：本包的入口各自打包（`index` 与 `react` 各有一份本模块），两份模块各建一个 Map
+ * 时，AIProvider（react 入口）里的 ClientAIClient 与视图的 `services/api.ts`（主入口）会各开一个会话，
+ * `installSharedTransport` 也只换到其中一份。放在 `globalThis` 上，所有副本共用一张表。
+ */
+const SHARED_KEY = Symbol.for('nomi.ai-sdk-client.sharedTransports');
+const shared: Map<string, SharedEntry> = ((globalThis as Record<symbol, unknown>)[SHARED_KEY] ??=
+  new Map<string, SharedEntry>()) as Map<string, SharedEntry>;
 
 function sharedEntry(bridgeName: string): SharedEntry {
   let entry = shared.get(bridgeName);

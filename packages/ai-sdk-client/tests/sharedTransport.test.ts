@@ -8,7 +8,7 @@ import {
   type IpcInvokeEventLike,
   type IpcMainLike,
 } from '@nomi-ai/contract';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ClientAIClient } from '../src/ClientAIClient';
 import type { IPCBridge } from '../src/IPCBridge';
@@ -106,5 +106,15 @@ describe('installSharedTransport', () => {
     ]);
     expect(server.sessionCount).toBe(1);
     expect((globalThis as Record<string, unknown>).nomiTransport).toBeUndefined();
+  });
+
+  it('包的另一份副本（react 入口单独打包）拿到的是同一个共享传输', async () => {
+    const server = createFakeServer({ 'ai.sessions.list': () => [session] });
+    installSharedTransport(server.connect({ surface: 'chat', trusted: true }));
+    vi.resetModules();
+    const copy = await import('../src/sharedTransport?copy');
+    expect(copy.getSharedTransport).not.toBe(getSharedTransport); // 确实是另一份模块
+    expect(copy.getSharedTransport()).toBe(getSharedTransport());
+    await expect(copy.createAppClient().ai.sessions.list()).resolves.toEqual([session]);
   });
 });
