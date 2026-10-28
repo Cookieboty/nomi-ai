@@ -49,7 +49,11 @@ export async function publishMascotEvent(event: string, data: unknown): Promise<
 }
 
 /** `services/api` 的替身模块 */
-export function mascotApiModule(): { api: unknown; hasTransport: () => boolean } {
+export function mascotApiModule(): {
+  api: unknown;
+  hasTransport: () => boolean;
+  hasWindowHost: () => boolean;
+} {
   const api = new Proxy(
     {},
     {
@@ -61,7 +65,9 @@ export function mascotApiModule(): { api: unknown; hasTransport: () => boolean }
       },
     },
   );
-  return { api, hasTransport: () => state().client !== null };
+  // 测试里的假宿主就是看板娘窗口
+  const installed = () => state().client !== null;
+  return { api, hasTransport: installed, hasWindowHost: installed };
 }
 
 /** 角色包快照（`character.getActivePack` 的返回）：测试只写关心的字段，其余按内置包的空值补齐 */

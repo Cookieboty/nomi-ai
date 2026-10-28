@@ -8,7 +8,9 @@
 // - 内核里预先设的主题 / 语言出现在页面上（调用结果回到页面）；
 // - 内核换主题后页面跟着变（事件经 WebSocket 推到页面）；
 // - 能对话：在页面的首次引导里添加一个指向本机假上游（OpenAI Chat 协议）的供应商、选模型、完成引导，再发一条
-//   消息，回复经统一网关（Node 子进程）从假上游回到页面。
+//   消息，回复经统一网关（Node 子进程）从假上游回到页面；
+// - 看板娘页面（renderer）：没有 preload 桥，以 mascot 界面经 WebSocket 调内核，角色画出来，内核换主题后跟着变；
+//   浏览器里没有窗口，页面不调要用窗口对象的过程（没有 UNAVAILABLE），没有未捕获的异常。
 //
 // 先 pnpm build；没有浏览器时 `pnpm exec playwright install chromium`。
 //   node scripts/dev-web/smoke.mjs [--screenshot test-results/dev-web.png] [--headed]
@@ -31,11 +33,17 @@ const fail = (msg) => {
   throw new Error(`[smoke:web] ${msg}`);
 };
 
-/** 内核侧记下每次调用（过程名 + 调用者） */
+/** 内核侧记下每次调用（过程名 + 调用者 + 失败时的错误码） */
 const calls = [];
 const record = async (call, next) => {
-  calls.push({ name: call.name, surface: call.caller.surface, id: call.caller.id ?? '' });
-  return next();
+  const entry = { name: call.name, surface: call.caller.surface, id: call.caller.id ?? '' };
+  calls.push(entry);
+  try {
+    return await next();
+  } catch (err) {
+    entry.error = err?.code ?? String(err);
+    throw err;
+  }
 };
 
 /** 本机假上游（OpenAI Chat 协议）：列模型、按模型名回一句固定的话，记录收到的请求 */
@@ -101,6 +109,7 @@ const viteLog = [];
 const mock = await startMockLlm('WebSmoke', ['web-a', 'web-b']);
 const dev = await startDevWeb({
   chatPort: await freePort(),
+  mascotPort: await freePort(),
   logLevel: 'warn',
   viteStdio: 'pipe',
   contract: { middleware: [record] },
@@ -214,8 +223,53 @@ try {
     await page.screenshot({ path: screenshot, fullPage: true });
   }
 
+  // 6. 看板娘页面：经 WebSocket（mascot 界面）连同一个内核，角色画出来，没有窗口也不报错
+  const mascot = await browser.newPage();
+  const mascotErrors = [];
+  mascot.on('pageerror', (err) => mascotErrors.push(err.message));
+  mascot.on('console', (msg) => {
+    if (msg.type() === 'error') mascotErrors.push(`[console] ${msg.text()}`);
+  });
+  await mascot.goto(dev.mascotUrl, { waitUntil: 'load' });
+  const mascotGlobals = await mascot.evaluate(() => ({
+    preload: typeof window.nomiTransport,
+    dev: typeof window.nomiDevTransport,
+  }));
+  if (mascotGlobals.preload !== 'undefined')
+    fail('the mascot page unexpectedly has a preload bridge');
+  if (mascotGlobals.dev !== 'object') fail('the mascot page did not get window.nomiDevTransport');
+  // 角色画出来（Rive，起不来时回退分层 2D）
+  await mascot.waitForFunction(
+    () => {
+      const b = document.documentElement.dataset.mascotBackend;
+      return !!b && b !== 'none';
+    },
+    null,
+    { timeout: 30_000 },
+  );
+  await mascot.waitForFunction(() => document.documentElement.dataset.theme === 'sunset', null, {
+    timeout: 15_000,
+  });
+  await admin.theme.set({ pref: 'ink' });
+  await mascot.waitForFunction(() => document.documentElement.dataset.theme === 'ink', null, {
+    timeout: 15_000,
+  });
+  await mascot.waitForTimeout(1500);
+  const mascotCalls = calls.filter((c) => c.surface === 'mascot' && c.id.startsWith('ws-'));
+  if (!mascotCalls.some((c) => c.name === 'theme.get'))
+    fail('the mascot page never called theme.get over WebSocket');
+  const failedMascot = mascotCalls.filter((c) => c.error);
+  if (failedMascot.length) {
+    fail(
+      `the mascot page made failing calls: ${failedMascot.map((c) => `${c.name} (${c.error})`).join(', ')}`,
+    );
+  }
+  if (mascotErrors.length) fail(`mascot page errors:\n  ${mascotErrors.join('\n  ')}`);
+
   const allNames = [...new Set(calls.filter((c) => c.id.startsWith('ws-')).map((c) => c.name))];
-  out(`[smoke:web] ok — rendered, events and chat over WebSocket (${allNames.length} procedures)`);
+  out(
+    `[smoke:web] ok — chat (rendered, events, chat) and mascot page over WebSocket (${allNames.length} procedures)`,
+  );
   out(`[smoke:web] ${allNames.sort().join(' ')}`);
   ok = true;
 } catch (err) {

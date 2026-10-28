@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // pnpm dev:web —— 视图在普通浏览器里运行（docs/design/core-host-decoupling.md §11.3「视图在普通浏览器运行」）。
 //
-// 在 Node 里用无界面宿主（@nomi-ai/host-node）起一个内核，挂上只监听 127.0.0.1 的 WebSocket 传输，再起 ai-chat 的
-// Vite 开发服务器；开发服务器把 WebSocket 地址与本次的随机 token 注入页面（scripts/dev-web/vite-plugin.mjs）。
-// 在 Chrome 里打开打印出来的地址即可，页面经 WebSocket 调内核、收事件。
+// 在 Node 里用无界面宿主（@nomi-ai/host-node）起一个内核，挂上只监听 127.0.0.1 的 WebSocket 传输，再起 ai-chat
+// （对话窗口）与 renderer（看板娘）的 Vite 开发服务器；开发服务器把 WebSocket 地址与本次的随机 token 注入页面
+// （scripts/dev-web/vite-plugin.mjs）。在 Chrome 里打开打印出来的地址即可，页面经 WebSocket 调内核、收事件。
 //
 //   pnpm build                       # 先构建（内核与 host-node 从 dist 加载）
 //   pnpm dev:web                     # 数据放在临时目录，退出时删除
@@ -12,7 +12,8 @@
 // 注意：无界面宿主的 secrets 只是可逆编码、不是加密，在浏览器里填的 API Key 会以明文存在数据目录里；
 // 指定目录时别放在会被提交的位置，启动时也会打一条警告。
 //
-// 只用于开发：没有窗口、托盘、看板娘（要用窗口对象的过程返回 UNAVAILABLE）；token 只在日志里露前 4 位。
+// 只用于开发：没有窗口、托盘；看板娘页面画角色、收事件，但没有透明窗口（拖拽、点击穿透、窗口大小这些要用窗口
+// 对象的过程返回 UNAVAILABLE，页面不调）；token 只在日志里露前 4 位。
 // 统一网关在 Node 子进程里跑、监听系统分配的端口（不和本机装着的 Nomi 抢默认端口），对话照常经网关。
 // Ctrl+C 退出。
 
@@ -22,7 +23,7 @@ import { createServer } from 'node:net';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { DEV_HOST, PORTS } from '../ports.mjs';
+import { DEV_HOST, PORT_ENV, PORTS } from '../ports.mjs';
 
 import { DEV_WS_TOKEN_ENV, DEV_WS_URL_ENV } from './vite-plugin.mjs';
 
@@ -80,7 +81,9 @@ function waitForHttp(url, timeoutMs) {
  * @param {object} [opts]
  * @param {string} [opts.dataDir] 数据目录（缺省临时目录，stop 时删除）
  * @param {number} [opts.chatPort] ai-chat 开发服务器端口（缺省 dev-ports.json 的 chat）
+ * @param {number} [opts.mascotPort] renderer（看板娘）开发服务器端口（缺省 dev-ports.json 的 renderer）
  * @param {boolean} [opts.vite] 是否起 Vite（默认 true）
+ * @param {boolean} [opts.mascot] 是否也起看板娘页面（默认 true）
  * @param {'error'|'warn'|'info'|'debug'} [opts.logLevel]
  * @param {'inherit'|'pipe'|'ignore'} [opts.viteStdio]
  * @param {object} [opts.contract] 传给 createCore 的契约选项（冒烟测试用中间件记录调用）
@@ -99,6 +102,8 @@ export async function startDevWeb(opts = {}) {
   );
 
   const chatPort = opts.chatPort ?? PORTS.chat;
+  const withMascot = opts.mascot !== false;
+  const mascotPort = opts.mascotPort ?? PORTS.renderer;
   const headless = await startHeadlessCore({
     ports: opts.dataDir ? { root: path.resolve(opts.dataDir) } : {},
     // 内置角色包：仓库里的包（CHARACTER_PACK 相对仓库根，缺省官方包），与 Electron 开发态一致
@@ -119,8 +124,14 @@ export async function startDevWeb(opts = {}) {
   try {
     server = await ws.serveContractOverWebSocket(headless.router, {
       token,
-      allowedOrigins: [`http://${DEV_HOST}:${chatPort}`, `http://localhost:${chatPort}`],
-      surfaces: ['chat'],
+      allowedOrigins: [
+        `http://${DEV_HOST}:${chatPort}`,
+        `http://localhost:${chatPort}`,
+        ...(withMascot
+          ? [`http://${DEV_HOST}:${mascotPort}`, `http://localhost:${mascotPort}`]
+          : []),
+      ],
+      surfaces: withMascot ? ['chat', 'mascot'] : ['chat'],
       logger: {
         info: (m, d) => log.info(m, d),
         warn: (m, d) => log.warn(m, d),
@@ -132,32 +143,43 @@ export async function startDevWeb(opts = {}) {
     throw err;
   }
 
-  let vite;
-  const chatUrl = `http://${DEV_HOST}:${chatPort}/`;
-  if (opts.vite !== false) {
-    vite = spawn(process.execPath, [path.join(ROOT, 'scripts/run-bin.mjs'), 'vite'], {
-      cwd: path.join(ROOT, 'packages/ai-chat'),
+  /** 起一个视图包的 Vite 开发服务器，等它能访问 */
+  const startVite = async (pkg, portEnv, port) => {
+    const child = spawn(process.execPath, [path.join(ROOT, 'scripts/run-bin.mjs'), 'vite'], {
+      cwd: path.join(ROOT, 'packages', pkg),
       stdio: opts.viteStdio ?? 'inherit',
       // 自己一个进程组：run-bin 再起 vite，停的时候整组一起停，不留孤儿进程占着端口
       detached: process.platform !== 'win32',
       env: {
         ...process.env,
-        CD_CHAT_PORT: String(chatPort),
+        [portEnv]: String(port),
         [DEV_WS_URL_ENV]: server.url,
         [DEV_WS_TOKEN_ENV]: token,
       },
     });
-    try {
-      await Promise.race([
-        waitForHttp(chatUrl, 60_000),
-        new Promise((_, reject) =>
-          vite.once('exit', (code) =>
-            reject(new Error(`[dev-web] vite exited early (code ${code})`)),
-          ),
+    vites.push(child);
+    await Promise.race([
+      waitForHttp(`http://${DEV_HOST}:${port}/`, 60_000),
+      new Promise((_, reject) =>
+        child.once('exit', (code) =>
+          reject(new Error(`[dev-web] vite (${pkg}) exited early (code ${code})`)),
         ),
+      ),
+    ]);
+  };
+
+  /** @type {import('node:child_process').ChildProcess[]} */
+  const vites = [];
+  const chatUrl = `http://${DEV_HOST}:${chatPort}/`;
+  const mascotUrl = withMascot ? `http://${DEV_HOST}:${mascotPort}/` : null;
+  if (opts.vite !== false) {
+    try {
+      await Promise.all([
+        startVite('ai-chat', PORT_ENV.chat, chatPort),
+        ...(withMascot ? [startVite('renderer', PORT_ENV.renderer, mascotPort)] : []),
       ]);
     } catch (err) {
-      killTree(vite);
+      for (const v of vites) killTree(v);
       await server.close();
       await headless.stop();
       throw err;
@@ -166,13 +188,14 @@ export async function startDevWeb(opts = {}) {
 
   log.info('[dev-web] ready', {
     chat: chatUrl,
+    ...(mascotUrl ? { mascot: mascotUrl } : {}),
     core: server.url,
     token: ws.redactToken(token),
     data: headless.control.root,
   });
 
   // 父进程意外退出时也别留下开发服务器
-  const onExit = () => vite && killTree(vite);
+  const onExit = () => vites.forEach((v) => killTree(v));
   process.once('exit', onExit);
 
   let stopping;
@@ -180,13 +203,18 @@ export async function startDevWeb(opts = {}) {
     headless,
     server,
     chatUrl,
+    mascotUrl,
     stop() {
       stopping ??= (async () => {
-        if (vite && vite.exitCode === null) {
-          const exited = new Promise((r) => vite.once('exit', r));
-          killTree(vite);
-          await Promise.race([exited, new Promise((r) => setTimeout(r, 5000))]);
-        }
+        await Promise.all(
+          vites
+            .filter((v) => v.exitCode === null)
+            .map(async (v) => {
+              const exited = new Promise((r) => v.once('exit', r));
+              killTree(v);
+              await Promise.race([exited, new Promise((r) => setTimeout(r, 5000))]);
+            }),
+        );
         process.off('exit', onExit);
         await server.close();
         await headless.stop();
@@ -202,6 +230,7 @@ function parseArgs(argv) {
     const a = argv[i];
     if (a === '--data') out.dataDir = argv[++i];
     else if (a === '--no-vite') out.vite = false;
+    else if (a === '--no-mascot') out.mascot = false;
     else if (a === '--') continue;
     else throw new Error(`[dev-web] unknown argument: ${a}`);
   }
@@ -211,7 +240,9 @@ function parseArgs(argv) {
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const dev = await startDevWeb(parseArgs(process.argv.slice(2)));
   process.stdout.write(
-    `\n  Nomi dev:web — open ${dev.chatUrl} in Chrome (core: ${dev.server.url})\n\n`,
+    `\n  Nomi dev:web — open ${dev.chatUrl} in Chrome` +
+      (dev.mascotUrl ? `, mascot: ${dev.mascotUrl}` : '') +
+      ` (core: ${dev.server.url})\n\n`,
   );
   let exiting = false;
   const quit = async () => {

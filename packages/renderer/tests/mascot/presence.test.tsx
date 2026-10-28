@@ -39,6 +39,7 @@ vi.mock('../../src/services/api', async () => {
     api: client.api,
     router: client.router,
     hasTransport: () => true,
+    hasWindowHost: () => true,
     installHostBackends: () => undefined,
   };
 });

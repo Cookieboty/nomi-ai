@@ -1,7 +1,7 @@
 import type { MascotScaleState } from '@nomi-ai/types';
 import { useEffect, useSyncExternalStore } from 'react';
 
-import { api, hasTransport } from '../services/api';
+import { api, hasWindowHost } from '../services/api';
 
 /**
  * 看板娘大小（渲染进程侧）：真实状态在主进程（MascotWindowController：夹紧到屏幕、窗口随之
@@ -27,7 +27,8 @@ function setState(s: MascotScaleState | null | undefined): void {
 
 function start(): void {
   if (started) return;
-  if (!hasTransport()) return;
+  // 窗口缩放只在宿主的看板娘窗口里有（dev:web 的浏览器页面没有窗口）
+  if (!hasWindowHost()) return;
   started = true;
   void api.mascot.scaleGet().then(setState, ignore);
   api.on('mascot.scaleChanged', setState);
@@ -37,7 +38,7 @@ function flushWheel(): void {
   wheelRaf = 0;
   const dy = pendingWheel;
   pendingWheel = 0;
-  if (dy !== 0 && hasTransport())
+  if (dy !== 0 && hasWindowHost())
     void api.mascot.scaleWheel({ deltaY: dy, deltaMode: 0 }).then(setState, ignore);
 }
 
@@ -56,13 +57,13 @@ export const scaleStore = {
     if (!wheelRaf) wheelRaf = requestAnimationFrame(flushWheel);
   },
   step(dir: 1 | -1): void {
-    if (hasTransport()) void api.mascot.scaleStep({ dir }).then(setState, ignore);
+    if (hasWindowHost()) void api.mascot.scaleStep({ dir }).then(setState, ignore);
   },
   set(scale: number): void {
-    if (hasTransport()) void api.mascot.scaleSet({ scale }).then(setState, ignore);
+    if (hasWindowHost()) void api.mascot.scaleSet({ scale }).then(setState, ignore);
   },
   reset(): void {
-    if (hasTransport()) void api.mascot.scaleReset().then(setState, ignore);
+    if (hasWindowHost()) void api.mascot.scaleReset().then(setState, ignore);
   },
 };
 
@@ -85,7 +86,7 @@ const editable = (t: EventTarget | null): boolean => {
  */
 export function useMascotZoomInput(): void {
   useEffect(() => {
-    if (!hasTransport()) return undefined;
+    if (!hasWindowHost()) return undefined;
     start();
     const onWheel = (e: WheelEvent) => {
       if (!e.ctrlKey && !e.metaKey) return;

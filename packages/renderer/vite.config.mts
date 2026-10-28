@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import { characterPackPlugin } from '../../scripts/character/vite-plugin.mjs';
+import { devTransportPlugin } from '../../scripts/dev-web/vite-plugin.mjs';
 import { DEV_HOST, PORTS } from '../../scripts/ports.mjs';
 import react from '@vitejs/plugin-react';
 import path from 'path';
@@ -16,6 +17,8 @@ export default defineConfig({
     react(),
     // 当前角色包（CHARACTER_PACK 或 characters/nomi）：开发态直接读包，构建时输出到 dist/character
     characterPackPlugin({ scope: 'all' }),
+    // pnpm dev:web：把开发态内核的 WebSocket 地址注入页面；生产构建里不允许出现这条传输
+    ...devTransportPlugin(),
     {
       // 生产构建：给看板娘窗口注入 CSP（开发模式 HMR 需要内联脚本，不注入）
       name: 'mascot-csp',
@@ -40,6 +43,12 @@ export default defineConfig({
 
   // 基础公共路径
   base: './',
+
+  // @nomi-ai/types 只产出 CommonJS（主进程要 require），workspace 链接的包默认不预构建：
+  // dev 下浏览器按 ESM 直接加载 dist/index.js 拿不到具名导出（brand 等），整页白屏（与 ai-chat 相同）
+  optimizeDeps: {
+    include: ['@nomi-ai/types'],
+  },
 
   // 开发服务器配置
   server: {

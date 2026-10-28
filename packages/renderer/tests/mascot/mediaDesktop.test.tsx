@@ -25,6 +25,7 @@ vi.mock('@/services/api', () => ({
     },
   ),
   hasTransport: () => host.client !== null,
+  hasWindowHost: () => host.client !== null,
 }));
 
 import { DesktopConfirm } from '../../src/components/Mascot/DesktopConfirm';

@@ -8,7 +8,7 @@ import { avatarEvents } from '../../avatar/events';
 import { handleAvatarInteraction, reportAvatarEvent } from '../../avatar/interaction';
 import { createMascotWindowHost } from '../../avatar/windowHost';
 import { useCharacterPackReady } from '../../mascot/characterConfig';
-import { hasTransport } from '../../services/api';
+import { hasWindowHost } from '../../services/api';
 
 export interface Nomi2DCanvasProps {
   /** URL of the sprite manifest used by the fallback renderer. */
@@ -20,7 +20,7 @@ const DEV = process.env.NODE_ENV === 'development';
 /**
  * Mascot window → avatar-runtime adapter: waits for the Scheme B overlay so mode / asset URLs are
  * final before first paint, then mounts `AvatarStage` with the window's event hub, the contract
- * window host (click-through / drag; only when the contract transport exists), the bubble /
+ * window host (click-through / drag; only inside the host's mascot window, not on the dev:web page), the bubble /
  * speech handler for interaction output and the semantic reporter (touched / clicked / scene → AI).
  */
 export const Nomi2DCanvas: React.FC<Nomi2DCanvasProps> = ({ manifestPath }) => {
@@ -30,7 +30,7 @@ export const Nomi2DCanvas: React.FC<Nomi2DCanvasProps> = ({ manifestPath }) => {
     [overlayReady, manifestPath],
   );
   const windowHost = useMemo<AvatarWindowHost | null>(
-    () => (hasTransport() ? createMascotWindowHost() : null),
+    () => (hasWindowHost() ? createMascotWindowHost() : null),
     [],
   );
 

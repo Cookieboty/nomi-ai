@@ -26,7 +26,7 @@ vi.mock('@/services/api', async () => {
     { caller: { surface: 'mascot', trusted: true } },
   );
   (globalThis as Record<string, unknown>).__d1AudioBridgeHost = client;
-  return { api: client.api, hasTransport: () => true };
+  return { api: client.api, hasTransport: () => true, hasWindowHost: () => true };
 });
 
 type Bubble = { text: string; voice?: string; kind?: string };

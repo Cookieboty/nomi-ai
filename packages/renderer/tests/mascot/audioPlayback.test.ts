@@ -14,6 +14,7 @@ vi.mock('../../src/services/api', () => ({
     },
   },
   hasTransport: () => host.speak !== null,
+  hasWindowHost: () => host.speak !== null,
 }));
 
 import { speakRealtime, stopSpeaking } from '../../src/mascot/tts/audioPlayback';
