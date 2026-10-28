@@ -8,7 +8,10 @@
  * 约定：
  * - 只用 JSON 值与 `Uint8Array`（§4.2）；`AbortSignal`、`raw` 这类不可序列化字段不进契约；
  * - 视图传来的对象（对话选项、画像补丁）用 loose：未知字段原样透传，与原 IPC 行为一致；
- * - 不用 transform：两端都会解析一次。
+ * - 不用 transform：两端都会解析一次；
+ * - 输入严格、输出宽容：从磁盘读出的持久化数据（画像、事实、偏好、会话 meta）可能来自旧版本或被手改，
+ *   输出 schema 里的枚举用 `storedEnum` 放行未知字符串，不让一个旧值让整次调用失败；
+ *   视图写进来的同类字段（`MemoryFact`、`ProfilePatch`、`CreateSessionInput`）仍按枚举严格校验。
  */
 
 import { z } from 'zod';
@@ -17,6 +20,13 @@ import { z } from 'zod';
 export const Bytes = z.custom<Uint8Array>((value) => value instanceof Uint8Array, {
   message: 'Expected Uint8Array',
 });
+
+/**
+ * 持久化数据里的枚举（只用于输出）：已知值照常通过，旧版本 / 手改留下的其他字符串也放行。
+ * 类型保留已知值的提示，但消费方必须能处理未知值。
+ */
+const storedEnum = <const T extends readonly [string, ...string[]]>(values: T) =>
+  z.union([z.enum(values), z.string()]) as unknown as z.ZodType<T[number] | (string & {})>;
 
 // ---------------------------------------------------------------------------
 // chat（bundle-ig-base types/common.ts、ai-sdk facade/ChatFacade.ts）
@@ -117,6 +127,11 @@ export const Session = z.object({
   meta: SessionMeta.optional(),
 });
 
+/** 输出用：读自磁盘的会话 meta 可能有旧版本 / 手改的值，原样返回 */
+export const StoredSession = Session.extend({
+  meta: z.record(z.string(), z.unknown()).optional(),
+});
+
 export const CreateSessionInput = z.object({
   title: z.string().optional(),
   agentPreset: z.string().optional(),
@@ -148,13 +163,23 @@ export const ToolConfirmRequest = z.object({
 // memory（ai-sdk types/MemoryFact.ts、bundle-ig-base types/UserProfile.ts）
 // ---------------------------------------------------------------------------
 
+const FACT_KINDS = ['preference', 'identity', 'goal', 'dislike', 'habit', 'note'] as const;
+const FACT_SOURCES = ['user', 'inferred', 'distilled', 'system'] as const;
+
+/** 输入：视图写入的事实，枚举严格校验 */
 export const MemoryFact = z.object({
   id: z.string(),
-  kind: z.enum(['preference', 'identity', 'goal', 'dislike', 'habit', 'note']),
+  kind: z.enum(FACT_KINDS),
   text: z.string(),
-  source: z.enum(['user', 'inferred', 'distilled', 'system']),
+  source: z.enum(FACT_SOURCES),
   at: z.number(),
   confidence: z.number().optional(),
+});
+
+/** 输出：读自磁盘的事实，旧版本 / 手改的 kind、source 原样返回 */
+export const StoredMemoryFact = MemoryFact.extend({
+  kind: storedEnum(FACT_KINDS),
+  source: storedEnum(FACT_SOURCES),
 });
 
 export const SessionSummary = z.object({
@@ -164,12 +189,15 @@ export const SessionSummary = z.object({
   stepCount: z.number(),
 });
 
-const PreferenceSource = z.enum(['user', 'inferred', 'distilled']);
+const PREFERENCE_SOURCES = ['user', 'inferred', 'distilled'] as const;
+/** 输入（`ProfilePatch.source`）：严格 */
+const PreferenceSource = z.enum(PREFERENCE_SOURCES);
 
+/** 以下画像 schema 只用于输出（画像读自磁盘），枚举一律宽容，见文件头 */
 const preferenceValue = <T extends z.ZodType>(value: T) =>
   z.object({
     value,
-    source: PreferenceSource,
+    source: storedEnum(PREFERENCE_SOURCES),
     updatedAt: z.number(),
     confidence: z.number().optional(),
   });
@@ -184,16 +212,18 @@ export const UserIdentity = z.object({
 export const CodeStylePreference = z.object({
   language: z.array(z.string()).optional(),
   framework: z.array(z.string()).optional(),
-  indent: z.union([z.literal('tab'), z.literal(2), z.literal(4)]).optional(),
-  quotes: z.enum(['single', 'double']).optional(),
-  packageManager: z.enum(['npm', 'pnpm', 'yarn', 'bun']).optional(),
-  comments: z.enum(['minimal', 'verbose']).optional(),
+  indent: z
+    .union([z.literal('tab'), z.literal(2), z.literal(4), z.string(), z.number()])
+    .optional(),
+  quotes: storedEnum(['single', 'double']).optional(),
+  packageManager: storedEnum(['npm', 'pnpm', 'yarn', 'bun']).optional(),
+  comments: storedEnum(['minimal', 'verbose']).optional(),
 });
 
 export const UserPreferences = z.object({
   replyLanguage: preferenceValue(z.string()).optional(),
-  replyStyle: preferenceValue(z.enum(['concise', 'detailed', 'bullet', 'stepwise'])).optional(),
-  tone: preferenceValue(z.enum(['formal', 'casual', 'cute', 'strict'])).optional(),
+  replyStyle: preferenceValue(storedEnum(['concise', 'detailed', 'bullet', 'stepwise'])).optional(),
+  tone: preferenceValue(storedEnum(['formal', 'casual', 'cute', 'strict'])).optional(),
   codeStyle: CodeStylePreference.optional(),
   ttsVoiceId: preferenceValue(z.string()).optional(),
   autoAcceptTools: z.array(z.string()).optional(),

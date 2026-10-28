@@ -1,7 +1,7 @@
 /**
  * 应用契约（`@nomi-ai/contract/app`）测试：取代两份 `channels.ts` 与它们的快照测试。
  *
- * - 过程表快照：名字、kind、dangerous 不漂移（原 IPC_METHODS 的 36 个方法）；
+ * - 过程表快照：名字、kind、dangerous 不漂移（原 IPC_METHODS 的 35 个方法）；
  * - `AI_METHODS` 与过程表一一对应，位置参数打包规则；
  * - 事件表与 AIClient 的 12 个业务事件一一对应，schema 有意放宽；
  * - DTO schema：合法值通过、不合法值拒绝、二进制与 loose 字段保留；
@@ -15,6 +15,7 @@ import {
   AI_EVENTS,
   AI_METHODS,
   aiArgsToInput,
+  aiProcedures,
   aiSchemas,
   appContract,
   NOMI_TRANSPORT_GLOBAL,
@@ -25,7 +26,7 @@ import { createInProcessServer } from '../src/testing';
 const procedures = appContract.procedures as unknown as Record<string, ProcedureDef>;
 
 describe('appContract · 过程表', () => {
-  it('快照：36 个 AI 门面过程的 kind / dangerous', () => {
+  it('快照：35 个 AI 门面过程的 kind / dangerous', () => {
     const table = Object.entries(procedures).map(
       ([name, def]) => `${name}:${def.kind}${def.dangerous ? ':dangerous' : ''}`,
     );
@@ -66,6 +67,8 @@ describe('appContract · 过程表', () => {
       'ai.avatar.setExpression:mutation',
       'ai.avatar.driveLipSync:mutation',
     ]);
+    expect(Object.keys(aiProcedures)).toHaveLength(35);
+    expect(Object.keys(procedures)).toHaveLength(35);
     expect(appContract.version).toEqual({ major: 1, minor: 0 });
     expect(NOMI_TRANSPORT_GLOBAL).toBe('nomiTransport');
   });
@@ -171,6 +174,53 @@ describe('appContract · DTO schema', () => {
     });
     expect(profile.chat).toEqual({ maxHistoryLength: 10 });
     expect(aiSchemas.ProfilePatch.safeParse({ patch: {}, source: 'hacker' }).success).toBe(false);
+  });
+
+  it('持久化数据的输出宽容旧值 / 手改值；对应的输入仍严格', () => {
+    const out = (name: string) => procedures[name]!.output!;
+    const inp = (name: string) => procedures[name]!.input;
+
+    // 画像：旧版本的偏好枚举值、来源与缩进不让 get 整体失败，值原样返回
+    const legacyProfile = {
+      version: 1,
+      identity: {},
+      preferences: {
+        replyStyle: { value: 'poetic', source: 'imported', updatedAt: 1 },
+        tone: { value: 'cute', source: 'legacy', updatedAt: 1 },
+        codeStyle: { indent: 8, quotes: 'backtick', packageManager: 'deno' },
+      },
+      habits: {},
+      dislikes: [],
+      createdAt: 1,
+      updatedAt: 2,
+    };
+    expect(out('ai.memory.userProfile.get').parse(legacyProfile)).toEqual(legacyProfile);
+    // 结构仍然校验：缺字段照样拒绝
+    expect(out('ai.memory.userProfile.get').safeParse({ version: 1 }).success).toBe(false);
+    // 输入严格：补丁来源不在枚举里拒绝
+    expect(
+      inp('ai.memory.userProfile.set').safeParse({ patch: {}, source: 'imported' }).success,
+    ).toBe(false);
+
+    // 事实：list / put 的输出放行旧 kind / source，put 的输入严格
+    const legacyFact = { id: 'f', kind: 'hobby', text: 't', source: 'migrated', at: 1 };
+    expect(out('ai.memory.facts.list').parse([legacyFact])).toEqual([legacyFact]);
+    expect(out('ai.memory.facts.put').parse(legacyFact)).toEqual(legacyFact);
+    expect(inp('ai.memory.facts.put').safeParse(legacyFact).success).toBe(false);
+    expect(
+      inp('ai.memory.facts.put').safeParse({ ...legacyFact, kind: 'note', source: 'user' }).success,
+    ).toBe(true);
+
+    // 会话 meta：手改出的嵌套值不让 list 失败；create 的输入 meta 仍严格
+    const legacySession = {
+      id: 's',
+      title: 't',
+      createdAt: 1,
+      updatedAt: 1,
+      meta: { pinned: null, extra: { a: 1 } },
+    };
+    expect(out('ai.sessions.list').parse([legacySession])).toEqual([legacySession]);
+    expect(inp('ai.sessions.create').safeParse({ meta: { extra: { a: 1 } } }).success).toBe(false);
   });
 
   it('二进制字段要求 Uint8Array（Buffer 作为子类也可以）', () => {

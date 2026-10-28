@@ -24,8 +24,9 @@ import {
   MemoryFact,
   PcmChunk,
   ProfilePatch,
-  Session,
   SessionSummary,
+  StoredMemoryFact,
+  StoredSession,
   ToolSpec,
   TtsChunk,
   TtsOptions,
@@ -47,22 +48,22 @@ export const aiProcedures = {
   'ai.chat.agentStream': { kind: 'stream', input: ChatOptions, chunk: ChatChunk },
 
   // sessions
-  'ai.sessions.list': { kind: 'query', input: z.void(), output: z.array(Session) },
-  'ai.sessions.get': { kind: 'query', input: id, output: Session.optional() },
+  'ai.sessions.list': { kind: 'query', input: z.void(), output: z.array(StoredSession) },
+  'ai.sessions.get': { kind: 'query', input: id, output: StoredSession.optional() },
   'ai.sessions.create': {
     kind: 'mutation',
     input: CreateSessionInput.optional(),
-    output: Session,
+    output: StoredSession,
   },
   'ai.sessions.fork': {
     kind: 'mutation',
     input: z.object({ id: z.string(), overrides: CreateSessionInput.optional() }),
-    output: Session,
+    output: StoredSession,
   },
   'ai.sessions.rename': {
     kind: 'mutation',
     input: z.object({ id: z.string(), title: z.string() }),
-    output: Session,
+    output: StoredSession,
   },
   'ai.sessions.delete': { kind: 'mutation', input: id, output: z.boolean() },
 
@@ -92,8 +93,8 @@ export const aiProcedures = {
   },
 
   // memory.facts
-  'ai.memory.facts.list': { kind: 'query', input: z.void(), output: z.array(MemoryFact) },
-  'ai.memory.facts.put': { kind: 'mutation', input: MemoryFact, output: MemoryFact },
+  'ai.memory.facts.list': { kind: 'query', input: z.void(), output: z.array(StoredMemoryFact) },
+  'ai.memory.facts.put': { kind: 'mutation', input: MemoryFact, output: StoredMemoryFact },
   'ai.memory.facts.delete': { kind: 'mutation', input: id, output: z.boolean() },
 
   // memory.summaries
