@@ -79,6 +79,7 @@ import { ServiceContainer, type IServiceContainer } from './core/ServiceContaine
 import { APP_EVENTS, HOST_PORTS } from './core/serviceTokens';
 import { createDesktopService, type DesktopWindows } from './desktop/DesktopService';
 import { guardOutboundMessages } from './desktop/outboundGuard';
+import { applyConversationWorkspace } from './desktop/workspaceTools';
 import { DiagnosticsService } from './diagnostics/DiagnosticsService';
 import { ExtensionsService } from './extensions/ExtensionsService';
 import { GatewayService } from './gateway/GatewayService';
@@ -824,6 +825,18 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
       const m = harness.mainPermissionMode();
       return m === 'bypass' ? 'acceptEdits' : m;
     };
+    // Nomi 对话的工作区：只认用户选过的目录（标签目录 / 最近列表 / 默认目录）；「全部自动」跟编程助手设置
+    desktop.broker.isKnownWorkspace = (dir) => {
+      try {
+        harness.knownDir(dir);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    desktop.broker.autoApprove = () => harness.autoApproveEnabled();
+    desktop.broker.onWorkspaceRejected = (dir, reason) =>
+      logger.warn('Nomi workspace rejected; tools fall back to granted folders', { dir, reason });
     // Nomi 把编程助手当子代理调用（工具 delegate_to_cli、/cli、设置 →「编程助手」→「委派」）
     services.delegate = new DelegateService({
       root: userData('delegate'),
@@ -942,8 +955,10 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
         },
         // 消息里的附件正文 / 委派汇报按实际接收者过「仅本地 / 云端首次发送」（#149 / #117）
         // signal：用户在确认等待中停止该轮时撤掉还没答复的确认（#160）
-        prepareChat: (options, method, signal) =>
-          guardOutboundMessages(options.messages, (what) => {
+        // 对话工作区：视图带来的 extra.cwd 先经内核校验，不认的去掉（工具不再看到它）
+        prepareChat: async (options, method, signal) => {
+          if (services.desktop) await applyConversationWorkspace(options, services.desktop.broker);
+          return guardOutboundMessages(options.messages, (what) => {
             const desktop = services.desktop!;
             const fallback = method.startsWith('agent') ? 'agent-tools' : 'chat';
             const role =
@@ -953,7 +968,8 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
                 ? options.role
                 : fallback;
             return desktop.checkSendAll(desktop.receiversFor(undefined, [role]), signal, what);
-          }),
+          });
+        },
       });
       logger.info('AI runtime 启动完成', {
         profile: handle.profile,

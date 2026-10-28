@@ -44,6 +44,10 @@ function setup(
       models: () => Array<{ ref: string; provider: string; label: string }>;
     };
     settings?: Record<string, unknown>;
+    /** 「全部自动」（编程助手设置）；缺省关，按原来的档位规则 */
+    autoApprove?: boolean;
+    /** 已校验通过的对话工作区（workspaceOf 的结果）；ctx.cwd 有值时才生效 */
+    workspace?: string;
   } = {},
 ) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'delegate-'));
@@ -58,6 +62,7 @@ function setup(
   const harness = {
     state: () => ({ bins: { claude: '/c', codex: '/x', gemini: null, grok: null, dsh: null } }),
     recentCwds: () => [cwd],
+    autoApproveEnabled: () => o.autoApprove ?? false,
     listTabs: () => ({ tabs, defaultPermissionMode: 'acceptEdits', activeTabId: 'main' }),
     createTab: (opts: Record<string, unknown>) => {
       created.push(opts);
@@ -95,6 +100,18 @@ function setup(
       authorize: async (i: Record<string, unknown>) => {
         authorized.push(i);
         return o.decision ?? 'allowed';
+      },
+      workspaceOf: async (c: unknown) => (o.workspace && c ? o.workspace : null),
+      guardIn: async (root: string, p: string) => {
+        const real = path.resolve(root, p);
+        return real === root || real.startsWith(root + path.sep)
+          ? { ok: true, real, scope: {}, exists: true }
+          : { ok: false, code: 'outside_scope', message: '不在工作区里' };
+      },
+      authorizeIn: async (i: Record<string, unknown>) => {
+        authorized.push({ ...i, inWorkspace: true });
+        if (o.mode === 'plan') return 'blocked';
+        return o.autoApprove ? 'auto' : (o.decision ?? 'allowed');
       },
       markRead,
       checkSend: async () => (o.localOnlyBlocks ? 'local_only' : null),
@@ -166,6 +183,48 @@ describe('DelegateService · delegate_to_cli', () => {
     expect(String(r.data?.report?.needsUser)).toContain('<cli-output>');
     expect(s.authorized[0]).toMatchObject({ tool: 'delegate_to_cli', danger: 'write' });
     expect(s.markRead).toHaveBeenCalled();
+  });
+
+  it('对话选了工作区：在工作区里开标签（不要授权），工作区外的 cwd 被拒绝', async () => {
+    const s = setup({ workspace: '', granted: false });
+    const ws = s.cwd;
+    const sub = path.join(ws, 'pkg');
+    fs.mkdirSync(sub);
+    const s2 = setup({ workspace: ws, granted: false });
+    const r = await s2.run({}, { cwd: ws });
+    expect(r.ok).toBe(true);
+    expect(s2.created[0]).toMatchObject({ cwd: ws, permissionMode: 'acceptEdits' });
+    expect(s2.authorized[0]).toMatchObject({ tool: 'delegate_to_cli', inWorkspace: true });
+    // 子目录可以
+    const r2 = await s2.run({ cwd: 'pkg' }, { cwd: ws });
+    expect(r2.ok).toBe(true);
+    expect(s2.created[1]).toMatchObject({ cwd: sub });
+    // 工作区外：拒绝，不开标签
+    const r3 = await s2.run({ cwd: os.tmpdir() }, { cwd: ws });
+    expect(r3.ok).toBe(false);
+    expect(r3.error?.code).toBe('cwd_outside_workspace');
+    expect(s2.created).toHaveLength(2);
+    // 没有工作区时仍要求授权文件夹（原有行为）
+    const r4 = await s.run({}, {});
+    expect(r4.error?.code).toBe('cwd_not_granted');
+  });
+
+  it('「全部自动」：委派的编程助手从完全放开开始（不传档位，用新标签默认）；Nomi 调成逐项确认时仍按更严的', async () => {
+    const s = setup({ autoApprove: true, workspace: '' });
+    const ws = s.cwd;
+    const auto = setup({ autoApprove: true, workspace: ws });
+    const r = await auto.run({}, { cwd: ws });
+    expect(r.ok).toBe(true);
+    expect(auto.created[0]).not.toHaveProperty('permissionMode');
+    expect(auto.authorized[0]).toMatchObject({ inWorkspace: true });
+    const strict = setup({ autoApprove: true, mode: 'manual' });
+    await strict.run({});
+    expect(strict.created[0]).toMatchObject({ permissionMode: 'manual' });
+    // 计划档：工作区里同样拦下
+    const plan = setup({ autoApprove: true, mode: 'plan', workspace: ws });
+    const rp = await plan.run({}, { cwd: ws });
+    expect(rp.error?.code).toBe('mode_blocked');
+    expect(plan.created).toHaveLength(0);
   });
 
   it('profile/model：createTab 带上 modelOverride；显式 model 优先于档位', async () => {
@@ -336,6 +395,7 @@ describe('DelegateService · delegate_to_cli', () => {
     const harness = {
       state: () => ({ bins: { claude: '/c', codex: '/x', gemini: null, grok: null, dsh: null } }),
       recentCwds: () => [cwd],
+      autoApproveEnabled: () => false,
       listTabs: () => ({ tabs, defaultPermissionMode: 'acceptEdits', activeTabId: 'main' }),
       createTab: (opts: Record<string, unknown>) => {
         created.push(opts);
@@ -366,6 +426,7 @@ describe('DelegateService · delegate_to_cli', () => {
         permissionMode: () => 'acceptEdits' as const,
         guard: async (p: string) => ({ ok: true, real: p, scope: {}, exists: true }),
         authorize: async () => 'allowed' as const,
+        workspaceOf: async () => null,
         markRead: () => undefined,
         checkSend: async () => null,
       },

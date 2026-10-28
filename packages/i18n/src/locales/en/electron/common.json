@@ -296,6 +296,7 @@
   "electron.common.path-contains-invalid-characters": "Path contains invalid characters",
   "electron.common.path-is-empty": "Path is empty",
   "electron.common.path-is-not-inside-a-granted-folder": "Path is not inside a granted folder",
+  "electron.common.path-is-outside-the-conversation-workspace": "Path is outside this conversation's workspace ({0})",
   "electron.common.path-too-long": "Path too long",
   "electron.common.peace-sign": "Peace sign",
   "electron.common.permission-denied": "Permission denied",

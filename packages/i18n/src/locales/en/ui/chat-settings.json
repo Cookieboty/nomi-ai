@@ -443,5 +443,10 @@
   "ui.chat-settings.token-usage-cost-and-how-each-provider-performs": "Token usage and cost, plus success rate, latency and speed for each provider and model. Counted on this computer only.",
   "ui.chat-settings.usage-and-quality": "Usage & quality",
   "ui.chat-settings.usage-and-quality-sections": "Usage & quality sections",
-  "ui.chat-settings.when-off-system-notifications-are-used-while-nomi": "When off, system notifications are used while {0} is closed."
+  "ui.chat-settings.when-off-system-notifications-are-used-while-nomi": "When off, system notifications are used while {0} is closed.",
+  "ui.chat-settings.permissions": "Permissions",
+  "ui.chat-settings.auto-approve-everything": "Auto-approve everything (full access)",
+  "ui.chat-settings.auto-approve-description": "When on, new coding agent tabs and the agents Nomi hands work to start in Full access, and file and command actions inside a Nomi conversation's workspace run without asking. Paths outside the workspace and sensitive files (.ssh, keychains, .env, …) are still refused. Turn it off to be asked again.",
+  "ui.chat-settings.turn-on-auto-approve": "Turn on auto-approve?",
+  "ui.chat-settings.auto-approve-confirm-body": "Coding agents will run with full access, and Nomi will edit files and run commands in the conversation workspace without asking. Only use this with folders you trust."
 }

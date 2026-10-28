@@ -7,6 +7,7 @@ import type { DesktopBubble } from '@nomi-ai/types';
 // （显示 / 隐藏 / 按 sender 校验）与窗口数量。
 
 import { avatarEmotion, avatarGesture } from '../ai/mascotCommand';
+import { cliChildEnv } from '../cli/harness/spawn';
 import type { AppEventName, AppEvents } from '../core/appEvents';
 import { t as tr } from '../i18n';
 import { CodeSandbox } from '../sandbox/CodeSandbox';
@@ -463,6 +464,8 @@ export class DesktopService {
         say: (t) => this.say(t),
       },
       p3: { browser: this.browser(), code: new CodeSandbox() },
+      // 工作区命令与编程助手标签同一套环境：补全后的 PATH，剔除 Nomi 内部变量
+      shell: { env: () => cliChildEnv(false) },
     });
     return this.toolDefs;
   }

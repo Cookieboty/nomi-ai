@@ -13,6 +13,7 @@ import {
   type Policy,
 } from './consent';
 import { guardPath, type GuardEnv, type GuardResult, type Scope } from './pathGuard';
+import { checkWorkspaceRoot, resolveInWorkspace, workspaceScope } from './workspace';
 
 export interface DesktopSettings {
   scopes: Scope[];
@@ -79,6 +80,15 @@ export class PermissionBroker {
   ui: ConfirmUi | null = null;
   /** Nomi 对话当前的权限模式（由编程助手服务里主标签的档位注入；未注入时按默认） */
   permissionMode: () => NomiPermissionMode = () => 'acceptEdits';
+  /**
+   * 视图给的 Nomi 对话工作区是不是用户选过的目录（编程助手服务的 knownDir，组合根注入）。
+   * 未注入时一律不认：工具按没有工作区处理（需要授权文件夹，原有行为）。
+   */
+  isKnownWorkspace: (dir: string) => boolean = () => false;
+  /** 「全部自动」：工作区里的文件 / 命令工具不确认（编程助手服务的设置，组合根注入；默认关） */
+  autoApprove: () => boolean = () => false;
+  /** 拒绝视图给的工作区时记一条日志（组合根注入） */
+  onWorkspaceRejected: (dir: string, reason: string) => void = () => undefined;
 
   constructor(
     private readonly file: string,
@@ -169,6 +179,66 @@ export class PermissionBroker {
 
   guard(p: unknown, need: 'read' | 'write', allowMissing = false): Promise<GuardResult> {
     return guardPath(p, { ...this.envBase, scopes: this.scopes() }, { need, allowMissing });
+  }
+
+  // ---------- Nomi 对话的工作区 ----------
+  /**
+   * 校验这一轮带来的工作区（ToolExecContext.cwd）：必须是用户选过的目录，且不是过宽的根 / 黑名单目录。
+   * 返回工作区的真实路径；不认时返回 null 并记日志——调用方按没有工作区处理（原有行为）。
+   */
+  async workspaceOf(cwd: unknown): Promise<string | null> {
+    if (typeof cwd !== 'string' || !cwd.trim()) return null;
+    const dir = cwd.trim();
+    let known: boolean;
+    try {
+      known = this.isKnownWorkspace(dir);
+    } catch {
+      known = false;
+    }
+    if (!known) {
+      this.onWorkspaceRejected(dir, 'not a workspace the user chose');
+      return null;
+    }
+    const r = await checkWorkspaceRoot(dir, this.envBase);
+    if (!r.ok) {
+      this.onWorkspaceRejected(dir, r.reason);
+      return null;
+    }
+    return r.real;
+  }
+
+  /**
+   * 工作区里的路径守卫：相对路径按工作区解析；目标（realpath 后）必须在工作区里，
+   * 黑名单照旧生效；工作区外一律拒绝（不看已授权文件夹）。
+   */
+  async guardIn(
+    root: string,
+    p: unknown,
+    need: 'read' | 'write',
+    allowMissing = false,
+  ): Promise<GuardResult> {
+    const g = await guardPath(
+      resolveInWorkspace(p, root, this.envBase.platform),
+      { ...this.envBase, scopes: [workspaceScope(root)] },
+      { need, allowMissing },
+    );
+    if (!g.ok && g.code === 'outside_scope')
+      return {
+        ok: false,
+        code: 'outside_scope',
+        message: t('electron.common.path-is-outside-the-conversation-workspace', root),
+      };
+    return g;
+  }
+
+  /**
+   * 工作区里的操作要不要确认：「计划」档照旧拦下写；「全部自动」开着时不确认；
+   * 关着时按原来的规则确认（但不再要求授权文件夹）。
+   */
+  async authorizeIn(i: Parameters<PermissionBroker['authorize']>[0]): Promise<Decision> {
+    if (this.permissionMode() === 'plan' && i.danger !== 'read') return 'blocked';
+    if (!i.force && this.autoApprove()) return 'auto';
+    return this.authorize(i);
   }
 
   // ---------- 策略 ----------

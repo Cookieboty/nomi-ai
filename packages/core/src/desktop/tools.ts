@@ -15,6 +15,7 @@ import { isInside } from './pathGuard';
 import type { PermissionBroker } from './PermissionBroker';
 import { ToolError } from './toolError';
 import type { InverseOp, UndoJournal } from './UndoJournal';
+import { createWorkspaceTools, WORKSPACE_DANGER, type WorkspaceShell } from './workspaceTools';
 
 export interface ProviderInfo {
   id: string;
@@ -40,6 +41,8 @@ export interface DesktopToolDeps {
   p2?: P2Deps;
   /** P3：沙箱浏览器 / 代码执行（缺省时不注册） */
   p3?: P3Deps;
+  /** 工作区命令（workspace_run）的环境；缺省时不注册 */
+  shell?: WorkspaceShell;
 }
 
 export { ToolError };
@@ -65,6 +68,7 @@ export const TOOL_DANGER: Record<string, Danger> = {
   undo_last: 'write',
   ...P2_DANGER,
   ...P3_DANGER,
+  ...WORKSPACE_DANGER,
 };
 
 const MAX_TEXT_PER_CALL = 60_000;
@@ -137,8 +141,16 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
     }
   }
 
-  async function guard(p: unknown, need: 'read' | 'write', allowMissing = false) {
-    const g = await broker.guard(p, need, allowMissing);
+  /** 工作区（已校验）里只认工作区，没有工作区时按已授权文件夹 */
+  async function guard(
+    p: unknown,
+    need: 'read' | 'write',
+    allowMissing = false,
+    ws: string | null = null,
+  ) {
+    const g = ws
+      ? await broker.guardIn(ws, p, need, allowMissing)
+      : await broker.guard(p, need, allowMissing);
     if (!g.ok) throw new ToolError(g.code, g.message);
     return g;
   }
@@ -150,8 +162,9 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
     signal?: AbortSignal,
     preview?: string,
     force?: { dialog: boolean },
+    ws: string | null = null,
   ): Promise<'auto' | 'allowed'> {
-    const d = await broker.authorize({
+    const req = {
       tool,
       danger: TOOL_DANGER[tool] ?? 'write',
       summary,
@@ -159,7 +172,9 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
       preview,
       signal,
       force,
-    });
+    };
+    // 工作区里：「全部自动」开着时不确认（计划档仍拦写）
+    const d = ws ? await broker.authorizeIn(req) : await broker.authorize(req);
     if (d === 'denied')
       throw new ToolError('user_denied', '用户拒绝了这个操作，不要重试同一个调用');
     if (d === 'timeout') throw new ToolError('timeout_denied', '120 秒内没有得到确认，已自动拒绝');
@@ -228,7 +243,10 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
     .string()
     .min(1)
     .max(4096)
-    .describe('文件或文件夹的绝对路径（可用 ~ 表示主目录），必须在已授权的文件夹内');
+    .describe(
+      '文件或文件夹路径。对话选了工作区时只能在工作区里，可用相对路径（相对工作区）；' +
+        '没有工作区时用绝对路径（可用 ~ 表示主目录），必须在已授权的文件夹内',
+    );
 
   const listInput = z
     .object({
@@ -240,7 +258,7 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
   const statInput = z.object({ path: pathSchema }).strict();
   const searchInput = z
     .object({
-      root: pathSchema.optional().describe('默认在所有已授权文件夹里搜索'),
+      root: pathSchema.optional().describe('默认在工作区（没有工作区时在所有已授权文件夹）里搜索'),
       name: z.string().max(200).optional().describe("文件名通配，如 '*.pdf'、'*report*'"),
       contains: z.string().min(1).max(200).optional().describe('文本文件（≤2MB）内容包含'),
       limit: z.number().int().min(1).max(200).default(50),
@@ -306,8 +324,10 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
         '查看你目前被授权访问的文件夹（只读 / 读写）以及隐私设置。访问文件前如果不确定，先调用这个。',
       input: z.object({}).strict(),
       async execute(_i, ctx) {
+        const ws = await broker.workspaceOf(ctx.cwd);
         return run('desktop_permissions', {}, ctx.signal, async () => ({
           data: {
+            ...(ws ? { workspace: ws, workspaceAutoApprove: broker.autoApprove() } : {}),
             scopes: broker
               .scopes()
               .map((s) => ({ path: s.path, mode: s.mode, kind: s.kind, session: !!s.session })),
@@ -324,6 +344,13 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
       async execute(input, ctx) {
         const i = scopeInput.parse(input);
         return run('desktop_request_scope', i, ctx.signal, async () => {
+          const ws = await broker.workspaceOf(ctx.cwd);
+          if (ws)
+            throw new ToolError(
+              'workspace_set',
+              `这次对话选了工作区 ${ws}：文件和命令工具只能在工作区里用，不能再授权别的文件夹。` +
+                '需要别的位置时请用户在对话顶栏换工作区',
+            );
           const picked = await deps.pickFolder(i.suggestedPath);
           if (!picked) throw new ToolError('user_denied', '用户取消了授权');
           const s = broker.grant(picked, i.mode);
@@ -338,7 +365,7 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
       async execute(input, ctx) {
         const i = listInput.parse(input);
         return run('fs_list', i, ctx.signal, async () => {
-          const g = await guard(i.path, 'read');
+          const g = await guard(i.path, 'read', false, await broker.workspaceOf(ctx.cwd));
           const st = await fs.promises.stat(g.real);
           if (!st.isDirectory()) throw new ToolError('not_directory', '不是文件夹');
           const names = (await fs.promises.readdir(g.real, { withFileTypes: true })).sort((a, b) =>
@@ -369,7 +396,7 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
       async execute(input, ctx) {
         const i = statInput.parse(input);
         return run('fs_stat', i, ctx.signal, async () => {
-          const g = await guard(i.path, 'read');
+          const g = await guard(i.path, 'read', false, await broker.workspaceOf(ctx.cwd));
           const st = await fs.promises.stat(g.real);
           return {
             data: {
@@ -390,12 +417,15 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
       async execute(input, ctx) {
         const i = searchInput.parse(input);
         return run('fs_search', i, ctx.signal, async () => {
+          const ws = await broker.workspaceOf(ctx.cwd);
           const roots = i.root
-            ? [(await guard(i.root, 'read')).real]
-            : broker
-                .scopes()
-                .filter((s) => s.kind === 'folder')
-                .map((s) => s.path);
+            ? [(await guard(i.root, 'read', false, ws)).real]
+            : ws
+              ? [ws]
+              : broker
+                  .scopes()
+                  .filter((s) => s.kind === 'folder')
+                  .map((s) => s.path);
           const re = i.name ? globToRegExp(i.name) : null;
           const needle = i.contains?.toLowerCase();
           const hits: Array<{ path: string; size: number; modified: string }> = [];
@@ -414,7 +444,9 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
                   await walk(full, depth + 1);
                 continue;
               }
-              const g = await broker.guard(full, 'read');
+              const g = ws
+                ? await broker.guardIn(ws, full, 'read')
+                : await broker.guard(full, 'read');
               if (!g.ok) continue; // 黑名单文件
               if (re && !re.test(d.name)) continue;
               const st = await fs.promises.stat(full);
@@ -444,7 +476,7 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
       async execute(input, ctx) {
         const i = readInput.parse(input);
         return run('fs_read_text', i, ctx.signal, async () => {
-          const g = await guard(i.path, 'read');
+          const g = await guard(i.path, 'read', false, await broker.workspaceOf(ctx.cwd));
           const r = await readExtracted(g.real);
           await beforeSend(['chat', 'agent-tools'], ctx.signal, ctx.provider);
           let text = r.text;
@@ -475,7 +507,7 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
       async execute(input, ctx) {
         const i = summarizeInput.parse(input);
         return run('fs_summarize', i, ctx.signal, async () => {
-          const g = await guard(i.path, 'read');
+          const g = await guard(i.path, 'read', false, await broker.workspaceOf(ctx.cwd));
           const r = await readExtracted(g.real);
           if (!r.text.trim()) throw new ToolError('empty', '没有提取到文本（可能是扫描版 PDF）');
           // 摘要在 summary 模型里生成，结果又会交给实际接收者（聊天模型）：两边都要校验
@@ -503,7 +535,8 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
         const i = writeInput.parse(input);
         const tool = i.mode === 'overwrite' ? 'fs_trash' : 'fs_write_text';
         return run<Record<string, unknown>>('fs_write_text', i, ctx.signal, async () => {
-          const g = await guard(i.path, 'write', true);
+          const ws = await broker.workspaceOf(ctx.cwd);
+          const g = await guard(i.path, 'write', true, ws);
           if (g.exists && i.mode === 'create')
             throw new ToolError('exists', '文件已存在；如需覆盖请使用 overwrite');
           if (!g.exists && i.mode !== 'create')
@@ -516,6 +549,8 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
             { path: g.real, mode: i.mode, chars: i.text.length },
             ctx.signal,
             preview,
+            undefined,
+            ws,
           );
           const inverse: InverseOp[] = [];
           if (i.mode === 'create') {
@@ -559,11 +594,12 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
       async execute(input, ctx) {
         const i = trashInput.parse(input);
         return run<Record<string, unknown>>('fs_trash', i, ctx.signal, async () => {
-          const g = await guard(i.path, 'write');
+          const ws = await broker.workspaceOf(ctx.cwd);
+          const g = await guard(i.path, 'write', false, ws);
           const st = await fs.promises.stat(g.real);
-          // 不能删除授权根目录本身或包含它的上级（比较 realpath；Windows 短文件名 / 大小写）
-          for (const s of broker.scopes()) {
-            const rootReal = await fs.promises.realpath(s.path).catch(() => s.path);
+          // 不能删除授权根目录 / 工作区本身或包含它的上级（比较 realpath；Windows 短文件名 / 大小写）
+          for (const root of ws ? [ws] : broker.scopes().map((s) => s.path)) {
+            const rootReal = await fs.promises.realpath(root).catch(() => root);
             if (isInside(rootReal, g.real, process.platform)) {
               throw new ToolError('denied', '不能删除已授权的根文件夹本身');
             }
@@ -579,6 +615,8 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
             { path: g.real },
             ctx.signal,
             preview,
+            undefined,
+            ws,
           );
           const rec = await trash.trash(g.real);
           const e = journal.record('fs_trash', `trash ${path.basename(g.real)}`, [
@@ -619,6 +657,15 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
   if (deps.p3)
     tools.push(
       ...createP3Tools(deps.p3, {
+        run,
+        confirm,
+        markRead: (sg) => broker.markRead(sg),
+        beforeSend: (sg, provider) => beforeSend(['chat', 'agent-tools'], sg, provider),
+      }),
+    );
+  if (deps.shell)
+    tools.push(
+      ...createWorkspaceTools(broker, deps.shell, {
         run,
         confirm,
         markRead: (sg) => broker.markRead(sg),

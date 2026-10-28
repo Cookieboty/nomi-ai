@@ -443,5 +443,10 @@
   "ui.chat-settings.token-usage-cost-and-how-each-provider-performs": "Token 用量与费用，以及每个供应商 / 模型的成功率、延迟与速度。数据只在本机统计。",
   "ui.chat-settings.usage-and-quality": "用量与质量",
   "ui.chat-settings.usage-and-quality-sections": "用量与质量分区",
-  "ui.chat-settings.when-off-system-notifications-are-used-while-nomi": "关闭后，{0}不在桌面时改用系统通知。"
+  "ui.chat-settings.when-off-system-notifications-are-used-while-nomi": "关闭后，{0}不在桌面时改用系统通知。",
+  "ui.chat-settings.permissions": "权限",
+  "ui.chat-settings.auto-approve-everything": "全部自动（最高权限）",
+  "ui.chat-settings.auto-approve-description": "开着时：新的编程助手标签和 Nomi 委派的编程助手默认「完全放开」，Nomi 对话工作区里的文件和命令操作不再逐项确认。工作区外的路径、敏感文件（.ssh、钥匙串、.env 等）仍然拒绝。关掉后改回逐项询问。",
+  "ui.chat-settings.turn-on-auto-approve": "打开「全部自动」？",
+  "ui.chat-settings.auto-approve-confirm-body": "编程助手会以最高权限运行，Nomi 在对话工作区里改文件、跑命令都不再问你。只在你信任的文件夹里这样用。"
 }

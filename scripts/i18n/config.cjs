@@ -26,7 +26,7 @@ module.exports = {
   // Do NOT list user-visible UI strings here — localize those instead.
   keepZh: [
     /voice[\\/]src[\\/]wake\.ts$/,
-    /core[\\/]src[\\/]desktop[\\/](p2tools|p3tools|tools)\.ts$/,
+    /core[\\/]src[\\/]desktop[\\/](p2tools|p3tools|tools|workspaceTools)\.ts$/,
     /core[\\/]src[\\/]cli[\\/]delegate[\\/](core|DelegateService)\.ts$/,
     /core[\\/]src[\\/]tts[\\/]legacy[\\/]/,
     /core[\\/]src[\\/]knowledge[\\/](tokenize|answer)\.ts$/,

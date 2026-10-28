@@ -104,6 +104,11 @@ export interface ToolExecContext {
   callerTabId?: string;
   /** 发起本轮工具循环的 Nomi 会话 id；后台委派完成结果按此会话落盘（#116） */
   conversationId?: string;
+  /**
+   * 这次 Nomi 对话选的工作区（视图带来的目录，未经校验）。
+   * 工具必须经内核校验（desktop PermissionBroker.workspaceOf）后才能使用；校验不过按没有工作区处理。
+   */
+  cwd?: string;
 }
 
 /** 工具接口 */
@@ -116,6 +121,8 @@ export interface ToolDefinition<TInput = unknown, TOutput = unknown> {
   dangerous?: boolean;
   /** 只读工具（例如 MCP annotations.readOnlyHint）；用于宽松的确认策略 */
   readOnly?: boolean;
+  /** 只在对话选了工作区（ToolExecContext.cwd）时提供给模型（如 workspace_run） */
+  requiresWorkspace?: boolean;
   execute: (input: TInput, ctx: ToolExecContext) => Promise<TOutput>;
 }
 

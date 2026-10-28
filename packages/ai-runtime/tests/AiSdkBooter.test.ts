@@ -67,6 +67,28 @@ describe('toAiSdkToolSet', () => {
     } as never);
     expect(seen?.conversationId).toBe('conv-42');
   });
+
+  it('forwards the conversation workspace and hides workspace-only tools without one', async () => {
+    let seen: { cwd?: string } | undefined;
+    const wsTool = {
+      ...echoTool,
+      name: 'ws_only',
+      requiresWorkspace: true,
+      execute: async (_input: unknown, ctx: { cwd?: string }) => {
+        seen = ctx;
+        return 'ok';
+      },
+    };
+    expect(Object.keys(toAiSdkToolSet([echoTool, wsTool], { reqId: 'r1' }))).toEqual(['echo']);
+    const set = toAiSdkToolSet([echoTool, wsTool], { reqId: 'r1', cwd: '/w/proj' });
+    expect(Object.keys(set)).toEqual(['echo', 'ws_only']);
+    await set.ws_only!.execute!({ text: 'x' }, {
+      toolCallId: 't1',
+      messages: [],
+      abortSignal: undefined as never,
+    } as never);
+    expect(seen?.cwd).toBe('/w/proj');
+  });
 });
 
 describe('AiSdkLlmProvider', () => {

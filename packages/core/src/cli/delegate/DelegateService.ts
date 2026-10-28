@@ -535,19 +535,32 @@ export class DelegateService {
       );
     const cli = picked.cli;
 
-    const cwdRaw = i.cwd?.trim() || harness.recentCwds()[0] || '';
-    if (!cwdRaw)
-      throw new DelegateError(
-        'cwd_required',
-        '没有指定工作目录，也没有最近用过的目录；请问用户在哪个文件夹里做',
-      );
-    const g = await broker.guard(cwdRaw, 'write');
-    if (!g.ok)
-      throw new DelegateError(
-        'cwd_not_granted',
-        `工作目录不可用：${g.message}。先用 desktop_request_scope 请用户授权这个文件夹`,
-      );
-    const sourceCwd = g.real;
+    // 对话选了工作区（经内核校验）：编程助手就在工作区里做；cwd 只能是工作区或它里面的子目录
+    const ws = await broker.workspaceOf(ctx.cwd);
+    let sourceCwd: string;
+    if (ws) {
+      const g = await broker.guardIn(ws, i.cwd?.trim() || ws, 'write');
+      if (!g.ok)
+        throw new DelegateError(
+          'cwd_outside_workspace',
+          `工作目录不可用：${g.message}。这次对话的工作区是 ${ws}，不填 cwd 就在工作区里做`,
+        );
+      sourceCwd = g.real;
+    } else {
+      const cwdRaw = i.cwd?.trim() || harness.recentCwds()[0] || '';
+      if (!cwdRaw)
+        throw new DelegateError(
+          'cwd_required',
+          '没有指定工作目录，也没有最近用过的目录；请问用户在哪个文件夹里做',
+        );
+      const g = await broker.guard(cwdRaw, 'write');
+      if (!g.ok)
+        throw new DelegateError(
+          'cwd_not_granted',
+          `工作目录不可用：${g.message}。先用 desktop_request_scope 请用户授权这个文件夹`,
+        );
+      sourceCwd = g.real;
+    }
 
     // 先占名额再往下走（准备隔离、等用户确认都有 await）：同时进来的几次委派不会一起通过检查（#141）
     const releaseSlot = this.reserveSlot();
@@ -563,7 +576,8 @@ export class DelegateService {
         );
       }
       let cwd = isolation.cwd;
-      if (isolation.kind === 'worktree' && isolation.cwd !== sourceCwd) {
+      // 工作区里派出的：worktree 是我们自己为这次委派建的，不再要求授权
+      if (isolation.kind === 'worktree' && isolation.cwd !== sourceCwd && !ws) {
         const gw = await broker.guard(isolation.cwd, 'write');
         if (!gw.ok) {
           await releaseIsolation(isolation);
@@ -576,7 +590,8 @@ export class DelegateService {
         isolation = { ...isolation, cwd };
       }
 
-      const decision = await broker.authorize({
+      const authorize = ws ? broker.authorizeIn.bind(broker) : broker.authorize.bind(broker);
+      const decision = await authorize({
         tool: 'delegate_to_cli',
         danger: 'write',
         summary: `让 ${CLI_NAME[cli]} 在 ${sourceCwd} 里：${i.goal.slice(0, 80)}`,
@@ -633,7 +648,15 @@ export class DelegateService {
           backend: cli,
           cwd,
           title: `Nomi · ${i.goal.trim().slice(0, 40)}`,
-          permissionMode: childPermissionMode(nomiMode, harness.listTabs().defaultPermissionMode),
+          // 「全部自动」：编程助手从完全放开开始（createTab 的默认）；Nomi 被调成计划 / 逐项确认时仍按更严的
+          ...(harness.autoApproveEnabled() && nomiMode !== 'plan' && nomiMode !== 'manual'
+            ? {}
+            : {
+                permissionMode: childPermissionMode(
+                  nomiMode,
+                  harness.listTabs().defaultPermissionMode,
+                ),
+              }),
           activate: false,
           delegation: { ...(ctx.toolCallId ? { callId: ctx.toolCallId } : {}), goal: i.goal },
           ...(overrides.model ? { modelOverride: overrides.model } : {}),

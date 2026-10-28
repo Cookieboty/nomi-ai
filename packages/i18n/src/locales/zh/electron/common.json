@@ -296,6 +296,7 @@
   "electron.common.path-contains-invalid-characters": "路径包含非法字符",
   "electron.common.path-is-empty": "路径为空",
   "electron.common.path-is-not-inside-a-granted-folder": "路径不在已授权的文件夹内",
+  "electron.common.path-is-outside-the-conversation-workspace": "路径不在这次对话的工作区（{0}）里",
   "electron.common.path-too-long": "路径过长",
   "electron.common.peace-sign": "剪刀手",
   "electron.common.permission-denied": "没有访问权限",

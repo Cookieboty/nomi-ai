@@ -31,13 +31,19 @@ export type MapToolsOpts = {
   callerTabId?: string;
   /** 发起本轮的 Nomi 会话 id（后台委派完成落盘，#116） */
   conversationId?: string;
+  /** Nomi 对话选的工作区（视图带来，工具侧再校验）；没有时不提供 requiresWorkspace 的工具 */
+  cwd?: string;
 };
 
 function isMapToolsOpts(v: unknown): v is MapToolsOpts {
   return (
     !!v &&
     typeof v === 'object' &&
-    ('provider' in v || 'reqId' in v || 'callerTabId' in v || 'conversationId' in v) &&
+    ('provider' in v ||
+      'reqId' in v ||
+      'callerTabId' in v ||
+      'conversationId' in v ||
+      'cwd' in v) &&
     !('id' in v)
   );
 }
@@ -55,7 +61,7 @@ export function toAiSdkTool(
   def: ToolDefinition,
   providerOrOpts?: MapToolsOpts | ToolCallProvider,
 ): Tool {
-  const { provider, reqId, callerTabId, conversationId } = normalizeOpts(providerOrOpts);
+  const { provider, reqId, callerTabId, conversationId, cwd } = normalizeOpts(providerOrOpts);
   return tool({
     description: def.description,
     inputSchema: toFlexibleSchema(def.input),
@@ -68,6 +74,7 @@ export function toAiSdkTool(
         ...(reqId ? { reqId } : {}),
         ...(caller ? { callerTabId: caller } : {}),
         ...(conversationId ? { conversationId } : {}),
+        ...(cwd ? { cwd } : {}),
       });
     },
   });
@@ -80,6 +87,7 @@ export function toAiSdkToolSet(
   const normalized = normalizeOpts(providerOrOpts);
   const out: Record<string, Tool> = {};
   for (const def of defs) {
+    if (def.requiresWorkspace && !normalized.cwd) continue;
     out[def.name] = toAiSdkTool(def, normalized);
   }
   return out;
