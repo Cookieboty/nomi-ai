@@ -1,24 +1,10 @@
 jest.unmock('fs');
-// OnboardingService 本身不 import electron；看板娘指令还经 ai/mascotCommand（未迁移）广播
-const sent: Array<[string, unknown]> = [];
-jest.mock('electron', () => ({
-  BrowserWindow: {
-    getAllWindows: () => [
-      {
-        isDestroyed: () => false,
-        webContents: {
-          isDestroyed: () => false,
-          send: (c: string, p: unknown) => sent.push([c, p]),
-        },
-      },
-    ],
-  },
-}));
 
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { setMascotLiveWindows } from '../../../src/ai/mascotCommand';
 import { createRecordingAppEvents, type RecordingAppEvents } from '../../../src/core/appEvents';
 import {
   ONBOARDING_PROFILE_CHANGED,
@@ -33,10 +19,12 @@ const make = (userData: string, openChat = jest.fn()) =>
 
 describe('OnboardingService', () => {
   beforeEach(() => {
-    sent.length = 0;
+    // 看板娘指令经 ai/mascotCommand 发布；存活窗口数由宿主报告（这里假装有一个窗口）
+    setMascotLiveWindows(() => 1);
     events = createRecordingAppEvents();
     delete process.env.CD_ONBOARDING;
   });
+  afterAll(() => setMascotLiveWindows(null));
   it('new users see it once; complete persists; existing users are not bothered', () => {
     const d = dir();
     const s = make(d);

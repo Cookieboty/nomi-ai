@@ -1,6 +1,6 @@
 import type { BrowserWindow, Rectangle } from 'electron';
 
-import { moveWindowTo, setWindowBounds } from '../../../src/utils/windowBounds';
+import { moveWindowTo, setWindowBounds } from '../../../src/host/windowBounds';
 
 function fakeWin(initial: Rectangle) {
   const b = { ...initial };

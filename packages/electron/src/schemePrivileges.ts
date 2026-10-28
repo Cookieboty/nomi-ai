@@ -1,7 +1,7 @@
 import { protocol } from 'electron';
 
 import { CHARACTER_PACK_SCHEME_PRIVILEGES } from './character/packProtocol';
-import { CHAT_ASSET_SCHEME_PRIVILEGES } from './chat/assetProtocol';
+import { CHAT_ASSET_SCHEME_PRIVILEGES } from './host/assetProtocol';
 
 /**
  * 必须在 app ready 之前调用，且**只能调用一次**：

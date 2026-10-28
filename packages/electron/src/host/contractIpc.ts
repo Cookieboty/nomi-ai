@@ -2,10 +2,10 @@
  * 契约的 Electron IPC 传输（docs/design/core-host-decoupling.md §5.2、§8）。
  *
  * 把内核的 Router 挂到 `contract:request` / `contract:frame` 两个通道上（`@nomi-ai/contract` 的
- * `createIpcServerTransport`，底层是 ai-runtime 的 IpcAdapter），视图经 preload 暴露的
+ * `createIpcServerTransport`，底层是 host/electronIpcAdapter.ts 实现的 ai-runtime `IpcAdapter`），视图经 preload 暴露的
  * `window.nomiTransport` 访问。
  *
- * - 调用者：`resolveAiCaller`（security/ipcSenderGuard.ts）按 sender URL 判定 surface 与 trusted，
+ * - 调用者：`resolveAiCaller`（host/ipcSenderGuard.ts）按 sender URL 判定 surface 与 trusted，
  *   不受信的发送方一律拒绝；`dangerous` 过程只接受 trusted 调用者（契约内置守卫）；
  * - 会话生命周期：服务端看不到渲染进程里旧客户端的消失，所以主框架的跨文档导航**提交**时
  *   （含刷新）、渲染进程退出与 webContents 销毁时调用 `disconnect(senderId)`：旧页面的订阅与
@@ -13,7 +13,7 @@
  *   `will-navigate` 里取消跨文档导航，被取消的导航不换页面，旧客户端仍然在用。
  */
 
-import { createElectronIpcAdapter, type IpcAdapter } from '@nomi-ai/ai-runtime';
+import type { IpcAdapter } from '@nomi-ai/ai-runtime';
 import {
   createIpcServerTransport,
   type ContractLogger,
@@ -23,7 +23,8 @@ import {
 } from '@nomi-ai/contract';
 import { app, webContents as electronWebContents } from 'electron';
 
-import { resolveAiCaller } from '../security/ipcSenderGuard';
+import { createElectronIpcAdapter } from './electronIpcAdapter';
+import { resolveAiCaller } from './ipcSenderGuard';
 
 /** 需要监听的 webContents 能力（Electron WebContents 结构上满足） */
 export interface ContractWebContents {

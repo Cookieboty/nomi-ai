@@ -28,16 +28,17 @@ export * from './ai-sdk/mcpBridge';
 export * from './providers';
 export * from './IgPluginHost';
 export * from './igPlugins';
-export * from './ElectronLifecycle';
+export * from './NoopLifecycle';
 export * from './IpcAdapter';
 export * from './AiContractRouter';
 
 /**
  * `runtime` 单例。业务方在 Electron 主进程中：
  * ```ts
- * import { runtime, createAiSdkBooter, createElectronLifecycle } from '@nomi-ai/ai-runtime';
- * await runtime.configure({ booter: createAiSdkBooter(), lifecycle: createElectronLifecycle() })
- *              .start('waifu', { home: app.getAppPath() });
+ * import { runtime, createAiSdkBooter } from '@nomi-ai/ai-runtime';
+ * // lifecycle 由宿主提供（Electron：lifecycle 端口的 onBeforeQuit）
+ * await runtime.configure({ booter: createAiSdkBooter(), lifecycle: { onBeforeQuit } })
+ *              .start('waifu', { home });
  * ```
  * 允许多次 configure 但只能在未启动状态。
  */

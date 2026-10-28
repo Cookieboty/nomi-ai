@@ -9,7 +9,8 @@
  * - `ELECTRON_FREE_PACKAGES`：整个包都不能依赖 electron（静态与动态都不行）。
  *
  * 两个白名单都是 shrink only, see docs/design/core-host-decoupling.md §12：
- * 只减不增；P2 换成宿主端口后逐个删除，P3 清空。某个文件不再用 electron 时，把它从白名单里删掉。
+ * 只减不增；P2 换成宿主端口后逐个删除，P3 第一步之后只剩本质上是宿主工作的文件（见各条注释）。
+ * 某个文件不再用 electron 时，把它从白名单里删掉。
  */
 
 /** 宿主区域（glob，相对仓库根目录） */
@@ -34,20 +35,9 @@ export const ELECTRON_HOST_FILES = [
  * packages/electron/src 里宿主区域之外、P0 时已经 import electron 的文件。不得新增条目。
  */
 export const ELECTRON_IMPORT_ALLOWLIST = [
-  // 组合根：P3 拆成内核 createCore + 宿主 main
+  // 组合根（宿主工作）：创建窗口管理器与端口、注册协议与会话权限、接 IPC 传输；
+  // 搬家时拆成内核 createCore + 宿主 main，内核那一半不再 import electron
   'packages/electron/src/core/Application.ts',
-  // 窗口广播（BrowserWindow.getAllWindows / webContents.send）→ 改为 ctx.events.publish
-  'packages/electron/src/ai/mascotCommand.ts',
-  // 平台能力（app.getPath / safeStorage / shell / clipboard / desktopCapturer / protocol /
-  // Notification / nativeImage / ipcMain）→ 宿主端口
-  'packages/electron/src/ai/AIRuntimeBoot.ts',
-  'packages/electron/src/ai/ClipboardGateway.ts',
-  'packages/electron/src/ai/ScreenCapture.ts',
-  'packages/electron/src/chat/assetProtocol.ts',
-  // 契约传输的 sender 白名单（app.isPackaged）→ P3 随宿主搬家
-  'packages/electron/src/security/ipcSenderGuard.ts',
-  // 窗口相关但还不在宿主目录 → P3 随宿主搬家
-  'packages/electron/src/utils/windowBounds.ts',
 ];
 
 /**
@@ -55,10 +45,8 @@ export const ELECTRON_IMPORT_ALLOWLIST = [
  * 非宿主代码里已有的动态加载 electron。不得新增条目。
  */
 export const ELECTRON_DYNAMIC_ALLOWLIST = [
-  // ai-runtime 的 Electron 适配器（nodeRequire()('electron')）：P3 移入宿主（§2.3、§6.3）
-  'packages/ai-runtime/src/ElectronLifecycle.ts',
-  'packages/ai-runtime/src/IpcAdapter.ts',
-  // electron-caps 插件包的惰性加载器（createRequire(...)('electron')）：随插件能力端口化处理
+  // electron-caps 插件包的惰性加载器（createRequire(...)('electron')）：这个包本身就是 Electron 版的
+  // 插件能力（截屏 / 剪贴板 / 安全存储 / 快捷键 / 会话存储）；以后改成插件能力经宿主端口注入
   'packages/bundle-ig-electron-caps/src/electronLoader.ts',
 ];
 

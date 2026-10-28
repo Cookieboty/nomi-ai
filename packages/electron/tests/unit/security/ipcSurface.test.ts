@@ -48,12 +48,15 @@ describe('主进程 IPC 面', () => {
     expect(hits).toEqual([]);
   });
 
-  it('宿主目录里只有 preload 专用通道（host/nomiHostIpc.ts：desktop:drop-file）直接用 ipcMain', () => {
+  it('宿主目录里只有契约传输的 IpcAdapter 与 preload 专用通道直接用 ipcMain', () => {
+    // host/electronIpcAdapter.ts：契约传输（host/contractIpc.ts）底下的 ipcMain 适配，原在 ai-runtime；
+    // host/nomiHostIpc.ts：desktop:drop-file
     const hits = files
       .filter((f) => rel(f).startsWith('host/'))
       .filter((f) => /\bipcMain\b/.test(code(f)))
-      .map(rel);
-    expect(hits).toEqual(['host/nomiHostIpc.ts']);
+      .map(rel)
+      .sort();
+    expect(hits).toEqual(['host/electronIpcAdapter.ts', 'host/nomiHostIpc.ts']);
   });
 
   it('没有绕过契约的 webContents.send 推送', () => {

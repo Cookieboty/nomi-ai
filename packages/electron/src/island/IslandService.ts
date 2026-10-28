@@ -12,8 +12,8 @@ import path from 'node:path';
 
 import { BrowserWindow, screen } from 'electron';
 
+import { setWindowBounds } from '../host/windowBounds';
 import { t as tr } from '../i18n';
-import { setWindowBounds } from '../utils/windowBounds';
 
 import {
   clampIslandHeight,

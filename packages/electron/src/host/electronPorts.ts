@@ -34,9 +34,10 @@ import {
   utilityProcess,
 } from 'electron';
 
-import { ClipboardGateway } from '../ai/ClipboardGateway';
-import { ScreenCapture } from '../ai/ScreenCapture';
 import { iconImage } from '../core/appIcon';
+
+import { ClipboardGateway } from './ClipboardGateway';
+import { ScreenCapture } from './ScreenCapture';
 
 /** 窗口端口需要的最小窗口能力（BrowserWindow 结构上满足） */
 export interface HostWindow {

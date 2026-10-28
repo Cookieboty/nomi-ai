@@ -1,7 +1,7 @@
 import type { MascotScaleState } from '@nomi-ai/types';
 import { type BrowserWindow, screen } from 'electron';
 
-import { moveWindowTo, setWindowBounds } from '../utils/windowBounds';
+import { moveWindowTo, setWindowBounds } from '../host/windowBounds';
 
 import {
   advance,

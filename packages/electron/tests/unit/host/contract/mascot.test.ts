@@ -4,17 +4,11 @@
  * 建 router 时把应用事件总线接给看板娘推送、旧通道桥接成契约事件。
  */
 
-const allWindows: Array<{ isDestroyed(): boolean; webContents: unknown }> = [];
-jest.mock('electron', () => ({
-  // ai/mascotCommand.ts 仍用 BrowserWindow 数窗口
-  BrowserWindow: { getAllWindows: () => allWindows },
-}));
-
 import { createClient, type Surface } from '@nomi-ai/contract';
 import { createInProcessServer } from '@nomi-ai/contract/testing';
 import type { HostPorts } from '@nomi-ai/host-ports';
 
-import { broadcastMascotCommand } from '../../../../src/ai/mascotCommand';
+import { broadcastMascotCommand, setMascotLiveWindows } from '../../../../src/ai/mascotCommand';
 import { createRecordingAppEvents } from '../../../../src/core/appEvents';
 import {
   APP_EVENT_BRIDGE,
@@ -346,16 +340,14 @@ describe('host/contract/mascot', () => {
     const { events, close } = setup('mascot');
     try {
       expect(mascotAppEvents()).toBe(events);
-      allWindows.splice(0, allWindows.length, {
-        isDestroyed: () => false,
-        webContents: { isDestroyed: () => false, send: jest.fn() },
-      });
+      // 存活窗口数由宿主报告（Electron：host/processDefaults.ts）
+      setMascotLiveWindows(() => 1);
       expect(broadcastMascotCommand({ type: 'motion', name: 'wave' })).toBe(1);
       expect(events.published).toEqual([
         { channel: 'mascot:command', payload: { type: 'motion', name: 'wave' }, surfaces: null },
       ]);
     } finally {
-      allWindows.splice(0);
+      setMascotLiveWindows(null);
       close();
     }
     expect(mascotAppEvents()).toBeNull();

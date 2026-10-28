@@ -21,7 +21,6 @@ import {
   createSafeStorageCipher,
   llmProvidersFromEnv,
   providerOverrideFromEnv,
-  createElectronLifecycle,
   runtime,
   type AiHandlersHandle,
   type Booter,
@@ -31,13 +30,14 @@ import {
 import type { AIClient } from '@nomi-ai/ai-sdk';
 import { FileSessionStorePlugin } from '@nomi-ai/bundle-ig-electron-caps';
 import { appContract } from '@nomi-ai/contract/app';
-import { app, safeStorage } from 'electron';
+import type { HostPorts } from '@nomi-ai/host-ports';
 
 import { desktopIgPlugins } from '../desktop/plugin';
 import { getExtensionsService } from '../extensions/ExtensionsService';
 import { getGatewayService } from '../gateway/GatewayService';
 import { createPersonaIdentityPlugin } from '../persona/igPlugin';
 import { getPersonaService } from '../persona/PersonaService';
+import { safeStorageFromSecrets } from '../security/secretStorage';
 import type { ILoggerService } from '../services/LoggerService';
 import { getUsageService } from '../usage/UsageService';
 
@@ -46,7 +46,10 @@ import { mascotIgPlugins } from './mascotBridge';
 import type { TtsProvider } from './TtsElectronNativeProvider';
 
 export interface AIRuntimeBootOptions {
+  /** 宿主端口：应用目录（插件宿主 home）、provider token 加密（secrets）、退出前收尾（lifecycle） */
+  ports: Pick<HostPorts, 'paths' | 'secrets' | 'lifecycle'>;
   profile?: string;
+  /** 默认 `ports.paths.appPath()` */
   home?: string;
   booter?: Booter;
   /** 是否把 AIClient 事件发布为契约事件（推给订阅了的窗口），默认 true */
@@ -141,15 +144,16 @@ function tryRegisterTtsProviders(
  */
 export async function startAIRuntime(
   logger: ILoggerService,
-  opts: AIRuntimeBootOptions = {},
+  opts: AIRuntimeBootOptions,
 ): Promise<AIRuntimeBootHandle> {
+  const { ports } = opts;
   const profile = opts.profile ?? process.env.IG_AI_PROFILE ?? 'waifu';
-  const home = opts.home ?? app.getAppPath();
+  const home = opts.home ?? ports.paths.appPath();
   const runtimeLogger = toRuntimeLogger(logger);
 
   // GatewayStore 是供应商唯一来源。这里只保留内存 ProviderStore：用量 sink + 预设/状态 IPC 垫片。
   // 旧 ai-providers.json 由 GatewayService 启动迁移后改名为 *.migrated，运行时不再读写。
-  const cipher = createSafeStorageCipher(safeStorage);
+  const cipher = createSafeStorageCipher(safeStorageFromSecrets(ports.secrets));
   const providerStore = new ProviderStore({
     cipher,
     // 用量与计费：每次成功调用记一条（响应 usage；没有才估算并标「估算」）
@@ -205,7 +209,10 @@ export async function startAIRuntime(
         },
       },
     });
-  const lifecycle = createElectronLifecycle();
+  // 退出前收尾经宿主的 lifecycle 端口（Electron：app 的 before-quit；回调失败只记日志）
+  const lifecycle = {
+    onBeforeQuit: (fn: () => void | Promise<void>) => ports.lifecycle.onBeforeQuit(fn),
+  };
   const service = runtime.configure({ booter, lifecycle, logger: runtimeLogger });
   const client = await service.start(profile, { home });
 

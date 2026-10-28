@@ -10,7 +10,7 @@ import {
   CHAT_ASSET_SCHEME,
   chatAssetMimeFor,
   resolveChatAssetUrl,
-} from '../../../src/chat/assetProtocol';
+} from '../../../src/host/assetProtocol';
 
 const tmp = () => mkdtempSync(path.join(os.tmpdir(), 'chat-asset-'));
 

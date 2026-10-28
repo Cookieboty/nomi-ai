@@ -2,10 +2,10 @@ import { promises as fsp } from 'node:fs';
 import path from 'node:path';
 
 import type { HostPorts } from '@nomi-ai/host-ports';
-// 宿主代码：chat-asset:// 协议注册（protocol.handle）只能在 Electron 里做，P3 随协议注册移入宿主
+// 宿主代码：chat-asset:// 协议注册（protocol.handle）只能在 Electron 里做
 import { app, protocol } from 'electron';
 
-import { CHAT_BG_PRESET_URL, getChatBackgroundPresetFile } from './backgroundPreset';
+import { CHAT_BG_PRESET_URL, getChatBackgroundPresetFile } from '../chat/backgroundPreset';
 
 export const CHAT_ASSET_SCHEME = 'chat-asset';
 

@@ -1,5 +1,5 @@
 /**
- * 契约的 Electron IPC 接线（host/contractIpc.ts + security/ipcSenderGuard.ts 的 resolveAiCaller）：
+ * 契约的 Electron IPC 接线（host/contractIpc.ts + host/ipcSenderGuard.ts 的 resolveAiCaller）：
  * - 调用者判定：受信页面按 URL 得到 surface；外站主框架 / 外站子框架一律拒绝；
  * - dangerous：不可信调用者调 tools.confirm 被拒；
  * - 会话生命周期：主框架跨文档导航提交、渲染进程退出与 webContents 销毁时断开会话；
@@ -12,8 +12,8 @@ jest.mock('electron', () => ({
   app: mockApp,
   webContents: { getAllWebContents: () => [] },
 }));
-// 只用到 IpcAdapter 的类型；不加载 ai-runtime 的运行时（它依赖 ESM 的 AI SDK 包）
-jest.mock('@nomi-ai/ai-runtime', () => ({ createElectronIpcAdapter: jest.fn() }));
+// 测试注入假 adapter，不用 Electron 的 ipcMain 实现
+jest.mock('../../../src/host/electronIpcAdapter', () => ({ createElectronIpcAdapter: jest.fn() }));
 
 import { EventEmitter } from 'node:events';
 
@@ -26,7 +26,7 @@ import {
   type ContractWebContents,
   type ContractWebContentsSource,
 } from '../../../src/host/contractIpc';
-import { aiSurfaceForUrl, resolveAiCaller } from '../../../src/security/ipcSenderGuard';
+import { aiSurfaceForUrl, resolveAiCaller } from '../../../src/host/ipcSenderGuard';
 
 const CHAT = 'file:///Applications/Nomi.app/Contents/Resources/ai-chat/index.html';
 const MASCOT = 'file:///Applications/Nomi.app/Contents/Resources/renderer/index.html';

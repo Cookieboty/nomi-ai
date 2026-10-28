@@ -23,7 +23,6 @@ import { getAgentProgressService, initAgentProgressService } from '../agents/Age
 import { startAIRuntime, type AIRuntimeBootHandle } from '../ai/AIRuntimeBoot';
 import { TtsElectronNativeProvider } from '../ai/TtsElectronNativeProvider';
 import { getCharacterPackService } from '../character/CharacterPackService';
-import { registerChatAssetProtocol } from '../chat/assetProtocol';
 import { getChatBackgroundPresetFile } from '../chat/backgroundPreset';
 import { ChatBackgroundService } from '../chat/ChatBackgroundService';
 import { AccountLogin, loginBroadcaster } from '../cli/accounts/AccountLogin';
@@ -47,6 +46,7 @@ import { harnessGateway } from '../gateway/harnessGateway';
 import { revokeLegacyGlobalConfig, type RevokeLegacyResult } from '../gateway/revokeLegacy';
 import { gatewayTerminalSource, initTerminalCommands } from '../gateway/TerminalCommands';
 import { AgentBrowser } from '../host/AgentBrowser';
+import { registerChatAssetProtocol } from '../host/assetProtocol';
 import {
   APP_EVENT_BRIDGE,
   createAppRouter,
@@ -996,6 +996,7 @@ export class Application implements IApplication {
       const ttsEngine = new AdvancedTTSEngine();
       const electronNativeTts = new TtsElectronNativeProvider({ engine: ttsEngine });
       this.aiRuntime = await startAIRuntime(this.logger, {
+        ports: this.ports,
         ttsProviders: [electronNativeTts],
         // 消息里的附件正文 / 委派汇报按实际接收者过「仅本地 / 云端首次发送」（#149 / #117）
         // signal：用户在确认等待中停止该轮时撤掉还没答复的确认（#160）
