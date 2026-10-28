@@ -49,6 +49,8 @@ export interface CharacterPackOverlay {
   riveUrl: string | null;
   staticUrl: string | null;
   voiceBaseUrl: string | null;
+  /** Null unless the overlay ships sprite/manifest.json. */
+  spriteManifestUrl: string | null;
   hitboxes: PackHitboxes | null;
   rive: { artboard: string; stateMachine: string } | null;
 }
@@ -155,12 +157,23 @@ export function getStaticSrc(): string {
   return overlay?.staticUrl || CHARACTER.staticSrc || './assets/models/static/character.webp';
 }
 
+/** Overlay sprite manifest when the pack ships one, otherwise the caller's built-in path. */
+export function getSpriteManifestPath(fallback: string): string {
+  return overlay?.spriteManifestUrl || fallback;
+}
+
 /** Active hitboxes: overlay → generated → null (caller uses heuristic). */
 export function getHitboxes(): PackHitboxes | null {
   return overlay?.hitboxes || CHARACTER.hitboxes || null;
 }
 
-/** True when prompt clips / character voice defaults apply to this model name. */
+/**
+ * True when prompt clips / character voice defaults apply to this model name.
+ * model-list.json is only rewritten at build time (character:apply), so a runtime overlay still
+ * occupies the built-in model slot (CHARACTER.id) — accept both that name and the overlay id.
+ */
 export function isActivePackModel(modelName: string | null | undefined): boolean {
-  return (modelName ?? '').toLowerCase() === getCharacterId().toLowerCase();
+  const name = (modelName ?? '').toLowerCase();
+  if (!name) return false;
+  return name === getCharacterId().toLowerCase() || name === (CHARACTER.id || 'nomi').toLowerCase();
 }

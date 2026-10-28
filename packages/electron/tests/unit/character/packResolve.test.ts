@@ -14,6 +14,8 @@ import {
 } from '../../../src/character/packProtocol';
 import {
   resolveCharacterPack,
+  resolveSpriteManifestRel,
+  resolveStaticRel,
   validatePackRoot,
   loadHitboxes,
 } from '../../../src/character/packResolve';
@@ -72,7 +74,7 @@ describe('resolveCharacterPack', () => {
     expect(a.hitboxes?.regions.hem).toBeTruthy();
     expect(a.hitboxes?.bubbleAnchor?.y).toBe(0.12);
 
-    await fsp.rm(path.join(user, 'manifest.json'));
+    await fsp.rm(path.join(user, 'onboarding', 'welcome.webp'));
     const b = resolveCharacterPack({ userDataPack: user, resourcesPack: res });
     expect(b.source).toBe('resources');
     expect(b.skipped.some((s) => s.source === 'userData')).toBe(true);
@@ -84,6 +86,42 @@ describe('resolveCharacterPack', () => {
 
     await fsp.rm(user, { recursive: true, force: true });
     await fsp.rm(res, { recursive: true, force: true });
+  });
+
+  it('treats a directory without manifest.json as no overlay (packaged placeholder)', async () => {
+    const res = tmp();
+    writeFileSync(path.join(res, 'README.md'), '# placeholder');
+    writeFileSync(path.join(res, '.gitkeep'), '');
+    const r = resolveCharacterPack({ userDataPack: path.join(res, 'nope'), resourcesPack: res });
+    expect(r.source).toBe('builtin');
+    expect(r.skipped).toEqual([]);
+    expect(r.reason).toBe('no overlay present');
+    await fsp.rm(res, { recursive: true, force: true });
+  });
+
+  it('serves the static image that validation accepted (png fallback)', async () => {
+    const root = tmp();
+    await writeMinimalStaticPack(root);
+    await fsp.rm(path.join(root, 'static', 'character.webp'));
+    writeFileSync(path.join(root, 'static', 'character.png'), Buffer.from([1]));
+    const m = { schema: 1, id: 'x', assets: { mode: 'static' } };
+    expect(validatePackRoot(root)).toBeNull();
+    expect(resolveStaticRel(root, m)).toBe('static/character.png');
+    await fsp.rm(path.join(root, 'static', 'character.png'));
+    expect(resolveStaticRel(root, m)).toBeNull();
+    expect(validatePackRoot(root)).toMatch(/static mode missing/);
+    await fsp.rm(root, { recursive: true, force: true });
+  });
+
+  it('reports a sprite manifest only when the pack ships one', async () => {
+    const root = tmp();
+    await writeMinimalStaticPack(root);
+    const m = { schema: 1, id: 'x', assets: { sprite: './sprite/' } };
+    expect(resolveSpriteManifestRel(root, m)).toBeNull();
+    mkdirSync(path.join(root, 'sprite'), { recursive: true });
+    writeFileSync(path.join(root, 'sprite', 'manifest.json'), '{}');
+    expect(resolveSpriteManifestRel(root, m)).toBe('sprite/manifest.json');
+    await fsp.rm(root, { recursive: true, force: true });
   });
 
   it('normalizes legacy skirt region to hem', async () => {

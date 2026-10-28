@@ -14,6 +14,7 @@ vi.mock('@nomi-ai/ui', async (orig) => ({
 vi.mock('../../src/mascot/presence', () => ({ isMascotMuted: () => h.muted }));
 vi.mock('../../src/mascot/tts/audioPlayback', () => ({ playAudioClip: h.play }));
 
+import { resetCharacterPackOverlayForTest } from '../../src/mascot/characterConfig';
 import {
   CLIP_HINTS,
   __resetPromptClipsForTests,
@@ -45,6 +46,7 @@ let promptVoice = true;
 
 beforeEach(() => {
   __resetPromptClipsForTests();
+  resetCharacterPackOverlayForTest();
   h.locale = 'zh-CN';
   h.muted = false;
   promptVoice = true;
@@ -153,5 +155,35 @@ describe('legacyClipIds rename mapping', () => {
     }
     expect(missing).toEqual([]);
     expect(Object.keys(legacy.byLegacyKey).length).toBeGreaterThan(50);
+  });
+});
+
+describe('Scheme B overlay voice', () => {
+  it('loads the overlay manifest and plays for the built-in model slot', async () => {
+    const fetchMock = vi.fn(async () => ({ ok: true, json: async () => manifest }));
+    vi.stubGlobal('fetch', fetchMock);
+    vi.stubGlobal('window', {
+      electronAPI: {
+        ttsPromptVoice: async () => true,
+        characterPack: {
+          getActive: async () => ({
+            source: 'userData',
+            id: 'alt',
+            mode: 'static',
+            riveUrl: null,
+            staticUrl: null,
+            voiceBaseUrl: 'character-pack://pack/voice/zh/',
+            spriteManifestUrl: null,
+            hitboxes: null,
+            rive: null,
+          }),
+        },
+      },
+    });
+    const r = await playPromptClip('ui.cli-monitor.okay', { modelName: 'nomi' });
+    expect(r).toBe('played');
+    // Manifest fetch waits for the overlay, so index and clip share the overlay base.
+    expect(fetchMock).toHaveBeenCalledWith('character-pack://pack/voice/zh/manifest.json');
+    expect(h.play.mock.calls[0][0]).toBe('character-pack://pack/voice/zh/ack-okay.mp3');
   });
 });

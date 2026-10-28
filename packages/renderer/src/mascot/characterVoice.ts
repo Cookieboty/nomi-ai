@@ -6,7 +6,7 @@
 import type { ModelConfig, ModelVoiceConfig } from '@nomi-ai/types';
 import { t } from '@nomi-ai/ui';
 
-import { CHARACTER, getCharacterId } from './characterConfig';
+import { CHARACTER, isActivePackModel } from './characterConfig';
 import { isMascotMuted } from './presence';
 import {
   DEFAULT_SOFT_SPEECH,
@@ -19,10 +19,14 @@ import { isNoAudioLine, playPromptClip } from './voice/promptClips';
 
 const OVERRIDE_KEY = 'mascot.characterVoice.v1';
 
-/** Built-in softer defaults keyed by the active character pack id (official: nomi). */
+/**
+ * Built-in softer defaults keyed by the build-time pack id (official: nomi). Keyed statically —
+ * the Scheme B overlay settles asynchronously; lookups go through isActivePackModel instead.
+ */
+const PACK_ID = CHARACTER.id || 'nomi';
 export const CHARACTER_VOICE_DEFAULTS: Record<string, ModelVoiceConfig> = {
-  [getCharacterId()]: {
-    voiceHint: CHARACTER.voice?.voiceHint || getCharacterId(),
+  [PACK_ID]: {
+    voiceHint: CHARACTER.voice?.voiceHint || PACK_ID,
     rate: CHARACTER.voice?.rate ?? 0.92,
     pitch: CHARACTER.voice?.pitch ?? 1.1,
   },
@@ -84,6 +88,7 @@ export function defaultsForCharacter(
 ): ModelVoiceConfig {
   if (modelName && CHARACTER_VOICE_DEFAULTS[modelName])
     return { ...CHARACTER_VOICE_DEFAULTS[modelName] };
+  if (isActivePackModel(modelName)) return { ...CHARACTER_VOICE_DEFAULTS[PACK_ID] };
   if (tags?.includes('sprite') || tags?.includes('soft') || tags?.includes('2d'))
     return { ...SOFT_2D_VOICE };
   return { ...GENERIC_VOICE };

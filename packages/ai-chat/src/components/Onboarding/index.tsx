@@ -128,9 +128,16 @@ const INTEREST_LABEL: Record<UserInterest, () => string> = {
 
 export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ onDone }) => {
   useLocale();
-  const [stepArt, setStepArt] = useState(BUILTIN_ONBOARDING_ART);
+  // 等角色包 overlay 解析完再出插画，避免先闪一下内置插画再换成角色包的
+  const [stepArt, setStepArt] = useState<Record<Step, string> | null>(null);
   useEffect(() => {
-    void resolveOnboardingArt().then(setStepArt);
+    let alive = true;
+    void resolveOnboardingArt().then((art) => {
+      if (alive) setStepArt(art);
+    });
+    return () => {
+      alive = false;
+    };
   }, []);
 
   const [i, setI] = useState(0);
@@ -487,7 +494,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
   })();
 
   const last = i === STEPS.length - 1;
-  const artSrc = stepArt[step] ?? BUILTIN_ONBOARDING_ART[step];
+  const artSrc = stepArt ? (stepArt[step] ?? BUILTIN_ONBOARDING_ART[step]) : null;
   const artIntro = STEP_ART_META[step]?.intro;
   return (
     <div className={styles.overlay} data-testid="onboarding" data-step={step}>
@@ -501,7 +508,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
         {/* 插画铺满整张卡片做背景，人物靠右完整显示；没有插画的步骤用欢迎图的淡化版 */}
         <div
           className={styles.bg}
-          style={{ backgroundImage: `url(${artSrc})` }}
+          style={artSrc ? { backgroundImage: `url(${artSrc})` } : undefined}
           aria-hidden
           data-testid="onb-art"
           data-art={step}

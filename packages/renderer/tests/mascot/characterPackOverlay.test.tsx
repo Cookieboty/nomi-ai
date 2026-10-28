@@ -7,7 +7,9 @@ import {
   ensureCharacterPackOverlay,
   getCharacterMode,
   getRiveConfig,
+  getSpriteManifestPath,
   getStaticSrc,
+  isActivePackModel,
   resetCharacterPackOverlayForTest,
   useCharacterPackReady,
 } from '../../src/mascot/characterConfig';
@@ -103,5 +105,43 @@ describe('Scheme B overlay readiness', () => {
     expect(cfg.src).toBe(riv);
     expect(cfg.artboard).toBe('Alt');
     expect(cfg.stateMachine).toBe('AltSM');
+  });
+
+  it('keeps the built-in model slot active for an overlay with a different id', async () => {
+    stubGetActive(async () => ({
+      source: 'userData',
+      id: 'alt',
+      mode: 'rive',
+      riveUrl: 'character-pack://pack/rive/character.riv',
+      staticUrl: null,
+      voiceBaseUrl: 'character-pack://pack/voice/zh/',
+      spriteManifestUrl: null,
+      hitboxes: null,
+      rive: null,
+    }));
+    await ensureCharacterPackOverlay();
+    // model-list.json still names the built-in slot "nomi" at runtime
+    expect(isActivePackModel('nomi')).toBe(true);
+    expect(isActivePackModel('alt')).toBe(true);
+    expect(isActivePackModel('someone-else')).toBe(false);
+    expect(isActivePackModel(null)).toBe(false);
+  });
+
+  it('uses the overlay sprite manifest only when the pack ships one', async () => {
+    const builtin = './assets/models/sprite/nomi/manifest.json';
+    expect(getSpriteManifestPath(builtin)).toBe(builtin);
+    stubGetActive(async () => ({
+      source: 'userData',
+      id: 'alt',
+      mode: 'sprite',
+      riveUrl: null,
+      staticUrl: null,
+      voiceBaseUrl: null,
+      spriteManifestUrl: 'character-pack://pack/sprite/manifest.json',
+      hitboxes: null,
+      rive: null,
+    }));
+    await ensureCharacterPackOverlay();
+    expect(getSpriteManifestPath(builtin)).toBe('character-pack://pack/sprite/manifest.json');
   });
 });

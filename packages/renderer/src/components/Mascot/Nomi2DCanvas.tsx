@@ -3,6 +3,7 @@ import React, { lazy, useCallback, useState } from 'react';
 import {
   getCharacterMode,
   getRiveConfig,
+  getSpriteManifestPath,
   getStaticSrc,
   useCharacterPackReady,
 } from '../../mascot/characterConfig';
@@ -38,8 +39,10 @@ export const Nomi2DCanvas: React.FC<Nomi2DCanvasProps> = ({ manifestPath }) => {
 
   const mode = getCharacterMode();
   if (mode === 'static') return <StaticCanvas src={getStaticSrc()} />;
-  if (mode === 'sprite') return <SpriteCanvas manifestPath={manifestPath} transparent />;
-  if (riveFailed) return <SpriteCanvas manifestPath={manifestPath} transparent />;
+  const spriteManifest = getSpriteManifestPath(manifestPath);
+  if (mode === 'sprite' || riveFailed) {
+    return <SpriteCanvas manifestPath={spriteManifest} transparent />;
+  }
   return <RiveCanvas src={getRiveConfig().src} onFailure={onRiveFailure} />;
 };
 

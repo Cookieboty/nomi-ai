@@ -84,24 +84,36 @@ export function validatePackRoot(root: string): string | null {
   }
 
   if (mode === 'static') {
-    const staticRel = normalizePackRelPath(m.assets?.static || 'static/character.webp');
-    const candidates = [
-      ...(staticRel ? [join(root, staticRel)] : []),
-      join(root, 'static/character.webp'),
-      join(root, 'static/character.png'),
-    ];
-    if (!candidates.some((p) => existsSync(p))) return 'static mode missing static/character.webp';
+    if (!resolveStaticRel(root, m)) return 'static mode missing static/character.webp';
   } else if (mode === 'rive') {
     const riveRel = normalizePackRelPath(m.assets?.rive || 'rive/character.riv');
     if (!riveRel) return 'invalid assets.rive path';
     if (!existsSync(join(root, riveRel))) return `missing ${riveRel}`;
   } else if (mode === 'sprite') {
-    const spriteRel = normalizePackRelPath(m.assets?.sprite || 'sprite');
-    if (!spriteRel) return 'invalid assets.sprite path';
-    const spriteDir = join(root, spriteRel);
-    if (!existsSync(join(spriteDir, 'manifest.json'))) return 'sprite/manifest.json required';
+    if (!normalizePackRelPath(m.assets?.sprite || 'sprite')) return 'invalid assets.sprite path';
+    if (!resolveSpriteManifestRel(root, m)) return 'sprite/manifest.json required';
   }
   return null;
+}
+
+/**
+ * Static image actually present in the pack: declared assets.static first, then the conventional
+ * webp / png. Validation and the served URL must agree on the same file.
+ */
+export function resolveStaticRel(root: string, m: PackManifestLite): string | null {
+  const declared = normalizePackRelPath(m.assets?.static || 'static/character.webp');
+  for (const rel of [declared, 'static/character.webp', 'static/character.png']) {
+    if (rel && existsSync(join(root, rel))) return rel;
+  }
+  return null;
+}
+
+/** sprite/manifest.json when the pack ships one (optional outside sprite mode). */
+export function resolveSpriteManifestRel(root: string, m: PackManifestLite): string | null {
+  const dir = normalizePackRelPath(m.assets?.sprite || 'sprite');
+  if (!dir) return null;
+  const rel = `${dir.replace(/\/$/, '')}/manifest.json`;
+  return existsSync(join(root, rel)) ? rel : null;
 }
 
 export function loadHitboxes(root: string, manifest: PackManifestLite): PackHitboxes | null {
@@ -140,7 +152,9 @@ export function resolveCharacterPack(
     { source: 'resources', root: paths.resourcesPack },
   ];
   for (const c of candidates) {
-    if (!existsSync(c.root)) continue;
+    // No manifest = no overlay (the packaged resources/character-pack placeholder only holds a
+    // README); only a pack that ships a manifest and fails validation is worth a warning.
+    if (!existsSync(join(c.root, 'manifest.json'))) continue;
     const err = validatePackRoot(c.root);
     if (err) {
       skipped.push({ source: c.source, root: c.root, reason: err });

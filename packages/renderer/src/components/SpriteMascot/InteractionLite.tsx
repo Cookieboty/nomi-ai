@@ -264,6 +264,16 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
           bottom: Math.round(g.head.bottom),
         };
         layoutStore.setHead(h);
+        layoutStore.setCharBox(
+          g.box
+            ? {
+                left: Math.round(g.box.left),
+                right: Math.round(g.box.right),
+                top: Math.round(g.box.top),
+                bottom: Math.round(g.box.bottom),
+              }
+            : null,
+        );
         document.documentElement.dataset.mascotHead = `${h.left},${h.right},${h.top},${h.bottom}`;
       }
       // body box (toolbar slot + main-process physics), 2 Hz with 8 px hysteresis
@@ -389,6 +399,7 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
       canvas.removeEventListener('lostpointercapture', onCancel, capture);
       if (s.dragging) api?.dragEnd();
       layoutStore.setHead(null);
+      layoutStore.setCharBox(null);
     };
   }, [canvasRef, geometry, registry]);
   return null;

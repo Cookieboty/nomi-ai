@@ -17,6 +17,8 @@ import {
 import {
   packModeOf,
   resolveCharacterPack,
+  resolveSpriteManifestRel,
+  resolveStaticRel,
   type PackHitboxes,
   type PackSource,
   type ResolvedPack,
@@ -107,10 +109,8 @@ export class CharacterPackService {
     const voiceDir = `${normalizePackRelPath(r.manifest.assets?.voice || 'voice') || 'voice'}/`;
     const riveRel =
       normalizePackRelPath(r.manifest.assets?.rive || 'rive/character.riv') || 'rive/character.riv';
-    const staticRel =
-      normalizePackRelPath(r.manifest.assets?.static || 'static/character.webp') ||
-      'static/character.webp';
-    const spriteDir = `${normalizePackRelPath(r.manifest.assets?.sprite || 'sprite') || 'sprite'}/`;
+    const staticRel = resolveStaticRel(r.root, r.manifest);
+    const spriteManifestRel = resolveSpriteManifestRel(r.root, r.manifest);
     return {
       source: r.source,
       id: r.manifest.id,
@@ -123,10 +123,12 @@ export class CharacterPackService {
         provider: characterPackAssetUrl(`${onboardingDir}provider.webp`),
         privacy: characterPackAssetUrl(`${onboardingDir}privacy.webp`),
       },
+      // Prompt clips only play on zh-CN (contract: zh is the one required locale). Kept even when the
+      // pack ships no voice — a 404 manifest falls through to realtime TTS instead of Nomi's clips.
       voiceBaseUrl: characterPackAssetUrl(`${voiceDir}zh/`),
       riveUrl: mode === 'rive' ? characterPackAssetUrl(riveRel) : null,
-      staticUrl: mode === 'static' ? characterPackAssetUrl(staticRel) : null,
-      spriteManifestUrl: characterPackAssetUrl(`${spriteDir}manifest.json`),
+      staticUrl: mode === 'static' && staticRel ? characterPackAssetUrl(staticRel) : null,
+      spriteManifestUrl: spriteManifestRel ? characterPackAssetUrl(spriteManifestRel) : null,
       hitboxes: r.hitboxes,
       rive: {
         artboard: r.manifest.rive?.artboard || 'Nomi-full',

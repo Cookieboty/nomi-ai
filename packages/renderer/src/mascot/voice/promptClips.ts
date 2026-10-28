@@ -10,7 +10,12 @@
  */
 import { createLogger, getLocale, t } from '@nomi-ai/ui';
 
-import { getCharacterId, getPromptClipBase, isActivePackModel } from '../characterConfig';
+import {
+  ensureCharacterPackOverlay,
+  getCharacterId,
+  getPromptClipBase,
+  isActivePackModel,
+} from '../characterConfig';
 import { isMascotMuted } from '../presence';
 
 import legacyMap from './legacyClipIds.json';
@@ -88,6 +93,8 @@ function loadManifest(): Promise<ClipIndex | null> {
   if (!manifest) {
     manifest = (async () => {
       try {
+        // The cached index must match the base clips are played from — wait for the overlay.
+        await ensureCharacterPackOverlay();
         const res = await fetch(`${getPromptClipBase()}manifest.json`);
         if (!res.ok) return null;
         const m = (await res.json()) as Manifest;

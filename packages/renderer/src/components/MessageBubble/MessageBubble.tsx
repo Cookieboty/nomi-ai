@@ -52,8 +52,9 @@ export const MessageBubble: React.FC = () => {
   }, [incoming, incomingMore]);
 
   const compute = useCallback(() => {
-    const { head: measuredHead, gutter, box } = layoutStore.get();
-    const anchored = box ? bubbleAnchorBox(box, getHitboxes()) : null;
+    // bubbleAnchor is a ratio of the whole character box (same base as hitboxes), not the body box
+    const { head: measuredHead, gutter, charBox } = layoutStore.get();
+    const anchored = charBox ? bubbleAnchorBox(charBox, getHitboxes()) : null;
     const head = anchored || measuredHead;
     const el = measureRef.current;
     if (!head || !el) {

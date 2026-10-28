@@ -15,10 +15,12 @@ export interface LayoutSnapshot {
   head: Box | null;
   /** 工具栏占用的槽位（无论当前是否显示） */
   gutter: Box | null;
+  /** 整个角色框（角色包 hitboxes / bubbleAnchor 的比例基准），与 head 同频更新 */
+  charBox: Box | null;
 }
 
 type Listener = (s: LayoutSnapshot) => void;
-let snap: LayoutSnapshot = { box: null, cursor: null, head: null, gutter: null };
+let snap: LayoutSnapshot = { box: null, cursor: null, head: null, gutter: null, charBox: null };
 const same = (a: Box | null, b: Box | null, eps = 0) =>
   !!a &&
   !!b &&
@@ -47,6 +49,11 @@ export const layoutStore = {
   setHead(head: Box | null) {
     if (head === snap.head || same(head, snap.head, 3)) return;
     snap = { ...snap, head };
+    listeners.forEach((l) => l(snap));
+  },
+  setCharBox(charBox: Box | null) {
+    if (charBox === snap.charBox || same(charBox, snap.charBox, 3)) return;
+    snap = { ...snap, charBox };
     listeners.forEach((l) => l(snap));
   },
   setGutter(gutter: Box | null) {
