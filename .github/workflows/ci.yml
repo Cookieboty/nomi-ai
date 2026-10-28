@@ -159,8 +159,18 @@ jobs:
       - name: Build workspaces (required for test:e2e imports)
         run: pnpm turbo run build
 
-      - name: Run headless E2E (E1..E5)
+      # 真实内核跑在无界面宿主 @nomi-ai/host-node 上（不启动 Electron）
+      - name: Run headless E2E (E1..E7)
         run: pnpm run test:e2e
+
+      # 视图在普通浏览器里经 WebSocket 连开发态内核（pnpm dev:web），Playwright 的 Chromium
+      - name: Install Chromium for the browser smoke
+        if: runner.os == 'Linux'
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Browser smoke (ai-chat over WebSocket)
+        if: runner.os == 'Linux'
+        run: pnpm run smoke:web
 
   # ---------------------------------------------------------------
   # E2E · headed（Playwright + 真实 Electron，xvfb 虚拟显示）

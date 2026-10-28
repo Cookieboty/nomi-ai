@@ -10,6 +10,7 @@
 //   pnpm dev:web -- --data .nomi-web # 数据放在指定目录，保留
 //
 // 只用于开发：没有窗口、托盘、看板娘（要用窗口对象的过程返回 UNAVAILABLE）；token 只在日志里露前 4 位。
+// 统一网关在 Node 子进程里跑、监听系统分配的端口（不和本机装着的 Nomi 抢默认端口），对话照常经网关。
 // Ctrl+C 退出。
 
 import { spawn } from 'node:child_process';
@@ -80,6 +81,7 @@ function waitForHttp(url, timeoutMs) {
  * @param {'error'|'warn'|'info'|'debug'} [opts.logLevel]
  * @param {'inherit'|'pipe'|'ignore'} [opts.viteStdio]
  * @param {object} [opts.contract] 传给 createCore 的契约选项（冒烟测试用中间件记录调用）
+ * @param {boolean} [opts.processes] 用 Node 子进程跑统一网关等工具子进程（默认 true，对话要经网关）
  */
 export async function startDevWeb(opts = {}) {
   const missing = REQUIRED_BUILDS.filter((f) => !existsSync(path.join(ROOT, f)));
@@ -97,6 +99,7 @@ export async function startDevWeb(opts = {}) {
   const headless = await startHeadlessCore({
     ports: opts.dataDir ? { root: path.resolve(opts.dataDir) } : {},
     logLevel: opts.logLevel ?? 'info',
+    processes: opts.processes ?? true,
     ...(opts.contract ? { contract: opts.contract } : {}),
   });
   const log = headless.core.logger;

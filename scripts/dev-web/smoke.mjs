@@ -6,13 +6,16 @@
 // - 页面渲染出来、没有未捕获的异常，页面上没有 preload 桥（`window.nomiTransport`）；
 // - 页面经 WebSocket 调了内核（内核侧的中间件记下对话窗口身份的 theme.get / locale.get 等调用）；
 // - 内核里预先设的主题 / 语言出现在页面上（调用结果回到页面）；
-// - 内核换主题后页面跟着变（事件经 WebSocket 推到页面）。
+// - 内核换主题后页面跟着变（事件经 WebSocket 推到页面）；
+// - 能对话：在页面的首次引导里添加一个指向本机假上游（OpenAI Chat 协议）的供应商、选模型、完成引导，再发一条
+//   消息，回复经统一网关（Node 子进程）从假上游回到页面。
 //
 // 先 pnpm build；没有浏览器时 `pnpm exec playwright install chromium`。
 //   node scripts/dev-web/smoke.mjs [--screenshot test-results/dev-web.png] [--headed]
 
-/* global document, window -- page.evaluate / waitForFunction 的回调在页面里运行 */
+/* global document, window, MutationObserver -- page.evaluate / waitForFunction 的回调在页面里运行 */
 import { mkdirSync } from 'node:fs';
+import { createServer } from 'node:http';
 import path from 'node:path';
 
 import { chromium } from '@playwright/test';
@@ -35,7 +38,67 @@ const record = async (call, next) => {
   return next();
 };
 
+/** 本机假上游（OpenAI Chat 协议）：列模型、按模型名回一句固定的话，记录收到的请求 */
+function startMockLlm(name, models) {
+  const seen = [];
+  const server = createServer((req, res) => {
+    let raw = '';
+    req.on('data', (d) => (raw += d));
+    req.on('end', () => {
+      const body = raw ? JSON.parse(raw) : {};
+      const url = req.url ?? '';
+      seen.push({ method: req.method, path: url.split('?')[0], model: body.model });
+      if (req.method === 'GET' && url.startsWith('/v1/models')) {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(
+          JSON.stringify({ object: 'list', data: models.map((id) => ({ id, object: 'model' })) }),
+        );
+        return;
+      }
+      if (url.startsWith('/v1/chat/completions')) {
+        const reply = `reply-from-${name}:${String(body.model)}`;
+        const usage = { prompt_tokens: 5, completion_tokens: 3, total_tokens: 8 };
+        if (body.stream !== true) {
+          res.writeHead(200, { 'content-type': 'application/json' });
+          res.end(
+            JSON.stringify({
+              choices: [{ message: { content: reply }, finish_reason: 'stop' }],
+              usage,
+            }),
+          );
+          return;
+        }
+        const sse = (data) => `data: ${JSON.stringify(data)}\n\n`;
+        res.writeHead(200, { 'content-type': 'text/event-stream' });
+        res.write(sse({ choices: [{ delta: { content: reply } }] }));
+        res.write(sse({ choices: [{ delta: {}, finish_reason: 'stop' }], usage }));
+        res.end('data: [DONE]\n\n');
+        return;
+      }
+      res.writeHead(404);
+      res.end();
+    });
+  });
+  return new Promise((resolve) =>
+    server.listen(0, '127.0.0.1', () =>
+      resolve({
+        port: server.address().port,
+        seen,
+        close: () => new Promise((r) => server.close(() => r())),
+      }),
+    ),
+  );
+}
+
+/** 应用内确认框一出现就点确定（本机地址确认等；与 e2e-headed 的 autoAcceptConfirms 相同） */
+function autoAcceptConfirms() {
+  const click = () => document.querySelector('[data-testid="confirm-dialog-ok"]')?.click();
+  new MutationObserver(click).observe(document.body, { childList: true, subtree: true });
+  click();
+}
+
 const viteLog = [];
+const mock = await startMockLlm('WebSmoke', ['web-a', 'web-b']);
 const dev = await startDevWeb({
   chatPort: await freePort(),
   logLevel: 'warn',
@@ -98,6 +161,52 @@ try {
     timeout: 15_000,
   });
 
+  // 5. 能对话：首次引导 → 供应商（本机假上游）→ 选模型 → 完成 → 发消息，回复来自假上游
+  const onb = page.locator('[data-testid="onboarding"]');
+  await onb.waitFor({ state: 'visible', timeout: 20_000 });
+  for (let i = 0; i < 12; i++) {
+    const s = await onb.getAttribute('data-step');
+    if (s === 'provider') break;
+    await page.click('[data-testid="onboarding-next"]');
+    await page.waitForFunction(
+      (prev) =>
+        document.querySelector('[data-testid="onboarding"]')?.getAttribute('data-step') !== prev,
+      s,
+      { timeout: 15_000 },
+    );
+  }
+  if ((await onb.getAttribute('data-step')) !== 'provider')
+    fail('onboarding never reached the provider step');
+  await page.evaluate(autoAcceptConfirms);
+  const step = page.locator('[data-testid="onboarding-step-provider"]');
+  await step.locator('[data-testid="onb-preset-custom"]').click();
+  await step.locator('[data-testid="onb-provider-url"]').fill(`http://127.0.0.1:${mock.port}/v1`);
+  await step.locator('[data-testid="onb-provider-key"]').fill('sk-web-smoke-0123456789');
+  await step.locator('[data-testid="onb-provider-save"]').click();
+  await step.locator('[data-testid="onb-provider-configured"]').waitFor({ timeout: 30_000 });
+  await step.locator('[data-testid="onb-model-web-a"]').click();
+  await step.locator('[data-testid="onb-model-ready"]').waitFor({ timeout: 15_000 });
+  await page.click('[data-testid="onboarding-next"]');
+  await page.waitForFunction(
+    () =>
+      document.querySelector('[data-testid="onboarding"]')?.getAttribute('data-step') === 'privacy',
+    null,
+    { timeout: 15_000 },
+  );
+  await page.click('[data-testid="onboarding-finish"]');
+  await onb.waitFor({ state: 'detached', timeout: 15_000 });
+
+  await page.fill('[data-testid="chat-input"]', 'hello');
+  await page.press('[data-testid="chat-input"]', 'Enter');
+  await page.waitForFunction(
+    () => document.body.innerText.includes('reply-from-WebSmoke:web-a'),
+    null,
+    { timeout: 30_000 },
+  );
+  if (!mock.seen.some((r) => r.path === '/v1/chat/completions' && r.model === 'web-a')) {
+    fail('the reply did not come from the mock upstream');
+  }
+
   if (pageErrors.length) fail(`uncaught page errors:\n  ${pageErrors.join('\n  ')}`);
 
   if (screenshot) {
@@ -105,15 +214,27 @@ try {
     await page.screenshot({ path: screenshot, fullPage: true });
   }
 
-  const procedures = [...names].sort();
-  out(`[smoke:web] ok — ${procedures.length} procedures over WebSocket (${wsCalls.length} calls)`);
-  out(`[smoke:web] ${procedures.join(' ')}`);
+  const allNames = [...new Set(calls.filter((c) => c.id.startsWith('ws-')).map((c) => c.name))];
+  out(`[smoke:web] ok — rendered, events and chat over WebSocket (${allNames.length} procedures)`);
+  out(`[smoke:web] ${allNames.sort().join(' ')}`);
   ok = true;
 } catch (err) {
   process.stderr.write(`${err instanceof Error ? err.stack : String(err)}\n`);
+  try {
+    const page = browser?.contexts()[0]?.pages()[0];
+    if (page) {
+      mkdirSync('test-results', { recursive: true });
+      await page.screenshot({ path: 'test-results/dev-web-failed.png', fullPage: true });
+      const text = await page.evaluate(() => document.body.innerText);
+      process.stderr.write(`[smoke:web] page text: ${text.replace(/\s+/g, ' ').slice(0, 600)}\n`);
+    }
+  } catch {
+    // 页面已经不可用
+  }
   if (viteLog.length) process.stderr.write(`${viteLog.slice(-20).join('\n')}\n`);
 } finally {
   await browser?.close();
   await dev.stop();
+  await mock.close();
 }
 process.exit(ok ? 0 : 1);
