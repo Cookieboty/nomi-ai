@@ -2,7 +2,7 @@
 
 > 状态：**PR 1（主进程）、PR 2（界面）、PR 3（计划审批流）已实现**。
 > 查证日期 2026-10-19：Claude Code 2.1.303、Codex CLI 0.163.0、dsh 0.2.0-rc.2、Grok Build 1.0.62（macOS）。
-> 代码：`packages/electron/src/cli/permissionMode.ts`、`CliHarnessService.ts`。
+> 代码：`packages/core/src/cli/permissionMode.ts`、`CliHarnessService.ts`。
 
 ## 1. 背景：为什么要做
 

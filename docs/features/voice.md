@@ -68,6 +68,6 @@
 - 本地识别使用 whisper.cpp（MIT）；语音活动检测使用 Silero VAD（MIT，ONNX Runtime 运行），未下载时退回能量检测。
 - 录音只在内存或临时文件中，识别后立即删除，不写日志。在线识别每次调用都记入审计日志。
 - 唤醒词通过「语音分段 → 本地识别 → 模糊匹配」实现。
-- 预录提示语音：`packages/renderer/src/mascot/voice/promptClips.ts`；实时朗读路由 `packages/electron/src/tts/ttsRouter.ts`；IPC `tts:speak` / `tts:preview` / `tts:voices` / `tts:status` / `tts:stop` / `tts:health`。
-- Edge 客户端：`packages/electron/src/tts/edge/`（项目自写，MIT；纯 Node，基于已有依赖 `ws`，macOS / Windows / Linux 通用，不需要安装 Edge）。协议：WSS `speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1`，先发 `speech.config`（输出 `audio-24khz-48kbitrate-mono-mp3`），再发 SSML，收二进制 `Path:audio` 帧直到 `turn.end`；请求带 `Sec-MS-GEC` 令牌（v2 算法，`secMsGec.ts`）。微软改版时通常只需更新 `edgeProtocol.ts` 里的版本号或令牌算法。
+- 预录提示语音：`packages/renderer/src/mascot/voice/promptClips.ts`；实时朗读路由 `packages/core/src/tts/ttsRouter.ts`；IPC `tts:speak` / `tts:preview` / `tts:voices` / `tts:status` / `tts:stop` / `tts:health`。
+- Edge 客户端：`packages/core/src/tts/edge/`（项目自写，MIT；纯 Node，基于已有依赖 `ws`，macOS / Windows / Linux 通用，不需要安装 Edge）。协议：WSS `speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1`，先发 `speech.config`（输出 `audio-24khz-48kbitrate-mono-mp3`），再发 SSML，收二进制 `Path:audio` 帧直到 `turn.end`；请求带 `Sec-MS-GEC` 令牌（v2 算法，`secMsGec.ts`）。微软改版时通常只需更新 `edgeProtocol.ts` 里的版本号或令牌算法。
 - 渲染播放 `packages/renderer/src/mascot/tts/audioPlayback.ts`（预录片段与引擎返回的音频通用）。

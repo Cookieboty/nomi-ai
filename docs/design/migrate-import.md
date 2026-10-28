@@ -1,7 +1,7 @@
 # 从其他工具导入 MCP 服务器与技能（#58）
 
 设置 → 扩展 → 「从其他工具导入」。主进程扫描、转换、写入；渲染进程只拿到脱敏预览和每项的 key，
-永远拿不到文件路径或密钥原文。代码：`packages/electron/src/extensions/migrate.ts`（只读发现 + 转换）、
+永远拿不到文件路径或密钥原文。代码：`packages/core/src/extensions/migrate.ts`（只读发现 + 转换）、
 `ExtensionsService.migrateScan / migrateImport`（IPC `ai:ext:migrate-scan` / `ai:ext:migrate-import`，guardedHandle）、
 `packages/ai-chat/src/components/ExtensionsPanel/MigrateDialog.tsx`。
 

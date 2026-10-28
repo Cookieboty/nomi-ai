@@ -29,11 +29,11 @@ BM25 tokenizer/index, chunking, ODT/RTF/XLSX text extraction and the cited-answe
 | Component                                                                 | Licence    | Notes                                                                                                                                                                                                         |
 | ------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `tesseract.js` 7.0.0 (+ `tesseract.js-core` WASM)                         | Apache-2.0 | Offline OCR of images in indexed folders. Deps: `bmp-js`, `is-url`, `node-fetch`, `regenerator-runtime`, `zlibjs` (MIT); `idb-keyval`, `wasm-feature-detect` (Apache-2.0); `opencollective-postinstall` (MIT) |
-| Tesseract `tessdata_fast` `eng` / `chi_sim` (on demand, commit `8741641`) | Apache-2.0 | © Google / Tesseract contributors — https://github.com/tesseract-ocr/tessdata_fast — pinned URLs + SHA-256 in `packages/electron/src/knowledge/catalog.ts`                                                    |
+| Tesseract `tessdata_fast` `eng` / `chi_sim` (on demand, commit `8741641`) | Apache-2.0 | © Google / Tesseract contributors — https://github.com/tesseract-ocr/tessdata_fast — pinned URLs + SHA-256 in `packages/core/src/knowledge/catalog.ts`                                                        |
 
 ## Voice input (speech-to-text)
 
-Model files and binaries are **not bundled**: they are downloaded on demand from the pinned URLs in `packages/electron/src/voice/catalog.ts`, verified by SHA-256, and the licence is shown before download.
+Model files and binaries are **not bundled**: they are downloaded on demand from the pinned URLs in `packages/core/src/voice/catalog.ts`, verified by SHA-256, and the licence is shown before download.
 
 | Component                                                                                                             | Licence                                           | Notes                                                                                   |
 | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- | --------------------------------------------------------------------------------------- |
@@ -57,11 +57,11 @@ There is no built-in (offline) speech synthesis engine. Nomi's short fixed promp
 Lines without a prerecorded clip are synthesized at runtime by the **Microsoft Edge online read-aloud service** (`speech.platform.bing.com`, the service behind Edge's "Read aloud"). Nothing is bundled and no audio is stored; text is sent to Microsoft over the network only when the engine is `edge` (the default) and the mascot speaks.
 
 - **Not an official public Microsoft API.** It is used the way the Edge browser uses it; Microsoft may change or block it at any time, in which case Nomi silently falls back to text only. Terms of use for third-party clients are not stated — **licensing is a grey area**. Users can switch the engine to "None" in Settings.
-- **Client code is original project code (MIT)** — `packages/electron/src/tts/edge/` — written on top of the existing `ws` dependency (MIT); no new dependency and no GPL/LGPL code. The wire format (request headers, `speech.config` / SSML frames, binary audio framing, `Sec-MS-GEC` token) was re-implemented from public protocol descriptions, with reference to `msedge-tts` (MIT, https://github.com/Migushthe2nd/MsEdgeTTS) and the public discussion in `rany2/edge-tts` PR #492; no source was copied from `edge-tts` (LGPL-3.0).
+- **Client code is original project code (MIT)** — `packages/core/src/tts/edge/` — written on top of the existing `ws` dependency (MIT); no new dependency and no GPL/LGPL code. The wire format (request headers, `speech.config` / SSML frames, binary audio framing, `Sec-MS-GEC` token) was re-implemented from public protocol descriptions, with reference to `msedge-tts` (MIT, https://github.com/Migushthe2nd/MsEdgeTTS) and the public discussion in `rany2/edge-tts` PR #492; no source was copied from `edge-tts` (LGPL-3.0).
 
 ## Local models (llama.cpp)
 
-Nothing here is bundled. The runtime and the model weights download on demand from the pinned URLs in `packages/electron/src/local/llmCatalog.ts`. Each download is checked against its SHA-256, and the licence is shown before it starts. We checked every licence on the official model card. Models with custom licences (Llama, Gemma) or an "other" licence (Qwen2.5-3B) are not listed.
+Nothing here is bundled. The runtime and the model weights download on demand from the pinned URLs in `packages/core/src/local/llmCatalog.ts`. Each download is checked against its SHA-256, and the licence is shown before it starts. We checked every licence on the official model card. Models with custom licences (Llama, Gemma) or an "other" licence (Qwen2.5-3B) are not listed.
 
 | Component                                                              | Source                                                                                                                                          | Licence    |
 | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -84,14 +84,14 @@ user's own system interpreter and is not redistributed.
 
 ## Subscription quota readers
 
-Clean-room TypeScript in `packages/electron/src/usage/`; no dependencies added. The restricted
+Clean-room TypeScript in `packages/core/src/usage/`; no dependencies added. The restricted
 `claude -p /usage` subprocess and the reset-time parser are written from scratch against the
 official CLIs' documented behaviour. Codex quota is read through the official `codex app-server`
 JSON-RPC (`account/rateLimits/read`), so credentials never leave the CLI.
 
 ## Usage & cost data sources
 
-The usage readers, parsers and cost maths in `packages/electron/src/usage/` are original TypeScript
+The usage readers, parsers and cost maths in `packages/core/src/usage/` are original TypeScript
 (MIT); no dependencies were added (SQLite sources use Node's built-in `node:sqlite`, read-only).
 Three open-source projects informed the work — **no code was copied** from any of them:
 

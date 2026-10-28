@@ -35,5 +35,5 @@ Claude Code、Codex CLI、dsh、Grok、Gemini CLI。可以按工具单独开关�
 
 ## 技术说明
 
-- 实现：`packages/electron/src/agents/AgentProgressService.ts`（进程检测、会话去重）与 `parsers.ts`（各工具的会话格式）。
+- 实现：`packages/core/src/agents/AgentProgressService.ts`（进程检测、会话去重）与 `parsers.ts`（各工具的会话格式）。
 - Claude Code、Codex、dsh、Gemini CLI 会解析会话内容；Grok 只根据文件更新时间与进程判断。

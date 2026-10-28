@@ -8,15 +8,15 @@
 
 ## 现行模型（v2.0.0）
 
-| 旧（本稿，已废弃） | 新（§5.10） |
-| --- | --- |
-| 保险箱 `<kind>.json` + `credEnc`（safeStorage） | `accounts.json` 只存展示信息；凭据只在各账号目录 / CLI 自己的存储里 |
-| 全局 `activate` 改写 `~/.claude` 等用户目录 | **默认账号** = 新标签默认用哪个账号目录；多账号并行 |
-| `import-current` 把全局登录拷进保险箱 | 登录在账号目录里由 CLI 自己完成；「本机登录」条目指向用户原目录 |
-| Nomi 读钥匙串 / 凭据文件做切换 | Nomi **不** get/set 凭据（S7）；删除账号时仅 `keychain.remove` / CLI logout |
-| 切换时改写全局凭据 | 换账号 = 换 `CLAUDE_CONFIG_DIR` / `CODEX_HOME` 等，不碰其它账号目录 |
+| 旧（本稿，已废弃）                              | 新（§5.10）                                                                 |
+| ----------------------------------------------- | --------------------------------------------------------------------------- |
+| 保险箱 `<kind>.json` + `credEnc`（safeStorage） | `accounts.json` 只存展示信息；凭据只在各账号目录 / CLI 自己的存储里         |
+| 全局 `activate` 改写 `~/.claude` 等用户目录     | **默认账号** = 新标签默认用哪个账号目录；多账号并行                         |
+| `import-current` 把全局登录拷进保险箱           | 登录在账号目录里由 CLI 自己完成；「本机登录」条目指向用户原目录             |
+| Nomi 读钥匙串 / 凭据文件做切换                  | Nomi **不** get/set 凭据（S7）；删除账号时仅 `keychain.remove` / CLI logout |
+| 切换时改写全局凭据                              | 换账号 = 换 `CLAUDE_CONFIG_DIR` / `CODEX_HOME` 等，不碰其它账号目录         |
 
-实现入口：`packages/electron/src/cli/accounts/AccountService.ts`、界面「编程助手 → 官方账号」。
+实现入口：`packages/core/src/cli/accounts/AccountService.ts`、界面「编程助手 → 官方账号」。
 
 迁移（§5.10.9）：启动时把旧保险箱转成 `needsLogin` 记录并写出 `accounts.json` **之后**才删除 / 归档保险箱与 backups/staging；解析失败则尽量 stub + 归档到 `vault-unreadable/`，写盘失败则保留原文件。
 

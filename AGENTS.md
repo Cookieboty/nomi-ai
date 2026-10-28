@@ -8,7 +8,8 @@ pnpm 9 + Turborepo monorepo，Electron 桌面应用（React 19 + Vite）。Node 
 
 | 路径                                | 内容                                                                                                                                             |
 | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `packages/electron`                 | 主进程：`src/main.ts` → `core/Application.ts`，窗口、托盘、IPC、各功能服务                                                                       |
+| `packages/core`                     | 应用内核（纯 Node，不依赖 Electron）：编程助手、用量、网关服务、记忆、知识库、日程、扩展、语音等业务模块与契约处理函数；平台能力经宿主端口       |
+| `packages/electron`                 | 主进程宿主：`src/main.ts` → `core/Application.ts`（组合根），窗口、托盘、协议、preload、端口的 Electron 实现、契约传输                           |
 | `packages/renderer`                 | 看板娘窗口（角色渲染在 `src/mascot`）                                                                                                            |
 | `packages/ai-chat`                  | 对话窗口：对话、设置、引导、功能面板                                                                                                             |
 | `packages/ai-runtime`               | AI 运行时：插件宿主、供应商路由（`src/providers`）、MCP 桥                                                                                       |
@@ -33,7 +34,7 @@ pnpm dev                 # 开发（renderer 6127、chat 6128，见 dev-ports.js
 pnpm build
 pnpm typecheck && pnpm lint   # lint 覆盖全部包
 pnpm format:check
-pnpm test                # 单元测试：electron 用 Jest（tests/unit），其余包用 Vitest
+pnpm test                # 单元测试：core / electron 用 Jest（tests/unit），其余包用 Vitest
 pnpm test:e2e            # 无界面 E2E
 xvfb-run -a pnpm test:e2e:headed   # 真实应用 E2E，必须在仓库根目录运行
 pnpm check:i18n          # 所有中文文案都有英文翻译
@@ -45,10 +46,10 @@ Linux 无显示器时 Electron 相关命令前加 `xvfb-run -a`。
 
 ## 约定
 
-- **界面文案**：中文原文写在代码里作为 key，用 `t()` / `tr()`（主进程用 `packages/electron/src/i18n`），英文翻译同步加到 `packages/ui/src/locales/en.json`；改中文 key 时同时改 en.json。例外：角色文案（台词、提示语、人设、语音字幕）跟着角色包走，写在角色包的 `locales/` 里，不进全局 en.json，见 [内核宿主分离 §10.2](docs/design/core-host-decoupling.md)。
+- **界面文案**：中文原文写在代码里作为 key，用 `t()` / `tr()`（主进程用 `packages/core/src/i18n`），英文翻译同步加到 `packages/ui/src/locales/en.json`；改中文 key 时同时改 en.json。例外：角色文案（台词、提示语、人设、语音字幕）跟着角色包走，写在角色包的 `locales/` 里，不进全局 en.json，见 [内核宿主分离 §10.2](docs/design/core-host-decoupling.md)。
 - **许可**：只引入开源许可（MIT / Apache-2.0 / BSD / ISC / CC0 / CC-BY 等）的依赖与素材，新素材登记到 `assets-licenses.json` / `CREDITS.md`。
 - **日志**：不用 `console.log`；主进程用 `LoggerService` / `createMainLogger`，渲染进程用 `@nomi-ai/ui` 的 `createLogger`。
-- **安全**：preload 只暴露 `window.nomiTransport`（契约传输）与 `window.nomiHost`（拖入文件，路径在 preload 里解析）；视图对内核的调用都经 `@nomi-ai/contract`（过程在 `contract/src/app/<域>.ts`，处理函数在 `electron/src/host/contract/<域>.ts`），由契约判定 `surfaces` / `dangerous` / 事件的 `eventSurfaces`，不新增 IPC 通道（`host/` 之外禁止 `ipcMain`）；契约传输经 `host/ipcSenderGuard.ts` 判定调用者；外部请求走 `netGuard`，命令参数用 `shellEscape`，私有文件用 `utils/privateFile`；API Key 存 `safeStorage`。开发态 userData 包名迁移见 `utils/legacyUserData.ts`。
+- **安全**：preload 只暴露 `window.nomiTransport`（契约传输）与 `window.nomiHost`（拖入文件，路径在 preload 里解析）；视图对内核的调用都经 `@nomi-ai/contract`（过程在 `contract/src/app/<域>.ts`，处理函数在 `core/src/contract/<域>.ts`，用到窗口的在 `electron/src/host/contract/<域>.ts`），由契约判定 `surfaces` / `dangerous` / 事件的 `eventSurfaces`，不新增 IPC 通道（`host/` 之外禁止 `ipcMain`）；契约传输经 `host/ipcSenderGuard.ts` 判定调用者；外部请求走 `netGuard`，命令参数用 `shellEscape`，私有文件用 `utils/privateFile`（这三个在 `packages/core/src`）；API Key 存 `safeStorage`。开发态 userData 包名迁移见 `utils/legacyUserData.ts`。
 - **界面**：CSS Modules + `var(--cd-*)` 令牌；面板懒加载；无障碍（aria-label、`Esc` 关闭、焦点管理、减少动态效果）。
 - **弹窗**：不用系统弹窗（`window.confirm` / `alert` / `prompt`，eslint 会拦）；确认与输入用 `packages/ai-chat/src/components/ConfirmDialog` 的 `confirmDialog` / `promptDialog`，macOS / Windows 样式一致、文案跟界面语言。
 - **样式一致性**：同一行的控件用同一个高度令牌（`--cd-control-h-*`：2xs 20 / xs 24 / sm 28 / ms 32 / md 36 / lg 40；对话区右上角 sm，输入栏工具行与对话头部 ms），同一行同一种形状与字号；尺寸 / 外观通过组件的 `size` / `variant` 改（如 `Select variant="ghost" | "chip"`），不在外部用 `:global(.cd-*)` 覆盖共享组件；hover 用 `--cd-color-hover`，键盘焦点用 `2px solid var(--cd-color-accent-strong)` 描边；字号、颜色、圆角、间距只用令牌（`pnpm check:frontend` 会拦下未定义的 `--cd-*`）。

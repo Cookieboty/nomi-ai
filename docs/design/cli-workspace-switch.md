@@ -1,6 +1,6 @@
 # 切换工作目录时带上对话（所有 CLI）
 
-> 状态：已实现。代码：`packages/electron/src/cli/contextCarry.ts`、`CliHarnessService.setTabCwd / sendTab`、
+> 状态：已实现。代码：`packages/core/src/cli/contextCarry.ts`、`CliHarnessService.setTabCwd / sendTab`、
 > `packages/ai-chat/src/components/EndpointControls`。
 
 ## 问题

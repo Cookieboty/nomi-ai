@@ -34,7 +34,7 @@
 | P9  | Nomi 对话和 CLI 是两套供应商体系                    | `ai-runtime` 的 `ProviderStore`（`ai-providers.json`）与 `CliProviderBridge` 完全隔离；入口分散在设置页的 Nomi 标签、各 CLI 标签、对话框底部的供应商下拉 + 模型下拉、`CliProviderChip`、托盘菜单                                                                                       | 同一家厂商要在 Nomi 和每个 CLI 里各配一遍；用户分不清「供应商」「第三方供应商」「官方账号」三者的关系 |
 | P10 | 启用第三方会改写 CLI 的全局配置，和官方登录互相影响 | `CliProviderBridge.activate()`：Claude 写 `~/.claude/settings.json` 的 `ANTHROPIC_API_KEY/BASE_URL/MODEL`；Codex 写 `config.toml`，**还往 `auth.json` 写 `OPENAI_API_KEY`**（官方账号切换改写的也是这个文件）；Grok 写 `~/.grok/config.toml`；官方账号切换流程因此要「自动停用第三方」 | 启用第三方后，终端里的 CLI 也不再用官方账号；两个功能互斥，来回切换容易出错                           |
 
-已有可以复用的部分：本地监听与安全校验（回环地址限制、Host 头防 DNS 重绑定、本地令牌，见 `CliRouteService`）、流式解码器和编码器（`routing/stream/*`）、SSE 用量采集（`electron/src/usage/sniff.ts`）、配置备份与撤销（`configPatch.ts` 的 `unpatch*`）、Codex 自定义工具还原（`customToolNames`，定义在 `CliRouteService.ts`）、工具结果排序（`orderToolResultsFirst`，`transforms.ts` 内私有函数，迁移时导出）。
+已有可以复用的部分：本地监听与安全校验（回环地址限制、Host 头防 DNS 重绑定、本地令牌，见 `CliRouteService`）、流式解码器和编码器（`routing/stream/*`）、SSE 用量采集（`core/src/usage/sniff.ts`）、配置备份与撤销（`configPatch.ts` 的 `unpatch*`）、Codex 自定义工具还原（`customToolNames`，定义在 `CliRouteService.ts`）、工具结果排序（`orderToolResultsFirst`，`transforms.ts` 内私有函数，迁移时导出）。
 
 ## 2. 目标与非目标
 
@@ -223,7 +223,7 @@ packages/gateway/src/
   models.ts             # /v1/models 各协议格式
   errors.ts             # 错误映射（§9.6）
   tokens.ts             # count_tokens 本地估算
-packages/electron/src/gateway/
+packages/core/src/gateway/
   GatewayService.ts     # 存储、迁移、IPC、utilityProcess 守护
   GatewayStore.ts       # userData/gateway/store.json（Key 用 safeStorage 加密）
   agents/{claude,codex,gemini,grok,dsh}.ts   # 每个 CLI 第三方会话的启动参数 / 环境变量 / 私有叠加配置（§12）
@@ -801,11 +801,11 @@ Claude Code 用 `count_tokens` 的结果决定什么时候压缩上下文，纯�
 - 唯一例外是用户主动开启的「终端启动命令」（§12.6）。它是 Nomi 私有目录里的独立脚本，也不改这些文件。
 - 环境变量统一经过 `buildCliEnv` 生成：第三方会话注入网关变量；官方会话**剥掉** Nomi 可能残留的网关变量（`ANTHROPIC_BASE_URL` / `ANTHROPIC_AUTH_TOKEN` 等于网关地址或令牌时），保证官方会话不会误走网关。用户自己在 shell 里导出的变量照旧继承（现有行为）。
 - **第三方会话还要剔除会抢鉴权的继承变量**：spawn 的环境以 `process.env` 为基础（`cliChildEnv` → `buildCliEnv`），用户 shell 里导出的变量都会继承。第三方会话除了覆盖网关变量，还要**显式删除**：Claude 的 `ANTHROPIC_API_KEY`（M0 实测：和 `ANTHROPIC_AUTH_TOKEN` 同时存在时，两个头**都会发**，`Authorization: Bearer <令牌>` 加 `x-api-key: <继承的 Key>`，用户的真实 Key 会被送到网关）、`CLAUDE_CODE_USE_BEDROCK` / `CLAUDE_CODE_USE_VERTEX` 一类切换后端的变量；Codex 的 `OPENAI_API_KEY`、`OPENAI_BASE_URL`；Gemini 的 `GOOGLE_API_KEY`、`GOOGLE_GENAI_USE_VERTEXAI`、`GOOGLE_CLOUD_PROJECT`。清单集中写在各自的 `agents/<cli>.ts`。
-- 每个启动参数和环境变量的键集中写在 `packages/electron/src/gateway/agents/<cli>.ts` 一处。所有「待实测」的项目在 **M0 前置验证**（§18）里统一用当前版本实测，结果和查证版本记在本节；M0 的结论决定各 CLI 采用主方案还是退路。实测结果汇总在 §12.8。
+- 每个启动参数和环境变量的键集中写在 `packages/core/src/gateway/agents/<cli>.ts` 一处。所有「待实测」的项目在 **M0 前置验证**（§18）里统一用当前版本实测，结果和查证版本记在本节；M0 的结论决定各 CLI 采用主方案还是退路。实测结果汇总在 §12.8。
 
 **实现记录（2026-10-21，M3）**：
 
-- 进程级注入集中在 `packages/electron/src/gateway/agents/index.ts`（`agentLaunch`、`STRIP`、`stripGatewayLeftovers`），`GatewayService.cliLaunch / cliDefaults / cliModels / officialEnv` 提供给 `CliHarnessService` 的 `gateway` 依赖。标签多了 `source: 'official' | 'thirdParty'`；第三方时 `modelOverride` 是 `供应商/模型`（缺省用 `clients.<cli>.models.main`），模型来源键 `gateway`，与官方的选择分开记。
+- 进程级注入集中在 `packages/core/src/gateway/agents/index.ts`（`agentLaunch`、`STRIP`、`stripGatewayLeftovers`），`GatewayService.cliLaunch / cliDefaults / cliModels / officialEnv` 提供给 `CliHarnessService` 的 `gateway` 依赖。标签多了 `source: 'official' | 'thirdParty'`；第三方时 `modelOverride` 是 `供应商/模型`（缺省用 `clients.<cli>.models.main`），模型来源键 `gateway`，与官方的选择分开记。
 - 长驻进程的复用键加了「注入签名」（来源、网关地址、令牌、模型参数；Gemini / Grok / dsh 的模型写在配置里，也算进去）。所以 Claude 第三方之间换模型、Codex 每轮换模型不重启；Gemini、Grok、dsh 换模型重启并续接；换来源一定重启。
 - 换来源（`ai:harness:tab-source`）：官方 → 第三方续接原会话（Codex 例外：带上下文的新会话，避免原会话被 Codex 改到网关名下）；第三方 → 官方用带上下文的新会话（渲染进程先确认）。
 - `recycleBackend` 只处理来源为官方的标签；切官方账号时不再「停用第三方」（§13 第 2、3 条）。
@@ -946,7 +946,7 @@ Nomi 自己的对话也作为网关的一个客户端（`nomi`），和 CLI 走�
 3. 上游模型列表接口返回的字段（部分厂商会返回 `context_length` 等）；
 4. 构建时内置一份公开模型目录的快照（models.dev，MIT，`packages/gateway/src/models/catalog.json`，由 `packages/gateway/scripts/build-catalog.mjs` 生成，已登记 `assets-licenses.json`）。运行时可同步（见下文「模型数据同步」），同步到的目录作为覆盖层，没同步过 / 失败时用内置的。
 
-实现（`packages/electron/src/gateway/modelMeta.ts` 的 `resolveModelMeta`）：
+实现（`packages/core/src/gateway/modelMeta.ts` 的 `resolveModelMeta`）：
 
 - 逐字段取第一个有值的一级，上下文和输出上限可以来自不同的级；
 - 预设按当前版本实时查（已保存的供应商也能用上后来补的值），先按原 id、再按去掉中转前缀后的 id 匹配（预设写 `glm-5.3`，中转列 `z-ai/glm-5.3`）；保存时存下的预设值排在实时预设之后；

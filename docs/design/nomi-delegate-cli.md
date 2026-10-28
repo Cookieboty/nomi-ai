@@ -52,8 +52,8 @@ Grok / Gemini / dsh / 外部 CLI）只能由用户在标签里直接使用。
 
 ### 4.1 工具
 
-注册位置：`electron/src/desktop/plugin.ts`（与桌面工具一起进 ToolRegistry）。实现放在新的
-`electron/src/cli/delegate/`，只依赖 `CliHarnessService` 的公开方法。
+注册位置：`core/src/desktop/plugin.ts`（与桌面工具一起进 ToolRegistry）。实现放在新的
+`core/src/cli/delegate/`，只依赖 `CliHarnessService` 的公开方法。
 
 ```ts
 delegate_to_cli({
@@ -386,7 +386,7 @@ Nomi 可继续聊；完成后广播 + 对话通知。需要同步等结果时传
 
 ## 12. 实现记录与偏差（P1）
 
-实现：主进程 `electron/src/cli/delegate/`（`core.ts` 纯逻辑、`DelegateService.ts` 工具 / 设置 / `/agent` 钉住），
+实现：主进程 `core/src/cli/delegate/`（`core.ts` 纯逻辑、`DelegateService.ts` 工具 / 设置 / `/agent` 钉住），
 编程助手服务加了 `createTab({ activate, delegation })`、委派标签的审批等待与统计、`HarnessStoppedError`；
 渲染层 `Conversation/DelegateCard.tsx`（卡片 / 任务组 / 抽屉）、`ProvidersPage/DelegateSettings.tsx`、
 `slash/adapters/nomi.ts`（`/agent`，`/cli` 隐藏别名）、`services/delegateClient.ts`。工具调用 id 经 `ToolExecContext.toolCallId` 传到工具。
@@ -432,7 +432,7 @@ Nomi 可继续聊；完成后广播 + 对话通知。需要同步等结果时传
 
 ### 12.2 P3 worktree 隔离（已实现）
 
-- 实现：`electron/src/cli/delegate/worktree.ts`；`DelegateService.delegate` 在 `createTab` 前 `prepareIsolation`。
+- 实现：`core/src/cli/delegate/worktree.ts`；`DelegateService.delegate` 在 `createTab` 前 `prepareIsolation`。
 - **git 仓库内**：`git worktree add --detach <sourceCwd>/.nomi-delegate/<id> HEAD`；`createTab` 的 cwd 指向 worktree。
   结束后（非 cancel）`applyWorktreeToMain` 把改动拷回仓库根，**保留** worktree 供 `delegate_followup`；cancel / 授权失败则 `releaseIsolation`。
 - **非 git**：`shared-cwd`，结果带 `isolationNote` 提醒并行会互相改文件。

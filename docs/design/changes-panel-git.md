@@ -44,7 +44,7 @@
 
 ## 4. 接口
 
-都在 `packages/electron/src/cli/gitOps.ts`，IPC 经 `knownDir(cwd)` 校验；参数用 `execFile` 数组传，路径加 `--literal-pathspecs`、放在 `--` 之后，并且必须落在 cwd 里。
+都在 `packages/core/src/cli/gitOps.ts`，IPC 经 `knownDir(cwd)` 校验；参数用 `execFile` 数组传，路径加 `--literal-pathspecs`、放在 `--` 之后，并且必须落在 cwd 里。
 同一个目录同时只跑一个写操作（另一个返回 `busy`）。
 
 | 通道                                             | 作用                                                 |

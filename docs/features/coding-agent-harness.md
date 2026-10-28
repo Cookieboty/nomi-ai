@@ -267,7 +267,7 @@ Aggregation（多上游合并）仍为 **P2**。
 
 ---
 
-_调研来源：本仓库 `packages/electron/src/agents/*`、官方 Claude Code headless/CLI 文档、OpenAI Codex CLI reference、Cursor headless CLI 文档（2026-10）。_
+_调研来源：本仓库 `packages/core/src/agents/*`、官方 Claude Code headless/CLI 文档、OpenAI Codex CLI reference、Cursor headless CLI 文档（2026-10）。_
 
 ## 12. 第三个接管端点：dsh + 多标签并发后端（设计稿，2026-10-15）
 
@@ -474,7 +474,7 @@ _调研来源：本仓库 `packages/electron/src/agents/*`、官方 Claude Code 
 - **不阻塞主进程**：检测（`which` / `--version` / `npm config get prefix` / `node --version`）全部走异步 `execFile`；`run` 在做前置检查前先占位，防止连点两次同时通过。（Windows 上 `where` / `npm.cmd` 启动较慢，同步调用会让整个应用的输入停顿——CI 里 E19 的点击曾因此超时。）
 - **任务状态由主进程按端点持有**（`CliUpdateService.jobs`）：运行中 / 进度日志（最多 400 行）/ 结果 / 错误都在主进程，不再放在设置页的 React 局部状态里。页面挂载时先 `ai:cli-update:job` 取快照，再订阅 `ai:cli-update:event` 的增量；切换端点、退出设置、关闭再打开都不影响任务，回来后继续显示。同一端点重复点更新会复用当前任务；结束后保留最近一次结果（含失败原因），直到点「关闭结果」（`ai:cli-update:dismiss`）。测试：`CliInstallUpdate.test.ts`（快照 / 复用 / 保留 / 关闭）、`cliVersionCard.test.tsx`（挂载→开始→卸载→重新挂载仍显示）、e2e E20（假 codex / npm）。
 - 已移除日程里的 `CliToolsBlock`。
-- 测试：`packages/electron/tests/unit/cli/CliInstallUpdate.test.ts`（注入 mock npm / CLI 的 probe 与 runner，覆盖计划、Node 过旧、只读前缀、流式事件、失败）与 `packages/ai-chat/tests/cliVersionCard.test.tsx`。
+- 测试：`packages/core/tests/unit/cli/CliInstallUpdate.test.ts`（注入 mock npm / CLI 的 probe 与 runner，覆盖计划、Node 过旧、只读前缀、流式事件、失败）与 `packages/ai-chat/tests/cliVersionCard.test.tsx`。
 
 ### 14.3 监视与会话
 
@@ -570,7 +570,7 @@ Nomi 用 Nomi 应用标志；Codex 用 OpenAI 标志；dsh 用 DeepSeek 鲸鱼�
 - 朗读走现有的看板娘语音通道（`MascotCueService` → `speakForActiveCharacter` → `tts:speak`），遵守语音开关、音量与勿扰静音；e2e 下 `CD_TTS=off` 照常生效。
 - 实现：主进程 `desktop:bubble` 载荷新增 `voice`（`full` / `cue` / `none`）与 `kind`（`digest` / `done` / `fail`），渲染进程 `MascotAudioBridge` 据此决定出声方式；未带 `voice` 的旧气泡沿用原有行为。
 
-**测试**：`packages/electron/tests/unit/agents/agentDigest.test.ts`（fake timers：开始不提示、10 分钟汇总与分组、0 个不提示、总结播报开 / 关、与结束提示去重、免打扰、关闭监听 / `stop` 清理定时器）、`agentProgress.test.ts` / `agentEndpoints.test.ts`、`HarnessTabs.test.ts`（`progressHint`）、`packages/renderer/tests/mascot/audioBridgeBubble.test.tsx`（三种出声方式）、`packages/ai-chat/tests/providersPage.test.tsx`（开关）。**未验证**：真实语音听感，以及 Windows / macOS 真机上的气泡、灵动岛与定时行为。
+**测试**：`packages/core/tests/unit/agents/agentDigest.test.ts`（fake timers：开始不提示、10 分钟汇总与分组、0 个不提示、总结播报开 / 关、与结束提示去重、免打扰、关闭监听 / `stop` 清理定时器）、`agentProgress.test.ts` / `agentEndpoints.test.ts`、`HarnessTabs.test.ts`（`progressHint`）、`packages/renderer/tests/mascot/audioBridgeBubble.test.tsx`（三种出声方式）、`packages/ai-chat/tests/providersPage.test.tsx`（开关）。**未验证**：真实语音听感，以及 Windows / macOS 真机上的气泡、灵动岛与定时行为。
 
 ## 14. 会话视图改版（2026-10-16，工具调用不再是纯文本流）
 
@@ -638,7 +638,7 @@ ai-chat/src/
 ③ CLI 会话整段渲染、不分页 → 消息 / 时间线窗口化；④ 持久化的旧轨迹保留完整输入输出 → `compactOldTraces`（仅保留最近 20 条完整，文件 ≤6 MB）；
 ⑤ 切标签缓存无限增长 → LRU 只留最近 4 个标签。看板娘窗口堆内存稳定在 10–12 MB，没有随会话增长。
 
-**测试**：`ai-chat/tests/conversation*.test.tsx`、`convStatus` / `convTime` / `toolTrace` / `sendQueue` / `stopButton`、`electron/tests/unit/cli/*`；
+**测试**：`ai-chat/tests/conversation*.test.tsx`、`convStatus` / `convTime` / `toolTrace` / `sendQueue` / `stopButton`、`core/tests/unit/cli/*`；
 e2e：E24（工具时间线）、E25（统一视图：等待态 / 思考计时 / 队列 / 摘要 / 停止 / 重新生成 / 编辑 / 错误卡片 / Nomi 对话）、PERF（压测，默认跳过）。
 
 ## 插件化（v2.0.0）

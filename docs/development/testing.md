@@ -2,7 +2,7 @@
 
 | 层级         | 位置                                       | 运行                   | 跑什么                                                                                                          |
 | ------------ | ------------------------------------------ | ---------------------- | --------------------------------------------------------------------------------------------------------------- |
-| 单元测试     | `packages/*/src/**`、`packages/*/tests/**` | `pnpm test`            | 各包逻辑；`electron` 用 Jest（`packages/electron/tests/unit`），其余包用 Vitest                                 |
+| 单元测试     | `packages/*/src/**`、`packages/*/tests/**` | `pnpm test`            | 各包逻辑；`core` 与 `electron` 用 Jest（`packages/{core,electron}/tests/unit`），其余包用 Vitest                |
 | 脚本测试     | `scripts/__tests__`                        | `pnpm test:root`       | changelog 与签名环境脚本                                                                                        |
 | 无界面 E2E   | `e2e/tests`                                | `pnpm test:e2e`        | 不启动 Electron：真实 `AIClient` + IPC 服务端 + 事件广播，配合假的 IPC / LLM / 工具，验证跨窗口的调用与事件契约 |
 | 真实应用 E2E | `e2e-headed/tests`                         | `pnpm test:e2e:headed` | Playwright 启动真实 Electron，操作界面                                                                          |
@@ -39,7 +39,7 @@ xvfb-run -a pnpm test:e2e:headed
 假上游（按场景注入保活、缺字段、截断等毛病）→ 进程内网关 → 本机安装的 claude / codex / gemini / grok / dsh。没装的 CLI 自动跳过；每次运行用新的临时 HOME，不读写你自己的配置。
 
 - `conformance.test.ts`：每个 CLI 用 Nomi 第三方会话同样的注入方式指向网关（Gemini 无界面运行要 `GEMINI_CLI_TRUST_WORKSPACE=true`），断言毛病流经网关后能正常答完、上游中途断开时 CLI 报错而不是空回复。
-- `modelSwitch.test.ts`：真实编排器 + 真实 `GatewayService`（网关进程入口 `electron/src/gateway/worker.ts` 在测试进程里跑，编排器的网关依赖就是应用里用的 `harnessGateway`），断言第三方标签换模型后上游实际收到的模型：A → B → A、进行中换模型下一轮生效、空闲回收后保持并续接，每一轮的全部请求（含辅助请求）都是标签当时选的模型。`NOMI_E2E_SWITCH_REPORT=<文件>` 写出每轮请求数。
+- `modelSwitch.test.ts`：真实编排器 + 真实 `GatewayService`（网关进程入口 `core/src/gateway/worker.ts` 在测试进程里跑，编排器的网关依赖就是应用里用的 `harnessGateway`），断言第三方标签换模型后上游实际收到的模型：A → B → A、进行中换模型下一轮生效、空闲回收后保持并续接，每一轮的全部请求（含辅助请求）都是标签当时选的模型。`NOMI_E2E_SWITCH_REPORT=<文件>` 写出每轮请求数。
 - `probe.test.ts`（`NOMI_E2E_PROBE=1` 才跑，很慢）：直接对着 CLI 逐个删字段、注入未知事件，得出「这个版本要求什么」，与 `snapshots/<cli>-<版本>.json` 比对。本机版本没有快照时跳过比对并说明；`NOMI_E2E_PROBE_UPDATE=1` 写入快照（人工看过差异再提交）。Grok 按它报的 `missing field` 读必填字段；其余 CLI 看删掉字段后还能不能答出（删掉正文本身的字段必然「必填」，快照只用来发现变化）。
 - 夜间 CI：`.github/workflows/e2e-cli-nightly.yml` 每天从 npm 装最新版 CLI 跑一遍（不需要 secret）；手动触发可打开探测，`update_snapshots` 会把新版本的快照作为 artifact 上传。
 
@@ -80,4 +80,4 @@ node scripts/check-bundle-budget.mjs [--strict]                           # 首�
 
 `.github/workflows/e2e-cli-nightly.yml`：定时 + 手动，真实 CLI 一致性测试（见上），不在 push / PR 上跑。
 
-编程助手编排的单测（`packages/electron/tests/unit/cli/CliHarness.*.test.ts`）每个用例都起假 CLI 进程：等进程里发生的事要用 `tests/helpers/wait.ts` 的 `until`（按条件等，带说明的超时），不要数固定次数的轮询或断言墙钟耗时；轮询读假 CLI 的日志时容忍写到一半的末行。全量测试并行负载下进程启动可能要好几秒。
+编程助手编排的单测（`packages/core/tests/unit/cli/CliHarness.*.test.ts`）每个用例都起假 CLI 进程：等进程里发生的事要用 `tests/helpers/wait.ts` 的 `until`（按条件等，带说明的超时），不要数固定次数的轮询或断言墙钟耗时；轮询读假 CLI 的日志时容忍写到一半的末行。全量测试并行负载下进程启动可能要好几秒。

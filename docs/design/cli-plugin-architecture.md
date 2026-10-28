@@ -55,15 +55,15 @@ Grok 的 49 个文件横跨三个运行环境：主进程（`cli/CliHarnessServi
 
 「CLI 是哪几种」这个事实本身就被重复声明了至少 12 次，而且互不一致：
 
-| 声明                      | 位置                                                                                                             | 取值                             |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------------- | -------------------------------- |
-| `HarnessBackend`          | `electron/src/cli/types.ts`、`ai-chat/src/services/harnessClient.ts`                                             | 含 `nomi`                        |
-| `CliKind`                 | `electron/src/cli/types.ts`                                                                                      | 含 `cursor`                      |
-| `CliKind`                 | `ai-chat/src/services/cliSource.ts`                                                                              | `Exclude<ClientId, 'nomi'>`      |
-| `AgentKind`               | `electron/src/agents/parsers.ts`、`electron/src/gateway/agents/index.ts`、`ai-chat/src/services/agentsClient.ts` | 各自定义                         |
-| `HistoryBackend`          | `electron/src/cli/historyTranscript.ts`、`ai-chat/src/services/historyClient.ts`                                 | 五个 CLI                         |
-| `CliBackend`              | `CliHarnessService.ts`、`modelCatalog.ts`、`permissionMode.ts`、`ai-chat/src/utils/permissionModes.ts`           | `Exclude<HarnessBackend,'nomi'>` |
-| `ClientId` / `CLIENT_IDS` | `gateway/src/config.ts`                                                                                          | 含 `nomi`                        |
+| 声明                      | 位置                                                                                                     | 取值                             |
+| ------------------------- | -------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| `HarnessBackend`          | `core/src/cli/types.ts`、`ai-chat/src/services/harnessClient.ts`                                         | 含 `nomi`                        |
+| `CliKind`                 | `core/src/cli/types.ts`                                                                                  | 含 `cursor`                      |
+| `CliKind`                 | `ai-chat/src/services/cliSource.ts`                                                                      | `Exclude<ClientId, 'nomi'>`      |
+| `AgentKind`               | `core/src/agents/parsers.ts`、`core/src/gateway/agents/index.ts`、`ai-chat/src/services/agentsClient.ts` | 各自定义                         |
+| `HistoryBackend`          | `core/src/cli/historyTranscript.ts`、`ai-chat/src/services/historyClient.ts`                             | 五个 CLI                         |
+| `CliBackend`              | `CliHarnessService.ts`、`modelCatalog.ts`、`permissionMode.ts`、`ai-chat/src/utils/permissionModes.ts`   | `Exclude<HarnessBackend,'nomi'>` |
+| `ClientId` / `CLIENT_IDS` | `gateway/src/config.ts`                                                                                  | 含 `nomi`                        |
 
 `CliHarnessService.ts` 4638 行，按后端分出了五套会话实现：Claude 的 stream-json 长驻进程（`ensureClaudeLive`、`onClaudeLine`、`requestClaudeControl`…）、Codex 的 app-server（`ensureCodexLive`、`onCodexNotification`…）与 exec 退路（`runCodex`）、ACP（Grok 与 Gemini 共用，`ensureAcpLive`、`syncAcpOverrides`…）、Grok 的 exec 退路（`runGrok`）、dsh 每轮一个进程（`runDsh`）。
 
@@ -435,7 +435,7 @@ export interface ClientAdapterHooks {
 
 网关里所有 `client === 'claude'` 之类的分支（`route/resolve.ts` 的 `mapBuiltinModel`、`affinity.ts` 的会话键、`server.ts` 的 `legacyClient`）改成读规格。
 
-插件的 `gateway` 入口**不进 `packages/gateway`**：网关内核只定义钩子接口，在 Electron 侧的网关进程入口（`electron/src/gateway/worker.ts`）把内置插件的钩子组装进去，内核保持不依赖任何插件。
+插件的 `gateway` 入口**不进 `packages/gateway`**：网关内核只定义钩子接口，在 Electron 侧的网关进程入口（`core/src/gateway/worker.ts`）把内置插件的钩子组装进去，内核保持不依赖任何插件。
 
 ### 5.6 界面侧
 
@@ -1378,7 +1378,7 @@ packages/gateway/src/
 
 | 现在                                                                          | 去处                                                                                            |
 | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `electron/src/gateway/agents/index.ts`（五个启动函数）                        | 各插件 `main/launch.ts`；私有 HOME / 叠加文件 → `cli-sdk/launch`                                |
+| `core/src/gateway/agents/index.ts`（五个启动函数）                            | 各插件 `main/launch.ts`；私有 HOME / 叠加文件 → `cli-sdk/launch`                                |
 | `CliHarnessService.ts` 的 Claude / Codex / ACP / exec 会话                    | `cli-sdk/drivers/*`；编排部分留在主进程 `HarnessOrchestrator`                                   |
 | `cli/historyTranscript.ts`、`SessionHistoryService.ts` 的分支                 | 各插件 `main/history.ts`；服务只做调度、缓存、分页                                              |
 | `agents/parsers.ts`、`agents/processes.ts`                                    | 各插件 `main/progress.ts`                                                                       |
@@ -1408,7 +1408,7 @@ packages/gateway/src/
 - `packages/gateway` 不得 import `cli-plugins/*/main`、`electron`。
 - `cli-plugins/*/gateway` 只能 import `@nomi-ai/cli-sdk/gateway`。
 - `cli-plugins/*/renderer` 只能 import `@nomi-ai/ui`、`react`、`@nomi-ai/cli-sdk/renderer`。
-- 核心目录（`electron/src/cli`、`gateway/src` 除 `providers/`、`ai-chat/src` 除插件生成索引）禁止出现 CLI 名字字面量：加一条自定义 lint 规则，白名单之外命中即报错。
+- 核心目录（`core/src/cli`、`gateway/src` 除 `providers/`、`ai-chat/src` 除插件生成索引）禁止出现 CLI 名字字面量：加一条自定义 lint 规则，白名单之外命中即报错。
 
 ## 8. 可观测性与诊断日志
 
@@ -1633,7 +1633,7 @@ packages/gateway/src/
 | 推理意图（§6.5）           | 改 IR 的 `IRReasoning` 为 `ReasoningIntent` | IR 不变，意图直接从入口请求体读（`gateway/src/intent.ts`），再由模型适配器的请求规则渲染                            | 与 C1「规则作用在请求体上」一致，改动面小                                                                             |
 | 路由计划（§6.9）           | 规则排序后直接决定协议                      | **默认 active**（按 `RoutePlan` 选上游协议）；`routePlan: 'shadow'` / `NOMI_ROUTE_PLAN=shadow` 回滚影子模式         | 影子观察一个版本后切换；保留 env 回滚旋钮                                                                             |
 | 同协议非流式（§6.11.1）    | JSON 展开成事件走同一流水线再聚合           | 同协议非流式正文直通，跨协议才经 `bridgeJson`                                                                       | 展开再聚合做不到字节一致（原因写在 `bridge.ts`）                                                                      |
-| 账号目录布局（§5.10）      | 复用 cli-sdk 的 `ensureSharedHome`          | 布局数据来自插件，软链 / junction 代码仍在 `electron/src/cli/accounts/homes.ts`                                     | 已有条目、Windows junction 与失败报告的处理不同，切换要重做真机核对                                                   |
+| 账号目录布局（§5.10）      | 复用 cli-sdk 的 `ensureSharedHome`          | 布局数据来自插件，软链 / junction 代码仍在 `core/src/cli/accounts/homes.ts`                                         | 已有条目、Windows junction 与失败报告的处理不同，切换要重做真机核对                                                   |
 | 模型发现与账号登录（§5.4） | 走会话驱动                                  | 走 cli-sdk 的 `JsonRpcConnection`（主进程只加本地化超时文案）                                                       | 驱动自带握手与会话 / 权限处理，这两个流程要发原始 `authenticate` / `session/new` 并拒绝所有代理请求，换驱动会改变行为 |
 | 标签 id 进请求日志（§8.3） | 由诊断追踪关联                              | 由标签绑定带上（`tabId`、代次、解析方式随用量事件上报）                                                             | 绑定本来就知道标签，不依赖诊断开关                                                                                    |
 | 外部插件（§5.9）           | L1 声明式插件                               | 已实现，但没有历史列表（ACP 不能列会话，续接用 `session/load`），权限只有「逐项确认」，不进进度监视与看板娘权限提醒 | L1 只做声明式能力                                                                                                     |
