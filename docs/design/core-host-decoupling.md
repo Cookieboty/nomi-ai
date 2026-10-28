@@ -546,7 +546,21 @@ renderer 只保留：透明窗口壳、气泡、工具栏、右键菜单，以�
 > - 缺的端口：系统通知（notifications）与图片处理（image：解码 / 缩放），补上后 `DesktopService` / `ChatBackgroundService` 才能出白名单；
 > - `security/secretStorage`、`utils/log`、`utils/privateFile` 仍直接用 `safeStorage` / `app`，旧 IPC 注册层与 `sandbox/AgentBrowser`、`utils/windowBounds` 按原计划在 P1b / P3 处理。
 >
-> P1b、搬目录（P3）、C1 资产搬迁尚未开始。
+> P1b、搬目录（P3）尚未开始。
+>
+> C1 已完成（分支 `refactor/c1-characters`）：官方角色是普通角色包 `characters/nomi`，构建期由
+> `CHARACTER_PACK`（缺省为它）选包，Vite 插件直接读包、不改源树；Scheme A 原地覆盖与两份
+> `character.generated.json` 已删除；运行时覆盖包与内置包都经 `validatePack`（覆盖包 `lenient`，
+> 非结构性问题只警告）。官方包与 2.0.5 行为对齐：不声明 `layout.hitboxes` / `bubbleAnchor`（触摸仍走几何
+> 推断），`manifest.catalog` 让生成的 `model-list.json` 与 2.0.5 一致（仅素材路径改到 `./character/`）。
+> 后续：
+>
+> - 用 `characters/test-dummy` 跑 e2e 验收（§11.3 替身角色，G5 尚未达成）；
+> - `scripts/check-character-leak`（§11.2）尚未实现；
+> - 界面文案里点名 Nomi 的字符串还没按「产品名 / 角色名」分拣（§10.1）；
+> - `examples/static-demo.pack` 仍是旧布局（`layout/hitboxes.json`、`copy/`），靠迁移读取；
+> - `character-pack:get-active` 的返回多了 `locales`，内置包也会填 `id` / `mode` / `displayName` /
+>   `locales` 等身份字段；P1b 把这些同步进 `contract` 的通道定义。
 
 | 阶段 | 内容                                                                                                                                                                | 完成标准                                               |
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
