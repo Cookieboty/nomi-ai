@@ -1,8 +1,11 @@
 # Character pack examples
 
-| Pack                | Mode     | 用途                                      |
-| ------------------- | -------- | ----------------------------------------- |
-| `nomi.pack/`        | `rive`   | 官方导出；`pnpm character:check` 默认目标 |
-| `static-demo.pack/` | `static` | 最小静图示范；无 voice 时 check 允许警告  |
+官方角色是普通角色包，放在 [`characters/nomi`](../characters/nomi)；测试用替身包在
+[`characters/test-dummy`](../characters/test-dummy)。这里只放示范包：
 
-第三方换肤步骤见 [`docs/character-pack/REPLACING.md`](../docs/character-pack/REPLACING.md)。
+| Pack                | Mode     | 用途                                                                         |
+| ------------------- | -------- | ---------------------------------------------------------------------------- |
+| `static-demo.pack/` | `static` | 旧版包格式（`copy/`、`layout/`）的最小静图示范；check 会给迁移警告但仍能加载 |
+
+新建角色包：`pnpm character:init -- <dir>`。第三方换肤步骤见
+[`docs/character-pack/REPLACING.md`](../docs/character-pack/REPLACING.md)。

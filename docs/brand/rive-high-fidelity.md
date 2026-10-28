@@ -18,7 +18,7 @@ rive rive/nomi-complete --once
 rive rive/nomi-complete
 ```
 
-The last command opens the live preview and watches `rive/nomi-complete/`. A successful build writes `rive/nomi-complete/build/nomi-complete.riv`; the renderer copy is `packages/renderer/public/assets/models/rive/nomi-complete.riv`.
+The last command opens the live preview and watches `rive/nomi-complete/`. A successful build writes `rive/nomi-complete/build/nomi-complete.riv`; the shipped copy is `characters/nomi/rive/character.riv`.
 
 The renderer always loads the full-body `Nomi-full` artboard. The previous
 half-body artboard and the experiment flag path were removed.

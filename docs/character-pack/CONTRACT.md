@@ -3,7 +3,8 @@
 Freeze list for a single character pack. Pack authors replace content;
 clip / action / file **names** stay stable unless the contract bumps.
 
-Official Nomi first: with no `CHARACTER_PACK`, the app behaves exactly as today.
+The official character is an ordinary pack, [`characters/nomi`](../../characters/nomi): with no
+`CHARACTER_PACK` the build ships it, through the same loading path as any third-party pack.
 
 Third-party skinning steps: [`REPLACING.md`](./REPLACING.md).
 
@@ -35,6 +36,9 @@ my-character.pack/
   onboarding/{welcome,profile,provider,privacy}.webp
   CREDITS.md / LICENSE
 ```
+
+`manifest.credits` (`{ author, license, source }`, optional) feeds the bundled model list and the
+licence check; the official pack must carry an allow-listed licence.
 
 ## manifest.json
 
@@ -111,8 +115,11 @@ global i18n catalog. Primary locale `zh`; `zh` and `en` are both recommended.
 }
 ```
 
-`lines` keys are stable voice clip ids (legacy i18n keys resolve via `voice-ids.json`).
-Lines fall back to the primary locale. Validation warns when a non-primary locale misses keys
+`lines` keys are stable voice clip ids (legacy i18n keys resolve via `voice-ids.json`). The mascot's
+tips and greetings (`packages/renderer/src/mascot/tips.ts` lists which ids it uses) are read from
+here; a pack without a line stays silent there instead of falling back to another character.
+`pnpm check:i18n` checks that every pack under `characters/` has the same lines (and persona
+identity fields) in `zh` and `en`. At run time lines fall back to the primary locale. Validation warns when a non-primary locale misses keys
 present in `zh`. Legacy `copy/<lang>.json` (`displayName`, `wakePhrase`, `systemPromptIdentity`)
 is migrated with a warning.
 
@@ -126,11 +133,11 @@ is migrated with a warning.
 
 ## Rive
 
-| Field         | Default (Nomi)      | Override                                   |
-| ------------- | ------------------- | ------------------------------------------ |
-| Artboard      | `Nomi-full`         | `manifest.rive.artboard`                   |
-| State machine | `NomiFull`          | `manifest.rive.stateMachine`               |
-| Ship filename | `nomi-complete.riv` | v1 **overwrites in place** (do not rename) |
+| Field         | Default (Nomi)       | Override                     |
+| ------------- | -------------------- | ---------------------------- |
+| Artboard      | `Nomi-full`          | `manifest.rive.artboard`     |
+| State machine | `NomiFull`           | `manifest.rive.stateMachine` |
+| File          | `rive/character.riv` | `manifest.assets.rive`       |
 
 Native motion clip names: see `contract.json` → `rive.nativeMotions`.
 Missing clips may be listed under `manifest.capabilities.riveMotions` omissions;
@@ -140,14 +147,12 @@ runtime skips unknown ids.
 
 When sprite is provided (or mode is `sprite`), action ids in
 `contract.json` → `sprite.actionIds` must exist (or be declared missing).
-v1 overwrite target: `packages/renderer/public/assets/models/sprite/nomi/`.
 
 ## Voice
 
 Clip ids are **stable name-agnostic ids** (see [`voice-ids.json`](../../packages/character-contract/voice-ids.json)).
 Manifest entries use `id` + `i18nKey`; file name = `{id}.mp3`.
 Legacy i18n-key aliases resolve for **one release** (`resolveVoiceClipId()` / `contract.voice.legacyKeyAlias`).
-v1 overwrite target: `packages/renderer/public/voice/nomi/`.
 
 Required locale for official pack: `zh` (see `voice.requiredClipIds`; `validatePack(…, { requireCompleteVoice: true })`).
 
@@ -160,8 +165,6 @@ Four files under pack `onboarding/`:
 - `provider.webp`
 - `privacy.webp`
 
-v1 overwrite target: `packages/ai-chat/src/components/Onboarding/art/`.
-
 ## Hitboxes
 
 Ids: `head` / `face` / `body` / `hand` / `hem` (lower garment; formerly `skirt`).
@@ -171,16 +174,21 @@ normalized to `hem` on load (`migrateHitboxIds()`).
 
 ## Brand lock
 
-Official CI still locks Nomi sprite layers via `brand-lock.json`.
+Official CI locks the sprite layers of `characters/nomi/sprite` via `brand-lock.json`.
 Forks / white-label builds may set `CHARACTER_PACK_SKIP_BRAND_LOCK=1`.
 The brand-lock script paths are parameterized (see `scripts/brand/update-brand-lock.mjs`).
 
-## Scheme B (runtime overlay)
+## Loading
 
-Resolve order: `userData/character-pack` → `resources/character-pack` → built-in.
-Invalid packs are skipped (logged) and fall back to built-in.
-Assets are served via `character-pack://pack/…`; renderer asks `character-pack:get-active`.
-See [`REPLACING.md`](./REPLACING.md) § Scheme B.
+Build time: the renderer / ai-chat Vite builds read the selected pack (`CHARACTER_PACK`, default
+`characters/nomi`) and emit it as `dist/character/…` (`scripts/character/vite-plugin.mjs`).
+Nothing in the source tree is overwritten.
+
+Run time (`CharacterPackService`): `userData/character-pack` → `resources/character-pack` → the
+built-in pack (`resources/renderer/character` when packaged; the repository pack in development).
+Every candidate goes through `validatePack`; invalid packs are skipped (logged).
+Overlay assets are served via `character-pack://pack/…`; the views ask `character-pack:get-active`,
+whose snapshot also carries the pack's `locales` lines. See [`REPLACING.md`](./REPLACING.md).
 
 ## Out of pack
 
@@ -188,7 +196,7 @@ See [`REPLACING.md`](./REPLACING.md) § Scheme B.
 character store / multi-character switch UI / pack store.
 (Custom protocol `character-pack://` is in-pack for Scheme B assets only.)
 
-## Attribution (optional)
+## Attribution
 
-If the pack ships `CREDITS.md` / `CREDITS.txt` / `LICENSE*` or `assets-licenses/`,
-`character:apply` copies them to `docs/character-pack/applied-credits/`.
+Ship `CREDITS.md` / `LICENSE*` inside the pack; they travel with it into the build output.
+In-repository packs are covered by `assets-licenses.json` (`pnpm check:licenses`).

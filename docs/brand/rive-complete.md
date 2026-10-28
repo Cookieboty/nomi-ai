@@ -20,7 +20,7 @@ Pop-Location
 ```
 
 The resulting `rive/nomi-complete/build/nomi-complete.riv` is copied to
-`packages/renderer/public/assets/models/rive/nomi-complete.riv` by the release
+`characters/nomi/rive/character.riv` (the official character pack) by the release
 workflow.
 
 ## Asset rule

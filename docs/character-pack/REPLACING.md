@@ -1,8 +1,8 @@
 # 如何替换 / 整包换肤（第三方 & Fork）
 
-面向白标、fork 作者与素材伙伴：在 **构建期** 用一整包角色素材覆盖官方落地路径，打出带自己角色的安装包。
+面向白标、fork 作者与素材伙伴：用一整包自己的角色素材打出安装包，或在运行时覆盖内置角色。
 
-> 这不是运行时商店，也不是多角色切换 UI。运行时 overlay（Scheme B）已支持：单包、校验失败回退内置。
+> 这不是运行时商店，也不是多角色切换 UI：一次只有一个角色生效。
 
 完整契约见 [CONTRACT.md](./CONTRACT.md) / [contract.json](../../packages/character-contract/contract.json)（`@nomi-ai/character-contract`）；设计师条目见 [designer-checklist.md](./designer-checklist.md)。
 
@@ -10,12 +10,13 @@
 
 ## 目标与边界
 
-| 项       | 说明                                                                                                    |
-| -------- | ------------------------------------------------------------------------------------------------------- |
-| 目标     | 构建前 `CHARACTER_PACK=… pnpm character:apply`，再 `pnpm build`，产物内嵌你的角色                       |
-| 官方路径 | **未设置** `CHARACTER_PACK` 时：行为与今日官方 Nomi 完全一致（`character.generated.json` 的 `id=nomi`） |
-| 覆盖方式 | v1 **原地覆盖**既有路径（不改名为 `default/`）                                                          |
-| 单角色   | 产品永远只内置一套完整角色；无商店 / 切换 UI                                                            |
+| 项       | 说明                                                                                         |
+| -------- | -------------------------------------------------------------------------------------------- |
+| 构建期   | `CHARACTER_PACK=<dir> pnpm build`：renderer / ai-chat 直接读这个包，产物内嵌你的角色         |
+| 运行时   | 把完整包放到 `userData/character-pack` 或 `resources/character-pack`，覆盖内置包             |
+| 官方路径 | **未设置** `CHARACTER_PACK` 时构建官方包 `characters/nomi`——它和你的包走同一条加载与校验路径 |
+| 不改源树 | 构建与运行都直接读包，仓库里的文件不会被覆盖；试完换肤不需要「恢复官方树」                   |
+| 单角色   | 产品一次只带一套完整角色；无商店 / 切换 UI                                                   |
 
 ### 包内有什么 / 没有什么
 
@@ -24,20 +25,20 @@
 - 形象：`rive` / `sprite` / `static`（三选一为主模式）
 - 引导插画：`onboarding/*.webp`（welcome / profile / provider / privacy）
 - 语音 clip：`voice/<locale>/`（可缺，缺则回退 TTS / 静音，check 会警告）
-- 身份：`persona.json`（`displayName`、`systemPromptIdentity`、`addressUser`、`greetings`、`tips`）
-- 角色文案（台词、提示语、语音字幕）：`locales/zh.json`、`locales/en.json`——跟着角色包走，不进应用的全局 i18n 词典
+- 身份：`persona.json`（`displayName`、`systemPromptIdentity`、`addressUser`、`greetings`、`tips`）——对话的系统提示身份段只从这里来
+- 角色文案（台词、提示语、问候、语音字幕）：`locales/zh.json`、`locales/en.json`——跟着角色包走，不进应用的全局 i18n 词典；包里没有的那句提示，看板娘就不说
 - 可选语义映射：`mapping.json`（情绪 / 活动 / 手势 → 引擎资源 id）
 - 可选布局：`manifest.layout`（窗口尺寸、命中区、bubbleAnchor；`skirt` 会规范为 `hem`）
+- 可选署名：`manifest.credits`（`author` / `license` / `source`）、`CREDITS.md`、`LICENSE`
 - 旧格式仍可读（校验会警告）：`copy/{zh,en}.json`、`persona/system-prompt.md`、`layout/hitboxes.json`
 
 字段说明见 [CONTRACT.md](./CONTRACT.md) § persona.json / mapping.json / locales。
 
-**不在包内（勿指望 apply 改它们）：**
+**不在包内：**
 
-- UI 主题 / token
-- `appId`、协议 scheme、更新通道
+- UI 主题 / token、界面文案
+- `appId`、产品名、协议 scheme、更新通道
 - 角色商店 / 多角色切换 UI
-- 角色商店 / 多角色热切换 UI
 
 ---
 
@@ -49,13 +50,11 @@
 | **`sprite`**           | `sprite/` 分层 + `manifest.json`     | 中          | 可作主模式或 rive 回退                    |
 | **`rive`**（默认）     | `rive/character.riv`                 | 最高保真    | 强烈建议同时带 `sprite/` 作回退           |
 
-`static` 下一等公民：`character:check` **会跳过** riv / 43 动作校验。示范包：`examples/static-demo.pack`。
+`static` 下一等公民：`character:check` **会跳过** riv / 43 动作校验。模板：`characters/test-dummy`。
 
 ---
 
 ## 最小 static 包清单
-
-从零或从示范包改，至少要有：
 
 ```text
 my-character.pack/
@@ -67,7 +66,7 @@ my-character.pack/
     provider.webp
     privacy.webp
   persona.json           # 推荐：角色身份
-  locales/zh.json        # 推荐：角色文案
+  locales/zh.json        # 推荐：角色文案（zh 与 en 的台词 key 要一致）
   locales/en.json        # 推荐
 ```
 
@@ -80,158 +79,106 @@ my-character.pack/
   "schema": 1,
   "id": "my-character",
   "contractVersion": 1,
-  "displayName": { "zh": "我的角色", "en": "My Character" },
   "version": "1.0.0",
-  "engines": { "nomiPack": ">=1 <2" },
-  "assets": {
-    "mode": "static",
-    "static": "static/character.webp",
-    "onboarding": "onboarding/",
-    "copy": "copy/"
-  },
-  "defaults": {
-    "wakePhrase": { "zh": "你好", "en": "Hello" },
-    "primaryLocale": "zh",
-    "voiceHint": "xiaoxiao",
-    "voiceRate": 0.9,
-    "voicePitch": 1.08
-  }
+  "credits": { "author": "You", "license": "CC-BY-4.0", "source": "https://example.com" },
+  "assets": { "mode": "static", "static": "static/character.webp", "onboarding": "onboarding" },
+  "defaults": { "voiceHint": "xiaoxiao", "voiceRate": 0.9, "voicePitch": 1.08 },
+  "layout": { "bubbleAnchor": { "x": 0.5, "y": 0.1 } }
 }
 ```
 
+`persona.json`（主语言 zh）与 `locales/en.json`：
+
+```json
+{ "displayName": "小纸", "systemPromptIdentity": "你是小纸，一个住在纸箱里的机器人。", "greetings": ["哔！"] }
+```
+
+```json
+{
+  "persona": { "displayName": "Pip", "systemPromptIdentity": "You are Pip, a robot living in a cardboard box." },
+  "wakePhrase": "Hi, Pip",
+  "lines": { "greet-companion": "Beep! Pip is online." }
+}
+```
+
+`lines` 的 key 是稳定 clip id（看板娘用到的提示语见 `packages/renderer/src/mascot/tips.ts`）。
+
 ---
 
-## 推荐步骤（从示范包到可构建）
+## 推荐步骤
 
-### 1. 复制示范包
-
-静态最快路径：
+### 1. 新建包
 
 ```bash
-cp -R examples/static-demo.pack ../my-character.pack
-# 编辑 ../my-character.pack 内的立绘、onboarding、copy、manifest.id / displayName
+pnpm character:init -- ../my-character.pack my-character
+# 编辑 ../my-character.pack 内的立绘、onboarding、persona.json、locales/、manifest
 ```
 
-完整官方导出（rive + sprite + voice）可参考：
-
-```bash
-pnpm character:init          # 刷新 examples/nomi.pack（从当前树导出）
-cp -R examples/nomi.pack ../my-character.pack
-```
+需要 rive / sprite / 语音的完整示例，参考官方包 `characters/nomi`（其品牌图层受 brand-lock 保护，只能参考不能改）。
 
 ### 2. 校验
 
 ```bash
 pnpm character:check -- ../my-character.pack
-# 或
-node scripts/character/check.mjs ../my-character.pack
 ```
 
-期望：`OK`（static 无 voice 时允许 `voice/zh not provided` 警告）。错误必须清零再 apply。
+期望：`OK`（static 无 voice 时允许 `voice/zh not provided` 警告）。错误必须清零。
+校验与运行时用的是同一个 `validatePack`（`@nomi-ai/character-contract`），check 通过的包运行时也能加载。
 
-官方示范：
+### 3. 构建
 
 ```bash
-pnpm character:check                              # examples/nomi.pack
-pnpm character:check -- examples/static-demo.pack
+CHARACTER_PACK=../my-character.pack pnpm character:apply   # 预检（只读）
+CHARACTER_PACK=../my-character.pack pnpm build
 ```
 
-### 3. 应用（构建前）
+- renderer：整包输出到 `packages/renderer/dist/character/`，并生成 `assets/models/model-list.json`；
+  安装包里是 `resources/renderer/character`，主进程把它当作内置包读取（人设、文案）。
+- ai-chat：引导插画输出到 `packages/ai-chat/dist/character/onboarding/`。
+- 开发态：`CHARACTER_PACK=../my-character.pack pnpm dev`，三个进程都直接读这个包。
 
-```bash
-CHARACTER_PACK=../my-character.pack pnpm character:apply
-pnpm build
-```
+不设 `CHARACTER_PACK` 就是官方包，无需任何还原步骤。
 
-`apply` 会：
-
-1. 按模式覆盖落地路径（见下表）
-2. 写入 `character.generated.json`（renderer + electron；人设由主进程 `PersonaService` 统一读取）
-3. 非官方 `id` 时同步 `model-list.json` 首项身份字段
-
-| 素材       | v1 覆盖目标                                                     |
-| ---------- | --------------------------------------------------------------- |
-| Rive       | `packages/renderer/public/assets/models/rive/nomi-complete.riv` |
-| Sprite     | `packages/renderer/public/assets/models/sprite/nomi/`           |
-| Static     | `packages/renderer/public/assets/models/static/character.webp`  |
-| Voice      | `packages/renderer/public/voice/nomi/`                          |
-| Onboarding | `packages/ai-chat/src/components/Onboarding/art/`               |
-
-> 路径文件名在 v1 **保持 nomi 字样**（原地覆盖，避免大范围资源移动）。区域 id 已为 `hem`；voice clip 已用稳定 id（旧 i18n key 别名保留一版）。
-
-### 4. 恢复官方树（本地试完换肤后）
-
-**未设置** `CHARACTER_PACK` 时，`pnpm character:apply` **只**保证 generated 配置为官方 nomi，**不会**自动还原已被覆盖的图片 / 语音 / onboarding / `model-list.json`。
-
-本地试完后任选其一：
-
-```bash
-# A. 用 git 还原被改文件（推荐，零回归）
-git checkout -- \
-  packages/renderer/public/assets/models/ \
-  packages/renderer/public/voice/nomi/ \
-  packages/ai-chat/src/components/Onboarding/art/ \
-  packages/renderer/src/mascot/character.generated.json \
-  packages/electron/src/character/character.generated.json
-# 若曾 apply 过 static，一并删掉额外目录：
-rm -rf packages/renderer/public/assets/models/static
-
-# B. 用官方示范包再 apply 一次盖回去
-CHARACTER_PACK=examples/nomi.pack pnpm character:apply
-```
-
-然后无 env 再跑一次确认：
-
-```bash
-pnpm character:apply    # 应打印 already official nomi — no-op
-```
-
----
-
-## Brand-lock / SKIP
-
-官方 CI 仍用 sprite 层 `brand-lock.json` 锁定 Nomi 画板。白标 / 自有素材 fork：
-
-```bash
-CHARACTER_PACK_SKIP_BRAND_LOCK=1 node scripts/brand/update-brand-lock.mjs --check
-# 或在 CI / 本地测试环境导出该变量
-```
-
-也可参数化锁目录：
-
-- `CHARACTER_PACK_SPRITE_DIR` / `BRAND_LOCK_MODEL_DIR` → 指向你的 sprite 目录
-
-未设 SKIP 时，改了官方锁定层会导致 brand-lock check 失败——这是预期。
-
----
-
-## 命令速查
-
-| 命令                                        | 作用                                                            |
-| ------------------------------------------- | --------------------------------------------------------------- |
-| `pnpm character:check [-- <pack>]`          | 对照 `contract.json` 校验；默认 `examples/nomi.pack`            |
-| `pnpm character:init`                       | 从当前树导出 / 刷新 `examples/nomi.pack`                        |
-| `pnpm character:apply`                      | 无 `CHARACTER_PACK`：幂等确保 generated 为官方 nomi（不改素材） |
-| `CHARACTER_PACK=<dir> pnpm character:apply` | 应用指定包并写 generated                                        |
-
-CI（quality job）会跑 `pnpm character:check`，并对 `examples/static-demo.pack` 再跑一次 check。
-
----
-
-## Scheme B（运行时 overlay）
+### 4. 运行时覆盖（不重新构建）
 
 把**完整**角色包放到其一即可（先到先得）：
 
 1. `{userData}/character-pack/`（开发：Electron `app.getPath('userData')`）
 2. `{resources}/character-pack/`（安装包 `extraResources`，源目录 `packages/electron/character-pack-resources/`）
 
-校验失败 → 打日志 → 回退内置官方角色。渲染层通过 `character-pack:get-active` + `character-pack://pack/…` 取资源。
+校验失败 → 打日志 → 回退内置包。界面通过 `character-pack:get-active` + `character-pack://pack/…` 取资源与文案。
+
+---
+
+## Brand-lock / SKIP
+
+官方 CI 用 `characters/nomi/sprite/brand-lock.json` 锁定 Nomi 品牌图层；选别的包构建不影响这项检查。
+自有素材 fork 如果改了官方包本身：
+
+```bash
+CHARACTER_PACK_SKIP_BRAND_LOCK=1 node scripts/brand/update-brand-lock.mjs --check
+# 或在 CI / 本地测试环境导出该变量
+```
+
+也可参数化锁目录：`CHARACTER_PACK_SPRITE_DIR` / `BRAND_LOCK_MODEL_DIR` → 指向你的 sprite 目录。
+
+---
+
+## 命令速查
+
+| 命令                                | 作用                                                            |
+| ----------------------------------- | --------------------------------------------------------------- |
+| `pnpm character:check [-- <pack>]`  | `validatePackDir` 校验；默认 `characters/nomi`（要求语音完整）  |
+| `pnpm character:init -- <dir> [id]` | 以 `characters/test-dummy` 为模板新建包                         |
+| `pnpm character:apply`              | 预检将要构建的包（`CHARACTER_PACK` 或 `characters/nomi`），只读 |
+| `CHARACTER_PACK=<dir> pnpm build`   | 用指定包构建                                                    |
+| `pnpm check:i18n`                   | 含 `characters/*/locales` 的 zh / en 一致性检查                 |
+
+CI（quality job）会对 `characters/nomi`、`characters/test-dummy`、`examples/static-demo.pack` 跑 check。
 
 ## 本能力不做
 
 - 角色商店 / 多角色切换 UI
-- 改 `appId` / 更新通道 / UI 主题
-
-（已完成）`skirt→hem`、voice-id 稳定 id + 一版 legacy 别名、`layout/hitboxes.json` 运行时命中 + bubbleAnchor、Scheme B overlay。
+- 改 `appId` / 产品名 / 更新通道 / UI 主题
 
 需要完整字段与动作 id 列表时，请读 [CONTRACT.md](./CONTRACT.md)。
