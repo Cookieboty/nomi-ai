@@ -17,7 +17,7 @@ pnpm 9 + Turborepo monorepo，Electron 桌面应用（React 19 + Vite）。Node 
 | `packages/gateway`                  | 统一网关内核（纯 Node）：四种协议的请求 IR 与流式互转，见 `docs/design/unified-gateway.md`                                                       |
 | `packages/cli-sdk`                  | 编程助手插件契约与共享会话驱动（acp / stream-json / app-server / exec，纯 Node），见 `docs/design/cli-plugin-architecture.md` §5                 |
 | `packages/contract`                 | 视图与内核之间的 API 契约（自研 `defineContract`、类型化 client、router 中间件、传输适配），见 `docs/design/core-host-decoupling.md` §4–§5       |
-| `packages/host-ports`、`host-node`  | 宿主端口接口（路径、密钥、对话框、窗口等）/ 无界面宿主实现（测试与开发），见同上 §6                                                              |
+| `packages/host-ports`、`host-node`  | 宿主端口接口（路径、密钥、对话框、窗口等）/ 无界面宿主（端口、`/core` 无界面内核、`/websocket` 开发态传输），见同上 §6、§11.3                    |
 | `packages/character-contract`       | 角色包契约：manifest / persona / mapping 的 schema、校验与迁移，见同上 §10                                                                       |
 | `packages/cli-plugins`              | 内置编程助手插件（claude / codex / grok / gemini / dsh），按 `<cli>/{manifest,main,gateway,renderer}` 分子路径；`BuiltinCliId` 由 `gen:ids` 生成 |
 | `packages/ai-sdk` / `ai-sdk-client` | 主进程 AI 门面 / 渲染进程客户端（基于 `@nomi-ai/contract/app`）与 preload 桥（`window.nomiTransport`、`window.nomiHost`）                        |
@@ -36,7 +36,9 @@ pnpm build
 pnpm typecheck && pnpm lint   # lint 覆盖全部包
 pnpm format:check
 pnpm test                # 单元测试：core / host-electron 用 Jest（tests/unit），其余包用 Vitest
-pnpm test:e2e            # 无界面 E2E
+pnpm test:e2e            # 无界面 E2E（真实内核跑在 host-node 上，不需要 Electron / xvfb）
+pnpm dev:web             # 内核跑在 Node 里，ai-chat 在浏览器里经 WebSocket 连它（先 pnpm build）
+pnpm smoke:web           # 上面这条的 Chromium 冒烟（先 pnpm exec playwright install chromium）
 xvfb-run -a pnpm test:e2e:headed   # 真实应用 E2E，必须在仓库根目录运行
 pnpm check:i18n          # 所有中文文案都有英文翻译
 pnpm check:licenses      # 依赖与素材只允许开源许可

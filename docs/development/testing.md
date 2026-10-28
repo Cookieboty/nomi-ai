@@ -1,18 +1,40 @@
 # 测试
 
-| 层级         | 位置                                       | 运行                   | 跑什么                                                                                                          |
-| ------------ | ------------------------------------------ | ---------------------- | --------------------------------------------------------------------------------------------------------------- |
-| 单元测试     | `packages/*/src/**`、`packages/*/tests/**` | `pnpm test`            | 各包逻辑；`core` 与 `electron` 用 Jest（`packages/{core,electron}/tests/unit`），其余包用 Vitest                |
-| 脚本测试     | `scripts/__tests__`                        | `pnpm test:root`       | changelog 与签名环境脚本                                                                                        |
-| 无界面 E2E   | `e2e/tests`                                | `pnpm test:e2e`        | 不启动 Electron：真实 `AIClient` + IPC 服务端 + 事件广播，配合假的 IPC / LLM / 工具，验证跨窗口的调用与事件契约 |
-| 真实应用 E2E | `e2e-headed/tests`                         | `pnpm test:e2e:headed` | Playwright 启动真实 Electron，操作界面                                                                          |
+| 层级         | 位置                                       | 运行                   | 跑什么                                                                                                                                                        |
+| ------------ | ------------------------------------------ | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 单元测试     | `packages/*/src/**`、`packages/*/tests/**` | `pnpm test`            | 各包逻辑；`core` 与 `electron` 用 Jest（`packages/{core,electron}/tests/unit`），其余包用 Vitest                                                              |
+| 脚本测试     | `scripts/__tests__`                        | `pnpm test:root`       | changelog 与签名环境脚本                                                                                                                                      |
+| 无界面 E2E   | `e2e/tests`                                | `pnpm test:e2e`        | 不启动 Electron：真实内核（`createCore`）跑在无界面宿主 `host-node` 上，视图侧客户端经 in-process / WebSocket 传输连进来，假 LLM 与测试工具装进内核的插件宿主 |
+| 浏览器冒烟   | `scripts/dev-web/smoke.mjs`                | `pnpm smoke:web`       | ai-chat 开发页在 Playwright 的 Chromium 里经 WebSocket 连开发态内核（`pnpm dev:web`）                                                                         |
+| 真实应用 E2E | `e2e-headed/tests`                         | `pnpm test:e2e:headed` | Playwright 启动真实 Electron，操作界面                                                                                                                        |
 
-## 无界面 E2E（`e2e/`，Vitest，4 个文件 / 11 个用例）
+## 无界面 E2E（`e2e/`，Vitest，6 个文件 / 16 个用例）
 
-- `E1.waifu-tts-lipsync`：TTS 分片与回合结束事件广播到看板娘窗口
-- `E2.chat-only-send-and-tool`：对话窗口发消息、工具执行事件、工具列表
-- `E4.waifu-profile-write-read`：用户档案写入后广播到多个窗口，下一次对话读到最新值
+每个用例用 `e2e/helpers/headlessCore.ts` 起一个真实内核：`@nomi-ai/host-node/core` 的 `startHeadlessCore()`（临时目录、
+内存密钥、记录下来的对话框 / 通知 / 窗口调用），视图侧的 `ClientAIClient` 经 in-process 传输连进来（一个连接 = 一个窗口）。
+内核的插件宿主里多一个探针插件（宿主钩子 `aiPluginsAfter`）：换上假 LLM、往真实工具表里加测试工具、拿插件上下文发插件事件。
+`e2e/setup/isolateEnv.ts` 把 HOME、PATH 指到空目录，去掉环境变量里的供应商 Key，关掉离线 TTS 与首次引导，结果不随开发机变。
+
+- `E1.waifu-tts-lipsync`：TTS 分片与回合结束事件推给订阅了的窗口，没订阅的连接一帧都收不到
+- `E2.chat-only-send-and-tool`：对话窗口经内核的外发检查发消息到假 LLM、工具执行事件、内置工具列表
+- `E4.waifu-profile-write-read`：用户画像（内核真实的 `UserPreferenceMemoryPlugin`）写入后推给多个窗口，下一次对话读到最新值
 - `E5.write-file-confirm`：危险工具 `write_file` 需要确认，拒绝后不执行并返回 `E_TOOL_DENIED`
+- `E6.core-twice`：同一进程里两个内核互不相干（服务、事件、router、AI runtime、主题 / 用户画像 / 网关供应商 / 记忆的数据与目录）；没有宿主片段时窗口过程 UNAVAILABLE
+- `E7.websocket-transport`：WebSocket 传输对真实内核的握手、查询、修改与事件订阅；错 token 与外站 Origin 被拒绝
+
+## 浏览器里的视图（`pnpm dev:web` / `pnpm smoke:web`）
+
+```bash
+pnpm build
+pnpm dev:web                       # 内核在 Node 里跑（数据在临时目录），打开 http://127.0.0.1:6128
+pnpm dev:web -- --data .nomi-web   # 数据放在指定目录，保留
+pnpm exec playwright install chromium   # 第一次跑冒烟前
+pnpm smoke:web [-- --screenshot test-results/dev-web.png]
+```
+
+- `dev:web`（`scripts/dev-web/start.mjs`）用无界面宿主起内核（统一网关在 Node 子进程里跑，监听系统分配的端口，不和本机装着的 Nomi 抢 18721），WebSocket 传输只监听 `127.0.0.1`、每次启动一个随机 token（日志只露前 4 位）、只接受开发服务器的 Origin；ai-chat 开发服务器把地址与 token 以 `window.nomiDevTransport` 注入页面，并把 CORS 收紧到自己的地址。没有窗口、托盘与看板娘，要用窗口对象的过程（看板娘大小、灵动岛、应用图标）报不可用。
+- `smoke:web` 起同样的环境（空闲端口，不和正在跑的开发服务器冲突），用 Playwright 的 Chromium（不是 Electron）打开页面，断言页面渲染、没有未捕获异常、调用经 WebSocket 到了内核、内核里预设的主题与语言出现在页面上、内核换主题后页面跟着变；最后在页面的首次引导里添加指向本机假上游（OpenAI Chat 协议）的供应商、选模型、完成引导，发一条消息，回复经统一网关回到页面。
+- 生产构建不含 WebSocket 传输：ai-chat 只在 `import.meta.env.DEV` 时读注入的全局，Vite 插件在构建产物里发现 WebSocket 传输就让构建失败。
 
 ## 真实应用 E2E（`e2e-headed/`，Playwright，21 个文件 / 23 个用例）
 
@@ -29,8 +51,8 @@ xvfb-run -a pnpm test:e2e:headed
 
 两套测的是不同层，没有可以删掉的重复：
 
-- `e2e/` 用假的 LLM 与工具在进程内验证 IPC 契约（事件名、广播范围、拒绝路径的错误码），结果确定、不需要网络与 Electron。这些断言在真实应用里拿不到（没有可控的模型输出），真实应用 E2E 也没有覆盖 `write_file` 拒绝路径和 TTS 分片广播。
-- `e2e-headed/` 验证用户真正看到和操作的界面，需要 Electron 与显示环境。
+- `e2e/` 在进程内跑真实内核，用假的 LLM 与工具验证契约（事件名、推送范围、拒绝路径的错误码、多内核隔离、WebSocket 传输），结果确定、不需要网络与 Electron。这些断言在真实应用里拿不到（没有可控的模型输出），真实应用 E2E 也没有覆盖 `write_file` 拒绝路径和 TTS 分片广播。
+- `e2e-headed/` 验证用户真正看到和操作的界面，需要 Electron 与显示环境，不能搬到无界面宿主：透明置顶的看板娘窗口与命中区、拖拽与窗口位置、托盘、灵动岛、preload 与 `nomiHost`（拖入文件）、系统对话框、全局快捷键、窗口截图（UI、ANIM）、打包产物的生产模式冒烟（E5）。
 - 合并到同一个 Playwright 配置需要把 Vitest 用例改写为 Playwright 的 test/expect，收益只是少一个配置文件。
 - CI 里无界面 E2E 每个平台 1–2 分钟，真实应用 E2E 5–9 分钟；分成两个 job 可以并行，先给出快速信号。
 
@@ -73,7 +95,7 @@ node scripts/check-bundle-budget.mjs [--strict]                           # 首�
 `.github/workflows/ci.yml`（什么事件跑哪些 job 见 [CI 触发规则](ci.md)：普通 PR 只跑 Linux quality + changeset，带 `ci:full` 标签才跑完整矩阵）：
 
 - `quality`（Ubuntu / Windows / macOS）：许可、i18n、typecheck、lint、单元测试、构建；Ubuntu 上追加首屏体积预算报告（不阻塞）
-- `e2e-headless`、`e2e-headed`（Ubuntu / Windows）
+- `e2e-headless`、`e2e-headed`（Ubuntu / Windows）；`e2e-headless` 在 Ubuntu 上追加浏览器冒烟（`pnpm smoke:web`）
 - `dev-smoke`（Ubuntu）
 - `changeset status`
 - `build-electron`（三平台打包）
