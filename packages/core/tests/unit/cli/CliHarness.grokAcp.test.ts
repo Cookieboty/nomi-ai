@@ -58,6 +58,8 @@ describe('CliHarnessService Grok over ACP', () => {
       ...o,
     });
     made.push(h);
+    // 这里核对各档位的协议映射：关掉「全部自动」，新标签按默认档（自动改文件）开始
+    h.setPermissionDefaults({ autoApprove: false });
     const events: HarnessEvent[] = [];
     const inner = h as unknown as { emitEvent(id: string, ev: HarnessEvent): void };
     const orig = inner.emitEvent.bind(h);

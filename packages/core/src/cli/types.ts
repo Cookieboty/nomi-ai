@@ -186,6 +186,11 @@ export interface HarnessTabsState {
   defaultPermissionMode: HarnessPermissionMode;
   /** Codex 在 workspace-write 下允许联网 */
   codexNetwork: boolean;
+  /**
+   * 「全部自动」（默认开）：新标签与 Nomi 委派的编程助手默认完全放开，
+   * Nomi 对话工作区里的文件 / 命令工具不确认；关掉后按 defaultPermissionMode 逐项询问
+   */
+  autoApprove: boolean;
 }
 
 /** 安装 / 更新位置：global = npm 全局目录；user = 用户目录（~/.local，不需要管理员权限） */

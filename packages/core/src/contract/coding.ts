@@ -114,7 +114,11 @@ export function createCodingHandlers(deps: ContractDeps): CodingHandlers {
     'harness.permissionDefaults': (o) =>
       wire(
         harness().setPermissionDefaults(
-          o as { defaultPermissionMode?: HarnessPermissionMode; codexNetwork?: boolean },
+          o as {
+            defaultPermissionMode?: HarnessPermissionMode;
+            codexNetwork?: boolean;
+            autoApprove?: boolean;
+          },
         ),
       ),
     'harness.modelCatalog': ({ backend, refresh, source }) =>

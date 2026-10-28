@@ -889,6 +889,9 @@ describe('CliHarnessService permission modes', () => {
       defaultCwd: root,
     });
     harnesses.push(h);
+    // 这些用例覆盖「全部自动」关掉之后的档位规则；全部自动见 'auto-approve (default on)'
+    if (!fs.existsSync(path.join(root, 'tabs.json')))
+      h.setPermissionDefaults({ autoApprove: false });
     return h;
   };
   /** 无扩展名的记录器：记下 argv 与 DSH_PERMISSION_MODE，再把调用转给真正的 mock */
@@ -991,6 +994,7 @@ describe('CliHarnessService permission modes', () => {
       path.join(root, 'tabs.json'),
       JSON.stringify({
         activeTabId: 'a',
+        autoApprove: false,
         tabs: [
           { ...base, id: 'a', title: 'A', backend: 'claude' },
           { ...base, id: 'b', title: 'B', backend: 'codex' },
@@ -1020,6 +1024,90 @@ describe('CliHarnessService permission modes', () => {
     expect(mk(root).listTabs()).toMatchObject({
       defaultPermissionMode: 'plan',
       codexNetwork: false,
+    });
+  });
+
+  describe('auto-approve (default on)', () => {
+    const raw = (root: string) => {
+      const h = new CliHarnessService({ root, logger: { info() {}, warn() {} }, defaultCwd: root });
+      harnesses.push(h);
+      return h;
+    };
+
+    it('new tabs start in full access (per-backend equivalent); the toggle switches back to the default mode', () => {
+      const h = raw(fs.mkdtempSync(path.join(os.tmpdir(), 'harness-auto-')));
+      expect(h.listTabs()).toMatchObject({
+        autoApprove: true,
+        defaultPermissionMode: 'acceptEdits',
+      });
+      expect(h.autoApproveEnabled()).toBe(true);
+      expect(h.createTab({ backend: 'claude' }).permissionMode).toBe('bypass');
+      expect(h.createTab({ backend: 'codex' }).permissionMode).toBe('bypass');
+      expect(h.createTab({ backend: 'dsh' }).permissionMode).toBe('bypass');
+      // 分叉 / 显式给的档位优先（完全放开仍不能经 tab-create 显式继承，但默认就是它）
+      expect(h.createTab({ backend: 'claude', permissionMode: 'plan' }).permissionMode).toBe(
+        'plan',
+      );
+      // 在别的标签上选过的档位不影响新标签：全部自动开着时一律从完全放开开始
+      const a = h.createTab({ backend: 'claude' });
+      h.setTabPermissionMode(a.id, 'manual');
+      expect(h.createTab({ backend: 'claude' }).permissionMode).toBe('bypass');
+      // 关掉：回到逐项询问的默认档
+      expect(h.setPermissionDefaults({ autoApprove: false })).toMatchObject({ autoApprove: false });
+      expect(h.createTab({ backend: 'codex' }).permissionMode).toBe('acceptEdits');
+    });
+
+    it('full access survives a restart while auto-approve is on, not after it is turned off', () => {
+      const root = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-auto-restart-'));
+      const h = raw(root);
+      const tab = h.createTab({ backend: 'codex' });
+      h.dispose();
+      const h2 = raw(root);
+      expect(h2.listTabs().tabs.find((x) => x.id === tab.id)?.permissionMode).toBe('bypass');
+      h2.setPermissionDefaults({ autoApprove: false });
+      h2.dispose();
+      const h3 = raw(root);
+      expect(h3.listTabs().autoApprove).toBe(false);
+      expect(h3.listTabs().tabs.find((x) => x.id === tab.id)?.permissionMode).toBe('acceptEdits');
+    });
+
+    it('migrates tabs still on the old default once; explicit choices stay', () => {
+      const root = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-auto-migrate-'));
+      const base = {
+        cwd: root,
+        cliSessionId: null,
+        status: 'idle',
+        unread: 0,
+        createdAt: 1,
+        updatedAt: 1,
+      };
+      fs.writeFileSync(
+        path.join(root, 'tabs.json'),
+        JSON.stringify({
+          activeTabId: 'a',
+          defaultPermissionMode: 'acceptEdits',
+          lastSettings: {
+            codex: { permissionMode: 'acceptEdits' },
+            claude: { permissionMode: 'plan' },
+          },
+          tabs: [
+            { ...base, id: 'a', title: 'A', backend: 'codex', permissionMode: 'acceptEdits' },
+            { ...base, id: 'b', title: 'B', backend: 'claude', permissionMode: 'plan' },
+            { ...base, id: 'c', title: 'C', backend: 'claude' },
+            { ...base, id: 'd', title: 'D', backend: 'dsh', permissionMode: 'acceptEdits' },
+          ],
+        }),
+      );
+      const h = raw(root);
+      const modes = () =>
+        Object.fromEntries(h.listTabs().tabs.map((x) => [x.id, x.permissionMode]));
+      expect(modes()).toMatchObject({ a: 'bypass', b: 'plan', c: 'manual', d: 'bypass' });
+      expect(h.listTabs().autoApprove).toBe(true);
+      // 迁移只做一次：之后用户改回 acceptEdits 的标签重启后保持
+      h.setTabPermissionMode('a', 'acceptEdits');
+      h.dispose();
+      const h2 = raw(root);
+      expect(h2.listTabs().tabs.find((x) => x.id === 'a')?.permissionMode).toBe('acceptEdits');
     });
   });
 
@@ -1373,6 +1461,8 @@ describe('CliHarnessService parallel subagent permissions (docs/design/cli-subag
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-perms-'));
     const h = new CliHarnessService({ root, logger: { info() {}, warn() {} }, defaultCwd: root });
     harnesses.push(h);
+    // 完全放开时确认请求直接放行：这里要看确认卡片，关掉「全部自动」
+    h.setPermissionDefaults({ autoApprove: false });
     const perms: Array<{ id: string; agent?: string; expiresAt?: number }> = [];
     const resolved: Array<{ id: string; reason: string }> = [];
     const needed: string[] = [];

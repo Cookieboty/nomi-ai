@@ -149,6 +149,7 @@ const harnessProcedures = {
     input: z.object({
       defaultPermissionMode: PermissionMode.optional(),
       codexNetwork: z.boolean().optional(),
+      autoApprove: z.boolean().optional(),
     }),
     output: HarnessTabsState,
   },

@@ -201,6 +201,8 @@ describe('CliHarnessService tabs', () => {
 
   it('新会话沿用该后端最近一次的权限模式 / 模型 / 思考深度；「完全放开」不沿用', () => {
     const h = mk();
+    // 档位沿用只在「全部自动」关着时生效（开着时新会话一律从完全放开开始）
+    h.setPermissionDefaults({ autoApprove: false });
     const a = h.createTab({ backend: 'claude' });
     h.setTabPermissionMode(a.id, 'plan');
     h.setTabModel(a.id, 'claude-sonnet-5-5');
@@ -235,6 +237,7 @@ describe('CliHarnessService tabs', () => {
       gateway: testGateway(),
     });
     made.push(h);
+    h.setPermissionDefaults({ autoApprove: false });
     const a = h.createTab({ backend: 'claude' });
     h.setTabPermissionMode(a.id, 'plan');
     h.setTabModel(a.id, 'claude-sonnet-5-5');
@@ -327,10 +330,12 @@ describe('CliHarnessService tabs', () => {
     fs.rmSync(b, { recursive: true });
     const h2 = mk();
     expect(h2.recentCwds()).toEqual([a]);
-    // Nomi 主标签不记录工作目录
+    // Nomi 对话（主标签）选的工作区也进最近列表：Nomi 的工作区工具按 knownDir 认它
     const h3 = mk();
-    h3.setTabCwd(MAIN_TAB_ID, os.tmpdir());
-    expect(h3.recentCwds()).toEqual([a]);
+    const c = fs.mkdtempSync(path.join(os.tmpdir(), 'ws-c-'));
+    h3.setTabCwd(MAIN_TAB_ID, c);
+    expect(h3.recentCwds()).toEqual([c, a]);
+    expect(h3.knownDir(c)).toBe(c);
   });
 
   it('cwd change on a tab with a CLI session drops the session id (new CLI session)', async () => {

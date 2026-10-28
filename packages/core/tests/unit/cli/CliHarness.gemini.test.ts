@@ -124,6 +124,8 @@ describe('CliHarnessService Gemini backend', () => {
       root,
       logger: { info() {}, warn() {} },
       defaultCwd: root,
+      // 旧版默认目录（文稿本身）算范围大的文件夹
+      legacyDefaultCwd: root,
       ...(process.env.TEST_GEMINI_3P ? { gateway: testGateway({ source: 'thirdParty' }) } : {}),
     });
     harnesses.push(h);
@@ -259,7 +261,7 @@ describe('CliHarnessService Gemini backend', () => {
       const { h, tab, cwd } = untrusted();
       await h.sendTab(tab.id, 'hi').catch(() => undefined);
       const msg = lastError(h, tab.id);
-      expect(msg.geminiTrust).toEqual({ folder: cwd, broad: true }); // 默认对话目录 → 范围大
+      expect(msg.geminiTrust).toEqual({ folder: cwd, broad: true }); // 旧版默认对话目录（文稿）→ 范围大
       const sub = untrusted({ cwdSub: true });
       await sub.h.sendTab(sub.tab.id, 'hi').catch(() => undefined);
       expect(lastError(sub.h, sub.tab.id).geminiTrust).toEqual({ folder: sub.cwd, broad: false });

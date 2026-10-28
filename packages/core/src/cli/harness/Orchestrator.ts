@@ -382,6 +382,12 @@ export class HarnessOrchestrator {
   private activeTabId = MAIN_TAB_ID;
   private defaultPermissionMode: HarnessPermissionMode = DEFAULT_PERMISSION_MODE;
   /**
+   * 「全部自动」（默认开）：新的编程助手标签默认「完全放开」、Nomi 委派的编程助手同样，
+   * Nomi 对话选了工作区时工作区里的文件 / 命令工具不再确认（desktop/PermissionBroker.authorizeIn）。
+   * 关掉后回到逐项询问：新标签用 defaultPermissionMode，Nomi 的工具按原来的确认规则。
+   */
+  private autoApprove = true;
+  /**
    * 每个后端最近一次选的权限模式 / 模型 / 思考深度：新会话（/clear、新标签、打开历史）沿用。
    * 模型 / 思考深度在换官方账号或第三方供应商时清掉（recycleBackend）；「完全放开」从不记住。
    */
@@ -420,7 +426,10 @@ export class HarnessOrchestrator {
       root: string;
       logger: Logger;
       home?: string;
+      /** 默认工作目录（文稿/nomi）：第一次用到时才创建，算作用户选过的目录 */
       defaultCwd?: string;
+      /** 旧版的默认工作目录（文稿本身）：主标签还停在这里时迁到 defaultCwd */
+      legacyDefaultCwd?: string;
       /**
        * 统一网关（docs/design/unified-gateway.md §12）：第三方标签的进程级注入、新标签默认来源、
        * 第三方可选模型、官方标签剔除网关残留变量。没有时只有官方来源。
@@ -519,11 +528,12 @@ export class HarnessOrchestrator {
    * 新目录只能经「新建标签 / 换目录 / 选择器」这些入口进入，之后才算已知。
    */
   knownDir(cwd: unknown): string {
-    const abs = validDir(String(cwd ?? ''));
+    const abs = validDir(this.ensureDefaultDir(String(cwd ?? '')));
     const key = (p: string) => (process.platform === 'win32' ? p.toLowerCase() : p);
     const want = key(abs);
     for (const tab of this.tabs.values()) if (key(path.resolve(tab.cwd)) === want) return abs;
     if (this.recent.some((p) => key(p) === want)) return abs;
+    if (this.d.defaultCwd && key(path.resolve(this.d.defaultCwd)) === want) return abs;
     if (this.worktreeDirs.size) {
       const real = key(realDir(abs));
       if ([...this.worktreeDirs].some((p) => key(p) === real)) return abs;
@@ -593,6 +603,29 @@ export class HarnessOrchestrator {
       this.worktreeDirs.delete(this.worktreeDirs.values().next().value!);
   }
 
+  /** 新标签默认档：「全部自动」开着时是完全放开，否则是设置里的默认档 */
+  private newTabMode(): HarnessPermissionMode {
+    return this.autoApprove ? 'bypass' : this.defaultPermissionMode;
+  }
+
+  /** 「全部自动」是否开着（Nomi 的工作区工具与委派也看这个） */
+  autoApproveEnabled(): boolean {
+    return this.autoApprove;
+  }
+
+  /** 默认工作目录（文稿/nomi）第一次用到时才创建；其它目录原样返回 */
+  ensureDefaultDir(dir: string): string {
+    const def = this.d.defaultCwd;
+    if (def && samePath(dir, def)) {
+      try {
+        fs.mkdirSync(def, { recursive: true });
+      } catch (e) {
+        this.d.logger.warn('harness default cwd create failed', e);
+      }
+    }
+    return dir;
+  }
+
   private rememberCwd(abs: string) {
     this.recent = [abs, ...this.recent.filter((p) => p !== abs)].slice(0, MAX_RECENT_CWDS);
     try {
@@ -634,6 +667,8 @@ export class HarnessOrchestrator {
   private load() {
     // 主标签的档位要等 tabs.json 里的默认档读完再还原
     let mainMode: unknown;
+    let migrateAuto = false;
+    let migrated = false;
     try {
       const raw = JSON.parse(
         fs.readFileSync(this.statePath, 'utf8'),
@@ -647,7 +682,14 @@ export class HarnessOrchestrator {
       const m = this.main;
       if (isBackend(raw.backend)) m.backend = raw.backend;
       if (typeof raw.cwd === 'string' && raw.cwd) m.cwd = raw.cwd;
-      if (typeof raw.cliSessionId === 'string') m.cliSessionId = raw.cliSessionId;
+      // 旧版默认停在「文稿」本身：迁到文稿/nomi（用户自己选的其它目录不动）
+      if (
+        this.d.defaultCwd &&
+        this.d.legacyDefaultCwd &&
+        samePath(m.cwd, this.d.legacyDefaultCwd)
+      ) {
+        m.cwd = this.d.defaultCwd;
+      } else if (typeof raw.cliSessionId === 'string') m.cliSessionId = raw.cliSessionId;
       if (typeof raw.title === 'string' && raw.title.trim()) m.title = raw.title;
       mainMode = raw.permissionMode;
       this.restoreOverrides(m, raw);
@@ -660,6 +702,7 @@ export class HarnessOrchestrator {
         activeTabId?: string;
         defaultPermissionMode?: unknown;
         codexNetwork?: unknown;
+        autoApprove?: unknown;
         lastSettings?: Record<string, unknown>;
         tabs?: HarnessTabMeta[];
       };
@@ -667,7 +710,15 @@ export class HarnessOrchestrator {
         this.defaultPermissionMode = raw.defaultPermissionMode;
       }
       if (typeof raw.codexNetwork === 'boolean') this.codexNetwork = raw.codexNetwork;
+      // 没有 autoApprove 字段 = 「全部自动」之前的数据：迁一次（见下面的标签循环）
+      migrateAuto = raw.autoApprove === undefined;
+      if (typeof raw.autoApprove === 'boolean') this.autoApprove = raw.autoApprove;
       this.restoreLastSettings(raw.lastSettings);
+      if (migrateAuto && this.autoApprove) {
+        // 之前停在旧默认档上的「最近选择」不再沿用：新会话按新默认（完全放开）开始
+        for (const st of this.lastSettings.values())
+          if (st.permissionMode === this.defaultPermissionMode) delete st.permissionMode;
+      }
       for (const tab of raw.tabs ?? []) {
         if (!tab || typeof tab.id !== 'string' || tab.id === MAIN_TAB_ID) continue;
         if (!isBackend(tab.backend) || tab.backend === 'nomi') continue;
@@ -679,6 +730,16 @@ export class HarnessOrchestrator {
           unread: Number(tab.unread) || 0,
           permissionMode: this.restoredMode(tab.backend, tab.permissionMode),
         };
+        // 迁移：还停在旧默认档上的标签换到新默认（分不出是不是用户特意选的，按默认处理）
+        if (
+          migrateAuto &&
+          this.autoApprove &&
+          tab.permissionMode === this.defaultPermissionMode &&
+          !tab.delegation
+        ) {
+          restored.permissionMode = effectiveMode(tab.backend, 'bypass').mode;
+          migrated = true;
+        }
         this.restoreOverrides(restored, tab);
         restored.longContext = sanitizeLongContext(tab.longContext);
         if (typeof tab.lastServedRef !== 'string' || !isValidModelId(tab.lastServedRef))
@@ -690,6 +751,7 @@ export class HarnessOrchestrator {
       /* */
     }
     this.main.permissionMode = this.restoredMode(this.main.backend, mainMode);
+    if (migrated || migrateAuto) this.persist();
   }
 
   /** Schedule session.json + tabs.json (coalesced; the contents are taken at write time). */
@@ -730,6 +792,7 @@ export class HarnessOrchestrator {
       activeTabId: this.activeTabId,
       defaultPermissionMode: this.defaultPermissionMode,
       codexNetwork: this.codexNetwork,
+      autoApprove: this.autoApprove,
       lastSettings: Object.fromEntries(this.lastSettings),
       tabs: [...this.tabs.values()].filter((x) => x.id !== MAIN_TAB_ID),
     };
@@ -1064,6 +1127,7 @@ export class HarnessOrchestrator {
       queued: tabs.filter((x) => x.status === 'queued').length,
       defaultPermissionMode: this.defaultPermissionMode,
       codexNetwork: this.codexNetwork,
+      autoApprove: this.autoApprove,
     };
   }
 
@@ -1102,7 +1166,9 @@ export class HarnessOrchestrator {
       throw new Error(t('electron.common.new-tabs-can-only-use-a-coding-agent'));
     }
     const ext = backend === 'external' ? this.externalSpecOf(opts.pluginId) : undefined;
-    const cwd = opts.cwd ? validDir(opts.cwd) : this.tabs.get(this.activeTabId)!.cwd;
+    const cwd = opts.cwd
+      ? validDir(opts.cwd)
+      : this.ensureDefaultDir(this.tabs.get(this.activeTabId)!.cwd);
     if (opts.cwd) this.rememberCwd(cwd);
     const now = Date.now();
     const sameKind = [...this.tabs.values()].filter(
@@ -1125,7 +1191,7 @@ export class HarnessOrchestrator {
         backend,
         isPermissionMode(opts.permissionMode) && opts.permissionMode !== 'bypass'
           ? opts.permissionMode
-          : this.defaultPermissionMode,
+          : this.newTabMode(),
       ).mode,
       ...(opts.permissionModeSource ? { permissionModeSource: opts.permissionModeSource } : {}),
       ...(opts.delegation
@@ -1488,7 +1554,8 @@ export class HarnessOrchestrator {
       this.clearTabMessages(id);
     }
     tab.cwd = abs;
-    if (tab.backend !== 'nomi') this.rememberCwd(abs);
+    // Nomi 对话选的工作区也进最近列表：Nomi 的工作区工具按 knownDir 认它（desktop/workspace.ts）
+    this.rememberCwd(abs);
     this.changed();
     return { ...tab };
   }
@@ -2159,6 +2226,7 @@ export class HarnessOrchestrator {
   setPermissionDefaults(o: {
     defaultPermissionMode?: HarnessPermissionMode;
     codexNetwork?: boolean;
+    autoApprove?: boolean;
   }): HarnessTabsState {
     if (o.defaultPermissionMode !== undefined) {
       if (!isPermissionMode(o.defaultPermissionMode))
@@ -2170,6 +2238,7 @@ export class HarnessOrchestrator {
       for (const s of this.lastSettings.values()) delete s.permissionMode;
     }
     if (typeof o.codexNetwork === 'boolean') this.codexNetwork = o.codexNetwork;
+    if (typeof o.autoApprove === 'boolean') this.autoApprove = o.autoApprove;
     this.changed();
     return this.listTabs();
   }
@@ -2184,7 +2253,10 @@ export class HarnessOrchestrator {
         ? raw
         : raw === undefined && backend === 'claude'
           ? 'manual'
-          : this.defaultPermissionMode;
+          : // 「完全放开」只在「全部自动」开着时跨重启保留；Nomi 主标签没有完全放开
+            backend === 'nomi'
+            ? this.defaultPermissionMode
+            : this.newTabMode();
     return effectiveMode(backend, mode).mode;
   }
 
@@ -2280,7 +2352,8 @@ export class HarnessOrchestrator {
     tab.modelScope = this.scopeOf(tab);
     const s = this.lastSettings.get(tab.backend);
     if (!s) return;
-    if (!explicitMode && s.permissionMode)
+    // 「全部自动」开着：新会话一律从完全放开开始，不沿用之前在别的标签上选的档位
+    if (!explicitMode && !this.autoApprove && s.permissionMode)
       tab.permissionMode = effectiveMode(tab.backend, s.permissionMode).mode;
     if (!this.canOverride(tab) || (s.modelScope ?? null) !== tab.modelScope) return;
     if (s.modelOverride) tab.modelOverride = s.modelOverride;
@@ -2458,6 +2531,7 @@ export class HarnessOrchestrator {
     const tab = this.requireTab(id);
     if (tab.backend === 'nomi')
       throw new Error(t('electron.common.nomi-backend-is-active-use-the-built-in'));
+    this.ensureDefaultDir(tab.cwd);
     const text = String(prompt ?? '').slice(0, 100_000);
     const { images: normalized, rejected } = inspectImages(images);
     if (rejected.length) throw new Error(rejectedImagesMessage(rejected));
@@ -2658,7 +2732,9 @@ export class HarnessOrchestrator {
               ? {
                   geminiTrust: {
                     folder: e.folder,
-                    broad: isBroadGeminiFolder(e.folder, this.home, [this.d.defaultCwd ?? '']),
+                    broad: isBroadGeminiFolder(e.folder, this.home, [
+                      this.d.legacyDefaultCwd ?? '',
+                    ]),
                   },
                 }
               : {}),
@@ -5345,6 +5421,14 @@ function isTurnContent(ev: HarnessEvent): boolean {
     ev.type === 'permission' ||
     ev.type === 'agent'
   );
+}
+
+function samePath(a: string, b: string): boolean {
+  const key = (p: string) => {
+    const r = path.resolve(p);
+    return process.platform === 'win32' || process.platform === 'darwin' ? r.toLowerCase() : r;
+  };
+  return key(a) === key(b);
 }
 
 function validDir(cwd: string): string {

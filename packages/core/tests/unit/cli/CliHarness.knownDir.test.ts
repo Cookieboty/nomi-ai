@@ -150,3 +150,59 @@ describe('CliHarnessService.knownDir', () => {
     }
   });
 });
+
+describe('default working directory (Documents/nomi)', () => {
+  const made: CliHarnessService[] = [];
+  afterEach(() => {
+    for (const h of made.splice(0)) h.dispose();
+  });
+  const setup = () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-defcwd-'));
+    const docs = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-docs-'));
+    const def = path.join(docs, 'nomi');
+    const mk = () => {
+      const h = new CliHarnessService({
+        root,
+        logger: { info() {}, warn() {} },
+        defaultCwd: def,
+        legacyDefaultCwd: docs,
+      });
+      made.push(h);
+      return h;
+    };
+    return { root, docs, def, mk };
+  };
+
+  it('starts the main tab in Documents/nomi and creates it only when first used', () => {
+    const { def, mk } = setup();
+    const h = mk();
+    expect(h.state().cwd).toBe(def);
+    expect(fs.existsSync(def)).toBe(false);
+    // 算作用户选过的目录：knownDir 认它，并在此时创建
+    expect(h.knownDir(def)).toBe(def);
+    expect(fs.statSync(def).isDirectory()).toBe(true);
+  });
+
+  it('new CLI tabs falling back to the default directory create it on demand', () => {
+    const { def, mk } = setup();
+    const h = mk();
+    const tab = h.createTab({ backend: 'codex' });
+    expect(tab.cwd).toBe(def);
+    expect(fs.statSync(def).isDirectory()).toBe(true);
+  });
+
+  it('migrates a main tab still on the old default (Documents) and leaves other choices alone', () => {
+    const { root, docs, def, mk } = setup();
+    fs.writeFileSync(
+      path.join(root, 'session.json'),
+      JSON.stringify({ backend: 'nomi', cwd: docs, cliSessionId: null }),
+    );
+    expect(mk().state().cwd).toBe(def);
+    const mine = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-mine-'));
+    fs.writeFileSync(
+      path.join(root, 'session.json'),
+      JSON.stringify({ backend: 'nomi', cwd: mine, cliSessionId: null }),
+    );
+    expect(mk().state().cwd).toBe(mine);
+  });
+});
