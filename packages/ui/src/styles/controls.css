@@ -1,0 +1,167 @@
+/* ---------------------------------------------------------------- Checkbox */
+.cd-checkbox {
+  appearance: none;
+  position: relative;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  border: 1px solid var(--cd-color-border-strong);
+  border-radius: var(--cd-radius-xs);
+  background: var(--cd-color-input-bg);
+  cursor: pointer;
+  vertical-align: middle;
+  transition:
+    background-color var(--cd-duration-fast) var(--cd-ease),
+    border-color var(--cd-duration-fast) var(--cd-ease);
+}
+.cd-checkbox:hover:not(:disabled) {
+  border-color: var(--cd-color-accent);
+}
+.cd-checkbox:checked,
+.cd-checkbox:indeterminate {
+  border-color: var(--cd-color-accent);
+  background: var(--cd-color-accent);
+}
+/* 勾：旋转的 L 形边框 */
+.cd-checkbox:checked::after {
+  content: '';
+  position: absolute;
+  left: 4.5px;
+  top: 1.5px;
+  width: 4px;
+  height: 8px;
+  border: solid var(--cd-color-text-on-accent);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.cd-checkbox:indeterminate::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  top: 6px;
+  height: 2px;
+  border-radius: var(--cd-radius-full);
+  background: var(--cd-color-text-on-accent);
+}
+.cd-checkbox:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 1px;
+}
+.cd-checkbox:disabled {
+  border-color: var(--cd-color-border-subtle);
+  background: var(--cd-color-disabled-bg);
+  cursor: not-allowed;
+}
+.cd-checkbox:checked:disabled,
+.cd-checkbox:indeterminate:disabled {
+  opacity: 0.5;
+  background: var(--cd-color-accent);
+}
+
+/* ---------------------------------------------------------------- Slider */
+.cd-slider {
+  appearance: none;
+  min-width: 0;
+  height: 16px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.cd-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: var(--cd-radius-full);
+  background: linear-gradient(
+    to right,
+    var(--cd-color-accent) var(--slider-fill, 0%),
+    var(--cd-color-switch-off) var(--slider-fill, 0%)
+  );
+}
+.cd-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border: 1px solid var(--cd-color-accent);
+  border-radius: var(--cd-radius-full);
+  background: var(--cd-color-switch-thumb);
+  box-shadow: var(--cd-shadow-sm);
+  transition: transform var(--cd-duration-fast) var(--cd-ease);
+}
+.cd-slider:hover:not(:disabled)::-webkit-slider-thumb,
+.cd-slider:active:not(:disabled)::-webkit-slider-thumb {
+  transform: scale(1.15);
+}
+.cd-slider:focus-visible {
+  outline: none;
+}
+.cd-slider:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 1px;
+}
+.cd-slider:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ---------------------------------------------------------------- NumberField */
+.cd-number {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+  width: 100%;
+}
+.cd-number__input {
+  padding-right: var(--cd-space-5);
+  text-align: inherit;
+  appearance: textfield;
+}
+.cd-number__input::-webkit-inner-spin-button,
+.cd-number__input::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+.cd-number__steps {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  bottom: 2px;
+  display: flex;
+  flex-direction: column;
+  width: 16px;
+  opacity: 0;
+  transition: opacity var(--cd-duration-fast) var(--cd-ease);
+}
+.cd-number:hover .cd-number__steps,
+.cd-number:focus-within .cd-number__steps {
+  opacity: 1;
+}
+.cd-number__step {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  padding: 0;
+  border: none;
+  border-radius: var(--cd-radius-xs);
+  background: transparent;
+  color: var(--cd-color-text-muted);
+  cursor: pointer;
+}
+.cd-number__step:hover:not(:disabled) {
+  background: var(--cd-color-hover);
+  color: var(--cd-color-text);
+}
+.cd-number__step:disabled {
+  visibility: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cd-checkbox,
+  .cd-slider::-webkit-slider-thumb,
+  .cd-number__steps {
+    transition: none;
+  }
+}

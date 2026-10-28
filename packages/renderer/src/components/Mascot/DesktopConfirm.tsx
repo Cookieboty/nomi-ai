@@ -1,6 +1,6 @@
 import type { DesktopConfirmRequest } from '@nomi-ai/types';
 import { t as tr } from '@nomi-ai/ui';
-import { Badge, Button, Modal } from '@nomi-ai/ui';
+import { Badge, Button, Checkbox, Modal } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import styles from './DesktopConfirm.module.css';
@@ -228,8 +228,7 @@ export const DesktopConfirm: React.FC = () => {
             <pre className={styles.pre}>{cur.argsJson}</pre>
             {cur.rememberable && (
               <label className={styles.remember}>
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={remember}
                   onChange={(e) => setRemember(e.target.checked)}
                   data-testid="desktop-remember"

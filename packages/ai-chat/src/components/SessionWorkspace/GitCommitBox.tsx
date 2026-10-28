@@ -2,7 +2,7 @@
  * 右栏「改动」的提交区（固定在底部）与分支栏的同步按钮（docs/design/changes-panel-git.md）。
  * git 由主进程执行（cli/gitOps.ts）：钩子照常跑，拉取只快进，推送从不强推。
  */
-import { Button, t } from '@nomi-ai/ui';
+import { Button, Checkbox, t } from '@nomi-ai/ui';
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
@@ -438,8 +438,7 @@ export const GitCommitBox: React.FC<{
               className={pane.commitCheck}
               title={t('ui.session-workspace.commit-then-git-push-never-force-push')}
             >
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={ops.pushAfter && canPush}
                 disabled={!canPush || busy}
                 data-testid="rail-commit-push-after"

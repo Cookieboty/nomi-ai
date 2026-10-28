@@ -2,7 +2,7 @@
  * 模型质量 → 对比：顶部一行指标卡，下面是可展开的多级对比表（如 模型 → 供应商 → Key）。
  * 行可勾选 2～4 项并排对比；点计数钻取到请求明细；顶层行分页。
  */
-import { Badge, BrandIcon, Icon, Tooltip, t } from '@nomi-ai/ui';
+import { Badge, BrandIcon, Checkbox, Icon, Tooltip, t } from '@nomi-ai/ui';
 import {
   Check,
   ChevronDown,
@@ -230,8 +230,7 @@ const NameCell: React.FC<{
         className={styles.nameInner}
         style={{ paddingLeft: `calc(${row.depth} * var(--cd-space-5))` }}
       >
-        <input
-          type="checkbox"
+        <Checkbox
           className={styles.rowCheck}
           checked={checked}
           disabled={!checked && !canCheck}

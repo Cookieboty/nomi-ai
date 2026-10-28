@@ -110,6 +110,7 @@ export const Budget: React.FC<Props> = ({ state, onSettings, onCleared }) => {
           step="any"
           min="0"
           inputMode="decimal"
+          className={styles.amountInput}
           placeholder={t('ui.usage-tools.no-alert')}
           value={vals[k]}
           data-testid={testid}

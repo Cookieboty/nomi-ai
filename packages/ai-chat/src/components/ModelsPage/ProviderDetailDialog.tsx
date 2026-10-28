@@ -10,6 +10,7 @@
  */
 import {
   Button,
+  Checkbox,
   formatContext,
   Icon,
   IconButton,
@@ -244,8 +245,7 @@ const ModelRow = memo(function ModelRow({
   return (
     <div className={styles.modelRow} data-testid={`pd-model-${m.id}`}>
       <label className={styles.modelCheck}>
-        <input
-          type="checkbox"
+        <Checkbox
           disabled={readOnly}
           checked={m.enabled}
           onChange={(e) => onSet(m.id, { enabled: e.target.checked })}
@@ -909,8 +909,7 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                             <span className={styles.keyName}>{m.id}</span>
                             {urlWires.map((w) => (
                               <label key={w} className={styles.modelCheck}>
-                                <input
-                                  type="checkbox"
+                                <Checkbox
                                   checked={m.wires?.includes(w) ?? false}
                                   onChange={(e) => toggleModelWire(m, w, e.target.checked)}
                                   aria-label={t('ui.models.uses', m.id, WIRE_LABEL[w])}

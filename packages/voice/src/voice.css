@@ -287,7 +287,6 @@
 }
 .cd-voice-range {
   width: 220px;
-  accent-color: var(--cd-color-brand, var(--cd-color-accent));
 }
 .cd-voice-buttons {
   display: flex;

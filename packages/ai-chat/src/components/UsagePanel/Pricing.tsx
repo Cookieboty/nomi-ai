@@ -211,6 +211,7 @@ export const Pricing: React.FC<Props> = ({ state, unpriced, onSettings, onState 
               type="number"
               step="any"
               min="0"
+              className={styles.rateInput}
               value={rate}
               data-testid="usage-rate"
               aria-label={t('ui.usage-tools.usd-to-cny-exchange-rate')}

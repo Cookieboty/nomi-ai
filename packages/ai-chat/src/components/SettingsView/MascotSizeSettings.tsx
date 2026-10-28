@@ -5,7 +5,7 @@
  * 它们改动后会广播到这里，滑块同步。
  */
 import type { MascotScaleState } from '@nomi-ai/types';
-import { Button, SettingRow, t } from '@nomi-ai/ui';
+import { Button, SettingRow, Slider, t } from '@nomi-ai/ui';
 import { Minus, Plus } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 
@@ -93,8 +93,7 @@ export const MascotSizeSettings: React.FC<{ disabled?: boolean }> = ({ disabled 
         >
           <Minus size={16} strokeWidth={1.75} aria-hidden />
         </Button>
-        <input
-          type="range"
+        <Slider
           className={styles.range}
           min={s?.min ?? 0.3}
           max={s?.max ?? 1.5}

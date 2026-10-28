@@ -541,10 +541,6 @@
 /* 设置行右侧的滑块：固定宽度，和同一页其它控件右对齐 */
 .range {
   width: 200px;
-  accent-color: var(--cd-color-accent);
-}
-.range:disabled {
-  opacity: 0.5;
 }
 .sizeValue {
   min-width: 48px;

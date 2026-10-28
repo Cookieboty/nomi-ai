@@ -1,6 +1,6 @@
 import { type VoiceSettings as VoiceSettingsType } from '@nomi-ai/types';
 import { createLogger, t as tr } from '@nomi-ai/ui';
-import { Modal, SectionTitle, Switch } from '@nomi-ai/ui';
+import { Modal, SectionTitle, Slider, Switch } from '@nomi-ai/ui';
 import React, { useState, useEffect, useCallback } from 'react';
 
 import {
@@ -94,8 +94,7 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
           <span>
             {tr('ui.voice-mascot.volume')} {Math.round(settings.volume * 100)}%
           </span>
-          <input
-            type="range"
+          <Slider
             min="0"
             max="1"
             step="0.1"

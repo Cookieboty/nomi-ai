@@ -26,14 +26,6 @@
   user-select: none;
 }
 
-.prefRow input {
-  width: 1rem;
-  height: 1rem;
-  accent-color: var(--cd-color-accent-strong);
-  flex-shrink: 0;
-  cursor: pointer;
-}
-
 .intro {
   margin: 0;
   font-size: var(--cd-font-size-md);

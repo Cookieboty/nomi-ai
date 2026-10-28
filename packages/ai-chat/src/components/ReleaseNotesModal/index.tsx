@@ -2,7 +2,7 @@
  * Post-update「更新日志」弹层（TRAE-style）：日期、可勾选关闭的「更新后显示更新日志」、
  * 新增 / 优化 / 修复、历史链接。取消勾选持久化；设置里可重新打开偏好或手动查看。
  */
-import { Modal, getLocale, t, useLocale } from '@nomi-ai/ui';
+import { Checkbox, Modal, getLocale, t, useLocale } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import {
@@ -105,8 +105,7 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
         {formatReleaseDate(notes.date, locale)}
       </h3>
       <label className={styles.prefRow} data-testid="release-notes-show-after-label">
-        <input
-          type="checkbox"
+        <Checkbox
           checked={showAfter}
           onChange={(e) => onToggleShow(e.target.checked)}
           data-testid="release-notes-show-after"

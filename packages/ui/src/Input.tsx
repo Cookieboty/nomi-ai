@@ -1,7 +1,10 @@
 import React, { forwardRef } from 'react';
 
+import { Checkbox } from './Checkbox';
 import { cx } from './cx';
 import { DateTimeField, type DateTimeKind } from './DateTimeField';
+import { NumberField } from './NumberField';
+import { Slider } from './Slider';
 
 export interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size'> {
   size?: 'sm' | 'md';
@@ -30,6 +33,12 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
       />
     );
   }
+  // 数字、滑块、复选框同样换成自绘外观
+  if (type === 'number') {
+    return <NumberField ref={ref} {...rest} size={size} invalid={invalid} className={className} />;
+  }
+  if (type === 'range') return <Slider ref={ref} {...rest} className={className} />;
+  if (type === 'checkbox') return <Checkbox ref={ref} {...rest} className={className} />;
   return (
     <input
       ref={ref}
