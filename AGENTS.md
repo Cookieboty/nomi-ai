@@ -9,7 +9,7 @@ pnpm 9 + Turborepo monorepo，Electron 桌面应用（React 19 + Vite）。Node 
 | 路径                                | 内容                                                                                                                                             |
 | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `packages/core`                     | 应用内核（纯 Node，不依赖 Electron）：编程助手、用量、网关服务、记忆、知识库、日程、扩展、语音等业务模块与契约处理函数；平台能力经宿主端口       |
-| `packages/host-electron`            | 主进程宿主：`src/main.ts` → `core/Application.ts`（组合根），窗口、托盘、协议、preload、端口的 Electron 实现、契约传输                           |
+| `packages/host-electron`            | 主进程宿主：`src/main.ts` → `host/Application.ts`（宿主组合根，调内核 `createCore`），窗口、托盘、协议、preload、端口的 Electron 实现、契约传输  |
 | `packages/renderer`                 | 看板娘窗口壳：透明窗口、气泡、工具栏，`src/avatar` 把契约事件接到 avatar-runtime                                                                 |
 | `packages/avatar-runtime`           | 角色引擎（纯浏览器，不依赖契约 / Electron / ui）：渲染后端、表情动作、命中区与互动，见 `docs/design/core-host-decoupling.md` §10.6               |
 | `packages/ai-chat`                  | 对话窗口：对话、设置、引导、功能面板                                                                                                             |

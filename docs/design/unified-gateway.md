@@ -898,7 +898,7 @@ Nomi 自己的对话也作为网关的一个客户端（`nomi`），和 CLI 走�
 **实现记录（2026-10-21，M2；GatewayStore-only）**：
 
 - `RoutedLLMRegistry` 的 `gateway` 选项：`resolve(role)` **只**问网关（`GatewayService.nomiRoute`）。环境变量供应商由网关以 `env-*` 暴露。就绪前排队 10 秒仍待补（网关未就绪时 `resolve` 返回 undefined，对话侧报未配置模型）。
-- 工具结果的接收者（`ToolCallProvider`）报真正的上游（网关供应商 id + 上游地址），不报网关的回环地址；首选或回退里只要有一个不在本机 / 局域网，就按云端算。桌面工具的本地 / 云端判断、云端同意都以它为准（`AIRuntimeBoot.resolveProvider / lookupProvider`）。
+- 工具结果的接收者（`ToolCallProvider`）报真正的上游（网关供应商 id + 上游地址），不报网关的回环地址；首选或回退里只要有一个不在本机 / 局域网，就按云端算。桌面工具的本地 / 云端判断、云端同意都以它为准（内核 `ai/AIRuntimeBoot` 的 `resolveProvider / lookupProvider`）。
 - 没有 Key 的本地服务（Ollama、LM Studio、llama.cpp）在快照里带一个空 Key，路由和探测都不发鉴权头。迁移时旧配置里的本机 / 局域网地址视为用户已确认。
 - 跟着切换的入口：设置 →「模型」（正式上线，分配区先只有 Nomi 对话的 main / tools / summary）、对话区右上角的模型选择器、托盘「对话模型」、斜杠命令 `/model` `/status`、本机 llama.cpp「设为对话模型」、引导里的「添加第三方供应商」。知识库向量和云端语音识别的供应商列表合并了网关里有 Chat 地址的供应商，旧 id 继续可用。旧的 Nomi 供应商面板删除（编程助手页 Nomi 标签只留一个入口）；编程助手的第三方配置 M3 再并进来。
 
