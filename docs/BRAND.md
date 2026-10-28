@@ -1,6 +1,4 @@
-# Nomi 品牌规范
-
-产品叫 **Nomi**；桌面上的官方角色叫**诺米**（英文界面也是 Nomi），是官方角色包 `characters/nomi`。两个名字分开管：产品名来自 `@nomi-ai/types` 的 `brand.appName`，角色名来自当前角色包的人设（`displayName`），换了角色包的构建里，角色名跟着包变、产品名不变（[内核宿主分离 §10.1](design/core-host-decoupling.md)）。
+# Nomi·诺米 品牌规范
 
 美术素材：项目所有者提供、AI 生成，由项目所有者授权使用（见 [CREDITS](../CREDITS.md)）。
 
@@ -10,15 +8,15 @@
 
 ## 1. 品牌定位
 
-|              |                                                                                                |
-| ------------ | ---------------------------------------------------------------------------------------------- |
-| **名称**     | 产品：中英文都写 Nomi。官方角色：中文诺米，英文 Nomi。仓库 / 包作用域：`nomi-ai`、`@nomi-ai/*` |
-| **品类**     | 本地优先的桌面 AI 伙伴                                                                         |
-| **Slogan**   | **你的桌面 AI 伙伴** / **Your desktop AI companion**                                           |
-| **品牌承诺** | 住在桌面，懂你所想，帮你做到。 / Lives on your desktop, gets what you mean, and gets it done.  |
-| **三大支柱** | 任务管理 · 智能执行 · 情感陪伴                                                                 |
-| **招牌句**   | 「我在这里，陪你把每一个任务都变成小小的成就。」                                               |
-| **辅助文案** | 不只是工具，更是陪伴 · Nomi 和你一起把想法变成行动 · 今天也要加油哦！                          |
+|              |                                                                                               |
+| ------------ | --------------------------------------------------------------------------------------------- |
+| **名称**     | 英文 Nomi，中文 Nomi·诺米。仓库 / 包作用域：`nomi-ai`、`@nomi-ai/*`                           |
+| **品类**     | 本地优先的桌面 AI 伙伴                                                                        |
+| **Slogan**   | **你的桌面 AI 伙伴** / **Your desktop AI companion**                                          |
+| **品牌承诺** | 住在桌面，懂你所想，帮你做到。 / Lives on your desktop, gets what you mean, and gets it done. |
+| **三大支柱** | 任务管理 · 智能执行 · 情感陪伴                                                                |
+| **招牌句**   | 「我在这里，陪你把每一个任务都变成小小的成就。」                                              |
+| **辅助文案** | 不只是工具，更是陪伴 · Nomi 和你一起把想法变成行动 · 今天也要加油哦！                         |
 
 Nomi 首先要有用：每一句暖心的话旁边，都要有一件真正帮上忙的事。隐私也是品牌的一部分：数据只留在用户自己的电脑上。
 
@@ -37,18 +35,16 @@ Nomi 首先要有用：每一句暖心的话旁边，都要有一件真正帮上
 
 写作规则
 
-- 称呼用户为「你」（不用「您」）；角色自称「我」。
+- 称呼用户为「你」（不用「您」）；Nomi 自称「我」。
 - 先说结果，再说下一步。气泡里不超过两句短句。
 - 每条最多一个「～」或一个表情；报错、权限申请、安全提示中一律不用。
-- 指产品（应用、窗口、网关、「退出 Nomi」）写「Nomi」，中英文相同；产品名在代码里用 `brand.appName`，句子里的产品名可以写字面量。
-- 指桌面上的角色（「显示诺米」「诺米已隐藏」「你好，我是诺米」）写角色名：官方构建中文是「诺米」、英文是 "Nomi"。界面文案用 `{0}` 填当前角色的人设名，不写死，`pnpm check:character-leak` 会拦；拿不到角色名时用通用称呼「看板娘 / Mascot」。
-- 不再写「Nomi·诺米」这样的组合名（应用商店等对外物料除外）。
+- 中文界面首次出现写「Nomi·诺米」，之后写「Nomi」；英文界面统一写 "Nomi"。
 
 ## 3. 角色设定
 
 |              |                                                                                                             |
 | ------------ | ----------------------------------------------------------------------------------------------------------- |
-| 名字         | 诺米（英文 Nomi）；官方角色包 `characters/nomi`，人设在 `persona.json` 与 `locales/`                        |
+| 名字         | Nomi·诺米                                                                                                   |
 | 身份         | 住在桌面上的 AI 伙伴：帮你规划、替你执行、为你加油                                                          |
 | 外形         | Q 版女孩，暖棕色短发，橙色发夹与蝴蝶结，奶油色上衣，黑色颈带；温暖柔和的画风                                |
 | 声音（TTS）  | 柔和温暖：提示语音为微软晓伊 `zh-CN-XiaoyiNeural` 预录（语速 -5%，音调 +0Hz），见 `docs/features/voice.md`  |
@@ -90,33 +86,33 @@ Nomi 首先要有用：每一句暖心的话旁边，都要有一件真正帮上
 
 ## 7. 看板娘使用规范
 
-- 默认角色：**诺米**，即官方角色包 `characters/nomi`（Rive 角色，分层 2D 立绘 `sprite/` 作回退）。官方构建只内置这一个角色；白标构建用 `CHARACTER_PACK` 换成别的角色包，本节只约束诺米。
+- 默认角色：**Nomi·诺米**（2D 伪 3D 分层立绘，`sprite/nomi`）。这是唯一内置角色；3D 渲染器仅用于用户导入/商店模型。
 - 始终使用透明背景；不要从脸部裁切；保持半身构图和底部柔和渐隐。
 - 表情要配合文案：完成任务用「加油」，处理中用「思考」，问候用「打招呼」，夜间用「晚安」。报错与安全弹窗中不用难过 / 生气的表情。
 - 动作丰富，但**造型不变**：见 [品牌锁](#9-品牌锁)。
-- 不得重绘、换装或性化诺米；不得用这个角色为第三方产品背书；未经所有者许可，不得在项目之外的广告中使用。
+- 不得重绘、换装或性化 Nomi；不得用她为第三方产品背书；未经所有者许可，不得在项目之外的广告中使用。
 
-## 8. 界面文案（诺米口吻）
+## 8. 界面文案（Nomi 口吻）
 
-| 场景     | 中文                                                         | English                                                                                               |
-| -------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
-| 首次问候 | 你好，我是诺米，住在你桌面上的 AI 伙伴。花一分钟认识一下吧！ | Hi, I'm Nomi — your AI companion who lives on your desktop. Let's get to know each other in a minute! |
-| 主题     | 先挑一个看着舒服的外观吧，我们每天都要见面呢。               | Pick a look that feels comfortable — we'll be seeing each other every day.                            |
-| 关于你   | 告诉我你的职业和兴趣，我会推荐适合你的工具和玩法～           | Tell me what you do and what you're into, and I'll suggest tools and things to try.                   |
-| 模型     | 接上一个 AI 模型，我就能帮你规划任务、把想法变成行动。       | Connect an AI model and I can help plan your tasks and turn ideas into action.                        |
-| 隐私     | 放心，我们的对话和记忆都只留在这台电脑上。                   | Rest assured: our conversations and memories stay on this computer.                                   |
-| 完成     | 准备好啦！我在这里，陪你把每一个任务都变成小小的成就。       | All set! I'm here to help turn every task into a small win.                                           |
+| 场景     | 中文                                                               | English                                                                                               |
+| -------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| 首次问候 | 你好，我是 Nomi·诺米，住在你桌面上的 AI 伙伴。花一分钟认识一下吧！ | Hi, I'm Nomi — your AI companion who lives on your desktop. Let's get to know each other in a minute! |
+| 主题     | 先挑一个看着舒服的外观吧，我们每天都要见面呢。                     | Pick a look that feels comfortable — we'll be seeing each other every day.                            |
+| 关于你   | 告诉我你的职业和兴趣，我会推荐适合你的工具和玩法～                 | Tell me what you do and what you're into, and I'll suggest tools and things to try.                   |
+| 模型     | 接上一个 AI 模型，我就能帮你规划任务、把想法变成行动。             | Connect an AI model and I can help plan your tasks and turn ideas into action.                        |
+| 隐私     | 放心，我们的对话和记忆都只留在这台电脑上。                         | Rest assured: our conversations and memories stay on this computer.                                   |
+| 完成     | 准备好啦！我在这里，陪你把每一个任务都变成小小的成就。             | All set! I'm here to help turn every task into a small win.                                           |
 
 ## 9. 品牌锁
 
-诺米的造型是品牌资产。看板娘有 43 个动作，但**每一帧里，除了动作 / 姿态，其余都必须和认可的原画完全一致**。
+Nomi 的造型是品牌资产。看板娘有 43 个动作，但**每一帧里，除了动作 / 姿态，其余都必须和认可的原画完全一致**。
 
 **锁定的部件**：棕色短发与两缕橙色挑染、N 字发夹与橙色蝴蝶结、两根橙色发卡、耳坠、黑色颈带与星形挂饰、外套（白 / 橙配色与各处细节）、胸前 N 标志、工牌、腰带、眼睛与脸、全部颜色。
 
 **怎么保证**
 
 - 主图层只来自官方原画的裁切：`characters/nomi/sprite/layers/`；官方参考图在 `docs/brand/reference/`（特写 `nomi-closeup.png`、半身 `nomi-clean-halfbody.jpg`）与 `docs/brand/nomi-brand-board.jpg`。
-- `brand-lock.json`（由 `node scripts/brand/update-brand-lock.mjs` 生成，在 `characters/nomi/sprite/`）记录每个图层 PNG 的 sha256 和图层摆放（偏移 / 锚点 / 支点）。`packages/avatar-runtime/tests/brandLock.test.ts` 在 CI 里逐个校验；任何改动都会让测试失败，必须有意识地更新。
+- `brand-lock.json`（由 `node scripts/brand/update-brand-lock.mjs` 生成）记录每个图层 PNG 的 sha256 和图层摆放（偏移 / 锚点 / 支点）。`tests/mascot/brandLock.test.ts` 在 CI 里逐个校验；任何改动都会让测试失败，必须有意识地更新。
 - 同一个测试还对每个动作的每一帧检查：品牌图层都被绘制、完全不透明、只做旋转 + 等比缩放（无剪切、无挤压）、发夹 / 蝴蝶结 / 耳坠留在画布内，头上的部件一起刚性运动（蝴蝶结可在发夹处小幅摆动）。
 - 动作只移动 / 旋转原图层，把袖子切成肩 / 上臂 / 前臂三段刚性部件（只改透明度蒙版），叠加品牌色的矢量表情符号；**不重绘任何品牌部件**。手持物之类自然的遮挡（手挡住一部分胸前标志）是允许的，变形不允许。
 
