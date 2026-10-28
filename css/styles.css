@@ -2650,3 +2650,26 @@ body[data-page="download"] footer.site-footer {
 @media (min-width: 640px) and (max-width: 900px) {
   .home-download-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+
+/* v2.0.5 brand narrative — hero role line, card taglines, text-only modes */
+.hero--bleed .hero-role {
+  margin: 1.35rem 0 0;
+  color: #ffd2b0;
+  font-size: 0.98rem;
+  line-height: 1.6;
+  font-style: italic;
+  max-width: 30em;
+}
+.hero--bleed .hero-promise { max-width: 21em; }
+.hero--bleed h1 { font-size: clamp(2.1rem, 4.4vw, 3.05rem); }
+.hero--bleed .hero-role { max-width: 24em; }
+.pillars--trio .pillar .pillar-tag {
+  color: #c45425 !important;
+  font-weight: 700;
+  margin: 0 0 0.35rem !important;
+}
+.pillar-tag:empty, .mode-tag:empty { display: none; }
+.home-modes { background: #FFF8F1; }
+.home-modes .mode-card { padding: 26px 14px; }
+.home-modes .mode-card h3 { margin-top: 0; }
+.home-modes .mode-card .mode-tag { color: #c45425; font-weight: 700; margin: 0 0 6px; }
