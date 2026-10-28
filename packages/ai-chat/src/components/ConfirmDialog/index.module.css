@@ -1,0 +1,14 @@
+.dialog {
+  width: min(420px, 100%);
+}
+
+.message {
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-md);
+  line-height: var(--cd-line-height-md);
+  white-space: pre-wrap;
+}
+
+.message + form {
+  margin-top: var(--cd-space-3);
+}
