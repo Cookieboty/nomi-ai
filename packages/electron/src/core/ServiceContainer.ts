@@ -3,10 +3,20 @@
  * 管理所有核心服务的生命周期和依赖关系
  */
 
+/**
+ * 带类型的服务名：`get(HOST_PORTS)` 直接得到 `HostPorts`，不用每处手写泛型。
+ * 运行时就是字符串，和老的字符串名共用一个命名空间。
+ */
+export type ServiceToken<T> = string & { readonly __serviceType?: (value: T) => T };
+
+export function serviceToken<T>(name: string): ServiceToken<T> {
+  return name as ServiceToken<T>;
+}
+
 export interface IServiceContainer {
-  register<T>(name: string, factory: () => T): void;
-  registerSingleton<T>(name: string, factory: () => T): void;
-  get<T>(name: string): T;
+  register<T>(name: ServiceToken<T>, factory: () => T): void;
+  registerSingleton<T>(name: ServiceToken<T>, factory: () => T): void;
+  get<T>(name: ServiceToken<T>): T;
   has(name: string): boolean;
   clear(): void;
 }
@@ -19,14 +29,14 @@ export class ServiceContainer implements IServiceContainer {
   /**
    * 注册瞬时服务
    */
-  register<T>(name: string, factory: () => T): void {
+  register<T>(name: ServiceToken<T>, factory: () => T): void {
     this.factories.set(name, factory);
   }
 
   /**
    * 注册单例服务
    */
-  registerSingleton<T>(name: string, factory: () => T): void {
+  registerSingleton<T>(name: ServiceToken<T>, factory: () => T): void {
     this.factories.set(name, factory);
     this.singletons.set(name, null); // 标记为单例
   }
@@ -34,7 +44,7 @@ export class ServiceContainer implements IServiceContainer {
   /**
    * 获取服务实例
    */
-  get<T>(name: string): T {
+  get<T>(name: ServiceToken<T>): T {
     // 检查是否为单例
     if (this.singletons.has(name)) {
       let instance = this.singletons.get(name);

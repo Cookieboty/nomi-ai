@@ -16,6 +16,7 @@ import {
 } from '@nomi-ai/ai-runtime';
 import { isBuiltinCliId } from '@nomi-ai/cli-plugins';
 import type { ProviderQuirks } from '@nomi-ai/gateway';
+import type { HostPorts } from '@nomi-ai/host-ports';
 import { app, BrowserWindow, safeStorage, session, shell } from 'electron';
 
 import { getAgentProgressService, initAgentProgressService } from '../agents/AgentProgressService';
@@ -51,6 +52,8 @@ import {
   registerTerminalIpc,
 } from '../gateway/TerminalCommands';
 import { IpcRegistry } from '../handlers/ipc/IpcRegistry';
+import { createElectronAppEvents } from '../host/electronAppEvents';
+import { createElectronPorts, lazyWindowHost } from '../host/electronPorts';
 import { t as tr } from '../i18n';
 import { getLocale, LocaleService, onLocaleChange } from '../i18n';
 import { getIslandService, initIslandService } from '../island/IslandService';
@@ -95,11 +98,13 @@ import { perfMark } from '../utils/perfMarks';
 import { whenPrivateWritesIdle } from '../utils/privateFile';
 import { getVoiceService } from '../voice/VoiceService';
 
+import type { AppEvents } from './appEvents';
 import { initAppIcon } from './appIcon';
 import { BootstrapManager } from './BootstrapManager';
 import { eventBus } from './EventBus';
 import { createShutdown, LifecycleRegistry } from './lifecycle';
 import { ServiceContainer, type IServiceContainer } from './ServiceContainer';
+import { APP_EVENTS, HOST_PORTS } from './serviceTokens';
 import { applyTitleBarTheme } from './titleBar';
 import { TrayManager } from './TrayManager';
 import { WindowManager } from './WindowManager';
@@ -135,6 +140,9 @@ export class Application implements IApplication {
   private configService!: ConfigService;
   private cacheService!: CacheService;
   private windowManager!: WindowManager;
+  /** 宿主端口与界面事件：新服务经构造参数拿到它们，不再直接 import electron（设计稿 §7.1） */
+  private ports!: HostPorts;
+  private events!: AppEvents;
   private errorHandler!: GlobalErrorHandler;
   private ipcRegistry!: IpcRegistry;
   private bootstrapManager!: BootstrapManager;
@@ -1087,6 +1095,24 @@ export class Application implements IApplication {
       return new LoggerService();
     });
     this.logger = this.container.get<LoggerService>('logger');
+
+    // 宿主端口与界面事件：紧跟日志创建，供后面所有服务注入。窗口相关的部分每次调用时才找
+    // WindowManager，所以先于窗口管理器创建也没问题（建好之前查询为空、打开类调用抛错）。
+    const windowManager = (): WindowManager | undefined => this.windowManager;
+    this.container.registerSingleton(HOST_PORTS, () =>
+      createElectronPorts({ windows: lazyWindowHost(windowManager), logger: this.logger }),
+    );
+    this.ports = this.container.get(HOST_PORTS);
+    this.container.registerSingleton(APP_EVENTS, () =>
+      createElectronAppEvents({
+        windows: {
+          getMainWindow: () => windowManager()?.getMainWindow() ?? null,
+          getAiChatWindow: () => windowManager()?.getAiChatWindow() ?? null,
+        },
+        logger: this.logger,
+      }),
+    );
+    this.events = this.container.get(APP_EVENTS);
 
     // 注册配置服务（单例）
     this.container.registerSingleton('config', () => {
