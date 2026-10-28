@@ -651,6 +651,48 @@ renderer 只保留：透明窗口壳、气泡、工具栏、右键菜单，以�
 >   统一网关起不来，要用的用例需注入实现；
 > - `bundle-ig-electron-caps` 的能力端口化（见上）。
 
+> P3 第二步完成（分支 `refactor/p3-core`）：业务模块物理搬进 `packages/core`（`@nomi-ai/core`，纯 Node，不依赖 Electron）。
+>
+> - 搬家（`git mv`，单测随模块走）：`cli/` `usage/` `gateway/` `memory/` `knowledge/` `schedule/` `agents/`
+>   `extensions/` `local/` `voice/` `tts/` `diagnostics/` `onboarding/` `theme/` `character/` `persona/` `i18n/`
+>   `startup/` `desktop/` `sandbox/` `screen/`，以及 `chat/ChatBackgroundService`、`core/{ServiceContainer,EventBus,
+appEvents,serviceTokens,lifecycle}`、`security/{netGuard,shellEscape,secretStorage}`、`utils/{privateFile,log,
+coalescedWriter,redact}`、`services/{Logger,Config,Cache,Update}Service`、`mascot/{mascotEvents,mascotSize}`（纯数据）、
+>   `ai/{mascotCommand,gatewayUsage,mascotBridge}`；目录结构不变；
+> - 包形态：tsc 编译成 CommonJS 到 `dist/`，`exports` 按子路径导出（`@nomi-ai/core/<模块路径>`，`i18n`、
+>   `gateway/agents`、`cli/harness` 三个目录入口单列）；electron 从这里 import，它的 Jest 把 `@nomi-ai/core/*` 映射到
+>   内核源码（不用先构建，`jest.mock('@nomi-ai/core/…')` 与内核内部的相对 import 是同一个模块）；内核测试仍用 Jest
+>   （electron 的 setup 去掉 electron 模拟），搬过来的测试里的 `jest.mock('electron')` 删除；mock CLI 与
+>   `smoke-silero.cjs` 搬到 `packages/core/scripts/`；`pnpm dev` 同时跑内核的 `tsc -w`；
+> - 反转的依赖：灵动岛提醒经 `DesktopWindows.island()`（组合根注入 `notifyIsland`，`IslandKind` / `IslandNotice` 在
+>   `core/desktop/islandNotice.ts`）；`UpdateService` 只管检查 / 下载状态、重试与设置，`electron-updater` 的
+>   `autoUpdater`（含 `quitAndInstall`）由组合根作为 `updater` 注入；内置背景预设图的路径本来就由宿主给，
+>   `chat/backgroundPreset.ts` 留在宿主；
+> - 契约：不碰窗口的片段进内核 `contract/{types,services,eventBridge,coding,knowledge}.ts`（`CoreContractServices`、
+>   泛型 `ContractDeps<S>`）；宿主 `host/contract/` 留 `media`（`windowManager.openProviderPanel`）、`shell`（`appIcon`、
+>   AI runtime 的供应商）、`mascot`（看板娘窗口、灵动岛）与 `index.ts`（`createAppRouter`，组装 AI 门面），宿主的
+>   `ContractServices` 在内核服务表上加 `windowManager` / `windowActions` / `aiRuntime` / `island`；
+> - 守护（§11.1）：ESLint（error）禁止 `packages/core` import electron、`electron-*` / `@electron/*`、宿主包（含
+>   `bundle-ig-electron-caps` 与 `electron/src` 路径）、视图包与 `ui`；内核单测断言 `package.json` 不含这些依赖；
+>   `ipcSurface` 单测同时扫内核源码；
+> - 打包：electron 依赖 `@nomi-ai/core`（`workspace:*`），electron-builder 顺着依赖把 `node_modules/@nomi-ai/core/dist`
+>   打进 asar（工具子进程与 worker 脚本仍在 `__dirname` 旁边），内核的源码、测试与脚本排除；随内核搬走的运行时依赖
+>   （`fflate`、`onnxruntime-web`、`smol-toml`、`tesseract.js`、`unpdf`、`ws`）从 electron 的 `package.json` 移到内核。
+>   `electron-builder --dir`（macOS arm64）打包通过，asar 里能解析并加载内核模块。
+>
+> 没有抽出 `createCore(deps)`（§7.1）：`core/Application.ts` 仍是组合根，内核服务的创建与窗口、托盘、协议、会话权限
+> 交织在同一个启动流程里，拆开要重排启动顺序，留给 P4（无界面宿主跑 e2e 时一起做）。
+>
+> 剩下的：
+>
+> - `createCore` 与宿主 main 的拆分（见上）；`packages/electron` 改名 `host-electron` 未做；
+> - 留在宿主、但本质是业务的：`ai/AIRuntimeBoot.ts`（依赖 `bundle-ig-electron-caps`）、`ai/TtsElectronNativeProvider.ts`
+>   与 `services/AdvancedTTSEngine.ts`（系统 TTS，读 `process.resourcesPath`）、`core/BootstrapManager.ts`、
+>   `utils/ErrorHandler.ts`；契约处理函数 `media` / `shell` 要等声明式窗口意图（`windows.open(…)`）与应用图标端口；
+> - 内核依赖 `ai-runtime`，后者的 `package.json` 仍把 `bundle-ig-electron-caps` 与（可选的）`electron` 列为 peer；
+> - 内核里仍有模块级单例（`getXxxService()`、`eventBus`、`setMascotAppEvents` 等），`createCore` 时收进实例；
+> - e2e-headed（真实 Electron）没有跑，要在 Linux + xvfb 上跑一轮。
+
 | 阶段 | 内容                                                                                                                                                                | 完成标准                                               |
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
 | P0   | ① lint 护栏：`packages/electron/src` 中除宿主目录（§7.2 右列）外，新增 electron import 报错（已有的列入白名单，只减不增）；② `PersonaService`，删两处人设硬编码     | 护栏进 CI；换皮后系统提示不再是 Nomi                   |
