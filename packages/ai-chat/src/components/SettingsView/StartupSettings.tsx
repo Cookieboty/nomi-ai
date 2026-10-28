@@ -4,7 +4,15 @@
  * 默认界面与看板娘开关互相联动，所以两组由同一个组件持有状态；语言行和大小滑块由调用方以插槽传入。
  * 主进程 startup/StartupService（ai:startup:*）持久化，下次启动生效；首次引导里有同一个选项。
  */
-import { SegmentedControl, SettingRow, SettingsGroup, Switch, t, useLocale } from '@nomi-ai/ui';
+import {
+  SegmentedControl,
+  SettingRow,
+  SettingsGroup,
+  Switch,
+  t,
+  tName,
+  useLocale,
+} from '@nomi-ai/ui';
 import React, { useEffect, useState } from 'react';
 
 import { characterName, useCharacterName } from '../../services/characterName';
@@ -20,12 +28,13 @@ const OPTIONS: { id: StartupView; label: () => string; hint: () => string }[] = 
   {
     id: 'mascot',
     label: () => characterName(),
-    hint: () => t('ui.mascot-theme.startup-mascot-first', characterName()),
+    hint: () => tName('ui.mascot-theme.startup-mascot-first', characterName()),
   },
   {
     id: 'main',
     label: () => t('ui.mascot-theme.main-window'),
-    hint: () => t('ui.mascot-theme.open-the-main-window-right-after-launch-nomi', characterName()),
+    hint: () =>
+      tName('ui.mascot-theme.open-the-main-window-right-after-launch-nomi', characterName()),
   },
 ];
 
@@ -33,13 +42,16 @@ const CLOSE_OPTIONS: { id: CloseMainAction; label: () => string; hint: () => str
   {
     id: 'hide',
     label: () => t('ui.mascot-theme.hide-to-tray'),
-    hint: () => t('ui.mascot-theme.only-the-main-window-closes-nomi-and-the', characterName()),
+    hint: () => tName('ui.mascot-theme.only-the-main-window-closes-nomi-and-the', characterName()),
   },
   {
     id: 'quit',
     label: () => t('ui.mascot-theme.quit-nomi'),
     hint: () =>
-      t('ui.mascot-theme.closing-the-main-window-quits-nomi-completely-including', characterName()),
+      tName(
+        'ui.mascot-theme.closing-the-main-window-quits-nomi-completely-including',
+        characterName(),
+      ),
   },
 ];
 
@@ -171,27 +183,27 @@ export const StartupSettings: React.FC<{
       </SettingsGroup>
 
       <SettingsGroup
-        title={t('ui.mascot-theme.desktop-nomi', name)}
+        title={tName('ui.mascot-theme.desktop-nomi', name)}
         data-testid="settings-mascot-group"
       >
         <SettingRow
-          title={t('ui.mascot-theme.show-nomi', name)}
+          title={tName('ui.mascot-theme.show-nomi', name)}
           description={
             view === 'mascot'
-              ? t('ui.mascot-theme.when-off-nomi-is-hidden-from-your-desktop', name)
-              : t('ui.mascot-theme.when-off-mascot-hidden-island-ok', name)
+              ? tName('ui.mascot-theme.when-off-nomi-is-hidden-from-your-desktop', name)
+              : tName('ui.mascot-theme.when-off-mascot-hidden-island-ok', name)
           }
         >
           <Switch
             checked={showMascot}
             onChange={toggleMascot}
-            aria-label={t('ui.mascot-theme.show-nomi', name)}
+            aria-label={tName('ui.mascot-theme.show-nomi', name)}
             data-testid="startup-show-mascot"
           />
         </SettingRow>
         {switchedNotice && (
           <p className={base.muted} role="status" data-testid="startup-mascot-switched">
-            {t('ui.mascot-theme.nomi-is-closed-show-on-startup-has-been', name)}
+            {tName('ui.mascot-theme.nomi-is-closed-show-on-startup-has-been', name)}
           </p>
         )}
         {mascotSize?.(showMascot)}

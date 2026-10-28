@@ -16,7 +16,7 @@ import {
 } from '@nomi-ai/core/ai/mascotCommand';
 import type { AppEvents } from '@nomi-ai/core/core/appEvents';
 import type { GatewayStateView } from '@nomi-ai/core/gateway/GatewayService';
-import { onLocaleChange, t } from '@nomi-ai/core/i18n';
+import { onLocaleChange, t, tName } from '@nomi-ai/core/i18n';
 import type { ILoggerService } from '@nomi-ai/core/services/LoggerService';
 import {
   Menu,
@@ -132,7 +132,7 @@ export interface TrayModelSource {
 
 export interface TrayManagerOptions {
   providers: ProviderService;
-  /** 当前角色名（人设，当前界面语言）：「<角色名>的动作」子菜单用，不写死官方角色名（§10.1） */
+  /** 当前角色简称（人设，当前界面语言）：「<角色名> 动作」子菜单用，不写死官方角色名（§10.1） */
   characterName?: () => string | undefined;
   /** 角色名可能变了（换角色包 / 换界面语言后人设更新）：托盘菜单重建；返回取消订阅 */
   onCharacterChange?: (fn: () => void) => () => void;
@@ -300,7 +300,7 @@ export class TrayManager {
       },
       { type: 'separator' },
       {
-        label: t(
+        label: tName(
           'electron.common.nomi-motions',
           this.opts.characterName?.() || t('ui.mascot-theme.the-mascot'),
         ),

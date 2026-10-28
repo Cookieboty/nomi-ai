@@ -22,6 +22,7 @@ import {
   migrateLegacyCopy,
   migrateLegacyPersona,
   normalizePackPath,
+  personaNames,
   personaSchema,
   type CharacterLocale,
   type PersonaData,
@@ -70,7 +71,7 @@ export function resolvePersona(bundle: PersonaBundle, uiLocale: string): Persona
   const base = bundle.persona;
   const persona: Persona = {
     characterId: bundle.characterId,
-    displayName: override?.displayName ?? base.displayName,
+    ...personaNames(base, override),
     systemPromptIdentity: override?.systemPromptIdentity ?? base.systemPromptIdentity,
     greetings: [...(override?.greetings ?? base.greetings)],
   };

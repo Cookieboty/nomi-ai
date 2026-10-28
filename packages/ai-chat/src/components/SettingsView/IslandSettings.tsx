@@ -1,7 +1,7 @@
 /**
  * 设置 → 通知：灵动岛式通知开关 / 样式 / 类型，测试按钮。主进程 IslandService（island:*）。
  */
-import { Button, SettingRow, SettingsGroup, Switch, t } from '@nomi-ai/ui';
+import { Button, SettingRow, SettingsGroup, Switch, t, tName } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import { api, hasTransport } from '../../services/api';
@@ -60,7 +60,7 @@ export const IslandSettings: React.FC = () => {
             ? s.mode === 'notch'
               ? t('ui.mascot-theme.notch-display-detected-notifications-expand-out-of-the')
               : t('ui.mascot-theme.no-notch-on-this-display-notifications-appear-as')
-            : t('ui.mascot-theme.on-windows-linux-this-is-an-optional-top', name)
+            : tName('ui.mascot-theme.on-windows-linux-this-is-an-optional-top', name)
         }
         actions={
           <Button
@@ -77,7 +77,7 @@ export const IslandSettings: React.FC = () => {
       >
         <SettingRow
           title={t('ui.mascot-theme.enable-dynamic-island-notifications')}
-          description={t(
+          description={tName(
             'ui.chat-settings.when-off-system-notifications-are-used-while-nomi',
             name,
           )}

@@ -6,8 +6,10 @@
 export interface Persona {
   /** 角色 id（manifest.id；官方角色为 `nomi`） */
   characterId: string;
-  /** 角色名（当前界面语言） */
+  /** 角色全名（当前界面语言）：界面第一次提到角色时用（docs/BRAND.md） */
   displayName: string;
+  /** 角色简称（当前界面语言）：之后再提到时用；没有时同 displayName */
+  shortName?: string;
   /** 系统提示里的身份段（只描述「你是谁」，不含对话行为要求） */
   systemPromptIdentity: string;
   /** 角色对用户的称呼 */

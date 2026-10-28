@@ -69,7 +69,7 @@
   "ui.providers-schedule.no-official-accounts-yet": "还没有官方账号。",
   "ui.providers-schedule.no-quiet-hours": "未设免打扰",
   "ui.providers-schedule.no-scheduled-tasks-yet": "还没有定时任务",
-  "ui.providers-schedule.nomi-says": "{0} 说：「{1}」",
+  "ui.providers-schedule.nomi-says": "{0}说：「{1}」",
   "ui.providers-schedule.nomi-won-t-start-chats": "Nomi 不会主动搭话",
   "ui.providers-schedule.none": "无",
   "ui.providers-schedule.not-chatting-now": "暂不搭话：{0}",

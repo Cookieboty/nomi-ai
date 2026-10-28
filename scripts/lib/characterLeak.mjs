@@ -16,6 +16,25 @@
 /** 只属于角色的名字（中文名）：出现即算泄漏 */
 export const CHARACTER_ONLY = /诺米/g;
 
+/**
+ * 官方角色包里的「诺米」：「Nomi·诺米」是一个完整的名字，界面上不单独写「诺米」（docs/BRAND.md：
+ * 中文界面第一次提到写「Nomi·诺米」，之后写「Nomi」）。前面不是「Nomi·」的「诺米」就算。
+ */
+export const BARE_CHINESE_NAME = /(?<!Nomi·)诺米/g;
+
+/**
+ * 找单独出现的「诺米」（前面不是「Nomi·」），返回每一处所在的片段（前后各取几个字，便于定位）。
+ * @param {string} text
+ * @returns {string[]}
+ */
+export function findBareChineseName(text) {
+  const out = [];
+  for (const m of text.matchAll(new RegExp(BARE_CHINESE_NAME.source, 'g'))) {
+    out.push(text.slice(Math.max(0, m.index - 6), m.index + m[0].length + 6));
+  }
+  return out;
+}
+
 /** 角色语境下的 Nomi（产品语境的 Nomi 不在这里） */
 export const CHARACTER_NOMI = [
   // 以角色身份自称 / 被称呼

@@ -1,4 +1,4 @@
-import { t } from '@nomi-ai/ui';
+import { t, tName } from '@nomi-ai/ui';
 import { RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
@@ -75,7 +75,7 @@ export const MascotContextMenu: React.FC = () => {
       ref={ref}
       className={styles.menu}
       role="menu"
-      aria-label={t('ui.usage-tools.nomi-size', characterName())}
+      aria-label={tName('ui.usage-tools.nomi-size', characterName())}
       data-mascot-ui=""
       data-testid="mascot-context-menu"
       style={{ left: pos.x, top: pos.y, width: MENU_W }}

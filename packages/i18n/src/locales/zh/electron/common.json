@@ -255,7 +255,7 @@
   "electron.common.nomi-doesn-t-support-a-working-directory-cwd": "Nomi 不支持指定工作目录（cwd），已忽略",
   "electron.common.nomi-doesn-t-support-mcp-servers-yet": "Nomi 暂不支持 {0} 类型的 MCP 服务器",
   "electron.common.nomi-model-must-be-followed-by-provider-model": "--nomi-model 后面要跟 供应商/模型",
-  "electron.common.nomi-motions": "{0}的动作",
+  "electron.common.nomi-motions": "{0}动作",
   "electron.common.not-a-file": "不是文件",
   "electron.common.not-found": "未找到",
   "electron.common.not-valid-json": "不是有效的 JSON",

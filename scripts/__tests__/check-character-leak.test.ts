@@ -4,8 +4,8 @@ import { dirname, join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { ALLOW, checkCharacterLeak } from '../check-character-leak.mjs';
-import { findCharacterLeaks } from '../lib/characterLeak.mjs';
+import { ALLOW, BARE_ALLOW, checkCharacterLeak } from '../check-character-leak.mjs';
+import { findBareChineseName, findCharacterLeaks } from '../lib/characterLeak.mjs';
 
 // 角色名扫描（docs/design/core-host-decoupling.md §11.2）：规则与扫描范围
 describe('findCharacterLeaks', () => {
@@ -54,6 +54,28 @@ describe('findCharacterLeaks', () => {
   });
 });
 
+// 「Nomi·诺米」是一个完整的名字：界面上不单独写「诺米」（docs/BRAND.md）
+describe('findBareChineseName', () => {
+  it.each([
+    '诺米',
+    '显示诺米',
+    '你好，我是诺米',
+    '助手模式：只和诺米对话',
+    '诺米 v{0} 版本',
+    'Nomi 诺米',
+    'Nomi · 诺米',
+  ])('flags a bare 诺米: %s', (text) => {
+    expect(findBareChineseName(text)).toHaveLength(1);
+  });
+
+  it.each(['Nomi·诺米', '你好，我是 Nomi·诺米', '显示 Nomi', 'Nomi·诺米（默认角色）'])(
+    'leaves the whole name alone: %s',
+    (text) => {
+      expect(findBareChineseName(text)).toEqual([]);
+    },
+  );
+});
+
 describe('checkCharacterLeak', () => {
   let root = '';
   const put = (rel: string, text: string) => {
@@ -75,7 +97,7 @@ describe('checkCharacterLeak', () => {
     put('packages/app/src/y.test.ts', 'expect(x).not.toMatch(/诺米/);\n');
     put('packages/app/dist/index.js', "'诺米'\n");
     put('packages/types/src/brand.ts', "export const brand = { appName: 'Nomi' };\n");
-    put('characters/nomi/persona.json', '{ "displayName": "诺米" }\n');
+    put('characters/nomi/persona.json', '{ "displayName": "Nomi·诺米" }\n');
     put('characters/other/persona.json', '{ "systemPromptIdentity": "你是 Nomi" }\n');
     const { leaks } = checkCharacterLeak({ root, allow: [] });
     expect(leaks.map((l) => `${l.file}:${l.line}`).sort()).toEqual([
@@ -118,13 +140,40 @@ describe('checkCharacterLeak', () => {
     expect(stale.unusedAllow).toHaveLength(1);
   });
 
+  it('flags a bare 诺米 in the official pack; BARE_ALLOW entries suppress it and must be used', () => {
+    root = mkdtempSync(join(tmpdir(), 'char-leak-'));
+    put('characters/nomi/persona.json', '{\n  "displayName": "诺米"\n}\n');
+    put(
+      'characters/nomi/locales/zh.json',
+      '{\n  "wakePhrase": "你好，诺米",\n  "x": "Nomi·诺米"\n}\n',
+    );
+    put('characters/nomi/manifest.json', '{ "displayName": "Nomi·诺米" }\n');
+    const wake = {
+      file: 'characters/nomi/locales/zh.json',
+      contains: '"wakePhrase": "你好，诺米"',
+      reason: 'test',
+    };
+    const res = checkCharacterLeak({ root, allow: [], bareAllow: [wake] });
+    expect(res.leaks.map((l) => `${l.file}:${l.line}`)).toEqual(['characters/nomi/persona.json:2']);
+    expect(res.unusedBareAllow).toEqual([]);
+    const stale = checkCharacterLeak({
+      root,
+      allow: [],
+      bareAllow: [wake, { file: 'characters/nomi/gone.json', contains: '诺米', reason: 'test' }],
+    });
+    expect(stale.unusedBareAllow).toHaveLength(1);
+  });
+
   it('every allow-list entry gives a reason', () => {
-    for (const a of ALLOW) expect(a.reason.trim().length).toBeGreaterThan(10);
+    for (const a of [...ALLOW, ...BARE_ALLOW]) expect(a.reason.trim().length).toBeGreaterThan(10);
   });
 
   it('the repository passes', () => {
-    const { leaks, unusedAllow } = checkCharacterLeak({ root: join(__dirname, '../..') });
+    const { leaks, unusedAllow, unusedBareAllow } = checkCharacterLeak({
+      root: join(__dirname, '../..'),
+    });
     expect(leaks).toEqual([]);
     expect(unusedAllow).toEqual([]);
+    expect(unusedBareAllow).toEqual([]);
   });
 });

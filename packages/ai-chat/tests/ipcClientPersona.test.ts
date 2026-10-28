@@ -1,4 +1,7 @@
 // @vitest-environment happy-dom
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import type { Persona } from '@nomi-ai/types';
 import { t } from '@nomi-ai/ui';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -63,6 +66,19 @@ describe('SdkIPCClient · default system prompt comes from the persona', () => {
     expect(sys.startsWith('You are Pip, a paper robot.')).toBe(true);
     expect(sys).toContain(t(GUIDANCE));
     expect(sys).not.toMatch(/Nomi|诺米/);
+  });
+
+  // 官方角色发给模型的默认系统提示（中文界面）：与 2.0.5 逐字一致。界面上的角色名（全名 / 简称）
+  // 是另一条路径，改它不能动到这里（docs/BRAND.md）。
+  it('pins the official default system prompt', () => {
+    const official = JSON.parse(
+      readFileSync(resolve(__dirname, '../../../characters/nomi/persona.json'), 'utf8'),
+    ) as Persona;
+    expect(defaultSystemPrompt({ ...official, characterId: 'nomi' })).toBe(
+      '你是 Nomi（诺米），住在用户桌面上的 AI 伙伴。\n' +
+        '你运行在用户自己的电脑上。语气温暖、专业、可信赖：先给结论，再给步骤；不确定时坦诚说明。' +
+        '请结合之前的对话内容，简洁、准确地回答。',
+    );
   });
 
   it('guidance text carries no character identity', () => {

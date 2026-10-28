@@ -139,7 +139,10 @@ export const CharacterPackSnapshot = z.looseObject({
   source: z.enum(['userData', 'resources', 'builtin']),
   id: z.string().nullable(),
   mode: z.string().nullable(),
+  /** 角色全名（第一次提到时用） */
   displayName: z.object({ zh: z.string(), en: z.string() }).nullable(),
+  /** 角色简称（之后再提到时用）；旧主进程不发这个字段 */
+  shortName: z.object({ zh: z.string(), en: z.string() }).nullable().optional(),
   /** 有运行时覆盖包时非空：character-pack://pack/... */
   assetBaseUrl: z.string().nullable(),
   onboarding: z
@@ -190,6 +193,8 @@ export const CharacterPackSnapshot = z.looseObject({
 export const Persona = z.looseObject({
   characterId: z.string(),
   displayName: z.string(),
+  /** 简称；旧主进程不发，用 displayName */
+  shortName: z.string().optional(),
   systemPromptIdentity: z.string(),
   addressUser: z.string().optional(),
   greetings: z.array(z.string()),

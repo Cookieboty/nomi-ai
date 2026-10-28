@@ -373,7 +373,10 @@ export class Application implements IApplication {
     const gateway = this.core.services.gateway;
     this.trayManager = new TrayManager({
       providers,
-      characterName: () => this.core.services.persona?.get().displayName,
+      characterName: () => {
+        const p = this.core.services.persona?.get();
+        return p?.shortName || p?.displayName;
+      },
       onCharacterChange: (fn) => this.core.services.persona?.onChange(() => fn()) ?? (() => {}),
       models: gateway
         ? {

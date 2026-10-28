@@ -10,7 +10,12 @@
  */
 import path from 'node:path';
 
-import { CONTRACT, PRIMARY_CHARACTER_LOCALE, type PackMapping } from '@nomi-ai/character-contract';
+import {
+  CONTRACT,
+  PRIMARY_CHARACTER_LOCALE,
+  personaNames,
+  type PackMapping,
+} from '@nomi-ai/character-contract';
 import type { HostPorts } from '@nomi-ai/host-ports';
 
 import { characterPackAssetUrl, registerCharacterPackProtocol } from './packProtocol';
@@ -28,7 +33,10 @@ export interface CharacterPackActiveSnapshot {
   source: PackSource;
   id: string | null;
   mode: string | null;
+  /** Character full name per language (first mention, docs/BRAND.md) */
   displayName: { zh: string; en: string } | null;
+  /** Character short name per language (later mentions); absent on older main processes */
+  shortName?: { zh: string; en: string } | null;
   /** Non-null when an overlay is active — use with character-pack://pack/... */
   assetBaseUrl: string | null;
   onboarding: Record<'welcome' | 'profile' | 'provider' | 'privacy', string> | null;
@@ -48,13 +56,33 @@ export interface CharacterPackActiveSnapshot {
   reason?: string;
 }
 
-/** Display name per language: persona.json (zh) and the en locale's persona override. */
-function displayNameOf(pack: NonNullable<ResolvedPack['pack']>): { zh: string; en: string } {
+type LocalizedName = { zh: string; en: string };
+
+/**
+ * Full and short name per language: persona.json (zh) and the en locale's persona override
+ * (`personaNames`: an en full name without an en short name is also the en short name).
+ */
+function namesOf(pack: NonNullable<ResolvedPack['pack']>): {
+  displayName: LocalizedName;
+  shortName: LocalizedName;
+} {
   const m = pack.manifest;
   const legacy = typeof m.displayName === 'string' ? { zh: m.displayName } : (m.displayName ?? {});
-  const zh = pack.persona?.displayName || legacy.zh || m.id;
-  const en = pack.locales.en?.persona?.displayName || legacy.en || zh;
-  return { zh, en };
+  const zh = personaNames({
+    displayName: pack.persona?.displayName || legacy.zh || m.id,
+    ...(pack.persona?.shortName ? { shortName: pack.persona.shortName } : {}),
+  });
+  const enOverride = pack.locales.en?.persona;
+  const en =
+    enOverride?.displayName || enOverride?.shortName
+      ? personaNames(zh, enOverride)
+      : legacy.en
+        ? { displayName: legacy.en, shortName: legacy.en }
+        : zh;
+  return {
+    displayName: { zh: zh.displayName, en: en.displayName },
+    shortName: { zh: zh.shortName, en: en.shortName },
+  };
 }
 
 function linesOf(pack: NonNullable<ResolvedPack['pack']>): CharacterPackActiveSnapshot['locales'] {
@@ -236,6 +264,7 @@ export class CharacterPackService {
       id: null,
       mode: null,
       displayName: null,
+      shortName: null,
       assetBaseUrl: null,
       onboarding: null,
       voiceBaseUrl: null,
@@ -253,7 +282,7 @@ export class CharacterPackService {
     const identity = {
       id: pack.manifest.id,
       mode: pack.mode,
-      displayName: displayNameOf(pack),
+      ...namesOf(pack),
       hitboxes: r.hitboxes,
       locales: linesOf(pack),
       mapping: pack.mapping,

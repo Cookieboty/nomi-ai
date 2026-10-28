@@ -8,6 +8,7 @@ import {
   format as formatMessage,
   isLocalePref,
   resolveLocale,
+  spaceAround,
   type LocalePref as CatalogLocalePref,
 } from '@nomi-ai/i18n';
 import {
@@ -20,7 +21,7 @@ import {
 
 export type Locale = 'zh-CN' | 'en';
 export type LocalePref = CatalogLocalePref;
-export { isLocalePref, resolveLocale };
+export { isLocalePref, resolveLocale, spaceAround };
 
 let pref: LocalePref = 'system';
 // 单元测试（Vitest）默认中文，断言沿用中文原文；需要英文时显式 applyLocale('en')
@@ -46,6 +47,14 @@ export function t(key: string, ...args: unknown[]): string;
 export function t<T>(key: T): T;
 export function t(key: unknown, ...args: unknown[]): unknown {
   return translate(key, ...args);
+}
+
+/**
+ * 带角色名的文案：名字是 `{0}`，其余参数依次是 `{1}`…；中文里名字与汉字之间按排版补空格
+ * （「显示 Ab」「显示小纸」，见 `spaceAround`）。
+ */
+export function tName(key: string, name: string, ...rest: unknown[]): string {
+  return spaceAround(t(key, name, ...rest), name);
 }
 
 export const getLocale = (): Locale => locale;

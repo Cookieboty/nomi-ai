@@ -5,7 +5,17 @@
  *   Edge 可选中文音色（在线列表，失败用内置几个）、调语速、试听；连续失败时显示白话提示。
  *   Azure / OpenAI 暂未接入，选了保持静默。
  */
-import { Button, FormField, Input, Notice, Select, SettingsGroup, Switch, t } from '@nomi-ai/ui';
+import {
+  Button,
+  FormField,
+  Input,
+  Notice,
+  Select,
+  SettingsGroup,
+  Switch,
+  t,
+  tName,
+} from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { characterName } from '../../services/characterName';
@@ -102,7 +112,7 @@ export const TtsEngineCard: React.FC = () => {
       previewAudio.current?.pause();
       const url = await ttsConfigClient.preview(
         draft(),
-        t('ui.voice-mascot.preview-sentence', characterName()),
+        tName('ui.voice-mascot.preview-sentence', characterName()),
       );
       if (!url) {
         setResult({ ok: false, text: t('ui.voice-mascot.preview-unavailable') });

@@ -64,12 +64,15 @@ describe('characterLocaleOf / resolvePersona', () => {
     expect(resolvePersona(dummy, 'zh-CN')).toEqual({
       characterId: 'test-dummy',
       displayName: '小纸',
+      shortName: '小纸',
       systemPromptIdentity: '你是小纸，一个纸片机器人。',
       addressUser: '船长',
       greetings: ['哔！'],
     });
     const en = resolvePersona(dummy, 'en');
     expect(en.displayName).toBe('Pip');
+    // 覆盖了全名没给简称：简称跟着这一语言的全名
+    expect(en.shortName).toBe('Pip');
     expect(en.systemPromptIdentity).toBe('You are Pip, a paper robot.');
     // 覆盖里没有的字段沿用主语言
     expect(en.greetings).toEqual(['哔！']);
@@ -86,6 +89,20 @@ describe('official persona (built-in pack characters/nomi)', () => {
     expect(svc.get().systemPromptIdentity).not.toContain('简洁');
     const en = new PersonaService({ sources: [officialPersonaSource()], locale: () => 'en' });
     expect(en.get().systemPromptIdentity).toMatch(/^You are Nomi/);
+  });
+
+  // 发给模型的身份段与 2.0.5 逐字一致；界面上的名字（全名 / 简称）与它分开，改界面名字不能动到这里
+  it('pins the identity sent to the model and the UI names (docs/BRAND.md)', () => {
+    const zh = new PersonaService({ sources: [officialPersonaSource()], locale: () => 'zh-CN' });
+    expect(zh.get().systemPromptIdentity).toBe('你是 Nomi（诺米），住在用户桌面上的 AI 伙伴。');
+    expect(zh.get().displayName).toBe('Nomi·诺米');
+    expect(zh.get().shortName).toBe('Nomi');
+    const en = new PersonaService({ sources: [officialPersonaSource()], locale: () => 'en' });
+    expect(en.get().systemPromptIdentity).toBe(
+      'You are Nomi, an AI companion living on the user desktop.',
+    );
+    expect(en.get().displayName).toBe('Nomi');
+    expect(en.get().shortName).toBe('Nomi');
   });
 
   it('falls back to a neutral identity that names no character', () => {
@@ -209,12 +226,12 @@ describe('PersonaService', () => {
     expect(seen).toEqual([]);
 
     locale = 'zh-CN';
-    expect(svc.localeChanged().displayName).toBe('诺米');
+    expect(svc.localeChanged().displayName).toBe('Nomi·诺米');
 
     pack = dummy;
     svc.reload();
     svc.reload();
-    expect(seen).toEqual(['nomi:诺米', 'test-dummy:小纸']);
+    expect(seen).toEqual(['nomi:Nomi·诺米', 'test-dummy:小纸']);
 
     off();
     locale = 'en';

@@ -5,7 +5,7 @@
  * 它们改动后会广播到这里，滑块同步。
  */
 import type { MascotScaleState } from '@nomi-ai/types';
-import { Button, SettingRow, Slider, t } from '@nomi-ai/ui';
+import { Button, SettingRow, Slider, t, tName } from '@nomi-ai/ui';
 import { Minus, Plus } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 
@@ -56,11 +56,11 @@ export const MascotSizeSettings: React.FC<{ disabled?: boolean }> = ({ disabled 
   return (
     <SettingRow
       data-testid="settings-mascot-size"
-      title={t('ui.usage-tools.nomi-size', name)}
+      title={tName('ui.usage-tools.nomi-size', name)}
       description={
         <>
           {disabled
-            ? t('ui.chat-settings.nomi-is-hidden-show-it-to-adjust-its', name)
+            ? tName('ui.chat-settings.nomi-is-hidden-show-it-to-adjust-its', name)
             : t('ui.usage-tools.you-can-also-hold-ctrl-on-macos-and')}
           {s && s.max < s.hardMax - 1e-6 && (
             <>
@@ -92,7 +92,7 @@ export const MascotSizeSettings: React.FC<{ disabled?: boolean }> = ({ disabled 
           step={0.01}
           value={shown}
           disabled={off}
-          aria-label={t('ui.usage-tools.nomi-size', name)}
+          aria-label={tName('ui.usage-tools.nomi-size', name)}
           aria-valuetext={`${pct(shown)}%`}
           data-testid="mascot-size-slider"
           onPointerDown={() => {

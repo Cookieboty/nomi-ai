@@ -12,6 +12,7 @@ import {
   getDictionary,
   isLocalePref,
   resolveLocale,
+  spaceAround,
   type LocalePref as CatalogLocalePref,
 } from '@nomi-ai/i18n';
 
@@ -30,6 +31,11 @@ export function t(key: string, ...args: unknown[]): string;
 export function t<T>(key: T): T;
 export function t(key: unknown, ...args: unknown[]): unknown {
   return translate(key, ...args);
+}
+
+/** 带角色名（`{0}`）的文案：中文里名字与汉字之间按排版补空格（见 `spaceAround`） */
+export function tName(key: string, name: string, ...rest: unknown[]): string {
+  return spaceAround(t(key, name, ...rest), name);
 }
 
 export const getLocale = (): Locale => locale;

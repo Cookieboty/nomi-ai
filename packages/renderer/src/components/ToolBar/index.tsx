@@ -1,6 +1,6 @@
 import { layoutStore } from '@nomi-ai/avatar-runtime';
 import { brand } from '@nomi-ai/types';
-import { createLogger, t as tr } from '@nomi-ai/ui';
+import { createLogger, t as tr, tName } from '@nomi-ai/ui';
 import { Switch, Tooltip } from '@nomi-ai/ui';
 import {
   AudioLines,
@@ -74,7 +74,7 @@ const BAR_GAP = 8;
 const TOOL_META: Record<string, { title: () => string; desc: () => string }> = {
   'ai-chat': {
     title: () => tr('ui.voice-mascot.ai-chat'),
-    desc: () => tr('ui.voice-mascot.chat-with-nomi', characterName()),
+    desc: () => tName('ui.voice-mascot.chat-with-nomi', characterName()),
   },
   'voice-input': {
     title: () => tr('ui.voice-mascot.voice'),
@@ -204,7 +204,7 @@ export const ToolBar: React.FC = () => {
     stopAllSpeech();
     if (!(await closeMascot()))
       showMessage(
-        tr('ui.voice-mascot.couldn-t-close-nomi-please-try-again-later', characterName()),
+        tName('ui.voice-mascot.couldn-t-close-nomi-please-try-again-later', characterName()),
       );
   }, [showMessage]);
 
@@ -626,7 +626,7 @@ export const ToolBar: React.FC = () => {
       case 'quit':
         return tr('ui.voice-mascot.quit-app');
       case 'close-mascot':
-        return tr('ui.voice-mascot.close-nomi-reopen-it-in-settings', characterName());
+        return tName('ui.voice-mascot.close-nomi-reopen-it-in-settings', characterName());
       case 'voice-settings':
         return voiceEnabled
           ? [
@@ -820,7 +820,7 @@ export const ToolBar: React.FC = () => {
           ref={barRef}
           className={styles.bar}
           role="toolbar"
-          aria-label={tr('ui.voice-mascot.nomi-toolbar', characterName())}
+          aria-label={tName('ui.voice-mascot.nomi-toolbar', characterName())}
           aria-orientation="vertical"
         >
           {primary.map(iconButton)}
@@ -836,7 +836,7 @@ export const ToolBar: React.FC = () => {
           <div
             className={styles.panel}
             role="menu"
-            aria-label={tr('ui.voice-mascot.nomi-panel', characterName())}
+            aria-label={tName('ui.voice-mascot.nomi-panel', characterName())}
             data-testid="toolbar-menu"
             ref={menuRef}
             data-dense={panelBox?.dense ? '' : undefined}
@@ -915,7 +915,7 @@ export const ToolBar: React.FC = () => {
                   <div
                     className={styles.menuRow}
                     role="group"
-                    aria-label={tr('ui.usage-tools.nomi-size', characterName())}
+                    aria-label={tName('ui.usage-tools.nomi-size', characterName())}
                   >
                     <span>{tr('ui.usage-tools.size')}</span>
                     <div className={styles.sizeCtl}>

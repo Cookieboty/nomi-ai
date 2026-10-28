@@ -10,6 +10,7 @@ import {
   migrateLegacyPersona,
   migrateManifest,
   migrateVoiceClipIds,
+  personaNames,
   normalizePackPath,
   resolveLine,
   resolvePersona,
@@ -118,6 +119,13 @@ describe('copy resolution', () => {
   it('resolvePersona applies locale overrides', () => {
     expect(resolvePersona(persona, locales, 'en-US').displayName).toBe('A');
     expect(resolvePersona(persona, locales, 'zh').displayName).toBe('甲');
+  });
+
+  it('personaNames: full and short name; a locale full name without a short name is both', () => {
+    const p = { displayName: '甲·乙', shortName: '甲' };
+    expect(personaNames(p)).toEqual({ displayName: '甲·乙', shortName: '甲' });
+    expect(personaNames(p, { displayName: 'A' })).toEqual({ displayName: 'A', shortName: 'A' });
+    expect(personaNames({ displayName: '甲' })).toEqual({ displayName: '甲', shortName: '甲' });
   });
 
   it('resolveLine falls back to the primary locale and resolves legacy keys', () => {

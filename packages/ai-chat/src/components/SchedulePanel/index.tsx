@@ -1,7 +1,7 @@
 /**
  * SchedulePanel —— 主动日程：提醒（含重复）、定时任务（每日简报等）、主动聊天、免打扰与通知。
  */
-import { ErrorState, LoadingState, t as tr, Icon } from '@nomi-ai/ui';
+import { ErrorState, LoadingState, t as tr, tName, Icon } from '@nomi-ai/ui';
 import {
   Badge,
   Button,
@@ -606,7 +606,7 @@ const Body: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                       void schedClient
                         .proactiveNow()
                         .then((t) =>
-                          setMsg(tr('ui.providers-schedule.nomi-says', characterName(), t)),
+                          setMsg(tName('ui.providers-schedule.nomi-says', characterName(), t)),
                         )
                         .catch((e) => setMsg(errText(e)))
                         .finally(() => setBusy(false));

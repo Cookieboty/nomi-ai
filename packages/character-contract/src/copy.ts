@@ -24,7 +24,26 @@ export function resolvePersona(
   for (const [k, v] of Object.entries(override) as Array<[keyof PersonaData, unknown]>) {
     if (v !== undefined) (merged as Record<string, unknown>)[k] = v;
   }
+  // 覆盖了全名却没给简称：简称跟着这一语言的全名，不沿用主语言的简称
+  if (override.displayName && !override.shortName && persona.shortName) {
+    merged.shortName = override.displayName;
+  }
   return merged;
+}
+
+/**
+ * 某语言下角色的全名与简称。全名用在界面第一次提到角色的地方（欢迎语），简称用在之后
+ * （「显示 X」「X 大小」）；见 docs/BRAND.md。`override` 是 `locales/<lang>.json` 的 persona：它给了全名
+ * 却没给简称时，简称就是它的全名（不沿用主语言的简称）。
+ */
+export function personaNames(
+  persona: Pick<PersonaData, 'displayName' | 'shortName'>,
+  override?: Partial<Pick<PersonaData, 'displayName' | 'shortName'>>,
+): { displayName: string; shortName: string } {
+  const displayName = override?.displayName || persona.displayName;
+  const shortName =
+    override?.shortName || (override?.displayName ? undefined : persona.shortName) || displayName;
+  return { displayName, shortName };
 }
 
 /**

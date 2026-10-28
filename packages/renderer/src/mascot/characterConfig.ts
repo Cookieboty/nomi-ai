@@ -38,8 +38,10 @@ export interface CharacterPackOverlay {
   source: CharacterPackSource;
   id: string | null;
   mode: string | null;
-  /** Character name per UI language (persona.json / locales/en.json persona) */
+  /** Character full name per UI language (persona.json / locales/en.json persona) */
   displayName?: { zh: string; en: string } | null;
+  /** Character short name per UI language; absent on older main processes */
+  shortName?: { zh: string; en: string } | null;
   riveUrl: string | null;
   staticUrl: string | null;
   voiceBaseUrl: string | null;

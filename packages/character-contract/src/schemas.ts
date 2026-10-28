@@ -121,7 +121,10 @@ export type PackManifestInput = z.input<typeof manifestSchema>;
 
 /** persona.json：角色身份。对话的系统提示与问候都从这里读（§10.4）。 */
 export const personaSchema = z.object({
+  /** 全名：界面里第一次提到角色时用（docs/BRAND.md） */
   displayName: nonEmpty,
+  /** 简称：之后再提到时用；缺省时同 displayName（见 `personaNames`） */
+  shortName: nonEmpty.optional(),
   systemPromptIdentity: nonEmpty,
   /** 角色对用户的称呼 */
   addressUser: nonEmpty.optional(),
