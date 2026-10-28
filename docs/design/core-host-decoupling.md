@@ -290,10 +290,10 @@ interface WindowsPort {
 
 ### 6.3 端口实现的位置
 
-| 实现            | 内容                                                                                             |
-| --------------- | ------------------------------------------------------------------------------------------------ |
-| `host-electron` | Electron 实现；`ai-runtime` 的 `createElectronIpcAdapter`、`createElectronLifecycle` 也搬到这里  |
-| `host-node`     | `paths` 指向临时目录；`secrets` 用内存或明文（仅测试）；`dialogs` 返回预设值；`windows` 记录调用 |
+| 实现            | 内容                                                                                                                                                                                      |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `host-electron` | Electron 实现（`src/host/electronPorts.ts`）；`ai-runtime` 的 `createElectronIpcAdapter` 已搬到 `src/host/electronIpcAdapter.ts`，`createElectronLifecycle` 删除（改用 `lifecycle` 端口） |
+| `host-node`     | `paths` 指向临时目录；`secrets` 用内存或明文（仅测试）；`dialogs` 返回预设值；`windows` 记录调用                                                                                          |
 
 `safeStorage` 只是 `secrets` 端口的一种实现。现有 `security/secretStorage.ts` 的逻辑（可用性检查、迁移）留在内核，只把 `safeStorage.encryptString` 调用换成端口。
 
@@ -320,7 +320,7 @@ await core.start();
 
 - 内核没有模块级单例。现有 `core/ServiceContainer.ts`、`core/EventBus.ts` 搬进内核，作为 `createCore` 内部实现。
 - `LoggerService` / `createMainLogger` 改为注入的 `LoggerFactory`；日志文件路径来自 `ports.paths.logs()`。
-- 主进程 i18n（`electron/src/i18n`）与平台无关，搬入内核；界面语言变化通过 `settings.changed` 事件通知。
+- 主进程 i18n 与平台无关，已搬入内核（`core/src/i18n`）；界面语言变化通过 `settings.changed` 事件通知。
 
 #### 实施约定（P2 起，P3 搬家前）
 
@@ -431,7 +431,7 @@ interface HostCapabilities {
 | 角色 | 角色名、人设、立绘、语音、台词            | `characters/<id>`               |
 | 引擎 | Rive / sprite / static 渲染与驱动         | `avatar-runtime`                |
 
-`electron/src/brand.ts` 只留产品常量；`APP_DISPLAY_NAME_ZH = 'Nomi·诺米'` 里的「诺米」属于角色，改为从角色包读取。全仓库的 `Nomi` / `诺米` 逐一归类：产品用法改用 `brand.appName`，角色用法改从人设读取（§11.2 的检查依赖这一步）。
+`host-electron/src/brand.ts` 只留产品常量；`APP_DISPLAY_NAME_ZH = 'Nomi·诺米'` 里的「诺米」属于角色，改为从角色包读取。全仓库的 `Nomi` / `诺米` 逐一归类：产品用法改用 `brand.appName`，角色用法改从人设读取（§11.2 的检查依赖这一步）。
 
 ### 10.2 角色包只含数据
 
@@ -693,17 +693,44 @@ coalescedWriter,redact}`、`services/{Logger,Config,Cache,Update}Service`、`mas
 > - 内核里仍有模块级单例（`getXxxService()`、`eventBus`、`setMascotAppEvents` 等），`createCore` 时收进实例；
 > - e2e-headed（真实 Electron）没有跑，要在 Linux + xvfb 上跑一轮。
 
-| 阶段 | 内容                                                                                                                                                                | 完成标准                                               |
-| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| P0   | ① lint 护栏：`packages/electron/src` 中除宿主目录（§7.2 右列）外，新增 electron import 报错（已有的列入白名单，只减不增）；② `PersonaService`，删两处人设硬编码     | 护栏进 CI；换皮后系统提示不再是 Nomi                   |
-| P1a  | **已完成**。建 `contract` 与 `defineContract`；AI 门面（35 个 `ai.*` 过程 + 12 个事件）上契约，取代两份 `channels.ts`；`ClientAIClient` 改走 `window.nomiTransport` | AI 门面只经契约访问；两份 `channels.ts` 删除           |
-| P1b  | **已完成**。其余 `ai:*` 服务通道与 `window.electronAPI` 的能力逐个进契约；视图改用 client；删除 `window.aiIPC` / `window.electronAPI`                               | 视图中不再出现 `window.aiIPC` / `window.electronAPI`   |
-| P2   | 建 `host-ports`；替换 `app.getPath`（10）、`safeStorage`（9）、`dialog/shell/clipboard` 等（15）；29 处窗口广播改为 `ctx.events.publish`                            | `packages/electron/src` 中业务模块不再 import electron |
-| P3   | 物理搬家：业务模块 → `packages/core`；`packages/electron` → `packages/host-electron`；ai-runtime 的 Electron 适配器移入宿主                                         | 目录与 §3.3 一致；P0 白名单清空                        |
-| P4   | `host-node` + in-process / WebSocket 传输；`e2e/` 改跑无界面宿主                                                                                                    | §11.3 前两项通过                                       |
-| C1   | `character-contract` 包；官方资产与人设集中到 `characters/nomi`；删 Scheme A 原地覆盖与两份 `character.generated.json`                                              | 官方构建与白标构建走同一路径                           |
-| C2   | 拆出 `avatar-runtime`；renderer 只留窗口壳                                                                                                                          | avatar-runtime 能在 Storybook 单独运行                 |
-| C3   | 语义事件协议 + `mapping.json`；工具与 preset 改名（不保留别名）                                                                                                     | AI 侧代码中不出现 clip / motion 名；§11.3 替身角色通过 |
+> P3 第三步完成（分支 `refactor/p3-core`）：`packages/electron` 改名 `packages/host-electron`，包名
+> `@nomi-ai/host-electron`（`git mv`）。
+>
+> - 引用全部改到新路径 / 包名：锁文件、`turbo.json`（任务键与 inputs）、根 `package.json`（`dev` / `dev:libs` /
+>   `build:electron`）、ESLint（`eslint.config.mjs` 与 `scripts/eslint/` 的宿主区域与白名单；内核禁止 import 宿主的规则
+>   改为 `@nomi-ai/host-electron` 与 `**/host-electron/src/**`，用临时文件确认仍报错）、`scripts/`（i18n 扫描、发布脚本读的
+>   版本号、测量脚本）、`e2e-headed/`（应用目录与解析 electron 的起点）、ai-chat 的 Vite 配置（CSP）、CI、CODEOWNERS、
+>   素材许可登记（`assets-licenses.json`、`CREDITS.md`、`THIRD_PARTY_NOTICES.md`）、changeset 配置的 `ignore` 与待发布
+>   changeset 的包名、AGENTS.md 与文档；`pnpm-workspace.yaml` 用 `packages/*`，不用改；各包 CHANGELOG 与本节之前的进度
+>   说明保留旧名；
+> - 开发态 userData 目录名随包名变成 `@nomi-ai/host-electron`：`utils/legacyUserData.ts` 的 `LEGACY_DEV_NAMES` 加上
+>   `@nomi-ai/electron`（排在 `@ig-live/electron` 前），新目录还没有应用数据时从旧目录复制；打包产物的目录名来自
+>   `productName`（Nomi），不受影响；
+> - 在 macOS 上从改名后的包启动真实应用跑了 e2e-headed 的 E5（生产模式冒烟）与 E17（契约驱动 harness），
+>   `electron-builder --dir`（macOS arm64）打包通过。
+>
+> **P3 小结**：业务模块在 `packages/core`（纯 Node），宿主在 `packages/host-electron`，ai-runtime 不再认识 Electron；
+> §12 表里的完成标准还差两项，都留给 P4：
+>
+> - P0 白名单没有清空：`core/Application.ts` 仍是组合根（内核服务的创建与窗口、托盘、协议、会话权限在同一个启动流程里），
+>   要拆成内核 `createCore(deps)` 与宿主 main；`bundle-ig-electron-caps/src/electronLoader.ts` 要等插件能力经宿主端口注入；
+> - 宿主里还有本质是业务的代码：`ai/AIRuntimeBoot.ts`、`ai/TtsElectronNativeProvider.ts`、`services/AdvancedTTSEngine.ts`、
+>   `core/BootstrapManager.ts`、`utils/ErrorHandler.ts`，以及契约处理函数 `media` / `shell`（等声明式窗口意图与应用图标端口）；
+> - 内核里的模块级单例（`getXxxService()`、`eventBus` 等）、ai-runtime 的 `package.json` 仍列 `bundle-ig-electron-caps` 与
+>   `electron` 为 peer，见上一条进度说明；
+> - e2e-headed 完整一轮仍要在 Linux + xvfb 上跑。
+
+| 阶段 | 内容                                                                                                                                                                                    | 完成标准                                                                                                            |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| P0   | ① lint 护栏：`packages/electron/src` 中除宿主目录（§7.2 右列）外，新增 electron import 报错（已有的列入白名单，只减不增）；② `PersonaService`，删两处人设硬编码                         | 护栏进 CI；换皮后系统提示不再是 Nomi                                                                                |
+| P1a  | **已完成**。建 `contract` 与 `defineContract`；AI 门面（35 个 `ai.*` 过程 + 12 个事件）上契约，取代两份 `channels.ts`；`ClientAIClient` 改走 `window.nomiTransport`                     | AI 门面只经契约访问；两份 `channels.ts` 删除                                                                        |
+| P1b  | **已完成**。其余 `ai:*` 服务通道与 `window.electronAPI` 的能力逐个进契约；视图改用 client；删除 `window.aiIPC` / `window.electronAPI`                                                   | 视图中不再出现 `window.aiIPC` / `window.electronAPI`                                                                |
+| P2   | 建 `host-ports`；替换 `app.getPath`（10）、`safeStorage`（9）、`dialog/shell/clipboard` 等（15）；29 处窗口广播改为 `ctx.events.publish`                                                | `packages/electron/src` 中业务模块不再 import electron                                                              |
+| P3   | **基本完成**（见上方 P3 小结）。物理搬家：业务模块 → `packages/core`；`packages/electron` → `packages/host-electron`（`@nomi-ai/host-electron`）；ai-runtime 的 Electron 适配器移入宿主 | 目录与 §3.3 一致；P0 白名单清空（还剩组合根 `core/Application.ts` 与 `electronLoader`，随 P4 的 `createCore` 清空） |
+| P4   | `host-node` + in-process / WebSocket 传输；`e2e/` 改跑无界面宿主                                                                                                                        | §11.3 前两项通过                                                                                                    |
+| C1   | `character-contract` 包；官方资产与人设集中到 `characters/nomi`；删 Scheme A 原地覆盖与两份 `character.generated.json`                                                                  | 官方构建与白标构建走同一路径                                                                                        |
+| C2   | 拆出 `avatar-runtime`；renderer 只留窗口壳                                                                                                                                              | avatar-runtime 能在 Storybook 单独运行                                                                              |
+| C3   | 语义事件协议 + `mapping.json`；工具与 preset 改名（不保留别名）                                                                                                                         | AI 侧代码中不出现 clip / motion 名；§11.3 替身角色通过                                                              |
 
 - **P1a 的行为变化**：AI 门面的业务事件（`ai.agent.step`、`ai.tts.chunk`、`ai.userProfile.changed` 等）改由契约传输按订阅分发，**只推给订阅了该事件的窗口**；以前 `EventBroadcaster` 经 `ai:event` 通道广播给所有存活窗口（可选按窗口过滤），该通道已删除。没有经契约订阅的窗口（含直接监听 `ai:event` 的页面）收不到这些事件，P1b 迁移视图时要改成显式订阅；窗口导航或刷新后订阅随会话一起失效，由新页面重新订阅。
 - **P1 与 P2 可以并行**：一个改视图一侧，一个改内核一侧，中间靠契约对齐。
@@ -786,6 +813,8 @@ e2e-headed 改走契约；lint 禁止视图访问 `window.aiIPC` / `window.elect
 | Q4  | 是否需要视图内嵌模式（无透明窗口宿主下的看板娘）   | 等出现第二个宿主再做；本稿只保证能力声明              |
 
 ## 附录 A：耦合点文件清单（2026-10-28）
+
+这是 P2 开始前的快照：P3 之后业务模块在 `packages/core/src`，`packages/electron` 已改名 `packages/host-electron`。
 
 统计命令（在仓库根目录运行）：
 
