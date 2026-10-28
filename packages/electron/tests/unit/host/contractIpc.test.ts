@@ -2,7 +2,8 @@
  * 契约的 Electron IPC 接线（host/contractIpc.ts + security/ipcSenderGuard.ts 的 resolveAiCaller）：
  * - 调用者判定：受信页面按 URL 得到 surface；外站主框架 / 外站子框架一律拒绝；
  * - dangerous：不可信调用者调 tools.confirm 被拒；
- * - 会话生命周期：整页导航与 webContents 销毁时断开会话，页内导航不断开。
+ * - 会话生命周期：主框架跨文档导航提交、渲染进程退出与 webContents 销毁时断开会话；
+ *   被取消的导航（windowGuards 在 will-navigate 里拦下）与页内导航不断开。
  */
 
 const mockApp = { isPackaged: true, on: jest.fn(), off: jest.fn() };
@@ -162,16 +163,33 @@ describe('serveContractOverIpc', () => {
     expect(trusted.confirmed).toEqual([{ reqId: 'x', ok: true }]);
   });
 
-  it('整页导航与销毁断开会话；页内导航不断开；之后创建的 webContents 也被监听', async () => {
-    const { handle, existing, created, call } = setup();
+  it('被取消的导航（只有 will-navigate / did-start-navigation）与页内导航不断开会话', async () => {
+    const { handle, existing, call } = setup();
     await call(1, CHAT, 'a', 'ai.sessions.list');
     expect(handle.transport.sessionCount).toBe(1);
 
-    existing.emitter.emit('did-start-navigation', { isMainFrame: true, isSameDocument: true });
-    expect(handle.transport.sessionCount).toBe(1);
-    existing.emitter.emit('did-start-navigation', { isMainFrame: false, isSameDocument: false });
-    expect(handle.transport.sessionCount).toBe(1);
+    // windowGuards 在 will-navigate 里 preventDefault：不会有 did-navigate
+    existing.emitter.emit('will-navigate', { url: EVIL });
     existing.emitter.emit('did-start-navigation', { isMainFrame: true, isSameDocument: false });
+    existing.emitter.emit('did-fail-navigation', { isMainFrame: true });
+    existing.emitter.emit('did-navigate-in-page', {});
+    expect(handle.transport.sessionCount).toBe(1);
+
+    // 会话仍然可用
+    const ok = await call(1, CHAT, 'b', 'ai.sessions.list');
+    expect(ok.map((s) => s.frame)).toEqual([{ t: 'res', id: 'b', output: [] }]);
+  });
+
+  it('跨文档导航提交、渲染进程退出与销毁断开会话；之后创建的 webContents 也被监听', async () => {
+    const { handle, existing, created, call } = setup();
+    await call(1, CHAT, 'a', 'ai.sessions.list');
+    expect(handle.transport.sessionCount).toBe(1);
+    existing.emitter.emit('did-navigate');
+    expect(handle.transport.sessionCount).toBe(0);
+
+    await call(1, CHAT, 'a2', 'ai.sessions.list');
+    expect(handle.transport.sessionCount).toBe(1);
+    existing.emitter.emit('render-process-gone');
     expect(handle.transport.sessionCount).toBe(0);
 
     const later = fakeWc(7);

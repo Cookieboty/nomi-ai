@@ -7,8 +7,10 @@
  *
  * - 调用者：`resolveAiCaller`（security/ipcSenderGuard.ts）按 sender URL 判定 surface 与 trusted，
  *   不受信的发送方一律拒绝；`dangerous` 过程只接受 trusted 调用者（契约内置守卫）；
- * - 会话生命周期：服务端看不到渲染进程里旧客户端的消失，所以窗口整页导航（含刷新）与
- *   webContents 销毁时调用 `disconnect(senderId)`：旧页面的订阅与进行中的流随之取消。
+ * - 会话生命周期：服务端看不到渲染进程里旧客户端的消失，所以主框架的跨文档导航**提交**时
+ *   （含刷新）、渲染进程退出与 webContents 销毁时调用 `disconnect(senderId)`：旧页面的订阅与
+ *   进行中的流随之取消。不能在 `did-start-navigation` 断开——security/windowGuards.ts 会在
+ *   `will-navigate` 里取消跨文档导航，被取消的导航不换页面，旧客户端仍然在用。
  */
 
 import { createElectronIpcAdapter, type IpcAdapter } from '@nomi-ai/ai-runtime';
@@ -26,10 +28,9 @@ import { resolveAiCaller } from '../security/ipcSenderGuard';
 /** 需要监听的 webContents 能力（Electron WebContents 结构上满足） */
 export interface ContractWebContents {
   id: number;
-  on(
-    event: 'did-start-navigation',
-    listener: (details: { isMainFrame?: boolean; isSameDocument?: boolean }) => void,
-  ): unknown;
+  /** 主框架跨文档导航已提交（页内导航与被取消 / 失败的导航不触发） */
+  on(event: 'did-navigate', listener: () => void): unknown;
+  on(event: 'render-process-gone', listener: () => void): unknown;
   once(event: 'destroyed', listener: () => void): unknown;
 }
 
@@ -81,10 +82,13 @@ export function serveContractOverIpc(opts: ServeContractOptions): ContractIpcHan
   const watch = (wc: ContractWebContents): void => {
     if (watched.has(wc)) return;
     watched.add(wc);
-    wc.on('did-start-navigation', (details) => {
-      // 页内导航（hash / pushState）不换页面，客户端还在
-      if (stopped || details?.isMainFrame === false || details?.isSameDocument) return;
-      transport.disconnect(wc.id);
+    // `did-navigate` 只在主框架跨文档导航提交时触发：被取消 / 失败的导航与页内导航
+    // （hash / pushState）都不换页面，客户端还在
+    wc.on('did-navigate', () => {
+      if (!stopped) transport.disconnect(wc.id);
+    });
+    wc.on('render-process-gone', () => {
+      if (!stopped) transport.disconnect(wc.id);
     });
     wc.once('destroyed', () => {
       if (!stopped) transport.disconnect(wc.id);
