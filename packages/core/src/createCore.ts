@@ -147,6 +147,11 @@ export interface CoreHostHooks {
   callerWindows?: CallerWindows;
   /** 宿主的 AI 插件，装在内置插件之前（Electron：FileSessionStorePlugin）；启动 AI runtime 时才取 */
   aiPlugins?: () => IgPluginEntry[];
+  /**
+   * 宿主的 AI 插件，装在内置插件之后（后 provide 的服务覆盖前面的）。无界面宿主的 e2e 用它换上假的
+   * LLM / 工具、拿到插件上下文发插件事件；Electron 宿主不用。启动 AI runtime 时才取
+   */
+  aiPluginsAfter?: () => IgPluginEntry[];
   /** 宿主的本地 TtsProvider（Electron：系统 TTS）；启动 AI runtime 时才建 */
   ttsProviders?: () => TtsProviderLike[];
 }
@@ -861,6 +866,7 @@ export function createCore(deps: CoreDeps): Core {
         profile: cfg.aiProfile,
         events,
         hostPlugins: host.aiPlugins?.(),
+        hostPluginsAfter: host.aiPluginsAfter?.(),
         ttsProviders: host.ttsProviders?.(),
         services: {
           gateway: () => services.gateway,

@@ -81,6 +81,8 @@ export interface AIRuntimeBootOptions {
   events: AppEvents;
   /** 宿主插件，装在内置插件之前（Electron：FileSessionStorePlugin 提供用户画像存储） */
   hostPlugins?: IgPluginEntry[];
+  /** 宿主插件，装在内置插件之后（无界面宿主测试：假的 LLM / 工具覆盖内置的） */
+  hostPluginsAfter?: IgPluginEntry[];
   /**
    * 额外要注入到 `client.tts` 的本地 TtsProvider 列表（例如 Electron 宿主的
    * `TtsElectronNativeProvider`）。
@@ -222,7 +224,11 @@ export async function startAIRuntime(
         { plugin: createPersonaIdentityPlugin(() => services.persona()?.get()) },
       ],
       // 看板娘动作 / 表情工具（avatar_gesture / avatar_emotion）→ 事件总线 → 渲染进程
-      after: [...createMascotIgPlugins(opts.events), ...createDesktopIgPlugins(opts.desktopTools)],
+      after: [
+        ...createMascotIgPlugins(opts.events),
+        ...createDesktopIgPlugins(opts.desktopTools),
+        ...(opts.hostPluginsAfter ?? []),
+      ],
       // env(MCP_SERVERS) 来的工具同样强制走用户确认 + 审计（ExtensionsService.guardEnvTool）
       mcpToolGuard: (server, def) => services.ext()?.guardEnvTool(server, def) ?? def,
       providers: {
