@@ -10,6 +10,7 @@ import { join, resolve } from 'node:path';
 import { _electron as electron, expect, test } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 
+import { callContract, waitForTransport } from '../fixtures/contract';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
@@ -43,13 +44,9 @@ async function launch(
     timeout: 60_000,
   });
   const main = await app.firstWindow({ timeout: 30_000 });
-  await main.waitForFunction(() => 'electronAPI' in window, undefined, { timeout: 30_000 });
+  await main.waitForFunction(() => 'nomiTransport' in window, undefined, { timeout: 30_000 });
   const chatWin = app.waitForEvent('window', { timeout: 30_000 });
-  await main.evaluate(() =>
-    (
-      window as unknown as { electronAPI: { openAiChat(): Promise<unknown> } }
-    ).electronAPI.openAiChat(),
-  );
+  await callContract(main, 'window.openAiChat');
   const chat = await chatWin;
   await chat.setViewportSize({ width: 1400, height: 860 }).catch(() => undefined);
   await chat.locator('[data-testid="chat-mode-dev"]').click({ timeout: 30_000 });
@@ -129,23 +126,13 @@ test.describe('E35 · v1.2.0 codex-parity · context / multi-preview / edit', ()
     await chat.click('[data-testid="new-chat-claude"]');
 
     // 把会话 cwd 指到带 git 变更的临时工作区
-    await chat.waitForFunction(
-      () =>
-        typeof (window as unknown as { aiIPC?: { invoke: unknown } }).aiIPC?.invoke === 'function',
-      undefined,
-      { timeout: 30_000 },
+    await waitForTransport(chat);
+    const tabs = await callContract<{ tabs: { id: string }[]; activeTabId: string }>(
+      chat,
+      'harness.tabs',
     );
-    await chat.evaluate(async (cwd) => {
-      const b = (
-        window as unknown as { aiIPC: { invoke(ch: string, ...a: unknown[]): Promise<unknown> } }
-      ).aiIPC;
-      const tabs = (await b.invoke('ai:harness:tabs')) as {
-        tabs: { id: string }[];
-        activeTabId: string;
-      };
-      const id = tabs.activeTabId || tabs.tabs[0]?.id;
-      if (id) await b.invoke('ai:harness:tab-cwd', id, cwd, {});
-    }, workDir);
+    const tabId = tabs.activeTabId || tabs.tabs[0]?.id;
+    if (tabId) await callContract(chat, 'harness.tabCwd', { id: tabId, cwd: workDir });
 
     const input = chat.locator('[data-testid="chat-input"]');
     await expect(input).toBeEnabled();
@@ -284,14 +271,11 @@ test.describe('E35 · v1.2.0 codex-parity · context / multi-preview / edit', ()
     expect(saved).toHaveLength(1);
 
     // 沙箱：越界写应失败
-    const outside = await chat.evaluate(async (cwd) => {
-      const b = (
-        window as unknown as {
-          aiIPC: { invoke(ch: string, ...a: unknown[]): Promise<{ ok: boolean; code?: string }> };
-        }
-      ).aiIPC;
-      return b.invoke('ai:harness:workspace-write', cwd, '../escape.txt', 'nope');
-    }, workDir);
+    const outside = await callContract<{ ok: boolean; code?: string }>(
+      chat,
+      'harness.workspaceWrite',
+      { cwd: workDir, path: '../escape.txt', content: 'nope' },
+    );
     expect(outside.ok).toBe(false);
     expect(outside.code).toBe('outside');
 

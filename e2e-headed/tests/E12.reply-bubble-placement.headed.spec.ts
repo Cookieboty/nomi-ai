@@ -8,6 +8,7 @@ import { join, resolve } from 'node:path';
 import { _electron as electron, test, expect } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 
+import { callContract } from '../fixtures/contract';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
@@ -110,16 +111,12 @@ test.describe('E12 · reply bubble + face-safe placement', () => {
       timeout: 30_000,
     });
     const main = await app.firstWindow({ timeout: 20_000 });
-    await main.waitForFunction(() => 'electronAPI' in window, undefined, { timeout: 20_000 });
+    await main.waitForFunction(() => 'nomiTransport' in window, undefined, { timeout: 20_000 });
     const bubble = main.locator('[data-testid="mascot-bubble"]');
 
     // ---- 1. 先开对话窗（Windows 上先等角色就绪再开窗易拖垮/拖慢渲染进程）----
     const chatWindow = app.waitForEvent('window', { timeout: 30_000 });
-    await main.evaluate(() =>
-      (
-        window as unknown as { electronAPI: { openAiChat(): Promise<unknown> } }
-      ).electronAPI.openAiChat(),
-    );
+    await callContract(main, 'window.openAiChat');
     const chat = await chatWindow;
     await chat.waitForLoadState('domcontentloaded').catch(() => undefined);
     const input = chat.locator('[data-testid="chat-input"], textarea').first();

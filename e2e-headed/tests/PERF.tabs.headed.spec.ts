@@ -12,6 +12,7 @@ import { join, resolve } from 'node:path';
 import { _electron as electron, expect, test } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 
+import { callContract, installContractProbe } from '../fixtures/contract';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
@@ -168,13 +169,9 @@ test.describe('PERF · workbench tabs', () => {
       env,
     });
     const main = await app.firstWindow();
-    await main.waitForFunction(() => 'electronAPI' in window);
+    await main.waitForFunction(() => 'nomiTransport' in window);
     const chatP = app.waitForEvent('window', { timeout: 30_000 });
-    await main.evaluate(() =>
-      (
-        window as unknown as { electronAPI: { openAiChat(): Promise<unknown> } }
-      ).electronAPI.openAiChat(),
-    );
+    await callContract(main, 'window.openAiChat');
     const chat = await chatP;
     await chat.setViewportSize({ width: 1280, height: 860 }).catch(() => undefined);
     await chat.locator('[data-testid="chat-mode-dev"]').click({ timeout: 30_000 });
@@ -223,17 +220,16 @@ test.describe('PERF · workbench tabs', () => {
         (globalThis as unknown as { __mainProf: unknown }).__mainProf = post;
       });
     // IPC 往返：激活标签（主进程持久化 + 广播）
+    await installContractProbe(chat);
     const ipcMs = await chat.evaluate(async () => {
-      const ipc = (
-        window as unknown as { aiIPC: { invoke(c: string, ...a: unknown[]): Promise<unknown> } }
-      ).aiIPC;
+      const api = window.__e2eContract!;
       const out: number[] = [];
       for (let i = 0; i < 10; i++) {
         const t0 = performance.now();
-        await ipc.invoke('ai:harness:tab-activate', i % 2 ? 'main' : 'tab_perf_0');
+        await api.call('harness.tabActivate', { id: i % 2 ? 'main' : 'tab_perf_0' });
         out.push(performance.now() - t0);
       }
-      await ipc.invoke('ai:harness:tab-activate', 'main');
+      await api.call('harness.tabActivate', { id: 'main' });
       return out;
     });
     await chat.waitForTimeout(800);

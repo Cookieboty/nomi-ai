@@ -24,6 +24,7 @@ import { join, resolve } from 'node:path';
 import { _electron as electron, expect, test } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 
+import { callContract } from '../fixtures/contract';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 import { ISOLATED_HOME_ARGS } from '../fixtures/homeEnv';
@@ -73,13 +74,9 @@ async function launch(
     timeout: 60_000,
   });
   const main = await app.firstWindow({ timeout: 30_000 });
-  await main.waitForFunction(() => 'electronAPI' in window, undefined, { timeout: 30_000 });
+  await main.waitForFunction(() => 'nomiTransport' in window, undefined, { timeout: 30_000 });
   const chatWin = app.waitForEvent('window', { timeout: 30_000 });
-  await main.evaluate(() =>
-    (
-      window as unknown as { electronAPI: { openAiChat(): Promise<unknown> } }
-    ).electronAPI.openAiChat(),
-  );
+  await callContract(main, 'window.openAiChat');
   const chat = await chatWin;
   await chat.setViewportSize({ width: 1180, height: 780 }).catch(() => undefined);
   await chat.locator('[data-testid="chat-mode-dev"]').click({ timeout: 30_000 });
@@ -165,15 +162,6 @@ function seedHome(home: string, work: string): { dsh: boolean } {
 function utimes(p: string, t: Date) {
   utimesSync(p, t, t);
 }
-
-const invoke = (chat: Page, channel: string, ...args: unknown[]) =>
-  chat.evaluate(
-    ([c, a]) =>
-      (
-        window as unknown as { aiIPC: { invoke(ch: string, ...x: unknown[]): Promise<unknown> } }
-      ).aiIPC.invoke(c as string, ...(a as unknown[])),
-    [channel, args] as const,
-  );
 
 test.describe('E19 · endpoints · history sessions · provider page', () => {
   let app: ElectronApplication | null = null;
@@ -393,14 +381,15 @@ test.describe('E19 · endpoints · history sessions · provider page', () => {
     // 「在模型页设置第三方模型」直达「模型」页；加一个第三方供应商（检测流程由 E7 覆盖），给 Claude 分配模型
     await chat.click('[data-testid="cli-open-models"]');
     await expect(chat.locator('[data-testid="models-page"]')).toBeVisible();
-    const relay = (await invoke(chat, 'ai:gateway:upsert-provider', {
+    const relay = (await callContract(chat, 'gateway.upsertProvider', {
       name: '本地中转',
       urls: { chat: upstreamUrl },
       newKeys: [{ value: 'sk-test-123456' }],
       models: [{ id: 'claude-x', enabled: true }],
     })) as { id: string };
-    await invoke(chat, 'ai:gateway:set-assignment', 'claude', {
-      models: { main: `${relay.id}/claude-x` },
+    await callContract(chat, 'gateway.setAssignment', {
+      client: 'claude',
+      patch: { models: { main: `${relay.id}/claude-x` } },
     });
     // Mock CLI 计为已安装；等网关状态推到模型页后再断言
     await expect(chat.locator('[data-testid="cli-main-claude"]')).toBeVisible({ timeout: 20_000 });

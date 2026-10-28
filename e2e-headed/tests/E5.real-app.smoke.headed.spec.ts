@@ -14,7 +14,8 @@ import { safeRm } from '../fixtures/fsutil';
  *
  * 直接启动 packages/electron/dist/main.js（与 `electron .` 的生产模式一致，从
  * dist/renderer/index.html 以 file:// 加载 renderer），断言：
- * - 主窗口 preload 成功：window.electronAPI 与 window.aiIPC 均已注入
+ * - 主窗口 preload 成功：只注入 window.nomiTransport（契约传输）与 window.nomiHost，旧桥
+ *   window.electronAPI / window.aiIPC 不再存在
  *   （回归：preload 依赖 workspace 包时，在默认 sandbox 下会 "module not found"）
  * - 内置 2D 看板娘 Nomi 加载完成（MascotBackend = rive，或回退到分层 2D sprite；支持口型），
  *   不再有角色选择 / 切换入口，且没有 preload / 角色加载错误
@@ -53,7 +54,7 @@ test.describe('E5 · real app · dist/main.js 生产模式冒烟', () => {
     if (userData) safeRm(userData);
   });
 
-  test('主窗口 preload 注入 electronAPI / aiIPC，Nomi 看板娘加载成功', async () => {
+  test('主窗口 preload 注入 nomiTransport / nomiHost，Nomi 看板娘加载成功', async () => {
     test.skip(
       !existsSync(mainJs) || !existsSync(rendererIndex),
       `需要先构建：${mainJs} / ${rendererIndex}`,
@@ -86,7 +87,7 @@ test.describe('E5 · real app · dist/main.js 生产模式冒烟', () => {
     await page.waitForFunction(
       () => {
         const w = window as unknown as Record<string, unknown>;
-        return typeof w.electronAPI !== 'undefined' && typeof w.aiIPC !== 'undefined';
+        return typeof w.nomiTransport !== 'undefined' && typeof w.nomiHost !== 'undefined';
       },
       undefined,
       { timeout: 15_000 },
@@ -105,24 +106,24 @@ test.describe('E5 · real app · dist/main.js 生产模式冒烟', () => {
       const w = window as unknown as Record<string, unknown>;
       const ds = document.documentElement.dataset;
       return {
-        electronAPI: typeof w.electronAPI,
-        aiIPC: typeof w.aiIPC,
+        nomiTransport: typeof w.nomiTransport,
+        nomiHost: typeof w.nomiHost,
+        legacy: ['electronAPI', 'aiIPC'].filter((k) => k in w),
         model: ds.mascotModel,
         backend: ds.mascotBackend,
         renderer: ds.mascotRenderer ?? 'rive',
         lipSync: ds.mascotLipsync,
         expressions: (ds.mascotExpressions ?? '').split(','),
         hasCanvas: !!document.querySelector('#mascot-canvas canvas'),
-        modelsApi: 'models' in ((w.electronAPI ?? {}) as object),
       };
     });
     expect(state).toMatchObject({
-      electronAPI: 'object',
-      aiIPC: 'object',
+      nomiTransport: 'object',
+      nomiHost: 'object',
+      legacy: [],
       model: 'nomi',
       lipSync: 'true',
       hasCanvas: true,
-      modelsApi: false,
     });
     // Rive 是默认渲染器；只有它起不来时才回退到分层 2D sprite（并打上 data-mascot-renderer）
     expect(state.backend === 'rive' || state.renderer === 'sprite-fallback').toBe(true);

@@ -11,6 +11,8 @@ import { join, resolve } from 'node:path';
 
 import { _electron as electron } from 'playwright';
 
+import { callContract, waitForTransport } from './lib/contractProbe.mjs';
+
 const root = resolve(import.meta.dirname, '..');
 const pkg = resolve(root, 'packages/electron');
 const arg = (name, def) => {
@@ -46,20 +48,15 @@ const app = await electron.launch({
 });
 try {
   const main = await app.firstWindow();
-  await main.waitForFunction(() => !!window.electronAPI, null, { timeout: 30_000 });
+  await waitForTransport(main);
   const w = app.waitForEvent('window');
-  await main.evaluate(() => window.electronAPI.openAiChat());
+  await callContract(main, 'window.openAiChat');
   const chat = await w;
   await chat.setViewportSize({ width: 1100, height: 760 }).catch(() => undefined);
   await chat.locator('[data-testid="chat-mode-dev"]').click({ timeout: 30_000 });
   await chat.locator('[data-testid="chat-tabs"]').waitFor({ timeout: 30_000 });
-  await chat.evaluate(async () => {
-    const r = await window.aiIPC.invoke('ai:harness:tab-create', {
-      backend: 'claude',
-      title: 'STREAM',
-    });
-    await window.aiIPC.invoke('ai:harness:tab-activate', r.id);
-  });
+  const tab = await callContract(chat, 'harness.tabCreate', { backend: 'claude', title: 'STREAM' });
+  await callContract(chat, 'harness.tabActivate', { id: tab.id });
   await chat.waitForSelector('[data-testid="chat-input"]', { timeout: 30_000 });
   await chat.waitForTimeout(2500);
 

@@ -9,9 +9,9 @@
  * 本文件只保留 headed 复跑所必需的最小片段：
  * 1. 通过 `AIRuntimeService.configure({ booter: FakeBooter, ... })` 启动一个
  *    完全内存化的 插件环境（LLM/Tool/UserProfile seams 全部用 fake）；
- * 2. 挂应用契约（`createAiRouter` + `@nomi-ai/contract` 的 IPC 传输）与 `CapabilityIpcServer`；
+ * 2. 挂应用契约（`createAiRouter` + `@nomi-ai/contract` 的 IPC 传输）；
  * 3. 打开 1 个 BrowserWindow 载入 renderer.html，preload 暴露 `window.nomiTransport`
- *    （契约传输）与 `window.aiIPC`（其余 `ai:*` 通道）；
+ *    （契约传输）与 `window.nomiHost`，与真实 preload 一致；
  * 4. `--profile=xxx` CLI 参数切换 waifu / chat-only / mcp-headless；
  *    `--no-window` 时不开窗口（供 E3 用）。
  */
@@ -45,12 +45,7 @@ try {
   console.error('[main] failed to redirect userData:', err && err.stack ? err.stack : err);
 }
 
-const {
-  createAiRouter,
-  CapabilityIpcServer,
-  runtime,
-  NoopRuntimeLogger,
-} = require('@nomi-ai/ai-runtime');
+const { createAiRouter, runtime, NoopRuntimeLogger } = require('@nomi-ai/ai-runtime');
 const { createIpcServerTransport } = require('@nomi-ai/contract');
 
 const { AIClient, toSdkContext } = require('@nomi-ai/ai-sdk');
@@ -358,15 +353,6 @@ async function main() {
     resolveCaller: () => ({ surface: 'test', trusted: true }),
   });
   contractTransport.serve(ai.router);
-  const capability = new CapabilityIpcServer({
-    adapter,
-    logger: NoopRuntimeLogger,
-    injector: {
-      getScreen: () => undefined,
-      getClipboard: () => undefined,
-    },
-  });
-  capability.start();
 
   logger.info(`AI runtime ready (procedures=${Object.keys(ai.router.contract.procedures).length})`);
 

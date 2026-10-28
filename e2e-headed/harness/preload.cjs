@@ -3,18 +3,18 @@
 /**
  * e2e-headed preload
  *
- * 1. 暴露 `window.nomiTransport`（契约传输）与 `window.aiIPC`（其余 `ai:*` 通道），与真实 preload 一致；
+ * 1. 暴露 `window.nomiTransport`（契约传输）与 `window.nomiHost`（拖入文件路径），与真实 preload 一致；
  * 2. preload 自己建一个契约客户端，订阅全部 AI 事件写进采集器；
  * 3. 挂 `window.__e2eProbe`：Playwright 从这里拿事件，也可以 `call(过程名, 入参)` 调内核。
  */
 
-const { contextBridge, ipcRenderer } = require('electron');
-const { mkAiPreload, mkNomiTransportPreload } = require('@nomi-ai/ai-sdk-client/preload');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
+const { mkNomiHostPreload, mkNomiTransportPreload } = require('@nomi-ai/ai-sdk-client/preload');
 const { createClient, createIpcClientTransport } = require('@nomi-ai/contract');
 const { AI_EVENTS, appContract } = require('@nomi-ai/contract/app');
 
 mkNomiTransportPreload({ contextBridge, ipcRenderer });
-mkAiPreload({ contextBridge, ipcRenderer });
+mkNomiHostPreload({ contextBridge, webUtils });
 
 const api = createClient(
   appContract,

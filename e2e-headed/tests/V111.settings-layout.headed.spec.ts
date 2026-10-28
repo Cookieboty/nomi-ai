@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path';
 import { _electron as electron, expect, test } from '@playwright/test';
 import type { ElectronApplication } from '@playwright/test';
 
+import { callContract } from '../fixtures/contract';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
@@ -65,13 +66,9 @@ test.describe('v1.1.1 settings layout', () => {
       timeout: 30_000,
     });
     const main = await app.firstWindow({ timeout: 20_000 });
-    await main.waitForFunction(() => 'electronAPI' in window, undefined, { timeout: 20_000 });
+    await main.waitForFunction(() => 'nomiTransport' in window, undefined, { timeout: 20_000 });
     const chatWin = app.waitForEvent('window', { timeout: 20_000 });
-    await main.evaluate(() =>
-      (
-        window as unknown as { electronAPI: { openAiChat(): Promise<unknown> } }
-      ).electronAPI.openAiChat(),
-    );
+    await callContract(main, 'window.openAiChat');
     const chat = await chatWin;
     await chat.setViewportSize({ width: 1280, height: 860 }).catch(() => undefined);
     await chat.locator('[data-testid="chat-input"]').waitFor({ timeout: 20_000 });

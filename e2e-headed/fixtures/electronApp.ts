@@ -85,7 +85,8 @@ export async function launchHeadedApp(opts: HeadedLaunchOptions = {}): Promise<{
     page = await app.firstWindow({ timeout: 20_000 });
     await page.waitForLoadState('domcontentloaded');
     await page.waitForFunction(
-      () => typeof (globalThis as unknown as { aiIPC?: unknown }).aiIPC !== 'undefined',
+      () =>
+        typeof (globalThis as unknown as { nomiTransport?: unknown }).nomiTransport !== 'undefined',
       { timeout: 10_000 },
     );
   }

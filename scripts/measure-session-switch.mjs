@@ -14,6 +14,8 @@ import { join, resolve } from 'node:path';
 
 import { _electron as electron } from 'playwright';
 
+import { callContract, waitForTransport } from './lib/contractProbe.mjs';
+
 const root = resolve(import.meta.dirname, '..');
 const pkg = resolve(root, 'packages/electron');
 const arg = (name, def) => {
@@ -152,9 +154,9 @@ const app = await electron.launch({
 try {
   app.process().stderr?.on('data', (d) => process.env.PERF_DEBUG && console.error(String(d)));
   const main = await app.firstWindow();
-  await main.waitForFunction(() => !!window.electronAPI, null, { timeout: 30_000 });
+  await waitForTransport(main);
   const w = app.waitForEvent('window');
-  await main.evaluate(() => window.electronAPI.openAiChat());
+  await callContract(main, 'window.openAiChat');
   const chat = await w;
   await chat.setViewportSize({ width: 1100, height: 760 }).catch(() => undefined);
   await chat.waitForSelector('textarea', { state: 'visible', timeout: 30_000 });
@@ -183,18 +185,11 @@ try {
     for (let c = 1; c < CONVS; c++) {
       const msgs = Array.from({ length: pairs }, (_, i) => cliPair(c, i)).flat();
       bytes += JSON.stringify(msgs).length;
-      await chat.evaluate(
-        async ({ c, msgs }) => {
-          const call = async (m, ...a) => {
-            const r = await window.aiIPC.invoke(`ai:harness:${m}`, ...a);
-            if (r && r.__error) throw new Error(r.__error.message);
-            return r;
-          };
-          const tab = await call('tab-create', { backend: 'claude', title: `TABX${c}` });
-          await call('tab-seed', tab.id, msgs);
-        },
-        { c, msgs },
-      );
+      const tab = await callContract(chat, 'harness.tabCreate', {
+        backend: 'claude',
+        title: `TABX${c}`,
+      });
+      await callContract(chat, 'harness.tabSeed', { id: tab.id, messages: msgs });
     }
     await chat.waitForSelector(`[data-testid="chat-tab-${CONVS - 1}"]`, { timeout: 30_000 });
     // 先把每个标签打开一遍，预热（消息读取 / 迁移），再回到第 1 个标签

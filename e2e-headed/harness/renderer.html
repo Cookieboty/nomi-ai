@@ -32,9 +32,9 @@
         const write = (msg) => {
           log.textContent += msg + '\n';
         };
-        if (!window.nomiTransport || !window.aiIPC) {
-          status.textContent = 'nomiTransport / aiIPC missing (preload failed)';
-          write('[fatal] window.nomiTransport / window.aiIPC missing');
+        if (!window.nomiTransport || !window.nomiHost) {
+          status.textContent = 'nomiTransport / nomiHost missing (preload failed)';
+          write('[fatal] window.nomiTransport / window.nomiHost missing');
           return;
         }
         status.textContent = 'nomiTransport ready';

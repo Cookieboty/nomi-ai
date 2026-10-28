@@ -8,6 +8,7 @@ import { join, resolve } from 'node:path';
 import { _electron as electron, test, expect } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 
+import { callContract } from '../fixtures/contract';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
@@ -120,22 +121,14 @@ test.describe('E6 · real app · AI chat history', () => {
     // 首启偶发「页面加载了但 preload 未执行」由应用内 preloadGuard 自动恢复（reload），
     // 这里只需给足等待时间；失败时打印主进程日志便于定位
     try {
-      await main.waitForFunction(
-        () => typeof (window as unknown as { electronAPI?: unknown }).electronAPI !== 'undefined',
-        undefined,
-        { timeout: 20_000 },
-      );
+      await main.waitForFunction(() => 'nomiTransport' in window, undefined, { timeout: 20_000 });
     } catch (e) {
-      console.warn(`[E6] electronAPI missing\n${diag.join('\n')}`);
+      console.warn(`[E6] nomiTransport missing\n${diag.join('\n')}`);
       throw e;
     }
 
     const chatWindow = app.waitForEvent('window', { timeout: 20_000 });
-    await main.evaluate(() =>
-      (
-        window as unknown as { electronAPI: { openAiChat(): Promise<unknown> } }
-      ).electronAPI.openAiChat(),
-    );
+    await callContract(main, 'window.openAiChat');
     const chat: Page = await chatWindow;
     await chat.waitForSelector('textarea', { timeout: 20_000 });
 

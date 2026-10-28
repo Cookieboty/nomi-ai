@@ -8,6 +8,7 @@ import { join, resolve } from 'node:path';
 import { _electron as electron, test, expect } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 
+import { callContract } from '../fixtures/contract';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
@@ -148,13 +149,7 @@ test.describe('E13 · real app · reminders / clipboard', () => {
       timeout: 30_000,
     });
     const main = await app.firstWindow({ timeout: 20_000 });
-    await main.waitForFunction(
-      () =>
-        typeof (window as unknown as { electronAPI?: { desktop?: unknown } }).electronAPI
-          ?.desktop !== 'undefined',
-      undefined,
-      { timeout: 20_000 },
-    );
+    await main.waitForFunction(() => 'nomiTransport' in window, undefined, { timeout: 20_000 });
     return main;
   };
 
@@ -164,11 +159,7 @@ test.describe('E13 · real app · reminders / clipboard', () => {
     let main = await launch();
 
     const chatWindow = app!.waitForEvent('window', { timeout: 20_000 });
-    await main.evaluate(() =>
-      (
-        window as unknown as { electronAPI: { openAiChat(): Promise<unknown> } }
-      ).electronAPI.openAiChat(),
-    );
+    await callContract(main, 'window.openAiChat');
     const chat: Page = await chatWindow;
     await chat.waitForLoadState('domcontentloaded').catch(() => undefined);
     await chat

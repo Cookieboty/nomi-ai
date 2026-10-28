@@ -62,7 +62,7 @@ test.describe('E30 · startup default view', () => {
     });
     // 看板娘窗口先就绪（它是首个窗口）
     const mascot = await a.firstWindow({ timeout: 30_000 });
-    await mascot.waitForFunction(() => 'electronAPI' in window, undefined, { timeout: 30_000 });
+    await mascot.waitForFunction(() => 'nomiTransport' in window, undefined, { timeout: 30_000 });
     return a;
   };
 
@@ -92,7 +92,7 @@ test.describe('E30 · startup default view', () => {
     app = await launch();
     const chat = await chatPage(app, 30_000);
     expect(chat, 'main window should open on launch').not.toBeNull();
-    await chat!.waitForFunction(() => 'aiIPC' in window, undefined, { timeout: 30_000 });
+    await chat!.waitForFunction(() => 'nomiTransport' in window, undefined, { timeout: 30_000 });
     await expect
       .poll(
         () =>
@@ -144,7 +144,7 @@ test.describe('E30 · startup default view', () => {
     app = await launch();
     const chat = await chatPage(app, 30_000);
     expect(chat, 'main window should open on launch').not.toBeNull();
-    await chat!.waitForFunction(() => 'aiIPC' in window, undefined, { timeout: 30_000 });
+    await chat!.waitForFunction(() => 'nomiTransport' in window, undefined, { timeout: 30_000 });
     const proc = app.process();
     const exited = new Promise<number | null>((r) => proc.once('exit', (code) => r(code)));
     await app

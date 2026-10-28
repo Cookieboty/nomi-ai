@@ -156,7 +156,7 @@ test.describe('E16 · first run: onboarding → provider setup → test connecti
     await closeApp(app);
     app = await launch();
     const main = await app.firstWindow({ timeout: 20_000 });
-    await main.waitForFunction(() => 'electronAPI' in window, undefined, { timeout: 20_000 });
+    await main.waitForFunction(() => 'nomiTransport' in window, undefined, { timeout: 20_000 });
     await main.waitForTimeout(3_000);
     expect(app.windows().some((p) => /ai-chat/.test(p.url()))).toBe(false);
   });

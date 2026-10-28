@@ -6,6 +6,7 @@ import { join, resolve } from 'node:path';
 import { _electron as electron, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
+import { callContract } from '../fixtures/contract';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
@@ -77,23 +78,13 @@ test('ANIM capture every clip', async () => {
       await main.waitForTimeout(900);
     }
     // 被拎起（真实拖拽状态）
-    await main.evaluate(() => {
-      const api = (
-        window as unknown as {
-          electronAPI: { mascotWindow: { dragStart(x: number, y: number): void } };
-        }
-      ).electronAPI.mascotWindow;
-      api.dragStart(window.screenX + 200, window.screenY + 300);
-    });
+    const [wx, wy] = await main.evaluate(() => [window.screenX, window.screenY]);
+    await callContract(main, 'mascot.dragStart', { screenX: wx + 200, screenY: wy + 300 });
     for (let k = 0; k < 3; k += 1) {
       await main.waitForTimeout(500);
       await shot(main, `held-${k}`);
     }
-    await main.evaluate(() =>
-      (
-        window as unknown as { electronAPI: { mascotWindow: { dragEnd(): void } } }
-      ).electronAPI.mascotWindow.dragEnd(),
-    );
+    await callContract(main, 'mascot.dragEnd');
     await main.waitForTimeout(2500);
   } finally {
     await Promise.race([

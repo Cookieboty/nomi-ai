@@ -10,6 +10,8 @@ import { join, resolve } from 'node:path';
 
 import { _electron as electron } from 'playwright';
 
+import { installContractProbe, waitForTransport } from './lib/contractProbe.mjs';
+
 const root = resolve(import.meta.dirname, '..');
 const pkg = resolve(root, 'packages/electron');
 const runs = Number(process.argv[2] || 7);
@@ -28,11 +30,12 @@ async function once() {
   });
   try {
     const main = await app.firstWindow();
-    await main.waitForFunction(() => !!window.electronAPI, null, { timeout: 30_000 });
+    await waitForTransport(main);
+    await installContractProbe(main);
     await main.waitForTimeout(1500);
     const t0 = Date.now();
     const w = app.waitForEvent('window');
-    await main.evaluate(() => window.electronAPI.openAiChat());
+    await main.evaluate(() => window.__e2eContract.call('window.openAiChat'));
     const chat = await w;
     await chat.waitForSelector('textarea', { state: 'visible', timeout: 30_000 });
     const chatReady = Date.now() - t0;

@@ -6,6 +6,7 @@ import { join, resolve } from 'node:path';
 import { _electron as electron, test, expect } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 
+import { callContract, installContractProbe } from '../fixtures/contract';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
@@ -60,8 +61,7 @@ type Snap = {
   box: { left: number; right: number; top: number; bottom: number } | null;
   cfg?: { gravity?: boolean; clickThrough?: boolean; wander?: boolean };
 };
-const snap = (page: Page) =>
-  page.evaluate(() => window.electronAPI!.mascotWindow!.snapshot()) as Promise<Snap>;
+const snap = (page: Page) => callContract(page, 'mascot.debugSnapshot') as Promise<Snap>;
 
 test.describe('E9 · mascot desktop interaction', () => {
   let app: ElectronApplication | null = null;
@@ -94,7 +94,7 @@ test.describe('E9 · mascot desktop interaction', () => {
       timeout: 30_000,
     });
     const page = await app.firstWindow({ timeout: 20_000 });
-    await page.waitForFunction(() => !!window.electronAPI?.mascotWindow, undefined, {
+    await page.waitForFunction(() => 'nomiTransport' in window, undefined, {
       timeout: 20_000,
     });
     // Nomi（内置 2D 角色，Rive 或分层 sprite 回退）
@@ -108,7 +108,7 @@ test.describe('E9 · mascot desktop interaction', () => {
     });
 
     // Gravity is off by default (free place). Turn it on for settle / fall coverage.
-    await page.evaluate(() => window.electronAPI!.mascotWindow!.setConfig({ gravity: true }));
+    await callContract(page, 'mascot.setInteractionConfig', { gravity: true });
 
     const wa = await app.evaluate(({ screen }) => screen.getPrimaryDisplay().workArea);
     const screenSize = await app.evaluate(({ screen }) => screen.getPrimaryDisplay().size);
@@ -274,23 +274,22 @@ test.describe('E9 · mascot desktop interaction', () => {
     // 6) 重力关闭 = 自由摆放：拖到半空松手后停在原处（IPC drag，避开 xdo 命中抖动）
     // Turn wander off so section 5's "立即走一走" cannot race the free-place idle assert
     // (auto-wander used to fire when nextWanderAt was left overdue after wander-now).
-    await page.evaluate(() =>
-      window.electronAPI!.mascotWindow!.setConfig({ gravity: false, wander: false }),
-    );
+    await callContract(page, 'mascot.setInteractionConfig', { gravity: false, wander: false });
     await sleep(400);
+    await installContractProbe(page);
     await page.evaluate(async () => {
-      const api = window.electronAPI!.mascotWindow!;
+      const api = window.__e2eContract!;
       const gx = window.screenX + window.innerWidth / 2;
       const gy = window.screenY + window.innerHeight / 2;
-      api.dragStart(gx, gy);
+      void api.call('mascot.dragStart', { screenX: gx, screenY: gy });
       for (let i = 1; i <= 16; i++) {
-        api.dragMove(gx, gy - i * 24);
+        void api.call('mascot.dragMove', { screenX: gx, screenY: gy - i * 24 });
         await new Promise((r) => setTimeout(r, 25));
       }
     });
     await expect.poll(async () => (await snap(page)).body.mode, { timeout: 8_000 }).toBe('held');
     const yWhileHeld = (await snap(page)).body.y;
-    await page.evaluate(() => window.electronAPI!.mascotWindow!.dragEnd());
+    await callContract(page, 'mascot.dragEnd');
     await expect
       .poll(async () => (await snap(page)).body.mode, { timeout: 5_000, intervals: [50] })
       .toBe('idle');
@@ -301,7 +300,7 @@ test.describe('E9 · mascot desktop interaction', () => {
     expect(placed.cfg?.wander ?? false).toBe(false);
 
     // 7) 关闭点击穿透：透明区也接收鼠标
-    await page.evaluate(() => window.electronAPI!.mascotWindow!.setConfig({ clickThrough: false }));
+    await callContract(page, 'mascot.setInteractionConfig', { clickThrough: false });
     [wx, wy] = await pos();
     xdo('mousemove', String(wx + 3), String(wy + 3));
     await sleep(600);

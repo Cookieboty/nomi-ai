@@ -18,6 +18,7 @@ import { join, resolve } from 'node:path';
 import { _electron as electron, expect, test } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 
+import { callContract } from '../fixtures/contract';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
@@ -46,13 +47,9 @@ async function launch(
     timeout: 60_000,
   });
   const main = await app.firstWindow({ timeout: 30_000 });
-  await main.waitForFunction(() => 'electronAPI' in window, undefined, { timeout: 30_000 });
+  await main.waitForFunction(() => 'nomiTransport' in window, undefined, { timeout: 30_000 });
   const chatWin = app.waitForEvent('window', { timeout: 30_000 });
-  await main.evaluate(() =>
-    (
-      window as unknown as { electronAPI: { openAiChat(): Promise<unknown> } }
-    ).electronAPI.openAiChat(),
-  );
+  await callContract(main, 'window.openAiChat');
   const chat = await chatWin;
   await chat.setViewportSize({ width: 1100, height: 700 }).catch(() => undefined);
   if (dev) {

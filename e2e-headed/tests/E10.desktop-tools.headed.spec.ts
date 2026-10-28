@@ -15,6 +15,7 @@ import { join, resolve } from 'node:path';
 import { _electron as electron, test, expect } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 
+import { callContract } from '../fixtures/contract';
 import { makePdf } from '../fixtures/docs';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
@@ -188,13 +189,7 @@ test.describe('E10 · real app · desktop file tools', () => {
     const main = await app.firstWindow({ timeout: 20_000 });
     main.on('console', (m) => diag.push(`[main:${m.type()}] ${m.text()}`));
     try {
-      await main.waitForFunction(
-        () =>
-          typeof (window as unknown as { electronAPI?: { desktop?: unknown } }).electronAPI
-            ?.desktop !== 'undefined',
-        undefined,
-        { timeout: 20_000 },
-      );
+      await main.waitForFunction(() => 'nomiTransport' in window, undefined, { timeout: 20_000 });
 
       // 系统文件夹选择框无法在 CI 里操作：用桩替换（返回 Docs）
       await app.evaluate(({ dialog }, dir) => {
@@ -205,11 +200,7 @@ test.describe('E10 · real app · desktop file tools', () => {
       }, docs);
 
       const chatWindow = app.waitForEvent('window', { timeout: 20_000 });
-      await main.evaluate(() =>
-        (
-          window as unknown as { electronAPI: { openAiChat(): Promise<unknown> } }
-        ).electronAPI.openAiChat(),
-      );
+      await callContract(main, 'window.openAiChat');
       const chat: Page = await chatWindow;
       chat.on('console', (m) => diag.push(`[chat:${m.type()}] ${m.text()}`));
       await chat.waitForSelector('textarea', { timeout: 20_000 });

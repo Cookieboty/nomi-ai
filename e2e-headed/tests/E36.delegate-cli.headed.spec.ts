@@ -16,6 +16,7 @@ import { _electron as electron, test, expect } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 
 import { autoAcceptConfirms } from '../fixtures/confirmDialog';
+import { callContract } from '../fixtures/contract';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
@@ -265,30 +266,16 @@ test.describe('E36 · real app · Nomi delegates to coding assistants', () => {
 
     try {
       const main = await app.firstWindow({ timeout: 20_000 });
-      await main.waitForFunction(
-        () => typeof (window as unknown as { electronAPI?: unknown }).electronAPI !== 'undefined',
-      );
+      await main.waitForFunction(() => 'nomiTransport' in window);
       const chatWindow = app.waitForEvent('window', { timeout: 20_000 });
-      await main.evaluate(() =>
-        (
-          window as unknown as { electronAPI: { openAiChat(): Promise<unknown> } }
-        ).electronAPI.openAiChat(),
-      );
+      await callContract(main, 'window.openAiChat');
       const chat: Page = await chatWindow;
       await chat.setViewportSize({ width: 1100, height: 860 }).catch(() => undefined);
       await autoAcceptConfirms(chat);
-      const invoke = <T>(channel: string) =>
-        chat.evaluate(
-          async (c) =>
-            (await (
-              window as unknown as { aiIPC: { invoke(ch: string): Promise<unknown> } }
-            ).aiIPC.invoke(c)) as T,
-          channel,
-        );
       await expect
         .poll(
           async () =>
-            (await invoke<{ status: { state: string } }>('ai:gateway:state')).status.state,
+            (await callContract<{ status: { state: string } }>(chat, 'gateway.state')).status.state,
           { timeout: 30_000 },
         )
         .toBe('running');
@@ -300,7 +287,7 @@ test.describe('E36 · real app · Nomi delegates to coding assistants', () => {
       };
       const cards = chat.locator('[data-testid="delegate-card"]');
       const delegated = async () =>
-        (await invoke<TabsState>('ai:harness:tabs')).tabs.filter((x) => x.delegation);
+        (await callContract<TabsState>(chat, 'harness.tabs')).tabs.filter((x) => x.delegation);
 
       // ── 1. 正常委派：后台开 Claude 标签，卡片显示汇报，Nomi 接着回复 ─────────────
       await send('DELEGATE 帮我修一下登录');
@@ -316,7 +303,7 @@ test.describe('E36 · real app · Nomi delegates to coding assistants', () => {
       expect(t1).toHaveLength(1);
       expect(t1[0]).toMatchObject({ backend: 'claude', delegation: { goal: '修复登录 bug' } });
       // 后台创建：当前仍是 Nomi 主对话
-      expect((await invoke<TabsState>('ai:harness:tabs')).activeTabId).toBe('main');
+      expect((await callContract<TabsState>(chat, 'harness.tabs')).activeTabId).toBe('main');
       // 发给编程助手的是任务说明模板
       const prompts = readFileSync(promptLog, 'utf8');
       expect(prompts).toContain('目标：修复登录 bug');

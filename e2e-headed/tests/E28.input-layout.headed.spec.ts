@@ -16,6 +16,7 @@ import { join, resolve } from 'node:path';
 import { _electron as electron, expect, test } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 
+import { callContract } from '../fixtures/contract';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 import { isolatedHomeEnv, ISOLATED_HOME_ARGS } from '../fixtures/homeEnv';
@@ -55,13 +56,9 @@ async function launch(
     timeout: 60_000,
   });
   const main = await app.firstWindow({ timeout: 30_000 });
-  await main.waitForFunction(() => 'electronAPI' in window, undefined, { timeout: 30_000 });
+  await main.waitForFunction(() => 'nomiTransport' in window, undefined, { timeout: 30_000 });
   const chatWin = app.waitForEvent('window', { timeout: 30_000 });
-  await main.evaluate(() =>
-    (
-      window as unknown as { electronAPI: { openAiChat(): Promise<unknown> } }
-    ).electronAPI.openAiChat(),
-  );
+  await callContract(main, 'window.openAiChat');
   const chat = await chatWin;
   await chat.setViewportSize({ width: 1100, height: 740 }).catch(() => undefined);
   if (dev) {
@@ -80,15 +77,6 @@ async function close(app: ElectronApplication | null) {
   ]);
   if (proc.exitCode === null) proc.kill('SIGKILL');
 }
-
-const invoke = (chat: Page, channel: string, ...args: unknown[]) =>
-  chat.evaluate(
-    ([c, a]) =>
-      (
-        window as unknown as { aiIPC: { invoke(ch: string, ...x: unknown[]): Promise<unknown> } }
-      ).aiIPC.invoke(c as string, ...(a as unknown[])),
-    [channel, args] as const,
-  );
 
 const shot = async (p: Page, name: string) => {
   if (!shotDir) return;
@@ -245,14 +233,15 @@ test.describe('E28 · composer toolbar layout', () => {
     const r = await launch(join(root, 'user-data'), home, false);
     app = r.app;
     const chat = r.chat;
-    const v = (await invoke(chat, 'ai:gateway:upsert-provider', {
+    const v = (await callContract(chat, 'gateway.upsertProvider', {
       name: 'My Very Long Provider Name For Layout',
       urls: { chat: 'http://127.0.0.1:9/v1' },
       models: [{ id: LONG_MODEL, enabled: true }],
       newKeys: [{ value: 'e28-fake-key' }],
     })) as { id: string };
-    await invoke(chat, 'ai:gateway:set-assignment', 'nomi', {
-      models: { main: `${v.id}/${LONG_MODEL}` },
+    await callContract(chat, 'gateway.setAssignment', {
+      client: 'nomi',
+      patch: { models: { main: `${v.id}/${LONG_MODEL}` } },
     });
     await chat.reload();
     await chat.locator('[data-testid="chat-input"]').waitFor();
@@ -277,8 +266,8 @@ test.describe('E28 · composer toolbar layout', () => {
     // 开发模式下的 Nomi 主标签
     await sweep(chat, 'dev-nomi', [1024]);
 
-    await invoke(chat, 'ai:harness:set-cwd', longCwd);
-    const longProvider = (await invoke(chat, 'ai:gateway:upsert-provider', {
+    await callContract(chat, 'harness.setCwd', { cwd: longCwd });
+    const longProvider = (await callContract(chat, 'gateway.upsertProvider', {
       name: 'Long Profile Name Provider',
       urls: { chat: 'http://127.0.0.1:9/v1' },
       newKeys: [{ value: 'e28-fake-key' }],
@@ -286,9 +275,12 @@ test.describe('E28 · composer toolbar layout', () => {
     })) as { id: string };
     for (const kind of ['claude', 'codex', 'grok', 'dsh'] as const) {
       // 新标签默认用第三方（统一网关）：右上角来源菜单显示长供应商名 / 模型名
-      await invoke(chat, 'ai:gateway:set-assignment', kind, {
-        models: { main: `${longProvider.id}/${LONG_MODEL}` },
-        newTabSource: 'thirdParty',
+      await callContract(chat, 'gateway.setAssignment', {
+        client: kind,
+        patch: {
+          models: { main: `${longProvider.id}/${LONG_MODEL}` },
+          newTabSource: 'thirdParty',
+        },
       });
       await newTab(chat, kind);
       await sweep(

@@ -12,6 +12,7 @@ import { join, resolve } from 'node:path';
 import { _electron as electron, expect, test } from '@playwright/test';
 import type { ElectronApplication } from '@playwright/test';
 
+import { callContract } from '../fixtures/contract';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
@@ -55,13 +56,9 @@ test.describe('E29 · idle recycling of coding-assistant processes · mock CLI',
       timeout: 60_000,
     });
     const main = await app.firstWindow({ timeout: 30_000 });
-    await main.waitForFunction(() => 'electronAPI' in window, undefined, { timeout: 30_000 });
+    await main.waitForFunction(() => 'nomiTransport' in window, undefined, { timeout: 30_000 });
     const chatWin = app.waitForEvent('window', { timeout: 30_000 });
-    await main.evaluate(() =>
-      (
-        window as unknown as { electronAPI: { openAiChat(): Promise<unknown> } }
-      ).electronAPI.openAiChat(),
-    );
+    await callContract(main, 'window.openAiChat');
     const chat = await chatWin;
     await chat.setViewportSize({ width: 1180, height: 780 }).catch(() => undefined);
     await chat.locator('[data-testid="chat-mode-dev"]').click({ timeout: 30_000 });

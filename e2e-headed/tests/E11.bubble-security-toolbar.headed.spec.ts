@@ -8,6 +8,7 @@ import { join, resolve } from 'node:path';
 import { _electron as electron, test, expect } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 
+import { callContract } from '../fixtures/contract';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
@@ -122,7 +123,7 @@ test.describe('E11 · bubble security + toolbar', () => {
       timeout: 30_000,
     });
     const main = await app.firstWindow({ timeout: 20_000 });
-    await main.waitForFunction(() => 'electronAPI' in window, undefined, { timeout: 20_000 });
+    await main.waitForFunction(() => 'nomiTransport' in window, undefined, { timeout: 20_000 });
     await main
       .waitForFunction(() => document.documentElement.dataset.mascotModel === 'nomi', undefined, {
         timeout: 60_000,
@@ -169,11 +170,7 @@ test.describe('E11 · bubble security + toolbar', () => {
 
     // ---- 2b. 真实 AI 回复（mock 模型返回 HTML）----
     const chatWindow = app.waitForEvent('window', { timeout: 30_000 });
-    await main.evaluate(() =>
-      (
-        window as unknown as { electronAPI: { openAiChat(): Promise<unknown> } }
-      ).electronAPI.openAiChat(),
-    );
+    await callContract(main, 'window.openAiChat');
     const chat = await chatWindow;
     // Windows runner 上对话窗冷启动可能很慢（swiftshader + 双渲染进程），给足时间
     await chat.waitForLoadState('domcontentloaded').catch(() => undefined);
@@ -359,13 +356,7 @@ test.describe('E11 · bubble security + toolbar', () => {
 
     // 贴近右侧屏幕边缘 → 翻到左侧
     // Free-place so physics does not pull the window back after we pin it.
-    await main.evaluate(() =>
-      (
-        window as unknown as {
-          electronAPI: { mascotWindow: { setConfig(c: { gravity: boolean }): void } };
-        }
-      ).electronAPI.mascotWindow.setConfig({ gravity: false }),
-    );
+    await callContract(main, 'mascot.setInteractionConfig', { gravity: false });
     await app.evaluate(({ BrowserWindow, screen }) => {
       const w = BrowserWindow.getAllWindows().find((b) => b.isAlwaysOnTop())!;
       const wa = screen.getPrimaryDisplay().workArea;
