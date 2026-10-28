@@ -5,7 +5,9 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   ensureCharacterPackOverlay,
+  BUNDLED_PACK,
   getCharacterMode,
+  getHitboxes,
   getRiveConfig,
   getSpriteManifestPath,
   getStaticSrc,
@@ -44,6 +46,15 @@ afterEach(() => {
 beforeEach(() => {
   resetCharacterPackOverlayForTest();
   clearStub();
+});
+
+describe('bundled pack', () => {
+  it('yields no hitboxes, so touch keeps the geometry heuristic (as on 2.0.5)', async () => {
+    expect(BUNDLED_PACK.layout.hitboxes).toBeUndefined();
+    expect(getHitboxes()).toBeNull();
+    await ensureCharacterPackOverlay(); // no Electron bridge → stays on the bundled pack
+    expect(getHitboxes()).toBeNull();
+  });
 });
 
 describe('Scheme B overlay readiness', () => {

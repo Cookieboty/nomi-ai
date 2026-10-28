@@ -8,6 +8,14 @@
     "license": "MIT",
     "source": "https://github.com/Cookieboty/nomi-ai/blob/main/docs/BRAND.md"
   },
+  "catalog": {
+    "displayName": "Nomi·诺米",
+    "description": "Nomi·诺米（默认角色，2D 表情立绘）",
+    "author": "Nomi-ai project owner (AI-generated)",
+    "tags": ["default", "sprite", "2d", "soft", "brand"],
+    "version": "3.0.0",
+    "lastUpdated": "2026-10-13T00:00:00Z"
+  },
   "assets": {
     "mode": "rive",
     "rive": "rive/character.riv",
@@ -223,38 +231,6 @@
     "window": {
       "width": 420,
       "height": 450
-    },
-    "hitboxes": {
-      "head": {
-        "top": 0.04,
-        "bottom": 0.28,
-        "left": 0.16,
-        "right": 0.84
-      },
-      "face": {
-        "top": 0.1,
-        "bottom": 0.32,
-        "left": 0.22,
-        "right": 0.78
-      },
-      "body": {
-        "top": 0.28,
-        "bottom": 0.6,
-        "left": 0.18,
-        "right": 0.82
-      },
-      "hand": {
-        "top": 0.45,
-        "bottom": 0.7,
-        "left": 0.05,
-        "right": 0.95
-      },
-      "hem": {
-        "top": 0.6,
-        "bottom": 1,
-        "left": 0.15,
-        "right": 0.85
-      }
     }
   }
 }

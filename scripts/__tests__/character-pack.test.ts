@@ -88,6 +88,36 @@ describe('pack selection and build data', () => {
     expect(JSON.stringify(list)).not.toMatch(/Nomi|诺米/);
   });
 
+  it('the official model list matches the one 2.0.5 shipped (only the asset paths moved)', async () => {
+    const { pack } = await loadPack(DEFAULT_PACK_DIR);
+    expect(modelListFor(pack)).toEqual({
+      models: [
+        {
+          name: 'nomi',
+          displayName: 'Nomi·诺米',
+          description: 'Nomi·诺米（默认角色，2D 表情立绘）',
+          // 2.0.5: ./assets/models/sprite/nomi/{manifest.json,thumb.png}
+          path: './character/sprite/manifest.json',
+          thumbnail: './character/sprite/thumb.png',
+          author: 'Nomi-ai project owner (AI-generated)',
+          license: 'MIT',
+          source: 'https://github.com/Cookieboty/nomi-ai/blob/main/docs/BRAND.md',
+          tags: ['default', 'sprite', '2d', 'soft', 'brand'],
+          config: { voice: { voiceHint: 'xiaoxiao', rate: 0.92, pitch: 1.1 } },
+        },
+      ],
+      lastUpdated: '2026-10-13T00:00:00Z',
+      version: '3.0.0',
+    });
+  });
+
+  it('the official pack declares no hitboxes (Rive touch uses the geometry heuristic)', async () => {
+    const { pack } = await loadPack(DEFAULT_PACK_DIR);
+    expect(pack.layout.hitboxes).toBeUndefined();
+    expect(pack.layout.bubbleAnchor).toBeUndefined();
+    expect(packModuleData(pack).layout.hitboxes).toBeUndefined();
+  });
+
   it('ai-chat ships only the onboarding illustrations at a fixed path', async () => {
     const { pack } = await loadPack(DEFAULT_PACK_DIR);
     expect(publishedFiles(DEFAULT_PACK_DIR, pack, 'onboarding')).toEqual([

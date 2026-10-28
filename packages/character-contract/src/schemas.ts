@@ -81,6 +81,23 @@ export const packIdSchema = z
     'id must be lowercase letters, digits, - or _ (max 64 chars)',
   );
 
+/**
+ * 模型列表条目（renderer `assets/models/model-list.json`）的展示信息。缺省时由
+ * persona 名字与 mode 推导。
+ */
+export const catalogSchema = z.object({
+  displayName: nonEmpty.optional(),
+  description: nonEmpty.optional(),
+  /** 覆盖 credits.author，仅用于列表展示 */
+  author: nonEmpty.optional(),
+  tags: z.array(nonEmpty).optional(),
+  /** 列表文件的版本号 */
+  version: nonEmpty.optional(),
+  /** ISO 时间 */
+  lastUpdated: nonEmpty.optional(),
+});
+export type PackCatalog = z.infer<typeof catalogSchema>;
+
 export const manifestSchema = z.looseObject({
   schema: z.literal(1),
   id: packIdSchema,
@@ -94,6 +111,7 @@ export const manifestSchema = z.looseObject({
   defaults: z.record(z.string(), z.unknown()).optional(),
   capabilities: capabilitiesSchema.optional(),
   layout: layoutSchema.optional(),
+  catalog: catalogSchema.optional(),
 });
 export type PackManifest = z.infer<typeof manifestSchema>;
 /** 未经默认值填充的 manifest 输入形状。 */
