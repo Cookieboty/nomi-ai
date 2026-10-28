@@ -1041,6 +1041,32 @@ stop() }`；宿主 `packages/host-electron/src/host/Application.ts`（宿主区�
 > - `CHARACTER_PACK` 是进程环境变量：E8 在用例文件里设、跑完还原；要在同一进程里同时起官方与替身两个内核，需要给 `createCore` /
 >   无界面宿主加显式的内置包目录选项。
 
+> 合流后的评审修正（`refactor/p4-host-node`）：
+>
+> - G5 把 `ui.usage-tools.nomi-size` 改成「{0}大小」后，看板娘工具栏的大小分组与右键菜单的大小菜单没传参数，读屏读出「{0}大小」：
+>   两处改传 `characterName()`。`check:i18n` 加一条：`t()` / `tr()` 的参数比文案里的 `{0}` / `{name}` 少就报错（结果再手动
+>   `.replace('{0}', …)` 或当模板交给别的函数的除外），把这次的两处拦下来了；
+> - `pnpm dev:web -- --data .nomi-web` 的数据目录在仓库里，而无界面宿主的 `secrets` 只是可逆编码：`.nomi-web/` 进 `.gitignore`，
+>   给了 `--data` 时启动打一条警告（数据目录里的密钥没加密）；
+> - C3 之后覆盖包的 `mapping.json` 决定播什么，照 2.0.5 官方模板写的映射（情绪指向动作：`happy → nod`、`sad → tears`、
+>   `surprised → surprise`、`confused → puzzled`、`sleepy → yawn`，只列了十几个手势）会让表情落回中性、没列出的手势不播。2.0.5 并不读
+>   mapping.json，所以这类映射按旧行为处理：`character-contract` 的 `isLegacyMapping` 认出模板里这几对（包把那个名字声明成表情的不算），
+>   validatePack 给 `mapping-legacy` 警告并不用它，运行时退回引擎默认映射；`setAvatarMapping` 也兜一次底。C3 的 changeset 补了这一条；
+> - `check:character-leak`：其它角色包里任何 `Nomi` 都算泄漏（包里没有产品语境）；补了「Nomi is thinking」「Nomi says」「Pet Nomi」
+>   「Nomi 正在 / 说 / 觉得…」「摸摸 Nomi」这类角色口吻（「对 Nomi 说」「让 Nomi 选」是对助手说话，算产品）；扫描范围加上
+>   `packages/*/index.html` 与 `packages/*/public`。新规则查出定时面板「试一下」的预览「Nomi 说：「…」」是角色在说话，改成当前角色名；
+> - `host-node` 的 WebSocket 用例在全量并行时偶发：关连接后固定等 20ms 不够，改成轮询到连接数为 0；
+> - 验证：构建、typecheck、lint、单测（`changesets.test.ts` 已知的 6 个失败；一次全量并行里 core 的 `UpdateService.test.ts` 在 afterEach
+>   删临时目录时 ENOTEMPTY，单跑与重跑通过）、无界面 e2e（8 个文件 24 个用例）、i18n、`check:character-leak`、changelog、`character:check`、
+>   浏览器冒烟通过；macOS 上 e2e-headed 的 E11、E22、E23 在官方构建上通过，G5 在替身构建上通过。
+>
+> 剩下的：
+>
+> - `isLegacyMapping` 只认 2.0.5 模板里那几对；用户自己改过、情绪指向其它动作名的旧映射认不出来，仍按语义翻译（`character:check` 在包声明了
+>   `capabilities.expressions` 时会给 `mapping-target-undeclared`）；
+> - 角色口吻的正则是列举式的，新写法要在 `scripts/lib/characterLeak.mjs` 补；
+> - core `UpdateService.test.ts` 的 afterEach 与未完成的异步写入有竞争（偶发 ENOTEMPTY），未处理。
+
 | 阶段 | 内容                                                                                                                                                                                                             | 完成标准                                                                                                           |
 | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | P0   | ① lint 护栏：`packages/electron/src` 中除宿主目录（§7.2 右列）外，新增 electron import 报错（已有的列入白名单，只减不增）；② `PersonaService`，删两处人设硬编码                                                  | 护栏进 CI；换皮后系统提示不再是 Nomi                                                                               |
