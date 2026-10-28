@@ -81,6 +81,7 @@ import { ConfigService } from '../services/ConfigService';
 import { LoggerService, LogLevel } from '../services/LoggerService';
 import { getUpdateService } from '../services/UpdateService';
 import {
+  openAfterReady,
   planStartup,
   shouldQuitOnMainClose,
   shouldRaiseMainOnReactivate,
@@ -151,6 +152,12 @@ export class Application implements IApplication {
   private contractEvents!: ContractEventBridge;
   /** 契约处理函数在调用时读取的服务实例（host/contract/services.ts），创建服务时登记 */
   private readonly contractServices = createContractServices();
+  /** startContract() 挂上 IPC 后 resolve：首次引导窗口等它之后才打开 */
+  private readonly contractReady = (() => {
+    let resolve!: () => void;
+    const promise = new Promise<void>((r) => (resolve = r));
+    return { promise, resolve };
+  })();
   private errorHandler!: GlobalErrorHandler;
   private bootstrapManager!: BootstrapManager;
   private aiRuntime?: AIRuntimeBootHandle;
@@ -455,8 +462,13 @@ export class Application implements IApplication {
       this.windowManager.shouldQuitOnChatClose = () =>
         shouldQuitOnMainClose(startup.get().closeMain, this.shutdown.isQuitting());
       if (startupPlan.openMain && startupPlan.delayMs > 0) {
-        // 首次引导：等看板娘窗口先出来，再打开引导（她会在引导中打招呼）
-        setTimeout(() => void this.windowManager.createAiChatWindow(), startupPlan.delayMs);
+        // 首次引导：等看板娘窗口先出来，再打开引导（她会在引导中打招呼）。从契约开始服务后才计时：
+        // 契约在 AI runtime 之后才挂上 IPC，引导窗口的第一批调用不能早于它
+        openAfterReady(
+          this.contractReady.promise,
+          startupPlan.delayMs,
+          () => void this.windowManager.createAiChatWindow(),
+        );
       }
 
       // 编程助手进度：监视本机 Codex / Claude Code 等会话文件，看板娘提醒完成/失败
@@ -1017,6 +1029,7 @@ export class Application implements IApplication {
       router: app.router,
       logger: { warn: (msg, data) => this.logger.warn(msg, data as Record<string, unknown>) },
     });
+    this.contractReady.resolve();
     this.logger.info('应用契约已就绪', {
       procedures: Object.keys(app.router.contract.procedures).length,
       ai: Boolean(this.aiRuntime),

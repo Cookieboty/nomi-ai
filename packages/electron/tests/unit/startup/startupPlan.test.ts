@@ -5,6 +5,7 @@ import {
   shouldQuitOnMainClose,
   ONBOARDING_OPEN_DELAY_MS,
   normalizeStartupView,
+  openAfterReady,
   planStartup,
   shouldRaiseMainOnReactivate,
 } from '../../../src/startup/startupPlan';
@@ -72,5 +73,34 @@ describe('close main window action', () => {
     expect(shouldQuitOnMainClose('quit', true)).toBe(false);
     expect(shouldQuitOnMainClose('hide', false)).toBe(false);
     expect(shouldQuitOnMainClose('hide', true)).toBe(false);
+  });
+});
+
+describe('openAfterReady', () => {
+  it('starts the onboarding delay only after the contract is served', async () => {
+    let ready!: () => void;
+    const contract = new Promise<void>((r) => (ready = r));
+    const schedule = jest.fn((fn: () => void) => fn());
+    const open = jest.fn();
+
+    openAfterReady(contract, ONBOARDING_OPEN_DELAY_MS, open, schedule);
+    await Promise.resolve();
+    expect(schedule).not.toHaveBeenCalled();
+    expect(open).not.toHaveBeenCalled();
+
+    ready();
+    await contract;
+    await Promise.resolve();
+    expect(schedule).toHaveBeenCalledWith(open, ONBOARDING_OPEN_DELAY_MS);
+    expect(open).toHaveBeenCalledTimes(1);
+  });
+
+  it('never opens when the contract fails to start', async () => {
+    const schedule = jest.fn();
+    const failed = Promise.reject(new Error('boot failed'));
+    openAfterReady(failed, 0, jest.fn(), schedule);
+    await failed.catch(() => undefined);
+    await Promise.resolve();
+    expect(schedule).not.toHaveBeenCalled();
   });
 });

@@ -36,6 +36,23 @@ export interface StartupPlan {
 /** 首次引导延迟：等看板娘窗口先出来，再打开引导（她会在引导中打招呼） */
 export const ONBOARDING_OPEN_DELAY_MS = 1500;
 
+/**
+ * 首次引导的延迟打开：等应用契约开始服务（`contract:request` 有了处理函数）之后再计时。
+ * 契约在 AI runtime 启动之后才挂上 IPC；引导窗口的第一批调用（theme.get、locale.get、onboarding.get）
+ * 若早于它，会被 Electron 以「No handler registered」拒绝，视图不会重试。
+ */
+export function openAfterReady(
+  ready: Promise<unknown>,
+  delayMs: number,
+  open: () => void,
+  schedule: (fn: () => void, ms: number) => unknown = setTimeout,
+): void {
+  void ready.then(
+    () => schedule(open, delayMs),
+    () => undefined,
+  );
+}
+
 export function planStartup(i: StartupPlanInput): StartupPlan {
   // 首次引导优先，与设置值无关：引导里才选启动方式，此时一定是默认（看板娘）行为
   if (i.onboardingPending) {
