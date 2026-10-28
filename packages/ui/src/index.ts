@@ -16,6 +16,7 @@ export type { TabsProps, TabItem } from './Tabs';
 export { Badge, Tag } from './Badge';
 export type { BadgeProps, BadgeTone } from './Badge';
 export { FloatingTip, Tooltip } from './Tooltip';
+export { installTitleTooltips } from './titleTooltips';
 export { ModelPicker, formatContext, splitModelRef, truncDigits } from './ModelPicker';
 export type { ModelPickerProps, PickerModel, PickerProvider } from './ModelPicker';
 export type { FloatingTipProps, TooltipProps } from './Tooltip';

@@ -1,5 +1,5 @@
 import { AIProvider } from '@nomi-ai/ai-sdk-client/react';
-import { createLogger, LocaleRoot, initLocale, initTheme } from '@nomi-ai/ui';
+import { createLogger, LocaleRoot, initLocale, initTheme, installTitleTooltips } from '@nomi-ai/ui';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 
@@ -14,6 +14,8 @@ const log = createLogger('main');
 // 主题（默认 Sunset Orange；设置 → 通用 → 主题）、界面语言、聊天主面板背景
 initTheme();
 initLocale();
+// 原生 title 悬停提示统一换成自绘提示
+installTitleTooltips();
 initChatBackground();
 dropRetiredPrefs();
 

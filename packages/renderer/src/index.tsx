@@ -1,4 +1,4 @@
-import { LocaleRoot, initLocale, initTheme } from '@nomi-ai/ui';
+import { LocaleRoot, initLocale, initTheme, installTitleTooltips } from '@nomi-ai/ui';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 
@@ -12,6 +12,8 @@ import { initMascotPresence } from './mascot/presence';
 // 主题与界面语言（设置 → 通用）
 initTheme();
 initLocale();
+// 原生 title 悬停提示统一换成自绘提示
+installTitleTooltips();
 // 看板娘被关闭时不朗读
 initMascotPresence();
 
