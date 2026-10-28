@@ -192,8 +192,8 @@
       "gallery.toolsAlt": "桌面工具权限：只读工具默认允许，写入需确认，删除需逐次确认",
       "gallery.localModelsAlt": "本机管理：本地模型与离线运行设置",
 
-      "privacy.band.title": "隐私是品牌的一部分",
-      "privacy.band.desc": "对话、记忆、知识库与日程都只保存在你的电脑上。可开启「仅本地模型」，敏感内容不发往云端。",
+      "privacy.band.title": "本地优先，边界由你掌控",
+      "privacy.band.desc": "对话、记忆与知识库默认保存在你的电脑上。接入哪些外部服务由你决定，外发前会对敏感内容做保护；也可以开启「仅本地模型」。",
       "privacy.band.cta": "了解隐私承诺",
 
       "cta.download": "前往下载",
@@ -710,8 +710,8 @@
       "gallery.toolsAlt": "Desktop tool permissions: read-only tools allowed, writes need confirmation, deletes always ask",
       "gallery.localModelsAlt": "Local management: on-device models and offline settings",
 
-      "privacy.band.title": "Privacy is part of the brand",
-      "privacy.band.desc": "Chats, memory, knowledge base, and schedules stay on your computer. Enable local-only mode so sensitive content never leaves.",
+      "privacy.band.title": "Local first. You set the boundaries.",
+      "privacy.band.desc": "Conversations, memory and knowledge are stored on your computer by default. You decide which external services to connect, sensitive content is protected before it leaves, and you can switch to local-only models.",
       "privacy.band.cta": "Read our privacy promise",
 
       "cta.download": "Go to download",
