@@ -556,12 +556,12 @@ renderer 只保留：透明窗口壳、气泡、工具栏、右键菜单，以�
 
 ### 11.3 替身验收（最关键）
 
-| 验收                 | 做法                                                                                                                                                                                                                                                                                         | 证明   |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| 无界面宿主跑通 e2e   | `host-node` + in-process 传输，在 Vitest 里启动整个内核，跑现有 `e2e/` 用例；不需要 Electron 和 xvfb                                                                                                                                                                                         | G1、G4 |
-| 视图在普通浏览器运行 | 开发态内核开 WebSocket 传输，ai-chat 在 Chrome 直接打开 6128 也能对话                                                                                                                                                                                                                        | G2     |
-| 替身角色             | `characters/test-dummy`：static 模式、一张占位图、名字与人设完全不同；用它跑 e2e，断言界面文本与发出的系统提示中都不含 `Nomi` / `诺米`（产品名区域除外）。已通过：`e2e/tests/E6.stand-in-character`（无界面）与 `e2e-headed/tests/G5.stand-in-character`（`pnpm build:stand-in` 的替身构建） | G5     |
-| 契约兼容             | 契约 major 不变时，旧视图构建对新内核跑一遍冒烟                                                                                                                                                                                                                                              | G3     |
+| 验收                 | 做法                                                                                                                                                                                                                                                                                                         | 证明   |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------ |
+| 无界面宿主跑通 e2e   | `host-node` + in-process 传输，在 Vitest 里启动整个内核，跑现有 `e2e/` 用例；不需要 Electron 和 xvfb                                                                                                                                                                                                         | G1、G4 |
+| 视图在普通浏览器运行 | 开发态内核开 WebSocket 传输，ai-chat 在 Chrome 直接打开 6128 也能对话                                                                                                                                                                                                                                        | G2     |
+| 替身角色             | `characters/test-dummy`：static 模式、一张占位图、名字与人设完全不同；用它跑 e2e，断言界面文本与发出的系统提示中都不含 `Nomi` / `诺米`（产品名区域除外）。已通过：`e2e/tests/E8.stand-in-character`（无界面宿主上的真实内核）与 `e2e-headed/tests/G5.stand-in-character`（`pnpm build:stand-in` 的替身构建） | G5     |
+| 契约兼容             | 契约 major 不变时，旧视图构建对新内核跑一遍冒烟                                                                                                                                                                                                                                                              | G3     |
 
 ## 12. 迁移计划
 
@@ -1013,6 +1013,33 @@ stop() }`；宿主 `packages/host-electron/src/host/Application.ts`（宿主区�
 >   「产品叫 Nomi，角色叫诺米」改写；
 > - 「她 / her」之类不带名字的人称（例如「摸她的头」）没有改：不泄漏名字，但对非女性角色不合适，可以以后按角色包给的人称处理；
 > - 托盘菜单在建菜单时取一次角色名，换角色包 / 换语言后要等菜单重建才更新。
+
+> P4 与 C3 / G5 合流（`refactor/c3-semantic` 变基到 `refactor/p4-host-node` 之上，再快进合入 P4 分支）：两条线都从 `release/2.0.5` 的
+> `56cfbd84` 起、并行做完，合流时按 P4 的「每个内核实例自己的事件总线、没有模块级出口」改写 C3 的语义事件出口。
+>
+> - 语义事件的出口跟 `sendMascotCommand(events, cmd)` 一样带事件总线：`publishAvatarCue(events, cue)`、`avatarGesture(events, name)`、
+>   `avatarEmotion(events, name, weight?)`，不再返回存活窗口数（C3 里靠模块级 `setMascotLiveWindows` 数窗口，P4 已删除）。首次引导的
+>   `onboarding.mascot` 仍用 P4 的 `OnboardingDeps.liveWindows` 判断是否送达；托盘「动作」菜单用宿主传入的内核事件总线发语义手势；
+>   `createMascotIgPlugins(events)` 装 `AvatarSeamPlugin`、`CompanionToolsPlugin`、`CompanionAgentPresetPlugin` 与按实例的
+>   `MascotIpcHostPlugin`（语义事件经这个内核的事件总线发出）；`avatar:event → avatar.event` 进内核的事件桥（`core/contract/mascot.ts`），
+>   宿主片段里不再有事件桥；
+> - G5 里接在旧组合根上的两处改到新位置：唤醒词缺省值 `defaultWakePhrase` 在 `createCore` 建 `VoiceService` 时接
+>   `services.characterPack.wakePhrase()`，托盘的角色名在宿主 `host/Application.ts` 读 `core.services.persona`；
+> - 无界面 e2e 编号：P4 已有 E6（两个内核）与 E7（WebSocket），C3 的替身验收改为 `E8.stand-in-character`，从假运行时
+>   （`e2eRuntime`，P4 已删除）改跑无界面宿主的真实内核：`CHARACTER_PACK` 给 `characters/test-dummy` 的绝对路径，无界面宿主的应用目录是
+>   临时目录、没有构建产物，内置包就解析成替身（P4「剩下的」里「无界面宿主解析不到内置包、G5 仍归 C3」这一条就此对上）；人设经契约
+>   `persona.get` 取，`companion` preset 从内核插件宿主里真实装好的 `AgentPresetRegistryKey` 取。新增 `E9.avatar-semantic-events`：
+>   `ctx.avatar`、工具 `avatar_gesture`、视图的 `ai.avatar.*` 与 `onboarding.mascot` 都经内核事件总线到 `avatar.event`，只有看板娘窗口
+>   收到（对话窗口订阅了也收不到）；`thumbs_up` 这类资源名在契约上被拒（`BAD_INPUT`）；看板娘窗口 `ai.avatar.report` 的 `touched` 到
+>   `ctx.avatar.on('touched')` 与订阅了 `ai.avatar.touched` 的窗口。E1 / E4 按 C3 改名为 `companion`，假的 `AvatarService` 改成语义接口；
+> - 验证见合流提交的说明（构建、typecheck、lint、单测、无界面 e2e、i18n、许可、`check:character-leak`、changelog、格式、浏览器冒烟、
+>   macOS 上整套 e2e-headed）。
+>
+> 剩下的：
+>
+> - 同一进程里多个内核共用的进程级状态（P4「剩下的」第一条）没有变；E8 改界面语言后还原成跟随系统，免得影响同进程后面的用例；
+> - `CHARACTER_PACK` 是进程环境变量：E8 在用例文件里设、跑完还原；要在同一进程里同时起官方与替身两个内核，需要给 `createCore` /
+>   无界面宿主加显式的内置包目录选项。
 
 | 阶段 | 内容                                                                                                                                                                                                             | 完成标准                                                                                                           |
 | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
