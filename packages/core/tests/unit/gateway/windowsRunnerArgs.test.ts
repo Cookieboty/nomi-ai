@@ -3,7 +3,7 @@ jest.unmock('path');
 jest.unmock('node:fs');
 jest.unmock('node:path');
 
-import { spawnSync } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -24,7 +24,7 @@ function runner(dir: string): string {
 }
 
 describe('Windows runner argv from PowerShell', () => {
-  it('treats numbers / booleans / a single value as strings instead of crashing', () => {
+  it('treats numbers / booleans / a single value as strings instead of crashing', async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-runner-'));
     const cfg = path.join(dir, 'cfg.json');
     fs.writeFileSync(
@@ -39,17 +39,26 @@ describe('Windows runner argv from PowerShell', () => {
       }),
     );
     const file = runner(dir);
+    // 每个用例起一个 Node 进程：并发起，不要一个个 spawnSync——全量并行时每次启动都要一两秒，
+    // 串起来会撞上 10 秒的用例超时
     const go = (json: string) =>
-      spawnSync(process.execPath, [file, cfg, '--nomi-powershell-args'], {
-        env: { ...process.env, NOMI_TERMINAL_ARGS: json },
-        encoding: 'utf8',
+      new Promise<string>((resolve) => {
+        execFile(
+          process.execPath,
+          [file, cfg, '--nomi-powershell-args'],
+          { env: { ...process.env, NOMI_TERMINAL_ARGS: json }, encoding: 'utf8' },
+          (_err, _stdout, stderr) => resolve(stderr.trim()),
+        );
       });
-    // 参数解析通过后才会去连网关（这里必然连不上）→ DOWN
-    for (const json of ['["-p",5,true,null]', '"solo"', '[]']) {
-      const r = go(json);
-      expect(r.stderr.trim()).toBe('DOWN');
-    }
-    // 数字后面跟 --nomi-model 也能被识别（模型校验失败说明走到了解析）
-    expect(go('[1,"--nomi-model","bad model"]').stderr.trim()).toBe('BAD');
+    const [a, b, c, model] = await Promise.all([
+      // 参数解析通过后才会去连网关（这里必然连不上）→ DOWN
+      go('["-p",5,true,null]'),
+      go('"solo"'),
+      go('[]'),
+      // 数字后面跟 --nomi-model 也能被识别（模型校验失败说明走到了解析）
+      go('[1,"--nomi-model","bad model"]'),
+    ]);
+    expect([a, b, c]).toEqual(['DOWN', 'DOWN', 'DOWN']);
+    expect(model).toBe('BAD');
   });
 });

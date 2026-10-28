@@ -114,16 +114,29 @@ describe('CodexThreadReader（主进程 ↔ worker）', () => {
   });
 
   it('worker 卡死：超时后失败并结束 worker，不计入回退', async () => {
-    const { r, spawn, workers } = setup({ timeoutMs: 20, maxCrashes: 1 });
-    await r.read('/x/a');
-    workers[0]!.hang = true; // 之后的请求不再回复
-    const q = r.read('/x/b');
-    await expect(q).rejects.toThrow('timed out');
-    expect(workers[0]!.terminated).toBe(true);
-    expect(r.inProcess).toBe(false);
-    expect(await r.read('/x/c')).toEqual([{ id: 'c' }]);
-    expect(spawn).toHaveBeenCalledTimes(2);
-    r.shutdown();
+    // 假 worker 5ms 后回复、读取 20ms 超时：用真实定时器时，全量并行下事件循环一卡，正常的读取也可能先超时。
+    // 用假定时器按虚拟时间推进，「回复早于超时」与「卡死才超时」都是确定的
+    jest.useFakeTimers();
+    try {
+      const { r, spawn, workers } = setup({ timeoutMs: 20, maxCrashes: 1 });
+      const settle = async <T>(p: Promise<T>, ms: number): Promise<T> => {
+        await jest.advanceTimersByTimeAsync(ms);
+        return p;
+      };
+      await settle(r.read('/x/a'), 5);
+      workers[0]!.hang = true; // 之后的请求不再回复
+      const q = r.read('/x/b');
+      const failed = expect(q).rejects.toThrow('timed out');
+      await jest.advanceTimersByTimeAsync(20);
+      await failed;
+      expect(workers[0]!.terminated).toBe(true);
+      expect(r.inProcess).toBe(false);
+      expect(await settle(r.read('/x/c'), 5)).toEqual([{ id: 'c' }]);
+      expect(spawn).toHaveBeenCalledTimes(2);
+      r.shutdown();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('空闲 idleMs 后结束 worker，之后按需重建', async () => {

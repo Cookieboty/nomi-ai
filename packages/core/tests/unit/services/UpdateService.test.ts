@@ -412,8 +412,10 @@ describe('UpdateService', () => {
       file = path.join(dir, 'nested', 'update-settings.json');
       jest.useFakeTimers();
     });
-    afterEach(() => {
+    afterEach(async () => {
       jest.useRealTimers();
+      // setAutoCheck 异步落盘（临时文件 + rename）：写完之前删目录会撞上新建的临时文件（ENOTEMPTY）
+      await whenPrivateWritesIdle();
       fs.rmSync(dir, { recursive: true, force: true });
     });
 
@@ -444,6 +446,8 @@ describe('UpdateService', () => {
       a.setAutoCheck(false);
       a.setAutoCheck(true);
       a.stop();
+      // 重启读的是磁盘：两次写入都落盘后再建（否则可能读到只写完第一次的 false）
+      await whenPrivateWritesIdle();
       const spy = jest.spyOn(updater, 'checkForUpdates');
       const b = make();
       expect(b.getState().autoCheck).toBe(true);
