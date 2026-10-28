@@ -118,6 +118,21 @@ export const NOMI_TRANSPORT_GLOBAL = 'nomiTransport';
  */
 export const NOMI_HOST_GLOBAL = 'nomiHost';
 
+/**
+ * 开发态（`pnpm dev:web`）由 Vite 开发服务器注入页面的全局：视图在普通浏览器里运行、没有 preload 桥时，
+ * 用它经 WebSocket 连开发态内核（§5.2、§11.3）。只在开发服务器注入（`scripts/dev-web/vite-plugin.mjs`），
+ * 构建产物里没有；视图只在 `services/api.ts` 里、`import.meta.env.DEV` 时读它。
+ */
+export const NOMI_DEV_TRANSPORT_GLOBAL = 'nomiDevTransport';
+
+/** `window.nomiDevTransport` 的形状 */
+export interface DevTransportConfig {
+  /** `ws://127.0.0.1:<port>` */
+  url: string;
+  /** 开发态内核本次启动的随机 token */
+  token: string;
+}
+
 export {
   AI_EVENTS,
   AI_METHODS,

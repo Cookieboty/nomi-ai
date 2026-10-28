@@ -1,6 +1,7 @@
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { characterPackPlugin } from '../../scripts/character/vite-plugin.mjs';
+import { devTransportPlugin } from '../../scripts/dev-web/vite-plugin.mjs';
 import { DEV_HOST, PORTS } from '../../scripts/ports.mjs';
 // 与主进程响应头使用同一份策略（纯数据模块，构建期引用）
 import { appCspString } from '../host-electron/src/security/csp';
@@ -10,6 +11,8 @@ export default defineConfig(({ mode }) => ({
     react(),
     // 引导插画取自当前角色包（CHARACTER_PACK 或 characters/nomi）
     characterPackPlugin({ scope: 'onboarding' }),
+    // pnpm dev:web：开发服务器注入 WebSocket 传输配置；生产构建里出现 WebSocket 传输就失败
+    ...devTransportPlugin(),
     {
       // 生产构建：以 <meta> 注入 CSP。打包后窗口经 file:// 加载，onHeadersReceived
       // 的响应头对 file:// 不生效，必须靠 meta；开发模式（HMR 需内联脚本）不注入。

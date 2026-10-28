@@ -311,7 +311,7 @@ export default tseslint.config(
         'error',
         {
           selector:
-            'MemberExpression[property.name=/^(aiIPC|electronAPI|nomiTransport|nomiHost)$/], MemberExpression[computed=true][property.value=/^(aiIPC|electronAPI|nomiTransport|nomiHost)$/]',
+            'MemberExpression[property.name=/^(aiIPC|electronAPI|nomiTransport|nomiHost|nomiDevTransport)$/], MemberExpression[computed=true][property.value=/^(aiIPC|electronAPI|nomiTransport|nomiHost|nomiDevTransport)$/]',
           message: 'avatar-runtime 不访问宿主全局：宿主能力经注入的接口传进来（§10.6）。',
         },
       ],
@@ -409,8 +409,9 @@ export default tseslint.config(
     },
   },
   // 视图只经契约访问内核（docs/design/core-host-decoupling.md §8、§11.1）：preload 只暴露
-  // `window.nomiTransport`（契约传输）与 `window.nomiHost`（拖入文件路径），两者都只能在每个视图包唯一的
-  // `services/api.ts` 里读；旧桥 `window.aiIPC` / `window.electronAPI` 已删除，也不许再声明或访问。
+  // `window.nomiTransport`（契约传输）与 `window.nomiHost`（拖入文件路径），开发服务器（pnpm dev:web）注入
+  // `window.nomiDevTransport`（WebSocket 传输的地址与 token），三者都只能在每个视图包唯一的 `services/api.ts`
+  // 里读，传输也只在那里选；旧桥 `window.aiIPC` / `window.electronAPI` 已删除，也不许再声明或访问。
   {
     files: [
       'packages/ai-chat/src/**/*.{ts,tsx}',
@@ -424,7 +425,7 @@ export default tseslint.config(
         'error',
         {
           selector:
-            'MemberExpression[property.name=/^(aiIPC|electronAPI|nomiTransport|nomiHost)$/], MemberExpression[computed=true][property.value=/^(aiIPC|electronAPI|nomiTransport|nomiHost)$/]',
+            'MemberExpression[property.name=/^(aiIPC|electronAPI|nomiTransport|nomiHost|nomiDevTransport)$/], MemberExpression[computed=true][property.value=/^(aiIPC|electronAPI|nomiTransport|nomiHost|nomiDevTransport)$/]',
           message:
             '视图不直接访问 preload 全局：调用内核用 services/api 的 api.*，文件路径用 hostPathForFile（§11.1）。',
         },
@@ -435,7 +436,7 @@ export default tseslint.config(
         },
         {
           selector:
-            'ImportSpecifier[imported.name=/^(NOMI_TRANSPORT_GLOBAL|NOMI_HOST_GLOBAL|getGlobalBridge|getSharedTransport|lazyGlobalTransport|createAppClient)$/]',
+            'ImportSpecifier[imported.name=/^(NOMI_TRANSPORT_GLOBAL|NOMI_HOST_GLOBAL|NOMI_DEV_TRANSPORT_GLOBAL|getGlobalBridge|getSharedTransport|installSharedTransport|lazyGlobalTransport|createAppClient|createWebSocketClientTransport|createIpcClientTransport)$/]',
           message:
             '契约客户端只在 services/api.ts 里建一次，其余代码 import { api } from services/api（§11.1）。',
         },
