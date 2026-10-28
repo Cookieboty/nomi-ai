@@ -13,7 +13,7 @@ Nomi 住在一个透明、置顶的小窗口里，只有角色本身可以点击
 
 ## 动作
 
-Nomi 有 **43 个命名动作**（`packages/avatar-runtime/src/rig/actions.ts`），工具栏右键「动作」菜单、托盘、AI 工具 `avatar_gesture` 都使用同一套名字。
+Nomi 有 **43 个命名动作**（`packages/avatar-runtime/src/rig/actions.ts`），工具栏右键「动作」菜单直接用这些名字。AI 工具 `avatar_gesture` / `avatar_emotion`、托盘和应用内的提醒只说**语义名**（手势 `thumbsUp`、`shakeHead`，情绪 `happy`，活动 `thinking` 等，词表见 [角色包契约](../character-pack/CONTRACT.md#mappingjson)），由角色包的 `mapping.json`（官方包 `characters/nomi/mapping.json`）翻译成下表的动作；换了角色包时，它没有映射的手势与情绪不会表现。
 
 | 动作          | 名称             | 类别 | 时长         | 优先级 | 触发场景                                    | 应用内自动触发                                  |
 | ------------- | ---------------- | ---- | ------------ | ------ | ------------------------------------------- | ----------------------------------------------- |

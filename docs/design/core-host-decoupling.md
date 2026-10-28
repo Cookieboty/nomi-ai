@@ -496,8 +496,8 @@ interface Persona {
 }
 ```
 
-- `WaifuAgentPresetPlugin` 与 ai-chat 的默认系统提示都从这里读。
-- 删除两处硬编码：`WaifuAgentPresetPlugin.ts` 的「你是 Nomi（诺米）……」兜底，以及 `IPCClient.ts` 使用的 `you-are-nomi-an-ai-companion-who-lives` key（文本搬进 `characters/nomi/persona.json`，同时删 `en.json` 对应条目）。
+- 角色 preset（`CompanionAgentPresetPlugin`，C3 前叫 `WaifuAgentPresetPlugin`）与 ai-chat 的默认系统提示都从这里读。
+- 删除两处硬编码：`WaifuAgentPresetPlugin.ts`（现 `CompanionAgentPresetPlugin.ts`）的「你是 Nomi（诺米）……」兜底，以及 `IPCClient.ts` 使用的 `you-are-nomi-an-ai-companion-who-lives` key（文本搬进 `characters/nomi/persona.json`，同时删 `en.json` 对应条目）。
 - 两份 `character.generated.json` 删除，由 `PersonaService` 和 `avatar-runtime` 从同一个解析结果读取。
 
 **这一步改动最小，并且直接修复「换了皮，人设还是 Nomi」的问题，排在最前（§12 P0）。**
@@ -509,11 +509,12 @@ AI 不再知道动作名和 clip 名：
 | 方向      | 事件                                                                                                                    |
 | --------- | ----------------------------------------------------------------------------------------------------------------------- |
 | AI → 角色 | `emotion(name, weight)`、`speaking(start / stop, envelope)`、`activity(thinking / toolRunning / idle)`、`gesture(name)` |
-| 角色 → AI | `touched(hitbox)`、`clicked`、`scene(…)`（现有 `WaifuMascotSceneReporter` 的内容）                                      |
+| 角色 → AI | `touched(hitbox)`、`clicked`、`scene(…)`（取代原 `WaifuMascotSceneReporter`：角色 id 与它有映射的语义名）               |
 
 - 角色包的 `mapping.json` 把语义翻译成自己的资源，例如 `happy → smile_02`、`toolRunning → typing_loop`；没有映射就忽略。
 - 项目没有 Live2D 运行时，`live2d` 只是历史命名，挂在驱动 Rive / sprite 的在用链路上。处理：没有调用方的部分（例如 `setParameter`、`LIVE2D_NOT_AVAILABLE`）直接删；在用的部分改名为 avatar，**不保留旧名别名**。
-- 工具改名：`live2d_play_motion` → `avatar_gesture`，`live2d_set_expression` → `avatar_emotion`；preset 名 `waifu` → `companion`。
+- 工具改名：`live2d_play_motion` → `avatar_gesture`，`live2d_set_expression` → `avatar_emotion`（C3 起只收语义名）；preset 名 `waifu` → `companion`。
+- 词表在 `character-contract`（`SEMANTIC_EMOTIONS` / `SEMANTIC_ACTIVITIES` / `SEMANTIC_GESTURES`）；没有 `mapping.json` 的包用引擎默认映射（与 `characters/nomi/mapping.json` 相同）。
 - `ai-sdk` 的 `Live2dFacade` → `AvatarFacade`，`Live2dSeamPlugin` / `seams/live2d.ts` → avatar，事件 `live2d:touch` → `avatar:touch`。
 - 保留 `ConfigIpcHandler` 中清理旧 `displayMode: 'live2d'` 配置的迁移逻辑（它处理的是用户磁盘上的旧数据）。
 
@@ -522,8 +523,8 @@ AI 不再知道动作名和 clip 名：
 从 `renderer/src/mascot` 拆出，纯浏览器包：
 
 - **内容**：`MascotBackend` 接口与 `backends/`（rive / sprite / static）、`expressionDirector`、`mood`、`motion`、`rig`、`layeredRig`、`interaction`（命中区）、口型消费。`characterVoice`（角色语音偏好）留在 renderer：它属于宿主的朗读链路，运行时只经 `onInteraction` 报出「这句要朗读」（见 §12 C2 的进度说明）。
-- **输入**：`manifest + mapping + resolveAsset(path) → url` + 一个 `AvatarEventSource`（语义事件流）。
-- **输出**：交互事件（`touched`、`clicked`）。
+- **输入**：`manifest + mapping + resolveAsset(path) → url` + 一个 `AvatarEventSource`（语义事件流），情绪 / 活动 / 手势按 mapping 翻译（`mapping.ts`）。
+- **输出**：交互事件（`onInteraction`，带台词）与语义事件（`onAvatarEvent`：`touched`、`clicked`、`scene`）。
 - **不依赖** `contract`、`electron`、`ai-sdk-client`。`AvatarEventSource` 由 renderer 用契约 client 实现并注入，所以 avatar-runtime 可以单独在网页里运行（`packages/avatar-runtime/demo`）。
 
 renderer 只保留：透明窗口壳、气泡、工具栏、右键菜单，以及把契约事件接到 `AvatarEventSource` 的薄适配层（现在的 `src/ai`）。
@@ -920,17 +921,63 @@ stop() }`；宿主 `packages/host-electron/src/host/Application.ts`（宿主区�
 > - WebSocket 传输按开发态设计（一次性 token、没有重连、没有会话恢复），作为 sidecar 宿主的生产传输前要补：重连与
 >   订阅恢复、token 的下发方式（不经页面全局）、调用者身份细分（目前一律 trusted）。
 
-| 阶段 | 内容                                                                                                                                                                                                             | 完成标准                                                                   |
-| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| P0   | ① lint 护栏：`packages/electron/src` 中除宿主目录（§7.2 右列）外，新增 electron import 报错（已有的列入白名单，只减不增）；② `PersonaService`，删两处人设硬编码                                                  | 护栏进 CI；换皮后系统提示不再是 Nomi                                       |
-| P1a  | **已完成**。建 `contract` 与 `defineContract`；AI 门面（35 个 `ai.*` 过程 + 12 个事件）上契约，取代两份 `channels.ts`；`ClientAIClient` 改走 `window.nomiTransport`                                              | AI 门面只经契约访问；两份 `channels.ts` 删除                               |
-| P1b  | **已完成**。其余 `ai:*` 服务通道与 `window.electronAPI` 的能力逐个进契约；视图改用 client；删除 `window.aiIPC` / `window.electronAPI`                                                                            | 视图中不再出现 `window.aiIPC` / `window.electronAPI`                       |
-| P2   | 建 `host-ports`；替换 `app.getPath`（10）、`safeStorage`（9）、`dialog/shell/clipboard` 等（15）；29 处窗口广播改为 `ctx.events.publish`                                                                         | `packages/electron/src` 中业务模块不再 import electron                     |
-| P3   | **已完成**（P0 白名单在 P4 第一步清空，见上方进度说明）。物理搬家：业务模块 → `packages/core`；`packages/electron` → `packages/host-electron`（`@nomi-ai/host-electron`）；ai-runtime 的 Electron 适配器移入宿主 | 目录与 §3.3 一致；P0 白名单清空                                            |
-| P4   | **已完成**（见上方 P4 两步的进度说明）。内核组合根 `createCore`，同一进程可起多个内核；`host-node` + in-process / WebSocket 传输；`e2e/` 改跑无界面宿主                                                          | §11.3 前两项通过                                                           |
-| C1   | `character-contract` 包；官方资产与人设集中到 `characters/nomi`；删 Scheme A 原地覆盖与两份 `character.generated.json`                                                                                           | 官方构建与白标构建走同一路径                                               |
-| C2   | **已完成**。拆出 `avatar-runtime`；renderer 只留窗口壳                                                                                                                                                           | avatar-runtime 能单独运行（开发页 `demo/` 与挂载测试；仓库没有 Storybook） |
-| C3   | 语义事件协议 + `mapping.json`；工具与 preset 改名（不保留别名）                                                                                                                                                  | AI 侧代码中不出现 clip / motion 名；§11.3 替身角色通过                     |
+> C3 基本完成（分支 `refactor/c3-semantic`，从 `release/2.0.5` 的 `56cfbd84` 起）：AI 与角色之间只传语义事件（§10.5），工具与 preset 改名。
+>
+> - 词表：`character-contract` 的 `SEMANTIC_EMOTIONS`（加 `relaxed`）、`SEMANTIC_ACTIVITIES`、`SEMANTIC_GESTURES`（扩到 AI 侧原来会发的全部：
+>   `avatar_gesture` 说明里列的 42 个动作名、内核服务、托盘、表情导演用到的，共 46 个，含 `random`），与 `contract.json` 同步；
+>   保留目标 `MAPPING_RESERVED_TARGETS = ['random']`；manifest 加 `capabilities.expressions`，`validatePack` 的情绪目标对它查、
+>   活动 / 手势目标对动作查；
+> - 映射：`characters/nomi/mapping.json` 覆盖全部手势与 `thinking` / `toolRunning`，情绪映射 2.0.5 已有的六个表情
+>   （`shy` / `confused` / `sleepy` 没有对应表情：以前 `avatar_emotion` 直接拒绝，现在忽略）；目标就是原来到达后端的那个名字，
+>   `avatar-runtime/tests/mapping.test.ts` 逐个核对旧名与新目标在 Rive 与分层 2D 上落到同一个片段。`reachOut → interact` 是引擎别名、
+>   不在 manifest 声明的片段里，`character:check` 给一条警告，为了行为不变保留。`characters/test-dummy/mapping.json` 只映射 `neutral`；
+> - 运行时：`mapping.ts`（`setAvatarMapping`、`emotionTarget` / `gestureTarget` / `activityTarget`、`DEFAULT_AVATAR_MAPPING`）。没有
+>   `mapping.json` 的包用默认映射（= 官方包，测试保证一致），有的只按它来，没映射的忽略；表情导演、语音状态、流式情绪只给语义名
+>   （`ExpressionDirective.gesture` / `activity`），经映射落到资源；输入事件加 `emotion(name, weight)`、`activity(name)`、
+>   `reply(waiting / settled)`（对话窗口等回复，原来的 `think-on` / `think-off`，仍是分层 2D 的引擎控制）；输出 `onAvatarEvent`：
+>   `touched` / `clicked`（摸、点、双击，按互动冷却过滤后）与 `scene`（挂载或换角色时：角色 id 与有映射的语义名）；
+> - 契约（major 升到 2：`ai.avatar.*` 改名，不留旧名）：`ai.avatar.{emotion,gesture,activity,speaking,report}`，事件
+>   `ai.avatar.{touched,clicked,scene}`；看板娘域新增事件 `avatar.event`（只给看板娘窗口）；`mascot.command` 只剩 `open-panel` /
+>   `say`（带语义 `gesture`）/ `reply-speech`；`onboarding.mascot` 只收 `say` / `gesture` / `reply`；语义名的 schema 只收驼峰，
+>   `thumbs_up`、`think-on` 这类资源名过不了线。`character.getActivePack` 多了 `mapping`，覆盖包的映射传到运行时；
+> - AI 侧：`bundle-ig-mascot` 的 `ctx.avatar` 改成语义接口（`emotion` / `gesture` / `activity` / `speaking` / `report` /
+>   `on('touched' | 'clicked' | 'scene')`），词表外的名字忽略；工具 `avatar_gesture { name }`、`avatar_emotion { name, weight? }` 的
+>   入参是词表枚举；`ai-sdk` 的 `AvatarFacade` 同形；内核服务（桌面、日程、记忆、知识库、扩展、本地模型、编程助手进度）经
+>   `avatarGesture(events, …)` / `avatarEmotion(events, …)`（内核实例自己的事件总线）发 `avatar:event`，托盘「动作」菜单发语义手势。`scripts/__tests__/avatar-semantic-names.test.ts`
+>   扫内核、AI 运行时 / SDK、插件包与契约的源码，不得出现片段 / 动作资源名（取自 `contract.json`）；
+> - 改名（不留别名）：`WaifuToolsPlugin` → `CompanionToolsPlugin`、`WaifuAgentPresetPlugin` → `CompanionAgentPresetPlugin`（preset
+>   `companion`）、AI runtime 缺省 profile `companion`、renderer 的 `Waifu*` 组件与 `useWaifuMessage`、DOM id `waifu-*`，以及 e2e /
+>   e2e-headed 的 E1、E4 文件名与 harness 的缺省 profile。preset id 没有落盘：会话的 `agentPreset` 由内存版 `SessionFacade` 保存，
+>   profile 来自启动参数 / 环境变量 `IG_AI_PROFILE`，没有要迁移的用户配置；renderer 只写不读的 localStorage 键 `waifu-display` 改名；
+> - 三个没装载的插件：`TtsLipSyncPlugin` 删除（口型由看板娘窗口本地的 TTS 包络 → `speaking` → avatar-runtime 驱动，主进程 host 的
+>   `driveLipSync` 本来就是空操作，它的 `tts/end → playMotion('idle')` 也是资源名）；`TouchInjectPlugin` 删除（它发的
+>   `agent/sensory-inject` 全仓库没有订阅者；触摸现在是语义事件 `touched`，经 `ai.avatar.report` 到 `ctx.avatar.on('touched')`）；
+>   `WaifuAgentPresetPlugin` 改名并接入 `mascotIgPlugins`（P0 为它做了 `PersonaIdentityPlugin`，替身验收测试读的也是它的系统提示；
+>   它是 `companion` preset 与语义工具白名单的归属）；
+> - 行为不变：Nomi 的动作、表情与音效和以前一致（对话等回复时的那一声轻响也保留）。去掉一处：renderer 订阅 `avatar:touch` 显示
+>   「摸到…了」气泡，以前没有发布方；现在触摸真的报给主进程，再显示会与互动反应的台词重复，删掉（含 i18n key）。e2e-headed 的
+>   E1、E2、E4、E5、E9、E10、E11、E12、E15、E16、E22、E23、E30 在 macOS 上通过。
+>
+> 剩下的：
+>
+> - §11.3 替身角色（G5）没有达成：替身包有了映射，运行时与内核的单测走真实路径（人设、系统提示身份段、发给界面的快照不含官方名），
+>   但用它跑一轮 e2e、断言界面文本不含 Nomi，要先做界面文案里产品名 / 角色名的分拣（§10.1）与 `scripts/check-character-leak`（§11.2）；
+> - `companion` preset 已注册，还没有消费方：对话的系统提示仍由 ai-chat（`IPCClient`）拼，会话的 `agentPreset` 只是透传字段；
+> - `touched` / `clicked` / `scene` 到了 `ctx.avatar`，还没有 AI 功能订阅（例如把触摸作为感官输入注入会话）；
+> - 互动反应表（`interaction/gestures.ts`：摸头、点击等）仍直接用引擎动作名、不经映射：这是角色对用户操作的反应，不来自 AI；
+>   看板娘窗口的动作菜单列的也是当前后端的动作（资源名，直接交给引擎）。
+
+| 阶段 | 内容                                                                                                                                                                                                             | 完成标准                                                                                                        |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| P0   | ① lint 护栏：`packages/electron/src` 中除宿主目录（§7.2 右列）外，新增 electron import 报错（已有的列入白名单，只减不增）；② `PersonaService`，删两处人设硬编码                                                  | 护栏进 CI；换皮后系统提示不再是 Nomi                                                                            |
+| P1a  | **已完成**。建 `contract` 与 `defineContract`；AI 门面（35 个 `ai.*` 过程 + 12 个事件）上契约，取代两份 `channels.ts`；`ClientAIClient` 改走 `window.nomiTransport`                                              | AI 门面只经契约访问；两份 `channels.ts` 删除                                                                    |
+| P1b  | **已完成**。其余 `ai:*` 服务通道与 `window.electronAPI` 的能力逐个进契约；视图改用 client；删除 `window.aiIPC` / `window.electronAPI`                                                                            | 视图中不再出现 `window.aiIPC` / `window.electronAPI`                                                            |
+| P2   | 建 `host-ports`；替换 `app.getPath`（10）、`safeStorage`（9）、`dialog/shell/clipboard` 等（15）；29 处窗口广播改为 `ctx.events.publish`                                                                         | `packages/electron/src` 中业务模块不再 import electron                                                          |
+| P3   | **已完成**（P0 白名单在 P4 第一步清空，见上方进度说明）。物理搬家：业务模块 → `packages/core`；`packages/electron` → `packages/host-electron`（`@nomi-ai/host-electron`）；ai-runtime 的 Electron 适配器移入宿主 | 目录与 §3.3 一致；P0 白名单清空                                                                                 |
+| P4   | **已完成**（见上方 P4 两步的进度说明）。内核组合根 `createCore`，同一进程可起多个内核；`host-node` + in-process / WebSocket 传输；`e2e/` 改跑无界面宿主                                                          | §11.3 前两项通过                                                                                                |
+| C1   | `character-contract` 包；官方资产与人设集中到 `characters/nomi`；删 Scheme A 原地覆盖与两份 `character.generated.json`                                                                                           | 官方构建与白标构建走同一路径                                                                                    |
+| C2   | **已完成**。拆出 `avatar-runtime`；renderer 只留窗口壳                                                                                                                                                           | avatar-runtime 能单独运行（开发页 `demo/` 与挂载测试；仓库没有 Storybook）                                      |
+| C3   | **基本完成**（见上方 C3 进度说明）。语义事件协议 + `mapping.json`；工具与 preset 改名（不保留别名）                                                                                                              | AI 侧代码中不出现 clip / motion 名（已达成，扫描测试守住）；§11.3 替身角色通过（未达成，等 §10.1 分拣与 §11.2） |
 
 - **P1a 的行为变化**：AI 门面的业务事件（`ai.agent.step`、`ai.tts.chunk`、`ai.userProfile.changed` 等）改由契约传输按订阅分发，**只推给订阅了该事件的窗口**；以前 `EventBroadcaster` 经 `ai:event` 通道广播给所有存活窗口（可选按窗口过滤），该通道已删除。没有经契约订阅的窗口（含直接监听 `ai:event` 的页面）收不到这些事件，P1b 迁移视图时要改成显式订阅；窗口导航或刷新后订阅随会话一起失效，由新页面重新订阅。
 - **P1 与 P2 可以并行**：一个改视图一侧，一个改内核一侧，中间靠契约对齐。
