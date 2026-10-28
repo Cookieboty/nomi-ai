@@ -57,8 +57,8 @@ export const UserPreferenceMemoryPlugin = definePlugin<UserPreferenceMemoryConfi
     ctx.on('agent/stopped-by-user', () => habits.onStopGeneration());
     ctx.on('agent/regenerate', () => habits.onRegenerate());
 
-    // 3) 变更广播
-    store.subscribe('changed', (p) => ctx.emit('userProfile/changed', p));
+    // 3) 变更广播：载荷是 `{ profile }`（ai-sdk 的 UserProfileChangedPayload，契约事件 ai.userProfile.changed）
+    store.subscribe('changed', (profile) => ctx.emit('userProfile/changed', { profile }));
 
     // 4) 暴露偏好工具（可关闭）
     if (cfg.exposeAsTools ?? true) {
