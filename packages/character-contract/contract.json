@@ -1,5 +1,6 @@
 {
   "schema": 1,
+  "contractVersion": 1,
   "nomiPack": "1",
   "rive": {
     "artboard": "Nomi-full",
@@ -216,5 +217,46 @@
     "sprite": "packages/renderer/public/assets/models/sprite/nomi/",
     "voice": "packages/renderer/public/voice/nomi/",
     "onboarding": "packages/ai-chat/src/components/Onboarding/art/"
+  },
+  "persona": {
+    "file": "persona.json",
+    "required": ["displayName", "systemPromptIdentity", "greetings"],
+    "optional": ["addressUser", "tips"],
+    "legacyFile": "persona/system-prompt.md"
+  },
+  "locales": {
+    "dir": "locales",
+    "primary": "zh",
+    "recommended": ["zh", "en"],
+    "sections": ["persona", "lines", "wakePhrase"],
+    "legacyDir": "copy"
+  },
+  "mapping": {
+    "file": "mapping.json",
+    "emotions": ["neutral", "happy", "sad", "angry", "surprised", "shy", "confused", "sleepy"],
+    "activities": ["idle", "thinking", "toolRunning"],
+    "gestures": [
+      "wave",
+      "greet",
+      "nod",
+      "shakeHead",
+      "bow",
+      "clap",
+      "cheer",
+      "celebrate",
+      "thumbsUp",
+      "apologize",
+      "think",
+      "explain",
+      "heart"
+    ],
+    "note": "Semantic name -> engine resource id(s). Unknown semantic names are ignored by the runtime; unmapped names are skipped."
+  },
+  "layout": {
+    "hitboxIds": ["head", "face", "body", "hand", "hem"],
+    "legacyHitboxAlias": {
+      "skirt": "hem"
+    },
+    "legacyFile": "layout/hitboxes.json"
   }
 }

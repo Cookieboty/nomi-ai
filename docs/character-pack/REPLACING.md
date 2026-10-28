@@ -4,7 +4,7 @@
 
 > 这不是运行时商店，也不是多角色切换 UI。运行时 overlay（Scheme B）已支持：单包、校验失败回退内置。
 
-完整契约见 [CONTRACT.md](./CONTRACT.md) / [contract.json](./contract.json)；设计师条目见 [designer-checklist.md](./designer-checklist.md)。
+完整契约见 [CONTRACT.md](./CONTRACT.md) / [contract.json](../../packages/character-contract/contract.json)（`@nomi-ai/character-contract`）；设计师条目见 [designer-checklist.md](./designer-checklist.md)。
 
 ---
 
@@ -24,8 +24,13 @@
 - 形象：`rive` / `sprite` / `static`（三选一为主模式）
 - 引导插画：`onboarding/*.webp`（welcome / profile / provider / privacy）
 - 语音 clip：`voice/<locale>/`（可缺，缺则回退 TTS / 静音，check 会警告）
-- 文案与身份：`copy/zh.json`、`copy/en.json`；可选 `persona/system-prompt.md`
-- 可选布局：`layout/hitboxes.json`（运行时命中 + bubbleAnchor；`skirt` 会规范为 `hem`）
+- 身份：`persona.json`（`displayName`、`systemPromptIdentity`、`addressUser`、`greetings`、`tips`）
+- 角色文案（台词、提示语、语音字幕）：`locales/zh.json`、`locales/en.json`——跟着角色包走，不进应用的全局 i18n 词典
+- 可选语义映射：`mapping.json`（情绪 / 活动 / 手势 → 引擎资源 id）
+- 可选布局：`manifest.layout`（窗口尺寸、命中区、bubbleAnchor；`skirt` 会规范为 `hem`）
+- 旧格式仍可读（校验会警告）：`copy/{zh,en}.json`、`persona/system-prompt.md`、`layout/hitboxes.json`
+
+字段说明见 [CONTRACT.md](./CONTRACT.md) § persona.json / mapping.json / locales。
 
 **不在包内（勿指望 apply 改它们）：**
 
@@ -54,18 +59,19 @@
 
 ```text
 my-character.pack/
-  manifest.json          # schema=1, id, displayName, assets.mode=static
+  manifest.json          # schema=1, id, contractVersion=1, assets.mode=static
   static/character.webp  # 建议最长边 ≥ 1024、透明底
   onboarding/
     welcome.webp
     profile.webp
     provider.webp
     privacy.webp
-  copy/zh.json           # 推荐
-  copy/en.json           # 推荐
+  persona.json           # 推荐：角色身份
+  locales/zh.json        # 推荐：角色文案
+  locales/en.json        # 推荐
 ```
 
-可选：`layout/hitboxes.json`、`persona/system-prompt.md`、`static/blink.webp`、`voice/zh/`。
+可选：`mapping.json`、`manifest.layout`、`static/blink.webp`、`voice/zh/`。
 
 `manifest.json` 最小示例：
 
@@ -73,6 +79,7 @@ my-character.pack/
 {
   "schema": 1,
   "id": "my-character",
+  "contractVersion": 1,
   "displayName": { "zh": "我的角色", "en": "My Character" },
   "version": "1.0.0",
   "engines": { "nomiPack": ">=1 <2" },

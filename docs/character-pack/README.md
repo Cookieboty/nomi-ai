@@ -41,7 +41,7 @@ CHARACTER_PACK=examples/static-demo.pack pnpm character:apply && pnpm build
    - `packages/ai-chat/src/components/Onboarding/art/`
    - static 模式另写：`packages/renderer/public/assets/models/static/character.webp`
 4. 单角色；无商店 / 切换 UI；UI 主题与 `appId` 不进包。
-5. 区域 id 为 `hem`（不再用 `skirt`）；voice clip 使用稳定 id（见 `voice-ids.json`），旧 key 别名保留一版。
+5. 区域 id 为 `hem`（不再用 `skirt`）；voice clip 使用稳定 id（见 [`voice-ids.json`](../../packages/character-contract/voice-ids.json)），旧 key 别名保留一版。
 6. Rive artboard / stateMachine（`Nomi-full` / `NomiFull`）写入契约，manifest 可覆盖。
 7. 官方 CI 仍锁 nomi；fork 可用 `CHARACTER_PACK_SKIP_BRAND_LOCK=1`。
 8. `static` 模式为一等公民。
@@ -50,6 +50,6 @@ CHARACTER_PACK=examples/static-demo.pack pnpm character:apply && pnpm build
 
 - **[REPLACING.md](./REPLACING.md) — 第三方换肤 / 替换指南（从这里开始）**
 - [CONTRACT.md](./CONTRACT.md) — 契约说明
-- [contract.json](./contract.json) — 机器可读契约
+- [contract.json](../../packages/character-contract/contract.json) / [voice-ids.json](../../packages/character-contract/voice-ids.json) — 机器可读契约（`@nomi-ai/character-contract`，含 schema、`validatePack` 与迁移函数）
 - [designer-checklist.md](./designer-checklist.md) — 设计师检查表
 - 示范包：`examples/nomi.pack`、`examples/static-demo.pack`

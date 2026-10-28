@@ -22,7 +22,9 @@ export const GENERATED = {
   mascotBundle: join(ROOT, 'packages/bundle-ig-mascot/src/character.generated.json'),
 };
 
-export const CONTRACT_JSON = join(ROOT, 'docs/character-pack/contract.json');
+/** 契约唯一来源：@nomi-ai/character-contract（docs/character-pack 只放说明）。 */
+export const CONTRACT_JSON = join(ROOT, 'packages/character-contract/contract.json');
+export const VOICE_IDS_JSON = join(ROOT, 'packages/character-contract/voice-ids.json');
 export const EXAMPLES_NOMI = join(ROOT, 'examples/nomi.pack');
 export const EXAMPLES_STATIC = join(ROOT, 'examples/static-demo.pack');
 

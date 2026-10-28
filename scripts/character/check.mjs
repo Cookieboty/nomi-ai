@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * character:check — validate a character pack against docs/character-pack/contract.json
+ * character:check — validate a character pack against packages/character-contract/contract.json
  *
  * Usage:
  *   node scripts/character/check.mjs [packDir]
