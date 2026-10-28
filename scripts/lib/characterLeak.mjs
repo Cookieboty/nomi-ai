@@ -1,0 +1,46 @@
+/**
+ * 角色名泄漏的判定规则（docs/design/core-host-decoupling.md §10.1、§11.2）。
+ *
+ * 「Nomi」同时是产品名和官方角色名。产品名可以出现在任何地方（应用名、「Nomi 对话」「Nomi 网关」……，
+ * 统一来源是 `@nomi-ai/types` 的 `brand.appName`）；角色名只能来自角色包。所以这里判的是：
+ *   - `诺米`：只是角色名，出现即算；
+ *   - 角色语境下的 `Nomi`：指桌面上那个角色、或以角色身份说话的写法（「我是 Nomi」「显示 Nomi」
+ *     「Nomi 工具栏」「Nomi's voice」「点她的」……），见 CHARACTER_NOMI。写成 `isNomi`、`Nomi 对话`、
+ *     `Nomi · <供应商>` 这类的是产品名，不算。
+ *
+ * scripts/check-character-leak.mjs（静态扫描）与替身角色的 e2e（界面文本、系统提示）共用这份规则。
+ * 新加角色语境的写法时在这里补一条正则，并在 scripts/__tests__/check-character-leak.test.ts 加例子。
+ */
+
+/** 只属于角色的名字（中文名）：出现即算泄漏 */
+export const CHARACTER_ONLY = /诺米/g;
+
+/** 角色语境下的 Nomi（产品语境的 Nomi 不在这里） */
+export const CHARACTER_NOMI = [
+  // 以角色身份自称 / 被称呼
+  /(?:我是|你是|叫我|I[’']m|I am|You are|you are|call me)\s*Nomi\b/g,
+  // 指桌面上的那个角色（看板娘窗口）
+  /(?:显示|隐藏|关闭|拖到|桌面)\s*Nomi\b(?!\s*的)/g,
+  /\bNomi\s*(?:大小|工具栏|功能面板|动作|气泡|已隐藏|已关闭|不在桌面|和托盘|仍在桌面|在桌面|从桌面|朗读|说话|提示语音|预录|形象|台词|挥手|互动|看板娘)/g,
+  /\b(?:Show|Hide|Close|Desktop|Drop onto|Open with|Interrupt|interrupts)\s+Nomi\b/g,
+  /\bNomi\s+(?:size|toolbar|panel|motions|bubble|is hidden|is closed|stays on|waits on|appears|is reading|prompt voice|waves|mascot)\b/g,
+  /\bNomi[’']s\s+(?:bubble|voice|prerecorded|lines|replies|motions|size|toolbar)\b/g,
+  // 「点她的」「她不在桌面时」：角色的人称代词（产品不用她 / her）
+  /\bNomi\b[^。.!?！？\n]{0,40}(?:\bher\b|\bshe\b|她)/g,
+  // 官方角色的资源名（Rive artboard / state machine）只能在角色包里
+  /\bNomi(?:-full|Full)\b/g,
+];
+
+/**
+ * 在一段文本里找角色名泄漏，返回命中的片段（去重）。
+ * @param {string} text
+ * @returns {string[]}
+ */
+export function findCharacterLeaks(text) {
+  const hits = new Set();
+  for (const re of [CHARACTER_ONLY, ...CHARACTER_NOMI]) {
+    re.lastIndex = 0;
+    for (const m of text.matchAll(new RegExp(re.source, re.flags))) hits.add(m[0]);
+  }
+  return [...hits];
+}

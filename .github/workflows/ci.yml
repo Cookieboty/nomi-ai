@@ -82,6 +82,9 @@ jobs:
       - name: i18n check (every user-facing string has an English translation)
         run: pnpm check:i18n
 
+      - name: Character name leak check (official character only in characters/nomi and brand)
+        run: pnpm check:character-leak
+
       - name: Character pack contract (official characters/nomi)
         run: pnpm character:check
 

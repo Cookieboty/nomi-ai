@@ -41,6 +41,7 @@ pnpm dev:web             # 内核跑在 Node 里，ai-chat 在浏览器里经 We
 pnpm smoke:web           # 上面这条的 Chromium 冒烟（先 pnpm exec playwright install chromium）
 xvfb-run -a pnpm test:e2e:headed   # 真实应用 E2E，必须在仓库根目录运行
 pnpm check:i18n          # 所有中文文案都有英文翻译
+pnpm check:character-leak  # 官方角色名（诺米 / 角色语境的 Nomi）只在 characters/nomi 与 brand 里
 pnpm check:licenses      # 依赖与素材只允许开源许可
 pnpm changeset           # 用户可见的改动加 changeset；pnpm changelog:check
 ```
@@ -49,7 +50,7 @@ Linux 无显示器时 Electron 相关命令前加 `xvfb-run -a`。
 
 ## 约定
 
-- **界面文案**：中文原文写在代码里作为 key，用 `t()` / `tr()`（主进程用 `packages/core/src/i18n`），英文翻译同步加到 `packages/ui/src/locales/en.json`；改中文 key 时同时改 en.json。例外：角色文案（台词、提示语、人设、语音字幕）跟着角色包走，写在角色包的 `locales/` 里，不进全局 en.json，见 [内核宿主分离 §10.2](docs/design/core-host-decoupling.md)。
+- **界面文案**：中文原文写在代码里作为 key，用 `t()` / `tr()`（主进程用 `packages/core/src/i18n`），英文翻译同步加到 `packages/ui/src/locales/en.json`；改中文 key 时同时改 en.json。例外：角色文案（台词、提示语、人设、语音字幕）跟着角色包走，写在角色包的 `locales/` 里，不进全局 en.json，见 [内核宿主分离 §10.2](docs/design/core-host-decoupling.md)。产品名用 `@nomi-ai/types` 的 `brand.appName`；指桌面角色的文案用当前角色名（人设 `displayName`），不写死「诺米」/「显示 Nomi」（`pnpm check:character-leak` 会拦，§10.1、§11.2）。
 - **许可**：只引入开源许可（MIT / Apache-2.0 / BSD / ISC / CC0 / CC-BY 等）的依赖与素材，新素材登记到 `assets-licenses.json` / `CREDITS.md`。
 - **日志**：不用 `console.log`；主进程用 `LoggerService` / `createMainLogger`，渲染进程用 `@nomi-ai/ui` 的 `createLogger`。
 - **安全**：preload 只暴露 `window.nomiTransport`（契约传输）与 `window.nomiHost`（拖入文件，路径在 preload 里解析）；视图对内核的调用都经 `@nomi-ai/contract`（过程在 `contract/src/app/<域>.ts`，处理函数在 `core/src/contract/<域>.ts`，用到窗口的在 `host-electron/src/host/contract/<域>.ts`），由契约判定 `surfaces` / `dangerous` / 事件的 `eventSurfaces`，不新增 IPC 通道（`host/` 之外禁止 `ipcMain`）；契约传输经 `host/ipcSenderGuard.ts` 判定调用者；外部请求走 `netGuard`，命令参数用 `shellEscape`，私有文件用 `utils/privateFile`（这三个在 `packages/core/src`）；API Key 存 `safeStorage`。开发态 userData 包名迁移见 `utils/legacyUserData.ts`。
