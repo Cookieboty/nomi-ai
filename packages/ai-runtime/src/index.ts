@@ -1,16 +1,15 @@
 /**
  * @nomi-ai/ai-runtime · 主入口
  *
- * 顶部即断言主进程；测试通过 `VITEST` 环境变量自动旁路（`env.ts` 内部处理）。
- * 注：断言只在**真实生产**执行；测试导入 `env` 内 `assertElectronMainProcess({ skipInTest: true })`
- * 需要显式开关，所以主入口这里在 test 下也直接跳过，避免 test bootstrap 崩溃。
+ * 顶部即断言在宿主主进程（Electron 主进程或纯 Node，不能是渲染进程 / 页面，见 `env.ts`）；
+ * vitest（happy-dom 等页面环境）下跳过。
  */
 
 import { AIRuntimeService, type AIRuntimeServiceOptions } from './AIRuntimeService';
-import { assertElectronMainProcess } from './env';
+import { assertMainProcess } from './env';
 
 if (!process.env.VITEST) {
-  assertElectronMainProcess();
+  assertMainProcess();
 }
 
 export * from './env';
@@ -33,7 +32,8 @@ export * from './IpcAdapter';
 export * from './AiContractRouter';
 
 /**
- * `runtime` 单例。业务方在 Electron 主进程中：
+ * `runtime` 单例（旧入口）。内核按实例创建 `new AIRuntimeService(...)`（一个进程可以有多个内核）；
+ * 这个单例只留给还按旧方式用的调用方。用法：
  * ```ts
  * import { runtime, createAiSdkBooter } from '@nomi-ai/ai-runtime';
  * // lifecycle 由宿主提供（Electron：lifecycle 端口的 onBeforeQuit）
