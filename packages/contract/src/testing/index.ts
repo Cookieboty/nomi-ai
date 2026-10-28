@@ -39,6 +39,8 @@ export const TEST_CALLER: CallerContext = Object.freeze({ surface: 'test', trust
 export interface InProcessClient extends FrameClientTransport {
   /** 模拟连接断开（窗口关闭）：服务端会话关闭、进行中的调用被取消 */
   disconnect(): void;
+  /** 服务端发给这个客户端的帧数（断言「没订阅的连接一帧都收不到」） */
+  readonly framesReceived: number;
 }
 
 export interface InProcessServer extends ServerTransport {
@@ -79,12 +81,14 @@ export function createInProcessServer(options: InProcessOptions = {}): InProcess
       const listeners = new Set<(frame: unknown) => void>();
       let session: ServerSession | null = null;
       let disconnected = false;
+      let framesReceived = 0;
 
       const deliverToClient = (frame: ServerFrame): boolean => {
         if (disconnected) return false;
         const copy = clone(frame); // 抛错 = 这一帧不可序列化，由会话改发 err 帧
         queueMicrotask(() => {
           if (disconnected) return;
+          framesReceived += 1;
           for (const fn of [...listeners]) fn(copy);
         });
         return true;
@@ -142,7 +146,9 @@ export function createInProcessServer(options: InProcessOptions = {}): InProcess
         transport.close();
       };
 
-      return Object.assign(transport, { disconnect });
+      return Object.defineProperties(Object.assign(transport, { disconnect }), {
+        framesReceived: { get: () => framesReceived, enumerable: true },
+      }) as InProcessClient;
     },
 
     get sessionCount() {
