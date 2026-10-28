@@ -12,8 +12,8 @@ Electron 主进程（packages/electron）
 ```
 
 - 入口 `packages/electron/src/main.ts` → `core/Application.ts`；窗口由 `WindowManager` 管理。
-- 所有窗口开启上下文隔离与沙箱；页面只能通过 preload 暴露的**具名白名单**接口访问主进程：AI 门面走应用契约（`@nomi-ai/contract/app`，preload 的 `window.nomiTransport`，只有 `contract:request` / `contract:frame` 两个通道），其余 `ai:*` 服务通道暂经 `window.aiIPC`。
-- IPC 通道命名为 `'<领域>:<动作>'`；`ai:*` 调用与契约传输都经 `security/ipcSenderGuard.ts` 校验发送方（契约传输由它给出调用者的 surface / trusted，`dangerous` 过程只接受受信调用者）。
+- 所有窗口开启上下文隔离与沙箱；preload 只暴露两个对象：`window.nomiTransport`（应用契约 `@nomi-ai/contract/app` 的传输，只有 `contract:request` / `contract:frame` 两个通道，视图对主进程的全部调用与推送都走它）与 `window.nomiHost`（拖入文件的本机路径，唯一不能做成契约调用的能力）。视图只在各自的 `services/api.ts` 里读它们（eslint 拦下其余位置）。
+- 主进程不再注册其它 IPC 通道（宿主目录 `host/` 之外禁止 `ipcMain`）：契约传输经 `security/ipcSenderGuard.ts` 校验发送方并给出调用者的 surface / trusted，过程声明的 `surfaces` 与 `dangerous` 由契约守卫判定。服务的推送经应用事件总线（`events.publish`），由事件桥转成契约事件，只推给订阅了的窗口。
 
 ## 包
 
@@ -23,7 +23,7 @@ Electron 主进程（packages/electron）
 | `renderer`                                                        | 看板娘窗口：角色渲染（`src/mascot`）、气泡、工具栏                                                                                                                                                                                       |
 | `ai-chat`                                                         | 对话窗口：对话、设置、引导与功能面板                                                                                                                                                                                                     |
 | `ai-runtime`                                                      | AI 运行时：插件宿主、基于 Vercel AI SDK 的 LLM 客户端与 MCP 桥；应用内供应商配置以网关 `GatewayStore` 为准                                                                                                                               |
-| `contract`                                                        | 视图与内核之间的 API 契约（过程、事件、schema、版本握手、传输适配）；正在替代 `window.aiIPC` / `window.electronAPI`，见 [core-host-decoupling](../design/core-host-decoupling.md) §4–§5                                                  |
+| `contract`                                                        | 视图与内核之间的 API 契约（过程、事件、schema、版本握手、传输适配）；已取代 `window.aiIPC` / `window.electronAPI`，见 [core-host-decoupling](../design/core-host-decoupling.md) §4–§5                                                    |
 | `host-ports` / `host-node`                                        | 宿主端口接口 / 无界面宿主实现；Electron 实现在 `electron/src/host/`，见同上 §6                                                                                                                                                           |
 | `character-contract`                                              | 角色包契约：manifest、persona、mapping、locales 的 schema、校验与迁移，见同上 §10                                                                                                                                                        |
 | `gateway`                                                         | 统一网关内核（纯 Node，不依赖 Electron）：Messages / Responses / Chat / Gemini 的请求 IR 与流式互转；主进程的本地路由服务在用                                                                                                            |

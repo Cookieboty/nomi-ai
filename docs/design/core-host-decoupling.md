@@ -568,11 +568,47 @@ renderer 只保留：透明窗口壳、气泡、工具栏、右键菜单，以�
 > 与服务表（`ContractServices`，组合根创建服务时登记）；视图各有唯一的 `services/api.ts`（`createAppClient()`，与
 > `ClientAIClient` 共用窗口共享的契约传输，一个窗口一个会话）。各域按下文「P1b 实施约定」并行迁移。
 
+> P1b 已完成（分支 `refactor/p1b-contract`）：五个域共 320 个过程、57 个事件进了应用契约（`contract/src/app/<域>.ts`，
+> 处理函数在 `electron/src/host/contract/<域>.ts`）。收尾批次：
+>
+> - preload 只暴露 `window.nomiTransport`（契约传输）与 `window.nomiHost`（`pathForFile(file)`：拖入 / 粘贴文件的本机路径，
+>   `webUtils.getPathForFile` 只能在 preload 里对真实 File 调用，不能进契约）；`window.aiIPC` / `window.electronAPI`、
+>   `mkAiPreload`、`packages/types` 的 `IpcApi` / `MascotWindowApi` / `DesktopApi` / `PersonaApi` 已删除；
+>   `WindowManager` 的 preload 守护改为探测这两个全局；
+> - 主进程的旧注册层全部删除：各服务的 `registerIpc()`、`handlers/ipc/*`（`IpcRegistry` / `ConfigIpcHandler` /
+>   `VoiceIpcHandler` / `WindowIpcHandler`，窗口操作留在 `host/mascotWindowActions.ts`）、`security/guardedIpc.ts`、
+>   编排器的 `rendererSubscribers`、看板娘控制器里的 `ipcMain` 监听，以及 ai-runtime 的 `ProviderIpcServer` /
+>   `CapabilityIpcServer` / `AiChatCompat` / `createGuardedIpcAdapter`；`TtsService` 与旧 displayMode 清理改在启动任务
+>   `init-config-services` 里做；
+> - 事件只走契约：`createContractEventBridge` 不再向窗口广播旧通道（`host/electronAppEvents.ts` 已删），桥接表外的通道
+>   每个记一次 warn；`WindowManager.openProviderPanel` 与窗口鼠标进出、看板娘指令、窗口控制器推送都经 `events.publish`，
+>   面板导航（`providers.openPanel`、`nav.*`）因此在契约上生效；
+> - 视图里不再有 `window.aiIPC` / `window.electronAPI` / 原始 IPC；`@nomi-ai/voice` 去掉旧通道适配（`voiceApi(bridge)`），
+>   `VoiceApi` 改为显式接口，只经 `setVoiceBackend` 注入；
+> - lint（§11.1）：视图包除 `services/api.ts` 外不得访问 `aiIPC` / `electronAPI` / `nomiTransport` / `nomiHost`，不得 import
+>   建客户端的工具或 `ipcRenderer`；`packages/electron/src` 的 `host/` 之外不得使用 `ipcMain`；单测
+>   `tests/unit/security/ipcSurface.test.ts` 再扫一遍（`ipcMain` 注册、`webContents.send`、preload 只有两个全局）；
+> - e2e-headed 与 `scripts/measure-*.mjs` 经页面里的极小契约客户端（`e2e-headed/fixtures/contract.ts`、
+>   `scripts/lib/contractProbe.mjs`）驱动内核。
+>
+> 剩下的：
+>
+> - 服务仍 `events.publish(<旧通道名>)`，由桥接表转成契约事件；以后可以让服务直接发布契约事件名，再删掉桥接表
+>   （`types` 里的 `QUALITY_IPC` 等旧通道常量随之删除）；
+> - 契约事件不按 surface 分发（只推给订阅了的窗口），`events.publish` 的 `surface` 目前只是发布方意图；
+> - ai-chat 的部分视图测试仍用旧形状的假 `window.aiIPC`，经 `tests/helpers/{codingApi,shellApi}.ts` 把契约调用转回旧通道名，
+>   以后改成契约层的假实现；
+> - e2e-headed 只在 macOS 上跑过部分用例（E5、E17 等），完整一轮要在 Linux + xvfb 上跑；看板娘拖拽 / 点击上报从单向消息
+>   变成契约往返，Windows 上的拖拽手感需要在真机确认；
+> - 两个 preload 内容已相同，可以合成一个包；`security/ipcSenderGuard.ts` 仍在 electron import 白名单里（P3 随宿主搬家）；
+> - `voice-settings:changed`（→ `voice.mascotSettingsChanged`）主进程没有发布方；MCP 信任级别（`ext.mcpUpsert` 等）
+>   是否算 `dangerous` 待定。
+
 | 阶段 | 内容                                                                                                                                                                | 完成标准                                               |
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
 | P0   | ① lint 护栏：`packages/electron/src` 中除宿主目录（§7.2 右列）外，新增 electron import 报错（已有的列入白名单，只减不增）；② `PersonaService`，删两处人设硬编码     | 护栏进 CI；换皮后系统提示不再是 Nomi                   |
 | P1a  | **已完成**。建 `contract` 与 `defineContract`；AI 门面（35 个 `ai.*` 过程 + 12 个事件）上契约，取代两份 `channels.ts`；`ClientAIClient` 改走 `window.nomiTransport` | AI 门面只经契约访问；两份 `channels.ts` 删除           |
-| P1b  | 其余 `ai:*` 服务通道（约 25 个视图客户端在用）与 `window.electronAPI` 的能力逐个进契约；视图改用 client；之后删除 `window.aiIPC` / `window.electronAPI`             | 视图中不再出现 `window.aiIPC` / `window.electronAPI`   |
+| P1b  | **已完成**。其余 `ai:*` 服务通道与 `window.electronAPI` 的能力逐个进契约；视图改用 client；删除 `window.aiIPC` / `window.electronAPI`                               | 视图中不再出现 `window.aiIPC` / `window.electronAPI`   |
 | P2   | 建 `host-ports`；替换 `app.getPath`（10）、`safeStorage`（9）、`dialog/shell/clipboard` 等（15）；29 处窗口广播改为 `ctx.events.publish`                            | `packages/electron/src` 中业务模块不再 import electron |
 | P3   | 物理搬家：业务模块 → `packages/core`；`packages/electron` → `packages/host-electron`；ai-runtime 的 Electron 适配器移入宿主                                         | 目录与 §3.3 一致；P0 白名单清空                        |
 | P4   | `host-node` + in-process / WebSocket 传输；`e2e/` 改跑无界面宿主                                                                                                    | §11.3 前两项通过                                       |
@@ -634,7 +670,7 @@ renderer 只保留：透明窗口壳、气泡、工具栏、右键菜单，以�
     dist：`node scripts/with-lock.mjs contract pnpm --filter @nomi-ai/contract build`、
     `node scripts/with-lock.mjs contract pnpm --filter @nomi-ai/electron typecheck`。
 
-收尾批次（不属于任何域）：删 preload 里的 `aiIPC` / `electronAPI` 与 `packages/types` 的 `IpcApi`、各服务的
+收尾批次（不属于任何域，已完成，见上文进度）：删 preload 里的 `aiIPC` / `electronAPI` 与 `packages/types` 的 `IpcApi`、各服务的
 `registerIpc` 与旧处理器（及 `ProviderIpcServer` / `CapabilityIpcServer` / `AiChatCompat`）、事件桥里旧通道的广播；
 e2e-headed 改走契约；lint 禁止视图访问 `window.aiIPC` / `window.electronAPI`（§11.1）。
 
