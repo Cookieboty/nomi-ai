@@ -66,7 +66,7 @@
 
 | 桥                   | 形态                                                                                                                      | 问题                                                                                                      |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `window.aiIPC`       | `IPCBridge` 接口 + `IPC_METHODS` 规格表（起草时 37 个方法，删除 `setParameter` 后 36 个；`ai:<facade>:<method>`），有类型 | 规格表在 `ai-runtime/src/channels.ts` 和 `ai-sdk-client/src/channels.ts` 各一份，靠快照测试防止两边不一致 |
+| `window.aiIPC`       | `IPCBridge` 接口 + `IPC_METHODS` 规格表（起草时 37 个方法，删除 `setParameter` 后 35 个；`ai:<facade>:<method>`），有类型 | 规格表在 `ai-runtime/src/channels.ts` 和 `ai-sdk-client/src/channels.ts` 各一份，靠快照测试防止两边不一致 |
 | `window.electronAPI` | preload 直接暴露的对象，无类型约束                                                                                        | 视图里 21 个文件直接调用（files、updates、island、voice 设置、诊断……）                                    |
 
 ### 2.3 已经有的样板：ai 域
@@ -479,19 +479,21 @@ renderer 只保留：透明窗口壳、气泡、工具栏、右键菜单，以�
 
 ## 12. 迁移计划
 
-> 进度（2026-10-28，分支 `refactor/core-host-decoupling`）：第一批已完成 live2d 清理（§10.5 的改名部分）、`contract` / `host-ports` / `host-node` / `character-contract` 四个新包骨架、Electron 端口实现（`electron/src/host/electronPorts.ts`）、P0。调用方迁移（P1、P2）、搬目录（P3）、C1 资产搬迁尚未开始。
+> 进度（2026-10-28，分支 `refactor/core-host-decoupling`）：第一批已完成 live2d 清理（§10.5 的改名部分）、`contract` / `host-ports` / `host-node` / `character-contract` 四个新包骨架、Electron 端口实现（`electron/src/host/electronPorts.ts`）、P0。P1a（AI 门面上契约）已在分支 `refactor/p1-contract` 完成；P1b、P2、搬目录（P3）、C1 资产搬迁尚未开始。
 
-| 阶段 | 内容                                                                                                                                                            | 完成标准                                               |
-| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| P0   | ① lint 护栏：`packages/electron/src` 中除宿主目录（§7.2 右列）外，新增 electron import 报错（已有的列入白名单，只减不增）；② `PersonaService`，删两处人设硬编码 | 护栏进 CI；换皮后系统提示不再是 Nomi                   |
-| P1   | 建 `contract` 与 `defineContract`；合并两份 `channels.ts`；`electronAPI` 的能力逐个进契约；视图 21 个文件改用 client；preload 收敛为 `window.nomiTransport`     | 视图中不再出现 `window.aiIPC` / `window.electronAPI`   |
-| P2   | 建 `host-ports`；替换 `app.getPath`（10）、`safeStorage`（9）、`dialog/shell/clipboard` 等（15）；29 处窗口广播改为 `ctx.events.publish`                        | `packages/electron/src` 中业务模块不再 import electron |
-| P3   | 物理搬家：业务模块 → `packages/core`；`packages/electron` → `packages/host-electron`；ai-runtime 的 Electron 适配器移入宿主                                     | 目录与 §3.3 一致；P0 白名单清空                        |
-| P4   | `host-node` + in-process / WebSocket 传输；`e2e/` 改跑无界面宿主                                                                                                | §11.3 前两项通过                                       |
-| C1   | `character-contract` 包；官方资产与人设集中到 `characters/nomi`；删 Scheme A 原地覆盖与两份 `character.generated.json`                                          | 官方构建与白标构建走同一路径                           |
-| C2   | 拆出 `avatar-runtime`；renderer 只留窗口壳                                                                                                                      | avatar-runtime 能在 Storybook 单独运行                 |
-| C3   | 语义事件协议 + `mapping.json`；工具与 preset 改名（不保留别名）                                                                                                 | AI 侧代码中不出现 clip / motion 名；§11.3 替身角色通过 |
+| 阶段 | 内容                                                                                                                                                                | 完成标准                                               |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| P0   | ① lint 护栏：`packages/electron/src` 中除宿主目录（§7.2 右列）外，新增 electron import 报错（已有的列入白名单，只减不增）；② `PersonaService`，删两处人设硬编码     | 护栏进 CI；换皮后系统提示不再是 Nomi                   |
+| P1a  | **已完成**。建 `contract` 与 `defineContract`；AI 门面（35 个 `ai.*` 过程 + 12 个事件）上契约，取代两份 `channels.ts`；`ClientAIClient` 改走 `window.nomiTransport` | AI 门面只经契约访问；两份 `channels.ts` 删除           |
+| P1b  | 其余 `ai:*` 服务通道（约 25 个视图客户端在用）与 `window.electronAPI` 的能力逐个进契约；视图改用 client；之后删除 `window.aiIPC` / `window.electronAPI`             | 视图中不再出现 `window.aiIPC` / `window.electronAPI`   |
+| P2   | 建 `host-ports`；替换 `app.getPath`（10）、`safeStorage`（9）、`dialog/shell/clipboard` 等（15）；29 处窗口广播改为 `ctx.events.publish`                            | `packages/electron/src` 中业务模块不再 import electron |
+| P3   | 物理搬家：业务模块 → `packages/core`；`packages/electron` → `packages/host-electron`；ai-runtime 的 Electron 适配器移入宿主                                         | 目录与 §3.3 一致；P0 白名单清空                        |
+| P4   | `host-node` + in-process / WebSocket 传输；`e2e/` 改跑无界面宿主                                                                                                    | §11.3 前两项通过                                       |
+| C1   | `character-contract` 包；官方资产与人设集中到 `characters/nomi`；删 Scheme A 原地覆盖与两份 `character.generated.json`                                              | 官方构建与白标构建走同一路径                           |
+| C2   | 拆出 `avatar-runtime`；renderer 只留窗口壳                                                                                                                          | avatar-runtime 能在 Storybook 单独运行                 |
+| C3   | 语义事件协议 + `mapping.json`；工具与 preset 改名（不保留别名）                                                                                                     | AI 侧代码中不出现 clip / motion 名；§11.3 替身角色通过 |
 
+- **P1a 的行为变化**：AI 门面的业务事件（`ai.agent.step`、`ai.tts.chunk`、`ai.userProfile.changed` 等）改由契约传输按订阅分发，**只推给订阅了该事件的窗口**；以前 `EventBroadcaster` 经 `ai:event` 通道广播给所有存活窗口（可选按窗口过滤），该通道已删除。没有经契约订阅的窗口（含直接监听 `ai:event` 的页面）收不到这些事件，P1b 迁移视图时要改成显式订阅；窗口导航或刷新后订阅随会话一起失效，由新页面重新订阅。
 - **P1 与 P2 可以并行**：一个改视图一侧，一个改内核一侧，中间靠契约对齐。
 - **C 线可以和 P 线交错**：C1 不依赖 P 线；C2 依赖 P1（avatar 事件要走契约）；C3 依赖 C2。
 - 每个阶段都能单独合并、单独发版，中途停下也不会留下半成品状态。
