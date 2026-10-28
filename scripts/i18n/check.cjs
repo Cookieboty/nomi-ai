@@ -37,6 +37,19 @@ function jsonFiles(dir) {
     .map((name) => path.join(dir, name));
 }
 
+/**
+ * How many arguments a catalog text needs: `{0}`/`{1}` are positional (highest index + 1), any
+ * named `{name}` needs one object argument. Without them format() leaves the literal `{0}` in the UI.
+ */
+function requiredArgs(value) {
+  if (typeof value !== 'string') return 0;
+  let required = 0;
+  for (const [, name] of value.matchAll(/\{(\w+)\}/g)) {
+    required = Math.max(required, /^\d+$/.test(name) ? Number(name) + 1 : 1);
+  }
+  return required;
+}
+
 function placeholders(value) {
   if (typeof value !== 'string') return '';
   return [...value.matchAll(/\{(\w+)\}/g)]
@@ -131,6 +144,20 @@ function isLog(node) {
   return false;
 }
 
+/**
+ * A t() result that is filled in by hand (`t(k).replace('{0}', v)`) or handed to another function
+ * as a template (`matchTemplate(t(k), line)`) is meant to keep its placeholders.
+ */
+function usedAsTemplate(call) {
+  let node = call;
+  while (ts.isParenthesizedExpression(node.parent) || ts.isConditionalExpression(node.parent))
+    node = node.parent;
+  const parent = node.parent;
+  if (ts.isPropertyAccessExpression(parent) && parent.expression === node)
+    return /^(replace|replaceAll)$/.test(parent.name.text);
+  return ts.isCallExpression(parent) && parent.arguments.includes(node);
+}
+
 function sourceEntries(file, project) {
   const text = fs.readFileSync(file, 'utf8');
   const lines = text.split('\n');
@@ -167,10 +194,14 @@ function sourceEntries(file, project) {
         (parent.expression.text === 't' || parent.expression.text === 'tr') &&
         parent.arguments[0] === node;
       const value = rawValue;
+      const args = inTranslate ? parent.arguments.slice(1) : [];
       if (value)
         entries.push({
           value,
           inTranslate,
+          argCount: args.length,
+          spreadArgs: args.some((arg) => ts.isSpreadElement(arg)),
+          rawTemplate: inTranslate && usedAsTemplate(parent),
           where: `${path.relative(root, file)}:${source.getLineAndCharacterOfPosition(node.getStart()).line + 1}`,
           project,
         });
@@ -197,6 +228,19 @@ for (const sourceConfig of cfg.sources) {
         !Object.prototype.hasOwnProperty.call(dictionaries[baseLanguage], entry.value)
       )
         errors.push(`${entry.where}: unknown i18n key ${JSON.stringify(entry.value)}`);
+      else if (
+        entry.inTranslate &&
+        KEY.test(entry.value) &&
+        !entry.spreadArgs &&
+        !entry.rawTemplate
+      ) {
+        const required = requiredArgs(dictionaries[baseLanguage][entry.value]);
+        if (entry.argCount < required)
+          errors.push(
+            `${entry.where}: ${entry.value} has placeholders that need ${required} argument(s), ` +
+              `got ${entry.argCount}`,
+          );
+      }
       if (!entry.inTranslate && !KEY.test(entry.value))
         errors.push(
           `${entry.where}: Chinese text is not in the unified catalog: ${JSON.stringify(entry.value)}`,
