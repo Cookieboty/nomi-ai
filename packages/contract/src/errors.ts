@@ -34,13 +34,29 @@ export interface ErrorPayload {
   data?: unknown;
 }
 
+/**
+ * `ContractError` 的品牌：本包同时发 ESM 与 CommonJS，一个进程里可能加载两份（例如 CommonJS 的内核 +
+ * ESM 的测试 / 无界面宿主），两份类互相 `instanceof` 不成立，内核抛的业务码会被当成 INTERNAL。
+ * 用 `Symbol.for` 的品牌判断，跨副本也认得出来（`instanceof` 经 `Symbol.hasInstance` 走同一个判断）。
+ */
+const CONTRACT_ERROR_BRAND = Symbol.for('nomi.contract.ContractError');
+
 export class ContractError<Code extends string = string> extends Error {
+  static override [Symbol.hasInstance](value: unknown): boolean {
+    return (
+      typeof value === 'object' &&
+      value !== null &&
+      (value as Record<symbol, unknown>)[CONTRACT_ERROR_BRAND] === true
+    );
+  }
+
   override readonly name = 'ContractError';
   readonly code: Code;
   readonly data?: unknown;
 
   constructor(code: Code, message: string, data?: unknown) {
     super(message);
+    Object.defineProperty(this, CONTRACT_ERROR_BRAND, { value: true });
     this.code = code;
     if (data !== undefined) this.data = data;
   }
