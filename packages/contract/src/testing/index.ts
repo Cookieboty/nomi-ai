@@ -148,7 +148,7 @@ export function createInProcessServer(options: InProcessOptions = {}): InProcess
 
       return Object.defineProperties(Object.assign(transport, { disconnect }), {
         framesReceived: { get: () => framesReceived, enumerable: true },
-      }) as InProcessClient;
+      }) as unknown as InProcessClient;
     },
 
     get sessionCount() {

@@ -114,6 +114,7 @@ export {
   type ClientFramePort,
   type FrameClientOptions,
   type FrameClientTransport,
+  type ReconnectableFrameClient,
 } from './frameClient';
 
 export {
@@ -140,6 +141,7 @@ export {
   WS_TOKEN_PATTERN,
   WS_TOKEN_PREFIX,
   type WebSocketClientOptions,
+  type WebSocketClientStatus,
   type WebSocketClientTransport,
   type WebSocketFactory,
   type WebSocketLike,

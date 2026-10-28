@@ -6,7 +6,12 @@
  * `[WS_PROTOCOL, 'nomi-token.<token>', 'nomi-surface.<surface>']`。服务端校验 Origin、一次性 token 与界面，
  * 通过后选中 `WS_PROTOCOL`；不通过直接拒绝升级。帧按 `wire.ts` 的文本格式（JSON + base64 的 Uint8Array）。
  *
- * 连接断开后不重连：进行中的调用以 TRANSPORT 失败，之后的调用也失败（开发态内核重启后刷新页面）。
+ * 断线重连：连上过之后连接断开，进行中的调用以 TRANSPORT 失败（服务端会话已经没了），然后按退避
+ * （`reconnect.initialDelayMs` 起翻倍，封顶 `maxDelayMs`）用同一套握手重连；断开期间的新调用直接以
+ * TRANSPORT 失败，事件监听者保留，重连成功后把它们订阅回去。第一次连接就被拒绝（token / Origin 不对、
+ * 内核没起来）不重连：`ready` reject，传输关闭。安全性质不变：每次重连都带同样的 token 与界面、
+ * 浏览器照样带 Origin，服务端照样只听 127.0.0.1、逐条校验。内核重启后 token 变了，重连会一直被拒，
+ * 这时刷新页面拿新 token。
  *
  * 不依赖 Node 内置模块；缺省用 `globalThis.WebSocket`（浏览器、Node 22+）。
  */
@@ -52,12 +57,22 @@ export interface WebSocketClientOptions {
   /** 建连接的方式，默认 `new globalThis.WebSocket(url, protocols)`（测试里可换成 `ws` 包） */
   createSocket?: WebSocketFactory;
   logger?: ContractLogger;
+  /** 连上过之后断线时重连（默认开）；`false` 关掉，断开即关闭传输 */
+  reconnect?: boolean | { initialDelayMs?: number; maxDelayMs?: number };
+  /** 连接状态变化（视图可据此提示「正在重连」） */
+  onStatus?: (status: WebSocketClientStatus) => void;
 }
 
+export type WebSocketClientStatus = 'open' | 'reconnecting' | 'closed';
+
 export interface WebSocketClientTransport extends FrameClientTransport {
-  /** 连接建立（服务端接受握手）后 resolve；被拒绝或断开时 reject */
+  /** 第一次连接建立（服务端接受握手）后 resolve；第一次就被拒绝或断开时 reject */
   readonly ready: Promise<void>;
+  /** 当前状态：`connecting`（第一次连接中）/ `open` / `reconnecting` / `closed` */
+  readonly status: WebSocketClientStatus | 'connecting';
 }
+
+const DEFAULT_RECONNECT = { initialDelayMs: 250, maxDelayMs: 10_000 };
 
 function defaultFactory(url: string, protocols: string[]): WebSocketLike {
   const Ctor = (globalThis as { WebSocket?: new (u: string, p: string[]) => WebSocketLike })
@@ -80,15 +95,27 @@ export function createWebSocketClientTransport(
     throw new ContractError('BAD_REQUEST', 'Invalid WebSocket token');
   }
   const surface = options.surface ?? 'chat';
-  const socket = (options.createSocket ?? defaultFactory)(options.url, [
+  const protocols = [
     WS_PROTOCOL,
     `${WS_TOKEN_PREFIX}${options.token}`,
     `${WS_SURFACE_PREFIX}${surface}`,
-  ]);
+  ];
+  const factory = options.createSocket ?? defaultFactory;
+  const backoff =
+    options.reconnect === false
+      ? null
+      : {
+          ...DEFAULT_RECONNECT,
+          ...(typeof options.reconnect === 'object' ? options.reconnect : {}),
+        };
 
   const queue: string[] = [];
   const listeners = new Set<(frame: unknown) => void>();
-  let settled = false;
+  let status: WebSocketClientTransport['status'] = 'connecting';
+  let everOpened = false;
+  let userClosed = false;
+  let attempt = 0;
+  let retryTimer: ReturnType<typeof setTimeout> | null = null;
   let resolveReady!: () => void;
   let rejectReady!: (err: unknown) => void;
   const ready = new Promise<void>((resolve, reject) => {
@@ -98,13 +125,23 @@ export function createWebSocketClientTransport(
   // 没人 await ready 时不报未处理的拒绝
   ready.catch(() => undefined);
 
+  const setStatus = (next: WebSocketClientStatus): void => {
+    if (status === next) return;
+    status = next;
+    options.onStatus?.(next);
+  };
+
+  let socket: WebSocketLike;
+
   const transport = createFrameClientTransport(
     {
       send(frame: ClientFrame) {
         const text = encodeWireFrame(frame);
         if (socket.readyState === OPEN) socket.send(text);
         else if (socket.readyState === CONNECTING) queue.push(text);
-        else throw new ContractError('TRANSPORT', 'WebSocket is closed');
+        else if (status === 'reconnecting') {
+          throw new ContractError('TRANSPORT', 'WebSocket is reconnecting');
+        } else throw new ContractError('TRANSPORT', 'WebSocket is closed');
       },
       onFrame(fn) {
         listeners.add(fn);
@@ -114,43 +151,95 @@ export function createWebSocketClientTransport(
     { idPrefix: 'w', logger: options.logger },
   );
 
-  socket.addEventListener('open', () => {
-    settled = true;
-    resolveReady();
-    for (const text of queue.splice(0)) socket.send(text);
-  });
-  socket.addEventListener('message', (ev) => {
-    const text = messageText(ev.data);
-    if (text === null) {
-      options.logger?.warn('[contract] dropped non-text WebSocket message');
-      return;
-    }
-    let frame: unknown;
-    try {
-      frame = decodeWireFrame(text);
-    } catch {
-      options.logger?.warn('[contract] dropped malformed WebSocket message');
-      return;
-    }
-    for (const fn of [...listeners]) fn(frame);
-  });
-  const onDown = (): void => {
-    queue.length = 0;
-    if (!settled) {
-      settled = true;
-      rejectReady(new ContractError('TRANSPORT', 'WebSocket connection was refused or closed'));
-    }
-    // 进行中的调用以 TRANSPORT 失败；不重连
-    transport.close();
+  const scheduleReconnect = (): void => {
+    if (!backoff || userClosed) return;
+    const delay = Math.min(backoff.maxDelayMs, backoff.initialDelayMs * 2 ** attempt);
+    attempt += 1;
+    retryTimer = setTimeout(() => {
+      retryTimer = null;
+      if (!userClosed) connect();
+    }, delay);
   };
-  socket.addEventListener('close', onDown);
-  socket.addEventListener('error', onDown);
+
+  const connect = (): void => {
+    let sock: WebSocketLike;
+    try {
+      sock = factory(options.url, protocols);
+    } catch (err) {
+      if (!everOpened) throw err;
+      options.logger?.warn('[contract] WebSocket reconnect failed to start', err);
+      scheduleReconnect();
+      return;
+    }
+    socket = sock;
+    let down = false;
+
+    sock.addEventListener('open', () => {
+      if (sock !== socket || userClosed) return;
+      attempt = 0;
+      if (!everOpened) {
+        everOpened = true;
+        resolveReady();
+      } else {
+        // 新会话：先把监听中的事件订阅回去，再发断线期间排队的帧
+        transport.connectionRestored();
+      }
+      setStatus('open');
+      for (const text of queue.splice(0)) sock.send(text);
+    });
+    sock.addEventListener('message', (ev) => {
+      if (sock !== socket) return;
+      const text = messageText(ev.data);
+      if (text === null) {
+        options.logger?.warn('[contract] dropped non-text WebSocket message');
+        return;
+      }
+      let frame: unknown;
+      try {
+        frame = decodeWireFrame(text);
+      } catch {
+        options.logger?.warn('[contract] dropped malformed WebSocket message');
+        return;
+      }
+      for (const fn of [...listeners]) fn(frame);
+    });
+    const onDown = (): void => {
+      if (down || sock !== socket) return;
+      down = true;
+      queue.length = 0;
+      if (userClosed) return;
+      if (!everOpened || !backoff) {
+        if (!everOpened) {
+          rejectReady(new ContractError('TRANSPORT', 'WebSocket connection was refused or closed'));
+        }
+        setStatus('closed');
+        transport.close();
+        return;
+      }
+      if (status === 'open')
+        options.logger?.warn('[contract] WebSocket connection lost; reconnecting');
+      setStatus('reconnecting');
+      // 进行中的调用随旧会话一起失败；监听者保留，重连后订阅回去
+      transport.connectionLost(new ContractError('TRANSPORT', 'WebSocket connection lost'));
+      scheduleReconnect();
+    };
+    sock.addEventListener('close', onDown);
+    sock.addEventListener('error', onDown);
+  };
+
+  connect();
 
   const close = transport.close;
-  return Object.assign(transport, {
+  const out = Object.assign(transport, {
     ready,
     close(): void {
+      if (userClosed) return;
+      // 先发 unsub（连接还开着时），再断开
       close();
+      userClosed = true;
+      if (retryTimer) clearTimeout(retryTimer);
+      retryTimer = null;
+      setStatus('closed');
       try {
         socket.close(1000, 'client closed');
       } catch {
@@ -158,4 +247,6 @@ export function createWebSocketClientTransport(
       }
     },
   });
+  Object.defineProperty(out, 'status', { get: () => status, enumerable: true });
+  return out as unknown as WebSocketClientTransport;
 }

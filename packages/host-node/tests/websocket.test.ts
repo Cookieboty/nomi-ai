@@ -30,6 +30,7 @@ const contract = defineContract({
     },
     whoami: { kind: 'query', input: z.void(), output: z.object({ surface: z.string() }) },
     'count.up': { kind: 'stream', input: z.object({ n: z.number() }), chunk: z.number() },
+    hang: { kind: 'query', input: z.void(), output: z.null() },
   },
   events: { tick: z.object({ n: z.number() }) },
 });
@@ -44,6 +45,7 @@ const router = implement(contract, {
   async *'count.up'({ n }) {
     for (let i = 1; i <= n; i++) yield i;
   },
+  hang: () => new Promise<null>(() => undefined),
 });
 
 const ORIGIN = 'http://127.0.0.1:6128';
@@ -57,9 +59,10 @@ afterEach(async () => {
   warnings.length = 0;
 });
 
-async function start() {
+async function start(opts: { port?: number; token?: string } = {}) {
   server = await serveContractOverWebSocket(router as never, {
-    token,
+    token: opts.token ?? token,
+    ...(opts.port ? { port: opts.port } : {}),
     allowedOrigins: [ORIGIN],
     logger: { warn: (_m, data) => warnings.push(data) },
   });
@@ -233,6 +236,88 @@ describe('serveContractOverWebSocket', () => {
     const closed = new Promise<number>((r) => ws.once('close', (code) => r(code)));
     ws.send(Buffer.from([1, 2, 3]), { binary: true });
     expect(await closed).toBe(1003);
+  });
+
+  it('reconnects with backoff after the connection drops and re-subscribes active events', async () => {
+    const s = await start();
+    const port = s.port;
+    const statuses: string[] = [];
+    const transport = createWebSocketClientTransport({
+      url: s.url,
+      token,
+      surface: 'chat',
+      createSocket: wsFactory(ORIGIN),
+      reconnect: { initialDelayMs: 20, maxDelayMs: 80 },
+      onStatus: (st) => statuses.push(st),
+    });
+    const api = createClient(contract, transport, { handshake: 'off' });
+    await transport.ready;
+    const ticks: unknown[] = [];
+    api.on('tick', (e) => ticks.push(e));
+    await new Promise((r) => setTimeout(r, 20));
+
+    // 内核断开：进行中的调用以 TRANSPORT 失败，断开期间的新调用也直接失败
+    const pending = api.hang().then(
+      () => null,
+      (e: unknown) => e,
+    );
+    await new Promise((r) => setTimeout(r, 20));
+    await s.close();
+    server = undefined;
+    await expect(pending).resolves.toMatchObject({ code: 'TRANSPORT' });
+    await expect.poll(() => transport.status, { timeout: 2000, interval: 5 }).toBe('reconnecting');
+    await expect(api.whoami()).rejects.toMatchObject({ code: 'TRANSPORT' });
+
+    // 同一端口、同一 token 的内核回来：自动连上，事件订阅回来，新调用照常
+    const back = await start({ port });
+    await expect.poll(() => transport.status, { timeout: 3000, interval: 10 }).toBe('open');
+    await expect(api.whoami()).resolves.toEqual({ surface: 'chat' });
+    await new Promise((r) => setTimeout(r, 20));
+    router.events.publish('tick', { n: 8 });
+    await expect.poll(() => ticks, { timeout: 2000, interval: 10 }).toEqual([{ n: 8 }]);
+    expect(back.connectionCount).toBe(1);
+    expect(statuses).toEqual(['open', 'reconnecting', 'open']);
+
+    transport.close();
+    expect(transport.status).toBe('closed');
+    await expect.poll(() => back.connectionCount, { timeout: 2000, interval: 10 }).toBe(0);
+  });
+
+  it('keeps the handshake checks on reconnect: a restarted kernel with a new token is refused', async () => {
+    const s = await start();
+    const port = s.port;
+    const transport = createWebSocketClientTransport({
+      url: s.url,
+      token,
+      createSocket: wsFactory(ORIGIN),
+      reconnect: { initialDelayMs: 10, maxDelayMs: 30 },
+    });
+    await transport.ready;
+    await s.close();
+    server = undefined;
+    const other = await start({ port, token: createDevToken() });
+    // 多试几轮：每次都被拒，一直停在 reconnecting，连接数始终是 0
+    await new Promise((r) => setTimeout(r, 200));
+    expect(transport.status).toBe('reconnecting');
+    expect(other.connectionCount).toBe(0);
+    transport.close();
+    expect(transport.status).toBe('closed');
+  });
+
+  it('does not reconnect when the first handshake is refused', async () => {
+    const s = await start();
+    const statuses: string[] = [];
+    const transport = createWebSocketClientTransport({
+      url: s.url,
+      token: createDevToken(),
+      createSocket: wsFactory(ORIGIN),
+      reconnect: { initialDelayMs: 10 },
+      onStatus: (st) => statuses.push(st),
+    });
+    await expect(transport.ready).rejects.toMatchObject({ code: 'TRANSPORT' });
+    await new Promise((r) => setTimeout(r, 60));
+    expect(statuses).toEqual(['closed']);
+    expect(s.connectionCount).toBe(0);
   });
 
   it('redacts tokens for logs', () => {

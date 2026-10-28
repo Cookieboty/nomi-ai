@@ -36,10 +36,21 @@ export interface FrameClientTransport extends ClientTransport {
   close(): void;
 }
 
+/**
+ * 底层连接会断开重连的传输（WebSocket）用：连接断了让进行中的调用失败（服务端会话已经没了），
+ * 连上新会话后把仍有监听者的事件重新订阅一遍。
+ */
+export interface ReconnectableFrameClient extends FrameClientTransport {
+  /** 底层连接断开：进行中的调用 / 流以 `err` 失败；事件监听者保留 */
+  connectionLost(err: unknown): void;
+  /** 新连接已建立：为每个仍有监听者的事件重发 `sub` */
+  connectionRestored(): void;
+}
+
 export function createFrameClientTransport(
   port: ClientFramePort,
   options: FrameClientOptions = {},
-): FrameClientTransport {
+): ReconnectableFrameClient {
   const prefix = options.idPrefix ?? randomId().slice(0, 8);
   const pending = new Map<string, Pending>();
   const listeners = new Map<string, Set<(data: unknown) => void>>();
@@ -188,6 +199,16 @@ export function createFrameClientTransport(
           post({ t: 'unsub', event });
         }
       };
+    },
+
+    connectionLost(err: unknown): void {
+      if (closed) return;
+      for (const id of [...pending.keys()]) settleError(id, err);
+    },
+
+    connectionRestored(): void {
+      if (closed) return;
+      for (const event of listeners.keys()) post({ t: 'sub', event });
     },
 
     close(): void {
