@@ -11,13 +11,9 @@ import { parseSlashInput } from '../src/slash/parse';
 import { buildRegistry, executeSlash, findCommand, searchCommands } from '../src/slash/registry';
 import { useSlashCommands } from '../src/slash/useSlashCommands';
 
-import type { CodingApiMockState } from './helpers/codingApi';
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
-// D3 客户端走契约（services/api）；测试仍用旧通道形状的 window.aiIPC 假桥，经 helpers/codingApi 转发
-const codingApi = vi.hoisted(() => ({}) as CodingApiMockState);
-vi.mock('../src/services/api', async () =>
-  (await import('./helpers/codingApi')).createCodingApiMock(codingApi),
-);
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
 vi.mock('../src/contexts/AiChatContext', () => ({
   useAiChat: () => ({
@@ -28,15 +24,12 @@ vi.mock('../src/contexts/AiChatContext', () => ({
 
 const settings = { enabled: true, defaults: {}, installed: ['codex', 'grok'], pinned: null };
 beforeEach(() => {
-  (window as unknown as { aiIPC: unknown }).aiIPC = {
-    invoke: vi.fn(async (ch: string) => (ch === 'ai:delegate:settings' ? settings : undefined)),
-    on: () => () => undefined,
-  };
+  installFakeApi((ch: string) => (ch === 'delegate.settings' ? settings : undefined));
   setNextDelegate(null);
 });
 afterEach(() => {
   cleanup();
-  delete (window as unknown as { aiIPC?: unknown }).aiIPC;
+  resetFakeApi();
 });
 
 const registry = () => buildRegistry(nomiAdapter({} as never));

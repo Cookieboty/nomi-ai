@@ -6,8 +6,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { TerminalCommandsCard } from '../src/components/ModelsPage/TerminalCommandsCard';
 import type { TerminalCommandsState } from '../src/services/terminalCommandsClient';
 
-// D2 的过程经契约替身转发到下面的旧桥假实现（见 helpers/shellApi）
-vi.mock('../src/services/api', () => import('./helpers/shellApi'));
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
+
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
 const base: TerminalCommandsState = {
   enabled: false,
@@ -21,7 +22,7 @@ const base: TerminalCommandsState = {
 function mockIpc(initial: Partial<TerminalCommandsState> = {}) {
   let st: TerminalCommandsState = { ...base, ...initial };
   const invoke = vi.fn(async (ch: string, input?: { enabled: boolean; addToPath?: boolean }) => {
-    if (ch === 'ai:gateway:terminal-set' && input) {
+    if (ch === 'gateway.terminalSet' && input) {
       st = {
         ...st,
         enabled: input.enabled,
@@ -30,7 +31,7 @@ function mockIpc(initial: Partial<TerminalCommandsState> = {}) {
     }
     return st;
   });
-  (window as unknown as { aiIPC: unknown }).aiIPC = { invoke };
+  installFakeApi(invoke);
   return invoke;
 }
 
@@ -39,7 +40,7 @@ const flush = () => act(async () => {});
 describe('TerminalCommandsCard (§12.6)', () => {
   afterEach(() => {
     cleanup();
-    delete (window as { aiIPC?: unknown }).aiIPC;
+    resetFakeApi();
   });
 
   it('is off by default and explains the commands', async () => {
@@ -58,19 +59,19 @@ describe('TerminalCommandsCard (§12.6)', () => {
     await flush();
     fireEvent.click(screen.getByRole('switch', { name: '终端启动命令' }));
     await flush();
-    expect(invoke).toHaveBeenCalledWith('ai:gateway:terminal-set', { enabled: true });
+    expect(invoke).toHaveBeenCalledWith('gateway.terminalSet', { enabled: true });
     expect(screen.getByTestId('terminal-bin-dir').textContent).toBe('/home/u/.nomi/bin');
     fireEvent.click(screen.getByText('加入 PATH…'));
     // 确认弹窗列出要改的文件，确认前不调用 addToPath
     expect(screen.getByRole('dialog')).toBeTruthy();
     expect(screen.getAllByText('/home/u/.zshrc').length).toBeGreaterThan(0);
-    expect(invoke).not.toHaveBeenCalledWith('ai:gateway:terminal-set', {
+    expect(invoke).not.toHaveBeenCalledWith('gateway.terminalSet', {
       enabled: true,
       addToPath: true,
     });
     fireEvent.click(screen.getByTestId('terminal-path-confirm'));
     await flush();
-    expect(invoke).toHaveBeenCalledWith('ai:gateway:terminal-set', {
+    expect(invoke).toHaveBeenCalledWith('gateway.terminalSet', {
       enabled: true,
       addToPath: true,
     });
@@ -85,7 +86,7 @@ describe('TerminalCommandsCard (§12.6)', () => {
     fireEvent.click(screen.getByText('取消'));
     await flush();
     expect(screen.queryByRole('dialog')).toBeNull();
-    expect(invoke.mock.calls.filter((c) => c[0] === 'ai:gateway:terminal-set')).toHaveLength(0);
+    expect(invoke.mock.calls.filter((c) => c[0] === 'gateway.terminalSet')).toHaveLength(0);
   });
 
   it('Windows: shows the folder to add manually, no PATH button', async () => {
@@ -102,7 +103,7 @@ describe('TerminalCommandsCard (§12.6)', () => {
     await flush();
     fireEvent.click(screen.getByRole('switch', { name: '终端启动命令' }));
     await flush();
-    expect(invoke).toHaveBeenCalledWith('ai:gateway:terminal-set', { enabled: false });
+    expect(invoke).toHaveBeenCalledWith('gateway.terminalSet', { enabled: false });
     expect(screen.queryByTestId('terminal-bin-dir')).toBeNull();
   });
 });

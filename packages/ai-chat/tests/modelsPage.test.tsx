@@ -15,8 +15,9 @@ import type {
   ProviderView,
 } from '../src/services/gatewayClient';
 
-// D2 的过程经契约替身转发到下面的旧桥假实现（见 helpers/shellApi）
-vi.mock('../src/services/api', () => import('./helpers/shellApi'));
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
+
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
 vi.mock('../src/components/ConfirmDialog', () => import('./helpers/confirmViaWindow'));
 
@@ -72,7 +73,8 @@ const okDetect = (url: string): DetectResult => ({
 function fakeMain(
   o: {
     detect?: (input: Record<string, unknown>) => DetectResult | Promise<DetectResult>;
-    extra?: Record<string, (...a: unknown[]) => unknown>;
+
+    extra?: Record<string, (i: any) => unknown>;
   } = {},
 ) {
   const state: GatewayState = {
@@ -82,27 +84,27 @@ function fakeMain(
     allowedPrivateHosts: [],
     port: 1,
   };
-  const calls: Array<[string, unknown[]]> = [];
-  let changed: (() => void) | null = null;
-  const invoke = vi.fn(async (ch: string, ...args: unknown[]) => {
-    calls.push([ch, args]);
-    if (o.extra?.[ch]) return o.extra[ch]!(...args);
+  const calls: Array<[string, unknown]> = [];
+  const invoke = vi.fn(async (ch: string, input?: unknown) => {
+    calls.push([ch, input]);
+    const args = (input ?? {}) as Record<string, unknown>;
+    if (o.extra?.[ch]) return o.extra[ch]!(input);
     switch (ch) {
-      case 'ai:providers:presets':
+      case 'providers.presets':
         return PRESETS;
-      case 'ai:providers:state':
+      case 'providers.state':
         return { providers: [], envProviders: [], overrideId: null };
-      case 'ai:gateway:state':
+      case 'gateway.state':
         return structuredClone(state);
-      case 'ai:gateway:detect':
+      case 'gateway.detect':
         return (
           o.detect ?? ((i) => okDetect(String((i.urls as { chat?: string })?.chat ?? i.url)))
-        )(args[0] as Record<string, unknown>);
-      case 'ai:gateway:confirm-private-host':
-        state.allowedPrivateHosts.push(String(args[0]));
+        )(args);
+      case 'gateway.confirmPrivateHost':
+        state.allowedPrivateHosts.push(String(args.hostPort));
         break;
-      case 'ai:gateway:upsert-provider': {
-        const i = args[0] as ProviderView & { newKeys?: Array<{ value: string }> };
+      case 'gateway.upsertProvider': {
+        const i = args as unknown as ProviderView & { newKeys?: Array<{ value: string }> };
         const id = i.id ?? i.presetId ?? i.name.toLowerCase();
         const prev = state.providers.find((p) => p.id === id);
         const p: ProviderView = {
@@ -126,20 +128,20 @@ function fakeMain(
           updatedAt: 0,
         };
         state.providers = [...state.providers.filter((x) => x.id !== id), p];
-        changed?.();
+        changed();
         return p;
       }
-      case 'ai:gateway:clear-learned':
-        for (const p of state.providers) if (p.id === args[0]) delete p.learned;
-        changed?.();
+      case 'gateway.clearLearned':
+        for (const p of state.providers) if (p.id === args.providerId) delete p.learned;
+        changed();
         break;
-      case 'ai:gateway:remove-provider':
-        state.providers = state.providers.filter((p) => p.id !== args[0]);
-        changed?.();
+      case 'gateway.removeProvider':
+        state.providers = state.providers.filter((p) => p.id !== args.id);
+        changed();
         break;
-      case 'ai:gateway:set-assignment': {
-        const client = args[0] as keyof GatewayState['clients'];
-        const p = args[1] as {
+      case 'gateway.setAssignment': {
+        const client = args.client as keyof GatewayState['clients'];
+        const p = args.patch as {
           models?: Record<string, string | null>;
           newTabSource?: 'official' | 'thirdParty';
           newTabAccountId?: string | null;
@@ -156,21 +158,17 @@ function fakeMain(
           ...(p.newTabSource ? { newTabSource: p.newTabSource } : {}),
           ...accountPatch,
         };
-        changed?.();
+        changed();
         break;
       }
-      case 'ai:cli-account:list':
+      case 'cliAccount.list':
         return [];
     }
     return undefined;
   });
-  (window as unknown as { aiIPC: unknown }).aiIPC = {
-    invoke,
-    on: (ch: string, fn: () => void) => {
-      if (ch === 'ai:gateway:changed') changed = fn;
-      return () => undefined;
-    },
-  };
+  const fake = installFakeApi(invoke);
+  // 网关状态变了：推 gateway.changed（不等送达，界面再拉 gateway.state）
+  const changed = () => fake.publish('gateway.changed', null);
   return { state, calls };
 }
 
@@ -180,12 +178,12 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
-  delete (window as unknown as { aiIPC?: unknown }).aiIPC;
+  resetFakeApi();
 });
 
 const detail = () => screen.getByTestId('provider-detail');
 const upserts = (m: ReturnType<typeof fakeMain>) =>
-  m.calls.filter(([c]) => c === 'ai:gateway:upsert-provider').map(([, a]) => a[0] as ProviderInput);
+  m.calls.filter(([c]) => c === 'gateway.upsertProvider').map(([, a]) => a as ProviderInput);
 
 const kimi = (o: Partial<ProviderView> = {}): ProviderView => ({
   id: 'kimi',
@@ -230,7 +228,7 @@ describe('ModelsPage', () => {
     render(<ModelsPage />);
     await addFlow('deepseek', 'sk-aaaa1111 sk-bbbb2222');
     await screen.findByTestId('provider-deepseek');
-    const detect = m.calls.find(([c]) => c === 'ai:gateway:detect')![1][0];
+    const detect = m.calls.find(([c]) => c === 'gateway.detect')![1];
     // 预设写明的各协议地址直接拿去测，不再从 baseURL 推导
     expect(detect).not.toHaveProperty('url');
     expect(detect).toMatchObject({
@@ -238,7 +236,7 @@ describe('ModelsPage', () => {
       keys: ['sk-aaaa1111', 'sk-bbbb2222'],
       fallbackModel: 'deepseek-v4-pro',
     });
-    const saved = m.calls.find(([c]) => c === 'ai:gateway:upsert-provider')![1][0];
+    const saved = m.calls.find(([c]) => c === 'gateway.upsertProvider')![1];
     expect(saved).toMatchObject({
       name: 'DeepSeek',
       presetId: 'deepseek',
@@ -361,10 +359,7 @@ describe('ModelsPage', () => {
     });
     fireEvent.click(screen.getByTestId('models-provider-save'));
     await waitFor(() => expect(upserts(m)).toHaveLength(1));
-    const detect = m.calls.find(([c]) => c === 'ai:gateway:detect')![1][0] as Record<
-      string,
-      unknown
-    >;
+    const detect = m.calls.find(([c]) => c === 'gateway.detect')![1] as Record<string, unknown>;
     expect(detect.fallbackModel).toBe('my-synth-model');
     expect(upserts(m)[0]!.models.map((x) => x.id)).toContain('my-synth-model');
   });
@@ -407,7 +402,7 @@ describe('ModelsPage', () => {
     fireEvent.click(await screen.findByTestId('models-preset-deepseek'));
     fireEvent.change(screen.getByTestId('models-provider-key'), { target: { value: 'sk-aaaa' } });
     fireEvent.click(screen.getByTestId('models-provider-save'));
-    await waitFor(() => expect(m.calls.some(([c]) => c === 'ai:gateway:detect')).toBe(true));
+    await waitFor(() => expect(m.calls.some(([c]) => c === 'gateway.detect')).toBe(true));
     fireEvent.click(screen.getByTestId('models-provider-cancel'));
     resolveDetect(okDetect('https://api.deepseek.com'));
     await new Promise((x) => setTimeout(x, 80));
@@ -447,7 +442,7 @@ describe('ModelsPage', () => {
     fireEvent.click(screen.getByTestId('models-provider-save'));
     await waitFor(() => expect(window.confirm).toHaveBeenCalled());
     await waitFor(() => expect(screen.getByTestId('models-provider-url')).toBeTruthy());
-    expect(m.calls.some(([c]) => c === 'ai:gateway:detect')).toBe(false);
+    expect(m.calls.some(([c]) => c === 'gateway.detect')).toBe(false);
     expect(m.state.allowedPrivateHosts).toEqual([]);
   });
 
@@ -541,7 +536,7 @@ describe('ModelsPage', () => {
     // 检测同时包含草稿中仍启用的已保存 Key 和新 Key。
     fireEvent.click(within(dlg).getByTestId('pd-models-refresh'));
     await within(dlg).findByTestId('pd-detect-notice');
-    const detection = m.calls.find(([c]) => c === 'ai:gateway:detect')![1][0];
+    const detection = m.calls.find(([c]) => c === 'gateway.detect')![1];
     expect(detection).toMatchObject({
       savedKeyIds: ['k1'],
       keys: ['sk-new-aaaa1111', 'sk-new-bbbb2222'],
@@ -627,7 +622,7 @@ describe('ModelsPage', () => {
     fireEvent.keyDown(within(dlg).getByTestId('pd-model-input'), { key: 'Enter' });
     fireEvent.click(within(dlg).getByTestId('pd-models-refresh'));
     await within(dlg).findByTestId('pd-detect-notice');
-    const det = m.calls.find(([c]) => c === 'ai:gateway:detect')![1][0] as Record<string, unknown>;
+    const det = m.calls.find(([c]) => c === 'gateway.detect')![1] as Record<string, unknown>;
     expect(det.providerId).toBe('kimi');
     expect(det).not.toHaveProperty('keys');
     fireEvent.click(within(dlg).getByTestId('provider-detail-save'));
@@ -823,7 +818,7 @@ describe('ModelsPage', () => {
     // 改了地址：提示重新检测，检测用草稿里的地址（空串表示不测）
     fireEvent.click(within(dlg).getByTestId('pd-redetect'));
     await waitFor(() => expect(within(dlg).queryByTestId('pd-urls-changed')).toBeNull());
-    const det = m.calls.find(([c]) => c === 'ai:gateway:detect')![1][0] as Record<string, unknown>;
+    const det = m.calls.find(([c]) => c === 'gateway.detect')![1] as Record<string, unknown>;
     expect(det).toMatchObject({
       providerId: 'kimi',
       urls: {
@@ -861,7 +856,7 @@ describe('ModelsPage', () => {
   it('strict mode is off by default and the switch saves the gateway option', async () => {
     const m = fakeMain({
       extra: {
-        'ai:gateway:set-options': (patch) => {
+        'gateway.setOptions': (patch) => {
           m.state.strictParams = (patch as { strictParams: boolean }).strictParams;
           return structuredClone(m.state);
         },
@@ -873,14 +868,14 @@ describe('ModelsPage', () => {
     expect(sw.getAttribute('aria-checked')).toBe('false');
     fireEvent.click(sw);
     await waitFor(() =>
-      expect(m.calls).toContainEqual(['ai:gateway:set-options', [{ strictParams: true }]]),
+      expect(m.calls).toContainEqual(['gateway.setOptions', { strictParams: true }]),
     );
   });
 
   it('advanced disclosure exposes request body limit and saves via set-options', async () => {
     const m = fakeMain({
       extra: {
-        'ai:gateway:set-options': (patch) => {
+        'gateway.setOptions': (patch) => {
           const p = patch as { maxRequestBodyBytes?: number };
           if (typeof p.maxRequestBodyBytes === 'number') {
             m.state.maxRequestBodyBytes = p.maxRequestBodyBytes;
@@ -898,8 +893,8 @@ describe('ModelsPage', () => {
     fireEvent.change(input, { target: { value: '64' } });
     await waitFor(() =>
       expect(m.calls).toContainEqual([
-        'ai:gateway:set-options',
-        [{ maxRequestBodyBytes: 64 * 1024 * 1024 }],
+        'gateway.setOptions',
+        { maxRequestBodyBytes: 64 * 1024 * 1024 },
       ]),
     );
   });
@@ -1000,7 +995,12 @@ describe('ModelsPage', () => {
         '还没有自动学到的状态',
       ),
     );
-    expect(m.calls.some(([c, a]) => c === 'ai:gateway:clear-learned' && a[0] === 'r')).toBe(true);
+    expect(
+      m.calls.some(
+        ([c, a]) =>
+          c === 'gateway.clearLearned' && (a as { providerId: string }).providerId === 'r',
+      ),
+    ).toBe(true);
   });
 
   describe('编程助手的第三方模型（§4.1）', () => {
@@ -1024,7 +1024,9 @@ describe('ModelsPage', () => {
       ];
     };
     const assignments = (m: ReturnType<typeof fakeMain>) =>
-      m.calls.filter(([c]) => c === 'ai:gateway:set-assignment').map(([, a]) => a);
+      m.calls
+        .filter(([c]) => c === 'gateway.setAssignment')
+        .map(([, a]) => [(a as { client: string }).client, (a as { patch: unknown }).patch]);
     const pick = (testId: string, value: string) =>
       fireEvent.change(screen.getByTestId(testId), { target: { value } });
 
@@ -1118,13 +1120,13 @@ describe('ModelsPage', () => {
       let grokPath: string | null = null;
       const m = fakeMain({
         extra: {
-          'ai:cli-update:inspect': () => [
+          'cliUpdate.inspect': () => [
             inst('claude', '/bin/claude'),
             inst('codex', '/bin/codex'),
             inst('grok', grokPath),
           ],
-          'ai:cli-update:busy': () => null,
-          'ai:cli-update:preview': (kind) => ({
+          'cliUpdate.busy': () => null,
+          'cliUpdate.preview': ({ kind }) => ({
             kind,
             mode: 'install',
             scope: 'global',
@@ -1133,7 +1135,7 @@ describe('ModelsPage', () => {
             requirements: [],
             blockers: [],
           }),
-          'ai:cli-update:run': () => {
+          'cliUpdate.run': () => {
             grokPath = '/bin/grok';
             return { ok: true, log: '', version: '1.0.0' };
           },
@@ -1152,10 +1154,13 @@ describe('ModelsPage', () => {
       expect((await screen.findByTestId('cli-version-command')).textContent).toBe(
         'npm install -g grok-cli',
       );
-      expect(m.calls.some(([c]) => c === 'ai:cli-update:run')).toBe(false);
+      expect(m.calls.some(([c]) => c === 'cliUpdate.run')).toBe(false);
       fireEvent.click(screen.getByTestId('cli-version-confirm'));
       await waitFor(() =>
-        expect(m.calls.find(([c]) => c === 'ai:cli-update:run')?.[1]).toEqual(['grok', 'global']),
+        expect(m.calls.find(([c]) => c === 'cliUpdate.run')?.[1]).toEqual({
+          kind: 'grok',
+          scope: 'global',
+        }),
       );
       // 装好后重新检查，行恢复成选择器
       expect(await screen.findByTestId('cli-main-grok')).toBeTruthy();

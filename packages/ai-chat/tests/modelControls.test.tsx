@@ -11,16 +11,9 @@ import type {
 } from '../src/services/harnessClient';
 import { openModelMenu } from '../src/services/modelMenu';
 
-import type { CodingApiMockState } from './helpers/codingApi';
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
-// D3 客户端走契约（services/api）；测试仍用旧通道形状的 window.aiIPC 假桥，经 helpers/codingApi 转发
-const codingApi = vi.hoisted(() => ({}) as CodingApiMockState);
-vi.mock('../src/services/api', async () =>
-  (await import('./helpers/codingApi')).createCodingApiMock(codingApi),
-);
-
-// D2 的过程经契约替身转发到下面的旧桥假实现（见 helpers/shellApi）
-vi.mock('../src/services/api', () => import('./helpers/shellApi'));
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
 /** 形状与主进程从 CLI 读到的目录一致（Codex：config 未指定默认模型时 defaultModel = null） */
 const codexLevels: ReasoningEffort[] = ['low', 'medium', 'high', 'xhigh'];
@@ -80,23 +73,23 @@ const baseTab: HarnessTabMeta = {
 
 function setup(opts: { catalog: BackendModelCatalog | null; tabOver?: Partial<HarnessTabMeta> }) {
   let current = { ...baseTab, ...opts.tabOver };
-  const invoke = vi.fn(async (ch: string, ...a: unknown[]) => {
-    if (ch === 'ai:harness:model-catalog') return opts.catalog;
-    if (ch === 'ai:harness:tab-model') {
-      const model = String(a[1] ?? '');
+  const invoke = vi.fn(async (ch: string, i?: Record<string, unknown>) => {
+    if (ch === 'harness.modelCatalog') return opts.catalog;
+    if (ch === 'harness.tabModel') {
+      const model = String(i?.model ?? '');
       current = { ...current, modelOverride: model || null };
       if (!model) current.reasoningEffort = null;
       if (model === 'gpt-4.1') current.reasoningEffort = null;
       return { ...current };
     }
-    if (ch === 'ai:harness:tab-effort') {
-      const e = a[1] as ReasoningEffort | null;
+    if (ch === 'harness.tabEffort') {
+      const e = i?.effort as ReasoningEffort | null;
       current = { ...current, reasoningEffort: e };
       return { ...current };
     }
     return {};
   });
-  (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
+  installFakeApi(invoke);
 
   const rerender = render(<ModelControls tab={current} />);
   return {
@@ -110,7 +103,10 @@ function setup(opts: { catalog: BackendModelCatalog | null; tabOver?: Partial<Ha
 beforeEach(() => {
   document.body.innerHTML = '';
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  resetFakeApi();
+});
 
 describe('ModelControls', () => {
   it('无模型目录的后端不渲染任何按钮', () => {
@@ -158,7 +154,9 @@ describe('ModelControls', () => {
     expect(queryByTestId('effort-slider')).toBeNull();
     fireEvent.click(getByTestId('model-gpt-5.6-sol'));
     await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-model', 'cx', 'gpt-5.6-sol', {
+      expect(invoke).toHaveBeenCalledWith('harness.tabModel', {
+        id: 'cx',
+        model: 'gpt-5.6-sol',
         expectSource: 'official',
       }),
     );
@@ -199,11 +197,17 @@ describe('ModelControls', () => {
     fireEvent.click(await findByTestId('model-chip'));
     const slider = getByTestId('effort-slider');
     fireEvent.keyDown(slider, { key: 'ArrowRight' });
-    await waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:harness:tab-effort', 'cx', 'high'));
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('harness.tabEffort', { id: 'cx', effort: 'high' }),
+    );
     fireEvent.keyDown(slider, { key: 'Home' });
-    await waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:harness:tab-effort', 'cx', 'low'));
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('harness.tabEffort', { id: 'cx', effort: 'low' }),
+    );
     fireEvent.click(getByTestId('effort-default'));
-    await waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:harness:tab-effort', 'cx', null));
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('harness.tabEffort', { id: 'cx', effort: null }),
+    );
   });
 
   it('未设档位：滑杆定位到 CLI 返回的默认档位，仍无「恢复默认」', async () => {
@@ -284,7 +288,9 @@ describe('ModelControls', () => {
     expect(queryByTestId('effort-minimal')).toBeNull();
     expect(queryByTestId('effort-xhigh')).toBeNull();
     fireEvent.keyDown(getByTestId('effort-slider'), { key: 'End' });
-    await waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:harness:tab-effort', 'cx', 'max'));
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('harness.tabEffort', { id: 'cx', effort: 'max' }),
+    );
   });
 
   it('第三方来源的标签：按 source=thirdParty 要网关的模型，直接打开模型列表、没有思考深度和自定义 id', async () => {
@@ -298,18 +304,19 @@ describe('ModelControls', () => {
         { id: 'kimi/k3', label: 'Kimi / k3', reasoning: false, efforts: [] },
       ],
     };
-    const invoke = vi.fn(async (ch: string, ...a: unknown[]) => {
-      if (ch === 'ai:harness:model-catalog') return gatewayCatalog;
-      if (ch === 'ai:harness:tab-model') {
-        current = { ...current, modelOverride: String(a[1] ?? '') || null };
+    const invoke = vi.fn(async (ch: string, i?: Record<string, unknown>) => {
+      if (ch === 'harness.modelCatalog') return gatewayCatalog;
+      if (ch === 'harness.tabModel') {
+        current = { ...current, modelOverride: String(i?.model ?? '') || null };
         return { ...current };
       }
       return {};
     });
-    (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
+    installFakeApi(invoke);
     const r = render(<ModelControls tab={current} />);
     const chip = await r.findByTestId('model-chip');
-    expect(invoke).toHaveBeenCalledWith('ai:harness:model-catalog', 'codex', {
+    expect(invoke).toHaveBeenCalledWith('harness.modelCatalog', {
+      backend: 'codex',
       source: 'thirdParty',
     });
     expect(chip.textContent).toContain('DeepSeek / v4');
@@ -322,7 +329,9 @@ describe('ModelControls', () => {
     expect(within(menu).queryByTestId('model-custom-toggle')).toBeNull();
     fireEvent.click(within(menu).getByTestId('model-kimi/k3'));
     await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-model', 'cx', 'kimi/k3', {
+      expect(invoke).toHaveBeenCalledWith('harness.tabModel', {
+        id: 'cx',
+        model: 'kimi/k3',
         expectSource: 'thirdParty',
       }),
     );
@@ -330,7 +339,8 @@ describe('ModelControls', () => {
     fireEvent.click(r.getByTestId('model-chip'));
     fireEvent.click(within(await r.findByTestId('model-menu')).getByTestId('model-refresh'));
     await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('ai:harness:model-catalog', 'codex', {
+      expect(invoke).toHaveBeenCalledWith('harness.modelCatalog', {
+        backend: 'codex',
         refresh: true,
         source: 'thirdParty',
       }),
@@ -373,26 +383,26 @@ describe('ModelControls', () => {
       port: 1,
     };
     let current: HarnessTabMeta = { ...baseTab, source: 'thirdParty', modelOverride: ref };
-    const invoke = vi.fn(async (ch: string, ...a: unknown[]) => {
-      if (ch === 'ai:gateway:state') return gatewayState;
-      if (ch === 'ai:harness:model-catalog')
+    const invoke = vi.fn(async (ch: string, i?: Record<string, unknown>) => {
+      if (ch === 'gateway.state') return gatewayState;
+      if (ch === 'harness.modelCatalog')
         return {
           backend: 'codex',
           provider: { id: 'amux', name: 'Amux' },
           defaultModel: null,
           models: [{ id: ref, label: 'GPT-6.1 Sol', reasoning: true, efforts: [] }],
         };
-      if (ch === 'ai:harness:tab-long-context') {
-        const on = a[1] as boolean | null;
+      if (ch === 'harness.tabLongContext') {
+        const on = i?.on as boolean | null;
         current = { ...current, longContext: on === null ? null : { model: ref, on } };
         return { ...current };
       }
       return {};
     });
-    (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
+    installFakeApi(invoke);
     const r = render(<ModelControls tab={current} />);
     // 应用里网关状态早已缓存；测试里先等它到达再开菜单
-    await waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:gateway:state'));
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith('gateway.state'));
     await act(async () => {});
     fireEvent.click(await r.findByTestId('model-chip'));
     const group = await r.findByTestId('long-context-group');
@@ -405,7 +415,7 @@ describe('ModelControls', () => {
     expect(group.textContent).toContain('超过 272K 的请求按输入 $4/M（标准 $2/M）计费');
     fireEvent.click(within(group).getByTestId('long-context-long'));
     await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-long-context', 'cx', true),
+      expect(invoke).toHaveBeenCalledWith('harness.tabLongContext', { id: 'cx', on: true }),
     );
     // 开启后按钮带「长」标记；切回标准时与模型默认相同 → 存 null（跟随默认）
     r.rerender(<ModelControls tab={current} />);
@@ -415,7 +425,7 @@ describe('ModelControls', () => {
       within(await r.findByTestId('long-context-group')).getByTestId('long-context-standard'),
     );
     await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-long-context', 'cx', null),
+      expect(invoke).toHaveBeenCalledWith('harness.tabLongContext', { id: 'cx', on: null }),
     );
   });
 
@@ -433,8 +443,8 @@ describe('ModelControls', () => {
       defaultModel: null,
       models,
     };
-    const invoke = vi.fn(async (ch: string) => (ch === 'ai:harness:model-catalog' ? catalog : {}));
-    (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
+    const invoke = vi.fn(async (ch: string) => (ch === 'harness.modelCatalog' ? catalog : {}));
+    installFakeApi(invoke);
     const r = render(<ModelControls tab={{ ...baseTab, source: 'thirdParty' }} />);
     fireEvent.click(await r.findByTestId('model-chip'));
     const menu = await r.findByTestId('model-menu');
@@ -451,7 +461,9 @@ describe('ModelControls', () => {
     fireEvent.change(search, { target: { value: 'GPT' } });
     fireEvent.keyDown(search, { key: 'Enter' });
     await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-model', 'cx', 'openai/gpt-6', {
+      expect(invoke).toHaveBeenCalledWith('harness.tabModel', {
+        id: 'cx',
+        model: 'openai/gpt-6',
         expectSource: 'thirdParty',
       }),
     );
@@ -464,8 +476,8 @@ describe('ModelControls', () => {
       defaultModel: null,
       models: [{ id: 'a/b', reasoning: false, efforts: [] }],
     };
-    const invoke = vi.fn(async (ch: string) => (ch === 'ai:harness:model-catalog' ? catalog : {}));
-    (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
+    const invoke = vi.fn(async (ch: string) => (ch === 'harness.modelCatalog' ? catalog : {}));
+    installFakeApi(invoke);
     const r = render(<ModelControls tab={{ ...baseTab, source: 'thirdParty' }} />);
     fireEvent.click(await r.findByTestId('model-chip'));
     await r.findByTestId('model-menu');
@@ -474,16 +486,17 @@ describe('ModelControls', () => {
 
   it('来源从官方切到第三方：重新按第三方要目录；官方仍不带 source', async () => {
     const invoke = vi.fn(async (ch: string) => {
-      if (ch === 'ai:harness:model-catalog') return catalog;
+      if (ch === 'harness.modelCatalog') return catalog;
       return {};
     });
-    (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
+    installFakeApi(invoke);
     const r = render(<ModelControls tab={baseTab} />);
     await r.findByTestId('model-chip');
-    expect(invoke).toHaveBeenCalledWith('ai:harness:model-catalog', 'codex', {});
+    expect(invoke).toHaveBeenCalledWith('harness.modelCatalog', { backend: 'codex' });
     r.rerender(<ModelControls tab={{ ...baseTab, source: 'thirdParty' }} />);
     await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('ai:harness:model-catalog', 'codex', {
+      expect(invoke).toHaveBeenCalledWith('harness.modelCatalog', {
+        backend: 'codex',
         source: 'thirdParty',
       }),
     );
@@ -528,7 +541,10 @@ describe('ModelControls', () => {
     expect(queryByTestId('model-custom-toggle')).toBeNull();
     fireEvent.click(getByTestId('model-refresh'));
     await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('ai:harness:model-catalog', 'grok', { refresh: true }),
+      expect(invoke).toHaveBeenCalledWith('harness.modelCatalog', {
+        backend: 'grok',
+        refresh: true,
+      }),
     );
   });
 
@@ -536,10 +552,10 @@ describe('ModelControls', () => {
     let resolve: (c: BackendModelCatalog) => void = () => undefined;
     const pending = new Promise<BackendModelCatalog>((r) => (resolve = r));
     const invoke = vi.fn(async (ch: string) => {
-      if (ch === 'ai:harness:model-catalog') return pending;
+      if (ch === 'harness.modelCatalog') return pending;
       return {};
     });
-    (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
+    installFakeApi(invoke);
     const r = render(<ModelControls tab={{ ...baseTab, backend: 'claude' }} />);
     const loading = await r.findByTestId('model-chip-loading');
     expect((loading as HTMLButtonElement).disabled).toBe(true);
@@ -632,15 +648,15 @@ describe('ModelControls（会话的供应商分组）', () => {
       gw: object = gatewayState,
       cat: BackendModelCatalog = gwCatalog,
     ) => {
-      const invoke = vi.fn(async (ch: string, ...a: unknown[]) => {
-        if (ch === 'ai:gateway:state') return gw;
-        if (ch === 'ai:harness:model-catalog') return cat;
-        if (ch === 'ai:harness:tab-model') return { ...tab, modelOverride: String(a[1]) };
+      const invoke = vi.fn(async (ch: string, i?: Record<string, unknown>) => {
+        if (ch === 'gateway.state') return gw;
+        if (ch === 'harness.modelCatalog') return cat;
+        if (ch === 'harness.tabModel') return { ...tab, modelOverride: String(i?.model) };
         return {};
       });
-      (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
+      installFakeApi(invoke);
       const r = render(<ModelControls tab={tab} />);
-      await waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:gateway:state'));
+      await waitFor(() => expect(invoke).toHaveBeenCalledWith('gateway.state'));
       await act(async () => {});
       return { r, invoke };
     };
@@ -663,7 +679,9 @@ describe('ModelControls（会话的供应商分组）', () => {
       expect(within(menu).queryByTestId('model-default')).toBeNull();
       fireEvent.click(within(menu).getByTestId('model-neu/ds-x'));
       await waitFor(() =>
-        expect(invoke).toHaveBeenCalledWith('ai:harness:tab-model', 'cx', 'neu/ds-x', {
+        expect(invoke).toHaveBeenCalledWith('harness.tabModel', {
+          id: 'cx',
+          model: 'neu/ds-x',
           expectSource: 'thirdParty',
         }),
       );
@@ -698,7 +716,7 @@ describe('ModelControls（会话的供应商分组）', () => {
       expect(within(menu).getByTestId('model-group-switch').textContent).toBe('默认 · 官方账号');
       fireEvent.click(within(menu).getByTestId('model-switch-official'));
       await waitFor(() =>
-        expect(invoke).toHaveBeenCalledWith('ai:harness:tab-source', 'cx', 'official'),
+        expect(invoke).toHaveBeenCalledWith('harness.tabSource', { id: 'cx', source: 'official' }),
       );
     });
 
@@ -715,12 +733,11 @@ describe('ModelControls（会话的供应商分组）', () => {
       expect(within(menu).queryByTestId('model-switch-old/glm-a')).toBeNull();
       fireEvent.click(within(menu).getByTestId('model-switch-neu/ds-x'));
       await waitFor(() =>
-        expect(invoke).toHaveBeenCalledWith(
-          'ai:harness:tab-source',
-          'cx',
-          'thirdParty',
-          'neu/ds-x',
-        ),
+        expect(invoke).toHaveBeenCalledWith('harness.tabSource', {
+          id: 'cx',
+          source: 'thirdParty',
+          model: 'neu/ds-x',
+        }),
       );
     });
   });

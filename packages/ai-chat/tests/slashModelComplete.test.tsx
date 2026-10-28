@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import React from 'react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { MessageInput } from '../src/components/MessageInput';
 import { nomiAdapter } from '../src/slash/adapters/nomi';
@@ -15,15 +15,8 @@ vi.mock('../src/contexts/AiChatContext', () => ({
   }),
 }));
 
-beforeEach(() => {
-  (window as unknown as { aiIPC: unknown }).aiIPC = {
-    invoke: vi.fn(async () => undefined),
-    on: () => () => undefined,
-  };
-});
 afterEach(() => {
   cleanup();
-  delete (window as unknown as { aiIPC?: unknown }).aiIPC;
 });
 
 const options: ModelArgOption[] = [

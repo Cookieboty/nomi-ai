@@ -8,19 +8,15 @@ import { AssistantMessage } from '../src/components/Conversation/Messages';
 import { AiChatContextProvider, useAiChat } from '../src/contexts/AiChatContext';
 import { fromHarnessMessage } from '../src/utils/convAdapters';
 
-import type { CodingApiMockState } from './helpers/codingApi';
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
-// D3 客户端走契约（services/api）；测试仍用旧通道形状的 window.aiIPC 假桥，经 helpers/codingApi 转发
-const codingApi = vi.hoisted(() => ({}) as CodingApiMockState);
-vi.mock('../src/services/api', async () =>
-  (await import('./helpers/codingApi')).createCodingApiMock(codingApi),
-);
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
 // 后台子代理完成后 CLI 自发的一轮（docs/design/cli-subagents.md §4）
 describe('CLI 自发的跟进轮次', () => {
   afterEach(() => {
     cleanup();
-    delete (window as { aiIPC?: unknown }).aiIPC;
+    resetFakeApi();
   });
 
   it('CLI 标签消息带 origin=background：会话里标注「后台任务完成后的跟进」', () => {
@@ -35,14 +31,7 @@ describe('CLI 自发的跟进轮次', () => {
   });
 
   it('主标签的自发轮次经 tab-message 广播：追加到当前对话并保存', async () => {
-    const handlers = new Map<string, (p: unknown) => void>();
-    (window as unknown as { aiIPC: unknown }).aiIPC = {
-      invoke: vi.fn(async () => null),
-      on: (ch: string, fn: (p: unknown) => void) => {
-        handlers.set(ch, fn);
-        return () => handlers.delete(ch);
-      },
-    };
+    const fake = installFakeApi(() => null);
     const client = {
       chat: { agentStream: vi.fn(), stream: vi.fn(), sendMessage: vi.fn(), abort: vi.fn() },
       memory: { userProfile: { get: () => undefined, set: vi.fn() } },
@@ -60,8 +49,8 @@ describe('CLI 自发的跟进轮次', () => {
     );
     await act(async () => void (await new Promise((r) => setTimeout(r, 0))));
     const save = vi.spyOn(ref.api!.state.ipcClient, 'saveMessage');
-    const emit = handlers.get('ai:harness:tab-message')!;
-    act(() =>
+    const emit = (p: unknown) => fake.emit('harness.tabMessage', p);
+    await act(() =>
       emit({
         tabId: 'main',
         message: {
@@ -74,7 +63,7 @@ describe('CLI 自发的跟进轮次', () => {
       }),
     );
     // 别的标签 / 普通消息不走这里
-    act(() =>
+    await act(() =>
       emit({
         tabId: 'tab-x',
         message: { id: 'f2', role: 'assistant', content: 'X', timestamp: 3, origin: 'background' },

@@ -6,18 +6,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ExternalClis } from '../src/components/ProvidersPage/ExternalClis';
 import { describeSpecError, idFromName } from '../src/services/cliPluginClient';
 
-import type { CodingApiMockState } from './helpers/codingApi';
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
-// D3 客户端走契约（services/api）；测试仍用旧通道形状的 window.aiIPC 假桥，经 helpers/codingApi 转发
-const codingApi = vi.hoisted(() => ({}) as CodingApiMockState);
-vi.mock('../src/services/api', async () =>
-  (await import('./helpers/codingApi')).createCodingApiMock(codingApi),
-);
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
 // 外部 CLI（L1 声明式插件，docs/design/cli-plugin-architecture.md §5.9）
 afterEach(() => {
   cleanup();
-  delete (window as { aiIPC?: unknown }).aiIPC;
+  resetFakeApi();
 });
 
 const entry = (o: Record<string, unknown> = {}) => ({
@@ -44,10 +40,10 @@ const entry = (o: Record<string, unknown> = {}) => ({
 function mockIpc(over: Record<string, (...a: unknown[]) => unknown> = {}) {
   const plugins: unknown[] = [{ id: 'claude', builtin: true, status: 'ready' }, entry()];
   const handlers: Record<string, (...a: unknown[]) => unknown> = {
-    'ai:cli:registry': () => ({ plugins }),
-    'ai:cli:plugin-add': () => ({ ok: true, entry: entry() }),
-    'ai:cli:plugin-remove': () => true,
-    'ai:cli:plugin-test': () => ({
+    'cli.registry': () => ({ plugins }),
+    'cli.pluginAdd': () => ({ ok: true, entry: entry() }),
+    'cli.pluginRemove': () => true,
+    'cli.pluginTest': () => ({
       ok: true,
       missingEnv: [],
       protocolVersion: 1,
@@ -55,11 +51,11 @@ function mockIpc(over: Record<string, (...a: unknown[]) => unknown> = {}) {
       capabilities: { loadSession: true, images: false, audio: false, embeddedContext: false },
       authMethods: [],
     }),
-    'ai:harness:tab-create': (o) => ({ id: 't1', ...(o as object) }),
+    'harness.tabCreate': (o) => ({ id: 't1', ...(o as object) }),
     ...over,
   };
-  const invoke = vi.fn(async (ch: string, ...a: unknown[]) => handlers[ch]?.(...a));
-  (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
+  const invoke = vi.fn(async (ch: string, i?: unknown) => handlers[ch]?.(i));
+  installFakeApi(invoke);
   return invoke;
 }
 
@@ -75,7 +71,7 @@ describe('ExternalClis', () => {
     expect(row.textContent).toContain('MY_TOKEN');
     fireEvent.click(v.getByText('新建标签'));
     await waitFor(() => expect(opened).toHaveBeenCalled());
-    expect(invoke).toHaveBeenCalledWith('ai:harness:tab-create', {
+    expect(invoke).toHaveBeenCalledWith('harness.tabCreate', {
       backend: 'external',
       pluginId: 'my-agent',
     });
@@ -97,20 +93,22 @@ describe('ExternalClis', () => {
     expect(v.getByTestId('external-cli-test-result').textContent).toContain('mock-acp 0.1.0');
     fireEvent.click(v.getByTestId('external-cli-save'));
     await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('ai:cli:plugin-add', {
-        version: 1,
-        id: 'open-agent',
-        displayName: 'Open Agent',
-        command: 'oa',
-        args: ['acp', '--cwd', '{cwd}'],
-        env: ['OA_KEY', 'OA_HOME'],
+      expect(invoke).toHaveBeenCalledWith('cli.pluginAdd', {
+        spec: {
+          version: 1,
+          id: 'open-agent',
+          displayName: 'Open Agent',
+          command: 'oa',
+          args: ['acp', '--cwd', '{cwd}'],
+          env: ['OA_KEY', 'OA_HOME'],
+        },
       }),
     );
   });
 
   it('保存失败：主进程的校验错误翻成界面文案', async () => {
     mockIpc({
-      'ai:cli:plugin-add': () => ({
+      'cli.pluginAdd': () => ({
         ok: false,
         errors: [
           'args[0] uses unknown placeholder {token}',

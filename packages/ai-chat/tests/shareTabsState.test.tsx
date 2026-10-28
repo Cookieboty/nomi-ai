@@ -11,13 +11,9 @@ import {
 import type { HarnessTabMeta, HarnessTabsState } from '../src/services/harnessClient';
 import { jsonEqual, shareTabsState } from '../src/utils/shareTabsState';
 
-import type { CodingApiMockState } from './helpers/codingApi';
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
-// D3 客户端走契约（services/api）；测试仍用旧通道形状的 window.aiIPC 假桥，经 helpers/codingApi 转发
-const codingApi = vi.hoisted(() => ({}) as CodingApiMockState);
-vi.mock('../src/services/api', async () =>
-  (await import('./helpers/codingApi')).createCodingApiMock(codingApi),
-);
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
 function tab(id: string, over: Partial<HarnessTabMeta> = {}): HarnessTabMeta {
   return {
@@ -105,20 +101,15 @@ describe('shareTabsState', () => {
 describe('HarnessTabsProvider 标签广播', () => {
   afterEach(() => {
     cleanup();
-    delete (window as { aiIPC?: unknown }).aiIPC;
+    resetFakeApi();
   });
 
   function mockIpc() {
-    const listeners: Record<string, Array<(p: unknown) => void>> = {};
-    const invoke = vi.fn(async (ch: string) => (ch === 'ai:harness:tab-messages' ? [] : payload()));
-    const on = (ch: string, fn: (p: unknown) => void) => {
-      (listeners[ch] ??= []).push(fn);
-      return () => undefined;
-    };
-    (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on };
+    const invoke = vi.fn(async (ch: string) => (ch === 'harness.tabMessages' ? [] : payload()));
+    const fake = installFakeApi(invoke);
     return {
       invoke,
-      emitTabs: (s: HarnessTabsState) => listeners['ai:harness:tabs']?.forEach((f) => f(s)),
+      emitTabs: (s: HarnessTabsState) => fake.emit('harness.tabsChanged', s),
     };
   }
 
@@ -146,7 +137,7 @@ describe('HarnessTabsProvider 标签广播', () => {
     );
     await waitFor(() => expect(core.current?.activeTab?.id).toBe('a'));
     await waitFor(() =>
-      expect(ipc.invoke).toHaveBeenCalledWith('ai:harness:tab-messages', expect.anything()),
+      expect(ipc.invoke).toHaveBeenCalledWith('harness.tabMessages', expect.anything()),
     );
     await act(() => new Promise((r) => setTimeout(r, 0)));
     const stateBefore = full.current!.state;
@@ -155,13 +146,13 @@ describe('HarnessTabsProvider 标签广播', () => {
     const coreBefore = coreRenders;
 
     // 内容相同的推送：什么都不变
-    act(() => ipc.emitTabs(payload()));
+    await act(() => ipc.emitTabs(payload()));
     expect(full.current!.state).toBe(stateBefore);
     expect(fullRenders).toBe(fullBefore);
     expect(coreRenders).toBe(coreBefore);
 
     // 后台标签 b 开始运行：完整列表换引用，当前标签与 core 不动
-    act(() => ipc.emitTabs(payload({ status: 'running' })));
+    await act(() => ipc.emitTabs(payload({ status: 'running' })));
     expect(full.current!.state).not.toBe(stateBefore);
     expect(full.current!.state!.tabs[1]).toBe(stateBefore!.tabs[1]);
     expect(fullRenders).toBe(fullBefore + 1);

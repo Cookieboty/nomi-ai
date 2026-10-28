@@ -11,8 +11,9 @@ import { StartupSettings } from '../src/components/SettingsView/StartupSettings'
 import { setCharacterNameForTest } from '../src/services/characterName';
 import { startupClient } from '../src/services/startupClient';
 
-// D2 的过程经契约替身转发到下面的旧桥假实现（见 helpers/shellApi）
-vi.mock('../src/services/api', () => import('./helpers/shellApi'));
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
+
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
 type Call = [string, ...unknown[]];
 let calls: Call[] = [];
@@ -20,24 +21,21 @@ let stored: Record<string, unknown> | null = { defaultView: 'mascot', closeMain:
 let failSet = false;
 
 const install = () => {
-  (window as unknown as { aiIPC: unknown }).aiIPC = {
-    invoke: async (ch: string, ...a: unknown[]) => {
-      calls.push([ch, ...a]);
-      if (ch === 'ai:startup:get') return stored;
-      if (ch === 'ai:startup:set') {
-        if (failSet) throw new Error('disk full');
-        const patch = a[0] as Record<string, unknown>;
-        const next: Record<string, unknown> = { ...(stored ?? {}), ...patch };
-        // 与主进程 StartupService 一致：切回看板娘自动打开；默认看板娘时关掉她 → 默认改主界面
-        if (patch.defaultView === 'mascot' && 'showMascot' in next) next.showMascot = true;
-        if (next.showMascot === false && next.defaultView === 'mascot') next.defaultView = 'main';
-        stored = next;
-        return stored;
-      }
-      return null;
-    },
-    on: () => () => undefined,
-  };
+  installFakeApi((ch: string, input?: unknown) => {
+    calls.push(input === undefined ? [ch] : [ch, input]);
+    if (ch === 'startup.get') return stored;
+    if (ch === 'startup.set') {
+      if (failSet) throw new Error('disk full');
+      const patch = input as Record<string, unknown>;
+      const next: Record<string, unknown> = { ...(stored ?? {}), ...patch };
+      // 与主进程 StartupService 一致：切回看板娘自动打开；默认看板娘时关掉她 → 默认改主界面
+      if (patch.defaultView === 'mascot' && 'showMascot' in next) next.showMascot = true;
+      if (next.showMascot === false && next.defaultView === 'mascot') next.defaultView = 'main';
+      stored = next;
+      return stored;
+    }
+    return null;
+  });
 };
 
 beforeEach(() => {
@@ -49,7 +47,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   applyLocale('zh-CN');
-  delete (window as unknown as { aiIPC?: unknown }).aiIPC;
+  resetFakeApi();
 });
 
 describe('startupClient', () => {
@@ -58,7 +56,7 @@ describe('startupClient', () => {
     expect(await startupClient.get()).toBe('mascot');
     stored = null;
     expect(await startupClient.get()).toBe('mascot');
-    delete (window as unknown as { aiIPC?: unknown }).aiIPC;
+    resetFakeApi();
     expect(startupClient.available()).toBe(false);
     expect(await startupClient.get()).toBe('mascot');
     expect(await startupClient.set('main')).toBeNull();
@@ -85,7 +83,7 @@ describe('Settings → General → startup default view', () => {
     await waitFor(() =>
       expect(screen.getByTestId('startup-view-main').getAttribute('aria-checked')).toBe('true'),
     );
-    expect(calls).toContainEqual(['ai:startup:set', { defaultView: 'main' }]);
+    expect(calls).toContainEqual(['startup.set', { defaultView: 'main' }]);
     expect(stored).toMatchObject({ defaultView: 'main' });
     fireEvent.click(screen.getByTestId('startup-view-mascot'));
     await waitFor(() => expect(stored).toMatchObject({ defaultView: 'mascot' }));
@@ -96,7 +94,7 @@ describe('Settings → General → startup default view', () => {
     render(<StartupSettings />);
     fireEvent.click(await screen.findByTestId('startup-view-mascot'));
     await act(async () => undefined);
-    expect(calls.some((c) => c[0] === 'ai:startup:set')).toBe(false);
+    expect(calls.some((c) => c[0] === 'startup.set')).toBe(false);
   });
 
   it('rolls back the selection when saving fails', async () => {
@@ -130,7 +128,7 @@ describe('Settings → General → startup default view', () => {
     await waitFor(() =>
       expect(screen.getByTestId('close-main-quit').getAttribute('aria-checked')).toBe('true'),
     );
-    expect(calls).toContainEqual(['ai:startup:set', { closeMain: 'quit' }]);
+    expect(calls).toContainEqual(['startup.set', { closeMain: 'quit' }]);
     expect(stored).toEqual({ defaultView: 'mascot', closeMain: 'quit' });
   });
 
@@ -154,7 +152,7 @@ describe('Settings → General → startup default view', () => {
     expect((sw as HTMLButtonElement).disabled).toBe(false);
     fireEvent.click(sw);
     await waitFor(() => expect(stored).toMatchObject({ showMascot: false, defaultView: 'main' }));
-    expect(calls).toContainEqual(['ai:startup:set', { showMascot: false }]);
+    expect(calls).toContainEqual(['startup.set', { showMascot: false }]);
     await screen.findByTestId('startup-mascot-switched');
     expect(screen.getByTestId('startup-view-main').getAttribute('aria-checked')).toBe('true');
     expect(sw.getAttribute('aria-checked')).toBe('false');
@@ -171,7 +169,7 @@ describe('Settings → General → startup default view', () => {
     setCharacterNameForTest('');
     fireEvent.click(sw);
     await waitFor(() => expect(stored).toMatchObject({ showMascot: false }));
-    expect(calls).toContainEqual(['ai:startup:set', { showMascot: false }]);
+    expect(calls).toContainEqual(['startup.set', { showMascot: false }]);
     expect(sw.getAttribute('aria-checked')).toBe('false');
     // 默认界面本来就是主界面：不提示改默认
     expect(screen.queryByTestId('startup-mascot-switched')).toBeNull();
@@ -181,7 +179,7 @@ describe('Settings → General → startup default view', () => {
   });
 
   it('renders nothing without the desktop bridge (browser preview)', () => {
-    delete (window as unknown as { aiIPC?: unknown }).aiIPC;
+    resetFakeApi();
     const { container } = render(<StartupSettings />);
     expect(container.innerHTML).toBe('');
   });

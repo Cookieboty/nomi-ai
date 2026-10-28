@@ -10,17 +10,13 @@ import {
 } from '../src/contexts/HarnessTabsContext';
 import type { HarnessTabsState } from '../src/services/harnessClient';
 
-import type { CodingApiMockState } from './helpers/codingApi';
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
-// D3 客户端走契约（services/api）；测试仍用旧通道形状的 window.aiIPC 假桥，经 helpers/codingApi 转发
-const codingApi = vi.hoisted(() => ({}) as CodingApiMockState);
-vi.mock('../src/services/api', async () =>
-  (await import('./helpers/codingApi')).createCodingApiMock(codingApi),
-);
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
 afterEach(() => {
   cleanup();
-  delete (window as { aiIPC?: unknown }).aiIPC;
+  resetFakeApi();
 });
 
 const state: HarnessTabsState = {
@@ -54,17 +50,14 @@ const state: HarnessTabsState = {
 };
 
 function mockIpc() {
-  const listeners: Record<string, Array<(p: unknown) => void>> = {};
-  const invoke = vi.fn(async (ch: string) => (ch === 'ai:harness:tab-messages' ? [] : state));
-  const on = (ch: string, fn: (p: unknown) => void) => {
-    (listeners[ch] ??= []).push(fn);
-    return () => undefined;
-  };
-  (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on };
+  const invoke = vi.fn(async (ch: string) => (ch === 'harness.tabMessages' ? [] : state));
+  const fake = installFakeApi(invoke);
   return {
     invoke,
-    emit: (events: unknown[]) => listeners['ai:harness:events']?.forEach((f) => f(events)),
-    emitMessage: (p: unknown) => listeners['ai:harness:tab-message']?.forEach((f) => f(p)),
+    /** 推一批流式事件 / 一条定稿消息（不等送达；同一轮里推的按顺序到），之后 `await ipc.settle()` */
+    emit: (events: unknown[]) => fake.publish('harness.events', events),
+    emitMessage: (p: unknown) => fake.publish('harness.tabMessage', p),
+    settle: fake.settle,
   };
 }
 
@@ -104,15 +97,16 @@ describe('HarnessTabsContext 实时进度', () => {
     await waitFor(() => expect(tabs.current?.activeTab?.id).toBe('a'));
     // 切到 CLI 标签会拉一次消息：等它落地（messages 变化本就该重渲染）再记基准
     await waitFor(() =>
-      expect(ipc.invoke).toHaveBeenCalledWith('ai:harness:tab-messages', expect.anything()),
+      expect(ipc.invoke).toHaveBeenCalledWith('harness.tabMessages', expect.anything()),
     );
     await act(() => new Promise((r) => setTimeout(r, 0)));
     const tabsBefore = tabsRenders;
     const otherBefore = otherRenders;
 
     for (const chunk of ['你', '好']) {
-      act(() => {
+      await act(async () => {
         ipc.emit([{ tabId: 'a', type: 'text-delta', text: chunk }]);
+        await ipc.settle();
       });
       // rAF 在测试环境里不一定触发：等兜底定时器把这一批落下
       await act(() => new Promise((r) => setTimeout(r, 120)));
@@ -143,7 +137,7 @@ describe('HarnessTabsContext 回合定稿', () => {
     );
     await waitFor(() => expect(tabs.current?.activeTab?.id).toBe('a'));
     await waitFor(() =>
-      expect(ipc.invoke).toHaveBeenCalledWith('ai:harness:tab-messages', expect.anything()),
+      expect(ipc.invoke).toHaveBeenCalledWith('harness.tabMessages', expect.anything()),
     );
     await act(() => new Promise((r) => setTimeout(r, 0)));
     return { ipc, frames };
@@ -155,14 +149,18 @@ describe('HarnessTabsContext 回合定稿', () => {
 
   it('定稿助手消息一到就清掉实时进度，不等标签状态回到空闲', async () => {
     const { ipc, frames } = await setup();
-    act(() => ipc.emit([{ tabId: 'a', type: 'text-delta', text: '你好' }]));
+    await act(async () => {
+      ipc.emit([{ tabId: 'a', type: 'text-delta', text: '你好' }]);
+      await ipc.settle();
+    });
     await act(() => new Promise((r) => setTimeout(r, 120)));
     expect(frames.at(-1)).toEqual({ messages: 0, live: true });
 
     // 最后一段流式事件还在缓冲里（未到下一帧）时定稿消息就到了
-    act(() => {
+    await act(async () => {
       ipc.emit([{ tabId: 'a', type: 'text-delta', text: '！' }]);
       ipc.emitMessage(message());
+      await ipc.settle();
     });
     // 不等「已空闲」的标签状态：消息一到实时进度就清掉
     expect(frames.at(-1)).toEqual({ messages: 1, live: false });
@@ -173,9 +171,15 @@ describe('HarnessTabsContext 回合定稿', () => {
 
   it('后台自动回合的消息不清实时进度（用户回合可能还在进行）', async () => {
     const { ipc, frames } = await setup();
-    act(() => ipc.emit([{ tabId: 'a', type: 'text-delta', text: '处理中' }]));
+    await act(async () => {
+      ipc.emit([{ tabId: 'a', type: 'text-delta', text: '处理中' }]);
+      await ipc.settle();
+    });
     await act(() => new Promise((r) => setTimeout(r, 120)));
-    act(() => ipc.emitMessage(message({ origin: 'background' })));
+    await act(async () => {
+      ipc.emitMessage(message({ origin: 'background' }));
+      await ipc.settle();
+    });
     await act(() => new Promise((r) => setTimeout(r, 0)));
     expect(frames.at(-1)).toEqual({ messages: 1, live: true });
   });

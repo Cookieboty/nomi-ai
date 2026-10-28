@@ -10,13 +10,9 @@ import { setChatMode } from '../src/services/chatPrefs';
 import { CONVERSATIONS_CHANGED_EVENT } from '../src/services/conversationStore';
 import type { HistorySession } from '../src/services/historyClient';
 
-import type { CodingApiMockState } from './helpers/codingApi';
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
-// D3 客户端走契约（services/api）；测试仍用旧通道形状的 window.aiIPC 假桥，经 helpers/codingApi 转发
-const codingApi = vi.hoisted(() => ({}) as CodingApiMockState);
-vi.mock('../src/services/api', async () =>
-  (await import('./helpers/codingApi')).createCodingApiMock(codingApi),
-);
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
 const now = Date.now();
 const conv = (id: string, name: string, backend: string, age: number, extra = {}) => ({
@@ -76,31 +72,37 @@ const hist = {
   cwdMissing: false,
   updatedAt: now - 60 * 60_000,
 } as HistorySession;
-let calls: Array<[string, unknown[]]> = [];
+type Input = {
+  id?: string;
+  backend?: string;
+  sessionId?: string;
+  options?: { offset?: number; limit?: number };
+};
+let calls: Array<[string, Input]> = [];
 
 function mockIpc() {
   calls = [];
-  const invoke = vi.fn(async (ch: string, ...args: unknown[]) => {
-    calls.push([ch, args]);
-    if (ch === 'ai:harness:tabs')
+  const invoke = vi.fn(async (ch: string, input?: Input) => {
+    calls.push([ch, input ?? {}]);
+    if (ch === 'harness.tabs')
       return {
         tabs: [{ id: 't1', backend: 'claude', cwd: '/w', status: tabStatus, unread: 0 }],
         activeTabId: 'main',
         running: 0,
         queued: 0,
       };
-    if (ch === 'ai:harness:state')
+    if (ch === 'harness.state')
       return { backend: 'nomi', cwd: '/w', bins: { claude: '/c', codex: '/x', dsh: null } };
-    if (ch === 'ai:harness:recent-cwds') return [];
-    if (ch === 'ai:history:list') {
-      const [b] = args as [string];
+    if (ch === 'harness.recentCwds') return [];
+    if (ch === 'history.list') {
+      const b = input?.backend;
       return { items: b === 'codex' ? [hist] : [], nextOffset: null, hasMore: false };
     }
-    if (ch === 'ai:history:open') return { ok: true };
-    if (ch === 'ai:history:delete') return { ok: true, removed: 1 };
+    if (ch === 'history.open') return { ok: true };
+    if (ch === 'history.delete') return { ok: true, removed: 1 };
     return {};
   });
-  (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
+  installFakeApi(invoke);
 }
 
 const mount = (collapsed = false, onToggle: () => void = () => undefined) =>
@@ -151,7 +153,7 @@ afterEach(() => {
   cleanup();
   resetConfirmDialogForTest();
   localStorage.clear();
-  delete (window as { aiIPC?: unknown }).aiIPC;
+  resetFakeApi();
   vi.restoreAllMocks();
 });
 
@@ -244,11 +246,11 @@ describe('sidebar row actions', () => {
     );
     fireEvent.click(screen.getByTestId('confirm-dialog-cancel'));
     await waitFor(() => expect(screen.queryByTestId('confirm-dialog')).toBeNull());
-    expect(calls.some(([ch]) => ch === 'ai:harness:tab-close')).toBe(false);
+    expect(calls.some(([ch]) => ch === 'harness.tabClose')).toBe(false);
     fireEvent.click(within(row(r, 'c1')).getByTestId('row-delete'));
     fireEvent.click(await screen.findByTestId('confirm-dialog-ok'));
     await waitFor(() =>
-      expect(calls.some(([ch, a]) => ch === 'ai:harness:tab-close' && a[0] === 't1')).toBe(true),
+      expect(calls.some(([ch, a]) => ch === 'harness.tabClose' && a.id === 't1')).toBe(true),
     );
   });
 
@@ -256,7 +258,7 @@ describe('sidebar row actions', () => {
     const r = mount();
     await waitFor(() => r.getAllByTestId('history-item'));
     fireEvent.click(within(row(r, 'c1')).getByTestId('row-delete'));
-    await waitFor(() => expect(calls.some(([ch]) => ch === 'ai:harness:tab-close')).toBe(true));
+    await waitFor(() => expect(calls.some(([ch]) => ch === 'harness.tabClose')).toBe(true));
     expect(screen.queryByTestId('confirm-dialog')).toBeNull();
   });
 
@@ -292,7 +294,7 @@ describe('sidebar row actions', () => {
     expect(within(menu).queryByTestId('fork-same')).toBeNull();
     fireEvent.click(within(menu).getByTestId('conversation-open'));
     await waitFor(() =>
-      expect(calls.some(([ch, a]) => ch === 'ai:history:open' && a[1] === 's9')).toBe(true),
+      expect(calls.some(([ch, a]) => ch === 'history.open' && a.sessionId === 's9')).toBe(true),
     );
   });
 
@@ -306,16 +308,16 @@ describe('sidebar row actions', () => {
     );
     fireEvent.click(screen.getByTestId('confirm-dialog-cancel'));
     await waitFor(() => expect(screen.queryByTestId('confirm-dialog')).toBeNull());
-    expect(calls.some(([ch]) => ch === 'ai:history:delete')).toBe(false);
+    expect(calls.some(([ch]) => ch === 'history.delete')).toBe(false);
 
-    const listsBefore = calls.filter(([ch]) => ch === 'ai:history:list').length;
+    const listsBefore = calls.filter(([ch]) => ch === 'history.list').length;
     fireEvent.click(w.getByTestId('row-delete'));
     fireEvent.click(await screen.findByTestId('confirm-dialog-ok'));
     await waitFor(() =>
-      expect(calls.some(([ch, a]) => ch === 'ai:history:delete' && a[1] === 's9')).toBe(true),
+      expect(calls.some(([ch, a]) => ch === 'history.delete' && a.sessionId === 's9')).toBe(true),
     );
     await waitFor(() =>
-      expect(calls.filter(([ch]) => ch === 'ai:history:list').length).toBeGreaterThan(listsBefore),
+      expect(calls.filter(([ch]) => ch === 'history.list').length).toBeGreaterThan(listsBefore),
     );
   });
 

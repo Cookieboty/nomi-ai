@@ -6,8 +6,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Pricing } from '../src/components/UsagePanel/Pricing';
 import type { UsageSettings, UsageState } from '../src/services/usageClient';
 
-// D2 的过程经契约替身转发到下面的旧桥假实现（见 helpers/shellApi）
-vi.mock('../src/services/api', () => import('./helpers/shellApi'));
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
+
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
 const baseState = (over: Partial<UsageSettings> = {}): UsageState =>
   ({
@@ -39,7 +40,7 @@ const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
 beforeEach(() => {
   persisted = baseState().settings;
   ipc = vi.fn(async (ch: string, patch: Partial<UsageSettings>) => {
-    if (ch === 'ai:usage:set-settings') {
+    if (ch === 'usage.setSettings') {
       const next = { ...persisted, ...patch } as UsageSettings;
       // 主进程的规范化：模型名去空格
       next.customPrices = (next.customPrices ?? []).map((p) => ({ ...p, model: p.model.trim() }));
@@ -48,11 +49,11 @@ beforeEach(() => {
     }
     return null;
   });
-  (window as unknown as { aiIPC: unknown }).aiIPC = { invoke: ipc, on: () => () => undefined };
+  installFakeApi(ipc);
 });
 afterEach(() => {
   cleanup();
-  delete (window as unknown as { aiIPC?: unknown }).aiIPC;
+  resetFakeApi();
 });
 
 /** 用量刷新：内容完全相同、引用全新的 state */

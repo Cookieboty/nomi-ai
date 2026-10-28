@@ -15,7 +15,6 @@ vi.mock('../src/services/api', async () =>
 
 afterEach(() => {
   cleanup();
-  delete (window as { aiIPC?: unknown }).aiIPC;
   mock.invoke = undefined;
 });
 
@@ -63,7 +62,6 @@ function mockIpc(over: Record<string, unknown> = {}) {
     if (ch === 'local.ollamaList') return [];
     return true;
   });
-  (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
   mock.invoke = (name, input) => (input === undefined ? invoke(name) : invoke(name, input));
   return invoke;
 }

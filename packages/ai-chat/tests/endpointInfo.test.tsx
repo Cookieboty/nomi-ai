@@ -7,16 +7,9 @@ import { EndpointInfoCard } from '../src/components/EndpointInfo';
 import { configPathsOf } from '../src/hooks/useEndpointInfo';
 import { resetToolQuotaMemo } from '../src/hooks/useToolQuota';
 
-import type { CodingApiMockState } from './helpers/codingApi';
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
-// D3 客户端走契约（services/api）；测试仍用旧通道形状的 window.aiIPC 假桥，经 helpers/codingApi 转发
-const codingApi = vi.hoisted(() => ({}) as CodingApiMockState);
-vi.mock('../src/services/api', async () =>
-  (await import('./helpers/codingApi')).createCodingApiMock(codingApi),
-);
-
-// D2 的过程经契约替身转发到下面的旧桥假实现（见 helpers/shellApi）
-vi.mock('../src/services/api', () => import('./helpers/shellApi'));
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
 const NOW = Date.now();
 const SUMMARY = (over = {}) => ({
@@ -101,7 +94,8 @@ const CLI = (kind: string, over = {}) => ({
   ...over,
 });
 
-let calls: Array<[string, ...unknown[]]>;
+type Input = { tool?: string; source?: string; refresh?: boolean };
+let calls: Array<[string, Input]>;
 let quota: unknown[];
 let cli: unknown[];
 let endpointFail = false;
@@ -112,30 +106,30 @@ beforeEach(() => {
   quota = [QUOTA('codex'), { id: 'dsh', label: 'dsh', status: 'api', auth: 'api', windows: [] }];
   cli = [CLI('codex'), CLI('dsh', { version: '0.2.0-rc.1', updateAvailable: false })];
   endpointFail = false;
-  (window as unknown as { aiIPC: unknown }).aiIPC = {
-    invoke: vi.fn(async (ch: string, ...a: unknown[]) => {
-      calls.push([ch, ...a]);
-      switch (ch) {
-        case 'ai:usage:state':
-          return { settings: { currency: 'USD', cnyPerUsd: 7.2, activeQuotaRefresh: true } };
-        case 'ai:usage:quota':
-          return quota;
-        case 'ai:usage:quota-refresh':
-          return { entries: quota, tools: a[0] ? { [a[0] as string]: { state: 'ok' } } : {} };
-        case 'ai:usage:endpoint':
-          if (endpointFail) return { __error: { message: 'endpoint boom' } };
-          return ENDPOINT(String(a[0]));
-        case 'ai:cli-update:inspect':
-          return cli;
-      }
-      return null;
-    }),
-    on: vi.fn(() => () => undefined),
-  };
+  installFakeApi(async (ch: string, input?: Input) => {
+    calls.push([ch, input ?? {}]);
+    switch (ch) {
+      case 'usage.state':
+        return { settings: { currency: 'USD', cnyPerUsd: 7.2, activeQuotaRefresh: true } };
+      case 'usage.quota':
+        return quota;
+      case 'usage.quotaRefresh':
+        return {
+          entries: quota,
+          tools: input?.tool ? { [input.tool]: { state: 'ok' } } : {},
+        };
+      case 'usage.endpoint':
+        if (endpointFail) throw new Error('endpoint boom');
+        return ENDPOINT(String(input?.source));
+      case 'cliUpdate.inspect':
+        return cli;
+    }
+    return null;
+  });
 });
 afterEach(() => {
   cleanup();
-  delete (window as unknown as { aiIPC?: unknown }).aiIPC;
+  resetFakeApi();
 });
 
 const renderCard = (
@@ -183,12 +177,12 @@ describe('按端信息卡（左下角）', () => {
     await findByTestId('endpoint-info-card');
     fireEvent.click(getByTestId('endpoint-card-refresh'));
     await waitFor(() =>
-      expect(calls.filter((c) => c[0] === 'ai:usage:quota-refresh')).toEqual([
-        ['ai:usage:quota-refresh', 'codex'],
+      expect(calls.filter((c) => c[0] === 'usage.quotaRefresh')).toEqual([
+        ['usage.quotaRefresh', { tool: 'codex' }],
       ]),
     );
-    expect(calls.filter((c) => c[0] === 'ai:usage:endpoint').length).toBeGreaterThanOrEqual(2);
-    expect(calls.some((c) => c[0] === 'ai:usage:quota-refresh' && c[1] !== 'codex')).toBe(false);
+    expect(calls.filter((c) => c[0] === 'usage.endpoint').length).toBeGreaterThanOrEqual(2);
+    expect(calls.some((c) => c[0] === 'usage.quotaRefresh' && c[1].tool !== 'codex')).toBe(false);
     // 不打开抽屉
     expect(document.querySelector('[data-testid="endpoint-drawer"]')).toBeNull();
   });
@@ -202,9 +196,9 @@ describe('按端信息卡（左下角）', () => {
     expect(card.querySelector('[role="progressbar"]')).toBeNull();
     fireEvent.click(getByTestId('endpoint-card-refresh'));
     await waitFor(() =>
-      expect(calls.filter((c) => c[0] === 'ai:usage:endpoint').length).toBeGreaterThanOrEqual(2),
+      expect(calls.filter((c) => c[0] === 'usage.endpoint').length).toBeGreaterThanOrEqual(2),
     );
-    expect(calls.some((c) => c[0] === 'ai:usage:quota-refresh')).toBe(false);
+    expect(calls.some((c) => c[0] === 'usage.quotaRefresh')).toBe(false);
   });
 
   it('未安装：显示「未安装」与安装指引，不显示额度 / 用量 / 刷新', async () => {
@@ -297,13 +291,13 @@ describe('按端详情抽屉', () => {
     const { getByTestId, onOpenSettings } = await openDrawer();
     fireEvent.click(getByTestId('endpoint-drawer-refresh'));
     await waitFor(() =>
-      expect(calls.filter((c) => c[0] === 'ai:usage:quota-refresh')).toEqual([
-        ['ai:usage:quota-refresh', 'codex'],
+      expect(calls.filter((c) => c[0] === 'usage.quotaRefresh')).toEqual([
+        ['usage.quotaRefresh', { tool: 'codex' }],
       ]),
     );
     fireEvent.click(getByTestId('endpoint-check-update'));
     await waitFor(() =>
-      expect(calls.filter((c) => c[0] === 'ai:cli-update:inspect').map((c) => c[1])).toContain(
+      expect(calls.filter((c) => c[0] === 'cliUpdate.inspect').map((c) => c[1].refresh)).toContain(
         true,
       ),
     );

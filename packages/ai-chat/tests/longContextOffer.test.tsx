@@ -11,16 +11,9 @@ import { ContextUsageBar } from '../src/components/SessionWorkspace/ContextUsage
 import type { HarnessTabMeta } from '../src/services/harnessClient';
 import type { ConvMessage } from '../src/types/conversation';
 
-import type { CodingApiMockState } from './helpers/codingApi';
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
-// D3 客户端走契约（services/api）；测试仍用旧通道形状的 window.aiIPC 假桥，经 helpers/codingApi 转发
-const codingApi = vi.hoisted(() => ({}) as CodingApiMockState);
-vi.mock('../src/services/api', async () =>
-  (await import('./helpers/codingApi')).createCodingApiMock(codingApi),
-);
-
-// D2 的过程经契约替身转发到下面的旧桥假实现（见 helpers/shellApi）
-vi.mock('../src/services/api', () => import('./helpers/shellApi'));
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
 const REF = 'amux/openai/gpt-6.1-sol';
 const tabRef: { current: HarnessTabMeta } = {
@@ -92,21 +85,24 @@ const messages = (used: number, contextWindow = 272_000): ConvMessage[] => [
 
 function setup(used: number, contextWindow?: number) {
   const invoke = vi.fn(async (ch: string) => {
-    if (ch === 'ai:gateway:state') return gatewayState;
-    if (ch === 'ai:harness:tab-long-context') return { ...tabRef.current };
+    if (ch === 'gateway.state') return gatewayState;
+    if (ch === 'harness.tabLongContext') return { ...tabRef.current };
     return {};
   });
-  (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
+  installFakeApi(invoke);
   const r = render(<ContextUsageBar messages={messages(used, contextWindow)} model={REF} />);
   return { invoke, r };
 }
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  resetFakeApi();
+});
 
 describe('上下文环 · 长上下文提议', () => {
   it('超过标准窗口的 70%：环上有提醒点，悬停可一键开启，价格写清楚', async () => {
     const { invoke, r } = setup(200_000);
-    await waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:gateway:state'));
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith('gateway.state'));
     await act(async () => {});
     const bar = r.getByTestId('context-usage-bar');
     await waitFor(() => expect(bar.getAttribute('data-long-offer')).toBe('true'));
@@ -119,13 +115,13 @@ describe('上下文环 · 长上下文提议', () => {
     );
     fireEvent.click(r.getByTestId('long-context-enable'));
     await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-long-context', 'cx', true),
+      expect(invoke).toHaveBeenCalledWith('harness.tabLongContext', { id: 'cx', on: true }),
     );
   });
 
   it('还远没到标准窗口：不打扰', async () => {
     const { invoke, r } = setup(50_000);
-    await waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:gateway:state'));
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith('gateway.state'));
     await act(async () => {});
     const bar = r.getByTestId('context-usage-bar');
     expect(bar.getAttribute('data-long-offer')).toBeNull();
@@ -137,7 +133,7 @@ describe('上下文环 · 长上下文提议', () => {
   it('上一轮上报的是换模型之前的窗口：显示新模型下次启动会注入的窗口', async () => {
     // 上一轮跑的是不在目录里的模型：Codex 按 128K 的 95% 上报 121.6K；之后标签换成了 gpt-6.1-sol
     const { invoke, r } = setup(23_700, 121_600);
-    await waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:gateway:state'));
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith('gateway.state'));
     await act(async () => {});
     fireEvent.mouseEnter(r.getByTestId('context-usage-bar'));
     await waitFor(() =>
@@ -147,7 +143,7 @@ describe('上下文环 · 长上下文提议', () => {
 
   it('Codex 上报的是注入值的 95%：仍按上报的显示', async () => {
     const { invoke, r } = setup(23_700, 258_400);
-    await waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:gateway:state'));
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith('gateway.state'));
     await act(async () => {});
     fireEvent.mouseEnter(r.getByTestId('context-usage-bar'));
     expect(r.getByTestId('context-usage-detail').textContent).toContain('/ 258K');
@@ -156,7 +152,7 @@ describe('上下文环 · 长上下文提议', () => {
   it('已经开着长上下文：不再提议', async () => {
     tabRef.current = { ...tabRef.current, longContext: { model: REF, on: true } };
     const { invoke, r } = setup(260_000);
-    await waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:gateway:state'));
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith('gateway.state'));
     await act(async () => {});
     expect(r.getByTestId('context-usage-bar').getAttribute('data-long-offer')).toBeNull();
   });

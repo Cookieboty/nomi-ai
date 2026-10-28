@@ -13,18 +13,9 @@ import {
 } from '../src/components/Onboarding/client';
 import { setCharacterNameForTest } from '../src/services/characterName';
 
-import { shellTest } from './helpers/shellApi';
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
-// D2 的过程经契约替身转发到下面的旧桥假实现（见 helpers/shellApi）
-vi.mock('../src/services/api', () => import('./helpers/shellApi'));
-// 「关于我」属于记忆域（memClient → mem.*）：同样转给下面的假实现
-const legacyInvoke = (ch: string, ...a: unknown[]) =>
-  (
-    window as unknown as { aiIPC: { invoke: (c: string, ...x: unknown[]) => unknown } }
-  ).aiIPC.invoke(ch, ...a);
-shellTest.extra['mem.persona'] = () => legacyInvoke('ai:mem:persona');
-shellTest.extra['mem.setPersona'] = (i) =>
-  legacyInvoke('ai:mem:set-persona', (i as { text: string }).text);
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
 type Call = [string, ...unknown[]];
 let calls: Call[] = [];
@@ -78,61 +69,60 @@ beforeEach(() => {
   profile = { role: null, interests: [] };
   model = 'none';
   nomiMain = 'p1/m1';
-  (window as unknown as { aiIPC: unknown }).aiIPC = {
-    invoke: async (ch: string, ...a: unknown[]) => {
-      calls.push([ch, ...a]);
-      if (ch === 'ai:onboarding:get') return { done };
-      if (ch === 'ai:onboarding:complete') {
-        done = true;
-        return { done };
-      }
-      if (ch === 'ai:onboarding:profile') return profile;
-      if (ch === 'ai:onboarding:set-profile') {
-        profile = a[0];
-        return profile;
-      }
-      if (ch === 'ai:startup:get') return { defaultView: startupView };
-      if (ch === 'ai:startup:set') {
-        startupView = (a[0] as { defaultView: 'mascot' | 'main' }).defaultView;
-        return { defaultView: startupView };
-      }
-      if (ch === 'ai:mem:persona') return persona;
-      if (ch === 'ai:mem:set-persona') {
-        persona = String(a[0]);
-        return true;
-      }
-      if (ch === 'ai:gateway:state') return gatewayState();
-      if (ch === 'ai:gateway:set-assignment') {
-        model = 'ready';
-        nomiMain = (a[1] as { models: { main: string } }).models.main;
-        return undefined;
-      }
-      if (ch === 'ai:providers:presets') return [PRESET];
-      if (ch === 'ai:gateway:detect')
-        return {
-          wires: { chat: { wire: 'chat', url: 'https://api.deepseek.com', ok: true } },
-          byKey: {},
-          models: ['deepseek-chat', 'deepseek-reasoner', 'text-embedding-x'],
-          urls: { chat: 'https://api.deepseek.com' },
-        };
-      if (ch === 'ai:gateway:upsert-provider') {
-        model = 'unassigned';
-        return gatewayState().providers[0];
-      }
-      return null;
-    },
-    on: () => () => undefined,
-  };
+  // 「关于我」属于记忆域（memClient → mem.*），与引导、网关的过程同一个假内核
+  installFakeApi(async (ch: string, input?: unknown) => {
+    calls.push(input === undefined ? [ch] : [ch, input]);
+    const i = (input ?? {}) as Record<string, unknown>;
+    if (ch === 'onboarding.get') return { done };
+    if (ch === 'onboarding.complete') {
+      done = true;
+      return { done };
+    }
+    if (ch === 'onboarding.profile') return profile;
+    if (ch === 'onboarding.setProfile') {
+      profile = input;
+      return profile;
+    }
+    if (ch === 'startup.get') return { defaultView: startupView };
+    if (ch === 'startup.set') {
+      startupView = i.defaultView as 'mascot' | 'main';
+      return { defaultView: startupView };
+    }
+    if (ch === 'mem.persona') return persona;
+    if (ch === 'mem.setPersona') {
+      persona = String(i.text);
+      return true;
+    }
+    if (ch === 'gateway.state') return gatewayState();
+    if (ch === 'gateway.setAssignment') {
+      model = 'ready';
+      nomiMain = (i.patch as { models: { main: string } }).models.main;
+      return undefined;
+    }
+    if (ch === 'providers.presets') return [PRESET];
+    if (ch === 'gateway.detect')
+      return {
+        wires: { chat: { wire: 'chat', url: 'https://api.deepseek.com', ok: true } },
+        byKey: {},
+        models: ['deepseek-chat', 'deepseek-reasoner', 'text-embedding-x'],
+        urls: { chat: 'https://api.deepseek.com' },
+      };
+    if (ch === 'gateway.upsertProvider') {
+      model = 'unassigned';
+      return gatewayState().providers[0];
+    }
+    return null;
+  });
 });
 afterEach(() => {
   cleanup();
   applyLocale('zh-CN');
-  delete (window as unknown as { aiIPC?: unknown }).aiIPC;
+  resetFakeApi();
 });
 
 const mascot = () =>
   calls
-    .filter((c) => c[0] === 'ai:onboarding:mascot')
+    .filter((c) => c[0] === 'onboarding.mascot')
     .map((c) => c[1] as { type: string; text?: string });
 const skipTo = async (id: string, n: number) => {
   for (let k = 0; k < n; k++) fireEvent.click(await screen.findByTestId('onboarding-skip-step'));
@@ -166,7 +156,7 @@ describe('first-launch onboarding', () => {
     expect(currentTheme().pref).toBe('system');
     expect(screen.getByTestId('onb-startup-mascot').getAttribute('aria-checked')).toBe('true');
     fireEvent.click(screen.getByTestId('onboarding-next'));
-    expect(calls.some((c) => c[0] === 'ai:startup:set')).toBe(false);
+    expect(calls.some((c) => c[0] === 'startup.set')).toBe(false);
 
     // 2 关于你：称呼 + 职业（单选）+ 兴趣（多选，再点取消）→ 存进主进程，并写进 persona
     // 不再有声音、说话语气
@@ -210,7 +200,7 @@ describe('first-launch onboarding', () => {
     await waitFor(() => expect(mascot().at(-1)?.text).toContain('还差一步'));
     fireEvent.click(screen.getByTestId('onboarding-finish'));
     await waitFor(() => expect(screen.queryByTestId('onboarding')).toBeNull());
-    expect(calls).toContainEqual(['ai:onboarding:complete', { skipped: false }]);
+    expect(calls).toContainEqual(['onboarding.complete', { skipped: false }]);
     expect(mascot().at(-1)?.text).toContain('还差一步');
   });
 
@@ -228,9 +218,9 @@ describe('first-launch onboarding', () => {
         'configured',
       ),
     );
-    const detect = calls.find((c) => c[0] === 'ai:gateway:detect')![1] as Record<string, unknown>;
+    const detect = calls.find((c) => c[0] === 'gateway.detect')![1] as Record<string, unknown>;
     expect(detect).toMatchObject({ keys: ['sk-test'], fallbackModel: 'deepseek-chat' });
-    const saved = calls.find((c) => c[0] === 'ai:gateway:upsert-provider')![1] as {
+    const saved = calls.find((c) => c[0] === 'gateway.upsertProvider')![1] as {
       presetId: string;
       newKeys: unknown;
       models: { id: string; enabled: boolean }[];
@@ -242,15 +232,14 @@ describe('first-launch onboarding', () => {
     await waitFor(() =>
       expect(screen.getByTestId('onb-model-section').getAttribute('data-state')).toBe('choose'),
     );
-    expect(calls.some((c) => c[0] === 'ai:gateway:set-assignment')).toBe(false);
+    expect(calls.some((c) => c[0] === 'gateway.setAssignment')).toBe(false);
     fireEvent.click(screen.getByTestId('onb-model-m2'));
     await waitFor(() =>
       expect(screen.getByTestId('onb-model-section').getAttribute('data-state')).toBe('ready'),
     );
     expect(calls).toContainEqual([
-      'ai:gateway:set-assignment',
-      'nomi',
-      { models: { main: 'p1/m2' } },
+      'gateway.setAssignment',
+      { client: 'nomi', patch: { models: { main: 'p1/m2' } } },
     ]);
     fireEvent.click(screen.getByTestId('onboarding-next'));
     await screen.findByTestId('onboarding-step-privacy');
@@ -271,7 +260,7 @@ describe('first-launch onboarding', () => {
     fireEvent.click(screen.getByTestId('onb-go-models'));
     await waitFor(() => expect(opened).toBe(1));
     expect(screen.queryByTestId('onboarding')).toBeNull();
-    expect(calls).toContainEqual(['ai:onboarding:complete', { skipped: false }]);
+    expect(calls).toContainEqual(['onboarding.complete', { skipped: false }]);
     window.removeEventListener(OPEN_MODELS_EVENT, onOpen);
   });
 
@@ -286,7 +275,7 @@ describe('first-launch onboarding', () => {
     await waitFor(() =>
       expect(screen.getByTestId('onb-startup-main').getAttribute('aria-checked')).toBe('true'),
     );
-    expect(calls).toContainEqual(['ai:startup:set', { defaultView: 'main' }]);
+    expect(calls).toContainEqual(['startup.set', { defaultView: 'main' }]);
     expect(startupView).toBe('main');
     // 跳过整个引导：已选的启动方式不回滚
     fireEvent.click(screen.getByTestId('onboarding-skip-all'));
@@ -299,7 +288,7 @@ describe('first-launch onboarding', () => {
     await screen.findByTestId('onboarding-step-welcome');
     await skipTo('profile', 1);
     expect(startupView).toBe('mascot');
-    expect(calls.some((c) => c[0] === 'ai:startup:set')).toBe(false);
+    expect(calls.some((c) => c[0] === 'startup.set')).toBe(false);
   });
 
   it('reopened onboarding preselects the currently saved startup mode', async () => {
@@ -315,7 +304,7 @@ describe('first-launch onboarding', () => {
     const { unmount } = render(<OnboardingHost />);
     fireEvent.click(await screen.findByTestId('onboarding-skip-all'));
     await waitFor(() => expect(screen.queryByTestId('onboarding')).toBeNull());
-    expect(calls).toContainEqual(['ai:onboarding:complete', { skipped: true }]);
+    expect(calls).toContainEqual(['onboarding.complete', { skipped: true }]);
     unmount();
     render(<OnboardingHost />);
     await act(async () => undefined);
@@ -338,7 +327,7 @@ describe('first-launch onboarding', () => {
     expect(screen.getByTestId('onb-interest-learning').getAttribute('aria-checked')).toBe('true');
     fireEvent.click(screen.getByTestId('onboarding-skip-step'));
     await screen.findByTestId('onboarding-step-provider');
-    expect(calls.some((c) => c[0] === 'ai:onboarding:set-profile')).toBe(false);
+    expect(calls.some((c) => c[0] === 'onboarding.setProfile')).toBe(false);
   });
 
   it('re-run backfills the name and drops the removed reply-tone line on rewrite', async () => {
@@ -384,7 +373,7 @@ describe('first-launch onboarding', () => {
     await screen.findByTestId('onboarding-step-provider');
     await act(async () => undefined);
     expect(screen.queryByTestId('onboarding-step-privacy')).toBeNull();
-    expect(calls.filter((c) => c[0] === 'ai:onboarding:set-profile')).toHaveLength(1);
+    expect(calls.filter((c) => c[0] === 'onboarding.setProfile')).toHaveLength(1);
   });
 
   it('persona block is replaced, not duplicated, on re-run', () => {

@@ -10,13 +10,9 @@ import {
 import { AssistantMessage, type ConvSlots } from '../src/components/Conversation/Messages';
 import { fromHarnessMessage } from '../src/utils/convAdapters';
 
-import type { CodingApiMockState } from './helpers/codingApi';
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
-// D3 客户端走契约（services/api）；测试仍用旧通道形状的 window.aiIPC 假桥，经 helpers/codingApi 转发
-const codingApi = vi.hoisted(() => ({}) as CodingApiMockState);
-vi.mock('../src/services/api', async () =>
-  (await import('./helpers/codingApi')).createCodingApiMock(codingApi),
-);
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
 const FOLDER = '/home/u/work/proj';
 const failed = (geminiTrust?: { folder: string; broad?: boolean }) =>
@@ -41,14 +37,14 @@ const slotsFor = (confirm: (s: string) => boolean): ConvSlots => ({
 
 function mockIpc(impl: (...a: unknown[]) => unknown) {
   const invoke = vi.fn(async (...a: unknown[]) => impl(...a));
-  (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
+  installFakeApi(invoke);
   return invoke;
 }
 
 describe('Gemini「信任此文件夹」', () => {
   afterEach(() => {
     cleanup();
-    delete (window as { aiIPC?: unknown }).aiIPC;
+    resetFakeApi();
   });
 
   it('only untrusted-folder errors carry the folder and show the button', () => {
@@ -109,7 +105,9 @@ describe('Gemini「信任此文件夹」', () => {
     await act(async () => {
       fireEvent.click(r.getByTestId('gemini-trust-folder'));
     });
-    expect(invoke).toHaveBeenCalledWith('ai:harness:gemini-trust-folder', 't1', 'e1', {
+    expect(invoke).toHaveBeenCalledWith('harness.geminiTrustFolder', {
+      tabId: 't1',
+      messageId: 'e1',
       confirmed: true,
     });
     expect(onRetry).toHaveBeenCalledWith('e1');
@@ -132,7 +130,9 @@ describe('Gemini「信任此文件夹」', () => {
   });
 
   it('shows the error and keeps the button when trusting fails', async () => {
-    mockIpc(() => ({ __error: { message: '格式有误' } }));
+    mockIpc(() => {
+      throw new Error('格式有误');
+    });
     const onRetry = vi.fn();
     const r = render(
       <AssistantMessage

@@ -6,13 +6,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProvidersPage } from '../src/components/ProvidersPage';
 import { cliUpdateClient } from '../src/services/cliUpdateClient';
 
-import type { CodingApiMockState } from './helpers/codingApi';
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
-// D3 客户端走契约（services/api）；测试仍用旧通道形状的 window.aiIPC 假桥，经 helpers/codingApi 转发
-const codingApi = vi.hoisted(() => ({}) as CodingApiMockState);
-vi.mock('../src/services/api', async () =>
-  (await import('./helpers/codingApi')).createCodingApiMock(codingApi),
-);
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
 const AGENTS = {
   settings: {
@@ -34,19 +30,19 @@ const AGENTS = {
 };
 
 function setup() {
-  const calls: Array<[string, unknown[]]> = [];
-  const invoke = vi.fn(async (ch: string, ...args: unknown[]) => {
-    calls.push([ch, args]);
-    if (ch === 'ai:agents:state' || ch === 'ai:agents:scan') return AGENTS;
-    if (ch === 'ai:cli-account:list') return [];
-    if (ch === 'ai:cli-update:inspect')
+  const calls: Array<[string, unknown]> = [];
+  const invoke = vi.fn(async (ch: string, input?: unknown) => {
+    calls.push([ch, input]);
+    if (ch === 'agents.state' || ch === 'agents.scan') return AGENTS;
+    if (ch === 'cliAccount.list') return [];
+    if (ch === 'cliUpdate.inspect')
       return [
         { kind: 'claude', path: '/usr/bin/claude', version: '2.1.0' },
         { kind: 'codex', path: null, version: null },
       ];
     return {};
   });
-  (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
+  installFakeApi(invoke);
   return calls;
 }
 
@@ -54,7 +50,7 @@ beforeEach(() => localStorage.clear());
 afterEach(() => {
   cleanup();
   cliUpdateClient.resetCache();
-  delete (window as unknown as { aiIPC?: unknown }).aiIPC;
+  resetFakeApi();
 });
 
 describe('ProvidersPage', () => {
@@ -75,7 +71,7 @@ describe('ProvidersPage', () => {
     await waitFor(() =>
       expect(r.getByTestId('cli-version-installed-claude').textContent).toBe('2.1.0'),
     );
-    expect(calls.filter(([c]) => c === 'ai:cli-update:inspect')).toHaveLength(1);
+    expect(calls.filter(([c]) => c === 'cliUpdate.inspect')).toHaveLength(1);
     fireEvent.click(r.getByTestId('providers-endpoint-codex'));
     // 同一帧里就是上次的结果（未安装），不是「检测中…」
     expect(r.getByTestId('cli-version-state-codex').getAttribute('data-state')).toBe('missing');
@@ -141,14 +137,14 @@ describe('ProvidersPage', () => {
       expect(
         calls.some(
           ([c, p]) =>
-            c === 'ai:agents:set-settings' &&
-            (p as Array<{ summaryEnabled?: boolean }>)[0]?.summaryEnabled === true,
+            c === 'agents.setSettings' &&
+            (p as { summaryEnabled?: boolean } | undefined)?.summaryEnabled === true,
         ),
       ).toBe(true),
     );
     expect(r.getByTestId('agents-tool-claude')).toBeTruthy();
     fireEvent.click(r.getByTestId('agents-scan'));
-    await waitFor(() => expect(calls.some(([c]) => c === 'ai:agents:scan')).toBe(true));
+    await waitFor(() => expect(calls.some(([c]) => c === 'agents.scan')).toBe(true));
     fireEvent.click(r.getByTestId('agents-open-notify'));
     expect(onNotify).toHaveBeenCalled();
     // 不再混着日程 / 提醒的东西

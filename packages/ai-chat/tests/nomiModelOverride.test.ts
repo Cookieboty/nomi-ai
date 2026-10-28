@@ -6,8 +6,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { nomiModelLabel, nomiModelMeta, refreshNomiModel } from '../src/services/nomiModel';
 import { providerClient } from '../src/services/providerClient';
 
-// D2 的过程经契约替身转发到下面的旧桥假实现（见 helpers/shellApi）
-vi.mock('../src/services/api', () => import('./helpers/shellApi'));
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
+
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
 const gateway = {
   providers: [
@@ -24,9 +25,9 @@ const gateway = {
 };
 
 function bridge(override?: string) {
-  const invoke = vi.fn(async (ch: string) => {
-    if (ch === 'ai:gateway:state') return gateway;
-    if (ch === 'ai:providers:state')
+  installFakeApi((name: string) => {
+    if (name === 'gateway.state') return gateway;
+    if (name === 'providers.state')
       return {
         providers: [{ id: 'ds', name: 'DeepSeek' }],
         envProviders: [],
@@ -36,7 +37,6 @@ function bridge(override?: string) {
       };
     return {};
   });
-  (globalThis as { window?: unknown }).window = { aiIPC: { invoke, on: vi.fn(() => () => {}) } };
 }
 
 const load = async (override?: string) => {
@@ -47,9 +47,7 @@ const load = async (override?: string) => {
 };
 
 describe('nomiModel with NOMI_PROVIDER override (#91)', () => {
-  afterEach(() => {
-    delete (globalThis as { window?: unknown }).window;
-  });
+  afterEach(() => resetFakeApi());
 
   it('labels messages with the locked provider and reports unknown capabilities', async () => {
     await load('ds');

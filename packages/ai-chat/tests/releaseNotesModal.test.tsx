@@ -13,30 +13,28 @@ import {
   setShowReleaseNotesAfterUpdate,
 } from '../src/services/releaseNotesPrefs';
 
-// D2 的过程经契约替身转发到下面的旧桥假实现（见 helpers/shellApi）
-vi.mock('../src/services/api', () => import('./helpers/shellApi'));
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
+
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
 function mockUpdates(version: string) {
-  (window as unknown as { electronAPI: unknown }).electronAPI = {
-    updates: {
-      get: async () => ({
-        status: 'idle',
-        currentVersion: version,
-        autoCheck: true,
-      }),
-      check: async () => ({}),
-      download: async () => ({}),
-      install: async () => ({}),
-      setAutoCheck: async () => ({}),
-      onChanged: () => () => undefined,
-    },
-  };
+  installFakeApi({
+    'updates.get': () => ({
+      status: 'idle',
+      currentVersion: version,
+      autoCheck: true,
+    }),
+    'updates.check': () => ({}),
+    'updates.download': () => ({}),
+    'updates.install': () => ({}),
+    'updates.setAutoCheck': () => ({}),
+  });
 }
 
 afterEach(() => {
   cleanup();
   localStorage.clear();
-  delete (window as { electronAPI?: unknown }).electronAPI;
+  resetFakeApi();
 });
 
 describe('ReleaseNotesModal', () => {

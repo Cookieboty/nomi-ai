@@ -5,16 +5,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { CodingMonitor } from '../src/components/CodingMonitor';
 
-import type { CodingApiMockState } from './helpers/codingApi';
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
-// D3 客户端走契约（services/api）；测试仍用旧通道形状的 window.aiIPC 假桥，经 helpers/codingApi 转发
-const codingApi = vi.hoisted(() => ({}) as CodingApiMockState);
-vi.mock('../src/services/api', async () =>
-  (await import('./helpers/codingApi')).createCodingApiMock(codingApi),
-);
-
-// D2 的过程经契约替身转发到下面的旧桥假实现（见 helpers/shellApi）
-vi.mock('../src/services/api', () => import('./helpers/shellApi'));
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
 const session = (over: Record<string, unknown>) => ({
   id: 'x',
@@ -54,26 +47,23 @@ const install = (currency: 'USD' | 'CNY') => {
       session({ id: 'codex:c', kind: 'codex', label: 'Codex', title: 'No usage' }),
     ],
   };
-  (window as unknown as { aiIPC: unknown }).aiIPC = {
-    invoke: vi.fn(async (ch: string) => {
-      if (ch === 'ai:agents:state') return agents;
-      if (ch === 'ai:usage:state')
-        return {
-          settings: { currency, cnyPerUsd: 7 },
-          detected: [],
-          records: 1,
-          lastScanAt: 0,
-          pricing: { date: '', builtin: [] },
-        };
-      return null;
-    }),
-    on: vi.fn(() => () => undefined),
-  };
+  installFakeApi((ch: string) => {
+    if (ch === 'agents.state') return agents;
+    if (ch === 'usage.state')
+      return {
+        settings: { currency, cnyPerUsd: 7 },
+        detected: [],
+        records: 1,
+        lastScanAt: 0,
+        pricing: { date: '', builtin: [] },
+      };
+    return null;
+  });
 };
 
 afterEach(() => {
   cleanup();
-  delete (window as unknown as { aiIPC?: unknown }).aiIPC;
+  resetFakeApi();
 });
 
 describe('CodingMonitor：会话累计 Token / 费用', () => {

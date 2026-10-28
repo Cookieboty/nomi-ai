@@ -15,7 +15,6 @@ vi.mock('../src/services/api', async () =>
 
 afterEach(() => {
   cleanup();
-  delete (window as { aiIPC?: unknown }).aiIPC;
   mock.invoke = undefined;
 });
 
@@ -46,7 +45,6 @@ function mockIpc(servers: unknown[] = []) {
     if (ch === 'ext.mcpUpsert') return { id: 'mcp', ...(_a[0] as object) };
     return true;
   });
-  (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
   mock.invoke = (name, input) => (input === undefined ? invoke(name) : invoke(name, input));
   return invoke;
 }

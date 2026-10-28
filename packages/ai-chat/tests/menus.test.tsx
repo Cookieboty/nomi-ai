@@ -9,13 +9,9 @@ import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import { setChatMode } from '../src/services/chatPrefs';
 import type { HarnessTabMeta, HarnessTabsState } from '../src/services/harnessClient';
 
-import type { CodingApiMockState } from './helpers/codingApi';
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
-// D3 客户端走契约（services/api）；测试仍用旧通道形状的 window.aiIPC 假桥，经 helpers/codingApi 转发
-const codingApi = vi.hoisted(() => ({}) as CodingApiMockState);
-vi.mock('../src/services/api', async () =>
-  (await import('./helpers/codingApi')).createCodingApiMock(codingApi),
-);
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
 const updateMeta = vi.fn();
 const loadChatHistory = vi.fn(async () => undefined);
@@ -90,17 +86,17 @@ const tabsState: HarnessTabsState = {
 };
 
 function mockIpc() {
-  const invoke = vi.fn(async (ch: string) => {
-    if (ch === 'ai:harness:tabs') return tabsState;
-    if (ch === 'ai:harness:state')
+  const invoke = vi.fn(async (ch: string, _input?: unknown) => {
+    if (ch === 'harness.tabs') return tabsState;
+    if (ch === 'harness.state')
       return { backend: 'nomi', cwd: '/w', bins: { claude: '/c', codex: '/x', dsh: null } };
-    if (ch === 'ai:harness:recent-cwds') return [];
-    if (ch === 'ai:harness:tab-rename') return tab({ title: '新名字' });
-    if (ch === 'ai:harness:tab-close') return tabsState;
-    if (ch === 'ai:history:list') return { items: [], nextOffset: null, hasMore: false };
+    if (ch === 'harness.recentCwds') return [];
+    if (ch === 'harness.tabRename') return tab({ title: '新名字' });
+    if (ch === 'harness.tabClose') return tabsState;
+    if (ch === 'history.list') return { items: [], nextOffset: null, hasMore: false };
     return {};
   });
-  (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
+  installFakeApi(invoke);
   return invoke;
 }
 
@@ -131,7 +127,7 @@ afterEach(() => {
   cleanup();
   resetConfirmDialogForTest();
   localStorage.clear();
-  delete (window as { aiIPC?: unknown }).aiIPC;
+  resetFakeApi();
 });
 
 const mountSidebar = () =>
@@ -172,18 +168,18 @@ describe('one conversation context menu', () => {
     expect(dialog.textContent).toContain('修复登录');
     fireEvent.click(screen.getByTestId('confirm-dialog-cancel'));
     await waitFor(() => expect(screen.queryByTestId('confirm-dialog')).toBeNull());
-    expect(chans()).not.toContain('ai:harness:tab-close');
-    expect(chans()).not.toContain('ai:history:delete');
+    expect(chans()).not.toContain('harness.tabClose');
+    expect(chans()).not.toContain('history.delete');
 
     fireEvent.contextMenu(r.getAllByTestId('history-item')[0]!);
     fireEvent.click(r.getByTestId('conversation-delete'));
     fireEvent.click(await screen.findByTestId('confirm-dialog-ok'));
-    await waitFor(() => expect(chans()).toContain('ai:history:delete'));
-    const closeAt = chans().indexOf('ai:harness:tab-close');
-    const delAt = chans().indexOf('ai:history:delete');
+    await waitFor(() => expect(chans()).toContain('history.delete'));
+    const closeAt = chans().indexOf('harness.tabClose');
+    const delAt = chans().indexOf('history.delete');
     expect(closeAt).toBeGreaterThanOrEqual(0);
     expect(closeAt).toBeLessThan(delAt);
-    expect(invoke.mock.calls[delAt]!.slice(1)).toEqual(['codex', 'sess-1']);
+    expect(invoke.mock.calls[delAt]!.slice(1)).toEqual([{ backend: 'codex', sessionId: 'sess-1' }]);
     expect(deleteConversation).not.toHaveBeenCalled();
   });
 
@@ -300,7 +296,7 @@ describe('one conversation context menu', () => {
     fireEvent.change(input2, { target: { value: '新名字' } });
     fireEvent.keyDown(input2, { key: 'Enter' });
     await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-rename', 't1', '新名字'),
+      expect(invoke).toHaveBeenCalledWith('harness.tabRename', { id: 't1', title: '新名字' }),
     );
   });
 

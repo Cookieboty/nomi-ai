@@ -28,12 +28,9 @@ describe('AiChatContextProvider · 单一 ClientAIClient', () => {
   beforeEach(() => {
     constructed.count = 0;
     localStorage.clear();
-    // 有 aiIPC 时，旧实现会在首屏另建一个自带 ClientAIClient 的 SdkIPCClient
-    (window as { aiIPC?: unknown }).aiIPC = {};
   });
   afterEach(() => {
     cleanup();
-    delete (window as { aiIPC?: unknown }).aiIPC;
   });
 
   it('传入 client 时首屏与之后都绑定它，不另建 ClientAIClient', () => {

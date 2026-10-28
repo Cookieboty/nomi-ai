@@ -9,13 +9,9 @@ import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import { setChatMode } from '../src/services/chatPrefs';
 import { HISTORY_MAX_ITEMS, type HistorySession } from '../src/services/historyClient';
 
-import type { CodingApiMockState } from './helpers/codingApi';
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
-// D3 客户端走契约（services/api）；测试仍用旧通道形状的 window.aiIPC 假桥，经 helpers/codingApi 转发
-const codingApi = vi.hoisted(() => ({}) as CodingApiMockState);
-vi.mock('../src/services/api', async () =>
-  (await import('./helpers/codingApi')).createCodingApiMock(codingApi),
-);
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
 const now = Date.now();
 const conv = (id: string, name: string, backend: string, age: number, extra = {}) => ({
@@ -80,13 +76,19 @@ const h = (backend: HistorySession['backend'], i: number, o: Partial<HistorySess
   }) as HistorySession;
 
 let indexPages: Record<string, HistorySession[][]> = {};
-let calls: Array<[string, unknown[]]> = [];
+type Input = {
+  id?: string;
+  backend?: string;
+  sessionId?: string;
+  options?: { offset?: number; limit?: number };
+};
+let calls: Array<[string, Input]> = [];
 
 function mockIpc() {
   calls = [];
-  const invoke = vi.fn(async (ch: string, ...args: unknown[]) => {
-    calls.push([ch, args]);
-    if (ch === 'ai:harness:tabs')
+  const invoke = vi.fn(async (ch: string, input?: Input) => {
+    calls.push([ch, input ?? {}]);
+    if (ch === 'harness.tabs')
       return {
         tabs: [
           { id: 't1', backend: 'claude', cwd: '/work/pay-service', status: 'idle', unread: 0 },
@@ -95,19 +97,20 @@ function mockIpc() {
         running: 0,
         queued: 0,
       };
-    if (ch === 'ai:harness:state')
+    if (ch === 'harness.state')
       return { backend: 'nomi', cwd: '/w', bins: { claude: '/c', codex: '/x', dsh: null } };
-    if (ch === 'ai:harness:recent-cwds') return [];
-    if (ch === 'ai:history:list') {
-      const [b] = args as [string];
+    if (ch === 'harness.recentCwds') return [];
+    if (ch === 'history.list') {
+      const b = input?.backend;
       return {
         items: b === 'claude' ? [h('claude', 1)] : b === 'codex' ? [h('codex', 2)] : [],
         nextOffset: null,
         hasMore: false,
       };
     }
-    if (ch === 'ai:history:index') {
-      const [b, o] = args as [string, { offset?: number; limit?: number }];
+    if (ch === 'history.index') {
+      const b = String(input?.backend);
+      const o = input?.options ?? {};
       const pages = indexPages[b] ?? [[]];
       // offset 是文件游标：每页 20 条（与后端 HISTORY_PAGE_SIZE 一致）
       const pi = (o.offset ?? 0) / 20;
@@ -115,10 +118,10 @@ function mockIpc() {
       const more = pi + 1 < pages.length;
       return { items, nextOffset: more ? (o.offset ?? 0) + 20 : null, hasMore: more };
     }
-    if (ch === 'ai:history:open') return { ok: true };
+    if (ch === 'history.open') return { ok: true };
     return {};
   });
-  (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
+  installFakeApi(invoke);
 }
 
 const mount = (onNewChat = vi.fn()) =>
@@ -157,7 +160,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   localStorage.clear();
-  delete (window as { aiIPC?: unknown }).aiIPC;
+  resetFakeApi();
 });
 
 describe('sidebar search', () => {
@@ -238,7 +241,7 @@ describe('sidebar search', () => {
     await waitFor(() => r.getByTestId('search-result'));
     fireEvent.click(r.getByTestId('search-result'));
     await waitFor(() =>
-      expect(calls.some(([c, a]) => c === 'ai:history:open' && a[1] === 'claude-5')).toBe(true),
+      expect(calls.some(([c, a]) => c === 'history.open' && a.sessionId === 'claude-5')).toBe(true),
     );
   });
 
@@ -321,9 +324,9 @@ describe('large history', () => {
     await waitFor(() => r.getByTestId('sidebar-search-empty'));
     // 空态可能先于索引请求渲染（慢机器上更明显），等请求记录到再断言
     await waitFor(() =>
-      expect(calls.filter(([c, a]) => c === 'ai:history:index' && a[0] === 'claude')).toHaveLength(
-        1,
-      ),
+      expect(
+        calls.filter(([c, a]) => c === 'history.index' && a.backend === 'claude'),
+      ).toHaveLength(1),
     );
     // 逐页点到最后一页为止：累计到硬上限后前端主动收尾，按钮消失。
     // loading 期间按钮是 disabled，需要等它恢复可用再点
@@ -338,14 +341,12 @@ describe('large history', () => {
       await clickMoreWhenEnabled();
       await waitFor(() =>
         expect(
-          calls.filter(
-            ([c, a]) => c === 'ai:history:index' && (a[1] as { offset?: number }).offset === off,
-          ),
+          calls.filter(([c, a]) => c === 'history.index' && a.options?.offset === off),
         ).toHaveLength(1),
       );
     }
     // 到硬上限；多出来的那一页不会再被请求
-    expect(calls.filter(([c, a]) => c === 'ai:history:index' && a[0] === 'claude')).toHaveLength(
+    expect(calls.filter(([c, a]) => c === 'history.index' && a.backend === 'claude')).toHaveLength(
       pages,
     );
     await waitFor(() => expect(r.queryByTestId('sidebar-search-more')).toBeNull());
@@ -392,7 +393,7 @@ describe('normal mode: Nomi only', () => {
     fireEvent.click(r.getByTestId('new-chat'));
     await waitFor(() => expect(onNewChat).toHaveBeenCalled());
     expect(r.queryByTestId('new-chat-menu')).toBeNull();
-    expect(calls.some(([c]) => c === 'ai:history:list' || c === 'ai:history:index')).toBe(false);
+    expect(calls.some(([c]) => c === 'history.list' || c === 'history.index')).toBe(false);
   });
 
   it('search only covers Nomi conversations', async () => {
@@ -403,7 +404,7 @@ describe('normal mode: Nomi only', () => {
     expect(
       r.getAllByTestId('search-result').every((x) => x.getAttribute('data-backend') === 'nomi'),
     ).toBe(true);
-    expect(calls.some(([c]) => c === 'ai:history:index')).toBe(false);
+    expect(calls.some(([c]) => c === 'history.index')).toBe(false);
   });
 
   it('switching back to dev mode restores the saved view (by-endpoint) and the switch', async () => {

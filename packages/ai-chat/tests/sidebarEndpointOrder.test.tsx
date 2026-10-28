@@ -11,13 +11,9 @@ import {
   splitShownEndpoints,
 } from '../src/services/chatPrefs';
 
-import type { CodingApiMockState } from './helpers/codingApi';
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
-// D3 客户端走契约（services/api）；测试仍用旧通道形状的 window.aiIPC 假桥，经 helpers/codingApi 转发
-const codingApi = vi.hoisted(() => ({}) as CodingApiMockState);
-vi.mock('../src/services/api', async () =>
-  (await import('./helpers/codingApi')).createCodingApiMock(codingApi),
-);
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
 const conv = (id: string, backend: string, tabId?: string) => ({
   id,
@@ -59,22 +55,22 @@ beforeEach(() => {
   setChatMode('dev');
   // 各 CLI 都已安装（否则端点按钮禁用）；本机历史为空
   const invoke = vi.fn(async (ch: string) => {
-    if (ch === 'ai:harness:state')
+    if (ch === 'harness.state')
       return {
         backend: 'nomi',
         cwd: '/w',
         bins: { claude: '/c', codex: '/x', dsh: '/d', grok: '/g', gemini: '/m' },
       };
-    if (ch === 'ai:harness:tabs') return { tabs: [], activeTabId: 'main', running: 0, queued: 0 };
-    if (ch === 'ai:history:list') return { items: [], nextOffset: null, hasMore: false };
+    if (ch === 'harness.tabs') return { tabs: [], activeTabId: 'main', running: 0, queued: 0 };
+    if (ch === 'history.list') return { items: [], nextOffset: null, hasMore: false };
     return {};
   });
-  (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
+  installFakeApi(invoke);
 });
 afterEach(() => {
   cleanup();
   localStorage.clear();
-  delete (window as { aiIPC?: unknown }).aiIPC;
+  resetFakeApi();
 });
 
 const mount = () =>

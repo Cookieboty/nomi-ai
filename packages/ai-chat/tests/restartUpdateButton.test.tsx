@@ -7,8 +7,9 @@ import { AppEntries } from '../src/components/AppEntries';
 import { RestartUpdateButton, isUpdateReadyToInstall } from '../src/components/RestartUpdateButton';
 import type { UpdateState } from '../src/components/SettingsView/UpdateSettings';
 
-// D2 的过程经契约替身转发到下面的旧桥假实现（见 helpers/shellApi）
-vi.mock('../src/services/api', () => import('./helpers/shellApi'));
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
+
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
 const base: UpdateState = {
   status: 'idle',
@@ -18,22 +19,19 @@ const base: UpdateState = {
 
 function mockUpdates(state: UpdateState, install?: () => Promise<UpdateState>) {
   const installFn = install ?? vi.fn(async () => state);
-  (window as unknown as { electronAPI: unknown }).electronAPI = {
-    updates: {
-      get: async () => state,
-      check: async () => state,
-      download: async () => state,
-      install: installFn,
-      setAutoCheck: async () => state,
-      onChanged: () => () => undefined,
-    },
-  };
+  installFakeApi({
+    'updates.get': () => state,
+    'updates.check': () => state,
+    'updates.download': () => state,
+    'updates.install': installFn,
+    'updates.setAutoCheck': () => state,
+  });
   return installFn;
 }
 
 afterEach(() => {
   cleanup();
-  delete (window as { electronAPI?: unknown }).electronAPI;
+  resetFakeApi();
 });
 
 describe('isUpdateReadyToInstall', () => {

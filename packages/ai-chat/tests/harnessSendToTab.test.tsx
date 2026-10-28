@@ -6,17 +6,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HarnessTabsProvider, useHarnessTabs } from '../src/contexts/HarnessTabsContext';
 import type { HarnessTabMeta, HarnessTabsState } from '../src/services/harnessClient';
 
-import type { CodingApiMockState } from './helpers/codingApi';
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
-// D3 客户端走契约（services/api）；测试仍用旧通道形状的 window.aiIPC 假桥，经 helpers/codingApi 转发
-const codingApi = vi.hoisted(() => ({}) as CodingApiMockState);
-vi.mock('../src/services/api', async () =>
-  (await import('./helpers/codingApi')).createCodingApiMock(codingApi),
-);
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
 afterEach(() => {
   cleanup();
-  delete (window as { aiIPC?: unknown }).aiIPC;
+  resetFakeApi();
 });
 
 const tab = (over: Partial<HarnessTabMeta>): HarnessTabMeta => ({
@@ -41,27 +37,22 @@ const stateOf = (tabs: HarnessTabMeta[], activeTabId: string): HarnessTabsState 
 
 function mockIpc(initial: HarnessTabsState) {
   let state = initial;
-  const listeners: Record<string, Array<(p: unknown) => void>> = {};
   const sent: Array<{ tabId: string; text: string }> = [];
-  const invoke = vi.fn(async (ch: string, ...a: unknown[]) => {
-    if (ch === 'ai:harness:tabs') return state;
-    if (ch === 'ai:harness:tab-messages') return [];
-    if (ch === 'ai:harness:tab-send') {
-      sent.push({ tabId: String(a[0]), text: String(a[1]) });
+  const invoke = vi.fn(async (ch: string, i?: { id?: string; prompt?: string }) => {
+    if (ch === 'harness.tabs') return state;
+    if (ch === 'harness.tabMessages') return [];
+    if (ch === 'harness.tabSend') {
+      sent.push({ tabId: String(i?.id), text: String(i?.prompt) });
       return { ok: true };
     }
     return state;
   });
-  const on = (ch: string, fn: (p: unknown) => void) => {
-    (listeners[ch] ??= []).push(fn);
-    return () => undefined;
-  };
-  (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on };
+  const fake = installFakeApi(invoke);
   return {
     sent,
-    push: (s: HarnessTabsState) => {
+    push: async (s: HarnessTabsState) => {
       state = s;
-      act(() => listeners['ai:harness:tabs']?.forEach((f) => f(s)));
+      await act(() => fake.emit('harness.tabsChanged', s));
     },
   };
 }
@@ -116,7 +107,7 @@ describe('HarnessTabsContext.sendToTab', () => {
     const ref = mount();
     await waitFor(() => expect(ref.current!.state?.tabs).toHaveLength(3));
     const stale = ref.current!.sendToTab; // 旧渲染里拿到的引用
-    ipc.push(stateOf([tab({ id: 'a', status: 'running' }), tab({ id: 'b' })], 'b'));
+    await ipc.push(stateOf([tab({ id: 'a', status: 'running' }), tab({ id: 'b' })], 'b'));
     await waitFor(() => expect(ref.current!.activeTab?.id).toBe('b'));
     await act(async () => {
       await stale('a', '迟到文本');
@@ -135,7 +126,7 @@ describe('HarnessTabsContext.sendToTab', () => {
       results.push(await ref.current!.sendToTab('main', 'x'));
     });
     // 关闭 a 之后
-    ipc.push(stateOf([], 'main'));
+    await ipc.push(stateOf([], 'main'));
     await waitFor(() => expect(ref.current!.hasTab('a')).toBe(false));
     await act(async () => {
       results.push(await ref.current!.sendToTab('a', 'x'));
@@ -167,7 +158,7 @@ describe('HarnessTabsContext.sendToTab', () => {
       await ref.current!.send('在 main 上');
     });
     expect(ipc.sent).toHaveLength(0);
-    ipc.push(stateOf([tab({ id: 'a' })], 'a'));
+    await ipc.push(stateOf([tab({ id: 'a' })], 'a'));
     await waitFor(() => expect(ref.current!.isCliTab).toBe(true));
     await act(async () => {
       await ref.current!.send('在 a 上');

@@ -9,7 +9,7 @@ import { ingestConversation, memoryContext } from '../src/services/memClient';
 import type { ApiMockState } from './helpers/knowledgeApi';
 import { NomiConversation } from './nomiRender';
 
-// mem.* 走契约（services/api）；对话上下文里其余能力仍走 window.aiIPC，两路记进同一个 invoke
+// mem.* 与对话上下文里的其余能力都走契约（services/api），记进同一个 invoke
 const mock = vi.hoisted(() => ({ transport: false }) as ApiMockState);
 vi.mock('../src/services/api', async () =>
   (await import('./helpers/knowledgeApi')).createApiMock(mock),
@@ -17,7 +17,6 @@ vi.mock('../src/services/api', async () =>
 
 afterEach(() => {
   cleanup();
-  delete (window as { aiIPC?: unknown }).aiIPC;
   mock.invoke = undefined;
   mock.transport = false;
 });
@@ -69,7 +68,6 @@ function mockIpc(extra: Record<string, unknown> = {}) {
         return true;
     }
   });
-  (window as { aiIPC?: unknown }).aiIPC = { invoke, on: () => () => undefined };
   mock.invoke = (name, input) => invoke(name, input);
   mock.transport = true;
   return invoke;
