@@ -10,19 +10,13 @@ import {
   type UserProfile,
 } from '@nomi-ai/bundle-ig-base';
 
-import { loadElectron } from '../electronLoader';
-
 export interface FileSessionStoreConfig {
-  /** 覆盖默认 userData */
+  /** 根目录（宿主给 userData）；不给时不提供会话 / 用户画像存储 */
   rootDir?: string;
   /** userData 之下的子目录，默认 'ai-chat' */
   subDir?: string;
   /** 单个 session JSONL 文件的轮转阈值（字节），默认 100 MiB */
   rotateBytes?: number;
-}
-
-interface AppLike {
-  getPath(name: 'userData'): string;
 }
 
 /** 单条 JSONL 记录：不强约束 payload；由上层协议约定 */
@@ -132,16 +126,18 @@ export class FileProfileStorage implements IProfileStorage {
   }
 }
 
-function resolveRoot(app: AppLike, cfg: FileSessionStoreConfig): string {
-  const root = cfg.rootDir ?? app.getPath('userData');
-  return join(root, cfg.subDir ?? 'ai-chat');
+function resolveRoot(rootDir: string, cfg: FileSessionStoreConfig): string {
+  return join(rootDir, cfg.subDir ?? 'ai-chat');
 }
 
 export const FileSessionStorePlugin = definePlugin<FileSessionStoreConfig>({
   name: 'FileSessionStorePlugin',
   apply(ctx: PluginContext, cfg: FileSessionStoreConfig) {
-    const electron = loadElectron() as unknown as { app: AppLike };
-    const base = resolveRoot(electron.app, cfg);
+    if (!cfg.rootDir) {
+      ctx.logger.warn('FileSessionStorePlugin skipped: no rootDir given by the host');
+      return;
+    }
+    const base = resolveRoot(cfg.rootDir, cfg);
 
     const rotate = cfg.rotateBytes ?? 100 * 1024 * 1024;
     const sessionDir = join(base, 'sessions');

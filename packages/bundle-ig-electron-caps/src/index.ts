@@ -11,7 +11,9 @@
  *   - WakeWordPlugin：Porcupine（默认关）
  *   - ShortcutPlugin：全局快捷键 → 命令
  *
- * 入口即执行主进程守卫，非 Electron 主进程 import 会直接抛错。
+ * 入口即执行主进程守卫，非 Electron 主进程 import 会直接抛错。插件本身不加载 electron：
+ * 平台能力（剪贴板、截屏、全局快捷键、safeStorage、userData 目录）由宿主在插件配置里注入，
+ * 没注入时插件只记 warn、不提供对应能力（docs/design/core-host-decoupling.md §12 P4）。
  */
 import { assertElectronMainProcess } from './env';
 

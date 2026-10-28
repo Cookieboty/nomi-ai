@@ -43,9 +43,7 @@ export const ELECTRON_IMPORT_ALLOWLIST = [
  * 非宿主代码里已有的动态加载 electron。不得新增条目。
  */
 export const ELECTRON_DYNAMIC_ALLOWLIST = [
-  // electron-caps 插件包的惰性加载器（createRequire(...)('electron')）：这个包本身就是 Electron 版的
-  // 插件能力（截屏 / 剪贴板 / 安全存储 / 快捷键 / 会话存储）；以后改成插件能力经宿主端口注入
-  'packages/bundle-ig-electron-caps/src/electronLoader.ts',
+  // P4 清空：electron-caps 的插件能力（截屏 / 剪贴板 / 安全存储 / 快捷键 / 会话存储）改由宿主在插件配置里注入
 ];
 
 /** 不得依赖 electron 的包（§3.2、§11.1）；尚未建立的包也先列上 */

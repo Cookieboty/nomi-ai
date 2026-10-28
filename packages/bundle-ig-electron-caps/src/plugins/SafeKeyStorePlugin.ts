@@ -3,16 +3,17 @@ import { dirname, join } from 'node:path';
 
 import { definePlugin, type PluginContext } from '@nomi-ai/bundle-ig-base';
 
-import { loadElectron } from '../electronLoader';
 import { KeyStoreKey, type KeyStoreService } from '../seams/keyStore';
 
 export interface SafeKeyStoreConfig {
-  /** 覆盖默认 userData/ai-chat/keys.enc 目标 */
+  /** 覆盖默认 <userData>/ai-chat/keys.enc 目标 */
   filePath?: string;
-  /** app.getPath('userData') 之下的子路径，默认 'ai-chat' */
+  /** userData 之下的子路径，默认 'ai-chat' */
   subDir?: string;
   /** 密钥文件名，默认 keys.enc */
   fileName?: string;
+  /** 宿主注入（Electron：`safeStorage` 与 `app.getPath('userData')`）；不给时不提供密钥库 */
+  host?: { safeStorage: SafeStorageLike; userData: string };
 }
 
 interface EncFile {
@@ -25,14 +26,10 @@ interface RawEntries {
   [id: string]: string;
 }
 
-interface SafeStorageLike {
+export interface SafeStorageLike {
   isEncryptionAvailable(): boolean;
   encryptString(v: string): Buffer;
   decryptString(buf: Buffer): string;
-}
-
-interface AppLike {
-  getPath(name: 'userData'): string;
 }
 
 export class SafeKeyStoreService implements KeyStoreService {
@@ -104,20 +101,19 @@ export class SafeKeyStoreService implements KeyStoreService {
   }
 }
 
-function resolveKeyFile(app: AppLike, cfg: SafeKeyStoreConfig): string {
+function resolveKeyFile(userData: string, cfg: SafeKeyStoreConfig): string {
   if (cfg.filePath) return cfg.filePath;
-  const root = app.getPath('userData');
-  return join(root, cfg.subDir ?? 'ai-chat', cfg.fileName ?? 'keys.enc');
+  return join(userData, cfg.subDir ?? 'ai-chat', cfg.fileName ?? 'keys.enc');
 }
 
 export const SafeKeyStorePlugin = definePlugin<SafeKeyStoreConfig>({
   name: 'SafeKeyStorePlugin',
   apply(ctx: PluginContext, cfg: SafeKeyStoreConfig) {
-    const electron = loadElectron() as unknown as {
-      app: AppLike;
-      safeStorage: SafeStorageLike;
-    };
-    const { app, safeStorage } = electron;
+    if (!cfg.host) {
+      ctx.logger.warn('SafeKeyStorePlugin skipped: no safeStorage injected by the host');
+      return;
+    }
+    const { safeStorage, userData } = cfg.host;
 
     if (!safeStorage.isEncryptionAvailable()) {
       throw new Error(
@@ -127,7 +123,7 @@ export const SafeKeyStorePlugin = definePlugin<SafeKeyStoreConfig>({
       );
     }
 
-    const file = resolveKeyFile(app, cfg);
+    const file = resolveKeyFile(userData, cfg);
     const svc = new SafeKeyStoreService(safeStorage, ctx.logger, file);
     ctx.provide(KeyStoreKey, svc);
     ctx.logger.info(`SafeKeyStore ready: ${file}`);

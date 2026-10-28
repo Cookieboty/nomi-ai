@@ -1,6 +1,5 @@
 import { definePlugin, type PluginContext } from '@nomi-ai/bundle-ig-base';
 
-import { loadElectron } from '../electronLoader';
 import {
   ClipboardKey,
   type ClipboardChangePayload,
@@ -14,6 +13,8 @@ export interface ClipboardPluginConfig {
   pollIntervalMs?: number;
   /** 是否开启轮询（关闭后 on('change') 不会触发） */
   watch?: boolean;
+  /** 宿主注入的剪贴板（Electron：`clipboard`）；不给时不提供剪贴板能力 */
+  clipboard?: ClipboardApiLike;
 }
 
 interface ElectronImageLike {
@@ -22,7 +23,7 @@ interface ElectronImageLike {
   getSize(): { width: number; height: number };
 }
 
-interface ClipboardApiLike {
+export interface ClipboardApiLike {
   readText(type?: 'clipboard' | 'selection'): string;
   writeText(text: string, type?: 'clipboard' | 'selection'): void;
   readImage(type?: 'clipboard' | 'selection'): ElectronImageLike;
@@ -46,7 +47,7 @@ export class ClipboardServiceImpl implements ClipboardService {
 
   constructor(
     private readonly api: ClipboardApiLike,
-    private readonly cfg: Required<ClipboardPluginConfig>,
+    private readonly cfg: Required<Omit<ClipboardPluginConfig, 'clipboard'>>,
     private readonly logger: PluginContext['logger'],
   ) {
     // 建立基线，避免第一次 tick 把"当前状态"误报为 change
@@ -158,12 +159,15 @@ export class ClipboardServiceImpl implements ClipboardService {
 export const ClipboardPlugin = definePlugin<ClipboardPluginConfig>({
   name: 'ClipboardPlugin',
   apply(ctx: PluginContext, cfg: ClipboardPluginConfig) {
-    const electron = loadElectron() as unknown as { clipboard: ClipboardApiLike };
-    const merged: Required<ClipboardPluginConfig> = {
+    if (!cfg.clipboard) {
+      ctx.logger.warn('ClipboardPlugin skipped: no clipboard injected by the host');
+      return;
+    }
+    const merged: Required<Omit<ClipboardPluginConfig, 'clipboard'>> = {
       pollIntervalMs: cfg.pollIntervalMs ?? 200,
       watch: cfg.watch ?? true,
     };
-    const svc = new ClipboardServiceImpl(electron.clipboard, merged, ctx.logger);
+    const svc = new ClipboardServiceImpl(cfg.clipboard, merged, ctx.logger);
     ctx.provide(ClipboardKey, svc);
     ctx.logger.info(
       `ClipboardPlugin ready (watch=${merged.watch}, poll=${merged.pollIntervalMs}ms)`,

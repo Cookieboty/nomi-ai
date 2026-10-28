@@ -1,6 +1,5 @@
 import { definePlugin, type PluginContext } from '@nomi-ai/bundle-ig-base';
 
-import { loadElectron } from '../electronLoader';
 import {
   ScreenKey,
   type CaptureOptions,
@@ -13,6 +12,8 @@ export interface ScreenPluginConfig {
   /** desktopCapturer 缩略图最大宽/高（不设时按物理像素） */
   thumbnailMaxWidth?: number;
   thumbnailMaxHeight?: number;
+  /** 宿主注入的显示器信息与截屏（Electron：`screen` / `desktopCapturer`）；不给时不提供截屏能力 */
+  host?: { screen: ScreenApiLike; desktopCapturer: DesktopCapturerLike };
 }
 
 interface Rect {
@@ -29,7 +30,7 @@ interface ElectronDisplay {
   scaleFactor: number;
 }
 
-interface ScreenApiLike {
+export interface ScreenApiLike {
   getPrimaryDisplay(): ElectronDisplay;
   getAllDisplays(): ElectronDisplay[];
 }
@@ -48,7 +49,7 @@ interface DesktopCapturerSource {
   thumbnail: ElectronImageLike;
 }
 
-interface DesktopCapturerLike {
+export interface DesktopCapturerLike {
   getSources(opts: {
     types: Array<'screen' | 'window'>;
     thumbnailSize?: { width: number; height: number };
@@ -123,11 +124,11 @@ class ScreenServiceImpl implements ScreenService {
 export const ScreenPlugin = definePlugin<ScreenPluginConfig>({
   name: 'ScreenPlugin',
   apply(ctx: PluginContext, cfg: ScreenPluginConfig) {
-    const electron = loadElectron() as unknown as {
-      screen: ScreenApiLike;
-      desktopCapturer: DesktopCapturerLike;
-    };
-    const svc = new ScreenServiceImpl(electron.screen, electron.desktopCapturer, cfg);
+    if (!cfg.host) {
+      ctx.logger.warn('ScreenPlugin skipped: no screen / desktopCapturer injected by the host');
+      return;
+    }
+    const svc = new ScreenServiceImpl(cfg.host.screen, cfg.host.desktopCapturer, cfg);
     ctx.provide(ScreenKey, svc);
     ctx.logger.info('ScreenPlugin ready');
   },

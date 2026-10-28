@@ -1,7 +1,5 @@
 import { definePlugin, type PluginContext } from '@nomi-ai/bundle-ig-base';
 
-import { loadElectron } from '../electronLoader';
-
 export interface ShortcutBinding {
   /** Electron accelerator（如 'CommandOrControl+Shift+Space'） */
   accelerator: string;
@@ -13,16 +11,18 @@ export interface ShortcutBinding {
 
 export interface ShortcutConfig {
   bindings?: ShortcutBinding[];
+  /** 宿主注入的全局快捷键与退出事件（Electron：`globalShortcut` / `app`）；不给时不注册快捷键 */
+  host?: { app: AppLike; globalShortcut: GlobalShortcutLike };
 }
 
-interface GlobalShortcutLike {
+export interface GlobalShortcutLike {
   register(accelerator: string, cb: () => void): boolean;
   unregister(accelerator: string): void;
   unregisterAll(): void;
   isRegistered(accelerator: string): boolean;
 }
 
-interface AppLike {
+export interface AppLike {
   on(evt: 'will-quit', cb: () => void): unknown;
 }
 
@@ -34,11 +34,11 @@ const DEFAULT_BINDINGS: ShortcutBinding[] = [
 export const ShortcutPlugin = definePlugin<ShortcutConfig>({
   name: 'ShortcutPlugin',
   apply(ctx: PluginContext, cfg: ShortcutConfig) {
-    const electron = loadElectron() as unknown as {
-      app: AppLike;
-      globalShortcut: GlobalShortcutLike;
-    };
-    const { app, globalShortcut } = electron;
+    if (!cfg.host) {
+      ctx.logger.warn('ShortcutPlugin skipped: no globalShortcut injected by the host');
+      return;
+    }
+    const { app, globalShortcut } = cfg.host;
 
     const bindings = cfg.bindings ?? DEFAULT_BINDINGS;
     const registered: string[] = [];
