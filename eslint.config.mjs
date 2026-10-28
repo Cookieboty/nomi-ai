@@ -16,6 +16,13 @@ import {
 } from './scripts/eslint/electron-boundary.mjs';
 import nomiPlugin from './scripts/eslint/nomi-plugin.mjs';
 
+// 任何包都不 import 角色包目录：角色包只经包解析（CharacterPackService / validatePack）读取（§11.1）。
+const CHARACTER_PACK_IMPORT = {
+  group: ['**/characters/*', '**/characters/**'],
+  message:
+    '不能直接 import characters/*：角色包只经包解析读取（docs/design/core-host-decoupling.md §11.1）。',
+};
+
 export default tseslint.config(
   {
     ignores: [
@@ -98,6 +105,8 @@ export default tseslint.config(
       'packages/renderer/**/*.{ts,tsx}',
       'packages/ai-chat/**/*.{ts,tsx}',
       'packages/ai-sdk-client/**/*.{ts,tsx}',
+      'packages/ui/**/*.{ts,tsx}',
+      'packages/voice/**/*.{ts,tsx}',
     ],
     rules: {
       'no-restricted-imports': [
@@ -108,6 +117,20 @@ export default tseslint.config(
               name: 'electron',
               message: '渲染进程禁止直接引入 electron，请通过 preload / IPC / ai-sdk-client。',
             },
+          ],
+          patterns: [
+            {
+              group: [
+                '@nomi-ai/core',
+                '@nomi-ai/core/*',
+                '@nomi-ai/host-*',
+                '@nomi-ai/host-*/*',
+                '**/core/src/**',
+                '**/host-*/src/**',
+              ],
+              message: '视图不能依赖内核与宿主：只经契约客户端（services/api）访问（§11.1）。',
+            },
+            CHARACTER_PACK_IMPORT,
           ],
         },
       ],
@@ -131,6 +154,7 @@ export default tseslint.config(
         {
           paths: [{ name: 'electron', message: '插件包不能依赖 electron。' }],
           patterns: [
+            CHARACTER_PACK_IMPORT,
             {
               group: ['node:*', 'fs', 'path', 'os', 'child_process', 'crypto', 'url'],
               message: 'manifest / gateway / renderer 入口只能是纯数据，不能依赖 node。',
@@ -152,6 +176,7 @@ export default tseslint.config(
         {
           paths: [{ name: 'electron', message: '插件包不能依赖 electron。' }],
           patterns: [
+            CHARACTER_PACK_IMPORT,
             {
               group: ['**/renderer', './renderer', '../*/renderer', '../shared/renderer'],
               message: '主进程实现不能依赖渲染进程入口。',
@@ -192,6 +217,7 @@ export default tseslint.config(
                 '业务模块不能直接依赖 electron：平台能力走宿主端口，窗口广播走事件（docs/design/core-host-decoupling.md §6）；宿主代码放 src/host/。',
             },
           ],
+          patterns: [CHARACTER_PACK_IMPORT],
         },
       ],
     },
@@ -210,6 +236,7 @@ export default tseslint.config(
                 '这个包不能依赖 electron（docs/design/core-host-decoupling.md §3.2、§11.1）。',
             },
           ],
+          patterns: [CHARACTER_PACK_IMPORT],
         },
       ],
     },
@@ -231,6 +258,7 @@ export default tseslint.config(
             },
           ],
           patterns: [
+            CHARACTER_PACK_IMPORT,
             {
               group: ['electron/*', 'electron-*', '@electron/*'],
               message:
@@ -281,6 +309,7 @@ export default tseslint.config(
             { name: 'electron', message: 'avatar-runtime 不能依赖 electron（§3.2、§11.1）。' },
           ],
           patterns: [
+            CHARACTER_PACK_IMPORT,
             {
               group: [
                 '@nomi-ai/contract',

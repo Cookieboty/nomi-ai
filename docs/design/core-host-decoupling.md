@@ -194,7 +194,6 @@ export const contract = defineContract({
 | 可序列化     | 参数、返回值、事件只用 JSON 可表达的值；二进制用 `Uint8Array`；不传函数、class 实例                                                                                        |
 | 流式         | `stream` = 请求 id + 若干 chunk 事件 + 结束 / 错误；取消用显式 `abort(id)`                                                                                                 |
 | 不用同步调用 | 现有 `kind: 'sync-return'` 一律改为异步（它在 Electron 里也只是 `invoke`）                                                                                                 |
-| 错误         | 统一 `{ code, message, data? }`，`code` 在契约里枚举；不透传 Error 对象                                                                                                    |
 | 错误         | 统一 `{ code, message, data? }`，`code` 在契约里枚举；不透传 Error 对象；按名称 + 错误码识别（`isContractError(err, code?)`），不用 `instanceof`（跨副本 / 跨 realm 安全） |
 
 ### 4.3 版本与兼容
@@ -463,7 +462,7 @@ interface HostCapabilities {
 ```
 characters/nomi/
   manifest.json        id、contractVersion、assets.mode、capabilities、layout（窗口尺寸、命中区、气泡锚点）
-  persona.json         displayName、systemPromptIdentity、addressUser、greetings、tips
+  persona.json         displayName、systemPromptIdentity、pronoun、addressUser、greetings、tips
   mapping.json         语义 → 引擎资源（§10.5）
   locales/{zh,en}.json 角色台词、提示语、语音字幕
   rive/ sprite/ static/
@@ -491,6 +490,7 @@ interface Persona {
   characterId: string;
   displayName: string;
   systemPromptIdentity: string;
+  pronoun?: string; // 界面里指代角色的人称；没给时「它 / it」
   addressUser?: string;
   greetings: string[];
 }
@@ -546,7 +546,7 @@ renderer 只保留：透明窗口壳、气泡、工具栏、右键菜单，以�
 - 视图禁止 import `core`、`host-*`；内核禁止 import 任何视图包与 `ui`。
 - 任何包禁止 import `characters/*`，只能经包解析读取。
 
-工具：ESLint `no-restricted-imports` + `no-restricted-globals` 覆盖大部分；包级依赖方向用 dependency-cruiser（MIT）或在 `scripts/` 写检查脚本。
+工具：ESLint `no-restricted-imports` + `no-restricted-syntax` / `no-restricted-globals` 与自定义规则 `nomi/no-dynamic-electron`，全部 error 级（`eslint.config.mjs`）：第一条由 `ELECTRON_FREE_PACKAGES` 与动态加载规则守住（白名单为空）；第二条禁止视图访问上述全局；第三条是视图（`renderer`、`ai-chat`、`ai-sdk-client`、`ui`、`voice`）不 import `@nomi-ai/core` / `@nomi-ai/host-*`，内核不 import 视图包与 `ui`；第四条是所有包的 `CHARACTER_PACK_IMPORT`（`**/characters/**`）。唯一的例外是 renderer 的 `spriteLayout.test.ts` 读内核的窗口尺寸做一致性断言，行内注明理由。
 
 ### 11.2 名字扫描
 
@@ -860,8 +860,8 @@ stop() }`；宿主 `packages/host-electron/src/host/Application.ts`（宿主区�
 >   作用域之外 `t()` 用不可变的进程默认（`CD_LOCALE` 或中文）。仍是进程级的：子进程 / worker 的缓存
 >   （`codexThreadReader`、`sileroNode`、CLI 路径探测、登录 shell 的 PATH）以及 `createMainLogger`；
 > - `ai-runtime` 的 `package.json` 仍把 `bundle-ig-electron-caps` 与（可选的）`electron` 列为 peer（源码已不引用）；
-> - 契约包同时发 ESM 与 CommonJS：同一进程里混用两种格式会有两份 `ContractError`，服务端用 `instanceof` 判断，内核抛的
->   业务码会变成 INTERNAL。P4 第二步（`e2e/` 改跑无界面宿主）要统一格式或改成按 `name` / `code` 判断；
+> - 契约包同时发 ESM 与 CommonJS，同一进程里可能有两份 `ContractError`：服务端与客户端按 `name` / `code` 识别
+>   （`isContractError`，见 P4 第二步），内核抛的业务码不会变成 INTERNAL；
 > - P4 本身（`e2e/` 改跑无界面宿主、WebSocket 传输，§11.3 前两项）未开始。
 
 > P4 第二步完成（分支 `refactor/p4-host-node`）：§11.3 前两项通过，P4 完成。
@@ -1015,7 +1015,10 @@ stop() }`；宿主 `packages/host-electron/src/host/Application.ts`（宿主区�
 >   （契约包的数据，不在扫描范围）。要不要改成「不填就用 .riv 默认」，等第三方 rive 包的模板定下来再决定；
 > - 中文界面的角色语境从「Nomi」变成人设名「诺米」，与 `docs/BRAND.md`「中文首次写 Nomi·诺米、之后写 Nomi」的口径不同：品牌文档要按
 >   「产品叫 Nomi，角色叫诺米」改写；
-> - 「她 / her」之类不带名字的人称（例如「摸她的头」）没有改：不泄漏名字，但对非女性角色不合适，可以以后按角色包给的人称处理；
+> - 界面里指代角色的人称来自角色包：`persona.json` 的 `pronoun`（中文）与 `locales/en.json` 的 `persona.pronoun`（英文主格），
+>   没写时用中性的「它 / it」，不拿另一种语言的值顶替；官方包是「她 / she」。`character-contract` 的 `personaPronoun` /
+>   `pronounForms` 给出宾格与所有格（ai-chat `characterPronoun()`），「点{1}的『AI 对话』」「打开{1}后」这类文案经参数传入；
+>   其余不需要人称的文案改成不带人称的写法（「摸头、戳脸…」「除非你逐个文件夹授权，否则看不到你的文件」）；
 > - 托盘菜单在建菜单时取一次角色名，换角色包 / 换语言后要等菜单重建才更新。
 
 > P4 与 C3 / G5 合流（`refactor/c3-semantic` 变基到 `refactor/p4-host-node` 之上，再快进合入 P4 分支）：两条线都从 `release/2.0.5` 的
@@ -1041,9 +1044,9 @@ stop() }`；宿主 `packages/host-electron/src/host/Application.ts`（宿主区�
 >
 > 剩下的：
 >
-> - 同一进程里多个内核共用的进程级状态（P4「剩下的」第一条）没有变；E8 改界面语言后还原成跟随系统，免得影响同进程后面的用例；
-> - `CHARACTER_PACK` 是进程环境变量：E8 在用例文件里设、跑完还原；要在同一进程里同时起官方与替身两个内核，需要给 `createCore` /
->   无界面宿主加显式的内置包目录选项。
+> - 界面语言、日志开关、私有文件根目录与诊断日志写入器按内核实例隔离（`CoreScope`，见 P4 第一步「剩下的」第一条）；仍是进程级的是
+>   子进程 / worker 缓存与 `createMainLogger`；
+> - 内置角色包是内核实例的选项（`CoreConfig.builtinCharacterPack`），不是进程环境变量：E8 给替身包的路径，同一进程里别的内核仍用官方包。
 
 > 合流后的评审修正（`refactor/p4-host-node`）：
 >

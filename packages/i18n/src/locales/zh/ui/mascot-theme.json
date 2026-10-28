@@ -192,7 +192,7 @@
   "ui.mascot-theme.search": "搜索…",
   "ui.mascot-theme.search-commands": "搜索命令",
   "ui.mascot-theme.sensitive": "灵敏",
-  "ui.mascot-theme.she-can-t-see-your-files-unless-you": "她看不到你的文件，除非你逐个文件夹授权；所有操作都有记录，可撤销。",
+  "ui.mascot-theme.she-can-t-see-your-files-unless-you": "除非你逐个文件夹授权，否则看不到你的文件；所有操作都有记录，可撤销。",
   "ui.mascot-theme.show-nomi": "显示{0}",
   "ui.mascot-theme.show-on-startup": "启动 Nomi 后默认显示",
   "ui.mascot-theme.show-release-notes-after-update": "更新后显示更新日志",

@@ -192,7 +192,7 @@
   "ui.mascot-theme.search": "Search…",
   "ui.mascot-theme.search-commands": "Search commands",
   "ui.mascot-theme.sensitive": "Sensitive",
-  "ui.mascot-theme.she-can-t-see-your-files-unless-you": "She can’t see your files unless you grant access folder by folder; every action is logged and can be undone.",
+  "ui.mascot-theme.she-can-t-see-your-files-unless-you": "Your files stay out of reach unless you grant access folder by folder; every action is logged and can be undone.",
   "ui.mascot-theme.show-nomi": "Show {0}",
   "ui.mascot-theme.show-on-startup": "Show on startup",
   "ui.mascot-theme.show-release-notes-after-update": "Show release notes after update",
