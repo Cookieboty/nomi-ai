@@ -5,6 +5,7 @@
  * - 旧 i18n 语音 key → 稳定 clip id（保留一版别名）
  * - manifest：补 `contractVersion`，顶层 `mode` 挪进 `assets.mode`，`layout/hitboxes.json` 并入 `manifest.layout`
  * - 旧 `copy/{zh,en}.json` + `persona/system-prompt.md` → `persona.json` / `locales/*.json`
+ * - 2.0.5 模板形状的 `mapping.json`（情绪指向动作名）→ 不用，运行时走引擎默认映射
  */
 import { CHARACTER_CONTRACT_VERSION, LEGACY_HITBOX_ALIAS, VOICE_IDS } from './contract';
 
@@ -156,6 +157,34 @@ export function migrateLegacyCopy(copy: unknown): Json {
   if (wake) out.wakePhrase = wake;
   if (isObject(copy.lines)) out.lines = copy.lines;
   return out;
+}
+
+/**
+ * 2.0.5 官方模板 `characters/nomi/mapping.json` 里情绪指向动作（不是表情）的那几条。2.0.5 运行时并不读
+ * mapping.json，照着这个模板写的覆盖包靠的是引擎默认行为。`shy → shy`、`angry → angry` 也在模板里，
+ * 但新包同样可能这样写，不算证据。
+ */
+const LEGACY_MAPPING_EMOTIONS: Readonly<Record<string, string>> = {
+  happy: 'nod',
+  sad: 'tears',
+  surprised: 'surprise',
+  confused: 'puzzled',
+  sleepy: 'yawn',
+};
+
+/**
+ * 是不是 2.0.5 模板形状的 mapping.json：某个情绪指向模板里的那个动作（`happy → nod`、`sad → tears` …），
+ * 且包没把这个名字声明成表情（`expressions` 是 manifest.capabilities.expressions）。这样的映射按语义翻译
+ * 会把表情变成中性、没列出的手势全丢，所以 validatePack 不用它（运行时退回引擎默认映射，与 2.0.5 一致）。
+ */
+export function isLegacyMapping(raw: unknown, expressions: readonly string[] = []): boolean {
+  if (!isObject(raw) || !isObject(raw.emotions)) return false;
+  for (const [key, target] of Object.entries(raw.emotions)) {
+    const legacy = LEGACY_MAPPING_EMOTIONS[key];
+    if (!legacy || expressions.includes(legacy)) continue;
+    if (target === legacy || (Array.isArray(target) && target.includes(legacy))) return true;
+  }
+  return false;
 }
 
 /** 当前应用能否加载声明了该版本的包。 */

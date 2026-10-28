@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   isContractVersionSupported,
+  isLegacyMapping,
   joinPackPath,
   migrateHitboxIds,
   migrateLegacyCopy,
@@ -142,5 +143,30 @@ describe('paths & versions', () => {
     expect(isContractVersionSupported(1)).toBe(true);
     expect(isContractVersionSupported(2)).toBe(false);
     expect(isContractVersionSupported(0)).toBe(false);
+  });
+});
+
+describe('isLegacyMapping (2.0.5 template mapping.json)', () => {
+  it('detects the 2.0.5 official template shape', () => {
+    const template = {
+      emotions: { happy: 'nod', sad: 'tears', angry: 'angry', shy: 'shy', confused: 'puzzled' },
+      gestures: { wave: 'wave' },
+    };
+    expect(isLegacyMapping(template)).toBe(true);
+    expect(isLegacyMapping({ emotions: { sleepy: 'yawn' } })).toBe(true);
+    expect(isLegacyMapping({ emotions: { sad: ['sad', 'tears'] } })).toBe(true);
+  });
+
+  it('accepts semantic mappings, declared expressions and non-objects', () => {
+    expect(isLegacyMapping({ emotions: { happy: 'happy', shy: 'shy', angry: 'angry' } })).toBe(
+      false,
+    );
+    expect(isLegacyMapping({ emotions: { happy: 'smile_02' }, gestures: { nod: 'nod' } })).toBe(
+      false,
+    );
+    // 包把 tears 声明成了表情：是新写法
+    expect(isLegacyMapping({ emotions: { sad: 'tears' } }, ['neutral', 'tears'])).toBe(false);
+    expect(isLegacyMapping({ gestures: { nod: 'nod' } })).toBe(false);
+    expect(isLegacyMapping(null)).toBe(false);
   });
 });

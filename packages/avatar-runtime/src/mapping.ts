@@ -9,6 +9,7 @@
  * 运行时同一页面只挂一个角色（见 MascotBackend 的注册表），当前映射也是全局一份。
  */
 import {
+  isLegacyMapping,
   isSemanticActivity,
   isSemanticEmotion,
   isSemanticGesture,
@@ -88,11 +89,12 @@ export const DEFAULT_AVATAR_MAPPING: Readonly<Required<PackMapping>> = {
 let active: PackMapping = DEFAULT_AVATAR_MAPPING;
 
 /**
- * 设置当前角色的映射；`null` / `undefined`（包没有 mapping.json）用引擎默认映射。
- * 返回值恢复成默认映射（卸载时调用）。
+ * 设置当前角色的映射；`null` / `undefined`（包没有 mapping.json）用引擎默认映射。2.0.5 模板形状的
+ * 映射（情绪指向动作名，见 character-contract `isLegacyMapping`）validatePack 已经丢掉，这里再兜一次底，
+ * 防止没经过 validatePack 的宿主把它传进来。返回值恢复成默认映射（卸载时调用）。
  */
 export function setAvatarMapping(mapping: PackMapping | null | undefined): () => void {
-  const next = mapping ?? DEFAULT_AVATAR_MAPPING;
+  const next = mapping && !isLegacyMapping(mapping) ? mapping : DEFAULT_AVATAR_MAPPING;
   active = next;
   return () => {
     if (active === next) active = DEFAULT_AVATAR_MAPPING;

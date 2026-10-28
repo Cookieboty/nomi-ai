@@ -23,6 +23,7 @@ import { resolveRigMotion } from '../src/backends/sprite';
 import { applyActivity, applyEmotion } from '../src/driver';
 import {
   activityTarget,
+  currentAvatarMapping,
   DEFAULT_AVATAR_MAPPING,
   emotionTarget,
   gestureTarget,
@@ -164,6 +165,27 @@ describe('test-dummy pack mapping (static, no motions)', () => {
       activities: ['idle'],
       gestures: [],
     });
+  });
+});
+
+describe('2.0.5-template mapping.json (emotions point at motions)', () => {
+  // 2.0.5 的 characters/nomi/mapping.json：运行时不读它，照着它写的覆盖包靠引擎默认行为
+  const TEMPLATE_2_0_5 = {
+    emotions: { happy: 'nod', sad: 'tears', angry: 'angry', surprised: 'surprise', shy: 'shy' },
+    activities: { thinking: 'think', toolRunning: ['work', 'typing'] },
+    gestures: { wave: 'wave', nod: 'nod', apologize: ['apology', 'sorry'] },
+  };
+
+  it('falls back to the engine default mapping, so expressions and all gestures still play', () => {
+    setAvatarMapping(TEMPLATE_2_0_5);
+    expect(emotionTarget('happy')).toBe('happy');
+    expect(emotionTarget('sad')).toBe('sad');
+    expect(gestureTarget('startle')).toBe('flinch');
+    expect(gestureTarget('thumbsUp')).toBe('thumbs_up');
+    expect(gestureTarget('goodnight')).toBe('goodnight');
+    expect(mappedSemantics(currentAvatarMapping())).toEqual(
+      mappedSemantics(DEFAULT_AVATAR_MAPPING),
+    );
   });
 });
 

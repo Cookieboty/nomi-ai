@@ -514,7 +514,7 @@ AI 不再知道动作名和 clip 名：
 - 角色包的 `mapping.json` 把语义翻译成自己的资源，例如 `happy → smile_02`、`toolRunning → typing_loop`；没有映射就忽略。
 - 项目没有 Live2D 运行时，`live2d` 只是历史命名，挂在驱动 Rive / sprite 的在用链路上。处理：没有调用方的部分（例如 `setParameter`、`LIVE2D_NOT_AVAILABLE`）直接删；在用的部分改名为 avatar，**不保留旧名别名**。
 - 工具改名：`live2d_play_motion` → `avatar_gesture`，`live2d_set_expression` → `avatar_emotion`（C3 起只收语义名）；preset 名 `waifu` → `companion`。
-- 词表在 `character-contract`（`SEMANTIC_EMOTIONS` / `SEMANTIC_ACTIVITIES` / `SEMANTIC_GESTURES`）；没有 `mapping.json` 的包用引擎默认映射（与 `characters/nomi/mapping.json` 相同）。
+- 词表在 `character-contract`（`SEMANTIC_EMOTIONS` / `SEMANTIC_ACTIVITIES` / `SEMANTIC_GESTURES`）；没有 `mapping.json` 的包用引擎默认映射（与 `characters/nomi/mapping.json` 相同）。照 2.0.5 模板写的 `mapping.json`（情绪指向动作，`happy → nod`、`sad → tears` …，`isLegacyMapping`）validatePack 不用、给 `mapping-legacy` 警告，运行时同样退回默认映射——2.0.5 本来就不读 mapping.json，这样旧覆盖包行为不变。
 - `ai-sdk` 的 `Live2dFacade` → `AvatarFacade`，`Live2dSeamPlugin` / `seams/live2d.ts` → avatar，事件 `live2d:touch` → `avatar:touch`。
 - 保留 `ConfigIpcHandler` 中清理旧 `displayMode: 'live2d'` 配置的迁移逻辑（它处理的是用户磁盘上的旧数据）。
 

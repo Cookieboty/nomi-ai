@@ -122,6 +122,25 @@ describe('validatePack — new-shape static pack', () => {
     ]);
   });
 
+  it('ignores a 2.0.5-template mapping.json with a warning (engine default mapping)', () => {
+    const res = validatePack(
+      createPackSource(
+        staticPack({
+          'mapping.json': {
+            emotions: { happy: 'nod', sad: 'tears', shy: 'shy', confused: 'puzzled' },
+            gestures: { wave: 'wave', apologize: ['apology', 'sorry'] },
+          },
+        }),
+      ),
+    );
+    expect(res.ok).toBe(true);
+    expect(res.pack?.mapping).toBeNull();
+    const mapping = res.warnings.filter((w) => w.file === 'mapping.json');
+    expect(mapping.map((w) => [w.code, w.path.join('.')])).toEqual([
+      ['mapping-legacy', 'emotions'],
+    ]);
+  });
+
   it('warns when en lines miss keys present in zh', () => {
     const res = validatePack(
       createPackSource(staticPack({ 'locales/en.json': { lines: { 'greet-hello': 'Hello!' } } })),

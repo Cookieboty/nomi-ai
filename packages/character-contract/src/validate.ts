@@ -22,6 +22,7 @@ import {
 } from './contract';
 import {
   isContractVersionSupported,
+  isLegacyMapping,
   migrateLegacyCopy,
   migrateLegacyPersona,
   migrateManifest,
@@ -77,6 +78,7 @@ export type PackIssueCode =
   | 'locale-key-missing'
   | 'mapping-unknown-semantic'
   | 'mapping-target-undeclared'
+  | 'mapping-legacy'
   | 'layout-legacy';
 
 export interface PackIssue {
@@ -489,7 +491,17 @@ export function validatePack(src: PackSource, opts: ValidatePackOptions = {}): V
     if (raw !== undefined) {
       const res = mappingSchema.safeParse(raw);
       if (!res.success) zodIssues(sink, PACK_FILES.mapping, res.error);
-      else mapping = res.data;
+      else if (isLegacyMapping(res.data, manifest.capabilities?.expressions)) {
+        // 2.0.5 模板形状：运行时用引擎默认映射（2.0.5 本来就不读 mapping.json），行为不变
+        sink(
+          'warning',
+          'mapping-legacy',
+          PACK_FILES.mapping,
+          'mapping.json follows the 2.0.5 template (emotions point at motions); it is ignored ' +
+            'and the engine default mapping is used. Map emotions to expressions to use it.',
+          ['emotions'],
+        );
+      } else mapping = res.data;
     }
   }
   if (mapping) {
