@@ -16,12 +16,21 @@
 
 import type { AIClient, AIClientEvent } from '@nomi-ai/ai-sdk';
 import type { ChatChunk } from '@nomi-ai/bundle-ig-base';
-import { implement, type HandlerContext, type Router } from '@nomi-ai/contract';
+import {
+  ContractError,
+  implement,
+  type EventPublisher,
+  type HandlerContext,
+  type Handlers,
+  type Middleware,
+  type Router,
+} from '@nomi-ai/contract';
 import {
   AI_EVENTS,
   appContract,
   type AppContract,
   type AiClientEventName,
+  type AiProcedureName,
 } from '@nomi-ai/contract/app';
 
 import type { RuntimeLogger } from './logger';
@@ -61,6 +70,28 @@ export interface AiRouterHandle {
   router: Router<AppContract>;
   /** 退订 AIClient 事件、清理埋点；不停止传输（传输由宿主停止） */
   dispose(): void;
+}
+
+/** AI 门面（`ai.*`）的处理函数 */
+export type AiHandlers = Pick<Handlers<AppContract>, AiProcedureName>;
+/** 契约里 AI 门面之外的处理函数（P1b 各域，由宿主组装） */
+export type NonAiHandlers = Omit<Handlers<AppContract>, AiProcedureName>;
+
+export interface AiHandlersHandle {
+  handlers: AiHandlers;
+  /**
+   * 把 AIClient 的业务事件发布到契约事件（`publishEvents !== false` 时）。宿主建好 router 后调用一次；
+   * 返回退订函数（dispose 也会退订）。
+   */
+  bindEvents(publisher: EventPublisher<AppContract>): () => void;
+  /** 退订事件、中止进行中的 chat 流、清理埋点 */
+  dispose(): void;
+}
+
+export interface AiRouterExtraOptions {
+  /** AI 门面之外的处理函数；缺的过程调用时以 NOT_FOUND 失败 */
+  handlers?: Partial<NonAiHandlers>;
+  middleware?: readonly Middleware[];
 }
 
 type Ctx = HandlerContext<AppContract>;
@@ -172,7 +203,7 @@ function withoutRaw<T extends { raw?: unknown }>(value: T): Omit<T, 'raw'> {
   return rest;
 }
 
-export function createAiRouter(opts: AiRouterOptions): AiRouterHandle {
+export function createAiHandlers(opts: AiRouterOptions): AiHandlersHandle {
   const { client } = opts;
   const logger = opts.logger ?? ConsoleRuntimeLogger;
   const batchMs = opts.streamBatchMs ?? STREAM_BATCH_MS;
@@ -238,103 +269,108 @@ export function createAiRouter(opts: AiRouterOptions): AiRouterHandle {
     }
   }
 
-  const router = implement(
-    appContract,
-    {
-      // chat
-      'ai.chat.sendMessage': async (input) => {
-        await prepare(input, 'sendMessage');
-        return withoutRaw(await client.chat.sendMessage(input));
-      },
-      'ai.chat.stream': (input, ctx) => chatStream('stream', input, ctx),
-      'ai.chat.regenerate': (input, ctx) => chatStream('regenerate', input, ctx),
-      'ai.chat.agentStream': (input, ctx) => chatStream('agentStream', input, ctx),
-      'ai.chat.abort': ({ reqId }) => {
-        // 还在外发检查里的流没有上游请求可停：在这里标记取消，检查结束后不再创建（#160）
-        streamAborts.get(reqId)?.abort();
-        client.chat.abort(reqId);
-      },
+  const handlers: AiHandlers = {
+    // chat
+    'ai.chat.sendMessage': async (input) => {
+      await prepare(input, 'sendMessage');
+      return withoutRaw(await client.chat.sendMessage(input));
+    },
+    'ai.chat.stream': (input, ctx) => chatStream('stream', input, ctx),
+    'ai.chat.regenerate': (input, ctx) => chatStream('regenerate', input, ctx),
+    'ai.chat.agentStream': (input, ctx) => chatStream('agentStream', input, ctx),
+    'ai.chat.abort': ({ reqId }) => {
+      // 还在外发检查里的流没有上游请求可停：在这里标记取消，检查结束后不再创建（#160）
+      streamAborts.get(reqId)?.abort();
+      client.chat.abort(reqId);
+    },
 
-      // sessions
-      'ai.sessions.list': () => client.sessions.list(),
-      'ai.sessions.get': ({ id }) => client.sessions.get(id),
-      'ai.sessions.create': (input) => client.sessions.create(input),
-      'ai.sessions.fork': ({ id, overrides }) => client.sessions.fork(id, overrides),
-      'ai.sessions.rename': ({ id, title }) => client.sessions.rename(id, title),
-      'ai.sessions.delete': ({ id }) => client.sessions.delete(id),
+    // sessions
+    'ai.sessions.list': () => client.sessions.list(),
+    'ai.sessions.get': ({ id }) => client.sessions.get(id),
+    'ai.sessions.create': (input) => client.sessions.create(input),
+    'ai.sessions.fork': ({ id, overrides }) => client.sessions.fork(id, overrides),
+    'ai.sessions.rename': ({ id, title }) => client.sessions.rename(id, title),
+    'ai.sessions.delete': ({ id }) => client.sessions.delete(id),
 
-      // tools
-      'ai.tools.list': () => client.tools.list(),
-      'ai.tools.setEnabled': ({ name, enabled }) => client.tools.setEnabled(name, enabled),
-      'ai.tools.confirm': ({ reqId, ok, reason }) => client.tools.confirm(reqId, ok, reason),
+    // tools
+    'ai.tools.list': () => client.tools.list(),
+    'ai.tools.setEnabled': ({ name, enabled }) => client.tools.setEnabled(name, enabled),
+    'ai.tools.confirm': ({ reqId, ok, reason }) => client.tools.confirm(reqId, ok, reason),
 
-      // memory.userProfile
-      'ai.memory.userProfile.get': () => profile(client.memory.userProfile.get()),
-      'ai.memory.userProfile.set': async (patch) =>
-        profile(
-          await client.memory.userProfile.set(
-            patch as Parameters<AIClient['memory']['userProfile']['set']>[0],
-          ),
+    // memory.userProfile
+    'ai.memory.userProfile.get': () => profile(client.memory.userProfile.get()),
+    'ai.memory.userProfile.set': async (patch) =>
+      profile(
+        await client.memory.userProfile.set(
+          patch as Parameters<AIClient['memory']['userProfile']['set']>[0],
         ),
-      'ai.memory.userProfile.reset': async () => profile(await client.memory.userProfile.reset()),
-      'ai.memory.userProfile.export': async () => profile(await client.memory.userProfile.export()),
-      'ai.memory.userProfile.import': async ({ data }) =>
-        profile(await client.memory.userProfile.import(data)),
+      ),
+    'ai.memory.userProfile.reset': async () => profile(await client.memory.userProfile.reset()),
+    'ai.memory.userProfile.export': async () => profile(await client.memory.userProfile.export()),
+    'ai.memory.userProfile.import': async ({ data }) =>
+      profile(await client.memory.userProfile.import(data)),
 
-      // memory.facts
-      'ai.memory.facts.list': () => client.memory.facts.list(),
-      'ai.memory.facts.put': (fact) => client.memory.facts.put(fact),
-      'ai.memory.facts.delete': ({ id }) => client.memory.facts.delete(id),
+    // memory.facts
+    'ai.memory.facts.list': () => client.memory.facts.list(),
+    'ai.memory.facts.put': (fact) => client.memory.facts.put(fact),
+    'ai.memory.facts.delete': ({ id }) => client.memory.facts.delete(id),
 
-      // memory.summaries
-      'ai.memory.summaries.get': ({ sessionId }) => client.memory.summaries.get(sessionId),
-      'ai.memory.summaries.put': (summary) => client.memory.summaries.put(summary),
+    // memory.summaries
+    'ai.memory.summaries.get': ({ sessionId }) => client.memory.summaries.get(sessionId),
+    'ai.memory.summaries.put': (summary) => client.memory.summaries.put(summary),
 
-      // asr
-      'ai.asr.list': () => client.asr.list(),
-      'ai.asr.transcribe': async ({ pcm, opts: o }) =>
-        withoutRaw(await client.asr.transcribe(pcm, o)),
+    // asr
+    'ai.asr.list': () => client.asr.list(),
+    'ai.asr.transcribe': async ({ pcm, opts: o }) =>
+      withoutRaw(await client.asr.transcribe(pcm, o)),
 
-      // tts
-      'ai.tts.list': () => client.tts.list(),
-      'ai.tts.listVoices': () => client.tts.listVoices(),
-      'ai.tts.synth': ({ text, opts: o }) => client.tts.synth(text, o),
-      'ai.tts.stream': ({ text, opts: o }) => batchTextChunks(client.tts.stream(text, o), batchMs),
-      'ai.tts.stop': ({ reqId }) => client.tts.stop(reqId),
+    // tts
+    'ai.tts.list': () => client.tts.list(),
+    'ai.tts.listVoices': () => client.tts.listVoices(),
+    'ai.tts.synth': ({ text, opts: o }) => client.tts.synth(text, o),
+    'ai.tts.stream': ({ text, opts: o }) => batchTextChunks(client.tts.stream(text, o), batchMs),
+    'ai.tts.stop': ({ reqId }) => client.tts.stop(reqId),
 
-      // avatar
-      'ai.avatar.isAvailable': () => client.avatar.isAvailable(),
-      'ai.avatar.playMotion': ({ group, index }) => client.avatar.playMotion(group, index),
-      'ai.avatar.setExpression': ({ name }) => client.avatar.setExpression(name),
-      'ai.avatar.driveLipSync': ({ rms }) => client.avatar.driveLipSync(rms),
-    },
-    {
-      // 门面抛出的 AIClientError 把 code / retryable / hint 编在 message 里（`[CODE|1] …`），
-      // 以 INTERNAL 的 message 原样传给视图，由 ai-sdk-client 的 SDKError.fromIpc 还原
-      logger: { warn: (msg, data) => logger.warn(msg, data) },
-    },
-  );
+    // avatar
+    'ai.avatar.isAvailable': () => client.avatar.isAvailable(),
+    'ai.avatar.playMotion': ({ group, index }) => client.avatar.playMotion(group, index),
+    'ai.avatar.setExpression': ({ name }) => client.avatar.setExpression(name),
+    'ai.avatar.driveLipSync': ({ rms }) => client.avatar.driveLipSync(rms),
+  };
 
   const disposers: Array<() => void> = [];
-  if (opts.publishEvents !== false) {
+  const bindEvents = (publisher: EventPublisher<AppContract>): (() => void) => {
+    if (opts.publishEvents === false) return () => undefined;
+    const offs: Array<() => void> = [];
     for (const [evt, event] of Object.entries(AI_EVENTS) as Array<
       [AiClientEventName, (typeof AI_EVENTS)[AiClientEventName]]
     >) {
       const off = client.on(evt as AIClientEvent, (data: unknown) => {
         try {
-          router.events.publish(event, data as never);
+          publisher.publish(event, data as never);
         } catch (err) {
           logger.warn(`publish ${event} failed`, err);
         }
         // 埋点在推送之后，避免副作用阻塞 IPC
         bridge?.notify(evt as AIClientEvent, data as never);
       });
+      offs.push(off);
       disposers.push(off);
     }
-  }
+    return () => {
+      for (const off of offs.splice(0)) {
+        try {
+          off();
+        } catch (err) {
+          logger.warn('event disposer threw', err);
+        }
+      }
+    };
+  };
 
   return {
-    router,
+    handlers,
+    bindEvents,
     dispose() {
       for (const off of disposers.splice(0)) {
         try {
@@ -348,6 +384,49 @@ export function createAiRouter(opts: AiRouterOptions): AiRouterHandle {
       bridge?.dispose();
     },
   };
+}
+
+/**
+ * 只有 AI 门面的 router（测试与无界面宿主用）；契约里其余过程由 `extra.handlers` 补，缺的以 NOT_FOUND 失败。
+ * Electron 宿主改用 `createAiHandlers` + 宿主的 `createAppRouter`（electron/src/host/contract）。
+ */
+export function createAiRouter(
+  opts: AiRouterOptions,
+  extra: AiRouterExtraOptions = {},
+): AiRouterHandle {
+  const ai = createAiHandlers(opts);
+  const logger = opts.logger ?? ConsoleRuntimeLogger;
+  const router = implement(
+    appContract,
+    { ...missingHandlers(), ...extra.handlers, ...ai.handlers } as Handlers<AppContract>,
+    {
+      middleware: extra.middleware,
+      // 门面抛出的 AIClientError 把 code / retryable / hint 编在 message 里（`[CODE|1] …`），
+      // 以 INTERNAL 的 message 原样传给视图，由 ai-sdk-client 的 SDKError.fromIpc 还原
+      logger: { warn: (msg, data) => logger.warn(msg, data) },
+    },
+  );
+  ai.bindEvents(router.events);
+  return { router, dispose: () => ai.dispose() };
+}
+
+/** 契约里每个非 `ai.*` 过程的桩：调用时以 NOT_FOUND 失败 */
+export function missingHandlers(): NonAiHandlers {
+  const table: Record<string, unknown> = {};
+  for (const [name, def] of Object.entries(appContract.procedures)) {
+    if (name.startsWith('ai.')) continue;
+    const fail = (): never => {
+      throw new ContractError('NOT_FOUND', `Procedure '${name}' is not available`);
+    };
+    table[name] =
+      (def as { kind: string }).kind === 'stream'
+        ? // eslint-disable-next-line require-yield -- 第一次 next() 就失败
+          async function* () {
+            fail();
+          }
+        : fail;
+  }
+  return table as NonAiHandlers;
 }
 
 /** UserProfile 是 interface：顶层 loose schema 需要索引签名，这里只放宽这一层 */

@@ -7,10 +7,18 @@
  * 与真实传输一样不会同步重入。
  */
 
+import { createClient, type Client } from '../client';
+import type { AnyContract } from '../contract';
 import { ContractError } from '../errors';
 import { createFrameClientTransport, type FrameClientTransport } from '../frameClient';
 import { findUnserializable, type ClientFrame, type ServerFrame } from '../protocol';
-import type { CallerContext, Router } from '../router';
+import {
+  implement,
+  type CallerContext,
+  type Handlers,
+  type ImplementOptions,
+  type Router,
+} from '../router';
 import { createServerSession, type ServerSession } from '../server';
 import type { ContractLogger, ServerTransport } from '../transport';
 
@@ -149,4 +157,71 @@ export function createInProcessTransport(
 ): { server: InProcessServer; client: InProcessClient } {
   const server = createInProcessServer(options);
   return { server, client: server.connect(options.caller) };
+}
+
+// ---------------------------------------------------------------------------
+// 局部实现：只实现测试关心的过程
+// ---------------------------------------------------------------------------
+
+/** 契约里没有处理函数的过程：调用时以 NOT_FOUND 失败（与「旧内核没有这个过程」一致） */
+export function withMissingHandlers<C extends AnyContract>(
+  contract: C,
+  handlers: Partial<Handlers<C>>,
+): Handlers<C> {
+  const table: Record<string, unknown> = { ...handlers };
+  for (const name of Object.keys(contract.procedures)) {
+    if (typeof table[name] === 'function') continue;
+    const fail = (): never => {
+      throw new ContractError('NOT_FOUND', `Procedure '${name}' is not implemented here`);
+    };
+    table[name] =
+      contract.procedures[name]?.kind === 'stream'
+        ? // eslint-disable-next-line require-yield -- 第一次 next() 就失败
+          async function* () {
+            fail();
+          }
+        : fail;
+  }
+  return table as Handlers<C>;
+}
+
+export interface TestClientOptions extends InProcessOptions {
+  /** 调用者身份（默认 TEST_CALLER）；测 surfaces / dangerous 时改成 `{ surface: 'mascot', trusted: true }` 等 */
+  caller?: CallerContext;
+  implement?: ImplementOptions;
+}
+
+export interface TestClient<C extends AnyContract> {
+  api: Client<C>;
+  router: Router<C>;
+  /** 断开并停止服务 */
+  close(): void;
+}
+
+/**
+ * 视图 / 内核单元测试用：只给出关心的处理函数，得到走完整线协议（strict 序列化）的类型化 api。
+ *
+ *   const { api, router, close } = createTestClient(appContract, {
+ *     'theme.get': () => ({ pref: 'ink', resolved: 'ink' }),
+ *   });
+ *   router.events.publish('theme.changed', …);   // 推事件给 api.on 的订阅者
+ */
+export function createTestClient<C extends AnyContract>(
+  contract: C,
+  handlers: Partial<Handlers<C>>,
+  options: TestClientOptions = {},
+): TestClient<C> {
+  const router = implement(contract, withMissingHandlers(contract, handlers), options.implement);
+  const server = createInProcessServer(options);
+  const stop = server.serve(router as unknown as Router);
+  const transport = server.connect(options.caller);
+  const api = createClient(contract, transport, { handshake: 'off' });
+  return {
+    api,
+    router,
+    close() {
+      transport.disconnect();
+      stop();
+    },
+  };
 }

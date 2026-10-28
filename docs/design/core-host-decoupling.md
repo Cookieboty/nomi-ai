@@ -546,7 +546,7 @@ renderer 只保留：透明窗口壳、气泡、工具栏、右键菜单，以�
 > - 缺的端口：系统通知（notifications）与图片处理（image：解码 / 缩放），补上后 `DesktopService` / `ChatBackgroundService` 才能出白名单；
 > - `security/secretStorage`、`utils/log`、`utils/privateFile` 仍直接用 `safeStorage` / `app`，旧 IPC 注册层与 `sandbox/AgentBrowser`、`utils/windowBounds` 按原计划在 P1b / P3 处理。
 >
-> P1b、搬目录（P3）尚未开始。
+> 搬目录（P3）尚未开始。
 >
 > C1 已完成（分支 `refactor/c1-characters`）：官方角色是普通角色包 `characters/nomi`，构建期由
 > `CHARACTER_PACK`（缺省为它）选包，Vite 插件直接读包、不改源树；Scheme A 原地覆盖与两份
@@ -561,6 +561,12 @@ renderer 只保留：透明窗口壳、气泡、工具栏、右键菜单，以�
 > - `examples/static-demo.pack` 仍是旧布局（`layout/hitboxes.json`、`copy/`），靠迁移读取；
 > - `character-pack:get-active` 的返回多了 `locales`，内置包也会填 `id` / `mode` / `displayName` /
 >   `locales` 等身份字段；P1b 把这些同步进 `contract` 的通道定义。
+
+> P1b 基础已完成（分支 `refactor/p1b-contract`）：应用契约按域拆成五个文件（`contract/src/app/{media,shell,coding,knowledge,mascot}.ts`，
+> 版本 1.1）；宿主侧 `electron/src/host/contract/` 组装 router（`createAppRouter`：AI 门面 + 五个域，AI runtime 失败时
+> 其余域照常可用）、事件桥（`createContractEventBridge`：服务照旧 `events.publish(<旧通道>)`，桥接表里的通道同时发成契约事件）
+> 与服务表（`ContractServices`，组合根创建服务时登记）；视图各有唯一的 `services/api.ts`（`createAppClient()`，与
+> `ClientAIClient` 共用窗口共享的契约传输，一个窗口一个会话）。各域按下文「P1b 实施约定」并行迁移。
 
 | 阶段 | 内容                                                                                                                                                                | 完成标准                                               |
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
@@ -579,6 +585,58 @@ renderer 只保留：透明窗口壳、气泡、工具栏、右键菜单，以�
 - **C 线可以和 P 线交错**：C1 不依赖 P 线；C2 依赖 P1（avatar 事件要走契约）；C3 依赖 C2。
 - 每个阶段都能单独合并、单独发版，中途停下也不会留下半成品状态。
 - 用户可见的行为变化（工具改名、角色文案位置）需要 changeset；迁移本身没有用户可见变化，不加。
+
+### 12.1 P1b 实施约定
+
+五个域并行迁移，**每个文件只属于一个域**：
+
+| 域  | 文件名（`<f>`） | 命名空间                                                                                                          | 主进程                                                                                                                                                        | 视图                                                                                                                                                                                                                                                                                                   |
+| --- | --------------- | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| D1  | `media`         | `voice` `tts` `desktop` `screen` `nav`                                                                            | `voice/` `tts/` `desktop/` `screen/` `handlers/ipc/{ConfigIpcHandler,VoiceIpcHandler}`                                                                        | `voice/src/bridge.ts`；ai-chat `desktopClient` `ttsConfigClient` `replySpeech` `screenClient`；renderer `DesktopConfirm` `ReminderCard` `MascotAudioBridge` `useFileDropSummarize` `mascot/tts/*` `mascot/voice/promptClips` `mascot/openVoiceSettings` `services/VoiceService`                        |
+| D2  | `shell`         | `theme` `locale` `startup` `onboarding` `providers` `gateway` `usage` `quality` `updates` `diagnostics` `appIcon` | `theme/` `i18n/` `startup/` `onboarding/` `gateway/` `usage/` `diagnostics/` `services/UpdateService` `core/appIcon` ai-runtime `providers/ProviderIpcServer` | `ui/src/{theme,i18n}.ts`；ai-chat `startupClient` `Onboarding/client` `providerClient` `gatewayClient` `terminalCommandsClient` `usageClient` `qualityClient` `diagnosticsClient` `nomiModel` `ReleaseNotesModal` `RestartUpdateButton` `UpdateSettings` `AppIconSettings`；renderer `mascot/presence` |
+| D3  | `coding`        | `harness` `cli` `cliAccount` `cliUpdate` `delegate` `agents` `history`                                            | `cli/` `agents/`                                                                                                                                              | ai-chat `harnessClient` `cliPluginClient` `cliAccountClient` `cliUpdateClient` `delegateClient` `agentsClient` `historyClient`                                                                                                                                                                         |
+| D4  | `knowledge`     | `kb` `mem` `sched` `local` `hub` `ext`                                                                            | `knowledge/` `memory/` `schedule/` `local/` `extensions/`                                                                                                     | ai-chat `kbClient` `memClient` `schedClient` `localClient` `extClient`                                                                                                                                                                                                                                 |
+| D5  | `mascot`        | `mascot` `character` `persona` `island` `chatBg` `files` `window`                                                 | `mascot/` `island/` `chat/` `character/` `persona/` `ai/mascotCommand` `handlers/ipc/WindowIpcHandler`                                                        | renderer 其余用 `electronAPI` 的文件（`mascot/*` `SpriteMascot` `ToolBar` `MessageBubble` `utils/cache` `ai/*`）；ai-chat `IPCClient`（人设）`chatBackground` `fileAttachments` `Onboarding/artUrls` `IslandSettings` `MascotSizeSettings`、`main.tsx` 里读 `platform` 的那一行                        |
+
+每个域可以改的：`contract/src/app/<f>.ts`（可另建 `contract/src/app/<f>/*.ts`）、`electron/src/host/contract/<f>.ts`
+（可另建 `host/contract/<f>/*.ts`）、两个视图的 `services/hostBackends/<f>.ts`、上表本域的主进程与视图文件、
+它们的测试。**不改**：`contract/src/app/index.ts`、`host/contract/{index,types,services,eventBridge}.ts`、视图的
+`services/api.ts`、`core/Application.ts`、`ai/AIRuntimeBoot.ts`、preload、`packages/types` 的 `IpcApi`、
+`security/`、eslint 配置与 `scripts/eslint/`、`e2e*/`、package.json / 锁文件、文档与 changeset。
+
+1. **命名**：过程与事件都是 `<命名空间>.<方法>`，驼峰（`ai:kb:add-folder` → `kb.addFolder`，
+   `ai:theme:changed` → 事件 `theme.changed`）；不用 `ai.` 前缀（留给 AI 门面），不用 `meta` / `on`。
+2. **schema**：照现有 TS 类型写 zod；入参是具名对象（位置参数 `(id, enabled)` → `{ id, enabled }`）或
+   `z.void()`；字段多、会演进的返回值与事件用 `z.looseObject`（未知字段透传，与原 IPC 一致），不用 `z.any()`；
+   只用可序列化值（JSON + `Uint8Array`；时间用数字，不传 `Date` / `Map` / class / 函数）。
+3. **kind**：只读用 query，有副作用用 mutation，原来按请求窗口推进度的可以改成 stream；没有同步调用。
+4. **错误**：不再返回 `{ __error }` 信封，处理函数直接抛；需要视图走控制流的业务码在 `<f>Errors` 里声明
+   （UPPER_SNAKE_CASE），用 `ctx.fail(code, message)`；服务缺失用 `need()`（`UNAVAILABLE`）。
+5. **安全**：原来只在一个 preload 里暴露的能力写 `surfaces`（看板娘 `['mascot']`、对话窗口 `['chat']`；`aiIPC`
+   两个窗口都有，不写）；回答用户确认、授予权限的过程写 `dangerous: true`（如 `desktop:confirm-answer`、
+   `ai:harness:reply-permission`、`ai:desktop:grant`）。判定由契约内置守卫做，审计由 `auditMiddleware` 记。
+6. **处理函数**：`create<F>Handlers(deps)` 每个过程一两行，委派给服务的公开方法；服务在调用时读
+   （`need(deps.services.kb, 'kb')` 或已有的 `getXxxService()`）；需要发起窗口的用 `callerWebContentsId(ctx)`。
+   **不删** `registerIpc()` 与旧处理器（e2e-headed 还在用，收尾批次删）；逻辑在 `registerIpc` 闭包里的，先抽成
+   服务的公开方法，新旧两边共用。
+7. **事件**：服务照旧 `events.publish(<旧通道>, payload)`，在 `<f>EventBridge` 里登记 `'<旧通道>': '<事件>'`
+   （payload 要变形就写 `{ event, map }`）。直接 `webContents.send` 的改成经 `events.publish(…, { surface })`
+   再桥接。契约事件只推给订阅了的窗口。
+8. **视图**：本域的客户端模块内部改用 `import { api, hasTransport } from '…/services/api'`（`api.kb.addFolder({…})`、
+   `api.on('kb.changed', fn)`），没有传输时走原来的本地退路；**导出的函数名、签名与返回形状不变**（别的域在用）。
+   共享包（`ui`、`voice`）不 import 契约：在包里加注入点（`setXxxBackend`），在 `hostBackends/<f>.ts` 里接上。
+   本域文件里用到别的域的能力：对方有客户端模块就经它调用，没有就保持原样并在汇报里列出，由收尾批次处理。
+9. **测试**：契约 `contract/tests/<f>.test.ts`（过程名 / kind / surfaces / dangerous 快照，schema 接受与拒绝）；
+   宿主 `electron/tests/unit/host/contract/<f>.test.ts`（`createContractServices()` + 假服务 →
+   `createAppRouter` 或 `createTestClient`，断言委派、FORBIDDEN、事件桥）；视图把 `window.aiIPC` 的 mock 换成
+   `vi.mock('…/services/api')`，返回 `@nomi-ai/contract/testing` 的 `createTestClient(appContract, {…}).api`。
+10. **构建**：视图与主进程读契约的 dist。改完契约后重建，并且与依赖它的类型检查一起放在锁里，避免并行时 tsup 清空
+    dist：`node scripts/with-lock.mjs contract pnpm --filter @nomi-ai/contract build`、
+    `node scripts/with-lock.mjs contract pnpm --filter @nomi-ai/electron typecheck`。
+
+收尾批次（不属于任何域）：删 preload 里的 `aiIPC` / `electronAPI` 与 `packages/types` 的 `IpcApi`、各服务的
+`registerIpc` 与旧处理器（及 `ProviderIpcServer` / `CapabilityIpcServer` / `AiChatCompat`）、事件桥里旧通道的广播；
+e2e-headed 改走契约；lint 禁止视图访问 `window.aiIPC` / `window.electronAPI`（§11.1）。
 
 ## 13. 风险、取舍与待决
 

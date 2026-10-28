@@ -6,12 +6,15 @@ import ReactDOM from 'react-dom/client';
 import '@nomi-ai/ui/styles.css';
 import '@nomi-ai/voice/styles.css';
 import App from './App';
+import { installHostBackends } from './services/api';
 import { initChatBackground } from './services/chatBackground';
 import { dropRetiredPrefs } from './services/chatPrefs';
 
 const log = createLogger('main');
 
 // 主题（默认 Sunset Orange；设置 → 通用 → 主题）、界面语言、聊天主面板背景
+// 契约接到共享包（ui / voice）的注入点上：须早于 initTheme / initLocale
+installHostBackends();
 initTheme();
 initLocale();
 // 原生 title 悬停提示统一换成自绘提示

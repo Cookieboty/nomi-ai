@@ -8,8 +8,11 @@ import '@nomi-ai/voice/styles.css';
 import { WaifuAIRoot } from './ai';
 import App from './App';
 import { initMascotPresence } from './mascot/presence';
+import { installHostBackends } from './services/api';
 
 // 主题与界面语言（设置 → 通用）
+// 契约接到共享包（ui / voice）的注入点上：须早于 initTheme / initLocale
+installHostBackends();
 initTheme();
 initLocale();
 // 原生 title 悬停提示统一换成自绘提示

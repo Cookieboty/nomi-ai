@@ -53,6 +53,14 @@ import {
   registerTerminalIpc,
 } from '../gateway/TerminalCommands';
 import { IpcRegistry } from '../handlers/ipc/IpcRegistry';
+import {
+  APP_EVENT_BRIDGE,
+  createAppRouter,
+  createContractEventBridge,
+  createContractServices,
+  type ContractEventBridge,
+} from '../host/contract';
+import { serveContractOverIpc } from '../host/contractIpc';
 import { createElectronAppEvents } from '../host/electronAppEvents';
 import { createElectronPorts, lazyWindowHost } from '../host/electronPorts';
 import { t as tr } from '../i18n';
@@ -144,6 +152,10 @@ export class Application implements IApplication {
   /** 宿主端口与界面事件：新服务经构造参数拿到它们，不再直接 import electron（设计稿 §7.1） */
   private ports!: HostPorts;
   private events!: AppEvents;
+  /** = events：应用事件总线接上契约事件桥（P1b 迁移期间旧通道与契约事件并行） */
+  private contractEvents!: ContractEventBridge;
+  /** 契约处理函数在调用时读取的服务实例（host/contract/services.ts），创建服务时登记 */
+  private readonly contractServices = createContractServices();
   private errorHandler!: GlobalErrorHandler;
   private ipcRegistry!: IpcRegistry;
   private bootstrapManager!: BootstrapManager;
@@ -223,11 +235,18 @@ export class Application implements IApplication {
       perfMark('app-ready');
 
       // 界面语言（默认跟随系统：zh* → 中文，其余 → English）；须早于托盘 / 通知等主进程文案
-      new LocaleService({
+      const locale = new LocaleService({
         file: path.join(this.ports.paths.userData(), 'locale.json'),
         ports: this.ports,
         events: this.events,
-      }).registerIpc();
+      });
+      locale.registerIpc();
+      // 契约处理函数在调用时读取的服务实例（host/contract/services.ts）
+      const services = this.contractServices;
+      services.windowManager = this.windowManager;
+      services.config = this.configService;
+      services.ipcRegistry = this.ipcRegistry;
+      services.locale = locale;
       // 应用图标变体（窗口 / 任务栏 / Dock / 托盘 / 通知）
       initAppIcon(path.join(app.getPath('userData'), 'app-icon.json'));
 
@@ -253,17 +272,20 @@ export class Application implements IApplication {
       const characterPack = getCharacterPackService({ ports: this.ports });
       characterPack.init(protocol, this.logger);
       characterPack.registerIpc();
+      services.characterPack = characterPack;
       // 角色人设唯一来源（当前角色包 → 内置角色包），须早于 AI runtime 与界面窗口
       this.startPersona(characterPack);
 
       // Auto-update (electron-updater → GitHub Releases). Packaged builds only.
       const updates = getUpdateService(this.logger, { ports: this.ports, events: this.events });
       updates.registerIpc();
+      services.updates = updates;
       updates.start();
 
       // 桌面能力（文件工具的权限 / 审计 / 撤销）：先于 AI runtime，插件注册工具时要用
       const desktop = getDesktopService(this.logger, { ports: this.ports, events: this.events });
       desktop.registerIpc();
+      services.desktop = desktop;
       desktop.attachWindows({
         main: () => this.windowManager.getMainWindow(),
         openChat: () => this.windowManager.createAiChatWindow(),
@@ -292,6 +314,7 @@ export class Application implements IApplication {
         },
       });
       kb.registerIpc();
+      services.kb = kb;
       this.lifecycle.register({ name: 'knowledge', stop: () => kb.dispose() });
       this.lifecycle.register({ name: 'reminders', stop: () => desktop.reminders.stop() });
 
@@ -316,6 +339,7 @@ export class Application implements IApplication {
         facade: () => (this.aiRuntime?.client.memory as never) ?? null,
       });
       mem.registerIpc();
+      services.mem = mem;
 
       // 主动日程：免打扰 / 系统通知策略、定时任务（每日简报）、主动聊天（默认关闭）
       const sched = initSchedulerService({
@@ -338,6 +362,7 @@ export class Application implements IApplication {
         openChat: () => void this.windowManager.createAiChatWindow(),
       });
       sched.registerIpc();
+      services.sched = sched;
 
       // 图片发送前的云端告知 / 仅本地检查；顺带清掉旧版本的屏幕记忆目录
       const scr = initScreenService({
@@ -346,6 +371,7 @@ export class Application implements IApplication {
         desktop,
       });
       scr.registerIpc();
+      services.screen = scr;
 
       // 扩展：GUI 管理的 MCP 服务器 + SKILL.md 技能包
       const ext = initExtensionsService({
@@ -357,6 +383,7 @@ export class Application implements IApplication {
         events: this.events,
       });
       ext.registerIpc();
+      services.ext = ext;
 
       // 本地数据导出；本地模型管理（llama.cpp + Ollama）
       const hub = initLocalHubService({
@@ -367,6 +394,7 @@ export class Application implements IApplication {
         ports: this.ports,
       });
       hub.registerIpc();
+      services.localHub = hub;
       const localLlm = initLocalModelService({
         root: path.join(app.getPath('userData'), 'local'),
         logger: this.logger as never,
@@ -375,6 +403,7 @@ export class Application implements IApplication {
         events: this.events,
       });
       localLlm.registerIpc();
+      services.localModels = localLlm;
 
       // 界面主题（设置 → 通用 → 主题），对话窗口与看板娘同步
       const themes = new ThemeService({
@@ -383,6 +412,7 @@ export class Application implements IApplication {
         events: this.events,
       });
       themes.registerIpc();
+      services.theme = themes;
       // 图片主题背景（设置 → 通用 → 主题 → 图片主题）
       const chatBg = new ChatBackgroundService({
         file: path.join(app.getPath('userData'), 'chat-background.json'),
@@ -395,6 +425,7 @@ export class Application implements IApplication {
         events: this.events,
       });
       chatBg.registerIpc();
+      services.chatBg = chatBg;
       // 对话窗口一体化标题栏跟随主题（窗口底色 + Windows / Linux 原生按钮配色）
       this.windowManager.chromeTheme = () => themes.get().resolved;
       themes.onChange((st) => {
@@ -411,6 +442,7 @@ export class Application implements IApplication {
         events: this.events,
       });
       onboarding.registerIpc();
+      services.onboarding = onboarding;
 
       // 启动后默认界面（看板娘 / 软件主界面）：设置与引导里都能改，默认看板娘（历史行为）
       const startup = new StartupService({
@@ -418,6 +450,7 @@ export class Application implements IApplication {
         events: this.events,
       });
       startup.registerIpc();
+      services.startup = startup;
       this.startupService = startup;
       // 看板娘显示开关（工具栏「关闭看板娘」/ 设置里重新打开）：立即显隐，隐藏时静音
       this.windowManager.mascotHidden = () => !startup.get().showMascot;
@@ -454,6 +487,7 @@ export class Application implements IApplication {
         logger: this.logger as never,
       });
       island.registerIpc();
+      services.island = island;
 
       // 用量与计费：Nomi 对话 / 本地路由 / 编程工具会话日志，全部只存本机
       const usage = initUsageService({
@@ -490,6 +524,7 @@ export class Application implements IApplication {
         },
       });
       usage.registerIpc();
+      services.usage = usage;
       usage.start();
 
       const agents = initAgentProgressService({
@@ -510,6 +545,7 @@ export class Application implements IApplication {
         },
       });
       agents.registerIpc();
+      services.agents = agents;
       if (agents.state().settings.enabled) agents.start();
 
       // 编程助手 CLI 接入 P0：版本更新 / 供应商桥 / 对话后端接管
@@ -528,6 +564,7 @@ export class Application implements IApplication {
         onUpdated: () => void cliPlugins.refreshVersions(),
       });
       cliUpdate.registerIpc();
+      services.cliUpdate = cliUpdate;
       // 编程助手插件宿主（docs/design/cli-plugin-architecture.md §5、§7）：清单校验、有效能力、注册表快照
       const cliPlugins = initCliPluginHost({
         root: path.join(app.getPath('userData'), 'cli-plugins'),
@@ -556,6 +593,7 @@ export class Application implements IApplication {
         onExternalRemoved: (id) => harness.externalRemoved(id),
       });
       cliPlugins.registerIpc();
+      services.cliPlugins = cliPlugins;
       void cliPlugins.start();
       // 终端里升级了 CLI 也要发现：每 30 分钟重读一次版本（每个 CLI 起一次 --version）
       const versionTimer = setInterval(() => void cliPlugins.refreshVersions(), 30 * 60_000);
@@ -614,6 +652,7 @@ export class Application implements IApplication {
         },
       });
       quality.registerIpc();
+      services.quality = quality;
       this.lifecycle.register({ name: 'model-quality', stop: () => quality.dispose() });
       // 网关正文追踪目录（跟随诊断日志开关）；旧「最近请求」导入模型质量账本一次后删除
       const gatewayRequests = initGatewayRequestLog({
@@ -623,6 +662,7 @@ export class Application implements IApplication {
         importLegacy: (records) => quality.importLegacy(records),
       });
       diagnostics.registerIpc();
+      services.diagnostics = diagnostics;
       this.lifecycle.register({ name: 'gateway-requests', stop: () => gatewayRequests.dispose() });
       const gateway = initGatewayService({
         root: path.join(app.getPath('userData'), 'gateway'),
@@ -668,6 +708,7 @@ export class Application implements IApplication {
         broadcast: (channel, payload) => this.events.publish(channel, payload),
       });
       gateway.registerIpc();
+      services.gateway = gateway;
       // 先迁移（读旧存储里「启用中」的标记），再撤销旧版本写进全局配置的东西（会清掉这些标记）
       gateway.init();
       // 启动时自动同步模型数据（用户可在「模型」页关闭；距上次核对不足 12 小时不联网）
@@ -679,6 +720,7 @@ export class Application implements IApplication {
         logger: this.logger as never,
       });
       registerTerminalIpc(terminal);
+      services.terminal = terminal;
       terminal.refresh();
       gateway.onChange(() => terminal.refresh());
       try {
@@ -763,6 +805,7 @@ export class Application implements IApplication {
         },
       });
       accounts.registerIpc();
+      services.accounts = accounts;
       const accountLogin = new AccountLogin({
         accounts,
         logger: this.logger as never,
@@ -770,8 +813,10 @@ export class Application implements IApplication {
         ports: this.ports,
       });
       accountLogin.registerIpc();
+      services.accountLogin = accountLogin;
       this.lifecycle.register({ name: 'cli-account-login', stop: () => accountLogin.dispose() });
       harness.registerIpc();
+      services.harness = harness;
       this.lifecycle.register({ name: 'cli-harness', stop: () => harness.dispose() });
       // Nomi 对话的权限模式（输入栏的权限按钮）作用在 Nomi 自己的工具上；「完全放开」不适用
       getDesktopService(this.logger).broker.permissionMode = () => {
@@ -779,14 +824,16 @@ export class Application implements IApplication {
         return m === 'bypass' ? 'acceptEdits' : m;
       };
       // Nomi 把编程助手当子代理调用（工具 delegate_to_cli、/cli、设置 →「编程助手」→「委派」）
-      initDelegateService({
+      const delegate = initDelegateService({
         root: path.join(app.getPath('userData'), 'delegate'),
         harness,
         desktop: getDesktopService(this.logger),
         gateway: harnessGateway(gateway),
         events: this.events,
-      }).registerIpc();
-      initSessionHistoryService({
+      });
+      delegate.registerIpc();
+      services.delegate = delegate;
+      const history = initSessionHistoryService({
         logger: this.logger as never,
         openKeys: () => harness.openSessionKeys(),
         openTitle: (backend, sessionId, title) =>
@@ -811,7 +858,9 @@ export class Application implements IApplication {
           if (!a) return undefined;
           return accounts.list(backend).length > 1 ? a : { id: a.id };
         },
-      }).registerIpc();
+      });
+      history.registerIpc();
+      services.history = history;
       // 监视器汇总 Nomi 标签；任一标签一轮结束 → 看板娘 / 灵动岛
       agents.attachHarness({
         // 外部插件（§5.9）没有进度监视能力：不进监视器
@@ -836,6 +885,9 @@ export class Application implements IApplication {
 
       // 启动 AI runtime（在窗口创建之前，preload 到 renderer 时 IPC 通道已就绪）
       await this.startAIRuntime();
+      services.aiRuntime = this.aiRuntime;
+      // 应用契约（AI 门面 + P1b 各域）经 window.nomiTransport 暴露给视图；AI runtime 失败时其余域照常可用
+      this.startContract();
       if (this.aiRuntime) {
         const rt = this.aiRuntime;
         desktop.attachRuntime({
@@ -864,6 +916,7 @@ export class Application implements IApplication {
         events: this.events,
       });
       voice.registerIpc();
+      services.voice = voice;
       // 麦克风：只允许本应用窗口申请「音频」采集（不允许摄像头 / 屏幕）；
       // 剪贴板只放行写入（复制按钮用 navigator.clipboard.writeText），读取仍拒绝；
       // 其余权限（geolocation / notifications / HID / MIDI / pointerLock 等）一律拒绝。
@@ -930,6 +983,7 @@ export class Application implements IApplication {
       logger,
     });
     setPersonaService(persona);
+    this.contractServices.persona = persona;
     characterPack.onChange(() => persona.reload());
     onLocaleChange(() => persona.localeChanged());
     registerPersonaIpc(persona, {
@@ -984,6 +1038,39 @@ export class Application implements IApplication {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error('AI runtime 启动失败', { error: errorMessage });
     }
+  }
+
+  /**
+   * 组装应用契约的 router（host/contract）并挂到 Electron IPC 传输上；事件桥从此把旧通道同时发成契约事件。
+   * 窗口导航 / 销毁时传输层断开该窗口的会话（host/contractIpc.ts）。
+   */
+  private startContract(): void {
+    const app = createAppRouter({
+      deps: {
+        services: this.contractServices,
+        ports: this.ports,
+        events: this.events,
+        logger: this.logger,
+      },
+      ai: this.aiRuntime?.ai,
+    });
+    const detach = this.contractEvents.attach(app.router.events);
+    const ipc = serveContractOverIpc({
+      router: app.router,
+      logger: { warn: (msg, data) => this.logger.warn(msg, data as Record<string, unknown>) },
+    });
+    this.logger.info('应用契约已就绪', {
+      procedures: Object.keys(app.router.contract.procedures).length,
+      ai: Boolean(this.aiRuntime),
+    });
+    this.lifecycle.register({
+      name: 'contract',
+      stop: () => {
+        ipc.stop();
+        detach();
+        app.dispose();
+      },
+    });
   }
 
   private openMainInterface(plan?: Pick<StartupPlan, 'activateMain'>): void {
@@ -1141,7 +1228,8 @@ export class Application implements IApplication {
       return new LoggerService({ ports: this.ports });
     });
     this.logger = this.container.get<LoggerService>('logger');
-    this.container.registerSingleton(APP_EVENTS, () =>
+    // 旧通道照常按窗口广播；在桥接表里的通道同时发成契约事件（router 建好后 attach，见 startContract）
+    this.contractEvents = createContractEventBridge(
       createElectronAppEvents({
         windows: {
           getMainWindow: () => windowManager()?.getMainWindow() ?? null,
@@ -1149,7 +1237,10 @@ export class Application implements IApplication {
         },
         logger: this.logger,
       }),
+      APP_EVENT_BRIDGE,
+      this.logger,
     );
+    this.container.registerSingleton(APP_EVENTS, () => this.contractEvents);
     this.events = this.container.get(APP_EVENTS);
 
     // 注册配置服务（单例）

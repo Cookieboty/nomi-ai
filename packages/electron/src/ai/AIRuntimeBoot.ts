@@ -4,7 +4,8 @@
  * 责任：
  * 1. 装配 `@nomi-ai/ai-runtime` 单例（Booter + Lifecycle + Logger）；
  * 2. 启动 IgPluginHost + AI SDK providers，得到 `AIClient`；
- * 3. 用应用契约实现 AI 门面（`createAiRouter`：过程 + 事件），经宿主的契约 IPC 传输
+ * 3. 用应用契约实现 AI 门面（`createAiHandlers`：`ai.*` 处理函数 + 事件），交给宿主与 P1b 各域的
+ *    处理函数一起组装成 router（host/contract/index.ts 的 `createAppRouter`），由组合根经契约 IPC 传输
  *    （host/contractIpc.ts，preload 的 `window.nomiTransport`）暴露给视图；另挂
  *    `CapabilityIpcServer`（seams 通道）、`AiChatCompat`（旧通道兼容）；
  * 4. 可选：把遗留 `AdvancedTTSEngine` 注册为 `electron-native` TtsProvider（P8-5 尾巴）；
@@ -17,7 +18,7 @@
 import {
   AiChatCompat,
   CapabilityIpcServer,
-  createAiRouter,
+  createAiHandlers,
   GATEWAY_PROVIDER_ID,
   ProviderIpcServer,
   ProviderService,
@@ -30,6 +31,7 @@ import {
   createGuardedIpcAdapter,
   createElectronLifecycle,
   runtime,
+  type AiHandlersHandle,
   type Booter,
   type RoutedLLMRegistry,
   type RuntimeLogger,
@@ -42,7 +44,6 @@ import { app, safeStorage } from 'electron';
 import { desktopIgPlugins } from '../desktop/plugin';
 import { getExtensionsService } from '../extensions/ExtensionsService';
 import { getGatewayService } from '../gateway/GatewayService';
-import { serveContractOverIpc } from '../host/contractIpc';
 import { createPersonaIdentityPlugin } from '../persona/igPlugin';
 import { getPersonaService } from '../persona/PersonaService';
 import { isTrustedAiSender } from '../security/ipcSenderGuard';
@@ -109,6 +110,8 @@ export interface AIRuntimeBootHandle {
     /** 视图可调用的契约过程（`ai.*`） */
     business: readonly string[];
   };
+  /** AI 门面的契约处理函数；宿主组装 router 时传给 `createAppRouter({ ai })` */
+  ai: AiHandlersHandle;
   dispose(): Promise<void>;
 }
 
@@ -234,19 +237,15 @@ export async function startAIRuntime(
     isTrustedAiSender(event),
   );
 
-  // AI 门面：应用契约（ai.* 过程 + 事件）。调用者判定（sender 白名单 + surface）在传输层，
-  // dangerous 过程只接受受信调用者；窗口导航 / 销毁时断开它的会话
-  const ai = createAiRouter({
+  // AI 门面：应用契约的 ai.* 处理函数 + 事件。router 与传输由组合根组装（host/contract），
+  // 调用者判定（sender 白名单 + surface）在传输层，dangerous 过程只接受受信调用者
+  const ai = createAiHandlers({
     client,
     logger: runtimeLogger,
     prepareChat: opts.prepareChat,
     publishEvents: opts.enableEventBroadcast !== false,
   });
-  const contractIpc = serveContractOverIpc({
-    router: ai.router,
-    logger: { warn: (msg, data) => runtimeLogger.warn(msg, data) },
-  });
-  const procedures = Object.keys(appContract.procedures);
+  const procedures = Object.keys(appContract.procedures).filter((n) => n.startsWith('ai.'));
 
   let capability: CapabilityIpcServer | undefined;
   if (opts.enableCapabilityIpc !== false) {
@@ -312,6 +311,7 @@ export async function startAIRuntime(
     channels: {
       business: procedures,
     },
+    ai,
     async dispose() {
       try {
         providerIpc.stop();
@@ -337,10 +337,9 @@ export async function startAIRuntime(
         });
       }
       try {
-        contractIpc.stop();
         ai.dispose();
       } catch (err) {
-        logger.warn('contract transport stop threw', {
+        logger.warn('ai contract handlers dispose threw', {
           error: err instanceof Error ? err.message : String(err),
         });
       }

@@ -20,11 +20,9 @@ import {
   ContractError,
   createClient,
   createIpcClientTransport,
-  PushStream,
   type Client,
   type ClientTransport,
   type ContractStream,
-  type FrameClientTransport,
 } from '@nomi-ai/contract';
 import {
   AI_EVENTS,
@@ -38,12 +36,16 @@ import {
 } from '@nomi-ai/contract/app';
 
 import { SDKError, SDKErrorCodes } from './errors';
-import { getGlobalBridge, type IPCBridge, type IpcUnsubscribe } from './IPCBridge';
+import { type IPCBridge, type IpcUnsubscribe } from './IPCBridge';
+import { getSharedTransport } from './sharedTransport';
 
 export interface ClientAIClientOptions {
   /** 自定义契约传输（测试 / 无界面宿主用 in-process 传输）；优先于 `bridge`。调用方负责关闭。 */
   transport?: ClientTransport;
-  /** 自定义 IPC 桥（`invoke` / `on`）；未传则读 `window.nomiTransport`（可用 bridgeName 覆盖）。 */
+  /**
+   * 自定义 IPC 桥（`invoke` / `on`）；未传则用窗口共享的契约传输（`getSharedTransport`，读
+   * `window.nomiTransport`，可用 bridgeName 覆盖）——同一窗口的所有客户端共用一个会话。
+   */
   bridge?: IPCBridge;
   /** window 上的桥接名，默认 `nomiTransport`（preload 暴露的契约传输）。 */
   bridgeName?: string;
@@ -77,46 +79,6 @@ function toStreamError(err: unknown): SDKError {
   return new SDKError(SDKErrorCodes.IPC_STREAM_ABORTED, message, { cause: err });
 }
 
-/**
- * 读 window 上的桥：用到时才读（第一次调用 / 订阅），没就绪不抛在构造里。
- * 视图按 `window.aiIPC` 是否存在决定要不要建客户端，桥缺失时调用以 BRIDGE_MISSING 失败、订阅不生效。
- */
-function lazyGlobalTransport(bridgeName: string): ClientTransport {
-  let inner: FrameClientTransport | undefined;
-  const get = (): FrameClientTransport => {
-    inner ??= createIpcClientTransport(getGlobalBridge(bridgeName));
-    return inner;
-  };
-  return {
-    call(name, input, opts) {
-      try {
-        return get().call(name, input, opts);
-      } catch (err) {
-        return Promise.reject(err);
-      }
-    },
-    stream(name, input, opts) {
-      try {
-        return get().stream(name, input, opts);
-      } catch (err) {
-        const failed = new PushStream<unknown, unknown>();
-        failed.fail(err);
-        return failed;
-      }
-    },
-    subscribe(event, fn) {
-      try {
-        return get().subscribe(event, fn);
-      } catch {
-        return () => undefined;
-      }
-    },
-    close() {
-      inner?.close();
-    },
-  };
-}
-
 function cryptoRandomId(): string {
   const g = globalThis as { crypto?: { randomUUID?: () => string } };
   if (g.crypto?.randomUUID) return g.crypto.randomUUID();
@@ -137,7 +99,7 @@ export class ClientAIClient {
   readonly avatar: Record<string, unknown>;
 
   private readonly api: Client<AppContract>;
-  /** 传输是本客户端自己建的（读 window 上的桥）：dispose 时一并关闭；外部传入的不关 */
+  /** 传输是本客户端自己建的（传入 bridge）：dispose 时一并关闭；外部传入的与窗口共享的不关 */
   private readonly ownsTransport: boolean;
   private readonly listeners = new Map<string, Set<Listener>>();
   /** 已订阅的契约事件：AIClient 事件名 → 退订函数 */
@@ -148,12 +110,12 @@ export class ClientAIClient {
   private avatarAvailableCache: boolean;
 
   constructor(opts: ClientAIClientOptions = {}) {
-    this.ownsTransport = !opts.transport;
+    this.ownsTransport = !opts.transport && !!opts.bridge;
     const transport =
       opts.transport ??
       (opts.bridge
         ? createIpcClientTransport(opts.bridge)
-        : lazyGlobalTransport(opts.bridgeName ?? NOMI_TRANSPORT_GLOBAL));
+        : getSharedTransport(opts.bridgeName ?? NOMI_TRANSPORT_GLOBAL));
     this.api = createClient(appContract, transport);
     this.avatarAvailableCache = opts.avatarAvailable ?? false;
 

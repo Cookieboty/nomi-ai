@@ -23,7 +23,13 @@ import {
 } from '../src/app';
 import { createInProcessServer } from '../src/testing';
 
-const procedures = appContract.procedures as unknown as Record<string, ProcedureDef>;
+/** 只看 AI 门面（`ai.*`）：P1b 各域的过程由 tests/domains.test.ts 覆盖 */
+const procedures = Object.fromEntries(
+  Object.entries(appContract.procedures as unknown as Record<string, ProcedureDef>).filter(([n]) =>
+    n.startsWith('ai.'),
+  ),
+);
+const aiEventNames = Object.keys(appContract.events).filter((n) => n.startsWith('ai.'));
 
 describe('appContract · 过程表', () => {
   it('快照：35 个 AI 门面过程的 kind / dangerous', () => {
@@ -69,7 +75,7 @@ describe('appContract · 过程表', () => {
     ]);
     expect(Object.keys(aiProcedures)).toHaveLength(35);
     expect(Object.keys(procedures)).toHaveLength(35);
-    expect(appContract.version).toEqual({ major: 1, minor: 0 });
+    expect(appContract.version).toEqual({ major: 1, minor: 1 });
     expect(NOMI_TRANSPORT_GLOBAL).toBe('nomiTransport');
   });
 
@@ -114,7 +120,7 @@ describe('appContract · 事件', () => {
         'avatar:motion-end',
       ].sort(),
     );
-    expect(Object.values(AI_EVENTS).sort()).toEqual(Object.keys(appContract.events).sort());
+    expect(Object.values(AI_EVENTS).sort()).toEqual(aiEventNames.sort());
   });
 
   it('事件 schema 有意放宽：已知字段可缺省、未知字段透传，但已知字段类型仍校验', () => {
