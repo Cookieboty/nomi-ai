@@ -41,7 +41,7 @@ export interface HeadlessCoreOptions {
   contract?: CoreContractOptions;
   /** 根日志；缺省按端口的日志目录新建（写文件，同时输出到控制台） */
   logger?: LoggerService;
-  /** 缺省日志的级别，默认 `info`（e2e 用 `warn` 降噪） */
+  /** 日志级别，默认 `info`（e2e 用 `warn` 降噪）；start() 之后生效到底（诊断服务启动时会改级别） */
   logLevel?: 'error' | 'warn' | 'info' | 'debug';
   /** start() 之后是否启动提醒与定时任务，默认 true（无界面宿主没有要等的窗口） */
   reminders?: boolean;
@@ -104,6 +104,8 @@ export async function startHeadlessCore(options: HeadlessCoreOptions = {}): Prom
     control.dispose();
     throw err;
   }
+  // 诊断服务在 start() 里按开发态把级别调成 DEBUG：明确要了级别就再设一次（启动期间的日志仍按缺省级别）
+  if (options.logLevel) logger.setLevel(LEVELS[options.logLevel]);
   if (options.reminders !== false) core.startReminders();
 
   const server = createInProcessServer();
@@ -138,6 +140,8 @@ export async function startHeadlessCore(options: HeadlessCoreOptions = {}): Prom
         try {
           await core.stop();
         } finally {
+          // 先把缓冲的日志写完，再删临时目录（否则进程退出时补写会找不到日志目录）
+          logger.flushSync();
           control.dispose();
         }
       })();
