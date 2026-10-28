@@ -324,7 +324,7 @@ await core.start();
 
 #### 实施约定（P2 起，P3 搬家前）
 
-`createCore` 落地之前，组合根仍是 `core/Application.ts`。它在构造时紧跟日志创建两样东西，登记到 `ServiceContainer`：
+`createCore` 落地之前，组合根仍是 `core/Application.ts`。它在构造时先建宿主端口、再建日志（`LoggerService` 的日志目录来自 `ports.paths.logs()`），日志建好后建事件总线，两者都登记到 `ServiceContainer`：
 
 | 令牌（`core/serviceTokens.ts`） | 类型                                                   | Electron 实现                                                         |
 | ------------------------------- | ------------------------------------------------------ | --------------------------------------------------------------------- |
@@ -535,7 +535,18 @@ renderer 只保留：透明窗口壳、气泡、工具栏、右键菜单，以�
 
 ## 12. 迁移计划
 
-> 进度（2026-10-28，分支 `refactor/core-host-decoupling`）：第一批已完成 live2d 清理（§10.5 的改名部分）、`contract` / `host-ports` / `host-node` / `character-contract` 四个新包骨架、Electron 端口实现（`electron/src/host/electronPorts.ts`）、P0。P1a（AI 门面上契约）已在分支 `refactor/p1-contract` 完成。P2 的基础已就位：组合根登记 `HOST_PORTS` / `APP_EVENTS`，`ThemeService` 作为参考迁移完成（§7.1「实施约定」）。P1b、其余 P2 调用方迁移、搬目录（P3）、C1 资产搬迁尚未开始。
+> 进度（2026-10-28，分支 `refactor/core-host-decoupling`）：第一批已完成 live2d 清理（§10.5 的改名部分）、`contract` / `host-ports` / `host-node` / `character-contract` 四个新包骨架、Electron 端口实现（`electron/src/host/electronPorts.ts`）、P0。P1a（AI 门面上契约）已在分支 `refactor/p1-contract` 完成。
+>
+> P2 主体完成（分支 `refactor/p2-host-ports`）：组合根登记 `HOST_PORTS` / `APP_EVENTS`；`cli/` `usage/` `gateway/` `agents/` `memory/` `knowledge/` `schedule/` `extensions/` `local/` `chat/` `diagnostics/` `voice/` `tts/` `desktop/` `services/` `startup/` `onboarding/` `i18n/` `character/` `theme/` 的服务改用宿主端口与 `events.publish`，组合根里的窗口广播也走 `events.publish`；端口补了 `windows.anyFocused()` 与 `app.preferredLanguages()`；P0 白名单删掉 29 个不再 import electron 的文件。剩下的（都还在 `scripts/eslint/electron-boundary.mjs` 白名单里）：
+>
+> - `ai/`：`mascotCommand`（窗口广播）、`AIRuntimeBoot`、`ClipboardGateway` / `ScreenCapture`（端口的 Electron 实现在复用它们，P3 随宿主搬家）；
+> - `desktop/DesktopService`：系统通知（`Notification`）与打开对话窗口时判断窗口数（`BrowserWindow`）；`chat/ChatBackgroundService`：`nativeImage` 缩放大图；两者的 `registerIpc` 仍用 `ipcMain`（P1b 取代）；
+> - `chat/assetProtocol`：`chat-asset://` 协议注册（`protocol.handle`）是宿主工作，P3 随协议注册移入宿主；
+> - `gateway/GatewayProcess`、`desktop/parse/runParse`：`require('electron').utilityProcess` 拉子进程，等进程端口；
+> - 缺的端口：系统通知（notifications）与图片处理（image：解码 / 缩放），补上后 `DesktopService` / `ChatBackgroundService` 才能出白名单；
+> - `security/secretStorage`、`utils/log`、`utils/privateFile` 仍直接用 `safeStorage` / `app`，旧 IPC 注册层与 `sandbox/AgentBrowser`、`utils/windowBounds` 按原计划在 P1b / P3 处理。
+>
+> P1b、搬目录（P3）、C1 资产搬迁尚未开始。
 
 | 阶段 | 内容                                                                                                                                                                | 完成标准                                               |
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
