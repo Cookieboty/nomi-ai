@@ -5,6 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { canSubscribe } from '../src';
 import { appContract, codingEvents, codingProcedures } from '../src/app';
 import { createTestClient } from '../src/testing';
 
@@ -95,16 +96,20 @@ describe('appContract · D3 coding', () => {
 
   it('往返：经 appContract 的 in-process 传输（strict 序列化），事件推给订阅者', async () => {
     const tabsState = { tabs: [], activeTabId: 'main', running: 0, queued: 0, codexNetwork: true };
-    const { api, router, close } = createTestClient(appContract, {
-      'harness.tabs': () => tabsState,
-      'harness.tabSend': ({ id, prompt }) => ({ text: `${id}:${prompt}`, sessionId: null }),
-      'cliAccount.remove': (_input, ctx) => ctx.fail('ACCOUNT_UNKNOWN_LIVE', 'unknown live'),
-      'history.list': ({ backend, options }) => ({
-        items: [{ key: `${backend}:1`, backend, sessionId: '1', title: 'x' }],
-        nextOffset: options?.offset ?? null,
-        hasMore: false,
-      }),
-    });
+    const { api, router, close } = createTestClient(
+      appContract,
+      {
+        'harness.tabs': () => tabsState,
+        'harness.tabSend': ({ id, prompt }) => ({ text: `${id}:${prompt}`, sessionId: null }),
+        'cliAccount.remove': (_input, ctx) => ctx.fail('ACCOUNT_UNKNOWN_LIVE', 'unknown live'),
+        'history.list': ({ backend, options }) => ({
+          items: [{ key: `${backend}:1`, backend, sessionId: '1', title: 'x' }],
+          nextOffset: options?.offset ?? null,
+          hasMore: false,
+        }),
+      },
+      { caller: { surface: 'chat', trusted: true } },
+    );
     try {
       expect(await api.harness.tabs()).toEqual(tabsState);
       expect(await api.harness.tabSend({ id: 't', prompt: 'hi' })).toEqual({
@@ -129,6 +134,9 @@ describe('appContract · D3 coding', () => {
       expect(got).toEqual([tabsState, null]);
       off();
       offNull();
+      // 编程助手的会话内容只推给对话窗口（契约 eventSurfaces）
+      expect(canSubscribe(appContract, 'harness.tabsChanged', 'mascot')).toBe(false);
+      expect(canSubscribe(appContract, 'agents.changed', 'mascot')).toBe(true);
     } finally {
       close();
     }

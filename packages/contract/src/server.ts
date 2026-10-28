@@ -13,6 +13,7 @@
  *   在 IPC 的 structuredClone 能放过的 Date / Map / Set 等也会被拦下，提前暴露以后 WebSocket 传不了的值。
  */
 
+import { canSubscribe } from './contract';
 import { abortedError, ContractError, toErrorPayload } from './errors';
 import {
   clientFrameSchema,
@@ -230,6 +231,8 @@ export function createServerSession(router: Router, opts: ServerSessionOptions):
       }
       case 'sub': {
         if (subscriptions.has(frame.event) || !router.events.has(frame.event)) return;
+        // 事件的界面白名单（契约 eventSurfaces，§8）：别的界面的订阅与未知事件一样忽略
+        if (!canSubscribe(router.contract, frame.event, opts.caller.surface)) return;
         const event = frame.event;
         const off = router.events.subscribe(event, (data) => {
           send({ t: 'event', event, data });

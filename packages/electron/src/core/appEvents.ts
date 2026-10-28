@@ -12,8 +12,8 @@ import type { Surface } from '@nomi-ai/host-ports';
 
 export interface PublishOptions {
   /**
-   * 只发给这些界面；缺省发给所有窗口（与现在的 `BrowserWindow.getAllWindows()` 广播一致）。
-   * `settings` 落在宿主决定的窗口（Electron：对话窗口）。
+   * 发布方预期的接收界面（记录与测试用）。**不决定投递**：契约事件推给订阅了它的窗口，哪些界面
+   * 能订阅由契约的 `eventSurfaces` 决定（§8，传输层强制）；要限定窗口就在那里登记事件。
    */
   surface?: Surface | readonly Surface[];
 }

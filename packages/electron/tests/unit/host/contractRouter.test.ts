@@ -6,8 +6,8 @@
  * - need()：服务缺失时 UNAVAILABLE。
  */
 
-import { ContractError, createClient, type EventPublisher } from '@nomi-ai/contract';
-import type { AppContract } from '@nomi-ai/contract/app';
+import { canSubscribe, ContractError, createClient, type EventPublisher } from '@nomi-ai/contract';
+import { appContract, type AppContract } from '@nomi-ai/contract/app';
 import { createInProcessServer } from '@nomi-ai/contract/testing';
 import type { HostPorts } from '@nomi-ai/host-ports';
 
@@ -191,5 +191,29 @@ describe('need', () => {
     expect(() => need(undefined, 'theme')).toThrow(
       expect.objectContaining({ code: 'UNAVAILABLE' }),
     );
+  });
+});
+
+describe('按窗口投递（契约 eventSurfaces，§8）', () => {
+  const bridge = createContractEventBridge(null, APP_EVENT_BRIDGE);
+  const scoped: Array<[string, 'mascot' | 'chat']> = [
+    ['desktop:confirm-request', 'mascot'],
+    ['desktop:confirm-cancel', 'mascot'],
+    ['desktop:bubble', 'mascot'],
+    ['mascot:cursor', 'mascot'],
+    ['ai:desktop:summary', 'chat'],
+    ['ai:desktop:open-panel', 'chat'],
+    ['ai:hub:open-schedule', 'chat'],
+    ['ai:settings:open-voice', 'chat'],
+    ['ai:harness:events', 'chat'],
+    ['ai:harness:tab-message', 'chat'],
+  ];
+
+  it.each(scoped)('%s 只有 %s 窗口能订阅', (channel, only) => {
+    const event = bridge.contractEventOf(channel);
+    expect(event).toBeDefined();
+    const other = only === 'mascot' ? 'chat' : 'mascot';
+    expect(canSubscribe(appContract, event!, only)).toBe(true);
+    expect(canSubscribe(appContract, event!, other)).toBe(false);
   });
 });

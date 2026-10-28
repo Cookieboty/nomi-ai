@@ -701,3 +701,39 @@ function fakeHandshakeTransport() {
     emit: (event: string, data: unknown) => listeners.get(event)?.forEach((fn) => fn(data)),
   };
 }
+
+describe('event surfaces', () => {
+  const contract = defineContract({
+    version: { major: 1, minor: 0 },
+    procedures: { ping: { kind: 'query', input: z.void(), output: z.string() } },
+    events: { 'mascot.only': z.number(), 'any.one': z.number() },
+    eventSurfaces: { 'mascot.only': ['mascot'] },
+  });
+
+  function connect(surface: CallerContext['surface']) {
+    const router = implement(contract, { ping: () => 'pong' });
+    const server = createInProcessServer();
+    server.serve(router);
+    const api = createClient(contract, server.connect({ surface, trusted: true }));
+    return { api, router };
+  }
+
+  it('只把列了界面的事件推给这些界面；其它界面的订阅被忽略', async () => {
+    const mascot = connect('mascot');
+    const chat = connect('chat');
+    const seen = { mascot: vi.fn(), chat: vi.fn(), chatAny: vi.fn() };
+    mascot.api.on('mascot.only', seen.mascot);
+    chat.api.on('mascot.only', seen.chat);
+    chat.api.on('any.one', seen.chatAny);
+    await mascot.api.ping();
+    await chat.api.ping();
+    for (const r of [mascot.router, chat.router]) {
+      r.events.publish('mascot.only', 1);
+      r.events.publish('any.one', 2);
+    }
+    await vi.waitFor(() => expect(seen.mascot).toHaveBeenCalledWith(1));
+    await vi.waitFor(() => expect(seen.chatAny).toHaveBeenCalledWith(2));
+    await sleep(5);
+    expect(seen.chat).not.toHaveBeenCalled();
+  });
+});

@@ -16,7 +16,7 @@
 
 import { z } from 'zod';
 
-import type { EventMap, ProcedureMap } from '../contract';
+import type { EventMap, ProcedureMap, Surface } from '../contract';
 
 import {
   AgentWatchSettings,
@@ -499,6 +499,14 @@ export const codingEvents = {
   /** 监视状态变化，不带数据（ai:agents:changed） */
   'agents.changed': z.null(),
 } as const satisfies EventMap;
+
+/** 事件的订阅白名单（§8）：编程助手的会话内容（标签、消息、实时事件）只给对话窗口 */
+export const codingEventSurfaces = {
+  'harness.changed': ['chat', 'settings'],
+  'harness.tabsChanged': ['chat', 'settings'],
+  'harness.events': ['chat', 'settings'],
+  'harness.tabMessage': ['chat', 'settings'],
+} as const satisfies Partial<Record<keyof typeof codingEvents, readonly Surface[]>>;
 
 /**
  * 业务错误码（UPPER_SNAKE_CASE，不得与其他域重名）；处理函数用 `ctx.fail(code, message)` 抛出。

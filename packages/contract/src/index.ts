@@ -11,6 +11,7 @@
  */
 
 export {
+  canSubscribe,
   defineContract,
   getEventSchema,
   getProcedure,
@@ -26,6 +27,7 @@ export {
   type EventData,
   type EventInput,
   type EventMap,
+  type EventSurfaceMap,
   type EventName,
   type EventsOf,
   type HandlerChunkOf,

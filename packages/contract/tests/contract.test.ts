@@ -5,7 +5,14 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
-import { createClient, defineContract, getProcedure, isCompatible, type AnyContract } from '../src';
+import {
+  canSubscribe,
+  createClient,
+  defineContract,
+  getProcedure,
+  isCompatible,
+  type AnyContract,
+} from '../src';
 import { createInProcessTransport } from '../src/testing';
 
 import { testContract } from './fixtures';
@@ -57,6 +64,40 @@ describe('defineContract', () => {
     expect(() =>
       defineContract({ version: { major: 1, minor: 0 }, procedures: {}, errors: ['lower'] }),
     ).toThrow(/UPPER_SNAKE_CASE/);
+  });
+
+  it('validates event surfaces and exposes them through canSubscribe', () => {
+    const v = { major: 1, minor: 0 };
+    const events = { 'a.b': z.string() };
+    expect(() =>
+      defineContract({
+        version: v,
+        procedures: {},
+        events,
+        eventSurfaces: { 'x.y': ['chat'] } as never,
+      }),
+    ).toThrow(/unknown event/);
+    expect(() =>
+      defineContract({ version: v, procedures: {}, events, eventSurfaces: { 'a.b': [] } }),
+    ).toThrow(/at least one/);
+    expect(() =>
+      defineContract({
+        version: v,
+        procedures: {},
+        events,
+        eventSurfaces: { 'a.b': ['nope'] as never },
+      }),
+    ).toThrow(/unknown surface/);
+    const c = defineContract({
+      version: v,
+      procedures: {},
+      events,
+      eventSurfaces: { 'a.b': ['chat'] },
+    });
+    expect(canSubscribe(c, 'a.b', 'chat')).toBe(true);
+    expect(canSubscribe(c, 'a.b', 'mascot')).toBe(false);
+    expect(canSubscribe(c, 'other', 'mascot')).toBe(true);
+    expect(Object.isFrozen(c.eventSurfaces)).toBe(true);
   });
 
   it('keeps flags from the definition', () => {

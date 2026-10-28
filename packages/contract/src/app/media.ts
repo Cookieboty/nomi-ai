@@ -28,7 +28,7 @@
 
 import { z } from 'zod';
 
-import type { EventMap, ProcedureMap } from '../contract';
+import type { EventMap, ProcedureMap, Surface } from '../contract';
 
 import {
   DesktopAuditEntry,
@@ -318,6 +318,21 @@ export const mediaEvents = {
   'nav.scheduleRequested': NavRequest,
   'nav.voiceSettingsRequested': NavRequest,
 } as const satisfies EventMap;
+
+/**
+ * 事件的订阅白名单（§8）：确认请求 / 气泡只给看板娘窗口，总结全文与面板导航只给对话窗口
+ * （`settings` 在 Electron 上也是对话窗口）。其它界面的订阅被传输层忽略。
+ */
+export const mediaEventSurfaces = {
+  'desktop.confirmRequest': ['mascot'],
+  'desktop.confirmCancel': ['mascot'],
+  'desktop.bubble': ['mascot'],
+  'desktop.reminder': ['mascot'],
+  'desktop.summary': ['chat', 'settings'],
+  'nav.desktopPanelRequested': ['chat', 'settings'],
+  'nav.scheduleRequested': ['chat', 'settings'],
+  'nav.voiceSettingsRequested': ['chat', 'settings'],
+} as const satisfies Partial<Record<keyof typeof mediaEvents, readonly Surface[]>>;
 
 /** 业务错误码（UPPER_SNAKE_CASE，不得与其他域重名）；处理函数用 `ctx.fail(code, message)` 抛出 */
 export const mediaErrors = [] as const satisfies readonly string[];

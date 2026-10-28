@@ -22,7 +22,7 @@
 
 import { z } from 'zod';
 
-import type { EventMap, ProcedureMap } from '../contract';
+import type { EventMap, ProcedureMap, Surface } from '../contract';
 
 // ---------------------------------------------------------------------------
 // schema（照 @nomi-ai/types 与主进程服务的返回类型写；zod 4 的 number 已拒绝 NaN / Infinity）
@@ -498,6 +498,15 @@ export const mascotEvents = {
   /** window-mouse-leave（看板娘窗口） */
   'window.mouseLeave': z.null(),
 } as const satisfies EventMap;
+
+/** 事件的订阅白名单（§8）：光标 / 物理 / 鼠标进出只给看板娘窗口 */
+export const mascotEventSurfaces = {
+  'mascot.cursor': ['mascot'],
+  'mascot.body': ['mascot'],
+  'mascot.physicsEvent': ['mascot'],
+  'window.mouseEnter': ['mascot'],
+  'window.mouseLeave': ['mascot'],
+} as const satisfies Partial<Record<keyof typeof mascotEvents, readonly Surface[]>>;
 
 /** 业务错误码（UPPER_SNAKE_CASE，不得与其他域重名）；处理函数用 `ctx.fail(code, message)` 抛出 */
 export const mascotErrors = [

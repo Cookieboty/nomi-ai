@@ -399,6 +399,7 @@ interface CallerContext {
 
 - **传输层负责填 caller**：Electron 根据 webContents id 与加载的 URL 判断；WebSocket 用启动时下发的一次性 token，并且只监听 `127.0.0.1`。
 - **router 中间件负责判定**：契约里每个过程可以声明 `surfaces: ['chat']`；`dangerous: true` 的过程只接受 `trusted` 调用者，必要时要求视图内确认。
+- **事件也按界面限定**：契约的 `eventSurfaces` 列出只给某些界面的事件（确认请求、气泡、光标只给看板娘；编程助手会话、拖入总结、面板导航只给对话窗口），传输层在订阅时按调用者的界面过滤，其它界面的订阅被忽略。服务 `events.publish` 时写的 `surface` 只是意图，不决定投递。
 - preload 只暴露 `window.nomiTransport` 与 `window.nomiHost` 两个对象，暴露面比现在更小。
 - **视图能决定的入参都不可信**：契约过程的入参来自视图代码，页面里的任意脚本（XSS、被篡改的依赖）都能填。凡是「入参本身就是授权」的能力（如拖入文件的本机路径，内核会临时授权读取并发给模型），不做成契约过程，由 preload 自己取得并提交（`nomiHost.dropFile`，主进程 `host/nomiHostIpc.ts`）。
 - 外部请求仍走 `netGuard`，命令参数仍用 `shellEscape`，这些都在内核里，与宿主无关。
@@ -598,7 +599,9 @@ renderer 只保留：透明窗口壳、气泡、工具栏、右键菜单，以�
 >
 > - 服务仍 `events.publish(<旧通道名>)`，由桥接表转成契约事件；以后可以让服务直接发布契约事件名，再删掉桥接表
 >   （`types` 里的 `QUALITY_IPC` 等旧通道常量随之删除）；
-> - 契约事件不按 surface 分发（只推给订阅了的窗口），`events.publish` 的 `surface` 目前只是发布方意图；
+> - 契约事件按订阅分发；哪些界面能订阅由契约的 `eventSurfaces` 决定（§8），`events.publish` 的 `surface` 只是发布方意图、
+>   不决定投递。router 建好之前、或新窗口还没订阅时发布的事件会丢掉：`desktop.summary` 与面板导航仍靠固定延迟
+>   （400 / 600 ms）等对话窗口订阅，以后改成对话窗口挂载时拉取待处理的导航与总结；
 > - ai-chat 的部分视图测试仍用旧形状的假 `window.aiIPC`，经 `tests/helpers/{codingApi,shellApi}.ts` 把契约调用转回旧通道名，
 >   以后改成契约层的假实现；
 > - e2e-headed 只在 macOS 上跑过部分用例（E5、E17 等），完整一轮要在 Linux + xvfb 上跑；看板娘拖拽 / 点击上报从单向消息

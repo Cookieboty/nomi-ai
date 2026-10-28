@@ -79,7 +79,17 @@ export interface Contract<
   readonly events: E;
   /** 业务错误码（内置错误码之外） */
   readonly errors: readonly Err[];
+  /**
+   * 事件的订阅白名单（§8）：列出的事件只推给这些界面的调用者，其它界面的订阅被传输层忽略；
+   * 不列 = 所有界面都能订阅。按窗口投递靠它，不靠发布方。
+   */
+  readonly eventSurfaces: Readonly<Record<string, readonly Surface[]>>;
 }
+
+/** `defineContract` 的 `eventSurfaces`：只能写契约里有的事件 */
+export type EventSurfaceMap<E extends EventMap> = Partial<
+  Record<keyof E & string, readonly Surface[]>
+>;
 
 export type AnyContract = Contract<ProcedureMap, EventMap, string>;
 
@@ -92,6 +102,8 @@ export interface ContractDefinition<
   procedures: P;
   events?: E;
   errors?: readonly Err[];
+  /** 事件的订阅白名单；见 `Contract.eventSurfaces` */
+  eventSurfaces?: EventSurfaceMap<E>;
 }
 
 // ---------------------------------------------------------------------------
@@ -239,6 +251,23 @@ export function defineContract<
     }
   }
 
+  const eventSurfaces: Record<string, readonly Surface[]> = {};
+  for (const [name, surfaces] of Object.entries(def.eventSurfaces ?? {})) {
+    if (!Object.prototype.hasOwnProperty.call(events, name)) {
+      throw new TypeError(`[contract] eventSurfaces names unknown event '${name}'`);
+    }
+    const list = surfaces as readonly Surface[] | undefined;
+    if (!Array.isArray(list) || list.length === 0) {
+      throw new TypeError(`[contract] eventSurfaces of '${name}' must list at least one surface`);
+    }
+    for (const s of list) {
+      if (!SURFACES.includes(s)) {
+        throw new TypeError(`[contract] event '${name}' has unknown surface '${s}'`);
+      }
+    }
+    eventSurfaces[name] = Object.freeze([...list]);
+  }
+
   const errors = [...new Set(def.errors ?? [])];
   for (const code of errors) {
     if (!/^[A-Z][A-Z0-9_]*$/.test(code)) {
@@ -254,7 +283,15 @@ export function defineContract<
     procedures: Object.freeze({ ...procedures }) as P,
     events: Object.freeze({ ...events }) as E,
     errors: Object.freeze(errors) as readonly Err[],
+    eventSurfaces: Object.freeze(eventSurfaces),
   });
+}
+
+/** 这个界面能不能订阅该事件（契约的 `eventSurfaces`；没列的事件所有界面都能订阅） */
+export function canSubscribe(contract: AnyContract, event: string, surface: Surface): boolean {
+  const map = contract.eventSurfaces as Readonly<Record<string, readonly Surface[]>> | undefined;
+  if (!map || !Object.prototype.hasOwnProperty.call(map, event)) return true;
+  return map[event]!.includes(surface);
 }
 
 export function getProcedure(contract: AnyContract, name: string): ProcedureDef | undefined {

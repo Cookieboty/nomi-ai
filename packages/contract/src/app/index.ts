@@ -12,10 +12,10 @@
 import { defineContract } from '../contract';
 
 import { aiEvents, aiProcedures } from './ai';
-import { codingErrors, codingEvents, codingProcedures } from './coding';
+import { codingErrors, codingEvents, codingEventSurfaces, codingProcedures } from './coding';
 import { knowledgeErrors, knowledgeEvents, knowledgeProcedures } from './knowledge';
-import { mascotErrors, mascotEvents, mascotProcedures } from './mascot';
-import { mediaErrors, mediaEvents, mediaProcedures } from './media';
+import { mascotErrors, mascotEvents, mascotEventSurfaces, mascotProcedures } from './mascot';
+import { mediaErrors, mediaEvents, mediaEventSurfaces, mediaProcedures } from './media';
 import { shellErrors, shellEvents, shellProcedures } from './shell';
 
 /**
@@ -91,6 +91,11 @@ export const appContract = defineContract({
     ...knowledgeEvents,
     ...mascotEvents,
   },
+  eventSurfaces: {
+    ...mediaEventSurfaces,
+    ...codingEventSurfaces,
+    ...mascotEventSurfaces,
+  },
   errors: [
     ...APP_ERRORS,
     ...mediaErrors,
@@ -130,6 +135,7 @@ export * as aiSchemas from './schemas';
 
 export {
   codingEvents,
+  codingEventSurfaces,
   codingProcedures,
   type CodingEventName,
   type CodingProcedureName,
@@ -142,12 +148,14 @@ export {
 } from './knowledge';
 export {
   mascotEvents,
+  mascotEventSurfaces,
   mascotProcedures,
   type MascotEventName,
   type MascotProcedureName,
 } from './mascot';
 export {
   mediaEvents,
+  mediaEventSurfaces,
   mediaProcedures,
   type MediaEventName,
   type MediaProcedureName,
