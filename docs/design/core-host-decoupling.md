@@ -611,6 +611,46 @@ renderer 只保留：透明窗口壳、气泡、工具栏、右键菜单，以�
 > - `voice-settings:changed`（→ `voice.mascotSettingsChanged`）主进程没有发布方；MCP 信任级别（`ext.mcpUpsert` 等）
 >   是否算 `dangerous` 待定。
 
+> P3 第一步完成（分支 `refactor/p3-core`）：P0 的 electron import 白名单只剩本质上是宿主工作的文件。
+>
+> - 端口补了三个（`host-ports`，Electron 实现在 `host/electronPorts.ts`，无界面实现在 `host-node`）：`notifications`
+>   （系统通知，图标由宿主给）、`image`（`size` / `resize`，Electron 是 `nativeImage`）、`processes`（工具子进程，
+>   Electron 是 `utilityProcess`，子进程经 `process.parentPort` 收发）；`host-node` 默认解码不了图片、没有工具子进程，
+>   可用选项注入；
+> - `DesktopService` 经 `notifications` 弹系统通知，窗口只用结构类型（`DesktopMascotWindow` / `DesktopChatWindow`，
+>   拖入总结判断对话窗口是否已开改为 `chatOpen()`）；受控浏览器移到 `host/AgentBrowser.ts`，由组合根注入
+>   （缺省时 `browser_*` 工具报不可用）；`ChatBackgroundService` 经 `image` 缩放大图；`GatewayProcess` 与
+>   `parseFile` 经 `processes` 拉子进程（没有时网关报不可用、解析退回进程内，与以前没有 Electron 时一致）；
+> - `security/secretStorage` 改为 `createSecretBox(secrets)`（`enc:` 前缀、失败关闭、旧明文兼容留在内核），语音与扩展服务
+>   用 `ports.secrets`；ai-runtime 的 `createSafeStorageCipher` 经 `safeStorageFromSecrets(ports.secrets)` 用同一个端口；
+> - 模块级的宿主设置集中在 `host/processDefaults.ts`（`main.ts` 第一个加载）：`utils/log` 的「是否正式打包」
+>   （`setMainLogPackaged`）、`utils/privateFile` 自动收紧 ACL 的根目录（`setPrivateRoot`，第一次用到时才取 userData）、
+>   `ai/mascotCommand` 报告的存活窗口数（`setMascotLiveWindows`）；没设置的进程（工具子进程、单测）按以前拿不到
+>   `app` 时的行为：日志按开发态、不自动收紧目录、窗口数为 0；
+> - 宿主工作搬进 `host/`：`ClipboardGateway`、`ScreenCapture`、`windowBounds`、`ipcSenderGuard`、`assetProtocol`
+>   （`chat-asset://` 协议注册）、`AgentBrowser`；`AIRuntimeBoot` 改收端口（`paths.appPath()`、`secrets`、
+>   `lifecycle.onBeforeQuit`）；
+> - ai-runtime 不再认识 Electron：`createElectronLifecycle` 与 `nodeRequire` 删除（只留 `NoopLifecycle`），
+>   `createElectronIpcAdapter` 移到 `host/electronIpcAdapter.ts`，ai-runtime 只留 `IpcAdapter` 类型；
+>   `tests/unit/security/ipcSurface.test.ts` 相应允许宿主目录里的这个适配器直接用 `ipcMain`。
+>
+> 白名单里剩下的（`scripts/eslint/electron-boundary.mjs`）：
+>
+> - `ELECTRON_IMPORT_ALLOWLIST`：`core/Application.ts`（组合根：创建窗口管理器与端口、注册协议与会话权限、接 IPC
+>   传输），搬家时拆成内核 `createCore` 与宿主 main；
+> - `ELECTRON_DYNAMIC_ALLOWLIST`：`bundle-ig-electron-caps/src/electronLoader.ts`，这个插件包本身就是 Electron 版的
+>   插件能力（截屏 / 剪贴板 / 安全存储 / 快捷键 / 会话存储），以后改成插件能力经宿主端口注入。
+>
+> 剩下的：
+>
+> - 业务模块仍 import 宿主目录里的模块（`DesktopService` → `island/IslandService` 的 `notifyIsland`；
+>   `ai/mascotCommand` → `mascot/mascotEvents`、`services/ConfigService` → `mascot/mascotSize`，后两个不依赖
+>   electron），lint 只拦 electron import、不拦「内核 → 宿主」；物理搬家（业务模块 → `packages/core`）前要先把
+>   灵动岛提醒改成端口或事件，纯数据模块随内核搬走；
+> - `host-node` 的 `image` / `processes` 默认不可用：无界面宿主跑 e2e（P4）时，背景图不缩放、文档在进程内解析、
+>   统一网关起不来，要用的用例需注入实现；
+> - `bundle-ig-electron-caps` 的能力端口化（见上）。
+
 | 阶段 | 内容                                                                                                                                                                | 完成标准                                               |
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
 | P0   | ① lint 护栏：`packages/electron/src` 中除宿主目录（§7.2 右列）外，新增 electron import 报错（已有的列入白名单，只减不增）；② `PersonaService`，删两处人设硬编码     | 护栏进 CI；换皮后系统提示不再是 Nomi                   |
