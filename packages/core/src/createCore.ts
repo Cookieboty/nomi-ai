@@ -121,7 +121,7 @@ const ENV_PROVIDER_KEY: Record<string, string> = {
 
 /** 内核的配置（与平台无关的选项） */
 export interface CoreConfig {
-  /** AI 插件 profile；默认 `IG_AI_PROFILE` 环境变量，再缺省为 `waifu` */
+  /** AI 插件 profile；默认 `IG_AI_PROFILE` 环境变量，再缺省为 `companion` */
   aiProfile?: string;
   /** 内置的聊天背景预设图（宿主按打包方式给路径）；缺省按正式包的布局 `<resources>/assets/backgrounds/` */
   chatBackgroundPresetFile?: string;

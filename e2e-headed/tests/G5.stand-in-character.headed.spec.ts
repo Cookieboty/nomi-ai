@@ -20,7 +20,8 @@ import { startMockLlm, type MockLlm } from '../fixtures/mockLlm';
  *   官方角色名：没有「诺米」，也没有角色语境的「Nomi」（规则见 scripts/lib/characterLeak.mjs；产品名
  *   Nomi 可以出现，例如窗口标题、品牌头、「Nomi 对话」）；该写角色名的地方写的是替身的「小纸」；
  * - 对话发给模型的系统提示是替身的身份，不含 Nomi / 诺米。
- * 无界面的那一半（内核解析、角色 preset、经契约发出的系统提示）在 e2e/tests/E6.stand-in-character。
+ * 无界面的那一半（内核解析、角色 preset、经契约发出的系统提示）在 e2e/tests/E8.stand-in-character
+ * （无界面宿主上的真实内核）。
  *
  * 不是替身构建时跳过（官方构建跑其它用例）。跑完后用 `pnpm build` 换回官方构建。
  */
