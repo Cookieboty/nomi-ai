@@ -93,6 +93,14 @@ describe('main-process i18n', () => {
     expect(t('electron.common.quit')).toBe('Quit');
   });
 
+  it('t / tName can be destructured off the instance (tray menu does)', () => {
+    sysLangs = ['en'];
+    const { t: tt, tName } = make(tmp());
+    expect(tt('{0} · {1}', 'a', 'b')).toBe('a · b');
+    expect(() => tName('{0} · {1}', 'Dummy', 'x')).not.toThrow();
+    expect(tName('{0} · {1}', 'Dummy', 'x')).toContain('Dummy');
+  });
+
   it('every English entry keeps the placeholders of the Chinese entry', () => {
     const zh = getDictionary('zh');
     const en = getDictionary('en');

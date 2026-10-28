@@ -126,10 +126,9 @@ export class LocaleService implements ScopedI18n, CoreI18n {
   readonly t: Translate = ((key: unknown, ...args: unknown[]) =>
     this.translate(key, ...args)) as Translate;
 
-  /** 带角色名（`{0}`）的文案（见 `tName`） */
-  tName(key: string, name: string, ...rest: unknown[]): string {
-    return spaceAround(this.t(key, name, ...rest), name);
-  }
+  /** 带角色名（`{0}`）的文案（见 `tName`）；同样是箭头函数，宿主可以解构出来用（托盘菜单） */
+  readonly tName = (key: string, name: string, ...rest: unknown[]): string =>
+    spaceAround(this.t(key, name, ...rest), name);
 
   /** 语言变化时回调（托盘菜单、人设等需要重建的地方） */
   onChange(fn: (l: Locale) => void): () => void {
