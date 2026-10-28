@@ -54,6 +54,7 @@ licence check; the official pack must carry an allow-listed licence.
 | `layout.hitboxes`     | no       | `{ head \| face \| body \| hand \| hem: { top, bottom, left, right } }`, ratios of the box |
 | `layout.bubbleAnchor` | no       | `{ x, y }`, ratios of the box                                                              |
 | `rive`                | no       | `{ artboard, stateMachine }` overrides                                                     |
+| `catalog`             | no       | model-list entry: `displayName`, `description`, `author`, `tags`, `version`, `lastUpdated` |
 
 \* Filled in by migration for legacy packs: `contractVersion` from `engines.nomiPack` (else `1`),
 top-level `mode` moves to `assets.mode`, `layout/hitboxes.json` (`{ regions, bubbleAnchor }`)
@@ -169,6 +170,8 @@ Four files under pack `onboarding/`:
 
 Ids: `head` / `face` / `body` / `hand` / `hem` (lower garment; formerly `skirt`).
 Declared in `manifest.layout.hitboxes` (ratios of the character box) + optional `layout.bubbleAnchor`.
+Without hitboxes the renderer classifies touches with its geometry heuristic (the official
+`characters/nomi` pack declares none).
 Legacy `layout/hitboxes.json` is still read and merged; packs that still ship `skirt` are
 normalized to `hem` on load (`migrateHitboxIds()`).
 
@@ -186,7 +189,9 @@ Nothing in the source tree is overwritten.
 
 Run time (`CharacterPackService`): `userData/character-pack` → `resources/character-pack` → the
 built-in pack (`resources/renderer/character` when packaged; the repository pack in development).
-Every candidate goes through `validatePack`; invalid packs are skipped (logged).
+Every candidate goes through `validatePack`; invalid packs are skipped (logged). Overlays are
+validated with `lenient: true`: the non-structural checks in `NON_STRUCTURAL_ISSUES` (rive file
+size, missing fallback assets, voice manifests) only warn, structural errors still reject the pack.
 Overlay assets are served via `character-pack://pack/…`; the views ask `character-pack:get-active`,
 whose snapshot also carries the pack's `locales` lines. See [`REPLACING.md`](./REPLACING.md).
 

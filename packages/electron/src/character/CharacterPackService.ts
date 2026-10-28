@@ -143,6 +143,9 @@ export class CharacterPackService {
     for (const s of result.skipped ?? []) {
       logger?.warn(`character-pack skipped (${s.source}): ${s.reason} @ ${s.root}`);
     }
+    for (const d of result.downgraded ?? []) {
+      logger?.warn(`character-pack ${result.source}: ${d} (accepted, check the pack)`);
+    }
     const { skipped: _s, ...resolved } = result;
     this.resolved = resolved;
     if (resolved.source === 'builtin' && resolved.root) this.builtinRoot = resolved.root;

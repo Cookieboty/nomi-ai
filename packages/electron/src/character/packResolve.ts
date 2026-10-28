@@ -5,11 +5,15 @@
  * invalid candidates are skipped with a reason for logging.
  *
  * Validation is `validatePack` from @nomi-ai/character-contract (no hand-written checks here).
+ * Overlays are validated leniently: structural errors (manifest, schema, the mode's main asset,
+ * onboarding art) still reject the pack, but non-structural checks (asset size, fallback assets,
+ * voice manifests — `NON_STRUCTURAL_ISSUES`) only warn, so packs that loaded on 2.0.5 still load.
  */
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 
 import type { NormalizedPack, PackManifest } from '@nomi-ai/character-contract';
+import { NON_STRUCTURAL_ISSUES } from '@nomi-ai/character-contract';
 import { validatePackDirSync } from '@nomi-ai/character-contract/node';
 
 export type PackSource = 'userData' | 'resources' | 'builtin';
@@ -35,6 +39,8 @@ export interface ResolvedPack {
   pack: NormalizedPack | null;
   hitboxes: PackHitboxes | null;
   reason?: string;
+  /** Non-structural problems a lenient (overlay) load let through, for logging. */
+  downgraded?: string[];
 }
 
 export interface ResolvePackPaths {
@@ -51,20 +57,31 @@ export interface SkippedPack {
 }
 
 export type LoadPackResult =
-  { ok: true; pack: NormalizedPack } | { ok: false; reason: string; pack: null };
+  | { ok: true; pack: NormalizedPack; downgraded: string[] }
+  | { ok: false; reason: string; pack: null };
+
+export interface LoadPackOptions {
+  /** Downgrade non-structural checks to warnings (runtime overlays). */
+  lenient?: boolean;
+}
 
 /** Validate a pack directory with the contract; the reason is the first error. */
-export function loadPackAt(root: string): LoadPackResult {
-  const res = validatePackDirSync(root);
-  if (res.ok && res.pack) return { ok: true, pack: res.pack };
+export function loadPackAt(root: string, opts: LoadPackOptions = {}): LoadPackResult {
+  const res = validatePackDirSync(root, { lenient: opts.lenient });
+  if (res.ok && res.pack) {
+    const downgraded = res.warnings
+      .filter((w) => NON_STRUCTURAL_ISSUES.includes(w.code))
+      .map((w) => `${w.file}: ${w.message}`);
+    return { ok: true, pack: res.pack, downgraded };
+  }
   const first = res.errors[0];
   const reason = first ? `${first.file}: ${first.message}` : 'invalid character pack';
   return { ok: false, reason, pack: null };
 }
 
 /** Error message for an invalid pack, or null when it validates. */
-export function validatePackRoot(root: string): string | null {
-  const r = loadPackAt(root);
+export function validatePackRoot(root: string, opts: LoadPackOptions = {}): string | null {
+  const r = loadPackAt(root, opts);
   return r.ok ? null : r.reason;
 }
 
@@ -96,12 +113,13 @@ export function resolveCharacterPack(
   ];
   for (const c of overlays) {
     if (!existsSync(path.join(c.root, 'manifest.json'))) continue;
-    const r = loadPackAt(c.root);
+    const r = loadPackAt(c.root, { lenient: true });
     if (!r.ok) {
       skipped.push({ source: c.source, root: c.root, reason: r.reason });
       continue;
     }
-    return { ...resolved(c.source, c.root, r.pack), skipped };
+    const downgraded = r.downgraded.length ? { downgraded: r.downgraded } : {};
+    return { ...resolved(c.source, c.root, r.pack), ...downgraded, skipped };
   }
   const overlayReason = skipped.length ? 'overlay invalid — using built-in' : 'no overlay present';
   if (paths.builtinPack) {

@@ -58,6 +58,7 @@ export type PackIssueCode =
   | 'contract-version-unsupported'
   | 'asset-missing'
   | 'asset-too-small'
+  | 'fallback-asset-missing'
   | 'onboarding-missing'
   | 'sprite-fallback-recommended'
   | 'sprite-thumb-recommended'
@@ -108,7 +109,24 @@ export interface NormalizedPack {
 export interface ValidatePackOptions {
   /** 要求语音覆盖契约全部 clip（官方包用）；默认缺失只警告 */
   requireCompleteVoice?: boolean;
+  /**
+   * 把非结构性问题（`NON_STRUCTURAL_ISSUES`：资源大小、回退资源、语音清单等）降为警告。
+   * 运行时覆盖包用，让 2.0.5 能加载的包继续能加载；结构性错误（manifest / schema / 主模式
+   * 资源 / onboarding）仍然是错误。
+   */
+  lenient?: boolean;
 }
+
+/**
+ * 非结构性检查：包缺了它们运行时仍能工作（回退资源、TTS 等）。
+ * `lenient` 时这些错误降为警告。
+ */
+export const NON_STRUCTURAL_ISSUES: readonly PackIssueCode[] = [
+  'asset-too-small',
+  'fallback-asset-missing',
+  'voice-manifest-missing',
+  'voice-clips-incomplete',
+];
 
 export interface ValidatePackResult {
   ok: boolean;
@@ -173,6 +191,9 @@ export function validatePack(src: PackSource, opts: ValidatePackOptions = {}): V
   const errors: PackIssue[] = [];
   const warnings: PackIssue[] = [];
   const sink: IssueSink = (severity, code, file, message, path = []) => {
+    if (severity === 'error' && opts.lenient && NON_STRUCTURAL_ISSUES.includes(code)) {
+      severity = 'warning';
+    }
     (severity === 'error' ? errors : warnings).push({ severity, code, file, path, message });
   };
   const files = new Set<string>();
@@ -261,7 +282,13 @@ export function validatePack(src: PackSource, opts: ValidatePackOptions = {}): V
       const riveRel =
         normalizePackPath(assets.rive ?? 'rive/character.riv') ?? 'rive/character.riv';
       if (!files.has(riveRel)) {
-        sink('error', 'asset-missing', riveRel, `missing ${riveRel}`);
+        // 主模式不是 rive 时，rive 只是可选资源
+        sink(
+          'error',
+          mode === 'rive' ? 'asset-missing' : 'fallback-asset-missing',
+          riveRel,
+          `missing ${riveRel}`,
+        );
       } else {
         rive = riveRel;
         const size = src.sizeOf?.(riveRel);
@@ -274,7 +301,7 @@ export function validatePack(src: PackSource, opts: ValidatePackOptions = {}): V
       if (!spriteManifest) {
         sink(
           'error',
-          'asset-missing',
+          mode === 'sprite' ? 'asset-missing' : 'fallback-asset-missing',
           spriteManifestRel,
           'sprite/manifest.json required when sprite present',
         );

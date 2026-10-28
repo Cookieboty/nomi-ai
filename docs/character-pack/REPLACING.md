@@ -148,6 +148,19 @@ CHARACTER_PACK=../my-character.pack pnpm build
 
 校验失败 → 打日志 → 回退内置包。界面通过 `character-pack:get-active` + `character-pack://pack/…` 取资源与文案。
 
+运行时覆盖包与 `character:check` 用同一份契约校验，比 2.0.5 严格：
+
+- **仍会拒绝**（结构性错误）：manifest 缺失或字段不合 schema（如 `id` 只能是小写字母、数字、`-`、`_`，
+  命中区比例须在 0–1 且 top < bottom）、`contractVersion` 高于应用支持的版本、缺 onboarding 插画、
+  缺主模式的素材（rive 模式的 `.riv`、sprite 模式的 `sprite/manifest.json`、static 模式的立绘）、
+  persona / locales / mapping 不合 schema。
+- **只警告、照常加载**（非结构性，`NON_STRUCTURAL_ISSUES`）：`.riv` 小于 1000 字节、声明了但缺失的
+  回退素材（如 rive 包的 `sprite/`）、有语音文件却没有 `voice/<locale>/manifest.json`、语音 clip 不全。
+  这些在 2.0.5 不检查，所以当时能加载的包现在仍能加载；日志里会逐条列出，建议用
+  `pnpm character:check` 修掉。
+
+`character:check` 与构建（`CHARACTER_PACK=…`）仍把这些都当错误。
+
 ---
 
 ## Brand-lock / SKIP

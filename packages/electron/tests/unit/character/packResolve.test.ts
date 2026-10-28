@@ -231,6 +231,46 @@ describe('built-in pack location', () => {
     expect(r.manifest?.id).toBe('nomi');
     expect(r.pack?.mode).toBe('rive');
     expect(r.skipped).toEqual([]);
+    // as on 2.0.5: no hitboxes, the renderer uses the geometry heuristic
+    expect(r.hitboxes).toBeNull();
+  });
+
+  it('accepts an overlay that only fails non-structural checks (loaded on 2.0.5)', async () => {
+    const root = tmp();
+    mkdirSync(path.join(root, 'onboarding'), { recursive: true });
+    mkdirSync(path.join(root, 'rive'), { recursive: true });
+    mkdirSync(path.join(root, 'voice', 'zh'), { recursive: true });
+    for (const f of ['welcome.webp', 'profile.webp', 'provider.webp', 'privacy.webp']) {
+      writeFileSync(path.join(root, 'onboarding', f), Buffer.from([0]));
+    }
+    // a placeholder-sized .riv, a declared sprite/ without manifest, voice files without manifest
+    writeFileSync(path.join(root, 'rive', 'character.riv'), Buffer.alloc(12, 1));
+    writeFileSync(path.join(root, 'voice', 'zh', 'hello.mp3'), Buffer.from([0]));
+    writeFileSync(
+      path.join(root, 'manifest.json'),
+      JSON.stringify({ schema: 1, id: 'old-rive', assets: { mode: 'rive', sprite: 'sprite' } }),
+    );
+    const strict = loadPackAt(root);
+    expect(strict.ok).toBe(false);
+    const r = resolveCharacterPack({
+      userDataPack: root,
+      resourcesPack: path.join(os.tmpdir(), 'no-such-resources-pack'),
+    });
+    expect(r.source).toBe('userData');
+    expect(r.skipped).toEqual([]);
+    expect(r.downgraded?.join('\n')).toMatch(/rive file too small/);
+    expect(r.downgraded?.join('\n')).toMatch(/sprite\/manifest\.json/);
+    expect(r.downgraded?.join('\n')).toMatch(/voice\/zh\/manifest\.json/);
+
+    // structural errors still reject the overlay
+    await fsp.rm(path.join(root, 'rive', 'character.riv'));
+    const missing = resolveCharacterPack({
+      userDataPack: root,
+      resourcesPack: path.join(os.tmpdir(), 'no-such-resources-pack'),
+    });
+    expect(missing.root).toBeNull();
+    expect(missing.skipped[0]?.reason).toMatch(/missing rive\/character\.riv/);
+    await fsp.rm(root, { recursive: true, force: true });
   });
 });
 

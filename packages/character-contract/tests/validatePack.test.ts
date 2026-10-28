@@ -184,6 +184,34 @@ describe('validatePack — legacy rive pack', () => {
     expect(codes(strict.errors)).toEqual(['voice-clips-incomplete']);
   });
 
+  it('lenient mode downgrades non-structural errors to warnings', () => {
+    const entries = legacyRivePack();
+    delete entries['voice/zh/manifest.json'];
+    const sizes = { 'rive/character.riv': 12 };
+    const strict = validatePack(createPackSource(entries, sizes));
+    expect(codes(strict.errors).sort()).toEqual(['asset-too-small', 'voice-manifest-missing']);
+    const lenient = validatePack(createPackSource(entries, sizes), { lenient: true });
+    expect(lenient.ok).toBe(true);
+    expect(lenient.pack).not.toBeNull();
+    expect(codes(lenient.warnings)).toEqual(
+      expect.arrayContaining(['asset-too-small', 'voice-manifest-missing']),
+    );
+    // structural errors stay errors
+    delete entries['onboarding/welcome.webp'];
+    const broken = validatePack(createPackSource(entries, sizes), { lenient: true });
+    expect(codes(broken.errors)).toEqual(['onboarding-missing']);
+  });
+
+  it('a missing fallback asset (not the main mode) has its own code', () => {
+    const entries = legacyRivePack();
+    delete entries['sprite/manifest.json'];
+    const base = entries['manifest.json'] as Record<string, unknown>;
+    entries['manifest.json'] = { ...base, assets: { mode: 'rive', sprite: 'sprite' } };
+    const res = validatePack(createPackSource(entries));
+    expect(codes(res.errors)).toEqual(['fallback-asset-missing']);
+    expect(validatePack(createPackSource(entries), { lenient: true }).ok).toBe(true);
+  });
+
   it('requires voice/zh/manifest.json when voice/zh has files', () => {
     const entries = legacyRivePack();
     delete entries['voice/zh/manifest.json'];
