@@ -247,8 +247,9 @@ export function createWorkspaceTools(
 /** 给模型的工作区说明（追加到系统提示） */
 export function workspaceSystemHint(ws: string, autoApprove: boolean): string {
   return (
-    `这次对话的工作区是 ${ws}。文件工具（fs_*）和 workspace_run 只能在工作区里用，相对路径相对于工作区，` +
-    '工作区外的路径会被拒绝；不要请求授权别的文件夹。' +
+    `这次对话的工作区是 ${ws}。文件工具（fs_*）默认在工作区里用，相对路径相对于工作区；` +
+    '工作区外只能访问用户单独授权过的文件夹（需要时用 desktop_request_scope 请用户授权，照常确认），其它位置会被拒绝。' +
+    'workspace_run 只在工作区里执行。' +
     (autoApprove ? '工作区里的文件和命令操作不需要用户逐项确认。' : '') +
     '委派编程助手（delegate_to_cli）时它也在工作区里开工。'
   );

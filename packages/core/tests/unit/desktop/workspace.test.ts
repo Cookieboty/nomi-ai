@@ -152,10 +152,8 @@ describe('Nomi conversation workspace (desktop tools)', () => {
     expect(s.asks).toHaveLength(1);
   });
 
-  it('refuses paths outside the workspace, deny-listed files and symlink escapes', async () => {
+  it('refuses paths outside the workspace that the user never granted, deny-listed files and symlink escapes', async () => {
     const s = setup();
-    // 即使外面的文件夹被授权过也不行
-    s.broker.grant(s.outside, 'read-write');
     const abs = await s.call('fs_read_text', { path: path.join(s.outside, 'secret.txt') });
     expect(abs.error?.code).toBe('outside_scope');
     expect(abs.error?.message).toContain(s.ws);
@@ -173,6 +171,56 @@ describe('Nomi conversation workspace (desktop tools)', () => {
     expect(fs.existsSync(path.join(s.home, 'x.txt'))).toBe(false);
   });
 
+  it('folders the user granted outside the workspace keep the original flow (never auto-approved)', async () => {
+    const s = setup(); // 「全部自动」开着
+    s.broker.grant(s.outside, 'read-write');
+    // 读：按授权放行（原来的读也不确认）
+    const r = await s.call('fs_read_text', { path: path.join(s.outside, 'secret.txt') });
+    expect(r.ok).toBe(true);
+    expect(String(r.data?.text)).toContain('outside');
+    // 相对路径落到授权文件夹里同样认
+    expect((await s.call('fs_read_text', { path: '../elsewhere/secret.txt' })).ok).toBe(true);
+    // 写：不按「全部自动」放行，照原来的规则确认
+    const w = await s.call('fs_write_text', {
+      path: path.join(s.outside, 'new.txt'),
+      text: 'x',
+      mode: 'create',
+    });
+    expect(w.ok).toBe(true);
+    expect(s.asks.map((a) => a.tool)).toEqual(['fs_write_text']);
+    // 删除：破坏性，照旧在对话框里确认
+    expect((await s.call('fs_trash', { path: path.join(s.outside, 'new.txt') })).ok).toBe(true);
+    expect(s.asks.map((a) => [a.tool, a.dialog])).toEqual([
+      ['fs_write_text', false],
+      ['fs_trash', true],
+    ]);
+    // 授权根本身不能删；授权文件夹里的黑名单照旧拒绝
+    expect((await s.call('fs_trash', { path: s.outside })).error?.code).toBe('denied');
+    fs.writeFileSync(path.join(s.outside, '.env'), 'K=1');
+    expect((await s.call('fs_read_text', { path: path.join(s.outside, '.env') })).error?.code).toBe(
+      'denied',
+    );
+    // 符号链接从工作区指到授权文件夹：按授权文件夹的规则
+    fs.symlinkSync(s.outside, path.join(s.ws, 'link'));
+    expect((await s.call('fs_read_text', { path: 'link/secret.txt' })).ok).toBe(true);
+    // 本次运行的会话授权（如拖到看板娘身上的单个文件）同样走原流程
+    const other = path.join(s.home, 'other');
+    fs.mkdirSync(other);
+    fs.writeFileSync(path.join(other, 'drop.txt'), 'DROPPED');
+    s.broker.grant(path.join(other, 'drop.txt'), 'read', 'file', true);
+    const d = await s.call('fs_read_text', { path: path.join(other, 'drop.txt') });
+    expect(String(d.data?.text)).toContain('DROPPED');
+    expect(
+      (
+        await s.call('fs_write_text', {
+          path: path.join(other, 'drop.txt'),
+          text: 'y',
+          mode: 'append',
+        })
+      ).error?.code,
+    ).toBe('read_only');
+  });
+
   it('plan mode still blocks writes inside the workspace', async () => {
     const s = setup();
     s.broker.permissionMode = () => 'plan';
@@ -180,12 +228,14 @@ describe('Nomi conversation workspace (desktop tools)', () => {
     expect(w.error?.code).toBe('mode_blocked');
   });
 
-  it('does not ask for more folders while a workspace is set; unchanged without one', async () => {
+  it('can still ask the user to grant a folder while a workspace is set', async () => {
     const s = setup();
-    expect((await s.call('desktop_request_scope', {})).error?.code).toBe('workspace_set');
-    const r = await s.call('desktop_request_scope', {}, {});
+    const r = await s.call('desktop_request_scope', {});
     expect(r.ok).toBe(true);
     expect(r.data).toMatchObject({ path: s.outside });
+    expect((await s.call('fs_read_text', { path: path.join(s.outside, 'secret.txt') })).ok).toBe(
+      true,
+    );
   });
 });
 

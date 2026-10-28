@@ -209,7 +209,7 @@ export class PermissionBroker {
 
   /**
    * 工作区里的路径守卫：相对路径按工作区解析；目标（realpath 后）必须在工作区里，
-   * 黑名单照旧生效；工作区外一律拒绝（不看已授权文件夹）。
+   * 黑名单照旧生效。只看工作区（授权文件夹见 guardWorkspaceOrGranted）。
    */
   async guardIn(
     root: string,
@@ -229,6 +229,30 @@ export class PermissionBroker {
         message: t('electron.common.path-is-outside-the-conversation-workspace', root),
       };
     return g;
+  }
+
+  /**
+   * 对话有工作区时的路径守卫：工作区里的按 guardIn；工作区外的只有落在用户单独授权过的文件夹 / 文件
+   * （持久作用域与本次运行的会话作用域，如拖到看板娘身上的文件）里才放行，并且走原来的授权与确认流程
+   * （inWorkspace = false，调用方不能按「全部自动」放行）。其它工作区外的路径照旧拒绝；黑名单在两边都生效。
+   */
+  async guardWorkspaceOrGranted(
+    root: string,
+    p: unknown,
+    need: 'read' | 'write',
+    allowMissing = false,
+  ): Promise<{ g: GuardResult; inWorkspace: boolean }> {
+    const g = await this.guardIn(root, p, need, allowMissing);
+    if (g.ok) return { g, inWorkspace: true };
+    if (g.code !== 'outside_scope' && g.code !== 'symlink_escape') return { g, inWorkspace: false };
+    const granted = await this.guard(
+      resolveInWorkspace(p, root, this.envBase.platform),
+      need,
+      allowMissing,
+    );
+    // 不在任何授权范围里：报工作区的错误（说明工作区在哪）
+    if (!granted.ok && granted.code === 'outside_scope') return { g, inWorkspace: false };
+    return { g: granted, inWorkspace: false };
   }
 
   /**

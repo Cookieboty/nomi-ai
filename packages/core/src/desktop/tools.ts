@@ -141,19 +141,24 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
     }
   }
 
-  /** 工作区（已校验）里只认工作区，没有工作区时按已授权文件夹 */
+  /**
+   * 有工作区（已校验）时：工作区里的路径 inWorkspace = true（按「全部自动」放行）；工作区外只认用户
+   * 单独授权过的文件夹 / 文件，inWorkspace = false（走原来的确认流程）。没有工作区时按已授权文件夹。
+   */
   async function guard(
     p: unknown,
     need: 'read' | 'write',
     allowMissing = false,
     ws: string | null = null,
   ) {
-    const g = ws
-      ? await broker.guardIn(ws, p, need, allowMissing)
-      : await broker.guard(p, need, allowMissing);
+    const { g, inWorkspace } = ws
+      ? await broker.guardWorkspaceOrGranted(ws, p, need, allowMissing)
+      : { g: await broker.guard(p, need, allowMissing), inWorkspace: false };
     if (!g.ok) throw new ToolError(g.code, g.message);
-    return g;
+    return { ...g, inWorkspace };
   }
+  /** 确认时传给 confirm 的工作区：只有目标在工作区里才按工作区规则（授权文件夹走原流程） */
+  const wsFor = (ws: string | null, g: { inWorkspace: boolean }) => (g.inWorkspace ? ws : null);
 
   async function confirm(
     tool: string,
@@ -244,8 +249,8 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
     .min(1)
     .max(4096)
     .describe(
-      '文件或文件夹路径。对话选了工作区时只能在工作区里，可用相对路径（相对工作区）；' +
-        '没有工作区时用绝对路径（可用 ~ 表示主目录），必须在已授权的文件夹内',
+      '文件或文件夹路径。对话选了工作区时可用相对路径（相对工作区）；工作区外只能访问用户单独授权过的文件夹' +
+        '（需要时用 desktop_request_scope 请用户授权，按原来的确认流程）。没有工作区时用绝对路径（可用 ~ 表示主目录），必须在已授权的文件夹内',
     );
 
   const listInput = z
@@ -344,13 +349,6 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
       async execute(input, ctx) {
         const i = scopeInput.parse(input);
         return run('desktop_request_scope', i, ctx.signal, async () => {
-          const ws = await broker.workspaceOf(ctx.cwd);
-          if (ws)
-            throw new ToolError(
-              'workspace_set',
-              `这次对话选了工作区 ${ws}：文件和命令工具只能在工作区里用，不能再授权别的文件夹。` +
-                '需要别的位置时请用户在对话顶栏换工作区',
-            );
           const picked = await deps.pickFolder(i.suggestedPath);
           if (!picked) throw new ToolError('user_denied', '用户取消了授权');
           const s = broker.grant(picked, i.mode);
@@ -418,6 +416,7 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
         const i = searchInput.parse(input);
         return run('fs_search', i, ctx.signal, async () => {
           const ws = await broker.workspaceOf(ctx.cwd);
+          // 有工作区时默认只搜工作区；显式给的 root 可以是工作区或单独授权过的文件夹
           const roots = i.root
             ? [(await guard(i.root, 'read', false, ws)).real]
             : ws
@@ -445,7 +444,7 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
                 continue;
               }
               const g = ws
-                ? await broker.guardIn(ws, full, 'read')
+                ? (await broker.guardWorkspaceOrGranted(ws, full, 'read')).g
                 : await broker.guard(full, 'read');
               if (!g.ok) continue; // 黑名单文件
               if (re && !re.test(d.name)) continue;
@@ -550,7 +549,7 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
             ctx.signal,
             preview,
             undefined,
-            ws,
+            wsFor(ws, g),
           );
           const inverse: InverseOp[] = [];
           if (i.mode === 'create') {
@@ -598,7 +597,7 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
           const g = await guard(i.path, 'write', false, ws);
           const st = await fs.promises.stat(g.real);
           // 不能删除授权根目录 / 工作区本身或包含它的上级（比较 realpath；Windows 短文件名 / 大小写）
-          for (const root of ws ? [ws] : broker.scopes().map((s) => s.path)) {
+          for (const root of [...(ws ? [ws] : []), ...broker.scopes().map((s) => s.path)]) {
             const rootReal = await fs.promises.realpath(root).catch(() => root);
             if (isInside(rootReal, g.real, process.platform)) {
               throw new ToolError('denied', '不能删除已授权的根文件夹本身');
@@ -616,7 +615,7 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
             ctx.signal,
             preview,
             undefined,
-            ws,
+            wsFor(ws, g),
           );
           const rec = await trash.trash(g.real);
           const e = journal.record('fs_trash', `trash ${path.basename(g.real)}`, [
