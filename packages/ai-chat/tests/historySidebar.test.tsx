@@ -8,6 +8,14 @@ import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import { setChatMode } from '../src/services/chatPrefs';
 import type { HistorySession } from '../src/services/historyClient';
 
+import type { CodingApiMockState } from './helpers/codingApi';
+
+// D3 客户端走契约（services/api）；测试仍用旧通道形状的 window.aiIPC 假桥，经 helpers/codingApi 转发
+const codingApi = vi.hoisted(() => ({}) as CodingApiMockState);
+vi.mock('../src/services/api', async () =>
+  (await import('./helpers/codingApi')).createCodingApiMock(codingApi),
+);
+
 // 返回稳定引用（与生产一致）；每次新对象会让 Sidebar 的 refresh effect 每次渲染都重跑
 vi.mock('../src/contexts/AiChatContext', () => {
   const api = {

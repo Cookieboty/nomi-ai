@@ -7,6 +7,17 @@ import React, { useEffect, useState } from 'react';
 import styles from './DesktopConfirm.module.css';
 
 import { CLIP_HINTS } from '@/mascot/voice/promptClips';
+import { api, hasTransport } from '@/services/api';
+
+/** 提醒（看板娘窗口）：到点事件、错过的提醒、卡片上的好的 / 稍后 */
+const reminders = {
+  onReminder: (cb: (r: DesktopReminderEvent) => void) =>
+    api.on('desktop.reminder', (r) => cb(r as DesktopReminderEvent)),
+  takeMissedReminders: (): Promise<DesktopReminderEvent[]> =>
+    api.desktop.takeMissedReminders().catch(() => []),
+  reminderAction: (id: string, action: 'dismiss' | 'snooze', minutes?: number) =>
+    void api.desktop.reminderAction({ id, action, minutes }).catch(() => undefined),
+};
 
 const time = (t: number) =>
   new Date(t).toLocaleTimeString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit' });
@@ -17,23 +28,23 @@ const time = (t: number) =>
  */
 export const ReminderCard: React.FC = () => {
   const [queue, setQueue] = useState<DesktopReminderEvent[]>([]);
-  const api = window.electronAPI?.desktop;
+  const bridge = hasTransport() ? reminders : undefined;
   const cur = queue[0];
 
   useEffect(() => {
-    if (!api?.onReminder) return;
+    if (!bridge) return;
     // priority 11 > messageComplete (9): late AI replies must not replace a live reminder
     // clip：诺米提示语音播固定句，气泡显示带内容的完整文字
     const say = (text: string, clip: string, ms = 15000) =>
       window.dispatchEvent(
         new CustomEvent('mascot:say', { detail: { text, ms, priority: 11, clip } }),
       );
-    const off1 = api.onReminder((r) => {
+    const off1 = bridge.onReminder((r) => {
       setQueue((q) => [...q.filter((x) => x.id !== r.id), r]);
       say(tr('ui.usage-tools.reminder', r.text), CLIP_HINTS.reminder);
     });
     // 关闭期间错过的提醒：挂载后拉取一次
-    void api.takeMissedReminders().then((items) => {
+    void bridge.takeMissedReminders().then((items) => {
       if (!items?.length) return;
       setQueue((q) => [...q, ...items.map((r) => ({ ...r, missed: true }))]);
       say(
@@ -53,11 +64,11 @@ export const ReminderCard: React.FC = () => {
     return () => {
       off1();
     };
-  }, [api]);
+  }, [bridge]);
 
-  if (!cur || !api) return null;
+  if (!cur || !bridge) return null;
   const act = (action: 'dismiss' | 'snooze') => {
-    api.reminderAction(cur.id, action, 10);
+    bridge.reminderAction(cur.id, action, 10);
     setQueue((q) => q.slice(1));
   };
   return (

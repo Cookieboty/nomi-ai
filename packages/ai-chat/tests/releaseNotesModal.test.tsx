@@ -13,6 +13,9 @@ import {
   setShowReleaseNotesAfterUpdate,
 } from '../src/services/releaseNotesPrefs';
 
+// D2 的过程经契约替身转发到下面的旧桥假实现（见 helpers/shellApi）
+vi.mock('../src/services/api', () => import('./helpers/shellApi'));
+
 function mockUpdates(version: string) {
   (window as unknown as { electronAPI: unknown }).electronAPI = {
     updates: {

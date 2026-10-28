@@ -6,9 +6,18 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ExtensionsPanel } from '../src/components/ExtensionsPanel';
 import { MigrateDialog } from '../src/components/ExtensionsPanel/MigrateDialog';
 
+import type { ApiMockState } from './helpers/knowledgeApi';
+
+// ext.* 走契约（services/api）：调用记进 mockIpc 返回的 invoke（过程名 + 具名入参）
+const mock = vi.hoisted(() => ({ transport: true }) as ApiMockState);
+vi.mock('../src/services/api', async () =>
+  (await import('./helpers/knowledgeApi')).createApiMock(mock),
+);
+
 afterEach(() => {
   cleanup();
   delete (window as { aiIPC?: unknown }).aiIPC;
+  mock.invoke = undefined;
 });
 
 const scan = {
@@ -66,18 +75,19 @@ const scan = {
 
 function mockIpc(s: unknown = scan) {
   const invoke = vi.fn(async (ch: string, ..._a: unknown[]) => {
-    if (ch === 'ai:ext:migrate-scan') return s;
-    if (ch === 'ai:ext:migrate-import')
+    if (ch === 'ext.migrateScan') return s;
+    if (ch === 'ext.migrateImport')
       return {
         imported: [{ key: 'claude:user:mcp:github', kind: 'mcp', name: 'github' }],
         skipped: [],
         failed: [{ key: 'x', name: 'files', error: '安全存储不可用' }],
       };
-    if (ch === 'ai:ext:mcp-list') return { servers: [], env: [], presets: [], ready: true };
-    if (ch === 'ai:ext:skills-list') return [];
+    if (ch === 'ext.mcpList') return { servers: [], env: [], presets: [], ready: true };
+    if (ch === 'ext.skillsList') return [];
     return true;
   });
   (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
+  mock.invoke = (name, input) => (input === undefined ? invoke(name) : invoke(name, input));
   return invoke;
 }
 
@@ -107,11 +117,13 @@ describe('MigrateDialog', () => {
     fireEvent.click(document.querySelector('[data-value="rename"]')!);
     fireEvent.click(r.getByTestId('migrate-import'));
     await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('ai:ext:migrate-import', [
-        { key: 'claude:user:mcp:github', action: undefined },
-        { key: 'claude:user:mcp:files', action: 'rename' },
-        { key: 'codex:user:skill:~/.agents/skills/review', action: undefined },
-      ]),
+      expect(invoke).toHaveBeenCalledWith('ext.migrateImport', {
+        items: [
+          { key: 'claude:user:mcp:github', action: undefined },
+          { key: 'claude:user:mcp:files', action: 'rename' },
+          { key: 'codex:user:skill:~/.agents/skills/review', action: undefined },
+        ],
+      }),
     );
     await waitFor(() =>
       expect(r.getByTestId('migrate-result').textContent).toContain('安全存储不可用'),
@@ -125,7 +137,7 @@ describe('MigrateDialog', () => {
     await waitFor(() => expect(r.getByTestId('migrate-empty')).toBeTruthy());
     fireEvent.click(r.getByTestId('migrate-pick-project'));
     await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('ai:ext:migrate-scan', { pickProject: true }),
+      expect(invoke).toHaveBeenCalledWith('ext.migrateScan', { pickProject: true }),
     );
   });
 
@@ -133,7 +145,7 @@ describe('MigrateDialog', () => {
     const invoke = mockIpc();
     const r = render(<ExtensionsPanel isVisible onClose={() => undefined} />);
     fireEvent.click(await r.findByTestId('migrate-open'));
-    await waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:ext:migrate-scan', {}));
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith('ext.migrateScan', {}));
     await waitFor(() => expect(r.getByText('github')).toBeTruthy());
   });
 });

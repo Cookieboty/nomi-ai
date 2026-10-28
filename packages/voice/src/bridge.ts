@@ -1,4 +1,4 @@
-/** 与主进程 `ai:voice:*` 的契约（渲染进程视角）。 */
+/** 与主进程语音服务的接口（渲染进程视角）：契约 `voice.*`（经 setVoiceBackend 注入）或旧的 `ai:voice:*`。 */
 export interface VoiceBridge {
   invoke(channel: string, ...args: unknown[]): Promise<unknown>;
   on(channel: string, fn: (payload: unknown) => void): () => void;
@@ -133,4 +133,21 @@ export type VoiceApi = ReturnType<typeof voiceApi>;
 export function defaultBridge(): VoiceBridge | null {
   const w = globalThis as unknown as { aiIPC?: VoiceBridge };
   return w.aiIPC && typeof w.aiIPC.invoke === 'function' ? w.aiIPC : null;
+}
+
+/**
+ * 注入点（docs/design/core-host-decoupling.md §12「P1b 实施约定」）：宿主（视图的
+ * `services/hostBackends/media.ts`）把契约客户端包成 VoiceApi 交给本包；本包不 import 契约。
+ * 没有注入时退回 window.aiIPC（旧 preload），都没有时为 null（浏览器预览 / 测试）。
+ */
+let backend: VoiceApi | null = null;
+
+export function setVoiceBackend(api: VoiceApi | null): void {
+  backend = api;
+}
+
+export function defaultVoiceApi(): VoiceApi | null {
+  if (backend) return backend;
+  const b = defaultBridge();
+  return b ? voiceApi(b) : null;
 }

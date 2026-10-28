@@ -6,6 +6,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProvidersPage } from '../src/components/ProvidersPage';
 import { cliUpdateClient } from '../src/services/cliUpdateClient';
 
+import type { CodingApiMockState } from './helpers/codingApi';
+
+// D3 客户端走契约（services/api）；测试仍用旧通道形状的 window.aiIPC 假桥，经 helpers/codingApi 转发
+const codingApi = vi.hoisted(() => ({}) as CodingApiMockState);
+vi.mock('../src/services/api', async () =>
+  (await import('./helpers/codingApi')).createCodingApiMock(codingApi),
+);
+
 const AGENTS = {
   settings: {
     enabled: true,

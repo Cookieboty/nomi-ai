@@ -2,7 +2,7 @@ import { t } from '@nomi-ai/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import {
-  defaultBridge,
+  defaultVoiceApi,
   voiceApi,
   type VoiceApi,
   type VoiceBridge,
@@ -13,10 +13,14 @@ import { VoiceController, type VoiceMode, type VoiceState } from '../controller'
 const controllers = new Map<string, VoiceController>();
 
 /** 每个窗口每种来源一个控制器（多个组件共享同一个麦克风会话） */
-export function getController(source: 'chat' | 'mascot', bridge: VoiceBridge): VoiceController {
+export function getController(
+  source: 'chat' | 'mascot',
+  bridge: VoiceBridge | VoiceApi,
+): VoiceController {
   let c = controllers.get(source);
   if (!c) {
-    c = new VoiceController({ api: voiceApi(bridge), source });
+    const api = 'invoke' in bridge ? voiceApi(bridge) : bridge;
+    c = new VoiceController({ api, source });
     controllers.set(source, c);
   }
   return c;
@@ -49,12 +53,8 @@ export function useVoice(
   source: 'chat' | 'mascot',
   onText?: (text: string, via: VoiceMode) => void,
 ): UseVoice {
-  const bridge = useMemo(() => defaultBridge(), []);
-  const api = useMemo(() => (bridge ? voiceApi(bridge) : null), [bridge]);
-  const controller = useMemo(
-    () => (bridge ? getController(source, bridge) : null),
-    [bridge, source],
-  );
+  const api = useMemo(() => defaultVoiceApi(), []);
+  const controller = useMemo(() => (api ? getController(source, api) : null), [api, source]);
   const [state, setState] = useState<VoiceState>(controller?.state ?? IDLE);
   const [config, setConfig] = useState<VoiceStateView | null>(null);
 
@@ -107,7 +107,7 @@ export function useVoice(
   );
 
   return {
-    available: !!bridge,
+    available: !!api,
     api,
     controller,
     state,

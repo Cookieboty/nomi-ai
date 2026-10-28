@@ -1,5 +1,7 @@
 import type { MascotInteractionConfig } from '@nomi-ai/types';
 
+import { api, hasTransport } from '../../services/api';
+
 const KEY = 'mascot.interaction.v2';
 
 export const DEFAULT_INTERACTION: MascotInteractionConfig = {
@@ -49,7 +51,8 @@ class InteractionSettings {
 
   /** 把当前设置推给主进程（启动时调用一次） */
   push(): void {
-    if (typeof window !== 'undefined') window.electronAPI?.mascotWindow?.setConfig(this.cfg);
+    if (hasTransport())
+      void api.mascot.setInteractionConfig({ ...this.cfg }).catch(() => undefined);
   }
 
   subscribe(fn: Listener): () => void {

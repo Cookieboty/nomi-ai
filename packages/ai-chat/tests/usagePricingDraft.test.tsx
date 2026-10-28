@@ -6,6 +6,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Pricing } from '../src/components/UsagePanel/Pricing';
 import type { UsageSettings, UsageState } from '../src/services/usageClient';
 
+// D2 的过程经契约替身转发到下面的旧桥假实现（见 helpers/shellApi）
+vi.mock('../src/services/api', () => import('./helpers/shellApi'));
+
 const baseState = (over: Partial<UsageSettings> = {}): UsageState =>
   ({
     settings: { customPrices: [{ model: 'm-a', input: 1, output: 2 }], cnyPerUsd: 7.2, ...over },

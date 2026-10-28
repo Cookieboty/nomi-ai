@@ -1,5 +1,5 @@
 /**
- * 图片主题背景（图片 / 模糊 / 透明度）：主进程 chat-bg:* 持久化；无 IPC 时落 localStorage（浏览器 / 单测）。
+ * 图片主题背景（图片 / 模糊 / 透明度）：主进程（契约 chatBg.*）持久化；无传输时落 localStorage（浏览器 / 单测）。
  * 是否显示只看主题 pref === 'image'；状态与校验共用 @nomi-ai/types。
  */
 import {
@@ -13,6 +13,8 @@ import {
 import { createLogger, t as tr } from '@nomi-ai/ui';
 import type { CSSProperties } from 'react';
 
+import { api, hasTransport } from './api';
+
 export { CHAT_BG_PRESET_URL, DEFAULT_CHAT_BG, sanitizeChatBg, type ChatBackgroundState };
 
 const KEY = 'cd.chatBackground';
@@ -22,16 +24,23 @@ export const CHAT_BG_WRITE_DEBOUNCE_MS = 150;
 
 type ChatBgApi = {
   get: () => Promise<unknown>;
-  set: (patch: unknown) => Promise<unknown>;
+  set: (patch: Partial<ChatBackgroundState>) => Promise<unknown>;
   reset: () => Promise<unknown>;
   pickImage: () => Promise<unknown>;
   onChanged: (cb: (s: unknown) => void) => () => void;
 };
 
-const api = (): ChatBgApi | null => {
-  const w = window as unknown as { electronAPI?: { chatBg?: ChatBgApi } };
-  return w.electronAPI?.chatBg ?? null;
-};
+/** 主进程（契约 chatBg.*）；没有传输（浏览器预览 / 单测）时为 null，走本地状态 */
+const backend = (): ChatBgApi | null =>
+  hasTransport()
+    ? {
+        get: () => api.chatBg.get(),
+        set: (patch) => api.chatBg.set(patch),
+        reset: () => api.chatBg.reset(),
+        pickImage: () => api.chatBg.pickImage(),
+        onChanged: (cb) => api.on('chatBg.changed', cb),
+      }
+    : null;
 
 let state: ChatBackgroundState = { ...DEFAULT_CHAT_BG };
 const listeners = new Set<(s: ChatBackgroundState) => void>();
@@ -71,7 +80,7 @@ export function initChatBackground(): () => void {
   } catch {
     /* ignore */
   }
-  const a = api();
+  const a = backend();
   if (!a) return () => undefined;
   void a.get().then((value) => {
     if (revision === initialRevision) emit(sanitizeChatBg(value));
@@ -84,7 +93,7 @@ export function initChatBackground(): () => void {
 
 async function flush(): Promise<void> {
   flushTimer = null;
-  const a = api();
+  const a = backend();
   const patch = queuedPatch;
   const done = waiters;
   queuedPatch = {};
@@ -116,7 +125,7 @@ export function setChatBackground(
   revision += 1;
   const next = sanitizeChatBg({ ...state, ...patch });
   emit(next);
-  if (!api()) return Promise.resolve(next);
+  if (!backend()) return Promise.resolve(next);
   queuedPatch = { ...queuedPatch, ...patch };
   if (flushTimer) clearTimeout(flushTimer);
   flushTimer = setTimeout(() => void flush(), CHAT_BG_WRITE_DEBOUNCE_MS);
@@ -126,7 +135,7 @@ export function setChatBackground(
 /** 当前图片加载失败（文件被删 / 移走）：让主进程重新校验并回退预设；无 IPC 时直接回退预设。 */
 export async function revalidateChatBackground(): Promise<ChatBackgroundState> {
   revision += 1;
-  const a = api();
+  const a = backend();
   if (!a) {
     const next = {
       ...state,
@@ -147,7 +156,7 @@ export async function resetChatBackground(): Promise<ChatBackgroundState> {
   queuedPatch = {};
   const pending = waiters;
   waiters = [];
-  const a = api();
+  const a = backend();
   if (!a) {
     emit({ ...DEFAULT_CHAT_BG });
     for (const fn of pending) fn(getChatBackground());
@@ -161,7 +170,7 @@ export async function resetChatBackground(): Promise<ChatBackgroundState> {
 
 export async function pickChatBackgroundImage(): Promise<ChatBackgroundState> {
   revision += 1;
-  const a = api();
+  const a = backend();
   if (!a) return getChatBackground();
   const next = sanitizeChatBg(await a.pickImage());
   emit(next);

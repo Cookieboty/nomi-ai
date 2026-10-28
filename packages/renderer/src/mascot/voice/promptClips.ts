@@ -10,6 +10,7 @@
  */
 import { createLogger, getLocale, t } from '@nomi-ai/ui';
 
+import { api, hasTransport } from '../../services/api';
 import {
   ensureCharacterPackOverlay,
   getCharacterId,
@@ -115,8 +116,7 @@ async function promptVoiceOn(): Promise<boolean> {
   }
   let value = true; // 默认开
   try {
-    const fn = typeof window !== 'undefined' ? window.electronAPI?.ttsPromptVoice : undefined;
-    if (fn) value = (await fn()) !== false;
+    if (hasTransport()) value = (await api.tts.promptVoice()) !== false;
   } catch {
     /* keep default */
   }

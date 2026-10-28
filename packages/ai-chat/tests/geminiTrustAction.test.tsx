@@ -10,6 +10,14 @@ import {
 import { AssistantMessage, type ConvSlots } from '../src/components/Conversation/Messages';
 import { fromHarnessMessage } from '../src/utils/convAdapters';
 
+import type { CodingApiMockState } from './helpers/codingApi';
+
+// D3 客户端走契约（services/api）；测试仍用旧通道形状的 window.aiIPC 假桥，经 helpers/codingApi 转发
+const codingApi = vi.hoisted(() => ({}) as CodingApiMockState);
+vi.mock('../src/services/api', async () =>
+  (await import('./helpers/codingApi')).createCodingApiMock(codingApi),
+);
+
 const FOLDER = '/home/u/work/proj';
 const failed = (geminiTrust?: { folder: string; broad?: boolean }) =>
   fromHarnessMessage(

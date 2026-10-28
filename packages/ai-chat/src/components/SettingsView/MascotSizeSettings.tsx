@@ -9,19 +9,11 @@ import { Button, SettingRow, Slider, t } from '@nomi-ai/ui';
 import { Minus, Plus } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 
+import { api, hasTransport } from '../../services/api';
+
 import styles from './index.module.css';
 
-interface MascotApi {
-  scaleGet: () => Promise<MascotScaleState>;
-  scaleSet: (scale: number) => Promise<MascotScaleState>;
-  scaleReset: () => Promise<MascotScaleState>;
-  onScale: (cb: (s: MascotScaleState) => void) => () => void;
-}
-
-function api(): MascotApi | null {
-  const w = window as unknown as { electronAPI?: { mascot?: MascotApi } };
-  return w.electronAPI?.mascot ?? null;
-}
+const ignore = (): undefined => undefined;
 
 const pct = (v: number) => Math.round(v * 100);
 
@@ -32,27 +24,25 @@ export const MascotSizeSettings: React.FC<{ disabled?: boolean }> = ({ disabled 
   const dragging = useRef(false);
 
   useEffect(() => {
-    const a = api();
-    if (!a) return undefined;
+    if (!hasTransport()) return undefined;
     const adopt = (s: MascotScaleState) => {
       setState(s);
       // 拖动滑块时不被回传的旧值拉回去；松手后以主进程为准
       if (!dragging.current) setValue(s.scale);
     };
-    void a.scaleGet().then(adopt);
-    return a.onScale(adopt);
+    void api.mascot.scaleGet().then(adopt, ignore);
+    return api.on('mascot.scaleChanged', adopt);
   }, []);
 
-  const a = api();
-  if (!a) return null;
+  if (!hasTransport()) return null;
   const s = state;
   const shown = value ?? s?.scale ?? 0.5;
   const set = (v: number) => {
     setValue(v);
-    void a.scaleSet(v).then((r) => {
+    void api.mascot.scaleSet({ scale: v }).then((r) => {
       setState(r);
       if (!dragging.current) setValue(r.scale);
-    });
+    }, ignore);
   };
   const release = () => {
     dragging.current = false;
@@ -132,10 +122,10 @@ export const MascotSizeSettings: React.FC<{ disabled?: boolean }> = ({ disabled 
           data-testid="mascot-size-reset"
           disabled={off || Math.abs(shown - s.default) < 1e-6}
           onClick={() =>
-            void a.scaleReset().then((r) => {
+            void api.mascot.scaleReset().then((r) => {
               setState(r);
               setValue(r.scale);
-            })
+            }, ignore)
           }
         >
           {t('ui.knowledge-local.reset')}

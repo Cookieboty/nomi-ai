@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   ensureCharacterPackOverlay,
@@ -17,24 +17,24 @@ import {
 } from '../../src/mascot/characterConfig';
 import { availableLines, characterLine } from '../../src/mascot/characterCopy';
 
+import { installMascotHost, packSnapshot, resetMascotHost } from './mascotHost';
+
+vi.mock('../../src/services/api', async () => (await import('./mascotHost')).mascotApiModule());
+
 function ReadyProbe({ children }: { children: (ready: boolean) => React.ReactNode }) {
   const ready = useCharacterPackReady();
   return <>{children(ready)}</>;
 }
 
+/** 契约 character.getActivePack（快照缺的字段按空值补齐） */
 function stubGetActive(impl: () => Promise<unknown>): void {
-  const w = window as unknown as {
-    electronAPI?: { characterPack?: { getActive: () => Promise<unknown> } };
-  };
-  w.electronAPI = {
-    ...(w.electronAPI || {}),
-    characterPack: { getActive: impl },
-  };
+  installMascotHost({
+    'character.getActivePack': async () => packSnapshot((await impl()) as Record<string, unknown>),
+  });
 }
 
 function clearStub(): void {
-  const w = window as unknown as { electronAPI?: { characterPack?: unknown } };
-  if (w.electronAPI) delete w.electronAPI.characterPack;
+  resetMascotHost();
 }
 
 afterEach(() => {

@@ -21,7 +21,7 @@ import {
   NOMI_TRANSPORT_GLOBAL,
   type AppContract,
 } from '../src/app';
-import { createInProcessServer } from '../src/testing';
+import { createInProcessServer, withMissingHandlers } from '../src/testing';
 
 /** 只看 AI 门面（`ai.*`）：P1b 各域的过程由 tests/domains.test.ts 覆盖 */
 const procedures = Object.fromEntries(
@@ -261,7 +261,11 @@ describe('appContract · 端到端（in-process，strict 序列化）', () => {
       yield { type: 'delta', content: 'a' };
       yield { type: 'done', finishReason: 'stop' };
     };
-    const router = implement(appContract, handlers as unknown as Handlers<AppContract>);
+    // 其他域的过程不在本测试关心范围内：没写的一律 NOT_FOUND
+    const router = implement(
+      appContract,
+      withMissingHandlers(appContract, handlers as unknown as Partial<Handlers<AppContract>>),
+    );
     const server = createInProcessServer();
     server.serve(router);
     const api = createClient(appContract, server.connect({ surface: 'chat', trusted }));

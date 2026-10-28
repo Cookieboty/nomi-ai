@@ -15,6 +15,9 @@ import type {
   ProviderView,
 } from '../src/services/gatewayClient';
 
+// D2 的过程经契约替身转发到下面的旧桥假实现（见 helpers/shellApi）
+vi.mock('../src/services/api', () => import('./helpers/shellApi'));
+
 vi.mock('../src/components/ConfirmDialog', () => import('./helpers/confirmViaWindow'));
 
 const PRESETS = [

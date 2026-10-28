@@ -7,6 +7,7 @@ import * as url from 'url';
 
 import { BrowserWindow, screen, app, type BrowserWindowConstructorOptions } from 'electron';
 
+import { mascotAppEvents } from '../mascot/mascotEvents';
 import { fitMascotScale, maxScaleForArea, mascotWindowSize } from '../mascot/mascotSize';
 import { MascotWindowController } from '../mascot/MascotWindowController';
 import { installWindowGuards } from '../security/windowGuards';
@@ -542,7 +543,10 @@ export class WindowManager implements IWindowManager {
         if (isInWindow !== mouseInWindow) {
           mouseInWindow = isInWindow;
           const eventName = isInWindow ? 'window-mouse-enter' : 'window-mouse-leave';
-          window.webContents.send(eventName);
+          // 契约 router 建好后经应用事件总线发布（同时成为契约事件 window.mouseEnter / mouseLeave）
+          const events = mascotAppEvents();
+          if (events) events.publish(eventName, null, { surface: 'mascot' });
+          else window.webContents.send(eventName);
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);

@@ -677,6 +677,10 @@ export class ExtensionsService {
     if (!dir) return null;
     return this.importSkillDir(dir);
   }
+  /** 在系统文件管理器里打开技能目录（不给名字 = 技能根目录）；返回系统的错误信息（成功为空串） */
+  async openSkill(name?: string): Promise<string> {
+    return this.d.ports.shell.openPath(name ? this.skillDir(name) : this.d.skillsRoot);
+  }
   skillsContext(): string {
     return skillsContext(this.listSkills().filter((s) => s.enabled && !s.error));
   }
@@ -994,9 +998,7 @@ export class ExtensionsService {
     h('skill-remove', (n: string) => this.removeSkill(n));
     h('skill-toggle', (n: string, v: boolean) => this.toggleSkill(n, !!v));
     h('skill-import', () => this.importSkillDialog());
-    h('skill-open', (n?: string) =>
-      this.d.ports.shell.openPath(n ? this.skillDir(n) : this.d.skillsRoot),
-    );
+    h('skill-open', (n?: string) => this.openSkill(n));
     h('skills-context', () => this.skillsContext());
     h('migrate-scan', (o?: { pickProject?: boolean; clearProject?: boolean }) =>
       this.migrateScan({ pickProject: !!o?.pickProject, clearProject: !!o?.clearProject }),

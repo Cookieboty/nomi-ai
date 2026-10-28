@@ -1,5 +1,5 @@
 import { ClientAIClient } from '@nomi-ai/ai-sdk-client';
-import type { Persona, PersonaApi } from '@nomi-ai/types';
+import type { Persona } from '@nomi-ai/types';
 import { t } from '@nomi-ai/ui';
 import { createLogger } from '@nomi-ai/ui';
 
@@ -12,6 +12,7 @@ import {
 import { type IPCClient, type ElectronAPI, type StreamSendOptions } from '../types/ipc';
 import { chunkToTrace, chunkToUsage } from '../utils/chunkTrace';
 
+import { api, hasTransport } from './api';
 import { ConversationStore } from './conversationStore';
 import { buildProviderMessages } from './history';
 import { upstreamErrorText } from './upstreamErrorText';
@@ -107,9 +108,8 @@ export type PersonaGetter = () => Promise<Persona | undefined>;
 
 const personaFromPreload: PersonaGetter = async () => {
   try {
-    if (typeof window === 'undefined') return undefined;
-    const api = (window.electronAPI as { persona?: PersonaApi } | undefined)?.persona;
-    return await api?.get();
+    if (!hasTransport()) return undefined;
+    return await api.persona.get();
   } catch (e) {
     log.warn('persona unavailable', e);
     return undefined;

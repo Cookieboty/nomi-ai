@@ -102,6 +102,13 @@ function hasLearned(l: LearnedState | undefined): l is LearnedState {
   );
 }
 
+/** 界面传来的客户端 id：只接受 nomi 与内置 CLI */
+function knownClient(client: unknown): ClientId {
+  if (!CLIENT_IDS.includes(client as BuiltinClientId))
+    throw new Error(tr('electron.common.unknown-client'));
+  return client as ClientId;
+}
+
 function hostPortOf(url: string): string | null {
   try {
     const u = new URL(url);
@@ -1462,6 +1469,28 @@ export class GatewayService {
     });
   }
 
+  /* ------------------------------ 界面入口（旧 IPC 与应用契约共用） ------------------------------ */
+
+  /** 界面改某个客户端的模型分配：只接受 nomi 与内置 CLI，未知客户端报错 */
+  setAssignmentFor(client: unknown, patch: Parameters<GatewayService['setAssignment']>[1]): void {
+    this.setAssignment(knownClient(client), patch ?? {});
+  }
+
+  /** 界面重置某个客户端的令牌：只接受 nomi 与内置 CLI */
+  resetTokenFor(client: unknown): void {
+    this.resetToken(knownClient(client));
+  }
+
+  /** 网关进程熔断 / 启动失败后手动重试 */
+  retry(): void {
+    this.proc.retry();
+  }
+
+  /** 清空「最近隐藏的密钥」 */
+  clearPrivacyLog(): Promise<void> {
+    return this.privacyLog.clear();
+  }
+
   registerIpc(): void {
     const handle = (ch: string, fn: (...a: unknown[]) => unknown) =>
       guardedHandle(ch, fn, { owner: 'GatewayService' });
@@ -1471,22 +1500,13 @@ export class GatewayService {
     handle('ai:gateway:detect', (input) =>
       this.detect((input ?? {}) as Parameters<GatewayService['detect']>[0]),
     );
-    handle('ai:gateway:set-assignment', (client, patch) => {
-      if (!CLIENT_IDS.includes(client as BuiltinClientId))
-        throw new Error(tr('electron.common.unknown-client'));
-      this.setAssignment(
-        client as ClientId,
-        (patch ?? {}) as Parameters<GatewayService['setAssignment']>[1],
-      );
-    });
-    handle('ai:gateway:reset-token', (client) => {
-      if (!CLIENT_IDS.includes(client as BuiltinClientId))
-        throw new Error(tr('electron.common.unknown-client'));
-      this.resetToken(client as ClientId);
-    });
+    handle('ai:gateway:set-assignment', (client, patch) =>
+      this.setAssignmentFor(client, patch as Parameters<GatewayService['setAssignment']>[1]),
+    );
+    handle('ai:gateway:reset-token', (client) => this.resetTokenFor(client));
     handle('ai:gateway:clear-learned', (id) => this.clearLearned(String(id)));
     handle('ai:gateway:confirm-private-host', (hp) => this.confirmPrivateHost(String(hp)));
-    handle('ai:gateway:retry', () => this.proc.retry());
+    handle('ai:gateway:retry', () => this.retry());
     handle('ai:gateway:set-options', (patch) =>
       this.setOptions((patch ?? {}) as GatewayOptionsPatch),
     );
@@ -1495,8 +1515,8 @@ export class GatewayService {
     handle('ai:gateway:privacy-remove-secret', (id) => this.removePrivacySecret(id));
     handle('ai:gateway:privacy-add-allow', (input) => this.addPrivacyAllow(input));
     handle('ai:gateway:privacy-remove-allow', (tag) => this.removePrivacyAllow(tag));
-    handle('ai:gateway:privacy-log', () => this.privacyLog.list());
-    handle('ai:gateway:privacy-clear-log', () => this.privacyLog.clear());
+    handle('ai:gateway:privacy-log', () => this.privacyLogEntries());
+    handle('ai:gateway:privacy-clear-log', () => this.clearPrivacyLog());
     handle('ai:gateway:privacy-preview', (text) => this.previewPrivacy(text));
   }
 

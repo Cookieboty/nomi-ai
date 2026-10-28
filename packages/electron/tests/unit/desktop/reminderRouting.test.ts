@@ -49,17 +49,24 @@ const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest
 
 function setup(opts: { hidden: boolean; window?: boolean; quiet?: boolean }) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'remind-route-'));
+  const events = createRecordingAppEvents();
   const svc = new DesktopService(root, logger as never, {
     ports: fakeHostPorts({ userData: '/tmp', home: '/tmp' }),
-    events: createRecordingAppEvents(),
+    events,
   });
+  // 发给看板娘窗口的事件（经事件总线，surface = mascot）
   const send = jest.fn();
+  const publish = events.publish.bind(events);
+  events.publish = (channel, payload, opts) => {
+    publish(channel, payload, opts);
+    if (opts?.surface === 'mascot') send(channel, payload);
+  };
   const win = {
     isDestroyed: () => false,
     isVisible: () => !opts.hidden,
     showInactive: jest.fn(),
     hide: jest.fn(),
-    webContents: { send },
+    webContents: { id: 7 },
   };
   const openChat = jest.fn(async () => ({}) as never);
   svc.attachWindows({

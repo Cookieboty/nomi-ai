@@ -4,6 +4,7 @@ import { t } from '@nomi-ai/ui';
 
 import type { PermissionMode } from '../utils/permissionModes';
 
+import { api, hasTransport } from './api';
 import { clearModelSwitch, noteModelSwitch } from './modelSwitchTip';
 
 export type HarnessBackend = 'nomi' | BuiltinCliId | 'external';
@@ -263,24 +264,20 @@ export interface HarnessSendResult {
   usage?: HarnessUsage;
 }
 
-interface AiBridge {
-  invoke: (channel: string, ...args: unknown[]) => Promise<unknown>;
-  on: (channel: string, fn: (payload: unknown) => void) => () => void;
+/** 没有契约传输（浏览器预览 / 测试）时调用失败；契约错误换成普通 Error（只保留文案，与原 IPC 一致） */
+async function call<T>(run: () => Promise<unknown>): Promise<T> {
+  if (!hasTransport())
+    throw new Error(t('ui.mascot-theme.coding-agent-harness-requires-the-desktop-app'));
+  try {
+    return (await run()) as T;
+  } catch (e) {
+    throw e instanceof Error ? new Error(e.message) : e;
+  }
 }
-const bridge = (): AiBridge | undefined => {
-  if (typeof window === 'undefined') return undefined;
-  const b = (window as unknown as { aiIPC?: AiBridge }).aiIPC;
-  return b && typeof b.invoke === 'function' ? b : undefined;
-};
 
-async function call<T>(method: string, ...args: unknown[]): Promise<T> {
-  const b = bridge();
-  if (!b) throw new Error(t('ui.mascot-theme.coding-agent-harness-requires-the-desktop-app'));
-  const r = (await b.invoke(`ai:harness:${method}`, ...args)) as T & {
-    __error?: { message: string };
-  };
-  if (r && typeof r === 'object' && '__error' in r && r.__error) throw new Error(r.__error.message);
-  return r;
+/** 订阅主进程推送；没有契约传输时不订阅 */
+function on(subscribe: () => () => void): () => void {
+  return hasTransport() ? subscribe() : () => undefined;
 }
 
 /** 斜杠命令 / skill / 插件的只读发现结果（主进程只读文件名与 frontmatter；见 cli/slashDiscovery） */
@@ -426,46 +423,53 @@ export interface WorkspaceTreeResult {
 }
 
 export const harnessClient = {
-  available: () => !!bridge(),
-  state: () => call<HarnessState>('state'),
+  available: () => hasTransport(),
+  state: () => call<HarnessState>(() => api.harness.state()),
   slashDiscover: (backend: string, cwd: string) =>
-    call<SlashDiscoveryResult>('slash-discover', backend, cwd),
+    call<SlashDiscoveryResult>(() => api.harness.slashDiscover({ backend, cwd })),
   slashExpand: (backend: string, cwd: string, id: string, args: string) =>
-    call<SlashExpansion | null>('slash-expand', backend, cwd, id, args),
-  gitDiff: (cwd: string) => call<GitDiffResult>('git-diff', cwd),
+    call<SlashExpansion | null>(() => api.harness.slashExpand({ backend, cwd, id, args })),
+  gitDiff: (cwd: string) => call<GitDiffResult>(() => api.harness.gitDiff({ cwd })),
   /** 当前分支（只读，对话顶栏用）；不是 git 仓库时 null */
   gitBranch: (cwd: string) =>
-    call<{ branch: string | null; detached?: string } | null>('git-branch', cwd),
+    call<{ branch: string | null; detached?: string } | null>(() => api.harness.gitBranch({ cwd })),
   /** 分支、上游、ahead / behind；不是 git 仓库时 null */
-  gitSyncStatus: (cwd: string) => call<GitSyncStatus | null>('git-sync-status', cwd),
+  gitSyncStatus: (cwd: string) =>
+    call<GitSyncStatus | null>(() => api.harness.gitSyncStatus({ cwd })),
   /** 路径都相对 cwd（同 git status） */
-  gitStage: (cwd: string, paths: string[]) => call<GitOpResult>('git-stage', cwd, paths),
-  gitUnstage: (cwd: string, paths: string[]) => call<GitOpResult>('git-unstage', cwd, paths),
+  gitStage: (cwd: string, paths: string[]) =>
+    call<GitOpResult>(() => api.harness.gitStage({ cwd, paths })),
+  gitUnstage: (cwd: string, paths: string[]) =>
+    call<GitOpResult>(() => api.harness.gitUnstage({ cwd, paths })),
   /** 给了 paths 就先暂存它们再提交，否则只提交已暂存的 */
   gitCommit: (cwd: string, message: string, paths?: string[]) =>
-    call<GitOpResult>('git-commit', cwd, message, paths ?? null),
-  gitCommitUndo: (cwd: string, sha: string) => call<GitOpResult>('git-commit-undo', cwd, sha),
-  gitFetch: (cwd: string) => call<GitOpResult>('git-fetch', cwd),
-  gitPull: (cwd: string) => call<GitOpResult>('git-pull', cwd),
-  gitPush: (cwd: string) => call<GitOpResult>('git-push', cwd),
+    call<GitOpResult>(() => api.harness.gitCommit({ cwd, message, paths: paths ?? null })),
+  gitCommitUndo: (cwd: string, sha: string) =>
+    call<GitOpResult>(() => api.harness.gitCommitUndo({ cwd, sha })),
+  gitFetch: (cwd: string) => call<GitOpResult>(() => api.harness.gitFetch({ cwd })),
+  gitPull: (cwd: string) => call<GitOpResult>(() => api.harness.gitPull({ cwd })),
+  gitPush: (cwd: string) => call<GitOpResult>(() => api.harness.gitPush({ cwd })),
   /** 辅助模型根据要提交的 diff 写提交信息；paths 同 gitCommit */
   gitSuggestMessage: (cwd: string, paths?: string[]) =>
-    call<GitOpResult>('git-suggest-message', cwd, paths ?? null),
+    call<GitOpResult>(() => api.harness.gitSuggestMessage({ cwd, paths: paths ?? null })),
   /** 放弃未暂存的改动（存进 stash，可撤销） */
-  gitDiscard: (cwd: string, paths: string[]) => call<GitOpResult>('git-discard', cwd, paths),
+  gitDiscard: (cwd: string, paths: string[]) =>
+    call<GitOpResult>(() => api.harness.gitDiscard({ cwd, paths })),
   gitDiscardUndo: (cwd: string, stashes: string[]) =>
-    call<GitOpResult>('git-discard-undo', cwd, stashes),
+    call<GitOpResult>(() => api.harness.gitDiscardUndo({ cwd, stashes })),
   /** 同一仓库的 worktree；列出来的目录之后也能传给上面这些接口 */
-  gitWorktrees: (cwd: string) => call<GitWorktreeList | null>('git-worktrees', cwd),
+  gitWorktrees: (cwd: string) =>
+    call<GitWorktreeList | null>(() => api.harness.gitWorktrees({ cwd })),
   workspaceRead: (cwd: string, filePath: string) =>
-    call<WorkspaceFileResult>('workspace-read', cwd, filePath),
+    call<WorkspaceFileResult>(() => api.harness.workspaceRead({ cwd, path: filePath })),
   workspaceWrite: (cwd: string, filePath: string, content: string) =>
-    call<WorkspaceFileResult>('workspace-write', cwd, filePath, content),
+    call<WorkspaceFileResult>(() => api.harness.workspaceWrite({ cwd, path: filePath, content })),
   workspaceDelete: (cwd: string, filePath: string) =>
-    call<WorkspaceFileResult>('workspace-delete', cwd, filePath),
+    call<WorkspaceFileResult>(() => api.harness.workspaceDelete({ cwd, path: filePath })),
   workspaceGitCheckout: (cwd: string, filePath: string) =>
-    call<WorkspaceFileResult>('workspace-git-checkout', cwd, filePath),
-  workspaceList: (cwd: string) => call<WorkspaceTreeResult>('workspace-list', cwd),
+    call<WorkspaceFileResult>(() => api.harness.workspaceGitCheckout({ cwd, path: filePath })),
+  workspaceList: (cwd: string) =>
+    call<WorkspaceTreeResult>(() => api.harness.workspaceList({ cwd })),
   /** Claude 标签：从 CLI 自己的会话记录读当前上下文（最近一次请求 / 压缩后），没有时 null */
   tabContext: (tabId: string) =>
     call<{
@@ -473,21 +477,29 @@ export const harnessClient = {
       model?: string;
       compacted?: boolean;
       breakdown?: ContextBreakdown;
-    } | null>('tab-context', tabId),
-  setBackend: (b: HarnessBackend) => call<HarnessState>('set-backend', b),
+    } | null>(() => api.harness.tabContext({ id: tabId })),
+  setBackend: (b: HarnessBackend) =>
+    call<HarnessState>(() => api.harness.setBackend({ backend: b })),
   /** carry=true：把当前对话作为前文带进新目录的新会话 */
-  setCwd: (c: string, opts: { carry?: boolean } = {}) => call<HarnessState>('set-cwd', c, opts),
-  pickCwd: () => call<HarnessState>('pick-cwd'),
-  send: (prompt: string) => call<HarnessSendResult>('send', prompt),
+  setCwd: (c: string, opts: { carry?: boolean } = {}) =>
+    call<HarnessState>(() => api.harness.setCwd({ cwd: c, carry: opts.carry })),
+  pickCwd: () => call<HarnessState>(() => api.harness.pickCwd()),
+  send: (prompt: string) => call<HarnessSendResult>(() => api.harness.send({ prompt })),
   onChanged: (fn: (s: HarnessState) => void) =>
-    bridge()?.on('ai:harness:changed', (p) => fn(p as HarnessState)) ?? (() => undefined),
-  onEvent: (fn: (e: unknown) => void) => bridge()?.on('ai:harness:event', fn) ?? (() => undefined),
+    on(() => api.on('harness.changed', (p) => fn(p as unknown as HarnessState))),
+  /** 逐条实时事件：主进程只发按帧合批的 onEvents，这里保留签名（不会触发） */
+  onEvent:
+    (_fn: (e: unknown) => void): (() => void) =>
+    () =>
+      undefined,
   /** 主进程按帧合批后的实时事件（相邻 text-delta 已拼接） */
   onEvents: (fn: (batch: unknown[]) => void) =>
-    bridge()?.on('ai:harness:events', (p) => {
-      if (Array.isArray(p)) fn(p);
-    }) ?? (() => undefined),
-  tabs: () => call<HarnessTabsState>('tabs'),
+    on(() =>
+      api.on('harness.events', (p) => {
+        if (Array.isArray(p)) fn(p);
+      }),
+    ),
+  tabs: () => call<HarnessTabsState>(() => api.harness.tabs()),
   createTab: (o: {
     backend: HarnessBackend;
     cwd?: string;
@@ -495,29 +507,37 @@ export const harnessClient = {
     messages?: HarnessTabMessage[];
     /** backend = 'external' 时：外部插件 id（「添加 CLI」，§5.9） */
     pluginId?: string;
-  }) => call<HarnessTabMeta>('tab-create', o),
+  }) => call<HarnessTabMeta>(() => api.harness.tabCreate(o as never)),
   seedTabMessages: (id: string, messages: HarnessTabMessage[]) =>
-    call<HarnessTabMeta>('tab-seed', id, messages),
-  closeTab: (id: string) => call<HarnessTabsState>('tab-close', id),
-  renameTab: (id: string, title: string) => call<HarnessTabMeta>('tab-rename', id, title),
+    call<HarnessTabMeta>(() => api.harness.tabSeed({ id, messages: messages as never })),
+  closeTab: (id: string) => call<HarnessTabsState>(() => api.harness.tabClose({ id })),
+  renameTab: (id: string, title: string) =>
+    call<HarnessTabMeta>(() => api.harness.tabRename({ id, title })),
   /** 切换标签权限模式；「完全放开」必须带 confirmed（界面先弹确认框）。degraded = 后端不支持、已降级 */
   /** expect：「完全放开」确认时的标签后端 / 目录；主进程核对不一致则拒绝（确认不能漂移到别处） */
   setTabPermissionMode: (
     id: string,
     mode: PermissionMode,
     opts: { confirmed?: boolean; expect?: { backend: HarnessBackend; cwd: string } } = {},
-  ) => call<HarnessTabMeta & { degraded?: boolean }>('tab-permission-mode', id, mode, opts),
+  ) =>
+    call<HarnessTabMeta & { degraded?: boolean }>(() =>
+      api.harness.tabPermissionMode({ id, mode, confirmed: opts.confirmed, expect: opts.expect }),
+    ),
   setPermissionDefaults: (o: { defaultPermissionMode?: PermissionMode; codexNetwork?: boolean }) =>
-    call<HarnessTabsState>('permission-defaults', o),
+    call<HarnessTabsState>(() => api.harness.permissionDefaults(o)),
   /**
    * 模型目录：官方来源从 CLI 读（主进程缓存），第三方来源（source: 'thirdParty'）是网关里能给编程助手用的模型；
    * 不支持切换模型的后端返回 null；refresh 强制重读
    */
   modelCatalog: (backend: HarnessBackend, opts: { refresh?: boolean; source?: TabSource } = {}) =>
-    call<BackendModelCatalog | null>('model-catalog', backend, opts),
+    call<BackendModelCatalog | null>(() =>
+      api.harness.modelCatalog({ backend, refresh: opts.refresh, source: opts.source }),
+    ),
   /** 切换标签来源；第三方时 model 是网关的 `供应商/模型`（省略 = 这个 CLI 分配的默认模型） */
   setTabSource: (id: string, source: TabSource, model?: string) =>
-    call<HarnessTabMeta>('tab-source', id, source, ...(model ? [model] : [])).then((tab) => {
+    call<HarnessTabMeta>(() =>
+      api.harness.tabSource({ id, source, ...(model ? { model } : {}) }),
+    ).then((tab) => {
       // 换来源同时选了模型：同样是会话中途换模型
       if (model) noteModelSwitch(id, model);
       return tab;
@@ -525,49 +545,53 @@ export const harnessClient = {
   /** 设置标签模型覆盖；传空串清除（沿用 CLI 默认模型），非推理模型会同步清除思考深度 */
   /** expectSource：选模型时看到的目录来源；主进程发现标签来源已变就拒绝（#83） */
   setTabModel: (id: string, model: string, opts: { expectSource?: TabSource } = {}) =>
-    call<HarnessTabMeta>('tab-model', id, model, opts).then((tab) => {
+    call<HarnessTabMeta>(() =>
+      api.harness.tabModel({ id, model, expectSource: opts.expectSource }),
+    ).then((tab) => {
       noteModelSwitch(id, model);
       return tab;
     }),
   /** 设置标签思考深度；传 null 清除（沿用 CLI 默认档位） */
   setTabEffort: (id: string, effort: ReasoningEffort | null) =>
-    call<HarnessTabMeta>('tab-effort', id, effort),
+    call<HarnessTabMeta>(() => api.harness.tabEffort({ id, effort })),
   /** 第三方标签开 / 关长上下文（null = 跟随模型默认）：下一条消息起按新窗口重启进程，对话保留 */
   setTabLongContext: (id: string, on: boolean | null) =>
-    call<HarnessTabMeta>('tab-long-context', id, on),
+    call<HarnessTabMeta>(() => api.harness.tabLongContext({ id, on })),
   /** 官方标签换账号（null = 跟随默认账号）：只重启这个标签，下一条消息起生效 */
   setTabAccount: (id: string, accountId: string | null) =>
-    call<HarnessTabMeta>('tab-account', id, accountId),
-  activateTab: (id: string) => call<HarnessTabsState>('tab-activate', id),
-  setTabBackend: (id: string, b: HarnessBackend) => call<HarnessTabMeta>('tab-backend', id, b),
+    call<HarnessTabMeta>(() => api.harness.tabAccount({ id, accountId })),
+  activateTab: (id: string) => call<HarnessTabsState>(() => api.harness.tabActivate({ id })),
+  setTabBackend: (id: string, b: HarnessBackend) =>
+    call<HarnessTabMeta>(() => api.harness.tabBackend({ id, backend: b })),
   setTabCwd: (id: string, cwd: string, opts: { carry?: boolean } = {}) =>
-    call<HarnessTabMeta>('tab-cwd', id, cwd, opts),
-  clearTabCarry: (id: string) => call<HarnessTabMeta>('tab-carry-clear', id),
+    call<HarnessTabMeta>(() => api.harness.tabCwd({ id, cwd, carry: opts.carry })),
+  clearTabCarry: (id: string) => call<HarnessTabMeta>(() => api.harness.tabCarryClear({ id })),
   /** 删掉这条用户消息及之后的全部消息并丢弃 CLI 会话（重试 / 编辑前）；返回截断后的消息 */
   rewindTab: (id: string, messageId: string) =>
-    call<HarnessTabMessage[]>('tab-rewind', id, messageId),
+    call<HarnessTabMessage[]>(() => api.harness.tabRewind({ id, messageId })),
   /** 原生文件夹选择器（不绑定标签）；取消返回 null */
-  pickDir: (defaultPath?: string) => call<string | null>('pick-dir', defaultPath),
-  recentCwds: () => call<string[]>('recent-cwds'),
-  pickTabCwd: (id: string) => call<HarnessTabMeta>('tab-pick-cwd', id),
-  tabMessages: (id: string) => call<HarnessTabMessage[]>('tab-messages', id),
+  pickDir: (defaultPath?: string) =>
+    call<string | null>(() => api.harness.pickDir({ defaultPath })),
+  recentCwds: () => call<string[]>(() => api.harness.recentCwds()),
+  pickTabCwd: (id: string) => call<HarnessTabMeta>(() => api.harness.tabPickCwd({ id })),
+  tabMessages: (id: string) => call<HarnessTabMessage[]>(() => api.harness.tabMessages({ id })),
   sendTab: (id: string, prompt: string, images?: HarnessImageInput[]) => {
     clearModelSwitch(id);
-    return call<HarnessSendResult>('tab-send', id, prompt, images);
+    return call<HarnessSendResult>(() =>
+      api.harness.tabSend({ id, prompt, images: images as never }),
+    );
   },
-  cancelTab: (id: string) => call<boolean>('tab-cancel', id),
+  cancelTab: (id: string) => call<boolean>(() => api.harness.tabCancel({ id })),
   /** 单独停止一个后台子代理（Claude stop_task）；不支持时返回 false */
-  stopAgent: (tabId: string, agentId: string) => call<boolean>('stop-agent', tabId, agentId),
+  stopAgent: (tabId: string, agentId: string) =>
+    call<boolean>(() => api.harness.stopAgent({ id: tabId, agentId })),
   /**
    * 用户确认后，把这条错误消息记录的文件夹（只此一个）加入 Gemini 的受信任文件夹列表。
    * 文件夹由主进程按消息查出，界面不传路径。
    */
   trustGeminiFolder: (tabId: string, messageId: string) =>
-    call<{ folder: string; file: string; previous: string | null }>(
-      'gemini-trust-folder',
-      tabId,
-      messageId,
-      { confirmed: true },
+    call<{ folder: string; file: string; previous: string | null }>(() =>
+      api.harness.geminiTrustFolder({ tabId, messageId, confirmed: true }),
     ),
   /** 允许/拒绝工具权限请求；approvePlan 用于 PR3「批准计划」三选一 */
   replyPermission: (
@@ -576,16 +600,18 @@ export const harnessClient = {
     allow: boolean,
     opts?: { approvePlan?: 'acceptEdits' | 'manual' | 'deny' },
   ) =>
-    opts
-      ? call<boolean>('reply-permission', tabId, requestId, allow, opts)
-      : call<boolean>('reply-permission', tabId, requestId, allow),
+    call<boolean>(() =>
+      api.harness.replyPermission({ tabId, requestId, allow, approvePlan: opts?.approvePlan }),
+    ),
   /** PR3：批准计划卡（批准并自动改文件 / 批准并逐项确认 / 继续修改） */
   replyApprovePlan: (tabId: string, requestId: string, choice: 'acceptEdits' | 'manual' | 'deny') =>
-    call<boolean>('reply-approve-plan', tabId, requestId, choice),
+    call<boolean>(() => api.harness.replyApprovePlan({ tabId, requestId, choice })),
   onTabs: (fn: (s: HarnessTabsState) => void) =>
-    bridge()?.on('ai:harness:tabs', (p) => fn(p as HarnessTabsState)) ?? (() => undefined),
+    on(() => api.on('harness.tabsChanged', (p) => fn(p as unknown as HarnessTabsState))),
   onTabMessage: (fn: (e: { tabId: string; message: HarnessTabMessage }) => void) =>
-    bridge()?.on('ai:harness:tab-message', (p) =>
-      fn(p as { tabId: string; message: HarnessTabMessage }),
-    ) ?? (() => undefined),
+    on(() =>
+      api.on('harness.tabMessage', (p) =>
+        fn(p as unknown as { tabId: string; message: HarnessTabMessage }),
+      ),
+    ),
 };

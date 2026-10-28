@@ -6,6 +6,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Nomi2DCanvas } from '../../src/components/Mascot/Nomi2DCanvas';
 import { resetCharacterPackOverlayForTest } from '../../src/mascot/characterConfig';
 
+import { installMascotHost, packSnapshot, resetMascotHost } from './mascotHost';
+
+vi.mock('../../src/services/api', async () => (await import('./mascotHost')).mascotApiModule());
+
 let riveFailure: ((reason: string) => void) | undefined;
 let lastRiveSrc: string | undefined;
 let lastStaticSrc: string | undefined;
@@ -35,7 +39,7 @@ afterEach(() => {
   lastRiveSrc = undefined;
   lastStaticSrc = undefined;
   resetCharacterPackOverlayForTest();
-  delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+  resetMascotHost();
   delete document.documentElement.dataset.mascotRenderer;
 });
 
@@ -67,9 +71,10 @@ describe('Nomi2DCanvas', () => {
     const pending = new Promise((r) => {
       resolveActive = r;
     });
-    (window as unknown as { electronAPI: unknown }).electronAPI = {
-      characterPack: { getActive: () => pending },
-    };
+    installMascotHost({
+      'character.getActivePack': async () =>
+        packSnapshot((await pending) as Record<string, unknown>),
+    });
 
     render(<Nomi2DCanvas manifestPath="./assets/models/sprite/nomi/manifest.json" />);
     expect(screen.queryByTestId('rive-canvas')).toBeNull();
@@ -99,9 +104,9 @@ describe('Nomi2DCanvas', () => {
 
   it('passes overlay riveUrl into RiveCanvas src', async () => {
     const riv = 'character-pack://pack/rive/pack.riv';
-    (window as unknown as { electronAPI: unknown }).electronAPI = {
-      characterPack: {
-        getActive: async () => ({
+    installMascotHost({
+      'character.getActivePack': () =>
+        packSnapshot({
           source: 'resources',
           id: 'alt',
           mode: 'rive',
@@ -111,8 +116,7 @@ describe('Nomi2DCanvas', () => {
           hitboxes: null,
           rive: { artboard: 'Alt', stateMachine: 'AltSM' },
         }),
-      },
-    };
+    });
     render(<Nomi2DCanvas manifestPath="./assets/models/sprite/nomi/manifest.json" />);
     const el = await screen.findByTestId('rive-canvas');
     expect(el.getAttribute('data-rive-src')).toBe(riv);

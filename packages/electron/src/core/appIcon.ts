@@ -121,6 +121,26 @@ export function setIconVariant(v: unknown): IconVariant {
   return current;
 }
 
+/** 设置 → 外观里的应用图标：当前变体、平台与各变体的预览（data URL） */
+export function appIconState(): {
+  variant: IconVariant;
+  platform: string;
+  previews: Record<IconVariant, string>;
+} {
+  return {
+    variant: current,
+    platform: process.platform,
+    previews: Object.fromEntries(
+      ICON_VARIANTS.map((v) => [
+        v,
+        iconImage(process.platform === 'darwin' ? 'dock' : 'window', v)
+          .resize({ width: 96 })
+          .toDataURL(),
+      ]),
+    ) as Record<IconVariant, string>,
+  };
+}
+
 export function initAppIcon(configFile: string): void {
   file = configFile;
   try {
@@ -134,22 +154,7 @@ export function initAppIcon(configFile: string): void {
   app.on?.('browser-window-created', (_e, w) =>
     applyToWindow(w, { platform: process.platform, image: iconImage('window'), ico: currentIco() }),
   );
-  guardedHandle(
-    'app-icon:get',
-    () => ({
-      variant: current,
-      platform: process.platform,
-      previews: Object.fromEntries(
-        ICON_VARIANTS.map((v) => [
-          v,
-          iconImage(process.platform === 'darwin' ? 'dock' : 'window', v)
-            .resize({ width: 96 })
-            .toDataURL(),
-        ]),
-      ),
-    }),
-    { owner: 'AppIcon', wrapErrors: false },
-  );
+  guardedHandle('app-icon:get', () => appIconState(), { owner: 'AppIcon', wrapErrors: false });
   guardedHandle('app-icon:set', (v: unknown) => setIconVariant(v), {
     owner: 'AppIcon',
     wrapErrors: false,

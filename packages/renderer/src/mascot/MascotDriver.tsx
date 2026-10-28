@@ -5,6 +5,7 @@ import { handleMascotCommand } from './commands';
 import { mascotRegistry } from './MascotBackend';
 
 import { lipSyncStore } from '@/ai/lipSyncStore';
+import { api, hasTransport } from '@/services/api';
 
 /**
  * 与 AI 无关的驱动：TTS 音量包络 → 口型 + 说话姿态；
@@ -40,7 +41,9 @@ const MascotDriver: FC = () => {
       handleMascotCommand({ type: 'motion', name });
     };
     window.addEventListener('mascot:motion', onLocal);
-    const offIpc = window.electronAPI?.onMascotCommand?.((cmd) => handleMascotCommand(cmd));
+    const offIpc = hasTransport()
+      ? api.on('mascot.command', (cmd) => handleMascotCommand(cmd))
+      : undefined;
     return () => {
       unLip();
       if (silenceTimer) clearTimeout(silenceTimer);

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 
 const h = vi.hoisted(() => ({
   locale: 'zh-CN' as 'zh-CN' | 'en',
@@ -13,6 +13,8 @@ vi.mock('@nomi-ai/ui', async (orig) => ({
 }));
 vi.mock('../../src/mascot/presence', () => ({ isMascotMuted: () => h.muted }));
 vi.mock('../../src/mascot/tts/audioPlayback', () => ({ playAudioClip: h.play }));
+// 角色包快照经契约 character.getActivePack（D5）；没装假宿主时视图按「没有主进程」处理
+vi.mock('../../src/services/api', async () => (await import('./mascotHost')).mascotApiModule());
 
 import { resetCharacterPackOverlayForTest } from '../../src/mascot/characterConfig';
 import {
@@ -21,6 +23,8 @@ import {
   isNoAudioLine,
   playPromptClip,
 } from '../../src/mascot/voice/promptClips';
+
+import { installMascotHost, packSnapshot, resetMascotHost } from './mascotHost';
 
 const manifest = {
   idSchema: 'stable-v1',
@@ -55,7 +59,7 @@ beforeEach(() => {
     'fetch',
     vi.fn(async () => ({ ok: true, json: async () => manifest })),
   );
-  vi.stubGlobal('window', { electronAPI: { ttsPromptVoice: async () => promptVoice } });
+  vi.stubGlobal('window', {});
 });
 
 afterEach(() => {
@@ -105,6 +109,12 @@ describe('promptClips', () => {
     expect(await playPromptClip('ui.cli-monitor.okay', { modelName: 'nomi' })).toBe('none');
     h.muted = false;
     promptVoice = false;
+    // 提示语音开关经契约 tts.promptVoice（D1）
+    installMascotHost({
+      'tts.promptVoice': () => promptVoice,
+      'character.getActivePack': () => packSnapshot({}),
+    });
+    onTestFinished(resetMascotHost);
     expect(await playPromptClip('ui.cli-monitor.okay', { modelName: 'nomi' })).toBe('none');
     expect(await playPromptClip('没有这句', { modelName: 'nomi' })).toBe('none');
     expect(h.play).not.toHaveBeenCalled();
@@ -162,24 +172,18 @@ describe('Scheme B overlay voice', () => {
   it('loads the overlay manifest and plays for the built-in model slot', async () => {
     const fetchMock = vi.fn(async () => ({ ok: true, json: async () => manifest }));
     vi.stubGlobal('fetch', fetchMock);
-    vi.stubGlobal('window', {
-      electronAPI: {
-        ttsPromptVoice: async () => true,
-        characterPack: {
-          getActive: async () => ({
-            source: 'userData',
-            id: 'alt',
-            mode: 'static',
-            riveUrl: null,
-            staticUrl: null,
-            voiceBaseUrl: 'character-pack://pack/voice/zh/',
-            spriteManifestUrl: null,
-            hitboxes: null,
-            rive: null,
-          }),
-        },
-      },
+    vi.stubGlobal('window', {});
+    installMascotHost({
+      'tts.promptVoice': () => true,
+      'character.getActivePack': () =>
+        packSnapshot({
+          source: 'userData',
+          id: 'alt',
+          mode: 'static',
+          voiceBaseUrl: 'character-pack://pack/voice/zh/',
+        }),
     });
+    onTestFinished(resetMascotHost);
     const r = await playPromptClip('ui.cli-monitor.okay', { modelName: 'nomi' });
     expect(r).toBe('played');
     // Manifest fetch waits for the overlay, so index and clip share the overlay base.

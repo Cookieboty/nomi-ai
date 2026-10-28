@@ -7,6 +7,17 @@ import { EndpointInfoCard } from '../src/components/EndpointInfo';
 import { configPathsOf } from '../src/hooks/useEndpointInfo';
 import { resetToolQuotaMemo } from '../src/hooks/useToolQuota';
 
+import type { CodingApiMockState } from './helpers/codingApi';
+
+// D3 客户端走契约（services/api）；测试仍用旧通道形状的 window.aiIPC 假桥，经 helpers/codingApi 转发
+const codingApi = vi.hoisted(() => ({}) as CodingApiMockState);
+vi.mock('../src/services/api', async () =>
+  (await import('./helpers/codingApi')).createCodingApiMock(codingApi),
+);
+
+// D2 的过程经契约替身转发到下面的旧桥假实现（见 helpers/shellApi）
+vi.mock('../src/services/api', () => import('./helpers/shellApi'));
+
 const NOW = Date.now();
 const SUMMARY = (over = {}) => ({
   costUsd: 0.12,

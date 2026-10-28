@@ -1,5 +1,7 @@
 import { t } from '@nomi-ai/ui';
-/** 图片附件（粘贴 / 拖入）与发送前检查：`ai:screen:check-send` */
+
+import { api, hasTransport } from './api';
+/** 图片附件（粘贴 / 拖入）与发送前检查：契约 `screen.checkSend`（原 `ai:screen:check-send`） */
 
 export interface ImageAttachment {
   id: string;
@@ -13,23 +15,10 @@ export interface ImageAttachment {
   source: 'snip' | 'screen' | 'paste' | 'file';
 }
 
-interface AiBridge {
-  invoke: (channel: string, ...args: unknown[]) => Promise<unknown>;
-  on: (channel: string, fn: (payload: unknown) => void) => () => void;
-}
-const bridge = (): AiBridge | undefined => {
-  if (typeof window === 'undefined') return undefined;
-  const b = (window as unknown as { aiIPC?: AiBridge }).aiIPC;
-  return b && typeof b.invoke === 'function' ? b : undefined;
-};
-async function call<T>(method: string, ...args: unknown[]): Promise<T> {
-  const b = bridge();
-  if (!b) throw new Error(t('ui.chat-settings.sending-images-requires-the-desktop-app'));
-  const r = (await b.invoke(`ai:screen:${method}`, ...args)) as T & {
-    __error?: { code: string; message: string };
-  };
-  if (r && typeof r === 'object' && '__error' in r && r.__error) throw new Error(r.__error.message);
-  return r;
+async function call<T>(run: () => Promise<T>): Promise<T> {
+  if (!hasTransport())
+    throw new Error(t('ui.chat-settings.sending-images-requires-the-desktop-app'));
+  return run();
 }
 
 const MAX_SIDE = 1568;
@@ -105,7 +94,7 @@ export function likelyVision(model: string | undefined): boolean {
 }
 
 export const screenClient = {
-  available: () => !!bridge(),
+  available: () => hasTransport(),
   /** 发送图片前：云端告知 / 仅本地模式 */
-  checkSend: () => call<'ok' | 'local_only' | 'user_denied'>('check-send'),
+  checkSend: () => call<'ok' | 'local_only' | 'user_denied'>(() => api.screen.checkSend()),
 };

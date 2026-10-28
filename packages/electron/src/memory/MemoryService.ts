@@ -651,6 +651,25 @@ export class MemoryService {
     this.d.events.publish(ch, payload);
   }
 
+  /** 视图发来的会话：只保留 user / assistant 的文本消息，每条截到 6000 字 */
+  ingestFromView(
+    conversationId: string,
+    history: unknown,
+    force = false,
+  ): Promise<{ episode?: Episode; skipped?: string }> {
+    const msgs: TurnMsg[] = Array.isArray(history)
+      ? (history as Array<{ role: unknown; content: unknown }>)
+          .filter(
+            (m) => (m?.role === 'user' || m?.role === 'assistant') && typeof m.content === 'string',
+          )
+          .map((m) => ({
+            role: m.role as TurnMsg['role'],
+            content: (m.content as string).slice(0, 6000),
+          }))
+      : [];
+    return this.ingest(conversationId, msgs, { force });
+  }
+
   registerIpc(): void {
     if (this.ipcDone) return;
     this.ipcDone = true;
@@ -668,18 +687,6 @@ export class MemoryService {
         },
         { owner: 'MemoryService', wrapErrors: false },
       );
-    const toMsgs = (h: unknown): TurnMsg[] =>
-      Array.isArray(h)
-        ? (h as Array<{ role: unknown; content: unknown }>)
-            .filter(
-              (m) =>
-                (m?.role === 'user' || m?.role === 'assistant') && typeof m.content === 'string',
-            )
-            .map((m) => ({
-              role: m.role as TurnMsg['role'],
-              content: (m.content as string).slice(0, 6000),
-            }))
-        : [];
     handle('ai:mem:state', () => this.state());
     handle('ai:mem:list', (f) => this.list(typeof f === 'string' ? f : ''));
     handle('ai:mem:set-settings', (p) => this.setSettings(p));
@@ -687,7 +694,7 @@ export class MemoryService {
     handle('ai:mem:set-persona', (t) => this.setPersona(String(t ?? '')));
     handle('ai:mem:open-persona', () => this.openPersona());
     handle('ai:mem:ingest', (id, h, force) =>
-      this.ingest(String(id ?? ''), toMsgs(h), { force: force === true }),
+      this.ingestFromView(String(id ?? ''), h, force === true),
     );
     handle('ai:mem:context', (q) => this.context(String(q ?? '').slice(0, 4000)));
     handle('ai:mem:update-episode', (id, p) => this.updateEpisode(String(id), p));

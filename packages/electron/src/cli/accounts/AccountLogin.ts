@@ -341,15 +341,14 @@ export class AccountLogin {
       },
     );
     guardedHandle('ai:cli-account:login-cancel', (id) => this.cancel(String(id)), { owner });
-    guardedHandle(
-      'ai:cli-account:open-url',
-      async (u) => {
-        if (!isLoginUrl(String(u))) return false;
-        await this.d.ports.shell.openExternal(String(u));
-        return true;
-      },
-      { owner },
-    );
+    guardedHandle('ai:cli-account:open-url', (u) => this.openUrl(String(u)), { owner });
+  }
+
+  /** 只打开官方登录页（https + 已知域名）；其他链接不打开，返回 false */
+  async openUrl(url: string): Promise<boolean> {
+    if (!isLoginUrl(url)) return false;
+    await this.d.ports.shell.openExternal(url);
+    return true;
   }
 }
 

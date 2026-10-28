@@ -42,6 +42,7 @@ import { scalePercent, scaleStore, useMascotScale } from '@/mascot/scaleStore';
 import { registerSpeechStopper, stopAllSpeech } from '@/mascot/speechStop';
 import { MascotMicTool, toggleMascotHandsfree } from '@/mascot/voice/MascotVoice';
 import { CLIP_HINTS } from '@/mascot/voice/promptClips';
+import { api, hasTransport } from '@/services/api';
 import { setCache } from '@/utils/cache';
 
 const log = createLogger('toolbar');
@@ -142,12 +143,11 @@ export const ToolBar: React.FC = () => {
   // 初始化语音服务
   useEffect(() => {
     const initVoiceService = async () => {
-      // 等待electronAPI准备就绪
+      // 等待主进程桥（契约传输）准备就绪
       const waitForElectronAPI = () => {
         return new Promise<void>((resolve) => {
           const checkAPI = () => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 遗留代码，沿用既有类型
-            if ((window as any).electronAPI) {
+            if (hasTransport()) {
               resolve();
             } else {
               setTimeout(checkAPI, 100);
@@ -158,7 +158,7 @@ export const ToolBar: React.FC = () => {
       };
 
       try {
-        // 等待electronAPI准备就绪
+        // 等待主进程桥准备就绪
         await waitForElectronAPI();
 
         // 延迟一点时间确保所有API都完全加载
@@ -240,11 +240,9 @@ export const ToolBar: React.FC = () => {
     await setCache('waifu-display', Date.now());
     showMessage(tr('ui.voice-mascot.bye-see-you-next-time'), 2000);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 遗留代码，沿用既有类型
-    const electronAPI = (window as any).electronAPI;
-    if (electronAPI?.quit) {
+    if (hasTransport()) {
       setTimeout(() => {
-        electronAPI.quit();
+        void api.window.quit().catch((error: unknown) => log.error('退出应用失败:', error));
       }, 2000);
     }
   }, [showMessage]);
@@ -353,13 +351,10 @@ export const ToolBar: React.FC = () => {
         return toggleVoiceMode;
       case 'ai-chat':
         return () => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 遗留代码，沿用既有类型
-          const electronAPI = (window as any).electronAPI;
-          if (electronAPI?.openAiChat) {
-            electronAPI
+          if (hasTransport()) {
+            api.window
               .openAiChat()
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 遗留代码，沿用既有类型
-              .then((result: any) => {
+              .then((result) => {
                 if (result?.success) {
                   showMessage(tr('ui.voice-mascot.ai-chat-window-opened'));
                 } else {
@@ -373,8 +368,7 @@ export const ToolBar: React.FC = () => {
                   );
                 }
               })
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 遗留代码，沿用既有类型
-              .catch((error: any) => {
+              .catch((error: unknown) => {
                 log.error('打开AI对话窗口失败:', error);
                 showMessage(tr('ui.voice-mascot.couldn-t-open-the-ai-chat-window-please'));
               });
@@ -387,13 +381,11 @@ export const ToolBar: React.FC = () => {
         return playRandomMotion;
       case 'task-board':
         return () => {
-          const api = window.electronAPI as
-            { openTaskBoard?: () => Promise<{ success: boolean; error?: string }> } | undefined;
-          if (!api?.openTaskBoard) {
+          if (!hasTransport()) {
             showMessage(tr('ui.voice-mascot.the-task-board-opens-in-the-desktop-app'));
             return;
           }
-          void api
+          void api.window
             .openTaskBoard()
             .then((r) => {
               if (!r?.success)
@@ -418,17 +410,13 @@ export const ToolBar: React.FC = () => {
 
   // ---------- 显示 / 隐藏 ----------
   useEffect(() => {
-    const api = window.electronAPI as
-      | {
-          onWindowMouseEnter?: (cb: () => void) => void;
-          onWindowMouseLeave?: (cb: () => void) => void;
-          removeWindowMouseListeners?: () => void;
-        }
-      | undefined;
-    if (api?.onWindowMouseEnter) {
-      api.onWindowMouseEnter(() => setHoverWin(true));
-      api.onWindowMouseLeave?.(() => setHoverWin(false));
-      return () => api.removeWindowMouseListeners?.();
+    if (hasTransport()) {
+      const offEnter = api.on('window.mouseEnter', () => setHoverWin(true));
+      const offLeave = api.on('window.mouseLeave', () => setHoverWin(false));
+      return () => {
+        offEnter();
+        offLeave();
+      };
     }
     const on = () => setHoverWin(true);
     const off = () => setHoverWin(false);

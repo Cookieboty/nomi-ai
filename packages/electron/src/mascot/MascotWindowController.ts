@@ -17,6 +17,7 @@ import {
   type PhysicsEvent,
   type Rect,
 } from './desktopPhysics';
+import { mascotAppEvents } from './mascotEvents';
 import {
   DEFAULT_MASCOT_SCALE,
   MASCOT_BASE,
@@ -59,7 +60,10 @@ export interface MascotScaleHooks {
   get(): number;
   /** 用户操作后持久化（主进程防抖落盘） */
   save(scale: number): void;
-  /** 状态变化后广播给其它窗口（设置页） */
+  /**
+   * 状态变化后广播给其它窗口（设置页）。接上应用事件总线（mascotEvents.ts）后不再调用：
+   * 控制器直接按 `['mascot', 'chat']` 发布一次
+   */
   changed?(state: MascotScaleState): void;
   /** 允许调用缩放 IPC 的窗口；默认只有看板娘窗口自己 */
   trusted?(sender: Electron.WebContents): boolean;
@@ -190,19 +194,15 @@ export class MascotWindowController {
       ipcMain.on(ch, h);
       this.disposers.push(() => ipcMain.removeListener(ch, h));
     };
-    on('mascot:hit', (_e, hit) => this.setHit(hit === true));
-    on('mascot:shape', (_e, rects) => this.setShape(rects));
-    on('mascot:geometry', (_e, box) => this.setBox(box));
-    on('mascot:drag-start', (_e, sx, sy) => this.dragStart(num(sx), num(sy)));
-    on('mascot:drag-move', (_e, sx, sy) => {
-      const x = num(sx);
-      const y = num(sy);
-      if (!this.drag || x === null || y === null) return;
-      this.updateDragPosition(DRAG_FROM_OS_CURSOR ? screen.getCursorScreenPoint() : { x, y });
-    });
-    on('mascot:drag-end', () => this.dragEnd());
+    // 旧 IPC（收尾批次删除）与契约（host/contract/mascot.ts）共用下面的公开方法
+    on('mascot:hit', (_e, hit) => this.reportHit(hit));
+    on('mascot:shape', (_e, rects) => this.reportShape(rects));
+    on('mascot:geometry', (_e, box) => this.reportGeometry(box));
+    on('mascot:drag-start', (_e, sx, sy) => this.beginDrag(sx, sy));
+    on('mascot:drag-move', (_e, sx, sy) => this.moveDrag(sx, sy));
+    on('mascot:drag-end', () => this.endDrag());
     on('mascot:interaction-config', (_e, cfg) => this.setConfig(cfg));
-    on('mascot:wander-now', () => this.startWander());
+    on('mascot:wander-now', () => this.wanderNow());
 
     // 大小：Ctrl/⌘+滚轮、菜单、设置页滑块、快捷键
     const handle = (ch: string, fn: (...a: unknown[]) => unknown) => {
@@ -216,18 +216,10 @@ export class MascotWindowController {
       this.disposers.push(() => ipcMain.removeHandler(ch));
     };
     handle('mascot:scale-get', () => this.scaleState());
-    handle('mascot:scale-set', (v) =>
-      num(v) === null ? this.scaleState() : this.setScale(num(v)!),
-    );
-    handle('mascot:scale-step', (d) =>
-      this.setScale(stepMascotScale(this.scale, d === -1 ? -1 : 1, this.capNow())),
-    );
-    handle('mascot:scale-wheel', (dy, mode) =>
-      num(dy) === null
-        ? this.scaleState()
-        : this.setScale(wheelMascotScale(this.scale, num(dy)!, num(mode) ?? 0, this.capNow())),
-    );
-    handle('mascot:scale-reset', () => this.setScale(DEFAULT_MASCOT_SCALE));
+    handle('mascot:scale-set', (v) => this.scaleSet(v));
+    handle('mascot:scale-step', (d) => this.scaleStep(d));
+    handle('mascot:scale-wheel', (dy, mode) => this.scaleWheel(dy, mode));
+    handle('mascot:scale-reset', () => this.scaleReset());
 
     // Ctrl/⌘ + =/+ 在部分键盘布局下会被 Chromium 的默认菜单当作 zoomIn accelerator
     // 吃掉，不派发到 renderer 的 keydown。before-input-event 在页面与内置快捷键之前触发，
@@ -318,6 +310,67 @@ export class MascotWindowController {
     return { ...this.cfg };
   }
 
+  // —— 渲染进程上报与操作（旧 IPC 与契约共用；入参按 IPC 的 unknown 处理，非法值忽略）
+
+  /** 光标是否命中角色 / 界面（切换点击穿透） */
+  reportHit(hit: unknown): void {
+    this.setHit(hit === true);
+  }
+
+  /** Linux：可交互区域（窗口像素）；空数组 = 整个窗口 */
+  reportShape(rects: unknown): void {
+    this.setShape(rects);
+  }
+
+  /** 角色包围盒（窗口像素，含测量时的视口 vw / vh） */
+  reportGeometry(box: unknown): void {
+    this.setBox(box);
+  }
+
+  /** 起拖：屏幕坐标；缺省时读取系统光标 */
+  beginDrag(sx?: unknown, sy?: unknown): void {
+    this.dragStart(num(sx), num(sy));
+  }
+
+  moveDrag(sx: unknown, sy: unknown): void {
+    const x = num(sx);
+    const y = num(sy);
+    if (!this.drag || x === null || y === null) return;
+    this.updateDragPosition(DRAG_FROM_OS_CURSOR ? screen.getCursorScreenPoint() : { x, y });
+  }
+
+  endDrag(): void {
+    this.dragEnd();
+  }
+
+  /** 立刻沿屏幕底边散步一次（站着时） */
+  wanderNow(): void {
+    this.startWander();
+  }
+
+  /** 设置大小；非数字时只返回当前状态 */
+  scaleSet(v: unknown): MascotScaleState {
+    const n = num(v);
+    return n === null ? this.scaleState() : this.setScale(n);
+  }
+
+  /** 步进一档（-1 缩小，其余放大） */
+  scaleStep(dir: unknown): MascotScaleState {
+    return this.setScale(stepMascotScale(this.scale, dir === -1 ? -1 : 1, this.capNow()));
+  }
+
+  /** Ctrl/⌘+滚轮：累计的 deltaY（向上滚 = 放大） */
+  scaleWheel(deltaY: unknown, deltaMode?: unknown): MascotScaleState {
+    const dy = num(deltaY);
+    return dy === null
+      ? this.scaleState()
+      : this.setScale(wheelMascotScale(this.scale, dy, num(deltaMode) ?? 0, this.capNow()));
+  }
+
+  scaleReset(): MascotScaleState {
+    return this.setScale(DEFAULT_MASCOT_SCALE);
+  }
+
   setConfig(raw: unknown): void {
     const c = (raw ?? {}) as Partial<InteractionConfig>;
     for (const k of Object.keys(DEFAULT_INTERACTION) as Array<keyof InteractionConfig>) {
@@ -401,8 +454,14 @@ export class MascotWindowController {
     const state = this.scaleState();
     if (userPref) this.scaleHooks?.save(this.pref);
     if (notify) {
-      this.send('mascot:scale-changed', state);
-      this.scaleHooks?.changed?.(state);
+      const events = mascotAppEvents();
+      if (events) {
+        // 经应用事件总线：旧通道发给看板娘与对话窗口（与下面两路相同），同时发成契约事件（一次）
+        events.publish('mascot:scale-changed', state, { surface: ['mascot', 'chat'] });
+      } else {
+        this.send('mascot:scale-changed', state);
+        this.scaleHooks?.changed?.(state);
+      }
     }
     return state;
   }
@@ -710,8 +769,12 @@ export class MascotWindowController {
     this.schedule(busy ? TICK_MS : IDLE_TICK_MS);
   }
 
+  /** 推给看板娘窗口：接上应用事件总线后经它发布（同时成为契约事件），否则直接发 */
   private send(ch: string, payload: unknown): void {
-    if (!this.win.isDestroyed()) this.win.webContents.send(ch, payload);
+    if (this.win.isDestroyed()) return;
+    const events = mascotAppEvents();
+    if (events) events.publish(ch, payload, { surface: 'mascot' });
+    else this.win.webContents.send(ch, payload);
   }
 
   /** 测试 / 调试用 */

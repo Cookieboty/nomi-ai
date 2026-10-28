@@ -11,6 +11,14 @@ import {
 import type { HarnessTabMeta, HarnessTabsState } from '../src/services/harnessClient';
 import { jsonEqual, shareTabsState } from '../src/utils/shareTabsState';
 
+import type { CodingApiMockState } from './helpers/codingApi';
+
+// D3 客户端走契约（services/api）；测试仍用旧通道形状的 window.aiIPC 假桥，经 helpers/codingApi 转发
+const codingApi = vi.hoisted(() => ({}) as CodingApiMockState);
+vi.mock('../src/services/api', async () =>
+  (await import('./helpers/codingApi')).createCodingApiMock(codingApi),
+);
+
 function tab(id: string, over: Partial<HarnessTabMeta> = {}): HarnessTabMeta {
   return {
     id,

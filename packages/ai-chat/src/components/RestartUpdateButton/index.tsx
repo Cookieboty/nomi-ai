@@ -6,6 +6,7 @@ import { Button, Icon, t, useLocale } from '@nomi-ai/ui';
 import { RefreshCw } from 'lucide-react';
 import React, { useCallback, useState } from 'react';
 
+import { api, hasTransport } from '../../services/api';
 import { useUpdateState } from '../SettingsView/UpdateSettings';
 
 import styles from './index.module.css';
@@ -18,11 +19,9 @@ export interface RestartUpdateButtonProps {
   className?: string;
 }
 
-function updatesApi() {
-  const w = window as unknown as {
-    electronAPI?: { updates?: { install: () => Promise<unknown> } };
-  };
-  return w.electronAPI?.updates ?? null;
+/** 主进程更新服务（`updates.install`）；没有契约传输时为 null */
+function updatesApi(): { install: () => Promise<unknown> } | null {
+  return hasTransport() ? { install: () => api.updates.install() } : null;
 }
 
 /** True when quitAndInstall can run (update file already on disk). */

@@ -1041,6 +1041,12 @@ export class AgentProgressService {
       }));
   }
 
+  /** 立刻扫描一轮再返回状态（设置页的「刷新」） */
+  async scanNow(): Promise<AgentWatchState> {
+    await this.tick();
+    return this.state();
+  }
+
   registerIpc(): void {
     const handle = (ch: string, fn: (...a: unknown[]) => unknown) =>
       guardedHandle(ch, fn, { owner: 'AgentProgressService' });
@@ -1048,10 +1054,7 @@ export class AgentProgressService {
     handle('ai:agents:set-settings', (p) =>
       this.setSettings((p ?? {}) as Partial<AgentWatchSettings>),
     );
-    handle('ai:agents:scan', async () => {
-      await this.tick();
-      return this.state();
-    });
+    handle('ai:agents:scan', () => this.scanNow());
   }
 }
 

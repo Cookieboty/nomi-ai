@@ -401,19 +401,17 @@ export class CliPluginHost {
     guardedHandle('ai:cli:registry', () => this.snapshot(), opts);
     guardedHandle('ai:cli:plugin-add', (raw) => this.addExternal(raw), opts);
     guardedHandle('ai:cli:plugin-remove', (id) => this.removeExternal(String(id)), opts);
-    // 试运行在临时目录里做：不让对方 CLI 在用户的项目里留下任何东西
-    guardedHandle(
-      'ai:cli:plugin-test',
-      async (raw) => {
-        const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-cli-test-'));
-        try {
-          return await this.testExternal(raw, dir);
-        } finally {
-          fs.rmSync(dir, { recursive: true, force: true });
-        }
-      },
-      opts,
-    );
+    guardedHandle('ai:cli:plugin-test', (raw) => this.testExternalInTemp(raw), opts);
+  }
+
+  /** 试运行在临时目录里做：不让对方 CLI 在用户的项目里留下任何东西 */
+  async testExternalInTemp(raw: unknown): Promise<ExternalTestResult> {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-cli-test-'));
+    try {
+      return await this.testExternal(raw, dir);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   }
 
   private changed(): void {

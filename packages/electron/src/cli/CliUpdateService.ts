@@ -143,13 +143,14 @@ export function isUpdatable(kind: CliKind): kind is UpdatableCli {
   );
 }
 
-function toUpdatable(kind: unknown): UpdatableCli {
+/** 渲染层传来的 id → 可更新的 CLI；认不出时按 claude（旧 IPC 与契约处理函数共用） */
+export function toUpdatable(kind: unknown): UpdatableCli {
   return kind === 'codex' || kind === 'dsh' || kind === 'grok' || kind === 'gemini'
     ? kind
     : 'claude';
 }
 
-function toScope(v: unknown): CliInstallScope {
+export function toScope(v: unknown): CliInstallScope {
   return v === 'user' ? 'user' : 'global';
 }
 

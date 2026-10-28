@@ -7,6 +7,7 @@
  */
 import type { TTSSpeakResult } from '@nomi-ai/types';
 
+import { api, hasTransport } from '../../services/api';
 import { resolvePrefsForCharacter } from '../characterVoice';
 import { isMascotMuted } from '../presence';
 import { registerSpeechStopper } from '../speechStop';
@@ -146,9 +147,8 @@ function getQueue(): ReplySpeechQueue {
   if (queue) return queue;
   queue = new ReplySpeechQueue({
     synth: async (text) => {
-      const api = typeof window !== 'undefined' ? window.electronAPI : undefined;
-      if (!api?.ttsSpeak) return null;
-      return api.ttsSpeak({ text });
+      if (!hasTransport()) return null;
+      return (await api.tts.speak({ text })) as TTSSpeakResult;
     },
     play: playSynthesized,
     stopAudio: stopSpeaking,

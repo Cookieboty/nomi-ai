@@ -7,6 +7,9 @@ import { AppEntries } from '../src/components/AppEntries';
 import { RestartUpdateButton, isUpdateReadyToInstall } from '../src/components/RestartUpdateButton';
 import type { UpdateState } from '../src/components/SettingsView/UpdateSettings';
 
+// D2 的过程经契约替身转发到下面的旧桥假实现（见 helpers/shellApi）
+vi.mock('../src/services/api', () => import('./helpers/shellApi'));
+
 const base: UpdateState = {
   status: 'idle',
   currentVersion: '2.0.4',

@@ -4,6 +4,8 @@
  * `./character/onboarding/`. A Scheme B overlay swaps in character-pack:// URLs when the active
  * pack ships its own.
  */
+import { api, hasTransport } from '../../services/api';
+
 export type OnboardingStep = 'welcome' | 'profile' | 'provider' | 'privacy';
 
 const BUILTIN_BASE = './character/onboarding/';
@@ -16,19 +18,10 @@ export const BUILTIN_ONBOARDING_ART: Record<OnboardingStep, string> = {
 };
 
 export async function resolveOnboardingArt(): Promise<Record<OnboardingStep, string>> {
-  const w = window as unknown as {
-    electronAPI?: {
-      characterPack?: {
-        getActive: () => Promise<{
-          source: string;
-          onboarding: Record<OnboardingStep, string> | null;
-        }>;
-      };
-    };
-  };
+  if (!hasTransport()) return { ...BUILTIN_ONBOARDING_ART };
   try {
-    const snap = await w.electronAPI?.characterPack?.getActive();
-    if (snap?.source !== 'builtin' && snap?.onboarding) {
+    const snap = await api.character.getActivePack();
+    if (snap.source !== 'builtin' && snap.onboarding) {
       return { ...BUILTIN_ONBOARDING_ART, ...snap.onboarding };
     }
   } catch {

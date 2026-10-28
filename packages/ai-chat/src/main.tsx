@@ -6,7 +6,7 @@ import ReactDOM from 'react-dom/client';
 import '@nomi-ai/ui/styles.css';
 import '@nomi-ai/voice/styles.css';
 import App from './App';
-import { installHostBackends } from './services/api';
+import { api, hasTransport, installHostBackends } from './services/api';
 import { initChatBackground } from './services/chatBackground';
 import { dropRetiredPrefs } from './services/chatPrefs';
 
@@ -24,9 +24,25 @@ dropRetiredPrefs();
 
 // 一体化标题栏：主进程用 hiddenInset（mac）/ titleBarOverlay（Win·Linux）创建窗口，
 // 页面顶部留出可拖动的标题栏区域（见 App.css .app-titlebar）
+// 平台由宿主经契约给出（异步）；先按 UA 猜一个，避免首帧标题栏布局跳动，拿到后以宿主为准
 {
-  const platform = (window as { electronAPI?: { platform?: string } }).electronAPI?.platform;
-  if (platform) document.documentElement.dataset.platform = platform;
+  const ua = typeof navigator === 'undefined' ? '' : navigator.userAgent;
+  const guess = /Mac OS X|Macintosh/.test(ua)
+    ? 'darwin'
+    : /Windows/.test(ua)
+      ? 'win32'
+      : /Linux/.test(ua)
+        ? 'linux'
+        : '';
+  if (hasTransport()) {
+    if (guess) document.documentElement.dataset.platform = guess;
+    void api.window.platform().then(
+      (platform) => {
+        if (platform) document.documentElement.dataset.platform = platform;
+      },
+      (error: unknown) => log.warn('读取平台失败', error),
+    );
+  }
 }
 
 const hasAiIpc = typeof window !== 'undefined' && Boolean((window as { aiIPC?: unknown }).aiIPC);

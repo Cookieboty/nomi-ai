@@ -5,10 +5,13 @@ import { resolve } from 'node:path';
 import { applyLocale } from '@nomi-ai/ui';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { StartupSettings } from '../src/components/SettingsView/StartupSettings';
 import { startupClient } from '../src/services/startupClient';
+
+// D2 的过程经契约替身转发到下面的旧桥假实现（见 helpers/shellApi）
+vi.mock('../src/services/api', () => import('./helpers/shellApi'));
 
 type Call = [string, ...unknown[]];
 let calls: Call[] = [];

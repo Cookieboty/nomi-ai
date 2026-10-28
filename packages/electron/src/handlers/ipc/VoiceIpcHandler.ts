@@ -6,6 +6,7 @@
 import { t } from '../../i18n';
 import { type IConfigService } from '../../services/ConfigService';
 import { type ILoggerService } from '../../services/LoggerService';
+import { getMascotVoiceSettings, saveMascotVoiceSettings } from '../../voice/mascotVoiceSettings';
 
 import { BaseIpcHandler } from './BaseIpcHandler';
 
@@ -21,32 +22,15 @@ export class VoiceIpcHandler extends BaseIpcHandler {
    * 初始化语音相关IPC处理器
    */
   initialize(): void {
-    // 获取语音设置
-    this.registerHandler('get-voice-settings', async () => {
-      const voiceSettings = this.configService.get('voiceSettings');
-      this.logger.debug('获取语音设置', { voiceSettings });
-      return voiceSettings;
-    });
+    // 获取语音设置（逻辑在 voice/mascotVoiceSettings.ts，与契约 voice.getMascotSettings 共用）
+    this.registerHandler('get-voice-settings', async () =>
+      getMascotVoiceSettings(this.configService, this.logger),
+    );
 
     // 保存语音设置
     this.registerListener('save-voice-settings', (_, settings) => {
       this.validateArgs([settings], 1, ['object']);
-
-      try {
-        const currentSettings = this.configService.get('voiceSettings') || {};
-        const updatedSettings = { ...currentSettings, ...settings };
-
-        this.configService.set('voiceSettings', updatedSettings);
-        this.configService.save().catch((error) => {
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          this.logger.error('保存语音设置失败', { error: errorMessage });
-        });
-
-        this.logger.info('语音设置已保存', { settings: updatedSettings });
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        this.logger.error('保存语音设置失败', { error: errorMessage, settings });
-      }
+      saveMascotVoiceSettings(this.configService, settings, this.logger);
     });
 
     // 播放语音（模拟）

@@ -100,11 +100,15 @@ export class LocaleService {
     return s;
   }
 
+  /** 英文词典（稳定 key → 译文）：为诊断和插件接口保留的统一查询能力 */
+  dict(): Record<string, string> {
+    return getDictionary('en');
+  }
+
   registerIpc(): void {
     const opts = { owner: 'LocaleService', wrapErrors: false };
     guardedHandle('ai:locale:get', () => this.get(), opts);
     guardedHandle('ai:locale:set', (p) => this.set(p), opts);
-    // 为诊断和插件接口保留统一的英文词典查询能力。
-    guardedHandle('ai:locale:dict', () => getDictionary('en'), opts);
+    guardedHandle('ai:locale:dict', () => this.dict(), opts);
   }
 }

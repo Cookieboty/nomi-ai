@@ -4,6 +4,8 @@
 import { Button, SettingRow, SettingsGroup, Switch, t } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useState } from 'react';
 
+import { api, hasTransport } from '../../services/api';
+
 import styles from './index.module.css';
 
 interface IslandState {
@@ -14,32 +16,15 @@ interface IslandState {
   platform: string;
 }
 
-type Invoke = (ch: string, ...a: unknown[]) => Promise<unknown>;
-type NamedApi = Record<string, (...a: unknown[]) => Promise<unknown>>;
-/** preload 只暴露命名白名单（electronAPI.island.*），这里把通道名映射到具名方法 */
-const CHANNELS: Record<string, string> = {
-  'island:get': 'get',
-  'island:set': 'set',
-  'island:test': 'test',
-};
-const invoke = (): Invoke | null => {
-  const api = (window as unknown as { electronAPI?: { island?: NamedApi } }).electronAPI?.island;
-  if (!api) return null;
-  return (ch, ...a) => {
-    const fn = api[CHANNELS[ch] ?? ''];
-    return fn ? fn(...a) : Promise.reject(new Error(`unknown channel ${ch}`));
-  };
-};
-
 export const IslandSettings: React.FC = () => {
   const [s, setS] = useState<IslandState | null>(null);
   const load = useCallback(() => {
-    void invoke()?.('island:get').then((v) => setS(v as IslandState));
+    if (hasTransport()) void api.island.get().then(setS, () => undefined);
   }, []);
   useEffect(load, [load]);
-  const set = (p: Partial<IslandState>) => void invoke()?.('island:set', p).then(load);
+  const set = (p: Partial<IslandState>) => void api.island.set(p).then(load, () => undefined);
 
-  if (!invoke())
+  if (!hasTransport())
     return (
       <section className={styles.block} data-testid="settings-island">
         <p className={styles.muted}>{t('ui.mascot-theme.available-in-the-desktop-app-only')}</p>
@@ -82,7 +67,7 @@ export const IslandSettings: React.FC = () => {
             size="sm"
             disabled={!s.enabled}
             data-testid="island-test"
-            onClick={() => void invoke()?.('island:test')}
+            onClick={() => void api.island.test().catch(() => undefined)}
           >
             {t('ui.mascot-theme.preview-a-notification')}
           </Button>

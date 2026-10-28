@@ -22,6 +22,14 @@ import type { HarnessTabMeta, HarnessTabsState } from '../src/services/harnessCl
 import { nomiAdapter } from '../src/slash/adapters/nomi';
 import type { ToolCall } from '../src/utils/toolTrace';
 
+import type { CodingApiMockState } from './helpers/codingApi';
+
+// D3 客户端走契约（services/api）；测试仍用旧通道形状的 window.aiIPC 假桥，经 helpers/codingApi 转发
+const codingApi = vi.hoisted(() => ({}) as CodingApiMockState);
+vi.mock('../src/services/api', async () =>
+  (await import('./helpers/codingApi')).createCodingApiMock(codingApi),
+);
+
 // Nomi 把编程助手当子代理调用（docs/design/nomi-delegate-cli.md §4.6、§4.7、§7）
 
 const tab = (over: Partial<HarnessTabMeta> = {}): HarnessTabMeta => ({
@@ -180,12 +188,17 @@ describe('子任务卡片', () => {
     await waitFor(() => expect(r.getByTestId('delegate-card').dataset.phase).toBe('waiting'));
     expect(r.getByTestId('delegate-step').textContent).toContain('explorer · Bash · npm test');
     const card = r.getByTestId('delegate-card');
+    // 调用经契约传输异步到达假桥
     fireEvent.click(within(card).getByTestId('conv-permission-allow'));
-    expect(ipc.invoke).toHaveBeenCalledWith('ai:harness:reply-permission', 'd1', 'p1', true);
+    await waitFor(() =>
+      expect(ipc.invoke).toHaveBeenCalledWith('ai:harness:reply-permission', 'd1', 'p1', true),
+    );
     fireEvent.click(within(card).getByTestId('delegate-agent-stop'));
-    expect(ipc.invoke).toHaveBeenCalledWith('ai:harness:stop-agent', 'd1', 'a1');
+    await waitFor(() =>
+      expect(ipc.invoke).toHaveBeenCalledWith('ai:harness:stop-agent', 'd1', 'a1'),
+    );
     fireEvent.click(r.getByTestId('delegate-stop'));
-    expect(ipc.invoke).toHaveBeenCalledWith('ai:harness:tab-cancel', 'd1');
+    await waitFor(() => expect(ipc.invoke).toHaveBeenCalledWith('ai:harness:tab-cancel', 'd1'));
   });
 
   it('历史消息（标签已不在）：按工具输出显示汇报与审批统计', () => {

@@ -5,9 +5,18 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LocalPanel } from '../src/components/LocalPanel';
 import { collectConversations, fmtBytes, pct } from '../src/services/localClient';
 
+import type { ApiMockState } from './helpers/knowledgeApi';
+
+// local.* 走契约（services/api）：调用记进 mockIpc 返回的 invoke（过程名 + 具名入参）
+const mock = vi.hoisted(() => ({ transport: true }) as ApiMockState);
+vi.mock('../src/services/api', async () =>
+  (await import('./helpers/knowledgeApi')).createApiMock(mock),
+);
+
 afterEach(() => {
   cleanup();
   delete (window as { aiIPC?: unknown }).aiIPC;
+  mock.invoke = undefined;
 });
 
 const model = (id: string, extra: object = {}) => ({
@@ -48,13 +57,14 @@ function mockIpc(over: Record<string, unknown> = {}) {
     ...over,
   };
   const invoke = vi.fn(async (ch: string, ..._a: unknown[]) => {
-    if (ch === 'ai:local:state') return state;
-    if (ch === 'ai:local:download' || ch === 'ai:local:download-runtime') return { ok: true };
+    if (ch === 'local.state') return state;
+    if (ch === 'local.download' || ch === 'local.downloadRuntime') return { ok: true };
     // 「本机模型」标签里同时列出 Ollama 的模型
-    if (ch === 'ai:local:ollama-list') return [];
+    if (ch === 'local.ollamaList') return [];
     return true;
   });
   (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
+  mock.invoke = (name, input) => (input === undefined ? invoke(name) : invoke(name, input));
   return invoke;
 }
 
@@ -71,10 +81,12 @@ describe('LocalPanel', () => {
       expect(r.getByTestId('local-license-dialog').textContent).toContain('Apache-2.0'),
     );
     expect(r.getByTestId('local-license-dialog').textContent).toContain('llama.cpp');
-    expect(invoke).not.toHaveBeenCalledWith('ai:local:download', expect.anything());
+    expect(invoke).not.toHaveBeenCalledWith('local.download', expect.anything());
     fireEvent.click(r.getByTestId('local-license-accept'));
-    await waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:local:download', 'qwen3-1.7b-q8'));
-    expect(invoke).toHaveBeenCalledWith('ai:local:download-runtime');
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('local.download', { id: 'qwen3-1.7b-q8' }),
+    );
+    expect(invoke).toHaveBeenCalledWith('local.downloadRuntime');
   });
 
   it('starts an installed model; running server offers use/stop', async () => {
@@ -85,7 +97,9 @@ describe('LocalPanel', () => {
     fireEvent.click(
       r.getByTestId('local-model-qwen3-0.6b-q8').querySelector('[data-testid=local-start]')!,
     );
-    await waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:local:start', 'qwen3-0.6b-q8'));
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('local.start', { id: 'qwen3-0.6b-q8' }),
+    );
     cleanup();
     mockIpc({
       server: {

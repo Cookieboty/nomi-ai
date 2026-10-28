@@ -5,6 +5,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GettingStarted } from '../src/components/GettingStarted';
 import { cliUpdateClient } from '../src/services/cliUpdateClient';
 
+// D2 的过程经契约替身转发到下面的旧桥假实现（见 helpers/shellApi）
+vi.mock('../src/services/api', () => import('./helpers/shellApi'));
+
 afterEach(() => {
   cleanup();
   delete (window as { aiIPC?: unknown }).aiIPC;

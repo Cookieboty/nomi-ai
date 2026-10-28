@@ -70,14 +70,23 @@ export function applyLocale(p: LocalePref): void {
   apply(p, resolveLocale(p, sysLangs()));
 }
 
-interface Bridge {
-  invoke(ch: string, ...a: unknown[]): Promise<unknown>;
-  on(ch: string, fn: (p: unknown) => void): () => void;
+/**
+ * 主进程语言服务的注入点（视图入口在 initLocale 之前接上，应用契约 `locale.*`；本包不依赖契约）。
+ * 返回值形状同 `{ pref, locale }`；没有后端时只用本地状态。
+ */
+export interface LocaleBackend {
+  get(): Promise<unknown>;
+  set(pref: LocalePref): Promise<unknown>;
+  /** 订阅语言变化；返回取消订阅 */
+  onChanged(fn: (state: unknown) => void): () => void;
 }
-const bridge = (): Bridge | undefined => {
-  const b = (globalThis as { aiIPC?: Bridge }).aiIPC;
-  return b && typeof b.invoke === 'function' ? b : undefined;
-};
+
+let backend: LocaleBackend | null = null;
+
+/** 接上 / 拿掉主进程语言服务（null = 只用本地状态） */
+export function setLocaleBackend(b: LocaleBackend | null): void {
+  backend = b;
+}
 const fromPayload = (v: unknown): { pref: LocalePref; locale: Locale } | null => {
   const o = v as { pref?: unknown; locale?: unknown } | null;
   return o && isLocalePref(o.pref) && (o.locale === 'zh-CN' || o.locale === 'en')
@@ -94,16 +103,16 @@ export function initLocale(): () => void {
     /* ignore */
   }
   applyLocale(isLocalePref(cached) ? cached : 'system');
-  const b = bridge();
+  const b = backend;
   if (!b) return () => undefined;
   void b
-    .invoke('ai:locale:get')
+    .get()
     .then((v) => {
       const s = fromPayload(v);
       if (s) apply(s.pref, s.locale);
     })
     .catch(() => undefined);
-  return b.on('ai:locale:changed', (v) => {
+  return b.onChanged((v) => {
     const s = fromPayload(v);
     if (s) apply(s.pref, s.locale);
   });
@@ -112,9 +121,9 @@ export function initLocale(): () => void {
 /** 用户在设置里切换语言 */
 export async function setLocalePref(p: LocalePref): Promise<void> {
   applyLocale(p);
-  const b = bridge();
+  const b = backend;
   if (!b) return;
-  const s = fromPayload(await b.invoke('ai:locale:set', p).catch(() => null));
+  const s = fromPayload(await b.set(p).catch(() => null));
   if (s) apply(s.pref, s.locale);
 }
 

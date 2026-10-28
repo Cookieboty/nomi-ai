@@ -5,6 +5,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { defaultSystemPrompt, SdkIPCClient } from '../src/services/IPCClient';
 
+import { installMascotHost, resetMascotHost } from './helpers/mascotHost';
+
+vi.mock('../src/services/api', async () =>
+  (await import('./helpers/mascotHost')).mascotApiModule(),
+);
+
 // 默认系统提示从当前角色人设取（docs/design/core-host-decoupling.md §10.4）
 const GUIDANCE = 'ui.chat-settings.you-run-on-the-user-s-own-computer-be';
 const LEGACY_KEY = 'ui.chat-settings.you-are-nomi-an-ai-companion-who-lives'; // i18n-ignore
@@ -113,9 +119,9 @@ describe('SdkIPCClient · default system prompt comes from the persona', () => {
     expect(persona).not.toHaveBeenCalled();
   });
 
-  it('reads the persona from the preload bridge by default', async () => {
+  it('reads the persona from the host (contract persona.get) by default', async () => {
     const get = vi.fn(async () => pip);
-    (window as unknown as { electronAPI?: unknown }).electronAPI = { persona: { get } };
+    installMascotHost({ 'persona.get': () => get() });
     try {
       const { client, calls } = capture();
       const ipc = new SdkIPCClient(client as never);
@@ -123,7 +129,7 @@ describe('SdkIPCClient · default system prompt comes from the persona', () => {
       expect(get).toHaveBeenCalled();
       expect(systemOf(calls[0]!)).toContain('You are Pip, a paper robot.');
     } finally {
-      delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+      resetMascotHost();
     }
   });
 });

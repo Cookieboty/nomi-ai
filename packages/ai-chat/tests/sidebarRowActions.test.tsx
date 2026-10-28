@@ -10,6 +10,14 @@ import { setChatMode } from '../src/services/chatPrefs';
 import { CONVERSATIONS_CHANGED_EVENT } from '../src/services/conversationStore';
 import type { HistorySession } from '../src/services/historyClient';
 
+import type { CodingApiMockState } from './helpers/codingApi';
+
+// D3 客户端走契约（services/api）；测试仍用旧通道形状的 window.aiIPC 假桥，经 helpers/codingApi 转发
+const codingApi = vi.hoisted(() => ({}) as CodingApiMockState);
+vi.mock('../src/services/api', async () =>
+  (await import('./helpers/codingApi')).createCodingApiMock(codingApi),
+);
+
 const now = Date.now();
 const conv = (id: string, name: string, backend: string, age: number, extra = {}) => ({
   id,

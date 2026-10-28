@@ -5,6 +5,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { OfficialAccounts } from '../src/components/ProvidersPage/OfficialAccounts';
 
+import type { CodingApiMockState } from './helpers/codingApi';
+
+// D3 客户端走契约（services/api）；测试仍用旧通道形状的 window.aiIPC 假桥，经 helpers/codingApi 转发
+const codingApi = vi.hoisted(() => ({}) as CodingApiMockState);
+vi.mock('../src/services/api', async () =>
+  (await import('./helpers/codingApi')).createCodingApiMock(codingApi),
+);
+
 vi.mock('../src/components/ConfirmDialog', () => import('./helpers/confirmViaWindow'));
 
 // 官方账号（docs/design/cli-plugin-architecture.md §5.10）：一个账号 = 一个 CLI 配置目录

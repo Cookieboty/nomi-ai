@@ -2,7 +2,7 @@
 import { applyLocale, currentTheme, getLocale } from '@nomi-ai/ui';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { OnboardingHost } from '../src/components/Onboarding';
 import {
@@ -11,6 +11,19 @@ import {
   mergePersona,
   personaBlockLines,
 } from '../src/components/Onboarding/client';
+
+import { shellTest } from './helpers/shellApi';
+
+// D2 的过程经契约替身转发到下面的旧桥假实现（见 helpers/shellApi）
+vi.mock('../src/services/api', () => import('./helpers/shellApi'));
+// 「关于我」属于记忆域（memClient → mem.*）：同样转给下面的假实现
+const legacyInvoke = (ch: string, ...a: unknown[]) =>
+  (
+    window as unknown as { aiIPC: { invoke: (c: string, ...x: unknown[]) => unknown } }
+  ).aiIPC.invoke(ch, ...a);
+shellTest.extra['mem.persona'] = () => legacyInvoke('ai:mem:persona');
+shellTest.extra['mem.setPersona'] = (i) =>
+  legacyInvoke('ai:mem:set-persona', (i as { text: string }).text);
 
 type Call = [string, ...unknown[]];
 let calls: Call[] = [];

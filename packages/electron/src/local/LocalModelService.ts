@@ -273,6 +273,10 @@ export class LocalModelService {
       this.changed();
     }
   }
+  /** 下载 llama.cpp 运行时（与模型共用下载进度与取消） */
+  downloadRuntime(): Promise<{ ok: boolean; error?: string }> {
+    return this.download(RUNTIME_ID);
+  }
   cancel(id: string) {
     const r = this.downloads.get(id);
     r?.ctrl.abort();
@@ -606,7 +610,7 @@ export class LocalModelService {
     h('state', () => this.state());
     h('set-settings', (p: never) => this.setSettings(p));
     h('download', (id: string) => this.download(String(id)));
-    h('download-runtime', () => this.download(RUNTIME_ID));
+    h('download-runtime', () => this.downloadRuntime());
     h('cancel', (id: string) => this.cancel(String(id)));
     h('remove', (id: string) => this.remove(String(id)));
     h('remove-runtime', () => this.removeRuntime());

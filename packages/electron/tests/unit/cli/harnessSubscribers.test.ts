@@ -193,6 +193,24 @@ describe('CliHarnessService push delivery', () => {
     expect(other.channels()).toEqual(['ai:harness:changed', 'ai:harness:tabs']);
   });
 
+  it('after attachEvents, pushes go through the app event bus to the chat surface only', async () => {
+    const chat = new FakeContents(1);
+    await invoke('ai:harness:tabs', chat);
+    const published: Array<{ channel: string; surface: unknown }> = [];
+    h.attachEvents({
+      publish: (channel, _payload, opts) => published.push({ channel, surface: opts?.surface }),
+    });
+    h.createTab({ backend: 'claude' });
+    await flushMicrotasks();
+    expect(published).toEqual([
+      { channel: 'ai:harness:changed', surface: 'chat' },
+      { channel: 'ai:harness:tabs', surface: 'chat' },
+    ]);
+    // 不再经 subscribers 重复发送（旧通道由事件总线按 surface 送达）
+    expect(chat.sent).toEqual([]);
+    expect(mascotSent).toEqual([]);
+  });
+
   it('an untrusted sender is rejected and never registered', async () => {
     const evil = new FakeContents(3, 'https://evil.example/');
     await expect(invoke('ai:harness:tabs', evil)).rejects.toThrow(/untrusted sender/);

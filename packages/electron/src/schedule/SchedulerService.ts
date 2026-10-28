@@ -568,6 +568,13 @@ export class SchedulerService {
     this.d.events.publish(ch, payload);
   }
 
+  /** 立即主动搭话一次（设置页「试一下」）；没想到说什么时抛 SchedError('empty') */
+  async proactiveNow(): Promise<string> {
+    const t = await this.maybeProactive(true);
+    if (!t) throw new SchedError('empty', tr('electron.common.couldn-t-think-of-what-to-say-this'));
+    return t;
+  }
+
   registerIpc(): void {
     if (this.ipcDone) return;
     this.ipcDone = true;
@@ -593,12 +600,7 @@ export class SchedulerService {
     handle('ai:sched:run-task', (id) => this.runTask(String(id), { manual: true }));
     handle('ai:sched:results', () => this.results());
     handle('ai:sched:clear-results', () => this.clearResults());
-    handle('ai:sched:proactive-now', async () => {
-      const t = await this.maybeProactive(true);
-      if (!t)
-        throw new SchedError('empty', tr('electron.common.couldn-t-think-of-what-to-say-this'));
-      return t;
-    });
+    handle('ai:sched:proactive-now', () => this.proactiveNow());
     handle('ai:sched:activity', () => {
       this.noteActivity();
       return true;

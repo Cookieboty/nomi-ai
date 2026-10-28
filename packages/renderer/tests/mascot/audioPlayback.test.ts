@@ -1,6 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../src/mascot/softSpeech', () => ({ stopSoftSpeech: vi.fn() }));
+// 朗读经契约 tts.speak / tts.stop（D1）。这里的用例按微任务节拍断言，用直接的替身而不是完整线协议
+const host = vi.hoisted(() => ({
+  speak: null as null | ((req: never) => Promise<unknown>),
+  stop: null as null | (() => Promise<boolean>),
+}));
+vi.mock('../../src/services/api', () => ({
+  api: {
+    tts: {
+      speak: (req: never) => host.speak!(req),
+      stop: () => host.stop?.() ?? Promise.resolve(true),
+    },
+  },
+  hasTransport: () => host.speak !== null,
+}));
 
 import { speakRealtime, stopSpeaking } from '../../src/mascot/tts/audioPlayback';
 
@@ -85,11 +99,13 @@ beforeEach(() => {
 
 afterEach(() => {
   stopSpeaking();
+  host.speak = null;
+  host.stop = null;
   vi.unstubAllGlobals();
 });
 
 function setApi(ttsSpeak: (...a: never[]) => Promise<unknown>) {
-  (window as unknown as { electronAPI: unknown }).electronAPI = { ttsSpeak };
+  host.speak = ttsSpeak;
 }
 
 describe('audioPlayback 旧请求不能清理新句（#47）', () => {
@@ -200,13 +216,11 @@ describe('speakRealtime 分句流式播放 / 打断', () => {
   it('长文本切成多段；stopSpeaking 后不再播放后续段，并通知主进程取消', async () => {
     const ttsStop = vi.fn(async () => true);
     let calls = 0;
-    (window as unknown as { electronAPI: unknown }).electronAPI = {
-      ttsSpeak: async () => {
-        calls++;
-        return OK;
-      },
-      ttsStop,
+    host.speak = async () => {
+      calls++;
+      return OK;
     };
+    host.stop = ttsStop;
     const onEnd = vi.fn();
     const text = Array.from({ length: 6 }, (_, i) =>
       `这是第${i}句，内容稍微长一点点以便切分开来。`.repeat(3),

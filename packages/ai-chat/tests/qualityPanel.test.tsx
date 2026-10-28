@@ -18,6 +18,9 @@ import { QualityPanel, type QualityTab } from '../src/components/QualityPanel';
 import { MAX_COMPARE } from '../src/components/QualityPanel/CompareTable';
 import { PAGE_SIZE } from '../src/components/QualityPanel/RequestDetails';
 
+// D2 的过程经契约替身转发到下面的旧桥假实现（见 helpers/shellApi）
+vi.mock('../src/services/api', () => import('./helpers/shellApi'));
+
 configure({ asyncUtilTimeout: 10_000 });
 
 const NOW = new Date(2026, 9, 24, 15, 0, 0).getTime();

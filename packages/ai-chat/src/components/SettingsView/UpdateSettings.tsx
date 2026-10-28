@@ -1,11 +1,12 @@
 /**
  * Settings → General → 关于与更新: version + check / download / install (with consent) + auto-check,
- * plus extra rows passed as children (onboarding). Talks to main-process UpdateService over
- * window.electronAPI.updates. `useUpdateState` is shared with the hero card's version cell.
+ * plus extra rows passed as children (onboarding). Talks to main-process UpdateService over the
+ * app contract (`updates.*`). `useUpdateState` is shared with the hero card's version cell.
  */
 import { Button, SettingRow, SettingsGroup, Switch, t } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useState } from 'react';
 
+import { api, hasTransport } from '../../services/api';
 import {
   getShowReleaseNotesAfterUpdate,
   openReleaseNotes,
@@ -50,9 +51,18 @@ interface UpdatesApi {
   onChanged: (cb: (s: UpdateState) => void) => () => void;
 }
 
-function api(): UpdatesApi | null {
-  const w = window as unknown as { electronAPI?: { updates?: UpdatesApi } };
-  return w.electronAPI?.updates ?? null;
+/** 主进程更新服务；没有契约传输（浏览器预览）时为 null */
+function updatesApi(): UpdatesApi | null {
+  if (!hasTransport()) return null;
+  const u = api.updates;
+  return {
+    get: () => u.get() as Promise<UpdateState>,
+    check: () => u.check() as Promise<UpdateState>,
+    download: () => u.download() as Promise<UpdateState>,
+    install: () => u.install() as Promise<UpdateState>,
+    setAutoCheck: (on) => u.setAutoCheck({ on }) as Promise<UpdateState>,
+    onChanged: (cb) => api.on('updates.changed', (s) => cb(s as UpdateState)),
+  };
 }
 
 export function statusLabel(s: UpdateState): string {
@@ -91,7 +101,7 @@ export function statusLabel(s: UpdateState): string {
 export function useUpdateState(): [UpdateState | null, (s: UpdateState) => void] {
   const [state, setState] = useState<UpdateState | null>(null);
   useEffect(() => {
-    const a = api();
+    const a = updatesApi();
     if (!a) return undefined;
     void a.get().then(setState);
     return a.onChanged(setState);
@@ -124,7 +134,7 @@ export const UpdateSettings: React.FC<{ children?: React.ReactNode }> = ({ child
     [setState],
   );
 
-  if (!api()) {
+  if (!updatesApi()) {
     return (
       <SettingsGroup title={t('ui.chat-settings.about-updates')} data-testid="settings-updates">
         <p className={styles.muted}>
@@ -200,7 +210,7 @@ export const UpdateSettings: React.FC<{ children?: React.ReactNode }> = ({ child
           size="sm"
           disabled={!canCheck}
           data-testid="updates-check"
-          onClick={() => void run(() => api()!.check())}
+          onClick={() => void run(() => updatesApi()!.check())}
         >
           {/* 失败后重新检查会接着重新下载（主进程先取消卡住的下载） */}
           {s?.status === 'error'
@@ -247,7 +257,7 @@ export const UpdateSettings: React.FC<{ children?: React.ReactNode }> = ({ child
               data-testid="updates-install-yes"
               onClick={() => {
                 setConfirmInstall(false);
-                void run(() => api()!.install());
+                void run(() => updatesApi()!.install());
               }}
             >
               {t('ui.mascot-theme.install-now')}
@@ -272,7 +282,7 @@ export const UpdateSettings: React.FC<{ children?: React.ReactNode }> = ({ child
         <Switch
           checked={s?.autoCheck ?? true}
           disabled={!s || s.status === 'unavailable'}
-          onChange={(on) => void run(() => api()!.setAutoCheck(on))}
+          onChange={(on) => void run(() => updatesApi()!.setAutoCheck(on))}
           aria-label={t('ui.mascot-theme.check-for-updates-on-launch-and-periodically')}
         />
       </SettingRow>

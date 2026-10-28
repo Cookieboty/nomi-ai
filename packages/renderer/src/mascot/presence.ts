@@ -1,16 +1,12 @@
 /**
- * 看板娘显示开关（主进程 startup/StartupService 的 `showMascot`）。
+ * 看板娘显示开关（主进程 startup/StartupService 的 `showMascot`，应用契约 `startup.*`）。
  * 关闭后窗口隐藏、整窗静音；这里再让朗读入口直接跳过（预录音频 / 实时朗读都在这里统一拦截），
  * 并让唤醒词等常驻监听停下（MascotVoice 订阅 useMascotShown），不在看不见的窗口里继续开麦。
  * 随时可以关闭（#55）：默认界面为看板娘时，主进程会把默认界面改为「软件主界面」并打开它。
  */
 import { useSyncExternalStore } from 'react';
 
-interface Bridge {
-  invoke(ch: string, ...a: unknown[]): Promise<unknown>;
-  on(ch: string, fn: (payload: unknown) => void): () => void;
-}
-const bridge = (): Bridge | undefined => (window as unknown as { aiIPC?: Bridge }).aiIPC;
+import { api, hasTransport } from '../services/api';
 
 const pick = (r: unknown): boolean | null => {
   const v = (r as { showMascot?: unknown } | null)?.showMascot;
@@ -46,14 +42,13 @@ export function useMascotShown(): boolean {
 }
 
 export function initMascotPresence(): void {
-  const b = bridge();
-  if (started || !b) return;
+  if (started || !hasTransport()) return;
   started = true;
-  void b
-    .invoke('ai:startup:get')
+  void api.startup
+    .get()
     .then(apply)
     .catch(() => undefined);
-  b.on('ai:startup:changed', apply);
+  api.on('startup.changed', apply);
 }
 
 /** 测试用 */
@@ -63,8 +58,7 @@ export function __setMascotShownForTest(v: boolean): void {
 
 /** 关闭看板娘（工具栏）：持久化后由主进程隐藏窗口；设置 → 通用里可重新打开 */
 export async function closeMascot(): Promise<boolean> {
-  const r = await bridge()
-    ?.invoke('ai:startup:set', { showMascot: false })
-    .catch(() => null);
+  if (!hasTransport()) return false;
+  const r = await api.startup.set({ showMascot: false }).catch(() => null);
   return pick(r) === false;
 }

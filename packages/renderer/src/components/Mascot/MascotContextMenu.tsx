@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import styles from './ContextMenu.module.css';
 
 import { scalePercent, scaleStore, useMascotScale } from '@/mascot/scaleStore';
+import { hasTransport } from '@/services/api';
 
 const MENU_W = 168;
 
@@ -20,7 +21,7 @@ export const MascotContextMenu: React.FC = () => {
   const close = useCallback(() => setPos(null), []);
 
   useEffect(() => {
-    if (!window.electronAPI?.mascotWindow?.scaleGet) return undefined;
+    if (!hasTransport()) return undefined;
     const onCtx = (e: MouseEvent) => {
       const el = e.target as HTMLElement | null;
       if (!el || !el.closest('#mascot-canvas') || el.closest('[data-mascot-ui]')) return;

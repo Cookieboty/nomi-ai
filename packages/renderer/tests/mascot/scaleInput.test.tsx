@@ -3,6 +3,10 @@ import { act, cleanup, fireEvent, render } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { installMascotHost, publishMascotEvent, resetMascotHost } from './mascotHost';
+
+vi.mock('../../src/services/api', async () => (await import('./mascotHost')).mascotApiModule());
+
 const state = (scale: number) => ({
   scale,
   min: 0.3,
@@ -15,7 +19,6 @@ const state = (scale: number) => ({
 
 function install() {
   let cur = 0.5;
-  let push: ((s: ReturnType<typeof state>) => void) | null = null;
   const api = {
     scaleGet: vi.fn(async () => state(cur)),
     scaleWheel: vi.fn(async (dy: number) => {
@@ -28,13 +31,16 @@ function install() {
     }),
     scaleSet: vi.fn(async (v: number) => state((cur = v))),
     scaleReset: vi.fn(async () => state((cur = 0.5))),
-    onScale: vi.fn((cb: (s: ReturnType<typeof state>) => void) => {
-      push = cb;
-      return () => undefined;
-    }),
   };
-  (window as unknown as { electronAPI: unknown }).electronAPI = { mascotWindow: api };
-  return { api, push: (s: number) => push?.(state(s)) };
+  // 契约 mascot.scale*（看板娘窗口调用）→ 记录成原来的位置参数，断言不变
+  installMascotHost({
+    'mascot.scaleGet': () => api.scaleGet(),
+    'mascot.scaleWheel': ({ deltaY, deltaMode }) => api.scaleWheel(deltaY, deltaMode),
+    'mascot.scaleStep': ({ dir }) => api.scaleStep(dir),
+    'mascot.scaleSet': ({ scale }) => api.scaleSet(scale),
+    'mascot.scaleReset': () => api.scaleReset(),
+  });
+  return { api, push: (s: number) => publishMascotEvent('mascot.scaleChanged', state(s)) };
 }
 
 beforeEach(() => {
@@ -42,7 +48,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
-  delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+  resetMascotHost();
   vi.useRealTimers();
 });
 
@@ -74,7 +80,7 @@ describe('mascot zoom input', () => {
     await act(async () => {
       await new Promise((r) => requestAnimationFrame(() => r(null)));
     });
-    expect(api.scaleWheel).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(api.scaleWheel).toHaveBeenCalledTimes(1));
     expect(api.scaleWheel).toHaveBeenCalledWith(-100, 0);
   });
 
@@ -89,11 +95,14 @@ describe('mascot zoom input', () => {
     fireEvent.keyDown(window, { key: '=', code: 'Equal', ctrlKey: true });
     fireEvent.keyDown(window, { key: '-', code: 'Minus', metaKey: true });
     fireEvent.keyDown(window, { key: '0', code: 'Digit0', ctrlKey: true });
+    await vi.waitFor(() => expect(api.scaleReset).toHaveBeenCalledTimes(1));
     expect(api.scaleStep).toHaveBeenNthCalledWith(1, 1);
     expect(api.scaleStep).toHaveBeenNthCalledWith(2, -1);
-    expect(api.scaleReset).toHaveBeenCalledTimes(1);
     fireEvent.keyDown(getByTestId('in'), { key: '=', code: 'Equal', ctrlKey: true });
     fireEvent.keyDown(window, { key: '=', code: 'Equal' });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 10));
+    });
     expect(api.scaleStep).toHaveBeenCalledTimes(2);
   });
 
@@ -111,6 +120,7 @@ describe('mascot zoom input', () => {
     fireEvent.keyDown(window, { key: '+', code: 'NumpadAdd', ctrlKey: true });
     fireEvent.keyDown(window, { key: '-', code: 'NumpadSubtract', ctrlKey: true });
     fireEvent.keyDown(window, { key: '0', code: 'Numpad0', ctrlKey: true });
+    await vi.waitFor(() => expect(api.scaleReset).toHaveBeenCalledTimes(1));
     expect(api.scaleStep).toHaveBeenNthCalledWith(1, 1);
     expect(api.scaleStep).toHaveBeenNthCalledWith(2, 1);
     expect(api.scaleStep).toHaveBeenNthCalledWith(3, -1);
@@ -133,7 +143,10 @@ describe('mascot right-click menu', () => {
         <MascotContextMenu />
       </div>,
     );
-    await act(async () => {});
+    await act(async () => {
+      await vi.waitFor(() => expect(api.scaleGet).toHaveBeenCalled());
+      await new Promise((r) => setTimeout(r, 10));
+    });
     // the toolbar / other UI keeps its own right-click behaviour
     fireEvent.contextMenu(container.querySelector('[data-testid="ui"] button')!);
     expect(queryByTestId('mascot-context-menu')).toBeNull();
@@ -144,16 +157,18 @@ describe('mascot right-click menu', () => {
     expect(getByTestId('ctx-scale-value').textContent).toContain('50%');
     expect((getByTestId('ctx-zoom-reset') as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(getByTestId('ctx-zoom-in'));
-    expect(api.scaleStep).toHaveBeenCalledWith(1);
-    await act(async () => {});
+    await act(async () => {
+      await vi.waitFor(() => expect(api.scaleStep).toHaveBeenCalledWith(1));
+      await new Promise((r) => setTimeout(r, 10));
+    });
     expect(getByTestId('ctx-scale-value').textContent).toContain('60%');
     expect(queryByTestId('mascot-context-menu')).not.toBeNull(); // stays open for repeated clicks
-    act(() => push(1.5));
+    await act(() => push(1.5));
     expect((getByTestId('ctx-zoom-in') as HTMLButtonElement).disabled).toBe(true);
-    act(() => push(0.3));
+    await act(() => push(0.3));
     expect((getByTestId('ctx-zoom-out') as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(getByTestId('ctx-zoom-reset'));
-    expect(api.scaleReset).toHaveBeenCalled();
+    await vi.waitFor(() => expect(api.scaleReset).toHaveBeenCalled());
     expect(queryByTestId('mascot-context-menu')).toBeNull(); // reset closes
     fireEvent.contextMenu(getByTestId('cv'), { clientX: 5, clientY: 5 });
     expect(queryByTestId('mascot-context-menu')).not.toBeNull();

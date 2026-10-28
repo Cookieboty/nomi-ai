@@ -149,21 +149,20 @@ export class DiagnosticsService {
     return this.view();
   }
 
+  /** 在系统文件管理器里打开日志目录（没有就先建）；打不开时抛出系统给的原因 */
+  async openLogFolder(): Promise<boolean> {
+    fs.mkdirSync(this.logDir, { recursive: true });
+    const err = await this.d.ports.shell.openPath(this.logDir);
+    if (err) throw new Error(err);
+    return true;
+  }
+
   registerIpc(): void {
     const opts = { owner: 'DiagnosticsService' };
     guardedHandle('diagnostics:get', () => this.view(), opts);
     guardedHandle('diagnostics:set', (on) => this.set(on === true), opts);
     guardedHandle('diagnostics:export', () => this.exportBundle(), opts);
-    guardedHandle(
-      'diagnostics:open-folder',
-      async () => {
-        fs.mkdirSync(this.logDir, { recursive: true });
-        const err = await this.d.ports.shell.openPath(this.logDir);
-        if (err) throw new Error(err);
-        return true;
-      },
-      opts,
-    );
+    guardedHandle('diagnostics:open-folder', () => this.openLogFolder(), opts);
   }
 
   private load(): boolean {

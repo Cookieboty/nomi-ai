@@ -1,9 +1,11 @@
 /**
  * 设置 → 通用 → 外观：应用图标（sunset 默认 / cream / ink），一行设置，右侧三个小图标单选。
- * 主进程 core/appIcon.ts（app-icon:*）。
+ * 主进程 core/appIcon.ts（应用契约 `appIcon.*`）。
  */
 import { SettingRow, t } from '@nomi-ai/ui';
 import React, { useEffect, useState } from 'react';
+
+import { api, hasTransport } from '../../services/api';
 
 import styles from './index.module.css';
 
@@ -13,18 +15,14 @@ interface IconState {
   platform: string;
   previews: Record<Variant, string>;
 }
-type Invoke = (ch: string, ...a: unknown[]) => Promise<unknown>;
-type NamedApi = Record<string, (...a: unknown[]) => Promise<unknown>>;
-/** preload 只暴露命名白名单（electronAPI.appIcon.*），这里把通道名映射到具名方法 */
-const CHANNELS: Record<string, string> = { 'app-icon:get': 'get', 'app-icon:set': 'set' };
-const invoke = (): Invoke | null => {
-  const api = (window as unknown as { electronAPI?: { appIcon?: NamedApi } }).electronAPI?.appIcon;
-  if (!api) return null;
-  return (ch, ...a) => {
-    const fn = api[CHANNELS[ch] ?? ''];
-    return fn ? fn(...a) : Promise.reject(new Error(`unknown channel ${ch}`));
-  };
-};
+/** 主进程 core/appIcon（应用契约 `appIcon.*`，只在对话窗口）；没有契约传输时为 null */
+const iconApi = () =>
+  hasTransport()
+    ? {
+        get: () => api.appIcon.get() as Promise<IconState>,
+        set: (variant: Variant) => api.appIcon.set({ variant }) as Promise<Variant>,
+      }
+    : null;
 
 const LABEL: Record<Variant, string> = {
   sunset: 'ui.mascot-theme.sunset-orange-default',
@@ -35,11 +33,15 @@ const LABEL: Record<Variant, string> = {
 export const AppIconSettings: React.FC = () => {
   const [s, setS] = useState<IconState | null>(null);
   useEffect(() => {
-    void invoke()?.('app-icon:get').then((v) => setS(v as IconState));
+    void iconApi()
+      ?.get()
+      .then((v) => setS(v));
   }, []);
-  if (!invoke() || !s) return null;
+  if (!iconApi() || !s) return null;
   const pick = (v: Variant) =>
-    void invoke()?.('app-icon:set', v).then((r) => setS({ ...s, variant: r as Variant }));
+    void iconApi()
+      ?.set(v)
+      .then((r) => setS({ ...s, variant: r }));
   return (
     <SettingRow
       data-testid="settings-app-icon"

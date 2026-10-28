@@ -774,7 +774,7 @@ export class UsageService {
   }
 
   /** 面板读额度（额度卡可见）：记下时间，后台自动刷新只在卡片可见时进行 */
-  private quotaViewed(): Promise<QuotaEntry[]> {
+  quotaViewed(): Promise<QuotaEntry[]> {
     this.lastQuotaView = this.now();
     return this.quotaEntries();
   }
@@ -1686,70 +1686,95 @@ export class UsageService {
     (this.broadcastTimer as { unref?: () => void }).unref?.();
   }
 
+  /* -------------------- 界面入口（旧 IPC 与应用契约共用）：读账本的查询先等载入完成 -------------------- */
+
+  /** 界面传来的明细筛选 → DetailQuery（缺省近 90 天、按时间倒序、100 条） */
+  private detailQueryOf(v: unknown): DetailQuery {
+    const o = (v && typeof v === 'object' ? v : {}) as Partial<DetailQuery>;
+    const now = this.now();
+    const s = (x: unknown) => (typeof x === 'string' && x ? x : undefined);
+    return {
+      from: typeof o.from === 'number' ? o.from : rangeOf('90d', now).from,
+      to: typeof o.to === 'number' ? o.to : rangeOf('today', now).to,
+      source: s(o.source),
+      model: s(o.model),
+      session: s(o.session),
+      sort: o.sort,
+      dir: o.dir === 'asc' ? 'asc' : 'desc',
+      limit: typeof o.limit === 'number' ? o.limit : 100,
+      offset: typeof o.offset === 'number' ? o.offset : 0,
+    };
+  }
+
+  // 大账本后台载入完成前先等，界面拿到的总是完整数据
+  async readState(): Promise<ReturnType<UsageService['state']>> {
+    await this.ledger.whenReady();
+    return this.state();
+  }
+
+  async readQuery(range: unknown): Promise<ReturnType<UsageService['query']>> {
+    await this.ledger.whenReady();
+    return this.query(rangeIdOf(range));
+  }
+
+  async readHeatmap(): Promise<ReturnType<UsageService['heatmap']>> {
+    await this.ledger.whenReady();
+    return this.heatmap();
+  }
+
+  async readEndpoint(id: unknown): Promise<ReturnType<UsageService['endpointUsage']>> {
+    await this.ledger.whenReady();
+    return this.endpointUsage(endpointSourceOf(id));
+  }
+
+  async readDetails(q: unknown): Promise<ReturnType<UsageService['details']>> {
+    await this.ledger.whenReady();
+    return this.details(this.detailQueryOf(q));
+  }
+
+  async readCsv(q: unknown): Promise<string> {
+    await this.ledger.whenReady();
+    return this.csv(this.detailQueryOf(q));
+  }
+
+  /** 「重新扫描」：扫描结果 + 最新状态 */
+  async scanWithState(): Promise<
+    { added: number; files: number } & ReturnType<UsageService['state']>
+  > {
+    const r = await this.scan();
+    return { ...r, ...this.state() };
+  }
+
+  /** 「清空」：返回清空后的状态 */
+  clearWithState(): ReturnType<UsageService['state']> {
+    this.clear();
+    return this.state();
+  }
+
   registerIpc(): void {
     // 经 guardedHandle：sender + senderFrame 校验、通道认领；业务错误仍以 { __error } 信封返回
     const handle = (ch: string, fn: (...a: unknown[]) => unknown | Promise<unknown>) =>
       guardedHandle(ch, fn, { owner: 'UsageService' });
-    const rid = (v: unknown): RangeId =>
-      v === 'today' || v === '7d' || v === '30d' || v === '90d' ? v : '7d';
-    const dq = (v: unknown): DetailQuery => {
-      const o = (v && typeof v === 'object' ? v : {}) as Partial<DetailQuery>;
-      const now = this.now();
-      const s = (x: unknown) => (typeof x === 'string' && x ? x : undefined);
-      return {
-        from: typeof o.from === 'number' ? o.from : rangeOf('90d', now).from,
-        to: typeof o.to === 'number' ? o.to : rangeOf('today', now).to,
-        source: s(o.source),
-        model: s(o.model),
-        session: s(o.session),
-        sort: o.sort,
-        dir: o.dir === 'asc' ? 'asc' : 'desc',
-        limit: typeof o.limit === 'number' ? o.limit : 100,
-        offset: typeof o.offset === 'number' ? o.offset : 0,
-      };
-    };
-    // 读账本的查询：大账本后台载入完成前先等，界面拿到的总是完整数据
-    const ready = this.ledger.whenReady();
-    handle('ai:usage:state', async () => {
-      await ready;
-      return this.state();
-    });
-    handle('ai:usage:query', async (r) => {
-      await ready;
-      return this.query(rid(r));
-    });
-    handle('ai:usage:heatmap', async () => {
-      await ready;
-      return this.heatmap();
-    });
-    handle('ai:usage:endpoint', async (id) => {
-      await ready;
-      return this.endpointUsage(endpointSourceOf(id));
-    });
-    handle('ai:usage:details', async (q) => {
-      await ready;
-      return this.details(dq(q));
-    });
-    handle('ai:usage:csv', async (q) => {
-      await ready;
-      return this.csv(dq(q));
-    });
+    handle('ai:usage:state', () => this.readState());
+    handle('ai:usage:query', (r) => this.readQuery(r));
+    handle('ai:usage:heatmap', () => this.readHeatmap());
+    handle('ai:usage:endpoint', (id) => this.readEndpoint(id));
+    handle('ai:usage:details', (q) => this.readDetails(q));
+    handle('ai:usage:csv', (q) => this.readCsv(q));
     handle('ai:usage:set-settings', (p) => this.setSettings((p ?? {}) as Partial<UsageSettings>));
     handle('ai:usage:quota', () => this.quotaViewed());
     handle('ai:usage:quota-refresh', (tool) => this.refreshQuota(quotaToolOf(tool)));
     handle('ai:usage:quota-hook', () => this.quotaHookStatus());
     handle('ai:usage:quota-hook-set', (v) => this.setQuotaHook(v === true));
     handle('ai:usage:price-sync', () => this.syncPrices());
-    handle('ai:usage:scan', async () => {
-      const r = await this.scan();
-      return { ...r, ...this.state() };
-    });
-    handle('ai:usage:clear', () => {
-      this.clear();
-      return this.state();
-    });
+    handle('ai:usage:scan', () => this.scanWithState());
+    handle('ai:usage:clear', () => this.clearWithState());
   }
 }
+
+/** 时间范围：未知值按近 7 天 */
+export const rangeIdOf = (v: unknown): RangeId =>
+  v === 'today' || v === '7d' || v === '30d' || v === '90d' ? v : '7d';
 
 /** IPC 参数校验：只接受已知工具 id；其他（含缺省）= 全部刷新 */
 export const quotaToolOf = (v: unknown): QuotaToolId | undefined =>

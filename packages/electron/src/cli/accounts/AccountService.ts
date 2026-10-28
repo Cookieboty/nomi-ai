@@ -672,11 +672,7 @@ export class AccountService {
 
   registerIpc(): void {
     const owner = 'AccountService';
-    const kindOf = (v: unknown): AccountKind => {
-      if (typeof v === 'string' && (ACCOUNT_KINDS as readonly string[]).includes(v))
-        return v as AccountKind;
-      throw new Error(t('electron.common.unknown-coding-agent'));
-    };
+    const kindOf = parseAccountKind;
     guardedHandle('ai:cli-account:list', (k) => this.list(k ? kindOf(k) : undefined), { owner });
     guardedHandle('ai:cli-account:refresh', (k) => this.refreshAll(kindOf(k)), { owner });
     guardedHandle('ai:cli-account:set-default', (k, id) => this.setDefault(kindOf(k), String(id)), {
@@ -691,6 +687,13 @@ export class AccountService {
       { owner },
     );
   }
+}
+
+/** 渲染层传来的编程助手 id → 有官方账号的 CLI；其他值报错（旧 IPC 与契约处理函数共用） */
+export function parseAccountKind(v: unknown): AccountKind {
+  if (typeof v === 'string' && (ACCOUNT_KINDS as readonly string[]).includes(v))
+    return v as AccountKind;
+  throw new Error(t('electron.common.unknown-coding-agent'));
 }
 
 /** 在账号目录里执行 CLI 自己的登出（会撤销令牌）；Gemini 没有登出命令，直接删目录 */

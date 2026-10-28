@@ -1,6 +1,8 @@
 import { t } from '@nomi-ai/ui';
+
+import { api, hasTransport } from './api';
 /**
- * 旧 `ai:providers:*` IPC 垫片：只剩预设列表（添加第三方供应商时选）和只读状态 /
+ * 旧 `ai:providers:*` 垫片（应用契约 `providers.*`）：只剩预设列表（添加第三方供应商时选）和只读状态 /
  * `setActive`（环境变量切换的兼容）。供应商与模型配置的唯一来源是统一网关（gatewayClient）。
  * 主进程只回传掩码视图。
  */
@@ -132,32 +134,24 @@ export interface ProviderState {
   overrideId?: string;
 }
 
-interface AiBridge {
-  invoke: (channel: string, ...args: unknown[]) => Promise<unknown>;
+/**
+ * 托盘 / 菜单「打开供应商面板」：主进程 WindowManager 仍直接向对话窗口发送旧通道，还没经应用事件总线，
+ * 契约事件 `providers.openPanel` 收不到；迁移完成前同时听旧通道（收尾批次删除）。
+ */
+interface LegacyBridge {
   on: (channel: string, fn: (payload: unknown) => void) => () => void;
 }
-
-function bridge(): AiBridge | undefined {
+function legacyBridge(): LegacyBridge | undefined {
   if (typeof window === 'undefined') return undefined;
-  const b = (window as unknown as { aiIPC?: AiBridge }).aiIPC;
-  return b && typeof b.invoke === 'function' ? b : undefined;
+  const b = (window as unknown as { aiIPC?: LegacyBridge }).aiIPC;
+  return b && typeof b.on === 'function' ? b : undefined;
 }
 
-export const providerClientAvailable = (): boolean => Boolean(bridge());
+export const providerClientAvailable = (): boolean => hasTransport();
 
-const call = async <T>(method: string, ...args: unknown[]): Promise<T> => {
-  const b = bridge();
-  if (!b) throw new Error(t('ui.chat-settings.window-aiipc-is-unavailable'));
-  try {
-    return (await b.invoke(`ai:providers:${method}`, ...args)) as T;
-  } catch (err) {
-    // Electron 包装成 "Error invoking remote method 'x': Error: msg"
-    const msg = err instanceof Error ? err.message : String(err);
-    throw Object.assign(
-      new Error(msg.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')),
-      { cause: err },
-    );
-  }
+const call = async <T>(fn: () => Promise<unknown>): Promise<T> => {
+  if (!hasTransport()) throw new Error(t('ui.chat-settings.window-aiipc-is-unavailable'));
+  return (await fn()) as T;
 };
 
 /**
@@ -203,20 +197,23 @@ export function effectiveProviderLabel(): string | undefined {
 
 export const providerClient = {
   presets: () =>
-    call<ProviderPreset[]>('presets').then((ps) =>
+    call<ProviderPreset[]>(() => api.providers.presets()).then((ps) =>
       ps.map((p) => ({ ...p, name: providerDisplayName(p.name) })),
     ),
-  state: () => call<ProviderState>('state').then(remember),
+  state: () => call<ProviderState>(() => api.providers.state()).then(remember),
   setActive: (id: string | null, model?: string) =>
-    call<ProviderState>('setActive', id, model).then(remember),
+    call<ProviderState>(() =>
+      api.providers.setActive(model === undefined ? { id } : { id, model }),
+    ).then(remember),
   onChanged(fn: (s: ProviderState) => void): () => void {
-    const b = bridge();
-    if (!b) return () => undefined;
-    return b.on('ai:providers:changed', (p) => fn(remember(p as ProviderState)));
+    if (!hasTransport()) return () => undefined;
+    return api.on('providers.changed', (p) => fn(remember(p as ProviderState)));
   },
   onOpenPanel(fn: () => void): () => void {
-    const b = bridge();
-    if (!b) return () => undefined;
-    return b.on('ai:providers:open-panel', () => fn());
+    const offs: Array<() => void> = [];
+    if (hasTransport()) offs.push(api.on('providers.openPanel', () => fn()));
+    const legacy = legacyBridge();
+    if (legacy) offs.push(legacy.on('ai:providers:open-panel', () => fn()));
+    return () => offs.forEach((off) => off());
   },
 };

@@ -244,6 +244,20 @@ export class IslandService {
     this.showing = false;
   }
 
+  /** 设置页「测试」：不论开关与免打扰都弹一条示例通知；返回是否显示 */
+  test(): boolean {
+    return this.notify(
+      {
+        kind: 'message',
+        title: tr('Nomi'),
+        body: tr('electron.common.this-is-what-an-island-notification-looks-like'),
+        durationMs: 4000,
+      },
+      true,
+    );
+  }
+
+  /** 旧 IPC（收尾批次删除）；契约见 host/contract/mascot.ts 的 island.* */
   registerIpc(): void {
     ipcMain.removeHandler('island:get');
     ipcMain.removeHandler('island:set');
@@ -252,17 +266,7 @@ export class IslandService {
     ipcMain.handle('island:set', (_e, p: unknown) =>
       this.set((p && typeof p === 'object' ? p : {}) as Partial<IslandSettings>),
     );
-    ipcMain.handle('island:test', () =>
-      this.notify(
-        {
-          kind: 'message',
-          title: tr('Nomi'),
-          body: tr('electron.common.this-is-what-an-island-notification-looks-like'),
-          durationMs: 4000,
-        },
-        true,
-      ),
-    );
+    ipcMain.handle('island:test', () => this.test());
   }
 }
 

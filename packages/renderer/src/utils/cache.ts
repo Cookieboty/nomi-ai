@@ -6,6 +6,8 @@
 import { type IpcApi } from '@nomi-ai/types';
 import { createLogger } from '@nomi-ai/ui';
 
+import { api, hasTransport } from '../services/api';
+
 const log = createLogger('Cache');
 
 // 声明全局电子API类型
@@ -28,8 +30,8 @@ const CACHE_PREFIX = 'mascot_';
 export async function getCache<T>(key: string, defaultValue?: T): Promise<T | null> {
   // 优先尝试从Electron API获取
   try {
-    if (window.electronAPI && key === 'modelName') {
-      const value = await window.electronAPI.getSavedModel();
+    if (hasTransport() && key === 'modelName') {
+      const value = await api.mascot.getSavedModel();
       if (value) {
         log.info(`[Cache] 从Electron获取缓存成功: ${key}=${value}`);
         return value as unknown as T;
@@ -61,11 +63,11 @@ export async function setCache<T>(key: string, data: T): Promise<boolean> {
 
   // 同步到Electron配置
   try {
-    if (window.electronAPI) {
+    if (hasTransport()) {
       if (key === 'modelId' || key === 'modelTexturesId') {
         // 这些值仅保存在localStorage，不同步到Electron
       } else if (key === 'modelName') {
-        await window.electronAPI.saveModel(data as unknown as string);
+        await api.mascot.saveModel({ modelName: data as unknown as string });
         log.info(`[Cache] 保存到Electron配置成功: ${key}=${data}`);
       }
     }
@@ -96,8 +98,8 @@ export async function removeCache(key: string): Promise<boolean> {
 
   // 如果是modelName，尝试从Electron删除
   try {
-    if (window.electronAPI && key === 'modelName') {
-      await window.electronAPI.saveModel('');
+    if (hasTransport() && key === 'modelName') {
+      await api.mascot.saveModel({ modelName: '' });
       log.info(`[Cache] 从Electron删除缓存成功: ${key}`);
     }
   } catch (err) {
@@ -126,8 +128,8 @@ export async function clearAllCache(): Promise<boolean> {
 
   // 清除Electron中的模型设置
   try {
-    if (window.electronAPI) {
-      await window.electronAPI.saveModel('');
+    if (hasTransport()) {
+      await api.mascot.saveModel({ modelName: '' });
       log.info('[Cache] 从Electron清除模型成功');
     }
   } catch (err) {

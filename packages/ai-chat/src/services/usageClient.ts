@@ -1,8 +1,10 @@
 /**
- * 用量与计费客户端：`ai:usage:*` IPC（经 preload 的 window.aiIPC）。
+ * 用量与计费客户端：应用契约 `usage.*`（主进程 usage/UsageService）。
  * 类型与主进程 electron/src/usage 的返回结构一一对应（渲染进程不引用主进程代码）。
  */
 import { t } from '@nomi-ai/ui';
+
+import { api, hasTransport } from './api';
 
 export type UsageRangeId = 'today' | '7d' | '30d' | '90d';
 export type UsageCurrency = 'USD' | 'CNY';
@@ -223,51 +225,38 @@ export interface UsageQuotaHook {
   problem?: 'invalid-settings' | 'unsupported-statusline';
 }
 
-interface AiBridge {
-  invoke: (channel: string, ...args: unknown[]) => Promise<unknown>;
-  on: (channel: string, fn: (payload: unknown) => void) => () => void;
-}
-const bridge = (): AiBridge | undefined => {
-  if (typeof window === 'undefined') return undefined;
-  const b = (window as unknown as { aiIPC?: AiBridge }).aiIPC;
-  return b && typeof b.invoke === 'function' ? b : undefined;
-};
+/** 在桌面应用里（有契约传输）才能调用用量服务 */
+export const usageClientAvailable = (): boolean => hasTransport();
 
-/** 在桌面应用里（有 preload 桥）才能调用用量服务 */
-export const usageClientAvailable = (): boolean => Boolean(bridge());
-
-async function call<T>(method: string, ...args: unknown[]): Promise<T> {
-  const b = bridge();
-  if (!b) throw new Error(t('ui.usage-tools.usage-statistics-require-the-desktop-app'));
-  const r = (await b.invoke(`ai:usage:${method}`, ...args)) as T & {
-    __error?: { message: string };
-  };
-  if (r && typeof r === 'object' && '__error' in r && r.__error) throw new Error(r.__error.message);
-  return r;
+async function call<T>(fn: () => Promise<unknown>): Promise<T> {
+  if (!hasTransport())
+    throw new Error(t('ui.usage-tools.usage-statistics-require-the-desktop-app'));
+  return (await fn()) as T;
 }
 
 export const usageClient = {
-  available: () => !!bridge(),
-  state: () => call<UsageState>('state'),
-  query: (range: UsageRangeId) => call<UsageQueryResult>('query', range),
-  heatmap: () => call<{ days: UsageHeatDay[]; today: string }>('heatmap'),
-  details: (q: UsageDetailQuery) => call<UsageDetailResult>('details', q),
-  csv: (q: UsageDetailQuery) => call<string>('csv', q),
-  setSettings: (p: Partial<UsageSettings>) => call<UsageSettings>('set-settings', p),
-  scan: () => call<UsageState & { added: number; files: number }>('scan'),
+  available: () => hasTransport(),
+  state: () => call<UsageState>(() => api.usage.state()),
+  query: (range: UsageRangeId) => call<UsageQueryResult>(() => api.usage.query({ range })),
+  heatmap: () => call<{ days: UsageHeatDay[]; today: string }>(() => api.usage.heatmap()),
+  details: (q: UsageDetailQuery) => call<UsageDetailResult>(() => api.usage.details(q)),
+  csv: (q: UsageDetailQuery) => call<string>(() => api.usage.csv(q)),
+  setSettings: (p: Partial<UsageSettings>) => call<UsageSettings>(() => api.usage.setSettings(p)),
+  scan: () => call<UsageState & { added: number; files: number }>(() => api.usage.scan()),
   /** 手动同步价格：只在用户点击时调用；只下载 models.dev 的公开价格表，不上传任何用量 */
-  syncPrices: () => call<UsageState & { result: UsagePriceSyncResult }>('price-sync'),
-  clear: () => call<UsageState>('clear'),
-  quota: () => call<UsageQuotaEntry[]>('quota'),
+  syncPrices: () =>
+    call<UsageState & { result: UsagePriceSyncResult }>(() => api.usage.priceSync()),
+  clear: () => call<UsageState>(() => api.usage.clear()),
+  quota: () => call<UsageQuotaEntry[]>(() => api.usage.quota()),
   /** 不带参数 = 全部刷新（并行）；带工具 id = 只刷新这一个工具，互不阻塞 */
   quotaRefresh: (tool?: UsageQuotaTool) =>
-    tool
-      ? call<UsageQuotaRefresh>('quota-refresh', tool)
-      : call<UsageQuotaRefresh>('quota-refresh'),
-  endpoint: (source: string) => call<UsageEndpointInfo>('endpoint', source),
-  quotaHook: () => call<UsageQuotaHook>('quota-hook'),
-  setQuotaHook: (enabled: boolean) => call<UsageQuotaHook>('quota-hook-set', enabled),
-  onChanged: (fn: () => void) => bridge()?.on('ai:usage:changed', () => fn()) ?? (() => undefined),
+    call<UsageQuotaRefresh>(() => api.usage.quotaRefresh(tool ? { tool } : {})),
+  endpoint: (source: string) => call<UsageEndpointInfo>(() => api.usage.endpoint({ source })),
+  quotaHook: () => call<UsageQuotaHook>(() => api.usage.quotaHook()),
+  setQuotaHook: (enabled: boolean) =>
+    call<UsageQuotaHook>(() => api.usage.quotaHookSet({ enabled })),
+  onChanged: (fn: () => void) =>
+    hasTransport() ? api.on('usage.changed', () => fn()) : () => undefined,
 };
 
 /** 来源 → 展示名（Nomi 对话 / 各编程工具 / 其他） */

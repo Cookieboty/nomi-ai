@@ -9,6 +9,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ModelsDataSyncCard } from '../src/components/ModelsPage/ModelsDataSyncCard';
 import type { GatewayState } from '../src/services/gatewayClient';
 
+// D2 的过程经契约替身转发到下面的旧桥假实现（见 helpers/shellApi）
+vi.mock('../src/services/api', () => import('./helpers/shellApi'));
+
 const usageState = (over: { auto?: boolean; checkedAt?: number } = {}) => ({
   settings: { modelsSyncAuto: over.auto ?? true },
   pricing: {

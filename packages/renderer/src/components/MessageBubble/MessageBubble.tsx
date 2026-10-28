@@ -15,6 +15,7 @@ import { getHitboxes } from '@/mascot/characterConfig';
 import { layoutStore } from '@/mascot/layoutStore';
 import { bubbleAnchorBox } from '@/mascot/spriteInteraction';
 import { toBubbleText } from '@/security/bubbleText';
+import { api, hasTransport } from '@/services/api';
 
 const PREF_W = 220;
 
@@ -123,7 +124,7 @@ export const MessageBubble: React.FC = () => {
   }, [place]);
 
   const openChat = () => {
-    void window.electronAPI?.openAiChat?.();
+    if (hasTransport()) void api.window.openAiChat().catch(() => undefined);
   };
 
   const style: React.CSSProperties & Record<string, string | number> = place

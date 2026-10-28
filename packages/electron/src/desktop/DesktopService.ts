@@ -19,11 +19,11 @@ import { sanitizeRepeat } from '../schedule/recurrence';
 import { guardedHandle } from '../security/guardedIpc';
 
 import { AppTrash } from './AppTrash';
-import { AuditLog } from './AuditLog';
+import { AuditLog, type AuditEntry } from './AuditLog';
 import { isLocalBaseURL, sanitizePolicy, type Policy } from './consent';
 import { isSupported } from './parse/extract';
 import { parseFile } from './parse/runParse';
-import { guardPath } from './pathGuard';
+import { guardPath, type Scope } from './pathGuard';
 import { PermissionBroker, type ConfirmRequest } from './PermissionBroker';
 import { ReminderStore, resolveDue, type Reminder } from './reminders/ReminderStore';
 import { createDesktopTools, summarizeText, TOOL_DANGER, type ProviderInfo } from './tools';
@@ -131,7 +131,7 @@ export class DesktopService {
     this.broker.ui = {
       request: (req) => this.sendConfirm(req),
       cancel: (id) => {
-        this.main()?.webContents.send('desktop:confirm-cancel', id);
+        this.toMascot('desktop:confirm-cancel', id);
         this.rehideMascotIfIdle();
       },
     };
@@ -166,12 +166,23 @@ export class DesktopService {
     this.events.publish(ch, payload);
   }
 
+  /** 只发给看板娘窗口（确认请求 / 气泡 / 提醒）；看板娘窗口不存在时不发 */
+  private toMascot(ch: string, payload: unknown): void {
+    if (this.main()) this.events.publish(ch, payload, { surface: 'mascot' });
+  }
+
+  /** 调用方是不是看板娘窗口（确认答复、提醒卡片、拖文件只接受它） */
+  isMascotSender(webContentsId: number | undefined): boolean {
+    const w = this.main();
+    return !!w && webContentsId !== undefined && w.webContents.id === webContentsId;
+  }
+
   private sendConfirm(req: ConfirmRequest): void {
     const w = this.main();
     this.logger.info('桌面工具确认请求', { tool: req.tool, danger: req.danger, hasWindow: !!w });
     if (!w) return;
     if (!w.isVisible()) w.showInactive();
-    w.webContents.send('desktop:confirm-request', req);
+    this.events.publish('desktop:confirm-request', req, { surface: 'mascot' });
     broadcastMascotCommand({ type: 'motion', name: 'think' });
     broadcastMascotCommand({
       type: 'expression',
@@ -180,7 +191,7 @@ export class DesktopService {
   }
 
   say(text: string, opts: Omit<DesktopBubble, 'text'> = {}): void {
-    this.main()?.webContents.send('desktop:bubble', { text, ...opts });
+    this.toMascot('desktop:bubble', { text, ...opts });
   }
 
   /**
@@ -278,12 +289,11 @@ export class DesktopService {
     }
     if (!w.isVisible()) w.showInactive();
     for (const r of items) {
-      w.webContents.send('desktop:reminder', {
-        id: r.id,
-        text: r.text,
-        dueAt: r.dueAt,
-        missed: false,
-      });
+      this.events.publish(
+        'desktop:reminder',
+        { id: r.id, text: r.text, dueAt: r.dueAt, missed: false },
+        { surface: 'mascot' },
+      );
       this.audit.append({
         tool: 'reminder_fire',
         args: { id: r.id, text: r.text, via: 'bubble' },
@@ -468,7 +478,7 @@ export class DesktopService {
   /** 把文件拖到看板娘身上：临时授权该文件（只读、仅本次运行）→ 总结 → 气泡 + 对话窗口 */
   async summarizeDropped(raw: string): Promise<{ ok: boolean; code?: string }> {
     const t0 = Date.now();
-    const say = (text: string) => this.main()?.webContents.send('desktop:bubble', { text });
+    const say = (text: string) => this.toMascot('desktop:bubble', { text });
     const fail = (code: string, text: string) => {
       say(text);
       broadcastMascotCommand({ type: 'expression', name: 'sad' });
@@ -549,12 +559,222 @@ export class DesktopService {
       const existed = BrowserWindow.getAllWindows().length > 1;
       const chat = await this.windows.openChat();
       const payload = { name, path: probe.real, summary, at: Date.now() };
-      const deliver = () => !chat.isDestroyed() && chat.webContents.send(DESKTOP_SUMMARY, payload);
+      // 等页面加载完再发（新开的窗口要先挂上监听）；送达由事件总线负责（只发对话窗口）
+      const deliver = () => {
+        if (!chat.isDestroyed()) this.events.publish(DESKTOP_SUMMARY, payload, { surface: 'chat' });
+      };
       if (chat.webContents.isLoading())
         chat.webContents.once('did-finish-load', () => setTimeout(deliver, 600));
       else setTimeout(deliver, existed ? 0 : 600);
     }
     return { ok: true };
+  }
+
+  // ---- 设置面板 / 看板娘窗口的操作（旧 IPC 与契约 host/contract/media.ts 共用）----
+
+  /** 弹出系统选择框授权文件夹；用户取消返回 null */
+  async grantFolder(mode: unknown): Promise<Scope | null> {
+    const picked = await this.pickFolder();
+    if (!picked) return null;
+    const s = this.broker.grant(picked, mode === 'read-write' ? 'read-write' : 'read');
+    this.audit.append({
+      tool: 'grant_scope',
+      args: { path: s.path, mode: s.mode },
+      decision: 'user',
+      result: 'ok',
+      source: 'settings',
+    });
+    return s;
+  }
+
+  revokeScope(id: unknown): boolean {
+    const ok = typeof id === 'string' && this.broker.revoke(id);
+    if (ok)
+      this.audit.append({
+        tool: 'revoke_scope',
+        args: { id: id as string },
+        decision: 'user',
+        result: 'ok',
+        source: 'settings',
+      });
+    return ok;
+  }
+
+  setToolPolicy(tool: unknown, policy: unknown): boolean {
+    if (typeof tool !== 'string' || !(tool in TOOL_DANGER)) return false;
+    this.broker.setPolicy(
+      tool,
+      TOOL_DANGER[tool],
+      sanitizePolicy(TOOL_DANGER[tool], policy as Policy),
+    );
+    return true;
+  }
+
+  setLocalOnly(v: unknown): boolean {
+    this.broker.setLocalOnly(v === true);
+    return true;
+  }
+
+  resetCloudAcks(): boolean {
+    this.broker.resetCloudAcks();
+    return true;
+  }
+
+  auditList(limit: unknown): AuditEntry[] {
+    return this.audit.list(typeof limit === 'number' ? Math.min(1000, limit) : 200);
+  }
+
+  clearAudit(): boolean {
+    this.audit.clear();
+    this.broadcast(DESKTOP_CHANGED, this.state());
+    return true;
+  }
+
+  journalList() {
+    return this.journal.list(50);
+  }
+
+  async undoLast(): Promise<{ ok: boolean; undone?: string; error?: string }> {
+    const e = this.journal.last();
+    if (!e) return { ok: false, error: tr('electron.common.nothing-to-undo') };
+    try {
+      await this.journal.undo(e);
+      this.audit.append({
+        tool: 'undo_last',
+        args: { id: e.id },
+        decision: 'user',
+        result: 'ok',
+        source: 'settings',
+      });
+      this.broadcast(DESKTOP_CHANGED, this.state());
+      return { ok: true, undone: e.summary };
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    }
+  }
+
+  resetAll(): boolean {
+    this.broker.resetAll();
+    this.audit.clear();
+    return true;
+  }
+
+  // ---- 提醒面板（用户在设置面板里直接操作：不需要再确认，但记审计、可撤销）----
+  private userAudit(tool: string, args: Record<string, unknown>, result = 'ok'): void {
+    this.audit.append({ tool, args, decision: 'user', result, source: 'settings' });
+  }
+
+  remindersList(all: unknown): Reminder[] {
+    return this.reminders.list({ includeEnded: all === true, limit: 200 });
+  }
+
+  /** 文字为空、时间无效或已过去时返回 null */
+  createReminder(raw: unknown): Reminder | null {
+    const o = (raw ?? {}) as {
+      text?: unknown;
+      at?: unknown;
+      inMinutes?: unknown;
+      repeat?: unknown;
+    };
+    const text = clip(o.text, 500).trim();
+    const due = resolveDue(
+      {
+        at: typeof o.at === 'string' ? o.at : undefined,
+        inMinutes: typeof o.inMinutes === 'number' ? o.inMinutes : undefined,
+      },
+      Date.now(),
+    );
+    if (!text || due === null || due < Date.now() - 1000) return null;
+    const r = this.reminders.create(text, due, sanitizeRepeat(o.repeat));
+    this.userAudit('reminder_create', { id: r.id, text: r.text, repeat: r.repeat?.kind });
+    return r;
+  }
+
+  updateReminder(id: unknown, raw: unknown): Reminder | null {
+    const o = (raw ?? {}) as { text?: unknown; at?: unknown; repeat?: unknown };
+    const due = typeof o.at === 'string' ? Date.parse(o.at) : undefined;
+    try {
+      const { after } = this.reminders.update(String(id), {
+        text: typeof o.text === 'string' ? clip(o.text, 500) : undefined,
+        dueAt: Number.isFinite(due) ? due : undefined,
+        repeat: o.repeat === null ? null : sanitizeRepeat(o.repeat),
+      });
+      this.userAudit('reminder_update', { id: after.id });
+      return after;
+    } catch {
+      return null;
+    }
+  }
+
+  cancelReminder(id: unknown): boolean {
+    try {
+      const { before } = this.reminders.cancel(String(id));
+      this.journal.record('reminder_cancel', tr('electron.common.cancel-reminder', before.text), [
+        { op: 'custom', kind: 'reminder-restore', payload: before },
+      ]);
+      this.userAudit('reminder_cancel', { id: before.id });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  snoozeReminder(id: unknown, minutes: unknown): boolean {
+    try {
+      this.reminders.snooze(String(id), typeof minutes === 'number' ? minutes : 10);
+      this.userAudit('reminder_snooze', { id: String(id) });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  // ---- 只接受看板娘窗口的操作：senderId 是调用方 webContents 的 id ----
+
+  /** 拉取错过的提醒；不是看板娘窗口时返回空 */
+  takeMissedFor(senderId: number | undefined): Array<{ id: string; text: string; dueAt: number }> {
+    return this.isMascotSender(senderId) ? this.takeMissed() : [];
+  }
+
+  /** 提醒卡片：好的 / 稍后 */
+  reminderAction(
+    senderId: number | undefined,
+    id: unknown,
+    action: unknown,
+    minutes: unknown,
+  ): void {
+    if (!this.isMascotSender(senderId) || typeof id !== 'string') return;
+    try {
+      if (action === 'snooze')
+        this.reminders.snooze(
+          id,
+          typeof minutes === 'number' ? Math.min(1440, Math.max(1, minutes)) : 10,
+        );
+      else this.reminders.dismiss(id);
+    } catch {
+      /* 已不存在 */
+    }
+  }
+
+  /** 确认答复：只接受看板娘窗口（确认气泡 / 对话框所在处），模型与对话窗口都无法伪造 */
+  answerConfirm(
+    senderId: number | undefined,
+    id: unknown,
+    allow: unknown,
+    remember: unknown,
+  ): void {
+    if (!this.isMascotSender(senderId)) {
+      this.logger.warn('忽略来自非 Nomi 窗口的确认答复');
+      return;
+    }
+    if (typeof id === 'string') this.broker.answer(id, allow === true, remember === true);
+    this.rehideMascotIfIdle();
+  }
+
+  /** 拖到看板娘身上的文件（路径由 preload 从真实 File 对象取得） */
+  dropFile(senderId: number | undefined, p: unknown): void {
+    if (!this.isMascotSender(senderId) || typeof p !== 'string' || !p) return;
+    void this.summarizeDropped(p);
   }
 
   registerIpc(): void {
@@ -563,178 +783,36 @@ export class DesktopService {
     const handle = (ch: string, fn: (e: IpcMainInvokeEvent, ...a: unknown[]) => unknown) =>
       guardedHandle(ch, fn, { owner: 'DesktopService', wrapErrors: false, passEvent: true });
     handle('ai:desktop:state', () => this.state());
-    handle('ai:desktop:grant', async (_e, mode) => {
-      const picked = await this.pickFolder();
-      if (!picked) return null;
-      const s = this.broker.grant(picked, mode === 'read-write' ? 'read-write' : 'read');
-      this.audit.append({
-        tool: 'grant_scope',
-        args: { path: s.path, mode: s.mode },
-        decision: 'user',
-        result: 'ok',
-        source: 'settings',
-      });
-      return s;
-    });
-    handle('ai:desktop:revoke', (_e, id) => {
-      const ok = typeof id === 'string' && this.broker.revoke(id);
-      if (ok)
-        this.audit.append({
-          tool: 'revoke_scope',
-          args: { id: id as string },
-          decision: 'user',
-          result: 'ok',
-          source: 'settings',
-        });
-      return ok;
-    });
-    handle('ai:desktop:set-policy', (_e, tool, policy) => {
-      if (typeof tool !== 'string' || !(tool in TOOL_DANGER)) return false;
-      this.broker.setPolicy(
-        tool,
-        TOOL_DANGER[tool],
-        sanitizePolicy(TOOL_DANGER[tool], policy as Policy),
-      );
-      return true;
-    });
-    handle('ai:desktop:set-local-only', (_e, v) => {
-      this.broker.setLocalOnly(v === true);
-      return true;
-    });
-    handle('ai:desktop:reset-cloud-acks', () => {
-      this.broker.resetCloudAcks();
-      return true;
-    });
-    handle('ai:desktop:audit', (_e, limit) =>
-      this.audit.list(typeof limit === 'number' ? Math.min(1000, limit) : 200),
-    );
-    handle('ai:desktop:audit-clear', () => {
-      this.audit.clear();
-      this.broadcast(DESKTOP_CHANGED, this.state());
-      return true;
-    });
-    handle('ai:desktop:journal', () => this.journal.list(50));
-    handle('ai:desktop:undo-last', async () => {
-      const e = this.journal.last();
-      if (!e) return { ok: false, error: tr('electron.common.nothing-to-undo') };
-      try {
-        await this.journal.undo(e);
-        this.audit.append({
-          tool: 'undo_last',
-          args: { id: e.id },
-          decision: 'user',
-          result: 'ok',
-          source: 'settings',
-        });
-        this.broadcast(DESKTOP_CHANGED, this.state());
-        return { ok: true, undone: e.summary };
-      } catch (err) {
-        return { ok: false, error: err instanceof Error ? err.message : String(err) };
-      }
-    });
-    handle('ai:desktop:reset-all', () => {
-      this.broker.resetAll();
-      this.audit.clear();
-      return true;
-    });
-
-    // ---- 提醒面板（用户在设置面板里直接操作：不需要再确认，但记审计、可撤销）----
-    const userAudit = (tool: string, args: Record<string, unknown>, result = 'ok') =>
-      this.audit.append({ tool, args, decision: 'user', result, source: 'settings' });
-    const str = (v: unknown, max: number) => (typeof v === 'string' ? v.slice(0, max) : '');
-    handle('ai:desktop:reminders-list', (_e, all) =>
-      this.reminders.list({ includeEnded: all === true, limit: 200 }),
-    );
-    handle('ai:desktop:reminders-create', (_e, raw) => {
-      const o = (raw ?? {}) as {
-        text?: unknown;
-        at?: unknown;
-        inMinutes?: unknown;
-        repeat?: unknown;
-      };
-      const text = str(o.text, 500).trim();
-      const due = resolveDue(
-        {
-          at: typeof o.at === 'string' ? o.at : undefined,
-          inMinutes: typeof o.inMinutes === 'number' ? o.inMinutes : undefined,
-        },
-        Date.now(),
-      );
-      if (!text || due === null || due < Date.now() - 1000) return null;
-      const r = this.reminders.create(text, due, sanitizeRepeat(o.repeat));
-      userAudit('reminder_create', { id: r.id, text: r.text, repeat: r.repeat?.kind });
-      return r;
-    });
-    handle('ai:desktop:reminders-update', (_e, id, raw) => {
-      const o = (raw ?? {}) as { text?: unknown; at?: unknown; repeat?: unknown };
-      const due = typeof o.at === 'string' ? Date.parse(o.at) : undefined;
-      try {
-        const { after } = this.reminders.update(String(id), {
-          text: typeof o.text === 'string' ? str(o.text, 500) : undefined,
-          dueAt: Number.isFinite(due) ? due : undefined,
-          repeat: o.repeat === null ? null : sanitizeRepeat(o.repeat),
-        });
-        userAudit('reminder_update', { id: after.id });
-        return after;
-      } catch {
-        return null;
-      }
-    });
-    handle('ai:desktop:reminders-cancel', (_e, id) => {
-      try {
-        const { before } = this.reminders.cancel(String(id));
-        this.journal.record('reminder_cancel', tr('electron.common.cancel-reminder', before.text), [
-          { op: 'custom', kind: 'reminder-restore', payload: before },
-        ]);
-        userAudit('reminder_cancel', { id: before.id });
-        return true;
-      } catch {
-        return false;
-      }
-    });
-    handle('ai:desktop:reminders-snooze', (_e, id, minutes) => {
-      try {
-        this.reminders.snooze(String(id), typeof minutes === 'number' ? minutes : 10);
-        userAudit('reminder_snooze', { id: String(id) });
-        return true;
-      } catch {
-        return false;
-      }
-    });
+    handle('ai:desktop:grant', (_e, mode) => this.grantFolder(mode));
+    handle('ai:desktop:revoke', (_e, id) => this.revokeScope(id));
+    handle('ai:desktop:set-policy', (_e, tool, policy) => this.setToolPolicy(tool, policy));
+    handle('ai:desktop:set-local-only', (_e, v) => this.setLocalOnly(v));
+    handle('ai:desktop:reset-cloud-acks', () => this.resetCloudAcks());
+    handle('ai:desktop:audit', (_e, limit) => this.auditList(limit));
+    handle('ai:desktop:audit-clear', () => this.clearAudit());
+    handle('ai:desktop:journal', () => this.journalList());
+    handle('ai:desktop:undo-last', () => this.undoLast());
+    handle('ai:desktop:reset-all', () => this.resetAll());
+    handle('ai:desktop:reminders-list', (_e, all) => this.remindersList(all));
+    handle('ai:desktop:reminders-create', (_e, raw) => this.createReminder(raw));
+    handle('ai:desktop:reminders-update', (_e, id, raw) => this.updateReminder(id, raw));
+    handle('ai:desktop:reminders-cancel', (_e, id) => this.cancelReminder(id));
+    handle('ai:desktop:reminders-snooze', (_e, id, minutes) => this.snoozeReminder(id, minutes));
     ipcMain.removeHandler('desktop:reminders-missed');
-    ipcMain.handle('desktop:reminders-missed', (e) =>
-      e.sender === this.main()?.webContents ? this.takeMissed() : [],
-    );
+    ipcMain.handle('desktop:reminders-missed', (e) => this.takeMissedFor(e.sender.id));
     // 提醒卡片（看板娘窗口）：好的 / 稍后
-    ipcMain.on('desktop:reminder-action', (e, id, action, minutes) => {
-      if (e.sender !== this.main()?.webContents || typeof id !== 'string') return;
-      try {
-        if (action === 'snooze')
-          this.reminders.snooze(
-            id,
-            typeof minutes === 'number' ? Math.min(1440, Math.max(1, minutes)) : 10,
-          );
-        else this.reminders.dismiss(id);
-      } catch {
-        /* 已不存在 */
-      }
-    });
-
-    // 确认答复：只接受看板娘窗口（确认气泡 / 对话框所在处）；不走 ai:* 通道，模型与对话窗口都无法伪造
-    ipcMain.on('desktop:confirm-answer', (e, id, allow, remember) => {
-      if (e.sender !== this.main()?.webContents) {
-        this.logger.warn('忽略来自非 Nomi 窗口的确认答复');
-        return;
-      }
-      if (typeof id === 'string') this.broker.answer(id, allow === true, remember === true);
-      this.rehideMascotIfIdle();
-    });
-    ipcMain.on('desktop:drop-file', (e, p) => {
-      if (e.sender !== this.main()?.webContents || typeof p !== 'string' || !p) return;
-      void this.summarizeDropped(p);
-    });
+    ipcMain.on('desktop:reminder-action', (e, id, action, minutes) =>
+      this.reminderAction(e.sender.id, id, action, minutes),
+    );
+    // 确认答复：不走 ai:* 通道，模型与对话窗口都无法伪造
+    ipcMain.on('desktop:confirm-answer', (e, id, allow, remember) =>
+      this.answerConfirm(e.sender.id, id, allow, remember),
+    );
+    ipcMain.on('desktop:drop-file', (e, p) => this.dropFile(e.sender.id, p));
   }
 }
+
+const clip = (v: unknown, max: number) => (typeof v === 'string' ? v.slice(0, max) : '');
 
 let instance: DesktopService | null = null;
 

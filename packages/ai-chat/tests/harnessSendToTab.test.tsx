@@ -6,6 +6,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HarnessTabsProvider, useHarnessTabs } from '../src/contexts/HarnessTabsContext';
 import type { HarnessTabMeta, HarnessTabsState } from '../src/services/harnessClient';
 
+import type { CodingApiMockState } from './helpers/codingApi';
+
+// D3 客户端走契约（services/api）；测试仍用旧通道形状的 window.aiIPC 假桥，经 helpers/codingApi 转发
+const codingApi = vi.hoisted(() => ({}) as CodingApiMockState);
+vi.mock('../src/services/api', async () =>
+  (await import('./helpers/codingApi')).createCodingApiMock(codingApi),
+);
+
 afterEach(() => {
   cleanup();
   delete (window as { aiIPC?: unknown }).aiIPC;

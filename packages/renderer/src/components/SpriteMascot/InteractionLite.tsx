@@ -16,6 +16,7 @@ import { alphaSpans, rectsKey, type Rect } from '../../mascot/interaction/shape'
 import { layoutStore, type Box } from '../../mascot/layoutStore';
 import { regionInSprite, type MascotRegistryLike } from '../../mascot/spriteInteraction';
 import { onWindowResized } from '../../mascot/windowResize';
+import { api, hasTransport } from '../../services/api';
 
 const ALPHA_HIT = 24;
 const UI_PAD = 16;
@@ -48,7 +49,16 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return undefined;
-    const api = window.electronAPI?.mascotWindow;
+    // 主进程窗口控制（契约 mascot.* / window.platform）；浏览器预览 / 测试里没有传输时不上报
+    const live = hasTransport();
+    /** 上报是即发即弃的（原 ipcRenderer.send）：失败不影响交互 */
+    const fire = (p: Promise<unknown>): void => void p.catch(() => undefined);
+    let platform = '';
+    if (live)
+      void api.window.platform().then(
+        (p) => (platform = p),
+        () => undefined,
+      );
     interactionSettings.push();
     const gate = new DragGate();
     const hyst = new HitHysteresis(120);
@@ -138,21 +148,25 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
       return regionInSprite(x, y, g?.head ?? null, g?.body ?? null, getHitboxes(), g?.box ?? null);
     };
 
-    const offCursor = api?.onCursor((p) => {
-      s.cursor = { x: p.x, y: p.y, inside: p.inside, fresh: true };
-      layoutStore.setCursor({ x: p.x, y: p.y, inside: p.inside });
-    });
+    const offCursor =
+      live &&
+      api.on('mascot.cursor', (p) => {
+        s.cursor = { x: p.x, y: p.y, inside: p.inside, fresh: true };
+        layoutStore.setCursor({ x: p.x, y: p.y, inside: p.inside });
+      });
 
-    const offEvt = api?.onPhysicsEvent((e) => {
-      document.documentElement.dataset.mascotPhysics = e.type;
-      if (e.type === 'grab') react('grab', 'any', 3000);
-      else if (e.type === 'land' && e.speed > 900) react('land', 'any', 4000);
-      else if (e.type === 'wall' && e.speed > 900) react('wall', 'any', 3000);
-    });
+    const offEvt =
+      live &&
+      api.on('mascot.physicsEvent', (e) => {
+        document.documentElement.dataset.mascotPhysics = e.type;
+        if (e.type === 'grab') react('grab', 'any', 3000);
+        else if (e.type === 'land' && e.speed > 900) react('land', 'any', 4000);
+        else if (e.type === 'wall' && e.speed > 900) react('wall', 'any', 3000);
+      });
 
     const endDrag = (why: string) => {
       document.documentElement.dataset.mascotDragEnd = why;
-      api?.dragEnd();
+      if (live) fire(api.mascot.dragEnd());
       s.dragging = false;
       s.hit = null;
       s.cursor.fresh = true;
@@ -169,12 +183,15 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
       // Prefer our own held flag: under setPointerCapture / click-through toggles,
       // Chromium on Windows frequently delivers move events with buttons=0.
       const buttons = s.buttonHeld ? e.buttons | 1 : e.buttons;
-      if (s.dragging && buttons & 1) api?.dragMove(e.screenX, e.screenY);
+      if (live && s.dragging && buttons & 1)
+        fire(api.mascot.dragMove({ screenX: e.screenX, screenY: e.screenY }));
       const r = gate.move(e.clientX, e.clientY, performance.now(), buttons);
       if (r === 'start' && s.down) {
         s.dragging = true;
-        api?.dragStart(s.down.sx, s.down.sy);
-        api?.dragMove(e.screenX, e.screenY);
+        if (live) {
+          fire(api.mascot.dragStart({ screenX: s.down.sx, screenY: s.down.sy }));
+          fire(api.mascot.dragMove({ screenX: e.screenX, screenY: e.screenY }));
+        }
         document.documentElement.dataset.mascotDragging = '1';
       } else if (r === 'cancel' || (!gate.isDown && s.down && !s.buttonHeld)) {
         // button released without a pointerup (lost during a click-through toggle)
@@ -297,7 +314,8 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
           ) >= 8;
         if (changed && !s.dragging && !s.down) {
           s.lastGeom = `${box.left},${box.right},${box.top},${box.bottom}`;
-          api?.setGeometry({ ...box, vw: window.innerWidth, vh: window.innerHeight });
+          if (live)
+            fire(api.mascot.setGeometry({ ...box, vw: window.innerWidth, vh: window.innerHeight }));
           document.documentElement.dataset.mascotBox = s.lastGeom;
         }
       }
@@ -316,7 +334,7 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
         } else if (!c.inside) b.lookAt(0, 0);
       }
       // Linux: window shape = alpha scanlines + UI rects (≈4 Hz)
-      if (api?.platform === 'linux' && now - s.shapeAt > 250 && !s.dragging) {
+      if (live && platform === 'linux' && now - s.shapeAt > 250 && !s.dragging) {
         s.shapeAt = now;
         let rects: Rect[] = [];
         const cx = ctx();
@@ -349,7 +367,7 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
         const key = rectsKey(rects);
         if (key !== s.lastShape) {
           s.lastShape = key;
-          api.setShape(rects);
+          fire(api.mascot.setShape({ rects }));
         }
       }
       // A cursor that stops right after leaving the character sends no further events, so the leave
@@ -363,7 +381,7 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
       const eff = hyst.feed(raw, t);
       if (eff !== s.hit) {
         s.hit = eff;
-        api?.setHit(eff);
+        if (live) fire(api.mascot.setHit({ hit: eff }));
         document.documentElement.dataset.mascotHit = eff ? '1' : '0';
       }
       // hover / pat reactions
@@ -386,8 +404,8 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
     return () => {
       cancelAnimationFrame(raf);
       offResize();
-      offCursor?.();
-      offEvt?.();
+      if (offCursor) offCursor();
+      if (offEvt) offEvt();
       classifier.dispose();
       canvas.removeEventListener('pointerdown', onDown, capture);
       window.removeEventListener('pointermove', onMove, capture);
@@ -397,7 +415,7 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
       window.removeEventListener('pointercancel', onCancel, capture);
       window.removeEventListener('blur', onCancel, capture);
       canvas.removeEventListener('lostpointercapture', onCancel, capture);
-      if (s.dragging) api?.dragEnd();
+      if (s.dragging && live) fire(api.mascot.dragEnd());
       layoutStore.setHead(null);
       layoutStore.setCharBox(null);
     };

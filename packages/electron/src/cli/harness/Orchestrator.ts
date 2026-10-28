@@ -53,6 +53,7 @@ import {
 import type { HostPorts } from '@nomi-ai/host-ports';
 import type { QualityOutcome, QualityRecord } from '@nomi-ai/types';
 
+import type { AppEvents } from '../../core/appEvents';
 import { t } from '../../i18n';
 import { guardedHandle } from '../../security/guardedIpc';
 import { claudeConfigDir } from '../../usage/cliHomes';
@@ -4615,11 +4616,22 @@ export class HarnessOrchestrator {
   }
 
   /**
-   * 推送只发给调过 ai:harness:* 的窗口（即对话窗口，见 rendererSubscribers），
-   * 不再广播到看板娘 / 岛 / 截图浮层等从不监听的窗口
+   * 推送只发给对话窗口，不再广播到看板娘 / 岛 / 截图浮层等从不监听的窗口：
+   * - 接上应用事件总线后（契约处理函数 attachEvents）：`events.publish(…, { surface: 'chat' })`，
+   *   旧通道照常发给对话窗口，事件桥同时发成契约事件（`harness.*`，只推给订阅了的窗口）；
+   * - 之前：只发给调过 ai:harness:* 的窗口（见 rendererSubscribers）。
    */
   private broadcast(channel: string, payload: unknown) {
-    this.subscribers.send(channel, payload);
+    if (this.appEvents) this.appEvents.publish(channel, payload, { surface: 'chat' });
+    else this.subscribers.send(channel, payload);
+  }
+
+  /** 应用事件总线（P1b：经契约事件桥）；没接上时推送走 subscribers */
+  private appEvents: AppEvents | null = null;
+
+  /** 推送改走应用事件总线（host/contract/coding.ts 在建 router 与每次调用时接上；重复调用无副作用） */
+  attachEvents(events: AppEvents): void {
+    this.appEvents = events;
   }
 
   /** 记下一轮里最近的文本 / 工具步骤，不做任何额外计算或模型调用 */
@@ -5005,6 +5017,116 @@ export class HarnessOrchestrator {
     this.pendingPermissions.delete(tabId);
   }
 
+  // ─────────────── 渲染层入口（旧 IPC 与契约处理函数共用；cwd 先核对是已知工作区） ───────────────
+
+  /** 渲染层读状态：先确认各 CLI 的可执行文件（后台探测好的缓存），再返回主标签状态 */
+  async stateFresh(): Promise<ReturnType<HarnessOrchestrator['state']>> {
+    await this.refreshBins().catch(() => undefined);
+    return this.state();
+  }
+
+  /** 主标签发送；返回给渲染层的结果不含逐条事件 */
+  async sendReply(prompt: string): Promise<HarnessSendReply> {
+    return slimResult(await this.send(prompt));
+  }
+  /** 用户在标签里发送（userInitiated：接管委派标签）；返回给渲染层的结果不含逐条事件 */
+  async sendTabReply(
+    id: string,
+    prompt: string,
+    images?: HarnessImageInput[],
+  ): Promise<HarnessSendReply> {
+    return slimResult(await this.sendTab(id, prompt, images, { userInitiated: true }));
+  }
+
+  slashDiscoverIn(backend: unknown, cwd: unknown) {
+    return discoverSlash(asSlashBackend(backend), this.knownDir(cwd));
+  }
+  slashExpandIn(backend: unknown, cwd: unknown, id: unknown, args: unknown) {
+    return expandSlash(
+      asSlashBackend(backend),
+      this.knownDir(cwd),
+      String(id ?? ''),
+      String(args ?? '').slice(0, 4000),
+    );
+  }
+  gitDiffIn(cwd: unknown) {
+    return gitDiff(this.knownDir(cwd));
+  }
+  gitBranchIn(cwd: unknown) {
+    return gitBranch(this.knownDir(cwd));
+  }
+  gitSyncStatusIn(cwd: unknown) {
+    return gitSyncStatus(this.knownDir(cwd));
+  }
+  gitStageIn(cwd: unknown, paths: unknown) {
+    return gitStage(this.knownDir(cwd), paths);
+  }
+  gitUnstageIn(cwd: unknown, paths: unknown) {
+    return gitUnstage(this.knownDir(cwd), paths);
+  }
+  gitCommitIn(cwd: unknown, message: unknown, paths?: unknown) {
+    return gitCommit(this.knownDir(cwd), message, paths ?? undefined);
+  }
+  gitCommitUndoIn(cwd: unknown, sha: unknown) {
+    return gitCommitUndo(this.knownDir(cwd), sha);
+  }
+  gitFetchIn(cwd: unknown) {
+    return gitFetch(this.knownDir(cwd));
+  }
+  gitPullIn(cwd: unknown) {
+    return gitPull(this.knownDir(cwd));
+  }
+  gitPushIn(cwd: unknown) {
+    return gitPush(this.knownDir(cwd));
+  }
+  gitDiscardIn(cwd: unknown, paths: unknown) {
+    return gitDiscard(this.knownDir(cwd), paths);
+  }
+  gitDiscardUndoIn(cwd: unknown, stashes: unknown) {
+    return gitDiscardUndo(this.knownDir(cwd), stashes);
+  }
+  workspaceReadIn(cwd: unknown, filePath: unknown) {
+    return readWorkspaceFile(this.knownDir(cwd), String(filePath ?? ''));
+  }
+  workspaceWriteIn(cwd: unknown, filePath: unknown, content: unknown) {
+    return writeWorkspaceFile(this.knownDir(cwd), String(filePath ?? ''), String(content ?? ''));
+  }
+  workspaceDeleteIn(cwd: unknown, filePath: unknown) {
+    return deleteWorkspaceFile(this.knownDir(cwd), String(filePath ?? ''));
+  }
+  workspaceGitCheckoutIn(cwd: unknown, filePath: unknown) {
+    return gitCheckoutWorkspaceFile(this.knownDir(cwd), String(filePath ?? ''));
+  }
+  workspaceListIn(cwd: unknown) {
+    return listWorkspaceTree(this.knownDir(cwd));
+  }
+
+  /** 上下文环：Claude 标签空闲时以 CLI 自己的会话记录为准（见 transcriptContext.ts）；没有时 null */
+  async tabContext(tabId: string) {
+    const tab = this.tabs.get(tabId);
+    if (!tab || tab.backend !== 'claude' || !tab.cliSessionId) return null;
+    return claudeTranscriptContext(
+      claudeConfigDir(this.home, process.env),
+      tab.cwd,
+      tab.cliSessionId,
+    ).catch(() => null);
+  }
+
+  /** 权限卡的回答：带 approvePlan（批准计划三选一）时按计划处理，否则允许 / 拒绝 */
+  answerPermission(tabId: string, requestId: string, allow: boolean, approvePlan?: unknown) {
+    if (approvePlan === 'acceptEdits' || approvePlan === 'manual' || approvePlan === 'deny')
+      return this.replyApprovePlan(tabId, requestId, approvePlan);
+    return this.replyPermission(tabId, requestId, allow);
+  }
+
+  /** 批准计划卡（批准并自动改文件 / 批准并逐项确认 / 继续修改）；其他值报错 */
+  answerApprovePlan(tabId: string, requestId: string, choice: unknown) {
+    const c = String(choice);
+    if (c !== 'acceptEdits' && c !== 'manual' && c !== 'deny')
+      throw new Error(t('electron.common.invalid-approve-plan-choice'));
+    return this.replyApprovePlan(tabId, requestId, c);
+  }
+
   registerIpc(): void {
     // 发起调用的窗口就是推送通道的接收方（guardedHandle 已先校验 sender 受信）
     const handle = (ch: string, fn: (...a: unknown[]) => unknown) =>
@@ -5018,10 +5140,7 @@ export class HarnessOrchestrator {
       );
     // 启动时就在后台把各 CLI 的可执行文件探测好，之后的状态读取都只读缓存
     void this.refreshBins().catch(() => undefined);
-    handle('ai:harness:state', async () => {
-      await this.refreshBins().catch(() => undefined);
-      return this.state();
-    });
+    handle('ai:harness:state', () => this.stateFresh());
     handle('ai:harness:set-backend', (b) => this.setBackend(b as HarnessBackend));
     handle('ai:harness:tab-carry-clear', (id) => this.clearTabCarry(String(id)));
     handle('ai:harness:tab-rewind', (id, messageId) =>
@@ -5031,7 +5150,7 @@ export class HarnessOrchestrator {
       this.setCwd(String(c), { carry: (o as { carry?: unknown } | undefined)?.carry === true }),
     );
     handle('ai:harness:pick-cwd', () => this.pickCwd());
-    handle('ai:harness:send', async (p) => slimResult(await this.send(String(p ?? ''))));
+    handle('ai:harness:send', (p) => this.sendReply(String(p ?? '')));
     handle('ai:harness:tabs', () => this.listTabs());
     handle('ai:harness:tab-create', (o) =>
       this.createTab(
@@ -5110,92 +5229,64 @@ export class HarnessOrchestrator {
     handle('ai:harness:pick-dir', (p) => this.pickDirectory(p ? String(p) : undefined));
     handle('ai:harness:recent-cwds', () => this.recentCwds());
     handle('ai:harness:tab-messages', (id) => this.tabMessages(String(id)));
-    handle('ai:harness:tab-send', async (id, p, images) => {
-      return slimResult(
-        await this.sendTab(
-          String(id),
-          String(p ?? ''),
-          Array.isArray(images) ? (images as HarnessImageInput[]) : undefined,
-          { userInitiated: true },
-        ),
-      );
-    });
+    handle('ai:harness:tab-send', (id, p, images) =>
+      this.sendTabReply(
+        String(id),
+        String(p ?? ''),
+        Array.isArray(images) ? (images as HarnessImageInput[]) : undefined,
+      ),
+    );
     handle('ai:harness:tab-cancel', (id) => this.cancelTab(String(id)));
     handle('ai:harness:stop-agent', (id, agentId) =>
       this.stopAgent(String(id), String(agentId ?? '')),
     );
     // 斜杠命令：只读发现 / 按 id 展开 / 只读 git diff（见 slashDiscovery.ts）
-    handle('ai:harness:slash-discover', (b, cwd) =>
-      discoverSlash(asSlashBackend(b), this.knownDir(cwd)),
-    );
-    handle('ai:harness:slash-expand', (b, cwd, id, args) =>
-      expandSlash(
-        asSlashBackend(b),
-        this.knownDir(cwd),
-        String(id ?? ''),
-        String(args ?? '').slice(0, 4000),
-      ),
-    );
-    handle('ai:harness:git-diff', (cwd) => gitDiff(this.knownDir(cwd)));
-    handle('ai:harness:git-branch', (cwd) => gitBranch(this.knownDir(cwd)));
+    handle('ai:harness:slash-discover', (b, cwd) => this.slashDiscoverIn(b, cwd));
+    handle('ai:harness:slash-expand', (b, cwd, id, args) => this.slashExpandIn(b, cwd, id, args));
+    handle('ai:harness:git-diff', (cwd) => this.gitDiffIn(cwd));
+    handle('ai:harness:git-branch', (cwd) => this.gitBranchIn(cwd));
     // 右栏「改动」的写操作（见 gitOps.ts）：暂存、提交、拉取只快进、推送不强推
-    handle('ai:harness:git-sync-status', (cwd) => gitSyncStatus(this.knownDir(cwd)));
-    handle('ai:harness:git-stage', (cwd, paths) => gitStage(this.knownDir(cwd), paths));
-    handle('ai:harness:git-unstage', (cwd, paths) => gitUnstage(this.knownDir(cwd), paths));
-    handle('ai:harness:git-commit', (cwd, message, paths) =>
-      gitCommit(this.knownDir(cwd), message, paths ?? undefined),
-    );
-    handle('ai:harness:git-commit-undo', (cwd, sha) => gitCommitUndo(this.knownDir(cwd), sha));
-    handle('ai:harness:git-fetch', (cwd) => gitFetch(this.knownDir(cwd)));
-    handle('ai:harness:git-pull', (cwd) => gitPull(this.knownDir(cwd)));
-    handle('ai:harness:git-push', (cwd) => gitPush(this.knownDir(cwd)));
+    handle('ai:harness:git-sync-status', (cwd) => this.gitSyncStatusIn(cwd));
+    handle('ai:harness:git-stage', (cwd, paths) => this.gitStageIn(cwd, paths));
+    handle('ai:harness:git-unstage', (cwd, paths) => this.gitUnstageIn(cwd, paths));
+    handle('ai:harness:git-commit', (cwd, message, paths) => this.gitCommitIn(cwd, message, paths));
+    handle('ai:harness:git-commit-undo', (cwd, sha) => this.gitCommitUndoIn(cwd, sha));
+    handle('ai:harness:git-fetch', (cwd) => this.gitFetchIn(cwd));
+    handle('ai:harness:git-pull', (cwd) => this.gitPullIn(cwd));
+    handle('ai:harness:git-push', (cwd) => this.gitPushIn(cwd));
     handle('ai:harness:git-worktrees', (cwd) => this.listWorktrees(cwd));
-    handle('ai:harness:git-discard', (cwd, paths) => gitDiscard(this.knownDir(cwd), paths));
-    handle('ai:harness:git-discard-undo', (cwd, sha) => gitDiscardUndo(this.knownDir(cwd), sha));
+    handle('ai:harness:git-discard', (cwd, paths) => this.gitDiscardIn(cwd, paths));
+    handle('ai:harness:git-discard-undo', (cwd, sha) => this.gitDiscardUndoIn(cwd, sha));
     handle('ai:harness:git-suggest-message', (cwd, paths) =>
       this.suggestCommitMessage(cwd, paths ?? undefined),
     );
-    handle('ai:harness:workspace-read', (cwd, filePath) =>
-      readWorkspaceFile(this.knownDir(cwd), String(filePath ?? '')),
-    );
+    handle('ai:harness:workspace-read', (cwd, filePath) => this.workspaceReadIn(cwd, filePath));
     handle('ai:harness:workspace-write', (cwd, filePath, content) =>
-      writeWorkspaceFile(this.knownDir(cwd), String(filePath ?? ''), String(content ?? '')),
+      this.workspaceWriteIn(cwd, filePath, content),
     );
-    handle('ai:harness:workspace-delete', (cwd, filePath) =>
-      deleteWorkspaceFile(this.knownDir(cwd), String(filePath ?? '')),
-    );
+    handle('ai:harness:workspace-delete', (cwd, filePath) => this.workspaceDeleteIn(cwd, filePath));
     handle('ai:harness:workspace-git-checkout', (cwd, filePath) =>
-      gitCheckoutWorkspaceFile(this.knownDir(cwd), String(filePath ?? '')),
+      this.workspaceGitCheckoutIn(cwd, filePath),
     );
-    handle('ai:harness:workspace-list', (cwd) => listWorkspaceTree(this.knownDir(cwd)));
+    handle('ai:harness:workspace-list', (cwd) => this.workspaceListIn(cwd));
     // 上下文环：Claude 标签空闲时以 CLI 自己的会话记录为准（见 transcriptContext.ts）
-    handle('ai:harness:tab-context', async (tabId) => {
-      const tab = this.tabs.get(String(tabId));
-      if (!tab || tab.backend !== 'claude' || !tab.cliSessionId) return null;
-      return claudeTranscriptContext(
-        claudeConfigDir(this.home, process.env),
-        tab.cwd,
-        tab.cliSessionId,
-      ).catch(() => null);
-    });
+    handle('ai:harness:tab-context', (tabId) => this.tabContext(String(tabId)));
     handle('ai:harness:gemini-trust-folder', (tabId, messageId, o) =>
       this.trustGeminiFolder(String(tabId), String(messageId ?? ''), {
         confirmed: (o as { confirmed?: unknown } | undefined)?.confirmed === true,
       }),
     );
-    handle('ai:harness:reply-permission', (tabId, requestId, allow, extra) => {
-      const o = extra as { approvePlan?: ApprovePlanChoice } | undefined;
-      const choice = o?.approvePlan;
-      if (choice === 'acceptEdits' || choice === 'manual' || choice === 'deny')
-        return this.replyApprovePlan(String(tabId), String(requestId), choice);
-      return this.replyPermission(String(tabId), String(requestId), Boolean(allow));
-    });
-    handle('ai:harness:reply-approve-plan', (tabId, requestId, choice) => {
-      const c = String(choice);
-      if (c !== 'acceptEdits' && c !== 'manual' && c !== 'deny')
-        throw new Error(t('electron.common.invalid-approve-plan-choice'));
-      return this.replyApprovePlan(String(tabId), String(requestId), c);
-    });
+    handle('ai:harness:reply-permission', (tabId, requestId, allow, extra) =>
+      this.answerPermission(
+        String(tabId),
+        String(requestId),
+        Boolean(allow),
+        (extra as { approvePlan?: unknown } | undefined)?.approvePlan,
+      ),
+    );
+    handle('ai:harness:reply-approve-plan', (tabId, requestId, choice) =>
+      this.answerApprovePlan(String(tabId), String(requestId), choice),
+    );
   }
 }
 

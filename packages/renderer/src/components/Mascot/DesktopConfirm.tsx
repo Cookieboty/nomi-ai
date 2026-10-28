@@ -1,4 +1,4 @@
-import type { DesktopConfirmRequest } from '@nomi-ai/types';
+import type { DesktopBubble, DesktopConfirmRequest } from '@nomi-ai/types';
 import { t as tr } from '@nomi-ai/ui';
 import { Badge, Button, Checkbox, Modal } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -7,6 +7,18 @@ import styles from './DesktopConfirm.module.css';
 
 import { placeConfirmBubble, type BubblePlacement } from '@/mascot/bubblePlacement';
 import { layoutStore } from '@/mascot/layoutStore';
+import { api, hasTransport } from '@/services/api';
+
+/** 桌面能力（看板娘窗口）：确认请求 / 取消 / 气泡经契约事件，答复经 `desktop.confirmAnswer` */
+const desktop = {
+  onConfirmRequest: (cb: (req: DesktopConfirmRequest) => void) =>
+    api.on('desktop.confirmRequest', (r) => cb(r as DesktopConfirmRequest)),
+  onConfirmCancel: (cb: (id: string) => void) => api.on('desktop.confirmCancel', cb),
+  onBubble: (cb: (p: DesktopBubble) => void) =>
+    api.on('desktop.bubble', (p) => cb(p as DesktopBubble)),
+  answer: (id: string, allow: boolean, remember: boolean) =>
+    void api.desktop.confirmAnswer({ id, allow, remember }).catch(() => undefined),
+};
 
 const DANGER: Record<
   DesktopConfirmRequest['danger'],
@@ -34,7 +46,7 @@ export const DesktopConfirm: React.FC = () => {
   const [armed, setArmed] = useState(false);
   const [remember, setRemember] = useState(false);
   const [now, setNow] = useState(() => Date.now());
-  const api = window.electronAPI?.desktop;
+  const bridge = hasTransport() ? desktop : undefined;
   const cur = queue[0];
   const bubbleRef = useRef<HTMLDivElement>(null);
   const [place, setPlace] = useState<BubblePlacement | null>(null);
@@ -99,12 +111,12 @@ export const DesktopConfirm: React.FC = () => {
   }, [cur, compute]);
 
   useEffect(() => {
-    if (!api) return;
-    const off1 = api.onConfirmRequest((r) =>
+    if (!bridge) return;
+    const off1 = bridge.onConfirmRequest((r) =>
       setQueue((q) => [...q.filter((x) => x.id !== r.id), r]),
     );
-    const off2 = api.onConfirmCancel((id) => setQueue((q) => q.filter((x) => x.id !== id)));
-    const off3 = api.onBubble((p) =>
+    const off2 = bridge.onConfirmCancel((id) => setQueue((q) => q.filter((x) => x.id !== id)));
+    const off3 = bridge.onBubble((p) =>
       window.dispatchEvent(new CustomEvent('mascot:say', { detail: { text: p.text, ms: 9000 } })),
     );
     return () => {
@@ -112,7 +124,7 @@ export const DesktopConfirm: React.FC = () => {
       off2();
       off3();
     };
-  }, [api]);
+  }, [bridge]);
 
   useEffect(() => {
     if (!cur) return;
@@ -137,9 +149,9 @@ export const DesktopConfirm: React.FC = () => {
     return () => clearTimeout(t);
   }, [detail, cur?.id]);
 
-  if (!cur || !api) return null;
+  if (!cur || !bridge) return null;
   const answer = (allow: boolean) => {
-    api.answer(cur.id, allow, remember);
+    bridge.answer(cur.id, allow, remember);
     setQueue((q) => q.slice(1));
   };
   const left = Math.max(0, Math.ceil((cur.expiresAt - now) / 1000));

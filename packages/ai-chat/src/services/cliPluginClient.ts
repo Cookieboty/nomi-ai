@@ -1,8 +1,10 @@
 /**
  * 编程助手插件注册表与外部插件（L1 声明式，docs/design/cli-plugin-architecture.md §5.9）的渲染进程客户端：
- * `ai:cli:registry`、`ai:cli:plugin-add / plugin-remove / plugin-test`（主进程 CliPluginHost）。
+ * 契约 `cli.registry`、`cli.pluginAdd / pluginRemove / pluginTest`、事件 `cli.registryChanged`（主进程 CliPluginHost）。
  */
 import { t } from '@nomi-ai/ui';
+
+import { api, hasTransport } from './api';
 
 /** 外部插件清单（与 @nomi-ai/cli-sdk 的 ExternalCliSpec 一致；只有命令、参数模板与环境变量名） */
 export interface ExternalCliSpec {
@@ -42,37 +44,31 @@ export type ExternalTestResult =
     }
   | { ok: false; errors: string[] };
 
-interface AiBridge {
-  invoke: (channel: string, ...args: unknown[]) => Promise<unknown>;
-  on: (channel: string, fn: (payload: unknown) => void) => () => void;
-}
-const bridge = (): AiBridge | undefined => {
-  if (typeof window === 'undefined') return undefined;
-  const b = (window as unknown as { aiIPC?: AiBridge }).aiIPC;
-  return b && typeof b.invoke === 'function' ? b : undefined;
-};
-
-async function call<T>(method: string, ...args: unknown[]): Promise<T> {
-  const b = bridge();
-  if (!b) throw new Error(t('ui.mascot-theme.coding-agent-harness-requires-the-desktop-app'));
-  const r = (await b.invoke(`ai:cli:${method}`, ...args)) as T & { __error?: { message: string } };
-  if (r && typeof r === 'object' && '__error' in r && r.__error) throw new Error(r.__error.message);
-  return r;
+/** 没有契约传输（浏览器预览 / 测试）时调用失败；契约错误换成普通 Error（只保留文案，与原 IPC 一致） */
+async function call<T>(run: () => Promise<unknown>): Promise<T> {
+  if (!hasTransport())
+    throw new Error(t('ui.mascot-theme.coding-agent-harness-requires-the-desktop-app'));
+  try {
+    return (await run()) as T;
+  } catch (e) {
+    throw e instanceof Error ? new Error(e.message) : e;
+  }
 }
 
 export const cliPluginClient = {
-  available: () => !!bridge(),
-  registry: () => call<{ plugins: CliRegistryEntry[] }>('registry'),
+  available: () => hasTransport(),
+  registry: () => call<{ plugins: CliRegistryEntry[] }>(() => api.cli.registry()),
   onRegistry: (fn: (s: { plugins: CliRegistryEntry[] }) => void) =>
-    bridge()?.on('ai:cli:registry-changed', (p) => fn(p as { plugins: CliRegistryEntry[] })) ??
-    (() => undefined),
+    hasTransport()
+      ? api.on('cli.registryChanged', (p) => fn(p as unknown as { plugins: CliRegistryEntry[] }))
+      : () => undefined,
   add: (spec: ExternalCliSpec) =>
-    call<{ ok: true; entry: CliRegistryEntry } | { ok: false; errors: string[] }>(
-      'plugin-add',
-      spec,
+    call<{ ok: true; entry: CliRegistryEntry } | { ok: false; errors: string[] }>(() =>
+      api.cli.pluginAdd({ spec: spec as never }),
     ),
-  remove: (id: string) => call<boolean>('plugin-remove', id),
-  test: (spec: ExternalCliSpec) => call<ExternalTestResult>('plugin-test', spec),
+  remove: (id: string) => call<boolean>(() => api.cli.pluginRemove({ id })),
+  test: (spec: ExternalCliSpec) =>
+    call<ExternalTestResult>(() => api.cli.pluginTest({ spec: spec as never })),
 };
 
 /** 名称 → 默认 id：小写、非字母数字换成 -（用户可以改） */

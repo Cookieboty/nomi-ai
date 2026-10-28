@@ -10,6 +10,8 @@
 import { useSyncExternalStore } from 'react';
 import bundledPack from 'virtual:character-pack';
 
+import { api, hasTransport } from '../services/api';
+
 export type CharacterPackMode = 'rive' | 'sprite' | 'static';
 
 export interface HitboxRegion {
@@ -75,12 +77,11 @@ function notifyOverlayListeners(): void {
 }
 
 function apiGetActive(): Promise<CharacterPackOverlay | null> {
-  const w = window as unknown as {
-    electronAPI?: { characterPack?: { getActive: () => Promise<CharacterPackOverlay> } };
-  };
-  const fn = w.electronAPI?.characterPack?.getActive;
-  if (!fn) return Promise.resolve(null);
-  return fn().catch(() => null);
+  if (!hasTransport()) return Promise.resolve(null);
+  return api.character.getActivePack().then(
+    (snap): CharacterPackOverlay => snap,
+    () => null,
+  );
 }
 
 /** Fetch Scheme B overlay once (no-op outside Electron). Safe to call repeatedly. */

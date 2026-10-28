@@ -8,6 +8,14 @@ import { AssistantMessage } from '../src/components/Conversation/Messages';
 import { AiChatContextProvider, useAiChat } from '../src/contexts/AiChatContext';
 import { fromHarnessMessage } from '../src/utils/convAdapters';
 
+import type { CodingApiMockState } from './helpers/codingApi';
+
+// D3 客户端走契约（services/api）；测试仍用旧通道形状的 window.aiIPC 假桥，经 helpers/codingApi 转发
+const codingApi = vi.hoisted(() => ({}) as CodingApiMockState);
+vi.mock('../src/services/api', async () =>
+  (await import('./helpers/codingApi')).createCodingApiMock(codingApi),
+);
+
 // 后台子代理完成后 CLI 自发的一轮（docs/design/cli-subagents.md §4）
 describe('CLI 自发的跟进轮次', () => {
   afterEach(() => {

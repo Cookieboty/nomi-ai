@@ -1,6 +1,8 @@
 import type { MascotScaleState } from '@nomi-ai/types';
 import { useEffect, useSyncExternalStore } from 'react';
 
+import { api, hasTransport } from '../services/api';
+
 /**
  * Nomi 大小（渲染进程侧）：真实状态在主进程（MascotWindowController：夹紧到屏幕、窗口随之
  * 调整并保持脚底中心不动、持久化到配置），这里只缓存最近一次状态并转发操作。
@@ -14,7 +16,8 @@ let pendingWheel = 0;
 let wheelRaf = 0;
 const listeners = new Set<Listener>();
 
-const api = () => (typeof window === 'undefined' ? undefined : window.electronAPI?.mascotWindow);
+/** 主进程不可用（浏览器预览 / 测试）或调用失败：保持上一次状态 */
+const ignore = (): undefined => undefined;
 
 function setState(s: MascotScaleState | null | undefined): void {
   if (!s || typeof s.scale !== 'number') return;
@@ -24,18 +27,18 @@ function setState(s: MascotScaleState | null | undefined): void {
 
 function start(): void {
   if (started) return;
-  const a = api();
-  if (!a?.scaleGet) return;
+  if (!hasTransport()) return;
   started = true;
-  void a.scaleGet().then(setState);
-  a.onScale?.(setState);
+  void api.mascot.scaleGet().then(setState, ignore);
+  api.on('mascot.scaleChanged', setState);
 }
 
 function flushWheel(): void {
   wheelRaf = 0;
   const dy = pendingWheel;
   pendingWheel = 0;
-  if (dy !== 0) void api()?.scaleWheel(dy, 0).then(setState);
+  if (dy !== 0 && hasTransport())
+    void api.mascot.scaleWheel({ deltaY: dy, deltaMode: 0 }).then(setState, ignore);
 }
 
 export const scaleStore = {
@@ -53,13 +56,13 @@ export const scaleStore = {
     if (!wheelRaf) wheelRaf = requestAnimationFrame(flushWheel);
   },
   step(dir: 1 | -1): void {
-    void api()?.scaleStep(dir).then(setState);
+    if (hasTransport()) void api.mascot.scaleStep({ dir }).then(setState, ignore);
   },
   set(scale: number): void {
-    void api()?.scaleSet(scale).then(setState);
+    if (hasTransport()) void api.mascot.scaleSet({ scale }).then(setState, ignore);
   },
   reset(): void {
-    void api()?.scaleReset().then(setState);
+    if (hasTransport()) void api.mascot.scaleReset().then(setState, ignore);
   },
 };
 
@@ -82,7 +85,7 @@ const editable = (t: EventTarget | null): boolean => {
  */
 export function useMascotZoomInput(): void {
   useEffect(() => {
-    if (!api()?.scaleWheel) return undefined;
+    if (!hasTransport()) return undefined;
     start();
     const onWheel = (e: WheelEvent) => {
       if (!e.ctrlKey && !e.metaKey) return;

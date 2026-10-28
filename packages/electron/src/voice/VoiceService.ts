@@ -929,7 +929,11 @@ export class VoiceService {
     if (!this.d.openChat || !text.trim()) return;
     const chat = await this.d.openChat();
     const payload = { text: text.trim(), autoSend: this.settings.autoSend };
-    const deliver = () => !chat.isDestroyed() && chat.webContents.send('ai:voice:inject', payload);
+    // 等页面加载完再发（新开的窗口要先挂上监听）；送达由事件总线负责（只发对话窗口）
+    const deliver = () => {
+      if (!chat.isDestroyed())
+        this.d.events.publish('ai:voice:inject', payload, { surface: 'chat' });
+    };
     if (chat.webContents.isLoading())
       chat.webContents.once('did-finish-load', () => setTimeout(deliver, 500));
     else deliver();
@@ -941,6 +945,79 @@ export class VoiceService {
 
   private broadcast(ch: string, payload: unknown) {
     this.d.events.publish(ch, payload);
+  }
+
+  /** 打开一个 VAD 会话（属于发起的窗口，窗口销毁时一并释放）；没有模型 / 加载失败时退回能量检测 */
+  async vadOpen(
+    wc: Pick<VoiceSender, 'id' | 'once'>,
+  ): Promise<{ kind: 'silero' | 'energy'; handle?: string; error?: string }> {
+    const p = this.vadModelPath();
+    if (!p) return { kind: 'energy' };
+    const err = await warmup(p);
+    if (err) {
+      this.d.logger.warn('Silero VAD 加载失败，改用能量检测', { error: err } as never);
+      return { kind: 'energy', error: err };
+    }
+    // 每个会话独立的 RNN 状态（同一窗口可有多个控制器）
+    const handle = `${wc.id}:${++this.vadSeq}`;
+    this.vads.set(handle, new SileroStream(p));
+    if (!this.vadOwners.has(wc.id)) {
+      this.vadOwners.add(wc.id);
+      wc.once('destroyed', () => {
+        this.vadOwners.delete(wc.id);
+        for (const [k, v] of [...this.vads]) {
+          if (!k.startsWith(`${wc.id}:`)) continue;
+          v.dispose();
+          this.vads.delete(k);
+        }
+      });
+    }
+    return { kind: 'silero', handle };
+  }
+
+  /** 一帧的语音概率；别的窗口的会话、未知会话、坏帧一律 0 */
+  async vadProb(ownerId: number, handle: string, frame: unknown): Promise<number> {
+    if (!handle.startsWith(`${ownerId}:`)) return 0;
+    const v = this.vads.get(handle);
+    if (!v) return 0;
+    const f = toFloat32(frame);
+    if (!f) return 0;
+    // worker 崩溃 / 超时等：本帧按「无语音」处理，下一帧懒重建 worker
+    return v.prob(f).catch((err: unknown) => {
+      const now = Date.now();
+      if (now - this.vadErrAt > 10_000) {
+        this.vadErrAt = now;
+        this.d.logger.warn('Silero VAD 推理失败', { error: String(err) } as never);
+      }
+      return 0;
+    });
+  }
+
+  vadClose(ownerId: number, handle: string): void {
+    if (!handle.startsWith(`${ownerId}:`)) return;
+    this.vads.get(handle)?.dispose();
+    this.vads.delete(handle);
+  }
+
+  /** 整段识别，错误转成结果（界面按 code 提示） */
+  async transcribeResult(
+    wav: Uint8Array,
+    opts: { source: string; purpose?: 'command' | 'wake' },
+  ): Promise<{ ok: true; text: string } | { ok: false; code: VoiceError['code']; error: string }> {
+    try {
+      const text = await this.transcribe(wav, opts);
+      return { ok: true, text };
+    } catch (err) {
+      const code = err instanceof VoiceError ? err.code : 'failed';
+      return { ok: false, code, error: err instanceof Error ? err.message : String(err) };
+    }
+  }
+
+  /** 界面上报语音活动；不认识的 activity 返回 false */
+  reportActivity(a: unknown, source: unknown): boolean {
+    const ok = ['idle', 'listening', 'hearing', 'transcribing', 'wake-armed'].includes(String(a));
+    if (ok) this.setActivity(a as VoiceActivity, String(source ?? ''));
+    return ok;
   }
 
   registerIpc(): void {
@@ -955,73 +1032,15 @@ export class VoiceService {
     handle('ai:voice:cancel', (_e, id) => this.cancel(String(id)));
     handle('ai:voice:remove', (_e, id) => this.remove(String(id)));
     // VAD：每个窗口一个 Silero 会话；没有模型时渲染进程退回能量检测
-    handle('ai:voice:vadOpen', async (e) => {
-      const p = this.vadModelPath();
-      if (!p) return { kind: 'energy' };
-      const err = await warmup(p);
-      if (err) {
-        this.d.logger.warn('Silero VAD 加载失败，改用能量检测', { error: err } as never);
-        return { kind: 'energy', error: err };
-      }
-      // 每个会话独立的 RNN 状态（同一窗口可有多个控制器）
-      const wc = e.sender;
-      const handle = `${wc.id}:${++this.vadSeq}`;
-      this.vads.set(handle, new SileroStream(p));
-      if (!this.vadOwners.has(wc.id)) {
-        this.vadOwners.add(wc.id);
-        wc.once('destroyed', () => {
-          this.vadOwners.delete(wc.id);
-          for (const [k, v] of [...this.vads]) {
-            if (!k.startsWith(`${wc.id}:`)) continue;
-            v.dispose();
-            this.vads.delete(k);
-          }
-        });
-      }
-      return { kind: 'silero', handle };
-    });
-    handle('ai:voice:vadProb', async (e, h, frame) => {
-      const key = String(h);
-      if (!key.startsWith(`${e.sender.id}:`)) return 0;
-      const v = this.vads.get(key);
-      if (!v) return 0;
-      const f = toFloat32(frame);
-      if (!f) return 0;
-      // worker 崩溃 / 超时等：本帧按「无语音」处理，下一帧懒重建 worker
-      return v.prob(f).catch((err: unknown) => {
-        const now = Date.now();
-        if (now - this.vadErrAt > 10_000) {
-          this.vadErrAt = now;
-          this.d.logger.warn('Silero VAD 推理失败', { error: String(err) } as never);
-        }
-        return 0;
-      });
-    });
-    handle('ai:voice:vadClose', (e, h) => {
-      const key = String(h);
-      if (!key.startsWith(`${e.sender.id}:`)) return;
-      this.vads.get(key)?.dispose();
-      this.vads.delete(key);
-    });
-    handle('ai:voice:transcribe', async (_e, wav, opts) => {
+    handle('ai:voice:vadOpen', (e) => this.vadOpen(e.sender));
+    handle('ai:voice:vadProb', (e, h, frame) => this.vadProb(e.sender.id, String(h), frame));
+    handle('ai:voice:vadClose', (e, h) => this.vadClose(e.sender.id, String(h)));
+    handle('ai:voice:transcribe', (_e, wav, opts) => {
       const o = (opts ?? {}) as { source?: string; purpose?: 'command' | 'wake' };
-      try {
-        const buf = wav instanceof Uint8Array ? wav : new Uint8Array(wav as ArrayBuffer);
-        const text = await this.transcribe(buf, {
-          source: String(o.source ?? 'chat'),
-          purpose: o.purpose,
-        });
-        return { ok: true, text };
-      } catch (err) {
-        const code = err instanceof VoiceError ? err.code : 'failed';
-        return { ok: false, code, error: err instanceof Error ? err.message : String(err) };
-      }
+      const buf = wav instanceof Uint8Array ? wav : new Uint8Array(wav as ArrayBuffer);
+      return this.transcribeResult(buf, { source: String(o.source ?? 'chat'), purpose: o.purpose });
     });
-    handle('ai:voice:activity', (_e, a, source) => {
-      const ok = ['idle', 'listening', 'hearing', 'transcribing', 'wake-armed'].includes(String(a));
-      if (ok) this.setActivity(a as VoiceActivity, String(source ?? ''));
-      return ok;
-    });
+    handle('ai:voice:activity', (_e, a, source) => this.reportActivity(a, source));
     handle('ai:voice:sendToChat', (_e, text) => this.sendToChat(String(text ?? '').slice(0, 4000)));
     // 豆包流式语音识别 2.0（#61）
     handle('ai:voice:volcSetKey', (_e, key) => this.setVolcKey(key));

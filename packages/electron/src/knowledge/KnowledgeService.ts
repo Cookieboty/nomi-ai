@@ -976,6 +976,41 @@ export class KnowledgeService {
     this.d.events.publish(ch, payload);
   }
 
+  /** 后台开始重建索引，立即返回当前进度（之后的进度经 `ai:kb:progress` 推送） */
+  startReindex(force = false): KbProgress {
+    void this.reindex(undefined, { force });
+    return this.progress();
+  }
+
+  /** 清空索引（来源与设置保留） */
+  clear(): boolean {
+    this.index.clear();
+    this.index.save();
+    this.broadcast('ai:kb:changed', null);
+    return true;
+  }
+
+  /** 视图发来的问答：只保留 user / assistant 的文本消息，每条截到 4000 字 */
+  askFromView(
+    question: string,
+    history: unknown,
+  ): Promise<{ answer: string; sources: SourceRef[]; mode: string }> {
+    return this.ask(
+      question,
+      Array.isArray(history)
+        ? (history as Array<{ role: unknown; content: unknown }>)
+            .filter(
+              (m) =>
+                (m?.role === 'user' || m?.role === 'assistant') && typeof m.content === 'string',
+            )
+            .map((m) => ({
+              role: m.role as 'user' | 'assistant',
+              content: (m.content as string).slice(0, 4000),
+            }))
+        : [],
+    );
+  }
+
   registerIpc(): void {
     if (this.ipcDone) return;
     this.ipcDone = true;
@@ -1002,40 +1037,17 @@ export class KnowledgeService {
     handle('ai:kb:set-settings', (_e, p) => this.setSettings(p));
     handle('ai:kb:consent-cloud', (_e, id) => this.consentCloud(String(id)));
     handle('ai:kb:test', (_e, k) => this.testEndpoint(k === 'rerank' ? 'rerank' : 'embed'));
-    handle('ai:kb:reindex', (_e, force) => {
-      void this.reindex(undefined, { force: force === true });
-      return this.progress();
-    });
+    handle('ai:kb:reindex', (_e, force) => this.startReindex(force === true));
     handle('ai:kb:cancel', () => this.cancelIndex());
     handle('ai:kb:search', (_e, q) => this.search(String(q ?? '')));
-    handle('ai:kb:ask', (_e, q, h) =>
-      this.ask(
-        String(q ?? ''),
-        Array.isArray(h)
-          ? (h as Array<{ role: string; content: string }>)
-              .filter(
-                (m) =>
-                  (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string',
-              )
-              .map((m) => ({
-                role: m.role as 'user' | 'assistant',
-                content: m.content.slice(0, 4000),
-              }))
-          : [],
-      ),
-    );
+    handle('ai:kb:ask', (_e, q, h) => this.askFromView(String(q ?? ''), h));
     handle('ai:kb:open', (_e, id, how) =>
       this.open(String(id), how === 'reveal' ? 'reveal' : 'open'),
     );
     handle('ai:kb:ocr-download', (_e, id) => this.downloadOcr(String(id)));
     handle('ai:kb:ocr-cancel', (_e, id) => this.cancelOcr(String(id)));
     handle('ai:kb:ocr-remove', (_e, id) => this.removeOcr(String(id)));
-    handle('ai:kb:clear', () => {
-      this.index.clear();
-      this.index.save();
-      this.broadcast('ai:kb:changed', null);
-      return true;
-    });
+    handle('ai:kb:clear', () => this.clear());
   }
 }
 

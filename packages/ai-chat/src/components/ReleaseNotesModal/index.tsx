@@ -12,6 +12,7 @@ import {
   type ReleaseNotesEntry,
   type ReleaseNotesSectionId,
 } from '../../releaseNotes';
+import { api, hasTransport } from '../../services/api';
 import {
   acknowledgeReleaseNotesVersion,
   getAckedReleaseNotesVersion,
@@ -29,12 +30,8 @@ const SECTION_TITLE: Record<ReleaseNotesSectionId, () => string> = {
 };
 
 function updatesCurrentVersion(): Promise<string | null> {
-  const w = window as unknown as {
-    electronAPI?: { updates?: { get: () => Promise<{ currentVersion?: string }> } };
-  };
-  const api = w.electronAPI?.updates;
-  if (!api) return Promise.resolve(null);
-  return api
+  if (!hasTransport()) return Promise.resolve(null);
+  return api.updates
     .get()
     .then((s) => (s?.currentVersion ? String(s.currentVersion) : null))
     .catch(() => null);

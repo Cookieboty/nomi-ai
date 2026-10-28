@@ -42,6 +42,16 @@ export class ScreenService {
     );
   }
 
+  /** 发送图片前：云端告知 / 仅本地模式（旧 IPC 与契约 screen.checkSend 共用） */
+  async checkSend(): Promise<'ok' | 'local_only' | 'user_denied'> {
+    const r = await this.d.desktop.broker.checkSend(
+      this.d.desktop.providerFor('chat'),
+      undefined,
+      t('electron.common.images-attached'),
+    );
+    return r ?? 'ok';
+  }
+
   registerIpc(): void {
     if (this.ipcDone) return;
     this.ipcDone = true;
@@ -49,12 +59,7 @@ export class ScreenService {
       'ai:screen:check-send',
       async () => {
         try {
-          const r = await this.d.desktop.broker.checkSend(
-            this.d.desktop.providerFor('chat'),
-            undefined,
-            t('electron.common.images-attached'),
-          );
-          return r ?? 'ok';
+          return await this.checkSend();
         } catch (err) {
           return { __error: { code: 'screen', message: (err as Error).message } };
         }

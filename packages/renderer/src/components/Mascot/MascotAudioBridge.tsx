@@ -3,12 +3,13 @@
  * 不修改 mascot/**；互动 SPEAK_KINDS 已由 reactions 朗读，此处只加音效。
  */
 import { useAIEvents } from '@nomi-ai/ai-sdk-client/react';
-import type { DesktopBubble } from '@nomi-ai/types';
+import type { DesktopBubble, DesktopReminderEvent } from '@nomi-ai/types';
 import { createLogger, t as tr } from '@nomi-ai/ui';
 import { useEffect, useRef } from 'react';
 import type { FC } from 'react';
 
 import { CLIP_HINTS } from '@/mascot/voice/promptClips';
+import { api, hasTransport } from '@/services/api';
 import { REACTION_SPEAK_KINDS, type CueEvent } from '@/services/cues/lines';
 import { mascotCueService } from '@/services/cues/MascotCueService';
 import { sfxService } from '@/services/sfx/SfxService';
@@ -105,7 +106,7 @@ export const MascotAudioBridge: FC = () => {
   useEffect(() => {
     const load = async () => {
       try {
-        const s = await window.electronAPI?.getVoiceSettings?.();
+        const s = hasTransport() ? await api.voice.getMascotSettings() : null;
         syncGateFromSettings(s ?? null);
       } catch (e) {
         log.warn('load voice settings failed', e);
@@ -173,9 +174,9 @@ export const MascotAudioBridge: FC = () => {
   }, []);
 
   useEffect(() => {
-    const api = window.electronAPI?.desktop;
-    if (!api?.onBubble) return;
-    const off = api.onBubble((p) => {
+    if (!hasTransport()) return;
+    const off = api.on('desktop.bubble', (raw) => {
+      const p = raw as DesktopBubble;
       const text = typeof p?.text === 'string' ? p.text : '';
       if (!text) return;
       // voice=none：只显示气泡；编程助手的定时汇总关闭语音播报时使用此模式。
@@ -202,9 +203,9 @@ export const MascotAudioBridge: FC = () => {
   }, []);
 
   useEffect(() => {
-    const api = window.electronAPI?.desktop;
-    if (!api?.onReminder) return;
-    const off = api.onReminder((r) => {
+    if (!hasTransport()) return;
+    const off = api.on('desktop.reminder', (raw) => {
+      const r = raw as DesktopReminderEvent;
       const text = typeof r?.text === 'string' ? r.text : '';
       mascotCueService.trigger('reminder', {
         text: text ? tr('ui.usage-tools.reminder', text.slice(0, 80)) : undefined,

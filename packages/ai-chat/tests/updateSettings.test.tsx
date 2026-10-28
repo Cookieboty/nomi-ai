@@ -8,6 +8,9 @@ import {
   type UpdateState,
 } from '../src/components/SettingsView/UpdateSettings';
 
+// D2 的过程经契约替身转发到下面的旧桥假实现（见 helpers/shellApi）
+vi.mock('../src/services/api', () => import('./helpers/shellApi'));
+
 const base: UpdateState = { status: 'idle', currentVersion: '1.1.1', autoCheck: true };
 
 const mount = (state: UpdateState, next: UpdateState) => {

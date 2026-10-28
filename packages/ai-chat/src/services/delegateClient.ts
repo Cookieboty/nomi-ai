@@ -3,10 +3,11 @@
  * - 设置：总开关 + 按任务类型的默认编程助手（§4.7）；
  * - `/agent`（旧名 `/cli`）：指定下一个需求交给哪个编程助手（§4.6）。渲染层按 conversationId 记在
  *   nextDelegatePins 里（输入框上方的 chip），发送时 consumeNextDelegate(turnId) 取出，
- *   经 `ai:delegate:pin` 按 turnId 钉到主进程；钉住失败则中止发送。本轮结束 clearTurnPin。
+ *   经契约 `delegate.pin` 按 turnId 钉到主进程；钉住失败则中止发送。本轮结束 clearTurnPin。
  */
 import { t } from '@nomi-ai/ui';
 
+import { api, hasTransport } from './api';
 import type { HarnessUsage } from './harnessClient';
 
 export const DELEGATE_CLIS = ['claude', 'codex', 'grok', 'gemini', 'dsh'] as const;
@@ -90,41 +91,33 @@ export function resolveDelegateCli(name: string): DelegateCli | null {
   return ALIASES[name.trim().toLowerCase().replace(/\s+/g, '-')] ?? null;
 }
 
-interface AiBridge {
-  invoke: (channel: string, ...args: unknown[]) => Promise<unknown>;
-  on: (channel: string, fn: (payload: unknown) => void) => () => void;
+/** 没有契约传输（浏览器预览 / 测试）时调用失败；契约错误换成普通 Error（只保留文案，与原 IPC 一致） */
+async function call<T>(run: () => Promise<unknown>): Promise<T> {
+  if (!hasTransport())
+    throw new Error(t('ui.chat-settings.handing-off-to-coding-assistants-needs-the-desktop'));
+  try {
+    return (await run()) as T;
+  } catch (e) {
+    throw e instanceof Error ? new Error(e.message) : e;
+  }
 }
-
-const bridge = (): AiBridge | undefined => {
-  if (typeof window === 'undefined') return undefined;
-  const b = (window as unknown as { aiIPC?: AiBridge }).aiIPC;
-  return b && typeof b.invoke === 'function' ? b : undefined;
-};
-
-async function call<T>(channel: string, ...args: unknown[]): Promise<T> {
-  const b = bridge();
-  if (!b) throw new Error(t('ui.chat-settings.handing-off-to-coding-assistants-needs-the-desktop'));
-  const r = (await b.invoke(channel, ...args)) as T & { __error?: { message: string } };
-  if (r && typeof r === 'object' && '__error' in r && r.__error) throw new Error(r.__error.message);
-  return r;
-}
-
-const on = (ch: string, fn: (p: unknown) => void) => bridge()?.on(ch, fn) ?? (() => undefined);
 
 export const delegateClient = {
-  available: () => !!bridge(),
-  settings: () => call<DelegateSettingsView>('ai:delegate:settings'),
+  available: () => hasTransport(),
+  settings: () => call<DelegateSettingsView>(() => api.delegate.settings()),
   setSettings: (s: Partial<DelegateSettings>) =>
-    call<DelegateSettings>('ai:delegate:set-settings', s),
+    call<DelegateSettings>(() => api.delegate.setSettings({ settings: s as never })),
   /** 按 turnId 钉到主进程；turnId 与本轮 Nomi reqId 对齐 */
   pin: (cli: DelegateCli | null, turnId: string) =>
-    call<DelegateCli | null>('ai:delegate:pin', cli, turnId),
-  clearPin: (turnId: string) => call<boolean>('ai:delegate:clear-pin', turnId),
+    call<DelegateCli | null>(() => api.delegate.pin({ cli, turnId })),
+  clearPin: (turnId: string) => call<boolean>(() => api.delegate.clearPin({ turnId })),
   /** 查后台委派状态（主进程 tasks；无则 null） */
-  status: (taskId: string) => call<DelegateResult | null>('ai:delegate:status', taskId),
+  status: (taskId: string) => call<DelegateResult | null>(() => api.delegate.status({ taskId })),
   /** 后台委派完成时主进程广播 */
   onCompleted: (fn: (r: DelegateResult) => void) =>
-    on('ai:delegate:completed', (p) => fn(p as DelegateResult)),
+    hasTransport()
+      ? api.on('delegate.completed', (p) => fn(p as unknown as DelegateResult))
+      : () => undefined,
 };
 
 // ───────────────────────── 下一个需求交给谁（按会话；输入框上方的 chip） ─────────────────────────
@@ -181,7 +174,7 @@ export async function consumeNextDelegate(turnId: string): Promise<DelegateCli |
 
 /** 本轮结束（无论是否委派）清除主进程该 turn 的钉住 */
 export async function clearTurnPin(turnId: string): Promise<void> {
-  if (!turnId || !bridge()) return;
+  if (!turnId || !hasTransport()) return;
   await delegateClient.clearPin(turnId).catch(() => undefined);
 }
 

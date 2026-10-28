@@ -7,6 +7,9 @@ import { UsagePanel } from '../src/components/UsagePanel';
 import { priceSyncMessage } from '../src/components/UsagePanel/Pricing';
 import { resetToolQuotaMemo } from '../src/hooks/useToolQuota';
 
+// D2 的过程经契约替身转发到下面的旧桥假实现（见 helpers/shellApi）
+vi.mock('../src/services/api', () => import('./helpers/shellApi'));
+
 vi.mock('../src/components/ConfirmDialog', () => import('./helpers/confirmViaWindow'));
 
 // findBy* / waitFor default to a 1s budget. The panel renders after several mocked IPC round-trips

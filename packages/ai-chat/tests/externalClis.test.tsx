@@ -6,6 +6,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ExternalClis } from '../src/components/ProvidersPage/ExternalClis';
 import { describeSpecError, idFromName } from '../src/services/cliPluginClient';
 
+import type { CodingApiMockState } from './helpers/codingApi';
+
+// D3 客户端走契约（services/api）；测试仍用旧通道形状的 window.aiIPC 假桥，经 helpers/codingApi 转发
+const codingApi = vi.hoisted(() => ({}) as CodingApiMockState);
+vi.mock('../src/services/api', async () =>
+  (await import('./helpers/codingApi')).createCodingApiMock(codingApi),
+);
+
 // 外部 CLI（L1 声明式插件，docs/design/cli-plugin-architecture.md §5.9）
 afterEach(() => {
   cleanup();

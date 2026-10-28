@@ -9,18 +9,12 @@ import {
   type TTSPreviewRequest,
   type TTSSpeakRequest,
   type TTSSpeakResult,
-  type TTSTestResult,
 } from '@nomi-ai/types';
 
-import { broadcastMascotCommand } from '../../ai/mascotCommand';
 import { t } from '../../i18n';
 import { type IConfigService } from '../../services/ConfigService';
 import { type ILoggerService } from '../../services/LoggerService';
-import { EdgeTtsService } from '../../tts/edge/EdgeTtsService';
-import { BUILTIN_ZH_VOICES, listChineseVoices } from '../../tts/edge/edgeVoices';
-import { replySpeechCommand } from '../../tts/replySpeech';
-import { TtsConfigStore } from '../../tts/TtsConfigStore';
-import { TtsRouter, applyTtsEnvOverride } from '../../tts/ttsRouter';
+import { initTtsService } from '../../tts/TtsService';
 
 import { BaseIpcHandler } from './BaseIpcHandler';
 
@@ -246,151 +240,64 @@ export class ConfigIpcHandler extends BaseIpcHandler {
   }
 
   /**
-   * 初始化TTS配置相关IPC处理器。实时朗读：Edge 在线朗读（默认，需联网）；Azure / OpenAI 尚未接入。
-   * 任何失败都静默（渲染层只显示文字），连续失败次数经 tts:status 给设置页显示提示。
+   * 初始化TTS配置相关IPC处理器。逻辑在 tts/TtsService.ts（与契约 `tts.*` 共用同一个实例）；
+   * 这里只保留旧通道（e2e-headed 与旧 preload 仍在用，P1b 收尾批次删除）。
    */
   private initializeTTSHandlers(): void {
-    const store = new TtsConfigStore({ paths: this.ports.paths });
-    const edge = new EdgeTtsService();
-    const router = new TtsRouter({
-      getConfig: () => applyTtsEnvOverride(store.load()),
-      edge,
-      onOutcome: (o) => this.logger.debug('tts:speak', o),
-    });
-    const notAvailable = (provider: TTSConfig['provider']): TTSTestResult =>
-      provider === 'none'
-        ? { success: true, message: t('electron.common.no-realtime-tts-engine-selected') }
-        : { success: false, message: t('electron.common.this-tts-engine-is-not-available-yet') };
+    const tts = initTtsService({ paths: this.ports.paths, logger: this.logger });
 
-    // 获取TTS配置（无文件时返回默认：Edge 实时朗读 + 诺米提示语音开）
-    this.registerHandler('getTTSConfig', async () => {
-      try {
-        return store.load();
-      } catch (error) {
-        this.logger.error('获取TTS配置失败', {
-          error: error instanceof Error ? error.message : String(error),
-        });
-        return null;
-      }
-    });
+    this.registerHandler('getTTSConfig', async () => tts.getConfig());
 
     this.registerHandler('saveTTSConfig', async (_, config: TTSConfig) => {
       this.validateArgs([config], 1, ['object']);
       try {
-        const saved = store.save(config);
-        this.logger.info('TTS配置保存成功', { provider: saved.provider, enabled: saved.enabled });
+        tts.saveConfig(config);
         return this.createSuccessResponse();
       } catch (error) {
-        this.logger.error('TTS配置保存失败', {
-          error: error instanceof Error ? error.message : String(error),
-        });
         return this.createErrorResponse(error);
       }
     });
 
-    // 试听 / 测试都用传入的（未保存的）配置，CD_TTS=off 时仍静默
-    const previewRouter = (cfg: Partial<TTSConfig>) =>
-      new TtsRouter({
-        getConfig: () =>
-          applyTtsEnvOverride({ ...store.load(), ...cfg, enabled: true } as TTSConfig),
-        edge,
-      });
-
     this.registerHandler('testTTSConnection', async (_, config: TTSConfig) => {
       this.validateArgs([config], 1, ['object']);
-      if (config.provider !== 'edge') return { ...notAvailable(config.provider), latency: 0 };
-      const t0 = Date.now();
-      const r = await previewRouter(config).speak({ text: t('electron.common.tts-test-sentence') });
-      return r.success
-        ? {
-            success: true,
-            message: t('electron.common.realtime-tts-reachable'),
-            latency: Date.now() - t0,
-          }
-        : { success: false, message: t('electron.common.realtime-tts-unreachable'), latency: 0 };
+      return tts.testConnection(config);
     });
 
     this.registerHandler(
       'tts:preview',
       async (_, req: TTSPreviewRequest): Promise<TTSSpeakResult> => {
         this.validateArgs([req], 1, ['object']);
-        return previewRouter({
-          provider: req.provider,
-          edgeVoice: req.edgeVoice,
-          rate: req.rate,
-        }).speak({ text: String(req.text ?? '').slice(0, 300) });
+        return tts.preview(req);
       },
     );
 
-    // CD_TTS=off（e2e）不联网，直接给内置列表
-    this.registerHandler('tts:voices', async () =>
-      process.env.CD_TTS === 'off'
-        ? { voices: [...BUILTIN_ZH_VOICES], source: 'builtin' as const }
-        : listChineseVoices(),
-    );
+    this.registerHandler('tts:voices', async () => tts.voices());
 
-    this.registerHandler('tts:status', async () => edge.getStatus());
+    this.registerHandler('tts:status', async () => tts.status());
 
-    // 打断：取消还在等音频的请求
-    this.registerHandler('tts:stop', async () => {
-      edge.stop();
-      return true;
-    });
+    this.registerHandler('tts:stop', async () => tts.stop());
 
     this.registerHandler('resetTTSConfig', async () => {
       try {
-        store.reset();
-        this.logger.info('TTS配置已重置');
+        tts.resetConfig();
         return this.createSuccessResponse();
       } catch (error) {
-        this.logger.error('重置TTS配置失败', {
-          error: error instanceof Error ? error.message : String(error),
-        });
         return this.createErrorResponse(error);
       }
     });
 
-    // 合成路由：成功返回 mp3（base64），失败静默
     this.registerHandler('tts:speak', async (_, req: TTSSpeakRequest) => {
       this.validateArgs([req], 1, ['object']);
-      return router.speak(req ?? { text: '' });
+      return tts.speak(req);
     });
 
-    // 朗读 AI 回复：对话窗口把整句转发到看板娘窗口（沿用 mascot:command → tts:speak 播放链路）
-    this.registerHandler('tts:reply', async (_, msg: unknown) => {
-      let cfg: TTSConfig | null;
-      try {
-        cfg = store.load();
-      } catch {
-        cfg = null;
-      }
-      const cmd = replySpeechCommand(msg, cfg, process.env);
-      if (!cmd) return false;
-      // 停止由看板娘窗口处理（它在朗读回复时才停播放并取消合成），不在这里误停别的台词
-      broadcastMascotCommand(cmd);
-      return true;
-    });
+    this.registerHandler('tts:reply', async (_, msg: unknown) => tts.reply(msg));
 
-    // 诺米提示语音开关：看板娘窗口据此决定是否播放预录提示语
-    this.registerHandler('tts:prompt-voice', async () => {
-      try {
-        return store.load().promptVoice !== false;
-      } catch {
-        return true;
-      }
-    });
+    this.registerHandler('tts:prompt-voice', async () => tts.promptVoice());
 
-    this.registerHandler('tts:health', async (_, config?: Partial<TTSConfig>) => {
-      const provider = config?.provider ?? store.load().provider;
-      if (provider === 'edge') {
-        const s = edge.getStatus();
-        return s.consecutiveFailures >= 3
-          ? { success: false, message: t('electron.common.realtime-tts-unreachable') }
-          : { success: true, message: t('electron.common.realtime-tts-reachable') };
-      }
-      const res = notAvailable(provider);
-      return res.success ? { ...res, success: false } : res;
-    });
+    this.registerHandler('tts:health', async (_, config?: Partial<TTSConfig>) =>
+      tts.health(config),
+    );
   }
 
   /** 旧版 displayMode（'live2d' / 'custom-image'）不再使用：读取到就删掉，避免残留配置。 */
