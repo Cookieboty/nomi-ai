@@ -54,6 +54,8 @@ type SendStatus = 'sent' | 'replaced' | 'closed';
 export interface ServerSession {
   readonly caller: CallerContext;
   readonly closed: boolean;
+  /** 进行中的调用数（查询 / 变更 / 流；不含订阅） */
+  readonly inflight: number;
   /** 收到客户端的一帧（未校验的原始值） */
   receive(raw: unknown): void;
   /**
@@ -250,6 +252,9 @@ export function createServerSession(router: Router, opts: ServerSessionOptions):
 
   return {
     caller: opts.caller,
+    get inflight() {
+      return inflight.size;
+    },
     get closed() {
       return closed;
     },

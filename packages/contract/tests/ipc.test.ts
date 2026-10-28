@@ -234,6 +234,25 @@ describe('IPC transport adapters', () => {
     await expect(slow).rejects.toMatchObject({ code: 'TRANSPORT' });
   });
 
+  it('inflightFor(senderId) counts in-flight calls per window, not subscriptions', async () => {
+    const { ipc, transport } = setup();
+    const w1 = ipc.window();
+    const w2 = ipc.window();
+    const a = createClient(testContract, createIpcClientTransport(w1.bridge));
+    const b = createClient(testContract, createIpcClientTransport(w2.bridge));
+    a.on('persona.changed', () => {});
+    await a.sessions.list();
+    await b.sessions.list();
+    expect(transport.inflightFor(w1.win.id)).toBe(0);
+    const ac = new AbortController();
+    const slow = a.sessions.slow({ ms: 10_000 }, { signal: ac.signal });
+    await vi.waitFor(() => expect(transport.inflightFor(w1.win.id)).toBe(1));
+    expect(transport.inflightFor(w2.win.id)).toBe(0);
+    ac.abort();
+    await slow.catch(() => undefined);
+    await vi.waitFor(() => expect(transport.inflightFor(w1.win.id)).toBe(0));
+  });
+
   it('honours a custom maxSessionsPerSender', async () => {
     const ipc = new FakeIpc();
     const transport = createIpcServerTransport(ipc.main, {

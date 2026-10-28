@@ -118,6 +118,8 @@ export interface IpcServerTransport extends ServerTransport {
    * 否则旧页面的会话（订阅、进行中的流）会一直留到被 `maxSessionsPerSender` 挤掉。
    */
   disconnect(senderId: number): void;
+  /** 某个窗口上全部会话里进行中的调用数（宿主据此判断窗口是否空闲、可以回收） */
+  inflightFor(senderId: number): number;
   readonly sessionCount: number;
 }
 
@@ -229,6 +231,13 @@ export function createIpcServerTransport(
       for (const { senderId: id, session } of [...sessions.values()]) {
         if (id === senderId) session.close();
       }
+    },
+    inflightFor(senderId: number) {
+      let n = 0;
+      for (const { senderId: id, session } of sessions.values()) {
+        if (id === senderId && !session.closed) n += session.inflight;
+      }
+      return n;
     },
     get sessionCount() {
       return sessions.size;
