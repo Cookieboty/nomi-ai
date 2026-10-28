@@ -49,21 +49,25 @@ export class MascotWindowActions {
   }
 
   /** 看板娘「任务看板」：打开对话窗口并切到「知识 · 记忆 · 日程」的日程页 */
-  openTaskBoard(): Promise<OpenResult> {
-    return this.openPanel('ai:hub:open-schedule', '打开任务看板失败');
+  async openTaskBoard(): Promise<OpenResult> {
+    try {
+      await this.windowManager.openProviderPanel('ai:hub:open-schedule');
+      return { success: true };
+    } catch (error) {
+      this.logger.error('打开任务看板失败', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return failure(error);
+    }
   }
 
   /** 看板娘「TTS 语音配置」/ 语音错误「去设置」：打开对话窗口的「设置 → 语音与屏幕 → 语音」 */
-  openVoiceSettings(): Promise<OpenResult> {
-    return this.openPanel('ai:settings:open-voice', '打开语音设置失败');
-  }
-
-  private async openPanel(channel: string, failMessage: string): Promise<OpenResult> {
+  async openVoiceSettings(): Promise<OpenResult> {
     try {
-      await this.windowManager.openProviderPanel(channel);
+      await this.windowManager.openProviderPanel('ai:settings:open-voice');
       return { success: true };
     } catch (error) {
-      this.logger.error(failMessage, {
+      this.logger.error('打开语音设置失败', {
         error: error instanceof Error ? error.message : String(error),
       });
       return failure(error);
