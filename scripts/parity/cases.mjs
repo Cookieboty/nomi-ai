@@ -192,4 +192,12 @@ export const fixTexts = [
   { tools: [{ name: 'mapped_weather', args: '{"city":"Lima"}' }, { name: 'other', args: '{}' }] },
   { text: '你好😀，世界。Emoji 🎉🎉 test! Done?' },
   { text: 'cut <tool_call>{"name":"get_weather"' },
+  { text: 'ok get_weather<arg_key>city</arg_key><arg_value>Paris</arg_value><arg_key>2</arg_key><arg_value>b</arg_value><arg_key>1</arg_key><arg_value>a</arg_value>' },
+  { text: 'ok get_weather<arg_key>10</arg_key><arg_value>x</arg_value><arg_key>01</arg_key><arg_value>y</arg_value><arg_key>4294967295</arg_key><arg_value>z</arg_value><arg_key>0</arg_key><arg_value>w</arg_value>' },
+];
+/** JSON texts whose key order exercises JS integer-key ordering */
+export const objKeyTexts = [
+  '{"b":1,"2":2,"a":3,"1":4}', '{"10":1,"9":2,"01":3,"-1":4,"1.5":5,"0":6}',
+  '{"4294967294":1,"4294967295":2,"4294967296":3,"3":4}', '{"x":{"2":1,"1":2},"arr":[{"5":0,"k":1,"4":2}]}',
+  '{"1":1,"a":2,"1":3}', '{"":1,"00":2,"0":3," 1":4}',
 ];

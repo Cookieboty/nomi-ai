@@ -21,7 +21,7 @@
  *   e2e      – the real GatewayServer against a local mock upstream per protocol,
  *              recording the raw streamed chunks the client receives
  *
- * Usage: node scripts/parity/record.mjs [--only request,stream,json,fixes,spec,net,e2e]
+ * Usage: node scripts/parity/record.mjs [--only request,stream,json,fixes,spec,net,objkeys,proxy,e2e]
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -347,7 +347,35 @@ if (want('net')) {
       }
   const statuses = [200, 301, 400, 401, 403, 404, 413, 429, 500, 502, 503, 504, 529, 418];
   const upstreamTexts = ['{"error":"x"}', '{"error":{"message":"y"}}', '{"message":"z"}', '{"error":{}}', 'plain', '', '[1]', 'é'.repeat(600)];
+  const urls = [
+    'http://LOCALHOST:11434/v1', 'http://0x7f.1:8080/', 'http://0177.0.0.1/', 'http://2130706433:9/', 'http://127.1/',
+    'http://127.0.0.1./', 'http://Example.COM./v1', 'https://bücher.example/', 'https://xn--bcher-kva.example/',
+    'https://ＥＸＡＭＰＬＥ.com/', 'http://[0:0::1]:3000/', 'http://[::FFFF:7f00:1]/', 'http://[fe80::1%25eth0]/',
+    'https://api.example.com:443/v1', 'http://api.example.com:80/', 'http://api.example.com:0080/', 'http://x.com:99999/',
+    'http://256.0.0.1/', 'http://1.2.3.4.5/', 'http://0x100000000/', 'http://ex%41mple.com/', 'http://a b.com/',
+    'http://a_b.com/', 'http://10.0.0.1.:8000/', 'http://192.168.0.1/', 'http://foo.0x/', 'http://foo.09/', 'http://1.2.3.09/',
+    'http:example.com/', 'HTTP://Example.com/', 'http://-x-.com/', 'http://\u00e9.local/', 'http://a..b/',
+  ];
+  const urlOut = [];
+  for (const raw of urls) {
+    let parsed = null;
+    try {
+      const x = new URL(raw);
+      parsed = { hostname: x.hostname, host: x.host, port: x.port };
+    } catch {
+      /* invalid */
+    }
+    let guardRes;
+    try {
+      const r = await guard.resolveUpstreamAddresses(raw, { allowedPrivateHosts: ['10.0.0.1:8000'], lookupAll: async () => [{ address: '93.184.216.34', family: 4 }] });
+      guardRes = { addresses: r.addresses.map((a) => [a.address, a.family]) };
+    } catch (e) {
+      guardRes = { error: e.message };
+    }
+    urlOut.push({ raw, parsed, guard: guardRes });
+  }
   write('net', {
+    urls: urlOut,
     hosts: hosts.map((h) => ({ host: h, private: addr.isPrivateHost(h), v4: addr.parseIPv4(h), v6: addr.parseIPv6(h), fake: guard.isFakeIp(h) })),
     headers: headers.map(([h, p]) => ({ header: h, port: p, ok: lb.isAllowedHostHeader(h, p) })),
     guard: guardOut,
@@ -355,6 +383,26 @@ if (want('net')) {
     statuses: statuses.flatMap((st) => ['', 'context too long'].map((m) => ({ status: st, message: m, client: errs.clientStatusOf(st), kind: errs.kindOfStatus(st, m) }))),
     upstream: upstreamTexts.map((t) => ({ text: t, message: errs.upstreamMessage(t) })),
   });
+}
+
+if (want('objkeys')) {
+  const { objKeyTexts } = await import('./cases.mjs');
+  write('objkeys', {
+    cases: objKeyTexts.map((t) => {
+      const o = JSON.parse(t);
+      const parsed = JSON.stringify(o);
+      // mutations: add an index key and a string key, delete one, spread-copy
+      o['7'] = 'n';
+      o.z = 'm';
+      delete o.b;
+      return { input: t, parsed, mutated: JSON.stringify({ ...o, 3: 'q' }) };
+    }),
+  });
+}
+
+if (want('proxy')) {
+  const { recordProxy } = await import('./proxy.mjs');
+  write('proxy', await recordProxy({ gw }));
 }
 
 if (want('e2e')) {

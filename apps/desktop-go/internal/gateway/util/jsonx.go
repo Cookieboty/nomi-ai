@@ -62,11 +62,43 @@ func (o *Obj) Has(k string) bool {
 	return ok
 }
 
-// Set assigns a key; an existing key keeps its position (JS semantics).
+// arrayIndex reports whether k is a JS array index (canonical uint32 below
+// 2^32-1). JS objects list such keys first, ascending, before string keys.
+func arrayIndex(k string) (uint64, bool) {
+	if k == "" || len(k) > 10 || (len(k) > 1 && k[0] == '0') {
+		return 0, false
+	}
+	var n uint64
+	for i := 0; i < len(k); i++ {
+		c := k[i]
+		if c < '0' || c > '9' {
+			return 0, false
+		}
+		n = n*10 + uint64(c-'0')
+	}
+	return n, n < 1<<32-1
+}
+
+// Set assigns a key; an existing key keeps its position. New keys follow JS
+// OrdinaryOwnPropertyKeys order: array-index keys ascending first, then the
+// remaining keys in insertion order.
 func (o *Obj) Set(k string, v any) *Obj {
 	o.init()
 	if _, ok := o.m[k]; !ok {
-		o.keys = append(o.keys, k)
+		if n, idx := arrayIndex(k); idx {
+			i := 0
+			for ; i < len(o.keys); i++ {
+				m, ok := arrayIndex(o.keys[i])
+				if !ok || m > n {
+					break
+				}
+			}
+			o.keys = append(o.keys, "")
+			copy(o.keys[i+1:], o.keys[i:])
+			o.keys[i] = k
+		} else {
+			o.keys = append(o.keys, k)
+		}
 	}
 	o.m[k] = v
 	return o
