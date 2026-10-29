@@ -198,7 +198,7 @@ func Series(recs []*UsageRecord, rg RangeSpec, priceOf PriceOf) []SeriesPoint {
 }
 
 type BreakdownRow struct {
-	Key         string  `json:"key"`
+	Key         *JSV    `json:"key,omitempty"` // r.source 可为 undefined / 非字符串（Map 键按 SameValueZero）
 	Tokens      JSV     `json:"tokens"`
 	Input       JSV     `json:"input"`
 	Output      JSV     `json:"output"`
@@ -254,18 +254,19 @@ func Breakdown(recs []*UsageRecord, by string, priceOf PriceOf, labels *Labels) 
 	m := map[string]*BreakdownRow{}
 	var order []string
 	for _, r := range recs {
-		var key string
+		var kv any
 		switch by {
 		case "source":
-			key = r.Source
+			kv = r.srcV()
 		case "model":
-			key = r.Model
+			kv = r.Model
 		default:
-			key = ProviderOf(r, labels)
+			kv = ProviderOf(r, labels)
 		}
+		key := sameValueZeroKey(kv)
 		row, ok := m[key]
 		if !ok {
-			row = &BreakdownRow{Key: key, Tokens: num0(), Input: num0(), Output: num0()}
+			row = &BreakdownRow{Key: jsvp(kv), Tokens: num0(), Input: num0(), Output: num0()}
 			m[key] = row
 			order = append(order, key)
 		}
@@ -358,7 +359,7 @@ type DetailQuery struct {
 type DetailRow struct {
 	Key        string  `json:"key"`
 	Ts         float64 `json:"ts"`
-	Source     string  `json:"source"`
+	Source     *JSV    `json:"source,omitempty"` // undefined → 省略
 	Provider   string  `json:"provider"`
 	Model      string  `json:"model"`
 	Session    *string `json:"session,omitempty"`
@@ -378,7 +379,7 @@ type SessionFacet struct {
 }
 
 type Facets struct {
-	Sources  []string       `json:"sources"`
+	Sources  []JSV          `json:"sources"`
 	Models   []string       `json:"models"`
 	Sessions []SessionFacet `json:"sessions"`
 }
@@ -392,7 +393,7 @@ type DetailResult struct {
 
 func ToRow(r *UsageRecord, priceOf PriceOf, labels *Labels) DetailRow {
 	return DetailRow{
-		Key: r.Key, Ts: r.Ts, Source: r.Source, Provider: ProviderOf(r, labels), Model: r.Model,
+		Key: r.Key, Ts: r.Ts, Source: jsvp(r.srcV()), Provider: ProviderOf(r, labels), Model: r.Model,
 		Session: r.Session, Project: r.Project,
 		Input: jsvp(r.jv("input")), Output: jsvp(r.jv("output")), CacheRead: jsvp(r.jv("cacheRead")), CacheWrite: jsvp(r.jv("cacheWrite")),
 		Tokens: JSV{TotalTokens(r)}, CostUsd: (*JSNum)(RecordCostOf(r, priceOf)), Estimated: r.Est != nil && *r.Est,
@@ -435,12 +436,13 @@ func Details(all []*UsageRecord, q DetailQuery, priceOf PriceOf, labels *Labels)
 			inRange = append(inRange, r)
 		}
 	}
-	var srcs, models []string
+	var srcs []any
+	var models []string
 	for _, r := range inRange {
-		srcs = append(srcs, r.Source)
+		srcs = append(srcs, r.srcV())
 		models = append(models, r.Model)
 	}
-	facets := Facets{Sources: uniqSorted(srcs), Models: uniqSorted(models), Sessions: []SessionFacet{}}
+	facets := Facets{Sources: jsUniqDefaultSorted(srcs), Models: uniqSorted(models), Sessions: []SessionFacet{}}
 	type sessE struct {
 		id, label string
 		tokens    JSV
@@ -477,7 +479,7 @@ func Details(all []*UsageRecord, q DetailQuery, priceOf PriceOf, labels *Labels)
 
 	var filtered []*UsageRecord
 	for _, r := range inRange {
-		if (q.Source == "" || r.Source == q.Source) &&
+		if (q.Source == "" || jsStrictEqStr(r.srcV(), q.Source)) &&
 			(q.Model == "" || r.Model == q.Model) &&
 			(q.Session == "" || (r.Session != nil && *r.Session == q.Session)) {
 			filtered = append(filtered, r)
@@ -511,7 +513,7 @@ func Details(all []*UsageRecord, q DetailQuery, priceOf PriceOf, labels *Labels)
 		case "model":
 			return float64(coll.CompareString(a.Model, b.Model)) * dir
 		case "source":
-			return float64(coll.CompareString(a.Source, b.Source)) * dir
+			return float64(coll.CompareString(jsLocaleRecv(jsvOrUndef(a.Source), "a.source"), jsStr(jsToPrimitive(jsvOrUndef(b.Source))))) * dir
 		default:
 			return (a.Ts - b.Ts) * dir
 		}

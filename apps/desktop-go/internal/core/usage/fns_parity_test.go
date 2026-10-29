@@ -198,7 +198,19 @@ func TestUsageFnsParity(t *testing.T) {
 		case "heatmap":
 			got = Heatmap(recs, arg[float64](t, c, 0), priceOf, arg[int](t, c, 1))
 		case "details":
-			got = Details(recs, arg[DetailQuery](t, c, 0), priceOf, labels)
+			q := arg[DetailQuery](t, c, 0)
+			got = func() (out any) {
+				defer func() {
+					if e := recover(); e != nil {
+						th, ok := e.(JSThrow)
+						if !ok {
+							panic(e)
+						}
+						out = map[string]any{"__throw": "TypeError: " + th.Msg}
+					}
+				}()
+				return Details(recs, q, priceOf, labels)
+			}()
 		case "detailsBig":
 			big := make([]*UsageRecord, 0, 1200)
 			for i := 0; i < 1200; i++ {
