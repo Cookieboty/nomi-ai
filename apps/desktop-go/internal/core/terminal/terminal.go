@@ -43,7 +43,7 @@ type Source struct {
 	Catalog []string
 }
 
-type Logger interface{ Warn(m string, d any) }
+type Logger interface{ Warn(m string, kv ...any) }
 
 type Deps struct {
 	Root        string

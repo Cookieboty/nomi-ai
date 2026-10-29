@@ -1,7 +1,7 @@
 package shellhandlers
 
 // gateway.* —— packages/core/src/contract/shell.ts 的 gateway() 部分（GatewayService）。
-// gateway.detect 需要 probe/detect.ts 的移植：svc 未注入 Detect 时仍走 UNAVAILABLE 桩（D-B5-GW-1）。
+// gateway.detect = probe/detect.ts 移植（gwstore.Service.Detect）；gateway.terminal* = TerminalCommands（InstallTerminal）。
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/terminal"
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
@@ -29,11 +30,12 @@ func parseObj(raw json.RawMessage) (*u.Obj, error) {
 
 // GatewayProcedures：本文件注册的过程（测试 / 文档用）
 var GatewayProcedures = []string{
-	"gateway.state", "gateway.retry", "gateway.upsertProvider", "gateway.removeProvider",
+	"gateway.state", "gateway.detect", "gateway.retry", "gateway.upsertProvider", "gateway.removeProvider",
 	"gateway.setAssignment", "gateway.setOptions", "gateway.resetToken", "gateway.clearLearned",
 	"gateway.confirmPrivateHost", "gateway.privacyPreview", "gateway.privacyLog", "gateway.privacyClearLog",
 	"gateway.privacyAddAllow", "gateway.privacyRemoveAllow", "gateway.privacyAddSecret",
 	"gateway.privacyRemoveSecret", "gateway.privacySetAction",
+	"gateway.terminalState", "gateway.terminalSet",
 }
 
 // InstallGateway：注册 gateway.*（gateway.changed 由服务的 Broadcast 发出）。svc 为 nil 时 UNAVAILABLE。
@@ -52,6 +54,7 @@ func InstallGateway(r *contract.Router, svc *gwstore.Service) {
 	}
 	str := func(in *u.Obj, k string) string { s, _ := in.Get(k).(string); return s }
 	call("gateway.state", func(g *gwstore.Service, _ *u.Obj) (any, error) { return g.State(), nil })
+	call("gateway.detect", func(g *gwstore.Service, in *u.Obj) (any, error) { return g.Detect(in) })
 	call("gateway.retry", func(g *gwstore.Service, _ *u.Obj) (any, error) { g.Retry(); return nil, nil })
 	call("gateway.upsertProvider", func(g *gwstore.Service, in *u.Obj) (any, error) { return g.UpsertProvider(in) })
 	call("gateway.removeProvider", func(g *gwstore.Service, in *u.Obj) (any, error) {
@@ -82,5 +85,30 @@ func InstallGateway(r *contract.Router, svc *gwstore.Service) {
 	call("gateway.privacyRemoveSecret", func(g *gwstore.Service, in *u.Obj) (any, error) { return g.RemovePrivacySecret(in.Get("id")) })
 	call("gateway.privacySetAction", func(g *gwstore.Service, in *u.Obj) (any, error) {
 		return g.SetPrivacyAction(in.Get("kind"), in.Get("action"))
+	})
+}
+
+// InstallTerminal：gateway.terminalState / gateway.terminalSet（= need(s.terminal, 'terminal')）
+func InstallTerminal(r *contract.Router, t *terminal.Commands) {
+	call := func(name string, fn func(in *u.Obj) (any, error)) {
+		r.Call(name, func(_ context.Context, _ contract.Caller, raw json.RawMessage) (any, error) {
+			if t == nil {
+				return nil, &contract.Error{Code: "UNAVAILABLE", Message: "Service 'terminal' is not available"}
+			}
+			in, err := parseObj(raw)
+			if err != nil {
+				return nil, err
+			}
+			return fn(in)
+		})
+	}
+	call("gateway.terminalState", func(_ *u.Obj) (any, error) { return t.State(), nil })
+	call("gateway.terminalSet", func(in *u.Obj) (any, error) {
+		en, _ := in.Get("enabled").(bool)
+		var add *bool
+		if b, ok := in.Get("addToPath").(bool); ok {
+			add = &b
+		}
+		return t.Set(en, add)
 	})
 }

@@ -387,7 +387,7 @@ func probeWire(wire, base string, key Key, model, auth string, o *Options) *u.Ob
 		ms := o.now() - t0
 		msg := "超时"
 		if !errors.Is(err, context.DeadlineExceeded) {
-			msg = "连接失败：" + fetchErrMessage(err)
+			msg = "连接失败：" + o.fetchErrMessage(err)
 		}
 		return line("wire", wire, "url", base, "ok", false, "model", model, "error", msg, "ms", ms)
 	}
@@ -425,8 +425,11 @@ func probeWire(wire, base string, key Key, model, auth string, o *Options) *u.Ob
 func itoa(n int) string { return u.Stringify(float64(n)) }
 
 // fetchErrMessage：undici fetch 的网络错误统一是 TypeError('fetch failed')；
-// 上游守卫拦下（UpstreamBlockedError）保留原消息。
-func fetchErrMessage(err error) string {
+// 上游守卫拦下（UpstreamBlockedError）保留原消息；注入的 fetchImpl 抛什么就是什么（= (e as Error).message）。
+func (o *Options) fetchErrMessage(err error) string {
+	if o.FetchImpl != nil {
+		return err.Error()
+	}
 	var b *gwnet.UpstreamBlockedError
 	if errors.As(err, &b) {
 		return b.Error()
