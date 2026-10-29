@@ -67,6 +67,8 @@ jobs:
           pnpm exec tsx scripts/parity/record-gwservice.mjs
           pnpm exec tsx scripts/parity/record-gwprocess.mjs
           pnpm exec tsx scripts/parity/record-gwcli.mjs
+          # quality.*：子进程按 TZ 录 3 时区（Windows 的 Node 不按 TZ 切时区），只在 Linux 现场录制并与提交的 golden 对比
+          if [ "$RUNNER_OS" = Linux ]; then (cd scripts/parity && node --import tsx record-quality.mjs); diff -q apps/desktop-go/internal/core/quality/testdata/quality.json "$NOMI_GOLDEN_DIR/quality.json"; fi
           echo "NOMI_LIVE_GOLDENS=$NOMI_GOLDEN_DIR" >> "$GITHUB_ENV"
           if [ "$RUNNER_OS" = Linux ]; then diff -u apps/desktop-go/internal/core/assetproto/testdata/protocols.json "$NOMI_GOLDEN_DIR/protocols.json"; fi
           if [ "$RUNNER_OS" = Linux ]; then for g in gwservice gwprocess gwcli; do diff -u "apps/desktop-go/internal/core/gwstore/testdata/$g.json" "$NOMI_GOLDEN_DIR/$g.json"; done; fi
@@ -76,6 +78,13 @@ jobs:
           mkdir -p frontend/dist && touch frontend/dist/.keep
           TAGS=""; [ "$RUNNER_OS" = Linux ] && TAGS="-tags gtk3"; [ "$RUNNER_OS" = macOS ] && TAGS="-tags private_mac_apis"
           go vet $TAGS ./... && go test $TAGS -race ./...
+      - name: shell parity mutants
+        # 每个变异必须被 shell / quality parity 回放杀死（存活即失败）
+        if: runner.os == 'Linux'
+        run: |
+          set -o pipefail
+          bash scripts/parity/mutate-shell.sh 2>&1 | tee mutate-shell.log
+          tail -1 mutate-shell.log >> "$GITHUB_STEP_SUMMARY"
       - name: chatbg image parity (no -race; Electron goldens)
         working-directory: apps/desktop-go
         shell: bash

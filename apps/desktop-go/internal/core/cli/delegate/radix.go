@@ -14,19 +14,20 @@ func NumberToString36(value float64) string {
 		value = -value
 	}
 	integer := math.Floor(value)
-	fraction := value - integer
-	delta := 0.5 * (math.Nextafter(value, math.Inf(1)) - value)
+	fraction := float64(value - integer)
+	delta := float64(0.5 * float64(math.Nextafter(value, math.Inf(1))-value))
 	delta = math.Max(math.Nextafter(0, 1), delta)
 	var frac []byte
 	if fraction >= delta {
 		for {
-			fraction *= radix
-			delta *= radix
+			// 显式 float64() 舍入：禁止 arm64 把 *radix 与后续加减融合成 FMA（V8 逐步舍入）
+			fraction = float64(fraction * radix)
+			delta = float64(delta * radix)
 			digit := int(fraction)
 			frac = append(frac, chars[digit])
 			fraction -= float64(digit)
 			if fraction > 0.5 || (fraction == 0.5 && digit&1 == 1) {
-				if fraction+delta > 1 {
+				if float64(fraction+delta) > 1 {
 					// 向上进位
 					i := len(frac) - 1
 					for {

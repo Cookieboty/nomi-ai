@@ -1,0 +1,56 @@
+## uninstall key b397f92d-158f-5b6d-b066-7aee5a5f3bb7
+
+DisplayName          : Nomi 2.0.4
+DisplayVersion       : 2.0.4
+Publisher            : Cookieboty
+DisplayIcon          : C:\Users\runneradmin\AppData\Local\Programs\@nomi-aielectron\uninstallerIcon.ico
+InstallLocation      : 
+UninstallString      : "C:\Users\runneradmin\AppData\Local\Programs\@nomi-aielectron\Uninstall Nomi.exe" /currentuser
+QuietUninstallString : "C:\Users\runneradmin\AppData\Local\Programs\@nomi-aielectron\Uninstall Nomi.exe" /currentuser /S
+NoModify             : 1
+NoRepair             : 1
+
+
+## all Nomi uninstall keys
+b397f92d-158f-5b6d-b066-7aee5a5f3bb7
+## HKCU\Software\b397f92d-158f-5b6d-b066-7aee5a5f3bb7
+
+InstallLocation : C:\Users\runneradmin\AppData\Local\Programs\@nomi-aielectron
+
+
+## nomi protocol
+HKCU:\Software\Classes\nomi = 
+HKCU:\Software\Classes\nomi\shell\open\command = 
+HKCU:\Software\Classes\nomi\DefaultIcon = 
+URL Protocol present: False
+## shortcuts
+C:\Users\runneradmin\Desktop\Nomi.lnk -> C:\Users\runneradmin\AppData\Local\Programs\@nomi-aielectron\Nomi.exe [C:\Users\runneradmin\AppData\Local\Programs\@nomi-aielectron]
+C:\Users\runneradmin\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Nomi.lnk -> C:\Users\runneradmin\AppData\Local\Programs\@nomi-aielectron\Nomi.exe [C:\Users\runneradmin\AppData\Local\Programs\@nomi-aielectron]
+## install dir
+path: C:\Users\runneradmin\AppData\Local\Programs\@nomi-aielectron
+
+Name                    Length
+----                    ------
+locales                 
+resources               
+chrome_100_percent.pak  719654
+chrome_200_percent.pak  1269017
+d3dcompiler_47.dll      4741488
+dxcompiler.dll          25745408
+dxil.dll                1509760
+ffmpeg.dll              3113472
+icudtl.dat              10875024
+LICENSE.electron.txt    1096
+LICENSES.chromium.html  20477229
+Nomi.exe                246839296
+resources.pak           12436085
+snapshot_blob.bin       369024
+Uninstall Nomi.exe      182428
+uninstallerIcon.ico     56284
+v8_context_snapshot.bin 742456
+vk_swiftshader_icd.json 106
+vk_swiftshader.dll      5520384
+vulkan-1.dll            939520
+
+
+du: 398.8 MiB
