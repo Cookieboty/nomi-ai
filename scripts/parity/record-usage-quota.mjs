@@ -25,7 +25,9 @@ const win = (w) => {
   if ('resetAt' in w) o.resetAt = num(w.resetAt);
   return o;
 };
-const reading = (r) => (r ? { ...r, windows: r.windows.map(win) } : r);
+// plan 标记：{ $js: 'proto' } → Object.prototype，{ $js: 'fn' } → Object.prototype.toString（codexRateLimits 原型链取值）
+const jsPlan = (p) => (p && typeof p === 'object' ? (p.$js === 'proto' ? Object.prototype : Object.prototype.toString) : p);
+const reading = (r) => (r ? { ...r, windows: r.windows.map(win), ...('plan' in r ? { plan: jsPlan(r.plan) } : {}) } : r);
 const S = (v) => (v === undefined ? '__undef__' : JSON.stringify(v));
 
 /* ---------------- sanitizeWindows ---------------- */
@@ -71,6 +73,9 @@ const registryScripts = [
     { op: 'register', src: { id: 'claude', label: 'Claude 3', reading: { windows: [W('w', 100)], updatedAt: 9, plan: '', origin: 'usage-cmd', stale: false } } },
     { op: 'collect', now: NOW, placeholders: [{ id: 'z', label: 'Z' }, { id: 'z', label: 'Z2' }] },
     { op: 'register', src: { id: 'empty', label: 'E', reading: { windows: [], updatedAt: 1, plan: 'P' } } },
+    { op: 'collect', now: NOW, placeholders: [] },
+    { op: 'register', src: { id: 'codex', label: 'Codex', reading: { windows: [W('primary', 4)], updatedAt: 2, origin: 'app-server', plan: { $js: 'proto' } } } },
+    { op: 'register', src: { id: 'claude', label: 'Claude 4', reading: { windows: [W('w', 5)], updatedAt: 3, plan: { $js: 'fn' }, origin: 'usage-cmd' } } },
     { op: 'collect', now: NOW, placeholders: [] },
   ],
 ];
@@ -176,6 +181,10 @@ const cacheScripts = [
     { op: 'get' }, { op: 'ident' },
     { op: 'observe', fp: 'w' },
     { op: 'get' }, { op: 'ident' }, { op: 'retry' },
+    { op: 'tick', ms: 600_000 },
+    { op: 'refresh', fp: null, load: { now: { kind: 'ok', reading: R(32, { plan: { $js: 'proto' } }), identity: 'w' } }, as: 'p4' },
+    { op: 'await', p: 'p4' },
+    { op: 'get' }, { op: 'snapshot' },
     { op: 'clear' }, { op: 'clear' },
   ],
   // onChange 抛错不影响

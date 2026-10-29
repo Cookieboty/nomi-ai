@@ -30,6 +30,13 @@ const BIN = path.join(here, process.platform === 'win32' ? 'usage-mock-cli.cmd' 
 const MISSING = path.join(here, 'no-such-usage-cli');
 
 /* ---------------- 纯函数 ---------------- */
+// plan 的 JS 值类别（JSON 看不出函数与缺失的区别，单独记录）
+const planKind = (rd) => {
+  if (!rd || !('plan' in rd)) return 'none';
+  const p = rd.plan;
+  if (p === Object.prototype) return 'Object.prototype';
+  return typeof p;
+};
 const rl = (o, extra = {}) => ({ rateLimits: o, ...extra });
 const mapCases = [
   null, 1, 'x', [], {}, { rateLimits: null }, { rateLimits: [] }, rl({}),
@@ -43,7 +50,15 @@ const mapCases = [
   { rateLimitsByLimitId: { codex: [] }, rateLimits: { primary: { usedPercent: 2 }, planType: 7 } },
   { rateLimitsByLimitId: null, rateLimits: { primary: [], secondary: { usedPercent: 3 } } },
   { rateLimitsByLimitId: { other: {} }, rateLimits: { primary: { usedPercent: 4 }, planType: '' } },
-].map((input, i) => ({ input, out: J(CX.mapCodexRateLimits(input, NOW + i, SALT)) }));
+  // planType 命中 PLAN_LABEL 原型链：__proto__ → Object.prototype（JSON {}），方法名 → 函数（JSON 丢弃）
+  ...['__proto__', 'constructor', 'toString', 'hasOwnProperty', 'valueOf', 'toLocaleString', 'isPrototypeOf',
+    'propertyIsEnumerable', '__defineGetter__', '__defineSetter__', '__lookupGetter__', '__lookupSetter__', 'prototype', '__proto'].map(
+    (planType) => rl({ primary: { usedPercent: 6 }, planType }, { accountId: 'acc-p' })),
+  { rateLimitsByLimitId: { codex: { primary: { usedPercent: 8 }, planType: '__proto__' } } },
+].map((input, i) => {
+  const r = CX.mapCodexRateLimits(input, NOW + i, SALT);
+  return { input, out: J(r), planKind: planKind(r?.reading) };
+});
 const authCases = [
   [undefined, 'Authentication Required to read rate limits'], [undefined, 'please LOG IN'], [undefined, 'signed in elsewhere'],
   [401, 'x'], [400, 'bad request'], [undefined, 'unauthorized'], [undefined, ''], [403, 'Forbidden'], [undefined, 'ΣIGN IN'],
@@ -156,6 +171,9 @@ const codexScenarios = [
   { name: 'output-limit', plan: { big: 300_000 } },
   { name: 'utf16-units-under-limit', plan: { big: 140_000, bigChar: 'é' }, timeoutMs: 600 },
   { name: 'enoent', bin: MISSING },
+  { name: 'ok-proto-plan', plan: { onLine: { 0: [initOk], 2: [id(2, { ...okLimits, rateLimits: { ...okLimits.rateLimits, planType: '__proto__' } })] } } },
+  { name: 'ok-method-plan', plan: { onLine: { 0: [initOk], 2: [id(2, { ...okLimits, rateLimits: { ...okLimits.rateLimits, planType: 'constructor' } })] } } },
+  { name: 'ok-tostring-plan', plan: { onLine: { 0: [initOk], 2: [id(2, { ...okLimits, rateLimits: { ...okLimits.rateLimits, planType: 'toString' } })] } } },
 ];
 const codex = [];
 for (const sc of codexScenarios) {
@@ -173,9 +191,10 @@ for (const sc of codexScenarios) {
     timeoutMs: sc.timeoutMs ?? 15_000,
     salt: () => SALT,
   });
-  const out = J(await r.fetch());
+  const o = await r.fetch();
+  const out = J(o);
   await settle();
-  codex.push({ ...sc, outs: [out], log: readLog(logf), left: leftovers() });
+  codex.push({ ...sc, outs: [out], planKind: planKind(o.reading), log: readLog(logf), left: leftovers() });
 }
 
 const gInit = id(1, { protocolVersion: 1 });
@@ -216,8 +235,8 @@ for (const sc of grokScenarios) {
   await settle();
   grok.push({ ...sc, outs, log: readLog(logf), left: leftovers() });
 }
-fs.rmSync(T, { recursive: true, force: true });
-fs.rmSync(L, { recursive: true, force: true });
+fs.rmSync(T, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+fs.rmSync(L, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
 
 const consts = {
   claudeArgs: CS.CLAUDE_USAGE_ARGS, claudeTimeout: CS.CLAUDE_USAGE_TIMEOUT_MS,

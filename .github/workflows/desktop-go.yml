@@ -12,14 +12,16 @@ on:
 permissions:
   contents: read
 # 之前按 ref 分组且 cancel-in-progress，多个 worker 连续 push feat/2.0.5-go 时前一次 run 被取消
-# （表现为“某些 push 没跑 CI”）。push 改为按 commit 分组且不取消；PR 仍只保留最新一次。
+# （表现为“某些 push 没跑 CI”）。现按分支分组且不取消：同分支一个在跑 + 只保留最新一个排队，旧排队被替换。
+# PR #173（同仓 head = feat/2.0.5-go）的 pull_request 事件跳过 job，push 已覆盖同一提交。
 concurrency:
-  group: desktop-go-${{ github.event_name }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: desktop-go-${{ github.event_name }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: false
 env:
   WAIT: '45' # runner 上冷启动后等待秒数（Linux 本机实测用 120s）
 jobs:
   build:
+    if: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'feat/2.0.5-go') }}
     strategy:
       fail-fast: false
       matrix:
@@ -34,7 +36,7 @@ jobs:
         with: { lfs: true }
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22.23.4, cache: pnpm }
+        with: { node-version: 24.22.0, cache: pnpm }
       - uses: actions/setup-go@v5
         with: { go-version-file: apps/desktop-go/go.mod, cache-dependency-path: apps/desktop-go/go.sum }
       - name: linux deps
@@ -67,7 +69,7 @@ jobs:
           pnpm exec tsx scripts/parity/record-gwservice.mjs
           pnpm exec tsx scripts/parity/record-gwprocess.mjs
           pnpm exec tsx scripts/parity/record-gwcli.mjs
-          # quality.*：子进程按 TZ=<IANA> 录 3 时区（Node 22 的 ICU 在三平台都认 TZ），各平台现场录制并与提交的 golden 对比
+          # quality.*：子进程按 TZ=<IANA> 录 3 时区（Node 的 ICU 在三平台都认 TZ），各平台现场录制并与提交的 golden 对比
           (cd scripts/parity && node --import tsx record-quality.mjs)
           diff -q apps/desktop-go/internal/core/quality/testdata/quality.json "$NOMI_GOLDEN_DIR/quality.json"
           echo "NOMI_LIVE_GOLDENS=$NOMI_GOLDEN_DIR" >> "$GITHUB_ENV"
@@ -170,6 +172,7 @@ jobs:
 
   # shell / quality 变异检查单独成 job（与 build 并行，避免拖长 build、受其 runner 中断影响）；用提交的 golden
   shell-mutants:
+    if: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'feat/2.0.5-go') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:

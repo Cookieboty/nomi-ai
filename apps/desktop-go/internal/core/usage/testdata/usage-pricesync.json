@@ -189,7 +189,7 @@
      "credentials": "omit"
     }
    ],
-   "warns": 0,
+   "warns": [],
    "datas": [
     1
    ]
@@ -241,7 +241,7 @@
      "credentials": "omit"
     }
    ],
-   "warns": 0,
+   "warns": [],
    "datas": []
   },
   {
@@ -290,7 +290,7 @@
      "credentials": "omit"
     }
    ],
-   "warns": 0,
+   "warns": [],
    "datas": []
   },
   {
@@ -339,7 +339,7 @@
      "credentials": "omit"
     }
    ],
-   "warns": 0,
+   "warns": [],
    "datas": []
   },
   {
@@ -497,7 +497,7 @@
      "credentials": "omit"
     }
    ],
-   "warns": 0,
+   "warns": [],
    "datas": [
     1
    ]
@@ -548,7 +548,9 @@
      "credentials": "omit"
     }
    ],
-   "warns": 1,
+   "warns": [
+    "price sync failed | Error: down"
+   ],
    "datas": []
   },
   {
@@ -627,7 +629,7 @@
      "credentials": "omit"
     }
    ],
-   "warns": 0,
+   "warns": [],
    "datas": [
     1
    ]
@@ -763,7 +765,7 @@
      "credentials": "omit"
     }
    ],
-   "warns": 0,
+   "warns": [],
    "datas": [
     1,
     1,
@@ -817,7 +819,9 @@
      "credentials": "omit"
     }
    ],
-   "warns": 1,
+   "warns": [
+    "models data consumer failed | Error: x"
+   ],
    "datas": [
     1
    ]
@@ -841,7 +845,7 @@
    "results": [],
    "saved": "{bad",
    "seen": [],
-   "warns": 0,
+   "warns": [],
    "datas": []
   },
   {
@@ -863,7 +867,7 @@
    "results": [],
    "saved": "{\"entries\":[],\"etag\":\"x\"}",
    "seen": [],
-   "warns": 0,
+   "warns": [],
    "datas": []
   },
   {
@@ -912,7 +916,7 @@
      "credentials": "omit"
     }
    ],
-   "warns": 0,
+   "warns": [],
    "datas": []
   },
   {
@@ -934,7 +938,7 @@
    "results": [],
    "saved": "﻿{\"v\":1,\"etag\":\"W/\\\"abc\\\"\",\"fetchedAt\":100,\"checkedAt\":200,\"tableDate\":\"2026-01-01\",\"entries\":[{\"model\":\"gpt-x-0\",\"input\":0,\"output\":0},{\"model\":\"z\",\"input\":1,\"output\":1,\"label\":\"Z\"}]}",
    "seen": [],
-   "warns": 0,
+   "warns": [],
    "datas": []
   },
   {
@@ -983,8 +987,913 @@
      "credentials": "omit"
     }
    ],
-   "warns": 0,
+   "warns": [],
    "datas": []
+  }
+ ],
+ "redirects": [
+  {
+   "path": "/same",
+   "result": "200 ok",
+   "hits": [
+    {
+     "at": "A/same",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/final",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    }
+   ]
+  },
+  {
+   "path": "/cross",
+   "result": "200 ok",
+   "hits": [
+    {
+     "at": "A/cross",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "B/final",
+     "method": "GET",
+     "h": {
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    }
+   ]
+  },
+  {
+   "path": "/back",
+   "result": "200 ok",
+   "hits": [
+    {
+     "at": "A/back",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "B/toA",
+     "method": "GET",
+     "h": {
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/final",
+     "method": "GET",
+     "h": {
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    }
+   ]
+  },
+  {
+   "path": "/see",
+   "result": "200 ok",
+   "hits": [
+    {
+     "at": "A/see",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/final",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    }
+   ]
+  },
+  {
+   "path": "/tmp",
+   "result": "200 ok",
+   "hits": [
+    {
+     "at": "A/tmp",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/final",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    }
+   ]
+  },
+  {
+   "path": "/perm",
+   "result": "200 ok",
+   "hits": [
+    {
+     "at": "A/perm",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "B/final",
+     "method": "GET",
+     "h": {
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    }
+   ]
+  },
+  {
+   "path": "/chain/20",
+   "result": "200 ok",
+   "hits": [
+    {
+     "at": "A/chain/20",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/chain/19",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/chain/18",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/chain/17",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/chain/16",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/chain/15",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/chain/14",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/chain/13",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/chain/12",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/chain/11",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/chain/10",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/chain/9",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/chain/8",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/chain/7",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/chain/6",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/chain/5",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/chain/4",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/chain/3",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/chain/2",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/chain/1",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/chain/0",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    }
+   ]
+  },
+  {
+   "path": "/chain/21",
+   "result": "TypeError: fetch failed",
+   "hits": [
+    {
+     "at": "A/chain/21",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/chain/20",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/chain/19",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/chain/18",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/chain/17",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/chain/16",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/chain/15",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/chain/14",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/chain/13",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/chain/12",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/chain/11",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/chain/10",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/chain/9",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/chain/8",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/chain/7",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/chain/6",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/chain/5",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/chain/4",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/chain/3",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/chain/2",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    },
+    {
+     "at": "A/chain/1",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    }
+   ]
+  },
+  {
+   "path": "/noloc",
+   "result": "301 ",
+   "hits": [
+    {
+     "at": "A/noloc",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    }
+   ]
+  },
+  {
+   "path": "/ftp",
+   "result": "TypeError: fetch failed",
+   "hits": [
+    {
+     "at": "A/ftp",
+     "method": "GET",
+     "h": {
+      "authorization": "Bearer t",
+      "cookie": "c=1",
+      "proxy-authorization": "Basic p",
+      "x-keep": "k",
+      "accept": "application/json",
+      "accept-encoding": "br, gzip",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node"
+     }
+    }
+   ]
   }
  ]
 }
