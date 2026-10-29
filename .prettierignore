@@ -17,3 +17,5 @@ rive/nomi-complete/**/*.json
 scripts/rive-complete/**/*.json
 docs/mascot/CLOTHING-SWAP-AUDIT.md
 docs/mascot/clothing-swap-inventory.json
+# 契约兼容基线：测试按 JSON.stringify 原样写出与比对（CONTRACT_COMPAT_UPDATE=1）
+e2e/compat/baseline/**

@@ -112,6 +112,10 @@ jobs:
       - name: Root script tests
         run: pnpm run test:root
 
+      # 旧视图（e2e/compat/baseline 里这个 major 首发时的契约）× 新内核（host-node），依赖上一步的 build
+      - name: Contract compat smoke (old view against new core)
+        run: pnpm run test:contract-compat
+
       # 首屏体积预算：只报告（::warning 注解 + job summary），不让 CI 变红；要强制失败加 --strict
       - name: Bundle size budget (informational)
         if: matrix.os == 'ubuntu-latest'

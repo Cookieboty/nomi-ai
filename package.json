@@ -20,6 +20,7 @@
     "test": "node scripts/run-bin.mjs turbo run test && pnpm run test:root",
     "test:root": "vitest run --config vitest.root.config.ts scripts/__tests__",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
+    "test:contract-compat": "vitest run --config vitest.compat.config.ts",
     "test:e2e-cli": "vitest run --config vitest.e2e-cli.config.ts",
     "test:e2e:headed": "playwright test --config playwright.config.ts",
     "smoke:web": "node scripts/dev-web/smoke.mjs",

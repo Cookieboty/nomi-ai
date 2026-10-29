@@ -1,12 +1,13 @@
 # 测试
 
-| 层级         | 位置                                       | 运行                   | 跑什么                                                                                                                                                        |
-| ------------ | ------------------------------------------ | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 单元测试     | `packages/*/src/**`、`packages/*/tests/**` | `pnpm test`            | 各包逻辑；`core` 与 `host-electron` 用 Jest（`packages/{core,host-electron}/tests/unit`），其余包用 Vitest；跑完各包再跑脚本测试                              |
-| 脚本测试     | `scripts/__tests__`                        | `pnpm test:root`       | 仓库级规则：changelog / changeset、发布与签名、electron-builder 配置、turbo 输入、品牌名、角色名扫描、语义事件名、体积预算                                    |
-| 无界面 E2E   | `e2e/tests`                                | `pnpm test:e2e`        | 不启动 Electron：真实内核（`createCore`）跑在无界面宿主 `host-node` 上，视图侧客户端经 in-process / WebSocket 传输连进来，假 LLM 与测试工具装进内核的插件宿主 |
-| 浏览器冒烟   | `scripts/dev-web/smoke.mjs`                | `pnpm smoke:web`       | ai-chat 开发页在 Playwright 的 Chromium 里经 WebSocket 连开发态内核（`pnpm dev:web`）                                                                         |
-| 真实应用 E2E | `e2e-headed/tests`                         | `pnpm test:e2e:headed` | Playwright 启动真实 Electron，操作界面                                                                                                                        |
+| 层级         | 位置                                       | 运行                        | 跑什么                                                                                                                                                                                                                                   |
+| ------------ | ------------------------------------------ | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 单元测试     | `packages/*/src/**`、`packages/*/tests/**` | `pnpm test`                 | 各包逻辑；`core` 与 `host-electron` 用 Jest（`packages/{core,host-electron}/tests/unit`），其余包用 Vitest；跑完各包再跑脚本测试                                                                                                         |
+| 脚本测试     | `scripts/__tests__`                        | `pnpm test:root`            | 仓库级规则：changelog / changeset、发布与签名、electron-builder 配置、turbo 输入、品牌名、角色名扫描、语义事件名、体积预算                                                                                                               |
+| 无界面 E2E   | `e2e/tests`                                | `pnpm test:e2e`             | 不启动 Electron：真实内核（`createCore`）跑在无界面宿主 `host-node` 上，视图侧客户端经 in-process / WebSocket 传输连进来，假 LLM 与测试工具装进内核的插件宿主                                                                            |
+| 契约兼容冒烟 | `e2e/compat`                               | `pnpm test:contract-compat` | 旧视图 × 新内核：按 `e2e/compat/baseline/v<major>.json` 重建这个 major 首发时的契约，真实客户端握手连 host-node 上的内核；过程 / 事件只增不删、启动读取与事件按旧 schema 解析。依赖 build；升 major 时 `CONTRACT_COMPAT_UPDATE=1` 换基线 |
+| 浏览器冒烟   | `scripts/dev-web/smoke.mjs`                | `pnpm smoke:web`            | ai-chat 开发页在 Playwright 的 Chromium 里经 WebSocket 连开发态内核（`pnpm dev:web`）                                                                                                                                                    |
+| 真实应用 E2E | `e2e-headed/tests`                         | `pnpm test:e2e:headed`      | Playwright 启动真实 Electron，操作界面                                                                                                                                                                                                   |
 
 ## 无界面 E2E（`e2e/`，Vitest，8 个文件 / 23 个用例）
 
