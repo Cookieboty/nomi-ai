@@ -466,7 +466,15 @@ func NewUsageService(d ServiceDeps) *UsageService {
 	s.grokCache.SetOnChange(s.saveQuota)
 	cd := ClaudeFetcherDeps{Now: d.Now, Env: func() *util.Obj { return ClaudeUsageEnv(s.accountLaunch("claude").env) }}
 	if d.ClaudeUsage != nil {
-		cd = *d.ClaudeUsage
+		// { now, env, ...d.claudeUsage }：只覆盖调用方给了的字段
+		o := *d.ClaudeUsage
+		if o.Now == nil {
+			o.Now = cd.Now
+		}
+		if o.Env == nil {
+			o.Env = cd.Env
+		}
+		cd = o
 	}
 	s.claudeFetcher = NewClaudeUsageFetcher(cd)
 	xd := CodexRPCDeps{Now: d.Now, Salt: func() string { return s.salt },
@@ -477,7 +485,15 @@ func NewUsageService(d ServiceDeps) *UsageService {
 	s.codexReader = NewCodexRateLimitReader(xd)
 	gd := GrokBillingDeps{Now: d.Now, Env: func() *util.Obj { return s.accountLaunch("grok").env }}
 	if d.GrokBilling != nil {
-		gd = *d.GrokBilling
+		// { now, env, ...d.grokBilling }
+		o := *d.GrokBilling
+		if o.Now == nil {
+			o.Now = gd.Now
+		}
+		if o.Env == nil {
+			o.Env = gd.Env
+		}
+		gd = o
 	}
 	s.grokFetcher = NewGrokBillingFetcher(gd)
 	home := ""
@@ -2116,6 +2132,8 @@ func (s *UsageService) EndpointUsage(source string) *util.Obj {
 	o := util.NewObj("source", source, "today", Summarize(todayRecs, priceOf), "week", Summarize(recs, priceOf),
 		"series", toAny(Series(recs, week, priceOf)), "byModel", toAny(Breakdown(recs, "model", priceOf, s.labels())),
 		"byProvider", toAny(Breakdown(recs, "provider", priceOf, s.labels())))
+	// lastActivityAt：number | null，键总在
+	o.Set("lastActivityAt", nil)
 	if last, ok := s.Ledger.LastTs(source); ok {
 		o.Set("lastActivityAt", last)
 	}
@@ -2188,7 +2206,7 @@ func (s *UsageService) changed() {
 	if s.broadcast != nil {
 		return
 	}
-	s.broadcast = jsrt.SetTimeout(broadcastDebounceMs*time.Millisecond, func() {
+	s.broadcast = svcSetTimeout(broadcastDebounceMs*time.Millisecond, func() {
 		s.broadcast = nil
 		if s.d.Publish != nil {
 			s.d.Publish("usage.changed", nil)
@@ -2299,3 +2317,6 @@ func EndpointSourceOf(v any) string {
 	}
 	return "nomi"
 }
+
+// svcSetTimeout：usage.changed 去抖用的 setTimeout（测试替换成假时钟队列）
+var svcSetTimeout = jsrt.SetTimeout
