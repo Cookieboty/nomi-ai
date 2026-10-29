@@ -308,6 +308,17 @@ func main() {
 				sh.Show(shell.Chat)
 			}
 		},
+		OpenChatOnceLoaded: func() func(func()) {
+			if l, ok := sh.(interface {
+				ShowOnceLoaded(shell.WindowKind) func(func())
+			}); ok {
+				return l.ShowOnceLoaded(shell.Chat)
+			}
+			if sh != nil {
+				sh.Show(shell.Chat)
+			}
+			return nil
+		},
 		DefaultWakePhrase: func() string {
 			for _, p := range []*character.Pack{charSvc.Resolved(), charSvc.Builtin()} {
 				if p != nil {

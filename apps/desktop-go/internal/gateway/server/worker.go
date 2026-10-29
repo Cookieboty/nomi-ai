@@ -114,6 +114,10 @@ func RunGatewayWorker(port WorkerPort, hooks GatewayHooks) {
 		done = d.Done() // the in-process "child" was killed (process exit)
 	}
 	go func() {
+		// 进程内「子进程」：循环结束（网关已 Stop、会话已落盘）即「进程退出」
+		if f, ok := port.(interface{ Finished() }); ok {
+			defer f.Finished()
+		}
 		for {
 			var m WorkerInbound
 			select {

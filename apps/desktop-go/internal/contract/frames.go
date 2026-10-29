@@ -47,7 +47,13 @@ type ErrorPayload struct {
 	Message string `json:"message"`
 }
 
-type Caller struct{ Surface string }
+// Caller：调用方。ID = 契约的 caller.id（Electron 是 webContents id；Go 宿主按连接分配，从 1 起）；
+// Done 在调用方断开（窗口销毁 / 连接关闭）时关闭，对应 webContents 的 'destroyed'。
+type Caller struct {
+	Surface string
+	ID      int
+	Done    <-chan struct{}
+}
 
 // CallFunc 处理 query / mutation
 type CallFunc func(ctx context.Context, c Caller, input json.RawMessage) (any, error)

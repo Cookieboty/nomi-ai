@@ -15,7 +15,9 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -75,14 +77,18 @@ type golden struct {
 
 var parityChecks int
 
-func load(t *testing.T) golden {
+func goldenPath() string {
 	p := filepath.Join("testdata", "parity-b9.json")
 	if d := os.Getenv("NOMI_LIVE_GOLDENS"); d != "" {
 		if _, err := os.Stat(filepath.Join(d, "parity-b9.json")); err == nil {
 			p = filepath.Join(d, "parity-b9.json")
 		}
 	}
-	b, err := os.ReadFile(p)
+	return p
+}
+
+func load(t *testing.T) golden {
+	b, err := os.ReadFile(goldenPath())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -397,8 +403,35 @@ func TestParityB9CloudASR(t *testing.T) {
 			if a := r.Header.Get("Authorization"); a != "" {
 				auth = a
 			}
+			ct := r.Header.Get("Content-Type")
+			boundary := ""
+			if m := regexp.MustCompile(`boundary=(.*)$`).FindStringSubmatch(ct); m != nil {
+				boundary = m[1]
+			}
+			norm := func(v string) string {
+				if boundary == "" {
+					return v
+				}
+				return strings.ReplaceAll(v, boundary, "BOUNDARY")
+			}
+			headers := [][]any{{"host", "HOST"}}
+			for k, vs := range r.Header {
+				lk := strings.ToLower(k)
+				if lk == "connection" {
+					continue
+				}
+				for _, v := range vs {
+					headers = append(headers, []any{lk, norm(v)})
+				}
+			}
+			sort.SliceStable(headers, func(i, j int) bool { return headers[i][0].(string) < headers[j][0].(string) })
+			lat := make([]rune, len(body))
+			for i, c := range body {
+				lat[i] = rune(c)
+			}
 			seen = util.NewObj("method", r.Method, "url", r.URL.RequestURI(), "auth", auth,
-				"multipart", regexp.MustCompile(`^multipart/form-data; boundary=`).MatchString(r.Header.Get("Content-Type")), "fields", fields)
+				"multipart", regexp.MustCompile(`^multipart/form-data; boundary=`).MatchString(ct), "fields", fields,
+				"boundary", regexp.MustCompile(`^----formdata-undici-0\d{11}$`).MatchString(boundary), "headers", headers, "body", norm(string(lat)))
 			w.Header().Set("content-type", "text/plain")
 			w.WriteHeader(c.Resp.Status)
 			_, _ = w.Write([]byte(c.Resp.Body))
@@ -459,3 +492,33 @@ func TestParityB9Speech(t *testing.T) {
 }
 
 func TestParityB9Count(t *testing.T) { t.Logf("parity checks so far: %d", parityChecks) }
+
+func TestParityB9Exec(t *testing.T) {
+	var g struct {
+		Exec []struct {
+			Name    string
+			File    string
+			Args    []string
+			Timeout int
+			Abort   int
+			Out     *string
+		}
+	}
+	raw, err := os.ReadFile(goldenPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(raw, &g); err != nil {
+		t.Fatal(err)
+	}
+	if len(g.Exec) == 0 {
+		t.Skip("no exec golden (recorded on win32)")
+	}
+	for _, c := range g.Exec {
+		got := voice.RunExecForTest(c.File, c.Args, time.Duration(c.Timeout)*time.Millisecond, time.Duration(c.Abort)*time.Millisecond)
+		if c.Out == nil || got != *c.Out {
+			t.Errorf("exec %s: got %q want %v", c.Name, got, c.Out)
+		}
+		parityChecks++
+	}
+}
