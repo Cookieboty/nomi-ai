@@ -115,12 +115,12 @@ func (p *RuntimeProvider) Memo() *sync.Map {
 
 // ClientModels is ClientModels.
 type ClientModels struct {
-	Main     string            `json:"main,omitempty"`
-	Small    string            `json:"small,omitempty"`
+	Main     *string           `json:"main,omitempty"`
+	Small    *string           `json:"small,omitempty"`
 	Tiers    map[string]string `json:"tiers,omitempty"`
-	Subagent string            `json:"subagent,omitempty"`
-	Tools    string            `json:"tools,omitempty"`
-	Summary  string            `json:"summary,omitempty"`
+	Subagent *string           `json:"subagent,omitempty"`
+	Tools    *string           `json:"tools,omitempty"`
+	Summary  *string           `json:"summary,omitempty"`
 }
 
 // ClientRuntime is ClientRuntime.
