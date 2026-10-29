@@ -382,6 +382,13 @@ func runAcctScenario(t *testing.T, sc *util.Obj, want []any, bin string) {
 				j := jv.(*util.Obj)
 				ss := j.Get("sessions").([]any)
 				r = util.NewObj("keys", strs(j.Keys()), "n", float64(len(ss)), "first", ss[0], "last", ss[len(ss)-1])
+			case "histLabel":
+				r, err = svc.HistoryAccountLabel(s(0), s(1))
+				if r == nil && err == nil {
+					r = util.Undefined
+				}
+			case "histSession":
+				r, err = undefIfNil(svc.HistorySessionAccount(s(0), s(1)))
 			case "sessionAccount":
 				r, err = undefIfNil(svc.SessionAccount(s(0), s(1)))
 			case "broadcast":
