@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/usage"
@@ -137,7 +136,7 @@ func TestCliLeaves3Golden(t *testing.T) {
 		tb.Note("claude", "s1", "m9")
 		tb.Note("codex", "s2", "m2")
 		set("sm:note:get", []any{opt(tb.Get("claude", "s1")), opt(tb.Get("claude", "  s1  ")), opt(tb.Get("codex", "s2"))})
-		time.Sleep(200 * time.Millisecond)
+		tb.Flush()
 		raw, _ := os.ReadFile(filepath.Join(d, "session-models.json"))
 		set("sm:note:file", string(raw))
 	}
@@ -150,6 +149,7 @@ func TestCliLeaves3Golden(t *testing.T) {
 		for _, s := range []string{"s0", "s2", "s3", "s4", "s" + strconv.Itoa(MaxSessions+2)} {
 			out = append(out, opt(tb.Get("claude", s)))
 		}
+		tb.Flush()
 		set("sm:cap:get", out)
 	}
 
