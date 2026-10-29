@@ -2065,6 +2065,499 @@
    ]
   },
   {
+   "name": "claudeMaxItems",
+   "deps": {
+    "open": [],
+    "tab": {
+     "reused": false
+    },
+    "trash": true
+   },
+   "files": [
+    {
+     "p": "home/.claude/projects/-work-app/m{i}.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"m{i}\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"many {i}\"}}\n{\"type\":\"assistant\",\"sessionId\":\"m{i}\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 10000,
+     "json": true,
+     "times": 520
+    }
+   ],
+   "steps": [
+    [
+     "list",
+     "claude",
+     {
+      "offset": 480
+     }
+    ],
+    [
+     "list",
+     "claude",
+     {
+      "offset": 460
+     }
+    ],
+    [
+     "index",
+     "claude",
+     {
+      "offset": 499,
+      "limit": 5
+     }
+    ],
+    [
+     "index",
+     "claude",
+     {
+      "offset": 500
+     }
+    ]
+   ],
+   "out": [
+    {
+     "v": {
+      "hasMore": false,
+      "items": [
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m039",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m039",
+        "title": "many 039",
+        "updatedAt": 49000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m038",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m038",
+        "title": "many 038",
+        "updatedAt": 48000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m037",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m037",
+        "title": "many 037",
+        "updatedAt": 47000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m036",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m036",
+        "title": "many 036",
+        "updatedAt": 46000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m035",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m035",
+        "title": "many 035",
+        "updatedAt": 45000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m034",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m034",
+        "title": "many 034",
+        "updatedAt": 44000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m033",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m033",
+        "title": "many 033",
+        "updatedAt": 43000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m032",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m032",
+        "title": "many 032",
+        "updatedAt": 42000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m031",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m031",
+        "title": "many 031",
+        "updatedAt": 41000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m030",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m030",
+        "title": "many 030",
+        "updatedAt": 40000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m029",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m029",
+        "title": "many 029",
+        "updatedAt": 39000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m028",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m028",
+        "title": "many 028",
+        "updatedAt": 38000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m027",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m027",
+        "title": "many 027",
+        "updatedAt": 37000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m026",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m026",
+        "title": "many 026",
+        "updatedAt": 36000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m025",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m025",
+        "title": "many 025",
+        "updatedAt": 35000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m024",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m024",
+        "title": "many 024",
+        "updatedAt": 34000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m023",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m023",
+        "title": "many 023",
+        "updatedAt": 33000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m022",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m022",
+        "title": "many 022",
+        "updatedAt": 32000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m021",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m021",
+        "title": "many 021",
+        "updatedAt": 31000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m020",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m020",
+        "title": "many 020",
+        "updatedAt": 30000
+       }
+      ],
+      "nextOffset": null
+     }
+    },
+    {
+     "v": {
+      "hasMore": true,
+      "items": [
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m059",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m059",
+        "title": "many 059",
+        "updatedAt": 69000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m058",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m058",
+        "title": "many 058",
+        "updatedAt": 68000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m057",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m057",
+        "title": "many 057",
+        "updatedAt": 67000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m056",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m056",
+        "title": "many 056",
+        "updatedAt": 66000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m055",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m055",
+        "title": "many 055",
+        "updatedAt": 65000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m054",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m054",
+        "title": "many 054",
+        "updatedAt": 64000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m053",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m053",
+        "title": "many 053",
+        "updatedAt": 63000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m052",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m052",
+        "title": "many 052",
+        "updatedAt": 62000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m051",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m051",
+        "title": "many 051",
+        "updatedAt": 61000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m050",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m050",
+        "title": "many 050",
+        "updatedAt": 60000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m049",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m049",
+        "title": "many 049",
+        "updatedAt": 59000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m048",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m048",
+        "title": "many 048",
+        "updatedAt": 58000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m047",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m047",
+        "title": "many 047",
+        "updatedAt": 57000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m046",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m046",
+        "title": "many 046",
+        "updatedAt": 56000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m045",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m045",
+        "title": "many 045",
+        "updatedAt": 55000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m044",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m044",
+        "title": "many 044",
+        "updatedAt": 54000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m043",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m043",
+        "title": "many 043",
+        "updatedAt": 53000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m042",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m042",
+        "title": "many 042",
+        "updatedAt": 52000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m041",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m041",
+        "title": "many 041",
+        "updatedAt": 51000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m040",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m040",
+        "title": "many 040",
+        "updatedAt": 50000
+       }
+      ],
+      "nextOffset": 480
+     }
+    },
+    {
+     "v": {
+      "hasMore": false,
+      "items": [
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m020",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m020",
+        "title": "many 020",
+        "updatedAt": 30000
+       }
+      ],
+      "nextOffset": null
+     }
+    },
+    {
+     "v": {
+      "hasMore": false,
+      "items": [],
+      "nextOffset": null
+     }
+    }
+   ]
+  },
+  {
    "name": "claudeIncremental",
    "deps": {
     "open": [],

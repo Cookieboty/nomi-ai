@@ -107,6 +107,8 @@ export const SCENARIOS = [
   ], steps: [['list', 'claude', {}], ['list', 'codex', {}]] },
   { name: 'claudePaging', deps: D0, files: Array.from({ length: 45 }, (_, i) => claude(`s${String(i).padStart(2, '0')}`, `task ${i}`, 10_000 + i * 1000)),
     steps: [['list', 'claude', {}], ['list', 'claude', { offset: 20 }], ['list', 'claude', { offset: 40 }], ['index', 'claude', { offset: 44 }], ['index', 'claude', { offset: 45 }]] },
+  { name: 'claudeMaxItems', deps: D0, files: [{ ...claude('m{i}', 'many {i}', 10_000), times: 520 }],
+    steps: [['list', 'claude', { offset: 480 }], ['list', 'claude', { offset: 460 }], ['index', 'claude', { offset: 499, limit: 5 }], ['index', 'claude', { offset: 500 }]] },
   { name: 'claudeIncremental', deps: D0, files: [claude('a', 'first', 1000), claude('b', 'second', 2000)], steps: [
     ['list', 'claude', {}], ['write', claude('a', 'first renamed', 3000)], ['list', 'claude', {}], ['list', 'claude', { force: true }],
     ['rm', 'home/.claude/projects/-work-app/b.jsonl'], ['list', 'claude', { force: true }], ['transcript', 'claude', 'b'],
@@ -198,6 +200,14 @@ const zc = (b) => {
   return n ? n(b) : execFileSync('zstd', ['-c', '-q'], { input: b });
 };
 
+// times：按 {i}（3 位补零）展开成 N 个文件，mtime 逐个 +1000
+function expand(f) {
+  if (!f.times) return [f];
+  return Array.from({ length: f.times }, (_, i) => {
+    const k = String(i).padStart(3, '0');
+    return { ...f, times: undefined, p: f.p.replaceAll('{i}', k), text: f.text.replaceAll('{i}', k), mtime: f.mtime + i * 1000 };
+  });
+}
 function materialize(SB, f) {
   const enc = encodeURIComponent(SB);
   const js = JSON.stringify(SB).slice(1, -1);
@@ -232,7 +242,7 @@ export async function runScenario(sc) {
   };
   fs.mkdirSync(path.join(SB, 'work'), { recursive: true });
   fs.mkdirSync(path.join(SB, 'home'), { recursive: true });
-  for (const f of sc.files) materialize(SB, f);
+  for (const f of sc.files.flatMap(expand)) materialize(SB, f);
   const d = sc.deps;
   const calls = [];
   let rows = d?.rows ?? [];
