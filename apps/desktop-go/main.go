@@ -14,6 +14,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/tools"
 	aitools "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/tools"
 	aiproviders "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/providers"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/runtime/aifacade"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/runtime/airouter"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/runtime/aisdk/mcpbridge"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/sdk/facade"
@@ -299,6 +300,13 @@ func main() {
 		PrepareChat: desktopSvc.ChatPrep().PrepareChat})
 	chatHandlers.Register(router)
 	defer chatHandlers.Dispose()
+	// AIClient 门面：ai.sessions / tools / memory / asr / tts / avatar（32 过程，parity b7s-aifacade）。
+	// 画像落 userData/ai-chat/memory/user_profile.json；引导期 export() 同 createAiSdkBooter。
+	nowMs := func() float64 { return float64(time.Now().UnixMilli()) }
+	userProfile := aifacade.NewProfileStore(aifacade.ProfilePath(userData), nowMs)
+	userProfile.Export()
+	aifacade.New(aifacade.Options{Now: nowMs, Tools: toolRegistry, Profile: userProfile, Avatar: true,
+		AvatarHost: func(cue *util.Obj) { router.Emit("avatar.event", cue) }, Emit: router.Emit}).Register(router)
 	shellhandlers.InstallGateway(router, gatewaySvc)
 	shellhandlers.InstallTerminal(router, shellhandlers.NewGatewayTerminal(userData, gatewaySvc, deps.StdLogger{Prefix: "[gateway]"}))
 	// 批次 9：语音输入（voice.*）/ 朗读（tts.*）/ nav.openVoiceSettings
