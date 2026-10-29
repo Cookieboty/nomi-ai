@@ -348,3 +348,7 @@ func envGet(env []string, key string, fold bool) (string, bool) {
 	}
 	return "", false
 }
+
+// LibuvEnv：给不走 Spawn、直接用 exec.Cmd 的调用方补上 Node child_process 在 Windows 上
+// 自动注入的 libuv required_vars（其它平台原样返回）。
+func LibuvEnv(env []string) []string { return libuvEnv(env) }
