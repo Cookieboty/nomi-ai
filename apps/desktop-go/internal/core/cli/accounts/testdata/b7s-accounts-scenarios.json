@@ -1,0 +1,100 @@
+[
+ {"name": "crud", "steps": [
+  ["list"], ["create", "claude", "Work"], ["create", "codex"], ["create", "gemini", "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"], ["create", "grok", ""],
+  ["create", "bogus"], ["list", "claude"], ["defaultId", "claude"], ["setDefault", "claude", "$1"], ["setDefault", "claude", "$1"],
+  ["setDefault", "codex", "$1"], ["setDefault", "claude", "nope"], ["defaultId", "claude"], ["defaultDir", "claude"], ["defaultDir", "codex"],
+  ["launch", "claude", null], ["launch", "claude", "local-claude"], ["launch", "codex", null], ["launch", "gemini", "$3"], ["launch", "grok", "nope"],
+  ["resolve", "claude", "nope"], ["resolve", "codex", "$2"], ["resolve", "codex", "$1"], ["rename", "$1", "  New  "], ["rename", "$1", "   "], ["rename", "nope", "x"],
+  ["rename", "local-codex", "Mine"], ["identityKey", "claude", null], ["identityKey", "claude", "$1"],
+  ["loginTarget", "$2", ["CODEX_HOME", "HOME", "CLAUDE_CONFIG_DIR"]], ["loginTarget", "local-gemini", ["GEMINI_CLI_HOME", "HOME"]], ["loginTarget", "nope", []],
+  ["calls"], ["read", "@@SB@@/root/accounts.json"], ["reload"], ["list"],
+  ["remove", "local-claude"], ["inUse", "$1", 2], ["remove", "$1"], ["remove", "$1", true], ["inUse", "$1", 0],
+  ["live", {"state": "busy", "pids": [1, 2, 3, 4, 5, 6, 7]}], ["remove", "$1"], ["live", {"state": "unknown", "reason": "no lsof"}], ["remove", "$1"],
+  ["live", "throw"], ["remove", "$1"], ["live", {"state": "free"}], ["remove", "$1"], ["remove", "$1"], ["ls", "@@SB@@/root/claude"], ["defaultId", "claude"],
+  ["calls"], ["parseKind", "claude"], ["parseKind", "bogus"], ["parseKind", 5], ["precheck", "not-installed"], ["precheck", "whatever"], ["broadcast"], ["calls"]
+ ]},
+ {"name": "identity", "steps": [
+  ["mode", "claude", {"status": "noise {\"loggedIn\":true,\"email\":\"Me@X.io\",\"orgName\":\"Org\",\"subscriptionType\":\"max\"}"}],
+  ["create", "claude"], ["refresh", "$1"], ["refresh", "local-claude"], ["cliLog", "claude"], ["list", "claude"],
+  ["mode", "claude", {"status": "garbage"}], ["write", "$d1:claude/.claude.json", "{\"oauthAccount\":{\"emailAddress\":\"f@x.io\",\"organizationName\":\"O2\"}}"], ["refresh", "$1"],
+  ["mode", "claude", {"status": "{\"loggedIn\":false}"}], ["refresh", "$1"], ["identityKey", "claude", "$1"],
+  ["mode", "codex", {"account": {"type": "chatgpt", "email": "C@X.io", "planType": "plus"}, "limits": {"rateLimits": {}, "accountId": "acc-1"}}],
+  ["create", "codex"], ["refresh", "$2"], ["refresh", "$2"], ["cliLog", "codex"], ["find", "codex", "acc-1"], ["find", "codex", " "], ["find", "codex", "zz"], ["histLabel", "codex", "acc-1"], ["histLabel", "codex", "zz"], ["histLabel", "claude", "acc-1"], ["histLabel", "codex", ""],
+  ["mode", "codex", {"account": {"type": "apiKey"}}], ["refresh", "$2"], ["mode", "codex", {"account": null}], ["refresh", "$2"],
+  ["create", "grok"], ["refresh", "$3"], ["create", "gemini"], ["refresh", "$4"],
+  ["write", "$d4:gemini/.gemini/google_accounts.json", "{\"active\":\"G@X.io\"}"], ["write", "$d4:gemini/.gemini/oauth_creds.json", "{}"], ["refresh", "$4"],
+  ["mode", "codex", {"account": null, "limits": {"rateLimits": {}, "accountId": "acc-2"}}], ["create", "codex", "NoMail"], ["refresh", "$5"], ["histLabel", "codex", "acc-2"], ["create", "gemini", "Two"], ["write", "$d6:gemini/.gemini/google_accounts.json", "{\"active\":\"g@x.io\"}"], ["write", "$d6:gemini/.gemini/oauth_creds.json", "{}"],
+  ["refreshAll", "gemini"], ["list", "gemini"], ["refreshAll"], ["refresh", "nope"], ["calls"]
+ ]},
+ {"name": "sessions", "steps": [
+  ["create", "claude", "A"], ["note", "claude", "s1", "$1"], ["note", "claude", " ", "$1"], ["note", "claude", "s1", "$1"], ["note", "claude", "s2", "gone"],
+  ["note", "codex", "s1", "local-codex"], ["idle"], ["read", "@@SB@@/root/session-accounts.json"],
+  ["sessionAccount", "claude", "s1"], ["sessionAccount", "claude", "s2"], ["sessionAccount", "claude", "zz"], ["sessionAccount", "codex", "s1"],
+  ["note", "claude", "s1", "local-claude"], ["note", "claude", "s1", "$1"], ["idle"], ["read", "@@SB@@/root/session-accounts.json"],
+  ["reload"], ["sessionAccount", "claude", "s1"], ["histSession", "claude", "s1"], ["histSession", "codex", "s1"], ["histSession", "dsh", "s1"], ["histSession", "claude", "zz"], ["remove", "$1"], ["histSession", "claude", "s1"], ["sessionAccount", "claude", "s1"], ["calls"]
+ ]},
+ {"name": "sessions-evict", "steps": [
+  ["noteMany", "claude", 5003, "local-claude"], ["note", "claude", "m1", "local-claude"], ["note", "claude", "m4", "gone"], ["idle"], ["sessionsSummary", "@@SB@@/root/session-accounts.json"],
+  ["sessionAccount", "claude", "m0"], ["sessionAccount", "claude", "m3"], ["sessionAccount", "claude", "m5002"], ["reload"], ["sessionAccount", "claude", "m2"], ["sessionAccount", "claude", "m3"], ["calls"]
+ ]},
+ {"name": "sessions-corrupt", "files": [{"p": "root/session-accounts.json", "text": "{\"claude\":{\"a\":5,\"b\":\"x\"},\"codex\":[1]}"}], "steps": [
+  ["sessionAccount", "claude", "a"], ["sessionAccount", "claude", "b"], ["note", "codex", "q", "local-codex"], ["idle"], ["read", "@@SB@@/root/session-accounts.json"], ["calls"]
+ ]},
+ {"name": "logout-real", "steps": [
+  ["mode", "claude", {"status": "{\"loggedIn\":true,\"email\":\"z@x.io\"}"}], ["create", "claude"], ["refresh", "$1"], ["remove", "$1"], ["cliLog", "claude"],
+  ["mode", "codex", {"account": {"type": "chatgpt", "email": "c@x.io"}, "logoutCode": 1}], ["create", "codex"], ["refresh", "$2"], ["remove", "$2"], ["cliLog", "codex"], ["list"], ["calls"]
+ ]},
+ {"name": "logout-injected-darwin", "deps": {"platform": "darwin", "injectLogout": "CLAUDE_CONFIG_DIR", "logoutThrows": true}, "steps": [
+  ["mode", "claude", {"status": "{\"loggedIn\":true,\"email\":\"z@x.io\"}"}], ["create", "claude"], ["refresh", "$1"], ["remove", "$1"],
+  ["create", "claude"], ["prepareLogin", "$2"], ["prepareLogin", "local-claude"], ["remove", "$2"], ["calls"]
+ ]},
+ {"name": "migrate", "files": [
+  {"p": "root/claude.json", "text": "{\"accounts\":[{\"label\":\"A\",\"identity\":{\"key\":\"k\",\"email\":\"a@x\"},\"createdAt\":5},{\"identity\":{\"email\":\"b@x\"}},\"zz\",null]}"},
+  {"p": "root/codex.json", "text": "{bad \"email\": \"e1@x\", \"label\":\"L1\" \"emailAddress\" : \"e2@y\""},
+  {"p": "root/grok.json", "text": "{\"accounts\": 5}"},
+  {"p": "root/backups/x", "text": "1"}, {"p": "root/staging/y", "text": "2"}
+ ], "steps": [["list"], ["ls", "@@SB@@/root"], ["ls", "@@SB@@/root/vault-unreadable-1700000000000"], ["read", "@@SB@@/root/accounts.json"], ["calls"]]},
+ {"name": "migrate-write-fail", "files": [{"p": "root/claude.json", "text": "{\"accounts\":[{\"label\":\"A\"}]}"}, {"p": "root/accounts.json/x", "text": "1"}], "steps": [
+  ["list"], ["ls", "@@SB@@/root"], ["create", "claude"], ["calls"]
+ ]},
+ {"name": "defaults-shapes", "files": [{"p": "root/accounts.json", "text": "{\"version\":2,\"accounts\":[{\"id\":\"x1\",\"kind\":\"claude\",\"label\":\"L\",\"createdAt\":1},{\"id\":\"local-claude\",\"kind\":\"claude\"},5],\"defaults\":\"str\"}"}], "steps": [
+  ["list"], ["defaultId", "claude"], ["setDefault", "claude", "x1"], ["reload"], ["write", "@@SB@@/root/accounts.json", "{\"version\":2,\"accounts\":[],\"defaults\":[]}"], ["reload"],
+  ["setDefault", "claude", "local-claude"], ["read", "@@SB@@/root/accounts.json"], ["write", "@@SB@@/root/accounts.json", "{\"version\":1}"], ["reload"], ["list"], ["calls"]
+ ]},
+ {"name": "login-paste", "steps": [
+  ["mode", "claude", {"login": "paste", "status": "{\"loggedIn\":true,\"email\":\"P@x.io\"}"}], ["loginStart", "claude", null], ["wait", "waiting"],
+  ["input", "$1", " code123 "], ["input", "zz", "x"], ["wait", "done"], ["events"], ["readBin", "claude.input"], ["cliLog", "claude"], ["list", "claude"], ["calls"]
+ ]},
+ {"name": "login-fail", "steps": [
+  ["mode", "claude", {"login": "fail"}], ["loginStart", "claude", null], ["wait", "error"], ["tick", 200], ["events"], ["list", "claude"],
+  ["mode", "claude", {"login": "quiet"}], ["loginStart", "claude", null], ["wait", "error"], ["tick", 200], ["events"], ["list", "claude"], ["calls"]
+ ]},
+ {"name": "login-cancel", "steps": [
+  ["mode", "claude", {"login": "hang"}], ["loginStart", "claude", null], ["wait", "waiting"], ["cancel", "$1"], ["cancel", "$1"], ["tick", 300], ["events"], ["list", "claude"],
+  ["create", "claude"], ["loginStart", "claude", "$2"], ["wait", "waiting"], ["loginStart", "claude", "$2"], ["wait", "cancelled"], ["tick", 300], ["events"], ["dispose"], ["tick", 300], ["events"], ["list", "claude"], ["calls"]
+ ]},
+ {"name": "login-timeout", "deps": {"timeoutMs": 400}, "steps": [
+  ["mode", "claude", {"login": "hang", "text": "no url here\n"}], ["loginStart", "claude", null], ["wait", "error"], ["tick", 200], ["events"], ["list", "claude"], ["calls"]
+ ]},
+ {"name": "login-relogin", "steps": [
+  ["mode", "claude", {"login": "ok", "status": "{\"loggedIn\":false}"}], ["create", "claude", "Keep"], ["loginStart", "claude", "$1"], ["wait", "error"], ["tick", 100], ["events"],
+  ["loginStart", "codex", "$1"], ["loginStart", "claude", "nope"], ["loginStart", "bogus", null], ["list", "claude"], ["calls"]
+ ]},
+ {"name": "login-device", "steps": [
+  ["mode", "codex", {"login": "device", "text": "Open https://auth.openai.com/codex/device\nEnter this one-time code\n  ABCD-EFGH1\n", "account": {"type": "chatgpt", "email": "d@x.io"}}],
+  ["loginStart", "codex", null], ["wait", "done"], ["events"], ["cliLog", "codex"],
+  ["mode", "grok", {"login": "device", "text": "Visit https://accounts.x.ai/device?user_code=WXYZ\nConfirm this code\n\n  WXYZ-1234\n"}],
+  ["loginStart", "grok", null], ["wait", "error"], ["tick", 100], ["events"], ["cliLog", "grok"], ["list"], ["calls"]
+ ]},
+ {"name": "login-gemini", "steps": [
+  ["mode", "gemini", {"login": "ok", "email": "Gm@x.io"}], ["loginStart", "gemini", null], ["wait", "done"], ["tick", 100], ["events"], ["cliLog", "gemini"],
+  ["mode", "gemini", {"login": "err"}], ["loginStart", "gemini", null], ["wait", "error"], ["tick", 200], ["events"],
+  ["mode", "gemini", {"login": "crash"}], ["loginStart", "gemini", null], ["wait", "error"], ["tick", 200], ["events"], ["list", "gemini"], ["calls"]
+ ]},
+ {"name": "login-pure", "steps": [
+  ["isLoginUrl", "https://claude.ai/x", "https://CLAUDE.AI/x", "http://claude.ai/", "https://evil.com/claude.ai", "https://sub.claude.ai/", "https://claude.ai./", "not a url", "https://auth.openai.com:443/a", "https://user@claude.ai/", "https://accounts.google.com/o", "https://accounts.x.ai/d"],
+  ["kcService", "/fixed/dir", "bob"], ["kcService", "/other/", "x"], ["openUrl", "https://claude.ai/ok"], ["openUrl", "https://evil.com/"],
+  ["parseLogin", "", "visit https://a.b/c?d=1.", "https://a.b/x) and https://claude.ai/y", "Paste code here", "one-time code\n  ABCD-EFGH", "Confirm this code\n\n WXYZ-1234 ", "\u001b]8;;https://q.io/z\u0007t\u001b]8;;\u0007"],
+  ["strip", "\u001b[31mred\u001b[0m", "a\u001b]0;title\u0007b", "x\r\ny\rz", "\u001b(Bq\u001b[?25l"], ["calls"]
+ ]}
+]

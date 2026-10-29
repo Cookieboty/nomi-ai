@@ -337,6 +337,277 @@ async function recordUpdates() {
 
 const dir = process.env.NOMI_GOLDEN_DIR || path.join(root, 'apps/desktop-go/internal/core/shellhandlers/testdata');
 fs.mkdirSync(dir, { recursive: true });
+/** LoggerService：级别过滤 / 控制台行 / app.log JSON 行 / meta 脱敏 / 轮转 */
+export const LOG = [
+  {
+    name: 'levels', packaged: false,
+    ops: [
+      ['error', 'e1'], ['warn', 'w1', { a: 1 }], ['info', 'i1', { apiKey: 'k', nested: { Token: 't', ok: [1, { password: 'p' }] } }], ['debug', 'd-hidden'],
+      ['setLevel', 3], ['debug', 'd1', null], ['info', 'i2', 0], ['info', 'i3', ''], ['info', 'i4', 'str'], ['info', 'ctx', { x: true }, 'Win'],
+      ['setLevel', 0], ['warn', 'w-hidden'], ['error', 'e2', [1, 'a', { secret: null, cookie: undefined }]], ['getLevel'],
+      ['setLevel', 1], ['info', 'i-hidden'], ['warn', 'w2', { email: 'a@b', deep: { a: { b: { c: { d: { e: { f: { g: { h: 1 } } } } } } } } }],
+    ],
+  },
+  { name: 'packagedQuiet', packaged: true, ops: [['setLevel', 3], ['error', 'e'], ['warn', 'w'], ['info', 'i'], ['debug', 'd']] },
+  { name: 'packagedDebugEnv', packaged: true, env: { NOMI_DEBUG: '1' }, ops: [['setLevel', 3], ['info', 'i'], ['debug', 'd']] },
+  {
+    name: 'rotate', packaged: false,
+    files: [['app.log', 10 * 1024 * 1024 + 1], ['app.1.log', 5], ['app.3.log', 7], ['app.4.log', 9]],
+    ops: [['info', 'after rotate']],
+  },
+  { name: 'noRotateAtLimit', packaged: false, files: [['app.log', 10 * 1024 * 1024]], ops: [['info', 'x']] },
+];
+
+async function recordLogger() {
+  const { LoggerService } = await core('services/LoggerService.ts');
+  const RealDate = globalThis.Date;
+  class FixedDate extends RealDate { constructor(...a) { super(...(a.length ? a : [NOW])); } static now() { return NOW; } }
+  const saved = { error: console.error, warn: console.warn, info: console.info, debug: console.debug, env: process.env.NOMI_DEBUG };
+  const out = [];
+  for (const sc of LOG) {
+    const dir = path.join(SB, 'log', sc.name);
+    fs.mkdirSync(dir, { recursive: true });
+    for (const [n, size] of sc.files || []) { const fd = fs.openSync(path.join(dir, n), 'w'); fs.ftruncateSync(fd, size); fs.closeSync(fd); }
+    if (sc.env?.NOMI_DEBUG) process.env.NOMI_DEBUG = sc.env.NOMI_DEBUG; else delete process.env.NOMI_DEBUG;
+    const consoleLines = [];
+    for (const k of ['error', 'warn', 'info', 'debug']) console[k] = (m) => consoleLines.push([k, m]);
+    globalThis.Date = FixedDate;
+    const l = new LoggerService({ ports: { paths: { logs: () => dir }, app: { isPackaged: () => sc.packaged } } });
+    const results = [];
+    for (const op of sc.ops) {
+      if (op[0] === 'setLevel') l.setLevel(op[1]);
+      else if (op[0] === 'getLevel') results.push(l.getLevel());
+      else if (op.length === 2) l[op[0]](op[1]);
+      else l[op[0]](op[1], op[2], op[3]);
+    }
+    l.flushSync();
+    globalThis.Date = RealDate;
+    Object.assign(console, { error: saved.error, warn: saved.warn, info: saved.info, debug: saved.debug });
+    const files = {};
+    for (const n of fs.readdirSync(dir).sort()) {
+      const st = fs.statSync(path.join(dir, n));
+      files[n] = st.size > 1024 * 1024 ? { size: st.size } : { text: fs.readFileSync(path.join(dir, n), 'utf8') };
+    }
+    // undefined meta 用 {"$undef":1} 标记（JSON 写不出 undefined）
+    const ops = sc.ops.map((o) => (o.length >= 3 && o[2] === undefined ? [o[0], o[1], { $undef: 1 }] : o));
+    out.push({ name: sc.name, packaged: sc.packaged, env: sc.env || {}, files: sc.files || [], ops, console: consoleLines, results, after: files });
+  }
+  if (saved.env === undefined) delete process.env.NOMI_DEBUG; else process.env.NOMI_DEBUG = saved.env;
+  return out;
+}
+
+/** CliTrace：tap 子进程收发 → logs/cli-YYYY-MM-DD.jsonl（脱敏、截断、日上限、开关） */
+export const TRACE = [
+  {
+    name: 'basic', ops: [
+      ['spawn', '/usr/bin/claude', ['-p', '--api-key', 'sk-abcdefghijklmnopqrstuvwx'], 'tab-1', 4242],
+      ['in', '{"type":"user","text":"hi Bearer abcdefghijklmnopqrstu"}\n'], ['out', 'hello\n'], ['err', 'warn: nomi-gw-abcdefghij\n'],
+      ['close', 0, null],
+    ],
+  },
+  { name: 'noTabNoPid', ops: [['spawn', 'C:\\tools\\codex.exe', [], '', 0], ['out', 'x'], ['close', null, 'SIGTERM']] },
+  { name: 'truncate', ops: [['spawn', 'grok', [], 't', 7], ['out', 'a'.repeat(64 * 1024 + 5)], ['out', '😀'.repeat(32 * 1024 + 1)]] },
+  { name: 'disabled', enabled: false, ops: [['spawn', 'claude', ['x'], 't', 1], ['out', 'nope']] },
+  { name: 'toggleOff', ops: [['spawn', 'claude', [], 't', 2], ['out', 'one'], ['enable', false], ['out', 'two'], ['enable', true], ['out', 'three']] },
+  { name: 'dayCap', preSize: 200 * 1024 * 1024 - 150, ops: [['spawn', 'claude', [], 't', 3], ['out', 'fits'], ['out', 'x'.repeat(200)], ['out', 'after cap']] },
+];
+
+
+/** 终端命令（TerminalCommands）：平台 × shell × 来源 × set/refresh 步骤；落盘文件树全量比对 */
+const TSRC = {
+  url: 'http://127.0.0.1:17890',
+  clients: {
+    claude: { token: 'tok-claude', models: { main: 'p1/claude-x', fast: 'p1/haiku' } },
+    codex: { token: 'tok-codex', models: { main: 'p1/gpt-x' } },
+    gemini: { token: null, models: {} },
+    grok: { token: 'tok-grok', models: { main: 'p1/grok-x' } },
+    dsh: { token: 'tok-dsh', models: { main: 'p1/ds-x' } },
+  },
+  metas: {
+    'p1/claude-x': { label: 'Claude X', provider: 'P1', ctx: 200000, maxOutput: 8192, reasoning: true },
+    'p1/gpt-x': { label: 'GPT X', ctx: 128000, vision: true },
+    'p1/ds-x': { provider: 'P1', ctx: 64000, maxOutput: 4096 },
+  },
+  catalog: ['p1/claude-x', 'p1/gpt-x', 'p1/grok-x', 'p1/ds-x'],
+};
+export const TERM = [
+  { name: 'linuxBash', platform: 'linux', shell: '/bin/bash', rc: ['.bashrc'], steps: [['state'], ['set', true], ['set', true, true], ['state'], ['refresh'], ['set', true, false], ['set', false]] },
+  { name: 'darwinZsh', platform: 'darwin', shell: '/bin/zsh', rc: ['.zshrc', '.bash_profile'], steps: [['set', true, true], ['state'], ['set', false]] },
+  { name: 'fish', platform: 'linux', shell: '/usr/bin/fish', mkdir: ['.config/fish'], steps: [['set', true, true], ['set', false]] },
+  { name: 'noSource', platform: 'linux', shell: '/bin/bash', noSource: true, steps: [['set', true], ['state']] },
+  { name: 'win', platform: 'win32', shell: '', steps: [['set', true], ['set', true, true], ['state'], ['set', false]] },
+  { name: 'winPathFail', platform: 'win32', shell: '', winPath: false, steps: [['set', true, true], ['state']] },
+  { name: 'persisted', platform: 'linux', shell: '/bin/bash', file: '{"enabled":true,"pathAdded":"yes","rcFiles":["x"]}', steps: [['state'], ['refresh']] },
+  { name: 'persistedBad', platform: 'linux', shell: '/bin/bash', file: '{', steps: [['state']] },
+];
+let RUNNER_SELF = null; // 本进程（tsx）下 buildWindowsRunner() 的原文：落盘的 nomi-runner.cjs 等于它 → '<RUNNER>'（Go 端等于内嵌副本 → '<RUNNER>'）
+function tree(dir) {
+  const out = {};
+  const walk = (d) => {
+    if (!fs.existsSync(d)) return;
+    for (const e of fs.readdirSync(d, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : 1))) {
+      const f = path.join(d, e.name);
+      const rel = path.relative(dir, f).split(path.sep).join('/');
+      if (e.isDirectory()) { out[rel + '/'] = null; walk(f); }
+      else if (e.isSymbolicLink()) out[rel] = { link: fs.readlinkSync(f) };
+      else out[rel] = { text: ((t) => (t === RUNNER_SELF ? '<RUNNER>' : t))(fs.readFileSync(f, 'utf8')), mode: process.platform === 'win32' ? null : fs.statSync(f).mode & 0o777 };
+    }
+  };
+  walk(dir);
+  return out;
+}
+async function recordTerminal() {
+  const T = await core('gateway/TerminalCommands.ts');
+  RUNNER_SELF = (await core('gateway/windowsTerminal.ts')).buildWindowsRunner();
+  const scenarios = [];
+  for (const sc of TERM) {
+    const base = path.join(SB, 'term', sc.name);
+    const home = path.join(base, 'home');
+    const root = path.join(base, 'root');
+    fs.mkdirSync(home, { recursive: true });
+    fs.mkdirSync(root, { recursive: true });
+    for (const r of sc.rc || []) fs.writeFileSync(path.join(home, r), '# existing\n');
+    for (const m of sc.mkdir || []) fs.mkdirSync(path.join(home, m), { recursive: true });
+    if (sc.file) fs.writeFileSync(path.join(root, 'terminal.json'), sc.file);
+    const winCalls = [];
+    const warns = [];
+    let enabledCalls = 0;
+    const src = sc.noSource ? null : { url: TSRC.url, clients: TSRC.clients, metaOf: (r) => TSRC.metas[r], catalog: TSRC.catalog };
+    const t = new T.TerminalCommands({
+      root, home, platform: sc.platform, shell: sc.shell, source: () => src,
+      logger: { warn: (m, e) => warns.push([m, String(e?.message ?? e)]) },
+      windowsPath: (dir, add) => { winCalls.push([dir, add]); return sc.winPath !== false; },
+      onEnabled: () => { enabledCalls++; },
+    });
+    const log = [];
+    for (const st of sc.steps) {
+      let r;
+      if (st[0] === 'state') r = t.state();
+      else if (st[0] === 'refresh') { t.refresh(); r = null; }
+      else r = t.set(st.length > 2 ? { enabled: st[1], addToPath: st[2] } : { enabled: st[1] });
+      log.push({ step: st, out: norm(r), home: norm(tree(home)), root: norm(tree(root)) });
+    }
+    scenarios.push({ ...sc, log, winCalls: norm(winCalls), warns: norm(warns), enabledCalls });
+  }
+  const scripts = [];
+  for (const platform of ['linux', 'darwin', 'win32'])
+    for (const kind of T.TERMINAL_KINDS)
+      for (const model of [null, 'p1/m'])
+        scripts.push({ kind, platform, model, name: T.commandName(kind, platform),
+          out: T.buildScript({ kind, platform, url: TSRC.url, tokenFile: '/t/' + kind, model,
+            ...(model ? { launch: { env: { A: '1', B: "it's" }, args: ['--x', 'y z'], strip: ['S1'] } } : {}),
+            ...(model && kind === 'dsh' ? { template: '/tpl/patch.yml' } : {}) }) });
+  const rc = [];
+  for (const c of ['', '# a\n', 'x', `pre\n${T.RC_BEGIN}\nold\n${T.RC_END}\npost\n`, `${T.RC_BEGIN}\nonly\n${T.RC_END}`, `a\n\n${T.RC_BEGIN}\n${T.RC_END}\n\nb`])
+    for (const shell of ['posix', 'fish']) rc.push({ in: c, shell, add: T.addRcBlock(c, shell), remove: T.removeRcBlock(c) });
+  // run.toString() 取决于打包器：tsx 会注入 __name；这里用 esbuild（与 Go 内嵌 nomi-runner.cjs 的生成方式一致）转译后取值，
+  // 用来发现 windowsTerminal.ts 改了而 Go 内嵌副本没重新生成
+  const esbuild = createRequire(import.meta.url)('esbuild');
+  const ts = fs.readFileSync(path.join(root, 'packages/core/src/gateway/windowsTerminal.ts'), 'utf8');
+  const js = esbuild.transformSync(ts, { loader: 'ts', format: 'cjs', target: 'node18' }).code;
+  const m = { exports: {} };
+  new Function('module', 'exports', 'require', js)(m, m.exports, createRequire(import.meta.url));
+  return { home: '<SB>', scenarios, scripts, rc, runner: m.exports.buildWindowsRunner() };
+}
+
+/** 供应商探测（probe/detect.ts）：假 fetch 规则表 × 地址 / Key；请求按序记录（并发下排序比较） */
+const OAI = 'https://api.example.test/v1';
+const R = (m, u, status, body, auth, key) => ({ m, u, status, body: typeof body === 'string' ? body : JSON.stringify(body), ...(auth ? { auth } : {}), ...(key ? { key } : {}) });
+const MODELS = { data: [{ id: 'gpt-x', context_length: 128000, max_output_tokens: 16000 }, { id: 'text-embed-3' }, { id: 'claude-y', max_context_length: 200000 }] };
+export const DETECT = [
+  { name: 'openaiOk', url: OAI, keys: ['k1'], rules: [R('GET', '/v1/models', 200, MODELS, 'bearer'), R('POST', '/chat/completions', 200, '{}'), R('POST', '/responses', 200, '{}')] },
+  { name: 'altAuth', url: OAI, keys: ['k1'], rules: [R('GET', '/v1/models', 200, MODELS, 'x-api-key'), R('POST', '/messages', 200, '{}', 'bearer'), R('POST', '/messages', 401, 'no'), R('POST', '/chat/completions', 403, 'no', 'bearer'), R('POST', '/chat/completions', 200, '{}', 'x-api-key')] },
+  { name: 'paramErr', url: OAI, keys: ['k1'], rules: [R('GET', '/v1/models', 200, MODELS), R('POST', '/chat/completions', 400, { error: { message: 'Unsupported parameter: max_tokens' } }), R('POST', '/responses', 400, { error: { message: 'model not found' } })] },
+  { name: 'fallback', url: OAI, keys: ['k1'], fallbackModel: 'fb-1', rules: [R('GET', '/v1/models', 500, 'x'), R('POST', '', 200, '{}')] },
+  { name: 'noModel', url: OAI, keys: ['k1'], rules: [R('GET', '/v1/models', 200, { data: [] })] },
+  { name: 'twoKeys', url: OAI, keys: ['bad', 'good'], rules: [R('GET', '/v1/models', 200, MODELS, null, 'good'), R('POST', '', 200, '{}', null, 'good'), R('GET', '', 401, 'no'), R('POST', '', 401, 'no')] },
+  { name: 'private', url: 'http://10.0.0.5:8080/v1', keys: ['k1'], fallbackModel: 'm', rules: [R('POST', '', 200, '{}')] },
+  { name: 'privateAllowed', url: 'http://10.0.0.5:8080/v1', allowed: ['10.0.0.5:8080'], keys: ['k1'], fallbackModel: 'm', rules: [R('GET', '/models', 200, MODELS), R('POST', '', 200, '{}')] },
+  { name: 'connErr', url: OAI, keys: ['k1'], fallbackModel: 'm', throw: 'ECONNREFUSED', rules: [] },
+  { name: 'gemini', url: 'https://gen.example.test/v1beta', keys: ['g1'], rules: [R('GET', '/models', 200, { models: [{ name: 'models/gemini-x', inputTokenLimit: 1000000, outputTokenLimit: 65536 }] }), R('POST', ':generateContent', 200, '{}', 'x-goog-api-key'), R('POST', '', 404, 'nf')] },
+  { name: 'altAuth400', url: OAI, keys: ['k1'], rules: [R('GET', '/v1/models', 200, MODELS), R('POST', '/chat/completions', 401, 'no', 'bearer'), R('POST', '/chat/completions', 400, { error: { message: 'bad request' } }, 'x-api-key'), R('POST', '/messages', 401, 'no', 'x-api-key'), R('POST', '/messages', 400, 'bad', 'bearer'), R('POST', '/responses', 404, '')] },
+  { name: 'anthropicBase', url: 'https://api.anthropic-like.test', keys: ['a1'], rules: [R('GET', '/models', 200, { data: [{ id: 'claude-z', type: 'model' }] }, 'x-api-key'), R('POST', '/v1/messages', 200, '{}', 'x-api-key'), R('POST', '', 404, '')] },
+];
+function authOf(h) {
+  const g = (k) => h[k] ?? h[k.toLowerCase()];
+  const a = g('authorization');
+  if (a) return ['bearer', a.replace(/^Bearer /, '')];
+  if (g('x-api-key')) return ['x-api-key', g('x-api-key')];
+  if (g('x-goog-api-key')) return ['x-goog-api-key', g('x-goog-api-key')];
+  return ['none', ''];
+}
+async function recordDetect() {
+  const { detect, normalizeBases } = await import(pathToFileURL(path.join(root, 'packages/gateway/src/probe/detect.ts')).href);
+  const RealNow = Date.now;
+  const scenarios = [];
+  for (const sc of DETECT) {
+    const reqs = [];
+    const fetchImpl = async (url, init = {}) => {
+      const h = Object.fromEntries(new Headers(init.headers || {}).entries());
+      const [auth, key] = authOf(h);
+      const method = init.method || 'GET';
+      reqs.push([method, String(url), auth, key, init.body ?? null]);
+      if (sc.throw) throw new Error(sc.throw);
+      const r = sc.rules.find((x) => x.m === method && String(url).includes(x.u) && (!x.auth || x.auth === auth) && (!x.key || x.key === key));
+      return new Response(r ? r.body : '', { status: r ? r.status : 404 });
+    };
+    Date.now = () => NOW;
+    const out = await detect({
+      bases: normalizeBases(sc.url), keys: sc.keys.map((v, i) => ({ id: 'key' + i, value: v })),
+      ...(sc.fallbackModel ? { fallbackModel: sc.fallbackModel } : {}),
+      ...(sc.allowed ? { allowedPrivateHosts: sc.allowed } : {}),
+      fetchImpl, lookupAll: async () => [{ address: '93.184.216.34', family: 4 }],
+    });
+    Date.now = RealNow;
+    reqs.sort((a, b) => (JSON.stringify(a) < JSON.stringify(b) ? -1 : 1));
+    scenarios.push({ ...sc, bases: normalizeBases(sc.url), out, reqs });
+  }
+  return { scenarios };
+}
+
+async function recordTrace() {
+  const { CliTrace } = await core('diagnostics/cliTrace.ts');
+  const { EventEmitter } = await import('node:events');
+  const RealDate = globalThis.Date;
+  class FixedDate extends RealDate { constructor(...a) { super(...(a.length ? a : [NOW])); } static now() { return NOW; } }
+  const day = new RealDate(NOW).toISOString().slice(0, 10);
+  const out = [];
+  for (const sc of TRACE) {
+    const dir = path.join(SB, 'trace', sc.name, 'logs');
+    let on = sc.enabled !== false;
+    if (sc.preSize) { fs.mkdirSync(dir, { recursive: true }); const fd = fs.openSync(path.join(dir, `cli-${day}.jsonl`), 'w'); fs.ftruncateSync(fd, sc.preSize); fs.closeSync(fd); }
+    globalThis.Date = FixedDate;
+    const t = new CliTrace({ dir, enabled: () => on });
+    let child;
+    for (const op of sc.ops) {
+      if (op[0] === 'spawn') {
+        child = new EventEmitter();
+        child.pid = op[4] || undefined;
+        child.stdout = new EventEmitter();
+        child.stderr = new EventEmitter();
+        child.stdin = { write: () => true };
+        t.tap(child, op[1], op[2], op[3] ? { tabId: op[3] } : {});
+      } else if (op[0] === 'in') child.stdin.write(op[1]);
+      else if (op[0] === 'out') child.stdout.emit('data', Buffer.from(op[1]));
+      else if (op[0] === 'err') child.stderr.emit('data', Buffer.from(op[1]));
+      else if (op[0] === 'close') child.emit('close', op[1], op[2]);
+      else if (op[0] === 'enable') on = op[1];
+    }
+    await t.flush();
+    t.dispose();
+    globalThis.Date = RealDate;
+    const f = path.join(dir, `cli-${day}.jsonl`);
+    let text = null, mode = null;
+    if (fs.existsSync(f)) {
+      const buf = fs.readFileSync(f);
+      text = buf.subarray(sc.preSize || 0).toString('utf8');
+      mode = process.platform === 'win32' ? null : fs.statSync(f).mode & 0o777;
+    }
+    out.push({ name: sc.name, enabled: sc.enabled !== false, preSize: sc.preSize || 0, ops: sc.ops, day, text, mode });
+  }
+  return out;
+}
+
 const diag = await recordDiag();
 fs.writeFileSync(path.join(dir, 'shell_diagnostics.json'), JSON.stringify(diag, null, 1) + '\n');
 console.log(`record-shell: diagnostics ${diag.scenarios.length} scenarios, ${diag.scenarios.reduce((a, s) => a + s.log.length, 0)} steps`);
@@ -346,4 +617,14 @@ console.log(`record-shell: appIcon ${icon.scenarios.length} scenarios`);
 const upd = await recordUpdates();
 fs.writeFileSync(path.join(dir, 'shell_updates.json'), JSON.stringify(upd, null, 1) + '\n');
 console.log(`record-shell: updates ${upd.scenarios.length} scenarios, ${upd.scenarios.reduce((a, s) => a + s.log.length, 0)} steps`);
+const term = await recordTerminal();
+fs.writeFileSync(path.join(dir, 'shell_terminal.json'), JSON.stringify(term, null, 1) + '\n');
+console.log(`record-shell: terminal ${term.scenarios.length} scenarios, ${term.scripts.length} scripts, ${term.rc.length} rc`);
+const det = await recordDetect();
+fs.writeFileSync(path.join(dir, 'shell_detect.json'), JSON.stringify(det, null, 1) + '\n');
+console.log(`record-shell: detect ${det.scenarios.length} scenarios`);
 fs.rmSync(SB, { recursive: true, force: true });
+const logs = await recordLogger();
+fs.writeFileSync(path.join(dir, 'shell_logger.json'), JSON.stringify(logs, null, 1) + '\n');
+const traces = await recordTrace();
+fs.writeFileSync(path.join(dir, 'shell_clitrace.json'), JSON.stringify(traces, null, 1) + '\n');

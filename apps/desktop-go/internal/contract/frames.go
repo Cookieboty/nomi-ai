@@ -68,6 +68,10 @@ type Router struct {
 
 	subMu    sync.Mutex
 	sessions map[*Session]struct{}
+
+	// Pending（可选）= 事件总线的 pending.offer：每次发布告诉它有没有订阅者（不看 surface，
+	// 同 Node 的 sink.subscribers(event) > 0），没送达的面板导航由它留着（core/pendingEvents.ts）。
+	Pending func(event string, data any, delivered bool)
 }
 
 func NewRouter() *Router {
@@ -104,18 +108,22 @@ func (r *Router) EmitTo(event string, data any, surface string) bool {
 		ss = append(ss, s)
 	}
 	r.subMu.Unlock()
-	delivered := false
+	delivered, anySub := false, false
 	for _, s := range ss {
-		if surface != "" && s.caller.Surface != surface {
-			continue
-		}
 		s.mu.Lock()
 		ok := s.subs[event]
 		s.mu.Unlock()
+		anySub = anySub || ok
+		if surface != "" && s.caller.Surface != surface {
+			continue
+		}
 		if ok {
 			delivered = true
 			s.send(ServerFrame{T: "event", Event: event, Data: data})
 		}
+	}
+	if r.Pending != nil {
+		r.Pending(event, data, anySub)
 	}
 	return delivered
 }

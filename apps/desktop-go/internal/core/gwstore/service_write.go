@@ -1044,11 +1044,6 @@ func (s *Service) learnWireSuspect(p *u.Obj, e server.LearnEvent) {
 	if url == "" {
 		return
 	}
-	if s.rt.d.Detect == nil {
-		// detect() 尚未移植：保守地不学 wireDown（见 docs D-B5-GW-1）
-		s.logger.Info("gateway wire-suspect skipped: detect unavailable", e.Obj())
-		return
-	}
 	s.lock()
 	pid := idOf(p)
 	keys := []any{}
@@ -1077,7 +1072,7 @@ func (s *Service) learnWireSuspect(p *u.Obj, e server.LearnEvent) {
 	}
 	gen := s.rt.learnGen[pid]
 	s.unlock()
-	r, err := s.rt.d.Detect(in)
+	r, err := s.detectFn()(in)
 	if err != nil || r == nil {
 		return
 	}

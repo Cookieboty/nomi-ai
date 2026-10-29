@@ -18,17 +18,22 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, '..', '..');
-const src = (p) => pathToFileURL(path.join(root, 'packages/core/src', p)).href;
-const C = await import(src('cli/delegate/core.ts'));
-const W = await import(src('cli/delegate/worktree.ts'));
-const S = await import(src('cli/delegate/DelegateService.ts'));
-const { HarnessStoppedError } = await import(src('cli/CliHarnessService.ts'));
+const { importSources } = await import(pathToFileURL(path.join(here, 'src-bundle.mjs')).href);
+const src = (p) => path.join(root, 'packages/core/src', p);
+// TS 源码打包装载（不依赖 @nomi-ai/* 的 dist；四个模块共享同一份实例）
+const { C, W, S, H } = await importSources(root, {
+  C: src('cli/delegate/core.ts'), W: src('cli/delegate/worktree.ts'),
+  S: src('cli/delegate/DelegateService.ts'), H: src('cli/CliHarnessService.ts'),
+});
+const { HarnessStoppedError } = H;
 const req = createRequire(path.join(root, 'packages/core/package.json'));
 const { asSchema } = await import(pathToFileURL(req.resolve('ai')).href);
 
 const T = '@@SB@@';
 const SB = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'b7s2-del-')));
-const tok = (v) => JSON.parse(JSON.stringify(v ?? null).split(SB.replaceAll('\\', '\\\\')).join(T).split(SB).join(T));
+// 依次替换：JSON 串里再嵌 JSON（4 重转义）、2 重转义、原样、正斜杠（git 输出）形式
+const tokWith = (s, b) => [b.replaceAll('\\', '\\\\\\\\'), b.replaceAll('\\', '\\\\'), b, b.replaceAll('\\', '/')].reduce((a, f) => a.split(f).join(T), s);
+const tok = (v) => JSON.parse(tokWith(JSON.stringify(v ?? null), SB));
 const sh = (cwd, ...a) => execFileSync('git', a, { cwd, stdio: 'pipe', env: { ...process.env, GIT_AUTHOR_DATE: '2026-01-01T00:00:00Z', GIT_COMMITTER_DATE: '2026-01-01T00:00:00Z' } });
 const mkrepo = (dir, files = { 'a.txt': 'a\n', 'src/b.txt': 'b\n' }) => {
   fs.mkdirSync(dir, { recursive: true });
@@ -163,7 +168,7 @@ function makeEnv(sc, base) {
   const sends = [...(sc.sends ?? [])];
   const pending = [];
   const sub = (s) => (typeof s === 'string' ? s.split(T).join(base) : s);
-  const granted = (sc.granted ?? []).map(sub);
+  const granted = (sc.granted ?? []).map((g) => path.resolve(sub(g)));
   const harness = {
     state: () => ({ bins: Object.fromEntries((sc.installed ?? []).map((c) => [c, `/bin/${c}`])) }),
     listTabs: () => ({ tabs, defaultPermissionMode: sc.tabDefault ?? 'acceptEdits' }),
@@ -323,7 +328,7 @@ async function runScenario(sc) {
   const env = makeEnv(sc, B);
   const svc = new S.DelegateService({ root: path.join(B, 'state'), harness: env.harness, desktop: env.desktop, gateway: env.gateway, events: env.events });
   const out = [];
-  const untok = (v) => JSON.parse((JSON.stringify(v ?? null) ?? 'null').split(B.replaceAll('\\', '\\\\')).join(T).split(B).join(T));
+  const untok = (v) => JSON.parse(tokWith(JSON.stringify(v ?? null) ?? 'null', B));
   const tools = Object.fromEntries(svc.tools().map((t) => [t.name, t]));
   const settle = async () => { for (let i = 0; i < 200 && [...svc['tasks'].values()].some((t) => t.status === 'running'); i++) await sleep(10); await sleep(50); };
   for (const st of sc.steps) {
@@ -354,7 +359,7 @@ async function runScenario(sc) {
         case 'wait': await settle(); r = null; break;
         case 'tasks': await sleep(80); r = fs.existsSync(path.join(B, 'state/tasks.json')) ? fs.readFileSync(path.join(B, 'state/tasks.json'), 'utf8') : null; break;
         case 'file': r = fs.readFileSync(path.join(B, st.p), 'utf8'); break;
-        case 'takeOver': env.tabs.find((t) => t.id === st.id).delegation.takenOver = true; r = null; break;
+        case 'takeOver': { const tb = env.tabs.find((t) => t.id === st.id); if (tb?.delegation) tb.delegation.takenOver = true; r = null; break; }
         case 'closeTabs': env.tabs.length = 0; r = null; break;
       }
       out.push({ ok: untok(r === undefined ? null : r) });

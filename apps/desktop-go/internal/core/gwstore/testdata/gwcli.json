@@ -1,0 +1,1472 @@
+{
+ "scenarios": [
+  {
+   "name": "cli methods",
+   "steps": [
+    {
+     "op": "cliDefaults",
+     "args": [
+      "claude"
+     ],
+     "result": {
+      "source": "official",
+      "model": null,
+      "accountId": null
+     },
+     "status": "stopped",
+     "sent": []
+    },
+    {
+     "op": "cliModels",
+     "args": [],
+     "result": [
+      {
+       "ref": "env-deepseek/deepseek-chat",
+       "provider": "DeepSeek (env)",
+       "label": "deepseek-chat",
+       "reasoning": false,
+       "vision": false,
+       "ctx": 163840
+      }
+     ],
+     "status": "stopped",
+     "sent": []
+    },
+    {
+     "op": "upsertProvider",
+     "args": [
+      {
+       "name": "My Proxy",
+       "urls": {
+        "chat": "https://proxy.example.com/v1"
+       },
+       "newKeys": [
+        {
+         "value": "sk-proxy-aaaaaaaaaaaa"
+        }
+       ],
+       "models": [
+        {
+         "id": "gpt-4o",
+         "enabled": true,
+         "label": "GPT 4o",
+         "reasoning": true,
+         "vision": true,
+         "ctx": 200000,
+         "maxOutput": 64000
+        },
+        {
+         "id": "gpt-4o-mini",
+         "enabled": false
+        },
+        {
+         "id": "no-tools",
+         "enabled": true,
+         "toolCalling": false
+        },
+        {
+         "id": "plain",
+         "enabled": true
+        }
+       ]
+      }
+     ],
+     "result": {
+      "createdAt": 1793500003000,
+      "source": "user",
+      "modelsSource": "manual",
+      "id": "my-proxy",
+      "name": "My Proxy",
+      "enabled": true,
+      "urls": {
+       "chat": "https://proxy.example.com/v1"
+      },
+      "keys": [
+       {
+        "id": "k-00000001",
+        "masked": "sk-…aaaa",
+        "enabled": true,
+        "decryptable": true
+       }
+      ],
+      "models": [
+       {
+        "id": "gpt-4o",
+        "enabled": true,
+        "label": "GPT 4o",
+        "reasoning": true,
+        "vision": true,
+        "ctx": 200000,
+        "maxOutput": 64000,
+        "effective": {
+         "ctx": 200000,
+         "maxOutput": 64000,
+         "reasoning": true,
+         "vision": true,
+         "source": "user",
+         "maxOutputSource": "user"
+        }
+       },
+       {
+        "id": "gpt-4o-mini",
+        "enabled": false,
+        "effective": {
+         "ctx": 128000,
+         "maxOutput": 16384,
+         "reasoning": false,
+         "vision": true,
+         "source": "catalog",
+         "maxOutputSource": "catalog"
+        }
+       },
+       {
+        "id": "no-tools",
+        "enabled": true,
+        "toolCalling": false,
+        "effective": {
+         "ctx": 128000,
+         "maxOutput": 32000,
+         "source": "default",
+         "maxOutputSource": "default"
+        }
+       },
+       {
+        "id": "plain",
+        "enabled": true,
+        "effective": {
+         "ctx": 128000,
+         "maxOutput": 32000,
+         "source": "default",
+         "maxOutputSource": "default"
+        }
+       }
+      ],
+      "updatedAt": 1793500003000
+     },
+     "status": "stopped",
+     "sent": []
+    },
+    {
+     "op": "upsertProvider",
+     "args": [
+      {
+       "name": "Off",
+       "enabled": false,
+       "urls": {
+        "chat": "https://off.example.com/v1"
+       },
+       "models": [
+        {
+         "id": "x",
+         "enabled": true
+        }
+       ]
+      }
+     ],
+     "result": {
+      "createdAt": 1793500004000,
+      "source": "user",
+      "modelsSource": "manual",
+      "id": "off",
+      "name": "Off",
+      "enabled": false,
+      "urls": {
+       "chat": "https://off.example.com/v1"
+      },
+      "keys": [],
+      "models": [
+       {
+        "id": "x",
+        "enabled": true,
+        "effective": {
+         "ctx": 128000,
+         "maxOutput": 32000,
+         "source": "default",
+         "maxOutputSource": "default"
+        }
+       }
+      ],
+      "updatedAt": 1793500004000
+     },
+     "status": "stopped",
+     "sent": []
+    },
+    {
+     "op": "cliModels",
+     "args": [],
+     "result": [
+      {
+       "ref": "my-proxy/gpt-4o",
+       "provider": "My Proxy",
+       "label": "GPT 4o",
+       "reasoning": true,
+       "vision": true,
+       "ctx": 200000
+      },
+      {
+       "ref": "my-proxy/plain",
+       "provider": "My Proxy",
+       "label": "plain"
+      },
+      {
+       "ref": "env-deepseek/deepseek-chat",
+       "provider": "DeepSeek (env)",
+       "label": "deepseek-chat",
+       "reasoning": false,
+       "vision": false,
+       "ctx": 163840
+      }
+     ],
+     "status": "stopped",
+     "sent": []
+    },
+    {
+     "op": "setAssignment",
+     "args": [
+      "claude",
+      {
+       "newTabSource": "thirdParty",
+       "newTabAccountId": "acc-1",
+       "models": {
+        "main": "my-proxy/gpt-4o",
+        "tiers": {
+         "opus": "my-proxy/plain"
+        },
+        "small": "env-deepseek/deepseek-chat",
+        "subagent": "my-proxy/plain"
+       }
+      }
+     ],
+     "result": null,
+     "status": "stopped",
+     "sent": []
+    },
+    {
+     "op": "setAssignment",
+     "args": [
+      "gemini",
+      {
+       "newTabSource": "official",
+       "newTabAccountId": "acc-2"
+      }
+     ],
+     "result": null,
+     "status": "stopped",
+     "sent": []
+    },
+    {
+     "op": "setAssignment",
+     "args": [
+      "grok",
+      {
+       "newTabSource": "thirdParty"
+      }
+     ],
+     "result": null,
+     "status": "stopped",
+     "sent": []
+    },
+    {
+     "op": "cliDefaults",
+     "args": [
+      "claude"
+     ],
+     "result": {
+      "source": "thirdParty",
+      "model": "my-proxy/gpt-4o",
+      "accountId": null
+     },
+     "status": "stopped",
+     "sent": []
+    },
+    {
+     "op": "cliDefaults",
+     "args": [
+      "gemini"
+     ],
+     "result": {
+      "source": "official",
+      "model": null,
+      "accountId": "acc-2"
+     },
+     "status": "stopped",
+     "sent": []
+    },
+    {
+     "op": "cliDefaults",
+     "args": [
+      "grok"
+     ],
+     "result": {
+      "source": "official",
+      "model": null,
+      "accountId": null
+     },
+     "status": "stopped",
+     "sent": []
+    },
+    {
+     "op": "cliDefaults",
+     "args": [
+      "codex"
+     ],
+     "result": {
+      "source": "official",
+      "model": null,
+      "accountId": null
+     },
+     "status": "stopped",
+     "sent": []
+    },
+    {
+     "op": "cliDefaults",
+     "args": [
+      "bogus"
+     ],
+     "result": {
+      "source": "official",
+      "model": null,
+      "accountId": null
+     },
+     "status": "stopped",
+     "sent": []
+    },
+    {
+     "op": "cliLaunch",
+     "args": [
+      "bogus",
+      "t1",
+      "my-proxy/gpt-4o"
+     ],
+     "result": null,
+     "status": "stopped",
+     "sent": []
+    },
+    {
+     "op": "cliLaunch",
+     "args": [
+      "claude",
+      "t1",
+      "my-proxy/gpt-4o",
+      {}
+     ],
+     "result": {
+      "env": {
+       "CLAUDE_CONFIG_DIR": "<UD>/gateway/agents/claude/t1",
+       "ANTHROPIC_BASE_URL": "http://127.0.0.1:18999",
+       "ANTHROPIC_AUTH_TOKEN": "nomi-gw-claude-AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM",
+       "ANTHROPIC_SMALL_FAST_MODEL": "env-deepseek/deepseek-chat",
+       "CLAUDE_CODE_MAX_CONTEXT_TOKENS": "200000",
+       "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "64000",
+       "MAX_THINKING_TOKENS": "16000",
+       "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+       "CLAUDE_CODE_DISABLE_AGENT_VIEW": "1",
+       "ANTHROPIC_DEFAULT_OPUS_MODEL": "my-proxy/plain",
+       "ANTHROPIC_DEFAULT_OPUS_MODEL_SUPPORTED_CAPABILITIES": "temperature",
+       "ANTHROPIC_DEFAULT_OPUS_MODEL_NAME": "plain",
+       "ANTHROPIC_DEFAULT_OPUS_MODEL_DESCRIPTION": "Nomi · My Proxy",
+       "ANTHROPIC_DEFAULT_SONNET_MODEL": "my-proxy/gpt-4o",
+       "ANTHROPIC_DEFAULT_SONNET_MODEL_SUPPORTED_CAPABILITIES": "thinking,interleaved_thinking",
+       "ANTHROPIC_DEFAULT_SONNET_MODEL_NAME": "GPT 4o",
+       "ANTHROPIC_DEFAULT_SONNET_MODEL_DESCRIPTION": "Nomi · My Proxy",
+       "ANTHROPIC_DEFAULT_HAIKU_MODEL": "env-deepseek/deepseek-chat",
+       "ANTHROPIC_DEFAULT_HAIKU_MODEL_SUPPORTED_CAPABILITIES": "temperature",
+       "ANTHROPIC_DEFAULT_HAIKU_MODEL_NAME": "deepseek-chat",
+       "ANTHROPIC_DEFAULT_HAIKU_MODEL_DESCRIPTION": "Nomi · DeepSeek (env)",
+       "ANTHROPIC_DEFAULT_FABLE_MODEL": "my-proxy/gpt-4o",
+       "ANTHROPIC_DEFAULT_FABLE_MODEL_SUPPORTED_CAPABILITIES": "thinking,interleaved_thinking",
+       "ANTHROPIC_DEFAULT_FABLE_MODEL_NAME": "GPT 4o",
+       "ANTHROPIC_DEFAULT_FABLE_MODEL_DESCRIPTION": "Nomi · My Proxy",
+       "CLAUDE_CODE_SUBAGENT_MODEL": "my-proxy/plain"
+      },
+      "args": [],
+      "strip": [
+       "ANTHROPIC_API_KEY",
+       "ANTHROPIC_MODEL",
+       "ANTHROPIC_SMALL_FAST_MODEL",
+       "ANTHROPIC_PROFILE",
+       "CLAUDE_CODE_USE_BEDROCK",
+       "CLAUDE_CODE_USE_VERTEX",
+       "CLAUDE_CODE_USE_FOUNDRY",
+       "CLAUDE_CODE_OAUTH_TOKEN",
+       "CLAUDE_CODE_OAUTH_REFRESH_TOKEN",
+       "CLAUDE_CODE_SUBAGENT_MODEL",
+       "CLAUDE_CONFIG_DIR"
+      ]
+     },
+     "status": "starting",
+     "sent": []
+    },
+    {
+     "op": "cliLaunch",
+     "args": [
+      "claude",
+      "t1",
+      "my-proxy/plain",
+      {
+       "longContext": true
+      }
+     ],
+     "result": {
+      "env": {
+       "CLAUDE_CONFIG_DIR": "<UD>/gateway/agents/claude/t1",
+       "ANTHROPIC_BASE_URL": "http://127.0.0.1:18999",
+       "ANTHROPIC_AUTH_TOKEN": "nomi-gw-claude-AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM",
+       "ANTHROPIC_SMALL_FAST_MODEL": "env-deepseek/deepseek-chat",
+       "CLAUDE_CODE_MAX_CONTEXT_TOKENS": "128000",
+       "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "32000",
+       "MAX_THINKING_TOKENS": "0",
+       "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+       "CLAUDE_CODE_DISABLE_AGENT_VIEW": "1",
+       "ANTHROPIC_DEFAULT_OPUS_MODEL": "my-proxy/plain",
+       "ANTHROPIC_DEFAULT_OPUS_MODEL_SUPPORTED_CAPABILITIES": "temperature",
+       "ANTHROPIC_DEFAULT_OPUS_MODEL_NAME": "plain",
+       "ANTHROPIC_DEFAULT_OPUS_MODEL_DESCRIPTION": "Nomi · My Proxy",
+       "ANTHROPIC_DEFAULT_SONNET_MODEL": "my-proxy/plain",
+       "ANTHROPIC_DEFAULT_SONNET_MODEL_SUPPORTED_CAPABILITIES": "temperature",
+       "ANTHROPIC_DEFAULT_SONNET_MODEL_NAME": "plain",
+       "ANTHROPIC_DEFAULT_SONNET_MODEL_DESCRIPTION": "Nomi · My Proxy",
+       "ANTHROPIC_DEFAULT_HAIKU_MODEL": "env-deepseek/deepseek-chat",
+       "ANTHROPIC_DEFAULT_HAIKU_MODEL_SUPPORTED_CAPABILITIES": "temperature",
+       "ANTHROPIC_DEFAULT_HAIKU_MODEL_NAME": "deepseek-chat",
+       "ANTHROPIC_DEFAULT_HAIKU_MODEL_DESCRIPTION": "Nomi · DeepSeek (env)",
+       "ANTHROPIC_DEFAULT_FABLE_MODEL": "my-proxy/plain",
+       "ANTHROPIC_DEFAULT_FABLE_MODEL_SUPPORTED_CAPABILITIES": "temperature",
+       "ANTHROPIC_DEFAULT_FABLE_MODEL_NAME": "plain",
+       "ANTHROPIC_DEFAULT_FABLE_MODEL_DESCRIPTION": "Nomi · My Proxy",
+       "CLAUDE_CODE_SUBAGENT_MODEL": "my-proxy/plain"
+      },
+      "args": [],
+      "strip": [
+       "ANTHROPIC_API_KEY",
+       "ANTHROPIC_MODEL",
+       "ANTHROPIC_SMALL_FAST_MODEL",
+       "ANTHROPIC_PROFILE",
+       "CLAUDE_CODE_USE_BEDROCK",
+       "CLAUDE_CODE_USE_VERTEX",
+       "CLAUDE_CODE_USE_FOUNDRY",
+       "CLAUDE_CODE_OAUTH_TOKEN",
+       "CLAUDE_CODE_OAUTH_REFRESH_TOKEN",
+       "CLAUDE_CODE_SUBAGENT_MODEL",
+       "CLAUDE_CONFIG_DIR"
+      ]
+     },
+     "status": "starting",
+     "sent": []
+    },
+    {
+     "op": "cliLaunch",
+     "args": [
+      "codex",
+      "tab/2 é😀",
+      "my-proxy/gpt-4o",
+      {
+       "longContext": false
+      }
+     ],
+     "result": {
+      "env": {
+       "NOMI_GATEWAY_KEY": "nomi-gw-codex-BAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQ"
+      },
+      "args": [
+       "-c",
+       "model_provider=\"nomi_gateway\"",
+       "-c",
+       "model_providers.nomi_gateway={ name=\"Nomi\", base_url=\"http://127.0.0.1:18999/v1\", wire_api=\"responses\", env_key=\"NOMI_GATEWAY_KEY\" }",
+       "-c",
+       "model_context_window=200000",
+       "-c",
+       "model_auto_compact_token_limit=160000",
+       "-c",
+       "model_catalog_json=\"<UD>/gateway/agents/codex/tab_2____/models.json\""
+      ],
+      "strip": [
+       "OPENAI_API_KEY",
+       "OPENAI_BASE_URL",
+       "CODEX_API_KEY"
+      ]
+     },
+     "status": "starting",
+     "sent": []
+    },
+    {
+     "op": "cliLaunch",
+     "args": [
+      "gemini",
+      "t3",
+      "env-deepseek/deepseek-chat"
+     ],
+     "result": {
+      "env": {
+       "GEMINI_CLI_AUTH_OVERRIDE": "gemini-api-key",
+       "GOOGLE_GEMINI_BASE_URL": "http://127.0.0.1:18999",
+       "GEMINI_API_KEY": "nomi-gw-gemini-BQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQU",
+       "GEMINI_MODEL": "env-deepseek/deepseek-chat"
+      },
+      "args": [],
+      "strip": [
+       "GOOGLE_API_KEY",
+       "GOOGLE_GENAI_USE_VERTEXAI",
+       "GOOGLE_CLOUD_PROJECT",
+       "GOOGLE_APPLICATION_CREDENTIALS",
+       "GEMINI_CLI_SYSTEM_SETTINGS_PATH"
+      ],
+      "modelInConfig": true
+     },
+     "status": "starting",
+     "sent": []
+    },
+    {
+     "op": "cliLaunch",
+     "args": [
+      "dsh",
+      "t4",
+      "my-proxy/gpt-4o"
+     ],
+     "result": {
+      "env": {
+       "NOMI_DSH_API_KEY": "nomi-gw-dsh-BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc"
+      },
+      "args": [
+       "--patch",
+       "<UD>/gateway/agents/dsh/t4/patch.yml"
+      ],
+      "strip": [],
+      "modelInConfig": true
+     },
+     "status": "starting",
+     "sent": []
+    },
+    {
+     "op": "cliLaunch",
+     "args": [
+      "dsh",
+      "t5",
+      "nope/unknown"
+     ],
+     "result": {
+      "env": {
+       "NOMI_DSH_API_KEY": "nomi-gw-dsh-BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc"
+      },
+      "args": [
+       "--patch",
+       "<UD>/gateway/agents/dsh/t5/patch.yml"
+      ],
+      "strip": [],
+      "modelInConfig": true
+     },
+     "status": "starting",
+     "sent": []
+    },
+    {
+     "op": "cliLaunch",
+     "args": [
+      "grok",
+      "t6",
+      "my-proxy/gpt-4o"
+     ],
+     "result": {
+      "env": {
+       "GROK_HOME": "<UD>/gateway/agents/grok/t6",
+       "NOMI_GROK_API_KEY": "nomi-gw-grok-BgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgY",
+       "NOMI_GROK_CONTEXT_WINDOW": "200000"
+      },
+      "args": [],
+      "strip": [
+       "XAI_API_KEY",
+       "GROK_API_KEY"
+      ],
+      "modelInConfig": true
+     },
+     "status": "starting",
+     "sent": []
+    },
+    {
+     "op": "cliLaunch",
+     "args": [
+      "grok",
+      "t7",
+      "my-proxy/gpt-4o",
+      {
+       "tabBound": true
+      }
+     ],
+     "result": {
+      "env": {
+       "GROK_HOME": "<UD>/gateway/agents/grok/t7",
+       "NOMI_GROK_API_KEY": "nomi-gw-grok-BgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgY",
+       "NOMI_GROK_CONTEXT_WINDOW": "200000"
+      },
+      "args": [],
+      "strip": [
+       "XAI_API_KEY",
+       "GROK_API_KEY"
+      ],
+      "modelInConfig": false
+     },
+     "status": "starting",
+     "sent": []
+    },
+    {
+     "op": "listen",
+     "args": [],
+     "result": null,
+     "status": "running",
+     "sent": []
+    },
+    {
+     "op": "cliLaunchForTab",
+     "args": [
+      "grok",
+      "t8",
+      "my-proxy/gpt-4o",
+      "high"
+     ],
+     "result": {
+      "env": {
+       "GROK_HOME": "<UD>/gateway/agents/grok/t8",
+       "NOMI_GROK_API_KEY": "nomi-tab-CAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg",
+       "NOMI_GROK_CONTEXT_WINDOW": "200000"
+      },
+      "args": [],
+      "strip": [
+       "XAI_API_KEY",
+       "GROK_API_KEY"
+      ],
+      "modelInConfig": false,
+      "generation": 1
+     },
+     "status": "running",
+     "sent": [
+      "binding:add"
+     ]
+    },
+    {
+     "op": "cliLaunchForTab",
+     "args": [
+      "grok",
+      "t8",
+      "my-proxy/plain",
+      null,
+      true
+     ],
+     "result": {
+      "env": {
+       "GROK_HOME": "<UD>/gateway/agents/grok/t8",
+       "NOMI_GROK_API_KEY": "nomi-tab-CQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQk",
+       "NOMI_GROK_CONTEXT_WINDOW": "128000"
+      },
+      "args": [],
+      "strip": [
+       "XAI_API_KEY",
+       "GROK_API_KEY"
+      ],
+      "modelInConfig": false,
+      "generation": 2
+     },
+     "status": "running",
+     "sent": [
+      "binding:add",
+      "binding:remove"
+     ]
+    },
+    {
+     "op": "cliLaunchForTab",
+     "args": [
+      "claude",
+      "t9",
+      "my-proxy/gpt-4o",
+      "",
+      false
+     ],
+     "result": {
+      "env": {
+       "CLAUDE_CONFIG_DIR": "<UD>/gateway/agents/claude/t9",
+       "ANTHROPIC_BASE_URL": "http://127.0.0.1:18999",
+       "ANTHROPIC_AUTH_TOKEN": "nomi-tab-CgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgo",
+       "ANTHROPIC_SMALL_FAST_MODEL": "env-deepseek/deepseek-chat",
+       "CLAUDE_CODE_MAX_CONTEXT_TOKENS": "200000",
+       "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "64000",
+       "MAX_THINKING_TOKENS": "16000",
+       "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+       "CLAUDE_CODE_DISABLE_AGENT_VIEW": "1",
+       "ANTHROPIC_DEFAULT_OPUS_MODEL": "my-proxy/plain",
+       "ANTHROPIC_DEFAULT_OPUS_MODEL_SUPPORTED_CAPABILITIES": "temperature",
+       "ANTHROPIC_DEFAULT_OPUS_MODEL_NAME": "plain",
+       "ANTHROPIC_DEFAULT_OPUS_MODEL_DESCRIPTION": "Nomi · My Proxy",
+       "ANTHROPIC_DEFAULT_SONNET_MODEL": "my-proxy/gpt-4o",
+       "ANTHROPIC_DEFAULT_SONNET_MODEL_SUPPORTED_CAPABILITIES": "thinking,interleaved_thinking",
+       "ANTHROPIC_DEFAULT_SONNET_MODEL_NAME": "GPT 4o",
+       "ANTHROPIC_DEFAULT_SONNET_MODEL_DESCRIPTION": "Nomi · My Proxy",
+       "ANTHROPIC_DEFAULT_HAIKU_MODEL": "env-deepseek/deepseek-chat",
+       "ANTHROPIC_DEFAULT_HAIKU_MODEL_SUPPORTED_CAPABILITIES": "temperature",
+       "ANTHROPIC_DEFAULT_HAIKU_MODEL_NAME": "deepseek-chat",
+       "ANTHROPIC_DEFAULT_HAIKU_MODEL_DESCRIPTION": "Nomi · DeepSeek (env)",
+       "ANTHROPIC_DEFAULT_FABLE_MODEL": "my-proxy/gpt-4o",
+       "ANTHROPIC_DEFAULT_FABLE_MODEL_SUPPORTED_CAPABILITIES": "thinking,interleaved_thinking",
+       "ANTHROPIC_DEFAULT_FABLE_MODEL_NAME": "GPT 4o",
+       "ANTHROPIC_DEFAULT_FABLE_MODEL_DESCRIPTION": "Nomi · My Proxy",
+       "CLAUDE_CODE_SUBAGENT_MODEL": "my-proxy/plain"
+      },
+      "args": [],
+      "strip": [
+       "ANTHROPIC_API_KEY",
+       "ANTHROPIC_MODEL",
+       "ANTHROPIC_SMALL_FAST_MODEL",
+       "ANTHROPIC_PROFILE",
+       "CLAUDE_CODE_USE_BEDROCK",
+       "CLAUDE_CODE_USE_VERTEX",
+       "CLAUDE_CODE_USE_FOUNDRY",
+       "CLAUDE_CODE_OAUTH_TOKEN",
+       "CLAUDE_CODE_OAUTH_REFRESH_TOKEN",
+       "CLAUDE_CODE_SUBAGENT_MODEL",
+       "CLAUDE_CONFIG_DIR"
+      ],
+      "generation": 1
+     },
+     "status": "running",
+     "sent": [
+      "binding:add"
+     ]
+    },
+    {
+     "op": "cliLaunchForTab",
+     "args": [
+      "bogus",
+      "t9",
+      "my-proxy/gpt-4o"
+     ],
+     "result": null,
+     "status": "running",
+     "sent": []
+    },
+    {
+     "op": "releaseTab",
+     "args": [
+      "grok",
+      "t8",
+      1
+     ],
+     "result": null,
+     "status": "running",
+     "sent": []
+    },
+    {
+     "op": "releaseTab",
+     "args": [
+      "grok",
+      "t8",
+      2
+     ],
+     "result": null,
+     "status": "running",
+     "sent": [
+      "binding:remove"
+     ]
+    },
+    {
+     "op": "releaseTab",
+     "args": [
+      "grok",
+      "t8"
+     ],
+     "result": null,
+     "status": "running",
+     "sent": []
+    },
+    {
+     "op": "releaseTab",
+     "args": [
+      "claude",
+      "t9"
+     ],
+     "result": null,
+     "status": "running",
+     "sent": [
+      "binding:remove"
+     ]
+    },
+    {
+     "op": "releaseAgent",
+     "args": [
+      "grok",
+      "t8"
+     ],
+     "result": null,
+     "status": "running",
+     "sent": []
+    },
+    {
+     "op": "releaseAgent",
+     "args": [
+      "claude",
+      "missing"
+     ],
+     "result": null,
+     "status": "running",
+     "sent": []
+    },
+    {
+     "op": "officialEnv",
+     "args": [
+      {
+       "A": "http://127.0.0.1:18999",
+       "B": "http://127.0.0.1:18999/v1",
+       "C": "http://127.0.0.1:18999/",
+       "D": "nomi-tab-abc",
+       "E": "nomi-gw-x",
+       "F": "keep",
+       "G": "",
+       "H": "http://127.0.0.1:18999/v2",
+       "I": "nomi-tabx"
+      }
+     ],
+     "result": {
+      "F": "keep",
+      "G": "",
+      "H": "http://127.0.0.1:18999/v2",
+      "I": "nomi-tabx"
+     },
+     "status": "running",
+     "sent": []
+    },
+    {
+     "op": "officialEnvTok",
+     "args": [
+      {
+       "F": "keep"
+      },
+      "codex"
+     ],
+     "result": {
+      "F": "keep"
+     },
+     "status": "running",
+     "sent": []
+    },
+    {
+     "op": "resetToken",
+     "args": [
+      "claude"
+     ],
+     "result": null,
+     "status": "running",
+     "sent": []
+    }
+   ],
+   "files": {
+    "gateway/agents/claude/t1/.claude.json": "{}",
+    "gateway/agents/claude/t1/settings.json": "{\n  \"theme\": \"dark\",\n  \"env\": {}\n}",
+    "gateway/agents/claude/t9/.claude.json": "{}",
+    "gateway/agents/claude/t9/settings.json": "{\n  \"theme\": \"dark\",\n  \"env\": {}\n}",
+    "gateway/agents/codex/tab_2____/models.json": "{\"models\":[{\"slug\":\"my-proxy/gpt-4o\",\"display_name\":\"GPT 4o · My Proxy\",\"base_instructions\":\"be nice\",\"priority\":0,\"input_modalities\":[\"text\",\"image\"],\"supported_reasoning_levels\":[{\"effort\":\"low\"}],\"default_reasoning_level\":\"medium\",\"description\":\"Nomi · My Proxy\",\"context_window\":200000,\"max_context_window\":200000,\"visibility\":\"list\",\"upgrade\":null,\"availability_nux\":null},{\"slug\":\"my-proxy/plain\",\"display_name\":\"plain · My Proxy\",\"base_instructions\":\"be nice\",\"priority\":1,\"input_modalities\":[\"text\",\"image\"],\"supported_reasoning_levels\":[{\"effort\":\"low\"}],\"default_reasoning_level\":\"medium\",\"description\":\"Nomi · My Proxy\",\"context_window\":128000,\"max_context_window\":128000,\"visibility\":\"list\",\"upgrade\":null,\"availability_nux\":null},{\"slug\":\"env-deepseek/deepseek-chat\",\"display_name\":\"deepseek-chat · DeepSeek (env)\",\"base_instructions\":\"be nice\",\"priority\":2,\"input_modalities\":[\"text\"],\"supported_reasoning_levels\":[],\"default_reasoning_level\":null,\"description\":\"Nomi · DeepSeek (env)\",\"context_window\":163840,\"max_context_window\":163840,\"visibility\":\"list\",\"upgrade\":null,\"availability_nux\":null}]}",
+    "gateway/agents/dsh/t4/patch.yml": "# >>> nomi managed (dsh provider) >>>\n- id: llm-pi-ai\n  config:\n    providers:\n      nomi:\n        api: \"openai-responses\"\n        baseURL: \"http://127.0.0.1:18999/v1\"\n        apiKeyEnv: NOMI_DSH_API_KEY\n        models:\n          - id: \"my-proxy/gpt-4o\"\n            contextWindow: 200000\n            maxTokens: 64000\n- id: agent-default-model\n  config:\n    provider: nomi\n    model: \"my-proxy/gpt-4o\"\n# <<< nomi managed (dsh provider) <<<\n",
+    "gateway/agents/dsh/t5/patch.yml": "# >>> nomi managed (dsh provider) >>>\n- id: llm-pi-ai\n  config:\n    providers:\n      nomi:\n        api: \"openai-responses\"\n        baseURL: \"http://127.0.0.1:18999/v1\"\n        apiKeyEnv: NOMI_DSH_API_KEY\n        models:\n          - id: \"nope/unknown\"\n            contextWindow: 128000\n            maxTokens: 32000\n- id: agent-default-model\n  config:\n    provider: nomi\n    model: \"nope/unknown\"\n# <<< nomi managed (dsh provider) <<<\n",
+    "gateway/agents/grok/t6/config.toml": "# Private config for a Nomi third-party session (does not affect ~/.grok)\n[model.nomi]\nmodel = \"my-proxy/gpt-4o\"\nbase_url = \"http://127.0.0.1:18999/v1\"\nname = \"Nomi\"\nenv_key = \"NOMI_GROK_API_KEY\"\napi_backend = \"responses\"\ncontext_window = 200000\nmax_retries = 1\n\n[models]\ndefault = \"nomi\"\nsession_summary = \"nomi\"\nprompt_suggestion = \"nomi\"\n",
+    "gateway/agents/grok/t7/config.toml": "# Private config for a Nomi third-party session (does not affect ~/.grok)\n[model.nomi]\nmodel = \"nomi\"\nbase_url = \"http://127.0.0.1:18999/v1\"\nname = \"Nomi\"\nenv_key = \"NOMI_GROK_API_KEY\"\napi_backend = \"responses\"\ncontext_window = 200000\nmax_retries = 1\n\n[models]\ndefault = \"nomi\"\nsession_summary = \"nomi\"\nprompt_suggestion = \"nomi\"\n",
+    "gateway/privacy-log.json": "[]",
+    "gateway/store.json": "{\n  \"version\": 1,\n  \"providers\": [\n    {\n      \"createdAt\": 1793500003000,\n      \"source\": \"user\",\n      \"modelsSource\": \"manual\",\n      \"id\": \"my-proxy\",\n      \"name\": \"My Proxy\",\n      \"enabled\": true,\n      \"urls\": {\n        \"chat\": \"https://proxy.example.com/v1\"\n      },\n      \"keys\": [\n        {\n          \"id\": \"k-00000001\",\n          \"enc\": \"c3M6c2stcHJveHktYWFhYWFhYWFhYWFh\",\n          \"encryption\": \"safeStorage\",\n          \"masked\": \"sk-…aaaa\",\n          \"enabled\": true\n        }\n      ],\n      \"models\": [\n        {\n          \"id\": \"gpt-4o\",\n          \"enabled\": true,\n          \"label\": \"GPT 4o\",\n          \"reasoning\": true,\n          \"vision\": true,\n          \"ctx\": 200000,\n          \"maxOutput\": 64000\n        },\n        {\n          \"id\": \"gpt-4o-mini\",\n          \"enabled\": false\n        },\n        {\n          \"id\": \"no-tools\",\n          \"enabled\": true,\n          \"toolCalling\": false\n        },\n        {\n          \"id\": \"plain\",\n          \"enabled\": true\n        }\n      ],\n      \"updatedAt\": 1793500003000\n    },\n    {\n      \"createdAt\": 1793500004000,\n      \"source\": \"user\",\n      \"modelsSource\": \"manual\",\n      \"id\": \"off\",\n      \"name\": \"Off\",\n      \"enabled\": false,\n      \"urls\": {\n        \"chat\": \"https://off.example.com/v1\"\n      },\n      \"keys\": [],\n      \"models\": [\n        {\n          \"id\": \"x\",\n          \"enabled\": true\n        }\n      ],\n      \"updatedAt\": 1793500004000\n    }\n  ],\n  \"clients\": {\n    \"nomi\": {\n      \"models\": {},\n      \"tokenEnc\": \"c3M6bm9taS1ndy1ub21pLUFnSUNBZ0lDQWdJQ0FnSUNBZ0lDQWdJQ0FnSUNBZ0lDQWdJQ0FnSUNBZ0k=\",\n      \"tokenEncryption\": \"safeStorage\"\n    },\n    \"claude\": {\n      \"models\": {\n        \"main\": \"my-proxy/gpt-4o\",\n        \"tiers\": {\n          \"opus\": \"my-proxy/plain\"\n        },\n        \"small\": \"env-deepseek/deepseek-chat\",\n        \"subagent\": \"my-proxy/plain\"\n      },\n      \"tokenEnc\": \"c3M6bm9taS1ndy1jbGF1ZGUtQ3dzTEN3c0xDd3NMQ3dzTEN3c0xDd3NMQ3dzTEN3c0xDd3NMQ3dzTEN3cw==\",\n      \"tokenEncryption\": \"safeStorage\",\n      \"newTabSource\": \"thirdParty\"\n    },\n    \"codex\": {\n      \"models\": {},\n      \"tokenEnc\": \"c3M6bm9taS1ndy1jb2RleC1CQVFFQkFRRUJBUUVCQVFFQkFRRUJBUUVCQVFFQkFRRUJBUUVCQVFFQkFR\",\n      \"tokenEncryption\": \"safeStorage\"\n    },\n    \"gemini\": {\n      \"models\": {},\n      \"tokenEnc\": \"c3M6bm9taS1ndy1nZW1pbmktQlFVRkJRVUZCUVVGQlFVRkJRVUZCUVVGQlFVRkJRVUZCUVVGQlFVRkJRVQ==\",\n      \"tokenEncryption\": \"safeStorage\",\n      \"newTabSource\": \"official\",\n      \"newTabAccountId\": \"acc-2\"\n    },\n    \"grok\": {\n      \"models\": {},\n      \"tokenEnc\": \"c3M6bm9taS1ndy1ncm9rLUJnWUdCZ1lHQmdZR0JnWUdCZ1lHQmdZR0JnWUdCZ1lHQmdZR0JnWUdCZ1k=\",\n      \"tokenEncryption\": \"safeStorage\",\n      \"newTabSource\": \"thirdParty\"\n    },\n    \"dsh\": {\n      \"models\": {},\n      \"tokenEnc\": \"c3M6bm9taS1ndy1kc2gtQndjSEJ3Y0hCd2NIQndjSEJ3Y0hCd2NIQndjSEJ3Y0hCd2NIQndjSEJ3Yw==\",\n      \"tokenEncryption\": \"safeStorage\"\n    }\n  },\n  \"learned\": {},\n  \"allowedPrivateHosts\": [],\n  \"port\": 18721,\n  \"privacyKeyEnc\": \"c3M6MDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEwMQ==\",\n  \"privacyKeyEncryption\": \"safeStorage\"\n}",
+    "home/.claude/settings.json": "{\"theme\":\"dark\",\"env\":{\"ANTHROPIC_BASE_URL\":\"https://evil.example.com\"}}",
+    "home/.codex/models_cache.json": "{\"models\":[{\"slug\":\"gpt-5\",\"display_name\":\"GPT-5\",\"base_instructions\":\"be nice\",\"priority\":9,\"input_modalities\":[\"text\",\"image\"],\"supported_reasoning_levels\":[{\"effort\":\"low\"}],\"default_reasoning_level\":\"medium\"}]}"
+   }
+  },
+  {
+   "name": "officialEnv stopped",
+   "steps": [
+    {
+     "op": "officialEnv",
+     "args": [
+      {
+       "A": "http://127.0.0.1:18999",
+       "F": "keep"
+      }
+     ],
+     "result": {
+      "F": "keep"
+     },
+     "status": "stopped",
+     "sent": []
+    },
+    {
+     "op": "cliLaunch",
+     "args": [
+      "gemini",
+      "t1",
+      "x/y"
+     ],
+     "result": {
+      "env": {
+       "GEMINI_CLI_AUTH_OVERRIDE": "gemini-api-key",
+       "GOOGLE_GEMINI_BASE_URL": "http://127.0.0.1:18999",
+       "GEMINI_API_KEY": "nomi-gw-gemini-BQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQU",
+       "GEMINI_MODEL": "x/y"
+      },
+      "args": [],
+      "strip": [
+       "GOOGLE_API_KEY",
+       "GOOGLE_GENAI_USE_VERTEXAI",
+       "GOOGLE_CLOUD_PROJECT",
+       "GOOGLE_APPLICATION_CREDENTIALS",
+       "GEMINI_CLI_SYSTEM_SETTINGS_PATH"
+      ],
+      "modelInConfig": true
+     },
+     "status": "starting",
+     "sent": []
+    },
+    {
+     "op": "officialEnv",
+     "args": [
+      {
+       "A": "http://127.0.0.1:18999/",
+       "F": "keep"
+      }
+     ],
+     "result": {
+      "F": "keep"
+     },
+     "status": "starting",
+     "sent": []
+    }
+   ],
+   "files": {
+    "gateway/privacy-log.json": "[]",
+    "gateway/store.json": "{\n  \"version\": 1,\n  \"providers\": [],\n  \"clients\": {\n    \"nomi\": {\n      \"models\": {},\n      \"tokenEnc\": \"c3M6bm9taS1ndy1ub21pLUFnSUNBZ0lDQWdJQ0FnSUNBZ0lDQWdJQ0FnSUNBZ0lDQWdJQ0FnSUNBZ0k=\",\n      \"tokenEncryption\": \"safeStorage\"\n    },\n    \"claude\": {\n      \"models\": {},\n      \"tokenEnc\": \"c3M6bm9taS1ndy1jbGF1ZGUtQXdNREF3TURBd01EQXdNREF3TURBd01EQXdNREF3TURBd01EQXdNREF3TQ==\",\n      \"tokenEncryption\": \"safeStorage\"\n    },\n    \"codex\": {\n      \"models\": {},\n      \"tokenEnc\": \"c3M6bm9taS1ndy1jb2RleC1CQVFFQkFRRUJBUUVCQVFFQkFRRUJBUUVCQVFFQkFRRUJBUUVCQVFFQkFR\",\n      \"tokenEncryption\": \"safeStorage\"\n    },\n    \"gemini\": {\n      \"models\": {},\n      \"tokenEnc\": \"c3M6bm9taS1ndy1nZW1pbmktQlFVRkJRVUZCUVVGQlFVRkJRVUZCUVVGQlFVRkJRVUZCUVVGQlFVRkJRVQ==\",\n      \"tokenEncryption\": \"safeStorage\"\n    },\n    \"grok\": {\n      \"models\": {},\n      \"tokenEnc\": \"c3M6bm9taS1ndy1ncm9rLUJnWUdCZ1lHQmdZR0JnWUdCZ1lHQmdZR0JnWUdCZ1lHQmdZR0JnWUdCZ1k=\",\n      \"tokenEncryption\": \"safeStorage\"\n    },\n    \"dsh\": {\n      \"models\": {},\n      \"tokenEnc\": \"c3M6bm9taS1ndy1kc2gtQndjSEJ3Y0hCd2NIQndjSEJ3Y0hCd2NIQndjSEJ3Y0hCd2NIQndjSEJ3Yw==\",\n      \"tokenEncryption\": \"safeStorage\"\n    }\n  },\n  \"learned\": {},\n  \"allowedPrivateHosts\": [],\n  \"port\": 18721,\n  \"privacyKeyEnc\": \"c3M6MDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEwMQ==\",\n  \"privacyKeyEncryption\": \"safeStorage\"\n}",
+    "home/.claude/settings.json": "{\"theme\":\"dark\",\"env\":{\"ANTHROPIC_BASE_URL\":\"https://evil.example.com\"}}",
+    "home/.codex/models_cache.json": "{\"models\":[{\"slug\":\"gpt-5\",\"display_name\":\"GPT-5\",\"base_instructions\":\"be nice\",\"priority\":9,\"input_modalities\":[\"text\",\"image\"],\"supported_reasoning_levels\":[{\"effort\":\"low\"}],\"default_reasoning_level\":\"medium\"}]}"
+   }
+  },
+  {
+   "name": "truthy enabled",
+   "steps": [
+    {
+     "op": "storeProvider",
+     "args": [
+      {
+       "id": "raw1",
+       "name": "Raw 1",
+       "enabled": 1,
+       "wire": "chat",
+       "urls": {
+        "chat": "https://raw1.example.com/v1"
+       },
+       "keys": [],
+       "models": [
+        {
+         "id": "a",
+         "enabled": "yes",
+         "label": null
+        },
+        {
+         "id": "b",
+         "enabled": 0
+        },
+        {
+         "id": "c",
+         "enabled": ""
+        },
+        {
+         "id": "d",
+         "enabled": null
+        },
+        {
+         "id": "e",
+         "enabled": 1,
+         "toolCalling": 0
+        },
+        {
+         "id": "f",
+         "enabled": {},
+         "toolCalling": null,
+         "label": "F"
+        },
+        {
+         "id": "g",
+         "enabled": "false"
+        }
+       ]
+      }
+     ],
+     "result": null,
+     "status": "stopped",
+     "sent": []
+    },
+    {
+     "op": "storeProvider",
+     "args": [
+      {
+       "id": "raw2",
+       "name": "Raw 2",
+       "enabled": "on",
+       "wire": "chat",
+       "urls": {
+        "chat": "https://raw2.example.com/v1"
+       },
+       "keys": [],
+       "models": [
+        {
+         "id": "z",
+         "enabled": true
+        }
+       ]
+      }
+     ],
+     "result": null,
+     "status": "stopped",
+     "sent": []
+    },
+    {
+     "op": "storeProvider",
+     "args": [
+      {
+       "id": "raw3",
+       "name": "Raw 3",
+       "enabled": 0,
+       "wire": "chat",
+       "urls": {
+        "chat": "https://raw3.example.com/v1"
+       },
+       "keys": [],
+       "models": [
+        {
+         "id": "z",
+         "enabled": true
+        }
+       ]
+      }
+     ],
+     "result": null,
+     "status": "stopped",
+     "sent": []
+    },
+    {
+     "op": "storeProvider",
+     "args": [
+      {
+       "id": "raw4",
+       "name": "Raw 4",
+       "enabled": "",
+       "wire": "chat",
+       "urls": {
+        "chat": "https://raw4.example.com/v1"
+       },
+       "keys": [],
+       "models": [
+        {
+         "id": "z",
+         "enabled": true
+        }
+       ]
+      }
+     ],
+     "result": null,
+     "status": "stopped",
+     "sent": []
+    },
+    {
+     "op": "storeProvider",
+     "args": [
+      {
+       "id": "raw5",
+       "name": "Raw 5",
+       "wire": "chat",
+       "urls": {
+        "chat": "https://raw5.example.com/v1"
+       },
+       "keys": [],
+       "models": [
+        {
+         "id": "z",
+         "enabled": true
+        }
+       ]
+      }
+     ],
+     "result": null,
+     "status": "stopped",
+     "sent": []
+    },
+    {
+     "op": "cliModels",
+     "args": [],
+     "result": [
+      {
+       "ref": "raw1/a",
+       "provider": "Raw 1",
+       "label": "a"
+      },
+      {
+       "ref": "raw1/e",
+       "provider": "Raw 1",
+       "label": "e"
+      },
+      {
+       "ref": "raw1/f",
+       "provider": "Raw 1",
+       "label": "F"
+      },
+      {
+       "ref": "raw1/g",
+       "provider": "Raw 1",
+       "label": "g"
+      },
+      {
+       "ref": "raw2/z",
+       "provider": "Raw 2",
+       "label": "z"
+      },
+      {
+       "ref": "env-deepseek/deepseek-chat",
+       "provider": "DeepSeek (env)",
+       "label": "deepseek-chat",
+       "reasoning": false,
+       "vision": false,
+       "ctx": 163840
+      }
+     ],
+     "status": "stopped",
+     "sent": []
+    },
+    {
+     "op": "cliLaunch",
+     "args": [
+      "claude",
+      "t1",
+      "raw1/a"
+     ],
+     "result": {
+      "env": {
+       "CLAUDE_CONFIG_DIR": "<UD>/gateway/agents/claude/t1",
+       "ANTHROPIC_BASE_URL": "http://127.0.0.1:18999",
+       "ANTHROPIC_AUTH_TOKEN": "nomi-gw-claude-AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM",
+       "ANTHROPIC_SMALL_FAST_MODEL": "raw1/a",
+       "CLAUDE_CODE_MAX_CONTEXT_TOKENS": "128000",
+       "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "32000",
+       "MAX_THINKING_TOKENS": "0",
+       "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+       "CLAUDE_CODE_DISABLE_AGENT_VIEW": "1",
+       "ANTHROPIC_DEFAULT_OPUS_MODEL": "raw1/a",
+       "ANTHROPIC_DEFAULT_OPUS_MODEL_SUPPORTED_CAPABILITIES": "temperature",
+       "ANTHROPIC_DEFAULT_OPUS_MODEL_NAME": "a",
+       "ANTHROPIC_DEFAULT_OPUS_MODEL_DESCRIPTION": "Nomi · Raw 1",
+       "ANTHROPIC_DEFAULT_SONNET_MODEL": "raw1/a",
+       "ANTHROPIC_DEFAULT_SONNET_MODEL_SUPPORTED_CAPABILITIES": "temperature",
+       "ANTHROPIC_DEFAULT_SONNET_MODEL_NAME": "a",
+       "ANTHROPIC_DEFAULT_SONNET_MODEL_DESCRIPTION": "Nomi · Raw 1",
+       "ANTHROPIC_DEFAULT_HAIKU_MODEL": "raw1/a",
+       "ANTHROPIC_DEFAULT_HAIKU_MODEL_SUPPORTED_CAPABILITIES": "temperature",
+       "ANTHROPIC_DEFAULT_HAIKU_MODEL_NAME": "a",
+       "ANTHROPIC_DEFAULT_HAIKU_MODEL_DESCRIPTION": "Nomi · Raw 1",
+       "ANTHROPIC_DEFAULT_FABLE_MODEL": "raw1/a",
+       "ANTHROPIC_DEFAULT_FABLE_MODEL_SUPPORTED_CAPABILITIES": "temperature",
+       "ANTHROPIC_DEFAULT_FABLE_MODEL_NAME": "a",
+       "ANTHROPIC_DEFAULT_FABLE_MODEL_DESCRIPTION": "Nomi · Raw 1"
+      },
+      "args": [],
+      "strip": [
+       "ANTHROPIC_API_KEY",
+       "ANTHROPIC_MODEL",
+       "ANTHROPIC_SMALL_FAST_MODEL",
+       "ANTHROPIC_PROFILE",
+       "CLAUDE_CODE_USE_BEDROCK",
+       "CLAUDE_CODE_USE_VERTEX",
+       "CLAUDE_CODE_USE_FOUNDRY",
+       "CLAUDE_CODE_OAUTH_TOKEN",
+       "CLAUDE_CODE_OAUTH_REFRESH_TOKEN",
+       "CLAUDE_CODE_SUBAGENT_MODEL",
+       "CLAUDE_CONFIG_DIR"
+      ]
+     },
+     "status": "starting",
+     "sent": []
+    },
+    {
+     "op": "cliLaunch",
+     "args": [
+      "gemini",
+      "t2",
+      "raw1/f"
+     ],
+     "result": {
+      "env": {
+       "GEMINI_CLI_AUTH_OVERRIDE": "gemini-api-key",
+       "GOOGLE_GEMINI_BASE_URL": "http://127.0.0.1:18999",
+       "GEMINI_API_KEY": "nomi-gw-gemini-BQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQU",
+       "GEMINI_MODEL": "raw1/f"
+      },
+      "args": [],
+      "strip": [
+       "GOOGLE_API_KEY",
+       "GOOGLE_GENAI_USE_VERTEXAI",
+       "GOOGLE_CLOUD_PROJECT",
+       "GOOGLE_APPLICATION_CREDENTIALS",
+       "GEMINI_CLI_SYSTEM_SETTINGS_PATH"
+      ],
+      "modelInConfig": true
+     },
+     "status": "starting",
+     "sent": []
+    }
+   ],
+   "files": {
+    "gateway/agents/claude/t1/.claude.json": "{}",
+    "gateway/agents/claude/t1/settings.json": "{\n  \"theme\": \"dark\",\n  \"env\": {}\n}",
+    "gateway/privacy-log.json": "[]",
+    "gateway/store.json": "{\n  \"version\": 1,\n  \"providers\": [],\n  \"clients\": {\n    \"nomi\": {\n      \"models\": {},\n      \"tokenEnc\": \"c3M6bm9taS1ndy1ub21pLUFnSUNBZ0lDQWdJQ0FnSUNBZ0lDQWdJQ0FnSUNBZ0lDQWdJQ0FnSUNBZ0k=\",\n      \"tokenEncryption\": \"safeStorage\"\n    },\n    \"claude\": {\n      \"models\": {},\n      \"tokenEnc\": \"c3M6bm9taS1ndy1jbGF1ZGUtQXdNREF3TURBd01EQXdNREF3TURBd01EQXdNREF3TURBd01EQXdNREF3TQ==\",\n      \"tokenEncryption\": \"safeStorage\"\n    },\n    \"codex\": {\n      \"models\": {},\n      \"tokenEnc\": \"c3M6bm9taS1ndy1jb2RleC1CQVFFQkFRRUJBUUVCQVFFQkFRRUJBUUVCQVFFQkFRRUJBUUVCQVFFQkFR\",\n      \"tokenEncryption\": \"safeStorage\"\n    },\n    \"gemini\": {\n      \"models\": {},\n      \"tokenEnc\": \"c3M6bm9taS1ndy1nZW1pbmktQlFVRkJRVUZCUVVGQlFVRkJRVUZCUVVGQlFVRkJRVUZCUVVGQlFVRkJRVQ==\",\n      \"tokenEncryption\": \"safeStorage\"\n    },\n    \"grok\": {\n      \"models\": {},\n      \"tokenEnc\": \"c3M6bm9taS1ndy1ncm9rLUJnWUdCZ1lHQmdZR0JnWUdCZ1lHQmdZR0JnWUdCZ1lHQmdZR0JnWUdCZ1k=\",\n      \"tokenEncryption\": \"safeStorage\"\n    },\n    \"dsh\": {\n      \"models\": {},\n      \"tokenEnc\": \"c3M6bm9taS1ndy1kc2gtQndjSEJ3Y0hCd2NIQndjSEJ3Y0hCd2NIQndjSEJ3Y0hCd2NIQndjSEJ3Yw==\",\n      \"tokenEncryption\": \"safeStorage\"\n    }\n  },\n  \"learned\": {},\n  \"allowedPrivateHosts\": [],\n  \"port\": 18721,\n  \"privacyKeyEnc\": \"c3M6MDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEwMQ==\",\n  \"privacyKeyEncryption\": \"safeStorage\"\n}",
+    "home/.claude/settings.json": "{\"theme\":\"dark\",\"env\":{\"ANTHROPIC_BASE_URL\":\"https://evil.example.com\"}}",
+    "home/.codex/models_cache.json": "{\"models\":[{\"slug\":\"gpt-5\",\"display_name\":\"GPT-5\",\"base_instructions\":\"be nice\",\"priority\":9,\"input_modalities\":[\"text\",\"image\"],\"supported_reasoning_levels\":[{\"effort\":\"low\"}],\"default_reasoning_level\":\"medium\"}]}"
+   }
+  },
+  {
+   "name": "catalog sync",
+   "steps": [
+    {
+     "op": "upsertProvider",
+     "args": [
+      {
+       "name": "My Proxy",
+       "urls": {
+        "chat": "https://proxy.example.com/v1"
+       },
+       "newKeys": [
+        {
+         "value": "sk-proxy-aaaaaaaaaaaa"
+        }
+       ],
+       "models": [
+        {
+         "id": "plain",
+         "enabled": true
+        },
+        {
+         "id": "m-001",
+         "enabled": true
+        }
+       ]
+      }
+     ],
+     "result": {
+      "createdAt": 1793500001000,
+      "source": "user",
+      "modelsSource": "manual",
+      "id": "my-proxy",
+      "name": "My Proxy",
+      "enabled": true,
+      "urls": {
+       "chat": "https://proxy.example.com/v1"
+      },
+      "keys": [
+       {
+        "id": "k-00000001",
+        "masked": "sk-…aaaa",
+        "enabled": true,
+        "decryptable": true
+       }
+      ],
+      "models": [
+       {
+        "id": "plain",
+        "enabled": true,
+        "effective": {
+         "ctx": 128000,
+         "maxOutput": 32000,
+         "source": "default",
+         "maxOutputSource": "default"
+        }
+       },
+       {
+        "id": "m-001",
+        "enabled": true,
+        "effective": {
+         "ctx": 128000,
+         "maxOutput": 32000,
+         "source": "default",
+         "maxOutputSource": "default"
+        }
+       }
+      ],
+      "updatedAt": 1793500001000
+     },
+     "status": "stopped",
+     "sent": []
+    },
+    {
+     "op": "hasCatalogSync",
+     "args": [],
+     "result": false,
+     "status": "stopped",
+     "sent": []
+    },
+    {
+     "op": "cliModels",
+     "args": [],
+     "result": [
+      {
+       "ref": "my-proxy/plain",
+       "provider": "My Proxy",
+       "label": "plain"
+      },
+      {
+       "ref": "my-proxy/m-001",
+       "provider": "My Proxy",
+       "label": "m-001"
+      },
+      {
+       "ref": "env-deepseek/deepseek-chat",
+       "provider": "DeepSeek (env)",
+       "label": "deepseek-chat",
+       "reasoning": false,
+       "vision": false,
+       "ctx": 163840
+      }
+     ],
+     "status": "stopped",
+     "sent": []
+    },
+    {
+     "op": "applyModelsDataN",
+     "args": [
+      5
+     ],
+     "result": null,
+     "status": "stopped",
+     "sent": []
+    },
+    {
+     "op": "hasCatalogSync",
+     "args": [],
+     "result": false,
+     "status": "stopped",
+     "sent": []
+    },
+    {
+     "op": "applyModelsDataN",
+     "args": [
+      120
+     ],
+     "result": null,
+     "status": "stopped",
+     "sent": []
+    },
+    {
+     "op": "hasCatalogSync",
+     "args": [],
+     "result": true,
+     "status": "stopped",
+     "sent": []
+    },
+    {
+     "op": "cliModels",
+     "args": [],
+     "result": [
+      {
+       "ref": "my-proxy/plain",
+       "provider": "My Proxy",
+       "label": "plain",
+       "reasoning": false,
+       "vision": false,
+       "ctx": 777000
+      },
+      {
+       "ref": "my-proxy/m-001",
+       "provider": "My Proxy",
+       "label": "m-001",
+       "reasoning": false,
+       "vision": false,
+       "ctx": 101000
+      },
+      {
+       "ref": "env-deepseek/deepseek-chat",
+       "provider": "DeepSeek (env)",
+       "label": "deepseek-chat",
+       "reasoning": false,
+       "vision": false,
+       "ctx": 163840
+      }
+     ],
+     "status": "stopped",
+     "sent": []
+    },
+    {
+     "op": "modelMetaOf",
+     "args": [
+      "my-proxy/plain"
+     ],
+     "result": {
+      "ctx": 777000,
+      "maxOutput": 33000,
+      "reasoning": false,
+      "vision": false,
+      "toolCalling": false,
+      "source": "catalog",
+      "maxOutputSource": "catalog"
+     },
+     "status": "stopped",
+     "sent": []
+    },
+    {
+     "op": "cliLaunch",
+     "args": [
+      "claude",
+      "t1",
+      "my-proxy/plain"
+     ],
+     "result": {
+      "env": {
+       "CLAUDE_CONFIG_DIR": "<UD>/gateway/agents/claude/t1",
+       "ANTHROPIC_BASE_URL": "http://127.0.0.1:18999",
+       "ANTHROPIC_AUTH_TOKEN": "nomi-gw-claude-AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM",
+       "ANTHROPIC_SMALL_FAST_MODEL": "my-proxy/plain",
+       "CLAUDE_CODE_MAX_CONTEXT_TOKENS": "777000",
+       "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "33000",
+       "MAX_THINKING_TOKENS": "0",
+       "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+       "CLAUDE_CODE_DISABLE_AGENT_VIEW": "1",
+       "ANTHROPIC_DEFAULT_OPUS_MODEL": "my-proxy/plain",
+       "ANTHROPIC_DEFAULT_OPUS_MODEL_SUPPORTED_CAPABILITIES": "temperature",
+       "ANTHROPIC_DEFAULT_OPUS_MODEL_NAME": "plain",
+       "ANTHROPIC_DEFAULT_OPUS_MODEL_DESCRIPTION": "Nomi · My Proxy",
+       "ANTHROPIC_DEFAULT_SONNET_MODEL": "my-proxy/plain",
+       "ANTHROPIC_DEFAULT_SONNET_MODEL_SUPPORTED_CAPABILITIES": "temperature",
+       "ANTHROPIC_DEFAULT_SONNET_MODEL_NAME": "plain",
+       "ANTHROPIC_DEFAULT_SONNET_MODEL_DESCRIPTION": "Nomi · My Proxy",
+       "ANTHROPIC_DEFAULT_HAIKU_MODEL": "my-proxy/plain",
+       "ANTHROPIC_DEFAULT_HAIKU_MODEL_SUPPORTED_CAPABILITIES": "temperature",
+       "ANTHROPIC_DEFAULT_HAIKU_MODEL_NAME": "plain",
+       "ANTHROPIC_DEFAULT_HAIKU_MODEL_DESCRIPTION": "Nomi · My Proxy",
+       "ANTHROPIC_DEFAULT_FABLE_MODEL": "my-proxy/plain",
+       "ANTHROPIC_DEFAULT_FABLE_MODEL_SUPPORTED_CAPABILITIES": "temperature",
+       "ANTHROPIC_DEFAULT_FABLE_MODEL_NAME": "plain",
+       "ANTHROPIC_DEFAULT_FABLE_MODEL_DESCRIPTION": "Nomi · My Proxy"
+      },
+      "args": [],
+      "strip": [
+       "ANTHROPIC_API_KEY",
+       "ANTHROPIC_MODEL",
+       "ANTHROPIC_SMALL_FAST_MODEL",
+       "ANTHROPIC_PROFILE",
+       "CLAUDE_CODE_USE_BEDROCK",
+       "CLAUDE_CODE_USE_VERTEX",
+       "CLAUDE_CODE_USE_FOUNDRY",
+       "CLAUDE_CODE_OAUTH_TOKEN",
+       "CLAUDE_CODE_OAUTH_REFRESH_TOKEN",
+       "CLAUDE_CODE_SUBAGENT_MODEL",
+       "CLAUDE_CONFIG_DIR"
+      ]
+     },
+     "status": "starting",
+     "sent": []
+    }
+   ],
+   "files": {
+    "gateway/agents/claude/t1/.claude.json": "{}",
+    "gateway/agents/claude/t1/settings.json": "{\n  \"theme\": \"dark\",\n  \"env\": {}\n}",
+    "gateway/catalog-sync.json": "{\"version\":\"2026-11-01\",\"source\":\"models.dev\",\"license\":\"MIT\",\"models\":{\"m-000\":{\"limits\":{\"context\":100000,\"maxOutput\":4096},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-001\":{\"limits\":{\"context\":101000,\"maxOutput\":4097},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-002\":{\"limits\":{\"context\":102000,\"maxOutput\":4098},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-003\":{\"limits\":{\"context\":103000,\"maxOutput\":4099},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-004\":{\"limits\":{\"context\":104000,\"maxOutput\":4100},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-005\":{\"limits\":{\"context\":105000,\"maxOutput\":4101},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-006\":{\"limits\":{\"context\":106000,\"maxOutput\":4102},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-007\":{\"limits\":{\"context\":107000,\"maxOutput\":4103},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-008\":{\"limits\":{\"context\":108000,\"maxOutput\":4104},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-009\":{\"limits\":{\"context\":109000,\"maxOutput\":4105},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-010\":{\"limits\":{\"context\":110000,\"maxOutput\":4106},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-011\":{\"limits\":{\"context\":111000,\"maxOutput\":4107},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-012\":{\"limits\":{\"context\":112000,\"maxOutput\":4108},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-013\":{\"limits\":{\"context\":113000,\"maxOutput\":4109},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-014\":{\"limits\":{\"context\":114000,\"maxOutput\":4110},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-015\":{\"limits\":{\"context\":115000,\"maxOutput\":4111},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-016\":{\"limits\":{\"context\":116000,\"maxOutput\":4112},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-017\":{\"limits\":{\"context\":117000,\"maxOutput\":4113},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-018\":{\"limits\":{\"context\":118000,\"maxOutput\":4114},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-019\":{\"limits\":{\"context\":119000,\"maxOutput\":4115},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-020\":{\"limits\":{\"context\":120000,\"maxOutput\":4116},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-021\":{\"limits\":{\"context\":121000,\"maxOutput\":4117},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-022\":{\"limits\":{\"context\":122000,\"maxOutput\":4118},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-023\":{\"limits\":{\"context\":123000,\"maxOutput\":4119},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-024\":{\"limits\":{\"context\":124000,\"maxOutput\":4120},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-025\":{\"limits\":{\"context\":125000,\"maxOutput\":4121},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-026\":{\"limits\":{\"context\":126000,\"maxOutput\":4122},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-027\":{\"limits\":{\"context\":127000,\"maxOutput\":4123},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-028\":{\"limits\":{\"context\":128000,\"maxOutput\":4124},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-029\":{\"limits\":{\"context\":129000,\"maxOutput\":4125},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-030\":{\"limits\":{\"context\":130000,\"maxOutput\":4126},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-031\":{\"limits\":{\"context\":131000,\"maxOutput\":4127},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-032\":{\"limits\":{\"context\":132000,\"maxOutput\":4128},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-033\":{\"limits\":{\"context\":133000,\"maxOutput\":4129},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-034\":{\"limits\":{\"context\":134000,\"maxOutput\":4130},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-035\":{\"limits\":{\"context\":135000,\"maxOutput\":4131},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-036\":{\"limits\":{\"context\":136000,\"maxOutput\":4132},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-037\":{\"limits\":{\"context\":137000,\"maxOutput\":4133},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-038\":{\"limits\":{\"context\":138000,\"maxOutput\":4134},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-039\":{\"limits\":{\"context\":139000,\"maxOutput\":4135},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-040\":{\"limits\":{\"context\":140000,\"maxOutput\":4136},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-041\":{\"limits\":{\"context\":141000,\"maxOutput\":4137},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-042\":{\"limits\":{\"context\":142000,\"maxOutput\":4138},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-043\":{\"limits\":{\"context\":143000,\"maxOutput\":4139},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-044\":{\"limits\":{\"context\":144000,\"maxOutput\":4140},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-045\":{\"limits\":{\"context\":145000,\"maxOutput\":4141},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-046\":{\"limits\":{\"context\":146000,\"maxOutput\":4142},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-047\":{\"limits\":{\"context\":147000,\"maxOutput\":4143},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-048\":{\"limits\":{\"context\":148000,\"maxOutput\":4144},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-049\":{\"limits\":{\"context\":149000,\"maxOutput\":4145},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-050\":{\"limits\":{\"context\":150000,\"maxOutput\":4146},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-051\":{\"limits\":{\"context\":151000,\"maxOutput\":4147},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-052\":{\"limits\":{\"context\":152000,\"maxOutput\":4148},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-053\":{\"limits\":{\"context\":153000,\"maxOutput\":4149},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-054\":{\"limits\":{\"context\":154000,\"maxOutput\":4150},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-055\":{\"limits\":{\"context\":155000,\"maxOutput\":4151},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-056\":{\"limits\":{\"context\":156000,\"maxOutput\":4152},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-057\":{\"limits\":{\"context\":157000,\"maxOutput\":4153},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-058\":{\"limits\":{\"context\":158000,\"maxOutput\":4154},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-059\":{\"limits\":{\"context\":159000,\"maxOutput\":4155},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-060\":{\"limits\":{\"context\":160000,\"maxOutput\":4156},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-061\":{\"limits\":{\"context\":161000,\"maxOutput\":4157},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-062\":{\"limits\":{\"context\":162000,\"maxOutput\":4158},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-063\":{\"limits\":{\"context\":163000,\"maxOutput\":4159},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-064\":{\"limits\":{\"context\":164000,\"maxOutput\":4160},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-065\":{\"limits\":{\"context\":165000,\"maxOutput\":4161},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-066\":{\"limits\":{\"context\":166000,\"maxOutput\":4162},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-067\":{\"limits\":{\"context\":167000,\"maxOutput\":4163},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-068\":{\"limits\":{\"context\":168000,\"maxOutput\":4164},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-069\":{\"limits\":{\"context\":169000,\"maxOutput\":4165},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-070\":{\"limits\":{\"context\":170000,\"maxOutput\":4166},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-071\":{\"limits\":{\"context\":171000,\"maxOutput\":4167},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-072\":{\"limits\":{\"context\":172000,\"maxOutput\":4168},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-073\":{\"limits\":{\"context\":173000,\"maxOutput\":4169},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-074\":{\"limits\":{\"context\":174000,\"maxOutput\":4170},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-075\":{\"limits\":{\"context\":175000,\"maxOutput\":4171},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-076\":{\"limits\":{\"context\":176000,\"maxOutput\":4172},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-077\":{\"limits\":{\"context\":177000,\"maxOutput\":4173},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-078\":{\"limits\":{\"context\":178000,\"maxOutput\":4174},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-079\":{\"limits\":{\"context\":179000,\"maxOutput\":4175},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-080\":{\"limits\":{\"context\":180000,\"maxOutput\":4176},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-081\":{\"limits\":{\"context\":181000,\"maxOutput\":4177},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-082\":{\"limits\":{\"context\":182000,\"maxOutput\":4178},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-083\":{\"limits\":{\"context\":183000,\"maxOutput\":4179},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-084\":{\"limits\":{\"context\":184000,\"maxOutput\":4180},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-085\":{\"limits\":{\"context\":185000,\"maxOutput\":4181},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-086\":{\"limits\":{\"context\":186000,\"maxOutput\":4182},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-087\":{\"limits\":{\"context\":187000,\"maxOutput\":4183},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-088\":{\"limits\":{\"context\":188000,\"maxOutput\":4184},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-089\":{\"limits\":{\"context\":189000,\"maxOutput\":4185},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-090\":{\"limits\":{\"context\":190000,\"maxOutput\":4186},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-091\":{\"limits\":{\"context\":191000,\"maxOutput\":4187},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-092\":{\"limits\":{\"context\":192000,\"maxOutput\":4188},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-093\":{\"limits\":{\"context\":193000,\"maxOutput\":4189},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-094\":{\"limits\":{\"context\":194000,\"maxOutput\":4190},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-095\":{\"limits\":{\"context\":195000,\"maxOutput\":4191},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-096\":{\"limits\":{\"context\":196000,\"maxOutput\":4192},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-097\":{\"limits\":{\"context\":197000,\"maxOutput\":4193},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-098\":{\"limits\":{\"context\":198000,\"maxOutput\":4194},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-099\":{\"limits\":{\"context\":199000,\"maxOutput\":4195},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-100\":{\"limits\":{\"context\":200000,\"maxOutput\":4196},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-101\":{\"limits\":{\"context\":201000,\"maxOutput\":4197},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-102\":{\"limits\":{\"context\":202000,\"maxOutput\":4198},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-103\":{\"limits\":{\"context\":203000,\"maxOutput\":4199},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-104\":{\"limits\":{\"context\":204000,\"maxOutput\":4200},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-105\":{\"limits\":{\"context\":205000,\"maxOutput\":4201},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-106\":{\"limits\":{\"context\":206000,\"maxOutput\":4202},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-107\":{\"limits\":{\"context\":207000,\"maxOutput\":4203},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-108\":{\"limits\":{\"context\":208000,\"maxOutput\":4204},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-109\":{\"limits\":{\"context\":209000,\"maxOutput\":4205},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-110\":{\"limits\":{\"context\":210000,\"maxOutput\":4206},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-111\":{\"limits\":{\"context\":211000,\"maxOutput\":4207},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-112\":{\"limits\":{\"context\":212000,\"maxOutput\":4208},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-113\":{\"limits\":{\"context\":213000,\"maxOutput\":4209},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-114\":{\"limits\":{\"context\":214000,\"maxOutput\":4210},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-115\":{\"limits\":{\"context\":215000,\"maxOutput\":4211},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-116\":{\"limits\":{\"context\":216000,\"maxOutput\":4212},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-117\":{\"limits\":{\"context\":217000,\"maxOutput\":4213},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":false}},\"m-118\":{\"limits\":{\"context\":218000,\"maxOutput\":4214},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"none\"}},\"m-119\":{\"limits\":{\"context\":219000,\"maxOutput\":4215},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"plain\":{\"limits\":{\"context\":777000,\"maxOutput\":33000},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}}}}",
+    "gateway/privacy-log.json": "[]",
+    "gateway/store.json": "{\n  \"version\": 1,\n  \"providers\": [\n    {\n      \"createdAt\": 1793500001000,\n      \"source\": \"user\",\n      \"modelsSource\": \"manual\",\n      \"id\": \"my-proxy\",\n      \"name\": \"My Proxy\",\n      \"enabled\": true,\n      \"urls\": {\n        \"chat\": \"https://proxy.example.com/v1\"\n      },\n      \"keys\": [\n        {\n          \"id\": \"k-00000001\",\n          \"enc\": \"c3M6c2stcHJveHktYWFhYWFhYWFhYWFh\",\n          \"encryption\": \"safeStorage\",\n          \"masked\": \"sk-…aaaa\",\n          \"enabled\": true\n        }\n      ],\n      \"models\": [\n        {\n          \"id\": \"plain\",\n          \"enabled\": true\n        },\n        {\n          \"id\": \"m-001\",\n          \"enabled\": true\n        }\n      ],\n      \"updatedAt\": 1793500001000\n    }\n  ],\n  \"clients\": {\n    \"nomi\": {\n      \"models\": {},\n      \"tokenEnc\": \"c3M6bm9taS1ndy1ub21pLUFnSUNBZ0lDQWdJQ0FnSUNBZ0lDQWdJQ0FnSUNBZ0lDQWdJQ0FnSUNBZ0k=\",\n      \"tokenEncryption\": \"safeStorage\"\n    },\n    \"claude\": {\n      \"models\": {},\n      \"tokenEnc\": \"c3M6bm9taS1ndy1jbGF1ZGUtQXdNREF3TURBd01EQXdNREF3TURBd01EQXdNREF3TURBd01EQXdNREF3TQ==\",\n      \"tokenEncryption\": \"safeStorage\"\n    },\n    \"codex\": {\n      \"models\": {},\n      \"tokenEnc\": \"c3M6bm9taS1ndy1jb2RleC1CQVFFQkFRRUJBUUVCQVFFQkFRRUJBUUVCQVFFQkFRRUJBUUVCQVFFQkFR\",\n      \"tokenEncryption\": \"safeStorage\"\n    },\n    \"gemini\": {\n      \"models\": {},\n      \"tokenEnc\": \"c3M6bm9taS1ndy1nZW1pbmktQlFVRkJRVUZCUVVGQlFVRkJRVUZCUVVGQlFVRkJRVUZCUVVGQlFVRkJRVQ==\",\n      \"tokenEncryption\": \"safeStorage\"\n    },\n    \"grok\": {\n      \"models\": {},\n      \"tokenEnc\": \"c3M6bm9taS1ndy1ncm9rLUJnWUdCZ1lHQmdZR0JnWUdCZ1lHQmdZR0JnWUdCZ1lHQmdZR0JnWUdCZ1k=\",\n      \"tokenEncryption\": \"safeStorage\"\n    },\n    \"dsh\": {\n      \"models\": {},\n      \"tokenEnc\": \"c3M6bm9taS1ndy1kc2gtQndjSEJ3Y0hCd2NIQndjSEJ3Y0hCd2NIQndjSEJ3Y0hCd2NIQndjSEJ3Yw==\",\n      \"tokenEncryption\": \"safeStorage\"\n    }\n  },\n  \"learned\": {},\n  \"allowedPrivateHosts\": [],\n  \"port\": 18721,\n  \"privacyKeyEnc\": \"c3M6MDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEwMQ==\",\n  \"privacyKeyEncryption\": \"safeStorage\"\n}",
+    "home/.claude/settings.json": "{\"theme\":\"dark\",\"env\":{\"ANTHROPIC_BASE_URL\":\"https://evil.example.com\"}}",
+    "home/.codex/models_cache.json": "{\"models\":[{\"slug\":\"gpt-5\",\"display_name\":\"GPT-5\",\"base_instructions\":\"be nice\",\"priority\":9,\"input_modalities\":[\"text\",\"image\"],\"supported_reasoning_levels\":[{\"effort\":\"low\"}],\"default_reasoning_level\":\"medium\"}]}"
+   }
+  }
+ ]
+}

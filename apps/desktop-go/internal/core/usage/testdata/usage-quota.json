@@ -1,0 +1,1408 @@
+{
+ "ttl": 60000,
+ "sanitize": [
+  {
+   "now": 1700000000000,
+   "windows": [],
+   "out": "[]"
+  },
+  {
+   "now": 1700000000000,
+   "windows": [
+    {
+     "id": "a",
+     "usedPercent": 0
+    }
+   ],
+   "out": "[{\"id\":\"a\",\"usedPercent\":0}]"
+  },
+  {
+   "now": 1700000000000,
+   "windows": [
+    {
+     "id": "a",
+     "usedPercent": 12.5,
+     "windowMinutes": 300,
+     "resetAt": 1700000000001
+    }
+   ],
+   "out": "[{\"id\":\"a\",\"usedPercent\":12.5,\"windowMinutes\":300,\"resetAt\":1700000000001}]"
+  },
+  {
+   "now": 1700000000000,
+   "windows": [
+    {
+     "id": "a",
+     "usedPercent": 150
+    },
+    {
+     "id": "b",
+     "usedPercent": -1
+    },
+    {
+     "id": "c",
+     "usedPercent": "NaN"
+    },
+    {
+     "id": "d",
+     "usedPercent": "Infinity"
+    },
+    {
+     "id": "e",
+     "usedPercent": "-Infinity"
+    },
+    {
+     "id": "f",
+     "usedPercent": "-0"
+    }
+   ],
+   "out": "[{\"id\":\"a\",\"usedPercent\":100},{\"id\":\"f\",\"usedPercent\":0}]"
+  },
+  {
+   "now": 1700000000000,
+   "windows": [
+    {
+     "id": "a",
+     "usedPercent": 100,
+     "resetAt": 1700000000000
+    },
+    {
+     "id": "b",
+     "usedPercent": 99.9,
+     "resetAt": 1699999999999
+    },
+    {
+     "id": "c",
+     "usedPercent": 1,
+     "resetAt": 1700000000001
+    }
+   ],
+   "out": "[{\"id\":\"a\",\"usedPercent\":100,\"resetAt\":1700000000000,\"expired\":true},{\"id\":\"b\",\"usedPercent\":99.9,\"resetAt\":1699999999999,\"expired\":true},{\"id\":\"c\",\"usedPercent\":1,\"resetAt\":1700000000001}]"
+  },
+  {
+   "now": 1700000000000,
+   "windows": [
+    {
+     "id": "a",
+     "usedPercent": 5,
+     "windowMinutes": 0,
+     "resetAt": 0
+    },
+    {
+     "id": "b",
+     "usedPercent": 5,
+     "windowMinutes": -5,
+     "resetAt": -1
+    }
+   ],
+   "out": "[{\"id\":\"a\",\"usedPercent\":5},{\"id\":\"b\",\"usedPercent\":5}]"
+  },
+  {
+   "now": 1700000000000,
+   "windows": [
+    {
+     "id": "a",
+     "usedPercent": 5,
+     "windowMinutes": "NaN",
+     "resetAt": "NaN"
+    },
+    {
+     "id": "b",
+     "usedPercent": 5,
+     "windowMinutes": "Infinity",
+     "resetAt": "Infinity"
+    }
+   ],
+   "out": "[{\"id\":\"a\",\"usedPercent\":5},{\"id\":\"b\",\"usedPercent\":5,\"windowMinutes\":null}]"
+  },
+  {
+   "now": 1700000000000,
+   "windows": [
+    {
+     "id": "a",
+     "usedPercent": 5,
+     "windowMinutes": 0.5,
+     "resetAt": 0.5
+    },
+    {
+     "id": "",
+     "usedPercent": 0.0001
+    }
+   ],
+   "out": "[{\"id\":\"a\",\"usedPercent\":5,\"windowMinutes\":0.5,\"resetAt\":0.5,\"expired\":true},{\"id\":\"\",\"usedPercent\":0.0001}]"
+  },
+  {
+   "now": 1700000000000,
+   "windows": [
+    {
+     "id": "x",
+     "usedPercent": 101,
+     "windowMinutes": 10080,
+     "resetAt": 1700003600000
+    },
+    {
+     "id": "y",
+     "usedPercent": "Infinity",
+     "windowMinutes": 1
+    }
+   ],
+   "out": "[{\"id\":\"x\",\"usedPercent\":100,\"windowMinutes\":10080,\"resetAt\":1700003600000}]"
+  }
+ ],
+ "registry": [
+  [
+   {
+    "op": "collect",
+    "now": 1700000000000,
+    "placeholders": [],
+    "out": "[]"
+   },
+   {
+    "op": "register",
+    "src": {
+     "id": "claude",
+     "label": "Claude Code",
+     "reading": {
+      "windows": [
+       {
+        "id": "five_hour",
+        "usedPercent": 42,
+        "windowMinutes": 300,
+        "resetAt": 1700000000010
+       }
+      ],
+      "updatedAt": 1699999999995,
+      "origin": "statusline"
+     }
+    }
+   },
+   {
+    "op": "register",
+    "src": {
+     "id": "codex",
+     "label": "Codex",
+     "none": true
+    }
+   },
+   {
+    "op": "register",
+    "src": {
+     "id": "grok",
+     "label": "Grok",
+     "throws": true
+    }
+   },
+   {
+    "op": "collect",
+    "now": 1700000000000,
+    "placeholders": [
+     {
+      "id": "gemini",
+      "label": "Gemini"
+     },
+     {
+      "id": "codex",
+      "label": "Codex X"
+     }
+    ],
+    "out": "[{\"id\":\"claude\",\"label\":\"Claude Code\",\"status\":\"ok\",\"windows\":[{\"id\":\"five_hour\",\"usedPercent\":42,\"windowMinutes\":300,\"resetAt\":1700000000010}],\"updatedAt\":1699999999995,\"origin\":\"statusline\"},{\"id\":\"codex\",\"label\":\"Codex\",\"status\":\"unavailable\",\"windows\":[]},{\"id\":\"grok\",\"label\":\"Grok\",\"status\":\"unavailable\",\"windows\":[]},{\"id\":\"gemini\",\"label\":\"Gemini\",\"status\":\"unavailable\",\"windows\":[]}]"
+   },
+   {
+    "op": "register",
+    "src": {
+     "id": "claude",
+     "label": "Claude 2",
+     "reading": {
+      "windows": [
+       {
+        "id": "a",
+        "usedPercent": -1
+       }
+      ],
+      "updatedAt": 1
+     }
+    }
+   },
+   {
+    "op": "collect",
+    "now": 1700000000000,
+    "placeholders": [],
+    "out": "[{\"id\":\"claude\",\"label\":\"Claude 2\",\"status\":\"unavailable\",\"windows\":[]},{\"id\":\"codex\",\"label\":\"Codex\",\"status\":\"unavailable\",\"windows\":[]},{\"id\":\"grok\",\"label\":\"Grok\",\"status\":\"unavailable\",\"windows\":[]}]"
+   },
+   {
+    "op": "register",
+    "src": {
+     "id": "codex",
+     "label": "Codex",
+     "useNow": true,
+     "reading": {
+      "windows": [
+       {
+        "id": "primary",
+        "usedPercent": 3,
+        "resetAt": 1699999999999
+       }
+      ],
+      "updatedAt": 0,
+      "plan": "Plus",
+      "origin": "app-server",
+      "stale": true
+     }
+    }
+   },
+   {
+    "op": "collect",
+    "now": 1700000000007,
+    "placeholders": [
+     {
+      "id": "claude",
+      "label": "dup"
+     }
+    ],
+    "out": "[{\"id\":\"claude\",\"label\":\"Claude 2\",\"status\":\"unavailable\",\"windows\":[]},{\"id\":\"codex\",\"label\":\"Codex\",\"status\":\"ok\",\"windows\":[{\"id\":\"primary\",\"usedPercent\":3,\"resetAt\":1699999999999,\"expired\":true}],\"updatedAt\":1700000000007,\"plan\":\"Plus\",\"origin\":\"app-server\",\"stale\":true},{\"id\":\"grok\",\"label\":\"Grok\",\"status\":\"unavailable\",\"windows\":[]}]"
+   },
+   {
+    "op": "unregister",
+    "id": "claude"
+   },
+   {
+    "op": "unregister",
+    "id": "nope"
+   },
+   {
+    "op": "register",
+    "src": {
+     "id": "claude",
+     "label": "Claude 3",
+     "reading": {
+      "windows": [
+       {
+        "id": "w",
+        "usedPercent": 100
+       }
+      ],
+      "updatedAt": 9,
+      "plan": "",
+      "origin": "usage-cmd",
+      "stale": false
+     }
+    }
+   },
+   {
+    "op": "collect",
+    "now": 1700000000000,
+    "placeholders": [
+     {
+      "id": "z",
+      "label": "Z"
+     },
+     {
+      "id": "z",
+      "label": "Z2"
+     }
+    ],
+    "out": "[{\"id\":\"codex\",\"label\":\"Codex\",\"status\":\"ok\",\"windows\":[{\"id\":\"primary\",\"usedPercent\":3,\"resetAt\":1699999999999,\"expired\":true}],\"updatedAt\":1700000000000,\"plan\":\"Plus\",\"origin\":\"app-server\",\"stale\":true},{\"id\":\"grok\",\"label\":\"Grok\",\"status\":\"unavailable\",\"windows\":[]},{\"id\":\"claude\",\"label\":\"Claude 3\",\"status\":\"ok\",\"windows\":[{\"id\":\"w\",\"usedPercent\":100}],\"updatedAt\":9,\"origin\":\"usage-cmd\"},{\"id\":\"z\",\"label\":\"Z\",\"status\":\"unavailable\",\"windows\":[]},{\"id\":\"z\",\"label\":\"Z2\",\"status\":\"unavailable\",\"windows\":[]}]"
+   },
+   {
+    "op": "register",
+    "src": {
+     "id": "empty",
+     "label": "E",
+     "reading": {
+      "windows": [],
+      "updatedAt": 1,
+      "plan": "P"
+     }
+    }
+   },
+   {
+    "op": "collect",
+    "now": 1700000000000,
+    "placeholders": [],
+    "out": "[{\"id\":\"codex\",\"label\":\"Codex\",\"status\":\"ok\",\"windows\":[{\"id\":\"primary\",\"usedPercent\":3,\"resetAt\":1699999999999,\"expired\":true}],\"updatedAt\":1700000000000,\"plan\":\"Plus\",\"origin\":\"app-server\",\"stale\":true},{\"id\":\"grok\",\"label\":\"Grok\",\"status\":\"unavailable\",\"windows\":[]},{\"id\":\"claude\",\"label\":\"Claude 3\",\"status\":\"ok\",\"windows\":[{\"id\":\"w\",\"usedPercent\":100}],\"updatedAt\":9,\"origin\":\"usage-cmd\"},{\"id\":\"empty\",\"label\":\"E\",\"status\":\"unavailable\",\"windows\":[]}]"
+   }
+  ]
+ ],
+ "cache": [
+  [
+   {
+    "op": "new",
+    "out": "__undef__",
+    "changes": 0
+   },
+   {
+    "op": "get",
+    "out": "null",
+    "changes": 0
+   },
+   {
+    "op": "snapshot",
+    "out": "null",
+    "changes": 0
+   },
+   {
+    "op": "retry",
+    "out": "0",
+    "changes": 0
+   },
+   {
+    "op": "ident",
+    "out": "null",
+    "changes": 0
+   },
+   {
+    "op": "isStale",
+    "out": "false",
+    "changes": 0
+   },
+   {
+    "op": "refresh",
+    "fp": "acct-a",
+    "load": {
+     "now": {
+      "kind": "ok",
+      "reading": {
+       "windows": [
+        {
+         "id": "five_hour",
+         "usedPercent": 10,
+         "windowMinutes": 300
+        }
+       ],
+       "updatedAt": 1010,
+       "origin": "usage-cmd",
+       "plan": "Max"
+      }
+     }
+    },
+    "as": "p1",
+    "out": "__undef__",
+    "changes": 1
+   },
+   {
+    "op": "await",
+    "p": "p1",
+    "out": "{\"state\":\"ok\"}",
+    "changes": 2
+   },
+   {
+    "op": "get",
+    "out": "{\"windows\":[{\"id\":\"five_hour\",\"usedPercent\":10,\"windowMinutes\":300}],\"updatedAt\":1010,\"origin\":\"usage-cmd\",\"plan\":\"Max\"}",
+    "changes": 2
+   },
+   {
+    "op": "snapshot",
+    "out": "{\"identity\":\"acct-a\",\"value\":{\"windows\":[{\"id\":\"five_hour\",\"usedPercent\":10,\"windowMinutes\":300}],\"updatedAt\":1010,\"origin\":\"usage-cmd\",\"plan\":\"Max\"}}",
+    "changes": 2
+   },
+   {
+    "op": "ident",
+    "out": "\"acct-a\"",
+    "changes": 2
+   },
+   {
+    "op": "retry",
+    "out": "60000",
+    "changes": 2
+   },
+   {
+    "op": "refresh",
+    "fp": "acct-a",
+    "load": {
+     "now": {
+      "kind": "ok",
+      "reading": {
+       "windows": [
+        {
+         "id": "five_hour",
+         "usedPercent": 11,
+         "windowMinutes": 300
+        }
+       ],
+       "updatedAt": 1011
+      }
+     }
+    },
+    "as": "p2",
+    "out": "__undef__",
+    "changes": 2
+   },
+   {
+    "op": "await",
+    "p": "p2",
+    "out": "{\"state\":\"throttled\"}",
+    "changes": 2
+   },
+   {
+    "op": "tick",
+    "ms": 59999,
+    "out": "__undef__",
+    "changes": 2
+   },
+   {
+    "op": "retry",
+    "out": "1",
+    "changes": 2
+   },
+   {
+    "op": "refresh",
+    "fp": null,
+    "load": {
+     "now": {
+      "kind": "ok",
+      "reading": {
+       "windows": [
+        {
+         "id": "five_hour",
+         "usedPercent": 12,
+         "windowMinutes": 300
+        }
+       ],
+       "updatedAt": 1012
+      }
+     }
+    },
+    "as": "p3",
+    "out": "__undef__",
+    "changes": 2
+   },
+   {
+    "op": "await",
+    "p": "p3",
+    "out": "{\"state\":\"throttled\"}",
+    "changes": 2
+   },
+   {
+    "op": "tick",
+    "ms": 1,
+    "out": "__undef__",
+    "changes": 2
+   },
+   {
+    "op": "retry",
+    "out": "0",
+    "changes": 2
+   },
+   {
+    "op": "refresh",
+    "fp": null,
+    "load": {
+     "now": {
+      "kind": "transient",
+      "reason": "timeout"
+     }
+    },
+    "as": "p4",
+    "out": "__undef__",
+    "changes": 2
+   },
+   {
+    "op": "await",
+    "p": "p4",
+    "out": "{\"state\":\"transient\",\"reason\":\"timeout\",\"stale\":true}",
+    "changes": 2
+   },
+   {
+    "op": "get",
+    "out": "{\"windows\":[{\"id\":\"five_hour\",\"usedPercent\":10,\"windowMinutes\":300}],\"updatedAt\":1010,\"origin\":\"usage-cmd\",\"plan\":\"Max\",\"stale\":true}",
+    "changes": 2
+   },
+   {
+    "op": "isStale",
+    "out": "true",
+    "changes": 2
+   },
+   {
+    "op": "snapshot",
+    "out": "{\"identity\":\"acct-a\",\"value\":{\"windows\":[{\"id\":\"five_hour\",\"usedPercent\":10,\"windowMinutes\":300}],\"updatedAt\":1010,\"origin\":\"usage-cmd\",\"plan\":\"Max\"}}",
+    "changes": 2
+   },
+   {
+    "op": "tick",
+    "ms": 60000,
+    "out": "__undef__",
+    "changes": 2
+   },
+   {
+    "op": "refresh",
+    "fp": "acct-a",
+    "load": {
+     "now": {
+      "kind": "auth",
+      "reason": "expired"
+     }
+    },
+    "as": "p5",
+    "out": "__undef__",
+    "changes": 2
+   },
+   {
+    "op": "await",
+    "p": "p5",
+    "out": "{\"state\":\"auth\",\"reason\":\"expired\"}",
+    "changes": 3
+   },
+   {
+    "op": "get",
+    "out": "null",
+    "changes": 3
+   },
+   {
+    "op": "ident",
+    "out": "null",
+    "changes": 3
+   },
+   {
+    "op": "isStale",
+    "out": "false",
+    "changes": 3
+   },
+   {
+    "op": "retry",
+    "out": "60000",
+    "changes": 3
+   },
+   {
+    "op": "tick",
+    "ms": 60000,
+    "out": "__undef__",
+    "changes": 3
+   },
+   {
+    "op": "refresh",
+    "fp": null,
+    "load": {
+     "now": {
+      "kind": "transient",
+      "reason": "no-limits"
+     }
+    },
+    "as": "p6",
+    "out": "__undef__",
+    "changes": 3
+   },
+   {
+    "op": "await",
+    "p": "p6",
+    "out": "{\"state\":\"transient\",\"reason\":\"no-limits\",\"stale\":false}",
+    "changes": 3
+   }
+  ],
+  [
+   {
+    "op": "new",
+    "ttl": 1000,
+    "out": "__undef__",
+    "changes": 0
+   },
+   {
+    "op": "refresh",
+    "fp": "a",
+    "load": {
+     "defer": "d1"
+    },
+    "as": "p1",
+    "out": "__undef__",
+    "changes": 1
+   },
+   {
+    "op": "refresh",
+    "fp": "a",
+    "load": {
+     "now": {
+      "kind": "ok",
+      "reading": {
+       "windows": [
+        {
+         "id": "five_hour",
+         "usedPercent": 1,
+         "windowMinutes": 300
+        }
+       ],
+       "updatedAt": 1001
+      }
+     }
+    },
+    "as": "p1b",
+    "out": "__undef__",
+    "changes": 1
+   },
+   {
+    "op": "same",
+    "a": "p1",
+    "b": "p1b",
+    "out": "true",
+    "changes": 1
+   },
+   {
+    "op": "clear",
+    "out": "__undef__",
+    "changes": 2
+   },
+   {
+    "op": "retry",
+    "out": "0",
+    "changes": 2
+   },
+   {
+    "op": "refresh",
+    "fp": null,
+    "load": {
+     "defer": "d2"
+    },
+    "as": "p2",
+    "out": "__undef__",
+    "changes": 2
+   },
+   {
+    "op": "same",
+    "a": "p1",
+    "b": "p2",
+    "out": "false",
+    "changes": 2
+   },
+   {
+    "op": "settle",
+    "d": "d1",
+    "v": {
+     "kind": "ok",
+     "reading": {
+      "windows": [
+       {
+        "id": "five_hour",
+        "usedPercent": 5,
+        "windowMinutes": 300
+       }
+      ],
+      "updatedAt": 1005
+     }
+    },
+    "out": "__undef__",
+    "changes": 2
+   },
+   {
+    "op": "await",
+    "p": "p1",
+    "out": "{\"state\":\"superseded\"}",
+    "changes": 2
+   },
+   {
+    "op": "get",
+    "out": "null",
+    "changes": 2
+   },
+   {
+    "op": "settle",
+    "d": "d2",
+    "v": {
+     "kind": "ok",
+     "reading": {
+      "windows": [
+       {
+        "id": "five_hour",
+        "usedPercent": 6,
+        "windowMinutes": 300
+       }
+      ],
+      "updatedAt": 1006
+     },
+     "identity": "b"
+    },
+    "out": "__undef__",
+    "changes": 4
+   },
+   {
+    "op": "await",
+    "p": "p2",
+    "out": "{\"state\":\"ok\"}",
+    "changes": 4
+   },
+   {
+    "op": "get",
+    "out": "{\"windows\":[{\"id\":\"five_hour\",\"usedPercent\":6,\"windowMinutes\":300}],\"updatedAt\":1006}",
+    "changes": 4
+   },
+   {
+    "op": "ident",
+    "out": "\"b\"",
+    "changes": 4
+   },
+   {
+    "op": "refresh",
+    "fp": "b",
+    "load": {
+     "now": {
+      "kind": "ok",
+      "reading": {
+       "windows": [
+        {
+         "id": "five_hour",
+         "usedPercent": 7,
+         "windowMinutes": 300
+        }
+       ],
+       "updatedAt": 1007
+      }
+     }
+    },
+    "as": "p3",
+    "out": "__undef__",
+    "changes": 4
+   },
+   {
+    "op": "await",
+    "p": "p3",
+    "out": "{\"state\":\"throttled\"}",
+    "changes": 4
+   },
+   {
+    "op": "tick",
+    "ms": 1000,
+    "out": "__undef__",
+    "changes": 4
+   },
+   {
+    "op": "refresh",
+    "fp": "b",
+    "load": {
+     "defer": "d3"
+    },
+    "as": "p4",
+    "out": "__undef__",
+    "changes": 4
+   },
+   {
+    "op": "observe",
+    "fp": "c",
+    "out": "true",
+    "changes": 5
+   },
+   {
+    "op": "get",
+    "out": "null",
+    "changes": 5
+   },
+   {
+    "op": "retry",
+    "out": "0",
+    "changes": 5
+   },
+   {
+    "op": "refresh",
+    "fp": "c",
+    "load": {
+     "defer": "d4"
+    },
+    "as": "p5",
+    "out": "__undef__",
+    "changes": 5
+   },
+   {
+    "op": "same",
+    "a": "p4",
+    "b": "p5",
+    "out": "false",
+    "changes": 5
+   },
+   {
+    "op": "fail",
+    "d": "d3",
+    "out": "__undef__",
+    "changes": 5
+   },
+   {
+    "op": "await",
+    "p": "p4",
+    "out": "{\"state\":\"superseded\"}",
+    "changes": 5
+   },
+   {
+    "op": "settle",
+    "d": "d4",
+    "v": {
+     "kind": "ok",
+     "reading": {
+      "windows": [
+       {
+        "id": "five_hour",
+        "usedPercent": 8,
+        "windowMinutes": 300
+       }
+      ],
+      "updatedAt": 1008
+     },
+     "identity": "other"
+    },
+    "out": "__undef__",
+    "changes": 7
+   },
+   {
+    "op": "await",
+    "p": "p5",
+    "out": "{\"state\":\"ok\"}",
+    "changes": 7
+   },
+   {
+    "op": "get",
+    "out": "{\"windows\":[{\"id\":\"five_hour\",\"usedPercent\":8,\"windowMinutes\":300}],\"updatedAt\":1008}",
+    "changes": 7
+   },
+   {
+    "op": "ident",
+    "out": "\"other\"",
+    "changes": 7
+   },
+   {
+    "op": "refresh",
+    "fp": null,
+    "load": {
+     "defer": "d5"
+    },
+    "as": "p6",
+    "out": "__undef__",
+    "changes": 7
+   },
+   {
+    "op": "tick",
+    "ms": 5000,
+    "out": "__undef__",
+    "changes": 7
+   },
+   {
+    "op": "settle",
+    "d": "d5",
+    "v": {
+     "kind": "auth",
+     "reason": "denied"
+    },
+    "out": "__undef__",
+    "changes": 8
+   },
+   {
+    "op": "await",
+    "p": "p6",
+    "out": "{\"state\":\"auth\",\"reason\":\"denied\"}",
+    "changes": 8
+   },
+   {
+    "op": "refresh",
+    "fp": null,
+    "load": {
+     "defer": "d6"
+    },
+    "as": "p7",
+    "out": "__undef__",
+    "changes": 8
+   },
+   {
+    "op": "settle",
+    "d": "d6",
+    "v": {
+     "kind": "transient",
+     "reason": "network"
+    },
+    "out": "__undef__",
+    "changes": 8
+   },
+   {
+    "op": "await",
+    "p": "p7",
+    "out": "{\"state\":\"transient\",\"reason\":\"network\",\"stale\":false}",
+    "changes": 8
+   }
+  ],
+  [
+   {
+    "op": "new",
+    "out": "__undef__",
+    "changes": 0
+   },
+   {
+    "op": "restore",
+    "identity": null,
+    "value": {
+     "windows": [
+      {
+       "id": "five_hour",
+       "usedPercent": 20,
+       "windowMinutes": 300
+      }
+     ],
+     "updatedAt": 1020,
+     "stale": true
+    },
+    "out": "true",
+    "changes": 0
+   },
+   {
+    "op": "get",
+    "out": "{\"windows\":[{\"id\":\"five_hour\",\"usedPercent\":20,\"windowMinutes\":300}],\"updatedAt\":1020,\"stale\":true}",
+    "changes": 0
+   },
+   {
+    "op": "snapshot",
+    "out": "{\"identity\":null,\"value\":{\"windows\":[{\"id\":\"five_hour\",\"usedPercent\":20,\"windowMinutes\":300}],\"updatedAt\":1020,\"stale\":true}}",
+    "changes": 0
+   },
+   {
+    "op": "ident",
+    "out": "null",
+    "changes": 0
+   },
+   {
+    "op": "restore",
+    "identity": "x",
+    "value": {
+     "windows": [
+      {
+       "id": "five_hour",
+       "usedPercent": 21,
+       "windowMinutes": 300
+      }
+     ],
+     "updatedAt": 1021
+    },
+    "out": "true",
+    "changes": 0
+   },
+   {
+    "op": "ident",
+    "out": "\"x\"",
+    "changes": 0
+   },
+   {
+    "op": "restore",
+    "identity": "y",
+    "value": {
+     "windows": [
+      {
+       "id": "five_hour",
+       "usedPercent": 22,
+       "windowMinutes": 300
+      }
+     ],
+     "updatedAt": 1022
+    },
+    "out": "false",
+    "changes": 0
+   },
+   {
+    "op": "restore",
+    "identity": "",
+    "value": {
+     "windows": [
+      {
+       "id": "five_hour",
+       "usedPercent": 23,
+       "windowMinutes": 300
+      }
+     ],
+     "updatedAt": 1023
+    },
+    "out": "true",
+    "changes": 0
+   },
+   {
+    "op": "get",
+    "out": "{\"windows\":[{\"id\":\"five_hour\",\"usedPercent\":23,\"windowMinutes\":300}],\"updatedAt\":1023}",
+    "changes": 0
+   },
+   {
+    "op": "ident",
+    "out": "\"x\"",
+    "changes": 0
+   },
+   {
+    "op": "refresh",
+    "fp": "x",
+    "load": {
+     "throws": true
+    },
+    "as": "p1",
+    "out": "__undef__",
+    "changes": 0
+   },
+   {
+    "op": "refresh",
+    "fp": "x",
+    "load": {
+     "now": {
+      "kind": "ok",
+      "reading": {
+       "windows": [
+        {
+         "id": "five_hour",
+         "usedPercent": 1,
+         "windowMinutes": 300
+        }
+       ],
+       "updatedAt": 1001
+      }
+     }
+    },
+    "as": "p1b",
+    "out": "__undef__",
+    "changes": 0
+   },
+   {
+    "op": "same",
+    "a": "p1",
+    "b": "p1b",
+    "out": "true",
+    "changes": 0
+   },
+   {
+    "op": "await",
+    "p": "p1",
+    "out": "{\"state\":\"transient\",\"reason\":\"spawn-failed\",\"stale\":true}",
+    "changes": 0
+   },
+   {
+    "op": "get",
+    "out": "{\"windows\":[{\"id\":\"five_hour\",\"usedPercent\":23,\"windowMinutes\":300}],\"updatedAt\":1023,\"stale\":true}",
+    "changes": 0
+   },
+   {
+    "op": "isStale",
+    "out": "true",
+    "changes": 0
+   },
+   {
+    "op": "tick",
+    "ms": 60000,
+    "out": "__undef__",
+    "changes": 0
+   },
+   {
+    "op": "refresh",
+    "fp": "",
+    "load": {
+     "rejects": true
+    },
+    "as": "p2",
+    "out": "__undef__",
+    "changes": 0
+   },
+   {
+    "op": "await",
+    "p": "p2",
+    "out": "{\"state\":\"transient\",\"reason\":\"spawn-failed\",\"stale\":true}",
+    "changes": 0
+   },
+   {
+    "op": "tick",
+    "ms": 60000,
+    "out": "__undef__",
+    "changes": 0
+   },
+   {
+    "op": "refresh",
+    "fp": null,
+    "load": {
+     "now": {
+      "kind": "ok",
+      "reading": {
+       "windows": [
+        {
+         "id": "five_hour",
+         "usedPercent": 30,
+         "windowMinutes": 300
+        }
+       ],
+       "updatedAt": 1030,
+       "plan": "Pro"
+      },
+      "identity": "z"
+     }
+    },
+    "as": "p3",
+    "out": "__undef__",
+    "changes": 0
+   },
+   {
+    "op": "await",
+    "p": "p3",
+    "out": "{\"state\":\"ok\"}",
+    "changes": 2
+   },
+   {
+    "op": "get",
+    "out": "{\"windows\":[{\"id\":\"five_hour\",\"usedPercent\":30,\"windowMinutes\":300}],\"updatedAt\":1030,\"plan\":\"Pro\"}",
+    "changes": 2
+   },
+   {
+    "op": "ident",
+    "out": "\"z\"",
+    "changes": 2
+   },
+   {
+    "op": "isStale",
+    "out": "false",
+    "changes": 2
+   },
+   {
+    "op": "snapshot",
+    "out": "{\"identity\":\"z\",\"value\":{\"windows\":[{\"id\":\"five_hour\",\"usedPercent\":30,\"windowMinutes\":300}],\"updatedAt\":1030,\"plan\":\"Pro\"}}",
+    "changes": 2
+   },
+   {
+    "op": "observe",
+    "fp": "z",
+    "out": "false",
+    "changes": 2
+   },
+   {
+    "op": "observe",
+    "fp": "",
+    "out": "false",
+    "changes": 2
+   },
+   {
+    "op": "observe",
+    "fp": null,
+    "out": "false",
+    "changes": 2
+   },
+   {
+    "op": "restore",
+    "identity": null,
+    "value": {
+     "windows": [
+      {
+       "id": "five_hour",
+       "usedPercent": 31,
+       "windowMinutes": 300
+      }
+     ],
+     "updatedAt": 1031
+    },
+    "out": "true",
+    "changes": 2
+   },
+   {
+    "op": "get",
+    "out": "{\"windows\":[{\"id\":\"five_hour\",\"usedPercent\":31,\"windowMinutes\":300}],\"updatedAt\":1031}",
+    "changes": 2
+   },
+   {
+    "op": "ident",
+    "out": "\"z\"",
+    "changes": 2
+   },
+   {
+    "op": "observe",
+    "fp": "w",
+    "out": "true",
+    "changes": 3
+   },
+   {
+    "op": "get",
+    "out": "null",
+    "changes": 3
+   },
+   {
+    "op": "ident",
+    "out": "\"w\"",
+    "changes": 3
+   },
+   {
+    "op": "retry",
+    "out": "0",
+    "changes": 3
+   },
+   {
+    "op": "clear",
+    "out": "__undef__",
+    "changes": 4
+   },
+   {
+    "op": "clear",
+    "out": "__undef__",
+    "changes": 4
+   }
+  ],
+  [
+   {
+    "op": "new",
+    "throwOnChange": true,
+    "out": "__undef__",
+    "changes": 0
+   },
+   {
+    "op": "observe",
+    "fp": "a",
+    "out": "false",
+    "changes": 1
+   },
+   {
+    "op": "refresh",
+    "fp": "a",
+    "load": {
+     "now": {
+      "kind": "ok",
+      "reading": {
+       "windows": [
+        {
+         "id": "five_hour",
+         "usedPercent": 2,
+         "windowMinutes": 300
+        }
+       ],
+       "updatedAt": 1002
+      }
+     }
+    },
+    "as": "p1",
+    "out": "__undef__",
+    "changes": 1
+   },
+   {
+    "op": "await",
+    "p": "p1",
+    "out": "{\"state\":\"ok\"}",
+    "changes": 2
+   },
+   {
+    "op": "get",
+    "out": "{\"windows\":[{\"id\":\"five_hour\",\"usedPercent\":2,\"windowMinutes\":300}],\"updatedAt\":1002}",
+    "changes": 2
+   },
+   {
+    "op": "clear",
+    "out": "__undef__",
+    "changes": 3
+   }
+  ]
+ ],
+ "fps": [
+  {
+   "salt": "0123456789abcdef0123456789abcdef",
+   "parts": [
+    "user@example.com"
+   ],
+   "out": "\"ea153cbc2cb0e38c\""
+  },
+  {
+   "salt": "0123456789abcdef0123456789abcdef",
+   "parts": [
+    "  user@example.com  "
+   ],
+   "out": "\"ea153cbc2cb0e38c\""
+  },
+  {
+   "salt": "0123456789abcdef0123456789abcdef",
+   "parts": [
+    ""
+   ],
+   "out": "null"
+  },
+  {
+   "salt": "0123456789abcdef0123456789abcdef",
+   "parts": [
+    "   "
+   ],
+   "out": "null"
+  },
+  {
+   "salt": "0123456789abcdef0123456789abcdef",
+   "parts": [
+    null
+   ],
+   "out": "null"
+  },
+  {
+   "salt": "0123456789abcdef0123456789abcdef",
+   "parts": [],
+   "out": "null"
+  },
+  {
+   "salt": "0123456789abcdef0123456789abcdef",
+   "parts": [
+    "a",
+    null,
+    "b"
+   ],
+   "out": "\"3bbaf709675d8c95\""
+  },
+  {
+   "salt": "0123456789abcdef0123456789abcdef",
+   "parts": [
+    "a",
+    "org",
+    "Max"
+   ],
+   "out": "\"e43d3f1d0630f3c7\""
+  },
+  {
+   "salt": "",
+   "parts": [
+    "é\"\\\n x"
+   ],
+   "out": "\"e528a32edbad4805\""
+  },
+  {
+   "salt": "0123456789abcdef0123456789abcdef",
+   "parts": [
+    "acct",
+    "__undef__"
+   ],
+   "out": "\"06beb8788d710b9b\""
+  }
+ ],
+ "salts": [
+  {
+   "name": "valid",
+   "content": "0123456789abcdef0123456789abcdef",
+   "kept": true,
+   "valid": true,
+   "diskIsSalt": true,
+   "diskUnchanged": true,
+   "mode": 420
+  },
+  {
+   "name": "padded",
+   "content": "\n 0123456789abcdef0123456789abcdef \n",
+   "kept": true,
+   "valid": true,
+   "diskIsSalt": false,
+   "diskUnchanged": true,
+   "mode": 420
+  },
+  {
+   "name": "upper",
+   "content": "0123456789ABCDEF0123456789ABCDEF",
+   "kept": false,
+   "valid": true,
+   "diskIsSalt": true,
+   "diskUnchanged": false,
+   "mode": 384
+  },
+  {
+   "name": "short",
+   "content": "abc",
+   "kept": false,
+   "valid": true,
+   "diskIsSalt": true,
+   "diskUnchanged": false,
+   "mode": 384
+  },
+  {
+   "name": "missing",
+   "content": null,
+   "kept": false,
+   "valid": true,
+   "diskIsSalt": true,
+   "diskUnchanged": false,
+   "mode": 384
+  },
+  {
+   "name": "nested/deeper",
+   "content": null,
+   "kept": false,
+   "valid": true,
+   "diskIsSalt": true,
+   "diskUnchanged": false,
+   "mode": 384
+  }
+ ]
+}

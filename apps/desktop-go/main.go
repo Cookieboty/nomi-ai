@@ -23,6 +23,8 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/extensions"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/local"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/mousetrack"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/services"
 	"io/fs"
 	"log"
 	"net/http"
@@ -85,6 +87,15 @@ func main() {
 	if err := os.MkdirAll(userData, 0o700); err != nil {
 		log.Fatal(err)
 	}
+	// LoggerService：最先创建（日志目录 = paths.logs() = userData/logs），各服务共用（deps.Root）
+	rootLog := services.NewLogger(services.LoggerOptions{LogDir: filepath.Join(userData, "logs"), Packaged: hostports.IsPackaged})
+	deps.Root = rootLog
+	defer rootLog.FlushSync()
+	if os.Getenv("NODE_ENV") == "development" {
+		rootLog.SetLevel(services.DEBUG)
+	}
+	// 低优先级启动任务 cleanup-old-logs（delay 1000）
+	time.AfterFunc(time.Second, func() { rootLog.CleanOldLogs(7) })
 	if res, err := migrate.Run(userData, security.NewSecretBox("migrate"), security.NewElectronSafeStorage()); err != nil {
 		log.Printf("[migrate] warn: %v", err)
 	} else if res.Migrated {
@@ -237,6 +248,7 @@ func main() {
 		RouteListening: func() bool { return false },
 		Broadcast:      func(ev string, p any) { router.Emit(ev, p) },
 		EnvProviders:   func() []gwstore.EnvProvider { return shellhandlers.GatewayEnvProviders(processEnv()) },
+		OnUsage:        qualityOnUsage,
 	})
 	if err := gatewaySvc.Init(); err != nil {
 		log.Printf("[gateway] store init failed: %v", err)
@@ -290,6 +302,7 @@ func main() {
 	chatHandlers.Register(router)
 	defer chatHandlers.Dispose()
 	shellhandlers.InstallGateway(router, gatewaySvc)
+	shellhandlers.InstallTerminal(router, shellhandlers.NewGatewayTerminal(userData, gatewaySvc, deps.StdLogger{Prefix: "[gateway]"}))
 	// 批次 9：语音输入（voice.*）/ 朗读（tts.*）/ nav.openVoiceSettings
 	voiceGateway := func() mediahandlers.GatewayLike {
 		if gatewaySvc == nil {
@@ -339,7 +352,12 @@ func main() {
 		},
 	})
 	shellP := installShellProcs(router, userData, &sh, gatewaySvc)
-	defer wireHarness(router, userData, home, ports)()
+	defer shellP.Diagnostics.CliTrace.FlushSync()
+	defer shellP.Quality.Dispose()
+	cliPlugins, disposeHarness := wireHarness(router, userData, home, ports, gatewaySvc)
+	wireCoding(router, userData, cliPlugins, desktopSvc)
+	wireScreenAndPending(router, userData, rootLog, desktopSvc)
+	defer disposeHarness()
 	log.Printf("[desktop-go] %d contract procedures stubbed (not implemented yet)", procs.Install(router))
 
 	ws := &contract.WSServer{Router: router, Token: contract.NewToken(), Origins: map[string]bool{
@@ -356,6 +374,8 @@ func main() {
 		frag.Set("ctl", ctl)
 	}
 	sh = wailsshell.New(wailsshell.Config{Assets: assets, Fragment: frag, MascotSize: mascotCtl.WindowSize, OnWindow: mascotCtl.WindowEvent,
+		OpenProviderPanel:  func() { shellhandlers.OpenProviderPanel(router, func() { sh.Show(shell.Chat) }, "") },
+		ModelSettingsLabel: i18n.T("electron.common.model-settings"),
 		IslandLayout: func() (shell.Rect, string, bool) {
 			g, ok := isl.Layout()
 			if !ok {
@@ -409,6 +429,16 @@ func main() {
 	// 没有托盘时自动开对话窗口兜底；测量模式（NOMI_POC_CTL）不开，与 POC 口径一致（对话由 show-chat 显式打开）
 	if !sh.TrayAvailable() && ctl == "" {
 		sh.Show(shell.Chat)
+	}
+	// 看板娘窗口的鼠标进出（WindowManager.setupMousePositionTracking）
+	if g, ok := sh.(shell.Geometry); ok {
+		if wc, ok := sh.(shell.WindowControl); ok {
+			go mousetrack.New(mousetrack.Deps{
+				Bounds:  func() (shell.Rect, bool) { return g.Bounds(shell.Mascot) },
+				Cursor:  wc.CursorPosition,
+				Publish: func(ev string) { router.EmitTo(ev, nil, "mascot") },
+			}).Run(nil)
+		}
 	}
 	if err := sh.Run(); err != nil {
 		log.Fatal(err)

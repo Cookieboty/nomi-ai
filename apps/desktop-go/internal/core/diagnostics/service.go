@@ -32,10 +32,10 @@ type View struct {
 
 // ExportResult = DiagnosticsExportResult
 type ExportResult struct {
-	OK    bool     `json:"ok"`
-	Path  string   `json:"path,omitempty"`
+	OK    bool      `json:"ok"`
+	Path  string    `json:"path,omitempty"`
 	Files *[]string `json:"files,omitempty"`
-	Error string   `json:"error,omitempty"`
+	Error string    `json:"error,omitempty"`
 }
 
 type FileFilter struct {
@@ -82,6 +82,8 @@ type Service struct {
 	logDir   string
 	// FlushTrace：exportBundle 打包前写完缓冲的编程助手收发记录（= cliTrace.flush）
 	FlushTrace func()
+	// CliTrace：编程助手子进程收发记录（spawnHarness 经 harness.CliTrap 挂上）
+	CliTrace *CliTrace
 }
 
 func New(d Deps) *Service {
@@ -93,6 +95,8 @@ func New(d Deps) *Service {
 	}
 	s.file = filepath.Join(d.UserData, file)
 	s.logDir = filepath.Join(d.UserData, "logs")
+	s.CliTrace = NewCliTrace(s.logDir, s.Enabled)
+	s.FlushTrace = s.CliTrace.Flush
 	s.saveLogs = s.load()
 	s.apply()
 	return s
