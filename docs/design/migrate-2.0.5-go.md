@@ -12,6 +12,25 @@
 - Windows / macOS / Linux 三平台都要保留；Mac 用 Developer ID 签名、不公证。
 - 渲染进程（React UI）**基本不动**：它已经只经契约客户端（`@nomi-ai/contract` client）说话，`renderer/ai-chat/ui` 里已无 `electronAPI` / `ipcRenderer` 直接调用（grep = 0）。
 
+## 0.1 用户决策记录（2026-10-29）
+
+| # | 问题 | 决定 |
+| --- | --- | --- |
+| Q7 | 发版节奏 | **推迟 2.0.5**，全部迁移完成再发；不拆 2.0.6 |
+| Q1 | AI / 工具循环 | **不用任何厂商 SDK**（不用 openai-go / anthropic-sdk-go / genai，也不用 eino / langchaingo）。各协议适配器用 `net/http` + 自写 SSE 解析实现，**分层与模块边界 1:1 对齐现有 Node 版**（§3.1） |
+| Q1' | MCP | **默认自研 MCP 客户端协议**（JSON-RPC 2.0 over stdio / Streamable HTTP / SSE），不引入 `modelcontextprotocol/go-sdk`——此项为执行方推断，用户可推翻 |
+| Q2 | Mac 透明 | **必须修好**，不接受不透明降级；按需用 cgo 直接操作 NSWindow / WKWebView |
+| Q3 | 2.0.4 → 2.0.5 升级 | 方案 B：引导手动下载；不做 latest.yml 兼容。2.0.5 首次启动**必须**迁移 Electron 用户数据（设置 / 历史 / safeStorage 密文） |
+| Q4 | VAD / OCR / 嵌入 | 全部在渲染进程跑 WASM；Go 不带 onnx |
+| Q5 | 老用户看板娘 | 升级用户同样默认 SVG |
+| Q6 | Linux | AppImage + deb；没有 SNI 宿主时允许无托盘降级 |
+
+### 0.2 2.0.4 用户会看到什么（已核对代码）
+
+- 2.0.4（tag `v2.0.4`）的 `UpdateService` 用 electron-updater GitHub provider 读**最新 Release** 的 `latest*.yml`。2.0.4 **没有** #146 的 `releasePending` 处理（该逻辑在 2.0.5 才加入）。
+- 2.0.5（Go）Release 不带 `latest*.yml` → electron-updater 抛 `ERR_UPDATER_CHANNEL_FILE_NOT_FOUND`（`Cannot find latest-mac.yml in the latest release artifacts`）→ 2.0.4 走 `fail(msg)`，状态为 `error`，设置 → 更新页显示**检查失败 + 原始英文错误 + 「重试」**；启动时的自动检查静默失败，**不会弹窗**，用户看不到有新版本。
+- 结论：要实现“弹窗引导手动下载”，需要在 Electron 线发一个 2.0.4.x 小改（识别缺 yml 时去 GitHub API 读最新 tag，弹窗打开下载页），或在 2.0.5 Release 上额外挂一个让 2.0.4 能解析的 yml（会触发其自动下载，不推荐）。**两者都不在本计划范围**，待用户决定（见汇报）。
+
 ## 1. 现状盘点（release/2.0.5 @ d511566c）
 
 ### 1.1 包与体量（不含测试，TS 行数）
@@ -43,8 +62,8 @@
 
 | 模块（路径） | 规模 | Node / 原生依赖 | Go 替代候选 |
 | --- | ---: | --- | --- |
-| AI 运行时（ai-runtime: AiSdkLlmProvider、ChatFacade、工具循环） | 10k | `ai`、`@ai-sdk/openai|anthropic|openai-compatible`、zod | `openai/openai-go`、`anthropics/anthropic-sdk-go`，自写 tool loop（或评估 `cloudwego/eino` / `tmc/langchaingo`）；`google/jsonschema-go` |
-| MCP（ai-runtime mcpBridge / AiSdkMcpPlugin，`mcp.json`） | — | `@ai-sdk/mcp` createMCPClient（stdio/SSE/HTTP） | `modelcontextprotocol/go-sdk`（官方）或 `mark3labs/mcp-go` |
+| AI 运行时（ai-runtime: AiSdkLlmProvider、ChatFacade、工具循环） | 10k | `ai`、`@ai-sdk/openai|anthropic|openai-compatible`、zod | 自研：`net/http` + 自写 SSE；各厂商协议适配器 + tool loop 1:1 镜像 Node 分层（§3.1），不用厂商 SDK |
+| MCP（ai-runtime mcpBridge / AiSdkMcpPlugin，`mcp.json`） | — | `@ai-sdk/mcp` createMCPClient（stdio/SSE/HTTP） | 自研 MCP 客户端（JSON-RPC 2.0；stdio / Streamable HTTP / SSE） |
 | 网关（gateway 包 + core/gateway：GatewayProcess/Store/TerminalCommands/worker/windowsTerminal） | 34k | undici、child_process、worker_threads | `net/http`、`httputil.ReverseProxy`、goroutine；SSE 手写 |
 | CLI 编排（core/cli：harness Orchestrator/spawn、accounts、SessionHistory、codexThread*、CliUpdate、modelDiscovery） | 17.6k | child_process、worker_threads、`node:sqlite`（只读 OpenCode/Copilot） | `os/exec`、`creack/pty`（Unix）+ ConPTY（`UserExistsError/conpty` 或 `aymanbagabas/go-pty`）；`modernc.org/sqlite`（纯 Go，免 cgo） |
 | 用量统计（core/usage：UsageLogScanner、sqliteRead） | 10.2k | fs、`node:sqlite` | `modernc.org/sqlite`、`bufio` 扫 jsonl |
@@ -90,6 +109,22 @@ apps/desktop-go/
 ```
 传输默认本地 WS（127.0.0.1 + 随机端口 + 一次性 token）；stream 用 ctx 取消 + abort 帧。
 
+### 3.1 AI 分层镜像（Node → Go，1:1）
+
+| Node 层 | 现有模块 | Go 包 |
+| --- | --- | --- |
+| 协议网关内核 | `packages/gateway/src`：`canonical/`（chat/responses/upstream/terminal IR）、`ir.ts`、`ingress.ts`、`upstream.ts`、`stream/`、`request/`、`route/`、`providers/`、`models/`、`privacy/`、`cooldown`/`limits`/`timeouts`/`affinity`、`server.ts`/`worker.ts` | `internal/gateway/{canonical,ir,ingress,upstream,stream,request,route,providers,models,privacy,limits}`；`internal/gateway/server` |
+| SSE / HTTP 传输 | gateway `net/`、`stream/` | `internal/gateway/net`、`internal/sse`（自写解析器，含重连与 `[DONE]`） |
+| Provider 管理 | `ai-runtime/src/providers`：ProviderService/Store/Router、presets、protocol、secretCipher、usageEvent | `internal/ai/providers` |
+| LLM 适配器（替代 AI SDK provider） | `ai-runtime/src/ai-sdk/AiSdkLlmProvider.ts`、`mapTools.ts`、`streamError.ts` | `internal/ai/llm/{openai,anthropic,compatible,gemini}`：各自 `net/http` 请求构造 + SSE 事件 → 统一流事件 |
+| 工具循环（替代 `streamText` maxSteps） | `toolCaller.ts`、ChatFacade.agent / withTools | `internal/ai/loop` |
+| MCP | `mcpBridge.ts`、`AiSdkMcpPlugin.ts`（`@ai-sdk/mcp`） | `internal/ai/mcp`（自研 JSON-RPC 客户端：stdio / Streamable HTTP / SSE） |
+| SDK 门面 / DI | `packages/ai-sdk`（AIClient、facade、di、config） | `internal/ai/facade` |
+| 运行时装配 / 契约路由 / 观测 | `AIRuntimeService`、`AiContractRouter`、`IgPluginHost`、`observability/` | `internal/ai/runtime`、`internal/ai/observability` |
+| 主进程侧网关服务 | `core/src/gateway`（GatewayProcess/Service/Store、TerminalCommands、PrivacyLog、TabTokens） | `internal/core/gateway` |
+
+约束：Go 包间依赖方向与 Node 包依赖一致（gateway 不依赖 ai；ai/llm 不依赖 runtime），用 `go list` + 测试守卫。
+
 ## 3. 批次（按依赖顺序）
 
 每批统一验收：① Go 单测 + 现有 TS 单测通过；② 契约一致性测试（该批过程的 zod 输入/输出 fixture 在 Go 端往返通过）；③ 真实应用中手测该批功能路径；④ `desktop-go.yml` 三平台 CI 绿。估时为一名熟悉代码的工程师 / 智能体的有效人日（含测试），不含评审等待。
@@ -100,14 +135,14 @@ apps/desktop-go/
 | 1 | 契约生成 + 传输 + 路由骨架 | zod→JSON Schema→Go 类型生成器（CI 校验无漂移）、WS server、query/mutation/stream/事件、错误码、`dangerous`/`surfaces` 校验；未实现过程统一返回 `NOT_IMPLEMENTED` | `google/jsonschema-go` 或 `omissis/go-jsonschema`、`coder/websocket` | 359 过程全部注册；渲染进程连上不报错 | 4–5 |
 | 2 | 外壳基础 | 窗口（对话 / 看板娘 / 岛）、托盘、资产协议+CSP、单实例、userData 路径、日志/诊断、theme/locale/startup/onboarding | Wails v3 | 三平台窗口与托盘可用；Mac 透明结论（§4.3） | 5–7 |
 | 3 | 设置与存储 + 数据迁移 | 所有 JSON/TOML 存储原子读写、safeStorage 密文迁移、旧版目录探测 | `go-keyring`、toml | 用 2.0.4 真实 userData 快照升级后设置/历史/记忆不丢（自动化 fixture 测试） | 4–5 |
-| 4 | Provider + 网关 | providers.*、gateway 四协议互转与流式、usage/quality 记录 | `net/http` | 四协议对拍现有 TS 网关测试 fixture | 8–10 |
-| 5 | AI 运行时 + MCP | 对话流（stream）、工具循环（多步、并行工具、中止）、memory、tools、MCP（stdio/HTTP） | `openai-go`、`anthropic-sdk-go`、MCP go-sdk | 与 TS 版录制回放对拍；取消 < 200ms | 10–14 |
+| 4 | Provider + 网关 | providers.*、gateway 四协议（Messages / Responses / Chat / Gemini）请求与流式互转、canonical IR、路由 / 冷却 / 限流 / 隐私、usage/quality；全部自研 | `net/http`、自写 SSE | 四协议对拍现有 TS 网关测试 fixture | 8–10 |
+| 5 | AI 运行时 + MCP | 对话流（stream）、自研工具循环（多步、并行工具、中止，对齐 `streamText` 语义）、memory、tools、自研 MCP 客户端（stdio/HTTP/SSE） | 仅标准库 | 与 TS 版录制回放对拍；取消 < 200ms | 10–14 |
 | 6 | 桌面工具 / 工作区 / 权限 | desktop.*、pathGuard（Win 长短路径）、PermissionBroker、Undo/Trash/Audit、文件解析 | `pdfcpu`/`ledongthuc/pdf`、`archive/*` | 复用现有 pathGuard 测试用例 | 6–8 |
 | 7 | CLI 编排 + 终端 | harness（63）、cli/cliAccount/cliUpdate/delegate/agents/history、PTY、sqlite 只读 | `creack/pty`、ConPTY、`modernc.org/sqlite` | Win/Mac/Linux 各跑通 Codex/Claude CLI 一次会话 | 10–14 |
 | 8 | 知识 / 本地 / 记忆 / 定时 / 扩展 | kb/mem/local/sched/ext/hub | `robfig/cron` | 定时任务跨重启 | 6–8 |
 | 9 | 语音 + TTS | Edge TTS、Azure/OpenAI、系统 TTS、whisper.cpp、云 ASR；VAD/OCR/嵌入迁至渲染 WASM | websocket | 三平台播报 + 识别冒烟 | 5–7 |
 | 10 | 看板娘 / 角色包 / 岛 / 截屏 / 剪贴板 / 通知 | mascot.*、window.*、character、persona、chatBg、island、screen、物理/穿透；SVG 默认 + Rive 开关 | `kbinani/screenshot` | §5 验收 | 5–7 |
-| 11 | 更新 + 打包 + 签名 | 自动更新、三平台安装包（dmg/nsis 或 msi/AppImage+deb）、Mac Developer ID 签名 | Wails packager | 2.0.4→2.0.5 升级路径（§4.4） | 5–7 |
+| 11 | 更新 + 打包 + 签名 | Go 版自身更新检查（GitHub Releases，弹窗引导下载，不自动替换）、三平台安装包（dmg / nsis / AppImage+deb）、Mac Developer ID 签名；**不包含** Electron 2.0.4.x 线的弹窗改动（§0.2） | Wails packager | 首次启动迁移 Electron 数据（§4.5） | 4–6 |
 | 12 | 收尾 | 删除 `host-electron` 与 Node 主进程代码、文档、CHANGELOG、E2E 迁移（Playwright → WebView 或 Go 驱动） | — | 全量 E2E 绿 | 4–6 |
 | | **合计** | | | | **≈ 72–98 人日** |
 
@@ -115,8 +150,8 @@ apps/desktop-go/
 
 ## 4. 风险
 
-### 4.1 Go 里没有 Vercel AI SDK 等价物（最高）
-`streamText` 的多步工具循环、并行工具调用、`maxSteps`、流式 tool-call delta、Provider 差异抹平、`@ai-sdk/mcp` 都要自写或选框架。方案：A) 官方 SDK + 自写约 1.5k 行 tool loop（推荐，可控）；B) `cloudwego/eino`；C) `langchaingo`。缓解：先把 TS 版的流事件录成 fixture，Go 版逐帧对拍。
+### 4.1 Go 里没有 Vercel AI SDK 等价物（最高；已决定全部自研）
+`streamText` 的多步工具循环、并行工具调用、`maxSteps`、流式 tool-call delta、Provider 差异抹平、`@ai-sdk/mcp` 都要自写或选框架。决定：不用任何 SDK，协议适配器、SSE 解析、tool loop、MCP 全自研（工作量计入批次 4/5，可能上浮 20–30%）。缓解：先把 TS 版的流事件录成 fixture，Go 版逐帧对拍。
 
 ### 4.2 PTY / 子进程
 `creack/pty` 不支持 Windows，需 ConPTY 单独实现；Windows 路径（d511566c 修的长/短路径）要原样移植测试。
@@ -155,4 +190,4 @@ electron-updater 不能用。需自建：GitHub Releases 清单 + sha256/签名�
 
 ## 6. 待用户决策
 
-见 PR / 汇报中的 Q1–Q7。
+Q1–Q7 已决（§0.1）。新增待决：2.0.4 用户发现新版的渠道（§0.2）。
