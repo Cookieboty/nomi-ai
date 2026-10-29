@@ -113,6 +113,7 @@ if (process.env.NOMI_GOLDEN_DIR) {
   execFileSync(process.execPath, [join(here, 'record-usage-sniff.mjs')], { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, [join(here, 'record-usage-claudeparser.mjs')], { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-usage-gwreq.mjs')], { stdio: 'inherit', cwd: root });
+  execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-usage-pricesync.mjs')], { stdio: 'inherit', cwd: root, env: { ...process.env, TZ: 'America/New_York' } });
   execFileSync(process.execPath, [join(here, 'record-usage-quota.mjs')], { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, [join(here, 'record-usage-statusline.mjs')], { stdio: 'inherit', cwd: root });
   // shell.ts 的 diagnostics / appIcon / updates / quality / usage / gateway（record-shell.mjs 依赖 gateway dist 的 redactText）
