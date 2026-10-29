@@ -23,6 +23,7 @@ type mockVolc struct {
 	status  int        // 非 101 时直接回这个 HTTP 状态
 	body    string
 	onFrame func(c net.Conn, n int, payload []byte)
+	logID   string
 }
 
 func newMockVolc(t *testing.T) *mockVolc {
@@ -84,14 +85,17 @@ func (m *mockVolc) serve(c net.Conn) {
 	}
 	m.mu.Lock()
 	m.reqs = append(m.reqs, lines)
-	st, body := m.status, m.body
+	st, body, logID := m.status, m.body, m.logID
+	if logID == "" {
+		logID = "LOG123"
+	}
 	m.mu.Unlock()
 	if st != 101 {
 		io.WriteString(c, "HTTP/1.1 "+itoa(st)+" X\r\nContent-Length: "+itoa(len(body))+"\r\nX-Tt-Logid: LOG123\r\n\r\n"+body)
 		return
 	}
 	h := sha1.Sum([]byte(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"))
-	io.WriteString(c, "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: "+base64.StdEncoding.EncodeToString(h[:])+"\r\nX-Tt-Logid: LOG123\r\n\r\n")
+	io.WriteString(c, "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: "+base64.StdEncoding.EncodeToString(h[:])+"\r\nX-Tt-Logid: "+logID+"\r\n\r\n")
 	n := 0
 	for {
 		hd := make([]byte, 2)
