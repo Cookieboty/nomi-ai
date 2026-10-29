@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 )
 
 // Ev is a HarnessEvent / SessionEvent / any JS object literal.
@@ -188,9 +189,5 @@ func AppendText(text string, ev Ev) string {
 	return text
 }
 
-// JSThrow 表示 Node 侧同一输入会抛出的 JS 异常（不是 Go 的错误路径）。
-// 解析器以 panic(JSThrow) 复现「抛出」；调用方（驱动的 stdout 回调）按 Node EventEmitter 语义处理：
-// 本 chunk 余下的行丢弃、交给进程级 uncaughtException 钩子（见 drivers.Uncaught）。
-type JSThrow struct{ Name, Message string }
-
-func (e JSThrow) Error() string { return e.Message }
+// JSThrow = jsrt.JSThrow（解析器以 panic(JSThrow) 复现 Node 的抛出；事件源用 jsrt.Dispatch 处理）。
+type JSThrow = jsrt.JSThrow

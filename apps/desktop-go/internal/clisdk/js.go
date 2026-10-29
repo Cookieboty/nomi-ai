@@ -1,6 +1,8 @@
 package clisdk
 
 import (
+	crand "crypto/rand"
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -52,7 +54,7 @@ func SliceFrom(s string, n int) string {
 	return util.UTF16Tail(s, l-n)
 }
 
-// Str is `typeof v === 'string' ? v : ''`.
+// Str is `typeof v === 'string' ? v : ”`.
 func Str(v any) string { return util.Str(v) }
 
 // OptStr mirrors optStr: a non-empty string or undefined (nil).
@@ -83,3 +85,12 @@ func Coalesce(vs ...any) any {
 
 // JSString is String(v).
 func JSString(v any) string { return util.JSString(v) }
+
+// RandomUUID = crypto.randomUUID()（v4）。
+func RandomUUID() string {
+	var b [16]byte
+	_, _ = crand.Read(b[:])
+	b[6] = b[6]&0x0f | 0x40
+	b[8] = b[8]&0x3f | 0x80
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
+}
