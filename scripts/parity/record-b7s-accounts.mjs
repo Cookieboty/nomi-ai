@@ -29,6 +29,7 @@ for (const k of KINDS) {
 }
 const imp = (p) => import(pathToFileURL(path.join(root, p)).href);
 const { AccountService, parseAccountKind, precheckMessage } = await imp('packages/core/src/cli/accounts/AccountService.ts');
+const { ACCOUNT_KINDS } = await imp('packages/core/src/cli/accounts/types.ts');
 const { AccountLogin, isLoginUrl, parseLoginOutput, stripTerminal } = await imp('packages/core/src/cli/accounts/AccountLogin.ts');
 const { accountDirFor } = await imp('packages/core/src/cli/accounts/homes.ts');
 const { claudeKeychainService, claudeAccountName } = await imp('packages/core/src/cli/accounts/adapters.ts');
@@ -116,6 +117,9 @@ async function run(sc) {
         case 'note': r = svc.noteSession(a[0], a[1], a[2]); break;
         case 'noteMany': for (let i = 0; i < a[1]; i++) svc.noteSession(a[0], `m${i}`, a[2]); break;
         case 'sessionsSummary': { const j = JSON.parse(fs.readFileSync(a[0], 'utf8')); r = { keys: Object.keys(j), n: j.sessions.length, first: j.sessions[0], last: j.sessions.at(-1) }; break; }
+        // createCore.ts SessionHistoryService 的 accountLabel / sessionAccount 依赖（逐字照抄）
+        case 'histLabel': { if (a[0] !== 'codex') { r = undefined; break; } const x = svc.findByAccountId('codex', a[1]); r = x ? (x.identity?.email ?? x.label) : undefined; break; }
+        case 'histSession': { if (!ACCOUNT_KINDS.includes(a[0])) { r = undefined; break; } const x = svc.sessionAccount(a[0], a[1]); r = !x ? undefined : svc.list(a[0]).length > 1 ? x : { id: x.id }; break; }
         case 'sessionAccount': r = svc.sessionAccount(a[0], a[1]); break;
         case 'broadcast': r = svc.broadcastChanged(); break;
         case 'parseKind': r = parseAccountKind(a[0]); break;

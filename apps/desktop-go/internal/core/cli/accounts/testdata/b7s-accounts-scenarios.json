@@ -19,11 +19,11 @@
   ["mode", "claude", {"status": "garbage"}], ["write", "$d1:claude/.claude.json", "{\"oauthAccount\":{\"emailAddress\":\"f@x.io\",\"organizationName\":\"O2\"}}"], ["refresh", "$1"],
   ["mode", "claude", {"status": "{\"loggedIn\":false}"}], ["refresh", "$1"], ["identityKey", "claude", "$1"],
   ["mode", "codex", {"account": {"type": "chatgpt", "email": "C@X.io", "planType": "plus"}, "limits": {"rateLimits": {}, "accountId": "acc-1"}}],
-  ["create", "codex"], ["refresh", "$2"], ["refresh", "$2"], ["cliLog", "codex"], ["find", "codex", "acc-1"], ["find", "codex", " "], ["find", "codex", "zz"],
+  ["create", "codex"], ["refresh", "$2"], ["refresh", "$2"], ["cliLog", "codex"], ["find", "codex", "acc-1"], ["find", "codex", " "], ["find", "codex", "zz"], ["histLabel", "codex", "acc-1"], ["histLabel", "codex", "zz"], ["histLabel", "claude", "acc-1"], ["histLabel", "codex", ""],
   ["mode", "codex", {"account": {"type": "apiKey"}}], ["refresh", "$2"], ["mode", "codex", {"account": null}], ["refresh", "$2"],
   ["create", "grok"], ["refresh", "$3"], ["create", "gemini"], ["refresh", "$4"],
   ["write", "$d4:gemini/.gemini/google_accounts.json", "{\"active\":\"G@X.io\"}"], ["write", "$d4:gemini/.gemini/oauth_creds.json", "{}"], ["refresh", "$4"],
-  ["create", "gemini", "Two"], ["write", "$d5:gemini/.gemini/google_accounts.json", "{\"active\":\"g@x.io\"}"], ["write", "$d5:gemini/.gemini/oauth_creds.json", "{}"],
+  ["mode", "codex", {"account": null, "limits": {"rateLimits": {}, "accountId": "acc-2"}}], ["create", "codex", "NoMail"], ["refresh", "$5"], ["histLabel", "codex", "acc-2"], ["create", "gemini", "Two"], ["write", "$d6:gemini/.gemini/google_accounts.json", "{\"active\":\"g@x.io\"}"], ["write", "$d6:gemini/.gemini/oauth_creds.json", "{}"],
   ["refreshAll", "gemini"], ["list", "gemini"], ["refreshAll"], ["refresh", "nope"], ["calls"]
  ]},
  {"name": "sessions", "steps": [
@@ -31,7 +31,7 @@
   ["note", "codex", "s1", "local-codex"], ["idle"], ["read", "@@SB@@/root/session-accounts.json"],
   ["sessionAccount", "claude", "s1"], ["sessionAccount", "claude", "s2"], ["sessionAccount", "claude", "zz"], ["sessionAccount", "codex", "s1"],
   ["note", "claude", "s1", "local-claude"], ["note", "claude", "s1", "$1"], ["idle"], ["read", "@@SB@@/root/session-accounts.json"],
-  ["reload"], ["sessionAccount", "claude", "s1"], ["remove", "$1"], ["sessionAccount", "claude", "s1"], ["calls"]
+  ["reload"], ["sessionAccount", "claude", "s1"], ["histSession", "claude", "s1"], ["histSession", "codex", "s1"], ["histSession", "dsh", "s1"], ["histSession", "claude", "zz"], ["remove", "$1"], ["histSession", "claude", "s1"], ["sessionAccount", "claude", "s1"], ["calls"]
  ]},
  {"name": "sessions-evict", "steps": [
   ["noteMany", "claude", 5003, "local-claude"], ["note", "claude", "m1", "local-claude"], ["note", "claude", "m4", "gone"], ["idle"], ["sessionsSummary", "@@SB@@/root/session-accounts.json"],

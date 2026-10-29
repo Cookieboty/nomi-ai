@@ -64,6 +64,9 @@ func (e externals) Handshake(id string, images, resume bool) {
 // harnessOrch：wireHarness 构造的编排器（main 里只有一个）
 var harnessOrch *harness.Orchestrator
 
+// harnessAccounts：wireHarness 构造的 AccountService（构造失败时为 nil）
+var harnessAccounts *accounts.AccountService
+
 // wireHarness 对齐 createCore.ts 的 HarnessOrchestrator 构造 + coding.ts 的 harness.* 过程。
 // gateway = harnessGateway(gateway)（harness_gateway.go）。
 func wireHarness(router *contract.Router, userData, home string, hp hostPorts, gw *gwstore.Service) (*cli.CliPluginHost, func()) {
@@ -135,6 +138,7 @@ func wireHarness(router *contract.Router, userData, home string, hp hostPorts, g
 			return
 		}
 		acc = a
+		harnessAccounts = a // coding_wiring.go：history 的 accountLabel / sessionAccount（D-B7-S2-3）
 	})
 	var accPort ports.HarnessOfficialAccounts
 	if acc != nil {
