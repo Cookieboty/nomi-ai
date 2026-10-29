@@ -1,0 +1,251 @@
+{
+ "registry": {
+  "cloud": {
+   "name": "Cloud AI",
+   "baseURL": "https://api.example.com/v1"
+  },
+  "ollama": {
+   "name": "Ollama",
+   "baseURL": "http://127.0.0.1:11434"
+  },
+  "lan": {
+   "name": "LAN box",
+   "baseURL": "http://gpu.local:8000"
+  },
+  "nourl": {
+   "name": "No URL"
+  }
+ },
+ "cases": [
+  {
+   "withRuntime": true,
+   "provider": {
+    "id": "cloud"
+   },
+   "out": {
+    "id": "cloud",
+    "name": "Cloud AI",
+    "local": false
+   }
+  },
+  {
+   "withRuntime": true,
+   "provider": {
+    "id": "ollama"
+   },
+   "out": {
+    "id": "ollama",
+    "name": "Ollama",
+    "local": true
+   }
+  },
+  {
+   "withRuntime": true,
+   "provider": {
+    "id": "lan"
+   },
+   "out": {
+    "id": "lan",
+    "name": "LAN box",
+    "local": true
+   }
+  },
+  {
+   "withRuntime": true,
+   "provider": {
+    "id": "nourl"
+   },
+   "out": {
+    "id": "nourl",
+    "name": "No URL",
+    "local": false
+   }
+  },
+  {
+   "withRuntime": true,
+   "provider": {
+    "id": "ghost"
+   },
+   "out": {
+    "id": "ghost",
+    "name": "ghost",
+    "local": false
+   }
+  },
+  {
+   "withRuntime": true,
+   "provider": {
+    "id": "cloud",
+    "baseURL": "http://localhost:1234"
+   },
+   "out": {
+    "id": "cloud",
+    "name": "Cloud AI",
+    "local": true
+   }
+  },
+  {
+   "withRuntime": true,
+   "provider": {
+    "id": "ollama",
+    "baseURL": "https://x.com"
+   },
+   "out": {
+    "id": "ollama",
+    "name": "Ollama",
+    "local": false
+   }
+  },
+  {
+   "withRuntime": true,
+   "provider": {
+    "id": "ghost",
+    "baseURL": "http://[::1]:9/"
+   },
+   "out": {
+    "id": "ghost",
+    "name": "ghost",
+    "local": true
+   }
+  },
+  {
+   "withRuntime": true,
+   "provider": {
+    "id": "ghost",
+    "baseURL": "http://0.0.0.0"
+   },
+   "out": {
+    "id": "ghost",
+    "name": "ghost",
+    "local": true
+   }
+  },
+  {
+   "withRuntime": true,
+   "provider": {
+    "id": "ghost",
+    "baseURL": "not a url"
+   },
+   "out": {
+    "id": "ghost",
+    "name": "ghost",
+    "local": false
+   }
+  },
+  {
+   "withRuntime": false,
+   "provider": {
+    "id": "cloud"
+   },
+   "out": {
+    "id": "cloud",
+    "name": "cloud",
+    "local": false
+   }
+  },
+  {
+   "withRuntime": false,
+   "provider": {
+    "id": "ollama"
+   },
+   "out": {
+    "id": "ollama",
+    "name": "ollama",
+    "local": false
+   }
+  },
+  {
+   "withRuntime": false,
+   "provider": {
+    "id": "lan"
+   },
+   "out": {
+    "id": "lan",
+    "name": "lan",
+    "local": false
+   }
+  },
+  {
+   "withRuntime": false,
+   "provider": {
+    "id": "nourl"
+   },
+   "out": {
+    "id": "nourl",
+    "name": "nourl",
+    "local": false
+   }
+  },
+  {
+   "withRuntime": false,
+   "provider": {
+    "id": "ghost"
+   },
+   "out": {
+    "id": "ghost",
+    "name": "ghost",
+    "local": false
+   }
+  },
+  {
+   "withRuntime": false,
+   "provider": {
+    "id": "cloud",
+    "baseURL": "http://localhost:1234"
+   },
+   "out": {
+    "id": "cloud",
+    "name": "cloud",
+    "local": true
+   }
+  },
+  {
+   "withRuntime": false,
+   "provider": {
+    "id": "ollama",
+    "baseURL": "https://x.com"
+   },
+   "out": {
+    "id": "ollama",
+    "name": "ollama",
+    "local": false
+   }
+  },
+  {
+   "withRuntime": false,
+   "provider": {
+    "id": "ghost",
+    "baseURL": "http://[::1]:9/"
+   },
+   "out": {
+    "id": "ghost",
+    "name": "ghost",
+    "local": true
+   }
+  },
+  {
+   "withRuntime": false,
+   "provider": {
+    "id": "ghost",
+    "baseURL": "http://0.0.0.0"
+   },
+   "out": {
+    "id": "ghost",
+    "name": "ghost",
+    "local": true
+   }
+  },
+  {
+   "withRuntime": false,
+   "provider": {
+    "id": "ghost",
+    "baseURL": "not a url"
+   },
+   "out": {
+    "id": "ghost",
+    "name": "ghost",
+    "local": false
+   }
+  }
+ ]
+}

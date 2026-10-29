@@ -1,0 +1,4069 @@
+{
+ "ttlDefault": 60000,
+ "nav": [
+  "providers.openPanel",
+  "nav.desktopPanelRequested",
+  "nav.scheduleRequested",
+  "nav.voiceSettingsRequested"
+ ],
+ "cases": [
+  {
+   "name": "basic",
+   "groups": "core",
+   "ops": [
+    [
+     "pub",
+     "providers.openPanel",
+     {
+      "a": 1
+     }
+    ],
+    [
+     "nav"
+    ],
+    [
+     "nav"
+    ]
+   ],
+   "groupsDef": {
+    "nav": [
+     "providers.openPanel",
+     "nav.desktopPanelRequested",
+     "nav.scheduleRequested",
+     "nav.voiceSettingsRequested"
+    ],
+    "summary": [
+     "desktop.summary"
+    ]
+   },
+   "ttlMs": null,
+   "out": [
+    "{\"event\":\"providers.openPanel\"}",
+    "null"
+   ]
+  },
+  {
+   "name": "delivered-clears",
+   "groups": "core",
+   "ops": [
+    [
+     "pub",
+     "nav.scheduleRequested",
+     {}
+    ],
+    [
+     "sub",
+     "nav.scheduleRequested"
+    ],
+    [
+     "pub",
+     "nav.scheduleRequested",
+     {}
+    ],
+    [
+     "nav"
+    ]
+   ],
+   "groupsDef": {
+    "nav": [
+     "providers.openPanel",
+     "nav.desktopPanelRequested",
+     "nav.scheduleRequested",
+     "nav.voiceSettingsRequested"
+    ],
+    "summary": [
+     "desktop.summary"
+    ]
+   },
+   "ttlMs": null,
+   "out": [
+    "null"
+   ]
+  },
+  {
+   "name": "latest-wins",
+   "groups": "core",
+   "ops": [
+    [
+     "pub",
+     "nav.scheduleRequested",
+     1
+    ],
+    [
+     "pub",
+     "nav.desktopPanelRequested",
+     2
+    ],
+    [
+     "take",
+     "nav"
+    ],
+    [
+     "take",
+     "nav"
+    ]
+   ],
+   "groupsDef": {
+    "nav": [
+     "providers.openPanel",
+     "nav.desktopPanelRequested",
+     "nav.scheduleRequested",
+     "nav.voiceSettingsRequested"
+    ],
+    "summary": [
+     "desktop.summary"
+    ]
+   },
+   "ttlMs": null,
+   "out": [
+    "{\"event\":\"nav.desktopPanelRequested\",\"payload\":2}",
+    "null"
+   ]
+  },
+  {
+   "name": "ttl-edge",
+   "groups": "core",
+   "ops": [
+    [
+     "pub",
+     "providers.openPanel",
+     {}
+    ],
+    [
+     "tick",
+     60000
+    ],
+    [
+     "nav"
+    ],
+    [
+     "pub",
+     "providers.openPanel",
+     {}
+    ],
+    [
+     "tick",
+     60001
+    ],
+    [
+     "nav"
+    ]
+   ],
+   "groupsDef": {
+    "nav": [
+     "providers.openPanel",
+     "nav.desktopPanelRequested",
+     "nav.scheduleRequested",
+     "nav.voiceSettingsRequested"
+    ],
+    "summary": [
+     "desktop.summary"
+    ]
+   },
+   "ttlMs": null,
+   "out": [
+    "{\"event\":\"providers.openPanel\"}",
+    "null"
+   ]
+  },
+  {
+   "name": "custom-ttl",
+   "groups": "core",
+   "ttlMs": 5,
+   "ops": [
+    [
+     "pub",
+     "desktop.summary",
+     "s"
+    ],
+    [
+     "tick",
+     5
+    ],
+    [
+     "take",
+     "summary"
+    ],
+    [
+     "pub",
+     "desktop.summary",
+     "s"
+    ],
+    [
+     "tick",
+     6
+    ],
+    [
+     "take",
+     "summary"
+    ]
+   ],
+   "groupsDef": {
+    "nav": [
+     "providers.openPanel",
+     "nav.desktopPanelRequested",
+     "nav.scheduleRequested",
+     "nav.voiceSettingsRequested"
+    ],
+    "summary": [
+     "desktop.summary"
+    ]
+   },
+   "out": [
+    "{\"event\":\"desktop.summary\",\"payload\":\"s\"}",
+    "null"
+   ]
+  },
+  {
+   "name": "zero-ttl",
+   "groups": "core",
+   "ttlMs": 0,
+   "ops": [
+    [
+     "pub",
+     "nav.voiceSettingsRequested",
+     {}
+    ],
+    [
+     "nav"
+    ],
+    [
+     "pub",
+     "nav.voiceSettingsRequested",
+     {}
+    ],
+    [
+     "tick",
+     1
+    ],
+    [
+     "nav"
+    ]
+   ],
+   "groupsDef": {
+    "nav": [
+     "providers.openPanel",
+     "nav.desktopPanelRequested",
+     "nav.scheduleRequested",
+     "nav.voiceSettingsRequested"
+    ],
+    "summary": [
+     "desktop.summary"
+    ]
+   },
+   "out": [
+    "{\"event\":\"nav.voiceSettingsRequested\"}",
+    "null"
+   ]
+  },
+  {
+   "name": "mixed-nonnav",
+   "groups": "mixed",
+   "ops": [
+    [
+     "pub",
+     "theme.changed",
+     {
+      "t": 1
+     }
+    ],
+    [
+     "nav"
+    ],
+    [
+     "pub",
+     "providers.openPanel",
+     {}
+    ],
+    [
+     "nav"
+    ],
+    [
+     "pub",
+     "desktop.summary",
+     3
+    ],
+    [
+     "take",
+     "x"
+    ],
+    [
+     "take",
+     "nope"
+    ]
+   ],
+   "groupsDef": {
+    "nav": [
+     "providers.openPanel",
+     "theme.changed"
+    ],
+    "x": [
+     "nav.scheduleRequested",
+     "desktop.summary"
+    ]
+   },
+   "ttlMs": null,
+   "out": [
+    "null",
+    "{\"event\":\"providers.openPanel\"}",
+    "{\"event\":\"desktop.summary\",\"payload\":3}",
+    "null"
+   ]
+  },
+  {
+   "name": "unknown-event",
+   "groups": "core",
+   "ops": [
+    [
+     "pub",
+     "theme.changed",
+     {}
+    ],
+    [
+     "take",
+     "nav"
+    ],
+    [
+     "take",
+     "summary"
+    ],
+    [
+     "take",
+     ""
+    ]
+   ],
+   "groupsDef": {
+    "nav": [
+     "providers.openPanel",
+     "nav.desktopPanelRequested",
+     "nav.scheduleRequested",
+     "nav.voiceSettingsRequested"
+    ],
+    "summary": [
+     "desktop.summary"
+    ]
+   },
+   "ttlMs": null,
+   "out": [
+    "null",
+    "null",
+    "null"
+   ]
+  },
+  {
+   "name": "empty-groups",
+   "groups": "empty",
+   "ops": [
+    [
+     "pub",
+     "providers.openPanel",
+     {}
+    ],
+    [
+     "nav"
+    ]
+   ],
+   "groupsDef": {},
+   "ttlMs": null,
+   "out": [
+    "null"
+   ]
+  },
+  {
+   "name": "unsub",
+   "groups": "core",
+   "ops": [
+    [
+     "sub",
+     "providers.openPanel"
+    ],
+    [
+     "pub",
+     "providers.openPanel",
+     {}
+    ],
+    [
+     "unsub",
+     "providers.openPanel"
+    ],
+    [
+     "pub",
+     "providers.openPanel",
+     9
+    ],
+    [
+     "nav"
+    ]
+   ],
+   "groupsDef": {
+    "nav": [
+     "providers.openPanel",
+     "nav.desktopPanelRequested",
+     "nav.scheduleRequested",
+     "nav.voiceSettingsRequested"
+    ],
+    "summary": [
+     "desktop.summary"
+    ]
+   },
+   "ttlMs": null,
+   "out": [
+    "{\"event\":\"providers.openPanel\"}"
+   ]
+  },
+  {
+   "name": "sub-other-event",
+   "groups": "core",
+   "ops": [
+    [
+     "pub",
+     "providers.openPanel",
+     1
+    ],
+    [
+     "sub",
+     "nav.scheduleRequested"
+    ],
+    [
+     "pub",
+     "nav.scheduleRequested",
+     2
+    ],
+    [
+     "nav"
+    ]
+   ],
+   "groupsDef": {
+    "nav": [
+     "providers.openPanel",
+     "nav.desktopPanelRequested",
+     "nav.scheduleRequested",
+     "nav.voiceSettingsRequested"
+    ],
+    "summary": [
+     "desktop.summary"
+    ]
+   },
+   "ttlMs": null,
+   "out": [
+    "null"
+   ]
+  },
+  {
+   "name": "rand-0",
+   "groups": "empty",
+   "ttlMs": 0,
+   "ops": [
+    [
+     "pub",
+     "nav.voiceSettingsRequested",
+     0
+    ],
+    [
+     "tick",
+     30000
+    ],
+    [
+     "nav"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "pub",
+     "harness.changed",
+     {
+      "a": 1
+     }
+    ],
+    [
+     "pub",
+     "harness.changed",
+     {}
+    ],
+    [
+     "sub",
+     "providers.openPanel"
+    ],
+    [
+     "pub",
+     "desktop.summary",
+     0
+    ],
+    [
+     "take",
+     "x"
+    ],
+    [
+     "pub",
+     "desktop.summary",
+     "x"
+    ],
+    [
+     "pub",
+     "harness.changed",
+     {}
+    ],
+    [
+     "take",
+     "nav"
+    ],
+    [
+     "pub",
+     "theme.changed",
+     {
+      "nested": {
+       "k": [
+        true,
+        null
+       ]
+      }
+     }
+    ],
+    [
+     "nav"
+    ],
+    [
+     "take",
+     "nope"
+    ],
+    [
+     "take",
+     "nav"
+    ],
+    [
+     "pub",
+     "nav.desktopPanelRequested",
+     [
+      1,
+      "b"
+     ]
+    ],
+    [
+     "sub",
+     "nav.scheduleRequested"
+    ],
+    [
+     "take",
+     "summary"
+    ]
+   ],
+   "groupsDef": {},
+   "out": [
+    "null",
+    "null",
+    "null",
+    "null",
+    "null",
+    "null",
+    "null",
+    "null"
+   ]
+  },
+  {
+   "name": "rand-1",
+   "groups": "core",
+   "ttlMs": 1000,
+   "ops": [
+    [
+     "unsub",
+     "desktop.summary"
+    ],
+    [
+     "sub",
+     "nav.scheduleRequested"
+    ],
+    [
+     "take",
+     "x"
+    ],
+    [
+     "sub",
+     "theme.changed"
+    ],
+    [
+     "tick",
+     1000
+    ],
+    [
+     "tick",
+     1
+    ],
+    [
+     "pub",
+     "desktop.summary",
+     "x"
+    ],
+    [
+     "unsub",
+     "nav.scheduleRequested"
+    ],
+    [
+     "unsub",
+     "providers.openPanel"
+    ],
+    [
+     "take",
+     "nav"
+    ]
+   ],
+   "groupsDef": {
+    "nav": [
+     "providers.openPanel",
+     "nav.desktopPanelRequested",
+     "nav.scheduleRequested",
+     "nav.voiceSettingsRequested"
+    ],
+    "summary": [
+     "desktop.summary"
+    ]
+   },
+   "out": [
+    "null",
+    "null"
+   ]
+  },
+  {
+   "name": "rand-2",
+   "groups": "core",
+   "ttlMs": 1000,
+   "ops": [
+    [
+     "tick",
+     60001
+    ],
+    [
+     "pub",
+     "nav.voiceSettingsRequested",
+     null
+    ],
+    [
+     "tick",
+     59999
+    ],
+    [
+     "pub",
+     "nav.desktopPanelRequested",
+     [
+      1,
+      "b"
+     ]
+    ],
+    [
+     "pub",
+     "nav.desktopPanelRequested",
+     {
+      "nested": {
+       "k": [
+        true,
+        null
+       ]
+      }
+     }
+    ],
+    [
+     "take",
+     "summary"
+    ],
+    [
+     "sub",
+     "nav.voiceSettingsRequested"
+    ],
+    [
+     "pub",
+     "nav.scheduleRequested",
+     {
+      "nested": {
+       "k": [
+        true,
+        null
+       ]
+      }
+     }
+    ],
+    [
+     "pub",
+     "desktop.summary",
+     {}
+    ],
+    [
+     "nav"
+    ],
+    [
+     "tick",
+     30000
+    ],
+    [
+     "pub",
+     "theme.changed",
+     null
+    ],
+    [
+     "pub",
+     "nav.voiceSettingsRequested",
+     {
+      "nested": {
+       "k": [
+        true,
+        null
+       ]
+      }
+     }
+    ],
+    [
+     "sub",
+     "providers.openPanel"
+    ],
+    [
+     "sub",
+     "providers.openPanel"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "pub",
+     "desktop.summary",
+     [
+      1,
+      "b"
+     ]
+    ],
+    [
+     "nav"
+    ],
+    [
+     "take",
+     "nope"
+    ],
+    [
+     "pub",
+     "nav.desktopPanelRequested",
+     "x"
+    ]
+   ],
+   "groupsDef": {
+    "nav": [
+     "providers.openPanel",
+     "nav.desktopPanelRequested",
+     "nav.scheduleRequested",
+     "nav.voiceSettingsRequested"
+    ],
+    "summary": [
+     "desktop.summary"
+    ]
+   },
+   "out": [
+    "null",
+    "{\"event\":\"nav.scheduleRequested\"}",
+    "null",
+    "null",
+    "null"
+   ]
+  },
+  {
+   "name": "rand-3",
+   "groups": "core",
+   "ttlMs": 0,
+   "ops": [
+    [
+     "nav"
+    ],
+    [
+     "take",
+     "x"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "sub",
+     "desktop.summary"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "unsub",
+     "nav.scheduleRequested"
+    ],
+    [
+     "take",
+     "nope"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "pub",
+     "nav.desktopPanelRequested",
+     null
+    ],
+    [
+     "pub",
+     "providers.openPanel",
+     [
+      1,
+      "b"
+     ]
+    ],
+    [
+     "take",
+     "nav"
+    ],
+    [
+     "tick",
+     1
+    ],
+    [
+     "pub",
+     "desktop.summary",
+     [
+      1,
+      "b"
+     ]
+    ],
+    [
+     "nav"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "pub",
+     "desktop.summary",
+     {}
+    ],
+    [
+     "take",
+     "summary"
+    ]
+   ],
+   "groupsDef": {
+    "nav": [
+     "providers.openPanel",
+     "nav.desktopPanelRequested",
+     "nav.scheduleRequested",
+     "nav.voiceSettingsRequested"
+    ],
+    "summary": [
+     "desktop.summary"
+    ]
+   },
+   "out": [
+    "null",
+    "null",
+    "null",
+    "null",
+    "null",
+    "null",
+    "{\"event\":\"providers.openPanel\",\"payload\":[1,\"b\"]}",
+    "null",
+    "null",
+    "null"
+   ]
+  },
+  {
+   "name": "rand-4",
+   "groups": "empty",
+   "ttlMs": null,
+   "ops": [
+    [
+     "take",
+     "summary"
+    ],
+    [
+     "pub",
+     "desktop.summary",
+     "x"
+    ],
+    [
+     "tick",
+     60001
+    ],
+    [
+     "sub",
+     "harness.changed"
+    ],
+    [
+     "pub",
+     "desktop.summary",
+     [
+      1,
+      "b"
+     ]
+    ],
+    [
+     "pub",
+     "desktop.summary",
+     {
+      "nested": {
+       "k": [
+        true,
+        null
+       ]
+      }
+     }
+    ],
+    [
+     "tick",
+     0
+    ]
+   ],
+   "groupsDef": {},
+   "out": [
+    "null"
+   ]
+  },
+  {
+   "name": "rand-5",
+   "groups": "core",
+   "ttlMs": null,
+   "ops": [
+    [
+     "take",
+     "nope"
+    ],
+    [
+     "pub",
+     "harness.changed",
+     null
+    ],
+    [
+     "pub",
+     "nav.desktopPanelRequested",
+     {}
+    ],
+    [
+     "take",
+     "nope"
+    ],
+    [
+     "tick",
+     0
+    ],
+    [
+     "sub",
+     "theme.changed"
+    ],
+    [
+     "sub",
+     "nav.desktopPanelRequested"
+    ],
+    [
+     "pub",
+     "nav.desktopPanelRequested",
+     [
+      1,
+      "b"
+     ]
+    ],
+    [
+     "tick",
+     1000
+    ],
+    [
+     "tick",
+     0
+    ],
+    [
+     "nav"
+    ],
+    [
+     "pub",
+     "harness.changed",
+     {}
+    ],
+    [
+     "pub",
+     "providers.openPanel",
+     [
+      1,
+      "b"
+     ]
+    ],
+    [
+     "sub",
+     "desktop.summary"
+    ],
+    [
+     "pub",
+     "providers.openPanel",
+     {}
+    ]
+   ],
+   "groupsDef": {
+    "nav": [
+     "providers.openPanel",
+     "nav.desktopPanelRequested",
+     "nav.scheduleRequested",
+     "nav.voiceSettingsRequested"
+    ],
+    "summary": [
+     "desktop.summary"
+    ]
+   },
+   "out": [
+    "null",
+    "null",
+    "null"
+   ]
+  },
+  {
+   "name": "rand-6",
+   "groups": "empty",
+   "ttlMs": null,
+   "ops": [
+    [
+     "nav"
+    ],
+    [
+     "pub",
+     "nav.desktopPanelRequested",
+     {
+      "a": 1
+     }
+    ],
+    [
+     "pub",
+     "nav.voiceSettingsRequested",
+     "x"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "take",
+     "x"
+    ],
+    [
+     "pub",
+     "nav.desktopPanelRequested",
+     {
+      "nested": {
+       "k": [
+        true,
+        null
+       ]
+      }
+     }
+    ]
+   ],
+   "groupsDef": {},
+   "out": [
+    "null",
+    "null",
+    "null"
+   ]
+  },
+  {
+   "name": "rand-7",
+   "groups": "mixed",
+   "ttlMs": 1000,
+   "ops": [
+    [
+     "take",
+     "x"
+    ],
+    [
+     "pub",
+     "providers.openPanel",
+     null
+    ],
+    [
+     "pub",
+     "nav.desktopPanelRequested",
+     [
+      1,
+      "b"
+     ]
+    ],
+    [
+     "tick",
+     60000
+    ],
+    [
+     "unsub",
+     "harness.changed"
+    ],
+    [
+     "unsub",
+     "providers.openPanel"
+    ],
+    [
+     "tick",
+     30000
+    ]
+   ],
+   "groupsDef": {
+    "nav": [
+     "providers.openPanel",
+     "theme.changed"
+    ],
+    "x": [
+     "nav.scheduleRequested",
+     "desktop.summary"
+    ]
+   },
+   "out": [
+    "null"
+   ]
+  },
+  {
+   "name": "rand-8",
+   "groups": "empty",
+   "ttlMs": 0,
+   "ops": [
+    [
+     "tick",
+     59999
+    ],
+    [
+     "nav"
+    ],
+    [
+     "pub",
+     "harness.changed",
+     "x"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "unsub",
+     "providers.openPanel"
+    ],
+    [
+     "take",
+     "nav"
+    ],
+    [
+     "tick",
+     0
+    ],
+    [
+     "nav"
+    ],
+    [
+     "pub",
+     "theme.changed",
+     {
+      "nested": {
+       "k": [
+        true,
+        null
+       ]
+      }
+     }
+    ],
+    [
+     "pub",
+     "nav.voiceSettingsRequested",
+     {}
+    ],
+    [
+     "unsub",
+     "providers.openPanel"
+    ],
+    [
+     "pub",
+     "nav.desktopPanelRequested",
+     null
+    ],
+    [
+     "take",
+     "nope"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "sub",
+     "theme.changed"
+    ],
+    [
+     "unsub",
+     "nav.voiceSettingsRequested"
+    ],
+    [
+     "pub",
+     "desktop.summary",
+     "x"
+    ],
+    [
+     "pub",
+     "nav.desktopPanelRequested",
+     {}
+    ],
+    [
+     "pub",
+     "nav.scheduleRequested",
+     null
+    ],
+    [
+     "unsub",
+     "harness.changed"
+    ],
+    [
+     "unsub",
+     "desktop.summary"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "tick",
+     60000
+    ],
+    [
+     "pub",
+     "nav.desktopPanelRequested",
+     "x"
+    ]
+   ],
+   "groupsDef": {},
+   "out": [
+    "null",
+    "null",
+    "null",
+    "null",
+    "null",
+    "null",
+    "null",
+    "null",
+    "null",
+    "null",
+    "null",
+    "null"
+   ]
+  },
+  {
+   "name": "rand-9",
+   "groups": "core",
+   "ttlMs": null,
+   "ops": [
+    [
+     "pub",
+     "theme.changed",
+     {
+      "nested": {
+       "k": [
+        true,
+        null
+       ]
+      }
+     }
+    ],
+    [
+     "take",
+     "nope"
+    ],
+    [
+     "sub",
+     "providers.openPanel"
+    ],
+    [
+     "pub",
+     "desktop.summary",
+     [
+      1,
+      "b"
+     ]
+    ],
+    [
+     "sub",
+     "desktop.summary"
+    ]
+   ],
+   "groupsDef": {
+    "nav": [
+     "providers.openPanel",
+     "nav.desktopPanelRequested",
+     "nav.scheduleRequested",
+     "nav.voiceSettingsRequested"
+    ],
+    "summary": [
+     "desktop.summary"
+    ]
+   },
+   "out": [
+    "null"
+   ]
+  },
+  {
+   "name": "rand-10",
+   "groups": "mixed",
+   "ttlMs": null,
+   "ops": [
+    [
+     "nav"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "pub",
+     "nav.scheduleRequested",
+     null
+    ],
+    [
+     "take",
+     "nope"
+    ],
+    [
+     "pub",
+     "nav.desktopPanelRequested",
+     {}
+    ]
+   ],
+   "groupsDef": {
+    "nav": [
+     "providers.openPanel",
+     "theme.changed"
+    ],
+    "x": [
+     "nav.scheduleRequested",
+     "desktop.summary"
+    ]
+   },
+   "out": [
+    "null",
+    "null",
+    "null"
+   ]
+  },
+  {
+   "name": "rand-11",
+   "groups": "core",
+   "ttlMs": null,
+   "ops": [
+    [
+     "nav"
+    ],
+    [
+     "pub",
+     "desktop.summary",
+     0
+    ],
+    [
+     "nav"
+    ],
+    [
+     "tick",
+     59999
+    ],
+    [
+     "tick",
+     60000
+    ],
+    [
+     "tick",
+     30000
+    ],
+    [
+     "take",
+     "x"
+    ],
+    [
+     "pub",
+     "nav.desktopPanelRequested",
+     0
+    ],
+    [
+     "nav"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "tick",
+     1
+    ],
+    [
+     "tick",
+     1
+    ],
+    [
+     "nav"
+    ],
+    [
+     "tick",
+     1
+    ],
+    [
+     "nav"
+    ],
+    [
+     "unsub",
+     "nav.desktopPanelRequested"
+    ],
+    [
+     "take",
+     "nav"
+    ]
+   ],
+   "groupsDef": {
+    "nav": [
+     "providers.openPanel",
+     "nav.desktopPanelRequested",
+     "nav.scheduleRequested",
+     "nav.voiceSettingsRequested"
+    ],
+    "summary": [
+     "desktop.summary"
+    ]
+   },
+   "out": [
+    "null",
+    "null",
+    "null",
+    "{\"event\":\"nav.desktopPanelRequested\"}",
+    "null",
+    "null",
+    "null",
+    "null"
+   ]
+  },
+  {
+   "name": "rand-12",
+   "groups": "core",
+   "ttlMs": null,
+   "ops": [
+    [
+     "take",
+     "nav"
+    ],
+    [
+     "tick",
+     59999
+    ],
+    [
+     "unsub",
+     "nav.desktopPanelRequested"
+    ],
+    [
+     "unsub",
+     "nav.scheduleRequested"
+    ],
+    [
+     "pub",
+     "desktop.summary",
+     null
+    ],
+    [
+     "pub",
+     "providers.openPanel",
+     {
+      "nested": {
+       "k": [
+        true,
+        null
+       ]
+      }
+     }
+    ],
+    [
+     "unsub",
+     "theme.changed"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "pub",
+     "harness.changed",
+     {
+      "a": 1
+     }
+    ],
+    [
+     "unsub",
+     "nav.scheduleRequested"
+    ],
+    [
+     "tick",
+     0
+    ],
+    [
+     "pub",
+     "nav.voiceSettingsRequested",
+     {
+      "a": 1
+     }
+    ],
+    [
+     "nav"
+    ],
+    [
+     "tick",
+     59999
+    ],
+    [
+     "pub",
+     "desktop.summary",
+     "x"
+    ],
+    [
+     "pub",
+     "providers.openPanel",
+     [
+      1,
+      "b"
+     ]
+    ],
+    [
+     "pub",
+     "desktop.summary",
+     {
+      "nested": {
+       "k": [
+        true,
+        null
+       ]
+      }
+     }
+    ],
+    [
+     "tick",
+     30000
+    ],
+    [
+     "pub",
+     "nav.desktopPanelRequested",
+     {}
+    ],
+    [
+     "pub",
+     "providers.openPanel",
+     {}
+    ],
+    [
+     "tick",
+     0
+    ]
+   ],
+   "groupsDef": {
+    "nav": [
+     "providers.openPanel",
+     "nav.desktopPanelRequested",
+     "nav.scheduleRequested",
+     "nav.voiceSettingsRequested"
+    ],
+    "summary": [
+     "desktop.summary"
+    ]
+   },
+   "out": [
+    "null",
+    "{\"event\":\"providers.openPanel\"}",
+    "null",
+    "{\"event\":\"nav.voiceSettingsRequested\"}"
+   ]
+  },
+  {
+   "name": "rand-13",
+   "groups": "empty",
+   "ttlMs": null,
+   "ops": [
+    [
+     "pub",
+     "nav.scheduleRequested",
+     {}
+    ],
+    [
+     "nav"
+    ],
+    [
+     "take",
+     "nav"
+    ],
+    [
+     "sub",
+     "theme.changed"
+    ],
+    [
+     "pub",
+     "nav.desktopPanelRequested",
+     0
+    ],
+    [
+     "nav"
+    ],
+    [
+     "unsub",
+     "theme.changed"
+    ],
+    [
+     "tick",
+     60000
+    ],
+    [
+     "tick",
+     59999
+    ],
+    [
+     "sub",
+     "theme.changed"
+    ],
+    [
+     "pub",
+     "nav.scheduleRequested",
+     0
+    ],
+    [
+     "nav"
+    ],
+    [
+     "pub",
+     "nav.desktopPanelRequested",
+     null
+    ],
+    [
+     "tick",
+     59999
+    ],
+    [
+     "sub",
+     "desktop.summary"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "tick",
+     60001
+    ],
+    [
+     "tick",
+     30000
+    ],
+    [
+     "pub",
+     "harness.changed",
+     null
+    ],
+    [
+     "pub",
+     "providers.openPanel",
+     {
+      "a": 1
+     }
+    ],
+    [
+     "take",
+     "nope"
+    ],
+    [
+     "tick",
+     59999
+    ],
+    [
+     "take",
+     "summary"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "unsub",
+     "nav.scheduleRequested"
+    ],
+    [
+     "pub",
+     "nav.desktopPanelRequested",
+     "x"
+    ],
+    [
+     "sub",
+     "desktop.summary"
+    ]
+   ],
+   "groupsDef": {},
+   "out": [
+    "null",
+    "null",
+    "null",
+    "null",
+    "null",
+    "null",
+    "null",
+    "null"
+   ]
+  },
+  {
+   "name": "rand-14",
+   "groups": "empty",
+   "ttlMs": 0,
+   "ops": [
+    [
+     "sub",
+     "providers.openPanel"
+    ],
+    [
+     "pub",
+     "providers.openPanel",
+     {
+      "a": 1
+     }
+    ],
+    [
+     "take",
+     "nav"
+    ],
+    [
+     "pub",
+     "desktop.summary",
+     {
+      "a": 1
+     }
+    ],
+    [
+     "tick",
+     60001
+    ]
+   ],
+   "groupsDef": {},
+   "out": [
+    "null"
+   ]
+  },
+  {
+   "name": "rand-15",
+   "groups": "core",
+   "ttlMs": 1000,
+   "ops": [
+    [
+     "tick",
+     59999
+    ],
+    [
+     "tick",
+     59999
+    ],
+    [
+     "take",
+     "nav"
+    ],
+    [
+     "pub",
+     "providers.openPanel",
+     null
+    ],
+    [
+     "pub",
+     "harness.changed",
+     null
+    ],
+    [
+     "nav"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "sub",
+     "desktop.summary"
+    ],
+    [
+     "pub",
+     "nav.scheduleRequested",
+     0
+    ],
+    [
+     "take",
+     "x"
+    ],
+    [
+     "tick",
+     30000
+    ],
+    [
+     "sub",
+     "nav.scheduleRequested"
+    ],
+    [
+     "sub",
+     "harness.changed"
+    ],
+    [
+     "pub",
+     "nav.scheduleRequested",
+     {
+      "nested": {
+       "k": [
+        true,
+        null
+       ]
+      }
+     }
+    ]
+   ],
+   "groupsDef": {
+    "nav": [
+     "providers.openPanel",
+     "nav.desktopPanelRequested",
+     "nav.scheduleRequested",
+     "nav.voiceSettingsRequested"
+    ],
+    "summary": [
+     "desktop.summary"
+    ]
+   },
+   "out": [
+    "null",
+    "{\"event\":\"providers.openPanel\"}",
+    "null",
+    "null"
+   ]
+  },
+  {
+   "name": "rand-16",
+   "groups": "empty",
+   "ttlMs": 1000,
+   "ops": [
+    [
+     "take",
+     "summary"
+    ],
+    [
+     "pub",
+     "desktop.summary",
+     "x"
+    ],
+    [
+     "pub",
+     "nav.voiceSettingsRequested",
+     {
+      "a": 1
+     }
+    ],
+    [
+     "pub",
+     "theme.changed",
+     0
+    ],
+    [
+     "pub",
+     "nav.desktopPanelRequested",
+     {
+      "a": 1
+     }
+    ],
+    [
+     "pub",
+     "desktop.summary",
+     [
+      1,
+      "b"
+     ]
+    ],
+    [
+     "tick",
+     1000
+    ],
+    [
+     "tick",
+     0
+    ],
+    [
+     "unsub",
+     "nav.voiceSettingsRequested"
+    ],
+    [
+     "sub",
+     "providers.openPanel"
+    ],
+    [
+     "take",
+     "summary"
+    ],
+    [
+     "pub",
+     "nav.scheduleRequested",
+     "x"
+    ],
+    [
+     "pub",
+     "nav.desktopPanelRequested",
+     null
+    ],
+    [
+     "sub",
+     "theme.changed"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "tick",
+     30000
+    ],
+    [
+     "pub",
+     "harness.changed",
+     {}
+    ],
+    [
+     "pub",
+     "theme.changed",
+     "x"
+    ],
+    [
+     "tick",
+     0
+    ],
+    [
+     "pub",
+     "desktop.summary",
+     null
+    ],
+    [
+     "take",
+     "x"
+    ],
+    [
+     "take",
+     "nav"
+    ],
+    [
+     "unsub",
+     "nav.scheduleRequested"
+    ]
+   ],
+   "groupsDef": {},
+   "out": [
+    "null",
+    "null",
+    "null",
+    "null",
+    "null"
+   ]
+  },
+  {
+   "name": "rand-17",
+   "groups": "empty",
+   "ttlMs": null,
+   "ops": [
+    [
+     "nav"
+    ],
+    [
+     "sub",
+     "desktop.summary"
+    ],
+    [
+     "sub",
+     "providers.openPanel"
+    ],
+    [
+     "pub",
+     "providers.openPanel",
+     null
+    ],
+    [
+     "take",
+     "x"
+    ],
+    [
+     "pub",
+     "harness.changed",
+     {
+      "nested": {
+       "k": [
+        true,
+        null
+       ]
+      }
+     }
+    ],
+    [
+     "take",
+     "summary"
+    ],
+    [
+     "sub",
+     "desktop.summary"
+    ],
+    [
+     "tick",
+     0
+    ],
+    [
+     "take",
+     "summary"
+    ],
+    [
+     "pub",
+     "nav.voiceSettingsRequested",
+     null
+    ],
+    [
+     "pub",
+     "providers.openPanel",
+     null
+    ],
+    [
+     "sub",
+     "nav.scheduleRequested"
+    ],
+    [
+     "pub",
+     "providers.openPanel",
+     "x"
+    ],
+    [
+     "pub",
+     "nav.scheduleRequested",
+     null
+    ],
+    [
+     "sub",
+     "nav.scheduleRequested"
+    ],
+    [
+     "tick",
+     1000
+    ],
+    [
+     "pub",
+     "theme.changed",
+     0
+    ],
+    [
+     "take",
+     "nav"
+    ],
+    [
+     "unsub",
+     "nav.scheduleRequested"
+    ],
+    [
+     "take",
+     "x"
+    ]
+   ],
+   "groupsDef": {},
+   "out": [
+    "null",
+    "null",
+    "null",
+    "null",
+    "null",
+    "null"
+   ]
+  },
+  {
+   "name": "rand-18",
+   "groups": "core",
+   "ttlMs": 1000,
+   "ops": [
+    [
+     "pub",
+     "providers.openPanel",
+     "x"
+    ],
+    [
+     "tick",
+     60000
+    ],
+    [
+     "take",
+     "summary"
+    ],
+    [
+     "unsub",
+     "nav.voiceSettingsRequested"
+    ],
+    [
+     "tick",
+     0
+    ],
+    [
+     "pub",
+     "providers.openPanel",
+     {
+      "a": 1
+     }
+    ],
+    [
+     "take",
+     "summary"
+    ],
+    [
+     "take",
+     "x"
+    ],
+    [
+     "unsub",
+     "nav.desktopPanelRequested"
+    ]
+   ],
+   "groupsDef": {
+    "nav": [
+     "providers.openPanel",
+     "nav.desktopPanelRequested",
+     "nav.scheduleRequested",
+     "nav.voiceSettingsRequested"
+    ],
+    "summary": [
+     "desktop.summary"
+    ]
+   },
+   "out": [
+    "null",
+    "null",
+    "null"
+   ]
+  },
+  {
+   "name": "rand-19",
+   "groups": "mixed",
+   "ttlMs": null,
+   "ops": [
+    [
+     "sub",
+     "nav.desktopPanelRequested"
+    ],
+    [
+     "unsub",
+     "nav.scheduleRequested"
+    ],
+    [
+     "tick",
+     1000
+    ],
+    [
+     "sub",
+     "providers.openPanel"
+    ],
+    [
+     "pub",
+     "nav.voiceSettingsRequested",
+     {
+      "a": 1
+     }
+    ],
+    [
+     "unsub",
+     "nav.voiceSettingsRequested"
+    ],
+    [
+     "sub",
+     "desktop.summary"
+    ],
+    [
+     "tick",
+     1000
+    ],
+    [
+     "take",
+     "x"
+    ],
+    [
+     "pub",
+     "desktop.summary",
+     {
+      "a": 1
+     }
+    ],
+    [
+     "tick",
+     60001
+    ]
+   ],
+   "groupsDef": {
+    "nav": [
+     "providers.openPanel",
+     "theme.changed"
+    ],
+    "x": [
+     "nav.scheduleRequested",
+     "desktop.summary"
+    ]
+   },
+   "out": [
+    "null"
+   ]
+  },
+  {
+   "name": "rand-20",
+   "groups": "empty",
+   "ttlMs": 0,
+   "ops": [
+    [
+     "tick",
+     1000
+    ],
+    [
+     "unsub",
+     "desktop.summary"
+    ],
+    [
+     "pub",
+     "theme.changed",
+     {}
+    ],
+    [
+     "nav"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "sub",
+     "theme.changed"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "unsub",
+     "nav.scheduleRequested"
+    ],
+    [
+     "pub",
+     "providers.openPanel",
+     "x"
+    ],
+    [
+     "take",
+     "x"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "tick",
+     60001
+    ],
+    [
+     "pub",
+     "harness.changed",
+     {}
+    ],
+    [
+     "take",
+     "nope"
+    ],
+    [
+     "tick",
+     60000
+    ],
+    [
+     "take",
+     "nav"
+    ],
+    [
+     "sub",
+     "theme.changed"
+    ],
+    [
+     "tick",
+     1000
+    ]
+   ],
+   "groupsDef": {},
+   "out": [
+    "null",
+    "null",
+    "null",
+    "null",
+    "null",
+    "null",
+    "null",
+    "null",
+    "null"
+   ]
+  },
+  {
+   "name": "rand-21",
+   "groups": "mixed",
+   "ttlMs": 1000,
+   "ops": [
+    [
+     "pub",
+     "desktop.summary",
+     "x"
+    ],
+    [
+     "pub",
+     "theme.changed",
+     null
+    ],
+    [
+     "pub",
+     "theme.changed",
+     [
+      1,
+      "b"
+     ]
+    ],
+    [
+     "pub",
+     "nav.scheduleRequested",
+     null
+    ],
+    [
+     "nav"
+    ],
+    [
+     "pub",
+     "nav.scheduleRequested",
+     {}
+    ],
+    [
+     "pub",
+     "nav.desktopPanelRequested",
+     [
+      1,
+      "b"
+     ]
+    ],
+    [
+     "take",
+     "summary"
+    ]
+   ],
+   "groupsDef": {
+    "nav": [
+     "providers.openPanel",
+     "theme.changed"
+    ],
+    "x": [
+     "nav.scheduleRequested",
+     "desktop.summary"
+    ]
+   },
+   "out": [
+    "null",
+    "null"
+   ]
+  },
+  {
+   "name": "rand-22",
+   "groups": "empty",
+   "ttlMs": 0,
+   "ops": [
+    [
+     "take",
+     "nav"
+    ],
+    [
+     "pub",
+     "providers.openPanel",
+     null
+    ],
+    [
+     "pub",
+     "harness.changed",
+     0
+    ],
+    [
+     "pub",
+     "nav.desktopPanelRequested",
+     null
+    ],
+    [
+     "take",
+     "nope"
+    ],
+    [
+     "tick",
+     0
+    ],
+    [
+     "sub",
+     "theme.changed"
+    ],
+    [
+     "unsub",
+     "nav.desktopPanelRequested"
+    ],
+    [
+     "pub",
+     "harness.changed",
+     {
+      "nested": {
+       "k": [
+        true,
+        null
+       ]
+      }
+     }
+    ],
+    [
+     "nav"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "pub",
+     "nav.scheduleRequested",
+     {
+      "nested": {
+       "k": [
+        true,
+        null
+       ]
+      }
+     }
+    ],
+    [
+     "sub",
+     "providers.openPanel"
+    ],
+    [
+     "take",
+     "nope"
+    ],
+    [
+     "tick",
+     30000
+    ],
+    [
+     "take",
+     "x"
+    ]
+   ],
+   "groupsDef": {},
+   "out": [
+    "null",
+    "null",
+    "null",
+    "null",
+    "null",
+    "null",
+    "null"
+   ]
+  },
+  {
+   "name": "rand-23",
+   "groups": "core",
+   "ttlMs": null,
+   "ops": [
+    [
+     "pub",
+     "nav.desktopPanelRequested",
+     {
+      "nested": {
+       "k": [
+        true,
+        null
+       ]
+      }
+     }
+    ],
+    [
+     "nav"
+    ],
+    [
+     "sub",
+     "providers.openPanel"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "unsub",
+     "nav.desktopPanelRequested"
+    ],
+    [
+     "tick",
+     30000
+    ],
+    [
+     "tick",
+     1000
+    ],
+    [
+     "sub",
+     "nav.voiceSettingsRequested"
+    ],
+    [
+     "pub",
+     "providers.openPanel",
+     {
+      "nested": {
+       "k": [
+        true,
+        null
+       ]
+      }
+     }
+    ],
+    [
+     "tick",
+     0
+    ],
+    [
+     "pub",
+     "providers.openPanel",
+     null
+    ]
+   ],
+   "groupsDef": {
+    "nav": [
+     "providers.openPanel",
+     "nav.desktopPanelRequested",
+     "nav.scheduleRequested",
+     "nav.voiceSettingsRequested"
+    ],
+    "summary": [
+     "desktop.summary"
+    ]
+   },
+   "out": [
+    "{\"event\":\"nav.desktopPanelRequested\"}",
+    "null"
+   ]
+  },
+  {
+   "name": "rand-24",
+   "groups": "mixed",
+   "ttlMs": null,
+   "ops": [
+    [
+     "pub",
+     "harness.changed",
+     {
+      "a": 1
+     }
+    ],
+    [
+     "take",
+     "summary"
+    ],
+    [
+     "unsub",
+     "theme.changed"
+    ],
+    [
+     "tick",
+     1000
+    ],
+    [
+     "sub",
+     "theme.changed"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "pub",
+     "harness.changed",
+     {}
+    ],
+    [
+     "nav"
+    ],
+    [
+     "tick",
+     59999
+    ],
+    [
+     "take",
+     "summary"
+    ],
+    [
+     "tick",
+     60000
+    ],
+    [
+     "pub",
+     "desktop.summary",
+     {
+      "a": 1
+     }
+    ],
+    [
+     "take",
+     "x"
+    ],
+    [
+     "take",
+     "summary"
+    ],
+    [
+     "pub",
+     "providers.openPanel",
+     "x"
+    ],
+    [
+     "tick",
+     1000
+    ],
+    [
+     "pub",
+     "theme.changed",
+     {
+      "nested": {
+       "k": [
+        true,
+        null
+       ]
+      }
+     }
+    ],
+    [
+     "unsub",
+     "harness.changed"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "take",
+     "summary"
+    ],
+    [
+     "unsub",
+     "nav.desktopPanelRequested"
+    ],
+    [
+     "unsub",
+     "nav.scheduleRequested"
+    ],
+    [
+     "take",
+     "x"
+    ],
+    [
+     "pub",
+     "harness.changed",
+     "x"
+    ]
+   ],
+   "groupsDef": {
+    "nav": [
+     "providers.openPanel",
+     "theme.changed"
+    ],
+    "x": [
+     "nav.scheduleRequested",
+     "desktop.summary"
+    ]
+   },
+   "out": [
+    "null",
+    "null",
+    "null",
+    "null",
+    "{\"event\":\"desktop.summary\",\"payload\":{\"a\":1}}",
+    "null",
+    "null",
+    "null",
+    "null"
+   ]
+  },
+  {
+   "name": "rand-25",
+   "groups": "mixed",
+   "ttlMs": null,
+   "ops": [
+    [
+     "take",
+     "nope"
+    ],
+    [
+     "pub",
+     "theme.changed",
+     {
+      "a": 1
+     }
+    ],
+    [
+     "tick",
+     59999
+    ],
+    [
+     "nav"
+    ],
+    [
+     "sub",
+     "nav.scheduleRequested"
+    ],
+    [
+     "pub",
+     "nav.voiceSettingsRequested",
+     0
+    ],
+    [
+     "pub",
+     "nav.desktopPanelRequested",
+     {
+      "nested": {
+       "k": [
+        true,
+        null
+       ]
+      }
+     }
+    ],
+    [
+     "take",
+     "nav"
+    ],
+    [
+     "pub",
+     "nav.voiceSettingsRequested",
+     [
+      1,
+      "b"
+     ]
+    ],
+    [
+     "nav"
+    ],
+    [
+     "pub",
+     "harness.changed",
+     "x"
+    ],
+    [
+     "sub",
+     "nav.scheduleRequested"
+    ],
+    [
+     "pub",
+     "nav.scheduleRequested",
+     0
+    ],
+    [
+     "sub",
+     "desktop.summary"
+    ],
+    [
+     "pub",
+     "nav.voiceSettingsRequested",
+     {
+      "nested": {
+       "k": [
+        true,
+        null
+       ]
+      }
+     }
+    ],
+    [
+     "nav"
+    ]
+   ],
+   "groupsDef": {
+    "nav": [
+     "providers.openPanel",
+     "theme.changed"
+    ],
+    "x": [
+     "nav.scheduleRequested",
+     "desktop.summary"
+    ]
+   },
+   "out": [
+    "null",
+    "null",
+    "null",
+    "null",
+    "null"
+   ]
+  },
+  {
+   "name": "rand-26",
+   "groups": "core",
+   "ttlMs": null,
+   "ops": [
+    [
+     "unsub",
+     "theme.changed"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "pub",
+     "desktop.summary",
+     {}
+    ],
+    [
+     "sub",
+     "nav.scheduleRequested"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "unsub",
+     "desktop.summary"
+    ],
+    [
+     "take",
+     "nav"
+    ],
+    [
+     "pub",
+     "nav.voiceSettingsRequested",
+     0
+    ]
+   ],
+   "groupsDef": {
+    "nav": [
+     "providers.openPanel",
+     "nav.desktopPanelRequested",
+     "nav.scheduleRequested",
+     "nav.voiceSettingsRequested"
+    ],
+    "summary": [
+     "desktop.summary"
+    ]
+   },
+   "out": [
+    "null",
+    "null",
+    "null"
+   ]
+  },
+  {
+   "name": "rand-27",
+   "groups": "core",
+   "ttlMs": null,
+   "ops": [
+    [
+     "take",
+     "x"
+    ],
+    [
+     "tick",
+     30000
+    ],
+    [
+     "pub",
+     "providers.openPanel",
+     {
+      "a": 1
+     }
+    ],
+    [
+     "pub",
+     "nav.scheduleRequested",
+     [
+      1,
+      "b"
+     ]
+    ],
+    [
+     "pub",
+     "providers.openPanel",
+     {}
+    ],
+    [
+     "pub",
+     "harness.changed",
+     {
+      "a": 1
+     }
+    ],
+    [
+     "nav"
+    ],
+    [
+     "pub",
+     "nav.scheduleRequested",
+     {}
+    ],
+    [
+     "pub",
+     "nav.desktopPanelRequested",
+     {
+      "nested": {
+       "k": [
+        true,
+        null
+       ]
+      }
+     }
+    ],
+    [
+     "nav"
+    ],
+    [
+     "tick",
+     1
+    ],
+    [
+     "tick",
+     30000
+    ],
+    [
+     "take",
+     "nope"
+    ]
+   ],
+   "groupsDef": {
+    "nav": [
+     "providers.openPanel",
+     "nav.desktopPanelRequested",
+     "nav.scheduleRequested",
+     "nav.voiceSettingsRequested"
+    ],
+    "summary": [
+     "desktop.summary"
+    ]
+   },
+   "out": [
+    "null",
+    "{\"event\":\"providers.openPanel\"}",
+    "{\"event\":\"nav.desktopPanelRequested\"}",
+    "null"
+   ]
+  },
+  {
+   "name": "rand-28",
+   "groups": "empty",
+   "ttlMs": null,
+   "ops": [
+    [
+     "nav"
+    ],
+    [
+     "take",
+     "nav"
+    ],
+    [
+     "tick",
+     60000
+    ],
+    [
+     "take",
+     "nope"
+    ],
+    [
+     "take",
+     "summary"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "tick",
+     59999
+    ],
+    [
+     "nav"
+    ],
+    [
+     "unsub",
+     "theme.changed"
+    ],
+    [
+     "pub",
+     "nav.voiceSettingsRequested",
+     {}
+    ],
+    [
+     "unsub",
+     "harness.changed"
+    ],
+    [
+     "take",
+     "nope"
+    ],
+    [
+     "tick",
+     1000
+    ],
+    [
+     "unsub",
+     "nav.scheduleRequested"
+    ],
+    [
+     "take",
+     "x"
+    ],
+    [
+     "tick",
+     59999
+    ],
+    [
+     "pub",
+     "theme.changed",
+     null
+    ],
+    [
+     "tick",
+     30000
+    ],
+    [
+     "tick",
+     30000
+    ],
+    [
+     "pub",
+     "harness.changed",
+     {
+      "a": 1
+     }
+    ],
+    [
+     "nav"
+    ],
+    [
+     "unsub",
+     "providers.openPanel"
+    ]
+   ],
+   "groupsDef": {},
+   "out": [
+    "null",
+    "null",
+    "null",
+    "null",
+    "null",
+    "null",
+    "null",
+    "null",
+    "null"
+   ]
+  },
+  {
+   "name": "rand-29",
+   "groups": "empty",
+   "ttlMs": 0,
+   "ops": [
+    [
+     "sub",
+     "harness.changed"
+    ],
+    [
+     "sub",
+     "theme.changed"
+    ],
+    [
+     "unsub",
+     "nav.desktopPanelRequested"
+    ],
+    [
+     "pub",
+     "harness.changed",
+     {
+      "a": 1
+     }
+    ],
+    [
+     "pub",
+     "providers.openPanel",
+     {
+      "nested": {
+       "k": [
+        true,
+        null
+       ]
+      }
+     }
+    ]
+   ],
+   "groupsDef": {},
+   "out": []
+  },
+  {
+   "name": "rand-30",
+   "groups": "core",
+   "ttlMs": 1000,
+   "ops": [
+    [
+     "unsub",
+     "nav.voiceSettingsRequested"
+    ],
+    [
+     "pub",
+     "nav.voiceSettingsRequested",
+     "x"
+    ],
+    [
+     "pub",
+     "providers.openPanel",
+     [
+      1,
+      "b"
+     ]
+    ],
+    [
+     "nav"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "pub",
+     "nav.scheduleRequested",
+     {}
+    ]
+   ],
+   "groupsDef": {
+    "nav": [
+     "providers.openPanel",
+     "nav.desktopPanelRequested",
+     "nav.scheduleRequested",
+     "nav.voiceSettingsRequested"
+    ],
+    "summary": [
+     "desktop.summary"
+    ]
+   },
+   "out": [
+    "{\"event\":\"providers.openPanel\"}",
+    "null"
+   ]
+  },
+  {
+   "name": "rand-31",
+   "groups": "core",
+   "ttlMs": 0,
+   "ops": [
+    [
+     "pub",
+     "providers.openPanel",
+     null
+    ],
+    [
+     "nav"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "pub",
+     "desktop.summary",
+     "x"
+    ],
+    [
+     "pub",
+     "nav.scheduleRequested",
+     {
+      "a": 1
+     }
+    ],
+    [
+     "tick",
+     0
+    ],
+    [
+     "unsub",
+     "desktop.summary"
+    ],
+    [
+     "sub",
+     "theme.changed"
+    ],
+    [
+     "take",
+     "summary"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "take",
+     "x"
+    ],
+    [
+     "sub",
+     "nav.voiceSettingsRequested"
+    ],
+    [
+     "pub",
+     "harness.changed",
+     {
+      "a": 1
+     }
+    ],
+    [
+     "nav"
+    ],
+    [
+     "pub",
+     "nav.desktopPanelRequested",
+     "x"
+    ],
+    [
+     "pub",
+     "nav.voiceSettingsRequested",
+     {
+      "nested": {
+       "k": [
+        true,
+        null
+       ]
+      }
+     }
+    ],
+    [
+     "pub",
+     "providers.openPanel",
+     {
+      "a": 1
+     }
+    ]
+   ],
+   "groupsDef": {
+    "nav": [
+     "providers.openPanel",
+     "nav.desktopPanelRequested",
+     "nav.scheduleRequested",
+     "nav.voiceSettingsRequested"
+    ],
+    "summary": [
+     "desktop.summary"
+    ]
+   },
+   "out": [
+    "{\"event\":\"providers.openPanel\"}",
+    "null",
+    "null",
+    "{\"event\":\"desktop.summary\",\"payload\":\"x\"}",
+    "{\"event\":\"nav.scheduleRequested\"}",
+    "null",
+    "null"
+   ]
+  },
+  {
+   "name": "rand-32",
+   "groups": "core",
+   "ttlMs": 0,
+   "ops": [
+    [
+     "sub",
+     "nav.desktopPanelRequested"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "sub",
+     "nav.desktopPanelRequested"
+    ],
+    [
+     "pub",
+     "theme.changed",
+     null
+    ],
+    [
+     "unsub",
+     "nav.desktopPanelRequested"
+    ],
+    [
+     "take",
+     "nope"
+    ],
+    [
+     "sub",
+     "nav.scheduleRequested"
+    ],
+    [
+     "tick",
+     60000
+    ],
+    [
+     "unsub",
+     "providers.openPanel"
+    ],
+    [
+     "pub",
+     "nav.voiceSettingsRequested",
+     [
+      1,
+      "b"
+     ]
+    ],
+    [
+     "take",
+     "nav"
+    ],
+    [
+     "take",
+     "summary"
+    ]
+   ],
+   "groupsDef": {
+    "nav": [
+     "providers.openPanel",
+     "nav.desktopPanelRequested",
+     "nav.scheduleRequested",
+     "nav.voiceSettingsRequested"
+    ],
+    "summary": [
+     "desktop.summary"
+    ]
+   },
+   "out": [
+    "null",
+    "null",
+    "{\"event\":\"nav.voiceSettingsRequested\",\"payload\":[1,\"b\"]}",
+    "null"
+   ]
+  },
+  {
+   "name": "rand-33",
+   "groups": "mixed",
+   "ttlMs": null,
+   "ops": [
+    [
+     "take",
+     "summary"
+    ],
+    [
+     "pub",
+     "desktop.summary",
+     null
+    ],
+    [
+     "sub",
+     "nav.scheduleRequested"
+    ],
+    [
+     "pub",
+     "harness.changed",
+     "x"
+    ],
+    [
+     "unsub",
+     "nav.voiceSettingsRequested"
+    ],
+    [
+     "sub",
+     "theme.changed"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "pub",
+     "providers.openPanel",
+     {}
+    ],
+    [
+     "pub",
+     "nav.voiceSettingsRequested",
+     {
+      "a": 1
+     }
+    ],
+    [
+     "pub",
+     "nav.scheduleRequested",
+     {}
+    ],
+    [
+     "pub",
+     "theme.changed",
+     {
+      "nested": {
+       "k": [
+        true,
+        null
+       ]
+      }
+     }
+    ],
+    [
+     "pub",
+     "nav.desktopPanelRequested",
+     {}
+    ],
+    [
+     "unsub",
+     "nav.voiceSettingsRequested"
+    ],
+    [
+     "unsub",
+     "nav.scheduleRequested"
+    ],
+    [
+     "pub",
+     "desktop.summary",
+     "x"
+    ],
+    [
+     "pub",
+     "theme.changed",
+     {
+      "a": 1
+     }
+    ],
+    [
+     "sub",
+     "desktop.summary"
+    ],
+    [
+     "sub",
+     "theme.changed"
+    ]
+   ],
+   "groupsDef": {
+    "nav": [
+     "providers.openPanel",
+     "theme.changed"
+    ],
+    "x": [
+     "nav.scheduleRequested",
+     "desktop.summary"
+    ]
+   },
+   "out": [
+    "null",
+    "null"
+   ]
+  },
+  {
+   "name": "rand-34",
+   "groups": "core",
+   "ttlMs": null,
+   "ops": [
+    [
+     "take",
+     "summary"
+    ],
+    [
+     "sub",
+     "harness.changed"
+    ],
+    [
+     "pub",
+     "harness.changed",
+     {
+      "nested": {
+       "k": [
+        true,
+        null
+       ]
+      }
+     }
+    ],
+    [
+     "take",
+     "nav"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "unsub",
+     "nav.voiceSettingsRequested"
+    ],
+    [
+     "pub",
+     "theme.changed",
+     0
+    ],
+    [
+     "pub",
+     "theme.changed",
+     {
+      "nested": {
+       "k": [
+        true,
+        null
+       ]
+      }
+     }
+    ],
+    [
+     "pub",
+     "nav.scheduleRequested",
+     {}
+    ],
+    [
+     "unsub",
+     "theme.changed"
+    ],
+    [
+     "take",
+     "nav"
+    ],
+    [
+     "unsub",
+     "nav.voiceSettingsRequested"
+    ],
+    [
+     "unsub",
+     "harness.changed"
+    ],
+    [
+     "pub",
+     "nav.voiceSettingsRequested",
+     {
+      "nested": {
+       "k": [
+        true,
+        null
+       ]
+      }
+     }
+    ],
+    [
+     "nav"
+    ],
+    [
+     "pub",
+     "theme.changed",
+     "x"
+    ],
+    [
+     "take",
+     "summary"
+    ],
+    [
+     "take",
+     "nav"
+    ],
+    [
+     "tick",
+     0
+    ],
+    [
+     "take",
+     "x"
+    ],
+    [
+     "pub",
+     "harness.changed",
+     0
+    ],
+    [
+     "nav"
+    ],
+    [
+     "take",
+     "nope"
+    ]
+   ],
+   "groupsDef": {
+    "nav": [
+     "providers.openPanel",
+     "nav.desktopPanelRequested",
+     "nav.scheduleRequested",
+     "nav.voiceSettingsRequested"
+    ],
+    "summary": [
+     "desktop.summary"
+    ]
+   },
+   "out": [
+    "null",
+    "null",
+    "null",
+    "{\"event\":\"nav.scheduleRequested\",\"payload\":{}}",
+    "{\"event\":\"nav.voiceSettingsRequested\"}",
+    "null",
+    "null",
+    "null",
+    "null",
+    "null"
+   ]
+  },
+  {
+   "name": "rand-35",
+   "groups": "empty",
+   "ttlMs": null,
+   "ops": [
+    [
+     "take",
+     "summary"
+    ],
+    [
+     "pub",
+     "theme.changed",
+     [
+      1,
+      "b"
+     ]
+    ],
+    [
+     "tick",
+     59999
+    ],
+    [
+     "pub",
+     "desktop.summary",
+     [
+      1,
+      "b"
+     ]
+    ],
+    [
+     "pub",
+     "providers.openPanel",
+     {
+      "nested": {
+       "k": [
+        true,
+        null
+       ]
+      }
+     }
+    ],
+    [
+     "take",
+     "summary"
+    ],
+    [
+     "unsub",
+     "nav.desktopPanelRequested"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "pub",
+     "harness.changed",
+     [
+      1,
+      "b"
+     ]
+    ],
+    [
+     "tick",
+     1000
+    ],
+    [
+     "pub",
+     "nav.scheduleRequested",
+     0
+    ],
+    [
+     "nav"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "sub",
+     "nav.desktopPanelRequested"
+    ],
+    [
+     "pub",
+     "nav.voiceSettingsRequested",
+     0
+    ],
+    [
+     "sub",
+     "nav.voiceSettingsRequested"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "tick",
+     1
+    ],
+    [
+     "sub",
+     "nav.desktopPanelRequested"
+    ],
+    [
+     "take",
+     "x"
+    ],
+    [
+     "sub",
+     "nav.desktopPanelRequested"
+    ],
+    [
+     "pub",
+     "theme.changed",
+     {}
+    ]
+   ],
+   "groupsDef": {},
+   "out": [
+    "null",
+    "null",
+    "null",
+    "null",
+    "null",
+    "null",
+    "null",
+    "null"
+   ]
+  },
+  {
+   "name": "rand-36",
+   "groups": "mixed",
+   "ttlMs": 0,
+   "ops": [
+    [
+     "pub",
+     "nav.voiceSettingsRequested",
+     [
+      1,
+      "b"
+     ]
+    ],
+    [
+     "nav"
+    ],
+    [
+     "take",
+     "summary"
+    ],
+    [
+     "pub",
+     "nav.desktopPanelRequested",
+     0
+    ],
+    [
+     "take",
+     "x"
+    ],
+    [
+     "pub",
+     "harness.changed",
+     null
+    ],
+    [
+     "nav"
+    ],
+    [
+     "take",
+     "x"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "tick",
+     60000
+    ],
+    [
+     "take",
+     "nav"
+    ],
+    [
+     "pub",
+     "theme.changed",
+     {
+      "a": 1
+     }
+    ],
+    [
+     "sub",
+     "nav.voiceSettingsRequested"
+    ],
+    [
+     "tick",
+     60001
+    ]
+   ],
+   "groupsDef": {
+    "nav": [
+     "providers.openPanel",
+     "theme.changed"
+    ],
+    "x": [
+     "nav.scheduleRequested",
+     "desktop.summary"
+    ]
+   },
+   "out": [
+    "null",
+    "null",
+    "null",
+    "null",
+    "null",
+    "null",
+    "null"
+   ]
+  },
+  {
+   "name": "rand-37",
+   "groups": "mixed",
+   "ttlMs": null,
+   "ops": [
+    [
+     "pub",
+     "providers.openPanel",
+     "x"
+    ],
+    [
+     "tick",
+     1000
+    ],
+    [
+     "tick",
+     59999
+    ],
+    [
+     "tick",
+     0
+    ],
+    [
+     "pub",
+     "nav.voiceSettingsRequested",
+     {}
+    ],
+    [
+     "pub",
+     "harness.changed",
+     {
+      "nested": {
+       "k": [
+        true,
+        null
+       ]
+      }
+     }
+    ],
+    [
+     "pub",
+     "nav.scheduleRequested",
+     [
+      1,
+      "b"
+     ]
+    ]
+   ],
+   "groupsDef": {
+    "nav": [
+     "providers.openPanel",
+     "theme.changed"
+    ],
+    "x": [
+     "nav.scheduleRequested",
+     "desktop.summary"
+    ]
+   },
+   "out": []
+  },
+  {
+   "name": "rand-38",
+   "groups": "empty",
+   "ttlMs": 1000,
+   "ops": [
+    [
+     "take",
+     "nav"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "tick",
+     1000
+    ],
+    [
+     "pub",
+     "desktop.summary",
+     {
+      "nested": {
+       "k": [
+        true,
+        null
+       ]
+      }
+     }
+    ],
+    [
+     "take",
+     "x"
+    ],
+    [
+     "pub",
+     "providers.openPanel",
+     0
+    ],
+    [
+     "take",
+     "x"
+    ],
+    [
+     "take",
+     "x"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "tick",
+     60000
+    ],
+    [
+     "nav"
+    ]
+   ],
+   "groupsDef": {},
+   "out": [
+    "null",
+    "null",
+    "null",
+    "null",
+    "null",
+    "null",
+    "null",
+    "null",
+    "null"
+   ]
+  },
+  {
+   "name": "rand-39",
+   "groups": "core",
+   "ttlMs": null,
+   "ops": [
+    [
+     "take",
+     "summary"
+    ],
+    [
+     "take",
+     "summary"
+    ],
+    [
+     "take",
+     "x"
+    ],
+    [
+     "unsub",
+     "nav.scheduleRequested"
+    ],
+    [
+     "pub",
+     "harness.changed",
+     null
+    ],
+    [
+     "pub",
+     "theme.changed",
+     {
+      "a": 1
+     }
+    ],
+    [
+     "pub",
+     "providers.openPanel",
+     [
+      1,
+      "b"
+     ]
+    ],
+    [
+     "sub",
+     "theme.changed"
+    ],
+    [
+     "take",
+     "x"
+    ],
+    [
+     "tick",
+     1000
+    ],
+    [
+     "pub",
+     "desktop.summary",
+     {
+      "a": 1
+     }
+    ],
+    [
+     "take",
+     "nope"
+    ],
+    [
+     "take",
+     "x"
+    ],
+    [
+     "take",
+     "nav"
+    ],
+    [
+     "take",
+     "x"
+    ],
+    [
+     "unsub",
+     "desktop.summary"
+    ],
+    [
+     "sub",
+     "providers.openPanel"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "nav"
+    ],
+    [
+     "pub",
+     "desktop.summary",
+     {}
+    ],
+    [
+     "unsub",
+     "harness.changed"
+    ]
+   ],
+   "groupsDef": {
+    "nav": [
+     "providers.openPanel",
+     "nav.desktopPanelRequested",
+     "nav.scheduleRequested",
+     "nav.voiceSettingsRequested"
+    ],
+    "summary": [
+     "desktop.summary"
+    ]
+   },
+   "out": [
+    "null",
+    "null",
+    "null",
+    "null",
+    "null",
+    "null",
+    "{\"event\":\"providers.openPanel\",\"payload\":[1,\"b\"]}",
+    "null",
+    "null",
+    "null"
+   ]
+  }
+ ]
+}
