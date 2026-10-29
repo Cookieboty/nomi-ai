@@ -26,3 +26,6 @@ func readlinkNode(p string) (string, error) { return os.Readlink(p) }
 func symlinkNode(target, link, _ string) error { return os.Symlink(target, link) }
 
 func isJunction(os.FileInfo) bool { return false }
+
+// nodeStatMode = fs.statSync().mode & 0o777。
+func nodeStatMode(st os.FileInfo) float64 { return float64(st.Mode().Perm()) }
