@@ -63,6 +63,10 @@ const write = (file: string, text: string) => {
   fs.writeFileSync(file, text);
 };
 
+// 用例都是一串真实 git 子进程（远端用例二十多次），Windows runner 上每次 0.3~0.5 s，负载高时更慢：
+// 10 s 默认上限对整份文件都不够，统一放到 60 s（超时后 git 还占着目录，afterEach 的删除也会 EPERM）
+jest.setTimeout(60_000);
+
 describe('gitOps', () => {
   let root: string;
   let repo: string;
@@ -76,7 +80,9 @@ describe('gitOps', () => {
     git(repo, 'add', '.');
     git(repo, 'commit', '-q', '-m', 'init');
   });
-  afterEach(() => fs.rmSync(root, { recursive: true, force: true }));
+  afterEach(() =>
+    fs.rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }),
+  );
 
   const withRemote = () => {
     git(root, 'init', '-q', '--bare', '-b', 'main', remote);
@@ -217,8 +223,7 @@ describe('gitOps', () => {
     const p = await gitPull(repo);
     expect(p.code).toBe('diverged');
     expect(git(repo, 'log', '-1', '--format=%s')).toBe('feat: mine');
-    // 二十多次 git 子进程，Windows runner 上每次 0.3~0.5 s，10 s 默认上限不够
-  }, 30_000);
+  });
 
   it('检查远端 + 拉取只快进', async () => {
     withRemote();
