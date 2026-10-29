@@ -151,29 +151,6 @@ jobs:
         shell: pwsh
         run: ./ci/measure-win.ps1 -Mode poc -Bin "$PWD\build\bin\nomi-poc.exe" -Out "$PWD\mem"
 
-      # ---------- 内存实测：v2.0.4 打包版（同 runner、同口径，仅冷启动） ----------
-      - name: measure v2.0.4 (macOS)
-        # 只在手动触发时下载 v2.0.4 对比，避免每次 push 刷高 Release 下载数
-        if: runner.os == 'macOS' && github.event_name == 'workflow_dispatch'
-        working-directory: apps/desktop-go
-        env: { GH_TOKEN: '${{ github.token }}' }
-        run: |
-          gh release download v2.0.4 -R "$GITHUB_REPOSITORY" -p 'Nomi-2.0.4-arm64-mac.zip' -D /tmp/v204
-          ditto -x -k /tmp/v204/Nomi-2.0.4-arm64-mac.zip /tmp/v204/app
-          du -sk /tmp/v204/app/Nomi.app | tee -a mem/v204-size.txt
-          ci/measure-mac.sh electron /tmp/v204/app/Nomi.app/Contents/MacOS/Nomi "$PWD/mem" || true
-      - name: measure v2.0.4 (Windows)
-        if: runner.os == 'Windows' && github.event_name == 'workflow_dispatch'
-        working-directory: apps/desktop-go
-        shell: pwsh
-        env: { GH_TOKEN: '${{ github.token }}' }
-        run: |
-          gh release download v2.0.4 -R $env:GITHUB_REPOSITORY -p 'Nomi-Setup-2.0.4.exe' -D "$env:RUNNER_TEMP\v204"
-          Start-Process "$env:RUNNER_TEMP\v204\Nomi-Setup-2.0.4.exe" -ArgumentList '/S' -Wait
-          $exe = Get-ChildItem "$env:LOCALAPPDATA\Programs" -Recurse -Filter Nomi.exe -ErrorAction SilentlyContinue | Select-Object -First 1
-          Write-Host "installed: $($exe.FullName)"
-          "{0} bytes (install dir)" -f ((Get-ChildItem $exe.DirectoryName -Recurse | Measure-Object Length -Sum).Sum) | Out-File mem\v204-size.txt
-          ./ci/measure-win.ps1 -Mode electron -Bin $exe.FullName -Out "$PWD\mem"
       - name: summarize
         if: runner.os != 'Linux'
         working-directory: apps/desktop-go
