@@ -33,10 +33,7 @@ func HasNotch(platform string, d Display) bool {
 
 // Mode = islandGeometry(platform, d, style).mode
 func Mode(platform string, d Display, style string) string {
-	if style == "auto" && HasNotch(platform, d) {
-		return "notch"
-	}
-	return "pill"
+	return IslandGeometry(platform, d, style).Mode
 }
 
 type Kinds struct {
@@ -145,4 +142,16 @@ func (s *Service) Test(title, body string) bool {
 		return false
 	}
 	return s.Notify("message", title, body, 4000, true)
+}
+
+// Layout = ensureWindow 里的 islandGeometry(platform, screen.getPrimaryDisplay(), settings.style)
+func (s *Service) Layout() (Geometry, bool) {
+	if s.PrimaryDisplay == nil {
+		return Geometry{}, false
+	}
+	d, ok := s.PrimaryDisplay()
+	if !ok {
+		return Geometry{}, false
+	}
+	return IslandGeometry(s.platform, d, s.Get().Style), true
 }

@@ -7,6 +7,7 @@ package main
 
 import (
 	"embed"
+	"encoding/json"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/assetproto"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop/parse"
 	"io/fs"
@@ -16,6 +17,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core"
@@ -91,7 +93,20 @@ func main() {
 		if sh == nil {
 			return false
 		}
+		fresh := !sh.Visible(shell.Island)
 		sh.Show(shell.Island)
+		// = pump(): __island.prepare + play（show 两步合一）；新建的窗口给页面留装载时间
+		if ex, ok := sh.(interface {
+			ExecJS(shell.WindowKind, string)
+		}); ok {
+			n, _ := json.Marshal(map[string]any{"kind": kind, "title": title, "body": body, "durationMs": durationMs})
+			js := "window.__island && window.__island.show(" + string(n) + ")"
+			if fresh {
+				time.AfterFunc(400*time.Millisecond, func() { ex.ExecJS(shell.Island, js) })
+			} else {
+				ex.ExecJS(shell.Island, js)
+			}
+		}
 		return true
 	}
 	isl.PrimaryDisplay = func() (island.Display, bool) {
@@ -190,7 +205,15 @@ func main() {
 		frag.Set("ctl", ctl)
 	}
 	sh = wailsshell.New(wailsshell.Config{Assets: assets, Fragment: frag, MascotSize: mascotCtl.WindowSize, OnWindow: mascotCtl.WindowEvent,
-		Middleware: assetproto.Middleware(map[string]func(http.ResponseWriter, string){
+		IslandLayout: func() (shell.Rect, string, bool) {
+			g, ok := isl.Layout()
+			if !ok {
+				return shell.Rect{}, "", false
+			}
+			r := island.IslandWindowRect(g, g.Height)
+			return shell.Rect{X: int(r.X), Y: int(r.Y), Width: int(r.Width), Height: int(r.Height)}, islandPagePath, true
+		},
+		Middleware: islandPageMiddleware(isl, assetproto.Middleware(map[string]func(http.ResponseWriter, string){
 			// registerChatAssetProtocol：用户图片在 userData/chat，预设在应用资源
 			assetproto.ChatAssetScheme: func(w http.ResponseWriter, u string) {
 				assetproto.ServeChatAsset(w, filepath.Join(userData, "chat"), chatBgPresetFile(), u)
@@ -199,7 +222,7 @@ func main() {
 			assetproto.CharacterPackScheme: func(w http.ResponseWriter, u string) {
 				assetproto.ServeCharacterPack(w, charSvc.Root(), u)
 			},
-		})})
+		}))})
 
 	if ctl != "" {
 		go http.ListenAndServe(ctl, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -281,4 +304,26 @@ func processEnv() map[string]string {
 		}
 	}
 	return m
+}
+
+// islandPagePath：Electron 用 data: URL 装 islandHtml(g)；Wails 窗口只能加载资产服务器上的页面，
+// 这里按当前几何现场生成同一份 HTML（页面自带 meta CSP）
+const islandPagePath = "/__island.html"
+
+func islandPageMiddleware(isl *island.Service, next func(http.Handler) http.Handler) func(http.Handler) http.Handler {
+	return func(h http.Handler) http.Handler {
+		inner := next(h)
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != islandPagePath {
+				inner.ServeHTTP(w, r)
+				return
+			}
+			g, ok := isl.Layout()
+			if !ok {
+				g = island.IslandGeometry("", island.Display{}, "pill")
+			}
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			_, _ = w.Write([]byte(island.IslandHTML(g)))
+		})
+	}
 }

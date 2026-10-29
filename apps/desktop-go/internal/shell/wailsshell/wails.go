@@ -26,6 +26,8 @@ type Config struct {
 	OnWindow func(k shell.WindowKind, event string)
 	// Middleware 挂在资产服务器上（chat-asset:// / character-pack:// 网关，见 assetproto）
 	Middleware func(http.Handler) http.Handler
+	// IslandLayout：灵动岛窗口矩形（islandWindowRect(g, g.height)，屏幕绝对坐标）与页面地址；nil/false 用占位页
+	IslandLayout func() (rect shell.Rect, page string, ok bool)
 }
 
 type Wails struct {
@@ -126,7 +128,13 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 			Windows:          application.WindowsWindow{HiddenOnTaskbar: true, BackdropType: application.None, DisableFramelessWindowDecorations: true},
 			URL:              w.page(k),
 		}
-		if sc := w.app.Screen.GetPrimary(); sc != nil {
+		if w.cfg.IslandLayout != nil {
+			if r, page, ok := w.cfg.IslandLayout(); ok {
+				// 与 Electron 一样按 islandWindowRect 建窗（刘海模式顶到屏幕最上沿、无投影留白）；建好后用绝对坐标定位
+				opts.Width, opts.Height, opts.URL = r.Width, r.Height, page
+				at = &r
+			}
+		} else if sc := w.app.Screen.GetPrimary(); sc != nil {
 			opts.Screen = sc
 			opts.X = (sc.WorkArea.Width - opts.Width) / 2 // 相对 WorkArea 原点
 			opts.Y = 8
@@ -304,3 +312,10 @@ func (w *Wails) CursorPosition() (int, int) { return nativeCursor(w.app) }
 var _ shell.WindowControl = (*Wails)(nil)
 var _ shell.Shell = (*Wails)(nil)
 var _ shell.Geometry = (*Wails)(nil)
+
+// ExecJS 在窗口页面里执行脚本（= webContents.executeJavaScript，但拿不到返回值）
+func (w *Wails) ExecJS(k shell.WindowKind, js string) {
+	if win := w.win(k); win != nil {
+		win.ExecJS(js)
+	}
+}
