@@ -45,6 +45,7 @@ type ServerFrame struct {
 type ErrorPayload struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`
+	Data    any    `json:"data,omitempty"`
 }
 
 // Caller：调用方。ID = 契约的 caller.id（Electron 是 webContents id；Go 宿主按连接分配，从 1 起）；
@@ -53,6 +54,9 @@ type Caller struct {
 	Surface string
 	ID      int
 	Done    <-chan struct{}
+	// Untrusted：契约 caller.trusted 取反（零值 = trusted，同 Node 各宿主传输层：
+	// host-node/websocket.ts 与 host-electron/ipcSenderGuard.ts 对放行的调用者都记 trusted: true）
+	Untrusted bool
 }
 
 // CallFunc 处理 query / mutation
@@ -65,6 +69,7 @@ type Router struct {
 	calls    map[string]CallFunc
 	streams  map[string]StreamFunc
 	surfaces map[string][]string // 过程 → 允许的窗口（空 = 都可以），来自生成的过程表
+	decl     map[string]decl     // 过程 → 契约 kind / dangerous（Declare，来自生成的过程表）
 
 	subMu    sync.Mutex
 	sessions map[*Session]struct{}
@@ -75,7 +80,7 @@ type Router struct {
 }
 
 func NewRouter() *Router {
-	return &Router{calls: map[string]CallFunc{}, streams: map[string]StreamFunc{}, surfaces: map[string][]string{}, sessions: map[*Session]struct{}{}}
+	return &Router{calls: map[string]CallFunc{}, streams: map[string]StreamFunc{}, surfaces: map[string][]string{}, decl: map[string]decl{}, sessions: map[*Session]struct{}{}}
 }
 
 func (r *Router) Call(name string, f CallFunc)     { r.calls[name] = f }
@@ -83,6 +88,16 @@ func (r *Router) Stream(name string, f StreamFunc) { r.streams[name] = f }
 
 // Restrict 限定过程只给某些窗口调用（契约里的 surfaces）
 func (r *Router) Restrict(name string, surfaces []string) { r.surfaces[name] = surfaces }
+
+type decl struct {
+	kind      string // query | mutation | stream
+	dangerous bool
+}
+
+// Declare 记下契约里过程的 kind 与 dangerous（router.ts guard / run 的判定依据）
+func (r *Router) Declare(name, kind string, dangerous bool) {
+	r.decl[name] = decl{kind, dangerous}
+}
 
 // Registered 返回已注册的过程：name → "call" | "stream"
 func (r *Router) Registered() map[string]string {
@@ -141,7 +156,24 @@ func (r *Router) allowed(name, surface string) bool {
 	return false
 }
 
-type Error struct{ Code, Message string }
+// guard：router.ts 的内置守卫（§8）——surfaces 白名单，dangerous 过程只接受 trusted 调用者
+func (r *Router) guard(name string, c Caller) error {
+	if !r.allowed(name, c.Surface) {
+		return &Error{Code: "FORBIDDEN", Message: "Surface '" + c.Surface + "' may not call '" + name + "'",
+			Data: map[string]any{"surface": c.Surface}}
+	}
+	if r.decl[name].dangerous && c.Untrusted {
+		return &Error{Code: "FORBIDDEN", Message: "Untrusted caller may not call dangerous '" + name + "'",
+			Data: map[string]any{"dangerous": true}}
+	}
+	return nil
+}
+
+// Error：契约错误（ContractError）；Data 非 nil 时随线上错误下发（toErrorPayload）
+type Error struct {
+	Code, Message string
+	Data          any
+}
 
 func (e *Error) Error() string { return e.Code + ": " + e.Message }
 
@@ -165,8 +197,9 @@ func (r *Router) NewSession(ctx context.Context, caller Caller, send func(Server
 }
 
 func errFrame(id string, err error) ServerFrame {
-	if ce, ok := err.(*Error); ok {
-		return ServerFrame{T: "err", ID: id, Error: &ErrorPayload{Code: ce.Code, Message: ce.Message}}
+	var ce *Error
+	if errors.As(err, &ce) {
+		return ServerFrame{T: "err", ID: id, Error: &ErrorPayload{Code: ce.Code, Message: ce.Message, Data: ce.Data}}
 	}
 	if errors.Is(err, context.Canceled) {
 		return ServerFrame{T: "err", ID: id, Error: &ErrorPayload{Code: "ABORTED", Message: "aborted"}}
@@ -204,7 +237,7 @@ func (s *Session) Handle(raw []byte) {
 		if s.active[f.ID] != nil {
 			s.mu.Unlock()
 			cancel()
-			s.send(errFrame(f.ID, &Error{"BAD_REQUEST", "Duplicate request id '" + f.ID + "'"}))
+			s.send(errFrame(f.ID, &Error{Code: "BAD_REQUEST", Message: "Duplicate request id '" + f.ID + "'"}))
 			return
 		}
 		s.active[f.ID] = cancel
@@ -226,16 +259,28 @@ func (s *Session) run(ctx context.Context, f ClientFrame) {
 		s.send(ServerFrame{T: "res", ID: f.ID, Output: map[string]any{"version": ContractVersion, "protocol": ProtocolVersion}})
 		return
 	}
-	if !s.r.allowed(f.Name, s.caller.Surface) {
-		s.send(errFrame(f.ID, &Error{"FORBIDDEN", f.Name + " is not available to " + s.caller.Surface}))
+	// router.ts run()：NOT_FOUND → kind 不符（BAD_REQUEST）→ guard
+	_, isCall := s.r.calls[f.Name]
+	_, isStream := s.r.streams[f.Name]
+	if !isCall && !isStream {
+		s.send(errFrame(f.ID, &Error{Code: "NOT_FOUND", Message: "Procedure '" + f.Name + "' not found"}))
+		return
+	}
+	if isStream != (f.Kind == "stream") {
+		kind := s.r.decl[f.Name].kind
+		if kind == "" {
+			kind = map[bool]string{true: "stream", false: "query"}[isStream]
+		}
+		use := map[bool]string{true: "stream", false: "call"}[isStream]
+		s.send(errFrame(f.ID, &Error{Code: "BAD_REQUEST", Message: "Procedure '" + f.Name + "' is a " + kind + "; use " + use}))
+		return
+	}
+	if err := s.r.guard(f.Name, s.caller); err != nil {
+		s.send(errFrame(f.ID, err))
 		return
 	}
 	if f.Kind == "stream" {
 		h := s.r.streams[f.Name]
-		if h == nil {
-			s.send(errFrame(f.ID, &Error{"NOT_FOUND", "unknown stream " + f.Name}))
-			return
-		}
 		out, err := h(ctx, s.caller, f.Input, func(v any) error {
 			if ctx.Err() != nil {
 				return ctx.Err()
@@ -251,10 +296,6 @@ func (s *Session) run(ctx context.Context, f ClientFrame) {
 		return
 	}
 	h := s.r.calls[f.Name]
-	if h == nil {
-		s.send(errFrame(f.ID, &Error{"NOT_FOUND", "unknown procedure " + f.Name}))
-		return
-	}
 	out, err := h(ctx, s.caller, f.Input)
 	if err != nil {
 		s.send(errFrame(f.ID, err))
