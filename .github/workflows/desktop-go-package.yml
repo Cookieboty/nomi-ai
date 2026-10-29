@@ -266,7 +266,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     defaults: { run: { shell: bash } }
-    env: { RUNS: '3' }
+    env: { RUNS: '3', PYTHONIOENCODING: utf-8 }
     steps:
       - uses: actions/checkout@v4
         with: { sparse-checkout: apps/desktop-go/ci }
