@@ -5,8 +5,8 @@ package shellhandlers
 import (
 	"path/filepath"
 
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore/agents"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore/agents"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/terminal"
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
