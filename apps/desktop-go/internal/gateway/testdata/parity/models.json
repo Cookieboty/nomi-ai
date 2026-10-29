@@ -1,0 +1,3189 @@
+{
+ "families": "[{\"family\":\"claude\",\"match\":[\"claude-*\",\"claude*\"],\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true},\"params\":{\"requireMaxTokens\":true}},{\"family\":\"gpt\",\"match\":[\"gpt-5*\",\"gpt-6*\",\"o1*\",\"o3*\",\"o4*\",\"codex*\",\"gpt-*-codex*\"],\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"minimal\",\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false}},{\"family\":\"gemini\",\"match\":[\"gemini-*\"],\"wires\":{\"prefer\":[\"gemini\"],\"reason\":\"思考签名与 thinkingConfig 只在原生协议上完整\"},\"tools\":{\"schema\":\"gemini\"}},{\"family\":\"deepseek\",\"match\":[\"deepseek-*\"],\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"deepseek\"}},{\"family\":\"kimi\",\"match\":[\"kimi-*\",\"moonshot-*\"],\"reasoning\":{\"control\":\"toggle\",\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"kimi\"}},{\"family\":\"glm\",\"match\":[\"glm-*\"],\"reasoning\":{\"control\":\"toggle\",\"passback\":\"required\",\"passbackField\":\"reasoning_content\"}},{\"family\":\"qwen\",\"match\":[\"qwen*\"],\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"toggleStyle\":\"enable-thinking\"}},{\"family\":\"minimax\",\"match\":[\"minimax-*\"],\"reasoning\":{\"control\":\"none\",\"passback\":\"required\",\"passbackField\":\"reasoning_details\"}},{\"family\":\"grok\",\"match\":[\"grok-*\"],\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"xAI 的 Chat 接口标为 legacy\"}}]",
+ "familyOf": [
+  {
+   "id": "claude-sonnet-4-5",
+   "family": "claude"
+  },
+  {
+   "id": "anthropic/claude-opus-4-1-20250805",
+   "family": "claude"
+  },
+  {
+   "id": "gpt-5",
+   "family": "gpt"
+  },
+  {
+   "id": "GPT-5.1-codex",
+   "family": "gpt"
+  },
+  {
+   "id": "o3-mini",
+   "family": "gpt"
+  },
+  {
+   "id": "codex-mini-latest",
+   "family": "gpt"
+  },
+  {
+   "id": "gemini-2.5-pro",
+   "family": "gemini"
+  },
+  {
+   "id": "deepseek-chat",
+   "family": "deepseek"
+  },
+  {
+   "id": "deepseek-v3.2:free",
+   "family": "deepseek"
+  },
+  {
+   "id": "kimi-k2",
+   "family": "kimi"
+  },
+  {
+   "id": "moonshot-v1",
+   "family": "kimi"
+  },
+  {
+   "id": "glm-4.6",
+   "family": "glm"
+  },
+  {
+   "id": "qwen3-coder",
+   "family": "qwen"
+  },
+  {
+   "id": "minimax-m2",
+   "family": "minimax"
+  },
+  {
+   "id": "grok-4",
+   "family": "grok"
+  },
+  {
+   "id": "foo-bar",
+   "family": null
+  },
+  {
+   "id": "claude-x1",
+   "family": "claude"
+  },
+  {
+   "id": "unknown-model",
+   "family": null
+  },
+  {
+   "id": "constructor",
+   "family": null
+  },
+  {
+   "id": "toString",
+   "family": null
+  },
+  {
+   "id": "__proto__",
+   "family": null
+  },
+  {
+   "id": "valueOf",
+   "family": null
+  },
+  {
+   "id": "prototype",
+   "family": null
+  },
+  {
+   "id": "a/b/gpt-4o",
+   "family": null
+  },
+  {
+   "id": "gpt-4o-latest",
+   "family": null
+  },
+  {
+   "id": "Claude-3-7-Sonnet-20250219",
+   "family": "claude"
+  },
+  {
+   "id": "qwen",
+   "family": "qwen"
+  },
+  {
+   "id": "x:y",
+   "family": null
+  },
+  {
+   "id": "",
+   "family": null
+  }
+ ],
+ "catalog": [
+  {
+   "id": "claude-sonnet-4-5",
+   "bare": "claude-sonnet-4-5",
+   "entry": "{\"family\":\"claude-sonnet\",\"limits\":{\"context\":200000,\"maxOutput\":64000},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true},\"reasoning\":{\"control\":\"budget\",\"budget\":{\"min\":1024}}}"
+  },
+  {
+   "id": "anthropic/claude-opus-4-1-20250805",
+   "bare": "claude-opus-4-1-20250805",
+   "entry": "null"
+  },
+  {
+   "id": "gpt-5",
+   "bare": "gpt-5",
+   "entry": "{\"family\":\"gpt\",\"limits\":{\"context\":400000,\"input\":272000,\"maxOutput\":128000},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":true},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"minimal\",\"low\",\"medium\",\"high\"]},\"sampling\":{\"temperature\":false}}"
+  },
+  {
+   "id": "GPT-5.1-codex",
+   "bare": "gpt-5.1-codex",
+   "entry": "{\"family\":\"gpt-codex\",\"limits\":{\"context\":400000,\"input\":272000,\"maxOutput\":128000},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":true},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"low\",\"medium\",\"high\"]},\"sampling\":{\"temperature\":false}}"
+  },
+  {
+   "id": "o3-mini",
+   "bare": "o3-mini",
+   "entry": "{\"family\":\"o-mini\",\"limits\":{\"context\":200000,\"maxOutput\":100000},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"low\",\"medium\",\"high\"]},\"sampling\":{\"temperature\":false}}"
+  },
+  {
+   "id": "codex-mini-latest",
+   "bare": "codex-mini-latest",
+   "entry": "null"
+  },
+  {
+   "id": "gemini-2.5-pro",
+   "bare": "gemini-2.5-pro",
+   "entry": "{\"family\":\"gemini-pro\",\"limits\":{\"context\":1048576,\"standard\":200000,\"maxOutput\":65536},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true},\"reasoning\":{\"control\":\"budget\",\"budget\":{\"min\":128,\"max\":32768}}}"
+  },
+  {
+   "id": "deepseek-chat",
+   "bare": "deepseek-chat",
+   "entry": "{\"family\":\"deepseek\",\"limits\":{\"context\":163840,\"maxOutput\":16000},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true}}"
+  },
+  {
+   "id": "deepseek-v3.2:free",
+   "bare": "deepseek-v3.2:free",
+   "entry": "{\"family\":\"deepseek\",\"limits\":{\"context\":163840,\"maxOutput\":65536},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true}}"
+  },
+  {
+   "id": "kimi-k2",
+   "bare": "kimi-k2",
+   "entry": "{\"family\":\"kimi-k2\",\"limits\":{\"context\":131072,\"maxOutput\":98304},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true}}"
+  },
+  {
+   "id": "moonshot-v1",
+   "bare": "moonshot-v1",
+   "entry": "null"
+  },
+  {
+   "id": "glm-4.6",
+   "bare": "glm-4.6",
+   "entry": "{\"family\":\"glm\",\"limits\":{\"context\":204800,\"maxOutput\":131072},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"passback\":\"required\",\"passbackField\":\"reasoning_content\"}}"
+  },
+  {
+   "id": "qwen3-coder",
+   "bare": "qwen3-coder",
+   "entry": "{\"family\":\"qwen\",\"limits\":{\"context\":262144,\"maxOutput\":65536},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true}}"
+  },
+  {
+   "id": "minimax-m2",
+   "bare": "minimax-m2",
+   "entry": "{\"family\":\"minimax\",\"limits\":{\"context\":204800,\"maxOutput\":131072},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"reasoning\":{\"control\":\"none\"}}"
+  },
+  {
+   "id": "grok-4",
+   "bare": "grok-4",
+   "entry": "null"
+  },
+  {
+   "id": "foo-bar",
+   "bare": "foo-bar",
+   "entry": "null"
+  },
+  {
+   "id": "claude-x1",
+   "bare": "claude-x1",
+   "entry": "null"
+  },
+  {
+   "id": "unknown-model",
+   "bare": "unknown-model",
+   "entry": "null"
+  },
+  {
+   "id": "constructor",
+   "bare": "constructor"
+  },
+  {
+   "id": "toString",
+   "bare": "tostring",
+   "entry": "null"
+  },
+  {
+   "id": "__proto__",
+   "bare": "__proto__",
+   "entry": "{}"
+  },
+  {
+   "id": "valueOf",
+   "bare": "valueof",
+   "entry": "null"
+  },
+  {
+   "id": "prototype",
+   "bare": "prototype",
+   "entry": "null"
+  },
+  {
+   "id": "a/b/gpt-4o",
+   "bare": "gpt-4o",
+   "entry": "{\"family\":\"gpt\",\"limits\":{\"context\":128000,\"maxOutput\":16384},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true}}"
+  },
+  {
+   "id": "gpt-4o-latest",
+   "bare": "gpt-4o-latest",
+   "entry": "{\"family\":\"gpt\",\"limits\":{\"context\":128000,\"maxOutput\":16384},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true}}"
+  },
+  {
+   "id": "Claude-3-7-Sonnet-20250219",
+   "bare": "claude-3-7-sonnet-20250219",
+   "entry": "null"
+  },
+  {
+   "id": "qwen",
+   "bare": "qwen",
+   "entry": "null"
+  },
+  {
+   "id": "x:y",
+   "bare": "x:y",
+   "entry": "null"
+  },
+  {
+   "id": "",
+   "bare": "",
+   "entry": "null"
+  }
+ ],
+ "catalogVersion": "2026-10-25",
+ "catalogSize": 318,
+ "providers": [
+  {
+   "id": "p1",
+   "name": "P1",
+   "enabled": true,
+   "urls": {},
+   "keys": [],
+   "models": []
+  },
+  {
+   "id": "p2",
+   "name": "P2",
+   "enabled": true,
+   "urls": {},
+   "keys": [],
+   "spec": "parity-models",
+   "models": [
+    {
+     "id": "foo-bar",
+     "enabled": true,
+     "ctx": 9999,
+     "vision": true,
+     "efforts": [
+      "high"
+     ]
+    },
+    {
+     "id": "claude-x1",
+     "enabled": true,
+     "reasoning": false,
+     "strict": false,
+     "toolCalling": true
+    },
+    {
+     "id": "gpt-5",
+     "enabled": true,
+     "maxOutput": 77,
+     "strict": true
+    },
+    {
+     "id": "deepseek-chat",
+     "enabled": true,
+     "efforts": [
+      "low",
+      "high"
+     ]
+    }
+   ]
+  }
+ ],
+ "learneds": [
+  null,
+  {
+   "models": {}
+  },
+  {
+   "models": {
+    "gpt-5": {
+     "at": 1799999999000,
+     "efforts": [
+      "low"
+     ],
+     "temperature": false
+    },
+    "foo-bar": {
+     "at": 1799999999000,
+     "efforts": [
+      "minimal"
+     ]
+    },
+    "deepseek-chat": {
+     "at": 1799308800000,
+     "efforts": [
+      "low"
+     ]
+    },
+    "grok-4": {
+     "at": 1800000000000,
+     "catalogVersion": "old"
+    },
+    "kimi-k2": {
+     "at": 1800000000000,
+     "catalogVersion": "2026-10-25",
+     "temperature": false
+    }
+   }
+  }
+ ],
+ "now": 1800000000000,
+ "effective": [
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": null,
+   "model": "claude-sonnet-4-5",
+   "output": "{\"family\":\"claude-sonnet\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true,\"budget\":{\"min\":1024}},\"params\":{\"requireMaxTokens\":true},\"limits\":{\"context\":200000,\"maxOutput\":64000},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true},\"id\":\"claude-sonnet-4-5\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": null,
+   "model": "anthropic/claude-opus-4-1-20250805",
+   "output": "{\"family\":\"claude\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true},\"params\":{\"requireMaxTokens\":true},\"id\":\"claude-opus-4-1-20250805\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": null,
+   "model": "gpt-5",
+   "output": "{\"family\":\"gpt\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"minimal\",\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"limits\":{\"context\":400000,\"input\":272000,\"maxOutput\":128000},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"gpt-5\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": null,
+   "model": "GPT-5.1-codex",
+   "output": "{\"family\":\"gpt-codex\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"limits\":{\"context\":400000,\"input\":272000,\"maxOutput\":128000},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"gpt-5.1-codex\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": null,
+   "model": "o3-mini",
+   "output": "{\"family\":\"o-mini\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"limits\":{\"context\":200000,\"maxOutput\":100000},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"o3-mini\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": null,
+   "model": "codex-mini-latest",
+   "output": "{\"family\":\"gpt\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"minimal\",\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"id\":\"codex-mini-latest\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": null,
+   "model": "gemini-2.5-pro",
+   "output": "{\"family\":\"gemini-pro\",\"wires\":{\"prefer\":[\"gemini\"],\"reason\":\"思考签名与 thinkingConfig 只在原生协议上完整\"},\"tools\":{\"schema\":\"gemini\",\"calling\":true},\"limits\":{\"context\":1048576,\"standard\":200000,\"maxOutput\":65536},\"input\":{\"images\":true,\"pdf\":true},\"reasoning\":{\"control\":\"budget\",\"budget\":{\"min\":128,\"max\":32768}},\"id\":\"gemini-2.5-pro\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": null,
+   "model": "deepseek-chat",
+   "output": "{\"family\":\"deepseek\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"deepseek\",\"calling\":true},\"limits\":{\"context\":163840,\"maxOutput\":16000},\"input\":{\"images\":false,\"pdf\":false},\"id\":\"deepseek-chat\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": null,
+   "model": "deepseek-v3.2:free",
+   "output": "{\"family\":\"deepseek\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"deepseek\",\"calling\":true},\"limits\":{\"context\":163840,\"maxOutput\":65536},\"input\":{\"images\":false,\"pdf\":false},\"id\":\"deepseek-v3.2:free\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": null,
+   "model": "kimi-k2",
+   "output": "{\"family\":\"kimi-k2\",\"reasoning\":{\"control\":\"toggle\",\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"kimi\",\"calling\":true},\"limits\":{\"context\":131072,\"maxOutput\":98304},\"input\":{\"images\":false,\"pdf\":false},\"id\":\"kimi-k2\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": null,
+   "model": "moonshot-v1",
+   "output": "{\"family\":\"kimi\",\"reasoning\":{\"control\":\"toggle\",\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"kimi\"},\"id\":\"moonshot-v1\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": null,
+   "model": "glm-4.6",
+   "output": "{\"family\":\"glm\",\"reasoning\":{\"control\":\"toggle\",\"passback\":\"required\",\"passbackField\":\"reasoning_content\",\"canDisable\":true},\"limits\":{\"context\":204800,\"maxOutput\":131072},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"glm-4.6\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": null,
+   "model": "qwen3-coder",
+   "output": "{\"family\":\"qwen\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"toggleStyle\":\"enable-thinking\"},\"limits\":{\"context\":262144,\"maxOutput\":65536},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"qwen3-coder\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": null,
+   "model": "minimax-m2",
+   "output": "{\"family\":\"minimax\",\"reasoning\":{\"control\":\"none\",\"passback\":\"required\",\"passbackField\":\"reasoning_details\"},\"limits\":{\"context\":204800,\"maxOutput\":131072},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"minimax-m2\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": null,
+   "model": "grok-4",
+   "output": "{\"family\":\"grok\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"xAI 的 Chat 接口标为 legacy\"},\"id\":\"grok-4\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": null,
+   "model": "foo-bar",
+   "output": "{\"id\":\"foo-bar\",\"userSet\":[],\"sources\":[],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": null,
+   "model": "claude-x1",
+   "output": "{\"family\":\"claude\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true},\"params\":{\"requireMaxTokens\":true},\"id\":\"claude-x1\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": null,
+   "model": "unknown-model",
+   "output": "{\"id\":\"unknown-model\",\"userSet\":[],\"sources\":[],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": null,
+   "model": "constructor",
+   "output": "{\"id\":\"constructor\",\"userSet\":[],\"sources\":[\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": null,
+   "model": "toString",
+   "output": "{\"id\":\"tostring\",\"userSet\":[],\"sources\":[],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": null,
+   "model": "__proto__",
+   "output": "{\"id\":\"__proto__\",\"userSet\":[],\"sources\":[\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": null,
+   "model": "valueOf",
+   "output": "{\"id\":\"valueof\",\"userSet\":[],\"sources\":[],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": null,
+   "model": "prototype",
+   "output": "{\"id\":\"prototype\",\"userSet\":[],\"sources\":[],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": null,
+   "model": "a/b/gpt-4o",
+   "output": "{\"family\":\"gpt\",\"limits\":{\"context\":128000,\"maxOutput\":16384},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true},\"id\":\"gpt-4o\",\"userSet\":[],\"sources\":[\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": null,
+   "model": "gpt-4o-latest",
+   "output": "{\"family\":\"gpt\",\"limits\":{\"context\":128000,\"maxOutput\":16384},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true},\"id\":\"gpt-4o-latest\",\"userSet\":[],\"sources\":[\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": null,
+   "model": "Claude-3-7-Sonnet-20250219",
+   "output": "{\"family\":\"claude\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true},\"params\":{\"requireMaxTokens\":true},\"id\":\"claude-3-7-sonnet-20250219\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": null,
+   "model": "qwen",
+   "output": "{\"family\":\"qwen\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"toggleStyle\":\"enable-thinking\"},\"id\":\"qwen\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": null,
+   "model": "x:y",
+   "output": "{\"id\":\"x:y\",\"userSet\":[],\"sources\":[],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": null,
+   "model": "",
+   "output": "{\"id\":\"\",\"userSet\":[],\"sources\":[],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": true,
+   "model": "claude-sonnet-4-5",
+   "output": "{\"family\":\"claude-sonnet\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true,\"budget\":{\"min\":1024}},\"params\":{\"requireMaxTokens\":true},\"limits\":{\"context\":200000,\"maxOutput\":64000},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true},\"id\":\"claude-sonnet-4-5\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": true,
+   "model": "anthropic/claude-opus-4-1-20250805",
+   "output": "{\"family\":\"claude\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true},\"params\":{\"requireMaxTokens\":true},\"id\":\"claude-opus-4-1-20250805\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": true,
+   "model": "gpt-5",
+   "output": "{\"family\":\"gpt\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"minimal\",\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"limits\":{\"context\":400000,\"input\":272000,\"maxOutput\":128000},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"gpt-5\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": true,
+   "model": "GPT-5.1-codex",
+   "output": "{\"family\":\"gpt-codex\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"limits\":{\"context\":400000,\"input\":272000,\"maxOutput\":128000},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"gpt-5.1-codex\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": true,
+   "model": "o3-mini",
+   "output": "{\"family\":\"o-mini\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"limits\":{\"context\":200000,\"maxOutput\":100000},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"o3-mini\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": true,
+   "model": "codex-mini-latest",
+   "output": "{\"family\":\"gpt\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"minimal\",\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"id\":\"codex-mini-latest\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": true,
+   "model": "gemini-2.5-pro",
+   "output": "{\"family\":\"gemini-pro\",\"wires\":{\"prefer\":[\"gemini\"],\"reason\":\"思考签名与 thinkingConfig 只在原生协议上完整\"},\"tools\":{\"schema\":\"gemini\",\"calling\":true},\"limits\":{\"context\":1048576,\"standard\":200000,\"maxOutput\":65536},\"input\":{\"images\":true,\"pdf\":true},\"reasoning\":{\"control\":\"budget\",\"budget\":{\"min\":128,\"max\":32768}},\"id\":\"gemini-2.5-pro\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": true,
+   "model": "deepseek-chat",
+   "output": "{\"family\":\"deepseek\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"deepseek\",\"calling\":true},\"limits\":{\"context\":163840,\"maxOutput\":16000},\"input\":{\"images\":false,\"pdf\":false},\"id\":\"deepseek-chat\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": true,
+   "model": "deepseek-v3.2:free",
+   "output": "{\"family\":\"deepseek\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"deepseek\",\"calling\":true},\"limits\":{\"context\":163840,\"maxOutput\":65536},\"input\":{\"images\":false,\"pdf\":false},\"id\":\"deepseek-v3.2:free\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": true,
+   "model": "kimi-k2",
+   "output": "{\"family\":\"kimi-k2\",\"reasoning\":{\"control\":\"toggle\",\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"kimi\",\"calling\":true},\"limits\":{\"context\":131072,\"maxOutput\":98304},\"input\":{\"images\":false,\"pdf\":false},\"id\":\"kimi-k2\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": true,
+   "model": "moonshot-v1",
+   "output": "{\"family\":\"kimi\",\"reasoning\":{\"control\":\"toggle\",\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"kimi\"},\"id\":\"moonshot-v1\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": true,
+   "model": "glm-4.6",
+   "output": "{\"family\":\"glm\",\"reasoning\":{\"control\":\"toggle\",\"passback\":\"required\",\"passbackField\":\"reasoning_content\",\"canDisable\":true},\"limits\":{\"context\":204800,\"maxOutput\":131072},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"glm-4.6\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": true,
+   "model": "qwen3-coder",
+   "output": "{\"family\":\"qwen\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"toggleStyle\":\"enable-thinking\"},\"limits\":{\"context\":262144,\"maxOutput\":65536},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"qwen3-coder\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": true,
+   "model": "minimax-m2",
+   "output": "{\"family\":\"minimax\",\"reasoning\":{\"control\":\"none\",\"passback\":\"required\",\"passbackField\":\"reasoning_details\"},\"limits\":{\"context\":204800,\"maxOutput\":131072},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"minimax-m2\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": true,
+   "model": "grok-4",
+   "output": "{\"family\":\"grok\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"xAI 的 Chat 接口标为 legacy\"},\"id\":\"grok-4\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": true,
+   "model": "foo-bar",
+   "output": "{\"id\":\"foo-bar\",\"userSet\":[],\"sources\":[],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": true,
+   "model": "claude-x1",
+   "output": "{\"family\":\"claude\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true},\"params\":{\"requireMaxTokens\":true},\"id\":\"claude-x1\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": true,
+   "model": "unknown-model",
+   "output": "{\"id\":\"unknown-model\",\"userSet\":[],\"sources\":[],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": true,
+   "model": "constructor",
+   "output": "{\"id\":\"constructor\",\"userSet\":[],\"sources\":[\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": true,
+   "model": "toString",
+   "output": "{\"id\":\"tostring\",\"userSet\":[],\"sources\":[],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": true,
+   "model": "__proto__",
+   "output": "{\"id\":\"__proto__\",\"userSet\":[],\"sources\":[\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": true,
+   "model": "valueOf",
+   "output": "{\"id\":\"valueof\",\"userSet\":[],\"sources\":[],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": true,
+   "model": "prototype",
+   "output": "{\"id\":\"prototype\",\"userSet\":[],\"sources\":[],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": true,
+   "model": "a/b/gpt-4o",
+   "output": "{\"family\":\"gpt\",\"limits\":{\"context\":128000,\"maxOutput\":16384},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true},\"id\":\"gpt-4o\",\"userSet\":[],\"sources\":[\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": true,
+   "model": "gpt-4o-latest",
+   "output": "{\"family\":\"gpt\",\"limits\":{\"context\":128000,\"maxOutput\":16384},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true},\"id\":\"gpt-4o-latest\",\"userSet\":[],\"sources\":[\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": true,
+   "model": "Claude-3-7-Sonnet-20250219",
+   "output": "{\"family\":\"claude\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true},\"params\":{\"requireMaxTokens\":true},\"id\":\"claude-3-7-sonnet-20250219\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": true,
+   "model": "qwen",
+   "output": "{\"family\":\"qwen\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"toggleStyle\":\"enable-thinking\"},\"id\":\"qwen\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": true,
+   "model": "x:y",
+   "output": "{\"id\":\"x:y\",\"userSet\":[],\"sources\":[],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 0,
+   "strict": true,
+   "model": "",
+   "output": "{\"id\":\"\",\"userSet\":[],\"sources\":[],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": null,
+   "model": "claude-sonnet-4-5",
+   "output": "{\"family\":\"claude-sonnet\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true,\"budget\":{\"min\":1024}},\"params\":{\"requireMaxTokens\":true},\"limits\":{\"context\":200000,\"maxOutput\":64000},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true},\"id\":\"claude-sonnet-4-5\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": null,
+   "model": "anthropic/claude-opus-4-1-20250805",
+   "output": "{\"family\":\"claude\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true},\"params\":{\"requireMaxTokens\":true},\"id\":\"claude-opus-4-1-20250805\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": null,
+   "model": "gpt-5",
+   "output": "{\"family\":\"gpt\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"minimal\",\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"limits\":{\"context\":400000,\"input\":272000,\"maxOutput\":128000},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"gpt-5\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": null,
+   "model": "GPT-5.1-codex",
+   "output": "{\"family\":\"gpt-codex\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"limits\":{\"context\":400000,\"input\":272000,\"maxOutput\":128000},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"gpt-5.1-codex\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": null,
+   "model": "o3-mini",
+   "output": "{\"family\":\"o-mini\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"limits\":{\"context\":200000,\"maxOutput\":100000},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"o3-mini\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": null,
+   "model": "codex-mini-latest",
+   "output": "{\"family\":\"gpt\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"minimal\",\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"id\":\"codex-mini-latest\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": null,
+   "model": "gemini-2.5-pro",
+   "output": "{\"family\":\"gemini-pro\",\"wires\":{\"prefer\":[\"gemini\"],\"reason\":\"思考签名与 thinkingConfig 只在原生协议上完整\"},\"tools\":{\"schema\":\"gemini\",\"calling\":true},\"limits\":{\"context\":1048576,\"standard\":200000,\"maxOutput\":65536},\"input\":{\"images\":true,\"pdf\":true},\"reasoning\":{\"control\":\"budget\",\"budget\":{\"min\":128,\"max\":32768}},\"id\":\"gemini-2.5-pro\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": null,
+   "model": "deepseek-chat",
+   "output": "{\"family\":\"deepseek\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"deepseek\",\"calling\":true},\"limits\":{\"context\":163840,\"maxOutput\":16000},\"input\":{\"images\":false,\"pdf\":false},\"id\":\"deepseek-chat\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": null,
+   "model": "deepseek-v3.2:free",
+   "output": "{\"family\":\"deepseek\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"deepseek\",\"calling\":true},\"limits\":{\"context\":163840,\"maxOutput\":65536},\"input\":{\"images\":false,\"pdf\":false},\"id\":\"deepseek-v3.2:free\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": null,
+   "model": "kimi-k2",
+   "output": "{\"family\":\"kimi-k2\",\"reasoning\":{\"control\":\"toggle\",\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"kimi\",\"calling\":true},\"limits\":{\"context\":131072,\"maxOutput\":98304},\"input\":{\"images\":false,\"pdf\":false},\"id\":\"kimi-k2\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": null,
+   "model": "moonshot-v1",
+   "output": "{\"family\":\"kimi\",\"reasoning\":{\"control\":\"toggle\",\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"kimi\"},\"id\":\"moonshot-v1\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": null,
+   "model": "glm-4.6",
+   "output": "{\"family\":\"glm\",\"reasoning\":{\"control\":\"toggle\",\"passback\":\"required\",\"passbackField\":\"reasoning_content\",\"canDisable\":true},\"limits\":{\"context\":204800,\"maxOutput\":131072},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"glm-4.6\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": null,
+   "model": "qwen3-coder",
+   "output": "{\"family\":\"qwen\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"toggleStyle\":\"enable-thinking\"},\"limits\":{\"context\":262144,\"maxOutput\":65536},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"qwen3-coder\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": null,
+   "model": "minimax-m2",
+   "output": "{\"family\":\"minimax\",\"reasoning\":{\"control\":\"none\",\"passback\":\"required\",\"passbackField\":\"reasoning_details\"},\"limits\":{\"context\":204800,\"maxOutput\":131072},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"minimax-m2\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": null,
+   "model": "grok-4",
+   "output": "{\"family\":\"grok\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"xAI 的 Chat 接口标为 legacy\"},\"id\":\"grok-4\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": null,
+   "model": "foo-bar",
+   "output": "{\"id\":\"foo-bar\",\"userSet\":[],\"sources\":[],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": null,
+   "model": "claude-x1",
+   "output": "{\"family\":\"claude\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true},\"params\":{\"requireMaxTokens\":true},\"id\":\"claude-x1\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": null,
+   "model": "unknown-model",
+   "output": "{\"id\":\"unknown-model\",\"userSet\":[],\"sources\":[],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": null,
+   "model": "constructor",
+   "output": "{\"id\":\"constructor\",\"userSet\":[],\"sources\":[\"catalog\",\"learned\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": null,
+   "model": "toString",
+   "output": "{\"id\":\"tostring\",\"userSet\":[],\"sources\":[\"learned\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": null,
+   "model": "__proto__",
+   "output": "{\"id\":\"__proto__\",\"userSet\":[],\"sources\":[\"catalog\",\"learned\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": null,
+   "model": "valueOf",
+   "output": "{\"id\":\"valueof\",\"userSet\":[],\"sources\":[\"learned\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": null,
+   "model": "prototype",
+   "output": "{\"id\":\"prototype\",\"userSet\":[],\"sources\":[],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": null,
+   "model": "a/b/gpt-4o",
+   "output": "{\"family\":\"gpt\",\"limits\":{\"context\":128000,\"maxOutput\":16384},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true},\"id\":\"gpt-4o\",\"userSet\":[],\"sources\":[\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": null,
+   "model": "gpt-4o-latest",
+   "output": "{\"family\":\"gpt\",\"limits\":{\"context\":128000,\"maxOutput\":16384},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true},\"id\":\"gpt-4o-latest\",\"userSet\":[],\"sources\":[\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": null,
+   "model": "Claude-3-7-Sonnet-20250219",
+   "output": "{\"family\":\"claude\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true},\"params\":{\"requireMaxTokens\":true},\"id\":\"claude-3-7-sonnet-20250219\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": null,
+   "model": "qwen",
+   "output": "{\"family\":\"qwen\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"toggleStyle\":\"enable-thinking\"},\"id\":\"qwen\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": null,
+   "model": "x:y",
+   "output": "{\"id\":\"x:y\",\"userSet\":[],\"sources\":[],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": null,
+   "model": "",
+   "output": "{\"id\":\"\",\"userSet\":[],\"sources\":[],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": true,
+   "model": "claude-sonnet-4-5",
+   "output": "{\"family\":\"claude-sonnet\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true,\"budget\":{\"min\":1024}},\"params\":{\"requireMaxTokens\":true},\"limits\":{\"context\":200000,\"maxOutput\":64000},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true},\"id\":\"claude-sonnet-4-5\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": true,
+   "model": "anthropic/claude-opus-4-1-20250805",
+   "output": "{\"family\":\"claude\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true},\"params\":{\"requireMaxTokens\":true},\"id\":\"claude-opus-4-1-20250805\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": true,
+   "model": "gpt-5",
+   "output": "{\"family\":\"gpt\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"minimal\",\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"limits\":{\"context\":400000,\"input\":272000,\"maxOutput\":128000},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"gpt-5\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": true,
+   "model": "GPT-5.1-codex",
+   "output": "{\"family\":\"gpt-codex\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"limits\":{\"context\":400000,\"input\":272000,\"maxOutput\":128000},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"gpt-5.1-codex\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": true,
+   "model": "o3-mini",
+   "output": "{\"family\":\"o-mini\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"limits\":{\"context\":200000,\"maxOutput\":100000},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"o3-mini\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": true,
+   "model": "codex-mini-latest",
+   "output": "{\"family\":\"gpt\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"minimal\",\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"id\":\"codex-mini-latest\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": true,
+   "model": "gemini-2.5-pro",
+   "output": "{\"family\":\"gemini-pro\",\"wires\":{\"prefer\":[\"gemini\"],\"reason\":\"思考签名与 thinkingConfig 只在原生协议上完整\"},\"tools\":{\"schema\":\"gemini\",\"calling\":true},\"limits\":{\"context\":1048576,\"standard\":200000,\"maxOutput\":65536},\"input\":{\"images\":true,\"pdf\":true},\"reasoning\":{\"control\":\"budget\",\"budget\":{\"min\":128,\"max\":32768}},\"id\":\"gemini-2.5-pro\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": true,
+   "model": "deepseek-chat",
+   "output": "{\"family\":\"deepseek\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"deepseek\",\"calling\":true},\"limits\":{\"context\":163840,\"maxOutput\":16000},\"input\":{\"images\":false,\"pdf\":false},\"id\":\"deepseek-chat\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": true,
+   "model": "deepseek-v3.2:free",
+   "output": "{\"family\":\"deepseek\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"deepseek\",\"calling\":true},\"limits\":{\"context\":163840,\"maxOutput\":65536},\"input\":{\"images\":false,\"pdf\":false},\"id\":\"deepseek-v3.2:free\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": true,
+   "model": "kimi-k2",
+   "output": "{\"family\":\"kimi-k2\",\"reasoning\":{\"control\":\"toggle\",\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"kimi\",\"calling\":true},\"limits\":{\"context\":131072,\"maxOutput\":98304},\"input\":{\"images\":false,\"pdf\":false},\"id\":\"kimi-k2\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": true,
+   "model": "moonshot-v1",
+   "output": "{\"family\":\"kimi\",\"reasoning\":{\"control\":\"toggle\",\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"kimi\"},\"id\":\"moonshot-v1\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": true,
+   "model": "glm-4.6",
+   "output": "{\"family\":\"glm\",\"reasoning\":{\"control\":\"toggle\",\"passback\":\"required\",\"passbackField\":\"reasoning_content\",\"canDisable\":true},\"limits\":{\"context\":204800,\"maxOutput\":131072},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"glm-4.6\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": true,
+   "model": "qwen3-coder",
+   "output": "{\"family\":\"qwen\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"toggleStyle\":\"enable-thinking\"},\"limits\":{\"context\":262144,\"maxOutput\":65536},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"qwen3-coder\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": true,
+   "model": "minimax-m2",
+   "output": "{\"family\":\"minimax\",\"reasoning\":{\"control\":\"none\",\"passback\":\"required\",\"passbackField\":\"reasoning_details\"},\"limits\":{\"context\":204800,\"maxOutput\":131072},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"minimax-m2\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": true,
+   "model": "grok-4",
+   "output": "{\"family\":\"grok\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"xAI 的 Chat 接口标为 legacy\"},\"id\":\"grok-4\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": true,
+   "model": "foo-bar",
+   "output": "{\"id\":\"foo-bar\",\"userSet\":[],\"sources\":[],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": true,
+   "model": "claude-x1",
+   "output": "{\"family\":\"claude\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true},\"params\":{\"requireMaxTokens\":true},\"id\":\"claude-x1\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": true,
+   "model": "unknown-model",
+   "output": "{\"id\":\"unknown-model\",\"userSet\":[],\"sources\":[],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": true,
+   "model": "constructor",
+   "output": "{\"id\":\"constructor\",\"userSet\":[],\"sources\":[\"catalog\",\"learned\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": true,
+   "model": "toString",
+   "output": "{\"id\":\"tostring\",\"userSet\":[],\"sources\":[\"learned\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": true,
+   "model": "__proto__",
+   "output": "{\"id\":\"__proto__\",\"userSet\":[],\"sources\":[\"catalog\",\"learned\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": true,
+   "model": "valueOf",
+   "output": "{\"id\":\"valueof\",\"userSet\":[],\"sources\":[\"learned\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": true,
+   "model": "prototype",
+   "output": "{\"id\":\"prototype\",\"userSet\":[],\"sources\":[],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": true,
+   "model": "a/b/gpt-4o",
+   "output": "{\"family\":\"gpt\",\"limits\":{\"context\":128000,\"maxOutput\":16384},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true},\"id\":\"gpt-4o\",\"userSet\":[],\"sources\":[\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": true,
+   "model": "gpt-4o-latest",
+   "output": "{\"family\":\"gpt\",\"limits\":{\"context\":128000,\"maxOutput\":16384},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true},\"id\":\"gpt-4o-latest\",\"userSet\":[],\"sources\":[\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": true,
+   "model": "Claude-3-7-Sonnet-20250219",
+   "output": "{\"family\":\"claude\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true},\"params\":{\"requireMaxTokens\":true},\"id\":\"claude-3-7-sonnet-20250219\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": true,
+   "model": "qwen",
+   "output": "{\"family\":\"qwen\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"toggleStyle\":\"enable-thinking\"},\"id\":\"qwen\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": true,
+   "model": "x:y",
+   "output": "{\"id\":\"x:y\",\"userSet\":[],\"sources\":[],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 1,
+   "strict": true,
+   "model": "",
+   "output": "{\"id\":\"\",\"userSet\":[],\"sources\":[],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": null,
+   "model": "claude-sonnet-4-5",
+   "output": "{\"family\":\"claude-sonnet\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true,\"budget\":{\"min\":1024}},\"params\":{\"requireMaxTokens\":true},\"limits\":{\"context\":200000,\"maxOutput\":64000},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true},\"id\":\"claude-sonnet-4-5\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": null,
+   "model": "anthropic/claude-opus-4-1-20250805",
+   "output": "{\"family\":\"claude\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true},\"params\":{\"requireMaxTokens\":true},\"id\":\"claude-opus-4-1-20250805\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": null,
+   "model": "gpt-5",
+   "output": "{\"family\":\"gpt\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"low\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"limits\":{\"context\":400000,\"input\":272000,\"maxOutput\":128000},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"gpt-5\",\"userSet\":[],\"sources\":[\"family\",\"catalog\",\"learned\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": null,
+   "model": "GPT-5.1-codex",
+   "output": "{\"family\":\"gpt-codex\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"limits\":{\"context\":400000,\"input\":272000,\"maxOutput\":128000},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"gpt-5.1-codex\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": null,
+   "model": "o3-mini",
+   "output": "{\"family\":\"o-mini\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"limits\":{\"context\":200000,\"maxOutput\":100000},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"o3-mini\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": null,
+   "model": "codex-mini-latest",
+   "output": "{\"family\":\"gpt\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"minimal\",\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"id\":\"codex-mini-latest\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": null,
+   "model": "gemini-2.5-pro",
+   "output": "{\"family\":\"gemini-pro\",\"wires\":{\"prefer\":[\"gemini\"],\"reason\":\"思考签名与 thinkingConfig 只在原生协议上完整\"},\"tools\":{\"schema\":\"gemini\",\"calling\":true},\"limits\":{\"context\":1048576,\"standard\":200000,\"maxOutput\":65536},\"input\":{\"images\":true,\"pdf\":true},\"reasoning\":{\"control\":\"budget\",\"budget\":{\"min\":128,\"max\":32768}},\"id\":\"gemini-2.5-pro\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": null,
+   "model": "deepseek-chat",
+   "output": "{\"family\":\"deepseek\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"deepseek\",\"calling\":true},\"limits\":{\"context\":163840,\"maxOutput\":16000},\"input\":{\"images\":false,\"pdf\":false},\"id\":\"deepseek-chat\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": null,
+   "model": "deepseek-v3.2:free",
+   "output": "{\"family\":\"deepseek\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"deepseek\",\"calling\":true},\"limits\":{\"context\":163840,\"maxOutput\":65536},\"input\":{\"images\":false,\"pdf\":false},\"id\":\"deepseek-v3.2:free\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": null,
+   "model": "kimi-k2",
+   "output": "{\"family\":\"kimi-k2\",\"reasoning\":{\"control\":\"toggle\",\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"kimi\",\"calling\":true},\"limits\":{\"context\":131072,\"maxOutput\":98304},\"input\":{\"images\":false,\"pdf\":false},\"sampling\":{\"temperature\":false},\"id\":\"kimi-k2\",\"userSet\":[],\"sources\":[\"family\",\"catalog\",\"learned\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": null,
+   "model": "moonshot-v1",
+   "output": "{\"family\":\"kimi\",\"reasoning\":{\"control\":\"toggle\",\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"kimi\"},\"id\":\"moonshot-v1\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": null,
+   "model": "glm-4.6",
+   "output": "{\"family\":\"glm\",\"reasoning\":{\"control\":\"toggle\",\"passback\":\"required\",\"passbackField\":\"reasoning_content\",\"canDisable\":true},\"limits\":{\"context\":204800,\"maxOutput\":131072},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"glm-4.6\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": null,
+   "model": "qwen3-coder",
+   "output": "{\"family\":\"qwen\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"toggleStyle\":\"enable-thinking\"},\"limits\":{\"context\":262144,\"maxOutput\":65536},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"qwen3-coder\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": null,
+   "model": "minimax-m2",
+   "output": "{\"family\":\"minimax\",\"reasoning\":{\"control\":\"none\",\"passback\":\"required\",\"passbackField\":\"reasoning_details\"},\"limits\":{\"context\":204800,\"maxOutput\":131072},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"minimax-m2\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": null,
+   "model": "grok-4",
+   "output": "{\"family\":\"grok\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"xAI 的 Chat 接口标为 legacy\"},\"id\":\"grok-4\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": null,
+   "model": "foo-bar",
+   "output": "{\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"minimal\"]},\"id\":\"foo-bar\",\"userSet\":[],\"sources\":[\"learned\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": null,
+   "model": "claude-x1",
+   "output": "{\"family\":\"claude\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true},\"params\":{\"requireMaxTokens\":true},\"id\":\"claude-x1\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": null,
+   "model": "unknown-model",
+   "output": "{\"id\":\"unknown-model\",\"userSet\":[],\"sources\":[],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": null,
+   "model": "constructor",
+   "output": "{\"id\":\"constructor\",\"userSet\":[],\"sources\":[\"catalog\",\"learned\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": null,
+   "model": "toString",
+   "output": "{\"id\":\"tostring\",\"userSet\":[],\"sources\":[\"learned\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": null,
+   "model": "__proto__",
+   "output": "{\"id\":\"__proto__\",\"userSet\":[],\"sources\":[\"catalog\",\"learned\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": null,
+   "model": "valueOf",
+   "output": "{\"id\":\"valueof\",\"userSet\":[],\"sources\":[\"learned\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": null,
+   "model": "prototype",
+   "output": "{\"id\":\"prototype\",\"userSet\":[],\"sources\":[],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": null,
+   "model": "a/b/gpt-4o",
+   "output": "{\"family\":\"gpt\",\"limits\":{\"context\":128000,\"maxOutput\":16384},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true},\"id\":\"gpt-4o\",\"userSet\":[],\"sources\":[\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": null,
+   "model": "gpt-4o-latest",
+   "output": "{\"family\":\"gpt\",\"limits\":{\"context\":128000,\"maxOutput\":16384},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true},\"id\":\"gpt-4o-latest\",\"userSet\":[],\"sources\":[\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": null,
+   "model": "Claude-3-7-Sonnet-20250219",
+   "output": "{\"family\":\"claude\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true},\"params\":{\"requireMaxTokens\":true},\"id\":\"claude-3-7-sonnet-20250219\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": null,
+   "model": "qwen",
+   "output": "{\"family\":\"qwen\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"toggleStyle\":\"enable-thinking\"},\"id\":\"qwen\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": null,
+   "model": "x:y",
+   "output": "{\"id\":\"x:y\",\"userSet\":[],\"sources\":[],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": null,
+   "model": "",
+   "output": "{\"id\":\"\",\"userSet\":[],\"sources\":[],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": true,
+   "model": "claude-sonnet-4-5",
+   "output": "{\"family\":\"claude-sonnet\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true,\"budget\":{\"min\":1024}},\"params\":{\"requireMaxTokens\":true},\"limits\":{\"context\":200000,\"maxOutput\":64000},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true},\"id\":\"claude-sonnet-4-5\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": true,
+   "model": "anthropic/claude-opus-4-1-20250805",
+   "output": "{\"family\":\"claude\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true},\"params\":{\"requireMaxTokens\":true},\"id\":\"claude-opus-4-1-20250805\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": true,
+   "model": "gpt-5",
+   "output": "{\"family\":\"gpt\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"low\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"limits\":{\"context\":400000,\"input\":272000,\"maxOutput\":128000},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"gpt-5\",\"userSet\":[],\"sources\":[\"family\",\"catalog\",\"learned\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": true,
+   "model": "GPT-5.1-codex",
+   "output": "{\"family\":\"gpt-codex\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"limits\":{\"context\":400000,\"input\":272000,\"maxOutput\":128000},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"gpt-5.1-codex\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": true,
+   "model": "o3-mini",
+   "output": "{\"family\":\"o-mini\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"limits\":{\"context\":200000,\"maxOutput\":100000},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"o3-mini\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": true,
+   "model": "codex-mini-latest",
+   "output": "{\"family\":\"gpt\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"minimal\",\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"id\":\"codex-mini-latest\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": true,
+   "model": "gemini-2.5-pro",
+   "output": "{\"family\":\"gemini-pro\",\"wires\":{\"prefer\":[\"gemini\"],\"reason\":\"思考签名与 thinkingConfig 只在原生协议上完整\"},\"tools\":{\"schema\":\"gemini\",\"calling\":true},\"limits\":{\"context\":1048576,\"standard\":200000,\"maxOutput\":65536},\"input\":{\"images\":true,\"pdf\":true},\"reasoning\":{\"control\":\"budget\",\"budget\":{\"min\":128,\"max\":32768}},\"id\":\"gemini-2.5-pro\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": true,
+   "model": "deepseek-chat",
+   "output": "{\"family\":\"deepseek\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"deepseek\",\"calling\":true},\"limits\":{\"context\":163840,\"maxOutput\":16000},\"input\":{\"images\":false,\"pdf\":false},\"id\":\"deepseek-chat\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": true,
+   "model": "deepseek-v3.2:free",
+   "output": "{\"family\":\"deepseek\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"deepseek\",\"calling\":true},\"limits\":{\"context\":163840,\"maxOutput\":65536},\"input\":{\"images\":false,\"pdf\":false},\"id\":\"deepseek-v3.2:free\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": true,
+   "model": "kimi-k2",
+   "output": "{\"family\":\"kimi-k2\",\"reasoning\":{\"control\":\"toggle\",\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"kimi\",\"calling\":true},\"limits\":{\"context\":131072,\"maxOutput\":98304},\"input\":{\"images\":false,\"pdf\":false},\"sampling\":{\"temperature\":false},\"id\":\"kimi-k2\",\"userSet\":[],\"sources\":[\"family\",\"catalog\",\"learned\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": true,
+   "model": "moonshot-v1",
+   "output": "{\"family\":\"kimi\",\"reasoning\":{\"control\":\"toggle\",\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"kimi\"},\"id\":\"moonshot-v1\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": true,
+   "model": "glm-4.6",
+   "output": "{\"family\":\"glm\",\"reasoning\":{\"control\":\"toggle\",\"passback\":\"required\",\"passbackField\":\"reasoning_content\",\"canDisable\":true},\"limits\":{\"context\":204800,\"maxOutput\":131072},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"glm-4.6\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": true,
+   "model": "qwen3-coder",
+   "output": "{\"family\":\"qwen\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"toggleStyle\":\"enable-thinking\"},\"limits\":{\"context\":262144,\"maxOutput\":65536},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"qwen3-coder\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": true,
+   "model": "minimax-m2",
+   "output": "{\"family\":\"minimax\",\"reasoning\":{\"control\":\"none\",\"passback\":\"required\",\"passbackField\":\"reasoning_details\"},\"limits\":{\"context\":204800,\"maxOutput\":131072},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"minimax-m2\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": true,
+   "model": "grok-4",
+   "output": "{\"family\":\"grok\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"xAI 的 Chat 接口标为 legacy\"},\"id\":\"grok-4\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": true,
+   "model": "foo-bar",
+   "output": "{\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"minimal\"]},\"id\":\"foo-bar\",\"userSet\":[],\"sources\":[\"learned\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": true,
+   "model": "claude-x1",
+   "output": "{\"family\":\"claude\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true},\"params\":{\"requireMaxTokens\":true},\"id\":\"claude-x1\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": true,
+   "model": "unknown-model",
+   "output": "{\"id\":\"unknown-model\",\"userSet\":[],\"sources\":[],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": true,
+   "model": "constructor",
+   "output": "{\"id\":\"constructor\",\"userSet\":[],\"sources\":[\"catalog\",\"learned\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": true,
+   "model": "toString",
+   "output": "{\"id\":\"tostring\",\"userSet\":[],\"sources\":[\"learned\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": true,
+   "model": "__proto__",
+   "output": "{\"id\":\"__proto__\",\"userSet\":[],\"sources\":[\"catalog\",\"learned\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": true,
+   "model": "valueOf",
+   "output": "{\"id\":\"valueof\",\"userSet\":[],\"sources\":[\"learned\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": true,
+   "model": "prototype",
+   "output": "{\"id\":\"prototype\",\"userSet\":[],\"sources\":[],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": true,
+   "model": "a/b/gpt-4o",
+   "output": "{\"family\":\"gpt\",\"limits\":{\"context\":128000,\"maxOutput\":16384},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true},\"id\":\"gpt-4o\",\"userSet\":[],\"sources\":[\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": true,
+   "model": "gpt-4o-latest",
+   "output": "{\"family\":\"gpt\",\"limits\":{\"context\":128000,\"maxOutput\":16384},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true},\"id\":\"gpt-4o-latest\",\"userSet\":[],\"sources\":[\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": true,
+   "model": "Claude-3-7-Sonnet-20250219",
+   "output": "{\"family\":\"claude\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true},\"params\":{\"requireMaxTokens\":true},\"id\":\"claude-3-7-sonnet-20250219\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": true,
+   "model": "qwen",
+   "output": "{\"family\":\"qwen\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"toggleStyle\":\"enable-thinking\"},\"id\":\"qwen\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": true,
+   "model": "x:y",
+   "output": "{\"id\":\"x:y\",\"userSet\":[],\"sources\":[],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 0,
+   "learned": 2,
+   "strict": true,
+   "model": "",
+   "output": "{\"id\":\"\",\"userSet\":[],\"sources\":[],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": null,
+   "model": "claude-sonnet-4-5",
+   "output": "{\"family\":\"claude-sonnet\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true,\"budget\":{\"min\":1024}},\"params\":{\"requireMaxTokens\":true},\"limits\":{\"context\":200000,\"maxOutput\":64000},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true},\"id\":\"claude-sonnet-4-5\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": null,
+   "model": "anthropic/claude-opus-4-1-20250805",
+   "output": "{\"family\":\"claude\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true},\"params\":{\"requireMaxTokens\":true},\"id\":\"claude-opus-4-1-20250805\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": null,
+   "model": "gpt-5",
+   "output": "{\"family\":\"gpt\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"minimal\",\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"limits\":{\"context\":400000,\"input\":272000,\"maxOutput\":77},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"gpt-5\",\"userSet\":[\"limits.maxOutput\"],\"sources\":[\"family\",\"catalog\",\"user\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": null,
+   "model": "GPT-5.1-codex",
+   "output": "{\"family\":\"gpt-codex\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"limits\":{\"context\":400000,\"input\":272000,\"maxOutput\":128000},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"gpt-5.1-codex\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": null,
+   "model": "o3-mini",
+   "output": "{\"family\":\"o-mini\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"limits\":{\"context\":200000,\"maxOutput\":100000},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"o3-mini\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": null,
+   "model": "codex-mini-latest",
+   "output": "{\"family\":\"gpt\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"minimal\",\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"id\":\"codex-mini-latest\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": null,
+   "model": "gemini-2.5-pro",
+   "output": "{\"family\":\"gemini-pro\",\"wires\":{\"prefer\":[\"gemini\"],\"reason\":\"思考签名与 thinkingConfig 只在原生协议上完整\"},\"tools\":{\"schema\":\"gemini\",\"calling\":true},\"limits\":{\"context\":1048576,\"standard\":200000,\"maxOutput\":65536},\"input\":{\"images\":true,\"pdf\":true},\"reasoning\":{\"control\":\"budget\",\"budget\":{\"min\":128,\"max\":32768}},\"id\":\"gemini-2.5-pro\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": null,
+   "model": "deepseek-chat",
+   "output": "{\"family\":\"deepseek\",\"reasoning\":{\"control\":\"effort\",\"canDisable\":true,\"passback\":\"required\",\"passbackField\":\"reasoning_content\",\"efforts\":[\"low\",\"high\"]},\"tools\":{\"schema\":\"deepseek\",\"calling\":true},\"limits\":{\"context\":163840,\"maxOutput\":16000},\"input\":{\"images\":false,\"pdf\":false},\"id\":\"deepseek-chat\",\"userSet\":[\"reasoning.efforts\"],\"sources\":[\"family\",\"catalog\",\"user\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": null,
+   "model": "deepseek-v3.2:free",
+   "output": "{\"family\":\"deepseek\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"deepseek\",\"calling\":true},\"limits\":{\"context\":163840,\"maxOutput\":65536},\"input\":{\"images\":false,\"pdf\":false},\"id\":\"deepseek-v3.2:free\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": null,
+   "model": "kimi-k2",
+   "output": "{\"family\":\"kimi-k2\",\"reasoning\":{\"control\":\"toggle\",\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"kimi\",\"calling\":true},\"limits\":{\"context\":131072,\"maxOutput\":98304},\"input\":{\"images\":false,\"pdf\":false},\"id\":\"kimi-k2\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": null,
+   "model": "moonshot-v1",
+   "output": "{\"family\":\"kimi\",\"reasoning\":{\"control\":\"toggle\",\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"kimi\"},\"id\":\"moonshot-v1\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": null,
+   "model": "glm-4.6",
+   "output": "{\"family\":\"glm\",\"reasoning\":{\"control\":\"toggle\",\"passback\":\"required\",\"passbackField\":\"reasoning_content\",\"canDisable\":true},\"limits\":{\"context\":204800,\"maxOutput\":131072},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"glm-4.6\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": null,
+   "model": "qwen3-coder",
+   "output": "{\"family\":\"qwen\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"toggleStyle\":\"enable-thinking\"},\"limits\":{\"context\":262144,\"maxOutput\":65536},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"qwen3-coder\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": null,
+   "model": "minimax-m2",
+   "output": "{\"family\":\"minimax\",\"reasoning\":{\"control\":\"none\",\"passback\":\"required\",\"passbackField\":\"reasoning_details\"},\"limits\":{\"context\":204800,\"maxOutput\":131072},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"minimax-m2\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": null,
+   "model": "grok-4",
+   "output": "{\"family\":\"grok\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"xAI 的 Chat 接口标为 legacy\"},\"id\":\"grok-4\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": null,
+   "model": "foo-bar",
+   "output": "{\"limits\":{\"context\":9999},\"tools\":{\"calling\":false},\"input\":{\"images\":true},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"high\"]},\"id\":\"foo-bar\",\"userSet\":[\"limits.context\",\"input.images\",\"reasoning.efforts\"],\"sources\":[\"provider\",\"user\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": null,
+   "model": "claude-x1",
+   "output": "{\"family\":\"claude\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"none\",\"canDisable\":true,\"efforts\":[\"low\"]},\"params\":{\"requireMaxTokens\":true},\"tools\":{\"calling\":true},\"id\":\"claude-x1\",\"userSet\":[\"tools.calling\",\"reasoning\"],\"sources\":[\"family\",\"provider\",\"user\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": null,
+   "model": "unknown-model",
+   "output": "{\"id\":\"unknown-model\",\"userSet\":[],\"sources\":[],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": null,
+   "model": "constructor",
+   "output": "{\"id\":\"constructor\",\"userSet\":[],\"sources\":[\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": null,
+   "model": "toString",
+   "output": "{\"id\":\"tostring\",\"userSet\":[],\"sources\":[],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": null,
+   "model": "__proto__",
+   "output": "{\"id\":\"__proto__\",\"userSet\":[],\"sources\":[\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": null,
+   "model": "valueOf",
+   "output": "{\"id\":\"valueof\",\"userSet\":[],\"sources\":[],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": null,
+   "model": "prototype",
+   "output": "{\"id\":\"prototype\",\"userSet\":[],\"sources\":[],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": null,
+   "model": "a/b/gpt-4o",
+   "output": "{\"family\":\"gpt\",\"limits\":{\"context\":128000,\"maxOutput\":16384},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true},\"id\":\"gpt-4o\",\"userSet\":[],\"sources\":[\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": null,
+   "model": "gpt-4o-latest",
+   "output": "{\"family\":\"gpt\",\"limits\":{\"context\":128000,\"maxOutput\":16384},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true},\"id\":\"gpt-4o-latest\",\"userSet\":[],\"sources\":[\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": null,
+   "model": "Claude-3-7-Sonnet-20250219",
+   "output": "{\"family\":\"claude\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true},\"params\":{\"requireMaxTokens\":true},\"id\":\"claude-3-7-sonnet-20250219\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": null,
+   "model": "qwen",
+   "output": "{\"family\":\"qwen\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"toggleStyle\":\"enable-thinking\"},\"id\":\"qwen\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": null,
+   "model": "x:y",
+   "output": "{\"id\":\"x:y\",\"userSet\":[],\"sources\":[],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": null,
+   "model": "",
+   "output": "{\"id\":\"\",\"userSet\":[],\"sources\":[],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": true,
+   "model": "claude-sonnet-4-5",
+   "output": "{\"family\":\"claude-sonnet\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true,\"budget\":{\"min\":1024}},\"params\":{\"requireMaxTokens\":true},\"limits\":{\"context\":200000,\"maxOutput\":64000},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true},\"id\":\"claude-sonnet-4-5\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": true,
+   "model": "anthropic/claude-opus-4-1-20250805",
+   "output": "{\"family\":\"claude\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true},\"params\":{\"requireMaxTokens\":true},\"id\":\"claude-opus-4-1-20250805\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": true,
+   "model": "gpt-5",
+   "output": "{\"family\":\"gpt\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"minimal\",\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"limits\":{\"context\":400000,\"input\":272000,\"maxOutput\":77},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"gpt-5\",\"userSet\":[\"limits.maxOutput\"],\"sources\":[\"family\",\"catalog\",\"user\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": true,
+   "model": "GPT-5.1-codex",
+   "output": "{\"family\":\"gpt-codex\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"limits\":{\"context\":400000,\"input\":272000,\"maxOutput\":128000},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"gpt-5.1-codex\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": true,
+   "model": "o3-mini",
+   "output": "{\"family\":\"o-mini\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"limits\":{\"context\":200000,\"maxOutput\":100000},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"o3-mini\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": true,
+   "model": "codex-mini-latest",
+   "output": "{\"family\":\"gpt\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"minimal\",\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"id\":\"codex-mini-latest\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": true,
+   "model": "gemini-2.5-pro",
+   "output": "{\"family\":\"gemini-pro\",\"wires\":{\"prefer\":[\"gemini\"],\"reason\":\"思考签名与 thinkingConfig 只在原生协议上完整\"},\"tools\":{\"schema\":\"gemini\",\"calling\":true},\"limits\":{\"context\":1048576,\"standard\":200000,\"maxOutput\":65536},\"input\":{\"images\":true,\"pdf\":true},\"reasoning\":{\"control\":\"budget\",\"budget\":{\"min\":128,\"max\":32768}},\"id\":\"gemini-2.5-pro\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": true,
+   "model": "deepseek-chat",
+   "output": "{\"family\":\"deepseek\",\"reasoning\":{\"control\":\"effort\",\"canDisable\":true,\"passback\":\"required\",\"passbackField\":\"reasoning_content\",\"efforts\":[\"low\",\"high\"]},\"tools\":{\"schema\":\"deepseek\",\"calling\":true},\"limits\":{\"context\":163840,\"maxOutput\":16000},\"input\":{\"images\":false,\"pdf\":false},\"id\":\"deepseek-chat\",\"userSet\":[\"reasoning.efforts\"],\"sources\":[\"family\",\"catalog\",\"user\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": true,
+   "model": "deepseek-v3.2:free",
+   "output": "{\"family\":\"deepseek\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"deepseek\",\"calling\":true},\"limits\":{\"context\":163840,\"maxOutput\":65536},\"input\":{\"images\":false,\"pdf\":false},\"id\":\"deepseek-v3.2:free\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": true,
+   "model": "kimi-k2",
+   "output": "{\"family\":\"kimi-k2\",\"reasoning\":{\"control\":\"toggle\",\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"kimi\",\"calling\":true},\"limits\":{\"context\":131072,\"maxOutput\":98304},\"input\":{\"images\":false,\"pdf\":false},\"id\":\"kimi-k2\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": true,
+   "model": "moonshot-v1",
+   "output": "{\"family\":\"kimi\",\"reasoning\":{\"control\":\"toggle\",\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"kimi\"},\"id\":\"moonshot-v1\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": true,
+   "model": "glm-4.6",
+   "output": "{\"family\":\"glm\",\"reasoning\":{\"control\":\"toggle\",\"passback\":\"required\",\"passbackField\":\"reasoning_content\",\"canDisable\":true},\"limits\":{\"context\":204800,\"maxOutput\":131072},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"glm-4.6\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": true,
+   "model": "qwen3-coder",
+   "output": "{\"family\":\"qwen\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"toggleStyle\":\"enable-thinking\"},\"limits\":{\"context\":262144,\"maxOutput\":65536},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"qwen3-coder\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": true,
+   "model": "minimax-m2",
+   "output": "{\"family\":\"minimax\",\"reasoning\":{\"control\":\"none\",\"passback\":\"required\",\"passbackField\":\"reasoning_details\"},\"limits\":{\"context\":204800,\"maxOutput\":131072},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"minimax-m2\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": true,
+   "model": "grok-4",
+   "output": "{\"family\":\"grok\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"xAI 的 Chat 接口标为 legacy\"},\"id\":\"grok-4\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": true,
+   "model": "foo-bar",
+   "output": "{\"limits\":{\"context\":9999},\"tools\":{\"calling\":false},\"input\":{\"images\":true},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"high\"]},\"id\":\"foo-bar\",\"userSet\":[\"limits.context\",\"input.images\",\"reasoning.efforts\"],\"sources\":[\"provider\",\"user\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": true,
+   "model": "claude-x1",
+   "output": "{\"family\":\"claude\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"none\",\"canDisable\":true,\"efforts\":[\"low\"]},\"params\":{\"requireMaxTokens\":true},\"tools\":{\"calling\":true},\"id\":\"claude-x1\",\"userSet\":[\"tools.calling\",\"reasoning\"],\"sources\":[\"family\",\"provider\",\"user\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": true,
+   "model": "unknown-model",
+   "output": "{\"id\":\"unknown-model\",\"userSet\":[],\"sources\":[],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": true,
+   "model": "constructor",
+   "output": "{\"id\":\"constructor\",\"userSet\":[],\"sources\":[\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": true,
+   "model": "toString",
+   "output": "{\"id\":\"tostring\",\"userSet\":[],\"sources\":[],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": true,
+   "model": "__proto__",
+   "output": "{\"id\":\"__proto__\",\"userSet\":[],\"sources\":[\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": true,
+   "model": "valueOf",
+   "output": "{\"id\":\"valueof\",\"userSet\":[],\"sources\":[],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": true,
+   "model": "prototype",
+   "output": "{\"id\":\"prototype\",\"userSet\":[],\"sources\":[],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": true,
+   "model": "a/b/gpt-4o",
+   "output": "{\"family\":\"gpt\",\"limits\":{\"context\":128000,\"maxOutput\":16384},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true},\"id\":\"gpt-4o\",\"userSet\":[],\"sources\":[\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": true,
+   "model": "gpt-4o-latest",
+   "output": "{\"family\":\"gpt\",\"limits\":{\"context\":128000,\"maxOutput\":16384},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true},\"id\":\"gpt-4o-latest\",\"userSet\":[],\"sources\":[\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": true,
+   "model": "Claude-3-7-Sonnet-20250219",
+   "output": "{\"family\":\"claude\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true},\"params\":{\"requireMaxTokens\":true},\"id\":\"claude-3-7-sonnet-20250219\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": true,
+   "model": "qwen",
+   "output": "{\"family\":\"qwen\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"toggleStyle\":\"enable-thinking\"},\"id\":\"qwen\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": true,
+   "model": "x:y",
+   "output": "{\"id\":\"x:y\",\"userSet\":[],\"sources\":[],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 0,
+   "strict": true,
+   "model": "",
+   "output": "{\"id\":\"\",\"userSet\":[],\"sources\":[],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": null,
+   "model": "claude-sonnet-4-5",
+   "output": "{\"family\":\"claude-sonnet\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true,\"budget\":{\"min\":1024}},\"params\":{\"requireMaxTokens\":true},\"limits\":{\"context\":200000,\"maxOutput\":64000},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true},\"id\":\"claude-sonnet-4-5\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": null,
+   "model": "anthropic/claude-opus-4-1-20250805",
+   "output": "{\"family\":\"claude\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true},\"params\":{\"requireMaxTokens\":true},\"id\":\"claude-opus-4-1-20250805\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": null,
+   "model": "gpt-5",
+   "output": "{\"family\":\"gpt\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"minimal\",\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"limits\":{\"context\":400000,\"input\":272000,\"maxOutput\":77},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"gpt-5\",\"userSet\":[\"limits.maxOutput\"],\"sources\":[\"family\",\"catalog\",\"user\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": null,
+   "model": "GPT-5.1-codex",
+   "output": "{\"family\":\"gpt-codex\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"limits\":{\"context\":400000,\"input\":272000,\"maxOutput\":128000},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"gpt-5.1-codex\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": null,
+   "model": "o3-mini",
+   "output": "{\"family\":\"o-mini\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"limits\":{\"context\":200000,\"maxOutput\":100000},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"o3-mini\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": null,
+   "model": "codex-mini-latest",
+   "output": "{\"family\":\"gpt\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"minimal\",\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"id\":\"codex-mini-latest\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": null,
+   "model": "gemini-2.5-pro",
+   "output": "{\"family\":\"gemini-pro\",\"wires\":{\"prefer\":[\"gemini\"],\"reason\":\"思考签名与 thinkingConfig 只在原生协议上完整\"},\"tools\":{\"schema\":\"gemini\",\"calling\":true},\"limits\":{\"context\":1048576,\"standard\":200000,\"maxOutput\":65536},\"input\":{\"images\":true,\"pdf\":true},\"reasoning\":{\"control\":\"budget\",\"budget\":{\"min\":128,\"max\":32768}},\"id\":\"gemini-2.5-pro\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": null,
+   "model": "deepseek-chat",
+   "output": "{\"family\":\"deepseek\",\"reasoning\":{\"control\":\"effort\",\"canDisable\":true,\"passback\":\"required\",\"passbackField\":\"reasoning_content\",\"efforts\":[\"low\",\"high\"]},\"tools\":{\"schema\":\"deepseek\",\"calling\":true},\"limits\":{\"context\":163840,\"maxOutput\":16000},\"input\":{\"images\":false,\"pdf\":false},\"id\":\"deepseek-chat\",\"userSet\":[\"reasoning.efforts\"],\"sources\":[\"family\",\"catalog\",\"user\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": null,
+   "model": "deepseek-v3.2:free",
+   "output": "{\"family\":\"deepseek\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"deepseek\",\"calling\":true},\"limits\":{\"context\":163840,\"maxOutput\":65536},\"input\":{\"images\":false,\"pdf\":false},\"id\":\"deepseek-v3.2:free\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": null,
+   "model": "kimi-k2",
+   "output": "{\"family\":\"kimi-k2\",\"reasoning\":{\"control\":\"toggle\",\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"kimi\",\"calling\":true},\"limits\":{\"context\":131072,\"maxOutput\":98304},\"input\":{\"images\":false,\"pdf\":false},\"id\":\"kimi-k2\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": null,
+   "model": "moonshot-v1",
+   "output": "{\"family\":\"kimi\",\"reasoning\":{\"control\":\"toggle\",\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"kimi\"},\"id\":\"moonshot-v1\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": null,
+   "model": "glm-4.6",
+   "output": "{\"family\":\"glm\",\"reasoning\":{\"control\":\"toggle\",\"passback\":\"required\",\"passbackField\":\"reasoning_content\",\"canDisable\":true},\"limits\":{\"context\":204800,\"maxOutput\":131072},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"glm-4.6\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": null,
+   "model": "qwen3-coder",
+   "output": "{\"family\":\"qwen\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"toggleStyle\":\"enable-thinking\"},\"limits\":{\"context\":262144,\"maxOutput\":65536},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"qwen3-coder\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": null,
+   "model": "minimax-m2",
+   "output": "{\"family\":\"minimax\",\"reasoning\":{\"control\":\"none\",\"passback\":\"required\",\"passbackField\":\"reasoning_details\"},\"limits\":{\"context\":204800,\"maxOutput\":131072},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"minimax-m2\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": null,
+   "model": "grok-4",
+   "output": "{\"family\":\"grok\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"xAI 的 Chat 接口标为 legacy\"},\"id\":\"grok-4\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": null,
+   "model": "foo-bar",
+   "output": "{\"limits\":{\"context\":9999},\"tools\":{\"calling\":false},\"input\":{\"images\":true},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"high\"]},\"id\":\"foo-bar\",\"userSet\":[\"limits.context\",\"input.images\",\"reasoning.efforts\"],\"sources\":[\"provider\",\"user\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": null,
+   "model": "claude-x1",
+   "output": "{\"family\":\"claude\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"none\",\"canDisable\":true,\"efforts\":[\"low\"]},\"params\":{\"requireMaxTokens\":true},\"tools\":{\"calling\":true},\"id\":\"claude-x1\",\"userSet\":[\"tools.calling\",\"reasoning\"],\"sources\":[\"family\",\"provider\",\"user\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": null,
+   "model": "unknown-model",
+   "output": "{\"id\":\"unknown-model\",\"userSet\":[],\"sources\":[],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": null,
+   "model": "constructor",
+   "output": "{\"id\":\"constructor\",\"userSet\":[],\"sources\":[\"catalog\",\"learned\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": null,
+   "model": "toString",
+   "output": "{\"id\":\"tostring\",\"userSet\":[],\"sources\":[\"learned\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": null,
+   "model": "__proto__",
+   "output": "{\"id\":\"__proto__\",\"userSet\":[],\"sources\":[\"catalog\",\"learned\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": null,
+   "model": "valueOf",
+   "output": "{\"id\":\"valueof\",\"userSet\":[],\"sources\":[\"learned\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": null,
+   "model": "prototype",
+   "output": "{\"id\":\"prototype\",\"userSet\":[],\"sources\":[],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": null,
+   "model": "a/b/gpt-4o",
+   "output": "{\"family\":\"gpt\",\"limits\":{\"context\":128000,\"maxOutput\":16384},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true},\"id\":\"gpt-4o\",\"userSet\":[],\"sources\":[\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": null,
+   "model": "gpt-4o-latest",
+   "output": "{\"family\":\"gpt\",\"limits\":{\"context\":128000,\"maxOutput\":16384},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true},\"id\":\"gpt-4o-latest\",\"userSet\":[],\"sources\":[\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": null,
+   "model": "Claude-3-7-Sonnet-20250219",
+   "output": "{\"family\":\"claude\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true},\"params\":{\"requireMaxTokens\":true},\"id\":\"claude-3-7-sonnet-20250219\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": null,
+   "model": "qwen",
+   "output": "{\"family\":\"qwen\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"toggleStyle\":\"enable-thinking\"},\"id\":\"qwen\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": null,
+   "model": "x:y",
+   "output": "{\"id\":\"x:y\",\"userSet\":[],\"sources\":[],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": null,
+   "model": "",
+   "output": "{\"id\":\"\",\"userSet\":[],\"sources\":[],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": true,
+   "model": "claude-sonnet-4-5",
+   "output": "{\"family\":\"claude-sonnet\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true,\"budget\":{\"min\":1024}},\"params\":{\"requireMaxTokens\":true},\"limits\":{\"context\":200000,\"maxOutput\":64000},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true},\"id\":\"claude-sonnet-4-5\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": true,
+   "model": "anthropic/claude-opus-4-1-20250805",
+   "output": "{\"family\":\"claude\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true},\"params\":{\"requireMaxTokens\":true},\"id\":\"claude-opus-4-1-20250805\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": true,
+   "model": "gpt-5",
+   "output": "{\"family\":\"gpt\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"minimal\",\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"limits\":{\"context\":400000,\"input\":272000,\"maxOutput\":77},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"gpt-5\",\"userSet\":[\"limits.maxOutput\"],\"sources\":[\"family\",\"catalog\",\"user\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": true,
+   "model": "GPT-5.1-codex",
+   "output": "{\"family\":\"gpt-codex\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"limits\":{\"context\":400000,\"input\":272000,\"maxOutput\":128000},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"gpt-5.1-codex\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": true,
+   "model": "o3-mini",
+   "output": "{\"family\":\"o-mini\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"limits\":{\"context\":200000,\"maxOutput\":100000},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"o3-mini\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": true,
+   "model": "codex-mini-latest",
+   "output": "{\"family\":\"gpt\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"minimal\",\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"id\":\"codex-mini-latest\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": true,
+   "model": "gemini-2.5-pro",
+   "output": "{\"family\":\"gemini-pro\",\"wires\":{\"prefer\":[\"gemini\"],\"reason\":\"思考签名与 thinkingConfig 只在原生协议上完整\"},\"tools\":{\"schema\":\"gemini\",\"calling\":true},\"limits\":{\"context\":1048576,\"standard\":200000,\"maxOutput\":65536},\"input\":{\"images\":true,\"pdf\":true},\"reasoning\":{\"control\":\"budget\",\"budget\":{\"min\":128,\"max\":32768}},\"id\":\"gemini-2.5-pro\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": true,
+   "model": "deepseek-chat",
+   "output": "{\"family\":\"deepseek\",\"reasoning\":{\"control\":\"effort\",\"canDisable\":true,\"passback\":\"required\",\"passbackField\":\"reasoning_content\",\"efforts\":[\"low\",\"high\"]},\"tools\":{\"schema\":\"deepseek\",\"calling\":true},\"limits\":{\"context\":163840,\"maxOutput\":16000},\"input\":{\"images\":false,\"pdf\":false},\"id\":\"deepseek-chat\",\"userSet\":[\"reasoning.efforts\"],\"sources\":[\"family\",\"catalog\",\"user\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": true,
+   "model": "deepseek-v3.2:free",
+   "output": "{\"family\":\"deepseek\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"deepseek\",\"calling\":true},\"limits\":{\"context\":163840,\"maxOutput\":65536},\"input\":{\"images\":false,\"pdf\":false},\"id\":\"deepseek-v3.2:free\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": true,
+   "model": "kimi-k2",
+   "output": "{\"family\":\"kimi-k2\",\"reasoning\":{\"control\":\"toggle\",\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"kimi\",\"calling\":true},\"limits\":{\"context\":131072,\"maxOutput\":98304},\"input\":{\"images\":false,\"pdf\":false},\"id\":\"kimi-k2\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": true,
+   "model": "moonshot-v1",
+   "output": "{\"family\":\"kimi\",\"reasoning\":{\"control\":\"toggle\",\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"kimi\"},\"id\":\"moonshot-v1\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": true,
+   "model": "glm-4.6",
+   "output": "{\"family\":\"glm\",\"reasoning\":{\"control\":\"toggle\",\"passback\":\"required\",\"passbackField\":\"reasoning_content\",\"canDisable\":true},\"limits\":{\"context\":204800,\"maxOutput\":131072},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"glm-4.6\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": true,
+   "model": "qwen3-coder",
+   "output": "{\"family\":\"qwen\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"toggleStyle\":\"enable-thinking\"},\"limits\":{\"context\":262144,\"maxOutput\":65536},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"qwen3-coder\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": true,
+   "model": "minimax-m2",
+   "output": "{\"family\":\"minimax\",\"reasoning\":{\"control\":\"none\",\"passback\":\"required\",\"passbackField\":\"reasoning_details\"},\"limits\":{\"context\":204800,\"maxOutput\":131072},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"minimax-m2\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": true,
+   "model": "grok-4",
+   "output": "{\"family\":\"grok\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"xAI 的 Chat 接口标为 legacy\"},\"id\":\"grok-4\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": true,
+   "model": "foo-bar",
+   "output": "{\"limits\":{\"context\":9999},\"tools\":{\"calling\":false},\"input\":{\"images\":true},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"high\"]},\"id\":\"foo-bar\",\"userSet\":[\"limits.context\",\"input.images\",\"reasoning.efforts\"],\"sources\":[\"provider\",\"user\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": true,
+   "model": "claude-x1",
+   "output": "{\"family\":\"claude\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"none\",\"canDisable\":true,\"efforts\":[\"low\"]},\"params\":{\"requireMaxTokens\":true},\"tools\":{\"calling\":true},\"id\":\"claude-x1\",\"userSet\":[\"tools.calling\",\"reasoning\"],\"sources\":[\"family\",\"provider\",\"user\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": true,
+   "model": "unknown-model",
+   "output": "{\"id\":\"unknown-model\",\"userSet\":[],\"sources\":[],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": true,
+   "model": "constructor",
+   "output": "{\"id\":\"constructor\",\"userSet\":[],\"sources\":[\"catalog\",\"learned\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": true,
+   "model": "toString",
+   "output": "{\"id\":\"tostring\",\"userSet\":[],\"sources\":[\"learned\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": true,
+   "model": "__proto__",
+   "output": "{\"id\":\"__proto__\",\"userSet\":[],\"sources\":[\"catalog\",\"learned\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": true,
+   "model": "valueOf",
+   "output": "{\"id\":\"valueof\",\"userSet\":[],\"sources\":[\"learned\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": true,
+   "model": "prototype",
+   "output": "{\"id\":\"prototype\",\"userSet\":[],\"sources\":[],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": true,
+   "model": "a/b/gpt-4o",
+   "output": "{\"family\":\"gpt\",\"limits\":{\"context\":128000,\"maxOutput\":16384},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true},\"id\":\"gpt-4o\",\"userSet\":[],\"sources\":[\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": true,
+   "model": "gpt-4o-latest",
+   "output": "{\"family\":\"gpt\",\"limits\":{\"context\":128000,\"maxOutput\":16384},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true},\"id\":\"gpt-4o-latest\",\"userSet\":[],\"sources\":[\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": true,
+   "model": "Claude-3-7-Sonnet-20250219",
+   "output": "{\"family\":\"claude\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true},\"params\":{\"requireMaxTokens\":true},\"id\":\"claude-3-7-sonnet-20250219\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": true,
+   "model": "qwen",
+   "output": "{\"family\":\"qwen\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"toggleStyle\":\"enable-thinking\"},\"id\":\"qwen\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": true,
+   "model": "x:y",
+   "output": "{\"id\":\"x:y\",\"userSet\":[],\"sources\":[],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 1,
+   "strict": true,
+   "model": "",
+   "output": "{\"id\":\"\",\"userSet\":[],\"sources\":[],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": null,
+   "model": "claude-sonnet-4-5",
+   "output": "{\"family\":\"claude-sonnet\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true,\"budget\":{\"min\":1024}},\"params\":{\"requireMaxTokens\":true},\"limits\":{\"context\":200000,\"maxOutput\":64000},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true},\"id\":\"claude-sonnet-4-5\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": null,
+   "model": "anthropic/claude-opus-4-1-20250805",
+   "output": "{\"family\":\"claude\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true},\"params\":{\"requireMaxTokens\":true},\"id\":\"claude-opus-4-1-20250805\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": null,
+   "model": "gpt-5",
+   "output": "{\"family\":\"gpt\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"low\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"limits\":{\"context\":400000,\"input\":272000,\"maxOutput\":77},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"gpt-5\",\"userSet\":[\"limits.maxOutput\"],\"sources\":[\"family\",\"catalog\",\"learned\",\"user\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": null,
+   "model": "GPT-5.1-codex",
+   "output": "{\"family\":\"gpt-codex\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"limits\":{\"context\":400000,\"input\":272000,\"maxOutput\":128000},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"gpt-5.1-codex\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": null,
+   "model": "o3-mini",
+   "output": "{\"family\":\"o-mini\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"limits\":{\"context\":200000,\"maxOutput\":100000},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"o3-mini\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": null,
+   "model": "codex-mini-latest",
+   "output": "{\"family\":\"gpt\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"minimal\",\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"id\":\"codex-mini-latest\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": null,
+   "model": "gemini-2.5-pro",
+   "output": "{\"family\":\"gemini-pro\",\"wires\":{\"prefer\":[\"gemini\"],\"reason\":\"思考签名与 thinkingConfig 只在原生协议上完整\"},\"tools\":{\"schema\":\"gemini\",\"calling\":true},\"limits\":{\"context\":1048576,\"standard\":200000,\"maxOutput\":65536},\"input\":{\"images\":true,\"pdf\":true},\"reasoning\":{\"control\":\"budget\",\"budget\":{\"min\":128,\"max\":32768}},\"id\":\"gemini-2.5-pro\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": null,
+   "model": "deepseek-chat",
+   "output": "{\"family\":\"deepseek\",\"reasoning\":{\"control\":\"effort\",\"canDisable\":true,\"passback\":\"required\",\"passbackField\":\"reasoning_content\",\"efforts\":[\"low\",\"high\"]},\"tools\":{\"schema\":\"deepseek\",\"calling\":true},\"limits\":{\"context\":163840,\"maxOutput\":16000},\"input\":{\"images\":false,\"pdf\":false},\"id\":\"deepseek-chat\",\"userSet\":[\"reasoning.efforts\"],\"sources\":[\"family\",\"catalog\",\"user\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": null,
+   "model": "deepseek-v3.2:free",
+   "output": "{\"family\":\"deepseek\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"deepseek\",\"calling\":true},\"limits\":{\"context\":163840,\"maxOutput\":65536},\"input\":{\"images\":false,\"pdf\":false},\"id\":\"deepseek-v3.2:free\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": null,
+   "model": "kimi-k2",
+   "output": "{\"family\":\"kimi-k2\",\"reasoning\":{\"control\":\"toggle\",\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"kimi\",\"calling\":true},\"limits\":{\"context\":131072,\"maxOutput\":98304},\"input\":{\"images\":false,\"pdf\":false},\"sampling\":{\"temperature\":false},\"id\":\"kimi-k2\",\"userSet\":[],\"sources\":[\"family\",\"catalog\",\"learned\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": null,
+   "model": "moonshot-v1",
+   "output": "{\"family\":\"kimi\",\"reasoning\":{\"control\":\"toggle\",\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"kimi\"},\"id\":\"moonshot-v1\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": null,
+   "model": "glm-4.6",
+   "output": "{\"family\":\"glm\",\"reasoning\":{\"control\":\"toggle\",\"passback\":\"required\",\"passbackField\":\"reasoning_content\",\"canDisable\":true},\"limits\":{\"context\":204800,\"maxOutput\":131072},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"glm-4.6\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": null,
+   "model": "qwen3-coder",
+   "output": "{\"family\":\"qwen\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"toggleStyle\":\"enable-thinking\"},\"limits\":{\"context\":262144,\"maxOutput\":65536},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"qwen3-coder\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": null,
+   "model": "minimax-m2",
+   "output": "{\"family\":\"minimax\",\"reasoning\":{\"control\":\"none\",\"passback\":\"required\",\"passbackField\":\"reasoning_details\"},\"limits\":{\"context\":204800,\"maxOutput\":131072},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"minimax-m2\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": null,
+   "model": "grok-4",
+   "output": "{\"family\":\"grok\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"xAI 的 Chat 接口标为 legacy\"},\"id\":\"grok-4\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": null,
+   "model": "foo-bar",
+   "output": "{\"limits\":{\"context\":9999},\"tools\":{\"calling\":false},\"input\":{\"images\":true},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"high\"]},\"id\":\"foo-bar\",\"userSet\":[\"limits.context\",\"input.images\",\"reasoning.efforts\"],\"sources\":[\"provider\",\"learned\",\"user\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": null,
+   "model": "claude-x1",
+   "output": "{\"family\":\"claude\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"none\",\"canDisable\":true,\"efforts\":[\"low\"]},\"params\":{\"requireMaxTokens\":true},\"tools\":{\"calling\":true},\"id\":\"claude-x1\",\"userSet\":[\"tools.calling\",\"reasoning\"],\"sources\":[\"family\",\"provider\",\"user\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": null,
+   "model": "unknown-model",
+   "output": "{\"id\":\"unknown-model\",\"userSet\":[],\"sources\":[],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": null,
+   "model": "constructor",
+   "output": "{\"id\":\"constructor\",\"userSet\":[],\"sources\":[\"catalog\",\"learned\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": null,
+   "model": "toString",
+   "output": "{\"id\":\"tostring\",\"userSet\":[],\"sources\":[\"learned\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": null,
+   "model": "__proto__",
+   "output": "{\"id\":\"__proto__\",\"userSet\":[],\"sources\":[\"catalog\",\"learned\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": null,
+   "model": "valueOf",
+   "output": "{\"id\":\"valueof\",\"userSet\":[],\"sources\":[\"learned\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": null,
+   "model": "prototype",
+   "output": "{\"id\":\"prototype\",\"userSet\":[],\"sources\":[],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": null,
+   "model": "a/b/gpt-4o",
+   "output": "{\"family\":\"gpt\",\"limits\":{\"context\":128000,\"maxOutput\":16384},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true},\"id\":\"gpt-4o\",\"userSet\":[],\"sources\":[\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": null,
+   "model": "gpt-4o-latest",
+   "output": "{\"family\":\"gpt\",\"limits\":{\"context\":128000,\"maxOutput\":16384},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true},\"id\":\"gpt-4o-latest\",\"userSet\":[],\"sources\":[\"catalog\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": null,
+   "model": "Claude-3-7-Sonnet-20250219",
+   "output": "{\"family\":\"claude\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true},\"params\":{\"requireMaxTokens\":true},\"id\":\"claude-3-7-sonnet-20250219\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": null,
+   "model": "qwen",
+   "output": "{\"family\":\"qwen\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"toggleStyle\":\"enable-thinking\"},\"id\":\"qwen\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": null,
+   "model": "x:y",
+   "output": "{\"id\":\"x:y\",\"userSet\":[],\"sources\":[],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": null,
+   "model": "",
+   "output": "{\"id\":\"\",\"userSet\":[],\"sources\":[],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": true,
+   "model": "claude-sonnet-4-5",
+   "output": "{\"family\":\"claude-sonnet\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true,\"budget\":{\"min\":1024}},\"params\":{\"requireMaxTokens\":true},\"limits\":{\"context\":200000,\"maxOutput\":64000},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true},\"id\":\"claude-sonnet-4-5\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": true,
+   "model": "anthropic/claude-opus-4-1-20250805",
+   "output": "{\"family\":\"claude\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true},\"params\":{\"requireMaxTokens\":true},\"id\":\"claude-opus-4-1-20250805\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": true,
+   "model": "gpt-5",
+   "output": "{\"family\":\"gpt\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"low\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"limits\":{\"context\":400000,\"input\":272000,\"maxOutput\":77},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"gpt-5\",\"userSet\":[\"limits.maxOutput\"],\"sources\":[\"family\",\"catalog\",\"learned\",\"user\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": true,
+   "model": "GPT-5.1-codex",
+   "output": "{\"family\":\"gpt-codex\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"limits\":{\"context\":400000,\"input\":272000,\"maxOutput\":128000},\"input\":{\"images\":true,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"gpt-5.1-codex\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": true,
+   "model": "o3-mini",
+   "output": "{\"family\":\"o-mini\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"limits\":{\"context\":200000,\"maxOutput\":100000},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"o3-mini\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": true,
+   "model": "codex-mini-latest",
+   "output": "{\"family\":\"gpt\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"保住加密推理\"},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"minimal\",\"low\",\"medium\",\"high\"]},\"params\":{\"maxTokensField\":\"max_completion_tokens\"},\"sampling\":{\"temperature\":false,\"topP\":false},\"id\":\"codex-mini-latest\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": true,
+   "model": "gemini-2.5-pro",
+   "output": "{\"family\":\"gemini-pro\",\"wires\":{\"prefer\":[\"gemini\"],\"reason\":\"思考签名与 thinkingConfig 只在原生协议上完整\"},\"tools\":{\"schema\":\"gemini\",\"calling\":true},\"limits\":{\"context\":1048576,\"standard\":200000,\"maxOutput\":65536},\"input\":{\"images\":true,\"pdf\":true},\"reasoning\":{\"control\":\"budget\",\"budget\":{\"min\":128,\"max\":32768}},\"id\":\"gemini-2.5-pro\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": true,
+   "model": "deepseek-chat",
+   "output": "{\"family\":\"deepseek\",\"reasoning\":{\"control\":\"effort\",\"canDisable\":true,\"passback\":\"required\",\"passbackField\":\"reasoning_content\",\"efforts\":[\"low\",\"high\"]},\"tools\":{\"schema\":\"deepseek\",\"calling\":true},\"limits\":{\"context\":163840,\"maxOutput\":16000},\"input\":{\"images\":false,\"pdf\":false},\"id\":\"deepseek-chat\",\"userSet\":[\"reasoning.efforts\"],\"sources\":[\"family\",\"catalog\",\"user\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": true,
+   "model": "deepseek-v3.2:free",
+   "output": "{\"family\":\"deepseek\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"deepseek\",\"calling\":true},\"limits\":{\"context\":163840,\"maxOutput\":65536},\"input\":{\"images\":false,\"pdf\":false},\"id\":\"deepseek-v3.2:free\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": true,
+   "model": "kimi-k2",
+   "output": "{\"family\":\"kimi-k2\",\"reasoning\":{\"control\":\"toggle\",\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"kimi\",\"calling\":true},\"limits\":{\"context\":131072,\"maxOutput\":98304},\"input\":{\"images\":false,\"pdf\":false},\"sampling\":{\"temperature\":false},\"id\":\"kimi-k2\",\"userSet\":[],\"sources\":[\"family\",\"catalog\",\"learned\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": true,
+   "model": "moonshot-v1",
+   "output": "{\"family\":\"kimi\",\"reasoning\":{\"control\":\"toggle\",\"passback\":\"required\",\"passbackField\":\"reasoning_content\"},\"tools\":{\"schema\":\"kimi\"},\"id\":\"moonshot-v1\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": true,
+   "model": "glm-4.6",
+   "output": "{\"family\":\"glm\",\"reasoning\":{\"control\":\"toggle\",\"passback\":\"required\",\"passbackField\":\"reasoning_content\",\"canDisable\":true},\"limits\":{\"context\":204800,\"maxOutput\":131072},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"glm-4.6\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": true,
+   "model": "qwen3-coder",
+   "output": "{\"family\":\"qwen\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"toggleStyle\":\"enable-thinking\"},\"limits\":{\"context\":262144,\"maxOutput\":65536},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"qwen3-coder\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": true,
+   "model": "minimax-m2",
+   "output": "{\"family\":\"minimax\",\"reasoning\":{\"control\":\"none\",\"passback\":\"required\",\"passbackField\":\"reasoning_details\"},\"limits\":{\"context\":204800,\"maxOutput\":131072},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":true},\"id\":\"minimax-m2\",\"userSet\":[],\"sources\":[\"family\",\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": true,
+   "model": "grok-4",
+   "output": "{\"family\":\"grok\",\"wires\":{\"prefer\":[\"responses\"],\"reason\":\"xAI 的 Chat 接口标为 legacy\"},\"id\":\"grok-4\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": true,
+   "model": "foo-bar",
+   "output": "{\"limits\":{\"context\":9999},\"tools\":{\"calling\":false},\"input\":{\"images\":true},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"high\"]},\"id\":\"foo-bar\",\"userSet\":[\"limits.context\",\"input.images\",\"reasoning.efforts\"],\"sources\":[\"provider\",\"learned\",\"user\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": true,
+   "model": "claude-x1",
+   "output": "{\"family\":\"claude\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"none\",\"canDisable\":true,\"efforts\":[\"low\"]},\"params\":{\"requireMaxTokens\":true},\"tools\":{\"calling\":true},\"id\":\"claude-x1\",\"userSet\":[\"tools.calling\",\"reasoning\"],\"sources\":[\"family\",\"provider\",\"user\"],\"strict\":false,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": true,
+   "model": "unknown-model",
+   "output": "{\"id\":\"unknown-model\",\"userSet\":[],\"sources\":[],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": true,
+   "model": "constructor",
+   "output": "{\"id\":\"constructor\",\"userSet\":[],\"sources\":[\"catalog\",\"learned\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": true,
+   "model": "toString",
+   "output": "{\"id\":\"tostring\",\"userSet\":[],\"sources\":[\"learned\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": true,
+   "model": "__proto__",
+   "output": "{\"id\":\"__proto__\",\"userSet\":[],\"sources\":[\"catalog\",\"learned\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": true,
+   "model": "valueOf",
+   "output": "{\"id\":\"valueof\",\"userSet\":[],\"sources\":[\"learned\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": true,
+   "model": "prototype",
+   "output": "{\"id\":\"prototype\",\"userSet\":[],\"sources\":[],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": true,
+   "model": "a/b/gpt-4o",
+   "output": "{\"family\":\"gpt\",\"limits\":{\"context\":128000,\"maxOutput\":16384},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true},\"id\":\"gpt-4o\",\"userSet\":[],\"sources\":[\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": true,
+   "model": "gpt-4o-latest",
+   "output": "{\"family\":\"gpt\",\"limits\":{\"context\":128000,\"maxOutput\":16384},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true},\"id\":\"gpt-4o-latest\",\"userSet\":[],\"sources\":[\"catalog\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": true,
+   "model": "Claude-3-7-Sonnet-20250219",
+   "output": "{\"family\":\"claude\",\"wires\":{\"prefer\":[\"messages\"],\"reason\":\"保住签名、缓存与思考控制\"},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true},\"params\":{\"requireMaxTokens\":true},\"id\":\"claude-3-7-sonnet-20250219\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": true,
+   "model": "qwen",
+   "output": "{\"family\":\"qwen\",\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true,\"toggleStyle\":\"enable-thinking\"},\"id\":\"qwen\",\"userSet\":[],\"sources\":[\"family\"],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": true,
+   "model": "x:y",
+   "output": "{\"id\":\"x:y\",\"userSet\":[],\"sources\":[],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  },
+  {
+   "provider": 1,
+   "learned": 2,
+   "strict": true,
+   "model": "",
+   "output": "{\"id\":\"\",\"userSet\":[],\"sources\":[],\"strict\":true,\"catalogVersion\":\"2026-10-25\"}"
+  }
+ ],
+ "builds": [
+  {
+   "api": {
+    "openai": {
+     "models": {
+      "10": {
+       "family": "num"
+      },
+      "GPT-Z": {
+       "id": "gpt-z",
+       "type": "chat",
+       "reasoning": true,
+       "reasoning_options": [
+        {
+         "type": "effort",
+         "values": [
+          "none",
+          "low",
+          "high",
+          "bogus"
+         ]
+        }
+       ],
+       "limit": {
+        "context": 400000,
+        "input": 272000,
+        "output": 128000
+       },
+       "modalities": {
+        "input": [
+         "text",
+         "image",
+         "pdf"
+        ]
+       },
+       "tool_call": true,
+       "temperature": false,
+       "cost": {
+        "tiers": [
+         {
+          "tier": {
+           "type": "context",
+           "size": 200000
+          }
+         },
+         {
+          "tier": {
+           "size": 100000
+          }
+         },
+         {
+          "tier": {
+           "type": "other",
+           "size": 300000
+          }
+         }
+        ]
+       }
+      },
+      "emb": {
+       "type": "embedding"
+      },
+      "__proto__x": {
+       "family": "f"
+      },
+      "Constructor": {
+       "family": "nope"
+      },
+      "a-b": {},
+      "a_b": {},
+      "a.b": {},
+      "ab": {},
+      "a1": {},
+      "A2": {},
+      "a~": {},
+      "a$": {}
+     }
+    },
+    "anthropic": {
+     "models": {
+      "claude-q": {
+       "family": "claude-q",
+       "reasoning": true,
+       "reasoning_options": [
+        {
+         "type": "effort",
+         "values": [
+          "low",
+          "max"
+         ]
+        },
+        {
+         "type": "budget_tokens",
+         "min": 1024,
+         "max": 1.5
+        }
+       ],
+       "interleaved": {
+        "field": "reasoning_details"
+       },
+       "limit": {
+        "context": 0,
+        "output": -1
+       }
+      },
+      "claude-r": {
+       "reasoning": true,
+       "reasoning_options": [
+        {
+         "type": "budget_tokens"
+        },
+        {
+         "type": "toggle"
+        }
+       ]
+      },
+      "gpt-z": {
+       "family": "dup"
+      }
+     }
+    },
+    "google": {
+     "models": {
+      "g-t": {
+       "reasoning": 1,
+       "reasoning_options": [
+        {
+         "type": "toggle"
+        },
+        "x",
+        null
+       ],
+       "tool_call": 0
+      },
+      "bad": "x"
+     }
+    },
+    "openrouter": {
+     "models": {
+      "x-ai/grok-new": {
+       "family": "grok",
+       "limit": {
+        "input": 1000
+       }
+      },
+      "~openai/gpt-y": {},
+      "other/zzz": {},
+      "/lead": {},
+      "openai/gpt-z": {
+       "family": "dup2"
+      },
+      "qwen/q-emb": {
+       "type": "embedding"
+      },
+      "z-ai/glm-9": {
+       "type": "chat"
+      }
+     }
+    }
+   },
+   "version": "v1",
+   "output": "{\"version\":\"v1\",\"source\":\"models.dev\",\"license\":\"MIT\",\"models\":{\"10\":{\"family\":\"num\",\"limits\":{},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"__proto__x\":{\"family\":\"f\",\"limits\":{},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"a_b\":{\"limits\":{},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"a-b\":{\"limits\":{},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"a.b\":{\"limits\":{},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"a~\":{\"limits\":{},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"a$\":{\"limits\":{},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"a1\":{\"limits\":{},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"a2\":{\"limits\":{},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"ab\":{\"limits\":{},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"claude-q\":{\"family\":\"claude-q\",\"limits\":{},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"adaptive\",\"efforts\":[\"low\",\"max\"],\"budget\":{\"min\":1024},\"passback\":\"required\",\"passbackField\":\"reasoning_details\"}},\"claude-r\":{\"limits\":{},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"budget\",\"canDisable\":true}},\"g-t\":{\"limits\":{},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false},\"reasoning\":{\"control\":\"toggle\",\"canDisable\":true}},\"glm-9\":{\"limits\":{},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"gpt-y\":{\"limits\":{},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}},\"gpt-z\":{\"limits\":{\"context\":400000,\"input\":272000,\"standard\":200000,\"maxOutput\":128000},\"input\":{\"images\":true,\"pdf\":true},\"tools\":{\"calling\":true},\"reasoning\":{\"control\":\"effort\",\"efforts\":[\"low\",\"high\"],\"canDisable\":true},\"sampling\":{\"temperature\":false}},\"grok-new\":{\"family\":\"grok\",\"limits\":{\"input\":1000},\"input\":{\"images\":false,\"pdf\":false},\"tools\":{\"calling\":false}}},\"fromFallback\":3}"
+  },
+  {
+   "api": null,
+   "version": "",
+   "output": "{\"version\":\"\",\"source\":\"models.dev\",\"license\":\"MIT\",\"models\":{},\"fromFallback\":0}"
+  },
+  {
+   "api": [],
+   "version": "x",
+   "output": "{\"version\":\"x\",\"source\":\"models.dev\",\"license\":\"MIT\",\"models\":{},\"fromFallback\":0}"
+  }
+ ],
+ "sortKeys": [
+  "a-b",
+  "a_b",
+  "a.b",
+  "ab",
+  "a1",
+  "a2",
+  "a~",
+  "a$",
+  "a",
+  "b",
+  "gpt-4",
+  "gpt4",
+  "gpt-4o",
+  "gpt-4.1",
+  "gpt-4-1",
+  "z",
+  "0",
+  "9",
+  "a b",
+  "a/b",
+  "a:b",
+  "a@b",
+  "a+b",
+  "a=b",
+  "a(b",
+  "a!b",
+  "a?b",
+  "a'b",
+  "a,b",
+  "a;b",
+  "aa",
+  "a-",
+  "a-a"
+ ],
+ "sorted": [
+  "0",
+  "9",
+  "a",
+  "a b",
+  "a_b",
+  "a-",
+  "a-a",
+  "a-b",
+  "a,b",
+  "a;b",
+  "a:b",
+  "a!b",
+  "a?b",
+  "a.b",
+  "a'b",
+  "a(b",
+  "a@b",
+  "a/b",
+  "a+b",
+  "a=b",
+  "a~",
+  "a$",
+  "a1",
+  "a2",
+  "aa",
+  "ab",
+  "b",
+  "gpt-4",
+  "gpt-4-1",
+  "gpt-4.1",
+  "gpt-4o",
+  "gpt4",
+  "z"
+ ],
+ "listing": [
+  {
+   "format": "openai",
+   "cfg": {
+    "providers": [
+     {
+      "id": "p",
+      "name": "Prov",
+      "enabled": true,
+      "models": [
+       {
+        "id": "m1",
+        "enabled": true,
+        "label": "M One",
+        "ctx": 100,
+        "maxOutput": 0
+       },
+       {
+        "id": "m2",
+        "enabled": false
+       },
+       {
+        "id": "x/m3",
+        "enabled": true,
+        "maxOutput": 5
+       }
+      ]
+     },
+     {
+      "id": "off",
+      "name": "Off",
+      "enabled": false,
+      "models": [
+       {
+        "id": "z",
+        "enabled": true
+       }
+      ]
+     }
+    ]
+   },
+   "output": "{\"object\":\"list\",\"data\":[{\"id\":\"p/m1\",\"object\":\"model\",\"created\":0,\"owned_by\":\"p\"},{\"id\":\"p/x/m3\",\"object\":\"model\",\"created\":0,\"owned_by\":\"p\"}]}"
+  },
+  {
+   "format": "openai",
+   "cfg": {
+    "providers": []
+   },
+   "output": "{\"object\":\"list\",\"data\":[]}"
+  },
+  {
+   "format": "anthropic",
+   "cfg": {
+    "providers": [
+     {
+      "id": "p",
+      "name": "Prov",
+      "enabled": true,
+      "models": [
+       {
+        "id": "m1",
+        "enabled": true,
+        "label": "M One",
+        "ctx": 100,
+        "maxOutput": 0
+       },
+       {
+        "id": "m2",
+        "enabled": false
+       },
+       {
+        "id": "x/m3",
+        "enabled": true,
+        "maxOutput": 5
+       }
+      ]
+     },
+     {
+      "id": "off",
+      "name": "Off",
+      "enabled": false,
+      "models": [
+       {
+        "id": "z",
+        "enabled": true
+       }
+      ]
+     }
+    ]
+   },
+   "output": "{\"data\":[{\"type\":\"model\",\"id\":\"p/m1\",\"display_name\":\"Prov / M One\",\"created_at\":\"1970-01-01T00:00:00Z\"},{\"type\":\"model\",\"id\":\"p/x/m3\",\"display_name\":\"Prov / x/m3\",\"created_at\":\"1970-01-01T00:00:00Z\"}],\"has_more\":false,\"first_id\":\"p/m1\",\"last_id\":\"p/x/m3\"}"
+  },
+  {
+   "format": "anthropic",
+   "cfg": {
+    "providers": []
+   },
+   "output": "{\"data\":[],\"has_more\":false,\"first_id\":null,\"last_id\":null}"
+  },
+  {
+   "format": "gemini",
+   "cfg": {
+    "providers": [
+     {
+      "id": "p",
+      "name": "Prov",
+      "enabled": true,
+      "models": [
+       {
+        "id": "m1",
+        "enabled": true,
+        "label": "M One",
+        "ctx": 100,
+        "maxOutput": 0
+       },
+       {
+        "id": "m2",
+        "enabled": false
+       },
+       {
+        "id": "x/m3",
+        "enabled": true,
+        "maxOutput": 5
+       }
+      ]
+     },
+     {
+      "id": "off",
+      "name": "Off",
+      "enabled": false,
+      "models": [
+       {
+        "id": "z",
+        "enabled": true
+       }
+      ]
+     }
+    ]
+   },
+   "output": "{\"models\":[{\"name\":\"models/p/m1\",\"baseModelId\":\"p/m1\",\"displayName\":\"Prov / M One\",\"inputTokenLimit\":100,\"supportedGenerationMethods\":[\"generateContent\",\"streamGenerateContent\",\"countTokens\"]},{\"name\":\"models/p/x/m3\",\"baseModelId\":\"p/x/m3\",\"displayName\":\"Prov / x/m3\",\"outputTokenLimit\":5,\"supportedGenerationMethods\":[\"generateContent\",\"streamGenerateContent\",\"countTokens\"]}]}"
+  },
+  {
+   "format": "gemini",
+   "cfg": {
+    "providers": []
+   },
+   "output": "{\"models\":[]}"
+  }
+ ]
+}
