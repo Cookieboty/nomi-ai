@@ -113,6 +113,8 @@ if (process.env.NOMI_GOLDEN_DIR) {
   execFileSync(process.execPath, [join(here, 'record-usage-sniff.mjs')], { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, [join(here, 'record-usage-quota.mjs')], { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, [join(here, 'record-usage-statusline.mjs')], { stdio: 'inherit', cwd: root });
+  execFileSync(process.execPath, [join(here, 'record-usage-subs.mjs')], { stdio: 'inherit', cwd: root });
+  execFileSync(process.execPath, [join(here, 'record-usage-proc.mjs')], { stdio: 'inherit', cwd: root });
   // shell.ts 的 diagnostics / appIcon / updates / quality / usage / gateway（record-shell.mjs 依赖 gateway dist 的 redactText）
   execSync('pnpm --filter @nomi-ai/gateway build', { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-shell.mjs')], { stdio: 'inherit', cwd: root });
