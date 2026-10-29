@@ -7,7 +7,7 @@ export function mount(app: HTMLElement, mark: (n: string) => void): () => void {
   img.alt = 'Nomi';
   img.draggable = false;
   img.style.cssText =
-    'width:100%;height:100%;object-fit:contain;display:block;background:transparent;';
+    'width:100%;height:100%;object-fit:contain;object-position:50% 100%;display:block;background:transparent;';
   img.onload = () => mark('svg-loaded');
   img.src = svgUrl;
   app.appendChild(img);

@@ -13,6 +13,19 @@ const frag = new URLSearchParams(location.hash.slice(1));
 const ctl = frag.get('ctl');
 const app = document.getElementById('app')!;
 const st = document.getElementById('st')!;
+
+// 角色框 = 2.0.4 renderer/src/mascot/spriteLayout.ts characterBox：窗口两侧留 60px（工具栏位）、
+// 头顶留 130px（气泡位），角色只画在剩下的框里（Fit.Contain + 底部居中）。与 Go MascotPad 同步。
+const MASCOT_PAD = { x: 60, top: 130 } as const;
+function placeCharacterBox(): void {
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  const tiny = w < MASCOT_PAD.x * 2 + 80 || h < MASCOT_PAD.top + 80;
+  const b = tiny ? { x: 0, y: 0, w, h } : { x: MASCOT_PAD.x, y: MASCOT_PAD.top, w: w - MASCOT_PAD.x * 2, h: h - MASCOT_PAD.top };
+  Object.assign(app.style, { inset: 'auto', left: `${b.x}px`, top: `${b.y}px`, width: `${b.w}px`, height: `${b.h}px` });
+}
+placeCharacterBox();
+window.addEventListener('resize', placeCharacterBox);
 const marks: string[] = [];
 const mark = (n: string): void => {
   marks.push(n);

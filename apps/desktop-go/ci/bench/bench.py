@@ -13,6 +13,7 @@
 “对话中”需要模型凭据，CI 不测（报告标 N/A）。不点击看板娘、不触发任何动作。
 输出 <out>/<label>.json（每轮原始值 + 中位数）。
 """
+import re
 import argparse, json, os, platform, shutil, statistics, subprocess, sys, time
 import psutil
 
@@ -95,13 +96,28 @@ def mascot(ws):
     return None
 
 
-def launch(exe):
-    kw = {"stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL}
+def launch(exe, logf=None):
+    out = open(logf, "w") if logf else subprocess.DEVNULL
+    kw = {"stdout": out, "stderr": subprocess.STDOUT if logf else subprocess.DEVNULL}
     if SYS == "Windows":
         kw["creationflags"] = 0x00000008  # DETACHED_PROCESS
     else:
         kw["start_new_session"] = True
     return subprocess.Popen([exe], **kw)
+
+
+def stages(logf, t0):
+    """[startup] <name> +Nms epoch=E → {name: E - t0（ms）}；首项之前 = exec/dyld/Gatekeeper 开销"""
+    time.sleep(1)
+    out = {}
+    try:
+        for line in open(logf, encoding="utf-8", errors="replace"):
+            m = re.search(r"\[startup\] (.+?) \+\d+ms epoch=(\d+)", line)
+            if m and m.group(1) not in out:
+                out[m.group(1)] = int(m.group(2)) - int(t0 * 1000)
+    except OSError:
+        pass
+    return out
 
 
 def wait_mascot(name, first, t0, timeout=120):
@@ -118,17 +134,20 @@ def wait_mascot(name, first, t0, timeout=120):
 def snap(name, first, t0):
     ps = tree(set(roots(name)) | {first.pid}, t0)
     uss = rss = 0
+    by = {}
     for p in ps:
         try:
             mi = p.memory_full_info()
             uss += mi.uss
             rss += mi.rss
+            k = p.name()
+            by[k] = round(by.get(k, 0) + (mi.uss or mi.rss) / 2**20, 1)
         except psutil.Error:
             try:
                 rss += p.memory_info().rss
             except psutil.Error:
                 pass
-    return {"uss_mib": round(uss / 2**20, 1), "rss_mib": round(rss / 2**20, 1), "procs": len(ps),
+    return {"uss_mib": round(uss / 2**20, 1), "rss_mib": round(rss / 2**20, 1), "procs": len(ps), "by_name_mib": by,
             "names": sorted({(p.name() if p.is_running() else "?") for p in ps})}
 
 
@@ -192,8 +211,10 @@ def main():
         drop_caches()
         r = {"run": i + 1}
         t0 = time.time()
-        p = launch(a.exe)
+        logf = os.path.join(a.out, f"{a.label}-run{i + 1}.log")
+        p = launch(a.exe, logf)
         r["cold_s"], r["mascot_px"] = wait_mascot(a.name, p, t0)
+        r["stages_ms"] = stages(logf, t0)
         time.sleep(30)
         r["idle"] = snap(a.name, p, t0)
         r["cpu_idle_pct"] = cpu(a.name, p, t0)

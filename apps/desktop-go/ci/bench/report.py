@@ -26,3 +26,10 @@ if res:
         print(f"| {k} | " + " | ".join(str(r["median"].get(k)) for r in res.values()) + " |")
     print("| mascot_px | " + " | ".join(str([x.get('mascot_px') for x in r['runs']][0]) for r in res.values()) + " |")
     print("| during chat | " + " | ".join("N/A（需模型凭据）" for _ in res) + " |")
+    for lab, r in res.items():
+        st = r["runs"][0].get("stages_ms")
+        if st:
+            print(f"\n{lab} 启动阶段（run1，相对 t0 ms）：" + "，".join(f"{k}={v}" for k, v in st.items()))
+        by = r["runs"][0]["idle"].get("by_name_mib")
+        if by:
+            print(f"\n{lab} idle 分进程 MiB：" + "，".join(f"{k}={v}" for k, v in sorted(by.items(), key=lambda x: -x[1])))

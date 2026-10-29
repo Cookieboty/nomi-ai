@@ -62,6 +62,7 @@ import (
 var dist embed.FS
 
 func main() {
+	hostports.Stage("main-enter")
 	// 文档解析子进程（runParse.ts 的 utilityProcess）：同一可执行文件以 NOMI_PARSE_WORKER=1 拉起
 	if parse.IsWorker() {
 		parse.WorkerMain()
@@ -97,12 +98,14 @@ func main() {
 	}
 	// 低优先级启动任务 cleanup-old-logs（delay 1000）
 	time.AfterFunc(time.Second, func() { rootLog.CleanOldLogs(7) })
+	hostports.Stage("logger-ready")
 	if res, err := migrate.Run(userData, security.NewSecretBox("migrate"), security.NewElectronSafeStorage()); err != nil {
 		log.Printf("[migrate] warn: %v", err)
 	} else if res.Migrated {
 		log.Printf("[migrate] copied %d files from %s (secrets=%d chatKeys=%d)", res.FilesCopied, res.From, res.SecretsMigrated, res.ChatKeysExtracted)
 	}
 
+	hostports.Stage("migrate-done")
 	router := contract.NewRouter()
 	core.New(cfg).Register(router)
 
@@ -448,6 +451,7 @@ func main() {
 			}).Run(nil)
 		}
 	}
+	hostports.Stage("app-run")
 	if err := sh.Run(); err != nil {
 		log.Fatal(err)
 	}

@@ -4,11 +4,11 @@ package gwstore
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
-	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"sort"

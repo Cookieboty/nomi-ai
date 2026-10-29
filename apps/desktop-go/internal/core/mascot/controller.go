@@ -4,6 +4,7 @@ package mascot
 // host/windowBounds.ts 的逐行移植。窗口、时钟、定时器、光标、显示器经接口注入，便于回放 Node 录下的轨迹。
 
 import (
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/hostports"
 	"log"
 	"math"
 	"sync"
@@ -224,6 +225,7 @@ func (c *Controller) Start() {
 	}
 	x, y := c.win.GetPosition()
 	_, h0 := c.win.GetSize()
+	hostports.Stage("mascot-start")
 	log.Printf("[mascot] start size=%dx%d scale=%.2f pref=%v areas=%+v", w, h0, c.scale, c.pref, c.workAreas)
 	c.requested = &pt{float64(x), float64(y)}
 	c.body = BodyState{X: float64(x), Y: float64(y), Mode: "idle"}

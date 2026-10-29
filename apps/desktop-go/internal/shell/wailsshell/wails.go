@@ -2,6 +2,7 @@
 package wailsshell
 
 import (
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/hostports"
 	"io/fs"
 	"log"
 	"net/http"
@@ -156,6 +157,7 @@ func (w *Wails) pageLoaded(win *application.WebviewWindow) {
 		return
 	}
 	pl.done = true
+	hostports.Stage("page-loaded " + win.Name())
 	fns := pl.fns
 	pl.fns = nil
 	w.mu.Unlock()
@@ -219,6 +221,7 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 	if at != nil {
 		opts.Hidden = true
 	}
+	hostports.Stage("window-create " + string(k))
 	win := w.app.Window.NewWithOptions(opts)
 	w.mu.Lock()
 	w.loads[win] = &pageLoad{}
