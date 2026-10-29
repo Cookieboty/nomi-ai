@@ -191,8 +191,8 @@ func (r *Restorer) Text(s string, escaped bool) string {
 		})
 	}
 	for _, f := range r.shaped {
-		if strings.Contains(out, f) {
-			out = strings.ReplaceAll(out, f, r.put(f, escaped))
+		if ou, fu := u.ToUnits(out), u.ToUnits(f); u.IndexUnits(ou, fu) >= 0 {
+			out = u.FromUnits(u.ReplaceAllUnits(ou, fu, u.ToUnits(r.put(f, escaped))))
 		}
 	}
 	if out == s {
@@ -209,7 +209,7 @@ func (r *Restorer) Raw(text string) string {
 	if !strings.Contains(text, "{{") {
 		any := false
 		for _, f := range r.shaped {
-			if strings.Contains(text, f) {
+			if u.IndexUnits(u.ToUnits(text), u.ToUnits(f)) >= 0 {
 				any = true
 				break
 			}

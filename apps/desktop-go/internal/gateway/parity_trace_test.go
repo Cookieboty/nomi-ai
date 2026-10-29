@@ -2,6 +2,7 @@ package gateway_test
 
 import (
 	"encoding/json"
+	"math"
 	"os"
 	"path/filepath"
 	"sort"
@@ -92,7 +93,10 @@ func TestParityTrace(t *testing.T) {
 			case "client":
 				tr.Client(a[1].(string))
 			case "finish":
-				file = tr.Finish(parseJS(t, a[1].(string)).(*u.Obj))
+				var err error
+				if file, err = tr.Finish(parseJS(t, a[1].(string)).(*u.Obj)); err != nil {
+					t.Fatal(err)
+				}
 			}
 		}
 		rel, _ := filepath.Rel(dir, file)
@@ -109,6 +113,10 @@ func TestParityTrace(t *testing.T) {
 		if st, err := os.Stat(file); err == nil && st.Mode().Perm() != 0o600 && os.PathSeparator == '/' {
 			t.Errorf("trace mode %v", st.Mode())
 		}
+	}
+	bad := server.NewRequestTrace(t.TempDir(), &cfg, server.TraceMeta{StartedAt: math.NaN()}, server.TraceOpts{})
+	if _, err := bad.Finish(u.NewObj()); err == nil || err.Error() != "Invalid time value" {
+		t.Errorf("finish NaN: %v", err)
 	}
 	tl.report(t, "trace")
 }

@@ -193,10 +193,12 @@ Go 版**1:1 镜像** Node 版：模块边界、包/层结构、数据格式、�
 | D-B6-11 | createP2Tools 注册 reminder-restore 撤销、产出 AI ToolDefinition | 撤销钩子在 Service 构造时注册；ToolDefinition 留给批次 5（AI 工具循环） | **不可观察**：撤销钩子在任何撤销发生前已注册，行为相同；ToolDefinition 在 AI 工具循环（批次 5）合入前没有调用方 |
 | D-B6-12 | ~~按 surface 定向 send 事件~~ **已消除** | `Router.EmitTo(surface, …)` 定向投递 | 无行为差异 |
 | D-B6-13 | ~~worker 崩溃/退出码映射成 `crash` 错误~~ **已消除** | worker 子进程退出码 / 崩溃按 runParse 同样映射为 `crash` | 无行为差异 |
-| D-B10-1 | 岛的显示模式恒为 `pill` | Node 在 macOS 上探测刘海屏决定 notch/pill；Go 不探测，`island.get` 的 mode 恒为 pill；`island.test` 只弹出岛窗口 | 刘海屏 Mac 上岛不贴刘海显示 |
+| D-B10-1 | ~~岛的显示模式恒为 `pill`~~ 已消除 | `island.Mode/HasNotch` 逐行移植 geometry.ts（darwin + 内建屏 + 菜单栏 ≥ 30pt，含 `CD_ISLAND_SIMULATE_NOTCH`），主屏几何来自 Wails `Screen.GetPrimary()`；sanitizeIsland 与刘海判定由 `scripts/parity/record-island.mjs` 从 Node 录制（1692 + 486 条）全部一致。残留：Wails 不提供 `display.internal`，按「未知=内建」处理（与 Electron 缺省一致）；岛窗口的 notch 几何/展开动画仍按胶囊布局 | 外接屏菜单栏 ≥30pt 时可能误判为 notch（mac 外接屏菜单栏 ~25pt，实际不会） |
 | D-B10-2 | ~~角色包校验是宽松子集~~ 已消除 | `internal/core/charcontract` 逐行移植 character-contract（V8 JSON.parse 报错文本、zod v4 语义、validatePack/迁移/relax、readPackDirSync 的 WHATWG UTF-8 解码与 UTF-16 排序、loadPackAt）；金样由 `scripts/parity/record-character-contract.mjs` 从 Node 录制：1482 条 JSON、4480 条 schema、702 个整包（严格/lenient/loadPackAt）全部一致。残留：clips 含 null 时 Node 抛 TypeError，Go 的 LoadPackAt 把它当作该候选无效（理由为同一错误文本） | 仅 clips 含 null 的坏包：Node 主进程抛错，Go 跳过该包 |
-| D-B10-3 | 看板娘物理/漫游/点击穿透未移植 | `mascot.setShape`/`setHit`/`setInteractionConfig`/`wanderNow` 收下即返回（no-op），`mascot.debugSnapshot` 仍是 UNAVAILABLE；拖动、缩放（尺寸计算 fixture 全对上）、置顶、位置已实现 | 透明区域不会点击穿透；不会自己走动 |
+| D-B10-3 | ~~看板娘物理/漫游/点击穿透未移植~~ 已消除 | `internal/core/mascot` 移植物理与窗口控制器（Node 录制 goldens，含 arm64 FMA 防融合），setShape/setHit/wanderNow/debugSnapshot 均已实现 | 无 |
 | D-B10-4 | 渲染器选择引导卡在 POC 对话页 | 新设置 `mascot.renderer`（svg\|rive，默认 svg，升级用户也是 svg）；引导最后一张「想让诺米动起来吗？」（默认焦点「保持静态」，无 WebGL 时隐藏「开启动画」）暂放在 POC 对话页、用 localStorage 只问一次，等引导页迁过来再挪 | 无 |
+| D-B10-5 | `chat-asset://`、`character-pack://` 协议未在 Go 壳注册 | persona.* / chatBg.* 已按 Node 移植（chatBg sanitize 3462 条、persona 392 条 Node goldens），但自定义协议尚无 handler；当前 Go 前端不使用这两个 URL | 迁完对话页后需补 handler |
+| D-B10-6 | 聊天背景缩放输出非逐字节一致 | Electron 用 nativeImage 缩放；Go 用面积平均缩放到长边 2560，PNG 仍为 PNG、其余转 JPEG q85；GIF 不缩放；WebP 无解码器原样复制 | 生成文件字节/体积与 Node 略有差异，尺寸规则一致 |
 | D-B8-1 | `knowledge.ts` 契约 77 个过程（批次说明） | 实际 75 个过程 + 11 个事件，Go 全部注册（`knowledgehandlers.Handlers`，单测断言 75） | 以契约源码为准，说明里的数字有误 |
 | D-B8-2 | 本地模型注册进 AI 网关 / 设为主模型（`gateway.upsertProvider`、`setNomiMain`、`confirmPrivateHost`） | Go 通过 `local.GatewayLike` 接口调用，main.go 暂未接入（nil → 跳过注册），TODO(batch-4/5) | 网关服务属于批次 4/5，尚未合入 |
 | D-B8-3 | `desktop.say`、`broker.setLocalOnly`、HostPorts（打开对话框、OCR 等） | **部分**：DesktopService（批次 6）已可注入；`say`、OCR 等 HostPorts 仍用 `deps.NoopPorts` 假实现（对话框按“已取消”），TODO(batch-6 宿主端口) | HostPorts 宿主实现尚未全部合入 |
