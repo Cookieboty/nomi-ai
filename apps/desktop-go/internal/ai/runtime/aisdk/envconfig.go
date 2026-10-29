@@ -3,6 +3,8 @@
 package aisdk
 
 import (
+	"net/http"
+
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/llm"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/tools"
 )
@@ -25,6 +27,8 @@ type Options struct {
 	Receiver          *tools.ToolCallProvider
 	ServedModelHeader string
 	RedactedHeader    string
+	// Client：fetchImpl（网关按需启动时先等就绪）；nil = 全局 fetch
+	Client *http.Client
 }
 
 // EnvProtocol：ENV_PROTOCOL

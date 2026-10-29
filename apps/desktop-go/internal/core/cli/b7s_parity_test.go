@@ -9,6 +9,7 @@ import (
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/gemini"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/ports"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/usage"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
@@ -112,7 +113,17 @@ func TestB7sGolden(t *testing.T) {
 	}
 	disc := func(name, backend string, deps ModelDiscoveryDeps) {
 		var pr *jsrt.Promise[*util.Obj]
-		jsrt.Run(func() { pr = DiscoverModels(backend, D(deps)) })
+		// 经 ports 适配器走一遍（同 Orchestrator 的接法）
+		dd := D(deps)
+		ad := ModelDiscoveryAdapter{Paths: func(string) ModelDiscoveryPaths {
+			return ModelDiscoveryPaths{dd.ClaudeDefaults, dd.CodexConfigPath, dd.GrokModelsCachePath, dd.GrokSettingsCachePath}
+		}}
+		pd := ports.ModelDiscoveryDeps{Spawn: func(b string, a []string) (clisdk.ChildLike, error) { return dd.Spawn(b, a), nil }}
+		if dd.TimeoutMs != nil {
+			f := float64(*dd.TimeoutMs)
+			pd.TimeoutMs = &f
+		}
+		jsrt.Run(func() { pr = ad.DiscoverModels(backend, pd) })
 		select {
 		case <-pr.Done():
 		case <-time.After(60 * time.Second):
@@ -224,7 +235,7 @@ func TestB7sGolden(t *testing.T) {
 		return string(b)
 	}
 	tr := func(name, folder string, env *util.Obj) {
-		r, err := gemini.TrustGeminiFolder(folder, SB, env, usage.Platform())
+		r, err := GeminiTrustAdapter{}.TrustGeminiFolder(folder, SB, env, usage.Platform())
 		if err != nil {
 			rec.add("tf:trust:"+name, nil, err)
 			return

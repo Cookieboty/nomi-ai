@@ -1,0 +1,592 @@
+{
+ "platform": "linux",
+ "scenarios": [
+  {
+   "name": "noSpawn",
+   "opts": {
+    "spawn": "null"
+   },
+   "steps": [
+    {
+     "op": "read",
+     "tag": "a"
+    },
+    {
+     "op": "state"
+    },
+    {
+     "op": "read",
+     "tag": "b"
+    }
+   ],
+   "log": [
+    "local:/db/a.sqlite",
+    "a:ok:[{\"id\":\"local\",\"title\":\"t-local\"}]",
+    "state:inProc=true:running=false",
+    "local:/db/b.sqlite",
+    "b:ok:[{\"id\":\"local\",\"title\":\"t-local\"}]"
+   ]
+  },
+  {
+   "name": "noSpawnLocalErr",
+   "opts": {
+    "spawn": "null",
+    "localErr": "boom"
+   },
+   "steps": [
+    {
+     "op": "read",
+     "tag": "a"
+    },
+    {
+     "op": "state"
+    }
+   ],
+   "log": [
+    "local:/db/a.sqlite",
+    "a:err:boom",
+    "state:inProc=true:running=false"
+   ]
+  },
+  {
+   "name": "spawnThrows",
+   "opts": {
+    "spawn": "throw"
+   },
+   "steps": [
+    {
+     "op": "read",
+     "tag": "a"
+    },
+    {
+     "op": "state"
+    }
+   ],
+   "log": [
+    "local:/db/a.sqlite",
+    "a:ok:[{\"id\":\"local\",\"title\":\"t-local\"}]",
+    "state:inProc=true:running=false"
+   ]
+  },
+  {
+   "name": "ok",
+   "opts": {
+    "spawn": "fake",
+    "idleMs": 60
+   },
+   "steps": [
+    {
+     "op": "read",
+     "tag": "a"
+    },
+    {
+     "op": "state"
+    },
+    {
+     "op": "msg",
+     "id": 1,
+     "ok": true,
+     "rows": [
+      {
+       "id": "x",
+       "title": "t-x"
+      }
+     ]
+    },
+    {
+     "op": "state"
+    },
+    {
+     "op": "read",
+     "tag": "b"
+    },
+    {
+     "op": "msg",
+     "id": 2,
+     "ok": true,
+     "rows": []
+    },
+    {
+     "op": "wait",
+     "ms": 250
+    },
+    {
+     "op": "state"
+    },
+    {
+     "op": "read",
+     "tag": "c"
+    },
+    {
+     "op": "msg",
+     "id": 3,
+     "ok": true,
+     "rows": [
+      {
+       "id": "y",
+       "title": "t-y"
+      }
+     ]
+    },
+    {
+     "op": "shutdown"
+    },
+    {
+     "op": "state"
+    }
+   ],
+   "log": [
+    "spawn#1",
+    "unref#1",
+    "ref#1",
+    "post#1:1:/db/a.sqlite",
+    "state:inProc=false:running=true",
+    "unref#1",
+    "a:ok:[{\"id\":\"x\",\"title\":\"t-x\"}]",
+    "state:inProc=false:running=true",
+    "ref#1",
+    "post#1:2:/db/b.sqlite",
+    "unref#1",
+    "b:ok:[]",
+    "term#1",
+    "state:inProc=false:running=false",
+    "spawn#2",
+    "unref#2",
+    "ref#2",
+    "post#2:3:/db/c.sqlite",
+    "unref#2",
+    "c:ok:[{\"id\":\"y\",\"title\":\"t-y\"}]",
+    "term#2",
+    "state:inProc=false:running=false"
+   ]
+  },
+  {
+   "name": "errReply",
+   "opts": {
+    "spawn": "fake"
+   },
+   "steps": [
+    {
+     "op": "read",
+     "tag": "a"
+    },
+    {
+     "op": "msg",
+     "id": 1,
+     "ok": false,
+     "message": "no db"
+    },
+    {
+     "op": "msg",
+     "id": 9,
+     "ok": true,
+     "rows": []
+    },
+    {
+     "op": "state"
+    },
+    {
+     "op": "shutdown"
+    }
+   ],
+   "log": [
+    "spawn#1",
+    "unref#1",
+    "ref#1",
+    "post#1:1:/db/a.sqlite",
+    "unref#1",
+    "a:err:no db",
+    "state:inProc=false:running=true",
+    "term#1"
+   ]
+  },
+  {
+   "name": "errorEvent",
+   "opts": {
+    "spawn": "fake"
+   },
+   "steps": [
+    {
+     "op": "read",
+     "tag": "a"
+    },
+    {
+     "op": "read",
+     "tag": "b"
+    },
+    {
+     "op": "error",
+     "message": "kaboom"
+    },
+    {
+     "op": "state"
+    },
+    {
+     "op": "msg",
+     "id": 1,
+     "ok": true,
+     "rows": []
+    },
+    {
+     "op": "read",
+     "tag": "c"
+    },
+    {
+     "op": "msg",
+     "id": 3,
+     "ok": true,
+     "rows": [
+      {
+       "id": "z",
+       "title": "t-z"
+      }
+     ]
+    },
+    {
+     "op": "shutdown"
+    }
+   ],
+   "log": [
+    "spawn#1",
+    "unref#1",
+    "ref#1",
+    "post#1:1:/db/a.sqlite",
+    "post#1:2:/db/b.sqlite",
+    "term#1",
+    "a:err:kaboom",
+    "b:err:kaboom",
+    "state:inProc=false:running=false",
+    "spawn#2",
+    "unref#2",
+    "ref#2",
+    "post#2:3:/db/c.sqlite",
+    "unref#2",
+    "c:ok:[{\"id\":\"z\",\"title\":\"t-z\"}]",
+    "term#2"
+   ]
+  },
+  {
+   "name": "threeExits",
+   "opts": {
+    "spawn": "fake"
+   },
+   "steps": [
+    {
+     "op": "read",
+     "tag": "a"
+    },
+    {
+     "op": "exit",
+     "code": 1
+    },
+    {
+     "op": "read",
+     "tag": "b"
+    },
+    {
+     "op": "exit",
+     "code": 2
+    },
+    {
+     "op": "read",
+     "tag": "c"
+    },
+    {
+     "op": "exit",
+     "code": 3
+    },
+    {
+     "op": "state"
+    },
+    {
+     "op": "read",
+     "tag": "d"
+    },
+    {
+     "op": "state"
+    }
+   ],
+   "log": [
+    "spawn#1",
+    "unref#1",
+    "ref#1",
+    "post#1:1:/db/a.sqlite",
+    "term#1",
+    "a:err:Codex index worker exited (1)",
+    "spawn#2",
+    "unref#2",
+    "ref#2",
+    "post#2:2:/db/b.sqlite",
+    "term#2",
+    "b:err:Codex index worker exited (2)",
+    "spawn#3",
+    "unref#3",
+    "ref#3",
+    "post#3:3:/db/c.sqlite",
+    "term#3",
+    "c:err:Codex index worker exited (3)",
+    "state:inProc=true:running=false",
+    "local:/db/d.sqlite",
+    "d:ok:[{\"id\":\"local\",\"title\":\"t-local\"}]",
+    "state:inProc=true:running=false"
+   ]
+  },
+  {
+   "name": "resetCrashes",
+   "opts": {
+    "spawn": "fake",
+    "maxCrashes": 2
+   },
+   "steps": [
+    {
+     "op": "read",
+     "tag": "a"
+    },
+    {
+     "op": "exit",
+     "code": 1
+    },
+    {
+     "op": "read",
+     "tag": "b"
+    },
+    {
+     "op": "msg",
+     "id": 2,
+     "ok": true,
+     "rows": []
+    },
+    {
+     "op": "read",
+     "tag": "c"
+    },
+    {
+     "op": "exit",
+     "code": 1
+    },
+    {
+     "op": "state"
+    },
+    {
+     "op": "read",
+     "tag": "d"
+    },
+    {
+     "op": "error",
+     "message": "e2"
+    },
+    {
+     "op": "state"
+    }
+   ],
+   "log": [
+    "spawn#1",
+    "unref#1",
+    "ref#1",
+    "post#1:1:/db/a.sqlite",
+    "term#1",
+    "a:err:Codex index worker exited (1)",
+    "spawn#2",
+    "unref#2",
+    "ref#2",
+    "post#2:2:/db/b.sqlite",
+    "unref#2",
+    "b:ok:[]",
+    "ref#2",
+    "post#2:3:/db/c.sqlite",
+    "term#2",
+    "c:err:Codex index worker exited (1)",
+    "state:inProc=false:running=false",
+    "spawn#3",
+    "unref#3",
+    "ref#3",
+    "post#3:4:/db/d.sqlite",
+    "term#3",
+    "d:err:e2",
+    "state:inProc=true:running=false"
+   ]
+  },
+  {
+   "name": "timeouts",
+   "opts": {
+    "spawn": "fake",
+    "timeoutMs": 40,
+    "maxCrashes": 1
+   },
+   "steps": [
+    {
+     "op": "read",
+     "tag": "a"
+    },
+    {
+     "op": "wait",
+     "ms": 200
+    },
+    {
+     "op": "state"
+    },
+    {
+     "op": "read",
+     "tag": "b"
+    },
+    {
+     "op": "wait",
+     "ms": 200
+    },
+    {
+     "op": "state"
+    },
+    {
+     "op": "msg",
+     "id": 2,
+     "ok": true,
+     "rows": []
+    },
+    {
+     "op": "shutdown"
+    }
+   ],
+   "log": [
+    "spawn#1",
+    "unref#1",
+    "ref#1",
+    "post#1:1:/db/a.sqlite",
+    "term#1",
+    "a:err:Codex index query timed out",
+    "state:inProc=false:running=false",
+    "spawn#2",
+    "unref#2",
+    "ref#2",
+    "post#2:2:/db/b.sqlite",
+    "term#2",
+    "b:err:Codex index query timed out",
+    "state:inProc=false:running=false"
+   ]
+  },
+  {
+   "name": "postThrows",
+   "opts": {
+    "spawn": "fakeThrowPost"
+   },
+   "steps": [
+    {
+     "op": "read",
+     "tag": "a"
+    },
+    {
+     "op": "state"
+    },
+    {
+     "op": "wait",
+     "ms": 120
+    },
+    {
+     "op": "state"
+    }
+   ],
+   "log": [
+    "spawn#1",
+    "unref#1",
+    "ref#1",
+    "post#1:1:/db/a.sqlite",
+    "unref#1",
+    "a:err:DataCloneError",
+    "state:inProc=false:running=true",
+    "state:inProc=false:running=true"
+   ]
+  },
+  {
+   "name": "shutdownPending",
+   "opts": {
+    "spawn": "fake"
+   },
+   "steps": [
+    {
+     "op": "read",
+     "tag": "a"
+    },
+    {
+     "op": "read",
+     "tag": "b"
+    },
+    {
+     "op": "shutdown"
+    },
+    {
+     "op": "state"
+    },
+    {
+     "op": "shutdown"
+    }
+   ],
+   "log": [
+    "spawn#1",
+    "unref#1",
+    "ref#1",
+    "post#1:1:/db/a.sqlite",
+    "post#1:2:/db/b.sqlite",
+    "term#1",
+    "a:err:Codex index reader closed",
+    "b:err:Codex index reader closed",
+    "state:inProc=false:running=false"
+   ]
+  },
+  {
+   "name": "idleCancelled",
+   "opts": {
+    "spawn": "fake",
+    "idleMs": 120
+   },
+   "steps": [
+    {
+     "op": "read",
+     "tag": "a"
+    },
+    {
+     "op": "msg",
+     "id": 1,
+     "ok": true,
+     "rows": []
+    },
+    {
+     "op": "wait",
+     "ms": 30
+    },
+    {
+     "op": "read",
+     "tag": "b"
+    },
+    {
+     "op": "wait",
+     "ms": 200
+    },
+    {
+     "op": "state"
+    },
+    {
+     "op": "msg",
+     "id": 2,
+     "ok": true,
+     "rows": []
+    },
+    {
+     "op": "shutdown"
+    }
+   ],
+   "log": [
+    "spawn#1",
+    "unref#1",
+    "ref#1",
+    "post#1:1:/db/a.sqlite",
+    "unref#1",
+    "a:ok:[]",
+    "ref#1",
+    "post#1:2:/db/b.sqlite",
+    "state:inProc=false:running=true",
+    "unref#1",
+    "b:ok:[]",
+    "term#1"
+   ]
+  }
+ ]
+}
