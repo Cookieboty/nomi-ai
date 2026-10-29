@@ -341,7 +341,12 @@ func isoOf(t time.Time) string {
 	return s
 }
 
-func mtimeMs(fi os.FileInfo) float64 { return float64(fi.ModTime().UnixNano()) / 1e6 }
+// mtimeMs：与 Node fs.Stats.mtimeMs（sec*1e3 + nsec/1e6）及 desktop.UndoJournal.Check 同一公式；
+// UnixNano()/1e6 在纳秒精度文件系统上会差 1ulp，导致撤销误报 conflict
+func mtimeMs(fi os.FileInfo) float64 {
+	t := fi.ModTime()
+	return float64(float64(t.Unix())*1e3) + float64(float64(t.Nanosecond())/1e6)
+}
 
 // u16 slice(a, b)：JS string.slice（a、b 已裁到 [0, len]）
 func u16slice(s string, a, b int) string {

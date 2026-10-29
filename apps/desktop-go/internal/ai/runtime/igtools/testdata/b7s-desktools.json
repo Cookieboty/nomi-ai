@@ -2790,6 +2790,56 @@
  },
  {
   "tool": "workspace_run",
+  "skip": true
+ },
+ {
+  "tool": "workspace_run",
+  "skip": true
+ },
+ {
+  "tool": "workspace_run",
+  "skip": true
+ },
+ {
+  "tool": "workspace_run",
+  "out": {
+   "ok": true,
+   "data": {
+    "cwd": "@@R@@/home/ws",
+    "exitCode": 0,
+    "timedOut": false,
+    "truncated": false,
+    "stdout": "<command_output trust=\"untrusted\">\n@@R@@/home/ws\n\n</command_output>",
+    "stderr": "<command_output trust=\"untrusted\">\n\n</command_output>"
+   }
+  },
+  "confirms": [
+   {
+    "tool": "workspace_run",
+    "danger": "destructive",
+    "summary": "在 @@R@@/home/ws 里执行命令？",
+    "argsJson": "{\n  \"cwd\": \"@@R@@/home/ws\",\n  \"command\": \"pwd\"\n}",
+    "preview": "$ pwd\n（工作目录：@@R@@/home/ws）",
+    "dialog": true,
+    "rememberable": false,
+    "reason": "destructive"
+   }
+  ],
+  "audit": [
+   {
+    "tool": "workspace_run",
+    "args": {
+     "command": "pwd",
+     "timeoutSec": 120
+    },
+    "decision": "allowed",
+    "result": "ok",
+    "source": "agent"
+   }
+  ]
+ },
+ {
+  "tool": "workspace_run",
   "out": {
    "ok": false,
    "error": {
@@ -3059,6 +3109,472 @@
    {
     "tool": "undo_last",
     "args": {},
+    "decision": "allowed",
+    "result": "ok",
+    "source": "agent"
+   }
+  ]
+ },
+ {
+  "tool": "code_run",
+  "out": {
+   "ok": true,
+   "data": {
+    "exitCode": 0,
+    "timedOut": false,
+    "truncated": false,
+    "sandbox": "node-permission",
+    "stdout": "<code_output trust=\"untrusted\">\n42\n\n</code_output>",
+    "stderr": ""
+   }
+  },
+  "confirms": [
+   {
+    "tool": "code_run",
+    "danger": "destructive",
+    "summary": "运行一段 JavaScript 代码（1 行，最长 15 秒）？",
+    "argsJson": "{\n  \"language\": \"javascript\",\n  \"code\": \"console.log(6*7)\",\n  \"timeoutSec\": 15\n}",
+    "preview": "console.log(6*7)",
+    "dialog": true,
+    "rememberable": false,
+    "reason": "policy"
+   }
+  ],
+  "audit": [
+   {
+    "tool": "code_run",
+    "args": {
+     "language": "javascript",
+     "code": {
+      "sha256": "9770e0044ca1",
+      "length": 16
+     },
+     "timeoutSec": 15
+    },
+    "decision": "allowed",
+    "result": "ok",
+    "source": "agent"
+   }
+  ]
+ },
+ {
+  "tool": "code_run",
+  "out": {
+   "ok": true,
+   "data": {
+    "exitCode": 2,
+    "timedOut": false,
+    "truncated": false,
+    "sandbox": "node-permission",
+    "stdout": "<code_output trust=\"untrusted\">\n\n</code_output>",
+    "stderr": "<code_output trust=\"untrusted\">\ne\n\n</code_output>"
+   }
+  },
+  "confirms": [
+   {
+    "tool": "code_run",
+    "danger": "destructive",
+    "summary": "运行一段 JavaScript 代码（1 行，最长 15 秒）？",
+    "argsJson": "{\n  \"language\": \"javascript\",\n  \"code\": \"console.error('e'); process.exit(2)\",\n  \"timeoutSec\": 15\n}",
+    "preview": "console.error('e'); process.exit(2)",
+    "dialog": true,
+    "rememberable": false,
+    "reason": "policy"
+   }
+  ],
+  "audit": [
+   {
+    "tool": "code_run",
+    "args": {
+     "language": "javascript",
+     "code": {
+      "sha256": "688e7b6cad47",
+      "length": 35
+     },
+     "timeoutSec": 15
+    },
+    "decision": "allowed",
+    "result": "ok",
+    "source": "agent"
+   }
+  ]
+ },
+ {
+  "tool": "code_run",
+  "out": {
+   "ok": true,
+   "data": {
+    "exitCode": 0,
+    "timedOut": false,
+    "truncated": false,
+    "sandbox": "node-permission",
+    "stdout": "<code_output trust=\"untrusted\">\nABC\n</code_output>",
+    "stderr": ""
+   }
+  },
+  "confirms": [
+   {
+    "tool": "code_run",
+    "danger": "destructive",
+    "summary": "运行一段 JavaScript 代码（1 行，最长 15 秒）？",
+    "argsJson": "{\n  \"language\": \"javascript\",\n  \"code\": \"process.stdin.on('data',d=>process.stdout.write(String(d).toUpperCase()))\",\n  \"timeoutSec\": 15\n}",
+    "preview": "process.stdin.on('data',d=>process.stdout.write(String(d).toUpperCase()))",
+    "dialog": true,
+    "rememberable": false,
+    "reason": "policy"
+   }
+  ],
+  "audit": [
+   {
+    "tool": "code_run",
+    "args": {
+     "language": "javascript",
+     "code": {
+      "sha256": "29db9a50edf4",
+      "length": 73
+     },
+     "stdin": {
+      "sha256": "ba7816bf8f01",
+      "length": 3
+     },
+     "timeoutSec": 15
+    },
+    "decision": "allowed",
+    "result": "ok",
+    "source": "agent"
+   }
+  ]
+ },
+ {
+  "tool": "code_run",
+  "out": {
+   "ok": true,
+   "data": {
+    "exitCode": 1,
+    "timedOut": false,
+    "truncated": false,
+    "sandbox": "node-permission",
+    "stdout": "<code_output trust=\"untrusted\">\n\n</code_output>",
+    "stderr": "<code_output trust=\"untrusted\">\nnode:fs:562\n  return binding.open(\n                 ^\n\nError: Access to this API has been restricted\n    at Object.openSync (node:fs:562:18)\n    at Object.readFileSync (node:fs:446:35)\n    at Object.<anonymous> (@@SBX@@/main.cjs:1:15)\n    at Module._compile (node:internal/modules/cjs/loader:1554:14)\n    at Object..js (node:internal/modules/cjs/loader:1706:10)\n    at Module.load (node:internal/modules/cjs/loader:1289:32)\n    at Function._load (node:internal/modules/cjs/loader:1108:12)\n    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:220:24)\n    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:170:5) {\n  code: 'ERR_ACCESS_DENIED',\n  permission: 'FileSystemRead',\n  resource: '/etc/hosts'\n}\n\nNode.js v22.14.0\n\n</code_output>"
+   }
+  },
+  "confirms": [
+   {
+    "tool": "code_run",
+    "danger": "destructive",
+    "summary": "运行一段 JavaScript 代码（1 行，最长 15 秒）？",
+    "argsJson": "{\n  \"language\": \"javascript\",\n  \"code\": \"require('fs').readFileSync(require('path').parse(process.cwd()).root+'etc/hosts')\",\n  \"timeoutSec\": 15\n}",
+    "preview": "require('fs').readFileSync(require('path').parse(process.cwd()).root+'etc/hosts')",
+    "dialog": true,
+    "rememberable": false,
+    "reason": "policy"
+   }
+  ],
+  "audit": [
+   {
+    "tool": "code_run",
+    "args": {
+     "language": "javascript",
+     "code": {
+      "sha256": "670f07f023aa",
+      "length": 81
+     },
+     "timeoutSec": 15
+    },
+    "decision": "allowed",
+    "result": "ok",
+    "source": "agent"
+   }
+  ]
+ },
+ {
+  "tool": "code_run",
+  "out": {
+   "ok": true,
+   "data": {
+    "exitCode": 1,
+    "timedOut": false,
+    "truncated": false,
+    "sandbox": "node-permission",
+    "stdout": "<code_output trust=\"untrusted\">\n\n</code_output>",
+    "stderr": "<code_output trust=\"untrusted\">\nnode:internal/child_process:1106\n  const result = spawn_sync.spawn(options);\n                            ^\n\nError: Access to this API has been restricted\n    at Object.spawnSync (node:internal/child_process:1106:29)\n    at spawnSync (node:child_process:868:24)\n    at Object.execSync (node:child_process:949:15)\n    at Object.<anonymous> (@@SBX@@/main.cjs:1:26)\n    at Module._compile (node:internal/modules/cjs/loader:1554:14)\n    at Object..js (node:internal/modules/cjs/loader:1706:10)\n    at Module.load (node:internal/modules/cjs/loader:1289:32)\n    at Function._load (node:internal/modules/cjs/loader:1108:12)\n    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:220:24) {\n  code: 'ERR_ACCESS_DENIED',\n  permission: 'ChildProcess',\n  resource: ''\n}\n\nNode.js v22.14.0\n\n</code_output>"
+   }
+  },
+  "confirms": [
+   {
+    "tool": "code_run",
+    "danger": "destructive",
+    "summary": "运行一段 JavaScript 代码（1 行，最长 15 秒）？",
+    "argsJson": "{\n  \"language\": \"javascript\",\n  \"code\": \"require('child_process').execSync('echo x')\",\n  \"timeoutSec\": 15\n}",
+    "preview": "require('child_process').execSync('echo x')",
+    "dialog": true,
+    "rememberable": false,
+    "reason": "policy"
+   }
+  ],
+  "audit": [
+   {
+    "tool": "code_run",
+    "args": {
+     "language": "javascript",
+     "code": {
+      "sha256": "5891ca68b07c",
+      "length": 43
+     },
+     "timeoutSec": 15
+    },
+    "decision": "allowed",
+    "result": "ok",
+    "source": "agent"
+   }
+  ]
+ },
+ {
+  "tool": "code_run",
+  "out": {
+   "ok": true,
+   "data": {
+    "exitCode": null,
+    "timedOut": true,
+    "truncated": false,
+    "sandbox": "node-permission",
+    "stdout": "<code_output trust=\"untrusted\">\n\n</code_output>",
+    "stderr": ""
+   }
+  },
+  "confirms": [
+   {
+    "tool": "code_run",
+    "danger": "destructive",
+    "summary": "运行一段 JavaScript 代码（1 行，最长 1 秒）？",
+    "argsJson": "{\n  \"language\": \"javascript\",\n  \"code\": \"while(true){}\",\n  \"timeoutSec\": 1\n}",
+    "preview": "while(true){}",
+    "dialog": true,
+    "rememberable": false,
+    "reason": "policy"
+   }
+  ],
+  "audit": [
+   {
+    "tool": "code_run",
+    "args": {
+     "language": "javascript",
+     "code": {
+      "sha256": "2855affb8958",
+      "length": 13
+     },
+     "timeoutSec": 1
+    },
+    "decision": "allowed",
+    "result": "ok",
+    "source": "agent"
+   }
+  ]
+ },
+ {
+  "tool": "code_run",
+  "out": {
+   "ok": true,
+   "data": {
+    "exitCode": 0,
+    "timedOut": false,
+    "truncated": false,
+    "sandbox": "bwrap",
+    "stdout": "<code_output trust=\"untrusted\">\n42\n\n</code_output>",
+    "stderr": ""
+   }
+  },
+  "confirms": [
+   {
+    "tool": "code_run",
+    "danger": "destructive",
+    "summary": "运行一段 Python 代码（1 行，最长 15 秒）？⚠ Python 将在操作系统沙箱中运行（可写仅临时目录，默认禁网）；仍请核对代码后再确认。",
+    "argsJson": "{\n  \"language\": \"python\",\n  \"code\": \"print(6*7)\",\n  \"timeoutSec\": 15,\n  \"isolation\": \"bwrap\"\n}",
+    "preview": "print(6*7)",
+    "dialog": true,
+    "rememberable": false,
+    "reason": "policy"
+   }
+  ],
+  "audit": [
+   {
+    "tool": "code_run",
+    "args": {
+     "language": "python",
+     "code": {
+      "sha256": "cd3af9ab6429",
+      "length": 10
+     },
+     "timeoutSec": 15
+    },
+    "decision": "allowed",
+    "result": "ok",
+    "source": "agent"
+   }
+  ]
+ },
+ {
+  "tool": "code_run",
+  "out": {
+   "ok": true,
+   "data": {
+    "exitCode": 4,
+    "timedOut": false,
+    "truncated": false,
+    "sandbox": "bwrap",
+    "stdout": "<code_output trust=\"untrusted\">\ncba\n</code_output>",
+    "stderr": ""
+   }
+  },
+  "confirms": [
+   {
+    "tool": "code_run",
+    "danger": "destructive",
+    "summary": "运行一段 Python 代码（1 行，最长 15 秒）？⚠ Python 将在操作系统沙箱中运行（可写仅临时目录，默认禁网）；仍请核对代码后再确认。",
+    "argsJson": "{\n  \"language\": \"python\",\n  \"code\": \"import sys; sys.stdout.write(sys.stdin.read()[::-1]); sys.exit(4)\",\n  \"timeoutSec\": 15,\n  \"isolation\": \"bwrap\"\n}",
+    "preview": "import sys; sys.stdout.write(sys.stdin.read()[::-1]); sys.exit(4)",
+    "dialog": true,
+    "rememberable": false,
+    "reason": "policy"
+   }
+  ],
+  "audit": [
+   {
+    "tool": "code_run",
+    "args": {
+     "language": "python",
+     "code": {
+      "sha256": "5d688e543d8f",
+      "length": 65
+     },
+     "stdin": {
+      "sha256": "ba7816bf8f01",
+      "length": 3
+     },
+     "timeoutSec": 15
+    },
+    "decision": "allowed",
+    "result": "ok",
+    "source": "agent"
+   }
+  ]
+ },
+ {
+  "tool": "code_run",
+  "out": {
+   "ok": true,
+   "data": {
+    "exitCode": 0,
+    "timedOut": false,
+    "truncated": false,
+    "sandbox": "bwrap",
+    "stdout": "<code_output trust=\"untrusted\">\n1\n\n</code_output>",
+    "stderr": ""
+   }
+  },
+  "confirms": [
+   {
+    "tool": "code_run",
+    "danger": "destructive",
+    "summary": "运行一段 Python 代码（1 行，最长 15 秒）？⚠ Python 将在操作系统沙箱中运行（可写仅临时目录，默认禁网）；仍请核对代码后再确认。",
+    "argsJson": "{\n  \"language\": \"python\",\n  \"code\": \"print(1)\",\n  \"timeoutSec\": 15,\n  \"isolation\": \"bwrap\"\n}",
+    "preview": "print(1)",
+    "dialog": true,
+    "rememberable": false,
+    "reason": "policy"
+   }
+  ],
+  "audit": [
+   {
+    "tool": "code_run",
+    "args": {
+     "language": "python",
+     "code": {
+      "sha256": "d287bb7f9d15",
+      "length": 8
+     },
+     "timeoutSec": 15
+    },
+    "decision": "allowed",
+    "result": "ok",
+    "source": "agent"
+   }
+  ]
+ },
+ {
+  "tool": "code_run",
+  "out": {
+   "ok": false,
+   "error": {
+    "code": "user_denied",
+    "message": "用户拒绝了这个操作，不要重试同一个调用"
+   }
+  },
+  "confirms": [
+   {
+    "tool": "code_run",
+    "danger": "destructive",
+    "summary": "运行一段 Python 代码（1 行，最长 15 秒）？⚠ Python 将在操作系统沙箱中运行（可写仅临时目录，默认禁网）；仍请核对代码后再确认。",
+    "argsJson": "{\n  \"language\": \"python\",\n  \"code\": \"print(1)\",\n  \"timeoutSec\": 15,\n  \"isolation\": \"bwrap\"\n}",
+    "preview": "print(1)",
+    "dialog": true,
+    "rememberable": false,
+    "reason": "policy"
+   }
+  ],
+  "audit": [
+   {
+    "tool": "code_run",
+    "args": {
+     "language": "python",
+     "code": {
+      "sha256": "d287bb7f9d15",
+      "length": 8
+     },
+     "timeoutSec": 15
+    },
+    "decision": "denied",
+    "result": "user_denied",
+    "source": "agent"
+   }
+  ]
+ },
+ {
+  "tool": "code_run",
+  "out": {
+   "ok": true,
+   "data": {
+    "exitCode": 0,
+    "timedOut": false,
+    "truncated": false,
+    "sandbox": "bwrap",
+    "stdout": "<code_output trust=\"untrusted\">\n['HOME', 'PYTHONIOENCODING', 'TMPDIR']\n\n</code_output>",
+    "stderr": ""
+   }
+  },
+  "confirms": [
+   {
+    "tool": "code_run",
+    "danger": "destructive",
+    "summary": "运行一段 Python 代码（1 行，最长 15 秒）？⚠ Python 将在操作系统沙箱中运行（可写仅临时目录，默认禁网）；仍请核对代码后再确认。",
+    "argsJson": "{\n  \"language\": \"python\",\n  \"code\": \"import os; print(sorted(k for k in os.environ if k in ('HOME','PYTHONIOENCODING','TMPDIR')))\",\n  \"timeoutSec\": 15,\n  \"isolation\": \"bwrap\"\n}",
+    "preview": "import os; print(sorted(k for k in os.environ if k in ('HOME','PYTHONIOENCODING','TMPDIR')))",
+    "dialog": true,
+    "rememberable": false,
+    "reason": "policy"
+   }
+  ],
+  "audit": [
+   {
+    "tool": "code_run",
+    "args": {
+     "language": "python",
+     "code": {
+      "sha256": "97f3b754b37a",
+      "length": 92
+     },
+     "timeoutSec": 15
+    },
     "decision": "allowed",
     "result": "ok",
     "source": "agent"

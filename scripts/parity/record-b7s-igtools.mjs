@@ -177,7 +177,7 @@ await b.host.dispose();
 fs.rmSync(b.SBP, { recursive: true, force: true });
 
 const out = { list, schemas, meta, exec };
-fs.writeFileSync(path.join(TD, 'b7s-igtools.json'), JSON.stringify(out, null, 1).split(SB).join('@@SB@@') + '\n');
+fs.writeFileSync(path.join(TD, 'b7s-igtools.json'), JSON.stringify(out, null, 1).split(JSON.stringify(SB).slice(1, -1)).join('@@SB@@').split(SB).join('@@SB@@') + '\n'); // Windows：JSON 文本里路径反斜杠被转义
 fs.rmSync(SB, { recursive: true, force: true });
 fs.rmSync(UD, { recursive: true, force: true });
 console.log(`b7s-igtools: ${list.length} tools, ${exec.length} exec cases`);

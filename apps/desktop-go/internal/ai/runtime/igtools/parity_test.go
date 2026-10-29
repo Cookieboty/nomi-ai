@@ -310,7 +310,8 @@ func TestIgToolsParityGolden(t *testing.T) {
 		}
 		got := r.run(t, c)
 		want := golden.Exec[i]
-		gs := strings.ReplaceAll(mustJSON(got), r.h.sb, "@@SB@@")
+		esb, _ := json.Marshal(r.h.sb) // Windows：JSON 文本里反斜杠被转义
+		gs := strings.ReplaceAll(strings.ReplaceAll(mustJSON(got), string(esb[1:len(esb)-1]), "@@SB@@"), r.h.sb, "@@SB@@")
 		var gn any
 		_ = json.Unmarshal([]byte(gs), &gn)
 		if !reflect.DeepEqual(gn, norm(t, want)) {
