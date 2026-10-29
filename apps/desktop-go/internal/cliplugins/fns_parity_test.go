@@ -1,6 +1,7 @@
 package cliplugins_test
 
 import (
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/paritytest"
 	"os"
 	"runtime"
 	"testing"
@@ -105,7 +106,8 @@ var fnRegistry = map[string]func(args []any) any{
 
 // TestFnParity 回放 scripts/parity/record-b7-fns.mjs 录下的 Node 纯函数输出，逐字节比对 JSON。
 func TestFnParity(t *testing.T) {
-	raw, err := os.ReadFile("testdata/fns.json")
+	gp, live := paritytest.Golden(t, "fns.json", "testdata/fns.json")
+	raw, err := os.ReadFile(gp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,8 +123,8 @@ func TestFnParity(t *testing.T) {
 		if run == nil {
 			t.Fatalf("case %d: no Go impl for %s", i, fn)
 		}
-		if posixOnly[fn] && runtime.GOOS == "windows" {
-			continue // 录制于 POSIX（path.join 分隔符）；Windows 路径行为见各包 *_windows_test.go
+		if posixOnly[fn] && runtime.GOOS == "windows" && !live {
+			continue // 提交的 golden 录制于 POSIX（path.join 分隔符）；Windows CI 比对现场 Node 录制（live）
 		}
 		args, _ := co.Get("args").([]any)
 		want := util.Stringify(co.Get("out"))

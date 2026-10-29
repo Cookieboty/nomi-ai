@@ -1,22 +1,26 @@
-//go:build !windows
-
 package launch
 
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
-	"syscall"
 	"testing"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/paritytest"
 )
 
 // TestLaunchParity 回放 scripts/parity/record-b7-launch.mjs 录下的 Node 场景：逐步返回值 + 最终目录树。
 func TestLaunchParity(t *testing.T) {
-	raw, err := os.ReadFile("testdata/launch.json")
+	gp, live := paritytest.Golden(t, "launch.json", "testdata/launch.json")
+	if !live && runtime.GOOS == "windows" {
+		t.Log("committed golden is POSIX; Windows compares against the live CI recording (NOMI_LIVE_GOLDENS)")
+		return
+	}
+	raw, err := os.ReadFile(gp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -24,13 +28,15 @@ func TestLaunchParity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	old := syscall.Umask(0o022)
-	defer syscall.Umask(old)
+	defer setUmask(0o022)()
 	for _, sc := range v.([]any) {
 		sco := sc.(*util.Obj)
 		name := sco.Get("name").(string)
 		t.Run(name, func(t *testing.T) {
-			S, _ := filepath.EvalSymlinks(t.TempDir())
+			S, err := realpathNative(t.TempDir())
+			if err != nil {
+				t.Fatal(err)
+			}
 			sub := func(x any) string { return strings.ReplaceAll(x.(string), "$S", S) }
 			results := []any{}
 			for _, op := range sco.Get("ops").([]any) {
@@ -69,7 +75,7 @@ func TestLaunchParity(t *testing.T) {
 				case "canonicalDir":
 					r = CanonicalDir(sub(o.Get("p")))
 				case "linkShared":
-					if s := LinkShared(sub(o.Get("target")), sub(o.Get("link")), o.Get("dir").(bool), "linux"); s != "" {
+					if s := LinkShared(sub(o.Get("target")), sub(o.Get("link")), o.Get("dir").(bool), nodePlatform()); s != "" {
 						r = s
 					}
 				case "ensureSharedHome":
@@ -79,13 +85,13 @@ func TestLaunchParity(t *testing.T) {
 						c, _ := eo.Get("createIfMissing").(bool)
 						ents = append(ents, clisdk.SharedEntry{Name: eo.Get("name").(string), Dir: eo.Get("dir").(bool), CreateIfMissing: c})
 					}
-					r = problemsOut(EnsureSharedHome(sub(o.Get("dir")), sub(o.Get("userDir")), ents, "linux"))
+					r = problemsOut(EnsureSharedHome(sub(o.Get("dir")), sub(o.Get("userDir")), ents, nodePlatform()))
 				case "ensurePrivateHome":
 					keep := []string{}
 					for _, k := range o.Get("keepPrivate").([]any) {
 						keep = append(keep, k.(string))
 					}
-					r = problemsOut(EnsurePrivateHome(sub(o.Get("dir")), sub(o.Get("userDir")), o.Get("shared").(string), keep, "linux"))
+					r = problemsOut(EnsurePrivateHome(sub(o.Get("dir")), sub(o.Get("userDir")), o.Get("shared").(string), keep, nodePlatform()))
 				}
 				if s, ok := r.(string); ok {
 					r = strings.ReplaceAll(s, S, "$S")
@@ -107,6 +113,14 @@ func TestLaunchParity(t *testing.T) {
 			}
 		})
 	}
+}
+
+// nodePlatform = process.platform。
+func nodePlatform() string {
+	if runtime.GOOS == "windows" {
+		return "win32"
+	}
+	return runtime.GOOS
 }
 
 func strsAny(l []string) []any {
@@ -139,10 +153,10 @@ func snapshot(S string) []any {
 		for _, n := range names {
 			p := filepath.Join(d, n)
 			st, _ := os.Lstat(p)
-			rel := "$S" + p[len(S):]
+			rel := "$S" + filepath.ToSlash(p[len(S):])
 			switch {
-			case st.Mode()&os.ModeSymlink != 0:
-				to, _ := os.Readlink(p)
+			case isLink(st):
+				to, _ := readlinkNode(p)
 				out = append(out, util.NewObj("p", rel, "t", "l", "to", strings.ReplaceAll(to, S, "$S")))
 			case st.IsDir():
 				out = append(out, util.NewObj("p", rel, "t", "d", "m", float64(st.Mode().Perm())))

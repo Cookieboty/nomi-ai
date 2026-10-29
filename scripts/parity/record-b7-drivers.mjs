@@ -71,3 +71,12 @@ writeFileSync(
   `${JSON.stringify(out, null, 1)}\n`,
 );
 console.log(`recorded ${out.length} scenarios, ${out.reduce((a, s) => a + s.log.length, 0)} entries`);
+
+// 批次 7 其余录制器随本脚本一起在 CI 各平台现场录制（desktop-go.yml 只调用本脚本）：
+// launch（只依赖 cli-sdk dist）与 fns（需先 build cli-plugins）。
+if (process.env.NOMI_GOLDEN_DIR) {
+  const { execFileSync, execSync } = await import('node:child_process');
+  execFileSync(process.execPath, [join(here, 'record-b7-launch.mjs')], { stdio: 'inherit' });
+  execSync('pnpm --filter @nomi-ai/cli-plugins build', { stdio: 'inherit', cwd: root });
+  execFileSync(process.execPath, [join(here, 'record-b7-fns.mjs')], { stdio: 'inherit' });
+}

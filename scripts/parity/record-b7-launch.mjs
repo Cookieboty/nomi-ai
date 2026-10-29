@@ -3,7 +3,7 @@
  * 批次 7：cli-sdk launch（applyLaunchEnv / writeLaunchFiles / canonicalDir / linkShared / ensureSharedHome /
  * ensurePrivateHome）的场景金标。每个场景 = 一串 JSON 操作，在临时沙箱里由 Node 执行，记录每步返回值与
  * 最终目录树快照（lstat 类型、软链目标、权限、内容）；Go 侧 internal/clisdk/launch/launch_parity_test.go 执行同一串操作比对。
- * 路径中的沙箱前缀写作 $S。POSIX 录制（Windows 的 junction 行为由 launch_windows_test.go 按 libuv 文档逻辑单测）。
+ * 路径中的沙箱前缀写作 $S。提交的是 Linux 录制；CI 在 mac/win 现场录制（Windows 上目录共享走 junction）。
  */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -71,7 +71,7 @@ function snapshot(S) {
     for (const n of fs.readdirSync(d).sort()) {
       const p = path.join(d, n);
       const st = fs.lstatSync(p);
-      const rel = '$S' + p.slice(S.length);
+      const rel = '$S' + p.slice(S.length).split(path.sep).join('/');
       if (st.isSymbolicLink()) out.push({ p: rel, t: 'l', to: fs.readlinkSync(p).split(S).join('$S') });
       else if (st.isDirectory()) { out.push({ p: rel, t: 'd', m: st.mode & 0o777 }); walk(p); }
       else out.push({ p: rel, t: 'f', m: st.mode & 0o777, c: fs.readFileSync(p, 'utf8') });
@@ -82,12 +82,12 @@ function snapshot(S) {
 }
 
 const sub = (S, v) => (typeof v === 'string' ? v.split('$S').join(S) : Array.isArray(v) ? v.map((x) => sub(S, x)) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, sub(S, x)])) : v);
-const unsub = (S, v) => JSON.parse(JSON.stringify(v ?? null).split(S).join('$S'));
+const unsub = (S, v) => (typeof v === 'string' ? v.split(S).join('$S') : Array.isArray(v) ? v.map((x) => unsub(S, x)) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, unsub(S, x)])) : v ?? null);
 
 process.umask(0o022);
 const res = [];
 for (const sc of SCEN) {
-  const S = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'b7l-')));
+  const S = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'b7l-')));
   const results = [];
   for (const raw of sc.ops) {
     const o = sub(S, raw);
@@ -110,7 +110,8 @@ for (const sc of SCEN) {
   res.push({ ...sc, results, tree: snapshot(S) });
   fs.rmSync(S, { recursive: true, force: true });
 }
-const file = path.join(root, 'apps/desktop-go/internal/clisdk/launch/testdata/launch.json');
+// NOMI_GOLDEN_DIR：CI 按平台现场录制（record-b7-drivers.mjs 串联调用），不覆盖提交的 POSIX golden
+const file = path.join(process.env.NOMI_GOLDEN_DIR || path.join(root, 'apps/desktop-go/internal/clisdk/launch/testdata'), 'launch.json');
 fs.mkdirSync(path.dirname(file), { recursive: true });
 fs.writeFileSync(file, JSON.stringify(res, null, 1) + '\n');
 console.log('wrote', res.length, 'scenarios');

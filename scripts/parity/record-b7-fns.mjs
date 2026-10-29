@@ -6,7 +6,7 @@
  * （undefined 记为 null 字段 "undef":true）。Go 侧 fns_parity_test.go 按 fn 名注册回放。
  * Usage: (先 build packages/cli-sdk、cli-plugins) node scripts/parity/record-b7-fns.mjs
  */
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -152,6 +152,9 @@ const out = cases.map((c) => {
   return { fn: c.fn, args: c.args.map((a) => (a === undefined ? { $undef: true } : a)), out: r === undefined ? { $undef: true } : r };
 });
 void S;
-const file = join(root, 'apps/desktop-go/internal/cliplugins/testdata/fns.json');
+// NOMI_GOLDEN_DIR：CI 按平台现场录制（record-b7-drivers.mjs 串联调用），不覆盖提交的 golden
+const outDir = process.env.NOMI_GOLDEN_DIR || join(root, 'apps/desktop-go/internal/cliplugins/testdata');
+mkdirSync(outDir, { recursive: true });
+const file = join(outDir, 'fns.json');
 writeFileSync(file, J(out, null, 1) + '\n');
 console.log(`wrote ${out.length} cases → ${file}`);
