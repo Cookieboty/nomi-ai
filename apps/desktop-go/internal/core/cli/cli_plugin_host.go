@@ -5,6 +5,7 @@ package cli
 
 import (
 	"errors"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/nodefs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -597,8 +598,12 @@ func (h *CliPluginHost) TestExternalInTemp(raw any) *jsrt.Promise[*util.Obj] {
 		if err != nil {
 			return nil, err
 		}
-		defer os.RemoveAll(dir)
-		return jsrt.Await(h.TestExternal(raw, dir))
+		r, err := jsrt.Await(h.TestExternal(raw, dir))
+		// finally { rmSync(dir, {recursive, force}) }：清理抛错覆盖结果（Windows 子进程未退时 EBUSY）
+		if rerr := nodefs.RmForce(dir); rerr != nil {
+			return nil, rerr
+		}
+		return r, err
 	})
 }
 
