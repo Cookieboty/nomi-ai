@@ -45,7 +45,10 @@ export const ELECTRON_DYNAMIC_ALLOWLIST = [
   // P4 清空：electron-caps 的插件能力（截屏 / 剪贴板 / 安全存储 / 快捷键 / 会话存储）改由宿主在插件配置里注入
 ];
 
-/** 不得依赖 electron 的包（§3.2、§11.1）；尚未建立的包也先列上 */
+/**
+ * 不得依赖 electron 的包（§3.2、§11.1）：内核、契约、端口、无界面宿主、角色契约 / 运行时，
+ * 以及内核的全部依赖包。cli-plugins 有自己更严的入口边界（eslint.config.mjs），不在此列。
+ */
 export const ELECTRON_FREE_PACKAGES = [
   'contract',
   'host-ports',
@@ -53,4 +56,12 @@ export const ELECTRON_FREE_PACKAGES = [
   'character-contract',
   'core',
   'avatar-runtime',
+  'ai-runtime',
+  'ai-sdk',
+  'gateway',
+  'cli-sdk',
+  'bundle-ig-base',
+  'bundle-ig-mascot',
+  'i18n',
+  'types',
 ];

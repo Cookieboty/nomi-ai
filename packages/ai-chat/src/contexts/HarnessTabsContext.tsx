@@ -2,7 +2,7 @@
  * 对话标签状态：主进程是唯一数据源（标签元数据 + CLI 标签消息），这里只做订阅与缓存。
  * 标签 'main' 为原有对话（消息走 AiChatContext）；其它标签只绑定编程助手后端。
  */
-import { isBuiltinCliId } from '@nomi-ai/cli-plugins';
+import { isBuiltinCliId } from '@nomi-ai/cli-plugins/catalog';
 import { t } from '@nomi-ai/ui';
 import React, {
   createContext,

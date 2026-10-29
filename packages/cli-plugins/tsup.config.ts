@@ -5,6 +5,7 @@ export default createTsup({
   preset: 'node-lib',
   entry: {
     index: 'src/index.ts',
+    catalog: 'src/catalog.ts',
     main: 'src/main.ts',
     gateways: 'src/gateways.ts',
     'claude/manifest': 'src/claude/manifest.ts',

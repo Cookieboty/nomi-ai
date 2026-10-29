@@ -1,4 +1,4 @@
-import type { BuiltinCliId } from '@nomi-ai/cli-plugins';
+import type { BuiltinCliId } from '@nomi-ai/cli-plugins/catalog';
 
 import type { HarnessTraceEvent, HarnessUsage } from '../services/harnessClient';
 

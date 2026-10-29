@@ -23,6 +23,36 @@ const CHARACTER_PACK_IMPORT = {
     '不能直接 import characters/*：角色包只经包解析读取（docs/design/core-host-decoupling.md §11.1）。',
 };
 
+// 宿主包（host-electron、host-node 以及以后的 host-*）不 import 视图包（§3.2）：
+// 视图只以构建产物被宿主加载；宿主可用的视图侧代码只有契约客户端的传输适配（ai-sdk-client/preload）。
+const HOST_VIEW_IMPORT = {
+  group: [
+    '@nomi-ai/ai-chat',
+    '@nomi-ai/ai-chat/*',
+    '@nomi-ai/renderer',
+    '@nomi-ai/renderer/*',
+    '@nomi-ai/ui',
+    '@nomi-ai/ui/*',
+    '@nomi-ai/voice',
+    '@nomi-ai/voice/*',
+    '@nomi-ai/avatar-runtime',
+    '@nomi-ai/avatar-runtime/*',
+    '**/ai-chat/src/**',
+    '**/renderer/src/**',
+    '**/ui/src/**',
+    '**/voice/src/**',
+    '**/avatar-runtime/src/**',
+  ],
+  message:
+    '宿主不能依赖视图包：视图只以构建产物被宿主加载（docs/design/core-host-decoupling.md §3.2）。',
+};
+
+// 视图只能用 cli-plugins 的纯数据目录：其余子路径（main、<cli>/main 等）含 Node 实现（§3.2）
+const VIEW_CLI_PLUGINS_IMPORT = {
+  regex: '^@nomi-ai/cli-plugins(?!/catalog$)(?:/.*)?$',
+  message: '视图只能 import @nomi-ai/cli-plugins/catalog（纯数据）；其余入口含 Node 实现（§3.2）。',
+};
+
 export default tseslint.config(
   {
     ignores: [
@@ -130,6 +160,7 @@ export default tseslint.config(
               ],
               message: '视图不能依赖内核与宿主：只经契约客户端（services/api）访问（§11.1）。',
             },
+            VIEW_CLI_PLUGINS_IMPORT,
             CHARACTER_PACK_IMPORT,
           ],
         },
@@ -203,6 +234,13 @@ export default tseslint.config(
   // Electron 边界（docs/design/core-host-decoupling.md §7.2、§11.1、§12 P0）：
   // packages/host-electron/src 里只有宿主区域能 import electron；P0 时已有的业务模块列在
   // scripts/eslint/electron-boundary.mjs 的白名单里（shrink only, see docs/design/core-host-decoupling.md §12）。
+  // 所有宿主包的兜底规则；下面针对具体宿主的规则覆盖 no-restricted-imports 时都带上 HOST_VIEW_IMPORT
+  {
+    files: ['packages/host-*/**/*.{ts,tsx,mts,cts,js,mjs,cjs}'],
+    rules: {
+      'no-restricted-imports': ['error', { patterns: [CHARACTER_PACK_IMPORT, HOST_VIEW_IMPORT] }],
+    },
+  },
   {
     files: ['packages/host-electron/src/**/*.{ts,tsx,mts,cts,js,mjs,cjs}'],
     ignores: [...ELECTRON_HOST_FILES, ...ELECTRON_IMPORT_ALLOWLIST],
@@ -217,14 +255,14 @@ export default tseslint.config(
                 '业务模块不能直接依赖 electron：平台能力走宿主端口，窗口广播走事件（docs/design/core-host-decoupling.md §6）；宿主代码放 src/host/。',
             },
           ],
-          patterns: [CHARACTER_PACK_IMPORT],
+          patterns: [CHARACTER_PACK_IMPORT, HOST_VIEW_IMPORT],
         },
       ],
     },
   },
   // 内核 / 契约 / 端口 / 角色契约等包整个都不能依赖 electron（§3.2、§11.1）
-  {
-    files: ELECTRON_FREE_PACKAGES.map((p) => `packages/${p}/**/*.{ts,tsx,mts,cts,js,mjs,cjs}`),
+  ...ELECTRON_FREE_PACKAGES.map((p) => ({
+    files: [`packages/${p}/**/*.{ts,tsx,mts,cts,js,mjs,cjs}`],
     rules: {
       'no-restricted-imports': [
         'error',
@@ -236,11 +274,11 @@ export default tseslint.config(
                 '这个包不能依赖 electron（docs/design/core-host-decoupling.md §3.2、§11.1）。',
             },
           ],
-          patterns: [CHARACTER_PACK_IMPORT],
+          patterns: [CHARACTER_PACK_IMPORT, ...(p.startsWith('host-') ? [HOST_VIEW_IMPORT] : [])],
         },
       ],
     },
-  },
+  })),
   // 内核（@nomi-ai/core）的依赖方向（docs/design/core-host-decoupling.md §3.2、§11.1）：不依赖 electron
   // （包括 electron-updater 这类只能在 Electron 里跑的包），也不依赖宿主包、视图包与 ui。
   // 宿主能力经 @nomi-ai/host-ports 的端口注入，视图只经契约访问内核。
