@@ -59,10 +59,12 @@ func IsOutcome(v any) bool {
 func outcomeOf(v any) string { s, _ := v.(string); return s }
 
 var (
-	reFirstByte  = regexp.MustCompile(`(?i)首字|first.?byte|没有响应`)
-	reIdle       = regexp.MustCompile(`(?i)没有任何输出|idle`)
+	// JS /i（无 u 标志）只做 ASCII 大小写折叠（Go (?i) 还会把 ſ / K 折成 s / k）；JS 的 . 是一个 UTF-16 单元、不含行终止符
+	jsDot        = `[^\n\r\x{2028}\x{2029}\x{10000}-\x{10FFFF}]`
+	reFirstByte  = regexp.MustCompile(`首字|[Ff][Ii][Rr][Ss][Tt]` + jsDot + `?[Bb][Yy][Tt][Ee]|没有响应`)
+	reIdle       = regexp.MustCompile(`没有任何输出|[Ii][Dd][Ll][Ee]`)
 	reBreak      = regexp.MustCompile(`结束标记|上游中断|断开`)
-	reRepetition = regexp.MustCompile(`(?i)复读|repetition`)
+	reRepetition = regexp.MustCompile(`复读|[Rr][Ee][Pp][Ee][Tt][Ii][Tt][Ii][Oo][Nn]`)
 )
 
 // DeriveOutcome = deriveOutcome(status, error, hasProvider)

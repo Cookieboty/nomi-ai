@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/tools"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/runtime/igtools"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/delegate"
@@ -113,7 +114,7 @@ var _ delegate.Harness = delegateHarness{}
 // 账号（AccountService）提供 history 的 accountLabel / sessionAccount；网关提供 delegate 的 harnessGateway（defaults / models）
 // 与 history 的 gatewaySession = gateway.servedSession（gw 为 nil 时依赖为空，Node 侧可选）；
 // history.delete 的 trash = ports.shell.trashItem（internal/shell/trash）。
-func wireCoding(router *contract.Router, userData string, plugins *cli.CliPluginHost, d *desktop.Service, gw *gwstore.Service) {
+func wireCoding(router *contract.Router, userData string, plugins *cli.CliPluginHost, d *desktop.Service, gw *gwstore.Service, reg tools.Registry) {
 	o, acc := harnessOrch, harnessAccounts
 	var updates *cli.CliUpdateService
 	var err error
@@ -147,6 +148,12 @@ func wireCoding(router *contract.Router, userData string, plugins *cli.CliPlugin
 		gatewaySession = gw.ServedSession
 	}
 	dlg := delegate.New(dd)
+	// DesktopToolsPlugin：delegate.tools() 覆盖 registerIgTools 的占位（保持插入位置），dangerous 未声明
+	if reg != nil {
+		for _, def := range igtools.WithDangerousUnset(dlg.Tools()) {
+			reg.Register(def)
+		}
+	}
 	history := jsrt.Call(func() *cli.SessionHistoryService {
 		return cli.NewSessionHistoryService(cli.SessionHistoryDeps{
 			Logger:         historyLog{},

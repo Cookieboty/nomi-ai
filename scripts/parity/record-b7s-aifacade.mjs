@@ -59,7 +59,14 @@ async function run(sc) {
       svc.attachHost(m.bridge.createIpcMascotHost((cue) => events.push({ event: 'avatar.event', data: cue })));
     },
   });
-  const plugins = [{ plugin: m.caps.FileSessionStorePlugin, config: { rootDir: SB } }];
+  // tools/wrap 观察者（生产装配里无人监听；只记录 ToolsFacade.confirm 发出的载荷）
+  const wrapSpy = definePlugin({
+    name: 'ToolsWrapSpy',
+    apply(ctx) {
+      ctx.on('tools/wrap', (h) => events.push({ event: 'hook:tools/wrap', data: h.payload }));
+    },
+  });
+  const plugins = [{ plugin: m.caps.FileSessionStorePlugin, config: { rootDir: SB } }, { plugin: wrapSpy, config: {} }];
   if (sc.registry !== false) plugins.push({ plugin: ToolsBuiltinPlugin, config: { enable: [] } });
   if (sc.profile !== false) plugins.push({ plugin: UserPreferenceMemoryPlugin, config: { exposeAsTools: false } });
   if (sc.avatar !== false) {
@@ -81,6 +88,11 @@ async function run(sc) {
   for (const st of sc.steps) {
     if (st.tick) clock += st.tick;
     const rec = { p: st.p ?? null };
+    if (st.hook) {
+      // 插件事件（ctx.emit）：经 AIClient 桥 → 契约事件
+      const payload = 'payload' in st.hook ? m.wire.decodeWireFrame(JSON.stringify(st.hook.payload)) : undefined;
+      host.ctx.emit(st.hook.event, payload);
+    }
     if (st.p) {
       const input = 'in' in st ? m.wire.decodeWireFrame(JSON.stringify(st.in).replace(/"\$s(\d+)"/g, (_, n) => JSON.stringify(ids[n - 1]))) : undefined;
       try {

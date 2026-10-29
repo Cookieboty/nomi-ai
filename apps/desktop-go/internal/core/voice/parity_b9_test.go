@@ -523,7 +523,9 @@ func TestParityB9Exec(t *testing.T) {
 	}
 }
 
-// D-B9-4：edge X-Timestamp = V8 Date#toString；时区长名表由 Node Intl 生成
+// D-B9-4：edge X-Timestamp = V8 Date#toString。时区名取决于 ICU 版本：真实 2.0.4 跑 Electron 44.9.3
+// （ICU 78.2），CI 的独立 Node 带 ICU 78.3，名不同（如 Europe/London 标准名 "GMT+00:00" vs
+// "Greenwich Mean Time"）。故本测试始终比对仓库内由 Electron 录制的 golden，不用 live 重录。
 func TestParityB9JSDate(t *testing.T) {
 	var g struct {
 		JSDate []struct {
@@ -532,7 +534,7 @@ func TestParityB9JSDate(t *testing.T) {
 		}
 		JSDateInstants []int64
 	}
-	raw, err := os.ReadFile(goldenPath())
+	raw, err := os.ReadFile(filepath.Join("testdata", "parity-b9.json"))
 	if err != nil {
 		t.Skip(err)
 	}

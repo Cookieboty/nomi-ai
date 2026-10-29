@@ -472,6 +472,10 @@ func (s *ObjS) run(v any) (any, []*issue) {
 		o, fi := f.S.run(val)
 		iss = append(iss, prefix(f.K, fi)...)
 		if !in.Has(f.K) {
+			if _, isDef := f.S.(defaultS); isDef {
+				out.Set(f.K, o)
+				continue
+			}
 			if len(fi) == 0 {
 				iss = append(iss, &issue{kv: []any{"code", "invalid_type", "expected", "nonoptional"}, path: []any{f.K},
 					msg: "Invalid input: expected nonoptional, received undefined"})
@@ -600,3 +604,43 @@ func (s discS) run(v any) (any, []*issue) {
 		"discriminator", s.Key, "options", opts}, path: []any{s.Key},
 		msg: "Invalid discriminator value. Expected " + strings.Join(quoted, " | ")}}
 }
+
+// defaultS = .default(v)：undefined → v（不跑内层）
+type defaultS struct {
+	S Schema
+	V func() any
+}
+
+func (d defaultS) run(v any) (any, []*issue) {
+	if isUndef(v) {
+		return d.V(), nil
+	}
+	return d.S.run(v)
+}
+
+// Default = .default(v)（v 每次求值，对象默认值不共享）
+func Default(s Schema, v func() any) Schema { return defaultS{s, v} }
+
+// refineS = .refine(fn, { message })：内层无中止 issue 时才跑
+type refineS struct {
+	S   Schema
+	Fn  func(any) bool
+	Msg string
+}
+
+func (r refineS) run(v any) (any, []*issue) {
+	out, iss := r.S.run(v)
+	if aborted(iss) {
+		return out, iss
+	}
+	if !r.Fn(out) {
+		iss = append(iss, &issue{kv: []any{"code", "custom"}, msg: r.Msg})
+	}
+	return out, iss
+}
+
+// Refine = .refine(fn, { message })
+func Refine(s Schema, fn func(any) bool, msg string) Schema { return refineS{s, fn, msg} }
+
+// ZodError：ZodError（message = JSON.stringify(issues, null, 2)）
+func ZodError(iss []*issue) error { return zodError(iss) }

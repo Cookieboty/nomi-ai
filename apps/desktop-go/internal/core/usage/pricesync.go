@@ -3,9 +3,11 @@ package usage
 
 import (
 	"context"
+	"errors"
 	"io"
 	"math"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -18,6 +20,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/utils"
 	gwnet "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/net"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 )
 
 const PriceSyncURL = "https://models.dev/api.json"
@@ -345,19 +348,99 @@ func (c *psCache) obj() *util.Obj {
 		Set("tableDate", c.tableDate).Set("entries", es)
 }
 
-// PriceFetch：发请求（默认 net/http + undici 的 content-encoding 解码，跟随重定向）
+// PriceFetch：发请求（默认 = Node 全局 fetch(url, {redirect:'follow', credentials:'omit'}) 的 undici 语义）
 type PriceFetch func(req *http.Request) (*http.Response, error)
 
+// psClient：不让 net/http 自己跟随重定向（它会加 Referer、按「子域」规则保留凭据头、上限 10 跳），
+// 由 defaultPriceFetch 按 undici httpRedirectFetch 逐跳处理。
+var psClient = &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+
+// errFetchFailed：undici 网络错误（String(e) = "TypeError: fetch failed"）
+var errFetchFailed = jsrt.JSThrow{Name: "TypeError", Message: "fetch failed"}
+
+// psFetchDefaults：Node 全局 fetch 缺省补的请求头（大小写不敏感判断；规范名写入，否则 net/http 会再补自己的 User-Agent）
+func psFetchDefaults(h http.Header) {
+	for _, kv := range [][2]string{{"accept", "*/*"}, {"accept-language", "*"}, {"sec-fetch-mode", "cors"}, {"user-agent", "node"}} {
+		found := false
+		for k := range h {
+			if strings.EqualFold(k, kv[0]) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			h.Set(kv[0], kv[1])
+		}
+	}
+}
+
+func psDelHeader(h http.Header, name string) {
+	for k := range h {
+		if strings.EqualFold(k, name) {
+			delete(h, k)
+		}
+	}
+}
+
+func psSameOrigin(a, b *url.URL) bool {
+	port := func(u *url.URL) string {
+		if p := u.Port(); p != "" {
+			return p
+		}
+		if u.Scheme == "https" {
+			return "443"
+		}
+		return "80"
+	}
+	return a.Scheme == b.Scheme && strings.EqualFold(a.Hostname(), b.Hostname()) && port(a) == port(b)
+}
+
+// defaultPriceFetch：undici 的重定向规则——301/302/303/307/308 且有 Location 才跟随；第 21 跳网络错误；
+// Location 非 http(s) 或解析失败 → 网络错误；303（或 301/302 + POST）改 GET；跨源时删除
+// authorization / proxy-authorization / cookie / host（删除是累积的）；不加 Referer。
 func defaultPriceFetch(req *http.Request) (*http.Response, error) {
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	if err := gwnet.DecodeUndiciResponse(req.Method, resp); err != nil {
+	cur := req.Clone(req.Context())
+	psFetchDefaults(cur.Header)
+	for count := 0; ; count++ {
+		resp, err := psClient.Do(cur)
+		if err != nil {
+			if req.Context().Err() != nil {
+				return nil, req.Context().Err()
+			}
+			return nil, errFetchFailed
+		}
+		loc := resp.Header.Get("Location")
+		switch resp.StatusCode {
+		case 301, 302, 303, 307, 308:
+		default:
+			loc = ""
+		}
+		if loc == "" {
+			if err := gwnet.DecodeUndiciResponse(cur.Method, resp); err != nil {
+				resp.Body.Close()
+				return nil, err
+			}
+			return resp, nil
+		}
 		resp.Body.Close()
-		return nil, err
+		next, err := cur.URL.Parse(loc)
+		if err != nil || (next.Scheme != "http" && next.Scheme != "https") || count == 20 {
+			return nil, errFetchFailed
+		}
+		method := cur.Method
+		if resp.StatusCode == 303 && method != http.MethodGet && method != http.MethodHead ||
+			(resp.StatusCode == 301 || resp.StatusCode == 302) && method == http.MethodPost {
+			method = http.MethodGet
+		}
+		nr, _ := http.NewRequestWithContext(req.Context(), method, next.String(), nil)
+		nr.Header = cur.Header.Clone()
+		if !psSameOrigin(cur.URL, next) {
+			for _, h := range []string{"authorization", "proxy-authorization", "cookie", "host"} {
+				psDelHeader(nr.Header, h)
+			}
+		}
+		cur = nr
 	}
-	return resp, nil
 }
 
 type PriceSyncDeps struct {
@@ -476,7 +559,7 @@ func (p *PriceSync) save() {
 	go func() {
 		<-pr.Done()
 		if _, err := pr.Result(); err != nil && p.d.Logger != nil {
-			p.d.Logger.Warn("price sync cache write failed", "Error: "+err.Error())
+			p.d.Logger.Warn("price sync cache write failed", jsString(err))
 		}
 	}()
 }
@@ -539,10 +622,11 @@ func (p *PriceSync) Sync() PriceSyncResult {
 	}
 	res, err := doFetch(req)
 	if err != nil {
-		warn("price sync failed", err.Error())
 		if ctx.Err() != nil {
+			warn("price sync failed", psAbortText)
 			return PriceSyncResult{Reason: "timeout"}
 		}
+		warn("price sync failed", jsString(err))
 		return PriceSyncResult{Reason: "network"}
 	}
 	defer res.Body.Close()
@@ -567,10 +651,11 @@ func (p *PriceSync) Sync() PriceSyncResult {
 	}
 	body, err := io.ReadAll(io.LimitReader(res.Body, psMaxBodyBytes+1))
 	if err != nil {
-		warn("price sync body failed", err.Error())
 		if ctx.Err() != nil {
+			warn("price sync body failed", psAbortText)
 			return PriceSyncResult{Reason: "timeout"}
 		}
+		warn("price sync body failed", "TypeError: terminated")
 		return PriceSyncResult{Reason: "network"}
 	}
 	if len(body) > psMaxBodyBytes {
@@ -586,7 +671,7 @@ func (p *PriceSync) Sync() PriceSyncResult {
 	}
 	if p.d.OnData != nil {
 		if err := p.d.OnData(api); err != nil {
-			warn("models data consumer failed", err.Error())
+			warn("models data consumer failed", jsString(err))
 		}
 	}
 	lmS, lmOK := psHeader(res.Header, "Last-Modified")
@@ -607,4 +692,19 @@ func (p *PriceSync) Sync() PriceSyncResult {
 	p.save()
 	p.mu.Unlock()
 	return PriceSyncResult{OK: true, Status: "updated", Count: len(ex.Entries), Skipped: ex.Skipped}
+}
+
+// psAbortText：String(DOMException AbortError)
+const psAbortText = "AbortError: This operation was aborted"
+
+// jsString = String(e)：JS 抛出值按 `${name}: ${message}`，其它 Go 错误当作 Error
+func jsString(err error) string {
+	var t jsrt.JSThrow
+	if errors.As(err, &t) {
+		if t.Name == "" {
+			return "Error: " + t.Message
+		}
+		return t.Name + ": " + t.Message
+	}
+	return "Error: " + err.Error()
 }

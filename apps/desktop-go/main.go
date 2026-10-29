@@ -270,6 +270,14 @@ func main() {
 	shellhandlers.InstallProviders(router, providerSvc)
 	// ToolRegistry（ig ctx 的 ToolRegistryKey）+ MCP 桥（AiSdkMcpPlugin / McpBridgePlugin）+ ext.attach（desktop/plugin.ts）
 	toolRegistry := tools.NewInMemory()
+	// 画像落 userData/ai-chat/memory/user_profile.json；引导期 export() 同 createAiSdkBooter。
+	nowMs := func() float64 { return float64(time.Now().UnixMilli()) }
+	userProfile := aifacade.NewProfileStore(aifacade.ProfilePath(userData), nowMs)
+	userProfile.Export()
+	// 非 MCP 的 ig 工具（parity b7s-igtools）：builtin → preference → companion → kb → mem → delegate → ext；
+	// Node 的 MCP 工具在异步 connect 后才注册，排在这些之后
+	var aiFacade *aifacade.Facade
+	registerIgTools(toolRegistry, userProfile, &aiFacade, b8.KB, b8.Mem, b8.Ext, desktopSvc)
 	mcpLog := mcpLogger{}
 	mcpSvc := mcpbridge.New(mcpbridge.Options{
 		GetRegistry: func() tools.Registry { return toolRegistry },
@@ -303,12 +311,9 @@ func main() {
 	chatHandlers.Register(router)
 	defer chatHandlers.Dispose()
 	// AIClient 门面：ai.sessions / tools / memory / asr / tts / avatar（32 过程，parity b7s-aifacade）。
-	// 画像落 userData/ai-chat/memory/user_profile.json；引导期 export() 同 createAiSdkBooter。
-	nowMs := func() float64 { return float64(time.Now().UnixMilli()) }
-	userProfile := aifacade.NewProfileStore(aifacade.ProfilePath(userData), nowMs)
-	userProfile.Export()
-	aifacade.New(aifacade.Options{Now: nowMs, Tools: toolRegistry, Profile: userProfile, Avatar: true,
-		AvatarHost: func(cue *util.Obj) { router.Emit("avatar.event", cue) }, Emit: router.Emit}).Register(router)
+	aiFacade = aifacade.New(aifacade.Options{Now: nowMs, Tools: toolRegistry, Profile: userProfile, Avatar: true,
+		AvatarHost: func(cue *util.Obj) { router.Emit("avatar.event", cue) }, Emit: router.Emit})
+	aiFacade.Register(router)
 	shellhandlers.InstallGateway(router, gatewaySvc)
 	shellhandlers.InstallTerminal(router, shellhandlers.NewGatewayTerminal(userData, gatewaySvc, deps.StdLogger{Prefix: "[gateway]"}))
 	// 批次 9：语音输入（voice.*）/ 朗读（tts.*）/ nav.openVoiceSettings
@@ -365,7 +370,7 @@ func main() {
 	gatewayRequests := wireGatewayRequests(userData, shellP)
 	defer gatewayRequests.Dispose()
 	cliPlugins, disposeHarness := wireHarness(router, userData, home, ports, gatewaySvc, shellP.Quality)
-	wireCoding(router, userData, cliPlugins, desktopSvc, gatewaySvc)
+	wireCoding(router, userData, cliPlugins, desktopSvc, gatewaySvc, toolRegistry)
 	defer wireAgents(router, userData, desktopSvc)()
 	wireScreenAndPending(router, userData, rootLog, desktopSvc)
 	defer disposeHarness()
