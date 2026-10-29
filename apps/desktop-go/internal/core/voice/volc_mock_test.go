@@ -44,7 +44,9 @@ func newMockVolc(t *testing.T) *mockVolc {
 	return m
 }
 
-func (m *mockVolc) url() string { return "ws://" + m.ln.Addr().String() + "/api/v3/sauc/bigmodel_async" }
+func (m *mockVolc) url() string {
+	return "ws://" + m.ln.Addr().String() + "/api/v3/sauc/bigmodel_async"
+}
 
 func srvFrame(op byte, payload []byte) []byte {
 	b := []byte{0x80 | op}
@@ -134,7 +136,7 @@ func (m *mockVolc) serve(c net.Conn) {
 	}
 }
 
-func itoa(n int) string { return strings.TrimSpace(strings.Repeat(" ", 0) + jsonNum(n)) }
+func itoa(n int) string    { return strings.TrimSpace(strings.Repeat(" ", 0) + jsonNum(n)) }
 func jsonNum(n int) string { b, _ := json.Marshal(n); return string(b) }
 
 func resultFrame(text string, last bool) []byte {
