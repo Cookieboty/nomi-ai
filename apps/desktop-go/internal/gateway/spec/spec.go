@@ -1,6 +1,6 @@
 // Package spec mirrors the constant tables of packages/gateway/src/spec/*.ts
-// that the stream / canonical layers depend on. The per-wire validators
-// (WireSpec.validate) are ported together with the server (batch 4b).
+// that the stream / canonical layers depend on; validate.go holds the
+// per-wire validators (WireSpec).
 package spec
 
 import "regexp"

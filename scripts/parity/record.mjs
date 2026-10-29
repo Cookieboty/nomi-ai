@@ -21,7 +21,7 @@
  *   e2e      – the real GatewayServer against a local mock upstream per protocol,
  *              recording the raw streamed chunks the client receives
  *
- * Usage: node scripts/parity/record.mjs [--only request,stream,json,fixes,e2e]
+ * Usage: node scripts/parity/record.mjs [--only request,stream,json,fixes,spec,e2e]
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -260,6 +260,43 @@ if (want('fixes')) {
     fail,
     json,
   });
+}
+
+/* ---------------------------------- spec --------------------------------- */
+if (want('spec')) {
+  const spec = await gw('src/spec/index.ts');
+  const texts = [];
+  for (const from of Object.keys(cases.upstreamSse))
+    for (const text of [...cases.upstreamSse[from], ...(extraSse[from] ?? [])]) {
+      texts.push([from, text]);
+      for (const to of WIRES) {
+        const c = stream.createStreamConverter(from, to, convOpts);
+        const out = c.push(text) + c.end();
+        texts.push([to, out]);
+        texts.push([to, out.slice(0, safeCut(out, Math.floor(out.length / 2)))]);
+        const f = stream.createStreamConverter(from, to, convOpts);
+        texts.push([to, f.push(text.slice(0, safeCut(text, Math.floor(text.length / 3)))) + f.fail('boom')]);
+      }
+    }
+  const broken = {
+    chat: ['data: {"choices":[{"delta":{"content":[1]},"finish_reason":""}]}\n\n', 'data: nope\n\ndata: {"x":1}\n\n', 'data: {"choices":[{"delta":{"tool_calls":[{"function":{"arguments":{}}}]},"finish_reason":"weird"}]}\n\ndata: {"choices":[]}\n\ndata: {"choices":[{}]}\n\n'],
+    messages: ['event: content_block_delta\ndata: {"index":3}\n\n', 'data: {"type":"message_start","message":{"id":"m"}}\n\ndata: {"type":"content_block_start","index":1}\n\ndata: {"type":"content_block_stop","index":0}\n\ndata: {"type":"bogus"}\n\ndata: {"type":"message_stop"}\n\ndata: {"type":"ping"}\n\ndata: {"type":"message_delta","delta":{"stop_reason":"end_turn"}}\n\n'],
+    responses: ['data: {"type":"response.output_text.delta","item_id":"x"}\n\ndata: {"type":"response.output_item.done","sequence_number":1,"item":{"type":"message","id":"y","content":[{"type":"output_text"}]}}\n\ndata: {"type":"response.completed","sequence_number":2,"response":{"output":[{"type":"function_call"},{"type":7}]}}\n\ndata: {"type":"x"}\n\n'],
+    gemini: ['data: {"candidates":[{"finishReason":"MALFORMED_FUNCTION_CALL"}]}\n\ndata: {"candidates":[]}\n\ndata: {"usageMetadata":{}}\n\n', 'data: {"promptFeedback":{"blockReason":"SAFETY"}}\n\n', 'data: {"foo":1}\n\n'],
+  };
+  for (const [w, list] of Object.entries(broken)) for (const t of list) texts.push([w, t]);
+  const out = texts.map(([wire, text], i) => {
+    const evs = spec.parseSpecEvents(text);
+    const s = spec.specOf(wire);
+    return {
+      name: `spec#${i}/${wire}`,
+      wire,
+      input: text,
+      violations: s.validate(evs),
+      flags: evs.map((e) => `${+s.isTerminal(e)}${+s.isContent(e)}${+s.isError(e)}`).join(','),
+    };
+  });
+  write('spec', { cases: out });
 }
 
 if (want('e2e')) {

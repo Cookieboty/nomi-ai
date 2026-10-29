@@ -106,7 +106,7 @@ func (p *Parser) Push(chunk string) []Event {
 // End flushes a trailing event without a blank-line terminator.
 func (p *Parser) End() []Event {
 	rest := p.split.Take()
-	if strings.TrimSpace(rest) == "" {
+	if u.JSTrim(rest) == "" {
 		return nil
 	}
 	if ev, ok := parseBlock(rest); ok {
@@ -138,7 +138,7 @@ func parseBlock(block string) (Event, bool) {
 			data = append(data, value)
 		}
 	}
-	if len(data) == 0 && event == nil {
+	if len(data) == 0 && (event == nil || *event == "") { // JS `!event`
 		return Event{}, false
 	}
 	return Event{Event: event, Data: strings.Join(data, "\n")}, true
