@@ -363,7 +363,8 @@ func savedAuthModes(v any) ([]string, map[string]AuthInfo) {
 			info.FP = &f
 		}
 		if p, ok := r.Get("plan").(string); ok {
-			info.Plan = util.UTF16Slice0(p, 64)
+			v := util.UTF16Slice0(p, 64)
+			info.Plan = &v
 		}
 		out[id] = info
 		ids = append(ids, id)
@@ -1245,7 +1246,10 @@ func (s *UsageService) refreshClaude(active bool) *ToolRefresh {
 			return &ToolRefresh{State: "fresh-local"}
 		}
 		epoch := s.quotaEpoch
-		plan := cl.Plan
+		plan := "" // fetch(plan) 只看真值：nil / "" 同为无
+		if cl.Plan != nil {
+			plan = *cl.Plan
+		}
 		r, _ := jsrt.Await(s.claudeCache.Refresh(cl.FP, func() *jsrt.Promise[FetchOutcome] { return s.claudeFetcher.Fetch(plan) }))
 		if r.State == "auth" && epoch == s.quotaEpoch {
 			s.dropClaudeQuota()
