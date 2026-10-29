@@ -179,6 +179,10 @@ Go 版**1:1 镜像** Node 版：模块边界、包/层结构、数据格式、�
 | D20 | ~~纯数字参数名在 JS 对象里排最前~~ **已消除** | `util.Obj.Set` 按 JS 规则：数组下标型键（0…2^32-2）升序在前，其余按插入顺序；fixture `objkeys.json` + `fixes.json` 新增用例 | 无行为差异 |
 | D21 | ~~主机名未按 WHATWG 规范化~~ **已消除** | `net.ParseURL/WhatwgHost` 实现 WHATWG 主机解析（小写、IDNA/UTS46、IPv4 十六进制/八进制/简写、IPv6 压缩、默认端口去掉），报错文案与 Node 一致；fixture `net.json` urls 33/33 | 无行为差异 |
 | D22 | ~~代理环境变量处理不同~~ **已消除** | 按 undici 7 EnvHttpProxyAgent 复刻：`http_proxy`/`https_proxy`（小写优先、空串算已设置，https 退回 http）；`ALL_PROXY` 和 Node 一样只用于判断"代理环境已开启"，并不真走代理；`no_proxy` 每次请求现读（`*`、`host:port`、`.后缀`）；一律 CONNECT 隧道，请求头顺序与 Node 一致，仅 HTTP/1.1；支持 socks5；钉 IP 只对目标主机。fixture `proxy.json` 38/38 | 无行为差异（钉 IP 用 context 而非 AsyncLocalStorage，仅实现方式不同） |
+| D-B10-1 | 岛的显示模式恒为 `pill` | Node 在 macOS 上探测刘海屏决定 notch/pill；Go 不探测，`island.get` 的 mode 恒为 pill；`island.test` 只弹出岛窗口 | 刘海屏 Mac 上岛不贴刘海显示 |
+| D-B10-2 | 角色包校验是宽松子集 | 只校验必要字段和文件存在（manifest、引导 4 个文件、rive/static、sprite、voice、locales、persona），不跑 zod、不出 warnings、不做旧格式迁移；旧 mapping 直接丢弃。fixture `mascothandlers/testdata/parity.json`（无覆盖包 / 用户覆盖包）快照与 Node 一致 | 不合规的包 Node 报 warning 仍加载，Go 可能直接回退内置包 |
+| D-B10-3 | 看板娘物理/漫游/点击穿透未移植 | `mascot.setShape`/`setHit`/`setInteractionConfig`/`wanderNow` 收下即返回（no-op），`mascot.debugSnapshot` 仍是 UNAVAILABLE；拖动、缩放（尺寸计算 fixture 全对上）、置顶、位置已实现 | 透明区域不会点击穿透；不会自己走动 |
+| D-B10-4 | 渲染器选择引导卡在 POC 对话页 | 新设置 `mascot.renderer`（svg\|rive，默认 svg，升级用户也是 svg）；引导最后一张「想让诺米动起来吗？」（默认焦点「保持静态」，无 WebGL 时隐藏「开启动画」）暂放在 POC 对话页、用 localStorage 只问一次，等引导页迁过来再挪 | 无 |
 
 ### 3.5 一致性测试策略（golden，Node 与 Go 同输入对比输出）
 
