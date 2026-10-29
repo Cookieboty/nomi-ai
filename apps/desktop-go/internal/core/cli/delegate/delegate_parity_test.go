@@ -560,25 +560,6 @@ type fakeEvents struct{ log *envLog }
 
 func (e fakeEvents) Publish(ev string, p any) { e.log.add(&e.log.events, []any{ev, p}) }
 
-// zod 解析错误文本不可比（D-B7-S2-1）：只比 code
-func normZod(v any) any {
-	o, ok := v.(*util.Obj)
-	if !ok {
-		return v
-	}
-	if o.Get("ok") == false {
-		if e, ok := o.Get("error").(*util.Obj); ok && e.Get("code") == "internal_error" {
-			if m := util.Str(e.Get("message")); strings.HasPrefix(m, "[") {
-				e = e.Clone()
-				e.Set("message", "<zod>")
-				o = o.Clone()
-				o.Set("error", e)
-			}
-		}
-	}
-	return o
-}
-
 func subDeep(base string, v any) any {
 	s := strings.ReplaceAll(util.Stringify(v), sbTok, strings.ReplaceAll(base, `\`, `\\`))
 	r, _ := util.ParseString(s)
@@ -734,12 +715,6 @@ func runServiceScenario(t *testing.T, rec *util.Obj) {
 		if i < len(out) {
 			gv = out[i]
 		}
-		if ok, has := w.Lookup("ok"); has && normZod(ok) != ok {
-			w = util.NewObj("ok", normZod(ok))
-			if go_, ok := gv.(*util.Obj); ok {
-				gv = util.NewObj("ok", forceZod(go_.Get("ok")))
-			}
-		}
 		jsonEq(t, "out#"+util.Stringify(float64(i)), w, gv)
 	}
 	wl := rec.Get("log").(*util.Obj)
@@ -765,20 +740,3 @@ func (l *envLog) sentSnapshot() []any {
 func arr(v any) []any { a, _ := v.([]any); return a }
 
 func (l *envLog) eventCount() int { l.mu.Lock(); defer l.mu.Unlock(); return len(l.events) }
-
-// forceZod：golden 侧是 zod 文本时，Go 侧同位置的 internal_error 消息也归一（D-B7-S2-1）
-func forceZod(v any) any {
-	o, ok := v.(*util.Obj)
-	if !ok {
-		return v
-	}
-	e, ok := o.Get("error").(*util.Obj)
-	if !ok || e.Get("code") != "internal_error" {
-		return v
-	}
-	e = e.Clone()
-	e.Set("message", "<zod>")
-	o = o.Clone()
-	o.Set("error", e)
-	return o
-}
