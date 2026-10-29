@@ -19,6 +19,16 @@
     { "name": "codex:app-perm-bypass", "backend": "codex", "codexAppServer": true, "permissionMode": "bypass", "prompts": ["perm"], "env": { "NOMI_MOCK_CODEX_PERM": "1" } },
     { "name": "codex:app-fallback-exec", "backend": "codex", "codexAppServer": true, "prompts": ["hello"], "env": { "NOMI_MOCK_CODEX_NO_APP": "1" } },
     { "name": "dsh:send-resume", "backend": "dsh", "prompts": ["hello", "-x"] },
-    { "name": "dsh:upstream-error", "backend": "dsh", "prompts": ["x"], "env": { "NOMI_MOCK_DSH_UPSTREAM_ERROR": "1" } }
+    { "name": "dsh:upstream-error", "backend": "dsh", "prompts": ["x"], "env": { "NOMI_MOCK_DSH_UPSTREAM_ERROR": "1" } },
+    { "name": "claude:permission-approve", "backend": "claude", "reply": "allow", "prompts": ["need perm"], "env": { "NOMI_MOCK_ASK_PERMISSION": "1" } },
+    { "name": "claude:permission-deny", "backend": "claude", "reply": "deny", "prompts": ["need perm"], "env": { "NOMI_MOCK_ASK_PERMISSION": "1" } },
+    { "name": "gemini:permission-approve", "backend": "gemini", "reply": "allow", "prompts": ["perm"], "env": { "NOMI_MOCK_GEMINI_PERM": "1" } },
+    { "name": "gemini:permission-deny", "backend": "gemini", "reply": "deny", "prompts": ["perm"], "env": { "NOMI_MOCK_GEMINI_PERM": "1" } },
+    { "name": "send:claude-finish-persist", "backend": "claude", "via": "sendTab", "prompts": ["hello", "again"] },
+    { "name": "send:claude-fail-persist", "backend": "claude", "via": "sendTab", "prompts": ["boom"], "env": { "NOMI_MOCK_FAIL": "1" } },
+    { "name": "send:claude-approve-persist", "backend": "claude", "via": "sendTab", "permissionMode": "manual", "reply": "allow", "prompts": ["need perm"], "env": { "NOMI_MOCK_ASK_PERMISSION": "1" } },
+    { "name": "send:claude-deny-persist", "backend": "claude", "via": "sendTab", "permissionMode": "manual", "reply": "deny", "prompts": ["need perm"], "env": { "NOMI_MOCK_ASK_PERMISSION": "1" } },
+    { "name": "send:gemini-finish-persist", "backend": "gemini", "via": "sendTab", "prompts": ["hello"] },
+    { "name": "send:codex-plan-persist", "backend": "codex", "via": "sendTab", "permissionMode": "plan", "prompts": ["hello"] }
   ]
 }

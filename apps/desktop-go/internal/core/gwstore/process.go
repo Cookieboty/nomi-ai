@@ -53,6 +53,7 @@ const (
 	CrashFuseMax      = 5
 	CrashFuseWindowMs = 60_000
 	readyTimeoutMs    = 10_000
+	stopWaitMs        = 5_000
 )
 
 // ProcessDeps = GatewayProcess 的构造参数
@@ -70,11 +71,16 @@ type ProcessDeps struct {
 	Lazy        bool
 }
 
+// afterFunc = setTimeout（重启退避定时器；测试截获）
+var afterFunc = time.AfterFunc
+
 // GatewayProcess = GatewayProcess
 type GatewayProcess struct {
 	d            ProcessDeps
 	mu           sync.Mutex
 	child        GatewayChild
+	spawning     int // >0：已标 starting、fork 尚未执行（Node 单线程里 setStatus→fork 是同步的；这里把 fork 放到 onStatus 之后）
+	spawnGen     int
 	config       *u.Obj
 	status       GatewayStatus
 	failureTimes []float64
@@ -155,7 +161,9 @@ func (g *GatewayProcess) Apply(cfg *u.Obj) {
 	g.config = cfg
 	g.stopping = false
 	var after func()
-	if g.child != nil {
+	if g.spawning > 0 {
+		// fork 马上执行并推送最新配置（等价于 Node 中 child 已存在时的 config 消息）
+	} else if g.child != nil {
 		c := g.child
 		after = func() { c.PostMessage(g.inbound(cfg)) }
 	} else if g.wanted && g.restartTimer == nil {
@@ -179,7 +187,7 @@ func (g *GatewayProcess) inbound(cfg *u.Obj) server.WorkerInbound {
 func (g *GatewayProcess) EnsureStarted() {
 	g.mu.Lock()
 	g.wanted = true
-	if g.child != nil || g.restartTimer != nil || g.stopping || g.config == nil || g.status.State == "failed" {
+	if g.child != nil || g.spawning > 0 || g.restartTimer != nil || g.stopping || g.config == nil || g.status.State == "failed" {
 		g.mu.Unlock()
 		return
 	}
@@ -250,12 +258,22 @@ func (g *GatewayProcess) spawnLocked() func() {
 		return g.setStatus(GatewayStatus{State: "failed", Error: i18n.T("electron.common.the-gateway-process-can-t-be-started-in")})
 	}
 	notify := g.setStatus(GatewayStatus{State: "starting"})
-	child := g.d.Fork()
-	g.child = child
-	cfg := g.config
-	spawnHook := g.tabSpawn
+	g.spawning++
+	gen := g.spawnGen
 	return func() {
+		// Node 顺序：setStatus(starting) → fork → on(message/exit) → postMessage(config)
 		notify()
+		g.mu.Lock()
+		g.spawning--
+		if gen != g.spawnGen {
+			g.mu.Unlock()
+			return
+		}
+		child := g.d.Fork()
+		g.child = child
+		cfg := g.config
+		spawnHook := g.tabSpawn
+		g.mu.Unlock()
 		child.OnMessage(func(m server.WorkerOutbound) { g.onMessage(child, m) })
 		child.OnExit(func(code int) { g.onExit(child, code) })
 		if cfg != nil {
@@ -367,7 +385,7 @@ func (g *GatewayProcess) onExit(child GatewayChild, code int) {
 		delay = g.d.BackoffMs(n)
 	}
 	after := g.setStatus(GatewayStatus{State: "starting"})
-	g.restartTimer = time.AfterFunc(time.Duration(delay)*time.Millisecond, func() {
+	g.restartTimer = afterFunc(time.Duration(delay)*time.Millisecond, func() {
 		g.mu.Lock()
 		g.restartTimer = nil
 		f := g.spawnLocked()
@@ -384,6 +402,7 @@ func (g *GatewayProcess) Retry() {
 	g.failureTimes = nil
 	c := g.child
 	g.child = nil
+	g.spawnGen++
 	g.wanted = true
 	var after func()
 	if g.config != nil {
@@ -408,11 +427,15 @@ func (g *GatewayProcess) Stop() {
 	g.restartTimer = nil
 	c := g.child
 	g.child = nil
+	g.spawnGen++
 	after := g.setStatus(GatewayStatus{State: "stopped"})
 	g.mu.Unlock()
 	if c != nil {
 		c.PostMessage(server.WorkerInbound{Type: "stop"})
 		c.Kill()
+		if w, ok := c.(interface{ WaitExit(time.Duration) bool }); ok && !w.WaitExit(stopWaitMs*time.Millisecond) && g.d.Logger != nil {
+			g.d.Logger.Warn("gateway worker did not exit in time", nil)
+		}
 	}
 	after()
 }
@@ -425,12 +448,15 @@ type inProcChild struct {
 	out    func(m server.WorkerOutbound)
 	exit   func(code int)
 	done   chan struct{}
+	exited chan struct{} // 网关循环结束（Stop + 落盘完成）
+	exOnce sync.Once
 	killed bool
 	queue  []server.WorkerOutbound
 }
 
 func (c *inProcChild) OnMessage(fn func(m server.WorkerInbound)) { c.in = fn } // WorkerPort（网关一侧）
 func (c *inProcChild) Done() <-chan struct{}                     { return c.done }
+func (c *inProcChild) Finished()                                 { c.exOnce.Do(func() { close(c.exited) }) }
 func (c *inProcChild) PostMessage(m server.WorkerOutbound) { // WorkerPort（网关一侧）
 	c.mu.Lock()
 	out := c.out
@@ -464,6 +490,18 @@ func (p parentSide) OnMessage(fn func(m server.WorkerOutbound)) {
 		go fn(m)
 	}
 }
+
+// WaitExit：等网关循环结束（Node 的子进程在 stop 后自行退出、落盘不占父进程；进程内实现须等它，
+// 否则 Dispose 返回后 goroutine 仍在写用户数据目录）
+func (p parentSide) WaitExit(timeout time.Duration) bool {
+	select {
+	case <-p.c.exited:
+		return true
+	case <-time.After(timeout):
+		return false
+	}
+}
+
 func (p parentSide) OnExit(fn func(code int)) { p.c.exit = fn }
 func (p parentSide) Kill() bool {
 	p.c.mu.Lock()
@@ -485,11 +523,12 @@ func (p parentSide) Kill() bool {
 // 网关循环 panic 时按进程异常退出（code 1）上报，走同样的退避 / 熔断。
 func InProcessFork(hooks server.GatewayHooks) ForkGateway {
 	return func() GatewayChild {
-		c := &inProcChild{done: make(chan struct{})}
+		c := &inProcChild{done: make(chan struct{}), exited: make(chan struct{})}
 		p := parentSide{c}
 		func() {
 			defer func() {
 				if r := recover(); r != nil {
+					c.Finished()
 					go func() {
 						if c.exit != nil {
 							c.exit(1)

@@ -1,6 +1,7 @@
 package gwstore
 
 import (
+	"log"
 	"path/filepath"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/config"
@@ -26,6 +27,9 @@ type Service struct {
 
 // NewService：root = userData/gateway，同 Node `file: path.join(root, 'store.json')`
 func NewService(root string, cipher Cipher, logger Logger, legacy *Legacy) *Service {
+	if logger == nil {
+		logger = stdLogger{}
+	}
 	return &Service{Store: NewStore(filepath.Join(root, "store.json"), cipher, logger), cipher: cipher, logger: logger, legacy: legacy}
 }
 
@@ -111,3 +115,9 @@ func (s *Service) archiveLeftoverLegacy() {
 	}
 	ArchiveLegacyFiles(left, s.logger)
 }
+
+// stdLogger：未注入 logger 时（createCore 总会传 logger）写标准日志
+type stdLogger struct{}
+
+func (stdLogger) Info(msg string, d any) { log.Printf("[gateway] %s %v", msg, d) }
+func (stdLogger) Warn(msg string, d any) { log.Printf("[gateway] WARN %s %v", msg, d) }

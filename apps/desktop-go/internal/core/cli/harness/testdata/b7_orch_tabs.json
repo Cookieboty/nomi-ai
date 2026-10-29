@@ -1,0 +1,4645 @@
+{
+  "cases": [
+    {
+      "name": "create:defaults",
+      "steps": [
+        [
+          "createTab",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "Claude Code",
+              "backend": "claude",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null
+            }
+          }
+        ],
+        [
+          "createTab",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "Second",
+              "backend": "codex",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null
+            }
+          }
+        ],
+        [
+          "listTabs",
+          {
+            "ok": {
+              "tabs": [
+                {
+                  "id": "main",
+                  "title": "对话",
+                  "backend": "nomi",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "acceptEdits"
+                },
+                {
+                  "id": "<U>",
+                  "title": "Claude Code",
+                  "backend": "claude",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "bypass",
+                  "source": "official",
+                  "modelScope": null
+                },
+                {
+                  "id": "<U>",
+                  "title": "Second",
+                  "backend": "codex",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "bypass",
+                  "source": "official",
+                  "modelScope": null
+                }
+              ],
+              "activeTabId": "<U>",
+              "running": 0,
+              "queued": 0,
+              "defaultPermissionMode": "acceptEdits",
+              "codexNetwork": true,
+              "autoApprove": true
+            }
+          }
+        ],
+        [
+          "reload",
+          {
+            "tabs": {
+              "tabs": [
+                {
+                  "id": "main",
+                  "title": "对话",
+                  "backend": "nomi",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "acceptEdits",
+                  "modelOverride": null,
+                  "reasoningEffort": null,
+                  "modelScope": null,
+                  "longContext": null
+                },
+                {
+                  "id": "<U>",
+                  "title": "Claude Code",
+                  "backend": "claude",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "bypass",
+                  "source": "official",
+                  "modelScope": null,
+                  "modelOverride": null,
+                  "reasoningEffort": null,
+                  "longContext": null
+                },
+                {
+                  "id": "<U>",
+                  "title": "Second",
+                  "backend": "codex",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "bypass",
+                  "source": "official",
+                  "modelScope": null,
+                  "modelOverride": null,
+                  "reasoningEffort": null,
+                  "longContext": null
+                }
+              ],
+              "activeTabId": "<U>",
+              "running": 0,
+              "queued": 0,
+              "defaultPermissionMode": "acceptEdits",
+              "codexNetwork": true,
+              "autoApprove": true
+            },
+            "state": {
+              "backend": "nomi",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "busy": false,
+              "toolsDisabled": false,
+              "permissionMode": "acceptEdits"
+            }
+          }
+        ]
+      ],
+      "final": {
+        "tabs": {
+          "tabs": [
+            {
+              "id": "main",
+              "title": "对话",
+              "backend": "nomi",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "acceptEdits",
+              "modelOverride": null,
+              "reasoningEffort": null,
+              "modelScope": null,
+              "longContext": null
+            },
+            {
+              "id": "<U>",
+              "title": "Claude Code",
+              "backend": "claude",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null,
+              "modelOverride": null,
+              "reasoningEffort": null,
+              "longContext": null
+            },
+            {
+              "id": "<U>",
+              "title": "Second",
+              "backend": "codex",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null,
+              "modelOverride": null,
+              "reasoningEffort": null,
+              "longContext": null
+            }
+          ],
+          "activeTabId": "<U>",
+          "running": 0,
+          "queued": 0,
+          "defaultPermissionMode": "acceptEdits",
+          "codexNetwork": true,
+          "autoApprove": true
+        },
+        "state": {
+          "backend": "nomi",
+          "cwd": "<T>/docs/nomi",
+          "cliSessionId": null,
+          "busy": false,
+          "toolsDisabled": false,
+          "permissionMode": "acceptEdits"
+        }
+      },
+      "disk": [
+        [
+          "session.json",
+          {
+            "backend": "nomi",
+            "cwd": "<T>/docs/nomi",
+            "cliSessionId": null,
+            "busy": false,
+            "title": "对话",
+            "permissionMode": "acceptEdits"
+          }
+        ],
+        [
+          "tabs.json",
+          {
+            "activeTabId": "<U>",
+            "defaultPermissionMode": "acceptEdits",
+            "codexNetwork": true,
+            "autoApprove": true,
+            "lastSettings": {},
+            "tabs": [
+              {
+                "id": "<U>",
+                "title": "Claude Code",
+                "backend": "claude",
+                "cwd": "<T>/docs/nomi",
+                "cliSessionId": null,
+                "status": "idle",
+                "unread": 0,
+                "createdAt": "<N>",
+                "updatedAt": "<N>",
+                "permissionMode": "bypass",
+                "source": "official",
+                "modelScope": null
+              },
+              {
+                "id": "<U>",
+                "title": "Second",
+                "backend": "codex",
+                "cwd": "<T>/docs/nomi",
+                "cliSessionId": null,
+                "status": "idle",
+                "unread": 0,
+                "createdAt": "<N>",
+                "updatedAt": "<N>",
+                "permissionMode": "bypass",
+                "source": "official",
+                "modelScope": null
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "create:gemini-cwd-mode",
+      "steps": [
+        [
+          "createTab",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "Gemini",
+              "backend": "gemini",
+              "cwd": "<T>/work",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "plan",
+              "source": "official",
+              "modelScope": null
+            }
+          }
+        ],
+        [
+          "createTab",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "Claude Code",
+              "backend": "claude",
+              "cwd": "<T>/work",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null
+            }
+          }
+        ],
+        [
+          "reload",
+          {
+            "tabs": {
+              "tabs": [
+                {
+                  "id": "main",
+                  "title": "对话",
+                  "backend": "nomi",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "acceptEdits",
+                  "modelOverride": null,
+                  "reasoningEffort": null,
+                  "modelScope": null,
+                  "longContext": null
+                },
+                {
+                  "id": "<U>",
+                  "title": "Gemini",
+                  "backend": "gemini",
+                  "cwd": "<T>/work",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "plan",
+                  "source": "official",
+                  "modelScope": null,
+                  "modelOverride": null,
+                  "reasoningEffort": null,
+                  "longContext": null
+                },
+                {
+                  "id": "<U>",
+                  "title": "Claude Code",
+                  "backend": "claude",
+                  "cwd": "<T>/work",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "bypass",
+                  "source": "official",
+                  "modelScope": null,
+                  "modelOverride": null,
+                  "reasoningEffort": null,
+                  "longContext": null
+                }
+              ],
+              "activeTabId": "<U>",
+              "running": 0,
+              "queued": 0,
+              "defaultPermissionMode": "acceptEdits",
+              "codexNetwork": true,
+              "autoApprove": true
+            },
+            "state": {
+              "backend": "nomi",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "busy": false,
+              "toolsDisabled": false,
+              "permissionMode": "acceptEdits"
+            }
+          }
+        ]
+      ],
+      "final": {
+        "tabs": {
+          "tabs": [
+            {
+              "id": "main",
+              "title": "对话",
+              "backend": "nomi",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "acceptEdits",
+              "modelOverride": null,
+              "reasoningEffort": null,
+              "modelScope": null,
+              "longContext": null
+            },
+            {
+              "id": "<U>",
+              "title": "Gemini",
+              "backend": "gemini",
+              "cwd": "<T>/work",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "plan",
+              "source": "official",
+              "modelScope": null,
+              "modelOverride": null,
+              "reasoningEffort": null,
+              "longContext": null
+            },
+            {
+              "id": "<U>",
+              "title": "Claude Code",
+              "backend": "claude",
+              "cwd": "<T>/work",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null,
+              "modelOverride": null,
+              "reasoningEffort": null,
+              "longContext": null
+            }
+          ],
+          "activeTabId": "<U>",
+          "running": 0,
+          "queued": 0,
+          "defaultPermissionMode": "acceptEdits",
+          "codexNetwork": true,
+          "autoApprove": true
+        },
+        "state": {
+          "backend": "nomi",
+          "cwd": "<T>/docs/nomi",
+          "cliSessionId": null,
+          "busy": false,
+          "toolsDisabled": false,
+          "permissionMode": "acceptEdits"
+        }
+      },
+      "disk": [
+        [
+          "recent-cwds.json",
+          [
+            "<T>/work"
+          ]
+        ],
+        [
+          "session.json",
+          {
+            "backend": "nomi",
+            "cwd": "<T>/docs/nomi",
+            "cliSessionId": null,
+            "busy": false,
+            "title": "对话",
+            "permissionMode": "acceptEdits"
+          }
+        ],
+        [
+          "tabs.json",
+          {
+            "activeTabId": "<U>",
+            "defaultPermissionMode": "acceptEdits",
+            "codexNetwork": true,
+            "autoApprove": true,
+            "lastSettings": {},
+            "tabs": [
+              {
+                "id": "<U>",
+                "title": "Gemini",
+                "backend": "gemini",
+                "cwd": "<T>/work",
+                "cliSessionId": null,
+                "status": "idle",
+                "unread": 0,
+                "createdAt": "<N>",
+                "updatedAt": "<N>",
+                "permissionMode": "plan",
+                "source": "official",
+                "modelScope": null
+              },
+              {
+                "id": "<U>",
+                "title": "Claude Code",
+                "backend": "claude",
+                "cwd": "<T>/work",
+                "cliSessionId": null,
+                "status": "idle",
+                "unread": 0,
+                "createdAt": "<N>",
+                "updatedAt": "<N>",
+                "permissionMode": "bypass",
+                "source": "official",
+                "modelScope": null
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "create:bad-backend",
+      "steps": [
+        [
+          "createTab",
+          {
+            "err": "新标签只能绑定编程助手后端"
+          }
+        ],
+        [
+          "createTab",
+          {
+            "err": "新标签只能绑定编程助手后端"
+          }
+        ]
+      ],
+      "final": {
+        "tabs": {
+          "tabs": [
+            {
+              "id": "main",
+              "title": "对话",
+              "backend": "nomi",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "acceptEdits"
+            }
+          ],
+          "activeTabId": "main",
+          "running": 0,
+          "queued": 0,
+          "defaultPermissionMode": "acceptEdits",
+          "codexNetwork": true,
+          "autoApprove": true
+        },
+        "state": {
+          "backend": "nomi",
+          "cwd": "<T>/docs/nomi",
+          "cliSessionId": null,
+          "busy": false,
+          "toolsDisabled": false,
+          "permissionMode": "acceptEdits"
+        }
+      },
+      "disk": []
+    },
+    {
+      "name": "create:fork-messages",
+      "steps": [
+        [
+          "createTab",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "Fork",
+              "backend": "claude",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null,
+              "carriedMessages": 2
+            }
+          }
+        ],
+        [
+          "tabMessages",
+          {
+            "ok": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "hi",
+                "timestamp": "<N>"
+              },
+              {
+                "id": "m2",
+                "role": "assistant",
+                "content": "yo",
+                "timestamp": "<N>"
+              }
+            ]
+          }
+        ],
+        [
+          "reload",
+          {
+            "tabs": {
+              "tabs": [
+                {
+                  "id": "main",
+                  "title": "对话",
+                  "backend": "nomi",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "acceptEdits",
+                  "modelOverride": null,
+                  "reasoningEffort": null,
+                  "modelScope": null,
+                  "longContext": null
+                },
+                {
+                  "id": "<U>",
+                  "title": "Fork",
+                  "backend": "claude",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "bypass",
+                  "source": "official",
+                  "modelScope": null,
+                  "carriedMessages": 2,
+                  "modelOverride": null,
+                  "reasoningEffort": null,
+                  "longContext": null
+                }
+              ],
+              "activeTabId": "<U>",
+              "running": 0,
+              "queued": 0,
+              "defaultPermissionMode": "acceptEdits",
+              "codexNetwork": true,
+              "autoApprove": true
+            },
+            "state": {
+              "backend": "nomi",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "busy": false,
+              "toolsDisabled": false,
+              "permissionMode": "acceptEdits"
+            }
+          }
+        ],
+        [
+          "tabMessages",
+          {
+            "ok": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "hi",
+                "timestamp": "<N>"
+              },
+              {
+                "id": "m2",
+                "role": "assistant",
+                "content": "yo",
+                "timestamp": "<N>"
+              }
+            ]
+          }
+        ]
+      ],
+      "final": {
+        "tabs": {
+          "tabs": [
+            {
+              "id": "main",
+              "title": "对话",
+              "backend": "nomi",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "acceptEdits",
+              "modelOverride": null,
+              "reasoningEffort": null,
+              "modelScope": null,
+              "longContext": null
+            },
+            {
+              "id": "<U>",
+              "title": "Fork",
+              "backend": "claude",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null,
+              "carriedMessages": 2,
+              "modelOverride": null,
+              "reasoningEffort": null,
+              "longContext": null
+            }
+          ],
+          "activeTabId": "<U>",
+          "running": 0,
+          "queued": 0,
+          "defaultPermissionMode": "acceptEdits",
+          "codexNetwork": true,
+          "autoApprove": true
+        },
+        "state": {
+          "backend": "nomi",
+          "cwd": "<T>/docs/nomi",
+          "cliSessionId": null,
+          "busy": false,
+          "toolsDisabled": false,
+          "permissionMode": "acceptEdits"
+        }
+      },
+      "disk": [
+        [
+          "session.json",
+          {
+            "backend": "nomi",
+            "cwd": "<T>/docs/nomi",
+            "cliSessionId": null,
+            "busy": false,
+            "title": "对话",
+            "permissionMode": "acceptEdits"
+          }
+        ],
+        [
+          "tabs/<U>.carry.txt",
+          "[Nomi] 以下是这个对话之前在 <T>/docs/nomi 里的内容，工作目录已经换成当前目录。请把它当作上下文继续，不必复述：\n<previous_conversation>\nUser: hi\nAssistant: yo\n</previous_conversation>"
+        ],
+        [
+          "tabs/<U>.json",
+          [
+            {
+              "id": "m1",
+              "role": "user",
+              "content": "hi",
+              "timestamp": "<N>"
+            },
+            {
+              "id": "m2",
+              "role": "assistant",
+              "content": "yo",
+              "timestamp": "<N>"
+            }
+          ]
+        ],
+        [
+          "tabs.json",
+          {
+            "activeTabId": "<U>",
+            "defaultPermissionMode": "acceptEdits",
+            "codexNetwork": true,
+            "autoApprove": true,
+            "lastSettings": {},
+            "tabs": [
+              {
+                "id": "<U>",
+                "title": "Fork",
+                "backend": "claude",
+                "cwd": "<T>/docs/nomi",
+                "cliSessionId": null,
+                "status": "idle",
+                "unread": 0,
+                "createdAt": "<N>",
+                "updatedAt": "<N>",
+                "permissionMode": "bypass",
+                "source": "official",
+                "modelScope": null,
+                "carriedMessages": 2
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "rename:trim-and-empty",
+      "steps": [
+        [
+          "createTab",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "Claude Code",
+              "backend": "claude",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null
+            }
+          }
+        ],
+        [
+          "renameTab",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "New name",
+              "backend": "claude",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null
+            }
+          }
+        ],
+        [
+          "renameTab",
+          {
+            "err": "标题不能为空"
+          }
+        ],
+        [
+          "renameTab",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "x",
+              "backend": "claude",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null
+            }
+          }
+        ],
+        [
+          "renameTab",
+          {
+            "err": "标签不存在"
+          }
+        ],
+        [
+          "reload",
+          {
+            "tabs": {
+              "tabs": [
+                {
+                  "id": "main",
+                  "title": "对话",
+                  "backend": "nomi",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "acceptEdits",
+                  "modelOverride": null,
+                  "reasoningEffort": null,
+                  "modelScope": null,
+                  "longContext": null
+                },
+                {
+                  "id": "<U>",
+                  "title": "x",
+                  "backend": "claude",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "bypass",
+                  "source": "official",
+                  "modelScope": null,
+                  "modelOverride": null,
+                  "reasoningEffort": null,
+                  "longContext": null
+                }
+              ],
+              "activeTabId": "<U>",
+              "running": 0,
+              "queued": 0,
+              "defaultPermissionMode": "acceptEdits",
+              "codexNetwork": true,
+              "autoApprove": true
+            },
+            "state": {
+              "backend": "nomi",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "busy": false,
+              "toolsDisabled": false,
+              "permissionMode": "acceptEdits"
+            }
+          }
+        ]
+      ],
+      "final": {
+        "tabs": {
+          "tabs": [
+            {
+              "id": "main",
+              "title": "对话",
+              "backend": "nomi",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "acceptEdits",
+              "modelOverride": null,
+              "reasoningEffort": null,
+              "modelScope": null,
+              "longContext": null
+            },
+            {
+              "id": "<U>",
+              "title": "x",
+              "backend": "claude",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null,
+              "modelOverride": null,
+              "reasoningEffort": null,
+              "longContext": null
+            }
+          ],
+          "activeTabId": "<U>",
+          "running": 0,
+          "queued": 0,
+          "defaultPermissionMode": "acceptEdits",
+          "codexNetwork": true,
+          "autoApprove": true
+        },
+        "state": {
+          "backend": "nomi",
+          "cwd": "<T>/docs/nomi",
+          "cliSessionId": null,
+          "busy": false,
+          "toolsDisabled": false,
+          "permissionMode": "acceptEdits"
+        }
+      },
+      "disk": [
+        [
+          "session.json",
+          {
+            "backend": "nomi",
+            "cwd": "<T>/docs/nomi",
+            "cliSessionId": null,
+            "busy": false,
+            "title": "对话",
+            "permissionMode": "acceptEdits"
+          }
+        ],
+        [
+          "tabs.json",
+          {
+            "activeTabId": "<U>",
+            "defaultPermissionMode": "acceptEdits",
+            "codexNetwork": true,
+            "autoApprove": true,
+            "lastSettings": {},
+            "tabs": [
+              {
+                "id": "<U>",
+                "title": "x",
+                "backend": "claude",
+                "cwd": "<T>/docs/nomi",
+                "cliSessionId": null,
+                "status": "idle",
+                "unread": 0,
+                "createdAt": "<N>",
+                "updatedAt": "<N>",
+                "permissionMode": "bypass",
+                "source": "official",
+                "modelScope": null
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "active:switch-close",
+      "steps": [
+        [
+          "createTab",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "A",
+              "backend": "claude",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null
+            }
+          }
+        ],
+        [
+          "createTab",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "B",
+              "backend": "claude",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null
+            }
+          }
+        ],
+        [
+          "createTab",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "C",
+              "backend": "claude",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null
+            }
+          }
+        ],
+        [
+          "setActiveTab",
+          {
+            "ok": {
+              "tabs": [
+                {
+                  "id": "main",
+                  "title": "对话",
+                  "backend": "nomi",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "acceptEdits"
+                },
+                {
+                  "id": "<U>",
+                  "title": "A",
+                  "backend": "claude",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "bypass",
+                  "source": "official",
+                  "modelScope": null
+                },
+                {
+                  "id": "<U>",
+                  "title": "B",
+                  "backend": "claude",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "bypass",
+                  "source": "official",
+                  "modelScope": null
+                },
+                {
+                  "id": "<U>",
+                  "title": "C",
+                  "backend": "claude",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "bypass",
+                  "source": "official",
+                  "modelScope": null
+                }
+              ],
+              "activeTabId": "<U>",
+              "running": 0,
+              "queued": 0,
+              "defaultPermissionMode": "acceptEdits",
+              "codexNetwork": true,
+              "autoApprove": true
+            }
+          }
+        ],
+        [
+          "closeTab",
+          {
+            "ok": {
+              "tabs": [
+                {
+                  "id": "main",
+                  "title": "对话",
+                  "backend": "nomi",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "acceptEdits"
+                },
+                {
+                  "id": "<U>",
+                  "title": "A",
+                  "backend": "claude",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "bypass",
+                  "source": "official",
+                  "modelScope": null
+                },
+                {
+                  "id": "<U>",
+                  "title": "C",
+                  "backend": "claude",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "bypass",
+                  "source": "official",
+                  "modelScope": null
+                }
+              ],
+              "activeTabId": "<U>",
+              "running": 0,
+              "queued": 0,
+              "defaultPermissionMode": "acceptEdits",
+              "codexNetwork": true,
+              "autoApprove": true
+            }
+          }
+        ],
+        [
+          "closeTab",
+          {
+            "err": "主对话标签不能关闭"
+          }
+        ],
+        [
+          "closeTab",
+          {
+            "ok": {
+              "tabs": [
+                {
+                  "id": "main",
+                  "title": "对话",
+                  "backend": "nomi",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "acceptEdits"
+                },
+                {
+                  "id": "<U>",
+                  "title": "C",
+                  "backend": "claude",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "bypass",
+                  "source": "official",
+                  "modelScope": null
+                }
+              ],
+              "activeTabId": "main",
+              "running": 0,
+              "queued": 0,
+              "defaultPermissionMode": "acceptEdits",
+              "codexNetwork": true,
+              "autoApprove": true
+            }
+          }
+        ],
+        [
+          "reload",
+          {
+            "tabs": {
+              "tabs": [
+                {
+                  "id": "main",
+                  "title": "对话",
+                  "backend": "nomi",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "acceptEdits",
+                  "modelOverride": null,
+                  "reasoningEffort": null,
+                  "modelScope": null,
+                  "longContext": null
+                },
+                {
+                  "id": "<U>",
+                  "title": "C",
+                  "backend": "claude",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "bypass",
+                  "source": "official",
+                  "modelScope": null,
+                  "modelOverride": null,
+                  "reasoningEffort": null,
+                  "longContext": null
+                }
+              ],
+              "activeTabId": "main",
+              "running": 0,
+              "queued": 0,
+              "defaultPermissionMode": "acceptEdits",
+              "codexNetwork": true,
+              "autoApprove": true
+            },
+            "state": {
+              "backend": "nomi",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "busy": false,
+              "toolsDisabled": false,
+              "permissionMode": "acceptEdits"
+            }
+          }
+        ]
+      ],
+      "final": {
+        "tabs": {
+          "tabs": [
+            {
+              "id": "main",
+              "title": "对话",
+              "backend": "nomi",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "acceptEdits",
+              "modelOverride": null,
+              "reasoningEffort": null,
+              "modelScope": null,
+              "longContext": null
+            },
+            {
+              "id": "<U>",
+              "title": "C",
+              "backend": "claude",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null,
+              "modelOverride": null,
+              "reasoningEffort": null,
+              "longContext": null
+            }
+          ],
+          "activeTabId": "main",
+          "running": 0,
+          "queued": 0,
+          "defaultPermissionMode": "acceptEdits",
+          "codexNetwork": true,
+          "autoApprove": true
+        },
+        "state": {
+          "backend": "nomi",
+          "cwd": "<T>/docs/nomi",
+          "cliSessionId": null,
+          "busy": false,
+          "toolsDisabled": false,
+          "permissionMode": "acceptEdits"
+        }
+      },
+      "disk": [
+        [
+          "session.json",
+          {
+            "backend": "nomi",
+            "cwd": "<T>/docs/nomi",
+            "cliSessionId": null,
+            "busy": false,
+            "title": "对话",
+            "permissionMode": "acceptEdits"
+          }
+        ],
+        [
+          "tabs.json",
+          {
+            "activeTabId": "main",
+            "defaultPermissionMode": "acceptEdits",
+            "codexNetwork": true,
+            "autoApprove": true,
+            "lastSettings": {},
+            "tabs": [
+              {
+                "id": "<U>",
+                "title": "C",
+                "backend": "claude",
+                "cwd": "<T>/docs/nomi",
+                "cliSessionId": null,
+                "status": "idle",
+                "unread": 0,
+                "createdAt": "<N>",
+                "updatedAt": "<N>",
+                "permissionMode": "bypass",
+                "source": "official",
+                "modelScope": null
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "order:insertion-after-close",
+      "steps": [
+        [
+          "createTab",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "A",
+              "backend": "claude",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null
+            }
+          }
+        ],
+        [
+          "createTab",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "B",
+              "backend": "claude",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null
+            }
+          }
+        ],
+        [
+          "closeTab",
+          {
+            "ok": {
+              "tabs": [
+                {
+                  "id": "main",
+                  "title": "对话",
+                  "backend": "nomi",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "acceptEdits"
+                },
+                {
+                  "id": "<U>",
+                  "title": "B",
+                  "backend": "claude",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "bypass",
+                  "source": "official",
+                  "modelScope": null
+                }
+              ],
+              "activeTabId": "<U>",
+              "running": 0,
+              "queued": 0,
+              "defaultPermissionMode": "acceptEdits",
+              "codexNetwork": true,
+              "autoApprove": true
+            }
+          }
+        ],
+        [
+          "createTab",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "C",
+              "backend": "claude",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null
+            }
+          }
+        ],
+        [
+          "renameTab",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "B2",
+              "backend": "claude",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null
+            }
+          }
+        ],
+        [
+          "listTabs",
+          {
+            "ok": {
+              "tabs": [
+                {
+                  "id": "main",
+                  "title": "对话",
+                  "backend": "nomi",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "acceptEdits"
+                },
+                {
+                  "id": "<U>",
+                  "title": "B2",
+                  "backend": "claude",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "bypass",
+                  "source": "official",
+                  "modelScope": null
+                },
+                {
+                  "id": "<U>",
+                  "title": "C",
+                  "backend": "claude",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "bypass",
+                  "source": "official",
+                  "modelScope": null
+                }
+              ],
+              "activeTabId": "<U>",
+              "running": 0,
+              "queued": 0,
+              "defaultPermissionMode": "acceptEdits",
+              "codexNetwork": true,
+              "autoApprove": true
+            }
+          }
+        ],
+        [
+          "reload",
+          {
+            "tabs": {
+              "tabs": [
+                {
+                  "id": "main",
+                  "title": "对话",
+                  "backend": "nomi",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "acceptEdits",
+                  "modelOverride": null,
+                  "reasoningEffort": null,
+                  "modelScope": null,
+                  "longContext": null
+                },
+                {
+                  "id": "<U>",
+                  "title": "B2",
+                  "backend": "claude",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "bypass",
+                  "source": "official",
+                  "modelScope": null,
+                  "modelOverride": null,
+                  "reasoningEffort": null,
+                  "longContext": null
+                },
+                {
+                  "id": "<U>",
+                  "title": "C",
+                  "backend": "claude",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "bypass",
+                  "source": "official",
+                  "modelScope": null,
+                  "modelOverride": null,
+                  "reasoningEffort": null,
+                  "longContext": null
+                }
+              ],
+              "activeTabId": "<U>",
+              "running": 0,
+              "queued": 0,
+              "defaultPermissionMode": "acceptEdits",
+              "codexNetwork": true,
+              "autoApprove": true
+            },
+            "state": {
+              "backend": "nomi",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "busy": false,
+              "toolsDisabled": false,
+              "permissionMode": "acceptEdits"
+            }
+          }
+        ]
+      ],
+      "final": {
+        "tabs": {
+          "tabs": [
+            {
+              "id": "main",
+              "title": "对话",
+              "backend": "nomi",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "acceptEdits",
+              "modelOverride": null,
+              "reasoningEffort": null,
+              "modelScope": null,
+              "longContext": null
+            },
+            {
+              "id": "<U>",
+              "title": "B2",
+              "backend": "claude",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null,
+              "modelOverride": null,
+              "reasoningEffort": null,
+              "longContext": null
+            },
+            {
+              "id": "<U>",
+              "title": "C",
+              "backend": "claude",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null,
+              "modelOverride": null,
+              "reasoningEffort": null,
+              "longContext": null
+            }
+          ],
+          "activeTabId": "<U>",
+          "running": 0,
+          "queued": 0,
+          "defaultPermissionMode": "acceptEdits",
+          "codexNetwork": true,
+          "autoApprove": true
+        },
+        "state": {
+          "backend": "nomi",
+          "cwd": "<T>/docs/nomi",
+          "cliSessionId": null,
+          "busy": false,
+          "toolsDisabled": false,
+          "permissionMode": "acceptEdits"
+        }
+      },
+      "disk": [
+        [
+          "session.json",
+          {
+            "backend": "nomi",
+            "cwd": "<T>/docs/nomi",
+            "cliSessionId": null,
+            "busy": false,
+            "title": "对话",
+            "permissionMode": "acceptEdits"
+          }
+        ],
+        [
+          "tabs.json",
+          {
+            "activeTabId": "<U>",
+            "defaultPermissionMode": "acceptEdits",
+            "codexNetwork": true,
+            "autoApprove": true,
+            "lastSettings": {},
+            "tabs": [
+              {
+                "id": "<U>",
+                "title": "B2",
+                "backend": "claude",
+                "cwd": "<T>/docs/nomi",
+                "cliSessionId": null,
+                "status": "idle",
+                "unread": 0,
+                "createdAt": "<N>",
+                "updatedAt": "<N>",
+                "permissionMode": "bypass",
+                "source": "official",
+                "modelScope": null
+              },
+              {
+                "id": "<U>",
+                "title": "C",
+                "backend": "claude",
+                "cwd": "<T>/docs/nomi",
+                "cliSessionId": null,
+                "status": "idle",
+                "unread": 0,
+                "createdAt": "<N>",
+                "updatedAt": "<N>",
+                "permissionMode": "bypass",
+                "source": "official",
+                "modelScope": null
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "backend:switch",
+      "steps": [
+        [
+          "createTab",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "Claude Code",
+              "backend": "claude",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null
+            }
+          }
+        ],
+        [
+          "setTabBackend",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "Gemini",
+              "backend": "gemini",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null,
+              "modelOverride": null,
+              "reasoningEffort": null
+            }
+          }
+        ],
+        [
+          "setTabBackend",
+          {
+            "err": "新标签只能绑定编程助手后端"
+          }
+        ],
+        [
+          "setTabBackend",
+          {
+            "err": "未知后端"
+          }
+        ],
+        [
+          "setTabBackend",
+          {
+            "ok": {
+              "id": "main",
+              "title": "对话",
+              "backend": "codex",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "acceptEdits",
+              "source": "official",
+              "modelScope": null,
+              "modelOverride": null,
+              "reasoningEffort": null
+            }
+          }
+        ],
+        [
+          "reload",
+          {
+            "tabs": {
+              "tabs": [
+                {
+                  "id": "main",
+                  "title": "对话",
+                  "backend": "codex",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "acceptEdits",
+                  "modelOverride": null,
+                  "reasoningEffort": null,
+                  "modelScope": null,
+                  "longContext": null
+                },
+                {
+                  "id": "<U>",
+                  "title": "Gemini",
+                  "backend": "gemini",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "bypass",
+                  "source": "official",
+                  "modelScope": null,
+                  "modelOverride": null,
+                  "reasoningEffort": null,
+                  "longContext": null
+                }
+              ],
+              "activeTabId": "<U>",
+              "running": 0,
+              "queued": 0,
+              "defaultPermissionMode": "acceptEdits",
+              "codexNetwork": true,
+              "autoApprove": true
+            },
+            "state": {
+              "backend": "codex",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "busy": false,
+              "toolsDisabled": true,
+              "permissionMode": "acceptEdits"
+            }
+          }
+        ]
+      ],
+      "final": {
+        "tabs": {
+          "tabs": [
+            {
+              "id": "main",
+              "title": "对话",
+              "backend": "codex",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "acceptEdits",
+              "modelOverride": null,
+              "reasoningEffort": null,
+              "modelScope": null,
+              "longContext": null
+            },
+            {
+              "id": "<U>",
+              "title": "Gemini",
+              "backend": "gemini",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null,
+              "modelOverride": null,
+              "reasoningEffort": null,
+              "longContext": null
+            }
+          ],
+          "activeTabId": "<U>",
+          "running": 0,
+          "queued": 0,
+          "defaultPermissionMode": "acceptEdits",
+          "codexNetwork": true,
+          "autoApprove": true
+        },
+        "state": {
+          "backend": "codex",
+          "cwd": "<T>/docs/nomi",
+          "cliSessionId": null,
+          "busy": false,
+          "toolsDisabled": true,
+          "permissionMode": "acceptEdits"
+        }
+      },
+      "disk": [
+        [
+          "session.json",
+          {
+            "backend": "codex",
+            "cwd": "<T>/docs/nomi",
+            "cliSessionId": null,
+            "busy": false,
+            "title": "对话",
+            "permissionMode": "acceptEdits"
+          }
+        ],
+        [
+          "tabs.json",
+          {
+            "activeTabId": "<U>",
+            "defaultPermissionMode": "acceptEdits",
+            "codexNetwork": true,
+            "autoApprove": true,
+            "lastSettings": {},
+            "tabs": [
+              {
+                "id": "<U>",
+                "title": "Gemini",
+                "backend": "gemini",
+                "cwd": "<T>/docs/nomi",
+                "cliSessionId": null,
+                "status": "idle",
+                "unread": 0,
+                "createdAt": "<N>",
+                "updatedAt": "<N>",
+                "permissionMode": "bypass",
+                "source": "official",
+                "modelScope": null,
+                "modelOverride": null,
+                "reasoningEffort": null
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "cwd:set",
+      "steps": [
+        [
+          "createTab",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "Claude Code",
+              "backend": "claude",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null
+            }
+          }
+        ],
+        [
+          "setTabCwd",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "Claude Code",
+              "backend": "claude",
+              "cwd": "<T>/work",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null
+            }
+          }
+        ],
+        [
+          "setTabCwd",
+          {
+            "err": "工作目录无效"
+          }
+        ],
+        [
+          "setCwd",
+          {
+            "ok": {
+              "backend": "nomi",
+              "cwd": "<T>/work",
+              "cliSessionId": null,
+              "busy": false,
+              "toolsDisabled": false,
+              "permissionMode": "acceptEdits"
+            }
+          }
+        ],
+        [
+          "recentCwds",
+          {
+            "ok": [
+              "<T>/work"
+            ]
+          }
+        ],
+        [
+          "reload",
+          {
+            "tabs": {
+              "tabs": [
+                {
+                  "id": "main",
+                  "title": "对话",
+                  "backend": "nomi",
+                  "cwd": "<T>/work",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "acceptEdits",
+                  "modelOverride": null,
+                  "reasoningEffort": null,
+                  "modelScope": null,
+                  "longContext": null
+                },
+                {
+                  "id": "<U>",
+                  "title": "Claude Code",
+                  "backend": "claude",
+                  "cwd": "<T>/work",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "bypass",
+                  "source": "official",
+                  "modelScope": null,
+                  "modelOverride": null,
+                  "reasoningEffort": null,
+                  "longContext": null
+                }
+              ],
+              "activeTabId": "<U>",
+              "running": 0,
+              "queued": 0,
+              "defaultPermissionMode": "acceptEdits",
+              "codexNetwork": true,
+              "autoApprove": true
+            },
+            "state": {
+              "backend": "nomi",
+              "cwd": "<T>/work",
+              "cliSessionId": null,
+              "busy": false,
+              "toolsDisabled": false,
+              "permissionMode": "acceptEdits"
+            }
+          }
+        ]
+      ],
+      "final": {
+        "tabs": {
+          "tabs": [
+            {
+              "id": "main",
+              "title": "对话",
+              "backend": "nomi",
+              "cwd": "<T>/work",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "acceptEdits",
+              "modelOverride": null,
+              "reasoningEffort": null,
+              "modelScope": null,
+              "longContext": null
+            },
+            {
+              "id": "<U>",
+              "title": "Claude Code",
+              "backend": "claude",
+              "cwd": "<T>/work",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null,
+              "modelOverride": null,
+              "reasoningEffort": null,
+              "longContext": null
+            }
+          ],
+          "activeTabId": "<U>",
+          "running": 0,
+          "queued": 0,
+          "defaultPermissionMode": "acceptEdits",
+          "codexNetwork": true,
+          "autoApprove": true
+        },
+        "state": {
+          "backend": "nomi",
+          "cwd": "<T>/work",
+          "cliSessionId": null,
+          "busy": false,
+          "toolsDisabled": false,
+          "permissionMode": "acceptEdits"
+        }
+      },
+      "disk": [
+        [
+          "recent-cwds.json",
+          [
+            "<T>/work"
+          ]
+        ],
+        [
+          "session.json",
+          {
+            "backend": "nomi",
+            "cwd": "<T>/work",
+            "cliSessionId": null,
+            "busy": false,
+            "title": "对话",
+            "permissionMode": "acceptEdits"
+          }
+        ],
+        [
+          "tabs.json",
+          {
+            "activeTabId": "<U>",
+            "defaultPermissionMode": "acceptEdits",
+            "codexNetwork": true,
+            "autoApprove": true,
+            "lastSettings": {},
+            "tabs": [
+              {
+                "id": "<U>",
+                "title": "Claude Code",
+                "backend": "claude",
+                "cwd": "<T>/work",
+                "cliSessionId": null,
+                "status": "idle",
+                "unread": 0,
+                "createdAt": "<N>",
+                "updatedAt": "<N>",
+                "permissionMode": "bypass",
+                "source": "official",
+                "modelScope": null
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "perm:modes",
+      "steps": [
+        [
+          "createTab",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "Claude Code",
+              "backend": "claude",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null
+            }
+          }
+        ],
+        [
+          "setTabPermissionMode",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "Claude Code",
+              "backend": "claude",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "plan",
+              "source": "official",
+              "modelScope": null,
+              "degraded": false
+            }
+          }
+        ],
+        [
+          "setTabPermissionMode",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "Claude Code",
+              "backend": "claude",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "manual",
+              "source": "official",
+              "modelScope": null,
+              "degraded": false
+            }
+          }
+        ],
+        [
+          "setTabPermissionMode",
+          {
+            "err": "未知权限模式"
+          }
+        ],
+        [
+          "setPermissionDefaults",
+          {
+            "ok": {
+              "tabs": [
+                {
+                  "id": "main",
+                  "title": "对话",
+                  "backend": "nomi",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "acceptEdits"
+                },
+                {
+                  "id": "<U>",
+                  "title": "Claude Code",
+                  "backend": "claude",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "manual",
+                  "source": "official",
+                  "modelScope": null
+                }
+              ],
+              "activeTabId": "<U>",
+              "running": 0,
+              "queued": 0,
+              "defaultPermissionMode": "acceptEdits",
+              "codexNetwork": false,
+              "autoApprove": false
+            }
+          }
+        ],
+        [
+          "createTab",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "Codex",
+              "backend": "codex",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "acceptEdits",
+              "source": "official",
+              "modelScope": null
+            }
+          }
+        ],
+        [
+          "reload",
+          {
+            "tabs": {
+              "tabs": [
+                {
+                  "id": "main",
+                  "title": "对话",
+                  "backend": "nomi",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "acceptEdits",
+                  "modelOverride": null,
+                  "reasoningEffort": null,
+                  "modelScope": null,
+                  "longContext": null
+                },
+                {
+                  "id": "<U>",
+                  "title": "Claude Code",
+                  "backend": "claude",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "manual",
+                  "source": "official",
+                  "modelScope": null,
+                  "modelOverride": null,
+                  "reasoningEffort": null,
+                  "longContext": null
+                },
+                {
+                  "id": "<U>",
+                  "title": "Codex",
+                  "backend": "codex",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "acceptEdits",
+                  "source": "official",
+                  "modelScope": null,
+                  "modelOverride": null,
+                  "reasoningEffort": null,
+                  "longContext": null
+                }
+              ],
+              "activeTabId": "<U>",
+              "running": 0,
+              "queued": 0,
+              "defaultPermissionMode": "acceptEdits",
+              "codexNetwork": false,
+              "autoApprove": false
+            },
+            "state": {
+              "backend": "nomi",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "busy": false,
+              "toolsDisabled": false,
+              "permissionMode": "acceptEdits"
+            }
+          }
+        ]
+      ],
+      "final": {
+        "tabs": {
+          "tabs": [
+            {
+              "id": "main",
+              "title": "对话",
+              "backend": "nomi",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "acceptEdits",
+              "modelOverride": null,
+              "reasoningEffort": null,
+              "modelScope": null,
+              "longContext": null
+            },
+            {
+              "id": "<U>",
+              "title": "Claude Code",
+              "backend": "claude",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "manual",
+              "source": "official",
+              "modelScope": null,
+              "modelOverride": null,
+              "reasoningEffort": null,
+              "longContext": null
+            },
+            {
+              "id": "<U>",
+              "title": "Codex",
+              "backend": "codex",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "acceptEdits",
+              "source": "official",
+              "modelScope": null,
+              "modelOverride": null,
+              "reasoningEffort": null,
+              "longContext": null
+            }
+          ],
+          "activeTabId": "<U>",
+          "running": 0,
+          "queued": 0,
+          "defaultPermissionMode": "acceptEdits",
+          "codexNetwork": false,
+          "autoApprove": false
+        },
+        "state": {
+          "backend": "nomi",
+          "cwd": "<T>/docs/nomi",
+          "cliSessionId": null,
+          "busy": false,
+          "toolsDisabled": false,
+          "permissionMode": "acceptEdits"
+        }
+      },
+      "disk": [
+        [
+          "session.json",
+          {
+            "backend": "nomi",
+            "cwd": "<T>/docs/nomi",
+            "cliSessionId": null,
+            "busy": false,
+            "title": "对话",
+            "permissionMode": "acceptEdits"
+          }
+        ],
+        [
+          "tabs.json",
+          {
+            "activeTabId": "<U>",
+            "defaultPermissionMode": "acceptEdits",
+            "codexNetwork": false,
+            "autoApprove": false,
+            "lastSettings": {
+              "claude": {}
+            },
+            "tabs": [
+              {
+                "id": "<U>",
+                "title": "Claude Code",
+                "backend": "claude",
+                "cwd": "<T>/docs/nomi",
+                "cliSessionId": null,
+                "status": "idle",
+                "unread": 0,
+                "createdAt": "<N>",
+                "updatedAt": "<N>",
+                "permissionMode": "manual",
+                "source": "official",
+                "modelScope": null
+              },
+              {
+                "id": "<U>",
+                "title": "Codex",
+                "backend": "codex",
+                "cwd": "<T>/docs/nomi",
+                "cliSessionId": null,
+                "status": "idle",
+                "unread": 0,
+                "createdAt": "<N>",
+                "updatedAt": "<N>",
+                "permissionMode": "acceptEdits",
+                "source": "official",
+                "modelScope": null
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "effort:set",
+      "steps": [
+        [
+          "createTab",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "Codex",
+              "backend": "codex",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null
+            }
+          }
+        ],
+        [
+          "setTabReasoningEffort",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "Codex",
+              "backend": "codex",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null,
+              "reasoningEffort": "high"
+            }
+          }
+        ],
+        [
+          "setTabReasoningEffort",
+          {
+            "err": "未知思考深度"
+          }
+        ],
+        [
+          "setTabReasoningEffort",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "Codex",
+              "backend": "codex",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null,
+              "reasoningEffort": null
+            }
+          }
+        ],
+        [
+          "reload",
+          {
+            "tabs": {
+              "tabs": [
+                {
+                  "id": "main",
+                  "title": "对话",
+                  "backend": "nomi",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "acceptEdits",
+                  "modelOverride": null,
+                  "reasoningEffort": null,
+                  "modelScope": null,
+                  "longContext": null
+                },
+                {
+                  "id": "<U>",
+                  "title": "Codex",
+                  "backend": "codex",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "bypass",
+                  "source": "official",
+                  "modelScope": null,
+                  "reasoningEffort": null,
+                  "modelOverride": null,
+                  "longContext": null
+                }
+              ],
+              "activeTabId": "<U>",
+              "running": 0,
+              "queued": 0,
+              "defaultPermissionMode": "acceptEdits",
+              "codexNetwork": true,
+              "autoApprove": true
+            },
+            "state": {
+              "backend": "nomi",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "busy": false,
+              "toolsDisabled": false,
+              "permissionMode": "acceptEdits"
+            }
+          }
+        ]
+      ],
+      "final": {
+        "tabs": {
+          "tabs": [
+            {
+              "id": "main",
+              "title": "对话",
+              "backend": "nomi",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "acceptEdits",
+              "modelOverride": null,
+              "reasoningEffort": null,
+              "modelScope": null,
+              "longContext": null
+            },
+            {
+              "id": "<U>",
+              "title": "Codex",
+              "backend": "codex",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null,
+              "reasoningEffort": null,
+              "modelOverride": null,
+              "longContext": null
+            }
+          ],
+          "activeTabId": "<U>",
+          "running": 0,
+          "queued": 0,
+          "defaultPermissionMode": "acceptEdits",
+          "codexNetwork": true,
+          "autoApprove": true
+        },
+        "state": {
+          "backend": "nomi",
+          "cwd": "<T>/docs/nomi",
+          "cliSessionId": null,
+          "busy": false,
+          "toolsDisabled": false,
+          "permissionMode": "acceptEdits"
+        }
+      },
+      "disk": [
+        [
+          "session.json",
+          {
+            "backend": "nomi",
+            "cwd": "<T>/docs/nomi",
+            "cliSessionId": null,
+            "busy": false,
+            "title": "对话",
+            "permissionMode": "acceptEdits"
+          }
+        ],
+        [
+          "tabs.json",
+          {
+            "activeTabId": "<U>",
+            "defaultPermissionMode": "acceptEdits",
+            "codexNetwork": true,
+            "autoApprove": true,
+            "lastSettings": {
+              "codex": {}
+            },
+            "tabs": [
+              {
+                "id": "<U>",
+                "title": "Codex",
+                "backend": "codex",
+                "cwd": "<T>/docs/nomi",
+                "cliSessionId": null,
+                "status": "idle",
+                "unread": 0,
+                "createdAt": "<N>",
+                "updatedAt": "<N>",
+                "permissionMode": "bypass",
+                "source": "official",
+                "modelScope": null,
+                "reasoningEffort": null
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "seed:messages",
+      "steps": [
+        [
+          "createTab",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "Gemini",
+              "backend": "gemini",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null
+            }
+          }
+        ],
+        [
+          "seedTabMessages",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "Gemini",
+              "backend": "gemini",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null,
+              "carriedMessages": 2
+            }
+          }
+        ],
+        [
+          "seedTabMessages",
+          {
+            "err": "主对话标签不能写入 CLI 转录"
+          }
+        ],
+        [
+          "tabMessages",
+          {
+            "ok": [
+              {
+                "id": "u1",
+                "role": "user",
+                "content": "a",
+                "timestamp": "<N>"
+              },
+              {
+                "id": "a1",
+                "role": "assistant",
+                "content": "b",
+                "timestamp": "<N>"
+              }
+            ]
+          }
+        ],
+        [
+          "clearTabCarry",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "Gemini",
+              "backend": "gemini",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null
+            }
+          }
+        ],
+        [
+          "reload",
+          {
+            "tabs": {
+              "tabs": [
+                {
+                  "id": "main",
+                  "title": "对话",
+                  "backend": "nomi",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "acceptEdits",
+                  "modelOverride": null,
+                  "reasoningEffort": null,
+                  "modelScope": null,
+                  "longContext": null
+                },
+                {
+                  "id": "<U>",
+                  "title": "Gemini",
+                  "backend": "gemini",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "bypass",
+                  "source": "official",
+                  "modelScope": null,
+                  "modelOverride": null,
+                  "reasoningEffort": null,
+                  "longContext": null
+                }
+              ],
+              "activeTabId": "<U>",
+              "running": 0,
+              "queued": 0,
+              "defaultPermissionMode": "acceptEdits",
+              "codexNetwork": true,
+              "autoApprove": true
+            },
+            "state": {
+              "backend": "nomi",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "busy": false,
+              "toolsDisabled": false,
+              "permissionMode": "acceptEdits"
+            }
+          }
+        ],
+        [
+          "tabMessages",
+          {
+            "ok": [
+              {
+                "id": "u1",
+                "role": "user",
+                "content": "a",
+                "timestamp": "<N>"
+              },
+              {
+                "id": "a1",
+                "role": "assistant",
+                "content": "b",
+                "timestamp": "<N>"
+              }
+            ]
+          }
+        ]
+      ],
+      "final": {
+        "tabs": {
+          "tabs": [
+            {
+              "id": "main",
+              "title": "对话",
+              "backend": "nomi",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "acceptEdits",
+              "modelOverride": null,
+              "reasoningEffort": null,
+              "modelScope": null,
+              "longContext": null
+            },
+            {
+              "id": "<U>",
+              "title": "Gemini",
+              "backend": "gemini",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null,
+              "modelOverride": null,
+              "reasoningEffort": null,
+              "longContext": null
+            }
+          ],
+          "activeTabId": "<U>",
+          "running": 0,
+          "queued": 0,
+          "defaultPermissionMode": "acceptEdits",
+          "codexNetwork": true,
+          "autoApprove": true
+        },
+        "state": {
+          "backend": "nomi",
+          "cwd": "<T>/docs/nomi",
+          "cliSessionId": null,
+          "busy": false,
+          "toolsDisabled": false,
+          "permissionMode": "acceptEdits"
+        }
+      },
+      "disk": [
+        [
+          "session.json",
+          {
+            "backend": "nomi",
+            "cwd": "<T>/docs/nomi",
+            "cliSessionId": null,
+            "busy": false,
+            "title": "对话",
+            "permissionMode": "acceptEdits"
+          }
+        ],
+        [
+          "tabs/<U>.json",
+          [
+            {
+              "id": "u1",
+              "role": "user",
+              "content": "a",
+              "timestamp": "<N>"
+            },
+            {
+              "id": "a1",
+              "role": "assistant",
+              "content": "b",
+              "timestamp": "<N>"
+            }
+          ]
+        ],
+        [
+          "tabs.json",
+          {
+            "activeTabId": "<U>",
+            "defaultPermissionMode": "acceptEdits",
+            "codexNetwork": true,
+            "autoApprove": true,
+            "lastSettings": {},
+            "tabs": [
+              {
+                "id": "<U>",
+                "title": "Gemini",
+                "backend": "gemini",
+                "cwd": "<T>/docs/nomi",
+                "cliSessionId": null,
+                "status": "idle",
+                "unread": 0,
+                "createdAt": "<N>",
+                "updatedAt": "<N>",
+                "permissionMode": "bypass",
+                "source": "official",
+                "modelScope": null
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "rewind:gemini",
+      "steps": [
+        [
+          "createTab",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "Gemini",
+              "backend": "gemini",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null
+            }
+          }
+        ],
+        [
+          "seedTabMessages",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "Gemini",
+              "backend": "gemini",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null,
+              "carriedMessages": 4
+            }
+          }
+        ],
+        [
+          "rewindTab",
+          {
+            "ok": [
+              {
+                "id": "u1",
+                "role": "user",
+                "content": "a",
+                "timestamp": "<N>"
+              },
+              {
+                "id": "a1",
+                "role": "assistant",
+                "content": "b",
+                "timestamp": "<N>"
+              }
+            ]
+          }
+        ],
+        [
+          "rewindTab",
+          {
+            "err": "找不到这条消息，请刷新后重试"
+          }
+        ],
+        [
+          "rewindTab",
+          {
+            "err": "找不到这条消息，请刷新后重试"
+          }
+        ],
+        [
+          "rewindTab",
+          {
+            "err": "主对话标签不能写入 CLI 转录"
+          }
+        ],
+        [
+          "reload",
+          {
+            "tabs": {
+              "tabs": [
+                {
+                  "id": "main",
+                  "title": "对话",
+                  "backend": "nomi",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "acceptEdits",
+                  "modelOverride": null,
+                  "reasoningEffort": null,
+                  "modelScope": null,
+                  "longContext": null
+                },
+                {
+                  "id": "<U>",
+                  "title": "Gemini",
+                  "backend": "gemini",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "bypass",
+                  "source": "official",
+                  "modelScope": null,
+                  "carriedMessages": 4,
+                  "modelOverride": null,
+                  "reasoningEffort": null,
+                  "longContext": null
+                }
+              ],
+              "activeTabId": "<U>",
+              "running": 0,
+              "queued": 0,
+              "defaultPermissionMode": "acceptEdits",
+              "codexNetwork": true,
+              "autoApprove": true
+            },
+            "state": {
+              "backend": "nomi",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "busy": false,
+              "toolsDisabled": false,
+              "permissionMode": "acceptEdits"
+            }
+          }
+        ],
+        [
+          "tabMessages",
+          {
+            "ok": [
+              {
+                "id": "u1",
+                "role": "user",
+                "content": "a",
+                "timestamp": "<N>"
+              },
+              {
+                "id": "a1",
+                "role": "assistant",
+                "content": "b",
+                "timestamp": "<N>"
+              }
+            ]
+          }
+        ]
+      ],
+      "final": {
+        "tabs": {
+          "tabs": [
+            {
+              "id": "main",
+              "title": "对话",
+              "backend": "nomi",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "acceptEdits",
+              "modelOverride": null,
+              "reasoningEffort": null,
+              "modelScope": null,
+              "longContext": null
+            },
+            {
+              "id": "<U>",
+              "title": "Gemini",
+              "backend": "gemini",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null,
+              "carriedMessages": 4,
+              "modelOverride": null,
+              "reasoningEffort": null,
+              "longContext": null
+            }
+          ],
+          "activeTabId": "<U>",
+          "running": 0,
+          "queued": 0,
+          "defaultPermissionMode": "acceptEdits",
+          "codexNetwork": true,
+          "autoApprove": true
+        },
+        "state": {
+          "backend": "nomi",
+          "cwd": "<T>/docs/nomi",
+          "cliSessionId": null,
+          "busy": false,
+          "toolsDisabled": false,
+          "permissionMode": "acceptEdits"
+        }
+      },
+      "disk": [
+        [
+          "session.json",
+          {
+            "backend": "nomi",
+            "cwd": "<T>/docs/nomi",
+            "cliSessionId": null,
+            "busy": false,
+            "title": "对话",
+            "permissionMode": "acceptEdits"
+          }
+        ],
+        [
+          "tabs/<U>.carry.txt",
+          "[Nomi] 以下是这个对话之前在 <T>/docs/nomi 里的内容，工作目录已经换成当前目录。请把它当作上下文继续，不必复述：\n<previous_conversation>\nUser: a\nAssistant: b\nUser: c\nAssistant: d\n</previous_conversation>"
+        ],
+        [
+          "tabs/<U>.json",
+          [
+            {
+              "id": "u1",
+              "role": "user",
+              "content": "a",
+              "timestamp": "<N>"
+            },
+            {
+              "id": "a1",
+              "role": "assistant",
+              "content": "b",
+              "timestamp": "<N>"
+            }
+          ]
+        ],
+        [
+          "tabs.json",
+          {
+            "activeTabId": "<U>",
+            "defaultPermissionMode": "acceptEdits",
+            "codexNetwork": true,
+            "autoApprove": true,
+            "lastSettings": {},
+            "tabs": [
+              {
+                "id": "<U>",
+                "title": "Gemini",
+                "backend": "gemini",
+                "cwd": "<T>/docs/nomi",
+                "cliSessionId": null,
+                "status": "idle",
+                "unread": 0,
+                "createdAt": "<N>",
+                "updatedAt": "<N>",
+                "permissionMode": "bypass",
+                "source": "official",
+                "modelScope": null,
+                "carriedMessages": 4
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "rewind:claude-no-session",
+      "steps": [
+        [
+          "createTab",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "Claude Code",
+              "backend": "claude",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null
+            }
+          }
+        ],
+        [
+          "seedTabMessages",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "Claude Code",
+              "backend": "claude",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null,
+              "carriedMessages": 3
+            }
+          }
+        ],
+        [
+          "rewindTab",
+          {
+            "ok": [
+              {
+                "id": "u1",
+                "role": "user",
+                "content": "a",
+                "timestamp": "<N>"
+              },
+              {
+                "id": "a1",
+                "role": "assistant",
+                "content": "b",
+                "timestamp": "<N>"
+              }
+            ]
+          }
+        ],
+        [
+          "reload",
+          {
+            "tabs": {
+              "tabs": [
+                {
+                  "id": "main",
+                  "title": "对话",
+                  "backend": "nomi",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "acceptEdits",
+                  "modelOverride": null,
+                  "reasoningEffort": null,
+                  "modelScope": null,
+                  "longContext": null
+                },
+                {
+                  "id": "<U>",
+                  "title": "Claude Code",
+                  "backend": "claude",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "bypass",
+                  "source": "official",
+                  "modelScope": null,
+                  "carriedMessages": 2,
+                  "modelOverride": null,
+                  "reasoningEffort": null,
+                  "longContext": null
+                }
+              ],
+              "activeTabId": "<U>",
+              "running": 0,
+              "queued": 0,
+              "defaultPermissionMode": "acceptEdits",
+              "codexNetwork": true,
+              "autoApprove": true
+            },
+            "state": {
+              "backend": "nomi",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "busy": false,
+              "toolsDisabled": false,
+              "permissionMode": "acceptEdits"
+            }
+          }
+        ]
+      ],
+      "final": {
+        "tabs": {
+          "tabs": [
+            {
+              "id": "main",
+              "title": "对话",
+              "backend": "nomi",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "acceptEdits",
+              "modelOverride": null,
+              "reasoningEffort": null,
+              "modelScope": null,
+              "longContext": null
+            },
+            {
+              "id": "<U>",
+              "title": "Claude Code",
+              "backend": "claude",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null,
+              "carriedMessages": 2,
+              "modelOverride": null,
+              "reasoningEffort": null,
+              "longContext": null
+            }
+          ],
+          "activeTabId": "<U>",
+          "running": 0,
+          "queued": 0,
+          "defaultPermissionMode": "acceptEdits",
+          "codexNetwork": true,
+          "autoApprove": true
+        },
+        "state": {
+          "backend": "nomi",
+          "cwd": "<T>/docs/nomi",
+          "cliSessionId": null,
+          "busy": false,
+          "toolsDisabled": false,
+          "permissionMode": "acceptEdits"
+        }
+      },
+      "disk": [
+        [
+          "session.json",
+          {
+            "backend": "nomi",
+            "cwd": "<T>/docs/nomi",
+            "cliSessionId": null,
+            "busy": false,
+            "title": "对话",
+            "permissionMode": "acceptEdits"
+          }
+        ],
+        [
+          "tabs/<U>.carry.txt",
+          "[Nomi] 以下是这个对话之前在 <T>/docs/nomi 里的内容，工作目录已经换成当前目录。请把它当作上下文继续，不必复述：\n<previous_conversation>\nUser: a\nAssistant: b\n</previous_conversation>"
+        ],
+        [
+          "tabs/<U>.json",
+          [
+            {
+              "id": "u1",
+              "role": "user",
+              "content": "a",
+              "timestamp": "<N>"
+            },
+            {
+              "id": "a1",
+              "role": "assistant",
+              "content": "b",
+              "timestamp": "<N>"
+            }
+          ]
+        ],
+        [
+          "tabs.json",
+          {
+            "activeTabId": "<U>",
+            "defaultPermissionMode": "acceptEdits",
+            "codexNetwork": true,
+            "autoApprove": true,
+            "lastSettings": {},
+            "tabs": [
+              {
+                "id": "<U>",
+                "title": "Claude Code",
+                "backend": "claude",
+                "cwd": "<T>/docs/nomi",
+                "cliSessionId": null,
+                "status": "idle",
+                "unread": 0,
+                "createdAt": "<N>",
+                "updatedAt": "<N>",
+                "permissionMode": "bypass",
+                "source": "official",
+                "modelScope": null,
+                "carriedMessages": 2
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "rewind:claude-session-yield",
+      "steps": [
+        [
+          "createTab",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "Claude Code",
+              "backend": "claude",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": "<U>",
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null
+            }
+          }
+        ],
+        [
+          "seedTabMessages",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "Claude Code",
+              "backend": "claude",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": "<U>",
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null
+            }
+          }
+        ],
+        [
+          "rewindTab",
+          "started"
+        ],
+        [
+          "seedTabMessages",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "Claude Code",
+              "backend": "claude",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": "<U>",
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null
+            }
+          }
+        ],
+        [
+          "renameTab",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "during",
+              "backend": "claude",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": "<U>",
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null
+            }
+          }
+        ],
+        [
+          "await",
+          [
+            {
+              "err": "找不到这条消息，请刷新后重试"
+            }
+          ]
+        ],
+        [
+          "rewindTab",
+          "started"
+        ],
+        [
+          "seedTabMessages",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "during",
+              "backend": "claude",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": "<U>",
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null
+            }
+          }
+        ],
+        [
+          "await",
+          [
+            {
+              "err": "找不到这条消息，请刷新后重试"
+            }
+          ]
+        ],
+        [
+          "reload",
+          {
+            "tabs": {
+              "tabs": [
+                {
+                  "id": "main",
+                  "title": "对话",
+                  "backend": "nomi",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "acceptEdits",
+                  "modelOverride": null,
+                  "reasoningEffort": null,
+                  "modelScope": null,
+                  "longContext": null
+                },
+                {
+                  "id": "<U>",
+                  "title": "during",
+                  "backend": "claude",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": "<U>",
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "bypass",
+                  "source": "official",
+                  "modelScope": null,
+                  "modelOverride": null,
+                  "reasoningEffort": null,
+                  "longContext": null
+                }
+              ],
+              "activeTabId": "<U>",
+              "running": 0,
+              "queued": 0,
+              "defaultPermissionMode": "acceptEdits",
+              "codexNetwork": true,
+              "autoApprove": true
+            },
+            "state": {
+              "backend": "nomi",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "busy": false,
+              "toolsDisabled": false,
+              "permissionMode": "acceptEdits"
+            }
+          }
+        ]
+      ],
+      "final": {
+        "tabs": {
+          "tabs": [
+            {
+              "id": "main",
+              "title": "对话",
+              "backend": "nomi",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "acceptEdits",
+              "modelOverride": null,
+              "reasoningEffort": null,
+              "modelScope": null,
+              "longContext": null
+            },
+            {
+              "id": "<U>",
+              "title": "during",
+              "backend": "claude",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": "<U>",
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null,
+              "modelOverride": null,
+              "reasoningEffort": null,
+              "longContext": null
+            }
+          ],
+          "activeTabId": "<U>",
+          "running": 0,
+          "queued": 0,
+          "defaultPermissionMode": "acceptEdits",
+          "codexNetwork": true,
+          "autoApprove": true
+        },
+        "state": {
+          "backend": "nomi",
+          "cwd": "<T>/docs/nomi",
+          "cliSessionId": null,
+          "busy": false,
+          "toolsDisabled": false,
+          "permissionMode": "acceptEdits"
+        }
+      },
+      "disk": [
+        [
+          "session.json",
+          {
+            "backend": "nomi",
+            "cwd": "<T>/docs/nomi",
+            "cliSessionId": null,
+            "busy": false,
+            "title": "对话",
+            "permissionMode": "acceptEdits"
+          }
+        ],
+        [
+          "tabs/<U>.json",
+          [
+            {
+              "id": "x1",
+              "role": "user",
+              "content": "z",
+              "timestamp": "<N>"
+            }
+          ]
+        ],
+        [
+          "tabs.json",
+          {
+            "activeTabId": "<U>",
+            "defaultPermissionMode": "acceptEdits",
+            "codexNetwork": true,
+            "autoApprove": true,
+            "lastSettings": {},
+            "tabs": [
+              {
+                "id": "<U>",
+                "title": "during",
+                "backend": "claude",
+                "cwd": "<T>/docs/nomi",
+                "cliSessionId": "<U>",
+                "status": "idle",
+                "unread": 0,
+                "createdAt": "<N>",
+                "updatedAt": "<N>",
+                "permissionMode": "bypass",
+                "source": "official",
+                "modelScope": null
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "load:legacy-files",
+      "steps": [
+        [
+          "listTabs",
+          {
+            "ok": {
+              "tabs": [
+                {
+                  "id": "main",
+                  "title": "Main T",
+                  "backend": "codex",
+                  "cwd": "<T>/work",
+                  "cliSessionId": "s-main",
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "plan",
+                  "modelOverride": null,
+                  "reasoningEffort": "high",
+                  "modelScope": null,
+                  "longContext": null
+                },
+                {
+                  "id": "t1",
+                  "title": "One",
+                  "backend": "claude",
+                  "cwd": "<T>/work",
+                  "status": "idle",
+                  "unread": 3,
+                  "permissionMode": "bypass",
+                  "cliSessionId": null,
+                  "modelOverride": null,
+                  "reasoningEffort": null,
+                  "modelScope": null,
+                  "longContext": null
+                },
+                {
+                  "id": "t2",
+                  "title": "Two",
+                  "backend": "gemini",
+                  "cwd": "<T>/work",
+                  "status": "error",
+                  "permissionMode": "plan",
+                  "unread": 0,
+                  "modelOverride": null,
+                  "reasoningEffort": null,
+                  "modelScope": null,
+                  "longContext": null
+                }
+              ],
+              "activeTabId": "t2",
+              "running": 0,
+              "queued": 0,
+              "defaultPermissionMode": "manual",
+              "codexNetwork": false,
+              "autoApprove": true
+            }
+          }
+        ],
+        [
+          "reload",
+          {
+            "tabs": {
+              "tabs": [
+                {
+                  "id": "main",
+                  "title": "Main T",
+                  "backend": "codex",
+                  "cwd": "<T>/work",
+                  "cliSessionId": "s-main",
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "plan",
+                  "modelOverride": null,
+                  "reasoningEffort": "high",
+                  "modelScope": null,
+                  "longContext": null
+                },
+                {
+                  "id": "t1",
+                  "title": "One",
+                  "backend": "claude",
+                  "cwd": "<T>/work",
+                  "status": "idle",
+                  "unread": 3,
+                  "permissionMode": "bypass",
+                  "cliSessionId": null,
+                  "modelOverride": null,
+                  "reasoningEffort": null,
+                  "modelScope": null,
+                  "longContext": null
+                },
+                {
+                  "id": "t2",
+                  "title": "Two",
+                  "backend": "gemini",
+                  "cwd": "<T>/work",
+                  "status": "error",
+                  "permissionMode": "plan",
+                  "unread": 0,
+                  "modelOverride": null,
+                  "reasoningEffort": null,
+                  "modelScope": null,
+                  "longContext": null
+                }
+              ],
+              "activeTabId": "t2",
+              "running": 0,
+              "queued": 0,
+              "defaultPermissionMode": "manual",
+              "codexNetwork": false,
+              "autoApprove": true
+            },
+            "state": {
+              "backend": "codex",
+              "cwd": "<T>/work",
+              "cliSessionId": "s-main",
+              "busy": false,
+              "toolsDisabled": true,
+              "permissionMode": "plan"
+            }
+          }
+        ]
+      ],
+      "final": {
+        "tabs": {
+          "tabs": [
+            {
+              "id": "main",
+              "title": "Main T",
+              "backend": "codex",
+              "cwd": "<T>/work",
+              "cliSessionId": "s-main",
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "plan",
+              "modelOverride": null,
+              "reasoningEffort": "high",
+              "modelScope": null,
+              "longContext": null
+            },
+            {
+              "id": "t1",
+              "title": "One",
+              "backend": "claude",
+              "cwd": "<T>/work",
+              "status": "idle",
+              "unread": 3,
+              "permissionMode": "bypass",
+              "cliSessionId": null,
+              "modelOverride": null,
+              "reasoningEffort": null,
+              "modelScope": null,
+              "longContext": null
+            },
+            {
+              "id": "t2",
+              "title": "Two",
+              "backend": "gemini",
+              "cwd": "<T>/work",
+              "status": "error",
+              "permissionMode": "plan",
+              "unread": 0,
+              "modelOverride": null,
+              "reasoningEffort": null,
+              "modelScope": null,
+              "longContext": null
+            }
+          ],
+          "activeTabId": "t2",
+          "running": 0,
+          "queued": 0,
+          "defaultPermissionMode": "manual",
+          "codexNetwork": false,
+          "autoApprove": true
+        },
+        "state": {
+          "backend": "codex",
+          "cwd": "<T>/work",
+          "cliSessionId": "s-main",
+          "busy": false,
+          "toolsDisabled": true,
+          "permissionMode": "plan"
+        }
+      },
+      "disk": [
+        [
+          "session.json",
+          {
+            "backend": "codex",
+            "cwd": "<T>/work",
+            "cliSessionId": "s-main",
+            "busy": false,
+            "title": "Main T",
+            "permissionMode": "plan",
+            "reasoningEffort": "high"
+          }
+        ],
+        [
+          "tabs.json",
+          {
+            "activeTabId": "t2",
+            "defaultPermissionMode": "manual",
+            "codexNetwork": false,
+            "autoApprove": true,
+            "lastSettings": {},
+            "tabs": [
+              {
+                "id": "t1",
+                "title": "One",
+                "backend": "claude",
+                "cwd": "<T>/work",
+                "status": "idle",
+                "unread": 3,
+                "permissionMode": "bypass",
+                "cliSessionId": null,
+                "modelOverride": null,
+                "reasoningEffort": null,
+                "modelScope": null,
+                "longContext": null
+              },
+              {
+                "id": "t2",
+                "title": "Two",
+                "backend": "gemini",
+                "cwd": "<T>/work",
+                "status": "error",
+                "permissionMode": "plan",
+                "unread": 0,
+                "modelOverride": null,
+                "reasoningEffort": null,
+                "modelScope": null,
+                "longContext": null
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "load:autoapprove-set",
+      "steps": [
+        [
+          "listTabs",
+          {
+            "ok": {
+              "tabs": [
+                {
+                  "id": "main",
+                  "title": "对话",
+                  "backend": "nomi",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "acceptEdits"
+                },
+                {
+                  "id": "t1",
+                  "title": "One",
+                  "backend": "codex",
+                  "cwd": "<T>/work",
+                  "permissionMode": "acceptEdits",
+                  "status": "idle",
+                  "unread": 0,
+                  "modelOverride": null,
+                  "reasoningEffort": null,
+                  "modelScope": null,
+                  "longContext": null
+                }
+              ],
+              "activeTabId": "main",
+              "running": 0,
+              "queued": 0,
+              "defaultPermissionMode": "acceptEdits",
+              "codexNetwork": true,
+              "autoApprove": false
+            }
+          }
+        ],
+        [
+          "reload",
+          {
+            "tabs": {
+              "tabs": [
+                {
+                  "id": "main",
+                  "title": "对话",
+                  "backend": "nomi",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "acceptEdits"
+                },
+                {
+                  "id": "t1",
+                  "title": "One",
+                  "backend": "codex",
+                  "cwd": "<T>/work",
+                  "permissionMode": "acceptEdits",
+                  "status": "idle",
+                  "unread": 0,
+                  "modelOverride": null,
+                  "reasoningEffort": null,
+                  "modelScope": null,
+                  "longContext": null
+                }
+              ],
+              "activeTabId": "main",
+              "running": 0,
+              "queued": 0,
+              "defaultPermissionMode": "acceptEdits",
+              "codexNetwork": true,
+              "autoApprove": false
+            },
+            "state": {
+              "backend": "nomi",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "busy": false,
+              "toolsDisabled": false,
+              "permissionMode": "acceptEdits"
+            }
+          }
+        ]
+      ],
+      "final": {
+        "tabs": {
+          "tabs": [
+            {
+              "id": "main",
+              "title": "对话",
+              "backend": "nomi",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "acceptEdits"
+            },
+            {
+              "id": "t1",
+              "title": "One",
+              "backend": "codex",
+              "cwd": "<T>/work",
+              "permissionMode": "acceptEdits",
+              "status": "idle",
+              "unread": 0,
+              "modelOverride": null,
+              "reasoningEffort": null,
+              "modelScope": null,
+              "longContext": null
+            }
+          ],
+          "activeTabId": "main",
+          "running": 0,
+          "queued": 0,
+          "defaultPermissionMode": "acceptEdits",
+          "codexNetwork": true,
+          "autoApprove": false
+        },
+        "state": {
+          "backend": "nomi",
+          "cwd": "<T>/docs/nomi",
+          "cliSessionId": null,
+          "busy": false,
+          "toolsDisabled": false,
+          "permissionMode": "acceptEdits"
+        }
+      },
+      "disk": [
+        [
+          "tabs.json",
+          {
+            "activeTabId": "zz",
+            "defaultPermissionMode": "bypass",
+            "autoApprove": false,
+            "lastSettings": {
+              "claude": {
+                "permissionMode": "plan"
+              }
+            },
+            "tabs": [
+              {
+                "id": "t1",
+                "title": "One",
+                "backend": "codex",
+                "cwd": "<T>/work",
+                "permissionMode": "acceptEdits"
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "load:corrupt",
+      "steps": [
+        [
+          "listTabs",
+          {
+            "ok": {
+              "tabs": [
+                {
+                  "id": "main",
+                  "title": "对话",
+                  "backend": "nomi",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "acceptEdits"
+                }
+              ],
+              "activeTabId": "main",
+              "running": 0,
+              "queued": 0,
+              "defaultPermissionMode": "acceptEdits",
+              "codexNetwork": true,
+              "autoApprove": true
+            }
+          }
+        ],
+        [
+          "reload",
+          {
+            "tabs": {
+              "tabs": [
+                {
+                  "id": "main",
+                  "title": "对话",
+                  "backend": "nomi",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "acceptEdits"
+                }
+              ],
+              "activeTabId": "main",
+              "running": 0,
+              "queued": 0,
+              "defaultPermissionMode": "acceptEdits",
+              "codexNetwork": true,
+              "autoApprove": true
+            },
+            "state": {
+              "backend": "nomi",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "busy": false,
+              "toolsDisabled": false,
+              "permissionMode": "acceptEdits"
+            }
+          }
+        ]
+      ],
+      "final": {
+        "tabs": {
+          "tabs": [
+            {
+              "id": "main",
+              "title": "对话",
+              "backend": "nomi",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "acceptEdits"
+            }
+          ],
+          "activeTabId": "main",
+          "running": 0,
+          "queued": 0,
+          "defaultPermissionMode": "acceptEdits",
+          "codexNetwork": true,
+          "autoApprove": true
+        },
+        "state": {
+          "backend": "nomi",
+          "cwd": "<T>/docs/nomi",
+          "cliSessionId": null,
+          "busy": false,
+          "toolsDisabled": false,
+          "permissionMode": "acceptEdits"
+        }
+      },
+      "disk": [
+        [
+          "session.json",
+          "{not json"
+        ],
+        [
+          "tabs.json",
+          "[1,2"
+        ]
+      ]
+    },
+    {
+      "name": "load:legacy-default-cwd",
+      "steps": [
+        [
+          "reload",
+          {
+            "tabs": {
+              "tabs": [
+                {
+                  "id": "main",
+                  "title": "对话",
+                  "backend": "claude",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "manual",
+                  "modelOverride": null,
+                  "reasoningEffort": null,
+                  "modelScope": null,
+                  "longContext": null
+                }
+              ],
+              "activeTabId": "main",
+              "running": 0,
+              "queued": 0,
+              "defaultPermissionMode": "acceptEdits",
+              "codexNetwork": true,
+              "autoApprove": true
+            },
+            "state": {
+              "backend": "claude",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "busy": false,
+              "toolsDisabled": true,
+              "permissionMode": "manual"
+            }
+          }
+        ]
+      ],
+      "final": {
+        "tabs": {
+          "tabs": [
+            {
+              "id": "main",
+              "title": "对话",
+              "backend": "claude",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "manual",
+              "modelOverride": null,
+              "reasoningEffort": null,
+              "modelScope": null,
+              "longContext": null
+            }
+          ],
+          "activeTabId": "main",
+          "running": 0,
+          "queued": 0,
+          "defaultPermissionMode": "acceptEdits",
+          "codexNetwork": true,
+          "autoApprove": true
+        },
+        "state": {
+          "backend": "claude",
+          "cwd": "<T>/docs/nomi",
+          "cliSessionId": null,
+          "busy": false,
+          "toolsDisabled": true,
+          "permissionMode": "manual"
+        }
+      },
+      "disk": [
+        [
+          "session.json",
+          {
+            "backend": "claude",
+            "cwd": "<T>/docs",
+            "cliSessionId": "keep?"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "load:messages-file",
+      "steps": [
+        [
+          "tabMessages",
+          {
+            "ok": [
+              {
+                "id": "u1",
+                "role": "user",
+                "content": "persisted"
+              }
+            ]
+          }
+        ],
+        [
+          "rewindTab",
+          {
+            "ok": []
+          }
+        ],
+        [
+          "reload",
+          {
+            "tabs": {
+              "tabs": [
+                {
+                  "id": "main",
+                  "title": "对话",
+                  "backend": "nomi",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "acceptEdits",
+                  "modelOverride": null,
+                  "reasoningEffort": null,
+                  "modelScope": null,
+                  "longContext": null
+                },
+                {
+                  "id": "t1",
+                  "title": "One",
+                  "backend": "gemini",
+                  "cwd": "<T>/work",
+                  "permissionMode": "bypass",
+                  "status": "idle",
+                  "unread": 0,
+                  "modelOverride": null,
+                  "reasoningEffort": null,
+                  "modelScope": null,
+                  "longContext": null
+                }
+              ],
+              "activeTabId": "main",
+              "running": 0,
+              "queued": 0,
+              "defaultPermissionMode": "acceptEdits",
+              "codexNetwork": true,
+              "autoApprove": true
+            },
+            "state": {
+              "backend": "nomi",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "busy": false,
+              "toolsDisabled": false,
+              "permissionMode": "acceptEdits"
+            }
+          }
+        ],
+        [
+          "tabMessages",
+          {
+            "ok": []
+          }
+        ]
+      ],
+      "final": {
+        "tabs": {
+          "tabs": [
+            {
+              "id": "main",
+              "title": "对话",
+              "backend": "nomi",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "acceptEdits",
+              "modelOverride": null,
+              "reasoningEffort": null,
+              "modelScope": null,
+              "longContext": null
+            },
+            {
+              "id": "t1",
+              "title": "One",
+              "backend": "gemini",
+              "cwd": "<T>/work",
+              "permissionMode": "bypass",
+              "status": "idle",
+              "unread": 0,
+              "modelOverride": null,
+              "reasoningEffort": null,
+              "modelScope": null,
+              "longContext": null
+            }
+          ],
+          "activeTabId": "main",
+          "running": 0,
+          "queued": 0,
+          "defaultPermissionMode": "acceptEdits",
+          "codexNetwork": true,
+          "autoApprove": true
+        },
+        "state": {
+          "backend": "nomi",
+          "cwd": "<T>/docs/nomi",
+          "cliSessionId": null,
+          "busy": false,
+          "toolsDisabled": false,
+          "permissionMode": "acceptEdits"
+        }
+      },
+      "disk": [
+        [
+          "session.json",
+          {
+            "backend": "nomi",
+            "cwd": "<T>/docs/nomi",
+            "cliSessionId": null,
+            "busy": false,
+            "title": "对话",
+            "permissionMode": "acceptEdits"
+          }
+        ],
+        [
+          "tabs/t1.json",
+          []
+        ],
+        [
+          "tabs.json",
+          {
+            "activeTabId": "main",
+            "defaultPermissionMode": "acceptEdits",
+            "codexNetwork": true,
+            "autoApprove": true,
+            "lastSettings": {},
+            "tabs": [
+              {
+                "id": "t1",
+                "title": "One",
+                "backend": "gemini",
+                "cwd": "<T>/work",
+                "permissionMode": "bypass",
+                "status": "idle",
+                "unread": 0,
+                "modelOverride": null,
+                "reasoningEffort": null,
+                "modelScope": null,
+                "longContext": null
+              }
+            ]
+          }
+        ]
+      ]
+    }
+  ]
+}
