@@ -22,9 +22,10 @@ type SessionModelTable struct {
 	keys []string
 	m    map[string]string
 
-	wq      sync.Mutex
-	pending string
-	writing bool
+	wq       sync.Mutex
+	pending  string
+	writing  bool
+	inflight sync.WaitGroup
 }
 
 func NewSessionModelTable(root string, warn func(string, error)) *SessionModelTable {
@@ -128,6 +129,7 @@ func (s *SessionModelTable) Note(backend, sessionID, ref string) {
 	s.pending = data
 	if !s.writing {
 		s.writing = true
+		s.inflight.Add(1)
 		go s.drain(file)
 	}
 	s.wq.Unlock()
@@ -141,6 +143,7 @@ func (s *SessionModelTable) drain(file string) {
 		if data == "" {
 			s.writing = false
 			s.wq.Unlock()
+			s.inflight.Done()
 			return
 		}
 		s.wq.Unlock()
@@ -149,3 +152,6 @@ func (s *SessionModelTable) drain(file string) {
 		}
 	}
 }
+
+// Flush 等待已排队的异步落盘完成（测试 / 退出前用；Node 无对应，不影响可观察行为）。
+func (s *SessionModelTable) Flush() { s.inflight.Wait() }

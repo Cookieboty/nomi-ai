@@ -10,7 +10,9 @@ import fs from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-if (process.env.TZ !== 'Asia/Shanghai') throw new Error('run with TZ=Asia/Shanghai');
+// Windows 上 shell 前缀的 TZ= 不一定传到 Node：脚本自己设（Node 运行时修改 TZ 立即生效）
+process.env.TZ = 'Asia/Shanghai';
+if (new Date(0).getTimezoneOffset() !== -480) throw new Error('TZ=Asia/Shanghai not applied');
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const { GatewayProcess } = await import(pathToFileURL(join(root, 'packages/core/src/gateway/GatewayProcess.ts')).href);
 
