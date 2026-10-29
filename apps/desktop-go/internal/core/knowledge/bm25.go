@@ -109,7 +109,7 @@ func (x *Bm25Index) Search(query string, limit int, filter func(string) bool) []
 			}
 			f := float64(fi)
 			dl := float64(x.length[id])
-			s := (idf * f * (x.k1 + 1)) / (f + x.k1*(1-x.b+(x.b*dl)/avg))
+			s := (idf * f * (x.k1 + 1)) / (f + float64(x.k1*(1-x.b+float64((x.b*dl)/avg))))
 			cur, _ := scores.Get(id)
 			scores.Set(id, cur+s)
 			return true

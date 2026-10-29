@@ -52,11 +52,11 @@ func Resize(src image.Image, w int) *image.NRGBA {
 				for sx := int(x0); float64(sx) < x1 && sx < sw; sx++ {
 					wx := minf(x1, float64(sx+1)) - maxf(x0, float64(sx))
 					c := color.RGBA64Model.Convert(src.At(sb.Min.X+sx, sb.Min.Y+sy)).(color.RGBA64)
-					k := wx * wy
-					r += float64(c.R) * k
-					g += float64(c.G) * k
-					b += float64(c.B) * k
-					a += float64(c.A) * k
+					k := float64(wx * wy)
+					r += float64(float64(c.R) * k)
+					g += float64(float64(c.G) * k)
+					b += float64(float64(c.B) * k)
+					a += float64(float64(c.A) * k)
 					wt += k
 				}
 			}

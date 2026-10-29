@@ -40,7 +40,7 @@ func compat(feature, details string) llm.Warning {
 
 func fmtN(f float64) string { return util.FormatNumber(f) }
 
-func jsRound(x float64) float64 { return math.Floor(x + 0.5) }
+func jsRound(x float64) float64 { return math.Floor(float64(x) + 0.5) }
 
 // resolveReasoning is resolveAnthropicReasoningConfig; returns (thinking, effort).
 func resolveReasoning(r, modelID string, c capabilities, w *[]llm.Warning) (thinking *util.Obj, effort any, ok bool) {
