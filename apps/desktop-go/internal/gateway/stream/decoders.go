@@ -700,3 +700,6 @@ func CreateDecoder(wire string, seed string) events.Decoder {
 	}
 	return &canonDecoder{dec: dec, canon: canon}
 }
+
+// PureDecoder is `new XxxDecoder()` for a wire (no canonicalizer, no seed).
+func PureDecoder(wire string) events.Decoder { return pureDecoder(wire, "") }
