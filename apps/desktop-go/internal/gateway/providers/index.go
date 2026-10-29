@@ -277,7 +277,6 @@ func ServerToolError(c *cand.Candidate, ingress string, body any) string {
 
 /* ------------------------------- response side ------------------------------- */
 
-
 func dataOf(block string) *sse.Event {
 	data := ""
 	var event *string

@@ -8,7 +8,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop/tr"
+	tr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 )
 
 // pathGuard.ts：授权作用域 + 黑名单 + 规范化 + realpath 防符号链接逃逸

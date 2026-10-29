@@ -19,7 +19,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/character"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop"
-	desktoptr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop/tr"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/island"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/knowledgehandlers"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/mascothandlers"
@@ -99,7 +99,7 @@ func main() {
 		AppName:  "Nomi",
 	})
 	// 批次 6：桌面工具 / 工作区（授权、审计、撤销、回收站、提醒、拖入总结）
-	desktoptr.SetLocale(func() string { return bundle.Locale.Get().Locale })
+	i18n.SetLocale(func() string { return bundle.Locale.Get().Locale })
 	home, _ := os.UserHomeDir()
 	ports := hostPorts{sh: &sh}
 	desktopSvc := desktop.CreateService(userData, desktop.Ports{Home: home, PickDirectory: func(title, button, def string) string {
@@ -118,6 +118,7 @@ func main() {
 		Router:   router,
 		Secrets:  security.NewSecretBox("extensions"),
 		Desktop:  knowledgehandlers.DesktopAdapter{S: desktopSvc},
+		T:        i18n.T,
 		Ports:    ports,
 		OpenChat: func() {
 			if sh != nil {

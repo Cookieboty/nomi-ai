@@ -12,7 +12,7 @@ import (
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop/parse"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop/reminders"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop/tr"
+	tr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 )
 
 // DesktopService.ts：桌面能力的总装（授权、审计、撤销、回收站、提醒、拖入总结）

@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop/tr"
+	tr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 )
 
 // PermissionBroker.ts：授权作用域 / 工具策略 / 确认请求 / 云端外发同意

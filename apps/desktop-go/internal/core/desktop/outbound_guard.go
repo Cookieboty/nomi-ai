@@ -4,7 +4,7 @@ import (
 	"errors"
 	"regexp"
 
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop/tr"
+	tr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 )
 
 // outboundGuard.ts：外发给云端模型前，把附件正文 / 编码助手输出按设置挡下或替换

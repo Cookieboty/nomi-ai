@@ -106,7 +106,9 @@ type NoopPorts struct {
 	Idle   int
 }
 
-func (p *NoopPorts) PickDirectory(context.Context, string, string) (string, error) { return p.Picked, nil }
+func (p *NoopPorts) PickDirectory(context.Context, string, string) (string, error) {
+	return p.Picked, nil
+}
 func (p *NoopPorts) SaveFile(context.Context, string, string, []FileFilter) (string, error) {
 	return p.Saved, nil
 }

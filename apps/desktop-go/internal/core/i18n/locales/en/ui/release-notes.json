@@ -1,0 +1,10 @@
+{
+  "ui.release-notes.v205-new-restart": "When an update finishes downloading, Restart to update appears next to Settings and at the bottom of the settings nav — one click installs.",
+  "ui.release-notes.v205-new-whats-new": "After an update restart, a What’s new panel summarizes this release; you can turn off auto-show and re-enable it in Settings.",
+  "ui.release-notes.v205-new-character-pack": "Character pack Scheme A/B tooling for pack authors (official app stays single-character Nomi).",
+  "ui.release-notes.v205-improvements-installer": "Smaller installers: drop duplicate asarUnpack binaries, ship only current-platform native prebuilds, and trim unused packaging weight.",
+  "ui.release-notes.v205-fixes-providers": "Custom-provider test-model field and cancel-add-provider detect race.",
+  "ui.release-notes.v205-fixes-sidebar-rename": "Renaming from the collapsed sidebar expands first so the inline editor is visible.",
+  "ui.release-notes.v205-fixes-privacy-log": "Privacy-log clear no longer races with in-flight async writes.",
+  "ui.release-notes.v205-fixes-windows-writes": "Windows: more private-file writes use async atomic saves (quit still waits for pending work)."
+}

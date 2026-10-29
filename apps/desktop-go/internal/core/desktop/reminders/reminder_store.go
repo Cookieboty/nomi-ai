@@ -18,7 +18,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop/tr"
+	tr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 )
 
 // Reminder 一条提醒（JSON 键序固定，见 D-B6-6）
