@@ -67,7 +67,7 @@ type LoggerService struct {
 	writing  bool
 	timer    *time.Timer
 	dirReady bool
-	wg       sync.WaitGroup
+	idle     *sync.Cond // writing 变为 false 时广播（替代 WaitGroup：Add 与 Wait 并发会 panic）
 }
 
 func NewLogger(o LoggerOptions) *LoggerService {
@@ -265,10 +265,8 @@ func (l *LoggerService) Flush() {
 		return
 	}
 	l.writing = true
-	l.wg.Add(1)
 	l.mu.Unlock()
 	go func() {
-		defer l.wg.Done()
 		err := appendFile(l.logFile, batch)
 		if os.IsNotExist(err) {
 			l.mu.Lock()
@@ -279,6 +277,7 @@ func (l *LoggerService) Flush() {
 		}
 		l.mu.Lock()
 		l.writing = false
+		l.idleCond().Broadcast()
 		if err != nil {
 			fmt.Fprintln(l.o.Stderr, "Failed to write to log file:", err)
 		} else {
@@ -293,9 +292,11 @@ func (l *LoggerService) Flush() {
 
 // FlushSync：进程退出时同步写完（= process.once('exit', flushSync)，由宿主退出路径调用）
 func (l *LoggerService) FlushSync() {
-	l.wg.Wait()
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	for l.writing {
+		l.idleCond().Wait()
+	}
 	if l.timer != nil {
 		l.timer.Stop()
 		l.timer = nil
@@ -366,4 +367,12 @@ func (l *LoggerService) CleanOldLogs(daysToKeep int) {
 			l.Info("Cleaned old log file: " + e.Name())
 		}
 	}
+}
+
+// idleCond：调用方须持有 l.mu
+func (l *LoggerService) idleCond() *sync.Cond {
+	if l.idle == nil {
+		l.idle = sync.NewCond(&l.mu)
+	}
+	return l.idle
 }
