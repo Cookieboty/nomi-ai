@@ -175,6 +175,10 @@ jobs:
     if: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'feat/2.0.5-go') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
     defaults:
       run:
         shell: bash
@@ -188,5 +192,5 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p apps/desktop-go/frontend/dist && touch apps/desktop-go/frontend/dist/.keep
-          bash scripts/parity/mutate-shell.sh 2>&1 | tee mutate-shell.log
+          MUTATE_SHARD=${{ matrix.shard }} MUTATE_SHARDS=4 bash scripts/parity/mutate-shell.sh 2>&1 | tee mutate-shell.log
           tail -1 mutate-shell.log >> "$GITHUB_STEP_SUMMARY"
