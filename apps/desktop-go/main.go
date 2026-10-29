@@ -16,6 +16,8 @@ import (
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop"
+	desktoptr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop/tr"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/security"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/shellhandlers"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/hostports"
@@ -58,7 +60,7 @@ func main() {
 	core.New(cfg).Register(router)
 
 	var sh shell.Shell
-	shellhandlers.Install(shellhandlers.Deps{
+	shellBundle := shellhandlers.Install(shellhandlers.Deps{
 		UserData: userData,
 		Router:   router,
 		OpenChat: func() {
@@ -69,6 +71,15 @@ func main() {
 		SystemLangs: systemLangs(),
 		IsDark:      func() bool { return false },
 	})
+	// 批次 6：桌面工具 / 工作区（授权、审计、撤销、回收站、提醒、拖入总结）
+	desktoptr.SetLocale(func() string { return shellBundle.Locale.Get().Locale })
+	home, _ := os.UserHomeDir()
+	desktopSvc := desktop.CreateService(userData, desktop.Ports{Home: home}, func(ev string, payload any, _ string) {
+		router.Emit(ev, payload)
+	})
+	desktopSvc.AttachWindows(&desktop.Windows{Main: func() bool { return sh != nil }})
+	desktop.Register(router, desktopSvc)
+	desktopSvc.StartReminders()
 	log.Printf("[desktop-go] %d contract procedures stubbed (not implemented yet)", procs.Install(router))
 
 	ws := &contract.WSServer{Router: router, Token: contract.NewToken(), Origins: map[string]bool{
