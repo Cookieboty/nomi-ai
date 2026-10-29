@@ -1,0 +1,5 @@
+#!/bin/sh
+# AppImage 入口：exe 在 $APPDIR/opt/Nomi/nomi，资源在其旁的 resources/（resources_dir.go 自动识别）。
+# WebKitGTK / GTK3 用系统库（不随包，见 docs D-B11 偏差）。
+HERE="$(dirname "$(readlink -f "$0")")"
+exec "$HERE/opt/Nomi/nomi" "$@"
