@@ -175,10 +175,10 @@ Go 版**1:1 镜像** Node 版：模块边界、包/层结构、数据格式、�
 | D16 | `createStreamConverter` 内部按 `opts.fixes` 自建 `EventFixer` | Go `ConvertOptions` 直接收 `Seed`、`Fixer`（接口）与 `FixEvents` 钩子，由调用方按 fixes 构造 | fixer 尚未移植（4b），先留接口，语义等价 |
 | D17 | JSON 对象 `Record<string,unknown>` 天然保序 | Go 用自研有序 `util.Obj`，数字按 JS 规则格式化 | 保证与 Node 输出逐字节一致 |
 | D18 | `TerminalWatch` 在 `canonical/terminal.ts` | Go 放在 `stream` 包（`stream.NewTerminalWatch`），`ConvertOptions.fixes` 改为 `stream.WithFixes(opts, fixOptions)` 填充 | Go 包不能互相引用（canonical ← stream ← canonical 会成环）；行为不变 |
-| D19 | 复读检测/正文工具调用按 JS 字符串语义（UTF-16 长度、Unicode `\s`、`trim`） | Go 用 `util.JSTrim/UTF16Len/UTF16Tail` 还原；截取尾部时若正好切在 emoji（代理对）中间，Go 保留整个字符（JS 会留半个） | Go 字符串是 UTF-8，无法表示半个代理对；只影响内部缓冲，输出不变 |
-| D20 | GLM 参数名若是纯数字（如 `"1"`），JS 对象会把它排到最前 | Go 有序对象按出现顺序 | 极少见的边角情况，暂不模拟 |
-| D21 | 上游地址用 WHATWG `new URL` 解析（会把 `0x7f.1` 之类主机名规范成 `127.0.0.1`） | 用 Go `net/url` 解析，主机名原样保留 | 校验函数本身按宽松写法识别各种 IPv4 写法，分类结果一致；只有报错文案里的 host:port 写法可能不同 |
-| D22 | 出站走 undici：有代理时用 EnvHttpProxyAgent（含 `ALL_PROXY`），钉 IP 靠 AsyncLocalStorage | Go `http.Transport`：代理用 `http.ProxyFromEnvironment`（不认 `ALL_PROXY`），钉 IP 靠请求 context，只对目标主机生效，连代理本身时按校验规则现查 | Go 标准库没有 ALL_PROXY；按 context 钉 IP 更直接，安全性等同 |
+| D19 | ~~JS 字符串可含"半个 emoji"（孤立代理）~~ **已消除** | Go 用 WTF-8 字节表示孤立代理：`UTF16Tail/UTF16Slice0` 切在 emoji 中间时和 JS 一样留半个，`JSON.parse` 保留 `\udXXX`，`Stringify` 原样写回 `\udXXX`；见 `util/surrogate_test.go`（数值取自 Node） | 无行为差异 |
+| D20 | ~~纯数字参数名在 JS 对象里排最前~~ **已消除** | `util.Obj.Set` 按 JS 规则：数组下标型键（0…2^32-2）升序在前，其余按插入顺序；fixture `objkeys.json` + `fixes.json` 新增用例 | 无行为差异 |
+| D21 | ~~主机名未按 WHATWG 规范化~~ **已消除** | `net.ParseURL/WhatwgHost` 实现 WHATWG 主机解析（小写、IDNA/UTS46、IPv4 十六进制/八进制/简写、IPv6 压缩、默认端口去掉），报错文案与 Node 一致；fixture `net.json` urls 33/33 | 无行为差异 |
+| D22 | ~~代理环境变量处理不同~~ **已消除** | 按 undici 7 EnvHttpProxyAgent 复刻：`http_proxy`/`https_proxy`（小写优先、空串算已设置，https 退回 http）；`ALL_PROXY` 和 Node 一样只用于判断"代理环境已开启"，并不真走代理；`no_proxy` 每次请求现读（`*`、`host:port`、`.后缀`）；一律 CONNECT 隧道，请求头顺序与 Node 一致，仅 HTTP/1.1；支持 socks5；钉 IP 只对目标主机。fixture `proxy.json` 38/38 | 无行为差异（钉 IP 用 context 而非 AsyncLocalStorage，仅实现方式不同） |
 
 ### 3.5 一致性测试策略（golden，Node 与 Go 同输入对比输出）
 
