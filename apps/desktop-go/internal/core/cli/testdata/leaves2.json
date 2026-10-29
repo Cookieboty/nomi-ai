@@ -1,0 +1,5032 @@
+{
+ "platform": "linux",
+ "cases": [
+  {
+   "name": "modes",
+   "out": {
+    "v": [
+     "plan",
+     "manual",
+     "acceptEdits",
+     "auto",
+     "bypass"
+    ]
+   }
+  },
+  {
+   "name": "default",
+   "out": {
+    "v": "acceptEdits"
+   }
+  },
+  {
+   "name": "isMode:\"plan\"",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isMode:\"manual\"",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isMode:\"acceptEdits\"",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isMode:\"auto\"",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isMode:\"bypass\"",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "isMode:\"x\"",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isMode:\"\"",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isMode:5",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "isMode:null",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "supported:claude",
+   "out": {
+    "v": [
+     "plan",
+     "manual",
+     "acceptEdits",
+     "auto",
+     "bypass"
+    ]
+   }
+  },
+  {
+   "name": "effective:claude:plan",
+   "out": {
+    "v": {
+     "mode": "plan",
+     "degraded": false
+    }
+   }
+  },
+  {
+   "name": "effective:claude:manual",
+   "out": {
+    "v": {
+     "mode": "manual",
+     "degraded": false
+    }
+   }
+  },
+  {
+   "name": "effective:claude:acceptEdits",
+   "out": {
+    "v": {
+     "mode": "acceptEdits",
+     "degraded": false
+    }
+   }
+  },
+  {
+   "name": "effective:claude:auto",
+   "out": {
+    "v": {
+     "mode": "auto",
+     "degraded": false
+    }
+   }
+  },
+  {
+   "name": "effective:claude:bypass",
+   "out": {
+    "v": {
+     "mode": "bypass",
+     "degraded": false
+    }
+   }
+  },
+  {
+   "name": "supported:codex",
+   "out": {
+    "v": [
+     "plan",
+     "manual",
+     "acceptEdits",
+     "auto",
+     "bypass"
+    ]
+   }
+  },
+  {
+   "name": "effective:codex:plan",
+   "out": {
+    "v": {
+     "mode": "plan",
+     "degraded": false
+    }
+   }
+  },
+  {
+   "name": "effective:codex:manual",
+   "out": {
+    "v": {
+     "mode": "manual",
+     "degraded": false
+    }
+   }
+  },
+  {
+   "name": "effective:codex:acceptEdits",
+   "out": {
+    "v": {
+     "mode": "acceptEdits",
+     "degraded": false
+    }
+   }
+  },
+  {
+   "name": "effective:codex:auto",
+   "out": {
+    "v": {
+     "mode": "auto",
+     "degraded": false
+    }
+   }
+  },
+  {
+   "name": "effective:codex:bypass",
+   "out": {
+    "v": {
+     "mode": "bypass",
+     "degraded": false
+    }
+   }
+  },
+  {
+   "name": "supported:dsh",
+   "out": {
+    "v": [
+     "plan",
+     "acceptEdits",
+     "bypass"
+    ]
+   }
+  },
+  {
+   "name": "effective:dsh:plan",
+   "out": {
+    "v": {
+     "mode": "plan",
+     "degraded": false
+    }
+   }
+  },
+  {
+   "name": "effective:dsh:manual",
+   "out": {
+    "v": {
+     "mode": "plan",
+     "degraded": true
+    }
+   }
+  },
+  {
+   "name": "effective:dsh:acceptEdits",
+   "out": {
+    "v": {
+     "mode": "acceptEdits",
+     "degraded": false
+    }
+   }
+  },
+  {
+   "name": "effective:dsh:auto",
+   "out": {
+    "v": {
+     "mode": "acceptEdits",
+     "degraded": true
+    }
+   }
+  },
+  {
+   "name": "effective:dsh:bypass",
+   "out": {
+    "v": {
+     "mode": "bypass",
+     "degraded": false
+    }
+   }
+  },
+  {
+   "name": "supported:grok",
+   "out": {
+    "v": [
+     "plan",
+     "manual",
+     "acceptEdits",
+     "bypass"
+    ]
+   }
+  },
+  {
+   "name": "effective:grok:plan",
+   "out": {
+    "v": {
+     "mode": "plan",
+     "degraded": false
+    }
+   }
+  },
+  {
+   "name": "effective:grok:manual",
+   "out": {
+    "v": {
+     "mode": "manual",
+     "degraded": false
+    }
+   }
+  },
+  {
+   "name": "effective:grok:acceptEdits",
+   "out": {
+    "v": {
+     "mode": "acceptEdits",
+     "degraded": false
+    }
+   }
+  },
+  {
+   "name": "effective:grok:auto",
+   "out": {
+    "v": {
+     "mode": "acceptEdits",
+     "degraded": true
+    }
+   }
+  },
+  {
+   "name": "effective:grok:bypass",
+   "out": {
+    "v": {
+     "mode": "bypass",
+     "degraded": false
+    }
+   }
+  },
+  {
+   "name": "supported:gemini",
+   "out": {
+    "v": [
+     "plan",
+     "manual",
+     "acceptEdits",
+     "bypass"
+    ]
+   }
+  },
+  {
+   "name": "effective:gemini:plan",
+   "out": {
+    "v": {
+     "mode": "plan",
+     "degraded": false
+    }
+   }
+  },
+  {
+   "name": "effective:gemini:manual",
+   "out": {
+    "v": {
+     "mode": "manual",
+     "degraded": false
+    }
+   }
+  },
+  {
+   "name": "effective:gemini:acceptEdits",
+   "out": {
+    "v": {
+     "mode": "acceptEdits",
+     "degraded": false
+    }
+   }
+  },
+  {
+   "name": "effective:gemini:auto",
+   "out": {
+    "v": {
+     "mode": "acceptEdits",
+     "degraded": true
+    }
+   }
+  },
+  {
+   "name": "effective:gemini:bypass",
+   "out": {
+    "v": {
+     "mode": "bypass",
+     "degraded": false
+    }
+   }
+  },
+  {
+   "name": "supported:external",
+   "out": {
+    "v": [
+     "manual"
+    ]
+   }
+  },
+  {
+   "name": "effective:external:plan",
+   "out": {
+    "v": {
+     "mode": "manual",
+     "degraded": true
+    }
+   }
+  },
+  {
+   "name": "effective:external:manual",
+   "out": {
+    "v": {
+     "mode": "manual",
+     "degraded": false
+    }
+   }
+  },
+  {
+   "name": "effective:external:acceptEdits",
+   "out": {
+    "v": {
+     "mode": "manual",
+     "degraded": true
+    }
+   }
+  },
+  {
+   "name": "effective:external:auto",
+   "out": {
+    "v": {
+     "mode": "manual",
+     "degraded": true
+    }
+   }
+  },
+  {
+   "name": "effective:external:bypass",
+   "out": {
+    "v": {
+     "mode": "manual",
+     "degraded": true
+    }
+   }
+  },
+  {
+   "name": "supported:nomi",
+   "out": {
+    "v": [
+     "plan",
+     "manual",
+     "acceptEdits",
+     "auto"
+    ]
+   }
+  },
+  {
+   "name": "effective:nomi:plan",
+   "out": {
+    "v": {
+     "mode": "plan",
+     "degraded": false
+    }
+   }
+  },
+  {
+   "name": "effective:nomi:manual",
+   "out": {
+    "v": {
+     "mode": "manual",
+     "degraded": false
+    }
+   }
+  },
+  {
+   "name": "effective:nomi:acceptEdits",
+   "out": {
+    "v": {
+     "mode": "acceptEdits",
+     "degraded": false
+    }
+   }
+  },
+  {
+   "name": "effective:nomi:auto",
+   "out": {
+    "v": {
+     "mode": "auto",
+     "degraded": false
+    }
+   }
+  },
+  {
+   "name": "effective:nomi:bypass",
+   "out": {
+    "v": {
+     "mode": "plan",
+     "degraded": true
+    }
+   }
+  },
+  {
+   "name": "launch:claude:plan:undefined",
+   "out": {
+    "v": {
+     "args": [
+      "--permission-mode",
+      "plan"
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:claude:plan:true",
+   "out": {
+    "v": {
+     "args": [
+      "--permission-mode",
+      "plan"
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:claude:plan:false",
+   "out": {
+    "v": {
+     "args": [
+      "--permission-mode",
+      "plan"
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:claude:manual:undefined",
+   "out": {
+    "v": {
+     "args": [
+      "--permission-mode",
+      "default"
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:claude:manual:true",
+   "out": {
+    "v": {
+     "args": [
+      "--permission-mode",
+      "default"
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:claude:manual:false",
+   "out": {
+    "v": {
+     "args": [
+      "--permission-mode",
+      "default"
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:claude:acceptEdits:undefined",
+   "out": {
+    "v": {
+     "args": [
+      "--permission-mode",
+      "acceptEdits"
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:claude:acceptEdits:true",
+   "out": {
+    "v": {
+     "args": [
+      "--permission-mode",
+      "acceptEdits"
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:claude:acceptEdits:false",
+   "out": {
+    "v": {
+     "args": [
+      "--permission-mode",
+      "acceptEdits"
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:claude:auto:undefined",
+   "out": {
+    "v": {
+     "args": [
+      "--permission-mode",
+      "auto"
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:claude:auto:true",
+   "out": {
+    "v": {
+     "args": [
+      "--permission-mode",
+      "auto"
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:claude:auto:false",
+   "out": {
+    "v": {
+     "args": [
+      "--permission-mode",
+      "auto"
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:claude:bypass:undefined",
+   "out": {
+    "v": {
+     "args": [
+      "--permission-mode",
+      "bypassPermissions"
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:claude:bypass:true",
+   "out": {
+    "v": {
+     "args": [
+      "--permission-mode",
+      "bypassPermissions"
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:claude:bypass:false",
+   "out": {
+    "v": {
+     "args": [
+      "--permission-mode",
+      "bypassPermissions"
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "planPrefix:claude",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:claude:\"default\"",
+   "out": {
+    "v": "manual"
+   }
+  },
+  {
+   "name": "fromCli:claude:\"acceptEdits\"",
+   "out": {
+    "v": "acceptEdits"
+   }
+  },
+  {
+   "name": "fromCli:claude:\"plan\"",
+   "out": {
+    "v": "plan"
+   }
+  },
+  {
+   "name": "fromCli:claude:\"bypassPermissions\"",
+   "out": {
+    "v": "bypass"
+   }
+  },
+  {
+   "name": "fromCli:claude:\"auto\"",
+   "out": {
+    "v": "auto"
+   }
+  },
+  {
+   "name": "fromCli:claude:\"auto_edit\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:claude:\"yolo\"",
+   "out": {
+    "v": "bypass"
+   }
+  },
+  {
+   "name": "fromCli:claude:\"read-only\"",
+   "out": {
+    "v": "plan"
+   }
+  },
+  {
+   "name": "fromCli:claude:\"workspace-write\"",
+   "out": {
+    "v": "acceptEdits"
+   }
+  },
+  {
+   "name": "fromCli:claude:\"danger-full-access\"",
+   "out": {
+    "v": "bypass"
+   }
+  },
+  {
+   "name": "fromCli:claude:\"full-auto\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:claude:\"manual\"",
+   "out": {
+    "v": "manual"
+   }
+  },
+  {
+   "name": "fromCli:claude:\"ask\"",
+   "out": {
+    "v": "manual"
+   }
+  },
+  {
+   "name": "fromCli:claude:\"agent\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:claude:\"\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:claude:\"x\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:claude:5",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:claude:null",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "launch:codex:plan:undefined",
+   "out": {
+    "v": {
+     "args": [
+      "-c",
+      "sandbox_mode=\"read-only\""
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:codex:plan:true",
+   "out": {
+    "v": {
+     "args": [
+      "-c",
+      "sandbox_mode=\"read-only\""
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:codex:plan:false",
+   "out": {
+    "v": {
+     "args": [
+      "-c",
+      "sandbox_mode=\"read-only\""
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:codex:manual:undefined",
+   "out": {
+    "v": {
+     "args": [
+      "-c",
+      "sandbox_mode=\"read-only\""
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:codex:manual:true",
+   "out": {
+    "v": {
+     "args": [
+      "-c",
+      "sandbox_mode=\"read-only\""
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:codex:manual:false",
+   "out": {
+    "v": {
+     "args": [
+      "-c",
+      "sandbox_mode=\"read-only\""
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:codex:acceptEdits:undefined",
+   "out": {
+    "v": {
+     "args": [
+      "-c",
+      "sandbox_mode=\"workspace-write\"",
+      "-c",
+      "sandbox_workspace_write.network_access=true"
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:codex:acceptEdits:true",
+   "out": {
+    "v": {
+     "args": [
+      "-c",
+      "sandbox_mode=\"workspace-write\"",
+      "-c",
+      "sandbox_workspace_write.network_access=true"
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:codex:acceptEdits:false",
+   "out": {
+    "v": {
+     "args": [
+      "-c",
+      "sandbox_mode=\"workspace-write\""
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:codex:auto:undefined",
+   "out": {
+    "v": {
+     "args": [
+      "-c",
+      "sandbox_mode=\"workspace-write\"",
+      "-c",
+      "sandbox_workspace_write.network_access=true",
+      "-c",
+      "approval_policy=\"on-request\"",
+      "-c",
+      "approvals_reviewer=\"auto_review\""
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:codex:auto:true",
+   "out": {
+    "v": {
+     "args": [
+      "-c",
+      "sandbox_mode=\"workspace-write\"",
+      "-c",
+      "sandbox_workspace_write.network_access=true",
+      "-c",
+      "approval_policy=\"on-request\"",
+      "-c",
+      "approvals_reviewer=\"auto_review\""
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:codex:auto:false",
+   "out": {
+    "v": {
+     "args": [
+      "-c",
+      "sandbox_mode=\"workspace-write\"",
+      "-c",
+      "approval_policy=\"on-request\"",
+      "-c",
+      "approvals_reviewer=\"auto_review\""
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:codex:bypass:undefined",
+   "out": {
+    "v": {
+     "args": [
+      "-c",
+      "sandbox_mode=\"danger-full-access\""
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:codex:bypass:true",
+   "out": {
+    "v": {
+     "args": [
+      "-c",
+      "sandbox_mode=\"danger-full-access\""
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:codex:bypass:false",
+   "out": {
+    "v": {
+     "args": [
+      "-c",
+      "sandbox_mode=\"danger-full-access\""
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "planPrefix:codex",
+   "out": {
+    "v": "You are in plan mode: do not modify any files. Investigate as needed, then reply with a complete implementation plan in Markdown and wait for approval.\n\n"
+   }
+  },
+  {
+   "name": "fromCli:codex:\"default\"",
+   "out": {
+    "v": "manual"
+   }
+  },
+  {
+   "name": "fromCli:codex:\"acceptEdits\"",
+   "out": {
+    "v": "acceptEdits"
+   }
+  },
+  {
+   "name": "fromCli:codex:\"plan\"",
+   "out": {
+    "v": "plan"
+   }
+  },
+  {
+   "name": "fromCli:codex:\"bypassPermissions\"",
+   "out": {
+    "v": "bypass"
+   }
+  },
+  {
+   "name": "fromCli:codex:\"auto\"",
+   "out": {
+    "v": "auto"
+   }
+  },
+  {
+   "name": "fromCli:codex:\"auto_edit\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:codex:\"yolo\"",
+   "out": {
+    "v": "bypass"
+   }
+  },
+  {
+   "name": "fromCli:codex:\"read-only\"",
+   "out": {
+    "v": "plan"
+   }
+  },
+  {
+   "name": "fromCli:codex:\"workspace-write\"",
+   "out": {
+    "v": "acceptEdits"
+   }
+  },
+  {
+   "name": "fromCli:codex:\"danger-full-access\"",
+   "out": {
+    "v": "bypass"
+   }
+  },
+  {
+   "name": "fromCli:codex:\"full-auto\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:codex:\"manual\"",
+   "out": {
+    "v": "manual"
+   }
+  },
+  {
+   "name": "fromCli:codex:\"ask\"",
+   "out": {
+    "v": "manual"
+   }
+  },
+  {
+   "name": "fromCli:codex:\"agent\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:codex:\"\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:codex:\"x\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:codex:5",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:codex:null",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "launch:dsh:plan:undefined",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {
+      "DSH_PERMISSION_MODE": "read-only"
+     }
+    }
+   }
+  },
+  {
+   "name": "launch:dsh:plan:true",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {
+      "DSH_PERMISSION_MODE": "read-only"
+     }
+    }
+   }
+  },
+  {
+   "name": "launch:dsh:plan:false",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {
+      "DSH_PERMISSION_MODE": "read-only"
+     }
+    }
+   }
+  },
+  {
+   "name": "launch:dsh:manual:undefined",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {
+      "DSH_PERMISSION_MODE": "workspace-write"
+     }
+    }
+   }
+  },
+  {
+   "name": "launch:dsh:manual:true",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {
+      "DSH_PERMISSION_MODE": "workspace-write"
+     }
+    }
+   }
+  },
+  {
+   "name": "launch:dsh:manual:false",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {
+      "DSH_PERMISSION_MODE": "workspace-write"
+     }
+    }
+   }
+  },
+  {
+   "name": "launch:dsh:acceptEdits:undefined",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {
+      "DSH_PERMISSION_MODE": "workspace-write"
+     }
+    }
+   }
+  },
+  {
+   "name": "launch:dsh:acceptEdits:true",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {
+      "DSH_PERMISSION_MODE": "workspace-write"
+     }
+    }
+   }
+  },
+  {
+   "name": "launch:dsh:acceptEdits:false",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {
+      "DSH_PERMISSION_MODE": "workspace-write"
+     }
+    }
+   }
+  },
+  {
+   "name": "launch:dsh:auto:undefined",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {
+      "DSH_PERMISSION_MODE": "workspace-write"
+     }
+    }
+   }
+  },
+  {
+   "name": "launch:dsh:auto:true",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {
+      "DSH_PERMISSION_MODE": "workspace-write"
+     }
+    }
+   }
+  },
+  {
+   "name": "launch:dsh:auto:false",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {
+      "DSH_PERMISSION_MODE": "workspace-write"
+     }
+    }
+   }
+  },
+  {
+   "name": "launch:dsh:bypass:undefined",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {
+      "DSH_PERMISSION_MODE": "danger-full-access"
+     }
+    }
+   }
+  },
+  {
+   "name": "launch:dsh:bypass:true",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {
+      "DSH_PERMISSION_MODE": "danger-full-access"
+     }
+    }
+   }
+  },
+  {
+   "name": "launch:dsh:bypass:false",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {
+      "DSH_PERMISSION_MODE": "danger-full-access"
+     }
+    }
+   }
+  },
+  {
+   "name": "planPrefix:dsh",
+   "out": {
+    "v": "You are in plan mode: do not modify any files. Investigate as needed, then reply with a complete implementation plan in Markdown and wait for approval.\n\n"
+   }
+  },
+  {
+   "name": "fromCli:dsh:\"default\"",
+   "out": {
+    "v": "plan"
+   }
+  },
+  {
+   "name": "fromCli:dsh:\"acceptEdits\"",
+   "out": {
+    "v": "acceptEdits"
+   }
+  },
+  {
+   "name": "fromCli:dsh:\"plan\"",
+   "out": {
+    "v": "plan"
+   }
+  },
+  {
+   "name": "fromCli:dsh:\"bypassPermissions\"",
+   "out": {
+    "v": "bypass"
+   }
+  },
+  {
+   "name": "fromCli:dsh:\"auto\"",
+   "out": {
+    "v": "acceptEdits"
+   }
+  },
+  {
+   "name": "fromCli:dsh:\"auto_edit\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:dsh:\"yolo\"",
+   "out": {
+    "v": "bypass"
+   }
+  },
+  {
+   "name": "fromCli:dsh:\"read-only\"",
+   "out": {
+    "v": "plan"
+   }
+  },
+  {
+   "name": "fromCli:dsh:\"workspace-write\"",
+   "out": {
+    "v": "acceptEdits"
+   }
+  },
+  {
+   "name": "fromCli:dsh:\"danger-full-access\"",
+   "out": {
+    "v": "bypass"
+   }
+  },
+  {
+   "name": "fromCli:dsh:\"full-auto\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:dsh:\"manual\"",
+   "out": {
+    "v": "plan"
+   }
+  },
+  {
+   "name": "fromCli:dsh:\"ask\"",
+   "out": {
+    "v": "plan"
+   }
+  },
+  {
+   "name": "fromCli:dsh:\"agent\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:dsh:\"\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:dsh:\"x\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:dsh:5",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:dsh:null",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "launch:grok:plan:undefined",
+   "out": {
+    "v": {
+     "args": [
+      "--permission-mode",
+      "plan"
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:grok:plan:true",
+   "out": {
+    "v": {
+     "args": [
+      "--permission-mode",
+      "plan"
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:grok:plan:false",
+   "out": {
+    "v": {
+     "args": [
+      "--permission-mode",
+      "plan"
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:grok:manual:undefined",
+   "out": {
+    "v": {
+     "args": [
+      "--permission-mode",
+      "default"
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:grok:manual:true",
+   "out": {
+    "v": {
+     "args": [
+      "--permission-mode",
+      "default"
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:grok:manual:false",
+   "out": {
+    "v": {
+     "args": [
+      "--permission-mode",
+      "default"
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:grok:acceptEdits:undefined",
+   "out": {
+    "v": {
+     "args": [
+      "--permission-mode",
+      "acceptEdits"
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:grok:acceptEdits:true",
+   "out": {
+    "v": {
+     "args": [
+      "--permission-mode",
+      "acceptEdits"
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:grok:acceptEdits:false",
+   "out": {
+    "v": {
+     "args": [
+      "--permission-mode",
+      "acceptEdits"
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:grok:auto:undefined",
+   "out": {
+    "v": {
+     "args": [
+      "--permission-mode",
+      "auto"
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:grok:auto:true",
+   "out": {
+    "v": {
+     "args": [
+      "--permission-mode",
+      "auto"
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:grok:auto:false",
+   "out": {
+    "v": {
+     "args": [
+      "--permission-mode",
+      "auto"
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:grok:bypass:undefined",
+   "out": {
+    "v": {
+     "args": [
+      "--yolo"
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:grok:bypass:true",
+   "out": {
+    "v": {
+     "args": [
+      "--yolo"
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:grok:bypass:false",
+   "out": {
+    "v": {
+     "args": [
+      "--yolo"
+     ],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "planPrefix:grok",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:grok:\"default\"",
+   "out": {
+    "v": "manual"
+   }
+  },
+  {
+   "name": "fromCli:grok:\"acceptEdits\"",
+   "out": {
+    "v": "acceptEdits"
+   }
+  },
+  {
+   "name": "fromCli:grok:\"plan\"",
+   "out": {
+    "v": "plan"
+   }
+  },
+  {
+   "name": "fromCli:grok:\"bypassPermissions\"",
+   "out": {
+    "v": "bypass"
+   }
+  },
+  {
+   "name": "fromCli:grok:\"auto\"",
+   "out": {
+    "v": "acceptEdits"
+   }
+  },
+  {
+   "name": "fromCli:grok:\"auto_edit\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:grok:\"yolo\"",
+   "out": {
+    "v": "bypass"
+   }
+  },
+  {
+   "name": "fromCli:grok:\"read-only\"",
+   "out": {
+    "v": "plan"
+   }
+  },
+  {
+   "name": "fromCli:grok:\"workspace-write\"",
+   "out": {
+    "v": "acceptEdits"
+   }
+  },
+  {
+   "name": "fromCli:grok:\"danger-full-access\"",
+   "out": {
+    "v": "bypass"
+   }
+  },
+  {
+   "name": "fromCli:grok:\"full-auto\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:grok:\"manual\"",
+   "out": {
+    "v": "manual"
+   }
+  },
+  {
+   "name": "fromCli:grok:\"ask\"",
+   "out": {
+    "v": "manual"
+   }
+  },
+  {
+   "name": "fromCli:grok:\"agent\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:grok:\"\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:grok:\"x\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:grok:5",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:grok:null",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "launch:gemini:plan:undefined",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:gemini:plan:true",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:gemini:plan:false",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:gemini:manual:undefined",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:gemini:manual:true",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:gemini:manual:false",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:gemini:acceptEdits:undefined",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:gemini:acceptEdits:true",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:gemini:acceptEdits:false",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:gemini:auto:undefined",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:gemini:auto:true",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:gemini:auto:false",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:gemini:bypass:undefined",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:gemini:bypass:true",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:gemini:bypass:false",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "planPrefix:gemini",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:gemini:\"default\"",
+   "out": {
+    "v": "manual"
+   }
+  },
+  {
+   "name": "fromCli:gemini:\"acceptEdits\"",
+   "out": {
+    "v": "acceptEdits"
+   }
+  },
+  {
+   "name": "fromCli:gemini:\"plan\"",
+   "out": {
+    "v": "plan"
+   }
+  },
+  {
+   "name": "fromCli:gemini:\"bypassPermissions\"",
+   "out": {
+    "v": "bypass"
+   }
+  },
+  {
+   "name": "fromCli:gemini:\"auto\"",
+   "out": {
+    "v": "acceptEdits"
+   }
+  },
+  {
+   "name": "fromCli:gemini:\"auto_edit\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:gemini:\"yolo\"",
+   "out": {
+    "v": "bypass"
+   }
+  },
+  {
+   "name": "fromCli:gemini:\"read-only\"",
+   "out": {
+    "v": "plan"
+   }
+  },
+  {
+   "name": "fromCli:gemini:\"workspace-write\"",
+   "out": {
+    "v": "acceptEdits"
+   }
+  },
+  {
+   "name": "fromCli:gemini:\"danger-full-access\"",
+   "out": {
+    "v": "bypass"
+   }
+  },
+  {
+   "name": "fromCli:gemini:\"full-auto\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:gemini:\"manual\"",
+   "out": {
+    "v": "manual"
+   }
+  },
+  {
+   "name": "fromCli:gemini:\"ask\"",
+   "out": {
+    "v": "manual"
+   }
+  },
+  {
+   "name": "fromCli:gemini:\"agent\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:gemini:\"\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:gemini:\"x\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:gemini:5",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:gemini:null",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "launch:external:plan:undefined",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:external:plan:true",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:external:plan:false",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:external:manual:undefined",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:external:manual:true",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:external:manual:false",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:external:acceptEdits:undefined",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:external:acceptEdits:true",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:external:acceptEdits:false",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:external:auto:undefined",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:external:auto:true",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:external:auto:false",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:external:bypass:undefined",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:external:bypass:true",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "launch:external:bypass:false",
+   "out": {
+    "v": {
+     "args": [],
+     "env": {}
+    }
+   }
+  },
+  {
+   "name": "planPrefix:external",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:external:\"default\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:external:\"acceptEdits\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:external:\"plan\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:external:\"bypassPermissions\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:external:\"auto\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:external:\"auto_edit\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:external:\"yolo\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:external:\"read-only\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:external:\"workspace-write\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:external:\"danger-full-access\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:external:\"full-auto\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:external:\"manual\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:external:\"ask\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:external:\"agent\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:external:\"\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:external:\"x\"",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:external:5",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "fromCli:external:null",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "claudeName:plan",
+   "out": {
+    "v": "plan"
+   }
+  },
+  {
+   "name": "geminiId:plan",
+   "out": {
+    "v": "plan"
+   }
+  },
+  {
+   "name": "grokId:plan",
+   "out": {
+    "v": "plan"
+   }
+  },
+  {
+   "name": "acpId:external:plan",
+   "out": {
+    "v": ""
+   }
+  },
+  {
+   "name": "claudeName:manual",
+   "out": {
+    "v": "default"
+   }
+  },
+  {
+   "name": "geminiId:manual",
+   "out": {
+    "v": "default"
+   }
+  },
+  {
+   "name": "grokId:manual",
+   "out": {
+    "v": "default"
+   }
+  },
+  {
+   "name": "acpId:external:manual",
+   "out": {
+    "v": ""
+   }
+  },
+  {
+   "name": "claudeName:acceptEdits",
+   "out": {
+    "v": "acceptEdits"
+   }
+  },
+  {
+   "name": "geminiId:acceptEdits",
+   "out": {
+    "v": "autoEdit"
+   }
+  },
+  {
+   "name": "grokId:acceptEdits",
+   "out": {
+    "v": "acceptEdits"
+   }
+  },
+  {
+   "name": "acpId:external:acceptEdits",
+   "out": {
+    "v": ""
+   }
+  },
+  {
+   "name": "claudeName:auto",
+   "out": {
+    "v": "auto"
+   }
+  },
+  {
+   "name": "geminiId:auto",
+   "out": {
+    "v": "autoEdit"
+   }
+  },
+  {
+   "name": "grokId:auto",
+   "out": {
+    "v": "default"
+   }
+  },
+  {
+   "name": "acpId:external:auto",
+   "out": {
+    "v": ""
+   }
+  },
+  {
+   "name": "claudeName:bypass",
+   "out": {
+    "v": "bypassPermissions"
+   }
+  },
+  {
+   "name": "geminiId:bypass",
+   "out": {
+    "v": "yolo"
+   }
+  },
+  {
+   "name": "grokId:bypass",
+   "out": {
+    "v": "bypassPermissions"
+   }
+  },
+  {
+   "name": "acpId:external:bypass",
+   "out": {
+    "v": ""
+   }
+  },
+  {
+   "name": "supportsModel:claude",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "allowed:claude:gpt-5",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "allowed:claude:opus",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "allowed:claude:claude-sonnet-4-5[1m]",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "allowed:claude:",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:claude: x",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "allowed:claude:a b",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "allowed:claude:-rf",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:claude:a/b:c.d_e",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "allowed:claude:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "supportsModel:codex",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "allowed:codex:gpt-5",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "allowed:codex:opus",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "allowed:codex:claude-sonnet-4-5[1m]",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "allowed:codex:",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:codex: x",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "allowed:codex:a b",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "allowed:codex:-rf",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:codex:a/b:c.d_e",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "allowed:codex:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "supportsModel:dsh",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:dsh:gpt-5",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:dsh:opus",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:dsh:claude-sonnet-4-5[1m]",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:dsh:",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:dsh: x",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:dsh:a b",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:dsh:-rf",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:dsh:a/b:c.d_e",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:dsh:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "supportsModel:grok",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "allowed:grok:gpt-5",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "allowed:grok:opus",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "allowed:grok:claude-sonnet-4-5[1m]",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "allowed:grok:",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:grok: x",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "allowed:grok:a b",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "allowed:grok:-rf",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:grok:a/b:c.d_e",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "allowed:grok:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "supportsModel:gemini",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:gemini:gpt-5",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:gemini:opus",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:gemini:claude-sonnet-4-5[1m]",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:gemini:",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:gemini: x",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:gemini:a b",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:gemini:-rf",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:gemini:a/b:c.d_e",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:gemini:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "supportsModel:external",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:external:gpt-5",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:external:opus",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:external:claude-sonnet-4-5[1m]",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:external:",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:external: x",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:external:a b",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:external:-rf",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:external:a/b:c.d_e",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:external:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "supportsModel:nomi",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:nomi:gpt-5",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:nomi:opus",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:nomi:claude-sonnet-4-5[1m]",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:nomi:",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:nomi: x",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:nomi:a b",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:nomi:-rf",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:nomi:a/b:c.d_e",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:nomi:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "supportsModel:zzz",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:zzz:gpt-5",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:zzz:opus",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:zzz:claude-sonnet-4-5[1m]",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:zzz:",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:zzz: x",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:zzz:a b",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:zzz:-rf",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:zzz:a/b:c.d_e",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "allowed:zzz:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "override:claude:undefined:undefined",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:claude:undefined:null",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:claude:undefined:low",
+   "out": {
+    "v": [
+     "--effort",
+     "low"
+    ]
+   }
+  },
+  {
+   "name": "override:claude:undefined:medium",
+   "out": {
+    "v": [
+     "--effort",
+     "medium"
+    ]
+   }
+  },
+  {
+   "name": "override:claude:undefined:high",
+   "out": {
+    "v": [
+     "--effort",
+     "high"
+    ]
+   }
+  },
+  {
+   "name": "override:claude:undefined:xhigh",
+   "out": {
+    "v": [
+     "--effort",
+     "xhigh"
+    ]
+   }
+  },
+  {
+   "name": "override:claude:undefined:minimal",
+   "out": {
+    "v": [
+     "--effort",
+     "minimal"
+    ]
+   }
+  },
+  {
+   "name": "override:claude:undefined:max",
+   "out": {
+    "v": [
+     "--effort",
+     "max"
+    ]
+   }
+  },
+  {
+   "name": "override:claude:undefined:bogus",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:claude:null:undefined",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:claude:null:null",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:claude:null:low",
+   "out": {
+    "v": [
+     "--effort",
+     "low"
+    ]
+   }
+  },
+  {
+   "name": "override:claude:null:medium",
+   "out": {
+    "v": [
+     "--effort",
+     "medium"
+    ]
+   }
+  },
+  {
+   "name": "override:claude:null:high",
+   "out": {
+    "v": [
+     "--effort",
+     "high"
+    ]
+   }
+  },
+  {
+   "name": "override:claude:null:xhigh",
+   "out": {
+    "v": [
+     "--effort",
+     "xhigh"
+    ]
+   }
+  },
+  {
+   "name": "override:claude:null:minimal",
+   "out": {
+    "v": [
+     "--effort",
+     "minimal"
+    ]
+   }
+  },
+  {
+   "name": "override:claude:null:max",
+   "out": {
+    "v": [
+     "--effort",
+     "max"
+    ]
+   }
+  },
+  {
+   "name": "override:claude:null:bogus",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:claude::undefined",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:claude::null",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:claude::low",
+   "out": {
+    "v": [
+     "--effort",
+     "low"
+    ]
+   }
+  },
+  {
+   "name": "override:claude::medium",
+   "out": {
+    "v": [
+     "--effort",
+     "medium"
+    ]
+   }
+  },
+  {
+   "name": "override:claude::high",
+   "out": {
+    "v": [
+     "--effort",
+     "high"
+    ]
+   }
+  },
+  {
+   "name": "override:claude::xhigh",
+   "out": {
+    "v": [
+     "--effort",
+     "xhigh"
+    ]
+   }
+  },
+  {
+   "name": "override:claude::minimal",
+   "out": {
+    "v": [
+     "--effort",
+     "minimal"
+    ]
+   }
+  },
+  {
+   "name": "override:claude::max",
+   "out": {
+    "v": [
+     "--effort",
+     "max"
+    ]
+   }
+  },
+  {
+   "name": "override:claude::bogus",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:claude:gpt-5:undefined",
+   "out": {
+    "v": [
+     "--model",
+     "gpt-5"
+    ]
+   }
+  },
+  {
+   "name": "override:claude:gpt-5:null",
+   "out": {
+    "v": [
+     "--model",
+     "gpt-5"
+    ]
+   }
+  },
+  {
+   "name": "override:claude:gpt-5:low",
+   "out": {
+    "v": [
+     "--model",
+     "gpt-5",
+     "--effort",
+     "low"
+    ]
+   }
+  },
+  {
+   "name": "override:claude:gpt-5:medium",
+   "out": {
+    "v": [
+     "--model",
+     "gpt-5",
+     "--effort",
+     "medium"
+    ]
+   }
+  },
+  {
+   "name": "override:claude:gpt-5:high",
+   "out": {
+    "v": [
+     "--model",
+     "gpt-5",
+     "--effort",
+     "high"
+    ]
+   }
+  },
+  {
+   "name": "override:claude:gpt-5:xhigh",
+   "out": {
+    "v": [
+     "--model",
+     "gpt-5",
+     "--effort",
+     "xhigh"
+    ]
+   }
+  },
+  {
+   "name": "override:claude:gpt-5:minimal",
+   "out": {
+    "v": [
+     "--model",
+     "gpt-5",
+     "--effort",
+     "minimal"
+    ]
+   }
+  },
+  {
+   "name": "override:claude:gpt-5:max",
+   "out": {
+    "v": [
+     "--model",
+     "gpt-5",
+     "--effort",
+     "max"
+    ]
+   }
+  },
+  {
+   "name": "override:claude:gpt-5:bogus",
+   "out": {
+    "v": [
+     "--model",
+     "gpt-5"
+    ]
+   }
+  },
+  {
+   "name": "override:claude:opus:undefined",
+   "out": {
+    "v": [
+     "--model",
+     "opus"
+    ]
+   }
+  },
+  {
+   "name": "override:claude:opus:null",
+   "out": {
+    "v": [
+     "--model",
+     "opus"
+    ]
+   }
+  },
+  {
+   "name": "override:claude:opus:low",
+   "out": {
+    "v": [
+     "--model",
+     "opus",
+     "--effort",
+     "low"
+    ]
+   }
+  },
+  {
+   "name": "override:claude:opus:medium",
+   "out": {
+    "v": [
+     "--model",
+     "opus",
+     "--effort",
+     "medium"
+    ]
+   }
+  },
+  {
+   "name": "override:claude:opus:high",
+   "out": {
+    "v": [
+     "--model",
+     "opus",
+     "--effort",
+     "high"
+    ]
+   }
+  },
+  {
+   "name": "override:claude:opus:xhigh",
+   "out": {
+    "v": [
+     "--model",
+     "opus",
+     "--effort",
+     "xhigh"
+    ]
+   }
+  },
+  {
+   "name": "override:claude:opus:minimal",
+   "out": {
+    "v": [
+     "--model",
+     "opus",
+     "--effort",
+     "minimal"
+    ]
+   }
+  },
+  {
+   "name": "override:claude:opus:max",
+   "out": {
+    "v": [
+     "--model",
+     "opus",
+     "--effort",
+     "max"
+    ]
+   }
+  },
+  {
+   "name": "override:claude:opus:bogus",
+   "out": {
+    "v": [
+     "--model",
+     "opus"
+    ]
+   }
+  },
+  {
+   "name": "override:codex:undefined:undefined",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:codex:undefined:null",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:codex:undefined:low",
+   "out": {
+    "v": [
+     "-c",
+     "model_reasoning_effort=\"low\""
+    ]
+   }
+  },
+  {
+   "name": "override:codex:undefined:medium",
+   "out": {
+    "v": [
+     "-c",
+     "model_reasoning_effort=\"medium\""
+    ]
+   }
+  },
+  {
+   "name": "override:codex:undefined:high",
+   "out": {
+    "v": [
+     "-c",
+     "model_reasoning_effort=\"high\""
+    ]
+   }
+  },
+  {
+   "name": "override:codex:undefined:xhigh",
+   "out": {
+    "v": [
+     "-c",
+     "model_reasoning_effort=\"xhigh\""
+    ]
+   }
+  },
+  {
+   "name": "override:codex:undefined:minimal",
+   "out": {
+    "v": [
+     "-c",
+     "model_reasoning_effort=\"minimal\""
+    ]
+   }
+  },
+  {
+   "name": "override:codex:undefined:max",
+   "out": {
+    "v": [
+     "-c",
+     "model_reasoning_effort=\"max\""
+    ]
+   }
+  },
+  {
+   "name": "override:codex:undefined:bogus",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:codex:null:undefined",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:codex:null:null",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:codex:null:low",
+   "out": {
+    "v": [
+     "-c",
+     "model_reasoning_effort=\"low\""
+    ]
+   }
+  },
+  {
+   "name": "override:codex:null:medium",
+   "out": {
+    "v": [
+     "-c",
+     "model_reasoning_effort=\"medium\""
+    ]
+   }
+  },
+  {
+   "name": "override:codex:null:high",
+   "out": {
+    "v": [
+     "-c",
+     "model_reasoning_effort=\"high\""
+    ]
+   }
+  },
+  {
+   "name": "override:codex:null:xhigh",
+   "out": {
+    "v": [
+     "-c",
+     "model_reasoning_effort=\"xhigh\""
+    ]
+   }
+  },
+  {
+   "name": "override:codex:null:minimal",
+   "out": {
+    "v": [
+     "-c",
+     "model_reasoning_effort=\"minimal\""
+    ]
+   }
+  },
+  {
+   "name": "override:codex:null:max",
+   "out": {
+    "v": [
+     "-c",
+     "model_reasoning_effort=\"max\""
+    ]
+   }
+  },
+  {
+   "name": "override:codex:null:bogus",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:codex::undefined",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:codex::null",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:codex::low",
+   "out": {
+    "v": [
+     "-c",
+     "model_reasoning_effort=\"low\""
+    ]
+   }
+  },
+  {
+   "name": "override:codex::medium",
+   "out": {
+    "v": [
+     "-c",
+     "model_reasoning_effort=\"medium\""
+    ]
+   }
+  },
+  {
+   "name": "override:codex::high",
+   "out": {
+    "v": [
+     "-c",
+     "model_reasoning_effort=\"high\""
+    ]
+   }
+  },
+  {
+   "name": "override:codex::xhigh",
+   "out": {
+    "v": [
+     "-c",
+     "model_reasoning_effort=\"xhigh\""
+    ]
+   }
+  },
+  {
+   "name": "override:codex::minimal",
+   "out": {
+    "v": [
+     "-c",
+     "model_reasoning_effort=\"minimal\""
+    ]
+   }
+  },
+  {
+   "name": "override:codex::max",
+   "out": {
+    "v": [
+     "-c",
+     "model_reasoning_effort=\"max\""
+    ]
+   }
+  },
+  {
+   "name": "override:codex::bogus",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:codex:gpt-5:undefined",
+   "out": {
+    "v": [
+     "-c",
+     "model=\"gpt-5\""
+    ]
+   }
+  },
+  {
+   "name": "override:codex:gpt-5:null",
+   "out": {
+    "v": [
+     "-c",
+     "model=\"gpt-5\""
+    ]
+   }
+  },
+  {
+   "name": "override:codex:gpt-5:low",
+   "out": {
+    "v": [
+     "-c",
+     "model=\"gpt-5\"",
+     "-c",
+     "model_reasoning_effort=\"low\""
+    ]
+   }
+  },
+  {
+   "name": "override:codex:gpt-5:medium",
+   "out": {
+    "v": [
+     "-c",
+     "model=\"gpt-5\"",
+     "-c",
+     "model_reasoning_effort=\"medium\""
+    ]
+   }
+  },
+  {
+   "name": "override:codex:gpt-5:high",
+   "out": {
+    "v": [
+     "-c",
+     "model=\"gpt-5\"",
+     "-c",
+     "model_reasoning_effort=\"high\""
+    ]
+   }
+  },
+  {
+   "name": "override:codex:gpt-5:xhigh",
+   "out": {
+    "v": [
+     "-c",
+     "model=\"gpt-5\"",
+     "-c",
+     "model_reasoning_effort=\"xhigh\""
+    ]
+   }
+  },
+  {
+   "name": "override:codex:gpt-5:minimal",
+   "out": {
+    "v": [
+     "-c",
+     "model=\"gpt-5\"",
+     "-c",
+     "model_reasoning_effort=\"minimal\""
+    ]
+   }
+  },
+  {
+   "name": "override:codex:gpt-5:max",
+   "out": {
+    "v": [
+     "-c",
+     "model=\"gpt-5\"",
+     "-c",
+     "model_reasoning_effort=\"max\""
+    ]
+   }
+  },
+  {
+   "name": "override:codex:gpt-5:bogus",
+   "out": {
+    "v": [
+     "-c",
+     "model=\"gpt-5\""
+    ]
+   }
+  },
+  {
+   "name": "override:codex:opus:undefined",
+   "out": {
+    "v": [
+     "-c",
+     "model=\"opus\""
+    ]
+   }
+  },
+  {
+   "name": "override:codex:opus:null",
+   "out": {
+    "v": [
+     "-c",
+     "model=\"opus\""
+    ]
+   }
+  },
+  {
+   "name": "override:codex:opus:low",
+   "out": {
+    "v": [
+     "-c",
+     "model=\"opus\"",
+     "-c",
+     "model_reasoning_effort=\"low\""
+    ]
+   }
+  },
+  {
+   "name": "override:codex:opus:medium",
+   "out": {
+    "v": [
+     "-c",
+     "model=\"opus\"",
+     "-c",
+     "model_reasoning_effort=\"medium\""
+    ]
+   }
+  },
+  {
+   "name": "override:codex:opus:high",
+   "out": {
+    "v": [
+     "-c",
+     "model=\"opus\"",
+     "-c",
+     "model_reasoning_effort=\"high\""
+    ]
+   }
+  },
+  {
+   "name": "override:codex:opus:xhigh",
+   "out": {
+    "v": [
+     "-c",
+     "model=\"opus\"",
+     "-c",
+     "model_reasoning_effort=\"xhigh\""
+    ]
+   }
+  },
+  {
+   "name": "override:codex:opus:minimal",
+   "out": {
+    "v": [
+     "-c",
+     "model=\"opus\"",
+     "-c",
+     "model_reasoning_effort=\"minimal\""
+    ]
+   }
+  },
+  {
+   "name": "override:codex:opus:max",
+   "out": {
+    "v": [
+     "-c",
+     "model=\"opus\"",
+     "-c",
+     "model_reasoning_effort=\"max\""
+    ]
+   }
+  },
+  {
+   "name": "override:codex:opus:bogus",
+   "out": {
+    "v": [
+     "-c",
+     "model=\"opus\""
+    ]
+   }
+  },
+  {
+   "name": "override:dsh:undefined:undefined",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh:undefined:null",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh:undefined:low",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh:undefined:medium",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh:undefined:high",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh:undefined:xhigh",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh:undefined:minimal",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh:undefined:max",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh:undefined:bogus",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh:null:undefined",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh:null:null",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh:null:low",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh:null:medium",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh:null:high",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh:null:xhigh",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh:null:minimal",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh:null:max",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh:null:bogus",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh::undefined",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh::null",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh::low",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh::medium",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh::high",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh::xhigh",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh::minimal",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh::max",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh::bogus",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh:gpt-5:undefined",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh:gpt-5:null",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh:gpt-5:low",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh:gpt-5:medium",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh:gpt-5:high",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh:gpt-5:xhigh",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh:gpt-5:minimal",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh:gpt-5:max",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh:gpt-5:bogus",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh:opus:undefined",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh:opus:null",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh:opus:low",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh:opus:medium",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh:opus:high",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh:opus:xhigh",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh:opus:minimal",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh:opus:max",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:dsh:opus:bogus",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:grok:undefined:undefined",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:grok:undefined:null",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:grok:undefined:low",
+   "out": {
+    "v": [
+     "--reasoning-effort",
+     "low"
+    ]
+   }
+  },
+  {
+   "name": "override:grok:undefined:medium",
+   "out": {
+    "v": [
+     "--reasoning-effort",
+     "medium"
+    ]
+   }
+  },
+  {
+   "name": "override:grok:undefined:high",
+   "out": {
+    "v": [
+     "--reasoning-effort",
+     "high"
+    ]
+   }
+  },
+  {
+   "name": "override:grok:undefined:xhigh",
+   "out": {
+    "v": [
+     "--reasoning-effort",
+     "xhigh"
+    ]
+   }
+  },
+  {
+   "name": "override:grok:undefined:minimal",
+   "out": {
+    "v": [
+     "--reasoning-effort",
+     "minimal"
+    ]
+   }
+  },
+  {
+   "name": "override:grok:undefined:max",
+   "out": {
+    "v": [
+     "--reasoning-effort",
+     "max"
+    ]
+   }
+  },
+  {
+   "name": "override:grok:undefined:bogus",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:grok:null:undefined",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:grok:null:null",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:grok:null:low",
+   "out": {
+    "v": [
+     "--reasoning-effort",
+     "low"
+    ]
+   }
+  },
+  {
+   "name": "override:grok:null:medium",
+   "out": {
+    "v": [
+     "--reasoning-effort",
+     "medium"
+    ]
+   }
+  },
+  {
+   "name": "override:grok:null:high",
+   "out": {
+    "v": [
+     "--reasoning-effort",
+     "high"
+    ]
+   }
+  },
+  {
+   "name": "override:grok:null:xhigh",
+   "out": {
+    "v": [
+     "--reasoning-effort",
+     "xhigh"
+    ]
+   }
+  },
+  {
+   "name": "override:grok:null:minimal",
+   "out": {
+    "v": [
+     "--reasoning-effort",
+     "minimal"
+    ]
+   }
+  },
+  {
+   "name": "override:grok:null:max",
+   "out": {
+    "v": [
+     "--reasoning-effort",
+     "max"
+    ]
+   }
+  },
+  {
+   "name": "override:grok:null:bogus",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:grok::undefined",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:grok::null",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:grok::low",
+   "out": {
+    "v": [
+     "--reasoning-effort",
+     "low"
+    ]
+   }
+  },
+  {
+   "name": "override:grok::medium",
+   "out": {
+    "v": [
+     "--reasoning-effort",
+     "medium"
+    ]
+   }
+  },
+  {
+   "name": "override:grok::high",
+   "out": {
+    "v": [
+     "--reasoning-effort",
+     "high"
+    ]
+   }
+  },
+  {
+   "name": "override:grok::xhigh",
+   "out": {
+    "v": [
+     "--reasoning-effort",
+     "xhigh"
+    ]
+   }
+  },
+  {
+   "name": "override:grok::minimal",
+   "out": {
+    "v": [
+     "--reasoning-effort",
+     "minimal"
+    ]
+   }
+  },
+  {
+   "name": "override:grok::max",
+   "out": {
+    "v": [
+     "--reasoning-effort",
+     "max"
+    ]
+   }
+  },
+  {
+   "name": "override:grok::bogus",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:grok:gpt-5:undefined",
+   "out": {
+    "v": [
+     "-m",
+     "gpt-5"
+    ]
+   }
+  },
+  {
+   "name": "override:grok:gpt-5:null",
+   "out": {
+    "v": [
+     "-m",
+     "gpt-5"
+    ]
+   }
+  },
+  {
+   "name": "override:grok:gpt-5:low",
+   "out": {
+    "v": [
+     "-m",
+     "gpt-5",
+     "--reasoning-effort",
+     "low"
+    ]
+   }
+  },
+  {
+   "name": "override:grok:gpt-5:medium",
+   "out": {
+    "v": [
+     "-m",
+     "gpt-5",
+     "--reasoning-effort",
+     "medium"
+    ]
+   }
+  },
+  {
+   "name": "override:grok:gpt-5:high",
+   "out": {
+    "v": [
+     "-m",
+     "gpt-5",
+     "--reasoning-effort",
+     "high"
+    ]
+   }
+  },
+  {
+   "name": "override:grok:gpt-5:xhigh",
+   "out": {
+    "v": [
+     "-m",
+     "gpt-5",
+     "--reasoning-effort",
+     "xhigh"
+    ]
+   }
+  },
+  {
+   "name": "override:grok:gpt-5:minimal",
+   "out": {
+    "v": [
+     "-m",
+     "gpt-5",
+     "--reasoning-effort",
+     "minimal"
+    ]
+   }
+  },
+  {
+   "name": "override:grok:gpt-5:max",
+   "out": {
+    "v": [
+     "-m",
+     "gpt-5",
+     "--reasoning-effort",
+     "max"
+    ]
+   }
+  },
+  {
+   "name": "override:grok:gpt-5:bogus",
+   "out": {
+    "v": [
+     "-m",
+     "gpt-5"
+    ]
+   }
+  },
+  {
+   "name": "override:grok:opus:undefined",
+   "out": {
+    "v": [
+     "-m",
+     "opus"
+    ]
+   }
+  },
+  {
+   "name": "override:grok:opus:null",
+   "out": {
+    "v": [
+     "-m",
+     "opus"
+    ]
+   }
+  },
+  {
+   "name": "override:grok:opus:low",
+   "out": {
+    "v": [
+     "-m",
+     "opus",
+     "--reasoning-effort",
+     "low"
+    ]
+   }
+  },
+  {
+   "name": "override:grok:opus:medium",
+   "out": {
+    "v": [
+     "-m",
+     "opus",
+     "--reasoning-effort",
+     "medium"
+    ]
+   }
+  },
+  {
+   "name": "override:grok:opus:high",
+   "out": {
+    "v": [
+     "-m",
+     "opus",
+     "--reasoning-effort",
+     "high"
+    ]
+   }
+  },
+  {
+   "name": "override:grok:opus:xhigh",
+   "out": {
+    "v": [
+     "-m",
+     "opus",
+     "--reasoning-effort",
+     "xhigh"
+    ]
+   }
+  },
+  {
+   "name": "override:grok:opus:minimal",
+   "out": {
+    "v": [
+     "-m",
+     "opus",
+     "--reasoning-effort",
+     "minimal"
+    ]
+   }
+  },
+  {
+   "name": "override:grok:opus:max",
+   "out": {
+    "v": [
+     "-m",
+     "opus",
+     "--reasoning-effort",
+     "max"
+    ]
+   }
+  },
+  {
+   "name": "override:grok:opus:bogus",
+   "out": {
+    "v": [
+     "-m",
+     "opus"
+    ]
+   }
+  },
+  {
+   "name": "override:gemini:undefined:undefined",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini:undefined:null",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini:undefined:low",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini:undefined:medium",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini:undefined:high",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini:undefined:xhigh",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini:undefined:minimal",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini:undefined:max",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini:undefined:bogus",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini:null:undefined",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini:null:null",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini:null:low",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini:null:medium",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini:null:high",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini:null:xhigh",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini:null:minimal",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini:null:max",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini:null:bogus",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini::undefined",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini::null",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini::low",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini::medium",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini::high",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini::xhigh",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini::minimal",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini::max",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini::bogus",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini:gpt-5:undefined",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini:gpt-5:null",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini:gpt-5:low",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini:gpt-5:medium",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini:gpt-5:high",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini:gpt-5:xhigh",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini:gpt-5:minimal",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini:gpt-5:max",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini:gpt-5:bogus",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini:opus:undefined",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini:opus:null",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini:opus:low",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini:opus:medium",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini:opus:high",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini:opus:xhigh",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini:opus:minimal",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini:opus:max",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:gemini:opus:bogus",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external:undefined:undefined",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external:undefined:null",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external:undefined:low",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external:undefined:medium",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external:undefined:high",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external:undefined:xhigh",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external:undefined:minimal",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external:undefined:max",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external:undefined:bogus",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external:null:undefined",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external:null:null",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external:null:low",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external:null:medium",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external:null:high",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external:null:xhigh",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external:null:minimal",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external:null:max",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external:null:bogus",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external::undefined",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external::null",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external::low",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external::medium",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external::high",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external::xhigh",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external::minimal",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external::max",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external::bogus",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external:gpt-5:undefined",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external:gpt-5:null",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external:gpt-5:low",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external:gpt-5:medium",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external:gpt-5:high",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external:gpt-5:xhigh",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external:gpt-5:minimal",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external:gpt-5:max",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external:gpt-5:bogus",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external:opus:undefined",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external:opus:null",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external:opus:low",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external:opus:medium",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external:opus:high",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external:opus:xhigh",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external:opus:minimal",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external:opus:max",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "override:external:opus:bogus",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "ext:load:missing",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "ext:load",
+   "out": {
+    "v": [
+     {
+      "id": "Zed",
+      "spec": null,
+      "errors": [
+       "id must match [a-z0-9][a-z0-9-]{0,39}"
+      ]
+     },
+     {
+      "id": "arr",
+      "spec": null,
+      "errors": [
+       "spec must be an object"
+      ]
+     },
+     {
+      "id": "bad",
+      "spec": null,
+      "errors": [
+       "unreadable: Unexpected end of JSON input"
+      ]
+     },
+     {
+      "id": "bom",
+      "spec": null,
+      "errors": [
+       "unreadable: Unexpected token '﻿', \"﻿{\"version\"... is not valid JSON"
+      ]
+     },
+     {
+      "id": "claude",
+      "spec": null,
+      "errors": [
+       "id claude is reserved by a built-in plugin"
+      ]
+     },
+     {
+      "id": "dir",
+      "spec": null,
+      "errors": [
+       "unreadable: EISDIR: illegal operation on a directory, read"
+      ]
+     },
+     {
+      "id": "invalid",
+      "spec": null,
+      "errors": [
+       "version must be 1",
+       "displayName is required",
+       "command is required",
+       "args must be an array"
+      ]
+     },
+     {
+      "id": "mismatch",
+      "spec": null,
+      "errors": [
+       "file name mismatch.json does not match id other"
+      ]
+     },
+     {
+      "id": "my-agent",
+      "spec": {
+       "version": 1,
+       "id": "my-agent",
+       "displayName": "My Agent",
+       "command": "/usr/local/bin/my-agent",
+       "args": [
+        "acp",
+        "--cwd",
+        "{cwd}"
+       ],
+       "env": [
+        "MY_AGENT_HOME"
+       ]
+      },
+      "errors": []
+     }
+    ]
+   }
+  },
+  {
+   "name": "ext:save:extra",
+   "out": {
+    "v": {
+     "errors": [
+      "unknown field extra"
+     ]
+    }
+   }
+  },
+  {
+   "name": "ext:save:ok",
+   "out": {
+    "v": {
+     "spec": {
+      "version": 1,
+      "id": "saved",
+      "displayName": "My Agent",
+      "command": "/usr/local/bin/my-agent",
+      "args": [
+       "acp",
+       "--cwd",
+       "{cwd}"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "name": "ext:save:file",
+   "out": {
+    "v": "{\n  \"version\": 1,\n  \"id\": \"saved\",\n  \"displayName\": \"My Agent\",\n  \"command\": \"/usr/local/bin/my-agent\",\n  \"args\": [\n    \"acp\",\n    \"--cwd\",\n    \"{cwd}\"\n  ]\n}"
+   }
+  },
+  {
+   "name": "ext:save:reserved",
+   "out": {
+    "v": {
+     "errors": [
+      "id codex is reserved by a built-in plugin"
+     ]
+    }
+   }
+  },
+  {
+   "name": "ext:save:bad",
+   "out": {
+    "v": {
+     "errors": [
+      "spec must be an object"
+     ]
+    }
+   }
+  },
+  {
+   "name": "ext:save:null",
+   "out": {
+    "v": {
+     "errors": [
+      "spec must be an object"
+     ]
+    }
+   }
+  },
+  {
+   "name": "ext:remove:0:saved",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "ext:remove:1:saved",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "ext:remove:2:dir",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "ext:remove:3:../x",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "ext:remove:4:Bad",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "ext:remove:5:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "ext:remove:6:bad",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "ext:load:after",
+   "out": {
+    "v": [
+     {
+      "id": "Zed",
+      "spec": null,
+      "errors": [
+       "id must match [a-z0-9][a-z0-9-]{0,39}"
+      ]
+     },
+     {
+      "id": "arr",
+      "spec": null,
+      "errors": [
+       "spec must be an object"
+      ]
+     },
+     {
+      "id": "bom",
+      "spec": null,
+      "errors": [
+       "unreadable: Unexpected token '﻿', \"﻿{\"version\"... is not valid JSON"
+      ]
+     },
+     {
+      "id": "claude",
+      "spec": null,
+      "errors": [
+       "id claude is reserved by a built-in plugin"
+      ]
+     },
+     {
+      "id": "dir",
+      "spec": null,
+      "errors": [
+       "unreadable: EISDIR: illegal operation on a directory, read"
+      ]
+     },
+     {
+      "id": "invalid",
+      "spec": null,
+      "errors": [
+       "version must be 1",
+       "displayName is required",
+       "command is required",
+       "args must be an array"
+      ]
+     },
+     {
+      "id": "mismatch",
+      "spec": null,
+      "errors": [
+       "file name mismatch.json does not match id other"
+      ]
+     },
+     {
+      "id": "my-agent",
+      "spec": {
+       "version": 1,
+       "id": "my-agent",
+       "displayName": "My Agent",
+       "command": "/usr/local/bin/my-agent",
+       "args": [
+        "acp",
+        "--cwd",
+        "{cwd}"
+       ],
+       "env": [
+        "MY_AGENT_HOME"
+       ]
+      },
+      "errors": []
+     }
+    ]
+   }
+  }
+ ]
+}
