@@ -175,6 +175,12 @@ func (c *Controller) WindowSize() (int, int) {
 	return int(s.Width), int(s.Height)
 }
 
+// WindowPosition：config.windowPosition（拖动结束时保存），供建窗时恢复
+func (c *Controller) WindowPosition() (int, int) {
+	p := c.d.Config.GetConfig().WindowPosition
+	return p.X, p.Y
+}
+
 // winAdapter = BrowserWindow（看板娘窗口）；窗口不存在即 isDestroyed
 type winAdapter struct{ c *Controller }
 

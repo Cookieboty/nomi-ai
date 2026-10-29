@@ -404,7 +404,7 @@ func main() {
 	if ctl != "" {
 		frag.Set("ctl", ctl)
 	}
-	sh = wailsshell.New(wailsshell.Config{Assets: assets, Fragment: frag, MascotSize: mascotCtl.WindowSize, OnWindow: mascotCtl.WindowEvent,
+	sh = wailsshell.New(wailsshell.Config{Assets: assets, Fragment: frag, MascotSize: mascotCtl.WindowSize, MascotPos: mascotCtl.WindowPosition, OnWindow: mascotCtl.WindowEvent,
 		OpenProviderPanel:  func() { shellhandlers.OpenProviderPanel(router, func() { sh.Show(shell.Chat) }, "") },
 		ModelSettingsLabel: i18n.T("electron.common.model-settings"),
 		IslandLayout: func() (shell.Rect, string, bool) {
