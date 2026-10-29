@@ -17,6 +17,8 @@ import path from 'node:path';
 const plan = JSON.parse(process.env.MOCK_PLAN || '{}');
 const log = (o) => process.env.MOCK_LOG && fs.appendFileSync(process.env.MOCK_LOG, `${JSON.stringify(o)}\n`);
 const cwd = process.cwd();
+// 录制器清理前等待子进程退出用（不进 golden 日志）
+if (process.env.MOCK_LOG) fs.appendFileSync(`${process.env.MOCK_LOG}.pid`, `${process.pid}\n`);
 log({
   argv: process.argv.slice(2),
   cwd: path.basename(cwd).slice(0, -6),

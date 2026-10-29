@@ -3,7 +3,7 @@ name: desktop-go
 on:
   workflow_dispatch: {}
   push:
-    branches: [feat/2.0.5-go]
+    branches: [feat/2.0.5-go, 'feat/2.0.5-go-**']
   pull_request:
     branches: [release/2.0.5]
     paths:
@@ -14,6 +14,7 @@ permissions:
 # 之前按 ref 分组且 cancel-in-progress，多个 worker 连续 push feat/2.0.5-go 时前一次 run 被取消
 # （表现为“某些 push 没跑 CI”）。现按分支分组且不取消：同分支一个在跑 + 只保留最新一个排队，旧排队被替换。
 # PR #173（同仓 head = feat/2.0.5-go）的 pull_request 事件跳过 job，push 已覆盖同一提交。
+# worker 分支 feat/2.0.5-go-** 也触发 push：各自独立分组（按 ref），不会取消集成分支的 run。
 concurrency:
   group: desktop-go-${{ github.event_name }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: false
