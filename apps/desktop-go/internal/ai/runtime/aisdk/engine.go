@@ -2,6 +2,7 @@ package aisdk
 
 import (
 	"context"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/llm"
 	"strings"
 	"sync"
 
@@ -138,14 +139,11 @@ func responseMessages(content []*stepContent, outcomes []toolOutcome) []*u.Obj {
 	return msgs
 }
 
-func finishReasonOf(o *u.Obj) string {
-	if o == nil {
+func finishReasonOf(f *llm.FinishReason) string {
+	if f == nil || f.Unified == "" {
 		return "other"
 	}
-	if s, ok := o.Get("unified").(string); ok {
-		return s
-	}
-	return "other"
+	return f.Unified
 }
 
 /* -------------------------------- streamText -------------------------------- */
@@ -166,7 +164,7 @@ func StreamText(ctx context.Context, p *TextParams, emit func(Part)) {
 			return
 		}
 		opts := p.callOptions(prompt, true)
-		resp, err := withRetry(ctx, defaultMaxRetries, func() (*StreamResponse, error) { return p.Model.DoStream(ctx, opts) })
+		resp, err := llm.Retry(ctx, llm.RetryOptions{}, func() (*llm.StreamResult, error) { return p.Model.DoStream(ctx, opts) })
 		if err != nil {
 			if ctx.Err() != nil {
 				return
@@ -188,7 +186,7 @@ func StreamText(ctx context.Context, p *TextParams, emit func(Part)) {
 		)
 	read:
 		for {
-			var chunk *u.Obj
+			var chunk llm.StreamPart
 			var ok bool
 			select {
 			case <-ctx.Done():
@@ -198,16 +196,16 @@ func StreamText(ctx context.Context, p *TextParams, emit func(Part)) {
 			if !ok {
 				break read
 			}
-			switch chunk.Get("type") {
+			switch chunk.Type {
 			case "text-start", "reasoning-start":
-				kind := strings.TrimSuffix(chunk.Get("type").(string), "-start")
+				kind := strings.TrimSuffix(chunk.Type, "-start")
 				c := &stepContent{kind: kind, text: &strings.Builder{}}
 				content = append(content, c)
-				active[kind+":"+jsString(chunk.Get("id"))] = c
+				active[kind+":"+chunk.ID] = c
 			case "text-delta", "reasoning-delta":
-				kind := strings.TrimSuffix(chunk.Get("type").(string), "-delta")
-				d, _ := chunk.Get("delta").(string)
-				if c := active[kind+":"+jsString(chunk.Get("id"))]; c != nil {
+				kind := strings.TrimSuffix(chunk.Type, "-delta")
+				d := chunk.Delta
+				if c := active[kind+":"+chunk.ID]; c != nil {
 					c.text.WriteString(d)
 				}
 				if d != "" {
@@ -215,7 +213,7 @@ func StreamText(ctx context.Context, p *TextParams, emit func(Part)) {
 					emit(Part{Type: kind + "-delta", Text: d})
 				}
 			case "tool-input-delta":
-				if d, _ := chunk.Get("delta").(string); d != "" {
+				if chunk.Delta != "" {
 					outputChunk = true
 				}
 			case "file", "reasoning-file":
@@ -233,10 +231,9 @@ func StreamText(ctx context.Context, p *TextParams, emit func(Part)) {
 				}
 			case "finish":
 				terminal, sawFinish = true, true
-				fr, _ := chunk.Get("finishReason").(*u.Obj)
-				finishReason = finishReasonOf(fr)
-				if uo, ok := chunk.Get("usage").(*u.Obj); ok {
-					stepUsage = asUsage(uo)
+				finishReason = finishReasonOf(chunk.FinishReason)
+				if chunk.Usage != nil {
+					stepUsage = asUsage(*chunk.Usage)
 				}
 				if toolExecutionAllowed(finishReason) {
 					results := make(chan toolOutcome)
@@ -269,7 +266,18 @@ func StreamText(ctx context.Context, p *TextParams, emit func(Part)) {
 			case "error":
 				terminal = true
 				finishReason = "error"
-				emit(Part{Type: "error", Error: NormalizeStreamProviderError(chunk.Get("error"))})
+				var raw any = chunk.RawValue
+				if chunk.Err != nil {
+					raw = chunk.Err
+				}
+				emit(Part{Type: "error", Error: NormalizeStreamProviderError(raw)})
+			case llm.PartStreamError:
+				// the ReadableStream itself errored: streamText's fullStream rejects with that error
+				if ctx.Err() != nil || llm.IsAbortError(chunk.Err) {
+					return
+				}
+				emit(Part{Type: "error", Error: chunk.Err})
+				return
 			}
 		}
 		_ = sawFinish
@@ -281,7 +289,7 @@ func StreamText(ctx context.Context, p *TextParams, emit func(Part)) {
 			return
 		}
 		total = addUsage(total, stepUsage)
-		emit(Part{Type: "finish-step", FinishReason: finishReason, Usage: stepUsage, Headers: resp.Headers})
+		emit(Part{Type: "finish-step", FinishReason: finishReason, Usage: stepUsage, Headers: resp.ResponseHeaders})
 		client := 0
 		for _, c := range calls {
 			if c.ProviderExecuted != true {
@@ -315,14 +323,14 @@ func GenerateText(ctx context.Context, p *TextParams) (*GenerateResult, error) {
 	steps := 0
 	for {
 		if ctx.Err() != nil {
-			return nil, AbortError{}
+			return nil, llm.ErrAborted()
 		}
 		prompt, err := convertPrompt(p.Instructions, messages)
 		if err != nil {
 			return nil, err
 		}
 		opts := p.callOptions(prompt, false)
-		resp, err := withRetry(ctx, defaultMaxRetries, func() (*GenerateResponse, error) { return p.Model.DoGenerate(ctx, opts) })
+		resp, err := llm.Retry(ctx, llm.RetryOptions{}, func() (*llm.GenerateResult, error) { return p.Model.DoGenerate(ctx, opts) })
 		if err != nil {
 			return nil, err
 		}
@@ -331,14 +339,13 @@ func GenerateText(ctx context.Context, p *TextParams) (*GenerateResult, error) {
 		var calls []parsedCall
 		var text strings.Builder
 		for _, part := range resp.Content {
-			switch part.Get("type") {
+			switch part.Type {
 			case "text", "reasoning":
 				b := &strings.Builder{}
-				s, _ := part.Get("text").(string)
-				b.WriteString(s)
-				content = append(content, &stepContent{kind: part.Get("type").(string), text: b})
-				if part.Get("type") == "text" {
-					text.WriteString(s)
+				b.WriteString(part.Text)
+				content = append(content, &stepContent{kind: part.Type, text: b})
+				if part.Type == "text" {
+					text.WriteString(part.Text)
 				}
 			case "tool-call":
 				c := parseToolCall(part, p)
@@ -346,7 +353,7 @@ func GenerateText(ctx context.Context, p *TextParams) (*GenerateResult, error) {
 				content = append(content, &stepContent{kind: "tool-call", call: c})
 			}
 		}
-		reason := finishReasonOf(resp.FinishReason)
+		reason := finishReasonOf(&resp.FinishReason)
 		var outcomes []toolOutcome
 		for _, c := range calls {
 			if c.Invalid && c.ProviderExecuted != true {
@@ -371,17 +378,14 @@ func GenerateText(ctx context.Context, p *TextParams) (*GenerateResult, error) {
 			}
 			wg.Wait()
 			if ctx.Err() != nil {
-				return nil, AbortError{}
+				return nil, llm.ErrAborted()
 			}
 			outcomes = append(outcomes, out...)
 		}
-		var usage Usage
-		if resp.Usage != nil {
-			usage = asUsage(resp.Usage)
-		}
+		usage := asUsage(resp.Usage)
 		res.Usage = addUsage(res.Usage, usage)
 		res.ToolCalls = append(res.ToolCalls, calls...)
-		res.Text, res.FinishReason, res.Headers = text.String(), reason, resp.Headers
+		res.Text, res.FinishReason, res.Headers = text.String(), reason, resp.ResponseHeaders
 		client := 0
 		for _, c := range calls {
 			if c.ProviderExecuted != true {

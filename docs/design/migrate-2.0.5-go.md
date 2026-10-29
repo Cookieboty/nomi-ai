@@ -247,8 +247,9 @@ Go 版**1:1 镜像** Node 版：模块边界、包/层结构、数据格式、�
 | D-B5-2 | 工具执行的启动顺序 | 并行工具在 Node 与 Go 中启动顺序都依赖调度；测试按多重集比对 execs，chunk 顺序（含结果完成顺序）逐字比对 | 无 |
 | D-B5-3 | 工具审批（needsApproval） | Node 的工具定义不设 needsApproval，故 Go 未实现审批分支 | 无（Node 不可达） |
 | D-B5-4 | 工具执行中 abort | 与 Node 录制一致：静默结束，无 error/done chunk | 无 |
-| D-B5-5 | 工具 `description` 空串 | Go `Definition.Description` 为 string，空串视同 undefined（Node 空串会作为 `description:""` 发出） | 现有工具均有非空描述 |
-| D-B5-6 | `getToolCallerTabId` 的 AsyncLocalStorage 兜底 | 未移植；callerTabId 只取 request.extra | 待 chat procs 接入时按调用链显式传递 |
+| D-B5-5 | 工具 `description` 空串 | **已修复**：`description:""` 原样发出（与 Node 相同）；`tools.Definition.NoDescription` 表示 undefined（JS 扩展工具省略 description 时由桥接层置位），此时不发该键。golden 中无描述的工具走 NoDescription，集成测试断言空串被发出 | 无 |
+| D-B5-6 | `getToolCallerTabId` 的 AsyncLocalStorage 兜底 | **已移植**：`tools.RunWithToolCaller(ctx, tabId)` / `GetToolCallerTabID(ctx)`（context 值即 ALS store）；`toolsFor` 执行时按 `callerTabId ?? getToolCallerTabId()` 取值（extra 中有键即不兜底，空串同 Node 视为无）。注：Node 全仓无 `runWithToolCaller(` 调用点（仅导出），生产路径中该兜底恒为 undefined；Go 同样尚无设置点，集成测试覆盖兜底分支 | 无 |
+| D-B5-8 | 运行时与协议层统一接口 | aisdk 运行时直接消费 `internal/ai/llm.LanguageModel`（DoGenerate/DoStream、`llm.CallOptions`/`StreamPart`/`APICallError`/`RetryError`/`llm.Retry`），删除自有接口与错误/重试副本；`BuildModelFactory` 移植 buildModelFactory：headers 键序 + trim 后的 userAgent、`protocol.SdkBaseURL`、fullUrlFetch（RoundTripper 把 SDK 端点改写为用户完整 URL，含 query）、openai-chat → `compatible.New(..., includeUsage:true).ChatModel`。集成测试 `integration_test.go`：运行时 → compatible → mockllm（流式文本；工具循环 + fullUrl + 头 + caller 兜底） | anthropic / openai-responses 见 D-B5-P-6（调用即报 unsupported） |
 | D-B5-7 | **未完成**（本轮剩余） | registry/RoutedRegistry 与 main.go `GetRegistry` 接线、providers test/testDraft/fetchModels（D-B4d-3）、GatewayService 写操作（D-B4d-6）、chat 流式 procs/事件（替换 UNAVAILABLE）、memory episodes `privacy.RuleSpans`、D-B8-2/3/4 | 下一轮 |
 
 ### 3.5 一致性测试策略（golden，Node 与 Go 同输入对比输出）

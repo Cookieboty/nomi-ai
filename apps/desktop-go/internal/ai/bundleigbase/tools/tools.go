@@ -31,8 +31,10 @@ type ExecContext struct {
 // Definition：ToolDefinition。Input 是 JSON Schema（Node 侧 MCP 工具用 jsonSchema(inputSchema)；
 // zod 工具在 Go 侧以等价 JSON Schema 声明）。nil = { type: 'object', additionalProperties: true }。
 type Definition struct {
-	Name              string
-	Description       string
+	Name        string
+	Description string
+	// NoDescription：description 为 undefined（JS 扩展工具可省略；"" 照常发送）
+	NoDescription     bool
 	Input             *u.Obj
 	Dangerous         bool
 	ReadOnly          bool

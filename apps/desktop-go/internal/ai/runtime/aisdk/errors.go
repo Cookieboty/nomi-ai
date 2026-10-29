@@ -1,8 +1,8 @@
 package aisdk
 
 import (
-	"errors"
 	"fmt"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/llm"
 	"math"
 	"regexp"
 	"strconv"
@@ -14,70 +14,8 @@ import (
 // Error shapes of @ai-sdk/provider + ai (dist/index.js). Each error carries the JS `name` so
 // getErrorMessage (error.toString()) prints "AI_X: message" exactly like Node.
 
-// Named is implemented by every error that has a JS name other than "Error".
-type Named interface{ JSName() string }
-
-func jsName(err error) string {
-	var n Named
-	if errors.As(err, &n) {
-		return n.JSName()
-	}
-	return "Error"
-}
-
-// ErrorToString is Error.prototype.toString: "name: message" (name alone when message is empty).
-func ErrorToString(err error) string {
-	name, msg := jsName(err), err.Error()
-	if msg == "" {
-		return name
-	}
-	return name + ": " + msg
-}
-
-// GetErrorMessage mirrors @ai-sdk/provider getErrorMessage.
-func GetErrorMessage(v any) string {
-	switch x := v.(type) {
-	case nil:
-		return "unknown error"
-	case string:
-		return x
-	case error:
-		return ErrorToString(x)
-	}
-	return u.Stringify(v)
-}
-
-// APICallError: @ai-sdk/provider APICallError (fields used by the runtime).
-type APICallError struct {
-	Message         string
-	URL             string
-	StatusCode      int // 0 = undefined
-	ResponseHeaders map[string]string
-	ResponseBody    string
-	Data            any
-	IsRetryable     bool
-}
-
-func (e *APICallError) Error() string  { return e.Message }
-func (e *APICallError) JSName() string { return "AI_APICallError" }
-
-// NewAPICallError applies the default isRetryable (408/409/429/≥500).
-func NewAPICallError(msg string, status int, headers map[string]string, data any) *APICallError {
-	return &APICallError{Message: msg, StatusCode: status, ResponseHeaders: headers, Data: data,
-		IsRetryable: status != 0 && (status == 408 || status == 409 || status == 429 || status >= 500)}
-}
-
-// RetryError: ai RetryError.
-type RetryError struct {
-	Message   string
-	Reason    string // maxRetriesExceeded | errorNotRetryable | abort
-	Errors    []error
-	LastError error
-}
-
-func (e *RetryError) Error() string  { return e.Message }
-func (e *RetryError) JSName() string { return "AI_RetryError" }
-func (e *RetryError) Unwrap() error  { return e.LastError }
+// GetErrorMessage is provider-utils getErrorMessage (shared implementation in internal/ai/llm).
+func GetErrorMessage(v any) string { return llm.GetErrorMessage(v) }
 
 // StreamProviderError: ai normalizeStreamProviderError result.
 type StreamProviderError struct {
@@ -89,41 +27,27 @@ type StreamProviderError struct {
 	Data        any
 }
 
-func (e *StreamProviderError) Error() string  { return e.Message }
-func (e *StreamProviderError) JSName() string { return "AI_StreamProviderError" }
+func (e *StreamProviderError) Error() string { return e.Message }
+func (e *StreamProviderError) Name() string  { return "AI_StreamProviderError" }
 
 // NoSuchToolError / InvalidToolInputError / JSONParseError / NoOutputGeneratedError.
 type NoSuchToolError struct{ Message, ToolName string }
 
-func (e *NoSuchToolError) Error() string  { return e.Message }
-func (e *NoSuchToolError) JSName() string { return "AI_NoSuchToolError" }
+func (e *NoSuchToolError) Error() string { return e.Message }
+func (e *NoSuchToolError) Name() string  { return "AI_NoSuchToolError" }
 
 type InvalidToolInputError struct {
 	Message, ToolName, ToolInput string
 	Cause                        error
 }
 
-func (e *InvalidToolInputError) Error() string  { return e.Message }
-func (e *InvalidToolInputError) JSName() string { return "AI_InvalidToolInputError" }
-
-type JSONParseError struct {
-	Message, Text string
-	Cause         error
-}
-
-func (e *JSONParseError) Error() string  { return e.Message }
-func (e *JSONParseError) JSName() string { return "AI_JSONParseError" }
-
-// SyntaxError: JS SyntaxError (secure-json-parse / JSON.parse).
-type SyntaxError struct{ Message string }
-
-func (e *SyntaxError) Error() string  { return e.Message }
-func (e *SyntaxError) JSName() string { return "SyntaxError" }
+func (e *InvalidToolInputError) Error() string { return e.Message }
+func (e *InvalidToolInputError) Name() string  { return "AI_InvalidToolInputError" }
 
 type NoOutputGeneratedError struct{ Message string }
 
-func (e *NoOutputGeneratedError) Error() string  { return e.Message }
-func (e *NoOutputGeneratedError) JSName() string { return "AI_NoOutputGeneratedError" }
+func (e *NoOutputGeneratedError) Error() string { return e.Message }
+func (e *NoOutputGeneratedError) Name() string  { return "AI_NoOutputGeneratedError" }
 
 // ValueError wraps a non-Error thrown/streamed value (JS `throw {…}` / error part with a plain object).
 type ValueError struct{ Value any }
@@ -159,7 +83,7 @@ func jsString(v any) string {
 		}
 		return strings.Join(parts, ",")
 	case error:
-		return ErrorToString(x)
+		return llm.ErrorString(x)
 	}
 	return fmt.Sprint(v)
 }
