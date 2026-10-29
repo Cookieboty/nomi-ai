@@ -180,33 +180,33 @@ Go 版**1:1 镜像** Node 版：模块边界、包/层结构、数据格式、�
 | D21 | ~~主机名未按 WHATWG 规范化~~ **已消除** | `net.ParseURL/WhatwgHost` 实现 WHATWG 主机解析（小写、IDNA/UTS46、IPv4 十六进制/八进制/简写、IPv6 压缩、默认端口去掉），报错文案与 Node 一致；fixture `net.json` urls 33/33 | 无行为差异 |
 | D22 | ~~代理环境变量处理不同~~ **已消除** | 按 undici 7 EnvHttpProxyAgent 复刻：`http_proxy`/`https_proxy`（小写优先、空串算已设置，https 退回 http）；`ALL_PROXY` 和 Node 一样只用于判断"代理环境已开启"，并不真走代理；`no_proxy` 每次请求现读（`*`、`host:port`、`.后缀`）；一律 CONNECT 隧道，请求头顺序与 Node 一致，仅 HTTP/1.1；支持 socks5；钉 IP 只对目标主机。fixture `proxy.json` 38/38 | 无行为差异（钉 IP 用 context 而非 AsyncLocalStorage，仅实现方式不同） |
 | D23 | JS 正则 `/i`（无 u 标志）大小写折叠只按 toUpperCase，非 ASCII 字符不会折成 ASCII | Go RE2 `(?i)` 会把 `ſ`(U+017F)↔`s`、`K`(U+212A)↔`k` 视为相同；`\s` 已按 JS 空白集合替换（`util.JSRe`）| RE2 无开关；只影响报错文本/模型名里出现这两个罕见字符的情况 |
-| D24 | Retry-After 日期由 V8 `Date.parse` 解析，接受几乎任意格式 | Go 只实现常见子集：IMF-fixdate / RFC850（UTC）、asctime（本地时区）、纯整数当年份、ISO 8601；其他怪异格式返回 NaN → 按无 Retry-After 处理 | 临时：待 D-B6-9（完整 JS Date.parse 移植，b8）合入后切换并删除本行 |
-| D-B6-1 | desktop 文案走 core/i18n | 批次 6 暂用 `desktop/tr`（同一 catalog 子集 + 同样 `{0}` 插值），locale 取 shellhandlers 的 i18n | core/i18n 归批次 8，避免并行冲突；合并后切回 |
-| D-B6-2 | reminders 复用 core/schedule 的 recurrence | `desktop/reminders/recurrence.go` 临时副本（逐行移植） | core/schedule 归批次 8；合并后删副本 |
-| D-B6-3 | Windows 上 `fs.realpathSync.native` | `filepath.EvalSymlinks` | Go 无 native realpath；大小写/8.3 短名可能不同 |
-| D-B6-4 | 看板娘专属过程按 `event.sender` 判定 | 按 `contract.Caller.Surface == "mascot"` | Go 无 webContents |
-| D-B6-5 | 本轮“已读文件”污染标记用 WeakMap(signal) | 用 context 值携带 | Go 无 WeakMap |
-| D-B6-6 | 落盘 JSON 原样保留未知字段、键序随对象 | 固定 struct 键序，未知字段丢弃（审计/撤销日志用有序 OMap 保序） | Go struct；已知字段逐字节一致 |
-| D-B6-7 | parse 在 worker_threads + resourceLimits 里跑 | 进程内 goroutine + 超时，无内存上限 | Go 无可限内存的隔离线程 |
-| D-B6-8 | pdf 用 unpdf（pdf.js） | `ledongthuc/pdf` 逐页 GetPlainText | 无 pdf.js；文字顺序/空白可能不同（金样不覆盖 pdf） |
-| D-B6-9 | `Date.parse` 全格式 | 支持 ISO 8601 / RFC 2822 / `YYYY/MM/DD HH:mm` 等常见子集 | V8 启发式不可完全复刻 |
-| D-B6-10 | takePendingSummary 只在送达失败时留槽 | 总是留槽（60s TTL），渲染侧取走即清 | Go 端不知道广播是否送达 |
-| D-B6-11 | createP2Tools 注册 reminder-restore 撤销、产出 AI ToolDefinition | 撤销钩子在 Service 构造时注册；ToolDefinition 留给批次 5（AI 工具循环） | 依赖批次 5 的 ToolDefinition 类型 |
-| D-B6-12 | 按 surface 定向 send 事件 | `Router.Emit` 广播（surface 参数忽略） | 现有 Router 无定向 Emit |
-| D-B6-13 | worker 崩溃/退出码映射成 `crash` 错误 | panic 被 recover 成 `crash`，无退出码 | 进程内解析 |
+| D24 | Retry-After 日期由 V8 `Date.parse` 解析，接受几乎任意格式 | Go 只实现常见子集：IMF-fixdate / RFC850（UTC）、asctime（本地时区）、纯整数当年份、ISO 8601；其他怪异格式返回 NaN → 按无 Retry-After 处理 | 完整 V8 `Date.parse` 已在 b8 移植为 `core/desktop/reminders.DateParse`（D-B6-9，node fixture 全过）；gateway 切换到它属于网关批次，切换后删除本行 |
+| D-B6-1 | ~~desktop 文案走 core/i18n~~ **已消除** | desktop 直接用 `core/i18n`（`tr` 别名），临时 `desktop/tr` 已删除 | 无行为差异 |
+| D-B6-2 | ~~reminders 复用 core/schedule 的 recurrence~~ **已消除** | `reminders/shared_recurrence.go` 只做类型别名 + 转调 `core/schedule`，临时副本已删除 | 无行为差异 |
+| D-B6-3 | ~~Windows 上 `fs.realpathSync.native`~~ **已消除** | Windows 用 `GetFinalPathNameByHandle`（`realpath_windows.go`），其他平台 `EvalSymlinks`（与 libuv realpath 一致） | 无行为差异 |
+| D-B6-4 | 看板娘专属过程按 `event.sender` 判定 | 按 `contract.Caller.Surface == "mascot"` | **不可观察**：Caller.Surface 由宿主按发起窗口填写，与 Node 的 sender→窗口映射一一对应，对渲染端和契约调用方结果相同；仅实现方式不同 |
+| D-B6-5 | 本轮“已读文件”污染标记用 WeakMap(signal) | 用 context 值携带 | **不可观察**：两者生命周期都绑定单轮请求，标记的读写点与结果相同；仅实现方式不同 |
+| D-B6-6 | ~~落盘 JSON 原样保留未知字段、键序随对象~~ **已消除** | desktop 设置 / reminders 写回保留未知字段与键序（`scope_raw_test.go`、`reminders/raw_test.go`） | 无行为差异 |
+| D-B6-7 | ~~parse 在 worker_threads + resourceLimits 里跑~~ **已消除** | 在限内存的 worker 子进程里解析（同 runParse 的超时 / 内存上限 / 错误映射，`parse/worker_test.go`） | 无行为差异 |
+| D-B6-8 | pdf 用 unpdf（pdf.js v6.1.200 getTextContent） | 逐函数移植 pdf.js 文本抽取（`parse/pdfjs_*.go`：词法、预处理器、TextState、addFakeSpaces/compareWithLastPosition、bidi、NFKC 表、标准字体宽度表由 `scripts/go-pdfjs/gentables.mjs` 从 pdf.js 源码生成）；19 个 fixture（含 CID/ToUnicode、裁剪框、Form XObject、gs 字体、负间距、旋转、T*、上标、缺字体）与 unpdf 输出逐字一致 | 剩余差异（fixture 未覆盖）：预定义 CJK CMap / bcmap（usecmap）、从内嵌字体程序推导编码与宽度、Type3 isCharBBox、中文字体名特例、标准字体数据假定、DCT/A85/AHx 内联图结束检测为近似、非数值操作数的 JS 隐式转换、Go 与 V8 Unicode 表版本差 |
+| D-B6-9 | ~~`Date.parse` 全格式~~ **已消除** | 逐行移植 V8 `Date.parse`（ES5 ISO + legacy dateparser），node fixture 全过（`reminders/dateparse_test.go`） | 无行为差异 |
+| D-B6-10 | ~~takePendingSummary 只在送达失败时留槽~~ **已消除** | `EmitTo` 返回送达结果，仅未送达时留槽 | 无行为差异 |
+| D-B6-11 | createP2Tools 注册 reminder-restore 撤销、产出 AI ToolDefinition | 撤销钩子在 Service 构造时注册；ToolDefinition 留给批次 5（AI 工具循环） | **不可观察**：撤销钩子在任何撤销发生前已注册，行为相同；ToolDefinition 在 AI 工具循环（批次 5）合入前没有调用方 |
+| D-B6-12 | ~~按 surface 定向 send 事件~~ **已消除** | `Router.EmitTo(surface, …)` 定向投递 | 无行为差异 |
+| D-B6-13 | ~~worker 崩溃/退出码映射成 `crash` 错误~~ **已消除** | worker 子进程退出码 / 崩溃按 runParse 同样映射为 `crash` | 无行为差异 |
 | D-B10-1 | 岛的显示模式恒为 `pill` | Node 在 macOS 上探测刘海屏决定 notch/pill；Go 不探测，`island.get` 的 mode 恒为 pill；`island.test` 只弹出岛窗口 | 刘海屏 Mac 上岛不贴刘海显示 |
 | D-B10-2 | 角色包校验是宽松子集 | 只校验必要字段和文件存在（manifest、引导 4 个文件、rive/static、sprite、voice、locales、persona），不跑 zod、不出 warnings、不做旧格式迁移；旧 mapping 直接丢弃。fixture `mascothandlers/testdata/parity.json`（无覆盖包 / 用户覆盖包）快照与 Node 一致 | 不合规的包 Node 报 warning 仍加载，Go 可能直接回退内置包 |
 | D-B10-3 | 看板娘物理/漫游/点击穿透未移植 | `mascot.setShape`/`setHit`/`setInteractionConfig`/`wanderNow` 收下即返回（no-op），`mascot.debugSnapshot` 仍是 UNAVAILABLE；拖动、缩放（尺寸计算 fixture 全对上）、置顶、位置已实现 | 透明区域不会点击穿透；不会自己走动 |
 | D-B10-4 | 渲染器选择引导卡在 POC 对话页 | 新设置 `mascot.renderer`（svg\|rive，默认 svg，升级用户也是 svg）；引导最后一张「想让诺米动起来吗？」（默认焦点「保持静态」，无 WebGL 时隐藏「开启动画」）暂放在 POC 对话页、用 localStorage 只问一次，等引导页迁过来再挪 | 无 |
 | D-B8-1 | `knowledge.ts` 契约 77 个过程（批次说明） | 实际 75 个过程 + 11 个事件，Go 全部注册（`knowledgehandlers.Handlers`，单测断言 75） | 以契约源码为准，说明里的数字有误 |
 | D-B8-2 | 本地模型注册进 AI 网关 / 设为主模型（`gateway.upsertProvider`、`setNomiMain`、`confirmPrivateHost`） | Go 通过 `local.GatewayLike` 接口调用，main.go 暂未接入（nil → 跳过注册），TODO(batch-4/5) | 网关服务属于批次 4/5，尚未合入 |
-| D-B8-3 | `desktop.say`、`broker.setLocalOnly`、HostPorts（打开对话框、OCR 等） | 用 `deps.NoopDesktop` / `deps.NoopPorts` 假实现：say 不出声，对话框按“已取消”处理，TODO(batch-6) | DesktopService / HostPorts 属于批次 6 |
+| D-B8-3 | `desktop.say`、`broker.setLocalOnly`、HostPorts（打开对话框、OCR 等） | **部分**：DesktopService（批次 6）已可注入；`say`、OCR 等 HostPorts 仍用 `deps.NoopPorts` 假实现（对话框按“已取消”），TODO(batch-6 宿主端口) | HostPorts 宿主实现尚未全部合入 |
 | D-B8-4 | AI `complete`（摘要、问答、主动聊天） | `deps.UnavailableComplete`：返回 KB_/MEM_/SCHED_ 声明里的失败码，TODO(batch-4/5) | 依赖 ai-runtime（批次 4/5） |
-| D-B8-5 | `os.totalmem()` | Linux 用 `sysinfo`，mac 用 `sysctl hw.memsize`；Windows 暂时固定返回 8 GiB，TODO | Windows 需 `GlobalMemoryStatusEx`，后续补 |
-| D-B8-6 | llama-server 被信号结束时 `exit` 事件的 `code` 为 null | Go 被信号杀掉时同样报 `code: null`，`signal` 字段只有 Unix 有值 | Go `ProcessState` 在 Windows 上没有信号 |
-| D-B8-7 | 数据导出用 JS zip 库，按 `readdir` 的返回顺序 | Go 用标准库 `archive/zip`，目录先排序再写入；条目内容、路径、50 MB / 深度 4 上限相同 | 不同平台的 readdir 顺序本来就不固定；排序后结果可复现 |
+| D-B8-5 | ~~`os.totalmem()`~~ **已消除** | Linux `sysinfo`、mac `hw.memsize`、Windows `GlobalMemoryStatusEx` | 无行为差异 |
+| D-B8-6 | ~~llama-server 被信号结束时 `exit` 事件~~ **已消除** | Unix 报 `code: null` + 信号名；Windows 与 Node 一样以 TerminateProcess 退出码上报 | 无行为差异 |
+| D-B8-7 | ~~数据导出用 JS zip 库~~ **已消除** | 移植 fflate zip 写出（按 readdir 顺序、同样的头字段），`local/fflatezip_test.go` 与 Node 产物逐字节一致 | 无行为差异 |
 | D-B8-8 | MCP 密钥用 safeStorage 加密写进 `mcp.json` | 写入系统钥匙串（`security.NewSecretBox("extensions")`），磁盘上存 `enc:<base64 id>`，同 D13 | Go 没有 safeStorage |
-| D-B8-9 | 导入技能时用 `O_NOFOLLOW` 打开文件 | Windows 没有 `O_NOFOLLOW`，只靠打开后的 Stat 检查是否为普通文件；Unix 行为不变 | Windows 平台限制 |
+| D-B8-9 | ~~导入技能时用 `O_NOFOLLOW` 打开文件~~ **已消除** | Windows 用 `FILE_FLAG_OPEN_REPARSE_POINT` 打开并拒绝重解析点（`nofollow_windows.go`），Unix `O_NOFOLLOW` | 无行为差异 |
 
 ### 3.5 一致性测试策略（golden，Node 与 Go 同输入对比输出）
 
