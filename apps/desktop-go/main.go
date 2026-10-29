@@ -8,10 +8,16 @@ package main
 import (
 	"embed"
 	"encoding/json"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/tools"
 	aitools "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/tools"
 	aiproviders "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/providers"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/runtime/airouter"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/runtime/aisdk/mcpbridge"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/sdk/facade"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/assetproto"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop/parse"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/extensions"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore"
 	"io/fs"
 	"log"
@@ -204,7 +210,7 @@ func main() {
 	}
 	gatewaySvc.Start()
 	defer gatewaySvc.Dispose()
-	providerSvc, _ := shellhandlers.NewProviderRuntime(providerBox, processEnv(), nil, func(role string) *aiproviders.GatewayResolution {
+	providerSvc, llmRegistry := shellhandlers.NewProviderRuntime(providerBox, processEnv(), nil, func(role string) *aiproviders.GatewayResolution {
 		r := gatewaySvc.NomiRoute(role)
 		if r == nil {
 			return nil
@@ -216,6 +222,29 @@ func main() {
 		log.Printf("[ai-runtime] warn: 系统安全存储（safeStorage）不可用：provider token 仅做编码保存，未加密。面板中会提示用户。")
 	}
 	shellhandlers.InstallProviders(router, providerSvc)
+	// ToolRegistry（ig ctx 的 ToolRegistryKey）+ MCP 桥（AiSdkMcpPlugin / McpBridgePlugin）+ ext.attach（desktop/plugin.ts）
+	toolRegistry := tools.NewInMemory()
+	mcpLog := mcpLogger{}
+	mcpSvc := mcpbridge.New(mcpbridge.Options{
+		GetRegistry: func() tools.Registry { return toolRegistry },
+		Logger:      mcpLog,
+		GuardTool:   mcpbridge.GuardFromExt(b8.Ext),
+	})
+	mcpbridge.Apply(mcpSvc, mcpbridge.PluginConfig{
+		Servers:     mcpbridge.ServersFromEnv(os.LookupEnv),
+		AutoConnect: mcpbridge.AutoConnectFromEnv(os.LookupEnv),
+	}, mcpLog)
+	defer mcpSvc.Dispose()
+	b8.Ext.Attach(func() extensions.McpRuntime { return mcpbridge.ExtRuntime{S: mcpSvc} }, mcpbridge.ExtRegistry{R: toolRegistry})
+	// ChatFacade + AiContractRouter 的 ai.chat.*（覆盖 core.Core 的演示 ai.chat.stream）
+	chatFacade := facade.NewChat(facade.Deps{
+		LLM:   func() facade.Registry { return airouter.Routed{R: llmRegistry} },
+		Tools: func() tools.Registry { return toolRegistry },
+		Emit:  airouter.PublishAssistantMessage(router.Emit),
+	})
+	chatHandlers := airouter.New(airouter.Options{Chat: chatFacade, Logger: deps.StdLogger{Prefix: "[ai-runtime]"}})
+	chatHandlers.Register(router)
+	defer chatHandlers.Dispose()
 	// 批次 9：语音输入（voice.*）/ 朗读（tts.*）/ nav.openVoiceSettings
 	mediahandlers.Wire(mediahandlers.WireDeps{
 		UserData:  userData,
@@ -383,3 +412,10 @@ func islandPageMiddleware(isl *island.Service, next func(http.Handler) http.Hand
 		})
 	}
 }
+
+// mcpLogger：mcpbridge.Logger（ConsoleRuntimeLogger 的 [mcp] 前缀）
+type mcpLogger struct{}
+
+func (mcpLogger) Info(m string, kv ...any)  { log.Println(append([]any{"[mcp]", m}, kv...)...) }
+func (mcpLogger) Warn(m string, kv ...any)  { log.Println(append([]any{"[mcp] WARN", m}, kv...)...) }
+func (mcpLogger) Error(m string, kv ...any) { log.Println(append([]any{"[mcp] ERROR", m}, kv...)...) }

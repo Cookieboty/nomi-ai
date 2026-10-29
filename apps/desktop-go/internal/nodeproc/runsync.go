@@ -25,6 +25,8 @@ func RunSync(file string, args []string, o Options, timeout time.Duration) ([]by
 	env := o.Env
 	if env == nil {
 		env = os.Environ()
+	} else {
+		env = libuvEnv(env)
 	}
 	path, err := lookPath(file, o.Cwd, env)
 	if err != nil {

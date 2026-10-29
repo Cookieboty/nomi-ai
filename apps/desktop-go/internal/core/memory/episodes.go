@@ -4,6 +4,7 @@ package memory
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/privacy"
 	"math"
 	"regexp"
 	"sort"
@@ -146,9 +147,8 @@ type ParsedSummary struct {
 
 var secretRe = regexp.MustCompile(`(?i)(sk-[a-z0-9_-]{12,}|password|密码|口令|身份证|银行卡|\b\d{15,19}\b)`)
 
-// HasSecret：网关 privacy 的共用密钥规则（packages/gateway/src/privacy/rules.ts hasSecret）。
-// TODO(batch-4): Go 网关移植 ruleSpans 后在 main.go 注入真实实现。
-var HasSecret = func(string) bool { return false }
+// HasSecret：网关 privacy 的共用密钥规则（packages/gateway/src/privacy/rules.ts hasSecret(s) = ruleSpans(s, {}).length > 0）。
+var HasSecret = func(s string) bool { return privacy.HasSecret(s, false) }
 
 func ParseSummary(raw string) *ParsedSummary {
 	s := strings.Index(raw, "{")
