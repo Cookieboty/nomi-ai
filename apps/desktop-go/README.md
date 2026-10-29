@@ -10,7 +10,7 @@ NOMI_POC_CTL=127.0.0.1:47811 ./build/bin/nomi-poc
 curl '127.0.0.1:47811/ctl?op=show-chat'   # show-chat|close-chat|show-mascot|hide-mascot|quit
 ```
 
-看板娘默认只显示静态 SVG（`rive/nomi-complete/reference/svg-rig/nomi-fullbody-mother.svg`，不打包 Rive）；构建前端时设 `NOMI_POC_MASCOT=rive` 可恢复 Rive 版。
+看板娘按设置 `mascot.renderer`（`svg`|`rive`，默认 `svg`）显示：默认静态 SVG（`rive/nomi-complete/reference/svg-rig/nomi-fullbody-mother.svg`）；打开「动态看板娘（Rive 动画）」后运行时动态加载 Rive，关掉即卸载并释放 WebGL。
 
 环境变量：`NOMI_LLM_BASE_URL` / `NOMI_LLM_API_KEY` / `NOMI_LLM_MODEL`，无 key 时使用内置 mock。
 

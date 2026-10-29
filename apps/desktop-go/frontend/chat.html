@@ -13,6 +13,13 @@
   <body>
     <main>
       <div id="status">connecting…</div>
+      <section id="ob" hidden style="background:#fff;border:1px solid #dde;padding:12px">
+        <b>想让诺米动起来吗？</b>
+        <div style="color:#666;font-size:12px">动态看板娘会多用一些内存和显卡；随时可以在设置里改。</div>
+        <div id="obNoGl" hidden style="color:#a33;font-size:12px">这台电脑不支持 WebGL，只能使用静态看板娘。</div>
+        <div style="margin-top:8px;display:flex;gap:6px"><button id="obStatic">保持静态</button><button id="obRive">开启动画</button></div>
+      </section>
+      <label title="开启后看板娘使用 Rive 动画（占用更多内存和显卡）；关闭显示静态立绘"><input type="checkbox" id="riveToggle" disabled /> 动态看板娘（Rive 动画）</label>
       <div id="out"></div>
       <form id="f"><input id="q" value="你好，诺米！" /><button>发送</button><button type="button" id="stop">停止</button></form>
     </main>
