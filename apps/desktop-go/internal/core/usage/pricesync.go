@@ -706,5 +706,5 @@ func jsString(err error) string {
 		}
 		return t.Name + ": " + t.Message
 	}
-	return err.Error()
+	return "Error: " + err.Error()
 }
