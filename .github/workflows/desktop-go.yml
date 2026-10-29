@@ -153,7 +153,8 @@ jobs:
 
       # ---------- 内存实测：v2.0.4 打包版（同 runner、同口径，仅冷启动） ----------
       - name: measure v2.0.4 (macOS)
-        if: runner.os == 'macOS'
+        # 只在手动触发时下载 v2.0.4 对比，避免每次 push 刷高 Release 下载数
+        if: runner.os == 'macOS' && github.event_name == 'workflow_dispatch'
         working-directory: apps/desktop-go
         env: { GH_TOKEN: '${{ github.token }}' }
         run: |
@@ -162,7 +163,7 @@ jobs:
           du -sk /tmp/v204/app/Nomi.app | tee -a mem/v204-size.txt
           ci/measure-mac.sh electron /tmp/v204/app/Nomi.app/Contents/MacOS/Nomi "$PWD/mem" || true
       - name: measure v2.0.4 (Windows)
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && github.event_name == 'workflow_dispatch'
         working-directory: apps/desktop-go
         shell: pwsh
         env: { GH_TOKEN: '${{ github.token }}' }
