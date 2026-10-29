@@ -203,7 +203,12 @@ func runHostScenario(t *testing.T, sc hostScenario, node string) {
 		host = NewCliPluginHost(deps)
 	}
 	for i, raw := range sc.Steps {
-		v, _ := util.ParseString(sub(string(raw)))
+		// 步骤是 JSON：沙箱路径按 JSON 字符串转义后再替换（Windows 反斜杠）
+		sbJSON := util.Stringify(SB)
+		v, err := util.ParseString(strings.ReplaceAll(string(raw), shTok, sbJSON[1:len(sbJSON)-1]))
+		if err != nil {
+			t.Fatalf("step %d: %v", i, err)
+		}
 		st := v.([]any)
 		op := st[0].(string)
 		a := func(k int) string { s, _ := st[k].(string); return s }

@@ -29,15 +29,15 @@
     "synthUrl": [
       {
         "in": 0,
-        "out": "wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4&ConnectionId=8f3d22bfcfb947908c384a063f5d4b05&Sec-MS-GEC=52BC7A17B50DFEC9-28C4394775C8751CD2F6859C030C06DB1489ACAB3B3A7651831FC26895177ED6&Sec-MS-GEC-Version=2-143.0.3650.75"
+        "out": "wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4&ConnectionId=3e5412f078e14534b01845eeaa1c94cc&Sec-MS-GEC=52BC7A17B50DFEC9-28C4394775C8751CD2F6859C030C06DB1489ACAB3B3A7651831FC26895177ED6&Sec-MS-GEC-Version=2-143.0.3650.75"
       },
       {
         "in": 1,
-        "out": "wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4&ConnectionId=1501f1b855844855ad18581a2daaec3b&Sec-MS-GEC=52BC7A17B50DFEC9-28C4394775C8751CD2F6859C030C06DB1489ACAB3B3A7651831FC26895177ED6&Sec-MS-GEC-Version=2-143.0.3650.75"
+        "out": "wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4&ConnectionId=cf66ee3b6e4f4bda826c52f13af1cbb6&Sec-MS-GEC=52BC7A17B50DFEC9-28C4394775C8751CD2F6859C030C06DB1489ACAB3B3A7651831FC26895177ED6&Sec-MS-GEC-Version=2-143.0.3650.75"
       },
       {
         "in": 1700000000,
-        "out": "wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4&ConnectionId=a8f46292b32d456ba85a80c75ecd8ae5&Sec-MS-GEC=2CD23A2CA0B2595A-F3C846C370E05F9CC83ACC5F995C5F5D87A4D0F14CE8936A0F902E64099E38A2&Sec-MS-GEC-Version=2-143.0.3650.75"
+        "out": "wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4&ConnectionId=b29fba1cdaf64b2d979fb1f643d0e582&Sec-MS-GEC=2CD23A2CA0B2595A-F3C846C370E05F9CC83ACC5F995C5F5D87A4D0F14CE8936A0F902E64099E38A2&Sec-MS-GEC-Version=2-143.0.3650.75"
       }
     ],
     "voicesUrl": [
@@ -1526,7 +1526,7 @@
           ],
           [
             "content-length",
-            "551"
+            "553"
           ],
           [
             "content-type",
@@ -1545,7 +1545,7 @@
             "node"
           ]
         ],
-        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nwhisper-1\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\nzh\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"prompt\"\r\n\r\næç¤º\r\n--BOUNDARY--"
+        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nwhisper-1\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\nzh\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"prompt\"\r\n\r\næç¤º\r\n--BOUNDARY--\r\n"
       }
     },
     {
@@ -1601,7 +1601,7 @@
           ],
           [
             "content-length",
-            "359"
+            "361"
           ],
           [
             "content-type",
@@ -1620,7 +1620,7 @@
             "node"
           ]
         ],
-        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nm\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY--"
+        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nm\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY--\r\n"
       }
     },
     {
@@ -1677,7 +1677,7 @@
           ],
           [
             "content-length",
-            "359"
+            "361"
           ],
           [
             "content-type",
@@ -1696,7 +1696,7 @@
             "node"
           ]
         ],
-        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nm\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY--"
+        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nm\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY--\r\n"
       }
     },
     {
@@ -1770,7 +1770,7 @@
           ],
           [
             "content-length",
-            "549"
+            "551"
           ],
           [
             "content-type",
@@ -1789,7 +1789,7 @@
             "node"
           ]
         ],
-        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\na\r\nb\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\nen\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"prompt\"\r\n\r\nx\r\ny\r\nz\r\n\r\n--BOUNDARY--"
+        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\na\r\nb\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\nen\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"prompt\"\r\n\r\nx\r\ny\r\nz\r\n\r\n--BOUNDARY--\r\n"
       }
     },
     {
@@ -1863,7 +1863,7 @@
           ],
           [
             "content-length",
-            "551"
+            "553"
           ],
           [
             "content-type",
@@ -1882,7 +1882,7 @@
             "node"
           ]
         ],
-        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nwhisper-1\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\nzh\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"prompt\"\r\n\r\næç¤º\r\n--BOUNDARY--"
+        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nwhisper-1\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\nzh\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"prompt\"\r\n\r\næç¤º\r\n--BOUNDARY--\r\n"
       }
     },
     {
@@ -1938,7 +1938,7 @@
           ],
           [
             "content-length",
-            "359"
+            "361"
           ],
           [
             "content-type",
@@ -1957,7 +1957,7 @@
             "node"
           ]
         ],
-        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nm\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY--"
+        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nm\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY--\r\n"
       }
     },
     {
@@ -2014,7 +2014,7 @@
           ],
           [
             "content-length",
-            "359"
+            "361"
           ],
           [
             "content-type",
@@ -2033,7 +2033,7 @@
             "node"
           ]
         ],
-        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nm\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY--"
+        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nm\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY--\r\n"
       }
     },
     {
@@ -2107,7 +2107,7 @@
           ],
           [
             "content-length",
-            "549"
+            "551"
           ],
           [
             "content-type",
@@ -2126,7 +2126,7 @@
             "node"
           ]
         ],
-        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\na\r\nb\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\nen\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"prompt\"\r\n\r\nx\r\ny\r\nz\r\n\r\n--BOUNDARY--"
+        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\na\r\nb\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\nen\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"prompt\"\r\n\r\nx\r\ny\r\nz\r\n\r\n--BOUNDARY--\r\n"
       }
     },
     {
@@ -2200,7 +2200,7 @@
           ],
           [
             "content-length",
-            "551"
+            "553"
           ],
           [
             "content-type",
@@ -2219,7 +2219,7 @@
             "node"
           ]
         ],
-        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nwhisper-1\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\nzh\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"prompt\"\r\n\r\næç¤º\r\n--BOUNDARY--"
+        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nwhisper-1\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\nzh\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"prompt\"\r\n\r\næç¤º\r\n--BOUNDARY--\r\n"
       }
     },
     {
@@ -2275,7 +2275,7 @@
           ],
           [
             "content-length",
-            "359"
+            "361"
           ],
           [
             "content-type",
@@ -2294,7 +2294,7 @@
             "node"
           ]
         ],
-        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nm\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY--"
+        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nm\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY--\r\n"
       }
     },
     {
@@ -2351,7 +2351,7 @@
           ],
           [
             "content-length",
-            "359"
+            "361"
           ],
           [
             "content-type",
@@ -2370,7 +2370,7 @@
             "node"
           ]
         ],
-        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nm\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY--"
+        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nm\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY--\r\n"
       }
     },
     {
@@ -2444,7 +2444,7 @@
           ],
           [
             "content-length",
-            "549"
+            "551"
           ],
           [
             "content-type",
@@ -2463,7 +2463,7 @@
             "node"
           ]
         ],
-        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\na\r\nb\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\nen\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"prompt\"\r\n\r\nx\r\ny\r\nz\r\n\r\n--BOUNDARY--"
+        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\na\r\nb\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\nen\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"prompt\"\r\n\r\nx\r\ny\r\nz\r\n\r\n--BOUNDARY--\r\n"
       }
     },
     {
@@ -2537,7 +2537,7 @@
           ],
           [
             "content-length",
-            "551"
+            "553"
           ],
           [
             "content-type",
@@ -2556,7 +2556,7 @@
             "node"
           ]
         ],
-        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nwhisper-1\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\nzh\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"prompt\"\r\n\r\næç¤º\r\n--BOUNDARY--"
+        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nwhisper-1\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\nzh\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"prompt\"\r\n\r\næç¤º\r\n--BOUNDARY--\r\n"
       }
     },
     {
@@ -2612,7 +2612,7 @@
           ],
           [
             "content-length",
-            "359"
+            "361"
           ],
           [
             "content-type",
@@ -2631,7 +2631,7 @@
             "node"
           ]
         ],
-        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nm\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY--"
+        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nm\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY--\r\n"
       }
     },
     {
@@ -2688,7 +2688,7 @@
           ],
           [
             "content-length",
-            "359"
+            "361"
           ],
           [
             "content-type",
@@ -2707,7 +2707,7 @@
             "node"
           ]
         ],
-        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nm\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY--"
+        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nm\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY--\r\n"
       }
     },
     {
@@ -2781,7 +2781,7 @@
           ],
           [
             "content-length",
-            "549"
+            "551"
           ],
           [
             "content-type",
@@ -2800,7 +2800,7 @@
             "node"
           ]
         ],
-        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\na\r\nb\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\nen\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"prompt\"\r\n\r\nx\r\ny\r\nz\r\n\r\n--BOUNDARY--"
+        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\na\r\nb\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\nen\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"prompt\"\r\n\r\nx\r\ny\r\nz\r\n\r\n--BOUNDARY--\r\n"
       }
     },
     {
@@ -2874,7 +2874,7 @@
           ],
           [
             "content-length",
-            "551"
+            "553"
           ],
           [
             "content-type",
@@ -2893,7 +2893,7 @@
             "node"
           ]
         ],
-        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nwhisper-1\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\nzh\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"prompt\"\r\n\r\næç¤º\r\n--BOUNDARY--"
+        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nwhisper-1\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\nzh\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"prompt\"\r\n\r\næç¤º\r\n--BOUNDARY--\r\n"
       }
     },
     {
@@ -2949,7 +2949,7 @@
           ],
           [
             "content-length",
-            "359"
+            "361"
           ],
           [
             "content-type",
@@ -2968,7 +2968,7 @@
             "node"
           ]
         ],
-        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nm\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY--"
+        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nm\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY--\r\n"
       }
     },
     {
@@ -3025,7 +3025,7 @@
           ],
           [
             "content-length",
-            "359"
+            "361"
           ],
           [
             "content-type",
@@ -3044,7 +3044,7 @@
             "node"
           ]
         ],
-        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nm\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY--"
+        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nm\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY--\r\n"
       }
     },
     {
@@ -3118,7 +3118,7 @@
           ],
           [
             "content-length",
-            "549"
+            "551"
           ],
           [
             "content-type",
@@ -3137,7 +3137,7 @@
             "node"
           ]
         ],
-        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\na\r\nb\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\nen\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"prompt\"\r\n\r\nx\r\ny\r\nz\r\n\r\n--BOUNDARY--"
+        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\na\r\nb\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\nen\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"prompt\"\r\n\r\nx\r\ny\r\nz\r\n\r\n--BOUNDARY--\r\n"
       }
     },
     {
@@ -3211,7 +3211,7 @@
           ],
           [
             "content-length",
-            "551"
+            "553"
           ],
           [
             "content-type",
@@ -3230,7 +3230,7 @@
             "node"
           ]
         ],
-        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nwhisper-1\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\nzh\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"prompt\"\r\n\r\næç¤º\r\n--BOUNDARY--"
+        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nwhisper-1\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\nzh\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"prompt\"\r\n\r\næç¤º\r\n--BOUNDARY--\r\n"
       }
     },
     {
@@ -3286,7 +3286,7 @@
           ],
           [
             "content-length",
-            "359"
+            "361"
           ],
           [
             "content-type",
@@ -3305,7 +3305,7 @@
             "node"
           ]
         ],
-        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nm\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY--"
+        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nm\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY--\r\n"
       }
     },
     {
@@ -3362,7 +3362,7 @@
           ],
           [
             "content-length",
-            "359"
+            "361"
           ],
           [
             "content-type",
@@ -3381,7 +3381,7 @@
             "node"
           ]
         ],
-        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nm\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY--"
+        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nm\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY--\r\n"
       }
     },
     {
@@ -3455,7 +3455,7 @@
           ],
           [
             "content-length",
-            "549"
+            "551"
           ],
           [
             "content-type",
@@ -3474,7 +3474,7 @@
             "node"
           ]
         ],
-        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\na\r\nb\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\nen\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"prompt\"\r\n\r\nx\r\ny\r\nz\r\n\r\n--BOUNDARY--"
+        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\na\r\nb\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\nen\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"prompt\"\r\n\r\nx\r\ny\r\nz\r\n\r\n--BOUNDARY--\r\n"
       }
     },
     {
@@ -3548,7 +3548,7 @@
           ],
           [
             "content-length",
-            "551"
+            "553"
           ],
           [
             "content-type",
@@ -3567,7 +3567,7 @@
             "node"
           ]
         ],
-        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nwhisper-1\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\nzh\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"prompt\"\r\n\r\næç¤º\r\n--BOUNDARY--"
+        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nwhisper-1\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\nzh\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"prompt\"\r\n\r\næç¤º\r\n--BOUNDARY--\r\n"
       }
     },
     {
@@ -3623,7 +3623,7 @@
           ],
           [
             "content-length",
-            "359"
+            "361"
           ],
           [
             "content-type",
@@ -3642,7 +3642,7 @@
             "node"
           ]
         ],
-        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nm\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY--"
+        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nm\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY--\r\n"
       }
     },
     {
@@ -3699,7 +3699,7 @@
           ],
           [
             "content-length",
-            "359"
+            "361"
           ],
           [
             "content-type",
@@ -3718,7 +3718,7 @@
             "node"
           ]
         ],
-        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nm\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY--"
+        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nm\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY--\r\n"
       }
     },
     {
@@ -3792,7 +3792,7 @@
           ],
           [
             "content-length",
-            "549"
+            "551"
           ],
           [
             "content-type",
@@ -3811,7 +3811,7 @@
             "node"
           ]
         ],
-        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\na\r\nb\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\nen\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"prompt\"\r\n\r\nx\r\ny\r\nz\r\n\r\n--BOUNDARY--"
+        "body": "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\na\r\nb\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\njson\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\nen\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"prompt\"\r\n\r\nx\r\ny\r\nz\r\n\r\n--BOUNDARY--\r\n"
       }
     }
   ],
@@ -4160,11 +4160,11 @@
     {
       "tz": "Pacific/Apia",
       "out": [
-        "Wed Dec 31 1969 13:00:00 GMT-1100 (Apia Standard Time)",
-        "Thu Jan 01 2026 13:00:00 GMT+1300 (Apia Standard Time)",
-        "Mon Jul 20 2026 13:00:00 GMT+1300 (Apia Standard Time)",
-        "Mon Dec 31 1990 13:00:00 GMT-1100 (Apia Standard Time)",
-        "Thu Oct 29 2026 21:00:00 GMT+1300 (Apia Standard Time)"
+        "Wed Dec 31 1969 13:00:00 GMT-1100 (Samoa Standard Time)",
+        "Thu Jan 01 2026 13:00:00 GMT+1300 (Samoa Standard Time)",
+        "Mon Jul 20 2026 13:00:00 GMT+1300 (Samoa Standard Time)",
+        "Mon Dec 31 1990 13:00:00 GMT-1100 (Samoa Standard Time)",
+        "Thu Oct 29 2026 21:00:00 GMT+1300 (Samoa Standard Time)"
       ]
     },
     {

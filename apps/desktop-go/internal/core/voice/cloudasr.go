@@ -41,7 +41,7 @@ func undiciBoundary() string {
 	return fmt.Sprintf("----formdata-undici-0%011d", n.Int64())
 }
 
-// BuildForm = undici 对 FormData 的序列化（字段顺序、头、结尾 `--boundary--` 不带 CRLF）
+// BuildForm = undici 对 FormData 的序列化（字段顺序、头、结尾 `--boundary--\r\n`（undici ≥6.22 / Node 22.23、Electron 44））
 func BuildForm(o CloudOpts) (body []byte, contentType string) {
 	return buildFormWith(o, undiciBoundary())
 }
@@ -63,7 +63,7 @@ func buildFormWith(o CloudOpts, boundary string) ([]byte, string) {
 	if o.Prompt != "" {
 		field("prompt", o.Prompt)
 	}
-	b.WriteString("--" + boundary + "--")
+	b.WriteString("--" + boundary + "--\r\n")
 	return b.Bytes(), "multipart/form-data; boundary=" + boundary
 }
 
