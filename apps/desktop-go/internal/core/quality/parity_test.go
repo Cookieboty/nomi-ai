@@ -20,7 +20,8 @@ func goldenCost(model string, tk *u.Obj) (float64, bool) {
 		return 0, false
 	}
 	n := func(k string) float64 { f, _ := numOf(nullish(get(tk, k), 0.0)); return f }
-	return n("input")*1.25e-6 + n("output")*1e-5 + n("cacheRead")*1.25e-7, true
+	// 显式 float64() 阻止 arm64 上 Go 编译器融合乘加（FMA），保证与 V8 逐步舍入一致
+	return float64(float64(n("input")*1.25e-6)+float64(n("output")*1e-5)) + float64(n("cacheRead")*1.25e-7), true
 }
 
 func norm(v any) string {
