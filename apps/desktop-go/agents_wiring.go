@@ -14,7 +14,7 @@ import (
 )
 
 // wireAgents 对齐 createCore.ts 的 AgentProgressService 构造 + attachHarness。
-// usageOf / taskCost 依赖 UsageService（未移植，§3.6）：缺省 = 不带用量 / 花费。
+// usageOf / taskCost 来自 UsageService（usage_wiring.go）。
 func wireAgents(router *contract.Router, userData string, d *desktop.Service) func() {
 	o := harnessOrch
 	var s *agents.Service
@@ -25,7 +25,9 @@ func wireAgents(router *contract.Router, userData string, d *desktop.Service) fu
 				d.Notify(desktop.DesktopNotice{Kind: n.Kind, Title: n.Title, Text: n.Text, Body: n.Body, Status: n.Status,
 					Endpoint: n.Endpoint, Passive: n.Passive, Bubble: n.Bubble})
 			},
-			IsQuiet: func() bool { return d.NotifyPolicy != nil && d.NotifyPolicy.Quiet() },
+			IsQuiet:  func() bool { return d.NotifyPolicy != nil && d.NotifyPolicy.Quiet() },
+			UsageOf:  agentsUsageOf,
+			TaskCost: agentsTaskCost,
 		})
 		if o != nil {
 			ev := o.Events()
