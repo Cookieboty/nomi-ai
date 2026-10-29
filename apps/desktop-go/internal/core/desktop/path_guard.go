@@ -3,7 +3,6 @@ package desktop
 import (
 	"errors"
 	"io/fs"
-	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -92,14 +91,9 @@ var denyNames = []*regexp.Regexp{
 // ErrNotExist 供注入的 realpath 表示 ENOENT
 var ErrNotExist = fs.ErrNotExist
 
-// RealpathNative：fs.promises.realpath（D-B6-3：Windows 上为 EvalSymlinks + Abs）
-func RealpathNative(p string) (string, error) {
-	r, err := filepath.EvalSymlinks(p)
-	if err != nil {
-		return "", err
-	}
-	return filepath.Abs(r)
-}
+// RealpathNative：fs.promises.realpath（libuv uv_fs_realpath）。
+// Unix 走 realpath(3) 语义；Windows 用 GetFinalPathNameByHandleW，见 realpath_*.go。
+func RealpathNative(p string) (string, error) { return realpathNative(p) }
 
 func caseInsensitive(platform string) bool { return platform == "win32" || platform == "darwin" }
 
