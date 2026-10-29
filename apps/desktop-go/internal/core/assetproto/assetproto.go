@@ -68,7 +68,12 @@ func realpath(p string) (string, bool) {
 		return "", false
 	}
 	r, err = filepath.Abs(r)
-	return r, err == nil
+	if err != nil {
+		return "", false
+	}
+	// fsp.realpath = libuv uv_fs_realpath → realpath(3)/GetFinalPathNameByHandle：返回磁盘上的真实大小写，
+	// EvalSymlinks 在 mac 上保留输入大小写，这里补齐（Windows 的 EvalSymlinks 已是磁盘大小写）
+	return diskCase(r), true
 }
 
 // ResolveChatAssetURL 对应 resolveChatAssetUrl；返回 "" 即 Node 的 null
