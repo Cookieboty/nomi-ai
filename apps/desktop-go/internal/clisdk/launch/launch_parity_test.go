@@ -159,11 +159,11 @@ func snapshot(S string) []any {
 				to, _ := readlinkNode(p)
 				out = append(out, util.NewObj("p", rel, "t", "l", "to", strings.ReplaceAll(to, S, "$S")))
 			case st.IsDir():
-				out = append(out, util.NewObj("p", rel, "t", "d", "m", float64(st.Mode().Perm())))
+				out = append(out, util.NewObj("p", rel, "t", "d", "m", nodeStatMode(st)))
 				walk(p)
 			default:
 				c, _ := os.ReadFile(p)
-				out = append(out, util.NewObj("p", rel, "t", "f", "m", float64(st.Mode().Perm()), "c", string(c)))
+				out = append(out, util.NewObj("p", rel, "t", "f", "m", nodeStatMode(st), "c", string(c)))
 			}
 		}
 	}
