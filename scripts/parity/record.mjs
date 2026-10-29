@@ -21,7 +21,7 @@
  *   e2e      – the real GatewayServer against a local mock upstream per protocol,
  *              recording the raw streamed chunks the client receives
  *
- * Usage: node scripts/parity/record.mjs [--only request,stream,json,fixes,spec,net,objkeys,proxy,models,providers,rules,route,upstream,collate,textdecoder,e2e]
+ * Usage: node scripts/parity/record.mjs [--only request,stream,json,fixes,spec,net,objkeys,proxy,models,providers,rules,route,upstream,collate,textdecoder,helpers,e2e]
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -462,6 +462,11 @@ if (want('textdecoder')) {
     cases.push({ chunks, out });
   }
   write('textdecoder', cases);
+}
+
+if (want('helpers')) {
+  const { recordHelpers } = await import('./helpers.mjs');
+  write('helpers', await recordHelpers({ gw }));
 }
 
 if (want('e2e')) {
