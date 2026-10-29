@@ -34,6 +34,24 @@ type subsScenario struct {
 	Unsupported   bool              `json:"unsupported"`
 	Log           []json.RawMessage `json:"log"`
 	Left          []string          `json:"left"`
+	PlanKind      string            `json:"planKind"`
+}
+
+// planKindOf = recorder 的 planKind()：reading 里 plan 的 JS 值类别。
+func planKindOf(r *QuotaReading) string {
+	if r == nil {
+		return "none"
+	}
+	switch r.PlanKind {
+	case PlanFunction:
+		return "function"
+	case PlanObjectProto:
+		return "Object.prototype"
+	}
+	if r.Plan == "" {
+		return "none"
+	}
+	return "string"
 }
 
 type subsGolden struct {
@@ -49,8 +67,9 @@ type subsGolden struct {
 		ClaudeEnv     string   `json:"claudeEnv"`
 	} `json:"consts"`
 	MapCases []struct {
-		Input json.RawMessage `json:"input"`
-		Out   string          `json:"out"`
+		Input    json.RawMessage `json:"input"`
+		Out      string          `json:"out"`
+		PlanKind string          `json:"planKind"`
 	} `json:"mapCases"`
 	AuthCases []struct {
 		Code *float64 `json:"code"`
@@ -140,6 +159,9 @@ func TestMapCodexRateLimitsParity(t *testing.T) {
 		}
 		if got != c.Out {
 			t.Errorf("map[%d] %s:\n go   %s\n node %s", i, c.Input, got, c.Out)
+		}
+		if k := planKindOf(r); k != c.PlanKind {
+			t.Errorf("map[%d] planKind: go %s node %s", i, k, c.PlanKind)
 		}
 	}
 	for i, c := range g.AuthCases {
@@ -368,6 +390,9 @@ func TestCodexRateLimitReaderParity(t *testing.T) {
 			}
 			o, _ := jsrt.Await(NewCodexRateLimitReader(d).Fetch())
 			outs = append(outs, outcomeJSON(o, true))
+			if k := planKindOf(o.Reading); k != sc.PlanKind {
+				t.Errorf("codex %s planKind: go %s node %s", sc.Name, k, sc.PlanKind)
+			}
 		})
 		h.check("codex", sc, outs, logf)
 	}

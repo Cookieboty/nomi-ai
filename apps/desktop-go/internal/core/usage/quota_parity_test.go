@@ -27,7 +27,7 @@ type qWin struct {
 type qReading struct {
 	Windows   []qWin  `json:"windows"`
 	UpdatedAt float64 `json:"updatedAt"`
-	Plan      string  `json:"plan"`
+	Plan      any     `json:"plan"` // string 或 {"$js":"proto"|"fn"}（recorder jsPlan 标记）
 	Origin    string  `json:"origin"`
 	Stale     bool    `json:"stale"`
 }
@@ -70,7 +70,18 @@ func (r *qReading) toReading() *QuotaReading {
 	for i, w := range r.Windows {
 		ws[i] = w.toWin()
 	}
-	return &QuotaReading{Windows: ws, UpdatedAt: r.UpdatedAt, Plan: r.Plan, Origin: r.Origin, Stale: r.Stale}
+	out := &QuotaReading{Windows: ws, UpdatedAt: r.UpdatedAt, Origin: r.Origin, Stale: r.Stale}
+	switch p := r.Plan.(type) {
+	case string:
+		out.Plan = p
+	case map[string]any:
+		if p["$js"] == "proto" {
+			out.PlanKind = PlanObjectProto
+		} else {
+			out.PlanKind = PlanFunction
+		}
+	}
+	return out
 }
 
 type qOutcome struct {
