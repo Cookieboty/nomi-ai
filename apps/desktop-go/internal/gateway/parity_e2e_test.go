@@ -2,9 +2,12 @@ package gateway_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
+	"net"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -79,7 +82,8 @@ func TestParityE2E(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer up.Close()
-	hc := &http.Client{Transport: &http.Transport{DisableCompression: true}, Timeout: 30 * time.Second}
+	var wire rawTap
+	hc := &http.Client{Transport: &http.Transport{DisableCompression: true, DialContext: wire.dial}, Timeout: 30 * time.Second}
 	tl := tally{}
 	for _, cv := range fx.Get("cases").([]any) {
 		c := cv.(*u.Obj)
@@ -114,6 +118,7 @@ func TestParityE2E(t *testing.T) {
 		if _, ok := hs.Get("user-agent").(string); !ok {
 			req.Header.Set("User-Agent", "")
 		}
+		wire.reset()
 		resp, err := hc.Do(req)
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
@@ -132,6 +137,8 @@ func TestParityE2E(t *testing.T) {
 			}
 		}
 		check(t, tl, "headers", gh, want.Get("headers"), name)
+		// header names on the wire, case-exact (Go's writer sorts keys, so compare as a sorted list)
+		check(t, tl, "rawNames", sortedAny(wire.names()), sortedAny(strList(want.Get("rawNames"))), name)
 		check(t, tl, "body", normalize(string(rb)), normalize(want.Get("body").(string)), name)
 
 		seen := []any{}
@@ -153,4 +160,58 @@ func TestParityE2E(t *testing.T) {
 		check(t, tl, "usage", normalize(u.Stringify(maskE2E(gu, false))), normalize(u.Stringify(maskE2E(wu, false))), name)
 	}
 	tl.report(t, "e2e")
+}
+
+// rawTap records the bytes the client reads so the response head can be checked
+// with the exact header-name case the server put on the wire.
+type rawTap struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+type tapConn struct {
+	net.Conn
+	t *rawTap
+}
+
+func (c tapConn) Read(p []byte) (int, error) {
+	n, err := c.Conn.Read(p)
+	c.t.mu.Lock()
+	c.t.buf.Write(p[:n])
+	c.t.mu.Unlock()
+	return n, err
+}
+
+func (t *rawTap) dial(ctx context.Context, network, addr string) (net.Conn, error) {
+	c, err := (&net.Dialer{}).DialContext(ctx, network, addr)
+	if err != nil {
+		return nil, err
+	}
+	return tapConn{c, t}, nil
+}
+
+func (t *rawTap) reset() { t.mu.Lock(); t.buf.Reset(); t.mu.Unlock() }
+
+func (t *rawTap) names() []string {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	head, _, _ := strings.Cut(t.buf.String(), "\r\n\r\n")
+	lines := strings.Split(head, "\r\n")
+	out := []string{}
+	for _, l := range lines[1:] {
+		if k, _, ok := strings.Cut(l, ":"); ok {
+			out = append(out, k)
+		}
+	}
+	return out
+}
+
+func sortedAny(xs []string) []any {
+	c := append([]string(nil), xs...)
+	sort.Strings(c)
+	out := make([]any, len(c))
+	for i, x := range c {
+		out[i] = x
+	}
+	return out
 }
