@@ -21,10 +21,11 @@ codesign --verify --deep --strict "$APP" || ok=0
 keys() { plutil -convert json -o - "$1" | python3 -c 'import json,sys; d=json.load(sys.stdin); [print(k, "=", json.dumps(d[k], ensure_ascii=False)) for k in sorted(d)]'; }
 keys "$APP/Contents/Info.plist" > "$OUT/info-go.txt"
 if [ -n "$OLD" ] && [ -f "$OLD" ]; then
+  if [ "${OLD%.txt}" != "$OLD" ]; then cp "$OLD" "$OUT/info-electron.txt"; else
   M2=$(hdiutil attach -nobrowse -readonly "$OLD" | awk -F'\t' '/\/Volumes\//{print $NF}' | tail -1)
   keys "$M2/Nomi.app/Contents/Info.plist" > "$OUT/info-electron.txt"
   codesign -dv --verbose=4 "$M2/Nomi.app" > "$OUT/codesign-electron.txt" 2>&1
-  hdiutil detach "$M2" -quiet
+  hdiutil detach "$M2" -quiet; fi
   { echo "Info.plist 键对比（- Electron 2.0.4 / + Go）"; echo '```diff'
     diff <(cut -d' ' -f1 "$OUT/info-electron.txt") <(cut -d' ' -f1 "$OUT/info-go.txt"); echo '```'
     echo "共同键取值差异："; echo '```diff'
