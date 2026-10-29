@@ -46,6 +46,12 @@ const rmQuiet = (p) => {
     fs.rmSync(p, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
   } catch {}
 };
+const leftovers = async () => {
+  await waitChildrenExit(L, 5_000);
+  const names = fs.readdirSync(T).sort();
+  for (const n of names) rmQuiet(path.join(T, n));
+  return names.map((n) => n.slice(0, -6)).sort();
+};
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /* ---------------- parseGrokAuthStatus ---------------- */
@@ -226,7 +232,7 @@ for (const sc of authScenarios) {
     timeoutMs: sc.timeoutMs ?? 10_000,
   });
   await sleep(700);
-  auth.push({ ...sc, out: J(r), log: readLog(logf), left: fs.readdirSync(T).sort() });
+  auth.push({ ...sc, out: J(r), log: readLog(logf), left: await leftovers() });
 }
 await waitChildrenExit(L);
 rmQuiet(T);
