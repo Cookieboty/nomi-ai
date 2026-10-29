@@ -1,0 +1,1149 @@
+{
+ "tree": {
+  "files": {
+   "chat/images/a.png": "PNGDATA",
+   "chat/images/B.JPG": "jpgdata",
+   "chat/images/sub/c.webp": "webp",
+   "chat/images/x y.gif": "gif",
+   "chat/images/中文.jpeg": "zh",
+   "chat/images/n.txt": "txt",
+   "chat/images/noext": "n",
+   "chat/presets/p.jpg": "nope",
+   "chat/secret.png": "secret",
+   "outside/o.png": "out",
+   "res/backgrounds/nomi-preset.jpg": "PRESET",
+   "res/backgrounds/other.jpg": "other",
+   "pack/manifest.json": "{\"id\":\"x\"}",
+   "pack/rive/m.riv": "RIVE",
+   "pack/voice/hi.mp3": "mp3",
+   "pack/voice/hi.WAV": "wav",
+   "pack/a b.png": "sp",
+   "pack/README.md": "# r",
+   "pack/x.bin": "bin",
+   "pack/中.png": "zh",
+   "pack/dir/inner.json": "{}"
+  },
+  "symlinks": {
+   "chat/images/link.png": "../../outside/o.png",
+   "chat/images/inlink.png": "a.png",
+   "pack/out.png": "../outside/o.png",
+   "pack/in.png": "rive/m.riv",
+   "pack/dirlink": "dir"
+  }
+ },
+ "chat": [
+  {
+   "url": "chat-asset://presets/background.jpg",
+   "resolved": "<ROOT>/res/backgrounds/nomi-preset.jpg",
+   "response": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-origin": "*",
+     "cache-control": "no-store",
+     "content-length": "6",
+     "content-type": "image/jpeg"
+    },
+    "body": "PRESET"
+   }
+  },
+  {
+   "url": "chat-asset://presets/background.jpg?x=1",
+   "resolved": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  },
+  {
+   "url": "chat-asset://presets/other.jpg",
+   "resolved": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  },
+  {
+   "url": "chat-asset://presets/p.jpg",
+   "resolved": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  },
+  {
+   "url": "chat-asset://images/a.png",
+   "resolved": "<ROOT>/chat/images/a.png",
+   "response": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-origin": "*",
+     "cache-control": "no-store",
+     "content-length": "7",
+     "content-type": "image/png"
+    },
+    "body": "PNGDATA"
+   }
+  },
+  {
+   "url": "chat-asset://IMAGES/a.png",
+   "resolved": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  },
+  {
+   "url": "chat-asset://images/B.JPG",
+   "resolved": "<ROOT>/chat/images/B.JPG",
+   "response": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-origin": "*",
+     "cache-control": "no-store",
+     "content-length": "7",
+     "content-type": "image/jpeg"
+    },
+    "body": "jpgdata"
+   }
+  },
+  {
+   "url": "chat-asset://images/b.jpg",
+   "resolved": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  },
+  {
+   "url": "chat-asset://images/sub/c.webp",
+   "resolved": "<ROOT>/chat/images/sub/c.webp",
+   "response": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-origin": "*",
+     "cache-control": "no-store",
+     "content-length": "4",
+     "content-type": "image/webp"
+    },
+    "body": "webp"
+   }
+  },
+  {
+   "url": "chat-asset://images/x%20y.gif",
+   "resolved": "<ROOT>/chat/images/x y.gif",
+   "response": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-origin": "*",
+     "cache-control": "no-store",
+     "content-length": "3",
+     "content-type": "image/gif"
+    },
+    "body": "gif"
+   }
+  },
+  {
+   "url": "chat-asset://images/x y.gif",
+   "resolved": "<ROOT>/chat/images/x y.gif",
+   "response": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-origin": "*",
+     "cache-control": "no-store",
+     "content-length": "3",
+     "content-type": "image/gif"
+    },
+    "body": "gif"
+   }
+  },
+  {
+   "url": "chat-asset://images/%E4%B8%AD%E6%96%87.jpeg",
+   "resolved": "<ROOT>/chat/images/中文.jpeg",
+   "response": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-origin": "*",
+     "cache-control": "no-store",
+     "content-length": "2",
+     "content-type": "image/jpeg"
+    },
+    "body": "zh"
+   }
+  },
+  {
+   "url": "chat-asset://images/中文.jpeg",
+   "resolved": "<ROOT>/chat/images/中文.jpeg",
+   "response": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-origin": "*",
+     "cache-control": "no-store",
+     "content-length": "2",
+     "content-type": "image/jpeg"
+    },
+    "body": "zh"
+   }
+  },
+  {
+   "url": "chat-asset://images/n.txt",
+   "resolved": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  },
+  {
+   "url": "chat-asset://images/noext",
+   "resolved": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  },
+  {
+   "url": "chat-asset://images/../secret.png",
+   "resolved": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  },
+  {
+   "url": "chat-asset://images/%2e%2e/secret.png",
+   "resolved": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  },
+  {
+   "url": "chat-asset://images/..%2fsecret.png",
+   "resolved": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  },
+  {
+   "url": "chat-asset://images/sub%2f..%2f..%2fsecret.png",
+   "resolved": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  },
+  {
+   "url": "chat-asset://images/a.png%00",
+   "resolved": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  },
+  {
+   "url": "chat-asset://images/%00a.png",
+   "resolved": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  },
+  {
+   "url": "chat-asset://images//a.png",
+   "resolved": "<ROOT>/chat/images/a.png",
+   "response": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-origin": "*",
+     "cache-control": "no-store",
+     "content-length": "7",
+     "content-type": "image/png"
+    },
+    "body": "PNGDATA"
+   }
+  },
+  {
+   "url": "chat-asset://images/sub//c.webp",
+   "resolved": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  },
+  {
+   "url": "chat-asset://images/./a.png",
+   "resolved": "<ROOT>/chat/images/a.png",
+   "response": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-origin": "*",
+     "cache-control": "no-store",
+     "content-length": "7",
+     "content-type": "image/png"
+    },
+    "body": "PNGDATA"
+   }
+  },
+  {
+   "url": "chat-asset://images/sub/../a.png",
+   "resolved": "<ROOT>/chat/images/a.png",
+   "response": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-origin": "*",
+     "cache-control": "no-store",
+     "content-length": "7",
+     "content-type": "image/png"
+    },
+    "body": "PNGDATA"
+   }
+  },
+  {
+   "url": "chat-asset://images\\a.png",
+   "resolved": null,
+   "response": {
+    "request": "invalid"
+   }
+  },
+  {
+   "url": "chat-asset://images/sub\\c.webp",
+   "resolved": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  },
+  {
+   "url": "chat-asset://images/link.png",
+   "resolved": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  },
+  {
+   "url": "chat-asset://images/inlink.png",
+   "resolved": "<ROOT>/chat/images/a.png",
+   "response": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-origin": "*",
+     "cache-control": "no-store",
+     "content-length": "7",
+     "content-type": "image/png"
+    },
+    "body": "PNGDATA"
+   }
+  },
+  {
+   "url": "chat-asset://images/missing.png",
+   "resolved": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  },
+  {
+   "url": "chat-asset://images/",
+   "resolved": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  },
+  {
+   "url": "chat-asset://images",
+   "resolved": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  },
+  {
+   "url": "chat-asset://other/a.png",
+   "resolved": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  },
+  {
+   "url": "chat-asset://images/%zz.png",
+   "resolved": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  },
+  {
+   "url": "chat-asset://images/a.png?q=1#h",
+   "resolved": "<ROOT>/chat/images/a.png",
+   "response": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-origin": "*",
+     "cache-control": "no-store",
+     "content-length": "7",
+     "content-type": "image/png"
+    },
+    "body": "PNGDATA"
+   }
+  },
+  {
+   "url": "chat-asset://images/a.png#frag",
+   "resolved": "<ROOT>/chat/images/a.png",
+   "response": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-origin": "*",
+     "cache-control": "no-store",
+     "content-length": "7",
+     "content-type": "image/png"
+    },
+    "body": "PNGDATA"
+   }
+  },
+  {
+   "url": "chat-asset://user@images/a.png",
+   "resolved": "<ROOT>/chat/images/a.png",
+   "response": {
+    "request": "invalid"
+   }
+  },
+  {
+   "url": "chat-asset://images:80/a.png",
+   "resolved": "<ROOT>/chat/images/a.png",
+   "response": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-origin": "*",
+     "cache-control": "no-store",
+     "content-length": "7",
+     "content-type": "image/png"
+    },
+    "body": "PNGDATA"
+   }
+  },
+  {
+   "url": "http://images/a.png",
+   "resolved": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  },
+  {
+   "url": "chat-asset:images/a.png",
+   "resolved": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  },
+  {
+   "url": "not a url",
+   "resolved": null,
+   "response": {
+    "request": "invalid"
+   }
+  },
+  {
+   "url": "",
+   "resolved": null,
+   "response": {
+    "request": "invalid"
+   }
+  },
+  {
+   "url": "CHAT-ASSET://images/a.png",
+   "resolved": "<ROOT>/chat/images/a.png",
+   "response": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-origin": "*",
+     "cache-control": "no-store",
+     "content-length": "7",
+     "content-type": "image/png"
+    },
+    "body": "PNGDATA"
+   }
+  },
+  {
+   "url": "chat-asset://images/A.PNG",
+   "resolved": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  }
+ ],
+ "pack": [
+  {
+   "url": "character-pack://pack/manifest.json",
+   "resolved": "<ROOT>/pack/manifest.json",
+   "noRoot": null,
+   "response": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-origin": "*",
+     "cache-control": "no-store",
+     "content-length": "10",
+     "content-type": "application/json"
+    },
+    "body": "{\"id\":\"x\"}"
+   }
+  },
+  {
+   "url": "character-pack://pack/rive/m.riv",
+   "resolved": "<ROOT>/pack/rive/m.riv",
+   "noRoot": null,
+   "response": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-origin": "*",
+     "cache-control": "no-store",
+     "content-length": "4",
+     "content-type": "application/octet-stream"
+    },
+    "body": "RIVE"
+   }
+  },
+  {
+   "url": "character-pack://PACK/rive/m.riv",
+   "resolved": null,
+   "noRoot": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  },
+  {
+   "url": "character-pack://pack/voice/hi.mp3",
+   "resolved": "<ROOT>/pack/voice/hi.mp3",
+   "noRoot": null,
+   "response": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-origin": "*",
+     "cache-control": "no-store",
+     "content-length": "3",
+     "content-type": "audio/mpeg"
+    },
+    "body": "mp3"
+   }
+  },
+  {
+   "url": "character-pack://pack/voice/hi.WAV",
+   "resolved": "<ROOT>/pack/voice/hi.WAV",
+   "noRoot": null,
+   "response": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-origin": "*",
+     "cache-control": "no-store",
+     "content-length": "3",
+     "content-type": "audio/wav"
+    },
+    "body": "wav"
+   }
+  },
+  {
+   "url": "character-pack://pack/a%20b.png",
+   "resolved": "<ROOT>/pack/a b.png",
+   "noRoot": null,
+   "response": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-origin": "*",
+     "cache-control": "no-store",
+     "content-length": "2",
+     "content-type": "image/png"
+    },
+    "body": "sp"
+   }
+  },
+  {
+   "url": "character-pack://pack/a b.png",
+   "resolved": "<ROOT>/pack/a b.png",
+   "noRoot": null,
+   "response": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-origin": "*",
+     "cache-control": "no-store",
+     "content-length": "2",
+     "content-type": "image/png"
+    },
+    "body": "sp"
+   }
+  },
+  {
+   "url": "character-pack://pack/README.md",
+   "resolved": "<ROOT>/pack/README.md",
+   "noRoot": null,
+   "response": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-origin": "*",
+     "cache-control": "no-store",
+     "content-length": "3",
+     "content-type": "text/markdown; charset=utf-8"
+    },
+    "body": "# r"
+   }
+  },
+  {
+   "url": "character-pack://pack/x.bin",
+   "resolved": "<ROOT>/pack/x.bin",
+   "noRoot": null,
+   "response": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-origin": "*",
+     "cache-control": "no-store",
+     "content-length": "3",
+     "content-type": "application/octet-stream"
+    },
+    "body": "bin"
+   }
+  },
+  {
+   "url": "character-pack://pack/%E4%B8%AD.png",
+   "resolved": "<ROOT>/pack/中.png",
+   "noRoot": null,
+   "response": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-origin": "*",
+     "cache-control": "no-store",
+     "content-length": "2",
+     "content-type": "image/png"
+    },
+    "body": "zh"
+   }
+  },
+  {
+   "url": "character-pack://pack/dir/inner.json",
+   "resolved": "<ROOT>/pack/dir/inner.json",
+   "noRoot": null,
+   "response": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-origin": "*",
+     "cache-control": "no-store",
+     "content-length": "2",
+     "content-type": "application/json"
+    },
+    "body": "{}"
+   }
+  },
+  {
+   "url": "character-pack://pack/dir",
+   "resolved": "<ROOT>/pack/dir",
+   "noRoot": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  },
+  {
+   "url": "character-pack://pack/dir/",
+   "resolved": "<ROOT>/pack/dir",
+   "noRoot": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  },
+  {
+   "url": "character-pack://pack/",
+   "resolved": null,
+   "noRoot": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  },
+  {
+   "url": "character-pack://pack",
+   "resolved": null,
+   "noRoot": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  },
+  {
+   "url": "character-pack://pack/../outside/o.png",
+   "resolved": null,
+   "noRoot": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  },
+  {
+   "url": "character-pack://pack/%2e%2e/outside/o.png",
+   "resolved": null,
+   "noRoot": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  },
+  {
+   "url": "character-pack://pack/..%2foutside%2fo.png",
+   "resolved": null,
+   "noRoot": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  },
+  {
+   "url": "character-pack://pack/dir%2f..%2f..%2foutside%2fo.png",
+   "resolved": null,
+   "noRoot": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  },
+  {
+   "url": "character-pack://pack/out.png",
+   "resolved": null,
+   "noRoot": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  },
+  {
+   "url": "character-pack://pack/in.png",
+   "resolved": "<ROOT>/pack/rive/m.riv",
+   "noRoot": null,
+   "response": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-origin": "*",
+     "cache-control": "no-store",
+     "content-length": "4",
+     "content-type": "application/octet-stream"
+    },
+    "body": "RIVE"
+   }
+  },
+  {
+   "url": "character-pack://pack/dirlink/inner.json",
+   "resolved": "<ROOT>/pack/dir/inner.json",
+   "noRoot": null,
+   "response": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-origin": "*",
+     "cache-control": "no-store",
+     "content-length": "2",
+     "content-type": "application/json"
+    },
+    "body": "{}"
+   }
+  },
+  {
+   "url": "character-pack://pack//manifest.json",
+   "resolved": "<ROOT>/pack/manifest.json",
+   "noRoot": null,
+   "response": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-origin": "*",
+     "cache-control": "no-store",
+     "content-length": "10",
+     "content-type": "application/json"
+    },
+    "body": "{\"id\":\"x\"}"
+   }
+  },
+  {
+   "url": "character-pack://pack/./manifest.json",
+   "resolved": "<ROOT>/pack/manifest.json",
+   "noRoot": null,
+   "response": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-origin": "*",
+     "cache-control": "no-store",
+     "content-length": "10",
+     "content-type": "application/json"
+    },
+    "body": "{\"id\":\"x\"}"
+   }
+  },
+  {
+   "url": "character-pack://pack/dir/../manifest.json",
+   "resolved": "<ROOT>/pack/manifest.json",
+   "noRoot": null,
+   "response": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-origin": "*",
+     "cache-control": "no-store",
+     "content-length": "10",
+     "content-type": "application/json"
+    },
+    "body": "{\"id\":\"x\"}"
+   }
+  },
+  {
+   "url": "character-pack://pack\\manifest.json",
+   "resolved": null,
+   "noRoot": null,
+   "response": {
+    "request": "invalid"
+   }
+  },
+  {
+   "url": "character-pack://pack/dir\\inner.json",
+   "resolved": null,
+   "noRoot": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  },
+  {
+   "url": "character-pack://pack/missing.png",
+   "resolved": null,
+   "noRoot": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  },
+  {
+   "url": "character-pack://other/manifest.json",
+   "resolved": null,
+   "noRoot": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  },
+  {
+   "url": "character-pack://pack/%zz",
+   "resolved": null,
+   "noRoot": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  },
+  {
+   "url": "character-pack://pack/a%00",
+   "resolved": null,
+   "noRoot": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  },
+  {
+   "url": "character-pack://pack/manifest.json?v=2",
+   "resolved": "<ROOT>/pack/manifest.json",
+   "noRoot": null,
+   "response": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-origin": "*",
+     "cache-control": "no-store",
+     "content-length": "10",
+     "content-type": "application/json"
+    },
+    "body": "{\"id\":\"x\"}"
+   }
+  },
+  {
+   "url": "character-pack://pack/manifest.json#x",
+   "resolved": "<ROOT>/pack/manifest.json",
+   "noRoot": null,
+   "response": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-origin": "*",
+     "cache-control": "no-store",
+     "content-length": "10",
+     "content-type": "application/json"
+    },
+    "body": "{\"id\":\"x\"}"
+   }
+  },
+  {
+   "url": "character-pack://u:p@pack/manifest.json",
+   "resolved": "<ROOT>/pack/manifest.json",
+   "noRoot": null,
+   "response": {
+    "request": "invalid"
+   }
+  },
+  {
+   "url": "character-pack://pack:1/manifest.json",
+   "resolved": "<ROOT>/pack/manifest.json",
+   "noRoot": null,
+   "response": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-origin": "*",
+     "cache-control": "no-store",
+     "content-length": "10",
+     "content-type": "application/json"
+    },
+    "body": "{\"id\":\"x\"}"
+   }
+  },
+  {
+   "url": "character-pack:pack/manifest.json",
+   "resolved": null,
+   "noRoot": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  },
+  {
+   "url": "chat-asset://pack/manifest.json",
+   "resolved": null,
+   "noRoot": null,
+   "response": {
+    "status": 404,
+    "headers": {
+     "content-type": "text/plain;charset=UTF-8"
+    },
+    "body": "not found"
+   }
+  },
+  {
+   "url": "bogus",
+   "resolved": null,
+   "noRoot": null,
+   "response": {
+    "request": "invalid"
+   }
+  },
+  {
+   "url": "",
+   "resolved": null,
+   "noRoot": null,
+   "response": {
+    "request": "invalid"
+   }
+  }
+ ],
+ "noRootResp": {
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "not found"
+ },
+ "mime": [
+  {
+   "file": "a.png",
+   "pack": "image/png",
+   "chat": "image/png"
+  },
+  {
+   "file": "a.PNG",
+   "pack": "image/png",
+   "chat": "image/png"
+  },
+  {
+   "file": "a.jpg",
+   "pack": "image/jpeg",
+   "chat": "image/jpeg"
+  },
+  {
+   "file": "a.jpeg",
+   "pack": "image/jpeg",
+   "chat": "image/jpeg"
+  },
+  {
+   "file": "a.webp",
+   "pack": "image/webp",
+   "chat": "image/webp"
+  },
+  {
+   "file": "a.gif",
+   "pack": "image/gif",
+   "chat": "image/gif"
+  },
+  {
+   "file": "a.mp3",
+   "pack": "audio/mpeg",
+   "chat": "application/octet-stream"
+  },
+  {
+   "file": "a.wav",
+   "pack": "audio/wav",
+   "chat": "application/octet-stream"
+  },
+  {
+   "file": "a.json",
+   "pack": "application/json",
+   "chat": "application/octet-stream"
+  },
+  {
+   "file": "a.riv",
+   "pack": "application/octet-stream",
+   "chat": "application/octet-stream"
+  },
+  {
+   "file": "a.md",
+   "pack": "text/markdown; charset=utf-8",
+   "chat": "application/octet-stream"
+  },
+  {
+   "file": "a.txt",
+   "pack": "application/octet-stream",
+   "chat": "application/octet-stream"
+  },
+  {
+   "file": "a",
+   "pack": "application/octet-stream",
+   "chat": "application/octet-stream"
+  },
+  {
+   "file": ".png",
+   "pack": "application/octet-stream",
+   "chat": "application/octet-stream"
+  },
+  {
+   "file": "a.tar.gz",
+   "pack": "application/octet-stream",
+   "chat": "application/octet-stream"
+  },
+  {
+   "file": "dir.d/a",
+   "pack": "application/octet-stream",
+   "chat": "application/octet-stream"
+  }
+ ]
+}

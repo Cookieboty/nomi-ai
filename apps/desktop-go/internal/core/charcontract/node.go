@@ -198,18 +198,9 @@ type LoadPackResult struct {
 }
 
 // LoadPackAt = packResolve.ts loadPackAt。
-// Node 里 validatePack 抛错会冒到 resolveCharacterPack 外；Go 端把它当作该候选无效（理由为错误信息），
-// 以免一个坏的覆盖包让启动失败（临时偏差，见 docs）。
+// validatePack 在 Node 会抛出的 TypeError（clips 含 null）以 panic(JSThrow) 原样向上冒，与 Node 一致：
+// 启动时（resolveCharacterPack）导致启动失败；getBuiltin 经人设源的 try/catch 变成源错误。
 func LoadPackAt(root string, lenient bool) (r LoadPackResult) {
-	defer func() {
-		if e := recover(); e != nil {
-			t, ok := e.(JSThrow)
-			if !ok {
-				panic(e)
-			}
-			r = LoadPackResult{Reason: t.Message}
-		}
-	}()
 	res := ValidatePackDirSync(root, ValidateOptions{Lenient: lenient})
 	if res.OK && res.Pack != nil {
 		dg := []string{}

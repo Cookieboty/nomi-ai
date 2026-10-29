@@ -7,6 +7,7 @@ package main
 
 import (
 	"embed"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/assetproto"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop/parse"
 	"io/fs"
 	"log"
@@ -18,7 +19,6 @@ import (
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/character"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/chatbg"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
@@ -108,7 +108,7 @@ func main() {
 		return island.Display{Bounds: r(b), WorkArea: r(w)}, ok
 	}
 	i18n.SetLocale(func() string { return bundle.Locale.Get().Locale })
-	charSvc := character.NewService(userData, os.Getenv("NOMI_RESOURCES"), builtinPackDir())
+	charSvc := newCharacterService(userData, os.Getenv("NOMI_RESOURCES"), builtinPackDir())
 	personaSvc := newPersona(charSvc, router)
 	bundle.OnLocaleChange = append(bundle.OnLocaleChange, func() { personaSvc.LocaleChanged() })
 	chatBgSvc := chatbg.New(filepath.Join(userData, chatbg.File), filepath.Join(userData, "chat", "images"), chatBgPresetFile(),
@@ -182,7 +182,17 @@ func main() {
 	if ctl != "" {
 		frag.Set("ctl", ctl)
 	}
-	sh = wailsshell.New(wailsshell.Config{Assets: assets, Fragment: frag, MascotSize: mascotCtl.WindowSize, OnWindow: mascotCtl.WindowEvent})
+	sh = wailsshell.New(wailsshell.Config{Assets: assets, Fragment: frag, MascotSize: mascotCtl.WindowSize, OnWindow: mascotCtl.WindowEvent,
+		Middleware: assetproto.Middleware(map[string]func(http.ResponseWriter, string){
+			// registerChatAssetProtocol：用户图片在 userData/chat，预设在应用资源
+			assetproto.ChatAssetScheme: func(w http.ResponseWriter, u string) {
+				assetproto.ServeChatAsset(w, filepath.Join(userData, "chat"), chatBgPresetFile(), u)
+			},
+			// registerCharacterPackProtocol(protocol, () => this.resolved.root)
+			assetproto.CharacterPackScheme: func(w http.ResponseWriter, u string) {
+				assetproto.ServeCharacterPack(w, charSvc.Root(), u)
+			},
+		})})
 
 	if ctl != "" {
 		go http.ListenAndServe(ctl, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -4,6 +4,7 @@ package wailsshell
 import (
 	"io/fs"
 	"log"
+	"net/http"
 	"net/url"
 	"sync"
 	"time"
@@ -23,6 +24,8 @@ type Config struct {
 	MascotSize func() (int, int)
 	// OnWindow：窗口生命周期（"created" 新建或重建完成 / "closed" 当前窗口关闭 / "shown" show·restore）
 	OnWindow func(k shell.WindowKind, event string)
+	// Middleware 挂在资产服务器上（chat-asset:// / character-pack:// 网关，见 assetproto）
+	Middleware func(http.Handler) http.Handler
 }
 
 type Wails struct {
@@ -38,7 +41,7 @@ func New(cfg Config) *Wails {
 	w := &Wails{cfg: cfg, wins: map[shell.WindowKind]*application.WebviewWindow{}, aot: map[shell.WindowKind]bool{}}
 	w.app = application.New(application.Options{
 		Name:    "Nomi",
-		Assets:  application.AssetOptions{Handler: application.AssetFileServerFS(cfg.Assets)},
+		Assets:  application.AssetOptions{Handler: application.AssetFileServerFS(cfg.Assets), Middleware: cfg.Middleware},
 		Mac:     application.MacOptions{ActivationPolicy: application.ActivationPolicyAccessory, ApplicationShouldTerminateAfterLastWindowClosed: false},
 		Linux:   application.LinuxOptions{DisableQuitOnLastWindowClosed: true, ProgramName: "nomi-poc"},
 		Windows: application.WindowsOptions{DisableQuitOnLastWindowClosed: true},

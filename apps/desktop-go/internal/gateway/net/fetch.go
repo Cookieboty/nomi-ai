@@ -168,6 +168,7 @@ func CreateUpstreamFetch(o FetchOptions) UpstreamFetch {
 		}
 		ctx = context.WithValue(ctx, targetKey{}, &target{scheme: u.Scheme, host: h, port: port})
 		req.URL.Host = u.Host
+		fetchDefaultHeaders(req.Header)
 		return client.Do(req.WithContext(ctx))
 	}
 }
@@ -181,4 +182,15 @@ var (
 func DefaultUpstreamFetch() UpstreamFetch {
 	sharedOnce.Do(func() { sharedFetch = CreateUpstreamFetch(FetchOptions{}) })
 	return sharedFetch
+}
+
+// fetchDefaultHeaders adds the request headers Node's fetch (undici) sends
+// when the caller did not set them. accept-encoding is left to net/http
+// (gzip, decoded transparently) — see D-B4d-2.
+func fetchDefaultHeaders(h http.Header) {
+	for _, kv := range [][2]string{{"Accept", "*/*"}, {"Accept-Language", "*"}, {"Sec-Fetch-Mode", "cors"}, {"User-Agent", "undici"}} {
+		if _, ok := h[kv[0]]; !ok && h.Get(kv[0]) == "" {
+			h.Set(kv[0], kv[1])
+		}
+	}
 }
