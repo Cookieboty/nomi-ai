@@ -351,6 +351,7 @@ func main() {
 	shellP := installShellProcs(router, userData, &sh, gatewaySvc)
 	defer shellP.Diagnostics.CliTrace.FlushSync()
 	_, disposeHarness := wireHarness(router, userData, home, ports)
+	wireScreenAndPending(router, userData, rootLog, desktopSvc)
 	defer disposeHarness()
 	log.Printf("[desktop-go] %d contract procedures stubbed (not implemented yet)", procs.Install(router))
 
