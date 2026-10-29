@@ -120,6 +120,11 @@ test.describe('E34 unified gateway', () => {
     );
     const r = await launch(userData, home);
     app = r.app;
+    // 网关按需启动：启动后不拉起子进程，直到第一次请求（这里用 retry 显式拉起）
+    expect(((await callContract(r.chat, 'gateway.state')) as StateView).status.state).toBe(
+      'stopped',
+    );
+    await callContract(r.chat, 'gateway.retry');
     await expect
       .poll(async () => ((await callContract(r.chat, 'gateway.state')) as StateView).status.state, {
         timeout: 30_000,

@@ -171,6 +171,8 @@ test.describe('E7 · real app · third-party providers through the gateway', () 
       // 自定义的本机地址：确认允许访问
       await autoAcceptConfirms(chat);
 
+      // 网关按需启动：显式拉起，后面直接读它的状态
+      await callContract(chat, 'gateway.retry');
       await expect
         .poll(async () => (await callContract<GwState>(chat, 'gateway.state')).status.state, {
           timeout: 30_000,

@@ -133,6 +133,8 @@ export class Application implements IApplication {
           main: () => this.windowManager.getMainWindow(),
           openChat: () => this.windowManager.createAiChatWindow(),
           mascotHidden: () => this.windowManager.mascotHidden(),
+          summonMascot: () => this.windowManager.summonMascot(),
+          releaseMascot: () => this.windowManager.releaseMascot(),
           island: (n) => this.island?.notify(n) ?? false,
         },
         voiceChatWindow: () => this.windowManager.createAiChatWindow(),
@@ -252,9 +254,10 @@ export class Application implements IApplication {
       // 看板娘以 showInactive 出现，不会从主界面抢走焦点。失败只记日志，仍可用看板娘
       if (startupPlan.openMain && startupPlan.delayMs === 0) this.openMainInterface(startupPlan);
 
-      // 创建看板娘窗口（始终创建：定时任务 / 提醒 / 编程助手进度都靠它播报；
-      // 默认界面为「软件主界面」时它不抢焦点）
-      await this.windowManager.createMainWindow({ activate: startupPlan.activateMascot });
+      // 创建看板娘窗口（默认界面为「软件主界面」时它不抢焦点）。看板娘已关闭时不建：提醒走灵动岛 /
+      // 系统通知，确认框临时召回（summonMascot），省下一个常驻的渲染进程与 Rive 运行时
+      if (!this.windowManager.mascotHidden())
+        await this.windowManager.createMainWindow({ activate: startupPlan.activateMascot });
       // 提醒调度与定时任务：主窗口创建后开始（错过的提醒要在看板娘气泡里播报）
       this.core.startReminders();
 
@@ -325,6 +328,8 @@ export class Application implements IApplication {
       router: this.core.router,
       logger: { warn: (msg, data) => this.logger.warn(msg, data as Record<string, unknown>) },
     });
+    // 隐藏的对话窗口只在没有进行中的调用 / 流时回收
+    this.windowManager.webContentsBusy = (id) => ipc.transport.inflightFor(id) > 0;
     this.lifecycle.register({ name: 'contract-ipc', stop: () => ipc.stop() });
   }
 
@@ -505,6 +510,8 @@ export class Application implements IApplication {
   private setupAppEvents(): void {
     // 所有窗口关闭
     app.on('window-all-closed', () => {
+      // 看板娘已关闭（窗口已释放）时关掉主界面只是回到托盘，不算「所有窗口都关了」
+      if (this.windowManager.mascotHidden()) return;
       if (process.platform !== 'darwin') {
         app.quit();
       }
@@ -513,7 +520,7 @@ export class Application implements IApplication {
     // 应用激活（macOS 首次启动也会触发：start() 走完之前看板娘窗口由 start() 自己创建，配置那时才加载）
     app.on('activate', async () => {
       if (!this.launched) return;
-      if (this.windowManager.getMainWindow() === null) {
+      if (this.windowManager.getMainWindow() === null && !this.windowManager.mascotHidden()) {
         await this.windowManager.createMainWindow();
       }
       // 默认界面为「软件主界面」时，点 Dock 图标回到主界面

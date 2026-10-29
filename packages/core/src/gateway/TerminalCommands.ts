@@ -54,6 +54,8 @@ export interface TerminalDeps {
   platform?: NodeJS.Platform;
   shell?: string;
   windowsPath?: typeof updateWindowsPath;
+  /** 启动命令开着：终端里的 CLI 随时会连网关，按需启动的网关要先拉起 */
+  onEnabled?: () => void;
 }
 
 interface Persisted {
@@ -407,6 +409,7 @@ export class TerminalCommands {
   /** 网关端口 / 令牌 / 模型分配变化后重新生成（关闭时什么都不做） */
   refresh(): void {
     if (!this.st.enabled) return;
+    this.d.onEnabled?.();
     try {
       this.generate();
     } catch (e) {

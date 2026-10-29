@@ -271,6 +271,11 @@ export interface GatewayServiceDeps {
    * 不和本机装着的 Nomi 抢默认端口；客户端经网关状态里的实际端口连过来
    */
   port?: number;
+  /**
+   * 按需启动网关进程（§5.3）：启动时只准备配置，第一次有人要网关（Nomi 对话、编程助手第三方会话、
+   * 辅助请求、终端启动命令）时才拉起。监听端口不固定（0）时没法提前给出地址，照常启动时就拉起
+   */
+  lazy?: boolean;
   legacy?: {
     nomiFile: string;
     cliRoot: string;
@@ -323,6 +328,7 @@ export class GatewayService {
       d.process ??
       new GatewayProcess({
         logger: d.logger,
+        lazy: d.lazy,
         processes: d.processes,
         onUsage: (e) => {
           this.notePrivacy(e);
@@ -364,7 +370,50 @@ export class GatewayService {
     // 上次同步到的模型目录（models.dev）：主进程的元数据解析先用上；网关进程按 catalogFile 自己读
     setCatalogOverlay(readCatalogFile(this.catalogFile));
     this.push();
+    // 端口由系统分配：地址只有起来之后才知道，按需启动给不出地址，直接起
+    if (!this.configuredUrl()) this.proc.ensureStarted();
   }
+
+  /** 需要网关了（终端启动命令打开等）：还没起就拉起；已熔断时不动，等用户「重试」 */
+  ensureStarted(): void {
+    this.proc.ensureStarted();
+  }
+
+  /** 按配置的端口推出来的网关地址（端口为 0 = 系统分配时为 null） */
+  private configuredUrl(): string | null {
+    const port = this.d.legacy?.routeListening() ? 0 : (this.d.port ?? this.store.port());
+    return port ? `http://127.0.0.1:${port}` : null;
+  }
+
+  /**
+   * 网关当前（或即将）监听的地址：运行中取实际地址；还没起 / 正在起时取配置端口推出的地址；
+   * 已熔断、或地址推不出来时 null。start = 顺带把网关拉起来（马上要连的调用方，如 CLI 启动）；
+   * 只是解析路由的（Nomi 对话、辅助请求）不拉起，真正发请求时由 readyFetch 拉起
+   */
+  private liveUrl(start: boolean): string | null {
+    const s = this.proc.getStatus();
+    if (s.state === 'running') return s.url;
+    if (s.state === 'failed') return null;
+    const url = this.configuredUrl();
+    if (url && start) this.proc.ensureStarted();
+    return url;
+  }
+
+  private address(client: ClientId, start: boolean): { url: string; token: string } | null {
+    const token = this.store.clientToken(client);
+    const url = token ? this.liveUrl(start) : null;
+    return url && token ? { url, token } : null;
+  }
+
+  /**
+   * Nomi 对话发往网关的 fetch：网关还没就绪就先等它起来（按需启动的第一次请求），起不来按
+   * 「AI 服务未就绪」失败，不会打到一个没人监听的端口上
+   */
+  private readonly readyFetch: typeof fetch = async (input, init) => {
+    if (this.proc.getStatus().state !== 'running' && !(await this.proc.whenReady()))
+      throw new Error(tr('electron.common.ai-service-not-ready'));
+    return fetch(input, init);
+  };
 
   /* ------------------------------ 模型数据同步（§12.7.2） ------------------------------ */
 
@@ -542,9 +591,7 @@ export class GatewayService {
 
   /** 网关当前地址与某个客户端的令牌（主进程内部用：生成 CLI 注入参数、Nomi 对话），不经 IPC */
   endpoint(client: ClientId): { url: string; token: string } | null {
-    const s = this.proc.getStatus();
-    const token = this.store.clientToken(client);
-    return s.state === 'running' && token ? { url: s.url, token } : null;
+    return this.address(client, true);
   }
 
   /**
@@ -558,8 +605,9 @@ export class GatewayService {
     model: string;
     protocol: 'openai-chat' | 'openai-responses' | 'anthropic';
     receiver: { id: string; baseURL: string };
+    fetch: typeof fetch;
   } | null {
-    const ep = this.endpoint('nomi');
+    const ep = this.address('nomi', false);
     const picked = this.nomiPick(role);
     if (!ep || !picked) return null;
     const receiver = { id: picked.receiver.providerId, baseURL: picked.receiver.url };
@@ -571,6 +619,7 @@ export class GatewayService {
         model: picked.publicModel,
         protocol: 'anthropic',
         receiver,
+        fetch: this.readyFetch,
       };
     return {
       baseURL: `${ep.url}/v1`,
@@ -578,6 +627,7 @@ export class GatewayService {
       model: picked.publicModel,
       protocol: picked.wire === 'responses' ? 'openai-responses' : 'openai-chat',
       receiver,
+      fetch: this.readyFetch,
     };
   }
 
@@ -724,6 +774,8 @@ export class GatewayService {
       ...(longContext !== undefined ? { longContext } : {}),
     });
     if (!ep || !launch) return null;
+    // 按需启动：绑定要网关进程确认，先等它起来
+    if (!(await this.proc.whenReady())) return null;
     const reg = await this.tabs.register({
       client: kind,
       tabId,
@@ -787,10 +839,12 @@ export class GatewayService {
 
   /** 官方会话的环境：剔除指向网关的残留变量 */
   officialEnv<T extends Record<string, string | undefined>>(env: T): T {
+    // 不为这个拉起网关：没在运行时按配置端口推出的地址剔除
     const s = this.proc.getStatus();
-    if (s.state !== 'running') return env;
+    const url = s.state === 'running' ? s.url : this.configuredUrl();
+    if (!url) return env;
     const tokens = CLIENT_IDS.map((c) => this.store.clientToken(c) ?? '').filter(Boolean);
-    return stripGatewayLeftovers(env, { url: s.url, tokens }) as T;
+    return stripGatewayLeftovers(env, { url, tokens }) as T;
   }
 
   /** 某个角色当前用的供应商与模型（桌面工具判断本地 / 云端、托盘与屏幕面板显示）；不要求网关在运行 */
@@ -866,7 +920,7 @@ export class GatewayService {
     kind: string,
     tabModel: string | null,
   ): { model: string; receiver: { id: string; name: string; local: boolean } } | null {
-    if (!this.endpoint('nomi')) return null;
+    if (!this.address('nomi', false)) return null;
     const m = this.store.snapshot().clients[kind as ClientId]?.models;
     const cfg = this.config();
     for (const ref of [m?.summary, m?.tiers?.haiku, m?.small, tabModel, m?.main]) {
@@ -889,9 +943,9 @@ export class GatewayService {
     messages: Array<{ role: string; content: string }>,
     signal: AbortSignal,
   ): Promise<string> {
-    const ep = this.endpoint('nomi');
+    const ep = this.address('nomi', false);
     if (!ep) throw new Error(tr('electron.common.ai-service-not-ready'));
-    const res = await fetch(`${ep.url}/v1/chat/completions`, {
+    const res = await this.readyFetch(`${ep.url}/v1/chat/completions`, {
       method: 'POST',
       headers: { authorization: `Bearer ${ep.token}`, 'content-type': 'application/json' },
       body: JSON.stringify({ model, messages, stream: false }),

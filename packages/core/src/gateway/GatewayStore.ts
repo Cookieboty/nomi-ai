@@ -212,6 +212,11 @@ export class GatewayStore {
 
   private ephemeralPrivacyKey: string | null = null;
 
+  /** 配置的监听端口（不拷贝整份数据） */
+  port(): number {
+    return this.data.port;
+  }
+
   clientToken(id: ClientId): string | null {
     const c = this.data.clients[id];
     return c ? this.decrypt(c.tokenEnc, c.tokenEncryption) : null;

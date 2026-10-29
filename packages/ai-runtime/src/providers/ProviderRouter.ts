@@ -386,6 +386,8 @@ export interface GatewayRoute {
     protocol: Protocol;
     /** 真正收到请求的上游（网关供应商 id 与上游地址），工具结果的隐私判断用它而不是网关回环地址 */
     receiver: { id: string; baseURL: string };
+    /** 发请求用的 fetch（按需启动的网关：先等它就绪再发）；缺省用全局 fetch */
+    fetch?: typeof fetch;
   } | null;
 }
 
@@ -490,6 +492,7 @@ export class RoutedLLMRegistry implements LLMRegistry {
       apiKey: r.token,
       requiresApiKey: true,
       receiver: r.receiver,
+      ...(r.fetch ? { fetchImpl: r.fetch } : {}),
       // 网关回退到别的候选时，记账按实际服务的模型（#97）
       servedModelHeader: NOMI_SERVED_MODEL_HEADER,
       redactedHeader: NOMI_REDACTED_HEADER,

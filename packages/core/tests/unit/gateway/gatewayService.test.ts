@@ -47,6 +47,7 @@ function setup(
     legacyNomi?: unknown;
     detectImpl?: typeof detect;
     port?: number;
+    lazy?: boolean;
   } = {},
 ) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gw-svc-'));
@@ -61,6 +62,7 @@ function setup(
       children.push(c);
       return c as never;
     },
+    lazy: o.lazy,
   });
   const svc = new GatewayService({
     root: path.join(root, 'gateway'),
@@ -387,7 +389,8 @@ describe('GatewayService', () => {
     const before = t.lastConfig().clients.claude!.token;
     t.svc.resetToken('claude');
     expect(t.lastConfig().clients.claude!.token).not.toBe(before);
-    expect(t.svc.endpoint('nomi')).toBeNull();
+    // 正在起：按配置端口给出地址（按需启动的调用方先拿地址，请求时再等就绪）
+    expect(t.svc.endpoint('nomi')).toMatchObject({ url: 'http://127.0.0.1:18721' });
     t.children[0]!.say({ type: 'listening', port: 18721, url: 'http://127.0.0.1:18721' });
     await expect(t.svc.whenReady(100)).resolves.toBe(true);
     expect(t.svc.endpoint('nomi')).toMatchObject({
@@ -411,7 +414,10 @@ describe('GatewayService', () => {
         { id: 'deepseek-v4-pro', enabled: true },
       ],
     });
-    expect(t.svc.helperRoute('claude', 'ds/deepseek-v4-pro')).toBeNull(); // 网关还没就绪
+    // 网关正在起：路由照给（请求时等就绪）
+    expect(t.svc.helperRoute('claude', 'ds/deepseek-v4-pro')).toMatchObject({
+      model: 'ds/deepseek-v4-pro',
+    });
     t.children[0]!.say({ type: 'listening', port: 18721, url: 'http://127.0.0.1:18721' });
     await t.svc.whenReady(100);
     // 客户端什么都没设：用标签选的模型
@@ -448,7 +454,11 @@ describe('GatewayService', () => {
     t.svc.setAssignment('nomi', {
       models: { main: 'relay/claude-opus-5', summary: 'ds/deepseek-v4-flash' },
     });
-    expect(t.svc.nomiRoute('chat')).toBeNull(); // 网关还没就绪
+    // 网关正在起：路由照给，带上先等就绪的 fetch
+    expect(t.svc.nomiRoute('chat')).toMatchObject({
+      baseURL: 'http://127.0.0.1:18721',
+      fetch: expect.any(Function),
+    });
     t.children[0]!.say({ type: 'listening', port: 18721, url: 'http://127.0.0.1:18721' });
     await t.svc.whenReady(100);
     expect(t.svc.nomiRoute('chat')).toMatchObject({
@@ -966,5 +976,32 @@ describe('GatewayService', () => {
       'env-deepseek/deepseek-v4-pro',
       'env-ollama/qwen3',
     ]);
+  });
+
+  describe('按需启动（lazy）', () => {
+    it('init 不起进程；第一次要地址时才拉起，地址按配置端口预测', async () => {
+      const t = setup({ lazy: true });
+      t.svc.init();
+      expect(t.children).toHaveLength(0);
+      // 只解析路由（启动时模型注册表就会解析）不拉起
+      t.svc.nomiRoute('chat');
+      t.svc.helperRoute('claude', null);
+      expect(t.children).toHaveLength(0);
+      expect(t.svc.endpoint('nomi')).toMatchObject({ url: 'http://127.0.0.1:18721' });
+      expect(t.children).toHaveLength(1);
+      t.children[0]!.say({ type: 'listening', port: 18721, url: 'http://127.0.0.1:18721' });
+      await expect(t.svc.whenReady(100)).resolves.toBe(true);
+      expect(t.children).toHaveLength(1);
+    });
+
+    it('ensureStarted 直接拉起；端口为 0（地址不可预测）时 init 就起', () => {
+      const a = setup({ lazy: true });
+      a.svc.init();
+      a.svc.ensureStarted();
+      expect(a.children).toHaveLength(1);
+      const b = setup({ lazy: true, port: 0 });
+      b.svc.init();
+      expect(b.children).toHaveLength(1);
+    });
   });
 });

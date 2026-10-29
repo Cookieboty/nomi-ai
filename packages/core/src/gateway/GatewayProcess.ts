@@ -3,7 +3,9 @@
  * - 用宿主的工具子进程（processes 端口，Electron：utilityProcess）拉起网关，推送配置快照；配置变了就推新的（进程不重启，进行中的请求用旧快照）；
  * - 进程意外退出后按指数退避重启（1s、2s、4s…，最长 30s）；
  * - 崩溃熔断：滑动窗口内失败次数超预算（默认 60s 内 5 次）则停止自动重启并标 failed，界面「重试」清零计数；
- * - 网关就绪前发起的请求由调用方用 whenReady() 等待（最长 10 秒）。
+ * - 网关就绪前发起的请求由调用方用 whenReady() 等待（最长 10 秒）；
+ * - 按需启动（lazy）：apply() 只记下配置，第一次 ensureStarted() / whenReady() 时才拉起进程，
+ *   之后与常驻模式相同（崩溃重启、熔断照旧）。没人用网关时省掉一个 Node 子进程。
  * fork 可注入：单测里不需要宿主。
  */
 import * as fs from 'fs';
@@ -70,6 +72,8 @@ export class GatewayProcess {
   private restartTimer: ReturnType<typeof setTimeout> | null = null;
   private stopping = false;
   private readyWaiters: Array<(ok: boolean) => void> = [];
+  /** 已经有人要过网关（按需模式下第一次 ensureStarted 之后为 true；常驻模式恒为 true） */
+  private wanted: boolean;
 
   constructor(
     private readonly d: {
@@ -90,8 +94,12 @@ export class GatewayProcess {
       now?: () => number;
       crashFuseMax?: number;
       crashFuseWindowMs?: number;
+      /** 按需启动：apply() 不拉起进程，等第一次 ensureStarted() / whenReady() */
+      lazy?: boolean;
     },
-  ) {}
+  ) {
+    this.wanted = !d.lazy;
+  }
 
   getStatus(): GatewayStatus {
     return this.status;
@@ -131,12 +139,23 @@ export class GatewayProcess {
     }
   }
 
-  /** 推送配置；还没起进程就先起 */
+  /** 推送配置；还没起进程且已经有人要网关时就起（按需模式下没人要过只记下配置） */
   apply(config: GatewayConfig): void {
     this.config = config;
     this.stopping = false;
     if (this.child) this.child.postMessage({ type: 'config', config });
-    else if (!this.restartTimer) this.spawn();
+    else if (this.wanted && !this.restartTimer) this.spawn();
+  }
+
+  /**
+   * 需要网关了：还没起进程就按已有配置拉起。正在重启退避、已熔断（等用户「重试」）或还没有配置时
+   * 不做什么。可重复调用。
+   */
+  ensureStarted(): void {
+    this.wanted = true;
+    if (this.child || this.restartTimer || this.stopping || !this.config) return;
+    if (this.status.state === 'failed') return;
+    this.spawn();
   }
 
   private tabHooks: { ack?: (m: BindingAck) => void; spawn?: () => void | Promise<void> } = {};
@@ -160,6 +179,9 @@ export class GatewayProcess {
   whenReady(timeoutMs = READY_TIMEOUT_MS): Promise<boolean> {
     if (this.status.state === 'running') return Promise.resolve(true);
     if (this.status.state === 'failed') return Promise.resolve(false);
+    // 按需模式：等待本身就是「需要网关」
+    this.ensureStarted();
+    if (this.stopping) return Promise.resolve(false);
     return new Promise((resolve) => {
       const timer = setTimeout(() => {
         this.readyWaiters = this.readyWaiters.filter((w) => w !== done);
@@ -256,6 +278,7 @@ export class GatewayProcess {
   retry(): void {
     this.clearFailures();
     this.kill();
+    this.wanted = true;
     if (this.config) this.spawn();
   }
 
