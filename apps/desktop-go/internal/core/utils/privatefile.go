@@ -74,3 +74,12 @@ func (w *CoalescedWriter) WhenIdle() {
 		}
 	}
 }
+
+// WritePrivateFile = utils/privateFile.writePrivateFile（POSIX 0600；Windows ACL 见偏差 D12）
+func WritePrivateFile(file, data string) error {
+	if err := os.WriteFile(file, []byte(data), 0o600); err != nil {
+		return err
+	}
+	_ = os.Chmod(file, 0o600)
+	return nil
+}

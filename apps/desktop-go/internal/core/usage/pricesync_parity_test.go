@@ -3,15 +3,21 @@ package usage
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/utils"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 )
 
 type psStep struct {
@@ -47,8 +53,8 @@ type psScen struct {
 		Redirect    string            `json:"redirect"`
 		Credentials string            `json:"credentials"`
 	} `json:"seen"`
-	Warns int   `json:"warns"`
-	Datas []int `json:"datas"`
+	Warns []string `json:"warns"`
+	Datas []int    `json:"datas"`
 }
 
 func entriesJSON(es []PriceEntry) string {
@@ -105,7 +111,7 @@ func TestPriceSyncParity(t *testing.T) {
 				_ = os.MkdirAll(dir, 0o755)
 				_ = os.WriteFile(f, []byte(*s.File), 0o644)
 			}
-			warns, i := 0, 0
+			warns, i := []string{}, 0
 			datas := []int{}
 			type seenT struct {
 				url, method string
@@ -113,7 +119,7 @@ func TestPriceSyncParity(t *testing.T) {
 			}
 			var seen []seenT
 			ps := NewPriceSync(PriceSyncDeps{
-				Root: dir, Now: func() float64 { return g.Now + float64(i)*1000 }, Logger: gwWarnLog{&warns},
+				Root: dir, Now: func() float64 { return g.Now + float64(i)*1000 }, Logger: psWarnLog{&warns},
 				NeedsFull: func() bool { return s.NeedsFull },
 				OnData: func(api any) error {
 					n := 0
@@ -162,6 +168,8 @@ func TestPriceSyncParity(t *testing.T) {
 				}
 			}
 			time.Sleep(150 * time.Millisecond)
+			// 后台缓存写盘结束后再离开（否则与其它测试改 time.Local 竞争，-race 报告）
+			_, _ = jsrt.Block(utils.WhenPrivateWritesIdle())
 			b, err := os.ReadFile(f)
 			if (err == nil) != (s.Saved != nil) || (s.Saved != nil && string(b) != *s.Saved) {
 				t.Errorf("saved:\n got %s\nwant %v", b, s.Saved)
@@ -187,8 +195,8 @@ func TestPriceSyncParity(t *testing.T) {
 					}
 				}
 			}
-			if warns != s.Warns || util.Stringify(intsAny(datas)) != util.Stringify(intsAny(s.Datas)) {
-				t.Errorf("warns %d datas %v want %d %v", warns, datas, s.Warns, s.Datas)
+			if strings.Join(warns, "\n") != strings.Join(s.Warns, "\n") || util.Stringify(intsAny(datas)) != util.Stringify(intsAny(s.Datas)) {
+				t.Errorf("warns %q datas %v want %q %v", warns, datas, s.Warns, s.Datas)
 			}
 		})
 	}
@@ -206,4 +214,133 @@ func intsAny(a []int) []any {
 		r[i] = float64(v)
 	}
 	return r
+}
+
+type psWarnLog struct{ w *[]string }
+
+func (psWarnLog) Info(string, any) {}
+func (l psWarnLog) Warn(m string, d any) {
+	*l.w = append(*l.w, fmt.Sprintf("%s | %v", m, d))
+}
+
+// TestPriceSyncRedirectParity：defaultPriceFetch 与 Node 全局 fetch（undici）对同一组重定向的请求序列、
+// 每跳收到的请求头（凭据头剥离、无 Referer、缺省头）与最终结果逐条一致。
+func TestPriceSyncRedirectParity(t *testing.T) {
+	raw, err := os.ReadFile("testdata/usage-pricesync.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var g struct {
+		Redirects []struct {
+			Path   string `json:"path"`
+			Result string `json:"result"`
+			Hits   []struct {
+				At     string            `json:"at"`
+				Method string            `json:"method"`
+				H      map[string]string `json:"h"`
+			} `json:"hits"`
+		} `json:"redirects"`
+	}
+	if err := json.Unmarshal(raw, &g); err != nil {
+		t.Fatal(err)
+	}
+	keep := []string{"authorization", "cookie", "proxy-authorization", "x-keep", "referer", "accept", "accept-encoding", "accept-language", "sec-fetch-mode", "user-agent", "content-length"}
+	type hit struct {
+		at, method string
+		h          map[string]string
+	}
+	var mu sync.Mutex
+	var hits []hit
+	urls := map[string]string{}
+	mk := func(label string) *httptest.Server {
+		return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			h := map[string]string{}
+			for _, k := range keep {
+				if vs := r.Header.Values(k); len(vs) > 0 {
+					h[k] = strings.Join(vs, ", ")
+				}
+			}
+			mu.Lock()
+			hits = append(hits, hit{label + r.URL.RequestURI(), r.Method, h})
+			A, B := urls["A"], urls["B"]
+			mu.Unlock()
+			goTo := func(st int, loc string) {
+				if loc != "" {
+					w.Header().Set("Location", loc)
+				}
+				w.WriteHeader(st)
+			}
+			u := r.URL.RequestURI()
+			switch {
+			case u == "/same":
+				goTo(302, "/final")
+			case u == "/cross":
+				goTo(302, B+"/final")
+			case u == "/back":
+				goTo(302, B+"/toA")
+			case u == "/toA":
+				goTo(302, A+"/final")
+			case u == "/see":
+				goTo(303, "/final")
+			case u == "/tmp":
+				goTo(307, "final")
+			case u == "/perm":
+				goTo(308, B+"/final")
+			case strings.HasPrefix(u, "/chain/"):
+				n, _ := strconv.Atoi(u[7:])
+				if n > 0 {
+					goTo(302, fmt.Sprintf("/chain/%d", n-1))
+				} else {
+					_, _ = w.Write([]byte("ok"))
+				}
+			case u == "/noloc":
+				goTo(301, "")
+			case u == "/ftp":
+				goTo(302, "ftp://x/")
+			default:
+				_, _ = w.Write([]byte("ok"))
+			}
+		}))
+	}
+	a, b := mk("A"), mk("B")
+	defer a.Close()
+	defer b.Close()
+	urls["A"], urls["B"] = a.URL, b.URL
+	for _, c := range g.Redirects {
+		t.Run(c.Path, func(t *testing.T) {
+			mu.Lock()
+			hits = nil
+			mu.Unlock()
+			req, _ := http.NewRequest(http.MethodGet, a.URL+c.Path, nil)
+			req.Header.Set("Accept", "application/json")
+			req.Header.Set("Accept-Encoding", "br, gzip")
+			req.Header.Set("Authorization", "Bearer t")
+			req.Header.Set("Cookie", "c=1")
+			req.Header.Set("Proxy-Authorization", "Basic p")
+			req.Header.Set("X-Keep", "k")
+			var result string
+			resp, err := defaultPriceFetch(req)
+			if err != nil {
+				result = jsString(err)
+			} else {
+				body, _ := io.ReadAll(resp.Body)
+				resp.Body.Close()
+				result = fmt.Sprintf("%d %s", resp.StatusCode, body)
+			}
+			if result != c.Result {
+				t.Errorf("result %q want %q", result, c.Result)
+			}
+			mu.Lock()
+			defer mu.Unlock()
+			if len(hits) != len(c.Hits) {
+				t.Fatalf("hits %d want %d", len(hits), len(c.Hits))
+			}
+			for i, w := range c.Hits {
+				h := hits[i]
+				if h.at != w.At || h.method != w.Method || fmt.Sprint(h.h) != fmt.Sprint(w.H) {
+					t.Errorf("hit %d: %s %s %v\nwant %s %s %v", i, h.at, h.method, h.h, w.At, w.Method, w.H)
+				}
+			}
+		})
+	}
 }

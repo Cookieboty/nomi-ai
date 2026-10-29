@@ -67,7 +67,7 @@ async function run(name, { file, steps, needsFull = false, onDataThrows = false,
   let i = 0;
   const ps = new PriceSync({
     root: usage, now: () => NOW + i * 1000,
-    logger: { warn: (m) => warns.push(m) },
+    logger: { warn: (m, d) => warns.push(`${m} | ${String(d)}`) },
     onData: (api) => { datas.push(Object.keys(api ?? {}).length); if (onDataThrows) throw new Error('x'); },
     needsFull: () => needsFull,
     fetchImpl: async (url, init) => {
@@ -87,7 +87,7 @@ async function run(name, { file, steps, needsFull = false, onDataThrows = false,
   const f = join(usage, 'price-sync.json');
   res.saved = existsSync(f) ? readFileSync(f, 'utf8') : null;
   if (reset) { ps.reset(); res.afterReset = { state: ps.state(), version: ps.version(), exists: existsSync(f) }; }
-  res.seen = seen; res.warns = warns.length; res.datas = datas;
+  res.seen = seen; res.warns = warns; res.datas = datas;
   rmSync(dir, { recursive: true, force: true });
   scen.push(res);
 }
@@ -107,6 +107,53 @@ await run('file-odd', { file: JSON.stringify({ etag: '', fetchedAt: -5, checkedA
 await run('file-bom', { file: '\ufeff' + cacheFile, steps: [] });
 await run('body-bom', { steps: [{ body: '\ufeff' + goodApi }] });
 
+// 真 fetch（undici）的重定向 / 凭据头处理：sync() 用 redirect:'follow' + credentials:'omit'
+const http = await import('node:http');
+const KEEP = ['authorization', 'cookie', 'proxy-authorization', 'x-keep', 'referer', 'accept', 'accept-encoding', 'accept-language', 'sec-fetch-mode', 'user-agent', 'content-length'];
+const hits = [];
+const servers = {};
+const route = (label, req, res) => {
+  const h = {};
+  for (const k of KEEP) if (req.headers[k] !== undefined) h[k] = req.headers[k];
+  hits.push({ at: `${label}${req.url}`, method: req.method, h });
+  const A = servers.A, B = servers.B;
+  const go = (st, loc) => { res.writeHead(st, loc === undefined ? {} : { location: loc }); res.end(); };
+  const u = req.url;
+  if (u === '/same') return go(302, '/final');
+  if (u === '/cross') return go(302, `${B}/final`);
+  if (u === '/back') return go(302, `${B}/toA`);
+  if (u === '/toA') return go(302, `${A}/final`);
+  if (u === '/see') return go(303, '/final');
+  if (u === '/tmp') return go(307, 'final');
+  if (u === '/perm') return go(308, `${B}/final`);
+  if (u.startsWith('/chain/')) { const n = Number(u.slice(7)); return n > 0 ? go(302, `/chain/${n - 1}`) : (res.writeHead(200), res.end('ok')); }
+  if (u === '/noloc') return go(301);
+  if (u === '/ftp') return go(302, 'ftp://x/');
+  res.writeHead(200); res.end('ok');
+};
+for (const label of ['A', 'B']) {
+  const srv = http.createServer((q, r) => route(label, q, r));
+  await new Promise((r) => srv.listen(0, '127.0.0.1', r));
+  servers[label] = `http://127.0.0.1:${srv.address().port}`;
+  servers[label + 'srv'] = srv;
+}
+const redirects = [];
+for (const path of ['/same', '/cross', '/back', '/see', '/tmp', '/perm', '/chain/20', '/chain/21', '/noloc', '/ftp']) {
+  hits.length = 0;
+  let result;
+  try {
+    const r = await fetch(servers.A + path, {
+      method: 'GET', redirect: 'follow', credentials: 'omit',
+      headers: { Accept: 'application/json', 'Accept-Encoding': 'br, gzip', Authorization: 'Bearer t', Cookie: 'c=1', 'Proxy-Authorization': 'Basic p', 'X-Keep': 'k' },
+    });
+    result = `${r.status} ${await r.text()}`;
+  } catch (e) {
+    result = String(e);
+  }
+  redirects.push({ path, result, hits: hits.slice() });
+}
+servers.Asrv.close(); servers.Bsrv.close();
+
 const out = join(root, 'apps/desktop-go/internal/core/usage/testdata/usage-pricesync.json');
-writeFileSync(out, JSON.stringify({ costs: costs.map((c) => JSON.stringify(c)), costOut, apis: apis.map((a) => JSON.stringify(a)), extractOut, syncedIn: syncedIn.map((x) => JSON.stringify(x)), syncedOut, now: NOW, scen }, null, 1) + '\n');
-console.log(`usage-pricesync: ${costOut.length} costs, ${extractOut.length} extract, ${syncedOut.length} synced, ${scen.length} sync scenarios`);
+writeFileSync(out, JSON.stringify({ costs: costs.map((c) => JSON.stringify(c)), costOut, apis: apis.map((a) => JSON.stringify(a)), extractOut, syncedIn: syncedIn.map((x) => JSON.stringify(x)), syncedOut, now: NOW, scen, redirects }, null, 1) + '\n');
+console.log(`usage-pricesync: ${costOut.length} costs, ${extractOut.length} extract, ${syncedOut.length} synced, ${scen.length} sync scenarios, ${redirects.length} redirect cases`);

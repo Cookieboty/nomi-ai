@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/usage/quality"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/quality"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
