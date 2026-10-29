@@ -7,7 +7,11 @@ package shellhandlers
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"regexp"
+
+	blm "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/llm"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/runtime/aisdk"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/providers"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
@@ -90,17 +94,61 @@ func (s secretBoxStorage) DecryptString(buf []byte) (string, error) {
 	return s.b.Decrypt(string(buf)), nil
 }
 
-// NewProviderService：AIRuntimeBoot 的 ProviderStore + ProviderService（内存 store；env 来自进程环境）
+// NomiRouteFunc：services.gateway()?.nomiRoute(role) ?? null（nil 函数 = 网关不可用）
+type NomiRouteFunc func(role string) *providers.GatewayResolution
+
+type gatewayRoute struct{ f NomiRouteFunc }
+
+func (g gatewayRoute) Resolve(role string) *providers.GatewayResolution {
+	if g.f == nil {
+		return nil
+	}
+	return g.f(role)
+}
+
+// NewProviderService：AIRuntimeBoot 的 ProviderStore + ProviderService + RoutedLLMRegistry
+// （AiSdkLLMProvidersPlugin：env providers、store、gateway 路由；registry 经 getRegistry 交给 ProviderService）
 func NewProviderService(box SecretBoxLike, env map[string]string, onCall func(any)) *providers.Service {
+	svc, _ := NewProviderRuntime(box, env, onCall, nil)
+	return svc
+}
+
+// NewProviderRuntime：同 NewProviderService，并返回 registry（chat procs 用）
+func NewProviderRuntime(box SecretBoxLike, env map[string]string, onCall func(any), nomiRoute NomiRouteFunc) (*providers.Service, *providers.RoutedLLMRegistry) {
 	var cipher providers.SecretCipher = providers.PlaintextCipher
 	if box != nil {
 		cipher = providers.CreateSafeStorageCipher(secretBoxStorage{box})
 	}
 	store := providers.NewStore(providers.StoreOptions{Cipher: cipher, OnCall: onCall})
-	return providers.NewService(providers.ServiceOptions{
+	entries := runtimeEntries(env)
+	var envProviders []blm.LLMProvider
+	for _, e := range entries {
+		p, err := aisdk.NewProvider(aisdk.EnvProviderConfig(e), nil)
+		if err != nil {
+			log.Printf("[ai-runtime] register provider failed: %s %v", e.ID, err)
+			continue
+		}
+		envProviders = append(envProviders, p)
+	}
+	registry := providers.NewRoutedLLMRegistry(providers.RoutedRegistryOptions{
+		Store:        store,
+		EnvProviders: envProviders,
+		Gateway:      gatewayRoute{nomiRoute},
+		OverrideID:   runtimeOverride(env),
+		OnError:      func(msg string, err error) { log.Printf("[ai-runtime] %s %v", msg, err) },
+		OnCall: func(e *u.Obj) {
+			if e.Get("ok") == true {
+				log.Printf("[ai-runtime] llm call %v %v %s", e.Get("provider"), e.Get("model"), u.Stringify(e))
+			} else {
+				log.Printf("[ai-runtime] llm call failed %v %v %s", e.Get("provider"), e.Get("model"), u.Stringify(e))
+			}
+		},
+	})
+	svc := providers.NewService(providers.ServiceOptions{
 		Store:       store,
-		EnvEntries:  runtimeEntries(env),
-		GetRegistry: func() providers.RoutedRegistry { return nil },
+		EnvEntries:  entries,
+		GetRegistry: func() providers.RoutedRegistry { return registry },
 		OverrideID:  runtimeOverride(env),
 	})
+	return svc, registry
 }
