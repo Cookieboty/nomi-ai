@@ -89,7 +89,7 @@ describe('JsonRpcConnection', () => {
     });
     const p = conn.request('initialize', {});
     child.stdin.emit('error', Object.assign(new Error('write EPIPE'), { code: 'EPIPE' }));
-    await expect(p).rejects.toThrow('write EPIPE');
+    await expect(p).rejects.toThrow(RPC_EXITED);
     expect(conn.isClosed).toBe(true);
   });
 });
