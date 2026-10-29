@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"sync/atomic"
 
@@ -197,6 +198,9 @@ func wireUsage(router *contract.Router, userData string, desktopSvc *desktop.Ser
 			if _, err := jsrt.Block(p); err != nil {
 				logger.Warn("models data auto sync failed", err.Error())
 			}
+			// models.dev api.json（约 6 MB）解析成 util.Obj 峰值约 55 MiB 堆，解析完即成垃圾；
+			// Go 的 scavenger 要几分钟才把空闲页还给系统，空闲 USS 因此高约 60 MiB（D-B11-18），这里立刻归还
+			debug.FreeOSMemory()
 		}()
 	})
 	usage.Install(router, usageRef.Load)
