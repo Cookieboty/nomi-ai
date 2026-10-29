@@ -7,8 +7,8 @@
  * 云端识别首次使用必须用户确认；桌面能力「仅本地模型」开启时拒绝云端识别。审计只记来源 / 引擎 / 时长。
  *
  * 豆包流式语音识别 2.0（#61，engine = 'volc'）：界面按住说话时边录边推 PCM（`voice.streamStart` /
- * `voice.streamPush`），内核转发给火山 WebSocket，临时结果只写进发起方这条契约流（{@link VoiceStreamSink}）。API Key 用 safeStorage 加密单独保存
- * （不在 settings.json 里，公开 IPC 只回 hasKey）；「仅本地模型」在建连前和每次推音频时都检查。
+ * `voice.streamPush`），内核转发给火山 WebSocket，临时结果只写进发起方这条契约流（{@link VoiceStreamSink}）。
+ * API Key 经宿主 `secrets` 端口加密单独保存（不在 settings.json 里，契约只回 hasKey）；「仅本地模型」在建连前和每次推音频时都检查。
  */
 import fs from 'node:fs';
 import path from 'node:path';

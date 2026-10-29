@@ -1,8 +1,8 @@
 # 内核、宿主、视图、角色四分离（设计稿）
 
-> 状态：**实施中**。起草 2026-10-28。
+> 状态：**已实施**（§12 表中 P0–P4、C1–C3 全部完成，随 2.0.5 发布）。起草 2026-10-28。
 > 已定（2026-10-28）：角色文案跟着角色包走（§10.2）；契约层自研（§4.4）；项目没有 Live2D，`live2d` 命名与死代码直接删除，不保留别名（§10.5）。
-> 查证：基于 `release/2.0.5` 分支代码统计（§2）；数字是起草当天的快照，实施前重新跑附录 A 的命令。
+> 查证：§2 是起草当天基于 `release/2.0.5` 的统计；附录 A 保留起草时的快照，并附实施后在新路径上重新测得的数字。
 > 相关：[架构](../development/architecture.md)、[角色包契约](../character-pack/CONTRACT.md)、[编程助手插件化](cli-plugin-architecture.md)、[统一模型网关](unified-gateway.md)。
 
 ## 0. 一句话
@@ -132,15 +132,15 @@
 
 ### 3.2 依赖规则
 
-| 包                        | 可以依赖                                                                                                                                                                                                                                                                                      | 不得依赖                                                           |
-| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| `contract`                | `zod`、`types`                                                                                                                                                                                                                                                                                | 任何运行时包                                                       |
-| `host-ports`              | `types`                                                                                                                                                                                                                                                                                       | 任何运行时包                                                       |
-| `core`                    | `contract`、`host-ports`、`gateway`、`cli-sdk`、`ai-runtime`（去掉 Electron 适配器后）、`character-contract`、`i18n`、`types`、`cli-plugins`（内置编程助手插件）、`bundle-ig-base` 与 `bundle-ig-mascot`（插件包，不 import electron；`bundle-ig-electron-caps` 只能作可选 peer，由宿主提供） | `electron`、任何视图包、`ui`                                       |
-| `host-electron`           | 以上全部 + `electron`                                                                                                                                                                                                                                                                         | 视图包的源码（只加载它们的构建产物）                               |
-| 视图（ai-chat、renderer） | `contract` 的 client、`ui`、`i18n`、`avatar-runtime`                                                                                                                                                                                                                                          | `core`、`host-*`、`electron`、`window.*IPC` / `window.electronAPI` |
-| `avatar-runtime`          | `character-contract`、浏览器 API                                                                                                                                                                                                                                                              | `electron`、`contract`（通过注入的事件源接 AI，§10.5）             |
-| `characters/*`            | 无（不含代码）                                                                                                                                                                                                                                                                                | —                                                                  |
+| 包                        | 可以依赖                                                                                                                                                                                                                                                                                      | 不得依赖                                                                                                         |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `contract`                | `zod`、`types`                                                                                                                                                                                                                                                                                | 任何运行时包                                                                                                     |
+| `host-ports`              | `types`                                                                                                                                                                                                                                                                                       | 任何运行时包                                                                                                     |
+| `core`                    | `contract`、`host-ports`、`gateway`、`cli-sdk`、`ai-runtime`（去掉 Electron 适配器后）、`character-contract`、`i18n`、`types`、`cli-plugins`（内置编程助手插件）、`bundle-ig-base` 与 `bundle-ig-mascot`（插件包，不 import electron；`bundle-ig-electron-caps` 只能作可选 peer，由宿主提供） | `electron`、任何视图包、`ui`                                                                                     |
+| `host-electron`           | 以上全部 + `electron`                                                                                                                                                                                                                                                                         | 任何视图包（`ai-chat`、`renderer`、`ui`、`voice`、`avatar-runtime`）的源码与包入口（只加载构建产物；lint error） |
+| 视图（ai-chat、renderer） | `contract` 的 client、`ui`、`i18n`、`avatar-runtime`、`@nomi-ai/cli-plugins/catalog`（纯数据的编程助手目录，lint 只放行这一子路径）                                                                                                                                                           | `core`、`host-*`、`electron`、`cli-plugins` 的其它入口（含 Node 实现）、`window.*IPC` / `window.electronAPI`     |
+| `avatar-runtime`          | `character-contract`、浏览器 API                                                                                                                                                                                                                                                              | `electron`、`contract`（通过注入的事件源接 AI，§10.5）                                                           |
+| `characters/*`            | 无（不含代码）                                                                                                                                                                                                                                                                                | —                                                                                                                |
 
 ### 3.3 包划分
 
@@ -281,14 +281,50 @@ export interface HostPorts {
 内核偶尔需要「打开对话窗口并跳到某个会话」「让看板娘窗口显示提醒」。它只表达意图，不操作窗口对象：
 
 ```ts
+interface WindowIntent {
+  route?: string;
+  activate?: boolean;
+  /** 临时召回：用户关掉的看板娘为一次确认临时显示，用完经 release 交还 */
+  transient?: boolean;
+}
 interface WindowsPort {
-  open(surface: 'chat' | 'mascot' | 'settings', intent?: { route?: string }): void;
+  open(surface: Surface, intent?: WindowIntent): Promise<void>;
   focus(surface: Surface): void;
   isVisible(surface: Surface): boolean;
+  hide(surface: Surface): void;
+  anyFocused(): boolean;
+  /** 界面的窗口是否存在（隐藏的也算） */
+  isOpen(surface: Surface): boolean;
+  /** 用户主动关掉了这个界面（看板娘：隐藏且静音，提醒改走灵动岛） */
+  dismissed(surface: Surface): boolean;
+  /** 交还一次 transient 召回；用户关掉的界面重新隐藏 / 释放窗口 */
+  release(surface: Surface): void;
+  /** 契约调用方（`CallerContext.id`）是否属于这个界面的窗口 */
+  ownsCaller(surface: Surface, callerId: string | undefined): boolean;
+  /** 调用方的窗口关闭时回调（找不到这个调用方时不登记） */
+  onCallerClosed(callerId: string, fn: () => void): void;
 }
 ```
 
 窗口的尺寸、位置、透明、置顶、物理效果都是宿主自己的事。
+
+**语音与桌面服务只经这个端口碰窗口**（2.0.5 收尾）。以前 `createCore` 收 `desktopWindows` / `voiceChatWindow` /
+`callerWindows` 三个宿主钩子，内核拿到窗口对象与 `webContents`；现在全部删除，改成上面的意图：
+
+| 需求                              | 内核调用                                                                           | Electron 实现                                      | host-node                              |
+| --------------------------------- | ---------------------------------------------------------------------------------- | -------------------------------------------------- | -------------------------------------- |
+| 确认框需要看板娘，但用户关掉了她  | `open('mascot', { activate: false, transient: true })`；答复后 `release('mascot')` | `WindowManager.summonMascot()` / `releaseMascot()` | 记录 `open` / `release`                |
+| 提醒走看板娘还是灵动岛            | `isOpen('mascot')`、`dismissed('mascot')`、`isVisible('mascot')`                   | 看窗口是否存在与 `mascotHidden()`                  | 按可见集合；`dismissed` 恒为 false     |
+| 确认答复 / 拖入文件只认看板娘窗口 | `ownsCaller('mascot', ctx.caller.id)`                                              | 调用方 id = 窗口的 `webContents.id`                | `control.bindCaller(surface, id)` 声明 |
+| VAD / 流式识别会话随发起窗口释放  | `onCallerClosed(String(owner), …)`                                                 | `webContents.once('destroyed')`                    | `control.closeCaller(id)` 触发         |
+| 把识别结果投递到对话窗口          | `await open('chat')` 后发 `voice.inject`（surface `chat`）                         | 建 / 显示对话窗口                                  | 记录 `open`                            |
+
+- 灵动岛是宿主独有的窗口，内核只发提醒：组合根注入 `desktopIsland: (notice) => boolean`（显示了返回 true，否则内核退回系统通知）。
+- 流式识别的临时结果只属于发起方：`VoiceService.streamStart(owner, source, sink)` 收一个 `VoiceStreamSink { push, end }`，
+  契约处理函数把它接到这次 `voice.streamStart` 调用的流上；会话结束（stop / cancel / 出错 / 发起窗口关闭）时服务调用一次
+  `sink.end()`，流随之结束。会话表在服务里，router 不再持有按实例的会话表。
+- `voice.inject` 进 pending 组（`CORE_PENDING_GROUPS.voiceInject`）：刚打开的对话窗口还没订阅时内核留着这条，视图先订阅再调
+  `voice.takePendingInject` 拉取，不再靠「等页面加载完再延时 500ms」。
 
 ### 6.3 端口实现的位置
 
@@ -336,9 +372,9 @@ core.startReminders();
 - 宿主片段**传进** `createCore`（`contract.hostHandlers`），不由宿主在外面合并：router 只 `implement` 一次，片段只能补内核
   没有实现的过程（重名报错），谁都没实现的过程以 UNAVAILABLE 失败，所以无界面宿主不给片段也能拿到完整的 router。
 - 宿主钩子（`CoreHostHooks`，全部可选）：`updater`（自动更新）、`browser`（受控浏览器）、`characterPackProtocol`
-  （`character-pack://` 注册）、`desktopWindows`（桌面服务的看板娘 / 对话窗口与灵动岛）、`voiceChatWindow`（语音投递到
-  对话窗口）、`liveWindows`（引导里的看板娘指令是否送达）、`callerWindows`（语音会话随窗口释放）、`aiPlugins` /
-  `ttsProviders`（宿主的 AI 插件与系统 TTS）。打开 / 判断界面走 `ports.windows`（声明式，§6.2）。
+  （`character-pack://` 注册）、`desktopIsland`（灵动岛提醒）、`liveWindows`（引导里的看板娘指令是否送达）、`aiPlugins` /
+  `ttsProviders`（宿主的 AI 插件与系统 TTS）。打开 / 判断界面、核对调用方窗口、随窗口释放会话都走 `ports.windows`
+  （声明式，§6.2）。
 - 日志仍是 `LoggerService`（日志文件路径来自 `ports.paths.logs()`）与进程级的 `createMainLogger(scope)`，没有改成
   `LoggerFactory`。
 - 主进程 i18n 与平台无关，已搬入内核（`core/src/i18n`）；界面语言变化通过 `settings.changed` 事件通知。
@@ -576,21 +612,20 @@ renderer 只保留：透明窗口壳、气泡、工具栏、右键菜单，以�
 > - 缺的端口：系统通知（notifications）与图片处理（image：解码 / 缩放），补上后 `DesktopService` / `ChatBackgroundService` 才能出白名单；
 > - `security/secretStorage`、`utils/log`、`utils/privateFile` 仍直接用 `safeStorage` / `app`，旧 IPC 注册层与 `sandbox/AgentBrowser`、`utils/windowBounds` 按原计划在 P1b / P3 处理。
 >
-> 搬目录（P3）尚未开始。
+> 搬目录（P3）当时尚未开始；后来已完成，见下文「P3 第一步 / 第二步 / 第三步」。
 >
 > C1 已完成（分支 `refactor/c1-characters`）：官方角色是普通角色包 `characters/nomi`，构建期由
 > `CHARACTER_PACK`（缺省为它）选包，Vite 插件直接读包、不改源树；Scheme A 原地覆盖与两份
 > `character.generated.json` 已删除；运行时覆盖包与内置包都经 `validatePack`（覆盖包 `lenient`，
 > 非结构性问题只警告）。官方包与 2.0.5 行为对齐：不声明 `layout.hitboxes` / `bubbleAnchor`（触摸仍走几何
 > 推断），`manifest.catalog` 让生成的 `model-list.json` 与 2.0.5 一致（仅素材路径改到 `./character/`）。
-> 后续：
+> 当时列的后续项都已完成：
 >
-> - 用 `characters/test-dummy` 跑 e2e 验收（§11.3 替身角色，G5 尚未达成）；
-> - `scripts/check-character-leak`（§11.2）尚未实现；
-> - 界面文案里点名 Nomi 的字符串还没按「产品名 / 角色名」分拣（§10.1）；
-> - `examples/static-demo.pack` 仍是旧布局（`layout/hitboxes.json`、`copy/`），靠迁移读取；
-> - `character-pack:get-active` 的返回多了 `locales`，内置包也会填 `id` / `mode` / `displayName` /
->   `locales` 等身份字段；P1b 把这些同步进 `contract` 的通道定义。
+> - 替身角色 `characters/test-dummy` 跑 e2e（§11.3，G5 已达成，见下文「G5 完成」）；
+> - 名字扫描 `scripts/check-character-leak.mjs`（§11.2，`pnpm check:character-leak` 进 CI）；
+> - 界面文案按「产品名 / 角色名」分拣（§10.1，G5）；
+> - `examples/static-demo.pack` 已是新布局（`manifest.json` + `persona.json` + `locales/`）；
+> - `character.getActivePack` 的契约输出已含 `locales` 与身份字段（`contract/src/app/mascot.ts`）。
 
 > P1b 基础已完成（分支 `refactor/p1b-contract`）：应用契约按域拆成五个文件（`contract/src/app/{media,shell,coding,knowledge,mascot}.ts`，
 > 版本 1.1）；宿主侧 `electron/src/host/contract/` 组装 router（`createAppRouter`：AI 门面 + 五个域，AI runtime 失败时
@@ -692,7 +727,7 @@ coalescedWriter,redact}`、`services/{Logger,Config,Cache,Update}Service`、`mas
 >   内核源码（不用先构建，`jest.mock('@nomi-ai/core/…')` 与内核内部的相对 import 是同一个模块）；内核测试仍用 Jest
 >   （electron 的 setup 去掉 electron 模拟），搬过来的测试里的 `jest.mock('electron')` 删除；mock CLI 与
 >   `smoke-silero.cjs` 搬到 `packages/core/scripts/`；`pnpm dev` 同时跑内核的 `tsc -w`；
-> - 反转的依赖：灵动岛提醒经 `DesktopWindows.island()`（组合根注入 `notifyIsland`，`IslandKind` / `IslandNotice` 在
+> - 反转的依赖：灵动岛提醒经组合根注入的 `desktopIsland`（宿主的 `IslandService.notify`，`IslandKind` / `IslandNotice` 在
 >   `core/desktop/islandNotice.ts`）；`UpdateService` 只管检查 / 下载状态、重试与设置，`electron-updater` 的
 >   `autoUpdater`（含 `quitAndInstall`）由组合根作为 `updater` 注入；内置背景预设图的路径本来就由宿主给，
 >   `chat/backgroundPreset.ts` 留在宿主；
@@ -826,8 +861,8 @@ stop() }`；宿主 `packages/host-electron/src/host/Application.ts`（宿主区�
 > - 宿主片段：传进 `createCore` 的 `contract.hostHandlers`，不由宿主在外面合并（理由见 §7.1）。内核实现 coding /
 >   knowledge / media / shell 与 D5 里不碰窗口的部分（角色包、人设、聊天背景、模型名、`window.platform`）；宿主片段只剩
 >   看板娘窗口互动与大小（`mascot.*`）、灵动岛（`island.*`）、旧窗口通道（`window.*`）与应用图标（`appIcon.*`）。
->   `nav.openVoiceSettings` 改走 `ports.windows.open('chat', { route: 'voice' })`；语音会话随窗口释放经宿主钩子
->   `callerWindows`；进行中的流式识别会话表按 router 实例（`createVoiceStreams()`）；
+>   `nav.openVoiceSettings` 改走 `ports.windows.open('chat', { route: 'voice' })`；语音会话随窗口释放经
+>   `ports.windows.onCallerClosed`，流式识别会话表在 `VoiceService` 里、临时结果经 `VoiceStreamSink` 推进发起方的流（§6.2）；
 > - 搬进内核的业务：`ai/AIRuntimeBoot`（按内核实例 `new AIRuntimeService`，不用 ai-runtime 的模块级 `runtime`；网关 /
 >   用量 / 扩展 / 人设在调用时从服务表读；宿主插件 `FileSessionStorePlugin` 与系统 TTS 由宿主经 `aiPlugins` /
 >   `ttsProviders` 注入）、`core/BootstrapManager`（纯 Node 的启动任务调度，宿主用它排自己的启动任务）、契约处理函数
@@ -1075,17 +1110,17 @@ stop() }`；宿主 `packages/host-electron/src/host/Application.ts`（宿主区�
 > - 角色口吻的正则是列举式的，新写法要在 `scripts/lib/characterLeak.mjs` 补；
 > - core `UpdateService.test.ts` 的 afterEach 与未完成的异步写入有竞争（偶发 ENOTEMPTY），未处理。
 
-| 阶段 | 内容                                                                                                                                                                                                             | 完成标准                                                                                                           |
-| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| P0   | ① lint 护栏：`packages/electron/src` 中除宿主目录（§7.2 右列）外，新增 electron import 报错（已有的列入白名单，只减不增）；② `PersonaService`，删两处人设硬编码                                                  | 护栏进 CI；换皮后系统提示不再是 Nomi                                                                               |
-| P1a  | **已完成**。建 `contract` 与 `defineContract`；AI 门面（35 个 `ai.*` 过程 + 12 个事件）上契约，取代两份 `channels.ts`；`ClientAIClient` 改走 `window.nomiTransport`                                              | AI 门面只经契约访问；两份 `channels.ts` 删除                                                                       |
-| P1b  | **已完成**。其余 `ai:*` 服务通道与 `window.electronAPI` 的能力逐个进契约；视图改用 client；删除 `window.aiIPC` / `window.electronAPI`                                                                            | 视图中不再出现 `window.aiIPC` / `window.electronAPI`                                                               |
-| P2   | 建 `host-ports`；替换 `app.getPath`（10）、`safeStorage`（9）、`dialog/shell/clipboard` 等（15）；29 处窗口广播改为 `ctx.events.publish`                                                                         | `packages/electron/src` 中业务模块不再 import electron                                                             |
-| P3   | **已完成**（P0 白名单在 P4 第一步清空，见上方进度说明）。物理搬家：业务模块 → `packages/core`；`packages/electron` → `packages/host-electron`（`@nomi-ai/host-electron`）；ai-runtime 的 Electron 适配器移入宿主 | 目录与 §3.3 一致；P0 白名单清空                                                                                    |
-| P4   | **已完成**（见上方 P4 两步的进度说明）。内核组合根 `createCore`，同一进程可起多个内核；`host-node` + in-process / WebSocket 传输；`e2e/` 改跑无界面宿主                                                          | §11.3 前两项通过                                                                                                   |
-| C1   | `character-contract` 包；官方资产与人设集中到 `characters/nomi`；删 Scheme A 原地覆盖与两份 `character.generated.json`                                                                                           | 官方构建与白标构建走同一路径                                                                                       |
-| C2   | **已完成**。拆出 `avatar-runtime`；renderer 只留窗口壳                                                                                                                                                           | avatar-runtime 能单独运行（开发页 `demo/` 与挂载测试；仓库没有 Storybook）                                         |
-| C3   | **已完成**（见上方 C3 与 G5 进度说明）。语义事件协议 + `mapping.json`；工具与 preset 改名（不保留别名）                                                                                                          | AI 侧代码中不出现 clip / motion 名（扫描测试守住）；§11.3 替身角色通过（E8 / G5 替身 e2e，`check:character-leak`） |
+| 阶段            | 内容                                                                                                                                                                                                             | 完成标准                                                                                                           |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| P0 **已完成**。 | ① lint 护栏：`packages/electron/src` 中除宿主目录（§7.2 右列）外，新增 electron import 报错（已有的列入白名单，只减不增）；② `PersonaService`，删两处人设硬编码                                                  | 护栏进 CI；换皮后系统提示不再是 Nomi                                                                               |
+| P1a             | **已完成**。建 `contract` 与 `defineContract`；AI 门面（35 个 `ai.*` 过程 + 12 个事件）上契约，取代两份 `channels.ts`；`ClientAIClient` 改走 `window.nomiTransport`                                              | AI 门面只经契约访问；两份 `channels.ts` 删除                                                                       |
+| P1b             | **已完成**。其余 `ai:*` 服务通道与 `window.electronAPI` 的能力逐个进契约；视图改用 client；删除 `window.aiIPC` / `window.electronAPI`                                                                            | 视图中不再出现 `window.aiIPC` / `window.electronAPI`                                                               |
+| P2 **已完成**。 | 建 `host-ports`；替换 `app.getPath`（10）、`safeStorage`（9）、`dialog/shell/clipboard` 等（15）；29 处窗口广播改为 `ctx.events.publish`                                                                         | `packages/electron/src` 中业务模块不再 import electron                                                             |
+| P3              | **已完成**（P0 白名单在 P4 第一步清空，见上方进度说明）。物理搬家：业务模块 → `packages/core`；`packages/electron` → `packages/host-electron`（`@nomi-ai/host-electron`）；ai-runtime 的 Electron 适配器移入宿主 | 目录与 §3.3 一致；P0 白名单清空                                                                                    |
+| P4              | **已完成**（见上方 P4 两步的进度说明）。内核组合根 `createCore`，同一进程可起多个内核；`host-node` + in-process / WebSocket 传输；`e2e/` 改跑无界面宿主                                                          | §11.3 前两项通过                                                                                                   |
+| C1 **已完成**。 | `character-contract` 包；官方资产与人设集中到 `characters/nomi`；删 Scheme A 原地覆盖与两份 `character.generated.json`                                                                                           | 官方构建与白标构建走同一路径                                                                                       |
+| C2              | **已完成**。拆出 `avatar-runtime`；renderer 只留窗口壳                                                                                                                                                           | avatar-runtime 能单独运行（开发页 `demo/` 与挂载测试；仓库没有 Storybook）                                         |
+| C3              | **已完成**（见上方 C3 与 G5 进度说明）。语义事件协议 + `mapping.json`；工具与 preset 改名（不保留别名）                                                                                                          | AI 侧代码中不出现 clip / motion 名（扫描测试守住）；§11.3 替身角色通过（E8 / G5 替身 e2e，`check:character-leak`） |
 
 - **P1a 的行为变化**：AI 门面的业务事件（`ai.agent.step`、`ai.tts.chunk`、`ai.userProfile.changed` 等）改由契约传输按订阅分发，**只推给订阅了该事件的窗口**；以前 `EventBroadcaster` 经 `ai:event` 通道广播给所有存活窗口（可选按窗口过滤），该通道已删除。没有经契约订阅的窗口（含直接监听 `ai:event` 的页面）收不到这些事件，P1b 迁移视图时要改成显式订阅；窗口导航或刷新后订阅随会话一起失效，由新页面重新订阅。
 - **P1 与 P2 可以并行**：一个改视图一侧，一个改内核一侧，中间靠契约对齐。
@@ -1170,6 +1205,31 @@ e2e-headed 改走契约；lint 禁止视图访问 `window.aiIPC` / `window.elect
 ## 附录 A：耦合点文件清单（2026-10-28）
 
 这是 P2 开始前的快照：P3 之后业务模块在 `packages/core/src`，`packages/electron` 已改名 `packages/host-electron`。
+
+### A.1 实施后复测（2026-10-29，`release/2.0.5` + 本次收尾）
+
+同一组命令换到新路径（在仓库根目录运行）：
+
+```bash
+for d in packages/core/src packages/host-electron/src; do
+  (cd $d
+   grep -rlE "app\.getPath\(" . | sort
+   grep -rl "safeStorage" . | sort
+   grep -rlE "import \{[^}]*\b(dialog|shell|clipboard|desktopCapturer|powerMonitor)\b[^}]*\} from 'electron'" . | sort
+   grep -rlE "getAllWindows|webContents\.send" . | sort
+   grep -rlE "from 'electron'|require\('electron'\)" . | sort)
+done
+grep -rlE "window\.(electronAPI|aiIPC)" packages/ai-chat/src packages/renderer/src | sort
+```
+
+| 统计                                                                  | 起草时（`packages/electron/src`） | `packages/core/src`                                                                                      | `packages/host-electron/src`                                                         |
+| --------------------------------------------------------------------- | --------------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `app.getPath`                                                         | 10                                | 0                                                                                                        | 2（`host/electronPorts.ts`、`host/processDefaults.ts`）                              |
+| `safeStorage`                                                         | 9                                 | 8，全是命名 / 注释 / 持久化格式字面量（`encryption: 'safeStorage'`、`safeStorageFromSecrets`），没有调用 | 1（`host/electronPorts.ts`，`secrets` 端口实现）                                     |
+| `dialog` / `shell` / `clipboard` / `desktopCapturer` / `powerMonitor` | 15                                | 0                                                                                                        | 3（`host/ClipboardGateway.ts`、`host/ScreenCapture.ts`、`security/windowGuards.ts`） |
+| 窗口广播                                                              | 29                                | 1，只是 `cli/eventBatcher.ts` 的注释                                                                     | 4（`core/appIcon.ts`、`host/electronPorts.ts`、`host/liveWindows.ts`、`main.ts`）    |
+| import electron 的文件                                                | —                                 | 0（lint error 守住）                                                                                     | 25                                                                                   |
+| 视图里的 `window.electronAPI` / `window.aiIPC`                        | 21                                | —                                                                                                        | —（视图：0）                                                                         |
 
 统计命令（在仓库根目录运行）：
 
