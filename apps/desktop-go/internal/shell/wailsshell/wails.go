@@ -183,7 +183,6 @@ func (w *Wails) pageLoaded(win *application.WebviewWindow) {
 // create 新建窗口；at 非空时先隐藏建好、挪到 at 再显示（重建用，避免先在默认位置闪一下）
 func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewWindow {
 	var opts application.WebviewWindowOptions
-	var mascotPos *[2]int
 	switch k {
 	case shell.Mascot:
 		// 2.0.5 默认缩放 0.5：420×450 的一半 + 透明边距（60, 130）→ 330×355
@@ -202,7 +201,12 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 		if w.cfg.MascotSize != nil {
 			opts.Width, opts.Height = w.cfg.MascotSize()
 		}
-		mascotPos = w.mascotPos(opts.Width, opts.Height)
+		// 建窗选项里给位置：Run 之前 impl 为空，事后 SetPosition 会被 Wails 忽略
+		if sc := w.app.Screen.GetPrimary(); sc != nil {
+			p := mascotInitialPos(w.cfg.MascotPos, sc.WorkArea.Width, sc.WorkArea.Height, opts.Width, opts.Height)
+			opts.Screen, opts.InitialPosition = sc, application.WindowXY
+			opts.X, opts.Y = p[0]-sc.WorkArea.X, p[1]-sc.WorkArea.Y // WindowXY 相对 WorkArea 原点
+		}
 	case shell.Island:
 		opts = application.WebviewWindowOptions{
 			Name: "island", Title: "Nomi Island", Width: 360, Height: 72,
@@ -265,9 +269,6 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 	w.mu.Lock()
 	w.wins[k] = win
 	w.mu.Unlock()
-	if mascotPos != nil {
-		win.SetPosition(mascotPos[0], mascotPos[1])
-	}
 	if at != nil {
 		win.SetBounds(application.Rect{X: at.X, Y: at.Y, Width: at.Width, Height: at.Height})
 	}
@@ -383,16 +384,8 @@ func (w *Wails) SetResizable(k shell.WindowKind, on bool) {
 	}
 }
 
-// mascotPos = 2.0.4 WindowManager.createMainWindow：保存的位置在 (0, workAreaSize) 开区间内就用，
-// 否则 x = 宽 - 窗宽、y = 高 - 窗高（主屏工作区右下角）。
-func (w *Wails) mascotPos(width, height int) *[2]int {
-	sc := w.app.Screen.GetPrimary()
-	if sc == nil {
-		return nil
-	}
-	return mascotInitialPos(w.cfg.MascotPos, sc.WorkArea.Width, sc.WorkArea.Height, width, height)
-}
-
+// mascotInitialPos = 2.0.4 WindowManager.createMainWindow：保存的位置在 (0, workAreaSize) 开区间内就用，
+// 否则 x = 宽 - 窗宽、y = 高 - 窗高（主屏工作区右下角）。返回绝对坐标。
 func mascotInitialPos(saved func() (int, int), areaW, areaH, width, height int) *[2]int {
 	x, y := 0, 0
 	if saved != nil {
