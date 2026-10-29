@@ -235,8 +235,15 @@ for (const sc of grokScenarios) {
   await settle();
   grok.push({ ...sc, outs, log: readLog(logf), left: leftovers() });
 }
-fs.rmSync(T, { recursive: true, force: true });
-fs.rmSync(L, { recursive: true, force: true });
+// 录制器自身临时目录的清理：Windows 上 .cmd 垫片下的子进程树退出有延迟，句柄未释放时 rm 报 EPERM；
+// 清理与 golden 内容无关，重试后仍失败则留给系统临时目录回收。
+const rmQuiet = (p) => {
+  try {
+    fs.rmSync(p, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
+  } catch {}
+};
+rmQuiet(T);
+rmQuiet(L);
 
 const consts = {
   claudeArgs: CS.CLAUDE_USAGE_ARGS, claudeTimeout: CS.CLAUDE_USAGE_TIMEOUT_MS,

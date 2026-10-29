@@ -17,6 +17,13 @@ const { importSources } = await import(pathToFileURL(path.join(here, 'src-bundle
 const src = (f) => path.join(root, 'packages/core/src/usage', f);
 const { GA, LP } = await importSources(root, { GA: src('grokAuth.ts'), LP: src('limitedProcess.ts') });
 const J = (v) => (v === undefined ? '__undef__' : JSON.stringify(v));
+// 录制器自身临时目录的清理：Windows 上 .cmd 垫片下的子进程树退出有延迟，句柄未释放时 rm 报 EPERM；
+// 清理与 golden 内容无关，重试后仍失败则留给系统临时目录回收。
+const rmQuiet = (p) => {
+  try {
+    fs.rmSync(p, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
+  } catch {}
+};
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /* ---------------- parseGrokAuthStatus ---------------- */
@@ -167,7 +174,7 @@ for (const sc of runScenarios) {
     out = { fail: e.message, name: e.name, isPF: e instanceof LP.ProcessFailure };
   }
   await sleep(1000);
-  fs.rmSync(cwd, { recursive: true, force: true });
+  rmQuiet(cwd);
   run.push({ ...sc, out: J(out), log: readLog(logf) });
 }
 
@@ -198,8 +205,8 @@ for (const sc of authScenarios) {
   await sleep(700);
   auth.push({ ...sc, out: J(r), log: readLog(logf), left: fs.readdirSync(T).sort() });
 }
-fs.rmSync(T, { recursive: true, force: true });
-fs.rmSync(L, { recursive: true, force: true });
+rmQuiet(T);
+rmQuiet(L);
 
 const outDir = process.env.NOMI_GOLDEN_DIR ?? path.join(root, 'apps/desktop-go/internal/core/usage/testdata');
 fs.mkdirSync(outDir, { recursive: true });
