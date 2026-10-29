@@ -235,8 +235,8 @@ for (const sc of grokScenarios) {
   await settle();
   grok.push({ ...sc, outs, log: readLog(logf), left: leftovers() });
 }
-fs.rmSync(T, { recursive: true, force: true });
-fs.rmSync(L, { recursive: true, force: true });
+fs.rmSync(T, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+fs.rmSync(L, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
 
 const consts = {
   claudeArgs: CS.CLAUDE_USAGE_ARGS, claudeTimeout: CS.CLAUDE_USAGE_TIMEOUT_MS,
