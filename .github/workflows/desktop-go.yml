@@ -67,7 +67,7 @@ jobs:
           pnpm exec tsx scripts/parity/record-gwservice.mjs
           pnpm exec tsx scripts/parity/record-gwprocess.mjs
           pnpm exec tsx scripts/parity/record-gwcli.mjs
-          # quality.*：子进程按 TZ=<IANA> 录 3 时区（Node 22 的 ICU 在三平台都认 TZ），各平台现场录制并与提交的 golden 对比
+          # quality.*：子进程按 TZ=<IANA> 录 3 时区（Node 的 ICU 在三平台都认 TZ），各平台现场录制并与提交的 golden 对比
           (cd scripts/parity && node --import tsx record-quality.mjs)
           diff -q apps/desktop-go/internal/core/quality/testdata/quality.json "$NOMI_GOLDEN_DIR/quality.json"
           echo "NOMI_LIVE_GOLDENS=$NOMI_GOLDEN_DIR" >> "$GITHUB_ENV"
