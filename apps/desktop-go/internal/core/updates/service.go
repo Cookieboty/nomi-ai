@@ -412,7 +412,7 @@ func (s *Service) persistAutoCheckLocked() {
 	data := fmt.Sprintf(`{"version":1,"autoCheck":%t}`, s.autoCheck)
 	file := s.settingsFile
 	if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
-		s.log.Warn("[updater] failed to persist autoCheck", "error", "Error: "+nodefs.Message(err, "mkdir", filepath.Dir(file)))
+		s.log.Warn("[updater] failed to persist autoCheck", "error", "Error: "+nodefs.MkdirpMessage(err, filepath.Dir(file)))
 		return
 	}
 	// 异步落盘（= writePrivateFileAtomicAsync）
