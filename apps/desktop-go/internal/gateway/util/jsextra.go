@@ -24,7 +24,7 @@ func writeIndent(b *strings.Builder, v any, ind, cur string) {
 		}
 		first := true
 		for _, k := range x.keys {
-			if _, fn := x.m[k].(JSFunc); fn {
+			if skipMember(x.m[k]) {
 				continue
 			}
 			if first {

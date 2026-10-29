@@ -167,6 +167,13 @@ func main() {
 	})
 	b8.Start()
 	defer b8.Stop()
+	// AIRuntimeBoot：内存 ProviderStore + ProviderService（providers.* 契约过程 + providers.changed）
+	providerBox := security.NewSecretBox("providers")
+	providerSvc := shellhandlers.NewProviderService(providerBox, processEnv(), nil)
+	if providerBox == nil || !providerBox.CanEncrypt() {
+		log.Printf("[ai-runtime] warn: 系统安全存储（safeStorage）不可用：provider token 仅做编码保存，未加密。面板中会提示用户。")
+	}
+	shellhandlers.InstallProviders(router, providerSvc)
 	log.Printf("[desktop-go] %d contract procedures stubbed (not implemented yet)", procs.Install(router))
 
 	ws := &contract.WSServer{Router: router, Token: contract.NewToken(), Origins: map[string]bool{
@@ -253,4 +260,15 @@ func builtinPackDir() string {
 		}
 	}
 	return ""
+}
+
+// processEnv：process.env 的快照（键 → 值）
+func processEnv() map[string]string {
+	m := map[string]string{}
+	for _, kv := range os.Environ() {
+		if i := strings.IndexByte(kv, '='); i > 0 {
+			m[kv[:i]] = kv[i+1:]
+		}
+	}
+	return m
 }
