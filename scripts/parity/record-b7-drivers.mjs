@@ -110,6 +110,7 @@ if (process.env.NOMI_GOLDEN_DIR) {
   execFileSync(process.execPath, [join(here, 'record-usage-ledger.mjs')], { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, [join(here, 'record-usage-logparsers.mjs')], { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, [join(here, 'record-usage-scanner.mjs')], { stdio: 'inherit', cwd: root });
+  execFileSync(process.execPath, [join(here, 'record-usage-sniff.mjs')], { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, [join(here, 'record-usage-quota.mjs')], { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, [join(here, 'record-usage-statusline.mjs')], { stdio: 'inherit', cwd: root });
   // shell.ts 的 diagnostics / appIcon / updates / quality / usage / gateway（record-shell.mjs 依赖 gateway dist 的 redactText）
