@@ -48,8 +48,26 @@ func realpathNative(p string) (string, error) {
 	return s, nil
 }
 
-// readlinkNode = fs.readlinkSync：Go 与 libuv 都去掉 \??\ 前缀、保留 substitute name 原样（含 junction 结尾 \）。
-func readlinkNode(p string) (string, error) { return os.Readlink(p) }
+// readlinkNode = fs.readlinkSync：Go 与 libuv 都去掉 \??\ 前缀；junction 的 substitute name 结尾 \
+// 由 libuv 去掉（Windows CI golden 实测 Node 返回 `X:\dir` 不带结尾 \），Go os.Readlink 保留，这里同样去掉。
+func readlinkNode(p string) (string, error) {
+	to, err := os.Readlink(p)
+	if err != nil {
+		return to, err
+	}
+	if st, e := os.Lstat(p); e == nil && isJunction(st) && len(to) > 3 && strings.HasSuffix(to, `\`) {
+		to = to[:len(to)-1]
+	}
+	return to, nil
+}
+
+// nodeStatMode = libuv fs__stat 在 Windows 上的 st_mode 权限位：只读属性 0444，否则 0666（目录也一样）。
+func nodeStatMode(st os.FileInfo) float64 {
+	if st.Mode().Perm()&0o200 == 0 {
+		return 0o444
+	}
+	return 0o666
+}
 
 func symlinkNode(target, link, kind string) error {
 	if kind == "junction" {
