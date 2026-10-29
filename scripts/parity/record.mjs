@@ -560,5 +560,5 @@ if (want('trace')) {
 
 if (want('e2e')) {
   const { recordE2E } = await import('./e2e.mjs');
-  write('e2e', await recordE2E({ gw, cases }));
+  writeGz('e2e', await recordE2E({ gw, cases }));
 }
