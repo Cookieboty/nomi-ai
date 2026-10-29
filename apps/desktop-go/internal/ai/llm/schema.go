@@ -367,3 +367,17 @@ func ParseJSON(text string, s Schema) (any, error) {
 	}
 	return r.Value, nil
 }
+
+// Refine is zod .refine(pred, {message}): s must parse and pred must hold.
+func Refine(s Schema, pred func(any) bool, message string) Schema {
+	return fnSchema(func(v any, p string) (any, error) {
+		r, err := s.parse(v, p)
+		if err != nil {
+			return nil, err
+		}
+		if !pred(r) {
+			return nil, fail(p, "%s", message)
+		}
+		return r, nil
+	})
+}

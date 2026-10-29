@@ -17,6 +17,8 @@ type RetryOptions struct {
 	// Additional is additionalRetryableError.
 	Additional func(error) bool
 	Now        func() time.Time
+	// Sleep replaces the abortable delay (tests record requested delays).
+	Sleep func(ctx context.Context, ms float64) error
 }
 
 // Retry runs f with ai's retry policy. Abort = ctx.
@@ -60,7 +62,11 @@ func Retry[T any](ctx context.Context, o RetryOptions, f func() (T, error)) (T, 
 			if isAPI {
 				ms = retryDelayMs(ae, delay, o.Now)
 			}
-			if derr := sleep(ctx, ms); derr != nil {
+			sl := sleep
+			if o.Sleep != nil {
+				sl = o.Sleep
+			}
+			if derr := sl(ctx, ms); derr != nil {
 				return v, derr
 			}
 			delay *= factor

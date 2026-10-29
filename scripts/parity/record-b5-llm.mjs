@@ -30,7 +30,9 @@ const srcHook = `export async function resolve(s, c, n) {
 }`;
 (await import('node:module')).register('data:text/javascript,' + encodeURIComponent(srcHook));
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const outFile = join(root, 'apps/desktop-go/internal/ai/llm/testdata/b5-llm.json');
+const outDir = join(root, 'apps/desktop-go/internal/ai/llm/testdata');
+// Each scenario list writes its own golden file; B5_ONLY=<file> re-records just one.
+const only = process.env.B5_ONLY;
 const { AiSdkLlmProvider } = await import(
   pathToFileURL(join(root, 'packages/ai-runtime/src/ai-sdk/AiSdkLlmProvider.ts')).href
 );
@@ -191,10 +193,16 @@ const scenarios = [];
 const add = (s) => scenarios.push(s);
 import { compatibleScenarios } from './b5-llm-scenarios.mjs';
 for (const s of compatibleScenarios({ sse, SSE_H, json })) add(s);
+import { responsesScenarios } from './b5-llm-openai-scenarios.mjs';
+for (const s of responsesScenarios({ sse, SSE_H, json })) add({ ...s, outFile: 'b5-llm-openai-responses.json' });
+import { anthropicScenarios } from './b5-llm-anthropic-scenarios.mjs';
+for (const s of anthropicScenarios({ sse, SSE_H, json })) add({ ...s, outFile: 'b5-llm-anthropic.json' });
 
 // ---------- run ----------
-const results = [];
+const results = {};
 for (const sc of scenarios) {
+  const file = sc.outFile ?? 'b5-llm.json';
+  if (only && only !== file) continue;
   queue = structuredClone(sc.responses);
   seen = [];
   const calls = [];
@@ -224,6 +232,7 @@ for (const sc of scenarios) {
     abortSignal: ac.signal,
     ...(sc.maxRetries !== undefined ? { maxRetries: sc.maxRetries } : {}),
     ...(sc.thinking ? { providerOptions: prov.opts && thinkingFor(sc.protocol, opts.id) } : {}),
+    ...(sc.providerOptions ? { providerOptions: sc.providerOptions } : {}),
     ...(sc.tools ? { tools: Object.fromEntries(sc.tools.map((t) => [t.name, ai.tool({ description: t.description, inputSchema: ai.jsonSchema(t.inputSchema) })])) } : {}),
     ...(sc.toolChoice ? { toolChoice: sc.toolChoice } : {}),
   };
@@ -242,7 +251,7 @@ for (const sc of scenarios) {
   }
   await new Promise((r) => setTimeout(r, 20));
   out.calls = calls.map((c, i) => ({ ...c, request: seen[i] }));
-  results.push(out);
+  (results[file] ??= []).push(out);
   console.log(sc.name, calls.length, 'calls');
 }
 function thinkingFor(protocol, id) {
@@ -251,5 +260,8 @@ function thinkingFor(protocol, id) {
   return { [id]: { reasoningEffort: 'medium' } };
 }
 server.close();
-writeFileSync(outFile, JSON.stringify({ node: process.version, ai: '7.0.136', scenarios: results }, null, 1) + '\n');
-console.log('wrote', results.length, 'scenarios →', outFile);
+for (const [file, rs] of Object.entries(results)) {
+  const outFile = join(outDir, file);
+  writeFileSync(outFile, JSON.stringify({ node: process.version, ai: '7.0.136', scenarios: rs }, null, 1) + '\n');
+  console.log('wrote', rs.length, 'scenarios →', outFile);
+}

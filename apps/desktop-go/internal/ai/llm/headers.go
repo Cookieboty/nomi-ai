@@ -15,8 +15,8 @@ const (
 // RuntimeUserAgent is getRuntimeEnvironmentUserAgent(): navigator.userAgent
 // lowercased ("node.js/<major>" on Node >= 21.1).
 // The Go binary has no Node; it reports the Node version the goldens were
-// recorded with (D-B5-P-2). Tests override it from the golden.
-var RuntimeUserAgent = "node.js/22"
+// ships with (Electron 2.0.x embeds Node 24; D-B5-P-3). Tests override it from the golden.
+var RuntimeUserAgent = "node.js/24"
 
 // CombineHeaders is provider-utils combineHeaders (object spread: exact-case
 // keys overwrite in place, new keys append, undefined overrides).
