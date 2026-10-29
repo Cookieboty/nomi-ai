@@ -243,6 +243,13 @@ Go 版**1:1 镜像** Node 版：模块边界、包/层结构、数据格式、�
 | D-B5-P-4 | 传输层头（host/connection/content-length/accept/accept-encoding/date 等）与响应头里的 `date` | net/http 与 undici 的传输层头不同，golden 两端同样过滤；APICallError.responseHeaders 里 Go 带 `date`（httptest 默认发），比对时按同一集合过滤 | 无语义差异 |
 | D-B5-P-5 | 不提供 Google provider；`provider` 类型工具 | 与 Node ai/runtime 一致：只有 openai-chat / openai-responses / anthropic 三种协议，Google 不移植；openai-compatible 对 provider-defined tool 只发 unsupported warning（同 SDK） | 无（跟随 Node 实现） |
 | D-B5-P-6 | openai-responses / anthropic 适配器 | **未完成**：本轮只交付 openai-compatible（openai-chat）；responses 与 anthropic 的 golden 场景和实现待续 | 选这两种协议的供应商暂不可用于 Go 运行时 |
+| D-B5-1 | ai `streamText` / `generateText` 运行时（`internal/ai/runtime/aisdk/engine.go`）+ AiSdkLlmProvider（`provider.go`） | 自写，不引入框架：prompt 转换、安全 JSON 解析、工具调用修复/NoSuchTool/InvalidToolInput、并行执行（按完成顺序发出 tool-result）、stepCountIs、重试（maxRetries=2、retry-after）、usage 累加、持久化消息（toResponseMessages）均按 dist 逐条移植。golden `scripts/parity/record-b5-aisdk.mjs` 25 场景 / 34 次模型调用 / 80 chunk / 13 次工具执行（`TestB5AiSdkParity`），变异检查（改 golden、改 toolOutputMax）即失败；-race ×10 稳定 | 无行为差异 |
+| D-B5-2 | 工具执行的启动顺序 | 并行工具在 Node 与 Go 中启动顺序都依赖调度；测试按多重集比对 execs，chunk 顺序（含结果完成顺序）逐字比对 | 无 |
+| D-B5-3 | 工具审批（needsApproval） | Node 的工具定义不设 needsApproval，故 Go 未实现审批分支 | 无（Node 不可达） |
+| D-B5-4 | 工具执行中 abort | 与 Node 录制一致：静默结束，无 error/done chunk | 无 |
+| D-B5-5 | 工具 `description` 空串 | Go `Definition.Description` 为 string，空串视同 undefined（Node 空串会作为 `description:""` 发出） | 现有工具均有非空描述 |
+| D-B5-6 | `getToolCallerTabId` 的 AsyncLocalStorage 兜底 | 未移植；callerTabId 只取 request.extra | 待 chat procs 接入时按调用链显式传递 |
+| D-B5-7 | **未完成**（本轮剩余） | registry/RoutedRegistry 与 main.go `GetRegistry` 接线、providers test/testDraft/fetchModels（D-B4d-3）、GatewayService 写操作（D-B4d-6）、chat 流式 procs/事件（替换 UNAVAILABLE）、memory episodes `privacy.RuleSpans`、D-B8-2/3/4 | 下一轮 |
 
 ### 3.5 一致性测试策略（golden，Node 与 Go 同输入对比输出）
 
