@@ -1069,7 +1069,7 @@
      "{\"partial\":"
     ]
    },
-   "timeoutMs": 400,
+   "timeoutMs": 2000,
    "outs": [
     "{\"kind\":\"transient\",\"reason\":\"timeout\"}"
    ],

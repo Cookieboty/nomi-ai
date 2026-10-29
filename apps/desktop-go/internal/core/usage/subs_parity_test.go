@@ -325,8 +325,9 @@ func (h *subsHarness) check(kind string, sc subsScenario, outs []string, logf st
 	if outs != nil && util.Stringify(outs) != util.Stringify(sc.Outs) {
 		t.Errorf("%s/%s outcome:\n go   %v\n node %v", kind, sc.Name, outs, sc.Outs)
 	}
-	h.checkLog(kind, sc, logf)
+	// 先等 mock 子进程退出（日志落盘）再比日志（与录制器 logAndLeft 顺序一致）
 	left := h.takeLeftovers()
+	h.checkLog(kind, sc, logf)
 	if runtime.GOOS == "windows" {
 		// Windows：Node 与 Go 都在 killTree 后立刻 rmSync，子进程句柄未释放时 EBUSY 被吞，
 		// 是否残留取决于时序（docs/design/migrate-2.0.5-go.md §3.4）；只校验残留都属于本 fetcher 的前缀。

@@ -138,6 +138,12 @@ const leftovers = async () => {
   return names.map((n) => n.slice(0, -6)).sort();
 };
 
+// 先等本场景 mock 子进程退出（日志落盘），再读日志、记录残留（顺序与 Go 回放一致）
+const logAndLeft = async (logf) => {
+  const left = await leftovers();
+  return { log: readLog(logf), left };
+};
+
 const baseEnv = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^(NO_COLOR|DISABLE_|MOCK_)/.test(k)));
 const env = (plan, logf) => ({ ...baseEnv, MOCK_PLAN: JSON.stringify(plan), MOCK_LOG: logf, MOCK_X: 'x1' });
 const id = (n, result) => `${JSON.stringify({ id: n, result })}\n`;
@@ -156,7 +162,7 @@ const claudeScenarios = [
   { name: 'no-limits', plan: { onStart: [cuEnv('Total cost:            $0.0000')], exit: 'start' } },
   { name: 'garbage', plan: { onStart: ['hello'], exit: 'start' } },
   { name: 'unsupported-twice', plan: { onStart: [cuEnv('Unknown skill: usage')], exit: 'start' }, twice: true },
-  { name: 'timeout', plan: { onStart: ['{"partial":'] }, timeoutMs: 400 },
+  { name: 'timeout', plan: { onStart: ['{"partial":'] }, timeoutMs: 2000 }, // Windows：.cmd 垫片 + node 启动可能超过 400ms，mock 未写日志就被杀
   { name: 'output-limit', plan: { big: 300_000 } },
   { name: 'enoent', bin: MISSING },
 ];
@@ -179,7 +185,7 @@ for (const sc of claudeScenarios) {
   await settle();
   const stdout = (sc.plan?.onStart ?? []).join('');
   if (sc.plan && sc.plan.exit === 'start') parses[stdout] = J(CP.parseClaudeUsageResult(stdout, NOW));
-  claude.push({ ...sc, outs, unsupported: f.isUnsupported(), log: readLog(logf), left: await leftovers() });
+  claude.push({ ...sc, outs, unsupported: f.isUnsupported(), ...(await logAndLeft(logf)) });
 }
 
 const initOk = id(1, { userAgent: 'codex' });
@@ -229,7 +235,7 @@ for (const sc of codexScenarios) {
   const o = await r.fetch();
   const out = J(o);
   await settle();
-  codex.push({ ...sc, outs: [out], planKind: planKind(o.reading), log: readLog(logf), left: await leftovers() });
+  codex.push({ ...sc, outs: [out], planKind: planKind(o.reading), ...(await logAndLeft(logf)) });
 }
 
 const gInit = id(1, { protocolVersion: 1 });
@@ -268,7 +274,7 @@ for (const sc of grokScenarios) {
   const outs = [J(await g.fetch())];
   if (sc.twice) outs.push(J(await g.fetch()));
   await settle();
-  grok.push({ ...sc, outs, log: readLog(logf), left: await leftovers() });
+  grok.push({ ...sc, outs, ...(await logAndLeft(logf)) });
 }
 // 录制器自身临时目录的清理：Windows 上 .cmd 垫片下的子进程树退出有延迟，句柄未释放时 rm 报 EPERM；
 // 清理与 golden 内容无关，重试后仍失败则留给系统临时目录回收。
