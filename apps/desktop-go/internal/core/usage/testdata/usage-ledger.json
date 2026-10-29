@@ -2048,7 +2048,7 @@
      "size"
     ],
     [
-     "settle"
+     "compactWait"
     ],
     [
      "lineCount"

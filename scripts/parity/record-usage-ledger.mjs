@@ -110,7 +110,7 @@ const scenarios = [
       ['ready'], ['isLoaded'], ['size'], ['get', 'k1'], ['get', 'k2'], ['cursorPaths'], ['persist'], ['flush'], ['compactWait'], ['file'], ['cursorsFile'],
     ] },
   { name: 'compaction-threshold', pre: Array.from({ length: 1500 }, (_, i) => JSON.stringify(R(`k${i % 100}`, T0 + (i % 100), { input: i }))).join('\n') + '\n',
-    ops: [['size'], ['settle'], ['lineCount'], ['upsert', R('k5', T0 + 5, { input: 99999 })], ['flush'], ['lineCount'], ['compactWait'], ['lineCount'], ['get', 'k5']] },
+    ops: [['size'], ['compactWait'], ['lineCount'], ['upsert', R('k5', T0 + 5, { input: 99999 })], ['flush'], ['lineCount'], ['compactWait'], ['lineCount'], ['get', 'k5']] },
   // JS 对象语义：键序、未知字段、类型不符的字段、重复键都原样保留 / 回写（逐字节比对文件）
   { name: 'js-object-semantics', pre: [
     `{"ts":${T0},"key":"a","zeta":1,"source":"claude","via":"log","model":"m","input":1,"output":2,"cacheRead":0,"cacheWrite":10,"nested":{"b":1,"a":[1,2.5,"x"]}}`,
