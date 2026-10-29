@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strconv"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop/jsjson"
 	"sync"
 	"time"
@@ -21,7 +22,7 @@ import (
 	tr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 )
 
-// Reminder 一条提醒（JSON 键序固定，见 D-B6-6）
+// Reminder 一条提醒（新建的按 Node 字段顺序；从磁盘读来的保留原键序与未知字段）
 type Reminder struct {
 	ID        string   `json:"id"`
 	Text      string   `json:"text"`
@@ -34,6 +35,19 @@ type Reminder struct {
 	Repeat    *Repeat  `json:"repeat,omitempty"`
 	AnchorAt  *float64 `json:"anchorAt,omitempty"`
 	FireCount *int     `json:"fireCount,omitempty"`
+	// raw/loaded：磁盘上的原对象和加载时的已知字段，写回时保留未知字段与键序（同 Node {...r}）
+	raw    *deps.OrderedObject
+	loaded []byte
+}
+
+type reminderJSON Reminder
+
+func (r Reminder) MarshalJSON() ([]byte, error) {
+	cur, err := json.Marshal(reminderJSON(r))
+	if err != nil || r.raw == nil {
+		return cur, err
+	}
+	return deps.OverlayKnown(r.raw, r.loaded, cur)
 }
 
 func (r Reminder) clone() Reminder {
@@ -125,6 +139,18 @@ func (s *Store) read() []*Reminder {
 		var r Reminder
 		_ = json.Unmarshal(clean, &r)
 		r.Repeat = SanitizeRepeat(rp)
+		if v, err := deps.ParseJSONOrdered(x); err == nil {
+			if o, ok := v.(*deps.OrderedObject); ok {
+				// {...r, repeat: sanitizeRepeat(r.repeat)}
+				if r.Repeat != nil {
+					o.Set("repeat", r.Repeat)
+				} else {
+					o.Delete("repeat")
+				}
+				r.raw = o
+				r.loaded, _ = json.Marshal(reminderJSON(r))
+			}
+		}
 		out = append(out, &r)
 	}
 	return out

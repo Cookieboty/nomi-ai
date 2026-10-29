@@ -1,12 +1,14 @@
 package desktop
 
 import (
+	"encoding/json"
 	"errors"
 	"io/fs"
 	"regexp"
 	"slices"
 	"strings"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
 	tr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 )
 
@@ -22,6 +24,23 @@ type Scope struct {
 	Kind      string  `json:"kind"`
 	GrantedAt float64 `json:"grantedAt"`
 	Session   bool    `json:"session,omitempty"`
+	// raw：从 settings.json 读到的原对象（未知字段、键序、原始类型原样保留，同 Node 直接沿用解析结果）
+	raw       *deps.OrderedObject
+	modeDirty bool
+}
+
+type scopeJSON Scope
+
+func (s Scope) MarshalJSON() ([]byte, error) {
+	if s.raw == nil {
+		return json.Marshal(scopeJSON(s))
+	}
+	o := s.raw
+	if s.modeDirty {
+		o = o.Clone()
+		o.Set("mode", s.Mode)
+	}
+	return deps.Stringify(o, "")
 }
 
 // GuardResult：ok 时 Real/Scope/Exists 有效，否则 Code/Message

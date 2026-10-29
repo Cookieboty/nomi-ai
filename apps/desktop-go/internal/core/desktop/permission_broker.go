@@ -3,6 +3,7 @@ package desktop
 import (
 	"context"
 	"encoding/json"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -121,6 +122,9 @@ func (b *PermissionBroker) load() {
 		}
 		var sc Scope
 		_ = json.Unmarshal(s, &sc)
+		if v, err := deps.ParseJSONOrdered(s); err == nil {
+			sc.raw, _ = v.(*deps.OrderedObject)
+		}
 		b.persisted = append(b.persisted, &sc)
 	}
 	if m, err := ParseOMap(r.Policies); err == nil {
@@ -202,7 +206,7 @@ func (b *PermissionBroker) Grant(p, mode, kind string, session bool) Scope {
 		if s.Path == p && s.Kind == kind {
 			changed := false
 			if mode == "read-write" && s.Mode != "read-write" {
-				s.Mode = "read-write"
+				s.Mode, s.modeDirty = "read-write", true
 				if !s.Session {
 					b.saveLocked()
 					changed = true
