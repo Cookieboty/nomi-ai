@@ -545,3 +545,24 @@ func (f *Facade) avatarReport(in any) (any, error) {
 	f.o.Emit(ev, d)
 	return Undef, nil
 }
+
+// AvatarGesture / AvatarEmotion：AvatarService.gesture / emotion（CompanionToolsPlugin 工具执行体用）
+func (f *Facade) AvatarGesture(name string) error {
+	_, err := avatarCue("gesture", charcontract.SemanticGestures)(f, u.NewObj("name", name))
+	return err
+}
+
+func (f *Facade) AvatarEmotion(name string, weight *float64) error {
+	in := u.NewObj("name", name)
+	if weight != nil {
+		in.Set("weight", *weight)
+	}
+	_, err := f.avatarEmotion(in)
+	return err
+}
+
+// Profile：UserProfileKey 实例（nil = 未装）
+func (f *Facade) Profile() *ProfileStore { return f.o.Profile }
+
+// ToolsList = ai.tools.list（igtools parity 回放 ToolSpec 用）
+func (f *Facade) ToolsList() (any, error) { return f.toolsList(nil) }
