@@ -5,9 +5,12 @@ package mascothandlers
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"math"
+	"math/rand"
 	"runtime"
 	"sync"
+	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/character"
@@ -35,13 +38,14 @@ type Deps struct {
 
 func bad(err error) error { return &contract.Error{Code: "BAD_INPUT", Message: err.Error()} }
 
-// Controller = MascotWindowController 的缩放 + 拖拽部分（物理 / 散步 / 点击穿透见 D-B10-3）
+// Controller 持有看板娘窗口的 mascot.Controller（= WindowManager.mascotController）：窗口建好时新建并 start，
+// 关闭时 dispose；重建窗口（rive → svg）同样换一个新控制器，与 Electron 新窗口一致。
 type Controller struct {
 	mu    sync.Mutex
 	d     Deps
-	scale float64
-	box   *mascot.MascotBox
-	drag  *struct{ dx, dy float64 }
+	ctl   *mascot.Controller
+	saveT *time.Timer
+	t0    time.Time
 }
 
 // SetRenderer 写 mascot.renderer 并广播；rive → svg 时重建看板娘窗口，让 Rive 占的内存随旧 WebView 进程一起释放
@@ -53,18 +57,22 @@ func (c *Controller) SetRenderer(next string) (string, error) {
 	}
 	c.d.Router.Emit("mascot.rendererChanged", next)
 	if prev == "rive" && next == "svg" {
-		if g, _, ok := c.geom(); ok {
+		if g := c.geomOnly(); g != nil {
 			go g.Recreate(shell.Mascot)
 		}
 	}
 	return next, nil
 }
 
-func (c *Controller) geom() (shell.Geometry, shell.Rect, bool) {
+func (c *Controller) geomOnly() shell.Geometry {
 	if c.d.Geometry == nil {
-		return nil, shell.Rect{}, false
+		return nil
 	}
-	g := c.d.Geometry()
+	return c.d.Geometry()
+}
+
+func (c *Controller) geom() (shell.Geometry, shell.Rect, bool) {
+	g := c.geomOnly()
 	if g == nil {
 		return nil, shell.Rect{}, false
 	}
@@ -72,95 +80,229 @@ func (c *Controller) geom() (shell.Geometry, shell.Rect, bool) {
 	return g, b, ok
 }
 
-func (c *Controller) workAreas(g shell.Geometry) []mascot.AreaRect {
-	var out []mascot.AreaRect
-	for _, a := range g.WorkAreas() {
-		sf := a.ScaleFactor
-		out = append(out, mascot.AreaRect{X: float64(a.X), Y: float64(a.Y), Width: float64(a.Width), Height: float64(a.Height), ScaleFactor: &sf})
-	}
-	return out
+func (c *Controller) wc() shell.WindowControl {
+	wc, _ := c.geomOnly().(shell.WindowControl)
+	return wc
 }
 
-func areaUnder(areas []mascot.AreaRect, x float64) *mascot.AreaRect {
-	if len(areas) == 0 {
-		return nil
+// current 返回当前控制器（窗口没建好时 nil）
+func (c *Controller) current() *mascot.Controller {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.ctl
+}
+
+// WindowEvent 接外壳窗口生命周期（wailsshell.Config.OnWindow）
+func (c *Controller) WindowEvent(k shell.WindowKind, event string) {
+	if k != shell.Mascot {
+		return
 	}
-	best, bd := areas[0], math.Inf(1)
-	for _, a := range areas {
-		if x >= a.X && x < a.X+a.Width {
-			return &a
+	c.mu.Lock()
+	cur := c.ctl
+	switch event {
+	case "created":
+		c.ctl = mascot.NewController(&winAdapter{c}, &hostAdapter{c}, rand.Float64, c.hooks(), Platform())
+		next := c.ctl
+		c.mu.Unlock()
+		if cur != nil {
+			cur.Dispose()
 		}
-		d := math.Min(math.Abs(a.X-x), math.Abs(x-(a.X+a.Width)))
-		if d < bd {
-			best, bd = a, d
+		next.Start()
+		return
+	case "closed":
+		c.ctl = nil
+	}
+	c.mu.Unlock()
+	if cur == nil {
+		return
+	}
+	switch event {
+	case "closed":
+		cur.Dispose()
+	case "shown":
+		cur.Wake()
+	}
+}
+
+// watchDisplays：Wails 没有跨平台的 display-metrics-changed，轮询工作区变化
+func (c *Controller) watchDisplays() {
+	var last string
+	for range time.Tick(2 * time.Second) {
+		g := c.geomOnly()
+		if g == nil {
+			continue
 		}
-	}
-	return &best
-}
-
-func (c *Controller) capNow() float64 {
-	g, b, ok := c.geom()
-	if !ok {
-		return mascot.MaxScaleForArea(nil)
-	}
-	cx := float64(b.X) + float64(b.Width)/2
-	if c.box != nil {
-		cx = float64(b.X) + (c.box.Left+c.box.Right)/2
-	}
-	return mascot.MaxScaleForArea(areaUnder(c.workAreas(g), cx))
-}
-
-func (c *Controller) state() mascot.ScaleState {
-	_, b, ok := c.geom()
-	w := mascot.Size{}
-	if ok {
-		w = mascot.Size{Width: float64(b.Width), Height: float64(b.Height)}
-	}
-	return mascot.ScaleState{Scale: c.scale, Min: mascot.MinMascotScale, Max: c.capNow(), HardMax: mascot.MaxMascotScale,
-		Default: mascot.DefaultMascotScale, Step: mascot.MascotScaleStep, Window: w}
-}
-
-func (c *Controller) setScale(raw float64) mascot.ScaleState {
-	target := mascot.FitMascotScale(raw, c.capNow())
-	g, b, ok := c.geom()
-	if ok && target != c.scale {
-		nb := mascot.ResizeMascotBounds(mascot.ResizeInput{
-			Bounds:    mascot.MascotBounds{X: float64(b.X), Y: float64(b.Y), Width: float64(b.Width), Height: float64(b.Height)},
-			FromScale: c.scale, ToScale: target, Box: c.box, WorkAreas: c.workAreas(g),
-		})
-		g.SetBounds(shell.Mascot, shell.Rect{X: int(nb.X), Y: int(nb.Y), Width: int(nb.Width), Height: int(nb.Height)})
-		if c.box != nil {
-			r := target / c.scale
-			k := func(v, pad, max float64) float64 { return math.Max(0, math.Min(max, pad+(v-pad)*r)) }
-			c.box = &mascot.MascotBox{Left: k(c.box.Left, mascot.MascotPad.X, nb.Width), Right: k(c.box.Right, mascot.MascotPad.X, nb.Width),
-				Top: k(c.box.Top, mascot.MascotPad.Top, nb.Height), Bottom: k(c.box.Bottom, mascot.MascotPad.Top, nb.Height)}
+		b, _ := json.Marshal(g.WorkAreas())
+		if k := string(b); k != last {
+			if last != "" {
+				if ctl := c.current(); ctl != nil {
+					ctl.DisplaysChanged()
+				}
+			}
+			last = k
 		}
 	}
-	if ok || target != c.scale {
-		c.scale = target
+}
+
+func (c *Controller) hooks() *mascot.ScaleHooks {
+	return &mascot.ScaleHooks{
+		Get: func() float64 { return c.d.Config.GetConfig().MascotScale },
+		Save: func(scale float64) {
+			_ = c.d.Config.UpdateConfig(map[string]any{"mascotScale": scale})
+			c.mu.Lock()
+			defer c.mu.Unlock()
+			if c.saveT != nil {
+				c.saveT.Stop()
+			}
+			c.saveT = time.AfterFunc(400*time.Millisecond, func() {
+				if _, b, ok := c.geom(); ok {
+					_ = c.d.Config.UpdateConfig(map[string]any{"windowPosition": map[string]any{"x": b.X, "y": b.Y}})
+				}
+			})
+		},
 	}
-	st := c.state()
-	_ = c.d.Config.UpdateConfig(map[string]any{"mascotScale": target})
-	c.d.Router.Emit("mascot.scaleChanged", st)
-	return st
 }
 
 // WindowSize 返回按保存缩放算出的看板娘窗口大小（外壳建窗口时用）
 func (c *Controller) WindowSize() (int, int) {
-	s := mascot.MascotWindowSize(c.scale)
+	s := mascot.MascotWindowSize(mascot.FitMascotScale(c.d.Config.GetConfig().MascotScale, mascot.MaxMascotScale))
 	return int(s.Width), int(s.Height)
+}
+
+// winAdapter = BrowserWindow（看板娘窗口）；窗口不存在即 isDestroyed
+type winAdapter struct{ c *Controller }
+
+func (w *winAdapter) IsDestroyed() bool { _, _, ok := w.c.geom(); return !ok }
+func (w *winAdapter) GetPosition() (int, int) {
+	_, b, _ := w.c.geom()
+	return b.X, b.Y
+}
+func (w *winAdapter) GetSize() (int, int) {
+	_, b, _ := w.c.geom()
+	return b.Width, b.Height
+}
+func (w *winAdapter) GetBounds() mascot.IRect {
+	_, b, _ := w.c.geom()
+	return mascot.IRect{X: b.X, Y: b.Y, Width: b.Width, Height: b.Height}
+}
+func (w *winAdapter) SetBounds(r mascot.IRect) {
+	if g := w.c.geomOnly(); g != nil {
+		g.SetBounds(shell.Mascot, shell.Rect{X: r.X, Y: r.Y, Width: r.Width, Height: r.Height})
+	}
+}
+func (w *winAdapter) SetPosition(x, y int) {
+	if wc := w.c.wc(); wc != nil {
+		wc.SetPosition(shell.Mascot, x, y)
+	}
+}
+func (w *winAdapter) IsResizable() bool {
+	if wc := w.c.wc(); wc != nil {
+		return wc.Resizable(shell.Mascot)
+	}
+	return false
+}
+func (w *winAdapter) SetResizable(b bool) {
+	if wc := w.c.wc(); wc != nil {
+		wc.SetResizable(shell.Mascot, b)
+	}
+}
+func (w *winAdapter) IsVisible() bool {
+	if wc := w.c.wc(); wc != nil {
+		v, _ := wc.Shown(shell.Mascot)
+		return v
+	}
+	return false
+}
+func (w *winAdapter) IsMinimized() bool {
+	if wc := w.c.wc(); wc != nil {
+		_, m := wc.Shown(shell.Mascot)
+		return m
+	}
+	return false
+}
+func (w *winAdapter) SetIgnoreMouseEvents(ignore bool) {
+	if wc := w.c.wc(); wc != nil {
+		wc.SetIgnoreMouse(shell.Mascot, ignore)
+	}
+}
+func (w *winAdapter) SetShape(rects []mascot.IRect) {
+	if wc := w.c.wc(); wc != nil {
+		out := make([]shell.Rect, len(rects))
+		for i, r := range rects {
+			out[i] = shell.Rect{X: r.X, Y: r.Y, Width: r.Width, Height: r.Height}
+		}
+		wc.SetInputShape(shell.Mascot, out)
+	}
+}
+
+// hostAdapter = performance.now / setTimeout / screen / 事件总线 / logger
+type hostAdapter struct{ c *Controller }
+
+func (h *hostAdapter) Now() float64 { return float64(time.Since(h.c.t0).Nanoseconds()) / 1e6 }
+func (h *hostAdapter) After(ms float64, f func()) func() {
+	t := time.AfterFunc(time.Duration(ms*float64(time.Millisecond)), f)
+	return func() { t.Stop() }
+}
+func (h *hostAdapter) Cursor() (float64, float64) {
+	if wc := h.c.wc(); wc != nil {
+		x, y := wc.CursorPosition()
+		return float64(x), float64(y)
+	}
+	return 0, 0
+}
+func (h *hostAdapter) Displays() []mascot.Rect {
+	g := h.c.geomOnly()
+	if g == nil {
+		return nil
+	}
+	var out []mascot.Rect
+	for _, a := range g.WorkAreas() {
+		sf := a.ScaleFactor
+		out = append(out, mascot.Rect{X: float64(a.X), Y: float64(a.Y), Width: float64(a.Width), Height: float64(a.Height), ScaleFactor: &sf})
+	}
+	return out
+}
+func (h *hostAdapter) Publish(ch string, payload any) { h.c.d.Router.Emit(ch, payload) }
+func (h *hostAdapter) Info(msg string, data any)      { log.Printf("[mascot] %s %v", msg, data) }
+func (h *hostAdapter) Warn(msg string, data any)      { log.Printf("[mascot] warn %s %v", msg, data) }
+
+func unavailable() error {
+	return &contract.Error{Code: "UNAVAILABLE", Message: "Service 'mascotController' is not available"}
 }
 
 func Install(d Deps) *Controller {
 	r := d.Router
-	c := &Controller{d: d, scale: mascot.FitMascotScale(d.Config.GetConfig().MascotScale, mascot.MaxMascotScale)}
-	lock := func(f func() (any, error)) (any, error) {
-		c.mu.Lock()
-		defer c.mu.Unlock()
-		return f()
-	}
+	c := &Controller{d: d, t0: time.Now()}
+	go c.watchDisplays()
 	call := func(name string, f func(raw json.RawMessage) (any, error)) {
 		r.Call(name, func(_ context.Context, _ contract.Caller, raw json.RawMessage) (any, error) { return f(raw) })
+	}
+	obj := func(raw json.RawMessage) map[string]any {
+		var m map[string]any
+		_ = json.Unmarshal(raw, &m)
+		if m == nil {
+			m = map[string]any{}
+		}
+		return m
+	}
+	// 上报：控制器不在就丢弃
+	report := func(name string, f func(ctl *mascot.Controller, in map[string]any)) {
+		call(name, func(raw json.RawMessage) (any, error) {
+			if ctl := c.current(); ctl != nil {
+				f(ctl, obj(raw))
+			}
+			return nil, nil
+		})
+	}
+	// 需要控制器：不在就 UNAVAILABLE（need(...)）
+	need := func(name string, f func(ctl *mascot.Controller, in map[string]any) any) {
+		call(name, func(raw json.RawMessage) (any, error) {
+			ctl := c.current()
+			if ctl == nil {
+				return nil, unavailable()
+			}
+			return f(ctl, obj(raw)), nil
+		})
 	}
 
 	// —— 渲染器设置（§5）
@@ -179,93 +321,39 @@ func Install(d Deps) *Controller {
 		return c.SetRenderer(next)
 	})
 
-	// —— 大小
-	call("mascot.scaleGet", func(json.RawMessage) (any, error) { return lock(func() (any, error) { return c.state(), nil }) })
-	call("mascot.scaleSet", func(raw json.RawMessage) (any, error) {
-		var in struct {
-			Scale *float64 `json:"scale"`
-		}
-		_ = json.Unmarshal(raw, &in)
-		return lock(func() (any, error) {
-			if in.Scale == nil || math.IsNaN(*in.Scale) || math.IsInf(*in.Scale, 0) {
-				return c.state(), nil
-			}
-			return c.setScale(*in.Scale), nil
-		})
-	})
-	call("mascot.scaleStep", func(raw json.RawMessage) (any, error) {
-		var in struct {
-			Dir float64 `json:"dir"`
-		}
-		_ = json.Unmarshal(raw, &in)
-		dir := 1
-		if in.Dir == -1 {
-			dir = -1
-		}
-		return lock(func() (any, error) { return c.setScale(mascot.StepMascotScale(c.scale, dir, c.capNow())), nil })
-	})
-	call("mascot.scaleWheel", func(raw json.RawMessage) (any, error) {
-		var in struct {
-			DeltaY    *float64 `json:"deltaY"`
-			DeltaMode float64  `json:"deltaMode"`
-		}
-		_ = json.Unmarshal(raw, &in)
-		return lock(func() (any, error) {
-			if in.DeltaY == nil {
-				return c.state(), nil
-			}
-			return c.setScale(mascot.WheelMascotScale(c.scale, *in.DeltaY, in.DeltaMode, c.capNow())), nil
-		})
-	})
-	call("mascot.scaleReset", func(json.RawMessage) (any, error) {
-		return lock(func() (any, error) { return c.setScale(mascot.DefaultMascotScale), nil })
-	})
-
-	// —— 几何 / 拖拽（形状、命中、互动设置、散步：接收但不处理，D-B10-3）
+	// —— 看板娘窗口互动
+	report("mascot.setShape", func(m *mascot.Controller, in map[string]any) { m.ReportShape(in["rects"]) })
+	report("mascot.setHit", func(m *mascot.Controller, in map[string]any) { m.ReportHit(in["hit"]) })
 	call("mascot.setGeometry", func(raw json.RawMessage) (any, error) {
-		var b mascot.MascotBox
-		if json.Unmarshal(raw, &b) == nil && !(b.Left == 0 && b.Right == 0 && b.Top == 0 && b.Bottom == 0) {
-			c.mu.Lock()
-			c.box = &b
-			c.mu.Unlock()
+		if ctl := c.current(); ctl != nil {
+			var box any
+			_ = json.Unmarshal(raw, &box)
+			ctl.ReportGeometry(box)
 		}
 		return nil, nil
 	})
-	for _, n := range []string{"mascot.setShape", "mascot.setHit", "mascot.setInteractionConfig", "mascot.wanderNow"} {
-		call(n, func(json.RawMessage) (any, error) { return nil, nil })
-	}
-	call("mascot.dragStart", func(raw json.RawMessage) (any, error) {
-		var in struct{ ScreenX, ScreenY *float64 }
-		_ = json.Unmarshal(raw, &in)
-		c.mu.Lock()
-		defer c.mu.Unlock()
-		_, b, ok := c.geom()
-		if !ok || in.ScreenX == nil || in.ScreenY == nil {
-			return nil, nil
+	report("mascot.dragStart", func(m *mascot.Controller, in map[string]any) { m.BeginDrag(in["screenX"], in["screenY"]) })
+	report("mascot.dragMove", func(m *mascot.Controller, in map[string]any) { m.MoveDrag(in["screenX"], in["screenY"]) })
+	report("mascot.dragEnd", func(m *mascot.Controller, _ map[string]any) { m.EndDrag() })
+	call("mascot.setInteractionConfig", func(raw json.RawMessage) (any, error) {
+		if ctl := c.current(); ctl != nil {
+			var cfg any
+			_ = json.Unmarshal(raw, &cfg)
+			ctl.SetConfig(cfg)
 		}
-		c.drag = &struct{ dx, dy float64 }{*in.ScreenX - float64(b.X), *in.ScreenY - float64(b.Y)}
 		return nil, nil
 	})
-	call("mascot.dragMove", func(raw json.RawMessage) (any, error) {
-		var in struct{ ScreenX, ScreenY float64 }
-		if err := json.Unmarshal(raw, &in); err != nil {
-			return nil, bad(err)
-		}
-		c.mu.Lock()
-		defer c.mu.Unlock()
-		g, b, ok := c.geom()
-		if !ok || c.drag == nil {
-			return nil, nil
-		}
-		g.SetBounds(shell.Mascot, shell.Rect{X: int(math.Round(in.ScreenX - c.drag.dx)), Y: int(math.Round(in.ScreenY - c.drag.dy)), Width: b.Width, Height: b.Height})
-		return nil, nil
+	report("mascot.wanderNow", func(m *mascot.Controller, _ map[string]any) { m.WanderNow() })
+	need("mascot.debugSnapshot", func(m *mascot.Controller, _ map[string]any) any { return m.Snapshot() })
+
+	// —— 看板娘大小
+	need("mascot.scaleGet", func(m *mascot.Controller, _ map[string]any) any { return m.ScaleState() })
+	need("mascot.scaleSet", func(m *mascot.Controller, in map[string]any) any { return m.ScaleSet(in["scale"]) })
+	need("mascot.scaleStep", func(m *mascot.Controller, in map[string]any) any { return m.ScaleStep(in["dir"]) })
+	need("mascot.scaleWheel", func(m *mascot.Controller, in map[string]any) any {
+		return m.ScaleWheel(in["deltaY"], in["deltaMode"])
 	})
-	call("mascot.dragEnd", func(json.RawMessage) (any, error) {
-		c.mu.Lock()
-		c.drag = nil
-		c.mu.Unlock()
-		return nil, nil
-	})
+	need("mascot.scaleReset", func(m *mascot.Controller, _ map[string]any) any { return m.ScaleReset() })
 
 	// —— 模型名（config.modelName）
 	call("mascot.saveModel", func(raw json.RawMessage) (any, error) {
@@ -311,7 +399,15 @@ func Install(d Deps) *Controller {
 		if d.OpenChat != nil {
 			d.OpenChat()
 		}
-		return nil, nil
+		return map[string]any{"success": true}, nil
+	})
+	// = openProviderPanel('nav.scheduleRequested')
+	call("window.openTaskBoard", func(json.RawMessage) (any, error) {
+		if d.OpenChat != nil {
+			d.OpenChat()
+		}
+		r.Emit("nav.scheduleRequested", map[string]any{})
+		return map[string]any{"success": true}, nil
 	})
 	call("window.setAlwaysOnTop", func(raw json.RawMessage) (any, error) {
 		var in struct {
@@ -320,7 +416,7 @@ func Install(d Deps) *Controller {
 		if err := json.Unmarshal(raw, &in); err != nil {
 			return nil, bad(err)
 		}
-		if g, _, ok := c.geom(); ok {
+		if g := c.geomOnly(); g != nil {
 			g.SetAlwaysOnTop(shell.Mascot, in.Flag)
 		}
 		return nil, nil
@@ -331,25 +427,44 @@ func Install(d Deps) *Controller {
 	})
 	call("window.setPosition", func(raw json.RawMessage) (any, error) {
 		var in struct{ X, Y float64 }
-		if err := json.Unmarshal(raw, &in); err != nil {
-			return nil, bad(err)
-		}
-		if g, b, ok := c.geom(); ok {
-			g.SetBounds(shell.Mascot, shell.Rect{X: int(in.X), Y: int(in.Y), Width: b.Width, Height: b.Height})
+		_ = json.Unmarshal(raw, &in)
+		if wc := c.wc(); wc != nil {
+			if _, _, ok := c.geom(); ok {
+				wc.SetPosition(shell.Mascot, jsRound(in.X), jsRound(in.Y))
+			}
 		}
 		return nil, nil
 	})
 	call("window.move", func(raw json.RawMessage) (any, error) {
 		var in struct{ DeltaX, DeltaY float64 }
-		if err := json.Unmarshal(raw, &in); err != nil {
-			return nil, bad(err)
+		_ = json.Unmarshal(raw, &in)
+		dx, dy := jsRound(in.DeltaX), jsRound(in.DeltaY)
+		if dx == 0 && dy == 0 {
+			return nil, nil
 		}
-		if g, b, ok := c.geom(); ok {
-			g.SetBounds(shell.Mascot, shell.Rect{X: b.X + int(in.DeltaX), Y: b.Y + int(in.DeltaY), Width: b.Width, Height: b.Height})
+		if wc := c.wc(); wc != nil {
+			if _, b, ok := c.geom(); ok {
+				wc.SetPosition(shell.Mascot, b.X+dx, b.Y+dy)
+			}
 		}
 		return nil, nil
 	})
+	call("window.getCursorPosition", func(json.RawMessage) (any, error) {
+		x, y := 0, 0
+		if wc := c.wc(); wc != nil {
+			x, y = wc.CursorPosition()
+		}
+		return map[string]int{"x": x, "y": y}, nil
+	})
 	return c
+}
+
+// jsRound = Math.round（.5 向 +∞）；NaN → 0（Number(x) || 0）
+func jsRound(v float64) int {
+	if math.IsNaN(v) || math.IsInf(v, 0) {
+		return 0
+	}
+	return int(math.Floor(v + 0.5))
 }
 
 // Platform = process.platform（windows → win32）

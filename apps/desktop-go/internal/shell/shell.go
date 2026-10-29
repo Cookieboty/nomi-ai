@@ -42,3 +42,18 @@ type Geometry interface {
 	// 用于 Rive → SVG：WebKit/WebView2 不会把 Rive 的 wasm/WebGL 内存还给系统，只能换进程。
 	Recreate(k WindowKind)
 }
+
+// WindowControl：MascotWindowController 需要的其余窗口能力（对应 BrowserWindow 的同名方法）
+type WindowControl interface {
+	Resizable(k WindowKind) bool
+	SetResizable(k WindowKind, on bool)
+	SetPosition(k WindowKind, x, y int)
+	// Shown = isVisible && !isMinimized
+	Shown(k WindowKind) (visible, minimized bool)
+	// SetIgnoreMouse = setIgnoreMouseEvents（ignore 时 forward；渲染进程靠 mascot.cursor 做命中，不依赖转发）
+	SetIgnoreMouse(k WindowKind, ignore bool)
+	// SetInputShape = setShape（Linux：可交互区域；其它平台不调用）
+	SetInputShape(k WindowKind, rects []Rect)
+	// CursorPosition = screen.getCursorScreenPoint（DIP）
+	CursorPosition() (x, y int)
+}
