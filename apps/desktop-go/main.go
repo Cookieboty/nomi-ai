@@ -362,6 +362,8 @@ func main() {
 	shellP := installShellProcs(router, userData, &sh, gatewaySvc)
 	defer shellP.Diagnostics.CliTrace.FlushSync()
 	defer shellP.Quality.Dispose()
+	gatewayRequests := wireGatewayRequests(userData, shellP)
+	defer gatewayRequests.Dispose()
 	cliPlugins, disposeHarness := wireHarness(router, userData, home, ports, gatewaySvc, shellP.Quality)
 	wireCoding(router, userData, cliPlugins, desktopSvc, gatewaySvc)
 	defer wireAgents(router, userData, desktopSvc)()
