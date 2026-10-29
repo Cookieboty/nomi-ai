@@ -132,7 +132,7 @@ const rmQuiet = (p) => {
 // 名字无关，同前缀按次数重复），随后删掉，避免残留累积到后续场景。
 // Windows：产品代码在 killTree 后立刻 rmSync，子进程句柄未释放时 EBUSY 被吞，目录是否残留取决于时序（Node 与 Go 同）。
 const leftovers = async () => {
-  await waitChildrenExit(L, 5_000);
+  await waitChildrenExit(L, 2_000);
   const names = fs.readdirSync(T).sort();
   for (const n of names) rmQuiet(path.join(T, n));
   return names.map((n) => n.slice(0, -6)).sort();

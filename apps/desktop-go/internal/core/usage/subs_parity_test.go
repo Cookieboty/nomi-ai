@@ -352,7 +352,7 @@ var subsTmpPrefix = map[string]string{
 
 // takeLeftovers = 录制器 leftovers()：等/杀 mock 子进程，按前缀（去掉 6 位随机后缀）记录本场景残留后删掉。
 func (h *subsHarness) takeLeftovers() []string {
-	waitMockChildrenExit(h.t, h.logs, 5*time.Second)
+	waitMockChildrenExit(h.t, h.logs, 2*time.Second)
 	ents, _ := os.ReadDir(h.tmp)
 	left := []string{}
 	for _, e := range ents {

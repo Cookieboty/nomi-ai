@@ -47,7 +47,7 @@ const rmQuiet = (p) => {
   } catch {}
 };
 const leftovers = async () => {
-  await waitChildrenExit(L, 5_000);
+  await waitChildrenExit(L, 2_000);
   const names = fs.readdirSync(T).sort();
   for (const n of names) rmQuiet(path.join(T, n));
   return names.map((n) => n.slice(0, -6)).sort();
