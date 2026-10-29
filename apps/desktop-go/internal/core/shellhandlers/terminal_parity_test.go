@@ -87,7 +87,8 @@ func fileTree(dir string) map[string]any {
 			rel, _ := filepath.Rel(dir, f)
 			rel = filepath.ToSlash(rel)
 			switch {
-			case e.Type()&os.ModeSymlink != 0:
+			// Windows 上 Go 把目录 junction 报为 ModeIrregular（Node 的 symlink(..., 'junction')）
+			case e.Type()&(os.ModeSymlink|os.ModeIrregular) != 0:
 				l, _ := os.Readlink(f)
 				out[rel] = map[string]any{"link": l}
 			case e.IsDir():
