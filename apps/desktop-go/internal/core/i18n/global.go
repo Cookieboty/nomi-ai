@@ -1,38 +1,59 @@
-// Package tr 是桌面能力用到的 `t(key, ...args)`（packages/core/src/i18n 的 t + @nomi-ai/i18n createTranslator / format）。
-//
-// 词典是 packages/i18n/src/locales/{en,zh}/electron/common.json 的原样副本（tr_test.go 校验一致）。
-// 批次 8 的 core/i18n 翻译器合入后改为直接调用它（见 docs/design/migrate-2.0.5-go.md D-B6-1）。
-package tr
+package i18n
+
+// 包级 t()：packages/core/src/i18n 的 t + @nomi-ai/i18n createTranslator（DICTIONARIES 全部命名空间，
+// 按 catalog.ts 的 Object.assign 顺序合并）。词典是 packages/i18n/src/locales 的原样副本（dict_test.go 校验）。
 
 import (
-	_ "embed"
+	"embed"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"math"
 	"os"
-	"regexp"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 )
 
-//go:embed locales/en/common.json
-var enRaw []byte
+//go:embed locales
+var localesFS embed.FS
 
-//go:embed locales/zh/common.json
-var zhRaw []byte
-
-var dicts = func() map[string]map[string]string {
+// dicts：getDictionary(language)：Object.assign(null 原型, ...Object.values(DICTIONARIES[lang]))，只保留字符串值
+var dicts = sync.OnceValue(func() map[string]map[string]string {
 	out := map[string]map[string]string{}
-	for lang, raw := range map[string][]byte{"en": enRaw, "zh": zhRaw} {
+	for _, lang := range []string{"en", "zh"} {
+		files := []string{}
+		_ = fs.WalkDir(localesFS, "locales/"+lang, func(p string, d fs.DirEntry, err error) error {
+			if err == nil && !d.IsDir() && strings.HasSuffix(p, ".json") {
+				files = append(files, p)
+			}
+			return nil
+		})
+		sort.Strings(files) // catalog.ts 的顺序：ai-runtime/*, electron/*, ui/*（字母序）
 		m := map[string]string{}
-		if err := json.Unmarshal(raw, &m); err != nil {
-			panic(err)
+		for _, f := range files {
+			raw, _ := localesFS.ReadFile(f)
+			var o map[string]any
+			if err := json.Unmarshal(raw, &o); err != nil {
+				panic(f + ": " + err.Error())
+			}
+			for k, v := range o {
+				if s, ok := v.(string); ok {
+					m[k] = s
+				} else {
+					delete(m, k)
+				}
+			}
 		}
 		out[lang] = m
 	}
 	return out
-}()
+})
+
+// Dictionary：getDictionary(language)
+func Dictionary(lang string) map[string]string { return dicts()[lang] }
 
 var current atomic.Pointer[func() string]
 
@@ -77,11 +98,9 @@ func lookup(d map[string]string, k string) string {
 	return k
 }
 
-var placeholder = regexp.MustCompile(`\{(\w+)\}`)
-
 // T 翻译 key 并按 {0} / {name} 替换参数；字符串参数也按 key 查一次
 func T(key string, args ...any) string {
-	d := dicts[language()]
+	d := dicts()[language()]
 	out := lookup(d, key)
 	tr := make([]any, len(args))
 	for i, a := range args {
@@ -92,33 +111,6 @@ func T(key string, args ...any) string {
 		}
 	}
 	return Format(out, tr)
-}
-
-// Format：@nomi-ai/i18n format
-func Format(value string, args []any) string {
-	if len(args) == 0 {
-		return value
-	}
-	var named map[string]any
-	if len(args) == 1 {
-		if m, ok := args[0].(map[string]any); ok {
-			named = m
-		}
-	}
-	return placeholder.ReplaceAllStringFunc(value, func(m string) string {
-		name := m[1 : len(m)-1]
-		var v any
-		ok := false
-		if named != nil {
-			v, ok = named[name]
-		} else if i, err := strconv.Atoi(name); err == nil && i >= 0 && i < len(args) {
-			v, ok = args[i], true
-		}
-		if !ok {
-			return m
-		}
-		return JSString(v)
-	})
 }
 
 // JSString：String(x)

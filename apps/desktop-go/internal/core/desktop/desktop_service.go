@@ -12,7 +12,7 @@ import (
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop/parse"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop/reminders"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop/tr"
+	tr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 )
 
 // DesktopService.ts：桌面能力的总装（授权、审计、撤销、回收站、提醒、拖入总结）
@@ -20,7 +20,8 @@ import (
 type Role = string // chat | agent-tools | summary
 
 // Emitter 应用事件总线；surface 非空表示只发给该窗口（D-B6-12：Go 路由暂按订阅广播）
-type Emitter func(event string, payload any, surface string)
+// Emitter 推送事件（surface 非空时只发给该窗口），返回是否有订阅者收到
+type Emitter func(event string, payload any, surface string) bool
 
 // RuntimeProvider resolveProvider 的返回
 type RuntimeProvider struct {
@@ -107,7 +108,7 @@ func realpathFor() func(string) (string, error) { return RealpathNative }
 // NewService 对应 new DesktopService(root, logger, opts)
 func NewService(root string, ports Ports, emit Emitter, denyRoots []string) *Service {
 	if emit == nil {
-		emit = func(string, any, string) {}
+		emit = func(string, any, string) bool { return false }
 	}
 	s := &Service{root: root, ports: ports, emit: emit}
 	s.Broker = NewPermissionBroker(filepath.Join(root, "settings.json"), GuardEnv{
@@ -540,15 +541,19 @@ func (s *Service) SummarizeDropped(raw string) OKCode {
 			s.windows.OpenChat()
 		}
 		payload := map[string]any{"name": name, "path": probe.Real, "summary": summary, "at": nowMs()}
-		s.emit("desktop.summary", payload, "chat")
+		delivered := s.emit("desktop.summary", payload, "chat")
 		s.mu.Lock()
-		s.pendingSummary = &pendingSlot{payload, nowMs()}
+		if delivered { // pendingEvents.offer：送达则作废旧槽，否则留下等窗口挂载时拉取
+			s.pendingSummary = nil
+		} else {
+			s.pendingSummary = &pendingSlot{payload, nowMs()}
+		}
 		s.mu.Unlock()
 	}
 	return OKCode{OK: true}
 }
 
-// TakePendingSummary pendingEvents.take('summary')（D-B6-10：不知道是否已送达，总是留一份）
+// TakePendingSummary pendingEvents.take('summary')
 func (s *Service) TakePendingSummary() any {
 	s.mu.Lock()
 	defer s.mu.Unlock()

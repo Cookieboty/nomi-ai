@@ -1,14 +1,15 @@
 package desktop
 
 import (
+	"encoding/json"
 	"errors"
 	"io/fs"
-	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
 
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop/tr"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
+	tr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 )
 
 // pathGuard.ts：授权作用域 + 黑名单 + 规范化 + realpath 防符号链接逃逸
@@ -23,6 +24,23 @@ type Scope struct {
 	Kind      string  `json:"kind"`
 	GrantedAt float64 `json:"grantedAt"`
 	Session   bool    `json:"session,omitempty"`
+	// raw：从 settings.json 读到的原对象（未知字段、键序、原始类型原样保留，同 Node 直接沿用解析结果）
+	raw       *deps.OrderedObject
+	modeDirty bool
+}
+
+type scopeJSON Scope
+
+func (s Scope) MarshalJSON() ([]byte, error) {
+	if s.raw == nil {
+		return json.Marshal(scopeJSON(s))
+	}
+	o := s.raw
+	if s.modeDirty {
+		o = o.Clone()
+		o.Set("mode", s.Mode)
+	}
+	return deps.Stringify(o, "")
 }
 
 // GuardResult：ok 时 Real/Scope/Exists 有效，否则 Code/Message
@@ -92,14 +110,9 @@ var denyNames = []*regexp.Regexp{
 // ErrNotExist 供注入的 realpath 表示 ENOENT
 var ErrNotExist = fs.ErrNotExist
 
-// RealpathNative：fs.promises.realpath（D-B6-3：Windows 上为 EvalSymlinks + Abs）
-func RealpathNative(p string) (string, error) {
-	r, err := filepath.EvalSymlinks(p)
-	if err != nil {
-		return "", err
-	}
-	return filepath.Abs(r)
-}
+// RealpathNative：fs.promises.realpath（libuv uv_fs_realpath）。
+// Unix 走 realpath(3) 语义；Windows 用 GetFinalPathNameByHandleW，见 realpath_*.go。
+func RealpathNative(p string) (string, error) { return realpathNative(p) }
 
 func caseInsensitive(platform string) bool { return platform == "win32" || platform == "darwin" }
 
