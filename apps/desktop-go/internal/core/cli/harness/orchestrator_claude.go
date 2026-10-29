@@ -487,6 +487,9 @@ func (o *Orchestrator) ensureClaudeLive(tab *util.Obj, spawnLaunch *tabLaunch) *
 }
 
 // nodeExecPath = process.execPath（脚本型 mock CLI 用 PATH 上的 node 跑）。
+// NodeExecPath：外部插件「测试」用（createCore spawnExternal 的 process.execPath）
+func NodeExecPath() string { return nodeExecPath() }
+
 var nodeExecPath = func() string {
 	if p := os.Getenv("NOMI_NODE_BIN"); p != "" {
 		return p
