@@ -254,7 +254,7 @@ mkdirSync(outDir, { recursive: true });
 const { execFileSync } = await import('node:child_process');
 const jsDateZones = ['UTC', 'Etc/UTC', 'Asia/Shanghai', 'Asia/Kolkata', 'Asia/Tokyo', 'America/New_York', 'America/Sao_Paulo',
   'Europe/London', 'Europe/Berlin', 'Australia/Sydney', 'Australia/Lord_Howe', 'Pacific/Chatham', 'Asia/Kathmandu', 'America/St_Johns',
-  'Asia/Dubai', 'Pacific/Apia', 'America/Caracas'];
+  'Asia/Dubai', 'Pacific/Apia', 'America/Caracas', 'Europe/Dublin', 'Europe/Jersey', 'Asia/Colombo', 'America/Coyhaique', 'Etc/GMT+5'];
 const jsDateInstants = [0, 1767225600000, 1784505600000, 662688000000, 1793260800123];
 const jsDate = jsDateZones.map((tz) => ({
   tz,
