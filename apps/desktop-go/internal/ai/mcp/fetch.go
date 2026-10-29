@@ -4,7 +4,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"net/http/httptrace"
 	"regexp"
 	"sort"
 	"strings"
@@ -107,9 +106,9 @@ func doFetchDispatched(signal Signal, method, href string, headers [][2]string, 
 	if ctx == nil {
 		ctx, _ = newController()
 	}
-	if dispatched != nil {
-		ctx = httptrace.WithClientTrace(ctx, &httptrace.ClientTrace{WroteRequest: func(httptrace.WroteRequestInfo) { dispatched() }})
-	}
+	// 注意：不再以 WroteRequest 为"在途"信号。net/http 在上一个响应体读完后是异步把连接放回空闲池的，
+	// GET 可能新拨连接而随后的 POST 复用刚空闲的旧连接，服务端先看到 POST（undici 下 GET 拿到空闲 socket，
+	// 顺序确定）。改为等到响应头（或失败，defer）——服务端必已先处理 GET，到达顺序与 Node 一致（D-B5-MCP-10）。
 	var rd io.Reader
 	if body != nil {
 		rd = strings.NewReader(*body)

@@ -20,6 +20,7 @@ func Install(r *contract.Router) int {
 	have := r.Registered()
 	n := 0
 	for _, p := range gen.Procedures {
+		r.Declare(p.Name, p.Kind, p.Dangerous)
 		if len(p.Surfaces) > 0 {
 			r.Restrict(p.Name, p.Surfaces)
 		}

@@ -55,11 +55,14 @@ export const DIAG = [
   { name: 'exportNoDir', dev: false, steps: [['export', 'nodir/x.zip']] },
 ];
 
+// 先替换二次转义形式（文件内容里的 JSON 再被 stringify，Windows 反斜杠会翻倍），再替换一次转义形式
+const SB1 = JSON.stringify(SB).slice(1, -1);
+const SB2 = JSON.stringify(SB1).slice(1, -1);
 const norm = (v) =>
   JSON.parse(
     JSON.stringify(v === undefined ? null : v)
-      .split(JSON.stringify(SB).slice(1, -1))
-      .join('<SB>'),
+      .split(SB2).join('<SB>')
+      .split(SB1).join('<SB>'),
   );
 
 async function recordDiag() {
