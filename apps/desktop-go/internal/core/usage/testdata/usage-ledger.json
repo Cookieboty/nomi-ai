@@ -1979,7 +1979,7 @@
   },
   {
    "name": "js-object-semantics",
-   "pre": "{\"ts\":1780000000000,\"key\":\"a\",\"zeta\":1,\"source\":\"claude\",\"via\":\"log\",\"model\":\"m\",\"input\":1,\"output\":2,\"cacheRead\":0,\"cacheWrite\":10,\"nested\":{\"b\":1,\"a\":[1,2.5,\"x\"]}}\n{\"key\":\"b\",\"ts\":1780000000001,\"source\":\"codex\",\"via\":\"log\",\"model\":5,\"input\":\"7\",\"output\":null,\"cacheRead\":true,\"cacheWrite\":20,\"session\":0,\"fast\":\"yes\",\"cacheWrite1h\":\"3\",\"project\":null}\n{\"key\":\"c\",\"ts\":1780000000002}\n{\"key\":\"d\",\"ts\":1780000000003,\"input\":1,\"key\":\"d2\",\"u\":\"é <>&\"}\n{\"key\":\"e\",\"ts\":\"1780000000000\"}\n[1]\nnull\n{\"key\":\"f\",\"ts\":1780000000005} trailing\n{\"key\":\"g\",\"ts\":1780000000006,\"source\":\"claude\",\"via\":\"log\",\"model\":\"unknown\",\"input\":0,\"output\":0,\"cacheRead\":0,\"cacheWrite\":0,\"cacheWrite1h\":null,\"fast\":0}\n",
+   "pre": "{\"ts\":1780000000000,\"key\":\"a\",\"zeta\":1,\"source\":\"claude\",\"via\":\"log\",\"model\":\"m\",\"input\":1,\"output\":2,\"cacheRead\":0,\"cacheWrite\":10,\"nested\":{\"b\":1,\"a\":[1,2.5,\"x\"]}}\n{\"key\":\"b\",\"ts\":1780000000001,\"source\":\"codex\",\"via\":\"log\",\"model\":5,\"input\":\"7\",\"output\":null,\"cacheRead\":true,\"cacheWrite\":20,\"session\":0,\"fast\":\"yes\",\"cacheWrite1h\":\"3\",\"project\":null}\n{\"key\":\"c\",\"ts\":1780000000002}\n{\"key\":\"d\",\"ts\":1780000000003,\"input\":1,\"key\":\"d2\",\"u\":\"é <>&\"}\n{\"key\":\"e\",\"ts\":\"1780000000000\"}\n[1]\nnull\n{\"key\":\"f\",\"ts\":1780000000005} trailing\n{\"key\":\"g\",\"ts\":1780000000006,\"source\":\"claude\",\"via\":\"log\",\"model\":\"unknown\",\"input\":0,\"output\":0,\"cacheRead\":0,\"cacheWrite\":0,\"cacheWrite1h\":null,\"fast\":0}\n{\"key\":\"h\",\"ts\":1780000000007,\"source\":\"claude\",\"via\":\"log\",\"model\":\"m\",\"input\":\"7\",\"output\":0,\"cacheRead\":0,\"cacheWrite\":0}\n{\"key\":\"i\",\"ts\":1780000000008,\"input\":1}\n",
    "ops": [
     [
      "settle"
@@ -2117,6 +2117,59 @@
      }
     ],
     [
+     "upsert",
+     {
+      "key": "g",
+      "ts": 1780000000006,
+      "source": "claude",
+      "via": "log",
+      "model": "unknown",
+      "input": 1,
+      "output": 0,
+      "cacheRead": 0,
+      "cacheWrite": 0
+     }
+    ],
+    [
+     "getRaw",
+     "g"
+    ],
+    [
+     "upsert",
+     {
+      "key": "h",
+      "ts": 1780000000007,
+      "source": "claude",
+      "via": "log",
+      "model": "m",
+      "input": 7,
+      "output": 0,
+      "cacheRead": 0,
+      "cacheWrite": 0
+     }
+    ],
+    [
+     "getRaw",
+     "h"
+    ],
+    [
+     "upsert",
+     {
+      "key": "i",
+      "ts": 1780000000008,
+      "source": "claude",
+      "via": "log",
+      "input": 2,
+      "output": 0,
+      "cacheRead": 0,
+      "cacheWrite": 0
+     }
+    ],
+    [
+     "getRaw",
+     "i"
+    ],
+    [
      "flush"
     ],
     [
@@ -2149,7 +2202,7 @@
    ],
    "out": [
     null,
-    5,
+    7,
     "{\"ts\":1780000000000,\"key\":\"a\",\"zeta\":1,\"source\":\"claude\",\"via\":\"log\",\"model\":\"m\",\"input\":1,\"output\":2,\"cacheRead\":0,\"cacheWrite\":10,\"nested\":{\"b\":1,\"a\":[1,2.5,\"x\"]}}",
     "{\"key\":\"b\",\"ts\":1780000000001,\"source\":\"codex\",\"via\":\"log\",\"model\":5,\"input\":\"7\",\"output\":null,\"cacheRead\":true,\"cacheWrite\":20,\"session\":0,\"fast\":\"yes\",\"cacheWrite1h\":\"3\",\"project\":null}",
     "{\"key\":\"c\",\"ts\":1780000000002}",
@@ -2168,10 +2221,16 @@
     true,
     "{\"key\":\"c\",\"ts\":1780000000002,\"source\":\"grok\",\"via\":\"log\",\"model\":\"x\",\"input\":null,\"output\":null,\"cacheRead\":null,\"cacheWrite\":null,\"provider\":\"xai\"}",
     false,
+    true,
+    "{\"key\":\"g\",\"ts\":1780000000006,\"source\":\"claude\",\"via\":\"log\",\"model\":\"unknown\",\"input\":1,\"output\":0,\"cacheRead\":0,\"cacheWrite\":0}",
+    true,
+    "{\"key\":\"h\",\"ts\":1780000000007,\"source\":\"claude\",\"via\":\"log\",\"model\":\"m\",\"input\":7,\"output\":0,\"cacheRead\":0,\"cacheWrite\":0}",
+    true,
+    "{\"key\":\"i\",\"ts\":1780000000008,\"input\":2,\"source\":\"claude\",\"via\":\"log\",\"output\":null,\"cacheRead\":null,\"cacheWrite\":null}",
     null,
-    "{\"ts\":1780000000000,\"key\":\"a\",\"zeta\":1,\"source\":\"claude\",\"via\":\"log\",\"model\":\"m\",\"input\":1,\"output\":2,\"cacheRead\":0,\"cacheWrite\":10,\"nested\":{\"b\":1,\"a\":[1,2.5,\"x\"]}}\n{\"key\":\"b\",\"ts\":1780000000001,\"source\":\"codex\",\"via\":\"log\",\"model\":5,\"input\":\"7\",\"output\":null,\"cacheRead\":true,\"cacheWrite\":20,\"session\":0,\"fast\":\"yes\",\"cacheWrite1h\":\"3\",\"project\":null}\n{\"key\":\"c\",\"ts\":1780000000002}\n{\"key\":\"d\",\"ts\":1780000000003,\"input\":1,\"key\":\"d2\",\"u\":\"é <>&\"}\n{\"key\":\"e\",\"ts\":\"1780000000000\"}\n[1]\nnull\n{\"key\":\"f\",\"ts\":1780000000005} trailing\n{\"key\":\"g\",\"ts\":1780000000006,\"source\":\"claude\",\"via\":\"log\",\"model\":\"unknown\",\"input\":0,\"output\":0,\"cacheRead\":0,\"cacheWrite\":0,\"cacheWrite1h\":null,\"fast\":0}\n{\"key\":\"b\",\"ts\":1780000000001,\"source\":\"codex\",\"via\":\"log\",\"model\":5,\"input\":7,\"output\":0,\"cacheRead\":1,\"cacheWrite\":20,\"session\":\"s\",\"fast\":true,\"cacheWrite1h\":5,\"project\":\"p\",\"logKey\":\"L\"}\n{\"ts\":1779999999999,\"key\":\"a\",\"zeta\":1,\"source\":\"claude\",\"via\":\"log\",\"model\":\"m2\",\"input\":1,\"output\":3,\"cacheRead\":0,\"cacheWrite\":10,\"nested\":{\"b\":1,\"a\":[1,2.5,\"x\"]},\"cacheWrite1h\":4,\"extra\":[1],\"fast\":true}\n{\"key\":\"c\",\"ts\":1780000000002,\"source\":\"grok\",\"via\":\"log\",\"model\":\"x\",\"input\":null,\"output\":null,\"cacheRead\":null,\"cacheWrite\":null,\"provider\":\"xai\"}\n",
+    "{\"ts\":1780000000000,\"key\":\"a\",\"zeta\":1,\"source\":\"claude\",\"via\":\"log\",\"model\":\"m\",\"input\":1,\"output\":2,\"cacheRead\":0,\"cacheWrite\":10,\"nested\":{\"b\":1,\"a\":[1,2.5,\"x\"]}}\n{\"key\":\"b\",\"ts\":1780000000001,\"source\":\"codex\",\"via\":\"log\",\"model\":5,\"input\":\"7\",\"output\":null,\"cacheRead\":true,\"cacheWrite\":20,\"session\":0,\"fast\":\"yes\",\"cacheWrite1h\":\"3\",\"project\":null}\n{\"key\":\"c\",\"ts\":1780000000002}\n{\"key\":\"d\",\"ts\":1780000000003,\"input\":1,\"key\":\"d2\",\"u\":\"é <>&\"}\n{\"key\":\"e\",\"ts\":\"1780000000000\"}\n[1]\nnull\n{\"key\":\"f\",\"ts\":1780000000005} trailing\n{\"key\":\"g\",\"ts\":1780000000006,\"source\":\"claude\",\"via\":\"log\",\"model\":\"unknown\",\"input\":0,\"output\":0,\"cacheRead\":0,\"cacheWrite\":0,\"cacheWrite1h\":null,\"fast\":0}\n{\"key\":\"h\",\"ts\":1780000000007,\"source\":\"claude\",\"via\":\"log\",\"model\":\"m\",\"input\":\"7\",\"output\":0,\"cacheRead\":0,\"cacheWrite\":0}\n{\"key\":\"i\",\"ts\":1780000000008,\"input\":1}\n{\"key\":\"b\",\"ts\":1780000000001,\"source\":\"codex\",\"via\":\"log\",\"model\":5,\"input\":7,\"output\":0,\"cacheRead\":1,\"cacheWrite\":20,\"session\":\"s\",\"fast\":true,\"cacheWrite1h\":5,\"project\":\"p\",\"logKey\":\"L\"}\n{\"ts\":1779999999999,\"key\":\"a\",\"zeta\":1,\"source\":\"claude\",\"via\":\"log\",\"model\":\"m2\",\"input\":1,\"output\":3,\"cacheRead\":0,\"cacheWrite\":10,\"nested\":{\"b\":1,\"a\":[1,2.5,\"x\"]},\"cacheWrite1h\":4,\"extra\":[1],\"fast\":true}\n{\"key\":\"c\",\"ts\":1780000000002,\"source\":\"grok\",\"via\":\"log\",\"model\":\"x\",\"input\":null,\"output\":null,\"cacheRead\":null,\"cacheWrite\":null,\"provider\":\"xai\"}\n{\"key\":\"g\",\"ts\":1780000000006,\"source\":\"claude\",\"via\":\"log\",\"model\":\"unknown\",\"input\":1,\"output\":0,\"cacheRead\":0,\"cacheWrite\":0}\n{\"key\":\"h\",\"ts\":1780000000007,\"source\":\"claude\",\"via\":\"log\",\"model\":\"m\",\"input\":7,\"output\":0,\"cacheRead\":0,\"cacheWrite\":0}\n{\"key\":\"i\",\"ts\":1780000000008,\"input\":2,\"source\":\"claude\",\"via\":\"log\",\"output\":null,\"cacheRead\":null,\"cacheWrite\":null}\n",
     null,
-    "{\"ts\":1779999999999,\"key\":\"a\",\"zeta\":1,\"source\":\"claude\",\"via\":\"log\",\"model\":\"m2\",\"input\":1,\"output\":3,\"cacheRead\":0,\"cacheWrite\":10,\"nested\":{\"b\":1,\"a\":[1,2.5,\"x\"]},\"cacheWrite1h\":4,\"extra\":[1],\"fast\":true}\n{\"key\":\"b\",\"ts\":1780000000001,\"source\":\"codex\",\"via\":\"log\",\"model\":5,\"input\":7,\"output\":0,\"cacheRead\":1,\"cacheWrite\":20,\"session\":\"s\",\"fast\":true,\"cacheWrite1h\":5,\"project\":\"p\",\"logKey\":\"L\"}\n{\"key\":\"c\",\"ts\":1780000000002,\"source\":\"grok\",\"via\":\"log\",\"model\":\"x\",\"input\":null,\"output\":null,\"cacheRead\":null,\"cacheWrite\":null,\"provider\":\"xai\"}\n{\"key\":\"d2\",\"ts\":1780000000003,\"input\":1,\"u\":\"é <>&\"}\n{\"key\":\"g\",\"ts\":1780000000006,\"source\":\"claude\",\"via\":\"log\",\"model\":\"unknown\",\"input\":0,\"output\":0,\"cacheRead\":0,\"cacheWrite\":0,\"cacheWrite1h\":null,\"fast\":0}\n",
+    "{\"ts\":1779999999999,\"key\":\"a\",\"zeta\":1,\"source\":\"claude\",\"via\":\"log\",\"model\":\"m2\",\"input\":1,\"output\":3,\"cacheRead\":0,\"cacheWrite\":10,\"nested\":{\"b\":1,\"a\":[1,2.5,\"x\"]},\"cacheWrite1h\":4,\"extra\":[1],\"fast\":true}\n{\"key\":\"b\",\"ts\":1780000000001,\"source\":\"codex\",\"via\":\"log\",\"model\":5,\"input\":7,\"output\":0,\"cacheRead\":1,\"cacheWrite\":20,\"session\":\"s\",\"fast\":true,\"cacheWrite1h\":5,\"project\":\"p\",\"logKey\":\"L\"}\n{\"key\":\"c\",\"ts\":1780000000002,\"source\":\"grok\",\"via\":\"log\",\"model\":\"x\",\"input\":null,\"output\":null,\"cacheRead\":null,\"cacheWrite\":null,\"provider\":\"xai\"}\n{\"key\":\"d2\",\"ts\":1780000000003,\"input\":1,\"u\":\"é <>&\"}\n{\"key\":\"g\",\"ts\":1780000000006,\"source\":\"claude\",\"via\":\"log\",\"model\":\"unknown\",\"input\":1,\"output\":0,\"cacheRead\":0,\"cacheWrite\":0}\n{\"key\":\"h\",\"ts\":1780000000007,\"source\":\"claude\",\"via\":\"log\",\"model\":\"m\",\"input\":7,\"output\":0,\"cacheRead\":0,\"cacheWrite\":0}\n{\"key\":\"i\",\"ts\":1780000000008,\"input\":2,\"source\":\"claude\",\"via\":\"log\",\"output\":null,\"cacheRead\":null,\"cacheWrite\":null}\n",
     null,
     null,
     "{\"ts\":1779999999999,\"key\":\"a\",\"zeta\":1,\"source\":\"claude\",\"via\":\"log\",\"model\":\"m2\",\"input\":1,\"output\":3,\"cacheRead\":0,\"cacheWrite\":10,\"nested\":{\"b\":1,\"a\":[1,2.5,\"x\"]},\"cacheWrite1h\":4,\"extra\":[1],\"fast\":true}",

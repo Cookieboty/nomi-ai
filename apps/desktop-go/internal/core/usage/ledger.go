@@ -100,7 +100,9 @@ func mergeRecord(prev, r *UsageRecord) *UsageRecord {
 	} else {
 		copyProp(m, r, "model")
 	}
-	m.addKey("model")
+	if !modelFromPrev || prev.hasOwn("model") {
+		m.addKey("model")
+	}
 	m.Input = math.Max(prev.Input, r.Input)
 	m.setOwn("input")
 	m.Output = math.Max(prev.Output, r.Output)

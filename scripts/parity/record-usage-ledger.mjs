@@ -108,6 +108,8 @@ const scenarios = [
     `{"key":"d","ts":${T0 + 3},"input":1,"key":"d2","u":"\u00e9\u2028<>&"}`,
     `{"key":"e","ts":"${T0}"}`, `[1]`, `null`, `{"key":"f","ts":${T0 + 5}} trailing`,
     `{"key":"g","ts":${T0 + 6},"source":"claude","via":"log","model":"unknown","input":0,"output":0,"cacheRead":0,"cacheWrite":0,"cacheWrite1h":null,"fast":0}`,
+    `{"key":"h","ts":${T0 + 7},"source":"claude","via":"log","model":"m","input":"7","output":0,"cacheRead":0,"cacheWrite":0}`,
+    `{"key":"i","ts":${T0 + 8},"input":1}`,
   ].join('\n') + '\n',
     ops: [['settle'], ['size'], ['getRaw', 'a'], ['getRaw', 'b'], ['getRaw', 'c'], ['getRaw', 'd2'], ['has', 'd'], ['has', 'e'], ['has', 'f'],
       ['attribute', 'b', { session: 's', project: 'p', cacheWrite1h: 5, fast: true, logKey: 'L' }], ['getRaw', 'b'],
@@ -116,6 +118,9 @@ const scenarios = [
       ['upsert', { key: 'b', ts: T0 + 1, source: 'codex', via: 'log', model: 'unknown', input: 7, output: 0, cacheRead: 1, cacheWrite: 20 }], ['getRaw', 'b'],
       ['upsert', { key: 'c', ts: T0 + 2, source: 'grok', via: 'log', model: 'x', input: 1, output: 1, cacheRead: 0, cacheWrite: 0, provider: 'xai' }], ['getRaw', 'c'],
       ['upsert', { key: 'g', ts: T0 + 6, source: 'claude', via: 'log', model: 'unknown', input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }],
+      ['upsert', { key: 'g', ts: T0 + 6, source: 'claude', via: 'log', model: 'unknown', input: 1, output: 0, cacheRead: 0, cacheWrite: 0 }], ['getRaw', 'g'],
+      ['upsert', { key: 'h', ts: T0 + 7, source: 'claude', via: 'log', model: 'm', input: 7, output: 0, cacheRead: 0, cacheWrite: 0 }], ['getRaw', 'h'],
+      ['upsert', { key: 'i', ts: T0 + 8, source: 'claude', via: 'log', input: 2, output: 0, cacheRead: 0, cacheWrite: 0 }], ['getRaw', 'i'],
       ['flush'], ['fileRaw'], ['compactWait'], ['fileRaw'], ['reopen'], ['settle'], ['getRaw', 'a'], ['getRaw', 'b'], ['getRaw', 'd2']] },
 ];
 
