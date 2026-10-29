@@ -1,8 +1,8 @@
 package aifacade
 
 import (
+	"context"
 	"encoding/json"
-	"errors"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -12,6 +12,7 @@ import (
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/tools"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract/gen"
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
@@ -44,7 +45,7 @@ func mustParse(t *testing.T, path string) []any {
 	return v.([]any)
 }
 
-// RunScenario 重放一条场景，返回与金样同形的步骤列表（untrusted 步骤被跳过）
+// RunScenario 重放一条场景（经 Router / Session 线上帧），返回与金样同形的步骤列表
 func runScenario(t *testing.T, sc *u.Obj, gold []any) (got, want []any) {
 	clock := 1700000000000.0
 	now := func() float64 { return clock }
@@ -90,23 +91,47 @@ func runScenario(t *testing.T, sc *u.Obj, gold []any) (got, want []any) {
 		o.Profile = NewProfileStore(pf, now)
 	}
 	f := New(o)
+	f.On("tools/wrap", func(p any) { emit("hook:tools/wrap", p) })
 	if o.Profile != nil {
 		o.Profile.Export()
 	}
+	// 走真实 Router / Session（线上帧）：契约 kind / dangerous / surfaces 来自生成的过程表
+	r := contract.NewRouter()
+	f.Register(r)
+	for _, p := range gen.Procedures {
+		r.Declare(p.Name, p.Kind, p.Dangerous)
+		if len(p.Surfaces) > 0 {
+			r.Restrict(p.Name, p.Surfaces)
+		}
+	}
+	frames := make(chan contract.ServerFrame, 4)
+	send := func(fr contract.ServerFrame) { frames <- fr }
+	trusted := r.NewSession(context.Background(), contract.Caller{Surface: "chat", ID: 1}, send)
+	untrusted := r.NewSession(context.Background(), contract.Caller{Surface: "chat", ID: 2, Untrusted: true}, send)
+	reqN := 0
 	var ids []string
 	for i, x := range sc.Get("steps").([]any) {
 		st := x.(*u.Obj)
 		if tk, ok := st.Get("tick").(float64); ok {
 			clock += tk
 		}
-		if st.Get("untrusted") == true {
-			continue // 偏差：Go Router 无 trusted 层（设计文档 §3.6）
-		}
 		want = append(want, gold[i])
 		rec := u.NewObj()
-		p := st.Get("p").(string)
+		if h, ok := st.Get("hook").(*u.Obj); ok {
+			f.Hook(h.Get("event").(string), h.Get("payload"))
+		}
+		p, isProc := st.Get("p").(string)
+		if !isProc {
+			rec.Set("p", nil)
+			if len(events) > 0 {
+				rec.Set("events", events)
+				events = nil
+			}
+			got = append(got, rec)
+			continue
+		}
 		rec.Set("p", p)
-		var raw json.RawMessage
+		raw := json.RawMessage("")
 		if st.Has("in") {
 			s := u.Stringify(st.Get("in"))
 			s = regexp.MustCompile(`"\$s(\d+)"`).ReplaceAllStringFunc(s, func(m string) string {
@@ -115,22 +140,36 @@ func runScenario(t *testing.T, sc *u.Obj, gold []any) (got, want []any) {
 			})
 			raw = json.RawMessage(s)
 		}
-		out, err := f.Handle(p, raw)
+		reqN++
+		kind := "call"
+		if p == "ai.tts.stream" {
+			kind = "stream"
+		}
+		req := map[string]any{"t": "req", "id": "r" + strconv.Itoa(reqN), "kind": kind, "name": p}
+		if len(raw) > 0 {
+			req["input"] = raw
+		}
+		rb, _ := json.Marshal(req)
+		sess := trusted
+		if st.Get("untrusted") == true {
+			sess = untrusted
+		}
+		sess.Handle(rb)
+		fr := <-frames
+		wb, err := contract.EncodeWire(fr)
 		if err != nil {
-			var ce *contract.Error
-			if !errors.As(err, &ce) {
-				t.Fatalf("non-contract error %v", err)
-			}
-			e := u.NewObj()
-			e.Set("code", ce.Code)
-			e.Set("message", ce.Message)
-			rec.Set("err", e)
+			t.Fatal(err)
+		}
+		wv, _ := u.Parse(wb)
+		w := wv.(*u.Obj)
+		if fr.T == "err" {
+			rec.Set("err", w.Get("error"))
 		} else {
-			if isUndef(out) {
+			if !w.Has("output") {
 				rec.Set("out", nil)
 				rec.Set("undef", true)
 			} else {
-				rec.Set("out", out)
+				rec.Set("out", w.Get("output"))
 			}
 			for _, id := range sessRe.FindAllString(u.Stringify(rec.Get("out")), -1) {
 				dup := false

@@ -92,7 +92,7 @@ func IslandGeometry(platform string, d Display, pref string) Geometry {
 	}
 	notch := pref == "auto" && HasNotch(platform, d)
 	g := Geometry{Mode: "pill", MenuBarHeight: menuBar, Width: math.Min(400, d.Bounds.Width-32)}
-	g.X = jsRound(d.Bounds.X + (d.Bounds.Width-g.Width)/2)
+	g.X = jsRound(d.Bounds.X + float64((d.Bounds.Width-g.Width)/2))
 	if notch {
 		g.Mode, g.Inset, g.Pad, g.RowMin = "notch", menuBar, NotchPad, NotchRowMin
 		g.Y = d.Bounds.Y

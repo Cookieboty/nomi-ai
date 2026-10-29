@@ -75,7 +75,23 @@ console.log(`recorded ${out.length} scenarios, ${out.reduce((a, s) => a + s.log.
 // 批次 7 其余录制器随本脚本一起在 CI 各平台现场录制（desktop-go.yml 只调用本脚本）：
 // launch（只依赖 cli-sdk dist）与 fns（需先 build cli-plugins）。
 if (process.env.NOMI_GOLDEN_DIR) {
-  const { execFileSync, execSync } = await import('node:child_process');
+  const cp = await import('node:child_process');
+  // CI 诊断：逐个录制器打印耗时，单个超过 10 分钟即杀掉并报出名字（不影响 golden 内容）
+  const timed = (fn, label, run) => {
+    const t0 = Date.now();
+    console.log(`[rec] start ${label}`);
+    try {
+      return run();
+    } catch (e) {
+      if (e && (e.code === 'ETIMEDOUT' || e.signal)) console.error(`[rec] TIMEOUT/KILLED ${label} after ${Date.now() - t0}ms (${e.code || e.signal})`);
+      throw e;
+    } finally {
+      console.log(`[rec] end ${label} ${Date.now() - t0}ms`);
+    }
+  };
+  const LIMIT = { timeout: 10 * 60 * 1000, killSignal: 'SIGKILL' };
+  const execFileSync = (f, args, o) => timed(cp.execFileSync, args.filter((a) => !a.startsWith('-') && a !== 'tsx').map((a) => a.split(/[\\/]/).pop()).join(' '), () => cp.execFileSync(f, args, { ...LIMIT, ...o }));
+  const execSync = (c, o) => timed(cp.execSync, c, () => cp.execSync(c, { ...LIMIT, ...o }));
   execFileSync(process.execPath, [join(here, 'record-b7-launch.mjs')], { stdio: 'inherit' });
   execSync('pnpm --filter @nomi-ai/cli-plugins build', { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, [join(here, 'record-b7-fns.mjs')], { stdio: 'inherit' });
@@ -96,6 +112,8 @@ if (process.env.NOMI_GOLDEN_DIR) {
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s-host.mjs')], { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s-accounts.mjs')], { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s-aifacade.mjs')], { stdio: 'inherit', cwd: root });
+  execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s-guard.mjs')], { stdio: 'inherit', cwd: root });
+  execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s-igtools.mjs')], { stdio: 'inherit', cwd: root });
   // 批次 7s2：delegate（core / worktree / DelegateService）
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s2-delegate.mjs')], { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s2-plugins.mjs')], { stdio: 'inherit', cwd: root });
@@ -104,6 +122,8 @@ if (process.env.NOMI_GOLDEN_DIR) {
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s2-screen.mjs')], { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s2-coding.mjs')], { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s2-receiver.mjs')], { stdio: 'inherit', cwd: root });
+  execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s2-agents.mjs')], { stdio: 'inherit', cwd: root });
+  execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s2-sandbox.mjs')], { stdio: 'inherit', cwd: root });
   // 批次 5：prepareChat（会话工作区 + 外发检查，D-B5-10）
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b5-prepchat.mjs')], { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b5-batch.mjs')], { stdio: 'inherit', cwd: root });
@@ -114,8 +134,12 @@ if (process.env.NOMI_GOLDEN_DIR) {
   execFileSync(process.execPath, [join(here, 'record-usage-sniff.mjs')], { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, [join(here, 'record-usage-claudeparser.mjs')], { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-usage-gwreq.mjs')], { stdio: 'inherit', cwd: root });
+  execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-usage-pricesync.mjs')], { stdio: 'inherit', cwd: root, env: { ...process.env, TZ: 'America/New_York' } });
+  execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-usage-authmode.mjs')], { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, [join(here, 'record-usage-quota.mjs')], { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, [join(here, 'record-usage-statusline.mjs')], { stdio: 'inherit', cwd: root });
+  execFileSync(process.execPath, [join(here, 'record-usage-subs.mjs')], { stdio: 'inherit', cwd: root });
+  execFileSync(process.execPath, [join(here, 'record-usage-proc.mjs')], { stdio: 'inherit', cwd: root });
   // shell.ts 的 diagnostics / appIcon / updates / quality / usage / gateway（record-shell.mjs 依赖 gateway dist 的 redactText）
   execSync('pnpm --filter @nomi-ai/gateway build', { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-shell.mjs')], { stdio: 'inherit', cwd: root });

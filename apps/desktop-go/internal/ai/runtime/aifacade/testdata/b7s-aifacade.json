@@ -9,7 +9,7 @@
    {
     "p": "ai.sessions.create",
     "out": {
-     "id": "sess_loyw3v28_hpigyr",
+     "id": "sess_loyw3v28_dhg1ms",
      "title": "New Session",
      "createdAt": 1700000000000,
      "updatedAt": 1700000000000
@@ -18,7 +18,7 @@
    {
     "p": "ai.sessions.create",
     "out": {
-     "id": "sess_loyw3v2d_33rxeu",
+     "id": "sess_loyw3v2d_lmk5up",
      "title": "A",
      "createdAt": 1700000000005,
      "updatedAt": 1700000000005,
@@ -33,7 +33,7 @@
    {
     "p": "ai.sessions.create",
     "out": {
-     "id": "sess_loyw3v2d_5k1gnx",
+     "id": "sess_loyw3v2d_ylt9vm",
      "title": "New Session",
      "createdAt": 1700000000005,
      "updatedAt": 1700000000005
@@ -43,41 +43,81 @@
     "p": "ai.sessions.create",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [],
+        "message": "Invalid input: expected object, received null"
+       }
+      ]
+     }
     }
    },
    {
     "p": "ai.sessions.create",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "title"
+        ],
+        "message": "Invalid input: expected string, received number"
+       }
+      ]
+     }
     }
    },
    {
     "p": "ai.sessions.create",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "meta",
+         "k"
+        ],
+        "message": "Invalid input"
+       }
+      ]
+     }
     }
    },
    {
     "p": "ai.sessions.create",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "meta",
+         "k"
+        ],
+        "message": "Invalid input"
+       }
+      ]
+     }
     }
    },
    {
     "p": "ai.sessions.list",
     "out": [
      {
-      "id": "sess_loyw3v28_hpigyr",
+      "id": "sess_loyw3v28_dhg1ms",
       "title": "New Session",
       "createdAt": 1700000000000,
       "updatedAt": 1700000000000
      },
      {
-      "id": "sess_loyw3v2d_33rxeu",
+      "id": "sess_loyw3v2d_lmk5up",
       "title": "A",
       "createdAt": 1700000000005,
       "updatedAt": 1700000000005,
@@ -89,7 +129,7 @@
       }
      },
      {
-      "id": "sess_loyw3v2d_5k1gnx",
+      "id": "sess_loyw3v2d_ylt9vm",
       "title": "New Session",
       "createdAt": 1700000000005,
       "updatedAt": 1700000000005
@@ -105,14 +145,32 @@
     "p": "ai.sessions.get",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "id"
+        ],
+        "message": "Invalid input: expected string, received undefined"
+       }
+      ]
+     }
     }
    },
    {
     "p": "ai.sessions.get",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [],
+        "message": "Invalid input: expected object, received undefined"
+       }
+      ]
+     }
     }
    },
    {
@@ -133,7 +191,17 @@
     "p": "ai.sessions.rename",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "title"
+        ],
+        "message": "Invalid input: expected string, received undefined"
+       }
+      ]
+     }
     }
    },
    {
@@ -144,14 +212,30 @@
     "p": "ai.sessions.list",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [],
+        "message": "Invalid input: expected void, received object"
+       }
+      ]
+     }
     }
    },
    {
     "p": "ai.sessions.list",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [],
+        "message": "Invalid input: expected void, received null"
+       }
+      ]
+     }
     }
    }
   ]
@@ -162,7 +246,7 @@
    {
     "p": "ai.sessions.create",
     "out": {
-     "id": "sess_loyw3v28_h26ufp",
+     "id": "sess_loyw3v28_ovf3fm",
      "title": "Root",
      "createdAt": 1700000000000,
      "updatedAt": 1700000000000,
@@ -175,7 +259,7 @@
    {
     "p": "ai.sessions.get",
     "out": {
-     "id": "sess_loyw3v28_h26ufp",
+     "id": "sess_loyw3v28_ovf3fm",
      "title": "Root",
      "createdAt": 1700000000000,
      "updatedAt": 1700000000000,
@@ -188,7 +272,7 @@
    {
     "p": "ai.sessions.fork",
     "out": {
-     "id": "sess_loyw3v2i_d1ytrl",
+     "id": "sess_loyw3v2i_tdp0za",
      "title": "Root (copy)",
      "createdAt": 1700000000010,
      "updatedAt": 1700000000010,
@@ -201,7 +285,7 @@
    {
     "p": "ai.sessions.fork",
     "out": {
-     "id": "sess_loyw3v2l_lw2qau",
+     "id": "sess_loyw3v2l_tipcq2",
      "title": "F2",
      "createdAt": 1700000000013,
      "updatedAt": 1700000000013,
@@ -214,7 +298,7 @@
    {
     "p": "ai.sessions.fork",
     "out": {
-     "id": "sess_loyw3v2l_tppi8l",
+     "id": "sess_loyw3v2l_tyfp59",
      "title": "Root (copy)",
      "createdAt": 1700000000013,
      "updatedAt": 1700000000013,
@@ -228,13 +312,24 @@
     "p": "ai.sessions.fork",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "overrides",
+         "title"
+        ],
+        "message": "Invalid input: expected string, received number"
+       }
+      ]
+     }
     }
    },
    {
     "p": "ai.sessions.rename",
     "out": {
-     "id": "sess_loyw3v28_h26ufp",
+     "id": "sess_loyw3v28_ovf3fm",
      "title": "Renamed",
      "createdAt": 1700000000000,
      "updatedAt": 1700000000024,
@@ -247,7 +342,7 @@
    {
     "p": "ai.sessions.get",
     "out": {
-     "id": "sess_loyw3v28_h26ufp",
+     "id": "sess_loyw3v28_ovf3fm",
      "title": "Renamed",
      "createdAt": 1700000000000,
      "updatedAt": 1700000000024,
@@ -261,7 +356,7 @@
     "p": "ai.sessions.list",
     "out": [
      {
-      "id": "sess_loyw3v28_h26ufp",
+      "id": "sess_loyw3v28_ovf3fm",
       "title": "Renamed",
       "createdAt": 1700000000000,
       "updatedAt": 1700000000024,
@@ -271,7 +366,7 @@
       }
      },
      {
-      "id": "sess_loyw3v2i_d1ytrl",
+      "id": "sess_loyw3v2i_tdp0za",
       "title": "Root (copy)",
       "createdAt": 1700000000010,
       "updatedAt": 1700000000010,
@@ -281,7 +376,7 @@
       }
      },
      {
-      "id": "sess_loyw3v2l_lw2qau",
+      "id": "sess_loyw3v2l_tipcq2",
       "title": "F2",
       "createdAt": 1700000000013,
       "updatedAt": 1700000000013,
@@ -291,7 +386,7 @@
       }
      },
      {
-      "id": "sess_loyw3v2l_tppi8l",
+      "id": "sess_loyw3v2l_tyfp59",
       "title": "Root (copy)",
       "createdAt": 1700000000013,
       "updatedAt": 1700000000013,
@@ -318,7 +413,7 @@
    {
     "p": "ai.sessions.create",
     "out": {
-     "id": "sess_loyw3v2w_zpkvpk",
+     "id": "sess_loyw3v2w_wy6g9a",
      "title": "",
      "createdAt": 1700000000024,
      "updatedAt": 1700000000024
@@ -328,7 +423,7 @@
     "p": "ai.sessions.list",
     "out": [
      {
-      "id": "sess_loyw3v2i_d1ytrl",
+      "id": "sess_loyw3v2i_tdp0za",
       "title": "Root (copy)",
       "createdAt": 1700000000010,
       "updatedAt": 1700000000010,
@@ -338,7 +433,7 @@
       }
      },
      {
-      "id": "sess_loyw3v2l_lw2qau",
+      "id": "sess_loyw3v2l_tipcq2",
       "title": "F2",
       "createdAt": 1700000000013,
       "updatedAt": 1700000000013,
@@ -348,7 +443,7 @@
       }
      },
      {
-      "id": "sess_loyw3v2l_tppi8l",
+      "id": "sess_loyw3v2l_tyfp59",
       "title": "Root (copy)",
       "createdAt": 1700000000013,
       "updatedAt": 1700000000013,
@@ -358,7 +453,7 @@
       }
      },
      {
-      "id": "sess_loyw3v2w_zpkvpk",
+      "id": "sess_loyw3v2w_wy6g9a",
       "title": "",
       "createdAt": 1700000000024,
       "updatedAt": 1700000000024
@@ -402,7 +497,7 @@
    {
     "p": "ai.tools.setEnabled",
     "err": {
-     "code": "TOOL_NOT_FOUND",
+     "code": "INTERNAL",
      "message": "[TOOL_NOT_FOUND|0] tool 'ghost' 未注册"
     }
    },
@@ -410,14 +505,34 @@
     "p": "ai.tools.setEnabled",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "enabled"
+        ],
+        "message": "Invalid input: expected boolean, received undefined"
+       }
+      ]
+     }
     }
    },
    {
     "p": "ai.tools.setEnabled",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "enabled"
+        ],
+        "message": "Invalid input: expected boolean, received string"
+       }
+      ]
+     }
     }
    },
    {
@@ -476,12 +591,21 @@
    {
     "p": "ai.tools.confirm",
     "out": null,
-    "undef": true
+    "undef": true,
+    "events": [
+     {
+      "event": "hook:tools/wrap",
+      "data": {
+       "reqId": "r1",
+       "ok": true
+      }
+     }
+    ]
    },
    {
     "p": "ai.tools.confirm",
     "err": {
-     "code": "TOOL_CONFIRM_INVALID",
+     "code": "INTERNAL",
      "message": "[TOOL_CONFIRM_INVALID|0] confirm 必须提供 reqId"
     }
    },
@@ -489,28 +613,59 @@
     "p": "ai.tools.confirm",
     "err": {
      "code": "FORBIDDEN",
-     "message": "Untrusted caller may not call dangerous 'ai.tools.confirm'"
+     "message": "Untrusted caller may not call dangerous 'ai.tools.confirm'",
+     "data": {
+      "dangerous": true
+     }
     }
    },
    {
     "p": "ai.tools.confirm",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "ok"
+        ],
+        "message": "Invalid input: expected boolean, received undefined"
+       }
+      ]
+     }
     }
    },
    {
     "p": "ai.tools.confirm",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "reason"
+        ],
+        "message": "Invalid input: expected string, received number"
+       }
+      ]
+     }
     }
    },
    {
     "p": "ai.tools.list",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [],
+        "message": "Invalid input: expected void, received object"
+       }
+      ]
+     }
     }
    }
   ]
@@ -525,7 +680,7 @@
    {
     "p": "ai.tools.setEnabled",
     "err": {
-     "code": "TOOL_NOT_FOUND",
+     "code": "INTERNAL",
      "message": "[TOOL_NOT_FOUND|0] tool 'x' 未注册"
     }
    }
@@ -573,28 +728,68 @@
     "p": "ai.memory.facts.put",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "kind"
+        ],
+        "message": "Invalid option: expected one of \"preference\"|\"identity\"|\"goal\"|\"dislike\"|\"habit\"|\"note\""
+       }
+      ]
+     }
     }
    },
    {
     "p": "ai.memory.facts.put",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "source"
+        ],
+        "message": "Invalid option: expected one of \"user\"|\"inferred\"|\"distilled\"|\"system\""
+       }
+      ]
+     }
     }
    },
    {
     "p": "ai.memory.facts.put",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "at"
+        ],
+        "message": "Invalid input: expected number, received undefined"
+       }
+      ]
+     }
     }
    },
    {
     "p": "ai.memory.facts.put",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "at"
+        ],
+        "message": "Invalid input: expected number, received string"
+       }
+      ]
+     }
     }
    },
    {
@@ -629,7 +824,17 @@
     "p": "ai.memory.facts.delete",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "id"
+        ],
+        "message": "Invalid input: expected string, received number"
+       }
+      ]
+     }
     }
    },
    {
@@ -690,14 +895,34 @@
     "p": "ai.memory.summaries.put",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "stepCount"
+        ],
+        "message": "Invalid input: expected number, received undefined"
+       }
+      ]
+     }
     }
    },
    {
     "p": "ai.memory.summaries.get",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "sessionId"
+        ],
+        "message": "Invalid input: expected string, received undefined"
+       }
+      ]
+     }
     }
    }
   ]
@@ -1043,21 +1268,51 @@
     "p": "ai.memory.userProfile.set",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "source"
+        ],
+        "message": "Invalid option: expected one of \"user\"|\"inferred\"|\"distilled\""
+       }
+      ]
+     }
     }
    },
    {
     "p": "ai.memory.userProfile.set",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "patch"
+        ],
+        "message": "Invalid input: expected record, received undefined"
+       }
+      ]
+     }
     }
    },
    {
     "p": "ai.memory.userProfile.set",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "patch"
+        ],
+        "message": "Invalid input: expected record, received array"
+       }
+      ]
+     }
     }
    },
    {
@@ -1228,7 +1483,17 @@
     "p": "ai.memory.userProfile.import",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "data"
+        ],
+        "message": "Invalid input: expected nonoptional, received undefined"
+       }
+      ]
+     }
     }
    },
    {
@@ -1249,14 +1514,30 @@
     "p": "ai.memory.userProfile.get",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [],
+        "message": "Invalid input: expected void, received object"
+       }
+      ]
+     }
     }
    },
    {
     "p": "ai.memory.userProfile.reset",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [],
+        "message": "Invalid input: expected void, received object"
+       }
+      ]
+     }
     }
    }
   ]
@@ -1348,14 +1629,94 @@
     "p": "ai.memory.userProfile.get",
     "err": {
      "code": "BAD_OUTPUT",
-     "message": "Invalid output of 'ai.memory.userProfile.get'"
+     "message": "Invalid output of 'ai.memory.userProfile.get'",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "version"
+        ],
+        "message": "Invalid input: expected number, received string"
+       },
+       {
+        "path": [
+         "preferences"
+        ],
+        "message": "Invalid input: expected object, received undefined"
+       },
+       {
+        "path": [
+         "habits"
+        ],
+        "message": "Invalid input: expected object, received undefined"
+       },
+       {
+        "path": [
+         "dislikes"
+        ],
+        "message": "Invalid input: expected array, received undefined"
+       },
+       {
+        "path": [
+         "createdAt"
+        ],
+        "message": "Invalid input: expected number, received undefined"
+       },
+       {
+        "path": [
+         "updatedAt"
+        ],
+        "message": "Invalid input: expected number, received undefined"
+       }
+      ]
+     }
     }
    },
    {
     "p": "ai.memory.userProfile.export",
     "err": {
      "code": "BAD_OUTPUT",
-     "message": "Invalid output of 'ai.memory.userProfile.export'"
+     "message": "Invalid output of 'ai.memory.userProfile.export'",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "version"
+        ],
+        "message": "Invalid input: expected number, received string"
+       },
+       {
+        "path": [
+         "preferences"
+        ],
+        "message": "Invalid input: expected object, received undefined"
+       },
+       {
+        "path": [
+         "habits"
+        ],
+        "message": "Invalid input: expected object, received undefined"
+       },
+       {
+        "path": [
+         "dislikes"
+        ],
+        "message": "Invalid input: expected array, received undefined"
+       },
+       {
+        "path": [
+         "createdAt"
+        ],
+        "message": "Invalid input: expected number, received undefined"
+       },
+       {
+        "path": [
+         "updatedAt"
+        ],
+        "message": "Invalid input: expected number, received undefined"
+       }
+      ]
+     }
     }
    },
    {
@@ -1455,7 +1816,15 @@
     "p": "ai.memory.userProfile.get",
     "err": {
      "code": "BAD_OUTPUT",
-     "message": "Invalid output of 'ai.memory.userProfile.get'"
+     "message": "Invalid output of 'ai.memory.userProfile.get'",
+     "data": {
+      "issues": [
+       {
+        "path": [],
+        "message": "Invalid input: expected object, received array"
+       }
+      ]
+     }
     }
    }
   ]
@@ -1511,35 +1880,35 @@
    {
     "p": "ai.memory.userProfile.get",
     "err": {
-     "code": "SEAM_NOT_INJECTED",
+     "code": "INTERNAL",
      "message": "[SEAM_NOT_INJECTED|0] ctx.userProfile 未注入；请确认已加载 bundle-ig-base"
     }
    },
    {
     "p": "ai.memory.userProfile.set",
     "err": {
-     "code": "SEAM_NOT_INJECTED",
+     "code": "INTERNAL",
      "message": "[SEAM_NOT_INJECTED|0] ctx.userProfile 未注入；请确认已加载 bundle-ig-base"
     }
    },
    {
     "p": "ai.memory.userProfile.reset",
     "err": {
-     "code": "SEAM_NOT_INJECTED",
+     "code": "INTERNAL",
      "message": "[SEAM_NOT_INJECTED|0] ctx.userProfile 未注入；请确认已加载 bundle-ig-base"
     }
    },
    {
     "p": "ai.memory.userProfile.export",
     "err": {
-     "code": "SEAM_NOT_INJECTED",
+     "code": "INTERNAL",
      "message": "[SEAM_NOT_INJECTED|0] ctx.userProfile 未注入；请确认已加载 bundle-ig-base"
     }
    },
    {
     "p": "ai.memory.userProfile.import",
     "err": {
-     "code": "SEAM_NOT_INJECTED",
+     "code": "INTERNAL",
      "message": "[SEAM_NOT_INJECTED|0] ctx.userProfile 未注入；请确认已加载 bundle-ig-base"
     }
    }
@@ -1551,21 +1920,21 @@
    {
     "p": "ai.asr.list",
     "err": {
-     "code": "SEAM_NOT_INJECTED",
+     "code": "INTERNAL",
      "message": "[SEAM_NOT_INJECTED|0] ctx.asr 未注入；请确认 profile 已加载 bundle-ig-electron-caps"
     }
    },
    {
     "p": "ai.asr.transcribe",
     "err": {
-     "code": "SEAM_NOT_INJECTED",
+     "code": "INTERNAL",
      "message": "[SEAM_NOT_INJECTED|0] ctx.asr 未注入；请确认 profile 已加载 bundle-ig-electron-caps"
     }
    },
    {
     "p": "ai.asr.transcribe",
     "err": {
-     "code": "SEAM_NOT_INJECTED",
+     "code": "INTERNAL",
      "message": "[SEAM_NOT_INJECTED|0] ctx.asr 未注入；请确认 profile 已加载 bundle-ig-electron-caps"
     }
    },
@@ -1573,48 +1942,81 @@
     "p": "ai.asr.transcribe",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "pcm",
+         "sampleRate"
+        ],
+        "message": "Invalid input: expected 16000"
+       }
+      ]
+     }
     }
    },
    {
     "p": "ai.asr.transcribe",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "pcm",
+         "data"
+        ],
+        "message": "Expected Uint8Array"
+       }
+      ]
+     }
     }
    },
    {
     "p": "ai.asr.transcribe",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "opts",
+         "language"
+        ],
+        "message": "Invalid input: expected string, received number"
+       }
+      ]
+     }
     }
    },
    {
     "p": "ai.tts.list",
     "err": {
-     "code": "SEAM_NOT_INJECTED",
+     "code": "INTERNAL",
      "message": "[SEAM_NOT_INJECTED|0] ctx.tts 未注入；请确认 profile 已加载 bundle-ig-electron-caps"
     }
    },
    {
     "p": "ai.tts.listVoices",
     "err": {
-     "code": "SEAM_NOT_INJECTED",
+     "code": "INTERNAL",
      "message": "[SEAM_NOT_INJECTED|0] ctx.tts 未注入；请确认 profile 已加载 bundle-ig-electron-caps"
     }
    },
    {
     "p": "ai.tts.synth",
     "err": {
-     "code": "SEAM_NOT_INJECTED",
+     "code": "INTERNAL",
      "message": "[SEAM_NOT_INJECTED|0] ctx.tts 未注入；请确认 profile 已加载 bundle-ig-electron-caps"
     }
    },
    {
     "p": "ai.tts.synth",
     "err": {
-     "code": "SEAM_NOT_INJECTED",
+     "code": "INTERNAL",
      "message": "[SEAM_NOT_INJECTED|0] ctx.tts 未注入；请确认 profile 已加载 bundle-ig-electron-caps"
     }
    },
@@ -1622,20 +2024,41 @@
     "p": "ai.tts.synth",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "opts",
+         "format"
+        ],
+        "message": "Invalid option: expected one of \"mp3\"|\"wav\"|\"ogg\""
+       }
+      ]
+     }
     }
    },
    {
     "p": "ai.tts.synth",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "text"
+        ],
+        "message": "Invalid input: expected string, received undefined"
+       }
+      ]
+     }
     }
    },
    {
     "p": "ai.tts.stop",
     "err": {
-     "code": "SEAM_NOT_INJECTED",
+     "code": "INTERNAL",
      "message": "[SEAM_NOT_INJECTED|0] ctx.tts 未注入；请确认 profile 已加载 bundle-ig-electron-caps"
     }
    },
@@ -1643,14 +2066,32 @@
     "p": "ai.tts.stop",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "reqId"
+        ],
+        "message": "Invalid input: expected string, received undefined"
+       }
+      ]
+     }
     }
    },
    {
     "p": "ai.tts.list",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [],
+        "message": "Invalid input: expected void, received object"
+       }
+      ]
+     }
     }
    }
   ]
@@ -1730,35 +2171,85 @@
     "p": "ai.avatar.emotion",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "weight"
+        ],
+        "message": "Too big: expected number to be <=1"
+       }
+      ]
+     }
     }
    },
    {
     "p": "ai.avatar.emotion",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "name"
+        ],
+        "message": "semantic name (camelCase), not a clip / motion id"
+       }
+      ]
+     }
     }
    },
    {
     "p": "ai.avatar.emotion",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "name"
+        ],
+        "message": "semantic name (camelCase), not a clip / motion id"
+       }
+      ]
+     }
     }
    },
    {
     "p": "ai.avatar.emotion",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "name"
+        ],
+        "message": "semantic name (camelCase), not a clip / motion id"
+       }
+      ]
+     }
     }
    },
    {
     "p": "ai.avatar.emotion",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "name"
+        ],
+        "message": "Invalid input: expected string, received undefined"
+       }
+      ]
+     }
     }
    },
    {
@@ -1784,7 +2275,17 @@
     "p": "ai.avatar.gesture",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "name"
+        ],
+        "message": "semantic name (camelCase), not a clip / motion id"
+       }
+      ]
+     }
     }
    },
    {
@@ -1815,14 +2316,34 @@
     "p": "ai.avatar.speaking",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "level"
+        ],
+        "message": "Too big: expected number to be <=1"
+       }
+      ]
+     }
     }
    },
    {
     "p": "ai.avatar.speaking",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "level"
+        ],
+        "message": "Invalid input: expected number, received undefined"
+       }
+      ]
+     }
     }
    },
    {
@@ -1886,7 +2407,17 @@
     "p": "ai.avatar.report",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "hitbox"
+        ],
+        "message": "Invalid option: expected one of \"head\"|\"face\"|\"body\"|\"hand\"|\"hem\"|\"legs\"|\"any\""
+       }
+      ]
+     }
     }
    },
    {
@@ -1915,42 +2446,101 @@
     "p": "ai.avatar.report",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "characterId"
+        ],
+        "message": "Too small: expected string to have >=1 characters"
+       }
+      ]
+     }
     }
    },
    {
     "p": "ai.avatar.report",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "emotions",
+         0
+        ],
+        "message": "semantic name (camelCase), not a clip / motion id"
+       }
+      ]
+     }
     }
    },
    {
     "p": "ai.avatar.report",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "gestures"
+        ],
+        "message": "Invalid input: expected array, received undefined"
+       }
+      ]
+     }
     }
    },
    {
     "p": "ai.avatar.report",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "type"
+        ],
+        "message": "Invalid discriminator value. Expected 'touched' | 'clicked' | 'scene'"
+       }
+      ]
+     }
     }
    },
    {
     "p": "ai.avatar.report",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "type"
+        ],
+        "message": "Invalid discriminator value. Expected 'touched' | 'clicked' | 'scene'"
+       }
+      ]
+     }
     }
    },
    {
     "p": "ai.avatar.isAvailable",
     "err": {
      "code": "BAD_INPUT",
-     "message": "Invalid input"
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [],
+        "message": "Invalid input: expected void, received object"
+       }
+      ]
+     }
     }
    }
   ]
@@ -2003,35 +2593,35 @@
    {
     "p": "ai.avatar.emotion",
     "err": {
-     "code": "SEAM_NOT_INJECTED",
+     "code": "INTERNAL",
      "message": "[SEAM_NOT_INJECTED|0] 角色形象仅在装载 bundle-ig-mascot 的 AvatarSeamPlugin 后可用"
     }
    },
    {
     "p": "ai.avatar.gesture",
     "err": {
-     "code": "SEAM_NOT_INJECTED",
+     "code": "INTERNAL",
      "message": "[SEAM_NOT_INJECTED|0] 角色形象仅在装载 bundle-ig-mascot 的 AvatarSeamPlugin 后可用"
     }
    },
    {
     "p": "ai.avatar.activity",
     "err": {
-     "code": "SEAM_NOT_INJECTED",
+     "code": "INTERNAL",
      "message": "[SEAM_NOT_INJECTED|0] 角色形象仅在装载 bundle-ig-mascot 的 AvatarSeamPlugin 后可用"
     }
    },
    {
     "p": "ai.avatar.speaking",
     "err": {
-     "code": "SEAM_NOT_INJECTED",
+     "code": "INTERNAL",
      "message": "[SEAM_NOT_INJECTED|0] 角色形象仅在装载 bundle-ig-mascot 的 AvatarSeamPlugin 后可用"
     }
    },
    {
     "p": "ai.avatar.report",
     "err": {
-     "code": "SEAM_NOT_INJECTED",
+     "code": "INTERNAL",
      "message": "[SEAM_NOT_INJECTED|0] 角色形象仅在装载 bundle-ig-mascot 的 AvatarSeamPlugin 后可用"
     }
    }
@@ -2214,7 +2804,15 @@
     "p": "ai.memory.userProfile.get",
     "err": {
      "code": "BAD_OUTPUT",
-     "message": "Invalid output of 'ai.memory.userProfile.get'"
+     "message": "Invalid output of 'ai.memory.userProfile.get'",
+     "data": {
+      "issues": [
+       {
+        "path": [],
+        "message": "Invalid input: expected object, received number"
+       }
+      ]
+     }
     }
    },
    {
@@ -2229,6 +2827,279 @@
     "err": {
      "code": "INTERNAL",
      "message": "Cannot create property 'updatedAt' on number '5'"
+    }
+   }
+  ]
+ },
+ {
+  "name": "hooks",
+  "steps": [
+   {
+    "p": null,
+    "events": [
+     {
+      "event": "ai.agent.turnEnd",
+      "data": {
+       "sessionId": "s1",
+       "turnId": "t1",
+       "ok": true
+      }
+     }
+    ]
+   },
+   {
+    "p": null,
+    "events": [
+     {
+      "event": "ai.agent.turnEnd",
+      "data": {
+       "sessionId": "s1",
+       "turnId": "t2",
+       "ok": false,
+       "reason": "aborted",
+       "extra": {
+        "k": 1
+       }
+      }
+     }
+    ]
+   },
+   {
+    "p": null
+   },
+   {
+    "p": null,
+    "events": [
+     {
+      "event": "ai.agent.turnEnd",
+      "data": {}
+     }
+    ]
+   },
+   {
+    "p": null
+   },
+   {
+    "p": null
+   },
+   {
+    "p": null
+   },
+   {
+    "p": null,
+    "events": [
+     {
+      "event": "ai.agent.stoppedByUser",
+      "data": {
+       "sessionId": "s1",
+       "reqId": "r1"
+      }
+     }
+    ]
+   },
+   {
+    "p": null
+   },
+   {
+    "p": null,
+    "events": [
+     {
+      "event": "ai.tool.confirmRequired",
+      "data": {
+       "reqId": "r2",
+       "toolName": "echo",
+       "argumentsJson": "{}",
+       "reason": "dangerous",
+       "createdAt": 5
+      }
+     }
+    ]
+   },
+   {
+    "p": null,
+    "events": [
+     {
+      "event": "ai.tool.confirmRequired",
+      "data": {
+       "tool": "echo",
+       "args": {}
+      }
+     }
+    ]
+   },
+   {
+    "p": null
+   },
+   {
+    "p": null,
+    "events": [
+     {
+      "event": "ai.tool.executed",
+      "data": {
+       "toolName": "echo",
+       "reqId": "r3",
+       "ok": true,
+       "durationMs": 3
+      }
+     }
+    ]
+   },
+   {
+    "p": null,
+    "events": [
+     {
+      "event": "ai.tool.executed",
+      "data": {
+       "ok": true,
+       "tool": "echo",
+       "result": {
+        "echoed": "x"
+       }
+      }
+     }
+    ]
+   },
+   {
+    "p": null
+   },
+   {
+    "p": null
+   },
+   {
+    "p": null,
+    "events": [
+     {
+      "event": "ai.message.complete",
+      "data": {
+       "message": {
+        "role": "assistant",
+        "content": "hi"
+       }
+      }
+     }
+    ]
+   },
+   {
+    "p": null
+   },
+   {
+    "p": null
+   },
+   {
+    "p": null
+   },
+   {
+    "p": null
+   },
+   {
+    "p": null,
+    "events": [
+     {
+      "event": "ai.tts.chunk",
+      "data": {
+       "reqId": "t",
+       "seq": 0,
+       "mime": "audio/pcm",
+       "data": {
+        "$u8": "AAEC"
+       },
+       "rms": 0.5,
+       "atMs": 0,
+       "isFinal": false
+      }
+     }
+    ]
+   },
+   {
+    "p": null
+   },
+   {
+    "p": null,
+    "events": [
+     {
+      "event": "ai.tts.end",
+      "data": {
+       "reqId": "t",
+       "ok": true,
+       "durationMs": 12
+      }
+     }
+    ]
+   },
+   {
+    "p": null
+   },
+   {
+    "p": null,
+    "events": [
+     {
+      "event": "ai.userProfile.changed",
+      "data": {
+       "profile": {
+        "a": 1
+       }
+      }
+     }
+    ]
+   },
+   {
+    "p": null
+   },
+   {
+    "p": null
+   },
+   {
+    "p": null
+   },
+   {
+    "p": null
+   },
+   {
+    "p": null,
+    "events": [
+     {
+      "event": "hook:tools/wrap",
+      "data": {
+       "reqId": "x",
+       "ok": true
+      }
+     }
+    ]
+   },
+   {
+    "p": "ai.tools.confirm",
+    "out": null,
+    "undef": true,
+    "events": [
+     {
+      "event": "hook:tools/wrap",
+      "data": {
+       "reqId": "c1",
+       "ok": true
+      }
+     }
+    ]
+   },
+   {
+    "p": "ai.tools.confirm",
+    "out": null,
+    "undef": true,
+    "events": [
+     {
+      "event": "hook:tools/wrap",
+      "data": {
+       "reqId": "c2",
+       "ok": false,
+       "reason": "nope"
+      }
+     }
+    ]
+   },
+   {
+    "p": "ai.tools.confirm",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[TOOL_CONFIRM_INVALID|0] confirm 必须提供 reqId"
     }
    }
   ]

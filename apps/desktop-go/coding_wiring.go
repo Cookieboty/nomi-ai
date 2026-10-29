@@ -8,12 +8,14 @@ import (
 	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/tools"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/runtime/igtools"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/delegate"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/harness"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/codinghandlers"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 )
@@ -97,14 +99,22 @@ func (d delegateDesktop) ReceiversFor(p *tools.ToolCallProvider, roles []string)
 }
 func (d delegateDesktop) AuditAppend(e desktop.AuditEntry, rawArgs any) { d.s.Audit.Append(e, rawArgs) }
 
+// delegateGateway：delegate.Gateway ← harnessGateway(gateway) 的 defaults / models（Pick<HarnessGateway, ...>）
+type delegateGateway struct{ g *gwstore.Service }
+
+func (h delegateGateway) Defaults(cli string) *util.Obj { return h.g.CliDefaults(cli) }
+func (h delegateGateway) Models() []*util.Obj           { return h.g.CliModels() }
+
+var _ delegate.Gateway = delegateGateway{}
 var _ delegate.Desktop = delegateDesktop{}
 var _ delegate.Harness = delegateHarness{}
 
 // wireCoding 对齐 createCore.ts 的 CliUpdateService / DelegateService / SessionHistoryService 构造
 // 与 coding.ts 的 cli.registry/plugin*、cliUpdate.*、delegate.*、history.* 过程。
-// 账号（AccountService）提供 history 的 accountLabel / sessionAccount；网关（harnessGateway / servedSession）尚未接入（gw），对应依赖为空（Node 侧可选）；
+// 账号（AccountService）提供 history 的 accountLabel / sessionAccount；网关提供 delegate 的 harnessGateway（defaults / models）
+// 与 history 的 gatewaySession = gateway.servedSession（gw 为 nil 时依赖为空，Node 侧可选）；
 // history.delete 的 trash = ports.shell.trashItem（internal/shell/trash）。
-func wireCoding(router *contract.Router, userData string, plugins *cli.CliPluginHost, d *desktop.Service) {
+func wireCoding(router *contract.Router, userData string, plugins *cli.CliPluginHost, d *desktop.Service, gw *gwstore.Service, reg tools.Registry) {
 	o, acc := harnessOrch, harnessAccounts
 	var updates *cli.CliUpdateService
 	var err error
@@ -128,13 +138,26 @@ func wireCoding(router *contract.Router, userData string, plugins *cli.CliPlugin
 		log.Printf("[desktop-go] cliUpdate: %v", err)
 		updates = nil
 	}
-	dlg := delegate.New(delegate.Deps{
+	dd := delegate.Deps{
 		Root: filepath.Join(userData, "delegate"), Harness: delegateHarness{o}, Desktop: delegateDesktop{d},
 		Events: hostEvents{router},
-	})
+	}
+	var gatewaySession func(backend, sessionID string) bool
+	if gw != nil {
+		dd.Gateway = delegateGateway{gw}
+		gatewaySession = gw.ServedSession
+	}
+	dlg := delegate.New(dd)
+	// DesktopToolsPlugin：delegate.tools() 覆盖 registerIgTools 的占位（保持插入位置），dangerous 未声明
+	if reg != nil {
+		for _, def := range igtools.WithDangerousUnset(dlg.Tools()) {
+			reg.Register(def)
+		}
+	}
 	history := jsrt.Call(func() *cli.SessionHistoryService {
 		return cli.NewSessionHistoryService(cli.SessionHistoryDeps{
-			Logger: historyLog{},
+			Logger:         historyLog{},
+			GatewaySession: gatewaySession,
 			Trash: func(p string) *jsrt.Promise[struct{}] {
 				return jsrt.Async(func() (struct{}, error) { return struct{}{}, trash.Item(p) })
 			},

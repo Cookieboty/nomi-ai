@@ -1896,5 +1896,308 @@
     }
    }
   ]
+ },
+ {
+  "name": "hooks",
+  "steps": [
+   {
+    "hook": {
+     "event": "agent/turn-end",
+     "payload": {
+      "sessionId": "s1",
+      "turnId": "t1",
+      "ok": true
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "agent/turn-end",
+     "payload": {
+      "sessionId": "s1",
+      "turnId": "t2",
+      "ok": false,
+      "reason": "aborted",
+      "extra": {
+       "k": 1
+      }
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "agent/turn-end",
+     "payload": {
+      "ok": "yes"
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "agent/turn-end",
+     "payload": {}
+    }
+   },
+   {
+    "hook": {
+     "event": "agent/turn-end"
+    }
+   },
+   {
+    "hook": {
+     "event": "agent/turn-end",
+     "payload": null
+    }
+   },
+   {
+    "hook": {
+     "event": "agent/turn-end",
+     "payload": [
+      1
+     ]
+    }
+   },
+   {
+    "hook": {
+     "event": "agent/stopped-by-user",
+     "payload": {
+      "sessionId": "s1",
+      "reqId": "r1"
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "agent/stopped-by-user",
+     "payload": {
+      "sessionId": 1
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "tool/confirm-required",
+     "payload": {
+      "reqId": "r2",
+      "toolName": "echo",
+      "argumentsJson": "{}",
+      "reason": "dangerous",
+      "createdAt": 5
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "tool/confirm-required",
+     "payload": {
+      "tool": "echo",
+      "args": {}
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "tool/confirm-required",
+     "payload": {
+      "createdAt": "5"
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "tools/post-execute",
+     "payload": {
+      "toolName": "echo",
+      "reqId": "r3",
+      "ok": true,
+      "durationMs": 3
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "tools/post-execute",
+     "payload": {
+      "tool": "echo",
+      "ok": true,
+      "result": {
+       "echoed": "x"
+      }
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "tools/post-execute",
+     "payload": {
+      "ok": true,
+      "error": 7
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "tools/post-execute"
+    }
+   },
+   {
+    "hook": {
+     "event": "session/assistant-message",
+     "payload": {
+      "message": {
+       "role": "assistant",
+       "content": "hi"
+      }
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "session/assistant-message",
+     "payload": {
+      "message": 0
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "session/assistant-message",
+     "payload": {
+      "message": ""
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "session/assistant-message",
+     "payload": {}
+    }
+   },
+   {
+    "hook": {
+     "event": "session/assistant-message"
+    }
+   },
+   {
+    "hook": {
+     "event": "tts/chunk",
+     "payload": {
+      "reqId": "t",
+      "seq": 0,
+      "mime": "audio/pcm",
+      "data": {
+       "$u8": "AAEC"
+      },
+      "rms": 0.5,
+      "atMs": 0,
+      "isFinal": false
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "tts/chunk",
+     "payload": {
+      "reqId": "t",
+      "data": "AAEC"
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "tts/end",
+     "payload": {
+      "reqId": "t",
+      "ok": true,
+      "durationMs": 12
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "tts/end",
+     "payload": {
+      "durationMs": "12"
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "userProfile/changed",
+     "payload": {
+      "profile": {
+       "a": 1
+      }
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "userProfile/changed",
+     "payload": 7
+    }
+   },
+   {
+    "hook": {
+     "event": "agent/step",
+     "payload": {
+      "sessionId": "s1",
+      "step": 1,
+      "reason": "tool-calls"
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "agent:step",
+     "payload": {
+      "sessionId": "s1",
+      "step": 1,
+      "reason": "tool-calls"
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "message/delta",
+     "payload": {
+      "sessionId": "s1",
+      "messageId": "m",
+      "deltaText": "x"
+     }
+    }
+   },
+   {
+    "hook": {
+     "event": "tools/wrap",
+     "payload": {
+      "reqId": "x",
+      "ok": true
+     }
+    }
+   },
+   {
+    "p": "ai.tools.confirm",
+    "in": {
+     "reqId": "c1",
+     "ok": true
+    }
+   },
+   {
+    "p": "ai.tools.confirm",
+    "in": {
+     "reqId": "c2",
+     "ok": false,
+     "reason": "nope"
+    }
+   },
+   {
+    "p": "ai.tools.confirm",
+    "in": {
+     "reqId": "",
+     "ok": true
+    }
+   }
+  ]
  }
 ]

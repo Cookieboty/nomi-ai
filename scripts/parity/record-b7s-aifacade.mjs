@@ -4,7 +4,7 @@
  * 真实 createAiRouter（契约 implement：入参 / 出参 / 事件校验）+ new AIClient(ctx) + 主进程同款插件：
  * FileSessionStorePlugin(rootDir=沙箱) → UserPreferenceMemoryPlugin → AvatarSeamPlugin + MascotIpcHost（avatar.event 记录）。
  * 引导期同 createAiSdkBooter：apply 后 UserProfileKey.export()。Date.now 固定；会话 id 由 Go 侧按出现序替换。
- * 每步记录：输出 / 错误（code + message）、期间的契约事件、可选的画像文件内容。
+ * 每步记录：输出 / 线上错误（toErrorPayload：code + message + data）、期间的契约事件、可选的画像文件内容。
  *
  * Usage: node scripts/parity/record-b7s-aifacade.mjs
  */
@@ -27,6 +27,7 @@ const m = await importSources(root, {
   sdk: P('ai-sdk/src/index.ts'),
   router: P('ai-runtime/src/AiContractRouter.ts'),
   wire: P('contract/src/wire.ts'),
+  errors: P('contract/src/errors.ts'),
   bridge: P('core/src/ai/mascotBridge.ts'),
   ighost: P('ai-runtime/src/IgPluginHost.ts'),
 });
@@ -58,7 +59,14 @@ async function run(sc) {
       svc.attachHost(m.bridge.createIpcMascotHost((cue) => events.push({ event: 'avatar.event', data: cue })));
     },
   });
-  const plugins = [{ plugin: m.caps.FileSessionStorePlugin, config: { rootDir: SB } }];
+  // tools/wrap 观察者（生产装配里无人监听；只记录 ToolsFacade.confirm 发出的载荷）
+  const wrapSpy = definePlugin({
+    name: 'ToolsWrapSpy',
+    apply(ctx) {
+      ctx.on('tools/wrap', (h) => events.push({ event: 'hook:tools/wrap', data: h.payload }));
+    },
+  });
+  const plugins = [{ plugin: m.caps.FileSessionStorePlugin, config: { rootDir: SB } }, { plugin: wrapSpy, config: {} }];
   if (sc.registry !== false) plugins.push({ plugin: ToolsBuiltinPlugin, config: { enable: [] } });
   if (sc.profile !== false) plugins.push({ plugin: UserPreferenceMemoryPlugin, config: { exposeAsTools: false } });
   if (sc.avatar !== false) {
@@ -80,6 +88,11 @@ async function run(sc) {
   for (const st of sc.steps) {
     if (st.tick) clock += st.tick;
     const rec = { p: st.p ?? null };
+    if (st.hook) {
+      // 插件事件（ctx.emit）：经 AIClient 桥 → 契约事件
+      const payload = 'payload' in st.hook ? m.wire.decodeWireFrame(JSON.stringify(st.hook.payload)) : undefined;
+      host.ctx.emit(st.hook.event, payload);
+    }
     if (st.p) {
       const input = 'in' in st ? m.wire.decodeWireFrame(JSON.stringify(st.in).replace(/"\$s(\d+)"/g, (_, n) => JSON.stringify(ids[n - 1]))) : undefined;
       try {
@@ -88,7 +101,8 @@ async function run(sc) {
         if (out === undefined) rec.undef = true;
         for (const id of JSON.stringify(out ?? null).match(/sess_[0-9a-z]+_[0-9a-z]+/g) ?? []) if (!ids.includes(id)) ids.push(id);
       } catch (err) {
-        rec.err = { code: err.code ?? 'INTERNAL', message: err.message };
+        // 线上错误形态（server.ts → toErrorPayload）：非 ContractError（AIClientError / Error）一律 INTERNAL
+        rec.err = JSON.parse(m.wire.encodeWireFrame(m.errors.toErrorPayload(err)));
       }
     }
     await new Promise((r) => setTimeout(r, 0));

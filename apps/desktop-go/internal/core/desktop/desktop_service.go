@@ -13,6 +13,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop/parse"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop/reminders"
 	tr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
 // DesktopService.ts：桌面能力的总装（授权、审计、撤销、回收站、提醒、拖入总结）
@@ -53,6 +54,9 @@ type Ports struct {
 	PickDirectory    func(title, buttonLabel, defaultPath string) string
 	NotifySupported  func() bool
 	ShowNotification func(title, body string, onClick func())
+	// ClipboardRead / ClipboardWrite = ports.clipboard（desktop.tools() 的 clipboard_*）
+	ClipboardRead  func() (string, error)
+	ClipboardWrite func(text string) error
 }
 
 type NotifyPolicy interface {
@@ -64,6 +68,8 @@ type NotifyPolicy interface {
 type DesktopNotice struct {
 	Kind, Title, Text, Body, Status, Endpoint string
 	Passive                                   bool
+	// Bubble = n.bubble（DesktopBubble 去掉 text：kind / voice …，按键序并入气泡负载）；nil = 无。
+	Bubble *util.Obj
 }
 
 type MissedItem struct {
@@ -226,10 +232,23 @@ func (s *Service) sendConfirm(req ConfirmRequest) {
 // Say 在看板娘气泡里说一句
 func (s *Service) Say(text string) { s.toMascot("desktop.bubble", map[string]string{"text": text}) }
 
+// sayWith = say(text, opts)：{ text, ...opts }。
+func (s *Service) sayWith(text string, opts *util.Obj) {
+	if opts == nil || len(opts.Keys()) == 0 {
+		s.Say(text)
+		return
+	}
+	p := util.NewObj("text", text)
+	for _, k := range opts.Keys() {
+		p.Set(k, opts.Get(k))
+	}
+	s.toMascot("desktop.bubble", p)
+}
+
 // Notify 对应 notify：bubble | island | notification | none
 func (s *Service) Notify(n DesktopNotice) string {
 	if !s.mascotHidden() && s.main() {
-		s.Say(n.Text)
+		s.sayWith(n.Text, n.Bubble)
 		return "bubble"
 	}
 	body := n.Body
@@ -803,4 +822,25 @@ func jsAny(raw json.RawMessage) any {
 // CreateService 对应 createDesktopService
 func CreateService(userData string, ports Ports, emit Emitter) *Service {
 	return NewService(filepath.Join(userData, "desktop"), ports, emit, []string{userData})
+}
+
+// Summarize = this.summarize（desktop.tools() 的 summarize 依赖；summary 角色模型）
+func (s *Service) Summarize(text, instruction string) (string, error) {
+	return s.summarize(text, instruction)
+}
+
+// ClipboardRead = ports.clipboard.readText()（没有端口按空剪贴板）
+func (s *Service) ClipboardRead() (string, error) {
+	if s.ports.ClipboardRead == nil {
+		return "", nil
+	}
+	return s.ports.ClipboardRead()
+}
+
+// ClipboardWrite = ports.clipboard.writeText(t)
+func (s *Service) ClipboardWrite(t string) error {
+	if s.ports.ClipboardWrite == nil {
+		return nil
+	}
+	return s.ports.ClipboardWrite(t)
 }

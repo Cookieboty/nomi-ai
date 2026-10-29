@@ -71,9 +71,11 @@ func installShellProcs(router *contract.Router, userData string, sh *shell.Shell
 		},
 	})
 	harness.CliTrap = sp.Diagnostics.CliTrace.Tap
-	// quality.*（QualityService，createCore 1:1）：userData/usage/quality；enabled / cost 待 UsageService（D-SH-11）
+	// quality.*（QualityService，createCore 1:1）：userData/usage/quality；enabled / cost 来自 UsageService（晚绑定）
 	sp.Quality = quality.New(quality.ServiceDeps{
 		Dir:     filepath.Join(userData, "usage", "quality"),
+		Enabled: usageEnabled,
+		Cost:    usageCost,
 		Logger:  qualityLogger{deps.StdLogger{Prefix: "[quality]"}},
 		LabelOf: gatewayLabelOf(gw),
 		Publish: func(ev string, p any) { router.Emit(ev, p) },

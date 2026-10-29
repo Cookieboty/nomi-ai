@@ -3,7 +3,7 @@ name: desktop-go
 on:
   workflow_dispatch: {}
   push:
-    branches: [feat/2.0.5-go]
+    branches: [feat/2.0.5-go, 'feat/2.0.5-go-**']
   pull_request:
     branches: [release/2.0.5]
     paths:
@@ -12,14 +12,17 @@ on:
 permissions:
   contents: read
 # 之前按 ref 分组且 cancel-in-progress，多个 worker 连续 push feat/2.0.5-go 时前一次 run 被取消
-# （表现为“某些 push 没跑 CI”）。push 改为按 commit 分组且不取消；PR 仍只保留最新一次。
+# （表现为“某些 push 没跑 CI”）。现按分支分组且不取消：同分支一个在跑 + 只保留最新一个排队，旧排队被替换。
+# PR #173（同仓 head = feat/2.0.5-go）的 pull_request 事件跳过 job，push 已覆盖同一提交。
+# worker 分支 feat/2.0.5-go-** 也触发 push：各自独立分组（按 ref），不会取消集成分支的 run。
 concurrency:
-  group: desktop-go-${{ github.event_name }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: desktop-go-${{ github.event_name }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: false
 env:
   WAIT: '45' # runner 上冷启动后等待秒数（Linux 本机实测用 120s）
 jobs:
   build:
+    if: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'feat/2.0.5-go') }}
     strategy:
       fail-fast: false
       matrix:
@@ -34,7 +37,7 @@ jobs:
         with: { lfs: true }
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: pnpm }
+        with: { node-version: 24.22.0, cache: pnpm }
       - uses: actions/setup-go@v5
         with: { go-version-file: apps/desktop-go/go.mod, cache-dependency-path: apps/desktop-go/go.sum }
       - name: linux deps
@@ -61,14 +64,17 @@ jobs:
           pnpm exec tsx scripts/parity/record-b7-coding.mjs
           pnpm exec tsx scripts/parity/record-b7-slash.mjs
           pnpm exec tsx scripts/parity/record-b7-ws.mjs
+          # desktop.tools() 执行 golden：Windows 路径 / 权限、workspace_run（cmd / sh）、真实 code_run（JS --permission、Python 平台隔离）按平台现场录制
+          node scripts/parity/record-b7s-desktools.mjs
           pnpm --filter @nomi-ai/types --filter @nomi-ai/i18n build
           pnpm exec tsx scripts/parity/record-b9.mjs
           pnpm exec tsx scripts/parity/check-scheme-url.mjs
           pnpm exec tsx scripts/parity/record-gwservice.mjs
           pnpm exec tsx scripts/parity/record-gwprocess.mjs
           pnpm exec tsx scripts/parity/record-gwcli.mjs
-          # quality.*：子进程按 TZ 录 3 时区（Windows 的 Node 不按 TZ 切时区），只在 Linux 现场录制并与提交的 golden 对比
-          if [ "$RUNNER_OS" = Linux ]; then (cd scripts/parity && node --import tsx record-quality.mjs); diff -q apps/desktop-go/internal/core/quality/testdata/quality.json "$NOMI_GOLDEN_DIR/quality.json"; fi
+          # quality.*：子进程按 TZ=<IANA> 录 3 时区（Node 的 ICU 在三平台都认 TZ），各平台现场录制并与提交的 golden 对比
+          (cd scripts/parity && node --import tsx record-quality.mjs)
+          diff -q apps/desktop-go/internal/core/quality/testdata/quality.json "$NOMI_GOLDEN_DIR/quality.json"
           echo "NOMI_LIVE_GOLDENS=$NOMI_GOLDEN_DIR" >> "$GITHUB_ENV"
           if [ "$RUNNER_OS" = Linux ]; then diff -u apps/desktop-go/internal/core/assetproto/testdata/protocols.json "$NOMI_GOLDEN_DIR/protocols.json"; fi
           if [ "$RUNNER_OS" = Linux ]; then for g in gwservice gwprocess gwcli; do diff -u "apps/desktop-go/internal/core/gwstore/testdata/$g.json" "$NOMI_GOLDEN_DIR/$g.json"; done; fi
@@ -78,13 +84,6 @@ jobs:
           mkdir -p frontend/dist && touch frontend/dist/.keep
           TAGS=""; [ "$RUNNER_OS" = Linux ] && TAGS="-tags gtk3"; [ "$RUNNER_OS" = macOS ] && TAGS="-tags private_mac_apis"
           go vet $TAGS ./... && go test $TAGS -race ./...
-      - name: shell parity mutants
-        # 每个变异必须被 shell / quality parity 回放杀死（存活即失败）
-        if: runner.os == 'Linux'
-        run: |
-          set -o pipefail
-          bash scripts/parity/mutate-shell.sh 2>&1 | tee mutate-shell.log
-          tail -1 mutate-shell.log >> "$GITHUB_STEP_SUMMARY"
       - name: chatbg image parity (no -race; Electron goldens)
         working-directory: apps/desktop-go
         shell: bash
@@ -173,3 +172,28 @@ jobs:
         with:
           name: mem-${{ matrix.os }}
           path: apps/desktop-go/mem/
+
+  # shell / quality 变异检查单独成 job（与 build 并行，避免拖长 build、受其 runner 中断影响）；用提交的 golden
+  shell-mutants:
+    if: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'feat/2.0.5-go') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with: { lfs: true }
+      - uses: actions/setup-go@v5
+        with: { go-version-file: apps/desktop-go/go.mod, cache-dependency-path: apps/desktop-go/go.sum }
+      - run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+      - name: mutate-shell
+        run: |
+          set -o pipefail
+          mkdir -p apps/desktop-go/frontend/dist && touch apps/desktop-go/frontend/dist/.keep
+          MUTATE_SHARD=${{ matrix.shard }} MUTATE_SHARDS=4 bash scripts/parity/mutate-shell.sh 2>&1 | tee mutate-shell.log
+          tail -1 mutate-shell.log >> "$GITHUB_STEP_SUMMARY"

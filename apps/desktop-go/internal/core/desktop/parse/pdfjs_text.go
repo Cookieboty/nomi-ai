@@ -561,10 +561,10 @@ func (r *pdfjsTextRun) updateAdvanceScale() {
 		return
 	}
 	if !it.vertical {
-		it.totalWidth += it.width * it.textAdvanceScale
+		it.totalWidth += float64(it.width * it.textAdvanceScale)
 		it.width = 0
 	} else {
-		it.totalHeight += it.height * it.textAdvanceScale
+		it.totalHeight += float64(it.height * it.textAdvanceScale)
 		it.height = 0
 	}
 	it.textAdvanceScale = sf
@@ -721,7 +721,7 @@ func (r *pdfjsTextRun) compareWithLastPosition(glyphWidth float64) bool {
 	riseDelta := r.textState.textRise - it.prevTextRise
 	advYC := advY
 	if riseDelta != 0 {
-		advYC = advY - (ct[3]/r.textState.fontSize)*riseDelta
+		advYC = advY - float64((ct[3]/r.textState.fontSize)*riseDelta)
 	}
 	if math.Abs(advYC) > it.height {
 		r.appendEOL()
@@ -811,7 +811,7 @@ func (r *pdfjsTextRun) buildText(chars any, extraSpacing float64) {
 				gw = -gw
 			}
 		}
-		dim := gw * scale
+		dim := float64(gw * scale)
 		if g.originalCharCode == 0x20 {
 			cs += ts.wordSpacing
 		}
@@ -840,7 +840,7 @@ func (r *pdfjsTextRun) buildText(chars any, extraSpacing float64) {
 			dim = 0
 		}
 		if !f.vertical {
-			dim *= ts.textHScale
+			dim = float64(dim * ts.textHScale)
 			ts.translateTextMatrix(dim, 0)
 			it.width += dim
 		} else {

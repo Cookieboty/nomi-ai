@@ -15,6 +15,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/codinghandlers"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/quality"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/hostports"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
@@ -69,7 +70,7 @@ var harnessAccounts *accounts.AccountService
 
 // wireHarness 对齐 createCore.ts 的 HarnessOrchestrator 构造 + coding.ts 的 harness.* 过程。
 // gateway = harnessGateway(gateway)（harness_gateway.go）。
-func wireHarness(router *contract.Router, userData, home string, hp hostPorts, gw *gwstore.Service) (*cli.CliPluginHost, func()) {
+func wireHarness(router *contract.Router, userData, home string, hp hostPorts, gw *gwstore.Service, q *quality.Service) (*cli.CliPluginHost, func()) {
 	docs := hostports.Documents()
 	var o *harness.Orchestrator
 	// 编程助手插件宿主（createCore.ts new CliPluginHost）
@@ -112,7 +113,7 @@ func wireHarness(router *contract.Router, userData, home string, hp hostPorts, g
 			Events: hostEvents{router},
 			OnDefaultChanged: func(kind string) {
 				o.RecycleDefaultAccount(kind)
-				// usage.forgetAccountQuota：usage 服务尚未移植，落地后接入
+				usageForgetAccountQuota(kind)
 			},
 			InUse: func(kind, id string) any {
 				n := 0.0
@@ -138,7 +139,8 @@ func wireHarness(router *contract.Router, userData, home string, hp hostPorts, g
 			return
 		}
 		acc = a
-		harnessAccounts = a // coding_wiring.go：history 的 accountLabel / sessionAccount（D-B7-S2-3）
+		accountsRef.Store(a) // usage_wiring.go：grokAccountKey / officialAccount
+		harnessAccounts = a  // coding_wiring.go：history 的 accountLabel / sessionAccount（D-B7-S2-3）
 	})
 	var accPort ports.HarnessOfficialAccounts
 	if acc != nil {
@@ -148,6 +150,7 @@ func wireHarness(router *contract.Router, userData, home string, hp hostPorts, g
 		return harness.New(harness.Deps{
 			Externals: externals{plugins}, Accounts: accPort,
 			Gateway: gatewayPort(gw),
+			Quality: quality.CliSink{S: q},
 			Root:    filepath.Join(userData, "harness"), Logger: stdLogger{}, Home: home,
 			DefaultCwd: filepath.Join(docs, "nomi"), LegacyDefaultCwd: docs,
 			Ports:          harnessPorts{hp},

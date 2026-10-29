@@ -435,9 +435,9 @@ func (c *Controller) SetConfig(raw any) {
 func (c *Controller) capNow() float64 {
 	wx, _ := c.win.GetPosition()
 	w, _ := c.win.GetSize()
-	cx := float64(wx) + float64(w)/2
+	cx := float64(wx) + float64(float64(w)/2)
 	if c.box != nil {
-		cx = float64(wx) + (c.box.Left+c.box.Right)/2
+		cx = float64(wx) + float64((c.box.Left+c.box.Right)/2)
 	}
 	if len(c.workAreas) == 0 {
 		return MaxScaleForArea(nil)

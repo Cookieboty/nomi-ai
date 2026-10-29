@@ -53,7 +53,7 @@ func lanczos3(src image.Image, w, h int) image.Image {
 			for _, c := range wx[x] {
 				p := row[c.i*4:]
 				for k := 0; k < 4; k++ {
-					acc[k] += c.w * float32(p[k])
+					acc[k] += float32(c.w * float32(p[k]))
 				}
 			}
 			copy(tmp[(y*w+x)*4:], acc[:])
@@ -67,7 +67,7 @@ func lanczos3(src image.Image, w, h int) image.Image {
 			for _, c := range wy[y] {
 				p := tmp[(c.i*w+x)*4:]
 				for k := 0; k < 4; k++ {
-					acc[k] += c.w * p[k]
+					acc[k] += float32(c.w * p[k])
 				}
 			}
 			o := y*dst.Stride + x*4

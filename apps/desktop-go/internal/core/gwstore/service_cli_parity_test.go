@@ -56,16 +56,24 @@ func (c *cliChild) OnMessage(fn func(m server.WorkerOutbound)) {
 func (c *cliChild) OnExit(func(int)) {}
 func (c *cliChild) Kill() bool       { return true }
 
+// udSub mirrors the recorder: replace the data dir at every escape depth, deepest first,
+// since on Windows a path nested in a quoted CLI arg is backslash-escaped twice.
+func udSub(s, ud string) string {
+	for k := 3; k >= 0; k-- {
+		s = strings.ReplaceAll(s, strings.ReplaceAll(ud, `\`, strings.Repeat(`\`, 1<<k)), "<UD>")
+	}
+	return s
+}
+
 func cliTree(dir string) map[string]string {
 	out := map[string]string{}
-	esc := strings.ReplaceAll(dir, `\`, `\\`)
 	_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
 		if err != nil || !info.Mode().IsRegular() {
 			return nil
 		}
 		rel, _ := filepath.Rel(dir, p)
 		b, _ := os.ReadFile(p)
-		out[filepath.ToSlash(rel)] = strings.ReplaceAll(strings.ReplaceAll(string(b), esc, "<UD>"), dir, "<UD>")
+		out[filepath.ToSlash(rel)] = udSub(string(b), dir)
 		return nil
 	})
 	return out
@@ -265,7 +273,7 @@ func TestServiceCliParity(t *testing.T) {
 				smu.Lock()
 				got.Set("status", s.Status().State).Set("sent", append([]any{}, sent...))
 				smu.Unlock()
-				gs := strings.ReplaceAll(strings.ReplaceAll(cliCanon(got), strings.ReplaceAll(ud, `\`, `\\`), "<UD>"), ud, "<UD>")
+				gs := udSub(cliCanon(got), ud)
 				if ws := cliCanon(want); gs != ws {
 					t.Fatalf("step %d %s\n--- node\n%s\n--- go\n%s", i, op, ws, gs)
 				}

@@ -67,6 +67,22 @@ func shSub(SB, s string) string {
 	return v
 }
 
+func shDeepSub(SB string, v any) any {
+	switch x := v.(type) {
+	case string:
+		return shSub(SB, x)
+	case []any:
+		for i := range x {
+			x[i] = shDeepSub(SB, x[i])
+		}
+	case *util.Obj:
+		for _, k := range x.Keys() {
+			x.Set(k, shDeepSub(SB, x.Get(k)))
+		}
+	}
+	return v
+}
+
 func shMaterialize(t *testing.T, SB string, f shFile) {
 	enc := util.EncodeURIComponent(SB)
 	js := jsonEsc(SB)
@@ -179,7 +195,8 @@ func runHistoryScenario(t *testing.T, sc shScenario) {
 		if len(raw) == 0 {
 			return
 		}
-		v, _ := util.ParseString(shSub(SB, string(raw)))
+		v, _ := util.ParseString(string(raw))
+		v = shDeepSub(SB, v) // 逐值替换：Windows 反斜杠不能进 JSON 文本
 		if arr, ok := v.([]any); ok {
 			for _, r := range arr {
 				rows = append(rows, r.(*util.Obj))

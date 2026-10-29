@@ -103,7 +103,7 @@ func (l *Ledger) Append(rec *u.Obj) {
 }
 
 func (l *Ledger) isRecent(key string) bool {
-	return dayStart(key) >= dayStart(DayKey(l.now()))-(cacheDays-1)*dayMs
+	return dayStart(key) >= dayStart(DayKey(l.now()))-float64((cacheDays-1)*dayMs)
 }
 
 func (l *Ledger) schedule() {
@@ -274,7 +274,7 @@ func (l *Ledger) Prune(retentionDays float64) int {
 	if retentionDays < 1 {
 		retentionDays = 1
 	}
-	keep := dayStart(DayKey(l.now())) - (retentionDays-1)*dayMs
+	keep := dayStart(DayKey(l.now())) - float64((retentionDays-1)*dayMs)
 	removed := 0
 	for _, key := range l.DayKeys() {
 		if dayStart(key) >= keep {

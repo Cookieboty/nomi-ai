@@ -263,7 +263,7 @@ func (s *Service) State() State {
 
 func (s *Service) stateLocked() State {
 	ram := float64(s.d.TotalMem()) / float64(1<<30)
-	ramGb := int64(ram + 0.5) // Math.round（正数）
+	ramGb := int64(float64(ram) + 0.5) // Math.round（正数）
 	rec := Recommend(float64(ramGb), nil)
 	rt := RuntimeFor(NodePlatform(), NodeArch())
 	models := make([]ModelView, 0, len(LocalLlms))

@@ -868,12 +868,12 @@ func (l *UsageLedger) RouteCovering(source string, ts float64, hint *RouteHint) 
 		if nonEmpty(r.Session) && nonEmpty(hint.Session) && *r.Session != *hint.Session {
 			continue
 		}
-		rp := r.Input + r.CacheRead + r.CacheWrite
+		rp := jsNum(promptTokensJS(r)) // r.input + r.cacheRead + r.cacheWrite（JS `+`，再参与 - / * 转数）
 		dp := math.Abs(rp - hint.Prompt)
 		if dp > math.Max(promptTolAbs, rp*promptTolRel) {
 			continue
 		}
-		if hint.Output > r.Output+math.Max(promptTolAbs, r.Output*promptTolRel) {
+		if hint.Output > jsNum(jsAdd(r.jv("output"), math.Max(promptTolAbs, r.Output*promptTolRel))) {
 			continue
 		}
 		score := dp + math.Abs(r.Output-hint.Output) + math.Abs(ts-r.Ts)/1000

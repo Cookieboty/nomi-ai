@@ -30,8 +30,6 @@ type Options struct {
 	AvatarHost func(cue *u.Obj)
 	// Emit：契约事件（ai.userProfile.changed / ai.avatar.*）
 	Emit func(event string, data any)
-	// OnConfirm：tools/wrap 确认回执
-	OnConfirm func(reqID string, ok bool, reason *string)
 }
 
 // Facade 承载内存态（sessions / facts / summaries / tool 开关）
@@ -42,6 +40,7 @@ type Facade struct {
 	facts     *u.Obj
 	summaries *u.Obj
 	enabled   map[string]bool
+	hooks     map[string][]*func(any) // 插件事件订阅（hooks.go）
 }
 
 func randID() string {
@@ -72,12 +71,30 @@ func New(o Options) *Facade {
 	return f
 }
 
+// aiErr：AIClientError（非 ContractError）→ 线上 toErrorPayload = INTERNAL + 原 message（`[CODE|0] msg`）
 func aiErr(code, msg string) error {
-	return &contract.Error{Code: code, Message: "[" + code + "|0] " + msg}
+	return &contract.Error{Code: "INTERNAL", Message: "[" + code + "|0] " + msg}
+}
+
+// zodFail：router.ts parseWith → ContractError(code, `Invalid ${what}`, { issues: issuesOf(error) })
+func zodFail(code, what string, iss []*issue) error {
+	list := make([]any, 0, len(iss))
+	for _, i := range iss {
+		o := u.NewObj()
+		path := i.path
+		if path == nil {
+			path = []any{}
+		}
+		o.Set("path", path)
+		o.Set("message", i.msg)
+		list = append(list, o)
+	}
+	d := u.NewObj()
+	d.Set("issues", list)
+	return &contract.Error{Code: code, Message: "Invalid " + what, Data: d}
 }
 
 var (
-	errBadInput   = &contract.Error{Code: "BAD_INPUT", Message: "Invalid input"}
 	errNoProfile  = aiErr("SEAM_NOT_INJECTED", "ctx.userProfile 未注入；请确认已加载 bundle-ig-base")
 	errNoASR      = aiErr("SEAM_NOT_INJECTED", "ctx.asr 未注入；请确认 profile 已加载 bundle-ig-electron-caps")
 	errNoTTS      = aiErr("SEAM_NOT_INJECTED", "ctx.tts 未注入；请确认 profile 已加载 bundle-ig-electron-caps")
@@ -163,13 +180,13 @@ func (f *Facade) Handle(name string, raw json.RawMessage) (any, error) {
 	if len(raw) > 0 {
 		v, err := u.Parse(raw)
 		if err != nil {
-			return nil, errBadInput
+			return nil, &contract.Error{Code: "BAD_REQUEST", Message: "Invalid frame"}
 		}
 		in = v
 	}
-	val, _, ok := Parse(p.in, in)
+	val, iss, ok := Parse(p.in, in)
 	if !ok {
-		return nil, errBadInput
+		return nil, zodFail("BAD_INPUT", "input", iss)
 	}
 	out, err := p.fn(f, val)
 	if err != nil {
@@ -186,9 +203,9 @@ func (f *Facade) Handle(name string, raw json.RawMessage) (any, error) {
 	if sch == nil {
 		sch = Void
 	}
-	res, _, ok := Parse(sch, out)
+	res, oiss, ok := Parse(sch, out)
 	if !ok {
-		return nil, &contract.Error{Code: "BAD_OUTPUT", Message: "Invalid output of '" + name + "'"}
+		return nil, zodFail("BAD_OUTPUT", "output of '"+name+"'", oiss)
 	}
 	return res, nil
 }
@@ -382,13 +399,14 @@ func (f *Facade) toolsConfirm(in any) (any, error) {
 	if id == "" {
 		return nil, errConfirmReq
 	}
-	if f.o.OnConfirm != nil {
-		var reason *string
-		if r, ok := optStr(o, "reason"); ok {
-			reason = &r
-		}
-		f.o.OnConfirm(id, o.Get("ok").(bool), reason)
+	// ToolsFacade.confirm：ctx.emit('tools/wrap', { reqId, ok, reason })
+	d := u.NewObj()
+	d.Set("reqId", id)
+	d.Set("ok", o.Get("ok"))
+	if r, ok := optStr(o, "reason"); ok {
+		d.Set("reason", r)
 	}
+	f.Hook("tools/wrap", d)
 	return Undef, nil
 }
 
@@ -527,3 +545,24 @@ func (f *Facade) avatarReport(in any) (any, error) {
 	f.o.Emit(ev, d)
 	return Undef, nil
 }
+
+// AvatarGesture / AvatarEmotion：AvatarService.gesture / emotion（CompanionToolsPlugin 工具执行体用）
+func (f *Facade) AvatarGesture(name string) error {
+	_, err := avatarCue("gesture", charcontract.SemanticGestures)(f, u.NewObj("name", name))
+	return err
+}
+
+func (f *Facade) AvatarEmotion(name string, weight *float64) error {
+	in := u.NewObj("name", name)
+	if weight != nil {
+		in.Set("weight", *weight)
+	}
+	_, err := f.avatarEmotion(in)
+	return err
+}
+
+// Profile：UserProfileKey 实例（nil = 未装）
+func (f *Facade) Profile() *ProfileStore { return f.o.Profile }
+
+// ToolsList = ai.tools.list（igtools parity 回放 ToolSpec 用）
+func (f *Facade) ToolsList() (any, error) { return f.toolsList(nil) }

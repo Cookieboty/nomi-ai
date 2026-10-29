@@ -31,7 +31,7 @@ const dayMs = 86_400_000
 
 func msToLocal(ts float64) time.Time {
 	sec := math.Floor(ts / 1000)
-	return time.Unix(int64(sec), int64((ts-sec*1000)*1e6)).In(time.Local)
+	return time.Unix(int64(sec), int64((ts-float64(sec*1000))*1e6)).In(time.Local)
 }
 
 func timeMs(t time.Time) float64 { return float64(t.UnixMilli()) }
@@ -88,35 +88,31 @@ func RecordCostOf(r *UsageRecord, priceOf PriceOf) *float64 {
 	return &c
 }
 
-func PromptTokens(r *UsageRecord) float64 { return r.Input + r.CacheRead + r.CacheWrite }
-func TotalTokens(r *UsageRecord) float64  { return PromptTokens(r) + r.Output }
+// PromptTokens / TotalTokens：JS `+`（字符串 token 会拼接），结果是 JS 值
+func PromptTokens(r *UsageRecord) any { return promptTokensJS(r) }
+func TotalTokens(r *UsageRecord) any  { return totalTokensJS(r) }
 
 type Unpriced struct {
 	Model  string  `json:"model"`
-	Tokens float64 `json:"tokens"`
+	Tokens JSV     `json:"tokens"`
 	Calls  float64 `json:"calls"`
 }
 
 type Summary struct {
-	CostUsd        float64    `json:"costUsd"`
-	Input          float64    `json:"input"`
-	Output         float64    `json:"output"`
-	Total          float64    `json:"total"`
-	CacheRead      float64    `json:"cacheRead"`
-	CacheWrite     float64    `json:"cacheWrite"`
+	CostUsd        JSNum      `json:"costUsd"`
+	Input          JSV        `json:"input"`
+	Output         JSV        `json:"output"`
+	Total          JSV        `json:"total"`
+	CacheRead      JSV        `json:"cacheRead"`
+	CacheWrite     JSV        `json:"cacheWrite"`
 	Calls          float64    `json:"calls"`
 	EstimatedCalls float64    `json:"estimatedCalls"`
 	Unpriced       []Unpriced `json:"unpriced"`
-	CacheHitRate   *float64   `json:"cacheHitRate"`
-}
-
-// jsSortStable：Array.prototype.sort（稳定）+ 比较函数
-func jsSortStable[T any](a []T, cmp func(x, y T) float64) {
-	sort.SliceStable(a, func(i, j int) bool { return cmp(a[i], a[j]) < 0 })
+	CacheHitRate   *JSNum     `json:"cacheHitRate"`
 }
 
 func Summarize(recs []*UsageRecord, priceOf PriceOf) Summary {
-	s := Summary{Unpriced: []Unpriced{}}
+	s := Summary{Unpriced: []Unpriced{}, Input: num0(), Output: num0(), Total: num0(), CacheRead: num0(), CacheWrite: num0()}
 	un := map[string]*Unpriced{}
 	var order []string
 	for _, r := range recs {
@@ -124,43 +120,43 @@ func Summarize(recs []*UsageRecord, priceOf PriceOf) Summary {
 		if r.Est != nil && *r.Est {
 			s.EstimatedCalls++
 		}
-		s.Input += PromptTokens(r)
-		s.Output += r.Output
-		s.CacheRead += r.CacheRead
-		s.CacheWrite += r.CacheWrite
+		s.Input.add(PromptTokens(r))
+		s.Output.add(r.jv("output"))
+		s.CacheRead.add(r.jv("cacheRead"))
+		s.CacheWrite.add(r.jv("cacheWrite"))
 		c := RecordCostOf(r, priceOf)
 		if c == nil {
 			e, ok := un[r.Model]
 			if !ok {
-				e = &Unpriced{Model: r.Model}
+				e = &Unpriced{Model: r.Model, Tokens: num0()}
 				un[r.Model] = e
 				order = append(order, r.Model)
 			}
-			e.Tokens += TotalTokens(r)
+			e.Tokens.add(TotalTokens(r))
 			e.Calls++
 		} else {
-			s.CostUsd += *c
+			s.CostUsd += JSNum(*c)
 		}
 	}
-	s.Total = s.Input + s.Output
-	denom := s.Input - s.CacheWrite
+	s.Total = JSV{jsAdd(s.Input.V, s.Output.V)}
+	denom := s.Input.Num() - s.CacheWrite.Num()
 	if denom > 0 {
-		v := s.CacheRead / denom
-		s.CacheHitRate = &v
+		v := s.CacheRead.Num() / denom
+		s.CacheHitRate = (*JSNum)(&v)
 	}
 	for _, k := range order {
 		s.Unpriced = append(s.Unpriced, *un[k])
 	}
-	jsSortStable(s.Unpriced, func(a, b Unpriced) float64 { return b.Tokens - a.Tokens })
+	jsSortStable(s.Unpriced, func(a, b Unpriced) float64 { return b.Tokens.Num() - a.Tokens.Num() })
 	return s
 }
 
 type SeriesPoint struct {
 	T       float64 `json:"t"`
-	Input   float64 `json:"input"`
-	Output  float64 `json:"output"`
-	Tokens  float64 `json:"tokens"`
-	CostUsd float64 `json:"costUsd"`
+	Input   JSV     `json:"input"`
+	Output  JSV     `json:"output"`
+	Tokens  JSV     `json:"tokens"`
+	CostUsd JSNum   `json:"costUsd"`
 	Calls   float64 `json:"calls"`
 }
 
@@ -169,11 +165,11 @@ func Series(recs []*UsageRecord, rg RangeSpec, priceOf PriceOf) []SeriesPoint {
 	for i := 0; i < rg.Buckets; i++ {
 		var t float64
 		if rg.Bucket == "hour" {
-			t = rg.From + float64(i)*3_600_000
+			t = rg.From + float64(float64(i)*3_600_000)
 		} else {
 			t = AddDays(rg.From, i)
 		}
-		pts = append(pts, SeriesPoint{T: t})
+		pts = append(pts, SeriesPoint{T: t, Input: num0(), Output: num0(), Tokens: num0()})
 	}
 	for _, r := range recs {
 		if r.Ts < rg.From || r.Ts >= rg.To {
@@ -190,23 +186,23 @@ func Series(recs []*UsageRecord, rg RangeSpec, priceOf PriceOf) []SeriesPoint {
 			continue
 		}
 		p := &pts[i]
-		p.Input += PromptTokens(r)
-		p.Output += r.Output
-		p.Tokens += TotalTokens(r)
+		p.Input.add(PromptTokens(r))
+		p.Output.add(r.jv("output"))
+		p.Tokens.add(TotalTokens(r))
 		p.Calls++
 		if c := RecordCostOf(r, priceOf); c != nil {
-			p.CostUsd += *c
+			p.CostUsd += JSNum(*c)
 		}
 	}
 	return pts
 }
 
 type BreakdownRow struct {
-	Key         string  `json:"key"`
-	Tokens      float64 `json:"tokens"`
-	Input       float64 `json:"input"`
-	Output      float64 `json:"output"`
-	CostUsd     float64 `json:"costUsd"`
+	Key         *JSV    `json:"key,omitempty"` // r.source 可为 undefined / 非字符串（Map 键按 SameValueZero）
+	Tokens      JSV     `json:"tokens"`
+	Input       JSV     `json:"input"`
+	Output      JSV     `json:"output"`
+	CostUsd     JSNum   `json:"costUsd"`
 	Calls       float64 `json:"calls"`
 	HasUnpriced bool    `json:"hasUnpriced"`
 }
@@ -258,29 +254,30 @@ func Breakdown(recs []*UsageRecord, by string, priceOf PriceOf, labels *Labels) 
 	m := map[string]*BreakdownRow{}
 	var order []string
 	for _, r := range recs {
-		var key string
+		var kv any
 		switch by {
 		case "source":
-			key = r.Source
+			kv = r.srcV()
 		case "model":
-			key = r.Model
+			kv = r.Model
 		default:
-			key = ProviderOf(r, labels)
+			kv = ProviderOf(r, labels)
 		}
+		key := sameValueZeroKey(kv)
 		row, ok := m[key]
 		if !ok {
-			row = &BreakdownRow{Key: key}
+			row = &BreakdownRow{Key: jsvp(kv), Tokens: num0(), Input: num0(), Output: num0()}
 			m[key] = row
 			order = append(order, key)
 		}
-		row.Tokens += TotalTokens(r)
-		row.Input += PromptTokens(r)
-		row.Output += r.Output
+		row.Tokens.add(TotalTokens(r))
+		row.Input.add(PromptTokens(r))
+		row.Output.add(r.jv("output"))
 		row.Calls++
 		if c := RecordCostOf(r, priceOf); c == nil {
 			row.HasUnpriced = true
 		} else {
-			row.CostUsd += *c
+			row.CostUsd += JSNum(*c)
 		}
 	}
 	out := make([]BreakdownRow, 0, len(order))
@@ -288,18 +285,18 @@ func Breakdown(recs []*UsageRecord, by string, priceOf PriceOf, labels *Labels) 
 		out = append(out, *m[k])
 	}
 	jsSortStable(out, func(a, b BreakdownRow) float64 {
-		if d := b.CostUsd - a.CostUsd; d != 0 && !math.IsNaN(d) {
+		if d := float64(b.CostUsd - a.CostUsd); d != 0 && !math.IsNaN(d) {
 			return d
 		}
-		return b.Tokens - a.Tokens
+		return b.Tokens.Num() - a.Tokens.Num()
 	})
 	return out
 }
 
 type HeatDay struct {
 	Date    string  `json:"date"`
-	Tokens  float64 `json:"tokens"`
-	CostUsd float64 `json:"costUsd"`
+	Tokens  JSV     `json:"tokens"`
+	CostUsd JSNum   `json:"costUsd"`
 	Calls   float64 `json:"calls"`
 }
 
@@ -321,7 +318,7 @@ func Heatmap(recs []*UsageRecord, now float64, priceOf PriceOf, days int) []Heat
 		if _, ok := byDay[k]; !ok {
 			order = append(order, k)
 		}
-		byDay[k] = &HeatDay{Date: k}
+		byDay[k] = &HeatDay{Date: k, Tokens: num0()}
 	}
 	end := AddDays(today, 1)
 	for _, r := range recs {
@@ -332,10 +329,10 @@ func Heatmap(recs []*UsageRecord, now float64, priceOf PriceOf, days int) []Heat
 		if d == nil {
 			continue
 		}
-		d.Tokens += TotalTokens(r)
+		d.Tokens.add(TotalTokens(r))
 		d.Calls++
 		if c := RecordCostOf(r, priceOf); c != nil {
-			d.CostUsd += *c
+			d.CostUsd += JSNum(*c)
 		}
 	}
 	out := make([]HeatDay, 0, len(order))
@@ -360,20 +357,20 @@ type DetailQuery struct {
 }
 
 type DetailRow struct {
-	Key        string   `json:"key"`
-	Ts         float64  `json:"ts"`
-	Source     string   `json:"source"`
-	Provider   string   `json:"provider"`
-	Model      string   `json:"model"`
-	Session    *string  `json:"session,omitempty"`
-	Project    *string  `json:"project,omitempty"`
-	Input      float64  `json:"input"`
-	Output     float64  `json:"output"`
-	CacheRead  float64  `json:"cacheRead"`
-	CacheWrite float64  `json:"cacheWrite"`
-	Tokens     float64  `json:"tokens"`
-	CostUsd    *float64 `json:"costUsd"`
-	Estimated  bool     `json:"estimated"`
+	Key        string  `json:"key"`
+	Ts         float64 `json:"ts"`
+	Source     *JSV    `json:"source,omitempty"` // undefined → 省略
+	Provider   string  `json:"provider"`
+	Model      string  `json:"model"`
+	Session    *string `json:"session,omitempty"`
+	Project    *string `json:"project,omitempty"`
+	Input      *JSV    `json:"input,omitempty"`
+	Output     *JSV    `json:"output,omitempty"`
+	CacheRead  *JSV    `json:"cacheRead,omitempty"`
+	CacheWrite *JSV    `json:"cacheWrite,omitempty"`
+	Tokens     JSV     `json:"tokens"`
+	CostUsd    *JSNum  `json:"costUsd"`
+	Estimated  bool    `json:"estimated"`
 }
 
 type SessionFacet struct {
@@ -382,7 +379,7 @@ type SessionFacet struct {
 }
 
 type Facets struct {
-	Sources  []string       `json:"sources"`
+	Sources  []JSV          `json:"sources"`
 	Models   []string       `json:"models"`
 	Sessions []SessionFacet `json:"sessions"`
 }
@@ -396,10 +393,10 @@ type DetailResult struct {
 
 func ToRow(r *UsageRecord, priceOf PriceOf, labels *Labels) DetailRow {
 	return DetailRow{
-		Key: r.Key, Ts: r.Ts, Source: r.Source, Provider: ProviderOf(r, labels), Model: r.Model,
+		Key: r.Key, Ts: r.Ts, Source: jsvp(r.srcV()), Provider: ProviderOf(r, labels), Model: r.Model,
 		Session: r.Session, Project: r.Project,
-		Input: r.Input, Output: r.Output, CacheRead: r.CacheRead, CacheWrite: r.CacheWrite,
-		Tokens: TotalTokens(r), CostUsd: RecordCostOf(r, priceOf), Estimated: r.Est != nil && *r.Est,
+		Input: jsvp(r.jv("input")), Output: jsvp(r.jv("output")), CacheRead: jsvp(r.jv("cacheRead")), CacheWrite: jsvp(r.jv("cacheWrite")),
+		Tokens: JSV{TotalTokens(r)}, CostUsd: (*JSNum)(RecordCostOf(r, priceOf)), Estimated: r.Est != nil && *r.Est,
 	}
 }
 
@@ -439,15 +436,16 @@ func Details(all []*UsageRecord, q DetailQuery, priceOf PriceOf, labels *Labels)
 			inRange = append(inRange, r)
 		}
 	}
-	var srcs, models []string
+	var srcs []any
+	var models []string
 	for _, r := range inRange {
-		srcs = append(srcs, r.Source)
+		srcs = append(srcs, r.srcV())
 		models = append(models, r.Model)
 	}
-	facets := Facets{Sources: uniqSorted(srcs), Models: uniqSorted(models), Sessions: []SessionFacet{}}
+	facets := Facets{Sources: jsUniqDefaultSorted(srcs), Models: uniqSorted(models), Sessions: []SessionFacet{}}
 	type sessE struct {
 		id, label string
-		tokens    float64
+		tokens    JSV
 	}
 	sess := map[string]*sessE{}
 	var sorder []string
@@ -461,17 +459,17 @@ func Details(all []*UsageRecord, q DetailQuery, priceOf PriceOf, labels *Labels)
 			if nonEmpty(r.Project) {
 				pfx = *r.Project + " · "
 			}
-			e = &sessE{id: *r.Session, label: pfx + util.UTF16Slice0(*r.Session, 8)}
+			e = &sessE{id: *r.Session, label: pfx + util.UTF16Slice0(*r.Session, 8), tokens: num0()}
 			sess[*r.Session] = e
 			sorder = append(sorder, *r.Session)
 		}
-		e.tokens += TotalTokens(r)
+		e.tokens.add(TotalTokens(r))
 	}
 	ss := make([]*sessE, 0, len(sorder))
 	for _, k := range sorder {
 		ss = append(ss, sess[k])
 	}
-	jsSortStable(ss, func(a, b *sessE) float64 { return b.tokens - a.tokens })
+	jsSortStable(ss, func(a, b *sessE) float64 { return b.tokens.Num() - a.tokens.Num() })
 	if len(ss) > 100 {
 		ss = ss[:100]
 	}
@@ -481,7 +479,7 @@ func Details(all []*UsageRecord, q DetailQuery, priceOf PriceOf, labels *Labels)
 
 	var filtered []*UsageRecord
 	for _, r := range inRange {
-		if (q.Source == "" || r.Source == q.Source) &&
+		if (q.Source == "" || jsStrictEqStr(r.srcV(), q.Source)) &&
 			(q.Model == "" || r.Model == q.Model) &&
 			(q.Session == "" || (r.Session != nil && *r.Session == q.Session)) {
 			filtered = append(filtered, r)
@@ -500,22 +498,22 @@ func Details(all []*UsageRecord, q DetailQuery, priceOf PriceOf, labels *Labels)
 		srt = "ts"
 	}
 	coll := collate.New(language.AmericanEnglish)
-	cost := func(p *float64) float64 {
+	cost := func(p *JSNum) float64 {
 		if p == nil {
 			return -1
 		}
-		return *p
+		return float64(*p)
 	}
 	jsSortStable(rows, func(a, b DetailRow) float64 {
 		switch srt {
 		case "tokens":
-			return (a.Tokens - b.Tokens) * dir
+			return (a.Tokens.Num() - b.Tokens.Num()) * dir
 		case "cost":
 			return (cost(a.CostUsd) - cost(b.CostUsd)) * dir
 		case "model":
 			return float64(coll.CompareString(a.Model, b.Model)) * dir
 		case "source":
-			return float64(coll.CompareString(a.Source, b.Source)) * dir
+			return float64(coll.CompareString(jsLocaleRecv(jsvOrUndef(a.Source), "a.source"), jsStr(jsToPrimitive(jsvOrUndef(b.Source))))) * dir
 		default:
 			return (a.Ts - b.Ts) * dir
 		}
@@ -538,11 +536,15 @@ var (
 func csvCell(v any) string {
 	s := ""
 	switch x := v.(type) {
-	case nil:
+	case nil, util.JSUndefined:
+	case *JSV:
+		return csvCell(jsvOrUndef(x))
+	case JSV:
+		return csvCell(x.V)
 	case string:
 		s = x
-	case float64:
-		s = util.JSString(x)
+	default:
+		s = jsStr(jsToPrimitive(x))
 	}
 	safe := s
 	if csvInjRe.MatchString(s) && math.IsNaN(util.ToNumber(s)) {
@@ -573,7 +575,7 @@ func ToCsv(rows []DetailRow, currency string, cnyPerUsd float64) string {
 		var cost any = ""
 		priced := "no"
 		if r.CostUsd != nil {
-			cost = util.ToNumber(util.ToFixed(*r.CostUsd*rate, 6))
+			cost = util.ToNumber(util.ToFixed(float64(*r.CostUsd)*rate, 6))
 			priced = "yes"
 		}
 		est := "no"

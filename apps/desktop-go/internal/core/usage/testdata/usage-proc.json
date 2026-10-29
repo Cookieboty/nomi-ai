@@ -1,0 +1,1182 @@
+{
+ "consts": {
+  "agentArgs": [
+   "agent",
+   "stdio"
+  ],
+  "authTimeout": 6000,
+  "stdoutLimit": 262144
+ },
+ "authText": [
+  {
+   "text": "",
+   "out": "null"
+  },
+  {
+   "text": "   \n\n",
+   "out": "null"
+  },
+  {
+   "text": "not json",
+   "out": "null"
+  },
+  {
+   "text": "{\"a\":1}",
+   "out": "null"
+  },
+  {
+   "text": "[1,2]",
+   "out": "null"
+  },
+  {
+   "text": "null",
+   "out": "null"
+  },
+  {
+   "text": "\"x\"",
+   "out": "null"
+  },
+  {
+   "text": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"authMethods\":[{\"id\":\"cached_token\"}]}}",
+   "out": "\"subscription\""
+  },
+  {
+   "text": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"authMethods\":[{\"id\":\"cached_token\"}],\"_meta\":{\"defaultAuthMethodId\":\"grok.com\"}}}",
+   "out": "null"
+  },
+  {
+   "text": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"authMethods\":[{\"id\":\"grok.com\"}],\"_meta\":{\"defaultAuthMethodId\":\"grok.com\"}}}",
+   "out": "null"
+  },
+  {
+   "text": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"authMethods\":[],\"_meta\":{\"defaultAuthMethodId\":\"OAuth\"}}}",
+   "out": "\"subscription\""
+  },
+  {
+   "text": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"authMethods\":[],\"_meta\":{\"defaultAuthMethodId\":\"grok.com-oauth\"}}}",
+   "out": "\"subscription\""
+  },
+  {
+   "text": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"authMethods\":[],\"defaultAuthMethodId\":\"api-key\"}}",
+   "out": "\"api\""
+  },
+  {
+   "text": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"authMethods\":[],\"_meta\":{\"defaultAuthMethodId\":5},\"defaultAuthMethodId\":\"deployment\"}}",
+   "out": "\"api\""
+  },
+  {
+   "text": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"authMethods\":[],\"_meta\":[],\"defaultAuthMethodId\":\"ENV_KEY\"}}",
+   "out": "\"api\""
+  },
+  {
+   "text": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"authMethods\":[{\"id\":\"Cached-Token\"}],\"defaultAuthMethodId\":\"x\"}}",
+   "out": "null"
+  },
+  {
+   "text": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"authMethods\":[\"cached_token\",null,{\"id\":5},{\"id\":\"cachedtoken\"}]}}",
+   "out": "\"subscription\""
+  },
+  {
+   "text": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"authMethods\":{}}}",
+   "out": "null"
+  },
+  {
+   "text": "{\"result\":{\"result\":{\"authMethods\":[{\"id\":\"cached_token\"}]}}}",
+   "out": "\"subscription\""
+  },
+  {
+   "text": "{\"authMethods\":[],\"defaultAuthMethodId\":\"apikey\"}",
+   "out": "\"api\""
+  },
+  {
+   "text": "log line\r\n{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"authMethods\":[]}}\r\n{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"authMethods\":[{\"id\":\"cached-token\"}]}}",
+   "out": "\"subscription\""
+  },
+  {
+   "text": "{\n  \"authMethods\": [\n    {\n      \"id\": \"cached_token\"\n    }\n  ]\n}",
+   "out": "\"subscription\""
+  },
+  {
+   "text": "{\"authMethods\":[{\"id\":\"cached_token\"}]}\n{bad",
+   "out": "\"subscription\""
+  },
+  {
+   "text": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"authMethods\":[],\"_meta\":{\"defaultAuthMethodId\":\"cachedtoken\"}}}",
+   "out": "\"subscription\""
+  }
+ ],
+ "shim": [
+  {
+   "command": "C:\\n\\grok.cmd",
+   "args": [
+    "agent",
+    "",
+    "a b"
+   ],
+   "env": {
+    "ComSpec": "C:\\Windows\\cmd.exe"
+   },
+   "out": "{\"file\":\"C:\\\\Windows\\\\cmd.exe\",\"args\":[\"/d\",\"/s\",\"/c\",\"\\\"\\\"C:\\\\n\\\\grok.cmd\\\" \\\"agent\\\" \\\"\\\" \\\"a b\\\"\\\"\"]}"
+  },
+  {
+   "command": "C:\\n\\grok.cmd",
+   "args": [],
+   "env": {},
+   "out": "{\"file\":\"cmd.exe\",\"args\":[\"/d\",\"/s\",\"/c\",\"\\\"\\\"C:\\\\n\\\\grok.cmd\\\"\\\"\"]}"
+  },
+  {
+   "command": "C:\\n\\gr\"ok.cmd",
+   "args": [],
+   "env": {},
+   "out": "null"
+  },
+  {
+   "command": "C:\\n\\grok.cmd",
+   "args": [
+    "100%"
+   ],
+   "env": {},
+   "out": "null"
+  },
+  {
+   "command": "C:\\n\\grok.cmd",
+   "args": [
+    "a\nb"
+   ],
+   "env": {},
+   "out": "null"
+  }
+ ],
+ "unwrapCases": [
+  {
+   "command": "/n/npm/grok.cmd",
+   "exists": "all",
+   "out": "{\"node\":\"/n/npm/node.exe\",\"script\":\"/n/npm/node_modules/@x/grok/bin/grok.js\"}",
+   "calls": [
+    "/n/npm/node_modules/@x/grok/bin/grok.js",
+    "/n/npm/node.exe",
+    "/n/npm/node.exe"
+   ]
+  },
+  {
+   "command": "/n/npm/grok.cmd",
+   "exists": "all",
+   "platform": "win32",
+   "launch": "{\"file\":\"/n/npm/node.exe\",\"args\":[\"/n/npm/node_modules/@x/grok/bin/grok.js\",\"agent\",\"stdio\"],\"via\":\"node-script\"}"
+  },
+  {
+   "command": "/n/npm/grok.cmd",
+   "exists": "all",
+   "platform": "linux",
+   "launch": "{\"file\":\"/n/npm/grok.cmd\",\"args\":[\"agent\",\"stdio\"],\"via\":\"direct\"}"
+  },
+  {
+   "command": "/n/npm/grok.cmd",
+   "exists": "none",
+   "out": "null",
+   "calls": [
+    "/n/npm/node_modules/@x/grok/bin/grok.js"
+   ]
+  },
+  {
+   "command": "/n/npm/grok.cmd",
+   "exists": "none",
+   "platform": "win32",
+   "launch": "{\"file\":\"cmd.exe\",\"args\":[\"/d\",\"/s\",\"/c\",\"\\\"\\\"/n/npm/grok.cmd\\\" \\\"agent\\\" \\\"stdio\\\"\\\"\"],\"via\":\"cmd-shim\"}"
+  },
+  {
+   "command": "/n/npm/grok.cmd",
+   "exists": "none",
+   "platform": "linux",
+   "launch": "{\"file\":\"/n/npm/grok.cmd\",\"args\":[\"agent\",\"stdio\"],\"via\":\"direct\"}"
+  },
+  {
+   "command": "/n/npm/grok.cmd",
+   "exists": "noNodeExe",
+   "out": "{\"node\":\"node.exe\",\"script\":\"/n/npm/node_modules/@x/grok/bin/grok.js\"}",
+   "calls": [
+    "/n/npm/node_modules/@x/grok/bin/grok.js",
+    "/n/npm/node.exe",
+    "_prog=/n/npm/node.exe",
+    "/n/npm/node.exe"
+   ]
+  },
+  {
+   "command": "/n/npm/grok.cmd",
+   "exists": "noNodeExe",
+   "platform": "win32",
+   "launch": "{\"file\":\"node.exe\",\"args\":[\"/n/npm/node_modules/@x/grok/bin/grok.js\",\"agent\",\"stdio\"],\"via\":\"node-script\"}"
+  },
+  {
+   "command": "/n/npm/grok.cmd",
+   "exists": "noNodeExe",
+   "platform": "linux",
+   "launch": "{\"file\":\"/n/npm/grok.cmd\",\"args\":[\"agent\",\"stdio\"],\"via\":\"direct\"}"
+  },
+  {
+   "command": "/n/pnpm/grok.CMD",
+   "exists": "all",
+   "out": "{\"node\":\"/n/store/node.exe\",\"script\":\"/n/store/grok/dist/cli.mjs\"}",
+   "calls": [
+    "/n/store/grok/dist/cli.mjs",
+    "/n/store/node.exe",
+    "/n/pnpm/node.exe"
+   ]
+  },
+  {
+   "command": "/n/pnpm/grok.CMD",
+   "exists": "all",
+   "platform": "win32",
+   "launch": "{\"file\":\"/n/store/node.exe\",\"args\":[\"/n/store/grok/dist/cli.mjs\",\"agent\",\"stdio\"],\"via\":\"node-script\"}"
+  },
+  {
+   "command": "/n/pnpm/grok.CMD",
+   "exists": "all",
+   "platform": "linux",
+   "launch": "{\"file\":\"/n/pnpm/grok.CMD\",\"args\":[\"agent\",\"stdio\"],\"via\":\"direct\"}"
+  },
+  {
+   "command": "/n/pnpm/grok.CMD",
+   "exists": "none",
+   "out": "null",
+   "calls": [
+    "/n/store/grok/dist/cli.mjs"
+   ]
+  },
+  {
+   "command": "/n/pnpm/grok.CMD",
+   "exists": "none",
+   "platform": "win32",
+   "launch": "{\"file\":\"cmd.exe\",\"args\":[\"/d\",\"/s\",\"/c\",\"\\\"\\\"/n/pnpm/grok.CMD\\\" \\\"agent\\\" \\\"stdio\\\"\\\"\"],\"via\":\"cmd-shim\"}"
+  },
+  {
+   "command": "/n/pnpm/grok.CMD",
+   "exists": "none",
+   "platform": "linux",
+   "launch": "{\"file\":\"/n/pnpm/grok.CMD\",\"args\":[\"agent\",\"stdio\"],\"via\":\"direct\"}"
+  },
+  {
+   "command": "/n/pnpm/grok.CMD",
+   "exists": "noNodeExe",
+   "out": "{\"node\":\"node.exe\",\"script\":\"/n/store/grok/dist/cli.mjs\"}",
+   "calls": [
+    "/n/store/grok/dist/cli.mjs",
+    "/n/store/node.exe",
+    "/n/pnpm/node.exe"
+   ]
+  },
+  {
+   "command": "/n/pnpm/grok.CMD",
+   "exists": "noNodeExe",
+   "platform": "win32",
+   "launch": "{\"file\":\"node.exe\",\"args\":[\"/n/store/grok/dist/cli.mjs\",\"agent\",\"stdio\"],\"via\":\"node-script\"}"
+  },
+  {
+   "command": "/n/pnpm/grok.CMD",
+   "exists": "noNodeExe",
+   "platform": "linux",
+   "launch": "{\"file\":\"/n/pnpm/grok.CMD\",\"args\":[\"agent\",\"stdio\"],\"via\":\"direct\"}"
+  },
+  {
+   "command": "/n/pnpm/other.bat",
+   "exists": "all",
+   "out": "{\"node\":\"node.exe\",\"script\":\"/n/pnpm/a.cjs\"}",
+   "calls": [
+    "/n/pnpm/a.cjs",
+    "C:/tools/node",
+    "/n/pnpm/node.exe"
+   ]
+  },
+  {
+   "command": "/n/pnpm/other.bat",
+   "exists": "all",
+   "platform": "win32",
+   "launch": "{\"file\":\"node.exe\",\"args\":[\"/n/pnpm/a.cjs\",\"agent\",\"stdio\"],\"via\":\"node-script\"}"
+  },
+  {
+   "command": "/n/pnpm/other.bat",
+   "exists": "all",
+   "platform": "linux",
+   "launch": "{\"file\":\"/n/pnpm/other.bat\",\"args\":[\"agent\",\"stdio\"],\"via\":\"direct\"}"
+  },
+  {
+   "command": "/n/pnpm/other.bat",
+   "exists": "none",
+   "out": "null",
+   "calls": [
+    "/n/pnpm/a.cjs"
+   ]
+  },
+  {
+   "command": "/n/pnpm/other.bat",
+   "exists": "none",
+   "platform": "win32",
+   "launch": "{\"file\":\"cmd.exe\",\"args\":[\"/d\",\"/s\",\"/c\",\"\\\"\\\"/n/pnpm/other.bat\\\" \\\"agent\\\" \\\"stdio\\\"\\\"\"],\"via\":\"cmd-shim\"}"
+  },
+  {
+   "command": "/n/pnpm/other.bat",
+   "exists": "none",
+   "platform": "linux",
+   "launch": "{\"file\":\"/n/pnpm/other.bat\",\"args\":[\"agent\",\"stdio\"],\"via\":\"direct\"}"
+  },
+  {
+   "command": "/n/pnpm/other.bat",
+   "exists": "noNodeExe",
+   "out": "{\"node\":\"node.exe\",\"script\":\"/n/pnpm/a.cjs\"}",
+   "calls": [
+    "/n/pnpm/a.cjs",
+    "C:/tools/node",
+    "/n/pnpm/node.exe"
+   ]
+  },
+  {
+   "command": "/n/pnpm/other.bat",
+   "exists": "noNodeExe",
+   "platform": "win32",
+   "launch": "{\"file\":\"node.exe\",\"args\":[\"/n/pnpm/a.cjs\",\"agent\",\"stdio\"],\"via\":\"node-script\"}"
+  },
+  {
+   "command": "/n/pnpm/other.bat",
+   "exists": "noNodeExe",
+   "platform": "linux",
+   "launch": "{\"file\":\"/n/pnpm/other.bat\",\"args\":[\"agent\",\"stdio\"],\"via\":\"direct\"}"
+  },
+  {
+   "command": "/n/x/nojs.cmd",
+   "exists": "all",
+   "out": "null",
+   "calls": []
+  },
+  {
+   "command": "/n/x/nojs.cmd",
+   "exists": "all",
+   "platform": "win32",
+   "launch": "{\"file\":\"cmd.exe\",\"args\":[\"/d\",\"/s\",\"/c\",\"\\\"\\\"/n/x/nojs.cmd\\\" \\\"agent\\\" \\\"stdio\\\"\\\"\"],\"via\":\"cmd-shim\"}"
+  },
+  {
+   "command": "/n/x/nojs.cmd",
+   "exists": "all",
+   "platform": "linux",
+   "launch": "{\"file\":\"/n/x/nojs.cmd\",\"args\":[\"agent\",\"stdio\"],\"via\":\"direct\"}"
+  },
+  {
+   "command": "/n/x/nojs.cmd",
+   "exists": "none",
+   "out": "null",
+   "calls": []
+  },
+  {
+   "command": "/n/x/nojs.cmd",
+   "exists": "none",
+   "platform": "win32",
+   "launch": "{\"file\":\"cmd.exe\",\"args\":[\"/d\",\"/s\",\"/c\",\"\\\"\\\"/n/x/nojs.cmd\\\" \\\"agent\\\" \\\"stdio\\\"\\\"\"],\"via\":\"cmd-shim\"}"
+  },
+  {
+   "command": "/n/x/nojs.cmd",
+   "exists": "none",
+   "platform": "linux",
+   "launch": "{\"file\":\"/n/x/nojs.cmd\",\"args\":[\"agent\",\"stdio\"],\"via\":\"direct\"}"
+  },
+  {
+   "command": "/n/x/nojs.cmd",
+   "exists": "noNodeExe",
+   "out": "null",
+   "calls": []
+  },
+  {
+   "command": "/n/x/nojs.cmd",
+   "exists": "noNodeExe",
+   "platform": "win32",
+   "launch": "{\"file\":\"cmd.exe\",\"args\":[\"/d\",\"/s\",\"/c\",\"\\\"\\\"/n/x/nojs.cmd\\\" \\\"agent\\\" \\\"stdio\\\"\\\"\"],\"via\":\"cmd-shim\"}"
+  },
+  {
+   "command": "/n/x/nojs.cmd",
+   "exists": "noNodeExe",
+   "platform": "linux",
+   "launch": "{\"file\":\"/n/x/nojs.cmd\",\"args\":[\"agent\",\"stdio\"],\"via\":\"direct\"}"
+  },
+  {
+   "command": "/n/x/pct.cmd",
+   "exists": "all",
+   "out": "null",
+   "calls": []
+  },
+  {
+   "command": "/n/x/pct.cmd",
+   "exists": "all",
+   "platform": "win32",
+   "launch": "{\"file\":\"cmd.exe\",\"args\":[\"/d\",\"/s\",\"/c\",\"\\\"\\\"/n/x/pct.cmd\\\" \\\"agent\\\" \\\"stdio\\\"\\\"\"],\"via\":\"cmd-shim\"}"
+  },
+  {
+   "command": "/n/x/pct.cmd",
+   "exists": "all",
+   "platform": "linux",
+   "launch": "{\"file\":\"/n/x/pct.cmd\",\"args\":[\"agent\",\"stdio\"],\"via\":\"direct\"}"
+  },
+  {
+   "command": "/n/x/pct.cmd",
+   "exists": "none",
+   "out": "null",
+   "calls": []
+  },
+  {
+   "command": "/n/x/pct.cmd",
+   "exists": "none",
+   "platform": "win32",
+   "launch": "{\"file\":\"cmd.exe\",\"args\":[\"/d\",\"/s\",\"/c\",\"\\\"\\\"/n/x/pct.cmd\\\" \\\"agent\\\" \\\"stdio\\\"\\\"\"],\"via\":\"cmd-shim\"}"
+  },
+  {
+   "command": "/n/x/pct.cmd",
+   "exists": "none",
+   "platform": "linux",
+   "launch": "{\"file\":\"/n/x/pct.cmd\",\"args\":[\"agent\",\"stdio\"],\"via\":\"direct\"}"
+  },
+  {
+   "command": "/n/x/pct.cmd",
+   "exists": "noNodeExe",
+   "out": "null",
+   "calls": []
+  },
+  {
+   "command": "/n/x/pct.cmd",
+   "exists": "noNodeExe",
+   "platform": "win32",
+   "launch": "{\"file\":\"cmd.exe\",\"args\":[\"/d\",\"/s\",\"/c\",\"\\\"\\\"/n/x/pct.cmd\\\" \\\"agent\\\" \\\"stdio\\\"\\\"\"],\"via\":\"cmd-shim\"}"
+  },
+  {
+   "command": "/n/x/pct.cmd",
+   "exists": "noNodeExe",
+   "platform": "linux",
+   "launch": "{\"file\":\"/n/x/pct.cmd\",\"args\":[\"agent\",\"stdio\"],\"via\":\"direct\"}"
+  },
+  {
+   "command": "/n/x/empty.cmd",
+   "exists": "all",
+   "out": "{\"node\":\"node.exe\",\"script\":\"/n/x/g.js\"}",
+   "calls": [
+    "/n/x/g.js",
+    "/n/x/node.exe"
+   ]
+  },
+  {
+   "command": "/n/x/empty.cmd",
+   "exists": "all",
+   "platform": "win32",
+   "launch": "{\"file\":\"node.exe\",\"args\":[\"/n/x/g.js\",\"agent\",\"stdio\"],\"via\":\"node-script\"}"
+  },
+  {
+   "command": "/n/x/empty.cmd",
+   "exists": "all",
+   "platform": "linux",
+   "launch": "{\"file\":\"/n/x/empty.cmd\",\"args\":[\"agent\",\"stdio\"],\"via\":\"direct\"}"
+  },
+  {
+   "command": "/n/x/empty.cmd",
+   "exists": "none",
+   "out": "null",
+   "calls": [
+    "/n/x/g.js"
+   ]
+  },
+  {
+   "command": "/n/x/empty.cmd",
+   "exists": "none",
+   "platform": "win32",
+   "launch": "{\"file\":\"cmd.exe\",\"args\":[\"/d\",\"/s\",\"/c\",\"\\\"\\\"/n/x/empty.cmd\\\" \\\"agent\\\" \\\"stdio\\\"\\\"\"],\"via\":\"cmd-shim\"}"
+  },
+  {
+   "command": "/n/x/empty.cmd",
+   "exists": "none",
+   "platform": "linux",
+   "launch": "{\"file\":\"/n/x/empty.cmd\",\"args\":[\"agent\",\"stdio\"],\"via\":\"direct\"}"
+  },
+  {
+   "command": "/n/x/empty.cmd",
+   "exists": "noNodeExe",
+   "out": "{\"node\":\"node.exe\",\"script\":\"/n/x/g.js\"}",
+   "calls": [
+    "/n/x/g.js",
+    "/n/x/node.exe"
+   ]
+  },
+  {
+   "command": "/n/x/empty.cmd",
+   "exists": "noNodeExe",
+   "platform": "win32",
+   "launch": "{\"file\":\"node.exe\",\"args\":[\"/n/x/g.js\",\"agent\",\"stdio\"],\"via\":\"node-script\"}"
+  },
+  {
+   "command": "/n/x/empty.cmd",
+   "exists": "noNodeExe",
+   "platform": "linux",
+   "launch": "{\"file\":\"/n/x/empty.cmd\",\"args\":[\"agent\",\"stdio\"],\"via\":\"direct\"}"
+  },
+  {
+   "command": "/n/x/q.cmd",
+   "exists": "all",
+   "out": "{\"node\":\"node\",\"script\":\"/n/x/g.js\"}",
+   "calls": [
+    "/n/x/g.js",
+    "node",
+    "/n/x/node.exe"
+   ]
+  },
+  {
+   "command": "/n/x/q.cmd",
+   "exists": "all",
+   "platform": "win32",
+   "launch": "{\"file\":\"node\",\"args\":[\"/n/x/g.js\",\"agent\",\"stdio\"],\"via\":\"node-script\"}"
+  },
+  {
+   "command": "/n/x/q.cmd",
+   "exists": "all",
+   "platform": "linux",
+   "launch": "{\"file\":\"/n/x/q.cmd\",\"args\":[\"agent\",\"stdio\"],\"via\":\"direct\"}"
+  },
+  {
+   "command": "/n/x/q.cmd",
+   "exists": "none",
+   "out": "null",
+   "calls": [
+    "/n/x/g.js"
+   ]
+  },
+  {
+   "command": "/n/x/q.cmd",
+   "exists": "none",
+   "platform": "win32",
+   "launch": "{\"file\":\"cmd.exe\",\"args\":[\"/d\",\"/s\",\"/c\",\"\\\"\\\"/n/x/q.cmd\\\" \\\"agent\\\" \\\"stdio\\\"\\\"\"],\"via\":\"cmd-shim\"}"
+  },
+  {
+   "command": "/n/x/q.cmd",
+   "exists": "none",
+   "platform": "linux",
+   "launch": "{\"file\":\"/n/x/q.cmd\",\"args\":[\"agent\",\"stdio\"],\"via\":\"direct\"}"
+  },
+  {
+   "command": "/n/x/q.cmd",
+   "exists": "noNodeExe",
+   "out": "{\"node\":\"node\",\"script\":\"/n/x/g.js\"}",
+   "calls": [
+    "/n/x/g.js",
+    "node",
+    "/n/x/node.exe"
+   ]
+  },
+  {
+   "command": "/n/x/q.cmd",
+   "exists": "noNodeExe",
+   "platform": "win32",
+   "launch": "{\"file\":\"node\",\"args\":[\"/n/x/g.js\",\"agent\",\"stdio\"],\"via\":\"node-script\"}"
+  },
+  {
+   "command": "/n/x/q.cmd",
+   "exists": "noNodeExe",
+   "platform": "linux",
+   "launch": "{\"file\":\"/n/x/q.cmd\",\"args\":[\"agent\",\"stdio\"],\"via\":\"direct\"}"
+  },
+  {
+   "command": "/n/x/missing.cmd",
+   "exists": "all",
+   "out": "null",
+   "calls": []
+  },
+  {
+   "command": "/n/x/missing.cmd",
+   "exists": "all",
+   "platform": "win32",
+   "launch": "{\"file\":\"cmd.exe\",\"args\":[\"/d\",\"/s\",\"/c\",\"\\\"\\\"/n/x/missing.cmd\\\" \\\"agent\\\" \\\"stdio\\\"\\\"\"],\"via\":\"cmd-shim\"}"
+  },
+  {
+   "command": "/n/x/missing.cmd",
+   "exists": "all",
+   "platform": "linux",
+   "launch": "{\"file\":\"/n/x/missing.cmd\",\"args\":[\"agent\",\"stdio\"],\"via\":\"direct\"}"
+  },
+  {
+   "command": "/n/x/missing.cmd",
+   "exists": "none",
+   "out": "null",
+   "calls": []
+  },
+  {
+   "command": "/n/x/missing.cmd",
+   "exists": "none",
+   "platform": "win32",
+   "launch": "{\"file\":\"cmd.exe\",\"args\":[\"/d\",\"/s\",\"/c\",\"\\\"\\\"/n/x/missing.cmd\\\" \\\"agent\\\" \\\"stdio\\\"\\\"\"],\"via\":\"cmd-shim\"}"
+  },
+  {
+   "command": "/n/x/missing.cmd",
+   "exists": "none",
+   "platform": "linux",
+   "launch": "{\"file\":\"/n/x/missing.cmd\",\"args\":[\"agent\",\"stdio\"],\"via\":\"direct\"}"
+  },
+  {
+   "command": "/n/x/missing.cmd",
+   "exists": "noNodeExe",
+   "out": "null",
+   "calls": []
+  },
+  {
+   "command": "/n/x/missing.cmd",
+   "exists": "noNodeExe",
+   "platform": "win32",
+   "launch": "{\"file\":\"cmd.exe\",\"args\":[\"/d\",\"/s\",\"/c\",\"\\\"\\\"/n/x/missing.cmd\\\" \\\"agent\\\" \\\"stdio\\\"\\\"\"],\"via\":\"cmd-shim\"}"
+  },
+  {
+   "command": "/n/x/missing.cmd",
+   "exists": "noNodeExe",
+   "platform": "linux",
+   "launch": "{\"file\":\"/n/x/missing.cmd\",\"args\":[\"agent\",\"stdio\"],\"via\":\"direct\"}"
+  },
+  {
+   "command": "/n/x/grok.exe",
+   "exists": "all",
+   "out": "null",
+   "calls": []
+  },
+  {
+   "command": "/n/x/grok.exe",
+   "exists": "all",
+   "platform": "win32",
+   "launch": "{\"file\":\"/n/x/grok.exe\",\"args\":[\"agent\",\"stdio\"],\"via\":\"direct\"}"
+  },
+  {
+   "command": "/n/x/grok.exe",
+   "exists": "all",
+   "platform": "linux",
+   "launch": "{\"file\":\"/n/x/grok.exe\",\"args\":[\"agent\",\"stdio\"],\"via\":\"direct\"}"
+  },
+  {
+   "command": "/n/x/grok.exe",
+   "exists": "none",
+   "out": "null",
+   "calls": []
+  },
+  {
+   "command": "/n/x/grok.exe",
+   "exists": "none",
+   "platform": "win32",
+   "launch": "{\"file\":\"/n/x/grok.exe\",\"args\":[\"agent\",\"stdio\"],\"via\":\"direct\"}"
+  },
+  {
+   "command": "/n/x/grok.exe",
+   "exists": "none",
+   "platform": "linux",
+   "launch": "{\"file\":\"/n/x/grok.exe\",\"args\":[\"agent\",\"stdio\"],\"via\":\"direct\"}"
+  },
+  {
+   "command": "/n/x/grok.exe",
+   "exists": "noNodeExe",
+   "out": "null",
+   "calls": []
+  },
+  {
+   "command": "/n/x/grok.exe",
+   "exists": "noNodeExe",
+   "platform": "win32",
+   "launch": "{\"file\":\"/n/x/grok.exe\",\"args\":[\"agent\",\"stdio\"],\"via\":\"direct\"}"
+  },
+  {
+   "command": "/n/x/grok.exe",
+   "exists": "noNodeExe",
+   "platform": "linux",
+   "launch": "{\"file\":\"/n/x/grok.exe\",\"args\":[\"agent\",\"stdio\"],\"via\":\"direct\"}"
+  }
+ ],
+ "killCases": [
+  {
+   "name": "alive",
+   "exitAfterTerm": false,
+   "sync": [
+    "SIGTERM"
+   ],
+   "calls": [
+    "SIGTERM",
+    "SIGKILL"
+   ]
+  },
+  {
+   "name": "exits",
+   "exitAfterTerm": true,
+   "sync": [
+    "SIGTERM"
+   ],
+   "calls": [
+    "SIGTERM"
+   ]
+  },
+  {
+   "name": "signaled",
+   "signalAfterTerm": true,
+   "sync": [
+    "SIGTERM"
+   ],
+   "calls": [
+    "SIGTERM"
+   ]
+  },
+  {
+   "name": "term-throws",
+   "termThrows": true,
+   "sync": [
+    "SIGTERM"
+   ],
+   "calls": [
+    "SIGTERM",
+    "SIGKILL"
+   ]
+  },
+  {
+   "name": "kill-throws",
+   "termThrows": true,
+   "killThrows": true,
+   "sync": [
+    "SIGTERM"
+   ],
+   "calls": [
+    "SIGTERM",
+    "SIGKILL"
+   ]
+  }
+ ],
+ "run": [
+  {
+   "name": "ok",
+   "plan": {
+    "onStart": [
+     "hello ",
+     "wörld\n"
+    ],
+    "exit": "start"
+   },
+   "out": "{\"stdout\":\"hello wörld\\n\",\"code\":0}",
+   "log": [
+    {
+     "argv": [
+      "a",
+      "",
+      "b c"
+     ],
+     "cwd": "",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": null,
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    }
+   ]
+  },
+  {
+   "name": "code-3",
+   "plan": {
+    "onStart": [
+     "x"
+    ],
+    "exit": "start",
+    "code": 3
+   },
+   "out": "{\"stdout\":\"x\",\"code\":3}",
+   "log": [
+    {
+     "argv": [
+      "a",
+      "",
+      "b c"
+     ],
+     "cwd": "",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": null,
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    }
+   ]
+  },
+  {
+   "name": "empty",
+   "plan": {
+    "exit": "start"
+   },
+   "out": "{\"stdout\":\"\",\"code\":0}",
+   "log": [
+    {
+     "argv": [
+      "a",
+      "",
+      "b c"
+     ],
+     "cwd": "",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": null,
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    }
+   ]
+  },
+  {
+   "name": "timeout",
+   "plan": {
+    "onStart": [
+     "partial"
+    ]
+   },
+   "timeoutMs": 400,
+   "out": "{\"fail\":\"timeout\",\"name\":\"ProcessFailure\",\"isPF\":true}",
+   "log": [
+    {
+     "argv": [
+      "a",
+      "",
+      "b c"
+     ],
+     "cwd": "",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": null,
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    }
+   ]
+  },
+  {
+   "name": "output-limit",
+   "plan": {
+    "big": 1000
+   },
+   "maxBytes": 999,
+   "out": "{\"fail\":\"output-limit\",\"name\":\"ProcessFailure\",\"isPF\":true}",
+   "log": [
+    {
+     "argv": [
+      "a",
+      "",
+      "b c"
+     ],
+     "cwd": "",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": null,
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    }
+   ]
+  },
+  {
+   "name": "exact-limit",
+   "plan": {
+    "big": 1000,
+    "exit": "start"
+   },
+   "maxBytes": 1000,
+   "out": "{\"stdout\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"code\":0}",
+   "log": [
+    {
+     "argv": [
+      "a",
+      "",
+      "b c"
+     ],
+     "cwd": "",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": null,
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    }
+   ]
+  },
+  {
+   "name": "bytes-not-units",
+   "plan": {
+    "big": 600,
+    "bigChar": "é",
+    "exit": "start"
+   },
+   "maxBytes": 1000,
+   "out": "{\"fail\":\"output-limit\",\"name\":\"ProcessFailure\",\"isPF\":true}",
+   "log": [
+    {
+     "argv": [
+      "a",
+      "",
+      "b c"
+     ],
+     "cwd": "",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": null,
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    }
+   ]
+  },
+  {
+   "name": "enoent",
+   "bin": "/workspace/wt-205-usage2/scripts/parity/no-such-usage-cli",
+   "out": "{\"fail\":\"not-installed\",\"name\":\"ProcessFailure\",\"isPF\":true}",
+   "log": []
+  }
+ ],
+ "auth": [
+  {
+   "name": "not-installed",
+   "bin": null,
+   "out": "null",
+   "log": [],
+   "left": []
+  },
+  {
+   "name": "resolve-throws",
+   "bin": "throw",
+   "out": "null",
+   "log": [],
+   "left": []
+  },
+  {
+   "name": "subscription",
+   "plan": {
+    "onLine": {
+     "0": [
+      "log\n",
+      "{\"id\":2,\"result\":{}}\n",
+      "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"authMethods\":[{\"id\":\"cached_token\"}]}}\n"
+     ]
+    }
+   },
+   "out": "\"{\\\"authMethods\\\":[{\\\"id\\\":\\\"cached_token\\\"}]}\"",
+   "log": [
+    {
+     "argv": [
+      "agent",
+      "stdio"
+     ],
+     "cwd": "nomi-grok-auth-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": "1",
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":1,\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"1.0.0\"},\"clientCapabilities\":{}}}"
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "falsy-result",
+   "plan": {
+    "onLine": {
+     "0": [
+      "{\"id\":1,\"result\":0}\n",
+      "{\"id\":\"1\",\"result\":{}}\n",
+      "{\"id\":1,\"result\":{\"z\":1,\"a\":[2]}}\n"
+     ]
+    }
+   },
+   "out": "\"{\\\"z\\\":1,\\\"a\\\":[2]}\"",
+   "log": [
+    {
+     "argv": [
+      "agent",
+      "stdio"
+     ],
+     "cwd": "nomi-grok-auth-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": "1",
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":1,\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"1.0.0\"},\"clientCapabilities\":{}}}"
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "closed",
+   "plan": {
+    "exit": "start"
+   },
+   "out": "null",
+   "log": [
+    {
+     "argv": [
+      "agent",
+      "stdio"
+     ],
+     "cwd": "nomi-grok-auth-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": "1",
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "closed-after-line",
+   "plan": {
+    "onLine": {
+     "0": [
+      "{\"id\":1,\"result\":null}\n"
+     ]
+    },
+    "exit": 0
+   },
+   "out": "null",
+   "log": [
+    {
+     "argv": [
+      "agent",
+      "stdio"
+     ],
+     "cwd": "nomi-grok-auth-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": "1",
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":1,\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"1.0.0\"},\"clientCapabilities\":{}}}"
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "split",
+   "plan": {
+    "onLine": {
+     "0": [
+      "{\"id\":1,\"res",
+      "ult\":{\"ok\":true}}",
+      "\n"
+     ]
+    }
+   },
+   "out": "\"{\\\"ok\\\":true}\"",
+   "log": [
+    {
+     "argv": [
+      "agent",
+      "stdio"
+     ],
+     "cwd": "nomi-grok-auth-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": "1",
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":1,\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"1.0.0\"},\"clientCapabilities\":{}}}"
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "timeout",
+   "plan": {},
+   "timeoutMs": 400,
+   "out": "null",
+   "log": [
+    {
+     "argv": [
+      "agent",
+      "stdio"
+     ],
+     "cwd": "nomi-grok-auth-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": "1",
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":1,\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"1.0.0\"},\"clientCapabilities\":{}}}"
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "over-limit",
+   "plan": {
+    "big": 140000,
+    "bigChar": "é"
+   },
+   "out": "null",
+   "log": [
+    {
+     "argv": [
+      "agent",
+      "stdio"
+     ],
+     "cwd": "nomi-grok-auth-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": "1",
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":1,\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"1.0.0\"},\"clientCapabilities\":{}}}"
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "enoent",
+   "bin": "/workspace/wt-205-usage2/scripts/parity/no-such-usage-cli",
+   "out": "null",
+   "log": [],
+   "left": []
+  }
+ ]
+}

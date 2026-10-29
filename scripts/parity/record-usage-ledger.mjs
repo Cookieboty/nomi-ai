@@ -68,6 +68,17 @@ const scenarios = [
     ['routeCovering', 'claude', T0 + 2100, { key: 'k', prompt: 5000, output: 116 }],
     ['routeCovering', 'claude', T0 + 2100, { key: 'k', prompt: 5000, output: 117 }],
   ] },
+  { name: 'route-covering-js-values', ops: [
+    // 账本里 token 是字符串时：r.input + r.cacheRead + r.cacheWrite 拼接（'50'+0+0 = '5000'），r.output + tol 也拼接
+    ['upsert', R('route:s1', T0, { via: 'route', input: '50', cacheRead: 0, cacheWrite: 0, output: 3 })],
+    ['routeCovering', 'claude', T0 + 10, { key: 'k', prompt: 5000, output: 3 }],
+    ['routeCovering', 'claude', T0 + 10, { key: 'k', prompt: 50, output: 3 }],
+    ['upsert', R('route:s2', T0 + 60_000, { via: 'route', input: 40, cacheRead: 0, cacheWrite: 0, output: '1' })],
+    ['routeCovering', 'claude', T0 + 60_010, { key: 'k', prompt: 40, output: 300 }], ['routeCovering', 'claude', T0 + 60_010, { key: 'k', prompt: 40, output: 60 }], ['routeCovering', 'claude', T0 + 60_010, { key: 'k', prompt: 40, output: 110 }],
+    ['routeCovering', 'claude', T0 + 60_010, { key: 'k', prompt: 40, output: 5000 }],
+    ['upsert', R('route:s3', T0 + 120_000, { via: 'route', input: 'abc', output: 1 })],
+    ['routeCovering', 'claude', T0 + 120_010, { key: 'k', prompt: 0, output: 1 }],
+  ] },
   { name: 'cursors-reopen', ops: [
     ['setCursor', '/x/a.jsonl', { offset: 10, size: 20, mtimeMs: 5, state: { model: 'm', n: 1 } }],
     ['setCursor', '/x/b.jsonl', { offset: 0, size: 0, mtimeMs: 0, dev: 1, ino: 2, fp: 'abc', fpLen: 3 }],
@@ -99,7 +110,7 @@ const scenarios = [
       ['ready'], ['isLoaded'], ['size'], ['get', 'k1'], ['get', 'k2'], ['cursorPaths'], ['persist'], ['flush'], ['compactWait'], ['file'], ['cursorsFile'],
     ] },
   { name: 'compaction-threshold', pre: Array.from({ length: 1500 }, (_, i) => JSON.stringify(R(`k${i % 100}`, T0 + (i % 100), { input: i }))).join('\n') + '\n',
-    ops: [['size'], ['settle'], ['lineCount'], ['upsert', R('k5', T0 + 5, { input: 99999 })], ['flush'], ['lineCount'], ['compactWait'], ['lineCount'], ['get', 'k5']] },
+    ops: [['size'], ['compactWait'], ['lineCount'], ['upsert', R('k5', T0 + 5, { input: 99999 })], ['flush'], ['lineCount'], ['compactWait'], ['lineCount'], ['get', 'k5']] },
   // JS 对象语义：键序、未知字段、类型不符的字段、重复键都原样保留 / 回写（逐字节比对文件）
   { name: 'js-object-semantics', pre: [
     `{"ts":${T0},"key":"a","zeta":1,"source":"claude","via":"log","model":"m","input":1,"output":2,"cacheRead":0,"cacheWrite":10,"nested":{"b":1,"a":[1,2.5,"x"]}}`,
@@ -166,7 +177,11 @@ for (const sc of scenarios) {
       case 'prune': v = l.prune(a[0]); break;
       case 'clear': l.clear(); break;
       case 'compactWait': await l.compact(); break;
-      case 'settle': await new Promise((r) => setTimeout(r, 20)); break;
+      case 'settle':
+        // 与 Go waitIdle 同：定时等待之后再等在途的压缩 / 游标落盘收尾（Windows 上压缩里的 icacls 子进程慢，固定 20ms 不够）
+        await new Promise((r) => setTimeout(r, 20));
+        for (let i = 0; i < 2000 && (l.compactRunning || l.compactQueued || l.cursorWriting); i++) await new Promise((r) => setTimeout(r, 1));
+        break;
       case 'breakFile': rmSync(join(ledgerDir, 'ledger.jsonl'), { force: true }); mkdirSync(join(ledgerDir, 'ledger.jsonl')); break;
       case 'fixFile': rmSync(join(ledgerDir, 'ledger.jsonl'), { recursive: true, force: true }); break;
       case 'isLoaded': v = l.isLoaded(); break;

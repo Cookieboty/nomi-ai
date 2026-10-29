@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"sync"
 
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
@@ -260,4 +262,33 @@ func (s *ProfileStore) Import(data any) (any, error) {
 	}
 	s.fire()
 	return s.Get(), nil
+}
+
+// GetPath = ProfileStore.getPath：点路径逐段取值（不触发加载；非对象中途返回 undefined）
+func (s *ProfileStore) GetPath(path string) any {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var cur any = s.profile
+	for _, p := range strings.Split(path, ".") {
+		switch c := cur.(type) {
+		case *u.Obj:
+			if !c.Has(p) {
+				return Undef
+			}
+			cur = c.Get(p)
+		case []any:
+			if p == "length" {
+				cur = float64(len(c))
+				continue
+			}
+			n, err := strconv.ParseUint(p, 10, 32)
+			if err != nil || strconv.FormatUint(n, 10) != p || n >= uint64(len(c)) {
+				return Undef
+			}
+			cur = c[n]
+		default:
+			return Undef
+		}
+	}
+	return deepClone(cur)
 }

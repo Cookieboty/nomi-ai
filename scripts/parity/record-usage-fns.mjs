@@ -144,6 +144,148 @@ const rows = agg.details(recs, { from: 0, to: 9e15, limit: 20 }, priceOf, labels
 rows.push({ ...rows[0], key: 'q"uote,comma\nline', model: '=cmd', session: undefined });
 for (const c of ['USD', 'CNY']) rec('toCsv', [c, 7.2], agg.toCsv(rows, c, 7.2));
 
+// ---- JS 值语义：账本 token 字段可能是字符串 / 空串 / 非数 / 缺失 / null（JS `+` 拼接、`-` / `>` 转数）
+const mixVals = ['5', '', 'abc', '1e3', 7, 0, null, true, '200001', ' 12 ', [3], {}, undefined];
+const mixRecs = [];
+const mixBase = now - 2 * 86400000;
+for (let i = 0; i < 90; i++) {
+  const r = {
+    key: `m${i}`,
+    ts: mixBase + i * 1800000 + (i % 5) * 1000,
+    source: srcs[i % 3],
+    via: 'log',
+    model: ['gpt-5', 'claude-sonnet-4-5', 'unknown-x', 'tiered'][i % 4],
+    input: (i * 311) % 5000,
+    output: (i * 57) % 900,
+    cacheRead: i % 2 ? (i * 101) % 3000 : 0,
+    cacheWrite: i % 3 ? (i * 13) % 700 : 0,
+  };
+  // 第一条就是字符串（累加器从数字 0 变成字符串）、之后的行混合
+  const fields = ['input', 'output', 'cacheRead', 'cacheWrite'];
+  if (i < 4) r[fields[i]] = ['5', '1e3', '', 'abc'][i];
+  else if (i % 7 === 3) r[fields[i % 4]] = mixVals[i % mixVals.length];
+  else if (i % 11 === 6) r[fields[(i + 1) % 4]] = mixVals[(i * 3) % mixVals.length];
+  if (i % 13 === 9) delete r[fields[i % 4]];
+  if (i % 4 === 1) r.session = `s${i % 3}`;
+  if (i % 6 === 1) r.provider = 'p1';
+  mixRecs.push(r);
+}
+// 只有数字记录在前、字符串记录在后的分组
+mixRecs.push({ key: 'late1', ts: now - 3600000, source: 'grok', via: 'log', model: 'grok-4', input: 10, output: 20, cacheRead: 0, cacheWrite: 0 });
+mixRecs.push({ key: 'late2', ts: now - 3500000, source: 'grok', via: 'log', model: 'grok-4', input: '30', output: 5, cacheRead: 0, cacheWrite: 0 });
+mixRecs.push({ key: 'late3', ts: now - 3400000, source: 'grok', via: 'log', model: 'grok-4', input: 1, output: '', cacheRead: 2, cacheWrite: 3 });
+rec('records', ['mixed'], mixRecs);
+for (const id of ['today', '7d']) {
+  const rg = agg.rangeOf(id, now);
+  const sub = mixRecs.filter((r) => r.ts >= rg.from && r.ts < rg.to);
+  rec('summarize', [id], agg.summarize(sub, priceOf));
+  rec('series', [id], agg.series(sub, rg, priceOf));
+  for (const by of ['source', 'provider', 'model']) rec('breakdown', [id, by, true], agg.breakdown(sub, by, priceOf, labels));
+}
+rec('heatmap', [now, 30], agg.heatmap(mixRecs, now, priceOf, 30));
+for (const q of [{ from: 0, to: 9e15, limit: 1000 }, { from: 0, to: 9e15, sort: 'tokens', dir: 'asc', limit: 1000 }, { from: 0, to: 9e15, sort: 'tokens', dir: 'desc', limit: 1000 },
+  { from: 0, to: 9e15, sort: 'cost', dir: 'asc', limit: 1000 }, { from: 0, to: 9e15, session: 's1', limit: 1000 }])
+  rec('details', [q], agg.details(mixRecs, q, priceOf, labels));
+const mixRows = agg.details(mixRecs, { from: 0, to: 9e15, limit: 30 }, priceOf, labels).rows;
+rec('toCsvRows', [JSON.parse(JSON.stringify(mixRows)), 'USD', 7.2], agg.toCsv(JSON.parse(JSON.stringify(mixRows)), 'USD', 7.2));
+for (const v of mixVals.filter((x) => x !== undefined)) {
+  for (const p of [pr, { input: 1, output: 2 }]) {
+    const r1 = { input: v, output: 500, cacheRead: 199999, cacheWrite: 0 };
+    rec('costUsd', [r1, p], pricing.costUsd(r1, p));
+    const r2 = { input: 1, output: v, cacheRead: v, cacheWrite: '0' };
+    rec('costUsd', [r2, p], pricing.costUsd(r2, p));
+  }
+}
+// V8 TimSort：不一致比较函数（NaN → 0）下的确定顺序
+const sortIn = [];
+for (let i = 0; i < 520; i++) sortIn.push(i % 17 === 0 ? 'abc' : i % 29 === 0 ? '' : i % 3 === 0 ? String((i * 7919) % 1000) : (i * 104729) % 997);
+for (const n of [5, 40, 63, 64, 65, 130, 300, 520])
+  for (const dir of [1, -1]) {
+    const a = sortIn.slice(0, n).map((v, i) => ({ v, i }));
+    a.sort((x, y) => (Number(x.v) - Number(y.v)) * dir);
+    rec('jsSort', [sortIn.slice(0, n), dir], a.map((e) => e.i));
+  }
+// 大量顺序段 + 逆序段（触发 gallop / mergeHigh）
+const runsIn = [];
+for (let i = 0; i < 600; i++) runsIn.push(Math.floor(i / 50) % 2 ? 600 - i : i % 23 === 0 ? 'x' : i);
+for (const dir of [1, -1]) {
+  const a = runsIn.map((v, i) => ({ v, i }));
+  a.sort((x, y) => (Number(x.v) - Number(y.v)) * dir);
+  rec('jsSort', [runsIn, dir], a.map((e) => e.i));
+}
+
+// 随机长度的升序段（含 NaN 元素）：覆盖 MergeCollapse 的 run 不变式分支
+let seed = 12345;
+const lcg = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+for (let t = 0; t < 8; t++) {
+  const arr = [];
+  const n = 1500 + Math.floor(lcg() * 2000);
+  while (arr.length < n) {
+    const len = 20 + Math.floor(lcg() * 150);
+    let v = Math.floor(lcg() * 1000);
+    for (let j = 0; j < len && arr.length < n; j++) arr.push(lcg() < 0.03 ? 'x' : (v += Math.floor(lcg() * 5)));
+  }
+  const a = arr.map((v, i) => ({ v, i }));
+  a.sort((x, y) => Number(x.v) - Number(y.v));
+  rec('jsSort', [arr, 1], a.map((e) => e.i));
+}
+// 精确 run 长度（MergeCollapse 第二个不变式 RunInvariantEstablished(n) 才会触发合并的序列）
+{
+  const arr = [];
+  for (const len of [83, 41, 113, 184, 45, 40, 46, 195, 103, 218]) for (let j = 0; j < len; j++) arr.push(j > 1 && j < len - 1 && j % 7 === 3 ? 'x' : j);
+  const a = arr.map((v, i) => ({ v, i }));
+  a.sort((x, y) => Number(x.v) - Number(y.v));
+  rec('jsSort', [arr, 1], a.map((e) => e.i));
+}
+// costUsd 为 NaN 但 tokens 是数字（cacheWrite1h 非数）：breakdown 的 `||` 回退到 tokens
+const nanRecs = [];
+for (let i = 0; i < 6; i++) nanRecs.push({ key: `n${i}`, ts: now - 1000 * (i + 1), source: srcs[i % 5], via: 'log', model: ['gpt-5', 'claude-sonnet-4-5', 'deepseek-chat', 'grok-4', 'gemini-2.5-pro', 'kimi-k2'][i], input: 100 * (i + 1) * (i % 2 ? 7 : 1), output: 3, cacheRead: 0, cacheWrite: 10, cacheWrite1h: i % 3 === 2 ? 1 : 'abc' });
+rec('records', ['nan'], nanRecs);
+for (const by of ['source', 'model']) rec('breakdown', ['today', by, true], agg.breakdown(nanRecs, by, priceOf, labels));
+
+// source 缺失 / null / 非字符串：breakdown 的 Map 键、details 的行 / facets / 过滤 / 排序（可抛 TypeError）、CSV
+const recT = (fn, args, f) => {
+  try {
+    rec(fn, args, f());
+  } catch (e) {
+    rec(fn, args, { __throw: `${e.constructor.name}: ${e.message}` });
+  }
+};
+const srcRecs = [];
+const srcVals = [undefined, 'claude', '__missing__', null, 7, 'codex', '', '__missing__', 'claude', true];
+for (let i = 0; i < srcVals.length; i++) {
+  const r = { key: `src${i}`, ts: now - 60000 * (i + 1), via: 'log', model: ['gpt-5', 'claude-sonnet-4-5', 'grok-4'][i % 3], input: 10 * (i + 1), output: '2', cacheRead: 0, cacheWrite: 0, session: i % 2 ? 's1' : undefined };
+  if (srcVals[i] !== '__missing__') r.source = srcVals[i];
+  if (r.session === undefined) delete r.session;
+  srcRecs.push(r);
+}
+rec('records', ['src'], srcRecs);
+for (const by of ['source', 'model']) rec('breakdown', ['today', by, true], agg.breakdown(srcRecs, by, priceOf, labels));
+const onlyMissing = srcRecs.filter((r) => !('source' in r) || r.source === undefined);
+const strAndMissing = srcRecs.filter((r) => !('source' in r) || typeof r.source === 'string');
+rec('records', ['srcMissing'], onlyMissing);
+rec('breakdown', ['today', 'source', true], agg.breakdown(onlyMissing, 'source', priceOf, labels));
+rec('records', ['src'], srcRecs);
+for (const q of [{ from: 0, to: 9e15, limit: 1000 }, { from: 0, to: 9e15, source: 'claude', limit: 1000 }, { from: 0, to: 9e15, source: 'undefined', limit: 1000 }, { from: 0, to: 9e15, source: '7', limit: 1000 }, { from: 0, to: 9e15, source: 'null', limit: 1000 }, { from: 0, to: 9e15, source: 'true', limit: 1000 }, { from: 0, to: 9e15, sort: 'source', dir: 'asc', limit: 1000 },
+  { from: 0, to: 9e15, sort: 'tokens', dir: 'asc', limit: 1000 }])
+  recT('details', [q], () => agg.details(srcRecs, q, priceOf, labels));
+const srcRows = agg.details(srcRecs, { from: 0, to: 9e15, limit: 30 }, priceOf, labels).rows;
+rec('toCsvRows', [JSON.parse(JSON.stringify(srcRows)), 'USD', 7.2], agg.toCsv(JSON.parse(JSON.stringify(srcRows)), 'USD', 7.2));
+// 只含字符串 + 缺失：source 排序时 undefined 只作 b（参数）时不抛，作 a 时抛
+rec('records', ['srcStrMissing'], strAndMissing);
+for (const dir of ['asc', 'desc']) for (const n of [1, 2, 3, strAndMissing.length]) {
+  const sub = strAndMissing.slice(0, n);
+  rec('records', ['srcStrMissing'], sub);
+  recT('details', [{ from: 0, to: 9e15, sort: 'source', dir, limit: 1000 }], () => agg.details(sub, { from: 0, to: 9e15, sort: 'source', dir, limit: 1000 }, priceOf, labels));
+}
+// undefined 只作比较函数的 b：'claude'.localeCompare('undefined') 不抛；数字 / null 作 a 时的 TypeError 文案
+for (const keys of [['src2', 'src1'], ['src2', 'src8', 'src6'], ['src7', 'src2', 'src5', 'src1'], ['src1', 'src4'], ['src4', 'src1'], ['src1', 'src3'], ['src1', 'src9']])
+  for (const dir of ['asc', 'desc']) {
+    const sub = keys.map((k) => srcRecs.find((r) => r.key === k));
+    rec('records', ['srcPick'], sub);
+    recT('details', [{ from: 0, to: 9e15, sort: 'source', dir, limit: 1000 }], () => agg.details(sub, { from: 0, to: 9e15, sort: 'source', dir, limit: 1000 }, priceOf, labels));
+  }
+
 const outDir = process.env.NOMI_GOLDEN_DIR ?? join(root, 'apps/desktop-go/internal/core/usage/testdata');
 mkdirSync(outDir, { recursive: true });
 writeFileSync(join(outDir, 'usage-fns.json'), JSON.stringify({ tz: process.env.TZ, custom, synced, now, csvRows: rows, cases }, null, 1) + '\n');
