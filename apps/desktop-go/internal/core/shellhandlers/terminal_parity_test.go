@@ -51,7 +51,9 @@ func termSource() *terminal.Source {
 	s := func(v string) *string { return &v }
 	f := func(v float64) *float64 { return &v }
 	b := func(v bool) *bool { return &v }
-	cl := func(tok *string, kv ...any) *terminal.Client { return &terminal.Client{Token: tok, Models: u.NewObj(kv...)} }
+	cl := func(tok *string, kv ...any) *terminal.Client {
+		return &terminal.Client{Token: tok, Models: u.NewObj(kv...)}
+	}
 	metas := map[string]*gwagents.ModelMeta{
 		"p1/claude-x": {Label: s("Claude X"), Provider: s("P1"), Ctx: f(200000), MaxOutput: f(8192), Reasoning: b(true)},
 		"p1/gpt-x":    {Label: s("GPT X"), Ctx: f(128000), Vision: b(true)},
