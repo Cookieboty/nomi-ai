@@ -2,7 +2,12 @@
 // the host builds from store.json (keys decrypted, memory only).
 package config
 
-import "math"
+import (
+	"math"
+	"sync"
+
+	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
+)
 
 // CLIENT_IDS.
 var ClientIDs = []string{"nomi", "claude", "codex", "gemini", "grok", "dsh"}
@@ -28,7 +33,7 @@ type RuntimeModel struct {
 	Reasoning   *bool    `json:"reasoning,omitempty"`
 	Vision      *bool    `json:"vision,omitempty"`
 	ToolCalling *bool    `json:"toolCalling,omitempty"`
-	Label       string   `json:"label,omitempty"`
+	Label       *string  `json:"label,omitempty"`
 	Efforts     []string `json:"efforts,omitempty"`
 	Strict      *bool    `json:"strict,omitempty"`
 }
@@ -57,16 +62,16 @@ type QuirkFixes struct {
 
 // ProviderQuirks is ProviderQuirks.
 type ProviderQuirks struct {
-	ResponsesTellsCache *bool                     `json:"responsesTellsCache,omitempty"`
-	PreferWire          string                    `json:"preferWire,omitempty"`
-	MaxTools            *float64                  `json:"maxTools,omitempty"`
-	DropParams          []string                  `json:"dropParams,omitempty"`
-	ReasoningPassback   *bool                     `json:"reasoningPassback,omitempty"`
-	UserAgent           string                    `json:"userAgent,omitempty"`
-	MaxConcurrency      *float64                  `json:"maxConcurrency,omitempty"`
-	RPM                 *float64                  `json:"rpm,omitempty"`
-	ExtraBody           map[string]map[string]any `json:"extraBody,omitempty"`
-	Fixes               *QuirkFixes               `json:"fixes,omitempty"`
+	ResponsesTellsCache *bool       `json:"responsesTellsCache,omitempty"`
+	PreferWire          string      `json:"preferWire,omitempty"`
+	MaxTools            *float64    `json:"maxTools,omitempty"`
+	DropParams          []string    `json:"dropParams,omitempty"`
+	ReasoningPassback   *bool       `json:"reasoningPassback,omitempty"`
+	UserAgent           string      `json:"userAgent,omitempty"`
+	MaxConcurrency      *float64    `json:"maxConcurrency,omitempty"`
+	RPM                 *float64    `json:"rpm,omitempty"`
+	ExtraBody           *u.Obj      `json:"extraBody,omitempty"` // wire → fields (ordered)
+	Fixes               *QuirkFixes `json:"fixes,omitempty"`
 }
 
 // ModelMapEntry is one modelMap row.
@@ -81,17 +86,31 @@ type RuntimeProvider struct {
 	Aliases   []string               `json:"aliases,omitempty"`
 	Name      string                 `json:"name"`
 	Enabled   bool                   `json:"enabled"`
-	URLs      map[string]string      `json:"urls"`
+	URLs      *u.Obj                 `json:"urls"` // wire → base URL, JS key order
 	Keys      []RuntimeKey           `json:"keys"`
 	Models    []RuntimeModel         `json:"models"`
 	Fallback  []string               `json:"fallback,omitempty"`
-	Headers   map[string]string      `json:"headers,omitempty"`
-	UserAgent string                 `json:"userAgent,omitempty"`
+	Headers   *u.Obj                 `json:"headers,omitempty"`
+	UserAgent *string                `json:"userAgent,omitempty"`
 	ModelMap  []ModelMapEntry        `json:"modelMap,omitempty"`
 	Detected  map[string]*ProbeState `json:"detected,omitempty"`
 	Quirks    *ProviderQuirks        `json:"quirks,omitempty"`
 	Preset    string                 `json:"preset,omitempty"`
 	Spec      string                 `json:"spec,omitempty"`
+
+	memo *sync.Map // effectiveModel cache (the WeakMap keyed by provider object)
+}
+
+var memoMu sync.Mutex
+
+// Memo is the per-provider-object cache (WeakMap<RuntimeProvider, …> in Node).
+func (p *RuntimeProvider) Memo() *sync.Map {
+	memoMu.Lock()
+	defer memoMu.Unlock()
+	if p.memo == nil {
+		p.memo = &sync.Map{}
+	}
+	return p.memo
 }
 
 // ClientModels is ClientModels.
@@ -174,4 +193,30 @@ type GatewayConfig struct {
 	MaxRequestBodyBytes *float64                  `json:"maxRequestBodyBytes,omitempty"`
 	RoutePlan           string                    `json:"routePlan,omitempty"`
 	Privacy             *PrivacyConfig            `json:"privacy,omitempty"`
+}
+
+// URL is p.urls[wire] ("" when unset or not a string).
+func (p *RuntimeProvider) URL(wire string) string {
+	if p.URLs == nil {
+		return ""
+	}
+	return u.Str(p.URLs.Get(wire))
+}
+
+// URLWires is Object.keys(p.urls).
+func (p *RuntimeProvider) URLWires() []string {
+	if p.URLs == nil {
+		return nil
+	}
+	return p.URLs.Keys()
+}
+
+// Model is p.models.find(m => m.id === id).
+func (p *RuntimeProvider) Model(id string) *RuntimeModel {
+	for i := range p.Models {
+		if p.Models[i].ID == id {
+			return &p.Models[i]
+		}
+	}
+	return nil
 }
