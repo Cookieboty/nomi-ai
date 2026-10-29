@@ -24,6 +24,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/extensions"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/local"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/mousetrack"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/services"
 	"io/fs"
 	"log"
@@ -248,6 +249,7 @@ func main() {
 		RouteListening: func() bool { return false },
 		Broadcast:      func(ev string, p any) { router.Emit(ev, p) },
 		EnvProviders:   func() []gwstore.EnvProvider { return shellhandlers.GatewayEnvProviders(processEnv()) },
+		OnUsage:        qualityOnUsage,
 	})
 	if err := gatewaySvc.Init(); err != nil {
 		log.Printf("[gateway] store init failed: %v", err)
@@ -359,6 +361,7 @@ func main() {
 	})
 	shellP := installShellProcs(router, userData, &sh, gatewaySvc)
 	defer shellP.Diagnostics.CliTrace.FlushSync()
+	defer shellP.Quality.Dispose()
 	cliPlugins, disposeHarness := wireHarness(router, userData, home, ports, gatewaySvc)
 	wireCoding(router, userData, cliPlugins, desktopSvc)
 	wireScreenAndPending(router, userData, rootLog, desktopSvc)
@@ -434,6 +437,16 @@ func main() {
 	// 没有托盘时自动开对话窗口兜底；测量模式（NOMI_POC_CTL）不开，与 POC 口径一致（对话由 show-chat 显式打开）
 	if !sh.TrayAvailable() && ctl == "" {
 		sh.Show(shell.Chat)
+	}
+	// 看板娘窗口的鼠标进出（WindowManager.setupMousePositionTracking）
+	if g, ok := sh.(shell.Geometry); ok {
+		if wc, ok := sh.(shell.WindowControl); ok {
+			go mousetrack.New(mousetrack.Deps{
+				Bounds:  func() (shell.Rect, bool) { return g.Bounds(shell.Mascot) },
+				Cursor:  wc.CursorPosition,
+				Publish: func(ev string) { router.EmitTo(ev, nil, "mascot") },
+			}).Run(nil)
+		}
 	}
 	if err := sh.Run(); err != nil {
 		log.Fatal(err)

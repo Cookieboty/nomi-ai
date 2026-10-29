@@ -1,0 +1,376 @@
+{
+ "objs": [
+  null,
+  5,
+  "x",
+  [],
+  [
+   {
+    "usage": {}
+   }
+  ],
+  {},
+  {
+   "usageMetadata": {
+    "promptTokenCount": 100,
+    "cachedContentTokenCount": 30,
+    "candidatesTokenCount": 7,
+    "thoughtsTokenCount": 3
+   },
+   "modelVersion": "gemini-2.5-pro"
+  },
+  {
+   "response": {
+    "usageMetadata": {
+     "promptTokenCount": 10,
+     "cachedContentTokenCount": 30
+    }
+   },
+   "modelVersion": 5
+  },
+  {
+   "usageMetadata": [],
+   "usage": {
+    "prompt_tokens": 3
+   }
+  },
+  {
+   "type": "message_start",
+   "message": {
+    "id": "msg_1",
+    "model": "claude-x",
+    "usage": {
+     "input_tokens": 12,
+     "cache_read_input_tokens": 4,
+     "cache_creation_input_tokens": 0,
+     "cache_creation": {
+      "ephemeral_5m_input_tokens": 2,
+      "ephemeral_1h_input_tokens": 6
+     },
+     "output_tokens": 1
+    }
+   }
+  },
+  {
+   "message": {
+    "id": "",
+    "model": ""
+   },
+   "model": "",
+   "id": "top",
+   "usage": {
+    "input_tokens": 1,
+    "cache_creation_input_tokens": 5,
+    "cache_creation": {
+     "ephemeral_1h_input_tokens": 9
+    },
+    "speed": "fast"
+   }
+  },
+  {
+   "usage": {
+    "input_tokens": -5,
+    "output_tokens": null,
+    "cache_read_input_tokens": "3"
+   }
+  },
+  {
+   "usage": {
+    "input_tokens": 50,
+    "input_tokens_details": {
+     "cached_tokens": 80
+    },
+    "output_tokens": 9
+   },
+   "response": {
+    "id": "resp_1",
+    "model": "gpt-5"
+   }
+  },
+  {
+   "response": {
+    "id": "resp_2",
+    "model": "gpt-5",
+    "usage": {
+     "input_tokens": 50,
+     "input_tokens_details": {
+      "cached_tokens": 20
+     },
+     "output_tokens": 9
+    }
+   }
+  },
+  {
+   "usage": {
+    "input_tokens": 50,
+    "input_tokens_details": {},
+    "cache_read_input_tokens": 1
+   }
+  },
+  {
+   "type": "message_delta",
+   "usage": {
+    "output_tokens": 33,
+    "speed": "fast"
+   }
+  },
+  {
+   "usage": {
+    "output_tokens": 33,
+    "speed": "slow"
+   },
+   "model": "m",
+   "id": "i"
+  },
+  {
+   "id": "chatcmpl-1",
+   "model": "gpt-4o",
+   "usage": {
+    "prompt_tokens": 100,
+    "completion_tokens": 20,
+    "prompt_tokens_details": {
+     "cached_tokens": 40
+    }
+   }
+  },
+  {
+   "usage": {
+    "input_tokens": 5,
+    "output_tokens": 2,
+    "speed": "fast"
+   }
+  },
+  {
+   "id": "top",
+   "message": {
+    "id": "mid"
+   },
+   "response": {
+    "id": "rid"
+   },
+   "usage": {
+    "prompt_tokens": 1
+   }
+  },
+  {
+   "usage": {
+    "completion_tokens": 2
+   }
+  },
+  {
+   "usage": {
+    "total_tokens": 2
+   }
+  },
+  {
+   "usage": 5
+  },
+  {
+   "usage": [
+    1
+   ]
+  },
+  {
+   "message": {
+    "usage": {
+     "prompt_tokens": 1
+    }
+   },
+   "response": {
+    "usage": {
+     "prompt_tokens": 2
+    }
+   }
+  }
+ ],
+ "frags": [
+  "__null__",
+  "__null__",
+  "__null__",
+  "__null__",
+  "__null__",
+  "__null__",
+  {
+   "input": 70,
+   "output": 10,
+   "cacheRead": 30,
+   "cacheWrite": 0,
+   "model": "gemini-2.5-pro"
+  },
+  {
+   "input": 0,
+   "output": 0,
+   "cacheRead": 30,
+   "cacheWrite": 0
+  },
+  {
+   "input": 3,
+   "output": 0,
+   "cacheRead": 0,
+   "cacheWrite": 0
+  },
+  {
+   "input": 12,
+   "output": 1,
+   "cacheRead": 4,
+   "cacheWrite": 8,
+   "cacheWrite1h": 6,
+   "model": "claude-x",
+   "id": "msg_1"
+  },
+  {
+   "input": 1,
+   "output": 0,
+   "cacheRead": 0,
+   "cacheWrite": 5,
+   "cacheWrite1h": 5,
+   "fast": true,
+   "id": "top"
+  },
+  {
+   "input": 0,
+   "output": 0,
+   "cacheRead": 0,
+   "cacheWrite": 0
+  },
+  {
+   "input": 0,
+   "output": 9,
+   "cacheRead": 80,
+   "cacheWrite": 0,
+   "model": "gpt-5",
+   "id": "resp_1"
+  },
+  {
+   "input": 30,
+   "output": 9,
+   "cacheRead": 20,
+   "cacheWrite": 0,
+   "model": "gpt-5",
+   "id": "resp_2"
+  },
+  {
+   "input": 50,
+   "output": 0,
+   "cacheRead": 1,
+   "cacheWrite": 0
+  },
+  {
+   "input": 0,
+   "output": 33,
+   "cacheRead": 0,
+   "cacheWrite": 0,
+   "fast": true
+  },
+  {
+   "input": 0,
+   "output": 33,
+   "cacheRead": 0,
+   "cacheWrite": 0,
+   "model": "m",
+   "id": "i"
+  },
+  {
+   "input": 60,
+   "output": 20,
+   "cacheRead": 40,
+   "cacheWrite": 0,
+   "model": "gpt-4o",
+   "id": "chatcmpl-1"
+  },
+  {
+   "input": 5,
+   "output": 2,
+   "cacheRead": 0,
+   "cacheWrite": 0,
+   "fast": true
+  },
+  {
+   "input": 1,
+   "output": 0,
+   "cacheRead": 0,
+   "cacheWrite": 0,
+   "id": "mid"
+  },
+  {
+   "input": 0,
+   "output": 2,
+   "cacheRead": 0,
+   "cacheWrite": 0
+  },
+  "__null__",
+  "__null__",
+  "__null__",
+  {
+   "input": 1,
+   "output": 0,
+   "cacheRead": 0,
+   "cacheWrite": 0
+  }
+ ],
+ "merges": [
+  "{\"input\":3,\"output\":0,\"cacheRead\":0,\"cacheWrite\":10,\"model\":\"a\",\"id\":\"x\",\"cacheWrite1h\":10}",
+  "{\"input\":5,\"output\":9,\"cacheRead\":3,\"cacheWrite\":10,\"model\":\"a\",\"id\":\"first\",\"cacheWrite1h\":4,\"fast\":true}",
+  "{\"input\":1,\"output\":0,\"cacheRead\":0,\"cacheWrite\":0,\"model\":\"\"}",
+  "{\"input\":0,\"output\":0,\"cacheRead\":0,\"cacheWrite\":0,\"model\":\"b\",\"fast\":true}"
+ ],
+ "taps": [
+  {
+   "chunks": [
+    "data: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_9\",\"model\":\"claude-y\",\"usage\":{\"input_tokens\":20,\"cache_read_input_tokens\":5,\"cache_creation_input_tokens\":8,\"cache_creation\":{\"ephemeral_1h_input_tokens\":8},\"output_tokens\":1}}}\n\nevent: ping\ndata: {\"type\":\"ping\"}\n\ndata: {\"type\":\"message_delta\",\"usage\":{\"output_tokens\":40,\"speed\":\"fast\"}}\n\ndata: [DONE]\n"
+   ],
+   "r": "{\"input\":20,\"output\":40,\"cacheRead\":5,\"cacheWrite\":8,\"model\":\"claude-y\",\"id\":\"msg_9\",\"cacheWrite1h\":8,\"fast\":true}",
+   "has": true
+  },
+  {
+   "text": "data: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_9\",\"model\":\"claude-y\",\"usage\":{\"input_tokens\":20,\"cache_read_input_tokens\":5,\"cache_creation_input_tokens\":8,\"cache_creation\":{\"ephemeral_1h_input_tokens\":8},\"output_tokens\":1}}}\n\nevent: ping\ndata: {\"type\":\"ping\"}\n\ndata: {\"type\":\"message_delta\",\"usage\":{\"output_tokens\":40,\"speed\":\"fast\"}}\n\ndata: [DONE]\n",
+   "n": 7,
+   "r": "{\"input\":20,\"output\":40,\"cacheRead\":5,\"cacheWrite\":8,\"model\":\"claude-y\",\"id\":\"msg_9\",\"cacheWrite1h\":8,\"fast\":true}",
+   "has": true
+  },
+  {
+   "text": "data: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_9\",\"model\":\"claude-y\",\"usage\":{\"input_tokens\":20,\"cache_read_input_tokens\":5,\"cache_creation_input_tokens\":8,\"cache_creation\":{\"ephemeral_1h_input_tokens\":8},\"output_tokens\":1}}}\n\nevent: ping\ndata: {\"type\":\"ping\"}\n\ndata: {\"type\":\"message_delta\",\"usage\":{\"output_tokens\":40,\"speed\":\"fast\"}}\n\ndata: [DONE]\n",
+   "n": 1,
+   "r": "{\"input\":20,\"output\":40,\"cacheRead\":5,\"cacheWrite\":8,\"model\":\"claude-y\",\"id\":\"msg_9\",\"cacheWrite1h\":8,\"fast\":true}",
+   "has": true
+  },
+  {
+   "chunks": [
+    "data: {\"id\":\"c1\",\"model\":\"gpt\",\"usage\":null}\n\ndata: {\"id\":\"c1\",\"model\":\"gpt\",\"usage\":{\"prompt_tokens\":9,\"completion_tokens\":4}}"
+   ],
+   "r": "{\"input\":9,\"output\":4,\"cacheRead\":0,\"cacheWrite\":0,\"model\":\"gpt\",\"id\":\"c1\"}",
+   "has": true
+  },
+  {
+   "chunks": [
+    "  data:{\"usageMetadata\":{\"promptTokenCount\":4}}  \r\n",
+    "data: not json\n",
+    "data:\n",
+    "data:   ﻿ {\"usage\":{\"output_tokens\":2}}　"
+   ],
+   "r": "{\"input\":4,\"output\":2,\"cacheRead\":0,\"cacheWrite\":0}",
+   "has": true
+  },
+  {
+   "rep": "x",
+   "n": 4194305,
+   "tail": "data: {\"usage\":{\"output_tokens\":5}}\n",
+   "r": "{\"input\":0,\"output\":5,\"cacheRead\":0,\"cacheWrite\":0}",
+   "has": true
+  },
+  {
+   "rep": "é",
+   "n": 3145728,
+   "tail": "data: {\"usage\":{\"output_tokens\":6}}\n",
+   "r": "{\"input\":0,\"output\":0,\"cacheRead\":0,\"cacheWrite\":0}",
+   "has": false
+  },
+  {
+   "chunks": [
+    "data: {\"usage\":{\"output_tokens\":7}}"
+   ],
+   "r": "{\"input\":0,\"output\":7,\"cacheRead\":0,\"cacheWrite\":0}",
+   "has": true
+  }
+ ]
+}

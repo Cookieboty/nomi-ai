@@ -43,7 +43,7 @@ func (s *Service) CliDefaults(kind string) *u.Obj {
 	}
 	third := c != nil && c.Get("newTabSource") == "thirdParty"
 	source := "official"
-	if third && agentsTruthy(model) {
+	if third && u.Truthy(model) {
 		source = "thirdParty"
 	}
 	var account any
@@ -51,20 +51,6 @@ func (s *Service) CliDefaults(kind string) *u.Obj {
 		account = c.Get("newTabAccountId")
 	}
 	return u.NewObj("source", source, "model", model, "accountId", account)
-}
-
-func agentsTruthy(v any) bool {
-	switch x := v.(type) {
-	case nil:
-		return false
-	case string:
-		return x != ""
-	case bool:
-		return x
-	case float64:
-		return x != 0 && x == x
-	}
-	return true
 }
 
 func objList(v any) []*u.Obj {

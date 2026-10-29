@@ -104,6 +104,8 @@ async function scenario(name, ops) {
     try {
       let r;
       if (op === 'officialEnvTok') r = s.officialEnv({ ...args[0], T: `x ${s.store.clientToken(args[1])} y` });
+      else if (op === 'applyModelsDataN') r = await s.applyModelsData(modelsApi(args[0]));
+      else if (op === 'storeProvider') r = s.store.upsertProvider(args[0]);
       else if (op === 'listen') r = child?.msg?.({ type: 'listening', port: 18999, url: 'http://127.0.0.1:18999' });
       else r = await s[op](...args);
       rec.result = r === undefined ? null : r;
@@ -170,6 +172,56 @@ await scenario('officialEnv stopped', [
   ['cliLaunch', 'gemini', 't1', 'x/y'],
   ['officialEnv', { A: 'http://127.0.0.1:18999/', F: 'keep' }],
 ]);
+
+// 非布尔 enabled（store 层原样写入，不经 upsertProvider 规范化）：Node 按真值判断
+const rawModels = [
+  { id: 'a', enabled: 'yes', label: null },
+  { id: 'b', enabled: 0 },
+  { id: 'c', enabled: '' },
+  { id: 'd', enabled: null },
+  { id: 'e', enabled: 1, toolCalling: 0 },
+  { id: 'f', enabled: {}, toolCalling: null, label: 'F' },
+  { id: 'g', enabled: 'false' },
+];
+await scenario('truthy enabled', [
+  ['storeProvider', { id: 'raw1', name: 'Raw 1', enabled: 1, wire: 'chat', urls: { chat: 'https://raw1.example.com/v1' }, keys: [], models: rawModels }],
+  ['storeProvider', { id: 'raw2', name: 'Raw 2', enabled: 'on', wire: 'chat', urls: { chat: 'https://raw2.example.com/v1' }, keys: [], models: [{ id: 'z', enabled: true }] }],
+  ['storeProvider', { id: 'raw3', name: 'Raw 3', enabled: 0, wire: 'chat', urls: { chat: 'https://raw3.example.com/v1' }, keys: [], models: [{ id: 'z', enabled: true }] }],
+  ['storeProvider', { id: 'raw4', name: 'Raw 4', enabled: '', wire: 'chat', urls: { chat: 'https://raw4.example.com/v1' }, keys: [], models: [{ id: 'z', enabled: true }] }],
+  ['storeProvider', { id: 'raw5', name: 'Raw 5', wire: 'chat', urls: { chat: 'https://raw5.example.com/v1' }, keys: [], models: [{ id: 'z', enabled: true }] }],
+  ['cliModels'],
+  ['cliLaunch', 'claude', 't1', 'raw1/a'],
+  ['cliLaunch', 'gemini', 't2', 'raw1/f'],
+]);
+
+// 模型目录同步（applyModelsData）：models.dev 形状的 n 个模型（Go 侧同一生成器）；new Date() 指向假时钟
+function modelsApi(n) {
+  const models = {};
+  for (let i = 0; i < n; i++) {
+    models[`m-${String(i).padStart(3, '0')}`] = { id: `m-${i}`, name: `M ${i}`, reasoning: i % 2 === 0, modalities: { input: i % 3 === 0 ? ['text', 'image'] : ['text'] }, limit: { context: 100000 + i * 1000, output: 4096 + i } };
+  }
+  models.plain = { id: 'plain', name: 'Plain', limit: { context: 777000, output: 33000 } };
+  models.embed = { id: 'embed', type: 'embedding', limit: { context: 8000 } };
+  return { openai: { models } };
+}
+const RealDate = Date;
+globalThis.Date = class extends RealDate {
+  constructor(...a) { if (a.length) super(...a); else super(clock); }
+  static now() { return clock; }
+};
+await scenario('catalog sync', [
+  ['upsertProvider', { name: 'My Proxy', urls: { chat: 'https://proxy.example.com/v1' }, newKeys: [{ value: 'sk-proxy-aaaaaaaaaaaa' }], models: [{ id: 'plain', enabled: true }, { id: 'm-001', enabled: true }] }],
+  ['hasCatalogSync'],
+  ['cliModels'],
+  ['applyModelsDataN', 5],
+  ['hasCatalogSync'],
+  ['applyModelsDataN', 120],
+  ['hasCatalogSync'],
+  ['cliModels'],
+  ['modelMetaOf', 'my-proxy/plain'],
+  ['cliLaunch', 'claude', 't1', 'my-proxy/plain'],
+]);
+globalThis.Date = RealDate;
 
 const dir = process.env.NOMI_GOLDEN_DIR || join(root, 'apps/desktop-go/internal/core/gwstore/testdata');
 fs.mkdirSync(dir, { recursive: true });

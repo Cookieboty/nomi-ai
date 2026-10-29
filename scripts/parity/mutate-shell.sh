@@ -43,8 +43,36 @@ MUTANTS=(
   "internal/gateway/probe/detect.go|s/\|\| r2.status == 400/|| r2.status == 401/"
   "internal/gateway/probe/detect.go|s/\"messages\": \"x-api-key\", \"responses\"/\"messages\": \"bearer\", \"responses\"/"
   "internal/gateway/probe/detect.go|s/return err.Error\(\)/return \"fetch failed\"/"
-  "$D/shellhandlers/navroutes.go|s/\"providers\": \"providers.openPanel\"/\"providers\": \"providers.open\"/"
+  "$D/chatnav/chatnav.go|s/\"providers\": \"providers.openPanel\"/\"providers\": \"providers.open\"/"
   "$D/shellhandlers/gateway.go|s/\"Service 'terminal' is not available\"/\"Service 'gateway' is not available\"/"
+  "$D/mascothandlers/register.go|s/chatnav.OpenPanel\\(r, d.OpenChat, \"nav.scheduleRequested\"\\)/chatnav.OpenPanel(r, d.OpenChat, \"nav.desktopPanelRequested\")/"
+  "$D/chatnav/chatnav.go|s/map\\[string\\]any\\{\\}, \"chat\"\\)/map[string]any{}, \"\")/"
+  "$D/mousetrack/mousetrack.go|s/x <= b.X\+b.Width/x < b.X+b.Width/"
+  "$D/mousetrack/mousetrack.go|s/if in != t.in \{/if true {/"
+  "$D/mousetrack/mousetrack.go|s/if !ok \{\n\t\treturn/if false {\n\t\treturn/"
+  "internal/shell/trash/trash_linux.go|s/run\(\"gio\", \"trash\", p\)/run(\"gio\", \"remove\", p)/"
+  "internal/shell/trash/trash.go|s/if _, err := os.Lstat\(abs\); err != nil \{/if false {/"
+  "$D/quality/ledger.go|s/t \\+ dayMs \\+ 3_600_000/t + dayMs/"
+  "$D/quality/ledger.go|s/\\(retentionDays-1\\)\\*dayMs/retentionDays*dayMs/"
+  "$D/quality/ledger.go|s/ts >= from && ts < to/ts >= from \\&\\& ts <= to/"
+  "$D/quality/csv.go|s/=\\+\\\\-@/=+\\\\-/"
+  "$D/quality/csv.go|s/strings.Repeat\\(\"  \", g.Depth\\)/strings.Repeat(\" \", g.Depth)/"
+  "$D/quality/csv.go|s/round\\(out\\/\\(g\\/1000\\), 1\\)/round(out\\/(g\\/1000), 2)/"
+  "$D/quality/csv.go|s/numStr\\(s.Get\\(\"vendor\"\\)\\) \\+ \": \"/numStr(s.Get(\"vendor\")) + \":\"/"
+  "$D/quality/service.go|s/maxRangeDays = 366/maxRangeDays = 365/"
+  "$D/quality/service.go|s/len\\(path\\) > 3/len(path) > 4/"
+  "$D/quality/service.go|s/len\\(vals\\) > 50/len(vals) > 1/"
+  "$D/quality/service.go|s/Filters: b.Filters, Limit: 100/Filters: b.Filters, Limit: 50/"
+  "$D/quality/service.go|s/q.Set\\(\"limit\", 1000.0\\)/q.Set(\"limit\", 100.0)/"
+  "$D/quality/service.go|s/from -= q.To - q.From/from -= 0/"
+  "$D/quality/service.go|s/fmt.Sprintf\\(\"g-%s-%d\"/fmt.Sprintf(\"g%s-%d\"/"
+  "$D/quality/service.go|s/full.Set\\(\"cost\", c\\)/_ = c/"
+  "$D/quality/service.go|s/RetentionChoices \\{\\n\\t\\tif c == f/RetentionChoices[:1] {\\n\\t\\tif c == f/"
+  "$D/quality/service.go|s/t.Set\\(\"label\", i18n.T\\(\"electron.common.all\"\\)\\)//"
+  "$D/quality/handlers.go|s/return validBase\\(o\\) && optOK\\(o, \"filters\", isFilters\\) && optOK\\(o, \"groupBy\", isStr\\)/return validBase(o) \\&\\& optOK(o, \"groupBy\", isStr)/"
+  "$D/quality/handlers.go|s/\\(b == \"hour\" \\|\\| b == \"day\"\\)/(b == \"hour\" || b == \"day\" || b == \"week\")/"
+  "$D/quality/handlers.go|s/isNum\\(o, \"limit\"\\) &&/true \\&\\&/"
+  "$D/quality/fromgateway.go|s/\\b300\\b/301/"
 )
 killed=0; survived=0
 for m in "${MUTANTS[@]}"; do
@@ -54,7 +82,7 @@ for m in "${MUTANTS[@]}"; do
   if cmp -s "$f" "$f.mutbak"; then
     mv "$f.mutbak" "$f"; echo "MUTANT NOT APPLIED: $m"; exit 2
   fi
-  if go test -count=1 -tags gtk3 ./internal/core/shellhandlers/ -run 'Parity|TestWindowRoutes|TestTerminalUnavailable' >/dev/null 2>&1; then
+  if go test -count=1 -tags gtk3 ./internal/core/shellhandlers/ ./internal/core/mascothandlers/ ./internal/core/mousetrack/ ./internal/shell/trash/ ./internal/core/quality/ -run 'Parity|Golden|TestQuality|TestWindowRoutes|TestTerminalUnavailable|TestOpenTaskBoard|TestMouseTrack|TestTrashItem' >/dev/null 2>&1; then
     survived=$((survived+1)); echo "SURVIVED: $m"
   else
     killed=$((killed+1)); echo "killed:   $m"

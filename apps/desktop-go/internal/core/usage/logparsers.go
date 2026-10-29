@@ -15,15 +15,6 @@ import (
 // ParseState = Record<string, unknown>（值为 JSON 值：float64 / string / bool）。
 type ParseState = map[string]any
 
-// QuotaWindow：quota.ts 的 QuotaWindow。
-type QuotaWindow struct {
-	ID            string   `json:"id"`
-	UsedPercent   float64  `json:"usedPercent"`
-	WindowMinutes *float64 `json:"windowMinutes,omitempty"`
-	ResetAt       *float64 `json:"resetAt,omitempty"`
-	Expired       *bool    `json:"expired,omitempty"`
-}
-
 func lpNum(v any) float64 {
 	if x, ok := v.(float64); ok && !math.IsNaN(x) && !math.IsInf(x, 0) && x > 0 {
 		return x
@@ -164,7 +155,7 @@ func (r toks) empty() bool {
 
 func newRec(key string, ts float64, source string, provider *string, model string, t toks, session, project *string) *UsageRecord {
 	return &UsageRecord{Key: key, Ts: ts, Source: source, Via: "log", Provider: provider, Model: model,
-		Input: t.input, Output: t.output, CacheRead: t.cacheRead, CacheWrite: t.cacheWrite, Session: session, Project: project}
+		Input: t.input, Output: t.output, CacheRead: t.cacheRead, CacheWrite: t.cacheWrite, Session: session, Project: project, keys: keysLogRec}
 }
 
 // 有序 Map<string, *UsageRecord>
@@ -253,9 +244,11 @@ func ParseClaudeChunk(text string) []UsageRecord {
 			}
 			if w := math.Min(math.Max(p1h, cacheWrite1h), prev.CacheWrite); w != 0 {
 				prev.CacheWrite1h = f64p(w)
+				prev.setOwn("cacheWrite1h")
 			}
 			if fast {
 				prev.Fast = boolp(true)
+				prev.setOwn("fast")
 			}
 			continue
 		}
@@ -266,6 +259,14 @@ func ParseClaudeChunk(text string) []UsageRecord {
 		if fast {
 			r.Fast = boolp(true)
 		}
+		ks := []string{"key", "ts", "source", "via", "model", "input", "output", "cacheRead", "cacheWrite"}
+		if cacheWrite1h != 0 {
+			ks = append(ks, "cacheWrite1h")
+		}
+		if fast {
+			ks = append(ks, "fast")
+		}
+		r.withKeys(append(ks, "session", "project"))
 		out.set(key, r)
 	}
 	return out.values()
@@ -666,7 +667,7 @@ func ParseGeminiFile(text string, fallbackCwd, fallbackSession *string) []UsageR
 		if fallbackCwd != nil {
 			fc = *fallbackCwd
 		}
-		out = append(out, *newRec("gemini:"+session+":"+idPart, ts, "gemini", nil, model, rec, sess, lpBase(fc)))
+		out = append(out, *newRec("gemini:"+session+":"+idPart, ts, "gemini", nil, model, rec, sess, lpBase(fc)).withKeys(keysLogNoProv))
 	}
 	return out
 }
@@ -692,7 +693,7 @@ func ParseAiderChunk(text string) []UsageRecord {
 		if s := lpStr(p.Get("main_model")); s != nil {
 			model = *s
 		}
-		out = append(out, *newRec("aider:"+util.JSString(ts)+":"+util.JSString(rec.input)+":"+util.JSString(rec.output), ts, "aider", nil, model, rec, nil, nil))
+		out = append(out, *newRec("aider:"+util.JSString(ts)+":"+util.JSString(rec.input)+":"+util.JSString(rec.output), ts, "aider", nil, model, rec, nil, nil).withKeys(keysAider))
 	}
 	return out
 }
@@ -727,7 +728,7 @@ func ParseQwenChunk(text string) []UsageRecord {
 		if s := lpStr(o.Get("model")); s != nil {
 			model = *s
 		}
-		out.set(key, newRec(key, parseTs(o.Get("timestamp")), "qwen", nil, model, rec, lpStr(o.Get("sessionId")), lpBase(o.Get("cwd"))))
+		out.set(key, newRec(key, parseTs(o.Get("timestamp")), "qwen", nil, model, rec, lpStr(o.Get("sessionId")), lpBase(o.Get("cwd"))).withKeys(keysLogNoProv))
 	}
 	return out.values()
 }
@@ -804,7 +805,7 @@ func ParseKimiChunk(text string, state ParseState) []UsageRecord {
 		if s := stStr(state, "model"); s != nil {
 			model = *s
 		}
-		out.set(key, newRec(key, ts, "kimi", nil, model, rec, stStr(state, "sid"), nil))
+		out.set(key, newRec(key, ts, "kimi", nil, model, rec, stStr(state, "sid"), nil).withKeys(keysKimiCop))
 	}
 	return out.values()
 }
@@ -866,7 +867,7 @@ func CopilotRowToRecord(r *util.Obj) *UsageRecord {
 		model = *s
 	}
 	return &UsageRecord{Key: "copilot:" + *session + ":" + util.JSString(id), Ts: ts, Source: "copilot", Via: "log", Model: model,
-		Input: rec.input, Output: rec.output, CacheRead: rec.cacheRead, CacheWrite: rec.cacheWrite, Session: session}
+		Input: rec.input, Output: rec.output, CacheRead: rec.cacheRead, CacheWrite: rec.cacheWrite, Session: session, keys: keysKimiCop}
 }
 
 var LogSources = []string{"claude", "codex", "dsh", "grok", "gemini", "qwen", "opencode", "copilot", "kimi", "aider"}

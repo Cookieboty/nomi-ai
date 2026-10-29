@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	sh "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/shared"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwagents"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore/agents"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
@@ -39,7 +39,7 @@ type Client struct {
 type Source struct {
 	URL     string
 	Clients map[string]*Client
-	MetaOf  func(ref string) *gwagents.ModelMeta
+	MetaOf  func(ref string) *agents.ModelMeta
 	Catalog []string
 }
 
@@ -80,7 +80,7 @@ func CommandName(kind, platform string) string {
 type ScriptInput struct {
 	Kind, Platform, URL, TokenFile string
 	Model                          *string
-	Launch                         *gwagents.Launch
+	Launch                         *agents.AgentLaunch
 	Template                       *string
 }
 
@@ -154,7 +154,8 @@ func posixScript(i *ScriptInput) string {
 	if len(l.Strip) > 0 {
 		L = append(L, "unset "+strings.Join(l.Strip, " "))
 	}
-	for _, e := range l.Env {
+	for _, k := range l.Env.Keys() {
+		e := struct{ K, V string }{k, u.JSString(l.Env.Get(k))}
 		switch {
 		case strings.Contains(e.V, tokenMark):
 			L = append(L, "export "+e.K+`="$NOMI_TOKEN"`)
