@@ -206,7 +206,12 @@ func TestAuthModeParityDetector(t *testing.T) {
 			}
 			if sc.Salt != "" {
 				salt := sc.Salt
-				d.Salt = func() string { return salt }
+				d.Salt = func() string {
+					if salt == "THROW" {
+						panic(jsrt.JSThrow{Name: "Error", Message: "salt boom"})
+					}
+					return salt
+				}
 			}
 			if sc.EnvFor != nil {
 				d.EnvFor = func(id string) *util.Obj {
@@ -230,13 +235,21 @@ func TestAuthModeParityDetector(t *testing.T) {
 						ai.FP = &fp
 					}
 					if p, ok := r.Get("plan").(string); ok {
-						ai.Plan = p
+						ai.Plan = &p
 					}
 					saved[k] = ai
 				}
 				det.RestoreKnown(o.Keys(), saved)
 			}
 			out := []any{}
+			var started []*jsrt.Promise[AuthInfo]
+			settle := func(p *jsrt.Promise[AuthInfo]) string {
+				info, err := jsrt.Await(p)
+				if err != nil {
+					return "REJECT:" + err.Error()
+				}
+				return util.Stringify(info.ToObj())
+			}
 			for _, op := range sc.Ops {
 				arg, _ := op[1:len(op):len(op)], 0
 				s := func() string {
@@ -248,8 +261,19 @@ func TestAuthModeParityDetector(t *testing.T) {
 				}()
 				switch op[0] {
 				case "full":
-					info, _ := jsrt.Await(det.DetectFull(s))
-					out = append(out, util.Stringify(info.ToObj()))
+					out = append(out, settle(det.DetectFull(s)))
+				case "start":
+					started = append(started, det.DetectFull(s))
+					out = append(out, nil)
+				case "same":
+					out = append(out, started[len(started)-1] == started[len(started)-2])
+				case "awaitAll":
+					rs := []any{}
+					for _, p := range started {
+						rs = append(rs, settle(p))
+					}
+					out = append(out, rs)
+					started = nil
 				case "passive":
 					out = append(out, util.Stringify(det.DetectPassive(s).ToObj()))
 				case "snap":

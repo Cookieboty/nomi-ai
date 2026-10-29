@@ -1,0 +1,602 @@
+[
+  {
+    "tool": "time_now",
+    "in": {}
+  },
+  {
+    "tool": "time_now",
+    "in": {
+      "tz": "Asia/Shanghai"
+    }
+  },
+  {
+    "tool": "time_now",
+    "in": {
+      "tz": "UTC"
+    }
+  },
+  {
+    "tool": "time_now",
+    "in": {
+      "tz": "Not/AZone"
+    }
+  },
+  {
+    "tool": "time_now",
+    "in": {
+      "tz": "UTC"
+    },
+    "tick": 6400000
+  },
+  {
+    "tool": "time_now",
+    "in": {
+      "tz": "asia/shanghai"
+    }
+  },
+  {
+    "tool": "time_now",
+    "in": {
+      "tz": "+08:00"
+    }
+  },
+  {
+    "tool": "time_now",
+    "in": {
+      "tz": "America/New_York"
+    },
+    "tick": -10800000
+  },
+  {
+    "tool": "time_now",
+    "in": {
+      "tz": ""
+    }
+  },
+  {
+    "tool": "time_now",
+    "in": {
+      "tz": 5
+    }
+  },
+  {
+    "tool": "time_now",
+    "in": {
+      "tz": "UTC",
+      "x": 1
+    }
+  },
+  {
+    "tool": "random",
+    "in": {
+      "min": 1,
+      "max": 6,
+      "integer": true
+    },
+    "rnd": [
+      0.999
+    ]
+  },
+  {
+    "tool": "random",
+    "in": {
+      "min": 1.2,
+      "max": 6.8,
+      "integer": true
+    },
+    "rnd": [
+      0
+    ]
+  },
+  {
+    "tool": "random",
+    "in": {
+      "min": 0,
+      "max": 10
+    },
+    "rnd": [
+      0.25
+    ]
+  },
+  {
+    "tool": "random",
+    "in": {
+      "min": 5,
+      "max": 1
+    }
+  },
+  {
+    "tool": "random",
+    "in": {
+      "min": 5,
+      "max": 1,
+      "x": 2
+    }
+  },
+  {
+    "tool": "random",
+    "in": {
+      "min": "a",
+      "max": 1
+    }
+  },
+  {
+    "tool": "random",
+    "in": {
+      "max": 1
+    }
+  },
+  {
+    "tool": "random",
+    "in": {}
+  },
+  {
+    "tool": "echo",
+    "in": {
+      "text": "hi ✓"
+    }
+  },
+  {
+    "tool": "echo",
+    "in": {
+      "text": ""
+    }
+  },
+  {
+    "tool": "echo",
+    "in": {}
+  },
+  {
+    "tool": "echo",
+    "in": {
+      "text": "a",
+      "b": 1
+    }
+  },
+  {
+    "tool": "set_user_preference",
+    "in": {
+      "path": "preferences.tone",
+      "value": "casual"
+    },
+    "profile": true
+  },
+  {
+    "tool": "set_user_preference",
+    "in": {
+      "path": "preferences.replyLanguage",
+      "value": "zh-CN",
+      "confidence": 0.5
+    },
+    "profile": true,
+    "tick": 1000
+  },
+  {
+    "tool": "set_user_preference",
+    "in": {
+      "path": "preferences.replyStyle",
+      "value": {
+        "value": "concise",
+        "source": "inferred",
+        "updatedAt": 5,
+        "confidence": 0.2
+      }
+    },
+    "profile": true
+  },
+  {
+    "tool": "set_user_preference",
+    "in": {
+      "path": "identity.nickname",
+      "value": "Ann"
+    },
+    "profile": true
+  },
+  {
+    "tool": "set_user_preference",
+    "in": {
+      "path": "preferences.codeStyle.language",
+      "value": [
+        "go",
+        "ts"
+      ]
+    },
+    "profile": true
+  },
+  {
+    "tool": "set_user_preference",
+    "in": {
+      "path": "preferences.x"
+    }
+  },
+  {
+    "tool": "set_user_preference",
+    "in": {
+      "path": "",
+      "value": 1
+    }
+  },
+  {
+    "tool": "set_user_preference",
+    "in": {
+      "path": "p",
+      "value": 1,
+      "confidence": 2
+    }
+  },
+  {
+    "tool": "set_user_preference",
+    "in": {
+      "path": "p",
+      "value": 1,
+      "z": 1
+    }
+  },
+  {
+    "tool": "set_user_preference",
+    "in": {
+      "path": "p",
+      "value": null
+    },
+    "profile": true
+  },
+  {
+    "tool": "get_user_preference",
+    "in": {
+      "path": "preferences"
+    }
+  },
+  {
+    "tool": "set_user_preference",
+    "in": {
+      "path": "preferences.autoAcceptTools",
+      "value": [
+        "echo"
+      ]
+    },
+    "profile": true
+  },
+  {
+    "tool": "set_user_preference",
+    "in": {
+      "path": "habits.avgSessionLen",
+      "value": 12
+    },
+    "profile": true
+  },
+  {
+    "tool": "set_user_preference",
+    "in": {
+      "path": "preferences.tone",
+      "value": "bogus"
+    },
+    "profile": true
+  },
+  {
+    "tool": "get_user_preference",
+    "in": {
+      "path": "preferences.tone"
+    }
+  },
+  {
+    "tool": "get_user_preference",
+    "in": {
+      "path": "preferences.tone.value"
+    }
+  },
+  {
+    "tool": "get_user_preference",
+    "in": {
+      "path": "preferences.codeStyle.language.1"
+    }
+  },
+  {
+    "tool": "get_user_preference",
+    "in": {
+      "path": "preferences.codeStyle.language.length"
+    }
+  },
+  {
+    "tool": "get_user_preference",
+    "in": {
+      "path": "identity.nickname.length"
+    }
+  },
+  {
+    "tool": "get_user_preference",
+    "in": {
+      "path": "missing.deep"
+    }
+  },
+  {
+    "tool": "get_user_preference",
+    "in": {}
+  },
+  {
+    "tool": "list_user_preferences",
+    "in": {}
+  },
+  {
+    "tool": "list_user_preferences",
+    "in": {
+      "x": 1
+    }
+  },
+  {
+    "tool": "forget_user_preferences",
+    "in": {},
+    "profile": true
+  },
+  {
+    "tool": "list_user_preferences",
+    "in": {}
+  },
+  {
+    "tool": "avatar_gesture",
+    "in": {
+      "name": "wave"
+    }
+  },
+  {
+    "tool": "avatar_gesture",
+    "in": {
+      "name": "dance"
+    }
+  },
+  {
+    "tool": "avatar_gesture",
+    "in": {}
+  },
+  {
+    "tool": "avatar_emotion",
+    "in": {
+      "name": "happy"
+    }
+  },
+  {
+    "tool": "avatar_emotion",
+    "in": {
+      "name": "sad",
+      "weight": 0.3
+    }
+  },
+  {
+    "tool": "avatar_emotion",
+    "in": {
+      "name": "sad",
+      "weight": 3
+    }
+  },
+  {
+    "tool": "avatar_emotion",
+    "in": {
+      "name": "nope"
+    }
+  },
+  {
+    "tool": "kb_search",
+    "in": {
+      "query": "alpha"
+    },
+    "st": {
+      "hits": [
+        {
+          "title": "Doc A",
+          "source": "a.md",
+          "path": "/kb/a.md",
+          "page": 3,
+          "text": "alpha body"
+        },
+        {
+          "title": "Note",
+          "source": "n",
+          "path": "note:1",
+          "text": "note body"
+        }
+      ]
+    },
+    "provider": {
+      "providerId": "openai",
+      "model": "gpt"
+    }
+  },
+  {
+    "tool": "kb_search",
+    "in": {
+      "query": "alpha",
+      "limit": 2
+    },
+    "st": {
+      "hits": [],
+      "mode": "hybrid"
+    }
+  },
+  {
+    "tool": "kb_search",
+    "in": {
+      "query": "alpha"
+    },
+    "st": {
+      "send": "local_only"
+    }
+  },
+  {
+    "tool": "kb_search",
+    "in": {
+      "query": "alpha"
+    },
+    "st": {
+      "send": "user_denied"
+    }
+  },
+  {
+    "tool": "kb_search",
+    "in": {
+      "query": ""
+    }
+  },
+  {
+    "tool": "kb_search",
+    "in": {
+      "query": "q",
+      "limit": 13
+    }
+  },
+  {
+    "tool": "kb_search",
+    "in": {
+      "query": "q",
+      "limit": 1.5
+    }
+  },
+  {
+    "tool": "memory_search",
+    "in": {
+      "query": "tea"
+    },
+    "st": {
+      "memText": "likes tea"
+    }
+  },
+  {
+    "tool": "memory_search",
+    "in": {
+      "query": "tea"
+    },
+    "st": {
+      "memText": ""
+    }
+  },
+  {
+    "tool": "memory_search",
+    "in": {
+      "query": "tea"
+    },
+    "st": {
+      "memEnabled": false
+    }
+  },
+  {
+    "tool": "memory_search",
+    "in": {}
+  },
+  {
+    "tool": "memory_remember",
+    "in": {
+      "text": "User likes green tea"
+    }
+  },
+  {
+    "tool": "memory_remember",
+    "in": {
+      "text": "User likes green tea",
+      "kind": "preference"
+    },
+    "st": {
+      "facts": [
+        "user likes green tea"
+      ]
+    }
+  },
+  {
+    "tool": "memory_remember",
+    "in": {
+      "text": "x",
+      "kind": "bogus"
+    }
+  },
+  {
+    "tool": "memory_remember",
+    "in": {
+      "text": "abc"
+    },
+    "st": {
+      "memEnabled": false
+    }
+  },
+  {
+    "tool": "skill_load",
+    "in": {
+      "name": "alpha"
+    }
+  },
+  {
+    "tool": "skill_load",
+    "in": {
+      "name": "off"
+    }
+  },
+  {
+    "tool": "skill_load",
+    "in": {
+      "name": "broken"
+    }
+  },
+  {
+    "tool": "skill_load",
+    "in": {
+      "name": "ghost"
+    }
+  },
+  {
+    "tool": "skill_load",
+    "in": {}
+  },
+  {
+    "tool": "skill_read_file",
+    "in": {
+      "name": "alpha",
+      "path": "ref.md"
+    }
+  },
+  {
+    "tool": "skill_read_file",
+    "in": {
+      "name": "alpha",
+      "path": "bin.dat"
+    }
+  },
+  {
+    "tool": "skill_read_file",
+    "in": {
+      "name": "alpha",
+      "path": "sub"
+    }
+  },
+  {
+    "tool": "skill_read_file",
+    "in": {
+      "name": "alpha",
+      "path": "../x"
+    }
+  },
+  {
+    "tool": "skill_read_file",
+    "in": {
+      "name": "alpha",
+      "path": "nope.md"
+    }
+  },
+  {
+    "tool": "skill_read_file",
+    "in": {
+      "name": "off",
+      "path": "ref.md"
+    }
+  },
+  {
+    "tool": "time_now",
+    "in": {
+      "tz": "-05:30"
+    }
+  },
+  {
+    "tool": "time_now",
+    "in": {
+      "tz": "+08"
+    }
+  },
+  {
+    "tool": "time_now"
+  }
+]

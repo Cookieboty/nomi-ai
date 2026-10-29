@@ -177,6 +177,16 @@ func (g *GrokBillingFetcher) fetch() (out FetchOutcome) {
 		}()
 		child = sp(launch.File, launch.Args, nodeproc.Options{Cwd: dir, Env: EnvSlice(childEnv), IgnoreStderr: true, Verbatim: launch.Via == ViaCmdShim})
 	}()
+	// 让出期间 jsrt 可能先跑 spawn 失败的 'error' 宏任务（Node 里 await 只让出微任务，error 一定在挂监听之后）：
+	// 先记下，挂好监听后补发，结果确定。
+	earlyErr, hooked := false, false
+	if child != nil {
+		child.OnError(func(error) {
+			if !hooked {
+				earlyErr = true
+			}
+		})
+	}
 	// child = await new Promise(...)：即使同步 resolve，await 也让出一次
 	jsrt.Await(jsrt.Resolved(struct{}{}))
 	if child == nil {
@@ -208,6 +218,10 @@ func (g *GrokBillingFetcher) fetch() (out FetchOutcome) {
 	timer = jsrt.SetTimeout(time.Duration(to)*time.Millisecond, func() { finish(grokBillingResult{timedOut: true}) })
 	child.OnError(func(error) { finish(grokBillingResult{}) })
 	child.OnClose(func(*int, string) { finish(grokBillingResult{}) })
+	hooked = true
+	if earlyErr {
+		finish(grokBillingResult{})
+	}
 	billingSent := false
 	send := func(m *util.Obj) {
 		if child.Stdin != nil {

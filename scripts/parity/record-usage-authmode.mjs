@@ -74,6 +74,15 @@ const cfgs = [
   { files: { '.codex/config.toml': 'x = 1 # forced_login_method = "api"\nmodel_provider\n=\n"multi\nline"' }, env: {} },
   { files: { '.codex/config.toml': '\u2028model_provider = "ls"\n[x]' }, env: {} },
   { files: { '.codex/config.toml': 'a = "[x"\nmodel_provider = "q"' }, env: {} },
+  // split(/^\s*\[/m)[0] 的切点：首个表头之前（含表头前的空白行 / 行首空白 / CRLF / 文件开头就是表头）
+  { files: { '.codex/config.toml': '[t]\nforced_login_method = "api"' }, env: {} },
+  { files: { '.codex/config.toml': '\n\n  [t]\nmodel_provider = "z"' }, env: {} },
+  { files: { '.codex/config.toml': 'forced_login_method = "chatgpt"\r\n\r\n[t]\nforced_login_method = "api"' }, env: {} },
+  { files: { '.codex/config.toml': 'model_provider = "z"\n[a]\n[b]' }, env: {} },
+  { files: { '.codex/config.toml': 'model_provider = "openai"\n  [p]\nmodel_provider = "z"' }, env: {} },
+  { files: { '.codex/config.toml': 'model_provider = "ab[c"\n[p]' }, env: {} },
+  { files: { '.codex/config.toml': 'model_provider = "a\n[p]\n"' }, env: {} },
+  { files: { '.codex/config.toml': 'forced_login_method = "api\n[t]"' }, env: {} },
   { files: { cx: { dir: true }, 'cx/config.toml': 'forced_login_method = "api"' }, env: { CODEX_HOME: '~/cx' } },
   { files: { '.grok/config.toml': '# >>> nomi managed (grok provider) >>>\n' }, env: {} },
   { files: { '.grok/config.toml': 'env_key = "XAI_API_KEY"' }, env: {} },
@@ -140,6 +149,31 @@ const scenarios = [
   { name: 'grok-managed', files: { '.grok/config.toml': '# >>> nomi managed (grok provider) >>>' }, env: {}, run: { grok: 'x' }, ops: [['passive', 'grok'], ['full', 'grok']] },
   { name: 'grok-env', files: {}, env: { XAI_API_KEY: 'k' }, run: { grok: null }, ops: [['passive', 'grok'], ['full', 'grok']] },
   { name: 'grok-present', files: { '.grok/sessions/x': '' }, env: {}, sub: ['grok'], run: { grok: null }, ops: [['passive', 'grok'], ['full', 'grok'], ['snap']] },
+  // TTL 边界：差 299999ms 命中缓存，正好 300000ms 重新探测（now - at < TTL）
+  { name: 'ttl-boundary', files: {}, env: {}, runs: { codex: ['Logged in using ChatGPT', 'Logged in using an API key'] },
+    ops: [['full', 'codex'], ['tick', 299999], ['full', 'codex'], ['tick', 1], ['full', 'codex'], ['tick', 299999], ['full', 'codex']] },
+  // 只换套餐（同一账号指纹）→ known 变化、触发 onKnownChange；同套餐不触发
+  { name: 'plan-only', files: {}, env: {}, salt: 's3', runs: { claude: ['{"authMethod":"claude.ai","email":"a@b","subscriptionType":"pro"}', '{"authMethod":"claude.ai","email":"a@b","subscriptionType":"pro"}', '{"authMethod":"claude.ai","email":"a@b","subscriptionType":"max"}', '{"authMethod":"claude.ai","email":"a@b"}', '{"authMethod":"claude.ai","email":"a@b"}'] },
+    ops: [['full', 'claude'], ['snap'], ['invalidate'], ['full', 'claude'], ['invalidate'], ['full', 'claude'], ['snap'], ['invalidate'], ['full', 'claude'], ['snap'], ['invalidate'], ['full', 'claude']] },
+  // 指纹相同、仅 plan 不同（恢复出来的旧 plan）→ 仍算变化
+  { name: 'plan-only-same-fp', files: {}, env: {}, salt: 's3', run: { claude: '{"authMethod":"claude.ai","email":"a@b","subscriptionType":"pro"}' },
+    restore: { claude: { mode: 'subscription', fp: '8e358a055c277b34', plan: 'Team' } }, ops: [['snap'], ['full', 'claude'], ['snap']] },
+  // 恢复出来的 plan: ''（Node 原样保留：passive 快照里带 plan:''，且与无 plan 的探测结果不等 → 记为变化）
+  { name: 'restored-empty-plan', files: {}, env: {}, salt: 's3', run: { claude: '{"authMethod":"claude.ai","email":"a@b"}' },
+    restore: { claude: { mode: 'subscription', fp: '8e358a055c277b34', plan: '' }, codex: { mode: 'api', fp: null, plan: '' } }, ops: [['snap'], ['full', 'claude'], ['snap']] },
+  { name: 'restored-empty-plan-same', files: {}, env: {}, salt: 's3', run: { claude: '{"authMethod":"claude.ai","email":"a@b","subscriptionType":""}' },
+    restore: { claude: { mode: 'subscription', fp: '8e358a055c277b34', plan: '' } }, ops: [['full', 'claude'], ['snap']] },
+  { name: 'restored-empty-plan-same-fp', files: {}, env: {}, salt: 's3', run: { claude: '{"authMethod":"claude.ai","email":"a@b"}' },
+    restore: { claude: { mode: 'subscription', fp: '2d648b571179f3df', plan: '' } }, ops: [['full', 'claude'], ['snap']] },
+  { name: 'plan-drop-same-fp', files: {}, env: {}, salt: 's3', run: { claude: '{"authMethod":"claude.ai","email":"a@b","subscriptionType":"pro"}' },
+    restore: { claude: { mode: 'subscription', fp: '8e358a055c277b34', plan: 'Pro' } }, ops: [['full', 'claude'], ['snap']] },
+  // 进行中探测共享：同步两次 detectFull 拿到同一个 promise、只跑一次；结算前被动读取看不到缓存
+  { name: 'inflight-share', files: {}, env: {}, sub: ['codex'], run: { codex: 'Logged in using ChatGPT' },
+    ops: [['start', 'codex'], ['start', 'codex'], ['same'], ['passive', 'codex'], ['snap'], ['awaitAll'], ['passive', 'codex'], ['snap'], ['start', 'codex'], ['start', 'codex'], ['same'], ['awaitAll']] },
+  { name: 'inflight-invalidate', files: {}, env: {}, runs: { codex: ['Logged in using ChatGPT', 'Not logged in'] },
+    ops: [['start', 'codex'], ['invalidate'], ['start', 'codex'], ['same'], ['awaitAll'], ['full', 'codex'], ['invalidate'], ['start', 'codex'], ['awaitAll'], ['snap']] },
+  { name: 'inflight-reject', files: {}, env: {}, salt: 'THROW', runs: { claude: ['{"authMethod":"claude.ai","email":"a@b"}', '{"authMethod":"claude.ai","email":"a@b"}'] },
+    ops: [['start', 'claude'], ['start', 'claude'], ['same'], ['awaitAll'], ['passive', 'claude'], ['full', 'claude'], ['snap']] },
   { name: 'envfor', files: { 'acct/settings.json': '{"apiKeyHelper":"x"}' }, env: {}, envFor: { claude: { CLAUDE_CONFIG_DIR: '~/acct' } }, run: { claude: '{"authMethod":"claude.ai"}', codex: 'Logged in using ChatGPT' },
     ops: [['passive', 'claude'], ['full', 'claude'], ['full', 'codex'], ['snap']] },
 ];
@@ -161,14 +195,19 @@ for (const sc of scenarios) {
     home, env: fixEnv(home, sc.env), now: () => t,
     run: async (k) => answer(pick(k)), grokRun: async () => answer(pick('grok')),
     hasSubscriptionData: (id) => (sc.sub ?? []).includes(id),
-    ...(sc.salt ? { salt: () => sc.salt } : {}),
+    ...(sc.salt ? { salt: () => { if (sc.salt === 'THROW') throw new Error('salt boom'); return sc.salt; } } : {}),
     ...(sc.envFor ? { envFor: (id) => (sc.envFor[id] ? fixEnv(home, sc.envFor[id]) : null) } : {}),
   });
   det.setOnKnownChange(() => { changes++; });
   if (sc.restore) det.restoreKnown(sc.restore);
   const out = [];
+  let started = [];
+  const settleOne = (p) => p.then((v) => JSON.stringify(v), (e) => `REJECT:${e.message}`);
   for (const [op, arg] of sc.ops) {
-    if (op === 'full') out.push(JSON.stringify(await det.detectFull(arg)));
+    if (op === 'full') out.push(await settleOne(det.detectFull(arg)));
+    else if (op === 'start') { started.push(det.detectFull(arg)); out.push(null); }
+    else if (op === 'same') out.push(started[started.length - 1] === started[started.length - 2]);
+    else if (op === 'awaitAll') { out.push(await Promise.all(started.map(settleOne))); started = []; }
     else if (op === 'passive') out.push(JSON.stringify(det.detectPassive(arg)));
     else if (op === 'snap') out.push(JSON.stringify(det.knownSnapshot()));
     else if (op === 'tick') { t += arg; out.push(null); }
@@ -189,6 +228,18 @@ const apply = [
   { entries: [E('claude', 'unavailable'), E('codex', 'unavailable')], modes: {}, detected: ['claude'] },
   { entries: [], modes: {}, detected: [] },
 ];
+// 全组合：auth（api / subscription / unknown / 缺省）× status（ok / unavailable / error）× 是否 detected
+{
+  const modes = {}; const entries = []; const detected = [];
+  let i = 0;
+  for (const auth of ['api', 'subscription', 'unknown', undefined]) for (const st of ['ok', 'unavailable', 'error']) for (const det of [true, false]) {
+    const id = `p${i++}`;
+    if (auth) modes[id] = auth;
+    if (det) detected.push(id);
+    entries.push(E(id, st, { plan: 'X' }));
+  }
+  apply.push({ entries, modes, detected });
+}
 const applyOut = apply.map((a) => JSON.stringify(M.applyAuthModes(a.entries, a.modes, new Set(a.detected))));
 
 const out = join(root, 'apps/desktop-go/internal/core/usage/testdata/usage-authmode.json');

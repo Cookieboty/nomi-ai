@@ -54,6 +54,9 @@ type Ports struct {
 	PickDirectory    func(title, buttonLabel, defaultPath string) string
 	NotifySupported  func() bool
 	ShowNotification func(title, body string, onClick func())
+	// ClipboardRead / ClipboardWrite = ports.clipboard（desktop.tools() 的 clipboard_*）
+	ClipboardRead  func() (string, error)
+	ClipboardWrite func(text string) error
 }
 
 type NotifyPolicy interface {
@@ -819,4 +822,25 @@ func jsAny(raw json.RawMessage) any {
 // CreateService 对应 createDesktopService
 func CreateService(userData string, ports Ports, emit Emitter) *Service {
 	return NewService(filepath.Join(userData, "desktop"), ports, emit, []string{userData})
+}
+
+// Summarize = this.summarize（desktop.tools() 的 summarize 依赖；summary 角色模型）
+func (s *Service) Summarize(text, instruction string) (string, error) {
+	return s.summarize(text, instruction)
+}
+
+// ClipboardRead = ports.clipboard.readText()（没有端口按空剪贴板）
+func (s *Service) ClipboardRead() (string, error) {
+	if s.ports.ClipboardRead == nil {
+		return "", nil
+	}
+	return s.ports.ClipboardRead()
+}
+
+// ClipboardWrite = ports.clipboard.writeText(t)
+func (s *Service) ClipboardWrite(t string) error {
+	if s.ports.ClipboardWrite == nil {
+		return nil
+	}
+	return s.ports.ClipboardWrite(t)
 }

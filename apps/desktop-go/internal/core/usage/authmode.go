@@ -327,11 +327,11 @@ func HasGrokLocalPresence(home string, env *util.Obj) bool {
 	return ExistsSync(filepath.Join(dir, "config.toml")) || ExistsSync(filepath.Join(dir, "sessions"))
 }
 
-// AuthInfo：登录方式 + 非敏感身份信息。FP nil = null；Plan "" = 无。
+// AuthInfo：登录方式 + 非敏感身份信息。FP nil = null；Plan nil = 无（恢复出来的 plan: "" 原样保留，同 Node）。
 type AuthInfo struct {
 	Mode      string
 	FP        *string
-	Plan      string
+	Plan      *string
 	SignedOut bool
 	FromCli   bool
 }
@@ -342,8 +342,8 @@ func (a AuthInfo) ToObj() *util.Obj {
 		fp = *a.FP
 	}
 	o := util.NewObj("mode", a.Mode, "fp", fp)
-	if a.Plan != "" {
-		o.Set("plan", a.Plan)
+	if a.Plan != nil {
+		o.Set("plan", *a.Plan)
 	}
 	if a.SignedOut {
 		o.Set("signedOut", true)
@@ -504,23 +504,27 @@ func (a *AuthModeDetector) DetectFull(id string) *jsrt.Promise[AuthInfo] {
 	if p, ok := a.inflight[id]; ok {
 		return p
 	}
-	var self *jsrt.Promise[AuthInfo]
+	// Node：p = probe(id).then(写缓存 / setKnown).finally(删 inflight)；inflight.set 同步发生，
+	// then 回调在微任务里跑（结算前 detectPassive 看不到缓存），probe 拒绝时 finally 照样删 inflight。
+	probeP := jsrt.Async(func() (AuthInfo, error) { return a.probe(id), nil })
 	p := jsrt.Async(func() (AuthInfo, error) {
-		info := a.probe(id)
-		a.cache[id] = authHit{a.now(), info}
-		if info.SignedOut {
-			a.setKnown(id, nil)
-		} else if info.FromCli {
-			k := AuthInfo{Mode: info.Mode, FP: info.FP, Plan: info.Plan}
-			a.setKnown(id, &k)
+		info, err := jsrt.Await(probeP)
+		if err == nil {
+			a.cache[id] = authHit{a.now(), info}
+			if info.SignedOut {
+				a.setKnown(id, nil)
+			} else if info.FromCli {
+				k := AuthInfo{Mode: info.Mode, FP: info.FP}
+				if info.Plan != nil && *info.Plan != "" {
+					k.Plan = info.Plan
+				}
+				a.setKnown(id, &k)
+			}
 		}
-		if a.inflight[id] == self || self == nil {
-			delete(a.inflight, id)
-		}
-		return info, nil
+		delete(a.inflight, id)
+		return info, err
 	})
 	if !p.Settled() {
-		self = p
 		a.inflight[id] = p
 	}
 	return p
@@ -586,7 +590,7 @@ func strpEq(x, y *string) bool {
 func (a *AuthModeDetector) setKnown(id string, info *AuthInfo) {
 	prev, had := a.known[id]
 	if info != nil {
-		if had && prev.Mode == info.Mode && strpEq(prev.FP, info.FP) && prev.Plan == info.Plan {
+		if had && prev.Mode == info.Mode && strpEq(prev.FP, info.FP) && strpEq(prev.Plan, info.Plan) {
 			return
 		}
 		a.knownSet(id, *info)
@@ -710,7 +714,11 @@ func (a *AuthModeDetector) probe(id string) AuthInfo {
 		out := AuthInfo{Mode: fromCli, FromCli: true}
 		if id == "claude" && a.d.Salt != nil {
 			ident := ParseClaudeIdentity(text, a.d.Salt())
-			out.FP, out.Plan = ident.FP, ident.Plan
+			out.FP = ident.FP
+			if ident.Plan != "" {
+				pl := ident.Plan
+				out.Plan = &pl
+			}
 		}
 		return out
 	}

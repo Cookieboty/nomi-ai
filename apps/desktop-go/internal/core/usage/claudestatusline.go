@@ -110,7 +110,7 @@ func ParseStatuslineRateLimits(raw string, updatedAt float64) *QuotaReading {
 // MtimeMs = fs.Stats.mtimeMs（秒 * 1e3 + 纳秒 / 1e6）。
 func MtimeMs(st os.FileInfo) float64 {
 	t := st.ModTime()
-	return float64(t.Unix())*1e3 + float64(t.Nanosecond())/1e6
+	return float64(float64(t.Unix())*1e3) + float64(t.Nanosecond())/1e6
 }
 
 // ReadStatuslineSnapshot：读快照文件（只提取 rate_limits，其余字段一概忽略）。

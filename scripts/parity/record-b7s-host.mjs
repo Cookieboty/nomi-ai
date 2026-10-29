@@ -14,6 +14,14 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, '..', '..');
+const kids = new Set();
+const exited = (c) => (c.exitCode !== null || c.signalCode !== null ? null : new Promise((r) => c.once('exit', r)));
+// rmSync 是同步的，无法 await；在其中同步重试（Node 自带 maxRetries 对 EBUSY/EPERM 退避）直到子进程退出放手
+async function withRmAfterChildExit(fn) {
+  const orig = fs.rmSync;
+  fs.rmSync = (p, o) => (/[\\/]nomi-cli-test-[^\\/]+$/.test(String(p)) ? orig(p, { ...o, maxRetries: 20, retryDelay: 100 }) : orig(p, o));
+  try { return await fn(); } finally { fs.rmSync = orig; await Promise.all([...kids].map(exited)); kids.clear(); }
+}
 const { CliPluginHost, inRange } = await import(pathToFileURL(path.join(root, 'packages/core/src/cli/CliPluginHost.ts')).href);
 const { BUILTIN_PLUGINS } = await import(pathToFileURL(path.join(root, 'packages/cli-plugins/src/main.ts')).href);
 
@@ -134,7 +142,9 @@ async function run(sc) {
       ...(d.spawn ? { spawnExternal: (cmd, args, cwd) => {
         calls.push(['spawn', cmd, args, /[\\/]nomi-cli-test-[^\\/]+$/.test(cwd) ? `<TMP>:${fs.existsSync(cwd)}` : cwd]);
         if (d.spawn === 'throw') throw new Error('spawn blew up');
-        return spawn(process.execPath, [cmd, ...args], { cwd, stdio: ['pipe', 'pipe', 'pipe'] });
+        const ch = spawn(process.execPath, [cmd, ...args], { cwd, stdio: ['pipe', 'pipe', 'pipe'] });
+        kids.add(ch);
+        return ch;
       } } : {}),
     });
   }
@@ -159,7 +169,8 @@ async function run(sc) {
         case 'stop': r = host.stop(); break;
         case 'add': r = host.addExternal(a[0]); break;
         case 'test': r = await host.testExternal(a[0], a[1]); break;
-        case 'testTemp': r = await host.testExternalInTemp(a[0]); break;
+        // Windows：试运行子进程退出前 rmSync 临时目录会 EPERM/EBUSY；等子进程全部退出后再让 finally 清理
+        case 'testTemp': r = await withRmAfterChildExit(() => host.testExternalInTemp(a[0])); break;
         case 'ls': r = fs.readdirSync(path.join(SB, ...a[0].split('/'))).sort(); break;
         default: throw new Error(`bad op ${op}`);
       }
