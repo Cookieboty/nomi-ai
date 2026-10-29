@@ -12,7 +12,7 @@ if a[1] == "id" {
   for w in list where (w[kCGWindowOwnerPID as String] as? Int32) == pid {
     let b = w[kCGWindowBounds as String] as? [String: Double] ?? [:]
     FileHandle.standardError.write("win \(w[kCGWindowNumber as String]!) \(b) name=\(w[kCGWindowName as String] ?? "-")\n".data(using: .utf8)!)
-    if b["Width"] == want[0] && b["Height"] == want[1] { print(w[kCGWindowNumber as String]!); exit(0) }
+    if abs((b["Width"] ?? 0) - want[0]) <= 2 && abs((b["Height"] ?? 0) - want[1]) <= 2 { print(w[kCGWindowNumber as String]!); exit(0) }
   }
   exit(1)
 } else {
