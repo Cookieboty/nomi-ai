@@ -22,8 +22,20 @@ const withheld = `(Content withheld: shown only on this device. Per the "only lo
 
 // GuardOutboundMessages 原地改写 messages（[]map[string]any，content 为字符串的才处理）
 func GuardOutboundMessages(messages any, check OutboundCheck) error {
-	list, ok := messages.([]map[string]any)
-	if !ok {
+	var list []map[string]any
+	nullAt := -1 // Node：list[i]! 为 null 时读 .content 抛 TypeError
+	switch v := messages.(type) {
+	case []map[string]any:
+		list = v
+	case []any: // JSON 解码出的数组（Array.isArray）
+		list = make([]map[string]any, len(v))
+		for i, x := range v {
+			if x == nil && nullAt < 0 {
+				nullAt = i
+			}
+			list[i], _ = x.(map[string]any)
+		}
+	default:
 		return nil
 	}
 	lastUser := -1
@@ -55,7 +67,13 @@ func GuardOutboundMessages(messages any, check OutboundCheck) error {
 		}
 	}
 	for i, m := range list {
-		if i == lastUser || m == nil {
+		if i == lastUser {
+			continue
+		}
+		if i == nullAt {
+			return errors.New("Cannot read properties of null (reading 'content')")
+		}
+		if m == nil {
 			continue
 		}
 		content, ok := m["content"].(string)

@@ -1,0 +1,484 @@
+[
+ {
+  "name": "no-extra-plain",
+  "options": {
+   "messages": [
+    {
+     "role": "user",
+     "content": "hi"
+    }
+   ]
+  },
+  "error": null,
+  "calls": []
+ },
+ {
+  "name": "cwd-accepted-sys-append",
+  "options": {
+   "extra": {
+    "cwd": "/real/w",
+    "k": 1
+   },
+   "messages": [
+    {
+     "role": "system",
+     "content": "SYS\n\n这次对话的工作区是 /real/w。文件工具（fs_*）默认在工作区里用，相对路径相对于工作区；工作区外只能访问用户单独授权过的文件夹（需要时用 desktop_request_scope 请用户授权，照常确认），其它位置会被拒绝。workspace_run 只在工作区里执行。委派编程助手（delegate_to_cli）时它也在工作区里开工。"
+    },
+    {
+     "role": "user",
+     "content": "x"
+    }
+   ]
+  },
+  "error": null,
+  "calls": [
+   {
+    "op": "workspaceOf",
+    "cwd": "/w"
+   }
+  ]
+ },
+ {
+  "name": "cwd-accepted-autoapprove-unshift",
+  "options": {
+   "extra": {
+    "cwd": "/real/w"
+   },
+   "messages": [
+    {
+     "role": "system",
+     "content": "这次对话的工作区是 /real/w。文件工具（fs_*）默认在工作区里用，相对路径相对于工作区；工作区外只能访问用户单独授权过的文件夹（需要时用 desktop_request_scope 请用户授权，照常确认），其它位置会被拒绝。workspace_run 只在工作区里执行。工作区里的文件和命令操作不需要用户逐项确认。委派编程助手（delegate_to_cli）时它也在工作区里开工。"
+    },
+    {
+     "role": "user",
+     "content": "x"
+    }
+   ]
+  },
+  "error": null,
+  "calls": [
+   {
+    "op": "workspaceOf",
+    "cwd": "/w"
+   }
+  ]
+ },
+ {
+  "name": "cwd-accepted-system-nonstring",
+  "options": {
+   "extra": {
+    "cwd": "/real/w"
+   },
+   "messages": [
+    {
+     "role": "system",
+     "content": [
+      {
+       "type": "text",
+       "text": "a"
+      }
+     ]
+    },
+    {
+     "role": "system",
+     "content": "second\n\n这次对话的工作区是 /real/w。文件工具（fs_*）默认在工作区里用，相对路径相对于工作区；工作区外只能访问用户单独授权过的文件夹（需要时用 desktop_request_scope 请用户授权，照常确认），其它位置会被拒绝。workspace_run 只在工作区里执行。委派编程助手（delegate_to_cli）时它也在工作区里开工。"
+    }
+   ]
+  },
+  "error": null,
+  "calls": [
+   {
+    "op": "workspaceOf",
+    "cwd": "/w"
+   }
+  ]
+ },
+ {
+  "name": "cwd-accepted-no-messages",
+  "options": {
+   "extra": {
+    "cwd": "/real/w"
+   }
+  },
+  "error": null,
+  "calls": [
+   {
+    "op": "workspaceOf",
+    "cwd": "/w"
+   }
+  ]
+ },
+ {
+  "name": "cwd-rejected-deleted",
+  "options": {
+   "extra": {
+    "z": true
+   },
+   "messages": [
+    {
+     "role": "user",
+     "content": "x"
+    }
+   ]
+  },
+  "error": null,
+  "calls": [
+   {
+    "op": "workspaceOf",
+    "cwd": "/nope"
+   }
+  ]
+ },
+ {
+  "name": "cwd-null",
+  "options": {
+   "extra": {},
+   "messages": []
+  },
+  "error": null,
+  "calls": [
+   {
+    "op": "workspaceOf",
+    "cwd": null
+   }
+  ]
+ },
+ {
+  "name": "extra-no-cwd",
+  "options": {
+   "extra": {
+    "a": 1
+   },
+   "messages": []
+  },
+  "error": null,
+  "calls": []
+ },
+ {
+  "name": "extra-string-throws",
+  "options": {
+   "extra": "abc",
+   "messages": []
+  },
+  "error": "Cannot use 'in' operator to search for 'cwd' in abc",
+  "calls": []
+ },
+ {
+  "name": "extra-empty-string",
+  "options": {
+   "extra": "",
+   "messages": []
+  },
+  "error": null,
+  "calls": []
+ },
+ {
+  "name": "extra-array",
+  "options": {
+   "extra": [
+    1
+   ],
+   "messages": []
+  },
+  "error": null,
+  "calls": []
+ },
+ {
+  "name": "null-message-in-find",
+  "options": {
+   "extra": {
+    "cwd": "/real/w"
+   },
+   "messages": [
+    null,
+    {
+     "role": "user",
+     "content": "x"
+    }
+   ]
+  },
+  "error": "Cannot read properties of null (reading 'role')",
+  "calls": [
+   {
+    "op": "workspaceOf",
+    "cwd": "/w"
+   }
+  ]
+ },
+ {
+  "name": "attach-current-cloud-ok",
+  "options": {
+   "messages": [
+    {
+     "role": "user",
+     "content": "<attached-file name=\"a.txt\">\nBODY\n</attached-file>"
+    }
+   ]
+  },
+  "error": null,
+  "calls": [
+   {
+    "op": "checkSend",
+    "id": "c1",
+    "what": "文件内容"
+   }
+  ]
+ },
+ {
+  "name": "attach-current-local-only",
+  "options": {
+   "messages": [
+    {
+     "role": "user",
+     "content": "<attached-file name=\"a.txt\" path=\"/p\">\nBODY\n</attached-file>"
+    }
+   ]
+  },
+  "error": "已开启「仅本地模型可读文件」，当前对话模型在云端，不能发送附件内容。可切换到本地模型，或只发送文件路径。",
+  "calls": [
+   {
+    "op": "checkSend",
+    "id": "c1",
+    "what": "文件内容"
+   }
+  ]
+ },
+ {
+  "name": "attach-current-denied",
+  "options": {
+   "messages": [
+    {
+     "role": "user",
+     "content": "<attached-file name=\"a.txt\">\nBODY\n</attached-file>"
+    }
+   ]
+  },
+  "error": "已取消：附件内容没有发送给云端模型。",
+  "calls": [
+   {
+    "op": "checkSend",
+    "id": "c1",
+    "what": "文件内容"
+   }
+  ]
+ },
+ {
+  "name": "history-withheld",
+  "options": {
+   "messages": [
+    {
+     "role": "user",
+     "content": "old <attached-file name=\"a\">\n(Content withheld: shown only on this device. Per the \"only local models can read files\" setting or the user's choice, it was not sent to the current model.)\n</attached-file> and <attached-file name=\"b\" path=\"/q\">\n(Content withheld: shown only on this device. Per the \"only local models can read files\" setting or the user's choice, it was not sent to the current model.)\n</attached-file>"
+    },
+    {
+     "role": "assistant",
+     "content": "r <cli-output>\n(Content withheld: shown only on this device. Per the \"only local models can read files\" setting or the user's choice, it was not sent to the current model.)\n</cli-output> tail"
+    },
+    {
+     "role": "user",
+     "content": "now"
+    }
+   ]
+  },
+  "error": null,
+  "calls": [
+   {
+    "op": "checkSend",
+    "id": "c1",
+    "what": "文件内容"
+   },
+   {
+    "op": "checkSend",
+    "id": "c1",
+    "what": "编程助手的输出"
+   }
+  ]
+ },
+ {
+  "name": "history-allowed",
+  "options": {
+   "messages": [
+    {
+     "role": "assistant",
+     "content": "<cli-output>o</cli-output>"
+    },
+    {
+     "role": "user",
+     "content": "now"
+    }
+   ]
+  },
+  "error": null,
+  "calls": [
+   {
+    "op": "checkSend",
+    "id": "c1",
+    "what": "编程助手的输出"
+   }
+  ]
+ },
+ {
+  "name": "agent-fallback-role",
+  "options": {
+   "messages": [
+    {
+     "role": "user",
+     "content": "<cli-output>\n(Content withheld: shown only on this device. Per the \"only local models can read files\" setting or the user's choice, it was not sent to the current model.)\n</cli-output>"
+    },
+    {
+     "role": "user",
+     "content": "q"
+    }
+   ]
+  },
+  "error": null,
+  "calls": [
+   {
+    "op": "checkSend",
+    "id": "a1",
+    "what": "编程助手的输出"
+   }
+  ]
+ },
+ {
+  "name": "explicit-summary-role",
+  "options": {
+   "role": "summary",
+   "messages": [
+    {
+     "role": "assistant",
+     "content": "<cli-output>\n(Content withheld: shown only on this device. Per the \"only local models can read files\" setting or the user's choice, it was not sent to the current model.)\n</cli-output>"
+    },
+    {
+     "role": "user",
+     "content": "q"
+    }
+   ]
+  },
+  "error": null,
+  "calls": [
+   {
+    "op": "checkSend",
+    "id": "s1",
+    "what": "编程助手的输出"
+   }
+  ]
+ },
+ {
+  "name": "unknown-role-fallback",
+  "options": {
+   "role": "weird",
+   "messages": [
+    {
+     "role": "assistant",
+     "content": "<cli-output>\n(Content withheld: shown only on this device. Per the \"only local models can read files\" setting or the user's choice, it was not sent to the current model.)\n</cli-output>"
+    },
+    {
+     "role": "user",
+     "content": "q"
+    }
+   ]
+  },
+  "error": null,
+  "calls": [
+   {
+    "op": "checkSend",
+    "id": "c1",
+    "what": "编程助手的输出"
+   }
+  ]
+ },
+ {
+  "name": "no-provider",
+  "options": {
+   "messages": [
+    {
+     "role": "user",
+     "content": "<attached-file name=\"a\">\nX\n</attached-file>"
+    }
+   ]
+  },
+  "error": null,
+  "calls": []
+ },
+ {
+  "name": "null-history-msg",
+  "options": {
+   "messages": [
+    null,
+    {
+     "role": "user",
+     "content": "q"
+    }
+   ]
+  },
+  "error": "Cannot read properties of null (reading 'content')",
+  "calls": []
+ },
+ {
+  "name": "nonstring-content",
+  "options": {
+   "messages": [
+    {
+     "role": "assistant",
+     "content": [
+      {
+       "type": "text",
+       "text": "<cli-output>o</cli-output>"
+      }
+     ]
+    },
+    5,
+    "str",
+    {
+     "role": "user",
+     "content": 1
+    }
+   ]
+  },
+  "error": null,
+  "calls": []
+ },
+ {
+  "name": "messages-not-array",
+  "options": {
+   "messages": "x"
+  },
+  "error": null,
+  "calls": []
+ },
+ {
+  "name": "workspace-and-guard",
+  "options": {
+   "extra": {
+    "cwd": "/real/w"
+   },
+   "messages": [
+    {
+     "role": "system",
+     "content": "S\n\n这次对话的工作区是 /real/w。文件工具（fs_*）默认在工作区里用，相对路径相对于工作区；工作区外只能访问用户单独授权过的文件夹（需要时用 desktop_request_scope 请用户授权，照常确认），其它位置会被拒绝。workspace_run 只在工作区里执行。委派编程助手（delegate_to_cli）时它也在工作区里开工。"
+    },
+    {
+     "role": "assistant",
+     "content": "<cli-output>\n(Content withheld: shown only on this device. Per the \"only local models can read files\" setting or the user's choice, it was not sent to the current model.)\n</cli-output>"
+    },
+    {
+     "role": "user",
+     "content": "q"
+    }
+   ]
+  },
+  "error": null,
+  "calls": [
+   {
+    "op": "workspaceOf",
+    "cwd": "/w"
+   },
+   {
+    "op": "checkSend",
+    "id": "c1",
+    "what": "编程助手的输出"
+   }
+  ]
+ }
+]

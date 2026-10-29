@@ -266,7 +266,17 @@ func main() {
 		Emit:  airouter.PublishAssistantMessage(router.Emit),
 	})
 	chatFacadeRef.Store(chatFacade)
-	chatHandlers := airouter.New(airouter.Options{Chat: chatFacade, Logger: deps.StdLogger{Prefix: "[ai-runtime]"}})
+	// createCore：desktop.attachRuntime（工具结果接收者 / 摘要补全）+ prepareChat（会话工作区 + 外发检查，D-B5-10）
+	desktopSvc.AttachRuntime(shellhandlers.DesktopRuntimeHooks(providerSvc, llmRegistry, gatewaySvc,
+		func(ctx context.Context, role string, msgs []blm.ChatMessage) (string, error) {
+			resp, err := chatFacade.SendMessage(ctx, &facade.ChatStreamOptions{Role: &role, Messages: msgs, Signal: ctx.Done()})
+			if err != nil {
+				return "", err
+			}
+			return resp.Content, nil
+		}))
+	chatHandlers := airouter.New(airouter.Options{Chat: chatFacade, Logger: deps.StdLogger{Prefix: "[ai-runtime]"},
+		PrepareChat: desktopSvc.ChatPrep().PrepareChat})
 	chatHandlers.Register(router)
 	defer chatHandlers.Dispose()
 	// 批次 9：语音输入（voice.*）/ 朗读（tts.*）/ nav.openVoiceSettings
