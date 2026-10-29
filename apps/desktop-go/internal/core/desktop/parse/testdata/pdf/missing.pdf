@@ -1,0 +1,58 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792]  /Resources << /Font << /F1 4 0 R /F0 6 0 R /F2 << /Type /Font /Subtype /Type1 /BaseFont /Times-Roman >> >> /XObject << /X1 9 0 R >> /ExtGState << /G1 10 0 R >>  >> /Contents 5 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<<  /Length 117 >>
+stream
+BT (no font) Tj /Nope 12 Tf 72 720 Td (fallback) Tj ET 1 2 foo 72 700 Td BT /F1 12 Tf 72 690 Td (after unknown) Tj ET
+endstream
+endobj
+6 0 obj
+<< /Type /Font /Subtype /Type0 /BaseFont /Foo /Encoding /Identity-H /DescendantFonts [7 0 R] /ToUnicode 8 0 R >>
+endobj
+7 0 obj
+<< /Type /Font /Subtype /CIDFontType2 /BaseFont /Foo /CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> /DW 1000 /W [1 [600 650 700] 32 [250]] >>
+endobj
+8 0 obj
+<<  /Length 262 >>
+stream
+/CIDInit /ProcSet findresource begin 12 dict begin begincmap /CMapName /X def 1 begincodespacerange <0000> <FFFF> endcodespacerange 2 beginbfrange <0001> <0003> <0041> <0010> <0011> [<4E2D> <6587>] endbfrange 1 beginbfchar <0020> <0020> endbfchar endcmap end end
+endstream
+endobj
+9 0 obj
+<< /Type /XObject /Subtype /Form /BBox [0 0 600 800] /Matrix [1 0 0 1 0 -100] /Length 64 >>
+stream
+BT /F1 10 Tf 72 600 Td (In form) Tj ET q 1 0 0 1 0 0 cm /X1 Do Q
+endstream
+endobj
+10 0 obj
+<< /Type /ExtGState /Font [4 0 R 9] >>
+endobj
+xref
+0 11
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000367 00000 n 
+0000000464 00000 n 
+0000000633 00000 n 
+0000000761 00000 n 
+0000000945 00000 n 
+0000001259 00000 n 
+0000001448 00000 n 
+trailer
+<< /Size 11 /Root 1 0 R >>
+startxref
+1503
+%%EOF
