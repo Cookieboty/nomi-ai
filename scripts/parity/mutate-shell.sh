@@ -21,6 +21,18 @@ MUTANTS=(
   "$D/updates/service.go|s/st.ReleaseNotes = OptNull/st.ReleaseNotes = Opt{}/"
   "$D/updates/service.go|s/if s.state.Status != \"error\" \{/if false {/"
   "$D/shellhandlers/updates.go|s/s.SetAutoCheck\(on\)/s.SetAutoCheck(!on)/"
+  "$D/services/logger.go|s/if level > l.level \{/if level >= l.level {/"
+  "$D/services/logger.go|s/level > WARN && l.o.Packaged\(\)/level > INFO \&\& l.o.Packaged()/"
+  "$D/services/logger.go|s/ctx = \"\[\" \+ context \+ \"\] \"/ctx = \"[\" + context + \"]\"/"
+  "$D/services/logger.go|s/maxLogSize  = 10 \* 1024 \* 1024/maxLogSize  = 10*1024*1024 - 1/"
+  "$D/services/logger.go|s/case \"\", \"null\", \"false\", \"0\"/case \"\", \"null\", \"false\"/"
+  "$D/services/redact.go|s/const redactMaxDepth = 8/const redactMaxDepth = 9/"
+  "$D/services/redact.go|s/\"credential\", \"token\",/\"credential\",/"
+  "$D/diagnostics/clitrace.go|s/maxChunkChars = 64 \* 1024/maxChunkChars = 64*1024 + 1/"
+  "$D/diagnostics/clitrace.go|s/if pid != 0 \{/if true {/"
+  "$D/diagnostics/clitrace.go|s/t.written\+util.UTF16Len\(line\) > maxDayBytes/t.written > maxDayBytes/"
+  "$D/diagnostics/clitrace.go|s/ra\[i\] = server.RedactText\(a, nil\)/ra[i] = a/"
+  "$D/diagnostics/clitrace.go|s/O_WRONLY, 0o600/O_WRONLY, 0o644/"
 )
 killed=0; survived=0
 for m in "${MUTANTS[@]}"; do

@@ -337,6 +337,124 @@ async function recordUpdates() {
 
 const dir = process.env.NOMI_GOLDEN_DIR || path.join(root, 'apps/desktop-go/internal/core/shellhandlers/testdata');
 fs.mkdirSync(dir, { recursive: true });
+/** LoggerService：级别过滤 / 控制台行 / app.log JSON 行 / meta 脱敏 / 轮转 */
+export const LOG = [
+  {
+    name: 'levels', packaged: false,
+    ops: [
+      ['error', 'e1'], ['warn', 'w1', { a: 1 }], ['info', 'i1', { apiKey: 'k', nested: { Token: 't', ok: [1, { password: 'p' }] } }], ['debug', 'd-hidden'],
+      ['setLevel', 3], ['debug', 'd1', null], ['info', 'i2', 0], ['info', 'i3', ''], ['info', 'i4', 'str'], ['info', 'ctx', { x: true }, 'Win'],
+      ['setLevel', 0], ['warn', 'w-hidden'], ['error', 'e2', [1, 'a', { secret: null, cookie: undefined }]], ['getLevel'],
+      ['setLevel', 1], ['info', 'i-hidden'], ['warn', 'w2', { email: 'a@b', deep: { a: { b: { c: { d: { e: { f: { g: { h: 1 } } } } } } } } }],
+    ],
+  },
+  { name: 'packagedQuiet', packaged: true, ops: [['setLevel', 3], ['error', 'e'], ['warn', 'w'], ['info', 'i'], ['debug', 'd']] },
+  { name: 'packagedDebugEnv', packaged: true, env: { NOMI_DEBUG: '1' }, ops: [['setLevel', 3], ['info', 'i'], ['debug', 'd']] },
+  {
+    name: 'rotate', packaged: false,
+    files: [['app.log', 10 * 1024 * 1024 + 1], ['app.1.log', 5], ['app.3.log', 7], ['app.4.log', 9]],
+    ops: [['info', 'after rotate']],
+  },
+  { name: 'noRotateAtLimit', packaged: false, files: [['app.log', 10 * 1024 * 1024]], ops: [['info', 'x']] },
+];
+
+async function recordLogger() {
+  const { LoggerService } = await core('services/LoggerService.ts');
+  const RealDate = globalThis.Date;
+  class FixedDate extends RealDate { constructor(...a) { super(...(a.length ? a : [NOW])); } static now() { return NOW; } }
+  const saved = { error: console.error, warn: console.warn, info: console.info, debug: console.debug, env: process.env.NOMI_DEBUG };
+  const out = [];
+  for (const sc of LOG) {
+    const dir = path.join(SB, 'log', sc.name);
+    fs.mkdirSync(dir, { recursive: true });
+    for (const [n, size] of sc.files || []) { const fd = fs.openSync(path.join(dir, n), 'w'); fs.ftruncateSync(fd, size); fs.closeSync(fd); }
+    if (sc.env?.NOMI_DEBUG) process.env.NOMI_DEBUG = sc.env.NOMI_DEBUG; else delete process.env.NOMI_DEBUG;
+    const consoleLines = [];
+    for (const k of ['error', 'warn', 'info', 'debug']) console[k] = (m) => consoleLines.push([k, m]);
+    globalThis.Date = FixedDate;
+    const l = new LoggerService({ ports: { paths: { logs: () => dir }, app: { isPackaged: () => sc.packaged } } });
+    const results = [];
+    for (const op of sc.ops) {
+      if (op[0] === 'setLevel') l.setLevel(op[1]);
+      else if (op[0] === 'getLevel') results.push(l.getLevel());
+      else if (op.length === 2) l[op[0]](op[1]);
+      else l[op[0]](op[1], op[2], op[3]);
+    }
+    l.flushSync();
+    globalThis.Date = RealDate;
+    Object.assign(console, { error: saved.error, warn: saved.warn, info: saved.info, debug: saved.debug });
+    const files = {};
+    for (const n of fs.readdirSync(dir).sort()) {
+      const st = fs.statSync(path.join(dir, n));
+      files[n] = st.size > 1024 * 1024 ? { size: st.size } : { text: fs.readFileSync(path.join(dir, n), 'utf8') };
+    }
+    // undefined meta 用 {"$undef":1} 标记（JSON 写不出 undefined）
+    const ops = sc.ops.map((o) => (o.length >= 3 && o[2] === undefined ? [o[0], o[1], { $undef: 1 }] : o));
+    out.push({ name: sc.name, packaged: sc.packaged, env: sc.env || {}, files: sc.files || [], ops, console: consoleLines, results, after: files });
+  }
+  if (saved.env === undefined) delete process.env.NOMI_DEBUG; else process.env.NOMI_DEBUG = saved.env;
+  return out;
+}
+
+/** CliTrace：tap 子进程收发 → logs/cli-YYYY-MM-DD.jsonl（脱敏、截断、日上限、开关） */
+export const TRACE = [
+  {
+    name: 'basic', ops: [
+      ['spawn', '/usr/bin/claude', ['-p', '--api-key', 'sk-abcdefghijklmnopqrstuvwx'], 'tab-1', 4242],
+      ['in', '{"type":"user","text":"hi Bearer abcdefghijklmnopqrstu"}\n'], ['out', 'hello\n'], ['err', 'warn: nomi-gw-abcdefghij\n'],
+      ['close', 0, null],
+    ],
+  },
+  { name: 'noTabNoPid', ops: [['spawn', 'C:\\tools\\codex.exe', [], '', 0], ['out', 'x'], ['close', null, 'SIGTERM']] },
+  { name: 'truncate', ops: [['spawn', 'grok', [], 't', 7], ['out', 'a'.repeat(64 * 1024 + 5)], ['out', '😀'.repeat(32 * 1024 + 1)]] },
+  { name: 'disabled', enabled: false, ops: [['spawn', 'claude', ['x'], 't', 1], ['out', 'nope']] },
+  { name: 'toggleOff', ops: [['spawn', 'claude', [], 't', 2], ['out', 'one'], ['enable', false], ['out', 'two'], ['enable', true], ['out', 'three']] },
+  { name: 'dayCap', preSize: 200 * 1024 * 1024 - 150, ops: [['spawn', 'claude', [], 't', 3], ['out', 'fits'], ['out', 'x'.repeat(200)], ['out', 'after cap']] },
+];
+
+async function recordTrace() {
+  const { CliTrace } = await core('diagnostics/cliTrace.ts');
+  const { EventEmitter } = await import('node:events');
+  const RealDate = globalThis.Date;
+  class FixedDate extends RealDate { constructor(...a) { super(...(a.length ? a : [NOW])); } static now() { return NOW; } }
+  const day = new RealDate(NOW).toISOString().slice(0, 10);
+  const out = [];
+  for (const sc of TRACE) {
+    const dir = path.join(SB, 'trace', sc.name, 'logs');
+    let on = sc.enabled !== false;
+    if (sc.preSize) { fs.mkdirSync(dir, { recursive: true }); const fd = fs.openSync(path.join(dir, `cli-${day}.jsonl`), 'w'); fs.ftruncateSync(fd, sc.preSize); fs.closeSync(fd); }
+    globalThis.Date = FixedDate;
+    const t = new CliTrace({ dir, enabled: () => on });
+    let child;
+    for (const op of sc.ops) {
+      if (op[0] === 'spawn') {
+        child = new EventEmitter();
+        child.pid = op[4] || undefined;
+        child.stdout = new EventEmitter();
+        child.stderr = new EventEmitter();
+        child.stdin = { write: () => true };
+        t.tap(child, op[1], op[2], op[3] ? { tabId: op[3] } : {});
+      } else if (op[0] === 'in') child.stdin.write(op[1]);
+      else if (op[0] === 'out') child.stdout.emit('data', Buffer.from(op[1]));
+      else if (op[0] === 'err') child.stderr.emit('data', Buffer.from(op[1]));
+      else if (op[0] === 'close') child.emit('close', op[1], op[2]);
+      else if (op[0] === 'enable') on = op[1];
+    }
+    await t.flush();
+    t.dispose();
+    globalThis.Date = RealDate;
+    const f = path.join(dir, `cli-${day}.jsonl`);
+    let text = null, mode = null;
+    if (fs.existsSync(f)) {
+      const buf = fs.readFileSync(f);
+      text = buf.subarray(sc.preSize || 0).toString('utf8');
+      mode = process.platform === 'win32' ? null : fs.statSync(f).mode & 0o777;
+    }
+    out.push({ name: sc.name, enabled: sc.enabled !== false, preSize: sc.preSize || 0, ops: sc.ops, day, text, mode });
+  }
+  return out;
+}
+
 const diag = await recordDiag();
 fs.writeFileSync(path.join(dir, 'shell_diagnostics.json'), JSON.stringify(diag, null, 1) + '\n');
 console.log(`record-shell: diagnostics ${diag.scenarios.length} scenarios, ${diag.scenarios.reduce((a, s) => a + s.log.length, 0)} steps`);
@@ -347,3 +465,7 @@ const upd = await recordUpdates();
 fs.writeFileSync(path.join(dir, 'shell_updates.json'), JSON.stringify(upd, null, 1) + '\n');
 console.log(`record-shell: updates ${upd.scenarios.length} scenarios, ${upd.scenarios.reduce((a, s) => a + s.log.length, 0)} steps`);
 fs.rmSync(SB, { recursive: true, force: true });
+const logs = await recordLogger();
+fs.writeFileSync(path.join(dir, 'shell_logger.json'), JSON.stringify(logs, null, 1) + '\n');
+const traces = await recordTrace();
+fs.writeFileSync(path.join(dir, 'shell_clitrace.json'), JSON.stringify(traces, null, 1) + '\n');

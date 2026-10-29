@@ -46,12 +46,17 @@ type Stdin struct {
 	writable bool
 	mu       sync.Mutex
 	queue    chan []byte
+	// OnWrite：诊断记录（cliTrace.tap 改写 stdin.write）在写入前看到每个块
+	OnWrite func(chunk string)
 }
 
 func (s *Stdin) Writable() bool { return s != nil && s.writable }
 
 // Write 异步写（与 Node 一样不阻塞调用方；EPIPE 等错误被吞，见 spawn.ts 的 stdin.on('error')）。
 func (s *Stdin) Write(chunk string) bool {
+	if s != nil && s.OnWrite != nil {
+		s.OnWrite(chunk)
+	}
 	if s == nil || !s.writable {
 		return false
 	}
