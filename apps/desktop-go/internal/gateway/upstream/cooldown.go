@@ -1,8 +1,9 @@
 package upstream
 
 import (
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop/reminders"
 	"math"
-	"net/http"
+
 	"regexp"
 	"strconv"
 	"sync"
@@ -40,39 +41,10 @@ func (e KeyStatusEvent) JSON() *u.Obj {
 	return o
 }
 
-var reSignedYear = regexp.MustCompile(`^[+-]\d{1,6}$`)
 var reSeconds = regexp.MustCompile(`^\d+(\.\d+)?$`)
 
-// dateParse is the Date.parse subset used for HTTP Retry-After dates
-// (IMF-fixdate / RFC 850 / asctime, plus ISO 8601) — see deviation D24.
-// TODO(D24): replace with the shared full JS Date.parse port (D-B6-9) once it lands on feat/2.0.5-go, then drop D24.
-func dateParse(s string) (float64, bool) {
-	if t, err := time.Parse(http.TimeFormat, s); err == nil {
-		return float64(t.UnixMilli()), true
-	}
-	if t, err := time.Parse(time.RFC850, s); err == nil {
-		return float64(t.UnixMilli()), true
-	}
-	// asctime has no zone: V8 reads it as local time.
-	if t, err := time.ParseInLocation(time.ANSIC, s, time.Local); err == nil {
-		return float64(t.UnixMilli()), true
-	}
-	// V8's legacy parser reads a bare signed integer as a year (local Jan 1).
-	if reSignedYear.MatchString(s) {
-		y, _ := strconv.Atoi(s)
-		return float64(time.Date(y, 1, 1, 0, 0, 0, 0, time.Local).UnixMilli()), true
-	}
-	for _, f := range []string{time.RFC3339Nano, "2006-01-02T15:04:05.000", "2006-01-02T15:04:05", "2006-01-02T15:04", "2006-01-02"} {
-		loc := time.Local
-		if f == "2006-01-02" {
-			loc = time.UTC
-		}
-		if t, err := time.ParseInLocation(f, s, loc); err == nil {
-			return float64(t.UnixMilli()), true
-		}
-	}
-	return 0, false
-}
+// dateParse is Date.parse (the shared V8 port).
+func dateParse(s string) (float64, bool) { return reminders.DateParse(s) }
 
 // ParseRetryAfter is parseRetryAfter (nil = null).
 func ParseRetryAfter(v *string, now float64) *float64 {
