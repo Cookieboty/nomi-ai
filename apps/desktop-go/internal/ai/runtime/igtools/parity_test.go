@@ -15,6 +15,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/tools"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/runtime/aifacade"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/delegate"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/extensions"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/memory"
@@ -233,6 +234,8 @@ func boot(t *testing.T) *rig {
 	defs := BuiltinTools(env)
 	defs = append(defs, PreferenceTools(prof, env)...)
 	defs = append(defs, CompanionTools(avatarRef{&fac}, true)...)
+	dsvc := desktop.CreateService(t.TempDir(), desktop.Ports{Home: sb}, nil)
+	defs = append(defs, DesktopTools(DeskDepsFor(dsvc, func() []string { return nil }))...)
 	defs = append(defs, KBTools(h)...)
 	defs = append(defs, MemTools(memFake{h})...)
 	defs = append(defs, WithDangerousUnset(delegateStubs())...)
