@@ -16,7 +16,7 @@ type amGolden struct {
 	Parse []struct {
 		T        string  `json:"t"`
 		Claude   *string `json:"claude"`
-		Ident    string `json:"ident"`
+		Ident    string  `json:"ident"`
 		SoClaude bool    `json:"soClaude"`
 		SoCodex  bool    `json:"soCodex"`
 		Codex    *string `json:"codex"`
