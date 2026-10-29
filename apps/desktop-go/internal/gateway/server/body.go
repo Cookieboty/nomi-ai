@@ -3,6 +3,7 @@ package server
 import (
 	"io"
 	"net/http"
+	"strings"
 	"sync"
 )
 
@@ -60,8 +61,16 @@ func RespOf(r *http.Response) *Resp {
 	if len(st) > 4 && st[3] == ' ' {
 		st = st[4:]
 	}
-	return &Resp{Status: r.StatusCode, StatusText: st, Header: r.Header, Body: ChunksOf(r.Body)}
+	body := ChunksOf(r.Body)
+	// fetch: Response.body is null only for null-body statuses and HEAD; an
+	// empty (Content-Length: 0) body is still a stream that ends at once.
+	if body == nil && !nullBodyStatus(r.StatusCode) && (r.Request == nil || r.Request.Method != http.MethodHead) {
+		body = &readerChunks{r: io.NopCloser(strings.NewReader(""))}
+	}
+	return &Resp{Status: r.StatusCode, StatusText: st, Header: r.Header, Body: body}
 }
+
+func nullBodyStatus(s int) bool { return s == 101 || s == 103 || s == 204 || s == 205 || s == 304 }
 
 // bodyReader adapts Chunks to io.ReadCloser (for StagedResponse etc.).
 type bodyReader struct {
