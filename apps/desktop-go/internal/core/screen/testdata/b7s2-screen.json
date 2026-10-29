@@ -1,0 +1,588 @@
+{
+ "cases": [
+  {
+   "locale": "zh-CN",
+   "provider": null,
+   "answer": null,
+   "calls": [
+    [
+     "providerFor",
+     "chat"
+    ],
+    [
+     "checkSend",
+     null,
+     null,
+     "图片"
+    ]
+   ],
+   "out": "ok"
+  },
+  {
+   "locale": "zh-CN",
+   "provider": null,
+   "answer": "local_only",
+   "calls": [
+    [
+     "providerFor",
+     "chat"
+    ],
+    [
+     "checkSend",
+     null,
+     null,
+     "图片"
+    ]
+   ],
+   "out": "local_only"
+  },
+  {
+   "locale": "zh-CN",
+   "provider": null,
+   "answer": "user_denied",
+   "calls": [
+    [
+     "providerFor",
+     "chat"
+    ],
+    [
+     "checkSend",
+     null,
+     null,
+     "图片"
+    ]
+   ],
+   "out": "user_denied"
+  },
+  {
+   "locale": "zh-CN",
+   "provider": null,
+   "answer": "ok",
+   "calls": [
+    [
+     "providerFor",
+     "chat"
+    ],
+    [
+     "checkSend",
+     null,
+     null,
+     "图片"
+    ]
+   ],
+   "out": "ok"
+  },
+  {
+   "locale": "zh-CN",
+   "provider": {
+    "id": "p1",
+    "name": "Cloud",
+    "local": false
+   },
+   "answer": null,
+   "calls": [
+    [
+     "providerFor",
+     "chat"
+    ],
+    [
+     "checkSend",
+     {
+      "id": "p1",
+      "name": "Cloud",
+      "local": false
+     },
+     null,
+     "图片"
+    ]
+   ],
+   "out": "ok"
+  },
+  {
+   "locale": "zh-CN",
+   "provider": {
+    "id": "p1",
+    "name": "Cloud",
+    "local": false
+   },
+   "answer": "local_only",
+   "calls": [
+    [
+     "providerFor",
+     "chat"
+    ],
+    [
+     "checkSend",
+     {
+      "id": "p1",
+      "name": "Cloud",
+      "local": false
+     },
+     null,
+     "图片"
+    ]
+   ],
+   "out": "local_only"
+  },
+  {
+   "locale": "zh-CN",
+   "provider": {
+    "id": "p1",
+    "name": "Cloud",
+    "local": false
+   },
+   "answer": "user_denied",
+   "calls": [
+    [
+     "providerFor",
+     "chat"
+    ],
+    [
+     "checkSend",
+     {
+      "id": "p1",
+      "name": "Cloud",
+      "local": false
+     },
+     null,
+     "图片"
+    ]
+   ],
+   "out": "user_denied"
+  },
+  {
+   "locale": "zh-CN",
+   "provider": {
+    "id": "p1",
+    "name": "Cloud",
+    "local": false
+   },
+   "answer": "ok",
+   "calls": [
+    [
+     "providerFor",
+     "chat"
+    ],
+    [
+     "checkSend",
+     {
+      "id": "p1",
+      "name": "Cloud",
+      "local": false
+     },
+     null,
+     "图片"
+    ]
+   ],
+   "out": "ok"
+  },
+  {
+   "locale": "zh-CN",
+   "provider": {
+    "id": "l",
+    "name": "Local",
+    "local": true
+   },
+   "answer": null,
+   "calls": [
+    [
+     "providerFor",
+     "chat"
+    ],
+    [
+     "checkSend",
+     {
+      "id": "l",
+      "name": "Local",
+      "local": true
+     },
+     null,
+     "图片"
+    ]
+   ],
+   "out": "ok"
+  },
+  {
+   "locale": "zh-CN",
+   "provider": {
+    "id": "l",
+    "name": "Local",
+    "local": true
+   },
+   "answer": "local_only",
+   "calls": [
+    [
+     "providerFor",
+     "chat"
+    ],
+    [
+     "checkSend",
+     {
+      "id": "l",
+      "name": "Local",
+      "local": true
+     },
+     null,
+     "图片"
+    ]
+   ],
+   "out": "local_only"
+  },
+  {
+   "locale": "zh-CN",
+   "provider": {
+    "id": "l",
+    "name": "Local",
+    "local": true
+   },
+   "answer": "user_denied",
+   "calls": [
+    [
+     "providerFor",
+     "chat"
+    ],
+    [
+     "checkSend",
+     {
+      "id": "l",
+      "name": "Local",
+      "local": true
+     },
+     null,
+     "图片"
+    ]
+   ],
+   "out": "user_denied"
+  },
+  {
+   "locale": "zh-CN",
+   "provider": {
+    "id": "l",
+    "name": "Local",
+    "local": true
+   },
+   "answer": "ok",
+   "calls": [
+    [
+     "providerFor",
+     "chat"
+    ],
+    [
+     "checkSend",
+     {
+      "id": "l",
+      "name": "Local",
+      "local": true
+     },
+     null,
+     "图片"
+    ]
+   ],
+   "out": "ok"
+  },
+  {
+   "locale": "en",
+   "provider": null,
+   "answer": null,
+   "calls": [
+    [
+     "providerFor",
+     "chat"
+    ],
+    [
+     "checkSend",
+     null,
+     null,
+     "Images"
+    ]
+   ],
+   "out": "ok"
+  },
+  {
+   "locale": "en",
+   "provider": null,
+   "answer": "local_only",
+   "calls": [
+    [
+     "providerFor",
+     "chat"
+    ],
+    [
+     "checkSend",
+     null,
+     null,
+     "Images"
+    ]
+   ],
+   "out": "local_only"
+  },
+  {
+   "locale": "en",
+   "provider": null,
+   "answer": "user_denied",
+   "calls": [
+    [
+     "providerFor",
+     "chat"
+    ],
+    [
+     "checkSend",
+     null,
+     null,
+     "Images"
+    ]
+   ],
+   "out": "user_denied"
+  },
+  {
+   "locale": "en",
+   "provider": null,
+   "answer": "ok",
+   "calls": [
+    [
+     "providerFor",
+     "chat"
+    ],
+    [
+     "checkSend",
+     null,
+     null,
+     "Images"
+    ]
+   ],
+   "out": "ok"
+  },
+  {
+   "locale": "en",
+   "provider": {
+    "id": "p1",
+    "name": "Cloud",
+    "local": false
+   },
+   "answer": null,
+   "calls": [
+    [
+     "providerFor",
+     "chat"
+    ],
+    [
+     "checkSend",
+     {
+      "id": "p1",
+      "name": "Cloud",
+      "local": false
+     },
+     null,
+     "Images"
+    ]
+   ],
+   "out": "ok"
+  },
+  {
+   "locale": "en",
+   "provider": {
+    "id": "p1",
+    "name": "Cloud",
+    "local": false
+   },
+   "answer": "local_only",
+   "calls": [
+    [
+     "providerFor",
+     "chat"
+    ],
+    [
+     "checkSend",
+     {
+      "id": "p1",
+      "name": "Cloud",
+      "local": false
+     },
+     null,
+     "Images"
+    ]
+   ],
+   "out": "local_only"
+  },
+  {
+   "locale": "en",
+   "provider": {
+    "id": "p1",
+    "name": "Cloud",
+    "local": false
+   },
+   "answer": "user_denied",
+   "calls": [
+    [
+     "providerFor",
+     "chat"
+    ],
+    [
+     "checkSend",
+     {
+      "id": "p1",
+      "name": "Cloud",
+      "local": false
+     },
+     null,
+     "Images"
+    ]
+   ],
+   "out": "user_denied"
+  },
+  {
+   "locale": "en",
+   "provider": {
+    "id": "p1",
+    "name": "Cloud",
+    "local": false
+   },
+   "answer": "ok",
+   "calls": [
+    [
+     "providerFor",
+     "chat"
+    ],
+    [
+     "checkSend",
+     {
+      "id": "p1",
+      "name": "Cloud",
+      "local": false
+     },
+     null,
+     "Images"
+    ]
+   ],
+   "out": "ok"
+  },
+  {
+   "locale": "en",
+   "provider": {
+    "id": "l",
+    "name": "Local",
+    "local": true
+   },
+   "answer": null,
+   "calls": [
+    [
+     "providerFor",
+     "chat"
+    ],
+    [
+     "checkSend",
+     {
+      "id": "l",
+      "name": "Local",
+      "local": true
+     },
+     null,
+     "Images"
+    ]
+   ],
+   "out": "ok"
+  },
+  {
+   "locale": "en",
+   "provider": {
+    "id": "l",
+    "name": "Local",
+    "local": true
+   },
+   "answer": "local_only",
+   "calls": [
+    [
+     "providerFor",
+     "chat"
+    ],
+    [
+     "checkSend",
+     {
+      "id": "l",
+      "name": "Local",
+      "local": true
+     },
+     null,
+     "Images"
+    ]
+   ],
+   "out": "local_only"
+  },
+  {
+   "locale": "en",
+   "provider": {
+    "id": "l",
+    "name": "Local",
+    "local": true
+   },
+   "answer": "user_denied",
+   "calls": [
+    [
+     "providerFor",
+     "chat"
+    ],
+    [
+     "checkSend",
+     {
+      "id": "l",
+      "name": "Local",
+      "local": true
+     },
+     null,
+     "Images"
+    ]
+   ],
+   "out": "user_denied"
+  },
+  {
+   "locale": "en",
+   "provider": {
+    "id": "l",
+    "name": "Local",
+    "local": true
+   },
+   "answer": "ok",
+   "calls": [
+    [
+     "providerFor",
+     "chat"
+    ],
+    [
+     "checkSend",
+     {
+      "id": "l",
+      "name": "Local",
+      "local": true
+     },
+     null,
+     "Images"
+    ]
+   ],
+   "out": "ok"
+  }
+ ],
+ "unavailable": {
+  "code": "UNAVAILABLE",
+  "message": "Service 'screen' is not available"
+ },
+ "purge": [
+  {
+   "kind": "tree",
+   "exists": false,
+   "warns": [],
+   "siblings": []
+  },
+  {
+   "kind": "missing",
+   "exists": false,
+   "warns": [],
+   "siblings": []
+  },
+  {
+   "kind": "file",
+   "exists": false,
+   "warns": [],
+   "siblings": []
+  }
+ ]
+}

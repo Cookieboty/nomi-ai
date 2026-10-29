@@ -60,6 +60,9 @@ func (e externals) Handshake(id string, images, resume bool) {
 	e.h.SetHandshake(id, util.NewObj("images", images, "resume", resume))
 }
 
+// harnessOrch：wireHarness 构造的编排器（main 里只有一个）
+var harnessOrch *harness.Orchestrator
+
 // wireHarness 对齐 createCore.ts 的 HarnessOrchestrator 构造 + coding.ts 的 harness.* 过程。
 // gateway：gwstore 尚无 cliDefaults/cliLaunch/cliLaunchForTab 等（harnessGateway.ts），落地后接入；
 // Node 侧为可选依赖。
@@ -148,6 +151,7 @@ func wireHarness(router *contract.Router, userData, home string, hp hostPorts) (
 			CodexAppServer: os.Getenv("NOMI_CODEX_APP_SERVER") != "0",
 		})
 	})
+	harnessOrch = o // coding_wiring.go（cliUpdate / history / delegate）共用同一编排器
 	codinghandlers.RegisterHarness(router, func() *harness.Orchestrator { return o })
 	jsrt.Go(func() { plugins.Start() })
 	return plugins, func() { jsrt.Run(func() { o.Dispose() }) }
