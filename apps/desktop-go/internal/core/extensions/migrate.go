@@ -9,7 +9,6 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-	"syscall"
 
 	"github.com/pelletier/go-toml/v2"
 	"golang.org/x/text/collate"
@@ -100,14 +99,8 @@ type readResult struct {
 	Err     string
 }
 
-func sameFile(a, b os.FileInfo) bool {
-	sa, ok1 := a.Sys().(*syscall.Stat_t)
-	sb, ok2 := b.Sys().(*syscall.Stat_t)
-	if !ok1 || !ok2 {
-		return os.SameFile(a, b)
-	}
-	return sa.Ino == sb.Ino && sa.Dev == sb.Dev
-}
+// sameFile：os.SameFile 在 Unix 上即比较 dev+ino（与 Node 的 st.ino/st.dev 一致），Windows 上比较卷序号+文件索引。
+func sameFile(a, b os.FileInfo) bool { return os.SameFile(a, b) }
 
 // ReadConfigFile：真实路径在 allowRoots 内、文件名不变、不在凭据目录；打开后再校验是同一文件
 func ReadConfigFile(file string, maxBytes int64, allowRoots []string) readResult {
