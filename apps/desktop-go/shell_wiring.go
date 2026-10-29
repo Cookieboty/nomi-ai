@@ -4,6 +4,8 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync/atomic"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/appicon"
@@ -11,9 +13,11 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/diagnostics"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/quality"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/services"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/shellhandlers"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/updates"
+	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/hostports"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell/wailsshell"
@@ -24,6 +28,7 @@ type shellProcs struct {
 	Diagnostics *diagnostics.Service
 	AppIcon     *appicon.Service
 	Updates     *updates.Service
+	Quality     *quality.Service
 
 	userData string
 	hp       hostPorts
@@ -66,6 +71,18 @@ func installShellProcs(router *contract.Router, userData string, sh *shell.Shell
 		},
 	})
 	harness.CliTrap = sp.Diagnostics.CliTrace.Tap
+	// quality.*（QualityService，createCore 1:1）：userData/usage/quality；enabled / cost 待 UsageService（D-SH-11）
+	sp.Quality = quality.New(quality.ServiceDeps{
+		Dir:     filepath.Join(userData, "usage", "quality"),
+		Logger:  qualityLogger{deps.StdLogger{Prefix: "[quality]"}},
+		LabelOf: gatewayLabelOf(gw),
+		Publish: func(ev string, p any) { router.Emit(ev, p) },
+		SaveFile: func(title, def string, fs []deps.FileFilter) (string, error) {
+			return hp.SaveFile(context.Background(), title, def, fs)
+		},
+	})
+	qualityRef.Store(sp.Quality)
+	quality.Install(router, func() *quality.Service { return sp.Quality })
 	shellhandlers.InstallDiagnostics(router, func() *diagnostics.Service { return sp.Diagnostics })
 	// appIcon.*：图都从 assets 目录读（打包后 resources/assets，开发时 packages/host-electron/assets）
 	assets := filepath.Dir(filepath.Dir(filepath.Dir(chatBgPresetFile())))
@@ -129,4 +146,72 @@ func (t iconTarget) Windows() []appicon.Window {
 		out = append(out, iw)
 	}
 	return out
+}
+
+// qualityRef：网关 OnUsage（AttachRuntime 早于 installShellProcs）经此找到 QualityService
+var qualityRef atomic.Pointer[quality.Service]
+
+// qualityOnUsage = onUsage: (e) => quality.addGateway(e)
+func qualityOnUsage(e *u.Obj) {
+	if q := qualityRef.Load(); q != nil {
+		q.AddGateway(e)
+	}
+}
+
+type qualityLogger struct{ l deps.StdLogger }
+
+func (q qualityLogger) Info(msg string, data any) { q.l.Info(msg, data) }
+func (q qualityLogger) Warn(msg string, data any) { q.l.Warn(msg, data) }
+
+// gatewayLabelOf = createCore 的 labelOf（供应商名 / Key 名或掩码）
+func gatewayLabelOf(gw *gwstore.Service) quality.LabelOf {
+	providerOf := func(pid string) *u.Obj {
+		if gw == nil {
+			return nil
+		}
+		for _, p := range gw.Store.Providers() {
+			if o, ok := p.(*u.Obj); ok {
+				if id, _ := o.Get("id").(string); id == pid {
+					return o
+				}
+			}
+		}
+		return nil
+	}
+	str := func(v any) (string, bool) { s, ok := v.(string); return s, ok }
+	return func(dim, key string) (string, bool) {
+		if dim == "provider" {
+			if p := providerOf(key); p != nil {
+				return str(p.Get("name"))
+			}
+			return "", false
+		}
+		if dim != "key" {
+			return "", false
+		}
+		parts := strings.Split(key, "\x00")
+		pid, kid := parts[0], ""
+		if len(parts) > 1 {
+			kid = parts[1]
+		}
+		p := providerOf(pid)
+		if p == nil {
+			return "", false
+		}
+		keys, _ := p.Get("keys").([]any)
+		for _, k := range keys {
+			o, ok := k.(*u.Obj)
+			if !ok {
+				continue
+			}
+			if id, _ := o.Get("id").(string); id != kid {
+				continue
+			}
+			if n := o.Get("name"); n != nil && n != u.Undefined {
+				return str(n)
+			}
+			return str(o.Get("masked"))
+		}
+		return "", false
+	}
 }
