@@ -124,7 +124,7 @@ func isMatch(name, key string) bool {
 
 func toMatch(e *PriceEntry, source string) *PriceMatch {
 	m := &PriceMatch{
-		Price: ModelPrice{Input: e.Input, Output: e.Output, CacheRead: e.CacheRead, CacheWrite: e.CacheWrite, CacheWrite1h: e.CacheWrite1h},
+		Price:   ModelPrice{Input: e.Input, Output: e.Output, CacheRead: e.CacheRead, CacheWrite: e.CacheWrite, CacheWrite1h: e.CacheWrite1h},
 		Matched: NormalizeModel(e.Model),
 		Custom:  source == "custom",
 		Source:  source,

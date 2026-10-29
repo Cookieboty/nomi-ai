@@ -401,7 +401,9 @@ func NewUsageLedger(d LedgerDeps) *UsageLedger {
 		l.loadSync()
 		l.mu.Unlock()
 	} else {
-		go l.loadAsync(size)
+		gate := testLoadGate
+		go l.loadAsync(size, gate)
+
 	}
 	return l
 }
@@ -446,7 +448,13 @@ func (l *UsageLedger) loadSync() {
 	}
 }
 
-func (l *UsageLedger) loadAsync(size int64) {
+// testLoadGate：测试用，后台载入在此等待（模拟 Node 中载入要等事件循环让出）
+var testLoadGate chan struct{}
+
+func (l *UsageLedger) loadAsync(size int64, g chan struct{}) {
+	if g != nil {
+		<-g
+	}
 	t0 := time.Now()
 	l.mu.Lock()
 	epoch := l.epoch
@@ -734,7 +742,7 @@ func (l *UsageLedger) LastTs(source string) (float64, bool) {
 func (l *UsageLedger) All() []*UsageRecord {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	return append([]*UsageRecord(nil), l.snapshot()...)
+	return append([]*UsageRecord{}, l.snapshot()...)
 }
 
 func sortByTs(out []*UsageRecord) {

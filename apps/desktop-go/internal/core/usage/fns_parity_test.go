@@ -19,12 +19,12 @@ type fnCase struct {
 }
 
 type fnsGolden struct {
-	TZ      string         `json:"tz"`
-	Custom  []PriceEntry   `json:"custom"`
-	Synced  []PriceEntry   `json:"synced"`
-	Now     float64        `json:"now"`
-	CsvRows []DetailRow    `json:"csvRows"`
-	Cases   []fnCase       `json:"cases"`
+	TZ      string       `json:"tz"`
+	Custom  []PriceEntry `json:"custom"`
+	Synced  []PriceEntry `json:"synced"`
+	Now     float64      `json:"now"`
+	CsvRows []DetailRow  `json:"csvRows"`
+	Cases   []fnCase     `json:"cases"`
 }
 
 func normJSON(t *testing.T, v any) any {

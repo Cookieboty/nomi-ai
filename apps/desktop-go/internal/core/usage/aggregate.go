@@ -530,8 +530,8 @@ func Details(all []*UsageRecord, q DetailQuery, priceOf PriceOf, labels *Labels)
 }
 
 var (
-	csvInjRe  = util.JSRe("^[=+\\-@\t\r]")
-	csvQuote  = util.JSRe("[\",\n\r]")
+	csvInjRe = util.JSRe("^[=+\\-@\t\r]")
+	csvQuote = util.JSRe("[\",\n\r]")
 )
 
 // csvCell：v 为 nil / string / float64
