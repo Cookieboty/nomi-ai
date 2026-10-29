@@ -1,6 +1,8 @@
 package gwstore
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -15,7 +17,17 @@ func TestServiceRuntimeStartsGateway(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.Start()
-	defer s.Dispose()
+	// stop 时网关 worker 异步落盘 sessions.json（同 Node：stop 不等 worker 退出）；先等落盘再让 TempDir 清理
+	defer func() {
+		s.Dispose()
+		for i := 0; i < 200; i++ {
+			if _, err := os.Stat(filepath.Join(dir, "sessions.json")); err == nil {
+				time.Sleep(20 * time.Millisecond)
+				return
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+	}()
 	if !s.WhenReady(5 * time.Second) {
 		t.Fatalf("not ready: %+v", s.Status())
 	}
