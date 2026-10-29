@@ -42,7 +42,7 @@ const tree = {
   },
   symlinks: { 'chat/images/link.png': '../../outside/o.png', 'chat/images/inlink.png': 'a.png', 'pack/out.png': '../outside/o.png', 'pack/in.png': 'rive/m.riv', 'pack/dirlink': 'dir' },
 };
-const R = realpathSync(mkdtempSync(join(tmpdir(), 'nomi-ap-')));
+const R = realpathSync.native(mkdtempSync(join(tmpdir(), 'nomi-ap-')));
 for (const [p, c] of Object.entries(tree.files)) { mkdirSync(dirname(join(R, p)), { recursive: true }); writeFileSync(join(R, p), c); }
 for (const [p, t] of Object.entries(tree.symlinks)) {
   const abs = join(dirname(join(R, p)), t);
