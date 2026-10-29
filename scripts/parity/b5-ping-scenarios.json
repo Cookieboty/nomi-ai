@@ -1,0 +1,54 @@
+{
+  "fetch": {
+    "https://ok.example/v1/models": { "status": 200, "body": "{\"data\":[{\"id\":\"gpt-b\",\"owned_by\":\"x\"},{\"id\":\"gpt-a\"},{\"id\":\"gpt-a\"}]}" },
+    "https://anth.example/v1/models": { "status": 200, "body": "{\"data\":[{\"id\":\"claude-z\",\"display_name\":\"Claude Z\"}],\"has_more\":false}" },
+    "https://bad.example/v1/models": { "status": 401, "body": "{\"error\":{\"message\":\"Incorrect API key provided: sk-abcdefghijklmnopqrstu\"}} padding padding padding padding padding padding padding padding padding padding padding padding padding padding padding padding padding padding padding padding padding" },
+    "https://junk.example/v1/models": { "status": 200, "body": "not json at all" },
+    "https://arr.example/v1/models": { "status": 200, "body": "[\"m2\",\"m1\"]" },
+    "https://down.example/v1/models": { "network": true },
+    "https://hang.example/v1/models": { "hang": true },
+    "http://127.0.0.1:11434/v1/models": { "status": 200, "body": "{\"models\":[{\"name\":\"llama3\"}]}" }
+  },
+  "chat": {
+    "key-ok": { "res": { "model": "served-x", "content": "pong! this reply is definitely longer than forty characters total" } },
+    "key-nomodel": { "res": { "model": "", "content": "短回复" } },
+    "key-err": { "throw": "401 Unauthorized: key key-err-secret-value rejected sk-ABCDEFGHIJKLMNOPQRSTUV" },
+    "key-hang": { "hang": true },
+    "key-ctor": { "ctor": "bad config for key-ctor" },
+    "": { "res": { "model": "local", "content": "ok" } },
+    "env:openai": { "res": { "model": "gpt-env", "content": "env pong" } }
+  },
+  "providers": [
+    { "id": "p1", "presetId": "openai", "protocol": "openai-chat", "baseURL": "https://ok.example/v1", "defaultModel": "gpt-a", "keys": ["key-ok", "key-err", "key-nomodel"] },
+    { "id": "p2", "presetId": "anthropic", "protocol": "anthropic", "baseURL": "https://anth.example", "defaultModel": "", "headers": { "X-Team": "t1" }, "userAgent": "NomiTest/1", "keys": ["key-err"] },
+    { "id": "p3", "presetId": "ollama", "protocol": "openai-chat", "baseURL": "http://127.0.0.1:11434/v1", "defaultModel": "llama3", "keys": [] },
+    { "id": "p4", "presetId": "custom", "protocol": "openai-chat", "baseURL": "https://bad.example/v1", "keys": ["key-hang"] }
+  ],
+  "ops": [
+    { "op": "fetchModels", "id": "p1" },
+    { "op": "fetchModels", "id": "p2" },
+    { "op": "fetchModels", "id": "p3" },
+    { "op": "fetchModels", "id": "p4" },
+    { "op": "fetchModels", "id": "nope" },
+    { "op": "fetchModelsDraft", "input": { "protocol": "openai-chat", "baseURL": " https://junk.example/v1// ", "apiKey": " key-ok " } },
+    { "op": "fetchModelsDraft", "input": { "baseURL": "https://arr.example/v1" } },
+    { "op": "fetchModelsDraft", "input": { "baseURL": "https://down.example/v1", "apiKey": "key-err" } },
+    { "op": "fetchModelsDraft", "input": { "baseURL": "https://hang.example/v1" } },
+    { "op": "fetchModelsDraft", "input": { "id": "p2" } },
+    { "op": "fetchModelsDraft", "input": { "presetId": "anthropic", "apiKey": "key-ok" } },
+    { "op": "test", "id": "p1" },
+    { "op": "test", "id": "p1", "keyId": "k1" },
+    { "op": "test", "id": "p1", "keyId": "k2" },
+    { "op": "test", "id": "p1", "keyId": "zz" },
+    { "op": "test", "id": "p3" },
+    { "op": "test", "id": "p4" },
+    { "op": "test", "id": "p2" },
+    { "op": "test", "id": "openai" },
+    { "op": "test", "id": "missing" },
+    { "op": "testDraft", "input": { "presetId": "openai", "apiKey": "key-ok" } },
+    { "op": "testDraft", "input": { "protocol": "anthropic", "baseURL": "https://x.example/", "defaultModel": "  ", "apiKey": "key-ctor" } },
+    { "op": "testDraft", "input": { "id": "p1", "defaultModel": " custom-m " } },
+    { "op": "testDraft", "input": { "baseURL": "", "apiKey": "key-nomodel" } },
+    { "op": "testDraft", "input": { "id": "p2", "fullUrl": true, "baseURL": "https://full.example/chat" } }
+  ]
+}

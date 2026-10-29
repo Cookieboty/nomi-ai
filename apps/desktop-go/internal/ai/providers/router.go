@@ -133,6 +133,9 @@ func EstimateTokens(text string) float64 {
 	return math.Max(1, math.Ceil(float64(cjk)/1.5+float64(rest)/4))
 }
 
+// estimateHook：emitCall 用的估算（测试变异用）
+var estimateHook = EstimateTokens
+
 // TrackedProvider：TrackedProvider
 type TrackedProvider struct {
 	ID           string
@@ -148,7 +151,7 @@ func NewTrackedProvider(id string, candidates []blm.LLMProvider, sink *UsageSink
 	if len(candidates) == 0 {
 		return nil, errors.New("[" + id + "] no candidates")
 	}
-	return &TrackedProvider{ID: id, candidates: candidates, sink: sink, defaultModel: defaultModel, modelMap: modelMap, now: time.Now}, nil
+	return &TrackedProvider{ID: id, candidates: candidates, sink: sink, defaultModel: defaultModel, modelMap: modelMap, now: routerNow}, nil
 }
 
 func (t *TrackedProvider) ProviderID() string { return t.ID }
@@ -319,7 +322,7 @@ func (t *TrackedProvider) emitCall(req *blm.ChatRequest, startedAt time.Time, re
 		}
 		in += m.Content
 	}
-	e.Set("inputTokens", EstimateTokens(in)).Set("outputTokens", EstimateTokens(outText)).
+	e.Set("inputTokens", estimateHook(in)).Set("outputTokens", estimateHook(outText)).
 		Set("cacheReadTokens", 0.0).Set("cacheWriteTokens", 0.0).Set("estimated", true)
 	t.sink.RecordCall(e)
 }
@@ -397,6 +400,9 @@ func (t *TrackedProvider) runStream(ctx context.Context, req *blm.ChatRequest, e
 	}
 	return nil
 }
+
+// routerNow：Date.now（golden 测试钉住）
+var routerNow = time.Now
 
 // ProviderFactory：(opts) => LLMProvider（可 panic/返回错误 = 构造抛错）
 type ProviderFactory func(opts aisdk.Options) (blm.LLMProvider, error)

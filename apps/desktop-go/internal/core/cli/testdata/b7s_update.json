@@ -1,0 +1,4185 @@
+{
+  "platform": "linux",
+  "scenarios": [
+    {
+      "name": "pure",
+      "steps": [
+        [
+          "recipes",
+          "claude",
+          "native"
+        ],
+        [
+          "recipes",
+          "claude",
+          "npm"
+        ],
+        [
+          "recipes",
+          "codex",
+          "unknown"
+        ],
+        [
+          "recipes",
+          "grok",
+          "npm"
+        ],
+        [
+          "recipes",
+          "dsh",
+          "native"
+        ],
+        [
+          "recipes",
+          "gemini",
+          "unknown"
+        ],
+        [
+          "recipesNoBin",
+          "claude",
+          "user"
+        ],
+        [
+          "recipesNoBin",
+          "gemini",
+          "global"
+        ],
+        [
+          "allow",
+          [
+            "npm",
+            "install",
+            "-g",
+            "@openai/codex@latest"
+          ]
+        ],
+        [
+          "allow",
+          [
+            "npm.cmd",
+            "install",
+            "-g",
+            "@google/gemini-cli@latest"
+          ]
+        ],
+        [
+          "allow",
+          [
+            "NPM.CMD",
+            "install",
+            "-g",
+            "@xai-official/grok@latest"
+          ]
+        ],
+        [
+          "allow",
+          [
+            "npm",
+            "install",
+            "-g",
+            "left-pad@latest"
+          ]
+        ],
+        [
+          "allow",
+          [
+            "npm",
+            "install",
+            "-g",
+            "@openai/codex@latest",
+            "--prefix",
+            "/tmp"
+          ]
+        ],
+        [
+          "allowUserPrefix",
+          "dsh"
+        ],
+        [
+          "allow",
+          [
+            "/x/bin/claude",
+            "update"
+          ]
+        ],
+        [
+          "allow",
+          [
+            "/x/bin/myclaude",
+            "update"
+          ]
+        ],
+        [
+          "allow",
+          [
+            "C:\\x\\codex.cmd",
+            "update"
+          ]
+        ],
+        [
+          "allow",
+          [
+            "claude",
+            "update",
+            "--force"
+          ]
+        ],
+        [
+          "allow",
+          []
+        ],
+        [
+          "allow",
+          [
+            "rm",
+            "-rf",
+            "/"
+          ]
+        ],
+        [
+          "allowEnvNpm",
+          [
+            "install",
+            "-g",
+            "@deepseek-ai/dsh@latest"
+          ]
+        ],
+        [
+          "cmdline",
+          [
+            "npm",
+            "install",
+            "-g",
+            "@a/b@latest"
+          ]
+        ],
+        [
+          "cmdline",
+          [
+            "a b",
+            "say \"hi\"",
+            "x=1",
+            "中文",
+            ""
+          ]
+        ],
+        [
+          "toUpdatable",
+          "codex"
+        ],
+        [
+          "toUpdatable",
+          "cursor"
+        ],
+        [
+          "toUpdatable",
+          7
+        ],
+        [
+          "toUpdatable",
+          "gemini"
+        ],
+        [
+          "toScope",
+          "user"
+        ],
+        [
+          "toScope",
+          "USER"
+        ],
+        [
+          "toScope",
+          null
+        ],
+        [
+          "updatable",
+          "cursor"
+        ],
+        [
+          "updatable",
+          "dsh"
+        ]
+      ],
+      "log": [
+        [
+          "recipes",
+          [
+            {
+              "kind": "claude",
+              "via": "self",
+              "argv": [
+                "/x/claude",
+                "update"
+              ]
+            },
+            {
+              "kind": "claude",
+              "via": "npm",
+              "argv": [
+                "<SB>/pure/fakenpm",
+                "install",
+                "-g",
+                "@anthropic-ai/claude-code@latest"
+              ]
+            }
+          ]
+        ],
+        [
+          "recipes",
+          [
+            {
+              "kind": "claude",
+              "via": "npm",
+              "argv": [
+                "<SB>/pure/fakenpm",
+                "install",
+                "-g",
+                "@anthropic-ai/claude-code@latest"
+              ]
+            }
+          ]
+        ],
+        [
+          "recipes",
+          [
+            {
+              "kind": "codex",
+              "via": "self",
+              "argv": [
+                "/x/codex",
+                "update"
+              ]
+            },
+            {
+              "kind": "codex",
+              "via": "npm",
+              "argv": [
+                "<SB>/pure/fakenpm",
+                "install",
+                "-g",
+                "@openai/codex@latest"
+              ]
+            }
+          ]
+        ],
+        [
+          "recipes",
+          [
+            {
+              "kind": "grok",
+              "via": "self",
+              "argv": [
+                "/x/grok",
+                "update"
+              ]
+            },
+            {
+              "kind": "grok",
+              "via": "npm",
+              "argv": [
+                "<SB>/pure/fakenpm",
+                "install",
+                "-g",
+                "@xai-official/grok@latest"
+              ]
+            }
+          ]
+        ],
+        [
+          "recipes",
+          [
+            {
+              "kind": "dsh",
+              "via": "npm",
+              "argv": [
+                "<SB>/pure/fakenpm",
+                "install",
+                "-g",
+                "@deepseek-ai/dsh@latest"
+              ]
+            }
+          ]
+        ],
+        [
+          "recipes",
+          [
+            {
+              "kind": "gemini",
+              "via": "npm",
+              "argv": [
+                "<SB>/pure/fakenpm",
+                "install",
+                "-g",
+                "@google/gemini-cli@latest"
+              ]
+            }
+          ]
+        ],
+        [
+          "recipesNoBin",
+          [
+            {
+              "kind": "claude",
+              "via": "npm",
+              "argv": [
+                "<SB>/pure/fakenpm",
+                "install",
+                "-g",
+                "@anthropic-ai/claude-code@latest",
+                "--prefix",
+                "<SB>/pure/home/.local"
+              ]
+            }
+          ]
+        ],
+        [
+          "recipesNoBin",
+          [
+            {
+              "kind": "gemini",
+              "via": "npm",
+              "argv": [
+                "<SB>/pure/fakenpm",
+                "install",
+                "-g",
+                "@google/gemini-cli@latest"
+              ]
+            }
+          ]
+        ],
+        [
+          "allow",
+          true
+        ],
+        [
+          "allow",
+          true
+        ],
+        [
+          "allow",
+          true
+        ],
+        [
+          "allow",
+          false
+        ],
+        [
+          "allow",
+          false
+        ],
+        [
+          "allowUserPrefix",
+          true
+        ],
+        [
+          "allow",
+          true
+        ],
+        [
+          "allow",
+          true
+        ],
+        [
+          "allow",
+          false
+        ],
+        [
+          "allow",
+          false
+        ],
+        [
+          "allow",
+          false
+        ],
+        [
+          "allow",
+          false
+        ],
+        [
+          "allowEnvNpm",
+          [
+            true,
+            false
+          ]
+        ],
+        [
+          "cmdline",
+          "npm install -g @a/b@latest"
+        ],
+        [
+          "cmdline",
+          "\"a b\" \"say \\\"hi\\\"\" x=1 \"中文\" \"\""
+        ],
+        [
+          "toUpdatable",
+          "codex"
+        ],
+        [
+          "toUpdatable",
+          "claude"
+        ],
+        [
+          "toUpdatable",
+          "claude"
+        ],
+        [
+          "toUpdatable",
+          "gemini"
+        ],
+        [
+          "toScope",
+          "user"
+        ],
+        [
+          "toScope",
+          "global"
+        ],
+        [
+          "toScope",
+          "global"
+        ],
+        [
+          "updatable",
+          false
+        ],
+        [
+          "updatable",
+          true
+        ]
+      ]
+    },
+    {
+      "name": "planInstall",
+      "probe": {},
+      "steps": [
+        [
+          "preview",
+          "dsh",
+          "global"
+        ],
+        [
+          "preview",
+          "claude",
+          "user"
+        ],
+        [
+          "preview",
+          "gemini",
+          "global"
+        ]
+      ],
+      "log": [
+        [
+          "preview",
+          {
+            "kind": "dsh",
+            "mode": "install",
+            "scope": "global",
+            "argv": [
+              "<SB>/planInstall/fakenpm",
+              "install",
+              "-g",
+              "@deepseek-ai/dsh@latest"
+            ],
+            "command": "<SB>/planInstall/fakenpm install -g @deepseek-ai/dsh@latest",
+            "requirements": [
+              {
+                "id": "node",
+                "ok": true,
+                "label": "Node.js ≥ 24",
+                "detail": "v24.1.0"
+              },
+              {
+                "id": "npm",
+                "ok": true,
+                "label": "npm",
+                "detail": "/usr/bin/npm"
+              },
+              {
+                "id": "write",
+                "ok": true,
+                "label": "目录可写",
+                "detail": "<SB>/planInstall/prefix"
+              }
+            ],
+            "blockers": []
+          }
+        ],
+        [
+          "preview",
+          {
+            "kind": "claude",
+            "mode": "install",
+            "scope": "user",
+            "argv": [
+              "<SB>/planInstall/fakenpm",
+              "install",
+              "-g",
+              "@anthropic-ai/claude-code@latest",
+              "--prefix",
+              "<SB>/planInstall/home/.local"
+            ],
+            "command": "<SB>/planInstall/fakenpm install -g @anthropic-ai/claude-code@latest --prefix <SB>/planInstall/home/.local",
+            "requirements": [
+              {
+                "id": "node",
+                "ok": true,
+                "label": "Node.js ≥ 22",
+                "detail": "v24.1.0"
+              },
+              {
+                "id": "npm",
+                "ok": true,
+                "label": "npm",
+                "detail": "/usr/bin/npm"
+              },
+              {
+                "id": "write",
+                "ok": true,
+                "label": "目录可写",
+                "detail": "<SB>/planInstall/home/.local"
+              }
+            ],
+            "blockers": []
+          }
+        ],
+        [
+          "preview",
+          {
+            "kind": "gemini",
+            "mode": "install",
+            "scope": "global",
+            "argv": [
+              "<SB>/planInstall/fakenpm",
+              "install",
+              "-g",
+              "@google/gemini-cli@latest"
+            ],
+            "command": "<SB>/planInstall/fakenpm install -g @google/gemini-cli@latest",
+            "requirements": [
+              {
+                "id": "node",
+                "ok": true,
+                "label": "Node.js ≥ 20",
+                "detail": "v24.1.0"
+              },
+              {
+                "id": "npm",
+                "ok": true,
+                "label": "npm",
+                "detail": "/usr/bin/npm"
+              },
+              {
+                "id": "write",
+                "ok": true,
+                "label": "目录可写",
+                "detail": "<SB>/planInstall/prefix"
+              }
+            ],
+            "blockers": []
+          }
+        ]
+      ]
+    },
+    {
+      "name": "planBlocked",
+      "probe": {
+        "nodeVersion": "20.3.0",
+        "npmBin": null
+      },
+      "steps": [
+        [
+          "preview",
+          "dsh",
+          "global"
+        ],
+        [
+          "preview",
+          "codex",
+          "global"
+        ]
+      ],
+      "log": [
+        [
+          "preview",
+          {
+            "kind": "dsh",
+            "mode": "install",
+            "scope": "global",
+            "argv": [
+              "<SB>/planBlocked/fakenpm",
+              "install",
+              "-g",
+              "@deepseek-ai/dsh@latest"
+            ],
+            "command": "<SB>/planBlocked/fakenpm install -g @deepseek-ai/dsh@latest",
+            "requirements": [
+              {
+                "id": "node",
+                "ok": false,
+                "label": "Node.js ≥ 24",
+                "detail": "v20.3.0"
+              },
+              {
+                "id": "npm",
+                "ok": false,
+                "label": "npm",
+                "detail": "未找到"
+              }
+            ],
+            "blockers": [
+              "需要 Node.js ≥ 24，当前是 v20.3.0。请先升级 Node.js 再安装。",
+              "找不到 npm（随 Node.js 一起安装）。请先安装 Node.js。"
+            ]
+          }
+        ],
+        [
+          "preview",
+          {
+            "kind": "codex",
+            "mode": "install",
+            "scope": "global",
+            "argv": [
+              "<SB>/planBlocked/fakenpm",
+              "install",
+              "-g",
+              "@openai/codex@latest"
+            ],
+            "command": "<SB>/planBlocked/fakenpm install -g @openai/codex@latest",
+            "requirements": [
+              {
+                "id": "node",
+                "ok": true,
+                "label": "Node.js ≥ 16",
+                "detail": "v20.3.0"
+              },
+              {
+                "id": "npm",
+                "ok": false,
+                "label": "npm",
+                "detail": "未找到"
+              }
+            ],
+            "blockers": [
+              "找不到 npm（随 Node.js 一起安装）。请先安装 Node.js。"
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "planNoNode",
+      "probe": {
+        "nodeVersion": null
+      },
+      "steps": [
+        [
+          "preview",
+          "claude",
+          "global"
+        ]
+      ],
+      "log": [
+        [
+          "preview",
+          {
+            "kind": "claude",
+            "mode": "install",
+            "scope": "global",
+            "argv": [
+              "<SB>/planNoNode/fakenpm",
+              "install",
+              "-g",
+              "@anthropic-ai/claude-code@latest"
+            ],
+            "command": "<SB>/planNoNode/fakenpm install -g @anthropic-ai/claude-code@latest",
+            "requirements": [
+              {
+                "id": "node",
+                "ok": false,
+                "label": "Node.js ≥ 22",
+                "detail": "未找到"
+              },
+              {
+                "id": "npm",
+                "ok": true,
+                "label": "npm",
+                "detail": "/usr/bin/npm"
+              },
+              {
+                "id": "write",
+                "ok": true,
+                "label": "目录可写",
+                "detail": "<SB>/planNoNode/prefix"
+              }
+            ],
+            "blockers": [
+              "找不到 Node.js（需要 ≥ 22）。请先安装 Node.js。"
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "planBadNode",
+      "probe": {
+        "nodeVersion": "abc"
+      },
+      "steps": [
+        [
+          "preview",
+          "grok",
+          "global"
+        ]
+      ],
+      "log": [
+        [
+          "preview",
+          {
+            "kind": "grok",
+            "mode": "install",
+            "scope": "global",
+            "argv": [
+              "<SB>/planBadNode/fakenpm",
+              "install",
+              "-g",
+              "@xai-official/grok@latest"
+            ],
+            "command": "<SB>/planBadNode/fakenpm install -g @xai-official/grok@latest",
+            "requirements": [
+              {
+                "id": "node",
+                "ok": false,
+                "label": "Node.js ≥ 18",
+                "detail": "vabc"
+              },
+              {
+                "id": "npm",
+                "ok": true,
+                "label": "npm",
+                "detail": "/usr/bin/npm"
+              },
+              {
+                "id": "write",
+                "ok": true,
+                "label": "目录可写",
+                "detail": "<SB>/planBadNode/prefix"
+              }
+            ],
+            "blockers": [
+              "需要 Node.js ≥ 18，当前是 vabc。请先升级 Node.js 再安装。"
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "planReadOnly",
+      "probe": {
+        "canWrite": false
+      },
+      "steps": [
+        [
+          "preview",
+          "codex",
+          "global"
+        ],
+        [
+          "preview",
+          "codex",
+          "user"
+        ]
+      ],
+      "log": [
+        [
+          "preview",
+          {
+            "kind": "codex",
+            "mode": "install",
+            "scope": "global",
+            "argv": [
+              "<SB>/planReadOnly/fakenpm",
+              "install",
+              "-g",
+              "@openai/codex@latest"
+            ],
+            "command": "<SB>/planReadOnly/fakenpm install -g @openai/codex@latest",
+            "requirements": [
+              {
+                "id": "node",
+                "ok": true,
+                "label": "Node.js ≥ 16",
+                "detail": "v24.1.0"
+              },
+              {
+                "id": "npm",
+                "ok": true,
+                "label": "npm",
+                "detail": "/usr/bin/npm"
+              },
+              {
+                "id": "write",
+                "ok": false,
+                "label": "目录可写",
+                "detail": "<SB>/planReadOnly/prefix"
+              }
+            ],
+            "blockers": [
+              "npm 全局目录 <SB>/planReadOnly/prefix 没有写入权限。Nomi 不会自动使用 sudo / 管理员权限；可改为安装到用户目录，或自行在终端里用管理员权限安装。"
+            ],
+            "userScopeCommand": "<SB>/planReadOnly/fakenpm install -g @openai/codex@latest --prefix <SB>/planReadOnly/home/.local"
+          }
+        ],
+        [
+          "preview",
+          {
+            "kind": "codex",
+            "mode": "install",
+            "scope": "user",
+            "argv": [
+              "<SB>/planReadOnly/fakenpm",
+              "install",
+              "-g",
+              "@openai/codex@latest",
+              "--prefix",
+              "<SB>/planReadOnly/home/.local"
+            ],
+            "command": "<SB>/planReadOnly/fakenpm install -g @openai/codex@latest --prefix <SB>/planReadOnly/home/.local",
+            "requirements": [
+              {
+                "id": "node",
+                "ok": true,
+                "label": "Node.js ≥ 16",
+                "detail": "v24.1.0"
+              },
+              {
+                "id": "npm",
+                "ok": true,
+                "label": "npm",
+                "detail": "/usr/bin/npm"
+              },
+              {
+                "id": "write",
+                "ok": false,
+                "label": "目录可写",
+                "detail": "<SB>/planReadOnly/home/.local"
+              }
+            ],
+            "blockers": [
+              "用户目录 <SB>/planReadOnly/home/.local 没有写入权限。"
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "planNoPrefix",
+      "probe": {
+        "npmPrefix": null
+      },
+      "steps": [
+        [
+          "preview",
+          "codex",
+          "global"
+        ]
+      ],
+      "log": [
+        [
+          "preview",
+          {
+            "kind": "codex",
+            "mode": "install",
+            "scope": "global",
+            "argv": [
+              "<SB>/planNoPrefix/fakenpm",
+              "install",
+              "-g",
+              "@openai/codex@latest"
+            ],
+            "command": "<SB>/planNoPrefix/fakenpm install -g @openai/codex@latest",
+            "requirements": [
+              {
+                "id": "node",
+                "ok": true,
+                "label": "Node.js ≥ 16",
+                "detail": "v24.1.0"
+              },
+              {
+                "id": "npm",
+                "ok": true,
+                "label": "npm",
+                "detail": "/usr/bin/npm"
+              }
+            ],
+            "blockers": []
+          }
+        ]
+      ]
+    },
+    {
+      "name": "planNoPrefixNoNpm",
+      "probe": {
+        "npmPrefix": null,
+        "npmBin": null
+      },
+      "steps": [
+        [
+          "preview",
+          "codex",
+          "global"
+        ]
+      ],
+      "log": [
+        [
+          "preview",
+          {
+            "kind": "codex",
+            "mode": "install",
+            "scope": "global",
+            "argv": [
+              "<SB>/planNoPrefixNoNpm/fakenpm",
+              "install",
+              "-g",
+              "@openai/codex@latest"
+            ],
+            "command": "<SB>/planNoPrefixNoNpm/fakenpm install -g @openai/codex@latest",
+            "requirements": [
+              {
+                "id": "node",
+                "ok": true,
+                "label": "Node.js ≥ 16",
+                "detail": "v24.1.0"
+              },
+              {
+                "id": "npm",
+                "ok": false,
+                "label": "npm",
+                "detail": "未找到"
+              }
+            ],
+            "blockers": [
+              "找不到 npm（随 Node.js 一起安装）。请先安装 Node.js。"
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "planInstalled",
+      "bins": {
+        "claude": [
+          "native",
+          "1.0.0"
+        ],
+        "codex": [
+          "npm",
+          "0.5.0"
+        ],
+        "dsh": [
+          "plain",
+          "0.1.0"
+        ],
+        "grok": [
+          "plain",
+          "0.9.0"
+        ]
+      },
+      "probe": {},
+      "steps": [
+        [
+          "preview",
+          "claude",
+          "global"
+        ],
+        [
+          "preview",
+          "codex",
+          "global"
+        ],
+        [
+          "preview",
+          "dsh",
+          "user"
+        ],
+        [
+          "preview",
+          "grok",
+          "global"
+        ]
+      ],
+      "log": [
+        [
+          "preview",
+          {
+            "kind": "claude",
+            "mode": "update",
+            "scope": "global",
+            "argv": [
+              "<SB>/planInstalled/home/versions/claude/claude",
+              "update"
+            ],
+            "command": "<SB>/planInstalled/home/versions/claude/claude update",
+            "requirements": [],
+            "blockers": []
+          }
+        ],
+        [
+          "preview",
+          {
+            "kind": "codex",
+            "mode": "update",
+            "scope": "global",
+            "argv": [
+              "<SB>/planInstalled/fakenpm",
+              "install",
+              "-g",
+              "@openai/codex@latest"
+            ],
+            "command": "<SB>/planInstalled/fakenpm install -g @openai/codex@latest",
+            "requirements": [
+              {
+                "id": "node",
+                "ok": true,
+                "label": "Node.js ≥ 16",
+                "detail": "v24.1.0"
+              },
+              {
+                "id": "npm",
+                "ok": true,
+                "label": "npm",
+                "detail": "/usr/bin/npm"
+              },
+              {
+                "id": "write",
+                "ok": true,
+                "label": "目录可写",
+                "detail": "<SB>/planInstalled/prefix"
+              }
+            ],
+            "blockers": []
+          }
+        ],
+        [
+          "preview",
+          {
+            "kind": "dsh",
+            "mode": "update",
+            "scope": "user",
+            "argv": [
+              "<SB>/planInstalled/fakenpm",
+              "install",
+              "-g",
+              "@deepseek-ai/dsh@latest",
+              "--prefix",
+              "<SB>/planInstalled/home/.local"
+            ],
+            "command": "<SB>/planInstalled/fakenpm install -g @deepseek-ai/dsh@latest --prefix <SB>/planInstalled/home/.local",
+            "requirements": [
+              {
+                "id": "node",
+                "ok": true,
+                "label": "Node.js ≥ 24",
+                "detail": "v24.1.0"
+              },
+              {
+                "id": "npm",
+                "ok": true,
+                "label": "npm",
+                "detail": "/usr/bin/npm"
+              },
+              {
+                "id": "write",
+                "ok": true,
+                "label": "目录可写",
+                "detail": "<SB>/planInstalled/home/.local"
+              }
+            ],
+            "blockers": []
+          }
+        ],
+        [
+          "preview",
+          {
+            "kind": "grok",
+            "mode": "update",
+            "scope": "global",
+            "argv": [
+              "<SB>/planInstalled/home/bin/grok/grok",
+              "update"
+            ],
+            "command": "<SB>/planInstalled/home/bin/grok/grok update",
+            "requirements": [],
+            "blockers": []
+          }
+        ]
+      ]
+    },
+    {
+      "name": "installOk",
+      "probe": {},
+      "runner": [
+        {
+          "code": 0,
+          "output": "added 1 package",
+          "lines": [
+            "added 1 package"
+          ],
+          "install": [
+            "codex",
+            "0.9.1"
+          ]
+        }
+      ],
+      "steps": [
+        [
+          "run",
+          "a",
+          "codex",
+          "global"
+        ],
+        [
+          "await",
+          "a"
+        ],
+        [
+          "job",
+          "codex"
+        ],
+        [
+          "busy"
+        ],
+        [
+          "events"
+        ],
+        [
+          "dismiss",
+          "codex"
+        ],
+        [
+          "job",
+          "codex"
+        ]
+      ],
+      "log": [
+        [
+          "run",
+          null
+        ],
+        [
+          "await",
+          {
+            "ok": true,
+            "log": "$ <SB>/installOk/fakenpm install -g @openai/codex@latest\nadded 1 package",
+            "version": "0.9.1",
+            "path": "<SB>/installOk/prefix/bin/codex"
+          }
+        ],
+        [
+          "job",
+          {
+            "kind": "codex",
+            "mode": "install",
+            "scope": "global",
+            "status": "done",
+            "argv": [
+              "<SB>/installOk/fakenpm",
+              "install",
+              "-g",
+              "@openai/codex@latest"
+            ],
+            "command": "<SB>/installOk/fakenpm install -g @openai/codex@latest",
+            "lines": [
+              "$ <SB>/installOk/fakenpm install -g @openai/codex@latest",
+              "added 1 package"
+            ],
+            "startedAt": "number",
+            "result": {
+              "ok": true,
+              "log": "$ <SB>/installOk/fakenpm install -g @openai/codex@latest\nadded 1 package",
+              "version": "0.9.1",
+              "path": "<SB>/installOk/prefix/bin/codex"
+            },
+            "finishedAt": "number"
+          }
+        ],
+        [
+          "busy",
+          []
+        ],
+        [
+          "events",
+          {
+            "codex": [
+              {
+                "kind": "codex",
+                "mode": "install",
+                "phase": "start",
+                "argv": [
+                  "<SB>/installOk/fakenpm",
+                  "install",
+                  "-g",
+                  "@openai/codex@latest"
+                ]
+              },
+              {
+                "kind": "codex",
+                "mode": "install",
+                "phase": "log",
+                "line": "$ <SB>/installOk/fakenpm install -g @openai/codex@latest"
+              },
+              {
+                "kind": "codex",
+                "mode": "install",
+                "phase": "log",
+                "line": "added 1 package"
+              },
+              {
+                "kind": "codex",
+                "mode": "install",
+                "phase": "done",
+                "version": "0.9.1"
+              }
+            ]
+          }
+        ],
+        [
+          "dismiss",
+          true
+        ],
+        [
+          "job",
+          null
+        ]
+      ]
+    },
+    {
+      "name": "installUserScope",
+      "probe": {},
+      "runner": [
+        {
+          "code": 0,
+          "output": "ok",
+          "lines": [
+            "ok"
+          ],
+          "install": [
+            "dsh",
+            "0.2.0"
+          ]
+        }
+      ],
+      "steps": [
+        [
+          "run",
+          "a",
+          "dsh",
+          "user"
+        ],
+        [
+          "await",
+          "a"
+        ],
+        [
+          "job",
+          "dsh"
+        ],
+        [
+          "events"
+        ]
+      ],
+      "log": [
+        [
+          "run",
+          null
+        ],
+        [
+          "await",
+          {
+            "ok": true,
+            "log": "$ <SB>/installUserScope/fakenpm install -g @deepseek-ai/dsh@latest --prefix <SB>/installUserScope/home/.local\nok",
+            "version": "0.2.0",
+            "path": "<SB>/installUserScope/home/.local/bin/dsh",
+            "note": "已安装到 <SB>/installUserScope/home/.local/bin；如需在终端直接使用，请把该目录加入 PATH（Nomi 内可直接使用）。"
+          }
+        ],
+        [
+          "job",
+          {
+            "kind": "dsh",
+            "mode": "install",
+            "scope": "user",
+            "status": "done",
+            "argv": [
+              "<SB>/installUserScope/fakenpm",
+              "install",
+              "-g",
+              "@deepseek-ai/dsh@latest",
+              "--prefix",
+              "<SB>/installUserScope/home/.local"
+            ],
+            "command": "<SB>/installUserScope/fakenpm install -g @deepseek-ai/dsh@latest --prefix <SB>/installUserScope/home/.local",
+            "lines": [
+              "$ <SB>/installUserScope/fakenpm install -g @deepseek-ai/dsh@latest --prefix <SB>/installUserScope/home/.local",
+              "ok"
+            ],
+            "startedAt": "number",
+            "result": {
+              "ok": true,
+              "log": "$ <SB>/installUserScope/fakenpm install -g @deepseek-ai/dsh@latest --prefix <SB>/installUserScope/home/.local\nok",
+              "version": "0.2.0",
+              "path": "<SB>/installUserScope/home/.local/bin/dsh",
+              "note": "已安装到 <SB>/installUserScope/home/.local/bin；如需在终端直接使用，请把该目录加入 PATH（Nomi 内可直接使用）。"
+            },
+            "finishedAt": "number"
+          }
+        ],
+        [
+          "events",
+          {
+            "dsh": [
+              {
+                "kind": "dsh",
+                "mode": "install",
+                "phase": "start",
+                "argv": [
+                  "<SB>/installUserScope/fakenpm",
+                  "install",
+                  "-g",
+                  "@deepseek-ai/dsh@latest",
+                  "--prefix",
+                  "<SB>/installUserScope/home/.local"
+                ]
+              },
+              {
+                "kind": "dsh",
+                "mode": "install",
+                "phase": "log",
+                "line": "$ <SB>/installUserScope/fakenpm install -g @deepseek-ai/dsh@latest --prefix <SB>/installUserScope/home/.local"
+              },
+              {
+                "kind": "dsh",
+                "mode": "install",
+                "phase": "log",
+                "line": "ok"
+              },
+              {
+                "kind": "dsh",
+                "mode": "install",
+                "phase": "done",
+                "version": "0.2.0"
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "installNotFound",
+      "probe": {},
+      "runner": [
+        {
+          "code": 0,
+          "output": ""
+        }
+      ],
+      "steps": [
+        [
+          "run",
+          "a",
+          "grok",
+          "global"
+        ],
+        [
+          "await",
+          "a"
+        ],
+        [
+          "job",
+          "grok"
+        ],
+        [
+          "events"
+        ]
+      ],
+      "log": [
+        [
+          "run",
+          null
+        ],
+        [
+          "await",
+          {
+            "ok": false,
+            "log": "$ <SB>/installNotFound/fakenpm install -g @xai-official/grok@latest",
+            "version": null,
+            "path": null,
+            "note": "命令已执行完成，但在 PATH、常见目录和 npm 的全局 bin 目录（<SB>/installNotFound/prefix/bin）里都没有找到 grok；请确认安装用的是同一个 npm。"
+          }
+        ],
+        [
+          "job",
+          {
+            "kind": "grok",
+            "mode": "install",
+            "scope": "global",
+            "status": "error",
+            "argv": [
+              "<SB>/installNotFound/fakenpm",
+              "install",
+              "-g",
+              "@xai-official/grok@latest"
+            ],
+            "command": "<SB>/installNotFound/fakenpm install -g @xai-official/grok@latest",
+            "lines": [
+              "$ <SB>/installNotFound/fakenpm install -g @xai-official/grok@latest"
+            ],
+            "startedAt": "number",
+            "result": {
+              "ok": false,
+              "log": "$ <SB>/installNotFound/fakenpm install -g @xai-official/grok@latest",
+              "version": null,
+              "path": null,
+              "note": "命令已执行完成，但在 PATH、常见目录和 npm 的全局 bin 目录（<SB>/installNotFound/prefix/bin）里都没有找到 grok；请确认安装用的是同一个 npm。"
+            },
+            "finishedAt": "number"
+          }
+        ],
+        [
+          "events",
+          {
+            "grok": [
+              {
+                "kind": "grok",
+                "mode": "install",
+                "phase": "start",
+                "argv": [
+                  "<SB>/installNotFound/fakenpm",
+                  "install",
+                  "-g",
+                  "@xai-official/grok@latest"
+                ]
+              },
+              {
+                "kind": "grok",
+                "mode": "install",
+                "phase": "log",
+                "line": "$ <SB>/installNotFound/fakenpm install -g @xai-official/grok@latest"
+              },
+              {
+                "kind": "grok",
+                "mode": "install",
+                "phase": "done",
+                "version": null
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "installNotFoundUser",
+      "probe": {},
+      "runner": [
+        {
+          "code": 0,
+          "output": ""
+        }
+      ],
+      "steps": [
+        [
+          "run",
+          "a",
+          "grok",
+          "user"
+        ],
+        [
+          "await",
+          "a"
+        ],
+        [
+          "events"
+        ]
+      ],
+      "log": [
+        [
+          "run",
+          null
+        ],
+        [
+          "await",
+          {
+            "ok": false,
+            "log": "$ <SB>/installNotFoundUser/fakenpm install -g @xai-official/grok@latest --prefix <SB>/installNotFoundUser/home/.local",
+            "version": null,
+            "path": null,
+            "note": "命令已执行完成，但在 PATH、常见目录和 npm 的全局 bin 目录（<SB>/installNotFoundUser/home/.local/bin）里都没有找到 grok；请确认安装用的是同一个 npm。"
+          }
+        ],
+        [
+          "events",
+          {
+            "grok": [
+              {
+                "kind": "grok",
+                "mode": "install",
+                "phase": "start",
+                "argv": [
+                  "<SB>/installNotFoundUser/fakenpm",
+                  "install",
+                  "-g",
+                  "@xai-official/grok@latest",
+                  "--prefix",
+                  "<SB>/installNotFoundUser/home/.local"
+                ]
+              },
+              {
+                "kind": "grok",
+                "mode": "install",
+                "phase": "log",
+                "line": "$ <SB>/installNotFoundUser/fakenpm install -g @xai-official/grok@latest --prefix <SB>/installNotFoundUser/home/.local"
+              },
+              {
+                "kind": "grok",
+                "mode": "install",
+                "phase": "done",
+                "version": null
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "installFails",
+      "probe": {},
+      "runner": [
+        {
+          "code": 243,
+          "output": "npm ERR! code EACCES\nnpm ERR! nope",
+          "lines": [
+            "npm ERR! code EACCES",
+            "npm ERR! nope"
+          ]
+        }
+      ],
+      "steps": [
+        [
+          "run",
+          "a",
+          "claude",
+          "global"
+        ],
+        [
+          "await",
+          "a"
+        ],
+        [
+          "job",
+          "claude"
+        ],
+        [
+          "dismiss",
+          "claude"
+        ],
+        [
+          "events"
+        ]
+      ],
+      "log": [
+        [
+          "run",
+          null
+        ],
+        [
+          "await",
+          {
+            "ok": false,
+            "log": "$ <SB>/installFails/fakenpm install -g @anthropic-ai/claude-code@latest\nnpm ERR! code EACCES\nnpm ERR! nope\n命令失败（退出码 243）",
+            "version": null
+          }
+        ],
+        [
+          "job",
+          {
+            "kind": "claude",
+            "mode": "install",
+            "scope": "global",
+            "status": "error",
+            "argv": [
+              "<SB>/installFails/fakenpm",
+              "install",
+              "-g",
+              "@anthropic-ai/claude-code@latest"
+            ],
+            "command": "<SB>/installFails/fakenpm install -g @anthropic-ai/claude-code@latest",
+            "lines": [
+              "$ <SB>/installFails/fakenpm install -g @anthropic-ai/claude-code@latest",
+              "npm ERR! code EACCES",
+              "npm ERR! nope"
+            ],
+            "startedAt": "number",
+            "result": {
+              "ok": false,
+              "log": "$ <SB>/installFails/fakenpm install -g @anthropic-ai/claude-code@latest\nnpm ERR! code EACCES\nnpm ERR! nope\n命令失败（退出码 243）",
+              "version": null
+            },
+            "finishedAt": "number"
+          }
+        ],
+        [
+          "dismiss",
+          true
+        ],
+        [
+          "events",
+          {
+            "claude": [
+              {
+                "kind": "claude",
+                "mode": "install",
+                "phase": "start",
+                "argv": [
+                  "<SB>/installFails/fakenpm",
+                  "install",
+                  "-g",
+                  "@anthropic-ai/claude-code@latest"
+                ]
+              },
+              {
+                "kind": "claude",
+                "mode": "install",
+                "phase": "log",
+                "line": "$ <SB>/installFails/fakenpm install -g @anthropic-ai/claude-code@latest"
+              },
+              {
+                "kind": "claude",
+                "mode": "install",
+                "phase": "log",
+                "line": "npm ERR! code EACCES"
+              },
+              {
+                "kind": "claude",
+                "mode": "install",
+                "phase": "log",
+                "line": "npm ERR! nope"
+              },
+              {
+                "kind": "claude",
+                "mode": "install",
+                "phase": "error",
+                "message": "$ <SB>/installFails/fakenpm install -g @anthropic-ai/claude-code@latest\nnpm ERR! code EACCES\nnpm ERR! nope\n命令失败（退出码 243）"
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "installNullCode",
+      "probe": {},
+      "runner": [
+        {
+          "code": null,
+          "output": "spawn npm ENOENT"
+        }
+      ],
+      "steps": [
+        [
+          "run",
+          "a",
+          "gemini",
+          "global"
+        ],
+        [
+          "await",
+          "a"
+        ],
+        [
+          "events"
+        ]
+      ],
+      "log": [
+        [
+          "run",
+          null
+        ],
+        [
+          "await",
+          {
+            "ok": false,
+            "log": "$ <SB>/installNullCode/fakenpm install -g @google/gemini-cli@latest\nspawn npm ENOENT\n命令失败（退出码 —）",
+            "version": null
+          }
+        ],
+        [
+          "events",
+          {
+            "gemini": [
+              {
+                "kind": "gemini",
+                "mode": "install",
+                "phase": "start",
+                "argv": [
+                  "<SB>/installNullCode/fakenpm",
+                  "install",
+                  "-g",
+                  "@google/gemini-cli@latest"
+                ]
+              },
+              {
+                "kind": "gemini",
+                "mode": "install",
+                "phase": "log",
+                "line": "$ <SB>/installNullCode/fakenpm install -g @google/gemini-cli@latest"
+              },
+              {
+                "kind": "gemini",
+                "mode": "install",
+                "phase": "error",
+                "message": "$ <SB>/installNullCode/fakenpm install -g @google/gemini-cli@latest\nspawn npm ENOENT\n命令失败（退出码 —）"
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "blocked",
+      "probe": {
+        "nodeVersion": "18.0.0"
+      },
+      "steps": [
+        [
+          "run",
+          "a",
+          "dsh",
+          "global"
+        ],
+        [
+          "await",
+          "a"
+        ],
+        [
+          "job",
+          "dsh"
+        ],
+        [
+          "events"
+        ],
+        [
+          "runnerCalls"
+        ]
+      ],
+      "log": [
+        [
+          "run",
+          null
+        ],
+        [
+          "await",
+          {
+            "ok": false,
+            "log": "需要 Node.js ≥ 24，当前是 v18.0.0。请先升级 Node.js 再安装。",
+            "version": null
+          }
+        ],
+        [
+          "job",
+          {
+            "kind": "dsh",
+            "mode": "update",
+            "scope": "global",
+            "status": "error",
+            "argv": [],
+            "command": "",
+            "lines": [],
+            "startedAt": "number",
+            "result": {
+              "ok": false,
+              "log": "需要 Node.js ≥ 24，当前是 v18.0.0。请先升级 Node.js 再安装。",
+              "version": null
+            },
+            "finishedAt": "number"
+          }
+        ],
+        [
+          "events",
+          {}
+        ],
+        [
+          "runnerCalls",
+          []
+        ]
+      ]
+    },
+    {
+      "name": "selfFallback",
+      "bins": {
+        "claude": [
+          "native",
+          "1.0.0"
+        ]
+      },
+      "probe": {},
+      "runner": [
+        {
+          "code": 1,
+          "output": "self update failed",
+          "lines": [
+            "self update failed"
+          ]
+        },
+        {
+          "code": 0,
+          "output": "npm ok",
+          "bump": [
+            "claude",
+            "1.2.0"
+          ]
+        }
+      ],
+      "steps": [
+        [
+          "run",
+          "a",
+          "claude",
+          "global"
+        ],
+        [
+          "await",
+          "a"
+        ],
+        [
+          "job",
+          "claude"
+        ],
+        [
+          "events"
+        ],
+        [
+          "runnerCalls"
+        ]
+      ],
+      "log": [
+        [
+          "run",
+          null
+        ],
+        [
+          "await",
+          {
+            "ok": true,
+            "log": "$ <SB>/selfFallback/home/versions/claude/claude update\nself update failed\n命令失败（退出码 1）\n$ <SB>/selfFallback/fakenpm install -g @anthropic-ai/claude-code@latest\nnpm ok",
+            "version": "1.2.0",
+            "path": "<SB>/selfFallback/home/versions/claude/claude"
+          }
+        ],
+        [
+          "job",
+          {
+            "kind": "claude",
+            "mode": "update",
+            "scope": "global",
+            "status": "done",
+            "argv": [
+              "<SB>/selfFallback/home/versions/claude/claude",
+              "update"
+            ],
+            "command": "<SB>/selfFallback/home/versions/claude/claude update",
+            "lines": [
+              "$ <SB>/selfFallback/home/versions/claude/claude update",
+              "self update failed",
+              "$ <SB>/selfFallback/fakenpm install -g @anthropic-ai/claude-code@latest"
+            ],
+            "startedAt": "number",
+            "result": {
+              "ok": true,
+              "log": "$ <SB>/selfFallback/home/versions/claude/claude update\nself update failed\n命令失败（退出码 1）\n$ <SB>/selfFallback/fakenpm install -g @anthropic-ai/claude-code@latest\nnpm ok",
+              "version": "1.2.0",
+              "path": "<SB>/selfFallback/home/versions/claude/claude"
+            },
+            "finishedAt": "number"
+          }
+        ],
+        [
+          "events",
+          {
+            "claude": [
+              {
+                "kind": "claude",
+                "mode": "update",
+                "phase": "start",
+                "argv": [
+                  "<SB>/selfFallback/home/versions/claude/claude",
+                  "update"
+                ]
+              },
+              {
+                "kind": "claude",
+                "mode": "update",
+                "phase": "log",
+                "line": "$ <SB>/selfFallback/home/versions/claude/claude update"
+              },
+              {
+                "kind": "claude",
+                "mode": "update",
+                "phase": "log",
+                "line": "self update failed"
+              },
+              {
+                "kind": "claude",
+                "mode": "update",
+                "phase": "log",
+                "line": "$ <SB>/selfFallback/fakenpm install -g @anthropic-ai/claude-code@latest"
+              },
+              {
+                "kind": "claude",
+                "mode": "update",
+                "phase": "done",
+                "version": "1.2.0"
+              }
+            ]
+          }
+        ],
+        [
+          "runnerCalls",
+          [
+            [
+              "<SB>/selfFallback/home/versions/claude/claude",
+              "update"
+            ],
+            [
+              "<SB>/selfFallback/fakenpm",
+              "install",
+              "-g",
+              "@anthropic-ai/claude-code@latest"
+            ]
+          ]
+        ]
+      ]
+    },
+    {
+      "name": "selfFallbackBlocked",
+      "bins": {
+        "codex": [
+          "native",
+          "0.1.0"
+        ]
+      },
+      "probe": {
+        "npmBin": null
+      },
+      "runner": [
+        {
+          "code": 2,
+          "output": ""
+        }
+      ],
+      "steps": [
+        [
+          "run",
+          "a",
+          "codex",
+          "global"
+        ],
+        [
+          "await",
+          "a"
+        ],
+        [
+          "events"
+        ],
+        [
+          "runnerCalls"
+        ]
+      ],
+      "log": [
+        [
+          "run",
+          null
+        ],
+        [
+          "await",
+          {
+            "ok": false,
+            "log": "$ <SB>/selfFallbackBlocked/home/versions/codex/codex update\n命令失败（退出码 2）\n找不到 npm（随 Node.js 一起安装）。请先安装 Node.js。",
+            "version": "0.1.0"
+          }
+        ],
+        [
+          "events",
+          {
+            "codex": [
+              {
+                "kind": "codex",
+                "mode": "update",
+                "phase": "start",
+                "argv": [
+                  "<SB>/selfFallbackBlocked/home/versions/codex/codex",
+                  "update"
+                ]
+              },
+              {
+                "kind": "codex",
+                "mode": "update",
+                "phase": "log",
+                "line": "$ <SB>/selfFallbackBlocked/home/versions/codex/codex update"
+              },
+              {
+                "kind": "codex",
+                "mode": "update",
+                "phase": "error",
+                "message": "$ <SB>/selfFallbackBlocked/home/versions/codex/codex update\n命令失败（退出码 2）\n找不到 npm（随 Node.js 一起安装）。请先安装 Node.js。"
+              }
+            ]
+          }
+        ],
+        [
+          "runnerCalls",
+          [
+            [
+              "<SB>/selfFallbackBlocked/home/versions/codex/codex",
+              "update"
+            ]
+          ]
+        ]
+      ]
+    },
+    {
+      "name": "selfOk",
+      "bins": {
+        "grok": [
+          "plain",
+          "0.9.0"
+        ]
+      },
+      "probe": {},
+      "runner": [
+        {
+          "code": 0,
+          "output": "updated",
+          "bump": [
+            "grok",
+            "1.0.0"
+          ]
+        }
+      ],
+      "steps": [
+        [
+          "run",
+          "a",
+          "grok",
+          "global"
+        ],
+        [
+          "await",
+          "a"
+        ],
+        [
+          "events"
+        ],
+        [
+          "runnerCalls"
+        ]
+      ],
+      "log": [
+        [
+          "run",
+          null
+        ],
+        [
+          "await",
+          {
+            "ok": true,
+            "log": "$ <SB>/selfOk/home/bin/grok/grok update\nupdated",
+            "version": "1.0.0",
+            "path": "<SB>/selfOk/home/bin/grok/grok"
+          }
+        ],
+        [
+          "events",
+          {
+            "grok": [
+              {
+                "kind": "grok",
+                "mode": "update",
+                "phase": "start",
+                "argv": [
+                  "<SB>/selfOk/home/bin/grok/grok",
+                  "update"
+                ]
+              },
+              {
+                "kind": "grok",
+                "mode": "update",
+                "phase": "log",
+                "line": "$ <SB>/selfOk/home/bin/grok/grok update"
+              },
+              {
+                "kind": "grok",
+                "mode": "update",
+                "phase": "done",
+                "version": "1.0.0"
+              }
+            ]
+          }
+        ],
+        [
+          "runnerCalls",
+          [
+            [
+              "<SB>/selfOk/home/bin/grok/grok",
+              "update"
+            ]
+          ]
+        ]
+      ]
+    },
+    {
+      "name": "reuseAndQueue",
+      "probe": {},
+      "runner": [
+        {
+          "hold": true,
+          "code": 0,
+          "output": "c1",
+          "lines": [
+            "c-line"
+          ]
+        },
+        {
+          "hold": true,
+          "code": 0,
+          "output": "d1"
+        },
+        {
+          "code": 0,
+          "output": "u1"
+        }
+      ],
+      "steps": [
+        [
+          "run",
+          "a",
+          "codex",
+          "global"
+        ],
+        [
+          "idle"
+        ],
+        [
+          "run",
+          "b",
+          "codex",
+          "global"
+        ],
+        [
+          "same",
+          "a",
+          "b"
+        ],
+        [
+          "job",
+          "codex"
+        ],
+        [
+          "run",
+          "c",
+          "dsh",
+          "global"
+        ],
+        [
+          "idle"
+        ],
+        [
+          "busy"
+        ],
+        [
+          "job",
+          "dsh"
+        ],
+        [
+          "runnerCalls"
+        ],
+        [
+          "run",
+          "e",
+          "gemini",
+          "user"
+        ],
+        [
+          "idle"
+        ],
+        [
+          "job",
+          "gemini"
+        ],
+        [
+          "runnerCalls"
+        ],
+        [
+          "release",
+          0
+        ],
+        [
+          "await",
+          "a"
+        ],
+        [
+          "idle"
+        ],
+        [
+          "runnerCalls"
+        ],
+        [
+          "release",
+          1
+        ],
+        [
+          "await",
+          "c"
+        ],
+        [
+          "await",
+          "e"
+        ],
+        [
+          "busy"
+        ],
+        [
+          "events"
+        ]
+      ],
+      "log": [
+        [
+          "run",
+          null
+        ],
+        [
+          "idle",
+          null
+        ],
+        [
+          "run",
+          null
+        ],
+        [
+          "same",
+          true
+        ],
+        [
+          "job",
+          {
+            "kind": "codex",
+            "mode": "install",
+            "scope": "global",
+            "status": "running",
+            "argv": [
+              "<SB>/reuseAndQueue/fakenpm",
+              "install",
+              "-g",
+              "@openai/codex@latest"
+            ],
+            "command": "<SB>/reuseAndQueue/fakenpm install -g @openai/codex@latest",
+            "lines": [
+              "$ <SB>/reuseAndQueue/fakenpm install -g @openai/codex@latest"
+            ],
+            "startedAt": "number"
+          }
+        ],
+        [
+          "run",
+          null
+        ],
+        [
+          "idle",
+          null
+        ],
+        [
+          "busy",
+          [
+            "codex",
+            "dsh"
+          ]
+        ],
+        [
+          "job",
+          {
+            "kind": "dsh",
+            "mode": "install",
+            "scope": "global",
+            "status": "running",
+            "argv": [
+              "<SB>/reuseAndQueue/fakenpm",
+              "install",
+              "-g",
+              "@deepseek-ai/dsh@latest"
+            ],
+            "command": "<SB>/reuseAndQueue/fakenpm install -g @deepseek-ai/dsh@latest",
+            "lines": [
+              "$ <SB>/reuseAndQueue/fakenpm install -g @deepseek-ai/dsh@latest",
+              "等另一个 npm 安装完成后继续…"
+            ],
+            "startedAt": "number"
+          }
+        ],
+        [
+          "runnerCalls",
+          [
+            [
+              "<SB>/reuseAndQueue/fakenpm",
+              "install",
+              "-g",
+              "@openai/codex@latest"
+            ]
+          ]
+        ],
+        [
+          "run",
+          null
+        ],
+        [
+          "idle",
+          null
+        ],
+        [
+          "job",
+          {
+            "kind": "gemini",
+            "mode": "install",
+            "scope": "user",
+            "status": "running",
+            "argv": [
+              "<SB>/reuseAndQueue/fakenpm",
+              "install",
+              "-g",
+              "@google/gemini-cli@latest",
+              "--prefix",
+              "<SB>/reuseAndQueue/home/.local"
+            ],
+            "command": "<SB>/reuseAndQueue/fakenpm install -g @google/gemini-cli@latest --prefix <SB>/reuseAndQueue/home/.local",
+            "lines": [
+              "$ <SB>/reuseAndQueue/fakenpm install -g @google/gemini-cli@latest --prefix <SB>/reuseAndQueue/home/.local"
+            ],
+            "startedAt": "number"
+          }
+        ],
+        [
+          "runnerCalls",
+          [
+            [
+              "<SB>/reuseAndQueue/fakenpm",
+              "install",
+              "-g",
+              "@google/gemini-cli@latest",
+              "--prefix",
+              "<SB>/reuseAndQueue/home/.local"
+            ]
+          ]
+        ],
+        [
+          "release",
+          null
+        ],
+        [
+          "await",
+          {
+            "ok": false,
+            "log": "$ <SB>/reuseAndQueue/fakenpm install -g @openai/codex@latest\nc1",
+            "version": null,
+            "path": null,
+            "note": "命令已执行完成，但在 PATH、常见目录和 npm 的全局 bin 目录（<SB>/reuseAndQueue/prefix/bin）里都没有找到 codex；请确认安装用的是同一个 npm。"
+          }
+        ],
+        [
+          "idle",
+          null
+        ],
+        [
+          "runnerCalls",
+          [
+            [
+              "<SB>/reuseAndQueue/fakenpm",
+              "install",
+              "-g",
+              "@deepseek-ai/dsh@latest"
+            ]
+          ]
+        ],
+        [
+          "release",
+          null
+        ],
+        [
+          "await",
+          {
+            "ok": false,
+            "log": "$ <SB>/reuseAndQueue/fakenpm install -g @deepseek-ai/dsh@latest\nu1",
+            "version": null,
+            "path": null,
+            "note": "命令已执行完成，但在 PATH、常见目录和 npm 的全局 bin 目录（<SB>/reuseAndQueue/prefix/bin）里都没有找到 dsh；请确认安装用的是同一个 npm。"
+          }
+        ],
+        [
+          "await",
+          {
+            "ok": false,
+            "log": "$ <SB>/reuseAndQueue/fakenpm install -g @google/gemini-cli@latest --prefix <SB>/reuseAndQueue/home/.local\nd1",
+            "version": null,
+            "path": null,
+            "note": "命令已执行完成，但在 PATH、常见目录和 npm 的全局 bin 目录（<SB>/reuseAndQueue/home/.local/bin）里都没有找到 gemini；请确认安装用的是同一个 npm。"
+          }
+        ],
+        [
+          "busy",
+          []
+        ],
+        [
+          "events",
+          {
+            "codex": [
+              {
+                "kind": "codex",
+                "mode": "install",
+                "phase": "start",
+                "argv": [
+                  "<SB>/reuseAndQueue/fakenpm",
+                  "install",
+                  "-g",
+                  "@openai/codex@latest"
+                ]
+              },
+              {
+                "kind": "codex",
+                "mode": "install",
+                "phase": "log",
+                "line": "$ <SB>/reuseAndQueue/fakenpm install -g @openai/codex@latest"
+              },
+              {
+                "kind": "codex",
+                "mode": "install",
+                "phase": "log",
+                "line": "c-line"
+              },
+              {
+                "kind": "codex",
+                "mode": "install",
+                "phase": "done",
+                "version": null
+              }
+            ],
+            "dsh": [
+              {
+                "kind": "dsh",
+                "mode": "install",
+                "phase": "start",
+                "argv": [
+                  "<SB>/reuseAndQueue/fakenpm",
+                  "install",
+                  "-g",
+                  "@deepseek-ai/dsh@latest"
+                ]
+              },
+              {
+                "kind": "dsh",
+                "mode": "install",
+                "phase": "log",
+                "line": "$ <SB>/reuseAndQueue/fakenpm install -g @deepseek-ai/dsh@latest"
+              },
+              {
+                "kind": "dsh",
+                "mode": "install",
+                "phase": "log",
+                "line": "等另一个 npm 安装完成后继续…"
+              },
+              {
+                "kind": "dsh",
+                "mode": "install",
+                "phase": "done",
+                "version": null
+              }
+            ],
+            "gemini": [
+              {
+                "kind": "gemini",
+                "mode": "install",
+                "phase": "start",
+                "argv": [
+                  "<SB>/reuseAndQueue/fakenpm",
+                  "install",
+                  "-g",
+                  "@google/gemini-cli@latest",
+                  "--prefix",
+                  "<SB>/reuseAndQueue/home/.local"
+                ]
+              },
+              {
+                "kind": "gemini",
+                "mode": "install",
+                "phase": "log",
+                "line": "$ <SB>/reuseAndQueue/fakenpm install -g @google/gemini-cli@latest --prefix <SB>/reuseAndQueue/home/.local"
+              },
+              {
+                "kind": "gemini",
+                "mode": "install",
+                "phase": "done",
+                "version": null
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "queueFailReleases",
+      "probe": {},
+      "runner": [
+        {
+          "hold": true,
+          "code": 1,
+          "output": "boom"
+        },
+        {
+          "code": 0,
+          "output": "fine"
+        }
+      ],
+      "steps": [
+        [
+          "run",
+          "a",
+          "claude",
+          "global"
+        ],
+        [
+          "idle"
+        ],
+        [
+          "run",
+          "b",
+          "codex",
+          "global"
+        ],
+        [
+          "idle"
+        ],
+        [
+          "release",
+          0
+        ],
+        [
+          "await",
+          "a"
+        ],
+        [
+          "await",
+          "b"
+        ],
+        [
+          "events"
+        ]
+      ],
+      "log": [
+        [
+          "run",
+          null
+        ],
+        [
+          "idle",
+          null
+        ],
+        [
+          "run",
+          null
+        ],
+        [
+          "idle",
+          null
+        ],
+        [
+          "release",
+          null
+        ],
+        [
+          "await",
+          {
+            "ok": false,
+            "log": "$ <SB>/queueFailReleases/fakenpm install -g @anthropic-ai/claude-code@latest\nboom\n命令失败（退出码 1）",
+            "version": null
+          }
+        ],
+        [
+          "await",
+          {
+            "ok": false,
+            "log": "$ <SB>/queueFailReleases/fakenpm install -g @openai/codex@latest\nfine",
+            "version": null,
+            "path": null,
+            "note": "命令已执行完成，但在 PATH、常见目录和 npm 的全局 bin 目录（<SB>/queueFailReleases/prefix/bin）里都没有找到 codex；请确认安装用的是同一个 npm。"
+          }
+        ],
+        [
+          "events",
+          {
+            "claude": [
+              {
+                "kind": "claude",
+                "mode": "install",
+                "phase": "start",
+                "argv": [
+                  "<SB>/queueFailReleases/fakenpm",
+                  "install",
+                  "-g",
+                  "@anthropic-ai/claude-code@latest"
+                ]
+              },
+              {
+                "kind": "claude",
+                "mode": "install",
+                "phase": "log",
+                "line": "$ <SB>/queueFailReleases/fakenpm install -g @anthropic-ai/claude-code@latest"
+              },
+              {
+                "kind": "claude",
+                "mode": "install",
+                "phase": "error",
+                "message": "$ <SB>/queueFailReleases/fakenpm install -g @anthropic-ai/claude-code@latest\nboom\n命令失败（退出码 1）"
+              }
+            ],
+            "codex": [
+              {
+                "kind": "codex",
+                "mode": "install",
+                "phase": "start",
+                "argv": [
+                  "<SB>/queueFailReleases/fakenpm",
+                  "install",
+                  "-g",
+                  "@openai/codex@latest"
+                ]
+              },
+              {
+                "kind": "codex",
+                "mode": "install",
+                "phase": "log",
+                "line": "$ <SB>/queueFailReleases/fakenpm install -g @openai/codex@latest"
+              },
+              {
+                "kind": "codex",
+                "mode": "install",
+                "phase": "log",
+                "line": "等另一个 npm 安装完成后继续…"
+              },
+              {
+                "kind": "codex",
+                "mode": "install",
+                "phase": "done",
+                "version": null
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "drainBusy",
+      "platform": "win32",
+      "drain": 2,
+      "probe": {},
+      "steps": [
+        [
+          "run",
+          "a",
+          "codex",
+          "global"
+        ],
+        [
+          "await",
+          "a"
+        ],
+        [
+          "job",
+          "codex"
+        ],
+        [
+          "runnerCalls"
+        ],
+        [
+          "drainCalls"
+        ]
+      ],
+      "log": [
+        [
+          "run",
+          null
+        ],
+        [
+          "await",
+          {
+            "ok": false,
+            "log": "还有 2 个会话正在使用这个 CLI。Windows 上运行中的程序不能被替换，请等它们结束后再更新。",
+            "version": null
+          }
+        ],
+        [
+          "job",
+          {
+            "kind": "codex",
+            "mode": "update",
+            "scope": "global",
+            "status": "error",
+            "argv": [],
+            "command": "",
+            "lines": [],
+            "startedAt": "number",
+            "result": {
+              "ok": false,
+              "log": "还有 2 个会话正在使用这个 CLI。Windows 上运行中的程序不能被替换，请等它们结束后再更新。",
+              "version": null
+            },
+            "finishedAt": "number"
+          }
+        ],
+        [
+          "runnerCalls",
+          []
+        ],
+        [
+          "drainCalls",
+          [
+            "codex"
+          ]
+        ]
+      ]
+    },
+    {
+      "name": "drainReject",
+      "platform": "win32",
+      "drain": "reject",
+      "probe": {},
+      "runner": [
+        {
+          "code": 0,
+          "output": ""
+        }
+      ],
+      "steps": [
+        [
+          "run",
+          "a",
+          "codex",
+          "global"
+        ],
+        [
+          "await",
+          "a"
+        ],
+        [
+          "drainCalls"
+        ]
+      ],
+      "log": [
+        [
+          "run",
+          null
+        ],
+        [
+          "await",
+          {
+            "ok": false,
+            "log": "$ <SB>/drainReject/fakenpm install -g @openai/codex@latest",
+            "version": null,
+            "path": null,
+            "note": "命令已执行完成，但在 PATH、常见目录和 npm 的全局 bin 目录（<SB>/drainReject/prefix/bin）里都没有找到 codex；请确认安装用的是同一个 npm。"
+          }
+        ],
+        [
+          "drainCalls",
+          [
+            "codex"
+          ]
+        ]
+      ]
+    },
+    {
+      "name": "drainDarwin",
+      "platform": "darwin",
+      "drain": 3,
+      "probe": {},
+      "runner": [
+        {
+          "code": 0,
+          "output": ""
+        }
+      ],
+      "steps": [
+        [
+          "run",
+          "a",
+          "codex",
+          "global"
+        ],
+        [
+          "await",
+          "a"
+        ],
+        [
+          "drainCalls"
+        ]
+      ],
+      "log": [
+        [
+          "run",
+          null
+        ],
+        [
+          "await",
+          {
+            "ok": false,
+            "log": "$ <SB>/drainDarwin/fakenpm install -g @openai/codex@latest",
+            "version": null,
+            "path": null,
+            "note": "命令已执行完成，但在 PATH、常见目录和 npm 的全局 bin 目录（<SB>/drainDarwin/prefix/bin）里都没有找到 codex；请确认安装用的是同一个 npm。"
+          }
+        ],
+        [
+          "drainCalls",
+          []
+        ]
+      ]
+    },
+    {
+      "name": "onUpdated",
+      "probe": {},
+      "onUpdated": true,
+      "runner": [
+        {
+          "code": 0,
+          "output": "",
+          "install": [
+            "codex",
+            "0.7.0"
+          ]
+        },
+        {
+          "code": 5,
+          "output": "x"
+        }
+      ],
+      "steps": [
+        [
+          "run",
+          "a",
+          "codex",
+          "global"
+        ],
+        [
+          "await",
+          "a"
+        ],
+        [
+          "run",
+          "b",
+          "claude",
+          "global"
+        ],
+        [
+          "await",
+          "b"
+        ],
+        [
+          "updatedCalls"
+        ]
+      ],
+      "log": [
+        [
+          "run",
+          null
+        ],
+        [
+          "await",
+          {
+            "ok": true,
+            "log": "$ <SB>/onUpdated/fakenpm install -g @openai/codex@latest",
+            "version": "0.7.0",
+            "path": "<SB>/onUpdated/prefix/bin/codex"
+          }
+        ],
+        [
+          "run",
+          null
+        ],
+        [
+          "await",
+          {
+            "ok": false,
+            "log": "$ <SB>/onUpdated/fakenpm install -g @anthropic-ai/claude-code@latest\nx\n命令失败（退出码 5）",
+            "version": null
+          }
+        ],
+        [
+          "updatedCalls",
+          [
+            [
+              "codex",
+              "0.7.0"
+            ]
+          ]
+        ]
+      ]
+    },
+    {
+      "name": "onUpdatedThrows",
+      "probe": {},
+      "onUpdated": "throw",
+      "runner": [
+        {
+          "code": 0,
+          "output": "",
+          "install": [
+            "codex",
+            "0.7.0"
+          ]
+        }
+      ],
+      "steps": [
+        [
+          "run",
+          "a",
+          "codex",
+          "global"
+        ],
+        [
+          "await",
+          "a"
+        ],
+        [
+          "job",
+          "codex"
+        ],
+        [
+          "warns"
+        ]
+      ],
+      "log": [
+        [
+          "run",
+          null
+        ],
+        [
+          "await",
+          {
+            "ok": true,
+            "log": "$ <SB>/onUpdatedThrows/fakenpm install -g @openai/codex@latest",
+            "version": "0.7.0",
+            "path": "<SB>/onUpdatedThrows/prefix/bin/codex"
+          }
+        ],
+        [
+          "job",
+          {
+            "kind": "codex",
+            "mode": "install",
+            "scope": "global",
+            "status": "done",
+            "argv": [
+              "<SB>/onUpdatedThrows/fakenpm",
+              "install",
+              "-g",
+              "@openai/codex@latest"
+            ],
+            "command": "<SB>/onUpdatedThrows/fakenpm install -g @openai/codex@latest",
+            "lines": [
+              "$ <SB>/onUpdatedThrows/fakenpm install -g @openai/codex@latest"
+            ],
+            "startedAt": "number",
+            "result": {
+              "ok": true,
+              "log": "$ <SB>/onUpdatedThrows/fakenpm install -g @openai/codex@latest",
+              "version": "0.7.0",
+              "path": "<SB>/onUpdatedThrows/prefix/bin/codex"
+            },
+            "finishedAt": "number"
+          }
+        ],
+        [
+          "warns",
+          [
+            "cli onUpdated hook failed"
+          ]
+        ]
+      ]
+    },
+    {
+      "name": "manyLines",
+      "probe": {},
+      "runner": [
+        {
+          "code": 0,
+          "output": "x",
+          "many": 450
+        }
+      ],
+      "steps": [
+        [
+          "run",
+          "a",
+          "claude",
+          "global"
+        ],
+        [
+          "await",
+          "a"
+        ],
+        [
+          "jobLines",
+          "claude"
+        ]
+      ],
+      "log": [
+        [
+          "run",
+          null
+        ],
+        [
+          "await",
+          {
+            "ok": false,
+            "log": "$ <SB>/manyLines/fakenpm install -g @anthropic-ai/claude-code@latest\nx",
+            "version": null,
+            "path": null,
+            "note": "命令已执行完成，但在 PATH、常见目录和 npm 的全局 bin 目录（<SB>/manyLines/prefix/bin）里都没有找到 claude；请确认安装用的是同一个 npm。"
+          }
+        ],
+        [
+          "jobLines",
+          [
+            400,
+            "line 50",
+            "line 449"
+          ]
+        ]
+      ]
+    },
+    {
+      "name": "inspect",
+      "bins": {
+        "claude": [
+          "native",
+          "1.0.0"
+        ],
+        "codex": [
+          "npm",
+          "0.9.9"
+        ],
+        "dsh": [
+          "plain",
+          "0.1.0"
+        ],
+        "gemini": [
+          "plain",
+          "0.3.0-preview.1"
+        ]
+      },
+      "npm": {
+        "claude": "1.0.5",
+        "codex": "0.9.9",
+        "dsh": "0.2.0",
+        "grok": "1.0.0"
+      },
+      "steps": [
+        [
+          "inspect",
+          false
+        ],
+        [
+          "cacheFile"
+        ],
+        [
+          "npmCalls"
+        ],
+        [
+          "inspect",
+          false
+        ],
+        [
+          "npmCalls"
+        ],
+        [
+          "inspect",
+          true
+        ],
+        [
+          "npmCalls"
+        ],
+        [
+          "inspectTwice"
+        ],
+        [
+          "npmCalls"
+        ],
+        [
+          "warns"
+        ]
+      ],
+      "log": [
+        [
+          "inspect",
+          [
+            {
+              "kind": "claude",
+              "runtimeWarning": null,
+              "path": "<SB>/inspect/home/versions/claude/claude",
+              "version": "1.0.0",
+              "latest": "1.0.5",
+              "installMethod": "native",
+              "updateAvailable": true,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "codex",
+              "runtimeWarning": null,
+              "path": "<SB>/inspect/home/node_modules/codex/codex",
+              "version": "0.9.9",
+              "latest": "0.9.9",
+              "installMethod": "npm",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "dsh",
+              "runtimeWarning": {
+                "nodeVersion": null,
+                "required": 24
+              },
+              "path": "<SB>/inspect/home/bin/dsh/dsh",
+              "version": "0.1.0",
+              "latest": "0.2.0",
+              "installMethod": "npm",
+              "updateAvailable": true,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "grok",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": "1.0.0",
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "gemini",
+              "runtimeWarning": null,
+              "path": "<SB>/inspect/home/bin/gemini/gemini",
+              "version": "0.3.0-preview.1",
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "cursor",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": false,
+              "installSupported": false
+            }
+          ]
+        ],
+        [
+          "cacheFile",
+          {
+            "checkedAt": "recent",
+            "latest": {
+              "claude": "1.0.5",
+              "codex": "0.9.9",
+              "dsh": "0.2.0",
+              "grok": "1.0.0",
+              "gemini": null,
+              "cursor": null
+            }
+          }
+        ],
+        [
+          "npmCalls",
+          5
+        ],
+        [
+          "inspect",
+          [
+            {
+              "kind": "claude",
+              "runtimeWarning": null,
+              "path": "<SB>/inspect/home/versions/claude/claude",
+              "version": "1.0.0",
+              "latest": "1.0.5",
+              "installMethod": "native",
+              "updateAvailable": true,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "codex",
+              "runtimeWarning": null,
+              "path": "<SB>/inspect/home/node_modules/codex/codex",
+              "version": "0.9.9",
+              "latest": "0.9.9",
+              "installMethod": "npm",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "dsh",
+              "runtimeWarning": {
+                "nodeVersion": null,
+                "required": 24
+              },
+              "path": "<SB>/inspect/home/bin/dsh/dsh",
+              "version": "0.1.0",
+              "latest": "0.2.0",
+              "installMethod": "npm",
+              "updateAvailable": true,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "grok",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": "1.0.0",
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "gemini",
+              "runtimeWarning": null,
+              "path": "<SB>/inspect/home/bin/gemini/gemini",
+              "version": "0.3.0-preview.1",
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "cursor",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": false,
+              "installSupported": false
+            }
+          ]
+        ],
+        [
+          "npmCalls",
+          0
+        ],
+        [
+          "inspect",
+          [
+            {
+              "kind": "claude",
+              "runtimeWarning": null,
+              "path": "<SB>/inspect/home/versions/claude/claude",
+              "version": "1.0.0",
+              "latest": "1.0.5",
+              "installMethod": "native",
+              "updateAvailable": true,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "codex",
+              "runtimeWarning": null,
+              "path": "<SB>/inspect/home/node_modules/codex/codex",
+              "version": "0.9.9",
+              "latest": "0.9.9",
+              "installMethod": "npm",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "dsh",
+              "runtimeWarning": {
+                "nodeVersion": null,
+                "required": 24
+              },
+              "path": "<SB>/inspect/home/bin/dsh/dsh",
+              "version": "0.1.0",
+              "latest": "0.2.0",
+              "installMethod": "npm",
+              "updateAvailable": true,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "grok",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": "1.0.0",
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "gemini",
+              "runtimeWarning": null,
+              "path": "<SB>/inspect/home/bin/gemini/gemini",
+              "version": "0.3.0-preview.1",
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "cursor",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": false,
+              "installSupported": false
+            }
+          ]
+        ],
+        [
+          "npmCalls",
+          5
+        ],
+        [
+          "inspectTwice",
+          true
+        ],
+        [
+          "npmCalls",
+          5
+        ],
+        [
+          "warns",
+          []
+        ]
+      ]
+    },
+    {
+      "name": "inspectCached",
+      "cache": {
+        "checkedAt": "now",
+        "latest": {
+          "claude": "9.0.0",
+          "codex": "0.1.0",
+          "dsh": null,
+          "grok": "1",
+          "gemini": "2.0.0"
+        }
+      },
+      "bins": {
+        "claude": [
+          "plain",
+          "1.0.0"
+        ]
+      },
+      "npm": {
+        "claude": "1.0.5"
+      },
+      "steps": [
+        [
+          "inspect",
+          false
+        ],
+        [
+          "cacheFile"
+        ]
+      ],
+      "log": [
+        [
+          "inspect",
+          [
+            {
+              "kind": "claude",
+              "runtimeWarning": null,
+              "path": "<SB>/inspectCached/home/bin/claude/claude",
+              "version": "1.0.0",
+              "latest": "9.0.0",
+              "installMethod": "unknown",
+              "updateAvailable": true,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "codex",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": "0.1.0",
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "dsh",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "grok",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": "1",
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "gemini",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": "2.0.0",
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "cursor",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": false,
+              "installSupported": false
+            }
+          ]
+        ],
+        [
+          "cacheFile",
+          {
+            "checkedAt": "recent",
+            "latest": {
+              "claude": "9.0.0",
+              "codex": "0.1.0",
+              "dsh": null,
+              "grok": "1",
+              "gemini": "2.0.0"
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "name": "inspectStale",
+      "cache": {
+        "checkedAt": 0,
+        "latest": {
+          "claude": "9.0.0",
+          "codex": "0.1.0",
+          "dsh": null,
+          "grok": "1",
+          "gemini": "2.0.0"
+        }
+      },
+      "bins": {
+        "claude": [
+          "plain",
+          "1.0.0"
+        ]
+      },
+      "npm": {
+        "claude": "1.0.5",
+        "grok": null
+      },
+      "slowNpm": true,
+      "steps": [
+        [
+          "inspect",
+          false
+        ],
+        [
+          "idle",
+          2500
+        ],
+        [
+          "cacheFile"
+        ],
+        [
+          "inspect",
+          false
+        ]
+      ],
+      "log": [
+        [
+          "inspect",
+          [
+            {
+              "kind": "claude",
+              "runtimeWarning": null,
+              "path": "<SB>/inspectStale/home/bin/claude/claude",
+              "version": "1.0.0",
+              "latest": "9.0.0",
+              "installMethod": "unknown",
+              "updateAvailable": true,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "codex",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": "0.1.0",
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "dsh",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "grok",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": "1",
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "gemini",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": "2.0.0",
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "cursor",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": false,
+              "installSupported": false
+            }
+          ]
+        ],
+        [
+          "idle",
+          null
+        ],
+        [
+          "cacheFile",
+          {
+            "checkedAt": "recent",
+            "latest": {
+              "claude": "1.0.5",
+              "codex": "0.1.0",
+              "dsh": null,
+              "grok": "1",
+              "gemini": "2.0.0",
+              "cursor": null
+            }
+          }
+        ],
+        [
+          "inspect",
+          [
+            {
+              "kind": "claude",
+              "runtimeWarning": null,
+              "path": "<SB>/inspectStale/home/bin/claude/claude",
+              "version": "1.0.0",
+              "latest": "1.0.5",
+              "installMethod": "unknown",
+              "updateAvailable": true,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "codex",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": "0.1.0",
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "dsh",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "grok",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": "1",
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "gemini",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": "2.0.0",
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "cursor",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": false,
+              "installSupported": false
+            }
+          ]
+        ]
+      ]
+    },
+    {
+      "name": "inspectNetFail",
+      "cache": {
+        "checkedAt": 0,
+        "latest": {
+          "claude": "9.0.0"
+        }
+      },
+      "npm": null,
+      "steps": [
+        [
+          "inspect",
+          false
+        ],
+        [
+          "cacheFile"
+        ]
+      ],
+      "log": [
+        [
+          "inspect",
+          [
+            {
+              "kind": "claude",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": "9.0.0",
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "codex",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "dsh",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "grok",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "gemini",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "cursor",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": false,
+              "installSupported": false
+            }
+          ]
+        ],
+        [
+          "cacheFile",
+          {
+            "checkedAt": "recent",
+            "latest": {
+              "claude": "9.0.0",
+              "codex": null,
+              "dsh": null,
+              "grok": null,
+              "gemini": null,
+              "cursor": null
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "name": "inspectBadCache",
+      "cacheRaw": "null",
+      "steps": [
+        [
+          "inspect",
+          false
+        ],
+        [
+          "warns"
+        ]
+      ],
+      "log": [
+        [
+          "inspect",
+          [
+            {
+              "kind": "claude",
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "codex",
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "dsh",
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "grok",
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "gemini",
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "cursor",
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": false,
+              "installSupported": false
+            }
+          ]
+        ],
+        [
+          "warns",
+          [
+            "cli-update inspect failed"
+          ]
+        ]
+      ]
+    },
+    {
+      "name": "inspectBadCache2",
+      "cacheRaw": "{\"checkedAt\":1,\"latest\":5}",
+      "steps": [
+        [
+          "inspect",
+          false
+        ]
+      ],
+      "log": [
+        [
+          "inspect",
+          [
+            {
+              "kind": "claude",
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "codex",
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "dsh",
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "grok",
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "gemini",
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "cursor",
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": false,
+              "installSupported": false
+            }
+          ]
+        ]
+      ]
+    },
+    {
+      "name": "inspectCorrupt",
+      "cacheRaw": "{nope",
+      "npm": {
+        "claude": "1.0.0"
+      },
+      "steps": [
+        [
+          "inspect",
+          false
+        ],
+        [
+          "cacheFile"
+        ]
+      ],
+      "log": [
+        [
+          "inspect",
+          [
+            {
+              "kind": "claude",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": "1.0.0",
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "codex",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "dsh",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "grok",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "gemini",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "cursor",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": false,
+              "installSupported": false
+            }
+          ]
+        ],
+        [
+          "cacheFile",
+          {
+            "checkedAt": "recent",
+            "latest": {
+              "claude": "1.0.0",
+              "codex": null,
+              "dsh": null,
+              "grok": null,
+              "gemini": null,
+              "cursor": null
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "name": "inspectArrayLatest",
+      "cacheRaw": "{\"checkedAt\":1,\"latest\":[]}",
+      "npm": {
+        "claude": "1.0.0"
+      },
+      "steps": [
+        [
+          "inspect",
+          false
+        ],
+        [
+          "cacheFile"
+        ]
+      ],
+      "log": [
+        [
+          "inspect",
+          [
+            {
+              "kind": "claude",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": "1.0.0",
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "codex",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "dsh",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "grok",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "gemini",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": true,
+              "installSupported": true
+            },
+            {
+              "kind": "cursor",
+              "runtimeWarning": null,
+              "path": null,
+              "version": null,
+              "latest": null,
+              "installMethod": "unknown",
+              "updateAvailable": false,
+              "updateSupported": false,
+              "installSupported": false
+            }
+          ]
+        ],
+        [
+          "cacheFile",
+          {
+            "checkedAt": "recent",
+            "latest": {
+              "claude": "1.0.0",
+              "codex": null,
+              "dsh": null,
+              "grok": null,
+              "gemini": null,
+              "cursor": null
+            }
+          }
+        ]
+      ]
+    }
+  ]
+}
