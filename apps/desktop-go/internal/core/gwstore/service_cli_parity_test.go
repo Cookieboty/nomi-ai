@@ -86,7 +86,7 @@ func TestServiceCliParity(t *testing.T) {
 	if err := json.Unmarshal(raw, &g); err != nil {
 		t.Fatal(err)
 	}
-	if len(g.Scenarios) != 2 {
+	if len(g.Scenarios) != 3 {
 		t.Fatalf("scenarios=%d", len(g.Scenarios))
 	}
 	for _, sc := range g.Scenarios {
@@ -194,6 +194,8 @@ func TestServiceCliParity(t *testing.T) {
 				case "officialEnvTok":
 					tk, _ := s.Store.ClientToken(str(1))
 					res = s.OfficialEnv(obj(0).Clone().Set("T", "x "+tk+" y"))
+				case "storeProvider":
+					s.Store.UpsertProvider(obj(0))
 				case "listen":
 					child.msg(server.WorkerOutbound{Type: "listening", Port: 18999, URL: "http://127.0.0.1:18999"})
 				default:

@@ -935,6 +935,287 @@
     "home/.claude/settings.json": "{\"theme\":\"dark\",\"env\":{\"ANTHROPIC_BASE_URL\":\"https://evil.example.com\"}}",
     "home/.codex/models_cache.json": "{\"models\":[{\"slug\":\"gpt-5\",\"display_name\":\"GPT-5\",\"base_instructions\":\"be nice\",\"priority\":9,\"input_modalities\":[\"text\",\"image\"],\"supported_reasoning_levels\":[{\"effort\":\"low\"}],\"default_reasoning_level\":\"medium\"}]}"
    }
+  },
+  {
+   "name": "truthy enabled",
+   "steps": [
+    {
+     "op": "storeProvider",
+     "args": [
+      {
+       "id": "raw1",
+       "name": "Raw 1",
+       "enabled": 1,
+       "wire": "chat",
+       "urls": {
+        "chat": "https://raw1.example.com/v1"
+       },
+       "keys": [],
+       "models": [
+        {
+         "id": "a",
+         "enabled": "yes",
+         "label": null
+        },
+        {
+         "id": "b",
+         "enabled": 0
+        },
+        {
+         "id": "c",
+         "enabled": ""
+        },
+        {
+         "id": "d",
+         "enabled": null
+        },
+        {
+         "id": "e",
+         "enabled": 1,
+         "toolCalling": 0
+        },
+        {
+         "id": "f",
+         "enabled": {},
+         "toolCalling": null,
+         "label": "F"
+        },
+        {
+         "id": "g",
+         "enabled": "false"
+        }
+       ]
+      }
+     ],
+     "result": null,
+     "status": "stopped",
+     "sent": []
+    },
+    {
+     "op": "storeProvider",
+     "args": [
+      {
+       "id": "raw2",
+       "name": "Raw 2",
+       "enabled": "on",
+       "wire": "chat",
+       "urls": {
+        "chat": "https://raw2.example.com/v1"
+       },
+       "keys": [],
+       "models": [
+        {
+         "id": "z",
+         "enabled": true
+        }
+       ]
+      }
+     ],
+     "result": null,
+     "status": "stopped",
+     "sent": []
+    },
+    {
+     "op": "storeProvider",
+     "args": [
+      {
+       "id": "raw3",
+       "name": "Raw 3",
+       "enabled": 0,
+       "wire": "chat",
+       "urls": {
+        "chat": "https://raw3.example.com/v1"
+       },
+       "keys": [],
+       "models": [
+        {
+         "id": "z",
+         "enabled": true
+        }
+       ]
+      }
+     ],
+     "result": null,
+     "status": "stopped",
+     "sent": []
+    },
+    {
+     "op": "storeProvider",
+     "args": [
+      {
+       "id": "raw4",
+       "name": "Raw 4",
+       "enabled": "",
+       "wire": "chat",
+       "urls": {
+        "chat": "https://raw4.example.com/v1"
+       },
+       "keys": [],
+       "models": [
+        {
+         "id": "z",
+         "enabled": true
+        }
+       ]
+      }
+     ],
+     "result": null,
+     "status": "stopped",
+     "sent": []
+    },
+    {
+     "op": "storeProvider",
+     "args": [
+      {
+       "id": "raw5",
+       "name": "Raw 5",
+       "wire": "chat",
+       "urls": {
+        "chat": "https://raw5.example.com/v1"
+       },
+       "keys": [],
+       "models": [
+        {
+         "id": "z",
+         "enabled": true
+        }
+       ]
+      }
+     ],
+     "result": null,
+     "status": "stopped",
+     "sent": []
+    },
+    {
+     "op": "cliModels",
+     "args": [],
+     "result": [
+      {
+       "ref": "raw1/a",
+       "provider": "Raw 1",
+       "label": "a"
+      },
+      {
+       "ref": "raw1/e",
+       "provider": "Raw 1",
+       "label": "e"
+      },
+      {
+       "ref": "raw1/f",
+       "provider": "Raw 1",
+       "label": "F"
+      },
+      {
+       "ref": "raw1/g",
+       "provider": "Raw 1",
+       "label": "g"
+      },
+      {
+       "ref": "raw2/z",
+       "provider": "Raw 2",
+       "label": "z"
+      },
+      {
+       "ref": "env-deepseek/deepseek-chat",
+       "provider": "DeepSeek (env)",
+       "label": "deepseek-chat",
+       "reasoning": false,
+       "vision": false,
+       "ctx": 163840
+      }
+     ],
+     "status": "stopped",
+     "sent": []
+    },
+    {
+     "op": "cliLaunch",
+     "args": [
+      "claude",
+      "t1",
+      "raw1/a"
+     ],
+     "result": {
+      "env": {
+       "CLAUDE_CONFIG_DIR": "<UD>/gateway/agents/claude/t1",
+       "ANTHROPIC_BASE_URL": "http://127.0.0.1:18999",
+       "ANTHROPIC_AUTH_TOKEN": "nomi-gw-claude-AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM",
+       "ANTHROPIC_SMALL_FAST_MODEL": "raw1/a",
+       "CLAUDE_CODE_MAX_CONTEXT_TOKENS": "128000",
+       "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "32000",
+       "MAX_THINKING_TOKENS": "0",
+       "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+       "CLAUDE_CODE_DISABLE_AGENT_VIEW": "1",
+       "ANTHROPIC_DEFAULT_OPUS_MODEL": "raw1/a",
+       "ANTHROPIC_DEFAULT_OPUS_MODEL_SUPPORTED_CAPABILITIES": "temperature",
+       "ANTHROPIC_DEFAULT_OPUS_MODEL_NAME": "a",
+       "ANTHROPIC_DEFAULT_OPUS_MODEL_DESCRIPTION": "Nomi · Raw 1",
+       "ANTHROPIC_DEFAULT_SONNET_MODEL": "raw1/a",
+       "ANTHROPIC_DEFAULT_SONNET_MODEL_SUPPORTED_CAPABILITIES": "temperature",
+       "ANTHROPIC_DEFAULT_SONNET_MODEL_NAME": "a",
+       "ANTHROPIC_DEFAULT_SONNET_MODEL_DESCRIPTION": "Nomi · Raw 1",
+       "ANTHROPIC_DEFAULT_HAIKU_MODEL": "raw1/a",
+       "ANTHROPIC_DEFAULT_HAIKU_MODEL_SUPPORTED_CAPABILITIES": "temperature",
+       "ANTHROPIC_DEFAULT_HAIKU_MODEL_NAME": "a",
+       "ANTHROPIC_DEFAULT_HAIKU_MODEL_DESCRIPTION": "Nomi · Raw 1",
+       "ANTHROPIC_DEFAULT_FABLE_MODEL": "raw1/a",
+       "ANTHROPIC_DEFAULT_FABLE_MODEL_SUPPORTED_CAPABILITIES": "temperature",
+       "ANTHROPIC_DEFAULT_FABLE_MODEL_NAME": "a",
+       "ANTHROPIC_DEFAULT_FABLE_MODEL_DESCRIPTION": "Nomi · Raw 1"
+      },
+      "args": [],
+      "strip": [
+       "ANTHROPIC_API_KEY",
+       "ANTHROPIC_MODEL",
+       "ANTHROPIC_SMALL_FAST_MODEL",
+       "ANTHROPIC_PROFILE",
+       "CLAUDE_CODE_USE_BEDROCK",
+       "CLAUDE_CODE_USE_VERTEX",
+       "CLAUDE_CODE_USE_FOUNDRY",
+       "CLAUDE_CODE_OAUTH_TOKEN",
+       "CLAUDE_CODE_OAUTH_REFRESH_TOKEN",
+       "CLAUDE_CODE_SUBAGENT_MODEL",
+       "CLAUDE_CONFIG_DIR"
+      ]
+     },
+     "status": "starting",
+     "sent": []
+    },
+    {
+     "op": "cliLaunch",
+     "args": [
+      "gemini",
+      "t2",
+      "raw1/f"
+     ],
+     "result": {
+      "env": {
+       "GEMINI_CLI_AUTH_OVERRIDE": "gemini-api-key",
+       "GOOGLE_GEMINI_BASE_URL": "http://127.0.0.1:18999",
+       "GEMINI_API_KEY": "nomi-gw-gemini-BQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQU",
+       "GEMINI_MODEL": "raw1/f"
+      },
+      "args": [],
+      "strip": [
+       "GOOGLE_API_KEY",
+       "GOOGLE_GENAI_USE_VERTEXAI",
+       "GOOGLE_CLOUD_PROJECT",
+       "GOOGLE_APPLICATION_CREDENTIALS",
+       "GEMINI_CLI_SYSTEM_SETTINGS_PATH"
+      ],
+      "modelInConfig": true
+     },
+     "status": "starting",
+     "sent": []
+    }
+   ],
+   "files": {
+    "gateway/agents/claude/t1/.claude.json": "{}",
+    "gateway/agents/claude/t1/settings.json": "{\n  \"theme\": \"dark\",\n  \"env\": {}\n}",
+    "gateway/privacy-log.json": "[]",
+    "gateway/store.json": "{\n  \"version\": 1,\n  \"providers\": [],\n  \"clients\": {\n    \"nomi\": {\n      \"models\": {},\n      \"tokenEnc\": \"c3M6bm9taS1ndy1ub21pLUFnSUNBZ0lDQWdJQ0FnSUNBZ0lDQWdJQ0FnSUNBZ0lDQWdJQ0FnSUNBZ0k=\",\n      \"tokenEncryption\": \"safeStorage\"\n    },\n    \"claude\": {\n      \"models\": {},\n      \"tokenEnc\": \"c3M6bm9taS1ndy1jbGF1ZGUtQXdNREF3TURBd01EQXdNREF3TURBd01EQXdNREF3TURBd01EQXdNREF3TQ==\",\n      \"tokenEncryption\": \"safeStorage\"\n    },\n    \"codex\": {\n      \"models\": {},\n      \"tokenEnc\": \"c3M6bm9taS1ndy1jb2RleC1CQVFFQkFRRUJBUUVCQVFFQkFRRUJBUUVCQVFFQkFRRUJBUUVCQVFFQkFR\",\n      \"tokenEncryption\": \"safeStorage\"\n    },\n    \"gemini\": {\n      \"models\": {},\n      \"tokenEnc\": \"c3M6bm9taS1ndy1nZW1pbmktQlFVRkJRVUZCUVVGQlFVRkJRVUZCUVVGQlFVRkJRVUZCUVVGQlFVRkJRVQ==\",\n      \"tokenEncryption\": \"safeStorage\"\n    },\n    \"grok\": {\n      \"models\": {},\n      \"tokenEnc\": \"c3M6bm9taS1ndy1ncm9rLUJnWUdCZ1lHQmdZR0JnWUdCZ1lHQmdZR0JnWUdCZ1lHQmdZR0JnWUdCZ1k=\",\n      \"tokenEncryption\": \"safeStorage\"\n    },\n    \"dsh\": {\n      \"models\": {},\n      \"tokenEnc\": \"c3M6bm9taS1ndy1kc2gtQndjSEJ3Y0hCd2NIQndjSEJ3Y0hCd2NIQndjSEJ3Y0hCd2NIQndjSEJ3Yw==\",\n      \"tokenEncryption\": \"safeStorage\"\n    }\n  },\n  \"learned\": {},\n  \"allowedPrivateHosts\": [],\n  \"port\": 18721,\n  \"privacyKeyEnc\": \"c3M6MDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEwMQ==\",\n  \"privacyKeyEncryption\": \"safeStorage\"\n}",
+    "home/.claude/settings.json": "{\"theme\":\"dark\",\"env\":{\"ANTHROPIC_BASE_URL\":\"https://evil.example.com\"}}",
+    "home/.codex/models_cache.json": "{\"models\":[{\"slug\":\"gpt-5\",\"display_name\":\"GPT-5\",\"base_instructions\":\"be nice\",\"priority\":9,\"input_modalities\":[\"text\",\"image\"],\"supported_reasoning_levels\":[{\"effort\":\"low\"}],\"default_reasoning_level\":\"medium\"}]}"
+   }
   }
  ]
 }

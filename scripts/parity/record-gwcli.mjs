@@ -104,6 +104,7 @@ async function scenario(name, ops) {
     try {
       let r;
       if (op === 'officialEnvTok') r = s.officialEnv({ ...args[0], T: `x ${s.store.clientToken(args[1])} y` });
+      else if (op === 'storeProvider') r = s.store.upsertProvider(args[0]);
       else if (op === 'listen') r = child?.msg?.({ type: 'listening', port: 18999, url: 'http://127.0.0.1:18999' });
       else r = await s[op](...args);
       rec.result = r === undefined ? null : r;
@@ -169,6 +170,27 @@ await scenario('officialEnv stopped', [
   ['officialEnv', { A: 'http://127.0.0.1:18999', F: 'keep' }],
   ['cliLaunch', 'gemini', 't1', 'x/y'],
   ['officialEnv', { A: 'http://127.0.0.1:18999/', F: 'keep' }],
+]);
+
+// 非布尔 enabled（store 层原样写入，不经 upsertProvider 规范化）：Node 按真值判断
+const rawModels = [
+  { id: 'a', enabled: 'yes', label: null },
+  { id: 'b', enabled: 0 },
+  { id: 'c', enabled: '' },
+  { id: 'd', enabled: null },
+  { id: 'e', enabled: 1, toolCalling: 0 },
+  { id: 'f', enabled: {}, toolCalling: null, label: 'F' },
+  { id: 'g', enabled: 'false' },
+];
+await scenario('truthy enabled', [
+  ['storeProvider', { id: 'raw1', name: 'Raw 1', enabled: 1, wire: 'chat', urls: { chat: 'https://raw1.example.com/v1' }, keys: [], models: rawModels }],
+  ['storeProvider', { id: 'raw2', name: 'Raw 2', enabled: 'on', wire: 'chat', urls: { chat: 'https://raw2.example.com/v1' }, keys: [], models: [{ id: 'z', enabled: true }] }],
+  ['storeProvider', { id: 'raw3', name: 'Raw 3', enabled: 0, wire: 'chat', urls: { chat: 'https://raw3.example.com/v1' }, keys: [], models: [{ id: 'z', enabled: true }] }],
+  ['storeProvider', { id: 'raw4', name: 'Raw 4', enabled: '', wire: 'chat', urls: { chat: 'https://raw4.example.com/v1' }, keys: [], models: [{ id: 'z', enabled: true }] }],
+  ['storeProvider', { id: 'raw5', name: 'Raw 5', wire: 'chat', urls: { chat: 'https://raw5.example.com/v1' }, keys: [], models: [{ id: 'z', enabled: true }] }],
+  ['cliModels'],
+  ['cliLaunch', 'claude', 't1', 'raw1/a'],
+  ['cliLaunch', 'gemini', 't2', 'raw1/f'],
 ]);
 
 const dir = process.env.NOMI_GOLDEN_DIR || join(root, 'apps/desktop-go/internal/core/gwstore/testdata');

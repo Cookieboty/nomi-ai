@@ -21,14 +21,14 @@ func (s *Service) allProviders() []*u.Obj {
 func (s *Service) CliModels() []*u.Obj {
 	out := []*u.Obj{}
 	for _, p := range s.allProviders() {
-		if p.Get("enabled") != true {
+		if !u.Truthy(p.Get("enabled")) {
 			continue
 		}
 		pid, _ := p.Get("id").(string)
 		ms, _ := p.Get("models").([]any)
 		for _, mv := range ms {
 			m := asObj(mv)
-			if m == nil || m.Get("enabled") != true || m.Get("toolCalling") == false {
+			if m == nil || !u.Truthy(m.Get("enabled")) || m.Get("toolCalling") == false {
 				continue
 			}
 			mid, _ := m.Get("id").(string)
@@ -36,7 +36,7 @@ func (s *Service) CliModels() []*u.Obj {
 			meta := s.ModelMetaOf(ref, nil)
 			label := m.Get("label")
 			if label == nil {
-				label = mid
+				label = m.Get("id")
 			}
 			o := u.NewObj("ref", ref, "provider", p.Get("name"), "label", label)
 			if meta != nil {
