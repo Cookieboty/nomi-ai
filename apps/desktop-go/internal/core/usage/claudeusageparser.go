@@ -318,3 +318,10 @@ func ParseClaudeUsageResult(output string, now float64) ParsedClaudeUsage {
 	}
 	return out
 }
+
+func init() {
+	ParseClaudeUsageResultFn = func(stdout string, now float64) ClaudeUsageParse {
+		p := ParseClaudeUsageResult(stdout, now)
+		return ClaudeUsageParse{Windows: p.Windows, Denied: p.Denied, IsError: p.IsError, Unsupported: p.Unsupported}
+	}
+}

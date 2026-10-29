@@ -320,6 +320,52 @@
     "now": 1700000000000,
     "placeholders": [],
     "out": "[{\"id\":\"codex\",\"label\":\"Codex\",\"status\":\"ok\",\"windows\":[{\"id\":\"primary\",\"usedPercent\":3,\"resetAt\":1699999999999,\"expired\":true}],\"updatedAt\":1700000000000,\"plan\":\"Plus\",\"origin\":\"app-server\",\"stale\":true},{\"id\":\"grok\",\"label\":\"Grok\",\"status\":\"unavailable\",\"windows\":[]},{\"id\":\"claude\",\"label\":\"Claude 3\",\"status\":\"ok\",\"windows\":[{\"id\":\"w\",\"usedPercent\":100}],\"updatedAt\":9,\"origin\":\"usage-cmd\"},{\"id\":\"empty\",\"label\":\"E\",\"status\":\"unavailable\",\"windows\":[]}]"
+   },
+   {
+    "op": "register",
+    "src": {
+     "id": "codex",
+     "label": "Codex",
+     "reading": {
+      "windows": [
+       {
+        "id": "primary",
+        "usedPercent": 4
+       }
+      ],
+      "updatedAt": 2,
+      "origin": "app-server",
+      "plan": {
+       "$js": "proto"
+      }
+     }
+    }
+   },
+   {
+    "op": "register",
+    "src": {
+     "id": "claude",
+     "label": "Claude 4",
+     "reading": {
+      "windows": [
+       {
+        "id": "w",
+        "usedPercent": 5
+       }
+      ],
+      "updatedAt": 3,
+      "plan": {
+       "$js": "fn"
+      },
+      "origin": "usage-cmd"
+     }
+    }
+   },
+   {
+    "op": "collect",
+    "now": 1700000000000,
+    "placeholders": [],
+    "out": "[{\"id\":\"codex\",\"label\":\"Codex\",\"status\":\"ok\",\"windows\":[{\"id\":\"primary\",\"usedPercent\":4}],\"updatedAt\":2,\"plan\":{},\"origin\":\"app-server\"},{\"id\":\"grok\",\"label\":\"Grok\",\"status\":\"unavailable\",\"windows\":[]},{\"id\":\"claude\",\"label\":\"Claude 4\",\"status\":\"ok\",\"windows\":[{\"id\":\"w\",\"usedPercent\":5}],\"updatedAt\":3,\"origin\":\"usage-cmd\"},{\"id\":\"empty\",\"label\":\"E\",\"status\":\"unavailable\",\"windows\":[]}]"
    }
   ]
  ],
@@ -1211,14 +1257,62 @@
     "changes": 3
    },
    {
-    "op": "clear",
+    "op": "tick",
+    "ms": 600000,
     "out": "__undef__",
+    "changes": 3
+   },
+   {
+    "op": "refresh",
+    "fp": null,
+    "load": {
+     "now": {
+      "kind": "ok",
+      "reading": {
+       "windows": [
+        {
+         "id": "five_hour",
+         "usedPercent": 32,
+         "windowMinutes": 300
+        }
+       ],
+       "updatedAt": 1032,
+       "plan": {
+        "$js": "proto"
+       }
+      },
+      "identity": "w"
+     }
+    },
+    "as": "p4",
+    "out": "__undef__",
+    "changes": 3
+   },
+   {
+    "op": "await",
+    "p": "p4",
+    "out": "{\"state\":\"ok\"}",
+    "changes": 4
+   },
+   {
+    "op": "get",
+    "out": "{\"windows\":[{\"id\":\"five_hour\",\"usedPercent\":32,\"windowMinutes\":300}],\"updatedAt\":1032,\"plan\":{}}",
+    "changes": 4
+   },
+   {
+    "op": "snapshot",
+    "out": "{\"identity\":\"w\",\"value\":{\"windows\":[{\"id\":\"five_hour\",\"usedPercent\":32,\"windowMinutes\":300}],\"updatedAt\":1032,\"plan\":{}}}",
     "changes": 4
    },
    {
     "op": "clear",
     "out": "__undef__",
-    "changes": 4
+    "changes": 5
+   },
+   {
+    "op": "clear",
+    "out": "__undef__",
+    "changes": 5
    }
   ],
   [
