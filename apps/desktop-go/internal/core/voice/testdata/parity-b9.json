@@ -1,0 +1,2532 @@
+{
+  "edge": {
+    "gec": [
+      {
+        "in": 0,
+        "out": "52BC7A17B50DFEC9-28C4394775C8751CD2F6859C030C06DB1489ACAB3B3A7651831FC26895177ED6"
+      },
+      {
+        "in": 1,
+        "out": "52BC7A17B50DFEC9-28C4394775C8751CD2F6859C030C06DB1489ACAB3B3A7651831FC26895177ED6"
+      },
+      {
+        "in": 1700000000,
+        "out": "2CD23A2CA0B2595A-F3C846C370E05F9CC83ACC5F995C5F5D87A4D0F14CE8936A0F902E64099E38A2"
+      },
+      {
+        "in": 1700000299.9,
+        "out": "0919602B5750900A-EC9DD394F23CB5635CF62A0E8E24136DCD32B26D10C543B10082E482D7516397"
+      },
+      {
+        "in": 1700000300,
+        "out": "0919602B5750900A-EC9DD394F23CB5635CF62A0E8E24136DCD32B26D10C543B10082E482D7516397"
+      },
+      {
+        "in": 1761700000.5,
+        "out": "84E6B49484FD1EEE-3D64CA0CE3AB33BE4AAA10FDC810DFDFE8DE45BCDDBB761839E233C0DC788843"
+      }
+    ],
+    "synthUrl": [
+      {
+        "in": 0,
+        "out": "wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4&ConnectionId=7fbc581cb5f24ddbbe29573263e2700b&Sec-MS-GEC=52BC7A17B50DFEC9-28C4394775C8751CD2F6859C030C06DB1489ACAB3B3A7651831FC26895177ED6&Sec-MS-GEC-Version=2-143.0.3650.75"
+      },
+      {
+        "in": 1,
+        "out": "wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4&ConnectionId=2e861779e7da4e1294f5f7cc3c6e4518&Sec-MS-GEC=52BC7A17B50DFEC9-28C4394775C8751CD2F6859C030C06DB1489ACAB3B3A7651831FC26895177ED6&Sec-MS-GEC-Version=2-143.0.3650.75"
+      },
+      {
+        "in": 1700000000,
+        "out": "wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4&ConnectionId=348adf52dd814c7a80b3959c2fbdbd08&Sec-MS-GEC=2CD23A2CA0B2595A-F3C846C370E05F9CC83ACC5F995C5F5D87A4D0F14CE8936A0F902E64099E38A2&Sec-MS-GEC-Version=2-143.0.3650.75"
+      }
+    ],
+    "voicesUrl": [
+      {
+        "in": 0,
+        "out": "https://speech.platform.bing.com/consumer/speech/synthesize/readaloud/voices/list?trustedclienttoken=6A5AA1D4EAFF4E9FB37E23D68491D6F4&Sec-MS-GEC=52BC7A17B50DFEC9-28C4394775C8751CD2F6859C030C06DB1489ACAB3B3A7651831FC26895177ED6&Sec-MS-GEC-Version=2-143.0.3650.75"
+      },
+      {
+        "in": 1,
+        "out": "https://speech.platform.bing.com/consumer/speech/synthesize/readaloud/voices/list?trustedclienttoken=6A5AA1D4EAFF4E9FB37E23D68491D6F4&Sec-MS-GEC=52BC7A17B50DFEC9-28C4394775C8751CD2F6859C030C06DB1489ACAB3B3A7651831FC26895177ED6&Sec-MS-GEC-Version=2-143.0.3650.75"
+      },
+      {
+        "in": 1700000000,
+        "out": "https://speech.platform.bing.com/consumer/speech/synthesize/readaloud/voices/list?trustedclienttoken=6A5AA1D4EAFF4E9FB37E23D68491D6F4&Sec-MS-GEC=2CD23A2CA0B2595A-F3C846C370E05F9CC83ACC5F995C5F5D87A4D0F14CE8936A0F902E64099E38A2&Sec-MS-GEC-Version=2-143.0.3650.75"
+      }
+    ],
+    "socketHeaders": [
+      [
+        "User-Agent",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0"
+      ],
+      [
+        "Accept-Encoding",
+        "gzip, deflate, br, zstd"
+      ],
+      [
+        "Accept-Language",
+        "en-US,en;q=0.9"
+      ],
+      [
+        "Pragma",
+        "no-cache"
+      ],
+      [
+        "Cache-Control",
+        "no-cache"
+      ],
+      [
+        "Origin",
+        "chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold"
+      ],
+      [
+        "Cookie",
+        "<MUID>"
+      ]
+    ],
+    "httpHeaders": [
+      [
+        "User-Agent",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0"
+      ],
+      [
+        "Accept-Language",
+        "en-US,en;q=0.9"
+      ],
+      [
+        "Accept",
+        "*/*"
+      ],
+      [
+        "Sec-CH-UA",
+        "\" Not;A Brand\";v=\"99\", \"Microsoft Edge\";v=\"143\", \"Chromium\";v=\"143\""
+      ],
+      [
+        "Sec-CH-UA-Mobile",
+        "?0"
+      ],
+      [
+        "Sec-Fetch-Site",
+        "none"
+      ],
+      [
+        "Sec-Fetch-Mode",
+        "cors"
+      ],
+      [
+        "Sec-Fetch-Dest",
+        "empty"
+      ],
+      [
+        "Cookie",
+        "<MUID>"
+      ]
+    ],
+    "configFrame": "X-Timestamp:<T>\r\nContent-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n{\"context\":{\"synthesis\":{\"audio\":{\"metadataoptions\":{\"sentenceBoundaryEnabled\":\"false\",\"wordBoundaryEnabled\":\"false\"},\"outputFormat\":\"audio-24khz-48kbitrate-mono-mp3\"}}}}",
+    "rate": [
+      {
+        "in": "-80",
+        "out": "-50%"
+      },
+      {
+        "in": "-50",
+        "out": "-50%"
+      },
+      {
+        "in": "-10.4",
+        "out": "-10%"
+      },
+      {
+        "in": "-0.5",
+        "out": "+0%"
+      },
+      {
+        "in": "0",
+        "out": "+0%"
+      },
+      {
+        "in": "0.5",
+        "out": "+1%"
+      },
+      {
+        "in": "10.6",
+        "out": "+11%"
+      },
+      {
+        "in": "50",
+        "out": "+50%"
+      },
+      {
+        "in": "99",
+        "out": "+50%"
+      },
+      {
+        "in": "NaN",
+        "out": "+0%"
+      },
+      {
+        "in": "Infinity",
+        "out": "+0%"
+      }
+    ],
+    "escape": [
+      {
+        "in": "你好",
+        "out": "你好"
+      },
+      {
+        "in": "a & b < c > \"d\" 'e'",
+        "out": "a &amp; b &lt; c &gt; &quot;d&quot; &apos;e&apos;"
+      },
+      {
+        "in": "",
+        "out": ""
+      },
+      {
+        "in": "  空格  ",
+        "out": "  空格  "
+      },
+      {
+        "in": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "out": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      }
+    ],
+    "ssml": [
+      {
+        "in": [
+          "你好",
+          "zh-CN-XiaoxiaoNeural",
+          0
+        ],
+        "out": "X-RequestId:<ID>\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:<T>\r\nPath:ssml\r\n\r\n<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'><voice name='zh-CN-XiaoxiaoNeural'><prosody pitch='+0Hz' rate='+0%' volume='+0%'>你好</prosody></voice></speak>"
+      },
+      {
+        "in": [
+          "你好",
+          "zh-CN-XiaoxiaoNeural",
+          20
+        ],
+        "out": "X-RequestId:<ID>\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:<T>\r\nPath:ssml\r\n\r\n<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'><voice name='zh-CN-XiaoxiaoNeural'><prosody pitch='+0Hz' rate='+20%' volume='+0%'>你好</prosody></voice></speak>"
+      },
+      {
+        "in": [
+          "a & b < c > \"d\" 'e'",
+          "zh-CN-XiaoxiaoNeural",
+          0
+        ],
+        "out": "X-RequestId:<ID>\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:<T>\r\nPath:ssml\r\n\r\n<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'><voice name='zh-CN-XiaoxiaoNeural'><prosody pitch='+0Hz' rate='+0%' volume='+0%'>a &amp; b &lt; c &gt; &quot;d&quot; &apos;e&apos;</prosody></voice></speak>"
+      },
+      {
+        "in": [
+          "a & b < c > \"d\" 'e'",
+          "zh-CN-XiaoxiaoNeural",
+          20
+        ],
+        "out": "X-RequestId:<ID>\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:<T>\r\nPath:ssml\r\n\r\n<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'><voice name='zh-CN-XiaoxiaoNeural'><prosody pitch='+0Hz' rate='+20%' volume='+0%'>a &amp; b &lt; c &gt; &quot;d&quot; &apos;e&apos;</prosody></voice></speak>"
+      },
+      {
+        "in": [
+          "",
+          "zh-CN-XiaoxiaoNeural",
+          0
+        ],
+        "out": "X-RequestId:<ID>\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:<T>\r\nPath:ssml\r\n\r\n<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'><voice name='zh-CN-XiaoxiaoNeural'><prosody pitch='+0Hz' rate='+0%' volume='+0%'></prosody></voice></speak>"
+      },
+      {
+        "in": [
+          "",
+          "zh-CN-XiaoxiaoNeural",
+          20
+        ],
+        "out": "X-RequestId:<ID>\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:<T>\r\nPath:ssml\r\n\r\n<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'><voice name='zh-CN-XiaoxiaoNeural'><prosody pitch='+0Hz' rate='+20%' volume='+0%'></prosody></voice></speak>"
+      },
+      {
+        "in": [
+          "  空格  ",
+          "zh-CN-XiaoxiaoNeural",
+          0
+        ],
+        "out": "X-RequestId:<ID>\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:<T>\r\nPath:ssml\r\n\r\n<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'><voice name='zh-CN-XiaoxiaoNeural'><prosody pitch='+0Hz' rate='+0%' volume='+0%'>  空格  </prosody></voice></speak>"
+      },
+      {
+        "in": [
+          "  空格  ",
+          "zh-CN-XiaoxiaoNeural",
+          20
+        ],
+        "out": "X-RequestId:<ID>\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:<T>\r\nPath:ssml\r\n\r\n<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'><voice name='zh-CN-XiaoxiaoNeural'><prosody pitch='+0Hz' rate='+20%' volume='+0%'>  空格  </prosody></voice></speak>"
+      },
+      {
+        "in": [
+          "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "zh-CN-XiaoxiaoNeural",
+          0
+        ],
+        "out": "X-RequestId:<ID>\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:<T>\r\nPath:ssml\r\n\r\n<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'><voice name='zh-CN-XiaoxiaoNeural'><prosody pitch='+0Hz' rate='+0%' volume='+0%'>xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</prosody></voice></speak>"
+      },
+      {
+        "in": [
+          "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "zh-CN-XiaoxiaoNeural",
+          20
+        ],
+        "out": "X-RequestId:<ID>\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:<T>\r\nPath:ssml\r\n\r\n<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'><voice name='zh-CN-XiaoxiaoNeural'><prosody pitch='+0Hz' rate='+20%' volume='+0%'>xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</prosody></voice></speak>"
+      }
+    ],
+    "dateString": [
+      {
+        "in": 0,
+        "out": "Thu Jan 01 1970 00:00:00 GMT+0000 (Coordinated Universal Time)"
+      },
+      {
+        "in": 1700000000000,
+        "out": "Tue Nov 14 2023 22:13:20 GMT+0000 (Coordinated Universal Time)"
+      },
+      {
+        "in": 1761700000123,
+        "out": "Wed Oct 29 2025 01:06:40 GMT+0000 (Coordinated Universal Time)"
+      }
+    ],
+    "textPath": [
+      {
+        "in": "X-RequestId:1\r\nPath:turn.end\r\n\r\n{}",
+        "out": "turn.end"
+      },
+      {
+        "in": "Path:audio.metadata",
+        "out": "audio.metadata"
+      },
+      {
+        "in": "nothing",
+        "out": null
+      },
+      {
+        "in": "A:b\r\nPath: x \r\n\r\nPath:y",
+        "out": "x"
+      }
+    ]
+  },
+  "edgeClient": [
+    {
+      "name": "ok",
+      "steps": [
+        {
+          "open": true
+        },
+        {
+          "bin": "ADZYLVJlcXVlc3RJZDphYmMNCkNvbnRlbnQtVHlwZTphdWRpby9tcGVnDQpQYXRoOmF1ZGlvDQpBQUE="
+        },
+        {
+          "bin": "ADZYLVJlcXVlc3RJZDphYmMNCkNvbnRlbnQtVHlwZTphdWRpby9tcGVnDQpQYXRoOmF1ZGlvDQpCQkI="
+        },
+        {
+          "text": "Path:turn.end\r\n\r\n"
+        }
+      ],
+      "out": {
+        "ok": "QUFBQkJC",
+        "sent": [
+          "X-Timestamp:<T>\r\nContent-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n{\"context\":{\"synthesis\":{\"audio\":{\"metadataoptions\":{\"sentenceBoundaryEnabled\":\"false\",\"wordBoundaryEnabled\":\"false\"},\"outputFormat\":\"audio-24khz-48kbitrate-mono-mp3\"}}}}",
+          "X-RequestId:<ID>\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:<T>\r\nPath:ssml\r\n\r\n<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'><voice name='zh-CN-XiaoxiaoNeural'><prosody pitch='+0Hz' rate='+10%' volume='+0%'>你好</prosody></voice></speak>"
+        ]
+      }
+    },
+    {
+      "name": "skipNonAudio",
+      "steps": [
+        {
+          "open": true
+        },
+        {
+          "bin": "AD9YLVJlcXVlc3RJZDphYmMNCkNvbnRlbnQtVHlwZTphdWRpby9tcGVnDQpQYXRoOmF1ZGlvLm1ldGFkYXRhDQptZXRh"
+        },
+        {
+          "bin": "AA=="
+        },
+        {
+          "bin": "ADZYLVJlcXVlc3RJZDphYmMNCkNvbnRlbnQtVHlwZTphdWRpby9tcGVnDQpQYXRoOmF1ZGlvDQpa"
+        },
+        {
+          "text": "Path:turn.end\r\n\r\n"
+        }
+      ],
+      "out": {
+        "ok": "Wg==",
+        "sent": [
+          "X-Timestamp:<T>\r\nContent-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n{\"context\":{\"synthesis\":{\"audio\":{\"metadataoptions\":{\"sentenceBoundaryEnabled\":\"false\",\"wordBoundaryEnabled\":\"false\"},\"outputFormat\":\"audio-24khz-48kbitrate-mono-mp3\"}}}}",
+          "X-RequestId:<ID>\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:<T>\r\nPath:ssml\r\n\r\n<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'><voice name='zh-CN-XiaoxiaoNeural'><prosody pitch='+0Hz' rate='+10%' volume='+0%'>你好</prosody></voice></speak>"
+        ]
+      }
+    },
+    {
+      "name": "noAudio",
+      "steps": [
+        {
+          "open": true
+        },
+        {
+          "text": "Path:turn.end\r\n\r\n"
+        }
+      ],
+      "out": {
+        "kind": "protocol",
+        "message": "no audio received",
+        "sent": [
+          "X-Timestamp:<T>\r\nContent-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n{\"context\":{\"synthesis\":{\"audio\":{\"metadataoptions\":{\"sentenceBoundaryEnabled\":\"false\",\"wordBoundaryEnabled\":\"false\"},\"outputFormat\":\"audio-24khz-48kbitrate-mono-mp3\"}}}}",
+          "X-RequestId:<ID>\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:<T>\r\nPath:ssml\r\n\r\n<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'><voice name='zh-CN-XiaoxiaoNeural'><prosody pitch='+0Hz' rate='+10%' volume='+0%'>你好</prosody></voice></speak>"
+        ]
+      }
+    },
+    {
+      "name": "closeNoAudio",
+      "steps": [
+        {
+          "open": true
+        },
+        {
+          "close": 1006
+        }
+      ],
+      "out": {
+        "kind": "protocol",
+        "message": "socket closed",
+        "sent": [
+          "X-Timestamp:<T>\r\nContent-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n{\"context\":{\"synthesis\":{\"audio\":{\"metadataoptions\":{\"sentenceBoundaryEnabled\":\"false\",\"wordBoundaryEnabled\":\"false\"},\"outputFormat\":\"audio-24khz-48kbitrate-mono-mp3\"}}}}",
+          "X-RequestId:<ID>\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:<T>\r\nPath:ssml\r\n\r\n<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'><voice name='zh-CN-XiaoxiaoNeural'><prosody pitch='+0Hz' rate='+10%' volume='+0%'>你好</prosody></voice></speak>"
+        ]
+      }
+    },
+    {
+      "name": "closeAfterAudio",
+      "steps": [
+        {
+          "open": true
+        },
+        {
+          "bin": "ADZYLVJlcXVlc3RJZDphYmMNCkNvbnRlbnQtVHlwZTphdWRpby9tcGVnDQpQYXRoOmF1ZGlvDQpR"
+        },
+        {
+          "close": 1000
+        }
+      ],
+      "out": {
+        "ok": "UQ==",
+        "sent": [
+          "X-Timestamp:<T>\r\nContent-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n{\"context\":{\"synthesis\":{\"audio\":{\"metadataoptions\":{\"sentenceBoundaryEnabled\":\"false\",\"wordBoundaryEnabled\":\"false\"},\"outputFormat\":\"audio-24khz-48kbitrate-mono-mp3\"}}}}",
+          "X-RequestId:<ID>\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:<T>\r\nPath:ssml\r\n\r\n<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'><voice name='zh-CN-XiaoxiaoNeural'><prosody pitch='+0Hz' rate='+10%' volume='+0%'>你好</prosody></voice></speak>"
+        ]
+      }
+    },
+    {
+      "name": "http500",
+      "steps": [
+        {
+          "status": 500
+        }
+      ],
+      "out": {
+        "kind": "protocol",
+        "message": "unexpected HTTP 500",
+        "sent": []
+      }
+    },
+    {
+      "name": "forbiddenNoDate",
+      "steps": [
+        {
+          "status": 403
+        }
+      ],
+      "out": {
+        "kind": "forbidden",
+        "message": "edge tts rejected the request (403)",
+        "sent": []
+      }
+    },
+    {
+      "name": "offline",
+      "steps": [
+        {
+          "error": "getaddrinfo ENOTFOUND speech.platform.bing.com",
+          "code": "ENOTFOUND"
+        }
+      ],
+      "out": {
+        "kind": "offline",
+        "message": "getaddrinfo ENOTFOUND speech.platform.bing.com",
+        "sent": []
+      }
+    },
+    {
+      "name": "otherError",
+      "steps": [
+        {
+          "error": "boom",
+          "code": "EPROTO"
+        }
+      ],
+      "out": {
+        "kind": "protocol",
+        "message": "boom",
+        "sent": []
+      }
+    },
+    {
+      "name": "badVoice",
+      "steps": [],
+      "voice": "bad voice",
+      "out": {
+        "kind": "protocol",
+        "message": "invalid voice bad voice",
+        "sent": []
+      }
+    }
+  ],
+  "tts": {
+    "normalize": [
+      {
+        "in": null,
+        "out": {
+          "enabled": true,
+          "promptVoice": true,
+          "provider": "none",
+          "edgeVoice": "zh-CN-XiaoyiNeural",
+          "rate": -5,
+          "readReplies": true,
+          "lastModified": 0
+        }
+      },
+      {
+        "in": "x",
+        "out": {
+          "enabled": true,
+          "promptVoice": true,
+          "provider": "none",
+          "edgeVoice": "zh-CN-XiaoyiNeural",
+          "rate": -5,
+          "readReplies": true,
+          "lastModified": 0
+        }
+      },
+      {
+        "in": {},
+        "out": {
+          "enabled": true,
+          "promptVoice": true,
+          "provider": "none",
+          "edgeVoice": "zh-CN-XiaoyiNeural",
+          "rate": -5,
+          "readReplies": true,
+          "lastModified": 0
+        }
+      },
+      {
+        "in": {
+          "provider": "edge"
+        },
+        "out": {
+          "enabled": true,
+          "promptVoice": true,
+          "provider": "edge",
+          "edgeVoice": "zh-CN-XiaoyiNeural",
+          "rate": -5,
+          "readReplies": true,
+          "lastModified": 0
+        }
+      },
+      {
+        "in": {
+          "provider": "volc",
+          "enabled": true
+        },
+        "out": {
+          "enabled": true,
+          "promptVoice": true,
+          "provider": "none",
+          "edgeVoice": "zh-CN-XiaoyiNeural",
+          "rate": -5,
+          "readReplies": true,
+          "lastModified": 0
+        }
+      },
+      {
+        "in": {
+          "provider": "azure",
+          "enabled": true,
+          "azure": {
+            "key": "k",
+            "region": "eastasia",
+            "voice": "v"
+          }
+        },
+        "out": {
+          "enabled": true,
+          "promptVoice": true,
+          "provider": "azure",
+          "edgeVoice": "zh-CN-XiaoyiNeural",
+          "rate": -5,
+          "readReplies": true,
+          "lastModified": 0
+        }
+      },
+      {
+        "in": {
+          "provider": "openai",
+          "enabled": 1,
+          "speed": 9,
+          "voice": 3
+        },
+        "out": {
+          "enabled": true,
+          "promptVoice": true,
+          "provider": "openai",
+          "edgeVoice": "zh-CN-XiaoyiNeural",
+          "rate": -5,
+          "readReplies": true,
+          "lastModified": 0
+        }
+      },
+      {
+        "in": {
+          "enabled": true,
+          "readReplies": true,
+          "provider": "edge",
+          "edge": {
+            "voice": "zh-CN-YunxiNeural",
+            "rate": 99
+          }
+        },
+        "out": {
+          "enabled": true,
+          "promptVoice": true,
+          "provider": "edge",
+          "edgeVoice": "zh-CN-XiaoyiNeural",
+          "rate": -5,
+          "readReplies": true,
+          "lastModified": 0
+        }
+      }
+    ],
+    "validate": [
+      {
+        "in": null,
+        "out": {
+          "isValid": false,
+          "errors": [
+            "provider must be one of none, edge, azure, openai"
+          ]
+        }
+      },
+      {
+        "in": "x",
+        "out": {
+          "isValid": false,
+          "errors": [
+            "provider must be one of none, edge, azure, openai"
+          ]
+        }
+      },
+      {
+        "in": {},
+        "out": {
+          "isValid": false,
+          "errors": [
+            "provider must be one of none, edge, azure, openai"
+          ]
+        }
+      },
+      {
+        "in": {
+          "provider": "edge"
+        },
+        "out": {
+          "isValid": true,
+          "errors": []
+        }
+      },
+      {
+        "in": {
+          "provider": "volc",
+          "enabled": true
+        },
+        "out": {
+          "isValid": false,
+          "errors": [
+            "provider must be one of none, edge, azure, openai"
+          ]
+        }
+      },
+      {
+        "in": {
+          "provider": "azure",
+          "enabled": true,
+          "azure": {
+            "key": "k",
+            "region": "eastasia",
+            "voice": "v"
+          }
+        },
+        "out": {
+          "isValid": true,
+          "errors": []
+        }
+      },
+      {
+        "in": {
+          "provider": "openai",
+          "enabled": 1,
+          "speed": 9,
+          "voice": 3
+        },
+        "out": {
+          "isValid": false,
+          "errors": [
+            "enabled must be boolean"
+          ]
+        }
+      },
+      {
+        "in": {
+          "enabled": true,
+          "readReplies": true,
+          "provider": "edge",
+          "edge": {
+            "voice": "zh-CN-YunxiNeural",
+            "rate": 99
+          }
+        },
+        "out": {
+          "isValid": true,
+          "errors": []
+        }
+      }
+    ],
+    "reply": [
+      {
+        "in": [
+          {
+            "op": "stop"
+          },
+          null,
+          {}
+        ],
+        "out": {
+          "type": "reply-speech",
+          "op": "stop"
+        }
+      },
+      {
+        "in": [
+          {
+            "op": "stop"
+          },
+          null,
+          {
+            "CD_TTS": "off"
+          }
+        ],
+        "out": {
+          "type": "reply-speech",
+          "op": "stop"
+        }
+      },
+      {
+        "in": [
+          {
+            "op": "stop",
+            "id": "a"
+          },
+          null,
+          {}
+        ],
+        "out": {
+          "type": "reply-speech",
+          "op": "stop",
+          "id": "a"
+        }
+      },
+      {
+        "in": [
+          {
+            "op": "stop",
+            "id": "a"
+          },
+          null,
+          {
+            "CD_TTS": "off"
+          }
+        ],
+        "out": {
+          "type": "reply-speech",
+          "op": "stop",
+          "id": "a"
+        }
+      },
+      {
+        "in": [
+          {
+            "op": "say",
+            "id": "a",
+            "text": "hi"
+          },
+          {
+            "enabled": true,
+            "readReplies": true,
+            "provider": "edge",
+            "edge": {
+              "voice": "zh-CN-YunxiNeural",
+              "rate": 99
+            }
+          },
+          {}
+        ],
+        "out": {
+          "type": "reply-speech",
+          "op": "say",
+          "id": "a",
+          "text": "hi"
+        }
+      },
+      {
+        "in": [
+          {
+            "op": "say",
+            "id": "a",
+            "text": "hi"
+          },
+          {
+            "enabled": true,
+            "readReplies": true,
+            "provider": "edge",
+            "edge": {
+              "voice": "zh-CN-YunxiNeural",
+              "rate": 99
+            }
+          },
+          {
+            "CD_TTS": "off"
+          }
+        ],
+        "out": null
+      },
+      {
+        "in": [
+          {
+            "op": "say",
+            "id": "a",
+            "text": "  "
+          },
+          {
+            "enabled": true,
+            "readReplies": true,
+            "provider": "edge",
+            "edge": {
+              "voice": "zh-CN-YunxiNeural",
+              "rate": 99
+            }
+          },
+          {}
+        ],
+        "out": null
+      },
+      {
+        "in": [
+          {
+            "op": "say",
+            "id": "a",
+            "text": "  "
+          },
+          {
+            "enabled": true,
+            "readReplies": true,
+            "provider": "edge",
+            "edge": {
+              "voice": "zh-CN-YunxiNeural",
+              "rate": 99
+            }
+          },
+          {
+            "CD_TTS": "off"
+          }
+        ],
+        "out": null
+      },
+      {
+        "in": [
+          {
+            "op": "end",
+            "id": "a"
+          },
+          {
+            "enabled": true,
+            "readReplies": true,
+            "provider": "edge",
+            "edge": {
+              "voice": "zh-CN-YunxiNeural",
+              "rate": 99
+            }
+          },
+          {}
+        ],
+        "out": {
+          "type": "reply-speech",
+          "op": "end",
+          "id": "a"
+        }
+      },
+      {
+        "in": [
+          {
+            "op": "end",
+            "id": "a"
+          },
+          {
+            "enabled": true,
+            "readReplies": true,
+            "provider": "edge",
+            "edge": {
+              "voice": "zh-CN-YunxiNeural",
+              "rate": 99
+            }
+          },
+          {
+            "CD_TTS": "off"
+          }
+        ],
+        "out": null
+      },
+      {
+        "in": [
+          {
+            "op": "end",
+            "id": "a"
+          },
+          {
+            "provider": "edge"
+          },
+          {}
+        ],
+        "out": {
+          "type": "reply-speech",
+          "op": "end",
+          "id": "a"
+        }
+      },
+      {
+        "in": [
+          {
+            "op": "end",
+            "id": "a"
+          },
+          {
+            "provider": "edge"
+          },
+          {
+            "CD_TTS": "off"
+          }
+        ],
+        "out": null
+      },
+      {
+        "in": [
+          {
+            "op": "say",
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "text": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+          },
+          {
+            "enabled": true,
+            "readReplies": true,
+            "provider": "edge",
+            "edge": {
+              "voice": "zh-CN-YunxiNeural",
+              "rate": 99
+            }
+          },
+          {}
+        ],
+        "out": {
+          "type": "reply-speech",
+          "op": "say",
+          "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "text": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+        }
+      },
+      {
+        "in": [
+          {
+            "op": "say",
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "text": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+          },
+          {
+            "enabled": true,
+            "readReplies": true,
+            "provider": "edge",
+            "edge": {
+              "voice": "zh-CN-YunxiNeural",
+              "rate": 99
+            }
+          },
+          {
+            "CD_TTS": "off"
+          }
+        ],
+        "out": null
+      },
+      {
+        "in": [
+          null,
+          {
+            "enabled": true,
+            "readReplies": true,
+            "provider": "edge",
+            "edge": {
+              "voice": "zh-CN-YunxiNeural",
+              "rate": 99
+            }
+          },
+          {}
+        ],
+        "out": null
+      },
+      {
+        "in": [
+          null,
+          {
+            "enabled": true,
+            "readReplies": true,
+            "provider": "edge",
+            "edge": {
+              "voice": "zh-CN-YunxiNeural",
+              "rate": 99
+            }
+          },
+          {
+            "CD_TTS": "off"
+          }
+        ],
+        "out": null
+      }
+    ],
+    "envOverride": [
+      {
+        "in": [
+          true,
+          {}
+        ],
+        "out": {
+          "enabled": true
+        }
+      },
+      {
+        "in": [
+          false,
+          {}
+        ],
+        "out": {
+          "enabled": false
+        }
+      },
+      {
+        "in": [
+          true,
+          {
+            "CD_TTS": "off"
+          }
+        ],
+        "out": {
+          "enabled": false
+        }
+      },
+      {
+        "in": [
+          false,
+          {
+            "CD_TTS": "off"
+          }
+        ],
+        "out": {
+          "enabled": false
+        }
+      },
+      {
+        "in": [
+          true,
+          {
+            "CD_TTS": "on"
+          }
+        ],
+        "out": {
+          "enabled": true
+        }
+      },
+      {
+        "in": [
+          false,
+          {
+            "CD_TTS": "on"
+          }
+        ],
+        "out": {
+          "enabled": false
+        }
+      }
+    ]
+  },
+  "voice": {
+    "defaults": {
+      "engine": "whisper-cpp",
+      "language": "auto",
+      "whisperModel": "ggml-base",
+      "whisperCliPath": "",
+      "providerId": "",
+      "customBaseURL": "",
+      "cloudModel": "whisper-1",
+      "volcResourceId": "volc.seedasr.sauc.duration",
+      "volcFallback": false,
+      "cloudAcked": [],
+      "autoSend": true,
+      "bargeIn": true,
+      "vadThreshold": 0.5,
+      "wakeWord": {
+        "enabled": false,
+        "phrase": "",
+        "windowSec": 8
+      }
+    },
+    "sanitize": [
+      {
+        "in": null,
+        "out": {
+          "engine": "whisper-cpp",
+          "language": "auto",
+          "whisperModel": "ggml-base",
+          "whisperCliPath": "",
+          "providerId": "",
+          "customBaseURL": "",
+          "cloudModel": "whisper-1",
+          "volcResourceId": "volc.seedasr.sauc.duration",
+          "volcFallback": false,
+          "cloudAcked": [],
+          "autoSend": true,
+          "bargeIn": true,
+          "vadThreshold": 0.5,
+          "wakeWord": {
+            "enabled": false,
+            "phrase": "",
+            "windowSec": 8
+          }
+        }
+      },
+      {
+        "in": 7,
+        "out": {
+          "engine": "whisper-cpp",
+          "language": "auto",
+          "whisperModel": "ggml-base",
+          "whisperCliPath": "",
+          "providerId": "",
+          "customBaseURL": "",
+          "cloudModel": "whisper-1",
+          "volcResourceId": "volc.seedasr.sauc.duration",
+          "volcFallback": false,
+          "cloudAcked": [],
+          "autoSend": true,
+          "bargeIn": true,
+          "vadThreshold": 0.5,
+          "wakeWord": {
+            "enabled": false,
+            "phrase": "",
+            "windowSec": 8
+          }
+        }
+      },
+      {
+        "in": {},
+        "out": {
+          "engine": "whisper-cpp",
+          "language": "auto",
+          "whisperModel": "ggml-base",
+          "whisperCliPath": "",
+          "providerId": "",
+          "customBaseURL": "",
+          "cloudModel": "whisper-1",
+          "volcResourceId": "volc.seedasr.sauc.duration",
+          "volcFallback": false,
+          "cloudAcked": [],
+          "autoSend": true,
+          "bargeIn": true,
+          "vadThreshold": 0.5,
+          "wakeWord": {
+            "enabled": false,
+            "phrase": "",
+            "windowSec": 8
+          }
+        }
+      },
+      {
+        "in": {
+          "engine": "cloud",
+          "cloud": {
+            "baseURL": " https://api.openai.com/v1/ ",
+            "model": "whisper-1"
+          }
+        },
+        "out": {
+          "engine": "whisper-cpp",
+          "language": "auto",
+          "whisperModel": "ggml-base",
+          "whisperCliPath": "",
+          "providerId": "",
+          "customBaseURL": "",
+          "cloudModel": "whisper-1",
+          "volcResourceId": "volc.seedasr.sauc.duration",
+          "volcFallback": false,
+          "cloudAcked": [],
+          "autoSend": true,
+          "bargeIn": true,
+          "vadThreshold": 0.5,
+          "wakeWord": {
+            "enabled": false,
+            "phrase": "",
+            "windowSec": 8
+          }
+        }
+      },
+      {
+        "in": {
+          "engine": "nope",
+          "wakeWord": true,
+          "wakePhrase": "  你好小诺你好小诺你好小诺你好小诺你好小诺你好小诺  "
+        },
+        "out": {
+          "engine": "whisper-cpp",
+          "language": "auto",
+          "whisperModel": "ggml-base",
+          "whisperCliPath": "",
+          "providerId": "",
+          "customBaseURL": "",
+          "cloudModel": "whisper-1",
+          "volcResourceId": "volc.seedasr.sauc.duration",
+          "volcFallback": false,
+          "cloudAcked": [],
+          "autoSend": true,
+          "bargeIn": true,
+          "vadThreshold": 0.5,
+          "wakeWord": {
+            "enabled": false,
+            "phrase": "",
+            "windowSec": 8
+          }
+        }
+      },
+      {
+        "in": {
+          "pttKey": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "vadThreshold": 9,
+          "silenceMs": -1,
+          "language": "en",
+          "autoSend": "yes"
+        },
+        "out": {
+          "engine": "whisper-cpp",
+          "language": "en",
+          "whisperModel": "ggml-base",
+          "whisperCliPath": "",
+          "providerId": "",
+          "customBaseURL": "",
+          "cloudModel": "whisper-1",
+          "volcResourceId": "volc.seedasr.sauc.duration",
+          "volcFallback": false,
+          "cloudAcked": [],
+          "autoSend": true,
+          "bargeIn": true,
+          "vadThreshold": 0.9,
+          "wakeWord": {
+            "enabled": false,
+            "phrase": "",
+            "windowSec": 8
+          }
+        }
+      },
+      {
+        "in": {
+          "engine": "volc",
+          "volc": {
+            "appId": "a",
+            "resource": "bogus"
+          },
+          "cloudAcked": [
+            "x",
+            3
+          ]
+        },
+        "out": {
+          "engine": "volc",
+          "language": "auto",
+          "whisperModel": "ggml-base",
+          "whisperCliPath": "",
+          "providerId": "",
+          "customBaseURL": "",
+          "cloudModel": "whisper-1",
+          "volcResourceId": "volc.seedasr.sauc.duration",
+          "volcFallback": false,
+          "cloudAcked": [
+            "x"
+          ],
+          "autoSend": true,
+          "bargeIn": true,
+          "vadThreshold": 0.5,
+          "wakeWord": {
+            "enabled": false,
+            "phrase": "",
+            "windowSec": 8
+          }
+        }
+      }
+    ],
+    "cloudTarget": [
+      {
+        "in": null,
+        "out": ""
+      },
+      {
+        "in": 7,
+        "out": ""
+      },
+      {
+        "in": {},
+        "out": ""
+      },
+      {
+        "in": {
+          "engine": "cloud",
+          "cloud": {
+            "baseURL": " https://api.openai.com/v1/ ",
+            "model": "whisper-1"
+          }
+        },
+        "out": ""
+      },
+      {
+        "in": {
+          "engine": "nope",
+          "wakeWord": true,
+          "wakePhrase": "  你好小诺你好小诺你好小诺你好小诺你好小诺你好小诺  "
+        },
+        "out": ""
+      },
+      {
+        "in": {
+          "pttKey": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "vadThreshold": 9,
+          "silenceMs": -1,
+          "language": "en",
+          "autoSend": "yes"
+        },
+        "out": ""
+      },
+      {
+        "in": {
+          "engine": "volc",
+          "volc": {
+            "appId": "a",
+            "resource": "bogus"
+          },
+          "cloudAcked": [
+            "x",
+            3
+          ]
+        },
+        "out": "volc:openspeech.bytedance.com"
+      }
+    ],
+    "cliNames": [
+      "whisper-cli",
+      "main"
+    ],
+    "args": [
+      {
+        "in": {
+          "model": "m.bin",
+          "wav": "a.wav",
+          "language": "",
+          "threads": 3
+        },
+        "out": [
+          "-m",
+          "m.bin",
+          "-f",
+          "a.wav",
+          "-nt",
+          "-np",
+          "-l",
+          "auto",
+          "-t",
+          "3"
+        ]
+      },
+      {
+        "in": {
+          "model": "m.bin",
+          "wav": "a.wav",
+          "language": "zh",
+          "prompt": "以下是普通话",
+          "threads": 1
+        },
+        "out": [
+          "-m",
+          "m.bin",
+          "-f",
+          "a.wav",
+          "-nt",
+          "-np",
+          "-l",
+          "zh",
+          "-t",
+          "1",
+          "--prompt",
+          "以下是普通话"
+        ]
+      }
+    ],
+    "clean": [
+      {
+        "in": "",
+        "out": ""
+      },
+      {
+        "in": "[BLANK_AUDIO]",
+        "out": ""
+      },
+      {
+        "in": " 你好 (音乐) 世界 ",
+        "out": "你好 世界"
+      },
+      {
+        "in": "[00:00.000 --> 00:01.000] hi\n  there",
+        "out": "[00:00.000 --> 00:01.000] hi there"
+      },
+      {
+        "in": "（笑）好的 [Music]",
+        "out": "好的"
+      },
+      {
+        "in": "*咳嗽* ok",
+        "out": "*咳嗽* ok"
+      }
+    ],
+    "wav": [
+      {
+        "in": [],
+        "out": "UklGRiQAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQAAAAA="
+      },
+      {
+        "in": [
+          1,
+          2
+        ],
+        "out": "UklGRiYAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQIAAAABAg=="
+      },
+      {
+        "in": [
+          0,
+          255,
+          1,
+          128
+        ],
+        "out": "UklGRigAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQQAAAAA/wGA"
+      }
+    ],
+    "transcriptionsURL": [
+      {
+        "in": "https://a/v1",
+        "out": "https://a/v1/audio/transcriptions"
+      },
+      {
+        "in": "https://a/v1///",
+        "out": "https://a/v1/audio/transcriptions"
+      },
+      {
+        "in": "http://127.0.0.1:8080",
+        "out": "http://127.0.0.1:8080/audio/transcriptions"
+      }
+    ]
+  },
+  "cloud": [
+    {
+      "resp": {
+        "status": 200,
+        "body": "{\"text\":\"  你好  \"}"
+      },
+      "req": {
+        "apiKey": "sk-1",
+        "model": "whisper-1",
+        "language": "zh",
+        "prompt": "提示"
+      },
+      "out": {
+        "text": "你好"
+      },
+      "seen": {
+        "method": "POST",
+        "url": "/v1/audio/transcriptions",
+        "auth": "Bearer sk-1",
+        "multipart": true,
+        "fields": [
+          [
+            "file",
+            "speech.wav",
+            "audio/wav",
+            null
+          ],
+          [
+            "model",
+            null,
+            null,
+            "whisper-1"
+          ],
+          [
+            "response_format",
+            null,
+            null,
+            "json"
+          ],
+          [
+            "language",
+            null,
+            null,
+            "zh"
+          ],
+          [
+            "prompt",
+            null,
+            null,
+            "提示"
+          ]
+        ]
+      }
+    },
+    {
+      "resp": {
+        "status": 200,
+        "body": "{\"text\":\"  你好  \"}"
+      },
+      "req": {
+        "model": "m",
+        "language": "auto"
+      },
+      "out": {
+        "text": "你好"
+      },
+      "seen": {
+        "method": "POST",
+        "url": "/v1/audio/transcriptions",
+        "auth": null,
+        "multipart": true,
+        "fields": [
+          [
+            "file",
+            "speech.wav",
+            "audio/wav",
+            null
+          ],
+          [
+            "model",
+            null,
+            null,
+            "m"
+          ],
+          [
+            "response_format",
+            null,
+            null,
+            "json"
+          ]
+        ]
+      }
+    },
+    {
+      "resp": {
+        "status": 200,
+        "body": "{\"text\":\"  你好  \"}"
+      },
+      "req": {
+        "apiKey": "",
+        "model": "m",
+        "language": ""
+      },
+      "out": {
+        "text": "你好"
+      },
+      "seen": {
+        "method": "POST",
+        "url": "/v1/audio/transcriptions",
+        "auth": null,
+        "multipart": true,
+        "fields": [
+          [
+            "file",
+            "speech.wav",
+            "audio/wav",
+            null
+          ],
+          [
+            "model",
+            null,
+            null,
+            "m"
+          ],
+          [
+            "response_format",
+            null,
+            null,
+            "json"
+          ]
+        ]
+      }
+    },
+    {
+      "resp": {
+        "status": 200,
+        "body": "{\"text\":5}"
+      },
+      "req": {
+        "apiKey": "sk-1",
+        "model": "whisper-1",
+        "language": "zh",
+        "prompt": "提示"
+      },
+      "out": {
+        "text": "{\"text\":5}"
+      },
+      "seen": {
+        "method": "POST",
+        "url": "/v1/audio/transcriptions",
+        "auth": "Bearer sk-1",
+        "multipart": true,
+        "fields": [
+          [
+            "file",
+            "speech.wav",
+            "audio/wav",
+            null
+          ],
+          [
+            "model",
+            null,
+            null,
+            "whisper-1"
+          ],
+          [
+            "response_format",
+            null,
+            null,
+            "json"
+          ],
+          [
+            "language",
+            null,
+            null,
+            "zh"
+          ],
+          [
+            "prompt",
+            null,
+            null,
+            "提示"
+          ]
+        ]
+      }
+    },
+    {
+      "resp": {
+        "status": 200,
+        "body": "{\"text\":5}"
+      },
+      "req": {
+        "model": "m",
+        "language": "auto"
+      },
+      "out": {
+        "text": "{\"text\":5}"
+      },
+      "seen": {
+        "method": "POST",
+        "url": "/v1/audio/transcriptions",
+        "auth": null,
+        "multipart": true,
+        "fields": [
+          [
+            "file",
+            "speech.wav",
+            "audio/wav",
+            null
+          ],
+          [
+            "model",
+            null,
+            null,
+            "m"
+          ],
+          [
+            "response_format",
+            null,
+            null,
+            "json"
+          ]
+        ]
+      }
+    },
+    {
+      "resp": {
+        "status": 200,
+        "body": "{\"text\":5}"
+      },
+      "req": {
+        "apiKey": "",
+        "model": "m",
+        "language": ""
+      },
+      "out": {
+        "text": "{\"text\":5}"
+      },
+      "seen": {
+        "method": "POST",
+        "url": "/v1/audio/transcriptions",
+        "auth": null,
+        "multipart": true,
+        "fields": [
+          [
+            "file",
+            "speech.wav",
+            "audio/wav",
+            null
+          ],
+          [
+            "model",
+            null,
+            null,
+            "m"
+          ],
+          [
+            "response_format",
+            null,
+            null,
+            "json"
+          ]
+        ]
+      }
+    },
+    {
+      "resp": {
+        "status": 200,
+        "body": "{}"
+      },
+      "req": {
+        "apiKey": "sk-1",
+        "model": "whisper-1",
+        "language": "zh",
+        "prompt": "提示"
+      },
+      "out": {
+        "text": ""
+      },
+      "seen": {
+        "method": "POST",
+        "url": "/v1/audio/transcriptions",
+        "auth": "Bearer sk-1",
+        "multipart": true,
+        "fields": [
+          [
+            "file",
+            "speech.wav",
+            "audio/wav",
+            null
+          ],
+          [
+            "model",
+            null,
+            null,
+            "whisper-1"
+          ],
+          [
+            "response_format",
+            null,
+            null,
+            "json"
+          ],
+          [
+            "language",
+            null,
+            null,
+            "zh"
+          ],
+          [
+            "prompt",
+            null,
+            null,
+            "提示"
+          ]
+        ]
+      }
+    },
+    {
+      "resp": {
+        "status": 200,
+        "body": "{}"
+      },
+      "req": {
+        "model": "m",
+        "language": "auto"
+      },
+      "out": {
+        "text": ""
+      },
+      "seen": {
+        "method": "POST",
+        "url": "/v1/audio/transcriptions",
+        "auth": null,
+        "multipart": true,
+        "fields": [
+          [
+            "file",
+            "speech.wav",
+            "audio/wav",
+            null
+          ],
+          [
+            "model",
+            null,
+            null,
+            "m"
+          ],
+          [
+            "response_format",
+            null,
+            null,
+            "json"
+          ]
+        ]
+      }
+    },
+    {
+      "resp": {
+        "status": 200,
+        "body": "{}"
+      },
+      "req": {
+        "apiKey": "",
+        "model": "m",
+        "language": ""
+      },
+      "out": {
+        "text": ""
+      },
+      "seen": {
+        "method": "POST",
+        "url": "/v1/audio/transcriptions",
+        "auth": null,
+        "multipart": true,
+        "fields": [
+          [
+            "file",
+            "speech.wav",
+            "audio/wav",
+            null
+          ],
+          [
+            "model",
+            null,
+            null,
+            "m"
+          ],
+          [
+            "response_format",
+            null,
+            null,
+            "json"
+          ]
+        ]
+      }
+    },
+    {
+      "resp": {
+        "status": 200,
+        "body": " plain text \n"
+      },
+      "req": {
+        "apiKey": "sk-1",
+        "model": "whisper-1",
+        "language": "zh",
+        "prompt": "提示"
+      },
+      "out": {
+        "text": "plain text"
+      },
+      "seen": {
+        "method": "POST",
+        "url": "/v1/audio/transcriptions",
+        "auth": "Bearer sk-1",
+        "multipart": true,
+        "fields": [
+          [
+            "file",
+            "speech.wav",
+            "audio/wav",
+            null
+          ],
+          [
+            "model",
+            null,
+            null,
+            "whisper-1"
+          ],
+          [
+            "response_format",
+            null,
+            null,
+            "json"
+          ],
+          [
+            "language",
+            null,
+            null,
+            "zh"
+          ],
+          [
+            "prompt",
+            null,
+            null,
+            "提示"
+          ]
+        ]
+      }
+    },
+    {
+      "resp": {
+        "status": 200,
+        "body": " plain text \n"
+      },
+      "req": {
+        "model": "m",
+        "language": "auto"
+      },
+      "out": {
+        "text": "plain text"
+      },
+      "seen": {
+        "method": "POST",
+        "url": "/v1/audio/transcriptions",
+        "auth": null,
+        "multipart": true,
+        "fields": [
+          [
+            "file",
+            "speech.wav",
+            "audio/wav",
+            null
+          ],
+          [
+            "model",
+            null,
+            null,
+            "m"
+          ],
+          [
+            "response_format",
+            null,
+            null,
+            "json"
+          ]
+        ]
+      }
+    },
+    {
+      "resp": {
+        "status": 200,
+        "body": " plain text \n"
+      },
+      "req": {
+        "apiKey": "",
+        "model": "m",
+        "language": ""
+      },
+      "out": {
+        "text": "plain text"
+      },
+      "seen": {
+        "method": "POST",
+        "url": "/v1/audio/transcriptions",
+        "auth": null,
+        "multipart": true,
+        "fields": [
+          [
+            "file",
+            "speech.wav",
+            "audio/wav",
+            null
+          ],
+          [
+            "model",
+            null,
+            null,
+            "m"
+          ],
+          [
+            "response_format",
+            null,
+            null,
+            "json"
+          ]
+        ]
+      }
+    },
+    {
+      "resp": {
+        "status": 200,
+        "body": "[1]"
+      },
+      "req": {
+        "apiKey": "sk-1",
+        "model": "whisper-1",
+        "language": "zh",
+        "prompt": "提示"
+      },
+      "out": {
+        "text": ""
+      },
+      "seen": {
+        "method": "POST",
+        "url": "/v1/audio/transcriptions",
+        "auth": "Bearer sk-1",
+        "multipart": true,
+        "fields": [
+          [
+            "file",
+            "speech.wav",
+            "audio/wav",
+            null
+          ],
+          [
+            "model",
+            null,
+            null,
+            "whisper-1"
+          ],
+          [
+            "response_format",
+            null,
+            null,
+            "json"
+          ],
+          [
+            "language",
+            null,
+            null,
+            "zh"
+          ],
+          [
+            "prompt",
+            null,
+            null,
+            "提示"
+          ]
+        ]
+      }
+    },
+    {
+      "resp": {
+        "status": 200,
+        "body": "[1]"
+      },
+      "req": {
+        "model": "m",
+        "language": "auto"
+      },
+      "out": {
+        "text": ""
+      },
+      "seen": {
+        "method": "POST",
+        "url": "/v1/audio/transcriptions",
+        "auth": null,
+        "multipart": true,
+        "fields": [
+          [
+            "file",
+            "speech.wav",
+            "audio/wav",
+            null
+          ],
+          [
+            "model",
+            null,
+            null,
+            "m"
+          ],
+          [
+            "response_format",
+            null,
+            null,
+            "json"
+          ]
+        ]
+      }
+    },
+    {
+      "resp": {
+        "status": 200,
+        "body": "[1]"
+      },
+      "req": {
+        "apiKey": "",
+        "model": "m",
+        "language": ""
+      },
+      "out": {
+        "text": ""
+      },
+      "seen": {
+        "method": "POST",
+        "url": "/v1/audio/transcriptions",
+        "auth": null,
+        "multipart": true,
+        "fields": [
+          [
+            "file",
+            "speech.wav",
+            "audio/wav",
+            null
+          ],
+          [
+            "model",
+            null,
+            null,
+            "m"
+          ],
+          [
+            "response_format",
+            null,
+            null,
+            "json"
+          ]
+        ]
+      }
+    },
+    {
+      "resp": {
+        "status": 401,
+        "body": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "req": {
+        "apiKey": "sk-1",
+        "model": "whisper-1",
+        "language": "zh",
+        "prompt": "提示"
+      },
+      "out": {
+        "error": "识别服务返回 401：xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "seen": {
+        "method": "POST",
+        "url": "/v1/audio/transcriptions",
+        "auth": "Bearer sk-1",
+        "multipart": true,
+        "fields": [
+          [
+            "file",
+            "speech.wav",
+            "audio/wav",
+            null
+          ],
+          [
+            "model",
+            null,
+            null,
+            "whisper-1"
+          ],
+          [
+            "response_format",
+            null,
+            null,
+            "json"
+          ],
+          [
+            "language",
+            null,
+            null,
+            "zh"
+          ],
+          [
+            "prompt",
+            null,
+            null,
+            "提示"
+          ]
+        ]
+      }
+    },
+    {
+      "resp": {
+        "status": 401,
+        "body": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "req": {
+        "model": "m",
+        "language": "auto"
+      },
+      "out": {
+        "error": "识别服务返回 401：xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "seen": {
+        "method": "POST",
+        "url": "/v1/audio/transcriptions",
+        "auth": null,
+        "multipart": true,
+        "fields": [
+          [
+            "file",
+            "speech.wav",
+            "audio/wav",
+            null
+          ],
+          [
+            "model",
+            null,
+            null,
+            "m"
+          ],
+          [
+            "response_format",
+            null,
+            null,
+            "json"
+          ]
+        ]
+      }
+    },
+    {
+      "resp": {
+        "status": 401,
+        "body": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "req": {
+        "apiKey": "",
+        "model": "m",
+        "language": ""
+      },
+      "out": {
+        "error": "识别服务返回 401：xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "seen": {
+        "method": "POST",
+        "url": "/v1/audio/transcriptions",
+        "auth": null,
+        "multipart": true,
+        "fields": [
+          [
+            "file",
+            "speech.wav",
+            "audio/wav",
+            null
+          ],
+          [
+            "model",
+            null,
+            null,
+            "m"
+          ],
+          [
+            "response_format",
+            null,
+            null,
+            "json"
+          ]
+        ]
+      }
+    },
+    {
+      "resp": {
+        "status": 500,
+        "body": "{\"error\":\"bad\"}"
+      },
+      "req": {
+        "apiKey": "sk-1",
+        "model": "whisper-1",
+        "language": "zh",
+        "prompt": "提示"
+      },
+      "out": {
+        "error": "识别服务返回 500：{\"error\":\"bad\"}"
+      },
+      "seen": {
+        "method": "POST",
+        "url": "/v1/audio/transcriptions",
+        "auth": "Bearer sk-1",
+        "multipart": true,
+        "fields": [
+          [
+            "file",
+            "speech.wav",
+            "audio/wav",
+            null
+          ],
+          [
+            "model",
+            null,
+            null,
+            "whisper-1"
+          ],
+          [
+            "response_format",
+            null,
+            null,
+            "json"
+          ],
+          [
+            "language",
+            null,
+            null,
+            "zh"
+          ],
+          [
+            "prompt",
+            null,
+            null,
+            "提示"
+          ]
+        ]
+      }
+    },
+    {
+      "resp": {
+        "status": 500,
+        "body": "{\"error\":\"bad\"}"
+      },
+      "req": {
+        "model": "m",
+        "language": "auto"
+      },
+      "out": {
+        "error": "识别服务返回 500：{\"error\":\"bad\"}"
+      },
+      "seen": {
+        "method": "POST",
+        "url": "/v1/audio/transcriptions",
+        "auth": null,
+        "multipart": true,
+        "fields": [
+          [
+            "file",
+            "speech.wav",
+            "audio/wav",
+            null
+          ],
+          [
+            "model",
+            null,
+            null,
+            "m"
+          ],
+          [
+            "response_format",
+            null,
+            null,
+            "json"
+          ]
+        ]
+      }
+    },
+    {
+      "resp": {
+        "status": 500,
+        "body": "{\"error\":\"bad\"}"
+      },
+      "req": {
+        "apiKey": "",
+        "model": "m",
+        "language": ""
+      },
+      "out": {
+        "error": "识别服务返回 500：{\"error\":\"bad\"}"
+      },
+      "seen": {
+        "method": "POST",
+        "url": "/v1/audio/transcriptions",
+        "auth": null,
+        "multipart": true,
+        "fields": [
+          [
+            "file",
+            "speech.wav",
+            "audio/wav",
+            null
+          ],
+          [
+            "model",
+            null,
+            null,
+            "m"
+          ],
+          [
+            "response_format",
+            null,
+            null,
+            "json"
+          ]
+        ]
+      }
+    }
+  ],
+  "speech": [
+    {
+      "in": "",
+      "out": ""
+    },
+    {
+      "in": "你好！",
+      "out": "你好！"
+    },
+    {
+      "in": "**粗体** 和 `代码` [链接](https://x.y/z) ![img](a.png)",
+      "out": "粗体 和 链接"
+    },
+    {
+      "in": "```js\nconst a=1\n```\n然后",
+      "out": "然后"
+    },
+    {
+      "in": "# 标题\n- 列表 1\n- 列表 2",
+      "out": "标题\n列表 1\n列表 2"
+    },
+    {
+      "in": "😀🎉 emoji only",
+      "out": "😀🎉 emoji only"
+    },
+    {
+      "in": "...",
+      "out": "..."
+    },
+    {
+      "in": "https://example.com/path?q=1 看这里",
+      "out": "看这里"
+    },
+    {
+      "in": "<b>html</b> &amp; text",
+      "out": "html &amp; text"
+    },
+    {
+      "in": "1. 第一\n2. 第二\n\n\n段落",
+      "out": "第一\n第二\n段落"
+    },
+    {
+      "in": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "out": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "in": "表格 | a | b |\n|---|---|",
+      "out": ""
+    },
+    {
+      "in": "> 引用\n正文",
+      "out": "引用\n正文"
+    },
+    {
+      "in": "mixed English 和中文, 123.",
+      "out": "mixed English 和中文, 123."
+    }
+  ],
+  "speak": [
+    {
+      "in": {
+        "text": "你好",
+        "voice": null,
+        "rate": null
+      },
+      "out": {
+        "ok": true,
+        "kind": null,
+        "message": null,
+        "calls": [
+          {
+            "text": "你好",
+            "voice": "zh-CN-XiaoyiNeural",
+            "rate": -5
+          }
+        ]
+      }
+    },
+    {
+      "in": {
+        "text": "你好",
+        "voice": "bad",
+        "rate": "30"
+      },
+      "out": {
+        "ok": true,
+        "kind": null,
+        "message": null,
+        "calls": [
+          {
+            "text": "你好",
+            "voice": "zh-CN-XiaoyiNeural",
+            "rate": 30
+          }
+        ]
+      }
+    },
+    {
+      "in": {
+        "text": "...",
+        "voice": "zh-CN-YunxiNeural",
+        "rate": "0"
+      },
+      "out": {
+        "ok": false,
+        "kind": "empty",
+        "message": "nothing to read",
+        "calls": []
+      }
+    },
+    {
+      "in": {
+        "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "voice": "zh-CN-YunxiNeural",
+        "rate": "NaN"
+      },
+      "out": {
+        "ok": true,
+        "kind": null,
+        "message": null,
+        "calls": [
+          {
+            "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "voice": "zh-CN-YunxiNeural",
+            "rate": -5
+          }
+        ]
+      }
+    },
+    {
+      "in": {
+        "text": "**hi**",
+        "voice": "zh-CN-YunxiNeural",
+        "rate": "-20"
+      },
+      "out": {
+        "ok": true,
+        "kind": null,
+        "message": null,
+        "calls": [
+          {
+            "text": "hi",
+            "voice": "zh-CN-YunxiNeural",
+            "rate": -20
+          }
+        ]
+      }
+    }
+  ]
+}

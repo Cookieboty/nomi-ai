@@ -209,6 +209,14 @@ Go 版**1:1 镜像** Node 版：模块边界、包/层结构、数据格式、�
 | D-B8-7 | ~~数据导出用 JS zip 库~~ **已消除** | 移植 fflate zip 写出（按 readdir 顺序、同样的头字段），`local/fflatezip_test.go` 与 Node 产物逐字节一致 | 无行为差异 |
 | D-B8-8 | MCP 密钥用 safeStorage 加密写进 `mcp.json` | 写入系统钥匙串（`security.NewSecretBox("extensions")`），磁盘上存 `enc:<base64 id>`，同 D13 | Go 没有 safeStorage |
 | D-B8-9 | ~~导入技能时用 `O_NOFOLLOW` 打开文件~~ **已消除** | Windows 用 `FILE_FLAG_OPEN_REPARSE_POINT` 打开并拒绝重解析点（`nofollow_windows.go`），Unix `O_NOFOLLOW` | 无行为差异 |
+| D-B9-1 | 豆包（火山引擎）流式 ASR / 一次性识别走 WebSocket 二进制协议 | 设置、密钥（`volc-key.json` 加密）、就绪检查、审计、`voice.volcTest` 的入参校验全部按 Node；真正联网的识别返回 `failed`「Doubao streaming ASR is not available in the Go host」，`voice.streamPush/streamCancel` 返回 `false` | 批次范围排除 Volcengine |
+| D-B9-2 | VAD 在宿主侧加载 silero 模型 | VAD 留在渲染器 WASM；`voice.vad*` 只回 `{kind:"energy"}` / `0` / `null` | 批次约定 |
+| D-B9-3 | 看板娘 `voiceSettings` 原样合并保存（含未知键） | 经类型化 ConfigService 保存，`voiceSettings` 下未知键丢弃 | Go 配置是结构体 |
+| D-B9-4 | `X-Timestamp` 用 V8 `Date#toString()`，括号内时区长名来自 ICU | 同格式；时区长名按 IANA 名查表，查不到回退 ICU 写法 `GMT+08:00` | Go 无 ICU；golden 在 UTC 下逐字节一致 |
+| D-B9-5 | `ws` 客户端握手默认协商 permessage-deflate、Node TLS 指纹 | coder/websocket，请求头顺序与值同 Node；压缩扩展/TLS ClientHello 不同 | 无 vendor SDK 约束下的传输层差异 |
+| D-B9-6 | `fetch` + `FormData`（undici 默认头、`----formdata-undici-` 边界） | net/http multipart，字段顺序/文件名/类型/值与 Node 一致（mock 服务对比），边界串与默认头不同 | 传输层 |
+| D-B9-7 | whisper-cli 失败时 Node `execFile` 的错误文本 | stderr 末尾 300 字符同 Node；无 stderr 时按 `Command failed: …` 近似拼接 | Go exec 错误形态不同 |
+| D-B9-8 | 对话窗刚创建时等待 `did-finish-load` 再注入语音文本 | 新显示时固定延迟 500ms 再发 `voice.inject` | Wails 无同名事件 |
 | D-B7-1 | ~~dsh 解析器遇到 `"null"` 入参时抛 TypeError~~ **已消除** | Go 解析器 `panic(clisdk.JSThrow)` 复现抛出；nodeproc 的 stdout/stderr/error/exit/close 派发统一经 `jsrt.Dispatch`（EventEmitter 语义）：抛出的监听器之后的监听器跳过本事件、本 chunk 余下行丢弃、交给进程级 uncaughtException 钩子（生产环境退出），解析器跨行状态照常保留。golden 录了 `{throw}` 及其后续行 | 无行为差异 |
 | D-B7-2 | 计划里的 PTY（creack/pty + ConPTY） | 不用 PTY：Node 的 CLI 全部走 `child_process` 管道（`harness/spawn.ts`），Go 用 `os/exec` 管道，参数 / env / cwd / 信号 / 杀进程树逐项对齐 | 用户已确认（2026-10-29）；跟随 Node 实际实现，不是平台差异 |
 | D-B7-3 | cli-sdk 驱动里 JS `undefined` 值的键（AppServer `finish` 的 `error: undefined`）、非字符串 thread/turn/session id | Go `util.Obj` 不存 undefined：不设该键（JSON 输出与读值完全一致，仅 `'error' in r` 不同，调用方无此用法）；非字符串 id 经 `JSString` 转字符串（真实 CLI 只回字符串） | 无可观察差异；driver golden 10 场景 / 117 条覆盖 |
