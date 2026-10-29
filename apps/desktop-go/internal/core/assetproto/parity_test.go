@@ -8,6 +8,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/paritytest"
 )
 
 type resp struct {
@@ -54,7 +56,8 @@ func posixOnly(c urlCase, g golden) bool {
 }
 
 func TestProtocolParity(t *testing.T) {
-	raw, err := os.ReadFile("testdata/protocols.json")
+	gp, live := paritytest.Golden(t, "protocols.json", "testdata/protocols.json")
+	raw, err := os.ReadFile(gp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,12 +73,13 @@ func TestProtocolParity(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	win := runtime.GOOS == "windows"
+	// 提交的 golden 录自 Linux；现场录制（live）时一律比对、不跳过
+	win := runtime.GOOS == "windows" && !live
 	// 大小写不敏感文件系统（APFS/NTFS 默认）上 Node 的 fs.realpath 同样能解析大小写变体，
 	// Linux 录的 golden 判 null；这类用例只在大小写敏感 FS 上比对
 	_, ciErr := os.Stat(filepath.Join(R, "CHAT", "IMAGES", "A.PNG"))
-	caseInsensitive := ciErr == nil
-	if !win {
+	caseInsensitive := ciErr == nil && !live
+	if runtime.GOOS != "windows" || live {
 		for p, tg := range g.Tree.Symlinks {
 			if err := os.Symlink(tg, filepath.Join(R, p)); err != nil {
 				t.Fatal(err)

@@ -4,6 +4,7 @@ package knowledgehandlers
 
 import (
 	"encoding/json"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/paritytest"
 	"os"
 	"reflect"
 	"testing"
@@ -33,7 +34,7 @@ func arg[T any](t *testing.T, raw json.RawMessage) T {
 func TestParityB8(t *testing.T) {
 	loc, err := time.LoadLocation("Asia/Shanghai")
 	if err != nil {
-		t.Skip("tzdata missing")
+		paritytest.SkipOrFail(t, "tzdata missing")
 	}
 	old := time.Local
 	time.Local = loc

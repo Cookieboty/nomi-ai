@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/paritytest"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -29,8 +30,8 @@ type svcTrace struct {
 	desk    *deps.NoopDesktop
 }
 
-func (h *svcTrace) now() int64     { return h.clock }
-func (h *svcTrace) newID() string  { h.seq++; return fmt.Sprintf("id-%d", h.seq) }
+func (h *svcTrace) now() int64               { return h.clock }
+func (h *svcTrace) newID() string            { h.seq++; return fmt.Sprintf("id-%d", h.seq) }
 func (h *svcTrace) publish(ch string, p any) { h.events = append(h.events, []any{ch, p}) }
 func (h *svcTrace) complete(_ context.Context, m []deps.Msg) (string, error) {
 	h.prompts = append(h.prompts, m)
@@ -115,7 +116,7 @@ func compareSvc(t *testing.T, name string, want map[string]any, h *svcTrace, ste
 func TestServiceRoundTripParityB8(t *testing.T) {
 	loc, err := time.LoadLocation("Asia/Shanghai")
 	if err != nil {
-		t.Skip("tzdata missing")
+		paritytest.SkipOrFail(t, "tzdata missing")
 	}
 	old := time.Local
 	time.Local = loc

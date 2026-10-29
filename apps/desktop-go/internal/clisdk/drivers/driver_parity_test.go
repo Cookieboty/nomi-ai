@@ -1,9 +1,8 @@
-//go:build !windows
-
 package drivers
 
 import (
 	"encoding/json"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/paritytest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -52,7 +51,7 @@ func parseObj(t *testing.T, raw []byte) *util.Obj {
 func TestDriverParity(t *testing.T) {
 	node, err := exec.LookPath("node")
 	if err != nil {
-		t.Skip("node not found")
+		paritytest.SkipOrFail(t, "node not found")
 	}
 	root, _ := filepath.Abs("../../../../..")
 	var scs []driverScenario
@@ -67,7 +66,8 @@ func TestDriverParity(t *testing.T) {
 		ID  string            `json:"id"`
 		Log []json.RawMessage `json:"log"`
 	}
-	b, _ = os.ReadFile("testdata/drivers.json")
+	gp, _ := paritytest.Golden(t, "drivers.json", "testdata/drivers.json")
+	b, _ = os.ReadFile(gp)
 	if err := json.Unmarshal(b, &golden); err != nil {
 		t.Fatal(err)
 	}

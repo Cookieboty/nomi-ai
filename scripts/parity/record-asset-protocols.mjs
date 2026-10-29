@@ -6,7 +6,7 @@
  *    handler 体与 registerChatAssetProtocol 中的逐字一致（同样切出）。
  *  夹具目录由 tree 描述（Go 测试按同一描述重建），路径以 <ROOT> 记录。
  *  用法：pnpm exec tsx scripts/parity/record-asset-protocols.mjs */
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, statSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -44,8 +44,12 @@ const tree = {
 };
 const R = realpathSync(mkdtempSync(join(tmpdir(), 'nomi-ap-')));
 for (const [p, c] of Object.entries(tree.files)) { mkdirSync(dirname(join(R, p)), { recursive: true }); writeFileSync(join(R, p), c); }
-for (const [p, t] of Object.entries(tree.symlinks)) symlinkSync(t, join(R, p));
-const rel = (s) => (s == null ? s : s.split(R).join('<ROOT>'));
+for (const [p, t] of Object.entries(tree.symlinks)) {
+  const abs = join(dirname(join(R, p)), t);
+  symlinkSync(t, join(R, p), statSync(abs).isDirectory() ? 'dir' : 'file');
+}
+// Windows 上 path.win32 结果统一成 /（Go 侧同样 ToSlash 后比对）
+const rel = (s) => (s == null ? s : s.split(R).join('<ROOT>').split(process.platform === 'win32' ? '\\' : '\0').join('/'));
 
 const chatUrls = [CHAT_BG_PRESET_URL, CHAT_BG_PRESET_URL + '?x=1', 'chat-asset://presets/other.jpg', 'chat-asset://presets/p.jpg',
   'chat-asset://images/a.png', 'chat-asset://IMAGES/a.png', 'chat-asset://images/B.JPG', 'chat-asset://images/b.jpg', 'chat-asset://images/sub/c.webp',
@@ -88,6 +92,9 @@ for (const u of packUrls) {
 const noRootResp = await run((p) => pp.registerCharacterPackProtocol(p, () => null), 'character-pack://pack/manifest.json');
 const mimes = ['a.png', 'a.PNG', 'a.jpg', 'a.jpeg', 'a.webp', 'a.gif', 'a.mp3', 'a.wav', 'a.json', 'a.riv', 'a.md', 'a.txt', 'a', '.png', 'a.tar.gz', 'dir.d/a'];
 const mime = mimes.map((f) => ({ file: f, pack: pp.characterPackMimeFor(f), chat: ca.chatAssetMimeFor(f) }));
-writeFileSync(join(root, 'apps/desktop-go/internal/core/assetproto/testdata/protocols.json'),
+// NOMI_GOLDEN_DIR：CI 在 mac/win 上现场录制到该目录（Go 测试经 NOMI_LIVE_GOLDENS 读取），不覆盖提交的 Linux golden
+const outDir = process.env.NOMI_GOLDEN_DIR || join(root, 'apps/desktop-go/internal/core/assetproto/testdata');
+mkdirSync(outDir, { recursive: true });
+writeFileSync(join(outDir, 'protocols.json'),
   JSON.stringify({ tree, chat, pack, noRootResp, mime }, null, 1) + '\n');
-console.log('protocols: chat', chat.length, 'pack', pack.length, 'mime', mime.length);
+console.log(process.platform, 'protocols: chat', chat.length, 'pack', pack.length, 'mime', mime.length);
