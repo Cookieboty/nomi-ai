@@ -21,7 +21,7 @@ func InstallAppIcon(r *contract.Router, svc *appicon.Service) {
 			return nil, badInput(err)
 		}
 		if in.Variant == nil {
-			return nil, &contract.Error{Code: "BAD_INPUT", Message: "variant: Required"}
+			return nil, &contract.Error{Code: "BAD_INPUT", Message: "Invalid input"}
 		}
 		return svc.Set(*in.Variant), nil
 	})

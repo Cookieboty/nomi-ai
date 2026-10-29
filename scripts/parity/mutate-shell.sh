@@ -14,6 +14,13 @@ MUTANTS=(
   "$D/appicon/appicon.go|s/platform == \"win32\" && ico != \"\"/platform == \"linux\" \&\& ico != \"\"/"
   "$D/appicon/appicon.go|s/part := \"window\"/part := \"dock\"/"
   "$D/appicon/appicon.go|s/s.target.SetTrayIcon\(IconFile\(s.assets, s.current, \"tray\"\)\)//"
+  "$D/updates/service.go|s/DefaultStallMs     = 90_000/DefaultStallMs     = 60_000/"
+  "$D/updates/service.go|s/case \"downloaded\":\n\t\t\tstage = \"install\"/case \"downloaded\":\n\t\t\tstage = \"download\"/"
+  "$D/updates/service.go|s/return m\[\"autoCheck\"\] != false/return m[\"autoCheck\"] == true/"
+  "$D/updates/service.go|s/s.cancelDownload\(\)\n\ts.patch/s.patch/"
+  "$D/updates/service.go|s/st.ReleaseNotes = OptNull/st.ReleaseNotes = Opt{}/"
+  "$D/updates/service.go|s/if s.state.Status != \"error\" \{/if false {/"
+  "$D/shellhandlers/updates.go|s/s.SetAutoCheck\(on\)/s.SetAutoCheck(!on)/"
 )
 killed=0; survived=0
 for m in "${MUTANTS[@]}"; do

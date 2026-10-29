@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
@@ -10,6 +11,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/diagnostics"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/shellhandlers"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/updates"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/hostports"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell/wailsshell"
@@ -19,6 +21,7 @@ import (
 type shellProcs struct {
 	Diagnostics *diagnostics.Service
 	AppIcon     *appicon.Service
+	Updates     *updates.Service
 
 	userData string
 	hp       hostPorts
@@ -55,6 +58,27 @@ func installShellProcs(router *contract.Router, userData string, sh *shell.Shell
 	assets := filepath.Dir(filepath.Dir(filepath.Dir(chatBgPresetFile())))
 	sp.AppIcon = appicon.New(assets, assets, iconTarget{hp})
 	shellhandlers.InstallAppIcon(router, sp.AppIcon)
+	// updates.*：electron-updater 换成读 latest-go.json 的 GitHubUpdater（D3 / D-SH-3）
+	cache, err := os.UserCacheDir()
+	if err != nil {
+		cache = os.TempDir()
+	}
+	sp.Updates = updates.New(updaterLogger{deps.StdLogger{Prefix: "[updates]"}}, updates.Options{
+		Version:  func() string { return hostports.AppVersion },
+		Packaged: hostports.IsPackaged(),
+		Publish:  router.Emit,
+		UserData: userData,
+		Updater: &updates.GitHubUpdater{
+			Version:  func() string { return hostports.AppVersion },
+			CacheDir: filepath.Join(cache, "nomi-updater"),
+			Quit: func() {
+				if sh != nil && *sh != nil {
+					(*sh).Quit()
+				}
+			},
+		},
+	})
+	shellhandlers.InstallUpdates(router, func() *updates.Service { return sp.Updates })
 	return sp
 }
 
@@ -64,7 +88,14 @@ func (sp *shellProcs) AttachShell() {
 		w.OnWindowCreated(func(iw wailsshell.IconWindow) { sp.AppIcon.ApplyToWindow(iw) })
 	}
 	sp.AppIcon.Init(filepath.Join(sp.userData, "app-icon.json"))
+	sp.Updates.Start()
 }
+
+// updaterLogger：deps.Logger 补上 Error / Debug（= ILoggerService）
+type updaterLogger struct{ deps.Logger }
+
+func (l updaterLogger) Error(m string, kv ...any) { l.Logger.Warn(m, kv...) }
+func (l updaterLogger) Debug(m string, kv ...any) {}
 
 // iconTarget：appicon.Target 的 Wails 实现
 type iconTarget struct{ hp hostPorts }
