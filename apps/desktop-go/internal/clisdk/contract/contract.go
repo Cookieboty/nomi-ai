@@ -28,7 +28,8 @@ type HistoryFixture struct {
 }
 
 type Options struct {
-	Host            *clisdk.CliMainHost
+	// Host：在默认宿主上打补丁（= Partial<CliMainHost> 展开覆盖）
+	Host            func(h *clisdk.CliMainHost)
 	HistoryFixtures []HistoryFixture
 	Extend          func(*clisdk.CliMainImpl) *clisdk.CliMainImpl
 }
@@ -56,26 +57,44 @@ func secretsIn(vals []string) []string {
 	return out
 }
 
-// CheckPlugin 返回问题列表（空 = 通过）。
-func CheckPlugin(p clisdk.CliPlugin, o Options) []string {
+type nopLogger struct{}
+
+func (nopLogger) Info(string, any) {}
+func (nopLogger) Warn(string, any) {}
+
+// CheckPlugin 返回问题列表（空 = 通过）；error = Node 的 checkPlugin reject（未捕获异常）。
+func CheckPlugin(p clisdk.CliPlugin, o Options) (problems []string, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			problems, err = nil, fmt.Errorf("%v", r)
+		}
+	}()
+	return checkPlugin(p, o)
+}
+
+func checkPlugin(p clisdk.CliPlugin, o Options) ([]string, error) {
 	problems := []string{}
 	m := p.Manifest
-	for _, e := range clisdk.ValidateManifest(m) {
+	var raw any = m // nil *Obj = null（避免 typed-nil 被当成对象）
+	if m == nil {
+		raw = nil
+	}
+	for _, e := range clisdk.ValidateManifest(raw) {
 		problems = append(problems, "manifest: "+e)
 	}
 	if len(problems) > 0 {
-		return problems
+		return problems, nil
 	}
 	if p.Main == nil {
-		return []string{"main: built-in plugins must provide a main implementation"}
+		return []string{"main: built-in plugins must provide a main implementation"}, nil
 	}
-	host := clisdk.CliMainHost{DataDir: "/tmp/nomi-contract", Home: "/home/tester", Env: clisdk.Env{}, Platform: "linux"}
+	host := clisdk.CliMainHost{Logger: nopLogger{}, DataDir: "/tmp/nomi-contract", Home: "/home/tester", Env: clisdk.Env{}, Platform: "linux"}
 	if o.Host != nil {
-		host = *o.Host
+		o.Host(&host)
 	}
 	impl, err := p.Main(host)
 	if err != nil {
-		return []string{"main: factory threw " + err.Error()}
+		return []string{"main: factory threw " + err.Error()}, nil
 	}
 	if o.Extend != nil {
 		impl = o.Extend(impl)
@@ -141,10 +160,10 @@ func CheckPlugin(p clisdk.CliPlugin, o Options) []string {
 						break
 					}
 				}
-				if sa := spec.Get("args"); sa != nil && stable(sa) != stable(a.Get("args")) {
+				if sa := spec.Get("args"); util.Truthy(sa) && stable(sa) != stable(a.Get("args")) {
 					problems = append(problems, fmt.Sprintf("permissions.launch(%s).args differ from manifest", mode))
 				}
-				if mid, ok := spec.Get("modeId").(string); ok && mid != "" && impl.Permissions.ModeID != nil && impl.Permissions.ModeID(mode) != mid {
+				if mid := spec.Get("modeId"); util.Truthy(mid) && impl.Permissions.ModeID != nil && any(impl.Permissions.ModeID(mode)) != mid {
 					problems = append(problems, fmt.Sprintf("permissions.modeId(%s) differs from manifest", mode))
 				}
 			}
@@ -159,7 +178,7 @@ func CheckPlugin(p clisdk.CliPlugin, o Options) []string {
 		ctx := clisdk.LaunchContext{Cwd: "/work", PermissionMode: mode, Model: ptr("model-x"), AccountDir: acct, RunDir: "/tmp/nomi-run"}
 		a, b := impl.Launch.Official(ctx), impl.Launch.Official(ctx)
 		lo := func(l clisdk.AgentLaunch) string {
-			return stable(util.NewObj("env", l.Env, "args", strsAny(l.Args), "strip", strsAny(l.Strip)))
+			return stable(launchObj(l))
 		}
 		accStr := "null"
 		if acct != nil {
@@ -214,7 +233,11 @@ func CheckPlugin(p clisdk.CliPlugin, o Options) []string {
 			if path == "" {
 				path = "/fixtures/" + f.Name
 			}
-			r := impl.History.Parse(f.Text, clisdk.HistoryFileRef{Path: path, Size: float64(len(utf16(f.Text)))})
+			r, perr := safeParse(impl.History.Parse, f.Text, clisdk.HistoryFileRef{Path: path, Size: float64(len(utf16(f.Text)))})
+			if perr != "" {
+				problems = append(problems, "history fixture "+f.Name+": parse threw "+perr)
+				continue
+			}
 			if f.Error {
 				if !r.Has("error") {
 					problems = append(problems, "history fixture "+f.Name+": expected an error")
@@ -225,26 +248,78 @@ func CheckPlugin(p clisdk.CliPlugin, o Options) []string {
 				problems = append(problems, "history fixture "+f.Name+": "+util.JSString(r.Get("error")))
 				continue
 			}
-			n := 0
-			if l, ok := r.Get("messages").([]any); ok {
-				n = len(l)
-			}
-			if f.Messages != nil && n != *f.Messages {
-				problems = append(problems, fmt.Sprintf("history fixture %s: %d messages, expected %d", f.Name, n, *f.Messages))
-			}
-			meta, _ := r.Get("meta").(*util.Obj)
-			if f.Title != nil {
-				var t any
-				if meta != nil {
-					t = meta.Get("title")
+			// countMessages：'meta' in p ? (p.messages?.length ?? 0) : undefined
+			n := "undefined"
+			if r.Has("meta") {
+				c := 0
+				switch l := r.Get("messages").(type) {
+				case []any:
+					c = len(l)
+				case string:
+					c = len(utf16(l))
 				}
-				if ts, _ := t.(string); t == nil || ts != *f.Title {
-					problems = append(problems, fmt.Sprintf("history fixture %s: title %s, expected %s", f.Name, stable(t), stable(*f.Title)))
+				n = fmt.Sprint(c)
+			}
+			if f.Messages != nil && n != fmt.Sprint(*f.Messages) {
+				problems = append(problems, fmt.Sprintf("history fixture %s: %s messages, expected %d", f.Name, n, *f.Messages))
+			}
+			if f.Title != nil {
+				mv, hasMeta := r.Lookup("meta")
+				meta, _ := mv.(*util.Obj)
+				if !hasMeta || mv == nil || mv == util.Undefined {
+					return nil, fmt.Errorf("Cannot read properties of %s (reading 'title')", map[bool]string{true: "null", false: "undefined"}[hasMeta && mv == nil])
+				}
+				t, has := any(nil), false
+				if meta != nil {
+					t, has = meta.Lookup("title")
+				}
+				if ts, ok := t.(string); !has || !ok || ts != *f.Title {
+					ws := "undefined"
+					if has && t != util.Undefined {
+						ws = stable(t)
+					}
+					problems = append(problems, fmt.Sprintf("history fixture %s: title %s, expected %s", f.Name, ws, stable(*f.Title)))
 				}
 			}
 		}
 	}
-	return problems
+	return problems, nil
+}
+
+func safeParse(parse func(string, clisdk.HistoryFileRef) *util.Obj, text string, f clisdk.HistoryFileRef) (r *util.Obj, msg string) {
+	defer func() {
+		if x := recover(); x != nil {
+			if e, ok := x.(error); ok {
+				msg = e.Error()
+			} else {
+				msg = fmt.Sprint(x)
+			}
+		}
+	}()
+	return parse(text, f), ""
+}
+
+// launchObj：AgentLaunch 的 JSON 形状（stable 比较用；未给的字段不出现）
+func launchObj(l clisdk.AgentLaunch) *util.Obj {
+	o := util.NewObj("env", l.Env, "args", strsAny(l.Args))
+	if l.Strip != nil {
+		o.Set("strip", strsAny(l.Strip))
+	}
+	if l.Files != nil {
+		fs := []any{}
+		for _, f := range l.Files {
+			fo := util.NewObj("path", f.Path, "content", f.Content)
+			if f.Mode != nil {
+				fo.Set("mode", float64(*f.Mode))
+			}
+			fs = append(fs, fo)
+		}
+		o.Set("files", fs)
+	}
+	if h := l.PrivateHome; h != nil {
+		o.Set("privateHome", util.NewObj("envVar", h.EnvVar, "shared", h.Shared, "keepPrivate", strsAny(h.KeepPrivate)))
+	}
+	return o
 }
 
 func ptr(s string) *string { return &s }
