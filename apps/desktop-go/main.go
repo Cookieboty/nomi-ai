@@ -16,6 +16,7 @@ import (
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/knowledgehandlers"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/security"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/shellhandlers"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/hostports"
@@ -69,6 +70,20 @@ func main() {
 		SystemLangs: systemLangs(),
 		IsDark:      func() bool { return false },
 	})
+	// 批次 8：知识库 / 记忆 / 定时 / 本地模型 / 导出 / 扩展。
+	// TODO(batch-4/5): Complete / Gateway 接 AI runtime；TODO(batch-6): Desktop / Ports 接 DesktopService 与 HostPorts。
+	b8 := knowledgehandlers.Wire(knowledgehandlers.WireDeps{
+		UserData: userData,
+		Router:   router,
+		Secrets:  security.NewSecretBox("extensions"),
+		OpenChat: func() {
+			if sh != nil {
+				sh.Show(shell.Chat)
+			}
+		},
+	})
+	b8.Start()
+	defer b8.Stop()
 	log.Printf("[desktop-go] %d contract procedures stubbed (not implemented yet)", procs.Install(router))
 
 	ws := &contract.WSServer{Router: router, Token: contract.NewToken(), Origins: map[string]bool{
