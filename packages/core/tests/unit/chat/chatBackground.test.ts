@@ -37,12 +37,13 @@ const imageResize = jest.fn<ReturnType<ImagePort['resize']>, Parameters<ImagePor
   async () => new Uint8Array(),
 );
 let events: RecordingAppEvents = createRecordingAppEvents();
+const created: ChatBackgroundService[] = [];
 const make = (
   file: string,
   imagesDir: string,
   presetFile = BUNDLED_PRESET,
-): ChatBackgroundService =>
-  new ChatBackgroundService({
+): ChatBackgroundService => {
+  const service = new ChatBackgroundService({
     file,
     imagesDir,
     presetFile,
@@ -57,6 +58,9 @@ const make = (
     },
     events,
   });
+  created.push(service);
+  return service;
+};
 
 describe('ChatBackgroundService', () => {
   beforeEach(() => {
@@ -67,6 +71,9 @@ describe('ChatBackgroundService', () => {
     events = createRecordingAppEvents();
   });
   afterEach(async () => {
+    // 构造器里的启动落盘在 mkdir 之后才入写队列：先等每个实例的串行队列，再等写队列，
+    // 免得慢盘（Windows ACL 收紧）上的写拖到下一个用例、撞上它 mock 的 rename
+    await Promise.all(created.splice(0).map((s) => s.flush()));
     await whenPrivateWritesIdle();
   });
 
