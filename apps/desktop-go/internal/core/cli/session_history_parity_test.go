@@ -212,7 +212,7 @@ func runHistoryScenario(t *testing.T, sc shScenario) {
 				}
 				return m
 			},
-			OpenTitle: func(b, id, title string) { calls = append(calls, []any{"openTitle", b, id, title}) },
+			OpenTitle:    func(b, id, title string) { calls = append(calls, []any{"openTitle", b, id, title}) },
 			SessionModel: func(b, id string) string { return d.SessionModel[b+":"+id] },
 			GatewaySession: func(b, id string) bool {
 				for _, k := range d.Gateway {

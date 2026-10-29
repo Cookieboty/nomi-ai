@@ -1,0 +1,4580 @@
+{
+ "platform": "linux",
+ "scenarios": [
+  {
+   "name": "pure",
+   "deps": null,
+   "plugins": null,
+   "files": [],
+   "steps": [
+    [
+     "inRange",
+     "1.2.3",
+     ">=1.0.0"
+    ],
+    [
+     "inRange",
+     "1.2.3",
+     ">=1.0.0 <1.2.3"
+    ],
+    [
+     "inRange",
+     "1.2.3",
+     " >1.2.2   <=1.2.3 "
+    ],
+    [
+     "inRange",
+     "v1.2.3",
+     "=1.2.3"
+    ],
+    [
+     "inRange",
+     "1.2.3",
+     "1.2.3"
+    ],
+    [
+     "inRange",
+     "1.2.3",
+     "v1.2.3"
+    ],
+    [
+     "inRange",
+     "1.2.3",
+     ""
+    ],
+    [
+     "inRange",
+     "1.2.3",
+     ">= 1.2.3"
+    ],
+    [
+     "inRange",
+     "1.2.3",
+     "~1.2.3"
+    ],
+    [
+     "inRange",
+     "1.2",
+     ">=1.0.0"
+    ],
+    [
+     "inRange",
+     "grok 2.0.1 (abc)",
+     "<3.0.0"
+    ],
+    [
+     "inRange",
+     "1.2.3-beta",
+     "<1.2.3"
+    ],
+    [
+     "inRange",
+     "10.0.0",
+     ">9.99.99"
+    ],
+    [
+     "inRange",
+     "1.2.3",
+     ">=1.2.3"
+    ],
+    [
+     "inRange",
+     "1.2.3",
+     "<=1.2.3"
+    ],
+    [
+     "inRange",
+     "1.2.3",
+     "=1.2.3"
+    ],
+    [
+     "inRange",
+     "1.2.3",
+     ">1.2.3"
+    ],
+    [
+     "inRange",
+     "1.2.3",
+     ">=1.2"
+    ],
+    [
+     "inRange",
+     "1.2.3",
+     " >=1.0.0　<2.0.0"
+    ]
+   ],
+   "out": [
+    {
+     "v": true
+    },
+    {
+     "v": false
+    },
+    {
+     "v": true
+    },
+    {
+     "v": true
+    },
+    {
+     "v": true
+    },
+    {
+     "v": true
+    },
+    {
+     "v": false
+    },
+    {
+     "v": false
+    },
+    {
+     "v": false
+    },
+    {
+     "v": false
+    },
+    {
+     "v": true
+    },
+    {
+     "v": false
+    },
+    {
+     "v": true
+    },
+    {
+     "v": true
+    },
+    {
+     "v": true
+    },
+    {
+     "v": true
+    },
+    {
+     "v": false
+    },
+    {
+     "v": false
+    },
+    {
+     "v": true
+    }
+   ]
+  },
+  {
+   "name": "injected",
+   "deps": {
+    "home": "@@SB@@/home",
+    "env": {
+     "MY_KEY": "k",
+     "OTHER_KEY": ""
+    },
+    "platform": "linux",
+    "version": {
+     "grok": "1.0.60",
+     "claude": null,
+     "codex": "throw"
+    },
+    "extend": true
+   },
+   "plugins": [
+    {
+     "key": "grok",
+     "manifest": {
+      "id": "grok",
+      "apiVersion": 1,
+      "displayName": "Grok",
+      "icon": "grok",
+      "binary": {
+       "names": [
+        "grok"
+       ],
+       "versionArgs": [
+        "--version"
+       ],
+       "versionPattern": "(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)",
+       "install": {
+        "npm": "@xai-official/grok",
+        "url": "https://docs.x.ai/build/cli"
+       }
+      },
+      "transport": "acp",
+      "fallbackTransport": "exec",
+      "ingress": "responses",
+      "capabilities": {
+       "officialAccount": true,
+       "thirdParty": true,
+       "images": "native",
+       "permissionModes": [
+        {
+         "mode": "plan",
+         "args": [
+          "--permission-mode",
+          "plan"
+         ],
+         "modeId": "plan"
+        },
+        {
+         "mode": "manual",
+         "args": [
+          "--permission-mode",
+          "default"
+         ],
+         "modeId": "default"
+        },
+        {
+         "mode": "acceptEdits",
+         "args": [
+          "--permission-mode",
+          "acceptEdits"
+         ],
+         "modeId": "acceptEdits"
+        },
+        {
+         "mode": "bypass",
+         "args": [
+          "--yolo"
+         ],
+         "modeId": "bypassPermissions"
+        }
+       ],
+       "subagents": false,
+       "slashCommands": true,
+       "resume": true,
+       "fork": false,
+       "usageQuota": true,
+       "progressMonitor": true,
+       "terminalCommand": true
+      },
+      "modelSwitch": "gateway",
+      "clientSpec": {
+       "client": "grok",
+       "placeholderModel": "nomi"
+      }
+     },
+     "main": "ok"
+    },
+    {
+     "key": "claude",
+     "manifest": {
+      "id": "claude",
+      "apiVersion": 1,
+      "displayName": "Claude Code",
+      "icon": "claude",
+      "binary": {
+       "names": [
+        "claude"
+       ],
+       "versionArgs": [
+        "--version"
+       ],
+       "versionPattern": "(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)",
+       "install": {
+        "npm": "@anthropic-ai/claude-code",
+        "url": "https://docs.claude.com/claude-code"
+       }
+      },
+      "transport": "stream-json",
+      "fallbackTransport": "exec",
+      "ingress": "messages",
+      "capabilities": {
+       "officialAccount": true,
+       "thirdParty": true,
+       "images": "native",
+       "permissionModes": [
+        {
+         "mode": "plan",
+         "args": [
+          "--permission-mode",
+          "plan"
+         ],
+         "modeId": "plan"
+        },
+        {
+         "mode": "manual",
+         "args": [
+          "--permission-mode",
+          "default"
+         ],
+         "modeId": "default"
+        },
+        {
+         "mode": "acceptEdits",
+         "args": [
+          "--permission-mode",
+          "acceptEdits"
+         ],
+         "modeId": "acceptEdits"
+        },
+        {
+         "mode": "auto",
+         "args": [
+          "--permission-mode",
+          "auto"
+         ],
+         "modeId": "auto"
+        },
+        {
+         "mode": "bypass",
+         "args": [
+          "--permission-mode",
+          "bypassPermissions"
+         ],
+         "modeId": "bypassPermissions"
+        }
+       ],
+       "subagents": true,
+       "subagentStop": true,
+       "slashCommands": true,
+       "resume": true,
+       "fork": false,
+       "usageQuota": true,
+       "progressMonitor": true,
+       "terminalCommand": true
+      },
+      "modelSwitch": "inplace",
+      "clientSpec": {
+       "client": "claude"
+      }
+     },
+     "main": "none"
+    },
+    {
+     "key": "codex",
+     "manifest": {
+      "id": "codex",
+      "apiVersion": 1,
+      "displayName": "Codex",
+      "icon": "codex",
+      "binary": {
+       "names": [
+        "codex"
+       ],
+       "versionArgs": [
+        "--version"
+       ],
+       "versionPattern": "(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)",
+       "install": {
+        "npm": "@openai/codex",
+        "url": "https://github.com/openai/codex"
+       }
+      },
+      "transport": "app-server",
+      "fallbackTransport": "exec",
+      "ingress": "responses",
+      "capabilities": {
+       "officialAccount": true,
+       "thirdParty": true,
+       "images": "path",
+       "permissionModes": [
+        {
+         "mode": "plan"
+        },
+        {
+         "mode": "manual"
+        },
+        {
+         "mode": "acceptEdits"
+        },
+        {
+         "mode": "auto"
+        },
+        {
+         "mode": "bypass"
+        }
+       ],
+       "subagents": true,
+       "slashCommands": true,
+       "resume": true,
+       "fork": false,
+       "usageQuota": true,
+       "progressMonitor": true,
+       "terminalCommand": true
+      },
+      "modelSwitch": "inplace",
+      "clientSpec": {
+       "client": "codex"
+      }
+     },
+     "main": "throw:factory exploded"
+    },
+    {
+     "key": "broken",
+     "manifest": {
+      "id": "Bad Id",
+      "apiVersion": 1,
+      "displayName": "Grok",
+      "icon": "grok",
+      "binary": {
+       "names": [
+        "grok"
+       ],
+       "versionArgs": [
+        "--version"
+       ],
+       "versionPattern": "(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)",
+       "install": {
+        "npm": "@xai-official/grok",
+        "url": "https://docs.x.ai/build/cli"
+       }
+      },
+      "transport": "acp",
+      "fallbackTransport": "exec",
+      "ingress": "responses",
+      "capabilities": {
+       "officialAccount": true,
+       "thirdParty": true,
+       "images": "native",
+       "permissionModes": [
+        {
+         "mode": "plan",
+         "args": [
+          "--permission-mode",
+          "plan"
+         ],
+         "modeId": "plan"
+        },
+        {
+         "mode": "manual",
+         "args": [
+          "--permission-mode",
+          "default"
+         ],
+         "modeId": "default"
+        },
+        {
+         "mode": "acceptEdits",
+         "args": [
+          "--permission-mode",
+          "acceptEdits"
+         ],
+         "modeId": "acceptEdits"
+        },
+        {
+         "mode": "bypass",
+         "args": [
+          "--yolo"
+         ],
+         "modeId": "bypassPermissions"
+        }
+       ],
+       "subagents": false,
+       "slashCommands": true,
+       "resume": true,
+       "fork": false,
+       "usageQuota": true,
+       "progressMonitor": true,
+       "terminalCommand": true
+      },
+      "modelSwitch": "gateway",
+      "clientSpec": {
+       "client": "grok",
+       "placeholderModel": "nomi"
+      }
+     },
+     "main": "ok"
+    },
+    {
+     "key": "dup",
+     "manifest": {
+      "id": "grok",
+      "apiVersion": 1,
+      "displayName": "Grok",
+      "icon": "grok",
+      "binary": {
+       "names": [
+        "grok"
+       ],
+       "versionArgs": [
+        "--version"
+       ],
+       "versionPattern": "(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)",
+       "install": {
+        "npm": "@xai-official/grok",
+        "url": "https://docs.x.ai/build/cli"
+       }
+      },
+      "transport": "acp",
+      "fallbackTransport": "exec",
+      "ingress": "responses",
+      "capabilities": {
+       "officialAccount": true,
+       "thirdParty": true,
+       "images": "native",
+       "permissionModes": [
+        {
+         "mode": "plan",
+         "args": [
+          "--permission-mode",
+          "plan"
+         ],
+         "modeId": "plan"
+        },
+        {
+         "mode": "manual",
+         "args": [
+          "--permission-mode",
+          "default"
+         ],
+         "modeId": "default"
+        },
+        {
+         "mode": "acceptEdits",
+         "args": [
+          "--permission-mode",
+          "acceptEdits"
+         ],
+         "modeId": "acceptEdits"
+        },
+        {
+         "mode": "bypass",
+         "args": [
+          "--yolo"
+         ],
+         "modeId": "bypassPermissions"
+        }
+       ],
+       "subagents": false,
+       "slashCommands": true,
+       "resume": true,
+       "fork": false,
+       "usageQuota": true,
+       "progressMonitor": true,
+       "terminalCommand": true
+      },
+      "modelSwitch": "gateway",
+      "clientSpec": {
+       "client": "grok",
+       "placeholderModel": "nomi"
+      }
+     },
+     "main": "ok"
+    },
+    {
+     "key": "nomani",
+     "manifest": null,
+     "main": "ok"
+    }
+   ],
+   "files": [],
+   "steps": [
+    [
+     "start"
+    ],
+    [
+     "tick"
+    ],
+    [
+     "calls"
+    ],
+    [
+     "snapshot"
+    ],
+    [
+     "start"
+    ],
+    [
+     "calls"
+    ],
+    [
+     "impl",
+     "grok"
+    ],
+    [
+     "manifest",
+     "grok"
+    ],
+    [
+     "caps",
+     "grok"
+    ],
+    [
+     "impl",
+     "claude"
+    ],
+    [
+     "manifest",
+     "claude"
+    ],
+    [
+     "caps",
+     "claude"
+    ],
+    [
+     "impl",
+     "codex"
+    ],
+    [
+     "manifest",
+     "codex"
+    ],
+    [
+     "caps",
+     "codex"
+    ],
+    [
+     "impl",
+     "Bad Id"
+    ],
+    [
+     "manifest",
+     "Bad Id"
+    ],
+    [
+     "caps",
+     "Bad Id"
+    ],
+    [
+     "impl",
+     "grok#dup"
+    ],
+    [
+     "manifest",
+     "grok#dup"
+    ],
+    [
+     "caps",
+     "grok#dup"
+    ],
+    [
+     "impl",
+     "nomani"
+    ],
+    [
+     "manifest",
+     "nomani"
+    ],
+    [
+     "caps",
+     "nomani"
+    ],
+    [
+     "impl",
+     "missing"
+    ],
+    [
+     "manifest",
+     "missing"
+    ],
+    [
+     "caps",
+     "missing"
+    ],
+    [
+     "handshake",
+     "grok",
+     {
+      "images": false,
+      "resume": false,
+      "bogus": false,
+      "fork": "no"
+     }
+    ],
+    [
+     "caps",
+     "grok"
+    ],
+    [
+     "handshake",
+     "missing",
+     {
+      "images": false
+     }
+    ],
+    [
+     "handshake",
+     "grok",
+     {
+      "resume": true
+     }
+    ],
+    [
+     "caps",
+     "grok"
+    ],
+    [
+     "calls"
+    ],
+    [
+     "setVersion",
+     "grok",
+     "1.0.61"
+    ],
+    [
+     "setVersion",
+     "claude",
+     "2.0.0"
+    ],
+    [
+     "setVersion",
+     "codex",
+     "0.5.0"
+    ],
+    [
+     "refresh"
+    ],
+    [
+     "calls"
+    ],
+    [
+     "refresh"
+    ],
+    [
+     "calls"
+    ],
+    [
+     "setVersion",
+     "grok",
+     null
+    ],
+    [
+     "refresh"
+    ],
+    [
+     "setVersion",
+     "grok",
+     "1.0.62"
+    ],
+    [
+     "refresh"
+    ],
+    [
+     "calls"
+    ],
+    [
+     "remove",
+     "grok"
+    ],
+    [
+     "remove",
+     "Bad Id"
+    ],
+    [
+     "remove",
+     "missing"
+    ],
+    [
+     "stop"
+    ],
+    [
+     "snapshot"
+    ],
+    [
+     "impl",
+     "grok"
+    ],
+    [
+     "start"
+    ],
+    [
+     "tick"
+    ],
+    [
+     "snapshot"
+    ],
+    [
+     "calls"
+    ]
+   ],
+   "out": [
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": [
+      [
+       "main",
+       "grok",
+       {
+        "dataDir": "<SB>/root/grok",
+        "env": {
+         "MY_KEY": "k",
+         "OTHER_KEY": ""
+        },
+        "home": "<SB>/home",
+        "platform": "linux"
+       }
+      ],
+      [
+       "extend",
+       "grok"
+      ],
+      [
+       "main",
+       "codex",
+       {
+        "dataDir": "<SB>/root/codex",
+        "env": {
+         "MY_KEY": "k",
+         "OTHER_KEY": ""
+        },
+        "home": "<SB>/home",
+        "platform": "linux"
+       }
+      ],
+      [
+       "warn",
+       "cli plugin failed to start",
+       {
+        "error": "factory exploded",
+        "id": "codex"
+       }
+      ],
+      [
+       "warn",
+       "cli plugin rejected",
+       {
+        "errors": [
+         "id must match [a-z0-9-] (1–41 chars, not starting with -)"
+        ],
+        "id": "Bad Id"
+       }
+      ],
+      [
+       "warn",
+       "cli plugin rejected",
+       {
+        "errors": [
+         "duplicate plugin id grok"
+        ],
+        "id": "grok"
+       }
+      ],
+      [
+       "warn",
+       "cli plugin rejected",
+       {
+        "errors": [
+         "manifest must be an object"
+        ],
+        "id": "nomani"
+       }
+      ],
+      [
+       "publish",
+       "cli.registryChanged",
+       [
+        "grok:ready:null",
+        "claude:ready:null",
+        "codex:failed:null",
+        "Bad Id:invalid:null",
+        "grok#dup:invalid:null",
+        "nomani:invalid:null"
+       ]
+      ],
+      [
+       "version",
+       "grok"
+      ],
+      [
+       "version",
+       "claude"
+      ],
+      [
+       "version",
+       "codex"
+      ],
+      [
+       "publish",
+       "cli.registryChanged",
+       [
+        "grok:ready:1.0.60",
+        "claude:ready:null",
+        "codex:failed:null",
+        "Bad Id:invalid:null",
+        "grok#dup:invalid:null",
+        "nomani:invalid:null"
+       ]
+      ]
+     ]
+    },
+    {
+     "v": {
+      "plugins": [
+       {
+        "builtin": false,
+        "capabilities": {
+         "fork": false,
+         "images": "native",
+         "officialAccount": true,
+         "permissionModes": [
+          {
+           "args": [
+            "--permission-mode",
+            "plan"
+           ],
+           "mode": "plan",
+           "modeId": "plan"
+          },
+          {
+           "args": [
+            "--permission-mode",
+            "default"
+           ],
+           "mode": "manual",
+           "modeId": "default"
+          },
+          {
+           "args": [
+            "--permission-mode",
+            "acceptEdits"
+           ],
+           "mode": "acceptEdits",
+           "modeId": "acceptEdits"
+          },
+          {
+           "args": [
+            "--yolo"
+           ],
+           "mode": "bypass",
+           "modeId": "bypassPermissions"
+          }
+         ],
+         "progressMonitor": true,
+         "resume": true,
+         "slashCommands": true,
+         "subagents": false,
+         "terminalCommand": true,
+         "thirdParty": true,
+         "usageQuota": true
+        },
+        "displayName": "Grok",
+        "errors": [],
+        "icon": "grok",
+        "id": "grok",
+        "ingress": "responses",
+        "modelSwitch": "gateway",
+        "status": "ready",
+        "transport": "acp",
+        "version": "1.0.60"
+       },
+       {
+        "builtin": false,
+        "capabilities": {
+         "fork": false,
+         "images": "native",
+         "officialAccount": true,
+         "permissionModes": [
+          {
+           "args": [
+            "--permission-mode",
+            "plan"
+           ],
+           "mode": "plan",
+           "modeId": "plan"
+          },
+          {
+           "args": [
+            "--permission-mode",
+            "default"
+           ],
+           "mode": "manual",
+           "modeId": "default"
+          },
+          {
+           "args": [
+            "--permission-mode",
+            "acceptEdits"
+           ],
+           "mode": "acceptEdits",
+           "modeId": "acceptEdits"
+          },
+          {
+           "args": [
+            "--permission-mode",
+            "auto"
+           ],
+           "mode": "auto",
+           "modeId": "auto"
+          },
+          {
+           "args": [
+            "--permission-mode",
+            "bypassPermissions"
+           ],
+           "mode": "bypass",
+           "modeId": "bypassPermissions"
+          }
+         ],
+         "progressMonitor": true,
+         "resume": true,
+         "slashCommands": true,
+         "subagentStop": true,
+         "subagents": true,
+         "terminalCommand": true,
+         "thirdParty": true,
+         "usageQuota": true
+        },
+        "displayName": "Claude Code",
+        "errors": [],
+        "icon": "claude",
+        "id": "claude",
+        "ingress": "messages",
+        "modelSwitch": "inplace",
+        "status": "ready",
+        "transport": "stream-json",
+        "version": null
+       },
+       {
+        "builtin": false,
+        "capabilities": {
+         "fork": false,
+         "images": "path",
+         "officialAccount": true,
+         "permissionModes": [
+          {
+           "mode": "plan"
+          },
+          {
+           "mode": "manual"
+          },
+          {
+           "mode": "acceptEdits"
+          },
+          {
+           "mode": "auto"
+          },
+          {
+           "mode": "bypass"
+          }
+         ],
+         "progressMonitor": true,
+         "resume": true,
+         "slashCommands": true,
+         "subagents": true,
+         "terminalCommand": true,
+         "thirdParty": true,
+         "usageQuota": true
+        },
+        "displayName": "Codex",
+        "errors": [
+         "factory exploded"
+        ],
+        "icon": "codex",
+        "id": "codex",
+        "ingress": "responses",
+        "modelSwitch": "inplace",
+        "status": "failed",
+        "transport": "app-server",
+        "version": null
+       },
+       {
+        "builtin": false,
+        "capabilities": {},
+        "displayName": "Grok",
+        "errors": [
+         "id must match [a-z0-9-] (1–41 chars, not starting with -)"
+        ],
+        "icon": "grok",
+        "id": "Bad Id",
+        "ingress": "responses",
+        "modelSwitch": "gateway",
+        "status": "invalid",
+        "transport": "acp",
+        "version": null
+       },
+       {
+        "builtin": false,
+        "capabilities": {},
+        "displayName": "Grok",
+        "errors": [
+         "duplicate plugin id grok"
+        ],
+        "icon": "grok",
+        "id": "grok#dup",
+        "ingress": "responses",
+        "modelSwitch": "gateway",
+        "status": "invalid",
+        "transport": "acp",
+        "version": null
+       },
+       {
+        "builtin": false,
+        "capabilities": {},
+        "displayName": "nomani",
+        "errors": [
+         "manifest must be an object"
+        ],
+        "icon": "",
+        "id": "nomani",
+        "status": "invalid",
+        "version": null
+       }
+      ]
+     }
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": []
+    },
+    {
+     "v": true
+    },
+    {
+     "v": {
+      "apiVersion": 1,
+      "binary": {
+       "install": {
+        "npm": "@xai-official/grok",
+        "url": "https://docs.x.ai/build/cli"
+       },
+       "names": [
+        "grok"
+       ],
+       "versionArgs": [
+        "--version"
+       ],
+       "versionPattern": "(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)"
+      },
+      "capabilities": {
+       "fork": false,
+       "images": "native",
+       "officialAccount": true,
+       "permissionModes": [
+        {
+         "args": [
+          "--permission-mode",
+          "plan"
+         ],
+         "mode": "plan",
+         "modeId": "plan"
+        },
+        {
+         "args": [
+          "--permission-mode",
+          "default"
+         ],
+         "mode": "manual",
+         "modeId": "default"
+        },
+        {
+         "args": [
+          "--permission-mode",
+          "acceptEdits"
+         ],
+         "mode": "acceptEdits",
+         "modeId": "acceptEdits"
+        },
+        {
+         "args": [
+          "--yolo"
+         ],
+         "mode": "bypass",
+         "modeId": "bypassPermissions"
+        }
+       ],
+       "progressMonitor": true,
+       "resume": true,
+       "slashCommands": true,
+       "subagents": false,
+       "terminalCommand": true,
+       "thirdParty": true,
+       "usageQuota": true
+      },
+      "clientSpec": {
+       "client": "grok",
+       "placeholderModel": "nomi"
+      },
+      "displayName": "Grok",
+      "fallbackTransport": "exec",
+      "icon": "grok",
+      "id": "grok",
+      "ingress": "responses",
+      "modelSwitch": "gateway",
+      "transport": "acp"
+     }
+    },
+    {
+     "v": {
+      "fork": false,
+      "images": "native",
+      "officialAccount": true,
+      "permissionModes": [
+       {
+        "args": [
+         "--permission-mode",
+         "plan"
+        ],
+        "mode": "plan",
+        "modeId": "plan"
+       },
+       {
+        "args": [
+         "--permission-mode",
+         "default"
+        ],
+        "mode": "manual",
+        "modeId": "default"
+       },
+       {
+        "args": [
+         "--permission-mode",
+         "acceptEdits"
+        ],
+        "mode": "acceptEdits",
+        "modeId": "acceptEdits"
+       },
+       {
+        "args": [
+         "--yolo"
+        ],
+        "mode": "bypass",
+        "modeId": "bypassPermissions"
+       }
+      ],
+      "progressMonitor": true,
+      "resume": true,
+      "slashCommands": true,
+      "subagents": false,
+      "terminalCommand": true,
+      "thirdParty": true,
+      "usageQuota": true
+     }
+    },
+    {
+     "v": false
+    },
+    {
+     "v": {
+      "apiVersion": 1,
+      "binary": {
+       "install": {
+        "npm": "@anthropic-ai/claude-code",
+        "url": "https://docs.claude.com/claude-code"
+       },
+       "names": [
+        "claude"
+       ],
+       "versionArgs": [
+        "--version"
+       ],
+       "versionPattern": "(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)"
+      },
+      "capabilities": {
+       "fork": false,
+       "images": "native",
+       "officialAccount": true,
+       "permissionModes": [
+        {
+         "args": [
+          "--permission-mode",
+          "plan"
+         ],
+         "mode": "plan",
+         "modeId": "plan"
+        },
+        {
+         "args": [
+          "--permission-mode",
+          "default"
+         ],
+         "mode": "manual",
+         "modeId": "default"
+        },
+        {
+         "args": [
+          "--permission-mode",
+          "acceptEdits"
+         ],
+         "mode": "acceptEdits",
+         "modeId": "acceptEdits"
+        },
+        {
+         "args": [
+          "--permission-mode",
+          "auto"
+         ],
+         "mode": "auto",
+         "modeId": "auto"
+        },
+        {
+         "args": [
+          "--permission-mode",
+          "bypassPermissions"
+         ],
+         "mode": "bypass",
+         "modeId": "bypassPermissions"
+        }
+       ],
+       "progressMonitor": true,
+       "resume": true,
+       "slashCommands": true,
+       "subagentStop": true,
+       "subagents": true,
+       "terminalCommand": true,
+       "thirdParty": true,
+       "usageQuota": true
+      },
+      "clientSpec": {
+       "client": "claude"
+      },
+      "displayName": "Claude Code",
+      "fallbackTransport": "exec",
+      "icon": "claude",
+      "id": "claude",
+      "ingress": "messages",
+      "modelSwitch": "inplace",
+      "transport": "stream-json"
+     }
+    },
+    {
+     "v": {
+      "fork": false,
+      "images": "native",
+      "officialAccount": true,
+      "permissionModes": [
+       {
+        "args": [
+         "--permission-mode",
+         "plan"
+        ],
+        "mode": "plan",
+        "modeId": "plan"
+       },
+       {
+        "args": [
+         "--permission-mode",
+         "default"
+        ],
+        "mode": "manual",
+        "modeId": "default"
+       },
+       {
+        "args": [
+         "--permission-mode",
+         "acceptEdits"
+        ],
+        "mode": "acceptEdits",
+        "modeId": "acceptEdits"
+       },
+       {
+        "args": [
+         "--permission-mode",
+         "auto"
+        ],
+        "mode": "auto",
+        "modeId": "auto"
+       },
+       {
+        "args": [
+         "--permission-mode",
+         "bypassPermissions"
+        ],
+        "mode": "bypass",
+        "modeId": "bypassPermissions"
+       }
+      ],
+      "progressMonitor": true,
+      "resume": true,
+      "slashCommands": true,
+      "subagentStop": true,
+      "subagents": true,
+      "terminalCommand": true,
+      "thirdParty": true,
+      "usageQuota": true
+     }
+    },
+    {
+     "v": false
+    },
+    {
+     "v": {
+      "apiVersion": 1,
+      "binary": {
+       "install": {
+        "npm": "@openai/codex",
+        "url": "https://github.com/openai/codex"
+       },
+       "names": [
+        "codex"
+       ],
+       "versionArgs": [
+        "--version"
+       ],
+       "versionPattern": "(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)"
+      },
+      "capabilities": {
+       "fork": false,
+       "images": "path",
+       "officialAccount": true,
+       "permissionModes": [
+        {
+         "mode": "plan"
+        },
+        {
+         "mode": "manual"
+        },
+        {
+         "mode": "acceptEdits"
+        },
+        {
+         "mode": "auto"
+        },
+        {
+         "mode": "bypass"
+        }
+       ],
+       "progressMonitor": true,
+       "resume": true,
+       "slashCommands": true,
+       "subagents": true,
+       "terminalCommand": true,
+       "thirdParty": true,
+       "usageQuota": true
+      },
+      "clientSpec": {
+       "client": "codex"
+      },
+      "displayName": "Codex",
+      "fallbackTransport": "exec",
+      "icon": "codex",
+      "id": "codex",
+      "ingress": "responses",
+      "modelSwitch": "inplace",
+      "transport": "app-server"
+     }
+    },
+    {
+     "v": {
+      "fork": false,
+      "images": "path",
+      "officialAccount": true,
+      "permissionModes": [
+       {
+        "mode": "plan"
+       },
+       {
+        "mode": "manual"
+       },
+       {
+        "mode": "acceptEdits"
+       },
+       {
+        "mode": "auto"
+       },
+       {
+        "mode": "bypass"
+       }
+      ],
+      "progressMonitor": true,
+      "resume": true,
+      "slashCommands": true,
+      "subagents": true,
+      "terminalCommand": true,
+      "thirdParty": true,
+      "usageQuota": true
+     }
+    },
+    {
+     "v": false
+    },
+    {
+     "v": {
+      "apiVersion": 1,
+      "binary": {
+       "install": {
+        "npm": "@xai-official/grok",
+        "url": "https://docs.x.ai/build/cli"
+       },
+       "names": [
+        "grok"
+       ],
+       "versionArgs": [
+        "--version"
+       ],
+       "versionPattern": "(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)"
+      },
+      "capabilities": {
+       "fork": false,
+       "images": "native",
+       "officialAccount": true,
+       "permissionModes": [
+        {
+         "args": [
+          "--permission-mode",
+          "plan"
+         ],
+         "mode": "plan",
+         "modeId": "plan"
+        },
+        {
+         "args": [
+          "--permission-mode",
+          "default"
+         ],
+         "mode": "manual",
+         "modeId": "default"
+        },
+        {
+         "args": [
+          "--permission-mode",
+          "acceptEdits"
+         ],
+         "mode": "acceptEdits",
+         "modeId": "acceptEdits"
+        },
+        {
+         "args": [
+          "--yolo"
+         ],
+         "mode": "bypass",
+         "modeId": "bypassPermissions"
+        }
+       ],
+       "progressMonitor": true,
+       "resume": true,
+       "slashCommands": true,
+       "subagents": false,
+       "terminalCommand": true,
+       "thirdParty": true,
+       "usageQuota": true
+      },
+      "clientSpec": {
+       "client": "grok",
+       "placeholderModel": "nomi"
+      },
+      "displayName": "Grok",
+      "fallbackTransport": "exec",
+      "icon": "grok",
+      "id": "Bad Id",
+      "ingress": "responses",
+      "modelSwitch": "gateway",
+      "transport": "acp"
+     }
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": false
+    },
+    {
+     "v": {
+      "apiVersion": 1,
+      "binary": {
+       "install": {
+        "npm": "@xai-official/grok",
+        "url": "https://docs.x.ai/build/cli"
+       },
+       "names": [
+        "grok"
+       ],
+       "versionArgs": [
+        "--version"
+       ],
+       "versionPattern": "(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)"
+      },
+      "capabilities": {
+       "fork": false,
+       "images": "native",
+       "officialAccount": true,
+       "permissionModes": [
+        {
+         "args": [
+          "--permission-mode",
+          "plan"
+         ],
+         "mode": "plan",
+         "modeId": "plan"
+        },
+        {
+         "args": [
+          "--permission-mode",
+          "default"
+         ],
+         "mode": "manual",
+         "modeId": "default"
+        },
+        {
+         "args": [
+          "--permission-mode",
+          "acceptEdits"
+         ],
+         "mode": "acceptEdits",
+         "modeId": "acceptEdits"
+        },
+        {
+         "args": [
+          "--yolo"
+         ],
+         "mode": "bypass",
+         "modeId": "bypassPermissions"
+        }
+       ],
+       "progressMonitor": true,
+       "resume": true,
+       "slashCommands": true,
+       "subagents": false,
+       "terminalCommand": true,
+       "thirdParty": true,
+       "usageQuota": true
+      },
+      "clientSpec": {
+       "client": "grok",
+       "placeholderModel": "nomi"
+      },
+      "displayName": "Grok",
+      "fallbackTransport": "exec",
+      "icon": "grok",
+      "id": "grok",
+      "ingress": "responses",
+      "modelSwitch": "gateway",
+      "transport": "acp"
+     }
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": false
+    },
+    {
+     "v": null
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": false
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": {
+      "fork": false,
+      "images": "none",
+      "officialAccount": true,
+      "permissionModes": [
+       {
+        "args": [
+         "--permission-mode",
+         "plan"
+        ],
+        "mode": "plan",
+        "modeId": "plan"
+       },
+       {
+        "args": [
+         "--permission-mode",
+         "default"
+        ],
+        "mode": "manual",
+        "modeId": "default"
+       },
+       {
+        "args": [
+         "--permission-mode",
+         "acceptEdits"
+        ],
+        "mode": "acceptEdits",
+        "modeId": "acceptEdits"
+       },
+       {
+        "args": [
+         "--yolo"
+        ],
+        "mode": "bypass",
+        "modeId": "bypassPermissions"
+       }
+      ],
+      "progressMonitor": true,
+      "resume": false,
+      "slashCommands": true,
+      "subagents": false,
+      "terminalCommand": true,
+      "thirdParty": true,
+      "usageQuota": true
+     }
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": {
+      "fork": false,
+      "images": "none",
+      "officialAccount": true,
+      "permissionModes": [
+       {
+        "args": [
+         "--permission-mode",
+         "plan"
+        ],
+        "mode": "plan",
+        "modeId": "plan"
+       },
+       {
+        "args": [
+         "--permission-mode",
+         "default"
+        ],
+        "mode": "manual",
+        "modeId": "default"
+       },
+       {
+        "args": [
+         "--permission-mode",
+         "acceptEdits"
+        ],
+        "mode": "acceptEdits",
+        "modeId": "acceptEdits"
+       },
+       {
+        "args": [
+         "--yolo"
+        ],
+        "mode": "bypass",
+        "modeId": "bypassPermissions"
+       }
+      ],
+      "progressMonitor": true,
+      "resume": true,
+      "slashCommands": true,
+      "subagents": false,
+      "terminalCommand": true,
+      "thirdParty": true,
+      "usageQuota": true
+     }
+    },
+    {
+     "v": [
+      [
+       "publish",
+       "cli.registryChanged",
+       [
+        "grok:ready:1.0.60",
+        "claude:ready:null",
+        "codex:failed:null",
+        "Bad Id:invalid:null",
+        "grok#dup:invalid:null",
+        "nomani:invalid:null"
+       ]
+      ],
+      [
+       "publish",
+       "cli.registryChanged",
+       [
+        "grok:ready:1.0.60",
+        "claude:ready:null",
+        "codex:failed:null",
+        "Bad Id:invalid:null",
+        "grok#dup:invalid:null",
+        "nomani:invalid:null"
+       ]
+      ]
+     ]
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": [
+      [
+       "version",
+       "grok"
+      ],
+      [
+       "version",
+       "claude"
+      ],
+      [
+       "version",
+       "codex"
+      ],
+      [
+       "publish",
+       "cli.registryChanged",
+       [
+        "grok:ready:1.0.61",
+        "claude:ready:2.0.0",
+        "codex:failed:0.5.0",
+        "Bad Id:invalid:null",
+        "grok#dup:invalid:null",
+        "nomani:invalid:null"
+       ]
+      ]
+     ]
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": [
+      [
+       "version",
+       "grok"
+      ],
+      [
+       "version",
+       "claude"
+      ],
+      [
+       "version",
+       "codex"
+      ]
+     ]
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": [
+      [
+       "version",
+       "grok"
+      ],
+      [
+       "version",
+       "claude"
+      ],
+      [
+       "version",
+       "codex"
+      ],
+      [
+       "publish",
+       "cli.registryChanged",
+       [
+        "grok:ready:null",
+        "claude:ready:2.0.0",
+        "codex:failed:0.5.0",
+        "Bad Id:invalid:null",
+        "grok#dup:invalid:null",
+        "nomani:invalid:null"
+       ]
+      ],
+      [
+       "version",
+       "grok"
+      ],
+      [
+       "version",
+       "claude"
+      ],
+      [
+       "version",
+       "codex"
+      ],
+      [
+       "publish",
+       "cli.registryChanged",
+       [
+        "grok:ready:1.0.62",
+        "claude:ready:2.0.0",
+        "codex:failed:0.5.0",
+        "Bad Id:invalid:null",
+        "grok#dup:invalid:null",
+        "nomani:invalid:null"
+       ]
+      ]
+     ]
+    },
+    {
+     "v": false
+    },
+    {
+     "v": true
+    },
+    {
+     "v": false
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": {
+      "plugins": []
+     }
+    },
+    {
+     "v": false
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": {
+      "plugins": [
+       {
+        "builtin": false,
+        "capabilities": {
+         "fork": false,
+         "images": "native",
+         "officialAccount": true,
+         "permissionModes": [
+          {
+           "args": [
+            "--permission-mode",
+            "plan"
+           ],
+           "mode": "plan",
+           "modeId": "plan"
+          },
+          {
+           "args": [
+            "--permission-mode",
+            "default"
+           ],
+           "mode": "manual",
+           "modeId": "default"
+          },
+          {
+           "args": [
+            "--permission-mode",
+            "acceptEdits"
+           ],
+           "mode": "acceptEdits",
+           "modeId": "acceptEdits"
+          },
+          {
+           "args": [
+            "--yolo"
+           ],
+           "mode": "bypass",
+           "modeId": "bypassPermissions"
+          }
+         ],
+         "progressMonitor": true,
+         "resume": true,
+         "slashCommands": true,
+         "subagents": false,
+         "terminalCommand": true,
+         "thirdParty": true,
+         "usageQuota": true
+        },
+        "displayName": "Grok",
+        "errors": [],
+        "icon": "grok",
+        "id": "grok",
+        "ingress": "responses",
+        "modelSwitch": "gateway",
+        "status": "ready",
+        "transport": "acp",
+        "version": "1.0.62"
+       },
+       {
+        "builtin": false,
+        "capabilities": {
+         "fork": false,
+         "images": "native",
+         "officialAccount": true,
+         "permissionModes": [
+          {
+           "args": [
+            "--permission-mode",
+            "plan"
+           ],
+           "mode": "plan",
+           "modeId": "plan"
+          },
+          {
+           "args": [
+            "--permission-mode",
+            "default"
+           ],
+           "mode": "manual",
+           "modeId": "default"
+          },
+          {
+           "args": [
+            "--permission-mode",
+            "acceptEdits"
+           ],
+           "mode": "acceptEdits",
+           "modeId": "acceptEdits"
+          },
+          {
+           "args": [
+            "--permission-mode",
+            "auto"
+           ],
+           "mode": "auto",
+           "modeId": "auto"
+          },
+          {
+           "args": [
+            "--permission-mode",
+            "bypassPermissions"
+           ],
+           "mode": "bypass",
+           "modeId": "bypassPermissions"
+          }
+         ],
+         "progressMonitor": true,
+         "resume": true,
+         "slashCommands": true,
+         "subagentStop": true,
+         "subagents": true,
+         "terminalCommand": true,
+         "thirdParty": true,
+         "usageQuota": true
+        },
+        "displayName": "Claude Code",
+        "errors": [],
+        "icon": "claude",
+        "id": "claude",
+        "ingress": "messages",
+        "modelSwitch": "inplace",
+        "status": "ready",
+        "transport": "stream-json",
+        "version": "2.0.0"
+       },
+       {
+        "builtin": false,
+        "capabilities": {
+         "fork": false,
+         "images": "path",
+         "officialAccount": true,
+         "permissionModes": [
+          {
+           "mode": "plan"
+          },
+          {
+           "mode": "manual"
+          },
+          {
+           "mode": "acceptEdits"
+          },
+          {
+           "mode": "auto"
+          },
+          {
+           "mode": "bypass"
+          }
+         ],
+         "progressMonitor": true,
+         "resume": true,
+         "slashCommands": true,
+         "subagents": true,
+         "terminalCommand": true,
+         "thirdParty": true,
+         "usageQuota": true
+        },
+        "displayName": "Codex",
+        "errors": [
+         "factory exploded"
+        ],
+        "icon": "codex",
+        "id": "codex",
+        "ingress": "responses",
+        "modelSwitch": "inplace",
+        "status": "failed",
+        "transport": "app-server",
+        "version": "0.5.0"
+       },
+       {
+        "builtin": false,
+        "capabilities": {},
+        "displayName": "Grok",
+        "errors": [
+         "id must match [a-z0-9-] (1–41 chars, not starting with -)"
+        ],
+        "icon": "grok",
+        "id": "Bad Id",
+        "ingress": "responses",
+        "modelSwitch": "gateway",
+        "status": "invalid",
+        "transport": "acp",
+        "version": null
+       },
+       {
+        "builtin": false,
+        "capabilities": {},
+        "displayName": "Grok",
+        "errors": [
+         "duplicate plugin id grok"
+        ],
+        "icon": "grok",
+        "id": "grok#dup",
+        "ingress": "responses",
+        "modelSwitch": "gateway",
+        "status": "invalid",
+        "transport": "acp",
+        "version": null
+       },
+       {
+        "builtin": false,
+        "capabilities": {},
+        "displayName": "nomani",
+        "errors": [
+         "manifest must be an object"
+        ],
+        "icon": "",
+        "id": "nomani",
+        "status": "invalid",
+        "version": null
+       }
+      ]
+     }
+    },
+    {
+     "v": [
+      [
+       "info",
+       "external cli plugin removed",
+       {
+        "id": "Bad Id"
+       }
+      ],
+      [
+       "publish",
+       "cli.registryChanged",
+       [
+        "grok:ready:1.0.62",
+        "claude:ready:2.0.0",
+        "codex:failed:0.5.0",
+        "grok#dup:invalid:null",
+        "nomani:invalid:null"
+       ]
+      ],
+      [
+       "main",
+       "grok",
+       {
+        "dataDir": "<SB>/root/grok",
+        "env": {
+         "MY_KEY": "k",
+         "OTHER_KEY": ""
+        },
+        "home": "<SB>/home",
+        "platform": "linux"
+       }
+      ],
+      [
+       "extend",
+       "grok"
+      ],
+      [
+       "main",
+       "codex",
+       {
+        "dataDir": "<SB>/root/codex",
+        "env": {
+         "MY_KEY": "k",
+         "OTHER_KEY": ""
+        },
+        "home": "<SB>/home",
+        "platform": "linux"
+       }
+      ],
+      [
+       "warn",
+       "cli plugin failed to start",
+       {
+        "error": "factory exploded",
+        "id": "codex"
+       }
+      ],
+      [
+       "warn",
+       "cli plugin rejected",
+       {
+        "errors": [
+         "id must match [a-z0-9-] (1–41 chars, not starting with -)"
+        ],
+        "id": "Bad Id"
+       }
+      ],
+      [
+       "warn",
+       "cli plugin rejected",
+       {
+        "errors": [
+         "duplicate plugin id grok"
+        ],
+        "id": "grok"
+       }
+      ],
+      [
+       "warn",
+       "cli plugin rejected",
+       {
+        "errors": [
+         "manifest must be an object"
+        ],
+        "id": "nomani"
+       }
+      ],
+      [
+       "publish",
+       "cli.registryChanged",
+       [
+        "grok:ready:null",
+        "claude:ready:null",
+        "codex:failed:null",
+        "Bad Id:invalid:null",
+        "grok#dup:invalid:null",
+        "nomani:invalid:null"
+       ]
+      ],
+      [
+       "version",
+       "grok"
+      ],
+      [
+       "version",
+       "claude"
+      ],
+      [
+       "version",
+       "codex"
+      ],
+      [
+       "publish",
+       "cli.registryChanged",
+       [
+        "grok:ready:1.0.62",
+        "claude:ready:2.0.0",
+        "codex:failed:0.5.0",
+        "Bad Id:invalid:null",
+        "grok#dup:invalid:null",
+        "nomani:invalid:null"
+       ]
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "versionHookThrows",
+   "deps": {
+    "home": "@@SB@@/home",
+    "env": {
+     "MY_KEY": "k",
+     "OTHER_KEY": ""
+    },
+    "platform": "linux",
+    "version": {
+     "grok": "1.0.60",
+     "claude": null,
+     "codex": "throw"
+    },
+    "versionHook": "throw"
+   },
+   "plugins": [
+    {
+     "key": "grok",
+     "manifest": {
+      "id": "grok",
+      "apiVersion": 1,
+      "displayName": "Grok",
+      "icon": "grok",
+      "binary": {
+       "names": [
+        "grok"
+       ],
+       "versionArgs": [
+        "--version"
+       ],
+       "versionPattern": "(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)",
+       "install": {
+        "npm": "@xai-official/grok",
+        "url": "https://docs.x.ai/build/cli"
+       }
+      },
+      "transport": "acp",
+      "fallbackTransport": "exec",
+      "ingress": "responses",
+      "capabilities": {
+       "officialAccount": true,
+       "thirdParty": true,
+       "images": "native",
+       "permissionModes": [
+        {
+         "mode": "plan",
+         "args": [
+          "--permission-mode",
+          "plan"
+         ],
+         "modeId": "plan"
+        },
+        {
+         "mode": "manual",
+         "args": [
+          "--permission-mode",
+          "default"
+         ],
+         "modeId": "default"
+        },
+        {
+         "mode": "acceptEdits",
+         "args": [
+          "--permission-mode",
+          "acceptEdits"
+         ],
+         "modeId": "acceptEdits"
+        },
+        {
+         "mode": "bypass",
+         "args": [
+          "--yolo"
+         ],
+         "modeId": "bypassPermissions"
+        }
+       ],
+       "subagents": false,
+       "slashCommands": true,
+       "resume": true,
+       "fork": false,
+       "usageQuota": true,
+       "progressMonitor": true,
+       "terminalCommand": true
+      },
+      "modelSwitch": "gateway",
+      "clientSpec": {
+       "client": "grok",
+       "placeholderModel": "nomi"
+      }
+     },
+     "main": "ok"
+    }
+   ],
+   "files": [],
+   "steps": [
+    [
+     "start"
+    ],
+    [
+     "tick"
+    ],
+    [
+     "setVersion",
+     "grok",
+     "1.0.70"
+    ],
+    [
+     "refresh"
+    ],
+    [
+     "calls"
+    ],
+    [
+     "caps",
+     "grok"
+    ]
+   ],
+   "out": [
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": [
+      [
+       "main",
+       "grok",
+       {
+        "dataDir": "<SB>/root/grok",
+        "env": {
+         "MY_KEY": "k",
+         "OTHER_KEY": ""
+        },
+        "home": "<SB>/home",
+        "platform": "linux"
+       }
+      ],
+      [
+       "publish",
+       "cli.registryChanged",
+       [
+        "grok:ready:null"
+       ]
+      ],
+      [
+       "version",
+       "grok"
+      ],
+      [
+       "publish",
+       "cli.registryChanged",
+       [
+        "grok:ready:1.0.60"
+       ]
+      ],
+      [
+       "version",
+       "grok"
+      ],
+      [
+       "versionChange",
+       "grok",
+       "1.0.60",
+       "1.0.70"
+      ],
+      [
+       "warn",
+       "cli plugin version hook failed",
+       {
+        "error": "Error: hook boom",
+        "id": "grok"
+       }
+      ],
+      [
+       "publish",
+       "cli.registryChanged",
+       [
+        "grok:ready:1.0.70"
+       ]
+      ]
+     ]
+    },
+    {
+     "v": {
+      "fork": false,
+      "images": "native",
+      "officialAccount": true,
+      "permissionModes": [
+       {
+        "args": [
+         "--permission-mode",
+         "plan"
+        ],
+        "mode": "plan",
+        "modeId": "plan"
+       },
+       {
+        "args": [
+         "--permission-mode",
+         "default"
+        ],
+        "mode": "manual",
+        "modeId": "default"
+       },
+       {
+        "args": [
+         "--permission-mode",
+         "acceptEdits"
+        ],
+        "mode": "acceptEdits",
+        "modeId": "acceptEdits"
+       },
+       {
+        "args": [
+         "--yolo"
+        ],
+        "mode": "bypass",
+        "modeId": "bypassPermissions"
+       }
+      ],
+      "progressMonitor": true,
+      "resume": true,
+      "slashCommands": true,
+      "subagents": false,
+      "terminalCommand": true,
+      "thirdParty": true,
+      "usageQuota": true
+     }
+    }
+   ]
+  },
+  {
+   "name": "noVersion",
+   "deps": {
+    "home": "@@SB@@/home",
+    "env": {},
+    "platform": "darwin"
+   },
+   "plugins": [
+    {
+     "key": "grok",
+     "manifest": {
+      "id": "grok",
+      "apiVersion": 1,
+      "displayName": "Grok",
+      "icon": "grok",
+      "binary": {
+       "names": [
+        "grok"
+       ],
+       "versionArgs": [
+        "--version"
+       ],
+       "versionPattern": "(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)",
+       "install": {
+        "npm": "@xai-official/grok",
+        "url": "https://docs.x.ai/build/cli"
+       }
+      },
+      "transport": "acp",
+      "fallbackTransport": "exec",
+      "ingress": "responses",
+      "capabilities": {
+       "officialAccount": true,
+       "thirdParty": true,
+       "images": "native",
+       "permissionModes": [
+        {
+         "mode": "plan",
+         "args": [
+          "--permission-mode",
+          "plan"
+         ],
+         "modeId": "plan"
+        },
+        {
+         "mode": "manual",
+         "args": [
+          "--permission-mode",
+          "default"
+         ],
+         "modeId": "default"
+        },
+        {
+         "mode": "acceptEdits",
+         "args": [
+          "--permission-mode",
+          "acceptEdits"
+         ],
+         "modeId": "acceptEdits"
+        },
+        {
+         "mode": "bypass",
+         "args": [
+          "--yolo"
+         ],
+         "modeId": "bypassPermissions"
+        }
+       ],
+       "subagents": false,
+       "slashCommands": true,
+       "resume": true,
+       "fork": false,
+       "usageQuota": true,
+       "progressMonitor": true,
+       "terminalCommand": true
+      },
+      "modelSwitch": "gateway",
+      "clientSpec": {
+       "client": "grok",
+       "placeholderModel": "nomi"
+      }
+     },
+     "main": "ok"
+    }
+   ],
+   "files": [],
+   "steps": [
+    [
+     "start"
+    ],
+    [
+     "tick"
+    ],
+    [
+     "refresh"
+    ],
+    [
+     "calls"
+    ],
+    [
+     "caps",
+     "grok"
+    ]
+   ],
+   "out": [
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": [
+      [
+       "main",
+       "grok",
+       {
+        "dataDir": "<SB>/root/grok",
+        "env": {},
+        "home": "<SB>/home",
+        "platform": "darwin"
+       }
+      ],
+      [
+       "publish",
+       "cli.registryChanged",
+       [
+        "grok:ready:null"
+       ]
+      ]
+     ]
+    },
+    {
+     "v": {
+      "fork": false,
+      "images": "native",
+      "officialAccount": true,
+      "permissionModes": [
+       {
+        "args": [
+         "--permission-mode",
+         "plan"
+        ],
+        "mode": "plan",
+        "modeId": "plan"
+       },
+       {
+        "args": [
+         "--permission-mode",
+         "default"
+        ],
+        "mode": "manual",
+        "modeId": "default"
+       },
+       {
+        "args": [
+         "--permission-mode",
+         "acceptEdits"
+        ],
+        "mode": "acceptEdits",
+        "modeId": "acceptEdits"
+       },
+       {
+        "args": [
+         "--yolo"
+        ],
+        "mode": "bypass",
+        "modeId": "bypassPermissions"
+       }
+      ],
+      "progressMonitor": true,
+      "resume": true,
+      "slashCommands": true,
+      "subagents": false,
+      "terminalCommand": true,
+      "thirdParty": true,
+      "usageQuota": true
+     }
+    }
+   ]
+  },
+  {
+   "name": "externals",
+   "deps": {
+    "home": "@@SB@@/home",
+    "env": {
+     "MY_KEY": "k",
+     "OTHER_KEY": ""
+    },
+    "platform": "linux",
+    "version": {
+     "grok": "1.0.60",
+     "claude": null,
+     "codex": "throw"
+    },
+    "removedHook": true
+   },
+   "plugins": [
+    {
+     "key": "grok",
+     "manifest": {
+      "id": "grok",
+      "apiVersion": 1,
+      "displayName": "Grok",
+      "icon": "grok",
+      "binary": {
+       "names": [
+        "grok"
+       ],
+       "versionArgs": [
+        "--version"
+       ],
+       "versionPattern": "(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)",
+       "install": {
+        "npm": "@xai-official/grok",
+        "url": "https://docs.x.ai/build/cli"
+       }
+      },
+      "transport": "acp",
+      "fallbackTransport": "exec",
+      "ingress": "responses",
+      "capabilities": {
+       "officialAccount": true,
+       "thirdParty": true,
+       "images": "native",
+       "permissionModes": [
+        {
+         "mode": "plan",
+         "args": [
+          "--permission-mode",
+          "plan"
+         ],
+         "modeId": "plan"
+        },
+        {
+         "mode": "manual",
+         "args": [
+          "--permission-mode",
+          "default"
+         ],
+         "modeId": "default"
+        },
+        {
+         "mode": "acceptEdits",
+         "args": [
+          "--permission-mode",
+          "acceptEdits"
+         ],
+         "modeId": "acceptEdits"
+        },
+        {
+         "mode": "bypass",
+         "args": [
+          "--yolo"
+         ],
+         "modeId": "bypassPermissions"
+        }
+       ],
+       "subagents": false,
+       "slashCommands": true,
+       "resume": true,
+       "fork": false,
+       "usageQuota": true,
+       "progressMonitor": true,
+       "terminalCommand": true
+      },
+      "modelSwitch": "gateway",
+      "clientSpec": {
+       "client": "grok",
+       "placeholderModel": "nomi"
+      }
+     },
+     "main": "none"
+    }
+   ],
+   "files": [
+    {
+     "p": "root/external/a-good.json",
+     "text": "{\"version\":1,\"id\":\"a-good\",\"displayName\":\"A Good\",\"command\":\"my-agent\",\"args\":[\"--acp\",\"{cwd}\",\"{home}/x\"],\"env\":[\"MY_KEY\",\"OTHER_KEY\"]}"
+    },
+    {
+     "p": "root/external/b-bad.json",
+     "text": "{nope"
+    },
+    {
+     "p": "root/external/c-mismatch.json",
+     "text": "{\"version\":1,\"id\":\"other\",\"displayName\":\"My Agent\",\"command\":\"my-agent\",\"args\":[\"--acp\",\"{cwd}\",\"{home}/x\"],\"env\":[\"MY_KEY\",\"OTHER_KEY\"]}"
+    },
+    {
+     "p": "root/external/grok.json",
+     "text": "{\"version\":1,\"id\":\"grok\",\"displayName\":\"My Agent\",\"command\":\"my-agent\",\"args\":[\"--acp\",\"{cwd}\",\"{home}/x\"],\"env\":[\"MY_KEY\",\"OTHER_KEY\"]}"
+    },
+    {
+     "p": "root/external/d-invalid.json",
+     "text": "{\"id\":\"d-invalid\",\"command\":\"\"}"
+    },
+    {
+     "p": "root/external/readme.txt",
+     "text": "ignored"
+    }
+   ],
+   "steps": [
+    [
+     "start"
+    ],
+    [
+     "tick"
+    ],
+    [
+     "calls"
+    ],
+    [
+     "snapshot"
+    ],
+    [
+     "extSpec",
+     "a-good"
+    ],
+    [
+     "extSpec",
+     "b-bad"
+    ],
+    [
+     "extSpec",
+     "grok"
+    ],
+    [
+     "caps",
+     "a-good"
+    ],
+    [
+     "impl",
+     "a-good"
+    ],
+    [
+     "add",
+     {
+      "version": 1,
+      "id": "my-agent",
+      "displayName": "My Agent",
+      "command": "my-agent",
+      "args": [
+       "--acp",
+       "{cwd}",
+       "{home}/x"
+      ],
+      "env": [
+       "MY_KEY",
+       "OTHER_KEY"
+      ]
+     }
+    ],
+    [
+     "calls"
+    ],
+    [
+     "ls",
+     "root/external"
+    ],
+    [
+     "add",
+     {
+      "version": 1,
+      "id": "my-agent",
+      "displayName": "Renamed",
+      "command": "my-agent",
+      "args": [
+       "--acp",
+       "{cwd}",
+       "{home}/x"
+      ],
+      "env": []
+     }
+    ],
+    [
+     "snapshot"
+    ],
+    [
+     "add",
+     {
+      "version": 1,
+      "id": "claude",
+      "displayName": "My Agent",
+      "command": "my-agent",
+      "args": [
+       "--acp",
+       "{cwd}",
+       "{home}/x"
+      ],
+      "env": [
+       "MY_KEY",
+       "OTHER_KEY"
+      ]
+     }
+    ],
+    [
+     "add",
+     {
+      "version": 1,
+      "id": "nomi",
+      "displayName": "My Agent",
+      "command": "my-agent",
+      "args": [
+       "--acp",
+       "{cwd}",
+       "{home}/x"
+      ],
+      "env": [
+       "MY_KEY",
+       "OTHER_KEY"
+      ]
+     }
+    ],
+    [
+     "add",
+     "str"
+    ],
+    [
+     "add",
+     {
+      "version": 1,
+      "id": "my-agent",
+      "displayName": "My Agent",
+      "command": "my-agent",
+      "args": [
+       "{other}"
+      ],
+      "env": [
+       "MY_KEY",
+       "OTHER_KEY"
+      ]
+     }
+    ],
+    [
+     "add",
+     {
+      "id": "x"
+     }
+    ],
+    [
+     "remove",
+     "b-bad"
+    ],
+    [
+     "remove",
+     "my-agent"
+    ],
+    [
+     "remove",
+     "my-agent"
+    ],
+    [
+     "remove",
+     "grok"
+    ],
+    [
+     "calls"
+    ],
+    [
+     "ls",
+     "root/external"
+    ],
+    [
+     "handshake",
+     "a-good",
+     {
+      "images": false
+     }
+    ],
+    [
+     "caps",
+     "a-good"
+    ],
+    [
+     "setVersion",
+     "a-good",
+     "9.9.9"
+    ],
+    [
+     "refresh"
+    ],
+    [
+     "calls"
+    ]
+   ],
+   "out": [
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": [
+      [
+       "warn",
+       "external cli plugin rejected",
+       {
+        "errors": [
+         "unreadable: Expected property name or '}' in JSON at position 1 (line 1 column 2)"
+        ],
+        "id": "b-bad"
+       }
+      ],
+      [
+       "warn",
+       "external cli plugin rejected",
+       {
+        "errors": [
+         "file name c-mismatch.json does not match id other"
+        ],
+        "id": "c-mismatch"
+       }
+      ],
+      [
+       "warn",
+       "external cli plugin rejected",
+       {
+        "errors": [
+         "version must be 1",
+         "displayName is required",
+         "command is required",
+         "args must be an array"
+        ],
+        "id": "d-invalid"
+       }
+      ],
+      [
+       "publish",
+       "cli.registryChanged",
+       [
+        "grok:ready:null",
+        "a-good:ready:null",
+        "b-bad:invalid:null",
+        "c-mismatch:invalid:null",
+        "d-invalid:invalid:null"
+       ]
+      ],
+      [
+       "version",
+       "grok"
+      ],
+      [
+       "publish",
+       "cli.registryChanged",
+       [
+        "grok:ready:1.0.60",
+        "a-good:ready:null",
+        "b-bad:invalid:null",
+        "c-mismatch:invalid:null",
+        "d-invalid:invalid:null"
+       ]
+      ]
+     ]
+    },
+    {
+     "v": {
+      "plugins": [
+       {
+        "builtin": false,
+        "capabilities": {
+         "fork": false,
+         "images": "native",
+         "officialAccount": true,
+         "permissionModes": [
+          {
+           "args": [
+            "--permission-mode",
+            "plan"
+           ],
+           "mode": "plan",
+           "modeId": "plan"
+          },
+          {
+           "args": [
+            "--permission-mode",
+            "default"
+           ],
+           "mode": "manual",
+           "modeId": "default"
+          },
+          {
+           "args": [
+            "--permission-mode",
+            "acceptEdits"
+           ],
+           "mode": "acceptEdits",
+           "modeId": "acceptEdits"
+          },
+          {
+           "args": [
+            "--yolo"
+           ],
+           "mode": "bypass",
+           "modeId": "bypassPermissions"
+          }
+         ],
+         "progressMonitor": true,
+         "resume": true,
+         "slashCommands": true,
+         "subagents": false,
+         "terminalCommand": true,
+         "thirdParty": true,
+         "usageQuota": true
+        },
+        "displayName": "Grok",
+        "errors": [],
+        "icon": "grok",
+        "id": "grok",
+        "ingress": "responses",
+        "modelSwitch": "gateway",
+        "status": "ready",
+        "transport": "acp",
+        "version": "1.0.60"
+       },
+       {
+        "builtin": false,
+        "capabilities": {
+         "fork": false,
+         "images": "native",
+         "officialAccount": false,
+         "permissionModes": [
+          {
+           "mode": "manual"
+          }
+         ],
+         "progressMonitor": false,
+         "resume": true,
+         "slashCommands": true,
+         "subagents": false,
+         "terminalCommand": false,
+         "thirdParty": false,
+         "usageQuota": false
+        },
+        "displayName": "A Good",
+        "errors": [],
+        "external": {
+         "args": [
+          "--acp",
+          "{cwd}",
+          "{home}/x"
+         ],
+         "command": "my-agent",
+         "displayName": "A Good",
+         "env": [
+          "MY_KEY",
+          "OTHER_KEY"
+         ],
+         "id": "a-good",
+         "missingEnv": [
+          "OTHER_KEY"
+         ],
+         "version": 1
+        },
+        "icon": "",
+        "id": "a-good",
+        "ingress": "chat",
+        "modelSwitch": "restart",
+        "status": "ready",
+        "transport": "acp",
+        "version": null
+       },
+       {
+        "builtin": false,
+        "capabilities": {},
+        "displayName": "b-bad",
+        "errors": [
+         "unreadable: Expected property name or '}' in JSON at position 1 (line 1 column 2)"
+        ],
+        "icon": "",
+        "id": "b-bad",
+        "status": "invalid",
+        "version": null
+       },
+       {
+        "builtin": false,
+        "capabilities": {},
+        "displayName": "c-mismatch",
+        "errors": [
+         "file name c-mismatch.json does not match id other"
+        ],
+        "icon": "",
+        "id": "c-mismatch",
+        "status": "invalid",
+        "version": null
+       },
+       {
+        "builtin": false,
+        "capabilities": {},
+        "displayName": "d-invalid",
+        "errors": [
+         "version must be 1",
+         "displayName is required",
+         "command is required",
+         "args must be an array"
+        ],
+        "icon": "",
+        "id": "d-invalid",
+        "status": "invalid",
+        "version": null
+       }
+      ]
+     }
+    },
+    {
+     "v": {
+      "args": [
+       "--acp",
+       "{cwd}",
+       "{home}/x"
+      ],
+      "command": "my-agent",
+      "displayName": "A Good",
+      "env": [
+       "MY_KEY",
+       "OTHER_KEY"
+      ],
+      "id": "a-good",
+      "version": 1
+     }
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": {
+      "fork": false,
+      "images": "native",
+      "officialAccount": false,
+      "permissionModes": [
+       {
+        "mode": "manual"
+       }
+      ],
+      "progressMonitor": false,
+      "resume": true,
+      "slashCommands": true,
+      "subagents": false,
+      "terminalCommand": false,
+      "thirdParty": false,
+      "usageQuota": false
+     }
+    },
+    {
+     "v": false
+    },
+    {
+     "v": {
+      "entry": {
+       "builtin": false,
+       "capabilities": {
+        "fork": false,
+        "images": "native",
+        "officialAccount": false,
+        "permissionModes": [
+         {
+          "mode": "manual"
+         }
+        ],
+        "progressMonitor": false,
+        "resume": true,
+        "slashCommands": true,
+        "subagents": false,
+        "terminalCommand": false,
+        "thirdParty": false,
+        "usageQuota": false
+       },
+       "displayName": "My Agent",
+       "errors": [],
+       "external": {
+        "args": [
+         "--acp",
+         "{cwd}",
+         "{home}/x"
+        ],
+        "command": "my-agent",
+        "displayName": "My Agent",
+        "env": [
+         "MY_KEY",
+         "OTHER_KEY"
+        ],
+        "id": "my-agent",
+        "missingEnv": [
+         "OTHER_KEY"
+        ],
+        "version": 1
+       },
+       "icon": "",
+       "id": "my-agent",
+       "ingress": "chat",
+       "modelSwitch": "restart",
+       "status": "ready",
+       "transport": "acp",
+       "version": null
+      },
+      "ok": true
+     }
+    },
+    {
+     "v": [
+      [
+       "info",
+       "external cli plugin saved",
+       {
+        "id": "my-agent"
+       }
+      ],
+      [
+       "publish",
+       "cli.registryChanged",
+       [
+        "grok:ready:1.0.60",
+        "a-good:ready:null",
+        "b-bad:invalid:null",
+        "c-mismatch:invalid:null",
+        "d-invalid:invalid:null",
+        "my-agent:ready:null"
+       ]
+      ]
+     ]
+    },
+    {
+     "v": [
+      "a-good.json",
+      "b-bad.json",
+      "c-mismatch.json",
+      "d-invalid.json",
+      "grok.json",
+      "my-agent.json",
+      "readme.txt"
+     ]
+    },
+    {
+     "v": {
+      "entry": {
+       "builtin": false,
+       "capabilities": {
+        "fork": false,
+        "images": "native",
+        "officialAccount": false,
+        "permissionModes": [
+         {
+          "mode": "manual"
+         }
+        ],
+        "progressMonitor": false,
+        "resume": true,
+        "slashCommands": true,
+        "subagents": false,
+        "terminalCommand": false,
+        "thirdParty": false,
+        "usageQuota": false
+       },
+       "displayName": "Renamed",
+       "errors": [],
+       "external": {
+        "args": [
+         "--acp",
+         "{cwd}",
+         "{home}/x"
+        ],
+        "command": "my-agent",
+        "displayName": "Renamed",
+        "id": "my-agent",
+        "missingEnv": [],
+        "version": 1
+       },
+       "icon": "",
+       "id": "my-agent",
+       "ingress": "chat",
+       "modelSwitch": "restart",
+       "status": "ready",
+       "transport": "acp",
+       "version": null
+      },
+      "ok": true
+     }
+    },
+    {
+     "v": {
+      "plugins": [
+       {
+        "builtin": false,
+        "capabilities": {
+         "fork": false,
+         "images": "native",
+         "officialAccount": true,
+         "permissionModes": [
+          {
+           "args": [
+            "--permission-mode",
+            "plan"
+           ],
+           "mode": "plan",
+           "modeId": "plan"
+          },
+          {
+           "args": [
+            "--permission-mode",
+            "default"
+           ],
+           "mode": "manual",
+           "modeId": "default"
+          },
+          {
+           "args": [
+            "--permission-mode",
+            "acceptEdits"
+           ],
+           "mode": "acceptEdits",
+           "modeId": "acceptEdits"
+          },
+          {
+           "args": [
+            "--yolo"
+           ],
+           "mode": "bypass",
+           "modeId": "bypassPermissions"
+          }
+         ],
+         "progressMonitor": true,
+         "resume": true,
+         "slashCommands": true,
+         "subagents": false,
+         "terminalCommand": true,
+         "thirdParty": true,
+         "usageQuota": true
+        },
+        "displayName": "Grok",
+        "errors": [],
+        "icon": "grok",
+        "id": "grok",
+        "ingress": "responses",
+        "modelSwitch": "gateway",
+        "status": "ready",
+        "transport": "acp",
+        "version": "1.0.60"
+       },
+       {
+        "builtin": false,
+        "capabilities": {
+         "fork": false,
+         "images": "native",
+         "officialAccount": false,
+         "permissionModes": [
+          {
+           "mode": "manual"
+          }
+         ],
+         "progressMonitor": false,
+         "resume": true,
+         "slashCommands": true,
+         "subagents": false,
+         "terminalCommand": false,
+         "thirdParty": false,
+         "usageQuota": false
+        },
+        "displayName": "A Good",
+        "errors": [],
+        "external": {
+         "args": [
+          "--acp",
+          "{cwd}",
+          "{home}/x"
+         ],
+         "command": "my-agent",
+         "displayName": "A Good",
+         "env": [
+          "MY_KEY",
+          "OTHER_KEY"
+         ],
+         "id": "a-good",
+         "missingEnv": [
+          "OTHER_KEY"
+         ],
+         "version": 1
+        },
+        "icon": "",
+        "id": "a-good",
+        "ingress": "chat",
+        "modelSwitch": "restart",
+        "status": "ready",
+        "transport": "acp",
+        "version": null
+       },
+       {
+        "builtin": false,
+        "capabilities": {},
+        "displayName": "b-bad",
+        "errors": [
+         "unreadable: Expected property name or '}' in JSON at position 1 (line 1 column 2)"
+        ],
+        "icon": "",
+        "id": "b-bad",
+        "status": "invalid",
+        "version": null
+       },
+       {
+        "builtin": false,
+        "capabilities": {},
+        "displayName": "c-mismatch",
+        "errors": [
+         "file name c-mismatch.json does not match id other"
+        ],
+        "icon": "",
+        "id": "c-mismatch",
+        "status": "invalid",
+        "version": null
+       },
+       {
+        "builtin": false,
+        "capabilities": {},
+        "displayName": "d-invalid",
+        "errors": [
+         "version must be 1",
+         "displayName is required",
+         "command is required",
+         "args must be an array"
+        ],
+        "icon": "",
+        "id": "d-invalid",
+        "status": "invalid",
+        "version": null
+       },
+       {
+        "builtin": false,
+        "capabilities": {
+         "fork": false,
+         "images": "native",
+         "officialAccount": false,
+         "permissionModes": [
+          {
+           "mode": "manual"
+          }
+         ],
+         "progressMonitor": false,
+         "resume": true,
+         "slashCommands": true,
+         "subagents": false,
+         "terminalCommand": false,
+         "thirdParty": false,
+         "usageQuota": false
+        },
+        "displayName": "Renamed",
+        "errors": [],
+        "external": {
+         "args": [
+          "--acp",
+          "{cwd}",
+          "{home}/x"
+         ],
+         "command": "my-agent",
+         "displayName": "Renamed",
+         "id": "my-agent",
+         "missingEnv": [],
+         "version": 1
+        },
+        "icon": "",
+        "id": "my-agent",
+        "ingress": "chat",
+        "modelSwitch": "restart",
+        "status": "ready",
+        "transport": "acp",
+        "version": null
+       }
+      ]
+     }
+    },
+    {
+     "v": {
+      "errors": [
+       "id claude is reserved by a built-in plugin"
+      ],
+      "ok": false
+     }
+    },
+    {
+     "v": {
+      "errors": [
+       "id nomi is reserved by a built-in plugin"
+      ],
+      "ok": false
+     }
+    },
+    {
+     "v": {
+      "errors": [
+       "spec must be an object"
+      ],
+      "ok": false
+     }
+    },
+    {
+     "v": {
+      "errors": [
+       "args[0] uses unknown placeholder {other}"
+      ],
+      "ok": false
+     }
+    },
+    {
+     "v": {
+      "errors": [
+       "version must be 1",
+       "displayName is required",
+       "command is required",
+       "args must be an array"
+      ],
+      "ok": false
+     }
+    },
+    {
+     "v": true
+    },
+    {
+     "v": true
+    },
+    {
+     "v": false
+    },
+    {
+     "v": false
+    },
+    {
+     "v": [
+      [
+       "info",
+       "external cli plugin saved",
+       {
+        "id": "my-agent"
+       }
+      ],
+      [
+       "publish",
+       "cli.registryChanged",
+       [
+        "grok:ready:1.0.60",
+        "a-good:ready:null",
+        "b-bad:invalid:null",
+        "c-mismatch:invalid:null",
+        "d-invalid:invalid:null",
+        "my-agent:ready:null"
+       ]
+      ],
+      [
+       "info",
+       "external cli plugin removed",
+       {
+        "id": "b-bad"
+       }
+      ],
+      [
+       "removed",
+       "b-bad"
+      ],
+      [
+       "publish",
+       "cli.registryChanged",
+       [
+        "grok:ready:1.0.60",
+        "a-good:ready:null",
+        "c-mismatch:invalid:null",
+        "d-invalid:invalid:null",
+        "my-agent:ready:null"
+       ]
+      ],
+      [
+       "info",
+       "external cli plugin removed",
+       {
+        "id": "my-agent"
+       }
+      ],
+      [
+       "removed",
+       "my-agent"
+      ],
+      [
+       "publish",
+       "cli.registryChanged",
+       [
+        "grok:ready:1.0.60",
+        "a-good:ready:null",
+        "c-mismatch:invalid:null",
+        "d-invalid:invalid:null"
+       ]
+      ]
+     ]
+    },
+    {
+     "v": [
+      "a-good.json",
+      "c-mismatch.json",
+      "d-invalid.json",
+      "grok.json",
+      "readme.txt"
+     ]
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": {
+      "fork": false,
+      "images": "none",
+      "officialAccount": false,
+      "permissionModes": [
+       {
+        "mode": "manual"
+       }
+      ],
+      "progressMonitor": false,
+      "resume": true,
+      "slashCommands": true,
+      "subagents": false,
+      "terminalCommand": false,
+      "thirdParty": false,
+      "usageQuota": false
+     }
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": [
+      [
+       "publish",
+       "cli.registryChanged",
+       [
+        "grok:ready:1.0.60",
+        "a-good:ready:null",
+        "c-mismatch:invalid:null",
+        "d-invalid:invalid:null"
+       ]
+      ],
+      [
+       "version",
+       "grok"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "removeHookThrows",
+   "deps": {
+    "home": "@@SB@@/home",
+    "env": {
+     "MY_KEY": "k",
+     "OTHER_KEY": ""
+    },
+    "platform": "linux",
+    "version": {
+     "grok": "1.0.60",
+     "claude": null,
+     "codex": "throw"
+    },
+    "removedHook": "throw",
+    "externalDir": "@@SB@@/ext2"
+   },
+   "plugins": [],
+   "files": [
+    {
+     "p": "ext2/z.json",
+     "text": "{\"version\":1,\"id\":\"z\",\"displayName\":\"My Agent\",\"command\":\"my-agent\",\"args\":[\"--acp\",\"{cwd}\",\"{home}/x\"],\"env\":[\"MY_KEY\",\"OTHER_KEY\"]}"
+    }
+   ],
+   "steps": [
+    [
+     "start"
+    ],
+    [
+     "tick"
+    ],
+    [
+     "remove",
+     "z"
+    ],
+    [
+     "calls"
+    ],
+    [
+     "ls",
+     "ext2"
+    ]
+   ],
+   "out": [
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": true
+    },
+    {
+     "v": [
+      [
+       "publish",
+       "cli.registryChanged",
+       [
+        "z:ready:null"
+       ]
+      ],
+      [
+       "info",
+       "external cli plugin removed",
+       {
+        "id": "z"
+       }
+      ],
+      [
+       "removed",
+       "z"
+      ],
+      [
+       "warn",
+       "external cli plugin remove hook failed",
+       {
+        "error": "Error: rm boom",
+        "id": "z"
+       }
+      ],
+      [
+       "publish",
+       "cli.registryChanged",
+       []
+      ]
+     ]
+    },
+    {
+     "v": []
+    }
+   ]
+  },
+  {
+   "name": "testExternal",
+   "deps": {
+    "home": "@@SB@@/home",
+    "env": {
+     "MY_KEY": "k",
+     "OTHER_KEY": ""
+    },
+    "platform": "linux",
+    "version": {
+     "grok": "1.0.60",
+     "claude": null,
+     "codex": "throw"
+    },
+    "spawn": "node"
+   },
+   "plugins": [],
+   "files": [
+    {
+     "p": "acp-ok.js",
+     "text": "let b='';process.stdin.on('data',d=>{b+=d;let i;while((i=b.indexOf('\\n'))>=0){const l=b.slice(0,i);b=b.slice(i+1);if(!l.trim())continue;const m=JSON.parse(l);\nif(m.method==='initialize')process.stdout.write(JSON.stringify({jsonrpc:'2.0',id:m.id,result:{protocolVersion:1,agentInfo:{name:' Mock Agent ',version:'1.2.3',title:''},agentCapabilities:{loadSession:true,promptCapabilities:{image:false,audio:true}},authMethods:[{id:'key'}],argv:process.argv.slice(2)}})+'\\n');}});"
+    },
+    {
+     "p": "acp-err.js",
+     "text": "let b='';process.stdin.on('data',d=>{b+=d;let i;while((i=b.indexOf('\\n'))>=0){const l=b.slice(0,i);b=b.slice(i+1);if(!l.trim())continue;const m=JSON.parse(l);\nprocess.stdout.write(JSON.stringify({jsonrpc:'2.0',id:m.id,error:{code:-32000,message:'auth required'}})+'\\n');}});"
+    }
+   ],
+   "steps": [
+    [
+     "test",
+     {
+      "version": 1,
+      "id": "my-agent",
+      "displayName": "My Agent",
+      "command": "@@SB@@/acp-ok.js",
+      "args": [
+       "--acp",
+       "{cwd}",
+       "{home}/x"
+      ],
+      "env": [
+       "MY_KEY",
+       "OTHER_KEY"
+      ]
+     },
+     "@@SB@@/work"
+    ],
+    [
+     "calls"
+    ],
+    [
+     "test",
+     {
+      "version": 1,
+      "id": "my-agent",
+      "displayName": "My Agent",
+      "command": "@@SB@@/acp-err.js",
+      "args": [
+       "--acp",
+       "{cwd}",
+       "{home}/x"
+      ],
+      "env": [
+       "MY_KEY",
+       "OTHER_KEY"
+      ]
+     },
+     "@@SB@@/work"
+    ],
+    [
+     "calls"
+    ],
+    [
+     "test",
+     {
+      "version": 1,
+      "id": "claude",
+      "displayName": "My Agent",
+      "command": "claude",
+      "args": [
+       "--acp",
+       "{cwd}",
+       "{home}/x"
+      ],
+      "env": [
+       "MY_KEY",
+       "OTHER_KEY"
+      ]
+     },
+     "@@SB@@/work"
+    ],
+    [
+     "test",
+     {
+      "id": "x"
+     },
+     "@@SB@@/work"
+    ],
+    [
+     "calls"
+    ],
+    [
+     "testTemp",
+     {
+      "version": 1,
+      "id": "my-agent",
+      "displayName": "My Agent",
+      "command": "@@SB@@/acp-ok.js",
+      "args": [],
+      "env": [
+       "MY_KEY",
+       "OTHER_KEY"
+      ]
+     }
+    ],
+    [
+     "calls"
+    ]
+   ],
+   "out": [
+    {
+     "v": {
+      "agent": {
+       "name": "Mock Agent",
+       "version": "1.2.3"
+      },
+      "authMethods": [
+       "key"
+      ],
+      "capabilities": {
+       "audio": true,
+       "embeddedContext": false,
+       "images": false,
+       "loadSession": true
+      },
+      "missingEnv": [
+       "OTHER_KEY"
+      ],
+      "ok": true,
+      "protocolVersion": 1
+     }
+    },
+    {
+     "v": [
+      [
+       "spawn",
+       "<SB>/acp-ok.js",
+       [
+        "--acp",
+        "<SB>/work",
+        "<SB>/home/x"
+       ],
+       "<SB>/work"
+      ]
+     ]
+    },
+    {
+     "v": {
+      "errors": [
+       "auth required"
+      ],
+      "ok": false
+     }
+    },
+    {
+     "v": [
+      [
+       "spawn",
+       "<SB>/acp-err.js",
+       [
+        "--acp",
+        "<SB>/work",
+        "<SB>/home/x"
+       ],
+       "<SB>/work"
+      ]
+     ]
+    },
+    {
+     "v": {
+      "errors": [
+       "id claude is reserved by a built-in plugin"
+      ],
+      "ok": false
+     }
+    },
+    {
+     "v": {
+      "errors": [
+       "version must be 1",
+       "displayName is required",
+       "command is required",
+       "args must be an array"
+      ],
+      "ok": false
+     }
+    },
+    {
+     "v": []
+    },
+    {
+     "v": {
+      "agent": {
+       "name": "Mock Agent",
+       "version": "1.2.3"
+      },
+      "authMethods": [
+       "key"
+      ],
+      "capabilities": {
+       "audio": true,
+       "embeddedContext": false,
+       "images": false,
+       "loadSession": true
+      },
+      "missingEnv": [
+       "OTHER_KEY"
+      ],
+      "ok": true,
+      "protocolVersion": 1
+     }
+    },
+    {
+     "v": [
+      [
+       "spawn",
+       "<SB>/acp-ok.js",
+       [],
+       "<TMP>:true"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "testSpawnThrows",
+   "deps": {
+    "home": "@@SB@@/home",
+    "env": {
+     "MY_KEY": "k",
+     "OTHER_KEY": ""
+    },
+    "platform": "linux",
+    "version": {
+     "grok": "1.0.60",
+     "claude": null,
+     "codex": "throw"
+    },
+    "spawn": "throw"
+   },
+   "plugins": [],
+   "files": [],
+   "steps": [
+    [
+     "test",
+     {
+      "version": 1,
+      "id": "my-agent",
+      "displayName": "My Agent",
+      "command": "my-agent",
+      "args": [
+       "--acp",
+       "{cwd}",
+       "{home}/x"
+      ],
+      "env": [
+       "MY_KEY",
+       "OTHER_KEY"
+      ]
+     },
+     "@@SB@@/work"
+    ],
+    [
+     "calls"
+    ]
+   ],
+   "out": [
+    {
+     "v": {
+      "errors": [
+       "spawn blew up"
+      ],
+      "ok": false
+     }
+    },
+    {
+     "v": [
+      [
+       "spawn",
+       "my-agent",
+       [
+        "--acp",
+        "<SB>/work",
+        "<SB>/home/x"
+       ],
+       "<SB>/work"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "testNoSpawn",
+   "deps": {
+    "home": "@@SB@@/home",
+    "env": {
+     "MY_KEY": "k",
+     "OTHER_KEY": ""
+    },
+    "platform": "linux",
+    "version": {
+     "grok": "1.0.60",
+     "claude": null,
+     "codex": "throw"
+    }
+   },
+   "plugins": [],
+   "files": [],
+   "steps": [
+    [
+     "test",
+     {
+      "version": 1,
+      "id": "my-agent",
+      "displayName": "My Agent",
+      "command": "my-agent",
+      "args": [
+       "--acp",
+       "{cwd}",
+       "{home}/x"
+      ],
+      "env": [
+       "MY_KEY",
+       "OTHER_KEY"
+      ]
+     },
+     "@@SB@@/work"
+    ],
+    [
+     "calls"
+    ]
+   ],
+   "out": [
+    {
+     "v": {
+      "errors": [
+       "spawn not available"
+      ],
+      "ok": false
+     }
+    },
+    {
+     "v": []
+    }
+   ]
+  },
+  {
+   "name": "builtin",
+   "deps": {
+    "home": "@@SB@@/home",
+    "env": {},
+    "platform": "linux",
+    "builtin": true
+   },
+   "plugins": null,
+   "files": [],
+   "steps": [
+    [
+     "start"
+    ],
+    [
+     "tick"
+    ],
+    [
+     "snapshot"
+    ],
+    [
+     "impl",
+     "claude"
+    ],
+    [
+     "impl",
+     "grok"
+    ],
+    [
+     "add",
+     {
+      "version": 1,
+      "id": "dsh",
+      "displayName": "My Agent",
+      "command": "my-agent",
+      "args": [
+       "--acp",
+       "{cwd}",
+       "{home}/x"
+      ],
+      "env": [
+       "MY_KEY",
+       "OTHER_KEY"
+      ]
+     }
+    ],
+    [
+     "add",
+     {
+      "version": 1,
+      "id": "nomi",
+      "displayName": "My Agent",
+      "command": "my-agent",
+      "args": [
+       "--acp",
+       "{cwd}",
+       "{home}/x"
+      ],
+      "env": [
+       "MY_KEY",
+       "OTHER_KEY"
+      ]
+     }
+    ],
+    [
+     "calls"
+    ]
+   ],
+   "out": [
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": {
+      "plugins": [
+       {
+        "builtin": true,
+        "capabilities": {
+         "fork": false,
+         "images": "native",
+         "officialAccount": true,
+         "permissionModes": [
+          {
+           "args": [
+            "--permission-mode",
+            "plan"
+           ],
+           "mode": "plan",
+           "modeId": "plan"
+          },
+          {
+           "args": [
+            "--permission-mode",
+            "default"
+           ],
+           "mode": "manual",
+           "modeId": "default"
+          },
+          {
+           "args": [
+            "--permission-mode",
+            "acceptEdits"
+           ],
+           "mode": "acceptEdits",
+           "modeId": "acceptEdits"
+          },
+          {
+           "args": [
+            "--permission-mode",
+            "auto"
+           ],
+           "mode": "auto",
+           "modeId": "auto"
+          },
+          {
+           "args": [
+            "--permission-mode",
+            "bypassPermissions"
+           ],
+           "mode": "bypass",
+           "modeId": "bypassPermissions"
+          }
+         ],
+         "progressMonitor": true,
+         "resume": true,
+         "slashCommands": true,
+         "subagentStop": true,
+         "subagents": true,
+         "terminalCommand": true,
+         "thirdParty": true,
+         "usageQuota": true
+        },
+        "displayName": "Claude Code",
+        "errors": [],
+        "icon": "claude",
+        "id": "claude",
+        "ingress": "messages",
+        "modelSwitch": "inplace",
+        "status": "ready",
+        "transport": "stream-json",
+        "version": null
+       },
+       {
+        "builtin": true,
+        "capabilities": {
+         "fork": false,
+         "images": "path",
+         "officialAccount": true,
+         "permissionModes": [
+          {
+           "mode": "plan"
+          },
+          {
+           "mode": "manual"
+          },
+          {
+           "mode": "acceptEdits"
+          },
+          {
+           "mode": "auto"
+          },
+          {
+           "mode": "bypass"
+          }
+         ],
+         "progressMonitor": true,
+         "resume": true,
+         "slashCommands": true,
+         "subagents": true,
+         "terminalCommand": true,
+         "thirdParty": true,
+         "usageQuota": true
+        },
+        "displayName": "Codex",
+        "errors": [],
+        "icon": "codex",
+        "id": "codex",
+        "ingress": "responses",
+        "modelSwitch": "inplace",
+        "status": "ready",
+        "transport": "app-server",
+        "version": null
+       },
+       {
+        "builtin": true,
+        "capabilities": {
+         "fork": false,
+         "images": "none",
+         "officialAccount": false,
+         "permissionModes": [
+          {
+           "mode": "plan"
+          },
+          {
+           "mode": "acceptEdits"
+          },
+          {
+           "mode": "bypass"
+          }
+         ],
+         "progressMonitor": true,
+         "resume": true,
+         "slashCommands": false,
+         "subagents": true,
+         "terminalCommand": false,
+         "thirdParty": true,
+         "usageQuota": false
+        },
+        "displayName": "dsh",
+        "errors": [],
+        "icon": "dsh",
+        "id": "dsh",
+        "ingress": "responses",
+        "modelSwitch": "restart",
+        "status": "ready",
+        "transport": "exec",
+        "version": null
+       },
+       {
+        "builtin": true,
+        "capabilities": {
+         "fork": false,
+         "images": "native",
+         "officialAccount": true,
+         "permissionModes": [
+          {
+           "mode": "plan",
+           "modeId": "plan"
+          },
+          {
+           "mode": "manual",
+           "modeId": "default"
+          },
+          {
+           "mode": "acceptEdits",
+           "modeId": "autoEdit"
+          },
+          {
+           "mode": "bypass",
+           "modeId": "yolo"
+          }
+         ],
+         "progressMonitor": true,
+         "resume": true,
+         "slashCommands": true,
+         "subagents": false,
+         "terminalCommand": true,
+         "thirdParty": true,
+         "usageQuota": false
+        },
+        "displayName": "Gemini",
+        "errors": [],
+        "icon": "gemini",
+        "id": "gemini",
+        "ingress": "gemini",
+        "modelSwitch": "inplace",
+        "status": "ready",
+        "transport": "acp",
+        "version": null
+       },
+       {
+        "builtin": true,
+        "capabilities": {
+         "fork": false,
+         "images": "native",
+         "officialAccount": true,
+         "permissionModes": [
+          {
+           "args": [
+            "--permission-mode",
+            "plan"
+           ],
+           "mode": "plan",
+           "modeId": "plan"
+          },
+          {
+           "args": [
+            "--permission-mode",
+            "default"
+           ],
+           "mode": "manual",
+           "modeId": "default"
+          },
+          {
+           "args": [
+            "--permission-mode",
+            "acceptEdits"
+           ],
+           "mode": "acceptEdits",
+           "modeId": "acceptEdits"
+          },
+          {
+           "args": [
+            "--yolo"
+           ],
+           "mode": "bypass",
+           "modeId": "bypassPermissions"
+          }
+         ],
+         "progressMonitor": true,
+         "resume": true,
+         "slashCommands": true,
+         "subagents": false,
+         "terminalCommand": true,
+         "thirdParty": true,
+         "usageQuota": true
+        },
+        "displayName": "Grok",
+        "errors": [],
+        "icon": "grok",
+        "id": "grok",
+        "ingress": "responses",
+        "modelSwitch": "gateway",
+        "status": "ready",
+        "transport": "acp",
+        "version": null
+       }
+      ]
+     }
+    },
+    {
+     "v": true
+    },
+    {
+     "v": true
+    },
+    {
+     "v": {
+      "errors": [
+       "id dsh is reserved by a built-in plugin"
+      ],
+      "ok": false
+     }
+    },
+    {
+     "v": {
+      "errors": [
+       "id nomi is reserved by a built-in plugin"
+      ],
+      "ok": false
+     }
+    },
+    {
+     "v": [
+      [
+       "publish",
+       "cli.registryChanged",
+       [
+        "claude:ready:null",
+        "codex:ready:null",
+        "dsh:ready:null",
+        "gemini:ready:null",
+        "grok:ready:null"
+       ]
+      ]
+     ]
+    }
+   ]
+  }
+ ]
+}
