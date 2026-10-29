@@ -211,8 +211,6 @@ type Orchestrator struct {
 	autoApprove     bool
 	lastSettings    *util.Obj // backend → LastTabSettings
 	codexNetwork    bool
-	grokAcpUnavail  bool
-	codexAppUnavail bool
 
 	home, statePath, tabsPath, tabsDir, recentPath string
 	recent                                         []string
@@ -245,18 +243,31 @@ func (a *orderedAgents) size() int {
 }
 
 // emitter = EventEmitter 的最小子集（'tabs' / 'finished' 等）。
-type emitter struct{ ls map[string][]func(any) }
+type emitter struct{ ls map[string][]*func(any) }
 
-func (e *emitter) On(ev string, fn func(any)) {
+func (e *emitter) On(ev string, fn func(any)) { e.onOff(ev, fn) }
+
+// onOff = on，返回对应的 off（Node events.off(同一函数)）。
+func (e *emitter) onOff(ev string, fn func(any)) func() {
 	if e.ls == nil {
-		e.ls = map[string][]func(any){}
+		e.ls = map[string][]*func(any){}
 	}
-	e.ls[ev] = append(e.ls[ev], fn)
+	p := &fn
+	e.ls[ev] = append(e.ls[ev], p)
+	return func() {
+		ls := e.ls[ev]
+		for i, q := range ls {
+			if q == p {
+				e.ls[ev] = append(ls[:i:i], ls[i+1:]...)
+				return
+			}
+		}
+	}
 }
 func (e *emitter) ListenerCount(ev string) int { return len(e.ls[ev]) }
 func (e *emitter) Emit(ev string, v any) {
-	for _, fn := range append([]func(any){}, e.ls[ev]...) {
-		fn(v)
+	for _, fn := range append([]*func(any){}, e.ls[ev]...) {
+		(*fn)(v)
 	}
 }
 

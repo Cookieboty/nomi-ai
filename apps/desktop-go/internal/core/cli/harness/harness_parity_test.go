@@ -346,12 +346,5 @@ func TestHarnessGolden(t *testing.T) {
 	t.Logf("compared %d harness cases (%s)", n, usage.Platform())
 }
 
-func strsAny(xs []string) []any {
-	out := make([]any, len(xs))
-	for i, x := range xs {
-		out[i] = x
-	}
-	return out
-}
 
 func b64(b []byte) string { return base64.StdEncoding.EncodeToString(b) }
