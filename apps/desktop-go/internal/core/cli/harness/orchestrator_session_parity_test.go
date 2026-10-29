@@ -67,21 +67,6 @@ type nopPorts struct{}
 func (nopPorts) PickDirectory(string, bool, string) *string { return nil }
 func (nopPorts) AnyFocused() bool                           { return false }
 
-// b7Ready：b7 负责的 emitEvent 等仍是 panic 桩时跳过回放（D-B7-O-3；b7 合入后自动生效）。
-func b7Ready(o *Orchestrator) (ok bool) {
-	defer func() {
-		if r := recover(); r != nil {
-			if _, stub := r.(b7Stub); !stub {
-				panic(r)
-			}
-			ok = false
-		}
-	}()
-	o.emitEvent("__probe__", util.NewObj())
-	o.launchFor(util.NewObj())
-	return true
-}
-
 func repoRoot(t *testing.T) string {
 	wd, _ := os.Getwd()
 	for d := wd; d != filepath.Dir(d); d = filepath.Dir(d) {
@@ -133,9 +118,6 @@ func runOrchCase(t *testing.T, c *util.Obj) *util.Obj {
 	o := New(Deps{Root: filepath.Join(tmp, "harness"), Home: tmp, Logger: nopLogger{}, Ports: nopPorts{},
 		GrokAcp: c.Get("grokAcp") == true, CodexAppServer: c.Get("codexAppServer") == true,
 		ClaudeInterruptGraceMs: &grace, ClaudeControlTimeoutMs: &ctl, IdleReclaimMs: &idle})
-	if !b7Ready(o) {
-		t.Skip("b7-owned deps (emitEvent/launchFor/…) still stubs — D-B7-O-3")
-	}
 	var evs []any
 	for _, n := range []string{"event", "permission-needed"} {
 		n := n
@@ -193,20 +175,22 @@ func runOrchCase(t *testing.T, c *util.Obj) *util.Obj {
 				}
 			}()
 		}
-		var p *jsrt.Promise[*util.Obj]
-		switch c.Get("backend") {
-		case "claude":
-			p = o.runClaude(tab, prompt, ac.Signal, nil, "")
-		case "gemini":
-			p = o.runAcp(tab, prompt, ac.Signal, nil)
-		case "grok":
-			p = o.runGrokTurn(tab, prompt, ac.Signal, nil)
-		case "codex":
-			p = o.runCodexTurn(tab, prompt, ac.Signal, []cli.NormalizedImage{}, nil)
-		case "dsh":
-			p = o.runDsh(tab, prompt)
-		}
-		v, err := jsrt.Await(p)
+		p := jsrt.Call(func() (p *jsrt.Promise[*util.Obj]) {
+			switch c.Get("backend") {
+			case "claude":
+				p = o.runClaude(tab, prompt, ac.Signal, nil, "")
+			case "gemini":
+				p = o.runAcp(tab, prompt, ac.Signal, nil)
+			case "grok":
+				p = o.runGrokTurn(tab, prompt, ac.Signal, nil)
+			case "codex":
+				p = o.runCodexTurn(tab, prompt, ac.Signal, []cli.NormalizedImage{}, nil)
+			case "dsh":
+				p = o.runDsh(tab, prompt)
+			}
+			return
+		})
+		v, err := jsrt.Block(p)
 		close(stop)
 		r := util.NewObj()
 		if err != nil {
@@ -230,9 +214,11 @@ func runOrchCase(t *testing.T, c *util.Obj) *util.Obj {
 		delete(o.stopRequested, "t1")
 		turns = append(turns, r)
 	}
-	o.teardownClaudeLive("t1")
-	o.teardownAcpLive("t1")
-	o.teardownCodexLive("t1")
+	jsrt.Run(func() {
+		o.teardownClaudeLive("t1")
+		o.teardownAcpLive("t1")
+		o.teardownCodexLive("t1")
+	})
 	out := util.NewObj()
 	out.Set("name", c.Get("name"))
 	out.Set("turns", turns)
@@ -247,9 +233,6 @@ func runOrchCase(t *testing.T, c *util.Obj) *util.Obj {
 }
 
 func TestOrchestratorSessionsGolden(t *testing.T) {
-	if !b7Ready(New(Deps{Root: t.TempDir(), Home: t.TempDir(), Logger: nopLogger{}, Ports: nopPorts{}})) {
-		t.Skip("b7-owned deps (emitEvent/launchFor/…) still stubs — D-B7-O-3")
-	}
 	golden := loadOrchGolden(t, true)
 	scen := loadOrchScenarios(t)
 	if len(golden) != len(scen) {
