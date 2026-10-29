@@ -134,7 +134,9 @@ func NewTransport(o FetchOptions) *http.Transport {
 		TLSHandshakeTimeout:   ct,
 		// undici speaks HTTP/1.1 only (allowH2 defaults to false)
 		ForceAttemptHTTP2: false,
-		TLSNextProto:      map[string]func(string, *tls.Conn) http.RoundTripper{},
+		// accept-encoding 与解码按 undici 自己做（decode.go），不用 net/http 的透明 gzip
+		DisableCompression: true,
+		TLSNextProto:       map[string]func(string, *tls.Conn) http.RoundTripper{},
 	}
 }
 
@@ -169,7 +171,15 @@ func CreateUpstreamFetch(o FetchOptions) UpstreamFetch {
 		ctx = context.WithValue(ctx, targetKey{}, &target{scheme: u.Scheme, host: h, port: port})
 		req.URL.Host = u.Host
 		fetchDefaultHeaders(req.Header)
-		return client.Do(req.WithContext(ctx))
+		acceptEncodingDefaults(req)
+		resp, err := client.Do(req.WithContext(ctx))
+		if err != nil {
+			return nil, err
+		}
+		if err := decodeResponse(req.Method, resp); err != nil {
+			return nil, err
+		}
+		return resp, nil
 	}
 }
 
@@ -185,8 +195,7 @@ func DefaultUpstreamFetch() UpstreamFetch {
 }
 
 // fetchDefaultHeaders adds the request headers Node's fetch (undici) sends
-// when the caller did not set them. accept-encoding is left to net/http
-// (gzip, decoded transparently) — see D-B4d-2.
+// when the caller did not set them (accept-encoding: see decode.go).
 func fetchDefaultHeaders(h http.Header) {
 	for _, kv := range [][2]string{{"Accept", "*/*"}, {"Accept-Language", "*"}, {"Sec-Fetch-Mode", "cors"}, {"User-Agent", "undici"}} {
 		if _, ok := h[kv[0]]; !ok && h.Get(kv[0]) == "" {

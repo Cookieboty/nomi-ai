@@ -1,0 +1,450 @@
+{
+ "bodies": {
+  "identity": "eyJvayI6dHJ1ZSwibXNnIjoi5L2g5aW9IGhlbGxvIn0=",
+  "gzip": "H4sIAAAAAAAAA6tWys9WsiopKk3VUcotTleyUnqyd8HTpXsVMlJzcvKVagHUflriIAAAAA==",
+  "zlib": "eJyrVsrPVrIqKSpN1VHKLU5XslJ6snfB06V7FTJSc3LylWoByNYNAg==",
+  "raw": "q1bKz1ayKikqTdVRyi1OV7JSerJ3wdOlexUyUnNy8pVqAQ==",
+  "br": "iw+AeyJvayI6dHJ1ZSwibXNnIjoi5L2g5aW9IGhlbGxvIn0D",
+  "gzbr": "ixmAH4sIAAAAAAAAA6tWys9WsiopKk3VUcotTleyUnqyd8HTpXsVMlJzcvKVagHUflriIAAAAAM=",
+  "gz2": "H4sIAAAAAAAAA5Pv5mAAA+bVYafOh23S0tTyvRp4StcvfFNQ1abyg5eXVosaBRUXfZqaxXilLuqRAlAtALorA6k0AAAA",
+  "trunc": "H4sIAAAAAAAAA6tWys9WsiopKk3VUcotTleyUnqyd8HTpXsVMlJzcvKVagHUfg==",
+  "bad": "bm90IGd6aXAgYXQgYWxs",
+  "empty": "",
+  "multi": "H4sIAAAAAAAAA0sEAEO+t+gBAAAAH4sIAAAAAAAAA0sCAPnvvnEBAAAA"
+ },
+ "cases": [
+  {
+   "name": "plain",
+   "ce": null,
+   "body": "identity",
+   "res": {
+    "status": 200,
+    "contentEncoding": null,
+    "contentLength": "32",
+    "body": "eyJvayI6dHJ1ZSwibXNnIjoi5L2g5aW9IGhlbGxvIn0="
+   },
+   "error": null,
+   "bodyError": null,
+   "seen": [
+    "accept-encoding: gzip, deflate"
+   ]
+  },
+  {
+   "name": "gzip",
+   "ce": "gzip",
+   "body": "gzip",
+   "res": {
+    "status": 200,
+    "contentEncoding": "gzip",
+    "contentLength": "52",
+    "body": "eyJvayI6dHJ1ZSwibXNnIjoi5L2g5aW9IGhlbGxvIn0="
+   },
+   "error": null,
+   "bodyError": null,
+   "seen": [
+    "accept-encoding: gzip, deflate"
+   ]
+  },
+  {
+   "name": "x-gzip",
+   "ce": "x-gzip",
+   "body": "gzip",
+   "res": {
+    "status": 200,
+    "contentEncoding": "x-gzip",
+    "contentLength": "52",
+    "body": "eyJvayI6dHJ1ZSwibXNnIjoi5L2g5aW9IGhlbGxvIn0="
+   },
+   "error": null,
+   "bodyError": null,
+   "seen": [
+    "accept-encoding: gzip, deflate"
+   ]
+  },
+  {
+   "name": "GZIP upper",
+   "ce": "GZIP",
+   "body": "gzip",
+   "res": {
+    "status": 200,
+    "contentEncoding": "GZIP",
+    "contentLength": "52",
+    "body": "eyJvayI6dHJ1ZSwibXNnIjoi5L2g5aW9IGhlbGxvIn0="
+   },
+   "error": null,
+   "bodyError": null,
+   "seen": [
+    "accept-encoding: gzip, deflate"
+   ]
+  },
+  {
+   "name": "deflate zlib",
+   "ce": "deflate",
+   "body": "zlib",
+   "res": {
+    "status": 200,
+    "contentEncoding": "deflate",
+    "contentLength": "40",
+    "body": "eyJvayI6dHJ1ZSwibXNnIjoi5L2g5aW9IGhlbGxvIn0="
+   },
+   "error": null,
+   "bodyError": null,
+   "seen": [
+    "accept-encoding: gzip, deflate"
+   ]
+  },
+  {
+   "name": "deflate raw",
+   "ce": "deflate",
+   "body": "raw",
+   "res": {
+    "status": 200,
+    "contentEncoding": "deflate",
+    "contentLength": "34",
+    "body": "eyJvayI6dHJ1ZSwibXNnIjoi5L2g5aW9IGhlbGxvIn0="
+   },
+   "error": null,
+   "bodyError": null,
+   "seen": [
+    "accept-encoding: gzip, deflate"
+   ]
+  },
+  {
+   "name": "br",
+   "ce": "br",
+   "body": "br",
+   "res": {
+    "status": 200,
+    "contentEncoding": "br",
+    "contentLength": "36",
+    "body": "eyJvayI6dHJ1ZSwibXNnIjoi5L2g5aW9IGhlbGxvIn0="
+   },
+   "error": null,
+   "bodyError": null,
+   "seen": [
+    "accept-encoding: gzip, deflate"
+   ]
+  },
+  {
+   "name": "gzip, br",
+   "ce": "gzip, br",
+   "body": "gzbr",
+   "res": {
+    "status": 200,
+    "contentEncoding": "gzip, br",
+    "contentLength": "56",
+    "body": "eyJvayI6dHJ1ZSwibXNnIjoi5L2g5aW9IGhlbGxvIn0="
+   },
+   "error": null,
+   "bodyError": null,
+   "seen": [
+    "accept-encoding: gzip, deflate"
+   ]
+  },
+  {
+   "name": "gzip,gzip",
+   "ce": "gzip,gzip",
+   "body": "gz2",
+   "res": {
+    "status": 200,
+    "contentEncoding": "gzip,gzip",
+    "contentLength": "69",
+    "body": "eyJvayI6dHJ1ZSwibXNnIjoi5L2g5aW9IGhlbGxvIn0="
+   },
+   "error": null,
+   "bodyError": null,
+   "seen": [
+    "accept-encoding: gzip, deflate"
+   ]
+  },
+  {
+   "name": "unknown",
+   "ce": "compress",
+   "body": "gzip",
+   "res": {
+    "status": 200,
+    "contentEncoding": "compress",
+    "contentLength": "52",
+    "body": "H4sIAAAAAAAAA6tWys9WsiopKk3VUcotTleyUnqyd8HTpXsVMlJzcvKVagHUflriIAAAAA=="
+   },
+   "error": null,
+   "bodyError": null,
+   "seen": [
+    "accept-encoding: gzip, deflate"
+   ]
+  },
+  {
+   "name": "gzip, unknown",
+   "ce": "gzip, foo",
+   "body": "gzip",
+   "res": {
+    "status": 200,
+    "contentEncoding": "gzip, foo",
+    "contentLength": "52",
+    "body": "H4sIAAAAAAAAA6tWys9WsiopKk3VUcotTleyUnqyd8HTpXsVMlJzcvKVagHUflriIAAAAA=="
+   },
+   "error": null,
+   "bodyError": null,
+   "seen": [
+    "accept-encoding: gzip, deflate"
+   ]
+  },
+  {
+   "name": "identity token",
+   "ce": "identity",
+   "body": "identity",
+   "res": {
+    "status": 200,
+    "contentEncoding": "identity",
+    "contentLength": "32",
+    "body": "eyJvayI6dHJ1ZSwibXNnIjoi5L2g5aW9IGhlbGxvIn0="
+   },
+   "error": null,
+   "bodyError": null,
+   "seen": [
+    "accept-encoding: gzip, deflate"
+   ]
+  },
+  {
+   "name": "too many",
+   "ce": "gzip, gzip, gzip, gzip, gzip, gzip",
+   "body": "gzip",
+   "res": null,
+   "error": true,
+   "bodyError": null,
+   "seen": [
+    "accept-encoding: gzip, deflate"
+   ]
+  },
+  {
+   "name": "truncated",
+   "ce": "gzip",
+   "body": "trunc",
+   "res": {
+    "status": 200,
+    "contentEncoding": "gzip",
+    "contentLength": "46",
+    "body": "eyJvayI6dHJ1ZSwibXNnIjoi5L2g5aW9IGhlbGxvIn0="
+   },
+   "error": null,
+   "bodyError": null,
+   "seen": [
+    "accept-encoding: gzip, deflate"
+   ]
+  },
+  {
+   "name": "corrupt",
+   "ce": "gzip",
+   "body": "bad",
+   "res": {
+    "status": 200,
+    "contentEncoding": "gzip",
+    "contentLength": "15"
+   },
+   "error": null,
+   "bodyError": true,
+   "seen": [
+    "accept-encoding: gzip, deflate"
+   ]
+  },
+  {
+   "name": "empty gzip",
+   "ce": "gzip",
+   "body": "empty",
+   "res": {
+    "status": 200,
+    "contentEncoding": "gzip",
+    "contentLength": "0",
+    "body": ""
+   },
+   "error": null,
+   "bodyError": null,
+   "seen": [
+    "accept-encoding: gzip, deflate"
+   ]
+  },
+  {
+   "name": "multi-member",
+   "ce": "gzip",
+   "body": "multi",
+   "res": {
+    "status": 200,
+    "contentEncoding": "gzip",
+    "contentLength": "42",
+    "body": "YWI="
+   },
+   "error": null,
+   "bodyError": null,
+   "seen": [
+    "accept-encoding: gzip, deflate"
+   ]
+  },
+  {
+   "name": "204",
+   "ce": "gzip",
+   "body": "empty",
+   "status": 204,
+   "res": {
+    "status": 204,
+    "contentEncoding": "gzip",
+    "contentLength": null,
+    "body": ""
+   },
+   "error": null,
+   "bodyError": null,
+   "seen": [
+    "accept-encoding: gzip, deflate"
+   ]
+  },
+  {
+   "name": "304",
+   "ce": "gzip",
+   "body": "empty",
+   "status": 304,
+   "res": {
+    "status": 304,
+    "contentEncoding": "gzip",
+    "contentLength": null,
+    "body": ""
+   },
+   "error": null,
+   "bodyError": null,
+   "seen": [
+    "accept-encoding: gzip, deflate"
+   ]
+  },
+  {
+   "name": "HEAD",
+   "ce": "gzip",
+   "body": "gzip",
+   "method": "HEAD",
+   "res": {
+    "status": 200,
+    "contentEncoding": "gzip",
+    "contentLength": "52",
+    "body": ""
+   },
+   "error": null,
+   "bodyError": null,
+   "seen": [
+    "accept-encoding: gzip, deflate"
+   ]
+  },
+  {
+   "name": "302 manual",
+   "ce": "gzip",
+   "body": "gzip",
+   "status": 302,
+   "location": "/x",
+   "res": {
+    "status": 302,
+    "contentEncoding": "gzip",
+    "contentLength": "52",
+    "body": "eyJvayI6dHJ1ZSwibXNnIjoi5L2g5aW9IGhlbGxvIn0="
+   },
+   "error": null,
+   "bodyError": null,
+   "seen": [
+    "accept-encoding: gzip, deflate"
+   ]
+  },
+  {
+   "name": "500 gzip",
+   "ce": "gzip",
+   "body": "gzip",
+   "status": 500,
+   "res": {
+    "status": 500,
+    "contentEncoding": "gzip",
+    "contentLength": "52",
+    "body": "eyJvayI6dHJ1ZSwibXNnIjoi5L2g5aW9IGhlbGxvIn0="
+   },
+   "error": null,
+   "bodyError": null,
+   "seen": [
+    "accept-encoding: gzip, deflate"
+   ]
+  },
+  {
+   "name": "caller AE",
+   "ce": "gzip",
+   "body": "gzip",
+   "reqHeaders": {
+    "accept-encoding": "identity"
+   },
+   "res": {
+    "status": 200,
+    "contentEncoding": "gzip",
+    "contentLength": "52",
+    "body": "eyJvayI6dHJ1ZSwibXNnIjoi5L2g5aW9IGhlbGxvIn0="
+   },
+   "error": null,
+   "bodyError": null,
+   "seen": [
+    "accept-encoding: identity"
+   ]
+  },
+  {
+   "name": "caller Range",
+   "ce": null,
+   "body": "identity",
+   "reqHeaders": {
+    "range": "bytes=0-"
+   },
+   "res": {
+    "status": 200,
+    "contentEncoding": null,
+    "contentLength": "32",
+    "body": "eyJvayI6dHJ1ZSwibXNnIjoi5L2g5aW9IGhlbGxvIn0="
+   },
+   "error": null,
+   "bodyError": null,
+   "seen": [
+    "range: bytes=0-",
+    "accept-encoding: identity"
+   ]
+  },
+  {
+   "name": "caller Range+AE",
+   "ce": null,
+   "body": "identity",
+   "reqHeaders": {
+    "range": "bytes=0-",
+    "Accept-Encoding": "br"
+   },
+   "res": {
+    "status": 200,
+    "contentEncoding": null,
+    "contentLength": "32",
+    "body": "eyJvayI6dHJ1ZSwibXNnIjoi5L2g5aW9IGhlbGxvIn0="
+   },
+   "error": null,
+   "bodyError": null,
+   "seen": [
+    "range: bytes=0-",
+    "Accept-Encoding: br, identity"
+   ]
+  },
+  {
+   "name": "POST gzip",
+   "ce": "gzip",
+   "body": "gzip",
+   "method": "POST",
+   "reqBody": "{\"a\":1}",
+   "reqHeaders": {
+    "content-type": "application/json"
+   },
+   "res": {
+    "status": 200,
+    "contentEncoding": "gzip",
+    "contentLength": "52",
+    "body": "eyJvayI6dHJ1ZSwibXNnIjoi5L2g5aW9IGhlbGxvIn0="
+   },
+   "error": null,
+   "bodyError": null,
+   "seen": [
+    "accept-encoding: gzip, deflate"
+   ]
+  }
+ ]
+}
