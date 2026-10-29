@@ -4,6 +4,7 @@ package mascot
 // host/windowBounds.ts 的逐行移植。窗口、时钟、定时器、光标、显示器经接口注入，便于回放 Node 录下的轨迹。
 
 import (
+	"log"
 	"math"
 	"sync"
 )
@@ -216,7 +217,14 @@ func (c *Controller) Start() {
 	if c.hooks != nil && c.hooks.Get != nil {
 		c.pref = c.hooks.Get()
 	}
+	// Windows 上 Start 早于窗口实化，GetSize 返回 0x0：此时按创建窗口时同一口径（偏好缩放）取当前缩放，
+	// 否则会被夹到最小 0.3（246x265，而 Electron 2.0.4 为 330x355）
+	if w <= 2*int(MascotPad.X) {
+		c.scale = FitMascotScale(c.pref, MaxMascotScale)
+	}
 	x, y := c.win.GetPosition()
+	_, h0 := c.win.GetSize()
+	log.Printf("[mascot] start size=%dx%d scale=%.2f pref=%v areas=%+v", w, h0, c.scale, c.pref, c.workAreas)
 	c.requested = &pt{float64(x), float64(y)}
 	c.body = BodyState{X: float64(x), Y: float64(y), Mode: "idle"}
 	c.last = c.host.Now()
@@ -457,6 +465,7 @@ func (c *Controller) applyScale(target float64, userPref, notify bool) ScaleStat
 		c.pref = target
 	}
 	if target != c.scale {
+		log.Printf("[mascot] applyScale %.2f -> %.2f cap=%.2f userPref=%v areas=%+v", c.scale, target, c.capNow(), userPref, c.workAreas)
 		b := c.win.GetBounds()
 		from := c.scale
 		nb := ResizeMascotBounds(ResizeInput{

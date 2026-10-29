@@ -1,6 +1,6 @@
 # 批次 11 Windows 安装器验证：先装 Electron 2.0.4 记录目录/快捷方式/注册表 → 用 Go 版安装器覆盖升级 → 对比 → 启动看到看板娘 → 卸载。
 # 用法：verify-win.ps1 -Setup <Nomi-Setup-x.exe> -Out <dir> [-Old <Nomi-Setup-2.0.4.exe>]
-param([string]$Setup, [string]$Out, [string]$Old = "")
+param([string]$Setup, [string]$Out, [string]$Old = "", [string]$ElectronExe = "")
 $ErrorActionPreference = "Continue"
 New-Item -ItemType Directory -Force $Out | Out-Null
 $R = Join-Path $Out "report.md"; $ok = $true
@@ -11,6 +11,8 @@ public class Wn {
   public delegate bool P(IntPtr h, IntPtr l);
   [DllImport("user32.dll")] public static extern bool EnumWindows(P f, IntPtr l);
   [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
+  [DllImport("user32.dll")] public static extern uint GetDpiForWindow(IntPtr h);
+  [DllImport("user32.dll")] public static extern uint GetDpiForSystem();
   [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint p);
   [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
   [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetWindowText(IntPtr h, StringBuilder s, int n);
@@ -18,7 +20,7 @@ public class Wn {
   public static List<string> List(uint pid) { var o = new List<string>();
     EnumWindows((h, l) => { uint p; GetWindowThreadProcessId(h, out p);
       if (p == pid && IsWindowVisible(h)) { RECT r; GetWindowRect(h, out r); var s = new StringBuilder(256); GetWindowText(h, s, 256);
-        o.Add(String.Format("{0}|{1}|{2}|{3}|{4}|{5}", h, r.L, r.T, r.Rr - r.L, r.B - r.T, s)); } return true; }, IntPtr.Zero); return o; } }
+        o.Add(String.Format("{0}|{1}|{2}|{3}|{4}|{5}|dpi={6}", h, r.L, r.T, r.Rr - r.L, r.B - r.T, s, GetDpiForWindow(h))); } return true; }, IntPtr.Zero); return o; } }
 "@
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
 function Shot($file, $x = $null) {
@@ -55,18 +57,36 @@ if ($Old -and (Test-Path $Old)) {
   $others = (Get-Content $b) -join "`n"
   if ($others -match "\(missing\)") { W "- 有缺失项（见上）"; $ok = $false }
 }
+function PickMascot($ws) { $ws | Where-Object { $f = $_.Split('|'); [int]$f[3] -ge 200 -and [int]$f[3] -le 700 -and [math]::Abs([int]$f[4] / [math]::Max(1,[int]$f[3]) - 355/330) -lt 0.08 } | Select-Object -First 1 }
+W ("- 屏幕：" + [System.Windows.Forms.Screen]::PrimaryScreen.Bounds + "，工作区 " + [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea + "，系统 DPI " + [Wn]::GetDpiForSystem())
+$EMascot = $null
+if ($ElectronExe -and (Test-Path $ElectronExe)) {
+  # 同 runner、全新 userData 启动源码构建的 Electron 2.0.4，量看板娘窗口（尺寸基线）
+  Remove-Item -Recurse -Force "$env:APPDATA\Nomi","$env:APPDATA\@nomi-ai" -ErrorAction SilentlyContinue
+  $ep = Start-Process $ElectronExe -PassThru; Start-Sleep 45
+  $ews = @(); Get-Process -Name Nomi -ErrorAction SilentlyContinue | ForEach-Object { $ews += [Wn]::List([uint32]$_.Id) }
+  $ews | Out-File -Encoding utf8 (Join-Path $Out "windows-electron-204.txt")
+  Shot (Join-Path $Out "win-electron-204-fullscreen.png")
+  $em = PickMascot $ews
+  if ($em) { $f = $em.Split('|'); $EMascot = "$($f[3])x$($f[4])"; Shot (Join-Path $Out "win-electron-204-mascot.png") (New-Object System.Drawing.Rectangle ([int]$f[1]), ([int]$f[2]), ([int]$f[3]), ([int]$f[4])); W "- Electron 2.0.4（源码构建）看板娘窗口 $EMascot（$($f[6])）" }
+  else { W "- Electron 2.0.4（源码构建）未找到看板娘窗口（windows-electron-204.txt）" }
+  Get-Process Nomi -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep 3
+  Remove-Item -Recurse -Force "$env:APPDATA\Nomi","$env:APPDATA\@nomi-ai" -ErrorAction SilentlyContinue
+} else { W "- 无 Electron 2.0.4 构建，跳过同机尺寸对比" }
 $exe = Join-Path (InstDir) "Nomi.exe"
 if (-not (Test-Path $exe)) { W "- 安装目录里没有 Nomi.exe"; $ok = $false }
 else {
-  $p = Start-Process $exe -PassThru; Start-Sleep 45
+  $p = Start-Process $exe -PassThru -RedirectStandardError (Join-Path $Out "go-stderr.log") -RedirectStandardOutput (Join-Path $Out "go-stdout.log"); Start-Sleep 45
   $ws = [Wn]::List([uint32]$p.Id); $ws | Out-File -Encoding utf8 (Join-Path $Out "windows.txt")
   Shot (Join-Path $Out "win-launch-fullscreen.png")
-  $m = $ws | Where-Object { $f = $_.Split('|'); [int]$f[3] -ge 200 -and [int]$f[3] -le 500 -and [math]::Abs([int]$f[4] / [math]::Max(1,[int]$f[3]) - 355/330) -lt 0.08 } | Select-Object -First 1
+  $m = PickMascot $ws
   if ($m) { $f = $m.Split('|'); Shot (Join-Path $Out "win-mascot.png") (New-Object System.Drawing.Rectangle ([int]$f[1]), ([int]$f[2]), ([int]$f[3]), ([int]$f[4]))
-    W "- 启动：PID $($p.Id)，看板娘窗口 $($f[3])x$($f[4]) 已显示（win-mascot.png）" }
+    W "- 启动：PID $($p.Id)，看板娘窗口 $($f[3])x$($f[4])（$($f[6])）已显示（win-mascot.png）"
+    if ($EMascot -and $EMascot -ne "$($f[3])x$($f[4])") { W "- 尺寸与 Electron 2.0.4 不一致：$EMascot vs $($f[3])x$($f[4])"; $ok = $false } }
   else { W "- 启动后未找到看板娘窗口（windows.txt）"; $ok = $false }
   W ("- 进程：" + ((Get-Process -Id $p.Id -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Path)))
   Get-Process Nomi -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep 2
+  Get-ChildItem "$env:APPDATA\Nomi" -Filter *.json -ErrorAction SilentlyContinue | Where-Object Length -lt 200000 | ForEach-Object { Copy-Item $_.FullName (Join-Path $Out ("go-userdata-" + $_.Name)) }
 }
 $q = (Get-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\$guid" -ErrorAction SilentlyContinue).QuietUninstallString
 if ($q) { # 不用 cmd /c：引号路径 + 参数会被 cmd 剥掉外层引号而什么都不执行
