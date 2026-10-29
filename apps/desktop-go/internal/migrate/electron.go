@@ -14,9 +14,11 @@ import (
 	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/aichat"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/security"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/settings"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/utils"
+	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/hostports"
 )
 
@@ -183,9 +185,14 @@ func migrateSecrets(root string, box security.SecretBox, ss security.ElectronSaf
 	ok, failed := 0, []string{}
 	// 1) voice/volc-key.json: { key: "enc:..." } 或明文
 	ok += migrateEncFile(filepath.Join(root, "voice", "volc-key.json"), "key", "voice:volc", box, ss, &failed)
-	// 2) ai-providers.json / gateway/store.json：遍历 keys[].enc
+	// 2) ai-providers.json / gateway/store.json / cli-providers/<kind>/store.json：Node 形态的密文字段
 	for _, rel := range []string{"ai-providers.json", filepath.Join("gateway", "store.json")} {
-		n, f := migrateProviderFile(filepath.Join(root, rel), ss)
+		n, f := migrateProviderFile(filepath.Join(root, rel), box, ss, false)
+		ok += n
+		failed = append(failed, f...)
+	}
+	for _, kind := range gwstore.CLIKinds {
+		n, f := migrateProviderFile(filepath.Join(root, "cli-providers", kind, "store.json"), box, ss, true)
 		ok += n
 		failed = append(failed, f...)
 	}
@@ -223,52 +230,87 @@ func migrateEncFile(path, field, account string, box security.SecretBox, ss secu
 	return 1
 }
 
-func migrateProviderFile(path string, ss security.ElectronSafeStorage) (int, []string) {
+// Node 存储里成对出现的「密文字段 / 加密方式字段」（GatewayStore + ai-providers.json）
+var encPairs = [][2]string{
+	{"enc", "encryption"}, {"secret", "encryption"},
+	{"tokenEnc", "tokenEncryption"}, {"privacyKeyEnc", "privacyKeyEncryption"},
+}
+
+// migrateProviderFile：把 Electron safeStorage 密文就地换成 Go safeStorage 密文（gwstore.NewCipher），
+// 字段名 / encryption 取值 / 键顺序 / JSON 排版与 Node 写出的一致（D-B4d-5 消除：不再改成 "keyring"）。
+// cli=true 时处理 cli-providers/<kind>/store.json 的 profiles[].keyEnc（无加密方式字段）。
+// 解不开的保留原样（Node 侧同样读作 null / 按明文 base64 处理）。
+func migrateProviderFile(path string, box security.SecretBox, ss security.ElectronSafeStorage, cli bool) (int, []string) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		return 0, nil
 	}
-	var root map[string]any
-	if json.Unmarshal(raw, &root) != nil {
+	root, err := u.Parse(raw)
+	if err != nil {
 		return 0, nil
 	}
+	cipher := gwstore.NewCipher(box)
 	ok, failed := 0, []string{}
-	walkKeys(root, path, ss, &ok, &failed)
+	reenc := func(stored string) (string, string, bool) {
+		ct, err := base64.StdEncoding.DecodeString(stored)
+		if err != nil {
+			return "", "", false
+		}
+		plain, good := ss.Decrypt(ct)
+		if !good {
+			return "", "", false
+		}
+		enc, err := cipher.Encrypt(plain)
+		if err != nil {
+			return "", "", false
+		}
+		return enc, cipher.Kind(), true
+	}
+	var walk func(v any)
+	walk = func(v any) {
+		switch t := v.(type) {
+		case *u.Obj:
+			for _, pr := range encPairs {
+				stored, isStr := t.Get(pr[0]).(string)
+				if !isStr || t.Get(pr[1]) != "safeStorage" {
+					continue
+				}
+				if enc, kind, good := reenc(stored); good {
+					t.Set(pr[0], enc)
+					t.Set(pr[1], kind)
+					ok++
+				} else {
+					failed = append(failed, path+":"+pr[0])
+				}
+			}
+			if cli {
+				if stored, isStr := t.Get("keyEnc").(string); isStr && stored != "" {
+					// 钥匙串不可用时 cipher 是 'none'：enc = base64(明文)，legacyCliKeyDecryptor 照样读
+					if enc, _, good := reenc(stored); good {
+						t.Set("keyEnc", enc)
+						ok++
+					}
+					// 解不开：旧版本也可能是明文 base64，原样留给 legacyCliKeyDecryptor
+				}
+			}
+			for _, k := range t.Keys() {
+				walk(t.Get(k))
+			}
+		case []any:
+			for _, c := range t {
+				walk(c)
+			}
+		}
+	}
+	walk(root)
 	if ok > 0 {
-		b, _ := json.MarshalIndent(root, "", "  ")
-		_ = utils.WritePrivateFileAtomic(path, append(b, '\n'))
+		out := u.StringifyIndent(root, "  ")
+		if strings.HasSuffix(string(raw), "\n") {
+			out += "\n"
+		}
+		_ = utils.WritePrivateFileAtomic(path, []byte(out))
 	}
 	return ok, failed
-}
-
-func walkKeys(v any, path string, ss security.ElectronSafeStorage, ok *int, failed *[]string) {
-	switch t := v.(type) {
-	case map[string]any:
-		if enc, has := t["enc"].(string); has {
-			kind, _ := t["encryption"].(string)
-			plain, good := decryptValue(enc, kind, ss)
-			if !good {
-				*failed = append(*failed, path)
-				return
-			}
-			id := "provider:" + short(enc)
-			if err := security.KeyringSet(id, plain); err != nil {
-				*failed = append(*failed, path)
-				return
-			}
-			t["enc"] = base64.StdEncoding.EncodeToString([]byte(id))
-			t["encryption"] = "keyring"
-			*ok++
-			return
-		}
-		for _, child := range t {
-			walkKeys(child, path, ss, ok, failed)
-		}
-	case []any:
-		for _, child := range t {
-			walkKeys(child, path, ss, ok, failed)
-		}
-	}
 }
 
 func decryptValue(stored, kind string, ss security.ElectronSafeStorage) (string, bool) {
