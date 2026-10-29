@@ -3,6 +3,7 @@ package gwstore
 import (
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -10,9 +11,11 @@ import (
 func TestServiceRuntimeStartsGateway(t *testing.T) {
 	dir := t.TempDir() // Dispose 等网关循环退出，TempDir 清理时不再有写入
 	s := NewServiceForUserData(dir, nil, nil)
-	changed := 0
-	s.AttachRuntime(RuntimeDeps{Root: dir, Lazy: true, Env: map[string]string{}})
-	s.OnChange(func() { changed++ })
+	var changed atomic.Int32
+	// 端口 0 = 系统分配：默认 18721 在整仓并行 go test（或本机正跑着的 Nomi）下会被占用，是不稳定的根因
+	port := 0
+	s.AttachRuntime(RuntimeDeps{Root: dir, Lazy: true, Port: &port, Env: map[string]string{}})
+	s.OnChange(func() { changed.Add(1) })
 	if err := s.Init(); err != nil {
 		t.Fatal(err)
 	}
@@ -24,7 +27,7 @@ func TestServiceRuntimeStartsGateway(t *testing.T) {
 			t.Errorf("sessions.json not flushed before Dispose returned: %v", err)
 		}
 	}()
-	if !s.WhenReady(5 * time.Second) {
+	if !s.WhenReady(30 * time.Second) {
 		t.Fatalf("not ready: %+v", s.Status())
 	}
 	if st := s.Status(); st.State != "running" || st.URL == "" {

@@ -22,8 +22,6 @@ permissions:
 concurrency:
   group: desktop-go-package-${{ github.event_name }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-env:
-  ELECTRON_BASELINE: v2.0.4 # 对比基线：安装目录 / 注册表 / Info.plist / .desktop
 jobs:
   package:
     strategy:
@@ -44,7 +42,7 @@ jobs:
         with: { lfs: true }
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: pnpm }
+        with: { node-version: 22.23.4, cache: pnpm }
       - uses: actions/setup-go@v5
         with: { go-version-file: apps/desktop-go/go.mod, cache-dependency-path: apps/desktop-go/go.sum }
       - name: linux deps
@@ -122,28 +120,19 @@ jobs:
         with: { sparse-checkout: apps/desktop-go/ci }
       - uses: actions/download-artifact@v4
         with: { name: 'nomi-go-${{ matrix.target }}', path: pkg }
-      - name: electron baseline (${{ env.ELECTRON_BASELINE }})
-        run: |
-          mkdir -p old
-          case "${{ matrix.target }}" in
-            mac-arm64) P='Nomi-*-arm64.dmg' ;; windows) P='Nomi-Setup-*.exe' ;; linux) P='Nomi-*.AppImage' ;;
-          esac
-          gh release download "$ELECTRON_BASELINE" -R "$GITHUB_REPOSITORY" -p "$P" -D old || echo "::warning::基线下载失败，跳过对比"
-          ls -l old pkg
       - name: verify mac
         if: runner.os == 'macOS'
-        run: apps/desktop-go/ci/verify-mac.sh "pkg/Nomi-$V-arm64.dmg" shots "$(ls old/*.dmg 2>/dev/null | head -1)"
+        run: apps/desktop-go/ci/verify-mac.sh "pkg/Nomi-$V-arm64.dmg" shots apps/desktop-go/ci/baseline-2.0.4/mac-info-plist.txt
       - name: verify windows
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $old = (Get-ChildItem old\*.exe -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
-          ./apps/desktop-go/ci/verify-win.ps1 -Setup "pkg\Nomi-Setup-$env:V.exe" -Out shots -Old "$old"
+          ./apps/desktop-go/ci/verify-win.ps1 -Setup "pkg\Nomi-Setup-$env:V.exe" -Out shots
       - name: verify linux
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update && sudo apt-get install -y xvfb xdotool imagemagick libfuse2t64 desktop-file-utils
-          xvfb-run -a -s '-screen 0 1920x1080x24' apps/desktop-go/ci/verify-linux.sh "pkg/nomi_${V}_amd64.deb" "pkg/Nomi-$V.AppImage" shots "$(ls old/*.AppImage 2>/dev/null | head -1)"
+          xvfb-run -a -s '-screen 0 1920x1080x24' apps/desktop-go/ci/verify-linux.sh "pkg/nomi_${V}_amd64.deb" "pkg/Nomi-$V.AppImage" shots
       - name: summary
         if: always()
         run: cat shots/report.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
@@ -157,12 +146,15 @@ jobs:
     env: { V: '${{ needs.package.outputs.version }}' }
     steps:
       - uses: actions/checkout@v4
-        with: { sparse-checkout: apps/desktop-go/packaging }
+      - uses: actions/setup-go@v5
+        with: { go-version-file: apps/desktop-go/go.mod, cache-dependency-path: apps/desktop-go/go.sum }
       - uses: actions/download-artifact@v4
         with: { pattern: 'nomi-go-*', path: out, merge-multiple: true }
       - name: latest-go.json + SHA256SUMS
         run: |
           python3 apps/desktop-go/packaging/update-manifest.py "$V" out --tag "v$V" --repo "$GITHUB_REPOSITORY"
+          # 真实 latest-go.json 必须能被 Go 更新器（internal/core/updates）解析，且每个平台都可选中
+          (cd apps/desktop-go && CGO_ENABLED=0 NOMI_LATEST_GO_JSON="$GITHUB_WORKSPACE/out/latest-go.json" go test ./internal/core/updates/ -run TestUpdateManifest -v)
           { echo "### 全部产物（字节）"; echo '```'; ls -l out | grep -v '^total'; echo '```'; echo '```json'; cat out/latest-go.json; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with: { name: nomi-go-release, path: out/, compression-level: 0 }

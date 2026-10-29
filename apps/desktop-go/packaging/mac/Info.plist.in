@@ -17,6 +17,7 @@
   <key>CFBundleURLTypes</key>
   <array>
     <dict>
+      <key>CFBundleTypeRole</key><string>Editor</string>
       <key>CFBundleURLName</key><string>Nomi</string>
       <key>CFBundleURLSchemes</key><array><string>nomi</string></array>
     </dict>
@@ -31,5 +32,13 @@
   <key>NSCalendarsUsageDescription</key><string>Nomi 读取你的日历日程，用于提醒与每日简报。</string>
   <key>NSCalendarsFullAccessUsageDescription</key><string>Nomi 读取你的日历日程，用于提醒与每日简报。</string>
   <key>NSMicrophoneUsageDescription</key><string>Nomi 用麦克风进行语音输入与唤醒词识别。</string>
+  <key>NSAppTransportSecurity</key>
+  <dict>
+    <key>NSAllowsArbitraryLoads</key><true/>
+    <key>NSAllowsLocalNetworking</key><true/>
+  </dict>
+  <key>NSQuitAlwaysKeepsWindows</key><false/>
+  <key>NSRequiresAquaSystemAppearance</key><false/>
+  <key>LSEnvironment</key><dict><key>MallocNanoZone</key><string>0</string></dict>
 </dict>
 </plist>

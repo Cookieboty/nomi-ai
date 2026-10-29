@@ -34,9 +34,12 @@ type Definition struct {
 	Name        string
 	Description string
 	// NoDescription：description 为 undefined（JS 扩展工具可省略；"" 照常发送）
-	NoDescription     bool
-	Input             *u.Obj
-	Dangerous         bool
+	NoDescription bool
+	Input         *u.Obj
+	Dangerous     bool
+	// DangerousUnset：dangerous 为 undefined（Node 内置 / 桌面 / kb / memory 工具不声明；
+	// ai.tools.list 的 ToolSpec 里省略该键，MCP / 扩展工具照常发 bool）
+	DangerousUnset    bool
 	ReadOnly          bool
 	RequiresWorkspace bool
 	// Execute：input 为已解析的 JSON 值（*u.Obj / []any / string / float64 / bool / nil）。
