@@ -7,9 +7,11 @@ import (
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/appicon"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/harness"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/diagnostics"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/services"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/shellhandlers"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/updates"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/hostports"
@@ -45,7 +47,17 @@ func installShellProcs(router *contract.Router, userData string, sh *shell.Shell
 			},
 			OpenPath: hp.OpenPath,
 		},
-		TraceDir:      filepath.Join(userData, "gateway", "trace"),
+		TraceDir: filepath.Join(userData, "gateway", "trace"),
+		// logger.setLevel(enabled || dev ? DEBUG : INFO)
+		SetLevel: func(debug bool) {
+			if l, ok := deps.Root.(*services.LoggerService); ok {
+				if debug {
+					l.SetLevel(services.DEBUG)
+				} else {
+					l.SetLevel(services.INFO)
+				}
+			}
+		},
 		LegacyEnabled: func() bool { return diagnostics.ReadLegacyGatewayTrace(filepath.Join(userData, "gateway")) },
 		OnChange: func(bool) {
 			if gw != nil {
@@ -53,6 +65,7 @@ func installShellProcs(router *contract.Router, userData string, sh *shell.Shell
 			}
 		},
 	})
+	harness.CliTrap = sp.Diagnostics.CliTrace.Tap
 	shellhandlers.InstallDiagnostics(router, func() *diagnostics.Service { return sp.Diagnostics })
 	// appIcon.*：图都从 assets 目录读（打包后 resources/assets，开发时 packages/host-electron/assets）
 	assets := filepath.Dir(filepath.Dir(filepath.Dir(chatBgPresetFile())))
@@ -63,7 +76,7 @@ func installShellProcs(router *contract.Router, userData string, sh *shell.Shell
 	if err != nil {
 		cache = os.TempDir()
 	}
-	sp.Updates = updates.New(updaterLogger{deps.StdLogger{Prefix: "[updates]"}}, updates.Options{
+	sp.Updates = updates.New(deps.StdLogger{Prefix: "[updates]"}, updates.Options{
 		Version:  func() string { return hostports.AppVersion },
 		Packaged: hostports.IsPackaged(),
 		Publish:  router.Emit,
@@ -90,12 +103,6 @@ func (sp *shellProcs) AttachShell() {
 	sp.AppIcon.Init(filepath.Join(sp.userData, "app-icon.json"))
 	sp.Updates.Start()
 }
-
-// updaterLogger：deps.Logger 补上 Error / Debug（= ILoggerService）
-type updaterLogger struct{ deps.Logger }
-
-func (l updaterLogger) Error(m string, kv ...any) { l.Logger.Warn(m, kv...) }
-func (l updaterLogger) Debug(m string, kv ...any) {}
 
 // iconTarget：appicon.Target 的 Wails 实现
 type iconTarget struct{ hp hostPorts }

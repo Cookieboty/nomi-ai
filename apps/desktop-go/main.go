@@ -23,6 +23,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/extensions"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/local"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/services"
 	"io/fs"
 	"log"
 	"net/http"
@@ -85,6 +86,15 @@ func main() {
 	if err := os.MkdirAll(userData, 0o700); err != nil {
 		log.Fatal(err)
 	}
+	// LoggerService：最先创建（日志目录 = paths.logs() = userData/logs），各服务共用（deps.Root）
+	rootLog := services.NewLogger(services.LoggerOptions{LogDir: filepath.Join(userData, "logs"), Packaged: hostports.IsPackaged})
+	deps.Root = rootLog
+	defer rootLog.FlushSync()
+	if os.Getenv("NODE_ENV") == "development" {
+		rootLog.SetLevel(services.DEBUG)
+	}
+	// 低优先级启动任务 cleanup-old-logs（delay 1000）
+	time.AfterFunc(time.Second, func() { rootLog.CleanOldLogs(7) })
 	if res, err := migrate.Run(userData, security.NewSecretBox("migrate"), security.NewElectronSafeStorage()); err != nil {
 		log.Printf("[migrate] warn: %v", err)
 	} else if res.Migrated {
@@ -339,6 +349,7 @@ func main() {
 		},
 	})
 	shellP := installShellProcs(router, userData, &sh, gatewaySvc)
+	defer shellP.Diagnostics.CliTrace.FlushSync()
 	defer wireHarness(router, userData, home, ports)()
 	log.Printf("[desktop-go] %d contract procedures stubbed (not implemented yet)", procs.Install(router))
 

@@ -1,0 +1,338 @@
+[
+ {
+  "name": "levels",
+  "packaged": false,
+  "env": {},
+  "files": [],
+  "ops": [
+   [
+    "error",
+    "e1"
+   ],
+   [
+    "warn",
+    "w1",
+    {
+     "a": 1
+    }
+   ],
+   [
+    "info",
+    "i1",
+    {
+     "apiKey": "k",
+     "nested": {
+      "Token": "t",
+      "ok": [
+       1,
+       {
+        "password": "p"
+       }
+      ]
+     }
+    }
+   ],
+   [
+    "debug",
+    "d-hidden"
+   ],
+   [
+    "setLevel",
+    3
+   ],
+   [
+    "debug",
+    "d1",
+    null
+   ],
+   [
+    "info",
+    "i2",
+    0
+   ],
+   [
+    "info",
+    "i3",
+    ""
+   ],
+   [
+    "info",
+    "i4",
+    "str"
+   ],
+   [
+    "info",
+    "ctx",
+    {
+     "x": true
+    },
+    "Win"
+   ],
+   [
+    "setLevel",
+    0
+   ],
+   [
+    "warn",
+    "w-hidden"
+   ],
+   [
+    "error",
+    "e2",
+    [
+     1,
+     "a",
+     {
+      "secret": null
+     }
+    ]
+   ],
+   [
+    "getLevel"
+   ],
+   [
+    "setLevel",
+    1
+   ],
+   [
+    "info",
+    "i-hidden"
+   ],
+   [
+    "warn",
+    "w2",
+    {
+     "email": "a@b",
+     "deep": {
+      "a": {
+       "b": {
+        "c": {
+         "d": {
+          "e": {
+           "f": {
+            "g": {
+             "h": 1
+            }
+           }
+          }
+         }
+        }
+       }
+      }
+     }
+    }
+   ]
+  ],
+  "console": [
+   [
+    "error",
+    "2026-10-29T10:00:00.123Z ERROR e1"
+   ],
+   [
+    "warn",
+    "2026-10-29T10:00:00.123Z WARN w1 {\"a\":1}"
+   ],
+   [
+    "info",
+    "2026-10-29T10:00:00.123Z INFO i1 {\"apiKey\":\"***\",\"nested\":{\"Token\":\"***\",\"ok\":[1,{\"password\":\"***\"}]}}"
+   ],
+   [
+    "debug",
+    "2026-10-29T10:00:00.123Z DEBUG d1"
+   ],
+   [
+    "info",
+    "2026-10-29T10:00:00.123Z INFO i2"
+   ],
+   [
+    "info",
+    "2026-10-29T10:00:00.123Z INFO i3"
+   ],
+   [
+    "info",
+    "2026-10-29T10:00:00.123Z INFO i4 \"str\""
+   ],
+   [
+    "info",
+    "2026-10-29T10:00:00.123Z INFO [Win] ctx {\"x\":true}"
+   ],
+   [
+    "error",
+    "2026-10-29T10:00:00.123Z ERROR e2 [1,\"a\",{\"secret\":null}]"
+   ],
+   [
+    "warn",
+    "2026-10-29T10:00:00.123Z WARN w2 {\"email\":\"***\",\"deep\":{\"a\":{\"b\":{\"c\":{\"d\":{\"e\":{\"f\":{\"g\":\"[Truncated]\"}}}}}}}}"
+   ]
+  ],
+  "results": [
+   0
+  ],
+  "after": {
+   "app.log": {
+    "text": "{\"timestamp\":\"2026-10-29T10:00:00.123Z\",\"level\":0,\"message\":\"e1\"}\n{\"timestamp\":\"2026-10-29T10:00:00.123Z\",\"level\":1,\"message\":\"w1\",\"meta\":{\"a\":1}}\n{\"timestamp\":\"2026-10-29T10:00:00.123Z\",\"level\":2,\"message\":\"i1\",\"meta\":{\"apiKey\":\"***\",\"nested\":{\"Token\":\"***\",\"ok\":[1,{\"password\":\"***\"}]}}}\n{\"timestamp\":\"2026-10-29T10:00:00.123Z\",\"level\":3,\"message\":\"d1\",\"meta\":null}\n{\"timestamp\":\"2026-10-29T10:00:00.123Z\",\"level\":2,\"message\":\"i2\",\"meta\":0}\n{\"timestamp\":\"2026-10-29T10:00:00.123Z\",\"level\":2,\"message\":\"i3\",\"meta\":\"\"}\n{\"timestamp\":\"2026-10-29T10:00:00.123Z\",\"level\":2,\"message\":\"i4\",\"meta\":\"str\"}\n{\"timestamp\":\"2026-10-29T10:00:00.123Z\",\"level\":2,\"message\":\"ctx\",\"meta\":{\"x\":true},\"context\":\"Win\"}\n{\"timestamp\":\"2026-10-29T10:00:00.123Z\",\"level\":0,\"message\":\"e2\",\"meta\":[1,\"a\",{\"secret\":null}]}\n{\"timestamp\":\"2026-10-29T10:00:00.123Z\",\"level\":1,\"message\":\"w2\",\"meta\":{\"email\":\"***\",\"deep\":{\"a\":{\"b\":{\"c\":{\"d\":{\"e\":{\"f\":{\"g\":\"[Truncated]\"}}}}}}}}}\n"
+   }
+  }
+ },
+ {
+  "name": "packagedQuiet",
+  "packaged": true,
+  "env": {},
+  "files": [],
+  "ops": [
+   [
+    "setLevel",
+    3
+   ],
+   [
+    "error",
+    "e"
+   ],
+   [
+    "warn",
+    "w"
+   ],
+   [
+    "info",
+    "i"
+   ],
+   [
+    "debug",
+    "d"
+   ]
+  ],
+  "console": [
+   [
+    "error",
+    "2026-10-29T10:00:00.123Z ERROR e"
+   ],
+   [
+    "warn",
+    "2026-10-29T10:00:00.123Z WARN w"
+   ]
+  ],
+  "results": [],
+  "after": {
+   "app.log": {
+    "text": "{\"timestamp\":\"2026-10-29T10:00:00.123Z\",\"level\":0,\"message\":\"e\"}\n{\"timestamp\":\"2026-10-29T10:00:00.123Z\",\"level\":1,\"message\":\"w\"}\n{\"timestamp\":\"2026-10-29T10:00:00.123Z\",\"level\":2,\"message\":\"i\"}\n{\"timestamp\":\"2026-10-29T10:00:00.123Z\",\"level\":3,\"message\":\"d\"}\n"
+   }
+  }
+ },
+ {
+  "name": "packagedDebugEnv",
+  "packaged": true,
+  "env": {
+   "NOMI_DEBUG": "1"
+  },
+  "files": [],
+  "ops": [
+   [
+    "setLevel",
+    3
+   ],
+   [
+    "info",
+    "i"
+   ],
+   [
+    "debug",
+    "d"
+   ]
+  ],
+  "console": [
+   [
+    "info",
+    "2026-10-29T10:00:00.123Z INFO i"
+   ],
+   [
+    "debug",
+    "2026-10-29T10:00:00.123Z DEBUG d"
+   ]
+  ],
+  "results": [],
+  "after": {
+   "app.log": {
+    "text": "{\"timestamp\":\"2026-10-29T10:00:00.123Z\",\"level\":2,\"message\":\"i\"}\n{\"timestamp\":\"2026-10-29T10:00:00.123Z\",\"level\":3,\"message\":\"d\"}\n"
+   }
+  }
+ },
+ {
+  "name": "rotate",
+  "packaged": false,
+  "env": {},
+  "files": [
+   [
+    "app.log",
+    10485761
+   ],
+   [
+    "app.1.log",
+    5
+   ],
+   [
+    "app.3.log",
+    7
+   ],
+   [
+    "app.4.log",
+    9
+   ]
+  ],
+  "ops": [
+   [
+    "info",
+    "after rotate"
+   ]
+  ],
+  "console": [
+   [
+    "info",
+    "2026-10-29T10:00:00.123Z INFO after rotate"
+   ]
+  ],
+  "results": [],
+  "after": {
+   "app.1.log": {
+    "size": 10485761
+   },
+   "app.2.log": {
+    "text": "\u0000\u0000\u0000\u0000\u0000"
+   },
+   "app.4.log": {
+    "text": "\u0000\u0000\u0000\u0000\u0000\u0000\u0000"
+   },
+   "app.log": {
+    "text": "{\"timestamp\":\"2026-10-29T10:00:00.123Z\",\"level\":2,\"message\":\"after rotate\"}\n"
+   }
+  }
+ },
+ {
+  "name": "noRotateAtLimit",
+  "packaged": false,
+  "env": {},
+  "files": [
+   [
+    "app.log",
+    10485760
+   ]
+  ],
+  "ops": [
+   [
+    "info",
+    "x"
+   ]
+  ],
+  "console": [
+   [
+    "info",
+    "2026-10-29T10:00:00.123Z INFO x"
+   ]
+  ],
+  "results": [],
+  "after": {
+   "app.log": {
+    "size": 10485825
+   }
+  }
+ }
+]
