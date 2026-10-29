@@ -227,6 +227,7 @@ func (s *CodeSandbox) Run(ctx context.Context, lang, code string, opts RunOpts) 
 	for _, e := range env {
 		cmd.Env = append(cmd.Env, e.Key+"="+e.Value)
 	}
+	cmd.Env = withSpawnRequiredEnv(cmd.Env)
 	hideWindow(cmd)
 	cmd.Stdout = chunkWriter{&mu, stdout}
 	cmd.Stderr = chunkWriter{&mu, stderr}
