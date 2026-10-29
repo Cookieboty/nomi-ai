@@ -21,7 +21,7 @@
  *   e2e      – the real GatewayServer against a local mock upstream per protocol,
  *              recording the raw streamed chunks the client receives
  *
- * Usage: node scripts/parity/record.mjs [--only request,stream,json,fixes,spec,net,objkeys,proxy,models,providers,rules,route,upstream,collate,textdecoder,helpers,privacy,trace,e2e]
+ * Usage: node scripts/parity/record.mjs [--only request,stream,json,fixes,spec,net,objkeys,proxy,models,providers,rules,route,upstream,collate,textdecoder,helpers,privacy,trace,bridge,e2e]
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -475,6 +475,77 @@ if (want('textdecoder')) {
 if (want('helpers')) {
   const { recordHelpers } = await import('./helpers.mjs');
   write('helpers', await recordHelpers({ gw }));
+}
+
+if (want('bridge')) {
+  const br = await gw('src/bridge.ts');
+  const { fixTexts } = await import('./cases.mjs');
+  const mkOpts = (variant) =>
+    variant === 'noFixes'
+      ? { notes: [] }
+      : { toolNames: new Map([['mapped_weather', 'get_weather']]), textTools: new Set(['get_weather', 'read_file']), repetition: true, notes: [], callIds: new ids.CallIds('seed1') };
+  const chatOf = (fx) => {
+    const base = { id: 'chatcmpl-1', object: 'chat.completion.chunk', created: 1, model: 'up' };
+    const ch = (delta, finish = null) => `data: ${JSON.stringify({ ...base, choices: [{ index: 0, delta, finish_reason: finish }] })}\n\n`;
+    let s = ch({ role: 'assistant', content: '' });
+    for (const t of splitUnits(fx.text ?? '', 9)) s += ch({ content: t });
+    s += ch({}, 'stop');
+    return s + 'data: [DONE]\n\n';
+  };
+  const inputs = {};
+  for (const w of WIRES) {
+    inputs[w] = [...cases.upstreamSse[w]];
+    for (const fx of fixTexts.slice(0, 4)) {
+      const chat = chatOf(fx);
+      if (w === 'chat') inputs[w].push(chat);
+      else { const c = stream.createStreamConverter('chat', w, { model: 'up' }); inputs[w].push(c.push(chat) + c.end()); }
+    }
+  }
+  const out = [];
+  for (const from of WIRES)
+    inputs[from].forEach((text, i) => {
+      for (const to of WIRES)
+        for (const needs of from === to ? [false, true] : [false])
+          for (const variant of ['default', 'noFixes'])
+            for (const ending of ['end', 'endNoTail', 'fail', 'half']) {
+              const fixes = mkOpts(variant);
+              const plan = { from, to, mode: br.bridgeMode(from, to, needs), model: 'fallback', customTools: new Set(['apply_patch']), fixes, ...(i % 2 ? { heartbeat: 'comment' } : {}) };
+              const b = br.createBridge(plan);
+              let t = text;
+              if (ending === 'endNoTail') t = text.replace(/\n\n$/, '');
+              if (ending === 'half') t = text.slice(0, safeCut(text, Math.floor(text.length / 2)));
+              const pieces = splitUnits(t, 11);
+              const ops = [['alive', b.alive()]];
+              const restAt = ending === 'fail' ? pieces.length : pieces.length - 1;
+              for (let k = 0; k < restAt; k++) {
+                ops.push(['push', pieces[k], b.push(pieces[k])]);
+                if (k % 3 === 0) ops.push(['alive', b.alive()]);
+                if (b.stopped) break;
+              }
+              if (ending === 'fail') ops.push(['fail', 'socket hang up', b.fail('socket hang up')]);
+              else ops.push(['end', pieces[restAt] ?? '', b.end(pieces[restAt] ?? '')]);
+              out.push({ name: `${from}#${i}→${to}/${needs}/${variant}/${ending}`, from, to, needs, variant, heartbeat: plan.heartbeat ?? '', mode: b.mode, ops, stopped: b.stopped, notes: fixes.notes });
+            }
+    });
+  const json = [];
+  for (const from of WIRES) {
+    const bodies = [...cases.upstreamJson[from].map((b) => JSON.stringify(b)), 'not json', '"str"', '[1,2]'];
+    bodies.forEach((text, i) => {
+      let parsed = null;
+      try { parsed = JSON.parse(text); } catch {}
+      for (const to of WIRES)
+        for (const needs of from === to ? [false, true] : [false])
+          for (const wantsStream of [false, true])
+            for (const variant of ['default', 'noFixes']) {
+              const fixes = mkOpts(variant);
+              const plan = { from, to, mode: br.bridgeMode(from, to, needs), model: 'fallback', customTools: new Set(['apply_patch']), fixes };
+              const ct = i % 2 ? null : 'application/json; charset=utf-8';
+              const r = br.bridgeJson(plan, { status: 200 + i, contentType: ct, text, parsed: parsed === null ? null : JSON.parse(text) }, wantsStream);
+              json.push({ from, to, needs, wantsStream, variant, text, ct, upStatus: 200 + i, parsed: parsed !== null, out: r.kind === 'json' ? { ...r, body: JSON.stringify(r.body) } : r, notes: fixes.notes });
+            }
+    });
+  }
+  writeGz('bridge', { truncated: br.TRUNCATED_MESSAGE, cases: out, json });
 }
 
 if (want('privacy')) {
