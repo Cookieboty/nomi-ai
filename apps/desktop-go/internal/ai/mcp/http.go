@@ -435,10 +435,18 @@ func (t *HTTPTransport) startInboundSse(resume string) {
 	if t.isModern() {
 		return
 	}
-	go t.openInboundSse(resume)
+	// fetch() 同步发起：等 GET 写上连接再返回（有界），保持与 Node 相同的到达顺序
+	ch := make(chan struct{})
+	var once sync.Once
+	go t.openInboundSse(resume, func() { once.Do(func() { close(ch) }) })
+	select {
+	case <-ch:
+	case <-time.After(2 * time.Second):
+	}
 }
 
-func (t *HTTPTransport) openInboundSse(resume string) {
+func (t *HTTPTransport) openInboundSse(resume string, dispatched func()) {
+	defer dispatched()
 	if t.isModern() {
 		return
 	}
@@ -463,7 +471,7 @@ func (t *HTTPTransport) openInboundSse(resume string) {
 		fail(err)
 		return
 	}
-	resp, err := doFetch(t.transportSignal(), "GET", t.href, h, nil)
+	resp, err := doFetchDispatched(t.transportSignal(), "GET", t.href, h, nil, dispatched)
 	if err != nil {
 		fail(err)
 		return

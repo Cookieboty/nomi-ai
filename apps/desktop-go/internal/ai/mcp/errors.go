@@ -9,7 +9,7 @@ package mcp
 
 import "context"
 
-// ClientError = MCPClientError（name 'AI_MCPClientError'）
+// ClientError = MCPClientError（name 'MCPClientError'）
 type ClientError struct {
 	Message      string
 	Code         *float64 // JSON-RPC error.code
@@ -48,7 +48,7 @@ func (AbortError) Error() string { return "This operation was aborted" }
 func ErrorName(err error) string {
 	switch e := err.(type) {
 	case *ClientError:
-		return "AI_MCPClientError"
+		return "MCPClientError"
 	case *JSError:
 		return e.Name
 	case AbortError:

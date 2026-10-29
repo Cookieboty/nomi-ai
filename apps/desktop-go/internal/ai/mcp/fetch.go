@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/http/httptrace"
 	"regexp"
 	"sort"
 	"strings"
@@ -90,12 +91,24 @@ var httpClient = &http.Client{
 
 // doFetch = undici fetch（Electron 主进程 net 未接管：globalThis.fetch）
 func doFetch(signal Signal, method, href string, headers [][2]string, body *string) (*fetchResponse, error) {
+	return doFetchDispatched(signal, method, href, headers, body, nil)
+}
+
+// doFetchDispatched：dispatched 在请求已写上连接（或失败）时调用——对应 undici fetch() 同步发起：
+// Node 里"发起即在途"，fire-and-forget 的 GET 先于随后同步发起的 POST 到达服务端。
+func doFetchDispatched(signal Signal, method, href string, headers [][2]string, body *string, dispatched func()) (*fetchResponse, error) {
+	if dispatched != nil {
+		defer dispatched()
+	}
 	if err := throwIfAborted(signal); err != nil {
 		return nil, err
 	}
 	ctx := signal
 	if ctx == nil {
 		ctx, _ = newController()
+	}
+	if dispatched != nil {
+		ctx = httptrace.WithClientTrace(ctx, &httptrace.ClientTrace{WroteRequest: func(httptrace.WroteRequestInfo) { dispatched() }})
 	}
 	var rd io.Reader
 	if body != nil {
@@ -113,6 +126,11 @@ func doFetch(signal Signal, method, href string, headers [][2]string, body *stri
 		req.Header["content-type"] = []string{"text/plain;charset=UTF-8"}
 	}
 	gnet.ApplyUndiciRequestDefaults(req)
+	// net/http 仅按规范键 "User-Agent" 判断是否补 "Go-http-client/1.1"：把小写键挪过去（线上头名大小写不敏感，D-B5-MCP-4）
+	if v, ok := req.Header["user-agent"]; ok {
+		delete(req.Header, "user-agent")
+		req.Header["User-Agent"] = v
+	}
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		if aborted(signal) {

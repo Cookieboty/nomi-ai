@@ -135,7 +135,11 @@ func NewClient(cfg ClientConfig) (*Client, error) {
 	if cfg.Transport != nil {
 		c.transport = cfg.Transport
 	} else {
-		t, err := createTransport(*cfg.TransportConfig, cfg.RuntimeUA)
+		ua := cfg.RuntimeUA
+		if ua == "" {
+			ua = DefaultRuntimeUA
+		}
+		t, err := createTransport(*cfg.TransportConfig, ua)
 		if err != nil {
 			return nil, err
 		}
@@ -438,16 +442,22 @@ func (c *Client) request(method string, params *u.Obj, sch schema, options *Requ
 	settle := func(v *u.Obj, err error) { once.Do(func() { out <- res{v, err} }) }
 	var timer *time.Timer
 	var stopAbort func() bool
+	var lmu sync.Mutex // timer/stopAbort 在回调可能已触发后才赋值
+	cleaned := false
 	key := float64(messageID)
 	cleanup := func() {
 		c.mu.Lock()
 		delete(c.handlers, key)
 		c.mu.Unlock()
-		if stopAbort != nil {
-			stopAbort()
+		lmu.Lock()
+		cleaned = true
+		sa, tm := stopAbort, timer
+		lmu.Unlock()
+		if sa != nil {
+			sa()
 		}
-		if timer != nil {
-			timer.Stop()
+		if tm != nil {
+			tm.Stop()
 		}
 	}
 	rejectWithAbortError := func() {
@@ -491,15 +501,26 @@ func (c *Client) request(method string, params *u.Obj, sch schema, options *Requ
 	}
 	c.mu.Unlock()
 	if signal != nil {
-		stopAbort = afterAbort(signal, func() { cleanup(); rejectWithAbortError() })
+		sa := afterAbort(signal, func() { cleanup(); rejectWithAbortError() })
+		lmu.Lock()
+		stopAbort = sa
+		done := cleaned
+		lmu.Unlock()
+		if done {
+			sa()
+		}
 	}
 	if timeout != nil {
 		ms := *timeout
-		timer = time.AfterFunc(time.Duration(ms)*time.Millisecond, func() {
-			e := newClientError("Request timed out after " + strconv.FormatInt(ms, 10) + "ms")
-			tCancel(e)
-			rejectAndCleanup(e)
-		})
+		lmu.Lock()
+		if !cleaned {
+			timer = time.AfterFunc(time.Duration(ms)*time.Millisecond, func() {
+				e := newClientError("Request timed out after " + strconv.FormatInt(ms, 10) + "ms")
+				tCancel(e)
+				rejectAndCleanup(e)
+			})
+		}
+		lmu.Unlock()
 	}
 	var so *SendOptions
 	if transportSignal != nil || headers != nil {
