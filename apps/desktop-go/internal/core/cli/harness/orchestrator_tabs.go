@@ -7,18 +7,6 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 )
 
-// liveState：各后端长驻会话表（Claude / ACP / Codex），后续分块填充。
-type liveState struct {
-	claude map[string]*claudeLiveSession
-}
-
-func (l *liveState) init() { l.claude = map[string]*claudeLiveSession{} }
-
-// claudeLiveSession = ClaudeLiveSession（字段随 Claude 分块补齐）。
-type claudeLiveSession struct {
-	bgTasks map[string]bool
-}
-
 // jsToNumber = Number(v)。
 func jsToNumber(v any) float64 {
 	switch x := v.(type) {
