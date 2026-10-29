@@ -219,7 +219,7 @@ Go 版**1:1 镜像** Node 版：模块边界、包/层结构、数据格式、�
 | D-B8-9 | ~~导入技能时用 `O_NOFOLLOW` 打开文件~~ **已消除** | Windows 用 `FILE_FLAG_OPEN_REPARSE_POINT` 打开并拒绝重解析点（`nofollow_windows.go`），Unix `O_NOFOLLOW` | 无行为差异 |
 | D-B9-1 | 豆包（火山引擎）流式 ASR / 一次性识别走 WebSocket 二进制协议 | 设置、密钥（`volc-key.json` 加密）、就绪检查、审计、`voice.volcTest` 的入参校验全部按 Node；真正联网的识别返回 `failed`「Doubao streaming ASR is not available in the Go host」，`voice.streamPush/streamCancel` 返回 `false` | 批次范围排除 Volcengine |
 | D-B9-2 | VAD 在宿主侧加载 silero 模型 | VAD 留在渲染器 WASM；`voice.vad*` 只回 `{kind:"energy"}` / `0` / `null` | 批次约定 |
-| D-B9-3 | 看板娘 `voiceSettings` 原样合并保存（含未知键） | 经类型化 ConfigService 保存，`voiceSettings` 下未知键丢弃 | Go 配置是结构体 |
+| D-B9-3 | ~~看板娘 `voiceSettings` 原样合并保存（含未知键）~~ **已消除** | `services.VoiceSettings.Raw` 保存原始有序对象：读盘按 Node `mergeConfigs` 与默认深合并（默认键在前、新键追加），`ConfigAdapter` 原样读写，落盘以 Raw 序列化；golden 3 例（读 / 发布 / 落盘 / 重载）逐字节一致 | 无行为差异 |
 | D-B9-4 | ~~`X-Timestamp` 用 V8 `Date#toString()`，括号内时区长名来自 ICU~~ **已消除** | 时区长名表由 `scripts/parity/gen-tz-names.mjs` 从 Node Intl（en-US long，标准/夏令）生成并嵌入（`edge/zonenames_gen.go`），ICU 回退写法（`GMT` / `GMT±hh:mm`）按实际偏移现算；golden 在 17 个时区 × 5 个时刻逐字节一致 | 仅 Go 与 ICU 自带 tzdata 版本不同时（如 Africa/Casablanca 斋月规则）偏移可能不同 |
 | D-B9-5 | `ws` 客户端握手默认协商 permessage-deflate、Node TLS 指纹 | coder/websocket，请求头顺序与值同 Node；压缩扩展/TLS ClientHello 不同 | 无 vendor SDK 约束下的传输层差异 |
 | D-B9-6 | ~~`fetch` + `FormData`（undici 默认头、`----formdata-undici-` 边界）~~ **已收窄** | 手写 undici multipart（`----formdata-undici-0`+11 位数字边界、值内换行归一为 CRLF、结尾无 CRLF）、默认头（`accept */*`、`accept-language *`、`sec-fetch-mode cors`、`user-agent node`、`accept-encoding gzip, deflate`）与值同 Node，mock 服务 golden 对比 body 与头集合 | 仅头名大小写 / 顺序与 `connection` 头由 net/http 传输层决定 |

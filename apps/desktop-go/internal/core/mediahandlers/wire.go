@@ -14,11 +14,15 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// ConfigAdapter：ConfigService 的 voiceSettings 读写（类型化配置：voiceSettings 下的未知键不保留，D-B9-3）
+// ConfigAdapter：ConfigService 的 voiceSettings 读写（原样对象：未知键 / 键序保留，D-B9-3）
 type ConfigAdapter struct{ C *services.ConfigService }
 
 func (a ConfigAdapter) GetVoiceSettings() *util.Obj {
-	b, _ := json.Marshal(a.C.GetConfig().VoiceSettings)
+	vs := a.C.GetConfig().VoiceSettings
+	if vs.Raw != nil {
+		return vs.Raw.Clone()
+	}
+	b, _ := json.Marshal(vs)
 	v, _ := util.Parse(b)
 	o, _ := v.(*util.Obj)
 	return o

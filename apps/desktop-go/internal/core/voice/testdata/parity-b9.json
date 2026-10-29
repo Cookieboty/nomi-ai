@@ -29,15 +29,15 @@
     "synthUrl": [
       {
         "in": 0,
-        "out": "wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4&ConnectionId=e467a05bee6d4a47ac5fd46d7c561efe&Sec-MS-GEC=52BC7A17B50DFEC9-28C4394775C8751CD2F6859C030C06DB1489ACAB3B3A7651831FC26895177ED6&Sec-MS-GEC-Version=2-143.0.3650.75"
+        "out": "wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4&ConnectionId=554d06ce2b0a47ea9b12ec5db96229fc&Sec-MS-GEC=52BC7A17B50DFEC9-28C4394775C8751CD2F6859C030C06DB1489ACAB3B3A7651831FC26895177ED6&Sec-MS-GEC-Version=2-143.0.3650.75"
       },
       {
         "in": 1,
-        "out": "wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4&ConnectionId=047e2033ebab46609d2fc5ac6adfa8cb&Sec-MS-GEC=52BC7A17B50DFEC9-28C4394775C8751CD2F6859C030C06DB1489ACAB3B3A7651831FC26895177ED6&Sec-MS-GEC-Version=2-143.0.3650.75"
+        "out": "wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4&ConnectionId=a8a1a76259fe447cbfffc1e184b015dd&Sec-MS-GEC=52BC7A17B50DFEC9-28C4394775C8751CD2F6859C030C06DB1489ACAB3B3A7651831FC26895177ED6&Sec-MS-GEC-Version=2-143.0.3650.75"
       },
       {
         "in": 1700000000,
-        "out": "wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4&ConnectionId=32461548c76f4423a1cc34618f78342a&Sec-MS-GEC=2CD23A2CA0B2595A-F3C846C370E05F9CC83ACC5F995C5F5D87A4D0F14CE8936A0F902E64099E38A2&Sec-MS-GEC-Version=2-143.0.3650.75"
+        "out": "wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4&ConnectionId=78d6e3105df14473ae6437ebeebe67b8&Sec-MS-GEC=2CD23A2CA0B2595A-F3C846C370E05F9CC83ACC5F995C5F5D87A4D0F14CE8936A0F902E64099E38A2&Sec-MS-GEC-Version=2-143.0.3650.75"
       }
     ],
     "voicesUrl": [
@@ -4184,5 +4184,58 @@
     1784505600000,
     662688000000,
     1793260800123
+  ],
+  "mascot": [
+    {
+      "file": {
+        "voiceSettings": {
+          "custom": {
+            "a": 1
+          },
+          "volume": 0.5,
+          "extra": [
+            1,
+            2
+          ],
+          "voiceMode": "random"
+        }
+      },
+      "patch": {
+        "volume": 0.25,
+        "late": "x"
+      },
+      "got": "{\"enabled\":false,\"volume\":0.5,\"timeAnnouncement\":true,\"voicePackPath\":\"packages/renderer/public/assets/voice\",\"voiceMode\":\"random\",\"sfxEnabled\":true,\"custom\":{\"a\":1},\"extra\":[1,2]}",
+      "published": "{\"enabled\":false,\"volume\":0.25,\"timeAnnouncement\":true,\"voicePackPath\":\"packages/renderer/public/assets/voice\",\"voiceMode\":\"random\",\"sfxEnabled\":true,\"custom\":{\"a\":1},\"extra\":[1,2],\"late\":\"x\"}",
+      "saved": "{\"enabled\":false,\"volume\":0.25,\"timeAnnouncement\":true,\"voicePackPath\":\"packages/renderer/public/assets/voice\",\"voiceMode\":\"random\",\"sfxEnabled\":true,\"custom\":{\"a\":1},\"extra\":[1,2],\"late\":\"x\"}"
+    },
+    {
+      "file": {
+        "voiceSettings": {
+          "sfxEnabled": false,
+          "nested": {
+            "k": "v"
+          }
+        }
+      },
+      "patch": {
+        "nested": {
+          "z": 1
+        },
+        "enabled": true
+      },
+      "got": "{\"enabled\":false,\"volume\":0.8,\"timeAnnouncement\":true,\"voicePackPath\":\"packages/renderer/public/assets/voice\",\"voiceMode\":\"fixed\",\"sfxEnabled\":false,\"nested\":{\"k\":\"v\"}}",
+      "published": "{\"enabled\":true,\"volume\":0.8,\"timeAnnouncement\":true,\"voicePackPath\":\"packages/renderer/public/assets/voice\",\"voiceMode\":\"fixed\",\"sfxEnabled\":false,\"nested\":{\"z\":1}}",
+      "saved": "{\"enabled\":true,\"volume\":0.8,\"timeAnnouncement\":true,\"voicePackPath\":\"packages/renderer/public/assets/voice\",\"voiceMode\":\"fixed\",\"sfxEnabled\":false,\"nested\":{\"z\":1}}"
+    },
+    {
+      "file": {},
+      "patch": {
+        "timeAnnouncement": false,
+        "newKey": null
+      },
+      "got": "{\"enabled\":false,\"volume\":0.8,\"timeAnnouncement\":true,\"voicePackPath\":\"packages/renderer/public/assets/voice\",\"voiceMode\":\"fixed\",\"sfxEnabled\":true}",
+      "published": "{\"enabled\":false,\"volume\":0.8,\"timeAnnouncement\":false,\"voicePackPath\":\"packages/renderer/public/assets/voice\",\"voiceMode\":\"fixed\",\"sfxEnabled\":true,\"newKey\":null}",
+      "saved": "{\"enabled\":false,\"volume\":0.8,\"timeAnnouncement\":false,\"voicePackPath\":\"packages/renderer/public/assets/voice\",\"voiceMode\":\"fixed\",\"sfxEnabled\":true,\"newKey\":null}"
+    }
   ]
 }

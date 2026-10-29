@@ -260,5 +260,28 @@ const jsDate = jsDateZones.map((tz) => ({
   tz,
   out: JSON.parse(execFileSync(process.execPath, ['-e', `process.stdout.write(JSON.stringify(${JSON.stringify(jsDateInstants)}.map((t)=>new Date(t).toString())))`], { env: { ...process.env, TZ: tz } }).toString()),
 }));
-writeFileSync(out, JSON.stringify({ edge, edgeClient, tts, voice, cloud, speech, speak, exec, jsDate, jsDateInstants }, null, 2) + '\n');
+// D-B9-3：ConfigService 读 config.json（与默认深合并）→ saveMascotVoiceSettings → 落盘的 voiceSettings（未知键 / 键序）
+const { ConfigService } = await imp('packages/core/src/services/ConfigService.ts');
+const mascotVS = await imp('packages/core/src/voice/mascotVoiceSettings.ts');
+const { mkdtempSync, readFileSync: rfs, writeFileSync: wfs } = await import('node:fs');
+const { tmpdir } = await import('node:os');
+const mascotCases = [
+  { file: { voiceSettings: { custom: { a: 1 }, volume: 0.5, extra: [1, 2], voiceMode: 'random' } }, patch: { volume: 0.25, late: 'x' } },
+  { file: { voiceSettings: { sfxEnabled: false, nested: { k: 'v' } } }, patch: { nested: { z: 1 }, enabled: true } },
+  { file: {}, patch: { timeAnnouncement: false, newKey: null } },
+];
+const mascot = [];
+for (const c of mascotCases) {
+  const dir = mkdtempSync(join(tmpdir(), 'b9cfg-'));
+  wfs(join(dir, 'config.json'), JSON.stringify(c.file));
+  const cfg = new ConfigService({ ports: { paths: { userData: () => dir } } });
+  await cfg.load();
+  const got = mascotVS.getMascotVoiceSettings(cfg);
+  let published = null;
+  mascotVS.saveMascotVoiceSettings(cfg, c.patch, { info() {}, error() {} }, { publish: (_n, p) => { published = p; } });
+  await cfg.save();
+  const saved = JSON.parse(rfs(join(dir, 'config.json'), 'utf8')).voiceSettings;
+  mascot.push({ ...c, got: JSON.stringify(got), published: JSON.stringify(published), saved: JSON.stringify(saved) });
+}
+writeFileSync(out, JSON.stringify({ edge, edgeClient, tts, voice, cloud, speech, speak, exec, jsDate, jsDateInstants, mascot }, null, 2) + '\n');
 console.log(`wrote ${out}`);
