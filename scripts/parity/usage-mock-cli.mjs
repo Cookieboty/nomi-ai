@@ -5,6 +5,7 @@
  *   onStart: string[]          启动后依次写到 stdout
  *   onLine: { [n]: string[] }  收到第 n 行 stdin（0 起）后写到 stdout
  *   big: number, bigChar?: string  启动后写 big 个 bigChar（默认 'x'；输出上限场景）
+ *   bigAfter: number           big 改为收到第 n 行 stdin 并记录后再写（时序确定：日志里先有该行）
  *   exit: 'start' | number     启动后 / 收到第 n 行后以 code 退出
  *   code: number
  * 未要求退出时一直挂着，直到被终止。
@@ -31,7 +32,7 @@ const out = (chunks) => {
 };
 const quit = () => process.stdout.write('', () => process.exit(plan.code ?? 0));
 out(plan.onStart);
-if (plan.big) process.stdout.write((plan.bigChar ?? 'x').repeat(plan.big));
+if (plan.big && plan.bigAfter === undefined) process.stdout.write((plan.bigChar ?? 'x').repeat(plan.big));
 if (plan.exit === 'start') quit();
 else {
   let buf = '';
@@ -45,6 +46,7 @@ else {
       buf = buf.slice(i + 1);
       log({ line });
       out(plan.onLine?.[n]);
+      if (plan.big && plan.bigAfter === n) process.stdout.write((plan.bigChar ?? 'x').repeat(plan.big));
       if (plan.exit === n) quit();
       n++;
     }

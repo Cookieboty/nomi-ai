@@ -31,7 +31,7 @@ const dayMs = 86_400_000
 
 func msToLocal(ts float64) time.Time {
 	sec := math.Floor(ts / 1000)
-	return time.Unix(int64(sec), int64((ts-sec*1000)*1e6)).In(time.Local)
+	return time.Unix(int64(sec), int64((ts-float64(sec*1000))*1e6)).In(time.Local)
 }
 
 func timeMs(t time.Time) float64 { return float64(t.UnixMilli()) }
@@ -165,7 +165,7 @@ func Series(recs []*UsageRecord, rg RangeSpec, priceOf PriceOf) []SeriesPoint {
 	for i := 0; i < rg.Buckets; i++ {
 		var t float64
 		if rg.Bucket == "hour" {
-			t = rg.From + float64(i)*3_600_000
+			t = rg.From + float64(float64(i)*3_600_000)
 		} else {
 			t = AddDays(rg.From, i)
 		}
