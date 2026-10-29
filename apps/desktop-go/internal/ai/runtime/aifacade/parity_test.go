@@ -91,6 +91,7 @@ func runScenario(t *testing.T, sc *u.Obj, gold []any) (got, want []any) {
 		o.Profile = NewProfileStore(pf, now)
 	}
 	f := New(o)
+	f.On("tools/wrap", func(p any) { emit("hook:tools/wrap", p) })
 	if o.Profile != nil {
 		o.Profile.Export()
 	}
@@ -116,7 +117,19 @@ func runScenario(t *testing.T, sc *u.Obj, gold []any) (got, want []any) {
 		}
 		want = append(want, gold[i])
 		rec := u.NewObj()
-		p := st.Get("p").(string)
+		if h, ok := st.Get("hook").(*u.Obj); ok {
+			f.Hook(h.Get("event").(string), h.Get("payload"))
+		}
+		p, isProc := st.Get("p").(string)
+		if !isProc {
+			rec.Set("p", nil)
+			if len(events) > 0 {
+				rec.Set("events", events)
+				events = nil
+			}
+			got = append(got, rec)
+			continue
+		}
 		rec.Set("p", p)
 		raw := json.RawMessage("")
 		if st.Has("in") {

@@ -30,8 +30,6 @@ type Options struct {
 	AvatarHost func(cue *u.Obj)
 	// Emit：契约事件（ai.userProfile.changed / ai.avatar.*）
 	Emit func(event string, data any)
-	// OnConfirm：tools/wrap 确认回执
-	OnConfirm func(reqID string, ok bool, reason *string)
 }
 
 // Facade 承载内存态（sessions / facts / summaries / tool 开关）
@@ -42,6 +40,7 @@ type Facade struct {
 	facts     *u.Obj
 	summaries *u.Obj
 	enabled   map[string]bool
+	hooks     map[string][]*func(any) // 插件事件订阅（hooks.go）
 }
 
 func randID() string {
@@ -400,13 +399,14 @@ func (f *Facade) toolsConfirm(in any) (any, error) {
 	if id == "" {
 		return nil, errConfirmReq
 	}
-	if f.o.OnConfirm != nil {
-		var reason *string
-		if r, ok := optStr(o, "reason"); ok {
-			reason = &r
-		}
-		f.o.OnConfirm(id, o.Get("ok").(bool), reason)
+	// ToolsFacade.confirm：ctx.emit('tools/wrap', { reqId, ok, reason })
+	d := u.NewObj()
+	d.Set("reqId", id)
+	d.Set("ok", o.Get("ok"))
+	if r, ok := optStr(o, "reason"); ok {
+		d.Set("reason", r)
 	}
+	f.Hook("tools/wrap", d)
 	return Undef, nil
 }
 
@@ -545,3 +545,24 @@ func (f *Facade) avatarReport(in any) (any, error) {
 	f.o.Emit(ev, d)
 	return Undef, nil
 }
+
+// AvatarGesture / AvatarEmotion：AvatarService.gesture / emotion（CompanionToolsPlugin 工具执行体用）
+func (f *Facade) AvatarGesture(name string) error {
+	_, err := avatarCue("gesture", charcontract.SemanticGestures)(f, u.NewObj("name", name))
+	return err
+}
+
+func (f *Facade) AvatarEmotion(name string, weight *float64) error {
+	in := u.NewObj("name", name)
+	if weight != nil {
+		in.Set("weight", *weight)
+	}
+	_, err := f.avatarEmotion(in)
+	return err
+}
+
+// Profile：UserProfileKey 实例（nil = 未装）
+func (f *Facade) Profile() *ProfileStore { return f.o.Profile }
+
+// ToolsList = ai.tools.list（igtools parity 回放 ToolSpec 用）
+func (f *Facade) ToolsList() (any, error) { return f.toolsList(nil) }
