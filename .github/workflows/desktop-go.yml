@@ -54,6 +54,8 @@ jobs:
           export NOMI_GOLDEN_DIR="$RUNNER_TEMP/goldens"
           pnpm exec tsx scripts/parity/record-asset-protocols.mjs
           node scripts/parity/record-b7-drivers.mjs
+          pnpm exec tsx scripts/parity/record-b7-harness.mjs
+          pnpm exec tsx scripts/parity/record-b7-orch.mjs
           pnpm --filter @nomi-ai/types --filter @nomi-ai/i18n build
           pnpm exec tsx scripts/parity/record-b9.mjs
           pnpm exec tsx scripts/parity/check-scheme-url.mjs
