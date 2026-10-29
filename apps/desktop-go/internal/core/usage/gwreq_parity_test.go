@@ -165,7 +165,7 @@ func TestGatewayRequestsParity(t *testing.T) {
 			}
 			eq := func(a, b *string) bool { return (a == nil && b == nil) || (a != nil && b != nil && *a == *b) }
 			if !eq(td(), s.TraceDir) {
-				t.Errorf("traceDir %v want %v", td(), s.TraceDir)
+				t.Errorf("traceDir %v want %v", ns(td()), ns(s.TraceDir))
 			}
 			var rem []string
 			if ents, err := os.ReadDir(filepath.Join(dir, "trace")); err == nil {
@@ -183,7 +183,7 @@ func TestGatewayRequestsParity(t *testing.T) {
 			}
 			traceOn = !traceOn
 			if !eq(td(), s.TraceDir2) {
-				t.Errorf("traceDir2 %v want %v", td(), s.TraceDir2)
+				t.Errorf("traceDir2 %v want %v", ns(td()), ns(s.TraceDir2))
 			}
 			if n := l.Prune(); n != s.Prune2 {
 				t.Errorf("prune2 %d want %d", n, s.Prune2)

@@ -117,6 +117,7 @@ if (process.env.NOMI_GOLDEN_DIR) {
   execFileSync(process.execPath, [join(here, 'record-usage-claudeparser.mjs')], { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-usage-gwreq.mjs')], { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-usage-pricesync.mjs')], { stdio: 'inherit', cwd: root, env: { ...process.env, TZ: 'America/New_York' } });
+  execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-usage-authmode.mjs')], { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, [join(here, 'record-usage-quota.mjs')], { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, [join(here, 'record-usage-statusline.mjs')], { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, [join(here, 'record-usage-subs.mjs')], { stdio: 'inherit', cwd: root });
