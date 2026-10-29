@@ -359,7 +359,10 @@ type Bound struct {
 	defs []tools.Definition
 }
 
-func (p *Provider) WithTools(defs []tools.Definition) Bound { return Bound{p, defs} }
+func (p *Provider) WithTools(defs []tools.Definition) llm.ToolRunner { return Bound{p, defs} }
+
+// ProviderID：LLMProvider.id
+func (p *Provider) ProviderID() string { return p.ID }
 
 func (b Bound) Chat(ctx context.Context, r *llm.ChatRequest) (*llm.ChatResponse, error) {
 	t := b.p.toolsFor(b.defs, r)
