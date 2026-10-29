@@ -256,6 +256,8 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - **tts:** 移除 Fish / legacy 旧音色相关设置与许可文案。 (`@nomi-ai/i18n` patch)
 - **tts:** 移除 Fish 与 legacy 旧音色：删除 Fish（本地 / 云）与自建 legacy 朗读引擎、内置 `nomi` 参考音色及相关设置项和许可说明。旧配置里的 fish-local / fish-cloud / legacy 按「无」加载，不报错。目前没有实现任何实时朗读引擎，AI 普通回复不出声，只有诺米预录提示语音会播放。 (`@nomi-ai/host-electron` patch, `@nomi-ai/renderer` patch, `@nomi-ai/ai-chat` patch, `@nomi-ai/types` patch)
 - **tts:** 移除内置离线语音引擎（安装包不再带原生 addon，也不再有语音模型下载卡片）和系统 speechSynthesis 朗读。旧配置照常启动，已移除的引擎按「无」处理。设置「实时朗读引擎」只保留 无 / Edge / Azure / OpenAI，后三者暂未接入（选中时静默并提示）；保留「诺米提示语音」开关。 (`@nomi-ai/host-electron` patch, `@nomi-ai/renderer` patch, `@nomi-ai/ai-chat` patch, `@nomi-ai/types` patch, `@nomi-ai/bundle-ig-electron-caps` patch)
+- **voice/desktop:** `WindowsPort` 新增 `isOpen` / `dismissed` / `release` / `ownsCaller` / `onCallerClosed` 与 `WindowIntent.transient`；`DesktopService` / `VoiceService` 只依赖宿主端口，删除 `DesktopWindows` / `VoiceChatWindow` / `VoiceSender` / `callerWindows` / `createVoiceStreams`，流式识别经 `VoiceStreamSink` 推给发起方的流；新增契约过程 `voice.takePendingInject`（`voice.inject` 加入 pending 组）；host-node 新增 `control.bindCaller` / `closeCaller`。 (`@nomi-ai/core` patch, `@nomi-ai/host-ports` patch, `@nomi-ai/contract` patch, `@nomi-ai/host-node` patch)
+- **voice/desktop:** 看板娘临时召回、确认答复的来源校验、语音会话随发起窗口释放改走宿主端口 `windows`；看板娘把识别结果投递到刚打开的对话窗口时不再等页面加载 500ms，对话窗口挂载后经 `voice.takePendingInject` 拉取。 (`@nomi-ai/host-electron` patch, `@nomi-ai/ai-chat` patch)
 
 ### Tests
 
