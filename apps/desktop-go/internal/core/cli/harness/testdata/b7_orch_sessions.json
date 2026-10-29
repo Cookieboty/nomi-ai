@@ -1602,6 +1602,1141 @@
         "cliSessionId": null,
         "permissionMode": "default"
       }
+    },
+    {
+      "name": "claude:permission-approve",
+      "turns": [
+        {
+          "ok": {
+            "text": "【Mock Claude】已收到，并完成演示回复。",
+            "sessionId": "mock-claude-session-1",
+            "events": [
+              {
+                "type": "permission",
+                "id": "mock-perm-1",
+                "summary": "Bash: echo mock-permission",
+                "toolName": "Bash",
+                "expiresAt": "<N>"
+              },
+              {
+                "type": "text",
+                "text": "【Mock Claude】已收到，并完成演示回复。"
+              },
+              {
+                "type": "done",
+                "text": "【Mock Claude】已收到，并完成演示回复。",
+                "sessionId": "mock-claude-session-1",
+                "usage": {
+                  "inputTokens": 1200,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 800,
+                  "costUsd": 0.0123,
+                  "durationMs": "<N>",
+                  "model": "mock-claude"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "evTypes": [
+        [
+          "event",
+          "permission"
+        ],
+        [
+          "permission-needed",
+          null
+        ],
+        [
+          "event",
+          "permission-resolved"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "text"
+        ],
+        [
+          "event",
+          "done"
+        ]
+      ],
+      "tab": {
+        "cliSessionId": "mock-claude-session-1",
+        "permissionMode": "default"
+      }
+    },
+    {
+      "name": "claude:permission-deny",
+      "turns": [
+        {
+          "ok": {
+            "text": "【Mock Claude】权限被拒绝",
+            "sessionId": "mock-claude-session-1",
+            "events": [
+              {
+                "type": "permission",
+                "id": "mock-perm-1",
+                "summary": "Bash: echo mock-permission",
+                "toolName": "Bash",
+                "expiresAt": "<N>"
+              },
+              {
+                "type": "done",
+                "text": "【Mock Claude】权限被拒绝",
+                "sessionId": "mock-claude-session-1"
+              }
+            ]
+          }
+        }
+      ],
+      "evTypes": [
+        [
+          "event",
+          "permission"
+        ],
+        [
+          "permission-needed",
+          null
+        ],
+        [
+          "event",
+          "permission-resolved"
+        ],
+        [
+          "event",
+          "done"
+        ]
+      ],
+      "tab": {
+        "cliSessionId": "mock-claude-session-1",
+        "permissionMode": "default"
+      }
+    },
+    {
+      "name": "gemini:permission-approve",
+      "turns": [
+        {
+          "ok": {
+            "text": "Mock Gemini: perm",
+            "sessionId": "gem-<U>",
+            "events": [
+              {
+                "type": "thinking",
+                "text": "Thinking…",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "tool",
+                "name": "edit",
+                "status": "start",
+                "detail": "tc-1",
+                "input": "{\"description\":\"Write file\",\"path\":\"a.txt\"}",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "permission",
+                "id": "gemini-perm-<U>",
+                "summary": "Write file: a.txt",
+                "expiresAt": "<N>"
+              },
+              {
+                "type": "tool",
+                "name": "edit",
+                "status": "done",
+                "detail": "tc-1",
+                "input": "{}",
+                "output": "written",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "done",
+                "text": "Mock Gemini: perm",
+                "sessionId": "gem-<U>",
+                "usage": {
+                  "inputTokens": 12,
+                  "outputTokens": 5
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "evTypes": [
+        [
+          "event",
+          "thinking"
+        ],
+        [
+          "event",
+          "tool"
+        ],
+        [
+          "event",
+          "permission"
+        ],
+        [
+          "permission-needed",
+          null
+        ],
+        [
+          "event",
+          "permission-resolved"
+        ],
+        [
+          "event",
+          "tool"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "done"
+        ]
+      ],
+      "tab": {
+        "cliSessionId": "gem-<U>",
+        "permissionMode": "default"
+      }
+    },
+    {
+      "name": "gemini:permission-deny",
+      "turns": [
+        {
+          "ok": {
+            "text": "Mock Gemini: perm",
+            "sessionId": "gem-<U>",
+            "events": [
+              {
+                "type": "thinking",
+                "text": "Thinking…",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "tool",
+                "name": "edit",
+                "status": "start",
+                "detail": "tc-1",
+                "input": "{\"description\":\"Write file\",\"path\":\"a.txt\"}",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "permission",
+                "id": "gemini-perm-<U>",
+                "summary": "Write file: a.txt",
+                "expiresAt": "<N>"
+              },
+              {
+                "type": "tool",
+                "name": "edit",
+                "status": "error",
+                "detail": "tc-1",
+                "input": "{}",
+                "output": "denied",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "done",
+                "text": "Mock Gemini: perm",
+                "sessionId": "gem-<U>",
+                "usage": {
+                  "inputTokens": 12,
+                  "outputTokens": 5
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "evTypes": [
+        [
+          "event",
+          "thinking"
+        ],
+        [
+          "event",
+          "tool"
+        ],
+        [
+          "event",
+          "permission"
+        ],
+        [
+          "permission-needed",
+          null
+        ],
+        [
+          "event",
+          "permission-resolved"
+        ],
+        [
+          "event",
+          "tool"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "done"
+        ]
+      ],
+      "tab": {
+        "cliSessionId": "gem-<U>",
+        "permissionMode": "default"
+      }
+    },
+    {
+      "name": "send:claude-finish-persist",
+      "turns": [
+        {
+          "ok": {
+            "text": "【Mock Claude】已收到，并完成演示回复。",
+            "sessionId": "mock-claude-session-1",
+            "events": [
+              {
+                "type": "text",
+                "text": "【Mock Claude】已收到，并完成演示回复。"
+              },
+              {
+                "type": "done",
+                "text": "【Mock Claude】已收到，并完成演示回复。",
+                "sessionId": "mock-claude-session-1",
+                "usage": {
+                  "inputTokens": 1200,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 800,
+                  "costUsd": 0.0123,
+                  "durationMs": "<N>",
+                  "model": "mock-claude"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "ok": {
+            "text": "【Mock Claude】已收到，并完成演示回复。",
+            "sessionId": "mock-claude-session-1",
+            "events": [
+              {
+                "type": "text",
+                "text": "【Mock Claude】已收到，并完成演示回复。"
+              },
+              {
+                "type": "done",
+                "text": "【Mock Claude】已收到，并完成演示回复。",
+                "sessionId": "mock-claude-session-1",
+                "usage": {
+                  "inputTokens": 1200,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 800,
+                  "costUsd": 0.0123,
+                  "durationMs": "<N>",
+                  "model": "mock-claude"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "evTypes": [
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "text"
+        ],
+        [
+          "event",
+          "done"
+        ],
+        [
+          "tab-finished",
+          "ok"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "text"
+        ],
+        [
+          "event",
+          "done"
+        ],
+        [
+          "tab-finished",
+          "ok"
+        ]
+      ],
+      "tab": {
+        "cliSessionId": "mock-claude-session-1",
+        "permissionMode": "bypass"
+      },
+      "disk": [
+        [
+          "recent-cwds.json",
+          [
+            "<T>/work"
+          ]
+        ],
+        [
+          "session.json",
+          {
+            "backend": "nomi",
+            "cwd": "<R>",
+            "cliSessionId": null,
+            "busy": false,
+            "title": "对话",
+            "permissionMode": "acceptEdits"
+          }
+        ],
+        [
+          "tabs/<U>.json",
+          [
+            {
+              "id": "<U>",
+              "role": "user",
+              "content": "hello",
+              "timestamp": "<N>"
+            },
+            {
+              "id": "<U>",
+              "role": "assistant",
+              "content": "【Mock Claude】已收到，并完成演示回复。",
+              "timestamp": "<N>",
+              "durationMs": "<N>",
+              "model": "mock-claude",
+              "usage": {
+                "inputTokens": 1200,
+                "outputTokens": 340,
+                "cacheReadTokens": 800,
+                "costUsd": 0.0123,
+                "durationMs": "<N>",
+                "model": "mock-claude"
+              }
+            },
+            {
+              "id": "<U>",
+              "role": "user",
+              "content": "again",
+              "timestamp": "<N>"
+            },
+            {
+              "id": "<U>",
+              "role": "assistant",
+              "content": "【Mock Claude】已收到，并完成演示回复。",
+              "timestamp": "<N>",
+              "durationMs": "<N>",
+              "model": "mock-claude",
+              "usage": {
+                "inputTokens": 1200,
+                "outputTokens": 340,
+                "cacheReadTokens": 800,
+                "costUsd": 0.0123,
+                "durationMs": "<N>",
+                "model": "mock-claude"
+              }
+            }
+          ]
+        ],
+        [
+          "tabs.json",
+          {
+            "activeTabId": "<U>",
+            "defaultPermissionMode": "acceptEdits",
+            "codexNetwork": true,
+            "autoApprove": true,
+            "lastSettings": {},
+            "tabs": [
+              {
+                "id": "<U>",
+                "title": "Claude Code",
+                "backend": "claude",
+                "cwd": "<T>/work",
+                "cliSessionId": "mock-claude-session-1",
+                "status": "idle",
+                "unread": 2,
+                "createdAt": "<N>",
+                "updatedAt": "<N>",
+                "permissionMode": "bypass",
+                "source": "official",
+                "modelScope": null
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "send:claude-fail-persist",
+      "turns": [
+        {
+          "err": "Mock: 429 rate limit exceeded"
+        }
+      ],
+      "evTypes": [
+        [
+          "event",
+          "error"
+        ],
+        [
+          "tab-finished",
+          "fail"
+        ]
+      ],
+      "tab": {
+        "cliSessionId": null,
+        "permissionMode": "bypass"
+      },
+      "disk": [
+        [
+          "recent-cwds.json",
+          [
+            "<T>/work"
+          ]
+        ],
+        [
+          "session.json",
+          {
+            "backend": "nomi",
+            "cwd": "<R>",
+            "cliSessionId": null,
+            "busy": false,
+            "title": "对话",
+            "permissionMode": "acceptEdits"
+          }
+        ],
+        [
+          "tabs/<U>.json",
+          [
+            {
+              "id": "<U>",
+              "role": "user",
+              "content": "boom",
+              "timestamp": "<N>"
+            },
+            {
+              "id": "<U>",
+              "role": "assistant",
+              "content": "Mock: 429 rate limit exceeded",
+              "timestamp": "<N>",
+              "error": true,
+              "durationMs": "<N>"
+            }
+          ]
+        ],
+        [
+          "tabs.json",
+          {
+            "activeTabId": "<U>",
+            "defaultPermissionMode": "acceptEdits",
+            "codexNetwork": true,
+            "autoApprove": true,
+            "lastSettings": {},
+            "tabs": [
+              {
+                "id": "<U>",
+                "title": "Claude Code",
+                "backend": "claude",
+                "cwd": "<T>/work",
+                "cliSessionId": null,
+                "status": "error",
+                "unread": 1,
+                "createdAt": "<N>",
+                "updatedAt": "<N>",
+                "permissionMode": "bypass",
+                "source": "official",
+                "modelScope": null,
+                "lastError": "Mock: 429 rate limit exceeded"
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "send:claude-approve-persist",
+      "turns": [
+        {
+          "ok": {
+            "text": "【Mock Claude】已收到，并完成演示回复。",
+            "sessionId": "mock-claude-session-1",
+            "events": [
+              {
+                "type": "permission",
+                "id": "mock-perm-1",
+                "summary": "Bash: echo mock-permission",
+                "toolName": "Bash",
+                "expiresAt": "<N>"
+              },
+              {
+                "type": "text",
+                "text": "【Mock Claude】已收到，并完成演示回复。"
+              },
+              {
+                "type": "done",
+                "text": "【Mock Claude】已收到，并完成演示回复。",
+                "sessionId": "mock-claude-session-1",
+                "usage": {
+                  "inputTokens": 1200,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 800,
+                  "costUsd": 0.0123,
+                  "durationMs": "<N>",
+                  "model": "mock-claude"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "evTypes": [
+        [
+          "event",
+          "permission"
+        ],
+        [
+          "permission-needed",
+          null
+        ],
+        [
+          "event",
+          "permission-resolved"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "text"
+        ],
+        [
+          "event",
+          "done"
+        ],
+        [
+          "tab-finished",
+          "ok"
+        ]
+      ],
+      "tab": {
+        "cliSessionId": "mock-claude-session-1",
+        "permissionMode": "manual"
+      },
+      "disk": [
+        [
+          "recent-cwds.json",
+          [
+            "<T>/work"
+          ]
+        ],
+        [
+          "session.json",
+          {
+            "backend": "nomi",
+            "cwd": "<R>",
+            "cliSessionId": null,
+            "busy": false,
+            "title": "对话",
+            "permissionMode": "acceptEdits"
+          }
+        ],
+        [
+          "tabs/<U>.json",
+          [
+            {
+              "id": "<U>",
+              "role": "user",
+              "content": "need perm",
+              "timestamp": "<N>"
+            },
+            {
+              "id": "<U>",
+              "role": "assistant",
+              "content": "【Mock Claude】已收到，并完成演示回复。",
+              "timestamp": "<N>",
+              "durationMs": "<N>",
+              "model": "mock-claude",
+              "usage": {
+                "inputTokens": 1200,
+                "outputTokens": 340,
+                "cacheReadTokens": 800,
+                "costUsd": 0.0123,
+                "durationMs": "<N>",
+                "model": "mock-claude"
+              }
+            }
+          ]
+        ],
+        [
+          "tabs.json",
+          {
+            "activeTabId": "<U>",
+            "defaultPermissionMode": "acceptEdits",
+            "codexNetwork": true,
+            "autoApprove": true,
+            "lastSettings": {},
+            "tabs": [
+              {
+                "id": "<U>",
+                "title": "Claude Code",
+                "backend": "claude",
+                "cwd": "<T>/work",
+                "cliSessionId": "mock-claude-session-1",
+                "status": "idle",
+                "unread": 1,
+                "createdAt": "<N>",
+                "updatedAt": "<N>",
+                "permissionMode": "manual",
+                "source": "official",
+                "modelScope": null
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "send:claude-deny-persist",
+      "turns": [
+        {
+          "ok": {
+            "text": "【Mock Claude】权限被拒绝",
+            "sessionId": "mock-claude-session-1",
+            "events": [
+              {
+                "type": "permission",
+                "id": "mock-perm-1",
+                "summary": "Bash: echo mock-permission",
+                "toolName": "Bash",
+                "expiresAt": "<N>"
+              },
+              {
+                "type": "done",
+                "text": "【Mock Claude】权限被拒绝",
+                "sessionId": "mock-claude-session-1"
+              }
+            ]
+          }
+        }
+      ],
+      "evTypes": [
+        [
+          "event",
+          "permission"
+        ],
+        [
+          "permission-needed",
+          null
+        ],
+        [
+          "event",
+          "permission-resolved"
+        ],
+        [
+          "event",
+          "done"
+        ],
+        [
+          "tab-finished",
+          "ok"
+        ]
+      ],
+      "tab": {
+        "cliSessionId": "mock-claude-session-1",
+        "permissionMode": "manual"
+      },
+      "disk": [
+        [
+          "recent-cwds.json",
+          [
+            "<T>/work"
+          ]
+        ],
+        [
+          "session.json",
+          {
+            "backend": "nomi",
+            "cwd": "<R>",
+            "cliSessionId": null,
+            "busy": false,
+            "title": "对话",
+            "permissionMode": "acceptEdits"
+          }
+        ],
+        [
+          "tabs/<U>.json",
+          [
+            {
+              "id": "<U>",
+              "role": "user",
+              "content": "need perm",
+              "timestamp": "<N>"
+            },
+            {
+              "id": "<U>",
+              "role": "assistant",
+              "content": "【Mock Claude】权限被拒绝",
+              "timestamp": "<N>",
+              "durationMs": "<N>"
+            }
+          ]
+        ],
+        [
+          "tabs.json",
+          {
+            "activeTabId": "<U>",
+            "defaultPermissionMode": "acceptEdits",
+            "codexNetwork": true,
+            "autoApprove": true,
+            "lastSettings": {},
+            "tabs": [
+              {
+                "id": "<U>",
+                "title": "Claude Code",
+                "backend": "claude",
+                "cwd": "<T>/work",
+                "cliSessionId": "mock-claude-session-1",
+                "status": "idle",
+                "unread": 1,
+                "createdAt": "<N>",
+                "updatedAt": "<N>",
+                "permissionMode": "manual",
+                "source": "official",
+                "modelScope": null
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "send:gemini-finish-persist",
+      "turns": [
+        {
+          "ok": {
+            "text": "Mock Gemini: hello",
+            "sessionId": "gem-<U>",
+            "events": [
+              {
+                "type": "thinking",
+                "text": "Thinking…",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "done",
+                "text": "Mock Gemini: hello",
+                "sessionId": "gem-<U>",
+                "usage": {
+                  "inputTokens": 12,
+                  "outputTokens": 5
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "evTypes": [
+        [
+          "event",
+          "thinking"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "done"
+        ],
+        [
+          "tab-finished",
+          "ok"
+        ]
+      ],
+      "tab": {
+        "cliSessionId": "gem-<U>",
+        "permissionMode": "bypass"
+      },
+      "disk": [
+        [
+          "recent-cwds.json",
+          [
+            "<T>/work"
+          ]
+        ],
+        [
+          "session.json",
+          {
+            "backend": "nomi",
+            "cwd": "<R>",
+            "cliSessionId": null,
+            "busy": false,
+            "title": "对话",
+            "permissionMode": "acceptEdits"
+          }
+        ],
+        [
+          "tabs/<U>.json",
+          [
+            {
+              "id": "<U>",
+              "role": "user",
+              "content": "hello",
+              "timestamp": "<N>"
+            },
+            {
+              "id": "<U>",
+              "role": "assistant",
+              "content": "Mock Gemini: hello",
+              "timestamp": "<N>",
+              "durationMs": "<N>",
+              "usage": {
+                "inputTokens": 12,
+                "outputTokens": 5
+              },
+              "trace": [
+                {
+                  "type": "thinking",
+                  "text": "Thinking…",
+                  "at": "<N>",
+                  "textAt": 0
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          "tabs.json",
+          {
+            "activeTabId": "<U>",
+            "defaultPermissionMode": "acceptEdits",
+            "codexNetwork": true,
+            "autoApprove": true,
+            "lastSettings": {},
+            "tabs": [
+              {
+                "id": "<U>",
+                "title": "Gemini",
+                "backend": "gemini",
+                "cwd": "<T>/work",
+                "cliSessionId": "gem-<U>",
+                "status": "idle",
+                "unread": 1,
+                "createdAt": "<N>",
+                "updatedAt": "<N>",
+                "permissionMode": "bypass",
+                "source": "official",
+                "modelScope": null
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "send:codex-plan-persist",
+      "turns": [
+        {
+          "ok": {
+            "text": "【Mock Codex】任务完成。",
+            "sessionId": "mock-codex-thread-1",
+            "events": [
+              {
+                "type": "done",
+                "text": "",
+                "sessionId": "mock-codex-thread-1"
+              },
+              {
+                "type": "text",
+                "text": "【Mock Codex】任务完成。"
+              },
+              {
+                "type": "done",
+                "text": "【Mock Codex】任务完成。"
+              },
+              {
+                "type": "done",
+                "text": "",
+                "usage": {
+                  "inputTokens": 10,
+                  "outputTokens": 8
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "evTypes": [
+        [
+          "event",
+          "done"
+        ],
+        [
+          "event",
+          "text"
+        ],
+        [
+          "event",
+          "done"
+        ],
+        [
+          "event",
+          "done"
+        ],
+        [
+          "tab-finished",
+          "ok"
+        ],
+        [
+          "event",
+          "permission"
+        ],
+        [
+          "permission-needed",
+          null
+        ]
+      ],
+      "tab": {
+        "cliSessionId": "mock-codex-thread-1",
+        "permissionMode": "plan"
+      },
+      "disk": [
+        [
+          "recent-cwds.json",
+          [
+            "<T>/work"
+          ]
+        ],
+        [
+          "session.json",
+          {
+            "backend": "nomi",
+            "cwd": "<R>",
+            "cliSessionId": null,
+            "busy": false,
+            "title": "对话",
+            "permissionMode": "acceptEdits"
+          }
+        ],
+        [
+          "tabs/<U>.json",
+          [
+            {
+              "id": "<U>",
+              "role": "user",
+              "content": "hello",
+              "timestamp": "<N>"
+            },
+            {
+              "id": "<U>",
+              "role": "assistant",
+              "content": "【Mock Codex】任务完成。",
+              "timestamp": "<N>",
+              "durationMs": "<N>",
+              "usage": {
+                "inputTokens": 10,
+                "outputTokens": 8
+              }
+            }
+          ]
+        ],
+        [
+          "tabs.json",
+          {
+            "activeTabId": "<U>",
+            "defaultPermissionMode": "acceptEdits",
+            "codexNetwork": true,
+            "autoApprove": true,
+            "lastSettings": {},
+            "tabs": [
+              {
+                "id": "<U>",
+                "title": "Codex",
+                "backend": "codex",
+                "cwd": "<T>/work",
+                "cliSessionId": "mock-codex-thread-1",
+                "status": "idle",
+                "unread": 1,
+                "createdAt": "<N>",
+                "updatedAt": "<N>",
+                "permissionMode": "plan",
+                "source": "official",
+                "modelScope": null
+              }
+            ]
+          }
+        ]
+      ]
     }
   ]
 }
