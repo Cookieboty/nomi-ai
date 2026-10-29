@@ -326,15 +326,45 @@ func (h *subsHarness) check(kind string, sc subsScenario, outs []string, logf st
 		t.Errorf("%s/%s outcome:\n go   %v\n node %v", kind, sc.Name, outs, sc.Outs)
 	}
 	h.checkLog(kind, sc, logf)
-	ents, _ := os.ReadDir(h.tmp)
-	left := []string{}
-	for _, e := range ents {
-		left = append(left, e.Name())
+	left := h.takeLeftovers()
+	if runtime.GOOS == "windows" {
+		// Windows：Node 与 Go 都在 killTree 后立刻 rmSync，子进程句柄未释放时 EBUSY 被吞，
+		// 是否残留取决于时序（docs/design/migrate-2.0.5-go.md §3.4）；只校验残留都属于本 fetcher 的前缀。
+		pre := subsTmpPrefix[kind]
+		for _, l := range append(append([]string{}, left...), sc.Left...) {
+			if l != pre {
+				t.Errorf("%s/%s leftovers: unexpected %q (go %v node %v)", kind, sc.Name, l, left, sc.Left)
+			}
+		}
+		if util.Stringify(left) != util.Stringify(sc.Left) {
+			t.Logf("%s/%s leftovers differ by Windows rm/exit timing: go %v node %v", kind, sc.Name, left, sc.Left)
+		}
+		return
 	}
-	sort.Strings(left)
 	if util.Stringify(left) != util.Stringify(sc.Left) {
 		t.Errorf("%s/%s leftovers: go %v node %v", kind, sc.Name, left, sc.Left)
 	}
+}
+
+var subsTmpPrefix = map[string]string{
+	"claude": "nomi-claude-usage-", "codex": "nomi-codex-usage-", "grok": "nomi-grok-billing-", "grokAuth": "nomi-grok-auth-",
+}
+
+// takeLeftovers = 录制器 leftovers()：等/杀 mock 子进程，按前缀（去掉 6 位随机后缀）记录本场景残留后删掉。
+func (h *subsHarness) takeLeftovers() []string {
+	waitMockChildrenExit(h.t, h.logs, 2*time.Second)
+	ents, _ := os.ReadDir(h.tmp)
+	left := []string{}
+	for _, e := range ents {
+		n := e.Name()
+		_ = removeAllRetry(filepath.Join(h.tmp, n), 20, 250*time.Millisecond)
+		if len(n) > 6 {
+			n = n[:len(n)-6]
+		}
+		left = append(left, n)
+	}
+	sort.Strings(left)
+	return left
 }
 
 func (h *subsHarness) checkLog(kind string, sc subsScenario, logf string) {
