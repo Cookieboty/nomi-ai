@@ -140,3 +140,6 @@ func exitStatus(cmd *exec.Cmd, werr error, _ string) (*int, string) {
 	c := cmd.ProcessState.ExitCode()
 	return &c, ""
 }
+
+// libuvEnv：unix 上 libuv 原样传 env
+func libuvEnv(env []string) []string { return env }

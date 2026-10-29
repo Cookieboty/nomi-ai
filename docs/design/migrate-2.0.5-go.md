@@ -209,9 +209,9 @@ Go 版**1:1 镜像** Node 版：模块边界、包/层结构、数据格式、�
 | D-B11-6 | 托盘图标改为内嵌 PNG | mac 用 `trayTemplate@2x.png`（模板图），Win/Linux 用 `app-icons/sunset/tray.png` 的 @2x（= Electron 默认图标变体）；用户切换图标变体后托盘不跟随（Electron 跟随） | 非默认图标变体用户的托盘图标与 Electron 不同 |
 | D-B11-7 | 发布 workflow 与 ci.yml 的 Electron tag 任务需二选一 | `desktop-go-package.yml` 的 release-draft 只在 tag ref 上手动触发，且 publish 需显式 `publish=true`；ci.yml 在 `v*` tag push 时仍会构建并上传 Electron 包到同一 draft | 打 v2.0.5 tag 前（批次 12）须先下线 ci.yml 的 Electron 发布任务 |
 | D-B8-1 | `knowledge.ts` 契约 77 个过程（批次说明） | 实际 75 个过程 + 11 个事件，Go 全部注册（`knowledgehandlers.Handlers`，单测断言 75） | 以契约源码为准，说明里的数字有误 |
-| D-B8-2 | 本地模型注册进 AI 网关 / 设为主模型（`gateway.upsertProvider`、`setNomiMain`、`confirmPrivateHost`） | Go 通过 `local.GatewayLike` 接口调用，main.go 暂未接入（nil → 跳过注册），TODO(batch-4/5) | 网关服务属于批次 4/5，尚未合入 |
-| D-B8-3 | `desktop.say`、`broker.setLocalOnly`、HostPorts（打开对话框、OCR 等） | **部分**：DesktopService（批次 6）已可注入；`say`、OCR 等 HostPorts 仍用 `deps.NoopPorts` 假实现（对话框按“已取消”），TODO(batch-6 宿主端口) | HostPorts 宿主实现尚未全部合入 |
-| D-B8-4 | AI `complete`（摘要、问答、主动聊天） | `deps.UnavailableComplete`：返回 KB_/MEM_/SCHED_ 声明里的失败码，TODO(batch-4/5) | 依赖 ai-runtime（批次 4/5） |
+| D-B8-2 | 本地模型注册进 AI 网关 / 设为主模型（`gateway.upsertProvider`、`setNomiMain`、`confirmPrivateHost`） | Go 通过 `local.GatewayLike` 接口调用，main.go 仍传 nil（跳过注册）：GatewayService 写操作归 feat/2.0.5-go-gw worker，落地后在 main.go 注入 | 等待 GatewayService 写操作（feat/2.0.5-go-gw） |
+| D-B8-3 | `desktop.say`、`broker.setLocalOnly`、HostPorts | **已解决**：`DesktopAdapter` 直连 DesktopService.Say / Broker.LocalOnly/SetLocalOnly；HostPorts 由 `hostPorts`（dialogs.pickDirectory/saveFile、shell.openPath/showItemInFolder、power.idleSeconds）提供——批次 8 服务用到的 ports.* 已全部覆盖 | — |
+| D-B8-4 | AI `complete`（摘要、问答、主动聊天） | **已解决**：main.go `complete` 对齐 createCore：延迟绑定 ChatFacade，`sendMessage({role:'chat', messages, signal})` 返回 `content`；runtime 未就绪抛 `electron.common.ai-service-not-ready` | — |
 | D-B8-5 | ~~`os.totalmem()`~~ **已消除** | Linux `sysinfo`、mac `hw.memsize`、Windows `GlobalMemoryStatusEx` | 无行为差异 |
 | D-B8-6 | ~~llama-server 被信号结束时 `exit` 事件~~ **已消除** | Unix 报 `code: null` + 信号名；Windows 与 Node 一样以 TerminateProcess 退出码上报 | 无行为差异 |
 | D-B8-7 | ~~数据导出用 JS zip 库~~ **已消除** | 移植 fflate zip 写出（按 readdir 顺序、同样的头字段），`local/fflatezip_test.go` 与 Node 产物逐字节一致 | 无行为差异 |
@@ -277,8 +277,11 @@ Go 版**1:1 镜像** Node 版：模块边界、包/层结构、数据格式、�
 | D-B5-MCP-4 | 请求头名大小写 / UA 键 / connection 头 | undici 发小写头名；net/http 规范化大小写，且只认规范键 `User-Agent`（小写 `user-agent` 移到规范键，否则会发 `Go-http-client`）；`connection`/`host`/`content-length` 等传输层头两端均排除比对 | HTTP 头名大小写不敏感 |
 | D-B5-MCP-5 | 事件循环顺序 | Node `fetch()` 同步发起，fire-and-forget 入站 GET 先于下一个 POST 到达；Go 用 httptrace `WroteRequest` 等 GET 写出（≤2s）再继续，消息分发用单队列保持 Node 的顺序 | 无 |
 | D-B5-MCP-6 | `ExtensionsService.attach(mcp, registry)` | Go extensions 只见薄接口（ToolDef/McpRuntime）；`mcpbridge.ExtRuntime/ExtRegistry` 适配，Register 时从原 Definition 补回 Input/RequiresWorkspace，ExecContext 经 ctx 透传；GUI 配置 env/headers 是 Go map，按键排序传入 | 无行为差异 |
-| D-B5-MCP-7 | **未完成** | main.go / AIRuntimeBoot 装配（`mcpbridge.New` + `Apply` + `ext.Attach`）随运行时 worker（feat/2.0.5-go-ai）的 Registry 接线落地；本分支只提供 API | 待运行时接线 |
-| D-B5-7 | **未完成**（本轮剩余） | registry/RoutedRegistry 与 main.go `GetRegistry` 接线、providers test/testDraft/fetchModels（D-B4d-3）、GatewayService 写操作（D-B4d-6）、chat 流式 procs/事件（替换 UNAVAILABLE）、memory episodes `privacy.RuleSpans`、D-B8-2/3/4 | 下一轮 |
+| D-B5-MCP-7 | **已解决** | main.go 装配：`tools.NewInMemory()` 作为 ToolRegistryKey；`mcpbridge.New{GetRegistry, Logger, GuardTool: GuardFromExt(b8.Ext)}` + `Apply(ServersFromEnv, AutoConnectFromEnv)` + `b8.Ext.Attach(ExtRuntime, ExtRegistry)`（对齐 AIRuntimeBoot / desktop/plugin.ts）；`server:up/down` 只在 ig 总线发出，Node 未桥到契约事件，Go 同样不发 | — |
+| D-B5-MCP-8 | 等价 | Windows 自定义 env 起子进程：libuv `make_program_env` 会从父进程补齐 required_vars（HOMEDRIVE/HOMEPATH/LOGONSERVER/PATH/SYSTEMDRIVE/SYSTEMROOT/TEMP/USERDOMAIN/USERNAME/USERPROFILE/WINDIR，大小写不敏感、仅非空）；Go 无此行为，`nodeproc.libuvEnv` 在 Windows 上照搬（unix 为恒等） | stdio golden 在 Windows 逐键相等 |
+| D-B5-MCP-9 | 比对容差 | http-slowinit：init 超时后 setProtocolVersion(legacy) 发起入站 GET、同 tick 内 close() abort；GET 是否上线在 Node 自身随机器而异（本地 4/4 有、CI 三平台无）。Go 改为 GET 异步发起、下一个 POST 先等其写出（保持顺序），close 不等直接 abort；parity 测试仅对该场景剥离"最后一个 POST 之后"的 GET，其余 wire 逐字节比对 | Node 自身非确定 |
+| D-B5-7 | **部分解决** | 已完成：RoutedLLMRegistry 接入 ChatFacade（`airouter.Routed`）；chat 流式 procs `ai.chat.sendMessage/stream/regenerate/agentStream/abort`（AiContractRouter：aborter + batchTextChunks 16ms + streamAborts）替换 core 演示 `ai.chat.stream`；ChatFacade `session/assistant-message` → 契约事件 `ai.message.complete`；Node golden `record-b5-chat.mjs`（9 tokens / 12 fit / 16 facade 场景）+ 变更检测。剩余：GatewayService 写操作与 D-B4d-6/GW-1（转 feat/2.0.5-go-gw）、D-B8-2/3/4；memory episodes `HasSecret` 已直连 `gateway/privacy.HasSecret(s, false)`（= hasSecret(s) → ruleSpans） | 见各行 |
+| D-B5-10 | **偏差** | `prepareChat`（createCore.ts：`desktop.checkSendAll` / `receiversFor` + `applyConversationWorkspace`）在 Go 中以 `airouter.Options.PrepareChat` 钩子保留，main.go 暂传 nil（发送前审查与会话工作区注入未接） | checkSendAll / 工作区注入尚未移植 |
 
 ### 3.5 一致性测试策略（golden，Node 与 Go 同输入对比输出）
 
