@@ -15,7 +15,15 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/security"
 )
 
-// localDesktop：把 deps.Desktop 适配成 local.LocalDesktop。TODO(batch-6): 换成 DesktopService（say / broker.setLocalOnly）。
+// asLocalDesktop：真实 DesktopAdapter 自带 say / setLocalOnly；测试用的 Noop 走 localDesktop 兜底
+func asLocalDesktop(d deps.Desktop) local.LocalDesktop {
+	if ld, ok := d.(local.LocalDesktop); ok {
+		return ld
+	}
+	return localDesktop{Desktop: d}
+}
+
+// localDesktop：测试 / 无桌面服务时的兜底适配
 type localDesktop struct {
 	deps.Desktop
 	Say_ func(string)
@@ -37,7 +45,7 @@ type WireDeps struct {
 	UserData string
 	Router   *contract.Router
 	T        i18n.Translate
-	Desktop  deps.Desktop // nil → NoopDesktop（TODO batch-6）
+	Desktop  deps.Desktop // main.go 传 DesktopAdapter{desktopSvc}；nil → NoopDesktop（仅测试）
 	Ports    deps.Ports   // nil → NoopPorts（TODO batch-6）
 	Complete deps.CompleteFunc
 	OpenChat func()
@@ -83,7 +91,7 @@ func Wire(d WireDeps) *Bundle {
 		Memory: func(ctx context.Context, q string) (string, error) { return b.Mem.Context(ctx, q).Text, nil }})
 	b.Ext = extensions.New(extensions.Deps{Root: ud("extensions"), SkillsRoot: ud("skills"), Logger: deps.StdLogger{Prefix: "[ext]"}, Desktop: d.Desktop, Ports: d.Ports, Events: ev, Secrets: d.Secrets})
 	b.Hub = local.NewHub(local.HubDeps{Root: ud("local"), UserData: d.UserData, Desktop: d.Desktop, Ports: d.Ports, Events: ev})
-	b.Local = local.New(local.Deps{Root: ud("local"), Desktop: localDesktop{Desktop: d.Desktop}, Gateway: d.Gateway, Events: ev})
+	b.Local = local.New(local.Deps{Root: ud("local"), Desktop: asLocalDesktop(d.Desktop), Gateway: d.Gateway, Events: ev})
 	b.N = Install(d.Router, Services{
 		KB: func() *knowledge.Service { return b.KB }, Mem: func() *memory.Service { return b.Mem },
 		Sched: func() *schedule.Service { return b.Sched }, Local: func() *local.Service { return b.Local },

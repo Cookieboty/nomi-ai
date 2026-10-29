@@ -27,6 +27,8 @@ export default defineConfig({
       { find: /^@nomi-ai\/avatar-runtime$/, replacement: pkg('avatar-runtime/src/index.ts') },
       { find: /^@nomi-ai\/character-contract$/, replacement: pkg('character-contract/src/index.ts') },
       { find: /^@nomi-ai\/contract\/app$/, replacement: pkg('contract/src/app/index.ts') },
+      // 看板娘窗口只用传输层（不带整份 appContract 的 zod schema），省掉约 170 KB 常驻 JS
+      { find: /^@nomi-ai\/contract\/websocket$/, replacement: pkg('contract/src/websocket.ts') },
       { find: /^@nomi-ai\/contract$/, replacement: pkg('contract/src/index.ts') },
     ],
   },

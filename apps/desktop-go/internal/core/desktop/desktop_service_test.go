@@ -13,10 +13,11 @@ func newTestService(t *testing.T) (*Service, *[]string) {
 	t.Helper()
 	var mu sync.Mutex
 	events := []string{}
-	s := CreateService(t.TempDir(), Ports{Home: t.TempDir()}, func(ev string, _ any, _ string) {
+	s := CreateService(t.TempDir(), Ports{Home: t.TempDir()}, func(ev string, _ any, _ string) bool {
 		mu.Lock()
 		events = append(events, ev)
 		mu.Unlock()
+		return false
 	})
 	return s, &events
 }

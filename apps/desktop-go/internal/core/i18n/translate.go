@@ -2,7 +2,6 @@ package i18n
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"regexp"
 	"strconv"
@@ -34,35 +33,11 @@ func Format(value string, args []any) string {
 		} else if i, err := strconv.Atoi(name); err == nil && i >= 0 && i < len(args) {
 			v, ok = args[i], true
 		}
-		if !ok || v == nil {
+		if !ok {
 			return m
 		}
-		return jsString(v)
+		return JSString(v)
 	})
-}
-
-// jsString：String(x) 的常见情形（数字按 JS 规则输出整数 / 小数）
-func jsString(v any) string {
-	switch x := v.(type) {
-	case string:
-		return x
-	case int:
-		return strconv.Itoa(x)
-	case int64:
-		return strconv.FormatInt(x, 10)
-	case float64:
-		if x == float64(int64(x)) {
-			return strconv.FormatInt(int64(x), 10)
-		}
-		return strconv.FormatFloat(x, 'f', -1, 64)
-	case bool:
-		if x {
-			return "true"
-		}
-		return "false"
-	default:
-		return fmt.Sprint(x)
-	}
 }
 
 // NewTranslator：按一份词典翻译（查不到原样返回，和 Node lookup 一致）

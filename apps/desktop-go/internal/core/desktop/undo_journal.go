@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop/tr"
+	tr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 )
 
 // UndoJournal.ts：可撤销操作的逆操作日志（journal.jsonl）

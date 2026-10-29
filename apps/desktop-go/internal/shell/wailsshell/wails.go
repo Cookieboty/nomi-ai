@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/url"
 	"sync"
+	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
@@ -20,6 +21,8 @@ type Config struct {
 	Fragment url.Values
 	// MascotSize 返回看板娘窗口初始大小（按保存的缩放）；nil 时用 330×355
 	MascotSize func() (int, int)
+	// OnWindow：窗口生命周期（"created" 新建或重建完成 / "closed" 当前窗口关闭 / "shown" show·restore）
+	OnWindow func(k shell.WindowKind, event string)
 }
 
 type Wails struct {
@@ -28,10 +31,11 @@ type Wails struct {
 	mu   sync.Mutex
 	wins map[shell.WindowKind]*application.WebviewWindow
 	tray *application.SystemTray
+	aot  map[shell.WindowKind]bool // SetAlwaysOnTop 记下的状态（重建时沿用）
 }
 
 func New(cfg Config) *Wails {
-	w := &Wails{cfg: cfg, wins: map[shell.WindowKind]*application.WebviewWindow{}}
+	w := &Wails{cfg: cfg, wins: map[shell.WindowKind]*application.WebviewWindow{}, aot: map[shell.WindowKind]bool{}}
 	w.app = application.New(application.Options{
 		Name:    "Nomi",
 		Assets:  application.AssetOptions{Handler: application.AssetFileServerFS(cfg.Assets)},
@@ -83,6 +87,11 @@ func (w *Wails) Show(k shell.WindowKind) {
 		win.Show()
 		return
 	}
+	w.create(k, nil)
+}
+
+// create 新建窗口；at 非空时先隐藏建好、挪到 at 再显示（重建用，避免先在默认位置闪一下）
+func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewWindow {
 	var opts application.WebviewWindowOptions
 	switch k {
 	case shell.Mascot:
@@ -122,19 +131,61 @@ func (w *Wails) Show(k shell.WindowKind) {
 	case shell.Chat:
 		opts = application.WebviewWindowOptions{Name: "chat", Title: "Nomi 对话", Width: 480, Height: 560, URL: w.page(k)}
 	}
-	win = w.app.Window.NewWithOptions(opts)
+	w.mu.Lock()
+	if on, ok := w.aot[k]; ok {
+		opts.AlwaysOnTop = on
+	}
+	w.mu.Unlock()
+	if at != nil {
+		opts.Hidden = true
+	}
+	win := w.app.Window.NewWithOptions(opts)
 	// 用户点关闭 = 销毁（WebView 一起释放）
 	win.OnWindowEvent(events.Common.WindowClosing, func(*application.WindowEvent) {
 		w.mu.Lock()
-		if w.wins[k] == win {
+		cur := w.wins[k] == win
+		if cur {
 			delete(w.wins, k)
 		}
 		w.mu.Unlock()
+		if cur {
+			w.notify(k, "closed")
+		}
 	})
+	for _, ev := range []events.WindowEventType{events.Common.WindowShow, events.Common.WindowRestore} {
+		win.OnWindowEvent(ev, func(*application.WindowEvent) { w.notify(k, "shown") })
+	}
 	w.mu.Lock()
 	w.wins[k] = win
 	w.mu.Unlock()
+	if at != nil {
+		win.SetBounds(application.Rect{X: at.X, Y: at.Y, Width: at.Width, Height: at.Height})
+	}
 	win.Show()
+	w.notify(k, "created")
+	return win
+}
+
+// notify 异步回调（回调里会同步读窗口状态，不能占着主线程）
+func (w *Wails) notify(k shell.WindowKind, event string) {
+	if w.cfg.OnWindow != nil {
+		go w.cfg.OnWindow(k, event)
+	}
+}
+
+func (w *Wails) Recreate(k shell.WindowKind) {
+	old := w.win(k)
+	if old == nil {
+		return
+	}
+	b := old.Bounds()
+	r := shell.Rect{X: b.X, Y: b.Y, Width: b.Width, Height: b.Height}
+	application.InvokeSync(func() { w.create(k, &r) })
+	// 新页面画出来前旧窗口留在原地，之后再关：只有一瞬间的替换，不露空
+	time.AfterFunc(700*time.Millisecond, func() {
+		application.InvokeSync(func() { old.Close() })
+		log.Printf("[shell] %s recreated", k)
+	})
 }
 
 func (w *Wails) Destroy(k shell.WindowKind) {
@@ -143,6 +194,7 @@ func (w *Wails) Destroy(k shell.WindowKind) {
 	delete(w.wins, k)
 	w.mu.Unlock()
 	if win != nil {
+		w.notify(k, "closed")
 		win.Close()
 		log.Printf("[shell] %s destroyed", k)
 	}
@@ -179,6 +231,9 @@ func (w *Wails) SetBounds(k shell.WindowKind, r shell.Rect) {
 }
 
 func (w *Wails) SetAlwaysOnTop(k shell.WindowKind, on bool) {
+	w.mu.Lock()
+	w.aot[k] = on
+	w.mu.Unlock()
 	if win := w.win(k); win != nil {
 		win.SetAlwaysOnTop(on)
 	}
@@ -193,5 +248,46 @@ func (w *Wails) WorkAreas() []shell.WorkArea {
 	return out
 }
 
+func (w *Wails) Resizable(k shell.WindowKind) bool {
+	if win := w.win(k); win != nil {
+		return win.Resizable()
+	}
+	return false
+}
+
+func (w *Wails) SetResizable(k shell.WindowKind, on bool) {
+	if win := w.win(k); win != nil {
+		win.SetResizable(on)
+	}
+}
+
+func (w *Wails) SetPosition(k shell.WindowKind, x, y int) {
+	if win := w.win(k); win != nil {
+		win.SetPosition(x, y)
+	}
+}
+
+func (w *Wails) Shown(k shell.WindowKind) (bool, bool) {
+	if win := w.win(k); win != nil {
+		return win.IsVisible(), win.IsMinimised()
+	}
+	return false, false
+}
+
+func (w *Wails) SetIgnoreMouse(k shell.WindowKind, ignore bool) {
+	if win := w.win(k); win != nil {
+		win.SetIgnoreMouseEvents(ignore)
+	}
+}
+
+func (w *Wails) SetInputShape(k shell.WindowKind, rects []shell.Rect) {
+	if win := w.win(k); win != nil {
+		nativeInputShape(win, rects)
+	}
+}
+
+func (w *Wails) CursorPosition() (int, int) { return nativeCursor(w.app) }
+
+var _ shell.WindowControl = (*Wails)(nil)
 var _ shell.Shell = (*Wails)(nil)
 var _ shell.Geometry = (*Wails)(nil)

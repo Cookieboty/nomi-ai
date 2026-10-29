@@ -7,6 +7,7 @@ package main
 
 import (
 	"embed"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop/parse"
 	"io/fs"
 	"log"
 	"net/http"
@@ -19,7 +20,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/character"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop"
-	desktoptr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop/tr"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/island"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/knowledgehandlers"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/mascothandlers"
@@ -37,6 +38,14 @@ import (
 var dist embed.FS
 
 func main() {
+	// 文档解析子进程（runParse.ts 的 utilityProcess）：同一可执行文件以 NOMI_PARSE_WORKER=1 拉起
+	if parse.IsWorker() {
+		parse.WorkerMain()
+		return
+	}
+	if exe, err := os.Executable(); err == nil {
+		parse.EnableWorker(exe)
+	}
 	cfg := core.LLMConfig{BaseURL: os.Getenv("NOMI_LLM_BASE_URL"), APIKey: os.Getenv("NOMI_LLM_API_KEY"), Model: os.Getenv("NOMI_LLM_MODEL")}
 	if cfg.APIKey == "" {
 		base, err := mockllm.Start()
@@ -76,20 +85,6 @@ func main() {
 		SystemLangs: systemLangs(),
 		IsDark:      func() bool { return false },
 	})
-	// 批次 8：知识库 / 记忆 / 定时 / 本地模型 / 导出 / 扩展。
-	// TODO(batch-4/5): Complete / Gateway 接 AI runtime；TODO(batch-6): Desktop / Ports 接 DesktopService 与 HostPorts。
-	b8 := knowledgehandlers.Wire(knowledgehandlers.WireDeps{
-		UserData: userData,
-		Router:   router,
-		Secrets:  security.NewSecretBox("extensions"),
-		OpenChat: func() {
-			if sh != nil {
-				sh.Show(shell.Chat)
-			}
-		},
-	})
-	b8.Start()
-	defer b8.Stop()
 	isl := island.New(filepath.Join(userData, "island.json"), mascothandlers.Platform())
 	isl.Notify = func(kind, title, body string, durationMs int, force bool) bool {
 		if sh == nil {
@@ -113,14 +108,33 @@ func main() {
 		AppName:  "Nomi",
 	})
 	// 批次 6：桌面工具 / 工作区（授权、审计、撤销、回收站、提醒、拖入总结）
-	desktoptr.SetLocale(func() string { return bundle.Locale.Get().Locale })
+	i18n.SetLocale(func() string { return bundle.Locale.Get().Locale })
 	home, _ := os.UserHomeDir()
-	desktopSvc := desktop.CreateService(userData, desktop.Ports{Home: home}, func(ev string, payload any, _ string) {
-		router.Emit(ev, payload)
-	})
+	ports := hostPorts{sh: &sh}
+	desktopSvc := desktop.CreateService(userData, desktop.Ports{Home: home, PickDirectory: func(title, button, def string) string {
+		dir, _ := ports.PickDir(title, button, def)
+		return dir
+	}}, router.EmitTo)
 	desktopSvc.AttachWindows(&desktop.Windows{Main: func() bool { return sh != nil }})
 	desktop.Register(router, desktopSvc)
 	desktopSvc.StartReminders()
+	// 批次 8：知识库 / 记忆 / 定时 / 本地模型 / 导出 / 扩展。
+	// Desktop 用批次 6 的同一个 DesktopService；TODO(batch-4/5): Complete / Gateway 接 AI runtime。
+	b8 := knowledgehandlers.Wire(knowledgehandlers.WireDeps{
+		UserData: userData,
+		Router:   router,
+		Secrets:  security.NewSecretBox("extensions"),
+		Desktop:  knowledgehandlers.DesktopAdapter{S: desktopSvc},
+		T:        i18n.T,
+		Ports:    ports,
+		OpenChat: func() {
+			if sh != nil {
+				sh.Show(shell.Chat)
+			}
+		},
+	})
+	b8.Start()
+	defer b8.Stop()
 	log.Printf("[desktop-go] %d contract procedures stubbed (not implemented yet)", procs.Install(router))
 
 	ws := &contract.WSServer{Router: router, Token: contract.NewToken(), Origins: map[string]bool{
@@ -136,7 +150,7 @@ func main() {
 	if ctl != "" {
 		frag.Set("ctl", ctl)
 	}
-	sh = wailsshell.New(wailsshell.Config{Assets: assets, Fragment: frag, MascotSize: mascotCtl.WindowSize})
+	sh = wailsshell.New(wailsshell.Config{Assets: assets, Fragment: frag, MascotSize: mascotCtl.WindowSize, OnWindow: mascotCtl.WindowEvent})
 
 	if ctl != "" {
 		go http.ListenAndServe(ctl, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -157,9 +171,7 @@ func main() {
 				sh.Destroy(shell.Mascot)
 			case "renderer": // 测量用：等同 mascot.setRenderer（写设置 + 广播）
 				if v := r.URL.Query().Get("v"); v == "svg" || v == "rive" {
-					if err := bundle.Settings.SetMascotRenderer(v); err == nil {
-						router.Emit("mascot.rendererChanged", v)
-					}
+					_, _ = mascotCtl.SetRenderer(v)
 				}
 			case "quit":
 				sh.Quit()
@@ -169,7 +181,8 @@ func main() {
 	}
 
 	sh.Show(shell.Mascot)
-	if !sh.TrayAvailable() {
+	// 没有托盘时自动开对话窗口兜底；测量模式（NOMI_POC_CTL）不开，与 POC 口径一致（对话由 show-chat 显式打开）
+	if !sh.TrayAvailable() && ctl == "" {
 		sh.Show(shell.Chat)
 	}
 	if err := sh.Run(); err != nil {

@@ -3,13 +3,14 @@ package desktop
 import (
 	"context"
 	"encoding/json"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
 	"os"
 	"path/filepath"
 	"slices"
 	"sync"
 	"time"
 
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop/tr"
+	tr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 )
 
 // PermissionBroker.ts：授权作用域 / 工具策略 / 确认请求 / 云端外发同意
@@ -63,7 +64,7 @@ type PermissionBroker struct {
 	taint          map[context.Context]bool
 	taintUntil     float64
 	pending        map[string]*pendingConfirm
-	listeners      []func()
+	listeners      []*func()
 
 	UI                  ConfirmUI
 	PermissionMode      func() PermMode
@@ -121,6 +122,9 @@ func (b *PermissionBroker) load() {
 		}
 		var sc Scope
 		_ = json.Unmarshal(s, &sc)
+		if v, err := deps.ParseJSONOrdered(s); err == nil {
+			sc.raw, _ = v.(*deps.OrderedObject)
+		}
 		b.persisted = append(b.persisted, &sc)
 	}
 	if m, err := ParseOMap(r.Policies); err == nil {
@@ -162,14 +166,21 @@ func (b *PermissionBroker) notify() {
 	ls := slices.Clone(b.listeners)
 	b.mu.Unlock()
 	for _, l := range ls {
-		l()
+		(*l)()
 	}
 }
 
-func (b *PermissionBroker) OnChange(fn func()) {
+// OnChange 对应 onChange：返回取消订阅函数（Node 用 Set.add / Set.delete）
+func (b *PermissionBroker) OnChange(fn func()) func() {
+	h := &fn
 	b.mu.Lock()
-	b.listeners = append(b.listeners, fn)
+	b.listeners = append(b.listeners, h)
 	b.mu.Unlock()
+	return func() {
+		b.mu.Lock()
+		b.listeners = slices.DeleteFunc(b.listeners, func(x *func()) bool { return x == h })
+		b.mu.Unlock()
+	}
 }
 
 func (b *PermissionBroker) scopesLocked() []Scope {
@@ -195,7 +206,7 @@ func (b *PermissionBroker) Grant(p, mode, kind string, session bool) Scope {
 		if s.Path == p && s.Kind == kind {
 			changed := false
 			if mode == "read-write" && s.Mode != "read-write" {
-				s.Mode = "read-write"
+				s.Mode, s.modeDirty = "read-write", true
 				if !s.Session {
 					b.saveLocked()
 					changed = true

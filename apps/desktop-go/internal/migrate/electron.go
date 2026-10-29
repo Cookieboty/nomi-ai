@@ -347,7 +347,7 @@ func migrateKeysEnc(path string, box security.SecretBox, ss security.ElectronSaf
 		out[id] = enc
 		n++
 	}
-	// 改存为明文 JSON 包一层（各 value 已是 enc:keyring-ref）；不再依赖 safeStorage 整包
+	// 改存为明文 JSON 包一层（各 value 已是 SecretBox 的 enc: 密文）；不再依赖 safeStorage 整包
 	b, _ := json.MarshalIndent(map[string]any{"version": 2, "entries": out}, "", "  ")
 	_ = utils.WritePrivateFileAtomic(path, append(b, '\n'))
 	return n, nil

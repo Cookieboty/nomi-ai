@@ -335,7 +335,7 @@ func (s *Service) SetSettings(patch any) SchedSettings {
 	if wasQuiet && !s.IsQuiet() {
 		s.d.Desktop.FlushDeferred()
 	}
-	s.audit("schedule_settings", map[string]any{"quiet": st.Quiet.Enabled, "proactive": st.Proactive.Enabled}, "ok", nil)
+	s.audit("schedule_settings", deps.O("quiet", st.Quiet.Enabled, "proactive", st.Proactive.Enabled), "ok", nil)
 	return st
 }
 
@@ -418,7 +418,7 @@ func (s *Service) UpsertTask(raw any) (SchedTask, error) {
 	s.saveLocked()
 	cp := *t
 	s.mu.Unlock()
-	s.audit("schedule_task_save", map[string]any{"id": cp.ID, "name": cp.Name, "repeat": DescribeRepeat(&repeat)}, "ok", nil)
+	s.audit("schedule_task_save", deps.O("id", cp.ID, "name", cp.Name, "repeat", DescribeRepeat(&repeat)), "ok", nil)
 	return cp, nil
 }
 
@@ -453,7 +453,7 @@ func (s *Service) RemoveTask(id string) bool {
 	}
 	s.saveLocked()
 	s.mu.Unlock()
-	s.audit("schedule_task_delete", map[string]any{"id": id}, "ok", nil)
+	s.audit("schedule_task_delete", deps.O("id", id), "ok", nil)
 	return true
 }
 
@@ -614,7 +614,7 @@ func (s *Service) RunTask(ctx context.Context, id string, opts RunOpts) (TaskRes
 		result = "error"
 	}
 	ms := s.d.Now() - t0
-	s.audit("schedule_task_run", map[string]any{"id": snap.ID, "name": name, "manual": opts.Manual, "catchUp": opts.CatchUp}, result, &ms)
+	s.audit("schedule_task_run", deps.O("id", snap.ID, "name", name, "manual", opts.Manual, "catchUp", opts.CatchUp), result, &ms)
 	return res, nil
 }
 
@@ -817,7 +817,7 @@ func (s *Service) MaybeProactive(ctx context.Context, force bool) (string, error
 	deps.AvatarEmotion(s.d.Events, "happy")
 	deps.AvatarGesture(s.d.Events, "wave")
 	s.broadcast("sched.proactive", map[string]any{"text": text, "at": now})
-	s.audit("proactive_chat", map[string]any{"manual": force}, "ok", nil)
+	s.audit("proactive_chat", deps.O("manual", force), "ok", nil)
 	return text, nil
 }
 
@@ -853,7 +853,7 @@ func (s *Service) State() State {
 	return out
 }
 
-func (s *Service) audit(tool string, args map[string]any, result string, ms *int64) {
+func (s *Service) audit(tool string, args any, result string, ms *int64) {
 	s.d.Desktop.Append(deps.AuditEntry{Tool: tool, Args: args, Decision: "user", Result: result, Ms: ms, Source: "scheduler"})
 }
 

@@ -149,3 +149,48 @@ func decodeOrdered(dec *json.Decoder) (any, error) {
 	}
 	return tok, nil
 }
+
+// O：按书写顺序构造有序对象（键值交替），对应 JS 对象字面量的键序
+func O(kv ...any) *OrderedObject {
+	o := NewOrderedObject()
+	for i := 0; i+1 < len(kv); i += 2 {
+		o.Set(kv[i].(string), kv[i+1])
+	}
+	return o
+}
+
+// OverlayKnown 复现“Node 直接改 JSON.parse 出来的对象再写回”：raw 是从磁盘读到的原对象，
+// loaded / cur 分别是加载时和现在的已知字段（Go struct 的 JSON）。
+// 已知字段没变 → 原值原位保留；变了 → 原位改写（新键追加在末尾）；被清掉 → 删除；未知字段原样保留。
+func OverlayKnown(raw *OrderedObject, loaded, cur []byte) ([]byte, error) {
+	lv, err := ParseJSONOrdered(loaded)
+	if err != nil {
+		return nil, err
+	}
+	cv, err := ParseJSONOrdered(cur)
+	if err != nil {
+		return nil, err
+	}
+	l, _ := lv.(*OrderedObject)
+	c, _ := cv.(*OrderedObject)
+	if l == nil || c == nil {
+		return cur, nil
+	}
+	o := raw.Clone()
+	for _, k := range c.Keys {
+		nb, _ := Stringify(c.Values[k], "")
+		if old, ok := l.Values[k]; ok {
+			ob, _ := Stringify(old, "")
+			if bytes.Equal(ob, nb) {
+				continue
+			}
+		}
+		o.Set(k, c.Values[k])
+	}
+	for _, k := range l.Keys {
+		if _, ok := c.Values[k]; !ok {
+			o.Delete(k)
+		}
+	}
+	return Stringify(o, "")
+}
