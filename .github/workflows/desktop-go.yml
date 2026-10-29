@@ -64,8 +64,8 @@ jobs:
           pnpm --filter @nomi-ai/types --filter @nomi-ai/i18n build
           pnpm exec tsx scripts/parity/record-b9.mjs
           pnpm exec tsx scripts/parity/check-scheme-url.mjs
-          TZ=Asia/Shanghai pnpm exec tsx scripts/parity/record-gwservice.mjs
-          TZ=Asia/Shanghai pnpm exec tsx scripts/parity/record-gwprocess.mjs
+          pnpm exec tsx scripts/parity/record-gwservice.mjs
+          pnpm exec tsx scripts/parity/record-gwprocess.mjs
           echo "NOMI_LIVE_GOLDENS=$NOMI_GOLDEN_DIR" >> "$GITHUB_ENV"
           if [ "$RUNNER_OS" = Linux ]; then diff -u apps/desktop-go/internal/core/assetproto/testdata/protocols.json "$NOMI_GOLDEN_DIR/protocols.json"; fi
           if [ "$RUNNER_OS" = Linux ]; then for g in gwservice gwprocess; do diff -u "apps/desktop-go/internal/core/gwstore/testdata/$g.json" "$NOMI_GOLDEN_DIR/$g.json"; done; fi

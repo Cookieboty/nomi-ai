@@ -10,19 +10,19 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, '..', '..');
-const src = (p) => pathToFileURL(path.join(root, 'packages/cli-plugins/src', p)).href;
-const I = await import(src('index.ts'));
-const G = await import(src('gateways.ts'));
-const GS = await import(src('shared/gatewaySpec.ts'));
-const R = await import(src('shared/renderer.ts'));
-const E = await import(src('shared/exec.ts'));
-const T = await import(src('shared/text.ts'));
+const src = (p) => path.join(root, 'packages/cli-plugins/src', p);
 const CLIS = ['claude', 'codex', 'dsh', 'gemini', 'grok'];
+// TS 源码打包装载（不依赖各包 dist；所有模块共享同一份实例，引用关系保持）
+const { importSources } = await import(pathToFileURL(path.join(here, 'src-bundle.mjs')).href);
+const ent = { I: src('index.ts'), G: src('gateways.ts'), GS: src('shared/gatewaySpec.ts'), R: src('shared/renderer.ts'), E: src('shared/exec.ts'), T: src('shared/text.ts') };
+for (const id of CLIS) for (const k of ['manifest', 'renderer', 'gateway']) ent[`${id}/${k}`] = src(`${id}/${k}.ts`);
+const M = await importSources(root, ent);
+const { I, G, GS, R, E, T } = M;
 const per = {};
 for (const id of CLIS) {
-  const m = await import(src(`${id}/manifest.ts`));
-  const r = await import(src(`${id}/renderer.ts`));
-  const g = await import(src(`${id}/gateway.ts`));
+  const m = M[`${id}/manifest`];
+  const r = M[`${id}/renderer`];
+  const g = M[`${id}/gateway`];
   per[id] = {
     manifest: m.manifest, renderer: r.renderer, gateway: g.gateway,
     // 引用关系（同一对象）
