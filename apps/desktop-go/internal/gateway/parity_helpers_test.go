@@ -1,6 +1,8 @@
 package gateway_test
 
 import (
+	"compress/gzip"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -14,6 +16,9 @@ import (
 func loadJSFixture(t *testing.T, name string) *u.Obj {
 	t.Helper()
 	b, err := os.ReadFile(filepath.Join("testdata", "parity", name+".json"))
+	if os.IsNotExist(err) {
+		b, err = readGz(filepath.Join("testdata", "parity", name+".json.gz"))
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -22,6 +27,19 @@ func loadJSFixture(t *testing.T, name string) *u.Obj {
 		t.Fatal(err)
 	}
 	return v.(*u.Obj)
+}
+
+func readGz(path string) ([]byte, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	zr, err := gzip.NewReader(f)
+	if err != nil {
+		return nil, err
+	}
+	return io.ReadAll(zr)
 }
 
 func rows(o *u.Obj, k string) [][]any {

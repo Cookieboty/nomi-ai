@@ -21,11 +21,12 @@
  *   e2e      – the real GatewayServer against a local mock upstream per protocol,
  *              recording the raw streamed chunks the client receives
  *
- * Usage: node scripts/parity/record.mjs [--only request,stream,json,fixes,spec,net,objkeys,proxy,models,providers,rules,route,upstream,collate,textdecoder,helpers,e2e]
+ * Usage: node scripts/parity/record.mjs [--only request,stream,json,fixes,spec,net,objkeys,proxy,models,providers,rules,route,upstream,collate,textdecoder,helpers,privacy,e2e]
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { gzipSync } from 'node:zlib';
 
 import { register } from 'tsx/esm/api';
 
@@ -48,6 +49,13 @@ const cases = await gw('tests/fixtures/cases.ts');
 const req = await gw('src/request/index.ts');
 const ids = await gw('src/models/rules/response/callIds.ts');
 const stream = await gw('src/stream/index.ts');
+
+// Fixtures full of synthetic secrets are stored gzipped so push protection does not flag them.
+function writeGz(name, data) {
+  mkdirSync(outDir, { recursive: true });
+  writeFileSync(join(outDir, `${name}.json.gz`), gzipSync(JSON.stringify(data) + '\n', { level: 9 }));
+  console.log(`wrote ${name}.json.gz`);
+}
 
 function write(name, data) {
   mkdirSync(outDir, { recursive: true });
@@ -467,6 +475,11 @@ if (want('textdecoder')) {
 if (want('helpers')) {
   const { recordHelpers } = await import('./helpers.mjs');
   write('helpers', await recordHelpers({ gw }));
+}
+
+if (want('privacy')) {
+  const { recordPrivacy } = await import('./privacy.mjs');
+  writeGz('privacy', await recordPrivacy({ gw }));
 }
 
 if (want('e2e')) {
