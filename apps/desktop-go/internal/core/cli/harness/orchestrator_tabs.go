@@ -90,7 +90,7 @@ func (o *Orchestrator) changed() {
 		return
 	}
 	o.broadcastQueued = true
-	jsrt.SetTimeout(0, func() { // queueMicrotask：Go 侧无微任务队列，用 0ms 定时器（D-B7 记录）
+	jsrt.QueueMicrotask(func() {
 		o.broadcastQueued = false
 		if o.disposed {
 			return

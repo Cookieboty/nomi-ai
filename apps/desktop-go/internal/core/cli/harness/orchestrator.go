@@ -416,7 +416,7 @@ func (o *Orchestrator) SuggestCommitMessage(cwd, paths any) *util.Obj {
 		return util.NewObj("ok", false, "code", "nothing")
 	}
 	ac := jsrt.NewAbortController()
-	tm := jsrt.SetTimeout(90*time.Second, ac.Abort)
+	tm := jsrt.SetTimeout(90*time.Second, func() { ac.AbortWith(timeoutError{}) }) // AbortSignal.timeout(90_000)：reason = TimeoutError
 	defer jsrt.ClearTimeout(tm)
 	raw, err := o.d.Complete(cli.CommitMessagePrompt(*ctx), ac.Signal, o.helperTab(dir))
 	if err == nil {
