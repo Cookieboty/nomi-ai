@@ -2,6 +2,7 @@ package mediahandlers
 
 import (
 	"encoding/json"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/chatnav"
 	"path/filepath"
 	"time"
 
@@ -92,8 +93,7 @@ func Wire(d WireDeps) (*voice.Service, *tts.Service) {
 		Mascot: ConfigAdapter{d.Config},
 		Logf:   d.Logf,
 		OpenVoiceSettings: func() {
-			d.OpenChat()
-			r.Emit("nav.voiceSettingsRequested", map[string]any{})
+			chatnav.OpenRoute(r, d.OpenChat, "voice")
 		},
 	})
 	return voiceSvc, ttsSvc

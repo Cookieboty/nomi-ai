@@ -23,6 +23,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/extensions"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/local"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/mousetrack"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/services"
 	"io/fs"
 	"log"
@@ -426,6 +427,16 @@ func main() {
 	// 没有托盘时自动开对话窗口兜底；测量模式（NOMI_POC_CTL）不开，与 POC 口径一致（对话由 show-chat 显式打开）
 	if !sh.TrayAvailable() && ctl == "" {
 		sh.Show(shell.Chat)
+	}
+	// 看板娘窗口的鼠标进出（WindowManager.setupMousePositionTracking）
+	if g, ok := sh.(shell.Geometry); ok {
+		if wc, ok := sh.(shell.WindowControl); ok {
+			go mousetrack.New(mousetrack.Deps{
+				Bounds:  func() (shell.Rect, bool) { return g.Bounds(shell.Mascot) },
+				Cursor:  wc.CursorPosition,
+				Publish: func(ev string) { router.EmitTo(ev, nil, "mascot") },
+			}).Run(nil)
+		}
 	}
 	if err := sh.Run(); err != nil {
 		log.Fatal(err)

@@ -43,8 +43,15 @@ MUTANTS=(
   "internal/gateway/probe/detect.go|s/\|\| r2.status == 400/|| r2.status == 401/"
   "internal/gateway/probe/detect.go|s/\"messages\": \"x-api-key\", \"responses\"/\"messages\": \"bearer\", \"responses\"/"
   "internal/gateway/probe/detect.go|s/return err.Error\(\)/return \"fetch failed\"/"
-  "$D/shellhandlers/navroutes.go|s/\"providers\": \"providers.openPanel\"/\"providers\": \"providers.open\"/"
+  "$D/chatnav/chatnav.go|s/\"providers\": \"providers.openPanel\"/\"providers\": \"providers.open\"/"
   "$D/shellhandlers/gateway.go|s/\"Service 'terminal' is not available\"/\"Service 'gateway' is not available\"/"
+  "$D/mascothandlers/register.go|s/chatnav.OpenPanel\\(r, d.OpenChat, \"nav.scheduleRequested\"\\)/chatnav.OpenPanel(r, d.OpenChat, \"nav.desktopPanelRequested\")/"
+  "$D/chatnav/chatnav.go|s/map\\[string\\]any\\{\\}, \"chat\"\\)/map[string]any{}, \"\")/"
+  "$D/mousetrack/mousetrack.go|s/x <= b.X\+b.Width/x < b.X+b.Width/"
+  "$D/mousetrack/mousetrack.go|s/if in != t.in \{/if true {/"
+  "$D/mousetrack/mousetrack.go|s/if !ok \{\n\t\treturn/if false {\n\t\treturn/"
+  "internal/shell/trash/trash_linux.go|s/run\(\"gio\", \"trash\", p\)/run(\"gio\", \"remove\", p)/"
+  "internal/shell/trash/trash.go|s/if _, err := os.Lstat\(abs\); err != nil \{/if false {/"
 )
 killed=0; survived=0
 for m in "${MUTANTS[@]}"; do
@@ -54,7 +61,7 @@ for m in "${MUTANTS[@]}"; do
   if cmp -s "$f" "$f.mutbak"; then
     mv "$f.mutbak" "$f"; echo "MUTANT NOT APPLIED: $m"; exit 2
   fi
-  if go test -count=1 -tags gtk3 ./internal/core/shellhandlers/ -run 'Parity|TestWindowRoutes|TestTerminalUnavailable' >/dev/null 2>&1; then
+  if go test -count=1 -tags gtk3 ./internal/core/shellhandlers/ ./internal/core/mascothandlers/ ./internal/core/mousetrack/ ./internal/shell/trash/ -run 'Parity|TestWindowRoutes|TestTerminalUnavailable|TestOpenTaskBoard|TestMouseTrack|TestTrashItem' >/dev/null 2>&1; then
     survived=$((survived+1)); echo "SURVIVED: $m"
   else
     killed=$((killed+1)); echo "killed:   $m"
