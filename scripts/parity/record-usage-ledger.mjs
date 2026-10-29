@@ -100,6 +100,28 @@ const scenarios = [
     ] },
   { name: 'compaction-threshold', pre: Array.from({ length: 1500 }, (_, i) => JSON.stringify(R(`k${i % 100}`, T0 + (i % 100), { input: i }))).join('\n') + '\n',
     ops: [['size'], ['settle'], ['lineCount'], ['upsert', R('k5', T0 + 5, { input: 99999 })], ['flush'], ['lineCount'], ['compactWait'], ['lineCount'], ['get', 'k5']] },
+  // JS 对象语义：键序、未知字段、类型不符的字段、重复键都原样保留 / 回写（逐字节比对文件）
+  { name: 'js-object-semantics', pre: [
+    `{"ts":${T0},"key":"a","zeta":1,"source":"claude","via":"log","model":"m","input":1,"output":2,"cacheRead":0,"cacheWrite":10,"nested":{"b":1,"a":[1,2.5,"x"]}}`,
+    `{"key":"b","ts":${T0 + 1},"source":"codex","via":"log","model":5,"input":"7","output":null,"cacheRead":true,"cacheWrite":20,"session":0,"fast":"yes","cacheWrite1h":"3","project":null}`,
+    `{"key":"c","ts":${T0 + 2}}`,
+    `{"key":"d","ts":${T0 + 3},"input":1,"key":"d2","u":"\u00e9\u2028<>&"}`,
+    `{"key":"e","ts":"${T0}"}`, `[1]`, `null`, `{"key":"f","ts":${T0 + 5}} trailing`,
+    `{"key":"g","ts":${T0 + 6},"source":"claude","via":"log","model":"unknown","input":0,"output":0,"cacheRead":0,"cacheWrite":0,"cacheWrite1h":null,"fast":0}`,
+    `{"key":"h","ts":${T0 + 7},"source":"claude","via":"log","model":"m","input":"7","output":0,"cacheRead":0,"cacheWrite":0}`,
+    `{"key":"i","ts":${T0 + 8},"input":1}`,
+  ].join('\n') + '\n',
+    ops: [['settle'], ['size'], ['getRaw', 'a'], ['getRaw', 'b'], ['getRaw', 'c'], ['getRaw', 'd2'], ['has', 'd'], ['has', 'e'], ['has', 'f'],
+      ['attribute', 'b', { session: 's', project: 'p', cacheWrite1h: 5, fast: true, logKey: 'L' }], ['getRaw', 'b'],
+      ['attribute', 'a', { session: 's', cacheWrite1h: 4 }], ['getRaw', 'a'],
+      ['upsert', { model: 'm2', key: 'a', ts: T0 - 1, extra: [1], source: 'claude', via: 'log', input: 0, output: 3, cacheRead: 0, cacheWrite: 0, fast: true, session: '__undef__' }], ['getRaw', 'a'],
+      ['upsert', { key: 'b', ts: T0 + 1, source: 'codex', via: 'log', model: 'unknown', input: 7, output: 0, cacheRead: 1, cacheWrite: 20 }], ['getRaw', 'b'],
+      ['upsert', { key: 'c', ts: T0 + 2, source: 'grok', via: 'log', model: 'x', input: 1, output: 1, cacheRead: 0, cacheWrite: 0, provider: 'xai' }], ['getRaw', 'c'],
+      ['upsert', { key: 'g', ts: T0 + 6, source: 'claude', via: 'log', model: 'unknown', input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }],
+      ['upsert', { key: 'g', ts: T0 + 6, source: 'claude', via: 'log', model: 'unknown', input: 1, output: 0, cacheRead: 0, cacheWrite: 0 }], ['getRaw', 'g'],
+      ['upsert', { key: 'h', ts: T0 + 7, source: 'claude', via: 'log', model: 'm', input: 7, output: 0, cacheRead: 0, cacheWrite: 0 }], ['getRaw', 'h'],
+      ['upsert', { key: 'i', ts: T0 + 8, source: 'claude', via: 'log', input: 2, output: 0, cacheRead: 0, cacheWrite: 0 }], ['getRaw', 'i'],
+      ['flush'], ['fileRaw'], ['compactWait'], ['fileRaw'], ['reopen'], ['settle'], ['getRaw', 'a'], ['getRaw', 'b'], ['getRaw', 'd2']] },
 ];
 
 const results = [];
@@ -117,9 +139,11 @@ for (const sc of scenarios) {
   for (const [op, ...a] of sc.ops) {
     let v;
     switch (op) {
-      case 'upsert': v = l.upsert(structuredClone(a[0])); break;
+      case 'upsert': { const r = structuredClone(a[0]); for (const k of Object.keys(r)) if (r[k] === '__undef__') r[k] = undefined; v = l.upsert(r); break; }
       case 'attribute': v = l.attribute(a[0], a[1]); break;
       case 'get': v = l.get(a[0]) ?? '__undef__'; break;
+      case 'getRaw': v = JSON.stringify(l.get(a[0]) ?? null); break;
+      case 'fileRaw': v = readFile(); break;
       case 'has': v = l.has(a[0]); break;
       case 'size': v = l.size(); break;
       case 'version': v = l.version(); break;

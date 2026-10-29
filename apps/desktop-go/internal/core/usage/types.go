@@ -1,5 +1,7 @@
 package usage
 
+import "encoding/json"
+
 // 对应 packages/core/src/usage/types.ts
 
 type UsageSource = string
@@ -26,6 +28,11 @@ type UsageRecord struct {
 	Session      *string  `json:"session,omitempty"`
 	Project      *string  `json:"project,omitempty"`
 	Est          *bool    `json:"est,omitempty"`
+
+	// keys：自有属性顺序（含值为 undefined 的字面量键；nil = 结构体顺序）
+	keys []string
+	// raw：未知字段 + 类型不符的已知字段（JSON.stringify 原样写回）
+	raw map[string]json.RawMessage
 }
 
 type PriceTier struct {
