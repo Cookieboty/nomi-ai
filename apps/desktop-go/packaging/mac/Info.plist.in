@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- 键与 Electron 2.0.4 打包的 Nomi.app/Contents/Info.plist 对齐（electron-builder.yml mac.extendInfo / protocols / category）；
+     CI 的 verify-mac 会把两份 plist 的键集合做 diff 并写进 summary。@VERSION@ 由 package.sh 替换。 -->
+<plist version="1.0">
+<dict>
+  <key>CFBundleDevelopmentRegion</key><string>en</string>
+  <key>CFBundleDisplayName</key><string>Nomi</string>
+  <key>CFBundleExecutable</key><string>Nomi</string>
+  <key>CFBundleIconFile</key><string>icon.icns</string>
+  <key>CFBundleIdentifier</key><string>com.cookieboty.nomi</string>
+  <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+  <key>CFBundleName</key><string>Nomi</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleShortVersionString</key><string>@VERSION@</string>
+  <key>CFBundleVersion</key><string>@VERSION@</string>
+  <key>CFBundleURLTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleURLName</key><string>Nomi</string>
+      <key>CFBundleURLSchemes</key><array><string>nomi</string></array>
+    </dict>
+  </array>
+  <key>LSApplicationCategoryType</key><string>public.app-category.productivity</string>
+  <key>LSMinimumSystemVersion</key><string>@MINOS@</string>
+  <key>NSHighResolutionCapable</key><true/>
+  <key>NSSupportsAutomaticGraphicsSwitching</key><true/>
+  <key>NSPrincipalClass</key><string>NSApplication</string>
+  <key>NSHumanReadableCopyright</key><string>Copyright © 2026 Cookieboty</string>
+  <key>NSAppleEventsUsageDescription</key><string>Nomi 读取并（经你同意后）创建「日历」中的日程，用于提醒与每日简报。</string>
+  <key>NSCalendarsUsageDescription</key><string>Nomi 读取你的日历日程，用于提醒与每日简报。</string>
+  <key>NSCalendarsFullAccessUsageDescription</key><string>Nomi 读取你的日历日程，用于提醒与每日简报。</string>
+  <key>NSMicrophoneUsageDescription</key><string>Nomi 用麦克风进行语音输入与唤醒词识别。</string>
+</dict>
+</plist>
