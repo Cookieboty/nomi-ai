@@ -127,7 +127,9 @@ function send(url, r) {
       res.on('end', () => {
         const headers = {};
         for (const h of E2E_CLIENT_HEADERS) if (res.headers[h] !== undefined) headers[h] = String(res.headers[h]);
-        resolve({ status: res.statusCode, headers, body: Buffer.concat(parts).toString('utf8') });
+        // wire header names exactly as sent (case + order); values of the volatile `Date` dropped
+        const rawNames = res.rawHeaders.filter((_, i) => i % 2 === 0);
+        resolve({ status: res.statusCode, headers, rawNames, body: Buffer.concat(parts).toString('utf8') });
       });
       res.on('error', reject);
     });
