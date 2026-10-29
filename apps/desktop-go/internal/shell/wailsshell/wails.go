@@ -11,10 +11,12 @@ import (
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
-	"github.com/wailsapp/wails/v3/pkg/icons"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell"
 )
+
+// AppID 与 Electron appId 一致（electron-builder.yml），单实例锁 / 打包元数据共用
+const AppID = "com.cookieboty.nomi"
 
 type Config struct {
 	Assets fs.FS
@@ -45,8 +47,16 @@ func New(cfg Config) *Wails {
 		Name:    "Nomi",
 		Assets:  application.AssetOptions{Handler: application.AssetFileServerFS(cfg.Assets), Middleware: cfg.Middleware},
 		Mac:     application.MacOptions{ActivationPolicy: application.ActivationPolicyAccessory, ApplicationShouldTerminateAfterLastWindowClosed: false},
-		Linux:   application.LinuxOptions{DisableQuitOnLastWindowClosed: true, ProgramName: "nomi-poc"},
+		Linux:   application.LinuxOptions{DisableQuitOnLastWindowClosed: true, ProgramName: "nomi"},
 		Windows: application.WindowsOptions{DisableQuitOnLastWindowClosed: true},
+		// = Electron requestSingleInstanceLock + second-instance：第二次启动（含 nomi:// deep link，
+		// Win/Linux 经 argv 传入）只把已有实例的对话窗带到前台；deep link 白名单为空，与 Electron 相同不执行动作
+		SingleInstance: &application.SingleInstanceOptions{
+			UniqueID: AppID,
+			OnSecondInstanceLaunch: func(application.SecondInstanceData) {
+				w.Show(shell.Chat)
+			},
+		},
 	})
 	if trayHostAvailable() {
 		w.setupTray()
@@ -58,7 +68,7 @@ func New(cfg Config) *Wails {
 
 func (w *Wails) setupTray() {
 	t := w.app.SystemTray.New()
-	t.SetIcon(icons.WailsLogoBlackTransparent)
+	setTrayIcon(t)
 	t.SetLabel("Nomi")
 	m := w.app.NewMenu()
 	m.Add("显示 / 隐藏看板娘").OnClick(func(*application.Context) { w.toggle(shell.Mascot) })

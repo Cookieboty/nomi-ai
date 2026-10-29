@@ -3,15 +3,10 @@
 package chatbg
 
 import (
-	"bytes"
 	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"image"
-	"image/draw"
-	"image/jpeg"
-	"image/png"
 	"io"
 	"math"
 	"net/url"
@@ -20,8 +15,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-
-	_ "image/gif"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/utils"
 )
@@ -227,27 +220,8 @@ func (s *Service) importNow(src string) (State, error) {
 		if err != nil {
 			return State{}, err
 		}
-		// image 端口：解不出尺寸（如 webp）按 0×0 处理，原样复制
-		if img, _, err := image.Decode(bytes.NewReader(data)); err == nil {
-			b := img.Bounds()
-			if max(b.Dx(), b.Dy()) > MaxEdge {
-				w, h := MaxEdge, int(math.Round(float64(b.Dy())*MaxEdge/float64(b.Dx())))
-				if b.Dy() > b.Dx() {
-					w, h = int(math.Round(float64(b.Dx())*MaxEdge/float64(b.Dy()))), MaxEdge
-				}
-				out := scale(img, max(w, 1), max(h, 1))
-				var buf bytes.Buffer
-				if ext == ".png" {
-					err = png.Encode(&buf, out)
-				} else {
-					err = jpeg.Encode(&buf, out, &jpeg.Options{Quality: 85})
-					ext = ".jpg"
-				}
-				if err != nil {
-					return State{}, err
-				}
-				resized = buf.Bytes()
-			}
+		if resized, ext, err = Process(ext, data); err != nil {
+			return State{}, err
 		}
 	}
 	destName := ImageStem + "." + uuid() + ext
@@ -289,37 +263,6 @@ func copyFile(src, dst string) error {
 		return err
 	}
 	return out.Close()
-}
-
-// scale：面积平均缩小（Electron nativeImage.resize quality 'best' 的近似；像素不逐字节一致）
-func scale(src image.Image, w, h int) image.Image {
-	b := src.Bounds()
-	rgba := image.NewRGBA(b)
-	draw.Draw(rgba, b, src, b.Min, draw.Src)
-	dst := image.NewRGBA(image.Rect(0, 0, w, h))
-	sx, sy := float64(b.Dx())/float64(w), float64(b.Dy())/float64(h)
-	for y := 0; y < h; y++ {
-		y0, y1 := int(float64(y)*sy), int(math.Ceil(float64(y+1)*sy))
-		for x := 0; x < w; x++ {
-			x0, x1 := int(float64(x)*sx), int(math.Ceil(float64(x+1)*sx))
-			var r, g, bb, a, n uint32
-			for yy := y0; yy < y1 && yy < b.Dy(); yy++ {
-				off := yy*rgba.Stride + x0*4
-				for xx := x0; xx < x1 && xx < b.Dx(); xx++ {
-					p := rgba.Pix[off : off+4]
-					r, g, bb, a = r+uint32(p[0]), g+uint32(p[1]), bb+uint32(p[2]), a+uint32(p[3])
-					n++
-					off += 4
-				}
-			}
-			if n == 0 {
-				continue
-			}
-			o := y*dst.Stride + x*4
-			dst.Pix[o], dst.Pix[o+1], dst.Pix[o+2], dst.Pix[o+3] = uint8(r/n), uint8(g/n), uint8(bb/n), uint8(a/n)
-		}
-	}
-	return dst
 }
 
 func (s *Service) persist() error {

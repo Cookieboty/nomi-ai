@@ -50,9 +50,12 @@ jobs:
         # 平台相关用例（大小写不敏感 FS、path.win32、符号链接、进程派生）不跳过：每个平台现场用 Node 录制，Go 测试比对本平台录制
         run: |
           pnpm --filter @nomi-ai/cli-sdk build
+          pnpm --filter @nomi-ai/i18n build
           export NOMI_GOLDEN_DIR="$RUNNER_TEMP/goldens"
           pnpm exec tsx scripts/parity/record-asset-protocols.mjs
           node scripts/parity/record-b7-drivers.mjs
+          pnpm --filter @nomi-ai/types --filter @nomi-ai/i18n build
+          pnpm exec tsx scripts/parity/record-b9.mjs
           pnpm exec tsx scripts/parity/check-scheme-url.mjs
           echo "NOMI_LIVE_GOLDENS=$NOMI_GOLDEN_DIR" >> "$GITHUB_ENV"
           if [ "$RUNNER_OS" = Linux ]; then diff -u apps/desktop-go/internal/core/assetproto/testdata/protocols.json "$NOMI_GOLDEN_DIR/protocols.json"; fi

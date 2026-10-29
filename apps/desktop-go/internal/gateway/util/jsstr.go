@@ -229,3 +229,6 @@ func CodePoints(s string) []rune {
 	}
 	return out
 }
+
+// IsJSWS reports whether r matches the JS `\s` class.
+func IsJSWS(r rune) bool { return isJSWS(r) }

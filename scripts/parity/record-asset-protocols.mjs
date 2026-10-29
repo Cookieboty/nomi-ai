@@ -42,14 +42,21 @@ const tree = {
   },
   symlinks: { 'chat/images/link.png': '../../outside/o.png', 'chat/images/inlink.png': 'a.png', 'pack/out.png': '../outside/o.png', 'pack/in.png': 'rive/m.riv', 'pack/dirlink': 'dir' },
 };
-const R = realpathSync.native(mkdtempSync(join(tmpdir(), 'nomi-ap-')));
+const R0 = mkdtempSync(join(tmpdir(), 'nomi-ap-'));
+const R = realpathSync.native(R0);
 for (const [p, c] of Object.entries(tree.files)) { mkdirSync(dirname(join(R, p)), { recursive: true }); writeFileSync(join(R, p), c); }
 for (const [p, t] of Object.entries(tree.symlinks)) {
   const abs = join(dirname(join(R, p)), t);
   symlinkSync(t, join(R, p), statSync(abs).isDirectory() ? 'dir' : 'file');
 }
 // Windows 上 path.win32 结果统一成 /（Go 侧同样 ToSlash 后比对）
-const rel = (s) => (s == null ? s : s.split(R).join('<ROOT>').split(process.platform === 'win32' ? '\\' : '\0').join('/'));
+const win = process.platform === 'win32';
+const slash = (s) => (win ? s.split('\\').join('/') : s);
+// 根目录的所有形态（native realpath / JS realpath / mkdtemp 原值，8.3 短名与长名）先统一成 /，按长度降序替换；Windows 不区分大小写
+const roots = [...new Set([R, realpathSync(R0), R0].map(slash))].sort((a, b) => b.length - a.length);
+const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const rootRe = new RegExp(roots.map(esc).join('|'), win ? 'gi' : 'g');
+const rel = (s) => (s == null ? s : slash(s).replace(rootRe, '<ROOT>'));
 
 const chatUrls = [CHAT_BG_PRESET_URL, CHAT_BG_PRESET_URL + '?x=1', 'chat-asset://presets/other.jpg', 'chat-asset://presets/p.jpg',
   'chat-asset://images/a.png', 'chat-asset://IMAGES/a.png', 'chat-asset://images/B.JPG', 'chat-asset://images/b.jpg', 'chat-asset://images/sub/c.webp',
