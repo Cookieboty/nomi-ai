@@ -48,9 +48,10 @@ type cacheValidator struct {
 
 func (c *cacheValidator) get(po *util.Obj, typ string, canCache bool) any {
 	a := anth(po)
+	// getCacheControl: anthropic?.cacheControl ?? anthropic?.cache_control
 	v := get(a, "cacheControl")
 	if v == nil {
-		v = nil
+		v = get(a, "cache_control")
 	}
 	if !util.Truthy(v) {
 		return util.Undefined

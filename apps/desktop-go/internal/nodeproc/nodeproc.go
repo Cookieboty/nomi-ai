@@ -85,12 +85,13 @@ type Child struct {
 	onExit             []func(code *int, signal string)
 }
 
-func (c *Child) ExitCode() *int                           { return c.exitCode }
-func (c *Child) SignalCode() string                       { return c.signalCode }
-func (c *Child) Killed() bool                             { return c.killed }
-func (c *Child) OnStdout(f func(string))                  { c.onStdout = append(c.onStdout, f) }
+func (c *Child) ExitCode() *int          { return c.exitCode }
+func (c *Child) SignalCode() string      { return c.signalCode }
+func (c *Child) Killed() bool            { return c.killed }
+func (c *Child) OnStdout(f func(string)) { c.onStdout = append(c.onStdout, f) }
+
 // OnStdoutBytes = stdout 'data' 未设编码时收到的 Buffer（原始字节）。
-func (c *Child) OnStdoutBytes(f func([]byte)) { c.onStdoutBytes = append(c.onStdoutBytes, f) }
+func (c *Child) OnStdoutBytes(f func([]byte))             { c.onStdoutBytes = append(c.onStdoutBytes, f) }
 func (c *Child) OnStderr(f func(string))                  { c.onStderr = append(c.onStderr, f) }
 func (c *Child) OnClose(f func(code *int, signal string)) { c.onClose = append(c.onClose, f) }
 func (c *Child) OnExit(f func(code *int, signal string))  { c.onExit = append(c.onExit, f) }
@@ -102,6 +103,8 @@ func Spawn(file string, args []string, o Options) *Child {
 	env := o.Env
 	if env == nil {
 		env = os.Environ()
+	} else {
+		env = libuvEnv(env)
 	}
 	path, lerr := lookPath(file, o.Cwd, env)
 	fail := func(errno int, code string) *Child {

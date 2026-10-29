@@ -186,3 +186,20 @@ func exitStatus(cmd *exec.Cmd, werr error, termSignal string) (*int, string) {
 	c := cmd.ProcessState.ExitCode()
 	return &c, ""
 }
+
+// libuvRequiredEnv：libuv src/win/process.c make_program_env 的 required_vars ——
+// 子进程 env 缺这些键（不区分大小写）时从父进程补上（Node child_process 在 Windows 上的行为）。
+var libuvRequiredEnv = []string{"HOMEDRIVE", "HOMEPATH", "LOGONSERVER", "PATH", "SYSTEMDRIVE", "SYSTEMROOT", "TEMP", "USERDOMAIN", "USERNAME", "USERPROFILE", "WINDIR"}
+
+func libuvEnv(env []string) []string {
+	out := env
+	for _, k := range libuvRequiredEnv {
+		if _, ok := envGet(env, k, true); ok {
+			continue
+		}
+		if v, ok := os.LookupEnv(k); ok && v != "" {
+			out = append(out[:len(out):len(out)], k+"="+v)
+		}
+	}
+	return out
+}

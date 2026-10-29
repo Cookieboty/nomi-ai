@@ -336,6 +336,11 @@ func TestMCPParityGolden(t *testing.T) {
 				t.Fatalf("golden (%s) has no scenario %s", src, sc.Name)
 			}
 			got := runGoScenario(t, sc, mock, m, tmp)
+			if sc.Name == "http-slowinit" {
+				w, _ = u.ParseString(u.Stringify(w)) // 复制，避免改动 golden（变异检查仍用原件）
+				dropAbortedInboundGet(w)
+				dropAbortedInboundGet(got)
+			}
 			if d := diffScenario(w, got); d != "" {
 				t.Fatalf("[%s] mismatch %s\nwant: %s\ngot:  %s", src, d, u.Stringify(w), u.Stringify(got))
 			}
@@ -359,4 +364,17 @@ func TestMCPParityGolden(t *testing.T) {
 		})
 	}
 	t.Logf("mcp parity (%s): %d scenarios equal, %d mutations detected", src, n, mutated)
+}
+
+// dropAbortedInboundGet：http-slowinit 中 init 超时 → setProtocolVersion(legacy) 发起入站 GET，
+// 随即 close() 在同一 tick 内 abort；GET 是否已写上连接在 Node 自身也随机器而异（本地常有，CI 常无）。
+// 只剥离"最后一个 POST 之后"的 GET（D-B5-MCP-9）；其余 wire 仍逐字节比对。
+func dropAbortedInboundGet(sc any) {
+	o := u.AsObj(sc)
+	wire, _ := o.Get("wire").([]any)
+	end := len(wire)
+	for end > 0 && u.AsObj(wire[end-1]).Get("method") == "GET" {
+		end--
+	}
+	o.Set("wire", wire[:end])
 }

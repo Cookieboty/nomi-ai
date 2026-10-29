@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -138,7 +139,14 @@ func pingStoreJSON(spec *u.Obj) string {
 
 func replayPing(t *testing.T, spec *u.Obj) []string {
 	var ev []string
-	logv := func(k string, v any) { ev = append(ev, k+":"+u.Stringify(v)) }
+	var evMu sync.Mutex
+	// 超时后仍在跑的 provider goroutine 也会记事件：加锁，结束时取快照
+	logv := func(k string, v any) {
+		line := k + ":" + u.Stringify(v)
+		evMu.Lock()
+		ev = append(ev, line)
+		evMu.Unlock()
+	}
 	file := filepath.Join(t.TempDir(), "p.json")
 	if err := os.WriteFile(file, []byte(pingStoreJSON(spec)), 0o600); err != nil {
 		t.Fatal(err)
@@ -182,7 +190,9 @@ func replayPing(t *testing.T, spec *u.Obj) []string {
 		}
 	}
 	logv("views", store.List())
-	return ev
+	evMu.Lock()
+	defer evMu.Unlock()
+	return append([]string(nil), ev...)
 }
 
 func runPingGolden(t *testing.T) (events, bad int, diffs []string) {
