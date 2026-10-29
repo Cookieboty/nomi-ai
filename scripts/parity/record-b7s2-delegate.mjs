@@ -21,8 +21,8 @@ const root = path.join(here, '..', '..');
 const { importSources } = await import(pathToFileURL(path.join(here, 'src-bundle.mjs')).href);
 const src = (p) => path.join(root, 'packages/core/src', p);
 // TS 源码打包装载（不依赖 @nomi-ai/* 的 dist；四个模块共享同一份实例）
-const { C, W, S, H } = await importSources(root, {
-  C: src('cli/delegate/core.ts'), W: src('cli/delegate/worktree.ts'),
+const { C, W, S, H, P } = await importSources(root, {
+  P: src('utils/privateFile.ts'), C: src('cli/delegate/core.ts'), W: src('cli/delegate/worktree.ts'),
   S: src('cli/delegate/DelegateService.ts'), H: src('cli/CliHarnessService.ts'),
 });
 const { HarnessStoppedError } = H;
@@ -364,7 +364,7 @@ async function runScenario(sc) {
         case 'settingsFileOut': r = fs.readFileSync(path.join(B, 'state/settings.json'), 'utf8'); break;
         case 'release': while (env.pending.length) env.pending.shift()(); r = null; break;
         case 'wait': await settle(); r = null; break;
-        case 'tasks': await sleep(80); r = fs.existsSync(path.join(B, 'state/tasks.json')) ? fs.readFileSync(path.join(B, 'state/tasks.json'), 'utf8') : null; break;
+        case 'tasks': await sleep(80); await P.whenPrivateWritesIdle(); r = fs.existsSync(path.join(B, 'state/tasks.json')) ? fs.readFileSync(path.join(B, 'state/tasks.json'), 'utf8') : null; break;
         case 'file': r = fs.readFileSync(path.join(B, st.p), 'utf8'); break;
         case 'takeOver': { const tb = env.tabs.find((t) => t.id === st.id); if (tb?.delegation) tb.delegation.takenOver = true; r = null; break; }
         case 'closeTabs': env.tabs.length = 0; r = null; break;
