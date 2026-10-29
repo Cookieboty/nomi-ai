@@ -177,7 +177,11 @@ for (const sc of scenarios) {
       case 'prune': v = l.prune(a[0]); break;
       case 'clear': l.clear(); break;
       case 'compactWait': await l.compact(); break;
-      case 'settle': await new Promise((r) => setTimeout(r, 20)); break;
+      case 'settle':
+        // 与 Go waitIdle 同：定时等待之后再等在途的压缩 / 游标落盘收尾（Windows 上压缩里的 icacls 子进程慢，固定 20ms 不够）
+        await new Promise((r) => setTimeout(r, 20));
+        for (let i = 0; i < 2000 && (l.compactRunning || l.compactQueued || l.cursorWriting); i++) await new Promise((r) => setTimeout(r, 1));
+        break;
       case 'breakFile': rmSync(join(ledgerDir, 'ledger.jsonl'), { force: true }); mkdirSync(join(ledgerDir, 'ledger.jsonl')); break;
       case 'fixFile': rmSync(join(ledgerDir, 'ledger.jsonl'), { recursive: true, force: true }); break;
       case 'isLoaded': v = l.isLoaded(); break;
