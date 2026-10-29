@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -183,11 +184,21 @@ func tokv(sb string, v any) any {
 	for _, f := range []string{strings.ReplaceAll(sb, `\`, `\\\\`), strings.ReplaceAll(sb, `\`, `\\`), sb, strings.ReplaceAll(sb, `\`, `/`)} {
 		s = strings.ReplaceAll(s, f, sbTok)
 	}
+	if filepath.Separator == '\\' {
+		s = sbAlias(sb).ReplaceAllString(s, sbTok)
+	}
 	r, err := util.ParseString(s)
 	if err != nil {
 		panic(err)
 	}
 	return r
+}
+
+// sbAlias：按沙箱末两级目录匹配任何别名（Windows 8.3 短名 vs git 输出的长名），同 recorder 的 tokAlias
+func sbAlias(sb string) *regexp.Regexp {
+	parts := strings.FieldsFunc(sb, func(r rune) bool { return r == '\\' || r == '/' })
+	a, b := regexp.QuoteMeta(parts[len(parts)-2]), regexp.QuoteMeta(parts[len(parts)-1])
+	return regexp.MustCompile(`(?:[A-Za-z]:|/)[^"\s:]*?` + a + `(?:[\\/])+` + b)
 }
 
 func isoObj(h *IsolationHandle) any {
@@ -688,7 +699,12 @@ func runServiceScenario(t *testing.T, rec *util.Obj) {
 				r = string(b)
 			}
 		case "file":
-			r = readF(t, filepath.Join(B, optS(st, "p")))
+			// 同 Node readFileSync：缺失时记 err 而非中止，便于看到后续 out 的 diff
+			if b, e := os.ReadFile(filepath.Join(B, optS(st, "p"))); e == nil {
+				r = string(b)
+			} else {
+				err = e
+			}
 		case "takeOver":
 			h.mu.Lock()
 			for _, tb := range h.tabs {

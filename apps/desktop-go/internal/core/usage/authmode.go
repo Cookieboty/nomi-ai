@@ -504,23 +504,24 @@ func (a *AuthModeDetector) DetectFull(id string) *jsrt.Promise[AuthInfo] {
 	if p, ok := a.inflight[id]; ok {
 		return p
 	}
-	var self *jsrt.Promise[AuthInfo]
+	// Node：p = probe(id).then(写缓存 / setKnown).finally(删 inflight)；inflight.set 同步发生，
+	// then 回调在微任务里跑（结算前 detectPassive 看不到缓存），probe 拒绝时 finally 照样删 inflight。
+	probeP := jsrt.Async(func() (AuthInfo, error) { return a.probe(id), nil })
 	p := jsrt.Async(func() (AuthInfo, error) {
-		info := a.probe(id)
-		a.cache[id] = authHit{a.now(), info}
-		if info.SignedOut {
-			a.setKnown(id, nil)
-		} else if info.FromCli {
-			k := AuthInfo{Mode: info.Mode, FP: info.FP, Plan: info.Plan}
-			a.setKnown(id, &k)
+		info, err := jsrt.Await(probeP)
+		if err == nil {
+			a.cache[id] = authHit{a.now(), info}
+			if info.SignedOut {
+				a.setKnown(id, nil)
+			} else if info.FromCli {
+				k := AuthInfo{Mode: info.Mode, FP: info.FP, Plan: info.Plan}
+				a.setKnown(id, &k)
+			}
 		}
-		if a.inflight[id] == self || self == nil {
-			delete(a.inflight, id)
-		}
-		return info, nil
+		delete(a.inflight, id)
+		return info, err
 	})
 	if !p.Settled() {
-		self = p
 		a.inflight[id] = p
 	}
 	return p
