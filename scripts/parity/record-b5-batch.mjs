@@ -17,7 +17,16 @@ import { register } from 'tsx/esm/api';
 
 register();
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const { batchTextChunks } = await import(pathToFileURL(join(root, 'packages/ai-runtime/src/AiContractRouter.ts')).href);
+// 从源码逐字截取 mergeableText / FLUSH / batchTextChunks，用 esbuild 去类型后加载：
+// 不 import AiContractRouter.ts（它依赖需先构建的 @nomi-ai/contract dist）
+const { transformSync } = await import('esbuild');
+const routerSrc = readFileSync(join(root, 'packages/ai-runtime/src/AiContractRouter.ts'), 'utf8');
+const startIdx = routerSrc.indexOf('function mergeableText(');
+const fnIdx = routerSrc.indexOf('export async function* batchTextChunks<');
+const endIdx = routerSrc.indexOf('\n}\n', fnIdx) + 3;
+if (startIdx < 0 || fnIdx < 0 || endIdx < 3) throw new Error('batchTextChunks source not found');
+const { code: batchJs } = transformSync(routerSrc.slice(startIdx, endIdx), { loader: 'ts', format: 'esm' });
+const { batchTextChunks } = await import('data:text/javascript;base64,' + Buffer.from(batchJs).toString('base64'));
 const spec = JSON.parse(readFileSync(join(root, 'scripts/parity/b5-batch-scenarios.json'), 'utf8'));
 
 const drain = async () => {
