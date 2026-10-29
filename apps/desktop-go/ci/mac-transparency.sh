@@ -11,7 +11,8 @@ curl -s --max-time 5 "http://$CTL/ctl?op=show-island" || true
 sleep 5
 screencapture -x "$OUT/mac-fullscreen.png" || echo "fullscreen capture failed"
 ok=1
-for t in mascot:330x355 island:360x72; do
+# 岛窗口尺寸随 D-B10 Node 几何（pill 宽 400 + 左右投影留白 14×2，高 = 内容 + 底部留白）：无刘海 runner 上为 428x78
+for t in mascot:330x355 island:428x78; do
   n=${t%%:*}; WID=$(swift ci/mac-window.swift id "$PID" "${t#*:}" 2>>"$OUT/windows.txt") || { echo "window '$t' not found"; ok=0; continue; }
   f="$OUT/mac-window-$n.png"
   screencapture -x -o -l"$WID" "$f" || { echo "capture $t failed"; ok=0; continue; }

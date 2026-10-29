@@ -60,3 +60,18 @@ func (p hostPorts) ShowItemInFolder(path string) {
 }
 
 func (p hostPorts) IdleSeconds() int { return hostports.IdleSeconds() }
+
+// ClipboardRead / ClipboardWrite：electronPorts.ts 的 clipboard（desktop.Ports 用）
+func (p hostPorts) ClipboardRead() (string, error) {
+	if w := p.w(); w != nil {
+		return w.ClipboardText(), nil
+	}
+	return "", nil
+}
+
+func (p hostPorts) ClipboardWrite(text string) error {
+	if w := p.w(); w != nil {
+		w.ClipboardSetText(text)
+	}
+	return nil
+}
