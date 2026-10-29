@@ -769,4 +769,12 @@ func init() {
 	}
 	usage.DefaultCliEnv = func() *util.Obj { return WithCliPath(nil) }
 	usage.DefaultCliBin = ResolveCliBinAsync
+	usage.DefaultClaudeBin = func() (string, bool) {
+		b := ResolveCliBinAsync("claude")
+		return b, b != ""
+	}
+	usage.DefaultCodexBin = func() (string, bool) {
+		b := ResolveCliBinAsync("codex")
+		return b, b != ""
+	}
 }

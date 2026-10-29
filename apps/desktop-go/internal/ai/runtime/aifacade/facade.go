@@ -72,12 +72,30 @@ func New(o Options) *Facade {
 	return f
 }
 
+// aiErr：AIClientError（非 ContractError）→ 线上 toErrorPayload = INTERNAL + 原 message（`[CODE|0] msg`）
 func aiErr(code, msg string) error {
-	return &contract.Error{Code: code, Message: "[" + code + "|0] " + msg}
+	return &contract.Error{Code: "INTERNAL", Message: "[" + code + "|0] " + msg}
+}
+
+// zodFail：router.ts parseWith → ContractError(code, `Invalid ${what}`, { issues: issuesOf(error) })
+func zodFail(code, what string, iss []*issue) error {
+	list := make([]any, 0, len(iss))
+	for _, i := range iss {
+		o := u.NewObj()
+		path := i.path
+		if path == nil {
+			path = []any{}
+		}
+		o.Set("path", path)
+		o.Set("message", i.msg)
+		list = append(list, o)
+	}
+	d := u.NewObj()
+	d.Set("issues", list)
+	return &contract.Error{Code: code, Message: "Invalid " + what, Data: d}
 }
 
 var (
-	errBadInput   = &contract.Error{Code: "BAD_INPUT", Message: "Invalid input"}
 	errNoProfile  = aiErr("SEAM_NOT_INJECTED", "ctx.userProfile 未注入；请确认已加载 bundle-ig-base")
 	errNoASR      = aiErr("SEAM_NOT_INJECTED", "ctx.asr 未注入；请确认 profile 已加载 bundle-ig-electron-caps")
 	errNoTTS      = aiErr("SEAM_NOT_INJECTED", "ctx.tts 未注入；请确认 profile 已加载 bundle-ig-electron-caps")
@@ -163,13 +181,13 @@ func (f *Facade) Handle(name string, raw json.RawMessage) (any, error) {
 	if len(raw) > 0 {
 		v, err := u.Parse(raw)
 		if err != nil {
-			return nil, errBadInput
+			return nil, &contract.Error{Code: "BAD_REQUEST", Message: "Invalid frame"}
 		}
 		in = v
 	}
-	val, _, ok := Parse(p.in, in)
+	val, iss, ok := Parse(p.in, in)
 	if !ok {
-		return nil, errBadInput
+		return nil, zodFail("BAD_INPUT", "input", iss)
 	}
 	out, err := p.fn(f, val)
 	if err != nil {
@@ -186,9 +204,9 @@ func (f *Facade) Handle(name string, raw json.RawMessage) (any, error) {
 	if sch == nil {
 		sch = Void
 	}
-	res, _, ok := Parse(sch, out)
+	res, oiss, ok := Parse(sch, out)
 	if !ok {
-		return nil, &contract.Error{Code: "BAD_OUTPUT", Message: "Invalid output of '" + name + "'"}
+		return nil, zodFail("BAD_OUTPUT", "output of '"+name+"'", oiss)
 	}
 	return res, nil
 }
