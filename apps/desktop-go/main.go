@@ -291,14 +291,22 @@ func main() {
 	defer chatHandlers.Dispose()
 	shellhandlers.InstallGateway(router, gatewaySvc)
 	// 批次 9：语音输入（voice.*）/ 朗读（tts.*）/ nav.openVoiceSettings
+	voiceGateway := func() mediahandlers.GatewayLike {
+		if gatewaySvc == nil {
+			return nil
+		}
+		return gatewaySvc
+	}
 	mediahandlers.Wire(mediahandlers.WireDeps{
-		UserData:  userData,
-		Router:    router,
-		Config:    bundle.Config,
-		Env:       processEnv(),
-		T:         i18n.T,
-		Logf:      log.Printf,
-		LocalOnly: func() bool { return desktopSvc.Broker.View().LocalOnly },
+		Providers:   mediahandlers.GatewayProviders(voiceGateway),
+		Credentials: mediahandlers.GatewayCredentials(voiceGateway),
+		UserData:    userData,
+		Router:      router,
+		Config:      bundle.Config,
+		Env:         processEnv(),
+		T:           i18n.T,
+		Logf:        log.Printf,
+		LocalOnly:   func() bool { return desktopSvc.Broker.View().LocalOnly },
 		Audit: func(e voice.AuditEvent) {
 			desktopSvc.Audit.Append(desktop.AuditEntry{Tool: e.Tool, Decision: e.Decision, Result: e.Result, Ms: e.Ms,
 				Source: "voice", Provider: e.Provider}, json.RawMessage(util.Stringify(e.Args)))

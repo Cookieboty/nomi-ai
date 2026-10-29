@@ -44,7 +44,7 @@ type WireDeps struct {
 	// OpenChatOnceLoaded：打开对话窗口，页面还在加载时返回 did-finish-load 登记函数（nil = 已加载完）
 	OpenChatOnceLoaded func() func(fn func())
 	DefaultWakePhrase  func() string
-	// TODO(batch-4/5)：AI runtime 的 listProviders / providerCredentials
+	// AI runtime 的 listProviders / providerCredentials（= gateway；见 GatewayProviders / GatewayCredentials）
 	Providers   func() []voice.Provider
 	Credentials func(id string) *voice.Credentials
 }
