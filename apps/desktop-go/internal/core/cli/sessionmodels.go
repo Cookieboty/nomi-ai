@@ -149,4 +149,3 @@ func (s *SessionModelTable) drain(file string) {
 		}
 	}
 }
-
