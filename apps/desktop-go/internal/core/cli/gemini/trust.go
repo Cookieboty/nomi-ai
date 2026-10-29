@@ -32,7 +32,9 @@ func (e *UntrustedError) Name() string  { return "GeminiUntrustedError" }
 func (e *UntrustedError) Unwrap() error { return e.Cause }
 
 // NewUntrustedError 构造 GeminiUntrustedError。
-func NewUntrustedError(folder string, cause error) error { return &UntrustedError{Folder: folder, Cause: cause} }
+func NewUntrustedError(folder string, cause error) error {
+	return &UntrustedError{Folder: folder, Cause: cause}
+}
 
 // GeminiLoginEnv = geminiLoginEnv（键序同 Node 字面量）。
 func GeminiLoginEnv(stagingDir string) [][2]string {
