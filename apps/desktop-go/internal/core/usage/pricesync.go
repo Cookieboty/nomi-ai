@@ -458,6 +458,7 @@ type PriceSync struct {
 	d       PriceSyncDeps
 	file    string
 	mu      sync.Mutex
+	writes  sync.WaitGroup // 仅供测试等待异步写盘（WaitWrites），不改变行为
 	cache   *psCache
 	running bool
 	ver     int
@@ -549,6 +550,9 @@ func (p *PriceSync) Reset() {
 	_ = os.Remove(p.file) // force:true：不存在不报错；其它错误也忽略
 }
 
+// WaitWrites 等待已发起的异步缓存写盘完成（测试清理 TempDir 前用）。
+func (p *PriceSync) WaitWrites() { p.writes.Wait() }
+
 // save：异步写盘，失败只记日志（调用方持锁）
 func (p *PriceSync) save() {
 	if p.cache == nil {
@@ -556,7 +560,9 @@ func (p *PriceSync) save() {
 	}
 	_ = os.MkdirAll(p.d.Root, 0o755)
 	pr := utils.WritePrivateFileAtomicAsync(p.file, []byte(util.Stringify(p.cache.obj())))
+	p.writes.Add(1)
 	go func() {
+		defer p.writes.Done()
 		<-pr.Done()
 		if _, err := pr.Result(); err != nil && p.d.Logger != nil {
 			p.d.Logger.Warn("price sync cache write failed", jsString(err))

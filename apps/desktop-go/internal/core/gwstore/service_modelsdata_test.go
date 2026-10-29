@@ -61,6 +61,7 @@ func TestModelsDataHooksWithPriceSync(t *testing.T) {
 			return &http.Response{StatusCode: 200, Header: http.Header{"Etag": {`"v1"`}}, Body: io.NopCloser(strings.NewReader(body)), Request: req}, nil
 		},
 	})
+	t.Cleanup(ps.WaitWrites)
 	if r := ps.Sync(); !r.OK {
 		t.Fatalf("first sync: %+v", r)
 	}
