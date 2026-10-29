@@ -1,7 +1,6 @@
 package local
 
 import (
-	"archive/zip"
 	"bytes"
 	"context"
 	"fmt"
@@ -104,7 +103,7 @@ func (h *Hub) ExportTo(file string, o ExportOpts) (ExportResult, error) {
 		if depth > 4 {
 			return
 		}
-		ents, err := os.ReadDir(abs) // 按名排序（D-B8：Node readdir 顺序依赖文件系统）
+		ents, err := readDirNodeOrder(abs) // 与 libuv scandir 同序
 		if err != nil {
 			return
 		}
@@ -164,20 +163,15 @@ func (h *Hub) ExportTo(file string, o ExportOpts) (ExportResult, error) {
 	add("README.txt", []byte(T("electron.common.nomi-data-export", zhLocaleString(h.d.Now()))+
 		T("electron.common.includes-chats-long-term-memory-schedules-reminders-skills")+
 		T("electron.common.excludes-api-keys-and-other-secrets-removed-downloaded")))
-	var buf bytes.Buffer
-	zw := zip.NewWriter(&buf)
+	ents := make([]zipEntry, 0, len(names))
 	for _, n := range names {
-		w, err := zw.CreateHeader(&zip.FileHeader{Name: n, Method: zip.Deflate, Modified: h.d.Now()})
-		if err != nil {
-			return ExportResult{}, err
-		}
-		if _, err := w.Write(files[n]); err != nil {
-			return ExportResult{}, err
-		}
+		ents = append(ents, zipEntry{n, files[n]})
 	}
-	if err := zw.Close(); err != nil {
+	zb, err := fflateZipSync(ents, h.d.Now)
+	if err != nil {
 		return ExportResult{}, err
 	}
+	buf := bytes.NewBuffer(zb)
 	if err := os.WriteFile(file, buf.Bytes(), 0o644); err != nil {
 		return ExportResult{}, err
 	}

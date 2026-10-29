@@ -1436,7 +1436,7 @@ func (s *Service) importSkillCandidate(c *SkillCandidate, action string) (string
 		}
 		_ = os.MkdirAll(filepath.Dir(to), 0o755)
 		from, _ := SafeJoin(real, f)
-		fd, err := os.OpenFile(from, os.O_RDONLY|oNoFollow, 0)
+		fd, err := openNoFollow(from)
 		if err != nil {
 			return "", false, err
 		}

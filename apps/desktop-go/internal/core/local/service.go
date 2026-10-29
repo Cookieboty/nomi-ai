@@ -584,8 +584,10 @@ func exitCode(c *exec.Cmd) any {
 		return nil
 	}
 	if ws, ok := c.ProcessState.Sys().(syscall.WaitStatus); ok && ws.Signaled() {
-		return nil // Node：被信号杀死时 code 为 null
+		return nil // Node：被信号杀死时 code 为 null（signal 有值）
 	}
+	// Windows 没有信号：外部 TerminateProcess 结束时 libuv 同样只给退出码，signal 为 null
+
 	return c.ProcessState.ExitCode()
 }
 
@@ -653,7 +655,7 @@ func (s *Service) Stop() bool {
 	s.status, s.proc, s.running, s.port = "stopped", nil, "", 0
 	s.mu.Unlock()
 	if p != nil && p.Process != nil && p.ProcessState == nil {
-		_ = p.Process.Signal(syscall.SIGTERM)
+		_ = terminate(p.Process)
 		select {
 		case <-ex:
 		case <-time.After(3 * time.Second):
