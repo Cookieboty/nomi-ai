@@ -2,10 +2,12 @@ package net
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	gonet "net"
 	"net/http"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -19,19 +21,28 @@ const (
 )
 
 type pinKey struct{}
+type targetKey struct{}
+
+type target struct {
+	scheme, host string
+	port         int
+}
 
 type pin struct {
 	host  string
 	addrs []LookupAddress
 }
 
-// ProxyEnvActive is proxyEnvActive.
-func ProxyEnvActive(env func(string) string) bool {
+var timeZero time.Time
+
+// ProxyEnvActive is proxyEnvActive (ALL_PROXY only switches to the env proxy
+// agent, which itself never reads it).
+func ProxyEnvActive(env func(string) (string, bool)) bool {
 	if env == nil {
-		env = os.Getenv
+		env = os.LookupEnv
 	}
 	for _, k := range []string{"HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy", "ALL_PROXY", "all_proxy"} {
-		if env(k) != "" {
+		if v, _ := env(k); v != "" {
 			return true
 		}
 	}
@@ -43,6 +54,8 @@ type FetchOptions struct {
 	GetGuard       func() GuardOpts
 	ConnectTimeout time.Duration
 	HeadersTimeout time.Duration
+	// Env overrides os.LookupEnv (tests).
+	Env func(string) (string, bool)
 }
 
 // UpstreamFetch sends req after validating its URL, dialing only the
@@ -64,7 +77,11 @@ func NewTransport(o FetchOptions) *http.Transport {
 		ht = HeadersTimeout
 	}
 	d := &gonet.Dialer{Timeout: ct, KeepAlive: KeepAliveTimeout}
-	dial := func(ctx context.Context, network, addr string) (gonet.Conn, error) {
+	var ep *envProxy
+	if ProxyEnvActive(o.Env) {
+		ep = newEnvProxy(o.Env)
+	}
+	direct := func(ctx context.Context, network, addr string) (gonet.Conn, error) {
 		host, port, err := gonet.SplitHostPort(addr)
 		if err != nil {
 			return nil, err
@@ -92,15 +109,32 @@ func NewTransport(o FetchOptions) *http.Transport {
 		}
 		return nil, last
 	}
+	dial := func(ctx context.Context, network, addr string) (gonet.Conn, error) {
+		if ep != nil {
+			if ep.err != nil {
+				return nil, ep.err
+			}
+			if t, ok := ctx.Value(targetKey{}).(*target); ok {
+				if px := ep.pick(t.scheme, t.host, t.port); px != nil {
+					cctx, cancel := context.WithTimeout(ctx, ct)
+					defer cancel()
+					return dialViaProxy(cctx, d, px, addr)
+				}
+			}
+		}
+		return direct(ctx, network, addr)
+	}
 	return &http.Transport{
-		Proxy:                 http.ProxyFromEnvironment,
+		Proxy:                 nil,
 		DialContext:           dial,
 		MaxConnsPerHost:       MaxConnsPerHost,
 		MaxIdleConnsPerHost:   MaxConnsPerHost,
 		IdleConnTimeout:       KeepAliveTimeout,
 		ResponseHeaderTimeout: ht,
 		TLSHandshakeTimeout:   ct,
-		ForceAttemptHTTP2:     true,
+		// undici speaks HTTP/1.1 only (allowH2 defaults to false)
+		ForceAttemptHTTP2: false,
+		TLSNextProto:      map[string]func(string, *tls.Conn) http.RoundTripper{},
 	}
 }
 
@@ -124,6 +158,16 @@ func CreateUpstreamFetch(o FetchOptions) UpstreamFetch {
 			}
 		})
 		ctx := context.WithValue(req.Context(), pinKey{}, &pin{host: stripBrackets(u.Hostname()), addrs: addrs})
+		h := u.Host
+		if p := u.Port(); p != "" {
+			h = h[:len(h)-len(p)-1]
+		}
+		port, _ := strconv.Atoi(u.Port())
+		if port == 0 {
+			port, _ = strconv.Atoi(defaultPort(u.Scheme))
+		}
+		ctx = context.WithValue(ctx, targetKey{}, &target{scheme: u.Scheme, host: h, port: port})
+		req.URL.Host = u.Host
 		return client.Do(req.WithContext(ctx))
 	}
 }
@@ -138,4 +182,3 @@ func DefaultUpstreamFetch() UpstreamFetch {
 	sharedOnce.Do(func() { sharedFetch = CreateUpstreamFetch(FetchOptions{}) })
 	return sharedFetch
 }
-

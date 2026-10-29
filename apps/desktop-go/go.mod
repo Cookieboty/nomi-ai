@@ -10,6 +10,7 @@ require (
 	github.com/wailsapp/wails/v3 v3.0.0
 	github.com/zalando/go-keyring v0.2.6
 	golang.org/x/crypto v0.58.0
+	golang.org/x/net v0.60.0
 )
 
 require (
@@ -25,4 +26,5 @@ require (
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tidwall/sjson v1.2.5 // indirect
 	golang.org/x/sys v0.49.0 // indirect
+	golang.org/x/text v0.43.0 // indirect
 )
