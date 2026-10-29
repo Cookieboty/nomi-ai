@@ -53,7 +53,10 @@ func normJSON(t *testing.T, v any, sb string) any {
 		t.Fatal(err)
 	}
 	q, _ := json.Marshal(sb)
-	s := strings.ReplaceAll(string(b), string(q[1:len(q)-1]), "<SB>")
+	sb1 := string(q[1 : len(q)-1])
+	q2, _ := json.Marshal(sb1)
+	// 与 record-shell.mjs norm 同序：先二次转义（文件内 JSON 再编码），再一次转义
+	s := strings.ReplaceAll(strings.ReplaceAll(string(b), string(q2[1:len(q2)-1]), "<SB>"), sb1, "<SB>")
 	var out any
 	_ = json.Unmarshal([]byte(s), &out)
 	return out
