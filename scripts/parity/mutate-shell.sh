@@ -85,7 +85,8 @@ for m in "${MUTANTS[@]}"; do
   if cmp -s "$f" "$f.mutbak"; then
     mv "$f.mutbak" "$f"; echo "MUTANT NOT APPLIED: $m"; exit 2
   fi
-  if go test -count=1 -p 2 -tags gtk3 ./internal/core/shellhandlers/ ./internal/core/mascothandlers/ ./internal/core/mousetrack/ ./internal/shell/trash/ ./internal/core/quality/ -run 'Parity|Golden|TestQuality|TestWindowRoutes|TestTerminalUnavailable|TestOpenTaskBoard|TestMouseTrack|TestTrashItem' >/dev/null 2>&1; then
+  # 子 shell 限制虚拟内存 6GB + 超时：会死循环吃内存的变异体（如 ledger 日循环）直接判 killed，不拖垮 runner
+  if (ulimit -v 6000000; exec go test -count=1 -p 1 -timeout 120s -tags gtk3 ./internal/core/shellhandlers/ ./internal/core/mascothandlers/ ./internal/core/mousetrack/ ./internal/shell/trash/ ./internal/core/quality/ -run 'Parity|Golden|TestQuality|TestWindowRoutes|TestTerminalUnavailable|TestOpenTaskBoard|TestMouseTrack|TestTrashItem') >/dev/null 2>&1; then
     survived=$((survived+1)); echo "SURVIVED: $m"
   else
     killed=$((killed+1)); echo "killed:   $m"
