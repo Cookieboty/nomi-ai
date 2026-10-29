@@ -1,0 +1,544 @@
+[
+ {
+  "name": "env",
+  "ops": [
+   {
+    "op": "applyLaunchEnv",
+    "base": {
+     "PATH": "/bin",
+     "HOME": "/h",
+     "ANTHROPIC_API_KEY": "k",
+     "Z": "1"
+    },
+    "env": {
+     "HOME": "/p",
+     "NEW": "n",
+     "PATH": "/x"
+    },
+    "strip": [
+     "ANTHROPIC_API_KEY",
+     "MISSING"
+    ]
+   },
+   {
+    "op": "applyLaunchEnv",
+    "base": {
+     "A": "1"
+    },
+    "env": {},
+    "strip": []
+   }
+  ],
+  "results": [
+   {
+    "PATH": "/x",
+    "HOME": "/p",
+    "Z": "1",
+    "NEW": "n"
+   },
+   {
+    "A": "1"
+   }
+  ],
+  "tree": []
+ },
+ {
+  "name": "files",
+  "ops": [
+   {
+    "op": "writeLaunchFiles",
+    "files": [
+     {
+      "path": "$S/run/a/cfg.toml",
+      "content": "x=1\n"
+     },
+     {
+      "path": "$S/run/b.json",
+      "content": "{}",
+      "mode": 420
+     },
+     {
+      "path": "$S/run/b.json",
+      "content": "again",
+      "mode": 384
+     }
+    ]
+   },
+   {
+    "op": "writeLaunchFiles",
+    "files": []
+   }
+  ],
+  "results": [
+   [
+    "$S/run/a/cfg.toml",
+    "$S/run/b.json",
+    "$S/run/b.json"
+   ],
+   []
+  ],
+  "tree": [
+   {
+    "p": "$S/run",
+    "t": "d",
+    "m": 448
+   },
+   {
+    "p": "$S/run/a",
+    "t": "d",
+    "m": 448
+   },
+   {
+    "p": "$S/run/a/cfg.toml",
+    "t": "f",
+    "m": 384,
+    "c": "x=1\n"
+   },
+   {
+    "p": "$S/run/b.json",
+    "t": "f",
+    "m": 384,
+    "c": "again"
+   }
+  ]
+ },
+ {
+  "name": "canonical",
+  "ops": [
+   {
+    "op": "mkdir",
+    "path": "$S/real/sub"
+   },
+   {
+    "op": "symlink",
+    "target": "$S/real",
+    "path": "$S/ln"
+   },
+   {
+    "op": "canonicalDir",
+    "p": "$S/ln/sub/"
+   },
+   {
+    "op": "canonicalDir",
+    "p": "$S/ln/missing/deeper//"
+   },
+   {
+    "op": "canonicalDir",
+    "p": "$S/real/sub"
+   },
+   {
+    "op": "canonicalDir",
+    "p": "$S/café"
+   }
+  ],
+  "results": [
+   null,
+   null,
+   "$S/real/sub",
+   "$S/real/missing/deeper",
+   "$S/real/sub",
+   "$S/café"
+  ],
+  "tree": [
+   {
+    "p": "$S/ln",
+    "t": "l",
+    "to": "$S/real"
+   },
+   {
+    "p": "$S/real",
+    "t": "d",
+    "m": 493
+   },
+   {
+    "p": "$S/real/sub",
+    "t": "d",
+    "m": 493
+   }
+  ]
+ },
+ {
+  "name": "link",
+  "ops": [
+   {
+    "op": "mkdir",
+    "path": "$S/user/dir"
+   },
+   {
+    "op": "write",
+    "path": "$S/user/f.txt",
+    "content": "u"
+   },
+   {
+    "op": "linkShared",
+    "target": "$S/user/dir",
+    "link": "$S/home/dir",
+    "dir": true
+   },
+   {
+    "op": "linkShared",
+    "target": "$S/user/dir",
+    "link": "$S/home/dir",
+    "dir": true
+   },
+   {
+    "op": "linkShared",
+    "target": "$S/user/f.txt",
+    "link": "$S/home/dir",
+    "dir": false
+   },
+   {
+    "op": "write",
+    "path": "$S/home/real.txt",
+    "content": "keep"
+   },
+   {
+    "op": "linkShared",
+    "target": "$S/user/f.txt",
+    "link": "$S/home/real.txt",
+    "dir": false
+   },
+   {
+    "op": "write",
+    "path": "$S/blocker",
+    "content": ""
+   },
+   {
+    "op": "linkShared",
+    "target": "$S/user/f.txt",
+    "link": "$S/blocker/x",
+    "dir": false
+   }
+  ],
+  "results": [
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   "EEXIST: file already exists, mkdir '$S/blocker'"
+  ],
+  "tree": [
+   {
+    "p": "$S/blocker",
+    "t": "f",
+    "m": 420,
+    "c": ""
+   },
+   {
+    "p": "$S/home",
+    "t": "d",
+    "m": 493
+   },
+   {
+    "p": "$S/home/dir",
+    "t": "l",
+    "to": "$S/user/f.txt"
+   },
+   {
+    "p": "$S/home/real.txt",
+    "t": "f",
+    "m": 420,
+    "c": "keep"
+   },
+   {
+    "p": "$S/user",
+    "t": "d",
+    "m": 493
+   },
+   {
+    "p": "$S/user/dir",
+    "t": "d",
+    "m": 493
+   },
+   {
+    "p": "$S/user/f.txt",
+    "t": "f",
+    "m": 420,
+    "c": "u"
+   }
+  ]
+ },
+ {
+  "name": "sharedHome",
+  "ops": [
+   {
+    "op": "mkdir",
+    "path": "$S/u/projects"
+   },
+   {
+    "op": "write",
+    "path": "$S/u/settings.json",
+    "content": "{}"
+   },
+   {
+    "op": "ensureSharedHome",
+    "dir": "$S/acct",
+    "userDir": "$S/u",
+    "entries": [
+     {
+      "name": "projects",
+      "dir": true
+     },
+     {
+      "name": "settings.json",
+      "dir": false
+     },
+     {
+      "name": "absent",
+      "dir": false
+     },
+     {
+      "name": "sessions",
+      "dir": true,
+      "createIfMissing": true
+     },
+     {
+      "name": "todo.json",
+      "dir": false,
+      "createIfMissing": true
+     },
+     {
+      "name": "nested/deep",
+      "dir": true,
+      "createIfMissing": true
+     }
+    ]
+   },
+   {
+    "op": "ensureSharedHome",
+    "dir": "$S/acct",
+    "userDir": "$S/u",
+    "entries": [
+     {
+      "name": "projects",
+      "dir": true
+     }
+    ]
+   }
+  ],
+  "results": [
+   null,
+   null,
+   [],
+   []
+  ],
+  "tree": [
+   {
+    "p": "$S/acct",
+    "t": "d",
+    "m": 448
+   },
+   {
+    "p": "$S/acct/nested",
+    "t": "d",
+    "m": 493
+   },
+   {
+    "p": "$S/acct/nested/deep",
+    "t": "l",
+    "to": "$S/u/nested/deep"
+   },
+   {
+    "p": "$S/acct/projects",
+    "t": "l",
+    "to": "$S/u/projects"
+   },
+   {
+    "p": "$S/acct/sessions",
+    "t": "l",
+    "to": "$S/u/sessions"
+   },
+   {
+    "p": "$S/acct/settings.json",
+    "t": "l",
+    "to": "$S/u/settings.json"
+   },
+   {
+    "p": "$S/acct/todo.json",
+    "t": "l",
+    "to": "$S/u/todo.json"
+   },
+   {
+    "p": "$S/u",
+    "t": "d",
+    "m": 493
+   },
+   {
+    "p": "$S/u/nested",
+    "t": "d",
+    "m": 493
+   },
+   {
+    "p": "$S/u/nested/deep",
+    "t": "d",
+    "m": 493
+   },
+   {
+    "p": "$S/u/projects",
+    "t": "d",
+    "m": 493
+   },
+   {
+    "p": "$S/u/sessions",
+    "t": "d",
+    "m": 493
+   },
+   {
+    "p": "$S/u/settings.json",
+    "t": "f",
+    "m": 420,
+    "c": "{}"
+   }
+  ]
+ },
+ {
+  "name": "privateHome",
+  "ops": [
+   {
+    "op": "mkdir",
+    "path": "$S/g/sessions"
+   },
+   {
+    "op": "write",
+    "path": "$S/g/auth.json",
+    "content": "a"
+   },
+   {
+    "op": "write",
+    "path": "$S/g/config.toml",
+    "content": "c"
+   },
+   {
+    "op": "write",
+    "path": "$S/g/history.jsonl",
+    "content": "h"
+   },
+   {
+    "op": "write",
+    "path": "$S/g/x.lock",
+    "content": ""
+   },
+   {
+    "op": "symlink",
+    "target": "$S/nowhere",
+    "path": "$S/g/dangling"
+   },
+   {
+    "op": "ensurePrivateHome",
+    "dir": "$S/ph",
+    "userDir": "$S/g",
+    "shared": ".*",
+    "keepPrivate": [
+     "^auth\\.json$",
+     "\\.lock$",
+     "^config\\.toml$"
+    ]
+   },
+   {
+    "op": "ensurePrivateHome",
+    "dir": "$S/ph2",
+    "userDir": "$S/nope",
+    "shared": ".*",
+    "keepPrivate": []
+   },
+   {
+    "op": "ensurePrivateHome",
+    "dir": "$S/ph3",
+    "userDir": "$S/g",
+    "shared": "^(sessions|history)",
+    "keepPrivate": []
+   }
+  ],
+  "results": [
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   [],
+   [],
+   []
+  ],
+  "tree": [
+   {
+    "p": "$S/g",
+    "t": "d",
+    "m": 493
+   },
+   {
+    "p": "$S/g/auth.json",
+    "t": "f",
+    "m": 420,
+    "c": "a"
+   },
+   {
+    "p": "$S/g/config.toml",
+    "t": "f",
+    "m": 420,
+    "c": "c"
+   },
+   {
+    "p": "$S/g/dangling",
+    "t": "l",
+    "to": "$S/nowhere"
+   },
+   {
+    "p": "$S/g/history.jsonl",
+    "t": "f",
+    "m": 420,
+    "c": "h"
+   },
+   {
+    "p": "$S/g/sessions",
+    "t": "d",
+    "m": 493
+   },
+   {
+    "p": "$S/g/x.lock",
+    "t": "f",
+    "m": 420,
+    "c": ""
+   },
+   {
+    "p": "$S/ph",
+    "t": "d",
+    "m": 448
+   },
+   {
+    "p": "$S/ph/history.jsonl",
+    "t": "l",
+    "to": "$S/g/history.jsonl"
+   },
+   {
+    "p": "$S/ph/sessions",
+    "t": "l",
+    "to": "$S/g/sessions"
+   },
+   {
+    "p": "$S/ph2",
+    "t": "d",
+    "m": 448
+   },
+   {
+    "p": "$S/ph3",
+    "t": "d",
+    "m": 448
+   },
+   {
+    "p": "$S/ph3/history.jsonl",
+    "t": "l",
+    "to": "$S/g/history.jsonl"
+   },
+   {
+    "p": "$S/ph3/sessions",
+    "t": "l",
+    "to": "$S/g/sessions"
+   }
+  ]
+ }
+]

@@ -31,5 +31,23 @@ jest.mock('@nomi-ai/cli-plugins/main', () => {
       };
     };
   }
+  // 纯函数调用采集（record-b7-fns.mjs 回放）：$B7_FN_CAPTURE 设置时记录 {fn,args}。
+  const fnOut = process.env.B7_FN_CAPTURE;
+  if (fnOut) {
+    for (const fn of [
+      'parseClaudeTranscript', 'parseCodexTranscript', 'parseDshTranscript', 'parseGeminiTranscript',
+      'parseGrokTranscript', 'parseClaudeModels', 'readClaudeEffortSetting', 'parseCodexModels',
+      'readCodexConfigDefaults', 'parseGrokModels', 'titleFromMessages', 'cleanTitle',
+    ]) {
+      if (!real[fn]) continue;
+      wrapped[fn] = (...args) => {
+        try {
+          fs.appendFileSync(fnOut, JSON.stringify({ fn, args }) + '\n');
+        } catch {}
+        return real[fn](...args);
+      };
+    }
+  }
   return wrapped;
 });
+

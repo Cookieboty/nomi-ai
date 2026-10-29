@@ -104,6 +104,7 @@ func (r *gwRes) writeHeadLocked(status int, kv []string) {
 		r.w.Header()[kv[i]] = []string{kv[i+1]}
 	}
 	r.headersSent = true
+	r.nodeHead()
 	r.w.WriteHeader(status)
 	// Node's writeHead puts the head on the wire without a Content-Length unless
 	// one was given, so the body that follows is chunked; flush to match.
@@ -115,6 +116,32 @@ func (r *gwRes) writeHeadLocked(status int, kv []string) {
 		if f, ok := r.w.(http.Flusher); ok {
 			f.Flush()
 		}
+	}
+}
+
+// nodeHead adds what Node's http.ServerResponse puts on the wire by itself and
+// stops net/http from adding what Node would not. Node always sends Date (sendDate
+// defaults to true, server.ts does not turn it off), so Go's Date stays. When the
+// handler set no Connection header and the request keeps the socket alive, Node
+// sends `Connection: keep-alive` plus `Keep-Alive: timeout=5`; for a closing
+// request net/http writes `Connection: close` the same way Node does. Node never
+// sniffs a Content-Type, so a nil entry suppresses Go's sniffing.
+func (r *gwRes) nodeHead() {
+	h := r.w.Header()
+	has := func(k string) bool {
+		for n := range h {
+			if strings.EqualFold(n, k) {
+				return true
+			}
+		}
+		return false
+	}
+	if !has("Content-Type") {
+		h["Content-Type"] = nil
+	}
+	if !has("Connection") && r.req != nil && !r.req.Close {
+		h["Connection"] = []string{"keep-alive"}
+		h["Keep-Alive"] = []string{"timeout=5"}
 	}
 }
 
@@ -133,6 +160,7 @@ func (r *gwRes) writeLocked(s string) {
 	}
 	if !r.headersSent {
 		r.headersSent = true
+		r.nodeHead()
 		r.w.WriteHeader(200)
 	}
 	if s != "" {
@@ -393,7 +421,8 @@ func (g *GatewayServer) Start() error {
 	if err != nil {
 		return err
 	}
-	srv := &http.Server{Handler: g}
+	// Node http.Server defaults: keepAliveTimeout 5000ms (advertised as Keep-Alive: timeout=5).
+	srv := &http.Server{Handler: g, IdleTimeout: 5 * time.Second}
 	g.mu.Lock()
 	g.ln, g.srv = ln, srv
 	g.mu.Unlock()

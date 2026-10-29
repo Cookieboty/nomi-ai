@@ -5,6 +5,7 @@ go 1.27.2
 require (
 	github.com/andybalholm/brotli v1.2.7
 	github.com/coder/websocket v1.8.15
+	github.com/dlclark/regexp2 v1.12.0
 	github.com/godbus/dbus/v5 v5.2.2
 	github.com/klauspost/compress v1.20.3
 	github.com/ledongthuc/pdf v0.0.0-20261020125853-5e46805f718e
@@ -26,7 +27,7 @@ require (
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/golang/snappy v0.0.0-20180518054509-2e65f85255db // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
-	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/tidwall/gjson v1.19.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
