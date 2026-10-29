@@ -223,58 +223,61 @@ func runTabsCase(t *testing.T, c *util.Obj) *util.Obj {
 		return util.NewObj("ok", v)
 	}
 	// 整个场景在一个 async 帧里跑：同 Node 录制器，相邻操作之间只让出微任务
-	res, berr := jsrt.Block(jsrt.Async(func() (*util.Obj, error) {
-		o = mk()
-		snap := func() *util.Obj { return util.NewObj("tabs", o.ListTabs(), "state", o.State()) }
-		steps := []any{}
-		var pending []*jsrt.Promise[[]*util.Obj]
-		for _, opv := range c.Get("ops").([]any) {
-			op := opv.([]any)
-			name := op[0].(string)
-			switch name {
-			case "reload":
-				o.FlushPersist()
-				o.Dispose()
-				o = mk()
-				steps = append(steps, []any{"reload", snap()})
-				continue
-			case "await":
-				rs := []any{}
-				for _, p := range pending {
-					rs = append(rs, settle(p))
+	// Async 必须持锁调用（同 router 会话）：先进 JS 世界再起 async 帧
+	res, berr := jsrt.Block(jsrt.Call(func() *jsrt.Promise[*util.Obj] {
+		return jsrt.Async(func() (*util.Obj, error) {
+			o = mk()
+			snap := func() *util.Obj { return util.NewObj("tabs", o.ListTabs(), "state", o.State()) }
+			steps := []any{}
+			var pending []*jsrt.Promise[[]*util.Obj]
+			for _, opv := range c.Get("ops").([]any) {
+				op := opv.([]any)
+				name := op[0].(string)
+				switch name {
+				case "reload":
+					o.FlushPersist()
+					o.Dispose()
+					o = mk()
+					steps = append(steps, []any{"reload", snap()})
+					continue
+				case "await":
+					rs := []any{}
+					for _, p := range pending {
+						rs = append(rs, settle(p))
+					}
+					pending = nil
+					steps = append(steps, []any{"await", rs})
+					continue
 				}
-				pending = nil
-				steps = append(steps, []any{"await", rs})
-				continue
-			}
-			isAsync := name == "async"
-			args := op[1:]
-			if isAsync {
-				name, args = op[1].(string), op[2:]
-			}
-			a := sub(args).([]any)
-			r := tryCall(func() any { return call(name, a) })
-			if isAsync {
-				if r.Has("err") {
-					p := jsrt.NewPromise[[]*util.Obj]()
-					p.Reject(jsrt.JSThrow{Message: r.Get("err").(string)})
-					pending = append(pending, p)
-				} else {
-					pending = append(pending, r.Get("ok").(*jsrt.Promise[[]*util.Obj]))
+				isAsync := name == "async"
+				args := op[1:]
+				if isAsync {
+					name, args = op[1].(string), op[2:]
 				}
-				steps = append(steps, []any{name, "started"})
-				continue
+				a := sub(args).([]any)
+				r := tryCall(func() any { return call(name, a) })
+				if isAsync {
+					if r.Has("err") {
+						p := jsrt.NewPromise[[]*util.Obj]()
+						p.Reject(jsrt.JSThrow{Message: r.Get("err").(string)})
+						pending = append(pending, p)
+					} else {
+						pending = append(pending, r.Get("ok").(*jsrt.Promise[[]*util.Obj]))
+					}
+					steps = append(steps, []any{name, "started"})
+					continue
+				}
+				if r.Has("ok") {
+					r = settle(r.Get("ok"))
+				}
+				steps = append(steps, []any{name, r})
 			}
-			if r.Has("ok") {
-				r = settle(r.Get("ok"))
-			}
-			steps = append(steps, []any{name, r})
-		}
-		o.FlushPersist()
-		final := snap()
-		o.Dispose()
-		out := util.NewObj("name", c.Get("name"), "steps", steps, "final", final)
-		return out, nil
+			o.FlushPersist()
+			final := snap()
+			o.Dispose()
+			out := util.NewObj("name", c.Get("name"), "steps", steps, "final", final)
+			return out, nil
+		})
 	}))
 	if berr != nil {
 		t.Fatal(berr)

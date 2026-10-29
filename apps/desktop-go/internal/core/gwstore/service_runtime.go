@@ -89,7 +89,7 @@ func (s *Service) AttachRuntime(d RuntimeDeps) {
 		})
 	}
 	rt.privacyLog = NewPrivacyLog(filepath.Join(d.Root, "privacy-log.json"), nil)
-	rt.tabs = NewTabTokens(TabTokensDeps{Send: rt.proc.Send, Logger: s.logger})
+	rt.tabs = NewTabTokens(TabTokensDeps{Send: rt.proc.Send, Logger: s.logger, Random: func(n int) []byte { return RandomBytes(n) }})
 	rt.proc.BindTabs(rt.tabs.OnAck, rt.tabs.Replay)
 	rt.httpc = &http.Client{Transport: readyTransport{s}}
 }
