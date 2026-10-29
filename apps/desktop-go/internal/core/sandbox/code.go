@@ -1,6 +1,8 @@
 package sandbox
 
 import (
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/nodeproc"
+
 	"bytes"
 	"context"
 	"errors"
@@ -227,7 +229,8 @@ func (s *CodeSandbox) Run(ctx context.Context, lang, code string, opts RunOpts) 
 	for _, e := range env {
 		cmd.Env = append(cmd.Env, e.Key+"="+e.Value)
 	}
-	cmd.Env = withSpawnRequiredEnv(cmd.Env)
+	// 同 Node spawn：Windows 上 libuv 补齐 HOMEDRIVE/USERNAME 等必需变量
+	cmd.Env = nodeproc.LibuvEnv(cmd.Env)
 	hideWindow(cmd)
 	cmd.Stdout = chunkWriter{&mu, stdout}
 	cmd.Stderr = chunkWriter{&mu, stderr}

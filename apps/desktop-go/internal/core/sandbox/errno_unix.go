@@ -43,6 +43,3 @@ func spawnErrorCode(err error) *int {
 	c := -int(errnoOf(err))
 	return &c
 }
-
-// withSpawnRequiredEnv：非 Windows 上 libuv 不补环境变量。
-func withSpawnRequiredEnv(env []string) []string { return env }
