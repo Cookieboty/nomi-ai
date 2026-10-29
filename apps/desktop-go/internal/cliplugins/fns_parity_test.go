@@ -2,6 +2,7 @@ package cliplugins_test
 
 import (
 	"os"
+	"runtime"
 	"testing"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/claude"
@@ -120,6 +121,9 @@ func TestFnParity(t *testing.T) {
 		if run == nil {
 			t.Fatalf("case %d: no Go impl for %s", i, fn)
 		}
+		if posixOnly[fn] && runtime.GOOS == "windows" {
+			continue // 录制于 POSIX（path.join 分隔符）；Windows 路径行为见各包 *_windows_test.go
+		}
 		args, _ := co.Get("args").([]any)
 		want := util.Stringify(co.Get("out"))
 		got := util.Stringify(run(args))
@@ -130,3 +134,5 @@ func TestFnParity(t *testing.T) {
 	}
 	t.Logf("%d function cases matched", n)
 }
+
+var posixOnly = map[string]bool{"pluginSnapshot": true}

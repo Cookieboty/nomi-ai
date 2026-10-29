@@ -2,6 +2,7 @@ package shared
 
 import (
 	"math"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -482,28 +483,19 @@ func TitleFromMessages(msgs []Json) *string {
 
 var sessionExtRe = regexp.MustCompile(`\.jsonl(?:\.zstd?)?$`)
 
-// HistoryFileRef mirrors HistoryFileRef。
-type HistoryFileRef struct {
-	Path  string
-	Mtime float64
-	Size  float64
-	DirID string
-}
-
-func sessionIDOf(f HistoryFileRef) string {
+func sessionIDOf(f clisdk.HistoryFileRef) string {
 	if f.DirID != "" {
 		return f.DirID
 	}
-	i := strings.LastIndexAny(f.Path, `/\`)
-	return sessionExtRe.ReplaceAllString(f.Path[i+1:], "")
+	return sessionExtRe.ReplaceAllString(filepath.Base(f.Path), "") // path.basename（按平台分隔符）
 }
 
 // TranscriptParser = (text, fallbackAt) => HarnessTabMessage[]。
 type TranscriptParser func(text string, fallbackAt float64) []Json
 
 // HistoryParse mirrors historyParse：返回 HistoryParse Obj。
-func HistoryParse(formatHint string, parse TranscriptParser) func(text string, f HistoryFileRef) Json {
-	return func(text string, f HistoryFileRef) Json {
+func HistoryParse(formatHint string, parse TranscriptParser) func(text string, f clisdk.HistoryFileRef) Json {
+	return func(text string, f clisdk.HistoryFileRef) Json {
 		msgs := parse(text, f.Mtime)
 		if len(msgs) == 0 && util.JSTrim(text) != "" {
 			return o("error", "no messages recognised", "formatHint", formatHint)

@@ -4,6 +4,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 )
 
 // Readdir mirrors readdir()：OS 原序（不排序，同 fs.promises.readdir），失败 = 空。
@@ -33,14 +35,14 @@ func MtimeMs(st fs.FileInfo) float64 {
 type FileCand struct{ Path, DirID string }
 
 // StatAll mirrors statAll（stat 跟随符号链接；失败的跳过）。
-func StatAll(files []FileCand) []HistoryFileRef {
-	out := []HistoryFileRef{}
+func StatAll(files []FileCand) []clisdk.HistoryFileRef {
+	out := []clisdk.HistoryFileRef{}
 	for _, f := range files {
 		st, err := os.Stat(f.Path)
 		if err != nil {
 			continue
 		}
-		out = append(out, HistoryFileRef{Path: f.Path, Mtime: MtimeMs(st), Size: float64(st.Size()), DirID: f.DirID})
+		out = append(out, clisdk.HistoryFileRef{Path: f.Path, Mtime: MtimeMs(st), Size: float64(st.Size()), DirID: f.DirID})
 	}
 	return out
 }

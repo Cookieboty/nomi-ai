@@ -211,6 +211,8 @@ Go 版**1:1 镜像** Node 版：模块边界、包/层结构、数据格式、�
 | D-B7-1 | ~~dsh 解析器遇到 `"null"` 入参时抛 TypeError~~ **已消除** | Go 解析器 `panic(clisdk.JSThrow)` 复现抛出；nodeproc 的 stdout/stderr/error/exit/close 派发统一经 `jsrt.Dispatch`（EventEmitter 语义）：抛出的监听器之后的监听器跳过本事件、本 chunk 余下行丢弃、交给进程级 uncaughtException 钩子（生产环境退出），解析器跨行状态照常保留。golden 录了 `{throw}` 及其后续行 | 无行为差异 |
 | D-B7-2 | 计划里的 PTY（creack/pty + ConPTY） | 不用 PTY：Node 的 CLI 全部走 `child_process` 管道（`harness/spawn.ts`），Go 用 `os/exec` 管道，参数 / env / cwd / 信号 / 杀进程树逐项对齐 | 用户已确认（2026-10-29）；跟随 Node 实际实现，不是平台差异 |
 | D-B7-3 | cli-sdk 驱动里 JS `undefined` 值的键（AppServer `finish` 的 `error: undefined`）、非字符串 thread/turn/session id | Go `util.Obj` 不存 undefined：不设该键（JSON 输出与读值完全一致，仅 `'error' in r` 不同，调用方无此用法）；非字符串 id 经 `JSString` 转字符串（真实 CLI 只回字符串） | 无可观察差异；driver golden 10 场景 / 117 条覆盖 |
+| D-B7-4 | cli-sdk launch 的 Node 错误信息（`linkShared` 失败原因、`mkdirSync` 抛错） | Go 按 libuv 格式拼 `CODE: desc, syscall 'p'[ -> 'dest']`；错误码映射覆盖常见 errno / Win32 子集（EEXIST/EPERM/EACCES/ENOENT/ENOTDIR/EROFS/EISDIR/ENOSPC/EINVAL/ELOOP/ENAMETOOLONG/EBUSY/EIO），其余报 `UNKNOWN: unknown error` | 仅罕见错误码的提示文案可能不同；常见路径有 POSIX golden（launch 6 场景）与 Windows 夹具测试 |
+| D-B7-5 | `canonicalDir` 的 `realpathSync.native` | POSIX 用 `filepath.EvalSymlinks`（等价 realpath(3)）；Windows 用 `GetFinalPathNameByHandleW` 并剥 `\\?\` / `\\?\UNC\`（同 libuv）。junction 按 libuv `fs__create_junction` 写 reparse 数据（Substitute/PrintName 结尾补 `\`） | 无行为差异；macOS 上大小写不敏感卷的大小写规范化依赖系统 realpath，Go EvalSymlinks 不改大小写（Node native 亦不改） |
 
 ### 3.5 一致性测试策略（golden，Node 与 Go 同输入对比输出）
 

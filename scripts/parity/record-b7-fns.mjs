@@ -108,8 +108,47 @@ cases.push(
   { fn: 'readCodexConfigDefaults', args: ['model = "  "\nmodel = "a\'"b"'] },
   { fn: 'cleanTitle', args: ['  multi\n line   title  ', 10] }, { fn: 'cleanTitle', args: [undefined] },
 );
+// —— 插件主进程能力快照（pluginSnapshot：Go 侧以同一输入集合构造同形对象）——
+const MODES = ['plan', 'manual', 'acceptEdits', 'auto', 'bypass'];
+const NATIVE = ['plan', ' auto ', 'default', 'Read_Only', 'on request', 'on-request', 'workspace write', 'YOLO',
+  'danger', 'dontAsk', 'bypassPermissions', 'weird', '', '  '];
+const CTXS = [
+  { cwd: '/w', permissionMode: 'manual', model: null, effort: null, accountDir: null, runDir: '/r' },
+  { cwd: '/w', permissionMode: 'bypass', model: 'm-1', effort: 'high', accountDir: '/acct', runDir: '/r' },
+  { cwd: '/w', permissionMode: 'auto', model: '', effort: null, accountDir: '', runDir: '/r' },
+  { cwd: '/w', permissionMode: 'plan', model: 'x"y', effort: null, accountDir: '/a b', runDir: '/r' },
+  { cwd: '/w', permissionMode: 'acceptEdits', model: null, effort: null, accountDir: null, runDir: '/r' },
+];
+const ENVS = [{}, { CLAUDE_CONFIG_DIR: '~/cc', CODEX_HOME: ' /abs/codex ', GROK_HOME: '~', DSH_HOME: '~\\d', GEMINI_CLI_HOME: '/g' }];
+const EVS = [{ type: 'done' }, { type: 'done', usage: {} }, { type: 'done', sessionId: 's' }, { type: 'done', sessionId: 's', usage: { a: 1 } }, { type: 'text' }];
+const MA = [{}, { model: ' m ', effort: 'low' }, { model: '', effort: null }, { model: 'a"\\b' }];
+const snap = (id) => {
+  const m = P[id].createMain();
+  const p = m.permissions;
+  return {
+    supported: p.supported,
+    launch: MODES.map((x) => [p.launch(x), p.launch(x, { network: false })]),
+    modeId: p.modeId ? MODES.map((x) => p.modeId(x)) : null,
+    fromModeId: NATIVE.map((x) => p.fromModeId(x)),
+    planPrefix: p.planPrefix ?? null,
+    official: CTXS.map((c) => m.launch.official(c)),
+    placeholderModel: m.launch.placeholderModel ?? null,
+    modelArgs: m.launch.modelArgs ? MA.map((o) => m.launch.modelArgs(o)) : null,
+    accounts: m.accounts ?? null,
+    roots: ENVS.map((e) => m.history.roots(e, '/home/u')),
+    resume: m.history.resume('sid'),
+    watch: ENVS.map((e) => m.progress.watchRoots(e, '/home/u')),
+    logRoots: m.usage?.logRoots ? ENVS.map((e) => m.usage.logRoots(e, '/home/u')) : null,
+    slash: m.slash?.sources ? [m.slash.sources({ projectChain: [], home: '/h' }), m.slash.sources({ projectChain: ['/p/a', '/p'], home: '/h' })] : null,
+    terminal: m.terminal ? [m.terminal.command({ cwd: '/w', env: {} }), m.terminal.command({ cwd: '/w', resumeId: 'r1', env: {} }), m.terminal.command({ cwd: '/w', resumeId: '', env: {} })] : null,
+    exec: { completes: EVS.map((e) => m.session.exec.completes(e)), silentExitIsError: m.session.exec.silentExitIsError ?? null },
+  };
+};
+for (const id of ['claude', 'codex', 'dsh', 'gemini', 'grok']) cases.push({ fn: 'pluginSnapshot', args: [id], out: snap(id) });
+for (const plat of ['linux', 'win32'])
+  cases.push({ fn: 'terminalLine', args: [{ command: 'claude', args: ["it's", 'a b', ''], env: { A: "x'y", B: '' } }, plat] });
 const out = cases.map((c) => {
-  const r = P[c.fn](...c.args);
+  const r = c.out !== undefined ? c.out : P[c.fn](...c.args);
   return { fn: c.fn, args: c.args.map((a) => (a === undefined ? { $undef: true } : a)), out: r === undefined ? { $undef: true } : r };
 });
 void S;

@@ -3970,5 +3970,1737 @@
   "out": {
    "$undef": true
   }
+ },
+ {
+  "fn": "pluginSnapshot",
+  "args": [
+   "claude"
+  ],
+  "out": {
+   "supported": [
+    "plan",
+    "manual",
+    "acceptEdits",
+    "auto",
+    "bypass"
+   ],
+   "launch": [
+    [
+     {
+      "args": [
+       "--permission-mode",
+       "plan"
+      ],
+      "env": {}
+     },
+     {
+      "args": [
+       "--permission-mode",
+       "plan"
+      ],
+      "env": {}
+     }
+    ],
+    [
+     {
+      "args": [
+       "--permission-mode",
+       "default"
+      ],
+      "env": {}
+     },
+     {
+      "args": [
+       "--permission-mode",
+       "default"
+      ],
+      "env": {}
+     }
+    ],
+    [
+     {
+      "args": [
+       "--permission-mode",
+       "acceptEdits"
+      ],
+      "env": {}
+     },
+     {
+      "args": [
+       "--permission-mode",
+       "acceptEdits"
+      ],
+      "env": {}
+     }
+    ],
+    [
+     {
+      "args": [
+       "--permission-mode",
+       "auto"
+      ],
+      "env": {}
+     },
+     {
+      "args": [
+       "--permission-mode",
+       "auto"
+      ],
+      "env": {}
+     }
+    ],
+    [
+     {
+      "args": [
+       "--permission-mode",
+       "bypassPermissions"
+      ],
+      "env": {}
+     },
+     {
+      "args": [
+       "--permission-mode",
+       "bypassPermissions"
+      ],
+      "env": {}
+     }
+    ]
+   ],
+   "modeId": [
+    "plan",
+    "default",
+    "acceptEdits",
+    "auto",
+    "bypassPermissions"
+   ],
+   "fromModeId": [
+    "plan",
+    "auto",
+    "manual",
+    "plan",
+    "manual",
+    "manual",
+    "acceptEdits",
+    "bypass",
+    "bypass",
+    "auto",
+    "bypass",
+    null,
+    null,
+    null
+   ],
+   "planPrefix": null,
+   "official": [
+    {
+     "env": {},
+     "args": [
+      "--permission-mode",
+      "default"
+     ],
+     "strip": [
+      "ANTHROPIC_BASE_URL",
+      "ANTHROPIC_API_KEY",
+      "ANTHROPIC_AUTH_TOKEN",
+      "CLAUDE_CODE_OAUTH_TOKEN",
+      "CLAUDE_CODE_OAUTH_REFRESH_TOKEN",
+      "ANTHROPIC_PROFILE",
+      "CLAUDE_CODE_USE_BEDROCK",
+      "CLAUDE_CODE_USE_VERTEX",
+      "CLAUDE_CODE_USE_FOUNDRY"
+     ]
+    },
+    {
+     "env": {
+      "CLAUDE_CONFIG_DIR": "/acct",
+      "CLAUDE_CODE_DISABLE_AGENT_VIEW": "1"
+     },
+     "args": [
+      "--permission-mode",
+      "bypassPermissions",
+      "--model",
+      "m-1"
+     ],
+     "strip": [
+      "ANTHROPIC_BASE_URL",
+      "ANTHROPIC_API_KEY",
+      "ANTHROPIC_AUTH_TOKEN",
+      "CLAUDE_CODE_OAUTH_TOKEN",
+      "CLAUDE_CODE_OAUTH_REFRESH_TOKEN",
+      "ANTHROPIC_PROFILE",
+      "CLAUDE_CODE_USE_BEDROCK",
+      "CLAUDE_CODE_USE_VERTEX",
+      "CLAUDE_CODE_USE_FOUNDRY",
+      "CLAUDE_CONFIG_DIR"
+     ]
+    },
+    {
+     "env": {},
+     "args": [
+      "--permission-mode",
+      "auto"
+     ],
+     "strip": [
+      "ANTHROPIC_BASE_URL",
+      "ANTHROPIC_API_KEY",
+      "ANTHROPIC_AUTH_TOKEN",
+      "CLAUDE_CODE_OAUTH_TOKEN",
+      "CLAUDE_CODE_OAUTH_REFRESH_TOKEN",
+      "ANTHROPIC_PROFILE",
+      "CLAUDE_CODE_USE_BEDROCK",
+      "CLAUDE_CODE_USE_VERTEX",
+      "CLAUDE_CODE_USE_FOUNDRY"
+     ]
+    },
+    {
+     "env": {
+      "CLAUDE_CONFIG_DIR": "/a b",
+      "CLAUDE_CODE_DISABLE_AGENT_VIEW": "1"
+     },
+     "args": [
+      "--permission-mode",
+      "plan",
+      "--model",
+      "x\"y"
+     ],
+     "strip": [
+      "ANTHROPIC_BASE_URL",
+      "ANTHROPIC_API_KEY",
+      "ANTHROPIC_AUTH_TOKEN",
+      "CLAUDE_CODE_OAUTH_TOKEN",
+      "CLAUDE_CODE_OAUTH_REFRESH_TOKEN",
+      "ANTHROPIC_PROFILE",
+      "CLAUDE_CODE_USE_BEDROCK",
+      "CLAUDE_CODE_USE_VERTEX",
+      "CLAUDE_CODE_USE_FOUNDRY",
+      "CLAUDE_CONFIG_DIR"
+     ]
+    },
+    {
+     "env": {},
+     "args": [
+      "--permission-mode",
+      "acceptEdits"
+     ],
+     "strip": [
+      "ANTHROPIC_BASE_URL",
+      "ANTHROPIC_API_KEY",
+      "ANTHROPIC_AUTH_TOKEN",
+      "CLAUDE_CODE_OAUTH_TOKEN",
+      "CLAUDE_CODE_OAUTH_REFRESH_TOKEN",
+      "ANTHROPIC_PROFILE",
+      "CLAUDE_CODE_USE_BEDROCK",
+      "CLAUDE_CODE_USE_VERTEX",
+      "CLAUDE_CODE_USE_FOUNDRY"
+     ]
+    }
+   ],
+   "placeholderModel": null,
+   "modelArgs": [
+    [],
+    [
+     "--model",
+     "m",
+     "--effort",
+     "low"
+    ],
+    [],
+    [
+     "--model",
+     "a\"\\b"
+    ]
+   ],
+   "accounts": {
+    "homeEnv": "CLAUDE_CONFIG_DIR",
+    "strip": [
+     "ANTHROPIC_BASE_URL",
+     "ANTHROPIC_API_KEY",
+     "ANTHROPIC_AUTH_TOKEN",
+     "CLAUDE_CODE_OAUTH_TOKEN",
+     "CLAUDE_CODE_OAUTH_REFRESH_TOKEN",
+     "ANTHROPIC_PROFILE",
+     "CLAUDE_CODE_USE_BEDROCK",
+     "CLAUDE_CODE_USE_VERTEX",
+     "CLAUDE_CODE_USE_FOUNDRY",
+     "CLAUDE_CONFIG_DIR"
+    ],
+    "shared": [
+     {
+      "name": "projects",
+      "dir": true,
+      "createIfMissing": true
+     },
+     {
+      "name": "history.jsonl",
+      "dir": false
+     },
+     {
+      "name": "CLAUDE.md",
+      "dir": false
+     },
+     {
+      "name": "keybindings.json",
+      "dir": false
+     },
+     {
+      "name": "skills",
+      "dir": true
+     },
+     {
+      "name": "commands",
+      "dir": true
+     },
+     {
+      "name": "agents",
+      "dir": true
+     },
+     {
+      "name": "rules",
+      "dir": true
+     },
+     {
+      "name": "output-styles",
+      "dir": true
+     },
+     {
+      "name": "todos",
+      "dir": true
+     }
+    ],
+    "loginArgs": [
+     "auth",
+     "login",
+     "--claudeai"
+    ],
+    "logoutArgs": [
+     "auth",
+     "logout"
+    ],
+    "statusArgs": [
+     "auth",
+     "status",
+     "--json"
+    ]
+   },
+   "roots": [
+    [
+     "/home/u/.claude/projects"
+    ],
+    [
+     "/home/u/cc/projects"
+    ]
+   ],
+   "resume": {
+    "args": [
+     "--resume",
+     "sid"
+    ]
+   },
+   "watch": [
+    [
+     "/home/u/.claude/projects"
+    ],
+    [
+     "/home/u/cc/projects"
+    ]
+   ],
+   "logRoots": [
+    [
+     "/home/u/.claude/projects"
+    ],
+    [
+     "/home/u/cc/projects"
+    ]
+   ],
+   "slash": [
+    [
+     {
+      "kind": "skills",
+      "path": "/h/.claude/skills",
+      "scope": "user"
+     },
+     {
+      "kind": "commands",
+      "path": "/h/.claude/commands",
+      "scope": "user"
+     },
+     {
+      "kind": "agents",
+      "path": "/h/.claude/agents",
+      "scope": "user"
+     }
+    ],
+    [
+     {
+      "kind": "skills",
+      "path": "/p/a/.claude/skills",
+      "scope": "project"
+     },
+     {
+      "kind": "commands",
+      "path": "/p/a/.claude/commands",
+      "scope": "project"
+     },
+     {
+      "kind": "agents",
+      "path": "/p/a/.claude/agents",
+      "scope": "project"
+     },
+     {
+      "kind": "mcp",
+      "path": "/p/a/.mcp.json",
+      "scope": "project"
+     },
+     {
+      "kind": "skills",
+      "path": "/p/.claude/skills",
+      "scope": "project"
+     },
+     {
+      "kind": "commands",
+      "path": "/p/.claude/commands",
+      "scope": "project"
+     },
+     {
+      "kind": "agents",
+      "path": "/p/.claude/agents",
+      "scope": "project"
+     },
+     {
+      "kind": "mcp",
+      "path": "/p/.mcp.json",
+      "scope": "project"
+     },
+     {
+      "kind": "skills",
+      "path": "/h/.claude/skills",
+      "scope": "user"
+     },
+     {
+      "kind": "commands",
+      "path": "/h/.claude/commands",
+      "scope": "user"
+     },
+     {
+      "kind": "agents",
+      "path": "/h/.claude/agents",
+      "scope": "user"
+     }
+    ]
+   ],
+   "terminal": [
+    {
+     "command": "claude",
+     "args": []
+    },
+    {
+     "command": "claude",
+     "args": [
+      "--resume",
+      "r1"
+     ]
+    },
+    {
+     "command": "claude",
+     "args": []
+    }
+   ],
+   "exec": {
+    "completes": [
+     false,
+     true,
+     false,
+     true,
+     false
+    ],
+    "silentExitIsError": null
+   }
+  }
+ },
+ {
+  "fn": "pluginSnapshot",
+  "args": [
+   "codex"
+  ],
+  "out": {
+   "supported": [
+    "plan",
+    "manual",
+    "acceptEdits",
+    "auto",
+    "bypass"
+   ],
+   "launch": [
+    [
+     {
+      "args": [
+       "-c",
+       "sandbox_mode=\"read-only\""
+      ],
+      "env": {}
+     },
+     {
+      "args": [
+       "-c",
+       "sandbox_mode=\"read-only\""
+      ],
+      "env": {}
+     }
+    ],
+    [
+     {
+      "args": [
+       "-c",
+       "sandbox_mode=\"read-only\""
+      ],
+      "env": {}
+     },
+     {
+      "args": [
+       "-c",
+       "sandbox_mode=\"read-only\""
+      ],
+      "env": {}
+     }
+    ],
+    [
+     {
+      "args": [
+       "-c",
+       "sandbox_mode=\"workspace-write\"",
+       "-c",
+       "sandbox_workspace_write.network_access=true"
+      ],
+      "env": {}
+     },
+     {
+      "args": [
+       "-c",
+       "sandbox_mode=\"workspace-write\""
+      ],
+      "env": {}
+     }
+    ],
+    [
+     {
+      "args": [
+       "-c",
+       "sandbox_mode=\"workspace-write\"",
+       "-c",
+       "sandbox_workspace_write.network_access=true",
+       "-c",
+       "approval_policy=\"on-request\"",
+       "-c",
+       "approvals_reviewer=\"auto_review\""
+      ],
+      "env": {}
+     },
+     {
+      "args": [
+       "-c",
+       "sandbox_mode=\"workspace-write\"",
+       "-c",
+       "approval_policy=\"on-request\"",
+       "-c",
+       "approvals_reviewer=\"auto_review\""
+      ],
+      "env": {}
+     }
+    ],
+    [
+     {
+      "args": [
+       "-c",
+       "sandbox_mode=\"danger-full-access\""
+      ],
+      "env": {}
+     },
+     {
+      "args": [
+       "-c",
+       "sandbox_mode=\"danger-full-access\""
+      ],
+      "env": {}
+     }
+    ]
+   ],
+   "modeId": null,
+   "fromModeId": [
+    "plan",
+    "auto",
+    "manual",
+    "plan",
+    "auto",
+    "auto",
+    "acceptEdits",
+    "bypass",
+    "bypass",
+    "auto",
+    "bypass",
+    null,
+    null,
+    null
+   ],
+   "planPrefix": "You are in plan mode: do not modify any files. Investigate as needed, then reply with a complete implementation plan in Markdown and wait for approval.\n\n",
+   "official": [
+    {
+     "env": {},
+     "args": [
+      "-c",
+      "sandbox_mode=\"read-only\""
+     ],
+     "strip": [
+      "OPENAI_API_KEY",
+      "OPENAI_BASE_URL",
+      "CODEX_API_KEY"
+     ]
+    },
+    {
+     "env": {
+      "CODEX_HOME": "/acct"
+     },
+     "args": [
+      "-c",
+      "cli_auth_credentials_store=\"file\"",
+      "-c",
+      "sandbox_mode=\"danger-full-access\"",
+      "-c",
+      "model=\"m-1\""
+     ],
+     "strip": [
+      "OPENAI_API_KEY",
+      "OPENAI_BASE_URL",
+      "CODEX_API_KEY",
+      "CODEX_HOME"
+     ]
+    },
+    {
+     "env": {},
+     "args": [
+      "-c",
+      "sandbox_mode=\"workspace-write\"",
+      "-c",
+      "sandbox_workspace_write.network_access=true",
+      "-c",
+      "approval_policy=\"on-request\"",
+      "-c",
+      "approvals_reviewer=\"auto_review\""
+     ],
+     "strip": [
+      "OPENAI_API_KEY",
+      "OPENAI_BASE_URL",
+      "CODEX_API_KEY"
+     ]
+    },
+    {
+     "env": {
+      "CODEX_HOME": "/a b"
+     },
+     "args": [
+      "-c",
+      "cli_auth_credentials_store=\"file\"",
+      "-c",
+      "sandbox_mode=\"read-only\"",
+      "-c",
+      "model=\"x\"y\""
+     ],
+     "strip": [
+      "OPENAI_API_KEY",
+      "OPENAI_BASE_URL",
+      "CODEX_API_KEY",
+      "CODEX_HOME"
+     ]
+    },
+    {
+     "env": {},
+     "args": [
+      "-c",
+      "sandbox_mode=\"workspace-write\"",
+      "-c",
+      "sandbox_workspace_write.network_access=true"
+     ],
+     "strip": [
+      "OPENAI_API_KEY",
+      "OPENAI_BASE_URL",
+      "CODEX_API_KEY"
+     ]
+    }
+   ],
+   "placeholderModel": null,
+   "modelArgs": [
+    [],
+    [
+     "-c",
+     "model=\"m\"",
+     "-c",
+     "model_reasoning_effort=\"low\""
+    ],
+    [],
+    [
+     "-c",
+     "model=\"a\\\"\\\\b\""
+    ]
+   ],
+   "accounts": {
+    "homeEnv": "CODEX_HOME",
+    "strip": [
+     "OPENAI_API_KEY",
+     "OPENAI_BASE_URL",
+     "CODEX_API_KEY",
+     "CODEX_HOME"
+    ],
+    "shared": [
+     {
+      "name": "sessions",
+      "dir": true,
+      "createIfMissing": true
+     },
+     {
+      "name": "archived_sessions",
+      "dir": true
+     },
+     {
+      "name": "config.toml",
+      "dir": false
+     },
+     {
+      "name": "skills",
+      "dir": true
+     },
+     {
+      "name": "prompts",
+      "dir": true
+     },
+     {
+      "name": "AGENTS.md",
+      "dir": false
+     }
+    ],
+    "loginArgs": [
+     "login",
+     "--device-auth",
+     "-c",
+     "cli_auth_credentials_store=\"file\""
+    ],
+    "logoutArgs": [
+     "logout"
+    ],
+    "statusArgs": [
+     "login",
+     "status"
+    ],
+    "accountArgs": [
+     "-c",
+     "cli_auth_credentials_store=\"file\""
+    ]
+   },
+   "roots": [
+    [
+     "/home/u/.codex/sessions"
+    ],
+    [
+     "/abs/codex/sessions"
+    ]
+   ],
+   "resume": {
+    "args": [
+     "resume",
+     "sid"
+    ],
+    "loadSession": true
+   },
+   "watch": [
+    [
+     "/home/u/.codex/sessions"
+    ],
+    [
+     "/abs/codex/sessions"
+    ]
+   ],
+   "logRoots": [
+    [
+     "/home/u/.codex/sessions"
+    ],
+    [
+     "/abs/codex/sessions"
+    ]
+   ],
+   "slash": [
+    [
+     {
+      "kind": "skills",
+      "path": "/h/.agents/skills",
+      "scope": "user"
+     }
+    ],
+    [
+     {
+      "kind": "skills",
+      "path": "/p/a/.agents/skills",
+      "scope": "project"
+     },
+     {
+      "kind": "skills",
+      "path": "/p/.agents/skills",
+      "scope": "project"
+     },
+     {
+      "kind": "skills",
+      "path": "/h/.agents/skills",
+      "scope": "user"
+     }
+    ]
+   ],
+   "terminal": [
+    {
+     "command": "codex",
+     "args": []
+    },
+    {
+     "command": "codex",
+     "args": [
+      "resume",
+      "r1"
+     ]
+    },
+    {
+     "command": "codex",
+     "args": []
+    }
+   ],
+   "exec": {
+    "completes": [
+     false,
+     true,
+     false,
+     true,
+     false
+    ],
+    "silentExitIsError": null
+   }
+  }
+ },
+ {
+  "fn": "pluginSnapshot",
+  "args": [
+   "dsh"
+  ],
+  "out": {
+   "supported": [
+    "plan",
+    "acceptEdits",
+    "bypass"
+   ],
+   "launch": [
+    [
+     {
+      "args": [],
+      "env": {
+       "DSH_PERMISSION_MODE": "read-only"
+      }
+     },
+     {
+      "args": [],
+      "env": {
+       "DSH_PERMISSION_MODE": "read-only"
+      }
+     }
+    ],
+    [
+     {
+      "args": [],
+      "env": {
+       "DSH_PERMISSION_MODE": "workspace-write"
+      }
+     },
+     {
+      "args": [],
+      "env": {
+       "DSH_PERMISSION_MODE": "workspace-write"
+      }
+     }
+    ],
+    [
+     {
+      "args": [],
+      "env": {
+       "DSH_PERMISSION_MODE": "workspace-write"
+      }
+     },
+     {
+      "args": [],
+      "env": {
+       "DSH_PERMISSION_MODE": "workspace-write"
+      }
+     }
+    ],
+    [
+     {
+      "args": [],
+      "env": {
+       "DSH_PERMISSION_MODE": "workspace-write"
+      }
+     },
+     {
+      "args": [],
+      "env": {
+       "DSH_PERMISSION_MODE": "workspace-write"
+      }
+     }
+    ],
+    [
+     {
+      "args": [],
+      "env": {
+       "DSH_PERMISSION_MODE": "danger-full-access"
+      }
+     },
+     {
+      "args": [],
+      "env": {
+       "DSH_PERMISSION_MODE": "danger-full-access"
+      }
+     }
+    ]
+   ],
+   "modeId": null,
+   "fromModeId": [
+    "plan",
+    "acceptEdits",
+    "plan",
+    "plan",
+    "plan",
+    "plan",
+    "acceptEdits",
+    "bypass",
+    "bypass",
+    "acceptEdits",
+    "bypass",
+    null,
+    null,
+    null
+   ],
+   "planPrefix": "You are in plan mode: do not modify any files. Investigate as needed, then reply with a complete implementation plan in Markdown and wait for approval.\n\n",
+   "official": [
+    {
+     "env": {
+      "DSH_PERMISSION_MODE": "workspace-write"
+     },
+     "args": [
+      "--profile",
+      "headless",
+      "--json"
+     ],
+     "strip": []
+    },
+    {
+     "env": {
+      "DSH_PERMISSION_MODE": "danger-full-access"
+     },
+     "args": [
+      "--profile",
+      "headless",
+      "--json"
+     ],
+     "strip": []
+    },
+    {
+     "env": {
+      "DSH_PERMISSION_MODE": "workspace-write"
+     },
+     "args": [
+      "--profile",
+      "headless",
+      "--json"
+     ],
+     "strip": []
+    },
+    {
+     "env": {
+      "DSH_PERMISSION_MODE": "read-only"
+     },
+     "args": [
+      "--profile",
+      "headless",
+      "--json"
+     ],
+     "strip": []
+    },
+    {
+     "env": {
+      "DSH_PERMISSION_MODE": "workspace-write"
+     },
+     "args": [
+      "--profile",
+      "headless",
+      "--json"
+     ],
+     "strip": []
+    }
+   ],
+   "placeholderModel": null,
+   "modelArgs": null,
+   "accounts": null,
+   "roots": [
+    [
+     "/home/u/.dsh/sessions"
+    ],
+    [
+     "/home/u/d/sessions"
+    ]
+   ],
+   "resume": {
+    "args": [
+     "--session-id",
+     "sid"
+    ]
+   },
+   "watch": [
+    [
+     "/home/u/.dsh/sessions"
+    ],
+    [
+     "/home/u/d/sessions"
+    ]
+   ],
+   "logRoots": [
+    [
+     "/home/u/.dsh/sessions"
+    ],
+    [
+     "/home/u/d/sessions"
+    ]
+   ],
+   "slash": null,
+   "terminal": null,
+   "exec": {
+    "completes": [
+     true,
+     true,
+     false,
+     true,
+     false
+    ],
+    "silentExitIsError": true
+   }
+  }
+ },
+ {
+  "fn": "pluginSnapshot",
+  "args": [
+   "gemini"
+  ],
+  "out": {
+   "supported": [
+    "plan",
+    "manual",
+    "acceptEdits",
+    "bypass"
+   ],
+   "launch": [
+    [
+     {
+      "args": [],
+      "env": {}
+     },
+     {
+      "args": [],
+      "env": {}
+     }
+    ],
+    [
+     {
+      "args": [],
+      "env": {}
+     },
+     {
+      "args": [],
+      "env": {}
+     }
+    ],
+    [
+     {
+      "args": [],
+      "env": {}
+     },
+     {
+      "args": [],
+      "env": {}
+     }
+    ],
+    [
+     {
+      "args": [],
+      "env": {}
+     },
+     {
+      "args": [],
+      "env": {}
+     }
+    ],
+    [
+     {
+      "args": [],
+      "env": {}
+     },
+     {
+      "args": [],
+      "env": {}
+     }
+    ]
+   ],
+   "modeId": [
+    "plan",
+    "default",
+    "autoEdit",
+    "autoEdit",
+    "yolo"
+   ],
+   "fromModeId": [
+    "plan",
+    "acceptEdits",
+    "manual",
+    "plan",
+    "manual",
+    "manual",
+    "acceptEdits",
+    "bypass",
+    "bypass",
+    "acceptEdits",
+    "bypass",
+    null,
+    null,
+    null
+   ],
+   "planPrefix": null,
+   "official": [
+    {
+     "env": {},
+     "args": [],
+     "strip": [
+      "GEMINI_API_KEY",
+      "GOOGLE_API_KEY",
+      "GOOGLE_GEMINI_BASE_URL",
+      "GOOGLE_GENAI_USE_VERTEXAI",
+      "GOOGLE_APPLICATION_CREDENTIALS",
+      "GEMINI_FORCE_ENCRYPTED_FILE_STORAGE",
+      "GEMINI_FORCE_ENCRYPTED_FILE"
+     ]
+    },
+    {
+     "env": {
+      "GEMINI_CLI_HOME": "/acct"
+     },
+     "args": [
+      "-m",
+      "m-1"
+     ],
+     "strip": [
+      "GEMINI_API_KEY",
+      "GOOGLE_API_KEY",
+      "GOOGLE_GEMINI_BASE_URL",
+      "GOOGLE_GENAI_USE_VERTEXAI",
+      "GOOGLE_APPLICATION_CREDENTIALS",
+      "GEMINI_CLI_HOME",
+      "GEMINI_FORCE_ENCRYPTED_FILE_STORAGE",
+      "GEMINI_FORCE_ENCRYPTED_FILE"
+     ]
+    },
+    {
+     "env": {},
+     "args": [],
+     "strip": [
+      "GEMINI_API_KEY",
+      "GOOGLE_API_KEY",
+      "GOOGLE_GEMINI_BASE_URL",
+      "GOOGLE_GENAI_USE_VERTEXAI",
+      "GOOGLE_APPLICATION_CREDENTIALS",
+      "GEMINI_FORCE_ENCRYPTED_FILE_STORAGE",
+      "GEMINI_FORCE_ENCRYPTED_FILE"
+     ]
+    },
+    {
+     "env": {
+      "GEMINI_CLI_HOME": "/a b"
+     },
+     "args": [
+      "-m",
+      "x\"y"
+     ],
+     "strip": [
+      "GEMINI_API_KEY",
+      "GOOGLE_API_KEY",
+      "GOOGLE_GEMINI_BASE_URL",
+      "GOOGLE_GENAI_USE_VERTEXAI",
+      "GOOGLE_APPLICATION_CREDENTIALS",
+      "GEMINI_CLI_HOME",
+      "GEMINI_FORCE_ENCRYPTED_FILE_STORAGE",
+      "GEMINI_FORCE_ENCRYPTED_FILE"
+     ]
+    },
+    {
+     "env": {},
+     "args": [],
+     "strip": [
+      "GEMINI_API_KEY",
+      "GOOGLE_API_KEY",
+      "GOOGLE_GEMINI_BASE_URL",
+      "GOOGLE_GENAI_USE_VERTEXAI",
+      "GOOGLE_APPLICATION_CREDENTIALS",
+      "GEMINI_FORCE_ENCRYPTED_FILE_STORAGE",
+      "GEMINI_FORCE_ENCRYPTED_FILE"
+     ]
+    }
+   ],
+   "placeholderModel": null,
+   "modelArgs": null,
+   "accounts": {
+    "homeEnv": "GEMINI_CLI_HOME",
+    "strip": [
+     "GEMINI_API_KEY",
+     "GOOGLE_API_KEY",
+     "GOOGLE_GEMINI_BASE_URL",
+     "GOOGLE_GENAI_USE_VERTEXAI",
+     "GOOGLE_APPLICATION_CREDENTIALS",
+     "GEMINI_CLI_HOME",
+     "GEMINI_FORCE_ENCRYPTED_FILE_STORAGE",
+     "GEMINI_FORCE_ENCRYPTED_FILE"
+    ],
+    "shared": [
+     {
+      "name": ".gemini/tmp",
+      "dir": true,
+      "createIfMissing": true
+     },
+     {
+      "name": ".gemini/settings.json",
+      "dir": false
+     },
+     {
+      "name": ".gemini/GEMINI.md",
+      "dir": false
+     },
+     {
+      "name": ".gemini/commands",
+      "dir": true
+     },
+     {
+      "name": ".gemini/extensions",
+      "dir": true
+     },
+     {
+      "name": ".gemini/trustedFolders.json",
+      "dir": false
+     },
+     {
+      "name": ".gemini/projects.json",
+      "dir": false
+     }
+    ],
+    "loginArgs": [
+     "--acp"
+    ]
+   },
+   "roots": [
+    [
+     "/home/u/.gemini/tmp"
+    ],
+    [
+     "/g/.gemini/tmp"
+    ]
+   ],
+   "resume": {
+    "args": [
+     "--resume",
+     "sid"
+    ],
+    "loadSession": true
+   },
+   "watch": [
+    [
+     "/home/u/.gemini/tmp"
+    ],
+    [
+     "/g/.gemini/tmp"
+    ]
+   ],
+   "logRoots": null,
+   "slash": null,
+   "terminal": [
+    {
+     "command": "gemini",
+     "args": []
+    },
+    {
+     "command": "gemini",
+     "args": [
+      "--resume",
+      "r1"
+     ]
+    },
+    {
+     "command": "gemini",
+     "args": []
+    }
+   ],
+   "exec": {
+    "completes": [
+     false,
+     true,
+     false,
+     true,
+     false
+    ],
+    "silentExitIsError": null
+   }
+  }
+ },
+ {
+  "fn": "pluginSnapshot",
+  "args": [
+   "grok"
+  ],
+  "out": {
+   "supported": [
+    "plan",
+    "manual",
+    "acceptEdits",
+    "bypass"
+   ],
+   "launch": [
+    [
+     {
+      "args": [
+       "--permission-mode",
+       "plan"
+      ],
+      "env": {}
+     },
+     {
+      "args": [
+       "--permission-mode",
+       "plan"
+      ],
+      "env": {}
+     }
+    ],
+    [
+     {
+      "args": [
+       "--permission-mode",
+       "default"
+      ],
+      "env": {}
+     },
+     {
+      "args": [
+       "--permission-mode",
+       "default"
+      ],
+      "env": {}
+     }
+    ],
+    [
+     {
+      "args": [
+       "--permission-mode",
+       "acceptEdits"
+      ],
+      "env": {}
+     },
+     {
+      "args": [
+       "--permission-mode",
+       "acceptEdits"
+      ],
+      "env": {}
+     }
+    ],
+    [
+     {
+      "args": [
+       "--permission-mode",
+       "auto"
+      ],
+      "env": {}
+     },
+     {
+      "args": [
+       "--permission-mode",
+       "auto"
+      ],
+      "env": {}
+     }
+    ],
+    [
+     {
+      "args": [
+       "--yolo"
+      ],
+      "env": {}
+     },
+     {
+      "args": [
+       "--yolo"
+      ],
+      "env": {}
+     }
+    ]
+   ],
+   "modeId": [
+    "plan",
+    "default",
+    "acceptEdits",
+    "default",
+    "bypassPermissions"
+   ],
+   "fromModeId": [
+    "plan",
+    "acceptEdits",
+    "manual",
+    "plan",
+    "manual",
+    "manual",
+    "acceptEdits",
+    "bypass",
+    "bypass",
+    "acceptEdits",
+    "bypass",
+    null,
+    null,
+    null
+   ],
+   "planPrefix": null,
+   "official": [
+    {
+     "env": {},
+     "args": [
+      "--permission-mode",
+      "default"
+     ],
+     "strip": [
+      "XAI_API_KEY",
+      "GROK_API_KEY"
+     ]
+    },
+    {
+     "env": {
+      "GROK_HOME": "/acct"
+     },
+     "args": [
+      "--yolo",
+      "-m",
+      "m-1"
+     ],
+     "strip": [
+      "XAI_API_KEY",
+      "GROK_API_KEY",
+      "GROK_HOME"
+     ]
+    },
+    {
+     "env": {},
+     "args": [
+      "--permission-mode",
+      "auto"
+     ],
+     "strip": [
+      "XAI_API_KEY",
+      "GROK_API_KEY"
+     ]
+    },
+    {
+     "env": {
+      "GROK_HOME": "/a b"
+     },
+     "args": [
+      "--permission-mode",
+      "plan",
+      "-m",
+      "x\"y"
+     ],
+     "strip": [
+      "XAI_API_KEY",
+      "GROK_API_KEY",
+      "GROK_HOME"
+     ]
+    },
+    {
+     "env": {},
+     "args": [
+      "--permission-mode",
+      "acceptEdits"
+     ],
+     "strip": [
+      "XAI_API_KEY",
+      "GROK_API_KEY"
+     ]
+    }
+   ],
+   "placeholderModel": "nomi",
+   "modelArgs": [
+    [],
+    [
+     "-m",
+     "m",
+     "--reasoning-effort",
+     "low"
+    ],
+    [],
+    [
+     "-m",
+     "a\"\\b"
+    ]
+   ],
+   "accounts": {
+    "homeEnv": "GROK_HOME",
+    "strip": [
+     "XAI_API_KEY",
+     "GROK_API_KEY",
+     "GROK_HOME"
+    ],
+    "shared": [
+     {
+      "name": "sessions",
+      "dir": true,
+      "createIfMissing": true
+     },
+     {
+      "name": "config.toml",
+      "dir": false
+     },
+     {
+      "name": "installed-plugins",
+      "dir": true
+     },
+     {
+      "name": "memory-v2",
+      "dir": true
+     },
+     {
+      "name": "bin",
+      "dir": true
+     },
+     {
+      "name": "bundled",
+      "dir": true
+     }
+    ],
+    "loginArgs": [
+     "login",
+     "--device-auth"
+    ],
+    "logoutArgs": [
+     "logout"
+    ]
+   },
+   "roots": [
+    [
+     "/home/u/.grok/sessions"
+    ],
+    [
+     "/home/u/sessions"
+    ]
+   ],
+   "resume": {
+    "args": [
+     "--resume",
+     "sid"
+    ],
+    "loadSession": true
+   },
+   "watch": [
+    [
+     "/home/u/.grok/sessions"
+    ],
+    [
+     "/home/u/sessions"
+    ]
+   ],
+   "logRoots": [
+    [
+     "/home/u/.grok/sessions"
+    ],
+    [
+     "/home/u/sessions"
+    ]
+   ],
+   "slash": [
+    [
+     {
+      "kind": "skills",
+      "path": "/h/.grok/skills",
+      "scope": "user",
+      "strictInvocable": true
+     },
+     {
+      "kind": "commands",
+      "path": "/h/.grok/commands",
+      "scope": "user"
+     },
+     {
+      "kind": "plugins",
+      "path": "/h/.grok/plugins",
+      "scope": "user"
+     },
+     {
+      "kind": "workflows",
+      "path": "/h/.grok/workflows",
+      "scope": "user"
+     },
+     {
+      "kind": "skills",
+      "path": "/h/.grok/bundled/skills",
+      "scope": "bundled",
+      "strictInvocable": true
+     },
+     {
+      "kind": "workflows",
+      "path": "/h/.grok/bundled/workflows",
+      "scope": "bundled"
+     }
+    ],
+    [
+     {
+      "kind": "skills",
+      "path": "/p/a/.grok/skills",
+      "scope": "project",
+      "strictInvocable": true
+     },
+     {
+      "kind": "commands",
+      "path": "/p/a/.grok/commands",
+      "scope": "project"
+     },
+     {
+      "kind": "plugins",
+      "path": "/p/a/.grok/plugins",
+      "scope": "project"
+     },
+     {
+      "kind": "workflows",
+      "path": "/p/a/.grok/workflows",
+      "scope": "project"
+     },
+     {
+      "kind": "skills",
+      "path": "/p/.grok/skills",
+      "scope": "project",
+      "strictInvocable": true
+     },
+     {
+      "kind": "commands",
+      "path": "/p/.grok/commands",
+      "scope": "project"
+     },
+     {
+      "kind": "plugins",
+      "path": "/p/.grok/plugins",
+      "scope": "project"
+     },
+     {
+      "kind": "workflows",
+      "path": "/p/.grok/workflows",
+      "scope": "project"
+     },
+     {
+      "kind": "skills",
+      "path": "/h/.grok/skills",
+      "scope": "user",
+      "strictInvocable": true
+     },
+     {
+      "kind": "commands",
+      "path": "/h/.grok/commands",
+      "scope": "user"
+     },
+     {
+      "kind": "plugins",
+      "path": "/h/.grok/plugins",
+      "scope": "user"
+     },
+     {
+      "kind": "workflows",
+      "path": "/h/.grok/workflows",
+      "scope": "user"
+     },
+     {
+      "kind": "skills",
+      "path": "/h/.grok/bundled/skills",
+      "scope": "bundled",
+      "strictInvocable": true
+     },
+     {
+      "kind": "workflows",
+      "path": "/h/.grok/bundled/workflows",
+      "scope": "bundled"
+     }
+    ]
+   ],
+   "terminal": [
+    {
+     "command": "grok",
+     "args": []
+    },
+    {
+     "command": "grok",
+     "args": [
+      "--resume",
+      "r1"
+     ]
+    },
+    {
+     "command": "grok",
+     "args": []
+    }
+   ],
+   "exec": {
+    "completes": [
+     false,
+     true,
+     false,
+     true,
+     false
+    ],
+    "silentExitIsError": null
+   }
+  }
+ },
+ {
+  "fn": "terminalLine",
+  "args": [
+   {
+    "command": "claude",
+    "args": [
+     "it's",
+     "a b",
+     ""
+    ],
+    "env": {
+     "A": "x'y",
+     "B": ""
+    }
+   },
+   "linux"
+  ],
+  "out": "A='x'\\''y' B='' claude 'it'\\''s' 'a b' ''"
+ },
+ {
+  "fn": "terminalLine",
+  "args": [
+   {
+    "command": "claude",
+    "args": [
+     "it's",
+     "a b",
+     ""
+    ],
+    "env": {
+     "A": "x'y",
+     "B": ""
+    }
+   },
+   "win32"
+  ],
+  "out": "$env:A='x''y'; $env:B=''; claude 'it''s' 'a b' ''"
  }
 ]
