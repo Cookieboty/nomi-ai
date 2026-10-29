@@ -240,6 +240,13 @@ func TestUsageScannerParity(t *testing.T) {
 					} else {
 						res["news"] = normJSON(t, news)
 						res["recs"] = normJSON(t, recs)
+						raws := []string{}
+						all := l.All()
+						sort.SliceStable(all, func(i, j int) bool { return all[i].Key < all[j].Key })
+						for i := range all {
+							raws = append(raws, stringifyRec(all[i]))
+						}
+						res["recsRaw"] = raws
 					}
 					got = normJSON(t, res)
 				}

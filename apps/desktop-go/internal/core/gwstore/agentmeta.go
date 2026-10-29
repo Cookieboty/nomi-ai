@@ -3,7 +3,7 @@ package gwstore
 import (
 	"strings"
 
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwagents"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore/agents"
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
@@ -21,14 +21,14 @@ func (s *Service) allProviders() []*u.Obj {
 func (s *Service) CliModels() []*u.Obj {
 	out := []*u.Obj{}
 	for _, p := range s.allProviders() {
-		if p.Get("enabled") != true {
+		if !u.Truthy(p.Get("enabled")) {
 			continue
 		}
 		pid, _ := p.Get("id").(string)
 		ms, _ := p.Get("models").([]any)
 		for _, mv := range ms {
 			m := asObj(mv)
-			if m == nil || m.Get("enabled") != true || m.Get("toolCalling") == false {
+			if m == nil || !u.Truthy(m.Get("enabled")) || m.Get("toolCalling") == false {
 				continue
 			}
 			mid, _ := m.Get("id").(string)
@@ -36,7 +36,7 @@ func (s *Service) CliModels() []*u.Obj {
 			meta := s.ModelMetaOf(ref, nil)
 			label := m.Get("label")
 			if label == nil {
-				label = mid
+				label = m.Get("id")
 			}
 			o := u.NewObj("ref", ref, "provider", p.Get("name"), "label", label)
 			if meta != nil {
@@ -79,7 +79,7 @@ func (s *Service) ModelMetaOf(ref string, longContext *bool) *ResolvedModelMeta 
 }
 
 // AgentMeta = GatewayService.agentMeta(ref, {longContext})
-func (s *Service) AgentMeta(ref string, longContext *bool) *gwagents.ModelMeta {
+func (s *Service) AgentMeta(ref string, longContext *bool) *agents.ModelMeta {
 	meta := s.ModelMetaOf(ref, longContext)
 	if meta == nil {
 		return nil
@@ -108,7 +108,7 @@ func (s *Service) AgentMeta(ref string, longContext *bool) *gwagents.ModelMeta {
 			label = l
 		}
 	}
-	out := &gwagents.ModelMeta{Label: &label, Ctx: &meta.Ctx, MaxOutput: &meta.MaxOutput, Reasoning: meta.Reasoning, Vision: meta.Vision}
+	out := &agents.ModelMeta{Label: &label, Ctx: &meta.Ctx, MaxOutput: &meta.MaxOutput, Reasoning: meta.Reasoning, Vision: meta.Vision}
 	if p != nil {
 		if n, ok := p.Get("name").(string); ok {
 			out.Provider = &n

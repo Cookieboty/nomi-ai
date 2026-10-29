@@ -15,6 +15,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/character"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/chatbg"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/chatnav"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/island"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/mascot"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/persona"
@@ -452,10 +453,7 @@ func Install(d Deps) *Controller {
 	})
 	// = openProviderPanel('nav.scheduleRequested')
 	call("window.openTaskBoard", func(json.RawMessage) (any, error) {
-		if d.OpenChat != nil {
-			d.OpenChat()
-		}
-		r.Emit("nav.scheduleRequested", map[string]any{})
+		chatnav.OpenPanel(r, d.OpenChat, "nav.scheduleRequested")
 		return map[string]any{"success": true}, nil
 	})
 	call("window.setAlwaysOnTop", func(raw json.RawMessage) (any, error) {

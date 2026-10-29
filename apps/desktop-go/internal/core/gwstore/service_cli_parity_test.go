@@ -4,6 +4,7 @@ package gwstore
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -12,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/models"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/route"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/server"
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
@@ -86,12 +88,14 @@ func TestServiceCliParity(t *testing.T) {
 	if err := json.Unmarshal(raw, &g); err != nil {
 		t.Fatal(err)
 	}
-	if len(g.Scenarios) != 2 {
+	if len(g.Scenarios) != 4 {
 		t.Fatalf("scenarios=%d", len(g.Scenarios))
 	}
 	for _, sc := range g.Scenarios {
 		t.Run(sc.Name, func(t *testing.T) {
 			fixRandom(t)
+			models.SetCatalogOverlay(nil)
+			t.Cleanup(func() { models.SetCatalogOverlay(nil) })
 			ud, _ := filepath.EvalSymlinks(t.TempDir())
 			home := filepath.Join(ud, "home")
 			_ = os.MkdirAll(filepath.Join(home, ".codex"), 0o755)
@@ -194,6 +198,16 @@ func TestServiceCliParity(t *testing.T) {
 				case "officialEnvTok":
 					tk, _ := s.Store.ClientToken(str(1))
 					res = s.OfficialEnv(obj(0).Clone().Set("T", "x "+tk+" y"))
+				case "applyModelsDataN":
+					<-s.ApplyModelsData(cliModelsAPI(int(arg(0).(float64))))
+				case "hasCatalogSync":
+					res = s.HasCatalogSync()
+				case "modelMetaOf":
+					if m := s.ModelMetaOf(str(0), nil); m != nil {
+						res = m.Obj()
+					}
+				case "storeProvider":
+					s.Store.UpsertProvider(obj(0))
 				case "listen":
 					child.msg(server.WorkerOutbound{Type: "listening", Port: 18999, URL: "http://127.0.0.1:18999"})
 				default:
@@ -240,4 +254,20 @@ func jsonParse(b []byte) any { v, _ := u.Parse(b); return v }
 func cliCanon(v any) string {
 	p, _ := u.ParseString(u.Stringify(v))
 	return u.Stringify(p)
+}
+
+// cliModelsAPI = record-gwcli.mjs modelsApi(n)
+func cliModelsAPI(n int) any {
+	ms := u.NewObj()
+	for i := 0; i < n; i++ {
+		in := []any{"text"}
+		if i%3 == 0 {
+			in = []any{"text", "image"}
+		}
+		ms.Set(fmt.Sprintf("m-%03d", i), u.NewObj("id", fmt.Sprintf("m-%d", i), "name", fmt.Sprintf("M %d", i), "reasoning", i%2 == 0,
+			"modalities", u.NewObj("input", in), "limit", u.NewObj("context", float64(100000+i*1000), "output", float64(4096+i))))
+	}
+	ms.Set("plain", u.NewObj("id", "plain", "name", "Plain", "limit", u.NewObj("context", float64(777000), "output", float64(33000))))
+	ms.Set("embed", u.NewObj("id", "embed", "type", "embedding", "limit", u.NewObj("context", float64(8000))))
+	return u.NewObj("openai", u.NewObj("models", ms))
 }

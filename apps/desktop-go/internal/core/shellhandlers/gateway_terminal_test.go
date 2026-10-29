@@ -2,6 +2,8 @@ package shellhandlers_test
 
 import (
 	"context"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -63,14 +65,38 @@ func TestWindowRoutes(t *testing.T) {
 		}
 	}
 	r := contract.NewRouter()
-	opened := 0
-	if r.EmitTo("providers.openPanel", map[string]any{}, "chat") {
-		t.Fatal("no subscribers yet")
+	got := map[string][]string{}
+	var mu sync.Mutex
+	for _, sf := range []string{"chat", "mascot", "settings"} {
+		sf := sf
+		s := r.NewSession(context.Background(), contract.Caller{Surface: sf}, func(f contract.ServerFrame) {
+			if f.T == "event" {
+				mu.Lock()
+				got[sf] = append(got[sf], f.Event)
+				mu.Unlock()
+			}
+		})
+		t.Cleanup(s.Close)
+		for _, ev := range []string{"providers.openPanel", "nav.desktopPanelRequested", "nav.scheduleRequested", "nav.voiceSettingsRequested"} {
+			s.Handle([]byte(`{"t":"sub","event":"` + ev + `"}`))
+		}
 	}
+	opened := 0
 	shellhandlers.OpenRoute(r, func() { opened++ }, "providers")
 	shellhandlers.OpenRoute(r, func() { opened++ }, "unknown")
+	shellhandlers.OpenRoute(r, func() { opened++ }, "voice")
 	shellhandlers.OpenProviderPanel(r, func() { opened++ }, "")
-	if opened != 3 {
+	shellhandlers.OpenProviderPanel(r, func() { opened++ }, "nav.scheduleRequested")
+	if opened != 5 {
 		t.Errorf("openChat calls %d", opened)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	wantChat := []string{"providers.openPanel", "nav.voiceSettingsRequested", "providers.openPanel", "nav.scheduleRequested"}
+	if strings.Join(got["chat"], ",") != strings.Join(wantChat, ",") {
+		t.Errorf("chat got %v want %v", got["chat"], wantChat)
+	}
+	if len(got["mascot"])+len(got["settings"]) != 0 {
+		t.Errorf("leaked to other surfaces: %v", got)
 	}
 }
