@@ -6,8 +6,11 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"encoding/json"
+	"errors"
+	blm "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/llm"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/tools"
 	aitools "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/tools"
 	aiproviders "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/providers"
@@ -26,6 +29,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
@@ -180,7 +184,26 @@ func main() {
 	desktopSvc.StartReminders()
 	// 批次 8：知识库 / 记忆 / 定时 / 本地模型 / 导出 / 扩展。
 	// Desktop 用批次 6 的同一个 DesktopService；TODO(batch-4/5): Complete / Gateway 接 AI runtime。
+	// createCore complete()：知识库 / 记忆 / 日程的 AI 补全，延迟绑定 ChatFacade（AI runtime 未就绪 → electron.common.ai-service-not-ready）
+	var chatFacadeRef atomic.Pointer[facade.Chat]
+	complete := func(ctx context.Context, msgs []deps.Msg) (string, error) {
+		chatFacade := chatFacadeRef.Load()
+		if chatFacade == nil {
+			return "", errors.New(i18n.T("electron.common.ai-service-not-ready"))
+		}
+		role := "chat"
+		cm := make([]blm.ChatMessage, 0, len(msgs))
+		for _, m := range msgs {
+			cm = append(cm, blm.ChatMessage{Role: m.Role, Content: m.Content})
+		}
+		resp, err := chatFacade.SendMessage(ctx, &facade.ChatStreamOptions{Role: &role, Messages: cm, Signal: ctx.Done()})
+		if err != nil {
+			return "", err
+		}
+		return resp.Content, nil
+	}
 	b8 := knowledgehandlers.Wire(knowledgehandlers.WireDeps{
+		Complete: complete,
 		UserData: userData,
 		Router:   router,
 		Secrets:  security.NewSecretBox("extensions"),
@@ -242,6 +265,7 @@ func main() {
 		Tools: func() tools.Registry { return toolRegistry },
 		Emit:  airouter.PublishAssistantMessage(router.Emit),
 	})
+	chatFacadeRef.Store(chatFacade)
 	chatHandlers := airouter.New(airouter.Options{Chat: chatFacade, Logger: deps.StdLogger{Prefix: "[ai-runtime]"}})
 	chatHandlers.Register(router)
 	defer chatHandlers.Dispose()

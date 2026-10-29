@@ -209,9 +209,9 @@ Go 版**1:1 镜像** Node 版：模块边界、包/层结构、数据格式、�
 | D-B11-6 | 托盘图标改为内嵌 PNG | mac 用 `trayTemplate@2x.png`（模板图），Win/Linux 用 `app-icons/sunset/tray.png` 的 @2x（= Electron 默认图标变体）；用户切换图标变体后托盘不跟随（Electron 跟随） | 非默认图标变体用户的托盘图标与 Electron 不同 |
 | D-B11-7 | 发布 workflow 与 ci.yml 的 Electron tag 任务需二选一 | `desktop-go-package.yml` 的 release-draft 只在 tag ref 上手动触发，且 publish 需显式 `publish=true`；ci.yml 在 `v*` tag push 时仍会构建并上传 Electron 包到同一 draft | 打 v2.0.5 tag 前（批次 12）须先下线 ci.yml 的 Electron 发布任务 |
 | D-B8-1 | `knowledge.ts` 契约 77 个过程（批次说明） | 实际 75 个过程 + 11 个事件，Go 全部注册（`knowledgehandlers.Handlers`，单测断言 75） | 以契约源码为准，说明里的数字有误 |
-| D-B8-2 | 本地模型注册进 AI 网关 / 设为主模型（`gateway.upsertProvider`、`setNomiMain`、`confirmPrivateHost`） | Go 通过 `local.GatewayLike` 接口调用，main.go 暂未接入（nil → 跳过注册），TODO(batch-4/5) | 网关服务属于批次 4/5，尚未合入 |
-| D-B8-3 | `desktop.say`、`broker.setLocalOnly`、HostPorts（打开对话框、OCR 等） | **部分**：DesktopService（批次 6）已可注入；`say`、OCR 等 HostPorts 仍用 `deps.NoopPorts` 假实现（对话框按“已取消”），TODO(batch-6 宿主端口) | HostPorts 宿主实现尚未全部合入 |
-| D-B8-4 | AI `complete`（摘要、问答、主动聊天） | `deps.UnavailableComplete`：返回 KB_/MEM_/SCHED_ 声明里的失败码，TODO(batch-4/5) | 依赖 ai-runtime（批次 4/5） |
+| D-B8-2 | 本地模型注册进 AI 网关 / 设为主模型（`gateway.upsertProvider`、`setNomiMain`、`confirmPrivateHost`） | Go 通过 `local.GatewayLike` 接口调用，main.go 仍传 nil（跳过注册）：GatewayService 写操作归 feat/2.0.5-go-gw worker，落地后在 main.go 注入 | 等待 GatewayService 写操作（feat/2.0.5-go-gw） |
+| D-B8-3 | `desktop.say`、`broker.setLocalOnly`、HostPorts | **已解决**：`DesktopAdapter` 直连 DesktopService.Say / Broker.LocalOnly/SetLocalOnly；HostPorts 由 `hostPorts`（dialogs.pickDirectory/saveFile、shell.openPath/showItemInFolder、power.idleSeconds）提供——批次 8 服务用到的 ports.* 已全部覆盖 | — |
+| D-B8-4 | AI `complete`（摘要、问答、主动聊天） | **已解决**：main.go `complete` 对齐 createCore：延迟绑定 ChatFacade，`sendMessage({role:'chat', messages, signal})` 返回 `content`；runtime 未就绪抛 `electron.common.ai-service-not-ready` | — |
 | D-B8-5 | ~~`os.totalmem()`~~ **已消除** | Linux `sysinfo`、mac `hw.memsize`、Windows `GlobalMemoryStatusEx` | 无行为差异 |
 | D-B8-6 | ~~llama-server 被信号结束时 `exit` 事件~~ **已消除** | Unix 报 `code: null` + 信号名；Windows 与 Node 一样以 TerminateProcess 退出码上报 | 无行为差异 |
 | D-B8-7 | ~~数据导出用 JS zip 库~~ **已消除** | 移植 fflate zip 写出（按 readdir 顺序、同样的头字段），`local/fflatezip_test.go` 与 Node 产物逐字节一致 | 无行为差异 |
