@@ -163,7 +163,7 @@ Go 版**1:1 镜像** Node 版：模块边界、包/层结构、数据格式、�
 | D4 | onnxruntime-node（主进程） | 渲染侧 WASM | 用户决策 Q4，Go 无成熟 onnx 绑定 |
 | D5 | BrowserWindow 透明 | Wails 窗口；mac 需 `-tags private_mac_apis`（WKWebView drawsBackground） | Wails v3 默认不开私有 API |
 | D6 | Electron Tray | Linux 无 StatusNotifierWatcher 时不建托盘，对话窗作入口 | Q6；Electron 在此情况下同样无托盘，Go 版改为显示对话窗 |
-| D7 | node-pty | Go PTY（creack/pty + Windows ConPTY） | 平台库不同，读写/尺寸/退出码语义对齐 |
+| D7 | ~~node-pty~~ **作废**（见 D-B7-2） | 仓库里没有 node-pty：CLI 一律 `child_process` 管道 | — |
 | D8 | 未注册过程不存在 | 迁移期桩返回 `UNAVAILABLE` | 临时，全部实现后删除 |
 | D9 | 默认 Rive 看板娘 | 默认 SVG，Rive 可选 | 产品决策 Q5 |
 | D10 | Go 与 Electron 共用同一 userData 目录（§4.5 初稿） | Go 版单独用 `Nomi`；首启从 `@nomi-ai/electron`（及旧 `@ig-live/electron`）**复制**进 `Nomi`，不改、不删 Electron 原目录 | 用户要求升级后仍能打开 Electron 构建；同目录会互相踩配置/钥匙串 |
@@ -208,6 +208,8 @@ Go 版**1:1 镜像** Node 版：模块边界、包/层结构、数据格式、�
 | D-B8-7 | ~~数据导出用 JS zip 库~~ **已消除** | 移植 fflate zip 写出（按 readdir 顺序、同样的头字段），`local/fflatezip_test.go` 与 Node 产物逐字节一致 | 无行为差异 |
 | D-B8-8 | MCP 密钥用 safeStorage 加密写进 `mcp.json` | 写入系统钥匙串（`security.NewSecretBox("extensions")`），磁盘上存 `enc:<base64 id>`，同 D13 | Go 没有 safeStorage |
 | D-B8-9 | ~~导入技能时用 `O_NOFOLLOW` 打开文件~~ **已消除** | Windows 用 `FILE_FLAG_OPEN_REPARSE_POINT` 打开并拒绝重解析点（`nofollow_windows.go`），Unix `O_NOFOLLOW` | 无行为差异 |
+| D-B7-1 | ~~dsh 解析器遇到 `"null"` 入参时抛 TypeError~~ **已消除** | Go 解析器 `panic(clisdk.JSThrow)` 复现抛出；驱动的 stdout 回调按 EventEmitter 语义：本 chunk 余下行丢弃、交给进程级 uncaughtException 钩子（生产环境退出），解析器跨行状态照常保留。golden 录了 `{throw}` 及其后续行 | 无行为差异 |
+| D-B7-2 | 计划里的 PTY（creack/pty + ConPTY） | 不用 PTY：Node 的 CLI 全部走 `child_process` 管道（`harness/spawn.ts`），Go 用 `os/exec` 管道，参数 / env / cwd / 信号 / 杀进程树逐项对齐 | 用户已确认（2026-10-29）；跟随 Node 实际实现，不是平台差异 |
 
 ### 3.5 一致性测试策略（golden，Node 与 Go 同输入对比输出）
 
