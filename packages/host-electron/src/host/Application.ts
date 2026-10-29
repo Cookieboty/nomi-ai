@@ -44,7 +44,7 @@ import { perfMark } from '../utils/perfMarks';
 
 import { AgentBrowser } from './AgentBrowser';
 import { registerChatAssetProtocol } from './assetProtocol';
-import { createHostHandlers, electronCallerWindows } from './contract';
+import { createHostHandlers } from './contract';
 import { serveContractOverIpc } from './contractIpc';
 import { createElectronPorts, lazyWindowHost } from './electronPorts';
 import { countLiveWindows } from './liveWindows';
@@ -129,17 +129,8 @@ export class Application implements IApplication {
         browser: () => new AgentBrowser(),
         // 角色包的 character-pack:// 协议注册在宿主（内核只认结构类型）
         characterPackProtocol: protocol,
-        desktopWindows: {
-          main: () => this.windowManager.getMainWindow(),
-          openChat: () => this.windowManager.createAiChatWindow(),
-          mascotHidden: () => this.windowManager.mascotHidden(),
-          summonMascot: () => this.windowManager.summonMascot(),
-          releaseMascot: () => this.windowManager.releaseMascot(),
-          island: (n) => this.island?.notify(n) ?? false,
-        },
-        voiceChatWindow: () => this.windowManager.createAiChatWindow(),
+        desktopIsland: (n) => this.island?.notify(n) ?? false,
         liveWindows: countLiveWindows,
-        callerWindows: electronCallerWindows(() => this.windowManager),
         // FileSessionStorePlugin 提供 ProfileStorageKey → 用户画像持久化到 userData/ai-chat/memory
         aiPlugins: () => [
           { plugin: FileSessionStorePlugin, config: { rootDir: this.ports.paths.userData() } },
@@ -242,7 +233,7 @@ export class Application implements IApplication {
       if (desktop) {
         // 原生 IPC 回调不在内核作用域里：进内核作用域，拖入总结的气泡按用户的界面语言
         const stopNomiHost = serveNomiHostIpc({
-          dropFile: (id, p) => this.core.run(() => desktop.dropFile(id, p)),
+          dropFile: (id, p) => this.core.run(() => desktop.dropFile(String(id), p)),
         });
         this.lifecycle.register({ name: 'nomi-host-ipc', stop: stopNomiHost });
       }

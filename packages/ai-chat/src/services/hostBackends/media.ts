@@ -88,8 +88,17 @@ export function contractVoiceApi(api: AppClient): VoiceApi {
     onActivity: (fn: (e: { activity: string; source: string }) => void) =>
       api.on('voice.activity', (e) => fn(e)),
     onBargeIn: (fn: (e: { source: string }) => void) => api.on('voice.bargeIn', (e) => fn(e)),
-    onInject: (fn: (e: { text: string; autoSend: boolean }) => void) =>
-      api.on('voice.inject', (e) => fn(e)),
+    onInject: (fn: (e: { text: string; autoSend: boolean }) => void) => {
+      // 先订阅再拉取：看板娘打开本窗口时页面还没订阅，内核留着的那一次在这里取回
+      const off = api.on('voice.inject', (e) => fn(e));
+      api.voice
+        .takePendingInject()
+        .then((e) => {
+          if (e) fn(e);
+        })
+        .catch(() => undefined);
+      return off;
+    },
   };
 }
 

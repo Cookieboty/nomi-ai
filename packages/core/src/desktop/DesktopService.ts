@@ -56,36 +56,20 @@ export interface DesktopRuntimeHooks {
   lookupProvider?(id: string): { id: string; name: string; baseURL?: string } | null;
 }
 
-/** 看板娘窗口用到的部分（BrowserWindow 结构上满足；确认框要临时显示 / 再藏起，答复要核对发送方） */
-export interface DesktopMascotWindow {
-  isDestroyed(): boolean;
-  isVisible(): boolean;
-  showInactive(): void;
-  readonly webContents: { readonly id: number };
-}
+/**
+ * 灵动岛提醒（宿主的灵动岛浮层）：显示了返回 true；关闭 / 不支持 / 不接这一类时返回 false。
+ * 看板娘与对话窗口不在这里：显示、临时召回、核对调用方都走声明式的 `ports.windows`（§6.2）。
+ */
+export type DesktopIsland = (n: IslandNotice) => boolean;
 
-/** 对话窗口用到的部分（BrowserWindow 结构上满足） */
-export interface DesktopChatWindow {
-  isDestroyed(): boolean;
-}
-
-export interface DesktopWindows {
-  main(): DesktopMascotWindow | null;
-  openChat(): Promise<DesktopChatWindow>;
-  /** 看板娘已关闭（窗口隐藏且静音）：提醒不再把她叫出来（系统通知 / 灵动岛照常）；确认框临时显示，答完再藏起 */
-  mascotHidden?(): boolean;
-  /** 看板娘已关闭（窗口已释放）时为确认框临时建出窗口；窗口加载后自己补拉待答复的请求 */
-  summonMascot?(): void;
-  /** 临时召回结束（确认框都答完了）：看板娘仍是关闭状态就再次释放窗口 */
-  releaseMascot?(): void;
-  /** 灵动岛提醒（宿主的灵动岛窗口）：显示了返回 true；关闭 / 不支持 / 不接这一类时返回 false */
-  island?(n: IslandNotice): boolean;
-}
-
-/** 平台能力：home / userData 路径、文件夹选择器、剪贴板、系统通知、解析子进程 */
+/**
+ * 平台能力：home / userData 路径、文件夹选择器、剪贴板、系统通知、解析子进程，以及窗口意图
+ * （看板娘：确认框 / 提醒卡片临时召回 `open('mascot', { transient: true })`，答完 `release('mascot')`；
+ * 对话窗口：`open('chat')`；只接受看板娘的操作用 `ownsCaller('mascot', callerId)` 核对调用方）
+ */
 export type DesktopPorts = Pick<
   HostPorts,
-  'paths' | 'dialogs' | 'clipboard' | 'notifications' | 'processes'
+  'paths' | 'dialogs' | 'clipboard' | 'notifications' | 'processes' | 'windows'
 >;
 
 export interface DesktopServiceOptions {
@@ -116,7 +100,7 @@ export class DesktopService {
   private deferred: Reminder[] = [];
   private deferTimer: ReturnType<typeof setTimeout> | null = null;
   private runtime: DesktopRuntimeHooks | null = null;
-  private windows: DesktopWindows | null = null;
+  private island: DesktopIsland | null = null;
   private toolDefs: ToolDefinition[] | null = null;
   private readonly ports: DesktopPorts;
   private readonly events: AppEvents;
@@ -165,23 +149,37 @@ export class DesktopService {
     this.runtime = h;
   }
 
-  attachWindows(w: DesktopWindows): void {
-    this.windows = w;
+  attachIsland(island: DesktopIsland): void {
+    this.island = island;
   }
 
-  private main(): DesktopMascotWindow | null {
-    const w = this.windows?.main();
-    return w && !w.isDestroyed() ? w : null;
+  /** 看板娘窗口在（可能没显示） */
+  private mascotOpen(): boolean {
+    return this.ports.windows.isOpen('mascot');
   }
 
+  /** 看板娘被用户关掉了：提醒不再把她叫出来（系统通知 / 灵动岛照常）；确认框临时召回，答完再收回 */
   private mascotHidden(): boolean {
-    return this.windows?.mascotHidden?.() ?? false;
+    return this.ports.windows.dismissed('mascot');
+  }
+
+  /** 临时召回看板娘（关掉了就临时建出窗口，开着没显示就只显示、不抢焦点） */
+  private summonMascot(): void {
+    this.ports.windows
+      .open('mascot', { activate: false, transient: true })
+      .catch((e: unknown) => this.logger.warn('临时召回看板娘失败', { error: String(e) }));
+  }
+
+  private openChat(): void {
+    this.ports.windows
+      .open('chat')
+      .catch((e: unknown) => this.logger.warn('打开对话窗口失败', { error: String(e) }));
   }
 
   /** 看板娘已关闭时，确认框全部处理完就把临时召回的窗口再释放掉 */
   private rehideMascotIfIdle(): void {
     if (!this.mascotHidden() || this.broker.pendingRequests().length > 0) return;
-    this.windows?.releaseMascot?.();
+    this.ports.windows.release('mascot');
   }
 
   private broadcast(ch: AppEventName, payload: unknown): void {
@@ -190,24 +188,23 @@ export class DesktopService {
 
   /** 只发给看板娘窗口（确认请求 / 气泡 / 提醒）；看板娘窗口不存在时不发 */
   private toMascot(ch: AppEventName, payload: unknown): void {
-    if (this.main()) this.events.publish(ch, payload, { surface: 'mascot' });
+    if (this.mascotOpen()) this.events.publish(ch, payload, { surface: 'mascot' });
   }
 
-  /** 调用方是不是看板娘窗口（确认答复、提醒卡片、拖文件只接受它） */
-  isMascotSender(webContentsId: number | undefined): boolean {
-    const w = this.main();
-    return !!w && webContentsId !== undefined && w.webContents.id === webContentsId;
+  /** 调用方（契约 caller.id）是不是看板娘窗口（确认答复、提醒卡片、拖文件只接受它） */
+  isMascotCaller(callerId: string | undefined): boolean {
+    return this.ports.windows.ownsCaller('mascot', callerId);
   }
 
   private sendConfirm(req: ConfirmRequest): void {
-    const w = this.main();
-    this.logger.info('桌面工具确认请求', { tool: req.tool, danger: req.danger, hasWindow: !!w });
-    if (!w) {
+    const open = this.mascotOpen();
+    this.logger.info('桌面工具确认请求', { tool: req.tool, danger: req.danger, hasWindow: open });
+    if (!open) {
       // 看板娘已关闭、窗口已释放：临时建出来，页面加载后经 desktop.state 补拉这条请求
-      if (this.mascotHidden()) this.windows?.summonMascot?.();
+      if (this.mascotHidden()) this.summonMascot();
       return;
     }
-    if (!w.isVisible()) w.showInactive();
+    if (!this.ports.windows.isVisible('mascot')) this.summonMascot();
     this.events.publish('desktop.confirmRequest', req, { surface: 'mascot' });
     avatarGesture(this.events, 'think');
     avatarEmotion(this.events, req.danger === 'destructive' ? 'surprised' : 'relaxed');
@@ -224,13 +221,13 @@ export class DesktopService {
    * 点系统通知打开对话窗口。返回实际用到的渠道。
    */
   notify(n: DesktopNotice): NoticeChannel {
-    if (!this.mascotHidden() && this.main()) {
+    if (!this.mascotHidden() && this.mascotOpen()) {
       this.say(n.text, n.bubble);
       return 'bubble';
     }
     try {
       if (
-        this.windows?.island?.({
+        this.island?.({
           kind: n.kind,
           title: n.title,
           body: n.body ?? n.text,
@@ -245,9 +242,8 @@ export class DesktopService {
     if (n.passive || this.notifyPolicy?.quiet()) return 'none';
     try {
       if (!this.ports.notifications.supported()) return 'none';
-      this.ports.notifications.show(
-        { title: n.title, body: n.body ?? n.text, silent: false },
-        () => void this.windows?.openChat().catch(() => undefined),
+      this.ports.notifications.show({ title: n.title, body: n.body ?? n.text, silent: false }, () =>
+        this.openChat(),
       );
       return 'notification';
     } catch (e) {
@@ -295,18 +291,18 @@ export class DesktopService {
   }
 
   private deliverReminders(items: Reminder[]): void {
-    const w = this.main();
+    const open = this.mascotOpen();
     this.logger.info('提醒触发', {
       count: items.length,
-      hasWindow: !!w,
+      hasWindow: open,
       mascotHidden: this.mascotHidden(),
     });
     // 看板娘已关闭 / 没有窗口：提醒卡片不发给隐藏的看板娘（否则看不见，下次打开她时还会冒出过期卡片）
-    if (!w || this.mascotHidden()) {
+    if (!open || this.mascotHidden()) {
       this.deliverReminderElsewhere(items);
       return;
     }
-    if (!w.isVisible()) w.showInactive();
+    if (!this.ports.windows.isVisible('mascot')) this.summonMascot();
     for (const r of items) {
       this.events.publish(
         'desktop.reminder',
@@ -446,7 +442,7 @@ export class DesktopService {
       buttonLabel: tr('electron.common.grant'),
       createDirectory: true,
       // 挂到当前焦点窗口（窗口还没接上时独立弹出）
-      parent: this.windows ? 'focused' : 'none',
+      parent: 'focused',
       ...(suggested
         ? { defaultPath: suggested.replace(/^~(?=$|[\\/])/, this.ports.paths.home()) }
         : {}),
@@ -579,16 +575,14 @@ export class DesktopService {
     );
     avatarGesture(this.events, 'nod');
     avatarEmotion(this.events, 'happy');
-    if (this.windows) {
-      await this.windows.openChat();
-      // 对话窗口已经开着并订阅了：直接收到；刚打开、还没订阅：内核留着这次总结，窗口挂载时拉取
-      // （`desktop.takePendingSummary`，见 core/pendingEvents.ts）
-      this.events.publish(
-        'desktop.summary',
-        { name, path: probe.real, summary, at: Date.now() },
-        { surface: 'chat' },
-      );
-    }
+    await this.ports.windows.open('chat');
+    // 对话窗口已经开着并订阅了：直接收到；刚打开、还没订阅：内核留着这次总结，窗口挂载时拉取
+    // （`desktop.takePendingSummary`，见 core/pendingEvents.ts）
+    this.events.publish(
+      'desktop.summary',
+      { name, path: probe.real, summary, at: Date.now() },
+      { surface: 'chat' },
+    );
     return { ok: true };
   }
 
@@ -751,21 +745,21 @@ export class DesktopService {
     }
   }
 
-  // ---- 只接受看板娘窗口的操作：senderId 是调用方 webContents 的 id ----
+  // ---- 只接受看板娘窗口的操作：callerId 是契约调用方的 caller.id（宿主核对它属于看板娘窗口） ----
 
   /** 拉取错过的提醒；不是看板娘窗口时返回空 */
-  takeMissedFor(senderId: number | undefined): Array<{ id: string; text: string; dueAt: number }> {
-    return this.isMascotSender(senderId) ? this.takeMissed() : [];
+  takeMissedFor(callerId: string | undefined): Array<{ id: string; text: string; dueAt: number }> {
+    return this.isMascotCaller(callerId) ? this.takeMissed() : [];
   }
 
   /** 提醒卡片：好的 / 稍后 */
   reminderAction(
-    senderId: number | undefined,
+    callerId: string | undefined,
     id: unknown,
     action: unknown,
     minutes: unknown,
   ): void {
-    if (!this.isMascotSender(senderId) || typeof id !== 'string') return;
+    if (!this.isMascotCaller(callerId) || typeof id !== 'string') return;
     try {
       if (action === 'snooze')
         this.reminders.snooze(
@@ -780,12 +774,12 @@ export class DesktopService {
 
   /** 确认答复：只接受看板娘窗口（确认气泡 / 对话框所在处），模型与对话窗口都无法伪造 */
   answerConfirm(
-    senderId: number | undefined,
+    callerId: string | undefined,
     id: unknown,
     allow: unknown,
     remember: unknown,
   ): void {
-    if (!this.isMascotSender(senderId)) {
+    if (!this.isMascotCaller(callerId)) {
       this.logger.warn('忽略来自非 Nomi 窗口的确认答复');
       return;
     }
@@ -797,8 +791,8 @@ export class DesktopService {
    * 拖到看板娘身上的文件。路径由看板娘窗口的 preload 从真实 File 取得并经专用通道提交
    * （nomiHost.dropFile → host/nomiHostIpc.ts）；视图代码选不了路径，所以这里不是契约过程。
    */
-  dropFile(senderId: number | undefined, p: unknown): void {
-    if (!this.isMascotSender(senderId) || typeof p !== 'string' || !p) return;
+  dropFile(callerId: string | undefined, p: unknown): void {
+    if (!this.isMascotCaller(callerId) || typeof p !== 'string' || !p) return;
     void this.summarizeDropped(p);
   }
 }

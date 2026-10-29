@@ -42,20 +42,15 @@ function setup(opts: { hidden: boolean; window?: boolean; quiet?: boolean }) {
     publish(channel, payload, opts);
     if (opts?.surface === 'mascot') send(channel, payload);
   };
-  const win = {
-    isDestroyed: () => false,
-    isVisible: () => !opts.hidden,
-    showInactive: jest.fn(),
-    hide: jest.fn(),
-    webContents: { id: 7 },
-  };
-  const openChat = jest.fn(async () => ({}) as never);
-  svc.attachWindows({
-    main: () => (opts.window === false ? null : (win as never)),
-    openChat,
-    mascotHidden: () => opts.hidden,
-    island: (n) => island(n),
-  });
+  // 看板娘窗口：开着（除非 window: false）；hidden = 用户关掉了（隐藏且静音）
+  const w = ports.windowState;
+  if (opts.window !== false) w.open.add('mascot');
+  if (opts.window !== false && !opts.hidden) w.visible.add('mascot');
+  if (opts.hidden) w.dismissed.add('mascot');
+  w.callers.set('7', 'mascot');
+  const opened = (surface: string) =>
+    ports.calls.windows.filter((c) => c.method === 'open' && c.surface === surface);
+  svc.attachIsland((n) => island(n));
   svc.notifyPolicy = { quiet: () => opts.quiet ?? false, quietEndsAt: () => 0 };
   const fire = (r: Partial<Reminder> = {}) =>
     (svc as unknown as { fireReminder(r: Reminder): void }).fireReminder({
@@ -66,7 +61,7 @@ function setup(opts: { hidden: boolean; window?: boolean; quiet?: boolean }) {
       createdAt: Date.now(),
       ...r,
     } as Reminder);
-  return { svc, win, send, openChat, fire };
+  return { svc, send, opened, fire, ports };
 }
 
 describe('one channel per alert', () => {
@@ -87,7 +82,7 @@ describe('one channel per alert', () => {
     const t = setup({ hidden: true });
     t.fire();
     expect(t.send).not.toHaveBeenCalledWith('desktop.reminder', expect.anything());
-    expect(t.win.showInactive).not.toHaveBeenCalled();
+    expect(t.opened('mascot')).toHaveLength(0);
     expect(island).toHaveBeenCalledWith(
       expect.objectContaining({ kind: 'reminder', body: 'drink water' }),
     );
@@ -102,8 +97,8 @@ describe('one channel per alert', () => {
     expect(shown).toHaveLength(1);
     expect(shown[0]).toMatchObject({ title: '提醒', body: 'drink water' });
     shown[0]!.click?.();
-    expect(t.openChat).toHaveBeenCalled();
-    expect(t.win.showInactive).not.toHaveBeenCalled();
+    expect(t.opened('chat')).toHaveLength(1);
+    expect(t.opened('mascot')).toHaveLength(0);
     expect(audit).toHaveBeenCalledWith(
       expect.objectContaining({
         tool: 'reminder_fire',
@@ -165,5 +160,44 @@ describe('one channel per alert', () => {
     expect(setup({ hidden: true }).svc.notify({ ...n, passive: true })).toBe('none');
     expect(setup({ hidden: true, quiet: true }).svc.notify(n)).toBe('none');
     expect(shown).toHaveLength(0);
+  });
+});
+
+describe('confirm requests summon the mascot transiently', () => {
+  const req = { id: 'c1', tool: 'fs_write', danger: 'write', summary: 'x' } as never;
+  const ask = (svc: DesktopService) =>
+    (svc.broker.ui as { request(r: unknown): void }).request(req);
+
+  it('mascot dismissed and released: summons it transiently; the page pulls the request later', () => {
+    const t = setup({ hidden: true, window: false });
+    ask(t.svc);
+    expect(t.opened('mascot')).toEqual([
+      { method: 'open', surface: 'mascot', intent: { activate: false, transient: true } },
+    ]);
+    expect(t.send).not.toHaveBeenCalledWith('desktop.confirmRequest', expect.anything());
+  });
+
+  it('mascot open but hidden: summons it and sends the request; the answer releases it again', () => {
+    const t = setup({ hidden: true });
+    const answer = jest.spyOn(t.svc.broker, 'answer').mockImplementation(() => true);
+    ask(t.svc);
+    expect(t.opened('mascot')).toHaveLength(1);
+    expect(t.send).toHaveBeenCalledWith('desktop.confirmRequest', req);
+
+    // 只接受看板娘窗口的答复
+    t.svc.answerConfirm('8', 'c1', true, false);
+    t.svc.answerConfirm(undefined, 'c1', true, false);
+    expect(answer).not.toHaveBeenCalled();
+    t.svc.answerConfirm('7', 'c1', true, false);
+    expect(answer).toHaveBeenCalledWith('c1', true, false);
+    expect(t.ports.calls.windows).toContainEqual({ method: 'release', surface: 'mascot' });
+  });
+
+  it('mascot visible: no summon, no release', () => {
+    const t = setup({ hidden: false });
+    ask(t.svc);
+    expect(t.opened('mascot')).toHaveLength(0);
+    t.svc.answerConfirm('7', 'c1', false, false);
+    expect(t.ports.calls.windows).not.toContainEqual({ method: 'release', surface: 'mascot' });
   });
 });

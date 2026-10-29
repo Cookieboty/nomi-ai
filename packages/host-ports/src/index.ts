@@ -370,6 +370,11 @@ export interface WindowIntent {
   route?: string;
   /** 是否抢占焦点，默认 true；false 时只显示 */
   activate?: boolean;
+  /**
+   * 临时召回：界面被用户关掉了也为这一次交互临时显示出来（不改变用户的显示偏好），用完调
+   * `release(surface)` 收回。界面开着但没显示时只显示、不抢焦点。用于看板娘的确认框与提醒卡片。
+   */
+  transient?: boolean;
 }
 
 /**
@@ -386,6 +391,22 @@ export interface WindowsPort {
   hide(surface: Surface): void;
   /** 本应用是否有任一窗口获得焦点（判断「后台完成」：未读、通知） */
   anyFocused(): boolean;
+  /** 界面的窗口是否存在（可能没显示）；页面加载后才收得到只发给它的事件 */
+  isOpen(surface: Surface): boolean;
+  /** 用户关掉了这个界面（看板娘：隐藏并静音）。关掉的界面不该被提醒叫出来 */
+  dismissed(surface: Surface): boolean;
+  /** 结束 `open(surface, { transient: true })` 的临时召回：界面仍是关掉的状态就收回 */
+  release(surface: Surface): void;
+  /**
+   * 契约调用方（`caller.id`，传输层填写的连接标识）是不是这个界面的窗口。surfaces 守卫之外的
+   * 第二道核对：只接受看板娘的操作（确认答复、提醒卡片）要求调用方确实是看板娘窗口。
+   */
+  ownsCaller(surface: Surface, callerId: string | undefined): boolean;
+  /**
+   * 调用方的窗口关闭时回调一次；找不到窗口（辅助窗口、测试调用方、无界面宿主）时永远不回调。
+   * 内核据此释放按调用方管理的会话（语音 VAD、流式识别）。
+   */
+  onCallerClosed(callerId: string, fn: () => void): void;
 }
 
 // ───────────────────────── capabilities（§9） ─────────────────────────

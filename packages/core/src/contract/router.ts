@@ -26,7 +26,6 @@ import { createCodingHandlers } from './coding';
 import { createKnowledgeHandlers } from './knowledge';
 import { createMascotCoreHandlers } from './mascot';
 import { createMediaHandlers } from './media';
-import type { VoiceStreams } from './media/voiceSenders';
 import { createShellHandlers } from './shell';
 import type { AppHandlers, ContractDeps, ContractLoggerLike } from './types';
 
@@ -45,8 +44,6 @@ export interface CreateAppRouterOptions {
   /** 宿主片段：只补内核没有实现的过程（窗口、灵动岛、应用图标…） */
   hostHandlers?: Partial<AppHandlers>;
   middleware?: readonly Middleware[];
-  /** 测试用：媒体域的流式识别会话表 */
-  voiceStreams?: VoiceStreams;
   /** 内核实例作用域：每次调用（含流的每一步）都在其中执行，处理函数读到本内核的界面语言等状态 */
   scope?: CoreScope;
 }
@@ -92,12 +89,9 @@ export function auditMiddleware(logger: Pick<ContractLoggerLike, 'info'>): Middl
 }
 
 /** 内核实现的过程（不含 `ai.*`） */
-export function createCoreHandlers(
-  deps: ContractDeps,
-  opts: { voiceStreams?: VoiceStreams } = {},
-): Partial<AppHandlers> {
+export function createCoreHandlers(deps: ContractDeps): Partial<AppHandlers> {
   return {
-    ...createMediaHandlers(deps, opts.voiceStreams),
+    ...createMediaHandlers(deps),
     ...createShellHandlers(deps),
     ...createCodingHandlers(deps),
     ...createKnowledgeHandlers(deps),
@@ -122,7 +116,7 @@ export function createAppRouter(opts: CreateAppRouterOptions): AppRouterHandle {
   const { deps } = opts;
   const core: Partial<AppHandlers> = {
     ...opts.ai?.handlers,
-    ...createCoreHandlers(deps, { voiceStreams: opts.voiceStreams }),
+    ...createCoreHandlers(deps),
   };
   for (const name of Object.keys(opts.hostHandlers ?? {})) {
     if (Object.prototype.hasOwnProperty.call(core, name)) {

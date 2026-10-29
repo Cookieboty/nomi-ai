@@ -1,7 +1,7 @@
 /**
  * D1（contract/media.ts）：voice / tts / desktop / screen / nav 的处理函数委派给服务、
- * 按窗口的操作用调用方的 webContents id、surfaces 与 dangerous 由内置守卫拒绝、流式识别的推送
- * 进到 `voice.streamStart` 的流里、服务发布的契约事件送到订阅了的窗口。
+ * 按窗口的操作用调用方 id、surfaces 与 dangerous 由内置守卫拒绝、流式识别的推送经 VoiceStreamSink
+ * 进到发起方的 `voice.streamStart` 流里（服务结束会话时流随之结束）、服务发布的契约事件送到订阅了的窗口。
  */
 
 const fakeTts = {
@@ -26,13 +26,12 @@ import { createInProcessServer } from '@nomi-ai/contract/testing';
 import type { HostPorts } from '@nomi-ai/host-ports';
 
 import { createContractEventBus } from '../../../src/contract/eventBus';
-import { createVoiceStreams } from '../../../src/contract/media/voiceSenders';
 import { createAppRouter } from '../../../src/contract/router';
 import type { CoreContractServices } from '../../../src/contract/services';
 import type { ContractDeps } from '../../../src/contract/types';
 import { createRecordingAppEvents } from '../../../src/core/appEvents';
 import { CORE_PENDING_GROUPS, createPendingEvents } from '../../../src/core/pendingEvents';
-import type { VoiceSender } from '../../../src/voice/VoiceService';
+import type { VoiceStreamSink } from '../../../src/voice/VoiceService';
 
 const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
 
@@ -63,9 +62,19 @@ const desktopState = {
 };
 
 function fakeVoice() {
-  const senders: VoiceSender[] = [];
+  /** 进行中的流式会话：id → 发起方与出口（服务结束会话时 end） */
+  const streams = new Map<string, { owner: number; sink: VoiceStreamSink }>();
+  const owners: number[] = [];
+  const finish = (owner: number, id: string) => {
+    const s = streams.get(id);
+    if (!s || s.owner !== owner) return false;
+    streams.delete(id);
+    s.sink.end();
+    return true;
+  };
   return {
-    senders,
+    streams,
+    owners,
     state: jest.fn(() => ({
       settings: voiceSettings,
       platform: 'darwin-arm64',
@@ -81,9 +90,9 @@ function fakeVoice() {
     download: jest.fn(async () => ({ ok: true })),
     cancel: jest.fn(() => true),
     remove: jest.fn(() => true),
-    vadOpen: jest.fn(async (wc: VoiceSender) => {
-      senders.push(wc);
-      return { kind: 'silero' as const, handle: `${wc.id}:1` };
+    vadOpen: jest.fn(async (owner: number) => {
+      owners.push(owner);
+      return { kind: 'silero' as const, handle: `${owner}:1` };
     }),
     vadProb: jest.fn(async () => 0.75),
     vadClose: jest.fn(),
@@ -93,13 +102,18 @@ function fakeVoice() {
     setVolcKey: jest.fn(() => ({ ok: true })),
     clearVolcKey: jest.fn(() => true),
     volcTest: jest.fn(async () => ({ ok: true, message: 'ok' })),
-    streamStart: jest.fn((wc: VoiceSender) => {
-      senders.push(wc);
-      return { ok: true as const, id: `${wc.id}:9` };
+    streamStart: jest.fn((owner: number, _source: string, sink: VoiceStreamSink) => {
+      owners.push(owner);
+      const id = `${owner}:9`;
+      streams.set(id, { owner, sink });
+      return { ok: true as const, id };
     }),
     streamPush: jest.fn(() => true),
-    streamStop: jest.fn(async () => ({ ok: true as const, text: 'done' })),
-    streamCancel: jest.fn(() => true),
+    streamStop: jest.fn(async (owner: number, id: string) => {
+      finish(owner, id);
+      return { ok: true as const, text: 'done' };
+    }),
+    streamCancel: jest.fn((owner: number, id: string) => finish(owner, id)),
   };
 }
 
@@ -156,8 +170,7 @@ function setup() {
     events,
     logger,
   };
-  const voiceStreams = createVoiceStreams();
-  const app = createAppRouter({ deps, voiceStreams });
+  const app = createAppRouter({ deps });
   const server = createInProcessServer();
   const stop = server.serve(app.router as never);
   const clients: Array<{ disconnect(): void }> = [];
@@ -174,7 +187,6 @@ function setup() {
     config,
     windows,
     events,
-    voiceStreams,
     router: app.router,
     connect,
     close: () => {
@@ -220,7 +232,7 @@ describe('media handlers', () => {
     const api = t.connect(MASCOT);
     try {
       await expect(api.voice.vadOpen()).resolves.toEqual({ kind: 'silero', handle: '7:1' });
-      expect(t.voice.senders[0]!.id).toBe(7);
+      expect(t.voice.owners[0]).toBe(7);
       const frame = new Uint8Array(new Float32Array([0.1, 0.2]).buffer);
       await expect(api.voice.vadProb({ handle: '7:1', frame })).resolves.toBe(0.75);
       expect(t.voice.vadProb).toHaveBeenCalledWith(7, '7:1', frame);
@@ -241,10 +253,8 @@ describe('media handlers', () => {
         done: false,
         value: { type: 'start', ok: true, id: '8:9' },
       });
-      const wc = t.voice.senders[0]!;
-      expect(wc.id).toBe(8);
-      wc.send('ai:voice:stream', { id: '8:9', type: 'partial', text: '你好' });
-      wc.send('ai:voice:stream', { id: 'other', type: 'partial', text: 'x' });
+      expect(t.voice.owners[0]).toBe(8);
+      t.voice.streams.get('8:9')!.sink.push({ id: '8:9', type: 'partial', text: '你好' });
       await expect(it.next()).resolves.toEqual({
         done: false,
         value: { id: '8:9', type: 'partial', text: '你好' },
@@ -255,7 +265,7 @@ describe('media handlers', () => {
         text: 'done',
       });
       await expect(it.next()).resolves.toMatchObject({ done: true });
-      expect(t.voiceStreams.count()).toBe(0);
+      expect(t.voice.streams.size).toBe(0);
     } finally {
       t.close();
     }
@@ -280,8 +290,8 @@ describe('media handlers', () => {
       await it.return?.();
       for (let i = 0; i < 20 && !t.voice.streamCancel.mock.calls.length; i++)
         await new Promise((r) => setTimeout(r, 0));
-      expect(t.voice.streamCancel).toHaveBeenCalledWith(expect.objectContaining({ id: 8 }), '8:9');
-      expect(t.voiceStreams.count()).toBe(0);
+      expect(t.voice.streamCancel).toHaveBeenCalledWith(8, '8:9');
+      expect(t.voice.streams.size).toBe(0);
     } finally {
       t.close();
     }
@@ -370,13 +380,13 @@ describe('media handlers', () => {
       expect(t.desktop.snoozeReminder).toHaveBeenCalledWith('r1', 5);
 
       await mascot.desktop.confirmAnswer({ id: 'c1', allow: true, remember: false });
-      expect(t.desktop.answerConfirm).toHaveBeenCalledWith(7, 'c1', true, false);
+      expect(t.desktop.answerConfirm).toHaveBeenCalledWith('7', 'c1', true, false);
       await mascot.desktop.reminderAction({ id: 'r1', action: 'snooze', minutes: 10 });
-      expect(t.desktop.reminderAction).toHaveBeenCalledWith(7, 'r1', 'snooze', 10);
+      expect(t.desktop.reminderAction).toHaveBeenCalledWith('7', 'r1', 'snooze', 10);
       await expect(mascot.desktop.takeMissedReminders()).resolves.toEqual([
         { id: 'r1', text: 'water', dueAt: 5 },
       ]);
-      expect(t.desktop.takeMissedFor).toHaveBeenCalledWith(7);
+      expect(t.desktop.takeMissedFor).toHaveBeenCalledWith('7');
     } finally {
       t.close();
     }
@@ -494,7 +504,7 @@ describe('media events', () => {
     }
   });
 
-  it('面板导航 / 拖入总结：没有对话窗口订阅时内核留着，挂载后拉取；已订阅的窗口直接收到', async () => {
+  it('面板导航 / 拖入总结 / 识别结果投递：没有对话窗口订阅时内核留着，挂载后拉取；已订阅的窗口直接收到', async () => {
     const t = setup();
     const pending = createPendingEvents({ groups: CORE_PENDING_GROUPS });
     t.services.pendingEvents = pending;
@@ -510,6 +520,13 @@ describe('media events', () => {
       await expect(chat.nav.takePending()).resolves.toBeNull();
       await expect(chat.desktop.takePendingSummary()).resolves.toEqual(summary);
       await expect(chat.desktop.takePendingSummary()).resolves.toBeNull();
+      // 看板娘把识别结果投递到刚打开的对话窗口：同样留着，挂载后拉取
+      bus.publish('voice.inject', { text: '你好', autoSend: true }, { surface: 'chat' });
+      await expect(chat.voice.takePendingInject()).resolves.toEqual({
+        text: '你好',
+        autoSend: true,
+      });
+      await expect(chat.voice.takePendingInject()).resolves.toBeNull();
       // 只给对话窗口
       await expect(t.connect(MASCOT).nav.takePending()).rejects.toMatchObject({
         code: 'FORBIDDEN',

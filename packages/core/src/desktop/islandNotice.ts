@@ -1,6 +1,6 @@
 /**
  * 灵动岛提醒的数据形状。灵动岛窗口是宿主的事（electron `island/IslandService`）；内核只发提醒，
- * 经 `DesktopWindows.island()` 交给宿主（docs/design/core-host-decoupling.md §7.2）。
+ * 经组合根注入的 `DesktopIsland`（`createCore` 的 `desktopIsland`）交给宿主（docs/design/core-host-decoupling.md §7.2）。
  */
 export type IslandKind = 'message' | 'agent' | 'reminder' | 'info';
 

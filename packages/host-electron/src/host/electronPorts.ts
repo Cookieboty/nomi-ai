@@ -49,6 +49,8 @@ export interface HostWindow {
   show(): void;
   hide(): void;
   focus(): void;
+  /** 契约调用方的 caller.id 就是窗口 webContents 的 id（host/contractIpc.ts） */
+  readonly webContents: { readonly id: number; once(event: 'destroyed', fn: () => void): unknown };
 }
 
 /** 窗口端口依赖的最小窗口管理接口（core/WindowManager 结构上满足） */
@@ -59,6 +61,12 @@ export interface WindowHost {
   getMainWindow(): HostWindow | null;
   getAiChatWindow(): HostWindow | null;
   setMascotVisible(visible: boolean): void;
+  /** 看板娘被用户关掉了（窗口隐藏且静音，或已释放） */
+  mascotHidden(): boolean;
+  /** 看板娘已关掉时为一次交互临时建出 / 显示窗口（不改用户的显示偏好） */
+  summonMascot(): void;
+  /** 临时召回结束：看板娘仍是关掉的状态就再次释放窗口 */
+  releaseMascot(): void;
   /** 打开对话窗口并发布面板导航事件 */
   openProviderPanel(event?: ChatNavEvent): Promise<void>;
 }
@@ -79,6 +87,9 @@ export function lazyWindowHost(resolve: () => WindowHost | undefined): WindowHos
     getMainWindow: () => resolve()?.getMainWindow() ?? null,
     getAiChatWindow: () => resolve()?.getAiChatWindow() ?? null,
     setMascotVisible: (visible) => need().setMascotVisible(visible),
+    mascotHidden: () => resolve()?.mascotHidden() ?? false,
+    summonMascot: () => need().summonMascot(),
+    releaseMascot: () => resolve()?.releaseMascot(),
     openProviderPanel: (event) => need().openProviderPanel(event),
   };
 }
@@ -186,8 +197,23 @@ export function createElectronPorts(deps: ElectronPortsDeps): HostPorts {
     return event;
   };
 
+  /** 调用方 id → 它的窗口（看板娘 / 对话窗口）；辅助窗口与测试调用方找不到 */
+  const callerWindow = (callerId: string | undefined): [Surface, HostWindow] | null => {
+    const id = Number(callerId);
+    if (!Number.isInteger(id) || id <= 0) return null;
+    for (const surface of ['mascot', 'chat'] as const) {
+      const win = windowOf(surface);
+      if (win && win.webContents.id === id) return [surface, win];
+    }
+    return null;
+  };
+
   const openSurface = async (surface: Surface, intent: WindowIntent = {}): Promise<void> => {
     const activate = intent.activate ?? true;
+    if (surface === 'mascot' && intent.transient) {
+      windows.summonMascot();
+      return;
+    }
     if (surface === 'mascot') {
       if (!windowOf('mascot')) {
         await windows.createMainWindow({ activate });
@@ -386,6 +412,15 @@ export function createElectronPorts(deps: ElectronPortsDeps): HostPorts {
       },
       // 所有窗口（含看板娘、对话窗口与辅助窗口）里任一获得焦点
       anyFocused: () => BrowserWindow.getAllWindows().some((w) => w.isFocused?.()),
+      isOpen: (surface) => windowOf(surface) !== null,
+      dismissed: (surface) => surface === 'mascot' && windows.mascotHidden(),
+      release(surface) {
+        if (surface === 'mascot') windows.releaseMascot();
+      },
+      ownsCaller: (surface, callerId) => callerWindow(callerId)?.[0] === surface,
+      onCallerClosed(callerId, fn) {
+        callerWindow(callerId)?.[1].webContents.once('destroyed', fn);
+      },
     },
 
     capabilities: Object.freeze(electronCapabilities(platform)),

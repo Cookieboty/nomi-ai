@@ -142,16 +142,8 @@ describe('E6 · createCore：同一进程里的两个内核', () => {
     const a = await make();
     await a.connect().api.locale.set({ pref: 'en' });
     const desktop = a.core.services.desktop!;
-    desktop.attachWindows({
-      main: () => ({
-        isDestroyed: () => false,
-        isVisible: () => true,
-        showInactive: () => undefined,
-        hide: () => undefined,
-        webContents: { id: MASCOT_ID },
-      }),
-      openChat: async () => ({ isDestroyed: () => false }),
-    });
+    await a.ports.windows.open('mascot');
+    a.control.bindCaller('mascot', String(MASCOT_ID));
     const bubbles: string[] = [];
     a.connect({ surface: 'mascot', trusted: true, id: String(MASCOT_ID) }).api.on(
       'desktop.bubble',
@@ -159,7 +151,7 @@ describe('E6 · createCore：同一进程里的两个内核', () => {
     );
     await tick();
     // 宿主的拖放通道（nomiHostIpc）直接调 desktop.dropFile：这里不在任何内核作用域里
-    desktop.dropFile(MASCOT_ID, path.join(a.ports.paths.userData(), 'missing', 'nope.txt'));
+    desktop.dropFile(String(MASCOT_ID), path.join(a.ports.paths.userData(), 'missing', 'nope.txt'));
     await expect.poll(() => bubbles.length, { timeout: 5000 }).toBeGreaterThan(0);
     expect(bubbles[0]).toMatch(/[A-Za-z]/);
     expect(bubbles[0]).not.toMatch(/[\u4e00-\u9fff]/);

@@ -6,8 +6,8 @@
  * 只放类型引用（`import type`），本文件不加载任何服务模块。
  *
  * 宿主自己的东西（窗口管理器、看板娘窗口操作、灵动岛、应用图标）不进这张表：宿主的契约片段
- * （`createCore` 的 `contract.hostHandlers`）在自己的闭包里拿它们。宿主只经 `callerWindows`
- * 报告调用方窗口的存活（语音会话随窗口释放）。
+ * （`createCore` 的 `contract.hostHandlers`）在自己的闭包里拿它们；内核要用窗口时只经声明式的
+ * `ports.windows`（打开、临时召回、核对调用方、调用方窗口关闭）。
  */
 
 import type { AgentProgressService } from '../agents/AgentProgressService';
@@ -45,16 +45,12 @@ import type { QualityService } from '../usage/quality/QualityService';
 import type { UsageService } from '../usage/UsageService';
 import type { VoiceService } from '../voice/VoiceService';
 
-import type { CallerWindows } from './media/voiceSenders';
-
 /** 全部可选：服务创建失败（或还没创建）时为 undefined，处理函数用 `need()` 报 UNAVAILABLE */
 export interface CoreContractServices {
   config?: IConfigService;
   /** AI runtime（AI 门面、供应商）；启动失败时为 undefined */
   aiRuntime?: AIRuntimeBootHandle;
-  /** 宿主报告调用方窗口的存活（Electron：按 webContents id 找窗口）；无界面宿主不提供 */
-  callerWindows?: CallerWindows;
-  /** 没送达的面板导航 / 拖入总结（`nav.takePending`、`desktop.takePendingSummary`） */
+  /** 没送达的面板导航 / 拖入总结 / 识别结果投递（`nav.takePending`、`desktop.takePendingSummary`、`voice.takePendingInject`） */
   pendingEvents?: PendingEvents;
 
   // D1 media

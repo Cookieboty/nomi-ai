@@ -64,7 +64,8 @@ export type ShellCall =
 export type WindowCall =
   | { method: 'open'; surface: Surface; intent?: WindowIntent }
   | { method: 'focus'; surface: Surface }
-  | { method: 'hide'; surface: Surface };
+  | { method: 'hide'; surface: Surface }
+  | { method: 'release'; surface: Surface };
 
 export interface NotificationRecord {
   notification: SystemNotification;
@@ -132,6 +133,10 @@ export interface NodeHostControl {
   setNotificationsSupported(supported: boolean): void;
   /** 当前可见的界面 */
   visibleSurfaces(): Surface[];
+  /** 声明调用方 `callerId`（契约连接的 caller.id）属于界面 `surface` 的窗口（`windows.ownsCaller`） */
+  bindCaller(surface: Surface, callerId: string): void;
+  /** 模拟调用方窗口关闭：触发 `windows.onCallerClosed` 登记的回调 */
+  closeCaller(callerId: string): void;
   setIdleSeconds(seconds: number): void;
   /** 模拟应用窗口获得 / 失去焦点（`windows.anyFocused()`） */
   setFocused(focused: boolean): void;
@@ -212,6 +217,9 @@ export function createNodeHostPorts(options: NodeHostPortsOptions = {}): NodeHos
   const notifications: NotificationRecord[] = [];
   let notificationsSupported = options.notificationsSupported ?? true;
   const visible = new Set<Surface>();
+  /** 调用方 id → 所属界面；关闭回调 */
+  const callerSurface = new Map<string, Surface>();
+  const callerClosers = new Map<string, Array<() => void>>();
 
   let secretsAvailable = options.secretsAvailable ?? true;
   let idleSeconds = options.idleSeconds ?? 0;
@@ -398,6 +406,17 @@ export function createNodeHostPorts(options: NodeHostPortsOptions = {}): NodeHos
         visible.delete(surface);
       },
       anyFocused: () => focused,
+      isOpen: (surface) => visible.has(surface),
+      // 无界面宿主：用户关不掉界面；调用方归属由测试经 control.bindCaller 声明
+      dismissed: () => false,
+      release(surface) {
+        windowCalls.push({ method: 'release', surface });
+      },
+      ownsCaller: (surface, callerId) =>
+        callerId !== undefined && callerSurface.get(callerId) === surface,
+      onCallerClosed(callerId, fn) {
+        callerClosers.set(callerId, [...(callerClosers.get(callerId) ?? []), fn]);
+      },
     },
     capabilities: Object.freeze({ ...NODE_HOST_CAPABILITIES, ...options.capabilities }),
   };
@@ -419,6 +438,15 @@ export function createNodeHostPorts(options: NodeHostPortsOptions = {}): NodeHos
       notificationsSupported = supported;
     },
     visibleSurfaces: () => [...visible],
+    bindCaller(surface, callerId) {
+      callerSurface.set(callerId, surface);
+    },
+    closeCaller(callerId) {
+      callerSurface.delete(callerId);
+      const fns = callerClosers.get(callerId) ?? [];
+      callerClosers.delete(callerId);
+      for (const fn of fns) fn();
+    },
     setFocused(value) {
       focused = value;
     },

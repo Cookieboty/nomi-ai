@@ -4,7 +4,7 @@
  * 现在只有 `desktop:drop-file`：看板娘窗口的 preload 从真实拖入的 File 取路径（webUtils）后直接发来，
  * 视图代码碰不到这个通道（`window.nomiTransport` 只放行契约的两个通道，视图也没有 ipcRenderer），
  * 所以路径一定来自用户真实拖入的文件。发送方是不是看板娘窗口由 `dropFile` 判定
- * （DesktopService.isMascotSender），其它窗口发来的直接忽略。
+ * （宿主端口 `windows.ownsCaller('mascot', …)`），其它窗口发来的直接忽略。
  */
 
 import { NOMI_HOST_DROP_FILE_CHANNEL } from '@nomi-ai/ai-sdk-client/preload';

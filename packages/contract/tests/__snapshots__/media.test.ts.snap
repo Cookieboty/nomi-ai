@@ -14,6 +14,7 @@ exports[`media 契约 > 过程名 / kind / surfaces / dangerous 1`] = `
   "voice.transcribe mutation *",
   "voice.activity mutation *",
   "voice.sendToChat mutation *",
+  "voice.takePendingInject mutation chat",
   "voice.volcSetKey mutation *",
   "voice.volcClearKey mutation *",
   "voice.volcTest mutation *",

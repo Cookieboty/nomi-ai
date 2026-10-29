@@ -102,9 +102,15 @@ import {
   type WindowHost,
 } from '../../../src/host/electronPorts';
 
-function fakeWindow(visible = true): jest.Mocked<HostWindow> {
+function fakeWindow(visible = true, id = 1): jest.Mocked<HostWindow> & { destroy(): void } {
   let shown = visible;
+  const onDestroyed: Array<() => void> = [];
   return {
+    webContents: {
+      id,
+      once: jest.fn((_e: 'destroyed', fn: () => void) => onDestroyed.push(fn)),
+    },
+    destroy: () => onDestroyed.splice(0).forEach((fn) => fn()),
     isDestroyed: jest.fn(() => false),
     isVisible: jest.fn(() => shown),
     isMinimized: jest.fn(() => false),
@@ -122,6 +128,9 @@ function fakeHost(main: HostWindow | null = null, chat: HostWindow | null = null
     getMainWindow: jest.fn(() => main),
     getAiChatWindow: jest.fn(() => chat),
     setMascotVisible: jest.fn(),
+    mascotHidden: jest.fn(() => false),
+    summonMascot: jest.fn(),
+    releaseMascot: jest.fn(),
     openProviderPanel: jest.fn(async () => undefined),
   };
   return host;
@@ -324,6 +333,40 @@ describe('createElectronPorts', () => {
       await ports.windows.open('mascot');
       expect(host.setMascotVisible).toHaveBeenCalledWith(true);
       expect(mascot.focus).toHaveBeenCalled();
+    });
+
+    it('transient mascot：经 summonMascot 临时召回；release 交还；dismissed 只看看板娘', async () => {
+      const host = fakeHost();
+      const ports = createElectronPorts({ windows: host });
+      await ports.windows.open('mascot', { activate: false, transient: true });
+      expect(host.summonMascot).toHaveBeenCalledTimes(1);
+      expect(host.createMainWindow).not.toHaveBeenCalled();
+      ports.windows.release('mascot');
+      ports.windows.release('chat');
+      expect(host.releaseMascot).toHaveBeenCalledTimes(1);
+      host.mascotHidden.mockReturnValue(true);
+      expect(ports.windows.dismissed('mascot')).toBe(true);
+      expect(ports.windows.dismissed('chat')).toBe(false);
+    });
+
+    it('isOpen / ownsCaller / onCallerClosed：按调用方的 webContents id 找窗口', () => {
+      const mascot = fakeWindow(false, 7);
+      const chat = fakeWindow(true, 8);
+      const ports = createElectronPorts({ windows: fakeHost(mascot, chat) });
+      expect(ports.windows.isOpen('mascot')).toBe(true);
+      expect(ports.windows.isOpen('settings')).toBe(true);
+      expect(createElectronPorts({ windows: fakeHost() }).windows.isOpen('mascot')).toBe(false);
+      expect(ports.windows.ownsCaller('mascot', '7')).toBe(true);
+      expect(ports.windows.ownsCaller('mascot', '8')).toBe(false);
+      expect(ports.windows.ownsCaller('chat', '8')).toBe(true);
+      expect(ports.windows.ownsCaller('mascot', undefined)).toBe(false);
+      expect(ports.windows.ownsCaller('mascot', 'x')).toBe(false);
+      const closed = jest.fn();
+      ports.windows.onCallerClosed('8', closed);
+      ports.windows.onCallerClosed('99', closed); // 找不到的调用方：不登记
+      expect(closed).not.toHaveBeenCalled();
+      chat.destroy();
+      expect(closed).toHaveBeenCalledTimes(1);
     });
 
     it('focus / isVisible / hide', () => {

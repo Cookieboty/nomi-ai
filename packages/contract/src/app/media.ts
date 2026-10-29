@@ -21,7 +21,7 @@
  * - 回答用户确认、授予权限的写 `dangerous: true`：确认答复、授权文件夹、工具策略、仅本地开关、全部重置、
  *   语音云端告知确认。
  *
- * 流式识别（豆包 2.0）：旧的 `ai:voice:stream` 只推给发起的窗口，这里改成 stream 过程 `voice.streamStart`
+ * 流式识别（豆包 2.0）：临时结果只给发起的窗口，所以是 stream 过程 `voice.streamStart`
  * （第一条 chunk 是启动结果，之后是这个会话的临时结果 / 错误）；推音频、结束、取消仍按会话 id 调用，
  * 结束或取消之后流随之结束。
  */
@@ -110,6 +110,16 @@ export const mediaProcedures = {
     kind: 'mutation',
     input: z.object({ text: z.string() }),
     output: z.void(),
+  },
+  /**
+   * 对话窗口挂载时拉取还没送达的识别结果投递（`voice.sendToChat` 打开对话窗口后发布 `voice.inject` 时
+   * 页面还没订阅）；拉取即取走，没有时为 null。已经开着的窗口照常收事件
+   */
+  'voice.takePendingInject': {
+    kind: 'mutation',
+    input: z.void(),
+    output: VoiceInjectEvent.nullable(),
+    surfaces: ['chat'],
   },
   'voice.volcSetKey': {
     kind: 'mutation',

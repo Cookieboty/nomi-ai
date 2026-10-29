@@ -63,7 +63,6 @@ import { legacyCliKeyDecryptor } from './cli/legacyCliKey';
 import { SessionHistoryService } from './cli/SessionHistoryService';
 import type { CliKind } from './cli/types';
 import { createContractEventBus, type ContractEventBus } from './contract/eventBus';
-import type { CallerWindows } from './contract/media/voiceSenders';
 import { createAppRouter, type AppRouterHandle } from './contract/router';
 import type { CoreContractServices } from './contract/services';
 import type { AppHandlers, ContractDeps, Middleware } from './contract/types';
@@ -77,7 +76,7 @@ import {
 } from './core/scope';
 import { ServiceContainer, type IServiceContainer } from './core/ServiceContainer';
 import { APP_EVENTS, HOST_PORTS } from './core/serviceTokens';
-import { createDesktopService, type DesktopWindows } from './desktop/DesktopService';
+import { createDesktopService, type DesktopIsland } from './desktop/DesktopService';
 import { guardOutboundMessages } from './desktop/outboundGuard';
 import { applyConversationWorkspace } from './desktop/workspaceTools';
 import { DiagnosticsService } from './diagnostics/DiagnosticsService';
@@ -109,7 +108,7 @@ import { QualityService } from './usage/quality/QualityService';
 import { UsageService } from './usage/UsageService';
 import { createMainLogger } from './utils/log';
 import { whenPrivateWritesIdle } from './utils/privateFile';
-import { VoiceService, type VoiceChatWindow } from './voice/VoiceService';
+import { VoiceService } from './voice/VoiceService';
 
 /** 停止内核的总超时：超过后放弃等待（宿主照常退出） */
 export const CORE_STOP_TIMEOUT_MS = 5000;
@@ -158,14 +157,13 @@ export interface CoreHostHooks {
   browser?: () => unknown;
   /** 注册 `character-pack://` 协议的宿主对象（Electron：`protocol`）；缺省只解析角色包 */
   characterPackProtocol?: CharacterPackProtocolHost;
-  /** 桌面服务用到的看板娘 / 对话窗口与灵动岛（确认框、提醒、拖入总结） */
-  desktopWindows?: DesktopWindows;
-  /** 把语音识别结果投递到对话窗口时要等页面加载（Electron：打开对话窗口并返回它） */
-  voiceChatWindow?: () => Promise<VoiceChatWindow>;
+  /**
+   * 灵动岛提醒（桌面服务的提醒 / 完成通知）。看板娘与对话窗口不在这里：显示、临时召回、核对调用方都走
+   * 声明式的 `ports.windows`
+   */
+  desktopIsland?: DesktopIsland;
   /** 宿主当前存活的窗口数（引导里的看板娘指令据此判断是否送达）；缺省按 0 */
   liveWindows?: () => number;
-  /** 调用方窗口的存活（语音会话随窗口释放）；缺省时会话只随契约连接断开释放 */
-  callerWindows?: CallerWindows;
   /** 宿主的 AI 插件，装在内置插件之前（Electron：FileSessionStorePlugin）；启动 AI runtime 时才取 */
   aiPlugins?: () => IgPluginEntry[];
   /**
@@ -285,7 +283,6 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
   /** 契约处理函数在调用时读取的服务实例（创建服务时登记） */
   const services: CoreContractServices = {
     config,
-    callerWindows: host.callerWindows,
     pendingEvents,
   };
 
@@ -392,7 +389,7 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
       ...(host.browser ? { browser: host.browser as never } : {}),
     });
     services.desktop = desktop;
-    if (host.desktopWindows) desktop.attachWindows(host.desktopWindows);
+    if (host.desktopIsland) desktop.attachIsland(host.desktopIsland);
 
     // 本地知识库：先于 AI runtime 创建（kb_search 工具随桌面工具注册），LLM 调用延迟绑定
     const kb = new KnowledgeService({
@@ -923,7 +920,8 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
       credentials: (id) => rt?.providerCredentials(id) ?? null,
       localOnly: () => desktop.broker.view().localOnly,
       audit: (e) => desktop.audit.append({ ...e, source: 'voice' }),
-      ...(host.voiceChatWindow ? { openChat: host.voiceChatWindow } : {}),
+      windows: ports.windows,
+      onOwnerClosed: (owner, fn) => ports.windows.onCallerClosed(String(owner), fn),
       events,
       defaultWakePhrase: () => services.characterPack?.wakePhrase(),
     });

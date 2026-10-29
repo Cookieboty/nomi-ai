@@ -430,24 +430,25 @@ describe('VoiceService · volc', () => {
   let root: string;
   let localOnly = false;
   const audit = jest.fn();
-  const wc = (id = 1) => {
-    const onDestroyed: Array<() => void> = [];
-    return {
-      id,
-      isDestroyed: () => false,
-      send: jest.fn(),
-      once: jest.fn((ev: string, fn: () => void) => {
-        if (ev === 'destroyed') onDestroyed.push(fn);
-      }),
-      /** 模拟窗口销毁 */
-      destroy: () => onDestroyed.splice(0).forEach((fn) => fn()),
-    };
-  };
+  /** 发起方窗口关闭的回调（VoiceService 的 onOwnerClosed） */
+  let closers = new Map<number, Array<() => void>>();
+  /** 发起方：id + 这条流的出口（契约层的 voice.streamStart 流） */
+  const wc = (id = 1) => ({
+    id,
+    sink: { push: jest.fn(), end: jest.fn() },
+    /** 模拟窗口关闭 */
+    destroy: () => {
+      const fns = closers.get(id) ?? [];
+      closers.delete(id);
+      fns.forEach((fn) => fn());
+    },
+  });
 
   beforeEach(() => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-volc-'));
     localOnly = false;
     audit.mockReset();
+    closers = new Map();
   });
   afterEach(() => fs.rmSync(root, { recursive: true, force: true }));
 
@@ -462,6 +463,8 @@ describe('VoiceService · volc', () => {
       volcPaceMs: 0,
       volcTimeouts: { connectMs: 2000, finalMs: 1000, probeWaitMs: 100 },
       events: createRecordingAppEvents(),
+      onOwnerClosed: (owner: number, fn: () => void) =>
+        closers.set(owner, [...(closers.get(owner) ?? []), fn]),
       ...extra,
     });
   const ready = (v: VoiceService) => {
@@ -510,10 +513,13 @@ describe('VoiceService · volc', () => {
     v.setSettings({ engine: 'volc' });
     v.setVolcKey(KEY);
     const w = wc();
-    expect(v.streamStart(w as never, 'chat')).toMatchObject({ ok: false, code: 'cloud_not_acked' });
+    expect(v.streamStart(w.id, 'chat', w.sink)).toMatchObject({
+      ok: false,
+      code: 'cloud_not_acked',
+    });
     v.ackCloud();
     localOnly = true;
-    expect(v.streamStart(w as never, 'chat')).toMatchObject({ ok: false, code: 'local_only' });
+    expect(v.streamStart(w.id, 'chat', w.sink)).toMatchObject({ ok: false, code: 'local_only' });
     expect((await v.volcTest()).ok).toBe(false);
     expect(ws).not.toHaveBeenCalled();
   });
@@ -524,20 +530,23 @@ describe('VoiceService · volc', () => {
     ready(v);
     const a = wc(1);
     const b = wc(2);
-    const r = v.streamStart(a as never, 'chat');
+    const r = v.streamStart(a.id, 'chat', a.sink);
     expect(r.ok).toBe(true);
     const id = (r as { id: string }).id;
-    expect(v.streamPush(b as never, id, pcm(200))).toBe(false);
-    expect(v.streamPush(a as never, id, pcm(200))).toBe(true);
-    expect(v.streamPush(a as never, id, new Uint8Array(70 * 1024))).toBe(false); // 单次上限
+    expect(v.streamPush(b.id, id, pcm(200))).toBe(false);
+    expect(v.streamPush(a.id, id, pcm(200))).toBe(true);
+    expect(v.streamPush(a.id, id, new Uint8Array(70 * 1024))).toBe(false); // 单次上限
     // 等 mock 服务回 partial（全量并发跑时可能远超一两百毫秒）
-    for (let i = 0; i < 100 && !a.send.mock.calls.length; i++)
+    for (let i = 0; i < 100 && !a.sink.push.mock.calls.length; i++)
       await new Promise((r2) => setTimeout(r2, 30));
-    expect(a.send).toHaveBeenCalledWith('ai:voice:stream', { id, type: 'partial', text: '你好' });
-    expect(b.send).not.toHaveBeenCalled();
-    expect(await v.streamStop(b as never, id)).toMatchObject({ ok: false });
-    expect(await v.streamStop(a as never, id)).toEqual({ ok: true, text: '你好。' });
-    expect(await v.streamStop(a as never, id)).toMatchObject({ ok: false }); // 只交付一次
+    expect(a.sink.push).toHaveBeenCalledWith({ id, type: 'partial', text: '你好' });
+    expect(b.sink.push).not.toHaveBeenCalled();
+    expect(await v.streamStop(b.id, id)).toMatchObject({ ok: false });
+    expect(a.sink.end).not.toHaveBeenCalled();
+    expect(await v.streamStop(a.id, id)).toEqual({ ok: true, text: '你好。' });
+    expect(a.sink.end).toHaveBeenCalledTimes(1); // stop 结束后流随之结束
+    expect(await v.streamStop(a.id, id)).toMatchObject({ ok: false }); // 只交付一次
+    expect(a.sink.end).toHaveBeenCalledTimes(1);
     expect(audit).toHaveBeenCalledWith(
       expect.objectContaining({
         tool: 'voice_transcribe',
@@ -552,22 +561,20 @@ describe('VoiceService · volc', () => {
     const v = make(m.url);
     ready(v);
     const a = wc();
-    const id = (v.streamStart(a as never, 'chat') as { id: string }).id;
-    v.streamPush(a as never, id, pcm(200));
+    const id = (v.streamStart(a.id, 'chat', a.sink) as { id: string }).id;
+    v.streamPush(a.id, id, pcm(200));
     const audioFrames = () => (m.frames[0] ?? []).filter((f) => f.type === MSG.AUDIO).length;
     // 已推的音频先全部到达服务端，再记基准
     await until(() => audioFrames() > 0, { what: 'audio reached the server' });
     await new Promise((r) => setTimeout(r, 50));
     const before = audioFrames();
     localOnly = true;
-    expect(v.streamPush(a as never, id, pcm(200))).toBe(false);
-    expect(v.streamPush(a as never, id, pcm(200))).toBe(false);
+    expect(v.streamPush(a.id, id, pcm(200))).toBe(false);
+    expect(v.streamPush(a.id, id, pcm(200))).toBe(false);
     await new Promise((r) => setTimeout(r, 100));
     expect((m.frames[0] ?? []).filter((f) => f.type === MSG.AUDIO).length).toBe(before);
-    expect(a.send).toHaveBeenCalledWith(
-      'ai:voice:stream',
-      expect.objectContaining({ id, code: 'local_only' }),
-    );
+    expect(a.sink.push).toHaveBeenCalledWith(expect.objectContaining({ id, code: 'local_only' }));
+    expect(a.sink.end).toHaveBeenCalledTimes(1); // 被撤销的会话结束它的流
   });
 
   describe('revoking a stream that is already stopping (#67)', () => {
@@ -582,14 +589,14 @@ describe('VoiceService · volc', () => {
         .mockResolvedValue('本地结果');
       jest.spyOn(v, 'localReady').mockReturnValue(true);
       const a = wc(1);
-      const id = (v.streamStart(a as never, 'chat') as { id: string }).id;
-      expect(v.streamPush(a as never, id, pcm(600))).toBe(true);
+      const id = (v.streamStart(a.id, 'chat', a.sink) as { id: string }).id;
+      expect(v.streamPush(a.id, id, pcm(600))).toBe(true);
       return { ctl, v, a, id, local };
     };
     const revokers: Array<
       [string, (v: VoiceService, w: ReturnType<typeof wc>, id: string) => void]
     > = [
-      ['streamCancel', (v, w, id) => expect(v.streamCancel(w as never, id)).toBe(true)],
+      ['streamCancel', (v, w, id) => expect(v.streamCancel(w.id, id)).toBe(true)],
       ['switching engine', (v) => void v.setSettings({ engine: 'whisper-cpp' })],
       ['clearing the key', (v) => void v.clearVolcKey()],
       ['destroying the owner window', (_v, w) => w.destroy()],
@@ -599,26 +606,26 @@ describe('VoiceService · volc', () => {
       '%s while the handshake is pending: zero audio frames, cancelled, no fallback',
       async (_name, revoke) => {
         const { ctl, v, a, id, local } = setup();
-        const stop = v.streamStop(a as never, id); // 不等待：仍在握手
+        const stop = v.streamStop(a.id, id); // 不等待：仍在握手
         revoke(v, a, id);
         ctl.socks[0]!.open(); // 放行握手
         expect(await stop).toMatchObject({ ok: false });
         expect(audioFrames(ctl.socks[0]!)).toHaveLength(0);
         expect(local).not.toHaveBeenCalled();
         // 记录已释放：重复撤销 / 停止都是空操作
-        expect(v.streamCancel(a as never, id)).toBe(false);
-        expect(await v.streamStop(a as never, id)).toMatchObject({ ok: false });
+        expect(v.streamCancel(a.id, id)).toBe(false);
+        expect(await v.streamStop(a.id, id)).toMatchObject({ ok: false });
       },
     );
 
     it('audio sent but no final yet: cancel closes the socket and drops the late final', async () => {
       const { ctl, v, a, id, local } = setup();
       ctl.socks[0]!.open();
-      const stop = v.streamStop(a as never, id);
+      const stop = v.streamStop(a.id, id);
       await new Promise((r) => setTimeout(r, 10));
       const sent = audioFrames(ctl.socks[0]!).length;
       expect(sent).toBeGreaterThan(0);
-      expect(v.streamCancel(a as never, id)).toBe(true);
+      expect(v.streamCancel(a.id, id)).toBe(true);
       expect(ctl.socks[0]!.closed).toBe(true);
       ctl.socks[0]!.message(result('晚到的结果', true));
       expect(await stop).toMatchObject({ ok: false });
@@ -628,7 +635,7 @@ describe('VoiceService · volc', () => {
 
     it('local-only turned on while stopping: cached audio is not sent', async () => {
       const { ctl, v, a, id } = setup();
-      const stop = v.streamStop(a as never, id);
+      const stop = v.streamStop(a.id, id);
       localOnly = true;
       ctl.socks[0]!.open();
       expect(await stop).toMatchObject({ ok: false, code: 'local_only' });
@@ -640,21 +647,21 @@ describe('VoiceService · volc', () => {
       localOnly = true;
       ctl.socks[0]!.open();
       expect(audioFrames(ctl.socks[0]!)).toHaveLength(0);
-      expect(await v.streamStop(a as never, id)).toMatchObject({ ok: false, code: 'local_only' });
+      expect(await v.streamStop(a.id, id)).toMatchObject({ ok: false, code: 'local_only' });
     });
 
     it('a second stop while finalizing neither resends the final packet nor delivers twice', async () => {
       const { ctl, v, a, id } = setup();
       const other = wc(2);
       ctl.socks[0]!.open();
-      const first = v.streamStop(a as never, id);
-      expect(await v.streamStop(a as never, id)).toMatchObject({ ok: false });
-      expect(v.streamCancel(other as never, id)).toBe(false); // 别的窗口不能撤销
+      const first = v.streamStop(a.id, id);
+      expect(await v.streamStop(a.id, id)).toMatchObject({ ok: false });
+      expect(v.streamCancel(other.id, id)).toBe(false); // 别的窗口不能撤销
       await new Promise((r) => setTimeout(r, 10));
       expect(audioFrames(ctl.socks[0]!).filter((f) => f.flags & 0b0010)).toHaveLength(1);
       ctl.socks[0]!.message(result('好的', true));
       expect(await first).toEqual({ ok: true, text: '好的' });
-      expect(v.streamCancel(a as never, id)).toBe(false); // 终态已释放登记
+      expect(v.streamCancel(a.id, id)).toBe(false); // 终态已释放登记
     });
   });
 
@@ -663,9 +670,9 @@ describe('VoiceService · volc', () => {
     const v = make(m.url);
     ready(v);
     const a = wc();
-    const id = (v.streamStart(a as never, 'chat') as { id: string }).id;
+    const id = (v.streamStart(a.id, 'chat', a.sink) as { id: string }).id;
     v.setSettings({ engine: 'whisper-cpp' });
-    expect(v.streamPush(a as never, id, pcm(200))).toBe(false);
+    expect(v.streamPush(a.id, id, pcm(200))).toBe(false);
   });
 
   it('cloud failure: stops with a readable error by default; optional fallback to installed local model', async () => {
@@ -675,15 +682,15 @@ describe('VoiceService · volc', () => {
     const v = make(m.url);
     ready(v);
     const a = wc();
-    let id = (v.streamStart(a as never, 'chat') as { id: string }).id;
-    v.streamPush(a as never, id, pcm(400));
-    expect(await v.streamStop(a as never, id)).toMatchObject({ ok: false, code: 'failed' });
+    let id = (v.streamStart(a.id, 'chat', a.sink) as { id: string }).id;
+    v.streamPush(a.id, id, pcm(400));
+    expect(await v.streamStop(a.id, id)).toMatchObject({ ok: false, code: 'failed' });
 
     v.setSettings({ volcFallback: true });
     // 本地模型没装：明确告诉用户无法回退（不会自动下载）
-    id = (v.streamStart(a as never, 'chat') as { id: string }).id;
-    v.streamPush(a as never, id, pcm(400));
-    const r1 = await v.streamStop(a as never, id);
+    id = (v.streamStart(a.id, 'chat', a.sink) as { id: string }).id;
+    v.streamPush(a.id, id, pcm(400));
+    const r1 = await v.streamStop(a.id, id);
     expect(r1).toMatchObject({ ok: false });
     expect((r1 as { error: string }).error).toContain('无法回退');
 
@@ -691,9 +698,9 @@ describe('VoiceService · volc', () => {
       .spyOn(v as unknown as { localTranscribe: () => Promise<string> }, 'localTranscribe')
       .mockResolvedValue('本地结果');
     jest.spyOn(v, 'localReady').mockReturnValue(true);
-    id = (v.streamStart(a as never, 'chat') as { id: string }).id;
-    v.streamPush(a as never, id, pcm(400));
-    expect(await v.streamStop(a as never, id)).toEqual({
+    id = (v.streamStart(a.id, 'chat', a.sink) as { id: string }).id;
+    v.streamPush(a.id, id, pcm(400));
+    expect(await v.streamStop(a.id, id)).toEqual({
       ok: true,
       text: '本地结果',
       fallback: true,
@@ -709,9 +716,9 @@ describe('VoiceService · volc', () => {
     const v = make(m.url);
     ready(v);
     const a = wc();
-    const id = (v.streamStart(a as never, 'chat') as { id: string }).id;
-    v.streamPush(a as never, id, pcm(200));
-    expect(await v.streamStop(a as never, id)).toMatchObject({ ok: false, code: 'no_provider' });
+    const id = (v.streamStart(a.id, 'chat', a.sink) as { id: string }).id;
+    v.streamPush(a.id, id, pcm(200));
+    expect(await v.streamStop(a.id, id)).toMatchObject({ ok: false, code: 'no_provider' });
   });
 
   it('handsfree segments (whole WAV) also go through volc', async () => {

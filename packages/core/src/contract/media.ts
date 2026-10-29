@@ -6,19 +6,19 @@
  *   `deps.services` 在调用时读取，缺了用 `need()` 报 UNAVAILABLE）。服务直接发布契约事件
  *   （`events.publish('voice.changed', …)`），这里不做转换。
  *
- * 按窗口的会话（VAD、流式识别）与只接受看板娘窗口的操作（确认答复、提醒卡片、拖文件）用
- * `callerWebContentsId(ctx)` 代替旧的 `event.sender`，窗口存活由宿主经 `services.callerWindows` 报告，
- * 见 ./media/voiceSenders.ts。打开语音设置走声明式窗口意图（`ports.windows.open('chat', { route: 'voice' })`）。
+ * 按发起方的会话（VAD、流式识别）归属调用方 id（`callerWebContentsId(ctx)`），发起方窗口关闭时由内核经
+ * `ports.windows.onCallerClosed` 释放；流式识别的临时结果写进发起方这条 `voice.streamStart` 流
+ * （VoiceService 的 VoiceStreamSink）。只接受看板娘窗口的操作（确认答复、提醒卡片）把 `caller.id` 交给
+ * DesktopService，由 `ports.windows.ownsCaller('mascot', …)` 核对。打开窗口一律走声明式窗口意图。
  */
 
-import { PushStream } from '@nomi-ai/contract';
-import type { MediaProcedureName } from '@nomi-ai/contract/app';
+import { PushStream, type HandlerChunkOf } from '@nomi-ai/contract';
+import type { AppContract, MediaProcedureName } from '@nomi-ai/contract/app';
 import type { TTSConfig, TTSPreviewRequest, VoiceSettings } from '@nomi-ai/types';
 
 import { isChatNavEvent } from '../core/chatNav';
 import { getMascotVoiceSettings, saveMascotVoiceSettings } from '../voice/mascotVoiceSettings';
 
-import { createVoiceStreams, type VoiceStreamChunk, type VoiceStreams } from './media/voiceSenders';
 import {
   callerWebContentsId,
   need,
@@ -29,24 +29,22 @@ import {
 
 export type MediaHandlers = DomainHandlers<MediaProcedureName>;
 
+type VoiceStreamChunk = HandlerChunkOf<AppContract['procedures']['voice.streamStart']>;
+
 /**
  * 服务的返回类型多是 interface（没有索引签名），契约输出是 `z.looseObject`（带 `[k: string]: unknown`），
  * TS 不认两者兼容；形状由契约在运行时校验（BAD_OUTPUT），这里只在类型上放行。
  */
 const out = <T>(v: unknown): T => v as T;
 
-/** `streams`：进行中的流式识别会话（每个 router 一份；测试可传入以观察） */
-export function createMediaHandlers(
-  deps: ContractDeps,
-  streams: VoiceStreams = createVoiceStreams(),
-): MediaHandlers {
+export function createMediaHandlers(deps: ContractDeps): MediaHandlers {
   const { services } = deps;
   const voice = () => need(services.voice, 'voice');
   const desktop = () => need(services.desktop, 'desktop');
   const tts = () => need(services.tts, 'tts');
   const config = () => need(services.config, 'config');
-  const sender = (ctx: Pick<AppHandlerContext, 'caller'>) =>
-    streams.senderFor(services.callerWindows, callerWebContentsId(ctx));
+  /** 会话归属：调用方 id（窗口的 webContents id；找不到时 0，见 callerWebContentsId） */
+  const ownerOf = (ctx: Pick<AppHandlerContext, 'caller'>) => callerWebContentsId(ctx) ?? 0;
 
   return {
     // ── 语音输入 ──
@@ -56,9 +54,9 @@ export function createMediaHandlers(
     'voice.download': ({ id }) => voice().download(id),
     'voice.cancel': ({ id }) => voice().cancel(id),
     'voice.remove': ({ id }) => voice().remove(id),
-    'voice.vadOpen': (_input, ctx) => voice().vadOpen(sender(ctx)),
-    'voice.vadProb': ({ handle, frame }, ctx) => voice().vadProb(sender(ctx).id, handle, frame),
-    'voice.vadClose': ({ handle }, ctx) => voice().vadClose(sender(ctx).id, handle),
+    'voice.vadOpen': (_input, ctx) => voice().vadOpen(ownerOf(ctx)),
+    'voice.vadProb': ({ handle, frame }, ctx) => voice().vadProb(ownerOf(ctx), handle, frame),
+    'voice.vadClose': ({ handle }, ctx) => voice().vadClose(ownerOf(ctx), handle),
     'voice.transcribe': ({ wav, source, purpose }) =>
       voice().transcribeResult(wav, { source: source ?? 'chat', purpose }),
     'voice.activity': ({ activity, source }) => voice().reportActivity(activity, source),
@@ -68,13 +66,17 @@ export function createMediaHandlers(
     'voice.volcTest': () => voice().volcTest(),
     'voice.streamStart': ({ source }, ctx) => {
       const svc = voice();
-      const wc = sender(ctx);
+      const owner = ownerOf(ctx);
       let id: string | null = null;
       // 视图放弃这条流 / 窗口断开：撤销会话（之后不再外发音频、不交付结果）
       const stream = new PushStream<VoiceStreamChunk>(() => {
-        if (id) svc.streamCancel(wc, id);
+        if (id) svc.streamCancel(owner, id);
       });
-      const r = svc.streamStart(wc, source);
+      // 会话的出口就是这条流：临时结果 / 错误写进来，会话结束（stop、取消、撤销、窗口关闭）时服务结束它
+      const r = svc.streamStart(owner, source, {
+        push: (e) => stream.push(e),
+        end: () => stream.end(undefined),
+      });
       if (!r.ok) {
         stream.push({ type: 'start', ok: false, code: r.code, error: r.error });
         stream.end(undefined);
@@ -82,34 +84,16 @@ export function createMediaHandlers(
       }
       const sid = r.id;
       id = sid;
-      streams.open(sid, wc.id, stream);
       stream.push({ type: 'start', ok: true, id: sid });
-      // 调用被取消（abort 帧、窗口断开）时流可能还在等下一条 chunk：直接撤销并结束它
-      ctx.signal.addEventListener(
-        'abort',
-        () => {
-          svc.streamCancel(wc, sid);
-          streams.close(sid, wc.id);
-        },
-        { once: true },
-      );
+      // 调用被取消（abort 帧、窗口断开）时流可能还在等下一条 chunk：直接撤销（服务随之结束这条流）
+      ctx.signal.addEventListener('abort', () => svc.streamCancel(owner, sid), { once: true });
       return stream;
     },
-    'voice.streamPush': ({ id, pcm }, ctx) => voice().streamPush(sender(ctx), id, pcm),
-    'voice.streamStop': async ({ id }, ctx) => {
-      const wc = sender(ctx);
-      try {
-        return await voice().streamStop(wc, id);
-      } finally {
-        streams.close(id, wc.id);
-      }
-    },
-    'voice.streamCancel': ({ id }, ctx) => {
-      const wc = sender(ctx);
-      const ok = voice().streamCancel(wc, id);
-      streams.close(id, wc.id);
-      return ok;
-    },
+    'voice.streamPush': ({ id, pcm }, ctx) => voice().streamPush(ownerOf(ctx), id, pcm),
+    'voice.streamStop': ({ id }, ctx) => voice().streamStop(ownerOf(ctx), id),
+    'voice.streamCancel': ({ id }, ctx) => voice().streamCancel(ownerOf(ctx), id),
+    'voice.takePendingInject': () =>
+      out(need(services.pendingEvents, 'pendingEvents').take('voiceInject')?.payload ?? null),
     'voice.getMascotSettings': () => out(getMascotVoiceSettings(config()) ?? null),
     'voice.saveMascotSettings': (settings) =>
       saveMascotVoiceSettings(
@@ -153,11 +137,10 @@ export function createMediaHandlers(
     'desktop.remindersCancel': ({ id }) => desktop().cancelReminder(id),
     'desktop.remindersSnooze': ({ id, minutes }) => desktop().snoozeReminder(id, minutes),
     'desktop.confirmAnswer': ({ id, allow, remember }, ctx) =>
-      desktop().answerConfirm(callerWebContentsId(ctx), id, allow, remember),
+      desktop().answerConfirm(ctx.caller.id, id, allow, remember),
     'desktop.reminderAction': ({ id, action, minutes }, ctx) =>
-      desktop().reminderAction(callerWebContentsId(ctx), id, action, minutes),
-    'desktop.takeMissedReminders': (_input, ctx) =>
-      desktop().takeMissedFor(callerWebContentsId(ctx)),
+      desktop().reminderAction(ctx.caller.id, id, action, minutes),
+    'desktop.takeMissedReminders': (_input, ctx) => desktop().takeMissedFor(ctx.caller.id),
     'desktop.takePendingSummary': () =>
       out(need(services.pendingEvents, 'pendingEvents').take('summary')?.payload ?? null),
 

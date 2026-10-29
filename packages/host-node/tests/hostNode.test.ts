@@ -252,6 +252,24 @@ describe('windows / capabilities', () => {
     ]);
   });
 
+  it('调用方归属由 control.bindCaller 声明；closeCaller 触发 onCallerClosed；release 只记录', () => {
+    const { ports, control } = create();
+    expect(ports.windows.ownsCaller('mascot', '7')).toBe(false);
+    control.bindCaller('mascot', '7');
+    expect(ports.windows.ownsCaller('mascot', '7')).toBe(true);
+    expect(ports.windows.ownsCaller('chat', '7')).toBe(false);
+    expect(ports.windows.ownsCaller('mascot', undefined)).toBe(false);
+    const fn = vi.fn();
+    ports.windows.onCallerClosed('7', fn);
+    control.closeCaller('7');
+    control.closeCaller('7');
+    expect(fn).toHaveBeenCalledTimes(1);
+    expect(ports.windows.ownsCaller('mascot', '7')).toBe(false);
+    expect(ports.windows.dismissed('mascot')).toBe(false);
+    ports.windows.release('mascot');
+    expect(control.windowCalls).toEqual([{ method: 'release', surface: 'mascot' }]);
+  });
+
   it('anyFocused 默认 false，可由 control 切换', () => {
     const { ports, control } = create();
     expect(ports.windows.anyFocused()).toBe(false);

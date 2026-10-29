@@ -70,6 +70,7 @@ describe('media 契约', () => {
       'tts.status',
       'tts.testConnection',
       'tts.voices',
+      'voice.takePendingInject',
     ]);
     // ai:voice:* / ai:desktop:* / ai:screen:* 在 aiIPC 上（两个窗口都有）；tts:stop 两个 preload 都有
     for (const name of ['voice.state', 'desktop.state', 'screen.checkSend', 'tts.stop']) {

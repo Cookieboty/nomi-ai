@@ -1,17 +1,19 @@
 /**
  * 语音输入服务（主进程）：设置、按需下载本地模型（进度 + 许可 + 校验）、识别分派
  * （本地 whisper.cpp / OpenAI 兼容服务）、语音活动广播（看板娘表情 / 打断 TTS）、
- * 从看板娘把识别结果投递到对话窗口。所有 IPC 都在 `ai:voice:*` 下。
+ * 从看板娘把识别结果投递到对话窗口。对外只经应用契约（`voice.*` 过程与事件）。
  *
  * 隐私：录音只在内存 / 临时文件里，识别完立即删除；不落盘、不进日志。
  * 云端识别首次使用必须用户确认；桌面能力「仅本地模型」开启时拒绝云端识别。审计只记来源 / 引擎 / 时长。
  *
- * 豆包流式语音识别 2.0（#61，engine = 'volc'）：渲染进程按住说话时边录边推 PCM（ai:voice:stream*），
- * 主进程转发给火山 WebSocket，临时结果只回给发起的窗口。API Key 用 safeStorage 加密单独保存
+ * 豆包流式语音识别 2.0（#61，engine = 'volc'）：界面按住说话时边录边推 PCM（`voice.streamStart` /
+ * `voice.streamPush`），内核转发给火山 WebSocket，临时结果只写进发起方这条契约流（{@link VoiceStreamSink}）。API Key 用 safeStorage 加密单独保存
  * （不在 settings.json 里，公开 IPC 只回 hasKey）；「仅本地模型」在建连前和每次推音频时都检查。
  */
 import fs from 'node:fs';
 import path from 'node:path';
+
+import type { WindowsPort } from '@nomi-ai/host-ports';
 
 import { sendMascotCommand } from '../ai/mascotCommand';
 import type { AppEventName, AppEvents } from '../core/appEvents';
@@ -42,28 +44,19 @@ import { findCliIn, findCliOnPath, runWhisperCli } from './whisperCpp';
 
 type Logger = Pick<Console, 'info' | 'warn' | 'error'>;
 
+/** 流式识别推给发起方的事件（契约 `voice.streamStart` 流里 start 之后的帧） */
+export type VoiceStreamEvent =
+  | { id: string; type: 'partial'; text: string }
+  | { id: string; type: 'error'; code?: VoiceError['code']; error: string };
+
 /**
- * 发起请求的窗口（契约调用方对应的窗口，见 host/contract/media/voiceSenders.ts）。流式识别的临时结果与
- * VAD 会话只属于发起的窗口，不是广播，所以按 sender 回复（由 voiceSenders 转进对应的契约流）。
+ * 一条流式识别会话的出口（契约层把它接到发起方的 `voice.streamStart` 流上）。会话从登记里移除时
+ * （stop 结束、取消、被撤销、发起方窗口关闭）服务调用一次 `end()`，之后不再 `push`。
  */
-export interface VoiceSender {
-  readonly id: number;
-  isDestroyed(): boolean;
-  send(channel: string, ...args: unknown[]): void;
-  once(event: 'destroyed', listener: () => void): unknown;
+export interface VoiceStreamSink {
+  push(e: VoiceStreamEvent): void;
+  end(): void;
 }
-
-/** 对话窗口（BrowserWindow 结构上满足）：投递识别结果前要等页面加载完 */
-export interface VoiceChatWindow {
-  isDestroyed(): boolean;
-  webContents: {
-    send(channel: string, ...args: unknown[]): void;
-    isLoading(): boolean;
-    once(event: 'did-finish-load', listener: () => void): unknown;
-  };
-}
-
-type VoiceInvokeEvent = { sender: VoiceSender };
 
 export type VoiceActivity = 'idle' | 'listening' | 'hearing' | 'transcribing' | 'wake-armed';
 
@@ -85,7 +78,13 @@ export interface VoiceDeps {
     ms?: number;
     provider?: string;
   }) => void;
-  openChat?: () => Promise<VoiceChatWindow>;
+  /** 识别结果投递到对话窗口：先打开它（声明式窗口意图），再发布 `voice.inject` */
+  windows?: Pick<WindowsPort, 'open'>;
+  /**
+   * 发起方（契约调用方的 id）的窗口关闭时回调一次（宿主 `windows.onCallerClosed`）；会话（VAD、
+   * 流式识别）按发起方登记，窗口没了就释放。不提供时会话只随 stop / cancel / 契约流断开释放。
+   */
+  onOwnerClosed?: (ownerId: number, fn: () => void) => void;
   /** 语音活动、下载进度、barge-in 广播给所有窗口 */
   events: AppEvents;
   /** 用户没设唤醒词时用的默认值：当前角色包的 `wakePhrase`（§10.1，不写死官方角色名） */
@@ -103,6 +102,7 @@ export interface VoiceDeps {
 interface VolcStream {
   session: VolcAsrSession;
   owner: number;
+  sink: VoiceStreamSink;
   source: string;
   started: number;
   bytes: number;
@@ -156,7 +156,7 @@ export class VoiceService {
     { ctrl: AbortController; received: number; total: number }
   >();
   private activity: VoiceActivity = 'idle';
-  private readonly vads = new Map<string, SileroStream>();
+  private readonly vads = new Map<string, { owner: number; vad: SileroStream }>();
   private readonly vadOwners = new Set<number>();
   private vadSeq = 0;
   private vadErrAt = 0;
@@ -691,13 +691,27 @@ export class VoiceService {
     throw new VoiceError(code, message);
   }
 
-  private sendStream(wc: VoiceSender, payload: Record<string, unknown>) {
-    if (!wc.isDestroyed()) wc.send('ai:voice:stream', payload);
+  /** 发起方窗口关闭时释放它的会话；每个发起方只登记一次 */
+  private watchOwner(owners: Set<number>, owner: number, release: () => void): void {
+    if (!this.d.onOwnerClosed || owners.has(owner)) return;
+    owners.add(owner);
+    this.d.onOwnerClosed(owner, () => {
+      owners.delete(owner);
+      release();
+    });
+  }
+
+  /** 从登记里移除会话并结束它的出口（只做一次） */
+  private dropStream(id: string, rec: VolcStream): void {
+    if (this.streams.get(id) !== rec) return;
+    this.streams.delete(id);
+    rec.sink.end();
   }
 
   streamStart(
-    wc: VoiceSender,
+    owner: number,
     source: string,
+    sink: VoiceStreamSink,
   ): { ok: true; id: string } | { ok: false; code: VoiceError['code']; error: string } {
     if (this.settings.engine !== 'volc')
       return {
@@ -708,18 +722,19 @@ export class VoiceService {
     const r = this.readiness();
     if (!r.ok) return { ok: false, code: r.code ?? 'failed', error: r.message ?? '' };
     // 同一窗口最多 MAX 个会话（含结束中的）：多出来的（旧的）直接取消
-    const mine = [...this.streams.entries()].filter(([, v]) => v.owner === wc.id);
+    const mine = [...this.streams.entries()].filter(([, v]) => v.owner === owner);
     for (const [k, v] of mine.slice(0, Math.max(0, mine.length - MAX_STREAMS_PER_SENDER + 1)))
       this.revokeStream(k, v);
-    const id = `${wc.id}:${++this.streamSeq}`;
+    const id = `${owner}:${++this.streamSeq}`;
     const session = this.newVolcSession((text) => {
       const rec = this.streams.get(id);
       if (rec?.session === session && rec.phase === 'recording')
-        this.sendStream(wc, { id, type: 'partial', text });
+        rec.sink.push({ id, type: 'partial', text });
     });
     this.streams.set(id, {
       session,
-      owner: wc.id,
+      owner,
+      sink,
       source: source.slice(0, 32),
       started: Date.now(),
       bytes: 0,
@@ -727,31 +742,28 @@ export class VoiceService {
       phase: 'recording',
       revoked: null,
     });
-    if (!this.streamOwners.has(wc.id)) {
-      this.streamOwners.add(wc.id);
-      wc.once('destroyed', () => {
-        this.streamOwners.delete(wc.id);
-        for (const [k, v] of [...this.streams.entries()])
-          if (v.owner === wc.id) this.revokeStream(k, v);
-      });
-    }
+    this.watchOwner(this.streamOwners, owner, () => {
+      for (const [k, v] of [...this.streams.entries()])
+        if (v.owner === owner) this.revokeStream(k, v);
+    });
     // 建连失败（鉴权 / 未开通等）尽早告诉界面；最终错误仍由 streamStop 返回
     session.start().catch((e: unknown) => {
-      if (this.streams.get(id)?.session !== session) return;
+      const rec = this.streams.get(id);
+      if (rec?.session !== session) return;
       const err = e instanceof VolcAsrError ? e : null;
       if (err?.kind === 'cancelled') return;
-      this.sendStream(wc, { id, type: 'error', error: err?.message ?? String(e) });
+      rec.sink.push({ id, type: 'error', error: err?.message ?? String(e) });
     });
     return { ok: true, id };
   }
 
-  private ownStream(wc: VoiceSender, id: string): VolcStream | null {
+  private ownStream(owner: number, id: string): VolcStream | null {
     const rec = this.streams.get(id);
-    return rec && rec.owner === wc.id ? rec : null;
+    return rec && rec.owner === owner ? rec : null;
   }
 
-  streamPush(wc: VoiceSender, id: string, pcm: unknown): boolean {
-    const rec = this.ownStream(wc, id);
+  streamPush(owner: number, id: string, pcm: unknown): boolean {
+    const rec = this.ownStream(owner, id);
     if (!rec || rec.phase !== 'recording') return false;
     const buf =
       pcm instanceof Uint8Array ? pcm : pcm instanceof ArrayBuffer ? new Uint8Array(pcm) : null;
@@ -759,8 +771,8 @@ export class VoiceService {
     // 运行中切到「仅本地模型」/ 换了引擎：立即停止，后续音频不再外发
     if (this.d.localOnly?.() || this.settings.engine !== 'volc') {
       const err = localOnlyError();
+      rec.sink.push({ id, type: 'error', code: err.code, error: err.message });
       this.revokeStream(id, rec, err);
-      this.sendStream(wc, { id, type: 'error', code: err.code, error: err.message });
       return false;
     }
     rec.bytes += buf.byteLength;
@@ -769,8 +781,8 @@ export class VoiceService {
         'failed',
         tr('electron.common.recording-too-long-max-about-13-minutes'),
       );
+      rec.sink.push({ id, type: 'error', error: err.message });
       this.revokeStream(id, rec, err);
-      this.sendStream(wc, { id, type: 'error', error: err.message });
       return false;
     }
     if (rec.pcm) rec.pcm.push(Buffer.from(buf));
@@ -779,13 +791,13 @@ export class VoiceService {
   }
 
   async streamStop(
-    wc: VoiceSender,
+    owner: number,
     id: string,
   ): Promise<
     | { ok: true; text: string; fallback?: boolean }
     | { ok: false; code: VoiceError['code']; error: string }
   > {
-    const rec = this.ownStream(wc, id);
+    const rec = this.ownStream(owner, id);
     // 重复 stop（已在结束中）与未知会话一样：不重复发结束帧、不重复交付
     if (!rec || rec.phase !== 'recording')
       return {
@@ -799,7 +811,7 @@ export class VoiceService {
       return await this.finishStream(id, rec);
     } finally {
       // 只删自己这条登记（被撤销时已删）
-      if (this.streams.get(id) === rec) this.streams.delete(id);
+      this.dropStream(id, rec);
     }
   }
 
@@ -861,8 +873,8 @@ export class VoiceService {
   }
 
   /** 取消（录音中或结束中）：关连接、丢弃结果；别的窗口不能取消 */
-  streamCancel(wc: VoiceSender, id: string): boolean {
-    const rec = this.ownStream(wc, id);
+  streamCancel(owner: number, id: string): boolean {
+    const rec = this.ownStream(owner, id);
     if (!rec) return false;
     this.revokeStream(id, rec);
     return true;
@@ -881,7 +893,7 @@ export class VoiceService {
     rec.revoked ??= reason ?? new VoiceError('empty', tr('electron.common.cancelled'));
     rec.pcm = null;
     rec.session.cancel();
-    if (this.streams.get(id) === rec) this.streams.delete(id);
+    this.dropStream(id, rec);
   }
 
   /** 会话是否已被撤销（含会话自己因「仅本地模型」在发送前取消的情况） */
@@ -938,16 +950,15 @@ export class VoiceService {
   }
 
   async sendToChat(text: string): Promise<void> {
-    if (!this.d.openChat || !text.trim()) return;
-    const chat = await this.d.openChat();
-    const payload = { text: text.trim(), autoSend: this.settings.autoSend };
-    // 等页面加载完再发（新开的窗口要先挂上监听）；送达由事件总线负责（只发对话窗口）
-    const deliver = () => {
-      if (!chat.isDestroyed()) this.d.events.publish('voice.inject', payload, { surface: 'chat' });
-    };
-    if (chat.webContents.isLoading())
-      chat.webContents.once('did-finish-load', () => setTimeout(deliver, 500));
-    else deliver();
+    if (!this.d.windows || !text.trim()) return;
+    await this.d.windows.open('chat');
+    // 对话窗口已经开着并订阅了：直接收到；刚打开、页面还没订阅：内核留着这一次，窗口挂载时经
+    // `voice.takePendingInject` 拉取（core/pendingEvents.ts，不再固定等页面加载）
+    this.d.events.publish(
+      'voice.inject',
+      { text: text.trim(), autoSend: this.settings.autoSend },
+      { surface: 'chat' },
+    );
   }
 
   private progress(id: string, received: number, total: number, phase: string, error?: string) {
@@ -960,7 +971,7 @@ export class VoiceService {
 
   /** 打开一个 VAD 会话（属于发起的窗口，窗口销毁时一并释放）；没有模型 / 加载失败时退回能量检测 */
   async vadOpen(
-    wc: Pick<VoiceSender, 'id' | 'once'>,
+    owner: number,
   ): Promise<{ kind: 'silero' | 'energy'; handle?: string; error?: string }> {
     const p = this.vadModelPath();
     if (!p) return { kind: 'energy' };
@@ -970,31 +981,26 @@ export class VoiceService {
       return { kind: 'energy', error: err };
     }
     // 每个会话独立的 RNN 状态（同一窗口可有多个控制器）
-    const handle = `${wc.id}:${++this.vadSeq}`;
-    this.vads.set(handle, new SileroStream(p));
-    if (!this.vadOwners.has(wc.id)) {
-      this.vadOwners.add(wc.id);
-      wc.once('destroyed', () => {
-        this.vadOwners.delete(wc.id);
-        for (const [k, v] of [...this.vads]) {
-          if (!k.startsWith(`${wc.id}:`)) continue;
-          v.dispose();
-          this.vads.delete(k);
-        }
-      });
-    }
+    const handle = `${owner}:${++this.vadSeq}`;
+    this.vads.set(handle, { owner, vad: new SileroStream(p) });
+    this.watchOwner(this.vadOwners, owner, () => {
+      for (const [k, v] of [...this.vads]) {
+        if (v.owner !== owner) continue;
+        v.vad.dispose();
+        this.vads.delete(k);
+      }
+    });
     return { kind: 'silero', handle };
   }
 
   /** 一帧的语音概率；别的窗口的会话、未知会话、坏帧一律 0 */
   async vadProb(ownerId: number, handle: string, frame: unknown): Promise<number> {
-    if (!handle.startsWith(`${ownerId}:`)) return 0;
     const v = this.vads.get(handle);
-    if (!v) return 0;
+    if (!v || v.owner !== ownerId) return 0;
     const f = toFloat32(frame);
     if (!f) return 0;
     // worker 崩溃 / 超时等：本帧按「无语音」处理，下一帧懒重建 worker
-    return v.prob(f).catch((err: unknown) => {
+    return v.vad.prob(f).catch((err: unknown) => {
       const now = Date.now();
       if (now - this.vadErrAt > 10_000) {
         this.vadErrAt = now;
@@ -1005,8 +1011,9 @@ export class VoiceService {
   }
 
   vadClose(ownerId: number, handle: string): void {
-    if (!handle.startsWith(`${ownerId}:`)) return;
-    this.vads.get(handle)?.dispose();
+    const v = this.vads.get(handle);
+    if (!v || v.owner !== ownerId) return;
+    v.vad.dispose();
     this.vads.delete(handle);
   }
 
