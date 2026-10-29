@@ -183,10 +183,13 @@ type CostInput struct {
 	Input, Output, CacheRead, CacheWrite float64
 	CacheWrite1h                         *float64
 	Fast                                 bool
+	// Prompt：Number(r.input + r.cacheRead + r.cacheWrite)，按 JS `+`（字符串拼接）算出的分档依据；nil = 数值相加
+	Prompt *float64
 }
 
 func RecordCost(r *UsageRecord) CostInput {
-	return CostInput{r.Input, r.Output, r.CacheRead, r.CacheWrite, r.CacheWrite1h, r.Fast != nil && *r.Fast}
+	p := jsNum(promptTokensJS(r))
+	return CostInput{r.Input, r.Output, r.CacheRead, r.CacheWrite, r.CacheWrite1h, r.Fast != nil && *r.Fast, &p}
 }
 
 func or0(p *float64, d float64) float64 {
@@ -198,7 +201,11 @@ func or0(p *float64, d float64) float64 {
 
 func CostUsd(r CostInput, pr ModelPrice) float64 {
 	const M = 1_000_000
-	eff := TierPrice(pr, r.Input+r.CacheRead+r.CacheWrite)
+	prompt := r.Input + r.CacheRead + r.CacheWrite
+	if r.Prompt != nil {
+		prompt = *r.Prompt // promptTokens > t.size：字符串按 ToNumber 比较
+	}
+	eff := TierPrice(pr, prompt)
 	w1h := math.Min(math.Max(0, or0(r.CacheWrite1h, 0)), r.CacheWrite)
 	w5m := r.CacheWrite - w1h
 	var price1h float64

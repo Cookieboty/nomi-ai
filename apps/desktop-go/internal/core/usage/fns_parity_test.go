@@ -164,7 +164,7 @@ func TestUsageFnsParity(t *testing.T) {
 			got = TierPrice(arg[ModelPrice](t, c, 0), arg[float64](t, c, 1))
 		case "costUsd":
 			r := arg[UsageRecord](t, c, 0)
-			got = CostUsd(RecordCost(&r), arg[ModelPrice](t, c, 1))
+			got = JSNum(CostUsd(RecordCost(&r), arg[ModelPrice](t, c, 1)))
 		case "startOfDay":
 			got = StartOfDay(arg[float64](t, c, 0))
 		case "dateKey":
@@ -213,6 +213,17 @@ func TestUsageFnsParity(t *testing.T) {
 				keys[i] = r.Key
 			}
 			got = map[string]any{"rows": keys, "total": d.Total, "summary": d.Summary, "facets": d.Facets}
+		case "toCsvRows":
+			got = ToCsv(arg[[]DetailRow](t, c, 0), arg[string](t, c, 1), arg[float64](t, c, 2))
+		case "jsSort":
+			vs := arg[[]JSV](t, c, 0)
+			dir := arg[float64](t, c, 1)
+			idx := make([]int, len(vs))
+			for i := range idx {
+				idx[i] = i
+			}
+			jsSortStable(idx, func(x, y int) float64 { return (vs[x].Num() - vs[y].Num()) * dir })
+			got = idx
 		case "toCsv":
 			got = ToCsv(g.CsvRows, arg[string](t, c, 0), arg[float64](t, c, 1))
 		default:
