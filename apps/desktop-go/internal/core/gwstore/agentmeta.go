@@ -3,7 +3,7 @@ package gwstore
 import (
 	"strings"
 
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwagents"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore/agents"
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
@@ -79,7 +79,7 @@ func (s *Service) ModelMetaOf(ref string, longContext *bool) *ResolvedModelMeta 
 }
 
 // AgentMeta = GatewayService.agentMeta(ref, {longContext})
-func (s *Service) AgentMeta(ref string, longContext *bool) *gwagents.ModelMeta {
+func (s *Service) AgentMeta(ref string, longContext *bool) *agents.ModelMeta {
 	meta := s.ModelMetaOf(ref, longContext)
 	if meta == nil {
 		return nil
@@ -108,7 +108,7 @@ func (s *Service) AgentMeta(ref string, longContext *bool) *gwagents.ModelMeta {
 			label = l
 		}
 	}
-	out := &gwagents.ModelMeta{Label: &label, Ctx: &meta.Ctx, MaxOutput: &meta.MaxOutput, Reasoning: meta.Reasoning, Vision: meta.Vision}
+	out := &agents.ModelMeta{Label: &label, Ctx: &meta.Ctx, MaxOutput: &meta.MaxOutput, Reasoning: meta.Reasoning, Vision: meta.Vision}
 	if p != nil {
 		if n, ok := p.Get("name").(string); ok {
 			out.Provider = &n
