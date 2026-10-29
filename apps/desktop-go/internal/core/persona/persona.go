@@ -174,6 +174,11 @@ func PackSource(id string, getPack func() *ActivePack, readFile func(string) (st
 					b, err = nil, t.err
 					return
 				}
+				// getPack 抛出（例如 validatePack 的 TypeError）：Node 的 source.load 在 try/catch 里
+				if e, ok := r.(error); ok {
+					b, err = nil, e
+					return
+				}
 				panic(r)
 			}
 		}()

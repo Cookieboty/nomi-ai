@@ -10,12 +10,22 @@ import (
 // StartResult mirrors StartResult（Obj：sessionId、resumed?、version?、currentModeId?、capabilities）。
 type StartResult = *util.Obj
 
+// StartOptions = start() 的入参（{cwd, resumeId?, signal?, mcpServers?}）。
+type StartOptions struct {
+	Cwd        string
+	ResumeID   *string
+	Signal     *jsrt.AbortSignal
+	McpServers []any // nil = undefined
+}
+
 // TurnInput mirrors TurnInput。
 type TurnInput struct {
 	Text   string
 	Blocks []any // nil = undefined
 	Signal *jsrt.AbortSignal
 	Params *util.Obj
+	// OnTimeout：AcpDriver.send 的扩展入参
+	OnTimeout func()
 }
 
 // TurnResult mirrors TurnResult（Obj：turnId、stopReason、text、sessionId、usage?、error?、cliTurnId?、denied?、raw?）。
@@ -26,7 +36,7 @@ type SessionEvent = *util.Obj
 
 // SessionDriver mirrors SessionDriver（持 jsrt 锁调用；Promise 方法用 jsrt.Await 等）。
 type SessionDriver interface {
-	Start(cwd string, resumeID *string, signal *jsrt.AbortSignal) *jsrt.Promise[StartResult]
+	Start(o StartOptions) *jsrt.Promise[StartResult]
 	On(fn func(SessionEvent)) func()
 	// Events = AsyncIterable（结束时 channel 关闭）
 	Events() *Iter

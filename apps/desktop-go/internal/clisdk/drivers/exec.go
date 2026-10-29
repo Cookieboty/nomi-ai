@@ -79,7 +79,7 @@ func (d *ExecDriver) Closed() bool                             { return d.ended 
 func (d *ExecDriver) InTurn() bool                             { return d.child != nil }
 func (d *ExecDriver) RespondPermission(string, *util.Obj) bool { return false }
 
-func (d *ExecDriver) Start(string, *string, *jsrt.AbortSignal) *jsrt.Promise[StartResult] {
+func (d *ExecDriver) Start(clisdk.StartOptions) *jsrt.Promise[StartResult] {
 	return jsrt.Resolved(O("sessionId", nullable(d.sid), "capabilities", O("loadSession", true)))
 }
 

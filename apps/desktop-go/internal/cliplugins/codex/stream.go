@@ -5,8 +5,8 @@ import (
 	"regexp"
 	"strings"
 
-	. "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	sh "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/shared"
+	. "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 

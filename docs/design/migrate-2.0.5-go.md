@@ -197,7 +197,7 @@ Go 版**1:1 镜像** Node 版：模块边界、包/层结构、数据格式、�
 | D-B10-2 | ~~角色包校验是宽松子集~~ 已消除 | `internal/core/charcontract` 逐行移植 character-contract（V8 JSON.parse 报错文本、zod v4 语义、validatePack/迁移/relax、readPackDirSync 的 WHATWG UTF-8 解码与 UTF-16 排序、loadPackAt）；金样由 `scripts/parity/record-character-contract.mjs` 从 Node 录制：1482 条 JSON、4480 条 schema、702 个整包（严格/lenient/loadPackAt）全部一致。残留：clips 含 null 时 Node 抛 TypeError，Go 的 LoadPackAt 把它当作该候选无效（理由为同一错误文本） | 仅 clips 含 null 的坏包：Node 主进程抛错，Go 跳过该包 |
 | D-B10-3 | ~~看板娘物理/漫游/点击穿透未移植~~ 已消除 | `internal/core/mascot` 移植物理与窗口控制器（Node 录制 goldens，含 arm64 FMA 防融合），setShape/setHit/wanderNow/debugSnapshot 均已实现 | 无 |
 | D-B10-4 | 渲染器选择引导卡在 POC 对话页 | 新设置 `mascot.renderer`（svg\|rive，默认 svg，升级用户也是 svg）；引导最后一张「想让诺米动起来吗？」（默认焦点「保持静态」，无 WebGL 时隐藏「开启动画」）暂放在 POC 对话页、用 localStorage 只问一次，等引导页迁过来再挪 | 无 |
-| D-B10-5 | `chat-asset://`、`character-pack://` 协议未在 Go 壳注册 | persona.* / chatBg.* 已按 Node 移植（chatBg sanitize 3462 条、persona 392 条 Node goldens），但自定义协议尚无 handler；当前 Go 前端不使用这两个 URL | 迁完对话页后需补 handler |
+| D-B10-5 | ~~`chat-asset://`、`character-pack://` 协议未在 Go 壳注册~~ **已解决（处理体零偏差；传输形态有剩余差异）** | `internal/core/assetproto` 逐字移植 resolveChatAssetUrl / resolveCharacterPackUrl / 两张 MIME 表 / 响应体（整读入、`content-type`/`content-length`/`access-control-allow-origin: *`/`cache-control: no-store`，失败一律 404 `not found`；Electron 同样不处理 Range，恒 200 全量）。golden：`scripts/parity/record-asset-protocols.mjs` 用真实 `Request` 驱动 Node handler（chat 44 + pack 39 地址，含 `..`/`%2e%2e`/`%2f`/`%00`/符号链接越界/大小写/端口/用户信息，16 条 MIME），`TestProtocolParity` 比 resolved 路径与 status/headers/body；变异检查（去掉空段拒绝）即失败。剩余差异：Wails v3.0.0 只把硬编码的 `wails` scheme 交给 Go（mac `setURLSchemeHandler`、Linux `register_uri_scheme`、WebView2 需建 Environment 时注册），无法注册任意 scheme，故经资产服务器网关 `/__scheme/<scheme>/<host>/<path>` 还原原始地址再交给同一处理体（`assetproto.GatewayURL` 供前端换址）；网关下非法 `%` 序列由 Go HTTP 服务器先回 400（Electron 404），两者皆失败。Windows 上反斜杠与符号链接用例按 path.win32 语义跳过 | 若 Wails 开放自定义 scheme 注册则去掉网关 |
 | D-B10-6 | 聊天背景缩放输出非逐字节一致 | Electron 用 nativeImage 缩放；Go 用面积平均缩放到长边 2560，PNG 仍为 PNG、其余转 JPEG q85；GIF 不缩放；WebP 无解码器原样复制 | 生成文件字节/体积与 Node 略有差异，尺寸规则一致 |
 | D-B8-1 | `knowledge.ts` 契约 77 个过程（批次说明） | 实际 75 个过程 + 11 个事件，Go 全部注册（`knowledgehandlers.Handlers`，单测断言 75） | 以契约源码为准，说明里的数字有误 |
 | D-B8-2 | 本地模型注册进 AI 网关 / 设为主模型（`gateway.upsertProvider`、`setNomiMain`、`confirmPrivateHost`） | Go 通过 `local.GatewayLike` 接口调用，main.go 暂未接入（nil → 跳过注册），TODO(batch-4/5) | 网关服务属于批次 4/5，尚未合入 |
@@ -208,8 +208,9 @@ Go 版**1:1 镜像** Node 版：模块边界、包/层结构、数据格式、�
 | D-B8-7 | ~~数据导出用 JS zip 库~~ **已消除** | 移植 fflate zip 写出（按 readdir 顺序、同样的头字段），`local/fflatezip_test.go` 与 Node 产物逐字节一致 | 无行为差异 |
 | D-B8-8 | MCP 密钥用 safeStorage 加密写进 `mcp.json` | 写入系统钥匙串（`security.NewSecretBox("extensions")`），磁盘上存 `enc:<base64 id>`，同 D13 | Go 没有 safeStorage |
 | D-B8-9 | ~~导入技能时用 `O_NOFOLLOW` 打开文件~~ **已消除** | Windows 用 `FILE_FLAG_OPEN_REPARSE_POINT` 打开并拒绝重解析点（`nofollow_windows.go`），Unix `O_NOFOLLOW` | 无行为差异 |
-| D-B7-1 | ~~dsh 解析器遇到 `"null"` 入参时抛 TypeError~~ **已消除** | Go 解析器 `panic(clisdk.JSThrow)` 复现抛出；驱动的 stdout 回调按 EventEmitter 语义：本 chunk 余下行丢弃、交给进程级 uncaughtException 钩子（生产环境退出），解析器跨行状态照常保留。golden 录了 `{throw}` 及其后续行 | 无行为差异 |
+| D-B7-1 | ~~dsh 解析器遇到 `"null"` 入参时抛 TypeError~~ **已消除** | Go 解析器 `panic(clisdk.JSThrow)` 复现抛出；nodeproc 的 stdout/stderr/error/exit/close 派发统一经 `jsrt.Dispatch`（EventEmitter 语义）：抛出的监听器之后的监听器跳过本事件、本 chunk 余下行丢弃、交给进程级 uncaughtException 钩子（生产环境退出），解析器跨行状态照常保留。golden 录了 `{throw}` 及其后续行 | 无行为差异 |
 | D-B7-2 | 计划里的 PTY（creack/pty + ConPTY） | 不用 PTY：Node 的 CLI 全部走 `child_process` 管道（`harness/spawn.ts`），Go 用 `os/exec` 管道，参数 / env / cwd / 信号 / 杀进程树逐项对齐 | 用户已确认（2026-10-29）；跟随 Node 实际实现，不是平台差异 |
+| D-B7-3 | cli-sdk 驱动里 JS `undefined` 值的键（AppServer `finish` 的 `error: undefined`）、非字符串 thread/turn/session id | Go `util.Obj` 不存 undefined：不设该键（JSON 输出与读值完全一致，仅 `'error' in r` 不同，调用方无此用法）；非字符串 id 经 `JSString` 转字符串（真实 CLI 只回字符串） | 无可观察差异；driver golden 10 场景 / 117 条覆盖 |
 
 ### 3.5 一致性测试策略（golden，Node 与 Go 同输入对比输出）
 

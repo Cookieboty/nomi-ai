@@ -1,0 +1,22 @@
+[
+  {"id":"codex-basic","driver":"appserver","bin":"mock-codex.mjs","args":["app-server"],"env":{},
+   "steps":[{"op":"start"},{"op":"ensureThread"},{"op":"send","text":"hello"},{"op":"send","text":"again","params":{"model":"m1"}},{"op":"close"}]},
+  {"id":"codex-resume","driver":"appserver","bin":"mock-codex.mjs","args":["app-server"],"env":{},
+   "steps":[{"op":"start","resumeId":"other-thread"},{"op":"send","text":"x"},{"op":"close"}]},
+  {"id":"codex-perm-allow","driver":"appserver","bin":"mock-codex.mjs","args":["app-server"],"env":{"NOMI_MOCK_CODEX_PERM":"1"},"perm":{"decision":"allow"},
+   "steps":[{"op":"start"},{"op":"ensureThread"},{"op":"send","text":"p","params":{"approvalPolicy":"untrusted"}},{"op":"close"}]},
+  {"id":"codex-perm-deny","driver":"appserver","bin":"mock-codex.mjs","args":["app-server"],"env":{"NOMI_MOCK_CODEX_PERM":"1"},"perm":{"optionId":"reject_once"},
+   "steps":[{"op":"start"},{"op":"ensureThread"},{"op":"send","text":"p","params":{"approvalPolicy":"untrusted"}},{"op":"close"}]},
+  {"id":"codex-fail","driver":"appserver","bin":"mock-codex.mjs","args":["app-server"],"env":{"NOMI_MOCK_CODEX_FAIL":"1"},
+   "steps":[{"op":"start"},{"op":"send","text":"nothread"},{"op":"ensureThread"},{"op":"send","text":"f"},{"op":"close"}]},
+  {"id":"codex-noapp","driver":"appserver","bin":"mock-codex.mjs","args":["app-server"],"env":{"NOMI_MOCK_CODEX_NO_APP":"1"},
+   "steps":[{"op":"start"},{"op":"close"}]},
+  {"id":"gemini-basic","driver":"acp","mapper":"gemini","bin":"mock-gemini.mjs","args":["--acp"],"env":{},
+   "steps":[{"op":"start"},{"op":"send","text":"hello"},{"op":"close"}]},
+  {"id":"gemini-perm","driver":"acp","mapper":"gemini","bin":"mock-gemini.mjs","args":["--acp"],"env":{"NOMI_MOCK_GEMINI_PERM":"1"},"perm":{"decision":"deny"},
+   "steps":[{"op":"start"},{"op":"send","text":"do it"},{"op":"close"}]},
+  {"id":"acp-basic","driver":"acp","bin":"mock-acp.mjs","args":["acp"],"env":{},
+   "steps":[{"op":"start"},{"op":"send","text":"hi"},{"op":"send","text":"second"},{"op":"close"}]},
+  {"id":"acp-perm-allow","driver":"acp","bin":"mock-acp.mjs","args":["acp"],"env":{},"perm":{"decision":"allow"},
+   "steps":[{"op":"start"},{"op":"send","text":"perm please"},{"op":"close"}]}
+]
