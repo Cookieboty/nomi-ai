@@ -522,3 +522,43 @@ func TestParityB9Exec(t *testing.T) {
 		parityChecks++
 	}
 }
+
+// D-B9-4：edge X-Timestamp = V8 Date#toString；时区长名表由 Node Intl 生成
+func TestParityB9JSDate(t *testing.T) {
+	var g struct {
+		JSDate []struct {
+			TZ  string
+			Out []string
+		}
+		JSDateInstants []int64
+	}
+	raw, err := os.ReadFile(goldenPath())
+	if err != nil {
+		t.Skip(err)
+	}
+	if err := json.Unmarshal(raw, &g); err != nil {
+		t.Fatal(err)
+	}
+	if len(g.JSDate) == 0 {
+		t.Fatal("golden has no jsDate")
+	}
+	oldLocal, oldTZ := time.Local, os.Getenv("TZ")
+	defer func() { time.Local = oldLocal; os.Setenv("TZ", oldTZ) }()
+	n := 0
+	for _, z := range g.JSDate {
+		loc, err := time.LoadLocation(z.TZ)
+		if err != nil {
+			t.Logf("skip %s: %v", z.TZ, err)
+			continue
+		}
+		time.Local = loc
+		os.Setenv("TZ", z.TZ)
+		for i, ms := range g.JSDateInstants {
+			if got := edge.JSDateString(time.UnixMilli(ms)); got != z.Out[i] {
+				t.Errorf("%s %d: go=%q node=%q", z.TZ, ms, got, z.Out[i])
+			}
+			n++
+		}
+	}
+	t.Logf("jsDate cases: %d", n)
+}

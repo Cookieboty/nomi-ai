@@ -250,5 +250,15 @@ if (process.platform !== 'win32')
   }
 
 mkdirSync(outDir, { recursive: true });
-writeFileSync(out, JSON.stringify({ edge, edgeClient, tts, voice, cloud, speech, speak, exec }, null, 2) + '\n');
+// D-B9-4：V8 Date#toString（X-Timestamp）在各 TZ 下的写法（括号内 ICU 时区长名）
+const { execFileSync } = await import('node:child_process');
+const jsDateZones = ['UTC', 'Etc/UTC', 'Asia/Shanghai', 'Asia/Kolkata', 'Asia/Tokyo', 'America/New_York', 'America/Sao_Paulo',
+  'Europe/London', 'Europe/Berlin', 'Australia/Sydney', 'Australia/Lord_Howe', 'Pacific/Chatham', 'Asia/Kathmandu', 'America/St_Johns',
+  'Asia/Dubai', 'Pacific/Apia', 'America/Caracas'];
+const jsDateInstants = [0, 1767225600000, 1784505600000, 662688000000, 1793260800123];
+const jsDate = jsDateZones.map((tz) => ({
+  tz,
+  out: JSON.parse(execFileSync(process.execPath, ['-e', `process.stdout.write(JSON.stringify(${JSON.stringify(jsDateInstants)}.map((t)=>new Date(t).toString())))`], { env: { ...process.env, TZ: tz } }).toString()),
+}));
+writeFileSync(out, JSON.stringify({ edge, edgeClient, tts, voice, cloud, speech, speak, exec, jsDate, jsDateInstants }, null, 2) + '\n');
 console.log(`wrote ${out}`);
