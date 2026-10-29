@@ -193,6 +193,8 @@ const scenarios = [];
 const add = (s) => scenarios.push(s);
 import { compatibleScenarios } from './b5-llm-scenarios.mjs';
 for (const s of compatibleScenarios({ sse, SSE_H, json })) add(s);
+import { responsesScenarios } from './b5-llm-openai-scenarios.mjs';
+for (const s of responsesScenarios({ sse, SSE_H, json })) add({ ...s, outFile: 'b5-llm-openai-responses.json' });
 import { anthropicScenarios } from './b5-llm-anthropic-scenarios.mjs';
 for (const s of anthropicScenarios({ sse, SSE_H, json })) add({ ...s, outFile: 'b5-llm-anthropic.json' });
 
@@ -230,6 +232,7 @@ for (const sc of scenarios) {
     abortSignal: ac.signal,
     ...(sc.maxRetries !== undefined ? { maxRetries: sc.maxRetries } : {}),
     ...(sc.thinking ? { providerOptions: prov.opts && thinkingFor(sc.protocol, opts.id) } : {}),
+    ...(sc.providerOptions ? { providerOptions: sc.providerOptions } : {}),
     ...(sc.tools ? { tools: Object.fromEntries(sc.tools.map((t) => [t.name, ai.tool({ description: t.description, inputSchema: ai.jsonSchema(t.inputSchema) })])) } : {}),
     ...(sc.toolChoice ? { toolChoice: sc.toolChoice } : {}),
   };

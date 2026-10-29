@@ -7,6 +7,7 @@ import (
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/llm"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/llm/compatible"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/llm/openai"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/providers/protocol"
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
@@ -80,8 +81,11 @@ func BuildModelFactory(opts Options) ModelFactory {
 	baseURL := protocol.SdkBaseURL(proto, opts.BaseURL, full)
 	client := fullURLClient(proto, opts.BaseURL, full, opts.Client)
 	switch proto {
-	case "anthropic", "openai-responses":
+	case "anthropic":
 		return func(id string) llm.LanguageModel { return unportedModel{string(proto), opts.ID, id} }
+	case "openai-responses":
+		p := openai.New(openai.Settings{APIKey: opts.APIKey, BaseURL: baseURL, Headers: hdrs, Client: client, Name: opts.ID})
+		return func(id string) llm.LanguageModel { return p.Responses(id) }
 	}
 	p := compatible.New(compatible.Settings{Name: opts.ID, BaseURL: baseURL, APIKey: opts.APIKey, Headers: hdrs, IncludeUsage: true, Client: client})
 	return p.ChatModel
