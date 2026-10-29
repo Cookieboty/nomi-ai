@@ -11,7 +11,7 @@ import (
 
 func TestDesktopAdapterUsesRealService(t *testing.T) {
 	ud := t.TempDir()
-	svc := desktop.CreateService(ud, desktop.Ports{Home: ud}, func(string, any, string) {})
+	svc := desktop.CreateService(ud, desktop.Ports{Home: ud}, func(string, any, string) bool { return false })
 	a := DesktopAdapter{S: svc}
 
 	// audit：键序按书写顺序落盘到批次 6 的审计日志

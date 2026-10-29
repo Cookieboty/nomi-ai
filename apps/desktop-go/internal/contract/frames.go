@@ -87,21 +87,31 @@ func (r *Router) Registered() map[string]string {
 }
 
 // Emit 把事件推给所有订阅了它的连接
-func (r *Router) Emit(event string, data any) {
+func (r *Router) Emit(event string, data any) { r.EmitTo(event, data, "") }
+
+// EmitTo 只推给 surface 窗口（"" = 所有窗口）里订阅了该事件的连接；返回是否有人收到
+// （对应 Node 事件总线 publish 的 { surface } 定向与 delivered）
+func (r *Router) EmitTo(event string, data any, surface string) bool {
 	r.subMu.Lock()
 	ss := make([]*Session, 0, len(r.sessions))
 	for s := range r.sessions {
 		ss = append(ss, s)
 	}
 	r.subMu.Unlock()
+	delivered := false
 	for _, s := range ss {
+		if surface != "" && s.caller.Surface != surface {
+			continue
+		}
 		s.mu.Lock()
 		ok := s.subs[event]
 		s.mu.Unlock()
 		if ok {
+			delivered = true
 			s.send(ServerFrame{T: "event", Event: event, Data: data})
 		}
 	}
+	return delivered
 }
 
 func (r *Router) allowed(name, surface string) bool {
