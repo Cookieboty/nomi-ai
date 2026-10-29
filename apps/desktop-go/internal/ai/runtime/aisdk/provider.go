@@ -16,9 +16,6 @@ import (
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// ModelFactory：buildModelFactory 的产物（modelId → LanguageModel）
-type ModelFactory func(modelID string) LanguageModel
-
 // Provider：AiSdkLlmProvider
 type Provider struct {
 	ID           string
@@ -32,6 +29,9 @@ type Provider struct {
 func NewProvider(opts Options, factory ModelFactory) (*Provider, error) {
 	if strings.TrimSpace(opts.BaseURL) == "" {
 		return nil, fmt.Errorf("[%s] baseURL is required", opts.ID)
+	}
+	if factory == nil {
+		factory = BuildModelFactory(opts)
 	}
 	return &Provider{ID: opts.ID, opts: opts, modelFactory: factory, aborts: map[string]context.CancelFunc{}}, nil
 }
@@ -322,6 +322,10 @@ func (p *Provider) toolsFor(defs []tools.Definition, r *llm.ChatRequest) []Tool 
 		s, _ := r.Extra[k].(string)
 		return s
 	}
+	callerSet := false
+	if v, ok := r.Extra["callerTabId"]; ok && v != nil {
+		callerSet = true
+	}
 	caller, conv, cwd := str("callerTabId"), str("conversationId"), str("cwd")
 	out := []Tool{}
 	for _, d := range defs {
@@ -330,13 +334,18 @@ func (p *Provider) toolsFor(defs []tools.Definition, r *llm.ChatRequest) []Tool 
 		}
 		d := d
 		var desc *string
-		if d.Description != "" {
+		if !d.NoDescription {
 			s := d.Description
 			desc = &s
 		}
 		out = append(out, Tool{
 			Name: d.Name, Description: desc, InputSchema: tools.SchemaOf(d),
 			Execute: func(ctx context.Context, input any, id string) (any, error) {
+				// callerTabId ?? getToolCallerTabId()
+				caller := caller
+				if !callerSet {
+					caller, _ = tools.GetToolCallerTabID(ctx)
+				}
 				return d.Execute(ctx, input, tools.ExecContext{ToolCallID: id, Provider: recv, ReqID: r.ReqID, CallerTabID: caller, ConversationID: conv, Cwd: cwd})
 			},
 		})

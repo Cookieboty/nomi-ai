@@ -2,36 +2,16 @@ package aisdk
 
 import (
 	"context"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/llm"
 
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
-
-// LanguageModel is the LanguageModelV4 seam (@ai-sdk/provider): call options and stream parts
-// are the provider-spec JSON shapes (*u.Obj keeps JS key order for byte-exact parity).
-type LanguageModel interface {
-	DoStream(ctx context.Context, opts *u.Obj) (*StreamResponse, error)
-	DoGenerate(ctx context.Context, opts *u.Obj) (*GenerateResponse, error)
-}
-
-// StreamResponse: { stream, response: { headers } }. Headers nil = undefined.
-type StreamResponse struct {
-	Stream  <-chan *u.Obj
-	Headers map[string]string
-}
-
-// GenerateResponse: { content, finishReason, usage, response: { headers } }.
-type GenerateResponse struct {
-	Content      []*u.Obj
-	FinishReason *u.Obj // { unified, raw? }
-	Usage        *u.Obj // LanguageModelV4Usage
-	Headers      map[string]string
-}
 
 // Tool: an executable function tool (ai `tool({ description, inputSchema: jsonSchema(..), execute })`).
 type Tool struct {
 	Name        string
 	Description *string
-	InputSchema *u.Obj
+	InputSchema any
 	Execute     func(ctx context.Context, input any, toolCallID string) (any, error)
 }
 
@@ -64,13 +44,11 @@ func addCounts(a, b *float64) *float64 {
 }
 
 // asLanguageModelUsage (V4 usage → LanguageModelUsage).
-func asUsage(v4 *u.Obj) Usage {
-	in, _ := v4.Get("inputTokens").(*u.Obj)
-	out, _ := v4.Get("outputTokens").(*u.Obj)
+func asUsage(v4 llm.Usage) Usage {
 	r := Usage{
-		InputTokens: numField(in, "total"), NoCacheTokens: numField(in, "noCache"),
-		CacheReadTokens: numField(in, "cacheRead"), CacheWriteTokens: numField(in, "cacheWrite"),
-		OutputTokens: numField(out, "total"), TextTokens: numField(out, "text"), ReasoningTokens: numField(out, "reasoning"),
+		InputTokens: v4.InputTotal, NoCacheTokens: v4.InputNoCache,
+		CacheReadTokens: v4.InputCacheRead, CacheWriteTokens: v4.InputCacheWrite,
+		OutputTokens: v4.OutputTotal, TextTokens: v4.OutputText, ReasoningTokens: v4.OutputReasoning,
 	}
 	r.TotalTokens = addCounts(r.InputTokens, r.OutputTokens)
 	return r
@@ -103,7 +81,7 @@ type Part struct {
 
 // TextParams: the streamText / generateText arguments this runtime uses.
 type TextParams struct {
-	Model           LanguageModel
+	Model           llm.LanguageModel
 	Instructions    *string
 	Messages        []*u.Obj // ModelMessage[]
 	MaxOutputTokens *float64
@@ -133,38 +111,56 @@ func (p *TextParams) tool(name string) *Tool {
 
 const sdkUserAgent = "ai/7.0.136"
 
-// callOptions builds LanguageModelV4CallOptions in the key order of streamText / generateText.
-func (p *TextParams) callOptions(prompt []any, stream bool) *u.Obj {
-	o := u.NewObj()
-	if p.MaxOutputTokens != nil {
-		o.Set("maxOutputTokens", *p.MaxOutputTokens)
+// callOptions builds LanguageModelV4CallOptions as streamText / generateText do
+// (stream: includeRawChunks=false; generate: headers {user-agent}).
+func (p *TextParams) callOptions(prompt []any, stream bool) llm.CallOptions {
+	o := llm.CallOptions{MaxOutputTokens: p.MaxOutputTokens, Temperature: p.Temperature, TopP: p.TopP,
+		ToolChoice: &llm.ToolChoice{Type: "auto"}, Prompt: promptToLLM(prompt), ProviderOptions: p.ProviderOptions}
+	for _, t := range p.Tools {
+		o.Tools = append(o.Tools, llm.Tool{Type: "function", Name: t.Name, Description: t.Description, InputSchema: t.InputSchema})
 	}
-	if p.Temperature != nil {
-		o.Set("temperature", *p.Temperature)
-	}
-	if p.TopP != nil {
-		o.Set("topP", *p.TopP)
-	}
-	if len(p.Tools) > 0 {
-		list := make([]any, 0, len(p.Tools))
-		for _, t := range p.Tools {
-			e := u.NewObj("type", "function", "name", t.Name, "inputSchema", t.InputSchema)
-			if t.Description != nil {
-				e.Set("description", *t.Description)
-			}
-			list = append(list, e)
-		}
-		o.Set("tools", list)
-	}
-	o.Set("toolChoice", u.NewObj("type", "auto"))
-	o.Set("prompt", prompt)
-	if p.ProviderOptions != nil {
-		o.Set("providerOptions", p.ProviderOptions)
-	}
-	if stream {
-		o.Set("includeRawChunks", false)
-	} else {
-		o.Set("headers", u.NewObj("user-agent", sdkUserAgent))
+	if !stream {
+		o.Headers = []llm.Header{llm.H("user-agent", sdkUserAgent)}
 	}
 	return o
+}
+
+func objOf(v any) *u.Obj { o, _ := v.(*u.Obj); return o }
+func strOf(v any) string { s, _ := v.(string); return s }
+
+// promptToLLM: the LanguageModelV4Prompt JSON built by convertPrompt → typed llm.Message.
+func promptToLLM(prompt []any) []llm.Message {
+	out := make([]llm.Message, 0, len(prompt))
+	for _, m := range prompt {
+		mo := m.(*u.Obj)
+		msg := llm.Message{Role: strOf(mo.Get("role")), ProviderOptions: objOf(mo.Get("providerOptions"))}
+		if s, ok := mo.Get("content").(string); ok {
+			msg.Text = s
+		} else {
+			arr, _ := mo.Get("content").([]any)
+			for _, p := range arr {
+				msg.Parts = append(msg.Parts, partToLLM(p.(*u.Obj)))
+			}
+		}
+		out = append(out, msg)
+	}
+	return out
+}
+
+func partToLLM(o *u.Obj) llm.Part {
+	p := llm.Part{Type: strOf(o.Get("type")), Text: strOf(o.Get("text")), MediaType: strOf(o.Get("mediaType")),
+		ToolCallID: strOf(o.Get("toolCallId")), ToolName: strOf(o.Get("toolName")), Input: o.Get("input"),
+		ProviderExec: o.Get("providerExecuted") == true, ProviderOptions: objOf(o.Get("providerOptions"))}
+	if d := objOf(o.Get("data")); d != nil {
+		switch x := d.Get("data").(type) {
+		case string:
+			p.Data = llm.FileData{Type: "data", Base64: x, IsString: true}
+		default:
+			p.Data = llm.FileData{Type: strOf(d.Get("type")), URL: strOf(d.Get("url"))}
+		}
+	}
+	if out := objOf(o.Get("output")); out != nil {
+		p.Output = &llm.ToolResultOutput{Type: strOf(out.Get("type")), Value: out.Get("value"), ProviderOptions: objOf(out.Get("providerOptions"))}
+	}
+	return p
 }

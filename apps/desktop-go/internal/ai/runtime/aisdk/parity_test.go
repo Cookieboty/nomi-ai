@@ -12,8 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/llm"
+	blm "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/llm"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/tools"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/llm"
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
@@ -58,6 +59,99 @@ type mockModel struct {
 	mu      *sync.Mutex
 }
 
+func (m mockModel) Provider() string { return "mock" }
+func (m mockModel) ModelID() string  { return m.modelID }
+
+// callJSON：llm.CallOptions → Node 记录的 LanguageModelV4CallOptions JSON（同键序）
+func callJSON(o llm.CallOptions, stream bool) *u.Obj {
+	r := u.NewObj()
+	if o.MaxOutputTokens != nil {
+		r.Set("maxOutputTokens", *o.MaxOutputTokens)
+	}
+	if o.Temperature != nil {
+		r.Set("temperature", *o.Temperature)
+	}
+	if o.TopP != nil {
+		r.Set("topP", *o.TopP)
+	}
+	if o.Tools != nil {
+		ts := []any{}
+		for _, t := range o.Tools {
+			to := u.NewObj("type", t.Type, "name", t.Name, "inputSchema", t.InputSchema)
+			if t.Description != nil {
+				to.Set("description", *t.Description)
+			}
+			ts = append(ts, to)
+		}
+		r.Set("tools", ts)
+	}
+	if o.ToolChoice != nil {
+		r.Set("toolChoice", u.NewObj("type", o.ToolChoice.Type))
+	}
+	pr := []any{}
+	for _, m := range o.Prompt {
+		mo := u.NewObj("role", m.Role)
+		if m.Role == "system" {
+			mo.Set("content", m.Text)
+		} else {
+			ps := []any{}
+			for _, p := range m.Parts {
+				ps = append(ps, partJSON(p))
+			}
+			mo.Set("content", ps)
+		}
+		if m.ProviderOptions != nil {
+			mo.Set("providerOptions", m.ProviderOptions)
+		}
+		pr = append(pr, mo)
+	}
+	r.Set("prompt", pr)
+	if o.ProviderOptions != nil {
+		r.Set("providerOptions", o.ProviderOptions)
+	}
+	if stream {
+		r.Set("includeRawChunks", o.IncludeRawChunks)
+	} else {
+		h := u.NewObj()
+		for _, x := range o.Headers {
+			h.Set(x.Name, x.Value)
+		}
+		r.Set("headers", h)
+	}
+	return r
+}
+
+func partJSON(p llm.Part) *u.Obj {
+	o := u.NewObj("type", p.Type)
+	switch p.Type {
+	case "text", "reasoning":
+		o.Set("text", p.Text)
+	case "file":
+		o.Set("mediaType", p.MediaType)
+		if p.Data.IsString {
+			o.Set("data", u.NewObj("type", "data", "data", p.Data.Base64))
+		} else {
+			o.Set("data", u.NewObj("type", p.Data.Type, "url", p.Data.URL))
+		}
+	case "tool-call":
+		o.Set("toolCallId", p.ToolCallID).Set("toolName", p.ToolName).Set("input", p.Input)
+		if p.ProviderExec {
+			o.Set("providerExecuted", true)
+		}
+	case "tool-result":
+		o.Set("toolCallId", p.ToolCallID).Set("toolName", p.ToolName)
+		out := u.NewObj("type", p.Output.Type, "value", p.Output.Value)
+		if p.Output.ProviderOptions != nil {
+			out.Set("providerOptions", p.Output.ProviderOptions)
+		}
+		o.Set("output", out)
+	}
+	if p.ProviderOptions != nil {
+		o.Set("providerOptions", p.ProviderOptions)
+	}
+	return o
+}
+
 func (m mockModel) next(opts *u.Obj) (*u.Obj, error) {
 	m.mu.Lock()
 	rec := u.NewObj("modelId", m.modelID)
@@ -78,19 +172,12 @@ func (m mockModel) next(opts *u.Obj) (*u.Obj, error) {
 			return nil, errors.New(msg)
 		}
 		st, _ := t.Get("statusCode").(float64)
-		var hs map[string]string
-		if h, ok := t.Get("headers").(*u.Obj); ok {
-			hs = map[string]string{}
-			for _, k := range h.Keys() {
-				hs[k] = h.Get(k).(string)
-			}
-		}
-		e := NewAPICallError(msg, int(st), hs, t.Get("data"))
-		e.URL = "http://mock/v1"
+		e := llm.APICallError{Message: msg, URL: "http://mock/v1", StatusCode: int(st), ResponseHeaders: headersOf(t), Data: t.Get("data")}
 		if d := t.Get("data"); d != nil {
-			e.ResponseBody = u.Stringify(d)
+			b := u.Stringify(d)
+			e.ResponseBody = &b
 		}
-		return nil, e
+		return nil, llm.NewAPICallError(e, nil)
 	}
 	return step, nil
 }
@@ -107,54 +194,87 @@ func headersOf(step *u.Obj) map[string]string {
 	return m
 }
 
-func (m mockModel) DoStream(ctx context.Context, opts *u.Obj) (*StreamResponse, error) {
-	step, err := m.next(opts)
+func numOf(o *u.Obj, k string) llm.Num {
+	if f, ok := o.Get(k).(float64); ok {
+		return &f
+	}
+	return nil
+}
+
+// streamPart：脚本中的 LanguageModelV4StreamPart JSON → llm.StreamPart
+func streamPart(po *u.Obj) llm.StreamPart {
+	sp := llm.StreamPart{Type: strOf(po.Get("type")), ID: strOf(po.Get("id")), Delta: strOf(po.Get("delta")),
+		ToolName: strOf(po.Get("toolName")), ToolCallID: strOf(po.Get("toolCallId")), Input: strOf(po.Get("input"))}
+	if b, ok := po.Get("providerExecuted").(bool); ok {
+		sp.ProviderExecuted = &b
+	}
+	if fr := objOf(po.Get("finishReason")); fr != nil {
+		f := llm.FinishReason{Unified: strOf(fr.Get("unified"))}
+		if r, ok := fr.Get("raw").(string); ok {
+			f.Raw = &r
+		}
+		sp.FinishReason = &f
+	}
+	if us := objOf(po.Get("usage")); us != nil {
+		in, out := objOf(us.Get("inputTokens")), objOf(us.Get("outputTokens"))
+		x := llm.Usage{}
+		if in != nil {
+			x.InputTotal, x.InputNoCache, x.InputCacheRead, x.InputCacheWrite = numOf(in, "total"), numOf(in, "noCache"), numOf(in, "cacheRead"), numOf(in, "cacheWrite")
+		}
+		if out != nil {
+			x.OutputTotal, x.OutputText, x.OutputReasoning = numOf(out, "total"), numOf(out, "text"), numOf(out, "reasoning")
+		}
+		sp.Usage = &x
+	}
+	if sp.Type == "error" {
+		sp.RawValue = po.Get("error")
+	}
+	return sp
+}
+
+func (m mockModel) DoStream(ctx context.Context, opts llm.CallOptions) (*llm.StreamResult, error) {
+	step, err := m.next(callJSON(opts, true))
 	if err != nil {
 		return nil, err
 	}
-	ch := make(chan *u.Obj)
+	ch := make(chan llm.StreamPart)
 	go func() {
 		defer close(ch)
 		for _, p := range step.Get("parts").([]any) {
-			c, _ := u.ParseString(u.Stringify(p))
 			select {
-			case ch <- c.(*u.Obj):
+			case ch <- streamPart(p.(*u.Obj)):
 			case <-ctx.Done():
 				return
 			}
 		}
 	}()
-	return &StreamResponse{Stream: ch, Headers: headersOf(step)}, nil
+	return &llm.StreamResult{Stream: ch, ResponseHeaders: headersOf(step)}, nil
 }
 
-func (m mockModel) DoGenerate(ctx context.Context, opts *u.Obj) (*GenerateResponse, error) {
-	step, err := m.next(opts)
+func (m mockModel) DoGenerate(ctx context.Context, opts llm.CallOptions) (*llm.GenerateResult, error) {
+	step, err := m.next(callJSON(opts, false))
 	if err != nil {
 		return nil, err
 	}
-	var content []*u.Obj
-	open := map[string]*u.Obj{}
-	var finish *u.Obj
+	res := &llm.GenerateResult{ResponseHeaders: headersOf(step)}
+	open := map[string]int{}
 	for _, p := range step.Get("parts").([]any) {
 		po := p.(*u.Obj)
-		typ, _ := po.Get("type").(string)
+		typ := strOf(po.Get("type"))
 		switch typ {
 		case "text-start", "reasoning-start":
-			c := u.NewObj("type", strings.TrimSuffix(typ, "-start"), "text", "")
-			open[jsString(po.Get("id"))+typ[:1]] = c
-			content = append(content, c)
+			open[jsString(po.Get("id"))+typ[:1]] = len(res.Content)
+			res.Content = append(res.Content, llm.StreamPart{Type: strings.TrimSuffix(typ, "-start")})
 		case "text-delta", "reasoning-delta":
-			c := open[jsString(po.Get("id"))+typ[:1]]
-			c.Set("text", c.Get("text").(string)+po.Get("delta").(string))
+			res.Content[open[jsString(po.Get("id"))+typ[:1]]].Text += strOf(po.Get("delta"))
 		case "tool-call":
-			content = append(content, po)
+			res.Content = append(res.Content, streamPart(po))
 		case "finish":
-			finish = po
+			sp := streamPart(po)
+			res.FinishReason, res.Usage = *sp.FinishReason, *sp.Usage
 		}
 	}
-	fr, _ := finish.Get("finishReason").(*u.Obj)
-	us, _ := finish.Get("usage").(*u.Obj)
-	return &GenerateResponse{Content: content, FinishReason: fr, Usage: us, Headers: headersOf(step)}, nil
+	return res, nil
 }
 
 func optsOf(o *u.Obj) Options {
@@ -192,11 +312,12 @@ func toolDefs(sc *scenario, p *Provider, reqID string, execs *[]string, mu *sync
 		t := obj(raw)
 		name := t.Get("name").(string)
 		desc, _ := t.Get("description").(string)
+		noDesc := !t.Has("description")
 		in, _ := t.Get("input").(*u.Obj)
 		rw, _ := t.Get("requiresWorkspace").(bool)
 		b := t.Get("behavior").(*u.Obj)
 		defs = append(defs, tools.Definition{
-			Name: name, Description: desc, Input: in, RequiresWorkspace: rw,
+			Name: name, Description: desc, NoDescription: noDesc, Input: in, RequiresWorkspace: rw,
 			Execute: func(ctx context.Context, input any, ec tools.ExecContext) (any, error) {
 				c := u.NewObj()
 				if ec.ToolCallID != "" {
@@ -245,11 +366,11 @@ func toolDefs(sc *scenario, p *Provider, reqID string, execs *[]string, mu *sync
 	return defs
 }
 
-func requestOf(raw json.RawMessage) *llm.ChatRequest {
+func requestOf(raw json.RawMessage) *blm.ChatRequest {
 	var r struct {
 		ReqID       string            `json:"reqId"`
 		Model       string            `json:"model"`
-		Messages    []llm.ChatMessage `json:"messages"`
+		Messages    []blm.ChatMessage `json:"messages"`
 		Temperature *float64          `json:"temperature"`
 		TopP        *float64          `json:"topP"`
 		MaxTokens   *float64          `json:"maxTokens"`
@@ -258,22 +379,22 @@ func requestOf(raw json.RawMessage) *llm.ChatRequest {
 	if err := json.Unmarshal(raw, &r); err != nil {
 		panic(err)
 	}
-	return &llm.ChatRequest{ReqID: r.ReqID, Model: r.Model, Messages: r.Messages, Temperature: r.Temperature, TopP: r.TopP, MaxTokens: r.MaxTokens, Extra: r.Extra}
+	return &blm.ChatRequest{ReqID: r.ReqID, Model: r.Model, Messages: r.Messages, Temperature: r.Temperature, TopP: r.TopP, MaxTokens: r.MaxTokens, Extra: r.Extra}
 }
 
 func replay(t *testing.T, sc *scenario) record {
 	rec := record{Name: sc.Name, Calls: []string{}, Execs: []string{}, Chunks: []string{}}
 	var mu sync.Mutex
 	i := 0
-	p, err := NewProvider(optsOf(obj(sc.Opts)), func(id string) LanguageModel {
+	p, err := NewProvider(optsOf(obj(sc.Opts)), func(id string) llm.LanguageModel {
 		return mockModel{modelID: id, sc: sc, i: &i, calls: &rec.Calls, mu: &mu}
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	req := requestOf(sc.Request)
-	var chat func(context.Context, *llm.ChatRequest) (*llm.ChatResponse, error) = p.Chat
-	var stream func(context.Context, *llm.ChatRequest, func(llm.ChatChunk)) error = p.Stream
+	var chat func(context.Context, *blm.ChatRequest) (*blm.ChatResponse, error) = p.Chat
+	var stream func(context.Context, *blm.ChatRequest, func(blm.ChatChunk)) error = p.Stream
 	if sc.Tools != nil {
 		b := p.WithTools(toolDefs(sc, p, req.ReqID, &rec.Execs, &mu))
 		chat, stream = b.Chat, b.Stream
@@ -289,7 +410,7 @@ func replay(t *testing.T, sc *scenario) record {
 			rec.Result = &s
 		}
 	} else {
-		thrown = stream(ctx, req, func(c llm.ChatChunk) { rec.Chunks = append(rec.Chunks, u.Stringify(c.Obj())) })
+		thrown = stream(ctx, req, func(c blm.ChatChunk) { rec.Chunks = append(rec.Chunks, u.Stringify(c.Obj())) })
 	}
 	if thrown != nil {
 		var m string

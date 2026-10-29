@@ -2,6 +2,7 @@ package aisdk
 
 import (
 	"errors"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/llm"
 	"math"
 	"regexp"
 	"strconv"
@@ -22,7 +23,7 @@ func errView(e any) (*u.Obj, bool) {
 		return x, true
 	case *ValueError:
 		return errView(x.Value)
-	case *APICallError:
+	case *llm.APICallError:
 		o := u.NewObj("message", x.Message)
 		if x.StatusCode != 0 {
 			o.Set("statusCode", float64(x.StatusCode))
@@ -36,10 +37,10 @@ func errView(e any) (*u.Obj, bool) {
 		}
 		o.Set("data", x.Data)
 		return o, true
-	case *RetryError:
+	case *llm.RetryError:
 		o := u.NewObj("message", x.Message)
-		if x.LastError != nil {
-			o.Set("lastError", x.LastError)
+		if le := x.LastError(); le != nil {
+			o.Set("lastError", le)
 		}
 		return o, true
 	case error:
