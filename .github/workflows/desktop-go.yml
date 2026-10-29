@@ -57,6 +57,9 @@ jobs:
           pnpm exec tsx scripts/parity/record-b7-harness.mjs
           pnpm exec tsx scripts/parity/record-b7-orch.mjs
           pnpm exec tsx scripts/parity/record-b7-tabs.mjs
+          pnpm exec tsx scripts/parity/record-b7-coding.mjs
+          pnpm exec tsx scripts/parity/record-b7-slash.mjs
+          pnpm exec tsx scripts/parity/record-b7-ws.mjs
           pnpm --filter @nomi-ai/types --filter @nomi-ai/i18n build
           pnpm exec tsx scripts/parity/record-b9.mjs
           pnpm exec tsx scripts/parity/check-scheme-url.mjs

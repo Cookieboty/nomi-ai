@@ -1,0 +1,728 @@
+{
+ "now": 1793268000123,
+ "version": "2.0.5-test",
+ "platform": "linux",
+ "scenarios": [
+  {
+   "name": "packagedDefault",
+   "dev": false,
+   "steps": [
+    [
+     "view"
+    ],
+    [
+     "file"
+    ]
+   ],
+   "log": [
+    {
+     "op": "view",
+     "ok": {
+      "enabled": false,
+      "forced": false,
+      "saveLogs": false,
+      "dir": "<SB>/diag/packagedDefault/logs",
+      "bodyTrace": false
+     }
+    },
+    {
+     "op": "file",
+     "ok": null
+    }
+   ]
+  },
+  {
+   "name": "devForced",
+   "dev": true,
+   "steps": [
+    [
+     "view"
+    ],
+    [
+     "set",
+     false
+    ],
+    [
+     "set",
+     true
+    ],
+    [
+     "view"
+    ],
+    [
+     "file"
+    ],
+    [
+     "changes"
+    ]
+   ],
+   "log": [
+    {
+     "op": "view",
+     "ok": {
+      "enabled": true,
+      "forced": true,
+      "saveLogs": false,
+      "dir": "<SB>/diag/devForced/logs",
+      "bodyTrace": true
+     }
+    },
+    {
+     "op": "set",
+     "ok": {
+      "enabled": true,
+      "forced": true,
+      "saveLogs": false,
+      "dir": "<SB>/diag/devForced/logs",
+      "bodyTrace": true
+     }
+    },
+    {
+     "op": "set",
+     "ok": {
+      "enabled": true,
+      "forced": true,
+      "saveLogs": true,
+      "dir": "<SB>/diag/devForced/logs",
+      "bodyTrace": true
+     }
+    },
+    {
+     "op": "view",
+     "ok": {
+      "enabled": true,
+      "forced": true,
+      "saveLogs": true,
+      "dir": "<SB>/diag/devForced/logs",
+      "bodyTrace": true
+     }
+    },
+    {
+     "op": "file",
+     "ok": "{\"version\":1,\"saveLogs\":true}"
+    },
+    {
+     "op": "changes",
+     "ok": []
+    }
+   ]
+  },
+  {
+   "name": "toggle",
+   "dev": false,
+   "steps": [
+    [
+     "set",
+     true
+    ],
+    [
+     "file"
+    ],
+    [
+     "set",
+     true
+    ],
+    [
+     "set",
+     false
+    ],
+    [
+     "file"
+    ],
+    [
+     "changes"
+    ]
+   ],
+   "log": [
+    {
+     "op": "set",
+     "ok": {
+      "enabled": true,
+      "forced": false,
+      "saveLogs": true,
+      "dir": "<SB>/diag/toggle/logs",
+      "bodyTrace": true
+     }
+    },
+    {
+     "op": "file",
+     "ok": "{\"version\":1,\"saveLogs\":true}"
+    },
+    {
+     "op": "set",
+     "ok": {
+      "enabled": true,
+      "forced": false,
+      "saveLogs": true,
+      "dir": "<SB>/diag/toggle/logs",
+      "bodyTrace": true
+     }
+    },
+    {
+     "op": "set",
+     "ok": {
+      "enabled": false,
+      "forced": false,
+      "saveLogs": false,
+      "dir": "<SB>/diag/toggle/logs",
+      "bodyTrace": false
+     }
+    },
+    {
+     "op": "file",
+     "ok": "{\"version\":1,\"saveLogs\":false}"
+    },
+    {
+     "op": "changes",
+     "ok": [
+      true,
+      false
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bodyOff",
+   "dev": false,
+   "env": {
+    "NOMI_DIAG_BODY": "0"
+   },
+   "steps": [
+    [
+     "set",
+     true
+    ],
+    [
+     "view"
+    ]
+   ],
+   "log": [
+    {
+     "op": "set",
+     "ok": {
+      "enabled": true,
+      "forced": false,
+      "saveLogs": true,
+      "dir": "<SB>/diag/bodyOff/logs",
+      "bodyTrace": false
+     }
+    },
+    {
+     "op": "view",
+     "ok": {
+      "enabled": true,
+      "forced": false,
+      "saveLogs": true,
+      "dir": "<SB>/diag/bodyOff/logs",
+      "bodyTrace": false
+     }
+    }
+   ]
+  },
+  {
+   "name": "bodyOne",
+   "dev": false,
+   "env": {
+    "NOMI_DIAG_BODY": "1"
+   },
+   "steps": [
+    [
+     "set",
+     true
+    ],
+    [
+     "view"
+    ]
+   ],
+   "log": [
+    {
+     "op": "set",
+     "ok": {
+      "enabled": true,
+      "forced": false,
+      "saveLogs": true,
+      "dir": "<SB>/diag/bodyOne/logs",
+      "bodyTrace": true
+     }
+    },
+    {
+     "op": "view",
+     "ok": {
+      "enabled": true,
+      "forced": false,
+      "saveLogs": true,
+      "dir": "<SB>/diag/bodyOne/logs",
+      "bodyTrace": true
+     }
+    }
+   ]
+  },
+  {
+   "name": "legacyOn",
+   "dev": false,
+   "observe": "{\"trace\":true}",
+   "steps": [
+    [
+     "view"
+    ],
+    [
+     "file"
+    ]
+   ],
+   "log": [
+    {
+     "op": "view",
+     "ok": {
+      "enabled": true,
+      "forced": false,
+      "saveLogs": true,
+      "dir": "<SB>/diag/legacyOn/logs",
+      "bodyTrace": true
+     }
+    },
+    {
+     "op": "file",
+     "ok": "{\"version\":1,\"saveLogs\":true}"
+    }
+   ]
+  },
+  {
+   "name": "legacyTruthy",
+   "dev": false,
+   "observe": "{\"trace\":1}",
+   "steps": [
+    [
+     "view"
+    ],
+    [
+     "file"
+    ]
+   ],
+   "log": [
+    {
+     "op": "view",
+     "ok": {
+      "enabled": false,
+      "forced": false,
+      "saveLogs": false,
+      "dir": "<SB>/diag/legacyTruthy/logs",
+      "bodyTrace": false
+     }
+    },
+    {
+     "op": "file",
+     "ok": null
+    }
+   ]
+  },
+  {
+   "name": "legacyBad",
+   "dev": false,
+   "observe": "nope",
+   "steps": [
+    [
+     "view"
+    ],
+    [
+     "file"
+    ]
+   ],
+   "log": [
+    {
+     "op": "view",
+     "ok": {
+      "enabled": false,
+      "forced": false,
+      "saveLogs": false,
+      "dir": "<SB>/diag/legacyBad/logs",
+      "bodyTrace": false
+     }
+    },
+    {
+     "op": "file",
+     "ok": null
+    }
+   ]
+  },
+  {
+   "name": "fileTrue",
+   "dev": false,
+   "file": "{\"version\":1,\"saveLogs\":true}",
+   "observe": "{\"trace\":false}",
+   "steps": [
+    [
+     "view"
+    ]
+   ],
+   "log": [
+    {
+     "op": "view",
+     "ok": {
+      "enabled": true,
+      "forced": false,
+      "saveLogs": true,
+      "dir": "<SB>/diag/fileTrue/logs",
+      "bodyTrace": true
+     }
+    }
+   ]
+  },
+  {
+   "name": "fileString",
+   "dev": false,
+   "file": "{\"saveLogs\":\"true\"}",
+   "steps": [
+    [
+     "view"
+    ]
+   ],
+   "log": [
+    {
+     "op": "view",
+     "ok": {
+      "enabled": false,
+      "forced": false,
+      "saveLogs": false,
+      "dir": "<SB>/diag/fileString/logs",
+      "bodyTrace": false
+     }
+    }
+   ]
+  },
+  {
+   "name": "fileNull",
+   "dev": false,
+   "file": "null",
+   "steps": [
+    [
+     "view"
+    ]
+   ],
+   "log": [
+    {
+     "op": "view",
+     "ok": {
+      "enabled": false,
+      "forced": false,
+      "saveLogs": false,
+      "dir": "<SB>/diag/fileNull/logs",
+      "bodyTrace": false
+     }
+    }
+   ]
+  },
+  {
+   "name": "fileBad",
+   "dev": false,
+   "file": "{",
+   "steps": [
+    [
+     "view"
+    ],
+    [
+     "set",
+     false
+    ],
+    [
+     "file"
+    ]
+   ],
+   "log": [
+    {
+     "op": "view",
+     "ok": {
+      "enabled": false,
+      "forced": false,
+      "saveLogs": false,
+      "dir": "<SB>/diag/fileBad/logs",
+      "bodyTrace": false
+     }
+    },
+    {
+     "op": "set",
+     "ok": {
+      "enabled": false,
+      "forced": false,
+      "saveLogs": false,
+      "dir": "<SB>/diag/fileBad/logs",
+      "bodyTrace": false
+     }
+    },
+    {
+     "op": "file",
+     "ok": "{"
+    }
+   ]
+  },
+  {
+   "name": "openOk",
+   "dev": false,
+   "steps": [
+    [
+     "open",
+     ""
+    ],
+    [
+     "logDirExists"
+    ]
+   ],
+   "log": [
+    {
+     "op": "open",
+     "ok": true
+    },
+    {
+     "op": "logDirExists",
+     "ok": true
+    }
+   ]
+  },
+  {
+   "name": "openErr",
+   "dev": false,
+   "steps": [
+    [
+     "open",
+     "Failed to open path"
+    ]
+   ],
+   "log": [
+    {
+     "op": "open",
+     "err": "Failed to open path"
+    }
+   ]
+  },
+  {
+   "name": "exportCancel",
+   "dev": false,
+   "steps": [
+    [
+     "export",
+     null
+    ],
+    [
+     "saveCalls"
+    ]
+   ],
+   "log": [
+    {
+     "op": "export",
+     "ok": {
+      "ok": false
+     }
+    },
+    {
+     "op": "saveCalls",
+     "ok": [
+      {
+       "defaultPath": "nomi-diagnostics-2026-10-29T10-00-00-123Z.zip",
+       "filters": [
+        {
+         "name": "Zip",
+         "extensions": [
+          "zip"
+         ]
+        }
+       ],
+       "parent": "focused"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "exportFiles",
+   "dev": false,
+   "files": [
+    [
+     "logs",
+     "app.log",
+     "hello Bearer abcdefghijklmnop sk-abcdefghijklmnop\n",
+     1
+    ],
+    [
+     "logs",
+     "app.1.log",
+     "old\n",
+     30
+    ],
+    [
+     "logs",
+     "app.2.log",
+     "recent key=AIzaSyA0123456789012345678901\n",
+     2
+    ],
+    [
+     "logs",
+     "cli-2026-10-29.jsonl",
+     "{\"a\":\"nomi-gw-abcdefgh\"}\n",
+     0.5
+    ],
+    [
+     "logs",
+     "cli-2026-10-29.txt",
+     "ignored\n",
+     0.5
+    ],
+    [
+     "logs",
+     "other.log",
+     "ignored\n",
+     0.5
+    ],
+    [
+     "trace",
+     "b.json",
+     "{\"x\":\"https://h/?api_key=zzz&q=1\"}",
+     3
+    ],
+    [
+     "trace",
+     "a.json",
+     "{}",
+     23.9
+    ],
+    [
+     "trace",
+     "c.json",
+     "{}",
+     24.1
+    ],
+    [
+     "trace",
+     "d.txt",
+     "x",
+     1
+    ]
+   ],
+   "steps": [
+    [
+     "export",
+     "out.zip"
+    ],
+    [
+     "saveCalls"
+    ],
+    [
+     "zip",
+     "out.zip"
+    ]
+   ],
+   "log": [
+    {
+     "op": "export",
+     "ok": {
+      "ok": true,
+      "path": "<SB>/diag/exportFiles/out.zip",
+      "files": [
+       "logs/app.2.log",
+       "logs/app.log",
+       "logs/cli-2026-10-29.jsonl",
+       "gateway-trace/a.json",
+       "gateway-trace/b.json"
+      ]
+     }
+    },
+    {
+     "op": "saveCalls",
+     "ok": [
+      {
+       "defaultPath": "nomi-diagnostics-2026-10-29T10-00-00-123Z.zip",
+       "filters": [
+        {
+         "name": "Zip",
+         "extensions": [
+          "zip"
+         ]
+        }
+       ],
+       "parent": "focused"
+      }
+     ]
+    },
+    {
+     "op": "zip",
+     "ok": [
+      [
+       "logs/app.2.log",
+       "recent key=[REDACTED]\n"
+      ],
+      [
+       "logs/app.log",
+       "hello Bearer [REDACTED] [REDACTED]\n"
+      ],
+      [
+       "logs/cli-2026-10-29.jsonl",
+       "{\"a\":\"[REDACTED]\"}\n"
+      ],
+      [
+       "gateway-trace/a.json",
+       "{}"
+      ],
+      [
+       "gateway-trace/b.json",
+       "{\"x\":\"https://h/?api_key=[REDACTED]&q=1\"}"
+      ],
+      [
+       "README.txt",
+       "Nomi diagnostics bundle\ncreated: 2026-10-29T10:00:00.123Z\nwindow: last 24 h\nversion: 2.0.5-test\nplatform: linux\n\nContains coding-agent input/output and gateway request/response bodies (conversation\ncontent). API keys, tokens and known secret formats are redacted; environment variables\nare never recorded.\n"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "exportEmpty",
+   "dev": false,
+   "steps": [
+    [
+     "export",
+     "empty.zip"
+    ],
+    [
+     "zip",
+     "empty.zip"
+    ]
+   ],
+   "log": [
+    {
+     "op": "export",
+     "ok": {
+      "ok": true,
+      "path": "<SB>/diag/exportEmpty/empty.zip",
+      "files": []
+     }
+    },
+    {
+     "op": "zip",
+     "ok": [
+      [
+       "README.txt",
+       "Nomi diagnostics bundle\ncreated: 2026-10-29T10:00:00.123Z\nwindow: last 24 h\nversion: 2.0.5-test\nplatform: linux\n\nContains coding-agent input/output and gateway request/response bodies (conversation\ncontent). API keys, tokens and known secret formats are redacted; environment variables\nare never recorded.\n"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "exportNoDir",
+   "dev": false,
+   "steps": [
+    [
+     "export",
+     "nodir/x.zip"
+    ]
+   ],
+   "log": [
+    {
+     "op": "export",
+     "ok": {
+      "ok": false,
+      "error": "ENOENT: no such file or directory, open '<SB>/diag/exportNoDir/nodir/x.zip'"
+     }
+    }
+   ]
+  }
+ ]
+}

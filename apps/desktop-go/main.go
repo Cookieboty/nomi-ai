@@ -338,6 +338,8 @@ func main() {
 			return ""
 		},
 	})
+	shellP := installShellProcs(router, userData, &sh, gatewaySvc)
+	defer wireHarness(router, userData, home, ports)()
 	log.Printf("[desktop-go] %d contract procedures stubbed (not implemented yet)", procs.Install(router))
 
 	ws := &contract.WSServer{Router: router, Token: contract.NewToken(), Origins: map[string]bool{
@@ -372,6 +374,8 @@ func main() {
 				assetproto.ServeCharacterPack(w, charSvc.Root(), u)
 			},
 		}))})
+
+	shellP.AttachShell()
 
 	if ctl != "" {
 		go http.ListenAndServe(ctl, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
