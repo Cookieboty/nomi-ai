@@ -109,17 +109,7 @@ func JSDateString(t time.Time) string {
 	return t.Format("Mon Jan 02 2006 15:04:05 ") + gmt + " (" + zoneLongName(t) + ")"
 }
 
-var zoneNames = map[string][2]string{ // IANA → [标准, 夏令]
-	"UTC": {"Coordinated Universal Time", "Coordinated Universal Time"}, "Etc/UTC": {"Coordinated Universal Time", "Coordinated Universal Time"},
-	"Asia/Shanghai": {"China Standard Time", "China Daylight Time"}, "Asia/Chongqing": {"China Standard Time", "China Daylight Time"},
-	"Asia/Hong_Kong": {"Hong Kong Standard Time", "Hong Kong Summer Time"}, "Asia/Taipei": {"Taipei Standard Time", "Taipei Daylight Time"},
-	"Asia/Tokyo": {"Japan Standard Time", "Japan Daylight Time"}, "Asia/Seoul": {"Korean Standard Time", "Korean Daylight Time"},
-	"Asia/Singapore":   {"Singapore Standard Time", "Singapore Standard Time"},
-	"America/New_York": {"Eastern Standard Time", "Eastern Daylight Time"}, "America/Chicago": {"Central Standard Time", "Central Daylight Time"},
-	"America/Denver": {"Mountain Standard Time", "Mountain Daylight Time"}, "America/Los_Angeles": {"Pacific Standard Time", "Pacific Daylight Time"},
-	"Europe/London": {"Greenwich Mean Time", "British Summer Time"}, "Europe/Berlin": {"Central European Standard Time", "Central European Summer Time"},
-	"Europe/Paris": {"Central European Standard Time", "Central European Summer Time"},
-}
+// zoneNames 见 zonenames_gen.go（scripts/parity/gen-tz-names.mjs 由 Node Intl 生成）
 
 func localZoneName() string {
 	if tz := os.Getenv("TZ"); tz != "" {
@@ -135,10 +125,13 @@ func localZoneName() string {
 
 func zoneLongName(t time.Time) string {
 	if n, ok := zoneNames[localZoneName()]; ok {
+		name := n[0]
 		if t.IsDST() {
-			return n[1]
+			name = n[1]
 		}
-		return n[0]
+		if name != "" {
+			return name
+		}
 	}
 	_, off := t.Zone()
 	if off == 0 {
