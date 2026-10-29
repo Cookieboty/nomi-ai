@@ -67,118 +67,12 @@ func agentsTruthy(v any) bool {
 	return true
 }
 
-func (s *Service) allProviders() []*u.Obj {
-	out := []*u.Obj{}
-	for _, p := range s.Store.Providers() {
-		out = append(out, asObj(p))
-	}
-	return append(out, s.envViews()...)
-}
-
 func objList(v any) []*u.Obj {
 	a, _ := v.([]any)
 	out := make([]*u.Obj, 0, len(a))
 	for _, x := range a {
 		out = append(out, asObj(x))
 	}
-	return out
-}
-
-// CliModels = cliModels()
-func (s *Service) CliModels() []*u.Obj {
-	out := []*u.Obj{}
-	for _, p := range s.allProviders() {
-		if !agentsTruthy(p.Get("enabled")) {
-			continue
-		}
-		pid := u.JSString(p.Get("id"))
-		for _, m := range objList(p.Get("models")) {
-			if !agentsTruthy(m.Get("enabled")) || m.Get("toolCalling") == false {
-				continue
-			}
-			mid := u.JSString(m.Get("id"))
-			ref := pid + "/" + mid
-			meta := s.ModelMetaOf(ref, nil)
-			label := m.Get("label")
-			if label == nil {
-				label = m.Get("id")
-			}
-			e := u.NewObj("ref", ref, "provider", p.Get("name"), "label", label)
-			if meta != nil && meta.Reasoning != nil {
-				e.Set("reasoning", *meta.Reasoning)
-			}
-			if meta != nil && meta.Vision != nil {
-				e.Set("vision", *meta.Vision)
-			}
-			if meta != nil && meta.Source != "default" {
-				e.Set("ctx", meta.Ctx)
-			}
-			out = append(out, e)
-		}
-	}
-	return out
-}
-
-// ModelMetaOf = modelMetaOf(ref, { longContext })
-func (s *Service) ModelMetaOf(ref string, longContext *bool) *ResolvedModelMeta {
-	i := strings.Index(ref, "/")
-	if i <= 0 {
-		return nil
-	}
-	pid, mid := ref[:i], ref[i+1:]
-	for _, raw := range s.Store.Providers() {
-		if p := asObj(raw); p.Get("id") == pid {
-			r := s.Store.ModelMeta(p, mid, longContext)
-			return &r
-		}
-	}
-	for _, e := range s.envViews() {
-		if e.Get("id") == pid {
-			r := s.Store.ModelMeta(u.NewObj("presetId", pid[4:], "models", e.Get("models")), mid, longContext)
-			return &r
-		}
-	}
-	return nil
-}
-
-// AgentMeta = agentMeta(ref, { longContext })
-func (s *Service) AgentMeta(ref string, longContext *bool) *agents.ModelMeta {
-	meta := s.ModelMetaOf(ref, longContext)
-	if meta == nil {
-		return nil
-	}
-	i := strings.Index(ref, "/")
-	pid, mid := ref[:i], ref[i+1:]
-	var p, m *u.Obj
-	for _, x := range s.allProviders() {
-		if x.Get("id") == pid {
-			p = x
-			break
-		}
-	}
-	if p != nil {
-		for _, x := range objList(p.Get("models")) {
-			if x.Get("id") == mid {
-				m = x
-				break
-			}
-		}
-	}
-	out := &agents.ModelMeta{}
-	label := mid
-	if m != nil {
-		if l := m.Get("label"); l != nil {
-			label = u.JSString(l)
-		}
-	}
-	out.Label = &label
-	if p != nil {
-		name := u.JSString(p.Get("name"))
-		out.Provider = &name
-	}
-	ctx, mo := meta.Ctx, meta.MaxOutput
-	out.Ctx, out.MaxOutput = &ctx, &mo
-	out.Reasoning, out.Vision = meta.Reasoning, meta.Vision
 	return out
 }
 
@@ -240,9 +134,9 @@ func (s *Service) CliLaunch(kind, tabID, model string, o CliLaunchOpts) (*agents
 		URL: ep.URL, Token: ep.Token, Model: model,
 		MetaOf: func(ref string) *agents.ModelMeta {
 			if ref == model && o.LongContext != nil {
-				return s.AgentMeta(ref, o.LongContext)
+				return (*agents.ModelMeta)(s.AgentMeta(ref, o.LongContext))
 			}
-			return s.AgentMeta(ref, nil)
+			return (*agents.ModelMeta)(s.AgentMeta(ref, nil))
 		},
 		Catalog: catalog, Models: models, Dir: s.AgentDir(kind, tabID),
 	}
