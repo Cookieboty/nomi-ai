@@ -18,6 +18,8 @@ type Config struct {
 	Assets fs.FS
 	// Fragment 附在页面地址后（WS 地址与 token，片段不发给服务器）
 	Fragment url.Values
+	// MascotSize 返回看板娘窗口初始大小（按保存的缩放）；nil 时用 330×355
+	MascotSize func() (int, int)
 }
 
 type Wails struct {
@@ -97,6 +99,9 @@ func (w *Wails) Show(k shell.WindowKind) {
 			Windows: application.WindowsWindow{HiddenOnTaskbar: true, BackdropType: application.None, DisableFramelessWindowDecorations: true},
 			URL:     w.page(k),
 		}
+		if w.cfg.MascotSize != nil {
+			opts.Width, opts.Height = w.cfg.MascotSize()
+		}
 	case shell.Island:
 		opts = application.WebviewWindowOptions{
 			Name: "island", Title: "Nomi Island", Width: 360, Height: 72,
@@ -152,4 +157,41 @@ func (w *Wails) Visible(k shell.WindowKind) bool {
 func (w *Wails) Run() error { return w.app.Run() }
 func (w *Wails) Quit()      { w.app.Quit() }
 
+func (w *Wails) win(k shell.WindowKind) *application.WebviewWindow {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.wins[k]
+}
+
+func (w *Wails) Bounds(k shell.WindowKind) (shell.Rect, bool) {
+	win := w.win(k)
+	if win == nil {
+		return shell.Rect{}, false
+	}
+	b := win.Bounds()
+	return shell.Rect{X: b.X, Y: b.Y, Width: b.Width, Height: b.Height}, true
+}
+
+func (w *Wails) SetBounds(k shell.WindowKind, r shell.Rect) {
+	if win := w.win(k); win != nil {
+		win.SetBounds(application.Rect{X: r.X, Y: r.Y, Width: r.Width, Height: r.Height})
+	}
+}
+
+func (w *Wails) SetAlwaysOnTop(k shell.WindowKind, on bool) {
+	if win := w.win(k); win != nil {
+		win.SetAlwaysOnTop(on)
+	}
+}
+
+func (w *Wails) WorkAreas() []shell.WorkArea {
+	var out []shell.WorkArea
+	for _, s := range w.app.Screen.GetAll() {
+		a := s.WorkArea
+		out = append(out, shell.WorkArea{Rect: shell.Rect{X: a.X, Y: a.Y, Width: a.Width, Height: a.Height}, ScaleFactor: float64(s.ScaleFactor)})
+	}
+	return out
+}
+
 var _ shell.Shell = (*Wails)(nil)
+var _ shell.Geometry = (*Wails)(nil)

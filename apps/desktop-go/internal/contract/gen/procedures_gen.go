@@ -13,7 +13,7 @@ type Procedure struct {
 	Surfaces  []string
 }
 
-// 合计 359：mutation 252 / query 102 / stream 5
+// 合计 361：mutation 253 / query 103 / stream 5
 var Procedures = []Procedure{
 	{Name: "agents.scan", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "agents.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -248,6 +248,7 @@ var Procedures = []Procedure{
 	{Name: "mascot.dragEnd", Kind: "mutation", Dangerous: false, Surfaces: []string{"mascot"}},
 	{Name: "mascot.dragMove", Kind: "mutation", Dangerous: false, Surfaces: []string{"mascot"}},
 	{Name: "mascot.dragStart", Kind: "mutation", Dangerous: false, Surfaces: []string{"mascot"}},
+	{Name: "mascot.getRenderer", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "mascot.getSavedModel", Kind: "query", Dangerous: false, Surfaces: []string{"mascot"}},
 	{Name: "mascot.saveModel", Kind: "mutation", Dangerous: false, Surfaces: []string{"mascot"}},
 	{Name: "mascot.scaleGet", Kind: "query", Dangerous: false, Surfaces: []string{"mascot", "chat"}},
@@ -258,6 +259,7 @@ var Procedures = []Procedure{
 	{Name: "mascot.setGeometry", Kind: "mutation", Dangerous: false, Surfaces: []string{"mascot"}},
 	{Name: "mascot.setHit", Kind: "mutation", Dangerous: false, Surfaces: []string{"mascot"}},
 	{Name: "mascot.setInteractionConfig", Kind: "mutation", Dangerous: false, Surfaces: []string{"mascot"}},
+	{Name: "mascot.setRenderer", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "mascot.setShape", Kind: "mutation", Dangerous: false, Surfaces: []string{"mascot"}},
 	{Name: "mascot.wanderNow", Kind: "mutation", Dangerous: false, Surfaces: []string{"mascot"}},
 	{Name: "mem.backfill", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -422,6 +424,7 @@ var Events = []string{
 	"mascot.command",
 	"mascot.cursor",
 	"mascot.physicsEvent",
+	"mascot.rendererChanged",
 	"mascot.scaleChanged",
 	"mem.changed",
 	"mem.status",

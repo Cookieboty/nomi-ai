@@ -3968,6 +3968,14 @@ type MascotDragStartInput struct {
 	ScreenY *float64 `json:"screenY,omitempty"`
 }
 
+// MascotGetRendererOutput 枚举：svg | rive
+type MascotGetRendererOutput = string
+
+const (
+	MascotGetRendererOutputSvg  MascotGetRendererOutput = "svg"
+	MascotGetRendererOutputRive MascotGetRendererOutput = "rive"
+)
+
 type MascotSaveModelInput struct {
 	ModelName string `json:"modelName"`
 }
@@ -4081,6 +4089,26 @@ type MascotSetInteractionConfigInput struct {
 	GlobalLook    *bool `json:"globalLook,omitempty"`
 	BubbleReplies *bool `json:"bubbleReplies,omitempty"`
 }
+
+// MascotSetRendererInputRenderer 枚举：svg | rive
+type MascotSetRendererInputRenderer = string
+
+const (
+	MascotSetRendererInputRendererSvg  MascotSetRendererInputRenderer = "svg"
+	MascotSetRendererInputRendererRive MascotSetRendererInputRenderer = "rive"
+)
+
+type MascotSetRendererInput struct {
+	Renderer MascotSetRendererInputRenderer `json:"renderer"`
+}
+
+// MascotSetRendererOutput 枚举：svg | rive
+type MascotSetRendererOutput = string
+
+const (
+	MascotSetRendererOutputSvg  MascotSetRendererOutput = "svg"
+	MascotSetRendererOutputRive MascotSetRendererOutput = "rive"
+)
 
 type MascotSetShapeInputRectsItem struct {
 	X      float64 `json:"x"`
@@ -6119,6 +6147,14 @@ type EventMascotCursor struct {
 	Inside bool    `json:"inside"`
 }
 
+// EventMascotRendererChanged 枚举：svg | rive
+type EventMascotRendererChanged = string
+
+const (
+	EventMascotRendererChangedSvg  EventMascotRendererChanged = "svg"
+	EventMascotRendererChangedRive EventMascotRendererChanged = "rive"
+)
+
 type EventMascotScaleChangedWindow struct {
 	Width  float64 `json:"width"`
 	Height float64 `json:"height"`
@@ -7237,6 +7273,10 @@ type MascotDragMoveOutputT = any
 type MascotDragStartInputT = MascotDragStartInput
 type MascotDragStartOutputT = any
 
+// MascotGetRendererInputT 是 mascot.getRenderer 的入参
+type MascotGetRendererInputT = any
+type MascotGetRendererOutputT = MascotGetRendererOutput
+
 // MascotGetSavedModelInputT 是 mascot.getSavedModel 的入参
 type MascotGetSavedModelInputT = any
 type MascotGetSavedModelOutputT = string
@@ -7276,6 +7316,10 @@ type MascotSetHitOutputT = any
 // MascotSetInteractionConfigInputT 是 mascot.setInteractionConfig 的入参
 type MascotSetInteractionConfigInputT = MascotSetInteractionConfigInput
 type MascotSetInteractionConfigOutputT = any
+
+// MascotSetRendererInputT 是 mascot.setRenderer 的入参
+type MascotSetRendererInputT = MascotSetRendererInput
+type MascotSetRendererOutputT = MascotSetRendererOutput
 
 // MascotSetShapeInputT 是 mascot.setShape 的入参
 type MascotSetShapeInputT = MascotSetShapeInput
@@ -7784,6 +7828,7 @@ type EventMascotBodyT = EventMascotBody
 type EventMascotCommandT = json.RawMessage
 type EventMascotCursorT = EventMascotCursor
 type EventMascotPhysicsEventT = json.RawMessage
+type EventMascotRendererChangedT = EventMascotRendererChanged
 type EventMascotScaleChangedT = EventMascotScaleChanged
 type EventMemChangedT = any
 type EventMemStatusT = EventMemStatus

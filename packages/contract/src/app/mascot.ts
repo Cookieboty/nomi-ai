@@ -32,6 +32,9 @@ import { AvatarCue, AvatarSemanticName } from './schemas';
 // ---------------------------------------------------------------------------
 
 /** Linux 点击穿透的窗口形状矩形（窗口像素）—— types `ShapeRect` */
+/** 看板娘渲染器：静态 SVG（默认）或 Rive 动画 */
+export const MascotRenderer = z.enum(['svg', 'rive']);
+
 export const MascotShapeRect = z.object({
   x: z.number(),
   y: z.number(),
@@ -507,6 +510,19 @@ export const mascotProcedures = {
     surfaces: MASCOT,
     description: 'open-task-board — 打开对话窗口的日程页',
   },
+  // —— 看板娘渲染器（2.0.5 计划 §5：默认静态 SVG，Rive 可选；存 settings.json 的 mascot.renderer）
+  'mascot.getRenderer': {
+    kind: 'query',
+    input: z.void(),
+    output: MascotRenderer,
+    description: 'mascot.renderer 设置（svg | rive，默认 svg）',
+  },
+  'mascot.setRenderer': {
+    kind: 'mutation',
+    input: z.object({ renderer: MascotRenderer }),
+    output: MascotRenderer,
+    description: '写 mascot.renderer 并广播 mascot.rendererChanged（看板娘窗口实时切换）',
+  },
   'window.platform': {
     kind: 'query',
     input: z.void(),
@@ -518,6 +534,8 @@ export const mascotProcedures = {
 export const mascotEvents = {
   /** mascot:scale-changed（看板娘窗口与对话窗口） */
   'mascot.scaleChanged': MascotScaleState,
+  /** mascot.renderer 改变（看板娘窗口卸载当前渲染器并挂载另一种） */
+  'mascot.rendererChanged': MascotRenderer,
   /** mascot:cursor（~30Hz，只在光标移动时） */
   'mascot.cursor': MascotCursorEvent,
   /** mascot:body（运动中每帧，静止时 ~2Hz） */

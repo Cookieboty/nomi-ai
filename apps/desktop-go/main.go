@@ -1,7 +1,7 @@
 // Nomi Go + Wails v3 架构 POC（docs/design/arch-go-wails.md）。
 //
 //	NOMI_LLM_BASE_URL / NOMI_LLM_API_KEY / NOMI_LLM_MODEL：OpenAI 兼容接口；没有 key 时起本地 mock。
-//	NOMI_POC_CTL=127.0.0.1:PORT：测量用的控制口（/ctl?op=show-chat|close-chat|hide-mascot|show-mascot|quit）。
+//	NOMI_POC_CTL=127.0.0.1:PORT：测量用的控制口（/ctl?op=show-chat|close-chat|hide-mascot|show-mascot|renderer&v=svg|rive|quit）。
 //	NOMI_USER_DATA / NOMI_APP_DATA：覆盖 userData / appData 根（测试与迁移用）。
 package main
 
@@ -12,10 +12,16 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/character"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop"
+	desktoptr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop/tr"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/island"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/mascothandlers"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/security"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/shellhandlers"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/hostports"
@@ -58,7 +64,7 @@ func main() {
 	core.New(cfg).Register(router)
 
 	var sh shell.Shell
-	shellhandlers.Install(shellhandlers.Deps{
+	bundle := shellhandlers.Install(shellhandlers.Deps{
 		UserData: userData,
 		Router:   router,
 		OpenChat: func() {
@@ -69,6 +75,37 @@ func main() {
 		SystemLangs: systemLangs(),
 		IsDark:      func() bool { return false },
 	})
+	isl := island.New(filepath.Join(userData, "island.json"), mascothandlers.Platform())
+	isl.Notify = func(kind, title, body string, durationMs int, force bool) bool {
+		if sh == nil {
+			return false
+		}
+		sh.Show(shell.Island)
+		return true
+	}
+	mascotCtl := mascothandlers.Install(mascothandlers.Deps{
+		Router:    router,
+		Config:    bundle.Config,
+		Settings:  bundle.Settings,
+		Character: character.NewService(userData, os.Getenv("NOMI_RESOURCES"), builtinPackDir()),
+		Island:    isl,
+		Geometry: func() shell.Geometry {
+			g, _ := sh.(shell.Geometry)
+			return g
+		},
+		Quit:     func() { sh.Quit() },
+		OpenChat: func() { sh.Show(shell.Chat) },
+		AppName:  "Nomi",
+	})
+	// 批次 6：桌面工具 / 工作区（授权、审计、撤销、回收站、提醒、拖入总结）
+	desktoptr.SetLocale(func() string { return bundle.Locale.Get().Locale })
+	home, _ := os.UserHomeDir()
+	desktopSvc := desktop.CreateService(userData, desktop.Ports{Home: home}, func(ev string, payload any, _ string) {
+		router.Emit(ev, payload)
+	})
+	desktopSvc.AttachWindows(&desktop.Windows{Main: func() bool { return sh != nil }})
+	desktop.Register(router, desktopSvc)
+	desktopSvc.StartReminders()
 	log.Printf("[desktop-go] %d contract procedures stubbed (not implemented yet)", procs.Install(router))
 
 	ws := &contract.WSServer{Router: router, Token: contract.NewToken(), Origins: map[string]bool{
@@ -84,7 +121,7 @@ func main() {
 	if ctl != "" {
 		frag.Set("ctl", ctl)
 	}
-	sh = wailsshell.New(wailsshell.Config{Assets: assets, Fragment: frag})
+	sh = wailsshell.New(wailsshell.Config{Assets: assets, Fragment: frag, MascotSize: mascotCtl.WindowSize})
 
 	if ctl != "" {
 		go http.ListenAndServe(ctl, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -103,6 +140,12 @@ func main() {
 				sh.Show(shell.Island)
 			case "hide-mascot":
 				sh.Destroy(shell.Mascot)
+			case "renderer": // 测量用：等同 mascot.setRenderer（写设置 + 广播）
+				if v := r.URL.Query().Get("v"); v == "svg" || v == "rive" {
+					if err := bundle.Settings.SetMascotRenderer(v); err == nil {
+						router.Emit("mascot.rendererChanged", v)
+					}
+				}
 			case "quit":
 				sh.Quit()
 			}
@@ -126,4 +169,28 @@ func systemLangs() []string {
 		}
 	}
 	return []string{"zh-CN"}
+}
+
+// builtinPackDir：NOMI_CHARACTER_PACK，否则从可执行文件 / 工作目录向上找仓库里的 characters/nomi
+func builtinPackDir() string {
+	if v := os.Getenv("NOMI_CHARACTER_PACK"); v != "" {
+		return v
+	}
+	var starts []string
+	if exe, err := os.Executable(); err == nil {
+		starts = append(starts, filepath.Dir(exe))
+	}
+	if wd, err := os.Getwd(); err == nil {
+		starts = append(starts, wd)
+	}
+	for _, d := range starts {
+		for i := 0; i < 6; i++ {
+			p := filepath.Join(d, "characters", "nomi")
+			if _, err := os.Stat(filepath.Join(p, "manifest.json")); err == nil {
+				return p
+			}
+			d = filepath.Dir(d)
+		}
+	}
+	return ""
 }

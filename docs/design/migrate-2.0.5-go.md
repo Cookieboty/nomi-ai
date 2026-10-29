@@ -179,6 +179,23 @@ Go 版**1:1 镜像** Node 版：模块边界、包/层结构、数据格式、�
 | D20 | ~~纯数字参数名在 JS 对象里排最前~~ **已消除** | `util.Obj.Set` 按 JS 规则：数组下标型键（0…2^32-2）升序在前，其余按插入顺序；fixture `objkeys.json` + `fixes.json` 新增用例 | 无行为差异 |
 | D21 | ~~主机名未按 WHATWG 规范化~~ **已消除** | `net.ParseURL/WhatwgHost` 实现 WHATWG 主机解析（小写、IDNA/UTS46、IPv4 十六进制/八进制/简写、IPv6 压缩、默认端口去掉），报错文案与 Node 一致；fixture `net.json` urls 33/33 | 无行为差异 |
 | D22 | ~~代理环境变量处理不同~~ **已消除** | 按 undici 7 EnvHttpProxyAgent 复刻：`http_proxy`/`https_proxy`（小写优先、空串算已设置，https 退回 http）；`ALL_PROXY` 和 Node 一样只用于判断"代理环境已开启"，并不真走代理；`no_proxy` 每次请求现读（`*`、`host:port`、`.后缀`）；一律 CONNECT 隧道，请求头顺序与 Node 一致，仅 HTTP/1.1；支持 socks5；钉 IP 只对目标主机。fixture `proxy.json` 38/38 | 无行为差异（钉 IP 用 context 而非 AsyncLocalStorage，仅实现方式不同） |
+| D-B6-1 | desktop 文案走 core/i18n | 批次 6 暂用 `desktop/tr`（同一 catalog 子集 + 同样 `{0}` 插值），locale 取 shellhandlers 的 i18n | core/i18n 归批次 8，避免并行冲突；合并后切回 |
+| D-B6-2 | reminders 复用 core/schedule 的 recurrence | `desktop/reminders/recurrence.go` 临时副本（逐行移植） | core/schedule 归批次 8；合并后删副本 |
+| D-B6-3 | Windows 上 `fs.realpathSync.native` | `filepath.EvalSymlinks` | Go 无 native realpath；大小写/8.3 短名可能不同 |
+| D-B6-4 | 看板娘专属过程按 `event.sender` 判定 | 按 `contract.Caller.Surface == "mascot"` | Go 无 webContents |
+| D-B6-5 | 本轮“已读文件”污染标记用 WeakMap(signal) | 用 context 值携带 | Go 无 WeakMap |
+| D-B6-6 | 落盘 JSON 原样保留未知字段、键序随对象 | 固定 struct 键序，未知字段丢弃（审计/撤销日志用有序 OMap 保序） | Go struct；已知字段逐字节一致 |
+| D-B6-7 | parse 在 worker_threads + resourceLimits 里跑 | 进程内 goroutine + 超时，无内存上限 | Go 无可限内存的隔离线程 |
+| D-B6-8 | pdf 用 unpdf（pdf.js） | `ledongthuc/pdf` 逐页 GetPlainText | 无 pdf.js；文字顺序/空白可能不同（金样不覆盖 pdf） |
+| D-B6-9 | `Date.parse` 全格式 | 支持 ISO 8601 / RFC 2822 / `YYYY/MM/DD HH:mm` 等常见子集 | V8 启发式不可完全复刻 |
+| D-B6-10 | takePendingSummary 只在送达失败时留槽 | 总是留槽（60s TTL），渲染侧取走即清 | Go 端不知道广播是否送达 |
+| D-B6-11 | createP2Tools 注册 reminder-restore 撤销、产出 AI ToolDefinition | 撤销钩子在 Service 构造时注册；ToolDefinition 留给批次 5（AI 工具循环） | 依赖批次 5 的 ToolDefinition 类型 |
+| D-B6-12 | 按 surface 定向 send 事件 | `Router.Emit` 广播（surface 参数忽略） | 现有 Router 无定向 Emit |
+| D-B6-13 | worker 崩溃/退出码映射成 `crash` 错误 | panic 被 recover 成 `crash`，无退出码 | 进程内解析 |
+| D-B10-1 | 岛的显示模式恒为 `pill` | Node 在 macOS 上探测刘海屏决定 notch/pill；Go 不探测，`island.get` 的 mode 恒为 pill；`island.test` 只弹出岛窗口 | 刘海屏 Mac 上岛不贴刘海显示 |
+| D-B10-2 | 角色包校验是宽松子集 | 只校验必要字段和文件存在（manifest、引导 4 个文件、rive/static、sprite、voice、locales、persona），不跑 zod、不出 warnings、不做旧格式迁移；旧 mapping 直接丢弃。fixture `mascothandlers/testdata/parity.json`（无覆盖包 / 用户覆盖包）快照与 Node 一致 | 不合规的包 Node 报 warning 仍加载，Go 可能直接回退内置包 |
+| D-B10-3 | 看板娘物理/漫游/点击穿透未移植 | `mascot.setShape`/`setHit`/`setInteractionConfig`/`wanderNow` 收下即返回（no-op），`mascot.debugSnapshot` 仍是 UNAVAILABLE；拖动、缩放（尺寸计算 fixture 全对上）、置顶、位置已实现 | 透明区域不会点击穿透；不会自己走动 |
+| D-B10-4 | 渲染器选择引导卡在 POC 对话页 | 新设置 `mascot.renderer`（svg\|rive，默认 svg，升级用户也是 svg）；引导最后一张「想让诺米动起来吗？」（默认焦点「保持静态」，无 WebGL 时隐藏「开启动画」）暂放在 POC 对话页、用 localStorage 只问一次，等引导页迁过来再挪 | 无 |
 
 ### 3.5 一致性测试策略（golden，Node 与 Go 同输入对比输出）
 
