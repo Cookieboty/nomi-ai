@@ -6,10 +6,15 @@ package usage
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
@@ -95,6 +100,62 @@ func await[T any](t *testing.T, mk func() *jsrt.Promise[T]) T {
 	return v
 }
 
+// svcFakeTimer：usage.changed 去抖的假时钟队列（与录制脚本的 setTimeout 拦截同口径）
+type svcFakeTimer struct {
+	due float64
+	seq int
+	fn  func()
+	tm  *jsrt.Timer
+}
+
+func svcEntries(es []QuotaEntry) []any {
+	out := make([]any, len(es))
+	for i, e := range es {
+		out[i] = e.ToObj()
+	}
+	return out
+}
+
+// svcClaudeSettings：~/.claude/settings.json 的结构摘要（不含路径，跨平台可比）
+func svcClaudeSettings(home string) any {
+	b, err := os.ReadFile(filepath.Join(home, ".claude", "settings.json"))
+	if err != nil {
+		return nil
+	}
+	v, err := util.Parse(b)
+	if err != nil {
+		return "invalid"
+	}
+	keys := []any{}
+	var sl any
+	if o, ok := v.(*util.Obj); ok {
+		for _, k := range o.Keys() {
+			keys = append(keys, k)
+		}
+		sl = o.Get("statusLine")
+	} else if a, ok := v.([]any); ok {
+		for i := range a {
+			keys = append(keys, util.Stringify(float64(i)))
+		}
+	}
+	out := util.NewObj("keys", keys, "statusLine", nil)
+	if so, ok := sl.(*util.Obj); ok {
+		sk := []any{}
+		for _, k := range so.Keys() {
+			sk = append(sk, k)
+		}
+		or := func(k string) any {
+			if v := so.Get(k); v != nil {
+				return v
+			}
+			return nil
+		}
+		cmd, _ := so.Get("command").(string)
+		out.Set("statusLine", util.NewObj("keys", sk, "type", or("type"), "padding", or("padding"), "ours", strings.Contains(cmd, "claude-statusline.sh")))
+	}
+	return out
+}
+
 func TestUsageServiceParity(t *testing.T) {
 	raw, err := os.ReadFile(filepath.Join("testdata", "usage-service.json"))
 	if err != nil {
@@ -103,11 +164,19 @@ func TestUsageServiceParity(t *testing.T) {
 	var fx struct {
 		TZ        string `json:"tz"`
 		Scenarios []struct {
-			Name string            `json:"name"`
-			Ops  []json.RawMessage `json:"ops"`
-			Outs []json.RawMessage `json:"outs"`
+			Name    string            `json:"name"`
+			Pre     map[string]string `json:"pre"`
+			Auth    map[string]string `json:"auth"`
+			AlertOk bool              `json:"alertOk"`
+			GrokKey *string           `json:"grokKey"`
+			Ops     []json.RawMessage `json:"ops"`
+			Outs    []json.RawMessage `json:"outs"`
 		} `json:"scenarios"`
-		T0 float64 `json:"t0"`
+		T0       float64 `json:"t0"`
+		Salt     string  `json:"salt"`
+		CuOk     string  `json:"cuOk"`
+		Snapshot string  `json:"snapshot"`
+		GoodAPI  string  `json:"goodApi"`
 	}
 	if err := json.Unmarshal(raw, &fx); err != nil {
 		t.Fatal(err)
@@ -120,21 +189,111 @@ func TestUsageServiceParity(t *testing.T) {
 			if err := os.Mkdir(home, 0o700); err != nil {
 				t.Fatal(err)
 			}
+			write := func(rel, c string) {
+				f := filepath.Join(dir, filepath.FromSlash(rel))
+				if err := os.MkdirAll(filepath.Dir(f), 0o700); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(f, []byte(c), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			write("usage/quota-salt", fx.Salt)
+			for f, c := range sc.Pre {
+				write(f, c)
+			}
 			dsh := filepath.Join(home, ".dsh")
 			now := fx.T0
 			zero := 0.0
-			var alerts []any
+			var alerts, events, fetches, modelsData, claudeRuns []any
+			var mu sync.Mutex
+			auth := map[string]string{}
+			for k, v := range sc.Auth {
+				auth[k] = v
+			}
+			alertOk, needsFull, fetchMode := sc.AlertOk, false, "good"
+			claudeOut, claudeDefer := "", false
+			var claudePending []func()
+			var started, started2 *jsrt.Promise[QuotaRefreshReport]
+			// 假时钟队列（持锁访问）
+			var fakeQ []*svcFakeTimer
+			fakeSeq := 0
+			prevST := svcSetTimeout
+			svcSetTimeout = func(d time.Duration, fn func()) *jsrt.Timer {
+				fakeSeq++
+				ft := &svcFakeTimer{due: now + float64(d/time.Millisecond), seq: fakeSeq, fn: fn, tm: &jsrt.Timer{}}
+				fakeQ = append(fakeQ, ft)
+				return ft.tm
+			}
+			t.Cleanup(func() { svcSetTimeout = prevST })
 			var s *UsageService
 			jsrt.Run(func() {
-				s = NewUsageService(ServiceDeps{
+				d := ServiceDeps{
 					Root: filepath.Join(dir, "usage"), Home: &home, DshHome: &dsh, Now: func() float64 { return now }, ScanMs: &zero,
-					Platform: "linux", Env: util.NewObj("HOME", home), Logger: svcNopLog{}, Publish: func(string, any) {},
+					Platform: "linux", Env: util.NewObj("HOME", home), Logger: svcNopLog{},
+					Publish:      func(name string, _ any) { events = append(events, []any{now - fx.T0, name}) },
 					ProviderName: func(id string) (string, bool) { return "Provider One", id == "p1" },
 					Alert: func(a UsageAlert) bool {
 						alerts = append(alerts, util.NewObj("kind", a.Kind, "title", a.Title, "text", a.Text))
-						return true
+						return alertOk
 					},
-					PriceFetch:  func(*http.Request) (*http.Response, error) { return nil, errors.New("offline") },
+					PriceFetch: func(req *http.Request) (*http.Response, error) {
+						var inm any
+						if v := req.Header.Get("If-None-Match"); v != "" {
+							inm = v
+						}
+						mu.Lock()
+						fetches = append(fetches, util.NewObj("url", req.URL.String(), "inm", inm))
+						mode := fetchMode
+						mu.Unlock()
+						resp := func(code int, body string, h http.Header) *http.Response {
+							return &http.Response{StatusCode: code, Header: h, Body: io.NopCloser(strings.NewReader(body))}
+						}
+						switch mode {
+						case "offline":
+							return nil, errors.New("offline")
+						case "304":
+							return resp(304, "", http.Header{}), nil
+						case "500":
+							return resp(500, "no", http.Header{}), nil
+						}
+						h := http.Header{}
+						h.Set("etag", `"e1"`)
+						return resp(200, fx.GoodAPI, h), nil
+					},
+					OnModelsData: func(api any) error {
+						n := 0
+						if o, ok := api.(*util.Obj); ok {
+							n = len(o.Keys())
+						}
+						mu.Lock()
+						modelsData = append(modelsData, float64(n))
+						mu.Unlock()
+						return nil
+					},
+					NeedsFullModelsData: func() bool { mu.Lock(); defer mu.Unlock(); return needsFull },
+					AuthRun: func(kind string) (string, bool) {
+						mu.Lock()
+						defer mu.Unlock()
+						v, ok := auth[kind]
+						return v, ok
+					},
+					ClaudeUsage: &ClaudeFetcherDeps{
+						ResolveBin: func() (string, bool) { return "/bin/claude", true },
+						Run: func(cmd string, args []string, _ RunOptions) *jsrt.Promise[RunResult] {
+							claudeRuns = append(claudeRuns, strings.Join(append([]string{cmd}, args...), " "))
+							p := jsrt.NewPromise[RunResult]()
+							code := 0
+							if !claudeDefer {
+								p.Resolve(RunResult{Stdout: claudeOut, Code: &code})
+								return p
+							}
+							claudePending = append(claudePending, func() { p.Resolve(RunResult{Stdout: claudeOut, Code: &code}) })
+							return p
+						},
+					},
+					CodexRPC:    &CodexRPCDeps{ResolveBin: func() (string, bool) { return "", false }},
+					GrokBilling: &GrokBillingDeps{ResolveBin: func() (string, bool) { return "", false }},
 					WithCliPath: func(e *util.Obj) *util.Obj { o := e.Clone(); o.Set("PATH", "stub"); return o },
 					AccountEnv: func(k string, e *util.Obj, d *string) *util.Obj {
 						o := e.Clone()
@@ -146,9 +305,35 @@ func TestUsageServiceParity(t *testing.T) {
 						return o
 					},
 					ZstdDecode: func([]byte) (string, error) { return "", errors.New("zstd") },
-				})
+				}
+				if sc.GrokKey != nil {
+					k := *sc.GrokKey
+					d.GrokAccountKey = func() *string { return &k }
+				}
+				s = NewUsageService(d)
 			})
+			claudeOut = fx.CuOk
 			t.Cleanup(func() { jsrt.Run(s.Stop) })
+			waitPending := func(p *jsrt.Promise[QuotaRefreshReport]) float64 {
+				for i := 0; i < 400; i++ {
+					done := false
+					jsrt.Run(func() { done = len(claudePending) > 0 || p.Settled() })
+					if done {
+						break
+					}
+					time.Sleep(5 * time.Millisecond)
+				}
+				var n int
+				jsrt.Run(func() { n = len(claudePending) })
+				return float64(n)
+			}
+			report := func(p *jsrt.Promise[QuotaRefreshReport]) *util.Obj {
+				v, err := jsrt.Block(p)
+				if err != nil {
+					t.Fatal(err)
+				}
+				return v.ToObj()
+			}
 			for i, rawOp := range sc.Ops {
 				pv, err := util.Parse(rawOp)
 				if err != nil {
@@ -162,7 +347,7 @@ func TestUsageServiceParity(t *testing.T) {
 				set := func(v any) { got = svcJSON(t, v) }
 				switch name {
 				case "advance":
-					now += arg(1).(float64)
+					jsrt.Run(func() { now += arg(1).(float64) })
 				case "alerts":
 					set(append([]any{}, alerts...))
 					alerts = nil
@@ -261,6 +446,145 @@ func TestUsageServiceParity(t *testing.T) {
 						}
 						set(v)
 					})
+				case "alertOk":
+					jsrt.Run(func() { alertOk = arg(1).(bool) })
+				case "quotaFile":
+					if b, err := os.ReadFile(filepath.Join(dir, "usage", "quota.json")); err == nil {
+						set(string(b))
+					} else {
+						set(nil)
+					}
+				case "claudeSettings":
+					set(svcClaudeSettings(home))
+				case "writeHome":
+					write("home/"+arg(1).(string), arg(2).(string))
+				case "snapshot":
+					write("usage/"+StatuslineSnapshotFile, fx.Snapshot)
+					tm := time.UnixMilli(int64(now))
+					if err := os.Chtimes(filepath.Join(dir, "usage", StatuslineSnapshotFile), tm, tm); err != nil {
+						t.Fatal(err)
+					}
+				case "setAuth":
+					mu.Lock()
+					auth[arg(1).(string)] = arg(2).(string)
+					mu.Unlock()
+				case "claudeOut":
+					jsrt.Run(func() { claudeOut = arg(1).(string) })
+				case "claudeDefer":
+					jsrt.Run(func() { claudeDefer = arg(1).(bool) })
+				case "claudeRuns":
+					jsrt.Run(func() { set(append([]any{}, claudeRuns...)); claudeRuns = nil })
+				case "needsFull":
+					mu.Lock()
+					needsFull = arg(1).(bool)
+					mu.Unlock()
+				case "fetchMode":
+					mu.Lock()
+					fetchMode = arg(1).(string)
+					mu.Unlock()
+				case "fetches":
+					mu.Lock()
+					set(append([]any{}, fetches...))
+					fetches = nil
+					mu.Unlock()
+				case "modelsData":
+					mu.Lock()
+					set(append([]any{}, modelsData...))
+					modelsData = nil
+					mu.Unlock()
+				case "events":
+					jsrt.Run(func() { set(append([]any{}, events...)); events = nil })
+				case "tick":
+					target := now + arg(1).(float64)
+					for {
+						var next *svcFakeTimer
+						jsrt.Run(func() {
+							sort.SliceStable(fakeQ, func(i, j int) bool {
+								if fakeQ[i].due != fakeQ[j].due {
+									return fakeQ[i].due < fakeQ[j].due
+								}
+								return fakeQ[i].seq < fakeQ[j].seq
+							})
+							// 被 ClearTimeout 的不再触发
+							for len(fakeQ) > 0 && s.broadcast != fakeQ[0].tm {
+								fakeQ = fakeQ[1:]
+							}
+							if len(fakeQ) > 0 && fakeQ[0].due <= target {
+								next = fakeQ[0]
+								fakeQ = fakeQ[1:]
+								now = next.due
+								next.fn()
+							}
+						})
+						if next == nil {
+							break
+						}
+					}
+					now = target
+				case "clear":
+					jsrt.Run(func() {
+						if err := s.Clear(); err != nil {
+							t.Fatal(err)
+						}
+					})
+				case "forgetAccountQuota":
+					jsrt.Run(func() { s.ForgetAccountQuota(arg(1).(string)) })
+				case "quotaViewed":
+					set(svcEntries(await(t, s.QuotaViewed)))
+				case "quotaHookStatus":
+					jsrt.Run(func() { set(s.QuotaHookStatus().ToObj()) })
+				case "setQuotaHook":
+					jsrt.Run(func() {
+						v, err := s.SetQuotaHook(arg(1).(bool))
+						if err != nil {
+							set(util.NewObj("error", err.Error()))
+							return
+						}
+						set(v.ToObj())
+					})
+				case "refreshQuota":
+					tool := ""
+					if len(op) > 1 {
+						tool, _ = op[1].(string)
+					}
+					set(await(t, func() *jsrt.Promise[QuotaRefreshReport] { return s.RefreshQuota(tool) }).ToObj())
+				case "refreshDedupe":
+					tool := ""
+					if len(op) > 1 {
+						tool, _ = op[1].(string)
+					}
+					var p1, p2 *jsrt.Promise[QuotaRefreshReport]
+					jsrt.Run(func() { p1 = s.RefreshQuota(tool); p2 = s.RefreshQuota(tool) })
+					started = p1
+					set(util.NewObj("same", p1 == p2, "pending", waitPending(p1)))
+				case "refreshStart":
+					jsrt.Run(func() { started = s.RefreshQuota(arg(1).(string)) })
+					set(util.NewObj("pending", waitPending(started)))
+				case "refreshStart2":
+					jsrt.Run(func() { started2 = s.RefreshQuota(""); set(util.NewObj("pending", float64(len(claudePending)))) })
+				case "sameStarted":
+					jsrt.Run(func() {
+						set(util.NewObj("same", s.RefreshQuota("claude") == started, "all", s.RefreshQuota("") == started2))
+					})
+				case "release":
+					jsrt.Run(func() {
+						set(float64(len(claudePending)))
+						ps := claudePending
+						claudePending = nil
+						for _, r := range ps {
+							r()
+						}
+					})
+				case "refreshAwait":
+					set(report(started))
+				case "refreshAwait2":
+					set(report(started2))
+				case "syncPrices":
+					set(await(t, s.SyncPrices))
+				case "autoSync":
+					await(t, s.AutoSync)
+				case "scanWithState":
+					set(await(t, s.ScanWithState))
 				default:
 					t.Fatalf("unknown op %s", name)
 				}
