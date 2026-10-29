@@ -5,7 +5,7 @@
  * Usage: (先 build packages/cli-sdk) node scripts/parity/record-b7-drivers.mjs
  */
 import { spawn } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -63,8 +63,11 @@ async function run(sc) {
 
 const out = [];
 for (const sc of scenarios) out.push(await run(sc));
+// NOMI_GOLDEN_DIR：CI 按平台现场录制（见 desktop-go.yml），不覆盖提交的 golden
+const outDir = process.env.NOMI_GOLDEN_DIR || join(root, 'apps/desktop-go/internal/clisdk/drivers/testdata');
+mkdirSync(outDir, { recursive: true });
 writeFileSync(
-  join(root, 'apps/desktop-go/internal/clisdk/drivers/testdata/drivers.json'),
+  join(outDir, 'drivers.json'),
   `${JSON.stringify(out, null, 1)}\n`,
 );
 console.log(`recorded ${out.length} scenarios, ${out.reduce((a, s) => a + s.log.length, 0)} entries`);

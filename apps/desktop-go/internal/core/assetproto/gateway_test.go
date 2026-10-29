@@ -6,12 +6,15 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/paritytest"
 )
 
 // 网关往返：对 golden 中每个能构成 Request 的地址，GatewayURL → HTTP 请求 → RawURLFromGateway
 // 还原后再解析，scheme / hostname / pathname 与直接解析一致（网关不改变处理体看到的语义）
 func TestGatewayRoundTrip(t *testing.T) {
-	raw, _ := os.ReadFile("testdata/protocols.json")
+	gp, _ := paritytest.Golden(t, "protocols.json", "testdata/protocols.json")
+	raw, _ := os.ReadFile(gp)
 	var g golden
 	if err := json.Unmarshal(raw, &g); err != nil {
 		t.Fatal(err)

@@ -2,6 +2,7 @@ package gateway_test
 
 import (
 	"encoding/json"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/paritytest"
 	"os"
 	"path/filepath"
 	"sort"
@@ -17,7 +18,7 @@ func TestCatalogJSONMatchesTS(t *testing.T) {
 	a, err1 := os.ReadFile(filepath.Join("models", "catalog.json"))
 	b, err2 := os.ReadFile(filepath.Join("..", "..", "..", "..", "packages", "gateway", "src", "models", "catalog.json"))
 	if err1 != nil || err2 != nil {
-		t.Skip("TS tree not present")
+		paritytest.SkipOrFail(t, "TS tree not present")
 	}
 	if string(a) != string(b) {
 		t.Fatal("internal/gateway/models/catalog.json differs from packages/gateway/src/models/catalog.json; copy it over")
