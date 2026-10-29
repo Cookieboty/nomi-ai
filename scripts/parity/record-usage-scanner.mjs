@@ -109,6 +109,8 @@ const scenarios = [
   ] },
   { name: 'big-file', ops: [{ op: 'gen', p: CL, n: 1500, m: M(30) }, S, S, A(CL, '{"partial":', 5), S] },
   { name: 'budget', ops: [{ op: 'gen', p: CL, n: 24000, m: M(30) }, S, S, S] },
+  // 流式重复消息：后到的分档 / fast 追加到对象末尾（键序逐字节比对）
+  { name: 'claude-stream-merge', ops: [W(CL, [J(claudeLine('msg_m1', NOW - 9000)), J(claudeLine('msg_m1', NOW - 8000, { message: { id: 'msg_m1', model: 'claude-sonnet-4-5', usage: { input_tokens: 10, output_tokens: 7, cache_read_input_tokens: 0, cache_creation_input_tokens: 8, cache_creation: { ephemeral_1h_input_tokens: 4 }, speed: 'fast' } } })), J(claudeLine('msg_m2', NOW - 7000, { message: { id: 'msg_m2', model: 'claude-sonnet-4-5', usage: { input_tokens: 10, output_tokens: 7, cache_read_input_tokens: 0, cache_creation_input_tokens: 8, cache_creation: { ephemeral_1h_input_tokens: 4 }, speed: 'fast' } } }))].join(''), 10), S] },
   { name: 'long-line', ops: [W(CL, 'y'.repeat(300 * 1024), 30), S, A(CL, '\n' + JSON.stringify(claudeLine('msg_after', NOW - 1000)) + '\n', 5), S] },
   { name: 'route-dedup', clearedAt: Date.parse('2025-01-01T00:00:00Z'), busy: ['codex'], ops: [
     { op: 'route', r: { key: 'route:1', ts: Date.parse('2025-01-15T10:00:00Z'), source: 'claude', via: 'route', model: 'claude-sonnet-4-5', input: 10, output: 5, cacheRead: 0, cacheWrite: 0, dur: 10 * 60_000 } },
@@ -201,6 +203,7 @@ for (const sc of scenarios) {
       const big = recs.length > 200;
       const digest = (a) => ({ n: a.length, keys: createHash('sha1').update(a.map((x) => x.key).join('\n')).digest('hex'), sum: a.reduce((t, x) => t + x.input + x.output + x.cacheRead + x.cacheWrite + x.ts, 0) });
       res = { r, news: big ? digest(ev.news.map((key) => ({ key, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, ts: 0 }))) : ev.news, quotas: ev.quotas, warns: ev.warns.map((w) => w[1].file), recs: big ? digest(recs) : recs, curs };
+      if (!big) res.recsRaw = ledger.all().map((x) => JSON.stringify(x)).sort((a, b) => (JSON.parse(a).key < JSON.parse(b).key ? -1 : JSON.parse(a).key > JSON.parse(b).key ? 1 : 0)); // 逐字节：键序 / 原始值
     }
     steps.push({ ...o, res });
   }
