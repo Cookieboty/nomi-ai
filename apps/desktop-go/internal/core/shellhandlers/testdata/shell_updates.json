@@ -1,0 +1,2957 @@
+{
+ "now": 1793268000123,
+ "scenarios": [
+  {
+   "name": "unpackaged",
+   "packaged": false,
+   "steps": [
+    [
+     "start"
+    ],
+    [
+     "get"
+    ],
+    [
+     "check"
+    ],
+    [
+     "download"
+    ],
+    [
+     "install"
+    ],
+    [
+     "setAutoCheck",
+     {
+      "on": false
+     }
+    ],
+    [
+     "file"
+    ],
+    [
+     "advance",
+     72000000
+    ]
+   ],
+   "settingsFile": "",
+   "log": [
+    {
+     "op": "start",
+     "arg": null,
+     "arg2": null,
+     "ok": null,
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": [
+      [
+       "info",
+       "[updater] skipped (unpackaged / dev build)",
+       null
+      ]
+     ]
+    },
+    {
+     "op": "get",
+     "arg": null,
+     "arg2": null,
+     "ok": {
+      "status": "unavailable",
+      "currentVersion": "2.0.5",
+      "autoCheck": true
+     },
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "check",
+     "arg": null,
+     "arg2": null,
+     "ok": {
+      "status": "unavailable",
+      "currentVersion": "2.0.5",
+      "autoCheck": true,
+      "error": "updates only apply to installed builds",
+      "checkedAt": 1793268000123
+     },
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "unavailable",
+        "currentVersion": "2.0.5",
+        "autoCheck": true,
+        "error": "updates only apply to installed builds",
+        "checkedAt": 1793268000123
+       }
+      ]
+     ],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "download",
+     "arg": null,
+     "arg2": null,
+     "ok": {
+      "status": "unavailable",
+      "currentVersion": "2.0.5",
+      "autoCheck": true,
+      "error": "updates only apply to installed builds",
+      "checkedAt": 1793268000123
+     },
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "install",
+     "arg": null,
+     "arg2": null,
+     "ok": {
+      "status": "unavailable",
+      "currentVersion": "2.0.5",
+      "autoCheck": true,
+      "error": "updates only apply to installed builds",
+      "checkedAt": 1793268000123
+     },
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "setAutoCheck",
+     "arg": {
+      "on": false
+     },
+     "arg2": null,
+     "ok": {
+      "status": "unavailable",
+      "currentVersion": "2.0.5",
+      "autoCheck": false,
+      "error": "updates only apply to installed builds",
+      "checkedAt": 1793268000123
+     },
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "unavailable",
+        "currentVersion": "2.0.5",
+        "autoCheck": false,
+        "error": "updates only apply to installed builds",
+        "checkedAt": 1793268000123
+       }
+      ]
+     ],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "file",
+     "arg": null,
+     "arg2": null,
+     "ok": "{\"version\":1,\"autoCheck\":false}",
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "advance",
+     "arg": 72000000,
+     "arg2": null,
+     "ok": 0,
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    }
+   ]
+  },
+  {
+   "name": "launchAndInterval",
+   "packaged": true,
+   "checks": [
+    {
+     "emit": [
+      [
+       "checking-for-update"
+      ],
+      [
+       "update-not-available",
+       {
+        "version": "2.0.6",
+        "releaseName": "v2.0.6",
+        "releaseNotes": "notes"
+       }
+      ]
+     ],
+     "ret": "null"
+    },
+    {
+     "emit": [
+      [
+       "checking-for-update"
+      ],
+      [
+       "update-not-available",
+       {
+        "version": "2.0.6",
+        "releaseName": "v2.0.6",
+        "releaseNotes": "notes"
+       }
+      ]
+     ],
+     "ret": "none"
+    }
+   ],
+   "steps": [
+    [
+     "start"
+    ],
+    [
+     "start"
+    ],
+    [
+     "advance",
+     14999
+    ],
+    [
+     "advance",
+     1
+    ],
+    [
+     "advance",
+     21600000
+    ],
+    [
+     "get"
+    ]
+   ],
+   "settingsFile": "",
+   "log": [
+    {
+     "op": "start",
+     "arg": null,
+     "arg2": null,
+     "ok": null,
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "start",
+     "arg": null,
+     "arg2": null,
+     "ok": null,
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "advance",
+     "arg": 14999,
+     "arg2": null,
+     "ok": 2,
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "advance",
+     "arg": 1,
+     "arg2": null,
+     "ok": 1,
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "checking",
+        "currentVersion": "2.0.5",
+        "autoCheck": true
+       }
+      ],
+      [
+       "updates.changed",
+       {
+        "status": "checking",
+        "currentVersion": "2.0.5",
+        "autoCheck": true
+       }
+      ],
+      [
+       "updates.changed",
+       {
+        "status": "not-available",
+        "currentVersion": "2.0.5",
+        "autoCheck": true,
+        "checkedAt": 1793268015123
+       }
+      ]
+     ],
+     "calls": [
+      [
+       "checkForUpdates"
+      ]
+     ],
+     "logs": []
+    },
+    {
+     "op": "advance",
+     "arg": 21600000,
+     "arg2": null,
+     "ok": 1,
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "checking",
+        "currentVersion": "2.0.5",
+        "autoCheck": true,
+        "checkedAt": 1793268015123
+       }
+      ],
+      [
+       "updates.changed",
+       {
+        "status": "checking",
+        "currentVersion": "2.0.5",
+        "autoCheck": true,
+        "checkedAt": 1793268015123
+       }
+      ],
+      [
+       "updates.changed",
+       {
+        "status": "not-available",
+        "currentVersion": "2.0.5",
+        "autoCheck": true,
+        "checkedAt": 1793289600123
+       }
+      ]
+     ],
+     "calls": [
+      [
+       "checkForUpdates"
+      ]
+     ],
+     "logs": []
+    },
+    {
+     "op": "get",
+     "arg": null,
+     "arg2": null,
+     "ok": {
+      "status": "not-available",
+      "currentVersion": "2.0.5",
+      "autoCheck": true,
+      "checkedAt": 1793289600123
+     },
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    }
+   ]
+  },
+  {
+   "name": "availableDownload",
+   "packaged": true,
+   "checks": [
+    {
+     "emit": [
+      [
+       "checking-for-update"
+      ],
+      [
+       "update-available",
+       {
+        "version": "2.0.6",
+        "releaseName": "v2.0.6",
+        "releaseNotes": "notes"
+       }
+      ]
+     ],
+     "ret": "token"
+    }
+   ],
+   "steps": [
+    [
+     "start"
+    ],
+    [
+     "check"
+    ],
+    [
+     "emit",
+     "download-progress",
+     {
+      "percent": 12.5,
+      "bytesPerSecond": 1000,
+      "transferred": 125,
+      "total": 1000
+     }
+    ],
+    [
+     "emit",
+     "update-downloaded",
+     {
+      "version": "2.0.6",
+      "releaseName": null
+     }
+    ],
+    [
+     "install"
+    ],
+    [
+     "get"
+    ]
+   ],
+   "settingsFile": "",
+   "log": [
+    {
+     "op": "start",
+     "arg": null,
+     "arg2": null,
+     "ok": null,
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "check",
+     "arg": null,
+     "arg2": null,
+     "ok": {
+      "status": "available",
+      "currentVersion": "2.0.5",
+      "autoCheck": true,
+      "availableVersion": "2.0.6",
+      "releaseName": "v2.0.6",
+      "releaseNotes": "notes",
+      "checkedAt": 1793268000123
+     },
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "checking",
+        "currentVersion": "2.0.5",
+        "autoCheck": true
+       }
+      ],
+      [
+       "updates.changed",
+       {
+        "status": "checking",
+        "currentVersion": "2.0.5",
+        "autoCheck": true
+       }
+      ],
+      [
+       "updates.changed",
+       {
+        "status": "available",
+        "currentVersion": "2.0.5",
+        "autoCheck": true,
+        "availableVersion": "2.0.6",
+        "releaseName": "v2.0.6",
+        "releaseNotes": "notes",
+        "checkedAt": 1793268000123
+       }
+      ]
+     ],
+     "calls": [
+      [
+       "checkForUpdates"
+      ]
+     ],
+     "logs": []
+    },
+    {
+     "op": "emit",
+     "arg": "download-progress",
+     "arg2": {
+      "percent": 12.5,
+      "bytesPerSecond": 1000,
+      "transferred": 125,
+      "total": 1000
+     },
+     "ok": null,
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "downloading",
+        "currentVersion": "2.0.5",
+        "autoCheck": true,
+        "availableVersion": "2.0.6",
+        "releaseName": "v2.0.6",
+        "releaseNotes": "notes",
+        "checkedAt": 1793268000123,
+        "percent": 12.5,
+        "bytesPerSecond": 1000,
+        "transferred": 125,
+        "total": 1000
+       }
+      ]
+     ],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "emit",
+     "arg": "update-downloaded",
+     "arg2": {
+      "version": "2.0.6",
+      "releaseName": null
+     },
+     "ok": null,
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "downloaded",
+        "currentVersion": "2.0.5",
+        "autoCheck": true,
+        "availableVersion": "2.0.6",
+        "releaseName": null,
+        "releaseNotes": "notes",
+        "checkedAt": 1793268000123,
+        "percent": 100,
+        "bytesPerSecond": 1000,
+        "transferred": 125,
+        "total": 1000
+       }
+      ]
+     ],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "install",
+     "arg": null,
+     "arg2": null,
+     "ok": {
+      "status": "downloaded",
+      "currentVersion": "2.0.5",
+      "autoCheck": true,
+      "availableVersion": "2.0.6",
+      "releaseName": null,
+      "releaseNotes": "notes",
+      "checkedAt": 1793268000123,
+      "percent": 100,
+      "bytesPerSecond": 1000,
+      "transferred": 125,
+      "total": 1000
+     },
+     "err": null,
+     "events": [],
+     "calls": [
+      [
+       "quitAndInstall",
+       false,
+       true
+      ]
+     ],
+     "logs": [
+      [
+       "info",
+       "[updater] quitAndInstall",
+       null
+      ]
+     ]
+    },
+    {
+     "op": "get",
+     "arg": null,
+     "arg2": null,
+     "ok": {
+      "status": "downloaded",
+      "currentVersion": "2.0.5",
+      "autoCheck": true,
+      "availableVersion": "2.0.6",
+      "releaseName": null,
+      "releaseNotes": "notes",
+      "checkedAt": 1793268000123,
+      "percent": 100,
+      "bytesPerSecond": 1000,
+      "transferred": 125,
+      "total": 1000
+     },
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    }
+   ]
+  },
+  {
+   "name": "notesNonString",
+   "packaged": true,
+   "checks": [
+    {
+     "emit": [
+      [
+       "update-available",
+       {
+        "version": "2.0.7",
+        "releaseNotes": [
+         {
+          "note": "x"
+         }
+        ]
+       }
+      ]
+     ],
+     "ret": "none"
+    }
+   ],
+   "steps": [
+    [
+     "start"
+    ],
+    [
+     "check"
+    ]
+   ],
+   "settingsFile": "",
+   "log": [
+    {
+     "op": "start",
+     "arg": null,
+     "arg2": null,
+     "ok": null,
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "check",
+     "arg": null,
+     "arg2": null,
+     "ok": {
+      "status": "available",
+      "currentVersion": "2.0.5",
+      "autoCheck": true,
+      "availableVersion": "2.0.7",
+      "releaseNotes": null,
+      "checkedAt": 1793268000123
+     },
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "checking",
+        "currentVersion": "2.0.5",
+        "autoCheck": true
+       }
+      ],
+      [
+       "updates.changed",
+       {
+        "status": "available",
+        "currentVersion": "2.0.5",
+        "autoCheck": true,
+        "availableVersion": "2.0.7",
+        "releaseNotes": null,
+        "checkedAt": 1793268000123
+       }
+      ]
+     ],
+     "calls": [
+      [
+       "checkForUpdates"
+      ]
+     ],
+     "logs": []
+    }
+   ]
+  },
+  {
+   "name": "retryCancels",
+   "packaged": true,
+   "cancelThrows": true,
+   "checks": [
+    {
+     "emit": [
+      [
+       "update-available",
+       {
+        "version": "2.0.6",
+        "releaseName": "v2.0.6",
+        "releaseNotes": "notes"
+       }
+      ]
+     ],
+     "ret": "token"
+    },
+    {
+     "emit": [
+      [
+       "update-available",
+       {
+        "version": "2.0.6",
+        "releaseName": "v2.0.6",
+        "releaseNotes": "notes"
+       }
+      ]
+     ],
+     "ret": "token"
+    }
+   ],
+   "steps": [
+    [
+     "start"
+    ],
+    [
+     "check"
+    ],
+    [
+     "check"
+    ],
+    [
+     "check"
+    ]
+   ],
+   "settingsFile": "",
+   "log": [
+    {
+     "op": "start",
+     "arg": null,
+     "arg2": null,
+     "ok": null,
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "check",
+     "arg": null,
+     "arg2": null,
+     "ok": {
+      "status": "available",
+      "currentVersion": "2.0.5",
+      "autoCheck": true,
+      "availableVersion": "2.0.6",
+      "releaseName": "v2.0.6",
+      "releaseNotes": "notes",
+      "checkedAt": 1793268000123
+     },
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "checking",
+        "currentVersion": "2.0.5",
+        "autoCheck": true
+       }
+      ],
+      [
+       "updates.changed",
+       {
+        "status": "available",
+        "currentVersion": "2.0.5",
+        "autoCheck": true,
+        "availableVersion": "2.0.6",
+        "releaseName": "v2.0.6",
+        "releaseNotes": "notes",
+        "checkedAt": 1793268000123
+       }
+      ]
+     ],
+     "calls": [
+      [
+       "checkForUpdates"
+      ]
+     ],
+     "logs": []
+    },
+    {
+     "op": "check",
+     "arg": null,
+     "arg2": null,
+     "ok": {
+      "status": "available",
+      "currentVersion": "2.0.5",
+      "autoCheck": true,
+      "availableVersion": "2.0.6",
+      "releaseName": "v2.0.6",
+      "releaseNotes": "notes",
+      "checkedAt": 1793268000123
+     },
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "checking",
+        "currentVersion": "2.0.5",
+        "autoCheck": true,
+        "availableVersion": "2.0.6",
+        "releaseName": "v2.0.6",
+        "releaseNotes": "notes",
+        "checkedAt": 1793268000123
+       }
+      ],
+      [
+       "updates.changed",
+       {
+        "status": "available",
+        "currentVersion": "2.0.5",
+        "autoCheck": true,
+        "availableVersion": "2.0.6",
+        "releaseName": "v2.0.6",
+        "releaseNotes": "notes",
+        "checkedAt": 1793268000123
+       }
+      ]
+     ],
+     "calls": [
+      [
+       "cancel",
+       1
+      ],
+      [
+       "checkForUpdates"
+      ]
+     ],
+     "logs": []
+    },
+    {
+     "op": "check",
+     "arg": null,
+     "arg2": null,
+     "ok": {
+      "status": "checking",
+      "currentVersion": "2.0.5",
+      "autoCheck": true,
+      "availableVersion": "2.0.6",
+      "releaseName": "v2.0.6",
+      "releaseNotes": "notes",
+      "checkedAt": 1793268000123
+     },
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "checking",
+        "currentVersion": "2.0.5",
+        "autoCheck": true,
+        "availableVersion": "2.0.6",
+        "releaseName": "v2.0.6",
+        "releaseNotes": "notes",
+        "checkedAt": 1793268000123
+       }
+      ]
+     ],
+     "calls": [
+      [
+       "cancel",
+       2
+      ],
+      [
+       "checkForUpdates"
+      ]
+     ],
+     "logs": []
+    }
+   ]
+  },
+  {
+   "name": "checkThrows",
+   "packaged": true,
+   "checks": [
+    {
+     "throw": "net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+     "throwStr": "plain string"
+    }
+   ],
+   "steps": [
+    [
+     "start"
+    ],
+    [
+     "check"
+    ],
+    [
+     "check"
+    ],
+    [
+     "advance",
+     200000
+    ]
+   ],
+   "settingsFile": "",
+   "log": [
+    {
+     "op": "start",
+     "arg": null,
+     "arg2": null,
+     "ok": null,
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "check",
+     "arg": null,
+     "arg2": null,
+     "ok": {
+      "status": "error",
+      "currentVersion": "2.0.5",
+      "autoCheck": true,
+      "error": "net::ERR_INTERNET_DISCONNECTED",
+      "errorStage": "check",
+      "checkedAt": 1793268000123
+     },
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "checking",
+        "currentVersion": "2.0.5",
+        "autoCheck": true
+       }
+      ],
+      [
+       "updates.changed",
+       {
+        "status": "error",
+        "currentVersion": "2.0.5",
+        "autoCheck": true,
+        "error": "net::ERR_INTERNET_DISCONNECTED",
+        "errorStage": "check"
+       }
+      ],
+      [
+       "updates.changed",
+       {
+        "status": "error",
+        "currentVersion": "2.0.5",
+        "autoCheck": true,
+        "error": "net::ERR_INTERNET_DISCONNECTED",
+        "errorStage": "check",
+        "checkedAt": 1793268000123
+       }
+      ]
+     ],
+     "calls": [
+      [
+       "checkForUpdates"
+      ]
+     ],
+     "logs": []
+    },
+    {
+     "op": "check",
+     "arg": null,
+     "arg2": null,
+     "ok": {
+      "status": "error",
+      "currentVersion": "2.0.5",
+      "autoCheck": true,
+      "error": "plain string",
+      "errorStage": "check",
+      "checkedAt": 1793268000123
+     },
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "checking",
+        "currentVersion": "2.0.5",
+        "autoCheck": true,
+        "checkedAt": 1793268000123
+       }
+      ],
+      [
+       "updates.changed",
+       {
+        "status": "error",
+        "currentVersion": "2.0.5",
+        "autoCheck": true,
+        "error": "plain string",
+        "errorStage": "check",
+        "checkedAt": 1793268000123
+       }
+      ],
+      [
+       "updates.changed",
+       {
+        "status": "error",
+        "currentVersion": "2.0.5",
+        "autoCheck": true,
+        "error": "plain string",
+        "errorStage": "check",
+        "checkedAt": 1793268000123
+       }
+      ]
+     ],
+     "calls": [
+      [
+       "checkForUpdates"
+      ]
+     ],
+     "logs": []
+    },
+    {
+     "op": "advance",
+     "arg": 200000,
+     "arg2": null,
+     "ok": 1,
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "checking",
+        "currentVersion": "2.0.5",
+        "autoCheck": true,
+        "checkedAt": 1793268000123
+       }
+      ],
+      [
+       "updates.changed",
+       {
+        "status": "error",
+        "currentVersion": "2.0.5",
+        "autoCheck": true,
+        "error": "update check stalled: no response for 90s",
+        "errorStage": "check",
+        "checkedAt": 1793268000123
+       }
+      ]
+     ],
+     "calls": [
+      [
+       "checkForUpdates"
+      ]
+     ],
+     "logs": [
+      [
+       "warn",
+       "[updater] check stalled",
+       {
+        "secs": 90
+       }
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "missingThrown",
+   "packaged": true,
+   "checks": [
+    {
+     "throw": "Cannot find latest-mac.yml in the latest release artifacts (https://x/latest-mac.yml): HttpError: 404"
+    },
+    {
+     "throw": "whatever",
+     "code": "ERR_UPDATER_CHANNEL_FILE_NOT_FOUND"
+    },
+    {
+     "throw": "Cannot find latest.yml in the latest release artifacts"
+    }
+   ],
+   "steps": [
+    [
+     "start"
+    ],
+    [
+     "check"
+    ],
+    [
+     "check"
+    ],
+    [
+     "check"
+    ]
+   ],
+   "settingsFile": "",
+   "log": [
+    {
+     "op": "start",
+     "arg": null,
+     "arg2": null,
+     "ok": null,
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "check",
+     "arg": null,
+     "arg2": null,
+     "ok": {
+      "status": "not-available",
+      "currentVersion": "2.0.5",
+      "autoCheck": true,
+      "releasePending": true,
+      "checkedAt": 1793268000123
+     },
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "checking",
+        "currentVersion": "2.0.5",
+        "autoCheck": true
+       }
+      ],
+      [
+       "updates.changed",
+       {
+        "status": "not-available",
+        "currentVersion": "2.0.5",
+        "autoCheck": true,
+        "releasePending": true,
+        "checkedAt": 1793268000123
+       }
+      ]
+     ],
+     "calls": [
+      [
+       "checkForUpdates"
+      ]
+     ],
+     "logs": []
+    },
+    {
+     "op": "check",
+     "arg": null,
+     "arg2": null,
+     "ok": {
+      "status": "not-available",
+      "currentVersion": "2.0.5",
+      "autoCheck": true,
+      "releasePending": true,
+      "checkedAt": 1793268000123
+     },
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "checking",
+        "currentVersion": "2.0.5",
+        "autoCheck": true,
+        "checkedAt": 1793268000123
+       }
+      ],
+      [
+       "updates.changed",
+       {
+        "status": "not-available",
+        "currentVersion": "2.0.5",
+        "autoCheck": true,
+        "releasePending": true,
+        "checkedAt": 1793268000123
+       }
+      ]
+     ],
+     "calls": [
+      [
+       "checkForUpdates"
+      ]
+     ],
+     "logs": []
+    },
+    {
+     "op": "check",
+     "arg": null,
+     "arg2": null,
+     "ok": {
+      "status": "not-available",
+      "currentVersion": "2.0.5",
+      "autoCheck": true,
+      "releasePending": true,
+      "checkedAt": 1793268000123
+     },
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "checking",
+        "currentVersion": "2.0.5",
+        "autoCheck": true,
+        "checkedAt": 1793268000123
+       }
+      ],
+      [
+       "updates.changed",
+       {
+        "status": "not-available",
+        "currentVersion": "2.0.5",
+        "autoCheck": true,
+        "releasePending": true,
+        "checkedAt": 1793268000123
+       }
+      ]
+     ],
+     "calls": [
+      [
+       "checkForUpdates"
+      ]
+     ],
+     "logs": []
+    }
+   ]
+  },
+  {
+   "name": "missingEvent",
+   "packaged": true,
+   "checks": [
+    {
+     "emit": [
+      [
+       "checking-for-update"
+      ],
+      [
+       "error",
+       {
+        "throw": "Cannot find latest-mac.yml in the latest release artifacts (https://x/latest-mac.yml): HttpError: 404"
+       }
+      ]
+     ],
+     "ret": "null"
+    }
+   ],
+   "steps": [
+    [
+     "start"
+    ],
+    [
+     "check"
+    ],
+    [
+     "emit",
+     "error",
+     {
+      "throw": "Cannot find latest-mac.yml in the latest release artifacts (https://x/latest-mac.yml): HttpError: 404"
+     }
+    ]
+   ],
+   "settingsFile": "",
+   "log": [
+    {
+     "op": "start",
+     "arg": null,
+     "arg2": null,
+     "ok": null,
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "check",
+     "arg": null,
+     "arg2": null,
+     "ok": {
+      "status": "not-available",
+      "currentVersion": "2.0.5",
+      "autoCheck": true,
+      "releasePending": true,
+      "checkedAt": 1793268000123
+     },
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "checking",
+        "currentVersion": "2.0.5",
+        "autoCheck": true
+       }
+      ],
+      [
+       "updates.changed",
+       {
+        "status": "checking",
+        "currentVersion": "2.0.5",
+        "autoCheck": true
+       }
+      ],
+      [
+       "updates.changed",
+       {
+        "status": "not-available",
+        "currentVersion": "2.0.5",
+        "autoCheck": true,
+        "releasePending": true,
+        "checkedAt": 1793268000123
+       }
+      ]
+     ],
+     "calls": [
+      [
+       "checkForUpdates"
+      ]
+     ],
+     "logs": [
+      [
+       "warn",
+       "[updater] error",
+       {
+        "error": "Cannot find latest-mac.yml in the latest release artifacts (https://x/latest-mac.yml): HttpError: 404"
+       }
+      ]
+     ]
+    },
+    {
+     "op": "emit",
+     "arg": "error",
+     "arg2": {
+      "throw": "Cannot find latest-mac.yml in the latest release artifacts (https://x/latest-mac.yml): HttpError: 404"
+     },
+     "ok": null,
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "error",
+        "currentVersion": "2.0.5",
+        "autoCheck": true,
+        "error": "Cannot find latest-mac.yml in the latest release artifacts (https://x/latest-mac.yml): HttpError: 404",
+        "errorStage": "check",
+        "releasePending": true,
+        "checkedAt": 1793268000123
+       }
+      ]
+     ],
+     "calls": [],
+     "logs": [
+      [
+       "warn",
+       "[updater] error",
+       {
+        "error": "Cannot find latest-mac.yml in the latest release artifacts (https://x/latest-mac.yml): HttpError: 404"
+       }
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "errorEvents",
+   "packaged": true,
+   "checks": [
+    {
+     "emit": [
+      [
+       "update-available",
+       {
+        "version": "2.0.6",
+        "releaseName": "v2.0.6",
+        "releaseNotes": "notes"
+       }
+      ]
+     ],
+     "ret": "token"
+    }
+   ],
+   "steps": [
+    [
+     "start"
+    ],
+    [
+     "check"
+    ],
+    [
+     "emit",
+     "error",
+     {
+      "throw": "dl broke"
+     }
+    ],
+    [
+     "emit",
+     "update-downloaded",
+     {
+      "version": "2.0.6",
+      "releaseName": "v2.0.6",
+      "releaseNotes": "notes"
+     }
+    ],
+    [
+     "emit",
+     "error",
+     {
+      "throw": "install broke"
+     }
+    ],
+    [
+     "emit",
+     "checking-for-update"
+    ],
+    [
+     "emit",
+     "error",
+     {
+      "throwStr": "raw"
+     }
+    ]
+   ],
+   "settingsFile": "",
+   "log": [
+    {
+     "op": "start",
+     "arg": null,
+     "arg2": null,
+     "ok": null,
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "check",
+     "arg": null,
+     "arg2": null,
+     "ok": {
+      "status": "available",
+      "currentVersion": "2.0.5",
+      "autoCheck": true,
+      "availableVersion": "2.0.6",
+      "releaseName": "v2.0.6",
+      "releaseNotes": "notes",
+      "checkedAt": 1793268000123
+     },
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "checking",
+        "currentVersion": "2.0.5",
+        "autoCheck": true
+       }
+      ],
+      [
+       "updates.changed",
+       {
+        "status": "available",
+        "currentVersion": "2.0.5",
+        "autoCheck": true,
+        "availableVersion": "2.0.6",
+        "releaseName": "v2.0.6",
+        "releaseNotes": "notes",
+        "checkedAt": 1793268000123
+       }
+      ]
+     ],
+     "calls": [
+      [
+       "checkForUpdates"
+      ]
+     ],
+     "logs": []
+    },
+    {
+     "op": "emit",
+     "arg": "error",
+     "arg2": {
+      "throw": "dl broke"
+     },
+     "ok": null,
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "error",
+        "currentVersion": "2.0.5",
+        "autoCheck": true,
+        "error": "dl broke",
+        "errorStage": "download",
+        "availableVersion": "2.0.6",
+        "releaseName": "v2.0.6",
+        "releaseNotes": "notes",
+        "checkedAt": 1793268000123
+       }
+      ]
+     ],
+     "calls": [],
+     "logs": [
+      [
+       "warn",
+       "[updater] error",
+       {
+        "error": "dl broke"
+       }
+      ]
+     ]
+    },
+    {
+     "op": "emit",
+     "arg": "update-downloaded",
+     "arg2": {
+      "version": "2.0.6",
+      "releaseName": "v2.0.6",
+      "releaseNotes": "notes"
+     },
+     "ok": null,
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "downloaded",
+        "currentVersion": "2.0.5",
+        "autoCheck": true,
+        "availableVersion": "2.0.6",
+        "releaseName": "v2.0.6",
+        "releaseNotes": "notes",
+        "checkedAt": 1793268000123,
+        "percent": 100
+       }
+      ]
+     ],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "emit",
+     "arg": "error",
+     "arg2": {
+      "throw": "install broke"
+     },
+     "ok": null,
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "error",
+        "currentVersion": "2.0.5",
+        "autoCheck": true,
+        "error": "install broke",
+        "errorStage": "install",
+        "availableVersion": "2.0.6",
+        "releaseName": "v2.0.6",
+        "releaseNotes": "notes",
+        "checkedAt": 1793268000123,
+        "percent": 100
+       }
+      ]
+     ],
+     "calls": [],
+     "logs": [
+      [
+       "warn",
+       "[updater] error",
+       {
+        "error": "install broke"
+       }
+      ]
+     ]
+    },
+    {
+     "op": "emit",
+     "arg": "checking-for-update",
+     "arg2": null,
+     "ok": null,
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "checking",
+        "currentVersion": "2.0.5",
+        "autoCheck": true,
+        "error": "install broke",
+        "availableVersion": "2.0.6",
+        "releaseName": "v2.0.6",
+        "releaseNotes": "notes",
+        "checkedAt": 1793268000123,
+        "percent": 100
+       }
+      ]
+     ],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "emit",
+     "arg": "error",
+     "arg2": {
+      "throwStr": "raw"
+     },
+     "ok": null,
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "error",
+        "currentVersion": "2.0.5",
+        "autoCheck": true,
+        "error": "raw",
+        "errorStage": "check",
+        "availableVersion": "2.0.6",
+        "releaseName": "v2.0.6",
+        "releaseNotes": "notes",
+        "checkedAt": 1793268000123,
+        "percent": 100
+       }
+      ]
+     ],
+     "calls": [],
+     "logs": [
+      [
+       "warn",
+       "[updater] error",
+       {
+        "error": "raw"
+       }
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "stallCheck",
+   "packaged": true,
+   "launchDelayMs": 0,
+   "checks": [
+    {
+     "emit": [
+      [
+       "checking-for-update"
+      ]
+     ],
+     "ret": "null"
+    }
+   ],
+   "steps": [
+    [
+     "start"
+    ],
+    [
+     "check"
+    ],
+    [
+     "advance",
+     89999
+    ],
+    [
+     "advance",
+     1
+    ],
+    [
+     "advance",
+     90000
+    ]
+   ],
+   "settingsFile": "",
+   "log": [
+    {
+     "op": "start",
+     "arg": null,
+     "arg2": null,
+     "ok": null,
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "check",
+     "arg": null,
+     "arg2": null,
+     "ok": {
+      "status": "checking",
+      "currentVersion": "2.0.5",
+      "autoCheck": true
+     },
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "checking",
+        "currentVersion": "2.0.5",
+        "autoCheck": true
+       }
+      ],
+      [
+       "updates.changed",
+       {
+        "status": "checking",
+        "currentVersion": "2.0.5",
+        "autoCheck": true
+       }
+      ]
+     ],
+     "calls": [
+      [
+       "checkForUpdates"
+      ]
+     ],
+     "logs": []
+    },
+    {
+     "op": "advance",
+     "arg": 89999,
+     "arg2": null,
+     "ok": 2,
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "advance",
+     "arg": 1,
+     "arg2": null,
+     "ok": 1,
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "error",
+        "currentVersion": "2.0.5",
+        "autoCheck": true,
+        "error": "update check stalled: no response for 90s",
+        "errorStage": "check"
+       }
+      ]
+     ],
+     "calls": [],
+     "logs": [
+      [
+       "warn",
+       "[updater] check stalled",
+       {
+        "secs": 90
+       }
+      ]
+     ]
+    },
+    {
+     "op": "advance",
+     "arg": 90000,
+     "arg2": null,
+     "ok": 1,
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    }
+   ]
+  },
+  {
+   "name": "stallDownload",
+   "packaged": true,
+   "launchDelayMs": 0,
+   "stallMs": 1499,
+   "checks": [
+    {
+     "emit": [
+      [
+       "update-available",
+       {
+        "version": "2.0.6",
+        "releaseName": "v2.0.6",
+        "releaseNotes": "notes"
+       }
+      ]
+     ],
+     "ret": "token"
+    }
+   ],
+   "steps": [
+    [
+     "start"
+    ],
+    [
+     "check"
+    ],
+    [
+     "advance",
+     1000
+    ],
+    [
+     "emit",
+     "download-progress",
+     {
+      "percent": 1,
+      "bytesPerSecond": 2,
+      "transferred": 3,
+      "total": 4
+     }
+    ],
+    [
+     "advance",
+     1000
+    ],
+    [
+     "advance",
+     499
+    ],
+    [
+     "get"
+    ]
+   ],
+   "settingsFile": "",
+   "log": [
+    {
+     "op": "start",
+     "arg": null,
+     "arg2": null,
+     "ok": null,
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "check",
+     "arg": null,
+     "arg2": null,
+     "ok": {
+      "status": "available",
+      "currentVersion": "2.0.5",
+      "autoCheck": true,
+      "availableVersion": "2.0.6",
+      "releaseName": "v2.0.6",
+      "releaseNotes": "notes",
+      "checkedAt": 1793268000123
+     },
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "checking",
+        "currentVersion": "2.0.5",
+        "autoCheck": true
+       }
+      ],
+      [
+       "updates.changed",
+       {
+        "status": "available",
+        "currentVersion": "2.0.5",
+        "autoCheck": true,
+        "availableVersion": "2.0.6",
+        "releaseName": "v2.0.6",
+        "releaseNotes": "notes",
+        "checkedAt": 1793268000123
+       }
+      ]
+     ],
+     "calls": [
+      [
+       "checkForUpdates"
+      ]
+     ],
+     "logs": []
+    },
+    {
+     "op": "advance",
+     "arg": 1000,
+     "arg2": null,
+     "ok": 2,
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "emit",
+     "arg": "download-progress",
+     "arg2": {
+      "percent": 1,
+      "bytesPerSecond": 2,
+      "transferred": 3,
+      "total": 4
+     },
+     "ok": null,
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "downloading",
+        "currentVersion": "2.0.5",
+        "autoCheck": true,
+        "availableVersion": "2.0.6",
+        "releaseName": "v2.0.6",
+        "releaseNotes": "notes",
+        "checkedAt": 1793268000123,
+        "percent": 1,
+        "bytesPerSecond": 2,
+        "transferred": 3,
+        "total": 4
+       }
+      ]
+     ],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "advance",
+     "arg": 1000,
+     "arg2": null,
+     "ok": 2,
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "advance",
+     "arg": 499,
+     "arg2": null,
+     "ok": 1,
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "error",
+        "currentVersion": "2.0.5",
+        "autoCheck": true,
+        "error": "download stalled: no progress for 1s",
+        "errorStage": "download",
+        "availableVersion": "2.0.6",
+        "releaseName": "v2.0.6",
+        "releaseNotes": "notes",
+        "checkedAt": 1793268000123,
+        "percent": 1,
+        "bytesPerSecond": 2,
+        "transferred": 3,
+        "total": 4
+       }
+      ]
+     ],
+     "calls": [
+      [
+       "cancel",
+       1
+      ]
+     ],
+     "logs": [
+      [
+       "warn",
+       "[updater] download stalled",
+       {
+        "secs": 1
+       }
+      ]
+     ]
+    },
+    {
+     "op": "get",
+     "arg": null,
+     "arg2": null,
+     "ok": {
+      "status": "error",
+      "currentVersion": "2.0.5",
+      "autoCheck": true,
+      "error": "download stalled: no progress for 1s",
+      "errorStage": "download",
+      "availableVersion": "2.0.6",
+      "releaseName": "v2.0.6",
+      "releaseNotes": "notes",
+      "checkedAt": 1793268000123,
+      "percent": 1,
+      "bytesPerSecond": 2,
+      "transferred": 3,
+      "total": 4
+     },
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    }
+   ]
+  },
+  {
+   "name": "noStall",
+   "packaged": true,
+   "stallMs": 0,
+   "launchDelayMs": 0,
+   "intervalMs": 0,
+   "checks": [
+    {
+     "emit": [
+      [
+       "checking-for-update"
+      ]
+     ],
+     "ret": "null"
+    }
+   ],
+   "steps": [
+    [
+     "start"
+    ],
+    [
+     "check"
+    ],
+    [
+     "advance",
+     108000000
+    ]
+   ],
+   "settingsFile": "",
+   "log": [
+    {
+     "op": "start",
+     "arg": null,
+     "arg2": null,
+     "ok": null,
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "check",
+     "arg": null,
+     "arg2": null,
+     "ok": {
+      "status": "checking",
+      "currentVersion": "2.0.5",
+      "autoCheck": true
+     },
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "checking",
+        "currentVersion": "2.0.5",
+        "autoCheck": true
+       }
+      ],
+      [
+       "updates.changed",
+       {
+        "status": "checking",
+        "currentVersion": "2.0.5",
+        "autoCheck": true
+       }
+      ]
+     ],
+     "calls": [
+      [
+       "checkForUpdates"
+      ]
+     ],
+     "logs": []
+    },
+    {
+     "op": "advance",
+     "arg": 108000000,
+     "arg2": null,
+     "ok": 0,
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    }
+   ]
+  },
+  {
+   "name": "download",
+   "packaged": true,
+   "downloads": [
+    "ok",
+    {
+     "throw": "disk full"
+    }
+   ],
+   "steps": [
+    [
+     "start"
+    ],
+    [
+     "download"
+    ],
+    [
+     "download"
+    ],
+    [
+     "install"
+    ]
+   ],
+   "settingsFile": "",
+   "log": [
+    {
+     "op": "start",
+     "arg": null,
+     "arg2": null,
+     "ok": null,
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "download",
+     "arg": null,
+     "arg2": null,
+     "ok": {
+      "status": "idle",
+      "currentVersion": "2.0.5",
+      "autoCheck": true
+     },
+     "err": null,
+     "events": [],
+     "calls": [
+      [
+       "downloadUpdate"
+      ]
+     ],
+     "logs": []
+    },
+    {
+     "op": "download",
+     "arg": null,
+     "arg2": null,
+     "ok": {
+      "status": "error",
+      "currentVersion": "2.0.5",
+      "autoCheck": true,
+      "error": "disk full",
+      "errorStage": "download"
+     },
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "error",
+        "currentVersion": "2.0.5",
+        "autoCheck": true,
+        "error": "disk full",
+        "errorStage": "download"
+       }
+      ]
+     ],
+     "calls": [
+      [
+       "downloadUpdate"
+      ]
+     ],
+     "logs": []
+    },
+    {
+     "op": "install",
+     "arg": null,
+     "arg2": null,
+     "ok": {
+      "status": "error",
+      "currentVersion": "2.0.5",
+      "autoCheck": true,
+      "error": "disk full",
+      "errorStage": "download"
+     },
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    }
+   ]
+  },
+  {
+   "name": "installThrows",
+   "packaged": true,
+   "installThrows": "locked",
+   "checks": [
+    {
+     "emit": [
+      [
+       "update-downloaded",
+       {
+        "version": "2.0.6",
+        "releaseName": "v2.0.6",
+        "releaseNotes": "notes"
+       }
+      ]
+     ],
+     "ret": "none"
+    }
+   ],
+   "steps": [
+    [
+     "start"
+    ],
+    [
+     "check"
+    ],
+    [
+     "install"
+    ]
+   ],
+   "settingsFile": "",
+   "log": [
+    {
+     "op": "start",
+     "arg": null,
+     "arg2": null,
+     "ok": null,
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "check",
+     "arg": null,
+     "arg2": null,
+     "ok": {
+      "status": "downloaded",
+      "currentVersion": "2.0.5",
+      "autoCheck": true,
+      "availableVersion": "2.0.6",
+      "releaseName": "v2.0.6",
+      "percent": 100
+     },
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "checking",
+        "currentVersion": "2.0.5",
+        "autoCheck": true
+       }
+      ],
+      [
+       "updates.changed",
+       {
+        "status": "downloaded",
+        "currentVersion": "2.0.5",
+        "autoCheck": true,
+        "availableVersion": "2.0.6",
+        "releaseName": "v2.0.6",
+        "percent": 100
+       }
+      ]
+     ],
+     "calls": [
+      [
+       "checkForUpdates"
+      ]
+     ],
+     "logs": []
+    },
+    {
+     "op": "install",
+     "arg": null,
+     "arg2": null,
+     "ok": {
+      "status": "error",
+      "currentVersion": "2.0.5",
+      "autoCheck": true,
+      "error": "locked",
+      "errorStage": "install",
+      "availableVersion": "2.0.6",
+      "releaseName": "v2.0.6",
+      "percent": 100
+     },
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "error",
+        "currentVersion": "2.0.5",
+        "autoCheck": true,
+        "error": "locked",
+        "errorStage": "install",
+        "availableVersion": "2.0.6",
+        "releaseName": "v2.0.6",
+        "percent": 100
+       }
+      ]
+     ],
+     "calls": [
+      [
+       "quitAndInstall",
+       false,
+       true
+      ]
+     ],
+     "logs": [
+      [
+       "info",
+       "[updater] quitAndInstall",
+       null
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "autoCheckOff",
+   "packaged": true,
+   "steps": [
+    [
+     "start"
+    ],
+    [
+     "setAutoCheck",
+     {
+      "on": false
+     }
+    ],
+    [
+     "file"
+    ],
+    [
+     "advance",
+     46800000
+    ],
+    [
+     "setAutoCheck",
+     {
+      "on": true
+     }
+    ],
+    [
+     "file"
+    ],
+    [
+     "advance",
+     21600000
+    ]
+   ],
+   "settingsFile": "",
+   "log": [
+    {
+     "op": "start",
+     "arg": null,
+     "arg2": null,
+     "ok": null,
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "setAutoCheck",
+     "arg": {
+      "on": false
+     },
+     "arg2": null,
+     "ok": {
+      "status": "idle",
+      "currentVersion": "2.0.5",
+      "autoCheck": false
+     },
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "idle",
+        "currentVersion": "2.0.5",
+        "autoCheck": false
+       }
+      ]
+     ],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "file",
+     "arg": null,
+     "arg2": null,
+     "ok": "{\"version\":1,\"autoCheck\":false}",
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "advance",
+     "arg": 46800000,
+     "arg2": null,
+     "ok": 0,
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "setAutoCheck",
+     "arg": {
+      "on": true
+     },
+     "arg2": null,
+     "ok": {
+      "status": "idle",
+      "currentVersion": "2.0.5",
+      "autoCheck": true
+     },
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "idle",
+        "currentVersion": "2.0.5",
+        "autoCheck": true
+       }
+      ]
+     ],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "file",
+     "arg": null,
+     "arg2": null,
+     "ok": "{\"version\":1,\"autoCheck\":true}",
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "advance",
+     "arg": 21600000,
+     "arg2": null,
+     "ok": 2,
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "checking",
+        "currentVersion": "2.0.5",
+        "autoCheck": true
+       }
+      ]
+     ],
+     "calls": [
+      [
+       "checkForUpdates"
+      ]
+     ],
+     "logs": []
+    }
+   ]
+  },
+  {
+   "name": "storedOff",
+   "packaged": true,
+   "file": "{\"version\":1,\"autoCheck\":false}",
+   "steps": [
+    [
+     "get"
+    ],
+    [
+     "start"
+    ],
+    [
+     "advance",
+     25200000
+    ]
+   ],
+   "settingsFile": "",
+   "log": [
+    {
+     "op": "get",
+     "arg": null,
+     "arg2": null,
+     "ok": {
+      "status": "idle",
+      "currentVersion": "2.0.5",
+      "autoCheck": false
+     },
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "start",
+     "arg": null,
+     "arg2": null,
+     "ok": null,
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "advance",
+     "arg": 25200000,
+     "arg2": null,
+     "ok": 0,
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    }
+   ]
+  },
+  {
+   "name": "storedOther",
+   "packaged": true,
+   "file": "{\"autoCheck\":0}",
+   "steps": [
+    [
+     "get"
+    ]
+   ],
+   "settingsFile": "",
+   "log": [
+    {
+     "op": "get",
+     "arg": null,
+     "arg2": null,
+     "ok": {
+      "status": "idle",
+      "currentVersion": "2.0.5",
+      "autoCheck": true
+     },
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    }
+   ]
+  },
+  {
+   "name": "storedNull",
+   "packaged": true,
+   "file": "null",
+   "steps": [
+    [
+     "get"
+    ]
+   ],
+   "settingsFile": "",
+   "log": [
+    {
+     "op": "get",
+     "arg": null,
+     "arg2": null,
+     "ok": {
+      "status": "idle",
+      "currentVersion": "2.0.5",
+      "autoCheck": true
+     },
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    }
+   ]
+  },
+  {
+   "name": "storedBad",
+   "packaged": true,
+   "file": "{",
+   "steps": [
+    [
+     "get"
+    ]
+   ],
+   "settingsFile": "",
+   "log": [
+    {
+     "op": "get",
+     "arg": null,
+     "arg2": null,
+     "ok": {
+      "status": "idle",
+      "currentVersion": "2.0.5",
+      "autoCheck": true
+     },
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    }
+   ]
+  },
+  {
+   "name": "noSettings",
+   "packaged": true,
+   "settingsFile": null,
+   "steps": [
+    [
+     "setAutoCheck",
+     {
+      "on": false
+     }
+    ],
+    [
+     "file"
+    ],
+    [
+     "get"
+    ]
+   ],
+   "log": [
+    {
+     "op": "setAutoCheck",
+     "arg": {
+      "on": false
+     },
+     "arg2": null,
+     "ok": {
+      "status": "idle",
+      "currentVersion": "2.0.5",
+      "autoCheck": false
+     },
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "idle",
+        "currentVersion": "2.0.5",
+        "autoCheck": false
+       }
+      ]
+     ],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "file",
+     "arg": null,
+     "arg2": null,
+     "ok": null,
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "get",
+     "arg": null,
+     "arg2": null,
+     "ok": {
+      "status": "idle",
+      "currentVersion": "2.0.5",
+      "autoCheck": false
+     },
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    }
+   ]
+  },
+  {
+   "name": "persistFail",
+   "packaged": true,
+   "settingsFile": "blocker/x/update-settings.json",
+   "steps": [
+    [
+     "setAutoCheck",
+     {
+      "on": true
+     }
+    ]
+   ],
+   "log": [
+    {
+     "op": "setAutoCheck",
+     "arg": {
+      "on": true
+     },
+     "arg2": null,
+     "ok": {
+      "status": "idle",
+      "currentVersion": "2.0.5",
+      "autoCheck": true
+     },
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "idle",
+        "currentVersion": "2.0.5",
+        "autoCheck": true
+       }
+      ]
+     ],
+     "calls": [],
+     "logs": [
+      [
+       "warn",
+       "[updater] failed to persist autoCheck",
+       {
+        "error": "Error: ENOTDIR: not a directory, mkdir '<SB>/upd/persistFail/blocker/x'"
+       }
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "badInput",
+   "packaged": true,
+   "steps": [
+    [
+     "setAutoCheck",
+     {}
+    ],
+    [
+     "setAutoCheck",
+     {
+      "on": "yes"
+     }
+    ],
+    [
+     "setAutoCheck",
+     null
+    ],
+    [
+     "setAutoCheck",
+     {
+      "on": true,
+      "extra": 1
+     }
+    ]
+   ],
+   "settingsFile": "",
+   "log": [
+    {
+     "op": "setAutoCheck",
+     "arg": {},
+     "arg2": null,
+     "ok": null,
+     "err": {
+      "code": "BAD_INPUT",
+      "message": "Invalid input"
+     },
+     "events": [],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "setAutoCheck",
+     "arg": {
+      "on": "yes"
+     },
+     "arg2": null,
+     "ok": null,
+     "err": {
+      "code": "BAD_INPUT",
+      "message": "Invalid input"
+     },
+     "events": [],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "setAutoCheck",
+     "arg": null,
+     "arg2": null,
+     "ok": null,
+     "err": {
+      "code": "BAD_INPUT",
+      "message": "Invalid input"
+     },
+     "events": [],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "setAutoCheck",
+     "arg": {
+      "on": true,
+      "extra": 1
+     },
+     "arg2": null,
+     "ok": {
+      "status": "idle",
+      "currentVersion": "2.0.5",
+      "autoCheck": true
+     },
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "idle",
+        "currentVersion": "2.0.5",
+        "autoCheck": true
+       }
+      ]
+     ],
+     "calls": [],
+     "logs": []
+    }
+   ]
+  },
+  {
+   "name": "stopRestart",
+   "packaged": true,
+   "steps": [
+    [
+     "start"
+    ],
+    [
+     "stop"
+    ],
+    [
+     "advance",
+     72000000
+    ],
+    [
+     "start"
+    ],
+    [
+     "advance",
+     15000
+    ],
+    [
+     "ulog"
+    ]
+   ],
+   "settingsFile": "",
+   "log": [
+    {
+     "op": "start",
+     "arg": null,
+     "arg2": null,
+     "ok": null,
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "stop",
+     "arg": null,
+     "arg2": null,
+     "ok": null,
+     "err": null,
+     "events": [],
+     "calls": [
+      [
+       "removeAllListeners"
+      ]
+     ],
+     "logs": []
+    },
+    {
+     "op": "advance",
+     "arg": 72000000,
+     "arg2": null,
+     "ok": 0,
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "start",
+     "arg": null,
+     "arg2": null,
+     "ok": null,
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": []
+    },
+    {
+     "op": "advance",
+     "arg": 15000,
+     "arg2": null,
+     "ok": 2,
+     "err": null,
+     "events": [
+      [
+       "updates.changed",
+       {
+        "status": "checking",
+        "currentVersion": "2.0.5",
+        "autoCheck": true
+       }
+      ]
+     ],
+     "calls": [
+      [
+       "checkForUpdates"
+      ]
+     ],
+     "logs": []
+    },
+    {
+     "op": "ulog",
+     "arg": null,
+     "arg2": null,
+     "ok": [
+      true,
+      false,
+      false
+     ],
+     "err": null,
+     "events": [],
+     "calls": [],
+     "logs": [
+      [
+       "info",
+       "[updater] i",
+       null
+      ],
+      [
+       "warn",
+       "[updater] w",
+       null
+      ],
+      [
+       "error",
+       "[updater] e",
+       null
+      ],
+      [
+       "debug",
+       "[updater] d",
+       null
+      ]
+     ]
+    }
+   ]
+  }
+ ]
+}
