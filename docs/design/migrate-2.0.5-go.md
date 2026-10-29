@@ -177,6 +177,8 @@ Go 版**1:1 镜像** Node 版：模块边界、包/层结构、数据格式、�
 | D18 | `TerminalWatch` 在 `canonical/terminal.ts` | Go 放在 `stream` 包（`stream.NewTerminalWatch`），`ConvertOptions.fixes` 改为 `stream.WithFixes(opts, fixOptions)` 填充 | Go 包不能互相引用（canonical ← stream ← canonical 会成环）；行为不变 |
 | D19 | 复读检测/正文工具调用按 JS 字符串语义（UTF-16 长度、Unicode `\s`、`trim`） | Go 用 `util.JSTrim/UTF16Len/UTF16Tail` 还原；截取尾部时若正好切在 emoji（代理对）中间，Go 保留整个字符（JS 会留半个） | Go 字符串是 UTF-8，无法表示半个代理对；只影响内部缓冲，输出不变 |
 | D20 | GLM 参数名若是纯数字（如 `"1"`），JS 对象会把它排到最前 | Go 有序对象按出现顺序 | 极少见的边角情况，暂不模拟 |
+| D21 | 上游地址用 WHATWG `new URL` 解析（会把 `0x7f.1` 之类主机名规范成 `127.0.0.1`） | 用 Go `net/url` 解析，主机名原样保留 | 校验函数本身按宽松写法识别各种 IPv4 写法，分类结果一致；只有报错文案里的 host:port 写法可能不同 |
+| D22 | 出站走 undici：有代理时用 EnvHttpProxyAgent（含 `ALL_PROXY`），钉 IP 靠 AsyncLocalStorage | Go `http.Transport`：代理用 `http.ProxyFromEnvironment`（不认 `ALL_PROXY`），钉 IP 靠请求 context，只对目标主机生效，连代理本身时按校验规则现查 | Go 标准库没有 ALL_PROXY；按 context 钉 IP 更直接，安全性等同 |
 
 ### 3.5 一致性测试策略（golden，Node 与 Go 同输入对比输出）
 

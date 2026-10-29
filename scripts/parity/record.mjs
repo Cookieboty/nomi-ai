@@ -21,7 +21,7 @@
  *   e2e      – the real GatewayServer against a local mock upstream per protocol,
  *              recording the raw streamed chunks the client receives
  *
- * Usage: node scripts/parity/record.mjs [--only request,stream,json,fixes,spec,e2e]
+ * Usage: node scripts/parity/record.mjs [--only request,stream,json,fixes,spec,net,e2e]
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -297,6 +297,64 @@ if (want('spec')) {
     };
   });
   write('spec', { cases: out });
+}
+
+if (want('net')) {
+  const addr = await gw('src/net/address.ts');
+  const lb = await gw('src/net/loopback.ts');
+  const guard = await gw('src/net/upstreamGuard.ts');
+  const errs = await gw('src/errors.ts');
+  const hosts = [
+    '127.0.0.1', '127.1', '0x7f.1', '0177.0.0.1', '2130706433', '10.0.0.1', '172.16.5.4', '172.32.0.1',
+    '192.168.1.1', '192.0.0.8', '100.64.0.1', '100.128.0.1', '169.254.1.1', '198.18.0.1', '224.0.0.1',
+    '8.8.8.8', '1.1.1.1', '256.1.1.1', '1.2.3.4.5', '0x', '00', '09', '1..1', '', 'localhost', 'a.localhost',
+    'printer.local', 'example.com', 'LOCALHOST.', '[::1]', '::', '::1', '::ffff:127.0.0.1', '::ffff:8.8.8.8',
+    '::127.0.0.1', '64:ff9b::10.0.0.1', '64:ff9b::8.8.8.8', 'fc00::1', 'fd12:3456::1', 'fe80::1%eth0',
+    'ff02::1', '2001:db8::1', '2606:4700::1111', '1:2:3:4:5:6:7:8', '1:2:3:4:5:6:7:8:9', '1::2::3',
+    '::ffff:1.2.3', 'gggg::1', '0xffffffff', '4294967296', '1.16777215', '1.16777216',
+  ];
+  const headers = [
+    ['127.0.0.1:8080', 8080], ['127.0.0.1:8081', 8080], ['localhost', 80], ['localhost', 8080],
+    ['[::1]:8080', 8080], ['LOCALHOST:8080', 8080], ['evil.com:8080', 8080], [' 127.0.0.1:8080 ', 8080],
+    ['', 8080], ['127.0.0.1:08080', 8080], ['::1:8080', 8080], ['127.0.0.1:', 8080],
+  ];
+  const guardCases = [
+    ['https://api.example.com/v1', {}], ['ftp://x.com/', {}], ['https://u:p@x.com/', {}], ['not a url', {}],
+    ['http://127.0.0.1:11434/v1', {}], ['http://127.0.0.1:11434/v1', { allowedPrivateHosts: ['127.0.0.1:11434'] }],
+    ['http://localhost:9000/', { selfPort: 9000, allowedPrivateHosts: ['localhost:9000'] }],
+    ['http://[::1]:1234/', { allowedPrivateHosts: ['::1:1234'] }], ['https://8.8.8.8/', {}],
+    ['https://lan.example/', {}, [['10.0.0.5', 4]]], ['https://lan.example/', { allowedPrivateHosts: ['lan.example:443'] }, [['10.0.0.5', 4]]],
+    ['https://fake.example/', {}, [['198.18.0.7', 4]]], ['https://mix.example/', {}, [['10.0.0.5', 4], ['8.8.8.8', 4]]],
+    ['https://none.example/', {}, []], ['http://localhost:3000/', { allowedPrivateHosts: ['localhost:3000'] }, [['127.0.0.1', 4]]],
+  ];
+  const guardOut = [];
+  for (const [url, o, look] of guardCases) {
+    const lookupAll = async () => (look ?? [['93.184.216.34', 4]]).map(([address, family]) => ({ address, family }));
+    try {
+      const r = await guard.resolveUpstreamAddresses(url, { ...o, lookupAll });
+      guardOut.push({ url, opts: o, lookup: look ?? null, addresses: r.addresses.map((a) => [a.address, a.family]) });
+    } catch (e) {
+      guardOut.push({ url, opts: o, lookup: look ?? null, error: e.message });
+    }
+  }
+  const kinds = ['rate_limit', 'overloaded', 'auth', 'invalid', 'not_found', 'context', 'payload_too_large', 'upstream', 'timeout'];
+  const errOut = [];
+  for (const w of ['messages', 'gemini', 'chat', 'responses'])
+    for (const k of kinds)
+      for (const m of ['boom', 'Prompt is too long: 9000']) {
+        const r = errs.errorResponse(w, k, m);
+        errOut.push({ wire: w, kind: k, message: m, status: r.status, body: r.body });
+      }
+  const statuses = [200, 301, 400, 401, 403, 404, 413, 429, 500, 502, 503, 504, 529, 418];
+  const upstreamTexts = ['{"error":"x"}', '{"error":{"message":"y"}}', '{"message":"z"}', '{"error":{}}', 'plain', '', '[1]', 'é'.repeat(600)];
+  write('net', {
+    hosts: hosts.map((h) => ({ host: h, private: addr.isPrivateHost(h), v4: addr.parseIPv4(h), v6: addr.parseIPv6(h), fake: guard.isFakeIp(h) })),
+    headers: headers.map(([h, p]) => ({ header: h, port: p, ok: lb.isAllowedHostHeader(h, p) })),
+    guard: guardOut,
+    errors: errOut,
+    statuses: statuses.flatMap((st) => ['', 'context too long'].map((m) => ({ status: st, message: m, client: errs.clientStatusOf(st), kind: errs.kindOfStatus(st, m) }))),
+    upstream: upstreamTexts.map((t) => ({ text: t, message: errs.upstreamMessage(t) })),
+  });
 }
 
 if (want('e2e')) {
