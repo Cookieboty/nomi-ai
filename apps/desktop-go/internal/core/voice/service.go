@@ -38,13 +38,14 @@ type AuditEvent struct {
 
 // Deps = VoiceDeps
 type Deps struct {
-	Root              string
-	Secrets           security.SecretBox
-	Providers         func() []Provider
-	Credentials       func(id string) *Credentials
-	LocalOnly         func() bool
-	Audit             func(AuditEvent)
-	OpenChat          func() (freshlyLoading bool)
+	Root        string
+	Secrets     security.SecretBox
+	Providers   func() []Provider
+	Credentials func(id string) *Credentials
+	LocalOnly   func() bool
+	Audit       func(AuditEvent)
+	// OpenChat 打开对话窗口；页面仍在加载时返回 once('did-finish-load') 的登记函数，否则 nil
+	OpenChat          func() (onceLoaded func(fn func()))
 	Publish           func(name string, payload any)
 	PublishChat       func(name string, payload any)
 	SendToMascot      func(cmd *util.Obj)
@@ -816,7 +817,7 @@ func (s *Service) SendToChat(text string) {
 	if s.d.OpenChat == nil || util.JSTrim(text) == "" {
 		return
 	}
-	loading := s.d.OpenChat()
+	onceLoaded := s.d.OpenChat()
 	s.mu.Lock()
 	auto := s.settings.AutoSend
 	s.mu.Unlock()
@@ -826,8 +827,8 @@ func (s *Service) SendToChat(text string) {
 			s.d.PublishChat("voice.inject", payload)
 		}
 	}
-	if loading {
-		time.AfterFunc(500*time.Millisecond, deliver)
+	if onceLoaded != nil {
+		onceLoaded(func() { time.AfterFunc(500*time.Millisecond, deliver) })
 	} else {
 		deliver()
 	}
