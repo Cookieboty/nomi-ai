@@ -34,7 +34,7 @@ func toNumber(s string) float64 {
 				if c > 0x7f || !ok || int(d) >= base {
 					return math.NaN()
 				}
-				f = f*float64(base) + float64(d)
+				f = float64(f*float64(base)) + float64(d) // explicit float64(): no FMA (JS rounds the product)
 			}
 			return f
 		}

@@ -1965,6 +1965,118 @@
    ]
   },
   {
+   "name": "restored-empty-plan",
+   "files": {},
+   "env": {},
+   "salt": "s3",
+   "run": {
+    "claude": "{\"authMethod\":\"claude.ai\",\"email\":\"a@b\"}"
+   },
+   "restore": {
+    "claude": {
+     "mode": "subscription",
+     "fp": "8e358a055c277b34",
+     "plan": ""
+    },
+    "codex": {
+     "mode": "api",
+     "fp": null,
+     "plan": ""
+    }
+   },
+   "ops": [
+    [
+     "snap"
+    ],
+    [
+     "full",
+     "claude"
+    ],
+    [
+     "snap"
+    ]
+   ],
+   "out": [
+    "{\"claude\":{\"mode\":\"subscription\",\"fp\":\"8e358a055c277b34\",\"plan\":\"\"},\"codex\":{\"mode\":\"api\",\"fp\":null,\"plan\":\"\"}}",
+    0,
+    "{\"mode\":\"subscription\",\"fp\":\"2d648b571179f3df\",\"fromCli\":true}",
+    1,
+    "{\"claude\":{\"mode\":\"subscription\",\"fp\":\"2d648b571179f3df\"},\"codex\":{\"mode\":\"api\",\"fp\":null,\"plan\":\"\"}}",
+    1
+   ],
+   "calls": [
+    "claude"
+   ]
+  },
+  {
+   "name": "restored-empty-plan-same",
+   "files": {},
+   "env": {},
+   "salt": "s3",
+   "run": {
+    "claude": "{\"authMethod\":\"claude.ai\",\"email\":\"a@b\",\"subscriptionType\":\"\"}"
+   },
+   "restore": {
+    "claude": {
+     "mode": "subscription",
+     "fp": "8e358a055c277b34",
+     "plan": ""
+    }
+   },
+   "ops": [
+    [
+     "full",
+     "claude"
+    ],
+    [
+     "snap"
+    ]
+   ],
+   "out": [
+    "{\"mode\":\"subscription\",\"fp\":\"2d648b571179f3df\",\"fromCli\":true}",
+    1,
+    "{\"claude\":{\"mode\":\"subscription\",\"fp\":\"2d648b571179f3df\"}}",
+    1
+   ],
+   "calls": [
+    "claude"
+   ]
+  },
+  {
+   "name": "restored-empty-plan-same-fp",
+   "files": {},
+   "env": {},
+   "salt": "s3",
+   "run": {
+    "claude": "{\"authMethod\":\"claude.ai\",\"email\":\"a@b\"}"
+   },
+   "restore": {
+    "claude": {
+     "mode": "subscription",
+     "fp": "2d648b571179f3df",
+     "plan": ""
+    }
+   },
+   "ops": [
+    [
+     "full",
+     "claude"
+    ],
+    [
+     "snap"
+    ]
+   ],
+   "out": [
+    "{\"mode\":\"subscription\",\"fp\":\"2d648b571179f3df\",\"fromCli\":true}",
+    1,
+    "{\"claude\":{\"mode\":\"subscription\",\"fp\":\"2d648b571179f3df\"}}",
+    1
+   ],
+   "calls": [
+    "claude"
+   ]
+  },
+  {
    "name": "plan-drop-same-fp",
    "files": {},
    "env": {},

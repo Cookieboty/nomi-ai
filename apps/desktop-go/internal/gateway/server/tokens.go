@@ -23,7 +23,7 @@ func EstimateTokens(text string) float64 {
 		}
 	}
 	rest := u.UTF16Len(text) - cjk
-	return math.Max(1, math.Ceil(float64(cjk)/1.5+float64(rest)/4))
+	return math.Max(1, math.Ceil(float64(float64(cjk)/1.5)+float64(float64(rest)/4))) // explicit float64(): no FMA
 }
 
 const roundUp = 1.05

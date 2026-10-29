@@ -243,6 +243,49 @@ for (let i = 0; i < 6; i++) nanRecs.push({ key: `n${i}`, ts: now - 1000 * (i + 1
 rec('records', ['nan'], nanRecs);
 for (const by of ['source', 'model']) rec('breakdown', ['today', by, true], agg.breakdown(nanRecs, by, priceOf, labels));
 
+// source 缺失 / null / 非字符串：breakdown 的 Map 键、details 的行 / facets / 过滤 / 排序（可抛 TypeError）、CSV
+const recT = (fn, args, f) => {
+  try {
+    rec(fn, args, f());
+  } catch (e) {
+    rec(fn, args, { __throw: `${e.constructor.name}: ${e.message}` });
+  }
+};
+const srcRecs = [];
+const srcVals = [undefined, 'claude', '__missing__', null, 7, 'codex', '', '__missing__', 'claude', true];
+for (let i = 0; i < srcVals.length; i++) {
+  const r = { key: `src${i}`, ts: now - 60000 * (i + 1), via: 'log', model: ['gpt-5', 'claude-sonnet-4-5', 'grok-4'][i % 3], input: 10 * (i + 1), output: '2', cacheRead: 0, cacheWrite: 0, session: i % 2 ? 's1' : undefined };
+  if (srcVals[i] !== '__missing__') r.source = srcVals[i];
+  if (r.session === undefined) delete r.session;
+  srcRecs.push(r);
+}
+rec('records', ['src'], srcRecs);
+for (const by of ['source', 'model']) rec('breakdown', ['today', by, true], agg.breakdown(srcRecs, by, priceOf, labels));
+const onlyMissing = srcRecs.filter((r) => !('source' in r) || r.source === undefined);
+const strAndMissing = srcRecs.filter((r) => !('source' in r) || typeof r.source === 'string');
+rec('records', ['srcMissing'], onlyMissing);
+rec('breakdown', ['today', 'source', true], agg.breakdown(onlyMissing, 'source', priceOf, labels));
+rec('records', ['src'], srcRecs);
+for (const q of [{ from: 0, to: 9e15, limit: 1000 }, { from: 0, to: 9e15, source: 'claude', limit: 1000 }, { from: 0, to: 9e15, source: 'undefined', limit: 1000 }, { from: 0, to: 9e15, source: '7', limit: 1000 }, { from: 0, to: 9e15, source: 'null', limit: 1000 }, { from: 0, to: 9e15, source: 'true', limit: 1000 }, { from: 0, to: 9e15, sort: 'source', dir: 'asc', limit: 1000 },
+  { from: 0, to: 9e15, sort: 'tokens', dir: 'asc', limit: 1000 }])
+  recT('details', [q], () => agg.details(srcRecs, q, priceOf, labels));
+const srcRows = agg.details(srcRecs, { from: 0, to: 9e15, limit: 30 }, priceOf, labels).rows;
+rec('toCsvRows', [JSON.parse(JSON.stringify(srcRows)), 'USD', 7.2], agg.toCsv(JSON.parse(JSON.stringify(srcRows)), 'USD', 7.2));
+// 只含字符串 + 缺失：source 排序时 undefined 只作 b（参数）时不抛，作 a 时抛
+rec('records', ['srcStrMissing'], strAndMissing);
+for (const dir of ['asc', 'desc']) for (const n of [1, 2, 3, strAndMissing.length]) {
+  const sub = strAndMissing.slice(0, n);
+  rec('records', ['srcStrMissing'], sub);
+  recT('details', [{ from: 0, to: 9e15, sort: 'source', dir, limit: 1000 }], () => agg.details(sub, { from: 0, to: 9e15, sort: 'source', dir, limit: 1000 }, priceOf, labels));
+}
+// undefined 只作比较函数的 b：'claude'.localeCompare('undefined') 不抛；数字 / null 作 a 时的 TypeError 文案
+for (const keys of [['src2', 'src1'], ['src2', 'src8', 'src6'], ['src7', 'src2', 'src5', 'src1'], ['src1', 'src4'], ['src4', 'src1'], ['src1', 'src3'], ['src1', 'src9']])
+  for (const dir of ['asc', 'desc']) {
+    const sub = keys.map((k) => srcRecs.find((r) => r.key === k));
+    rec('records', ['srcPick'], sub);
+    recT('details', [{ from: 0, to: 9e15, sort: 'source', dir, limit: 1000 }], () => agg.details(sub, { from: 0, to: 9e15, sort: 'source', dir, limit: 1000 }, priceOf, labels));
+  }
+
 const outDir = process.env.NOMI_GOLDEN_DIR ?? join(root, 'apps/desktop-go/internal/core/usage/testdata');
 mkdirSync(outDir, { recursive: true });
 writeFileSync(join(outDir, 'usage-fns.json'), JSON.stringify({ tz: process.env.TZ, custom, synced, now, csvRows: rows, cases }, null, 1) + '\n');
