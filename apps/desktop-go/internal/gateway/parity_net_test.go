@@ -13,6 +13,14 @@ import (
 
 func TestParityNet(t *testing.T) {
 	var fx struct {
+		Urls []struct {
+			Raw    string
+			Parsed *struct{ Hostname, Host, Port string }
+			Guard  struct {
+				Addresses [][]any
+				Error     string
+			}
+		}
 		Hosts []struct {
 			Host    string
 			Private bool
@@ -49,6 +57,36 @@ func TestParityNet(t *testing.T) {
 	}
 	loadFixture(t, "net", &fx)
 	tl := tally{}
+	for _, c := range fx.Urls {
+		pu, err := gnet.ParseURL(c.Raw)
+		var ok bool
+		if c.Parsed == nil {
+			ok = err != nil
+		} else if err == nil {
+			hn := pu.Host
+			if p := pu.Port(); p != "" {
+				hn = hn[:len(hn)-len(p)-1]
+			}
+			ok = hn == c.Parsed.Hostname && pu.Host == c.Parsed.Host && pu.Port() == c.Parsed.Port
+		}
+		if !ok {
+			t.Errorf("url %s: %v %v want %+v", c.Raw, pu, err, c.Parsed)
+		}
+		tl.add("urls", ok)
+		_, addrs, gerr := gnet.ResolveUpstreamAddresses(context.Background(), c.Raw, gnet.GuardOpts{AllowedPrivateHosts: []string{"10.0.0.1:8000"},
+			LookupAll: func(context.Context, string) ([]gnet.LookupAddress, error) {
+				return []gnet.LookupAddress{{Address: "93.184.216.34", Family: 4}}, nil
+			}})
+		if c.Guard.Error != "" {
+			ok = gerr != nil && gerr.Error() == c.Guard.Error
+		} else {
+			ok = gerr == nil && len(addrs) == len(c.Guard.Addresses) && addrs[0].Address == c.Guard.Addresses[0][0]
+		}
+		if !ok {
+			t.Errorf("url guard %s: %v %v want %+v", c.Raw, addrs, gerr, c.Guard)
+		}
+		tl.add("url-guard", ok)
+	}
 	for _, c := range fx.Hosts {
 		ok := gnet.IsPrivateHost(c.Host) == c.Private && reflect.DeepEqual(gnet.ParseIPv4(c.Host), c.V4) &&
 			reflect.DeepEqual(gnet.ParseIPv6(c.Host), c.V6) && gnet.IsFakeIp(c.Host) == c.Fake

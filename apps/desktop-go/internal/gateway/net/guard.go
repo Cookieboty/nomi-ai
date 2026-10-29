@@ -76,7 +76,7 @@ func blocked(msg string) error { return &UpstreamBlockedError{Msg: msg} }
 
 // ResolveUpstreamAddresses is resolveUpstreamAddresses.
 func ResolveUpstreamAddresses(ctx context.Context, raw string, o GuardOpts) (*url.URL, []LookupAddress, error) {
-	u, err := url.Parse(raw)
+	u, err := ParseURL(raw)
 	if err != nil || u.Host == "" {
 		return nil, nil, blocked("上游地址无效：" + raw)
 	}

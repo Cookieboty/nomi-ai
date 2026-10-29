@@ -1,4 +1,403 @@
 {
+ "urls": [
+  {
+   "raw": "http://LOCALHOST:11434/v1",
+   "parsed": {
+    "hostname": "localhost",
+    "host": "localhost:11434",
+    "port": "11434"
+   },
+   "guard": {
+    "error": "上游地址 localhost:11434 是本机或局域网地址，需要先在供应商设置里确认"
+   }
+  },
+  {
+   "raw": "http://0x7f.1:8080/",
+   "parsed": {
+    "hostname": "127.0.0.1",
+    "host": "127.0.0.1:8080",
+    "port": "8080"
+   },
+   "guard": {
+    "error": "上游地址 127.0.0.1:8080 是本机或局域网地址，需要先在供应商设置里确认"
+   }
+  },
+  {
+   "raw": "http://0177.0.0.1/",
+   "parsed": {
+    "hostname": "127.0.0.1",
+    "host": "127.0.0.1",
+    "port": ""
+   },
+   "guard": {
+    "error": "上游地址 127.0.0.1:80 是本机或局域网地址，需要先在供应商设置里确认"
+   }
+  },
+  {
+   "raw": "http://2130706433:9/",
+   "parsed": {
+    "hostname": "127.0.0.1",
+    "host": "127.0.0.1:9",
+    "port": "9"
+   },
+   "guard": {
+    "error": "上游地址 127.0.0.1:9 是本机或局域网地址，需要先在供应商设置里确认"
+   }
+  },
+  {
+   "raw": "http://127.1/",
+   "parsed": {
+    "hostname": "127.0.0.1",
+    "host": "127.0.0.1",
+    "port": ""
+   },
+   "guard": {
+    "error": "上游地址 127.0.0.1:80 是本机或局域网地址，需要先在供应商设置里确认"
+   }
+  },
+  {
+   "raw": "http://127.0.0.1./",
+   "parsed": {
+    "hostname": "127.0.0.1",
+    "host": "127.0.0.1",
+    "port": ""
+   },
+   "guard": {
+    "error": "上游地址 127.0.0.1:80 是本机或局域网地址，需要先在供应商设置里确认"
+   }
+  },
+  {
+   "raw": "http://Example.COM./v1",
+   "parsed": {
+    "hostname": "example.com.",
+    "host": "example.com.",
+    "port": ""
+   },
+   "guard": {
+    "addresses": [
+     [
+      "93.184.216.34",
+      4
+     ]
+    ]
+   }
+  },
+  {
+   "raw": "https://bücher.example/",
+   "parsed": {
+    "hostname": "xn--bcher-kva.example",
+    "host": "xn--bcher-kva.example",
+    "port": ""
+   },
+   "guard": {
+    "addresses": [
+     [
+      "93.184.216.34",
+      4
+     ]
+    ]
+   }
+  },
+  {
+   "raw": "https://xn--bcher-kva.example/",
+   "parsed": {
+    "hostname": "xn--bcher-kva.example",
+    "host": "xn--bcher-kva.example",
+    "port": ""
+   },
+   "guard": {
+    "addresses": [
+     [
+      "93.184.216.34",
+      4
+     ]
+    ]
+   }
+  },
+  {
+   "raw": "https://ＥＸＡＭＰＬＥ.com/",
+   "parsed": {
+    "hostname": "example.com",
+    "host": "example.com",
+    "port": ""
+   },
+   "guard": {
+    "addresses": [
+     [
+      "93.184.216.34",
+      4
+     ]
+    ]
+   }
+  },
+  {
+   "raw": "http://[0:0::1]:3000/",
+   "parsed": {
+    "hostname": "[::1]",
+    "host": "[::1]:3000",
+    "port": "3000"
+   },
+   "guard": {
+    "error": "上游地址 ::1:3000 是本机或局域网地址，需要先在供应商设置里确认"
+   }
+  },
+  {
+   "raw": "http://[::FFFF:7f00:1]/",
+   "parsed": {
+    "hostname": "[::ffff:7f00:1]",
+    "host": "[::ffff:7f00:1]",
+    "port": ""
+   },
+   "guard": {
+    "error": "上游地址 ::ffff:7f00:1:80 是本机或局域网地址，需要先在供应商设置里确认"
+   }
+  },
+  {
+   "raw": "http://[fe80::1%25eth0]/",
+   "parsed": null,
+   "guard": {
+    "error": "上游地址无效：http://[fe80::1%25eth0]/"
+   }
+  },
+  {
+   "raw": "https://api.example.com:443/v1",
+   "parsed": {
+    "hostname": "api.example.com",
+    "host": "api.example.com",
+    "port": ""
+   },
+   "guard": {
+    "addresses": [
+     [
+      "93.184.216.34",
+      4
+     ]
+    ]
+   }
+  },
+  {
+   "raw": "http://api.example.com:80/",
+   "parsed": {
+    "hostname": "api.example.com",
+    "host": "api.example.com",
+    "port": ""
+   },
+   "guard": {
+    "addresses": [
+     [
+      "93.184.216.34",
+      4
+     ]
+    ]
+   }
+  },
+  {
+   "raw": "http://api.example.com:0080/",
+   "parsed": {
+    "hostname": "api.example.com",
+    "host": "api.example.com",
+    "port": ""
+   },
+   "guard": {
+    "addresses": [
+     [
+      "93.184.216.34",
+      4
+     ]
+    ]
+   }
+  },
+  {
+   "raw": "http://x.com:99999/",
+   "parsed": null,
+   "guard": {
+    "error": "上游地址无效：http://x.com:99999/"
+   }
+  },
+  {
+   "raw": "http://256.0.0.1/",
+   "parsed": null,
+   "guard": {
+    "error": "上游地址无效：http://256.0.0.1/"
+   }
+  },
+  {
+   "raw": "http://1.2.3.4.5/",
+   "parsed": null,
+   "guard": {
+    "error": "上游地址无效：http://1.2.3.4.5/"
+   }
+  },
+  {
+   "raw": "http://0x100000000/",
+   "parsed": null,
+   "guard": {
+    "error": "上游地址无效：http://0x100000000/"
+   }
+  },
+  {
+   "raw": "http://ex%41mple.com/",
+   "parsed": {
+    "hostname": "example.com",
+    "host": "example.com",
+    "port": ""
+   },
+   "guard": {
+    "addresses": [
+     [
+      "93.184.216.34",
+      4
+     ]
+    ]
+   }
+  },
+  {
+   "raw": "http://a b.com/",
+   "parsed": null,
+   "guard": {
+    "error": "上游地址无效：http://a b.com/"
+   }
+  },
+  {
+   "raw": "http://a_b.com/",
+   "parsed": {
+    "hostname": "a_b.com",
+    "host": "a_b.com",
+    "port": ""
+   },
+   "guard": {
+    "addresses": [
+     [
+      "93.184.216.34",
+      4
+     ]
+    ]
+   }
+  },
+  {
+   "raw": "http://10.0.0.1.:8000/",
+   "parsed": {
+    "hostname": "10.0.0.1",
+    "host": "10.0.0.1:8000",
+    "port": "8000"
+   },
+   "guard": {
+    "addresses": [
+     [
+      "10.0.0.1",
+      4
+     ]
+    ]
+   }
+  },
+  {
+   "raw": "http://192.168.0.1/",
+   "parsed": {
+    "hostname": "192.168.0.1",
+    "host": "192.168.0.1",
+    "port": ""
+   },
+   "guard": {
+    "error": "上游地址 192.168.0.1:80 是本机或局域网地址，需要先在供应商设置里确认"
+   }
+  },
+  {
+   "raw": "http://foo.0x/",
+   "parsed": null,
+   "guard": {
+    "error": "上游地址无效：http://foo.0x/"
+   }
+  },
+  {
+   "raw": "http://foo.09/",
+   "parsed": null,
+   "guard": {
+    "error": "上游地址无效：http://foo.09/"
+   }
+  },
+  {
+   "raw": "http://1.2.3.09/",
+   "parsed": null,
+   "guard": {
+    "error": "上游地址无效：http://1.2.3.09/"
+   }
+  },
+  {
+   "raw": "http:example.com/",
+   "parsed": {
+    "hostname": "example.com",
+    "host": "example.com",
+    "port": ""
+   },
+   "guard": {
+    "addresses": [
+     [
+      "93.184.216.34",
+      4
+     ]
+    ]
+   }
+  },
+  {
+   "raw": "HTTP://Example.com/",
+   "parsed": {
+    "hostname": "example.com",
+    "host": "example.com",
+    "port": ""
+   },
+   "guard": {
+    "addresses": [
+     [
+      "93.184.216.34",
+      4
+     ]
+    ]
+   }
+  },
+  {
+   "raw": "http://-x-.com/",
+   "parsed": {
+    "hostname": "-x-.com",
+    "host": "-x-.com",
+    "port": ""
+   },
+   "guard": {
+    "addresses": [
+     [
+      "93.184.216.34",
+      4
+     ]
+    ]
+   }
+  },
+  {
+   "raw": "http://é.local/",
+   "parsed": {
+    "hostname": "xn--9ca.local",
+    "host": "xn--9ca.local",
+    "port": ""
+   },
+   "guard": {
+    "error": "上游地址 xn--9ca.local:80 是本机或局域网地址，需要先在供应商设置里确认"
+   }
+  },
+  {
+   "raw": "http://a..b/",
+   "parsed": {
+    "hostname": "a..b",
+    "host": "a..b",
+    "port": ""
+   },
+   "guard": {
+    "addresses": [
+     [
+      "93.184.216.34",
+      4
+     ]
+    ]
+   }
+  }
+ ],
  "hosts": [
   {
    "host": "127.0.0.1",
