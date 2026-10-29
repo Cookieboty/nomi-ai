@@ -11,7 +11,7 @@ import (
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/usage"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/utils"
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
@@ -370,7 +370,7 @@ func (s *Service) SetSettings(raw any) *u.Obj {
 		s.mu.Unlock()
 		err := os.MkdirAll(s.d.Dir, 0o700)
 		if err == nil {
-			err = usage.WritePrivateFile(filepath.Join(s.d.Dir, settingsFile),
+			err = utils.WritePrivateFile(filepath.Join(s.d.Dir, settingsFile),
 				u.Stringify(u.NewObj("version", 1.0, "retentionDays", days)))
 		}
 		if err != nil && s.d.Logger != nil {
@@ -474,7 +474,7 @@ func (s *Service) ExportCsv(raw any) (*u.Obj, error) {
 	if file == "" {
 		return u.NewObj("ok", false, "rows", float64(rows)), nil
 	}
-	if err := usage.WritePrivateFile(file, csv); err != nil {
+	if err := utils.WritePrivateFile(file, csv); err != nil {
 		return nil, err
 	}
 	return u.NewObj("ok", true, "path", file, "rows", float64(rows)), nil

@@ -18,10 +18,10 @@ on:
       - '.github/workflows/desktop-go-package.yml'
 permissions:
   contents: read
-# 与 desktop-go.yml 相同：非 PR 按 commit 分组且不取消；PR 只保留最新一次
+# 与 desktop-go.yml 相同：按分支分组且不取消（一个在跑 + 最新一个排队）。本 workflow 无 push 触发，PR 事件不跳过
 concurrency:
-  group: desktop-go-package-${{ github.event_name }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: desktop-go-package-${{ github.event_name }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: false
 jobs:
   package:
     strategy:
@@ -42,7 +42,7 @@ jobs:
         with: { lfs: true }
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22.23.4, cache: pnpm }
+        with: { node-version: 24.22.0, cache: pnpm }
       - uses: actions/setup-go@v5
         with: { go-version-file: apps/desktop-go/go.mod, cache-dependency-path: apps/desktop-go/go.sum }
       - name: linux deps

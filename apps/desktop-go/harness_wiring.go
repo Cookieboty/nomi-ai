@@ -15,6 +15,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/codinghandlers"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/quality"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/hostports"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
@@ -69,7 +70,7 @@ var harnessAccounts *accounts.AccountService
 
 // wireHarness 对齐 createCore.ts 的 HarnessOrchestrator 构造 + coding.ts 的 harness.* 过程。
 // gateway = harnessGateway(gateway)（harness_gateway.go）。
-func wireHarness(router *contract.Router, userData, home string, hp hostPorts, gw *gwstore.Service) (*cli.CliPluginHost, func()) {
+func wireHarness(router *contract.Router, userData, home string, hp hostPorts, gw *gwstore.Service, q *quality.Service) (*cli.CliPluginHost, func()) {
 	docs := hostports.Documents()
 	var o *harness.Orchestrator
 	// 编程助手插件宿主（createCore.ts new CliPluginHost）
@@ -148,6 +149,7 @@ func wireHarness(router *contract.Router, userData, home string, hp hostPorts, g
 		return harness.New(harness.Deps{
 			Externals: externals{plugins}, Accounts: accPort,
 			Gateway: gatewayPort(gw),
+			Quality: quality.CliSink{S: q},
 			Root:    filepath.Join(userData, "harness"), Logger: stdLogger{}, Home: home,
 			DefaultCwd: filepath.Join(docs, "nomi"), LegacyDefaultCwd: docs,
 			Ports:          harnessPorts{hp},

@@ -32,6 +32,7 @@ type QuotaReading struct {
 	UpdatedAt float64       `json:"updatedAt"`
 	Origin    QuotaOrigin   `json:"origin,omitempty"`
 	Plan      string        `json:"plan,omitempty"`
+	PlanKind  JSPlanKind    `json:"-"`
 	Stale     bool          `json:"stale,omitempty"`
 }
 
@@ -52,9 +53,36 @@ type QuotaEntry struct {
 	Windows   []QuotaWindow `json:"windows"`
 	UpdatedAt *float64      `json:"updatedAt,omitempty"`
 	Plan      string        `json:"plan,omitempty"`
+	PlanKind  JSPlanKind    `json:"-"`
 	Origin    QuotaOrigin   `json:"origin,omitempty"`
 	Stale     bool          `json:"stale,omitempty"`
 	Auth      string        `json:"auth,omitempty"` // 'subscription' | 'api' | 'unknown'
+}
+
+// JSPlanKind：plan 在 JS 里的值类别。codexRateLimits 的 `PLAN_LABEL[planRaw] ?? planRaw` 走原型链：
+// planType 为 Object.prototype 上的方法名时得到函数，为 "__proto__" 时得到 Object.prototype 本身；
+// 两者都为真值，`...(plan ? { plan } : {})` / quota.ts `r.plan ? { plan: r.plan }` 都会保留，
+// JSON 序列化时函数被丢弃、Object.prototype 写成 {}。PlanKind≠PlanString 时 Plan 恒为 ""，
+// 因而 `typeof plan === 'string'` 的下游（Plan != "" 判断）与 Node 同样把它当作没有 plan。
+type JSPlanKind uint8
+
+const (
+	PlanString      JSPlanKind = iota // plan 为字符串（"" = undefined）
+	PlanFunction                      // Object.prototype 上的方法
+	PlanObjectProto                   // Object.prototype
+)
+
+// setPlan = o.plan = plan 后 JSON 化：函数键被 JSON.stringify 丢弃，Object.prototype → {}。
+func setPlan(o *util.Obj, p string, k JSPlanKind) {
+	switch k {
+	case PlanFunction:
+	case PlanObjectProto:
+		o.Set("plan", util.NewObj())
+	default:
+		if p != "" {
+			o.Set("plan", p)
+		}
+	}
 }
 
 // QuotaSource：Read 必须是同步、无网络、无凭据读取的；返回 nil = 没有可用额度。Read 里 panic = 抛错。
@@ -118,7 +146,7 @@ func (q *QuotaRegistry) Collect(now float64, placeholders []QuotaPlaceholder) []
 		if r != nil && len(windows) > 0 {
 			u := r.UpdatedAt
 			out = append(out, QuotaEntry{ID: s.ID, Label: s.Label, Status: "ok", Windows: windows, UpdatedAt: &u,
-				Plan: r.Plan, Origin: r.Origin, Stale: r.Stale})
+				Plan: r.Plan, PlanKind: r.PlanKind, Origin: r.Origin, Stale: r.Stale})
 		} else {
 			out = append(out, QuotaEntry{ID: s.ID, Label: s.Label, Status: "unavailable", Windows: []QuotaWindow{}})
 		}
@@ -200,9 +228,7 @@ func (r QuotaReading) ToObj() *util.Obj {
 	if r.Origin != "" {
 		o.Set("origin", r.Origin)
 	}
-	if r.Plan != "" {
-		o.Set("plan", r.Plan)
-	}
+	setPlan(o, r.Plan, r.PlanKind)
 	if r.Stale {
 		o.Set("stale", true)
 	}
@@ -214,9 +240,7 @@ func (e QuotaEntry) ToObj() *util.Obj {
 	if e.UpdatedAt != nil {
 		o.Set("updatedAt", *e.UpdatedAt)
 	}
-	if e.Plan != "" {
-		o.Set("plan", e.Plan)
-	}
+	setPlan(o, e.Plan, e.PlanKind)
 	if e.Origin != "" {
 		o.Set("origin", e.Origin)
 	}

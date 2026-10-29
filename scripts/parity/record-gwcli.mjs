@@ -46,13 +46,19 @@ function tree(dir) {
       const p = join(d, n);
       const st = fs.lstatSync(p);
       if (st.isDirectory()) walk(p);
-      else if (st.isFile()) out[relative(dir, p).split('\\').join('/')] = fs.readFileSync(p, 'utf8').split(JSON.stringify(dir).slice(1, -1)).join('<UD>').split(dir).join('<UD>');
+      else if (st.isFile()) out[relative(dir, p).split('\\').join('/')] = udSub(fs.readFileSync(p, 'utf8'), dir);
     }
   };
   walk(dir);
   return out;
 }
-const clean = (v, ud) => JSON.parse(JSON.stringify(v ?? null).split(JSON.stringify(ud).slice(1, -1)).join('<UD>'));
+// Replace the data dir at every JSON/TOML escape depth (deepest first): on Windows a
+// path nested in a quoted CLI arg is backslash-escaped twice inside the golden.
+function udSub(s, ud) {
+  for (let k = 3; k >= 0; k--) s = s.split(ud.split('\\').join('\\'.repeat(2 ** k))).join('<UD>');
+  return s;
+}
+const clean = (v, ud) => JSON.parse(udSub(JSON.stringify(v ?? null), ud));
 
 // helperComplete 的上游桩：按请求里的 model 返回不同响应；记下收到的请求
 const stub = { port: 0, last: null };
@@ -91,7 +97,7 @@ const CLI_ENV = ['HOME', 'USERPROFILE', 'CODEX_HOME', 'GROK_HOME', 'CLAUDE_CONFI
 
 const scenarios = [];
 async function scenario(name, ops) {
-  const ud = fs.realpathSync(fs.mkdtempSync(join(os.tmpdir(), 'gwcli-')));
+  const ud = fs.realpathSync.native(fs.mkdtempSync(join(os.tmpdir(), 'gwcli-')));
   const home = join(ud, 'home');
   fs.mkdirSync(join(home, '.codex'), { recursive: true });
   fs.mkdirSync(join(home, '.claude'), { recursive: true });

@@ -12,7 +12,6 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/paritytest"
 )
 
 // goldenCost = record-quality.mjs 的 cost
@@ -33,7 +32,8 @@ func norm(v any) string {
 }
 
 func TestQualityGolden(t *testing.T) {
-	p, _ := paritytest.Golden(t, "quality.json", "testdata/quality.json")
+	// 提交的 golden 固定 3 个时区（TZ 子进程录制；CI 只在 Linux 现场重录并 diff，见 desktop-go.yml）
+	p := "testdata/quality.json"
 	raw, err := os.ReadFile(p)
 	if err != nil {
 		t.Fatal(err)

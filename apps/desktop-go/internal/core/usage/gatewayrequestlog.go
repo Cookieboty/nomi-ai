@@ -4,11 +4,15 @@ package usage
 
 import (
 	"os"
+	"strings"
+
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/charcontract"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/nodefs"
 	"path/filepath"
 	"sync"
 	"time"
 
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/usage/quality"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/quality"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/server"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
@@ -80,19 +84,25 @@ func (l *GatewayRequestLog) migrateLegacy() {
 	if _, err := os.Stat(file); err != nil {
 		return
 	}
-	fail := func(err error) {
+	// warn 文本 = Node 的 (e as Error).message
+	fail := func(msg string) {
 		if l.d.Logger != nil {
-			l.d.Logger.Warn("gateway request log migration failed", map[string]any{"error": err.Error()})
+			l.d.Logger.Warn("gateway request log migration failed", map[string]any{"error": msg})
 		}
 	}
 	b, err := os.ReadFile(file)
 	if err != nil {
-		fail(err)
+		fail(nodefs.ReadFileError(err, file))
 		return
 	}
 	raw, err := util.Parse(b)
 	if err != nil {
-		fail(err)
+		// JSON.parse 的 SyntaxError.message（V8 文本）
+		msg := err.Error()
+		if _, e2 := charcontract.ParseJSON(strings.ToValidUTF8(string(b), "\uFFFD")); e2 != nil {
+			msg = e2.Error()
+		}
+		fail(msg)
 		return
 	}
 	var reqs any
@@ -106,12 +116,12 @@ func (l *GatewayRequestLog) migrateLegacy() {
 			recs[i] = quality.RecordFromEntry(e.Legacy())
 		}
 		if err := l.d.ImportLegacy(recs); err != nil {
-			fail(err)
+			fail(err.Error())
 			return
 		}
 	}
 	if err := os.Remove(file); err != nil && !os.IsNotExist(err) {
-		fail(err)
+		fail(nodefs.Message(err, "unlink", file))
 	}
 }
 

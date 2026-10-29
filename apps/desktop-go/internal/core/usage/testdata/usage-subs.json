@@ -1,0 +1,2682 @@
+{
+ "now": 1760580000000,
+ "salt": "0123456789abcdef0123456789abcdef",
+ "consts": {
+  "claudeArgs": [
+   "-p",
+   "/usage",
+   "--output-format",
+   "json",
+   "--tools",
+   "",
+   "--strict-mcp-config",
+   "--setting-sources",
+   "",
+   "--no-session-persistence"
+  ],
+  "claudeTimeout": 15000,
+  "codexArgs": [
+   "-s",
+   "read-only",
+   "-a",
+   "never",
+   "-c",
+   "analytics.enabled=false",
+   "app-server"
+  ],
+  "codexTimeout": 20000,
+  "grokArgs": [
+   "agent",
+   "stdio"
+  ],
+  "grokTimeout": 15000,
+  "claudeEnv": "{\"A\":\"1\",\"NO_COLOR\":\"1\",\"DISABLE_TELEMETRY\":\"1\",\"DISABLE_ERROR_REPORTING\":\"1\",\"DISABLE_AUTOUPDATER\":\"1\"}"
+ },
+ "mapCases": [
+  {
+   "input": null,
+   "out": "null",
+   "planKind": "none"
+  },
+  {
+   "input": 1,
+   "out": "null",
+   "planKind": "none"
+  },
+  {
+   "input": "x",
+   "out": "null",
+   "planKind": "none"
+  },
+  {
+   "input": [],
+   "out": "null",
+   "planKind": "none"
+  },
+  {
+   "input": {},
+   "out": "null",
+   "planKind": "none"
+  },
+  {
+   "input": {
+    "rateLimits": null
+   },
+   "out": "null",
+   "planKind": "none"
+  },
+  {
+   "input": {
+    "rateLimits": []
+   },
+   "out": "null",
+   "planKind": "none"
+  },
+  {
+   "input": {
+    "rateLimits": {}
+   },
+   "out": "null",
+   "planKind": "none"
+  },
+  {
+   "input": {
+    "rateLimits": {
+     "primary": {
+      "usedPercent": 12.5,
+      "windowDurationMins": 300,
+      "resetsAt": 1760600000
+     },
+     "secondary": {
+      "usedPercent": 140,
+      "windowDurationMins": 10080,
+      "resetsAt": 1760600000000
+     },
+     "planType": "pro"
+    },
+    "accountId": "acc-1"
+   },
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":12.5,\"windowMinutes\":300,\"resetAt\":1760600000000},{\"id\":\"secondary\",\"usedPercent\":100,\"windowMinutes\":10080,\"resetAt\":1760600000000}],\"updatedAt\":1760580000008,\"origin\":\"app-server\",\"plan\":\"Pro\"},\"identity\":\"b52a1ccf17129356\"}",
+   "planKind": "string"
+  },
+  {
+   "input": {
+    "rateLimits": {
+     "primary": {
+      "usedPercent": -1
+     },
+     "secondary": {
+      "usedPercent": 0,
+      "windowDurationMins": 0,
+      "resetsAt": 0
+     },
+     "planType": "unknown"
+    }
+   },
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"secondary\",\"usedPercent\":0}],\"updatedAt\":1760580000009,\"origin\":\"app-server\"},\"identity\":null}",
+   "planKind": "none"
+  },
+  {
+   "input": {
+    "rateLimits": {
+     "primary": {
+      "usedPercent": "5"
+     },
+     "secondary": null
+    }
+   },
+   "out": "null",
+   "planKind": "none"
+  },
+  {
+   "input": {
+    "rateLimits": {
+     "primary": {
+      "usedPercent": 5,
+      "windowDurationMins": -5,
+      "resetsAt": 99999999999
+     },
+     "planType": "prolite"
+    },
+    "accountId": "  "
+   },
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":5,\"resetAt\":99999999999000}],\"updatedAt\":1760580000011,\"origin\":\"app-server\",\"plan\":\"Pro Lite\"},\"identity\":null}",
+   "planKind": "string"
+  },
+  {
+   "input": {
+    "rateLimits": {
+     "primary": {
+      "usedPercent": 5,
+      "resetsAt": 100000000000
+     },
+     "planType": "toString"
+    },
+    "accountId": 7
+   },
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":5,\"resetAt\":100000000000}],\"updatedAt\":1760580000012,\"origin\":\"app-server\"},\"identity\":null}",
+   "planKind": "function"
+  },
+  {
+   "input": {
+    "rateLimits": {
+     "secondary": {
+      "usedPercent": 1.25,
+      "windowDurationMins": "x"
+     },
+     "planType": "enterprise-x"
+    },
+    "accountId": " Acc "
+   },
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"secondary\",\"usedPercent\":1.25}],\"updatedAt\":1760580000013,\"origin\":\"app-server\",\"plan\":\"enterprise-x\"},\"identity\":\"9defae7e52682e7f\"}",
+   "planKind": "string"
+  },
+  {
+   "input": {
+    "rateLimitsByLimitId": {
+     "codex": {
+      "primary": {
+       "usedPercent": 50
+      },
+      "planType": "promax"
+     }
+    },
+    "rateLimits": {
+     "primary": {
+      "usedPercent": 1
+     }
+    }
+   },
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":50}],\"updatedAt\":1760580000014,\"origin\":\"app-server\",\"plan\":\"Pro Max\"},\"identity\":null}",
+   "planKind": "string"
+  },
+  {
+   "input": {
+    "rateLimitsByLimitId": {
+     "codex": []
+    },
+    "rateLimits": {
+     "primary": {
+      "usedPercent": 2
+     },
+     "planType": 7
+    }
+   },
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":2}],\"updatedAt\":1760580000015,\"origin\":\"app-server\"},\"identity\":null}",
+   "planKind": "none"
+  },
+  {
+   "input": {
+    "rateLimitsByLimitId": null,
+    "rateLimits": {
+     "primary": [],
+     "secondary": {
+      "usedPercent": 3
+     }
+    }
+   },
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"secondary\",\"usedPercent\":3}],\"updatedAt\":1760580000016,\"origin\":\"app-server\"},\"identity\":null}",
+   "planKind": "none"
+  },
+  {
+   "input": {
+    "rateLimitsByLimitId": {
+     "other": {}
+    },
+    "rateLimits": {
+     "primary": {
+      "usedPercent": 4
+     },
+     "planType": ""
+    }
+   },
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":4}],\"updatedAt\":1760580000017,\"origin\":\"app-server\"},\"identity\":null}",
+   "planKind": "none"
+  },
+  {
+   "input": {
+    "rateLimits": {
+     "primary": {
+      "usedPercent": 6
+     },
+     "planType": "__proto__"
+    },
+    "accountId": "acc-p"
+   },
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":6}],\"updatedAt\":1760580000018,\"origin\":\"app-server\",\"plan\":{}},\"identity\":\"42cb7c3942635aeb\"}",
+   "planKind": "Object.prototype"
+  },
+  {
+   "input": {
+    "rateLimits": {
+     "primary": {
+      "usedPercent": 6
+     },
+     "planType": "constructor"
+    },
+    "accountId": "acc-p"
+   },
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":6}],\"updatedAt\":1760580000019,\"origin\":\"app-server\"},\"identity\":\"42cb7c3942635aeb\"}",
+   "planKind": "function"
+  },
+  {
+   "input": {
+    "rateLimits": {
+     "primary": {
+      "usedPercent": 6
+     },
+     "planType": "toString"
+    },
+    "accountId": "acc-p"
+   },
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":6}],\"updatedAt\":1760580000020,\"origin\":\"app-server\"},\"identity\":\"42cb7c3942635aeb\"}",
+   "planKind": "function"
+  },
+  {
+   "input": {
+    "rateLimits": {
+     "primary": {
+      "usedPercent": 6
+     },
+     "planType": "hasOwnProperty"
+    },
+    "accountId": "acc-p"
+   },
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":6}],\"updatedAt\":1760580000021,\"origin\":\"app-server\"},\"identity\":\"42cb7c3942635aeb\"}",
+   "planKind": "function"
+  },
+  {
+   "input": {
+    "rateLimits": {
+     "primary": {
+      "usedPercent": 6
+     },
+     "planType": "valueOf"
+    },
+    "accountId": "acc-p"
+   },
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":6}],\"updatedAt\":1760580000022,\"origin\":\"app-server\"},\"identity\":\"42cb7c3942635aeb\"}",
+   "planKind": "function"
+  },
+  {
+   "input": {
+    "rateLimits": {
+     "primary": {
+      "usedPercent": 6
+     },
+     "planType": "toLocaleString"
+    },
+    "accountId": "acc-p"
+   },
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":6}],\"updatedAt\":1760580000023,\"origin\":\"app-server\"},\"identity\":\"42cb7c3942635aeb\"}",
+   "planKind": "function"
+  },
+  {
+   "input": {
+    "rateLimits": {
+     "primary": {
+      "usedPercent": 6
+     },
+     "planType": "isPrototypeOf"
+    },
+    "accountId": "acc-p"
+   },
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":6}],\"updatedAt\":1760580000024,\"origin\":\"app-server\"},\"identity\":\"42cb7c3942635aeb\"}",
+   "planKind": "function"
+  },
+  {
+   "input": {
+    "rateLimits": {
+     "primary": {
+      "usedPercent": 6
+     },
+     "planType": "propertyIsEnumerable"
+    },
+    "accountId": "acc-p"
+   },
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":6}],\"updatedAt\":1760580000025,\"origin\":\"app-server\"},\"identity\":\"42cb7c3942635aeb\"}",
+   "planKind": "function"
+  },
+  {
+   "input": {
+    "rateLimits": {
+     "primary": {
+      "usedPercent": 6
+     },
+     "planType": "__defineGetter__"
+    },
+    "accountId": "acc-p"
+   },
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":6}],\"updatedAt\":1760580000026,\"origin\":\"app-server\"},\"identity\":\"42cb7c3942635aeb\"}",
+   "planKind": "function"
+  },
+  {
+   "input": {
+    "rateLimits": {
+     "primary": {
+      "usedPercent": 6
+     },
+     "planType": "__defineSetter__"
+    },
+    "accountId": "acc-p"
+   },
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":6}],\"updatedAt\":1760580000027,\"origin\":\"app-server\"},\"identity\":\"42cb7c3942635aeb\"}",
+   "planKind": "function"
+  },
+  {
+   "input": {
+    "rateLimits": {
+     "primary": {
+      "usedPercent": 6
+     },
+     "planType": "__lookupGetter__"
+    },
+    "accountId": "acc-p"
+   },
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":6}],\"updatedAt\":1760580000028,\"origin\":\"app-server\"},\"identity\":\"42cb7c3942635aeb\"}",
+   "planKind": "function"
+  },
+  {
+   "input": {
+    "rateLimits": {
+     "primary": {
+      "usedPercent": 6
+     },
+     "planType": "__lookupSetter__"
+    },
+    "accountId": "acc-p"
+   },
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":6}],\"updatedAt\":1760580000029,\"origin\":\"app-server\"},\"identity\":\"42cb7c3942635aeb\"}",
+   "planKind": "function"
+  },
+  {
+   "input": {
+    "rateLimits": {
+     "primary": {
+      "usedPercent": 6
+     },
+     "planType": "prototype"
+    },
+    "accountId": "acc-p"
+   },
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":6}],\"updatedAt\":1760580000030,\"origin\":\"app-server\",\"plan\":\"prototype\"},\"identity\":\"42cb7c3942635aeb\"}",
+   "planKind": "string"
+  },
+  {
+   "input": {
+    "rateLimits": {
+     "primary": {
+      "usedPercent": 6
+     },
+     "planType": "__proto"
+    },
+    "accountId": "acc-p"
+   },
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":6}],\"updatedAt\":1760580000031,\"origin\":\"app-server\",\"plan\":\"__proto\"},\"identity\":\"42cb7c3942635aeb\"}",
+   "planKind": "string"
+  },
+  {
+   "input": {
+    "rateLimitsByLimitId": {
+     "codex": {
+      "primary": {
+       "usedPercent": 8
+      },
+      "planType": "__proto__"
+     }
+    }
+   },
+   "out": "{\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":8}],\"updatedAt\":1760580000032,\"origin\":\"app-server\",\"plan\":{}},\"identity\":null}",
+   "planKind": "Object.prototype"
+  }
+ ],
+ "authCases": [
+  {
+   "code": null,
+   "msg": "Authentication Required to read rate limits",
+   "out": true
+  },
+  {
+   "code": null,
+   "msg": "please LOG IN",
+   "out": true
+  },
+  {
+   "code": null,
+   "msg": "signed in elsewhere",
+   "out": true
+  },
+  {
+   "code": 401,
+   "msg": "x",
+   "out": true
+  },
+  {
+   "code": 400,
+   "msg": "bad request",
+   "out": false
+  },
+  {
+   "code": null,
+   "msg": "unauthorized",
+   "out": true
+  },
+  {
+   "code": null,
+   "msg": "",
+   "out": false
+  },
+  {
+   "code": 403,
+   "msg": "Forbidden",
+   "out": false
+  },
+  {
+   "code": null,
+   "msg": "ΣIGN IN",
+   "out": false
+  }
+ ],
+ "grokParse": [
+  {
+   "input": null,
+   "out": "null"
+  },
+  {
+   "input": [],
+   "out": "null"
+  },
+  {
+   "input": "x",
+   "out": "null"
+  },
+  {
+   "input": {},
+   "out": "null"
+  },
+  {
+   "input": {
+    "config": []
+   },
+   "out": "null"
+  },
+  {
+   "input": {
+    "config": {
+     "creditUsagePercent": 5
+    }
+   },
+   "out": "null"
+  },
+  {
+   "input": {
+    "config": {
+     "creditUsagePercent": 12.5,
+     "currentPeriod": {
+      "start": "2026-10-01T00:00:00Z",
+      "end": "2026-11-01T00:00:00Z",
+      "type": "monthly"
+     }
+    },
+    "subscription_tier": " SuperGrok "
+   },
+   "out": "{\"windows\":[{\"id\":\"monthly\",\"usedPercent\":12.5,\"windowMinutes\":44640,\"resetAt\":1793491200000}],\"updatedAt\":1760580000006,\"origin\":\"grok-acp\",\"plan\":\"SuperGrok\"}"
+  },
+  {
+   "input": {
+    "config": {
+     "creditUsagePercent": "40",
+     "currentPeriod": {
+      "start": "2026-10-01T00:00:00Z",
+      "end": "2026-10-08T00:00:00Z",
+      "type": ""
+     }
+    },
+    "subscription_tier": ""
+   },
+   "out": "{\"windows\":[{\"id\":\"current-period\",\"usedPercent\":40,\"windowMinutes\":10080,\"resetAt\":1791417600000}],\"updatedAt\":1760580000007,\"origin\":\"grok-acp\"}"
+  },
+  {
+   "input": {
+    "config": {
+     "creditUsagePercent": "  ",
+     "currentPeriod": {
+      "start": "2026-10-01T00:00:00Z",
+      "end": "2026-10-08T00:00:00Z"
+     }
+    }
+   },
+   "out": "null"
+  },
+  {
+   "input": {
+    "config": {
+     "creditUsagePercent": " 7.5 ",
+     "currentPeriod": {
+      "start": "2026-10-01",
+      "end": "2026-10-01T00:00:30Z",
+      "type": "x"
+     }
+    },
+    "subscription_tier": 5
+   },
+   "out": "{\"windows\":[{\"id\":\"x\",\"usedPercent\":7.5,\"windowMinutes\":1,\"resetAt\":1790812830000}],\"updatedAt\":1760580000009,\"origin\":\"grok-acp\"}"
+  },
+  {
+   "input": {
+    "config": {
+     "creditUsagePercent": 150,
+     "currentPeriod": {
+      "start": "Oct 1, 2026",
+      "end": "Thu, 08 Oct 2026 00:00:00 GMT",
+      "type": 1
+     }
+    }
+   },
+   "out": "{\"windows\":[{\"id\":\"current-period\",\"usedPercent\":100,\"windowMinutes\":10560,\"resetAt\":1791417600000}],\"updatedAt\":1760580000010,\"origin\":\"grok-acp\"}"
+  },
+  {
+   "input": {
+    "config": {
+     "creditUsagePercent": -1,
+     "currentPeriod": {
+      "start": "2026-10-01T00:00:00Z",
+      "end": "2026-11-01T00:00:00Z"
+     }
+    }
+   },
+   "out": "null"
+  },
+  {
+   "input": {
+    "config": {
+     "creditUsagePercent": 5,
+     "currentPeriod": {
+      "start": "2026-10-02T00:00:00Z",
+      "end": "2026-10-01T00:00:00Z"
+     }
+    }
+   },
+   "out": "null"
+  },
+  {
+   "input": {
+    "config": {
+     "creditUsagePercent": 5,
+     "currentPeriod": {
+      "start": "2026-10-01T00:00:00Z",
+      "end": "nope"
+     }
+    }
+   },
+   "out": "null"
+  },
+  {
+   "input": {
+    "config": {
+     "creditUsagePercent": 5,
+     "currentPeriod": {
+      "start": "",
+      "end": "2026-10-01T00:00:00Z"
+     }
+    }
+   },
+   "out": "null"
+  },
+  {
+   "input": {
+    "config": {
+     "creditUsagePercent": "0x10",
+     "currentPeriod": {
+      "start": "2026-10-01T00:00:00Z",
+      "end": "2026-10-01T00:01:30Z",
+      "type": "p"
+     }
+    }
+   },
+   "out": "{\"windows\":[{\"id\":\"p\",\"usedPercent\":16,\"windowMinutes\":2,\"resetAt\":1790812890000}],\"updatedAt\":1760580000015,\"origin\":\"grok-acp\"}"
+  },
+  {
+   "input": {
+    "config": {
+     "creditUsagePercent": "1e2",
+     "currentPeriod": {
+      "start": "2026-10-01T00:00:00Z",
+      "end": "2026-10-01T00:02:29.999Z",
+      "type": "p"
+     }
+    }
+   },
+   "out": "{\"windows\":[{\"id\":\"p\",\"usedPercent\":100,\"windowMinutes\":2,\"resetAt\":1790812949999}],\"updatedAt\":1760580000016,\"origin\":\"grok-acp\"}"
+  },
+  {
+   "input": {
+    "config": {
+     "creditUsagePercent": "Infinity",
+     "currentPeriod": {
+      "start": "2026-10-01T00:00:00Z",
+      "end": "2026-10-02T00:00:00Z"
+     }
+    }
+   },
+   "out": "null"
+  },
+  {
+   "input": {
+    "config": {
+     "creditUsagePercent": true,
+     "currentPeriod": {
+      "start": "2026-10-01T00:00:00Z",
+      "end": "2026-10-02T00:00:00Z"
+     }
+    }
+   },
+   "out": "null"
+  }
+ ],
+ "parses": {
+  "{\"type\":\"result\",\"is_error\":false,\"local_command\":\"usage\",\"num_turns\":0,\"result\":\"Current session: 12% used · resets 3pm (Asia/Shanghai)\\nCurrent week (all models): 40.5% used · resets Oct 20, 3pm (Asia/Shanghai)\"}": "{\"windows\":[{\"id\":\"five_hour\",\"usedPercent\":12,\"windowMinutes\":300,\"resetAt\":1760598000000},{\"id\":\"seven_day\",\"usedPercent\":40.5,\"windowMinutes\":10080,\"resetAt\":1760943600000}],\"denied\":false,\"isError\":false,\"unsupported\":false}",
+  "{\"type\":\"result\",\"is_error\":false,\"local_command\":\"usage\",\"num_turns\":0,\"result\":\"Current session: 150% used\"}": "{\"windows\":[{\"id\":\"five_hour\",\"usedPercent\":100,\"windowMinutes\":300}],\"denied\":false,\"isError\":false,\"unsupported\":false}",
+  "{\"type\":\"result\",\"is_error\":false,\"local_command\":\"usage\",\"num_turns\":0,\"result\":\"Current session: 12% used\"}": "{\"windows\":[{\"id\":\"five_hour\",\"usedPercent\":12,\"windowMinutes\":300}],\"denied\":false,\"isError\":false,\"unsupported\":false}",
+  "{\"type\":\"result\",\"is_error\":true,\"local_command\":\"usage\",\"num_turns\":0,\"result\":\"Current session: 12% used\"}": "{\"windows\":[{\"id\":\"five_hour\",\"usedPercent\":12,\"windowMinutes\":300}],\"denied\":false,\"isError\":true,\"unsupported\":false}",
+  "{\"type\":\"result\",\"is_error\":false,\"local_command\":\"usage\",\"num_turns\":0,\"result\":\"Not logged in · Please run /login\"}": "{\"windows\":[],\"denied\":true,\"isError\":false,\"unsupported\":false}",
+  "Authentication failed (not json)": "{\"windows\":[],\"denied\":true,\"isError\":true,\"unsupported\":false}",
+  "{\"type\":\"result\",\"is_error\":false,\"local_command\":\"usage\",\"num_turns\":0,\"result\":\"Total cost:            $0.0000\"}": "{\"windows\":[],\"denied\":false,\"isError\":false,\"unsupported\":false}",
+  "hello": "{\"windows\":[],\"denied\":false,\"isError\":true,\"unsupported\":false}",
+  "{\"type\":\"result\",\"is_error\":false,\"local_command\":\"usage\",\"num_turns\":0,\"result\":\"Unknown skill: usage\"}": "{\"windows\":[],\"denied\":false,\"isError\":false,\"unsupported\":true}"
+ },
+ "claude": [
+  {
+   "name": "not-installed",
+   "bin": null,
+   "outs": [
+    "{\"kind\":\"transient\",\"reason\":\"not-installed\"}"
+   ],
+   "unsupported": false,
+   "log": [],
+   "left": []
+  },
+  {
+   "name": "resolve-throws",
+   "bin": "throw",
+   "outs": [
+    "{\"kind\":\"transient\",\"reason\":\"not-installed\"}"
+   ],
+   "unsupported": false,
+   "log": [],
+   "left": []
+  },
+  {
+   "name": "ok-plan",
+   "plan": {
+    "onStart": [
+     "{\"type\":\"result\",\"is_error\":false,\"local_command\":\"usage\",\"num_turns\":0,\"result\":\"Current session: 12% used · resets 3pm (Asia/Shanghai)\\nCurrent week (all models): 40.5% used · resets Oct 20, 3pm (Asia/Shanghai)\"}"
+    ],
+    "exit": "start"
+   },
+   "fetchPlan": "Max",
+   "outs": [
+    "{\"kind\":\"ok\",\"reading\":{\"windows\":[{\"id\":\"five_hour\",\"usedPercent\":12,\"windowMinutes\":300,\"resetAt\":1760598000000},{\"id\":\"seven_day\",\"usedPercent\":40.5,\"windowMinutes\":10080,\"resetAt\":1760943600000}],\"updatedAt\":1760580000000,\"origin\":\"usage-cmd\",\"plan\":\"Max\"}}"
+   ],
+   "unsupported": false,
+   "log": [
+    {
+     "argv": [
+      "-p",
+      "/usage",
+      "--output-format",
+      "json",
+      "--tools",
+      "",
+      "--strict-mcp-config",
+      "--setting-sources",
+      "",
+      "--no-session-persistence"
+     ],
+     "cwd": "nomi-claude-usage-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": "1",
+      "DISABLE_TELEMETRY": "1",
+      "DISABLE_ERROR_REPORTING": "1",
+      "DISABLE_AUTOUPDATER": "1",
+      "MOCK_X": "x1"
+     }
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "ok-no-plan",
+   "plan": {
+    "onStart": [
+     "{\"type\":\"result\",\"is_error\":false,\"local_command\":\"usage\",\"num_turns\":0,\"result\":\"Current session: 150% used\"}"
+    ],
+    "exit": "start"
+   },
+   "outs": [
+    "{\"kind\":\"ok\",\"reading\":{\"windows\":[{\"id\":\"five_hour\",\"usedPercent\":100,\"windowMinutes\":300}],\"updatedAt\":1760580000000,\"origin\":\"usage-cmd\"}}"
+   ],
+   "unsupported": false,
+   "log": [
+    {
+     "argv": [
+      "-p",
+      "/usage",
+      "--output-format",
+      "json",
+      "--tools",
+      "",
+      "--strict-mcp-config",
+      "--setting-sources",
+      "",
+      "--no-session-persistence"
+     ],
+     "cwd": "nomi-claude-usage-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": "1",
+      "DISABLE_TELEMETRY": "1",
+      "DISABLE_ERROR_REPORTING": "1",
+      "DISABLE_AUTOUPDATER": "1",
+      "MOCK_X": "x1"
+     }
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "exit-1",
+   "plan": {
+    "onStart": [
+     "{\"type\":\"result\",\"is_error\":false,\"local_command\":\"usage\",\"num_turns\":0,\"result\":\"Current session: 12% used\"}"
+    ],
+    "exit": "start",
+    "code": 1
+   },
+   "outs": [
+    "{\"kind\":\"transient\",\"reason\":\"bad-output\"}"
+   ],
+   "unsupported": false,
+   "log": [
+    {
+     "argv": [
+      "-p",
+      "/usage",
+      "--output-format",
+      "json",
+      "--tools",
+      "",
+      "--strict-mcp-config",
+      "--setting-sources",
+      "",
+      "--no-session-persistence"
+     ],
+     "cwd": "nomi-claude-usage-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": "1",
+      "DISABLE_TELEMETRY": "1",
+      "DISABLE_ERROR_REPORTING": "1",
+      "DISABLE_AUTOUPDATER": "1",
+      "MOCK_X": "x1"
+     }
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "is-error",
+   "plan": {
+    "onStart": [
+     "{\"type\":\"result\",\"is_error\":true,\"local_command\":\"usage\",\"num_turns\":0,\"result\":\"Current session: 12% used\"}"
+    ],
+    "exit": "start"
+   },
+   "outs": [
+    "{\"kind\":\"transient\",\"reason\":\"bad-output\"}"
+   ],
+   "unsupported": false,
+   "log": [
+    {
+     "argv": [
+      "-p",
+      "/usage",
+      "--output-format",
+      "json",
+      "--tools",
+      "",
+      "--strict-mcp-config",
+      "--setting-sources",
+      "",
+      "--no-session-persistence"
+     ],
+     "cwd": "nomi-claude-usage-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": "1",
+      "DISABLE_TELEMETRY": "1",
+      "DISABLE_ERROR_REPORTING": "1",
+      "DISABLE_AUTOUPDATER": "1",
+      "MOCK_X": "x1"
+     }
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "denied",
+   "plan": {
+    "onStart": [
+     "{\"type\":\"result\",\"is_error\":false,\"local_command\":\"usage\",\"num_turns\":0,\"result\":\"Not logged in · Please run /login\"}"
+    ],
+    "exit": "start"
+   },
+   "outs": [
+    "{\"kind\":\"auth\",\"reason\":\"denied\"}"
+   ],
+   "unsupported": false,
+   "log": [
+    {
+     "argv": [
+      "-p",
+      "/usage",
+      "--output-format",
+      "json",
+      "--tools",
+      "",
+      "--strict-mcp-config",
+      "--setting-sources",
+      "",
+      "--no-session-persistence"
+     ],
+     "cwd": "nomi-claude-usage-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": "1",
+      "DISABLE_TELEMETRY": "1",
+      "DISABLE_ERROR_REPORTING": "1",
+      "DISABLE_AUTOUPDATER": "1",
+      "MOCK_X": "x1"
+     }
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "denied-exit-1",
+   "plan": {
+    "onStart": [
+     "Authentication failed (not json)"
+    ],
+    "exit": "start",
+    "code": 1
+   },
+   "outs": [
+    "{\"kind\":\"auth\",\"reason\":\"denied\"}"
+   ],
+   "unsupported": false,
+   "log": [
+    {
+     "argv": [
+      "-p",
+      "/usage",
+      "--output-format",
+      "json",
+      "--tools",
+      "",
+      "--strict-mcp-config",
+      "--setting-sources",
+      "",
+      "--no-session-persistence"
+     ],
+     "cwd": "nomi-claude-usage-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": "1",
+      "DISABLE_TELEMETRY": "1",
+      "DISABLE_ERROR_REPORTING": "1",
+      "DISABLE_AUTOUPDATER": "1",
+      "MOCK_X": "x1"
+     }
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "no-limits",
+   "plan": {
+    "onStart": [
+     "{\"type\":\"result\",\"is_error\":false,\"local_command\":\"usage\",\"num_turns\":0,\"result\":\"Total cost:            $0.0000\"}"
+    ],
+    "exit": "start"
+   },
+   "outs": [
+    "{\"kind\":\"transient\",\"reason\":\"no-limits\"}"
+   ],
+   "unsupported": false,
+   "log": [
+    {
+     "argv": [
+      "-p",
+      "/usage",
+      "--output-format",
+      "json",
+      "--tools",
+      "",
+      "--strict-mcp-config",
+      "--setting-sources",
+      "",
+      "--no-session-persistence"
+     ],
+     "cwd": "nomi-claude-usage-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": "1",
+      "DISABLE_TELEMETRY": "1",
+      "DISABLE_ERROR_REPORTING": "1",
+      "DISABLE_AUTOUPDATER": "1",
+      "MOCK_X": "x1"
+     }
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "garbage",
+   "plan": {
+    "onStart": [
+     "hello"
+    ],
+    "exit": "start"
+   },
+   "outs": [
+    "{\"kind\":\"transient\",\"reason\":\"bad-output\"}"
+   ],
+   "unsupported": false,
+   "log": [
+    {
+     "argv": [
+      "-p",
+      "/usage",
+      "--output-format",
+      "json",
+      "--tools",
+      "",
+      "--strict-mcp-config",
+      "--setting-sources",
+      "",
+      "--no-session-persistence"
+     ],
+     "cwd": "nomi-claude-usage-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": "1",
+      "DISABLE_TELEMETRY": "1",
+      "DISABLE_ERROR_REPORTING": "1",
+      "DISABLE_AUTOUPDATER": "1",
+      "MOCK_X": "x1"
+     }
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "unsupported-twice",
+   "plan": {
+    "onStart": [
+     "{\"type\":\"result\",\"is_error\":false,\"local_command\":\"usage\",\"num_turns\":0,\"result\":\"Unknown skill: usage\"}"
+    ],
+    "exit": "start"
+   },
+   "twice": true,
+   "outs": [
+    "{\"kind\":\"transient\",\"reason\":\"unsupported\"}",
+    "{\"kind\":\"transient\",\"reason\":\"unsupported\"}"
+   ],
+   "unsupported": true,
+   "log": [
+    {
+     "argv": [
+      "-p",
+      "/usage",
+      "--output-format",
+      "json",
+      "--tools",
+      "",
+      "--strict-mcp-config",
+      "--setting-sources",
+      "",
+      "--no-session-persistence"
+     ],
+     "cwd": "nomi-claude-usage-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": "1",
+      "DISABLE_TELEMETRY": "1",
+      "DISABLE_ERROR_REPORTING": "1",
+      "DISABLE_AUTOUPDATER": "1",
+      "MOCK_X": "x1"
+     }
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "timeout",
+   "plan": {
+    "onStart": [
+     "{\"partial\":"
+    ]
+   },
+   "timeoutMs": 400,
+   "outs": [
+    "{\"kind\":\"transient\",\"reason\":\"timeout\"}"
+   ],
+   "unsupported": false,
+   "log": [
+    {
+     "argv": [
+      "-p",
+      "/usage",
+      "--output-format",
+      "json",
+      "--tools",
+      "",
+      "--strict-mcp-config",
+      "--setting-sources",
+      "",
+      "--no-session-persistence"
+     ],
+     "cwd": "nomi-claude-usage-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": "1",
+      "DISABLE_TELEMETRY": "1",
+      "DISABLE_ERROR_REPORTING": "1",
+      "DISABLE_AUTOUPDATER": "1",
+      "MOCK_X": "x1"
+     }
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "output-limit",
+   "plan": {
+    "big": 300000
+   },
+   "outs": [
+    "{\"kind\":\"transient\",\"reason\":\"output-limit\"}"
+   ],
+   "unsupported": false,
+   "log": [
+    {
+     "argv": [
+      "-p",
+      "/usage",
+      "--output-format",
+      "json",
+      "--tools",
+      "",
+      "--strict-mcp-config",
+      "--setting-sources",
+      "",
+      "--no-session-persistence"
+     ],
+     "cwd": "nomi-claude-usage-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": "1",
+      "DISABLE_TELEMETRY": "1",
+      "DISABLE_ERROR_REPORTING": "1",
+      "DISABLE_AUTOUPDATER": "1",
+      "MOCK_X": "x1"
+     }
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "enoent",
+   "bin": "/workspace/wt-205-usage2/scripts/parity/no-such-usage-cli",
+   "outs": [
+    "{\"kind\":\"transient\",\"reason\":\"not-installed\"}"
+   ],
+   "unsupported": false,
+   "log": [],
+   "left": []
+  }
+ ],
+ "codex": [
+  {
+   "name": "not-installed",
+   "bin": null,
+   "outs": [
+    "{\"kind\":\"transient\",\"reason\":\"not-installed\"}"
+   ],
+   "planKind": "none",
+   "log": [],
+   "left": []
+  },
+  {
+   "name": "resolve-throws",
+   "bin": "throw",
+   "outs": [
+    "{\"kind\":\"transient\",\"reason\":\"not-installed\"}"
+   ],
+   "planKind": "none",
+   "log": [],
+   "left": []
+  },
+  {
+   "name": "ok",
+   "plan": {
+    "onLine": {
+     "0": [
+      "{\"id\":1,\"result\":{\"userAgent\":\"codex\"}}\n"
+     ],
+     "2": [
+      "{\"method\":\"account/updated\",\"params\":{}}\n",
+      "{\"id\":2,\"result\":{\"rateLimits\":{\"primary\":{\"usedPercent\":12.5,\"windowDurationMins\":300,\"resetsAt\":1760600000},\"secondary\":{\"usedPercent\":33,\"windowDurationMins\":10080,\"resetsAt\":1761000000},\"planType\":\"plus\"},\"accountId\":\"acc-1\"}}\n"
+     ]
+    }
+   },
+   "outs": [
+    "{\"kind\":\"ok\",\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":12.5,\"windowMinutes\":300,\"resetAt\":1760600000000},{\"id\":\"secondary\",\"usedPercent\":33,\"windowMinutes\":10080,\"resetAt\":1761000000000}],\"updatedAt\":1760580000000,\"origin\":\"app-server\",\"plan\":\"Plus\"},\"identity\":\"b52a1ccf17129356\"}"
+   ],
+   "planKind": "string",
+   "log": [
+    {
+     "argv": [
+      "-s",
+      "read-only",
+      "-a",
+      "never",
+      "-c",
+      "analytics.enabled=false",
+      "app-server"
+     ],
+     "cwd": "nomi-codex-usage-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": null,
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"id\":1,\"method\":\"initialize\",\"params\":{\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"1.0.0\"}}}"
+    },
+    {
+     "line": "{\"method\":\"initialized\"}"
+    },
+    {
+     "line": "{\"id\":2,\"method\":\"account/rateLimits/read\"}"
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "ok-by-limit-id",
+   "extraArgs": [
+    "-c",
+    "cli_auth_credentials_store=\"file\""
+   ],
+   "clientVersion": "2.0.5",
+   "plan": {
+    "onLine": {
+     "0": [
+      "log line\n",
+      "{\"id\":1,\"result\":{\"userAgent\":\"codex\"}}\n"
+     ],
+     "2": [
+      "{\"id\":2,\"result\":{\"rateLimitsByLimitId\":{\"codex\":{\"primary\":{\"usedPercent\":99,\"resetsAt\":1760600000123},\"planType\":\"unknown\"}}}}\n"
+     ]
+    }
+   },
+   "outs": [
+    "{\"kind\":\"ok\",\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":99,\"resetAt\":1760600000123}],\"updatedAt\":1760580000000,\"origin\":\"app-server\"},\"identity\":null}"
+   ],
+   "planKind": "none",
+   "log": [
+    {
+     "argv": [
+      "-c",
+      "cli_auth_credentials_store=\"file\"",
+      "-s",
+      "read-only",
+      "-a",
+      "never",
+      "-c",
+      "analytics.enabled=false",
+      "app-server"
+     ],
+     "cwd": "nomi-codex-usage-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": null,
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"id\":1,\"method\":\"initialize\",\"params\":{\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"2.0.5\"}}}"
+    },
+    {
+     "line": "{\"method\":\"initialized\"}"
+    },
+    {
+     "line": "{\"id\":2,\"method\":\"account/rateLimits/read\"}"
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "api-account",
+   "plan": {
+    "onLine": {
+     "0": [
+      "{\"id\":1,\"result\":{\"userAgent\":\"codex\"}}\n"
+     ],
+     "2": [
+      "{\"id\":2,\"error\":{\"code\":-32600,\"message\":\"chatgpt authentication required to read rate limits\"}}\n"
+     ]
+    }
+   },
+   "outs": [
+    "{\"kind\":\"auth\",\"reason\":\"api-account\"}"
+   ],
+   "planKind": "none",
+   "log": [
+    {
+     "argv": [
+      "-s",
+      "read-only",
+      "-a",
+      "never",
+      "-c",
+      "analytics.enabled=false",
+      "app-server"
+     ],
+     "cwd": "nomi-codex-usage-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": null,
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"id\":1,\"method\":\"initialize\",\"params\":{\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"1.0.0\"}}}"
+    },
+    {
+     "line": "{\"method\":\"initialized\"}"
+    },
+    {
+     "line": "{\"id\":2,\"method\":\"account/rateLimits/read\"}"
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "not-signed-in",
+   "plan": {
+    "onLine": {
+     "0": [
+      "{\"id\":1,\"result\":{\"userAgent\":\"codex\"}}\n"
+     ],
+     "2": [
+      "{\"id\":2,\"error\":{\"code\":-32600,\"message\":\"Not logged in\"}}\n"
+     ]
+    }
+   },
+   "outs": [
+    "{\"kind\":\"auth\",\"reason\":\"not-signed-in\"}"
+   ],
+   "planKind": "none",
+   "log": [
+    {
+     "argv": [
+      "-s",
+      "read-only",
+      "-a",
+      "never",
+      "-c",
+      "analytics.enabled=false",
+      "app-server"
+     ],
+     "cwd": "nomi-codex-usage-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": null,
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"id\":1,\"method\":\"initialize\",\"params\":{\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"1.0.0\"}}}"
+    },
+    {
+     "line": "{\"method\":\"initialized\"}"
+    },
+    {
+     "line": "{\"id\":2,\"method\":\"account/rateLimits/read\"}"
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "code-401",
+   "plan": {
+    "onLine": {
+     "0": [
+      "{\"id\":1,\"result\":{\"userAgent\":\"codex\"}}\n"
+     ],
+     "2": [
+      "{\"id\":2,\"error\":{\"code\":401,\"message\":7}}\n"
+     ]
+    }
+   },
+   "outs": [
+    "{\"kind\":\"auth\",\"reason\":\"not-signed-in\"}"
+   ],
+   "planKind": "none",
+   "log": [
+    {
+     "argv": [
+      "-s",
+      "read-only",
+      "-a",
+      "never",
+      "-c",
+      "analytics.enabled=false",
+      "app-server"
+     ],
+     "cwd": "nomi-codex-usage-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": null,
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"id\":1,\"method\":\"initialize\",\"params\":{\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"1.0.0\"}}}"
+    },
+    {
+     "line": "{\"method\":\"initialized\"}"
+    },
+    {
+     "line": "{\"id\":2,\"method\":\"account/rateLimits/read\"}"
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "chatgpt-past-300",
+   "plan": {
+    "onLine": {
+     "0": [
+      "{\"id\":1,\"result\":{\"userAgent\":\"codex\"}}\n"
+     ],
+     "2": [
+      "{\"id\":2,\"error\":{\"message\":\"authentication required ............................................................................................................................................................................................................................................................................................................ chatgpt\"}}\n"
+     ]
+    }
+   },
+   "outs": [
+    "{\"kind\":\"auth\",\"reason\":\"not-signed-in\"}"
+   ],
+   "planKind": "none",
+   "log": [
+    {
+     "argv": [
+      "-s",
+      "read-only",
+      "-a",
+      "never",
+      "-c",
+      "analytics.enabled=false",
+      "app-server"
+     ],
+     "cwd": "nomi-codex-usage-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": null,
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"id\":1,\"method\":\"initialize\",\"params\":{\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"1.0.0\"}}}"
+    },
+    {
+     "line": "{\"method\":\"initialized\"}"
+    },
+    {
+     "line": "{\"id\":2,\"method\":\"account/rateLimits/read\"}"
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "chatgpt-at-300",
+   "plan": {
+    "onLine": {
+     "0": [
+      "{\"id\":1,\"result\":{\"userAgent\":\"codex\"}}\n"
+     ],
+     "2": [
+      "{\"id\":2,\"error\":{\"code\":401,\"message\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxchatgpt!\"}}\n"
+     ]
+    }
+   },
+   "outs": [
+    "{\"kind\":\"auth\",\"reason\":\"api-account\"}"
+   ],
+   "planKind": "none",
+   "log": [
+    {
+     "argv": [
+      "-s",
+      "read-only",
+      "-a",
+      "never",
+      "-c",
+      "analytics.enabled=false",
+      "app-server"
+     ],
+     "cwd": "nomi-codex-usage-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": null,
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"id\":1,\"method\":\"initialize\",\"params\":{\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"1.0.0\"}}}"
+    },
+    {
+     "line": "{\"method\":\"initialized\"}"
+    },
+    {
+     "line": "{\"id\":2,\"method\":\"account/rateLimits/read\"}"
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "rpc-other",
+   "plan": {
+    "onLine": {
+     "0": [
+      "{\"id\":1,\"result\":{\"userAgent\":\"codex\"}}\n"
+     ],
+     "2": [
+      "{\"id\":2,\"error\":{\"code\":-32000,\"message\":\"boom\"}}\n"
+     ]
+    }
+   },
+   "outs": [
+    "{\"kind\":\"transient\",\"reason\":\"bad-output\"}"
+   ],
+   "planKind": "none",
+   "log": [
+    {
+     "argv": [
+      "-s",
+      "read-only",
+      "-a",
+      "never",
+      "-c",
+      "analytics.enabled=false",
+      "app-server"
+     ],
+     "cwd": "nomi-codex-usage-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": null,
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"id\":1,\"method\":\"initialize\",\"params\":{\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"1.0.0\"}}}"
+    },
+    {
+     "line": "{\"method\":\"initialized\"}"
+    },
+    {
+     "line": "{\"id\":2,\"method\":\"account/rateLimits/read\"}"
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "init-error",
+   "plan": {
+    "onLine": {
+     "0": [
+      "{\"id\":1,\"error\":{\"code\":-1,\"message\":\"sign in first\"}}\n"
+     ]
+    }
+   },
+   "outs": [
+    "{\"kind\":\"auth\",\"reason\":\"not-signed-in\"}"
+   ],
+   "planKind": "none",
+   "log": [
+    {
+     "argv": [
+      "-s",
+      "read-only",
+      "-a",
+      "never",
+      "-c",
+      "analytics.enabled=false",
+      "app-server"
+     ],
+     "cwd": "nomi-codex-usage-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": null,
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"id\":1,\"method\":\"initialize\",\"params\":{\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"1.0.0\"}}}"
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "error-not-object",
+   "plan": {
+    "onLine": {
+     "0": [
+      "{\"id\":1,\"result\":{\"userAgent\":\"codex\"}}\n"
+     ],
+     "2": [
+      "{\"id\":2,\"error\":\"x\",\"result\":{\"rateLimits\":{\"primary\":{\"usedPercent\":1}}}}\n"
+     ]
+    }
+   },
+   "outs": [
+    "{\"kind\":\"ok\",\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":1}],\"updatedAt\":1760580000000,\"origin\":\"app-server\"},\"identity\":null}"
+   ],
+   "planKind": "none",
+   "log": [
+    {
+     "argv": [
+      "-s",
+      "read-only",
+      "-a",
+      "never",
+      "-c",
+      "analytics.enabled=false",
+      "app-server"
+     ],
+     "cwd": "nomi-codex-usage-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": null,
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"id\":1,\"method\":\"initialize\",\"params\":{\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"1.0.0\"}}}"
+    },
+    {
+     "line": "{\"method\":\"initialized\"}"
+    },
+    {
+     "line": "{\"id\":2,\"method\":\"account/rateLimits/read\"}"
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "no-limits",
+   "plan": {
+    "onLine": {
+     "0": [
+      "{\"id\":1,\"result\":{\"userAgent\":\"codex\"}}\n"
+     ],
+     "2": [
+      "{\"id\":2,\"result\":{}}\n"
+     ]
+    }
+   },
+   "outs": [
+    "{\"kind\":\"transient\",\"reason\":\"no-limits\"}"
+   ],
+   "planKind": "none",
+   "log": [
+    {
+     "argv": [
+      "-s",
+      "read-only",
+      "-a",
+      "never",
+      "-c",
+      "analytics.enabled=false",
+      "app-server"
+     ],
+     "cwd": "nomi-codex-usage-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": null,
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"id\":1,\"method\":\"initialize\",\"params\":{\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"1.0.0\"}}}"
+    },
+    {
+     "line": "{\"method\":\"initialized\"}"
+    },
+    {
+     "line": "{\"id\":2,\"method\":\"account/rateLimits/read\"}"
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "same-chunk-early-id2",
+   "plan": {
+    "onLine": {
+     "0": [
+      "{\"id\":1,\"result\":{\"userAgent\":\"codex\"}}\n{\"id\":2,\"result\":{\"rateLimits\":{\"primary\":{\"usedPercent\":12.5,\"windowDurationMins\":300,\"resetsAt\":1760600000},\"secondary\":{\"usedPercent\":33,\"windowDurationMins\":10080,\"resetsAt\":1761000000},\"planType\":\"plus\"},\"accountId\":\"acc-1\"}}\n[1]\n{\"id\":\"1\"}\n\n"
+     ],
+     "2": [
+      "{\"id\":2,\"result\":{\"rateLimits\":{\"primary\":{\"usedPercent\":1}}}}\n"
+     ]
+    }
+   },
+   "outs": [
+    "{\"kind\":\"ok\",\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":1}],\"updatedAt\":1760580000000,\"origin\":\"app-server\"},\"identity\":null}"
+   ],
+   "planKind": "none",
+   "log": [
+    {
+     "argv": [
+      "-s",
+      "read-only",
+      "-a",
+      "never",
+      "-c",
+      "analytics.enabled=false",
+      "app-server"
+     ],
+     "cwd": "nomi-codex-usage-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": null,
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"id\":1,\"method\":\"initialize\",\"params\":{\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"1.0.0\"}}}"
+    },
+    {
+     "line": "{\"method\":\"initialized\"}"
+    },
+    {
+     "line": "{\"id\":2,\"method\":\"account/rateLimits/read\"}"
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "split-chunks",
+   "plan": {
+    "onLine": {
+     "0": [
+      "{\"id\":1,",
+      "\"result\":{}}\n"
+     ],
+     "2": [
+      "{id:2,result\\",
+      "\n",
+      "{\"id\":2,\"result\":{\"rateLimits\":{\"primary\":{\"usedPercent\":12.5,\"windowDurationMins\":300,\"resetsAt\":1760600000},\"secondary\":{\"usedPercent\":33,\"windowDurationMins\":10080,\"resetsAt\":1761000000},\"planType\":\"plus\"},\"accountId\":\"acc-1\"}}\n"
+     ]
+    }
+   },
+   "outs": [
+    "{\"kind\":\"ok\",\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":12.5,\"windowMinutes\":300,\"resetAt\":1760600000000},{\"id\":\"secondary\",\"usedPercent\":33,\"windowMinutes\":10080,\"resetAt\":1761000000000}],\"updatedAt\":1760580000000,\"origin\":\"app-server\",\"plan\":\"Plus\"},\"identity\":\"b52a1ccf17129356\"}"
+   ],
+   "planKind": "string",
+   "log": [
+    {
+     "argv": [
+      "-s",
+      "read-only",
+      "-a",
+      "never",
+      "-c",
+      "analytics.enabled=false",
+      "app-server"
+     ],
+     "cwd": "nomi-codex-usage-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": null,
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"id\":1,\"method\":\"initialize\",\"params\":{\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"1.0.0\"}}}"
+    },
+    {
+     "line": "{\"method\":\"initialized\"}"
+    },
+    {
+     "line": "{\"id\":2,\"method\":\"account/rateLimits/read\"}"
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "closed",
+   "plan": {
+    "exit": "start"
+   },
+   "outs": [
+    "{\"kind\":\"transient\",\"reason\":\"spawn-failed\"}"
+   ],
+   "planKind": "none",
+   "log": [
+    {
+     "argv": [
+      "-s",
+      "read-only",
+      "-a",
+      "never",
+      "-c",
+      "analytics.enabled=false",
+      "app-server"
+     ],
+     "cwd": "nomi-codex-usage-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": null,
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "closed-after-init",
+   "plan": {
+    "onLine": {
+     "0": [
+      "{\"id\":1,\"result\":{\"userAgent\":\"codex\"}}\n"
+     ]
+    },
+    "exit": 1
+   },
+   "outs": [
+    "{\"kind\":\"transient\",\"reason\":\"spawn-failed\"}"
+   ],
+   "planKind": "none",
+   "log": [
+    {
+     "argv": [
+      "-s",
+      "read-only",
+      "-a",
+      "never",
+      "-c",
+      "analytics.enabled=false",
+      "app-server"
+     ],
+     "cwd": "nomi-codex-usage-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": null,
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"id\":1,\"method\":\"initialize\",\"params\":{\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"1.0.0\"}}}"
+    },
+    {
+     "line": "{\"method\":\"initialized\"}"
+    },
+    {
+     "line": "{\"id\":2,\"method\":\"account/rateLimits/read\"}"
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "timeout",
+   "plan": {},
+   "timeoutMs": 400,
+   "outs": [
+    "{\"kind\":\"transient\",\"reason\":\"timeout\"}"
+   ],
+   "planKind": "none",
+   "log": [
+    {
+     "argv": [
+      "-s",
+      "read-only",
+      "-a",
+      "never",
+      "-c",
+      "analytics.enabled=false",
+      "app-server"
+     ],
+     "cwd": "nomi-codex-usage-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": null,
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"id\":1,\"method\":\"initialize\",\"params\":{\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"1.0.0\"}}}"
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "output-limit",
+   "plan": {
+    "big": 300000
+   },
+   "outs": [
+    "{\"kind\":\"transient\",\"reason\":\"output-limit\"}"
+   ],
+   "planKind": "none",
+   "log": [
+    {
+     "argv": [
+      "-s",
+      "read-only",
+      "-a",
+      "never",
+      "-c",
+      "analytics.enabled=false",
+      "app-server"
+     ],
+     "cwd": "nomi-codex-usage-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": null,
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"id\":1,\"method\":\"initialize\",\"params\":{\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"1.0.0\"}}}"
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "utf16-units-under-limit",
+   "plan": {
+    "big": 140000,
+    "bigChar": "é"
+   },
+   "timeoutMs": 600,
+   "outs": [
+    "{\"kind\":\"transient\",\"reason\":\"timeout\"}"
+   ],
+   "planKind": "none",
+   "log": [
+    {
+     "argv": [
+      "-s",
+      "read-only",
+      "-a",
+      "never",
+      "-c",
+      "analytics.enabled=false",
+      "app-server"
+     ],
+     "cwd": "nomi-codex-usage-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": null,
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"id\":1,\"method\":\"initialize\",\"params\":{\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"1.0.0\"}}}"
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "enoent",
+   "bin": "/workspace/wt-205-usage2/scripts/parity/no-such-usage-cli",
+   "outs": [
+    "{\"kind\":\"transient\",\"reason\":\"not-installed\"}"
+   ],
+   "planKind": "none",
+   "log": [],
+   "left": []
+  },
+  {
+   "name": "ok-proto-plan",
+   "plan": {
+    "onLine": {
+     "0": [
+      "{\"id\":1,\"result\":{\"userAgent\":\"codex\"}}\n"
+     ],
+     "2": [
+      "{\"id\":2,\"result\":{\"rateLimits\":{\"primary\":{\"usedPercent\":12.5,\"windowDurationMins\":300,\"resetsAt\":1760600000},\"secondary\":{\"usedPercent\":33,\"windowDurationMins\":10080,\"resetsAt\":1761000000},\"planType\":\"__proto__\"},\"accountId\":\"acc-1\"}}\n"
+     ]
+    }
+   },
+   "outs": [
+    "{\"kind\":\"ok\",\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":12.5,\"windowMinutes\":300,\"resetAt\":1760600000000},{\"id\":\"secondary\",\"usedPercent\":33,\"windowMinutes\":10080,\"resetAt\":1761000000000}],\"updatedAt\":1760580000000,\"origin\":\"app-server\",\"plan\":{}},\"identity\":\"b52a1ccf17129356\"}"
+   ],
+   "planKind": "Object.prototype",
+   "log": [
+    {
+     "argv": [
+      "-s",
+      "read-only",
+      "-a",
+      "never",
+      "-c",
+      "analytics.enabled=false",
+      "app-server"
+     ],
+     "cwd": "nomi-codex-usage-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": null,
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"id\":1,\"method\":\"initialize\",\"params\":{\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"1.0.0\"}}}"
+    },
+    {
+     "line": "{\"method\":\"initialized\"}"
+    },
+    {
+     "line": "{\"id\":2,\"method\":\"account/rateLimits/read\"}"
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "ok-method-plan",
+   "plan": {
+    "onLine": {
+     "0": [
+      "{\"id\":1,\"result\":{\"userAgent\":\"codex\"}}\n"
+     ],
+     "2": [
+      "{\"id\":2,\"result\":{\"rateLimits\":{\"primary\":{\"usedPercent\":12.5,\"windowDurationMins\":300,\"resetsAt\":1760600000},\"secondary\":{\"usedPercent\":33,\"windowDurationMins\":10080,\"resetsAt\":1761000000},\"planType\":\"constructor\"},\"accountId\":\"acc-1\"}}\n"
+     ]
+    }
+   },
+   "outs": [
+    "{\"kind\":\"ok\",\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":12.5,\"windowMinutes\":300,\"resetAt\":1760600000000},{\"id\":\"secondary\",\"usedPercent\":33,\"windowMinutes\":10080,\"resetAt\":1761000000000}],\"updatedAt\":1760580000000,\"origin\":\"app-server\"},\"identity\":\"b52a1ccf17129356\"}"
+   ],
+   "planKind": "function",
+   "log": [
+    {
+     "argv": [
+      "-s",
+      "read-only",
+      "-a",
+      "never",
+      "-c",
+      "analytics.enabled=false",
+      "app-server"
+     ],
+     "cwd": "nomi-codex-usage-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": null,
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"id\":1,\"method\":\"initialize\",\"params\":{\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"1.0.0\"}}}"
+    },
+    {
+     "line": "{\"method\":\"initialized\"}"
+    },
+    {
+     "line": "{\"id\":2,\"method\":\"account/rateLimits/read\"}"
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "ok-tostring-plan",
+   "plan": {
+    "onLine": {
+     "0": [
+      "{\"id\":1,\"result\":{\"userAgent\":\"codex\"}}\n"
+     ],
+     "2": [
+      "{\"id\":2,\"result\":{\"rateLimits\":{\"primary\":{\"usedPercent\":12.5,\"windowDurationMins\":300,\"resetsAt\":1760600000},\"secondary\":{\"usedPercent\":33,\"windowDurationMins\":10080,\"resetsAt\":1761000000},\"planType\":\"toString\"},\"accountId\":\"acc-1\"}}\n"
+     ]
+    }
+   },
+   "outs": [
+    "{\"kind\":\"ok\",\"reading\":{\"windows\":[{\"id\":\"primary\",\"usedPercent\":12.5,\"windowMinutes\":300,\"resetAt\":1760600000000},{\"id\":\"secondary\",\"usedPercent\":33,\"windowMinutes\":10080,\"resetAt\":1761000000000}],\"updatedAt\":1760580000000,\"origin\":\"app-server\"},\"identity\":\"b52a1ccf17129356\"}"
+   ],
+   "planKind": "function",
+   "log": [
+    {
+     "argv": [
+      "-s",
+      "read-only",
+      "-a",
+      "never",
+      "-c",
+      "analytics.enabled=false",
+      "app-server"
+     ],
+     "cwd": "nomi-codex-usage-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": null,
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"id\":1,\"method\":\"initialize\",\"params\":{\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"1.0.0\"}}}"
+    },
+    {
+     "line": "{\"method\":\"initialized\"}"
+    },
+    {
+     "line": "{\"id\":2,\"method\":\"account/rateLimits/read\"}"
+    }
+   ],
+   "left": []
+  }
+ ],
+ "grok": [
+  {
+   "name": "not-installed",
+   "bin": null,
+   "outs": [
+    "{\"kind\":\"transient\",\"reason\":\"not-installed\"}"
+   ],
+   "log": [],
+   "left": []
+  },
+  {
+   "name": "resolve-throws",
+   "bin": "throw",
+   "outs": [
+    "{\"kind\":\"transient\",\"reason\":\"not-installed\"}"
+   ],
+   "log": [],
+   "left": []
+  },
+  {
+   "name": "ok",
+   "plan": {
+    "onLine": {
+     "0": [
+      "noise\n",
+      "{\"id\":1,\"result\":{\"protocolVersion\":1}}\n"
+     ],
+     "2": [
+      "{\"id\":2,\"result\":{\"config\":{\"creditUsagePercent\":25,\"currentPeriod\":{\"start\":\"2026-10-01T00:00:00Z\",\"end\":\"2026-11-01T00:00:00Z\",\"type\":\"monthly\"}},\"subscription_tier\":\"SuperGrok\"}}\n"
+     ]
+    }
+   },
+   "outs": [
+    "{\"kind\":\"ok\",\"reading\":{\"windows\":[{\"id\":\"monthly\",\"usedPercent\":25,\"windowMinutes\":44640,\"resetAt\":1793491200000}],\"updatedAt\":1760580000000,\"origin\":\"grok-acp\",\"plan\":\"SuperGrok\"}}"
+   ],
+   "log": [
+    {
+     "argv": [
+      "agent",
+      "stdio"
+     ],
+     "cwd": "nomi-grok-billing-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": "1",
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":1,\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"1.0.0\"},\"clientCapabilities\":{}}}"
+    },
+    {
+     "line": "{\"jsonrpc\":\"2.0\",\"method\":\"initialized\",\"params\":{}}"
+    },
+    {
+     "line": "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"_x.ai/billing\",\"params\":{}}"
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "init-error",
+   "plan": {
+    "onLine": {
+     "0": [
+      "{\"id\":1,\"error\":{\"code\":-32000,\"message\":\"x\"}}\n"
+     ]
+    }
+   },
+   "outs": [
+    "{\"kind\":\"transient\",\"reason\":\"network\"}"
+   ],
+   "log": [
+    {
+     "argv": [
+      "agent",
+      "stdio"
+     ],
+     "cwd": "nomi-grok-billing-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": "1",
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":1,\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"1.0.0\"},\"clientCapabilities\":{}}}"
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "init-error-array",
+   "plan": {
+    "onLine": {
+     "0": [
+      "{\"id\":1,\"error\":[]}\n"
+     ]
+    }
+   },
+   "outs": [
+    "{\"kind\":\"transient\",\"reason\":\"network\"}"
+   ],
+   "log": [
+    {
+     "argv": [
+      "agent",
+      "stdio"
+     ],
+     "cwd": "nomi-grok-billing-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": "1",
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":1,\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"1.0.0\"},\"clientCapabilities\":{}}}"
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "init-error-string",
+   "plan": {
+    "onLine": {
+     "0": [
+      "{\"id\":1,\"error\":\"x\",\"result\":{}}\n"
+     ],
+     "2": [
+      "{\"id\":2,\"result\":{\"config\":{\"creditUsagePercent\":25,\"currentPeriod\":{\"start\":\"2026-10-01T00:00:00Z\",\"end\":\"2026-11-01T00:00:00Z\",\"type\":\"monthly\"}},\"subscription_tier\":\"SuperGrok\"}}\n"
+     ]
+    }
+   },
+   "outs": [
+    "{\"kind\":\"ok\",\"reading\":{\"windows\":[{\"id\":\"monthly\",\"usedPercent\":25,\"windowMinutes\":44640,\"resetAt\":1793491200000}],\"updatedAt\":1760580000000,\"origin\":\"grok-acp\",\"plan\":\"SuperGrok\"}}"
+   ],
+   "log": [
+    {
+     "argv": [
+      "agent",
+      "stdio"
+     ],
+     "cwd": "nomi-grok-billing-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": "1",
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":1,\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"1.0.0\"},\"clientCapabilities\":{}}}"
+    },
+    {
+     "line": "{\"jsonrpc\":\"2.0\",\"method\":\"initialized\",\"params\":{}}"
+    },
+    {
+     "line": "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"_x.ai/billing\",\"params\":{}}"
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "unsupported-twice",
+   "plan": {
+    "onLine": {
+     "0": [
+      "{\"id\":1,\"result\":{\"protocolVersion\":1}}\n"
+     ],
+     "2": [
+      "{\"id\":2,\"error\":{\"code\":-32601,\"message\":\"Method not found\"}}\n"
+     ]
+    }
+   },
+   "twice": true,
+   "outs": [
+    "{\"kind\":\"transient\",\"reason\":\"unsupported\"}",
+    "{\"kind\":\"transient\",\"reason\":\"unsupported\"}"
+   ],
+   "log": [
+    {
+     "argv": [
+      "agent",
+      "stdio"
+     ],
+     "cwd": "nomi-grok-billing-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": "1",
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":1,\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"1.0.0\"},\"clientCapabilities\":{}}}"
+    },
+    {
+     "line": "{\"jsonrpc\":\"2.0\",\"method\":\"initialized\",\"params\":{}}"
+    },
+    {
+     "line": "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"_x.ai/billing\",\"params\":{}}"
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "billing-error",
+   "plan": {
+    "onLine": {
+     "0": [
+      "{\"id\":1,\"result\":{\"protocolVersion\":1}}\n"
+     ],
+     "2": [
+      "{\"id\":2,\"error\":{\"code\":-32603}}\n"
+     ]
+    }
+   },
+   "outs": [
+    "{\"kind\":\"transient\",\"reason\":\"network\"}"
+   ],
+   "log": [
+    {
+     "argv": [
+      "agent",
+      "stdio"
+     ],
+     "cwd": "nomi-grok-billing-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": "1",
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":1,\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"1.0.0\"},\"clientCapabilities\":{}}}"
+    },
+    {
+     "line": "{\"jsonrpc\":\"2.0\",\"method\":\"initialized\",\"params\":{}}"
+    },
+    {
+     "line": "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"_x.ai/billing\",\"params\":{}}"
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "no-limits",
+   "plan": {
+    "onLine": {
+     "0": [
+      "{\"id\":1,\"result\":{\"protocolVersion\":1}}\n"
+     ],
+     "2": [
+      "{\"id\":2,\"result\":{\"config\":{}}}\n"
+     ]
+    }
+   },
+   "outs": [
+    "{\"kind\":\"transient\",\"reason\":\"no-limits\"}"
+   ],
+   "log": [
+    {
+     "argv": [
+      "agent",
+      "stdio"
+     ],
+     "cwd": "nomi-grok-billing-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": "1",
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":1,\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"1.0.0\"},\"clientCapabilities\":{}}}"
+    },
+    {
+     "line": "{\"jsonrpc\":\"2.0\",\"method\":\"initialized\",\"params\":{}}"
+    },
+    {
+     "line": "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"_x.ai/billing\",\"params\":{}}"
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "id2-no-result",
+   "plan": {
+    "onLine": {
+     "0": [
+      "{\"id\":1,\"result\":{\"protocolVersion\":1}}\n"
+     ],
+     "2": [
+      "{\"id\":2}\n"
+     ]
+    }
+   },
+   "outs": [
+    "{\"kind\":\"transient\",\"reason\":\"no-limits\"}"
+   ],
+   "log": [
+    {
+     "argv": [
+      "agent",
+      "stdio"
+     ],
+     "cwd": "nomi-grok-billing-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": "1",
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":1,\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"1.0.0\"},\"clientCapabilities\":{}}}"
+    },
+    {
+     "line": "{\"jsonrpc\":\"2.0\",\"method\":\"initialized\",\"params\":{}}"
+    },
+    {
+     "line": "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"_x.ai/billing\",\"params\":{}}"
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "init-falsy-result",
+   "plan": {
+    "onLine": {
+     "0": [
+      "{\"id\":1,\"result\":0}\n"
+     ]
+    }
+   },
+   "timeoutMs": 400,
+   "outs": [
+    "{\"kind\":\"transient\",\"reason\":\"timeout\"}"
+   ],
+   "log": [
+    {
+     "argv": [
+      "agent",
+      "stdio"
+     ],
+     "cwd": "nomi-grok-billing-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": "1",
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":1,\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"1.0.0\"},\"clientCapabilities\":{}}}"
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "double-init",
+   "plan": {
+    "onLine": {
+     "0": [
+      "{\"id\":1,\"result\":{\"protocolVersion\":1}}\n{\"id\":1,\"result\":{\"protocolVersion\":1}}\n"
+     ],
+     "2": [
+      "{\"id\":2,\"result\":{\"config\":{\"creditUsagePercent\":25,\"currentPeriod\":{\"start\":\"2026-10-01T00:00:00Z\",\"end\":\"2026-11-01T00:00:00Z\",\"type\":\"monthly\"}},\"subscription_tier\":\"SuperGrok\"}}\n"
+     ]
+    }
+   },
+   "outs": [
+    "{\"kind\":\"ok\",\"reading\":{\"windows\":[{\"id\":\"monthly\",\"usedPercent\":25,\"windowMinutes\":44640,\"resetAt\":1793491200000}],\"updatedAt\":1760580000000,\"origin\":\"grok-acp\",\"plan\":\"SuperGrok\"}}"
+   ],
+   "log": [
+    {
+     "argv": [
+      "agent",
+      "stdio"
+     ],
+     "cwd": "nomi-grok-billing-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": "1",
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":1,\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"1.0.0\"},\"clientCapabilities\":{}}}"
+    },
+    {
+     "line": "{\"jsonrpc\":\"2.0\",\"method\":\"initialized\",\"params\":{}}"
+    },
+    {
+     "line": "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"_x.ai/billing\",\"params\":{}}"
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "closed",
+   "plan": {
+    "exit": "start"
+   },
+   "outs": [
+    "{\"kind\":\"transient\",\"reason\":\"no-limits\"}"
+   ],
+   "log": [
+    {
+     "argv": [
+      "agent",
+      "stdio"
+     ],
+     "cwd": "nomi-grok-billing-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": "1",
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "timeout",
+   "plan": {},
+   "timeoutMs": 400,
+   "outs": [
+    "{\"kind\":\"transient\",\"reason\":\"timeout\"}"
+   ],
+   "log": [
+    {
+     "argv": [
+      "agent",
+      "stdio"
+     ],
+     "cwd": "nomi-grok-billing-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": "1",
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":1,\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"1.0.0\"},\"clientCapabilities\":{}}}"
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "bytes-over-limit",
+   "plan": {
+    "big": 140000,
+    "bigChar": "é"
+   },
+   "outs": [
+    "{\"kind\":\"transient\",\"reason\":\"no-limits\"}"
+   ],
+   "log": [
+    {
+     "argv": [
+      "agent",
+      "stdio"
+     ],
+     "cwd": "nomi-grok-billing-",
+     "cwdParent": "<T>",
+     "env": {
+      "NO_COLOR": "1",
+      "DISABLE_TELEMETRY": null,
+      "DISABLE_ERROR_REPORTING": null,
+      "DISABLE_AUTOUPDATER": null,
+      "MOCK_X": "x1"
+     }
+    },
+    {
+     "line": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":1,\"clientInfo\":{\"name\":\"nomi_usage\",\"title\":\"Nomi\",\"version\":\"1.0.0\"},\"clientCapabilities\":{}}}"
+    }
+   ],
+   "left": []
+  },
+  {
+   "name": "enoent",
+   "bin": "/workspace/wt-205-usage2/scripts/parity/no-such-usage-cli",
+   "outs": [
+    "{\"kind\":\"transient\",\"reason\":\"no-limits\"}"
+   ],
+   "log": [],
+   "left": []
+  }
+ ]
+}

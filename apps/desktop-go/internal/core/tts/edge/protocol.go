@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -98,6 +99,9 @@ func HTTPHeaders() Header {
 // JSDateString = new Date(t).toString()（V8：`Thu Oct 29 2026 09:30:00 GMT+0800 (China Standard Time)`）。
 // 括号里的时区长名来自 ICU；Go 没有 ICU，按 IANA 名查表，查不到用 ICU 的回退写法 `GMT+08:00`（D-B9-4）。
 func JSDateString(t time.Time) string {
+	if s, ok := windowDateString(t); ok {
+		return s
+	}
 	t = t.In(time.Local)
 	_, off := t.Zone()
 	sign := '+'
@@ -107,6 +111,35 @@ func JSDateString(t time.Time) string {
 	}
 	gmt := fmt.Sprintf("GMT%c%02d%02d", sign, off/3600, off/60%60)
 	return t.Format("Mon Jan 02 2006 15:04:05 ") + gmt + " (" + zoneLongName(t) + ")"
+}
+
+// windowDateString：2024–2037 窗口内直接用 Electron 44.9.3 录制的 (偏移, 括号名) 分段（zonewindow_gen.go），
+// 不依赖 Go/系统 tzdata 版本与 isDST 推断；窗口外或未知区回落到下方规则。
+func windowDateString(t time.Time) (string, bool) {
+	u := t.Unix()
+	if u < zoneWindowFrom || u > zoneWindowTo {
+		return "", false
+	}
+	tab, ok := zoneWindow[localZoneName()]
+	if !ok {
+		return "", false
+	}
+	off, name := 0, ""
+	for _, seg := range strings.Split(tab, "|") {
+		f := strings.SplitN(seg, " ", 3)
+		st, _ := strconv.ParseInt(f[0], 10, 64)
+		if st > u {
+			break
+		}
+		off, _ = strconv.Atoi(f[1])
+		name = f[2]
+	}
+	lt := t.UTC().Add(time.Duration(off) * time.Minute)
+	a, sign := off, '+'
+	if a < 0 {
+		a, sign = -a, '-'
+	}
+	return lt.Format("Mon Jan 02 2006 15:04:05 ") + fmt.Sprintf("GMT%c%02d%02d (%s)", sign, a/60, a%60, name), true
 }
 
 // zoneNames 见 zonenames_gen.go（scripts/parity/gen-tz-names.mjs 由 Node Intl 生成）
@@ -123,15 +156,14 @@ func localZoneName() string {
 	return ""
 }
 
+type zoneName struct{ std, dst string }
+
 func zoneLongName(t time.Time) string {
 	if n, ok := zoneNames[localZoneName()]; ok {
-		name := n[0]
-		if t.IsDST() {
-			name = n[1]
+		if icuIsDST(t) {
+			return n.dst
 		}
-		if name != "" {
-			return name
-		}
+		return n.std
 	}
 	_, off := t.Zone()
 	if off == 0 {
@@ -143,6 +175,31 @@ func zoneLongName(t time.Time) string {
 		off = -off
 	}
 	return fmt.Sprintf("GMT%c%02d:%02d", sign, off/3600, off/60%60)
+}
+
+// icuIsDST = ICU（rearguard 语义）的 isDST：以 tzdata isdst（t.IsDST）为准；vanguard 的负夏令
+// （Europe/Dublin 冬季 isdst=1、偏移小于前/后半年）取反；tzdata 未标 isdst 但偏移大于标了 isdst 的
+// 前/后半年、或附近有偏移更小的 isdst 时刻（Morocco 斋月）时判夏令。对 Electron 44.9.3 全区逐例验证。
+func icuIsDST(t time.Time) bool {
+	_, o := t.Zone()
+	at, bt := t.AddDate(0, 6, 0), t.AddDate(0, -6, 0)
+	_, a := at.Zone()
+	_, b := bt.Zone()
+	if t.IsDST() {
+		return !(o < a || o < b)
+	}
+	if (at.IsDST() && o > a) || (bt.IsDST() && o > b) {
+		return true
+	}
+	// vanguard 负夏令区（Morocco：+01 为标准、斋月 +00 isdst=1）：附近有偏移更小的 isdst 时刻 → ICU 判夏令
+	for m := 1; m < 12; m++ {
+		for _, u := range [2]time.Time{t.AddDate(0, m, 0), t.AddDate(0, -m, 0)} {
+			if _, uo := u.Zone(); u.IsDST() && uo < o {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func stamp() string { return JSDateString(Now()) }
