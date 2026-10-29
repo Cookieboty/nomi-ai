@@ -1,0 +1,1870 @@
+{
+ "scenarios": [
+  {
+   "name": "openaiOk",
+   "url": "https://api.example.test/v1",
+   "keys": [
+    "k1"
+   ],
+   "rules": [
+    {
+     "m": "GET",
+     "u": "/v1/models",
+     "status": 200,
+     "body": "{\"data\":[{\"id\":\"gpt-x\",\"context_length\":128000,\"max_output_tokens\":16000},{\"id\":\"text-embed-3\"},{\"id\":\"claude-y\",\"max_context_length\":200000}]}",
+     "auth": "bearer"
+    },
+    {
+     "m": "POST",
+     "u": "/chat/completions",
+     "status": 200,
+     "body": "{}"
+    },
+    {
+     "m": "POST",
+     "u": "/responses",
+     "status": 200,
+     "body": "{}"
+    }
+   ],
+   "bases": {
+    "chat": "https://api.example.test/v1",
+    "responses": "https://api.example.test/v1",
+    "messages": "https://api.example.test",
+    "gemini": "https://api.example.test/v1beta"
+   },
+   "out": {
+    "wires": {
+     "messages": {
+      "wire": "messages",
+      "url": "https://api.example.test",
+      "ok": false,
+      "status": 404,
+      "model": "claude-y",
+      "error": "HTTP 404",
+      "ms": 0
+     },
+     "responses": {
+      "wire": "responses",
+      "url": "https://api.example.test/v1",
+      "ok": true,
+      "status": 200,
+      "model": "gpt-x",
+      "auth": "bearer",
+      "ms": 0
+     },
+     "chat": {
+      "wire": "chat",
+      "url": "https://api.example.test/v1",
+      "ok": true,
+      "status": 200,
+      "model": "gpt-x",
+      "auth": "bearer",
+      "ms": 0
+     },
+     "gemini": {
+      "wire": "gemini",
+      "url": "https://api.example.test/v1beta",
+      "ok": false,
+      "status": 404,
+      "model": "gpt-x",
+      "error": "HTTP 404",
+      "ms": 0
+     }
+    },
+    "byKey": {
+     "key0": {
+      "messages": {
+       "wire": "messages",
+       "url": "https://api.example.test",
+       "ok": false,
+       "status": 404,
+       "model": "claude-y",
+       "error": "HTTP 404",
+       "ms": 0
+      },
+      "responses": {
+       "wire": "responses",
+       "url": "https://api.example.test/v1",
+       "ok": true,
+       "status": 200,
+       "model": "gpt-x",
+       "auth": "bearer",
+       "ms": 0
+      },
+      "chat": {
+       "wire": "chat",
+       "url": "https://api.example.test/v1",
+       "ok": true,
+       "status": 200,
+       "model": "gpt-x",
+       "auth": "bearer",
+       "ms": 0
+      },
+      "gemini": {
+       "wire": "gemini",
+       "url": "https://api.example.test/v1beta",
+       "ok": false,
+       "status": 404,
+       "model": "gpt-x",
+       "error": "HTTP 404",
+       "ms": 0
+      }
+     }
+    },
+    "models": [
+     "gpt-x",
+     "text-embed-3",
+     "claude-y"
+    ],
+    "limits": {
+     "gpt-x": {
+      "ctx": 128000,
+      "maxOutput": 16000
+     },
+     "claude-y": {
+      "ctx": 200000
+     }
+    },
+    "urls": {
+     "responses": "https://api.example.test/v1",
+     "chat": "https://api.example.test/v1"
+    }
+   },
+   "reqs": [
+    [
+     "GET",
+     "https://api.example.test/v1/models",
+     "bearer",
+     "k1",
+     null
+    ],
+    [
+     "POST",
+     "https://api.example.test/v1/chat/completions",
+     "bearer",
+     "k1",
+     "{\"model\":\"gpt-x\",\"max_tokens\":1,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+    ],
+    [
+     "POST",
+     "https://api.example.test/v1/messages",
+     "x-api-key",
+     "k1",
+     "{\"model\":\"claude-y\",\"max_tokens\":1,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+    ],
+    [
+     "POST",
+     "https://api.example.test/v1/responses",
+     "bearer",
+     "k1",
+     "{\"model\":\"gpt-x\",\"max_output_tokens\":16,\"input\":\"hi\"}"
+    ],
+    [
+     "POST",
+     "https://api.example.test/v1beta/models/gpt-x:generateContent",
+     "x-goog-api-key",
+     "k1",
+     "{\"contents\":[{\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":1}}"
+    ]
+   ]
+  },
+  {
+   "name": "altAuth",
+   "url": "https://api.example.test/v1",
+   "keys": [
+    "k1"
+   ],
+   "rules": [
+    {
+     "m": "GET",
+     "u": "/v1/models",
+     "status": 200,
+     "body": "{\"data\":[{\"id\":\"gpt-x\",\"context_length\":128000,\"max_output_tokens\":16000},{\"id\":\"text-embed-3\"},{\"id\":\"claude-y\",\"max_context_length\":200000}]}",
+     "auth": "x-api-key"
+    },
+    {
+     "m": "POST",
+     "u": "/messages",
+     "status": 200,
+     "body": "{}",
+     "auth": "bearer"
+    },
+    {
+     "m": "POST",
+     "u": "/messages",
+     "status": 401,
+     "body": "no"
+    },
+    {
+     "m": "POST",
+     "u": "/chat/completions",
+     "status": 403,
+     "body": "no",
+     "auth": "bearer"
+    },
+    {
+     "m": "POST",
+     "u": "/chat/completions",
+     "status": 200,
+     "body": "{}",
+     "auth": "x-api-key"
+    }
+   ],
+   "bases": {
+    "chat": "https://api.example.test/v1",
+    "responses": "https://api.example.test/v1",
+    "messages": "https://api.example.test",
+    "gemini": "https://api.example.test/v1beta"
+   },
+   "out": {
+    "wires": {
+     "messages": {
+      "wire": "messages",
+      "url": "https://api.example.test",
+      "ok": true,
+      "status": 200,
+      "model": "claude-y",
+      "auth": "bearer",
+      "ms": 0
+     },
+     "responses": {
+      "wire": "responses",
+      "url": "https://api.example.test/v1",
+      "ok": false,
+      "status": 404,
+      "model": "gpt-x",
+      "error": "HTTP 404",
+      "ms": 0
+     },
+     "chat": {
+      "wire": "chat",
+      "url": "https://api.example.test/v1",
+      "ok": true,
+      "status": 200,
+      "model": "gpt-x",
+      "auth": "x-api-key",
+      "ms": 0
+     },
+     "gemini": {
+      "wire": "gemini",
+      "url": "https://api.example.test/v1beta",
+      "ok": false,
+      "status": 404,
+      "model": "gpt-x",
+      "error": "HTTP 404",
+      "ms": 0
+     }
+    },
+    "byKey": {
+     "key0": {
+      "messages": {
+       "wire": "messages",
+       "url": "https://api.example.test",
+       "ok": true,
+       "status": 200,
+       "model": "claude-y",
+       "auth": "bearer",
+       "ms": 0
+      },
+      "responses": {
+       "wire": "responses",
+       "url": "https://api.example.test/v1",
+       "ok": false,
+       "status": 404,
+       "model": "gpt-x",
+       "error": "HTTP 404",
+       "ms": 0
+      },
+      "chat": {
+       "wire": "chat",
+       "url": "https://api.example.test/v1",
+       "ok": true,
+       "status": 200,
+       "model": "gpt-x",
+       "auth": "x-api-key",
+       "ms": 0
+      },
+      "gemini": {
+       "wire": "gemini",
+       "url": "https://api.example.test/v1beta",
+       "ok": false,
+       "status": 404,
+       "model": "gpt-x",
+       "error": "HTTP 404",
+       "ms": 0
+      }
+     }
+    },
+    "models": [
+     "gpt-x",
+     "text-embed-3",
+     "claude-y"
+    ],
+    "limits": {
+     "gpt-x": {
+      "ctx": 128000,
+      "maxOutput": 16000
+     },
+     "claude-y": {
+      "ctx": 200000
+     }
+    },
+    "urls": {
+     "messages": "https://api.example.test",
+     "chat": "https://api.example.test/v1"
+    }
+   },
+   "reqs": [
+    [
+     "GET",
+     "https://api.example.test/v1/models",
+     "bearer",
+     "k1",
+     null
+    ],
+    [
+     "GET",
+     "https://api.example.test/v1/models",
+     "x-api-key",
+     "k1",
+     null
+    ],
+    [
+     "POST",
+     "https://api.example.test/v1/chat/completions",
+     "x-api-key",
+     "k1",
+     "{\"model\":\"gpt-x\",\"max_tokens\":1,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+    ],
+    [
+     "POST",
+     "https://api.example.test/v1/messages",
+     "bearer",
+     "k1",
+     "{\"model\":\"claude-y\",\"max_tokens\":1,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+    ],
+    [
+     "POST",
+     "https://api.example.test/v1/messages",
+     "x-api-key",
+     "k1",
+     "{\"model\":\"claude-y\",\"max_tokens\":1,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+    ],
+    [
+     "POST",
+     "https://api.example.test/v1/responses",
+     "bearer",
+     "k1",
+     "{\"model\":\"gpt-x\",\"max_output_tokens\":16,\"input\":\"hi\"}"
+    ],
+    [
+     "POST",
+     "https://api.example.test/v1beta/models/gpt-x:generateContent",
+     "x-goog-api-key",
+     "k1",
+     "{\"contents\":[{\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":1}}"
+    ]
+   ]
+  },
+  {
+   "name": "paramErr",
+   "url": "https://api.example.test/v1",
+   "keys": [
+    "k1"
+   ],
+   "rules": [
+    {
+     "m": "GET",
+     "u": "/v1/models",
+     "status": 200,
+     "body": "{\"data\":[{\"id\":\"gpt-x\",\"context_length\":128000,\"max_output_tokens\":16000},{\"id\":\"text-embed-3\"},{\"id\":\"claude-y\",\"max_context_length\":200000}]}"
+    },
+    {
+     "m": "POST",
+     "u": "/chat/completions",
+     "status": 400,
+     "body": "{\"error\":{\"message\":\"Unsupported parameter: max_tokens\"}}"
+    },
+    {
+     "m": "POST",
+     "u": "/responses",
+     "status": 400,
+     "body": "{\"error\":{\"message\":\"model not found\"}}"
+    }
+   ],
+   "bases": {
+    "chat": "https://api.example.test/v1",
+    "responses": "https://api.example.test/v1",
+    "messages": "https://api.example.test",
+    "gemini": "https://api.example.test/v1beta"
+   },
+   "out": {
+    "wires": {
+     "messages": {
+      "wire": "messages",
+      "url": "https://api.example.test",
+      "ok": false,
+      "status": 404,
+      "model": "claude-y",
+      "error": "HTTP 404",
+      "ms": 0
+     },
+     "responses": {
+      "wire": "responses",
+      "url": "https://api.example.test/v1",
+      "ok": true,
+      "status": 400,
+      "model": "gpt-x",
+      "auth": "bearer",
+      "ms": 0
+     },
+     "chat": {
+      "wire": "chat",
+      "url": "https://api.example.test/v1",
+      "ok": true,
+      "status": 400,
+      "model": "gpt-x",
+      "auth": "bearer",
+      "ms": 0
+     },
+     "gemini": {
+      "wire": "gemini",
+      "url": "https://api.example.test/v1beta",
+      "ok": false,
+      "status": 404,
+      "model": "gpt-x",
+      "error": "HTTP 404",
+      "ms": 0
+     }
+    },
+    "byKey": {
+     "key0": {
+      "messages": {
+       "wire": "messages",
+       "url": "https://api.example.test",
+       "ok": false,
+       "status": 404,
+       "model": "claude-y",
+       "error": "HTTP 404",
+       "ms": 0
+      },
+      "responses": {
+       "wire": "responses",
+       "url": "https://api.example.test/v1",
+       "ok": true,
+       "status": 400,
+       "model": "gpt-x",
+       "auth": "bearer",
+       "ms": 0
+      },
+      "chat": {
+       "wire": "chat",
+       "url": "https://api.example.test/v1",
+       "ok": true,
+       "status": 400,
+       "model": "gpt-x",
+       "auth": "bearer",
+       "ms": 0
+      },
+      "gemini": {
+       "wire": "gemini",
+       "url": "https://api.example.test/v1beta",
+       "ok": false,
+       "status": 404,
+       "model": "gpt-x",
+       "error": "HTTP 404",
+       "ms": 0
+      }
+     }
+    },
+    "models": [
+     "gpt-x",
+     "text-embed-3",
+     "claude-y"
+    ],
+    "limits": {
+     "gpt-x": {
+      "ctx": 128000,
+      "maxOutput": 16000
+     },
+     "claude-y": {
+      "ctx": 200000
+     }
+    },
+    "urls": {
+     "responses": "https://api.example.test/v1",
+     "chat": "https://api.example.test/v1"
+    }
+   },
+   "reqs": [
+    [
+     "GET",
+     "https://api.example.test/v1/models",
+     "bearer",
+     "k1",
+     null
+    ],
+    [
+     "POST",
+     "https://api.example.test/v1/chat/completions",
+     "bearer",
+     "k1",
+     "{\"model\":\"gpt-x\",\"max_tokens\":1,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+    ],
+    [
+     "POST",
+     "https://api.example.test/v1/messages",
+     "x-api-key",
+     "k1",
+     "{\"model\":\"claude-y\",\"max_tokens\":1,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+    ],
+    [
+     "POST",
+     "https://api.example.test/v1/responses",
+     "bearer",
+     "k1",
+     "{\"model\":\"gpt-x\",\"max_output_tokens\":16,\"input\":\"hi\"}"
+    ],
+    [
+     "POST",
+     "https://api.example.test/v1beta/models/gpt-x:generateContent",
+     "x-goog-api-key",
+     "k1",
+     "{\"contents\":[{\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":1}}"
+    ]
+   ]
+  },
+  {
+   "name": "fallback",
+   "url": "https://api.example.test/v1",
+   "keys": [
+    "k1"
+   ],
+   "fallbackModel": "fb-1",
+   "rules": [
+    {
+     "m": "GET",
+     "u": "/v1/models",
+     "status": 500,
+     "body": "x"
+    },
+    {
+     "m": "POST",
+     "u": "",
+     "status": 200,
+     "body": "{}"
+    }
+   ],
+   "bases": {
+    "chat": "https://api.example.test/v1",
+    "responses": "https://api.example.test/v1",
+    "messages": "https://api.example.test",
+    "gemini": "https://api.example.test/v1beta"
+   },
+   "out": {
+    "wires": {
+     "messages": {
+      "wire": "messages",
+      "url": "https://api.example.test",
+      "ok": true,
+      "status": 200,
+      "model": "fb-1",
+      "auth": "x-api-key",
+      "ms": 0
+     },
+     "responses": {
+      "wire": "responses",
+      "url": "https://api.example.test/v1",
+      "ok": true,
+      "status": 200,
+      "model": "fb-1",
+      "auth": "bearer",
+      "ms": 0
+     },
+     "chat": {
+      "wire": "chat",
+      "url": "https://api.example.test/v1",
+      "ok": true,
+      "status": 200,
+      "model": "fb-1",
+      "auth": "bearer",
+      "ms": 0
+     },
+     "gemini": {
+      "wire": "gemini",
+      "url": "https://api.example.test/v1beta",
+      "ok": true,
+      "status": 200,
+      "model": "fb-1",
+      "auth": "x-goog-api-key",
+      "ms": 0
+     }
+    },
+    "byKey": {
+     "key0": {
+      "messages": {
+       "wire": "messages",
+       "url": "https://api.example.test",
+       "ok": true,
+       "status": 200,
+       "model": "fb-1",
+       "auth": "x-api-key",
+       "ms": 0
+      },
+      "responses": {
+       "wire": "responses",
+       "url": "https://api.example.test/v1",
+       "ok": true,
+       "status": 200,
+       "model": "fb-1",
+       "auth": "bearer",
+       "ms": 0
+      },
+      "chat": {
+       "wire": "chat",
+       "url": "https://api.example.test/v1",
+       "ok": true,
+       "status": 200,
+       "model": "fb-1",
+       "auth": "bearer",
+       "ms": 0
+      },
+      "gemini": {
+       "wire": "gemini",
+       "url": "https://api.example.test/v1beta",
+       "ok": true,
+       "status": 200,
+       "model": "fb-1",
+       "auth": "x-goog-api-key",
+       "ms": 0
+      }
+     }
+    },
+    "models": [],
+    "urls": {
+     "messages": "https://api.example.test",
+     "responses": "https://api.example.test/v1",
+     "chat": "https://api.example.test/v1",
+     "gemini": "https://api.example.test/v1beta"
+    }
+   },
+   "reqs": [
+    [
+     "GET",
+     "https://api.example.test/v1/models",
+     "bearer",
+     "k1",
+     null
+    ],
+    [
+     "GET",
+     "https://api.example.test/v1/models",
+     "x-api-key",
+     "k1",
+     null
+    ],
+    [
+     "POST",
+     "https://api.example.test/v1/chat/completions",
+     "bearer",
+     "k1",
+     "{\"model\":\"fb-1\",\"max_tokens\":1,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+    ],
+    [
+     "POST",
+     "https://api.example.test/v1/messages",
+     "x-api-key",
+     "k1",
+     "{\"model\":\"fb-1\",\"max_tokens\":1,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+    ],
+    [
+     "POST",
+     "https://api.example.test/v1/responses",
+     "bearer",
+     "k1",
+     "{\"model\":\"fb-1\",\"max_output_tokens\":16,\"input\":\"hi\"}"
+    ],
+    [
+     "POST",
+     "https://api.example.test/v1beta/models/fb-1:generateContent",
+     "x-goog-api-key",
+     "k1",
+     "{\"contents\":[{\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":1}}"
+    ]
+   ]
+  },
+  {
+   "name": "noModel",
+   "url": "https://api.example.test/v1",
+   "keys": [
+    "k1"
+   ],
+   "rules": [
+    {
+     "m": "GET",
+     "u": "/v1/models",
+     "status": 200,
+     "body": "{\"data\":[]}"
+    }
+   ],
+   "bases": {
+    "chat": "https://api.example.test/v1",
+    "responses": "https://api.example.test/v1",
+    "messages": "https://api.example.test",
+    "gemini": "https://api.example.test/v1beta"
+   },
+   "out": {
+    "wires": {
+     "messages": {
+      "wire": "messages",
+      "url": "https://api.example.test",
+      "ok": false,
+      "error": "没有可用来测试的模型名，请手动填写一个",
+      "ms": 0
+     },
+     "responses": {
+      "wire": "responses",
+      "url": "https://api.example.test/v1",
+      "ok": false,
+      "error": "没有可用来测试的模型名，请手动填写一个",
+      "ms": 0
+     },
+     "chat": {
+      "wire": "chat",
+      "url": "https://api.example.test/v1",
+      "ok": false,
+      "error": "没有可用来测试的模型名，请手动填写一个",
+      "ms": 0
+     },
+     "gemini": {
+      "wire": "gemini",
+      "url": "https://api.example.test/v1beta",
+      "ok": false,
+      "error": "没有可用来测试的模型名，请手动填写一个",
+      "ms": 0
+     }
+    },
+    "byKey": {
+     "key0": {
+      "messages": {
+       "wire": "messages",
+       "url": "https://api.example.test",
+       "ok": false,
+       "error": "没有可用来测试的模型名，请手动填写一个",
+       "ms": 0
+      },
+      "responses": {
+       "wire": "responses",
+       "url": "https://api.example.test/v1",
+       "ok": false,
+       "error": "没有可用来测试的模型名，请手动填写一个",
+       "ms": 0
+      },
+      "chat": {
+       "wire": "chat",
+       "url": "https://api.example.test/v1",
+       "ok": false,
+       "error": "没有可用来测试的模型名，请手动填写一个",
+       "ms": 0
+      },
+      "gemini": {
+       "wire": "gemini",
+       "url": "https://api.example.test/v1beta",
+       "ok": false,
+       "error": "没有可用来测试的模型名，请手动填写一个",
+       "ms": 0
+      }
+     }
+    },
+    "models": [],
+    "urls": {}
+   },
+   "reqs": [
+    [
+     "GET",
+     "https://api.example.test/v1/models",
+     "bearer",
+     "k1",
+     null
+    ]
+   ]
+  },
+  {
+   "name": "twoKeys",
+   "url": "https://api.example.test/v1",
+   "keys": [
+    "bad",
+    "good"
+   ],
+   "rules": [
+    {
+     "m": "GET",
+     "u": "/v1/models",
+     "status": 200,
+     "body": "{\"data\":[{\"id\":\"gpt-x\",\"context_length\":128000,\"max_output_tokens\":16000},{\"id\":\"text-embed-3\"},{\"id\":\"claude-y\",\"max_context_length\":200000}]}",
+     "key": "good"
+    },
+    {
+     "m": "POST",
+     "u": "",
+     "status": 200,
+     "body": "{}",
+     "key": "good"
+    },
+    {
+     "m": "GET",
+     "u": "",
+     "status": 401,
+     "body": "no"
+    },
+    {
+     "m": "POST",
+     "u": "",
+     "status": 401,
+     "body": "no"
+    }
+   ],
+   "bases": {
+    "chat": "https://api.example.test/v1",
+    "responses": "https://api.example.test/v1",
+    "messages": "https://api.example.test",
+    "gemini": "https://api.example.test/v1beta"
+   },
+   "out": {
+    "wires": {
+     "messages": {
+      "wire": "messages",
+      "url": "https://api.example.test",
+      "ok": false,
+      "error": "没有可用来测试的模型名，请手动填写一个",
+      "ms": 0
+     },
+     "responses": {
+      "wire": "responses",
+      "url": "https://api.example.test/v1",
+      "ok": false,
+      "error": "没有可用来测试的模型名，请手动填写一个",
+      "ms": 0
+     },
+     "chat": {
+      "wire": "chat",
+      "url": "https://api.example.test/v1",
+      "ok": false,
+      "error": "没有可用来测试的模型名，请手动填写一个",
+      "ms": 0
+     },
+     "gemini": {
+      "wire": "gemini",
+      "url": "https://api.example.test/v1beta",
+      "ok": false,
+      "error": "没有可用来测试的模型名，请手动填写一个",
+      "ms": 0
+     }
+    },
+    "byKey": {
+     "key0": {
+      "messages": {
+       "wire": "messages",
+       "url": "https://api.example.test",
+       "ok": false,
+       "error": "没有可用来测试的模型名，请手动填写一个",
+       "ms": 0
+      },
+      "responses": {
+       "wire": "responses",
+       "url": "https://api.example.test/v1",
+       "ok": false,
+       "error": "没有可用来测试的模型名，请手动填写一个",
+       "ms": 0
+      },
+      "chat": {
+       "wire": "chat",
+       "url": "https://api.example.test/v1",
+       "ok": false,
+       "error": "没有可用来测试的模型名，请手动填写一个",
+       "ms": 0
+      },
+      "gemini": {
+       "wire": "gemini",
+       "url": "https://api.example.test/v1beta",
+       "ok": false,
+       "error": "没有可用来测试的模型名，请手动填写一个",
+       "ms": 0
+      }
+     },
+     "key1": {
+      "messages": {
+       "wire": "messages",
+       "url": "https://api.example.test",
+       "ok": false,
+       "error": "没有可用来测试的模型名，请手动填写一个",
+       "ms": 0
+      },
+      "responses": {
+       "wire": "responses",
+       "url": "https://api.example.test/v1",
+       "ok": false,
+       "error": "没有可用来测试的模型名，请手动填写一个",
+       "ms": 0
+      },
+      "chat": {
+       "wire": "chat",
+       "url": "https://api.example.test/v1",
+       "ok": false,
+       "error": "没有可用来测试的模型名，请手动填写一个",
+       "ms": 0
+      },
+      "gemini": {
+       "wire": "gemini",
+       "url": "https://api.example.test/v1beta",
+       "ok": false,
+       "error": "没有可用来测试的模型名，请手动填写一个",
+       "ms": 0
+      }
+     }
+    },
+    "models": [],
+    "urls": {}
+   },
+   "reqs": [
+    [
+     "GET",
+     "https://api.example.test/v1/models",
+     "bearer",
+     "bad",
+     null
+    ],
+    [
+     "GET",
+     "https://api.example.test/v1/models",
+     "x-api-key",
+     "bad",
+     null
+    ]
+   ]
+  },
+  {
+   "name": "private",
+   "url": "http://10.0.0.5:8080/v1",
+   "keys": [
+    "k1"
+   ],
+   "fallbackModel": "m",
+   "rules": [
+    {
+     "m": "POST",
+     "u": "",
+     "status": 200,
+     "body": "{}"
+    }
+   ],
+   "bases": {
+    "chat": "http://10.0.0.5:8080/v1",
+    "responses": "http://10.0.0.5:8080/v1",
+    "messages": "http://10.0.0.5:8080",
+    "gemini": "http://10.0.0.5:8080/v1beta"
+   },
+   "out": {
+    "wires": {
+     "messages": {
+      "wire": "messages",
+      "url": "http://10.0.0.5:8080",
+      "ok": false,
+      "error": "上游地址 10.0.0.5:8080 是本机或局域网地址，需要先在供应商设置里确认",
+      "ms": 0
+     },
+     "responses": {
+      "wire": "responses",
+      "url": "http://10.0.0.5:8080/v1",
+      "ok": false,
+      "error": "上游地址 10.0.0.5:8080 是本机或局域网地址，需要先在供应商设置里确认",
+      "ms": 0
+     },
+     "chat": {
+      "wire": "chat",
+      "url": "http://10.0.0.5:8080/v1",
+      "ok": false,
+      "error": "上游地址 10.0.0.5:8080 是本机或局域网地址，需要先在供应商设置里确认",
+      "ms": 0
+     },
+     "gemini": {
+      "wire": "gemini",
+      "url": "http://10.0.0.5:8080/v1beta",
+      "ok": false,
+      "error": "上游地址 10.0.0.5:8080 是本机或局域网地址，需要先在供应商设置里确认",
+      "ms": 0
+     }
+    },
+    "byKey": {
+     "key0": {
+      "messages": {
+       "wire": "messages",
+       "url": "http://10.0.0.5:8080",
+       "ok": false,
+       "error": "上游地址 10.0.0.5:8080 是本机或局域网地址，需要先在供应商设置里确认",
+       "ms": 0
+      },
+      "responses": {
+       "wire": "responses",
+       "url": "http://10.0.0.5:8080/v1",
+       "ok": false,
+       "error": "上游地址 10.0.0.5:8080 是本机或局域网地址，需要先在供应商设置里确认",
+       "ms": 0
+      },
+      "chat": {
+       "wire": "chat",
+       "url": "http://10.0.0.5:8080/v1",
+       "ok": false,
+       "error": "上游地址 10.0.0.5:8080 是本机或局域网地址，需要先在供应商设置里确认",
+       "ms": 0
+      },
+      "gemini": {
+       "wire": "gemini",
+       "url": "http://10.0.0.5:8080/v1beta",
+       "ok": false,
+       "error": "上游地址 10.0.0.5:8080 是本机或局域网地址，需要先在供应商设置里确认",
+       "ms": 0
+      }
+     }
+    },
+    "models": [],
+    "urls": {}
+   },
+   "reqs": []
+  },
+  {
+   "name": "privateAllowed",
+   "url": "http://10.0.0.5:8080/v1",
+   "allowed": [
+    "10.0.0.5:8080"
+   ],
+   "keys": [
+    "k1"
+   ],
+   "fallbackModel": "m",
+   "rules": [
+    {
+     "m": "GET",
+     "u": "/models",
+     "status": 200,
+     "body": "{\"data\":[{\"id\":\"gpt-x\",\"context_length\":128000,\"max_output_tokens\":16000},{\"id\":\"text-embed-3\"},{\"id\":\"claude-y\",\"max_context_length\":200000}]}"
+    },
+    {
+     "m": "POST",
+     "u": "",
+     "status": 200,
+     "body": "{}"
+    }
+   ],
+   "bases": {
+    "chat": "http://10.0.0.5:8080/v1",
+    "responses": "http://10.0.0.5:8080/v1",
+    "messages": "http://10.0.0.5:8080",
+    "gemini": "http://10.0.0.5:8080/v1beta"
+   },
+   "out": {
+    "wires": {
+     "messages": {
+      "wire": "messages",
+      "url": "http://10.0.0.5:8080",
+      "ok": true,
+      "status": 200,
+      "model": "claude-y",
+      "auth": "x-api-key",
+      "ms": 0
+     },
+     "responses": {
+      "wire": "responses",
+      "url": "http://10.0.0.5:8080/v1",
+      "ok": true,
+      "status": 200,
+      "model": "gpt-x",
+      "auth": "bearer",
+      "ms": 0
+     },
+     "chat": {
+      "wire": "chat",
+      "url": "http://10.0.0.5:8080/v1",
+      "ok": true,
+      "status": 200,
+      "model": "gpt-x",
+      "auth": "bearer",
+      "ms": 0
+     },
+     "gemini": {
+      "wire": "gemini",
+      "url": "http://10.0.0.5:8080/v1beta",
+      "ok": true,
+      "status": 200,
+      "model": "gpt-x",
+      "auth": "x-goog-api-key",
+      "ms": 0
+     }
+    },
+    "byKey": {
+     "key0": {
+      "messages": {
+       "wire": "messages",
+       "url": "http://10.0.0.5:8080",
+       "ok": true,
+       "status": 200,
+       "model": "claude-y",
+       "auth": "x-api-key",
+       "ms": 0
+      },
+      "responses": {
+       "wire": "responses",
+       "url": "http://10.0.0.5:8080/v1",
+       "ok": true,
+       "status": 200,
+       "model": "gpt-x",
+       "auth": "bearer",
+       "ms": 0
+      },
+      "chat": {
+       "wire": "chat",
+       "url": "http://10.0.0.5:8080/v1",
+       "ok": true,
+       "status": 200,
+       "model": "gpt-x",
+       "auth": "bearer",
+       "ms": 0
+      },
+      "gemini": {
+       "wire": "gemini",
+       "url": "http://10.0.0.5:8080/v1beta",
+       "ok": true,
+       "status": 200,
+       "model": "gpt-x",
+       "auth": "x-goog-api-key",
+       "ms": 0
+      }
+     }
+    },
+    "models": [
+     "gpt-x",
+     "text-embed-3",
+     "claude-y"
+    ],
+    "limits": {
+     "gpt-x": {
+      "ctx": 128000,
+      "maxOutput": 16000
+     },
+     "claude-y": {
+      "ctx": 200000
+     }
+    },
+    "urls": {
+     "messages": "http://10.0.0.5:8080",
+     "responses": "http://10.0.0.5:8080/v1",
+     "chat": "http://10.0.0.5:8080/v1",
+     "gemini": "http://10.0.0.5:8080/v1beta"
+    }
+   },
+   "reqs": [
+    [
+     "GET",
+     "http://10.0.0.5:8080/v1/models",
+     "bearer",
+     "k1",
+     null
+    ],
+    [
+     "POST",
+     "http://10.0.0.5:8080/v1/chat/completions",
+     "bearer",
+     "k1",
+     "{\"model\":\"gpt-x\",\"max_tokens\":1,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+    ],
+    [
+     "POST",
+     "http://10.0.0.5:8080/v1/messages",
+     "x-api-key",
+     "k1",
+     "{\"model\":\"claude-y\",\"max_tokens\":1,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+    ],
+    [
+     "POST",
+     "http://10.0.0.5:8080/v1/responses",
+     "bearer",
+     "k1",
+     "{\"model\":\"gpt-x\",\"max_output_tokens\":16,\"input\":\"hi\"}"
+    ],
+    [
+     "POST",
+     "http://10.0.0.5:8080/v1beta/models/gpt-x:generateContent",
+     "x-goog-api-key",
+     "k1",
+     "{\"contents\":[{\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":1}}"
+    ]
+   ]
+  },
+  {
+   "name": "connErr",
+   "url": "https://api.example.test/v1",
+   "keys": [
+    "k1"
+   ],
+   "fallbackModel": "m",
+   "throw": "ECONNREFUSED",
+   "rules": [],
+   "bases": {
+    "chat": "https://api.example.test/v1",
+    "responses": "https://api.example.test/v1",
+    "messages": "https://api.example.test",
+    "gemini": "https://api.example.test/v1beta"
+   },
+   "out": {
+    "wires": {
+     "messages": {
+      "wire": "messages",
+      "url": "https://api.example.test",
+      "ok": false,
+      "model": "m",
+      "error": "连接失败：ECONNREFUSED",
+      "ms": 0
+     },
+     "responses": {
+      "wire": "responses",
+      "url": "https://api.example.test/v1",
+      "ok": false,
+      "model": "m",
+      "error": "连接失败：ECONNREFUSED",
+      "ms": 0
+     },
+     "chat": {
+      "wire": "chat",
+      "url": "https://api.example.test/v1",
+      "ok": false,
+      "model": "m",
+      "error": "连接失败：ECONNREFUSED",
+      "ms": 0
+     },
+     "gemini": {
+      "wire": "gemini",
+      "url": "https://api.example.test/v1beta",
+      "ok": false,
+      "model": "m",
+      "error": "连接失败：ECONNREFUSED",
+      "ms": 0
+     }
+    },
+    "byKey": {
+     "key0": {
+      "messages": {
+       "wire": "messages",
+       "url": "https://api.example.test",
+       "ok": false,
+       "model": "m",
+       "error": "连接失败：ECONNREFUSED",
+       "ms": 0
+      },
+      "responses": {
+       "wire": "responses",
+       "url": "https://api.example.test/v1",
+       "ok": false,
+       "model": "m",
+       "error": "连接失败：ECONNREFUSED",
+       "ms": 0
+      },
+      "chat": {
+       "wire": "chat",
+       "url": "https://api.example.test/v1",
+       "ok": false,
+       "model": "m",
+       "error": "连接失败：ECONNREFUSED",
+       "ms": 0
+      },
+      "gemini": {
+       "wire": "gemini",
+       "url": "https://api.example.test/v1beta",
+       "ok": false,
+       "model": "m",
+       "error": "连接失败：ECONNREFUSED",
+       "ms": 0
+      }
+     }
+    },
+    "models": [],
+    "urls": {}
+   },
+   "reqs": [
+    [
+     "GET",
+     "https://api.example.test/v1/models",
+     "bearer",
+     "k1",
+     null
+    ],
+    [
+     "GET",
+     "https://api.example.test/v1/models",
+     "x-api-key",
+     "k1",
+     null
+    ],
+    [
+     "POST",
+     "https://api.example.test/v1/chat/completions",
+     "bearer",
+     "k1",
+     "{\"model\":\"m\",\"max_tokens\":1,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+    ],
+    [
+     "POST",
+     "https://api.example.test/v1/messages",
+     "x-api-key",
+     "k1",
+     "{\"model\":\"m\",\"max_tokens\":1,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+    ],
+    [
+     "POST",
+     "https://api.example.test/v1/responses",
+     "bearer",
+     "k1",
+     "{\"model\":\"m\",\"max_output_tokens\":16,\"input\":\"hi\"}"
+    ],
+    [
+     "POST",
+     "https://api.example.test/v1beta/models/m:generateContent",
+     "x-goog-api-key",
+     "k1",
+     "{\"contents\":[{\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":1}}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini",
+   "url": "https://gen.example.test/v1beta",
+   "keys": [
+    "g1"
+   ],
+   "rules": [
+    {
+     "m": "GET",
+     "u": "/models",
+     "status": 200,
+     "body": "{\"models\":[{\"name\":\"models/gemini-x\",\"inputTokenLimit\":1000000,\"outputTokenLimit\":65536}]}"
+    },
+    {
+     "m": "POST",
+     "u": ":generateContent",
+     "status": 200,
+     "body": "{}",
+     "auth": "x-goog-api-key"
+    },
+    {
+     "m": "POST",
+     "u": "",
+     "status": 404,
+     "body": "nf"
+    }
+   ],
+   "bases": {
+    "chat": "https://gen.example.test/v1beta",
+    "responses": "https://gen.example.test/v1beta",
+    "messages": "https://gen.example.test/v1beta",
+    "gemini": "https://gen.example.test/v1beta"
+   },
+   "out": {
+    "wires": {
+     "messages": {
+      "wire": "messages",
+      "url": "https://gen.example.test/v1beta",
+      "ok": false,
+      "status": 404,
+      "model": "gemini-x",
+      "error": "HTTP 404",
+      "ms": 0
+     },
+     "responses": {
+      "wire": "responses",
+      "url": "https://gen.example.test/v1beta",
+      "ok": false,
+      "status": 404,
+      "model": "gemini-x",
+      "error": "HTTP 404",
+      "ms": 0
+     },
+     "chat": {
+      "wire": "chat",
+      "url": "https://gen.example.test/v1beta",
+      "ok": false,
+      "status": 404,
+      "model": "gemini-x",
+      "error": "HTTP 404",
+      "ms": 0
+     },
+     "gemini": {
+      "wire": "gemini",
+      "url": "https://gen.example.test/v1beta",
+      "ok": true,
+      "status": 200,
+      "model": "gemini-x",
+      "auth": "x-goog-api-key",
+      "ms": 0
+     }
+    },
+    "byKey": {
+     "key0": {
+      "messages": {
+       "wire": "messages",
+       "url": "https://gen.example.test/v1beta",
+       "ok": false,
+       "status": 404,
+       "model": "gemini-x",
+       "error": "HTTP 404",
+       "ms": 0
+      },
+      "responses": {
+       "wire": "responses",
+       "url": "https://gen.example.test/v1beta",
+       "ok": false,
+       "status": 404,
+       "model": "gemini-x",
+       "error": "HTTP 404",
+       "ms": 0
+      },
+      "chat": {
+       "wire": "chat",
+       "url": "https://gen.example.test/v1beta",
+       "ok": false,
+       "status": 404,
+       "model": "gemini-x",
+       "error": "HTTP 404",
+       "ms": 0
+      },
+      "gemini": {
+       "wire": "gemini",
+       "url": "https://gen.example.test/v1beta",
+       "ok": true,
+       "status": 200,
+       "model": "gemini-x",
+       "auth": "x-goog-api-key",
+       "ms": 0
+      }
+     }
+    },
+    "models": [
+     "gemini-x"
+    ],
+    "limits": {
+     "gemini-x": {
+      "ctx": 1000000,
+      "maxOutput": 65536
+     }
+    },
+    "urls": {
+     "gemini": "https://gen.example.test/v1beta"
+    }
+   },
+   "reqs": [
+    [
+     "GET",
+     "https://gen.example.test/v1beta/models",
+     "bearer",
+     "g1",
+     null
+    ],
+    [
+     "POST",
+     "https://gen.example.test/v1beta/chat/completions",
+     "bearer",
+     "g1",
+     "{\"model\":\"gemini-x\",\"max_tokens\":1,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+    ],
+    [
+     "POST",
+     "https://gen.example.test/v1beta/models/gemini-x:generateContent",
+     "x-goog-api-key",
+     "g1",
+     "{\"contents\":[{\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":1}}"
+    ],
+    [
+     "POST",
+     "https://gen.example.test/v1beta/responses",
+     "bearer",
+     "g1",
+     "{\"model\":\"gemini-x\",\"max_output_tokens\":16,\"input\":\"hi\"}"
+    ],
+    [
+     "POST",
+     "https://gen.example.test/v1beta/v1/messages",
+     "x-api-key",
+     "g1",
+     "{\"model\":\"gemini-x\",\"max_tokens\":1,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "altAuth400",
+   "url": "https://api.example.test/v1",
+   "keys": [
+    "k1"
+   ],
+   "rules": [
+    {
+     "m": "GET",
+     "u": "/v1/models",
+     "status": 200,
+     "body": "{\"data\":[{\"id\":\"gpt-x\",\"context_length\":128000,\"max_output_tokens\":16000},{\"id\":\"text-embed-3\"},{\"id\":\"claude-y\",\"max_context_length\":200000}]}"
+    },
+    {
+     "m": "POST",
+     "u": "/chat/completions",
+     "status": 401,
+     "body": "no",
+     "auth": "bearer"
+    },
+    {
+     "m": "POST",
+     "u": "/chat/completions",
+     "status": 400,
+     "body": "{\"error\":{\"message\":\"bad request\"}}",
+     "auth": "x-api-key"
+    },
+    {
+     "m": "POST",
+     "u": "/messages",
+     "status": 401,
+     "body": "no",
+     "auth": "x-api-key"
+    },
+    {
+     "m": "POST",
+     "u": "/messages",
+     "status": 400,
+     "body": "bad",
+     "auth": "bearer"
+    },
+    {
+     "m": "POST",
+     "u": "/responses",
+     "status": 404,
+     "body": ""
+    }
+   ],
+   "bases": {
+    "chat": "https://api.example.test/v1",
+    "responses": "https://api.example.test/v1",
+    "messages": "https://api.example.test",
+    "gemini": "https://api.example.test/v1beta"
+   },
+   "out": {
+    "wires": {
+     "messages": {
+      "wire": "messages",
+      "url": "https://api.example.test",
+      "ok": false,
+      "status": 400,
+      "model": "claude-y",
+      "error": "HTTP 400",
+      "ms": 0
+     },
+     "responses": {
+      "wire": "responses",
+      "url": "https://api.example.test/v1",
+      "ok": false,
+      "status": 404,
+      "model": "gpt-x",
+      "error": "HTTP 404",
+      "ms": 0
+     },
+     "chat": {
+      "wire": "chat",
+      "url": "https://api.example.test/v1",
+      "ok": true,
+      "status": 400,
+      "model": "gpt-x",
+      "auth": "x-api-key",
+      "ms": 0
+     },
+     "gemini": {
+      "wire": "gemini",
+      "url": "https://api.example.test/v1beta",
+      "ok": false,
+      "status": 404,
+      "model": "gpt-x",
+      "error": "HTTP 404",
+      "ms": 0
+     }
+    },
+    "byKey": {
+     "key0": {
+      "messages": {
+       "wire": "messages",
+       "url": "https://api.example.test",
+       "ok": false,
+       "status": 400,
+       "model": "claude-y",
+       "error": "HTTP 400",
+       "ms": 0
+      },
+      "responses": {
+       "wire": "responses",
+       "url": "https://api.example.test/v1",
+       "ok": false,
+       "status": 404,
+       "model": "gpt-x",
+       "error": "HTTP 404",
+       "ms": 0
+      },
+      "chat": {
+       "wire": "chat",
+       "url": "https://api.example.test/v1",
+       "ok": true,
+       "status": 400,
+       "model": "gpt-x",
+       "auth": "x-api-key",
+       "ms": 0
+      },
+      "gemini": {
+       "wire": "gemini",
+       "url": "https://api.example.test/v1beta",
+       "ok": false,
+       "status": 404,
+       "model": "gpt-x",
+       "error": "HTTP 404",
+       "ms": 0
+      }
+     }
+    },
+    "models": [
+     "gpt-x",
+     "text-embed-3",
+     "claude-y"
+    ],
+    "limits": {
+     "gpt-x": {
+      "ctx": 128000,
+      "maxOutput": 16000
+     },
+     "claude-y": {
+      "ctx": 200000
+     }
+    },
+    "urls": {
+     "chat": "https://api.example.test/v1"
+    }
+   },
+   "reqs": [
+    [
+     "GET",
+     "https://api.example.test/v1/models",
+     "bearer",
+     "k1",
+     null
+    ],
+    [
+     "POST",
+     "https://api.example.test/v1/chat/completions",
+     "bearer",
+     "k1",
+     "{\"model\":\"gpt-x\",\"max_tokens\":1,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+    ],
+    [
+     "POST",
+     "https://api.example.test/v1/chat/completions",
+     "x-api-key",
+     "k1",
+     "{\"model\":\"gpt-x\",\"max_tokens\":1,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+    ],
+    [
+     "POST",
+     "https://api.example.test/v1/messages",
+     "bearer",
+     "k1",
+     "{\"model\":\"claude-y\",\"max_tokens\":1,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+    ],
+    [
+     "POST",
+     "https://api.example.test/v1/messages",
+     "x-api-key",
+     "k1",
+     "{\"model\":\"claude-y\",\"max_tokens\":1,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+    ],
+    [
+     "POST",
+     "https://api.example.test/v1/responses",
+     "bearer",
+     "k1",
+     "{\"model\":\"gpt-x\",\"max_output_tokens\":16,\"input\":\"hi\"}"
+    ],
+    [
+     "POST",
+     "https://api.example.test/v1beta/models/gpt-x:generateContent",
+     "x-goog-api-key",
+     "k1",
+     "{\"contents\":[{\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":1}}"
+    ]
+   ]
+  },
+  {
+   "name": "anthropicBase",
+   "url": "https://api.anthropic-like.test",
+   "keys": [
+    "a1"
+   ],
+   "rules": [
+    {
+     "m": "GET",
+     "u": "/models",
+     "status": 200,
+     "body": "{\"data\":[{\"id\":\"claude-z\",\"type\":\"model\"}]}",
+     "auth": "x-api-key"
+    },
+    {
+     "m": "POST",
+     "u": "/v1/messages",
+     "status": 200,
+     "body": "{}",
+     "auth": "x-api-key"
+    },
+    {
+     "m": "POST",
+     "u": "",
+     "status": 404,
+     "body": ""
+    }
+   ],
+   "bases": {
+    "chat": "https://api.anthropic-like.test/v1",
+    "responses": "https://api.anthropic-like.test/v1",
+    "messages": "https://api.anthropic-like.test",
+    "gemini": "https://api.anthropic-like.test/v1beta"
+   },
+   "out": {
+    "wires": {
+     "messages": {
+      "wire": "messages",
+      "url": "https://api.anthropic-like.test",
+      "ok": true,
+      "status": 200,
+      "model": "claude-z",
+      "auth": "x-api-key",
+      "ms": 0
+     },
+     "responses": {
+      "wire": "responses",
+      "url": "https://api.anthropic-like.test/v1",
+      "ok": false,
+      "status": 404,
+      "model": "claude-z",
+      "error": "HTTP 404",
+      "ms": 0
+     },
+     "chat": {
+      "wire": "chat",
+      "url": "https://api.anthropic-like.test/v1",
+      "ok": false,
+      "status": 404,
+      "model": "claude-z",
+      "error": "HTTP 404",
+      "ms": 0
+     },
+     "gemini": {
+      "wire": "gemini",
+      "url": "https://api.anthropic-like.test/v1beta",
+      "ok": false,
+      "status": 404,
+      "model": "claude-z",
+      "error": "HTTP 404",
+      "ms": 0
+     }
+    },
+    "byKey": {
+     "key0": {
+      "messages": {
+       "wire": "messages",
+       "url": "https://api.anthropic-like.test",
+       "ok": true,
+       "status": 200,
+       "model": "claude-z",
+       "auth": "x-api-key",
+       "ms": 0
+      },
+      "responses": {
+       "wire": "responses",
+       "url": "https://api.anthropic-like.test/v1",
+       "ok": false,
+       "status": 404,
+       "model": "claude-z",
+       "error": "HTTP 404",
+       "ms": 0
+      },
+      "chat": {
+       "wire": "chat",
+       "url": "https://api.anthropic-like.test/v1",
+       "ok": false,
+       "status": 404,
+       "model": "claude-z",
+       "error": "HTTP 404",
+       "ms": 0
+      },
+      "gemini": {
+       "wire": "gemini",
+       "url": "https://api.anthropic-like.test/v1beta",
+       "ok": false,
+       "status": 404,
+       "model": "claude-z",
+       "error": "HTTP 404",
+       "ms": 0
+      }
+     }
+    },
+    "models": [
+     "claude-z"
+    ],
+    "urls": {
+     "messages": "https://api.anthropic-like.test"
+    }
+   },
+   "reqs": [
+    [
+     "GET",
+     "https://api.anthropic-like.test/v1/models",
+     "bearer",
+     "a1",
+     null
+    ],
+    [
+     "GET",
+     "https://api.anthropic-like.test/v1/models",
+     "x-api-key",
+     "a1",
+     null
+    ],
+    [
+     "POST",
+     "https://api.anthropic-like.test/v1/chat/completions",
+     "x-api-key",
+     "a1",
+     "{\"model\":\"claude-z\",\"max_tokens\":1,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+    ],
+    [
+     "POST",
+     "https://api.anthropic-like.test/v1/messages",
+     "x-api-key",
+     "a1",
+     "{\"model\":\"claude-z\",\"max_tokens\":1,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+    ],
+    [
+     "POST",
+     "https://api.anthropic-like.test/v1/responses",
+     "bearer",
+     "a1",
+     "{\"model\":\"claude-z\",\"max_output_tokens\":16,\"input\":\"hi\"}"
+    ],
+    [
+     "POST",
+     "https://api.anthropic-like.test/v1beta/models/claude-z:generateContent",
+     "x-goog-api-key",
+     "a1",
+     "{\"contents\":[{\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":1}}"
+    ]
+   ]
+  }
+ ]
+}

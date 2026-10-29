@@ -30,6 +30,10 @@ type Config struct {
 	Middleware func(http.Handler) http.Handler
 	// IslandLayout：灵动岛窗口矩形（islandWindowRect(g, g.height)，屏幕绝对坐标）与页面地址；nil/false 用占位页
 	IslandLayout func() (rect shell.Rect, page string, ok bool)
+	// OpenProviderPanel：托盘「模型设置」（= TrayManager openProviderPanel）；nil 时不显示该项
+	OpenProviderPanel func()
+	// ModelSettingsLabel：该项文案（t('electron.common.model-settings')）
+	ModelSettingsLabel string
 }
 
 type Wails struct {
@@ -86,6 +90,10 @@ func (w *Wails) setupTray() {
 	m.Add("显示 / 隐藏看板娘").OnClick(func(*application.Context) { w.toggle(shell.Mascot) })
 	m.Add("打开 / 关闭对话").OnClick(func(*application.Context) { w.toggle(shell.Chat) })
 	m.Add("显示通知条").OnClick(func(*application.Context) { w.toggle(shell.Island) })
+	if w.cfg.OpenProviderPanel != nil {
+		m.AddSeparator()
+		m.Add(w.cfg.ModelSettingsLabel).OnClick(func(*application.Context) { go w.cfg.OpenProviderPanel() })
+	}
 	m.AddSeparator()
 	m.Add("退出").OnClick(func(*application.Context) { w.Quit() })
 	t.SetMenu(m)
@@ -389,4 +397,22 @@ func (w *Wails) ExecJS(k shell.WindowKind, js string) {
 	if win := w.win(k); win != nil {
 		win.ExecJS(js)
 	}
+}
+
+// AnyFocused = BrowserWindow.getFocusedWindow() != null：任一应用窗口处于焦点（b7 WindowFocus 接口）
+func (w *Wails) AnyFocused() bool {
+	w.mu.Lock()
+	ws := make([]*application.WebviewWindow, 0, len(w.wins))
+	for _, win := range w.wins {
+		if win != nil {
+			ws = append(ws, win)
+		}
+	}
+	w.mu.Unlock()
+	for _, win := range ws {
+		if win.IsFocused() {
+			return true
+		}
+	}
+	return false
 }

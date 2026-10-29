@@ -33,6 +33,18 @@ MUTANTS=(
   "$D/diagnostics/clitrace.go|s/t.written\+util.UTF16Len\(line\) > maxDayBytes/t.written > maxDayBytes/"
   "$D/diagnostics/clitrace.go|s/ra\[i\] = server.RedactText\(a, nil\)/ra[i] = a/"
   "$D/diagnostics/clitrace.go|s/O_WRONLY, 0o600/O_WRONLY, 0o644/"
+  "$D/terminal/service.go|s/writeIfChanged\(tokenFile, \*client.Token, 0o600\)/writeIfChanged(tokenFile, *client.Token, 0o644)/"
+  "$D/terminal/service.go|s/kind := \"shell-rc\"/kind := \"user-path\"/"
+  "$D/terminal/service.go|s/\"nomi-\"\+kind\+\".ps1\"\), powershellScript/\"nomi-\"+kind+\".ps\"), powershellScript/"
+  "$D/terminal/service.go|s/\"fish\", \"config.fish\"\), \"fish\"\}/\"fish\", \"config.fish\"), \"posix\"}/"
+  "$D/terminal/terminal.go|s/return \"nomi-\" \+ kind \+ \".cmd\"/return \"nomi-\" + kind + \".bat\"/"
+  "$D/terminal/terminal.go|s/# Added by Nomi; removed/# Added by Nomi, removed/"
+  "internal/gateway/probe/detect.go|s/gemini = origin \+ \"\/v1beta\"/gemini = origin + \"\/v1\"/"
+  "internal/gateway/probe/detect.go|s/\|\| r2.status == 400/|| r2.status == 401/"
+  "internal/gateway/probe/detect.go|s/\"messages\": \"x-api-key\", \"responses\"/\"messages\": \"bearer\", \"responses\"/"
+  "internal/gateway/probe/detect.go|s/return err.Error\(\)/return \"fetch failed\"/"
+  "$D/shellhandlers/navroutes.go|s/\"providers\": \"providers.openPanel\"/\"providers\": \"providers.open\"/"
+  "$D/shellhandlers/gateway.go|s/\"Service 'terminal' is not available\"/\"Service 'gateway' is not available\"/"
 )
 killed=0; survived=0
 for m in "${MUTANTS[@]}"; do
@@ -42,7 +54,7 @@ for m in "${MUTANTS[@]}"; do
   if cmp -s "$f" "$f.mutbak"; then
     mv "$f.mutbak" "$f"; echo "MUTANT NOT APPLIED: $m"; exit 2
   fi
-  if go test -count=1 -tags gtk3 ./internal/core/shellhandlers/ -run 'Parity' >/dev/null 2>&1; then
+  if go test -count=1 -tags gtk3 ./internal/core/shellhandlers/ -run 'Parity|TestWindowRoutes|TestTerminalUnavailable' >/dev/null 2>&1; then
     survived=$((survived+1)); echo "SURVIVED: $m"
   else
     killed=$((killed+1)); echo "killed:   $m"

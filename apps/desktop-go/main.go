@@ -300,6 +300,7 @@ func main() {
 	chatHandlers.Register(router)
 	defer chatHandlers.Dispose()
 	shellhandlers.InstallGateway(router, gatewaySvc)
+	shellhandlers.InstallTerminal(router, shellhandlers.NewGatewayTerminal(userData, gatewaySvc, deps.StdLogger{Prefix: "[gateway]"}))
 	// 批次 9：语音输入（voice.*）/ 朗读（tts.*）/ nav.openVoiceSettings
 	voiceGateway := func() mediahandlers.GatewayLike {
 		if gatewaySvc == nil {
@@ -368,6 +369,8 @@ func main() {
 		frag.Set("ctl", ctl)
 	}
 	sh = wailsshell.New(wailsshell.Config{Assets: assets, Fragment: frag, MascotSize: mascotCtl.WindowSize, OnWindow: mascotCtl.WindowEvent,
+		OpenProviderPanel:  func() { shellhandlers.OpenProviderPanel(router, func() { sh.Show(shell.Chat) }, "") },
+		ModelSettingsLabel: i18n.T("electron.common.model-settings"),
 		IslandLayout: func() (shell.Rect, string, bool) {
 			g, ok := isl.Layout()
 			if !ok {
