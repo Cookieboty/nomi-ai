@@ -106,6 +106,24 @@ def launch(exe, logf=None):
     return subprocess.Popen([exe], **kw)
 
 
+def shot(path):
+    """整屏截图（看板娘 idle 时）：verify/bench 产物里对比 Go 与 2.0.4 的角色大小 / 位置"""
+    try:
+        if SYS == "Darwin":
+            subprocess.run(["screencapture", "-x", path], timeout=30)
+        elif SYS == "Windows":
+            ps = ("Add-Type -AssemblyName System.Windows.Forms,System.Drawing;"
+                  "$b=[System.Windows.Forms.SystemInformation]::VirtualScreen;"
+                  "$i=New-Object System.Drawing.Bitmap $b.Width,$b.Height;"
+                  "$g=[System.Drawing.Graphics]::FromImage($i);$g.CopyFromScreen($b.Left,$b.Top,0,0,$i.Size);"
+                  f"$i.Save('{path}')")
+            subprocess.run(["powershell", "-NoProfile", "-Command", ps], timeout=60)
+        else:
+            subprocess.run(["import", "-window", "root", path], timeout=30)
+    except Exception as e:  # noqa: BLE001
+        print("shot failed:", e, flush=True)
+
+
 def stages(logf, t0):
     """[startup] <name> +Nms epoch=E → {name: E - t0（ms）}；首项之前 = exec/dyld/Gatekeeper 开销"""
     time.sleep(1)
@@ -217,6 +235,8 @@ def main():
         r["stages_ms"] = stages(logf, t0)
         time.sleep(30)
         r["idle"] = snap(a.name, p, t0)
+        if i == 0:
+            shot(os.path.join(a.out, f"{a.label}-mascot.png"))
         r["cpu_idle_pct"] = cpu(a.name, p, t0)
         q = launch(a.exe)  # 第二实例 → 主界面
         time.sleep(15)
