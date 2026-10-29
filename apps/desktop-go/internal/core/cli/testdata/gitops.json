@@ -1,0 +1,603 @@
+{
+ "platform": "linux",
+ "cases": [
+  {
+   "name": "2:syncStatus",
+   "out": {
+    "v": {
+     "branch": "main",
+     "ahead": 0,
+     "behind": 0,
+     "remotes": []
+    }
+   }
+  },
+  {
+   "name": "3:worktrees",
+   "out": {
+    "v": {
+     "linked": false,
+     "worktrees": [
+      {
+       "path": "<SB>/a",
+       "head": "<H>",
+       "branch": "main",
+       "main": true,
+       "current": true
+      }
+     ]
+    }
+   }
+  },
+  {
+   "name": "6:commit",
+   "out": {
+    "v": {
+     "ok": false,
+     "code": "invalid"
+    }
+   }
+  },
+  {
+   "name": "7:stage",
+   "out": {
+    "v": {
+     "ok": false,
+     "code": "invalid"
+    }
+   }
+  },
+  {
+   "name": "8:stage",
+   "out": {
+    "v": {
+     "ok": false,
+     "code": "invalid"
+    }
+   }
+  },
+  {
+   "name": "9:stage",
+   "out": {
+    "v": {
+     "ok": false,
+     "code": "invalid"
+    }
+   }
+  },
+  {
+   "name": "10:stage",
+   "out": {
+    "v": {
+     "ok": false,
+     "code": "invalid"
+    }
+   }
+  },
+  {
+   "name": "11:stage",
+   "out": {
+    "v": {
+     "ok": false,
+     "code": "invalid"
+    }
+   }
+  },
+  {
+   "name": "12:stage",
+   "out": {
+    "v": {
+     "ok": true
+    }
+   }
+  },
+  {
+   "name": "13:context",
+   "out": {
+    "v": {
+     "subjects": [],
+     "stat": "a.txt | 1 +\n 1 file changed, 1 insertion(+)",
+     "diff": "diff --git a/a.txt b/a.txt\nnew file mode 100644\nindex <H>..<H>\n--- /dev/null\n+++ b/a.txt\n@@ -0,0 +1 @@\n+one\n",
+     "truncated": false
+    }
+   }
+  },
+  {
+   "name": "14:unstage",
+   "out": {
+    "v": {
+     "ok": true
+    }
+   }
+  },
+  {
+   "name": "15:commit",
+   "out": {
+    "v": {
+     "ok": true,
+     "sha": "<H>",
+     "output": "[main (root-commit) <H>] first\n 2 files changed, 2 insertions(+)\n create mode 100644 a.txt\n create mode 100644 sub/b.txt"
+    }
+   }
+  },
+  {
+   "name": "16:syncStatus",
+   "out": {
+    "v": {
+     "branch": "main",
+     "ahead": 0,
+     "behind": 0,
+     "remotes": []
+    }
+   }
+  },
+  {
+   "name": "17:commitUndo",
+   "out": {
+    "v": {
+     "ok": false,
+     "code": "invalid"
+    }
+   }
+  },
+  {
+   "name": "18:commitUndo",
+   "out": {
+    "v": {
+     "ok": true
+    }
+   }
+  },
+  {
+   "name": "19:commit",
+   "out": {
+    "v": {
+     "ok": true,
+     "sha": "<H>",
+     "output": "[main (root-commit) <H>] nothing here\n 2 files changed, 2 insertions(+)\n create mode 100644 a.txt\n create mode 100644 sub/b.txt"
+    }
+   }
+  },
+  {
+   "name": "20:commit",
+   "out": {
+    "v": {
+     "ok": false,
+     "code": "nothing",
+     "output": "On branch main\nnothing to commit, working tree clean"
+    }
+   }
+  },
+  {
+   "name": "21:commitUndo",
+   "out": {
+    "v": {
+     "ok": false,
+     "code": "moved"
+    }
+   }
+  },
+  {
+   "name": "22:fetch",
+   "out": {
+    "v": {
+     "ok": false,
+     "code": "no-remote"
+    }
+   }
+  },
+  {
+   "name": "23:push",
+   "out": {
+    "v": {
+     "ok": false,
+     "code": "no-remote"
+    }
+   }
+  },
+  {
+   "name": "25:syncStatus",
+   "out": {
+    "v": {
+     "branch": "main",
+     "ahead": 0,
+     "behind": 0,
+     "remotes": [
+      "origin"
+     ],
+     "pushRemote": "origin"
+    }
+   }
+  },
+  {
+   "name": "26:fetch",
+   "out": {
+    "v": {
+     "ok": true
+    }
+   }
+  },
+  {
+   "name": "27:pull",
+   "out": {
+    "v": {
+     "ok": false,
+     "code": "no-upstream"
+    }
+   }
+  },
+  {
+   "name": "28:push",
+   "out": {
+    "v": {
+     "ok": true,
+     "output": "branch 'main' set up to track 'origin/main'.\n\nTo <SB>/remote.git\n * [new branch]      HEAD -> main"
+    }
+   }
+  },
+  {
+   "name": "29:syncStatus",
+   "out": {
+    "v": {
+     "branch": "main",
+     "upstream": "origin/main",
+     "ahead": 0,
+     "behind": 0,
+     "remotes": [
+      "origin"
+     ]
+    }
+   }
+  },
+  {
+   "name": "30:commitUndo",
+   "out": {
+    "v": {
+     "ok": false,
+     "code": "pushed"
+    }
+   }
+  },
+  {
+   "name": "31:pull",
+   "out": {
+    "v": {
+     "ok": true,
+     "output": "Already up to date."
+    }
+   }
+  },
+  {
+   "name": "36:context",
+   "out": {
+    "v": {
+     "subjects": [
+      "nothing here"
+     ],
+     "stat": "a.txt | 1 +\n 1 file changed, 1 insertion(+)\n bin.dat (new)\n nd/x.txt (new)\n new1.txt (new)",
+     "diff": "diff --git a/a.txt b/a.txt\nindex <H>..<H> 100644\n--- a/a.txt\n+++ b/a.txt\n@@ -1 +1,2 @@\n one\n+two\n\nnew file: bin.dat\n(binary)\nnew file: nd/x.txt\nx\n\nnew file: new1.txt\nfresh\n",
+     "truncated": false
+    }
+   }
+  },
+  {
+   "name": "37:context",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "38:discard",
+   "out": {
+    "v": {
+     "ok": true,
+     "stashes": [
+      "<H>",
+      "<H>"
+     ]
+    }
+   }
+  },
+  {
+   "name": "39:syncStatus",
+   "out": {
+    "v": {
+     "branch": "main",
+     "upstream": "origin/main",
+     "ahead": 0,
+     "behind": 0,
+     "remotes": [
+      "origin"
+     ]
+    }
+   }
+  },
+  {
+   "name": "40:discardUndo",
+   "out": {
+    "v": {
+     "ok": false,
+     "code": "invalid"
+    }
+   }
+  },
+  {
+   "name": "41:discardUndo",
+   "out": {
+    "v": {
+     "ok": false,
+     "code": "invalid"
+    }
+   }
+  },
+  {
+   "name": "42:discardUndo",
+   "out": {
+    "v": {
+     "ok": true
+    }
+   }
+  },
+  {
+   "name": "43:discard",
+   "out": {
+    "v": {
+     "ok": false,
+     "code": "nothing"
+    }
+   }
+  },
+  {
+   "name": "44:discard",
+   "out": {
+    "v": {
+     "ok": true,
+     "stashes": [
+      "<H>"
+     ]
+    }
+   }
+  },
+  {
+   "name": "45:discardUndo",
+   "out": {
+    "v": {
+     "ok": true
+    }
+   }
+  },
+  {
+   "name": "46:commit",
+   "out": {
+    "v": {
+     "ok": true,
+     "sha": "<H>",
+     "output": "[main <H>] two\n 3 files changed, 3 insertions(+)\n create mode 100644 nd/x.txt\n create mode 100644 new1.txt"
+    }
+   }
+  },
+  {
+   "name": "47:syncStatus",
+   "out": {
+    "v": {
+     "branch": "main",
+     "upstream": "origin/main",
+     "ahead": 1,
+     "behind": 0,
+     "remotes": [
+      "origin"
+     ]
+    }
+   }
+  },
+  {
+   "name": "48:push",
+   "out": {
+    "v": {
+     "ok": true,
+     "output": "To <SB>/remote.git\n   <H>..<H>  HEAD -> main"
+    }
+   }
+  },
+  {
+   "name": "50:worktrees",
+   "out": {
+    "v": {
+     "linked": false,
+     "worktrees": [
+      {
+       "path": "<SB>/a",
+       "head": "<H>",
+       "branch": "main",
+       "main": true,
+       "current": true
+      },
+      {
+       "path": "<SB>/a/.nomi-delegate/w1",
+       "head": "<H>",
+       "branch": "w1",
+       "delegate": true
+      }
+     ]
+    }
+   }
+  },
+  {
+   "name": "51:owned",
+   "out": {
+    "v": [
+     "<SB>/a",
+     "<SB>/a/.nomi-delegate/w1"
+    ]
+   }
+  },
+  {
+   "name": "53:syncStatus",
+   "out": {
+    "v": {
+     "branch": null,
+     "detached": "<H>",
+     "ahead": 0,
+     "behind": 0,
+     "remotes": [
+      "origin"
+     ]
+    }
+   }
+  },
+  {
+   "name": "54:push",
+   "out": {
+    "v": {
+     "ok": false,
+     "code": "detached"
+    }
+   }
+  },
+  {
+   "name": "55:pull",
+   "out": {
+    "v": {
+     "ok": false,
+     "code": "detached"
+    }
+   }
+  },
+  {
+   "name": "58:push",
+   "out": {
+    "v": {
+     "ok": false,
+     "code": "mismatch"
+    }
+   }
+  },
+  {
+   "name": "60:pull",
+   "out": {
+    "v": {
+     "ok": false,
+     "code": "no-upstream"
+    }
+   }
+  },
+  {
+   "name": "61:fetch",
+   "out": {
+    "v": {
+     "ok": true
+    }
+   }
+  },
+  {
+   "name": "63:syncStatus",
+   "out": {
+    "v": {
+     "branch": "main",
+     "ahead": 0,
+     "behind": 0,
+     "remotes": [
+      "origin"
+     ],
+     "pushRemote": "origin"
+    }
+   }
+  },
+  {
+   "name": "redact:",
+   "out": {
+    "v": ""
+   }
+  },
+  {
+   "name": "redact:x",
+   "out": {
+    "v": "x"
+   }
+  },
+  {
+   "name": "redact:https://u:p@h/x and ssh://me@host/y",
+   "out": {
+    "v": "https://***@h/x and ssh://***@host/y"
+   }
+  },
+  {
+   "name": "redact:a://b@c@d",
+   "out": {
+    "v": "a://***@c@d"
+   }
+  },
+  {
+   "name": "classify:to",
+   "out": {
+    "v": "timeout"
+   }
+  },
+  {
+   "name": "classify:auth",
+   "out": {
+    "v": "auth"
+   }
+  },
+  {
+   "name": "classify:div",
+   "out": {
+    "v": "diverged"
+   }
+  },
+  {
+   "name": "classify:dirty",
+   "out": {
+    "v": "dirty"
+   }
+  },
+  {
+   "name": "classify:rej",
+   "out": {
+    "v": "rejected"
+   }
+  },
+  {
+   "name": "classify:err",
+   "out": {
+    "v": "error"
+   }
+  },
+  {
+   "name": "parse:\"\"",
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "name": "parse:\"worktree /a\\nHEAD abc\\nbranch refs/heads/main\\n\\nworktree /b c\\nHEAD def\\ndetached\\nlocked reason\\nprunable gitdir\\n\\nworktree /bare\\nbare\\n\"",
+   "out": {
+    "v": [
+     {
+      "path": "/a",
+      "head": "abc",
+      "branch": "main"
+     },
+     {
+      "path": "/b c",
+      "head": "def",
+      "detached": true,
+      "locked": true,
+      "prunable": true
+     }
+    ]
+   }
+  },
+  {
+   "name": "parse:\"HEAD x\\n\\nworktree /z\\nbranch feature/x\\n\"",
+   "out": {
+    "v": [
+     {
+      "path": "/z",
+      "branch": "feature/x"
+     }
+    ]
+   }
+  }
+ ]
+}
