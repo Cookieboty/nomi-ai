@@ -245,7 +245,7 @@ func (m *ChatModel) transform(ctx context.Context, o llm.CallOptions, a *args, i
 		}
 		if !it.Success {
 			errFinish()
-			emit(llm.StreamPart{Type: "error", Err: it.Err})
+			emit(llm.StreamPart{Type: "error", Err: it.ParseResult.Err})
 			continue
 		}
 		v := it.Value.(*util.Obj)
