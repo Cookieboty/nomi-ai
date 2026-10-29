@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -89,12 +90,18 @@ type gitExecResult struct {
 
 // gitExecWith = execFile('git', ['--no-pager','-c','core.quotepath=false', …args], {timeout, maxBuffer, env, windowsHide})。
 func gitExecWith(cwd string, args []string, timeoutMs int, input string, maxBuf int, env *util.Obj) gitExecResult {
-	full := append([]string{"--no-pager", "-c", "core.quotepath=false"}, args...)
+	return execFileGit(cwd, append([]string{"--no-pager", "-c", "core.quotepath=false"}, args...), timeoutMs, input, maxBuf, env, true)
+}
+
+// execFileGit = execFile('git', full, …)；hide = windowsHide。
+func execFileGit(cwd string, full []string, timeoutMs int, input string, maxBuf int, env *util.Obj, hide bool) gitExecResult {
 	failed := "Command failed: git " + strings.Join(full, " ") + "\n"
 	cmd := exec.Command("git", full...)
 	cmd.Dir = cwd
 	cmd.Env = usage.EnvSlice(env)
-	hideWindow(cmd)
+	if hide {
+		hideWindow(cmd)
+	}
 	cmd.Stdin = strings.NewReader(input)
 	so, se := capBuf{limit: maxBuf}, capBuf{limit: maxBuf}
 	cmd.Stdout, cmd.Stderr = &so, &se
@@ -272,15 +279,40 @@ func isRelOutside(rel string) bool {
 	return rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel)
 }
 
+// pathRel = path.relative（win32 按小写比较、输出保留 to 的大小写；"" 表示同一路径）。
 func pathRel(from, to string) string {
-	r, err := filepath.Rel(from, to)
+	from, to = resolveFrom(absOf("."), from), resolveFrom(absOf("."), to)
+	if runtime.GOOS != "windows" {
+		r, err := filepath.Rel(from, to)
+		if err != nil {
+			return to
+		}
+		if r == "." {
+			return ""
+		}
+		return r
+	}
+	r, err := filepath.Rel(strings.ToLower(from), strings.ToLower(to))
 	if err != nil {
 		return to // 不同盘符：path.relative 返回 to 本身（绝对路径）
 	}
 	if r == "." {
 		return ""
 	}
-	return r
+	parts := strings.Split(r, string(filepath.Separator))
+	up := 0
+	for up < len(parts) && parts[up] == ".." {
+		up++
+	}
+	down := len(parts) - up
+	if down == 0 {
+		return r
+	}
+	tp := strings.Split(strings.TrimRight(to, string(filepath.Separator)), string(filepath.Separator))
+	if down > len(tp) {
+		return r
+	}
+	return filepath.Join(append(parts[:up:up], tp[len(tp)-down:]...)...)
 }
 
 func gitCheckPaths(cwd string, paths any) []string {
@@ -311,9 +343,19 @@ func gitCheckPaths(cwd string, paths any) []string {
 	return list
 }
 
+// resolveFrom = path.resolve(base, p)（win32：`\\x` / `/x` 落到 base 的盘符根，`C:x` 按该盘解析）。
 func resolveFrom(base, p string) string {
 	if filepath.IsAbs(p) {
 		return filepath.Clean(p)
+	}
+	if runtime.GOOS == "windows" {
+		if v := filepath.VolumeName(p); v != "" {
+			a, _ := filepath.Abs(p)
+			return a
+		}
+		if p != "" && (p[0] == '\\' || p[0] == '/') {
+			return filepath.Clean(filepath.VolumeName(base) + p)
+		}
 	}
 	return filepath.Join(base, p)
 }

@@ -1,0 +1,37 @@
+{
+  "files": {
+    "w/a.txt": "hello\n",
+    "w/sub/b.md": "# b\n",
+    "w/bin.dat": "ab\u0000cd",
+    "w/bad.txt": "x\u00ff\u00fey",
+    "w/node_modules/x/i.js": "1",
+    "w/.next-dev/c": "1",
+    "w/.nextx/c": "1",
+    "w/.git-keep/c": "1",
+    "w/.DS_Store": "",
+    "w/Zeta.txt": "z",
+    "w/alpha.txt": "a",
+    "w/_u.txt": "u",
+    "w/dist/out.js": "o",
+    "w/logs/l.log": "l",
+    "w/keep.log": "k",
+    "w/.gitignore": "dist/\n*.log\n!keep.log\n",
+    "outside/secret.txt": "s"
+  },
+  "links": [["../outside", "w/esc"], ["../outside/secret.txt", "w/esc.txt"], ["sub", "w/subl"]],
+  "steps": [
+    ["resolve", "w", ""], ["resolve", "w", "  "], ["resolve", "w", "a\u0000b"], ["resolve", "w", ".."], ["resolve", "w", "../x"],
+    ["resolve", "w", "..x"], ["resolve", "w", "./sub/../a.txt"], ["resolve", "w", "."], ["resolve", "w", "$SB/w/a.txt"],
+    ["resolve", "w", "$SB/outside/secret.txt"], ["resolve", "w", "esc/secret.txt"], ["resolve", "w", "esc.txt"], ["resolve", "w", "subl/b.md"],
+    ["resolve", "w", "new/deep/f.txt"], ["resolve", "nope", "a"], ["resolve", "w", "/etc/passwd"],
+    ["read", "w", "a.txt"], ["read", "w", "missing"], ["read", "w", "sub"], ["read", "w", "bin.dat"], ["read", "w", "bad.txt"], ["read", "w", "../outside/secret.txt"],
+    ["tree", "w"], ["tree", "nope"],
+    ["write", "w", "new/deep/f.txt", "content \u00e9"], ["write", "w", "sub", "x"], ["write", "w", "a.txt", 5], ["write", "w", "a.txt", "changed"],
+    ["read", "w", "new/deep/f.txt"],
+    ["delete", "w", "missing"], ["delete", "w", "sub"], ["delete", "w", "new/deep/f.txt"], ["read", "w", "new/deep/f.txt"],
+    ["checkout", "w", "a.txt"],
+    ["git", "init", "-q", "-b", "main"], ["git", "add", "a.txt", ".gitignore"], ["git", "commit", "-q", "-m", "i"],
+    ["tree", "w"],
+    ["write", "w", "a.txt", "dirty"], ["checkout", "w", "a.txt"], ["read", "w", "a.txt"], ["checkout", "w", "untracked.txt"]
+  ]
+}
