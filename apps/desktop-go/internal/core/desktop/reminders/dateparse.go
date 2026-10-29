@@ -16,15 +16,15 @@ func DateParse(s string) (float64, bool) {
 		return 0, false
 	}
 	day := makeDay(out[0], out[1], out[2])
-	tm := out[3]*3_600_000 + out[4]*60_000 + out[5]*1000 + out[6]
-	date := day*msPerDay + tm
+	tm := float64(out[3]*3_600_000) + float64(out[4]*60_000) + float64(out[5]*1000) + out[6]
+	date := float64(day*msPerDay) + tm
 	if math.IsNaN(out[7]) {
 		if date < -maxTimeBeforeUTC || date > maxTimeBeforeUTC {
 			return 0, false
 		}
 		date = localToUTC(date)
 	} else {
-		date -= out[7] * 1000
+		date -= float64(out[7] * 1000)
 		if date < -maxTimeMs || date > maxTimeMs {
 			return 0, false
 		}

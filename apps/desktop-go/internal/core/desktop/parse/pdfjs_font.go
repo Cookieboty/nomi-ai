@@ -658,7 +658,7 @@ func jsParseIntHex(s string) float64 {
 	}
 	n, v := 0, 0.0
 	for n < len(s) && pdfjsHex(int(s[n])) != -1 {
-		v = v*16 + float64(pdfjsHex(int(s[n])))
+		v = float64(v*16) + float64(pdfjsHex(int(s[n])))
 		n++
 	}
 	if n == 0 {

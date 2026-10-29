@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -216,10 +217,70 @@ func newSubsHarness(t *testing.T) *subsHarness {
 			t.Fatal(err)
 		}
 		d, _ = filepath.EvalSymlinks(d)
-		t.Cleanup(func() { _ = os.RemoveAll(d) })
 		return d
 	}
-	return &subsHarness{t: t, g: g, bin: bin, tmp: mk("nomi-subs-"), logs: mk("nomi-subs-log-")}
+	h := &subsHarness{t: t, g: g, bin: bin, tmp: mk("nomi-subs-"), logs: mk("nomi-subs-log-")}
+	// 同 record-usage-subs.mjs：先等 mock 子进程（含被超时 / 取消的孙进程）退出，再带重试删除临时目录
+	t.Cleanup(func() {
+		waitMockChildrenExit(t, h.logs, 30*time.Second)
+		for _, d := range []string{h.tmp, h.logs} {
+			if err := removeAllRetry(d, 20, 250*time.Millisecond); err != nil {
+				t.Errorf("cleanup %s: %v", d, err)
+			}
+		}
+	})
+	return h
+}
+
+// waitMockChildrenExit：读 usage-mock-cli 写的 <MOCK_LOG>.pid，轮询直到全部退出；超时则强杀
+func waitMockChildrenExit(t *testing.T, logDir string, d time.Duration) {
+	var pids []int
+	ents, _ := os.ReadDir(logDir)
+	for _, e := range ents {
+		if !strings.HasSuffix(e.Name(), ".pid") {
+			continue
+		}
+		b, _ := os.ReadFile(filepath.Join(logDir, e.Name()))
+		for _, ln := range strings.Split(string(b), "\n") {
+			if n, err := strconv.Atoi(strings.TrimSpace(ln)); err == nil && n > 0 {
+				pids = append(pids, n)
+			}
+		}
+	}
+	end := time.Now().Add(d)
+	for {
+		live := pids[:0]
+		for _, p := range pids {
+			if pidAlive(p) {
+				live = append(live, p)
+			}
+		}
+		pids = live
+		if len(pids) == 0 || time.Now().After(end) {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	for _, p := range pids {
+		t.Logf("waitMockChildrenExit: pid %d still alive after %v, killing", p, d)
+		if pr, err := os.FindProcess(p); err == nil {
+			_ = pr.Kill()
+		}
+	}
+}
+
+func removeAllRetry(d string, n int, delay time.Duration) error {
+	var err error
+	for i := 0; i <= n; i++ {
+		if err = os.RemoveAll(d); err == nil {
+			if _, e := os.Stat(d); os.IsNotExist(e) {
+				return nil
+			}
+			err = fmt.Errorf("still exists")
+		}
+		time.Sleep(delay)
+	}
+	return err
 }
 
 func (h *subsHarness) resolve(sc subsScenario) func() (string, bool) {

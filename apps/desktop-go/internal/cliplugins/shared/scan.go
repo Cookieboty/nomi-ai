@@ -29,7 +29,7 @@ func IsDirentFile(e fs.DirEntry) bool { return e.Type()&fs.ModeType == 0 }
 // MtimeMs = Stats.mtimeMs。
 func MtimeMs(st fs.FileInfo) float64 {
 	t := st.ModTime()
-	return float64(t.Unix())*1000 + float64(t.Nanosecond())/1e6
+	return float64(float64(t.Unix())*1000) + float64(float64(t.Nanosecond())/1e6)
 }
 
 type FileCand struct{ Path, DirID string }

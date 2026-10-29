@@ -130,7 +130,7 @@ func EstimateTokens(text string) float64 {
 		}
 	}
 	rest := len(utf16.Encode([]rune(text))) - cjk
-	return math.Max(1, math.Ceil(float64(cjk)/1.5+float64(rest)/4))
+	return math.Max(1, math.Ceil(float64(float64(cjk)/1.5)+float64(float64(rest)/4)))
 }
 
 // estimateHook：emitCall 用的估算（测试变异用）

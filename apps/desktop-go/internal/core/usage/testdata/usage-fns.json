@@ -74961,6 +74961,2969 @@
      "hasUnpriced": false
     }
    ]
+  },
+  {
+   "fn": "records",
+   "args": [
+    "src"
+   ],
+   "out": [
+    {
+     "key": "src0",
+     "ts": 1773224940000,
+     "via": "log",
+     "model": "gpt-5",
+     "input": 10,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0
+    },
+    {
+     "key": "src1",
+     "ts": 1773224880000,
+     "via": "log",
+     "model": "claude-sonnet-4-5",
+     "input": 20,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1",
+     "source": "claude"
+    },
+    {
+     "key": "src2",
+     "ts": 1773224820000,
+     "via": "log",
+     "model": "grok-4",
+     "input": 30,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0
+    },
+    {
+     "key": "src3",
+     "ts": 1773224760000,
+     "via": "log",
+     "model": "gpt-5",
+     "input": 40,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1",
+     "source": null
+    },
+    {
+     "key": "src4",
+     "ts": 1773224700000,
+     "via": "log",
+     "model": "claude-sonnet-4-5",
+     "input": 50,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "source": 7
+    },
+    {
+     "key": "src5",
+     "ts": 1773224640000,
+     "via": "log",
+     "model": "grok-4",
+     "input": 60,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1",
+     "source": "codex"
+    },
+    {
+     "key": "src6",
+     "ts": 1773224580000,
+     "via": "log",
+     "model": "gpt-5",
+     "input": 70,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "source": ""
+    },
+    {
+     "key": "src7",
+     "ts": 1773224520000,
+     "via": "log",
+     "model": "claude-sonnet-4-5",
+     "input": 80,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1"
+    },
+    {
+     "key": "src8",
+     "ts": 1773224460000,
+     "via": "log",
+     "model": "grok-4",
+     "input": 90,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "source": "claude"
+    },
+    {
+     "key": "src9",
+     "ts": 1773224400000,
+     "via": "log",
+     "model": "gpt-5",
+     "input": 100,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1",
+     "source": true
+    }
+   ]
+  },
+  {
+   "fn": "breakdown",
+   "args": [
+    "today",
+    "source",
+    true
+   ],
+   "out": [
+    {
+     "tokens": "0102302802",
+     "input": 120,
+     "output": "0222",
+     "costUsd": 0.000307,
+     "calls": 3,
+     "hasUnpriced": true
+    },
+    {
+     "key": 7,
+     "tokens": "0502",
+     "input": 50,
+     "output": "02",
+     "costUsd": 0.000195,
+     "calls": 1,
+     "hasUnpriced": false
+    },
+    {
+     "key": "claude",
+     "tokens": "0202902",
+     "input": 110,
+     "output": "022",
+     "costUsd": 0.000096,
+     "calls": 2,
+     "hasUnpriced": true
+    },
+    {
+     "key": true,
+     "tokens": "01002",
+     "input": 100,
+     "output": "02",
+     "costUsd": 0.000058,
+     "calls": 1,
+     "hasUnpriced": false
+    },
+    {
+     "key": "",
+     "tokens": "0702",
+     "input": 70,
+     "output": "02",
+     "costUsd": 0.000043,
+     "calls": 1,
+     "hasUnpriced": false
+    },
+    {
+     "key": null,
+     "tokens": "0402",
+     "input": 40,
+     "output": "02",
+     "costUsd": 0.000028,
+     "calls": 1,
+     "hasUnpriced": false
+    },
+    {
+     "key": "codex",
+     "tokens": "0602",
+     "input": 60,
+     "output": "02",
+     "costUsd": 0,
+     "calls": 1,
+     "hasUnpriced": true
+    }
+   ]
+  },
+  {
+   "fn": "breakdown",
+   "args": [
+    "today",
+    "model",
+    true
+   ],
+   "out": [
+    {
+     "key": "claude-sonnet-4-5",
+     "tokens": "0202502802",
+     "input": 150,
+     "output": "0222",
+     "costUsd": 0.000585,
+     "calls": 3,
+     "hasUnpriced": false
+    },
+    {
+     "key": "gpt-5",
+     "tokens": "01024027021002",
+     "input": 220,
+     "output": "02222",
+     "costUsd": 0.000142,
+     "calls": 4,
+     "hasUnpriced": false
+    },
+    {
+     "key": "grok-4",
+     "tokens": "0302602902",
+     "input": 180,
+     "output": "0222",
+     "costUsd": 0,
+     "calls": 3,
+     "hasUnpriced": true
+    }
+   ]
+  },
+  {
+   "fn": "records",
+   "args": [
+    "srcMissing"
+   ],
+   "out": [
+    {
+     "key": "src0",
+     "ts": 1773224940000,
+     "via": "log",
+     "model": "gpt-5",
+     "input": 10,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0
+    },
+    {
+     "key": "src2",
+     "ts": 1773224820000,
+     "via": "log",
+     "model": "grok-4",
+     "input": 30,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0
+    },
+    {
+     "key": "src7",
+     "ts": 1773224520000,
+     "via": "log",
+     "model": "claude-sonnet-4-5",
+     "input": 80,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1"
+    }
+   ]
+  },
+  {
+   "fn": "breakdown",
+   "args": [
+    "today",
+    "source",
+    true
+   ],
+   "out": [
+    {
+     "tokens": "0102302802",
+     "input": 120,
+     "output": "0222",
+     "costUsd": 0.000307,
+     "calls": 3,
+     "hasUnpriced": true
+    }
+   ]
+  },
+  {
+   "fn": "records",
+   "args": [
+    "src"
+   ],
+   "out": [
+    {
+     "key": "src0",
+     "ts": 1773224940000,
+     "via": "log",
+     "model": "gpt-5",
+     "input": 10,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0
+    },
+    {
+     "key": "src1",
+     "ts": 1773224880000,
+     "via": "log",
+     "model": "claude-sonnet-4-5",
+     "input": 20,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1",
+     "source": "claude"
+    },
+    {
+     "key": "src2",
+     "ts": 1773224820000,
+     "via": "log",
+     "model": "grok-4",
+     "input": 30,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0
+    },
+    {
+     "key": "src3",
+     "ts": 1773224760000,
+     "via": "log",
+     "model": "gpt-5",
+     "input": 40,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1",
+     "source": null
+    },
+    {
+     "key": "src4",
+     "ts": 1773224700000,
+     "via": "log",
+     "model": "claude-sonnet-4-5",
+     "input": 50,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "source": 7
+    },
+    {
+     "key": "src5",
+     "ts": 1773224640000,
+     "via": "log",
+     "model": "grok-4",
+     "input": 60,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1",
+     "source": "codex"
+    },
+    {
+     "key": "src6",
+     "ts": 1773224580000,
+     "via": "log",
+     "model": "gpt-5",
+     "input": 70,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "source": ""
+    },
+    {
+     "key": "src7",
+     "ts": 1773224520000,
+     "via": "log",
+     "model": "claude-sonnet-4-5",
+     "input": 80,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1"
+    },
+    {
+     "key": "src8",
+     "ts": 1773224460000,
+     "via": "log",
+     "model": "grok-4",
+     "input": 90,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "source": "claude"
+    },
+    {
+     "key": "src9",
+     "ts": 1773224400000,
+     "via": "log",
+     "model": "gpt-5",
+     "input": 100,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1",
+     "source": true
+    }
+   ]
+  },
+  {
+   "fn": "details",
+   "args": [
+    {
+     "from": 0,
+     "to": 9000000000000000,
+     "limit": 1000
+    }
+   ],
+   "out": {
+    "rows": [
+     {
+      "key": "src0",
+      "ts": 1773224940000,
+      "provider": "OpenAI",
+      "model": "gpt-5",
+      "input": 10,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "102",
+      "costUsd": 0.000013,
+      "estimated": false
+     },
+     {
+      "key": "src1",
+      "ts": 1773224880000,
+      "source": "claude",
+      "provider": "Anthropic",
+      "model": "claude-sonnet-4-5",
+      "session": "s1",
+      "input": 20,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "202",
+      "costUsd": 0.000096,
+      "estimated": false
+     },
+     {
+      "key": "src2",
+      "ts": 1773224820000,
+      "provider": "",
+      "model": "grok-4",
+      "input": 30,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "302",
+      "costUsd": null,
+      "estimated": false
+     },
+     {
+      "key": "src3",
+      "ts": 1773224760000,
+      "source": null,
+      "provider": "OpenAI",
+      "model": "gpt-5",
+      "session": "s1",
+      "input": 40,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "402",
+      "costUsd": 0.000028,
+      "estimated": false
+     },
+     {
+      "key": "src4",
+      "ts": 1773224700000,
+      "source": 7,
+      "provider": "Anthropic",
+      "model": "claude-sonnet-4-5",
+      "input": 50,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "502",
+      "costUsd": 0.000195,
+      "estimated": false
+     },
+     {
+      "key": "src5",
+      "ts": 1773224640000,
+      "source": "codex",
+      "provider": "",
+      "model": "grok-4",
+      "session": "s1",
+      "input": 60,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "602",
+      "costUsd": null,
+      "estimated": false
+     },
+     {
+      "key": "src6",
+      "ts": 1773224580000,
+      "source": "",
+      "provider": "OpenAI",
+      "model": "gpt-5",
+      "input": 70,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "702",
+      "costUsd": 0.000043,
+      "estimated": false
+     },
+     {
+      "key": "src7",
+      "ts": 1773224520000,
+      "provider": "Anthropic",
+      "model": "claude-sonnet-4-5",
+      "session": "s1",
+      "input": 80,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "802",
+      "costUsd": 0.000294,
+      "estimated": false
+     },
+     {
+      "key": "src8",
+      "ts": 1773224460000,
+      "source": "claude",
+      "provider": "",
+      "model": "grok-4",
+      "input": 90,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "902",
+      "costUsd": null,
+      "estimated": false
+     },
+     {
+      "key": "src9",
+      "ts": 1773224400000,
+      "source": true,
+      "provider": "OpenAI",
+      "model": "gpt-5",
+      "session": "s1",
+      "input": 100,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "1002",
+      "costUsd": 0.000058,
+      "estimated": false
+     }
+    ],
+    "total": 10,
+    "summary": {
+     "costUsd": 0.000727,
+     "input": 550,
+     "output": "02222222222",
+     "total": "55002222222222",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "calls": 10,
+     "estimatedCalls": 0,
+     "unpriced": [
+      {
+       "model": "grok-4",
+       "tokens": "0302602902",
+       "calls": 3
+      }
+     ],
+     "cacheHitRate": 0
+    },
+    "facets": {
+     "sources": [
+      "",
+      7,
+      "claude",
+      "codex",
+      null,
+      true,
+      null
+     ],
+     "models": [
+      "claude-sonnet-4-5",
+      "gpt-5",
+      "grok-4"
+     ],
+     "sessions": [
+      {
+       "id": "s1",
+       "label": "s1"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "fn": "details",
+   "args": [
+    {
+     "from": 0,
+     "to": 9000000000000000,
+     "source": "claude",
+     "limit": 1000
+    }
+   ],
+   "out": {
+    "rows": [
+     {
+      "key": "src1",
+      "ts": 1773224880000,
+      "source": "claude",
+      "provider": "Anthropic",
+      "model": "claude-sonnet-4-5",
+      "session": "s1",
+      "input": 20,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "202",
+      "costUsd": 0.000096,
+      "estimated": false
+     },
+     {
+      "key": "src8",
+      "ts": 1773224460000,
+      "source": "claude",
+      "provider": "",
+      "model": "grok-4",
+      "input": 90,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "902",
+      "costUsd": null,
+      "estimated": false
+     }
+    ],
+    "total": 2,
+    "summary": {
+     "costUsd": 0.000096,
+     "input": 110,
+     "output": "022",
+     "total": "110022",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "calls": 2,
+     "estimatedCalls": 0,
+     "unpriced": [
+      {
+       "model": "grok-4",
+       "tokens": "0902",
+       "calls": 1
+      }
+     ],
+     "cacheHitRate": 0
+    },
+    "facets": {
+     "sources": [
+      "",
+      7,
+      "claude",
+      "codex",
+      null,
+      true,
+      null
+     ],
+     "models": [
+      "claude-sonnet-4-5",
+      "gpt-5",
+      "grok-4"
+     ],
+     "sessions": [
+      {
+       "id": "s1",
+       "label": "s1"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "fn": "details",
+   "args": [
+    {
+     "from": 0,
+     "to": 9000000000000000,
+     "source": "undefined",
+     "limit": 1000
+    }
+   ],
+   "out": {
+    "rows": [],
+    "total": 0,
+    "summary": {
+     "costUsd": 0,
+     "input": 0,
+     "output": 0,
+     "total": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "calls": 0,
+     "estimatedCalls": 0,
+     "unpriced": [],
+     "cacheHitRate": null
+    },
+    "facets": {
+     "sources": [
+      "",
+      7,
+      "claude",
+      "codex",
+      null,
+      true,
+      null
+     ],
+     "models": [
+      "claude-sonnet-4-5",
+      "gpt-5",
+      "grok-4"
+     ],
+     "sessions": [
+      {
+       "id": "s1",
+       "label": "s1"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "fn": "details",
+   "args": [
+    {
+     "from": 0,
+     "to": 9000000000000000,
+     "source": "7",
+     "limit": 1000
+    }
+   ],
+   "out": {
+    "rows": [],
+    "total": 0,
+    "summary": {
+     "costUsd": 0,
+     "input": 0,
+     "output": 0,
+     "total": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "calls": 0,
+     "estimatedCalls": 0,
+     "unpriced": [],
+     "cacheHitRate": null
+    },
+    "facets": {
+     "sources": [
+      "",
+      7,
+      "claude",
+      "codex",
+      null,
+      true,
+      null
+     ],
+     "models": [
+      "claude-sonnet-4-5",
+      "gpt-5",
+      "grok-4"
+     ],
+     "sessions": [
+      {
+       "id": "s1",
+       "label": "s1"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "fn": "details",
+   "args": [
+    {
+     "from": 0,
+     "to": 9000000000000000,
+     "source": "null",
+     "limit": 1000
+    }
+   ],
+   "out": {
+    "rows": [],
+    "total": 0,
+    "summary": {
+     "costUsd": 0,
+     "input": 0,
+     "output": 0,
+     "total": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "calls": 0,
+     "estimatedCalls": 0,
+     "unpriced": [],
+     "cacheHitRate": null
+    },
+    "facets": {
+     "sources": [
+      "",
+      7,
+      "claude",
+      "codex",
+      null,
+      true,
+      null
+     ],
+     "models": [
+      "claude-sonnet-4-5",
+      "gpt-5",
+      "grok-4"
+     ],
+     "sessions": [
+      {
+       "id": "s1",
+       "label": "s1"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "fn": "details",
+   "args": [
+    {
+     "from": 0,
+     "to": 9000000000000000,
+     "source": "true",
+     "limit": 1000
+    }
+   ],
+   "out": {
+    "rows": [],
+    "total": 0,
+    "summary": {
+     "costUsd": 0,
+     "input": 0,
+     "output": 0,
+     "total": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "calls": 0,
+     "estimatedCalls": 0,
+     "unpriced": [],
+     "cacheHitRate": null
+    },
+    "facets": {
+     "sources": [
+      "",
+      7,
+      "claude",
+      "codex",
+      null,
+      true,
+      null
+     ],
+     "models": [
+      "claude-sonnet-4-5",
+      "gpt-5",
+      "grok-4"
+     ],
+     "sessions": [
+      {
+       "id": "s1",
+       "label": "s1"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "fn": "details",
+   "args": [
+    {
+     "from": 0,
+     "to": 9000000000000000,
+     "sort": "source",
+     "dir": "asc",
+     "limit": 1000
+    }
+   ],
+   "out": {
+    "__throw": "TypeError: Cannot read properties of undefined (reading 'localeCompare')"
+   }
+  },
+  {
+   "fn": "details",
+   "args": [
+    {
+     "from": 0,
+     "to": 9000000000000000,
+     "sort": "tokens",
+     "dir": "asc",
+     "limit": 1000
+    }
+   ],
+   "out": {
+    "rows": [
+     {
+      "key": "src0",
+      "ts": 1773224940000,
+      "provider": "OpenAI",
+      "model": "gpt-5",
+      "input": 10,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "102",
+      "costUsd": 0.000013,
+      "estimated": false
+     },
+     {
+      "key": "src1",
+      "ts": 1773224880000,
+      "source": "claude",
+      "provider": "Anthropic",
+      "model": "claude-sonnet-4-5",
+      "session": "s1",
+      "input": 20,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "202",
+      "costUsd": 0.000096,
+      "estimated": false
+     },
+     {
+      "key": "src2",
+      "ts": 1773224820000,
+      "provider": "",
+      "model": "grok-4",
+      "input": 30,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "302",
+      "costUsd": null,
+      "estimated": false
+     },
+     {
+      "key": "src3",
+      "ts": 1773224760000,
+      "source": null,
+      "provider": "OpenAI",
+      "model": "gpt-5",
+      "session": "s1",
+      "input": 40,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "402",
+      "costUsd": 0.000028,
+      "estimated": false
+     },
+     {
+      "key": "src4",
+      "ts": 1773224700000,
+      "source": 7,
+      "provider": "Anthropic",
+      "model": "claude-sonnet-4-5",
+      "input": 50,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "502",
+      "costUsd": 0.000195,
+      "estimated": false
+     },
+     {
+      "key": "src5",
+      "ts": 1773224640000,
+      "source": "codex",
+      "provider": "",
+      "model": "grok-4",
+      "session": "s1",
+      "input": 60,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "602",
+      "costUsd": null,
+      "estimated": false
+     },
+     {
+      "key": "src6",
+      "ts": 1773224580000,
+      "source": "",
+      "provider": "OpenAI",
+      "model": "gpt-5",
+      "input": 70,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "702",
+      "costUsd": 0.000043,
+      "estimated": false
+     },
+     {
+      "key": "src7",
+      "ts": 1773224520000,
+      "provider": "Anthropic",
+      "model": "claude-sonnet-4-5",
+      "session": "s1",
+      "input": 80,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "802",
+      "costUsd": 0.000294,
+      "estimated": false
+     },
+     {
+      "key": "src8",
+      "ts": 1773224460000,
+      "source": "claude",
+      "provider": "",
+      "model": "grok-4",
+      "input": 90,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "902",
+      "costUsd": null,
+      "estimated": false
+     },
+     {
+      "key": "src9",
+      "ts": 1773224400000,
+      "source": true,
+      "provider": "OpenAI",
+      "model": "gpt-5",
+      "session": "s1",
+      "input": 100,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "1002",
+      "costUsd": 0.000058,
+      "estimated": false
+     }
+    ],
+    "total": 10,
+    "summary": {
+     "costUsd": 0.000727,
+     "input": 550,
+     "output": "02222222222",
+     "total": "55002222222222",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "calls": 10,
+     "estimatedCalls": 0,
+     "unpriced": [
+      {
+       "model": "grok-4",
+       "tokens": "0302602902",
+       "calls": 3
+      }
+     ],
+     "cacheHitRate": 0
+    },
+    "facets": {
+     "sources": [
+      "",
+      7,
+      "claude",
+      "codex",
+      null,
+      true,
+      null
+     ],
+     "models": [
+      "claude-sonnet-4-5",
+      "gpt-5",
+      "grok-4"
+     ],
+     "sessions": [
+      {
+       "id": "s1",
+       "label": "s1"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "fn": "toCsvRows",
+   "args": [
+    [
+     {
+      "key": "src0",
+      "ts": 1773224940000,
+      "provider": "OpenAI",
+      "model": "gpt-5",
+      "input": 10,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "102",
+      "costUsd": 0.000013,
+      "estimated": false
+     },
+     {
+      "key": "src1",
+      "ts": 1773224880000,
+      "source": "claude",
+      "provider": "Anthropic",
+      "model": "claude-sonnet-4-5",
+      "session": "s1",
+      "input": 20,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "202",
+      "costUsd": 0.000096,
+      "estimated": false
+     },
+     {
+      "key": "src2",
+      "ts": 1773224820000,
+      "provider": "",
+      "model": "grok-4",
+      "input": 30,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "302",
+      "costUsd": null,
+      "estimated": false
+     },
+     {
+      "key": "src3",
+      "ts": 1773224760000,
+      "source": null,
+      "provider": "OpenAI",
+      "model": "gpt-5",
+      "session": "s1",
+      "input": 40,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "402",
+      "costUsd": 0.000028,
+      "estimated": false
+     },
+     {
+      "key": "src4",
+      "ts": 1773224700000,
+      "source": 7,
+      "provider": "Anthropic",
+      "model": "claude-sonnet-4-5",
+      "input": 50,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "502",
+      "costUsd": 0.000195,
+      "estimated": false
+     },
+     {
+      "key": "src5",
+      "ts": 1773224640000,
+      "source": "codex",
+      "provider": "",
+      "model": "grok-4",
+      "session": "s1",
+      "input": 60,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "602",
+      "costUsd": null,
+      "estimated": false
+     },
+     {
+      "key": "src6",
+      "ts": 1773224580000,
+      "source": "",
+      "provider": "OpenAI",
+      "model": "gpt-5",
+      "input": 70,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "702",
+      "costUsd": 0.000043,
+      "estimated": false
+     },
+     {
+      "key": "src7",
+      "ts": 1773224520000,
+      "provider": "Anthropic",
+      "model": "claude-sonnet-4-5",
+      "session": "s1",
+      "input": 80,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "802",
+      "costUsd": 0.000294,
+      "estimated": false
+     },
+     {
+      "key": "src8",
+      "ts": 1773224460000,
+      "source": "claude",
+      "provider": "",
+      "model": "grok-4",
+      "input": 90,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "902",
+      "costUsd": null,
+      "estimated": false
+     },
+     {
+      "key": "src9",
+      "ts": 1773224400000,
+      "source": true,
+      "provider": "OpenAI",
+      "model": "gpt-5",
+      "session": "s1",
+      "input": 100,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "1002",
+      "costUsd": 0.000058,
+      "estimated": false
+     }
+    ],
+    "USD",
+    7.2
+   ],
+   "out": "time,source,provider,model,session,project,input_tokens,output_tokens,cache_read_tokens,cache_write_tokens,total_tokens,cost_usd,priced,estimated\n2026-03-11T10:29:00.000Z,,OpenAI,gpt-5,,,10,2,0,0,102,0.000013,yes,no\n2026-03-11T10:28:00.000Z,claude,Anthropic,claude-sonnet-4-5,s1,,20,2,0,0,202,0.000096,yes,no\n2026-03-11T10:27:00.000Z,,,grok-4,,,30,2,0,0,302,,no,no\n2026-03-11T10:26:00.000Z,,OpenAI,gpt-5,s1,,40,2,0,0,402,0.000028,yes,no\n2026-03-11T10:25:00.000Z,7,Anthropic,claude-sonnet-4-5,,,50,2,0,0,502,0.000195,yes,no\n2026-03-11T10:24:00.000Z,codex,,grok-4,s1,,60,2,0,0,602,,no,no\n2026-03-11T10:23:00.000Z,,OpenAI,gpt-5,,,70,2,0,0,702,0.000043,yes,no\n2026-03-11T10:22:00.000Z,,Anthropic,claude-sonnet-4-5,s1,,80,2,0,0,802,0.000294,yes,no\n2026-03-11T10:21:00.000Z,claude,,grok-4,,,90,2,0,0,902,,no,no\n2026-03-11T10:20:00.000Z,true,OpenAI,gpt-5,s1,,100,2,0,0,1002,0.000058,yes,no\n"
+  },
+  {
+   "fn": "records",
+   "args": [
+    "srcStrMissing"
+   ],
+   "out": [
+    {
+     "key": "src1",
+     "ts": 1773224880000,
+     "via": "log",
+     "model": "claude-sonnet-4-5",
+     "input": 20,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1",
+     "source": "claude"
+    },
+    {
+     "key": "src2",
+     "ts": 1773224820000,
+     "via": "log",
+     "model": "grok-4",
+     "input": 30,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0
+    },
+    {
+     "key": "src5",
+     "ts": 1773224640000,
+     "via": "log",
+     "model": "grok-4",
+     "input": 60,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1",
+     "source": "codex"
+    },
+    {
+     "key": "src6",
+     "ts": 1773224580000,
+     "via": "log",
+     "model": "gpt-5",
+     "input": 70,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "source": ""
+    },
+    {
+     "key": "src7",
+     "ts": 1773224520000,
+     "via": "log",
+     "model": "claude-sonnet-4-5",
+     "input": 80,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1"
+    },
+    {
+     "key": "src8",
+     "ts": 1773224460000,
+     "via": "log",
+     "model": "grok-4",
+     "input": 90,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "source": "claude"
+    }
+   ]
+  },
+  {
+   "fn": "records",
+   "args": [
+    "srcStrMissing"
+   ],
+   "out": [
+    {
+     "key": "src1",
+     "ts": 1773224880000,
+     "via": "log",
+     "model": "claude-sonnet-4-5",
+     "input": 20,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1",
+     "source": "claude"
+    }
+   ]
+  },
+  {
+   "fn": "details",
+   "args": [
+    {
+     "from": 0,
+     "to": 9000000000000000,
+     "sort": "source",
+     "dir": "asc",
+     "limit": 1000
+    }
+   ],
+   "out": {
+    "rows": [
+     {
+      "key": "src1",
+      "ts": 1773224880000,
+      "source": "claude",
+      "provider": "Anthropic",
+      "model": "claude-sonnet-4-5",
+      "session": "s1",
+      "input": 20,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "202",
+      "costUsd": 0.000096,
+      "estimated": false
+     }
+    ],
+    "total": 1,
+    "summary": {
+     "costUsd": 0.000096,
+     "input": 20,
+     "output": "02",
+     "total": "2002",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "calls": 1,
+     "estimatedCalls": 0,
+     "unpriced": [],
+     "cacheHitRate": 0
+    },
+    "facets": {
+     "sources": [
+      "claude"
+     ],
+     "models": [
+      "claude-sonnet-4-5"
+     ],
+     "sessions": [
+      {
+       "id": "s1",
+       "label": "s1"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "fn": "records",
+   "args": [
+    "srcStrMissing"
+   ],
+   "out": [
+    {
+     "key": "src1",
+     "ts": 1773224880000,
+     "via": "log",
+     "model": "claude-sonnet-4-5",
+     "input": 20,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1",
+     "source": "claude"
+    },
+    {
+     "key": "src2",
+     "ts": 1773224820000,
+     "via": "log",
+     "model": "grok-4",
+     "input": 30,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0
+    }
+   ]
+  },
+  {
+   "fn": "details",
+   "args": [
+    {
+     "from": 0,
+     "to": 9000000000000000,
+     "sort": "source",
+     "dir": "asc",
+     "limit": 1000
+    }
+   ],
+   "out": {
+    "__throw": "TypeError: Cannot read properties of undefined (reading 'localeCompare')"
+   }
+  },
+  {
+   "fn": "records",
+   "args": [
+    "srcStrMissing"
+   ],
+   "out": [
+    {
+     "key": "src1",
+     "ts": 1773224880000,
+     "via": "log",
+     "model": "claude-sonnet-4-5",
+     "input": 20,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1",
+     "source": "claude"
+    },
+    {
+     "key": "src2",
+     "ts": 1773224820000,
+     "via": "log",
+     "model": "grok-4",
+     "input": 30,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0
+    },
+    {
+     "key": "src5",
+     "ts": 1773224640000,
+     "via": "log",
+     "model": "grok-4",
+     "input": 60,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1",
+     "source": "codex"
+    }
+   ]
+  },
+  {
+   "fn": "details",
+   "args": [
+    {
+     "from": 0,
+     "to": 9000000000000000,
+     "sort": "source",
+     "dir": "asc",
+     "limit": 1000
+    }
+   ],
+   "out": {
+    "__throw": "TypeError: Cannot read properties of undefined (reading 'localeCompare')"
+   }
+  },
+  {
+   "fn": "records",
+   "args": [
+    "srcStrMissing"
+   ],
+   "out": [
+    {
+     "key": "src1",
+     "ts": 1773224880000,
+     "via": "log",
+     "model": "claude-sonnet-4-5",
+     "input": 20,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1",
+     "source": "claude"
+    },
+    {
+     "key": "src2",
+     "ts": 1773224820000,
+     "via": "log",
+     "model": "grok-4",
+     "input": 30,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0
+    },
+    {
+     "key": "src5",
+     "ts": 1773224640000,
+     "via": "log",
+     "model": "grok-4",
+     "input": 60,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1",
+     "source": "codex"
+    },
+    {
+     "key": "src6",
+     "ts": 1773224580000,
+     "via": "log",
+     "model": "gpt-5",
+     "input": 70,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "source": ""
+    },
+    {
+     "key": "src7",
+     "ts": 1773224520000,
+     "via": "log",
+     "model": "claude-sonnet-4-5",
+     "input": 80,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1"
+    },
+    {
+     "key": "src8",
+     "ts": 1773224460000,
+     "via": "log",
+     "model": "grok-4",
+     "input": 90,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "source": "claude"
+    }
+   ]
+  },
+  {
+   "fn": "details",
+   "args": [
+    {
+     "from": 0,
+     "to": 9000000000000000,
+     "sort": "source",
+     "dir": "asc",
+     "limit": 1000
+    }
+   ],
+   "out": {
+    "__throw": "TypeError: Cannot read properties of undefined (reading 'localeCompare')"
+   }
+  },
+  {
+   "fn": "records",
+   "args": [
+    "srcStrMissing"
+   ],
+   "out": [
+    {
+     "key": "src1",
+     "ts": 1773224880000,
+     "via": "log",
+     "model": "claude-sonnet-4-5",
+     "input": 20,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1",
+     "source": "claude"
+    }
+   ]
+  },
+  {
+   "fn": "details",
+   "args": [
+    {
+     "from": 0,
+     "to": 9000000000000000,
+     "sort": "source",
+     "dir": "desc",
+     "limit": 1000
+    }
+   ],
+   "out": {
+    "rows": [
+     {
+      "key": "src1",
+      "ts": 1773224880000,
+      "source": "claude",
+      "provider": "Anthropic",
+      "model": "claude-sonnet-4-5",
+      "session": "s1",
+      "input": 20,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "202",
+      "costUsd": 0.000096,
+      "estimated": false
+     }
+    ],
+    "total": 1,
+    "summary": {
+     "costUsd": 0.000096,
+     "input": 20,
+     "output": "02",
+     "total": "2002",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "calls": 1,
+     "estimatedCalls": 0,
+     "unpriced": [],
+     "cacheHitRate": 0
+    },
+    "facets": {
+     "sources": [
+      "claude"
+     ],
+     "models": [
+      "claude-sonnet-4-5"
+     ],
+     "sessions": [
+      {
+       "id": "s1",
+       "label": "s1"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "fn": "records",
+   "args": [
+    "srcStrMissing"
+   ],
+   "out": [
+    {
+     "key": "src1",
+     "ts": 1773224880000,
+     "via": "log",
+     "model": "claude-sonnet-4-5",
+     "input": 20,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1",
+     "source": "claude"
+    },
+    {
+     "key": "src2",
+     "ts": 1773224820000,
+     "via": "log",
+     "model": "grok-4",
+     "input": 30,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0
+    }
+   ]
+  },
+  {
+   "fn": "details",
+   "args": [
+    {
+     "from": 0,
+     "to": 9000000000000000,
+     "sort": "source",
+     "dir": "desc",
+     "limit": 1000
+    }
+   ],
+   "out": {
+    "__throw": "TypeError: Cannot read properties of undefined (reading 'localeCompare')"
+   }
+  },
+  {
+   "fn": "records",
+   "args": [
+    "srcStrMissing"
+   ],
+   "out": [
+    {
+     "key": "src1",
+     "ts": 1773224880000,
+     "via": "log",
+     "model": "claude-sonnet-4-5",
+     "input": 20,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1",
+     "source": "claude"
+    },
+    {
+     "key": "src2",
+     "ts": 1773224820000,
+     "via": "log",
+     "model": "grok-4",
+     "input": 30,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0
+    },
+    {
+     "key": "src5",
+     "ts": 1773224640000,
+     "via": "log",
+     "model": "grok-4",
+     "input": 60,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1",
+     "source": "codex"
+    }
+   ]
+  },
+  {
+   "fn": "details",
+   "args": [
+    {
+     "from": 0,
+     "to": 9000000000000000,
+     "sort": "source",
+     "dir": "desc",
+     "limit": 1000
+    }
+   ],
+   "out": {
+    "__throw": "TypeError: Cannot read properties of undefined (reading 'localeCompare')"
+   }
+  },
+  {
+   "fn": "records",
+   "args": [
+    "srcStrMissing"
+   ],
+   "out": [
+    {
+     "key": "src1",
+     "ts": 1773224880000,
+     "via": "log",
+     "model": "claude-sonnet-4-5",
+     "input": 20,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1",
+     "source": "claude"
+    },
+    {
+     "key": "src2",
+     "ts": 1773224820000,
+     "via": "log",
+     "model": "grok-4",
+     "input": 30,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0
+    },
+    {
+     "key": "src5",
+     "ts": 1773224640000,
+     "via": "log",
+     "model": "grok-4",
+     "input": 60,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1",
+     "source": "codex"
+    },
+    {
+     "key": "src6",
+     "ts": 1773224580000,
+     "via": "log",
+     "model": "gpt-5",
+     "input": 70,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "source": ""
+    },
+    {
+     "key": "src7",
+     "ts": 1773224520000,
+     "via": "log",
+     "model": "claude-sonnet-4-5",
+     "input": 80,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1"
+    },
+    {
+     "key": "src8",
+     "ts": 1773224460000,
+     "via": "log",
+     "model": "grok-4",
+     "input": 90,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "source": "claude"
+    }
+   ]
+  },
+  {
+   "fn": "details",
+   "args": [
+    {
+     "from": 0,
+     "to": 9000000000000000,
+     "sort": "source",
+     "dir": "desc",
+     "limit": 1000
+    }
+   ],
+   "out": {
+    "__throw": "TypeError: Cannot read properties of undefined (reading 'localeCompare')"
+   }
+  },
+  {
+   "fn": "records",
+   "args": [
+    "srcPick"
+   ],
+   "out": [
+    {
+     "key": "src2",
+     "ts": 1773224820000,
+     "via": "log",
+     "model": "grok-4",
+     "input": 30,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0
+    },
+    {
+     "key": "src1",
+     "ts": 1773224880000,
+     "via": "log",
+     "model": "claude-sonnet-4-5",
+     "input": 20,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1",
+     "source": "claude"
+    }
+   ]
+  },
+  {
+   "fn": "details",
+   "args": [
+    {
+     "from": 0,
+     "to": 9000000000000000,
+     "sort": "source",
+     "dir": "asc",
+     "limit": 1000
+    }
+   ],
+   "out": {
+    "rows": [
+     {
+      "key": "src1",
+      "ts": 1773224880000,
+      "source": "claude",
+      "provider": "Anthropic",
+      "model": "claude-sonnet-4-5",
+      "session": "s1",
+      "input": 20,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "202",
+      "costUsd": 0.000096,
+      "estimated": false
+     },
+     {
+      "key": "src2",
+      "ts": 1773224820000,
+      "provider": "",
+      "model": "grok-4",
+      "input": 30,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "302",
+      "costUsd": null,
+      "estimated": false
+     }
+    ],
+    "total": 2,
+    "summary": {
+     "costUsd": 0.000096,
+     "input": 50,
+     "output": "022",
+     "total": "50022",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "calls": 2,
+     "estimatedCalls": 0,
+     "unpriced": [
+      {
+       "model": "grok-4",
+       "tokens": "0302",
+       "calls": 1
+      }
+     ],
+     "cacheHitRate": 0
+    },
+    "facets": {
+     "sources": [
+      "claude",
+      null
+     ],
+     "models": [
+      "claude-sonnet-4-5",
+      "grok-4"
+     ],
+     "sessions": [
+      {
+       "id": "s1",
+       "label": "s1"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "fn": "records",
+   "args": [
+    "srcPick"
+   ],
+   "out": [
+    {
+     "key": "src2",
+     "ts": 1773224820000,
+     "via": "log",
+     "model": "grok-4",
+     "input": 30,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0
+    },
+    {
+     "key": "src1",
+     "ts": 1773224880000,
+     "via": "log",
+     "model": "claude-sonnet-4-5",
+     "input": 20,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1",
+     "source": "claude"
+    }
+   ]
+  },
+  {
+   "fn": "details",
+   "args": [
+    {
+     "from": 0,
+     "to": 9000000000000000,
+     "sort": "source",
+     "dir": "desc",
+     "limit": 1000
+    }
+   ],
+   "out": {
+    "rows": [
+     {
+      "key": "src2",
+      "ts": 1773224820000,
+      "provider": "",
+      "model": "grok-4",
+      "input": 30,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "302",
+      "costUsd": null,
+      "estimated": false
+     },
+     {
+      "key": "src1",
+      "ts": 1773224880000,
+      "source": "claude",
+      "provider": "Anthropic",
+      "model": "claude-sonnet-4-5",
+      "session": "s1",
+      "input": 20,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "202",
+      "costUsd": 0.000096,
+      "estimated": false
+     }
+    ],
+    "total": 2,
+    "summary": {
+     "costUsd": 0.000096,
+     "input": 50,
+     "output": "022",
+     "total": "50022",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "calls": 2,
+     "estimatedCalls": 0,
+     "unpriced": [
+      {
+       "model": "grok-4",
+       "tokens": "0302",
+       "calls": 1
+      }
+     ],
+     "cacheHitRate": 0
+    },
+    "facets": {
+     "sources": [
+      "claude",
+      null
+     ],
+     "models": [
+      "claude-sonnet-4-5",
+      "grok-4"
+     ],
+     "sessions": [
+      {
+       "id": "s1",
+       "label": "s1"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "fn": "records",
+   "args": [
+    "srcPick"
+   ],
+   "out": [
+    {
+     "key": "src2",
+     "ts": 1773224820000,
+     "via": "log",
+     "model": "grok-4",
+     "input": 30,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0
+    },
+    {
+     "key": "src8",
+     "ts": 1773224460000,
+     "via": "log",
+     "model": "grok-4",
+     "input": 90,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "source": "claude"
+    },
+    {
+     "key": "src6",
+     "ts": 1773224580000,
+     "via": "log",
+     "model": "gpt-5",
+     "input": 70,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "source": ""
+    }
+   ]
+  },
+  {
+   "fn": "details",
+   "args": [
+    {
+     "from": 0,
+     "to": 9000000000000000,
+     "sort": "source",
+     "dir": "asc",
+     "limit": 1000
+    }
+   ],
+   "out": {
+    "rows": [
+     {
+      "key": "src6",
+      "ts": 1773224580000,
+      "source": "",
+      "provider": "OpenAI",
+      "model": "gpt-5",
+      "input": 70,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "702",
+      "costUsd": 0.000043,
+      "estimated": false
+     },
+     {
+      "key": "src8",
+      "ts": 1773224460000,
+      "source": "claude",
+      "provider": "",
+      "model": "grok-4",
+      "input": 90,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "902",
+      "costUsd": null,
+      "estimated": false
+     },
+     {
+      "key": "src2",
+      "ts": 1773224820000,
+      "provider": "",
+      "model": "grok-4",
+      "input": 30,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "302",
+      "costUsd": null,
+      "estimated": false
+     }
+    ],
+    "total": 3,
+    "summary": {
+     "costUsd": 0.000043,
+     "input": 190,
+     "output": "0222",
+     "total": "1900222",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "calls": 3,
+     "estimatedCalls": 0,
+     "unpriced": [
+      {
+       "model": "grok-4",
+       "tokens": "0302902",
+       "calls": 2
+      }
+     ],
+     "cacheHitRate": 0
+    },
+    "facets": {
+     "sources": [
+      "",
+      "claude",
+      null
+     ],
+     "models": [
+      "gpt-5",
+      "grok-4"
+     ],
+     "sessions": []
+    }
+   }
+  },
+  {
+   "fn": "records",
+   "args": [
+    "srcPick"
+   ],
+   "out": [
+    {
+     "key": "src2",
+     "ts": 1773224820000,
+     "via": "log",
+     "model": "grok-4",
+     "input": 30,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0
+    },
+    {
+     "key": "src8",
+     "ts": 1773224460000,
+     "via": "log",
+     "model": "grok-4",
+     "input": 90,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "source": "claude"
+    },
+    {
+     "key": "src6",
+     "ts": 1773224580000,
+     "via": "log",
+     "model": "gpt-5",
+     "input": 70,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "source": ""
+    }
+   ]
+  },
+  {
+   "fn": "details",
+   "args": [
+    {
+     "from": 0,
+     "to": 9000000000000000,
+     "sort": "source",
+     "dir": "desc",
+     "limit": 1000
+    }
+   ],
+   "out": {
+    "rows": [
+     {
+      "key": "src2",
+      "ts": 1773224820000,
+      "provider": "",
+      "model": "grok-4",
+      "input": 30,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "302",
+      "costUsd": null,
+      "estimated": false
+     },
+     {
+      "key": "src8",
+      "ts": 1773224460000,
+      "source": "claude",
+      "provider": "",
+      "model": "grok-4",
+      "input": 90,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "902",
+      "costUsd": null,
+      "estimated": false
+     },
+     {
+      "key": "src6",
+      "ts": 1773224580000,
+      "source": "",
+      "provider": "OpenAI",
+      "model": "gpt-5",
+      "input": 70,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "702",
+      "costUsd": 0.000043,
+      "estimated": false
+     }
+    ],
+    "total": 3,
+    "summary": {
+     "costUsd": 0.000043,
+     "input": 190,
+     "output": "0222",
+     "total": "1900222",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "calls": 3,
+     "estimatedCalls": 0,
+     "unpriced": [
+      {
+       "model": "grok-4",
+       "tokens": "0302902",
+       "calls": 2
+      }
+     ],
+     "cacheHitRate": 0
+    },
+    "facets": {
+     "sources": [
+      "",
+      "claude",
+      null
+     ],
+     "models": [
+      "gpt-5",
+      "grok-4"
+     ],
+     "sessions": []
+    }
+   }
+  },
+  {
+   "fn": "records",
+   "args": [
+    "srcPick"
+   ],
+   "out": [
+    {
+     "key": "src7",
+     "ts": 1773224520000,
+     "via": "log",
+     "model": "claude-sonnet-4-5",
+     "input": 80,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1"
+    },
+    {
+     "key": "src2",
+     "ts": 1773224820000,
+     "via": "log",
+     "model": "grok-4",
+     "input": 30,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0
+    },
+    {
+     "key": "src5",
+     "ts": 1773224640000,
+     "via": "log",
+     "model": "grok-4",
+     "input": 60,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1",
+     "source": "codex"
+    },
+    {
+     "key": "src1",
+     "ts": 1773224880000,
+     "via": "log",
+     "model": "claude-sonnet-4-5",
+     "input": 20,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1",
+     "source": "claude"
+    }
+   ]
+  },
+  {
+   "fn": "details",
+   "args": [
+    {
+     "from": 0,
+     "to": 9000000000000000,
+     "sort": "source",
+     "dir": "asc",
+     "limit": 1000
+    }
+   ],
+   "out": {
+    "__throw": "TypeError: Cannot read properties of undefined (reading 'localeCompare')"
+   }
+  },
+  {
+   "fn": "records",
+   "args": [
+    "srcPick"
+   ],
+   "out": [
+    {
+     "key": "src7",
+     "ts": 1773224520000,
+     "via": "log",
+     "model": "claude-sonnet-4-5",
+     "input": 80,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1"
+    },
+    {
+     "key": "src2",
+     "ts": 1773224820000,
+     "via": "log",
+     "model": "grok-4",
+     "input": 30,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0
+    },
+    {
+     "key": "src5",
+     "ts": 1773224640000,
+     "via": "log",
+     "model": "grok-4",
+     "input": 60,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1",
+     "source": "codex"
+    },
+    {
+     "key": "src1",
+     "ts": 1773224880000,
+     "via": "log",
+     "model": "claude-sonnet-4-5",
+     "input": 20,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1",
+     "source": "claude"
+    }
+   ]
+  },
+  {
+   "fn": "details",
+   "args": [
+    {
+     "from": 0,
+     "to": 9000000000000000,
+     "sort": "source",
+     "dir": "desc",
+     "limit": 1000
+    }
+   ],
+   "out": {
+    "__throw": "TypeError: Cannot read properties of undefined (reading 'localeCompare')"
+   }
+  },
+  {
+   "fn": "records",
+   "args": [
+    "srcPick"
+   ],
+   "out": [
+    {
+     "key": "src1",
+     "ts": 1773224880000,
+     "via": "log",
+     "model": "claude-sonnet-4-5",
+     "input": 20,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1",
+     "source": "claude"
+    },
+    {
+     "key": "src4",
+     "ts": 1773224700000,
+     "via": "log",
+     "model": "claude-sonnet-4-5",
+     "input": 50,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "source": 7
+    }
+   ]
+  },
+  {
+   "fn": "details",
+   "args": [
+    {
+     "from": 0,
+     "to": 9000000000000000,
+     "sort": "source",
+     "dir": "asc",
+     "limit": 1000
+    }
+   ],
+   "out": {
+    "__throw": "TypeError: a.source.localeCompare is not a function"
+   }
+  },
+  {
+   "fn": "records",
+   "args": [
+    "srcPick"
+   ],
+   "out": [
+    {
+     "key": "src1",
+     "ts": 1773224880000,
+     "via": "log",
+     "model": "claude-sonnet-4-5",
+     "input": 20,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1",
+     "source": "claude"
+    },
+    {
+     "key": "src4",
+     "ts": 1773224700000,
+     "via": "log",
+     "model": "claude-sonnet-4-5",
+     "input": 50,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "source": 7
+    }
+   ]
+  },
+  {
+   "fn": "details",
+   "args": [
+    {
+     "from": 0,
+     "to": 9000000000000000,
+     "sort": "source",
+     "dir": "desc",
+     "limit": 1000
+    }
+   ],
+   "out": {
+    "__throw": "TypeError: a.source.localeCompare is not a function"
+   }
+  },
+  {
+   "fn": "records",
+   "args": [
+    "srcPick"
+   ],
+   "out": [
+    {
+     "key": "src4",
+     "ts": 1773224700000,
+     "via": "log",
+     "model": "claude-sonnet-4-5",
+     "input": 50,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "source": 7
+    },
+    {
+     "key": "src1",
+     "ts": 1773224880000,
+     "via": "log",
+     "model": "claude-sonnet-4-5",
+     "input": 20,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1",
+     "source": "claude"
+    }
+   ]
+  },
+  {
+   "fn": "details",
+   "args": [
+    {
+     "from": 0,
+     "to": 9000000000000000,
+     "sort": "source",
+     "dir": "asc",
+     "limit": 1000
+    }
+   ],
+   "out": {
+    "rows": [
+     {
+      "key": "src4",
+      "ts": 1773224700000,
+      "source": 7,
+      "provider": "Anthropic",
+      "model": "claude-sonnet-4-5",
+      "input": 50,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "502",
+      "costUsd": 0.000195,
+      "estimated": false
+     },
+     {
+      "key": "src1",
+      "ts": 1773224880000,
+      "source": "claude",
+      "provider": "Anthropic",
+      "model": "claude-sonnet-4-5",
+      "session": "s1",
+      "input": 20,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "202",
+      "costUsd": 0.000096,
+      "estimated": false
+     }
+    ],
+    "total": 2,
+    "summary": {
+     "costUsd": 0.000291,
+     "input": 70,
+     "output": "022",
+     "total": "70022",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "calls": 2,
+     "estimatedCalls": 0,
+     "unpriced": [],
+     "cacheHitRate": 0
+    },
+    "facets": {
+     "sources": [
+      7,
+      "claude"
+     ],
+     "models": [
+      "claude-sonnet-4-5"
+     ],
+     "sessions": [
+      {
+       "id": "s1",
+       "label": "s1"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "fn": "records",
+   "args": [
+    "srcPick"
+   ],
+   "out": [
+    {
+     "key": "src4",
+     "ts": 1773224700000,
+     "via": "log",
+     "model": "claude-sonnet-4-5",
+     "input": 50,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "source": 7
+    },
+    {
+     "key": "src1",
+     "ts": 1773224880000,
+     "via": "log",
+     "model": "claude-sonnet-4-5",
+     "input": 20,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1",
+     "source": "claude"
+    }
+   ]
+  },
+  {
+   "fn": "details",
+   "args": [
+    {
+     "from": 0,
+     "to": 9000000000000000,
+     "sort": "source",
+     "dir": "desc",
+     "limit": 1000
+    }
+   ],
+   "out": {
+    "rows": [
+     {
+      "key": "src1",
+      "ts": 1773224880000,
+      "source": "claude",
+      "provider": "Anthropic",
+      "model": "claude-sonnet-4-5",
+      "session": "s1",
+      "input": 20,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "202",
+      "costUsd": 0.000096,
+      "estimated": false
+     },
+     {
+      "key": "src4",
+      "ts": 1773224700000,
+      "source": 7,
+      "provider": "Anthropic",
+      "model": "claude-sonnet-4-5",
+      "input": 50,
+      "output": "2",
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "tokens": "502",
+      "costUsd": 0.000195,
+      "estimated": false
+     }
+    ],
+    "total": 2,
+    "summary": {
+     "costUsd": 0.000291,
+     "input": 70,
+     "output": "022",
+     "total": "70022",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "calls": 2,
+     "estimatedCalls": 0,
+     "unpriced": [],
+     "cacheHitRate": 0
+    },
+    "facets": {
+     "sources": [
+      7,
+      "claude"
+     ],
+     "models": [
+      "claude-sonnet-4-5"
+     ],
+     "sessions": [
+      {
+       "id": "s1",
+       "label": "s1"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "fn": "records",
+   "args": [
+    "srcPick"
+   ],
+   "out": [
+    {
+     "key": "src1",
+     "ts": 1773224880000,
+     "via": "log",
+     "model": "claude-sonnet-4-5",
+     "input": 20,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1",
+     "source": "claude"
+    },
+    {
+     "key": "src3",
+     "ts": 1773224760000,
+     "via": "log",
+     "model": "gpt-5",
+     "input": 40,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1",
+     "source": null
+    }
+   ]
+  },
+  {
+   "fn": "details",
+   "args": [
+    {
+     "from": 0,
+     "to": 9000000000000000,
+     "sort": "source",
+     "dir": "asc",
+     "limit": 1000
+    }
+   ],
+   "out": {
+    "__throw": "TypeError: Cannot read properties of null (reading 'localeCompare')"
+   }
+  },
+  {
+   "fn": "records",
+   "args": [
+    "srcPick"
+   ],
+   "out": [
+    {
+     "key": "src1",
+     "ts": 1773224880000,
+     "via": "log",
+     "model": "claude-sonnet-4-5",
+     "input": 20,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1",
+     "source": "claude"
+    },
+    {
+     "key": "src3",
+     "ts": 1773224760000,
+     "via": "log",
+     "model": "gpt-5",
+     "input": 40,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1",
+     "source": null
+    }
+   ]
+  },
+  {
+   "fn": "details",
+   "args": [
+    {
+     "from": 0,
+     "to": 9000000000000000,
+     "sort": "source",
+     "dir": "desc",
+     "limit": 1000
+    }
+   ],
+   "out": {
+    "__throw": "TypeError: Cannot read properties of null (reading 'localeCompare')"
+   }
+  },
+  {
+   "fn": "records",
+   "args": [
+    "srcPick"
+   ],
+   "out": [
+    {
+     "key": "src1",
+     "ts": 1773224880000,
+     "via": "log",
+     "model": "claude-sonnet-4-5",
+     "input": 20,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1",
+     "source": "claude"
+    },
+    {
+     "key": "src9",
+     "ts": 1773224400000,
+     "via": "log",
+     "model": "gpt-5",
+     "input": 100,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1",
+     "source": true
+    }
+   ]
+  },
+  {
+   "fn": "details",
+   "args": [
+    {
+     "from": 0,
+     "to": 9000000000000000,
+     "sort": "source",
+     "dir": "asc",
+     "limit": 1000
+    }
+   ],
+   "out": {
+    "__throw": "TypeError: a.source.localeCompare is not a function"
+   }
+  },
+  {
+   "fn": "records",
+   "args": [
+    "srcPick"
+   ],
+   "out": [
+    {
+     "key": "src1",
+     "ts": 1773224880000,
+     "via": "log",
+     "model": "claude-sonnet-4-5",
+     "input": 20,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1",
+     "source": "claude"
+    },
+    {
+     "key": "src9",
+     "ts": 1773224400000,
+     "via": "log",
+     "model": "gpt-5",
+     "input": 100,
+     "output": "2",
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "session": "s1",
+     "source": true
+    }
+   ]
+  },
+  {
+   "fn": "details",
+   "args": [
+    {
+     "from": 0,
+     "to": 9000000000000000,
+     "sort": "source",
+     "dir": "desc",
+     "limit": 1000
+    }
+   ],
+   "out": {
+    "__throw": "TypeError: a.source.localeCompare is not a function"
+   }
   }
  ]
 }

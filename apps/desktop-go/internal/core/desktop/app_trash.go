@@ -100,7 +100,7 @@ func (a *AppTrash) Purge(maxAgeDays int) int {
 	if err != nil {
 		return 0
 	}
-	cutoff := isoDay(a.now() - float64(maxAgeDays)*86400_000)
+	cutoff := isoDay(a.now() - float64(float64(maxAgeDays)*86400_000))
 	n := 0
 	for _, e := range ents {
 		if reDay.MatchString(e.Name()) && e.Name() < cutoff {
