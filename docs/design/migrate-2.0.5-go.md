@@ -296,6 +296,36 @@ Go 版**1:1 镜像** Node 版：模块边界、包/层结构、数据格式、�
 4. **覆盖面**：契约层（359 过程的 input/output 校验，已有 TestContractParity）、gateway（每个 provider 的请求拼装、SSE 解析、错误映射、重试/冷却/超时）、工具循环（多步工具调用、并行、abort、错误回填）、存储（设置/历史/记忆的文件格式与路径）、CLI 驱动（行协议）、迁移（Electron 数据 → Go 首启）。
 5. **CI**：Linux job 先跑 Node 录制（确定性 case 入库，变更时重录并在 PR 里显示 diff），三平台都跑 Go 回放；任何差异 = 失败，除非在 §3.4 登记。
 
+### 3.6 剩余 UNAVAILABLE 桩与未移植服务（审计 @ origin/feat/2.0.5-go dc3e677c，2026-10-29）
+
+审计方法：以 main.go 全量装配启动（xvfb、临时 HOME），在 `procs.Install` 处导出未注册过程 = **90 个桩**（契约共 359 个过程）；
+事件：契约 72 个事件中，Go 非测试代码里找不到字面量发送点的 21 个（可能由拼接名转发，逐个核对）。
+
+| 过程 / 事件 | 数量 | Node 来源 | Go 现状 | 归属 |
+|---|---|---|---|---|
+| `gateway.detect` / `gateway.terminalState` / `gateway.terminalSet` | 3 | core/gateway/TerminalCommands | 无 | shell worker |
+| `quality.*`（clear/exportCsv/facets/getSettings/query/requests/series/setSettings）+ 事件 `quality.changed` | 8+1 | core/usage/quality/QualityService | 无 | shell worker |
+| 事件 `providers.openPanel` | 1 | shell | 过程已实现，事件无发送点 | shell worker |
+| `usage.*`（clear/csv/details/endpoint/heatmap/priceSync/query/quota/quotaHook/quotaHookSet/quotaRefresh/scan/setSettings/state）+ 事件 `usage.changed` | 14+1 | core/usage/UsageService | 只有叶子（clihomes/env/grokauth/sqliteread） | usage worker |
+| `cliAccount.*`（list/loginCancel/loginInput/loginStart/openUrl/refresh/remove/rename/setDefault）+ 事件 `cliAccount.changed` / `cliAccount.login` | 9+2 | core/cli/accounts（AccountService/AccountLogin） | 无 | b7s worker |
+| `harness.*`（编排器 / 标签） | 0 | core/cli/harness | 已注册 | b7 core |
+| gateway 写方法、learn、key status、privacy log、tab tokens、catalog sync、本地模型注册 | 0 桩 | core/gateway | 已注册（内部行为由 gw worker 收口） | gw worker |
+| 安装包 / 发布 | — | electron-builder | — | packaging worker |
+| `delegate.*`（settings/setSettings/pin/clearPin/status） | 5 | contract/coding.ts → DelegateService | 服务已移植（b7s2），未挂契约 | **b7s2（本 worker）** |
+| `cli.registry` / `cli.pluginAdd` / `cli.pluginRemove` / `cli.pluginTest` | 4 | contract/coding.ts → CliPluginHost | 服务已移植，未挂契约 | **b7s2** |
+| `cliUpdate.*`（inspect/preview/run/job/busy/dismiss） | 6 | contract/coding.ts → CliUpdateService | 服务已移植，未挂契约 | **b7s2** |
+| `history.*`（list/index/open/delete） | 4 | contract/coding.ts → SessionHistoryService | 服务已移植，未挂契约 | **b7s2** |
+| `agents.*`（state/scan/setSettings）+ 事件 `agents.changed` | 3+1 | core/agents/AgentProgressService（+fsScan/processes） | 只有 parsers | **b7s2** |
+| `nav.takePending` + 事件 `nav.desktopPanelRequested` | 1+1 | core/core/pendingEvents | 无 | **b7s2** |
+| `screen.checkSend` | 1 | core/screen/ScreenService | 无 | **b7s2** |
+| `ai.sessions.*`(6) `ai.tools.*`(3) `ai.memory.*`(10) `ai.asr.*`(2) `ai.tts.*`(5) `ai.avatar.*`(6) | 32 | ai-runtime/AiContractRouter → ai-sdk 客户端门面 | 只有 ai.chat.*（facade/chat） | **b7s2** |
+| 事件 `ai.agent.step/stoppedByUser/turnEnd`、`ai.message.delta`、`ai.tool.confirmRequired/executed`、`ai.tts.chunk/end`、`ai.userProfile.changed`、`ai.avatar.clicked/scene/touched` | 12 | ai-runtime / ai-sdk | 无字面量发送点 | **b7s2**（随 ai.* 门面） |
+| 事件 `window.mouseEnter` / `window.mouseLeave` | 2 | host-electron 窗口 | 无发送点 | **b7s2**（宿主窗口事件，若 shell worker 已接则移交） |
+
+未在 Go 中有对应物的 Node 主进程服务：TerminalCommands（shell）、QualityService（shell）、UsageService（usage）、AccountService / AccountLogin（b7s）、
+AgentProgressService、PendingEvents、ScreenService、core/sandbox（CodeSandbox / platformSandbox / agentBrowserGuard，desktop p3 工具用）、
+ai-sdk 的 sessions / tools / memory / asr / tts / avatar 客户端门面（以上无主的归 b7s2）。
+
 ## 3. 批次（按依赖顺序）
 
 每批统一验收：① Go 单测 + 现有 TS 单测通过；② 契约一致性测试（该批过程的 zod 输入/输出 fixture 在 Go 端往返通过）；③ 真实应用中手测该批功能路径；④ `desktop-go.yml` 三平台 CI 绿。估时为一名熟悉代码的工程师 / 智能体的有效人日（含测试），不含评审等待。
