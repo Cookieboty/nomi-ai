@@ -125,6 +125,56 @@ apps/desktop-go/
 
 约束：Go 包间依赖方向与 Node 包依赖一致（gateway 不依赖 ai；ai/llm 不依赖 runtime），用 `go list` + 测试守卫。
 
+### 3.2 硬性规则：与 Node 版同分层、同技术细节（2026-10-29 用户要求）
+
+Go 版**1:1 镜像** Node 版：模块边界、包/层结构、数据格式、落盘文件名与路径、协议细节（请求/响应形状、SSE 解析、重试、超时、错误码、abort 语义）、工具循环行为、IPC 契约、配置键、算法。**不重新设计、不"顺手改进"**；只有平台强制的差异才允许，且必须登记在 §3.4 偏差表并在每批报告里列出。命名规则：Node 文件 `foo/barBaz.ts` → Go `foo/bar_baz.go`，导出函数/字段名保持同义（camelCase → PascalCase），配置键与 JSON 字段名原样保留（Go struct 用 json tag 对齐，不改名）。
+
+### 3.3 Node → Go 模块映射表（每个 Node 包/目录 → Go 包）
+
+| Node 模块 | Go 包（apps/desktop-go/internal/...） | 备注 |
+|---|---|---|
+| packages/contract（protocol/wire/router/server/stream/errors/websocket/frameClient） | contract（frames.go 对应 wire+router+server），contract/gen（由 zod 生成） | 帧格式、错误码、abort 语义逐字一致；渲染侧继续用 TS frameClient |
+| packages/contract/app（359 过程 + 71 事件） | contract/gen（types_gen.go、procedures_gen.go） | `scripts/go-contract/gen.mjs --check` 防漂移 |
+| packages/core/src/createCore.ts、core/ | core（create_core.go） | 装配顺序一致 |
+| core/src/{agents,ai,character,chat,cli,desktop,diagnostics,extensions,gateway,i18n,knowledge,local,mascot,memory,onboarding,persona,sandbox,schedule,screen,security,services,startup,theme,tts,usage,utils,voice} | core/{同名目录}（如 core/memory、core/schedule、core/gateway…） | 目录逐一对应，一个 Node 目录一个 Go 包 |
+| packages/gateway/src/*.ts（affinity、bridge、commit、config、cooldown、customTools、errors、fixes、ingress、intent、ir、learn、limits、metrics、models、probe、quality、reasoning、responseFixes、sessions、timeouts、tokens、toolNames、trace、transforms、upstream、usageTap、util、worker） | gateway（同名 .go 文件：affinity.go、cooldown.go、timeouts.go…） | 重试/冷却/超时常量照抄 |
+| gateway/src/{canonical,clients,models,net,privacy,providers,request,route,spec,stream} | gateway/{canonical,clients,models,net,privacy,providers,request,route,spec,stream} | SSE 解析逐行对照 stream/ |
+| gateway/src/server.ts | gateway/server | 本地 HTTP 入口，路由与状态码一致 |
+| packages/ai-sdk（AIClient、config、di、errors、facade、types） | ai/sdk（ai_client.go、config、di、errors.go、facade、types） | 自研替代 Vercel AI SDK 的那一层，接口形状一致 |
+| packages/ai-runtime（AIRuntimeService、AiContractRouter、AiSdkBooter、IgPluginHost、IpcAdapter、NoopLifecycle、ObservabilityBridge、env、igPlugins、logger） | ai/runtime（ai_runtime_service.go、ai_contract_router.go、ai_sdk_booter.go、ig_plugin_host.go、ipc_adapter.go…） | |
+| ai-runtime/src/providers（含 AiSdkLlmProvider） | ai/runtime/providers，LLM 协议适配 ai/llm/{openai,anthropic,compatible,gemini} | net/http + SSE 自研，不用厂商 SDK |
+| ai-runtime/src/ai-sdk（toolCaller、mcpBridge） | ai/runtime/aisdk/{toolcaller,mcpbridge} | 工具循环步数上限、并发、错误回填格式一致；MCP 自研（假设，可改） |
+| ai-runtime/src/observability | ai/runtime/observability | |
+| packages/host-ports | hostports | 宿主端口接口，Go interface 一一对应 |
+| packages/host-node（core、processes、websocket） | hostnode（core.go、processes.go、websocket.go） | |
+| packages/host-electron（main、ai、chat、core、host、island、mascot、security、services、utils、brand、schemePrivileges） | host（main.go）+ shell/wailsshell（窗口/托盘/灵动岛）+ host/{ai,chat,core,security,services,utils} | preload.ts 无对应（Wails 注入 runtime）→ 偏差 D1 |
+| packages/cli-sdk（carry、child、driver、drivers、events、external、launch、lines、manifest、models、plugin、rpc、trace） | clisdk/{同名} | 子进程行协议、manifest 格式不变 |
+| packages/cli-plugins（claude、codex、dsh、gemini、grok、gateways、shared、generated） | cliplugins/{同名} | |
+| packages/character-contract（contract、copy、migrations、node、paths、schemas、validate） | charactercontract（同名 .go） | 角色包路径、迁移步骤一致 |
+| packages/{renderer,ui,ai-chat,ai-sdk-client,avatar-runtime,voice,i18n,types,bundle-ig-*} | 不迁移，原样留在渲染侧（TS） | voice 的 VAD/OCR/embedding 在渲染侧 WASM（Q4） |
+
+### 3.4 偏差表（只登记平台强制的差异）
+
+| # | Node 版 | Go 版 | 原因 |
+|---|---|---|---|
+| D1 | Electron IPC + preload.ts 暴露 bridge | 渲染侧经本地 WebSocket 发同样的 contract 帧（contract/websocket.ts 已有该传输） | Wails 没有 preload/contextBridge；帧格式不变 |
+| D2 | safeStorage 加解密密钥 | 系统钥匙串（mac Keychain / Win DPAPI / libsecret）；首启读取 Electron 的 safeStorage 数据迁移 | Go 里没有 safeStorage |
+| D3 | electron-updater + latest.yml | 2.0.5 手动下载引导（Q3 方案 B） | 用户决策；跨运行时无法沿用 |
+| D4 | onnxruntime-node（主进程） | 渲染侧 WASM | 用户决策 Q4，Go 无成熟 onnx 绑定 |
+| D5 | BrowserWindow 透明 | Wails 窗口；mac 需 `-tags private_mac_apis`（WKWebView drawsBackground） | Wails v3 默认不开私有 API |
+| D6 | Electron Tray | Linux 无 StatusNotifierWatcher 时不建托盘，对话窗作入口 | Q6；Electron 在此情况下同样无托盘，Go 版改为显示对话窗 |
+| D7 | node-pty | Go PTY（creack/pty + Windows ConPTY） | 平台库不同，读写/尺寸/退出码语义对齐 |
+| D8 | 未注册过程不存在 | 迁移期桩返回 `UNAVAILABLE` | 临时，全部实现后删除 |
+| D9 | 默认 Rive 看板娘 | 默认 SVG，Rive 可选 | 产品决策 Q5 |
+
+### 3.5 一致性测试策略（golden，Node 与 Go 同输入对比输出）
+
+1. **录制**：在 Node 版加一个测试专用 harness（`scripts/parity/record.mjs`），对每个模块把输入（过程名 + input、上游 HTTP 响应/SSE 字节流、时钟、随机种子）和输出（响应帧、chunk 序列、落盘文件、发出的上游请求）写成 `testdata/golden/<module>/<case>.json`。
+2. **回放**：Go 侧 `go test ./... -run Golden` 用同样输入跑，上游用 httptest 回放录好的字节流，时钟/ID 注入同样的种子。
+3. **比对**：JSON 规范化（键排序、去掉时间戳等白名单字段）后逐字段 diff；SSE 比对 chunk 顺序与边界；落盘文件比对路径 + 内容；对上游发出的请求比对 method/path/header 白名单/body。
+4. **覆盖面**：契约层（359 过程的 input/output 校验，已有 TestContractParity）、gateway（每个 provider 的请求拼装、SSE 解析、错误映射、重试/冷却/超时）、工具循环（多步工具调用、并行、abort、错误回填）、存储（设置/历史/记忆的文件格式与路径）、CLI 驱动（行协议）、迁移（Electron 数据 → Go 首启）。
+5. **CI**：Linux job 先跑 Node 录制（确定性 case 入库，变更时重录并在 PR 里显示 diff），三平台都跑 Go 回放；任何差异 = 失败，除非在 §3.4 登记。
+
 ## 3. 批次（按依赖顺序）
 
 每批统一验收：① Go 单测 + 现有 TS 单测通过；② 契约一致性测试（该批过程的 zod 输入/输出 fixture 在 Go 端往返通过）；③ 真实应用中手测该批功能路径；④ `desktop-go.yml` 三平台 CI 绿。估时为一名熟悉代码的工程师 / 智能体的有效人日（含测试），不含评审等待。
