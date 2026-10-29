@@ -1,5 +1,7 @@
 package harness
 
+import "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
+
 // 各后端长驻会话的分工约定（b7 / b7o 拆分）：
 //   orchestrator_claude.go  Node Orchestrator.ts 2913–3290 + 3701–3801 + 4016–4064（b7o）
 //   orchestrator_acp.go     3291–3700（b7o）
@@ -15,12 +17,17 @@ type liveState struct {
 	codex  map[string]*codexLiveSession
 	// 插入序（[...map.keys()] 用）
 	claudeOrder, acpOrder, codexOrder []string
+	// claudeStarting = claudeStarting（第三方标签登记绑定后才拉起的进程）
+	claudeStarting map[string]*jsrt.Promise[*claudeLiveSession]
+	// codexAppUnavailable / grokAcpUnavailable = Node 同名私有字段
+	codexAppUnavailable, grokAcpUnavailable bool
 }
 
 func (l *liveState) init() {
 	l.claude = map[string]*claudeLiveSession{}
 	l.acp = map[string]*acpLiveSession{}
 	l.codex = map[string]*codexLiveSession{}
+	l.claudeStarting = map[string]*jsrt.Promise[*claudeLiveSession]{}
 }
 
 func delOrder(s []string, id string) []string {
@@ -39,7 +46,10 @@ func (l *liveState) setClaude(id string, v *claudeLiveSession) {
 	}
 	l.claude[id] = v
 }
-func (l *liveState) delClaude(id string) { delete(l.claude, id); l.claudeOrder = delOrder(l.claudeOrder, id) }
+func (l *liveState) delClaude(id string) {
+	delete(l.claude, id)
+	l.claudeOrder = delOrder(l.claudeOrder, id)
+}
 func (l *liveState) setAcp(id string, v *acpLiveSession) {
 	if _, ok := l.acp[id]; !ok {
 		l.acpOrder = append(l.acpOrder, id)
@@ -53,4 +63,7 @@ func (l *liveState) setCodex(id string, v *codexLiveSession) {
 	}
 	l.codex[id] = v
 }
-func (l *liveState) delCodex(id string) { delete(l.codex, id); l.codexOrder = delOrder(l.codexOrder, id) }
+func (l *liveState) delCodex(id string) {
+	delete(l.codex, id)
+	l.codexOrder = delOrder(l.codexOrder, id)
+}

@@ -8,6 +8,8 @@ package main
 import (
 	"embed"
 	"encoding/json"
+	aitools "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/tools"
+	aiproviders "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/providers"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/assetproto"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop/parse"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore"
@@ -191,10 +193,25 @@ func main() {
 	providerBox := security.NewSecretBox("providers")
 	// GatewayStore：userData/gateway/store.json，格式 / 迁移 / 归档对齐 Node GatewayService.init（D-B4d-5 已消除）
 	gatewaySvc := gwstore.NewServiceForUserData(userData, gwstore.NewCipher(providerBox), nil)
+	gatewaySvc.Store.SetPresetDeps(gwstore.FindPresetDeps())
+	gatewaySvc.AttachRuntime(gwstore.RuntimeDeps{
+		Root: filepath.Join(userData, "gateway"), Lazy: true, Env: processEnv(),
+		RouteListening: func() bool { return false },
+		Broadcast:      func(ev string, p any) { router.Emit(ev, p) },
+	})
 	if err := gatewaySvc.Init(); err != nil {
 		log.Printf("[gateway] store init failed: %v", err)
 	}
-	providerSvc := shellhandlers.NewProviderService(providerBox, processEnv(), nil)
+	gatewaySvc.Start()
+	defer gatewaySvc.Dispose()
+	providerSvc, _ := shellhandlers.NewProviderRuntime(providerBox, processEnv(), nil, func(role string) *aiproviders.GatewayResolution {
+		r := gatewaySvc.NomiRoute(role)
+		if r == nil {
+			return nil
+		}
+		return &aiproviders.GatewayResolution{BaseURL: r.BaseURL, Token: r.Token, Model: r.Model, Protocol: r.Protocol,
+			Receiver: aitools.ToolCallProvider{ID: r.ReceiverID, BaseURL: r.ReceiverBaseURL}, Client: r.Client}
+	})
 	if providerBox == nil || !providerBox.CanEncrypt() {
 		log.Printf("[ai-runtime] warn: 系统安全存储（safeStorage）不可用：provider token 仅做编码保存，未加密。面板中会提示用户。")
 	}

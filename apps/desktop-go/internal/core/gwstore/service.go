@@ -21,6 +21,7 @@ type Service struct {
 	cipher Cipher
 	logger Logger
 	legacy *Legacy
+	rt     *runtimeState
 }
 
 // NewService：root = userData/gateway，同 Node `file: path.join(root, 'store.json')`
