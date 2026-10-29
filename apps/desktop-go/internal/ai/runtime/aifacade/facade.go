@@ -30,8 +30,6 @@ type Options struct {
 	AvatarHost func(cue *u.Obj)
 	// Emit：契约事件（ai.userProfile.changed / ai.avatar.*）
 	Emit func(event string, data any)
-	// OnConfirm：tools/wrap 确认回执
-	OnConfirm func(reqID string, ok bool, reason *string)
 }
 
 // Facade 承载内存态（sessions / facts / summaries / tool 开关）
@@ -42,6 +40,7 @@ type Facade struct {
 	facts     *u.Obj
 	summaries *u.Obj
 	enabled   map[string]bool
+	hooks     map[string][]*func(any) // 插件事件订阅（hooks.go）
 }
 
 func randID() string {
@@ -400,13 +399,14 @@ func (f *Facade) toolsConfirm(in any) (any, error) {
 	if id == "" {
 		return nil, errConfirmReq
 	}
-	if f.o.OnConfirm != nil {
-		var reason *string
-		if r, ok := optStr(o, "reason"); ok {
-			reason = &r
-		}
-		f.o.OnConfirm(id, o.Get("ok").(bool), reason)
+	// ToolsFacade.confirm：ctx.emit('tools/wrap', { reqId, ok, reason })
+	d := u.NewObj()
+	d.Set("reqId", id)
+	d.Set("ok", o.Get("ok"))
+	if r, ok := optStr(o, "reason"); ok {
+		d.Set("reason", r)
 	}
+	f.Hook("tools/wrap", d)
 	return Undef, nil
 }
 

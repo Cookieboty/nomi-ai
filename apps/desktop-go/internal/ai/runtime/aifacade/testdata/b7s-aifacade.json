@@ -9,7 +9,7 @@
    {
     "p": "ai.sessions.create",
     "out": {
-     "id": "sess_loyw3v28_xsh8py",
+     "id": "sess_loyw3v28_dhg1ms",
      "title": "New Session",
      "createdAt": 1700000000000,
      "updatedAt": 1700000000000
@@ -18,7 +18,7 @@
    {
     "p": "ai.sessions.create",
     "out": {
-     "id": "sess_loyw3v2d_c1smjo",
+     "id": "sess_loyw3v2d_lmk5up",
      "title": "A",
      "createdAt": 1700000000005,
      "updatedAt": 1700000000005,
@@ -33,7 +33,7 @@
    {
     "p": "ai.sessions.create",
     "out": {
-     "id": "sess_loyw3v2d_arleqn",
+     "id": "sess_loyw3v2d_ylt9vm",
      "title": "New Session",
      "createdAt": 1700000000005,
      "updatedAt": 1700000000005
@@ -111,13 +111,13 @@
     "p": "ai.sessions.list",
     "out": [
      {
-      "id": "sess_loyw3v28_xsh8py",
+      "id": "sess_loyw3v28_dhg1ms",
       "title": "New Session",
       "createdAt": 1700000000000,
       "updatedAt": 1700000000000
      },
      {
-      "id": "sess_loyw3v2d_c1smjo",
+      "id": "sess_loyw3v2d_lmk5up",
       "title": "A",
       "createdAt": 1700000000005,
       "updatedAt": 1700000000005,
@@ -129,7 +129,7 @@
       }
      },
      {
-      "id": "sess_loyw3v2d_arleqn",
+      "id": "sess_loyw3v2d_ylt9vm",
       "title": "New Session",
       "createdAt": 1700000000005,
       "updatedAt": 1700000000005
@@ -246,7 +246,7 @@
    {
     "p": "ai.sessions.create",
     "out": {
-     "id": "sess_loyw3v28_86ohrp",
+     "id": "sess_loyw3v28_ovf3fm",
      "title": "Root",
      "createdAt": 1700000000000,
      "updatedAt": 1700000000000,
@@ -259,7 +259,7 @@
    {
     "p": "ai.sessions.get",
     "out": {
-     "id": "sess_loyw3v28_86ohrp",
+     "id": "sess_loyw3v28_ovf3fm",
      "title": "Root",
      "createdAt": 1700000000000,
      "updatedAt": 1700000000000,
@@ -272,7 +272,7 @@
    {
     "p": "ai.sessions.fork",
     "out": {
-     "id": "sess_loyw3v2i_t007lh",
+     "id": "sess_loyw3v2i_tdp0za",
      "title": "Root (copy)",
      "createdAt": 1700000000010,
      "updatedAt": 1700000000010,
@@ -285,7 +285,7 @@
    {
     "p": "ai.sessions.fork",
     "out": {
-     "id": "sess_loyw3v2l_r52wgu",
+     "id": "sess_loyw3v2l_tipcq2",
      "title": "F2",
      "createdAt": 1700000000013,
      "updatedAt": 1700000000013,
@@ -298,7 +298,7 @@
    {
     "p": "ai.sessions.fork",
     "out": {
-     "id": "sess_loyw3v2l_f13xfm",
+     "id": "sess_loyw3v2l_tyfp59",
      "title": "Root (copy)",
      "createdAt": 1700000000013,
      "updatedAt": 1700000000013,
@@ -329,7 +329,7 @@
    {
     "p": "ai.sessions.rename",
     "out": {
-     "id": "sess_loyw3v28_86ohrp",
+     "id": "sess_loyw3v28_ovf3fm",
      "title": "Renamed",
      "createdAt": 1700000000000,
      "updatedAt": 1700000000024,
@@ -342,7 +342,7 @@
    {
     "p": "ai.sessions.get",
     "out": {
-     "id": "sess_loyw3v28_86ohrp",
+     "id": "sess_loyw3v28_ovf3fm",
      "title": "Renamed",
      "createdAt": 1700000000000,
      "updatedAt": 1700000000024,
@@ -356,7 +356,7 @@
     "p": "ai.sessions.list",
     "out": [
      {
-      "id": "sess_loyw3v28_86ohrp",
+      "id": "sess_loyw3v28_ovf3fm",
       "title": "Renamed",
       "createdAt": 1700000000000,
       "updatedAt": 1700000000024,
@@ -366,7 +366,7 @@
       }
      },
      {
-      "id": "sess_loyw3v2i_t007lh",
+      "id": "sess_loyw3v2i_tdp0za",
       "title": "Root (copy)",
       "createdAt": 1700000000010,
       "updatedAt": 1700000000010,
@@ -376,7 +376,7 @@
       }
      },
      {
-      "id": "sess_loyw3v2l_r52wgu",
+      "id": "sess_loyw3v2l_tipcq2",
       "title": "F2",
       "createdAt": 1700000000013,
       "updatedAt": 1700000000013,
@@ -386,7 +386,7 @@
       }
      },
      {
-      "id": "sess_loyw3v2l_f13xfm",
+      "id": "sess_loyw3v2l_tyfp59",
       "title": "Root (copy)",
       "createdAt": 1700000000013,
       "updatedAt": 1700000000013,
@@ -413,7 +413,7 @@
    {
     "p": "ai.sessions.create",
     "out": {
-     "id": "sess_loyw3v2w_su7dgc",
+     "id": "sess_loyw3v2w_wy6g9a",
      "title": "",
      "createdAt": 1700000000024,
      "updatedAt": 1700000000024
@@ -423,7 +423,7 @@
     "p": "ai.sessions.list",
     "out": [
      {
-      "id": "sess_loyw3v2i_t007lh",
+      "id": "sess_loyw3v2i_tdp0za",
       "title": "Root (copy)",
       "createdAt": 1700000000010,
       "updatedAt": 1700000000010,
@@ -433,7 +433,7 @@
       }
      },
      {
-      "id": "sess_loyw3v2l_r52wgu",
+      "id": "sess_loyw3v2l_tipcq2",
       "title": "F2",
       "createdAt": 1700000000013,
       "updatedAt": 1700000000013,
@@ -443,7 +443,7 @@
       }
      },
      {
-      "id": "sess_loyw3v2l_f13xfm",
+      "id": "sess_loyw3v2l_tyfp59",
       "title": "Root (copy)",
       "createdAt": 1700000000013,
       "updatedAt": 1700000000013,
@@ -453,7 +453,7 @@
       }
      },
      {
-      "id": "sess_loyw3v2w_su7dgc",
+      "id": "sess_loyw3v2w_wy6g9a",
       "title": "",
       "createdAt": 1700000000024,
       "updatedAt": 1700000000024
@@ -591,7 +591,16 @@
    {
     "p": "ai.tools.confirm",
     "out": null,
-    "undef": true
+    "undef": true,
+    "events": [
+     {
+      "event": "hook:tools/wrap",
+      "data": {
+       "reqId": "r1",
+       "ok": true
+      }
+     }
+    ]
    },
    {
     "p": "ai.tools.confirm",
@@ -2818,6 +2827,279 @@
     "err": {
      "code": "INTERNAL",
      "message": "Cannot create property 'updatedAt' on number '5'"
+    }
+   }
+  ]
+ },
+ {
+  "name": "hooks",
+  "steps": [
+   {
+    "p": null,
+    "events": [
+     {
+      "event": "ai.agent.turnEnd",
+      "data": {
+       "sessionId": "s1",
+       "turnId": "t1",
+       "ok": true
+      }
+     }
+    ]
+   },
+   {
+    "p": null,
+    "events": [
+     {
+      "event": "ai.agent.turnEnd",
+      "data": {
+       "sessionId": "s1",
+       "turnId": "t2",
+       "ok": false,
+       "reason": "aborted",
+       "extra": {
+        "k": 1
+       }
+      }
+     }
+    ]
+   },
+   {
+    "p": null
+   },
+   {
+    "p": null,
+    "events": [
+     {
+      "event": "ai.agent.turnEnd",
+      "data": {}
+     }
+    ]
+   },
+   {
+    "p": null
+   },
+   {
+    "p": null
+   },
+   {
+    "p": null
+   },
+   {
+    "p": null,
+    "events": [
+     {
+      "event": "ai.agent.stoppedByUser",
+      "data": {
+       "sessionId": "s1",
+       "reqId": "r1"
+      }
+     }
+    ]
+   },
+   {
+    "p": null
+   },
+   {
+    "p": null,
+    "events": [
+     {
+      "event": "ai.tool.confirmRequired",
+      "data": {
+       "reqId": "r2",
+       "toolName": "echo",
+       "argumentsJson": "{}",
+       "reason": "dangerous",
+       "createdAt": 5
+      }
+     }
+    ]
+   },
+   {
+    "p": null,
+    "events": [
+     {
+      "event": "ai.tool.confirmRequired",
+      "data": {
+       "tool": "echo",
+       "args": {}
+      }
+     }
+    ]
+   },
+   {
+    "p": null
+   },
+   {
+    "p": null,
+    "events": [
+     {
+      "event": "ai.tool.executed",
+      "data": {
+       "toolName": "echo",
+       "reqId": "r3",
+       "ok": true,
+       "durationMs": 3
+      }
+     }
+    ]
+   },
+   {
+    "p": null,
+    "events": [
+     {
+      "event": "ai.tool.executed",
+      "data": {
+       "ok": true,
+       "tool": "echo",
+       "result": {
+        "echoed": "x"
+       }
+      }
+     }
+    ]
+   },
+   {
+    "p": null
+   },
+   {
+    "p": null
+   },
+   {
+    "p": null,
+    "events": [
+     {
+      "event": "ai.message.complete",
+      "data": {
+       "message": {
+        "role": "assistant",
+        "content": "hi"
+       }
+      }
+     }
+    ]
+   },
+   {
+    "p": null
+   },
+   {
+    "p": null
+   },
+   {
+    "p": null
+   },
+   {
+    "p": null
+   },
+   {
+    "p": null,
+    "events": [
+     {
+      "event": "ai.tts.chunk",
+      "data": {
+       "reqId": "t",
+       "seq": 0,
+       "mime": "audio/pcm",
+       "data": {
+        "$u8": "AAEC"
+       },
+       "rms": 0.5,
+       "atMs": 0,
+       "isFinal": false
+      }
+     }
+    ]
+   },
+   {
+    "p": null
+   },
+   {
+    "p": null,
+    "events": [
+     {
+      "event": "ai.tts.end",
+      "data": {
+       "reqId": "t",
+       "ok": true,
+       "durationMs": 12
+      }
+     }
+    ]
+   },
+   {
+    "p": null
+   },
+   {
+    "p": null,
+    "events": [
+     {
+      "event": "ai.userProfile.changed",
+      "data": {
+       "profile": {
+        "a": 1
+       }
+      }
+     }
+    ]
+   },
+   {
+    "p": null
+   },
+   {
+    "p": null
+   },
+   {
+    "p": null
+   },
+   {
+    "p": null
+   },
+   {
+    "p": null,
+    "events": [
+     {
+      "event": "hook:tools/wrap",
+      "data": {
+       "reqId": "x",
+       "ok": true
+      }
+     }
+    ]
+   },
+   {
+    "p": "ai.tools.confirm",
+    "out": null,
+    "undef": true,
+    "events": [
+     {
+      "event": "hook:tools/wrap",
+      "data": {
+       "reqId": "c1",
+       "ok": true
+      }
+     }
+    ]
+   },
+   {
+    "p": "ai.tools.confirm",
+    "out": null,
+    "undef": true,
+    "events": [
+     {
+      "event": "hook:tools/wrap",
+      "data": {
+       "reqId": "c2",
+       "ok": false,
+       "reason": "nope"
+      }
+     }
+    ]
+   },
+   {
+    "p": "ai.tools.confirm",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[TOOL_CONFIRM_INVALID|0] confirm 必须提供 reqId"
     }
    }
   ]
