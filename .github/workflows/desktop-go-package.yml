@@ -13,6 +13,10 @@ on:
         description: '额外跑同 runner 2.0.5 Go vs 2.0.4 Electron 性能对比（约 60 分钟）'
         type: boolean
         default: false
+      bench_linux_only:
+        description: 'bench 只跑 Linux（省掉 mac / Windows 的 2.0.4 构建与基准）'
+        type: boolean
+        default: false
   pull_request:
     branches: [release/2.0.5]
     paths:
@@ -225,10 +229,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - { target: mac-arm64, os: macos-14, args: '--mac dmg zip --arm64' }
-          - { target: windows, os: windows-latest, args: '--win nsis --x64' }
-          - { target: linux, os: ubuntu-24.04, args: '--linux AppImage --x64' }
+        include: ${{ fromJSON(inputs.bench_linux_only && '[{"target":"linux","os":"ubuntu-24.04","args":"--linux AppImage --x64"}]' || '[{"target":"mac-arm64","os":"macos-14","args":"--mac dmg zip --arm64"},{"target":"windows","os":"windows-latest","args":"--win nsis --x64"},{"target":"linux","os":"ubuntu-24.04","args":"--linux AppImage --x64"}]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 50
     defaults: { run: { shell: bash } }
@@ -259,10 +260,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - { target: mac-arm64, os: macos-14 }
-          - { target: windows, os: windows-latest }
-          - { target: linux, os: ubuntu-24.04 }
+        include: ${{ fromJSON(inputs.bench_linux_only && '[{"target":"linux","os":"ubuntu-24.04"}]' || '[{"target":"mac-arm64","os":"macos-14"},{"target":"windows","os":"windows-latest"},{"target":"linux","os":"ubuntu-24.04"}]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     defaults: { run: { shell: bash } }
@@ -272,7 +270,7 @@ jobs:
         with: { sparse-checkout: apps/desktop-go/ci }
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
-      - run: pip install psutil
+      - run: pip install psutil ${{ matrix.target == 'linux' && 'dbus-next' || '' }}
       - uses: actions/download-artifact@v4
         with: { name: 'nomi-go-${{ matrix.target }}', path: go }
       - uses: actions/download-artifact@v4

@@ -118,18 +118,22 @@ def wait_mascot(name, first, t0, timeout=120):
 def snap(name, first, t0):
     ps = tree(set(roots(name)) | {first.pid}, t0)
     uss = rss = 0
+    per = []  # 逐进程（Linux 来自 smaps_rollup：uss/pss/rss），看是哪个进程占内存
     for p in ps:
         try:
             mi = p.memory_full_info()
             uss += mi.uss
             rss += mi.rss
+            per.append({"name": p.name(), "pid": p.pid, "uss_mib": round(mi.uss / 2**20, 1),
+                        "pss_mib": round(getattr(mi, "pss", 0) / 2**20, 1), "rss_mib": round(mi.rss / 2**20, 1)})
         except psutil.Error:
             try:
                 rss += p.memory_info().rss
             except psutil.Error:
                 pass
     return {"uss_mib": round(uss / 2**20, 1), "rss_mib": round(rss / 2**20, 1), "procs": len(ps),
-            "names": sorted({(p.name() if p.is_running() else "?") for p in ps})}
+            "names": sorted({(p.name() if p.is_running() else "?") for p in ps}),
+            "per": sorted(per, key=lambda x: -x["uss_mib"])}
 
 
 def cpu(name, first, t0, secs=30):

@@ -7,6 +7,9 @@ if [ -z "${BENCH_INNER:-}" ]; then
   exec env BENCH_INNER=1 xvfb-run -a -s '-screen 0 1920x1080x24' dbus-run-session -- "$0" "$GO" "$E" "$OUT"
 fi
 openbox & sleep 2
+# 托盘宿主：没有它 Go 版会走无托盘兜底（启动即开对话窗），idle 就不是 idle；真实桌面都有
+python3 "$H/snwatcher.py" &
+sleep 1
 UD=(--userdata "$HOME/.config/Nomi" --userdata "$HOME/.config/@nomi-ai")
 : > "$OUT/sizes.tsv"
 for f in "$GO"/*.deb "$GO"/*.AppImage "$E"/*.AppImage; do [ -f "$f" ] && printf '%s\t%s\t%s\n' "$([[ $f == $E/* ]] && echo electron || echo go)" "$(basename "$f")" "$(stat -c %s "$f")" >> "$OUT/sizes.tsv"; done
