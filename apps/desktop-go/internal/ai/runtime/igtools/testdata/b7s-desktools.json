@@ -3255,7 +3255,7 @@
     "truncated": false,
     "sandbox": "node-permission",
     "stdout": "<code_output trust=\"untrusted\">\n\n</code_output>",
-    "stderr": "<code_output trust=\"untrusted\">\nnode:fs:562\n  return binding.open(\n                 ^\n\nError: Access to this API has been restricted\n    at Object.openSync (node:fs:562:18)\n    at Object.readFileSync (node:fs:446:35)\n    at Object.<anonymous> (@@SBX@@/main.cjs:1:15)\n    at Module._compile (node:internal/modules/cjs/loader:1554:14)\n    at Object..js (node:internal/modules/cjs/loader:1706:10)\n    at Module.load (node:internal/modules/cjs/loader:1289:32)\n    at Function._load (node:internal/modules/cjs/loader:1108:12)\n    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:220:24)\n    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:170:5) {\n  code: 'ERR_ACCESS_DENIED',\n  permission: 'FileSystemRead',\n  resource: '@@SBX@@/../../etc/hosts'\n}\n\nNode.js v22.14.0\n\n</code_output>"
+    "stderr": "<code_output trust=\"untrusted\">\nnode:fs:562\n  return binding.open(\n                 ^\n\nError: Access to this API has been restricted\n    at Object.openSync (node:fs:562:18)\n    at Object.readFileSync (node:fs:446:35)\n    at Object.<anonymous> (@@SBX@@/main.cjs:1:15)\n    at Module._compile (node:internal/modules/cjs/loader:1554:14)\n    at Object..js (node:internal/modules/cjs/loader:1706:10)\n    at Module.load (node:internal/modules/cjs/loader:1289:32)\n    at Function._load (node:internal/modules/cjs/loader:1108:12)\n    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:220:24)\n    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:170:5) {\n  code: 'ERR_ACCESS_DENIED',\n  permission: 'FileSystemRead',\n  resource: '/etc/hosts'\n}\n\nNode.js v22.14.0\n\n</code_output>"
    }
   },
   "confirms": [
@@ -3263,8 +3263,8 @@
     "tool": "code_run",
     "danger": "destructive",
     "summary": "运行一段 JavaScript 代码（1 行，最长 15 秒）？",
-    "argsJson": "{\n  \"language\": \"javascript\",\n  \"code\": \"require('fs').readFileSync(require('os').homedir()+'/../../etc/hosts')\",\n  \"timeoutSec\": 15\n}",
-    "preview": "require('fs').readFileSync(require('os').homedir()+'/../../etc/hosts')",
+    "argsJson": "{\n  \"language\": \"javascript\",\n  \"code\": \"require('fs').readFileSync(require('path').parse(process.cwd()).root+'etc/hosts')\",\n  \"timeoutSec\": 15\n}",
+    "preview": "require('fs').readFileSync(require('path').parse(process.cwd()).root+'etc/hosts')",
     "dialog": true,
     "rememberable": false,
     "reason": "policy"
@@ -3276,8 +3276,8 @@
     "args": {
      "language": "javascript",
      "code": {
-      "sha256": "bd01937839f7",
-      "length": 70
+      "sha256": "670f07f023aa",
+      "length": 81
      },
      "timeoutSec": 15
     },

@@ -118,7 +118,7 @@
  {"tool":"code_run","in":{"code":"console.log(6*7)"},"real":true},
  {"tool":"code_run","in":{"code":"console.error('e'); process.exit(2)"},"real":true},
  {"tool":"code_run","in":{"code":"process.stdin.on('data',d=>process.stdout.write(String(d).toUpperCase()))","stdin":"abc"},"real":true},
- {"tool":"code_run","in":{"code":"require('fs').readFileSync(require('os').homedir()+'/../../etc/hosts')"},"real":true},
+ {"tool":"code_run","in":{"code":"require('fs').readFileSync(require('path').parse(process.cwd()).root+'etc/hosts')"},"real":true},
  {"tool":"code_run","in":{"code":"require('child_process').execSync('echo x')"},"real":true},
  {"tool":"code_run","in":{"code":"while(true){}","timeoutSec":1},"real":true},
  {"tool":"code_run","in":{"code":"print(6*7)","language":"python"},"real":true},
