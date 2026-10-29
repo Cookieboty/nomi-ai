@@ -146,7 +146,8 @@ func runCuScenario(t *testing.T, sc *util.Obj, SB string) []any {
 	}
 	npmLog := filepath.Join(dir, "npm.log")
 	shPre = "echo x >> \"" + npmLog + "\"\n" + shPre
-	winPre = "echo x>>\"" + npmLog + "\"\r\n" + winPre
+	// 并发的 cmd 追加会因共享冲突丢行（Node/Go 同样），失败即重试
+	winPre = ":nomilog\r\n(echo x>>\"" + npmLog + "\") 2>nul || goto nomilog\r\n" + winPre
 	npmBin := cuExe(t, filepath.Join(dir, "fakenpm"), shPre+strings.Join(shL, "\n")+"\nexit 1", winPre+strings.Join(winL, "\r\n")+"\r\nexit /b 1")
 	os.Setenv("NOMI_NPM_BIN", npmBin)
 	if bins, ok := sc.Get("bins").(*util.Obj); ok {
