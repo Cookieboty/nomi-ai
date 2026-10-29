@@ -64,6 +64,11 @@ func (t tally) report(tb testing.TB, section string) {
 		fmt.Fprintf(&b, "  %-12s pass=%d fail=%d\n", k, t[k][0], t[k][1])
 	}
 	tb.Logf("parity %s:\n%s", section, b.String())
+	for _, k := range keys {
+		if t[k][1] > 0 {
+			tb.Errorf("parity %s/%s: %d mismatches", section, k, t[k][1])
+		}
+	}
 }
 
 func firstDiff(a, b string) string {

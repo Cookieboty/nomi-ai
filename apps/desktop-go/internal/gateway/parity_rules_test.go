@@ -205,6 +205,12 @@ func TestParityRules(t *testing.T) {
 			Efforts []string
 			Out     string
 		}
+		StrictEdge []struct {
+			In      string   `json:"in"`
+			Out     string   `json:"out"`
+			Changed bool     `json:"changed"`
+			Notes   []string `json:"notes"`
+		} `json:"strictEdge"`
 		Inline []struct {
 			In     json.RawMessage
 			Out    string
@@ -357,6 +363,16 @@ func TestParityRules(t *testing.T) {
 			t.Errorf("inline %s: go %s ts %s", c.In, got, c.Out)
 		}
 		tl.add("inlineRefs", ok)
+	}
+	for _, c := range fx.StrictEdge {
+		o := u.NewObj("tools", []any{u.NewObj("type", "function", "function", u.NewObj("name", "f", "parameters", jobj(t, json.RawMessage(c.In)), "strict", true))})
+		notes := []string{}
+		ch := request.CleanSchemas("chat", o, u.NewObj("tools", u.NewObj("schema", "openai-strict")), &notes)
+		ok := u.Stringify(o) == c.Out && ch == c.Changed && eqNotes(notes, c.Notes)
+		if !ok {
+			t.Errorf("strictEdge %s:\n go %s\n ts %s", c.In, u.Stringify(o), c.Out)
+		}
+		tl.add("strictEdge", ok)
 	}
 	for _, c := range fx.DropReasoning {
 		o := jobj(t, c.In).(*u.Obj)

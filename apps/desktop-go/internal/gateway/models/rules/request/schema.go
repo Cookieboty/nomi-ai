@@ -84,14 +84,20 @@ func InlineRefs(schema any) any {
 			return v
 		}
 		if ref, ok := o.Get("$ref").(string); ok {
-			if mm := refRe.FindStringSubmatch(ref); mm != nil && defs.Has(mm[1]) && !seen[mm[1]] {
+			mm := refRe.FindStringSubmatch(ref)
+			var def any
+			found := false
+			if mm != nil {
+				def, found = u.PlainGet(defs, mm[1])
+			}
+			if found && !seen[mm[1]] {
 				rest := o.Clone()
 				rest.Delete("$ref")
 				next := map[string]bool{mm[1]: true}
 				for k := range seen {
 					next[k] = true
 				}
-				target := walk(defs.Get(mm[1]), next)
+				target := walk(def, next)
 				if t := obj(target); t != nil {
 					return t.Clone().Assign(rest)
 				}
@@ -103,7 +109,11 @@ func InlineRefs(schema any) any {
 			if k == "$defs" || k == "definitions" {
 				continue
 			}
-			out.Set(k, walk(o.Get(k), seen))
+			w := walk(o.Get(k), seen)
+			if k == "__proto__" {
+				continue // `out.__proto__ = w` sets the prototype (or is ignored): never an own key
+			}
+			out.Set(k, w)
 		}
 		return out
 	}
@@ -111,10 +121,28 @@ func InlineRefs(schema any) any {
 }
 
 func strictObjects(s any) any {
+	return (&strictCtx{proto: map[*u.Obj]*u.Obj{}}).run(s)
+}
+
+// strictCtx tracks prototypes created by `out.__proto__ = obj` so property
+// reads (`out.type`, `out.additionalProperties`) follow the JS chain.
+type strictCtx struct{ proto map[*u.Obj]*u.Obj }
+
+func (c *strictCtx) get(o *u.Obj, k string) (any, bool) {
+	for o != nil {
+		if o.Has(k) {
+			return o.Get(k), true
+		}
+		o = c.proto[o]
+	}
+	return nil, false
+}
+
+func (c *strictCtx) run(s any) any {
 	if arr, ok := s.([]any); ok {
 		out := make([]any, len(arr))
 		for i, x := range arr {
-			out[i] = strictObjects(x)
+			out[i] = c.run(x)
 		}
 		return out
 	}
@@ -125,17 +153,28 @@ func strictObjects(s any) any {
 	out := u.NewObj()
 	for _, k := range o.Keys() {
 		v := o.Get(k)
+		var w any
 		if p := obj(v); k == "properties" && p != nil {
-			np := u.NewObj()
+			np := u.NewObj() // Object.fromEntries: own keys, "__proto__" included
 			for _, n := range p.Keys() {
-				np.Set(n, strictObjects(p.Get(n)))
+				np.Set(n, c.run(p.Get(n)))
 			}
-			out.Set(k, np)
+			w = np
 		} else {
-			out.Set(k, strictObjects(v))
+			w = c.run(v)
 		}
+		if k == "__proto__" {
+			if po, ok := w.(*u.Obj); ok {
+				c.proto[out] = po
+			} else if _, isArr := w.([]any); isArr {
+				delete(c.proto, out) // array prototype: neither key is ever found on it
+			}
+			continue
+		}
+		out.Set(k, w)
 	}
-	if out.Get("type") == "object" && !out.Has("additionalProperties") {
+	t, _ := c.get(out, "type")
+	if _, has := c.get(out, "additionalProperties"); t == "object" && !has {
 		out.Set("additionalProperties", false)
 	}
 	return out

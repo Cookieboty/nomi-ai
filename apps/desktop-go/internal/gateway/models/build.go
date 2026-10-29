@@ -1,11 +1,12 @@
 package models
 
 import (
+	"golang.org/x/text/collate"
+	"golang.org/x/text/language"
 	"math"
 	"regexp"
 	"sort"
 	"strings"
-	"unicode/utf8"
 
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
@@ -273,7 +274,7 @@ func BuildCatalog(api any, version string) *BuildResult {
 			from++
 		}
 	}
-	sort.SliceStable(order, func(a, b int) bool { return LocaleCompare(order[a], order[b]) < 0 })
+	localeSort(order)
 	sorted := u.NewObj()
 	for _, k := range order {
 		sorted.Set(k, models[k])
@@ -281,64 +282,16 @@ func BuildCatalog(api any, version string) *BuildResult {
 	return &BuildResult{CatalogDoc: CatalogDoc{Version: version, Source: "models.dev", License: "MIT", Models: sorted}, FromFallback: from}
 }
 
-// asciiCollation is the ICU root primary order of printable ASCII
-// (`String.prototype.localeCompare` in Node), lowercase before uppercase.
-const asciiCollation = " _-,;:!?.'\"()[]{}@*/\\&#%`^+<=>|~$0123456789aAbBcCdDeEfFgGhHiIjJkKlLmMnNoOpPqQrRsStTuUvVwWxXyYzZ"
-
-var collWeight [128]int
-
-func init() {
-	for i := range collWeight {
-		collWeight[i] = -1
-	}
-	w := 0
-	for i := 0; i < len(asciiCollation); i++ {
-		c := asciiCollation[i]
-		if c >= 'A' && c <= 'Z' {
-			collWeight[c] = collWeight[c+32] // same primary weight as lowercase
-			continue
-		}
-		w++
-		collWeight[c] = w
-	}
-}
-
-// LocaleCompare approximates localeCompare for catalog keys. Keys are
-// lowercased ids, so the primary order of printable ASCII is exact; other
-// characters fall back to code point order after ASCII (documented deviation).
+// LocaleCompare is `a.localeCompare(b)` under Node's ICU (en-US default
+// locale, tertiary strength): CLDR root collation via golang.org/x/text,
+// verified identical to V8 on random ASCII / Latin / CJK / combining-mark
+// strings. Collators are not goroutine-safe, so one is built per call site.
 func LocaleCompare(a, b string) int {
-	i, j := 0, 0
-	for i < len(a) && j < len(b) {
-		ra, sa := utf8.DecodeRuneInString(a[i:])
-		rb, sb := utf8.DecodeRuneInString(b[j:])
-		wa, wb := weight(ra), weight(rb)
-		if wa != wb {
-			if wa < wb {
-				return -1
-			}
-			return 1
-		}
-		i += sa
-		j += sb
-	}
-	switch {
-	case len(a)-i < len(b)-j:
-		return -1
-	case len(a)-i > len(b)-j:
-		return 1
-	}
-	// tertiary: lowercase first
-	if a < b {
-		return 1
-	} else if a > b {
-		return -1
-	}
-	return 0
+	return collate.New(language.AmericanEnglish).CompareString(a, b)
 }
 
-func weight(r rune) int {
-	if r < 128 && collWeight[r] >= 0 {
-		return collWeight[r]
-	}
-	return 1000 + int(r)
+// localeSort sorts keys like `keys.sort((a, b) => a.localeCompare(b))`.
+func localeSort(keys []string) {
+	c := collate.New(language.AmericanEnglish)
+	sort.SliceStable(keys, func(i, j int) bool { return c.CompareString(keys[i], keys[j]) < 0 })
 }

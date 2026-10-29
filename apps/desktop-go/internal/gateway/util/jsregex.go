@@ -84,3 +84,12 @@ func (r *JSRegex) Test(s string) bool {
 	}
 	return true
 }
+
+// JSWhitespace is the character class JS `\s` matches (RE2 `\s` is ASCII only).
+const JSWhitespace = `[\t\n\v\f\r \x{a0}\x{1680}\x{2000}-\x{200a}\x{2028}\x{2029}\x{202f}\x{205f}\x{3000}\x{feff}]`
+
+// JSRe compiles a JS regex source after mapping `\s` to JSWhitespace (only
+// outside character classes; sources must not use `\s` inside `[...]`).
+func JSRe(src string) *regexp.Regexp {
+	return regexp.MustCompile(strings.ReplaceAll(src, `\s`, JSWhitespace))
+}

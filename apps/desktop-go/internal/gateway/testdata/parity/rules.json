@@ -16551,6 +16551,235 @@
    "in": 5,
    "out": "5",
    "gemini": true
+  },
+  {
+   "in": {
+    "$defs": {
+     "a": {
+      "type": "string"
+     }
+    },
+    "properties": {
+     "x": {
+      "$ref": "#/$defs/toString"
+     },
+     "y": {
+      "$ref": "#/$defs/constructor"
+     },
+     "z": {
+      "$ref": "#/$defs/__proto__"
+     },
+     "w": {
+      "$ref": "#/$defs/hasOwnProperty",
+      "d": 1
+     }
+    },
+    "e": [
+     {
+      "$ref": "#/$defs/valueOf"
+     },
+     {
+      "$ref": "#/$defs/a"
+     }
+    ]
+   },
+   "out": "{\"properties\":{\"z\":{}},\"e\":[null,{\"type\":\"string\"}]}",
+   "gemini": false
+  },
+  {
+   "in": {
+    "$defs": {
+     "__proto__": {
+      "type": "number"
+     }
+    },
+    "p": {
+     "$ref": "#/$defs/__proto__"
+    },
+    "q": {
+     "$ref": "#/$defs/constructor"
+    }
+   },
+   "out": "{\"p\":{\"type\":\"number\"}}",
+   "gemini": false
+  },
+  {
+   "in": {
+    "$defs": {
+     "a": {
+      "type": "object"
+     }
+    },
+    "__proto__": {
+     "type": "object"
+    },
+    "p": {
+     "__proto__": {
+      "$ref": "#/$defs/a"
+     },
+     "k": 1
+    }
+   },
+   "out": "{\"p\":{\"k\":1}}",
+   "gemini": false
+  },
+  {
+   "in": {
+    "$defs": {
+     "a": 1
+    },
+    "p": {
+     "$ref": "#/$defs/a",
+     "__proto__": {
+      "type": "x"
+     }
+    }
+   },
+   "out": "{\"p\":1}",
+   "gemini": false
+  },
+  {
+   "in": {
+    "__proto__": {
+     "type": "object"
+    },
+    "properties": {
+     "__proto__": {
+      "type": "object"
+     },
+     "n": {
+      "__proto__": {
+       "__proto__": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   },
+   "out": "{\"__proto__\":{\"type\":\"object\"},\"properties\":{\"__proto__\":{\"type\":\"object\"},\"n\":{\"__proto__\":{\"__proto__\":{\"type\":\"object\"}}}}}",
+   "gemini": false
+  },
+  {
+   "in": {
+    "type": "object",
+    "__proto__": {
+     "additionalProperties": true
+    }
+   },
+   "out": "{\"type\":\"object\",\"__proto__\":{\"additionalProperties\":true}}",
+   "gemini": false
+  },
+  {
+   "in": {
+    "__proto__": [
+     1
+    ],
+    "type": "object"
+   },
+   "out": "{\"__proto__\":[1],\"type\":\"object\"}",
+   "gemini": false
+  },
+  {
+   "in": {
+    "__proto__": 5,
+    "items": {
+     "__proto__": {
+      "type": "object",
+      "additionalProperties": 7
+     }
+    }
+   },
+   "out": "{\"__proto__\":5,\"items\":{\"__proto__\":{\"type\":\"object\",\"additionalProperties\":7}}}",
+   "gemini": false
+  },
+  {
+   "in": {
+    "$defs": {
+     "a": {
+      "$ref": "#/$defs/isPrototypeOf"
+     }
+    },
+    "r": {
+     "$ref": "#/$defs/a"
+    },
+    "s": [
+     {
+      "$ref": "#/$defs/propertyIsEnumerable"
+     }
+    ]
+   },
+   "out": "{\"s\":[null]}",
+   "gemini": false
+  }
+ ],
+ "strictEdge": [
+  {
+   "in": "{\"$defs\":{\"a\":{\"type\":\"string\"}},\"properties\":{\"x\":{\"$ref\":\"#/$defs/toString\"},\"y\":{\"$ref\":\"#/$defs/constructor\"},\"z\":{\"$ref\":\"#/$defs/__proto__\"},\"w\":{\"$ref\":\"#/$defs/hasOwnProperty\",\"d\":1}},\"e\":[{\"$ref\":\"#/$defs/valueOf\"},{\"$ref\":\"#/$defs/a\"}]}",
+   "out": "{\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"f\",\"parameters\":{\"$defs\":{\"a\":{\"type\":\"string\"}},\"properties\":{\"x\":{\"$ref\":\"#/$defs/toString\"},\"y\":{\"$ref\":\"#/$defs/constructor\"},\"z\":{\"$ref\":\"#/$defs/__proto__\"},\"w\":{\"$ref\":\"#/$defs/hasOwnProperty\",\"d\":1}},\"e\":[{\"$ref\":\"#/$defs/valueOf\"},{\"$ref\":\"#/$defs/a\"}]},\"strict\":true}}]}",
+   "changed": false,
+   "notes": []
+  },
+  {
+   "in": "{\"$defs\":{\"__proto__\":{\"type\":\"number\"}},\"p\":{\"$ref\":\"#/$defs/__proto__\"},\"q\":{\"$ref\":\"#/$defs/constructor\"}}",
+   "out": "{\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"f\",\"parameters\":{\"$defs\":{},\"p\":{\"$ref\":\"#/$defs/__proto__\"},\"q\":{\"$ref\":\"#/$defs/constructor\"}},\"strict\":true}}]}",
+   "changed": true,
+   "notes": [
+    "工具 schema 已按 openai-strict 规则改写"
+   ]
+  },
+  {
+   "in": "{\"$defs\":{\"a\":{\"type\":\"object\"}},\"__proto__\":{\"type\":\"object\"},\"p\":{\"__proto__\":{\"$ref\":\"#/$defs/a\"},\"k\":1}}",
+   "out": "{\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"f\",\"parameters\":{\"$defs\":{\"a\":{\"type\":\"object\",\"additionalProperties\":false}},\"p\":{\"k\":1}},\"strict\":true}}]}",
+   "changed": true,
+   "notes": [
+    "工具 schema 已按 openai-strict 规则改写"
+   ]
+  },
+  {
+   "in": "{\"$defs\":{\"a\":1},\"p\":{\"$ref\":\"#/$defs/a\",\"__proto__\":{\"type\":\"x\"}}}",
+   "out": "{\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"f\",\"parameters\":{\"$defs\":{\"a\":1},\"p\":{\"$ref\":\"#/$defs/a\"}},\"strict\":true}}]}",
+   "changed": true,
+   "notes": [
+    "工具 schema 已按 openai-strict 规则改写"
+   ]
+  },
+  {
+   "in": "{\"__proto__\":{\"type\":\"object\"},\"properties\":{\"__proto__\":{\"type\":\"object\"},\"n\":{\"__proto__\":{\"__proto__\":{\"type\":\"object\"}}}}}",
+   "out": "{\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"f\",\"parameters\":{\"properties\":{\"__proto__\":{\"type\":\"object\",\"additionalProperties\":false},\"n\":{}}},\"strict\":true}}]}",
+   "changed": true,
+   "notes": [
+    "工具 schema 已按 openai-strict 规则改写"
+   ]
+  },
+  {
+   "in": "{\"type\":\"object\",\"__proto__\":{\"additionalProperties\":true}}",
+   "out": "{\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"f\",\"parameters\":{\"type\":\"object\"},\"strict\":true}}]}",
+   "changed": true,
+   "notes": [
+    "工具 schema 已按 openai-strict 规则改写"
+   ]
+  },
+  {
+   "in": "{\"__proto__\":[1],\"type\":\"object\"}",
+   "out": "{\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"additionalProperties\":false},\"strict\":true}}]}",
+   "changed": true,
+   "notes": [
+    "工具 schema 已按 openai-strict 规则改写"
+   ]
+  },
+  {
+   "in": "{\"__proto__\":5,\"items\":{\"__proto__\":{\"type\":\"object\",\"additionalProperties\":7}}}",
+   "out": "{\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"f\",\"parameters\":{\"items\":{}},\"strict\":true}}]}",
+   "changed": true,
+   "notes": [
+    "工具 schema 已按 openai-strict 规则改写"
+   ]
+  },
+  {
+   "in": "{\"$defs\":{\"a\":{\"$ref\":\"#/$defs/isPrototypeOf\"}},\"r\":{\"$ref\":\"#/$defs/a\"},\"s\":[{\"$ref\":\"#/$defs/propertyIsEnumerable\"}]}",
+   "out": "{\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"f\",\"parameters\":{\"$defs\":{\"a\":{\"$ref\":\"#/$defs/isPrototypeOf\"}},\"r\":{\"$ref\":\"#/$defs/a\"},\"s\":[{\"$ref\":\"#/$defs/propertyIsEnumerable\"}]},\"strict\":true}}]}",
+   "changed": false,
+   "notes": []
   }
  ],
  "dropReasoning": [

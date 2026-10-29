@@ -21,7 +21,7 @@
  *   e2e      – the real GatewayServer against a local mock upstream per protocol,
  *              recording the raw streamed chunks the client receives
  *
- * Usage: node scripts/parity/record.mjs [--only request,stream,json,fixes,spec,net,objkeys,proxy,models,providers,rules,e2e]
+ * Usage: node scripts/parity/record.mjs [--only request,stream,json,fixes,spec,net,objkeys,proxy,models,providers,rules,route,upstream,collate,e2e]
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -415,9 +415,31 @@ if (want('providers')) {
   write('providers', await recordProviders({ gw }));
 }
 
+if (want('upstream')) {
+  const { recordUpstream } = await import('./upstream.mjs');
+  write('upstream', await recordUpstream({ gw, root }));
+}
+if (want('route')) {
+  const { recordRoute } = await import('./route.mjs');
+  write('route', await recordRoute({ gw, root }));
+}
 if (want('rules')) {
   const { recordRules } = await import('./rules.mjs');
   write('rules', await recordRules({ gw, root }));
+}
+
+if (want('collate')) {
+  // String.prototype.localeCompare (ICU, en-US) over ASCII / Latin / CJK / combining marks.
+  const al = [...'aAbz_-.:/ 09é eÉñü中文日本ßøÅ~$+@#', 'ǅ', 'ﬁ', '\u0301', '😀', 'Ω'];
+  let seed = 7;
+  const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+  const xs = [];
+  for (let i = 0; i < 3000; i++) {
+    let s = '';
+    for (let j = 0, n = 1 + Math.floor(rnd() * 5); j < n; j++) s += al[Math.floor(rnd() * al.length)];
+    xs.push(s);
+  }
+  write('collate', { pairs: xs.slice(1).map((b, i) => [xs[i], b, Math.sign(xs[i].localeCompare(b))]), sorted: [...xs].sort((a, b) => a.localeCompare(b)) });
 }
 
 if (want('e2e')) {

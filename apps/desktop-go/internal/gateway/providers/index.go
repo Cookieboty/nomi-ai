@@ -138,96 +138,84 @@ func resolveSpec(p *config.RuntimeProvider, wire string) *Spec {
 
 // MergeQuirks is mergeQuirks.
 func MergeQuirks(base, over *config.ProviderQuirks) *config.ProviderQuirks {
-	b, o := base, over
-	if b == nil {
-		b = &config.ProviderQuirks{}
+	b, o := base.Obj(), over.Obj()
+	get := func(x *u.Obj, k string) any {
+		if x == nil {
+			return nil
+		}
+		return x.Get(k)
 	}
-	if o == nil {
-		o = &config.ProviderQuirks{}
+	out := u.NewObj() // { ...defined(base), ...defined(over) }
+	for _, src := range []*u.Obj{b, o} {
+		if src != nil {
+			for _, k := range src.Keys() {
+				out.Set(k, src.Get(k))
+			}
+		}
 	}
-	out := *b
-	if o.ResponsesTellsCache != nil {
-		out.ResponsesTellsCache = o.ResponsesTellsCache
-	}
-	if o.PreferWire != "" {
-		out.PreferWire = o.PreferWire
-	}
-	if o.MaxTools != nil {
-		out.MaxTools = o.MaxTools
-	}
-	if o.ReasoningPassback != nil {
-		out.ReasoningPassback = o.ReasoningPassback
-	}
-	if o.UserAgent != "" {
-		out.UserAgent = o.UserAgent
-	}
-	if o.MaxConcurrency != nil {
-		out.MaxConcurrency = o.MaxConcurrency
-	}
-	if o.RPM != nil {
-		out.RPM = o.RPM
-	}
-	out.DropParams = nil
+	var drops []any // [...new Set([...(base?.dropParams ?? []), ...(over?.dropParams ?? [])])]
 	seen := map[string]bool{}
-	for _, d := range append(append([]string{}, b.DropParams...), o.DropParams...) {
-		if !seen[d] {
-			seen[d] = true
-			out.DropParams = append(out.DropParams, d)
-		}
-	}
-	out.Fixes = nil
-	if b.Fixes != nil || o.Fixes != nil {
-		f := config.QuirkFixes{}
-		for _, x := range []*config.QuirkFixes{b.Fixes, o.Fixes} {
-			if x == nil {
-				continue
+	for _, src := range []*u.Obj{b, o} {
+		for _, d := range spreadAny(get(src, "dropParams")) {
+			k := u.Stringify(d)
+			if _, isS := d.(string); isS {
+				k = "s" + k
 			}
-			if x.ChatStream != nil {
-				f.ChatStream = x.ChatStream
-			}
-			if x.TextToolCalls != nil {
-				f.TextToolCalls = x.TextToolCalls
-			}
-			if x.Repetition != nil {
-				f.Repetition = x.Repetition
-			}
-			if x.ToolNames != nil {
-				f.ToolNames = x.ToolNames
+			if !seen[k] {
+				seen[k] = true
+				drops = append(drops, d)
 			}
 		}
-		out.Fixes = &f
 	}
-	out.ExtraBody = nil
-	if b.ExtraBody != nil || o.ExtraBody != nil {
+	if len(drops) > 0 {
+		out.Set("dropParams", drops)
+	}
+	if u.Truthy(get(b, "fixes")) || u.Truthy(get(o, "fixes")) {
+		f := u.NewObj()
+		for _, src := range []any{get(b, "fixes"), get(o, "fixes")} {
+			if x, ok := src.(*u.Obj); ok && x != nil {
+				f.Assign(x)
+			}
+		}
+		out.Set("fixes", f)
+	}
+	be, _ := get(b, "extraBody").(*u.Obj)
+	oe, _ := get(o, "extraBody").(*u.Obj)
+	if u.Truthy(get(b, "extraBody")) || u.Truthy(get(o, "extraBody")) {
 		eb := u.NewObj()
-		var wires []string
-		seenW := map[string]bool{}
-		for _, src := range []*u.Obj{b.ExtraBody, o.ExtraBody} {
-			if src == nil {
-				continue
-			}
-			for _, w := range src.Keys() {
-				if !seenW[w] {
-					seenW[w] = true
-					wires = append(wires, w)
+		for _, src := range []*u.Obj{be, oe} {
+			if src != nil {
+				for _, w := range src.Keys() {
+					eb.Set(w, nil)
 				}
 			}
 		}
-		for _, w := range wires {
+		for _, w := range eb.Keys() {
 			m := u.NewObj()
-			for _, src := range []*u.Obj{b.ExtraBody, o.ExtraBody} {
-				if src == nil {
-					continue
-				}
-				if x, ok := src.Get(w).(*u.Obj); ok && x != nil {
+			for _, src := range []*u.Obj{be, oe} {
+				if x, ok := get(src, w).(*u.Obj); ok && x != nil {
 					m.Assign(x)
 				}
 			}
 			eb.Set(w, m)
 		}
-		out.ExtraBody = eb
+		out.Set("extraBody", eb)
 	}
-	return &out
+	return config.QuirksFromObj(out)
+}
+
+func spreadAny(v any) []any {
+	switch x := v.(type) {
+	case []any:
+		return x
+	case string:
+		var out []any
+		for _, r := range x {
+			out = append(out, string(r))
+		}
+		return out
+	}
+	return nil
 }
 
 // QuirksOf is quirksOf (wire "" = any wire).

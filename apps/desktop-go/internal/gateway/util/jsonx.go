@@ -344,6 +344,9 @@ func fromToken(dec *jdec, t json.Token) (any, error) {
 
 // Stringify is JSON.stringify for the value space above.
 func Stringify(v any) string {
+	if _, ok := v.(JSFunc); ok {
+		return "" // JSON.stringify(fn) === undefined
+	}
 	var b strings.Builder
 	writeValue(&b, v)
 	return b.String()
@@ -351,7 +354,7 @@ func Stringify(v any) string {
 
 func writeValue(b *strings.Builder, v any) {
 	switch x := v.(type) {
-	case nil:
+	case nil, JSFunc:
 		b.WriteString("null")
 	case bool:
 		if x {
@@ -375,10 +378,15 @@ func writeValue(b *strings.Builder, v any) {
 			return
 		}
 		b.WriteByte('{')
-		for i, k := range x.keys {
-			if i > 0 {
+		first := true
+		for _, k := range x.keys {
+			if _, fn := x.m[k].(JSFunc); fn {
+				continue // functions are skipped as object members
+			}
+			if !first {
 				b.WriteByte(',')
 			}
+			first = false
 			writeString(b, k)
 			b.WriteByte(':')
 			writeValue(b, x.m[k])

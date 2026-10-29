@@ -116,6 +116,88 @@
    }
   },
   {
+   "id": "ov1",
+   "name": "ov1",
+   "enabled": true,
+   "urls": {
+    "chat": "https://open.bigmodel.cn/api/paas/v4"
+   },
+   "keys": [
+    {
+     "id": "k",
+     "value": "v",
+     "enabled": true
+    }
+   ],
+   "models": [],
+   "preset": "zhipu",
+   "quirks": {
+    "zz": 1,
+    "maxTools": null,
+    "userAgent": "",
+    "reasoningPassback": null,
+    "fixes": {
+     "toolNames": null,
+     "chatStream": false
+    }
+   }
+  },
+  {
+   "id": "ov2",
+   "name": "ov2",
+   "enabled": true,
+   "urls": {
+    "chat": "https://api.minimaxi.com/v1"
+   },
+   "keys": [
+    {
+     "id": "k",
+     "value": "v",
+     "enabled": true
+    }
+   ],
+   "models": [],
+   "preset": "minimax",
+   "quirks": {
+    "extraBody": {
+     "chat": {
+      "reasoning_split": null,
+      "z": 1
+     },
+     "responses": {}
+    },
+    "dropParams": "ab",
+    "preferWire": "",
+    "rpm": 0
+   }
+  },
+  {
+   "id": "ov3",
+   "name": "ov3",
+   "enabled": true,
+   "urls": {
+    "chat": "https://api.moonshot.ai/v1"
+   },
+   "keys": [
+    {
+     "id": "k",
+     "value": "v",
+     "enabled": true
+    }
+   ],
+   "models": [],
+   "preset": "kimi",
+   "quirks": {
+    "dropParams": [
+     "temperature",
+     "seed"
+    ],
+    "extraBody": null,
+    "fixes": null,
+    "maxConcurrency": "3"
+   }
+  },
+  {
    "id": "mm",
    "name": "mm",
    "enabled": true,
@@ -3013,6 +3095,111 @@
    "native": null
   },
   {
+   "provider": "ov1",
+   "wire": null,
+   "spec": "zhipu",
+   "quirks": "{\"maxTools\":null,\"reasoningPassback\":null,\"zz\":1,\"userAgent\":\"\",\"fixes\":{\"toolNames\":null,\"chatStream\":false}}",
+   "native": null
+  },
+  {
+   "provider": "ov1",
+   "wire": "messages",
+   "spec": "zhipu",
+   "quirks": "{\"maxTools\":null,\"reasoningPassback\":null,\"zz\":1,\"userAgent\":\"\",\"fixes\":{\"toolNames\":null,\"chatStream\":false}}",
+   "native": null
+  },
+  {
+   "provider": "ov1",
+   "wire": "responses",
+   "spec": "zhipu",
+   "quirks": "{\"maxTools\":null,\"reasoningPassback\":null,\"zz\":1,\"userAgent\":\"\",\"fixes\":{\"toolNames\":null,\"chatStream\":false}}",
+   "native": null
+  },
+  {
+   "provider": "ov1",
+   "wire": "chat",
+   "spec": "zhipu",
+   "quirks": "{\"maxTools\":null,\"reasoningPassback\":null,\"zz\":1,\"userAgent\":\"\",\"fixes\":{\"toolNames\":null,\"chatStream\":false}}",
+   "native": null
+  },
+  {
+   "provider": "ov1",
+   "wire": "gemini",
+   "spec": "zhipu",
+   "quirks": "{\"maxTools\":null,\"reasoningPassback\":null,\"zz\":1,\"userAgent\":\"\",\"fixes\":{\"toolNames\":null,\"chatStream\":false}}",
+   "native": null
+  },
+  {
+   "provider": "ov2",
+   "wire": null,
+   "spec": "minimax",
+   "quirks": "{\"dropParams\":[\"service_tier\",\"a\",\"b\"],\"reasoningPassback\":true,\"extraBody\":{\"chat\":{\"reasoning_split\":null,\"z\":1},\"responses\":{}},\"preferWire\":\"\",\"rpm\":0}",
+   "native": null
+  },
+  {
+   "provider": "ov2",
+   "wire": "messages",
+   "spec": "minimax",
+   "quirks": "{\"dropParams\":[\"service_tier\",\"a\",\"b\"],\"reasoningPassback\":true,\"extraBody\":{\"chat\":{\"reasoning_split\":null,\"z\":1},\"responses\":{}},\"preferWire\":\"\",\"rpm\":0}",
+   "native": null
+  },
+  {
+   "provider": "ov2",
+   "wire": "responses",
+   "spec": "minimax",
+   "quirks": "{\"dropParams\":[\"service_tier\",\"a\",\"b\"],\"reasoningPassback\":true,\"extraBody\":{\"chat\":{\"reasoning_split\":null,\"z\":1},\"responses\":{}},\"preferWire\":\"\",\"rpm\":0}",
+   "native": null
+  },
+  {
+   "provider": "ov2",
+   "wire": "chat",
+   "spec": "minimax",
+   "quirks": "{\"dropParams\":[\"service_tier\",\"a\",\"b\"],\"reasoningPassback\":true,\"extraBody\":{\"chat\":{\"reasoning_split\":null,\"z\":1},\"responses\":{}},\"preferWire\":\"\",\"rpm\":0}",
+   "native": null
+  },
+  {
+   "provider": "ov2",
+   "wire": "gemini",
+   "spec": "minimax",
+   "quirks": "{\"dropParams\":[\"service_tier\",\"a\",\"b\"],\"reasoningPassback\":true,\"extraBody\":{\"chat\":{\"reasoning_split\":null,\"z\":1},\"responses\":{}},\"preferWire\":\"\",\"rpm\":0}",
+   "native": null
+  },
+  {
+   "provider": "ov3",
+   "wire": null,
+   "spec": "kimi",
+   "quirks": "{\"dropParams\":[\"temperature\",\"top_p\",\"n\",\"presence_penalty\",\"frequency_penalty\",\"seed\"],\"reasoningPassback\":true,\"extraBody\":null,\"fixes\":null,\"maxConcurrency\":\"3\"}",
+   "native": null
+  },
+  {
+   "provider": "ov3",
+   "wire": "messages",
+   "spec": "kimi",
+   "quirks": "{\"dropParams\":[\"temperature\",\"top_p\",\"n\",\"presence_penalty\",\"frequency_penalty\",\"seed\"],\"reasoningPassback\":true,\"extraBody\":null,\"fixes\":null,\"maxConcurrency\":\"3\"}",
+   "native": null
+  },
+  {
+   "provider": "ov3",
+   "wire": "responses",
+   "spec": "kimi",
+   "quirks": "{\"dropParams\":[\"temperature\",\"top_p\",\"n\",\"presence_penalty\",\"frequency_penalty\",\"seed\"],\"reasoningPassback\":true,\"extraBody\":null,\"fixes\":null,\"maxConcurrency\":\"3\"}",
+   "native": null
+  },
+  {
+   "provider": "ov3",
+   "wire": "chat",
+   "spec": "kimi",
+   "quirks": "{\"dropParams\":[\"temperature\",\"top_p\",\"n\",\"presence_penalty\",\"frequency_penalty\",\"seed\"],\"reasoningPassback\":true,\"extraBody\":null,\"fixes\":null,\"maxConcurrency\":\"3\"}",
+   "native": null
+  },
+  {
+   "provider": "ov3",
+   "wire": "gemini",
+   "spec": "kimi",
+   "quirks": "{\"dropParams\":[\"temperature\",\"top_p\",\"n\",\"presence_penalty\",\"frequency_penalty\",\"seed\"],\"reasoningPassback\":true,\"extraBody\":null,\"fixes\":null,\"maxConcurrency\":\"3\"}",
+   "native": null
+  },
+  {
    "provider": "mm",
    "wire": null,
    "spec": "minimax",
@@ -3386,6 +3573,87 @@
   },
   {
    "provider": "km",
+   "wire": "chat",
+   "body": 2,
+   "output": "{\"model\":\"m\",\"messages\":[{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"c\",\"type\":\"function\",\"function\":{\"name\":\"my_tool__96caa15\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"c\",\"content\":\"r\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"my_tool__96caa15\"}},{\"type\":\"web_search\"}]}",
+   "notes": [
+    "1 个工具名已映射为 Chat 接口允许的名字"
+   ]
+  },
+  {
+   "provider": "ov1",
+   "wire": "chat",
+   "body": 0,
+   "output": "{\"model\":\"m\",\"messages\":[{\"role\":\"system\",\"content\":\"a\"},{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"role\":\"user\",\"content\":\"hi\"}],\"temperature\":0.5,\"seed\":1,\"service_tier\":\"auto\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"t_0_909201d\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_1_61a4dd0\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_2_c2105cf\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}}]}",
+   "notes": [
+    "3 个工具名已映射为 Chat 接口允许的名字"
+   ]
+  },
+  {
+   "provider": "ov1",
+   "wire": "chat",
+   "body": 1,
+   "output": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"t_0_909201d\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_1_61a4dd0\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_2_c2105cf\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_3_6ef83c9\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_4_63799d7\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_5_b1a2d0c\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_6_d30c25e\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_7_7bfd066\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_8_5803fcd\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_9_9678e5a\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_10_ed3c929\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_11_9cc4ca5\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_12_9c35558\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_13_9221272\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_14_b7630f7\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_15_1686733\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_16_95be271\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_17_b15aa15\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_18_e0bf8f9\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_19_5aea817\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_20_6c2dd84\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_21_5326d00\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_22_8a9fb95\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_23_77f68a5\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_24_5b05379\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_25_48d8efc\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_26_7140c9e\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_27_8a8d89c\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_28_2018603\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_29_ad444d6\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_30_3e65f13\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_31_78e345f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_32_b12203c\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_33_ec48251\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_34_fa2df49\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_35_89237da\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_36_f4b3380\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_37_133cd76\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_38_ddda6c2\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_39_e733063\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_40_7e890dc\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_41_b69225d\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_42_6e2d91f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_43_77d0497\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_44_b8a803a\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_45_1d3f7bc\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_46_3b8b7cf\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_47_81e9913\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_48_8d716f8\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_49_6e92efb\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_50_f462597\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_51_b731127\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_52_d49e48c\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_53_4482524\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_54_8c4c058\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_55_1b0b193\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_56_612bb06\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_57_0cb6e16\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_58_dea6bfd\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_59_1a89862\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_60_32c305d\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_61_3b26dbb\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_62_e32b634\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_63_64e7fb4\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_64_4867b48\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_65_e8445c4\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_66_12e62e1\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_67_3b52d15\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_68_aa8a7a7\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_69_fc8637b\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_70_946dac1\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_71_695a1ee\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_72_c9b75aa\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_73_417e779\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_74_414985a\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_75_f64731a\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_76_2758534\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_77_b58a2fb\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_78_dc0245a\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_79_5360da5\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_80_7db001c\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_81_ae92a73\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_82_edf78a2\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_83_c9c4cd3\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_84_cdb93e3\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_85_814ed34\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_86_84d4b0c\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_87_012875c\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_88_c84a493\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_89_f15892b\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_90_5328672\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_91_6a2766a\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_92_daa1979\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_93_bed18ab\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_94_e362828\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_95_1261819\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_96_353836a\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_97_a97d2d7\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_98_a9eaa23\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_99_f6fa8a8\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_100_93fb56e\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_101_54288ef\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_102_6b1de15\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_103_f972de0\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_104_e980d2a\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_105_06fa1be\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_106_5343b92\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_107_7b8eb76\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_108_0df494f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_109_7895f4f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_110_8ee0af5\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_111_48e5522\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_112_2fdf3db\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_113_091887f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_114_05fcf09\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_115_fcbba92\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_116_112315f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_117_77fe1e9\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_118_d570391\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_119_dc23e3c\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_120_7f69c54\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_121_5067a96\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_122_031ac86\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_123_3c30ae3\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_124_0ff0ac8\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_125_6f01dae\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_126_3122746\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_127_4a825cc\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_128_39f864a\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_129_0f31dfc\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}}],\"tool_choice\":{\"type\":\"function\",\"function\":{\"name\":\"t_1_61a4dd0\"}}}",
+   "notes": [
+    "130 个工具名已映射为 Chat 接口允许的名字"
+   ]
+  },
+  {
+   "provider": "ov1",
+   "wire": "chat",
+   "body": 2,
+   "output": "{\"model\":\"m\",\"messages\":[{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"c\",\"type\":\"function\",\"function\":{\"name\":\"my_tool__96caa15\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"c\",\"content\":\"r\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"my_tool__96caa15\"}},{\"type\":\"web_search\"}]}",
+   "notes": [
+    "1 个工具名已映射为 Chat 接口允许的名字"
+   ]
+  },
+  {
+   "provider": "ov2",
+   "wire": "chat",
+   "body": 0,
+   "output": "{\"model\":\"m\",\"messages\":[{\"role\":\"system\",\"content\":\"a\"},{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"role\":\"user\",\"content\":\"hi\"}],\"temperature\":0.5,\"seed\":1,\"service_tier\":\"auto\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"t_0_909201d\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_1_61a4dd0\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_2_c2105cf\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}}],\"reasoning_split\":null,\"z\":1}",
+   "notes": [
+    "3 个工具名已映射为 Chat 接口允许的名字"
+   ]
+  },
+  {
+   "provider": "ov2",
+   "wire": "chat",
+   "body": 1,
+   "output": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"t_0_909201d\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_1_61a4dd0\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_2_c2105cf\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_3_6ef83c9\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_4_63799d7\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_5_b1a2d0c\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_6_d30c25e\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_7_7bfd066\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_8_5803fcd\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_9_9678e5a\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_10_ed3c929\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_11_9cc4ca5\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_12_9c35558\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_13_9221272\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_14_b7630f7\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_15_1686733\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_16_95be271\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_17_b15aa15\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_18_e0bf8f9\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_19_5aea817\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_20_6c2dd84\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_21_5326d00\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_22_8a9fb95\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_23_77f68a5\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_24_5b05379\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_25_48d8efc\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_26_7140c9e\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_27_8a8d89c\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_28_2018603\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_29_ad444d6\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_30_3e65f13\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_31_78e345f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_32_b12203c\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_33_ec48251\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_34_fa2df49\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_35_89237da\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_36_f4b3380\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_37_133cd76\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_38_ddda6c2\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_39_e733063\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_40_7e890dc\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_41_b69225d\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_42_6e2d91f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_43_77d0497\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_44_b8a803a\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_45_1d3f7bc\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_46_3b8b7cf\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_47_81e9913\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_48_8d716f8\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_49_6e92efb\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_50_f462597\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_51_b731127\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_52_d49e48c\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_53_4482524\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_54_8c4c058\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_55_1b0b193\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_56_612bb06\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_57_0cb6e16\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_58_dea6bfd\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_59_1a89862\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_60_32c305d\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_61_3b26dbb\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_62_e32b634\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_63_64e7fb4\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_64_4867b48\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_65_e8445c4\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_66_12e62e1\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_67_3b52d15\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_68_aa8a7a7\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_69_fc8637b\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_70_946dac1\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_71_695a1ee\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_72_c9b75aa\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_73_417e779\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_74_414985a\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_75_f64731a\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_76_2758534\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_77_b58a2fb\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_78_dc0245a\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_79_5360da5\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_80_7db001c\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_81_ae92a73\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_82_edf78a2\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_83_c9c4cd3\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_84_cdb93e3\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_85_814ed34\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_86_84d4b0c\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_87_012875c\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_88_c84a493\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_89_f15892b\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_90_5328672\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_91_6a2766a\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_92_daa1979\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_93_bed18ab\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_94_e362828\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_95_1261819\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_96_353836a\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_97_a97d2d7\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_98_a9eaa23\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_99_f6fa8a8\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_100_93fb56e\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_101_54288ef\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_102_6b1de15\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_103_f972de0\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_104_e980d2a\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_105_06fa1be\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_106_5343b92\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_107_7b8eb76\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_108_0df494f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_109_7895f4f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_110_8ee0af5\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_111_48e5522\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_112_2fdf3db\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_113_091887f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_114_05fcf09\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_115_fcbba92\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_116_112315f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_117_77fe1e9\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_118_d570391\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_119_dc23e3c\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_120_7f69c54\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_121_5067a96\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_122_031ac86\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_123_3c30ae3\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_124_0ff0ac8\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_125_6f01dae\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_126_3122746\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_127_4a825cc\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_128_39f864a\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_129_0f31dfc\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}}],\"tool_choice\":{\"type\":\"function\",\"function\":{\"name\":\"t_1_61a4dd0\"}},\"reasoning_split\":null,\"z\":1}",
+   "notes": [
+    "130 个工具名已映射为 Chat 接口允许的名字"
+   ]
+  },
+  {
+   "provider": "ov2",
+   "wire": "chat",
+   "body": 2,
+   "output": "{\"model\":\"m\",\"messages\":[{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"c\",\"type\":\"function\",\"function\":{\"name\":\"my_tool__96caa15\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"c\",\"content\":\"r\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"my_tool__96caa15\"}},{\"type\":\"web_search\"}],\"reasoning_split\":null,\"z\":1}",
+   "notes": [
+    "1 个工具名已映射为 Chat 接口允许的名字"
+   ]
+  },
+  {
+   "provider": "ov3",
+   "wire": "chat",
+   "body": 0,
+   "output": "{\"model\":\"m\",\"messages\":[{\"role\":\"system\",\"content\":\"a\"},{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"role\":\"user\",\"content\":\"hi\"}],\"temperature\":0.5,\"seed\":1,\"service_tier\":\"auto\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"t_0_909201d\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_1_61a4dd0\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_2_c2105cf\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}}]}",
+   "notes": [
+    "3 个工具名已映射为 Chat 接口允许的名字"
+   ]
+  },
+  {
+   "provider": "ov3",
+   "wire": "chat",
+   "body": 1,
+   "output": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"t_0_909201d\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_1_61a4dd0\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_2_c2105cf\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_3_6ef83c9\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_4_63799d7\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_5_b1a2d0c\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_6_d30c25e\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_7_7bfd066\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_8_5803fcd\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_9_9678e5a\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_10_ed3c929\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_11_9cc4ca5\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_12_9c35558\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_13_9221272\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_14_b7630f7\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_15_1686733\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_16_95be271\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_17_b15aa15\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_18_e0bf8f9\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_19_5aea817\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_20_6c2dd84\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_21_5326d00\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_22_8a9fb95\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_23_77f68a5\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_24_5b05379\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_25_48d8efc\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_26_7140c9e\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_27_8a8d89c\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_28_2018603\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_29_ad444d6\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_30_3e65f13\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_31_78e345f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_32_b12203c\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_33_ec48251\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_34_fa2df49\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_35_89237da\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_36_f4b3380\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_37_133cd76\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_38_ddda6c2\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_39_e733063\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_40_7e890dc\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_41_b69225d\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_42_6e2d91f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_43_77d0497\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_44_b8a803a\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_45_1d3f7bc\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_46_3b8b7cf\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_47_81e9913\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_48_8d716f8\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_49_6e92efb\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_50_f462597\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_51_b731127\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_52_d49e48c\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_53_4482524\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_54_8c4c058\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_55_1b0b193\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_56_612bb06\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_57_0cb6e16\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_58_dea6bfd\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_59_1a89862\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_60_32c305d\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_61_3b26dbb\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_62_e32b634\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_63_64e7fb4\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_64_4867b48\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_65_e8445c4\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_66_12e62e1\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_67_3b52d15\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_68_aa8a7a7\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_69_fc8637b\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_70_946dac1\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_71_695a1ee\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_72_c9b75aa\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_73_417e779\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_74_414985a\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_75_f64731a\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_76_2758534\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_77_b58a2fb\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_78_dc0245a\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_79_5360da5\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_80_7db001c\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_81_ae92a73\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_82_edf78a2\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_83_c9c4cd3\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_84_cdb93e3\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_85_814ed34\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_86_84d4b0c\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_87_012875c\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_88_c84a493\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_89_f15892b\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_90_5328672\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_91_6a2766a\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_92_daa1979\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_93_bed18ab\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_94_e362828\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_95_1261819\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_96_353836a\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_97_a97d2d7\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_98_a9eaa23\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_99_f6fa8a8\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_100_93fb56e\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_101_54288ef\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_102_6b1de15\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_103_f972de0\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_104_e980d2a\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_105_06fa1be\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_106_5343b92\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_107_7b8eb76\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_108_0df494f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_109_7895f4f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_110_8ee0af5\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_111_48e5522\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_112_2fdf3db\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_113_091887f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_114_05fcf09\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_115_fcbba92\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_116_112315f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_117_77fe1e9\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_118_d570391\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_119_dc23e3c\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_120_7f69c54\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_121_5067a96\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_122_031ac86\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_123_3c30ae3\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_124_0ff0ac8\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_125_6f01dae\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_126_3122746\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_127_4a825cc\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_128_39f864a\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"t_129_0f31dfc\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\",\"format\":\"uri\",\"default\":1}},\"additionalProperties\":false}}}],\"tool_choice\":{\"type\":\"function\",\"function\":{\"name\":\"t_1_61a4dd0\"}}}",
+   "notes": [
+    "130 个工具名已映射为 Chat 接口允许的名字"
+   ]
+  },
+  {
+   "provider": "ov3",
    "wire": "chat",
    "body": 2,
    "output": "{\"model\":\"m\",\"messages\":[{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"c\",\"type\":\"function\",\"function\":{\"name\":\"my_tool__96caa15\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"c\",\"content\":\"r\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"my_tool__96caa15\"}},{\"type\":\"web_search\"}]}",
@@ -4843,6 +5111,678 @@
   },
   {
    "provider": "km",
+   "wire": "gemini",
+   "ingress": "gemini",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov1",
+   "wire": "messages",
+   "ingress": "messages",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov1",
+   "wire": "messages",
+   "ingress": "messages",
+   "body": 1,
+   "error": "当前模型不支持联网搜索（ov1）"
+  },
+  {
+   "provider": "ov1",
+   "wire": "messages",
+   "ingress": "responses",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov1",
+   "wire": "messages",
+   "ingress": "responses",
+   "body": 1,
+   "error": null
+  },
+  {
+   "provider": "ov1",
+   "wire": "messages",
+   "ingress": "chat",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov1",
+   "wire": "messages",
+   "ingress": "chat",
+   "body": 1,
+   "error": null
+  },
+  {
+   "provider": "ov1",
+   "wire": "messages",
+   "ingress": "chat",
+   "body": 2,
+   "error": null
+  },
+  {
+   "provider": "ov1",
+   "wire": "messages",
+   "ingress": "gemini",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov1",
+   "wire": "responses",
+   "ingress": "messages",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov1",
+   "wire": "responses",
+   "ingress": "messages",
+   "body": 1,
+   "error": "当前模型不支持联网搜索（ov1）"
+  },
+  {
+   "provider": "ov1",
+   "wire": "responses",
+   "ingress": "responses",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov1",
+   "wire": "responses",
+   "ingress": "responses",
+   "body": 1,
+   "error": null
+  },
+  {
+   "provider": "ov1",
+   "wire": "responses",
+   "ingress": "chat",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov1",
+   "wire": "responses",
+   "ingress": "chat",
+   "body": 1,
+   "error": null
+  },
+  {
+   "provider": "ov1",
+   "wire": "responses",
+   "ingress": "chat",
+   "body": 2,
+   "error": null
+  },
+  {
+   "provider": "ov1",
+   "wire": "responses",
+   "ingress": "gemini",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov1",
+   "wire": "chat",
+   "ingress": "messages",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov1",
+   "wire": "chat",
+   "ingress": "messages",
+   "body": 1,
+   "error": "当前模型不支持联网搜索（ov1）"
+  },
+  {
+   "provider": "ov1",
+   "wire": "chat",
+   "ingress": "responses",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov1",
+   "wire": "chat",
+   "ingress": "responses",
+   "body": 1,
+   "error": null
+  },
+  {
+   "provider": "ov1",
+   "wire": "chat",
+   "ingress": "chat",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov1",
+   "wire": "chat",
+   "ingress": "chat",
+   "body": 1,
+   "error": null
+  },
+  {
+   "provider": "ov1",
+   "wire": "chat",
+   "ingress": "chat",
+   "body": 2,
+   "error": null
+  },
+  {
+   "provider": "ov1",
+   "wire": "chat",
+   "ingress": "gemini",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov1",
+   "wire": "gemini",
+   "ingress": "messages",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov1",
+   "wire": "gemini",
+   "ingress": "messages",
+   "body": 1,
+   "error": "当前模型不支持联网搜索（ov1）"
+  },
+  {
+   "provider": "ov1",
+   "wire": "gemini",
+   "ingress": "responses",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov1",
+   "wire": "gemini",
+   "ingress": "responses",
+   "body": 1,
+   "error": null
+  },
+  {
+   "provider": "ov1",
+   "wire": "gemini",
+   "ingress": "chat",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov1",
+   "wire": "gemini",
+   "ingress": "chat",
+   "body": 1,
+   "error": null
+  },
+  {
+   "provider": "ov1",
+   "wire": "gemini",
+   "ingress": "chat",
+   "body": 2,
+   "error": null
+  },
+  {
+   "provider": "ov1",
+   "wire": "gemini",
+   "ingress": "gemini",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov2",
+   "wire": "messages",
+   "ingress": "messages",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov2",
+   "wire": "messages",
+   "ingress": "messages",
+   "body": 1,
+   "error": "当前模型不支持联网搜索（ov2）"
+  },
+  {
+   "provider": "ov2",
+   "wire": "messages",
+   "ingress": "responses",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov2",
+   "wire": "messages",
+   "ingress": "responses",
+   "body": 1,
+   "error": null
+  },
+  {
+   "provider": "ov2",
+   "wire": "messages",
+   "ingress": "chat",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov2",
+   "wire": "messages",
+   "ingress": "chat",
+   "body": 1,
+   "error": null
+  },
+  {
+   "provider": "ov2",
+   "wire": "messages",
+   "ingress": "chat",
+   "body": 2,
+   "error": null
+  },
+  {
+   "provider": "ov2",
+   "wire": "messages",
+   "ingress": "gemini",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov2",
+   "wire": "responses",
+   "ingress": "messages",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov2",
+   "wire": "responses",
+   "ingress": "messages",
+   "body": 1,
+   "error": "当前模型不支持联网搜索（ov2）"
+  },
+  {
+   "provider": "ov2",
+   "wire": "responses",
+   "ingress": "responses",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov2",
+   "wire": "responses",
+   "ingress": "responses",
+   "body": 1,
+   "error": null
+  },
+  {
+   "provider": "ov2",
+   "wire": "responses",
+   "ingress": "chat",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov2",
+   "wire": "responses",
+   "ingress": "chat",
+   "body": 1,
+   "error": null
+  },
+  {
+   "provider": "ov2",
+   "wire": "responses",
+   "ingress": "chat",
+   "body": 2,
+   "error": null
+  },
+  {
+   "provider": "ov2",
+   "wire": "responses",
+   "ingress": "gemini",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov2",
+   "wire": "chat",
+   "ingress": "messages",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov2",
+   "wire": "chat",
+   "ingress": "messages",
+   "body": 1,
+   "error": "当前模型不支持联网搜索（ov2）"
+  },
+  {
+   "provider": "ov2",
+   "wire": "chat",
+   "ingress": "responses",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov2",
+   "wire": "chat",
+   "ingress": "responses",
+   "body": 1,
+   "error": null
+  },
+  {
+   "provider": "ov2",
+   "wire": "chat",
+   "ingress": "chat",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov2",
+   "wire": "chat",
+   "ingress": "chat",
+   "body": 1,
+   "error": null
+  },
+  {
+   "provider": "ov2",
+   "wire": "chat",
+   "ingress": "chat",
+   "body": 2,
+   "error": null
+  },
+  {
+   "provider": "ov2",
+   "wire": "chat",
+   "ingress": "gemini",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov2",
+   "wire": "gemini",
+   "ingress": "messages",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov2",
+   "wire": "gemini",
+   "ingress": "messages",
+   "body": 1,
+   "error": "当前模型不支持联网搜索（ov2）"
+  },
+  {
+   "provider": "ov2",
+   "wire": "gemini",
+   "ingress": "responses",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov2",
+   "wire": "gemini",
+   "ingress": "responses",
+   "body": 1,
+   "error": null
+  },
+  {
+   "provider": "ov2",
+   "wire": "gemini",
+   "ingress": "chat",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov2",
+   "wire": "gemini",
+   "ingress": "chat",
+   "body": 1,
+   "error": null
+  },
+  {
+   "provider": "ov2",
+   "wire": "gemini",
+   "ingress": "chat",
+   "body": 2,
+   "error": null
+  },
+  {
+   "provider": "ov2",
+   "wire": "gemini",
+   "ingress": "gemini",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov3",
+   "wire": "messages",
+   "ingress": "messages",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov3",
+   "wire": "messages",
+   "ingress": "messages",
+   "body": 1,
+   "error": "当前模型不支持联网搜索（ov3）"
+  },
+  {
+   "provider": "ov3",
+   "wire": "messages",
+   "ingress": "responses",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov3",
+   "wire": "messages",
+   "ingress": "responses",
+   "body": 1,
+   "error": null
+  },
+  {
+   "provider": "ov3",
+   "wire": "messages",
+   "ingress": "chat",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov3",
+   "wire": "messages",
+   "ingress": "chat",
+   "body": 1,
+   "error": null
+  },
+  {
+   "provider": "ov3",
+   "wire": "messages",
+   "ingress": "chat",
+   "body": 2,
+   "error": null
+  },
+  {
+   "provider": "ov3",
+   "wire": "messages",
+   "ingress": "gemini",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov3",
+   "wire": "responses",
+   "ingress": "messages",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov3",
+   "wire": "responses",
+   "ingress": "messages",
+   "body": 1,
+   "error": "当前模型不支持联网搜索（ov3）"
+  },
+  {
+   "provider": "ov3",
+   "wire": "responses",
+   "ingress": "responses",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov3",
+   "wire": "responses",
+   "ingress": "responses",
+   "body": 1,
+   "error": null
+  },
+  {
+   "provider": "ov3",
+   "wire": "responses",
+   "ingress": "chat",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov3",
+   "wire": "responses",
+   "ingress": "chat",
+   "body": 1,
+   "error": null
+  },
+  {
+   "provider": "ov3",
+   "wire": "responses",
+   "ingress": "chat",
+   "body": 2,
+   "error": null
+  },
+  {
+   "provider": "ov3",
+   "wire": "responses",
+   "ingress": "gemini",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov3",
+   "wire": "chat",
+   "ingress": "messages",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov3",
+   "wire": "chat",
+   "ingress": "messages",
+   "body": 1,
+   "error": "当前模型不支持联网搜索（ov3）"
+  },
+  {
+   "provider": "ov3",
+   "wire": "chat",
+   "ingress": "responses",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov3",
+   "wire": "chat",
+   "ingress": "responses",
+   "body": 1,
+   "error": null
+  },
+  {
+   "provider": "ov3",
+   "wire": "chat",
+   "ingress": "chat",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov3",
+   "wire": "chat",
+   "ingress": "chat",
+   "body": 1,
+   "error": null
+  },
+  {
+   "provider": "ov3",
+   "wire": "chat",
+   "ingress": "chat",
+   "body": 2,
+   "error": null
+  },
+  {
+   "provider": "ov3",
+   "wire": "chat",
+   "ingress": "gemini",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov3",
+   "wire": "gemini",
+   "ingress": "messages",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov3",
+   "wire": "gemini",
+   "ingress": "messages",
+   "body": 1,
+   "error": "当前模型不支持联网搜索（ov3）"
+  },
+  {
+   "provider": "ov3",
+   "wire": "gemini",
+   "ingress": "responses",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov3",
+   "wire": "gemini",
+   "ingress": "responses",
+   "body": 1,
+   "error": null
+  },
+  {
+   "provider": "ov3",
+   "wire": "gemini",
+   "ingress": "chat",
+   "body": 0,
+   "error": null
+  },
+  {
+   "provider": "ov3",
+   "wire": "gemini",
+   "ingress": "chat",
+   "body": 1,
+   "error": null
+  },
+  {
+   "provider": "ov3",
+   "wire": "gemini",
+   "ingress": "chat",
+   "body": 2,
+   "error": null
+  },
+  {
+   "provider": "ov3",
    "wire": "gemini",
    "ingress": "gemini",
    "body": 0,
