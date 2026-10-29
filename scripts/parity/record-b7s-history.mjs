@@ -233,6 +233,13 @@ const sub = (SB, s) => {
   return v;
 };
 
+// 逐值替换（不经 JSON 文本：Windows 沙箱路径的反斜杠会破坏 JSON）
+const deepSub = (SB, v) =>
+  typeof v === 'string' ? sub(SB, v)
+    : Array.isArray(v) ? v.map((x) => deepSub(SB, x))
+    : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, deepSub(SB, x)]))
+    : v;
+
 export async function runScenario(sc) {
   const SB = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-b7sh-')));
   const scrub = (v) => {
@@ -264,7 +271,7 @@ export async function runScenario(sc) {
     accountLabel: (b, id) => d.accountLabel?.[id],
     sessionAccount: (b, id) => d.sessionAccount?.[`${b}:${id}`],
     ...(d.trash ? { trash: async (p) => { calls.push(['trash', p]); if (d.trash === 'fail') throw new Error('trash denied'); fs.rmSync(p, { recursive: true, force: true }); } } : {}),
-    codexThreads: async () => { calls.push(['codexThreads']); if (rowsFail) throw new Error('worker crashed'); return rows.map((r) => JSON.parse(sub(SB, JSON.stringify(r)))); },
+    codexThreads: async () => { calls.push(['codexThreads']); if (rowsFail) throw new Error('worker crashed'); return rows.map((r) => deepSub(SB, r)); },
   }) : null;
   const out = [];
   for (const st of sc.steps) {

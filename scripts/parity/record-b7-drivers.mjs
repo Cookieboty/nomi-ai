@@ -95,6 +95,7 @@ if (process.env.NOMI_GOLDEN_DIR) {
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s-history.mjs')], { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s-host.mjs')], { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s-accounts.mjs')], { stdio: 'inherit', cwd: root });
+  execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s-aifacade.mjs')], { stdio: 'inherit', cwd: root });
   // 批次 7s2：delegate（core / worktree / DelegateService）
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s2-delegate.mjs')], { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s2-plugins.mjs')], { stdio: 'inherit', cwd: root });
@@ -103,6 +104,7 @@ if (process.env.NOMI_GOLDEN_DIR) {
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s2-screen.mjs')], { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s2-coding.mjs')], { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s2-receiver.mjs')], { stdio: 'inherit', cwd: root });
+  execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s2-agents.mjs')], { stdio: 'inherit', cwd: root });
   // 批次 5：prepareChat（会话工作区 + 外发检查，D-B5-10）
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b5-prepchat.mjs')], { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b5-batch.mjs')], { stdio: 'inherit', cwd: root });

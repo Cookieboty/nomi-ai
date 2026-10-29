@@ -14,7 +14,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, '..', '..');
-const OUT = path.join(root, 'apps/desktop-go/internal/core/quality/testdata');
+const OUT = process.env.NOMI_GOLDEN_DIR || path.join(root, 'apps/desktop-go/internal/core/quality/testdata');
 const ZONES = ['Asia/Shanghai', 'America/New_York', 'UTC'];
 const NOW = Date.UTC(2026, 10, 2, 15, 30, 0, 0); // NY 夏令时结束（11-01）之后
 const H = 3600_000;

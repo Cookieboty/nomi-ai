@@ -54,6 +54,39 @@ function tree(dir) {
 }
 const clean = (v, ud) => JSON.parse(JSON.stringify(v ?? null).split(JSON.stringify(ud).slice(1, -1)).join('<UD>'));
 
+// helperComplete 的上游桩：按请求里的 model 返回不同响应；记下收到的请求
+const stub = { port: 0, last: null };
+const STUB = {
+  ok: [200, JSON.stringify({ choices: [{ message: { content: 'héllo 😀 <&>' } }] })],
+  nonstr: [200, '{"choices":[{"message":{"content":5}}]}'],
+  bom: [200, '\ufeff{"choices":[{"message":{"content":"b"}}]}'],
+  notjson: [200, 'nope'],
+  objchoices: [200, '{"choices":{"0":{"message":{"content":"obj"}}}}'],
+  nochoices: [200, '{"x":1}'],
+  nullj: [200, 'null'],
+  boom: [503, 'e'.repeat(499) + '😀tail'],
+  short: [401, 'bad key'],
+};
+{
+  const http = await import('node:http');
+  const srv = http.createServer((req, res) => {
+    let b = '';
+    req.setEncoding('utf8');
+    req.on('data', (c) => { b += c; });
+    req.on('end', () => {
+      stub.last = { method: req.method, url: req.url, authorization: req.headers.authorization, contentType: req.headers['content-type'], body: b };
+      let model = '';
+      try { model = JSON.parse(b).model; } catch {}
+      const [st, text] = STUB[model] ?? [404, 'no such model'];
+      res.writeHead(st, { 'content-type': 'application/json' });
+      res.end(text);
+    });
+  });
+  await new Promise((r) => srv.listen(0, '127.0.0.1', r));
+  stub.port = srv.address().port;
+  srv.unref();
+}
+
 const CLI_ENV = ['HOME', 'USERPROFILE', 'CODEX_HOME', 'GROK_HOME', 'CLAUDE_CONFIG_DIR', 'GEMINI_CLI_HOME'];
 
 const scenarios = [];
@@ -106,6 +139,14 @@ async function scenario(name, ops) {
       if (op === 'officialEnvTok') r = s.officialEnv({ ...args[0], T: `x ${s.store.clientToken(args[1])} y` });
       else if (op === 'applyModelsDataN') r = await s.applyModelsData(modelsApi(args[0]));
       else if (op === 'storeProvider') r = s.store.upsertProvider(args[0]);
+      else if (op === 'writeSessions') { fs.mkdirSync(join(ud, 'gateway'), { recursive: true }); fs.writeFileSync(join(ud, 'gateway', 'sessions.json'), args[0]); }
+      else if (op === 'stubListen') r = child?.msg?.({ type: 'listening', port: stub.port, url: `http://127.0.0.1:${stub.port}` });
+      else if (op === 'helperComplete') {
+        stub.last = null;
+        try { r = { value: await s.helperComplete(args[0], args[1], new AbortController().signal) }; }
+        catch (e) { r = { error: e instanceof Error ? e.message : String(e) }; }
+        r.req = stub.last;
+      }
       else if (op === 'listen') r = child?.msg?.({ type: 'listening', port: 18999, url: 'http://127.0.0.1:18999' });
       else r = await s[op](...args);
       rec.result = r === undefined ? null : r;
@@ -192,6 +233,74 @@ await scenario('truthy enabled', [
   ['cliModels'],
   ['cliLaunch', 'claude', 't1', 'raw1/a'],
   ['cliLaunch', 'gemini', 't2', 'raw1/f'],
+]);
+
+const SESS = (list) => JSON.stringify({ version: 1, sessions: list });
+await scenario('helpers', [
+  ['helperRoute', 'claude', null],
+  ['helperRoute', 'claude', 'env-deepseek/deepseek-chat'],
+  ['upsertProvider', { name: 'DS', urls: { chat: 'https://api.deepseek.com/v1' }, newKeys: [{ value: 'sk-d-1234567890' }], models: [{ id: 'deepseek-v4-flash', enabled: true }, { id: 'deepseek-v4-pro', enabled: true }] }],
+  ['upsertProvider', { name: 'Loc', urls: { chat: 'http://127.0.0.1:11434/v1' }, models: [{ id: 'q', enabled: true }] }],
+  ['helperRoute', 'claude', 'ds/deepseek-v4-pro'],
+  ['helperRoute', 'claude', 'loc/q'],
+  ['confirmPrivateHost', '127.0.0.1:11434'],
+  ['helperRoute', 'claude', 'loc/q'],
+  ['helperRoute', 'claude', 'nope/x'],
+  ['setAssignment', 'claude', { models: { main: 'ds/deepseek-v4-pro', tiers: { haiku: 'ds/deepseek-v4-flash' } } }],
+  ['helperRoute', 'claude', 'nope/x'],
+  ['setAssignment', 'claude', { models: { main: 'ds/deepseek-v4-pro', summary: 'loc/q', small: 'nope/z' } }],
+  ['helperRoute', 'claude', null],
+  ['setAssignment', 'claude', { models: { main: 'ds/deepseek-v4-pro', summary: 'nope/y', small: 'loc/q' } }],
+  ['helperRoute', 'claude', 'ds/deepseek-v4-flash'],
+  ['setAssignment', 'claude', { models: { main: 'nope/m' } }],
+  ['helperRoute', 'claude', null],
+  ['helperRoute', 'codex', null],
+  ['helperRoute', 'gemini', 'ds/deepseek-v4-flash'],
+  ['helperRoute', 'nomi', null],
+  ['helperRoute', 'bogus', 'ds/deepseek-v4-flash'],
+  ['servedSession', 'claude', 's1'],
+  ['servedSessionRef', 'claude', 's1'],
+  ['writeSessions', SESS([['x', 1], 'str', ['claude:cc:s1', { providerId: 'p', model: 'ds/deepseek-v4-pro' }], ['claude:cc:s2', null], ['claude:cc:s3', { model: 'nomodel' }], ['claude:cc:s4', 7], ['claude:cc:s5'], ['claude:cc:s6', { model: 5 }], ['claude:cc:s1', { model: 'later/x' }]])],
+  ['servedSession', 'claude', 's1'],
+  ['servedSessionRef', 'claude', 's1'],
+  ['servedSession', 'claude', 's2'],
+  ['servedSessionRef', 'claude', 's2'],
+  ['servedSessionRef', 'claude', 's3'],
+  ['servedSession', 'claude', 's4'],
+  ['servedSessionRef', 'claude', 's4'],
+  ['servedSession', 'claude', 's5'],
+  ['servedSessionRef', 'claude', 's6'],
+  ['servedSession', 'claude', 's9'],
+  ['servedSession', 'codex', 's1'],
+  ['servedSession', 'claude', ''],
+  ['writeSessions', SESS([5, ['claude:cc:s1', {}]])],
+  ['servedSession', 'claude', 's1'],
+  ['writeSessions', SESS([['claude:cc:s1', {}], 5])],
+  ['servedSession', 'claude', 's1'],
+  ['writeSessions', SESS([{}, ['claude:cc:s1', {}]])],
+  ['servedSession', 'claude', 's1'],
+  ['writeSessions', 'null'],
+  ['servedSession', 'claude', 's1'],
+  ['writeSessions', '{"sessions":{}}'],
+  ['servedSession', 'claude', 's1'],
+  ['writeSessions', '{"sessions":null}'],
+  ['servedSession', 'claude', 's1'],
+  ['writeSessions', '[]'],
+  ['servedSession', 'claude', 's1'],
+  ['writeSessions', 'garbage'],
+  ['servedSession', 'claude', 's1'],
+  ['endpoint', 'nomi'],
+  ['stubListen'],
+  ['helperComplete', 'ok', [{ role: 'system', content: 'sys "q" <b>\u2028' }, { role: 'user', content: 'hi 😀' }]],
+  ['helperComplete', 'nonstr', []],
+  ['helperComplete', 'bom', [{ role: 'user', content: 'x' }]],
+  ['helperComplete', 'notjson', [{ role: 'user', content: 'x' }]],
+  ['helperComplete', 'objchoices', [{ role: 'user', content: 'x' }]],
+  ['helperComplete', 'nochoices', [{ role: 'user', content: 'x' }]],
+  ['helperComplete', 'nullj', [{ role: 'user', content: 'x' }]],
+  ['helperComplete', 'boom', [{ role: 'user', content: 'x' }]],
+  ['helperComplete', 'short', [{ role: 'user', content: 'x' }]],
+  ['helperComplete', 'missing', [{ role: 'user', content: 'x' }]],
 ]);
 
 // 模型目录同步（applyModelsData）：models.dev 形状的 n 个模型（Go 侧同一生成器）；new Date() 指向假时钟
