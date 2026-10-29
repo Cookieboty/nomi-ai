@@ -768,4 +768,5 @@ func init() {
 		return b, b != ""
 	}
 	usage.DefaultCliEnv = func() *util.Obj { return WithCliPath(nil) }
+	usage.DefaultCliBin = ResolveCliBinAsync
 }
