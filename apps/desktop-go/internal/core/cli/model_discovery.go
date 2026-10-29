@@ -78,7 +78,7 @@ func mdStderrTail(child clisdk.ChildLike) func() string {
 	}
 }
 
-func mdWithTimeout(child clisdk.ChildLike, timeoutMs int, run func(done func(*util.Obj), fail func(error))) *jsrt.Promise[*util.Obj] {
+func withTimeout(child clisdk.ChildLike, timeoutMs int, run func(done func(*util.Obj), fail func(error))) *jsrt.Promise[*util.Obj] {
 	p := jsrt.NewPromise[*util.Obj]()
 	settled := false
 	var timer *jsrt.Timer
@@ -94,19 +94,11 @@ func mdWithTimeout(child clisdk.ChildLike, timeoutMs int, run func(done func(*ut
 		}()
 		fn()
 	}
-	deadline := time.Now().Add(time.Duration(timeoutMs) * time.Millisecond)
-	outer := func() { finish(func() { p.Reject(fmt.Errorf("timed out after %dms", timeoutMs)) }) }
-	timer = jsrt.SetTimeout(time.Duration(timeoutMs)*time.Millisecond, outer)
-	child.OnError(func(e error) { finish(func() { p.Reject(e) }) })
-	run(func(v *util.Obj) { finish(func() { p.Resolve(v) }) }, func(e error) {
-		// Node 定时器同时长 FIFO：外层超时先注册，必先于内层 RPC 超时触发（D-B7-S-4）。
-		var te *rpc.TimeoutError
-		if errors.As(e, &te) && !time.Now().Before(deadline) {
-			outer()
-			return
-		}
-		finish(func() { p.Reject(e) })
+	timer = jsrt.SetTimeout(time.Duration(timeoutMs)*time.Millisecond, func() {
+		finish(func() { p.Reject(fmt.Errorf("timed out after %dms", timeoutMs)) })
 	})
+	child.OnError(func(e error) { finish(func() { p.Reject(e) }) })
+	run(func(v *util.Obj) { finish(func() { p.Resolve(v) }) }, func(e error) { finish(func() { p.Reject(e) }) })
 	return p
 }
 
@@ -131,7 +123,7 @@ func discoverClaude(deps ModelDiscoveryDeps, timeoutMs int) *jsrt.Promise[*util.
 	}
 	stderr := mdStderrTail(child)
 	const requestId = "nomi-models"
-	return mdWithTimeout(child, timeoutMs, func(done func(*util.Obj), fail func(error)) {
+	return withTimeout(child, timeoutMs, func(done func(*util.Obj), fail func(error)) {
 		buf := ""
 		child.OnStdout(func(c string) {
 			buf += c
@@ -198,7 +190,7 @@ func discoverCodex(deps ModelDiscoveryDeps, timeoutMs int) *jsrt.Promise[*util.O
 	}
 	child.Stdin().End()
 	stderr := mdStderrTail(child)
-	return mdWithTimeout(child, timeoutMs, func(done func(*util.Obj), fail func(error)) {
+	return withTimeout(child, timeoutMs, func(done func(*util.Obj), fail func(error)) {
 		out := ""
 		child.OnStdout(func(c string) { out += c })
 		child.OnClose(func(code *int, _ string) {
@@ -234,7 +226,7 @@ func discoverGrok(deps ModelDiscoveryDeps, timeoutMs int) *jsrt.Promise[*util.Ob
 	}
 	inner := func() *jsrt.Promise[*util.Obj] {
 		stderr := mdStderrTail(child)
-		return mdWithTimeout(child, timeoutMs, func(done func(*util.Obj), fail func(error)) {
+		return withTimeout(child, timeoutMs, func(done func(*util.Obj), fail func(error)) {
 			conn := gemini.NewAcpConnection(child, rpc.Handlers{
 				OnNotification: func(string, rpc.Json) {},
 				OnRequest: func(string, rpc.Json) *jsrt.Promise[any] {

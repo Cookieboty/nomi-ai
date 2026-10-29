@@ -7,13 +7,13 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/nodefs"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
@@ -828,7 +828,7 @@ func nodeFsError(err error, op, p string) error {
 		if errors.Is(err, os.ErrNotExist) {
 			return fmt.Errorf("ENOENT: no such file or directory, %s '%s'", op, p)
 		}
-		if errors.Is(pe.Err, syscall.EISDIR) {
+		if nodefs.Code(pe.Err) == "EISDIR" {
 			return fmt.Errorf("EISDIR: illegal operation on a directory, read")
 		}
 	}

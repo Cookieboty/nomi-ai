@@ -313,7 +313,10 @@ func TestHarnessGolden(t *testing.T) {
 
 	sbj := js(SB)
 	sbj = sbj[1 : len(sbj)-1]
-	norm := func(s string) string { return uuidRe.ReplaceAllString(strings.ReplaceAll(s, sbj, "<SB>"), "<U>") }
+	sbs := strings.ReplaceAll(SB, `\`, "/") // win32 别名键里的正斜杠形式
+	norm := func(s string) string {
+		return uuidRe.ReplaceAllString(strings.ReplaceAll(strings.ReplaceAll(s, sbj, "<SB>"), sbs, "<SB>"), "<U>")
+	}
 	n := 0
 	for _, c := range g.Get("cases").([]any) {
 		co := c.(*util.Obj)

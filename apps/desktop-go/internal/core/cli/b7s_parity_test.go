@@ -42,7 +42,8 @@ func strPtr(s string) *string { return &s }
 func b7sScrub(txt, SB string) string {
 	esc := func(x string) string { s := util.Stringify(x); return s[1 : len(s)-1] }
 	fwd := strings.ReplaceAll(SB, `\`, "/")
-	for _, f := range []string{esc(strings.ToLower(fwd)), esc(fwd), esc(SB)} {
+	px := fwd[strings.Index(fwd, "/"):] // Node posixCwd form on win32 (drive dropped)
+	for _, f := range []string{esc(esc(SB)), esc(strings.ToLower(fwd)), esc(fwd), esc(SB), esc(strings.ToLower(px)), esc(px)} {
 		txt = strings.ReplaceAll(txt, f, "<SB>")
 	}
 	return txt
