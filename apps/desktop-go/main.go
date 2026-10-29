@@ -7,6 +7,7 @@ package main
 
 import (
 	"embed"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/assetproto"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop/parse"
 	"io/fs"
 	"log"
@@ -181,7 +182,17 @@ func main() {
 	if ctl != "" {
 		frag.Set("ctl", ctl)
 	}
-	sh = wailsshell.New(wailsshell.Config{Assets: assets, Fragment: frag, MascotSize: mascotCtl.WindowSize, OnWindow: mascotCtl.WindowEvent})
+	sh = wailsshell.New(wailsshell.Config{Assets: assets, Fragment: frag, MascotSize: mascotCtl.WindowSize, OnWindow: mascotCtl.WindowEvent,
+		Middleware: assetproto.Middleware(map[string]func(http.ResponseWriter, string){
+			// registerChatAssetProtocol：用户图片在 userData/chat，预设在应用资源
+			assetproto.ChatAssetScheme: func(w http.ResponseWriter, u string) {
+				assetproto.ServeChatAsset(w, filepath.Join(userData, "chat"), chatBgPresetFile(), u)
+			},
+			// registerCharacterPackProtocol(protocol, () => this.resolved.root)
+			assetproto.CharacterPackScheme: func(w http.ResponseWriter, u string) {
+				assetproto.ServeCharacterPack(w, charSvc.Root(), u)
+			},
+		})})
 
 	if ctl != "" {
 		go http.ListenAndServe(ctl, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
