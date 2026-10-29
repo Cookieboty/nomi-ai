@@ -179,6 +179,15 @@ Go 版**1:1 镜像** Node 版：模块边界、包/层结构、数据格式、�
 | D20 | ~~纯数字参数名在 JS 对象里排最前~~ **已消除** | `util.Obj.Set` 按 JS 规则：数组下标型键（0…2^32-2）升序在前，其余按插入顺序；fixture `objkeys.json` + `fixes.json` 新增用例 | 无行为差异 |
 | D21 | ~~主机名未按 WHATWG 规范化~~ **已消除** | `net.ParseURL/WhatwgHost` 实现 WHATWG 主机解析（小写、IDNA/UTS46、IPv4 十六进制/八进制/简写、IPv6 压缩、默认端口去掉），报错文案与 Node 一致；fixture `net.json` urls 33/33 | 无行为差异 |
 | D22 | ~~代理环境变量处理不同~~ **已消除** | 按 undici 7 EnvHttpProxyAgent 复刻：`http_proxy`/`https_proxy`（小写优先、空串算已设置，https 退回 http）；`ALL_PROXY` 和 Node 一样只用于判断"代理环境已开启"，并不真走代理；`no_proxy` 每次请求现读（`*`、`host:port`、`.后缀`）；一律 CONNECT 隧道，请求头顺序与 Node 一致，仅 HTTP/1.1；支持 socks5；钉 IP 只对目标主机。fixture `proxy.json` 38/38 | 无行为差异（钉 IP 用 context 而非 AsyncLocalStorage，仅实现方式不同） |
+| D-B8-1 | `knowledge.ts` 契约 77 个过程（批次说明） | 实际 75 个过程 + 11 个事件，Go 全部注册（`knowledgehandlers.Handlers`，单测断言 75） | 以契约源码为准，说明里的数字有误 |
+| D-B8-2 | 本地模型注册进 AI 网关 / 设为主模型（`gateway.upsertProvider`、`setNomiMain`、`confirmPrivateHost`） | Go 通过 `local.GatewayLike` 接口调用，main.go 暂未接入（nil → 跳过注册），TODO(batch-4/5) | 网关服务属于批次 4/5，尚未合入 |
+| D-B8-3 | `desktop.say`、`broker.setLocalOnly`、HostPorts（打开对话框、OCR 等） | 用 `deps.NoopDesktop` / `deps.NoopPorts` 假实现：say 不出声，对话框按“已取消”处理，TODO(batch-6) | DesktopService / HostPorts 属于批次 6 |
+| D-B8-4 | AI `complete`（摘要、问答、主动聊天） | `deps.UnavailableComplete`：返回 KB_/MEM_/SCHED_ 声明里的失败码，TODO(batch-4/5) | 依赖 ai-runtime（批次 4/5） |
+| D-B8-5 | `os.totalmem()` | Linux 用 `sysinfo`，mac 用 `sysctl hw.memsize`；Windows 暂时固定返回 8 GiB，TODO | Windows 需 `GlobalMemoryStatusEx`，后续补 |
+| D-B8-6 | llama-server 被信号结束时 `exit` 事件的 `code` 为 null | Go 被信号杀掉时同样报 `code: null`，`signal` 字段只有 Unix 有值 | Go `ProcessState` 在 Windows 上没有信号 |
+| D-B8-7 | 数据导出用 JS zip 库，按 `readdir` 的返回顺序 | Go 用标准库 `archive/zip`，目录先排序再写入；条目内容、路径、50 MB / 深度 4 上限相同 | 不同平台的 readdir 顺序本来就不固定；排序后结果可复现 |
+| D-B8-8 | MCP 密钥用 safeStorage 加密写进 `mcp.json` | 写入系统钥匙串（`security.NewSecretBox("extensions")`），磁盘上存 `enc:<base64 id>`，同 D13 | Go 没有 safeStorage |
+| D-B8-9 | 导入技能时用 `O_NOFOLLOW` 打开文件 | Windows 没有 `O_NOFOLLOW`，只靠打开后的 Stat 检查是否为普通文件；Unix 行为不变 | Windows 平台限制 |
 
 ### 3.5 一致性测试策略（golden，Node 与 Go 同输入对比输出）
 
