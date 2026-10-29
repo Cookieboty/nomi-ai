@@ -33,7 +33,14 @@ const T = '@@SB@@';
 const SB = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'b7s2-del-')));
 // 依次替换：JSON 串里再嵌 JSON（4 重转义）、2 重转义、原样、正斜杠（git 输出）形式
 const tokWith = (s, b) => [b.replaceAll('\\', '\\\\\\\\'), b.replaceAll('\\', '\\\\'), b, b.replaceAll('\\', '/')].reduce((a, f) => a.split(f).join(T), s);
-const tok = (v) => JSON.parse(tokWith(JSON.stringify(v ?? null), SB));
+// 再按沙箱末两级目录归一任何别名（Windows 8.3 短名 RUNNER~1 vs git 输出的长名、盘符大小写）
+const tokAliasFor = (b) => {
+  const [x, y] = b.split(/[\\/]/).slice(-2).map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const re = new RegExp(`(?:[A-Za-z]:|/)[^"\\s:]*?${x}(?:[\\\\/])+${y}`, 'g');
+  return (s) => (path.sep === '\\' ? s.replace(re, T) : s);
+};
+const tokAlias = tokAliasFor(SB);
+const tok = (v) => JSON.parse(tokAlias(tokWith(JSON.stringify(v ?? null), SB)));
 const sh = (cwd, ...a) => execFileSync('git', a, { cwd, stdio: 'pipe', env: { ...process.env, GIT_AUTHOR_DATE: '2026-01-01T00:00:00Z', GIT_COMMITTER_DATE: '2026-01-01T00:00:00Z' } });
 const mkrepo = (dir, files = { 'a.txt': 'a\n', 'src/b.txt': 'b\n' }) => {
   fs.mkdirSync(dir, { recursive: true });
@@ -328,7 +335,7 @@ async function runScenario(sc) {
   const env = makeEnv(sc, B);
   const svc = new S.DelegateService({ root: path.join(B, 'state'), harness: env.harness, desktop: env.desktop, gateway: env.gateway, events: env.events });
   const out = [];
-  const untok = (v) => JSON.parse(tokWith(JSON.stringify(v ?? null) ?? 'null', B));
+  const untok = (v) => JSON.parse(tokAliasFor(B)(tokWith(JSON.stringify(v ?? null) ?? 'null', B)));
   const tools = Object.fromEntries(svc.tools().map((t) => [t.name, t]));
   const settle = async () => { for (let i = 0; i < 200 && [...svc['tasks'].values()].some((t) => t.status === 'running'); i++) await sleep(10); await sleep(50); };
   for (const st of sc.steps) {
