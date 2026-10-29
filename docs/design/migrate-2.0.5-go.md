@@ -192,6 +192,10 @@ Go 版**1:1 镜像** Node 版：模块边界、包/层结构、数据格式、�
 | D-B6-11 | createP2Tools 注册 reminder-restore 撤销、产出 AI ToolDefinition | 撤销钩子在 Service 构造时注册；ToolDefinition 留给批次 5（AI 工具循环） | 依赖批次 5 的 ToolDefinition 类型 |
 | D-B6-12 | 按 surface 定向 send 事件 | `Router.Emit` 广播（surface 参数忽略） | 现有 Router 无定向 Emit |
 | D-B6-13 | worker 崩溃/退出码映射成 `crash` 错误 | panic 被 recover 成 `crash`，无退出码 | 进程内解析 |
+| D-B10-1 | 岛的显示模式恒为 `pill` | Node 在 macOS 上探测刘海屏决定 notch/pill；Go 不探测，`island.get` 的 mode 恒为 pill；`island.test` 只弹出岛窗口 | 刘海屏 Mac 上岛不贴刘海显示 |
+| D-B10-2 | 角色包校验是宽松子集 | 只校验必要字段和文件存在（manifest、引导 4 个文件、rive/static、sprite、voice、locales、persona），不跑 zod、不出 warnings、不做旧格式迁移；旧 mapping 直接丢弃。fixture `mascothandlers/testdata/parity.json`（无覆盖包 / 用户覆盖包）快照与 Node 一致 | 不合规的包 Node 报 warning 仍加载，Go 可能直接回退内置包 |
+| D-B10-3 | 看板娘物理/漫游/点击穿透未移植 | `mascot.setShape`/`setHit`/`setInteractionConfig`/`wanderNow` 收下即返回（no-op），`mascot.debugSnapshot` 仍是 UNAVAILABLE；拖动、缩放（尺寸计算 fixture 全对上）、置顶、位置已实现 | 透明区域不会点击穿透；不会自己走动 |
+| D-B10-4 | 渲染器选择引导卡在 POC 对话页 | 新设置 `mascot.renderer`（svg\|rive，默认 svg，升级用户也是 svg）；引导最后一张「想让诺米动起来吗？」（默认焦点「保持静态」，无 WebGL 时隐藏「开启动画」）暂放在 POC 对话页、用 localStorage 只问一次，等引导页迁过来再挪 | 无 |
 
 ### 3.5 一致性测试策略（golden，Node 与 Go 同输入对比输出）
 

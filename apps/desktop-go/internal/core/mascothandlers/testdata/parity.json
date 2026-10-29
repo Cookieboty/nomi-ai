@@ -1,0 +1,1810 @@
+{
+  "clamp": [
+    {
+      "in": null,
+      "out": 0.5
+    },
+    {
+      "in": "x",
+      "out": 0.5
+    },
+    {
+      "in": -1,
+      "out": 0.3
+    },
+    {
+      "in": 0,
+      "out": 0.3
+    },
+    {
+      "in": 0.3,
+      "out": 0.3
+    },
+    {
+      "in": 0.42,
+      "out": 0.42
+    },
+    {
+      "in": 0.5,
+      "out": 0.5
+    },
+    {
+      "in": 0.55,
+      "out": 0.55
+    },
+    {
+      "in": 1,
+      "out": 1
+    },
+    {
+      "in": 1.49,
+      "out": 1.49
+    },
+    {
+      "in": 1.5,
+      "out": 1.5
+    },
+    {
+      "in": 2,
+      "out": 1.5
+    },
+    {
+      "in": 99,
+      "out": 1.5
+    }
+  ],
+  "windowSize": [
+    {
+      "in": -1,
+      "out": {
+        "width": 246,
+        "height": 265
+      }
+    },
+    {
+      "in": 0,
+      "out": {
+        "width": 246,
+        "height": 265
+      }
+    },
+    {
+      "in": 0.3,
+      "out": {
+        "width": 246,
+        "height": 265
+      }
+    },
+    {
+      "in": 0.42,
+      "out": {
+        "width": 296,
+        "height": 319
+      }
+    },
+    {
+      "in": 0.5,
+      "out": {
+        "width": 330,
+        "height": 355
+      }
+    },
+    {
+      "in": 0.55,
+      "out": {
+        "width": 351,
+        "height": 378
+      }
+    },
+    {
+      "in": 1,
+      "out": {
+        "width": 540,
+        "height": 580
+      }
+    },
+    {
+      "in": 1.49,
+      "out": {
+        "width": 746,
+        "height": 801
+      }
+    },
+    {
+      "in": 1.5,
+      "out": {
+        "width": 750,
+        "height": 805
+      }
+    },
+    {
+      "in": 2,
+      "out": {
+        "width": 750,
+        "height": 805
+      }
+    },
+    {
+      "in": 99,
+      "out": {
+        "width": 750,
+        "height": 805
+      }
+    }
+  ],
+  "maxScale": [
+    {
+      "in": null,
+      "out": 1.5
+    },
+    {
+      "in": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 1040
+      },
+      "out": 1.5
+    },
+    {
+      "in": {
+        "x": 0,
+        "y": 0,
+        "width": 1366,
+        "height": 728
+      },
+      "out": 1.32
+    },
+    {
+      "in": {
+        "x": 0,
+        "y": 0,
+        "width": 800,
+        "height": 400
+      },
+      "out": 0.59
+    },
+    {
+      "in": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "out": 1.5
+    }
+  ],
+  "fit": [
+    {
+      "in": [
+        null,
+        0.3
+      ],
+      "out": 0.3
+    },
+    {
+      "in": [
+        null,
+        0.8
+      ],
+      "out": 0.5
+    },
+    {
+      "in": [
+        null,
+        1.5
+      ],
+      "out": 0.5
+    },
+    {
+      "in": [
+        null,
+        3
+      ],
+      "out": 0.5
+    },
+    {
+      "in": [
+        "x",
+        0.3
+      ],
+      "out": 0.3
+    },
+    {
+      "in": [
+        "x",
+        0.8
+      ],
+      "out": 0.5
+    },
+    {
+      "in": [
+        "x",
+        1.5
+      ],
+      "out": 0.5
+    },
+    {
+      "in": [
+        "x",
+        3
+      ],
+      "out": 0.5
+    },
+    {
+      "in": [
+        -1,
+        0.3
+      ],
+      "out": 0.3
+    },
+    {
+      "in": [
+        -1,
+        0.8
+      ],
+      "out": 0.3
+    },
+    {
+      "in": [
+        -1,
+        1.5
+      ],
+      "out": 0.3
+    },
+    {
+      "in": [
+        -1,
+        3
+      ],
+      "out": 0.3
+    },
+    {
+      "in": [
+        0,
+        0.3
+      ],
+      "out": 0.3
+    },
+    {
+      "in": [
+        0,
+        0.8
+      ],
+      "out": 0.3
+    },
+    {
+      "in": [
+        0,
+        1.5
+      ],
+      "out": 0.3
+    },
+    {
+      "in": [
+        0,
+        3
+      ],
+      "out": 0.3
+    },
+    {
+      "in": [
+        0.3,
+        0.3
+      ],
+      "out": 0.3
+    },
+    {
+      "in": [
+        0.3,
+        0.8
+      ],
+      "out": 0.3
+    },
+    {
+      "in": [
+        0.3,
+        1.5
+      ],
+      "out": 0.3
+    },
+    {
+      "in": [
+        0.3,
+        3
+      ],
+      "out": 0.3
+    },
+    {
+      "in": [
+        0.42,
+        0.3
+      ],
+      "out": 0.3
+    },
+    {
+      "in": [
+        0.42,
+        0.8
+      ],
+      "out": 0.42
+    },
+    {
+      "in": [
+        0.42,
+        1.5
+      ],
+      "out": 0.42
+    },
+    {
+      "in": [
+        0.42,
+        3
+      ],
+      "out": 0.42
+    },
+    {
+      "in": [
+        0.5,
+        0.3
+      ],
+      "out": 0.3
+    },
+    {
+      "in": [
+        0.5,
+        0.8
+      ],
+      "out": 0.5
+    },
+    {
+      "in": [
+        0.5,
+        1.5
+      ],
+      "out": 0.5
+    },
+    {
+      "in": [
+        0.5,
+        3
+      ],
+      "out": 0.5
+    },
+    {
+      "in": [
+        0.55,
+        0.3
+      ],
+      "out": 0.3
+    },
+    {
+      "in": [
+        0.55,
+        0.8
+      ],
+      "out": 0.55
+    },
+    {
+      "in": [
+        0.55,
+        1.5
+      ],
+      "out": 0.55
+    },
+    {
+      "in": [
+        0.55,
+        3
+      ],
+      "out": 0.55
+    },
+    {
+      "in": [
+        1,
+        0.3
+      ],
+      "out": 0.3
+    },
+    {
+      "in": [
+        1,
+        0.8
+      ],
+      "out": 0.8
+    },
+    {
+      "in": [
+        1,
+        1.5
+      ],
+      "out": 1
+    },
+    {
+      "in": [
+        1,
+        3
+      ],
+      "out": 1
+    },
+    {
+      "in": [
+        1.49,
+        0.3
+      ],
+      "out": 0.3
+    },
+    {
+      "in": [
+        1.49,
+        0.8
+      ],
+      "out": 0.8
+    },
+    {
+      "in": [
+        1.49,
+        1.5
+      ],
+      "out": 1.49
+    },
+    {
+      "in": [
+        1.49,
+        3
+      ],
+      "out": 1.49
+    },
+    {
+      "in": [
+        1.5,
+        0.3
+      ],
+      "out": 0.3
+    },
+    {
+      "in": [
+        1.5,
+        0.8
+      ],
+      "out": 0.8
+    },
+    {
+      "in": [
+        1.5,
+        1.5
+      ],
+      "out": 1.5
+    },
+    {
+      "in": [
+        1.5,
+        3
+      ],
+      "out": 1.5
+    },
+    {
+      "in": [
+        2,
+        0.3
+      ],
+      "out": 0.3
+    },
+    {
+      "in": [
+        2,
+        0.8
+      ],
+      "out": 0.8
+    },
+    {
+      "in": [
+        2,
+        1.5
+      ],
+      "out": 1.5
+    },
+    {
+      "in": [
+        2,
+        3
+      ],
+      "out": 1.5
+    },
+    {
+      "in": [
+        99,
+        0.3
+      ],
+      "out": 0.3
+    },
+    {
+      "in": [
+        99,
+        0.8
+      ],
+      "out": 0.8
+    },
+    {
+      "in": [
+        99,
+        1.5
+      ],
+      "out": 1.5
+    },
+    {
+      "in": [
+        99,
+        3
+      ],
+      "out": 1.5
+    }
+  ],
+  "step": [
+    {
+      "in": [
+        0.3,
+        1,
+        0.3
+      ],
+      "out": 0.3
+    },
+    {
+      "in": [
+        0.3,
+        1,
+        0.8
+      ],
+      "out": 0.4
+    },
+    {
+      "in": [
+        0.3,
+        1,
+        1.5
+      ],
+      "out": 0.4
+    },
+    {
+      "in": [
+        0.3,
+        1,
+        3
+      ],
+      "out": 0.4
+    },
+    {
+      "in": [
+        0.3,
+        -1,
+        0.3
+      ],
+      "out": 0.3
+    },
+    {
+      "in": [
+        0.3,
+        -1,
+        0.8
+      ],
+      "out": 0.3
+    },
+    {
+      "in": [
+        0.3,
+        -1,
+        1.5
+      ],
+      "out": 0.3
+    },
+    {
+      "in": [
+        0.3,
+        -1,
+        3
+      ],
+      "out": 0.3
+    },
+    {
+      "in": [
+        0.35,
+        1,
+        0.3
+      ],
+      "out": 0.3
+    },
+    {
+      "in": [
+        0.35,
+        1,
+        0.8
+      ],
+      "out": 0.4
+    },
+    {
+      "in": [
+        0.35,
+        1,
+        1.5
+      ],
+      "out": 0.4
+    },
+    {
+      "in": [
+        0.35,
+        1,
+        3
+      ],
+      "out": 0.4
+    },
+    {
+      "in": [
+        0.35,
+        -1,
+        0.3
+      ],
+      "out": 0.3
+    },
+    {
+      "in": [
+        0.35,
+        -1,
+        0.8
+      ],
+      "out": 0.3
+    },
+    {
+      "in": [
+        0.35,
+        -1,
+        1.5
+      ],
+      "out": 0.3
+    },
+    {
+      "in": [
+        0.35,
+        -1,
+        3
+      ],
+      "out": 0.3
+    },
+    {
+      "in": [
+        0.5,
+        1,
+        0.3
+      ],
+      "out": 0.3
+    },
+    {
+      "in": [
+        0.5,
+        1,
+        0.8
+      ],
+      "out": 0.6
+    },
+    {
+      "in": [
+        0.5,
+        1,
+        1.5
+      ],
+      "out": 0.6
+    },
+    {
+      "in": [
+        0.5,
+        1,
+        3
+      ],
+      "out": 0.6
+    },
+    {
+      "in": [
+        0.5,
+        -1,
+        0.3
+      ],
+      "out": 0.3
+    },
+    {
+      "in": [
+        0.5,
+        -1,
+        0.8
+      ],
+      "out": 0.4
+    },
+    {
+      "in": [
+        0.5,
+        -1,
+        1.5
+      ],
+      "out": 0.4
+    },
+    {
+      "in": [
+        0.5,
+        -1,
+        3
+      ],
+      "out": 0.4
+    },
+    {
+      "in": [
+        0.9,
+        1,
+        0.3
+      ],
+      "out": 0.3
+    },
+    {
+      "in": [
+        0.9,
+        1,
+        0.8
+      ],
+      "out": 0.8
+    },
+    {
+      "in": [
+        0.9,
+        1,
+        1.5
+      ],
+      "out": 1
+    },
+    {
+      "in": [
+        0.9,
+        1,
+        3
+      ],
+      "out": 1
+    },
+    {
+      "in": [
+        0.9,
+        -1,
+        0.3
+      ],
+      "out": 0.3
+    },
+    {
+      "in": [
+        0.9,
+        -1,
+        0.8
+      ],
+      "out": 0.8
+    },
+    {
+      "in": [
+        0.9,
+        -1,
+        1.5
+      ],
+      "out": 0.8
+    },
+    {
+      "in": [
+        0.9,
+        -1,
+        3
+      ],
+      "out": 0.8
+    },
+    {
+      "in": [
+        1.5,
+        1,
+        0.3
+      ],
+      "out": 0.3
+    },
+    {
+      "in": [
+        1.5,
+        1,
+        0.8
+      ],
+      "out": 0.8
+    },
+    {
+      "in": [
+        1.5,
+        1,
+        1.5
+      ],
+      "out": 1.5
+    },
+    {
+      "in": [
+        1.5,
+        1,
+        3
+      ],
+      "out": 1.5
+    },
+    {
+      "in": [
+        1.5,
+        -1,
+        0.3
+      ],
+      "out": 0.3
+    },
+    {
+      "in": [
+        1.5,
+        -1,
+        0.8
+      ],
+      "out": 0.8
+    },
+    {
+      "in": [
+        1.5,
+        -1,
+        1.5
+      ],
+      "out": 1.4
+    },
+    {
+      "in": [
+        1.5,
+        -1,
+        3
+      ],
+      "out": 1.4
+    }
+  ],
+  "wheel": [
+    {
+      "in": [
+        0.5,
+        0,
+        0,
+        1.5
+      ],
+      "out": 0.5
+    },
+    {
+      "in": [
+        0.5,
+        -120,
+        0,
+        1.5
+      ],
+      "out": 0.64
+    },
+    {
+      "in": [
+        0.5,
+        120,
+        0,
+        1.5
+      ],
+      "out": 0.39
+    },
+    {
+      "in": [
+        0.5,
+        -3,
+        1,
+        1.5
+      ],
+      "out": 0.55
+    },
+    {
+      "in": [
+        0.5,
+        2,
+        2,
+        1.5
+      ],
+      "out": 0.34
+    },
+    {
+      "in": [
+        0.5,
+        -1000,
+        0,
+        1.5
+      ],
+      "out": 0.91
+    },
+    {
+      "in": [
+        1,
+        0,
+        0,
+        1.5
+      ],
+      "out": 1
+    },
+    {
+      "in": [
+        1,
+        -120,
+        0,
+        1.5
+      ],
+      "out": 1.27
+    },
+    {
+      "in": [
+        1,
+        120,
+        0,
+        1.5
+      ],
+      "out": 0.79
+    },
+    {
+      "in": [
+        1,
+        -3,
+        1,
+        1.5
+      ],
+      "out": 1.1
+    },
+    {
+      "in": [
+        1,
+        2,
+        2,
+        1.5
+      ],
+      "out": 0.67
+    },
+    {
+      "in": [
+        1,
+        -1000,
+        0,
+        1.5
+      ],
+      "out": 1.5
+    }
+  ],
+  "maxTop": [
+    {
+      "in": [
+        {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1040
+        },
+        355
+      ],
+      "out": 685
+    },
+    {
+      "in": [
+        {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1040
+        },
+        357
+      ],
+      "out": 683
+    },
+    {
+      "in": [
+        {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1040
+        },
+        401
+      ],
+      "out": 639
+    },
+    {
+      "in": [
+        {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1040,
+          "scaleFactor": 1.25
+        },
+        355
+      ],
+      "out": 685
+    },
+    {
+      "in": [
+        {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1040,
+          "scaleFactor": 1.25
+        },
+        357
+      ],
+      "out": 683
+    },
+    {
+      "in": [
+        {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1040,
+          "scaleFactor": 1.25
+        },
+        401
+      ],
+      "out": 639
+    },
+    {
+      "in": [
+        {
+          "x": 0,
+          "y": 25,
+          "width": 1366,
+          "height": 743,
+          "scaleFactor": 1.5
+        },
+        355
+      ],
+      "out": 412
+    },
+    {
+      "in": [
+        {
+          "x": 0,
+          "y": 25,
+          "width": 1366,
+          "height": 743,
+          "scaleFactor": 1.5
+        },
+        357
+      ],
+      "out": 410
+    },
+    {
+      "in": [
+        {
+          "x": 0,
+          "y": 25,
+          "width": 1366,
+          "height": 743,
+          "scaleFactor": 1.5
+        },
+        401
+      ],
+      "out": 366
+    }
+  ],
+  "resize": [
+    {
+      "in": {
+        "bounds": {
+          "x": 100,
+          "y": 600,
+          "width": 330,
+          "height": 355
+        },
+        "fromScale": 0.5,
+        "toScale": 1
+      },
+      "out": {
+        "x": -5,
+        "y": 375,
+        "width": 540,
+        "height": 580
+      }
+    },
+    {
+      "in": {
+        "bounds": {
+          "x": 100,
+          "y": 600,
+          "width": 330,
+          "height": 355
+        },
+        "fromScale": 0.5,
+        "toScale": 0.3,
+        "box": {
+          "left": 70,
+          "right": 260,
+          "top": 140,
+          "bottom": 350
+        }
+      },
+      "out": {
+        "x": 142,
+        "y": 688,
+        "width": 246,
+        "height": 265
+      }
+    },
+    {
+      "in": {
+        "bounds": {
+          "x": 1700,
+          "y": 700,
+          "width": 330,
+          "height": 355
+        },
+        "fromScale": 0.5,
+        "toScale": 1.5,
+        "workAreas": [
+          {
+            "x": 0,
+            "y": 0,
+            "width": 1920,
+            "height": 1040
+          }
+        ]
+      },
+      "out": {
+        "x": 1230,
+        "y": 235,
+        "width": 750,
+        "height": 805
+      }
+    },
+    {
+      "in": {
+        "bounds": {
+          "x": -50,
+          "y": 0,
+          "width": 330,
+          "height": 355
+        },
+        "fromScale": 0.5,
+        "toScale": 1,
+        "workAreas": [
+          {
+            "x": 0,
+            "y": 0,
+            "width": 1920,
+            "height": 1040
+          },
+          {
+            "x": 1920,
+            "y": 0,
+            "width": 1280,
+            "height": 1000,
+            "scaleFactor": 1.25
+          }
+        ]
+      },
+      "out": {
+        "x": -60,
+        "y": 0,
+        "width": 540,
+        "height": 580
+      }
+    },
+    {
+      "in": {
+        "bounds": {
+          "x": 2500,
+          "y": 900,
+          "width": 540,
+          "height": 580
+        },
+        "fromScale": 1,
+        "toScale": 0.5,
+        "box": {
+          "left": 60,
+          "right": 480,
+          "top": 130,
+          "bottom": 580
+        },
+        "workAreas": [
+          {
+            "x": 0,
+            "y": 0,
+            "width": 1920,
+            "height": 1040
+          },
+          {
+            "x": 1920,
+            "y": 0,
+            "width": 1280,
+            "height": 1000,
+            "scaleFactor": 1.25
+          }
+        ]
+      },
+      "out": {
+        "x": 2605,
+        "y": 645,
+        "width": 330,
+        "height": 355
+      }
+    }
+  ],
+  "character": {
+    "none": {
+      "manifest": null,
+      "out": {
+        "source": "builtin",
+        "id": "nomi",
+        "mode": "rive",
+        "displayName": {
+          "zh": "Nomi·诺米",
+          "en": "Nomi"
+        },
+        "shortName": {
+          "zh": "Nomi",
+          "en": "Nomi"
+        },
+        "assetBaseUrl": null,
+        "onboarding": null,
+        "voiceBaseUrl": null,
+        "riveUrl": null,
+        "staticUrl": null,
+        "spriteManifestUrl": null,
+        "hitboxes": null,
+        "rive": null,
+        "locales": {
+          "zh": {
+            "lines": {
+              "tip-want-to-chat-about-something": "要聊点什么吗？",
+              "tip-open-the-chat-window-and-talk-to-me": "打开聊天窗口，和我说说话吧。",
+              "tip-ask-me-anything": "有问题尽管问我！",
+              "tip-voice-settings-are-here-right-click-to-fine": "语音设置在这里，右键可以细调。",
+              "tip-want-to-see-me-do-a-move-right": "想看我做个动作吗？右键可以挑一个。",
+              "tip-want-me-to-step-away-you-can-bring": "想让我先退下吗？设置里随时能叫我回来。",
+              "tip-time-for-a-break-see-you-next-time": "要休息了吗？下次见～",
+              "tip-come-back-soon-okay": "记得早点回来哦。",
+              "tip-rest-your-eyes-look-at-something-far-away": "休息一下眼睛吧，看看远处～",
+              "tip-have-some-water-and-stay-hydrated": "喝口水吧，补充一下水分。",
+              "tip-you-ve-been-sitting-a-while-get-up": "坐久了记得起来活动活动。",
+              "tip-if-something-s-puzzling-you-toss-it-my": "有想不通的问题，可以丢给我试试。",
+              "tip-thanks-for-your-hard-work-today": "今天也辛苦啦。",
+              "time-good-morning-a-new-day-begins": "早上好！新的一天开始啦。",
+              "time-good-morning-time-to-focus": "上午好，专注的时间到了。",
+              "time-it-s-noon-remember-to-have-lunch": "中午了，记得吃午饭哦。",
+              "time-good-afternoon-a-cup-of-tea-to-perk": "下午好，来杯茶提提神？",
+              "time-good-evening-how-was-your-day": "晚上好，今天过得怎么样？",
+              "time-it-s-late-get-some-rest-soon": "已经很晚了，早点休息吧。",
+              "time-still-up-this-late-your-health-comes-first": "这么晚还没睡？身体要紧哦。",
+              "greet-companion": "你好，我是你的桌面伙伴～",
+              "greet-welcome-back": "欢迎回来！",
+              "greet-hello": "你好，我是 Nomi～",
+              "greet-lets-go": "你好，我是 Nomi。今天也一起加油吧。"
+            },
+            "wakePhrase": "你好，诺米"
+          },
+          "en": {
+            "lines": {
+              "tip-want-to-chat-about-something": "Want to chat about something?",
+              "tip-open-the-chat-window-and-talk-to-me": "Open the chat window and talk to me.",
+              "tip-ask-me-anything": "Ask me anything!",
+              "tip-voice-settings-are-here-right-click-to-fine": "Voice settings are here; right-click to fine-tune.",
+              "tip-want-to-see-me-do-a-move-right": "Want to see me do a move? Right-click to pick one.",
+              "tip-want-me-to-step-away-you-can-bring": "Want me to step away? You can bring me back in Settings anytime.",
+              "tip-time-for-a-break-see-you-next-time": "Time for a break? See you next time~",
+              "tip-come-back-soon-okay": "Come back soon, okay?",
+              "tip-rest-your-eyes-look-at-something-far-away": "Rest your eyes; look at something far away~",
+              "tip-have-some-water-and-stay-hydrated": "Have some water and stay hydrated.",
+              "tip-you-ve-been-sitting-a-while-get-up": "You've been sitting a while; get up and move around.",
+              "tip-if-something-s-puzzling-you-toss-it-my": "If something's puzzling you, toss it my way.",
+              "tip-thanks-for-your-hard-work-today": "Thanks for your hard work today.",
+              "time-good-morning-a-new-day-begins": "Good morning! A new day begins.",
+              "time-good-morning-time-to-focus": "Good morning, time to focus.",
+              "time-it-s-noon-remember-to-have-lunch": "It's noon; remember to have lunch.",
+              "time-good-afternoon-a-cup-of-tea-to-perk": "Good afternoon. A cup of tea to perk up?",
+              "time-good-evening-how-was-your-day": "Good evening. How was your day?",
+              "time-it-s-late-get-some-rest-soon": "It's late; get some rest soon.",
+              "time-still-up-this-late-your-health-comes-first": "Still up this late? Your health comes first.",
+              "greet-companion": "Hi, I'm your desktop companion~",
+              "greet-welcome-back": "Welcome back!",
+              "greet-hello": "Hi, I'm Nomi~",
+              "greet-lets-go": "Hi, I'm Nomi. Let's do our best today."
+            },
+            "wakePhrase": "Hi, Nomi"
+          }
+        },
+        "mapping": {
+          "emotions": {
+            "neutral": "neutral",
+            "happy": "happy",
+            "sad": "sad",
+            "angry": "angry",
+            "surprised": "surprised",
+            "relaxed": "relaxed"
+          },
+          "activities": {
+            "thinking": "think",
+            "toolRunning": "work"
+          },
+          "gestures": {
+            "wave": "wave",
+            "greet": "hello",
+            "nod": "nod",
+            "shakeHead": "shake",
+            "bow": "bow",
+            "salute": "salute",
+            "pray": "pray",
+            "okHand": "ok_hand",
+            "think": "think",
+            "explain": "explain",
+            "eureka": "eureka",
+            "puzzled": "puzzled",
+            "listen": "listen",
+            "lookAround": "look_around",
+            "lookLeftRight": "look_lr",
+            "peek": "peek",
+            "heart": "heart",
+            "blowKiss": "blow_kiss",
+            "shy": "shy",
+            "coverFace": "cover_face",
+            "apologize": "sorry",
+            "surprise": "surprise",
+            "startle": "flinch",
+            "sigh": "sigh",
+            "smug": "smug",
+            "aggrieved": "aggrieved",
+            "tears": "tears",
+            "angry": "angry",
+            "coldSweat": "cold_sweat",
+            "daze": "daze",
+            "cheer": "cheer",
+            "thumbsUp": "thumbs_up",
+            "peace": "peace",
+            "celebrate": "celebrate",
+            "clap": "clap",
+            "hop": "hop",
+            "wink": "wink",
+            "tongue": "tongue",
+            "cute": "cute",
+            "reachOut": "interact",
+            "work": "work",
+            "yawn": "yawn",
+            "stretch": "stretch",
+            "goodnight": "goodnight",
+            "hum": "peek_note",
+            "random": "random"
+          }
+        },
+        "reason": "no overlay present"
+      }
+    },
+    "overlay": {
+      "manifest": {
+        "schema": 1,
+        "id": "fixture-pack",
+        "contractVersion": 1,
+        "version": "1.0.0",
+        "credits": {
+          "author": "Nomi-ai project owner (AI-generated artwork)",
+          "license": "MIT",
+          "source": "https://github.com/Cookieboty/nomi-ai/blob/main/docs/BRAND.md"
+        },
+        "catalog": {
+          "displayName": "Nomi·诺米",
+          "description": "Nomi·诺米（默认角色，2D 表情立绘）",
+          "author": "Nomi-ai project owner (AI-generated)",
+          "tags": [
+            "default",
+            "sprite",
+            "2d",
+            "soft",
+            "brand"
+          ],
+          "version": "3.0.0",
+          "lastUpdated": "2026-10-13T00:00:00Z"
+        },
+        "assets": {
+          "mode": "rive",
+          "rive": "rive/character.riv",
+          "sprite": "sprite",
+          "voice": "voice",
+          "onboarding": "onboarding"
+        },
+        "defaults": {
+          "primaryLocale": "zh",
+          "voiceHint": "xiaoxiao",
+          "voiceRate": 0.92,
+          "voicePitch": 1.1
+        },
+        "capabilities": {
+          "expressions": [
+            "neutral",
+            "happy",
+            "angry",
+            "sad",
+            "relaxed",
+            "surprised"
+          ],
+          "riveMotions": [
+            "wave",
+            "hello",
+            "celebrate",
+            "cheer",
+            "fist_pump",
+            "fist",
+            "nod",
+            "flinch",
+            "poke",
+            "shake",
+            "clap",
+            "think",
+            "work",
+            "typing",
+            "bow",
+            "salute",
+            "prayer",
+            "ok",
+            "explain",
+            "eureka",
+            "puzzled",
+            "look_around",
+            "look_lr",
+            "peek",
+            "heart",
+            "blow_kiss",
+            "shy",
+            "apology",
+            "surprise",
+            "inhale",
+            "smug",
+            "aggrieved",
+            "tears",
+            "angry",
+            "cold_sweat",
+            "daze",
+            "thumbs_up",
+            "peace",
+            "hop",
+            "blink",
+            "tongue",
+            "yawn",
+            "stretch",
+            "squat",
+            "step",
+            "walk",
+            "run"
+          ],
+          "spriteActions": [
+            "wave",
+            "hello",
+            "nod",
+            "shake_head",
+            "bow",
+            "salute",
+            "pray",
+            "ok_hand",
+            "think",
+            "explain",
+            "eureka",
+            "puzzled",
+            "look_around",
+            "look_lr",
+            "peek",
+            "heart",
+            "blow_kiss",
+            "shy",
+            "cover_face",
+            "sorry",
+            "surprise",
+            "sigh",
+            "smug",
+            "aggrieved",
+            "tears",
+            "angry",
+            "cold_sweat",
+            "daze",
+            "cheer",
+            "thumbs_up",
+            "peace",
+            "celebrate",
+            "clap",
+            "hop",
+            "wink",
+            "tongue",
+            "cute",
+            "work",
+            "yawn",
+            "stretch",
+            "goodnight",
+            "listen",
+            "peek_note"
+          ],
+          "voiceClipIds": [
+            "tip-want-to-chat-about-something",
+            "tip-open-the-chat-window-and-talk-to-me",
+            "tip-ask-me-anything",
+            "tip-voice-settings-are-here-right-click-to-fine",
+            "tip-want-to-see-me-do-a-move-right",
+            "tip-want-me-to-step-away-you-can-bring",
+            "tip-time-for-a-break-see-you-next-time",
+            "tip-come-back-soon-okay",
+            "tip-rest-your-eyes-look-at-something-far-away",
+            "tip-have-some-water-and-stay-hydrated",
+            "tip-you-ve-been-sitting-a-while-get-up",
+            "tip-if-something-s-puzzling-you-toss-it-my",
+            "tip-thanks-for-your-hard-work-today",
+            "time-good-morning-a-new-day-begins",
+            "time-good-morning-time-to-focus",
+            "time-it-s-noon-remember-to-have-lunch",
+            "time-good-afternoon-a-cup-of-tea-to-perk",
+            "time-good-evening-how-was-your-day",
+            "time-it-s-late-get-some-rest-soon",
+            "time-still-up-this-late-your-health-comes-first",
+            "greet-companion",
+            "greet-welcome-back",
+            "ack-let-me-think",
+            "ack-one-sec",
+            "ack-im-here",
+            "greet-do-our-best",
+            "greet-hello",
+            "status-rest-early-okay",
+            "status-task-done",
+            "status-done-thumbs-up",
+            "tool-this-round-is-finished",
+            "status-oops-something-went-wrong",
+            "tool-didn-t-work-try-again",
+            "status-failed-but-don-t-give-up",
+            "tool-need-you-to-confirm",
+            "status-permission-is-waiting-for-you",
+            "tool-please-allow-or-deny-in-chat",
+            "status-looks-stuck",
+            "status-no-updates-for-a-while",
+            "tip-want-to-check-on-it",
+            "status-waiting-for-your-reply",
+            "tool-your-turn",
+            "status-ready-awaiting-your-order",
+            "remind-time",
+            "remind-dont-forget",
+            "remind-its-time",
+            "status-focus-time",
+            "tool-flow-mode-on",
+            "status-you-ve-got-this-i-m-here",
+            "status-pomodoro-take-a-break",
+            "status-beep-time-to-rest",
+            "status-stand-up-and-stretch",
+            "status-got-the-file",
+            "status-let-me-see-what-it-is",
+            "status-you-dropped-it-i-ll-read-it",
+            "tool-please-confirm-this-action",
+            "tool-confirm-before-we-continue",
+            "status-i-ll-wait-for-your-yes",
+            "status-awesome",
+            "status-success-confetti",
+            "status-i-ll-fix-it-right-away",
+            "status-well-done",
+            "time-good-night-sweet-dreams",
+            "status-it-s-late-rest-a-bit",
+            "status-see-you-tomorrow",
+            "ack-okay",
+            "ack-got-it",
+            "ack-listening",
+            "ack-im-here-go-ahead",
+            "err-couldnt-close",
+            "vm-canvas-not-found-can-t-take-a-screenshot",
+            "vm-got-it-saved-to-your-downloads-folder",
+            "vm-screenshot-failed",
+            "greet-bye",
+            "vm-the-voice-service-isn-t-ready-yet-please",
+            "vm-failed-to-switch-voice-mode-please-try-again",
+            "vm-the-voice-service-is-initializing-please-try-again",
+            "vm-voice-enabled",
+            "vm-voice-disabled",
+            "vm-ai-chat-window-opened",
+            "vm-couldn-t-open-the-ai-chat-window-please",
+            "vm-ai-chat-requires-the-electron-environment",
+            "vm-the-task-board-opens-in-the-desktop-app",
+            "vm-couldn-t-open-the-task-board-please-try",
+            "vm-recognition-failed",
+            "vm-too-short-hold-the-button-while-talking-then",
+            "vm-didn-t-catch-that-say-it-again",
+            "err-mic-denied",
+            "vm-no-microphone-found",
+            "vm-the-microphone-is-in-use-by-another-app",
+            "greet-lets-go",
+            "mode-fixed",
+            "mode-tts",
+            "err-couldnt-open",
+            "err-mic-open",
+            "remind-missed"
+          ]
+        },
+        "layout": {
+          "window": {
+            "width": 420,
+            "height": 450
+          },
+          "hitboxes": {
+            "head": {
+              "top": 0,
+              "bottom": 0.3,
+              "left": 0.2,
+              "right": 0.8
+            }
+          },
+          "bubbleAnchor": {
+            "x": 0.5,
+            "y": 0.1
+          }
+        },
+        "displayName": {
+          "zh": "测试",
+          "en": "Fixture"
+        }
+      },
+      "out": {
+        "source": "userData",
+        "id": "fixture-pack",
+        "mode": "rive",
+        "displayName": {
+          "zh": "Nomi·诺米",
+          "en": "Nomi"
+        },
+        "shortName": {
+          "zh": "Nomi",
+          "en": "Nomi"
+        },
+        "hitboxes": {
+          "regions": {
+            "head": {
+              "top": 0,
+              "bottom": 0.3,
+              "left": 0.2,
+              "right": 0.8
+            }
+          },
+          "bubbleAnchor": {
+            "x": 0.5,
+            "y": 0.1
+          }
+        },
+        "locales": {
+          "zh": {
+            "lines": {
+              "tip-want-to-chat-about-something": "要聊点什么吗？",
+              "tip-open-the-chat-window-and-talk-to-me": "打开聊天窗口，和我说说话吧。",
+              "tip-ask-me-anything": "有问题尽管问我！",
+              "tip-voice-settings-are-here-right-click-to-fine": "语音设置在这里，右键可以细调。",
+              "tip-want-to-see-me-do-a-move-right": "想看我做个动作吗？右键可以挑一个。",
+              "tip-want-me-to-step-away-you-can-bring": "想让我先退下吗？设置里随时能叫我回来。",
+              "tip-time-for-a-break-see-you-next-time": "要休息了吗？下次见～",
+              "tip-come-back-soon-okay": "记得早点回来哦。",
+              "tip-rest-your-eyes-look-at-something-far-away": "休息一下眼睛吧，看看远处～",
+              "tip-have-some-water-and-stay-hydrated": "喝口水吧，补充一下水分。",
+              "tip-you-ve-been-sitting-a-while-get-up": "坐久了记得起来活动活动。",
+              "tip-if-something-s-puzzling-you-toss-it-my": "有想不通的问题，可以丢给我试试。",
+              "tip-thanks-for-your-hard-work-today": "今天也辛苦啦。",
+              "time-good-morning-a-new-day-begins": "早上好！新的一天开始啦。",
+              "time-good-morning-time-to-focus": "上午好，专注的时间到了。",
+              "time-it-s-noon-remember-to-have-lunch": "中午了，记得吃午饭哦。",
+              "time-good-afternoon-a-cup-of-tea-to-perk": "下午好，来杯茶提提神？",
+              "time-good-evening-how-was-your-day": "晚上好，今天过得怎么样？",
+              "time-it-s-late-get-some-rest-soon": "已经很晚了，早点休息吧。",
+              "time-still-up-this-late-your-health-comes-first": "这么晚还没睡？身体要紧哦。",
+              "greet-companion": "你好，我是你的桌面伙伴～",
+              "greet-welcome-back": "欢迎回来！",
+              "greet-hello": "你好，我是 Nomi～",
+              "greet-lets-go": "你好，我是 Nomi。今天也一起加油吧。"
+            },
+            "wakePhrase": "你好，诺米"
+          },
+          "en": {
+            "lines": {
+              "tip-want-to-chat-about-something": "Want to chat about something?",
+              "tip-open-the-chat-window-and-talk-to-me": "Open the chat window and talk to me.",
+              "tip-ask-me-anything": "Ask me anything!",
+              "tip-voice-settings-are-here-right-click-to-fine": "Voice settings are here; right-click to fine-tune.",
+              "tip-want-to-see-me-do-a-move-right": "Want to see me do a move? Right-click to pick one.",
+              "tip-want-me-to-step-away-you-can-bring": "Want me to step away? You can bring me back in Settings anytime.",
+              "tip-time-for-a-break-see-you-next-time": "Time for a break? See you next time~",
+              "tip-come-back-soon-okay": "Come back soon, okay?",
+              "tip-rest-your-eyes-look-at-something-far-away": "Rest your eyes; look at something far away~",
+              "tip-have-some-water-and-stay-hydrated": "Have some water and stay hydrated.",
+              "tip-you-ve-been-sitting-a-while-get-up": "You've been sitting a while; get up and move around.",
+              "tip-if-something-s-puzzling-you-toss-it-my": "If something's puzzling you, toss it my way.",
+              "tip-thanks-for-your-hard-work-today": "Thanks for your hard work today.",
+              "time-good-morning-a-new-day-begins": "Good morning! A new day begins.",
+              "time-good-morning-time-to-focus": "Good morning, time to focus.",
+              "time-it-s-noon-remember-to-have-lunch": "It's noon; remember to have lunch.",
+              "time-good-afternoon-a-cup-of-tea-to-perk": "Good afternoon. A cup of tea to perk up?",
+              "time-good-evening-how-was-your-day": "Good evening. How was your day?",
+              "time-it-s-late-get-some-rest-soon": "It's late; get some rest soon.",
+              "time-still-up-this-late-your-health-comes-first": "Still up this late? Your health comes first.",
+              "greet-companion": "Hi, I'm your desktop companion~",
+              "greet-welcome-back": "Welcome back!",
+              "greet-hello": "Hi, I'm Nomi~",
+              "greet-lets-go": "Hi, I'm Nomi. Let's do our best today."
+            },
+            "wakePhrase": "Hi, Nomi"
+          }
+        },
+        "mapping": {
+          "emotions": {
+            "neutral": "neutral",
+            "happy": "happy",
+            "sad": "sad",
+            "angry": "angry",
+            "surprised": "surprised",
+            "relaxed": "relaxed"
+          },
+          "activities": {
+            "thinking": "think",
+            "toolRunning": "work"
+          },
+          "gestures": {
+            "wave": "wave",
+            "greet": "hello",
+            "nod": "nod",
+            "shakeHead": "shake",
+            "bow": "bow",
+            "salute": "salute",
+            "pray": "pray",
+            "okHand": "ok_hand",
+            "think": "think",
+            "explain": "explain",
+            "eureka": "eureka",
+            "puzzled": "puzzled",
+            "listen": "listen",
+            "lookAround": "look_around",
+            "lookLeftRight": "look_lr",
+            "peek": "peek",
+            "heart": "heart",
+            "blowKiss": "blow_kiss",
+            "shy": "shy",
+            "coverFace": "cover_face",
+            "apologize": "sorry",
+            "surprise": "surprise",
+            "startle": "flinch",
+            "sigh": "sigh",
+            "smug": "smug",
+            "aggrieved": "aggrieved",
+            "tears": "tears",
+            "angry": "angry",
+            "coldSweat": "cold_sweat",
+            "daze": "daze",
+            "cheer": "cheer",
+            "thumbsUp": "thumbs_up",
+            "peace": "peace",
+            "celebrate": "celebrate",
+            "clap": "clap",
+            "hop": "hop",
+            "wink": "wink",
+            "tongue": "tongue",
+            "cute": "cute",
+            "reachOut": "interact",
+            "work": "work",
+            "yawn": "yawn",
+            "stretch": "stretch",
+            "goodnight": "goodnight",
+            "hum": "peek_note",
+            "random": "random"
+          }
+        },
+        "assetBaseUrl": "character-pack://pack/",
+        "onboarding": {
+          "welcome": "character-pack://pack/onboarding/welcome.webp",
+          "profile": "character-pack://pack/onboarding/profile.webp",
+          "provider": "character-pack://pack/onboarding/provider.webp",
+          "privacy": "character-pack://pack/onboarding/privacy.webp"
+        },
+        "voiceBaseUrl": "character-pack://pack/voice/zh/",
+        "riveUrl": "character-pack://pack/rive/character.riv",
+        "staticUrl": null,
+        "spriteManifestUrl": "character-pack://pack/sprite/manifest.json",
+        "rive": {
+          "artboard": "Nomi-full",
+          "stateMachine": "NomiFull"
+        }
+      }
+    }
+  }
+}

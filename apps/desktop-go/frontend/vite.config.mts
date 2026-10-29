@@ -15,19 +15,15 @@ import { characterPackPlugin } from '../../../scripts/character/vite-plugin.mjs'
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, '../../..');
 const pkg = (p: string) => path.join(repo, 'packages', p);
-// 看板娘实现：默认 svg（静态图，不打包 Rive）；NOMI_POC_MASCOT=rive 恢复 Rive 版
-const rive = process.env.NOMI_POC_MASCOT === 'rive';
 
 export default defineConfig({
   root: here,
   base: './',
-  plugins: rive
-    ? [react(), characterPackPlugin({ scope: 'all', packDir: path.join(repo, 'characters/nomi') })]
-    : [],
+  // 看板娘按设置 mascot.renderer 运行时切换：Rive 版在独立 chunk 里，只有 rive 时才动态加载
+  plugins: [react(), characterPackPlugin({ scope: 'all', packDir: path.join(repo, 'characters/nomi') })],
   server: { fs: { allow: [repo] } },
   resolve: {
     alias: [
-      { find: /^@poc\/mascot-impl$/, replacement: path.join(here, rive ? 'src/mascot-rive.tsx' : 'src/mascot-svg.ts') },
       { find: /^@nomi-ai\/avatar-runtime$/, replacement: pkg('avatar-runtime/src/index.ts') },
       { find: /^@nomi-ai\/character-contract$/, replacement: pkg('character-contract/src/index.ts') },
       { find: /^@nomi-ai\/contract\/app$/, replacement: pkg('contract/src/app/index.ts') },
