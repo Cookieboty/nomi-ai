@@ -9,10 +9,11 @@ import (
 	"time"
 )
 
-// ParseOptions 对应 ParseOptions（memoryMb 无对应：D-B6-7 进程内解析）
+// ParseOptions 对应 ParseOptions
 type ParseOptions struct {
 	TimeoutMs float64
 	MaxBytes  int64
+	MemoryMb  int // 子进程堆上限，默认 256（同 --max-old-space-size）
 }
 
 // ParseResult：ok=true 时带 Extracted 字段；否则 code/message
@@ -61,6 +62,13 @@ func ParseFile(filePath string, opts ParseOptions) ParseResult {
 	maxBytes := opts.MaxBytes
 	if maxBytes == 0 {
 		maxBytes = 50 * 1024 * 1024
+	}
+	if WorkerAvailable() {
+		mem := opts.MemoryMb
+		if mem == 0 {
+			mem = 256
+		}
+		return parseInWorker(filePath, maxBytes, mem, timeout)
 	}
 	ch := make(chan ParseResult, 1)
 	go func() {

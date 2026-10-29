@@ -7,6 +7,7 @@ package main
 
 import (
 	"embed"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop/parse"
 	"io/fs"
 	"log"
 	"net/http"
@@ -37,6 +38,14 @@ import (
 var dist embed.FS
 
 func main() {
+	// 文档解析子进程（runParse.ts 的 utilityProcess）：同一可执行文件以 NOMI_PARSE_WORKER=1 拉起
+	if parse.IsWorker() {
+		parse.WorkerMain()
+		return
+	}
+	if exe, err := os.Executable(); err == nil {
+		parse.EnableWorker(exe)
+	}
 	cfg := core.LLMConfig{BaseURL: os.Getenv("NOMI_LLM_BASE_URL"), APIKey: os.Getenv("NOMI_LLM_API_KEY"), Model: os.Getenv("NOMI_LLM_MODEL")}
 	if cfg.APIKey == "" {
 		base, err := mockllm.Start()
