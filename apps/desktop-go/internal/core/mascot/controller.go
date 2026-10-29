@@ -217,6 +217,11 @@ func (c *Controller) Start() {
 	if c.hooks != nil && c.hooks.Get != nil {
 		c.pref = c.hooks.Get()
 	}
+	// Windows 上 Start 早于窗口实化，GetSize 返回 0x0：此时按创建窗口时同一口径（偏好缩放）取当前缩放，
+	// 否则会被夹到最小 0.3（246x265，而 Electron 2.0.4 为 330x355）
+	if w <= 2*int(MascotPad.X) {
+		c.scale = FitMascotScale(c.pref, MaxMascotScale)
+	}
 	x, y := c.win.GetPosition()
 	_, h0 := c.win.GetSize()
 	log.Printf("[mascot] start size=%dx%d scale=%.2f pref=%v areas=%+v", w, h0, c.scale, c.pref, c.workAreas)

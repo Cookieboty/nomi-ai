@@ -1,4 +1,5 @@
 // 打印所有在屏窗口：pid<TAB>宽<TAB>高<TAB>x<TAB>y（逻辑点）。bench.py 在 mac 上轮询用（swiftc 预编译）
+import AppKit
 import CoreGraphics
 let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as! [[String: Any]]
 for w in list {
