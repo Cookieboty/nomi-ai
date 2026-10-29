@@ -9,6 +9,10 @@ on:
         description: '仅 tag ref：校验通过后把 draft release 设为正式（默认不发布）'
         type: boolean
         default: false
+      bench:
+        description: '额外跑同 runner 2.0.5 Go vs 2.0.4 Electron 性能对比（约 60 分钟）'
+        type: boolean
+        default: false
   pull_request:
     branches: [release/2.0.5]
     paths:
@@ -214,3 +218,78 @@ jobs:
       - name: publish (opt-in)
         if: inputs.publish
         run: gh release edit "$TAG" --draft=false --latest
+
+  # 可选（dispatch bench=true）：同 runner 2.0.5 Go vs 2.0.4 Electron 基准；2.0.4 从 v2.0.4 源码构建（绝不下载 Release 资产），每项 3 轮中位数
+  electron-204:
+    if: github.event_name == 'workflow_dispatch' && inputs.bench
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: mac-arm64, os: macos-14, args: '--mac dmg zip --arm64' }
+          - { target: windows, os: windows-latest, args: '--win nsis --x64' }
+          - { target: linux, os: ubuntu-24.04, args: '--linux AppImage --x64' }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 50
+    defaults: { run: { shell: bash } }
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: v2.0.4, path: e204 }
+      - uses: pnpm/action-setup@v4
+        with: { version: 9.12.3 }
+      - uses: actions/setup-node@v4
+        with: { node-version: '24' }
+      - name: build electron 2.0.4 installers from source (unsigned)
+        working-directory: e204
+        env: { CSC_IDENTITY_AUTO_DISCOVERY: 'false', HUSKY: '0' }
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile
+          pnpm turbo run build
+          cd packages/electron && pnpm exec electron-builder build ${{ matrix.args }} --publish never
+          mkdir -p ../../../e204-out
+          find ../../dist -maxdepth 1 -type f \( -name '*.dmg' -o -name '*.zip' -o -name '*.exe' -o -name '*.AppImage' \) -exec cp {} ../../../e204-out/ \;
+          ls -l ../../../e204-out
+      - uses: actions/upload-artifact@v4
+        with: { name: 'electron-204-${{ matrix.target }}', path: e204-out/, compression-level: 0, if-no-files-found: error }
+
+  bench:
+    needs: [package, electron-204]
+    if: always() && needs.package.result == 'success' && github.event_name == 'workflow_dispatch' && inputs.bench
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: mac-arm64, os: macos-14 }
+          - { target: windows, os: windows-latest }
+          - { target: linux, os: ubuntu-24.04 }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    defaults: { run: { shell: bash } }
+    env: { RUNS: '3' }
+    steps:
+      - uses: actions/checkout@v4
+        with: { sparse-checkout: apps/desktop-go/ci }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: pip install psutil
+      - uses: actions/download-artifact@v4
+        with: { name: 'nomi-go-${{ matrix.target }}', path: go }
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with: { name: 'electron-204-${{ matrix.target }}', path: e204 }
+      - name: linux deps
+        if: matrix.target == 'linux'
+        run: sudo apt-get update && sudo apt-get install -y xvfb xdotool openbox libfuse2t64 libgtk-3-0t64 libwebkit2gtk-4.1-0 dbus-x11 at-spi2-core
+      - name: bench
+        env: { B: apps/desktop-go/ci/bench }
+        run: |
+          set -euo pipefail
+          chmod +x $B/*.sh
+          $B/run-${{ matrix.target == 'windows' && 'win' || matrix.target == 'linux' && 'linux' || 'mac' }}.sh go e204 out
+      - name: summary
+        if: always()
+        run: python3 apps/desktop-go/ci/bench/report.py out "${{ matrix.target }}" "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: 'bench-${{ matrix.target }}', path: out/ }
