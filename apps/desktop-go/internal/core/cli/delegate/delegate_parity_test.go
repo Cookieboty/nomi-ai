@@ -180,8 +180,9 @@ func sandbox(t *testing.T) string {
 // tokv：沙箱路径 → @@SB@@（同 recorder 的 tok / untok）
 func tokv(sb string, v any) any {
 	s := util.Stringify(v)
-	s = strings.ReplaceAll(s, strings.ReplaceAll(sb, `\`, `\\`), sbTok)
-	s = strings.ReplaceAll(s, sb, sbTok)
+	for _, f := range []string{strings.ReplaceAll(sb, `\`, `\\\\`), strings.ReplaceAll(sb, `\`, `\\`), sb, strings.ReplaceAll(sb, `\`, `/`)} {
+		s = strings.ReplaceAll(s, f, sbTok)
+	}
 	r, err := util.ParseString(s)
 	if err != nil {
 		panic(err)
@@ -447,7 +448,7 @@ func (d *fakeDesktop) Guard(p any, need string, allowMissing bool) desktop.Guard
 	r := pth.Resolve(jsString(p))
 	ok := false
 	for _, g := range strs(d.sc.Get("granted")) {
-		g = d.sub(g)
+		g = pth.Resolve(d.sub(g))
 		if r == g || strings.HasPrefix(r, g+string(filepath.Separator)) {
 			ok = true
 		}
@@ -692,7 +693,9 @@ func runServiceScenario(t *testing.T, rec *util.Obj) {
 			h.mu.Lock()
 			for _, tb := range h.tabs {
 				if o := tb.(*util.Obj); o.Get("id") == st.Get("id") {
-					o.Get("delegation").(*util.Obj).Set("takenOver", true)
+					if dg, ok := o.Get("delegation").(*util.Obj); ok && dg != nil {
+						dg.Set("takenOver", true)
+					}
 				}
 			}
 			h.mu.Unlock()
