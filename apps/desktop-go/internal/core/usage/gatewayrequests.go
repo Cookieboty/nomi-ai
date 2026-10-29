@@ -84,7 +84,9 @@ func (e *GatewayRequestEntry) Obj() *util.Obj {
 	return o
 }
 
-func (e *GatewayRequestEntry) MarshalJSON() ([]byte, error) { return []byte(util.Stringify(e.Obj())), nil }
+func (e *GatewayRequestEntry) MarshalJSON() ([]byte, error) {
+	return []byte(util.Stringify(e.Obj())), nil
+}
 
 func grN(v any) float64 {
 	if f, ok := v.(float64); ok && !math.IsNaN(f) && !math.IsInf(f, 0) && f > 0 {
@@ -99,7 +101,6 @@ func grStr(v any, max int) string {
 	}
 	return ""
 }
-
 
 var (
 	grWSRe    = regexp.MustCompile(`[` + util.JSWS + `]+`)

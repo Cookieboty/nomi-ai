@@ -1,0 +1,990 @@
+{
+ "costs": [
+  "null",
+  "5",
+  "[]",
+  "{}",
+  "{\"input\":1}",
+  "{\"input\":1,\"output\":2}",
+  "{\"input\":0,\"output\":0}",
+  "{\"input\":-1,\"output\":2}",
+  "{\"input\":\"1\",\"output\":2}",
+  "{\"input\":1,\"output\":2,\"cache_read\":0.1}",
+  "{\"input\":1,\"output\":2,\"cache_read\":null}",
+  "{\"input\":1,\"output\":2,\"cache_write\":-0.1}",
+  "{\"input\":1,\"output\":2,\"cache_read\":0.1,\"cache_write\":1.25}",
+  "{\"input\":1,\"output\":2,\"tiers\":[]}",
+  "{\"input\":1,\"output\":2,\"tiers\":null}",
+  "{\"input\":1,\"output\":2,\"tiers\":{}}",
+  "{\"input\":1,\"output\":2,\"tiers\":[5]}",
+  "{\"input\":1,\"output\":2,\"tiers\":[{\"tier\":{\"size\":200000},\"input\":2,\"output\":4}]}",
+  "{\"input\":1,\"output\":2,\"tiers\":[{\"tier\":{\"type\":\"context\",\"size\":400000},\"input\":3,\"output\":6,\"cache_read\":0.3},{\"tier\":{\"size\":200000},\"input\":2,\"output\":4,\"cache_write\":2}]}",
+  "{\"input\":1,\"output\":2,\"tiers\":[{\"tier\":{\"type\":\"other\",\"size\":200000},\"input\":2,\"output\":4}]}",
+  "{\"input\":1,\"output\":2,\"tiers\":[{\"tier\":{\"type\":null,\"size\":200000},\"input\":2,\"output\":4}]}",
+  "{\"input\":1,\"output\":2,\"tiers\":[{\"tier\":{\"size\":0},\"input\":2,\"output\":4}]}",
+  "{\"input\":1,\"output\":2,\"tiers\":[{\"tier\":{\"size\":1.5},\"input\":2,\"output\":4}]}",
+  "{\"input\":1,\"output\":2,\"tiers\":[{\"tier\":{\"size\":1},\"input\":2,\"output\":4}]}",
+  "{\"input\":1,\"output\":2,\"tiers\":[{\"tier\":{\"size\":\"5\"},\"input\":2,\"output\":4}]}",
+  "{\"input\":1,\"output\":2,\"tiers\":[{\"tier\":{\"size\":5},\"input\":2,\"output\":4},{\"tier\":{\"size\":5},\"input\":2,\"output\":4}]}",
+  "{\"input\":1,\"output\":2,\"tiers\":[{\"tier\":{\"size\":5},\"input\":2}]}",
+  "{\"input\":1,\"output\":2,\"tiers\":[{\"tier\":[5],\"input\":2,\"output\":4}]}",
+  "{\"input\":1,\"output\":2,\"tiers\":[{\"input\":2,\"output\":4}]}",
+  "{\"input\":1,\"output\":2,\"tiers\":[{\"tier\":{\"size\":5},\"input\":2,\"output\":4,\"cache_read\":\"x\"}]}",
+  "{\"input\":1e-7,\"output\":1e+21,\"cache_read\":123456.789}",
+  "{\"input\":1,\"output\":2,\"tiers\":[{\"tier\":{\"size\":3},\"input\":2,\"output\":4},{\"tier\":{\"size\":1},\"input\":1,\"output\":1},{\"tier\":{\"size\":2},\"input\":9,\"output\":9}]}"
+ ],
+ "costOut": [
+  "null",
+  "null",
+  "null",
+  "null",
+  "null",
+  "{\"input\":1,\"output\":2}",
+  "{\"input\":0,\"output\":0}",
+  "null",
+  "null",
+  "{\"input\":1,\"output\":2,\"cacheRead\":0.1}",
+  "null",
+  "null",
+  "{\"input\":1,\"output\":2,\"cacheRead\":0.1,\"cacheWrite\":1.25}",
+  "{\"input\":1,\"output\":2}",
+  "null",
+  "null",
+  "null",
+  "{\"input\":1,\"output\":2,\"tiers\":[{\"size\":200000,\"input\":2,\"output\":4}]}",
+  "{\"input\":1,\"output\":2,\"tiers\":[{\"size\":200000,\"input\":2,\"output\":4,\"cacheWrite\":2},{\"size\":400000,\"input\":3,\"output\":6,\"cacheRead\":0.3}]}",
+  "null",
+  "null",
+  "null",
+  "null",
+  "{\"input\":1,\"output\":2,\"tiers\":[{\"size\":1,\"input\":2,\"output\":4}]}",
+  "null",
+  "null",
+  "null",
+  "null",
+  "null",
+  "null",
+  "{\"input\":1e-7,\"output\":1e+21,\"cacheRead\":123456.789}",
+  "{\"input\":1,\"output\":2,\"tiers\":[{\"size\":1,\"input\":1,\"output\":1},{\"size\":2,\"input\":9,\"output\":9},{\"size\":3,\"input\":2,\"output\":4}]}"
+ ],
+ "apis": [
+  "null",
+  "[]",
+  "\"x\"",
+  "{}",
+  "{\"anthropic\":null}",
+  "{\"anthropic\":{\"models\":[]}}",
+  "{\"anthropic\":{\"models\":{\"2\":{\"id\":7,\"cost\":{\"input\":1,\"output\":1}},\"10\":{\"cost\":{\"input\":1,\"output\":1}},\"claude-new-9\":{\"id\":\"claude-new-9\",\"cost\":{\"input\":3,\"output\":15},\"name\":\"Claude New\"},\"Claude-Dup\":{\"id\":\"Claude-Dup\",\"cost\":{\"input\":1,\"output\":1}},\"claude-dup\":{\"id\":\"claude-dup\",\"cost\":{\"input\":2,\"output\":2}},\"k1\":{\"cost\":{\"input\":1,\"output\":2}},\"k2\":null,\"\":{\"id\":\"\",\"cost\":{\"input\":1,\"output\":2}},\"bad\":{\"id\":\"bad\",\"cost\":{\"input\":-1,\"output\":2}},\"nameless\":{\"id\":\"nameless\",\"cost\":{\"input\":1,\"output\":1},\"name\":\"\"},\"named5\":{\"id\":\"named5\",\"cost\":{\"input\":1,\"output\":1},\"name\":5}}},\"openai\":{\"models\":{\"claude-dup\":{\"id\":\"claude-dup\",\"cost\":{\"input\":5,\"output\":5}},\"gpt-4o\":{\"id\":\"gpt-4o\",\"cost\":{\"input\":2.5,\"output\":10},\"status\":\"deprecated\"},\"gpt-4o-2024-05-13\":{\"id\":\"gpt-4o-2024-05-13\",\"cost\":{\"input\":5,\"output\":15},\"status\":\"deprecated\"},\"gpt-old-thing\":{\"id\":\"gpt-old-thing\",\"cost\":{\"input\":1,\"output\":1},\"status\":\"deprecated\"},\"gpt-old-thing2\":{\"id\":\"gpt-old-thing2\",\"cost\":{\"input\":3,\"output\":3},\"status\":\"deprecated\"},\"live-and-dead\":{\"id\":\"live-and-dead\",\"cost\":{\"input\":1,\"output\":1},\"status\":\"deprecated\"},\"gpt-4o-custom\":{\"id\":\"gpt-4o-custom\",\"cost\":{\"input\":1,\"output\":1},\"status\":\"deprecated\"},\"gpt-4o-latest\":{\"id\":\"gpt-4o-latest\",\"cost\":{\"input\":1,\"output\":1},\"status\":\"deprecated\"}}},\"google\":{\"models\":{\"live-and-dead\":{\"id\":\"live-and-dead\",\"cost\":{\"input\":2,\"output\":2}},\"gemini-z\":{\"id\":\"gemini-z\",\"cost\":{\"input\":1,\"output\":1},\"status\":\"beta\"}}},\"alibaba\":{\"models\":{\"qwen3-max\":{\"id\":\"qwen3-max\",\"cost\":{\"input\":1,\"output\":2}},\"QWQ-32b\":{\"id\":\"QWQ-32b\",\"cost\":{\"input\":1,\"output\":2}},\"qvq-max\":{\"id\":\"qvq-max\",\"cost\":{\"input\":1,\"output\":2}},\"deepseek-v3\":{\"id\":\"deepseek-v3\",\"cost\":{\"input\":1,\"output\":2}},\"qwe\":{\"id\":\"qwe\",\"cost\":{\"input\":1,\"output\":2}},\"kimi-k2\":{\"id\":\"kimi-k2\",\"cost\":{\"input\":1,\"output\":2}},\"qwen\":{\"id\":\"qwen\",\"cost\":{\"input\":1,\"output\":2}}}},\"openrouter\":{\"models\":{\"or-model\":{\"id\":\"or-model\",\"cost\":{\"input\":1,\"output\":1}}}},\"xai\":{\"models\":{\"grok-9\":{\"cost\":{\"input\":1,\"output\":2,\"tiers\":[{\"tier\":{\"size\":128000},\"input\":2,\"output\":4}]}}}},\"mistral\":5,\"minimax\":{\"models\":null},\"zhipuai\":{\"models\":{\"glm-9\":{\"id\":\"  GLM-9@latest \",\"cost\":{\"input\":1,\"output\":1}}}}}"
+ ],
+ "extractOut": [
+  "{\"entries\":[],\"skipped\":0}",
+  "{\"entries\":[],\"skipped\":0}",
+  "{\"entries\":[],\"skipped\":0}",
+  "{\"entries\":[],\"skipped\":0}",
+  "{\"entries\":[],\"skipped\":0}",
+  "{\"entries\":[],\"skipped\":0}",
+  "{\"entries\":[{\"model\":\"2\",\"input\":1,\"output\":1},{\"model\":\"10\",\"input\":1,\"output\":1},{\"model\":\"claude-new-9\",\"input\":3,\"output\":15,\"label\":\"Claude New\"},{\"model\":\"claude-dup\",\"input\":1,\"output\":1},{\"model\":\"k1\",\"input\":1,\"output\":2},{\"model\":\"nameless\",\"input\":1,\"output\":1},{\"model\":\"named5\",\"input\":1,\"output\":1},{\"model\":\"live-and-dead\",\"input\":2,\"output\":2},{\"model\":\"gemini-z\",\"input\":1,\"output\":1},{\"model\":\"glm-9@latest\",\"input\":1,\"output\":1},{\"model\":\"grok-9\",\"input\":1,\"output\":2,\"tiers\":[{\"size\":128000,\"input\":2,\"output\":4}]},{\"model\":\"qwen3-max\",\"input\":1,\"output\":2},{\"model\":\"qwq-32b\",\"input\":1,\"output\":2},{\"model\":\"qvq-max\",\"input\":1,\"output\":2},{\"model\":\"qwen\",\"input\":1,\"output\":2},{\"model\":\"gpt-old-thing\",\"input\":1,\"output\":1},{\"model\":\"gpt-old-thing2\",\"input\":3,\"output\":3},{\"model\":\"gpt-4o-custom\",\"input\":1,\"output\":1}],\"skipped\":7}"
+ ],
+ "syncedIn": [
+  "null",
+  "{}",
+  "[]",
+  "[null,1,{\"model\":5},{\"model\":\"\"},{\"model\":\"a\"},{\"model\":\"a\",\"input\":1,\"output\":2},{\"model\":\"A\",\"input\":9,\"output\":9}]",
+  "[{\"model\":\"b\",\"input\":1,\"output\":2,\"cacheRead\":0.1,\"cacheWrite\":1,\"cache_read\":5,\"label\":\"B\",\"tiers\":[{\"size\":2,\"input\":1,\"output\":1},{\"size\":1,\"input\":1,\"output\":1,\"cacheRead\":0}]}]",
+  "[{\"model\":\"c\",\"input\":1,\"output\":2,\"tiers\":[{\"size\":0,\"input\":1,\"output\":1}]},{\"model\":\"c\",\"input\":3,\"output\":3,\"label\":\"\"},{\"model\":\"d\",\"input\":1,\"output\":2,\"tiers\":null},{\"model\":\"e\",\"input\":1,\"output\":2,\"cacheRead\":null},{\"model\":\"f\",\"input\":1,\"output\":2,\"tiers\":[],\"label\":7}]"
+ ],
+ "syncedOut": [
+  "[]",
+  "[]",
+  "[]",
+  "[{\"model\":\"a\",\"input\":1,\"output\":2}]",
+  "[{\"model\":\"b\",\"input\":1,\"output\":2,\"cacheRead\":0.1,\"cacheWrite\":1,\"tiers\":[{\"size\":1,\"input\":1,\"output\":1,\"cacheRead\":0},{\"size\":2,\"input\":1,\"output\":1}],\"label\":\"B\"}]",
+  "[{\"model\":\"c\",\"input\":3,\"output\":3},{\"model\":\"f\",\"input\":1,\"output\":2}]"
+ ],
+ "now": 1793242800000,
+ "scen": [
+  {
+   "name": "fresh-update",
+   "file": null,
+   "steps": [
+    {
+     "body": "{\"openai\":{\"models\":{\"gpt-x-0\":{\"id\":\"gpt-x-0\",\"cost\":{\"input\":0,\"output\":0}},\"gpt-x-1\":{\"id\":\"gpt-x-1\",\"cost\":{\"input\":1,\"output\":2}},\"gpt-x-2\":{\"id\":\"gpt-x-2\",\"cost\":{\"input\":2,\"output\":4}},\"gpt-x-3\":{\"id\":\"gpt-x-3\",\"cost\":{\"input\":3,\"output\":6}},\"gpt-x-4\":{\"id\":\"gpt-x-4\",\"cost\":{\"input\":4,\"output\":8}},\"gpt-x-5\":{\"id\":\"gpt-x-5\",\"cost\":{\"input\":5,\"output\":10}},\"gpt-x-6\":{\"id\":\"gpt-x-6\",\"cost\":{\"input\":6,\"output\":12}},\"gpt-x-7\":{\"id\":\"gpt-x-7\",\"cost\":{\"input\":7,\"output\":14}},\"gpt-x-8\":{\"id\":\"gpt-x-8\",\"cost\":{\"input\":8,\"output\":16}},\"gpt-x-9\":{\"id\":\"gpt-x-9\",\"cost\":{\"input\":9,\"output\":18}},\"gpt-x-10\":{\"id\":\"gpt-x-10\",\"cost\":{\"input\":10,\"output\":20}},\"gpt-x-11\":{\"id\":\"gpt-x-11\",\"cost\":{\"input\":11,\"output\":22}}}}}",
+     "headers": {
+      "etag": "\"e1\"",
+      "last-modified": "Tue, 27 Oct 2026 08:00:00 GMT",
+      "date": "Wed, 28 Oct 2026 08:00:00 GMT"
+     }
+    },
+    {
+     "status": 304
+    }
+   ],
+   "needsFull": false,
+   "onDataThrows": false,
+   "init": {
+    "state": {
+     "count": 0,
+     "fetchedAt": 0,
+     "checkedAt": 0,
+     "tableDate": ""
+    },
+    "entries": "[]",
+    "version": 0
+   },
+   "results": [
+    {
+     "r": "{\"ok\":true,\"status\":\"updated\",\"count\":12,\"skipped\":0}",
+     "state": {
+      "count": 12,
+      "fetchedAt": 1793242800000,
+      "checkedAt": 1793242800000,
+      "tableDate": "2026-10-27"
+     },
+     "version": 1,
+     "entries": 12
+    },
+    {
+     "r": "{\"ok\":true,\"status\":\"not-modified\",\"count\":12,\"skipped\":0}",
+     "state": {
+      "count": 12,
+      "fetchedAt": 1793242800000,
+      "checkedAt": 1793242801000,
+      "tableDate": "2026-10-27"
+     },
+     "version": 2,
+     "entries": 12
+    }
+   ],
+   "saved": "{\"v\":1,\"etag\":\"\\\"e1\\\"\",\"fetchedAt\":1793242800000,\"checkedAt\":1793242801000,\"tableDate\":\"2026-10-27\",\"entries\":[{\"model\":\"gpt-x-0\",\"input\":0,\"output\":0},{\"model\":\"gpt-x-1\",\"input\":1,\"output\":2},{\"model\":\"gpt-x-2\",\"input\":2,\"output\":4},{\"model\":\"gpt-x-3\",\"input\":3,\"output\":6},{\"model\":\"gpt-x-4\",\"input\":4,\"output\":8},{\"model\":\"gpt-x-5\",\"input\":5,\"output\":10},{\"model\":\"gpt-x-6\",\"input\":6,\"output\":12},{\"model\":\"gpt-x-7\",\"input\":7,\"output\":14},{\"model\":\"gpt-x-8\",\"input\":8,\"output\":16},{\"model\":\"gpt-x-9\",\"input\":9,\"output\":18},{\"model\":\"gpt-x-10\",\"input\":10,\"output\":20},{\"model\":\"gpt-x-11\",\"input\":11,\"output\":22}]}",
+   "afterReset": {
+    "state": {
+     "count": 0,
+     "fetchedAt": 0,
+     "checkedAt": 0,
+     "tableDate": ""
+    },
+    "version": 3,
+    "exists": false
+   },
+   "seen": [
+    {
+     "url": "https://models.dev/api.json",
+     "method": "GET",
+     "headers": {
+      "Accept": "application/json",
+      "Accept-Encoding": "br, gzip"
+     },
+     "redirect": "follow",
+     "credentials": "omit"
+    },
+    {
+     "url": "https://models.dev/api.json",
+     "method": "GET",
+     "headers": {
+      "Accept": "application/json",
+      "Accept-Encoding": "br, gzip",
+      "If-None-Match": "\"e1\""
+     },
+     "redirect": "follow",
+     "credentials": "omit"
+    }
+   ],
+   "warns": 0,
+   "datas": [
+    1
+   ]
+  },
+  {
+   "name": "cached-304",
+   "file": "{\"v\":1,\"etag\":\"W/\\\"abc\\\"\",\"fetchedAt\":100,\"checkedAt\":200,\"tableDate\":\"2026-01-01\",\"entries\":[{\"model\":\"gpt-x-0\",\"input\":0,\"output\":0},{\"model\":\"z\",\"input\":1,\"output\":1,\"label\":\"Z\"}]}",
+   "steps": [
+    {
+     "status": 304
+    }
+   ],
+   "needsFull": false,
+   "onDataThrows": false,
+   "init": {
+    "state": {
+     "count": 2,
+     "fetchedAt": 100,
+     "checkedAt": 200,
+     "tableDate": "2026-01-01"
+    },
+    "entries": "[{\"model\":\"gpt-x-0\",\"input\":0,\"output\":0},{\"model\":\"z\",\"input\":1,\"output\":1,\"label\":\"Z\"}]",
+    "version": 0
+   },
+   "results": [
+    {
+     "r": "{\"ok\":true,\"status\":\"not-modified\",\"count\":2,\"skipped\":0}",
+     "state": {
+      "count": 2,
+      "fetchedAt": 100,
+      "checkedAt": 1793242800000,
+      "tableDate": "2026-01-01"
+     },
+     "version": 1,
+     "entries": 2
+    }
+   ],
+   "saved": "{\"v\":1,\"etag\":\"W/\\\"abc\\\"\",\"fetchedAt\":100,\"checkedAt\":1793242800000,\"tableDate\":\"2026-01-01\",\"entries\":[{\"model\":\"gpt-x-0\",\"input\":0,\"output\":0},{\"model\":\"z\",\"input\":1,\"output\":1,\"label\":\"Z\"}]}",
+   "seen": [
+    {
+     "url": "https://models.dev/api.json",
+     "method": "GET",
+     "headers": {
+      "Accept": "application/json",
+      "Accept-Encoding": "br, gzip",
+      "If-None-Match": "W/\"abc\""
+     },
+     "redirect": "follow",
+     "credentials": "omit"
+    }
+   ],
+   "warns": 0,
+   "datas": []
+  },
+  {
+   "name": "cached-needsfull",
+   "file": "{\"v\":1,\"etag\":\"W/\\\"abc\\\"\",\"fetchedAt\":100,\"checkedAt\":200,\"tableDate\":\"2026-01-01\",\"entries\":[{\"model\":\"gpt-x-0\",\"input\":0,\"output\":0},{\"model\":\"z\",\"input\":1,\"output\":1,\"label\":\"Z\"}]}",
+   "steps": [
+    {
+     "status": 304
+    }
+   ],
+   "needsFull": true,
+   "onDataThrows": false,
+   "init": {
+    "state": {
+     "count": 2,
+     "fetchedAt": 100,
+     "checkedAt": 200,
+     "tableDate": "2026-01-01"
+    },
+    "entries": "[{\"model\":\"gpt-x-0\",\"input\":0,\"output\":0},{\"model\":\"z\",\"input\":1,\"output\":1,\"label\":\"Z\"}]",
+    "version": 0
+   },
+   "results": [
+    {
+     "r": "{\"ok\":true,\"status\":\"not-modified\",\"count\":2,\"skipped\":0}",
+     "state": {
+      "count": 2,
+      "fetchedAt": 100,
+      "checkedAt": 1793242800000,
+      "tableDate": "2026-01-01"
+     },
+     "version": 1,
+     "entries": 2
+    }
+   ],
+   "saved": "{\"v\":1,\"etag\":\"W/\\\"abc\\\"\",\"fetchedAt\":100,\"checkedAt\":1793242800000,\"tableDate\":\"2026-01-01\",\"entries\":[{\"model\":\"gpt-x-0\",\"input\":0,\"output\":0},{\"model\":\"z\",\"input\":1,\"output\":1,\"label\":\"Z\"}]}",
+   "seen": [
+    {
+     "url": "https://models.dev/api.json",
+     "method": "GET",
+     "headers": {
+      "Accept": "application/json",
+      "Accept-Encoding": "br, gzip"
+     },
+     "redirect": "follow",
+     "credentials": "omit"
+    }
+   ],
+   "warns": 0,
+   "datas": []
+  },
+  {
+   "name": "no-cache-304",
+   "file": null,
+   "steps": [
+    {
+     "status": 304
+    }
+   ],
+   "needsFull": false,
+   "onDataThrows": false,
+   "init": {
+    "state": {
+     "count": 0,
+     "fetchedAt": 0,
+     "checkedAt": 0,
+     "tableDate": ""
+    },
+    "entries": "[]",
+    "version": 0
+   },
+   "results": [
+    {
+     "r": "{\"ok\":false,\"reason\":\"http\",\"httpStatus\":304}",
+     "state": {
+      "count": 0,
+      "fetchedAt": 0,
+      "checkedAt": 0,
+      "tableDate": ""
+     },
+     "version": 0,
+     "entries": 0
+    }
+   ],
+   "saved": null,
+   "seen": [
+    {
+     "url": "https://models.dev/api.json",
+     "method": "GET",
+     "headers": {
+      "Accept": "application/json",
+      "Accept-Encoding": "br, gzip"
+     },
+     "redirect": "follow",
+     "credentials": "omit"
+    }
+   ],
+   "warns": 0,
+   "datas": []
+  },
+  {
+   "name": "http-500",
+   "file": "{\"v\":1,\"etag\":\"W/\\\"abc\\\"\",\"fetchedAt\":100,\"checkedAt\":200,\"tableDate\":\"2026-01-01\",\"entries\":[{\"model\":\"gpt-x-0\",\"input\":0,\"output\":0},{\"model\":\"z\",\"input\":1,\"output\":1,\"label\":\"Z\"}]}",
+   "steps": [
+    {
+     "status": 500,
+     "body": "no"
+    },
+    {
+     "status": 300,
+     "body": "{\"openai\":{\"models\":{\"gpt-x-0\":{\"id\":\"gpt-x-0\",\"cost\":{\"input\":0,\"output\":0}},\"gpt-x-1\":{\"id\":\"gpt-x-1\",\"cost\":{\"input\":1,\"output\":2}},\"gpt-x-2\":{\"id\":\"gpt-x-2\",\"cost\":{\"input\":2,\"output\":4}},\"gpt-x-3\":{\"id\":\"gpt-x-3\",\"cost\":{\"input\":3,\"output\":6}},\"gpt-x-4\":{\"id\":\"gpt-x-4\",\"cost\":{\"input\":4,\"output\":8}},\"gpt-x-5\":{\"id\":\"gpt-x-5\",\"cost\":{\"input\":5,\"output\":10}},\"gpt-x-6\":{\"id\":\"gpt-x-6\",\"cost\":{\"input\":6,\"output\":12}},\"gpt-x-7\":{\"id\":\"gpt-x-7\",\"cost\":{\"input\":7,\"output\":14}},\"gpt-x-8\":{\"id\":\"gpt-x-8\",\"cost\":{\"input\":8,\"output\":16}},\"gpt-x-9\":{\"id\":\"gpt-x-9\",\"cost\":{\"input\":9,\"output\":18}},\"gpt-x-10\":{\"id\":\"gpt-x-10\",\"cost\":{\"input\":10,\"output\":20}},\"gpt-x-11\":{\"id\":\"gpt-x-11\",\"cost\":{\"input\":11,\"output\":22}}}}}"
+    },
+    {
+     "status": 200,
+     "body": "not json"
+    },
+    {
+     "status": 203,
+     "body": "{\"openai\":{\"models\":{\"gpt-x-0\":{\"id\":\"gpt-x-0\",\"cost\":{\"input\":0,\"output\":0}},\"gpt-x-1\":{\"id\":\"gpt-x-1\",\"cost\":{\"input\":1,\"output\":2}},\"gpt-x-2\":{\"id\":\"gpt-x-2\",\"cost\":{\"input\":2,\"output\":4}},\"gpt-x-3\":{\"id\":\"gpt-x-3\",\"cost\":{\"input\":3,\"output\":6}},\"gpt-x-4\":{\"id\":\"gpt-x-4\",\"cost\":{\"input\":4,\"output\":8}},\"gpt-x-5\":{\"id\":\"gpt-x-5\",\"cost\":{\"input\":5,\"output\":10}},\"gpt-x-6\":{\"id\":\"gpt-x-6\",\"cost\":{\"input\":6,\"output\":12}},\"gpt-x-7\":{\"id\":\"gpt-x-7\",\"cost\":{\"input\":7,\"output\":14}},\"gpt-x-8\":{\"id\":\"gpt-x-8\",\"cost\":{\"input\":8,\"output\":16}}}}}"
+    },
+    {
+     "status": 299,
+     "body": "{\"openai\":{\"models\":{\"gpt-x-0\":{\"id\":\"gpt-x-0\",\"cost\":{\"input\":0,\"output\":0}},\"gpt-x-1\":{\"id\":\"gpt-x-1\",\"cost\":{\"input\":1,\"output\":2}},\"gpt-x-2\":{\"id\":\"gpt-x-2\",\"cost\":{\"input\":2,\"output\":4}},\"gpt-x-3\":{\"id\":\"gpt-x-3\",\"cost\":{\"input\":3,\"output\":6}},\"gpt-x-4\":{\"id\":\"gpt-x-4\",\"cost\":{\"input\":4,\"output\":8}},\"gpt-x-5\":{\"id\":\"gpt-x-5\",\"cost\":{\"input\":5,\"output\":10}},\"gpt-x-6\":{\"id\":\"gpt-x-6\",\"cost\":{\"input\":6,\"output\":12}},\"gpt-x-7\":{\"id\":\"gpt-x-7\",\"cost\":{\"input\":7,\"output\":14}},\"gpt-x-8\":{\"id\":\"gpt-x-8\",\"cost\":{\"input\":8,\"output\":16}},\"gpt-x-9\":{\"id\":\"gpt-x-9\",\"cost\":{\"input\":9,\"output\":18}},\"gpt-x-10\":{\"id\":\"gpt-x-10\",\"cost\":{\"input\":10,\"output\":20}},\"gpt-x-11\":{\"id\":\"gpt-x-11\",\"cost\":{\"input\":11,\"output\":22}}}}}",
+     "headers": {
+      "date": "Mon, 26 Oct 2026 23:59:59 -0500"
+     }
+    }
+   ],
+   "needsFull": false,
+   "onDataThrows": false,
+   "init": {
+    "state": {
+     "count": 2,
+     "fetchedAt": 100,
+     "checkedAt": 200,
+     "tableDate": "2026-01-01"
+    },
+    "entries": "[{\"model\":\"gpt-x-0\",\"input\":0,\"output\":0},{\"model\":\"z\",\"input\":1,\"output\":1,\"label\":\"Z\"}]",
+    "version": 0
+   },
+   "results": [
+    {
+     "r": "{\"ok\":false,\"reason\":\"http\",\"httpStatus\":500}",
+     "state": {
+      "count": 2,
+      "fetchedAt": 100,
+      "checkedAt": 200,
+      "tableDate": "2026-01-01"
+     },
+     "version": 0,
+     "entries": 2
+    },
+    {
+     "r": "{\"ok\":false,\"reason\":\"http\",\"httpStatus\":300}",
+     "state": {
+      "count": 2,
+      "fetchedAt": 100,
+      "checkedAt": 200,
+      "tableDate": "2026-01-01"
+     },
+     "version": 0,
+     "entries": 2
+    },
+    {
+     "r": "{\"ok\":false,\"reason\":\"invalid\"}",
+     "state": {
+      "count": 2,
+      "fetchedAt": 100,
+      "checkedAt": 200,
+      "tableDate": "2026-01-01"
+     },
+     "version": 0,
+     "entries": 2
+    },
+    {
+     "r": "{\"ok\":false,\"reason\":\"invalid\"}",
+     "state": {
+      "count": 2,
+      "fetchedAt": 100,
+      "checkedAt": 200,
+      "tableDate": "2026-01-01"
+     },
+     "version": 0,
+     "entries": 2
+    },
+    {
+     "r": "{\"ok\":true,\"status\":\"updated\",\"count\":12,\"skipped\":0}",
+     "state": {
+      "count": 12,
+      "fetchedAt": 1793242804000,
+      "checkedAt": 1793242804000,
+      "tableDate": "2026-10-27"
+     },
+     "version": 1,
+     "entries": 12
+    }
+   ],
+   "saved": "{\"v\":1,\"etag\":null,\"fetchedAt\":1793242804000,\"checkedAt\":1793242804000,\"tableDate\":\"2026-10-27\",\"entries\":[{\"model\":\"gpt-x-0\",\"input\":0,\"output\":0},{\"model\":\"gpt-x-1\",\"input\":1,\"output\":2},{\"model\":\"gpt-x-2\",\"input\":2,\"output\":4},{\"model\":\"gpt-x-3\",\"input\":3,\"output\":6},{\"model\":\"gpt-x-4\",\"input\":4,\"output\":8},{\"model\":\"gpt-x-5\",\"input\":5,\"output\":10},{\"model\":\"gpt-x-6\",\"input\":6,\"output\":12},{\"model\":\"gpt-x-7\",\"input\":7,\"output\":14},{\"model\":\"gpt-x-8\",\"input\":8,\"output\":16},{\"model\":\"gpt-x-9\",\"input\":9,\"output\":18},{\"model\":\"gpt-x-10\",\"input\":10,\"output\":20},{\"model\":\"gpt-x-11\",\"input\":11,\"output\":22}]}",
+   "seen": [
+    {
+     "url": "https://models.dev/api.json",
+     "method": "GET",
+     "headers": {
+      "Accept": "application/json",
+      "Accept-Encoding": "br, gzip",
+      "If-None-Match": "W/\"abc\""
+     },
+     "redirect": "follow",
+     "credentials": "omit"
+    },
+    {
+     "url": "https://models.dev/api.json",
+     "method": "GET",
+     "headers": {
+      "Accept": "application/json",
+      "Accept-Encoding": "br, gzip",
+      "If-None-Match": "W/\"abc\""
+     },
+     "redirect": "follow",
+     "credentials": "omit"
+    },
+    {
+     "url": "https://models.dev/api.json",
+     "method": "GET",
+     "headers": {
+      "Accept": "application/json",
+      "Accept-Encoding": "br, gzip",
+      "If-None-Match": "W/\"abc\""
+     },
+     "redirect": "follow",
+     "credentials": "omit"
+    },
+    {
+     "url": "https://models.dev/api.json",
+     "method": "GET",
+     "headers": {
+      "Accept": "application/json",
+      "Accept-Encoding": "br, gzip",
+      "If-None-Match": "W/\"abc\""
+     },
+     "redirect": "follow",
+     "credentials": "omit"
+    },
+    {
+     "url": "https://models.dev/api.json",
+     "method": "GET",
+     "headers": {
+      "Accept": "application/json",
+      "Accept-Encoding": "br, gzip",
+      "If-None-Match": "W/\"abc\""
+     },
+     "redirect": "follow",
+     "credentials": "omit"
+    }
+   ],
+   "warns": 0,
+   "datas": [
+    1
+   ]
+  },
+  {
+   "name": "network",
+   "file": null,
+   "steps": [
+    {
+     "throws": true
+    }
+   ],
+   "needsFull": false,
+   "onDataThrows": false,
+   "init": {
+    "state": {
+     "count": 0,
+     "fetchedAt": 0,
+     "checkedAt": 0,
+     "tableDate": ""
+    },
+    "entries": "[]",
+    "version": 0
+   },
+   "results": [
+    {
+     "r": "{\"ok\":false,\"reason\":\"network\"}",
+     "state": {
+      "count": 0,
+      "fetchedAt": 0,
+      "checkedAt": 0,
+      "tableDate": ""
+     },
+     "version": 0,
+     "entries": 0
+    }
+   ],
+   "saved": null,
+   "seen": [
+    {
+     "url": "https://models.dev/api.json",
+     "method": "GET",
+     "headers": {
+      "Accept": "application/json",
+      "Accept-Encoding": "br, gzip"
+     },
+     "redirect": "follow",
+     "credentials": "omit"
+    }
+   ],
+   "warns": 1,
+   "datas": []
+  },
+  {
+   "name": "too-large-header",
+   "file": null,
+   "steps": [
+    {
+     "body": "{\"openai\":{\"models\":{\"gpt-x-0\":{\"id\":\"gpt-x-0\",\"cost\":{\"input\":0,\"output\":0}},\"gpt-x-1\":{\"id\":\"gpt-x-1\",\"cost\":{\"input\":1,\"output\":2}},\"gpt-x-2\":{\"id\":\"gpt-x-2\",\"cost\":{\"input\":2,\"output\":4}},\"gpt-x-3\":{\"id\":\"gpt-x-3\",\"cost\":{\"input\":3,\"output\":6}},\"gpt-x-4\":{\"id\":\"gpt-x-4\",\"cost\":{\"input\":4,\"output\":8}},\"gpt-x-5\":{\"id\":\"gpt-x-5\",\"cost\":{\"input\":5,\"output\":10}},\"gpt-x-6\":{\"id\":\"gpt-x-6\",\"cost\":{\"input\":6,\"output\":12}},\"gpt-x-7\":{\"id\":\"gpt-x-7\",\"cost\":{\"input\":7,\"output\":14}},\"gpt-x-8\":{\"id\":\"gpt-x-8\",\"cost\":{\"input\":8,\"output\":16}},\"gpt-x-9\":{\"id\":\"gpt-x-9\",\"cost\":{\"input\":9,\"output\":18}},\"gpt-x-10\":{\"id\":\"gpt-x-10\",\"cost\":{\"input\":10,\"output\":20}},\"gpt-x-11\":{\"id\":\"gpt-x-11\",\"cost\":{\"input\":11,\"output\":22}}}}}",
+     "headers": {
+      "content-length": "41943041"
+     }
+    },
+    {
+     "body": "{\"openai\":{\"models\":{\"gpt-x-0\":{\"id\":\"gpt-x-0\",\"cost\":{\"input\":0,\"output\":0}},\"gpt-x-1\":{\"id\":\"gpt-x-1\",\"cost\":{\"input\":1,\"output\":2}},\"gpt-x-2\":{\"id\":\"gpt-x-2\",\"cost\":{\"input\":2,\"output\":4}},\"gpt-x-3\":{\"id\":\"gpt-x-3\",\"cost\":{\"input\":3,\"output\":6}},\"gpt-x-4\":{\"id\":\"gpt-x-4\",\"cost\":{\"input\":4,\"output\":8}},\"gpt-x-5\":{\"id\":\"gpt-x-5\",\"cost\":{\"input\":5,\"output\":10}},\"gpt-x-6\":{\"id\":\"gpt-x-6\",\"cost\":{\"input\":6,\"output\":12}},\"gpt-x-7\":{\"id\":\"gpt-x-7\",\"cost\":{\"input\":7,\"output\":14}},\"gpt-x-8\":{\"id\":\"gpt-x-8\",\"cost\":{\"input\":8,\"output\":16}},\"gpt-x-9\":{\"id\":\"gpt-x-9\",\"cost\":{\"input\":9,\"output\":18}},\"gpt-x-10\":{\"id\":\"gpt-x-10\",\"cost\":{\"input\":10,\"output\":20}},\"gpt-x-11\":{\"id\":\"gpt-x-11\",\"cost\":{\"input\":11,\"output\":22}}}}}",
+     "headers": {
+      "content-length": "abc"
+     }
+    }
+   ],
+   "needsFull": false,
+   "onDataThrows": false,
+   "init": {
+    "state": {
+     "count": 0,
+     "fetchedAt": 0,
+     "checkedAt": 0,
+     "tableDate": ""
+    },
+    "entries": "[]",
+    "version": 0
+   },
+   "results": [
+    {
+     "r": "{\"ok\":false,\"reason\":\"too-large\"}",
+     "state": {
+      "count": 0,
+      "fetchedAt": 0,
+      "checkedAt": 0,
+      "tableDate": ""
+     },
+     "version": 0,
+     "entries": 0
+    },
+    {
+     "r": "{\"ok\":true,\"status\":\"updated\",\"count\":12,\"skipped\":0}",
+     "state": {
+      "count": 12,
+      "fetchedAt": 1793242801000,
+      "checkedAt": 1793242801000,
+      "tableDate": "2026-10-29"
+     },
+     "version": 1,
+     "entries": 12
+    }
+   ],
+   "saved": "{\"v\":1,\"etag\":null,\"fetchedAt\":1793242801000,\"checkedAt\":1793242801000,\"tableDate\":\"2026-10-29\",\"entries\":[{\"model\":\"gpt-x-0\",\"input\":0,\"output\":0},{\"model\":\"gpt-x-1\",\"input\":1,\"output\":2},{\"model\":\"gpt-x-2\",\"input\":2,\"output\":4},{\"model\":\"gpt-x-3\",\"input\":3,\"output\":6},{\"model\":\"gpt-x-4\",\"input\":4,\"output\":8},{\"model\":\"gpt-x-5\",\"input\":5,\"output\":10},{\"model\":\"gpt-x-6\",\"input\":6,\"output\":12},{\"model\":\"gpt-x-7\",\"input\":7,\"output\":14},{\"model\":\"gpt-x-8\",\"input\":8,\"output\":16},{\"model\":\"gpt-x-9\",\"input\":9,\"output\":18},{\"model\":\"gpt-x-10\",\"input\":10,\"output\":20},{\"model\":\"gpt-x-11\",\"input\":11,\"output\":22}]}",
+   "seen": [
+    {
+     "url": "https://models.dev/api.json",
+     "method": "GET",
+     "headers": {
+      "Accept": "application/json",
+      "Accept-Encoding": "br, gzip"
+     },
+     "redirect": "follow",
+     "credentials": "omit"
+    },
+    {
+     "url": "https://models.dev/api.json",
+     "method": "GET",
+     "headers": {
+      "Accept": "application/json",
+      "Accept-Encoding": "br, gzip"
+     },
+     "redirect": "follow",
+     "credentials": "omit"
+    }
+   ],
+   "warns": 0,
+   "datas": [
+    1
+   ]
+  },
+  {
+   "name": "dates",
+   "file": null,
+   "steps": [
+    {
+     "body": "{\"openai\":{\"models\":{\"gpt-x-0\":{\"id\":\"gpt-x-0\",\"cost\":{\"input\":0,\"output\":0}},\"gpt-x-1\":{\"id\":\"gpt-x-1\",\"cost\":{\"input\":1,\"output\":2}},\"gpt-x-2\":{\"id\":\"gpt-x-2\",\"cost\":{\"input\":2,\"output\":4}},\"gpt-x-3\":{\"id\":\"gpt-x-3\",\"cost\":{\"input\":3,\"output\":6}},\"gpt-x-4\":{\"id\":\"gpt-x-4\",\"cost\":{\"input\":4,\"output\":8}},\"gpt-x-5\":{\"id\":\"gpt-x-5\",\"cost\":{\"input\":5,\"output\":10}},\"gpt-x-6\":{\"id\":\"gpt-x-6\",\"cost\":{\"input\":6,\"output\":12}},\"gpt-x-7\":{\"id\":\"gpt-x-7\",\"cost\":{\"input\":7,\"output\":14}},\"gpt-x-8\":{\"id\":\"gpt-x-8\",\"cost\":{\"input\":8,\"output\":16}},\"gpt-x-9\":{\"id\":\"gpt-x-9\",\"cost\":{\"input\":9,\"output\":18}},\"gpt-x-10\":{\"id\":\"gpt-x-10\",\"cost\":{\"input\":10,\"output\":20}},\"gpt-x-11\":{\"id\":\"gpt-x-11\",\"cost\":{\"input\":11,\"output\":22}}}}}",
+     "headers": {
+      "last-modified": "garbage",
+      "date": "garbage"
+     }
+    },
+    {
+     "body": "{\"openai\":{\"models\":{\"gpt-x-0\":{\"id\":\"gpt-x-0\",\"cost\":{\"input\":0,\"output\":0}},\"gpt-x-1\":{\"id\":\"gpt-x-1\",\"cost\":{\"input\":1,\"output\":2}},\"gpt-x-2\":{\"id\":\"gpt-x-2\",\"cost\":{\"input\":2,\"output\":4}},\"gpt-x-3\":{\"id\":\"gpt-x-3\",\"cost\":{\"input\":3,\"output\":6}},\"gpt-x-4\":{\"id\":\"gpt-x-4\",\"cost\":{\"input\":4,\"output\":8}},\"gpt-x-5\":{\"id\":\"gpt-x-5\",\"cost\":{\"input\":5,\"output\":10}},\"gpt-x-6\":{\"id\":\"gpt-x-6\",\"cost\":{\"input\":6,\"output\":12}},\"gpt-x-7\":{\"id\":\"gpt-x-7\",\"cost\":{\"input\":7,\"output\":14}},\"gpt-x-8\":{\"id\":\"gpt-x-8\",\"cost\":{\"input\":8,\"output\":16}},\"gpt-x-9\":{\"id\":\"gpt-x-9\",\"cost\":{\"input\":9,\"output\":18}},\"gpt-x-10\":{\"id\":\"gpt-x-10\",\"cost\":{\"input\":10,\"output\":20}},\"gpt-x-11\":{\"id\":\"gpt-x-11\",\"cost\":{\"input\":11,\"output\":22}}}}}",
+     "headers": {
+      "last-modified": "2026-03-04"
+     }
+    },
+    {
+     "body": "{\"openai\":{\"models\":{\"gpt-x-0\":{\"id\":\"gpt-x-0\",\"cost\":{\"input\":0,\"output\":0}},\"gpt-x-1\":{\"id\":\"gpt-x-1\",\"cost\":{\"input\":1,\"output\":2}},\"gpt-x-2\":{\"id\":\"gpt-x-2\",\"cost\":{\"input\":2,\"output\":4}},\"gpt-x-3\":{\"id\":\"gpt-x-3\",\"cost\":{\"input\":3,\"output\":6}},\"gpt-x-4\":{\"id\":\"gpt-x-4\",\"cost\":{\"input\":4,\"output\":8}},\"gpt-x-5\":{\"id\":\"gpt-x-5\",\"cost\":{\"input\":5,\"output\":10}},\"gpt-x-6\":{\"id\":\"gpt-x-6\",\"cost\":{\"input\":6,\"output\":12}},\"gpt-x-7\":{\"id\":\"gpt-x-7\",\"cost\":{\"input\":7,\"output\":14}},\"gpt-x-8\":{\"id\":\"gpt-x-8\",\"cost\":{\"input\":8,\"output\":16}},\"gpt-x-9\":{\"id\":\"gpt-x-9\",\"cost\":{\"input\":9,\"output\":18}},\"gpt-x-10\":{\"id\":\"gpt-x-10\",\"cost\":{\"input\":10,\"output\":20}},\"gpt-x-11\":{\"id\":\"gpt-x-11\",\"cost\":{\"input\":11,\"output\":22}}}}}",
+     "headers": {
+      "last-modified": "March 5, 2026 23:30"
+     }
+    },
+    {
+     "body": "{\"openai\":{\"models\":{\"gpt-x-0\":{\"id\":\"gpt-x-0\",\"cost\":{\"input\":0,\"output\":0}},\"gpt-x-1\":{\"id\":\"gpt-x-1\",\"cost\":{\"input\":1,\"output\":2}},\"gpt-x-2\":{\"id\":\"gpt-x-2\",\"cost\":{\"input\":2,\"output\":4}},\"gpt-x-3\":{\"id\":\"gpt-x-3\",\"cost\":{\"input\":3,\"output\":6}},\"gpt-x-4\":{\"id\":\"gpt-x-4\",\"cost\":{\"input\":4,\"output\":8}},\"gpt-x-5\":{\"id\":\"gpt-x-5\",\"cost\":{\"input\":5,\"output\":10}},\"gpt-x-6\":{\"id\":\"gpt-x-6\",\"cost\":{\"input\":6,\"output\":12}},\"gpt-x-7\":{\"id\":\"gpt-x-7\",\"cost\":{\"input\":7,\"output\":14}},\"gpt-x-8\":{\"id\":\"gpt-x-8\",\"cost\":{\"input\":8,\"output\":16}},\"gpt-x-9\":{\"id\":\"gpt-x-9\",\"cost\":{\"input\":9,\"output\":18}},\"gpt-x-10\":{\"id\":\"gpt-x-10\",\"cost\":{\"input\":10,\"output\":20}},\"gpt-x-11\":{\"id\":\"gpt-x-11\",\"cost\":{\"input\":11,\"output\":22}}}}}",
+     "headers": {
+      "etag": ""
+     }
+    }
+   ],
+   "needsFull": false,
+   "onDataThrows": false,
+   "init": {
+    "state": {
+     "count": 0,
+     "fetchedAt": 0,
+     "checkedAt": 0,
+     "tableDate": ""
+    },
+    "entries": "[]",
+    "version": 0
+   },
+   "results": [
+    {
+     "r": "{\"ok\":true,\"status\":\"updated\",\"count\":12,\"skipped\":0}",
+     "state": {
+      "count": 12,
+      "fetchedAt": 1793242800000,
+      "checkedAt": 1793242800000,
+      "tableDate": "2026-10-29"
+     },
+     "version": 1,
+     "entries": 12
+    },
+    {
+     "r": "{\"ok\":true,\"status\":\"updated\",\"count\":12,\"skipped\":0}",
+     "state": {
+      "count": 12,
+      "fetchedAt": 1793242801000,
+      "checkedAt": 1793242801000,
+      "tableDate": "2026-03-04"
+     },
+     "version": 2,
+     "entries": 12
+    },
+    {
+     "r": "{\"ok\":true,\"status\":\"updated\",\"count\":12,\"skipped\":0}",
+     "state": {
+      "count": 12,
+      "fetchedAt": 1793242802000,
+      "checkedAt": 1793242802000,
+      "tableDate": "2026-03-06"
+     },
+     "version": 3,
+     "entries": 12
+    },
+    {
+     "r": "{\"ok\":true,\"status\":\"updated\",\"count\":12,\"skipped\":0}",
+     "state": {
+      "count": 12,
+      "fetchedAt": 1793242803000,
+      "checkedAt": 1793242803000,
+      "tableDate": "2026-10-29"
+     },
+     "version": 4,
+     "entries": 12
+    }
+   ],
+   "saved": "{\"v\":1,\"etag\":null,\"fetchedAt\":1793242803000,\"checkedAt\":1793242803000,\"tableDate\":\"2026-10-29\",\"entries\":[{\"model\":\"gpt-x-0\",\"input\":0,\"output\":0},{\"model\":\"gpt-x-1\",\"input\":1,\"output\":2},{\"model\":\"gpt-x-2\",\"input\":2,\"output\":4},{\"model\":\"gpt-x-3\",\"input\":3,\"output\":6},{\"model\":\"gpt-x-4\",\"input\":4,\"output\":8},{\"model\":\"gpt-x-5\",\"input\":5,\"output\":10},{\"model\":\"gpt-x-6\",\"input\":6,\"output\":12},{\"model\":\"gpt-x-7\",\"input\":7,\"output\":14},{\"model\":\"gpt-x-8\",\"input\":8,\"output\":16},{\"model\":\"gpt-x-9\",\"input\":9,\"output\":18},{\"model\":\"gpt-x-10\",\"input\":10,\"output\":20},{\"model\":\"gpt-x-11\",\"input\":11,\"output\":22}]}",
+   "seen": [
+    {
+     "url": "https://models.dev/api.json",
+     "method": "GET",
+     "headers": {
+      "Accept": "application/json",
+      "Accept-Encoding": "br, gzip"
+     },
+     "redirect": "follow",
+     "credentials": "omit"
+    },
+    {
+     "url": "https://models.dev/api.json",
+     "method": "GET",
+     "headers": {
+      "Accept": "application/json",
+      "Accept-Encoding": "br, gzip"
+     },
+     "redirect": "follow",
+     "credentials": "omit"
+    },
+    {
+     "url": "https://models.dev/api.json",
+     "method": "GET",
+     "headers": {
+      "Accept": "application/json",
+      "Accept-Encoding": "br, gzip"
+     },
+     "redirect": "follow",
+     "credentials": "omit"
+    },
+    {
+     "url": "https://models.dev/api.json",
+     "method": "GET",
+     "headers": {
+      "Accept": "application/json",
+      "Accept-Encoding": "br, gzip"
+     },
+     "redirect": "follow",
+     "credentials": "omit"
+    }
+   ],
+   "warns": 0,
+   "datas": [
+    1,
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "name": "ondata-throws",
+   "file": null,
+   "steps": [
+    {
+     "body": "{\"openai\":{\"models\":{\"gpt-x-0\":{\"id\":\"gpt-x-0\",\"cost\":{\"input\":0,\"output\":0}},\"gpt-x-1\":{\"id\":\"gpt-x-1\",\"cost\":{\"input\":1,\"output\":2}},\"gpt-x-2\":{\"id\":\"gpt-x-2\",\"cost\":{\"input\":2,\"output\":4}},\"gpt-x-3\":{\"id\":\"gpt-x-3\",\"cost\":{\"input\":3,\"output\":6}},\"gpt-x-4\":{\"id\":\"gpt-x-4\",\"cost\":{\"input\":4,\"output\":8}},\"gpt-x-5\":{\"id\":\"gpt-x-5\",\"cost\":{\"input\":5,\"output\":10}},\"gpt-x-6\":{\"id\":\"gpt-x-6\",\"cost\":{\"input\":6,\"output\":12}},\"gpt-x-7\":{\"id\":\"gpt-x-7\",\"cost\":{\"input\":7,\"output\":14}},\"gpt-x-8\":{\"id\":\"gpt-x-8\",\"cost\":{\"input\":8,\"output\":16}},\"gpt-x-9\":{\"id\":\"gpt-x-9\",\"cost\":{\"input\":9,\"output\":18}},\"gpt-x-10\":{\"id\":\"gpt-x-10\",\"cost\":{\"input\":10,\"output\":20}},\"gpt-x-11\":{\"id\":\"gpt-x-11\",\"cost\":{\"input\":11,\"output\":22}}}}}"
+    }
+   ],
+   "needsFull": false,
+   "onDataThrows": true,
+   "init": {
+    "state": {
+     "count": 0,
+     "fetchedAt": 0,
+     "checkedAt": 0,
+     "tableDate": ""
+    },
+    "entries": "[]",
+    "version": 0
+   },
+   "results": [
+    {
+     "r": "{\"ok\":true,\"status\":\"updated\",\"count\":12,\"skipped\":0}",
+     "state": {
+      "count": 12,
+      "fetchedAt": 1793242800000,
+      "checkedAt": 1793242800000,
+      "tableDate": "2026-10-29"
+     },
+     "version": 1,
+     "entries": 12
+    }
+   ],
+   "saved": "{\"v\":1,\"etag\":null,\"fetchedAt\":1793242800000,\"checkedAt\":1793242800000,\"tableDate\":\"2026-10-29\",\"entries\":[{\"model\":\"gpt-x-0\",\"input\":0,\"output\":0},{\"model\":\"gpt-x-1\",\"input\":1,\"output\":2},{\"model\":\"gpt-x-2\",\"input\":2,\"output\":4},{\"model\":\"gpt-x-3\",\"input\":3,\"output\":6},{\"model\":\"gpt-x-4\",\"input\":4,\"output\":8},{\"model\":\"gpt-x-5\",\"input\":5,\"output\":10},{\"model\":\"gpt-x-6\",\"input\":6,\"output\":12},{\"model\":\"gpt-x-7\",\"input\":7,\"output\":14},{\"model\":\"gpt-x-8\",\"input\":8,\"output\":16},{\"model\":\"gpt-x-9\",\"input\":9,\"output\":18},{\"model\":\"gpt-x-10\",\"input\":10,\"output\":20},{\"model\":\"gpt-x-11\",\"input\":11,\"output\":22}]}",
+   "seen": [
+    {
+     "url": "https://models.dev/api.json",
+     "method": "GET",
+     "headers": {
+      "Accept": "application/json",
+      "Accept-Encoding": "br, gzip"
+     },
+     "redirect": "follow",
+     "credentials": "omit"
+    }
+   ],
+   "warns": 1,
+   "datas": [
+    1
+   ]
+  },
+  {
+   "name": "bad-file",
+   "file": "{bad",
+   "steps": [],
+   "needsFull": false,
+   "onDataThrows": false,
+   "init": {
+    "state": {
+     "count": 0,
+     "fetchedAt": 0,
+     "checkedAt": 0,
+     "tableDate": ""
+    },
+    "entries": "[]",
+    "version": 0
+   },
+   "results": [],
+   "saved": "{bad",
+   "seen": [],
+   "warns": 0,
+   "datas": []
+  },
+  {
+   "name": "file-empty-entries",
+   "file": "{\"entries\":[],\"etag\":\"x\"}",
+   "steps": [],
+   "needsFull": false,
+   "onDataThrows": false,
+   "init": {
+    "state": {
+     "count": 0,
+     "fetchedAt": 0,
+     "checkedAt": 0,
+     "tableDate": ""
+    },
+    "entries": "[]",
+    "version": 0
+   },
+   "results": [],
+   "saved": "{\"entries\":[],\"etag\":\"x\"}",
+   "seen": [],
+   "warns": 0,
+   "datas": []
+  },
+  {
+   "name": "file-odd",
+   "file": "{\"etag\":\"\",\"fetchedAt\":-5,\"checkedAt\":\"x\",\"tableDate\":7,\"entries\":[{\"model\":\"a\",\"input\":1,\"output\":1}]}",
+   "steps": [
+    {
+     "status": 304
+    }
+   ],
+   "needsFull": false,
+   "onDataThrows": false,
+   "init": {
+    "state": {
+     "count": 1,
+     "fetchedAt": 0,
+     "checkedAt": 0,
+     "tableDate": ""
+    },
+    "entries": "[{\"model\":\"a\",\"input\":1,\"output\":1}]",
+    "version": 0
+   },
+   "results": [
+    {
+     "r": "{\"ok\":true,\"status\":\"not-modified\",\"count\":1,\"skipped\":0}",
+     "state": {
+      "count": 1,
+      "fetchedAt": 0,
+      "checkedAt": 1793242800000,
+      "tableDate": ""
+     },
+     "version": 1,
+     "entries": 1
+    }
+   ],
+   "saved": "{\"v\":1,\"etag\":null,\"fetchedAt\":0,\"checkedAt\":1793242800000,\"tableDate\":\"\",\"entries\":[{\"model\":\"a\",\"input\":1,\"output\":1}]}",
+   "seen": [
+    {
+     "url": "https://models.dev/api.json",
+     "method": "GET",
+     "headers": {
+      "Accept": "application/json",
+      "Accept-Encoding": "br, gzip"
+     },
+     "redirect": "follow",
+     "credentials": "omit"
+    }
+   ],
+   "warns": 0,
+   "datas": []
+  },
+  {
+   "name": "file-bom",
+   "file": "﻿{\"v\":1,\"etag\":\"W/\\\"abc\\\"\",\"fetchedAt\":100,\"checkedAt\":200,\"tableDate\":\"2026-01-01\",\"entries\":[{\"model\":\"gpt-x-0\",\"input\":0,\"output\":0},{\"model\":\"z\",\"input\":1,\"output\":1,\"label\":\"Z\"}]}",
+   "steps": [],
+   "needsFull": false,
+   "onDataThrows": false,
+   "init": {
+    "state": {
+     "count": 0,
+     "fetchedAt": 0,
+     "checkedAt": 0,
+     "tableDate": ""
+    },
+    "entries": "[]",
+    "version": 0
+   },
+   "results": [],
+   "saved": "﻿{\"v\":1,\"etag\":\"W/\\\"abc\\\"\",\"fetchedAt\":100,\"checkedAt\":200,\"tableDate\":\"2026-01-01\",\"entries\":[{\"model\":\"gpt-x-0\",\"input\":0,\"output\":0},{\"model\":\"z\",\"input\":1,\"output\":1,\"label\":\"Z\"}]}",
+   "seen": [],
+   "warns": 0,
+   "datas": []
+  },
+  {
+   "name": "body-bom",
+   "file": null,
+   "steps": [
+    {
+     "body": "﻿{\"openai\":{\"models\":{\"gpt-x-0\":{\"id\":\"gpt-x-0\",\"cost\":{\"input\":0,\"output\":0}},\"gpt-x-1\":{\"id\":\"gpt-x-1\",\"cost\":{\"input\":1,\"output\":2}},\"gpt-x-2\":{\"id\":\"gpt-x-2\",\"cost\":{\"input\":2,\"output\":4}},\"gpt-x-3\":{\"id\":\"gpt-x-3\",\"cost\":{\"input\":3,\"output\":6}},\"gpt-x-4\":{\"id\":\"gpt-x-4\",\"cost\":{\"input\":4,\"output\":8}},\"gpt-x-5\":{\"id\":\"gpt-x-5\",\"cost\":{\"input\":5,\"output\":10}},\"gpt-x-6\":{\"id\":\"gpt-x-6\",\"cost\":{\"input\":6,\"output\":12}},\"gpt-x-7\":{\"id\":\"gpt-x-7\",\"cost\":{\"input\":7,\"output\":14}},\"gpt-x-8\":{\"id\":\"gpt-x-8\",\"cost\":{\"input\":8,\"output\":16}},\"gpt-x-9\":{\"id\":\"gpt-x-9\",\"cost\":{\"input\":9,\"output\":18}},\"gpt-x-10\":{\"id\":\"gpt-x-10\",\"cost\":{\"input\":10,\"output\":20}},\"gpt-x-11\":{\"id\":\"gpt-x-11\",\"cost\":{\"input\":11,\"output\":22}}}}}"
+    }
+   ],
+   "needsFull": false,
+   "onDataThrows": false,
+   "init": {
+    "state": {
+     "count": 0,
+     "fetchedAt": 0,
+     "checkedAt": 0,
+     "tableDate": ""
+    },
+    "entries": "[]",
+    "version": 0
+   },
+   "results": [
+    {
+     "r": "{\"ok\":false,\"reason\":\"invalid\"}",
+     "state": {
+      "count": 0,
+      "fetchedAt": 0,
+      "checkedAt": 0,
+      "tableDate": ""
+     },
+     "version": 0,
+     "entries": 0
+    }
+   ],
+   "saved": null,
+   "seen": [
+    {
+     "url": "https://models.dev/api.json",
+     "method": "GET",
+     "headers": {
+      "Accept": "application/json",
+      "Accept-Encoding": "br, gzip"
+     },
+     "redirect": "follow",
+     "credentials": "omit"
+    }
+   ],
+   "warns": 0,
+   "datas": []
+  }
+ ]
+}
