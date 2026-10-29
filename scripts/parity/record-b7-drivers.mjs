@@ -91,4 +91,5 @@ if (process.env.NOMI_GOLDEN_DIR) {
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s.mjs')], { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s-reader.mjs')], { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s-update.mjs')], { stdio: 'inherit', cwd: root });
+  execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s-agents.mjs')], { stdio: 'inherit', cwd: root });
 }
