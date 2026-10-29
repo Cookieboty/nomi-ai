@@ -1,0 +1,1607 @@
+{
+  "cases": [
+    {
+      "name": "claude:start-send-resume",
+      "turns": [
+        {
+          "ok": {
+            "text": "【Mock Claude】已收到，并完成演示回复。",
+            "sessionId": "mock-claude-session-1",
+            "events": [
+              {
+                "type": "text",
+                "text": "【Mock Claude】已收到，并完成演示回复。"
+              },
+              {
+                "type": "done",
+                "text": "【Mock Claude】已收到，并完成演示回复。",
+                "sessionId": "mock-claude-session-1",
+                "usage": {
+                  "inputTokens": 1200,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 800,
+                  "costUsd": 0.0123,
+                  "durationMs": "<N>",
+                  "model": "mock-claude"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "ok": {
+            "text": "【Mock Claude】已收到，并完成演示回复。",
+            "sessionId": "mock-claude-session-1",
+            "events": [
+              {
+                "type": "text",
+                "text": "【Mock Claude】已收到，并完成演示回复。"
+              },
+              {
+                "type": "done",
+                "text": "【Mock Claude】已收到，并完成演示回复。",
+                "sessionId": "mock-claude-session-1",
+                "usage": {
+                  "inputTokens": 1200,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 800,
+                  "costUsd": 0.0123,
+                  "durationMs": "<N>",
+                  "model": "mock-claude"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "evTypes": [
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "text"
+        ],
+        [
+          "event",
+          "done"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "text"
+        ],
+        [
+          "event",
+          "done"
+        ]
+      ],
+      "tab": {
+        "cliSessionId": "mock-claude-session-1",
+        "permissionMode": "default"
+      }
+    },
+    {
+      "name": "claude:tools",
+      "turns": [
+        {
+          "ok": {
+            "text": "【Mock Claude】已收到，并完成演示回复。",
+            "sessionId": "mock-claude-session-1",
+            "events": [
+              {
+                "type": "tool",
+                "name": "Bash",
+                "status": "start",
+                "detail": "mock-tu-1",
+                "input": "{\"command\":\"echo hi\"}",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "tool",
+                "name": "Bash",
+                "status": "done",
+                "detail": "mock-tu-1",
+                "output": "hi",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "text",
+                "text": "【Mock Claude】已收到，并完成演示回复。"
+              },
+              {
+                "type": "done",
+                "text": "【Mock Claude】已收到，并完成演示回复。",
+                "sessionId": "mock-claude-session-1",
+                "usage": {
+                  "inputTokens": 1200,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 800,
+                  "costUsd": 0.0123,
+                  "durationMs": "<N>",
+                  "model": "mock-claude"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "evTypes": [
+        [
+          "event",
+          "tool"
+        ],
+        [
+          "event",
+          "tool"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "text"
+        ],
+        [
+          "event",
+          "done"
+        ]
+      ],
+      "tab": {
+        "cliSessionId": "mock-claude-session-1",
+        "permissionMode": "default"
+      }
+    },
+    {
+      "name": "claude:permission-bypass",
+      "turns": [
+        {
+          "ok": {
+            "text": "【Mock Claude】已收到，并完成演示回复。",
+            "sessionId": "mock-claude-session-1",
+            "events": [
+              {
+                "type": "permission",
+                "id": "mock-perm-1",
+                "summary": "Bash: echo mock-permission",
+                "toolName": "Bash",
+                "expiresAt": "<N>"
+              },
+              {
+                "type": "text",
+                "text": "【Mock Claude】已收到，并完成演示回复。"
+              },
+              {
+                "type": "done",
+                "text": "【Mock Claude】已收到，并完成演示回复。",
+                "sessionId": "mock-claude-session-1",
+                "usage": {
+                  "inputTokens": 1200,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 800,
+                  "costUsd": 0.0123,
+                  "durationMs": "<N>",
+                  "model": "mock-claude"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "evTypes": [
+        [
+          "event",
+          "permission"
+        ],
+        [
+          "event",
+          "permission-resolved"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "text"
+        ],
+        [
+          "event",
+          "done"
+        ]
+      ],
+      "tab": {
+        "cliSessionId": "mock-claude-session-1",
+        "permissionMode": "bypass"
+      }
+    },
+    {
+      "name": "claude:fail",
+      "turns": [
+        {
+          "err": "Mock: 429 rate limit exceeded"
+        }
+      ],
+      "evTypes": [
+        [
+          "event",
+          "error"
+        ]
+      ],
+      "tab": {
+        "cliSessionId": null,
+        "permissionMode": "default"
+      }
+    },
+    {
+      "name": "claude:exit-mid",
+      "turns": [
+        {
+          "ok": {
+            "text": "【Mock Cl",
+            "sessionId": null,
+            "events": []
+          }
+        }
+      ],
+      "evTypes": [
+        [
+          "event",
+          "text-delta"
+        ]
+      ],
+      "tab": {
+        "cliSessionId": null,
+        "permissionMode": "default"
+      }
+    },
+    {
+      "name": "claude:cancel",
+      "turns": [
+        {
+          "err": "error_during_execution"
+        }
+      ],
+      "tab": {
+        "cliSessionId": null,
+        "permissionMode": "default"
+      }
+    },
+    {
+      "name": "gemini:start-send-resume",
+      "turns": [
+        {
+          "ok": {
+            "text": "Mock Gemini: hello",
+            "sessionId": "gem-<U>",
+            "events": [
+              {
+                "type": "thinking",
+                "text": "Thinking…",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "done",
+                "text": "Mock Gemini: hello",
+                "sessionId": "gem-<U>",
+                "usage": {
+                  "inputTokens": 12,
+                  "outputTokens": 5
+                }
+              }
+            ]
+          }
+        },
+        {
+          "ok": {
+            "text": "Mock Gemini: again",
+            "sessionId": "gem-<U>",
+            "events": [
+              {
+                "type": "thinking",
+                "text": "Thinking…",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "done",
+                "text": "Mock Gemini: again",
+                "sessionId": "gem-<U>",
+                "usage": {
+                  "inputTokens": 12,
+                  "outputTokens": 5
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "evTypes": [
+        [
+          "event",
+          "thinking"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "done"
+        ],
+        [
+          "event",
+          "thinking"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "done"
+        ]
+      ],
+      "tab": {
+        "cliSessionId": "gem-<U>",
+        "permissionMode": "default"
+      }
+    },
+    {
+      "name": "gemini:permission-bypass",
+      "turns": [
+        {
+          "ok": {
+            "text": "Mock Gemini: perm",
+            "sessionId": "gem-<U>",
+            "events": [
+              {
+                "type": "thinking",
+                "text": "Thinking…",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "tool",
+                "name": "edit",
+                "status": "start",
+                "detail": "tc-1",
+                "input": "{\"description\":\"Write file\",\"path\":\"a.txt\"}",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "permission",
+                "id": "gemini-perm-<U>",
+                "summary": "Write file: a.txt",
+                "expiresAt": "<N>"
+              },
+              {
+                "type": "tool",
+                "name": "edit",
+                "status": "done",
+                "detail": "tc-1",
+                "input": "{}",
+                "output": "written",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "done",
+                "text": "Mock Gemini: perm",
+                "sessionId": "gem-<U>",
+                "usage": {
+                  "inputTokens": 12,
+                  "outputTokens": 5
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "evTypes": [
+        [
+          "event",
+          "thinking"
+        ],
+        [
+          "event",
+          "tool"
+        ],
+        [
+          "event",
+          "permission"
+        ],
+        [
+          "event",
+          "permission-resolved"
+        ],
+        [
+          "event",
+          "tool"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "done"
+        ]
+      ],
+      "tab": {
+        "cliSessionId": "gem-<U>",
+        "permissionMode": "bypass"
+      }
+    },
+    {
+      "name": "gemini:no-acp",
+      "turns": [
+        {
+          "err": "Gemini CLI 没能启动 ACP 会话，可能版本过旧。请在「编程助手 → Gemini」里更新后再试。"
+        }
+      ],
+      "evTypes": [],
+      "tab": {
+        "cliSessionId": null,
+        "permissionMode": "default"
+      }
+    },
+    {
+      "name": "gemini:untrusted",
+      "turns": [
+        {
+          "err": "Gemini CLI 不信任当前文件夹（<T>/work），已拒绝在这里运行。可以点下方「信任此文件夹」，或在终端里进入该文件夹运行一次 `gemini` 并选择信任，然后重试。",
+          "name": "GeminiUntrustedError"
+        }
+      ],
+      "evTypes": [],
+      "tab": {
+        "cliSessionId": null,
+        "permissionMode": "default"
+      }
+    },
+    {
+      "name": "grok:acp",
+      "turns": [
+        {
+          "ok": {
+            "text": "【Mock Grok】acp new nokey: hello",
+            "sessionId": "session-mock-grok-1",
+            "events": [
+              {
+                "type": "thinking",
+                "text": "thinking…",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "tool",
+                "name": "read_file",
+                "status": "start",
+                "detail": "call-1",
+                "input": "{\"target_file\":\"README.md\"}",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "tool",
+                "name": "read_file",
+                "status": "done",
+                "detail": "call-1",
+                "input": "{}",
+                "output": "1→# Mock",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "done",
+                "text": "【Mock Grok】acp new nokey: hello",
+                "sessionId": "session-mock-grok-1",
+                "usage": {
+                  "inputTokens": 12,
+                  "outputTokens": 9,
+                  "cacheReadTokens": 3
+                }
+              }
+            ]
+          }
+        },
+        {
+          "ok": {
+            "text": "【Mock Grok】acp new nokey: again",
+            "sessionId": "session-mock-grok-1",
+            "events": [
+              {
+                "type": "thinking",
+                "text": "thinking…",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "tool",
+                "name": "read_file",
+                "status": "start",
+                "detail": "call-1",
+                "input": "{\"target_file\":\"README.md\"}",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "tool",
+                "name": "read_file",
+                "status": "done",
+                "detail": "call-1",
+                "input": "{}",
+                "output": "1→# Mock",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "done",
+                "text": "【Mock Grok】acp new nokey: again",
+                "sessionId": "session-mock-grok-1",
+                "usage": {
+                  "inputTokens": 12,
+                  "outputTokens": 9,
+                  "cacheReadTokens": 3
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "evTypes": [
+        [
+          "event",
+          "thinking"
+        ],
+        [
+          "event",
+          "tool"
+        ],
+        [
+          "event",
+          "tool"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "done"
+        ],
+        [
+          "event",
+          "thinking"
+        ],
+        [
+          "event",
+          "tool"
+        ],
+        [
+          "event",
+          "tool"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "done"
+        ]
+      ],
+      "tab": {
+        "cliSessionId": "session-mock-grok-1",
+        "permissionMode": "default"
+      }
+    },
+    {
+      "name": "grok:acp-fallback-p",
+      "turns": [
+        {
+          "ok": {
+            "text": "【Mock Grok】new nokey: hello",
+            "sessionId": "session-mock-grok-1",
+            "events": [
+              {
+                "type": "thinking",
+                "text": "thinking…",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "tool",
+                "name": "read_file",
+                "status": "start",
+                "detail": "call_1",
+                "input": "{\"path\":\"README.md\"}",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "tool",
+                "name": "read_file",
+                "status": "done",
+                "detail": "call_1",
+                "output": "{\"lines\":1}",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "context",
+                "tokens": 21
+              },
+              {
+                "type": "done",
+                "text": "",
+                "usage": {
+                  "inputTokens": 12,
+                  "outputTokens": 9,
+                  "cacheReadTokens": 0,
+                  "contextTokens": 21
+                }
+              },
+              {
+                "type": "done",
+                "text": "",
+                "sessionId": "session-mock-grok-1",
+                "usage": {
+                  "inputTokens": 12,
+                  "outputTokens": 9,
+                  "cacheReadTokens": 0
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "evTypes": [
+        [
+          "event",
+          "thinking"
+        ],
+        [
+          "event",
+          "tool"
+        ],
+        [
+          "event",
+          "tool"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "context"
+        ],
+        [
+          "event",
+          "done"
+        ],
+        [
+          "event",
+          "done"
+        ]
+      ],
+      "tab": {
+        "cliSessionId": "session-mock-grok-1",
+        "permissionMode": "default"
+      }
+    },
+    {
+      "name": "grok:p",
+      "turns": [
+        {
+          "ok": {
+            "text": "【Mock Grok】new nokey: hello",
+            "sessionId": "session-mock-grok-1",
+            "events": [
+              {
+                "type": "thinking",
+                "text": "thinking…",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "tool",
+                "name": "read_file",
+                "status": "start",
+                "detail": "call_1",
+                "input": "{\"path\":\"README.md\"}",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "tool",
+                "name": "read_file",
+                "status": "done",
+                "detail": "call_1",
+                "output": "{\"lines\":1}",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "context",
+                "tokens": 21
+              },
+              {
+                "type": "done",
+                "text": "",
+                "usage": {
+                  "inputTokens": 12,
+                  "outputTokens": 9,
+                  "cacheReadTokens": 0,
+                  "contextTokens": 21
+                }
+              },
+              {
+                "type": "done",
+                "text": "",
+                "sessionId": "session-mock-grok-1",
+                "usage": {
+                  "inputTokens": 12,
+                  "outputTokens": 9,
+                  "cacheReadTokens": 0
+                }
+              }
+            ]
+          }
+        },
+        {
+          "ok": {
+            "text": "【Mock Grok】resumed nokey: -dash",
+            "sessionId": "session-mock-grok-1",
+            "events": [
+              {
+                "type": "thinking",
+                "text": "thinking…",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "tool",
+                "name": "read_file",
+                "status": "start",
+                "detail": "call_1",
+                "input": "{\"path\":\"README.md\"}",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "tool",
+                "name": "read_file",
+                "status": "done",
+                "detail": "call_1",
+                "output": "{\"lines\":1}",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "context",
+                "tokens": 21
+              },
+              {
+                "type": "done",
+                "text": "",
+                "usage": {
+                  "inputTokens": 12,
+                  "outputTokens": 9,
+                  "cacheReadTokens": 0,
+                  "contextTokens": 21
+                }
+              },
+              {
+                "type": "done",
+                "text": "",
+                "sessionId": "session-mock-grok-1",
+                "usage": {
+                  "inputTokens": 12,
+                  "outputTokens": 9,
+                  "cacheReadTokens": 0
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "evTypes": [
+        [
+          "event",
+          "thinking"
+        ],
+        [
+          "event",
+          "tool"
+        ],
+        [
+          "event",
+          "tool"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "context"
+        ],
+        [
+          "event",
+          "done"
+        ],
+        [
+          "event",
+          "done"
+        ],
+        [
+          "event",
+          "thinking"
+        ],
+        [
+          "event",
+          "tool"
+        ],
+        [
+          "event",
+          "tool"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "context"
+        ],
+        [
+          "event",
+          "done"
+        ],
+        [
+          "event",
+          "done"
+        ]
+      ],
+      "tab": {
+        "cliSessionId": "session-mock-grok-1",
+        "permissionMode": "default"
+      }
+    },
+    {
+      "name": "codex:exec",
+      "turns": [
+        {
+          "ok": {
+            "text": "【Mock Codex】任务完成。",
+            "sessionId": "mock-codex-thread-1",
+            "events": [
+              {
+                "type": "done",
+                "text": "",
+                "sessionId": "mock-codex-thread-1"
+              },
+              {
+                "type": "text",
+                "text": "【Mock Codex】任务完成。"
+              },
+              {
+                "type": "done",
+                "text": "【Mock Codex】任务完成。"
+              },
+              {
+                "type": "done",
+                "text": "",
+                "usage": {
+                  "inputTokens": 10,
+                  "outputTokens": 8
+                }
+              }
+            ]
+          }
+        },
+        {
+          "ok": {
+            "text": "【Mock Codex】任务完成。",
+            "sessionId": "mock-codex-thread-1",
+            "events": [
+              {
+                "type": "done",
+                "text": "",
+                "sessionId": "mock-codex-thread-1"
+              },
+              {
+                "type": "text",
+                "text": "【Mock Codex】任务完成。"
+              },
+              {
+                "type": "done",
+                "text": "【Mock Codex】任务完成。"
+              },
+              {
+                "type": "done",
+                "text": "",
+                "usage": {
+                  "inputTokens": 10,
+                  "outputTokens": 8
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "evTypes": [
+        [
+          "event",
+          "done"
+        ],
+        [
+          "event",
+          "text"
+        ],
+        [
+          "event",
+          "done"
+        ],
+        [
+          "event",
+          "done"
+        ],
+        [
+          "event",
+          "done"
+        ],
+        [
+          "event",
+          "text"
+        ],
+        [
+          "event",
+          "done"
+        ],
+        [
+          "event",
+          "done"
+        ]
+      ],
+      "tab": {
+        "cliSessionId": "mock-codex-thread-1",
+        "permissionMode": "default"
+      }
+    },
+    {
+      "name": "codex:exec-fail",
+      "turns": [
+        {
+          "ok": {
+            "text": "【Mock Codex】任务完成。",
+            "sessionId": "mock-codex-thread-1",
+            "events": [
+              {
+                "type": "done",
+                "text": "",
+                "sessionId": "mock-codex-thread-1"
+              },
+              {
+                "type": "text",
+                "text": "【Mock Codex】任务完成。"
+              },
+              {
+                "type": "done",
+                "text": "【Mock Codex】任务完成。"
+              },
+              {
+                "type": "done",
+                "text": "",
+                "usage": {
+                  "inputTokens": 10,
+                  "outputTokens": 8
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "evTypes": [
+        [
+          "event",
+          "done"
+        ],
+        [
+          "event",
+          "text"
+        ],
+        [
+          "event",
+          "done"
+        ],
+        [
+          "event",
+          "done"
+        ]
+      ],
+      "tab": {
+        "cliSessionId": "mock-codex-thread-1",
+        "permissionMode": "default"
+      }
+    },
+    {
+      "name": "codex:app",
+      "turns": [
+        {
+          "ok": {
+            "text": "【Mock Codex】任务完成。",
+            "sessionId": "mock-codex-thread-1",
+            "events": [
+              {
+                "type": "thinking",
+                "text": "thinking…",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "tool",
+                "name": "bash",
+                "status": "start",
+                "detail": "ls",
+                "id": "cmd-turn-1",
+                "input": "{\"command\":\"ls\"}",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "tool",
+                "name": "bash",
+                "status": "done",
+                "detail": "ls",
+                "id": "cmd-turn-1",
+                "input": "{\"command\":\"ls\"}",
+                "output": "a.txt",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "text",
+                "text": "【Mock Codex】任务完成。"
+              },
+              {
+                "type": "done",
+                "text": "【Mock Codex】任务完成。",
+                "sessionId": "mock-codex-thread-1",
+                "usage": {
+                  "inputTokens": 10,
+                  "outputTokens": 8,
+                  "cacheReadTokens": 2
+                }
+              }
+            ]
+          }
+        },
+        {
+          "ok": {
+            "text": "【Mock Codex】任务完成。",
+            "sessionId": "mock-codex-thread-1",
+            "events": [
+              {
+                "type": "thinking",
+                "text": "thinking…",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "tool",
+                "name": "bash",
+                "status": "start",
+                "detail": "ls",
+                "id": "cmd-turn-2",
+                "input": "{\"command\":\"ls\"}",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "tool",
+                "name": "bash",
+                "status": "done",
+                "detail": "ls",
+                "id": "cmd-turn-2",
+                "input": "{\"command\":\"ls\"}",
+                "output": "a.txt",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "text",
+                "text": "【Mock Codex】任务完成。"
+              },
+              {
+                "type": "done",
+                "text": "【Mock Codex】任务完成。",
+                "sessionId": "mock-codex-thread-1",
+                "usage": {
+                  "inputTokens": 10,
+                  "outputTokens": 8,
+                  "cacheReadTokens": 2
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "evTypes": [
+        [
+          "event",
+          "thinking"
+        ],
+        [
+          "event",
+          "tool"
+        ],
+        [
+          "event",
+          "tool"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "text"
+        ],
+        [
+          "event",
+          "done"
+        ],
+        [
+          "event",
+          "thinking"
+        ],
+        [
+          "event",
+          "tool"
+        ],
+        [
+          "event",
+          "tool"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "text"
+        ],
+        [
+          "event",
+          "done"
+        ]
+      ],
+      "tab": {
+        "cliSessionId": "mock-codex-thread-1",
+        "permissionMode": "default"
+      }
+    },
+    {
+      "name": "codex:app-perm-bypass",
+      "turns": [
+        {
+          "ok": {
+            "text": "【Mock Codex】任务完成。",
+            "sessionId": "mock-codex-thread-1",
+            "events": [
+              {
+                "type": "thinking",
+                "text": "thinking…",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "tool",
+                "name": "bash",
+                "status": "start",
+                "detail": "ls",
+                "id": "cmd-turn-1",
+                "input": "{\"command\":\"ls\"}",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "tool",
+                "name": "bash",
+                "status": "done",
+                "detail": "ls",
+                "id": "cmd-turn-1",
+                "input": "{\"command\":\"ls\"}",
+                "output": "a.txt",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "text",
+                "text": "【Mock Codex】任务完成。"
+              },
+              {
+                "type": "done",
+                "text": "【Mock Codex】任务完成。",
+                "sessionId": "mock-codex-thread-1",
+                "usage": {
+                  "inputTokens": 10,
+                  "outputTokens": 8,
+                  "cacheReadTokens": 2
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "evTypes": [
+        [
+          "event",
+          "thinking"
+        ],
+        [
+          "event",
+          "tool"
+        ],
+        [
+          "event",
+          "tool"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "text-delta"
+        ],
+        [
+          "event",
+          "text"
+        ],
+        [
+          "event",
+          "done"
+        ]
+      ],
+      "tab": {
+        "cliSessionId": "mock-codex-thread-1",
+        "permissionMode": "bypass"
+      }
+    },
+    {
+      "name": "codex:app-fallback-exec",
+      "turns": [
+        {
+          "ok": {
+            "text": "【Mock Codex】任务完成。",
+            "sessionId": "mock-codex-thread-1",
+            "events": [
+              {
+                "type": "done",
+                "text": "",
+                "sessionId": "mock-codex-thread-1"
+              },
+              {
+                "type": "text",
+                "text": "【Mock Codex】任务完成。"
+              },
+              {
+                "type": "done",
+                "text": "【Mock Codex】任务完成。"
+              },
+              {
+                "type": "done",
+                "text": "",
+                "usage": {
+                  "inputTokens": 10,
+                  "outputTokens": 8
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "evTypes": [
+        [
+          "event",
+          "done"
+        ],
+        [
+          "event",
+          "text"
+        ],
+        [
+          "event",
+          "done"
+        ],
+        [
+          "event",
+          "done"
+        ]
+      ],
+      "tab": {
+        "cliSessionId": "mock-codex-thread-1",
+        "permissionMode": "default"
+      }
+    },
+    {
+      "name": "dsh:send-resume",
+      "turns": [
+        {
+          "ok": {
+            "text": "【Mock dsh】new nokey: hello",
+            "sessionId": "session-mock-dsh-1",
+            "events": [
+              {
+                "type": "done",
+                "text": "",
+                "sessionId": "session-mock-dsh-1"
+              },
+              {
+                "type": "thinking",
+                "text": "thinking…",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "tool",
+                "name": "read_file",
+                "status": "start",
+                "detail": "call_1",
+                "input": "{\"path\":\"README.md\"}",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "tool",
+                "name": "read_file",
+                "status": "done",
+                "detail": "call_1",
+                "output": "ok",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "text",
+                "text": "【Mock dsh】new nokey: hello"
+              },
+              {
+                "type": "context",
+                "tokens": 18
+              },
+              {
+                "type": "done",
+                "text": "【Mock dsh】new nokey: hello",
+                "usage": {
+                  "inputTokens": 10,
+                  "outputTokens": 8,
+                  "contextTokens": 18
+                }
+              }
+            ]
+          }
+        },
+        {
+          "ok": {
+            "text": "【Mock dsh】resumed nokey:  -x",
+            "sessionId": "session-mock-dsh-1",
+            "events": [
+              {
+                "type": "done",
+                "text": "",
+                "sessionId": "session-mock-dsh-1"
+              },
+              {
+                "type": "thinking",
+                "text": "thinking…",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "tool",
+                "name": "read_file",
+                "status": "start",
+                "detail": "call_1",
+                "input": "{\"path\":\"README.md\"}",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "tool",
+                "name": "read_file",
+                "status": "done",
+                "detail": "call_1",
+                "output": "ok",
+                "at": "<N>",
+                "textAt": 0
+              },
+              {
+                "type": "text",
+                "text": "【Mock dsh】resumed nokey:  -x"
+              },
+              {
+                "type": "context",
+                "tokens": 18
+              },
+              {
+                "type": "done",
+                "text": "【Mock dsh】resumed nokey:  -x",
+                "usage": {
+                  "inputTokens": 10,
+                  "outputTokens": 8,
+                  "contextTokens": 18
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "evTypes": [
+        [
+          "event",
+          "done"
+        ],
+        [
+          "event",
+          "thinking"
+        ],
+        [
+          "event",
+          "tool"
+        ],
+        [
+          "event",
+          "tool"
+        ],
+        [
+          "event",
+          "text"
+        ],
+        [
+          "event",
+          "context"
+        ],
+        [
+          "event",
+          "done"
+        ],
+        [
+          "event",
+          "done"
+        ],
+        [
+          "event",
+          "thinking"
+        ],
+        [
+          "event",
+          "tool"
+        ],
+        [
+          "event",
+          "tool"
+        ],
+        [
+          "event",
+          "text"
+        ],
+        [
+          "event",
+          "context"
+        ],
+        [
+          "event",
+          "done"
+        ]
+      ],
+      "tab": {
+        "cliSessionId": "session-mock-dsh-1",
+        "permissionMode": "default"
+      }
+    },
+    {
+      "name": "dsh:upstream-error",
+      "turns": [
+        {
+          "err": "1"
+        }
+      ],
+      "evTypes": [
+        [
+          "event",
+          "done"
+        ],
+        [
+          "event",
+          "error"
+        ],
+        [
+          "event",
+          "done"
+        ]
+      ],
+      "tab": {
+        "cliSessionId": null,
+        "permissionMode": "default"
+      }
+    }
+  ]
+}
