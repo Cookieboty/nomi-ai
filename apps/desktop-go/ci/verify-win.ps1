@@ -61,7 +61,7 @@ else {
   $p = Start-Process $exe -PassThru; Start-Sleep 45
   $ws = [Wn]::List([uint32]$p.Id); $ws | Out-File -Encoding utf8 (Join-Path $Out "windows.txt")
   Shot (Join-Path $Out "win-launch-fullscreen.png")
-  $m = $ws | Where-Object { $f = $_.Split('|'); [int]$f[3] -ge 320 -and [int]$f[3] -le 500 -and [int]$f[4] -ge 345 -and [int]$f[4] -le 540 } | Select-Object -First 1
+  $m = $ws | Where-Object { $f = $_.Split('|'); [int]$f[3] -ge 200 -and [int]$f[3] -le 500 -and [math]::Abs([int]$f[4] / [math]::Max(1,[int]$f[3]) - 355/330) -lt 0.08 } | Select-Object -First 1
   if ($m) { $f = $m.Split('|'); Shot (Join-Path $Out "win-mascot.png") (New-Object System.Drawing.Rectangle ([int]$f[1]), ([int]$f[2]), ([int]$f[3]), ([int]$f[4]))
     W "- 启动：PID $($p.Id)，看板娘窗口 $($f[3])x$($f[4]) 已显示（win-mascot.png）" }
   else { W "- 启动后未找到看板娘窗口（windows.txt）"; $ok = $false }
@@ -69,7 +69,9 @@ else {
   Get-Process Nomi -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep 2
 }
 $q = (Get-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\$guid" -ErrorAction SilentlyContinue).QuietUninstallString
-if ($q) { Start-Process -Wait cmd.exe -ArgumentList "/c $q"; Start-Sleep 5
+if ($q) { Start-Process -Wait cmd.exe -ArgumentList "/c $q"
+  # NSIS 卸载器会把自身复制到 %TEMP% 再运行（Au_.exe），父进程立即返回：轮询等待
+  for ($i = 0; $i -lt 60 -and (Test-Path $exe); $i++) { Start-Sleep 1 }; Start-Sleep 3
   $c = Snap "after-uninstall"; $txt = (Get-Content $c) -join "`n"
   $gone = -not (Test-Path $exe) -and -not (Test-Path "$env:USERPROFILE\Desktop\Nomi.lnk") -and -not (Test-Path HKCU:\Software\Classes\nomi)
   W "- 卸载（QuietUninstallString）：程序/快捷方式/协议已清除=$gone；用户数据 %APPDATA%\Nomi 保留=$(Test-Path "$env:APPDATA\Nomi")"
