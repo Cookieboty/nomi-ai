@@ -109,6 +109,7 @@ export class JsonRpcConnection {
     child.stdout.on('data', (c: Buffer | string) => this.onData(c));
     child.on('close', () => this.fail(new Error(RPC_EXITED)));
     child.on('error', (e: Error) => this.fail(e));
+    child.stdin.on('error', (e: Error) => this.fail(e));
   }
 
   private arm(id: number, p: Pending) {

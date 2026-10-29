@@ -80,4 +80,16 @@ describe('JsonRpcConnection', () => {
     expect(conn.isClosed).toBe(true);
     await expect(conn.request('y', {})).rejects.toThrow('closed');
   });
+
+  it('stdin EPIPE after the peer exits rejects pending requests instead of escaping', async () => {
+    const child = new FakeChild();
+    const conn = new JsonRpcConnection(child, {
+      onNotification: () => undefined,
+      onRequest: async () => null,
+    });
+    const p = conn.request('initialize', {});
+    child.stdin.emit('error', Object.assign(new Error('write EPIPE'), { code: 'EPIPE' }));
+    await expect(p).rejects.toThrow('write EPIPE');
+    expect(conn.isClosed).toBe(true);
+  });
 });
