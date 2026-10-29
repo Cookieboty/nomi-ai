@@ -2,6 +2,8 @@ package usage
 
 import (
 	"encoding/json"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/utils"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 	"os"
 	"reflect"
 	"testing"
@@ -55,7 +57,11 @@ func withTZ(t *testing.T, tz string) {
 	}
 	old := time.Local
 	time.Local = loc
-	t.Cleanup(func() { time.Local = old })
+	t.Cleanup(func() {
+		// 先等后台异步原子写（pricesync 缓存等）结束：它们会读 time.Local（time.Now），否则 -race 报竞争。
+		_, _ = jsrt.Block(utils.WhenPrivateWritesIdle())
+		time.Local = old
+	})
 }
 
 func numEq(a, b any) bool {

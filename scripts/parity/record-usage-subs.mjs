@@ -168,7 +168,7 @@ const codexScenarios = [
   { name: 'closed', plan: { exit: 'start' } },
   { name: 'closed-after-init', plan: { onLine: { 0: [initOk] }, exit: 1 } },
   { name: 'timeout', plan: {}, timeoutMs: 400 },
-  { name: 'output-limit', plan: { big: 300_000 } },
+  { name: 'output-limit', plan: { big: 300_000, bigAfter: 0 } },
   { name: 'utf16-units-under-limit', plan: { big: 140_000, bigChar: 'é' }, timeoutMs: 600 },
   { name: 'enoent', bin: MISSING },
   { name: 'ok-proto-plan', plan: { onLine: { 0: [initOk], 2: [id(2, { ...okLimits, rateLimits: { ...okLimits.rateLimits, planType: '__proto__' } })] } } },

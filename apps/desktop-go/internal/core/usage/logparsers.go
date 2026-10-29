@@ -415,7 +415,7 @@ func ParseCodexRateLimits(text string) *CodexRateLimits {
 			resetAt := at
 			if resetAt == 0 {
 				if inSec != 0 && ts != 0 {
-					resetAt = ts + inSec*1000
+					resetAt = ts + float64(inSec*1000)
 				} else {
 					resetAt = 0
 				}

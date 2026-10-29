@@ -209,11 +209,12 @@ func CostUsd(r CostInput, pr ModelPrice) float64 {
 	} else {
 		price1h = eff.Input
 	}
-	base := (r.Input*eff.Input +
-		r.Output*eff.Output +
-		r.CacheRead*or0(eff.CacheRead, eff.Input) +
-		w5m*or0(eff.CacheWrite, eff.Input) +
-		w1h*price1h) / M
+	// 显式 float64() 强制每个乘积先舍入：禁止 arm64 把 a*b+c 融合成 FMA（与 Node 逐位一致）。
+	base := (float64(r.Input*eff.Input) +
+		float64(r.Output*eff.Output) +
+		float64(r.CacheRead*or0(eff.CacheRead, eff.Input)) +
+		float64(w5m*or0(eff.CacheWrite, eff.Input)) +
+		float64(w1h*price1h)) / M
 	if r.Fast {
 		return base * FastMultiplier
 	}

@@ -34,7 +34,11 @@ type QuotaReading struct {
 	Plan      string        `json:"plan,omitempty"`
 	PlanKind  JSPlanKind    `json:"-"`
 	Stale     bool          `json:"stale,omitempty"`
+	// saved：UsageService.savedReading 恢复的读数（键序 windows, updatedAt, plan, origin；"" 也保留）
+	saved *savedKeys
 }
+
+type savedKeys struct{ plan, origin bool }
 
 // Clone = { ...reading }（浅拷贝：windows 数组共享，同 JS）。
 func (r *QuotaReading) Clone() *QuotaReading {
@@ -225,6 +229,18 @@ func windowsAny(ws []QuotaWindow) []any {
 
 func (r QuotaReading) ToObj() *util.Obj {
 	o := util.NewObj("windows", windowsAny(r.Windows), "updatedAt", r.UpdatedAt)
+	if r.saved != nil {
+		if r.saved.plan {
+			o.Set("plan", r.Plan)
+		}
+		if r.saved.origin {
+			o.Set("origin", r.Origin)
+		}
+		if r.Stale {
+			o.Set("stale", true)
+		}
+		return o
+	}
 	if r.Origin != "" {
 		o.Set("origin", r.Origin)
 	}
