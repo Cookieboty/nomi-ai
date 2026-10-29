@@ -2,7 +2,7 @@ package hostports
 
 import (
 	"os"
-	"path/filepath"
+	"path"
 	"strings"
 )
 
@@ -94,7 +94,7 @@ func lookup(getenv func(string) string, k string) (string, bool) {
 func linuxDocuments(getenv func(string) string, readFile func(string) ([]byte, error), homeDir func() string) string {
 	p := xdgUserDirLookup(getenv, readFile, "DOCUMENTS")
 	if p == "" {
-		p = filepath.Join(homeDir(), "Documents")
+		p = path.Join(homeDir(), "Documents") // Linux 路径语义（测试在各平台跑）
 	}
 	for len(p) > 1 && strings.HasSuffix(p, "/") {
 		p = p[:len(p)-1]
