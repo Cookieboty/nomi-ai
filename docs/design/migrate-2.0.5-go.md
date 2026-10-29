@@ -194,7 +194,7 @@ Go 版**1:1 镜像** Node 版：模块边界、包/层结构、数据格式、�
 | D-B6-12 | ~~按 surface 定向 send 事件~~ **已消除** | `Router.EmitTo(surface, …)` 定向投递 | 无行为差异 |
 | D-B6-13 | ~~worker 崩溃/退出码映射成 `crash` 错误~~ **已消除** | worker 子进程退出码 / 崩溃按 runParse 同样映射为 `crash` | 无行为差异 |
 | D-B10-1 | 岛的显示模式恒为 `pill` | Node 在 macOS 上探测刘海屏决定 notch/pill；Go 不探测，`island.get` 的 mode 恒为 pill；`island.test` 只弹出岛窗口 | 刘海屏 Mac 上岛不贴刘海显示 |
-| D-B10-2 | 角色包校验是宽松子集 | 只校验必要字段和文件存在（manifest、引导 4 个文件、rive/static、sprite、voice、locales、persona），不跑 zod、不出 warnings、不做旧格式迁移；旧 mapping 直接丢弃。fixture `mascothandlers/testdata/parity.json`（无覆盖包 / 用户覆盖包）快照与 Node 一致 | 不合规的包 Node 报 warning 仍加载，Go 可能直接回退内置包 |
+| D-B10-2 | ~~角色包校验是宽松子集~~ 已消除 | `internal/core/charcontract` 逐行移植 character-contract（V8 JSON.parse 报错文本、zod v4 语义、validatePack/迁移/relax、readPackDirSync 的 WHATWG UTF-8 解码与 UTF-16 排序、loadPackAt）；金样由 `scripts/parity/record-character-contract.mjs` 从 Node 录制：1482 条 JSON、4480 条 schema、702 个整包（严格/lenient/loadPackAt）全部一致。残留：clips 含 null 时 Node 抛 TypeError，Go 的 LoadPackAt 把它当作该候选无效（理由为同一错误文本） | 仅 clips 含 null 的坏包：Node 主进程抛错，Go 跳过该包 |
 | D-B10-3 | 看板娘物理/漫游/点击穿透未移植 | `mascot.setShape`/`setHit`/`setInteractionConfig`/`wanderNow` 收下即返回（no-op），`mascot.debugSnapshot` 仍是 UNAVAILABLE；拖动、缩放（尺寸计算 fixture 全对上）、置顶、位置已实现 | 透明区域不会点击穿透；不会自己走动 |
 | D-B10-4 | 渲染器选择引导卡在 POC 对话页 | 新设置 `mascot.renderer`（svg\|rive，默认 svg，升级用户也是 svg）；引导最后一张「想让诺米动起来吗？」（默认焦点「保持静态」，无 WebGL 时隐藏「开启动画」）暂放在 POC 对话页、用 localStorage 只问一次，等引导页迁过来再挪 | 无 |
 | D-B8-1 | `knowledge.ts` 契约 77 个过程（批次说明） | 实际 75 个过程 + 11 个事件，Go 全部注册（`knowledgehandlers.Handlers`，单测断言 75） | 以契约源码为准，说明里的数字有误 |

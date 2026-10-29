@@ -158,7 +158,7 @@ func TestCharacterPackParity(t *testing.T) {
 	}
 }
 
-// Node 的 sanitizeIsland 在 host-electron 里（依赖 electron，录不了），这里按源码逐条对照
+// 补充用例；完整的 Node 录制 goldens 见 internal/core/island/island_parity_test.go（scripts/parity/record-island.mjs）
 func TestSanitizeIsland(t *testing.T) {
 	for _, c := range []struct {
 		raw  any

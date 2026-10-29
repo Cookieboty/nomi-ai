@@ -8,6 +8,37 @@ import (
 	"sync"
 )
 
+// Rect / Display = geometry.ts 的 DisplayLike
+type Rect struct{ X, Y, Width, Height float64 }
+
+type Display struct {
+	Bounds, WorkArea Rect
+	Internal         *bool // nil = 未知（Electron 的 internal 缺省）
+}
+
+// HasNotch = geometry.ts hasNotch：CD_ISLAND_SIMULATE_NOTCH=1/0 强制；否则仅 darwin 且内建屏（未知视为内建）且菜单栏 ≥ 30pt
+func HasNotch(platform string, d Display) bool {
+	switch os.Getenv("CD_ISLAND_SIMULATE_NOTCH") {
+	case "1":
+		return true
+	case "0":
+		return false
+	}
+	if platform != "darwin" {
+		return false
+	}
+	menuBar := d.WorkArea.Y - d.Bounds.Y
+	return (d.Internal == nil || *d.Internal) && menuBar >= 30
+}
+
+// Mode = islandGeometry(platform, d, style).mode
+func Mode(platform string, d Display, style string) string {
+	if style == "auto" && HasNotch(platform, d) {
+		return "notch"
+	}
+	return "pill"
+}
+
 type Kinds struct {
 	Message  bool `json:"message"`
 	Agent    bool `json:"agent"`
@@ -54,6 +85,8 @@ type Service struct {
 	s        Settings
 	// Notify 弹一条通知（test 用）；返回是否显示
 	Notify func(kind, title, body string, durationMs int, force bool) bool
+	// PrimaryDisplay 主屏几何；nil 或 ok=false 时 mode=pill（= Node 的 try/catch 退化）
+	PrimaryDisplay func() (Display, bool)
 }
 
 func New(file, platform string) *Service {
@@ -64,11 +97,18 @@ func New(file, platform string) *Service {
 	return &Service{file: file, platform: platform, s: Sanitize(raw, platform)}
 }
 
-// Get：形态 notch 只在有刘海的 mac 主屏上出现；Go 版未做刘海探测，一律 pill（D-B10-1）
+// Get：形态 notch 只在有刘海的 mac 主屏上出现（D-B10-1：按主屏 bounds/workArea 判断，同 Node）
 func (s *Service) Get() State {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	return State{Settings: s.s, Mode: "pill", Platform: s.platform}
+	st := State{Settings: s.s, Mode: "pill", Platform: s.platform}
+	pd := s.PrimaryDisplay
+	s.mu.Unlock()
+	if pd != nil {
+		if d, ok := pd(); ok {
+			st.Mode = Mode(s.platform, d, st.Style)
+		}
+	}
+	return st
 }
 
 func toMap(v any) map[string]any {

@@ -211,7 +211,7 @@ func (c *Controller) Start() {
 	c.started = true
 	c.refreshDisplays()
 	w, _ := c.win.GetSize()
-	c.scale = RoundMascotScale((float64(w) - 2*MascotPad.X) / MascotBase.Width)
+	c.scale = RoundMascotScale((float64(w) - float64(2*MascotPad.X)) / MascotBase.Width)
 	c.pref = c.scale
 	if c.hooks != nil && c.hooks.Get != nil {
 		c.pref = c.hooks.Get()
@@ -467,7 +467,7 @@ func (c *Controller) applyScale(target float64, userPref, notify bool) ScaleStat
 		c.staleSize = &Size{Width: float64(b.Width), Height: float64(b.Height)}
 		r := target / from
 		if c.box != nil {
-			k := func(v, pad, max float64) float64 { return math.Max(0, math.Min(max, pad+(v-pad)*r)) }
+			k := func(v, pad, max float64) float64 { return math.Max(0, math.Min(max, pad+float64((v-pad)*r))) }
 			c.box = &CharacterBox{
 				Left: k(c.box.Left, MascotPad.X, nb.Width), Right: k(c.box.Right, MascotPad.X, nb.Width),
 				Top: k(c.box.Top, MascotPad.Top, nb.Height), Bottom: k(c.box.Bottom, MascotPad.Top, nb.Height),
@@ -657,7 +657,7 @@ func (c *Controller) dragEnd() {
 }
 
 func (c *Controller) scheduleNextWander(from float64) {
-	c.nextWanderAt = from + 20000 + c.rnd()*40000
+	c.nextWanderAt = from + 20000 + float64(c.rnd()*40000)
 }
 
 func (c *Controller) startWander() {

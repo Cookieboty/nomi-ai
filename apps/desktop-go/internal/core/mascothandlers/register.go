@@ -14,8 +14,10 @@ import (
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/character"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/chatbg"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/island"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/mascot"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/persona"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/services"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/settings"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell"
@@ -27,6 +29,9 @@ type Deps struct {
 	Settings  *settings.Store
 	Character *character.Service
 	Island    *island.Service
+	// Persona / ChatBg：persona.* 与 chatBg.*（nil = UNAVAILABLE，同 need(services.x)）
+	Persona *persona.Service
+	ChatBg  *chatbg.Service
 	// Geometry 返回外壳几何能力（外壳在 Install 之后才建，故用函数）；nil = 尚不可用
 	Geometry func() shell.Geometry
 	Quit     func()
@@ -266,6 +271,10 @@ func (h *hostAdapter) Publish(ch string, payload any) { h.c.d.Router.Emit(ch, pa
 func (h *hostAdapter) Info(msg string, data any)      { log.Printf("[mascot] %s %v", msg, data) }
 func (h *hostAdapter) Warn(msg string, data any)      { log.Printf("[mascot] warn %s %v", msg, data) }
 
+func unavailableSvc(name string) error {
+	return &contract.Error{Code: "UNAVAILABLE", Message: "Service '" + name + "' is not available"}
+}
+
 func unavailable() error {
 	return &contract.Error{Code: "UNAVAILABLE", Message: "Service 'mascotController' is not available"}
 }
@@ -320,6 +329,46 @@ func Install(d Deps) *Controller {
 		}
 		return c.SetRenderer(next)
 	})
+
+	// —— 人设（persona.changed 由 persona.Service.OnChange 转发，见 Install 调用方）
+	call("persona.get", func(json.RawMessage) (any, error) {
+		if d.Persona == nil {
+			return nil, unavailableSvc("persona")
+		}
+		return d.Persona.Get(), nil
+	})
+	call("persona.systemPrompt", func(json.RawMessage) (any, error) {
+		if d.Persona == nil {
+			return nil, unavailableSvc("persona")
+		}
+		p := d.Persona.Get()
+		t := d.T
+		if t == nil {
+			t = func(k string) string { return k }
+		}
+		return persona.DefaultSystemPrompt(&p, t), nil
+	})
+
+	// —— 聊天主面板背景
+	bg := func(name string, f func(raw json.RawMessage) (chatbg.State, error)) {
+		call(name, func(raw json.RawMessage) (any, error) {
+			if d.ChatBg == nil {
+				return nil, unavailableSvc("chatBg")
+			}
+			st, err := f(raw)
+			if err != nil {
+				if code := chatbg.ErrorCode(err); code != "" {
+					return nil, &contract.Error{Code: code, Message: err.Error()}
+				}
+				return nil, err
+			}
+			return st, nil
+		})
+	}
+	bg("chatBg.get", func(json.RawMessage) (chatbg.State, error) { return d.ChatBg.Get(), nil })
+	bg("chatBg.set", func(raw json.RawMessage) (chatbg.State, error) { return d.ChatBg.Set(raw) })
+	bg("chatBg.reset", func(json.RawMessage) (chatbg.State, error) { return d.ChatBg.Reset() })
+	bg("chatBg.pickImage", func(json.RawMessage) (chatbg.State, error) { return d.ChatBg.PickImage() })
 
 	// —— 看板娘窗口互动
 	report("mascot.setShape", func(m *mascot.Controller, in map[string]any) { m.ReportShape(in["rects"]) })

@@ -37,6 +37,10 @@ Start-Sleep $wait; Shot cold
 1..3 | ForEach-Object { Snap "cold-$_"; Start-Sleep 5 }
 if ($Mode -eq 'poc') {
   foreach ($i in 1..3) { Ctl show-chat; Start-Sleep 10; if ($i -eq 1) { Shot chat-open }; Snap "chat-open-$i"; Ctl close-chat; Start-Sleep 10; Snap "chat-closed-$i" }
+  # 渲染器切换：svg（默认）→ rive → svg，各截图 + 三次快照
+  Shot mascot-svg; foreach ($i in 1..3) { Snap "renderer-svg-start-$i"; Start-Sleep 5 }
+  Ctl 'renderer&v=rive'; Start-Sleep 15; Shot mascot-rive; foreach ($i in 1..3) { Snap "renderer-rive-$i"; Start-Sleep 5 }
+  Ctl 'renderer&v=svg'; Start-Sleep 15; Shot mascot-svg-back; foreach ($i in 1..3) { Snap "renderer-svg-back-$i"; Start-Sleep 5 }
   Ctl hide-mascot; foreach ($i in 1..3) { Start-Sleep 10; Snap "mascot-hidden-$i" }
   Ctl quit
 }

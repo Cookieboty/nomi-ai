@@ -55,3 +55,23 @@ func (w *Wails) OpenPath(p string) string {
 
 // ShowItemInFolder = shell.showItemInFolder
 func (w *Wails) ShowItemInFolder(p string) { _ = w.app.Env.OpenFileManager(p, true) }
+
+// PickFiles = dialogs.pickFiles（单选）：取消 → nil
+func (w *Wails) PickFiles(title string, filters []SaveFileFilter) ([]string, error) {
+	d := w.app.Dialog.OpenFile().CanChooseFiles(true).CanChooseDirectories(false)
+	if title != "" {
+		d.SetTitle(title)
+	}
+	for _, f := range filters {
+		pats := make([]string, 0, len(f.Extensions))
+		for _, e := range f.Extensions {
+			pats = append(pats, "*."+e)
+		}
+		d.AddFilter(f.Name, strings.Join(pats, ";"))
+	}
+	p, err := d.PromptForSingleSelection()
+	if err != nil || p == "" {
+		return nil, err
+	}
+	return []string{p}, nil
+}

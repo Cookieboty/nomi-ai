@@ -30,6 +30,8 @@ type Bundle struct {
 	Locale     *i18n.Service
 	Config     *services.ConfigService
 	Settings   *settings.Store
+	// OnLocaleChange：界面语言变化后回调（= i18n.onChange，人设据此重算）
+	OnLocaleChange []func()
 }
 
 func Install(d Deps) *Bundle {
@@ -46,6 +48,9 @@ func Install(d Deps) *Bundle {
 	})
 	b.Locale = i18n.New(filepath.Join(d.UserData, "locale.json"), d.SystemLangs, func(s i18n.State) {
 		r.Emit("locale.changed", s)
+		for _, fn := range b.OnLocaleChange {
+			fn()
+		}
 	})
 	b.Onboarding = onboarding.New(d.UserData, d.OpenChat, func(s onboarding.State) {
 		r.Emit("onboarding.show", s)
