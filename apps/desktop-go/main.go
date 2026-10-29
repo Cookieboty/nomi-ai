@@ -22,6 +22,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop/parse"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/extensions"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/local"
 	"io/fs"
 	"log"
 	"net/http"
@@ -202,7 +203,15 @@ func main() {
 		}
 		return resp.Content, nil
 	}
+	// D-B8-2：LocalModelService 的 gateway()（createCore: services.gateway ?? null）；网关服务稍后创建，延迟取
+	var gatewaySvc *gwstore.Service
 	b8 := knowledgehandlers.Wire(knowledgehandlers.WireDeps{
+		Gateway: func() local.GatewayLike {
+			if gatewaySvc == nil {
+				return nil
+			}
+			return shellhandlers.LocalGateway(gatewaySvc)()
+		},
 		Complete: complete,
 		UserData: userData,
 		Router:   router,
@@ -221,12 +230,13 @@ func main() {
 	// AIRuntimeBoot：内存 ProviderStore + ProviderService（providers.* 契约过程 + providers.changed）
 	providerBox := security.NewSecretBox("providers")
 	// GatewayStore：userData/gateway/store.json，格式 / 迁移 / 归档对齐 Node GatewayService.init（D-B4d-5 已消除）
-	gatewaySvc := gwstore.NewServiceForUserData(userData, gwstore.NewCipher(providerBox), nil)
+	gatewaySvc = gwstore.NewServiceForUserData(userData, gwstore.NewCipher(providerBox), nil)
 	gatewaySvc.Store.SetPresetDeps(gwstore.FindPresetDeps())
 	gatewaySvc.AttachRuntime(gwstore.RuntimeDeps{
 		Root: filepath.Join(userData, "gateway"), Lazy: true, Env: processEnv(),
 		RouteListening: func() bool { return false },
 		Broadcast:      func(ev string, p any) { router.Emit(ev, p) },
+		EnvProviders:   func() []gwstore.EnvProvider { return shellhandlers.GatewayEnvProviders(processEnv()) },
 	})
 	if err := gatewaySvc.Init(); err != nil {
 		log.Printf("[gateway] store init failed: %v", err)
@@ -279,6 +289,7 @@ func main() {
 		PrepareChat: desktopSvc.ChatPrep().PrepareChat})
 	chatHandlers.Register(router)
 	defer chatHandlers.Dispose()
+	shellhandlers.InstallGateway(router, gatewaySvc)
 	// 批次 9：语音输入（voice.*）/ 朗读（tts.*）/ nav.openVoiceSettings
 	mediahandlers.Wire(mediahandlers.WireDeps{
 		UserData:  userData,
@@ -297,6 +308,17 @@ func main() {
 				sh.Show(shell.Chat)
 			}
 		},
+		OpenChatOnceLoaded: func() func(func()) {
+			if l, ok := sh.(interface {
+				ShowOnceLoaded(shell.WindowKind) func(func())
+			}); ok {
+				return l.ShowOnceLoaded(shell.Chat)
+			}
+			if sh != nil {
+				sh.Show(shell.Chat)
+			}
+			return nil
+		},
 		DefaultWakePhrase: func() string {
 			for _, p := range []*character.Pack{charSvc.Resolved(), charSvc.Builtin()} {
 				if p != nil {
@@ -309,6 +331,7 @@ func main() {
 		},
 	})
 	shellP := installShellProcs(router, userData, &sh, gatewaySvc)
+	defer wireHarness(router, userData, home, ports)()
 	log.Printf("[desktop-go] %d contract procedures stubbed (not implemented yet)", procs.Install(router))
 
 	ws := &contract.WSServer{Router: router, Token: contract.NewToken(), Origins: map[string]bool{

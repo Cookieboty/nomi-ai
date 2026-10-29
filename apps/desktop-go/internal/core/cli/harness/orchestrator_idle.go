@@ -56,7 +56,7 @@ func (o *Orchestrator) ReclaimIdle(now float64) []string {
 	for _, id := range o.live.claudeOrder {
 		l := o.live.claude[id]
 		cands = append(cands, cli.IdleCandidate{ID: id, LastActivityAt: l.lastActivityAt, TurnActive: l.turn != nil,
-			PermissionPending: len(o.pendingPerms[id]) > 0, TabBusy: o.tabBusy(id),
+			PermissionPending: len(o.pendingPerms.Get(id)) > 0, TabBusy: o.tabBusy(id),
 			Resumable: truthy(o.tab(id).Get("cliSessionId")) || l.prewarmed, BackgroundActive: claudeBackgroundActive(l)})
 	}
 	picked := cli.PickIdle(cands, now, o.idleReclaimMs)

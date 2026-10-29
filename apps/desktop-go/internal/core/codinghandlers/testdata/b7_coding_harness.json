@@ -1,0 +1,865 @@
+{
+  "cases": [
+    {
+      "name": "unavailable",
+      "steps": [
+        [
+          "harness.tabs",
+          {
+            "err": {
+              "code": "UNAVAILABLE",
+              "message": "Service 'harness' is not available"
+            }
+          }
+        ],
+        [
+          "harness.state",
+          {
+            "err": {
+              "code": "UNAVAILABLE",
+              "message": "Service 'harness' is not available"
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "name": "main-tab",
+      "steps": [
+        [
+          "harness.state",
+          {
+            "ok": {
+              "backend": "nomi",
+              "cwd": "<T>/docs/nomi",
+              "cliSessionId": null,
+              "busy": false,
+              "toolsDisabled": false,
+              "permissionMode": "acceptEdits"
+            }
+          }
+        ],
+        [
+          "harness.setCwd",
+          {
+            "ok": {
+              "backend": "nomi",
+              "cwd": "<T>/work",
+              "cliSessionId": null,
+              "busy": false,
+              "toolsDisabled": false,
+              "permissionMode": "acceptEdits"
+            }
+          }
+        ],
+        [
+          "harness.setBackend",
+          {
+            "ok": {
+              "backend": "claude",
+              "cwd": "<T>/work",
+              "cliSessionId": null,
+              "busy": false,
+              "toolsDisabled": true,
+              "permissionMode": "acceptEdits"
+            }
+          }
+        ],
+        [
+          "harness.recentCwds",
+          {
+            "ok": [
+              "<T>/work"
+            ]
+          }
+        ],
+        [
+          "harness.tabs",
+          {
+            "ok": {
+              "tabs": [
+                {
+                  "id": "main",
+                  "title": "对话",
+                  "backend": "claude",
+                  "cwd": "<T>/work",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "acceptEdits",
+                  "source": "official",
+                  "modelScope": null,
+                  "modelOverride": null,
+                  "reasoningEffort": null
+                }
+              ],
+              "activeTabId": "main",
+              "running": 0,
+              "queued": 0,
+              "defaultPermissionMode": "acceptEdits",
+              "codexNetwork": true,
+              "autoApprove": true
+            }
+          }
+        ],
+        [
+          "harness.setBackend",
+          {
+            "err": {
+              "code": "INTERNAL",
+              "message": "未知后端"
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "name": "tab-lifecycle",
+      "steps": [
+        [
+          "harness.tabCreate",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "A",
+              "backend": "claude",
+              "cwd": "<T>/work",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null
+            }
+          }
+        ],
+        [
+          "harness.tabCreate",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "Gemini",
+              "backend": "gemini",
+              "cwd": "<T>/work",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null
+            }
+          }
+        ],
+        [
+          "harness.tabRename",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "Renamed",
+              "backend": "claude",
+              "cwd": "<T>/work",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null
+            }
+          }
+        ],
+        [
+          "harness.tabActivate",
+          {
+            "ok": {
+              "tabs": [
+                {
+                  "id": "main",
+                  "title": "对话",
+                  "backend": "nomi",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "acceptEdits"
+                },
+                {
+                  "id": "<U>",
+                  "title": "Renamed",
+                  "backend": "claude",
+                  "cwd": "<T>/work",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "bypass",
+                  "source": "official",
+                  "modelScope": null
+                },
+                {
+                  "id": "<U>",
+                  "title": "Gemini",
+                  "backend": "gemini",
+                  "cwd": "<T>/work",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "bypass",
+                  "source": "official",
+                  "modelScope": null
+                }
+              ],
+              "activeTabId": "<U>",
+              "running": 0,
+              "queued": 0,
+              "defaultPermissionMode": "acceptEdits",
+              "codexNetwork": true,
+              "autoApprove": true
+            }
+          }
+        ],
+        [
+          "harness.tabBackend",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "Codex",
+              "backend": "codex",
+              "cwd": "<T>/work",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null,
+              "modelOverride": null,
+              "reasoningEffort": null
+            }
+          }
+        ],
+        [
+          "harness.tabCwd",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "Renamed",
+              "backend": "claude",
+              "cwd": "<T>/docs",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null
+            }
+          }
+        ],
+        [
+          "harness.tabEffort",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "Renamed",
+              "backend": "claude",
+              "cwd": "<T>/docs",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null,
+              "reasoningEffort": "high"
+            }
+          }
+        ],
+        [
+          "harness.tabLongContext",
+          {
+            "err": {
+              "code": "INTERNAL",
+              "message": "长上下文只适用于第三方模型"
+            }
+          }
+        ],
+        [
+          "harness.tabAccount",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "Renamed",
+              "backend": "claude",
+              "cwd": "<T>/docs",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null,
+              "reasoningEffort": "high"
+            }
+          }
+        ],
+        [
+          "harness.tabCarryClear",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "Renamed",
+              "backend": "claude",
+              "cwd": "<T>/docs",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null,
+              "reasoningEffort": "high"
+            }
+          }
+        ],
+        [
+          "harness.tabPermissionMode",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "Renamed",
+              "backend": "claude",
+              "cwd": "<T>/docs",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "plan",
+              "source": "official",
+              "modelScope": null,
+              "reasoningEffort": "high",
+              "degraded": false
+            }
+          }
+        ],
+        [
+          "harness.tabPermissionMode",
+          {
+            "err": {
+              "code": "INTERNAL",
+              "message": "完全放开需要先确认"
+            }
+          }
+        ],
+        [
+          "harness.tabPermissionMode",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "Renamed",
+              "backend": "claude",
+              "cwd": "<T>/docs",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null,
+              "reasoningEffort": "high",
+              "degraded": false
+            }
+          }
+        ],
+        [
+          "harness.permissionDefaults",
+          {
+            "ok": {
+              "tabs": [
+                {
+                  "id": "main",
+                  "title": "对话",
+                  "backend": "nomi",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "acceptEdits"
+                },
+                {
+                  "id": "<U>",
+                  "title": "Renamed",
+                  "backend": "claude",
+                  "cwd": "<T>/docs",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "bypass",
+                  "source": "official",
+                  "modelScope": null,
+                  "reasoningEffort": "high"
+                },
+                {
+                  "id": "<U>",
+                  "title": "Codex",
+                  "backend": "codex",
+                  "cwd": "<T>/work",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "bypass",
+                  "source": "official",
+                  "modelScope": null,
+                  "modelOverride": null,
+                  "reasoningEffort": null
+                }
+              ],
+              "activeTabId": "<U>",
+              "running": 0,
+              "queued": 0,
+              "defaultPermissionMode": "acceptEdits",
+              "codexNetwork": false,
+              "autoApprove": false
+            }
+          }
+        ],
+        [
+          "harness.permissionDefaults",
+          {
+            "err": {
+              "code": "INTERNAL",
+              "message": "未知权限模式"
+            }
+          }
+        ],
+        [
+          "harness.tabs",
+          {
+            "ok": {
+              "tabs": [
+                {
+                  "id": "main",
+                  "title": "对话",
+                  "backend": "nomi",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "acceptEdits"
+                },
+                {
+                  "id": "<U>",
+                  "title": "Renamed",
+                  "backend": "claude",
+                  "cwd": "<T>/docs",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "bypass",
+                  "source": "official",
+                  "modelScope": null,
+                  "reasoningEffort": "high"
+                },
+                {
+                  "id": "<U>",
+                  "title": "Codex",
+                  "backend": "codex",
+                  "cwd": "<T>/work",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "bypass",
+                  "source": "official",
+                  "modelScope": null,
+                  "modelOverride": null,
+                  "reasoningEffort": null
+                }
+              ],
+              "activeTabId": "<U>",
+              "running": 0,
+              "queued": 0,
+              "defaultPermissionMode": "acceptEdits",
+              "codexNetwork": false,
+              "autoApprove": false
+            }
+          }
+        ],
+        [
+          "harness.tabClose",
+          {
+            "ok": {
+              "tabs": [
+                {
+                  "id": "main",
+                  "title": "对话",
+                  "backend": "nomi",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "acceptEdits"
+                },
+                {
+                  "id": "<U>",
+                  "title": "Renamed",
+                  "backend": "claude",
+                  "cwd": "<T>/docs",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "bypass",
+                  "source": "official",
+                  "modelScope": null,
+                  "reasoningEffort": "high"
+                }
+              ],
+              "activeTabId": "<U>",
+              "running": 0,
+              "queued": 0,
+              "defaultPermissionMode": "acceptEdits",
+              "codexNetwork": false,
+              "autoApprove": false
+            }
+          }
+        ],
+        [
+          "harness.tabClose",
+          {
+            "err": {
+              "code": "INTERNAL",
+              "message": "标签不存在"
+            }
+          }
+        ],
+        [
+          "harness.tabs",
+          {
+            "ok": {
+              "tabs": [
+                {
+                  "id": "main",
+                  "title": "对话",
+                  "backend": "nomi",
+                  "cwd": "<T>/docs/nomi",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "acceptEdits"
+                },
+                {
+                  "id": "<U>",
+                  "title": "Renamed",
+                  "backend": "claude",
+                  "cwd": "<T>/docs",
+                  "cliSessionId": null,
+                  "status": "idle",
+                  "unread": 0,
+                  "createdAt": "<N>",
+                  "updatedAt": "<N>",
+                  "permissionMode": "bypass",
+                  "source": "official",
+                  "modelScope": null,
+                  "reasoningEffort": "high"
+                }
+              ],
+              "activeTabId": "<U>",
+              "running": 0,
+              "queued": 0,
+              "defaultPermissionMode": "acceptEdits",
+              "codexNetwork": false,
+              "autoApprove": false
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "name": "messages",
+      "steps": [
+        [
+          "harness.tabCreate",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "Gemini",
+              "backend": "gemini",
+              "cwd": "<T>/work",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null
+            }
+          }
+        ],
+        [
+          "harness.tabSeed",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "Gemini",
+              "backend": "gemini",
+              "cwd": "<T>/work",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null,
+              "carriedMessages": 3
+            }
+          }
+        ],
+        [
+          "harness.tabMessages",
+          {
+            "ok": [
+              {
+                "id": "u1",
+                "role": "user",
+                "content": "hi",
+                "timestamp": "<N>"
+              },
+              {
+                "id": "a1",
+                "role": "assistant",
+                "content": "yo",
+                "timestamp": "<N>"
+              },
+              {
+                "id": "u2",
+                "role": "user",
+                "content": "again",
+                "timestamp": "<N>"
+              }
+            ]
+          }
+        ],
+        [
+          "harness.tabRewind",
+          {
+            "ok": [
+              {
+                "id": "u1",
+                "role": "user",
+                "content": "hi",
+                "timestamp": "<N>"
+              },
+              {
+                "id": "a1",
+                "role": "assistant",
+                "content": "yo",
+                "timestamp": "<N>"
+              }
+            ]
+          }
+        ],
+        [
+          "harness.tabMessages",
+          {
+            "ok": [
+              {
+                "id": "u1",
+                "role": "user",
+                "content": "hi",
+                "timestamp": "<N>"
+              },
+              {
+                "id": "a1",
+                "role": "assistant",
+                "content": "yo",
+                "timestamp": "<N>"
+              }
+            ]
+          }
+        ],
+        [
+          "harness.tabRewind",
+          {
+            "err": {
+              "code": "INTERNAL",
+              "message": "找不到这条消息，请刷新后重试"
+            }
+          }
+        ],
+        [
+          "harness.tabMessages",
+          {
+            "ok": []
+          }
+        ],
+        [
+          "harness.tabMessages",
+          {
+            "err": {
+              "code": "INTERNAL",
+              "message": "标签不存在"
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "name": "answers-and-misc",
+      "steps": [
+        [
+          "harness.tabCreate",
+          {
+            "ok": {
+              "id": "<U>",
+              "title": "Claude Code",
+              "backend": "claude",
+              "cwd": "<T>/work",
+              "cliSessionId": null,
+              "status": "idle",
+              "unread": 0,
+              "createdAt": "<N>",
+              "updatedAt": "<N>",
+              "permissionMode": "bypass",
+              "source": "official",
+              "modelScope": null
+            }
+          }
+        ],
+        [
+          "harness.tabContext",
+          {
+            "ok": null
+          }
+        ],
+        [
+          "harness.tabContext",
+          {
+            "ok": null
+          }
+        ],
+        [
+          "harness.stopAgent",
+          {
+            "ok": false
+          }
+        ],
+        [
+          "harness.tabCancel",
+          {
+            "ok": false
+          }
+        ],
+        [
+          "harness.replyPermission",
+          {
+            "ok": false
+          }
+        ],
+        [
+          "harness.replyPermission",
+          {
+            "ok": false
+          }
+        ],
+        [
+          "harness.replyApprovePlan",
+          {
+            "ok": false
+          }
+        ],
+        [
+          "harness.replyApprovePlan",
+          {
+            "err": {
+              "code": "INTERNAL",
+              "message": "无效的批准计划选项"
+            }
+          }
+        ],
+        [
+          "harness.geminiTrustFolder",
+          {
+            "err": {
+              "code": "INTERNAL",
+              "message": "需要先确认才能信任这个文件夹"
+            }
+          }
+        ],
+        [
+          "harness.geminiTrustFolder",
+          {
+            "err": {
+              "code": "INTERNAL",
+              "message": "这条消息没有需要信任的文件夹"
+            }
+          }
+        ],
+        [
+          "harness.tabSend",
+          {
+            "err": {
+              "code": "INTERNAL",
+              "message": "当前为 Nomi 后端，请走原生对话"
+            }
+          }
+        ],
+        [
+          "harness.workspaceList",
+          {
+            "err": {
+              "code": "INTERNAL",
+              "message": "工作目录无效"
+            }
+          }
+        ],
+        [
+          "harness.workspaceRead",
+          {
+            "err": {
+              "code": "INTERNAL",
+              "message": "工作目录无效"
+            }
+          }
+        ]
+      ]
+    }
+  ]
+}

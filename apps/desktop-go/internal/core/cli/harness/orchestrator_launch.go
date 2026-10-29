@@ -397,7 +397,7 @@ func (o *Orchestrator) CancelTab(id string) bool {
 	if queued {
 		o.stopRequested[id] = true
 	}
-	_, hasChild := o.children[id]
+	hasChild := o.children.Has(id)
 	if send := o.sendAborts[id]; send != nil && !send.Signal.Aborted() &&
 		(o.live.claude[id] == nil || o.live.claude[id].turn == nil) &&
 		(o.live.acp[id] == nil || o.live.acp[id].turn == nil) &&
@@ -432,9 +432,9 @@ func (o *Orchestrator) CancelTab(id string) bool {
 	}
 	o.stopRequested[id] = true
 	o.teardownClaudeLive(id)
-	if child := o.children[id]; child != nil {
+	if child := o.children.Get(id); child != nil {
 		killTree(child)
-		delete(o.children, id)
+		o.children.Delete(id)
 		o.clearPermissionTimeouts(id)
 	}
 	return true
@@ -455,11 +455,11 @@ func (o *Orchestrator) Dispose() {
 	for _, id := range append([]string{}, o.live.codexOrder...) {
 		o.teardownCodexLive(id)
 	}
-	for id, child := range o.children {
-		killTree(child)
-		delete(o.children, id)
+	for _, id := range o.children.Keys() {
+		killTree(o.children.Get(id))
+		o.children.Delete(id)
 	}
-	for id := range o.pendingPerms {
+	for _, id := range o.pendingPerms.Keys() {
 		o.clearPermissionTimeouts(id)
 	}
 }
