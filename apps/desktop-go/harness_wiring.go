@@ -113,7 +113,7 @@ func wireHarness(router *contract.Router, userData, home string, hp hostPorts, g
 			Events: hostEvents{router},
 			OnDefaultChanged: func(kind string) {
 				o.RecycleDefaultAccount(kind)
-				// usage.forgetAccountQuota：usage 服务尚未移植，落地后接入
+				usageForgetAccountQuota(kind)
 			},
 			InUse: func(kind, id string) any {
 				n := 0.0
@@ -139,7 +139,8 @@ func wireHarness(router *contract.Router, userData, home string, hp hostPorts, g
 			return
 		}
 		acc = a
-		harnessAccounts = a // coding_wiring.go：history 的 accountLabel / sessionAccount（D-B7-S2-3）
+		accountsRef.Store(a) // usage_wiring.go：grokAccountKey / officialAccount
+		harnessAccounts = a  // coding_wiring.go：history 的 accountLabel / sessionAccount（D-B7-S2-3）
 	})
 	var accPort ports.HarnessOfficialAccounts
 	if acc != nil {

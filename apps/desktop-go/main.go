@@ -250,13 +250,17 @@ func main() {
 		Broadcast:      func(ev string, p any) { router.Emit(ev, p) },
 		EnvProviders:   func() []gwstore.EnvProvider { return shellhandlers.GatewayEnvProviders(processEnv()) },
 		OnUsage:        qualityOnUsage,
+		// longContextPrice = usage.longContextPrice（UsageService 晚绑定）
+		LongContextPrice: usageLongContextPrice,
 	})
 	if err := gatewaySvc.Init(); err != nil {
 		log.Printf("[gateway] store init failed: %v", err)
 	}
+	// UsageService（createCore new UsageService + start；网关 init 后 autoSync）
+	defer wireUsage(router, userData, desktopSvc, gatewaySvc)()
 	gatewaySvc.Start()
 	defer gatewaySvc.Dispose()
-	providerSvc, llmRegistry := shellhandlers.NewProviderRuntime(providerBox, processEnv(), nil, func(role string) *aiproviders.GatewayResolution {
+	providerSvc, llmRegistry := shellhandlers.NewProviderRuntime(providerBox, processEnv(), nomiUsageRecorder(), func(role string) *aiproviders.GatewayResolution {
 		r := gatewaySvc.NomiRoute(role)
 		if r == nil {
 			return nil
