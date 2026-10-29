@@ -19,7 +19,9 @@ type inputArgs struct {
 	outputSchemaTools map[string]bool
 }
 
-func cacheBreakpoint(po *util.Obj, name string) any { return get(objAt(po, name), "promptCacheBreakpoint") }
+func cacheBreakpoint(po *util.Obj, name string) any {
+	return get(objAt(po, name), "promptCacheBreakpoint")
+}
 
 func withBreakpoint(o *util.Obj, bp any) *util.Obj {
 	if bp != nil {
