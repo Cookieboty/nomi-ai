@@ -94,6 +94,19 @@ func main() {
 		sh.Show(shell.Island)
 		return true
 	}
+	isl.PrimaryDisplay = func() (island.Display, bool) {
+		pd, ok := sh.(interface {
+			PrimaryDisplay() (shell.Rect, shell.Rect, bool)
+		})
+		if !ok {
+			return island.Display{}, false
+		}
+		b, w, ok := pd.PrimaryDisplay()
+		r := func(x shell.Rect) island.Rect {
+			return island.Rect{X: float64(x.X), Y: float64(x.Y), Width: float64(x.Width), Height: float64(x.Height)}
+		}
+		return island.Display{Bounds: r(b), WorkArea: r(w)}, ok
+	}
 	i18n.SetLocale(func() string { return bundle.Locale.Get().Locale })
 	charSvc := character.NewService(userData, os.Getenv("NOMI_RESOURCES"), builtinPackDir())
 	personaSvc := newPersona(charSvc, router)

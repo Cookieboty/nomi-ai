@@ -248,6 +248,16 @@ func (w *Wails) WorkAreas() []shell.WorkArea {
 	return out
 }
 
+// PrimaryDisplay 主屏 bounds / workArea（DIP），供灵动岛刘海检测（D-B10-1）
+func (w *Wails) PrimaryDisplay() (bounds, work shell.Rect, ok bool) {
+	sc := w.app.Screen.GetPrimary()
+	if sc == nil {
+		return bounds, work, false
+	}
+	b, a := sc.Bounds, sc.WorkArea
+	return shell.Rect{X: b.X, Y: b.Y, Width: b.Width, Height: b.Height}, shell.Rect{X: a.X, Y: a.Y, Width: a.Width, Height: a.Height}, true
+}
+
 func (w *Wails) Resizable(k shell.WindowKind) bool {
 	if win := w.win(k); win != nil {
 		return win.Resizable()
