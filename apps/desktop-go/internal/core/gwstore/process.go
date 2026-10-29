@@ -53,6 +53,7 @@ const (
 	CrashFuseMax      = 5
 	CrashFuseWindowMs = 60_000
 	readyTimeoutMs    = 10_000
+	stopWaitMs        = 5_000
 )
 
 // ProcessDeps = GatewayProcess 的构造参数
@@ -432,6 +433,9 @@ func (g *GatewayProcess) Stop() {
 	if c != nil {
 		c.PostMessage(server.WorkerInbound{Type: "stop"})
 		c.Kill()
+		if w, ok := c.(interface{ WaitExit(time.Duration) bool }); ok && !w.WaitExit(stopWaitMs*time.Millisecond) && g.d.Logger != nil {
+			g.d.Logger.Warn("gateway worker did not exit in time", nil)
+		}
 	}
 	after()
 }
@@ -444,12 +448,15 @@ type inProcChild struct {
 	out    func(m server.WorkerOutbound)
 	exit   func(code int)
 	done   chan struct{}
+	exited chan struct{} // 网关循环结束（Stop + 落盘完成）
+	exOnce sync.Once
 	killed bool
 	queue  []server.WorkerOutbound
 }
 
 func (c *inProcChild) OnMessage(fn func(m server.WorkerInbound)) { c.in = fn } // WorkerPort（网关一侧）
 func (c *inProcChild) Done() <-chan struct{}                     { return c.done }
+func (c *inProcChild) Finished()                                 { c.exOnce.Do(func() { close(c.exited) }) }
 func (c *inProcChild) PostMessage(m server.WorkerOutbound) { // WorkerPort（网关一侧）
 	c.mu.Lock()
 	out := c.out
@@ -483,6 +490,18 @@ func (p parentSide) OnMessage(fn func(m server.WorkerOutbound)) {
 		go fn(m)
 	}
 }
+
+// WaitExit：等网关循环结束（Node 的子进程在 stop 后自行退出、落盘不占父进程；进程内实现须等它，
+// 否则 Dispose 返回后 goroutine 仍在写用户数据目录）
+func (p parentSide) WaitExit(timeout time.Duration) bool {
+	select {
+	case <-p.c.exited:
+		return true
+	case <-time.After(timeout):
+		return false
+	}
+}
+
 func (p parentSide) OnExit(fn func(code int)) { p.c.exit = fn }
 func (p parentSide) Kill() bool {
 	p.c.mu.Lock()
@@ -504,11 +523,12 @@ func (p parentSide) Kill() bool {
 // 网关循环 panic 时按进程异常退出（code 1）上报，走同样的退避 / 熔断。
 func InProcessFork(hooks server.GatewayHooks) ForkGateway {
 	return func() GatewayChild {
-		c := &inProcChild{done: make(chan struct{})}
+		c := &inProcChild{done: make(chan struct{}), exited: make(chan struct{})}
 		p := parentSide{c}
 		func() {
 			defer func() {
 				if r := recover(); r != nil {
+					c.Finished()
 					go func() {
 						if c.exit != nil {
 							c.exit(1)
