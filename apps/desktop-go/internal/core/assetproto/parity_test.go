@@ -71,6 +71,10 @@ func TestProtocolParity(t *testing.T) {
 		}
 	}
 	win := runtime.GOOS == "windows"
+	// 大小写不敏感文件系统（APFS/NTFS 默认）上 Node 的 fs.realpath 同样能解析大小写变体，
+	// Linux 录的 golden 判 null；这类用例只在大小写敏感 FS 上比对
+	_, ciErr := os.Stat(filepath.Join(R, "CHAT", "IMAGES", "A.PNG"))
+	caseInsensitive := ciErr == nil
 	if !win {
 		for p, tg := range g.Tree.Symlinks {
 			if err := os.Symlink(tg, filepath.Join(R, p)); err != nil {
@@ -114,6 +118,9 @@ func TestProtocolParity(t *testing.T) {
 	chatRoot, preset := filepath.Join(R, "chat"), filepath.Join(R, "res", "backgrounds", "nomi-preset.jpg")
 	for i, c := range g.Chat {
 		if win && posixOnly(c, g) {
+			continue
+		}
+		if caseInsensitive && (strings.HasSuffix(c.URL, "/b.jpg") || strings.HasSuffix(c.URL, "/A.PNG")) {
 			continue
 		}
 		check(i, "chat", c, ResolveChatAssetURL(chatRoot, c.URL, preset), func(w *httptest.ResponseRecorder) { ServeChatAsset(w, chatRoot, preset, c.URL) })
