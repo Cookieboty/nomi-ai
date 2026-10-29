@@ -3,7 +3,9 @@
 package config
 
 import (
+	"encoding/json"
 	"math"
+	"sort"
 	"sync"
 
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
@@ -196,6 +198,55 @@ type GatewayConfig struct {
 	MaxRequestBodyBytes *float64                  `json:"maxRequestBodyBytes,omitempty"`
 	RoutePlan           string                    `json:"routePlan,omitempty"`
 	Privacy             *PrivacyConfig            `json:"privacy,omitempty"`
+	// ClientOrder is the JS key order of clients (Object.values order); set by UnmarshalJSON.
+	ClientOrder []string `json:"-"`
+}
+
+// UnmarshalJSON decodes GatewayConfig and remembers the key order of clients.
+func (c *GatewayConfig) UnmarshalJSON(b []byte) error {
+	type plain GatewayConfig
+	if err := json.Unmarshal(b, (*plain)(c)); err != nil {
+		return err
+	}
+	c.ClientOrder = nil
+	if v, err := u.Parse(b); err == nil {
+		if o, ok := v.(*u.Obj); ok {
+			if cl, ok := o.Get("clients").(*u.Obj); ok {
+				c.ClientOrder = cl.Keys()
+			}
+		}
+	}
+	return nil
+}
+
+// ClientValues is Object.values(cfg.clients): JS key order when known, then any
+// ClientIDs order, then the rest sorted (configs built in Go code).
+func (c *GatewayConfig) ClientValues() []*ClientRuntime {
+	out := make([]*ClientRuntime, 0, len(c.Clients))
+	seen := map[string]bool{}
+	for _, k := range c.ClientOrder {
+		if v, ok := c.Clients[k]; ok && !seen[k] {
+			seen[k] = true
+			out = append(out, v)
+		}
+	}
+	for _, k := range ClientIDs {
+		if v, ok := c.Clients[k]; ok && !seen[k] {
+			seen[k] = true
+			out = append(out, v)
+		}
+	}
+	var rest []string
+	for k := range c.Clients {
+		if !seen[k] {
+			rest = append(rest, k)
+		}
+	}
+	sort.Strings(rest)
+	for _, k := range rest {
+		out = append(out, c.Clients[k])
+	}
+	return out
 }
 
 // URL is p.urls[wire] ("" when unset or not a string).
