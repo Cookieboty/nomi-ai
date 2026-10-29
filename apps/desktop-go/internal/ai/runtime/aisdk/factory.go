@@ -35,16 +35,20 @@ func (t *fullURLTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 	return t.inner.RoundTrip(r)
 }
 
-func fullURLClient(proto protocol.Protocol, baseURL string, fullURL bool) *http.Client {
+func fullURLClient(proto protocol.Protocol, baseURL string, fullURL bool, base *http.Client) *http.Client {
 	if !fullURL {
-		return nil
+		return base
+	}
+	inner := http.DefaultTransport
+	if base != nil && base.Transport != nil {
+		inner = base.Transport
 	}
 	target := protocol.TrimBase(baseURL)
 	ep := protocol.SdkBaseURL(proto, target, true) + protocol.PathOf(proto)
 	if ep == target {
-		return nil
+		return base
 	}
-	return &http.Client{Transport: &fullURLTransport{inner: http.DefaultTransport, sdkEndpoint: ep, target: target}}
+	return &http.Client{Transport: &fullURLTransport{inner: inner, sdkEndpoint: ep, target: target}}
 }
 
 // unportedModel：协议适配器尚未移植（D-B5-P-6）时的占位，调用即报错
@@ -75,7 +79,7 @@ func BuildModelFactory(opts Options) ModelFactory {
 	}
 	full := opts.FullURL != nil && *opts.FullURL
 	baseURL := protocol.SdkBaseURL(proto, opts.BaseURL, full)
-	client := fullURLClient(proto, opts.BaseURL, full)
+	client := fullURLClient(proto, opts.BaseURL, full, opts.Client)
 	switch proto {
 	case "anthropic":
 		return func(id string) llm.LanguageModel { return unportedModel{string(proto), opts.ID, id} }

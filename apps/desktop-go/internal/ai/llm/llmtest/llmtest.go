@@ -129,6 +129,14 @@ func NewServer(steps []Step) *Server {
 			st = Step{Status: 500, Body: &body}
 		}
 		s.mu.Unlock()
+		if st.End == "destroy" && len(st.Chunks) == 0 && st.Body == nil {
+			// Node: socket destroyed before the response head is flushed.
+			if hj, ok := w.(http.Hijacker); ok {
+				c, _, _ := hj.Hijack()
+				c.Close()
+				return
+			}
+		}
 		for k, v := range st.Headers {
 			w.Header().Set(k, v)
 		}
@@ -213,7 +221,7 @@ func part(v any) llm.Part {
 	o := obj(v)
 	p := llm.Part{Type: str(o.Get("type")), Text: str(o.Get("text")), Filename: str(o.Get("filename")),
 		MediaType: str(o.Get("mediaType")), ToolCallID: str(o.Get("toolCallId")), ToolName: str(o.Get("toolName")),
-		Input: o.Get("input"), ProviderOptions: obj(o.Get("providerOptions"))}
+		Input: o.Get("input"), Kind: str(o.Get("kind")), ProviderExec: o.Get("providerExecuted") == true, ProviderOptions: obj(o.Get("providerOptions"))}
 	if o.Has("data") {
 		p.Data = fileData(o.Get("data"))
 	}
@@ -387,6 +395,9 @@ func PartJSON(p llm.StreamPart) *util.Obj {
 		o.Set("text", p.Text)
 	case "tool-call":
 		o.Set("toolCallId", p.ToolCallID).Set("toolName", p.ToolName).Set("input", p.Input)
+		if p.ProviderExecuted != nil {
+			o.Set("providerExecuted", *p.ProviderExecuted)
+		}
 	case "error":
 		if p.Err != nil {
 			o.Set("error", ErrJSON(p.Err))
@@ -408,6 +419,8 @@ func PartJSON(p llm.StreamPart) *util.Obj {
 		if p.Filename != nil {
 			o.Set("filename", *p.Filename)
 		}
+	case "custom":
+		o.Set("kind", p.Kind)
 	case "finish":
 		o.Set("finishReason", FinishJSON(*p.FinishReason)).Set("usage", UsageJSON(*p.Usage))
 	}
@@ -535,7 +548,12 @@ func Replay(t *testing.T, sc Scenario, f Factory, ids []string) []string {
 				resp.Set("headers", filterHeaders(res.ResponseHeaders)).Set("body", res.ResponseBody)
 				r := util.NewObj("content", content, "finishReason", FinishJSON(res.FinishReason),
 					"usage", UsageJSON(res.Usage), "warnings", WarningsJSON(res.Warnings),
-					"requestBody", requestBodyAs(c.Result, res.RequestBody), "response", resp)
+					"requestBody", res.RequestBody, "response", resp)
+				var rb struct{ RequestBody json.RawMessage }
+				if json.Unmarshal(c.Result, &rb) == nil && len(rb.RequestBody) > 0 && rb.RequestBody[0] == '{' {
+					// Some providers (anthropic) report request.body as the args object.
+					r.Set("requestBody", json.RawMessage(res.RequestBody))
+				}
 				if res.ProviderMetadata != nil {
 					r.Set("providerMetadata", res.ProviderMetadata)
 				}
@@ -551,15 +569,14 @@ func Replay(t *testing.T, sc Scenario, f Factory, ids []string) []string {
 	srv.mu.Lock()
 	seen := srv.Seen
 	srv.mu.Unlock()
-	// Calls that threw before fetch (no recorded request) send nothing.
-	want := 0
+	wantReqs := 0
 	for _, c := range sc.Calls {
 		if c.Request != nil {
-			want++
+			wantReqs++
 		}
 	}
-	if len(seen) != want {
-		d.Errors = append(d.Errors, fmt.Sprintf("requests: want %d got %d", want, len(seen)))
+	if len(seen) != wantReqs {
+		d.Errors = append(d.Errors, fmt.Sprintf("requests: want %d got %d", wantReqs, len(seen)))
 	}
 	for ci, c := range sc.Calls {
 		if c.Request == nil || ci >= len(seen) {
@@ -576,19 +593,6 @@ func Replay(t *testing.T, sc Scenario, f Factory, ids []string) []string {
 		d.Eq(tag+".headers", toJSON(c.Request.Headers), toJSON(g.Headers))
 	}
 	return d.Errors
-}
-
-// requestBodyAs matches the recorded request.body shape: providers that
-// return the JSON text (openai-compatible) vs the args object (openai responses).
-func requestBodyAs(result json.RawMessage, got string) any {
-	var r struct{ RequestBody json.RawMessage }
-	if json.Unmarshal(result, &r) == nil && len(r.RequestBody) > 0 && r.RequestBody[0] == '{' {
-		var v any
-		if json.Unmarshal([]byte(got), &v) == nil {
-			return v
-		}
-	}
-	return got
 }
 
 func toJSON(v any) string { b, _ := json.Marshal(v); return string(b) }

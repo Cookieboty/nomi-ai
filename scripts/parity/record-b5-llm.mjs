@@ -195,6 +195,8 @@ import { compatibleScenarios } from './b5-llm-scenarios.mjs';
 for (const s of compatibleScenarios({ sse, SSE_H, json })) add(s);
 import { responsesScenarios } from './b5-llm-openai-scenarios.mjs';
 for (const s of responsesScenarios({ sse, SSE_H, json })) add({ ...s, outFile: 'b5-llm-openai-responses.json' });
+import { anthropicScenarios } from './b5-llm-anthropic-scenarios.mjs';
+for (const s of anthropicScenarios({ sse, SSE_H, json })) add({ ...s, outFile: 'b5-llm-anthropic.json' });
 
 // ---------- run ----------
 const results = {};
