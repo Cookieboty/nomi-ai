@@ -184,7 +184,7 @@ func (o *Obj) UnmarshalJSON(b []byte) error {
 func Parse(b []byte) (any, error) {
 	dec := json.NewDecoder(bytes.NewReader(b))
 	dec.UseNumber()
-	v, err := parseValue(dec)
+	v, err := parseValue(&jdec{dec, b})
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +197,87 @@ func Parse(b []byte) (any, error) {
 // ParseString is Parse for strings.
 func ParseString(s string) (any, error) { return Parse([]byte(s)) }
 
-func parseValue(dec *json.Decoder) (any, error) {
+// jdec keeps the raw input so strings holding lone-surrogate escapes can be
+// re-decoded the JS way (encoding/json would turn them into U+FFFD).
+type jdec struct {
+	*json.Decoder
+	raw []byte
+}
+
+func (d *jdec) Token() (json.Token, error) {
+	start := d.InputOffset()
+	t, err := d.Decoder.Token()
+	if err != nil {
+		return t, err
+	}
+	if _, ok := t.(string); ok {
+		seg := d.raw[start:d.InputOffset()]
+		if q := bytes.IndexByte(seg, '"'); q >= 0 && hasSurrogateEscape(seg[q:]) {
+			return unquoteJS(seg[q:]), nil
+		}
+	}
+	return t, nil
+}
+
+func hasSurrogateEscape(b []byte) bool {
+	for i := 0; i+5 < len(b); i++ {
+		if b[i] == '\\' {
+			if b[i+1] == 'u' && (b[i+2] == 'd' || b[i+2] == 'D') && strings.IndexByte("89abcdefABCDEF", b[i+3]) >= 0 {
+				return true
+			}
+			i++
+		}
+	}
+	return false
+}
+
+// unquoteJS decodes an already-validated JSON string literal, keeping lone
+// surrogates as WTF-8 (see jsstr.go).
+func unquoteJS(b []byte) string {
+	var sb strings.Builder
+	b = b[1 : len(b)-1]
+	for i := 0; i < len(b); i++ {
+		c := b[i]
+		if c != '\\' {
+			sb.WriteByte(c)
+			continue
+		}
+		i++
+		switch b[i] {
+		case 'b':
+			sb.WriteByte('\b')
+		case 'f':
+			sb.WriteByte('\f')
+		case 'n':
+			sb.WriteByte('\n')
+		case 'r':
+			sb.WriteByte('\r')
+		case 't':
+			sb.WriteByte('\t')
+		case 'u':
+			u, _ := strconv.ParseUint(string(b[i+1:i+5]), 16, 32)
+			i += 4
+			r := rune(u)
+			if r >= 0xD800 && r <= 0xDBFF && i+6 < len(b) && b[i+1] == '\\' && b[i+2] == 'u' {
+				if lo, err := strconv.ParseUint(string(b[i+3:i+7]), 16, 32); err == nil && lo >= 0xDC00 && lo <= 0xDFFF {
+					sb.WriteRune(0x10000 + (r-0xD800)<<10 + (rune(lo) - 0xDC00))
+					i += 6
+					continue
+				}
+			}
+			if r >= 0xD800 && r <= 0xDFFF {
+				sb.WriteString(wtf8Surrogate(r))
+			} else {
+				sb.WriteRune(r)
+			}
+		default:
+			sb.WriteByte(b[i])
+		}
+	}
+	return sb.String()
+}
+
+func parseValue(dec *jdec) (any, error) {
 	t, err := dec.Token()
 	if err != nil {
 		return nil, err
@@ -205,7 +285,7 @@ func parseValue(dec *json.Decoder) (any, error) {
 	return fromToken(dec, t)
 }
 
-func fromToken(dec *json.Decoder, t json.Token) (any, error) {
+func fromToken(dec *jdec, t json.Token) (any, error) {
 	switch x := t.(type) {
 	case json.Delim:
 		switch x {
@@ -384,8 +464,14 @@ func writeString(b *strings.Builder, s string) {
 			i++
 			continue
 		}
-		r, size := utf8.DecodeRuneInString(s[i:])
-		if r == utf8.RuneError && size == 1 {
+		r, size := decodeUnit(s[i:])
+		if IsLoneSurrogate(r) {
+			b.WriteString(`\u`)
+			b.WriteByte(hexDigits[r>>12&0xf])
+			b.WriteByte(hexDigits[r>>8&0xf])
+			b.WriteByte(hexDigits[r>>4&0xf])
+			b.WriteByte(hexDigits[r&0xf])
+		} else if r == utf8.RuneError && size == 1 {
 			b.WriteString(`\ufffd`)
 		} else {
 			b.WriteString(s[i : i+size])

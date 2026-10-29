@@ -128,5 +128,5 @@ func UpstreamMessage(text string) string {
 	if text == "" {
 		return "upstream error"
 	}
-	return text[:u.UTF16Prefix(text, 500)]
+	return u.UTF16Slice0(text, 500)
 }
