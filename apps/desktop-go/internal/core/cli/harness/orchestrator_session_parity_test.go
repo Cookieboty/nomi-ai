@@ -17,12 +17,19 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/paritytest"
 )
 
-var orchTimeKeys = map[string]bool{"ts": true, "at": true, "expiresAt": true, "startedAt": true, "durationMs": true, "updatedAt": true, "createdAt": true}
+var orchTimeKeys = map[string]bool{"ts": true, "at": true, "expiresAt": true, "startedAt": true, "durationMs": true, "updatedAt": true, "createdAt": true, "timestamp": true}
+
+// orchRoot：仓库根（Node 侧 root → <R>；主标签默认 cwd = process.cwd）。
+var orchRoot string
 
 func orchNorm(v any, tmp string) any {
 	switch x := v.(type) {
 	case string:
-		return uuidRe.ReplaceAllString(strings.ReplaceAll(x, tmp, "<T>"), "<U>")
+		x = strings.ReplaceAll(x, tmp, "<T>")
+		if orchRoot != "" {
+			x = strings.ReplaceAll(x, orchRoot, "<R>")
+		}
+		return uuidRe.ReplaceAllString(x, "<U>")
 	case []any:
 		out := make([]any, len(x))
 		for i, e := range x {
@@ -129,12 +136,27 @@ func runOrchCase(t *testing.T, c *util.Obj) *util.Obj {
 				}
 			}
 			evs = append(evs, []any{n, ty})
+			// 手动应答权限卡（批准 / 拒绝）：等同用户在 UI 点按钮（下一个宏任务）
+			if reply, _ := c.Get("reply").(string); reply != "" && n == "event" && ty == "permission" {
+				po := util.AsObj(p)
+				tabID, _ := po.Get("tabId").(string)
+				reqID, _ := util.AsObj(po.Get("event")).Get("id").(string)
+				jsrt.SetTimeout(0, func() { o.ReplyPermission(tabID, reqID, reply == "allow", "", "") })
+			}
 		})
 	}
+	o.events.On("tab-finished", func(p any) {
+		ty := "fail"
+		if p.(TabFinished).Ok {
+			ty = "ok"
+		}
+		evs = append(evs, []any{"tab-finished", ty})
+	})
 	mode := "default"
 	if m, ok := c.Get("permissionMode").(string); ok {
 		mode = m
 	}
+	viaSend := c.Get("via") == "sendTab"
 	tab := util.NewObj()
 	tab.Set("id", "t1")
 	tab.Set("title", "T")
@@ -143,7 +165,22 @@ func runOrchCase(t *testing.T, c *util.Obj) *util.Obj {
 	tab.Set("permissionMode", mode)
 	tab.Set("cliSessionId", nil)
 	tab.Set("messages", []any{})
-	o.tabs.Set("t1", tab)
+	if viaSend {
+		opts := util.NewObj("backend", c.Get("backend"), "cwd", cwd)
+		if m, ok := c.Get("permissionMode").(string); ok {
+			opts.Set("permissionMode", m)
+		}
+		tab = jsrt.Call(func() *util.Obj {
+			t := o.CreateTab(opts)
+			if m, ok := c.Get("permissionMode").(string); ok {
+				o.SetTabPermissionMode(str(t, "id"), m, PermOpts{})
+			}
+			return t
+		})
+	} else {
+		o.tabs.Set("t1", tab)
+	}
+	tabID := str(tab, "id")
 	var turns []any
 	for _, pr := range c.Get("prompts").([]any) {
 		prompt := pr.(string)
@@ -176,6 +213,9 @@ func runOrchCase(t *testing.T, c *util.Obj) *util.Obj {
 			}()
 		}
 		p := jsrt.Call(func() (p *jsrt.Promise[*util.Obj]) {
+			if viaSend {
+				return o.SendTab(tabID, prompt, nil, false)
+			}
 			switch c.Get("backend") {
 			case "claude":
 				p = o.runClaude(tab, prompt, ac.Signal, nil, "")
@@ -207,17 +247,48 @@ func runOrchCase(t *testing.T, c *util.Obj) *util.Obj {
 				}
 			}
 			r.Set("ok", ok)
-			if s, _ := v.Get("sessionId").(string); s != "" {
+			if s, _ := v.Get("sessionId").(string); s != "" && !viaSend {
 				tab.Set("cliSessionId", s)
 			}
 		}
 		delete(o.stopRequested, "t1")
 		turns = append(turns, r)
 	}
+	// finish 落盘内容：flushPersist 后读 harness 根下全部文件（相对路径排序）
+	var disk []any
+	if viaSend {
+		jsrt.Run(o.FlushPersist)
+		disk = []any{}
+		var walk func(d, rel string)
+		walk = func(d, rel string) {
+			ents, _ := os.ReadDir(d) // 已按名排序
+			for _, e := range ents {
+				p := filepath.Join(d, e.Name())
+				r := e.Name()
+				if rel != "" {
+					r = rel + "/" + e.Name()
+				}
+				if e.IsDir() {
+					walk(p, r)
+					continue
+				}
+				b, _ := os.ReadFile(p)
+				v, err := util.Parse(b)
+				if err != nil {
+					v = string(b)
+				}
+				disk = append(disk, []any{r, v})
+			}
+		}
+		walk(filepath.Join(tmp, "harness"), "")
+	}
 	jsrt.Run(func() {
-		o.teardownClaudeLive("t1")
-		o.teardownAcpLive("t1")
-		o.teardownCodexLive("t1")
+		o.teardownClaudeLive(tabID)
+		o.teardownAcpLive(tabID)
+		o.teardownCodexLive(tabID)
+		if t := o.tab(tabID); t != nil {
+			tab = t
+		}
 	})
 	out := util.NewObj()
 	out.Set("name", c.Get("name"))
@@ -229,6 +300,9 @@ func runOrchCase(t *testing.T, c *util.Obj) *util.Obj {
 	ts.Set("cliSessionId", tab.Get("cliSessionId"))
 	ts.Set("permissionMode", tab.Get("permissionMode"))
 	out.Set("tab", ts)
+	if disk != nil {
+		out.Set("disk", disk)
+	}
 	return util.AsObj(orchNorm(out, tmp))
 }
 
@@ -238,6 +312,7 @@ func TestOrchestratorSessionsGolden(t *testing.T) {
 	if len(golden) != len(scen) {
 		t.Fatalf("golden %d cases vs scenarios %d — re-record", len(golden), len(scen))
 	}
+	orchRoot = repoRoot(t)
 	t.Chdir(repoRoot(t)) // mock-cli 按 cwd 解析（detect.go，同 Node）
 	for i, sc := range scen {
 		c := util.AsObj(sc)
