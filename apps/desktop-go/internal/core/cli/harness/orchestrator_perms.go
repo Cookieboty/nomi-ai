@@ -124,7 +124,7 @@ func (o *Orchestrator) ReplyPermission(tabID, requestID string, allow bool, reas
 		Writable() bool
 		Write(string) bool
 	}
-	if c := o.children[tabID]; c != nil {
+	if c := o.children.Get(tabID); c != nil {
 		stdin = c.Stdin()
 	} else if l := o.live.claude[tabID]; l != nil && l.child != nil {
 		stdin = l.child.Stdin()
@@ -234,10 +234,10 @@ func (o *Orchestrator) allowIfBypass(tabID, requestID string, notify func()) {
 
 // armPermissionTimeout = armPermissionTimeout。
 func (o *Orchestrator) armPermissionTimeout(tabID, requestID string) {
-	m := o.pendingPerms[tabID]
+	m := o.pendingPerms.Get(tabID)
 	if m == nil {
 		m = map[string]*jsrt.Timer{}
-		o.pendingPerms[tabID] = m
+		o.pendingPerms.Set(tabID, m)
 	}
 	prev := m[requestID]
 	if prev != nil {
@@ -344,7 +344,7 @@ func (o *Orchestrator) waitForTabIdle(id string, timeoutMs float64) *jsrt.Promis
 
 // clearOnePermissionTimeout = clearOnePermissionTimeout。
 func (o *Orchestrator) clearOnePermissionTimeout(tabID, requestID string) {
-	m := o.pendingPerms[tabID]
+	m := o.pendingPerms.Get(tabID)
 	if t := m[requestID]; t != nil {
 		jsrt.ClearTimeout(t)
 	}
@@ -354,20 +354,20 @@ func (o *Orchestrator) clearOnePermissionTimeout(tabID, requestID string) {
 	delete(m, requestID)
 	o.pendingPermOrder[tabID] = removeS(o.pendingPermOrder[tabID], requestID)
 	if len(m) == 0 {
-		delete(o.pendingPerms, tabID)
+		o.pendingPerms.Delete(tabID)
 		delete(o.pendingPermOrder, tabID)
 	}
 }
 
 // clearPermissionTimeouts = clearPermissionTimeouts。
 func (o *Orchestrator) clearPermissionTimeouts(tabID string) {
-	m := o.pendingPerms[tabID]
+	m := o.pendingPerms.Get(tabID)
 	if m == nil {
 		return
 	}
-	for _, t := range m {
-		jsrt.ClearTimeout(t)
+	for _, rid := range o.pendingPermOrder[tabID] {
+		jsrt.ClearTimeout(m[rid])
 	}
-	delete(o.pendingPerms, tabID)
+	o.pendingPerms.Delete(tabID)
 	delete(o.pendingPermOrder, tabID)
 }
