@@ -2,6 +2,7 @@ package util
 
 import (
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -129,4 +130,91 @@ func UTF16Prefix(s string, n int) int {
 		i += size
 	}
 	return len(s)
+}
+
+// ToWellFormed is what Node's UTF-8 encoder (Buffer.from, createHash().update,
+// TextEncoder) does with a JS string: every lone surrogate (stored as WTF-8
+// `ED A0..BF xx`, see D19) becomes U+FFFD.
+func ToWellFormed(s string) string {
+	i := strings.Index(s, "\xed")
+	if i < 0 {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s))
+	for i := 0; i < len(s); {
+		if s[i] == 0xED && i+2 < len(s) && s[i+1] >= 0xA0 && s[i+1] <= 0xBF {
+			b.WriteString("\uFFFD")
+			i += 3
+			continue
+		}
+		b.WriteByte(s[i])
+		i++
+	}
+	return b.String()
+}
+
+// JSLower is String.prototype.toLowerCase: Unicode default lower-casing with the
+// two context/length special cases Go's strings.ToLower does not apply
+// (U+0130 → "i\u0307", and Final_Sigma Σ → ς at the end of a word).
+func JSLower(s string) string {
+	if isASCII(s) {
+		return strings.ToLower(s)
+	}
+	var rs []rune
+	for i := 0; i < len(s); {
+		r, n := decodeUnit(s[i:])
+		rs = append(rs, r)
+		i += n
+	}
+	var b strings.Builder
+	for i, r := range rs {
+		switch {
+		case r == 0x130:
+			b.WriteString("i\u0307")
+		case r == 0x3A3 && finalSigma(rs, i):
+			b.WriteRune(0x3C2)
+		case IsLoneSurrogate(r):
+			b.WriteString(wtf8Surrogate(r))
+		default:
+			b.WriteRune(unicode.ToLower(r))
+		}
+	}
+	return b.String()
+}
+
+func isASCII(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] >= 0x80 {
+			return false
+		}
+	}
+	return true
+}
+
+// finalSigma: preceded by a cased letter (skipping case-ignorable) and not
+// followed by one.
+func finalSigma(rs []rune, i int) bool {
+	cased := func(r rune) bool { return unicode.IsUpper(r) || unicode.IsLower(r) || unicode.IsTitle(r) }
+	ignorable := func(r rune) bool {
+		return unicode.In(r, unicode.Mn, unicode.Me, unicode.Cf, unicode.Lm, unicode.Sk) || r == '\'' || r == '.' || r == ':' || r == 0x2019
+	}
+	before := false
+	for j := i - 1; j >= 0; j-- {
+		if ignorable(rs[j]) {
+			continue
+		}
+		before = cased(rs[j])
+		break
+	}
+	if !before {
+		return false
+	}
+	for j := i + 1; j < len(rs); j++ {
+		if ignorable(rs[j]) {
+			continue
+		}
+		return !cased(rs[j])
+	}
+	return true
 }

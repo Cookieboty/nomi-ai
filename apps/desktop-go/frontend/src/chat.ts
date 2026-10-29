@@ -60,3 +60,42 @@ document.getElementById('f')!.onsubmit = async (ev) => {
     mark(`chat-error ${(e as Error).message}`);
   }
 };
+
+// —— 设置：mascot.renderer（默认 svg）。开关即时生效：核心广播 mascot.rendererChanged，看板娘窗口热切换。
+const toggle = document.getElementById('riveToggle') as HTMLInputElement;
+const hasWebGL = (() => {
+  try {
+    const c = document.createElement('canvas');
+    return !!(c.getContext('webgl2') ?? c.getContext('webgl'));
+  } catch {
+    return false;
+  }
+})();
+const setRenderer = (r: 'svg' | 'rive') => client.mascot.setRenderer({ renderer: r });
+client.on('mascot.rendererChanged', (r) => (toggle.checked = r === 'rive'));
+void client.mascot.getRenderer().then((r) => {
+  toggle.checked = r === 'rive';
+  toggle.disabled = !hasWebGL && r !== 'rive';
+});
+toggle.onchange = () => void setRenderer(toggle.checked ? 'rive' : 'svg');
+
+// —— 引导最后一张（可跳过）：默认「保持静态」，只问一次
+const OB_KEY = 'nomi.onboarding.mascotRendererAsked';
+if (!localStorage.getItem(OB_KEY) && !ctlAddr) {
+  const ob = document.getElementById('ob')!;
+  const done = (r: 'svg' | 'rive') => {
+    localStorage.setItem(OB_KEY, '1');
+    ob.hidden = true;
+    void setRenderer(r);
+  };
+  ob.hidden = false;
+  const btnStatic = document.getElementById('obStatic') as HTMLButtonElement;
+  const btnRive = document.getElementById('obRive') as HTMLButtonElement;
+  if (!hasWebGL) {
+    btnRive.hidden = true;
+    document.getElementById('obNoGl')!.hidden = false;
+  }
+  btnStatic.onclick = () => done('svg');
+  btnRive.onclick = () => done('rive');
+  btnStatic.focus();
+}

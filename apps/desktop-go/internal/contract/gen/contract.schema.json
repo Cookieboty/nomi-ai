@@ -16077,6 +16077,22 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema"
    }
   },
+  "mascot.getRenderer": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "string",
+    "enum": [
+     "svg",
+     "rive"
+    ]
+   }
+  },
   "mascot.getSavedModel": {
    "kind": "query",
    "dangerous": false,
@@ -16552,6 +16568,35 @@
    },
    "output": {
     "$schema": "https://json-schema.org/draft/2020-12/schema"
+   }
+  },
+  "mascot.setRenderer": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "renderer": {
+      "type": "string",
+      "enum": [
+       "svg",
+       "rive"
+      ]
+     }
+    },
+    "required": [
+     "renderer"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "string",
+    "enum": [
+     "svg",
+     "rive"
+    ]
    }
   },
   "mascot.setShape": {
@@ -24171,6 +24216,14 @@
      ],
      "additionalProperties": {}
     }
+   ]
+  },
+  "mascot.rendererChanged": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "string",
+   "enum": [
+    "svg",
+    "rive"
    ]
   },
   "mascot.scaleChanged": {

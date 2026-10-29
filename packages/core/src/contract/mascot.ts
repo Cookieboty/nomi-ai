@@ -14,6 +14,7 @@ import type { MascotProcedureName } from '@nomi-ai/contract/app';
 import { CHAT_BG_ERROR } from '@nomi-ai/types';
 
 import { t } from '../i18n';
+import { readMascotRenderer, writeMascotRenderer } from '../mascot/mascotRenderer';
 import { defaultSystemPrompt } from '../persona/systemPrompt';
 
 import { need, type AppHandlerContext, type ContractDeps, type DomainHandlers } from './types';
@@ -29,6 +30,8 @@ type MascotCoreProcedureName =
   | 'chatBg.set'
   | 'chatBg.reset'
   | 'chatBg.pickImage'
+  | 'mascot.getRenderer'
+  | 'mascot.setRenderer'
   | 'window.platform';
 
 /** 宿主实现的 D5 过程：看板娘窗口互动与大小、灵动岛、旧窗口通道 */
@@ -86,6 +89,14 @@ export function createMascotCoreHandlers(deps: ContractDeps): MascotCoreHandlers
     'chatBg.reset': () => need(services.chatBg, 'chatBg').reset().then(plain),
     'chatBg.pickImage': (_input, ctx) =>
       withChatBgErrors(ctx, () => need(services.chatBg, 'chatBg').pickImage('chat')).then(plain),
+
+    // —— 看板娘渲染器（userData/settings.json 的 mascot.renderer，默认 svg）
+    'mascot.getRenderer': () => readMascotRenderer(deps.ports.paths.userData()),
+    'mascot.setRenderer': ({ renderer }) => {
+      const next = writeMascotRenderer(deps.ports.paths.userData(), renderer);
+      deps.events.publish('mascot.rendererChanged', next);
+      return next;
+    },
 
     'window.platform': () => deps.ports.app.platform(),
   };

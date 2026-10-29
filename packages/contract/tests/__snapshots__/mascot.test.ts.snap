@@ -36,6 +36,8 @@ exports[`mascot 契约 > 过程名 / kind / surfaces / dangerous 1`] = `
   "window.getCursorPosition query mascot",
   "window.openAiChat mutation mascot",
   "window.openTaskBoard mutation mascot",
+  "mascot.getRenderer query *",
+  "mascot.setRenderer mutation *",
   "window.platform query *",
 ]
 `;
@@ -43,6 +45,7 @@ exports[`mascot 契约 > 过程名 / kind / surfaces / dangerous 1`] = `
 exports[`mascot 契约 > 过程名 / kind / surfaces / dangerous 2`] = `
 [
   "mascot.scaleChanged",
+  "mascot.rendererChanged",
   "mascot.cursor",
   "mascot.body",
   "mascot.physicsEvent",

@@ -21,6 +21,7 @@ type Store struct {
 	mu   sync.Mutex
 	path string
 	data File
+	raw  map[string]any // 整个文件（保留其他键，和 Node writeMascotRenderer 一致）
 }
 
 func New(path string) *Store {
@@ -39,6 +40,10 @@ func (s *Store) Load() error {
 	var f File
 	if json.Unmarshal(raw, &f) != nil {
 		return nil
+	}
+	var m map[string]any
+	if json.Unmarshal(raw, &m) == nil {
+		s.raw = m
 	}
 	if f.Mascot.Renderer != "svg" && f.Mascot.Renderer != "rive" {
 		f.Mascot.Renderer = "svg"
@@ -65,7 +70,19 @@ func (s *Store) SetMascotRenderer(r string) error {
 
 func (s *Store) save() error {
 	s.mu.Lock()
-	b, _ := json.MarshalIndent(s.data, "", "  ")
+	m := map[string]any{}
+	for k, v := range s.raw {
+		m[k] = v
+	}
+	mascot, _ := m["mascot"].(map[string]any)
+	nm := map[string]any{}
+	for k, v := range mascot {
+		nm[k] = v
+	}
+	nm["renderer"] = s.data.Mascot.Renderer
+	m["mascot"] = nm
+	s.raw = m
+	b, _ := json.MarshalIndent(m, "", "  ")
 	s.mu.Unlock()
 	return utils.WritePrivateFileAtomic(s.path, append(b, '\n'))
 }

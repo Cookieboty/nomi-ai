@@ -69,7 +69,7 @@ func CallIDSeed(body any) string {
 	if body != nil {
 		text = util.Stringify(historyOf(body))
 	}
-	sum := sha256.Sum256([]byte(text))
+	sum := sha256.Sum256([]byte(util.ToWellFormed(text)))
 	return hex.EncodeToString(sum[:])[:12]
 }
 
@@ -112,7 +112,7 @@ func CallIDForWire(wire, id string) string {
 		return EscapeCallID(id)
 	}
 	if wire == "chat" && utf16Len(id) > chatIDMax {
-		sum := sha256.Sum256([]byte(id))
+		sum := sha256.Sum256([]byte(util.ToWellFormed(id)))
 		return "call_" + hex.EncodeToString(sum[:])[:32]
 	}
 	return id
