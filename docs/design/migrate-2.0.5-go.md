@@ -198,6 +198,15 @@ Go 版**1:1 镜像** Node 版：模块边界、包/层结构、数据格式、�
 | D-B10-2 | 角色包校验是宽松子集 | 只校验必要字段和文件存在（manifest、引导 4 个文件、rive/static、sprite、voice、locales、persona），不跑 zod、不出 warnings、不做旧格式迁移；旧 mapping 直接丢弃。fixture `mascothandlers/testdata/parity.json`（无覆盖包 / 用户覆盖包）快照与 Node 一致 | 不合规的包 Node 报 warning 仍加载，Go 可能直接回退内置包 |
 | D-B10-3 | 看板娘物理/漫游/点击穿透未移植 | `mascot.setShape`/`setHit`/`setInteractionConfig`/`wanderNow` 收下即返回（no-op），`mascot.debugSnapshot` 仍是 UNAVAILABLE；拖动、缩放（尺寸计算 fixture 全对上）、置顶、位置已实现 | 透明区域不会点击穿透；不会自己走动 |
 | D-B10-4 | 渲染器选择引导卡在 POC 对话页 | 新设置 `mascot.renderer`（svg\|rive，默认 svg，升级用户也是 svg）；引导最后一张「想让诺米动起来吗？」（默认焦点「保持静态」，无 WebGL 时隐藏「开启动画」）暂放在 POC 对话页、用 localStorage 只问一次，等引导页迁过来再挪 | 无 |
+| D-B8-1 | `knowledge.ts` 契约 77 个过程（批次说明） | 实际 75 个过程 + 11 个事件，Go 全部注册（`knowledgehandlers.Handlers`，单测断言 75） | 以契约源码为准，说明里的数字有误 |
+| D-B8-2 | 本地模型注册进 AI 网关 / 设为主模型（`gateway.upsertProvider`、`setNomiMain`、`confirmPrivateHost`） | Go 通过 `local.GatewayLike` 接口调用，main.go 暂未接入（nil → 跳过注册），TODO(batch-4/5) | 网关服务属于批次 4/5，尚未合入 |
+| D-B8-3 | `desktop.say`、`broker.setLocalOnly`、HostPorts（打开对话框、OCR 等） | 用 `deps.NoopDesktop` / `deps.NoopPorts` 假实现：say 不出声，对话框按“已取消”处理，TODO(batch-6) | DesktopService / HostPorts 属于批次 6 |
+| D-B8-4 | AI `complete`（摘要、问答、主动聊天） | `deps.UnavailableComplete`：返回 KB_/MEM_/SCHED_ 声明里的失败码，TODO(batch-4/5) | 依赖 ai-runtime（批次 4/5） |
+| D-B8-5 | `os.totalmem()` | Linux 用 `sysinfo`，mac 用 `sysctl hw.memsize`；Windows 暂时固定返回 8 GiB，TODO | Windows 需 `GlobalMemoryStatusEx`，后续补 |
+| D-B8-6 | llama-server 被信号结束时 `exit` 事件的 `code` 为 null | Go 被信号杀掉时同样报 `code: null`，`signal` 字段只有 Unix 有值 | Go `ProcessState` 在 Windows 上没有信号 |
+| D-B8-7 | 数据导出用 JS zip 库，按 `readdir` 的返回顺序 | Go 用标准库 `archive/zip`，目录先排序再写入；条目内容、路径、50 MB / 深度 4 上限相同 | 不同平台的 readdir 顺序本来就不固定；排序后结果可复现 |
+| D-B8-8 | MCP 密钥用 safeStorage 加密写进 `mcp.json` | 写入系统钥匙串（`security.NewSecretBox("extensions")`），磁盘上存 `enc:<base64 id>`，同 D13 | Go 没有 safeStorage |
+| D-B8-9 | 导入技能时用 `O_NOFOLLOW` 打开文件 | Windows 没有 `O_NOFOLLOW`，只靠打开后的 Stat 检查是否为普通文件；Unix 行为不变 | Windows 平台限制 |
 
 ### 3.5 一致性测试策略（golden，Node 与 Go 同输入对比输出）
 

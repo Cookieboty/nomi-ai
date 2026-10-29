@@ -21,6 +21,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop"
 	desktoptr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop/tr"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/island"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/knowledgehandlers"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/mascothandlers"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/security"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/shellhandlers"
@@ -75,6 +76,20 @@ func main() {
 		SystemLangs: systemLangs(),
 		IsDark:      func() bool { return false },
 	})
+	// 批次 8：知识库 / 记忆 / 定时 / 本地模型 / 导出 / 扩展。
+	// TODO(batch-4/5): Complete / Gateway 接 AI runtime；TODO(batch-6): Desktop / Ports 接 DesktopService 与 HostPorts。
+	b8 := knowledgehandlers.Wire(knowledgehandlers.WireDeps{
+		UserData: userData,
+		Router:   router,
+		Secrets:  security.NewSecretBox("extensions"),
+		OpenChat: func() {
+			if sh != nil {
+				sh.Show(shell.Chat)
+			}
+		},
+	})
+	b8.Start()
+	defer b8.Stop()
 	isl := island.New(filepath.Join(userData, "island.json"), mascothandlers.Platform())
 	isl.Notify = func(kind, title, body string, durationMs int, force bool) bool {
 		if sh == nil {
