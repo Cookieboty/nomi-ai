@@ -31,13 +31,17 @@ type Wails struct {
 func New(cfg Config) *Wails {
 	w := &Wails{cfg: cfg, wins: map[shell.WindowKind]*application.WebviewWindow{}}
 	w.app = application.New(application.Options{
-		Name:    "Nomi POC",
+		Name:    "Nomi",
 		Assets:  application.AssetOptions{Handler: application.AssetFileServerFS(cfg.Assets)},
 		Mac:     application.MacOptions{ActivationPolicy: application.ActivationPolicyAccessory, ApplicationShouldTerminateAfterLastWindowClosed: false},
 		Linux:   application.LinuxOptions{DisableQuitOnLastWindowClosed: true, ProgramName: "nomi-poc"},
 		Windows: application.WindowsOptions{DisableQuitOnLastWindowClosed: true},
 	})
-	w.setupTray()
+	if trayHostAvailable() {
+		w.setupTray()
+	} else {
+		log.Printf("[shell] no system tray host (StatusNotifierWatcher); running tray-less")
+	}
 	return w
 }
 
@@ -48,11 +52,14 @@ func (w *Wails) setupTray() {
 	m := w.app.NewMenu()
 	m.Add("显示 / 隐藏看板娘").OnClick(func(*application.Context) { w.toggle(shell.Mascot) })
 	m.Add("打开 / 关闭对话").OnClick(func(*application.Context) { w.toggle(shell.Chat) })
+	m.Add("显示通知条").OnClick(func(*application.Context) { w.toggle(shell.Island) })
 	m.AddSeparator()
 	m.Add("退出").OnClick(func(*application.Context) { w.Quit() })
 	t.SetMenu(m)
 	w.tray = t
 }
+
+func (w *Wails) TrayAvailable() bool { return w.tray != nil }
 
 func (w *Wails) toggle(k shell.WindowKind) {
 	if w.Visible(k) {
@@ -81,12 +88,31 @@ func (w *Wails) Show(k shell.WindowKind) {
 		opts = application.WebviewWindowOptions{
 			Name: "mascot", Title: "Nomi", Width: 330, Height: 355,
 			Frameless: true, AlwaysOnTop: true, DisableResize: true,
-			BackgroundType: application.BackgroundTypeTransparent,
-			Linux:          application.LinuxWindow{WindowIsTranslucent: true, WebviewGpuPolicy: application.WebviewGpuPolicyOnDemand},
-			// mac/Windows 需要各自显式声明透明，否则 WebView 底色是白的（首轮 CI 截图）
+			BackgroundType:   application.BackgroundTypeTransparent,
+			BackgroundColour: application.RGBA{},
+			Linux:            application.LinuxWindow{WindowIsTranslucent: true, WebviewGpuPolicy: application.WebviewGpuPolicyOnDemand},
+			// mac/Windows 需要各自显式声明透明。Mac 上 WKWebView 只能用私有键 drawsBackground 关底色，
+			// Wails v3.0.0 只在 -tags private_mac_apis 下编进去（否则是空实现 → 白底），见 macflags_darwin.go。
 			Mac:     application.MacWindow{Backdrop: application.MacBackdropTransparent},
 			Windows: application.WindowsWindow{HiddenOnTaskbar: true, BackdropType: application.None, DisableFramelessWindowDecorations: true},
 			URL:     w.page(k),
+		}
+	case shell.Island:
+		opts = application.WebviewWindowOptions{
+			Name: "island", Title: "Nomi Island", Width: 360, Height: 72,
+			Frameless: true, AlwaysOnTop: true, DisableResize: true,
+			InitialPosition:  application.WindowXY,
+			BackgroundType:   application.BackgroundTypeTransparent,
+			BackgroundColour: application.RGBA{},
+			Linux:            application.LinuxWindow{WindowIsTranslucent: true},
+			Mac:              application.MacWindow{Backdrop: application.MacBackdropTransparent, WindowLevel: application.MacWindowLevelStatus},
+			Windows:          application.WindowsWindow{HiddenOnTaskbar: true, BackdropType: application.None, DisableFramelessWindowDecorations: true},
+			URL:              w.page(k),
+		}
+		if sc := w.app.Screen.GetPrimary(); sc != nil {
+			opts.Screen = sc
+			opts.X = (sc.WorkArea.Width - opts.Width) / 2 // 相对 WorkArea 原点
+			opts.Y = 8
 		}
 	case shell.Chat:
 		opts = application.WebviewWindowOptions{Name: "chat", Title: "Nomi 对话", Width: 480, Height: 560, URL: w.page(k)}

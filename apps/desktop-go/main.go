@@ -69,6 +69,8 @@ func main() {
 				sh.Destroy(shell.Chat)
 			case "show-mascot":
 				sh.Show(shell.Mascot)
+			case "show-island":
+				sh.Show(shell.Island)
 			case "hide-mascot":
 				sh.Destroy(shell.Mascot)
 			case "quit":
@@ -79,6 +81,10 @@ func main() {
 	}
 
 	sh.Show(shell.Mascot)
+	if !sh.TrayAvailable() {
+		// 没有托盘（Linux 无 SNI 宿主）：对话窗作为常驻入口
+		sh.Show(shell.Chat)
+	}
 	if err := sh.Run(); err != nil {
 		log.Fatal(err)
 	}

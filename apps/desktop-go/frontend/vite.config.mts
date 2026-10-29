@@ -37,6 +37,6 @@ export default defineConfig({
   build: {
     outDir: path.join(here, 'dist'),
     emptyOutDir: true,
-    rollupOptions: { input: { index: path.join(here, 'index.html'), mascot: path.join(here, 'mascot.html'), chat: path.join(here, 'chat.html') } },
+    rollupOptions: { input: { index: path.join(here, 'index.html'), mascot: path.join(here, 'mascot.html'), chat: path.join(here, 'chat.html'), island: path.join(here, 'island.html') } },
   },
 });

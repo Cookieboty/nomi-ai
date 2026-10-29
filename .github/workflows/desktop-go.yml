@@ -48,7 +48,7 @@ jobs:
         working-directory: apps/desktop-go
         run: |
           mkdir -p frontend/dist && touch frontend/dist/.keep
-          TAGS=""; [ "$RUNNER_OS" = Linux ] && TAGS="-tags gtk3"
+          TAGS=""; [ "$RUNNER_OS" = Linux ] && TAGS="-tags gtk3"; [ "$RUNNER_OS" = macOS ] && TAGS="-tags private_mac_apis"
           go vet $TAGS ./... && go test $TAGS -race ./...
       - name: frontend
         working-directory: apps/desktop-go/frontend
@@ -63,7 +63,7 @@ jobs:
               cp build/bin/nomi-poc.exe dist-ci/
               (cd build/bin && 7z a -tzip ../../dist-ci/nomi-poc-windows-amd64.zip nomi-poc.exe >/dev/null) ;;
             macOS)
-              go build -trimpath -ldflags "-s -w" -o build/bin/nomi-poc .
+              go build -tags private_mac_apis -trimpath -ldflags "-s -w" -o build/bin/nomi-poc .
               APP="build/Nomi POC.app"; mkdir -p "$APP/Contents/MacOS"
               cp build/bin/nomi-poc "$APP/Contents/MacOS/nomi-poc"
               cat > "$APP/Contents/Info.plist" <<PL
@@ -95,6 +95,16 @@ jobs:
         with:
           name: nomi-poc-${{ matrix.os }}
           path: apps/desktop-go/dist-ci/
+
+      - name: mac transparency proof
+        if: runner.os == 'macOS'
+        working-directory: apps/desktop-go
+        run: ci/mac-transparency.sh "$PWD/build/Nomi POC.app/Contents/MacOS/nomi-poc" "$PWD/shots"
+      - uses: actions/upload-artifact@v4
+        if: always() && runner.os == 'macOS'
+        with:
+          name: mac-transparency
+          path: apps/desktop-go/shots/
 
       # ---------- 内存实测：POC ----------
       - name: measure poc (macOS)
