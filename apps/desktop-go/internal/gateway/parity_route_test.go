@@ -13,9 +13,9 @@ import (
 )
 
 type routeFx struct {
-	Providers []config.RuntimeProvider           `json:"providers"`
-	Learned   map[string]*config.LearnedState    `json:"learned"`
-	Clients   map[string]*config.ClientRuntime   `json:"clients"`
+	Providers []config.RuntimeProvider         `json:"providers"`
+	Learned   map[string]*config.LearnedState  `json:"learned"`
+	Clients   map[string]*config.ClientRuntime `json:"clients"`
 	Cfgs      []struct {
 		RoutePlan    *string `json:"routePlan"`
 		StrictParams *bool   `json:"strictParams"`
@@ -45,10 +45,10 @@ type routeFx struct {
 	} `json:"plan"`
 	Effs   []json.RawMessage `json:"effs"`
 	Losses []struct {
-		E    int
-		A    *string
-		B    string
-		L    []string
+		E int
+		A *string
+		B string
+		L []string
 	} `json:"losses"`
 	Quality []struct {
 		L []string
@@ -94,12 +94,12 @@ type routeFx struct {
 	} `json:"split"`
 	ModelJSON []string `json:"modelJSON"`
 	Resolve   []struct {
-		Cfg  int
-		C    *string
-		N    string
-		Ing  *string
-		B    int
-		R    json.RawMessage
+		Cfg int
+		C   *string
+		N   string
+		Ing *string
+		B   int
+		R   json.RawMessage
 	} `json:"resolve"`
 	Bindings []*struct {
 		Models *config.ClientModels `json:"models"`

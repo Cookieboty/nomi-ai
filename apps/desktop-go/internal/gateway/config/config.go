@@ -72,6 +72,9 @@ type ProviderQuirks struct {
 	RPM                 *float64    `json:"rpm,omitempty"`
 	ExtraBody           *u.Obj      `json:"extraBody,omitempty"` // wire → fields (ordered)
 	Fixes               *QuirkFixes `json:"fixes,omitempty"`
+	// Raw is the JS object these fields were read from (own keys in order, nulls
+	// and "" included); nil for Go literals, which synthesise it (see quirks.go).
+	Raw *u.Obj `json:"-"`
 }
 
 // ModelMapEntry is one modelMap row.

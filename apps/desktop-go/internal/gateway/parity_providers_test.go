@@ -106,7 +106,7 @@ func TestParityProviders(t *testing.T) {
 		ctx := c.Provider + "/" + w
 		check("specOf", providers.SpecOf(p, w).ID, c.Spec, ctx)
 		qb, _ := json.Marshal(providers.QuirksOf(p, w))
-		check("quirksOf", canonJSON(string(qb)), canonJSON(c.Quirks), ctx)
+		check("quirksOf", string(qb), c.Quirks, ctx)
 		if w != "" {
 			want := ""
 			if c.Native != nil {
