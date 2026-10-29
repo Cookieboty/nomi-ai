@@ -76,15 +76,16 @@ func TestGateFastPathNo204Data(t *testing.T) {
 		t.Fatal(err)
 	}
 	ss := &countingSS{}
-	thenCalled := false
+	var thenCalled atomic.Bool
 	never := make(chan struct{})
-	g := migrate.StartSecrets(goRoot, security.NewSecretBox("migrate"), ss, never, time.Hour, func(migrate.Result) { thenCalled = true })
+	g := migrate.StartSecrets(goRoot, security.NewSecretBox("migrate"), ss, never, time.Hour, func(migrate.Result) { thenCalled.Store(true) })
+	// 快路径不等窗口（never）也不等 fallback（1h），但在后台跑，不阻塞调用方
 	select {
 	case <-g.Done():
-	default:
-		t.Fatal("fast path must release the gate immediately")
+	case <-time.After(5 * time.Second):
+		t.Fatal("fast path must release the gate without waiting for the window")
 	}
-	if !thenCalled || ss.calls.Load() != 0 {
+	if !thenCalled.Load() || ss.calls.Load() != 0 {
 		t.Fatalf("then=%v keychain calls=%d", thenCalled, ss.calls.Load())
 	}
 }

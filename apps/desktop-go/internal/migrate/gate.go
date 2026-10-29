@@ -20,16 +20,17 @@ type Gate struct {
 func StartSecrets(userData string, box security.SecretBox, ss security.ElectronSafeStorage,
 	after <-chan struct{}, fallback time.Duration, then func(Result)) *Gate {
 	g := &Gate{done: make(chan struct{})}
-	if !Pending(userData) {
-		g.res = RunSecrets(userData, box, ss)
-		if then != nil {
-			then(g.res)
-		}
-		close(g.done)
-		return g
-	}
+	pending := Pending(userData)
 	go func() {
 		defer close(g.done)
+		// 无待迁密钥时也不在主线程跑 then（网关 Init 读钥匙串，mac 上约 1s，会推迟建窗）
+		if !pending {
+			g.res = RunSecrets(userData, box, ss)
+			if then != nil {
+				then(g.res)
+			}
+			return
+		}
 		select {
 		case <-after:
 		case <-time.After(fallback):
