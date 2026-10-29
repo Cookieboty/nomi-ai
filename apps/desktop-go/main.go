@@ -99,10 +99,11 @@ func main() {
 	// 低优先级启动任务 cleanup-old-logs（delay 1000）
 	time.AfterFunc(time.Second, func() { rootLog.CleanOldLogs(7) })
 	hostports.Stage("logger-ready")
-	if res, err := migrate.Run(userData, security.NewSecretBox("migrate"), security.NewElectronSafeStorage()); err != nil {
+	// D-B11-12：这里只复制 2.0.4 文件（不碰钥匙串）；密钥迁移在看板娘窗口出来后后台跑（secretGate）
+	if res, err := migrate.RunFiles(userData); err != nil {
 		log.Printf("[migrate] warn: %v", err)
 	} else if res.Migrated {
-		log.Printf("[migrate] copied %d files from %s (secrets=%d chatKeys=%d)", res.FilesCopied, res.From, res.SecretsMigrated, res.ChatKeysExtracted)
+		log.Printf("[migrate] copied %d files from %s (chatKeys=%d, secrets pending)", res.FilesCopied, res.From, res.ChatKeysExtracted)
 	}
 
 	hostports.Stage("migrate-done")
@@ -256,12 +257,19 @@ func main() {
 		// longContextPrice = usage.longContextPrice（UsageService 晚绑定）
 		LongContextPrice: usageLongContextPrice,
 	})
-	if err := gatewaySvc.Init(); err != nil {
-		log.Printf("[gateway] store init failed: %v", err)
-	}
 	// UsageService（createCore new UsageService + start；网关 init 后 autoSync）
 	defer wireUsage(router, userData, desktopSvc, gatewaySvc)()
-	gatewaySvc.Start()
+	// D-B11-12：2.0.4 密钥迁移屏障。窗口先出（page-loaded mascot），再迁密钥（唯一一次钥匙串授权框），
+	// 之后才 gateway Init（含 EnsurePrivacyKey）+ Start；读密钥的契约过程先等它。被拒 = secretsFailed，当空。
+	secretGate := migrate.StartSecrets(userData, security.NewSecretBox("migrate"), security.NewElectronSafeStorage(),
+		firstWindowShown(), 10*time.Second, func(r migrate.Result) {
+			if err := gatewaySvc.InitAfterMigration(r.SecretsMigrated > 0 || len(r.SecretsFailed) > 0); err != nil {
+				log.Printf("[gateway] store init failed: %v", err)
+			}
+			gatewaySvc.Start()
+			hostports.Stage("secrets-ready")
+		})
+	router.GateBefore(secretGatedPrefixes, secretGate.Wait)
 	defer gatewaySvc.Dispose()
 	providerSvc, llmRegistry := shellhandlers.NewProviderRuntime(providerBox, processEnv(), nomiUsageRecorder(), func(role string) *aiproviders.GatewayResolution {
 		r := gatewaySvc.NomiRoute(role)
@@ -541,3 +549,20 @@ type mcpLogger struct{}
 func (mcpLogger) Info(m string, kv ...any)  { log.Println(append([]any{"[mcp]", m}, kv...)...) }
 func (mcpLogger) Warn(m string, kv ...any)  { log.Println(append([]any{"[mcp] WARN", m}, kv...)...) }
 func (mcpLogger) Error(m string, kv ...any) { log.Println(append([]any{"[mcp] ERROR", m}, kv...)...) }
+
+// 读 / 写密钥（网关 store、供应商 token、语音 key、AI 聊天）的契约过程：2.0.4 密钥迁移完成前先等（D-B11-12）
+var secretGatedPrefixes = []string{"gateway.", "providers.", "ai.", "voice.", "tts.", "usage.", "harness.", "cli.", "cliAccount.", "delegate.", "local."}
+
+// firstWindowShown：任一窗口页面加载完（看板娘被设置隐藏时是主窗口）就关闭
+func firstWindowShown() <-chan struct{} {
+	out := make(chan struct{})
+	go func() {
+		select {
+		case <-hostports.Reached("page-loaded mascot"):
+		case <-hostports.Reached("page-loaded chat"):
+		case <-hostports.Reached("page-loaded main"):
+		}
+		close(out)
+	}()
+	return out
+}

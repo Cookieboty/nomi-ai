@@ -46,6 +46,19 @@ func (s *Service) sources() LegacySources {
 	return LegacySources{NomiFile: s.legacy.NomiFile, CliRoot: s.legacy.CliRoot, NomiCipher: s.Store.cipher, CliDecrypt: s.legacy.CliDecrypt}
 }
 
+// InitAfterMigration（D-B11-12）：2.0.4 密钥迁移（后台）完成后调用 —— 持写锁重新读盘再 Init，
+// 避免启动早期读到的旧密文被 EnsurePrivacyKey 当成坏 key 重新生成（数据丢失）。
+func (s *Service) InitAfterMigration(reload bool) error {
+	if s.rt != nil {
+		s.lock()
+		defer s.unlock()
+	}
+	if reload {
+		s.Store.Reload()
+	}
+	return s.Init()
+}
+
 // Init = GatewayService.init() 的存储部分
 func (s *Service) Init() error {
 	if !s.Store.Exists() && s.legacy != nil {
