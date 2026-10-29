@@ -15,6 +15,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/mockllm"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/procs"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell/wailsshell"
 )
@@ -38,6 +39,7 @@ func main() {
 
 	router := contract.NewRouter()
 	core.New(cfg).Register(router)
+	log.Printf("[desktop-go] %d contract procedures stubbed (not implemented yet)", procs.Install(router))
 
 	ws := &contract.WSServer{Router: router, Token: contract.NewToken(), Origins: map[string]bool{
 		"wails://localhost": true, "wails://wails": true, "http://wails.localhost": true, "wails://wails.localhost": true,

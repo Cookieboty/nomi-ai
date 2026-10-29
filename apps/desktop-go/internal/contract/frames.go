@@ -7,6 +7,7 @@ package contract
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"sync"
 )
 
@@ -55,16 +56,66 @@ type CallFunc func(ctx context.Context, c Caller, input json.RawMessage) (any, e
 type StreamFunc func(ctx context.Context, c Caller, input json.RawMessage, emit func(any) error) (any, error)
 
 type Router struct {
-	calls   map[string]CallFunc
-	streams map[string]StreamFunc
+	calls    map[string]CallFunc
+	streams  map[string]StreamFunc
+	surfaces map[string][]string // 过程 → 允许的窗口（空 = 都可以），来自生成的过程表
+
+	subMu    sync.Mutex
+	sessions map[*Session]struct{}
 }
 
 func NewRouter() *Router {
-	return &Router{calls: map[string]CallFunc{}, streams: map[string]StreamFunc{}}
+	return &Router{calls: map[string]CallFunc{}, streams: map[string]StreamFunc{}, surfaces: map[string][]string{}, sessions: map[*Session]struct{}{}}
 }
 
 func (r *Router) Call(name string, f CallFunc)     { r.calls[name] = f }
 func (r *Router) Stream(name string, f StreamFunc) { r.streams[name] = f }
+
+// Restrict 限定过程只给某些窗口调用（契约里的 surfaces）
+func (r *Router) Restrict(name string, surfaces []string) { r.surfaces[name] = surfaces }
+
+// Registered 返回已注册的过程：name → "call" | "stream"
+func (r *Router) Registered() map[string]string {
+	m := map[string]string{}
+	for n := range r.calls {
+		m[n] = "call"
+	}
+	for n := range r.streams {
+		m[n] = "stream"
+	}
+	return m
+}
+
+// Emit 把事件推给所有订阅了它的连接
+func (r *Router) Emit(event string, data any) {
+	r.subMu.Lock()
+	ss := make([]*Session, 0, len(r.sessions))
+	for s := range r.sessions {
+		ss = append(ss, s)
+	}
+	r.subMu.Unlock()
+	for _, s := range ss {
+		s.mu.Lock()
+		ok := s.subs[event]
+		s.mu.Unlock()
+		if ok {
+			s.send(ServerFrame{T: "event", Event: event, Data: data})
+		}
+	}
+}
+
+func (r *Router) allowed(name, surface string) bool {
+	ss := r.surfaces[name]
+	if len(ss) == 0 {
+		return true
+	}
+	for _, x := range ss {
+		if x == surface {
+			return true
+		}
+	}
+	return false
+}
 
 type Error struct{ Code, Message string }
 
@@ -77,18 +128,23 @@ type Session struct {
 	send   func(ServerFrame)
 	mu     sync.Mutex
 	active map[string]context.CancelFunc
+	subs   map[string]bool
 	ctx    context.Context
 }
 
 func (r *Router) NewSession(ctx context.Context, caller Caller, send func(ServerFrame)) *Session {
-	return &Session{r: r, caller: caller, send: send, active: map[string]context.CancelFunc{}, ctx: ctx}
+	s := &Session{r: r, caller: caller, send: send, active: map[string]context.CancelFunc{}, subs: map[string]bool{}, ctx: ctx}
+	r.subMu.Lock()
+	r.sessions[s] = struct{}{}
+	r.subMu.Unlock()
+	return s
 }
 
 func errFrame(id string, err error) ServerFrame {
 	if ce, ok := err.(*Error); ok {
 		return ServerFrame{T: "err", ID: id, Error: &ErrorPayload{Code: ce.Code, Message: ce.Message}}
 	}
-	if err == context.Canceled {
+	if errors.Is(err, context.Canceled) {
 		return ServerFrame{T: "err", ID: id, Error: &ErrorPayload{Code: "ABORTED", Message: "aborted"}}
 	}
 	return ServerFrame{T: "err", ID: id, Error: &ErrorPayload{Code: "INTERNAL", Message: err.Error()}}
@@ -108,10 +164,25 @@ func (s *Session) Handle(raw []byte) {
 		}
 		s.mu.Unlock()
 	case "sub", "unsub":
-		// POC 不实现事件
+		s.mu.Lock()
+		if f.T == "sub" {
+			s.subs[f.Event] = true
+		} else {
+			delete(s.subs, f.Event)
+		}
+		s.mu.Unlock()
 	case "req":
+		if f.ID == "" {
+			return
+		}
 		ctx, cancel := context.WithCancel(s.ctx)
 		s.mu.Lock()
+		if s.active[f.ID] != nil {
+			s.mu.Unlock()
+			cancel()
+			s.send(errFrame(f.ID, &Error{"BAD_REQUEST", "Duplicate request id '" + f.ID + "'"}))
+			return
+		}
 		s.active[f.ID] = cancel
 		s.mu.Unlock()
 		go func() {
@@ -129,6 +200,10 @@ func (s *Session) Handle(raw []byte) {
 func (s *Session) run(ctx context.Context, f ClientFrame) {
 	if f.Kind == "call" && f.Name == "meta.version" {
 		s.send(ServerFrame{T: "res", ID: f.ID, Output: map[string]any{"version": ContractVersion, "protocol": ProtocolVersion}})
+		return
+	}
+	if !s.r.allowed(f.Name, s.caller.Surface) {
+		s.send(errFrame(f.ID, &Error{"FORBIDDEN", f.Name + " is not available to " + s.caller.Surface}))
 		return
 	}
 	if f.Kind == "stream" {
@@ -166,6 +241,9 @@ func (s *Session) run(ctx context.Context, f ClientFrame) {
 
 // Close 取消这条连接上所有进行中的请求（断线 = 全部 abort）
 func (s *Session) Close() {
+	s.r.subMu.Lock()
+	delete(s.r.sessions, s)
+	s.r.subMu.Unlock()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, c := range s.active {
