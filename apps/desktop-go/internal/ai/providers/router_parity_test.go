@@ -51,7 +51,7 @@ func readJSON(t *testing.T, path string, gz bool) any {
 	return v
 }
 
-func obj(v any) *u.Obj { o, _ := v.(*u.Obj); return o }
+func obj(v any) *u.Obj  { o, _ := v.(*u.Obj); return o }
 func str(v any) string  { s, _ := v.(string); return s }
 func num(v any) float64 { f, _ := v.(float64); return f }
 
