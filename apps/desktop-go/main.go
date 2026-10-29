@@ -248,6 +248,7 @@ func main() {
 		RouteListening: func() bool { return false },
 		Broadcast:      func(ev string, p any) { router.Emit(ev, p) },
 		EnvProviders:   func() []gwstore.EnvProvider { return shellhandlers.GatewayEnvProviders(processEnv()) },
+		OnUsage:        qualityOnUsage,
 	})
 	if err := gatewaySvc.Init(); err != nil {
 		log.Printf("[gateway] store init failed: %v", err)
@@ -352,6 +353,7 @@ func main() {
 	})
 	shellP := installShellProcs(router, userData, &sh, gatewaySvc)
 	defer shellP.Diagnostics.CliTrace.FlushSync()
+	defer shellP.Quality.Dispose()
 	cliPlugins, disposeHarness := wireHarness(router, userData, home, ports, gatewaySvc)
 	wireCoding(router, userData, cliPlugins, desktopSvc)
 	wireScreenAndPending(router, userData, rootLog, desktopSvc)
