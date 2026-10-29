@@ -14,11 +14,25 @@ type batcher struct {
 	ms    time.Duration
 	out   func(*u.Obj)
 	held  *u.Obj
-	timer *time.Timer
+	timer stopper
 	gen   int
+	clock clock
 }
 
-func newBatcher(ms time.Duration, out func(*u.Obj)) *batcher { return &batcher{ms: ms, out: out} }
+// clock：可注入（batch_parity_test 用假时钟对拍 Node 的 fake-timer 录制）
+type clock interface {
+	AfterFunc(d time.Duration, f func()) stopper
+}
+
+type stopper interface{ Stop() bool }
+
+type realClock struct{}
+
+func (realClock) AfterFunc(d time.Duration, f func()) stopper { return time.AfterFunc(d, f) }
+
+func newBatcher(ms time.Duration, out func(*u.Obj)) *batcher {
+	return &batcher{ms: ms, out: out, clock: realClock{}}
+}
 
 func mergeable(c *u.Obj) (string, string, bool) {
 	t, _ := c.Get("type").(string)
@@ -45,7 +59,7 @@ func (b *batcher) flushLocked() {
 func (b *batcher) arm() {
 	b.gen++
 	g := b.gen
-	b.timer = time.AfterFunc(b.ms, func() {
+	b.timer = b.clock.AfterFunc(b.ms, func() {
 		b.mu.Lock()
 		defer b.mu.Unlock()
 		if b.gen == g {
