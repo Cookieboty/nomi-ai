@@ -43,7 +43,54 @@ func QueueMicrotask(fn func()) { microtasks = append(microtasks, fn) }
 // unlock 清空微任务后释放锁（所有"回到事件循环"的出口都走这里）。
 func unlock() {
 	drainMicrotasks()
+	runImmediates()
 	gil.Unlock()
+}
+
+/* ------------------------------ Immediates ------------------------------ */
+
+// immediates：setImmediate 队列（check 阶段）。一个宏任务（I/O 回调 / timers 阶段）结束、回到事件循环时
+// 先跑当前已排队的 immediate（本轮新排的留到下一轮），每个之后清空微任务——因此在 I/O 或定时器回调里
+// setImmediate 总先于 setTimeout(0)，与 Node 一致。
+var (
+	immediates       []func()
+	immediateRunning bool
+	immediateKick    bool
+)
+
+// SetImmediate = setImmediate(fn)，持锁调用。
+func SetImmediate(fn func()) {
+	immediates = append(immediates, fn)
+	if !immediateKick {
+		immediateKick = true
+		go func() { // 空闲时也要有人推进 check 阶段
+			gil.Lock()
+			immediateKick = false
+			unlock()
+		}()
+	}
+}
+
+func runImmediates() {
+	if immediateRunning || len(immediates) == 0 {
+		return
+	}
+	immediateRunning = true
+	defer func() { immediateRunning = false }()
+	batch := immediates
+	immediates = nil
+	for _, fn := range batch {
+		Dispatch(fn)
+		drainMicrotasks()
+	}
+	if len(immediates) > 0 && !immediateKick {
+		immediateKick = true
+		go func() {
+			gil.Lock()
+			immediateKick = false
+			unlock()
+		}()
+	}
 }
 
 func drainMicrotasks() {
@@ -213,11 +260,12 @@ func (tm *Timer) arm(d time.Duration) {
 }
 
 func runDueTimers() {
+	// timers 阶段：只跑阶段开始时已注册且到期的（本阶段新注册的，即使 0ms，也留到下一轮——libuv 语义）
+	now, maxSeq := time.Now(), timerSeq
 	for {
-		now := time.Now()
 		var next *Timer
 		for t := range pending {
-			if t.due.After(now) {
+			if t.due.After(now) || t.seq > maxSeq {
 				continue
 			}
 			if next == nil || t.due.Before(next.due) || (t.due.Equal(next.due) && t.seq < next.seq) {
@@ -246,8 +294,8 @@ func runDueTimers() {
 
 // SetTimeout 持锁调用。
 func SetTimeout(d time.Duration, fn func()) *Timer {
-	if d < 0 {
-		d = 0
+	if d < time.Millisecond {
+		d = time.Millisecond // Node：delay < 1 视为 1
 	}
 	tm := &Timer{fn: fn}
 	tm.arm(d)

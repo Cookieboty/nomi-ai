@@ -92,3 +92,43 @@ func TestTimerOrderSameDue(t *testing.T) {
 		}
 	}
 }
+
+// 定时器回调内：setImmediate 先于 setTimeout(0)；immediate 内再排的 immediate 留到下一轮（在 0ms 定时器之后不保证，
+// 但一定在本批之后）。
+func TestImmediateVsTimeout(t *testing.T) {
+	var log []string
+	done := make(chan struct{})
+	Run(func() {
+		SetTimeout(1*time.Millisecond, func() {
+			SetTimeout(0, func() { log = append(log, "timeout0"); close(done) })
+			SetImmediate(func() {
+				log = append(log, "imm1")
+				QueueMicrotask(func() { log = append(log, "micro-after-imm1") })
+				SetImmediate(func() { log = append(log, "imm3") })
+			})
+			SetImmediate(func() { log = append(log, "imm2") })
+		})
+	})
+	<-done
+	Run(func() {})
+	time.Sleep(10 * time.Millisecond)
+	got := strings.Join(log, ",")
+	if !strings.HasPrefix(got, "imm1,micro-after-imm1,imm2,") {
+		t.Fatalf("order %s", got)
+	}
+}
+
+// 同一时刻注册的不同时长定时器按到期先后，相同到期按注册序（libuv (timeout,start_id)）。
+func TestTimerHeapOrder(t *testing.T) {
+	var log []string
+	done := make(chan struct{})
+	Run(func() {
+		SetTimeout(20*time.Millisecond, func() { log = append(log, "b20") })
+		SetTimeout(10*time.Millisecond, func() { log = append(log, "a10") })
+		SetTimeout(20*time.Millisecond, func() { log = append(log, "c20"); close(done) })
+	})
+	<-done
+	if got := strings.Join(log, ","); got != "a10,b20,c20" {
+		t.Fatalf("order %s", got)
+	}
+}

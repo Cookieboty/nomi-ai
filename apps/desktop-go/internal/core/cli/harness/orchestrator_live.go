@@ -39,7 +39,10 @@ func (l *liveState) setClaude(id string, v *claudeLiveSession) {
 	}
 	l.claude[id] = v
 }
-func (l *liveState) delClaude(id string) { delete(l.claude, id); l.claudeOrder = delOrder(l.claudeOrder, id) }
+func (l *liveState) delClaude(id string) {
+	delete(l.claude, id)
+	l.claudeOrder = delOrder(l.claudeOrder, id)
+}
 func (l *liveState) setAcp(id string, v *acpLiveSession) {
 	if _, ok := l.acp[id]; !ok {
 		l.acpOrder = append(l.acpOrder, id)
@@ -53,4 +56,7 @@ func (l *liveState) setCodex(id string, v *codexLiveSession) {
 	}
 	l.codex[id] = v
 }
-func (l *liveState) delCodex(id string) { delete(l.codex, id); l.codexOrder = delOrder(l.codexOrder, id) }
+func (l *liveState) delCodex(id string) {
+	delete(l.codex, id)
+	l.codexOrder = delOrder(l.codexOrder, id)
+}
