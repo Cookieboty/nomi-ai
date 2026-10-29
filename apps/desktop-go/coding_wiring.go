@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell/trash"
 	"log"
 	"path/filepath"
 	"time"
@@ -102,7 +103,7 @@ var _ delegate.Harness = delegateHarness{}
 // wireCoding 对齐 createCore.ts 的 CliUpdateService / DelegateService / SessionHistoryService 构造
 // 与 coding.ts 的 cli.registry/plugin*、cliUpdate.*、delegate.*、history.* 过程。
 // 网关（harnessGateway / servedSession）与账号（AccountService）尚未接入（gw / b7s），对应依赖为空（Node 侧可选）；
-// history.delete 的 shell.trashItem 端口未落地前按「此处不支持删除」返回。
+// history.delete 的 trash = ports.shell.trashItem（internal/shell/trash）。
 func wireCoding(router *contract.Router, userData string, plugins *cli.CliPluginHost, d *desktop.Service) {
 	o := harnessOrch
 	var updates *cli.CliUpdateService
@@ -134,6 +135,9 @@ func wireCoding(router *contract.Router, userData string, plugins *cli.CliPlugin
 	history := jsrt.Call(func() *cli.SessionHistoryService {
 		return cli.NewSessionHistoryService(cli.SessionHistoryDeps{
 			Logger: historyLog{},
+			Trash: func(p string) *jsrt.Promise[struct{}] {
+				return jsrt.Async(func() (struct{}, error) { return struct{}{}, trash.Item(p) })
+			},
 			OpenKeys: func() map[string]bool {
 				m := map[string]bool{}
 				for _, k := range o.OpenSessionKeys() {
