@@ -89,6 +89,17 @@ describe('CliHarnessService.knownDir', () => {
     expect(() => h.knownDir(other)).toThrow();
   });
 
+  it('Windows：短名与长名指向同一目录时都算已知', () => {
+    // 标签里存的可能是 8.3 短名，视图 / realpath 可能给长名（或反过来）
+    h.createTab({ backend: 'claude', cwd: proj });
+    const long =
+      process.platform === 'win32' && fs.realpathSync.native
+        ? fs.realpathSync.native(proj)
+        : fs.realpathSync(proj);
+    expect(h.knownDir(long)).toBe(path.resolve(long));
+    expect(h.knownDir(proj)).toBe(path.resolve(proj));
+  });
+
   it('生成提交信息：把 diff 和最近的提交标题交给辅助模型，清掉包装', async () => {
     const env = Object.fromEntries(
       Object.entries(process.env).filter(([k]) => !k.startsWith('GIT_')),

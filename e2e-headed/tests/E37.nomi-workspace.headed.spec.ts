@@ -104,7 +104,12 @@ test.describe('E37 · real app · Nomi conversation workspace', () => {
     });
     await new Promise<void>((r) => server!.listen(0, '127.0.0.1', r));
     userData = mkdtempSync(join(tmpdir(), 'e37-userdata-'));
-    const root = realpathSync(mkdtempSync(join(tmpdir(), 'e37-')));
+    // Windows：realpathSync 可能留下 8.3 短名（RUNNER~1），主进程 knownDir / workspaceOf 用 native 长名
+    const rootRaw = mkdtempSync(join(tmpdir(), 'e37-'));
+    const root =
+      process.platform === 'win32' && realpathSync.native
+        ? realpathSync.native(rootRaw)
+        : realpathSync(rootRaw);
     ws = join(root, 'proj');
     outside = join(root, 'elsewhere');
     mkdirSync(ws);

@@ -133,7 +133,10 @@ export class DesktopService {
     this.broker = new PermissionBroker(path.join(root, 'settings.json'), {
       home: this.ports.paths.home(),
       platform: process.platform,
-      realpath: (p) => fs.promises.realpath(p),
+      realpath: (p) =>
+        process.platform === 'win32' && fs.realpathSync.native
+          ? Promise.resolve(fs.realpathSync.native(p))
+          : fs.promises.realpath(p),
       denyRoots: opts.denyRoots ?? [],
     });
     this.audit = new AuditLog(path.join(root, 'audit'));
@@ -517,7 +520,10 @@ export class DesktopService {
         scopes: [{ id: 'probe', path: raw, mode: 'read', kind: 'file', grantedAt: Date.now() }],
         home: this.ports.paths.home(),
         platform: process.platform,
-        realpath: (p) => fs.promises.realpath(p),
+        realpath: (p) =>
+          process.platform === 'win32' && fs.realpathSync.native
+            ? Promise.resolve(fs.realpathSync.native(p))
+            : fs.promises.realpath(p),
       },
       { need: 'read' },
     );

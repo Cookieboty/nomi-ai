@@ -20,15 +20,21 @@ function setup(autoApprove: boolean) {
     defaultPermissionMode: 'acceptEdits',
     autoApprove,
   };
+  // 与主进程 setPermissionDefaults → changed() → tabsChanged 对齐
+  const box: { fake: ReturnType<typeof installFakeApi> | null } = { fake: null };
   const invoke = vi.fn(async (ch: string, input?: { autoApprove?: boolean }) => {
-    if (ch === 'harness.tabs') return state;
+    if (ch === 'harness.tabs') return { ...state };
     if (ch === 'harness.permissionDefaults') {
-      state.autoApprove = input?.autoApprove ?? state.autoApprove;
-      return { ...state };
+      if (typeof input?.autoApprove === 'boolean') state.autoApprove = input.autoApprove;
+      const next = { ...state };
+      queueMicrotask(() => {
+        void box.fake?.emit('harness.tabsChanged', next);
+      });
+      return next;
     }
     return {};
   });
-  installFakeApi(invoke);
+  box.fake = installFakeApi(invoke);
   return invoke;
 }
 const mount = () =>

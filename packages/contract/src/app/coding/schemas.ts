@@ -45,6 +45,15 @@ export const HarnessTabsState = loose({
   activeTabId: z.string(),
   running: z.number(),
   queued: z.number(),
+  /** 新标签默认权限模式（不会是「完全放开」） */
+  defaultPermissionMode: z.string().optional(),
+  /** Codex 在自动改文件档允许联网 */
+  codexNetwork: z.boolean().optional(),
+  /**
+   * 「全部自动」（默认开）：新标签与 Nomi 委派的编程助手默认完全放开，
+   * Nomi 对话工作区里的文件 / 命令操作不确认；关掉后回到逐项询问
+   */
+  autoApprove: z.boolean().optional(),
 });
 
 /** 标签消息（cli-sdk HarnessTabMessage）：视图写回（seed / createTab）时也用它 */

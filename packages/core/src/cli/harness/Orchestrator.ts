@@ -529,15 +529,16 @@ export class HarnessOrchestrator {
    */
   knownDir(cwd: unknown): string {
     const abs = validDir(this.ensureDefaultDir(String(cwd ?? '')));
-    const key = (p: string) => (process.platform === 'win32' ? p.toLowerCase() : p);
+    // Windows：标签 / 最近列表可能是 8.3 短名（RUNNER~1），视图或 realpath 可能给长名（runneradmin）
+    const key = (p: string) => {
+      const r = realDir(p);
+      return process.platform === 'win32' ? r.toLowerCase() : r;
+    };
     const want = key(abs);
-    for (const tab of this.tabs.values()) if (key(path.resolve(tab.cwd)) === want) return abs;
+    for (const tab of this.tabs.values()) if (key(tab.cwd) === want) return abs;
     if (this.recent.some((p) => key(p) === want)) return abs;
-    if (this.d.defaultCwd && key(path.resolve(this.d.defaultCwd)) === want) return abs;
-    if (this.worktreeDirs.size) {
-      const real = key(realDir(abs));
-      if ([...this.worktreeDirs].some((p) => key(p) === real)) return abs;
-    }
+    if (this.d.defaultCwd && key(this.d.defaultCwd) === want) return abs;
+    if (this.worktreeDirs.size && [...this.worktreeDirs].some((p) => key(p) === want)) return abs;
     throw new Error(t('electron.common.invalid-working-directory'));
   }
 
@@ -627,7 +628,7 @@ export class HarnessOrchestrator {
   }
 
   private rememberCwd(abs: string) {
-    this.recent = [abs, ...this.recent.filter((p) => p !== abs)].slice(0, MAX_RECENT_CWDS);
+    this.recent = [abs, ...this.recent.filter((p) => !samePath(p, abs))].slice(0, MAX_RECENT_CWDS);
     try {
       fs.writeFileSync(this.recentPath, JSON.stringify(this.recent), 'utf8');
     } catch (e) {
@@ -5425,7 +5426,7 @@ function isTurnContent(ev: HarnessEvent): boolean {
 
 function samePath(a: string, b: string): boolean {
   const key = (p: string) => {
-    const r = path.resolve(p);
+    const r = realDir(p);
     return process.platform === 'win32' || process.platform === 'darwin' ? r.toLowerCase() : r;
   };
   return key(a) === key(b);

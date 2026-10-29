@@ -21,7 +21,11 @@ type R = { ok: boolean; data?: Record<string, unknown>; error?: { code: string; 
 const posixIt = process.platform === 'win32' ? it.skip : it;
 
 function setup(o: { autoApprove?: boolean; known?: boolean } = {}) {
-  const home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'ws-home-')));
+  const homeRaw = fs.mkdtempSync(path.join(os.tmpdir(), 'ws-home-'));
+  const home =
+    process.platform === 'win32' && fs.realpathSync.native
+      ? fs.realpathSync.native(homeRaw)
+      : fs.realpathSync(homeRaw);
   const ws = path.join(home, 'proj');
   const outside = path.join(home, 'elsewhere');
   const data = path.join(home, 'data');
@@ -35,7 +39,10 @@ function setup(o: { autoApprove?: boolean; known?: boolean } = {}) {
     {
       home,
       platform: process.platform,
-      realpath: (p) => fs.promises.realpath(p),
+      realpath: (p) =>
+        process.platform === 'win32' && fs.realpathSync.native
+          ? Promise.resolve(fs.realpathSync.native(p))
+          : fs.promises.realpath(p),
       denyRoots: [data],
     },
     { timeoutMs: 2000 },

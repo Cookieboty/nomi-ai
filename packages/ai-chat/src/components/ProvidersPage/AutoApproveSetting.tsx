@@ -17,8 +17,14 @@ export const AutoApproveSetting: React.FC = () => {
   const [pending, setPending] = useState<boolean | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const current = tabs.state?.autoApprove;
-  // 主进程推来新状态后以它为准
-  useEffect(() => setPending(null), [current]);
+  // 主进程 tabsChanged 把 autoApprove 推到与 pending 一致后再清乐观态；
+  // 不要在 current 仍是旧值时清掉，否则开关会弹回 true（测试里若不 emit 也会挂）
+  useEffect(() => {
+    if (pending === null || current !== pending) return;
+    // 同步外部权威状态到乐观态：豁免 set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPending(null);
+  }, [current, pending]);
   if (!tabs.available || !tabs.state) return null;
   const on = pending ?? tabs.state.autoApprove !== false;
 
