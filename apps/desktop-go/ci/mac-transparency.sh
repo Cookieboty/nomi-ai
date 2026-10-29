@@ -11,11 +11,11 @@ curl -s --max-time 5 "http://$CTL/ctl?op=show-island" || true
 sleep 5
 screencapture -x "$OUT/mac-fullscreen.png" || echo "fullscreen capture failed"
 ok=1
-for t in Nomi "Nomi Island"; do
-  WID=$(swift ci/mac-window.swift id "$PID" "$t" 2>/dev/null) || { echo "window '$t' not found"; ok=0; continue; }
-  f="$OUT/mac-window-$(echo "$t" | tr ' ' '-').png"
+for t in mascot:330x355 island:360x72; do
+  n=${t%%:*}; WID=$(swift ci/mac-window.swift id "$PID" "${t#*:}" 2>>"$OUT/windows.txt") || { echo "window '$t' not found"; ok=0; continue; }
+  f="$OUT/mac-window-$n.png"
   screencapture -x -o -l"$WID" "$f" || { echo "capture $t failed"; ok=0; continue; }
-  echo "== $t (window $WID)"; swift ci/mac-window.swift alpha "$f" | tee "$f.txt"
+  echo "== $t (window $WID)"; swift ci/mac-window.swift alpha "$f" | tee "$f.txt"; cat "$OUT/windows.txt" | sort -u | head -20
   # 四角（前 4 行）必须全透明
   if head -4 "$f.txt" | grep -qv 'alpha=0 '; then echo "NOT transparent: $t"; ok=0; fi
 done
