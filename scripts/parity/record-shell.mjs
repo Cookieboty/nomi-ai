@@ -8,6 +8,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import Module, { createRequire } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -136,9 +137,72 @@ async function recordDiag() {
   return { now: NOW, version: '2.0.5-test', platform: process.platform, scenarios: out };
 }
 
+/** appIcon：stub electron（nativeImage / BrowserWindow / app），按平台 × 初始配置 × 步骤录制落盘与 apply 调用 */
+export const ICON = [
+  { name: 'missing', steps: [['get'], ['set', 'cream'], ['file'], ['get'], ['set', 'nope'], ['file'], ['set', ''], ['set', 'ink']] },
+  { name: 'ink', file: '{"variant":"ink"}', steps: [['get']] },
+  { name: 'bogus', file: '{"variant":"bogus"}', steps: [['get']] },
+  { name: 'badJson', file: '{', steps: [['get'], ['set', 'sunset'], ['file']] },
+  { name: 'nullJson', file: 'null', steps: [['get']] },
+  { name: 'upper', file: '{"variant":"INK"}', steps: [['get'], ['set', 'Cream']] },
+  { name: 'unwritable', file: 'dir', steps: [['set', 'ink'], ['get']] },
+];
+
+async function recordIcon() {
+  const assets = path.join(root, 'packages/host-electron/assets');
+  const rel = (p) => path.relative(assets, p).split(path.sep).join('/');
+  let applies = [];
+  const wins = [
+    { isDestroyed: () => false, setIcon: (img) => applies.push(['win0.setIcon', rel(img.p)]), setAppDetails: (o) => applies.push(['win0.setAppDetails', { ...o, appIconPath: rel(o.appIconPath) }]) },
+    { isDestroyed: () => true, setIcon: () => applies.push(['win1.setIcon']) },
+  ];
+  const img = (p) => ({ p, resize: (o) => ({ toDataURL: () => `preview:${rel(p)}:${JSON.stringify(o)}` }) });
+  const electron = {
+    app: { isPackaged: false, dock: { setIcon: (i) => applies.push(['dock.setIcon', rel(i.p)]) }, on: () => {} },
+    BrowserWindow: { getAllWindows: () => wins },
+    nativeImage: { createFromPath: img },
+  };
+  const orig = Module._load;
+  Module._load = function (req, ...rest) {
+    return req === 'electron' ? electron : orig.call(this, req, ...rest);
+  };
+  const mod = createRequire(import.meta.url)(path.join(root, 'packages/host-electron/src/core/appIcon.ts'));
+  mod.onTrayIcon((i) => applies.push(['tray', rel(i.p)]));
+  const plat = Object.getOwnPropertyDescriptor(process, 'platform');
+  const out = [];
+  for (const platform of ['darwin', 'win32', 'linux']) {
+    Object.defineProperty(process, 'platform', { value: platform });
+    for (const sc of ICON) {
+      const ud = path.join(SB, 'icon', platform, sc.name);
+      fs.mkdirSync(ud, { recursive: true });
+      const f = path.join(ud, 'app-icon.json');
+      if (sc.file === 'dir') fs.mkdirSync(f);
+      else if (sc.file !== undefined) fs.writeFileSync(f, sc.file);
+      applies = [];
+      mod.initAppIcon(f);
+      const log = [{ op: 'init', applies }];
+      for (const [op, a] of sc.steps) {
+        applies = [];
+        let r;
+        if (op === 'get') r = mod.appIconState();
+        else if (op === 'set') r = mod.setIconVariant(a);
+        else if (op === 'file') r = fs.statSync(f).isFile() ? fs.readFileSync(f, 'utf8') : null;
+        log.push({ op, arg: a, ok: norm(r), applies });
+      }
+      out.push({ platform, name: sc.name, file: sc.file, log });
+    }
+  }
+  Object.defineProperty(process, 'platform', plat);
+  Module._load = orig;
+  return { scenarios: out };
+}
+
 const dir = process.env.NOMI_GOLDEN_DIR || path.join(root, 'apps/desktop-go/internal/core/shellhandlers/testdata');
 fs.mkdirSync(dir, { recursive: true });
 const diag = await recordDiag();
 fs.writeFileSync(path.join(dir, 'shell_diagnostics.json'), JSON.stringify(diag, null, 1) + '\n');
 console.log(`record-shell: diagnostics ${diag.scenarios.length} scenarios, ${diag.scenarios.reduce((a, s) => a + s.log.length, 0)} steps`);
+const icon = await recordIcon();
+fs.writeFileSync(path.join(dir, 'shell_appicon.json'), JSON.stringify(icon, null, 1) + '\n');
+console.log(`record-shell: appIcon ${icon.scenarios.length} scenarios`);
 fs.rmSync(SB, { recursive: true, force: true });
