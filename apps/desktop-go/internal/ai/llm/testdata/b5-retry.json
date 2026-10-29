@@ -1,0 +1,429 @@
+[
+ {
+  "name": "exhausted-default",
+  "steps": [
+   {
+    "status": 500
+   },
+   {
+    "status": 500
+   },
+   {
+    "status": 500
+   }
+  ],
+  "calls": 3,
+  "delays": [
+   2000,
+   4000
+  ],
+  "error": {
+   "name": "AI_RetryError",
+   "message": "Failed after 3 attempts. Last error: AI_APICallError: HTTP 500",
+   "reason": "maxRetriesExceeded",
+   "errors": [
+    {
+     "name": "AI_APICallError",
+     "message": "HTTP 500",
+     "statusCode": 500
+    },
+    {
+     "name": "AI_APICallError",
+     "message": "HTTP 500",
+     "statusCode": 500
+    },
+    {
+     "name": "AI_APICallError",
+     "message": "HTTP 500",
+     "statusCode": 500
+    }
+   ]
+  }
+ },
+ {
+  "name": "exhausted-3",
+  "maxRetries": 3,
+  "steps": [
+   {
+    "status": 503
+   },
+   {
+    "status": 503
+   },
+   {
+    "status": 503
+   },
+   {
+    "status": 503
+   }
+  ],
+  "calls": 4,
+  "delays": [
+   2000,
+   4000,
+   8000
+  ],
+  "error": {
+   "name": "AI_RetryError",
+   "message": "Failed after 4 attempts. Last error: AI_APICallError: HTTP 503",
+   "reason": "maxRetriesExceeded",
+   "errors": [
+    {
+     "name": "AI_APICallError",
+     "message": "HTTP 503",
+     "statusCode": 503
+    },
+    {
+     "name": "AI_APICallError",
+     "message": "HTTP 503",
+     "statusCode": 503
+    },
+    {
+     "name": "AI_APICallError",
+     "message": "HTTP 503",
+     "statusCode": 503
+    },
+    {
+     "name": "AI_APICallError",
+     "message": "HTTP 503",
+     "statusCode": 503
+    }
+   ]
+  }
+ },
+ {
+  "name": "no-retries",
+  "maxRetries": 0,
+  "steps": [
+   {
+    "status": 500
+   }
+  ],
+  "calls": 1,
+  "delays": [],
+  "error": {
+   "name": "AI_APICallError",
+   "message": "HTTP 500",
+   "statusCode": 500
+  }
+ },
+ {
+  "name": "ok-after-two",
+  "steps": [
+   {
+    "status": 429
+   },
+   {
+    "status": 500
+   },
+   "ok"
+  ],
+  "calls": 3,
+  "delays": [
+   2000,
+   4000
+  ],
+  "result": "ok"
+ },
+ {
+  "name": "retry-after-ms",
+  "steps": [
+   {
+    "status": 429,
+    "headers": {
+     "retry-after-ms": "150"
+    }
+   },
+   "ok"
+  ],
+  "calls": 2,
+  "delays": [
+   150
+  ],
+  "result": "ok"
+ },
+ {
+  "name": "retry-after-ms-zero",
+  "steps": [
+   {
+    "status": 429,
+    "headers": {
+     "retry-after-ms": "0"
+    }
+   },
+   "ok"
+  ],
+  "calls": 2,
+  "delays": [
+   0
+  ],
+  "result": "ok"
+ },
+ {
+  "name": "retry-after-ms-float",
+  "steps": [
+   {
+    "status": 429,
+    "headers": {
+     "retry-after-ms": "12.5abc"
+    }
+   },
+   "ok"
+  ],
+  "calls": 2,
+  "delays": [
+   12.5
+  ],
+  "result": "ok"
+ },
+ {
+  "name": "retry-after-s",
+  "steps": [
+   {
+    "status": 429,
+    "headers": {
+     "retry-after": "3"
+    }
+   },
+   "ok"
+  ],
+  "calls": 2,
+  "delays": [
+   3000
+  ],
+  "result": "ok"
+ },
+ {
+  "name": "retry-after-both",
+  "steps": [
+   {
+    "status": 429,
+    "headers": {
+     "retry-after-ms": "40",
+     "retry-after": "9"
+    }
+   },
+   "ok"
+  ],
+  "calls": 2,
+  "delays": [
+   40
+  ],
+  "result": "ok"
+ },
+ {
+  "name": "retry-after-ms-nan-fallback",
+  "steps": [
+   {
+    "status": 429,
+    "headers": {
+     "retry-after-ms": "abc",
+     "retry-after": "1.5"
+    }
+   },
+   "ok"
+  ],
+  "calls": 2,
+  "delays": [
+   1500
+  ],
+  "result": "ok"
+ },
+ {
+  "name": "retry-after-too-long",
+  "steps": [
+   {
+    "status": 429,
+    "headers": {
+     "retry-after-ms": "70000"
+    }
+   },
+   "ok"
+  ],
+  "calls": 2,
+  "delays": [
+   2000
+  ],
+  "result": "ok"
+ },
+ {
+  "name": "retry-after-long-but-below-backoff",
+  "maxRetries": 6,
+  "steps": [
+   {
+    "status": 500
+   },
+   {
+    "status": 500
+   },
+   {
+    "status": 500
+   },
+   {
+    "status": 500
+   },
+   {
+    "status": 500
+   },
+   {
+    "status": 429,
+    "headers": {
+     "retry-after-ms": "61000"
+    }
+   },
+   "ok"
+  ],
+  "calls": 7,
+  "delays": [
+   2000,
+   4000,
+   8000,
+   16000,
+   32000,
+   61000
+  ],
+  "result": "ok"
+ },
+ {
+  "name": "retry-after-negative",
+  "steps": [
+   {
+    "status": 429,
+    "headers": {
+     "retry-after-ms": "-5"
+    }
+   },
+   "ok"
+  ],
+  "calls": 2,
+  "delays": [
+   2000
+  ],
+  "result": "ok"
+ },
+ {
+  "name": "retry-after-garbage",
+  "steps": [
+   {
+    "status": 429,
+    "headers": {
+     "retry-after": "soon"
+    }
+   },
+   "ok"
+  ],
+  "calls": 2,
+  "delays": [
+   2000
+  ],
+  "result": "ok"
+ },
+ {
+  "name": "non-retryable-first",
+  "steps": [
+   {
+    "status": 400
+   }
+  ],
+  "calls": 1,
+  "delays": [],
+  "error": {
+   "name": "AI_APICallError",
+   "message": "HTTP 400",
+   "statusCode": 400
+  }
+ },
+ {
+  "name": "retryable-then-non-retryable",
+  "steps": [
+   {
+    "status": 500
+   },
+   {
+    "status": 401
+   }
+  ],
+  "calls": 2,
+  "delays": [
+   2000
+  ],
+  "error": {
+   "name": "AI_RetryError",
+   "message": "Failed after 2 attempts with non-retryable error: 'AI_APICallError: HTTP 401'",
+   "reason": "errorNotRetryable",
+   "errors": [
+    {
+     "name": "AI_APICallError",
+     "message": "HTTP 500",
+     "statusCode": 500
+    },
+    {
+     "name": "AI_APICallError",
+     "message": "HTTP 401",
+     "statusCode": 401
+    }
+   ]
+  }
+ },
+ {
+  "name": "retryable-flag-false-500",
+  "steps": [
+   {
+    "status": 500,
+    "retryable": false
+   }
+  ],
+  "calls": 1,
+  "delays": [],
+  "error": {
+   "name": "AI_APICallError",
+   "message": "HTTP 500",
+   "statusCode": 500
+  }
+ },
+ {
+  "name": "plain-error",
+  "steps": [
+   {
+    "plain": "boom"
+   }
+  ],
+  "calls": 1,
+  "delays": [],
+  "error": {
+   "name": "Error",
+   "message": "boom"
+  }
+ },
+ {
+  "name": "plain-after-retry",
+  "steps": [
+   {
+    "status": 502
+   },
+   {
+    "plain": "boom"
+   }
+  ],
+  "calls": 2,
+  "delays": [
+   2000
+  ],
+  "error": {
+   "name": "AI_RetryError",
+   "message": "Failed after 2 attempts with non-retryable error: 'Error: boom'",
+   "reason": "errorNotRetryable",
+   "errors": [
+    {
+     "name": "AI_APICallError",
+     "message": "HTTP 502",
+     "statusCode": 502
+    },
+    {
+     "name": "Error",
+     "message": "boom"
+    }
+   ]
+  }
+ }
+]

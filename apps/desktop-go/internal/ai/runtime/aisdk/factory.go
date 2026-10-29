@@ -7,6 +7,7 @@ import (
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/llm"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/llm/compatible"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/llm/openai"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/providers/protocol"
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
@@ -34,16 +35,20 @@ func (t *fullURLTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 	return t.inner.RoundTrip(r)
 }
 
-func fullURLClient(proto protocol.Protocol, baseURL string, fullURL bool) *http.Client {
+func fullURLClient(proto protocol.Protocol, baseURL string, fullURL bool, base *http.Client) *http.Client {
 	if !fullURL {
-		return nil
+		return base
+	}
+	inner := http.DefaultTransport
+	if base != nil && base.Transport != nil {
+		inner = base.Transport
 	}
 	target := protocol.TrimBase(baseURL)
 	ep := protocol.SdkBaseURL(proto, target, true) + protocol.PathOf(proto)
 	if ep == target {
-		return nil
+		return base
 	}
-	return &http.Client{Transport: &fullURLTransport{inner: http.DefaultTransport, sdkEndpoint: ep, target: target}}
+	return &http.Client{Transport: &fullURLTransport{inner: inner, sdkEndpoint: ep, target: target}}
 }
 
 // unportedModel：协议适配器尚未移植（D-B5-P-6）时的占位，调用即报错
@@ -74,10 +79,13 @@ func BuildModelFactory(opts Options) ModelFactory {
 	}
 	full := opts.FullURL != nil && *opts.FullURL
 	baseURL := protocol.SdkBaseURL(proto, opts.BaseURL, full)
-	client := fullURLClient(proto, opts.BaseURL, full)
+	client := fullURLClient(proto, opts.BaseURL, full, opts.Client)
 	switch proto {
-	case "anthropic", "openai-responses":
+	case "anthropic":
 		return func(id string) llm.LanguageModel { return unportedModel{string(proto), opts.ID, id} }
+	case "openai-responses":
+		p := openai.New(openai.Settings{APIKey: opts.APIKey, BaseURL: baseURL, Headers: hdrs, Client: client, Name: opts.ID})
+		return func(id string) llm.LanguageModel { return p.Responses(id) }
 	}
 	p := compatible.New(compatible.Settings{Name: opts.ID, BaseURL: baseURL, APIKey: opts.APIKey, Headers: hdrs, IncludeUsage: true, Client: client})
 	return p.ChatModel
