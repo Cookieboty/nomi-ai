@@ -2,8 +2,11 @@
 /**
  * 批次 7s：desktop.tools() 23 个工具的执行 golden（Go 回放：internal/ai/runtime/igtools/desktools_parity_test.go）。
  * 真实 PermissionBroker / AuditLog / UndoJournal / AppTrash / ReminderStore（临时 userData）+ createDesktopTools；
- * 确认 UI 为假（记录请求，按用例 answers 依次回答，缺省同意）；剪贴板 / 代码沙箱 / 摘要为假，浏览器 = unavailableBrowser，
- * workspace_run 用真实 shell（仅 posix 用例）。Date.now 固定；TZ=Asia/Shanghai。
+ * 确认 UI 为假（记录请求，按用例 answers 依次回答，缺省同意）；剪贴板 / 摘要为假，浏览器 = unavailableBrowser（见 D-B7-S-9）；
+ * code_run：缺省假沙箱，用例 real:true 走真实 CodeSandbox（JS = 本 node + --permission，Python = 平台隔离 / fallback）；
+ * workspace_run 用真实 shell（posix:true 仅 macOS/Linux，win:true 仅 Windows；不适用的平台记 {skip:true} 以保持下标）。
+ * 路径按值归一（每个字符串里的临时根 R 的各写法 → @@R@@，保留本平台分隔符），CI 在三平台现场录制（NOMI_GOLDEN_DIR）。
+ * Date.now 固定；TZ=Asia/Shanghai。
  * Usage: TZ=Asia/Shanghai node scripts/parity/record-b7s-desktools.mjs
  */
 import fs from 'node:fs';
@@ -26,13 +29,18 @@ const m = await importSources(root, {
   p3: P('core/src/desktop/p3tools.ts'),
   rem: P('core/src/desktop/reminders/ReminderStore.ts'),
   parse: P('core/src/desktop/parse/runParse.ts'),
+  sbx: P('core/src/sandbox/CodeSandbox.ts'),
 });
+const WIN = process.platform === 'win32';
 
 const NOW = 1_900_000_000_000;
 Date.now = () => NOW;
 const quiet = { trace() {}, debug() {}, info() {}, warn() {}, error() {}, fatal() {}, child() { return quiet; } };
 
-const R = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'b7s-desk-')));
+const R0 = fs.mkdtempSync(path.join(os.tmpdir(), 'b7s-desk-'));
+const R = fs.realpathSync(R0);
+// 临时根的各种写法（mkdtemp 原样 / realpath / native realpath（Windows 8.3 展开）/ 正斜杠），长的先换
+const RV = [...new Set([R0, R, fs.realpathSync.native(R0)].flatMap((r) => [r, r.split(path.sep).join('/'), JSON.stringify(r).slice(1, -1)]))].sort((a, b) => b.length - a.length);
 const H = path.join(R, 'home');
 const UD = path.join(R, 'ud');
 const w = (rel, data) => {
@@ -56,6 +64,9 @@ let pick = null;
 let answers = [];
 let confirms = [];
 let says = [];
+let realCode = false;
+// 生产 CodeSandbox；JS 用当前 node（非 Electron → runAsNode:false），Go 侧同样取 PATH 上的 node
+const realSbx = new m.sbx.CodeSandbox({ nodeBin: process.execPath, runAsNode: false });
 const svc = m.dsvc.createDesktopService(quiet, {
   ports: {
     paths: { home: () => H, userData: () => UD },
@@ -92,8 +103,11 @@ const defs = m.tools.createDesktopTools({
   p3: {
     browser: m.p3.unavailableBrowser(),
     code: {
-      available: async () => ['javascript'],
-      run: async (lang, code, opts) => ({ exitCode: 0, stdout: `ran:${lang}:${code.length}:${opts.timeoutMs}`, stderr: '', timedOut: false, truncated: false, ms: 7, sandbox: 'node-permission' }),
+      available: async () => (realCode ? realSbx.available() : ['javascript']),
+      run: async (lang, code, opts, signal) =>
+        realCode
+          ? realSbx.run(lang, code, opts, signal)
+          : { exitCode: 0, stdout: `ran:${lang}:${code.length}:${opts.timeoutMs}`, stderr: '', timedOut: false, truncated: false, ms: 7, sandbox: 'node-permission' },
     },
   },
   shell: { env: () => ({ PATH: process.env.PATH ?? '/usr/bin:/bin', LANG: 'C' }) },
@@ -109,21 +123,42 @@ const strip = (v) => {
   return v;
 };
 const rids = [];
-const sub = (s) => {
-  let o = s.split(R).join('@@R@@');
+// 按值归一：每个字符串值里换临时根 / 提醒 id / uuid / mtime / 回收站日期目录（分隔符保持本平台原样）
+const normStr = (s) => {
+  let o = s;
+  for (const r of RV) o = o.split(r).join('@@R@@');
   rids.forEach((id, k) => { o = o.split(id).join(`@@RID${k}@@`); });
-  // 日志 id（uuid）、mtime、回收站日期目录随运行而变
   return o
-    .replace(/"undoId":"[^"]*"/g, '"undoId":"@@U@@"')
+    // 代码沙箱临时目录（JS 报错栈里出现；Windows 上 8.3 / 长名写法随实现而变）整体替换
+    .replace(/[^\s()'"]*cd-sbx-[A-Za-z0-9]+/g, '@@SBX@@')
     .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g, '@@ID@@')
-    .replace(/(\\"expectMtimeMs\\": )[0-9.e+]+/g, '$1@@MT@@')
-    .replace(/trash\/\d{4}-\d{2}-\d{2}\//g, 'trash/@@D@@/');
+    .replace(/("expectMtimeMs": )[0-9.e+]+/g, '$1@@MT@@')
+    .replace(/trash([\\/])\d{4}-\d{2}-\d{2}([\\/])/g, 'trash$1@@D@@$2');
 };
-const fill = (v) => JSON.parse(JSON.stringify(v ?? {}).replaceAll('@@H@@', H).replaceAll('@@UD@@', UD).replace(/@@RID(\d+)@@/g, (_, k) => rids[+k] ?? 'rmissing0'));
+const norm = (v) => {
+  if (typeof v === 'string') return normStr(v);
+  if (Array.isArray(v)) return v.map(norm);
+  if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [normStr(k), k === 'undoId' && typeof x === 'string' ? '@@U@@' : norm(x)]));
+  return v;
+};
+// 占位符按值替换（Windows 路径含反斜杠，不能拼进 JSON 文本）
+const fillStr = (s) => s.replaceAll('@@H@@', H).replaceAll('@@UD@@', UD).replace(/@@RID(\d+)@@/g, (_, k) => rids[+k] ?? 'rmissing0');
+const fillV = (v) => {
+  if (typeof v === 'string') return fillStr(v);
+  if (Array.isArray(v)) return v.map(fillV);
+  if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, fillV(x)]));
+  return v;
+};
+const fill = (v) => fillV(v ?? {});
 
 const cases = JSON.parse(fs.readFileSync(path.join(TD, 'b7s-desktools-cases.json'), 'utf8'));
 const out = [];
 for (const c of cases) {
+  if ((c.posix && WIN) || (c.win && !WIN)) {
+    out.push({ tool: c.tool, skip: true });
+    continue;
+  }
+  realCode = !!c.real;
   answers = [...(c.answers ?? [])];
   confirms = [];
   says = [];
@@ -144,8 +179,10 @@ for (const c of cases) {
   const n = svc.audit.list(100000).length - before;
   if (n > 0) rec.audit = strip(svc.audit.list(n));
   if (c.tool.startsWith('clipboard_write')) rec.clip = clip;
-  out.push(JSON.parse(sub(JSON.stringify(rec))));
+  out.push(norm(rec));
 }
 fs.rmSync(R, { recursive: true, force: true });
-fs.writeFileSync(path.join(TD, 'b7s-desktools.json'), `${JSON.stringify(out, null, 1)}\n`);
+const outDir = process.env.NOMI_GOLDEN_DIR || TD;
+fs.mkdirSync(outDir, { recursive: true });
+fs.writeFileSync(path.join(outDir, 'b7s-desktools.json'), `${JSON.stringify(out, null, 1)}\n`);
 console.log(`b7s-desktools: ${out.length} exec cases`);

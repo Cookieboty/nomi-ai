@@ -4,14 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"regexp"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+	_ "time/tzdata"
 	"unicode/utf8"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/tools"
@@ -21,6 +24,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop/reminders"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/sandbox"
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/paritytest"
 )
 
 // 回放 scripts/parity/record-b7s-desktools.mjs（同形装配，见脚本头注释）
@@ -55,10 +59,22 @@ func (f *fakeUI) Request(req desktop.ConfirmRequest) {
 }
 func (f *fakeUI) Cancel(string) {}
 
-type fakeCode struct{}
+// fakeCode：缺省假沙箱；real=true 时转给真实 CodeSandbox（同录制脚本 real:true 用例）
+type fakeCode struct {
+	real *bool
+	sbx  *sandbox.CodeSandbox
+}
 
-func (fakeCode) Available() []string { return []string{"javascript"} }
-func (fakeCode) Run(_ context.Context, lang, code string, o sandbox.RunOpts) (*sandbox.RunResult, error) {
+func (f fakeCode) Available() []string {
+	if *f.real {
+		return f.sbx.Available()
+	}
+	return []string{"javascript"}
+}
+func (f fakeCode) Run(ctx context.Context, lang, code string, o sandbox.RunOpts) (*sandbox.RunResult, error) {
+	if *f.real {
+		return f.sbx.Run(ctx, lang, code, o)
+	}
 	z := 0
 	return &sandbox.RunResult{ExitCode: &z, Stdout: "ran:" + lang + ":" + strconv.Itoa(len([]rune(code))) + ":" + strconv.Itoa(o.TimeoutMs), Ms: 7, Sandbox: "node-permission"}, nil
 }
@@ -86,15 +102,53 @@ func deskStrip(v any) any {
 }
 
 var (
-	undoRe  = regexp.MustCompile(`"undoId":"[^"]*"`)
+	sbxRe   = regexp.MustCompile(`[^\s()'"]*cd-sbx-[A-Za-z0-9]+`)
 	uuidRe  = regexp.MustCompile(`[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`)
-	mtimeRe = regexp.MustCompile(`(\\"expectMtimeMs\\": )[0-9.e+]+`)
-	tdayRe  = regexp.MustCompile(`trash/\d{4}-\d{2}-\d{2}/`)
+	mtimeRe = regexp.MustCompile(`("expectMtimeMs": )[0-9.e+]+`)
+	tdayRe  = regexp.MustCompile(`trash([\\/])\d{4}-\d{2}-\d{2}([\\/])`)
 )
 
+// deskNorm 同录制脚本 norm：按值换临时根各写法 / 提醒 id / uuid / mtime / 回收站日期，undoId 键值整体替换
+func deskNorm(v any, rv, rids []string) any {
+	str := func(s string) string {
+		for _, r := range rv {
+			s = strings.ReplaceAll(s, r, "@@R@@")
+		}
+		for k, id := range rids {
+			s = strings.ReplaceAll(s, id, "@@RID"+strconv.Itoa(k)+"@@")
+		}
+		s = sbxRe.ReplaceAllString(s, "@@SBX@@")
+		s = uuidRe.ReplaceAllString(s, "@@ID@@")
+		s = mtimeRe.ReplaceAllString(s, "${1}@@MT@@")
+		return tdayRe.ReplaceAllString(s, "trash${1}@@D@@${2}")
+	}
+	switch x := v.(type) {
+	case string:
+		return str(x)
+	case []any:
+		for i := range x {
+			x[i] = deskNorm(x[i], rv, rids)
+		}
+		return x
+	case map[string]any:
+		out := map[string]any{}
+		for k, e := range x {
+			if _, ok := e.(string); ok && k == "undoId" {
+				out[str(k)] = "@@U@@"
+				continue
+			}
+			out[str(k)] = deskNorm(e, rv, rids)
+		}
+		return out
+	}
+	return v
+}
+
 func TestDesktopToolsParityGolden(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("golden 在 posix 录制（路径分隔符 / 权限语义）；Windows 路径处理由 desktop 包自身测试覆盖")
+	gpath, live := paritytest.Golden(t, "b7s-desktools.json", "testdata/b7s-desktools.json")
+	if !live && runtime.GOOS == "windows" {
+		// 提交的 golden 在 Linux 录制；Windows 比对 CI 现场录制（desktop-go.yml live Node goldens）
+		t.Skip("committed golden is POSIX; Windows compares against the live CI recording (NOMI_LIVE_GOLDENS)")
 	}
 	sh, err := time.LoadLocation("Asia/Shanghai")
 	if err != nil {
@@ -104,10 +158,16 @@ func TestDesktopToolsParityGolden(t *testing.T) {
 	time.Local = sh
 	t.Cleanup(func() { time.Local = old })
 
-	R := t.TempDir()
+	R0 := t.TempDir()
+	R := R0
 	if r, err := filepath.EvalSymlinks(R); err == nil {
 		R = r
 	}
+	rv := []string{}
+	for _, r := range []string{R0, R} {
+		rv = append(rv, r, filepath.ToSlash(r), jsonInner(r))
+	}
+	sort.Slice(rv, func(i, j int) bool { return len(rv[i]) > len(rv[j]) })
 	H, UD := filepath.Join(R, "home"), filepath.Join(R, "ud")
 	w := func(rel string, data []byte) {
 		f := filepath.Join(H, filepath.FromSlash(rel))
@@ -126,6 +186,9 @@ func TestDesktopToolsParityGolden(t *testing.T) {
 	_ = os.MkdirAll(UD, 0o755)
 
 	clip, pick := "", ""
+	realCode, noRun := false, false
+	// 录制脚本 real 用例用 process.execPath；Go 取 PATH 上同一个 node（D-B7-S2-5）
+	nodeBin, _ := exec.LookPath("node")
 	var says []any
 	svc := desktop.CreateService(UD, desktop.Ports{Home: H}, nil)
 	b := svc.Broker
@@ -155,7 +218,7 @@ func TestDesktopToolsParityGolden(t *testing.T) {
 		ClipboardWrite:   func(s string) error { clip = s; return nil },
 		Say:              func(s string) { says = append(says, s) },
 		Now:              func() float64 { return deskNow },
-		Code:             fakeCode{},
+		Code:             fakeCode{real: &realCode, sbx: sandbox.New(sandbox.Options{NodeBin: nodeBin, RunAsNode: &noRun})},
 		Shell:            &WorkspaceShell{Env: func() []string { return []string{"PATH=" + os.Getenv("PATH"), "LANG=C"} }},
 	})
 	byName := map[string]tools.Definition{}
@@ -166,7 +229,7 @@ func TestDesktopToolsParityGolden(t *testing.T) {
 	var cases []map[string]json.RawMessage
 	var golden []any
 	readJSON(t, "testdata/b7s-desktools-cases.json", &cases)
-	readJSON(t, "testdata/b7s-desktools.json", &golden)
+	readJSON(t, gpath, &golden)
 	if len(cases) != len(golden) {
 		t.Fatalf("cases %d vs golden %d", len(cases), len(golden))
 	}
@@ -186,8 +249,18 @@ func TestDesktopToolsParityGolden(t *testing.T) {
 	for i, c := range cases {
 		var tool string
 		_ = json.Unmarshal(c["tool"], &tool)
-		if _, ok := c["posix"]; ok && runtime.GOOS == "windows" {
+		_, px := c["posix"]
+		_, wn := c["win"]
+		if (px && runtime.GOOS == "windows") || (wn && runtime.GOOS != "windows") {
+			if !reflect.DeepEqual(golden[i], map[string]any{"tool": tool, "skip": true}) {
+				t.Errorf("desk[%d] %s: golden not skipped on this platform: %v", i, tool, golden[i])
+			}
 			continue
+		}
+		_, realCode = c["real"]
+		if realCode && nodeBin == "" {
+			paritytest.SkipOrFail(t, "node not on PATH")
+			return
 		}
 		ui.answers, ui.confirms, says = nil, nil, nil
 		if raw, ok := c["answers"]; ok {
@@ -252,17 +325,12 @@ func TestDesktopToolsParityGolden(t *testing.T) {
 		if tool == "clipboard_write" {
 			rec["clip"] = clip
 		}
-		s := strings.ReplaceAll(u.Stringify(rec), jsonInner(R), "@@R@@")
-		for k, id := range rids {
-			s = strings.ReplaceAll(s, id, "@@RID"+strconv.Itoa(k)+"@@")
-		}
-		s = undoRe.ReplaceAllString(s, `"undoId":"@@U@@"`)
-		s = uuidRe.ReplaceAllString(s, "@@ID@@")
-		s = mtimeRe.ReplaceAllString(s, "${1}@@MT@@")
-		s = tdayRe.ReplaceAllString(s, "trash/@@D@@/")
 		var gn any
-		_ = json.Unmarshal([]byte(s), &gn)
+		_ = json.Unmarshal([]byte(u.Stringify(rec)), &gn)
+		gn = deskNorm(gn, rv, rids)
 		if !reflect.DeepEqual(gn, golden[i]) {
+			sb, _ := json.Marshal(gn)
+			s := string(sb)
 			want, _ := json.Marshal(golden[i])
 			t.Errorf("desk[%d] %s:\n got %s\nwant %s", i, tool, s, want)
 		}

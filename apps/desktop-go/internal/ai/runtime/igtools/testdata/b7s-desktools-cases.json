@@ -101,6 +101,10 @@
  {"tool":"code_run","in":{"code":"1","timeoutSec":99}},
  {"tool":"workspace_run","in":{"command":"echo hi; echo err 1>&2"},"cwd":"@@H@@/ws","posix":true},
  {"tool":"workspace_run","in":{"command":"exit 3"},"cwd":"@@H@@/ws","posix":true},
+ {"tool":"workspace_run","in":{"command":"echo hi & echo err 1>&2"},"cwd":"@@H@@/ws","win":true},
+ {"tool":"workspace_run","in":{"command":"exit 3"},"cwd":"@@H@@/ws","win":true},
+ {"tool":"workspace_run","in":{"command":"cd"},"cwd":"@@H@@/ws","win":true},
+ {"tool":"workspace_run","in":{"command":"pwd"},"cwd":"@@H@@/ws","posix":true},
  {"tool":"workspace_run","in":{"command":"echo x"}},
  {"tool":"workspace_run","in":{"command":"echo x"},"cwd":"@@H@@/docs"},
  {"tool":"workspace_run","in":{"command":"echo no"},"cwd":"@@H@@/ws","answers":[false]},
@@ -110,5 +114,16 @@
  {"tool":"fs_read_text","in":{"path":"@@H@@/docs/a.txt"},"provider":{"id":"ollama","baseURL":"http://127.0.0.1:11434"}},
  {"tool":"clipboard_read","in":{},"clip":"c","provider":{"id":"openai","baseURL":"https://api.openai.com/v1"}},
  {"tool":"undo_last","in":{}},
- {"tool":"undo_last","in":{}}
+ {"tool":"undo_last","in":{}},
+ {"tool":"code_run","in":{"code":"console.log(6*7)"},"real":true},
+ {"tool":"code_run","in":{"code":"console.error('e'); process.exit(2)"},"real":true},
+ {"tool":"code_run","in":{"code":"process.stdin.on('data',d=>process.stdout.write(String(d).toUpperCase()))","stdin":"abc"},"real":true},
+ {"tool":"code_run","in":{"code":"require('fs').readFileSync(require('os').homedir()+'/../../etc/hosts')"},"real":true},
+ {"tool":"code_run","in":{"code":"require('child_process').execSync('echo x')"},"real":true},
+ {"tool":"code_run","in":{"code":"while(true){}","timeoutSec":1},"real":true},
+ {"tool":"code_run","in":{"code":"print(6*7)","language":"python"},"real":true},
+ {"tool":"code_run","in":{"code":"import sys; sys.stdout.write(sys.stdin.read()[::-1]); sys.exit(4)","language":"python","stdin":"abc"},"real":true},
+ {"tool":"code_run","in":{"code":"print(1)","language":"python"},"answers":[true,false],"real":true},
+ {"tool":"code_run","in":{"code":"print(1)","language":"python"},"answers":[false],"real":true},
+ {"tool":"code_run","in":{"code":"import os; print(sorted(k for k in os.environ if k in ('HOME','PYTHONIOENCODING','TMPDIR')))","language":"python"},"real":true}
 ]
