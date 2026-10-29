@@ -50,6 +50,9 @@ type APICallError struct {
 	StatusCode        int // 0 = undefined
 	ResponseHeaders   map[string]string
 	ResponseBody      *string
+	// ResponseBodyValue, when set, is a non-string responseBody (Node passes
+	// e.g. a parsed JSON value where a string is declared).
+	ResponseBodyValue any
 	IsRetryable       bool
 	Data              any
 	Cause             error
@@ -210,6 +213,8 @@ func ErrorJSON(err error) *util.Obj {
 		}
 		if e.ResponseBody != nil {
 			o.Set("responseBody", *e.ResponseBody)
+		} else if e.ResponseBodyValue != nil {
+			o.Set("responseBody", e.ResponseBodyValue)
 		}
 		o.Set("isRetryable", e.IsRetryable)
 		if e.Data != nil {
