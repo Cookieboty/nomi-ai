@@ -137,7 +137,7 @@ async function runScenario(sc, svc, detect) {
   const npmBin = exe(path.join(dir, 'fakenpm'), {
     // slowNpm（绝对路径：沙箱 PATH 里没有 /bin）：后台刷新必须慢于本地探测，否则「先返回旧缓存」与刷新完成之间是竞态（Node / Go 都是）
     sh: `echo x >> "${path.join(dir, 'npm.log')}"\n` + (sc.slowNpm ? '/bin/sleep 1\n' : '') + lines.map(([k, v]) => `[ "$2" = "${pkgs[k]}" ] && { echo '"${v}"'; exit 0; }`).join('\n') + '\nexit 1',
-    win: `echo x>>"${path.join(dir, 'npm.log')}"\r\n` + (sc.slowNpm ? '"%SystemRoot%\\System32\\ping.exe" -n 2 127.0.0.1 >nul\r\n' : '') + lines.map(([k, v]) => `if "%2"=="${pkgs[k]}" (echo "${v}"& exit /b 0)`).join('\r\n') + '\r\nexit /b 1',
+    win: `:nomilog\r\n(echo x>>"${path.join(dir, 'npm.log')}") 2>nul || goto nomilog\r\n` + (sc.slowNpm ? '"%SystemRoot%\\System32\\ping.exe" -n 2 127.0.0.1 >nul\r\n' : '') + lines.map(([k, v]) => `if "%2"=="${pkgs[k]}" (echo "${v}"& exit /b 0)`).join('\r\n') + '\r\nexit /b 1',
   });
   process.env.NOMI_NPM_BIN = npmBin;
   for (const [kind, [where, v]] of Object.entries(sc.bins ?? {})) {
