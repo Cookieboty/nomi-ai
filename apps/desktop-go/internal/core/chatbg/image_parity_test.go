@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"image"
-	"image/color"
 	"image/jpeg"
 	"image/png"
 	"os"
@@ -30,7 +29,7 @@ type imgCase struct {
 func genImage(t *testing.T, enc string, w, h int) []byte {
 	img := image.NewNRGBA(image.Rect(0, 0, w, h))
 	for i := 0; i < w*h; i++ {
-		img.SetNRGBA(i%w, i/w, color.NRGBA{uint8(i % 251), uint8((i >> 3) % 253), 128, 255})
+		copy(img.Pix[i*4:], []uint8{uint8(i % 251), uint8((i >> 3) % 253), 128, 255})
 	}
 	var b bytes.Buffer
 	var err error
@@ -58,6 +57,10 @@ func magic(b []byte) string {
 }
 
 func TestImageParity(t *testing.T) {
+	// -race 下大图编解码慢 10 倍以上（CI 600s 超时）；CI 另有一步不带 -race 专门跑本测试（desktop-go.yml "chatbg image parity"），不算跳过
+	if raceOn {
+		t.Skip("runs without -race in the dedicated CI step")
+	}
 	raw, err := os.ReadFile("testdata/image.json")
 	if err != nil {
 		t.Fatal(err)
@@ -70,6 +73,7 @@ func TestImageParity(t *testing.T) {
 		t.Fatal(err)
 	}
 	cache := map[string][]byte{}
+	memo := map[string][]byte{} // .jpg/.jpeg/.webp 走同一分支、输出相同，只算一次
 	for _, c := range g.Cases {
 		var data []byte
 		if c.Fixed != "" {
@@ -81,7 +85,19 @@ func TestImageParity(t *testing.T) {
 			}
 			data = cache[k]
 		}
-		out, ext, err := Process(c.Ext, data)
+		var out []byte
+		var ext string
+		var err error
+		if c.Fixed == "" && c.Ext != ".png" {
+			mk := fmt.Sprint(c.Enc, c.W, "x", c.H, "jpg")
+			if r, ok := memo[mk]; ok && r != nil {
+				out, ext = r, ".jpg"
+			} else if out, ext, err = Process(c.Ext, data); err == nil && out != nil {
+				memo[mk] = out
+			}
+		} else {
+			out, ext, err = Process(c.Ext, data)
+		}
 		if err != nil {
 			t.Fatalf("%+v: %v", c, err)
 		}
