@@ -2,7 +2,7 @@
 # 批次 11 Linux 安装包验证（在 xvfb 会话里跑）：deb 安装/卸载、AppImage 启动、看板娘窗口出现、与 2.0.4 AppImage 的 .desktop 对比。
 # 用法：verify-linux.sh <deb> <AppImage> <输出目录> [electron 2.0.4 AppImage]
 set -u
-DEB=$1; AI=$2; OUT=$3; OLD=${4:-}; mkdir -p "$OUT"; R="$OUT/report.md"; ok=1
+DEB=$(readlink -f "$1"); AI=$(readlink -f "$2"); OUT=$3; OLD=${4:+$(readlink -f "$4")}; mkdir -p "$OUT"; OUT=$(readlink -f "$OUT"); R="$OUT/report.md"; ok=1
 sz() { stat -c%s "$1"; }
 echo "### linux: $(basename "$DEB") ($(sz "$DEB") bytes), $(basename "$AI") ($(sz "$AI") bytes)" >> "$R"
 mascot() { # $1=label $2=pid —— xvfb 里只有本应用：找 ~330x355 的可见顶层窗口并截图
@@ -31,7 +31,7 @@ APPIMAGE_EXTRACT_AND_RUN=1 "$AI" > "$OUT/appimage-app.log" 2>&1 & P=$!; sleep "$
 if [ -n "$OLD" ] && [ -f "$OLD" ]; then
   T=$(mktemp -d); (cd "$T" && chmod +x "$OLD" && "$OLD" --appimage-extract '*.desktop' >/dev/null 2>&1)
   (cd "$T"; mkdir g; cd g; "$AI" --appimage-extract '*.desktop' >/dev/null 2>&1)
-  { echo ".desktop 对比（- Electron 2.0.4 / + Go）"; echo '```diff'; diff "$T"/squashfs-root/*.desktop "$T"/g/squashfs-root/*.desktop; echo '```'; } >> "$R"
+  { echo ".desktop 对比（- Electron 2.0.4 / + Go）"; echo '```diff'; diff "$T"/squashfs-root/*.desktop "$T"/g/squashfs-root/*.desktop 2>&1; echo '```'; } >> "$R"
 fi
 [ $ok = 1 ] && echo "**linux verify: PASS**" >> "$R" || echo "**linux verify: FAIL**" >> "$R"
 cat "$R"; [ $ok = 1 ]

@@ -3,6 +3,10 @@ package gwstore
 // 编程助手方法 golden（scripts/parity/record-gwcli.mjs；NOMI_LIVE_GOLDENS 设置时用本平台现场录制）。
 
 import (
+	"context"
+	"io"
+	"net"
+	"net/http"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -88,7 +92,7 @@ func TestServiceCliParity(t *testing.T) {
 	if err := json.Unmarshal(raw, &g); err != nil {
 		t.Fatal(err)
 	}
-	if len(g.Scenarios) != 4 {
+	if len(g.Scenarios) != 5 {
 		t.Fatalf("scenarios=%d", len(g.Scenarios))
 	}
 	for _, sc := range g.Scenarios {
@@ -109,6 +113,7 @@ func TestServiceCliParity(t *testing.T) {
 			t.Setenv("HOME", home)
 			t.Setenv("USERPROFILE", home)
 
+			stub := newHelperStub(t)
 			var sent []any
 			var smu sync.Mutex
 			var child *cliChild
@@ -208,6 +213,43 @@ func TestServiceCliParity(t *testing.T) {
 					}
 				case "storeProvider":
 					s.Store.UpsertProvider(obj(0))
+				case "confirmPrivateHost":
+					err = s.ConfirmPrivateHost(str(0))
+				case "writeSessions":
+					_ = os.MkdirAll(filepath.Join(ud, "gateway"), 0o755)
+					_ = os.WriteFile(filepath.Join(ud, "gateway", "sessions.json"), []byte(str(0)), 0o644)
+				case "servedSession":
+					res = s.ServedSession(str(0), str(1))
+				case "servedSessionRef":
+					if r := s.ServedSessionRef(str(0), str(1)); r != "" {
+						res = r
+					}
+				case "helperRoute":
+					if r := s.HelperRoute(str(0), str(1)); r != nil {
+						res = r.Obj()
+					}
+				case "endpoint":
+					if e := s.Endpoint(str(0)); e != nil {
+						res = u.NewObj("url", e.URL, "token", e.Token)
+					}
+				case "stubListen":
+					child.msg(server.WorkerOutbound{Type: "listening", Port: stub.port, URL: fmt.Sprintf("http://127.0.0.1:%d", stub.port)})
+				case "helperComplete":
+					ms := []HelperMessage{}
+					l, _ := arg(1).([]any)
+					for _, x := range l {
+						o := x.(*u.Obj)
+						ms = append(ms, HelperMessage{Role: u.JSString(o.Get("role")), Content: u.JSString(o.Get("content"))})
+					}
+					stub.reset()
+					v, e := s.HelperComplete(context.Background(), str(0), ms)
+					r := u.NewObj()
+					if e != nil {
+						r.Set("error", e.Error())
+					} else {
+						r.Set("value", v)
+					}
+					res = r.Set("req", stub.get())
 				case "listen":
 					child.msg(server.WorkerOutbound{Type: "listening", Port: 18999, URL: "http://127.0.0.1:18999"})
 				default:
@@ -270,4 +312,66 @@ func cliModelsAPI(n int) any {
 	ms.Set("plain", u.NewObj("id", "plain", "name", "Plain", "limit", u.NewObj("context", float64(777000), "output", float64(33000))))
 	ms.Set("embed", u.NewObj("id", "embed", "type", "embedding", "limit", u.NewObj("context", float64(8000))))
 	return u.NewObj("openai", u.NewObj("models", ms))
+}
+
+// helperStub = record-gwcli.mjs 的 STUB 上游桩
+type helperStub struct {
+	port int
+	mu   sync.Mutex
+	last *u.Obj
+}
+
+var helperStubResp = map[string]struct {
+	st   int
+	text string
+}{
+	"ok":         {200, `{"choices":[{"message":{"content":"héllo 😀 <&>"}}]}`},
+	"nonstr":     {200, `{"choices":[{"message":{"content":5}}]}`},
+	"bom":        {200, "\ufeff" + `{"choices":[{"message":{"content":"b"}}]}`},
+	"notjson":    {200, "nope"},
+	"objchoices": {200, `{"choices":{"0":{"message":{"content":"obj"}}}}`},
+	"nochoices":  {200, `{"x":1}`},
+	"nullj":      {200, "null"},
+	"boom":       {503, strings.Repeat("e", 499) + "😀tail"},
+	"short":      {401, "bad key"},
+}
+
+func newHelperStub(t *testing.T) *helperStub {
+	h := &helperStub{}
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.port = ln.Addr().(*net.TCPAddr).Port
+	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		h.mu.Lock()
+		h.last = u.NewObj("method", r.Method, "url", r.URL.RequestURI(), "authorization", r.Header.Get("authorization"),
+			"contentType", r.Header.Get("content-type"), "body", string(b))
+		h.mu.Unlock()
+		model := ""
+		if j, ok := jsonParse(b).(*u.Obj); ok {
+			model, _ = j.Get("model").(string)
+		}
+		resp, ok := helperStubResp[model]
+		if !ok {
+			resp.st, resp.text = 404, "no such model"
+		}
+		w.Header().Set("content-type", "application/json")
+		w.WriteHeader(resp.st)
+		_, _ = io.WriteString(w, resp.text)
+	})}
+	go func() { _ = srv.Serve(ln) }()
+	t.Cleanup(func() { _ = srv.Close() })
+	return h
+}
+
+func (h *helperStub) reset() { h.mu.Lock(); h.last = nil; h.mu.Unlock() }
+func (h *helperStub) get() any {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.last == nil {
+		return nil
+	}
+	return h.last
 }

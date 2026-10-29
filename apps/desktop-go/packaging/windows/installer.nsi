@@ -1,7 +1,7 @@
 ; Nomi Windows 安装器（Go + Wails 版）。语义对齐 electron-builder 的 oneClick NSIS（electron-builder.yml：nsis 默认值）：
-; - 按用户安装（无 UAC），目录 %LOCALAPPDATA%\Programs\Nomi，无向导页，装完自动启动；
-; - 卸载项 HKCU\...\Uninstall\{APP_GUID}（GUID = uuidv5(appId, electron-builder 命名空间)，与 2.0.4 同一项 → 覆盖升级）；
-; - 桌面 + 开始菜单快捷方式 Nomi.lnk；nomi:// 协议；卸载不删用户数据；
+; - 按用户安装（无 UAC），目录 %LOCALAPPDATA%\Programs\@nomi-aielectron（同 2.0.4），无向导页，装完自动启动；
+; - 卸载项 HKCU\...\Uninstall\APP_GUID（不带花括号，同 2.0.4；GUID = uuidv5(appId, electron-builder 命名空间)，与 2.0.4 同一项 → 覆盖升级）；
+; - 桌面 + 开始菜单快捷方式 Nomi.lnk；nomi:// 协议（2.0.4 安装器实际未注册，Go 版补上，见 D-B11-4）；卸载不删用户数据；
 ; - 发现旧安装（含 Electron 2.0.4）先静默跑旧卸载器（与 electron-builder 升级时一致，/KEEP_APP_DATA --updated）。
 ; 由 package.sh 调用：makensis -DVERSION=… -DSTAGE=… -DOUTFILE=… installer.nsi
 Unicode true
@@ -15,11 +15,12 @@ SetCompressor /SOLID lzma
 !define EXE "Nomi.exe"
 !define UNINST "Uninstall Nomi.exe"
 !define PUBLISHER "Cookieboty"
-!define UNKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\{${APP_GUID}}"
+!define UNKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_GUID}"
 
 Name "${PRODUCT}"
 OutFile "${OUTFILE}"
-InstallDir "$LOCALAPPDATA\Programs\${PRODUCT}"
+; electron-builder 用 package.json name（@nomi-ai/electron → "@nomi-aielectron"）作目录名，CI 实装 2.0.4 核对过
+InstallDir "$LOCALAPPDATA\Programs\@nomi-aielectron"
 Icon "${STAGE}\icon.ico"
 UninstallIcon "${STAGE}\icon.ico"
 ShowInstDetails nevershow

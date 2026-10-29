@@ -15,15 +15,6 @@ import (
 // ParseState = Record<string, unknown>（值为 JSON 值：float64 / string / bool）。
 type ParseState = map[string]any
 
-// QuotaWindow：quota.ts 的 QuotaWindow。
-type QuotaWindow struct {
-	ID            string   `json:"id"`
-	UsedPercent   float64  `json:"usedPercent"`
-	WindowMinutes *float64 `json:"windowMinutes,omitempty"`
-	ResetAt       *float64 `json:"resetAt,omitempty"`
-	Expired       *bool    `json:"expired,omitempty"`
-}
-
 func lpNum(v any) float64 {
 	if x, ok := v.(float64); ok && !math.IsNaN(x) && !math.IsInf(x, 0) && x > 0 {
 		return x
