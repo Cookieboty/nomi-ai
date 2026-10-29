@@ -1,11 +1,13 @@
 // Package character 对应 packages/core/src/character（packResolve + CharacterPackService.getActive）。
-// 校验只做运行时需要的子集（见 D-B10-2）：manifest 结构、onboarding 四图、rive/static 资源存在。
+// 校验是 charcontract.ValidatePack（packages/character-contract validatePack 的 1:1 移植，金样见
+// charcontract/testdata），覆盖包 lenient、内置包严格，与 Node 相同。
 package character
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/charcontract"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -14,13 +16,12 @@ import (
 )
 
 var (
-	HitboxIDs          = []string{"head", "face", "body", "hand", "hem"}
-	OnboardingFiles    = []string{"welcome.webp", "profile.webp", "provider.webp", "privacy.webp"}
-	CharacterLocales   = []string{"zh", "en"}
-	PackModes          = []string{"rive", "sprite", "static"}
-	DefaultArtboard    = "Nomi-full"
-	DefaultStateMach   = "NomiFull"
-	legacyMappingEmots = map[string]string{"happy": "nod", "sad": "tears", "surprised": "surprise", "confused": "puzzled", "sleepy": "yawn"}
+	HitboxIDs        = []string{"head", "face", "body", "hand", "hem"}
+	OnboardingFiles  = []string{"welcome.webp", "profile.webp", "provider.webp", "privacy.webp"}
+	CharacterLocales = []string{"zh", "en"}
+	PackModes        = []string{"rive", "sprite", "static"}
+	DefaultArtboard  = "Nomi-full"
+	DefaultStateMach = "NomiFull"
 )
 
 const Scheme = "character-pack"
@@ -153,13 +154,7 @@ type Pack struct {
 	Static         string
 	OnboardingDir  string
 	VoiceDir       string
-}
-
-func dirOf(rel, fallback string) string {
-	if d := NormalizePackPath(rel); d != "" {
-		return d
-	}
-	return fallback
+	Downgraded     []string
 }
 
 func exists(root, rel string) bool {
@@ -167,163 +162,64 @@ func exists(root, rel string) bool {
 	return err == nil && !st.IsDir()
 }
 
-func readJSON(root, rel string, v any) error {
-	b, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))
-	if err != nil {
-		return err
-	}
-	if err := json.Unmarshal(b, v); err != nil {
-		return fmt.Errorf("%s: invalid JSON", rel)
-	}
-	return nil
+// normalizedPack 是 charcontract.ValidatePack 输出（NormalizedPack）里运行时用到的部分。
+type normalizedPack struct {
+	Manifest manifest `json:"manifest"`
+	Mode     string   `json:"mode"`
+	Layout   struct {
+		Hitboxes     map[string]Region `json:"hitboxes"`
+		BubbleAnchor *struct {
+			X float64 `json:"x"`
+			Y float64 `json:"y"`
+		} `json:"bubbleAnchor"`
+	} `json:"layout"`
+	Persona *personaJSON          `json:"persona"`
+	Mapping json.RawMessage       `json:"mapping"`
+	Locales map[string]LocaleData `json:"locales"`
+	Assets  struct {
+		Rive           *string `json:"rive"`
+		SpriteManifest *string `json:"spriteManifest"`
+		Static         *string `json:"static"`
+		OnboardingDir  string  `json:"onboardingDir"`
+		VoiceDir       string  `json:"voiceDir"`
+	} `json:"assets"`
 }
 
-func contains(xs []string, s string) bool {
-	for _, x := range xs {
-		if x == s {
-			return true
-		}
+func deref(s *string) string {
+	if s == nil {
+		return ""
 	}
-	return false
+	return *s
 }
 
-// LoadPackAt：校验并归一化一个包目录；失败时返回第一条错误（"file: message"）。
+// LoadPackAt = packResolve.loadPackAt：用 charcontract（validatePack 的 1:1 移植）校验并归一化；
+// 失败时 error 为第一条错误（"file: message"）或 "invalid character pack"。
+// Downgraded 为 lenient 放行的问题（供日志）。
 func LoadPackAt(root string, lenient bool) (*Pack, error) {
-	p := &Pack{Root: root, Locales: map[string]LocaleData{}}
-	if err := readJSON(root, "manifest.json", &p.Manifest); err != nil {
-		if os.IsNotExist(err) {
-			return nil, errors.New("manifest.json: missing manifest.json")
-		}
-		return nil, err
+	r := charcontract.LoadPackAt(root, lenient)
+	if !r.OK {
+		return nil, errors.New(r.Reason)
 	}
-	m := &p.Manifest
-	if f, ok := m.Schema.(float64); !ok || f != 1 || strings.TrimSpace(m.ID) == "" {
-		return nil, errors.New("manifest.json: invalid manifest")
+	var n normalizedPack
+	if err := json.Unmarshal([]byte(charcontract.Stringify(r.Pack)), &n); err != nil {
+		return nil, fmt.Errorf("invalid character pack: %w", err)
 	}
-	if m.Assets.Mode == "" {
-		m.Assets.Mode = "rive"
+	p := &Pack{
+		Root: root, Manifest: n.Manifest, Mode: n.Mode, Persona: n.Persona, Locales: n.Locales,
+		Rive: deref(n.Assets.Rive), SpriteManifest: deref(n.Assets.SpriteManifest), Static: deref(n.Assets.Static),
+		OnboardingDir: n.Assets.OnboardingDir, VoiceDir: n.Assets.VoiceDir, Downgraded: r.Downgraded,
 	}
-	if !contains(PackModes, m.Assets.Mode) {
-		return nil, errors.New("manifest.json: invalid assets.mode")
+	if string(n.Mapping) != "null" {
+		p.Mapping = n.Mapping
 	}
-	p.Mode = m.Assets.Mode
-	// hitboxes：manifest.layout 优先，其次旧版 layout/hitboxes.json
-	var hb map[string]json.RawMessage
-	var anchor = (*struct {
-		X float64 `json:"x"`
-		Y float64 `json:"y"`
-	})(nil)
-	if m.Layout != nil {
-		hb, anchor = m.Layout.Hitboxes, m.Layout.BubbleAnchor
+	if p.Locales == nil {
+		p.Locales = map[string]LocaleData{}
 	}
-	if hb == nil {
-		var legacy struct {
-			Hitboxes     map[string]json.RawMessage `json:"hitboxes"`
-			BubbleAnchor *struct {
-				X float64 `json:"x"`
-				Y float64 `json:"y"`
-			} `json:"bubbleAnchor"`
-		}
-		if readJSON(root, dirOf(m.Assets.Layout, "layout")+"/hitboxes.json", &legacy) == nil {
-			hb, anchor = legacy.Hitboxes, legacy.BubbleAnchor
-		}
-	}
-	regions := map[string]Region{}
-	for k, raw := range hb {
-		var r Region
-		if contains(HitboxIDs, k) && json.Unmarshal(raw, &r) == nil {
-			regions[k] = r
-		} else if !lenient {
-			return nil, fmt.Errorf("manifest.json: invalid hitbox %q", k)
-		}
-	}
-	if len(regions) > 0 {
-		p.Hitboxes = &Hitboxes{Regions: regions, BubbleAnchor: anchor}
-	}
-
-	p.OnboardingDir = dirOf(m.Assets.Onboarding, "onboarding")
-	for _, f := range OnboardingFiles {
-		rel := p.OnboardingDir + "/" + f
-		if !exists(root, rel) {
-			return nil, fmt.Errorf("%s: missing %s", rel, rel)
-		}
-	}
-	spriteRel := dirOf(m.Assets.Sprite, "sprite") + "/manifest.json"
-	if exists(root, spriteRel) {
-		p.SpriteManifest = spriteRel
-	}
-	if p.Mode == "static" {
-		var cands []string
-		if d := NormalizePackPath(m.Assets.Static); d != "" {
-			if regexp.MustCompile(`(?i)\.(webp|png)$`).MatchString(d) {
-				cands = append(cands, d)
-			} else {
-				cands = append(cands, d+"/character.webp")
-			}
-		}
-		cands = append(cands, "static/character.webp", "static/character.png")
-		for _, c := range cands {
-			if exists(root, c) {
-				p.Static = c
-				break
-			}
-		}
-		if p.Static == "" {
-			return nil, errors.New("static/character.webp: static mode requires static/character.webp (or .png)")
-		}
-	} else if p.Mode == "rive" || m.Assets.Rive != "" {
-		rel := NormalizePackPath(m.Assets.Rive)
-		if m.Assets.Rive == "" || rel == "" {
-			rel = "rive/character.riv"
-		}
-		if !exists(root, rel) {
-			return nil, fmt.Errorf("%s: missing %s", rel, rel)
-		}
-		p.Rive = rel
-	}
-	p.VoiceDir = dirOf(m.Assets.Voice, "voice")
-	for _, lang := range CharacterLocales {
-		var ld LocaleData
-		if readJSON(root, "locales/"+lang+".json", &ld) == nil {
-			p.Locales[lang] = ld
-		}
-	}
-	var per personaJSON
-	if readJSON(root, "persona.json", &per) == nil {
-		p.Persona = &per
-	}
-	var mapping struct {
-		Emotions map[string]json.RawMessage `json:"emotions"`
-	}
-	var mraw json.RawMessage
-	if readJSON(root, "mapping.json", &mraw) == nil && json.Unmarshal(mraw, &mapping) == nil {
-		var expr []string
-		if m.Capabilities != nil {
-			expr = m.Capabilities.Expressions
-		}
-		if !isLegacyMapping(mapping.Emotions, expr) {
-			p.Mapping = mraw
-		}
+	// hitboxesOf：没有命中区时为 null
+	if len(n.Layout.Hitboxes) > 0 {
+		p.Hitboxes = &Hitboxes{Regions: n.Layout.Hitboxes, BubbleAnchor: n.Layout.BubbleAnchor}
 	}
 	return p, nil
-}
-
-func isLegacyMapping(emotions map[string]json.RawMessage, expressions []string) bool {
-	for k, raw := range emotions {
-		legacy, ok := legacyMappingEmots[k]
-		if !ok || contains(expressions, legacy) {
-			continue
-		}
-		var s string
-		if json.Unmarshal(raw, &s) == nil && s == legacy {
-			return true
-		}
-		var arr []string
-		if json.Unmarshal(raw, &arr) == nil && contains(arr, legacy) {
-			return true
-		}
-	}
-	return false
 }
 
 type Names struct {
