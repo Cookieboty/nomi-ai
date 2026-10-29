@@ -1,0 +1,3974 @@
+[
+ {
+  "fn": "cleanTitle",
+  "args": [
+   ""
+  ],
+  "out": {
+   "$undef": true
+  }
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "<command-name>/clear</command-name>"
+  ],
+  "out": "/clear"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "<environment_context>\n  <cwd>/tmp</cwd>\n  <shell>bash</shell>\n  <current_date>2026-10-14</current_date>\n  <timezone>Asia/Shanghai</timezone>\n  <filesystem><workspace_roots><root>/tmp</root></workspace_roots><permission_profile type=\"managed\"><file_system type=\"restricted\"><entry access=\"read\"><special>:root</special></entry></file_system></permission_profile></filesystem>\n</environment_context>"
+  ],
+  "out": {
+   "$undef": true
+  }
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "Reply with exactly: pong"
+  ],
+  "out": "Reply with exactly: pong"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "Reply with just the word PONG"
+  ],
+  "out": "Reply with just the word PONG"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "[Nomi] 以下是这个对话之前在 /a 里的内容，工作目录已经换成当前目录。请把它当作上下文继续，不必复述：\n<previous_conversation>\nUser: old q\n</previous_conversation>\n\n---\n\n新问题"
+  ],
+  "out": "新问题"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "compressed one"
+  ],
+  "out": "compressed one"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "custom chat"
+  ],
+  "out": "custom chat"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "custom dir task"
+  ],
+  "out": "custom dir task"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "first prompt"
+  ],
+  "out": "first prompt"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "from nomi"
+  ],
+  "out": "from nomi"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "from rollout"
+  ],
+  "out": "from rollout"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "guardian"
+  ],
+  "out": "guardian"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "hi"
+  ],
+  "out": "hi"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "indexed title"
+  ],
+  "out": "indexed title"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "indexed"
+  ],
+  "out": "indexed"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "local task"
+  ],
+  "out": "local task"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "main task"
+  ],
+  "out": "main task"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "new indexed title"
+  ],
+  "out": "new indexed title"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "newer task"
+  ],
+  "out": "newer task"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "official chat"
+  ],
+  "out": "official chat"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "official"
+  ],
+  "out": "official"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "old project"
+  ],
+  "out": "old project"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "old prompt"
+  ],
+  "out": "old prompt"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "older task"
+  ],
+  "out": "older task"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "plain cli"
+  ],
+  "out": "plain cli"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "renamed by user"
+  ],
+  "out": "renamed by user"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "renamed"
+  ],
+  "out": "renamed"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "resumed"
+  ],
+  "out": "resumed"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "task 0"
+  ],
+  "out": "task 0"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "task 1"
+  ],
+  "out": "task 1"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "task 10"
+  ],
+  "out": "task 10"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "task a (edited)"
+  ],
+  "out": "task a (edited)"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "task a"
+  ],
+  "out": "task a"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "task b"
+  ],
+  "out": "task b"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "third party chat"
+  ],
+  "out": "third party chat"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "unknown"
+  ],
+  "out": "unknown"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "via cc-switch"
+  ],
+  "out": "via cc-switch"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "via gateway"
+  ],
+  "out": "via gateway"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "work task"
+  ],
+  "out": "work task"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "修 bug"
+  ],
+  "out": "修 bug"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "修复监视器"
+  ],
+  "out": "修复监视器"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "修复编程助手监视"
+  ],
+  "out": "修复编程助手监视"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "修好了",
+   120
+  ],
+  "out": "修好了"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "写测试"
+  ],
+  "out": "写测试"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "别的项目"
+  ],
+  "out": "别的项目"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "好",
+   120
+  ],
+  "out": "好"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "好了",
+   120
+  ],
+  "out": "好了"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "完成",
+   120
+  ],
+  "out": "完成"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "日志里没有错误",
+   120
+  ],
+  "out": "日志里没有错误"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "旧任务 0"
+  ],
+  "out": "旧任务 0"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "旧任务 1"
+  ],
+  "out": "旧任务 1"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "旧任务 2"
+  ],
+  "out": "旧任务 2"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "旧任务 3"
+  ],
+  "out": "旧任务 3"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "旧任务 4"
+  ],
+  "out": "旧任务 4"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "旧任务 5"
+  ],
+  "out": "旧任务 5"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "测试都过了",
+   120
+  ],
+  "out": "测试都过了"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "看看日志"
+  ],
+  "out": "看看日志"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "跑测试"
+  ],
+  "out": "跑测试"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   null,
+   120
+  ],
+  "out": {
+   "$undef": true
+  }
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   null
+  ],
+  "out": {
+   "$undef": true
+  }
+ },
+ {
+  "fn": "parseClaudeModels",
+  "args": [
+   null
+  ],
+  "out": {
+   "backend": "claude",
+   "models": [],
+   "defaultModel": null
+  }
+ },
+ {
+  "fn": "parseClaudeModels",
+  "args": [
+   {
+    "commands": [],
+    "models": [
+     {
+      "value": "default",
+      "resolvedModel": "claude-opus-mock",
+      "displayName": "Default (recommended)",
+      "description": "Default (recommended) (mock)",
+      "supportsEffort": true,
+      "supportedEffortLevels": [
+       "low",
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     },
+     {
+      "value": "opus",
+      "resolvedModel": "claude-opus-mock",
+      "displayName": "Opus Mock",
+      "description": "Opus Mock (mock)",
+      "supportsEffort": true,
+      "supportedEffortLevels": [
+       "low",
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     },
+     {
+      "value": "sonnet",
+      "resolvedModel": "claude-sonnet-mock",
+      "displayName": "Sonnet Mock",
+      "description": "Sonnet Mock (mock)",
+      "supportsEffort": true,
+      "supportedEffortLevels": [
+       "low",
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     },
+     {
+      "value": "claude-haiku-old",
+      "resolvedModel": "claude-haiku-old",
+      "displayName": "Haiku Old",
+      "description": "Haiku Old (mock)"
+     },
+     {
+      "value": "claude-opus-old",
+      "resolvedModel": "claude-opus-old",
+      "displayName": "Opus Old",
+      "description": "Opus Old (mock)",
+      "supportsEffort": true,
+      "supportedEffortLevels": [
+       "low",
+       "medium",
+       "high",
+       "max"
+      ]
+     }
+    ]
+   },
+   {
+    "effort": null
+   }
+  ],
+  "out": {
+   "backend": "claude",
+   "models": [
+    {
+     "id": "opus",
+     "label": "Opus Mock",
+     "description": "Opus Mock (mock)",
+     "reasoning": true,
+     "efforts": [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+     ]
+    },
+    {
+     "id": "sonnet",
+     "label": "Sonnet Mock",
+     "description": "Sonnet Mock (mock)",
+     "reasoning": true,
+     "efforts": [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+     ]
+    },
+    {
+     "id": "claude-haiku-old",
+     "label": "Haiku Old",
+     "description": "Haiku Old (mock)",
+     "reasoning": false,
+     "efforts": []
+    },
+    {
+     "id": "claude-opus-old",
+     "label": "Opus Old",
+     "description": "Opus Old (mock)",
+     "reasoning": true,
+     "efforts": [
+      "low",
+      "medium",
+      "high",
+      "max"
+     ]
+    }
+   ],
+   "defaultModel": {
+    "id": "default",
+    "label": "Opus Mock",
+    "description": "Default (recommended) (mock)",
+    "reasoning": true,
+    "efforts": [
+     "low",
+     "medium",
+     "high",
+     "xhigh",
+     "max"
+    ]
+   }
+  }
+ },
+ {
+  "fn": "parseClaudeModels",
+  "args": [
+   {
+    "models": [
+     {
+      "value": "default",
+      "resolvedModel": "claude-opus-5-5",
+      "displayName": "Default (recommended)",
+      "supportsEffort": true,
+      "supportedEffortLevels": [
+       "low",
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ],
+      "defaultEffort": "high"
+     },
+     {
+      "value": "opus",
+      "resolvedModel": "claude-opus-5-5",
+      "displayName": "Opus 5.5",
+      "supportsEffort": true,
+      "supportedEffortLevels": [
+       "low",
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     },
+     {
+      "value": "claude-haiku-4-5-20251001",
+      "resolvedModel": "claude-haiku-4-5-20251001",
+      "displayName": "Haiku 4.5"
+     },
+     {
+      "value": "claude-opus-4-6",
+      "resolvedModel": "claude-opus-4-6",
+      "displayName": "Opus 4.6",
+      "supportsEffort": true,
+      "supportedEffortLevels": [
+       "low",
+       "medium",
+       "high",
+       "max"
+      ]
+     }
+    ]
+   },
+   {
+    "effort": "low"
+   }
+  ],
+  "out": {
+   "backend": "claude",
+   "models": [
+    {
+     "id": "opus",
+     "label": "Opus 5.5",
+     "reasoning": true,
+     "efforts": [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+     ],
+     "defaultEffort": "low"
+    },
+    {
+     "id": "claude-haiku-4-5-20251001",
+     "label": "Haiku 4.5",
+     "reasoning": false,
+     "efforts": []
+    },
+    {
+     "id": "claude-opus-4-6",
+     "label": "Opus 4.6",
+     "reasoning": true,
+     "efforts": [
+      "low",
+      "medium",
+      "high",
+      "max"
+     ],
+     "defaultEffort": "low"
+    }
+   ],
+   "defaultModel": {
+    "id": "default",
+    "label": "Opus 5.5",
+    "reasoning": true,
+    "efforts": [
+     "low",
+     "medium",
+     "high",
+     "xhigh",
+     "max"
+    ],
+    "defaultEffort": "high"
+   }
+  }
+ },
+ {
+  "fn": "parseClaudeModels",
+  "args": [
+   {
+    "models": [
+     {
+      "value": "default",
+      "resolvedModel": "claude-opus-5-5",
+      "displayName": "Default (recommended)",
+      "supportsEffort": true,
+      "supportedEffortLevels": [
+       "low",
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ],
+      "defaultEffort": "high"
+     },
+     {
+      "value": "opus",
+      "resolvedModel": "claude-opus-5-5",
+      "displayName": "Opus 5.5",
+      "supportsEffort": true,
+      "supportedEffortLevels": [
+       "low",
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     },
+     {
+      "value": "claude-haiku-4-5-20251001",
+      "resolvedModel": "claude-haiku-4-5-20251001",
+      "displayName": "Haiku 4.5"
+     },
+     {
+      "value": "claude-opus-4-6",
+      "resolvedModel": "claude-opus-4-6",
+      "displayName": "Opus 4.6",
+      "supportsEffort": true,
+      "supportedEffortLevels": [
+       "low",
+       "medium",
+       "high",
+       "max"
+      ]
+     }
+    ]
+   }
+  ],
+  "out": {
+   "backend": "claude",
+   "models": [
+    {
+     "id": "opus",
+     "label": "Opus 5.5",
+     "reasoning": true,
+     "efforts": [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+     ]
+    },
+    {
+     "id": "claude-haiku-4-5-20251001",
+     "label": "Haiku 4.5",
+     "reasoning": false,
+     "efforts": []
+    },
+    {
+     "id": "claude-opus-4-6",
+     "label": "Opus 4.6",
+     "reasoning": true,
+     "efforts": [
+      "low",
+      "medium",
+      "high",
+      "max"
+     ]
+    }
+   ],
+   "defaultModel": {
+    "id": "default",
+    "label": "Opus 5.5",
+    "reasoning": true,
+    "efforts": [
+     "low",
+     "medium",
+     "high",
+     "xhigh",
+     "max"
+    ],
+    "defaultEffort": "high"
+   }
+  }
+ },
+ {
+  "fn": "parseClaudeModels",
+  "args": [
+   {
+    "models": [
+     {
+      "value": "default",
+      "resolvedModel": "claude-opus-5-5",
+      "displayName": "Default (recommended)",
+      "supportsEffort": true,
+      "supportedEffortLevels": [
+       "low",
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     },
+     {
+      "value": "opus",
+      "resolvedModel": "claude-opus-5-5",
+      "displayName": "Opus 5.5",
+      "supportsEffort": true,
+      "supportedEffortLevels": [
+       "low",
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     },
+     {
+      "value": "claude-haiku-4-5-20251001",
+      "resolvedModel": "claude-haiku-4-5-20251001",
+      "displayName": "Haiku 4.5"
+     },
+     {
+      "value": "claude-opus-4-6",
+      "resolvedModel": "claude-opus-4-6",
+      "displayName": "Opus 4.6",
+      "supportsEffort": true,
+      "supportedEffortLevels": [
+       "low",
+       "medium",
+       "high",
+       "max"
+      ]
+     }
+    ]
+   },
+   {
+    "effort": "auto"
+   }
+  ],
+  "out": {
+   "backend": "claude",
+   "models": [
+    {
+     "id": "opus",
+     "label": "Opus 5.5",
+     "reasoning": true,
+     "efforts": [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+     ]
+    },
+    {
+     "id": "claude-haiku-4-5-20251001",
+     "label": "Haiku 4.5",
+     "reasoning": false,
+     "efforts": []
+    },
+    {
+     "id": "claude-opus-4-6",
+     "label": "Opus 4.6",
+     "reasoning": true,
+     "efforts": [
+      "low",
+      "medium",
+      "high",
+      "max"
+     ]
+    }
+   ],
+   "defaultModel": {
+    "id": "default",
+    "label": "Opus 5.5",
+    "reasoning": true,
+    "efforts": [
+     "low",
+     "medium",
+     "high",
+     "xhigh",
+     "max"
+    ]
+   }
+  }
+ },
+ {
+  "fn": "parseClaudeModels",
+  "args": [
+   {
+    "models": [
+     {
+      "value": "default",
+      "resolvedModel": "claude-opus-5-5",
+      "displayName": "Default (recommended)",
+      "supportsEffort": true,
+      "supportedEffortLevels": [
+       "low",
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     },
+     {
+      "value": "opus",
+      "resolvedModel": "claude-opus-5-5",
+      "displayName": "Opus 5.5",
+      "supportsEffort": true,
+      "supportedEffortLevels": [
+       "low",
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     },
+     {
+      "value": "claude-haiku-4-5-20251001",
+      "resolvedModel": "claude-haiku-4-5-20251001",
+      "displayName": "Haiku 4.5"
+     },
+     {
+      "value": "claude-opus-4-6",
+      "resolvedModel": "claude-opus-4-6",
+      "displayName": "Opus 4.6",
+      "supportsEffort": true,
+      "supportedEffortLevels": [
+       "low",
+       "medium",
+       "high",
+       "max"
+      ]
+     }
+    ]
+   },
+   {
+    "effort": "xhigh"
+   }
+  ],
+  "out": {
+   "backend": "claude",
+   "models": [
+    {
+     "id": "opus",
+     "label": "Opus 5.5",
+     "reasoning": true,
+     "efforts": [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+     ],
+     "defaultEffort": "xhigh"
+    },
+    {
+     "id": "claude-haiku-4-5-20251001",
+     "label": "Haiku 4.5",
+     "reasoning": false,
+     "efforts": []
+    },
+    {
+     "id": "claude-opus-4-6",
+     "label": "Opus 4.6",
+     "reasoning": true,
+     "efforts": [
+      "low",
+      "medium",
+      "high",
+      "max"
+     ]
+    }
+   ],
+   "defaultModel": {
+    "id": "default",
+    "label": "Opus 5.5",
+    "reasoning": true,
+    "efforts": [
+     "low",
+     "medium",
+     "high",
+     "xhigh",
+     "max"
+    ],
+    "defaultEffort": "xhigh"
+   }
+  }
+ },
+ {
+  "fn": "parseClaudeModels",
+  "args": [
+   {
+    "models": [
+     {
+      "value": "default",
+      "resolvedModel": "claude-opus-5-5",
+      "displayName": "Default (recommended)",
+      "supportsEffort": true,
+      "supportedEffortLevels": [
+       "low",
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     },
+     {
+      "value": "opus",
+      "resolvedModel": "claude-opus-5-5",
+      "displayName": "Opus 5.5",
+      "supportsEffort": true,
+      "supportedEffortLevels": [
+       "low",
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     },
+     {
+      "value": "claude-haiku-4-5-20251001",
+      "resolvedModel": "claude-haiku-4-5-20251001",
+      "displayName": "Haiku 4.5"
+     },
+     {
+      "value": "claude-opus-4-6",
+      "resolvedModel": "claude-opus-4-6",
+      "displayName": "Opus 4.6",
+      "supportsEffort": true,
+      "supportedEffortLevels": [
+       "low",
+       "medium",
+       "high",
+       "max"
+      ]
+     }
+    ]
+   }
+  ],
+  "out": {
+   "backend": "claude",
+   "models": [
+    {
+     "id": "opus",
+     "label": "Opus 5.5",
+     "reasoning": true,
+     "efforts": [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+     ]
+    },
+    {
+     "id": "claude-haiku-4-5-20251001",
+     "label": "Haiku 4.5",
+     "reasoning": false,
+     "efforts": []
+    },
+    {
+     "id": "claude-opus-4-6",
+     "label": "Opus 4.6",
+     "reasoning": true,
+     "efforts": [
+      "low",
+      "medium",
+      "high",
+      "max"
+     ]
+    }
+   ],
+   "defaultModel": {
+    "id": "default",
+    "label": "Opus 5.5",
+    "reasoning": true,
+    "efforts": [
+     "low",
+     "medium",
+     "high",
+     "xhigh",
+     "max"
+    ]
+   }
+  }
+ },
+ {
+  "fn": "parseClaudeModels",
+  "args": [
+   {}
+  ],
+  "out": {
+   "backend": "claude",
+   "models": [],
+   "defaultModel": null
+  }
+ },
+ {
+  "fn": "parseClaudeTranscript",
+  "args": [
+   "###\n",
+   1000000
+  ],
+  "out": []
+ },
+ {
+  "fn": "parseClaudeTranscript",
+  "args": [
+   "not json\n{\"type\":\"user\""
+  ],
+  "out": []
+ },
+ {
+  "fn": "parseClaudeTranscript",
+  "args": [
+   "{\"type\": \"queue-operation\", \"operation\": \"enqueue\", \"timestamp\": \"2026-10-14T19:41:11.941Z\", \"sessionId\": \"0892d935-85b2-458a-a6db-b9cd12b6ff85\", \"content\": \"Use the Read tool to read /tmp/e2e/note.txt and tell me its contents.\"}\n{\"type\": \"queue-operation\", \"operation\": \"dequeue\", \"timestamp\": \"2026-10-14T19:41:11.942Z\", \"sessionId\": \"0892d935-85b2-458a-a6db-b9cd12b6ff85\"}\n{\"parentUuid\": null, \"isSidechain\": false, \"promptId\": \"e80c2ccb-e081-47d2-ab59-aa6f74ae2fb9\", \"type\": \"user\", \"message\": {\"role\": \"user\", \"content\": \"Use the Read tool to read /tmp/e2e/note.txt and tell me its contents.\"}, \"uuid\": \"8882bbd2-4449-4a0c-9e4c-f9b7a77d0eb5\", \"timestamp\": \"2026-10-14T19:41:11.977Z\", \"permissionMode\": \"auto\", \"promptSource\": \"sdk\", \"turnOrigin\": \"sdk\", \"turnPosition\": {\"promptIndex\": 0, \"turnIndex\": 1}, \"userType\": \"external\", \"entrypoint\": \"sdk-cli\", \"cwd\": \"/tmp/e2e\", \"sessionId\": \"0892d935-85b2-458a-a6db-b9cd12b6ff85\", \"version\": \"2.1.299\", \"gitBranch\": \"HEAD\"}\n{\"parentUuid\": \"8882bbd2-4449-4a0c-9e4c-f9b7a77d0eb5\", \"isSidechain\": false, \"attachment\": {\"type\": \"environment\"}, \"type\": \"attachment\", \"uuid\": \"8faf31ed-5509-4e0b-8629-8dbf591f3e99\", \"timestamp\": \"2026-10-14T19:41:11.976Z\", \"renderedRole\": \"system\", \"userType\": \"external\", \"entrypoint\": \"sdk-cli\", \"cwd\": \"/tmp/e2e\", \"sessionId\": \"0892d935-85b2-458a-a6db-b9cd12b6ff85\", \"version\": \"2.1.299\", \"gitBranch\": \"HEAD\"}\n{\"parentUuid\": \"8faf31ed-5509-4e0b-8629-8dbf591f3e99\", \"isSidechain\": false, \"attachment\": {\"type\": \"environment\"}, \"type\": \"attachment\", \"uuid\": \"39cad10a-3842-40e3-b703-36f2cf31e9a4\", \"timestamp\": \"2026-10-14T19:41:11.976Z\", \"renderedRole\": \"system\", \"userType\": \"external\", \"entrypoint\": \"sdk-cli\", \"cwd\": \"/tmp/e2e\", \"sessionId\": \"0892d935-85b2-458a-a6db-b9cd12b6ff85\", \"version\": \"2.1.299\", \"gitBranch\": \"HEAD\"}\n{\"parentUuid\": \"39cad10a-3842-40e3-b703-36f2cf31e9a4\", \"isSidechain\": false, \"attachment\": {\"type\": \"environment\"}, \"type\": \"attachment\", \"uuid\": \"b74f7378-a341-45a4-a43c-6a7773da8092\", \"timestamp\": \"2026-10-14T19:41:11.976Z\", \"renderedRole\": \"system\", \"userType\": \"external\", \"entrypoint\": \"sdk-cli\", \"cwd\": \"/tmp/e2e\", \"sessionId\": \"0892d935-85b2-458a-a6db-b9cd12b6ff85\", \"version\": \"2.1.299\", \"gitBranch\": \"HEAD\"}\n{\"parentUuid\": \"b74f7378-a341-45a4-a43c-6a7773da8092\", \"isSidechain\": false, \"attachment\": {\"type\": \"environment\"}, \"type\": \"attachment\", \"uuid\": \"c83df342-5b0f-46dc-9365-44952872c304\", \"timestamp\": \"2026-10-14T19:41:11.976Z\", \"renderedRole\": \"system\", \"userType\": \"external\", \"entrypoint\": \"sdk-cli\", \"cwd\": \"/tmp/e2e\", \"sessionId\": \"0892d935-85b2-458a-a6db-b9cd12b6ff85\", \"version\": \"2.1.299\", \"gitBranch\": \"HEAD\"}\n{\"parentUuid\": \"c83df342-5b0f-46dc-9365-44952872c304\", \"isSidechain\": false, \"attachment\": {\"type\": \"environment\"}, \"type\": \"attachment\", \"uuid\": \"54f12060-0d65-4369-823f-77d99bc2ef10\", \"timestamp\": \"2026-10-14T19:41:11.976Z\", \"renderedRole\": \"system\", \"userType\": \"external\", \"entrypoint\": \"sdk-cli\", \"cwd\": \"/tmp/e2e\", \"sessionId\": \"0892d935-85b2-458a-a6db-b9cd12b6ff85\", \"version\": \"2.1.299\", \"gitBranch\": \"HEAD\"}\n{\"type\": \"atis-latch\", \"atis\": \"\", \"sessionId\": \"0892d935-85b2-458a-a6db-b9cd12b6ff85\"}\n{\"parentUuid\": \"54f12060-0d65-4369-823f-77d99bc2ef10\", \"isSidechain\": false, \"attachment\": {\"type\": \"environment\"}, \"type\": \"attachment\", \"uuid\": \"1aba04ff-c7d6-4f43-a1bf-bcbca70cb433\", \"timestamp\": \"2026-10-14T19:41:11.995Z\", \"userType\": \"external\", \"entrypoint\": \"sdk-cli\", \"cwd\": \"/tmp/e2e\", \"sessionId\": \"0892d935-85b2-458a-a6db-b9cd12b6ff85\", \"version\": \"2.1.299\", \"gitBranch\": \"HEAD\"}\n{\"parentUuid\": \"1aba04ff-c7d6-4f43-a1bf-bcbca70cb433\", \"isSidechain\": false, \"attachment\": {\"type\": \"environment\"}, \"type\": \"attachment\", \"uuid\": \"6044bc99-fdcd-474d-933f-27c71843366f\", \"timestamp\": \"2026-10-14T19:41:11.996Z\", \"renderedRole\": \"system\", \"userType\": \"external\", \"entrypoint\": \"sdk-cli\", \"cwd\": \"/tmp/e2e\", \"sessionId\": \"0892d935-85b2-458a-a6db-b9cd12b6ff85\", \"version\": \"2.1.299\", \"gitBranch\": \"HEAD\"}\n{\"parentUuid\": \"6044bc99-fdcd-474d-933f-27c71843366f\", \"isSidechain\": false, \"attachment\": {\"type\": \"environment\"}, \"type\": \"attachment\", \"uuid\": \"76ce7e76-f58a-48c6-b2a9-e7a0cf38bbdb\", \"timestamp\": \"2026-10-14T19:41:11.997Z\", \"renderedRole\": \"user\", \"renderedBesideToolResult\": true, \"userType\": \"external\", \"entrypoint\": \"sdk-cli\", \"cwd\": \"/tmp/e2e\", \"sessionId\": \"0892d935-85b2-458a-a6db-b9cd12b6ff85\", \"version\": \"2.1.299\", \"gitBranch\": \"HEAD\"}\n{\"parentUuid\": \"76ce7e76-f58a-48c6-b2a9-e7a0cf38bbdb\", \"isSidechain\": false, \"attachment\": {\"type\": \"environment\"}, \"type\": \"attachment\", \"uuid\": \"7a9ba150-5246-4fe0-966b-7b590c62cc5e\", \"timestamp\": \"2026-10-14T19:41:11.998Z\", \"userType\": \"external\", \"entrypoint\": \"sdk-cli\", \"cwd\": \"/tmp/e2e\", \"sessionId\": \"0892d935-85b2-458a-a6db-b9cd12b6ff85\", \"version\": \"2.1.299\", \"gitBranch\": \"HEAD\"}\n{\"parentUuid\": \"7a9ba150-5246-4fe0-966b-7b590c62cc5e\", \"isSidechain\": false, \"message\": {\"id\": \"chatcmpl-64\", \"type\": \"message\", \"role\": \"assistant\", \"content\": [{\"type\": \"text\", \"text\": \"The project's codebase documentation is in the current CLAUDE.md file. To launch and view the changes on a working copy, open a new CLAUDE.md file with the `+` button, and use `claudit` to review the code. That tool will tell you what the changes do for the current feature.\"}], \"model\": \"qwen2.5:0.5b\", \"stop_reason\": \"end_turn\", \"stop_sequence\": null, \"usage\": {\"input_tokens\": 0, \"cache_creation_input_tokens\": 0, \"cache_read_input_tokens\": 0, \"output_tokens\": 68, \"output_tokens_details\": {\"thinking_tokens\": 0}, \"server_tool_use\": {\"web_search_requests\": 0, \"web_fetch_requests\": 0}, \"service_tier\": \"standard\", \"cache_creation\": {\"ephemeral_1h_input_tokens\": 0, \"ephemeral_5m_input_tokens\": 0}, \"inference_geo\": \"\", \"iterations\": [], \"speed\": \"standard\", \"fallback_credit\": null}, \"stop_details\": null}, \"serverClassifierRequest\": \"c171199e-2130-40c9-bc91-7704cb229ce4\", \"apiBlockIndex\": 0, \"requestedModel\": \"qwen2.5:0.5b\", \"type\": \"assistant\", \"uuid\": \"0c706e8a-ecf2-4795-a9c1-9a5d60ff953d\", \"timestamp\": \"2026-10-14T19:42:05.000Z\", \"effort\": \"high\", \"perTurnEffort\": null, \"userType\": \"external\", \"entrypoint\": \"sdk-cli\", \"cwd\": \"/tmp/e2e\", \"sessionId\": \"0892d935-85b2-458a-a6db-b9cd12b6ff85\", \"version\": \"2.1.299\", \"gitBranch\": \"HEAD\"}\n{\"parentUuid\": \"0c706e8a-ecf2-4795-a9c1-9a5d60ff953d\", \"isSidechain\": false, \"attachment\": {\"type\": \"environment\"}, \"type\": \"attachment\", \"uuid\": \"3bbb583e-aab8-408a-b03c-c4208a406f6c\", \"timestamp\": \"2026-10-14T19:42:05.023Z\", \"userType\": \"external\", \"entrypoint\": \"sdk-cli\", \"cwd\": \"/tmp/e2e\", \"sessionId\": \"0892d935-85b2-458a-a6db-b9cd12b6ff85\", \"version\": \"2.1.299\", \"gitBranch\": \"HEAD\"}\n{\"type\": \"last-prompt\", \"lastPrompt\": \"Use the Read tool to read /tmp/e2e/note.txt and tell me its contents.\", \"leafUuid\": \"3bbb583e-aab8-408a-b03c-c4208a406f6c\", \"sessionId\": \"0892d935-85b2-458a-a6db-b9cd12b6ff85\"}\n{\"type\": \"atis-latch\", \"atis\": \"\", \"sessionId\": \"0892d935-85b2-458a-a6db-b9cd12b6ff85\"}\n{\"type\": \"cost-state\", \"sessionId\": \"0892d935-85b2-458a-a6db-b9cd12b6ff85\", \"totalCostUSD\": 0.00136, \"totalAPIDuration\": 52996, \"totalAPIDurationWithoutRetries\": 52993, \"totalToolDuration\": 0, \"totalLinesAdded\": 0, \"totalLinesRemoved\": 0, \"totalDuration\": 53411, \"startTime\": 1792006871634, \"modelUsage\": {\"qwen2.5:0.5b\": {\"inputTokens\": 0, \"outputTokens\": 68, \"thinkingTokens\": 0, \"cacheReadInputTokens\": 0, \"cacheCreationInputTokens\": 0, \"webSearchRequests\": 0, \"costUSD\": 0.00136}}, \"hasUnknownModelCost\": true}\n"
+  ],
+  "out": [
+   {
+    "id": "hist-0",
+    "role": "user",
+    "content": "Use the Read tool to read /tmp/e2e/note.txt and tell me its contents.",
+    "timestamp": 1792006871977
+   },
+   {
+    "id": "hist-1",
+    "role": "assistant",
+    "content": "The project's codebase documentation is in the current CLAUDE.md file. To launch and view the changes on a working copy, open a new CLAUDE.md file with the `+` button, and use `claudit` to review the code. That tool will tell you what the changes do for the current feature.",
+    "timestamp": 1792006925000,
+    "usage": {
+     "inputTokens": 0,
+     "cacheReadTokens": 0,
+     "outputTokens": 68,
+     "contextTokens": 68
+    },
+    "durationMs": 53023
+   }
+  ]
+ },
+ {
+  "fn": "parseClaudeTranscript",
+  "args": [
+   "{\"type\":\"summary\",\"summary\":\"Refactor login flow\",\"leafUuid\":\"u9\"}\n{\"type\":\"user\",\"isSidechain\":false,\"isMeta\":true,\"message\":{\"role\":\"user\",\"content\":\"<local-command-caveat>ignore me</local-command-caveat>\"},\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"sessionId\":\"cl-tools-1\",\"cwd\":\"/work/app\"}\n{\"type\":\"user\",\"isSidechain\":false,\"message\":{\"role\":\"user\",\"content\":\"Fix the failing login test\"},\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"sessionId\":\"cl-tools-1\",\"cwd\":\"/work/app\"}\n{\"type\":\"assistant\",\"isSidechain\":false,\"message\":{\"id\":\"m1\",\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"hmm\"},{\"type\":\"text\",\"text\":\"Let me look at the test.\"}],\"stop_reason\":null},\"timestamp\":\"2026-10-14T10:00:02.000Z\",\"sessionId\":\"cl-tools-1\",\"cwd\":\"/work/app\"}\n{\"type\":\"assistant\",\"isSidechain\":false,\"message\":{\"id\":\"m1\",\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"id\":\"t1\",\"name\":\"Read\",\"input\":{\"file_path\":\"/work/app/login.test.ts\"}}],\"stop_reason\":\"tool_use\"},\"timestamp\":\"2026-10-14T10:00:03.000Z\",\"sessionId\":\"cl-tools-1\",\"cwd\":\"/work/app\"}\n{\"type\":\"user\",\"isSidechain\":false,\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"t1\",\"content\":\"file contents\"}]},\"timestamp\":\"2026-10-14T10:00:04.000Z\",\"sessionId\":\"cl-tools-1\",\"cwd\":\"/work/app\"}\n{\"type\":\"assistant\",\"isSidechain\":true,\"message\":{\"id\":\"s1\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"sub-agent chatter\"}],\"stop_reason\":\"end_turn\"},\"timestamp\":\"2026-10-14T10:00:05.000Z\",\"sessionId\":\"cl-tools-1\",\"cwd\":\"/work/app\"}\n{\"type\":\"assistant\",\"isSidechain\":false,\"message\":{\"id\":\"m2\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"The test expected a 401; fixed.\"}],\"stop_reason\":\"end_turn\"},\"timestamp\":\"2026-10-14T10:00:06.000Z\",\"sessionId\":\"cl-tools-1\",\"cwd\":\"/work/app\"}\n{\"type\":\"user\",\"isSidechain\":false,\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Thanks, now run it\"}]},\"timestamp\":\"2026-10-14T10:01:00.000Z\",\"sessionId\":\"cl-tools-1\",\"cwd\":\"/work/app\"}\n"
+  ],
+  "out": [
+   {
+    "id": "hist-0",
+    "role": "user",
+    "content": "Fix the failing login test",
+    "timestamp": 1791972001000
+   },
+   {
+    "id": "hist-1",
+    "role": "assistant",
+    "content": "Let me look at the test.\n\nThe test expected a 401; fixed.",
+    "timestamp": 1791972006000,
+    "trace": [
+     {
+      "type": "thinking",
+      "text": "hmm",
+      "at": 1791972002000,
+      "textAt": 0
+     },
+     {
+      "type": "tool",
+      "name": "Read",
+      "status": "start",
+      "id": "t1",
+      "input": "{\"file_path\":\"/work/app/login.test.ts\"}",
+      "at": 1791972003000,
+      "textAt": 24
+     },
+     {
+      "type": "tool",
+      "name": "Read",
+      "status": "done",
+      "id": "t1",
+      "output": "file contents",
+      "at": 1791972004000
+     }
+    ],
+    "tools": [
+     "Read"
+    ],
+    "textBreaks": [
+     26
+    ],
+    "durationMs": 5000
+   },
+   {
+    "id": "hist-2",
+    "role": "user",
+    "content": "Thanks, now run it",
+    "timestamp": 1791972060000
+   }
+  ]
+ },
+ {
+  "fn": "parseClaudeTranscript",
+  "args": [
+   "{\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":\"run it\"},\"timestamp\":\"2026-10-14T10:00:00.000Z\"}\n{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"id\":\"b1\",\"name\":\"Bash\",\"input\":{\"command\":\"false\"}}],\"usage\":{\"input_tokens\":10,\"output_tokens\":5,\"cache_read_input_tokens\":100}},\"timestamp\":\"2026-10-14T10:00:01.000Z\"}\n{\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"b1\",\"content\":[{\"type\":\"text\",\"text\":\"exit 1\"}],\"is_error\":true}]},\"timestamp\":\"2026-10-14T10:00:02.000Z\"}\n{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"failed\"}],\"usage\":{\"input_tokens\":20,\"output_tokens\":7}},\"timestamp\":\"2026-10-14T10:00:03.000Z\"}"
+  ],
+  "out": [
+   {
+    "id": "hist-0",
+    "role": "user",
+    "content": "run it",
+    "timestamp": 1791972000000
+   },
+   {
+    "id": "hist-1",
+    "role": "assistant",
+    "content": "failed",
+    "timestamp": 1791972003000,
+    "trace": [
+     {
+      "type": "tool",
+      "name": "Bash",
+      "status": "start",
+      "id": "b1",
+      "input": "{\"command\":\"false\"}",
+      "at": 1791972001000,
+      "textAt": 0
+     },
+     {
+      "type": "tool",
+      "name": "Bash",
+      "status": "error",
+      "id": "b1",
+      "output": "exit 1",
+      "at": 1791972002000
+     }
+    ],
+    "tools": [
+     "Bash"
+    ],
+    "usage": {
+     "inputTokens": 20,
+     "cacheReadTokens": 100,
+     "outputTokens": 12,
+     "contextTokens": 27
+    },
+    "durationMs": 3000
+   }
+  ]
+ },
+ {
+  "fn": "parseClaudeTranscript",
+  "args": [
+   "{\"type\":\"user\",\"sessionId\":\"a\",\"cwd\":\"/tmp/hist-work-04NBeZ\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task a\"}}\n{\"type\":\"assistant\",\"sessionId\":\"a\",\"cwd\":\"/tmp/hist-work-04NBeZ\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+   1000000
+  ],
+  "out": [
+   {
+    "id": "hist-0",
+    "role": "user",
+    "content": "task a",
+    "timestamp": 1791972000000
+   },
+   {
+    "id": "hist-1",
+    "role": "assistant",
+    "content": "ok",
+    "timestamp": 1791972001000,
+    "durationMs": 1000
+   }
+  ]
+ },
+ {
+  "fn": "parseClaudeTranscript",
+  "args": [
+   "{\"type\":\"user\",\"sessionId\":\"a\",\"cwd\":\"/tmp/hist-work-3SA38m\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"via gateway\"}}\n{\"type\":\"assistant\",\"sessionId\":\"a\",\"cwd\":\"/tmp/hist-work-3SA38m\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+   2000000
+  ],
+  "out": [
+   {
+    "id": "hist-0",
+    "role": "user",
+    "content": "via gateway",
+    "timestamp": 1791972000000
+   },
+   {
+    "id": "hist-1",
+    "role": "assistant",
+    "content": "ok",
+    "timestamp": 1791972001000,
+    "durationMs": 1000
+   }
+  ]
+ },
+ {
+  "fn": "parseClaudeTranscript",
+  "args": [
+   "{\"type\":\"user\",\"sessionId\":\"a\",\"cwd\":\"/tmp/hist-work-wVcVuT\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"via gateway\"}}\n{\"type\":\"assistant\",\"sessionId\":\"a\",\"cwd\":\"/tmp/hist-work-wVcVuT\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+   2000000
+  ],
+  "out": [
+   {
+    "id": "hist-0",
+    "role": "user",
+    "content": "via gateway",
+    "timestamp": 1791972000000
+   },
+   {
+    "id": "hist-1",
+    "role": "assistant",
+    "content": "ok",
+    "timestamp": 1791972001000,
+    "durationMs": 1000
+   }
+  ]
+ },
+ {
+  "fn": "parseClaudeTranscript",
+  "args": [
+   "{\"type\":\"user\",\"sessionId\":\"a\",\"cwd\":\"/tmp/hist-work-wbd9aN\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"work task\"}}\n{\"type\":\"assistant\",\"sessionId\":\"a\",\"cwd\":\"/tmp/hist-work-wbd9aN\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+   2000000
+  ],
+  "out": [
+   {
+    "id": "hist-0",
+    "role": "user",
+    "content": "work task",
+    "timestamp": 1791972000000
+   },
+   {
+    "id": "hist-1",
+    "role": "assistant",
+    "content": "ok",
+    "timestamp": 1791972001000,
+    "durationMs": 1000
+   }
+  ]
+ },
+ {
+  "fn": "parseClaudeTranscript",
+  "args": [
+   "{\"type\":\"user\",\"sessionId\":\"b\",\"cwd\":\"/tmp/hist-work-3SA38m\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"unknown\"}}\n{\"type\":\"assistant\",\"sessionId\":\"b\",\"cwd\":\"/tmp/hist-work-3SA38m\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+   1000000
+  ],
+  "out": [
+   {
+    "id": "hist-0",
+    "role": "user",
+    "content": "unknown",
+    "timestamp": 1791972000000
+   },
+   {
+    "id": "hist-1",
+    "role": "assistant",
+    "content": "ok",
+    "timestamp": 1791972001000,
+    "durationMs": 1000
+   }
+  ]
+ },
+ {
+  "fn": "parseClaudeTranscript",
+  "args": [
+   "{\"type\":\"user\",\"sessionId\":\"b\",\"cwd\":\"/tmp/hist-work-wVcVuT\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"official\"}}\n{\"type\":\"assistant\",\"sessionId\":\"b\",\"cwd\":\"/tmp/hist-work-wVcVuT\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+   1000000
+  ],
+  "out": [
+   {
+    "id": "hist-0",
+    "role": "user",
+    "content": "official",
+    "timestamp": 1791972000000
+   },
+   {
+    "id": "hist-1",
+    "role": "assistant",
+    "content": "ok",
+    "timestamp": 1791972001000,
+    "durationMs": 1000
+   }
+  ]
+ },
+ {
+  "fn": "parseClaudeTranscript",
+  "args": [
+   "{\"type\":\"user\",\"sessionId\":\"b\",\"cwd\":\"/tmp/hist-work-wbd9aN\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"local task\"}}\n{\"type\":\"assistant\",\"sessionId\":\"b\",\"cwd\":\"/tmp/hist-work-wbd9aN\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+   1000000
+  ],
+  "out": [
+   {
+    "id": "hist-0",
+    "role": "user",
+    "content": "local task",
+    "timestamp": 1791972000000
+   },
+   {
+    "id": "hist-1",
+    "role": "assistant",
+    "content": "ok",
+    "timestamp": 1791972001000,
+    "durationMs": 1000
+   }
+  ]
+ },
+ {
+  "fn": "parseClaudeTranscript",
+  "args": [
+   "{\"type\":\"user\",\"timestamp\":\"2026-10-19T00:00:00Z\",\"message\":{\"role\":\"user\",\"content\":\"[Nomi] 以下是这个对话之前在 /a 里的内容，工作目录已经换成当前目录。请把它当作上下文继续，不必复述：\\n<previous_conversation>\\nUser: old q\\n</previous_conversation>\\n\\n---\\n\\n新问题\"}}"
+  ],
+  "out": [
+   {
+    "id": "hist-0",
+    "role": "user",
+    "content": "新问题",
+    "timestamp": 1792368000000
+   }
+  ]
+ },
+ {
+  "fn": "parseCodexModels",
+  "args": [
+   {
+    "models": [
+     {
+      "slug": "b",
+      "display_name": "B",
+      "visibility": "list",
+      "priority": 2,
+      "default_reasoning_level": "low",
+      "supported_reasoning_levels": [
+       {
+        "effort": "low"
+       },
+       {
+        "effort": "ultra"
+       },
+       {
+        "effort": "max"
+       }
+      ]
+     },
+     {
+      "slug": "a",
+      "display_name": "A",
+      "visibility": "list",
+      "priority": 1,
+      "default_reasoning_level": "medium",
+      "supported_reasoning_levels": [
+       {
+        "effort": "medium"
+       },
+       {
+        "effort": "xhigh"
+       }
+      ]
+     },
+     {
+      "slug": "hidden",
+      "visibility": "hide",
+      "priority": 0,
+      "supported_reasoning_levels": []
+     }
+    ]
+   },
+   {
+    "model": "a",
+    "effort": "xhigh"
+   }
+  ],
+  "out": {
+   "backend": "codex",
+   "models": [
+    {
+     "id": "a",
+     "label": "A",
+     "reasoning": true,
+     "efforts": [
+      "medium",
+      "xhigh"
+     ],
+     "defaultEffort": "medium"
+    },
+    {
+     "id": "b",
+     "label": "B",
+     "reasoning": true,
+     "efforts": [
+      "low",
+      "max",
+      "ultra"
+     ],
+     "defaultEffort": "low"
+    }
+   ],
+   "defaultModel": {
+    "id": "a",
+    "label": "A",
+    "reasoning": true,
+    "efforts": [
+     "medium",
+     "xhigh"
+    ],
+    "defaultEffort": "xhigh"
+   }
+  }
+ },
+ {
+  "fn": "parseCodexModels",
+  "args": [
+   {
+    "models": [
+     {
+      "slug": "b",
+      "display_name": "B",
+      "visibility": "list",
+      "priority": 2,
+      "default_reasoning_level": "low",
+      "supported_reasoning_levels": [
+       {
+        "effort": "low"
+       },
+       {
+        "effort": "ultra"
+       },
+       {
+        "effort": "max"
+       }
+      ]
+     },
+     {
+      "slug": "a",
+      "display_name": "A",
+      "visibility": "list",
+      "priority": 1,
+      "default_reasoning_level": "medium",
+      "supported_reasoning_levels": [
+       {
+        "effort": "medium"
+       },
+       {
+        "effort": "xhigh"
+       }
+      ]
+     },
+     {
+      "slug": "hidden",
+      "visibility": "hide",
+      "priority": 0,
+      "supported_reasoning_levels": []
+     }
+    ]
+   },
+   {
+    "model": "nope"
+   }
+  ],
+  "out": {
+   "backend": "codex",
+   "models": [
+    {
+     "id": "a",
+     "label": "A",
+     "reasoning": true,
+     "efforts": [
+      "medium",
+      "xhigh"
+     ],
+     "defaultEffort": "medium"
+    },
+    {
+     "id": "b",
+     "label": "B",
+     "reasoning": true,
+     "efforts": [
+      "low",
+      "max",
+      "ultra"
+     ],
+     "defaultEffort": "low"
+    }
+   ],
+   "defaultModel": null
+  }
+ },
+ {
+  "fn": "parseCodexModels",
+  "args": [
+   {
+    "models": [
+     {
+      "slug": "b",
+      "display_name": "B",
+      "visibility": "list",
+      "priority": 2,
+      "default_reasoning_level": "low",
+      "supported_reasoning_levels": [
+       {
+        "effort": "low"
+       },
+       {
+        "effort": "ultra"
+       },
+       {
+        "effort": "max"
+       }
+      ]
+     },
+     {
+      "slug": "a",
+      "display_name": "A",
+      "visibility": "list",
+      "priority": 1,
+      "default_reasoning_level": "medium",
+      "supported_reasoning_levels": [
+       {
+        "effort": "medium"
+       },
+       {
+        "effort": "xhigh"
+       }
+      ]
+     },
+     {
+      "slug": "hidden",
+      "visibility": "hide",
+      "priority": 0,
+      "supported_reasoning_levels": []
+     }
+    ]
+   }
+  ],
+  "out": {
+   "backend": "codex",
+   "models": [
+    {
+     "id": "a",
+     "label": "A",
+     "reasoning": true,
+     "efforts": [
+      "medium",
+      "xhigh"
+     ],
+     "defaultEffort": "medium"
+    },
+    {
+     "id": "b",
+     "label": "B",
+     "reasoning": true,
+     "efforts": [
+      "low",
+      "max",
+      "ultra"
+     ],
+     "defaultEffort": "low"
+    }
+   ],
+   "defaultModel": null
+  }
+ },
+ {
+  "fn": "parseCodexModels",
+  "args": [
+   {
+    "models": [
+     {
+      "slug": "mock-pro",
+      "display_name": "Mock Pro",
+      "visibility": "list",
+      "priority": 2,
+      "default_reasoning_level": "medium",
+      "supported_reasoning_levels": [
+       {
+        "effort": "low",
+        "description": "low"
+       },
+       {
+        "effort": "medium",
+        "description": "medium"
+       },
+       {
+        "effort": "high",
+        "description": "high"
+       },
+       {
+        "effort": "xhigh",
+        "description": "xhigh"
+       },
+       {
+        "effort": "max",
+        "description": "max"
+       },
+       {
+        "effort": "ultra",
+        "description": "ultra"
+       }
+      ]
+     },
+     {
+      "slug": "mock-mini",
+      "display_name": "Mock Mini",
+      "visibility": "list",
+      "priority": 1,
+      "default_reasoning_level": "low",
+      "supported_reasoning_levels": [
+       {
+        "effort": "low",
+        "description": "low"
+       },
+       {
+        "effort": "medium",
+        "description": "medium"
+       },
+       {
+        "effort": "high",
+        "description": "high"
+       }
+      ]
+     },
+     {
+      "slug": "mock-plain",
+      "display_name": "Mock Plain",
+      "visibility": "list",
+      "priority": 3,
+      "supported_reasoning_levels": []
+     },
+     {
+      "slug": "mock-hidden",
+      "display_name": "Mock Hidden",
+      "visibility": "hide",
+      "priority": 0,
+      "supported_reasoning_levels": [
+       {
+        "effort": "low",
+        "description": "low"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "model": "mock-pro",
+    "effort": "medium"
+   }
+  ],
+  "out": {
+   "backend": "codex",
+   "models": [
+    {
+     "id": "mock-mini",
+     "label": "Mock Mini",
+     "reasoning": true,
+     "efforts": [
+      "low",
+      "medium",
+      "high"
+     ],
+     "defaultEffort": "low"
+    },
+    {
+     "id": "mock-pro",
+     "label": "Mock Pro",
+     "reasoning": true,
+     "efforts": [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max",
+      "ultra"
+     ],
+     "defaultEffort": "medium"
+    },
+    {
+     "id": "mock-plain",
+     "label": "Mock Plain",
+     "reasoning": false,
+     "efforts": []
+    }
+   ],
+   "defaultModel": {
+    "id": "mock-pro",
+    "label": "Mock Pro",
+    "reasoning": true,
+    "efforts": [
+     "low",
+     "medium",
+     "high",
+     "xhigh",
+     "max",
+     "ultra"
+    ],
+    "defaultEffort": "medium"
+   }
+  }
+ },
+ {
+  "fn": "parseCodexModels",
+  "args": [
+   {
+    "models": [
+     {
+      "slug": "mock-pro",
+      "display_name": "Mock Pro",
+      "visibility": "list",
+      "priority": 2,
+      "default_reasoning_level": "medium",
+      "supported_reasoning_levels": [
+       {
+        "effort": "low",
+        "description": "low"
+       },
+       {
+        "effort": "medium",
+        "description": "medium"
+       },
+       {
+        "effort": "high",
+        "description": "high"
+       },
+       {
+        "effort": "xhigh",
+        "description": "xhigh"
+       },
+       {
+        "effort": "max",
+        "description": "max"
+       },
+       {
+        "effort": "ultra",
+        "description": "ultra"
+       }
+      ]
+     },
+     {
+      "slug": "mock-mini",
+      "display_name": "Mock Mini",
+      "visibility": "list",
+      "priority": 1,
+      "default_reasoning_level": "low",
+      "supported_reasoning_levels": [
+       {
+        "effort": "low",
+        "description": "low"
+       },
+       {
+        "effort": "medium",
+        "description": "medium"
+       },
+       {
+        "effort": "high",
+        "description": "high"
+       }
+      ]
+     },
+     {
+      "slug": "mock-plain",
+      "display_name": "Mock Plain",
+      "visibility": "list",
+      "priority": 3,
+      "supported_reasoning_levels": []
+     },
+     {
+      "slug": "mock-hidden",
+      "display_name": "Mock Hidden",
+      "visibility": "hide",
+      "priority": 0,
+      "supported_reasoning_levels": [
+       {
+        "effort": "low",
+        "description": "low"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "model": "mock-pro",
+    "effort": "ultra"
+   }
+  ],
+  "out": {
+   "backend": "codex",
+   "models": [
+    {
+     "id": "mock-mini",
+     "label": "Mock Mini",
+     "reasoning": true,
+     "efforts": [
+      "low",
+      "medium",
+      "high"
+     ],
+     "defaultEffort": "low"
+    },
+    {
+     "id": "mock-pro",
+     "label": "Mock Pro",
+     "reasoning": true,
+     "efforts": [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max",
+      "ultra"
+     ],
+     "defaultEffort": "medium"
+    },
+    {
+     "id": "mock-plain",
+     "label": "Mock Plain",
+     "reasoning": false,
+     "efforts": []
+    }
+   ],
+   "defaultModel": {
+    "id": "mock-pro",
+    "label": "Mock Pro",
+    "reasoning": true,
+    "efforts": [
+     "low",
+     "medium",
+     "high",
+     "xhigh",
+     "max",
+     "ultra"
+    ],
+    "defaultEffort": "ultra"
+   }
+  }
+ },
+ {
+  "fn": "parseCodexModels",
+  "args": [
+   {
+    "models": [
+     {
+      "slug": "mock-pro",
+      "display_name": "Mock Pro",
+      "visibility": "list",
+      "priority": 2,
+      "default_reasoning_level": "medium",
+      "supported_reasoning_levels": [
+       {
+        "effort": "low",
+        "description": "low"
+       },
+       {
+        "effort": "medium",
+        "description": "medium"
+       },
+       {
+        "effort": "high",
+        "description": "high"
+       },
+       {
+        "effort": "xhigh",
+        "description": "xhigh"
+       },
+       {
+        "effort": "max",
+        "description": "max"
+       },
+       {
+        "effort": "ultra",
+        "description": "ultra"
+       }
+      ]
+     },
+     {
+      "slug": "mock-mini",
+      "display_name": "Mock Mini",
+      "visibility": "list",
+      "priority": 1,
+      "default_reasoning_level": "low",
+      "supported_reasoning_levels": [
+       {
+        "effort": "low",
+        "description": "low"
+       },
+       {
+        "effort": "medium",
+        "description": "medium"
+       },
+       {
+        "effort": "high",
+        "description": "high"
+       }
+      ]
+     },
+     {
+      "slug": "mock-plain",
+      "display_name": "Mock Plain",
+      "visibility": "list",
+      "priority": 3,
+      "supported_reasoning_levels": []
+     },
+     {
+      "slug": "mock-hidden",
+      "display_name": "Mock Hidden",
+      "visibility": "hide",
+      "priority": 0,
+      "supported_reasoning_levels": [
+       {
+        "effort": "low",
+        "description": "low"
+       }
+      ]
+     }
+    ]
+   },
+   {}
+  ],
+  "out": {
+   "backend": "codex",
+   "models": [
+    {
+     "id": "mock-mini",
+     "label": "Mock Mini",
+     "reasoning": true,
+     "efforts": [
+      "low",
+      "medium",
+      "high"
+     ],
+     "defaultEffort": "low"
+    },
+    {
+     "id": "mock-pro",
+     "label": "Mock Pro",
+     "reasoning": true,
+     "efforts": [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max",
+      "ultra"
+     ],
+     "defaultEffort": "medium"
+    },
+    {
+     "id": "mock-plain",
+     "label": "Mock Plain",
+     "reasoning": false,
+     "efforts": []
+    }
+   ],
+   "defaultModel": null
+  }
+ },
+ {
+  "fn": "parseCodexModels",
+  "args": [
+   {
+    "models": [
+     {
+      "slug": "r",
+      "visibility": "list",
+      "supported_reasoning_levels": [
+       {
+        "effort": "low"
+       },
+       {
+        "effort": "high"
+       }
+      ]
+     },
+     {
+      "slug": "plain",
+      "visibility": "list",
+      "supported_reasoning_levels": []
+     }
+    ]
+   },
+   {
+    "model": "r"
+   }
+  ],
+  "out": {
+   "backend": "codex",
+   "models": [
+    {
+     "id": "r",
+     "reasoning": true,
+     "efforts": [
+      "low",
+      "high"
+     ]
+    },
+    {
+     "id": "plain",
+     "reasoning": false,
+     "efforts": []
+    }
+   ],
+   "defaultModel": {
+    "id": "r",
+    "reasoning": true,
+    "efforts": [
+     "low",
+     "high"
+    ]
+   }
+  }
+ },
+ {
+  "fn": "parseCodexModels",
+  "args": [
+   {
+    "models": [
+     {
+      "slug": "see",
+      "visibility": "list",
+      "input_modalities": [
+       "text",
+       "image"
+      ]
+     },
+     {
+      "slug": "blind",
+      "visibility": "list",
+      "input_modalities": [
+       "text"
+      ]
+     },
+     {
+      "slug": "unknown",
+      "visibility": "list"
+     }
+    ]
+   }
+  ],
+  "out": {
+   "backend": "codex",
+   "models": [
+    {
+     "id": "see",
+     "reasoning": false,
+     "efforts": [],
+     "vision": true
+    },
+    {
+     "id": "blind",
+     "reasoning": false,
+     "efforts": [],
+     "vision": false
+    },
+    {
+     "id": "unknown",
+     "reasoning": false,
+     "efforts": []
+    }
+   ],
+   "defaultModel": null
+  }
+ },
+ {
+  "fn": "parseCodexTranscript",
+  "args": [
+   ""
+  ],
+  "out": []
+ },
+ {
+  "fn": "parseCodexTranscript",
+  "args": [
+   "{\"timestamp\": \"2026-10-14T13:30:12.603Z\", \"ordinal\": 0, \"type\": \"session_meta\", \"payload\": {\"session_id\": \"01a13a9b-34b0-7612-ba36-613a55008483\", \"id\": \"01a13a9b-34b0-7612-ba36-613a55008483\", \"timestamp\": \"2026-10-14T13:30:12.547Z\", \"cwd\": \"/tmp\", \"originator\": \"codex_exec\", \"cli_version\": \"0.162.1\", \"source\": \"exec\", \"base_instructions\": {\"text\": \"(trimmed)\"}}}\n{\"timestamp\": \"2026-10-14T13:30:12.604Z\", \"ordinal\": 1, \"type\": \"event_msg\", \"payload\": {\"type\": \"task_started\", \"turn_attribution\": {\"turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\", \"turn_trigger\": \"exec\", \"parent_turn_id\": null, \"initiating_agent_path\": null, \"root_turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\"}, \"turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\", \"root_turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\", \"started_at\": 1791984612, \"model_context_window\": 258400, \"collaboration_mode_kind\": \"default\"}}\n{\"timestamp\": \"2026-10-14T13:30:12.632Z\", \"ordinal\": 2, \"type\": \"response_item\", \"payload\": {\"type\": \"message\", \"id\": \"msg_01a13a9b-3517-7740-9129-e2472b258af4\", \"role\": \"developer\", \"content\": [{\"type\": \"input_text\", \"text\": \"<skills_instructions>(trimmed)</skills_instructions>\"}], \"internal_chat_message_metadata_passthrough\": {\"turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\", \"create_time\": 1791984612.6311965, \"content_item_kinds\": [\"host_skills.instructions\", \"permissions.instructions\"]}}, \"metadata\": {\"client_authored\": false, \"mcp_attribution\": {\"status\": \"none\"}}}\n{\"timestamp\": \"2026-10-14T13:30:12.632Z\", \"ordinal\": 3, \"type\": \"response_item\", \"payload\": {\"type\": \"message\", \"id\": \"msg_01a13a9b-3517-7740-9129-e25ce6b2223f\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"<environment_context>\\n  <cwd>/tmp</cwd>\\n  <shell>bash</shell>\\n  <current_date>2026-10-14</current_date>\\n  <timezone>Asia/Shanghai</timezone>\\n  <filesystem><workspace_roots><root>/tmp</root></workspace_roots><permission_profile type=\\\"managed\\\"><file_system type=\\\"restricted\\\"><entry access=\\\"read\\\"><special>:root</special></entry></file_system></permission_profile></filesystem>\\n</environment_context>\"}], \"internal_chat_message_metadata_passthrough\": {\"turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\", \"create_time\": 1791984612.6312072, \"content_item_kinds\": [\"environments.environment_context\"]}}}\n{\"timestamp\": \"2026-10-14T13:30:12.640Z\", \"ordinal\": 6, \"type\": \"response_item\", \"payload\": {\"type\": \"message\", \"id\": \"msg_01a13a9b-351f-79f2-9d70-91bc2965750a\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"Reply with exactly: pong\"}], \"internal_chat_message_metadata_passthrough\": {\"turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\", \"create_time\": 1791984612.639928, \"content_item_kinds\": [\"user.text\"]}}, \"metadata\": {\"retained_source\": {\"id\": {\"message_id\": \"msg_01a13a9b-351f-79f2-9d70-91bc2965750a\", \"turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\", \"role\": \"user\"}, \"revision\": \"retained_01a13a9b-3520-70a1-a124-396645fd0c32\", \"complete\": true}, \"client_authored\": false, \"user_input_order\": 0, \"mcp_attribution\": {\"status\": \"none\"}}}\n{\"timestamp\": \"2026-10-14T13:30:12.641Z\", \"ordinal\": 7, \"type\": \"event_msg\", \"payload\": {\"type\": \"item_completed\", \"thread_id\": \"01a13a9b-34b0-7612-ba36-613a55008483\", \"turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\", \"item\": {\"type\": \"UserMessage\", \"id\": \"01a13a9b-351f-79f2-9d70-91ccd153fb2b\", \"content\": [{\"type\": \"text\", \"text\": \"Reply with exactly: pong\", \"text_elements\": []}]}, \"started_at_ms\": 1791984612641, \"completed_at_ms\": 1791984612641}}\n{\"timestamp\": \"2026-10-14T13:30:24.027Z\", \"ordinal\": 8, \"type\": \"event_msg\", \"payload\": {\"type\": \"item_completed\", \"thread_id\": \"01a13a9b-34b0-7612-ba36-613a55008483\", \"turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\", \"item\": {\"type\": \"AgentMessage\", \"id\": \"msg_843727\", \"content\": [{\"type\": \"Text\", \"text\": \"pong\"}]}, \"started_at_ms\": 1791984624000, \"completed_at_ms\": 1791984624027}}\n{\"timestamp\": \"2026-10-14T13:30:24.038Z\", \"ordinal\": 9, \"type\": \"response_item\", \"payload\": {\"type\": \"message\", \"id\": \"msg_843727\", \"role\": \"assistant\", \"content\": [{\"type\": \"output_text\", \"text\": \"pong\"}], \"internal_chat_message_metadata_passthrough\": {\"turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\", \"content_item_kinds\": [\"unknown\"]}}, \"metadata\": {\"retained_source\": {\"id\": {\"message_id\": \"msg_843727\", \"turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\", \"role\": \"assistant\"}, \"revision\": \"retained_01a13a9b-61a6-79b3-b555-d5f9626435dc\", \"complete\": true}, \"client_authored\": false, \"user_input_order\": 1}}\n{\"timestamp\": \"2026-10-14T13:30:24.039Z\", \"ordinal\": 11, \"type\": \"event_msg\", \"payload\": {\"type\": \"token_count\", \"info\": {\"total_token_usage\": {\"input_tokens\": 3774, \"cached_input_tokens\": 18, \"cache_write_input_tokens\": 0, \"output_tokens\": 2, \"reasoning_output_tokens\": 0, \"total_tokens\": 3776}, \"last_token_usage\": {\"input_tokens\": 3774, \"cached_input_tokens\": 18, \"cache_write_input_tokens\": 0, \"output_tokens\": 2, \"reasoning_output_tokens\": 0, \"total_tokens\": 3776}, \"model_context_window\": 258400}, \"rate_limits\": {\"limit_id\": \"codex\", \"limit_name\": null, \"primary\": null, \"secondary\": null, \"credits\": null, \"individual_limit\": null, \"spend_control_reached\": null, \"plan_type\": null, \"rate_limit_reached_type\": null}}}\n{\"timestamp\": \"2026-10-14T13:30:24.054Z\", \"ordinal\": 12, \"type\": \"event_msg\", \"payload\": {\"type\": \"task_complete\", \"root_turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\", \"turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\", \"last_agent_message\": \"pong\", \"started_at\": 1791984612, \"completed_at\": 1791984624, \"duration_ms\": 11454, \"time_to_first_token_ms\": 11401}}\n{\"timestamp\": \"2026-10-14T13:31:00.000Z\", \"type\": \"response_item\", \"payload\": {\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"# AGENTS.md instructions for /tmp\\n\\n<INSTRUCTIONS>\\nbe nice\\n</INSTRUCTIONS>\"}]}}\n{\"timestamp\": \"2026-10-14T13:31:01.000Z\", \"type\": \"response_item\", \"payload\": {\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"List the files\"}]}}\n{\"timestamp\": \"2026-10-14T13:31:02.000Z\", \"type\": \"response_item\", \"payload\": {\"type\": \"function_call\", \"name\": \"shell\", \"arguments\": \"{\\\"command\\\":[\\\"ls\\\"]}\", \"call_id\": \"c1\"}}\n{\"timestamp\": \"2026-10-14T13:31:03.000Z\", \"type\": \"response_item\", \"payload\": {\"type\": \"function_call_output\", \"call_id\": \"c1\", \"output\": \"a.txt\\nb.txt\"}}\n{\"timestamp\": \"2026-10-14T13:31:04.000Z\", \"type\": \"response_item\", \"payload\": {\"type\": \"message\", \"role\": \"assistant\", \"content\": [{\"type\": \"output_text\", \"text\": \"There are two files: a.txt and b.txt.\"}]}}\n"
+  ],
+  "out": [
+   {
+    "id": "hist-0",
+    "role": "user",
+    "content": "Reply with exactly: pong",
+    "timestamp": 1791984612640
+   },
+   {
+    "id": "hist-1",
+    "role": "assistant",
+    "content": "pong",
+    "timestamp": 1791984624038,
+    "durationMs": 11398
+   },
+   {
+    "id": "hist-2",
+    "role": "user",
+    "content": "List the files",
+    "timestamp": 1791984661000
+   },
+   {
+    "id": "hist-3",
+    "role": "assistant",
+    "content": "There are two files: a.txt and b.txt.",
+    "timestamp": 1791984664000,
+    "tools": [
+     "shell"
+    ],
+    "trace": [
+     {
+      "type": "tool",
+      "name": "shell",
+      "status": "start",
+      "id": "c1",
+      "input": "{\"command\":[\"ls\"]}",
+      "at": 1791984662000,
+      "textAt": 0
+     },
+     {
+      "type": "tool",
+      "name": "shell",
+      "status": "done",
+      "id": "c1",
+      "output": "a.txt\nb.txt",
+      "at": 1791984663000
+     }
+    ],
+    "durationMs": 3000
+   }
+  ]
+ },
+ {
+  "fn": "parseCodexTranscript",
+  "args": [
+   "{\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"go\"}]}}\n{\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"reasoning\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"plan it\"}]}}\n{\"timestamp\":\"2026-10-14T10:00:02.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"function_call\",\"name\":\"shell\",\"arguments\":\"{\\\"command\\\":[\\\"false\\\"]}\",\"call_id\":\"x\"}}\n{\"timestamp\":\"2026-10-14T10:00:03.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"function_call_output\",\"call_id\":\"x\",\"output\":\"{\\\"output\\\":\\\"boom\\\",\\\"metadata\\\":{\\\"exit_code\\\":1,\\\"duration_seconds\\\":0.5}}\"}}"
+  ],
+  "out": [
+   {
+    "id": "hist-0",
+    "role": "user",
+    "content": "go",
+    "timestamp": 1791972000000
+   },
+   {
+    "id": "hist-1",
+    "role": "assistant",
+    "content": "",
+    "timestamp": 1791972003000,
+    "trace": [
+     {
+      "type": "thinking",
+      "text": "plan it",
+      "at": 1791972001000,
+      "textAt": 0
+     },
+     {
+      "type": "tool",
+      "name": "shell",
+      "status": "start",
+      "id": "x",
+      "input": "{\"command\":[\"false\"]}",
+      "at": 1791972002000,
+      "textAt": 0
+     },
+     {
+      "type": "tool",
+      "name": "shell",
+      "status": "error",
+      "id": "x",
+      "output": "boom",
+      "at": 1791972003000
+     }
+    ],
+    "tools": [
+     "shell"
+    ],
+    "durationMs": 3000
+   }
+  ]
+ },
+ {
+  "fn": "parseCodexTranscript",
+  "args": [
+   "{\"timestamp\":\"2026-10-14T13:30:12.603Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"01a13a9b-34b0-7612-ba36-613000000000\",\"cwd\":\"/tmp/hist-work-JGEMJC\",\"source\":\"vscode\",\"originator\":\"Codex Desktop\"}}\n{\"timestamp\":\"2026-10-14T13:30:13.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"compressed one\"}]}}\n",
+   5000
+  ],
+  "out": [
+   {
+    "id": "hist-0",
+    "role": "user",
+    "content": "compressed one",
+    "timestamp": 1791984613000
+   }
+  ]
+ },
+ {
+  "fn": "parseCodexTranscript",
+  "args": [
+   "{\"timestamp\":\"2026-10-14T13:30:12.603Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"01a13a9b-34b0-7612-ba36-613000000000\",\"cwd\":\"/tmp/hist-work-mp0QM8\",\"source\":\"vscode\",\"model_provider\":\"nomi_gateway\",\"originator\":\"nomi\"}}\n{\"timestamp\":\"2026-10-14T13:30:13.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"third party chat\"}]}}\n",
+   3000
+  ],
+  "out": [
+   {
+    "id": "hist-0",
+    "role": "user",
+    "content": "third party chat",
+    "timestamp": 1791984613000
+   }
+  ]
+ },
+ {
+  "fn": "parseCodexTranscript",
+  "args": [
+   "{\"timestamp\":\"2026-10-14T13:30:12.603Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"01a13a9b-34b0-7612-ba36-613000000001\",\"cwd\":\"/tmp/hist-work-mp0QM8\",\"source\":\"cli\",\"model_provider\":\"openai\"}}\n{\"timestamp\":\"2026-10-14T13:30:13.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"official chat\"}]}}\n",
+   2000
+  ],
+  "out": [
+   {
+    "id": "hist-0",
+    "role": "user",
+    "content": "official chat",
+    "timestamp": 1791984613000
+   }
+  ]
+ },
+ {
+  "fn": "parseCodexTranscript",
+  "args": [
+   "{\"timestamp\":\"2026-10-14T13:30:12.603Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"01a13a9b-34b0-7612-ba36-613000000002\",\"cwd\":\"/tmp/hist-work-mp0QM8\",\"source\":\"cli\",\"model_provider\":\"my_proxy\"}}\n{\"timestamp\":\"2026-10-14T13:30:13.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"custom chat\"}]}}\n",
+   1000
+  ],
+  "out": [
+   {
+    "id": "hist-0",
+    "role": "user",
+    "content": "custom chat",
+    "timestamp": 1791984613000
+   }
+  ]
+ },
+ {
+  "fn": "parseDshTranscript",
+  "args": [
+   "{\"type\": \"session\", \"version\": 4, \"id\": \"session-887fa07d-22ae-4013-849f-2b2fafcba3c3\", \"createdAt\": 1792012621678, \"cwd\": \"/tmp/dsh/work\", \"isSeeded\": false, \"delegationDepth\": 0}\n{\"type\": \"permission/preset\", \"seq\": 0, \"time\": 1792012621683, \"data\": {\"preset\": \"workspace-write\"}}\n{\"type\": \"sandbox/mode\", \"seq\": 1, \"time\": 1792012621685, \"data\": {\"mode\": \"workspace-write\"}}\n{\"type\": \"approval/policy\", \"seq\": 2, \"time\": 1792012621685, \"data\": {\"policy\": \"ask\"}}\n{\"type\": \"agent/inbox/spliced\", \"seq\": 3, \"time\": 1792012621688, \"data\": {\"target\": \"next-turn\", \"start\": 0, \"inserted\": [{\"content\": [{\"type\": \"text\", \"text\": \"Reply with just the word PONG\"}], \"source\": {\"kind\": \"user\"}, \"role\": \"user\", \"id\": \"fcd786a5-dcee-40bf-98e7-cde874b3f96b\"}]}}\n{\"type\": \"turn/start\", \"seq\": 4, \"time\": 1792012621689, \"data\": {\"turn\": 1}}\n{\"type\": \"agent/inbox/spliced\", \"seq\": 5, \"time\": 1792012621690, \"data\": {\"target\": \"next-turn\", \"start\": 0, \"removedCount\": 1, \"inserted\": []}}\n{\"type\": \"step/start\", \"seq\": 6, \"time\": 1792012621952, \"data\": {\"turn\": 1, \"step\": 1}}\n{\"type\": \"system/message\", \"seq\": 7, \"time\": 1792012621955, \"data\": {\"trimmed\": true}, \"surfaceOp\": \"append\"}\n{\"type\": \"user/message\", \"seq\": 8, \"time\": 1792012621956, \"data\": {\"content\": [{\"type\": \"text\", \"text\": \"Reply with just the word PONG\"}], \"source\": {\"kind\": \"user\"}, \"role\": \"user\", \"id\": \"fcd786a5-dcee-40bf-98e7-cde874b3f96b\"}, \"surfaceOp\": \"append\"}\n{\"type\": \"user/message\", \"seq\": 9, \"time\": 1792012621957, \"data\": {\"content\": [{\"type\": \"text\", \"text\": \"Current runtime context. This snapshot supersedes earlier runtime-context snapshots.\\n\\nCurrent DSH file policy: workspace-write. Any available operation enforced by the DSH file sandbox may modify files under the session workspace: \\\"/tmp/dsh/work\\\". Some platform temporary areas may also be writable.\\n\\nApproval policy: ask. Operations that require approval may ask through the configured answerers; without an available answerer, the request fails closed.\"}], \"source\": {\"kind\": \"runtime-context\", \"form\": \"snapshot\", \"sections\": [{\"name\": \"sandbox:policy\", \"text\": \"Current DSH file policy: workspace-write. Any available operation enforced by the DSH file sandbox may modify files under the session workspace: \\\"/tmp/dsh/work\\\". Some platform temporary areas may also be writable.\"}, {\"name\": \"approval:policy\", \"text\": \"Approval policy: ask. Operations that require approval may ask through the configured answerers; without an available answerer, the request fails closed.\"}]}, \"role\": \"user\", \"id\": \"eed5f114-4dd4-442c-a1a1-ee7b5a28a502\"}, \"surfaceOp\": \"append\"}\n{\"type\": \"request/header\", \"seq\": 10, \"time\": 1792012621959, \"data\": {\"trimmed\": true}}\n{\"type\": \"request/context\", \"seq\": 11, \"time\": 1792012621960, \"data\": {\"provider\": \"nomi\", \"model\": \"qwen2.5:0.5b\", \"contextWindow\": 262144}}\n{\"type\": \"session/title\", \"seq\": 12, \"time\": 1792012621963, \"data\": {\"title\": \"Reply with just the word\", \"messageSeqs\": [8], \"source\": {\"kind\": \"fallback\"}}}\n{\"type\": \"session/title-llm-request\", \"seq\": 13, \"time\": 1792012621964, \"data\": {\"trimmed\": true}}\n{\"type\": \"session/title\", \"seq\": 14, \"time\": 1792012623578, \"data\": {\"title\": \"pong session\", \"messageSeqs\": [8], \"source\": {\"kind\": \"provider\", \"provider\": \"session-title-first-prompt-llm\", \"model\": {\"provider\": \"nomi\", \"model\": \"qwen2.5:0.5b\"}}}}\n{\"type\": \"assistant/message\", \"seq\": 15, \"time\": 1792012632794, \"data\": {\"turn\": 1, \"step\": 1, \"message\": {\"role\": \"assistant\", \"content\": [{\"type\": \"text\", \"text\": \"PONG\"}], \"source\": {\"kind\": \"model\"}, \"id\": \"7068fd09-69a8-40ff-abf4-13cdd9c71251\"}, \"usage\": {\"inputTokens\": 4651, \"outputTokens\": 3, \"totalTokens\": 4657, \"cacheReadTokens\": 3}}, \"surfaceOp\": \"append\"}\n{\"type\": \"step/end\", \"seq\": 16, \"time\": 1792012632795, \"data\": {\"turn\": 1, \"step\": 1}}\n{\"type\": \"turn/end\", \"seq\": 17, \"time\": 1792012632796, \"data\": {\"turn\": 1, \"reason\": {\"kind\": \"completed\"}}}\n{\"type\": \"session/end-seed\", \"seq\": 18, \"time\": 1792012633681, \"data\": {}}\n{\"type\": \"agent/inbox/spliced\", \"seq\": 19, \"time\": 1792012633741, \"data\": {\"target\": \"next-turn\", \"start\": 0, \"inserted\": [{\"content\": [{\"type\": \"text\", \"text\": \"Say it again\"}], \"source\": {\"kind\": \"user\"}, \"role\": \"user\", \"id\": \"e0b974ec-d2d8-4362-adfd-49a430753f6a\"}]}}\n{\"type\": \"turn/start\", \"seq\": 20, \"time\": 1792012633742, \"data\": {\"turn\": 2}}\n{\"type\": \"agent/inbox/spliced\", \"seq\": 21, \"time\": 1792012633743, \"data\": {\"target\": \"next-turn\", \"start\": 0, \"removedCount\": 1, \"inserted\": []}}\n{\"type\": \"step/start\", \"seq\": 22, \"time\": 1792012633768, \"data\": {\"turn\": 2, \"step\": 1}}\n{\"type\": \"user/message\", \"seq\": 23, \"time\": 1792012633770, \"data\": {\"content\": [{\"type\": \"text\", \"text\": \"Say it again\"}], \"source\": {\"kind\": \"user\"}, \"role\": \"user\", \"id\": \"e0b974ec-d2d8-4362-adfd-49a430753f6a\"}, \"surfaceOp\": \"append\"}\n{\"type\": \"request/header\", \"seq\": 24, \"time\": 1792012633772, \"data\": {\"trimmed\": true}}\n{\"type\": \"assistant/message\", \"seq\": 25, \"time\": 1792012634008, \"data\": {\"turn\": 2, \"step\": 1, \"message\": {\"role\": \"assistant\", \"content\": [{\"type\": \"text\", \"text\": \"PONG\"}], \"source\": {\"kind\": \"model\"}, \"id\": \"3cd6b182-92e4-4aa0-91ea-cc7c4f0b80c0\"}, \"usage\": {\"inputTokens\": 13, \"outputTokens\": 3, \"totalTokens\": 4672, \"cacheReadTokens\": 4656}}, \"surfaceOp\": \"append\"}\n{\"type\": \"step/end\", \"seq\": 26, \"time\": 1792012634009, \"data\": {\"turn\": 2, \"step\": 1}}\n{\"type\": \"turn/end\", \"seq\": 27, \"time\": 1792012634009, \"data\": {\"turn\": 2, \"reason\": {\"kind\": \"completed\"}}}\n",
+   1793261423615.1213
+  ],
+  "out": [
+   {
+    "id": "hist-0",
+    "role": "user",
+    "content": "Reply with just the word PONG",
+    "timestamp": 1792012621956
+   },
+   {
+    "id": "hist-1",
+    "role": "assistant",
+    "content": "PONG",
+    "timestamp": 1792012632794,
+    "usage": {
+     "inputTokens": 4651,
+     "cacheReadTokens": 3,
+     "outputTokens": 3
+    },
+    "durationMs": 10838
+   },
+   {
+    "id": "hist-2",
+    "role": "user",
+    "content": "Say it again",
+    "timestamp": 1792012633770
+   },
+   {
+    "id": "hist-3",
+    "role": "assistant",
+    "content": "PONG",
+    "timestamp": 1792012634008,
+    "usage": {
+     "inputTokens": 13,
+     "cacheReadTokens": 4656,
+     "outputTokens": 3
+    },
+    "durationMs": 238
+   }
+  ]
+ },
+ {
+  "fn": "parseDshTranscript",
+  "args": [
+   "{\"type\": \"session\", \"version\": 4, \"id\": \"session-887fa07d-22ae-4013-849f-2b2fafcba3c3\", \"createdAt\": 1792012621678, \"cwd\": \"/tmp/dsh/work\", \"isSeeded\": false, \"delegationDepth\": 0}\n{\"type\": \"permission/preset\", \"seq\": 0, \"time\": 1792012621683, \"data\": {\"preset\": \"workspace-write\"}}\n{\"type\": \"sandbox/mode\", \"seq\": 1, \"time\": 1792012621685, \"data\": {\"mode\": \"workspace-write\"}}\n{\"type\": \"approval/policy\", \"seq\": 2, \"time\": 1792012621685, \"data\": {\"policy\": \"ask\"}}\n{\"type\": \"agent/inbox/spliced\", \"seq\": 3, \"time\": 1792012621688, \"data\": {\"target\": \"next-turn\", \"start\": 0, \"inserted\": [{\"content\": [{\"type\": \"text\", \"text\": \"Reply with just the word PONG\"}], \"source\": {\"kind\": \"user\"}, \"role\": \"user\", \"id\": \"fcd786a5-dcee-40bf-98e7-cde874b3f96b\"}]}}\n{\"type\": \"turn/start\", \"seq\": 4, \"time\": 1792012621689, \"data\": {\"turn\": 1}}\n{\"type\": \"agent/inbox/spliced\", \"seq\": 5, \"time\": 1792012621690, \"data\": {\"target\": \"next-turn\", \"start\": 0, \"removedCount\": 1, \"inserted\": []}}\n{\"type\": \"step/start\", \"seq\": 6, \"time\": 1792012621952, \"data\": {\"turn\": 1, \"step\": 1}}\n{\"type\": \"system/message\", \"seq\": 7, \"time\": 1792012621955, \"data\": {\"trimmed\": true}, \"surfaceOp\": \"append\"}\n{\"type\": \"user/message\", \"seq\": 8, \"time\": 1792012621956, \"data\": {\"content\": [{\"type\": \"text\", \"text\": \"Reply with just the word PONG\"}], \"source\": {\"kind\": \"user\"}, \"role\": \"user\", \"id\": \"fcd786a5-dcee-40bf-98e7-cde874b3f96b\"}, \"surfaceOp\": \"append\"}\n{\"type\": \"user/message\", \"seq\": 9, \"time\": 1792012621957, \"data\": {\"content\": [{\"type\": \"text\", \"text\": \"Current runtime context. This snapshot supersedes earlier runtime-context snapshots.\\n\\nCurrent DSH file policy: workspace-write. Any available operation enforced by the DSH file sandbox may modify files under the session workspace: \\\"/tmp/dsh/work\\\". Some platform temporary areas may also be writable.\\n\\nApproval policy: ask. Operations that require approval may ask through the configured answerers; without an available answerer, the request fails closed.\"}], \"source\": {\"kind\": \"runtime-context\", \"form\": \"snapshot\", \"sections\": [{\"name\": \"sandbox:policy\", \"text\": \"Current DSH file policy: workspace-write. Any available operation enforced by the DSH file sandbox may modify files under the session workspace: \\\"/tmp/dsh/work\\\". Some platform temporary areas may also be writable.\"}, {\"name\": \"approval:policy\", \"text\": \"Approval policy: ask. Operations that require approval may ask through the configured answerers; without an available answerer, the request fails closed.\"}]}, \"role\": \"user\", \"id\": \"eed5f114-4dd4-442c-a1a1-ee7b5a28a502\"}, \"surfaceOp\": \"append\"}\n{\"type\": \"request/header\", \"seq\": 10, \"time\": 1792012621959, \"data\": {\"trimmed\": true}}\n{\"type\": \"request/context\", \"seq\": 11, \"time\": 1792012621960, \"data\": {\"provider\": \"nomi\", \"model\": \"qwen2.5:0.5b\", \"contextWindow\": 262144}}\n{\"type\": \"session/title\", \"seq\": 12, \"time\": 1792012621963, \"data\": {\"title\": \"Reply with just the word\", \"messageSeqs\": [8], \"source\": {\"kind\": \"fallback\"}}}\n{\"type\": \"session/title-llm-request\", \"seq\": 13, \"time\": 1792012621964, \"data\": {\"trimmed\": true}}\n{\"type\": \"session/title\", \"seq\": 14, \"time\": 1792012623578, \"data\": {\"title\": \"pong session\", \"messageSeqs\": [8], \"source\": {\"kind\": \"provider\", \"provider\": \"session-title-first-prompt-llm\", \"model\": {\"provider\": \"nomi\", \"model\": \"qwen2.5:0.5b\"}}}}\n{\"type\": \"assistant/message\", \"seq\": 15, \"time\": 1792012632794, \"data\": {\"turn\": 1, \"step\": 1, \"message\": {\"role\": \"assistant\", \"content\": [{\"type\": \"text\", \"text\": \"PONG\"}], \"source\": {\"kind\": \"model\"}, \"id\": \"7068fd09-69a8-40ff-abf4-13cdd9c71251\"}, \"usage\": {\"inputTokens\": 4651, \"outputTokens\": 3, \"totalTokens\": 4657, \"cacheReadTokens\": 3}}, \"surfaceOp\": \"append\"}\n{\"type\": \"step/end\", \"seq\": 16, \"time\": 1792012632795, \"data\": {\"turn\": 1, \"step\": 1}}\n{\"type\": \"turn/end\", \"seq\": 17, \"time\": 1792012632796, \"data\": {\"turn\": 1, \"reason\": {\"kind\": \"completed\"}}}\n{\"type\": \"session/end-seed\", \"seq\": 18, \"time\": 1792012633681, \"data\": {}}\n{\"type\": \"agent/inbox/spliced\", \"seq\": 19, \"time\": 1792012633741, \"data\": {\"target\": \"next-turn\", \"start\": 0, \"inserted\": [{\"content\": [{\"type\": \"text\", \"text\": \"Say it again\"}], \"source\": {\"kind\": \"user\"}, \"role\": \"user\", \"id\": \"e0b974ec-d2d8-4362-adfd-49a430753f6a\"}]}}\n{\"type\": \"turn/start\", \"seq\": 20, \"time\": 1792012633742, \"data\": {\"turn\": 2}}\n{\"type\": \"agent/inbox/spliced\", \"seq\": 21, \"time\": 1792012633743, \"data\": {\"target\": \"next-turn\", \"start\": 0, \"removedCount\": 1, \"inserted\": []}}\n{\"type\": \"step/start\", \"seq\": 22, \"time\": 1792012633768, \"data\": {\"turn\": 2, \"step\": 1}}\n{\"type\": \"user/message\", \"seq\": 23, \"time\": 1792012633770, \"data\": {\"content\": [{\"type\": \"text\", \"text\": \"Say it again\"}], \"source\": {\"kind\": \"user\"}, \"role\": \"user\", \"id\": \"e0b974ec-d2d8-4362-adfd-49a430753f6a\"}, \"surfaceOp\": \"append\"}\n{\"type\": \"request/header\", \"seq\": 24, \"time\": 1792012633772, \"data\": {\"trimmed\": true}}\n{\"type\": \"assistant/message\", \"seq\": 25, \"time\": 1792012634008, \"data\": {\"turn\": 2, \"step\": 1, \"message\": {\"role\": \"assistant\", \"content\": [{\"type\": \"text\", \"text\": \"PONG\"}], \"source\": {\"kind\": \"model\"}, \"id\": \"3cd6b182-92e4-4aa0-91ea-cc7c4f0b80c0\"}, \"usage\": {\"inputTokens\": 13, \"outputTokens\": 3, \"totalTokens\": 4672, \"cacheReadTokens\": 4656}}, \"surfaceOp\": \"append\"}\n{\"type\": \"step/end\", \"seq\": 26, \"time\": 1792012634009, \"data\": {\"turn\": 2, \"step\": 1}}\n{\"type\": \"turn/end\", \"seq\": 27, \"time\": 1792012634009, \"data\": {\"turn\": 2, \"reason\": {\"kind\": \"completed\"}}}\n"
+  ],
+  "out": [
+   {
+    "id": "hist-0",
+    "role": "user",
+    "content": "Reply with just the word PONG",
+    "timestamp": 1792012621956
+   },
+   {
+    "id": "hist-1",
+    "role": "assistant",
+    "content": "PONG",
+    "timestamp": 1792012632794,
+    "usage": {
+     "inputTokens": 4651,
+     "cacheReadTokens": 3,
+     "outputTokens": 3
+    },
+    "durationMs": 10838
+   },
+   {
+    "id": "hist-2",
+    "role": "user",
+    "content": "Say it again",
+    "timestamp": 1792012633770
+   },
+   {
+    "id": "hist-3",
+    "role": "assistant",
+    "content": "PONG",
+    "timestamp": 1792012634008,
+    "usage": {
+     "inputTokens": 13,
+     "cacheReadTokens": 4656,
+     "outputTokens": 3
+    },
+    "durationMs": 238
+   }
+  ]
+ },
+ {
+  "fn": "parseDshTranscript",
+  "args": [
+   "{\"type\":\"user/message\"}"
+  ],
+  "out": []
+ },
+ {
+  "fn": "parseGeminiTranscript",
+  "args": [
+   "{\"sessionId\":\"g\",\"kind\":\"main\"}\n{\"id\":\"u\",\"type\":\"user\",\"timestamp\":\"2026-10-19T00:00:01Z\",\"content\":[{\"text\":\"ls\"}]}\n{\"id\":\"i\",\"type\":\"info\",\"content\":\"Request cancelled.\"}\n{\"id\":\"m\",\"type\":\"gemini\",\"timestamp\":\"2026-10-19T00:00:02Z\",\"content\":\"\",\"toolCalls\":[{\"id\":\"t1\",\"name\":\"run_shell_command\",\"args\":{\"command\":\"ls\"}}]}\n{\"id\":\"m\",\"type\":\"gemini\",\"timestamp\":\"2026-10-19T00:00:03Z\",\"content\":\"\",\"thoughts\":[{\"subject\":\"Listing\",\"description\":\"run ls\"}],\"toolCalls\":[{\"id\":\"t1\",\"name\":\"run_shell_command\",\"args\":{\"command\":\"ls\"},\"status\":\"success\",\"result\":[],\"resultDisplay\":\"a.txt\"}]}\n{\"id\":\"m2\",\"type\":\"gemini\",\"timestamp\":\"2026-10-19T00:00:04Z\",\"content\":\"a.txt\"}"
+  ],
+  "out": [
+   {
+    "id": "hist-0",
+    "role": "user",
+    "content": "ls",
+    "timestamp": 1792368001000
+   },
+   {
+    "id": "hist-1",
+    "role": "assistant",
+    "content": "a.txt",
+    "timestamp": 1792368004000,
+    "trace": [
+     {
+      "type": "thinking",
+      "text": "Listing\nrun ls",
+      "at": 1792368003000,
+      "textAt": 0
+     },
+     {
+      "type": "tool",
+      "name": "run_shell_command",
+      "status": "start",
+      "id": "t1",
+      "input": "{\"command\":\"ls\"}",
+      "at": 1792368003000,
+      "textAt": 0
+     },
+     {
+      "type": "tool",
+      "name": "run_shell_command",
+      "status": "done",
+      "id": "t1",
+      "output": "a.txt",
+      "at": 1792368003000
+     }
+    ],
+    "durationMs": 3000
+   }
+  ]
+ },
+ {
+  "fn": "parseGeminiTranscript",
+  "args": [
+   "{\"sessionId\":\"gem-11111111\",\"projectHash\":\"h\",\"startTime\":\"2026-10-19T00:00:00Z\",\"kind\":\"main\"}\n{\"id\":\"u1\",\"type\":\"user\",\"timestamp\":\"2026-10-19T00:00:01Z\",\"content\":[{\"text\":\"看看日志\"}]}\n{\"id\":\"m1\",\"type\":\"gemini\",\"timestamp\":\"2026-10-19T00:00:02Z\",\"model\":\"gemini-2.5-pro\",\"reasoningEffort\":\"high\",\"permissionMode\":\"autoEdit\",\"content\":\"日志里没有错误\",\"tokens\":{\"input\":10,\"output\":4,\"cached\":2}}\n",
+   2000000
+  ],
+  "out": [
+   {
+    "id": "hist-0",
+    "role": "user",
+    "content": "看看日志",
+    "timestamp": 1792368001000
+   },
+   {
+    "id": "hist-1",
+    "role": "assistant",
+    "content": "日志里没有错误",
+    "timestamp": 1792368002000,
+    "usage": {
+     "inputTokens": 10,
+     "cacheReadTokens": 2,
+     "outputTokens": 4
+    },
+    "durationMs": 1000
+   }
+  ]
+ },
+ {
+  "fn": "parseGrokModels",
+  "args": [
+   {
+    "default_model": "grok-4.7",
+    "models": {
+     "grok-4.7": {
+      "info": {
+       "id": "grok-4.7",
+       "name": "Grok 4.7",
+       "supports_reasoning_effort": true,
+       "reasoning_efforts": [
+        {
+         "id": "xhigh",
+         "value": "xhigh",
+         "default": false
+        },
+        {
+         "id": "high",
+         "value": "high",
+         "default": true
+        },
+        {
+         "id": "low",
+         "value": "low",
+         "default": false
+        }
+       ],
+       "reasoning_effort": "high"
+      }
+     },
+     "grok-4.7-build-fast": {
+      "info": {
+       "id": "grok-4.7-build-fast",
+       "name": "Grok 4.7 Fast"
+      }
+     }
+    }
+   }
+  ],
+  "out": {
+   "backend": "grok",
+   "models": [
+    {
+     "id": "grok-4.7",
+     "label": "Grok 4.7",
+     "reasoning": true,
+     "efforts": [
+      "low",
+      "high",
+      "xhigh"
+     ],
+     "defaultEffort": "high"
+    },
+    {
+     "id": "grok-4.7-build-fast",
+     "label": "Grok 4.7 Fast",
+     "reasoning": false,
+     "efforts": []
+    }
+   ],
+   "defaultModel": {
+    "id": "grok-4.7",
+    "label": "Grok 4.7",
+    "reasoning": true,
+    "efforts": [
+     "low",
+     "high",
+     "xhigh"
+    ],
+    "defaultEffort": "high"
+   }
+  }
+ },
+ {
+  "fn": "parseGrokModels",
+  "args": [
+   {
+    "sessionId": "s",
+    "models": {
+     "currentModelId": "grok-4.7",
+     "availableModels": [
+      {
+       "modelId": "grok-4.7",
+       "name": "Grok 4.7",
+       "_meta": {
+        "supportsReasoningEffort": true,
+        "reasoningEfforts": [
+         {
+          "value": "xhigh",
+          "default": false
+         },
+         {
+          "value": "high",
+          "default": true
+         },
+         {
+          "value": "medium",
+          "default": false
+         },
+         {
+          "value": "low",
+          "default": false
+         }
+        ]
+       }
+      },
+      {
+       "modelId": "grok-x",
+       "name": "X",
+       "_meta": {
+        "supportsReasoningEffort": false
+       }
+      }
+     ]
+    }
+   }
+  ],
+  "out": {
+   "backend": "grok",
+   "models": [
+    {
+     "id": "grok-4.7",
+     "label": "Grok 4.7",
+     "reasoning": true,
+     "efforts": [
+      "low",
+      "medium",
+      "high",
+      "xhigh"
+     ],
+     "defaultEffort": "high"
+    },
+    {
+     "id": "grok-x",
+     "label": "X",
+     "reasoning": false,
+     "efforts": []
+    }
+   ],
+   "defaultModel": {
+    "id": "grok-4.7",
+    "label": "Grok 4.7",
+    "reasoning": true,
+    "efforts": [
+     "low",
+     "medium",
+     "high",
+     "xhigh"
+    ],
+    "defaultEffort": "high"
+   }
+  }
+ },
+ {
+  "fn": "parseGrokModels",
+  "args": [
+   {
+    "sessionId": "session-mock-grok-1",
+    "models": {
+     "currentModelId": "grok-mock",
+     "availableModels": [
+      {
+       "modelId": "grok-mock",
+       "name": "Grok Mock",
+       "_meta": {
+        "supportsReasoningEffort": true,
+        "reasoningEfforts": [
+         {
+          "id": "xhigh",
+          "value": "xhigh",
+          "label": "xhigh",
+          "default": false
+         },
+         {
+          "id": "high",
+          "value": "high",
+          "label": "high",
+          "default": true
+         },
+         {
+          "id": "medium",
+          "value": "medium",
+          "label": "medium",
+          "default": false
+         },
+         {
+          "id": "low",
+          "value": "low",
+          "label": "low",
+          "default": false
+         }
+        ]
+       }
+      },
+      {
+       "modelId": "grok-mock-old",
+       "name": "Grok Mock Old",
+       "_meta": {
+        "supportsReasoningEffort": true,
+        "reasoningEfforts": [
+         {
+          "id": "high",
+          "value": "high",
+          "label": "high",
+          "default": true
+         },
+         {
+          "id": "medium",
+          "value": "medium",
+          "label": "medium",
+          "default": false
+         },
+         {
+          "id": "low",
+          "value": "low",
+          "label": "low",
+          "default": false
+         }
+        ]
+       }
+      }
+     ]
+    },
+    "modes": {
+     "availableModes": [
+      {
+       "id": "plan",
+       "name": "plan"
+      },
+      {
+       "id": "default",
+       "name": "default"
+      },
+      {
+       "id": "acceptEdits",
+       "name": "acceptEdits"
+      },
+      {
+       "id": "bypassPermissions",
+       "name": "bypassPermissions"
+      },
+      {
+       "id": "dontAsk",
+       "name": "dontAsk"
+      }
+     ]
+    }
+   }
+  ],
+  "out": {
+   "backend": "grok",
+   "models": [
+    {
+     "id": "grok-mock",
+     "label": "Grok Mock",
+     "reasoning": true,
+     "efforts": [
+      "low",
+      "medium",
+      "high",
+      "xhigh"
+     ],
+     "defaultEffort": "high"
+    },
+    {
+     "id": "grok-mock-old",
+     "label": "Grok Mock Old",
+     "reasoning": true,
+     "efforts": [
+      "low",
+      "medium",
+      "high"
+     ],
+     "defaultEffort": "high"
+    }
+   ],
+   "defaultModel": {
+    "id": "grok-mock",
+    "label": "Grok Mock",
+    "reasoning": true,
+    "efforts": [
+     "low",
+     "medium",
+     "high",
+     "xhigh"
+    ],
+    "defaultEffort": "high"
+   },
+   "permissionModes": [
+    "plan",
+    "default",
+    "acceptEdits",
+    "bypassPermissions",
+    "dontAsk"
+   ]
+  }
+ },
+ {
+  "fn": "parseGrokTranscript",
+  "args": [
+   "{\"sessionId\":\"grok-session-1\",\"cwd\":\"/tmp/hist-work-6jD11i\",\"sessionUpdate\":\"user_message\",\"content\":[{\"type\":\"text\",\"text\":\"inspect project\"}]}\n{\"sessionId\":\"grok-session-1\",\"sessionUpdate\":\"agent_message\",\"content\":[{\"type\":\"text\",\"text\":\"done\"}]}\n{\"sessionId\":\"grok-session-1\",\"sessionUpdate\":\"current_mode_update\",\"currentModeId\":\"acceptEdits\"}\n{\"sessionId\":\"grok-session-1\",\"usage\":{\"modelUsage\":{\"grok-4.7-build\":{\"inputTokens\":1}}},\"reasoningEffort\":\"high\"}\n",
+   0
+  ],
+  "out": [
+   {
+    "id": "hist-0",
+    "role": "user",
+    "content": "inspect project",
+    "timestamp": 0
+   },
+   {
+    "id": "hist-1",
+    "role": "assistant",
+    "content": "done",
+    "timestamp": 0
+   }
+  ]
+ },
+ {
+  "fn": "parseGrokTranscript",
+  "args": [
+   "{\"sessionId\":\"grok-session-1\",\"cwd\":\"/tmp/hist-work-6jD11i\",\"sessionUpdate\":\"user_message\",\"content\":[{\"type\":\"text\",\"text\":\"inspect project\"}]}\n{\"sessionId\":\"grok-session-1\",\"sessionUpdate\":\"agent_message\",\"content\":[{\"type\":\"text\",\"text\":\"done\"}]}\n{\"sessionId\":\"grok-session-1\",\"sessionUpdate\":\"current_mode_update\",\"currentModeId\":\"acceptEdits\"}\n{\"sessionId\":\"grok-session-1\",\"usage\":{\"modelUsage\":{\"grok-4.7-build\":{\"inputTokens\":1}}},\"reasoningEffort\":\"high\"}\n",
+   3000000
+  ],
+  "out": [
+   {
+    "id": "hist-0",
+    "role": "user",
+    "content": "inspect project",
+    "timestamp": 3000000
+   },
+   {
+    "id": "hist-1",
+    "role": "assistant",
+    "content": "done",
+    "timestamp": 3000000
+   }
+  ]
+ },
+ {
+  "fn": "parseGrokTranscript",
+  "args": [
+   "{\"sessionId\":\"grok-session-1\",\"cwd\":\"/tmp/hist-work-KCbXCg\",\"sessionUpdate\":\"user_message\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]}\n",
+   0
+  ],
+  "out": [
+   {
+    "id": "hist-0",
+    "role": "user",
+    "content": "hi",
+    "timestamp": 0
+   }
+  ]
+ },
+ {
+  "fn": "parseGrokTranscript",
+  "args": [
+   "{\"timestamp\":1792763438,\"method\":\"session/update\",\"params\":{\"sessionId\":\"grok-acp-1\",\"update\":{\"sessionUpdate\":\"user_message_chunk\",\"content\":{\"type\":\"text\",\"text\":\"你是什么模型\"}}}}\n{\"timestamp\":1792763438,\"method\":\"session/update\",\"params\":{\"sessionId\":\"grok-acp-1\",\"update\":{\"sessionUpdate\":\"agent_thought_chunk\",\"content\":{\"type\":\"text\",\"text\":\"想一想\"}}}}\n{\"timestamp\":1792763438,\"method\":\"session/update\",\"params\":{\"sessionId\":\"grok-acp-1\",\"update\":{\"sessionUpdate\":\"tool_call\",\"toolCallId\":\"c1\",\"title\":\"run_terminal_command\",\"rawInput\":{\"command\":\"ls\"},\"_meta\":{\"x.ai/tool\":{\"name\":\"run_terminal_command\"}}}}}\n{\"timestamp\":1792763438,\"method\":\"session/update\",\"params\":{\"sessionId\":\"grok-acp-1\",\"update\":{\"sessionUpdate\":\"tool_call_update\",\"toolCallId\":\"c1\",\"status\":\"completed\"}}}\n{\"timestamp\":1792763438,\"method\":\"session/update\",\"params\":{\"sessionId\":\"grok-acp-1\",\"update\":{\"sessionUpdate\":\"agent_message_chunk\",\"content\":{\"type\":\"text\",\"text\":\"我是 Grok\"}}}}\n",
+   0
+  ],
+  "out": [
+   {
+    "id": "hist-0",
+    "role": "user",
+    "content": "你是什么模型",
+    "timestamp": 1792763438000
+   },
+   {
+    "id": "hist-1",
+    "role": "assistant",
+    "content": "我是 Grok",
+    "timestamp": 1792763438000,
+    "trace": [
+     {
+      "type": "thinking",
+      "text": "想一想",
+      "at": 1792763438000,
+      "textAt": 0
+     },
+     {
+      "type": "tool",
+      "name": "run_terminal_command",
+      "status": "start",
+      "id": "c1",
+      "input": "{\"command\":\"ls\"}",
+      "at": 1792763438000,
+      "textAt": 0
+     },
+     {
+      "type": "tool",
+      "name": "run_terminal_command",
+      "status": "done",
+      "id": "c1",
+      "at": 1792763438000
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "fn": "readClaudeEffortSetting",
+  "args": [
+   "{ broken"
+  ],
+  "out": null
+ },
+ {
+  "fn": "readClaudeEffortSetting",
+  "args": [
+   "{\"effortLevel\":\"medium\",\"model\":\"opus\"}"
+  ],
+  "out": "medium"
+ },
+ {
+  "fn": "readClaudeEffortSetting",
+  "args": [
+   "{\"effortLevel\":\"medium\"}"
+  ],
+  "out": "medium"
+ },
+ {
+  "fn": "readClaudeEffortSetting",
+  "args": [
+   "{\"model\":\"opus\"}"
+  ],
+  "out": null
+ },
+ {
+  "fn": "readCodexConfigDefaults",
+  "args": [
+   "[x]\nmodel = \"y\""
+  ],
+  "out": {
+   "model": null,
+   "effort": null
+  }
+ },
+ {
+  "fn": "readCodexConfigDefaults",
+  "args": [
+   "model = \"mock-pro\"\nmodel_reasoning_effort = \"medium\"\n"
+  ],
+  "out": {
+   "model": "mock-pro",
+   "effort": "medium"
+  }
+ },
+ {
+  "fn": "readCodexConfigDefaults",
+  "args": [
+   "model = \"mock-pro\"\nmodel_reasoning_effort = \"ultra\"\n"
+  ],
+  "out": {
+   "model": "mock-pro",
+   "effort": "ultra"
+  }
+ },
+ {
+  "fn": "readCodexConfigDefaults",
+  "args": [
+   "model_provider = \"custom\"\nmodel_reasoning_effort = 'xhigh'\nmodel = \"Tifa-6-astra\"\n[model_providers.custom]\nmodel = \"inner\""
+  ],
+  "out": {
+   "model": "Tifa-6-astra",
+   "effort": "xhigh"
+  }
+ },
+ {
+  "fn": "titleFromMessages",
+  "args": [
+   [
+    {
+     "id": "hist-0",
+     "role": "user",
+     "content": "hi",
+     "timestamp": 0
+    }
+   ]
+  ],
+  "out": "hi"
+ },
+ {
+  "fn": "titleFromMessages",
+  "args": [
+   [
+    {
+     "id": "hist-0",
+     "role": "user",
+     "content": "inspect project",
+     "timestamp": 0
+    },
+    {
+     "id": "hist-1",
+     "role": "assistant",
+     "content": "done",
+     "timestamp": 0
+    }
+   ]
+  ],
+  "out": "inspect project"
+ },
+ {
+  "fn": "titleFromMessages",
+  "args": [
+   [
+    {
+     "id": "hist-0",
+     "role": "user",
+     "content": "你是什么模型",
+     "timestamp": 1792763438000
+    },
+    {
+     "id": "hist-1",
+     "role": "assistant",
+     "content": "我是 Grok",
+     "timestamp": 1792763438000,
+     "trace": [
+      {
+       "type": "thinking",
+       "text": "想一想",
+       "at": 1792763438000,
+       "textAt": 0
+      },
+      {
+       "type": "tool",
+       "name": "run_terminal_command",
+       "status": "start",
+       "id": "c1",
+       "input": "{\"command\":\"ls\"}",
+       "at": 1792763438000,
+       "textAt": 0
+      },
+      {
+       "type": "tool",
+       "name": "run_terminal_command",
+       "status": "done",
+       "id": "c1",
+       "at": 1792763438000
+      }
+     ]
+    }
+   ]
+  ],
+  "out": "你是什么模型"
+ },
+ {
+  "fn": "parseClaudeTranscript",
+  "args": [
+   "{\"type\":\"user\",\"timestamp\":\"2025-01-02T03:04:05.678Z\",\"message\":{\"content\":\"hello <system-reminder>x</system-reminder>\"}}\n{\"type\":\"user\",\"isMeta\":true,\"message\":{\"content\":\"meta\"}}\n{\"type\":\"user\",\"isSidechain\":true,\"message\":{\"content\":\"side\"}}\n{\"type\":\"assistant\",\"timestamp\":\"bad\",\"message\":{\"model\":\"m\",\"usage\":{\"input_tokens\":5,\"output_tokens\":7,\"cache_read_input_tokens\":3},\"content\":[{\"type\":\"thinking\",\"thinking\":\"hmm\"},{\"type\":\"text\",\"text\":\"ok\"},{\"type\":\"tool_use\",\"id\":\"t1\",\"name\":\"Bash\",\"input\":{\"command\":\"ls\"}}]}}\n{\"type\":\"user\",\"message\":{\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"t1\",\"content\":[{\"type\":\"text\",\"text\":\"out\"}],\"is_error\":true}]}}\ngarbage\n\n[1,2]\nnull\n{\"type\":\"summary\",\"summary\":\"s\"}\n{\"type\":\"assistant\",\"message\":{\"content\":\"plain string\"}}\n{\"type\":\"user\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"\"},{\"type\":\"image\"}]}}",
+   1700000000000
+  ],
+  "out": [
+   {
+    "id": "hist-0",
+    "role": "user",
+    "content": "hello <system-reminder>x</system-reminder>",
+    "timestamp": 1735787045678
+   },
+   {
+    "id": "hist-1",
+    "role": "assistant",
+    "content": "ok\n\nplain string",
+    "timestamp": 1700000000000,
+    "trace": [
+     {
+      "type": "thinking",
+      "text": "hmm",
+      "at": 1700000000000,
+      "textAt": 0
+     },
+     {
+      "type": "tool",
+      "name": "Bash",
+      "status": "start",
+      "id": "t1",
+      "input": "{\"command\":\"ls\"}",
+      "at": 1700000000000,
+      "textAt": 2
+     },
+     {
+      "type": "tool",
+      "name": "Bash",
+      "status": "error",
+      "id": "t1",
+      "output": "out",
+      "at": 1700000000000
+     }
+    ],
+    "tools": [
+     "Bash"
+    ],
+    "usage": {
+     "inputTokens": 5,
+     "cacheReadTokens": 3,
+     "outputTokens": 7,
+     "contextTokens": 15
+    },
+    "textBreaks": [
+     4
+    ]
+   }
+  ]
+ },
+ {
+  "fn": "parseClaudeTranscript",
+  "args": [
+   "{\"type\":\"user\",\"timestamp\":\"2025-01-02T03:04:05.678Z\",\"message\":{\"content\":\"hello <system-reminder>x</system-reminder>\"}}\n{\"type\":\"user\",\"isMeta\":true,\"message\":{\"content\":\"meta\"}}\n{\"type\":\"user\",\"isSidechain\":true,\"message\":{\"content\":\"side\"}}\n{\"type\":\"assistant\",\"timestamp\":\"bad\",\"message\":{\"model\":\"m\",\"usage\":{\"input_tokens\":5,\"output_tokens\":7,\"cache_read_input_tokens\":3},\"content\":[{\"type\":\"thinking\",\"thinking\":\"hmm\"},{\"type\":\"text\",\"text\":\"ok\"},{\"type\":\"tool_use\",\"id\":\"t1\",\"name\":\"Bash\",\"input\":{\"command\":\"ls\"}}]}}\n{\"type\":\"user\",\"message\":{\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"t1\",\"content\":[{\"type\":\"text\",\"text\":\"out\"}],\"is_error\":true}]}}\ngarbage\n\n[1,2]\nnull\n{\"type\":\"summary\",\"summary\":\"s\"}\n{\"type\":\"assistant\",\"message\":{\"content\":\"plain string\"}}\n{\"type\":\"user\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"\"},{\"type\":\"image\"}]}}"
+  ],
+  "out": [
+   {
+    "id": "hist-0",
+    "role": "user",
+    "content": "hello <system-reminder>x</system-reminder>",
+    "timestamp": 1735787045678
+   },
+   {
+    "id": "hist-1",
+    "role": "assistant",
+    "content": "ok\n\nplain string",
+    "timestamp": 0,
+    "trace": [
+     {
+      "type": "thinking",
+      "text": "hmm",
+      "at": 0,
+      "textAt": 0
+     },
+     {
+      "type": "tool",
+      "name": "Bash",
+      "status": "start",
+      "id": "t1",
+      "input": "{\"command\":\"ls\"}",
+      "at": 0,
+      "textAt": 2
+     },
+     {
+      "type": "tool",
+      "name": "Bash",
+      "status": "error",
+      "id": "t1",
+      "output": "out",
+      "at": 0
+     }
+    ],
+    "tools": [
+     "Bash"
+    ],
+    "usage": {
+     "inputTokens": 5,
+     "cacheReadTokens": 3,
+     "outputTokens": 7,
+     "contextTokens": 15
+    },
+    "textBreaks": [
+     4
+    ]
+   }
+  ]
+ },
+ {
+  "fn": "parseCodexTranscript",
+  "args": [
+   "{\"type\":\"session_meta\",\"timestamp\":\"2025-01-02T03:04:05.678Z\",\"payload\":{\"id\":\"x\",\"cwd\":\"/w\"}}\n{\"type\":\"response_item\",\"timestamp\":\"2025-01-02T03:04:05.678Z\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"<environment_context>e</environment_context>\"}]}}\n{\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"do it\"}]}}\n{\"type\":\"response_item\",\"payload\":{\"type\":\"reasoning\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"think\"}]}}\n{\"type\":\"response_item\",\"payload\":{\"type\":\"function_call\",\"name\":\"shell\",\"call_id\":\"c1\",\"arguments\":\"{\\\"command\\\":[\\\"ls\\\"]}\"}}\n{\"type\":\"response_item\",\"payload\":{\"type\":\"function_call_output\",\"call_id\":\"c1\",\"output\":\"{\\\"output\\\":\\\"a\\\\nb\\\",\\\"metadata\\\":{\\\"exit_code\\\":1}}\"}}\n{\"type\":\"response_item\",\"payload\":{\"type\":\"local_shell_call\",\"call_id\":\"c2\",\"action\":{\"type\":\"exec\"}}}\n{\"type\":\"response_item\",\"payload\":{\"type\":\"local_shell_call\",\"call_id\":\"c3\",\"action\":{\"command\":null}}}\n{\"type\":\"response_item\",\"payload\":{\"type\":\"custom_tool_call\",\"name\":\"apply_patch\",\"call_id\":\"c4\",\"input\":\"patch\"}}\n{\"type\":\"response_item\",\"payload\":{\"type\":\"custom_tool_call_output\",\"call_id\":\"c4\",\"output\":\"done\"}}\n{\"type\":\"event_msg\",\"payload\":{\"type\":\"token_count\",\"info\":{\"total_token_usage\":{\"input_tokens\":10,\"output_tokens\":2,\"cached_input_tokens\":4},\"last_token_usage\":{\"input_tokens\":3}}}}\n{\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"answer\"}]}}\nx{\n",
+   1700000000000
+  ],
+  "out": [
+   {
+    "id": "hist-0",
+    "role": "user",
+    "content": "do it",
+    "timestamp": 1700000000000
+   },
+   {
+    "id": "hist-1",
+    "role": "assistant",
+    "content": "answer",
+    "timestamp": 1700000000000,
+    "trace": [
+     {
+      "type": "thinking",
+      "text": "think",
+      "at": 1700000000000,
+      "textAt": 0
+     },
+     {
+      "type": "tool",
+      "name": "shell",
+      "status": "start",
+      "id": "c1",
+      "input": "{\"command\":[\"ls\"]}",
+      "at": 1700000000000,
+      "textAt": 0
+     },
+     {
+      "type": "tool",
+      "name": "shell",
+      "status": "error",
+      "id": "c1",
+      "output": "a\nb",
+      "at": 1700000000000
+     },
+     {
+      "type": "tool",
+      "name": "shell",
+      "status": "start",
+      "id": "c2",
+      "input": "{}",
+      "at": 1700000000000,
+      "textAt": 0
+     },
+     {
+      "type": "tool",
+      "name": "shell",
+      "status": "start",
+      "id": "c3",
+      "input": "{\"command\":null}",
+      "at": 1700000000000,
+      "textAt": 0
+     },
+     {
+      "type": "tool",
+      "name": "apply_patch",
+      "status": "start",
+      "id": "c4",
+      "input": "patch",
+      "at": 1700000000000,
+      "textAt": 0
+     },
+     {
+      "type": "tool",
+      "name": "apply_patch",
+      "status": "done",
+      "id": "c4",
+      "output": "done",
+      "at": 1700000000000
+     }
+    ],
+    "tools": [
+     "shell",
+     "shell",
+     "shell",
+     "apply_patch"
+    ]
+   }
+  ]
+ },
+ {
+  "fn": "parseCodexTranscript",
+  "args": [
+   "{\"type\":\"session_meta\",\"timestamp\":\"2025-01-02T03:04:05.678Z\",\"payload\":{\"id\":\"x\",\"cwd\":\"/w\"}}\n{\"type\":\"response_item\",\"timestamp\":\"2025-01-02T03:04:05.678Z\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"<environment_context>e</environment_context>\"}]}}\n{\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"do it\"}]}}\n{\"type\":\"response_item\",\"payload\":{\"type\":\"reasoning\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"think\"}]}}\n{\"type\":\"response_item\",\"payload\":{\"type\":\"function_call\",\"name\":\"shell\",\"call_id\":\"c1\",\"arguments\":\"{\\\"command\\\":[\\\"ls\\\"]}\"}}\n{\"type\":\"response_item\",\"payload\":{\"type\":\"function_call_output\",\"call_id\":\"c1\",\"output\":\"{\\\"output\\\":\\\"a\\\\nb\\\",\\\"metadata\\\":{\\\"exit_code\\\":1}}\"}}\n{\"type\":\"response_item\",\"payload\":{\"type\":\"local_shell_call\",\"call_id\":\"c2\",\"action\":{\"type\":\"exec\"}}}\n{\"type\":\"response_item\",\"payload\":{\"type\":\"local_shell_call\",\"call_id\":\"c3\",\"action\":{\"command\":null}}}\n{\"type\":\"response_item\",\"payload\":{\"type\":\"custom_tool_call\",\"name\":\"apply_patch\",\"call_id\":\"c4\",\"input\":\"patch\"}}\n{\"type\":\"response_item\",\"payload\":{\"type\":\"custom_tool_call_output\",\"call_id\":\"c4\",\"output\":\"done\"}}\n{\"type\":\"event_msg\",\"payload\":{\"type\":\"token_count\",\"info\":{\"total_token_usage\":{\"input_tokens\":10,\"output_tokens\":2,\"cached_input_tokens\":4},\"last_token_usage\":{\"input_tokens\":3}}}}\n{\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"answer\"}]}}\nx{\n"
+  ],
+  "out": [
+   {
+    "id": "hist-0",
+    "role": "user",
+    "content": "do it",
+    "timestamp": 0
+   },
+   {
+    "id": "hist-1",
+    "role": "assistant",
+    "content": "answer",
+    "timestamp": 0,
+    "trace": [
+     {
+      "type": "thinking",
+      "text": "think",
+      "at": 0,
+      "textAt": 0
+     },
+     {
+      "type": "tool",
+      "name": "shell",
+      "status": "start",
+      "id": "c1",
+      "input": "{\"command\":[\"ls\"]}",
+      "at": 0,
+      "textAt": 0
+     },
+     {
+      "type": "tool",
+      "name": "shell",
+      "status": "error",
+      "id": "c1",
+      "output": "a\nb",
+      "at": 0
+     },
+     {
+      "type": "tool",
+      "name": "shell",
+      "status": "start",
+      "id": "c2",
+      "input": "{}",
+      "at": 0,
+      "textAt": 0
+     },
+     {
+      "type": "tool",
+      "name": "shell",
+      "status": "start",
+      "id": "c3",
+      "input": "{\"command\":null}",
+      "at": 0,
+      "textAt": 0
+     },
+     {
+      "type": "tool",
+      "name": "apply_patch",
+      "status": "start",
+      "id": "c4",
+      "input": "patch",
+      "at": 0,
+      "textAt": 0
+     },
+     {
+      "type": "tool",
+      "name": "apply_patch",
+      "status": "done",
+      "id": "c4",
+      "output": "done",
+      "at": 0
+     }
+    ],
+    "tools": [
+     "shell",
+     "shell",
+     "shell",
+     "apply_patch"
+    ]
+   }
+  ]
+ },
+ {
+  "fn": "parseGrokTranscript",
+  "args": [
+   "{\"type\":\"user\",\"timestamp\":\"2025-01-02T03:04:05.678Z\",\"content\":\"hi\"}\n{\"role\":\"user\",\"time\":\"2025-01-02T03:04:05.678Z\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"q\"}]}}\n{\"type\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"t\"},{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"tool_use\",\"id\":\"u\",\"name\":\"read\",\"input\":{}}]}\n{\"type\":\"tool_result\",\"tool_use_id\":\"u\",\"content\":\"r\"}\n{\"type\":\"usage\",\"usage\":{\"input_tokens\":1,\"output_tokens\":2}}\nbad",
+   1700000000000
+  ],
+  "out": []
+ },
+ {
+  "fn": "parseGrokTranscript",
+  "args": [
+   "{\"type\":\"user\",\"timestamp\":\"2025-01-02T03:04:05.678Z\",\"content\":\"hi\"}\n{\"role\":\"user\",\"time\":\"2025-01-02T03:04:05.678Z\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"q\"}]}}\n{\"type\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"t\"},{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"tool_use\",\"id\":\"u\",\"name\":\"read\",\"input\":{}}]}\n{\"type\":\"tool_result\",\"tool_use_id\":\"u\",\"content\":\"r\"}\n{\"type\":\"usage\",\"usage\":{\"input_tokens\":1,\"output_tokens\":2}}\nbad"
+  ],
+  "out": []
+ },
+ {
+  "fn": "parseDshTranscript",
+  "args": [
+   "{\"role\":\"user\",\"time\":\"2025-01-02T03:04:05.678Z\",\"content\":\"hi\"}\n{\"role\":\"assistant\",\"time\":1735787045678,\"content\":\"a\",\"reasoning\":\"r\",\"tool_calls\":[{\"id\":\"k\",\"function\":{\"name\":\"f\",\"arguments\":\"{\\\"a\\\":1}\"}}]}\n{\"role\":\"tool\",\"tool_call_id\":\"k\",\"content\":\"res\"}\n{\"role\":\"system\",\"content\":\"s\"}\n",
+   1700000000000
+  ],
+  "out": []
+ },
+ {
+  "fn": "parseDshTranscript",
+  "args": [
+   "{\"role\":\"user\",\"time\":\"2025-01-02T03:04:05.678Z\",\"content\":\"hi\"}\n{\"role\":\"assistant\",\"time\":1735787045678,\"content\":\"a\",\"reasoning\":\"r\",\"tool_calls\":[{\"id\":\"k\",\"function\":{\"name\":\"f\",\"arguments\":\"{\\\"a\\\":1}\"}}]}\n{\"role\":\"tool\",\"tool_call_id\":\"k\",\"content\":\"res\"}\n{\"role\":\"system\",\"content\":\"s\"}\n"
+  ],
+  "out": []
+ },
+ {
+  "fn": "parseGeminiTranscript",
+  "args": [
+   "{\"sessionId\":\"s\",\"messages\":[{\"type\":\"user\",\"timestamp\":\"2025-01-02T03:04:05.678Z\",\"content\":[{\"text\":\"hi\"}]},{\"type\":\"gemini\",\"content\":\"a\",\"thoughts\":[{\"subject\":\"S\",\"description\":\"D\"}],\"tokens\":{\"input\":3,\"output\":4,\"cached\":1},\"toolCalls\":[{\"id\":\"g\",\"name\":\"ls\",\"args\":{\"p\":1},\"result\":[{\"functionResponse\":{\"response\":{\"output\":\"o\"}}}],\"status\":\"error\"}]},{\"type\":\"info\",\"content\":\"i\"}]}",
+   1700000000000
+  ],
+  "out": [
+   {
+    "id": "hist-0",
+    "role": "user",
+    "content": "hi",
+    "timestamp": 1735787045678
+   },
+   {
+    "id": "hist-1",
+    "role": "assistant",
+    "content": "a",
+    "timestamp": 1700000000000,
+    "trace": [
+     {
+      "type": "thinking",
+      "text": "S\nD",
+      "at": 1700000000000,
+      "textAt": 0
+     },
+     {
+      "type": "tool",
+      "name": "ls",
+      "status": "start",
+      "id": "g",
+      "input": "{\"p\":1}",
+      "at": 1700000000000,
+      "textAt": 0
+     },
+     {
+      "type": "tool",
+      "name": "ls",
+      "status": "error",
+      "id": "g",
+      "at": 1700000000000
+     }
+    ],
+    "usage": {
+     "inputTokens": 3,
+     "cacheReadTokens": 1,
+     "outputTokens": 4
+    }
+   }
+  ]
+ },
+ {
+  "fn": "parseGeminiTranscript",
+  "args": [
+   "{\"sessionId\":\"s\",\"messages\":[{\"type\":\"user\",\"timestamp\":\"2025-01-02T03:04:05.678Z\",\"content\":[{\"text\":\"hi\"}]},{\"type\":\"gemini\",\"content\":\"a\",\"thoughts\":[{\"subject\":\"S\",\"description\":\"D\"}],\"tokens\":{\"input\":3,\"output\":4,\"cached\":1},\"toolCalls\":[{\"id\":\"g\",\"name\":\"ls\",\"args\":{\"p\":1},\"result\":[{\"functionResponse\":{\"response\":{\"output\":\"o\"}}}],\"status\":\"error\"}]},{\"type\":\"info\",\"content\":\"i\"}]}"
+  ],
+  "out": [
+   {
+    "id": "hist-0",
+    "role": "user",
+    "content": "hi",
+    "timestamp": 1735787045678
+   },
+   {
+    "id": "hist-1",
+    "role": "assistant",
+    "content": "a",
+    "timestamp": 0,
+    "trace": [
+     {
+      "type": "thinking",
+      "text": "S\nD",
+      "at": 0,
+      "textAt": 0
+     },
+     {
+      "type": "tool",
+      "name": "ls",
+      "status": "start",
+      "id": "g",
+      "input": "{\"p\":1}",
+      "at": 0,
+      "textAt": 0
+     },
+     {
+      "type": "tool",
+      "name": "ls",
+      "status": "error",
+      "id": "g",
+      "at": 0
+     }
+    ],
+    "usage": {
+     "inputTokens": 3,
+     "cacheReadTokens": 1,
+     "outputTokens": 4
+    }
+   }
+  ]
+ },
+ {
+  "fn": "parseGeminiTranscript",
+  "args": [
+   "not json",
+   1700000000000
+  ],
+  "out": []
+ },
+ {
+  "fn": "parseGeminiTranscript",
+  "args": [
+   "not json"
+  ],
+  "out": []
+ },
+ {
+  "fn": "parseClaudeTranscript",
+  "args": [
+   "",
+   1700000000000
+  ],
+  "out": []
+ },
+ {
+  "fn": "parseClaudeTranscript",
+  "args": [
+   ""
+  ],
+  "out": []
+ },
+ {
+  "fn": "parseClaudeModels",
+  "args": [
+   {
+    "models": [
+     {
+      "value": "default",
+      "displayName": "Default",
+      "resolvedModel": "opus"
+     },
+     {
+      "value": "opus",
+      "displayName": "Opus",
+      "resolvedModel": "opus",
+      "supportsEffort": true,
+      "supportedEffortLevels": [
+       "low",
+       "high",
+       "bogus",
+       "low"
+      ]
+     },
+     {
+      "value": " sonnet ",
+      "description": " d ",
+      "defaultEffort": "medium"
+     },
+     {
+      "value": ""
+     },
+     7,
+     null
+    ],
+    "permissionModes": [
+     "plan",
+     {
+      "id": "auto"
+     },
+     "plan",
+     {
+      "value": " x "
+     }
+    ]
+   },
+   {
+    "effort": "high"
+   }
+  ],
+  "out": {
+   "backend": "claude",
+   "models": [
+    {
+     "id": "opus",
+     "label": "Opus",
+     "reasoning": true,
+     "efforts": [
+      "low",
+      "high"
+     ],
+     "defaultEffort": "high"
+    },
+    {
+     "id": "sonnet",
+     "description": "d",
+     "reasoning": false,
+     "efforts": [],
+     "defaultEffort": "medium"
+    }
+   ],
+   "defaultModel": {
+    "id": "default",
+    "label": "Opus",
+    "reasoning": false,
+    "efforts": []
+   },
+   "permissionModes": [
+    "plan",
+    "auto",
+    "x"
+   ]
+  }
+ },
+ {
+  "fn": "parseClaudeModels",
+  "args": [
+   {
+    "models": [
+     {
+      "value": "default",
+      "resolvedModel": "zzz"
+     }
+    ]
+   }
+  ],
+  "out": {
+   "backend": "claude",
+   "models": [],
+   "defaultModel": {
+    "id": "default",
+    "label": "zzz",
+    "reasoning": false,
+    "efforts": []
+   }
+  }
+ },
+ {
+  "fn": "parseClaudeModels",
+  "args": [
+   {
+    "models": [
+     {
+      "value": "default"
+     }
+    ]
+   }
+  ],
+  "out": {
+   "backend": "claude",
+   "models": [],
+   "defaultModel": {
+    "id": "default",
+    "reasoning": false,
+    "efforts": []
+   }
+  }
+ },
+ {
+  "fn": "parseClaudeModels",
+  "args": [
+   null
+  ],
+  "out": {
+   "backend": "claude",
+   "models": [],
+   "defaultModel": null
+  }
+ },
+ {
+  "fn": "parseCodexModels",
+  "args": [
+   {
+    "models": [
+     {
+      "slug": "b",
+      "priority": 2,
+      "supported_reasoning_levels": [
+       {
+        "effort": "low"
+       },
+       {
+        "effort": "xhigh"
+       }
+      ],
+      "default_reasoning_level": "low",
+      "input_modalities": [
+       "text"
+      ]
+     },
+     {
+      "slug": "a",
+      "priority": 1,
+      "display_name": "A",
+      "input_modalities": [
+       "image"
+      ]
+     },
+     {
+      "slug": "h",
+      "visibility": "hide"
+     },
+     {
+      "slug": "n",
+      "visibility": null
+     },
+     {
+      "slug": "z"
+     }
+    ],
+    "modes": {
+     "availableModes": [
+      {
+       "modeId": "m1"
+      }
+     ]
+    }
+   },
+   {
+    "model": " b ",
+    "effort": "xhigh"
+   }
+  ],
+  "out": {
+   "backend": "codex",
+   "models": [
+    {
+     "id": "a",
+     "label": "A",
+     "reasoning": false,
+     "efforts": [],
+     "vision": true
+    },
+    {
+     "id": "b",
+     "reasoning": true,
+     "efforts": [
+      "low",
+      "xhigh"
+     ],
+     "defaultEffort": "low",
+     "vision": false
+    },
+    {
+     "id": "z",
+     "reasoning": false,
+     "efforts": []
+    }
+   ],
+   "defaultModel": {
+    "id": "b",
+    "reasoning": true,
+    "efforts": [
+     "low",
+     "xhigh"
+    ],
+    "defaultEffort": "xhigh",
+    "vision": false
+   },
+   "permissionModes": [
+    "m1"
+   ]
+  }
+ },
+ {
+  "fn": "parseCodexModels",
+  "args": [
+   {
+    "models": [
+     {
+      "slug": "b",
+      "supported_reasoning_levels": [
+       {
+        "effort": "low"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "model": "b",
+    "effort": "high"
+   }
+  ],
+  "out": {
+   "backend": "codex",
+   "models": [
+    {
+     "id": "b",
+     "reasoning": true,
+     "efforts": [
+      "low"
+     ]
+    }
+   ],
+   "defaultModel": {
+    "id": "b",
+    "reasoning": true,
+    "efforts": [
+     "low"
+    ]
+   }
+  }
+ },
+ {
+  "fn": "parseGrokModels",
+  "args": [
+   {
+    "models": {
+     "grok-4": {
+      "info": {
+       "name": "G4",
+       "reasoningEfforts": [
+        {
+         "value": "low"
+        },
+        {
+         "id": "high",
+         "default": true
+        }
+       ]
+      }
+     },
+     "x": {}
+    },
+    "currentModelId": "grok-4"
+   }
+  ],
+  "out": {
+   "backend": "grok",
+   "models": [
+    {
+     "id": "grok-4",
+     "label": "G4",
+     "reasoning": true,
+     "efforts": [
+      "low",
+      "high"
+     ],
+     "defaultEffort": "high"
+    },
+    {
+     "id": "x",
+     "reasoning": false,
+     "efforts": []
+    }
+   ],
+   "defaultModel": {
+    "id": "grok-4",
+    "label": "G4",
+    "reasoning": true,
+    "efforts": [
+     "low",
+     "high"
+    ],
+    "defaultEffort": "high"
+   }
+  }
+ },
+ {
+  "fn": "parseGrokModels",
+  "args": [
+   {
+    "models": [
+     {
+      "id": "m",
+      "_meta": {
+       "supportsReasoningEffort": false,
+       "reasoningEfforts": [
+        "low"
+       ]
+      },
+      "reasoningEffort": "low"
+     }
+    ],
+    "default_model": "m",
+    "modes": [
+     "a",
+     "b"
+    ]
+   }
+  ],
+  "out": {
+   "backend": "grok",
+   "models": [
+    {
+     "id": "m",
+     "reasoning": false,
+     "efforts": [],
+     "defaultEffort": "low"
+    }
+   ],
+   "defaultModel": {
+    "id": "m",
+    "reasoning": false,
+    "efforts": [],
+    "defaultEffort": "low"
+   },
+   "permissionModes": [
+    "a",
+    "b"
+   ]
+  }
+ },
+ {
+  "fn": "parseGrokModels",
+  "args": [
+   {
+    "models": {
+     "availableModels": [
+      {
+       "modelId": "q",
+       "displayName": "Q",
+       "reasoningEfforts": [
+        {
+         "value": "medium"
+        }
+       ]
+      }
+     ],
+     "currentModelId": "q"
+    }
+   }
+  ],
+  "out": {
+   "backend": "grok",
+   "models": [
+    {
+     "id": "q",
+     "label": "Q",
+     "reasoning": true,
+     "efforts": [
+      "medium"
+     ]
+    }
+   ],
+   "defaultModel": {
+    "id": "q",
+    "label": "Q",
+    "reasoning": true,
+    "efforts": [
+     "medium"
+    ]
+   }
+  }
+ },
+ {
+  "fn": "readClaudeEffortSetting",
+  "args": [
+   "{\"effortLevel\":\"high\"}"
+  ],
+  "out": "high"
+ },
+ {
+  "fn": "readClaudeEffortSetting",
+  "args": [
+   "[1]"
+  ],
+  "out": null
+ },
+ {
+  "fn": "readClaudeEffortSetting",
+  "args": [
+   "nope"
+  ],
+  "out": null
+ },
+ {
+  "fn": "readCodexConfigDefaults",
+  "args": [
+   "model = \"gpt\"\r\nmodel_reasoning_effort='high'\n[profile]\nmodel=\"x\""
+  ],
+  "out": {
+   "model": "gpt",
+   "effort": "high"
+  }
+ },
+ {
+  "fn": "readCodexConfigDefaults",
+  "args": [
+   "model = \"  \"\nmodel = \"a'\"b\""
+  ],
+  "out": {
+   "model": "a'",
+   "effort": null
+  }
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   "  multi\n line   title  ",
+   10
+  ],
+  "out": "multi lin…"
+ },
+ {
+  "fn": "cleanTitle",
+  "args": [
+   {
+    "$undef": true
+   }
+  ],
+  "out": {
+   "$undef": true
+  }
+ }
+]
