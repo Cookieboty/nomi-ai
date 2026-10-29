@@ -22,7 +22,7 @@ const (
 )
 
 // jsRound = Math.round（.5 向 +∞）
-func jsRound(v float64) float64 { return math.Floor(v + 0.5) }
+func jsRound(v float64) float64 { return math.Floor(float64(v) + 0.5) }
 
 func finite(v float64) bool { return !math.IsNaN(v) && !math.IsInf(v, 0) }
 
@@ -54,7 +54,7 @@ func PhysicalBottom(top, height, scaleFactor float64) float64 {
 		return top + height
 	}
 	const eps = 1e-9
-	pb := math.Ceil((top+height)*sf - eps)
+	pb := math.Ceil(float64((top+height)*sf) - eps)
 	return math.Ceil(pb/sf - eps)
 }
 
@@ -118,8 +118,8 @@ func WheelMascotScale(current, deltaY, deltaMode, cap float64) float64 {
 func MascotWindowSize(scale float64) Size {
 	s := ClampMascotScale(scale)
 	return Size{
-		Width:  jsRound(MascotBase.Width*s + 2*MascotPad.X),
-		Height: jsRound(MascotBase.Height*s + MascotPad.Top),
+		Width:  jsRound(float64(MascotBase.Width*s) + float64(2*MascotPad.X)),
+		Height: jsRound(float64(MascotBase.Height*s) + MascotPad.Top),
 	}
 }
 
@@ -151,8 +151,8 @@ func ResizeMascotBounds(in ResizeInput) MascotBounds {
 	from := ClampMascotScale(in.FromScale)
 	to := ClampMascotScale(in.ToScale)
 	ratio := to / from
-	mapX := func(v float64) float64 { return MascotPad.X + (v-MascotPad.X)*ratio }
-	mapY := func(v float64) float64 { return MascotPad.Top + (v-MascotPad.Top)*ratio }
+	mapX := func(v float64) float64 { return MascotPad.X + float64((v-MascotPad.X)*ratio) }
+	mapY := func(v float64) float64 { return MascotPad.Top + float64((v-MascotPad.Top)*ratio) }
 	box := in.Box
 	okBox := box != nil && finite(box.Left) && finite(box.Right) && finite(box.Top) && finite(box.Bottom)
 	fx, fy := b.Width/2, b.Height

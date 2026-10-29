@@ -29,9 +29,9 @@ func Cosine(a, b []float32) float64 {
 	n := min(len(a), len(b))
 	for i := 0; i < n; i++ {
 		x, y := float64(a[i]), float64(b[i])
-		dot += x * y
-		na += x * x
-		nb += y * y
+		dot += float64(x * y)
+		na += float64(x * x)
+		nb += float64(y * y)
 	}
 	if na != 0 && nb != 0 {
 		return dot / math.Sqrt(na*nb)

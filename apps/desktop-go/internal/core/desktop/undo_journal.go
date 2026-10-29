@@ -196,7 +196,7 @@ func (j *UndoJournal) Last() *JournalEntry {
 
 func mtimeMs(fi os.FileInfo) float64 {
 	t := fi.ModTime()
-	return float64(t.Unix())*1e3 + float64(t.Nanosecond())/1e6
+	return float64(float64(t.Unix())*1e3) + float64(float64(t.Nanosecond())/1e6)
 }
 
 func (j *UndoJournal) Check(e JournalEntry) string {

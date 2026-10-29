@@ -30,7 +30,7 @@ func estimateTokens(text string) float64 {
 			other++
 		}
 	}
-	return math.Ceil(cjk + other/4)
+	return math.Ceil(cjk + float64(other/4))
 }
 
 func blockText(v any) string {
@@ -173,7 +173,7 @@ func requestContext(u *util.Obj) (float64, bool) {
 	return s, true
 }
 
-func jsRound(x float64) float64 { return math.Floor(x + 0.5) }
+func jsRound(x float64) float64 { return math.Floor(float64(x) + 0.5) }
 
 // LastTranscriptContext = lastTranscriptContext（nil = null）。
 func LastTranscriptContext(text string) *util.Obj {
