@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"sync"
 )
 
@@ -77,6 +78,33 @@ type Router struct {
 	// Pending（可选）= 事件总线的 pending.offer：每次发布告诉它有没有订阅者（不看 surface，
 	// 同 Node 的 sink.subscribers(event) > 0），没送达的面板导航由它留着（core/pendingEvents.ts）。
 	Pending func(event string, data any, delivered bool)
+
+	gates []gate
+}
+
+type gate struct {
+	prefixes []string
+	wait     func(context.Context) error
+}
+
+// GateBefore：名字以 prefixes 之一开头的过程先 wait(ctx) 再执行（D-B11-12：读密钥的过程
+// 等 2.0.4 密钥迁移完成）。须在开始服务前调用。
+func (r *Router) GateBefore(prefixes []string, wait func(context.Context) error) {
+	r.gates = append(r.gates, gate{prefixes, wait})
+}
+
+func (r *Router) waitGates(ctx context.Context, name string) error {
+	for _, g := range r.gates {
+		for _, p := range g.prefixes {
+			if strings.HasPrefix(name, p) {
+				if err := g.wait(ctx); err != nil {
+					return err
+				}
+				break
+			}
+		}
+	}
+	return nil
 }
 
 func NewRouter() *Router {
@@ -276,6 +304,10 @@ func (s *Session) run(ctx context.Context, f ClientFrame) {
 		return
 	}
 	if err := s.r.guard(f.Name, s.caller); err != nil {
+		s.send(errFrame(f.ID, err))
+		return
+	}
+	if err := s.r.waitGates(ctx, f.Name); err != nil {
 		s.send(errFrame(f.ID, err))
 		return
 	}

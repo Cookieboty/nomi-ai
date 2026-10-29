@@ -161,6 +161,9 @@ func (s *Store) Snapshot() *u.Obj { return deepClone(s.data).(*u.Obj) }
 // Replace = replace(data)
 func (s *Store) Replace(d *u.Obj) { s.data = d }
 
+// Reload：重新读盘（D-B11-12：2.0.4 密钥迁移改写 store.json 之后、Init 之前）
+func (s *Store) Reload() { s.data = s.load() }
+
 func deepClone(v any) any {
 	switch t := v.(type) {
 	case *u.Obj:

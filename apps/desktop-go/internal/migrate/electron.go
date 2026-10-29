@@ -37,19 +37,51 @@ var skipNames = map[string]bool{
 }
 
 type Result struct {
-	Migrated          bool     `json:"migrated"`
-	Skipped           bool     `json:"skipped,omitempty"`
-	From              string   `json:"from,omitempty"`
-	To                string   `json:"to"`
-	FilesCopied       int      `json:"filesCopied"`
-	SecretsMigrated   int      `json:"secretsMigrated"`
-	SecretsFailed     []string `json:"secretsFailed,omitempty"`
-	ChatKeysExtracted int      `json:"chatKeysExtracted"`
-	At                string   `json:"at"`
+	Migrated        bool     `json:"migrated"`
+	Skipped         bool     `json:"skipped,omitempty"`
+	From            string   `json:"from,omitempty"`
+	To              string   `json:"to"`
+	FilesCopied     int      `json:"filesCopied"`
+	SecretsMigrated int      `json:"secretsMigrated"`
+	SecretsFailed   []string `json:"secretsFailed,omitempty"`
+	// SecretsPending：文件已复制、密钥（钥匙串）还没迁（D-B11-12：放到看板娘窗口出现之后）
+	SecretsPending    bool   `json:"secretsPending,omitempty"`
+	ChatKeysExtracted int    `json:"chatKeysExtracted"`
+	At                string `json:"at"`
 }
 
-// Run：若 Go userData 尚无迁移标记且能找到 Electron 目录，则复制并迁密钥。幂等。
+// Run：RunFiles + RunSecrets（同步一次做完）。幂等。
 func Run(goUserData string, box security.SecretBox, ss security.ElectronSafeStorage) (Result, error) {
+	r, err := RunFiles(goUserData)
+	if err != nil || !r.SecretsPending {
+		return r, err
+	}
+	return RunSecrets(goUserData, box, ss), nil
+}
+
+// RunSecrets：标记里 secretsPending 时迁密钥（唯一会碰钥匙串 / 弹授权框的一步），完成后清掉标记位。
+// 被拒 / 解不开的字段记入 secretsFailed、原样保留，读的一方当空（同 2.0.4 keyStore read failed）。
+func RunSecrets(goUserData string, box security.SecretBox, ss security.ElectronSafeStorage) Result {
+	marker := filepath.Join(goUserData, markerName)
+	res := Result{To: goUserData}
+	raw, err := os.ReadFile(marker)
+	if err != nil {
+		return res
+	}
+	_ = json.Unmarshal(raw, &res)
+	if !res.SecretsPending {
+		return res
+	}
+	res.SecretsMigrated, res.SecretsFailed = migrateSecrets(goUserData, box, ss)
+	res.SecretsPending = false
+	_ = writeMarker(marker, res)
+	log.Printf("[migrate] secrets=%d failed=%v", res.SecretsMigrated, res.SecretsFailed)
+	return res
+}
+
+// RunFiles：若 Go userData 尚无迁移标记且能找到 Electron 目录，则复制文件 / 抽聊天键，
+// 密钥留给 RunSecrets（标记 secretsPending）。不碰钥匙串。
+func RunFiles(goUserData string) (Result, error) {
 	res := Result{To: goUserData, At: time.Now().UTC().Format(time.RFC3339)}
 	marker := filepath.Join(goUserData, markerName)
 	if raw, err := os.ReadFile(marker); err == nil {
@@ -77,10 +109,8 @@ func Run(goUserData string, box security.SecretBox, ss security.ElectronSafeStor
 	res.FilesCopied = n
 	res.Migrated = true
 
-	// 密钥：gateway/store.json、ai-providers.json、voice/volc-key.json、ai-chat/keys.enc
-	failed := []string{}
-	res.SecretsMigrated, failed = migrateSecrets(goUserData, box, ss)
-	res.SecretsFailed = failed
+	// 密钥：gateway/store.json、ai-providers.json、voice/volc-key.json、ai-chat/keys.enc → RunSecrets
+	res.SecretsPending = true
 
 	// 聊天：从 Electron Local Storage LevelDB 抽 ai-chat:* 键
 	res.ChatKeysExtracted = aichat.ExtractLocalStorage(from, goUserData)
@@ -90,8 +120,8 @@ func Run(goUserData string, box security.SecretBox, ss security.ElectronSafeStor
 	_ = st.SetMascotRenderer("svg")
 
 	_ = writeMarker(marker, res)
-	log.Printf("[migrate] electron %s → %s: files=%d secrets=%d chatKeys=%d failed=%v",
-		from, goUserData, res.FilesCopied, res.SecretsMigrated, res.ChatKeysExtracted, res.SecretsFailed)
+	log.Printf("[migrate] electron %s → %s: files=%d chatKeys=%d (secrets pending)",
+		from, goUserData, res.FilesCopied, res.ChatKeysExtracted)
 	return res, nil
 }
 
@@ -400,4 +430,12 @@ func short(s string) string {
 		return s[:16]
 	}
 	return s
+}
+
+func readMarker(goUserData string) Result {
+	var res Result
+	if raw, err := os.ReadFile(filepath.Join(goUserData, markerName)); err == nil {
+		_ = json.Unmarshal(raw, &res)
+	}
+	return res
 }
