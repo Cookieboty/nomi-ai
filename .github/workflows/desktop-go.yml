@@ -50,13 +50,17 @@ jobs:
         # 平台相关用例（大小写不敏感 FS、path.win32、符号链接、进程派生）不跳过：每个平台现场用 Node 录制，Go 测试比对本平台录制
         run: |
           pnpm --filter @nomi-ai/cli-sdk build
-          pnpm --filter @nomi-ai/i18n build
+          # 录制脚本经 tsx 引用这些包的 dist：所有录制之前先构建（contract 在三平台都要，b5-batch 用）
+          pnpm --filter "@nomi-ai/core^..." --filter @nomi-ai/contract build
           export NOMI_GOLDEN_DIR="$RUNNER_TEMP/goldens"
           pnpm exec tsx scripts/parity/record-asset-protocols.mjs
           node scripts/parity/record-b7-drivers.mjs
           pnpm exec tsx scripts/parity/record-b7-harness.mjs
           pnpm exec tsx scripts/parity/record-b7-orch.mjs
           pnpm exec tsx scripts/parity/record-b7-tabs.mjs
+          pnpm exec tsx scripts/parity/record-b7-coding.mjs
+          pnpm exec tsx scripts/parity/record-b7-slash.mjs
+          pnpm exec tsx scripts/parity/record-b7-ws.mjs
           pnpm --filter @nomi-ai/types --filter @nomi-ai/i18n build
           pnpm exec tsx scripts/parity/record-b9.mjs
           pnpm exec tsx scripts/parity/check-scheme-url.mjs

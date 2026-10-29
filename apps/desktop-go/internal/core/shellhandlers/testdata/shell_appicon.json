@@ -1,0 +1,1149 @@
+{
+ "scenarios": [
+  {
+   "platform": "darwin",
+   "name": "missing",
+   "log": [
+    {
+     "op": "init",
+     "applies": [
+      [
+       "dock.setIcon",
+       "app-icons/sunset/dock.png"
+      ]
+     ]
+    },
+    {
+     "op": "get",
+     "ok": {
+      "variant": "sunset",
+      "platform": "darwin",
+      "previews": {
+       "ink": "preview:app-icons/ink/dock.png:{\"width\":96}",
+       "cream": "preview:app-icons/cream/dock.png:{\"width\":96}",
+       "sunset": "preview:app-icons/sunset/dock.png:{\"width\":96}"
+      }
+     },
+     "applies": []
+    },
+    {
+     "op": "set",
+     "arg": "cream",
+     "ok": "cream",
+     "applies": [
+      [
+       "dock.setIcon",
+       "app-icons/cream/dock.png"
+      ]
+     ]
+    },
+    {
+     "op": "file",
+     "ok": "{\"variant\":\"cream\"}",
+     "applies": []
+    },
+    {
+     "op": "get",
+     "ok": {
+      "variant": "cream",
+      "platform": "darwin",
+      "previews": {
+       "ink": "preview:app-icons/ink/dock.png:{\"width\":96}",
+       "cream": "preview:app-icons/cream/dock.png:{\"width\":96}",
+       "sunset": "preview:app-icons/sunset/dock.png:{\"width\":96}"
+      }
+     },
+     "applies": []
+    },
+    {
+     "op": "set",
+     "arg": "nope",
+     "ok": "sunset",
+     "applies": [
+      [
+       "dock.setIcon",
+       "app-icons/sunset/dock.png"
+      ]
+     ]
+    },
+    {
+     "op": "file",
+     "ok": "{\"variant\":\"sunset\"}",
+     "applies": []
+    },
+    {
+     "op": "set",
+     "arg": "",
+     "ok": "sunset",
+     "applies": [
+      [
+       "dock.setIcon",
+       "app-icons/sunset/dock.png"
+      ]
+     ]
+    },
+    {
+     "op": "set",
+     "arg": "ink",
+     "ok": "ink",
+     "applies": [
+      [
+       "dock.setIcon",
+       "app-icons/ink/dock.png"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "platform": "darwin",
+   "name": "ink",
+   "file": "{\"variant\":\"ink\"}",
+   "log": [
+    {
+     "op": "init",
+     "applies": [
+      [
+       "dock.setIcon",
+       "app-icons/ink/dock.png"
+      ]
+     ]
+    },
+    {
+     "op": "get",
+     "ok": {
+      "variant": "ink",
+      "platform": "darwin",
+      "previews": {
+       "ink": "preview:app-icons/ink/dock.png:{\"width\":96}",
+       "cream": "preview:app-icons/cream/dock.png:{\"width\":96}",
+       "sunset": "preview:app-icons/sunset/dock.png:{\"width\":96}"
+      }
+     },
+     "applies": []
+    }
+   ]
+  },
+  {
+   "platform": "darwin",
+   "name": "bogus",
+   "file": "{\"variant\":\"bogus\"}",
+   "log": [
+    {
+     "op": "init",
+     "applies": [
+      [
+       "dock.setIcon",
+       "app-icons/sunset/dock.png"
+      ]
+     ]
+    },
+    {
+     "op": "get",
+     "ok": {
+      "variant": "sunset",
+      "platform": "darwin",
+      "previews": {
+       "ink": "preview:app-icons/ink/dock.png:{\"width\":96}",
+       "cream": "preview:app-icons/cream/dock.png:{\"width\":96}",
+       "sunset": "preview:app-icons/sunset/dock.png:{\"width\":96}"
+      }
+     },
+     "applies": []
+    }
+   ]
+  },
+  {
+   "platform": "darwin",
+   "name": "badJson",
+   "file": "{",
+   "log": [
+    {
+     "op": "init",
+     "applies": [
+      [
+       "dock.setIcon",
+       "app-icons/sunset/dock.png"
+      ]
+     ]
+    },
+    {
+     "op": "get",
+     "ok": {
+      "variant": "sunset",
+      "platform": "darwin",
+      "previews": {
+       "ink": "preview:app-icons/ink/dock.png:{\"width\":96}",
+       "cream": "preview:app-icons/cream/dock.png:{\"width\":96}",
+       "sunset": "preview:app-icons/sunset/dock.png:{\"width\":96}"
+      }
+     },
+     "applies": []
+    },
+    {
+     "op": "set",
+     "arg": "sunset",
+     "ok": "sunset",
+     "applies": [
+      [
+       "dock.setIcon",
+       "app-icons/sunset/dock.png"
+      ]
+     ]
+    },
+    {
+     "op": "file",
+     "ok": "{\"variant\":\"sunset\"}",
+     "applies": []
+    }
+   ]
+  },
+  {
+   "platform": "darwin",
+   "name": "nullJson",
+   "file": "null",
+   "log": [
+    {
+     "op": "init",
+     "applies": [
+      [
+       "dock.setIcon",
+       "app-icons/sunset/dock.png"
+      ]
+     ]
+    },
+    {
+     "op": "get",
+     "ok": {
+      "variant": "sunset",
+      "platform": "darwin",
+      "previews": {
+       "ink": "preview:app-icons/ink/dock.png:{\"width\":96}",
+       "cream": "preview:app-icons/cream/dock.png:{\"width\":96}",
+       "sunset": "preview:app-icons/sunset/dock.png:{\"width\":96}"
+      }
+     },
+     "applies": []
+    }
+   ]
+  },
+  {
+   "platform": "darwin",
+   "name": "upper",
+   "file": "{\"variant\":\"INK\"}",
+   "log": [
+    {
+     "op": "init",
+     "applies": [
+      [
+       "dock.setIcon",
+       "app-icons/sunset/dock.png"
+      ]
+     ]
+    },
+    {
+     "op": "get",
+     "ok": {
+      "variant": "sunset",
+      "platform": "darwin",
+      "previews": {
+       "ink": "preview:app-icons/ink/dock.png:{\"width\":96}",
+       "cream": "preview:app-icons/cream/dock.png:{\"width\":96}",
+       "sunset": "preview:app-icons/sunset/dock.png:{\"width\":96}"
+      }
+     },
+     "applies": []
+    },
+    {
+     "op": "set",
+     "arg": "Cream",
+     "ok": "sunset",
+     "applies": [
+      [
+       "dock.setIcon",
+       "app-icons/sunset/dock.png"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "platform": "darwin",
+   "name": "unwritable",
+   "file": "dir",
+   "log": [
+    {
+     "op": "init",
+     "applies": [
+      [
+       "dock.setIcon",
+       "app-icons/sunset/dock.png"
+      ]
+     ]
+    },
+    {
+     "op": "set",
+     "arg": "ink",
+     "ok": "ink",
+     "applies": [
+      [
+       "dock.setIcon",
+       "app-icons/ink/dock.png"
+      ]
+     ]
+    },
+    {
+     "op": "get",
+     "ok": {
+      "variant": "ink",
+      "platform": "darwin",
+      "previews": {
+       "ink": "preview:app-icons/ink/dock.png:{\"width\":96}",
+       "cream": "preview:app-icons/cream/dock.png:{\"width\":96}",
+       "sunset": "preview:app-icons/sunset/dock.png:{\"width\":96}"
+      }
+     },
+     "applies": []
+    }
+   ]
+  },
+  {
+   "platform": "win32",
+   "name": "missing",
+   "log": [
+    {
+     "op": "init",
+     "applies": [
+      [
+       "win0.setIcon",
+       "app-icons/sunset/window.png"
+      ],
+      [
+       "win0.setAppDetails",
+       {
+        "appId": "com.cookieboty.nomi",
+        "appIconPath": "app-icons/sunset/app.ico",
+        "appIconIndex": 0
+       }
+      ],
+      [
+       "tray",
+       "app-icons/sunset/tray.png"
+      ]
+     ]
+    },
+    {
+     "op": "get",
+     "ok": {
+      "variant": "sunset",
+      "platform": "win32",
+      "previews": {
+       "ink": "preview:app-icons/ink/window.png:{\"width\":96}",
+       "cream": "preview:app-icons/cream/window.png:{\"width\":96}",
+       "sunset": "preview:app-icons/sunset/window.png:{\"width\":96}"
+      }
+     },
+     "applies": []
+    },
+    {
+     "op": "set",
+     "arg": "cream",
+     "ok": "cream",
+     "applies": [
+      [
+       "win0.setIcon",
+       "app-icons/cream/window.png"
+      ],
+      [
+       "win0.setAppDetails",
+       {
+        "appId": "com.cookieboty.nomi",
+        "appIconPath": "app-icons/cream/app.ico",
+        "appIconIndex": 0
+       }
+      ],
+      [
+       "tray",
+       "app-icons/cream/tray.png"
+      ]
+     ]
+    },
+    {
+     "op": "file",
+     "ok": "{\"variant\":\"cream\"}",
+     "applies": []
+    },
+    {
+     "op": "get",
+     "ok": {
+      "variant": "cream",
+      "platform": "win32",
+      "previews": {
+       "ink": "preview:app-icons/ink/window.png:{\"width\":96}",
+       "cream": "preview:app-icons/cream/window.png:{\"width\":96}",
+       "sunset": "preview:app-icons/sunset/window.png:{\"width\":96}"
+      }
+     },
+     "applies": []
+    },
+    {
+     "op": "set",
+     "arg": "nope",
+     "ok": "sunset",
+     "applies": [
+      [
+       "win0.setIcon",
+       "app-icons/sunset/window.png"
+      ],
+      [
+       "win0.setAppDetails",
+       {
+        "appId": "com.cookieboty.nomi",
+        "appIconPath": "app-icons/sunset/app.ico",
+        "appIconIndex": 0
+       }
+      ],
+      [
+       "tray",
+       "app-icons/sunset/tray.png"
+      ]
+     ]
+    },
+    {
+     "op": "file",
+     "ok": "{\"variant\":\"sunset\"}",
+     "applies": []
+    },
+    {
+     "op": "set",
+     "arg": "",
+     "ok": "sunset",
+     "applies": [
+      [
+       "win0.setIcon",
+       "app-icons/sunset/window.png"
+      ],
+      [
+       "win0.setAppDetails",
+       {
+        "appId": "com.cookieboty.nomi",
+        "appIconPath": "app-icons/sunset/app.ico",
+        "appIconIndex": 0
+       }
+      ],
+      [
+       "tray",
+       "app-icons/sunset/tray.png"
+      ]
+     ]
+    },
+    {
+     "op": "set",
+     "arg": "ink",
+     "ok": "ink",
+     "applies": [
+      [
+       "win0.setIcon",
+       "app-icons/ink/window.png"
+      ],
+      [
+       "win0.setAppDetails",
+       {
+        "appId": "com.cookieboty.nomi",
+        "appIconPath": "app-icons/ink/app.ico",
+        "appIconIndex": 0
+       }
+      ],
+      [
+       "tray",
+       "app-icons/ink/tray.png"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "platform": "win32",
+   "name": "ink",
+   "file": "{\"variant\":\"ink\"}",
+   "log": [
+    {
+     "op": "init",
+     "applies": [
+      [
+       "win0.setIcon",
+       "app-icons/ink/window.png"
+      ],
+      [
+       "win0.setAppDetails",
+       {
+        "appId": "com.cookieboty.nomi",
+        "appIconPath": "app-icons/ink/app.ico",
+        "appIconIndex": 0
+       }
+      ],
+      [
+       "tray",
+       "app-icons/ink/tray.png"
+      ]
+     ]
+    },
+    {
+     "op": "get",
+     "ok": {
+      "variant": "ink",
+      "platform": "win32",
+      "previews": {
+       "ink": "preview:app-icons/ink/window.png:{\"width\":96}",
+       "cream": "preview:app-icons/cream/window.png:{\"width\":96}",
+       "sunset": "preview:app-icons/sunset/window.png:{\"width\":96}"
+      }
+     },
+     "applies": []
+    }
+   ]
+  },
+  {
+   "platform": "win32",
+   "name": "bogus",
+   "file": "{\"variant\":\"bogus\"}",
+   "log": [
+    {
+     "op": "init",
+     "applies": [
+      [
+       "win0.setIcon",
+       "app-icons/sunset/window.png"
+      ],
+      [
+       "win0.setAppDetails",
+       {
+        "appId": "com.cookieboty.nomi",
+        "appIconPath": "app-icons/sunset/app.ico",
+        "appIconIndex": 0
+       }
+      ],
+      [
+       "tray",
+       "app-icons/sunset/tray.png"
+      ]
+     ]
+    },
+    {
+     "op": "get",
+     "ok": {
+      "variant": "sunset",
+      "platform": "win32",
+      "previews": {
+       "ink": "preview:app-icons/ink/window.png:{\"width\":96}",
+       "cream": "preview:app-icons/cream/window.png:{\"width\":96}",
+       "sunset": "preview:app-icons/sunset/window.png:{\"width\":96}"
+      }
+     },
+     "applies": []
+    }
+   ]
+  },
+  {
+   "platform": "win32",
+   "name": "badJson",
+   "file": "{",
+   "log": [
+    {
+     "op": "init",
+     "applies": [
+      [
+       "win0.setIcon",
+       "app-icons/sunset/window.png"
+      ],
+      [
+       "win0.setAppDetails",
+       {
+        "appId": "com.cookieboty.nomi",
+        "appIconPath": "app-icons/sunset/app.ico",
+        "appIconIndex": 0
+       }
+      ],
+      [
+       "tray",
+       "app-icons/sunset/tray.png"
+      ]
+     ]
+    },
+    {
+     "op": "get",
+     "ok": {
+      "variant": "sunset",
+      "platform": "win32",
+      "previews": {
+       "ink": "preview:app-icons/ink/window.png:{\"width\":96}",
+       "cream": "preview:app-icons/cream/window.png:{\"width\":96}",
+       "sunset": "preview:app-icons/sunset/window.png:{\"width\":96}"
+      }
+     },
+     "applies": []
+    },
+    {
+     "op": "set",
+     "arg": "sunset",
+     "ok": "sunset",
+     "applies": [
+      [
+       "win0.setIcon",
+       "app-icons/sunset/window.png"
+      ],
+      [
+       "win0.setAppDetails",
+       {
+        "appId": "com.cookieboty.nomi",
+        "appIconPath": "app-icons/sunset/app.ico",
+        "appIconIndex": 0
+       }
+      ],
+      [
+       "tray",
+       "app-icons/sunset/tray.png"
+      ]
+     ]
+    },
+    {
+     "op": "file",
+     "ok": "{\"variant\":\"sunset\"}",
+     "applies": []
+    }
+   ]
+  },
+  {
+   "platform": "win32",
+   "name": "nullJson",
+   "file": "null",
+   "log": [
+    {
+     "op": "init",
+     "applies": [
+      [
+       "win0.setIcon",
+       "app-icons/sunset/window.png"
+      ],
+      [
+       "win0.setAppDetails",
+       {
+        "appId": "com.cookieboty.nomi",
+        "appIconPath": "app-icons/sunset/app.ico",
+        "appIconIndex": 0
+       }
+      ],
+      [
+       "tray",
+       "app-icons/sunset/tray.png"
+      ]
+     ]
+    },
+    {
+     "op": "get",
+     "ok": {
+      "variant": "sunset",
+      "platform": "win32",
+      "previews": {
+       "ink": "preview:app-icons/ink/window.png:{\"width\":96}",
+       "cream": "preview:app-icons/cream/window.png:{\"width\":96}",
+       "sunset": "preview:app-icons/sunset/window.png:{\"width\":96}"
+      }
+     },
+     "applies": []
+    }
+   ]
+  },
+  {
+   "platform": "win32",
+   "name": "upper",
+   "file": "{\"variant\":\"INK\"}",
+   "log": [
+    {
+     "op": "init",
+     "applies": [
+      [
+       "win0.setIcon",
+       "app-icons/sunset/window.png"
+      ],
+      [
+       "win0.setAppDetails",
+       {
+        "appId": "com.cookieboty.nomi",
+        "appIconPath": "app-icons/sunset/app.ico",
+        "appIconIndex": 0
+       }
+      ],
+      [
+       "tray",
+       "app-icons/sunset/tray.png"
+      ]
+     ]
+    },
+    {
+     "op": "get",
+     "ok": {
+      "variant": "sunset",
+      "platform": "win32",
+      "previews": {
+       "ink": "preview:app-icons/ink/window.png:{\"width\":96}",
+       "cream": "preview:app-icons/cream/window.png:{\"width\":96}",
+       "sunset": "preview:app-icons/sunset/window.png:{\"width\":96}"
+      }
+     },
+     "applies": []
+    },
+    {
+     "op": "set",
+     "arg": "Cream",
+     "ok": "sunset",
+     "applies": [
+      [
+       "win0.setIcon",
+       "app-icons/sunset/window.png"
+      ],
+      [
+       "win0.setAppDetails",
+       {
+        "appId": "com.cookieboty.nomi",
+        "appIconPath": "app-icons/sunset/app.ico",
+        "appIconIndex": 0
+       }
+      ],
+      [
+       "tray",
+       "app-icons/sunset/tray.png"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "platform": "win32",
+   "name": "unwritable",
+   "file": "dir",
+   "log": [
+    {
+     "op": "init",
+     "applies": [
+      [
+       "win0.setIcon",
+       "app-icons/sunset/window.png"
+      ],
+      [
+       "win0.setAppDetails",
+       {
+        "appId": "com.cookieboty.nomi",
+        "appIconPath": "app-icons/sunset/app.ico",
+        "appIconIndex": 0
+       }
+      ],
+      [
+       "tray",
+       "app-icons/sunset/tray.png"
+      ]
+     ]
+    },
+    {
+     "op": "set",
+     "arg": "ink",
+     "ok": "ink",
+     "applies": [
+      [
+       "win0.setIcon",
+       "app-icons/ink/window.png"
+      ],
+      [
+       "win0.setAppDetails",
+       {
+        "appId": "com.cookieboty.nomi",
+        "appIconPath": "app-icons/ink/app.ico",
+        "appIconIndex": 0
+       }
+      ],
+      [
+       "tray",
+       "app-icons/ink/tray.png"
+      ]
+     ]
+    },
+    {
+     "op": "get",
+     "ok": {
+      "variant": "ink",
+      "platform": "win32",
+      "previews": {
+       "ink": "preview:app-icons/ink/window.png:{\"width\":96}",
+       "cream": "preview:app-icons/cream/window.png:{\"width\":96}",
+       "sunset": "preview:app-icons/sunset/window.png:{\"width\":96}"
+      }
+     },
+     "applies": []
+    }
+   ]
+  },
+  {
+   "platform": "linux",
+   "name": "missing",
+   "log": [
+    {
+     "op": "init",
+     "applies": [
+      [
+       "win0.setIcon",
+       "app-icons/sunset/window.png"
+      ],
+      [
+       "tray",
+       "app-icons/sunset/tray.png"
+      ]
+     ]
+    },
+    {
+     "op": "get",
+     "ok": {
+      "variant": "sunset",
+      "platform": "linux",
+      "previews": {
+       "ink": "preview:app-icons/ink/window.png:{\"width\":96}",
+       "cream": "preview:app-icons/cream/window.png:{\"width\":96}",
+       "sunset": "preview:app-icons/sunset/window.png:{\"width\":96}"
+      }
+     },
+     "applies": []
+    },
+    {
+     "op": "set",
+     "arg": "cream",
+     "ok": "cream",
+     "applies": [
+      [
+       "win0.setIcon",
+       "app-icons/cream/window.png"
+      ],
+      [
+       "tray",
+       "app-icons/cream/tray.png"
+      ]
+     ]
+    },
+    {
+     "op": "file",
+     "ok": "{\"variant\":\"cream\"}",
+     "applies": []
+    },
+    {
+     "op": "get",
+     "ok": {
+      "variant": "cream",
+      "platform": "linux",
+      "previews": {
+       "ink": "preview:app-icons/ink/window.png:{\"width\":96}",
+       "cream": "preview:app-icons/cream/window.png:{\"width\":96}",
+       "sunset": "preview:app-icons/sunset/window.png:{\"width\":96}"
+      }
+     },
+     "applies": []
+    },
+    {
+     "op": "set",
+     "arg": "nope",
+     "ok": "sunset",
+     "applies": [
+      [
+       "win0.setIcon",
+       "app-icons/sunset/window.png"
+      ],
+      [
+       "tray",
+       "app-icons/sunset/tray.png"
+      ]
+     ]
+    },
+    {
+     "op": "file",
+     "ok": "{\"variant\":\"sunset\"}",
+     "applies": []
+    },
+    {
+     "op": "set",
+     "arg": "",
+     "ok": "sunset",
+     "applies": [
+      [
+       "win0.setIcon",
+       "app-icons/sunset/window.png"
+      ],
+      [
+       "tray",
+       "app-icons/sunset/tray.png"
+      ]
+     ]
+    },
+    {
+     "op": "set",
+     "arg": "ink",
+     "ok": "ink",
+     "applies": [
+      [
+       "win0.setIcon",
+       "app-icons/ink/window.png"
+      ],
+      [
+       "tray",
+       "app-icons/ink/tray.png"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "platform": "linux",
+   "name": "ink",
+   "file": "{\"variant\":\"ink\"}",
+   "log": [
+    {
+     "op": "init",
+     "applies": [
+      [
+       "win0.setIcon",
+       "app-icons/ink/window.png"
+      ],
+      [
+       "tray",
+       "app-icons/ink/tray.png"
+      ]
+     ]
+    },
+    {
+     "op": "get",
+     "ok": {
+      "variant": "ink",
+      "platform": "linux",
+      "previews": {
+       "ink": "preview:app-icons/ink/window.png:{\"width\":96}",
+       "cream": "preview:app-icons/cream/window.png:{\"width\":96}",
+       "sunset": "preview:app-icons/sunset/window.png:{\"width\":96}"
+      }
+     },
+     "applies": []
+    }
+   ]
+  },
+  {
+   "platform": "linux",
+   "name": "bogus",
+   "file": "{\"variant\":\"bogus\"}",
+   "log": [
+    {
+     "op": "init",
+     "applies": [
+      [
+       "win0.setIcon",
+       "app-icons/sunset/window.png"
+      ],
+      [
+       "tray",
+       "app-icons/sunset/tray.png"
+      ]
+     ]
+    },
+    {
+     "op": "get",
+     "ok": {
+      "variant": "sunset",
+      "platform": "linux",
+      "previews": {
+       "ink": "preview:app-icons/ink/window.png:{\"width\":96}",
+       "cream": "preview:app-icons/cream/window.png:{\"width\":96}",
+       "sunset": "preview:app-icons/sunset/window.png:{\"width\":96}"
+      }
+     },
+     "applies": []
+    }
+   ]
+  },
+  {
+   "platform": "linux",
+   "name": "badJson",
+   "file": "{",
+   "log": [
+    {
+     "op": "init",
+     "applies": [
+      [
+       "win0.setIcon",
+       "app-icons/sunset/window.png"
+      ],
+      [
+       "tray",
+       "app-icons/sunset/tray.png"
+      ]
+     ]
+    },
+    {
+     "op": "get",
+     "ok": {
+      "variant": "sunset",
+      "platform": "linux",
+      "previews": {
+       "ink": "preview:app-icons/ink/window.png:{\"width\":96}",
+       "cream": "preview:app-icons/cream/window.png:{\"width\":96}",
+       "sunset": "preview:app-icons/sunset/window.png:{\"width\":96}"
+      }
+     },
+     "applies": []
+    },
+    {
+     "op": "set",
+     "arg": "sunset",
+     "ok": "sunset",
+     "applies": [
+      [
+       "win0.setIcon",
+       "app-icons/sunset/window.png"
+      ],
+      [
+       "tray",
+       "app-icons/sunset/tray.png"
+      ]
+     ]
+    },
+    {
+     "op": "file",
+     "ok": "{\"variant\":\"sunset\"}",
+     "applies": []
+    }
+   ]
+  },
+  {
+   "platform": "linux",
+   "name": "nullJson",
+   "file": "null",
+   "log": [
+    {
+     "op": "init",
+     "applies": [
+      [
+       "win0.setIcon",
+       "app-icons/sunset/window.png"
+      ],
+      [
+       "tray",
+       "app-icons/sunset/tray.png"
+      ]
+     ]
+    },
+    {
+     "op": "get",
+     "ok": {
+      "variant": "sunset",
+      "platform": "linux",
+      "previews": {
+       "ink": "preview:app-icons/ink/window.png:{\"width\":96}",
+       "cream": "preview:app-icons/cream/window.png:{\"width\":96}",
+       "sunset": "preview:app-icons/sunset/window.png:{\"width\":96}"
+      }
+     },
+     "applies": []
+    }
+   ]
+  },
+  {
+   "platform": "linux",
+   "name": "upper",
+   "file": "{\"variant\":\"INK\"}",
+   "log": [
+    {
+     "op": "init",
+     "applies": [
+      [
+       "win0.setIcon",
+       "app-icons/sunset/window.png"
+      ],
+      [
+       "tray",
+       "app-icons/sunset/tray.png"
+      ]
+     ]
+    },
+    {
+     "op": "get",
+     "ok": {
+      "variant": "sunset",
+      "platform": "linux",
+      "previews": {
+       "ink": "preview:app-icons/ink/window.png:{\"width\":96}",
+       "cream": "preview:app-icons/cream/window.png:{\"width\":96}",
+       "sunset": "preview:app-icons/sunset/window.png:{\"width\":96}"
+      }
+     },
+     "applies": []
+    },
+    {
+     "op": "set",
+     "arg": "Cream",
+     "ok": "sunset",
+     "applies": [
+      [
+       "win0.setIcon",
+       "app-icons/sunset/window.png"
+      ],
+      [
+       "tray",
+       "app-icons/sunset/tray.png"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "platform": "linux",
+   "name": "unwritable",
+   "file": "dir",
+   "log": [
+    {
+     "op": "init",
+     "applies": [
+      [
+       "win0.setIcon",
+       "app-icons/sunset/window.png"
+      ],
+      [
+       "tray",
+       "app-icons/sunset/tray.png"
+      ]
+     ]
+    },
+    {
+     "op": "set",
+     "arg": "ink",
+     "ok": "ink",
+     "applies": [
+      [
+       "win0.setIcon",
+       "app-icons/ink/window.png"
+      ],
+      [
+       "tray",
+       "app-icons/ink/tray.png"
+      ]
+     ]
+    },
+    {
+     "op": "get",
+     "ok": {
+      "variant": "ink",
+      "platform": "linux",
+      "previews": {
+       "ink": "preview:app-icons/ink/window.png:{\"width\":96}",
+       "cream": "preview:app-icons/cream/window.png:{\"width\":96}",
+       "sunset": "preview:app-icons/sunset/window.png:{\"width\":96}"
+      }
+     },
+     "applies": []
+    }
+   ]
+  }
+ ]
+}

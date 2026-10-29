@@ -121,11 +121,44 @@ type Logger interface {
 	Warn(msg string, kv ...any)
 }
 
+// LevelLogger = ILoggerService（error / warn / info / debug）；services.LoggerService 实现
+type LevelLogger interface {
+	Logger
+	Error(msg string, kv ...any)
+	Debug(msg string, kv ...any)
+}
+
+// Root：宿主启动时装上的 LoggerService（Node 各服务拿到的都是同一个 logger，不带 context）。
+// StdLogger 的 Prefix 只在 Root 未装（单元测试）时用于标准库 log 输出。
+var Root LevelLogger
+
 type StdLogger struct{ Prefix string }
 
-func (l StdLogger) Info(m string, kv ...any) { log.Println(append([]any{l.Prefix, m}, kv...)...) }
+func (l StdLogger) Info(m string, kv ...any) {
+	if Root != nil {
+		Root.Info(m, kv...)
+		return
+	}
+	log.Println(append([]any{l.Prefix, m}, kv...)...)
+}
 func (l StdLogger) Warn(m string, kv ...any) {
+	if Root != nil {
+		Root.Warn(m, kv...)
+		return
+	}
 	log.Println(append([]any{l.Prefix, "WARN", m}, kv...)...)
+}
+func (l StdLogger) Error(m string, kv ...any) {
+	if Root != nil {
+		Root.Error(m, kv...)
+		return
+	}
+	log.Println(append([]any{l.Prefix, "ERROR", m}, kv...)...)
+}
+func (l StdLogger) Debug(m string, kv ...any) {
+	if Root != nil {
+		Root.Debug(m, kv...)
+	}
 }
 
 // AvatarGesture / AvatarEmotion：ai/mascotCommand（契约事件 avatar.event）

@@ -7,11 +7,6 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// UsageDone mirrors USAGE_DONE。
-var UsageDone = &clisdk.ExecRules{Completes: func(ev clisdk.Ev) bool {
-	return ev.Get("type") == "done" && util.Truthy(ev.Get("usage"))
-}}
-
 // StripFor mirrors accounts.strip.filter((k) => ctx.accountDir || k !== HOME_ENV)。
 func StripFor(strip []string, accountDir *string, homeEnv string) []string {
 	out := []string{}

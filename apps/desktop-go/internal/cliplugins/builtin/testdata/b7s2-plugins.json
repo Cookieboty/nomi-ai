@@ -1,0 +1,1841 @@
+{
+ "ids": [
+  "claude",
+  "codex",
+  "dsh",
+  "gemini",
+  "grok"
+ ],
+ "manifests": {
+  "claude": {
+   "id": "claude",
+   "apiVersion": 1,
+   "displayName": "Claude Code",
+   "icon": "claude",
+   "binary": {
+    "names": [
+     "claude"
+    ],
+    "versionArgs": [
+     "--version"
+    ],
+    "versionPattern": "(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)",
+    "install": {
+     "npm": "@anthropic-ai/claude-code",
+     "url": "https://docs.claude.com/claude-code"
+    }
+   },
+   "transport": "stream-json",
+   "fallbackTransport": "exec",
+   "ingress": "messages",
+   "capabilities": {
+    "officialAccount": true,
+    "thirdParty": true,
+    "images": "native",
+    "permissionModes": [
+     {
+      "mode": "plan",
+      "args": [
+       "--permission-mode",
+       "plan"
+      ],
+      "modeId": "plan"
+     },
+     {
+      "mode": "manual",
+      "args": [
+       "--permission-mode",
+       "default"
+      ],
+      "modeId": "default"
+     },
+     {
+      "mode": "acceptEdits",
+      "args": [
+       "--permission-mode",
+       "acceptEdits"
+      ],
+      "modeId": "acceptEdits"
+     },
+     {
+      "mode": "auto",
+      "args": [
+       "--permission-mode",
+       "auto"
+      ],
+      "modeId": "auto"
+     },
+     {
+      "mode": "bypass",
+      "args": [
+       "--permission-mode",
+       "bypassPermissions"
+      ],
+      "modeId": "bypassPermissions"
+     }
+    ],
+    "subagents": true,
+    "subagentStop": true,
+    "slashCommands": true,
+    "resume": true,
+    "fork": false,
+    "usageQuota": true,
+    "progressMonitor": true,
+    "terminalCommand": true
+   },
+   "modelSwitch": "inplace",
+   "clientSpec": {
+    "client": "claude"
+   }
+  },
+  "codex": {
+   "id": "codex",
+   "apiVersion": 1,
+   "displayName": "Codex",
+   "icon": "codex",
+   "binary": {
+    "names": [
+     "codex"
+    ],
+    "versionArgs": [
+     "--version"
+    ],
+    "versionPattern": "(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)",
+    "install": {
+     "npm": "@openai/codex",
+     "url": "https://github.com/openai/codex"
+    }
+   },
+   "transport": "app-server",
+   "fallbackTransport": "exec",
+   "ingress": "responses",
+   "capabilities": {
+    "officialAccount": true,
+    "thirdParty": true,
+    "images": "path",
+    "permissionModes": [
+     {
+      "mode": "plan"
+     },
+     {
+      "mode": "manual"
+     },
+     {
+      "mode": "acceptEdits"
+     },
+     {
+      "mode": "auto"
+     },
+     {
+      "mode": "bypass"
+     }
+    ],
+    "subagents": true,
+    "slashCommands": true,
+    "resume": true,
+    "fork": false,
+    "usageQuota": true,
+    "progressMonitor": true,
+    "terminalCommand": true
+   },
+   "modelSwitch": "inplace",
+   "clientSpec": {
+    "client": "codex"
+   }
+  },
+  "dsh": {
+   "id": "dsh",
+   "apiVersion": 1,
+   "displayName": "dsh",
+   "icon": "dsh",
+   "binary": {
+    "names": [
+     "dsh"
+    ],
+    "versionArgs": [
+     "--version"
+    ],
+    "versionPattern": "(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)",
+    "install": {
+     "npm": "@deepseek-ai/dsh"
+    }
+   },
+   "transport": "exec",
+   "ingress": "responses",
+   "capabilities": {
+    "officialAccount": false,
+    "thirdParty": true,
+    "images": "none",
+    "permissionModes": [
+     {
+      "mode": "plan"
+     },
+     {
+      "mode": "acceptEdits"
+     },
+     {
+      "mode": "bypass"
+     }
+    ],
+    "subagents": true,
+    "slashCommands": false,
+    "resume": true,
+    "fork": false,
+    "usageQuota": false,
+    "progressMonitor": true,
+    "terminalCommand": false
+   },
+   "modelSwitch": "restart",
+   "clientSpec": {
+    "client": "dsh"
+   }
+  },
+  "gemini": {
+   "id": "gemini",
+   "apiVersion": 1,
+   "displayName": "Gemini",
+   "icon": "gemini",
+   "binary": {
+    "names": [
+     "gemini"
+    ],
+    "versionArgs": [
+     "--version"
+    ],
+    "versionPattern": "(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)",
+    "install": {
+     "npm": "@google/gemini-cli",
+     "url": "https://github.com/google-gemini/gemini-cli"
+    }
+   },
+   "transport": "acp",
+   "ingress": "gemini",
+   "capabilities": {
+    "officialAccount": true,
+    "thirdParty": true,
+    "images": "native",
+    "permissionModes": [
+     {
+      "mode": "plan",
+      "modeId": "plan"
+     },
+     {
+      "mode": "manual",
+      "modeId": "default"
+     },
+     {
+      "mode": "acceptEdits",
+      "modeId": "autoEdit"
+     },
+     {
+      "mode": "bypass",
+      "modeId": "yolo"
+     }
+    ],
+    "subagents": false,
+    "slashCommands": true,
+    "resume": true,
+    "fork": false,
+    "usageQuota": false,
+    "progressMonitor": true,
+    "terminalCommand": true
+   },
+   "modelSwitch": "inplace",
+   "clientSpec": {
+    "client": "gemini"
+   }
+  },
+  "grok": {
+   "id": "grok",
+   "apiVersion": 1,
+   "displayName": "Grok",
+   "icon": "grok",
+   "binary": {
+    "names": [
+     "grok"
+    ],
+    "versionArgs": [
+     "--version"
+    ],
+    "versionPattern": "(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)",
+    "install": {
+     "npm": "@xai-official/grok",
+     "url": "https://docs.x.ai/build/cli"
+    }
+   },
+   "transport": "acp",
+   "fallbackTransport": "exec",
+   "ingress": "responses",
+   "capabilities": {
+    "officialAccount": true,
+    "thirdParty": true,
+    "images": "native",
+    "permissionModes": [
+     {
+      "mode": "plan",
+      "args": [
+       "--permission-mode",
+       "plan"
+      ],
+      "modeId": "plan"
+     },
+     {
+      "mode": "manual",
+      "args": [
+       "--permission-mode",
+       "default"
+      ],
+      "modeId": "default"
+     },
+     {
+      "mode": "acceptEdits",
+      "args": [
+       "--permission-mode",
+       "acceptEdits"
+      ],
+      "modeId": "acceptEdits"
+     },
+     {
+      "mode": "bypass",
+      "args": [
+       "--yolo"
+      ],
+      "modeId": "bypassPermissions"
+     }
+    ],
+    "subagents": false,
+    "slashCommands": true,
+    "resume": true,
+    "fork": false,
+    "usageQuota": true,
+    "progressMonitor": true,
+    "terminalCommand": true
+   },
+   "modelSwitch": "gateway",
+   "clientSpec": {
+    "client": "grok",
+    "placeholderModel": "nomi"
+   }
+  }
+ },
+ "renderers": {
+  "claude": {
+   "id": "claude",
+   "displayName": "Claude Code",
+   "icon": "claude",
+   "capabilities": {
+    "officialAccount": true,
+    "thirdParty": true,
+    "images": "native",
+    "permissionModes": [
+     {
+      "mode": "plan",
+      "args": [
+       "--permission-mode",
+       "plan"
+      ],
+      "modeId": "plan"
+     },
+     {
+      "mode": "manual",
+      "args": [
+       "--permission-mode",
+       "default"
+      ],
+      "modeId": "default"
+     },
+     {
+      "mode": "acceptEdits",
+      "args": [
+       "--permission-mode",
+       "acceptEdits"
+      ],
+      "modeId": "acceptEdits"
+     },
+     {
+      "mode": "auto",
+      "args": [
+       "--permission-mode",
+       "auto"
+      ],
+      "modeId": "auto"
+     },
+     {
+      "mode": "bypass",
+      "args": [
+       "--permission-mode",
+       "bypassPermissions"
+      ],
+      "modeId": "bypassPermissions"
+     }
+    ],
+    "subagents": true,
+    "subagentStop": true,
+    "slashCommands": true,
+    "resume": true,
+    "fork": false,
+    "usageQuota": true,
+    "progressMonitor": true,
+    "terminalCommand": true
+   },
+   "permissionModes": [
+    "plan",
+    "manual",
+    "acceptEdits",
+    "auto",
+    "bypass"
+   ],
+   "modelSwitch": "inplace"
+  },
+  "codex": {
+   "id": "codex",
+   "displayName": "Codex",
+   "icon": "codex",
+   "capabilities": {
+    "officialAccount": true,
+    "thirdParty": true,
+    "images": "path",
+    "permissionModes": [
+     {
+      "mode": "plan"
+     },
+     {
+      "mode": "manual"
+     },
+     {
+      "mode": "acceptEdits"
+     },
+     {
+      "mode": "auto"
+     },
+     {
+      "mode": "bypass"
+     }
+    ],
+    "subagents": true,
+    "slashCommands": true,
+    "resume": true,
+    "fork": false,
+    "usageQuota": true,
+    "progressMonitor": true,
+    "terminalCommand": true
+   },
+   "permissionModes": [
+    "plan",
+    "manual",
+    "acceptEdits",
+    "auto",
+    "bypass"
+   ],
+   "modelSwitch": "inplace"
+  },
+  "dsh": {
+   "id": "dsh",
+   "displayName": "dsh",
+   "icon": "dsh",
+   "capabilities": {
+    "officialAccount": false,
+    "thirdParty": true,
+    "images": "none",
+    "permissionModes": [
+     {
+      "mode": "plan"
+     },
+     {
+      "mode": "acceptEdits"
+     },
+     {
+      "mode": "bypass"
+     }
+    ],
+    "subagents": true,
+    "slashCommands": false,
+    "resume": true,
+    "fork": false,
+    "usageQuota": false,
+    "progressMonitor": true,
+    "terminalCommand": false
+   },
+   "permissionModes": [
+    "plan",
+    "acceptEdits",
+    "bypass"
+   ],
+   "modelSwitch": "restart"
+  },
+  "gemini": {
+   "id": "gemini",
+   "displayName": "Gemini",
+   "icon": "gemini",
+   "capabilities": {
+    "officialAccount": true,
+    "thirdParty": true,
+    "images": "native",
+    "permissionModes": [
+     {
+      "mode": "plan",
+      "modeId": "plan"
+     },
+     {
+      "mode": "manual",
+      "modeId": "default"
+     },
+     {
+      "mode": "acceptEdits",
+      "modeId": "autoEdit"
+     },
+     {
+      "mode": "bypass",
+      "modeId": "yolo"
+     }
+    ],
+    "subagents": false,
+    "slashCommands": true,
+    "resume": true,
+    "fork": false,
+    "usageQuota": false,
+    "progressMonitor": true,
+    "terminalCommand": true
+   },
+   "permissionModes": [
+    "plan",
+    "manual",
+    "acceptEdits",
+    "bypass"
+   ],
+   "modelSwitch": "inplace"
+  },
+  "grok": {
+   "id": "grok",
+   "displayName": "Grok",
+   "icon": "grok",
+   "capabilities": {
+    "officialAccount": true,
+    "thirdParty": true,
+    "images": "native",
+    "permissionModes": [
+     {
+      "mode": "plan",
+      "args": [
+       "--permission-mode",
+       "plan"
+      ],
+      "modeId": "plan"
+     },
+     {
+      "mode": "manual",
+      "args": [
+       "--permission-mode",
+       "default"
+      ],
+      "modeId": "default"
+     },
+     {
+      "mode": "acceptEdits",
+      "args": [
+       "--permission-mode",
+       "acceptEdits"
+      ],
+      "modeId": "acceptEdits"
+     },
+     {
+      "mode": "bypass",
+      "args": [
+       "--yolo"
+      ],
+      "modeId": "bypassPermissions"
+     }
+    ],
+    "subagents": false,
+    "slashCommands": true,
+    "resume": true,
+    "fork": false,
+    "usageQuota": true,
+    "progressMonitor": true,
+    "terminalCommand": true
+   },
+   "permissionModes": [
+    "plan",
+    "manual",
+    "acceptEdits",
+    "bypass"
+   ],
+   "modelSwitch": "gateway"
+  }
+ },
+ "gatewayEntries": [
+  {
+   "client": "claude",
+   "ingress": "messages",
+   "clientSpec": {
+    "id": "claude",
+    "strictness": "lenient",
+    "builtinModels": [
+     {
+      "pattern": "^(?=.*(?:claude|^(?:opus|sonnet|haiku|fable|default)$)).*opus",
+      "slot": "tiers.opus"
+     },
+     {
+      "pattern": "^(?=.*(?:claude|^(?:opus|sonnet|haiku|fable|default)$)).*sonnet",
+      "slot": "tiers.sonnet"
+     },
+     {
+      "pattern": "^(?=.*(?:claude|^(?:opus|sonnet|haiku|fable|default)$)).*haiku",
+      "slot": "tiers.haiku"
+     },
+     {
+      "pattern": "^(?=.*(?:claude|^(?:opus|sonnet|haiku|fable|default)$)).*fable",
+      "slot": "tiers.fable"
+     },
+     {
+      "pattern": "(?:claude|^(?:opus|sonnet|haiku|fable|default)$)",
+      "slot": "main"
+     }
+    ],
+    "unknownToMain": false,
+    "sessionKey": [
+     {
+      "bodyPath": "prompt_cache_key",
+      "prefix": "pck"
+     },
+     {
+      "header": "x-claude-code-session-id",
+      "prefix": "cc"
+     },
+     {
+      "bodyPath": "metadata.user_id",
+      "parse": "claude-user",
+      "prefix": "cc"
+     }
+    ],
+    "heartbeat": {
+     "kind": "ping"
+    },
+    "legacy": {
+     "ingress": "messages"
+    },
+    "synthesizedReasoning": [
+     "thinking.budget_tokens"
+    ]
+   }
+  },
+  {
+   "client": "codex",
+   "ingress": "responses",
+   "clientSpec": {
+    "id": "codex",
+    "strictness": "lenient",
+    "unknownToMain": true,
+    "sessionKey": [
+     {
+      "bodyPath": "prompt_cache_key",
+      "prefix": "pck"
+     },
+     {
+      "header": "x-claude-code-session-id",
+      "prefix": "cc"
+     },
+     {
+      "bodyPath": "metadata.user_id",
+      "parse": "claude-user",
+      "prefix": "cc"
+     }
+    ],
+    "heartbeat": {
+     "kind": "comment"
+    },
+    "legacy": {
+     "userAgent": "codex"
+    }
+   }
+  },
+  {
+   "client": "grok",
+   "ingress": "responses",
+   "clientSpec": {
+    "id": "grok",
+    "strictness": "strict",
+    "acceptedEvents": "spec",
+    "helperModels": [
+     "^grok-4\\.6"
+    ],
+    "builtinModels": [
+     {
+      "pattern": "^nomi$",
+      "slot": "main"
+     }
+    ],
+    "unknownToMain": true,
+    "sessionKey": [
+     {
+      "bodyPath": "prompt_cache_key",
+      "prefix": "pck"
+     },
+     {
+      "header": "x-claude-code-session-id",
+      "prefix": "cc"
+     },
+     {
+      "bodyPath": "metadata.user_id",
+      "parse": "claude-user",
+      "prefix": "cc"
+     }
+    ],
+    "heartbeat": {
+     "kind": "comment"
+    },
+    "legacy": {
+     "userAgent": "grok"
+    }
+   }
+  },
+  {
+   "client": "dsh",
+   "ingress": "responses",
+   "clientSpec": {
+    "id": "dsh",
+    "strictness": "lenient",
+    "unknownToMain": true,
+    "sessionKey": [
+     {
+      "bodyPath": "prompt_cache_key",
+      "prefix": "pck"
+     },
+     {
+      "header": "x-claude-code-session-id",
+      "prefix": "cc"
+     },
+     {
+      "bodyPath": "metadata.user_id",
+      "parse": "claude-user",
+      "prefix": "cc"
+     }
+    ],
+    "heartbeat": {
+     "kind": "comment"
+    },
+    "legacy": {
+     "userAgent": "dsh"
+    }
+   }
+  },
+  {
+   "client": "gemini",
+   "ingress": "gemini",
+   "clientSpec": {
+    "id": "gemini",
+    "strictness": "lenient",
+    "unknownToMain": true,
+    "sessionKey": [
+     {
+      "bodyPath": "prompt_cache_key",
+      "prefix": "pck"
+     },
+     {
+      "header": "x-claude-code-session-id",
+      "prefix": "cc"
+     },
+     {
+      "bodyPath": "metadata.user_id",
+      "parse": "claude-user",
+      "prefix": "cc"
+     }
+    ],
+    "heartbeat": {
+     "kind": "comment"
+    },
+    "legacy": {
+     "ingress": "gemini"
+    }
+   }
+  }
+ ],
+ "defaultSessionKey": [
+  {
+   "bodyPath": "prompt_cache_key",
+   "prefix": "pck"
+  },
+  {
+   "header": "x-claude-code-session-id",
+   "prefix": "cc"
+  },
+  {
+   "bodyPath": "metadata.user_id",
+   "parse": "claude-user",
+   "prefix": "cc"
+  }
+ ],
+ "per": {
+  "claude": {
+   "manifest": {
+    "id": "claude",
+    "apiVersion": 1,
+    "displayName": "Claude Code",
+    "icon": "claude",
+    "binary": {
+     "names": [
+      "claude"
+     ],
+     "versionArgs": [
+      "--version"
+     ],
+     "versionPattern": "(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)",
+     "install": {
+      "npm": "@anthropic-ai/claude-code",
+      "url": "https://docs.claude.com/claude-code"
+     }
+    },
+    "transport": "stream-json",
+    "fallbackTransport": "exec",
+    "ingress": "messages",
+    "capabilities": {
+     "officialAccount": true,
+     "thirdParty": true,
+     "images": "native",
+     "permissionModes": [
+      {
+       "mode": "plan",
+       "args": [
+        "--permission-mode",
+        "plan"
+       ],
+       "modeId": "plan"
+      },
+      {
+       "mode": "manual",
+       "args": [
+        "--permission-mode",
+        "default"
+       ],
+       "modeId": "default"
+      },
+      {
+       "mode": "acceptEdits",
+       "args": [
+        "--permission-mode",
+        "acceptEdits"
+       ],
+       "modeId": "acceptEdits"
+      },
+      {
+       "mode": "auto",
+       "args": [
+        "--permission-mode",
+        "auto"
+       ],
+       "modeId": "auto"
+      },
+      {
+       "mode": "bypass",
+       "args": [
+        "--permission-mode",
+        "bypassPermissions"
+       ],
+       "modeId": "bypassPermissions"
+      }
+     ],
+     "subagents": true,
+     "subagentStop": true,
+     "slashCommands": true,
+     "resume": true,
+     "fork": false,
+     "usageQuota": true,
+     "progressMonitor": true,
+     "terminalCommand": true
+    },
+    "modelSwitch": "inplace",
+    "clientSpec": {
+     "client": "claude"
+    }
+   },
+   "renderer": {
+    "id": "claude",
+    "displayName": "Claude Code",
+    "icon": "claude",
+    "capabilities": {
+     "officialAccount": true,
+     "thirdParty": true,
+     "images": "native",
+     "permissionModes": [
+      {
+       "mode": "plan",
+       "args": [
+        "--permission-mode",
+        "plan"
+       ],
+       "modeId": "plan"
+      },
+      {
+       "mode": "manual",
+       "args": [
+        "--permission-mode",
+        "default"
+       ],
+       "modeId": "default"
+      },
+      {
+       "mode": "acceptEdits",
+       "args": [
+        "--permission-mode",
+        "acceptEdits"
+       ],
+       "modeId": "acceptEdits"
+      },
+      {
+       "mode": "auto",
+       "args": [
+        "--permission-mode",
+        "auto"
+       ],
+       "modeId": "auto"
+      },
+      {
+       "mode": "bypass",
+       "args": [
+        "--permission-mode",
+        "bypassPermissions"
+       ],
+       "modeId": "bypassPermissions"
+      }
+     ],
+     "subagents": true,
+     "subagentStop": true,
+     "slashCommands": true,
+     "resume": true,
+     "fork": false,
+     "usageQuota": true,
+     "progressMonitor": true,
+     "terminalCommand": true
+    },
+    "permissionModes": [
+     "plan",
+     "manual",
+     "acceptEdits",
+     "auto",
+     "bypass"
+    ],
+    "modelSwitch": "inplace"
+   },
+   "gateway": {
+    "client": "claude",
+    "ingress": "messages",
+    "clientSpec": {
+     "id": "claude",
+     "strictness": "lenient",
+     "builtinModels": [
+      {
+       "pattern": "^(?=.*(?:claude|^(?:opus|sonnet|haiku|fable|default)$)).*opus",
+       "slot": "tiers.opus"
+      },
+      {
+       "pattern": "^(?=.*(?:claude|^(?:opus|sonnet|haiku|fable|default)$)).*sonnet",
+       "slot": "tiers.sonnet"
+      },
+      {
+       "pattern": "^(?=.*(?:claude|^(?:opus|sonnet|haiku|fable|default)$)).*haiku",
+       "slot": "tiers.haiku"
+      },
+      {
+       "pattern": "^(?=.*(?:claude|^(?:opus|sonnet|haiku|fable|default)$)).*fable",
+       "slot": "tiers.fable"
+      },
+      {
+       "pattern": "(?:claude|^(?:opus|sonnet|haiku|fable|default)$)",
+       "slot": "main"
+      }
+     ],
+     "unknownToMain": false,
+     "sessionKey": [
+      {
+       "bodyPath": "prompt_cache_key",
+       "prefix": "pck"
+      },
+      {
+       "header": "x-claude-code-session-id",
+       "prefix": "cc"
+      },
+      {
+       "bodyPath": "metadata.user_id",
+       "parse": "claude-user",
+       "prefix": "cc"
+      }
+     ],
+     "heartbeat": {
+      "kind": "ping"
+     },
+     "legacy": {
+      "ingress": "messages"
+     },
+     "synthesizedReasoning": [
+      "thinking.budget_tokens"
+     ]
+    }
+   },
+   "sameManifest": true,
+   "sameRenderer": true,
+   "capsShared": true,
+   "sessionKeyShared": true,
+   "gatewayIndex": 0
+  },
+  "codex": {
+   "manifest": {
+    "id": "codex",
+    "apiVersion": 1,
+    "displayName": "Codex",
+    "icon": "codex",
+    "binary": {
+     "names": [
+      "codex"
+     ],
+     "versionArgs": [
+      "--version"
+     ],
+     "versionPattern": "(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)",
+     "install": {
+      "npm": "@openai/codex",
+      "url": "https://github.com/openai/codex"
+     }
+    },
+    "transport": "app-server",
+    "fallbackTransport": "exec",
+    "ingress": "responses",
+    "capabilities": {
+     "officialAccount": true,
+     "thirdParty": true,
+     "images": "path",
+     "permissionModes": [
+      {
+       "mode": "plan"
+      },
+      {
+       "mode": "manual"
+      },
+      {
+       "mode": "acceptEdits"
+      },
+      {
+       "mode": "auto"
+      },
+      {
+       "mode": "bypass"
+      }
+     ],
+     "subagents": true,
+     "slashCommands": true,
+     "resume": true,
+     "fork": false,
+     "usageQuota": true,
+     "progressMonitor": true,
+     "terminalCommand": true
+    },
+    "modelSwitch": "inplace",
+    "clientSpec": {
+     "client": "codex"
+    }
+   },
+   "renderer": {
+    "id": "codex",
+    "displayName": "Codex",
+    "icon": "codex",
+    "capabilities": {
+     "officialAccount": true,
+     "thirdParty": true,
+     "images": "path",
+     "permissionModes": [
+      {
+       "mode": "plan"
+      },
+      {
+       "mode": "manual"
+      },
+      {
+       "mode": "acceptEdits"
+      },
+      {
+       "mode": "auto"
+      },
+      {
+       "mode": "bypass"
+      }
+     ],
+     "subagents": true,
+     "slashCommands": true,
+     "resume": true,
+     "fork": false,
+     "usageQuota": true,
+     "progressMonitor": true,
+     "terminalCommand": true
+    },
+    "permissionModes": [
+     "plan",
+     "manual",
+     "acceptEdits",
+     "auto",
+     "bypass"
+    ],
+    "modelSwitch": "inplace"
+   },
+   "gateway": {
+    "client": "codex",
+    "ingress": "responses",
+    "clientSpec": {
+     "id": "codex",
+     "strictness": "lenient",
+     "unknownToMain": true,
+     "sessionKey": [
+      {
+       "bodyPath": "prompt_cache_key",
+       "prefix": "pck"
+      },
+      {
+       "header": "x-claude-code-session-id",
+       "prefix": "cc"
+      },
+      {
+       "bodyPath": "metadata.user_id",
+       "parse": "claude-user",
+       "prefix": "cc"
+      }
+     ],
+     "heartbeat": {
+      "kind": "comment"
+     },
+     "legacy": {
+      "userAgent": "codex"
+     }
+    }
+   },
+   "sameManifest": true,
+   "sameRenderer": true,
+   "capsShared": true,
+   "sessionKeyShared": true,
+   "gatewayIndex": 1
+  },
+  "dsh": {
+   "manifest": {
+    "id": "dsh",
+    "apiVersion": 1,
+    "displayName": "dsh",
+    "icon": "dsh",
+    "binary": {
+     "names": [
+      "dsh"
+     ],
+     "versionArgs": [
+      "--version"
+     ],
+     "versionPattern": "(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)",
+     "install": {
+      "npm": "@deepseek-ai/dsh"
+     }
+    },
+    "transport": "exec",
+    "ingress": "responses",
+    "capabilities": {
+     "officialAccount": false,
+     "thirdParty": true,
+     "images": "none",
+     "permissionModes": [
+      {
+       "mode": "plan"
+      },
+      {
+       "mode": "acceptEdits"
+      },
+      {
+       "mode": "bypass"
+      }
+     ],
+     "subagents": true,
+     "slashCommands": false,
+     "resume": true,
+     "fork": false,
+     "usageQuota": false,
+     "progressMonitor": true,
+     "terminalCommand": false
+    },
+    "modelSwitch": "restart",
+    "clientSpec": {
+     "client": "dsh"
+    }
+   },
+   "renderer": {
+    "id": "dsh",
+    "displayName": "dsh",
+    "icon": "dsh",
+    "capabilities": {
+     "officialAccount": false,
+     "thirdParty": true,
+     "images": "none",
+     "permissionModes": [
+      {
+       "mode": "plan"
+      },
+      {
+       "mode": "acceptEdits"
+      },
+      {
+       "mode": "bypass"
+      }
+     ],
+     "subagents": true,
+     "slashCommands": false,
+     "resume": true,
+     "fork": false,
+     "usageQuota": false,
+     "progressMonitor": true,
+     "terminalCommand": false
+    },
+    "permissionModes": [
+     "plan",
+     "acceptEdits",
+     "bypass"
+    ],
+    "modelSwitch": "restart"
+   },
+   "gateway": {
+    "client": "dsh",
+    "ingress": "responses",
+    "clientSpec": {
+     "id": "dsh",
+     "strictness": "lenient",
+     "unknownToMain": true,
+     "sessionKey": [
+      {
+       "bodyPath": "prompt_cache_key",
+       "prefix": "pck"
+      },
+      {
+       "header": "x-claude-code-session-id",
+       "prefix": "cc"
+      },
+      {
+       "bodyPath": "metadata.user_id",
+       "parse": "claude-user",
+       "prefix": "cc"
+      }
+     ],
+     "heartbeat": {
+      "kind": "comment"
+     },
+     "legacy": {
+      "userAgent": "dsh"
+     }
+    }
+   },
+   "sameManifest": true,
+   "sameRenderer": true,
+   "capsShared": true,
+   "sessionKeyShared": true,
+   "gatewayIndex": 3
+  },
+  "gemini": {
+   "manifest": {
+    "id": "gemini",
+    "apiVersion": 1,
+    "displayName": "Gemini",
+    "icon": "gemini",
+    "binary": {
+     "names": [
+      "gemini"
+     ],
+     "versionArgs": [
+      "--version"
+     ],
+     "versionPattern": "(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)",
+     "install": {
+      "npm": "@google/gemini-cli",
+      "url": "https://github.com/google-gemini/gemini-cli"
+     }
+    },
+    "transport": "acp",
+    "ingress": "gemini",
+    "capabilities": {
+     "officialAccount": true,
+     "thirdParty": true,
+     "images": "native",
+     "permissionModes": [
+      {
+       "mode": "plan",
+       "modeId": "plan"
+      },
+      {
+       "mode": "manual",
+       "modeId": "default"
+      },
+      {
+       "mode": "acceptEdits",
+       "modeId": "autoEdit"
+      },
+      {
+       "mode": "bypass",
+       "modeId": "yolo"
+      }
+     ],
+     "subagents": false,
+     "slashCommands": true,
+     "resume": true,
+     "fork": false,
+     "usageQuota": false,
+     "progressMonitor": true,
+     "terminalCommand": true
+    },
+    "modelSwitch": "inplace",
+    "clientSpec": {
+     "client": "gemini"
+    }
+   },
+   "renderer": {
+    "id": "gemini",
+    "displayName": "Gemini",
+    "icon": "gemini",
+    "capabilities": {
+     "officialAccount": true,
+     "thirdParty": true,
+     "images": "native",
+     "permissionModes": [
+      {
+       "mode": "plan",
+       "modeId": "plan"
+      },
+      {
+       "mode": "manual",
+       "modeId": "default"
+      },
+      {
+       "mode": "acceptEdits",
+       "modeId": "autoEdit"
+      },
+      {
+       "mode": "bypass",
+       "modeId": "yolo"
+      }
+     ],
+     "subagents": false,
+     "slashCommands": true,
+     "resume": true,
+     "fork": false,
+     "usageQuota": false,
+     "progressMonitor": true,
+     "terminalCommand": true
+    },
+    "permissionModes": [
+     "plan",
+     "manual",
+     "acceptEdits",
+     "bypass"
+    ],
+    "modelSwitch": "inplace"
+   },
+   "gateway": {
+    "client": "gemini",
+    "ingress": "gemini",
+    "clientSpec": {
+     "id": "gemini",
+     "strictness": "lenient",
+     "unknownToMain": true,
+     "sessionKey": [
+      {
+       "bodyPath": "prompt_cache_key",
+       "prefix": "pck"
+      },
+      {
+       "header": "x-claude-code-session-id",
+       "prefix": "cc"
+      },
+      {
+       "bodyPath": "metadata.user_id",
+       "parse": "claude-user",
+       "prefix": "cc"
+      }
+     ],
+     "heartbeat": {
+      "kind": "comment"
+     },
+     "legacy": {
+      "ingress": "gemini"
+     }
+    }
+   },
+   "sameManifest": true,
+   "sameRenderer": true,
+   "capsShared": true,
+   "sessionKeyShared": true,
+   "gatewayIndex": 4
+  },
+  "grok": {
+   "manifest": {
+    "id": "grok",
+    "apiVersion": 1,
+    "displayName": "Grok",
+    "icon": "grok",
+    "binary": {
+     "names": [
+      "grok"
+     ],
+     "versionArgs": [
+      "--version"
+     ],
+     "versionPattern": "(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)",
+     "install": {
+      "npm": "@xai-official/grok",
+      "url": "https://docs.x.ai/build/cli"
+     }
+    },
+    "transport": "acp",
+    "fallbackTransport": "exec",
+    "ingress": "responses",
+    "capabilities": {
+     "officialAccount": true,
+     "thirdParty": true,
+     "images": "native",
+     "permissionModes": [
+      {
+       "mode": "plan",
+       "args": [
+        "--permission-mode",
+        "plan"
+       ],
+       "modeId": "plan"
+      },
+      {
+       "mode": "manual",
+       "args": [
+        "--permission-mode",
+        "default"
+       ],
+       "modeId": "default"
+      },
+      {
+       "mode": "acceptEdits",
+       "args": [
+        "--permission-mode",
+        "acceptEdits"
+       ],
+       "modeId": "acceptEdits"
+      },
+      {
+       "mode": "bypass",
+       "args": [
+        "--yolo"
+       ],
+       "modeId": "bypassPermissions"
+      }
+     ],
+     "subagents": false,
+     "slashCommands": true,
+     "resume": true,
+     "fork": false,
+     "usageQuota": true,
+     "progressMonitor": true,
+     "terminalCommand": true
+    },
+    "modelSwitch": "gateway",
+    "clientSpec": {
+     "client": "grok",
+     "placeholderModel": "nomi"
+    }
+   },
+   "renderer": {
+    "id": "grok",
+    "displayName": "Grok",
+    "icon": "grok",
+    "capabilities": {
+     "officialAccount": true,
+     "thirdParty": true,
+     "images": "native",
+     "permissionModes": [
+      {
+       "mode": "plan",
+       "args": [
+        "--permission-mode",
+        "plan"
+       ],
+       "modeId": "plan"
+      },
+      {
+       "mode": "manual",
+       "args": [
+        "--permission-mode",
+        "default"
+       ],
+       "modeId": "default"
+      },
+      {
+       "mode": "acceptEdits",
+       "args": [
+        "--permission-mode",
+        "acceptEdits"
+       ],
+       "modeId": "acceptEdits"
+      },
+      {
+       "mode": "bypass",
+       "args": [
+        "--yolo"
+       ],
+       "modeId": "bypassPermissions"
+      }
+     ],
+     "subagents": false,
+     "slashCommands": true,
+     "resume": true,
+     "fork": false,
+     "usageQuota": true,
+     "progressMonitor": true,
+     "terminalCommand": true
+    },
+    "permissionModes": [
+     "plan",
+     "manual",
+     "acceptEdits",
+     "bypass"
+    ],
+    "modelSwitch": "gateway"
+   },
+   "gateway": {
+    "client": "grok",
+    "ingress": "responses",
+    "clientSpec": {
+     "id": "grok",
+     "strictness": "strict",
+     "acceptedEvents": "spec",
+     "helperModels": [
+      "^grok-4\\.6"
+     ],
+     "builtinModels": [
+      {
+       "pattern": "^nomi$",
+       "slot": "main"
+      }
+     ],
+     "unknownToMain": true,
+     "sessionKey": [
+      {
+       "bodyPath": "prompt_cache_key",
+       "prefix": "pck"
+      },
+      {
+       "header": "x-claude-code-session-id",
+       "prefix": "cc"
+      },
+      {
+       "bodyPath": "metadata.user_id",
+       "parse": "claude-user",
+       "prefix": "cc"
+      }
+     ],
+     "heartbeat": {
+      "kind": "comment"
+     },
+     "legacy": {
+      "userAgent": "grok"
+     }
+    }
+   },
+   "sameManifest": true,
+   "sameRenderer": true,
+   "capsShared": true,
+   "sessionKeyShared": true,
+   "gatewayIndex": 2
+  }
+ },
+ "fns": [
+  {
+   "fn": "rendererInfo",
+   "args": [
+    {
+     "id": "x",
+     "displayName": "X",
+     "icon": "i",
+     "capabilities": {},
+     "modelSwitch": "restart",
+     "extra": 1
+    }
+   ],
+   "out": {
+    "id": "x",
+    "displayName": "X",
+    "icon": "i",
+    "capabilities": {},
+    "permissionModes": [],
+    "modelSwitch": "restart"
+   }
+  },
+  {
+   "fn": "rendererInfo",
+   "args": [
+    {
+     "id": "y",
+     "displayName": "Y",
+     "icon": "j",
+     "capabilities": {
+      "permissionModes": [
+       {
+        "mode": "plan",
+        "args": [
+         "a"
+        ]
+       },
+       {
+        "mode": "bypass"
+       }
+      ],
+      "images": "none"
+     }
+    }
+   ],
+   "out": {
+    "id": "y",
+    "displayName": "Y",
+    "icon": "j",
+    "capabilities": {
+     "permissionModes": [
+      {
+       "mode": "plan",
+       "args": [
+        "a"
+       ]
+      },
+      {
+       "mode": "bypass"
+      }
+     ],
+     "images": "none"
+    },
+    "permissionModes": [
+     "plan",
+     "bypass"
+    ]
+   }
+  },
+  {
+   "fn": "rendererInfo",
+   "args": [
+    {
+     "id": "z",
+     "capabilities": {
+      "permissionModes": []
+     }
+    }
+   ],
+   "out": {
+    "id": "z",
+    "capabilities": {
+     "permissionModes": []
+    },
+    "permissionModes": []
+   }
+  },
+  {
+   "fn": "usageDone",
+   "args": [
+    {
+     "type": "done",
+     "usage": {
+      "a": 1
+     }
+    }
+   ],
+   "out": true
+  },
+  {
+   "fn": "usageDone",
+   "args": [
+    {
+     "type": "done"
+    }
+   ],
+   "out": false
+  },
+  {
+   "fn": "usageDone",
+   "args": [
+    {
+     "type": "done",
+     "usage": null
+    }
+   ],
+   "out": false
+  },
+  {
+   "fn": "usageDone",
+   "args": [
+    {
+     "type": "done",
+     "usage": 0
+    }
+   ],
+   "out": false
+  },
+  {
+   "fn": "usageDone",
+   "args": [
+    {
+     "type": "done",
+     "usage": ""
+    }
+   ],
+   "out": false
+  },
+  {
+   "fn": "usageDone",
+   "args": [
+    {
+     "type": "done",
+     "usage": "x"
+    }
+   ],
+   "out": true
+  },
+  {
+   "fn": "usageDone",
+   "args": [
+    {
+     "type": "done",
+     "usage": []
+    }
+   ],
+   "out": true
+  },
+  {
+   "fn": "usageDone",
+   "args": [
+    {
+     "type": "text",
+     "usage": {}
+    }
+   ],
+   "out": false
+  },
+  {
+   "fn": "usageDone",
+   "args": [
+    {}
+   ],
+   "out": false
+  },
+  {
+   "fn": "cleanTitle",
+   "args": [
+    "hello world"
+   ],
+   "out": "hello world"
+  },
+  {
+   "fn": "cleanTitle",
+   "args": [
+    null
+   ],
+   "out": "<undefined>"
+  },
+  {
+   "fn": "cleanTitle",
+   "args": [
+    ""
+   ],
+   "out": "<undefined>"
+  },
+  {
+   "fn": "cleanTitle",
+   "args": [
+    "  a  \n b "
+   ],
+   "out": "a b"
+  },
+  {
+   "fn": "cleanTitle",
+   "args": [
+    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   ],
+   "out": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…"
+  },
+  {
+   "fn": "cleanTitle",
+   "args": [
+    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   ],
+   "out": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  {
+   "fn": "cleanTitle",
+   "args": [
+    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   ],
+   "out": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…"
+  },
+  {
+   "fn": "cleanTitle",
+   "args": [
+    "abcdef",
+    3
+   ],
+   "out": "ab…"
+  },
+  {
+   "fn": "cleanTitle",
+   "args": [
+    "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+    10
+   ],
+   "out": "😀😀😀😀\ud83d…"
+  },
+  {
+   "fn": "cleanTitle",
+   "args": [
+    "<command-name>/review</command-name><command-args>pr 3</command-args>"
+   ],
+   "out": "/review pr 3"
+  },
+  {
+   "fn": "cleanTitle",
+   "args": [
+    "<system-reminder>x</system-reminder>"
+   ],
+   "out": "<undefined>"
+  },
+  {
+   "fn": "cleanTitle",
+   "args": [
+    "<environment_context>x"
+   ],
+   "out": "<undefined>"
+  },
+  {
+   "fn": "cleanTitle",
+   "args": [
+    "  # agents.md hi"
+   ],
+   "out": "<undefined>"
+  },
+  {
+   "fn": "cleanTitle",
+   "args": [
+    "<INSTRUCTIONS>"
+   ],
+   "out": "<undefined>"
+  },
+  {
+   "fn": "cleanTitle",
+   "args": [
+    "   "
+   ],
+   "out": "<undefined>"
+  },
+  {
+   "fn": "cleanTitle",
+   "args": [
+    "a  b"
+   ],
+   "out": "a b"
+  }
+ ],
+ "isBuiltin": [
+  true,
+  true,
+  false,
+  false,
+  false,
+  false
+ ]
+}

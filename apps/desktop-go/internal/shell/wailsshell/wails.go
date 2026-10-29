@@ -39,6 +39,10 @@ type Wails struct {
 	wins map[shell.WindowKind]*application.WebviewWindow
 	tray *application.SystemTray
 	aot  map[shell.WindowKind]bool // SetAlwaysOnTop 记下的状态（重建时沿用）
+	// 应用图标（appicon.go）：新建窗口回调、启动前排队的操作
+	created []func(IconWindow)
+	started bool
+	pending []func()
 	// loads：窗口页面还在加载（= webContents.isLoading()）时，等 did-finish-load 的回调
 	loads map[*application.WebviewWindow]*pageLoad
 }
@@ -65,6 +69,7 @@ func New(cfg Config) *Wails {
 			},
 		},
 	})
+	w.hookStarted()
 	if trayHostAvailable() {
 		w.setupTray()
 	} else {
@@ -236,6 +241,7 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 	if at != nil {
 		win.SetBounds(application.Rect{X: at.X, Y: at.Y, Width: at.Width, Height: at.Height})
 	}
+	w.fireCreated(win)
 	win.Show()
 	w.notify(k, "created")
 	return win
