@@ -143,7 +143,7 @@ export async function recordUpstream({ gw, root }) {
   // Date.parse reads asctime / bare years in local time: pin TZ so the fixture is machine-independent.
   const prevTZ = process.env.TZ;
   process.env.TZ = out.tz = 'America/New_York';
-  out.retryAfter = [undefined, null, '', ' 5 ', '1.5', '0', '1.2345', '-1', '1e3', 'Wed, 01 Jan 2026 00:00:30 GMT', 'Wednesday, 31-Dec-25 23:59:00 GMT', 'Thu Jan  1 00:01:00 2026', '2026-01-01T00:02:00Z', '2026-01-01T00:02:00.500+01:00', 'soon', '12abc']
+  out.retryAfter = [undefined, null, '', ' 5 ', '1.5', '0', '1.2345', '-1', '1e3', 'Wed, 01 Jan 2026 00:00:30 GMT', 'Wednesday, 31-Dec-25 23:59:00 GMT', 'Thu Jan  1 00:01:00 2026', '2026-01-01T00:02:00Z', '2026-01-01T00:02:00.500+01:00', 'soon', '12abc', '2026', '-2026', 'Jan 1 2026 00:03:00', '2026/01/01 00:04', '1 January 2026 10:00 PST', 'Thu, 01 Jan 2026 00:00:40 +0100', 'Mar 8 2026 02:30:00', 'Nov 1 2026 01:30:00', '2026-01-01', '2026-13-01', 'Thursday January 1, 2026', '01 Jan 2026 00:05:00 UT', '2026-01-01 00:06:00', '-5', '-0', 'Jan 5', 'x 2026 5', 'x 5 2026', '-13', '-32']
     .map((v) => ({ v: v ?? null, r: cd.parseRetryAfter(v, now) }));
   if (prevTZ === undefined) delete process.env.TZ; else process.env.TZ = prevTZ;
   out.coolsDown = [{}, { network: true }, { upstreamStatus: 429 }, { upstreamStatus: 500 }, { upstreamStatus: 404 }, { upstreamStatus: 401 }, { upstreamStatus: 403 }, { upstreamStatus: 499 }, { upstreamStatus: 529 }, { network: false, upstreamStatus: 200 }]

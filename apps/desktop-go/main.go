@@ -150,7 +150,7 @@ func main() {
 	if ctl != "" {
 		frag.Set("ctl", ctl)
 	}
-	sh = wailsshell.New(wailsshell.Config{Assets: assets, Fragment: frag, MascotSize: mascotCtl.WindowSize})
+	sh = wailsshell.New(wailsshell.Config{Assets: assets, Fragment: frag, MascotSize: mascotCtl.WindowSize, OnWindow: mascotCtl.WindowEvent})
 
 	if ctl != "" {
 		go http.ListenAndServe(ctl, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -171,9 +171,7 @@ func main() {
 				sh.Destroy(shell.Mascot)
 			case "renderer": // 测量用：等同 mascot.setRenderer（写设置 + 广播）
 				if v := r.URL.Query().Get("v"); v == "svg" || v == "rive" {
-					if err := bundle.Settings.SetMascotRenderer(v); err == nil {
-						router.Emit("mascot.rendererChanged", v)
-					}
+					_, _ = mascotCtl.SetRenderer(v)
 				}
 			case "quit":
 				sh.Quit()
@@ -183,7 +181,8 @@ func main() {
 	}
 
 	sh.Show(shell.Mascot)
-	if !sh.TrayAvailable() {
+	// 没有托盘时自动开对话窗口兜底；测量模式（NOMI_POC_CTL）不开，与 POC 口径一致（对话由 show-chat 显式打开）
+	if !sh.TrayAvailable() && ctl == "" {
 		sh.Show(shell.Chat)
 	}
 	if err := sh.Run(); err != nil {

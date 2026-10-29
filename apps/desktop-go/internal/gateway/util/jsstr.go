@@ -218,3 +218,14 @@ func finalSigma(rs []rune, i int) bool {
 	}
 	return true
 }
+
+// CodePoints is `[...s].map(c => c.codePointAt(0))` (lone surrogates as themselves).
+func CodePoints(s string) []rune {
+	out := make([]rune, 0, len(s))
+	for i := 0; i < len(s); {
+		r, size := decodeUnit(s[i:])
+		out = append(out, r)
+		i += size
+	}
+	return out
+}

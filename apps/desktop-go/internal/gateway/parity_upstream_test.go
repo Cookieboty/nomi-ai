@@ -259,7 +259,6 @@ func TestParityUpstream(t *testing.T) {
 	for k := range names {
 		os.Unsetenv(k)
 	}
-	// TODO(D24): switch to the shared JS Date.parse port (D-B6-9) once it lands.
 	t.Setenv("TZ", fx.TZ)
 	loc, err := time.LoadLocation(fx.TZ)
 	if err != nil {

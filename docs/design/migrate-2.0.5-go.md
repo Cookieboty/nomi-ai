@@ -180,7 +180,6 @@ Go 版**1:1 镜像** Node 版：模块边界、包/层结构、数据格式、�
 | D21 | ~~主机名未按 WHATWG 规范化~~ **已消除** | `net.ParseURL/WhatwgHost` 实现 WHATWG 主机解析（小写、IDNA/UTS46、IPv4 十六进制/八进制/简写、IPv6 压缩、默认端口去掉），报错文案与 Node 一致；fixture `net.json` urls 33/33 | 无行为差异 |
 | D22 | ~~代理环境变量处理不同~~ **已消除** | 按 undici 7 EnvHttpProxyAgent 复刻：`http_proxy`/`https_proxy`（小写优先、空串算已设置，https 退回 http）；`ALL_PROXY` 和 Node 一样只用于判断"代理环境已开启"，并不真走代理；`no_proxy` 每次请求现读（`*`、`host:port`、`.后缀`）；一律 CONNECT 隧道，请求头顺序与 Node 一致，仅 HTTP/1.1；支持 socks5；钉 IP 只对目标主机。fixture `proxy.json` 38/38 | 无行为差异（钉 IP 用 context 而非 AsyncLocalStorage，仅实现方式不同） |
 | D23 | JS 正则 `/i`（无 u 标志）大小写折叠只按 toUpperCase，非 ASCII 字符不会折成 ASCII | Go RE2 `(?i)` 会把 `ſ`(U+017F)↔`s`、`K`(U+212A)↔`k` 视为相同；`\s` 已按 JS 空白集合替换（`util.JSRe`）| RE2 无开关；只影响报错文本/模型名里出现这两个罕见字符的情况 |
-| D24 | Retry-After 日期由 V8 `Date.parse` 解析，接受几乎任意格式 | Go 只实现常见子集：IMF-fixdate / RFC850（UTC）、asctime（本地时区）、纯整数当年份、ISO 8601；其他怪异格式返回 NaN → 按无 Retry-After 处理 | 完整 V8 `Date.parse` 已在 b8 移植为 `core/desktop/reminders.DateParse`（D-B6-9，node fixture 全过）；gateway 切换到它属于网关批次，切换后删除本行 |
 | D-B6-1 | ~~desktop 文案走 core/i18n~~ **已消除** | desktop 直接用 `core/i18n`（`tr` 别名），临时 `desktop/tr` 已删除 | 无行为差异 |
 | D-B6-2 | ~~reminders 复用 core/schedule 的 recurrence~~ **已消除** | `reminders/shared_recurrence.go` 只做类型别名 + 转调 `core/schedule`，临时副本已删除 | 无行为差异 |
 | D-B6-3 | ~~Windows 上 `fs.realpathSync.native`~~ **已消除** | Windows 用 `GetFinalPathNameByHandle`（`realpath_windows.go`），其他平台 `EvalSymlinks`（与 libuv realpath 一致） | 无行为差异 |

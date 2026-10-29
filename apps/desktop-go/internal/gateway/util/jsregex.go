@@ -4,6 +4,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"unicode/utf8"
 )
 
 // JSRegex is `new RegExp(pattern, 'i').test` for the patterns client specs
@@ -92,4 +93,37 @@ const JSWhitespace = `[\t\n\v\f\r \x{a0}\x{1680}\x{2000}-\x{200a}\x{2028}\x{2029
 // outside character classes; sources must not use `\s` inside `[...]`).
 func JSRe(src string) *regexp.Regexp {
 	return regexp.MustCompile(strings.ReplaceAll(src, `\s`, JSWhitespace))
+}
+
+// JSIText prepares text for an RE2 (?i) match that must behave like a JS
+// non-unicode /i regex over UTF-16 units: RE2 folds U+017F (ſ) and U+212A
+// (Kelvin) to ASCII letters (JS does not), counts an astral character as one
+// (JS: two units) and a WTF-8 lone surrogate as three bytes (JS: one unit).
+// Those are rewritten to \x01 placeholders, one per UTF-16 unit — exact for
+// patterns with no literal non-ASCII and no class excluding \x01.
+func JSIText(s string) string {
+	plain := true
+	for i := 0; i < len(s); i++ {
+		if s[i] >= 0x80 {
+			plain = false
+			break
+		}
+	}
+	if plain {
+		return s
+	}
+	var b strings.Builder
+	for i := 0; i < len(s); {
+		r, size := decodeUnit(s[i:])
+		switch {
+		case r == 0x17f || r == 0x212a || IsLoneSurrogate(r) || (r == utf8.RuneError && size == 1):
+			b.WriteByte(1)
+		case r >= 0x10000:
+			b.WriteString("\x01\x01")
+		default:
+			b.WriteString(s[i : i+size])
+		}
+		i += size
+	}
+	return b.String()
 }

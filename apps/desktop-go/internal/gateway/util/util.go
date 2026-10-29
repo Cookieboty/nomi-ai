@@ -208,3 +208,24 @@ func ToDataURL(mediaType, data, url *string) string {
 
 // Ptr returns a pointer to v.
 func Ptr[T any](v T) *T { return &v }
+
+// JSToNumber is Number(v) for a JSON value (nil is null → 0; pass undefined
+// as Undefined). Arrays go through their string form, objects are NaN.
+func JSToNumber(v any) float64 {
+	switch x := v.(type) {
+	case nil:
+		return 0
+	case bool:
+		if x {
+			return 1
+		}
+		return 0
+	case float64:
+		return x
+	case string:
+		return ToNumber(x)
+	case []any:
+		return ToNumber(JSString(x))
+	}
+	return math.NaN()
+}

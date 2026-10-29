@@ -21,7 +21,7 @@
  *   e2e      – the real GatewayServer against a local mock upstream per protocol,
  *              recording the raw streamed chunks the client receives
  *
- * Usage: node scripts/parity/record.mjs [--only request,stream,json,fixes,spec,net,objkeys,proxy,models,providers,rules,route,upstream,collate,e2e]
+ * Usage: node scripts/parity/record.mjs [--only request,stream,json,fixes,spec,net,objkeys,proxy,models,providers,rules,route,upstream,collate,textdecoder,helpers,e2e]
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -440,6 +440,33 @@ if (want('collate')) {
     xs.push(s);
   }
   write('collate', { pairs: xs.slice(1).map((b, i) => [xs[i], b, Math.sign(xs[i].localeCompare(b))]), sorted: [...xs].sort((a, b) => a.localeCompare(b)) });
+}
+
+if (want('textdecoder')) {
+  // new TextDecoder() streamed: decode(chunk, {stream:true}) per chunk, then decode().
+  const pool = [0x00, 0x41, 0x7f, 0x80, 0x8f, 0x90, 0x9f, 0xa0, 0xbf, 0xc0, 0xc2, 0xdf, 0xe0, 0xe2, 0xed, 0xef, 0xbb, 0xf0, 0xf4, 0xf5, 0xff];
+  let seed = 11;
+  const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+  const cases = [];
+  for (let i = 0; i < 2000; i++) {
+    const chunks = [];
+    for (let c = 0, n = 1 + Math.floor(rnd() * 4); c < n; c++) {
+      const ch = [];
+      for (let j = 0, m = Math.floor(rnd() * 6); j < m; j++) ch.push(pool[Math.floor(rnd() * pool.length)]);
+      chunks.push(ch);
+    }
+    if (i % 7 === 0) chunks[0].unshift(0xef, 0xbb, 0xbf);
+    const d = new TextDecoder();
+    const out = chunks.map((ch) => d.decode(Uint8Array.from(ch), { stream: true }));
+    out.push(d.decode());
+    cases.push({ chunks, out });
+  }
+  write('textdecoder', cases);
+}
+
+if (want('helpers')) {
+  const { recordHelpers } = await import('./helpers.mjs');
+  write('helpers', await recordHelpers({ gw }));
 }
 
 if (want('e2e')) {
