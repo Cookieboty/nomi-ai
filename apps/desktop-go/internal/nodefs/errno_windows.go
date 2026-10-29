@@ -1,12 +1,14 @@
 //go:build windows
 
-package launch
+package nodefs
 
 import "syscall"
 
 // errnoName：libuv uv_translate_sys_error 的常见 Win32 子集。
 func errnoName(e syscall.Errno) string {
 	switch e {
+	case 1: // ERROR_INVALID_FUNCTION（ReadFile 读目录）→ libuv UV_EISDIR
+		return "EISDIR"
 	case 5, 1314: // ERROR_ACCESS_DENIED, ERROR_PRIVILEGE_NOT_HELD
 		return "EPERM"
 	case 80, 183: // ERROR_FILE_EXISTS, ERROR_ALREADY_EXISTS

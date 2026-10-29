@@ -2,6 +2,7 @@ package usage
 
 import (
 	"crypto/rand"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/nodefs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -143,7 +144,7 @@ func ReadGrokAuthStatus(d GrokAuthReaderDeps) (string, bool) {
 	}
 	launch := ResolveCliLaunch(bin, GrokAgentArgs, env, platform, UnwrapCmdDeps{})
 	if launch == nil {
-		_ = os.RemoveAll(dir)
+		_ = nodefs.RmForce(dir)
 		return "", false
 	}
 	spawn := d.SpawnFn
@@ -160,12 +161,12 @@ func ReadGrokAuthStatus(d GrokAuthReaderDeps) (string, bool) {
 		})
 	}()
 	if child == nil {
-		_ = os.RemoveAll(dir)
+		_ = nodefs.RmForce(dir)
 		return "", false
 	}
 	defer func() {
 		KillTree(child, 200)
-		_ = os.RemoveAll(dir)
+		_ = nodefs.RmForce(dir)
 	}()
 	p := jsrt.NewPromise[*string]()
 	settled := false
