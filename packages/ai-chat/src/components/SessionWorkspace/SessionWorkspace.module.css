@@ -150,7 +150,6 @@
   font-variant-numeric: tabular-nums;
   opacity: 0.95;
 }
-/* 兼容旧 class 名（若仍有引用） */
 
 .panel {
   border-top: 1px solid var(--cd-color-border, #333);

@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createGeminiMapper, permissionSummary, pickPermissionOption } from '@nomi-ai/cli-sdk';
+import { createAcpMapper, permissionSummary, pickPermissionOption } from '@nomi-ai/cli-sdk';
 
 import { innermostMessage } from '../../../src/cli/gemini/acp';
 import { geminiModeId } from '../../../src/cli/permissionMode';
@@ -20,7 +20,7 @@ jest.setTimeout(30_000);
 
 describe('Gemini ACP mapping', () => {
   it('maps message, thought and tool updates', () => {
-    const m = createGeminiMapper();
+    const m = createAcpMapper();
     expect(
       m.update({ sessionUpdate: 'agent_thought_chunk', content: { type: 'text', text: 'hm' } }),
     ).toEqual([]);
@@ -125,7 +125,7 @@ describe('CliHarnessService Gemini backend', () => {
       logger: { info() {}, warn() {} },
       defaultCwd: root,
       // 旧版默认目录（文稿本身）算范围大的文件夹
-      legacyDefaultCwd: root,
+      previousDefaultCwd: root,
       ...(process.env.TEST_GEMINI_3P ? { gateway: testGateway({ source: 'thirdParty' }) } : {}),
     });
     harnesses.push(h);

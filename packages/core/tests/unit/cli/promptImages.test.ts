@@ -18,7 +18,6 @@ import {
   imageThumbsForMessage,
   modelNoVisionMessage,
   inspectImages,
-  normalizeImages,
   rejectedImagesMessage,
   stageImages,
   unsupportedImageMessage,
@@ -31,17 +30,17 @@ describe('promptImages', () => {
   ).toString('base64');
 
   it('normalizes mime and drops invalid', () => {
-    const out = normalizeImages([
+    const out = inspectImages([
       { mime: 'image/jpg', data: png, thumb: `data:image/jpeg;base64,${png}` },
       { mime: 'image/svg+xml', data: png },
       { mime: 'image/png', data: '' },
-    ]);
+    ]).images;
     expect(out).toHaveLength(1);
     expect(out[0]!.mime).toBe('image/jpeg');
   });
 
   it('缺缩略图：小图用原图当缩略图（完整 base64），不再截断成坏图', () => {
-    const [im] = normalizeImages([{ mime: 'image/png', data: png }]);
+    const [im] = inspectImages([{ mime: 'image/png', data: png }]).images;
     expect(im!.thumb).toBe(`data:image/png;base64,${png}`);
   });
 
@@ -83,7 +82,7 @@ describe('promptImages', () => {
   });
 
   it('builds Claude / ACP / Codex / Grok payloads', () => {
-    const imgs = normalizeImages([{ mime: 'image/png', data: png, width: 1, height: 1 }]);
+    const imgs = inspectImages([{ mime: 'image/png', data: png, width: 1, height: 1 }]).images;
     const blocks = claudeContentBlocks('hi', imgs);
     expect(blocks.some((b) => b.type === 'image')).toBe(true);
     expect(blocks.some((b) => b.type === 'text' && b.text === 'hi')).toBe(true);
@@ -119,9 +118,9 @@ describe('promptImages', () => {
   });
 
   it('thumbs omit full base64 payload size concern via separate thumb field', () => {
-    const imgs = normalizeImages([
+    const imgs = inspectImages([
       { mime: 'image/png', data: png, width: 2, height: 2, thumb: 'data:image/png;base64,aaa' },
-    ]);
+    ]).images;
     expect(imageThumbsForMessage(imgs)[0]).toMatchObject({
       thumb: 'data:image/png;base64,aaa',
       width: 2,

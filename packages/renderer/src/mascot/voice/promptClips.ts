@@ -13,7 +13,6 @@ import { createLogger, getLocale, t } from '@nomi-ai/ui';
 import { api, hasTransport } from '../../services/api';
 import {
   ensureCharacterPackOverlay,
-  getCharacterId,
   getPromptClipBase,
   isActivePackModel,
 } from '../characterConfig';
@@ -22,11 +21,6 @@ import { isMascotMuted } from '../presence';
 import legacyMap from './legacyClipIds.json';
 
 const log = createLogger('prompt-clips');
-
-/** @deprecated Prefer getPromptClipBase(); kept for tests / callers. */
-export const PROMPT_CLIP_BASE = getPromptClipBase();
-/** @deprecated Prefer getCharacterId(); default remains nomi for official builds. */
-export const PROMPT_CLIP_MODEL = getCharacterId();
 
 /** 保留文字气泡、但不播放任何音频的台词（i18n keys） */
 export const NO_AUDIO_KEYS: ReadonlySet<string> = new Set([

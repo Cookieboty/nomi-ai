@@ -6,8 +6,6 @@
 // 最先加载：日志是否静默、私有文件的根目录（模块级宿主设置，其余模块加载时就可能用到）
 import './host/processDefaults';
 
-import * as path from 'path';
-
 import { defaultProbe } from '@nomi-ai/core/cli/CliUpdateService';
 import { forgetMissingCliBins, npmPrefixBinDir, rememberCliDir } from '@nomi-ai/core/cli/detect';
 import { loadLoginShellPath } from '@nomi-ai/core/cli/shellPath';
@@ -16,7 +14,6 @@ import { app, BrowserWindow } from 'electron';
 
 import { Application } from './host/Application';
 import { registerAppSchemePrivileges } from './schemePrivileges';
-import { LEGACY_DEV_NAMES, migrateLegacyUserData } from './utils/legacyUserData';
 import { perfMark } from './utils/perfMarks';
 import { guardStdio } from './utils/stdioGuard';
 
@@ -71,23 +68,6 @@ if (!isPrimaryInstance) {
     event.preventDefault();
     consumeDeepLink(url);
   });
-}
-
-// 开发态包名变更后沿用旧 userData（需在 ready 之前）。打包产物不迁移旧品牌目录。
-// 仅当 userData 是默认目录时迁移（测试 / --user-data-dir 指定的目录不动）。
-// 第二实例跳过，避免与正在运行的实例争用目录。
-if (isPrimaryInstance && !app.isPackaged) {
-  const appData = app.getPath('appData');
-  const userData = app.getPath('userData');
-  try {
-    const isDefault = path.resolve(userData) === path.resolve(appData, app.getName());
-    const res = isDefault
-      ? migrateLegacyUserData(appData, userData, LEGACY_DEV_NAMES)
-      : { migrated: false as const, from: '', to: userData };
-    if (res.migrated) log.info(`📦 已迁移开发态用户数据: ${res.from} → ${res.to}`);
-  } catch (error) {
-    console.warn('开发态用户数据迁移失败:', error);
-  }
 }
 
 // chat-asset://（会话 Markdown 图片）需在 app ready 之前注册为特权协议

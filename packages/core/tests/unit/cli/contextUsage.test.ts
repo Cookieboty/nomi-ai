@@ -4,7 +4,7 @@
  * Gemini 0.65 / dsh 0.2.1 按源码里的事件形状。
  */
 import { acpMetaContext, createDshParser, createGrokParser } from '@nomi-ai/cli-plugins/main';
-import { codexLastContext, createGeminiMapper } from '@nomi-ai/cli-sdk';
+import { codexLastContext, createAcpMapper } from '@nomi-ai/cli-sdk';
 
 import '../../../src/cli/pluginI18n';
 import type { HarnessEvent } from '../../../src/cli/types';
@@ -61,7 +61,7 @@ describe('current context per CLI', () => {
   });
 
   it('gemini ACP: last usage_update {used, size}', () => {
-    const m = createGeminiMapper();
+    const m = createAcpMapper();
     m.update({ sessionUpdate: 'usage_update', used: 9000, size: 1_048_576 });
     m.update({ sessionUpdate: 'usage_update', used: 12000, size: 1_048_576 });
     expect(m.context()).toEqual({ contextTokens: 12000, contextWindow: 1_048_576 });
@@ -97,7 +97,7 @@ describe('live context events per CLI', () => {
   });
 
   it('gemini / grok ACP: each usage_update carries tokens + window', () => {
-    const m = createGeminiMapper();
+    const m = createAcpMapper();
     expect(m.update({ sessionUpdate: 'usage_update', used: 900_000, size: 1_048_576 })).toEqual([
       { type: 'context', tokens: 900_000, window: 1_048_576 },
     ]);

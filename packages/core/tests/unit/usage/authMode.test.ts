@@ -11,8 +11,8 @@ import {
   claudeAuthFromConfig,
   codexAuthFromConfig,
   grokAuthFromConfig,
-  hasGrokAuthFile,
   hasCustomGrokConfiguration,
+  hasGrokLocalPresence,
   isDefinitelySignedOut,
   parseClaudeAuthStatus,
   parseCodexLoginStatus,
@@ -136,9 +136,9 @@ describe('本地兜底：只看键名 / 字段，不读凭据值', () => {
 
   it('Grok：本机有 config/sessions 才认为装过 CLI（不碰凭据文件）', () => {
     const home = tmpHome();
-    expect(hasGrokAuthFile(home, {})).toBe(false);
+    expect(hasGrokLocalPresence(home, {})).toBe(false);
     write(path.join(home, '.grok', 'config.toml'), '# empty\n');
-    expect(hasGrokAuthFile(home, {})).toBe(true);
+    expect(hasGrokLocalPresence(home, {})).toBe(true);
   });
 });
 

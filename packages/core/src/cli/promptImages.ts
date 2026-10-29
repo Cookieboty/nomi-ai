@@ -149,14 +149,6 @@ export function inspectImages(
   return { images, rejected };
 }
 
-/** 兼容旧调用：只要结果，不关心被拒绝的 */
-export function normalizeImages(
-  raw: HarnessImageInput[] | undefined | null,
-  max = 8,
-): NormalizedImage[] {
-  return inspectImages(raw, max).images;
-}
-
 /** 有图片被拒绝时给用户看的说明（整条消息不发出，让用户自己决定去掉哪张） */
 export function rejectedImagesMessage(rejected: readonly RejectedImage[], max = 8): string {
   const has = (r: ImageRejectReason) => rejected.some((x) => x.reason === r);

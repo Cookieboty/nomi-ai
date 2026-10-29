@@ -151,6 +151,3 @@ export function permissionSummary(params: Json): string {
   const loc = Array.isArray(call.locations) ? (call.locations as Json[])[0] : undefined;
   return clip(typeof loc?.path === 'string' ? `${title}: ${loc.path}` : title, 200);
 }
-
-/** @deprecated 旧名，等同 createAcpMapper */
-export const createGeminiMapper = createAcpMapper;

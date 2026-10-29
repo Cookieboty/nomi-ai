@@ -257,9 +257,6 @@ export function hasGrokLocalPresence(home: string, env: NodeJS.ProcessEnv): bool
   return false;
 }
 
-/** @deprecated 使用 hasGrokLocalPresence；保留别名以免外部测试瞬时断裂 */
-export const hasGrokAuthFile = hasGrokLocalPresence;
-
 export interface AuthDeps {
   home?: string;
   env?: NodeJS.ProcessEnv;

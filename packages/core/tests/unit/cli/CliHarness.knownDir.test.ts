@@ -176,7 +176,7 @@ describe('default working directory (Documents/nomi)', () => {
         root,
         logger: { info() {}, warn() {} },
         defaultCwd: def,
-        legacyDefaultCwd: docs,
+        previousDefaultCwd: docs,
       });
       made.push(h);
       return h;

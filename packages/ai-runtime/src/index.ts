@@ -20,7 +20,6 @@ export * from './AIRuntimeService';
 export * from './AiSdkBooter';
 export * from './ai-sdk/AiSdkLlmProvider';
 export * from './ai-sdk/mapTools';
-export * from './ai-sdk/toolCaller';
 export * from './ai-sdk/AiSdkLLMProvidersPlugin';
 export * from './ai-sdk/AiSdkMcpPlugin';
 export * from './ai-sdk/mcpBridge';

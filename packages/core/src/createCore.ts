@@ -767,7 +767,7 @@ function buildCore(deps: CoreDeps, scope: CoreScope, unregister: () => void): Co
       logger: logger as never,
       // 默认工作目录是文稿下的 nomi 文件夹（第一次用到时创建），不是文稿本身；旧数据停在文稿的迁过去
       defaultCwd: path.join(ports.paths.documents(), 'nomi'),
-      legacyDefaultCwd: ports.paths.documents(),
+      previousDefaultCwd: ports.paths.documents(),
       // 第三方会话经统一网关按进程注入（docs/design/unified-gateway.md §12），不写 CLI 全局配置
       gateway: harnessGateway(gateway),
       // 模型质量 CLI 层：Nomi 里运行的编程助手（官方账号与第三方）每轮一条（model-quality.md §4.4）

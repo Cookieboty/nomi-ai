@@ -726,11 +726,6 @@ export class CliUpdateService {
     }
   }
 
-  /** 兼容旧名 */
-  runUpdate(kind: UpdatableCli, scope: CliInstallScope = 'global'): Promise<CliRunResult> {
-    return this.run(kind, scope);
-  }
-
   private broadcast(payload: unknown) {
     const ev = payload as { kind?: UpdatableCli; phase?: string; line?: string };
     const job = ev.kind ? this.jobs.get(ev.kind) : undefined;

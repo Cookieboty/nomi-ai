@@ -428,8 +428,8 @@ export class HarnessOrchestrator {
       home?: string;
       /** 默认工作目录（文稿/nomi）：第一次用到时才创建，算作用户选过的目录 */
       defaultCwd?: string;
-      /** 旧版的默认工作目录（文稿本身）：主标签还停在这里时迁到 defaultCwd */
-      legacyDefaultCwd?: string;
+      /** 旧版的默认工作目录（文稿本身）：主标签还停在这里时迁到 defaultCwd。remove in 2.1.0 */
+      previousDefaultCwd?: string;
       /**
        * 统一网关（docs/design/unified-gateway.md §12）：第三方标签的进程级注入、新标签默认来源、
        * 第三方可选模型、官方标签剔除网关残留变量。没有时只有官方来源。
@@ -683,11 +683,11 @@ export class HarnessOrchestrator {
       const m = this.main;
       if (isBackend(raw.backend)) m.backend = raw.backend;
       if (typeof raw.cwd === 'string' && raw.cwd) m.cwd = raw.cwd;
-      // 旧版默认停在「文稿」本身：迁到文稿/nomi（用户自己选的其它目录不动）
+      // 旧版默认停在「文稿」本身：迁到文稿/nomi（用户自己选的其它目录不动）（remove in 2.1.0）
       if (
         this.d.defaultCwd &&
-        this.d.legacyDefaultCwd &&
-        samePath(m.cwd, this.d.legacyDefaultCwd)
+        this.d.previousDefaultCwd &&
+        samePath(m.cwd, this.d.previousDefaultCwd)
       ) {
         m.cwd = this.d.defaultCwd;
       } else if (typeof raw.cliSessionId === 'string') m.cliSessionId = raw.cliSessionId;
@@ -2734,7 +2734,7 @@ export class HarnessOrchestrator {
                   geminiTrust: {
                     folder: e.folder,
                     broad: isBroadGeminiFolder(e.folder, this.home, [
-                      this.d.legacyDefaultCwd ?? '',
+                      this.d.previousDefaultCwd ?? '',
                     ]),
                   },
                 }
