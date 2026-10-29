@@ -171,6 +171,9 @@ Go 版**1:1 镜像** Node 版：模块边界、包/层结构、数据格式、�
 | D12 | `writePrivateFile*` 在 Windows 上对文件跑 icacls | Go 版只保证 0600 + 目录 0700，跳过逐文件 ACL | Go 无稳定等价；userData 本就在用户目录下 |
 | D13 | GatewayStore / keys 的 `encryption: safeStorage \| none` | 迁移后新增 `encryption: keyring`（磁盘存钥匙串 account id 的 base64） | Go 无 safeStorage，密文改放 OS 钥匙串 |
 | D14 | Linux 上 Electron safeStorage（libsecret + Chromium OSCrypt）可解 | 本批 Linux `Available()=false`，safeStorage 密文进 `secretsFailed`，提示用户重填；`encryption=none` 仍迁 | Chromium OSCrypt 派生较重，先保证失败路径可读 |
+| D15 | gateway `stream/`、`canonical/`、`spec/` 互相 import（TS 允许循环引用） | Go 拆出叶子包 `stream/sse`、`stream/events`、`spec`、`util`、`ir`；`canonical` 依赖 `sse`，`stream` 依赖 `canonical`；函数与字段顺序不变 | Go 禁止循环 import，只改包边界不改逻辑 |
+| D16 | `createStreamConverter` 内部按 `opts.fixes` 自建 `EventFixer` | Go `ConvertOptions` 直接收 `Seed`、`Fixer`（接口）与 `FixEvents` 钩子，由调用方按 fixes 构造 | fixer 尚未移植（4b），先留接口，语义等价 |
+| D17 | JSON 对象 `Record<string,unknown>` 天然保序 | Go 用自研有序 `util.Obj`，数字按 JS 规则格式化 | 保证与 Node 输出逐字节一致 |
 
 ### 3.5 一致性测试策略（golden，Node 与 Go 同输入对比输出）
 
