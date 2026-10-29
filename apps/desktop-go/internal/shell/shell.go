@@ -22,3 +22,20 @@ type Shell interface {
 	Run() error
 	Quit()
 }
+
+// Rect 是屏幕坐标（逻辑像素）
+type Rect struct{ X, Y, Width, Height int }
+
+// WorkArea 是一个显示器的工作区
+type WorkArea struct {
+	Rect
+	ScaleFactor float64
+}
+
+// Geometry 是看板娘需要的窗口几何能力（可选：外壳实现了才有缩放 / 拖拽 / 位置）
+type Geometry interface {
+	Bounds(k WindowKind) (Rect, bool)
+	SetBounds(k WindowKind, r Rect)
+	SetAlwaysOnTop(k WindowKind, on bool)
+	WorkAreas() []WorkArea
+}
