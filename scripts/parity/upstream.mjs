@@ -140,8 +140,12 @@ export async function recordUpstream({ gw, root }) {
   // cooldown
   const now = Date.parse('2026-01-01T00:00:00Z');
   out.now = now;
-  out.retryAfter = [undefined, null, '', ' 5 ', '1.5', '0', '1.2345', '-1', '1e3', 'Wed, 01 Jan 2026 00:00:30 GMT', 'Wednesday, 31-Dec-25 23:59:00 GMT', '2026-01-01T00:02:00Z', '2026-01-01T00:02:00.500+01:00', 'soon', '12abc']
+  // Date.parse reads asctime / bare years in local time: pin TZ so the fixture is machine-independent.
+  const prevTZ = process.env.TZ;
+  process.env.TZ = out.tz = 'America/New_York';
+  out.retryAfter = [undefined, null, '', ' 5 ', '1.5', '0', '1.2345', '-1', '1e3', 'Wed, 01 Jan 2026 00:00:30 GMT', 'Wednesday, 31-Dec-25 23:59:00 GMT', 'Thu Jan  1 00:01:00 2026', '2026-01-01T00:02:00Z', '2026-01-01T00:02:00.500+01:00', 'soon', '12abc']
     .map((v) => ({ v: v ?? null, r: cd.parseRetryAfter(v, now) }));
+  if (prevTZ === undefined) delete process.env.TZ; else process.env.TZ = prevTZ;
   out.coolsDown = [{}, { network: true }, { upstreamStatus: 429 }, { upstreamStatus: 500 }, { upstreamStatus: 404 }, { upstreamStatus: 401 }, { upstreamStatus: 403 }, { upstreamStatus: 499 }, { upstreamStatus: 529 }, { network: false, upstreamStatus: 200 }]
     .map((f) => ({ f, r: cd.coolsDown(f) }));
   const ca = { provider: { id: 'p' }, key: { id: 'k' }, wire: 'chat' };

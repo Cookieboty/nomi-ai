@@ -45,6 +45,7 @@ var reSeconds = regexp.MustCompile(`^\d+(\.\d+)?$`)
 
 // dateParse is the Date.parse subset used for HTTP Retry-After dates
 // (IMF-fixdate / RFC 850 / asctime, plus ISO 8601) — see deviation D24.
+// TODO(D24): replace with the shared full JS Date.parse port (D-B6-9) once it lands on feat/2.0.5-go, then drop D24.
 func dateParse(s string) (float64, bool) {
 	if t, err := time.Parse(http.TimeFormat, s); err == nil {
 		return float64(t.UnixMilli()), true
