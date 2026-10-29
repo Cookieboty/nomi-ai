@@ -211,6 +211,12 @@ Go 版**1:1 镜像** Node 版：模块边界、包/层结构、数据格式、�
 | D-B7-1 | ~~dsh 解析器遇到 `"null"` 入参时抛 TypeError~~ **已消除** | Go 解析器 `panic(clisdk.JSThrow)` 复现抛出；nodeproc 的 stdout/stderr/error/exit/close 派发统一经 `jsrt.Dispatch`（EventEmitter 语义）：抛出的监听器之后的监听器跳过本事件、本 chunk 余下行丢弃、交给进程级 uncaughtException 钩子（生产环境退出），解析器跨行状态照常保留。golden 录了 `{throw}` 及其后续行 | 无行为差异 |
 | D-B7-2 | 计划里的 PTY（creack/pty + ConPTY） | 不用 PTY：Node 的 CLI 全部走 `child_process` 管道（`harness/spawn.ts`），Go 用 `os/exec` 管道，参数 / env / cwd / 信号 / 杀进程树逐项对齐 | 用户已确认（2026-10-29）；跟随 Node 实际实现，不是平台差异 |
 | D-B7-3 | cli-sdk 驱动里 JS `undefined` 值的键（AppServer `finish` 的 `error: undefined`）、非字符串 thread/turn/session id | Go `util.Obj` 不存 undefined：不设该键（JSON 输出与读值完全一致，仅 `'error' in r` 不同，调用方无此用法）；非字符串 id 经 `JSString` 转字符串（真实 CLI 只回字符串） | 无可观察差异；driver golden 10 场景 / 117 条覆盖 |
+| D-B4d-1 | server.ts 响应头的线上顺序与 `Date` 头 | Go net/http 按自身规则写出响应头（规范化大小写、按键排序），并总会附加 `Date`；Node `http` 按 setHeader 顺序、不自动加 `Date`。头的集合与值逐项一致：e2e（`scripts/parity/e2e.mjs` 60 例 × 5 次比对）按白名单头逐个比较值，fail=0 | HTTP 头不区分大小写，顺序不属于语义；客户端（CLI / SDK）不依赖 |
+| D-B4d-2 | 上游请求的 `accept-encoding` | undici 默认发 `accept-encoding: gzip, deflate` 并自行解压；Go 交给 net/http 透明处理（只发 `gzip`，自动解码）。调用方显式设了该头时照传（e2e 固定 `identity`，上游收到的头与 Node 一致） | 只影响压缩协商；响应体解码后一致。br/deflate 上游极少，net/http 不支持 deflate 透明解码 |
+| D-B4d-3 | ProviderService 的 `test` / `testDraft` / `fetchModels` / `fetchModelsDraft` 与路由 registry（RoutedLLMRegistry 实现） | 本批未移植：需要 ai-sdk 模型调用与 registry（批次 5）。`providers.Service` 已留 `RoutedRegistry` 接口与 `GetRegistry`；main.go 传 `nil`（= Node 启动早期 registry 尚未就绪的状态） | 批次 5 接入；契约里的 `providers.*` 四个过程不依赖这些方法 |
+| D-B4d-4 | trace 落盘里请求头的键顺序 | trace 记录的请求头按 Go `http.Header` 遍历后排序写出；Node 按 IncomingMessage 的原始顺序。键集合、值与打码（`RedactHeaders` golden）一致，trace parity fail=0 | JSON 对象键顺序，查看器不依赖 |
+| D-B4d-5 | ProviderStore 用的 `ports.secrets` | Go 尚无 SecretsPort：`shellhandlers.NewProviderService` 把 `security.NewSecretBox("providers")` 适配成 SafeStorageLike（`isEncryptionAvailable` = `CanEncrypt`，后端名恒为空串）。生产 store 与 Node 一样只在内存（无 filePath），密文从不落盘；`encryption` 状态（safeStorage / none）判定规则相同 | 宿主 secrets 端口（批次 6）就绪后换成同一端口 |
+| D-B4d-6 | `gateway.upsertProvider` / `gateway.removeProvider` 等供应商写操作 | 属于 GatewayService（批次 5），本批只注册 shell.ts 的 `providers.presets/meta/state/setActive`（替换 procs 占位）。ProviderStore 的 routes/usage 若在文件里是数组，Go 用旁路表保存非下标属性以复现 JS 数组上挂属性的行为（实际文件不会出现） | 无可观察差异 |
 
 ### 3.5 一致性测试策略（golden，Node 与 Go 同输入对比输出）
 
