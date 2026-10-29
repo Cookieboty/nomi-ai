@@ -151,3 +151,17 @@ func SafeParse(s schema, v any) (bool, any, []Issue) {
 	}
 	return true, r.val, nil
 }
+
+// ParsePersona = personaSchema.safeParse(v)：成功返回解析后的对象。
+func ParsePersona(v any) (*Obj, bool) {
+	ok, data, _ := SafeParse(personaSchema, v)
+	o, _ := data.(*Obj)
+	return o, ok && o != nil
+}
+
+// ParseCharacterLocale = characterLocaleSchema.safeParse(v)。
+func ParseCharacterLocale(v any) (*Obj, bool) {
+	ok, data, _ := SafeParse(characterLocaleSchema, v)
+	o, _ := data.(*Obj)
+	return o, ok && o != nil
+}

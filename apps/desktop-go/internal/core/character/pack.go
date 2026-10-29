@@ -155,6 +155,8 @@ type Pack struct {
 	OnboardingDir  string
 	VoiceDir       string
 	Downgraded     []string
+	// ManifestObj：归一化后的 manifest（JS 形状，= ResolvedPack.manifest），供人设来源读取
+	ManifestObj any
 }
 
 func exists(root, rel string) bool {
@@ -208,6 +210,7 @@ func LoadPackAt(root string, lenient bool) (*Pack, error) {
 		Root: root, Manifest: n.Manifest, Mode: n.Mode, Persona: n.Persona, Locales: n.Locales,
 		Rive: deref(n.Assets.Rive), SpriteManifest: deref(n.Assets.SpriteManifest), Static: deref(n.Assets.Static),
 		OnboardingDir: n.Assets.OnboardingDir, VoiceDir: n.Assets.VoiceDir, Downgraded: r.Downgraded,
+		ManifestObj: r.Pack.Get("manifest"),
 	}
 	if string(n.Mapping) != "null" {
 		p.Mapping = n.Mapping
@@ -406,6 +409,13 @@ type Service struct {
 	mu                         sync.Mutex
 	userData, resources, built string
 	cur                        Resolved
+	builtinCache               *builtinEntry
+	listeners                  []func()
+}
+
+type builtinEntry struct {
+	root string
+	pack *Pack
 }
 
 func NewService(userData, resources, builtin string) *Service {
@@ -422,7 +432,45 @@ func (s *Service) Reload() {
 	r := Resolve(filepath.Join(s.userData, "character-pack"), res, s.built)
 	s.mu.Lock()
 	s.cur = r
+	ls := append([]func(){}, s.listeners...)
 	s.mu.Unlock()
+	for _, fn := range ls {
+		fn()
+	}
+}
+
+// OnChange = CharacterPackService.onChange（Reload 后回调）
+func (s *Service) OnChange(fn func()) {
+	s.mu.Lock()
+	s.listeners = append(s.listeners, fn)
+	s.mu.Unlock()
+}
+
+// Resolved = getResolved：当前包（Pack 为 nil 表示没有可用包）
+func (s *Service) Resolved() *Pack {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.cur.Pack
+}
+
+// Builtin = getBuiltin：本次构建携带的包（缺失 / 无效时 nil）
+func (s *Service) Builtin() *Pack {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.cur.Source == "builtin" {
+		return s.cur.Pack
+	}
+	if s.built == "" {
+		return nil
+	}
+	if s.builtinCache == nil || s.builtinCache.root != s.built {
+		p, err := LoadPackAt(s.built, false)
+		if err != nil {
+			p = nil
+		}
+		s.builtinCache = &builtinEntry{root: s.built, pack: p}
+	}
+	return s.builtinCache.pack
 }
 
 func (s *Service) Active() ActiveSnapshot {

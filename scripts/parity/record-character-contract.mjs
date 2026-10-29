@@ -168,6 +168,7 @@ console.log(`schemas: ${schemaCases.length} (${schemaCases.filter((c) => c.ok).l
   const { readdirSync, readFileSync, statSync } = await import('node:fs');
   const N = await imp('packages/character-contract/src/node.ts');
   const R = await imp('packages/core/src/character/packResolve.ts');
+  const P = await imp('packages/core/src/persona/PersonaService.ts');
   const listFiles = (dir, base = '') =>
     readdirSync(join(dir, base), { withFileTypes: true }).flatMap((e) => {
       const rel = base ? `${base}/${e.name}` : e.name;
@@ -260,10 +261,18 @@ console.log(`schemas: ${schemaCases.length} (${schemaCases.filter((c) => c.ok).l
     const lenient = run(() => N.validatePackDirSync(dir, { lenient: true }));
     const load = run(() => R.loadPackAt(dir, { lenient: true }));
     const fix = (r) => JSON.stringify(r).split(dir).join('<DIR>');
+    // 人设（D5 persona.get）：loadPackAt 通过时，packPersonaSource 读包 → 各界面语言 resolvePersona
+    let persona = null;
+    if (!load.thrown && load.ok) {
+      const src = P.packPersonaSource(() => ({ root: dir, manifest: load.pack.manifest }));
+      const b = run(() => src.load());
+      persona = fix(b === null || b.thrown ? b : Object.fromEntries(['zh-CN', 'en-US', 'ja', 'ZH_tw', ''].map((l) => [l, P.resolvePersona(b, l)])));
+    }
     results.push({
       ...c,
       strict: fix(strict),
       lenient: fix(lenient),
+      persona,
       load: fix(load.thrown ? load : { ok: load.ok, reason: load.reason ?? null, downgraded: load.downgraded ?? null }),
     });
   });

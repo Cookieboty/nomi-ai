@@ -19,6 +19,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/character"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/chatbg"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/island"
@@ -93,11 +94,30 @@ func main() {
 		sh.Show(shell.Island)
 		return true
 	}
+	i18n.SetLocale(func() string { return bundle.Locale.Get().Locale })
+	charSvc := character.NewService(userData, os.Getenv("NOMI_RESOURCES"), builtinPackDir())
+	personaSvc := newPersona(charSvc, router)
+	bundle.OnLocaleChange = append(bundle.OnLocaleChange, func() { personaSvc.LocaleChanged() })
+	chatBgSvc := chatbg.New(filepath.Join(userData, chatbg.File), filepath.Join(userData, "chat", "images"), chatBgPresetFile(),
+		chatbg.Ports{PickFiles: func(title string, fs []chatbg.Filter) ([]string, error) {
+			w, _ := sh.(*wailsshell.Wails)
+			if w == nil {
+				return nil, nil
+			}
+			wf := make([]wailsshell.SaveFileFilter, 0, len(fs))
+			for _, f := range fs {
+				wf = append(wf, wailsshell.SaveFileFilter{Name: f.Name, Extensions: f.Extensions})
+			}
+			return w.PickFiles(title, wf)
+		}}, func(k string) string { return i18n.T(k) }, func(st chatbg.State) { router.Emit("chatBg.changed", st) })
 	mascotCtl := mascothandlers.Install(mascothandlers.Deps{
+		Persona:   personaSvc,
+		T:         func(k string) string { return i18n.T(k) },
+		ChatBg:    chatBgSvc,
 		Router:    router,
 		Config:    bundle.Config,
 		Settings:  bundle.Settings,
-		Character: character.NewService(userData, os.Getenv("NOMI_RESOURCES"), builtinPackDir()),
+		Character: charSvc,
 		Island:    isl,
 		Geometry: func() shell.Geometry {
 			g, _ := sh.(shell.Geometry)
@@ -108,7 +128,6 @@ func main() {
 		AppName:  "Nomi",
 	})
 	// 批次 6：桌面工具 / 工作区（授权、审计、撤销、回收站、提醒、拖入总结）
-	i18n.SetLocale(func() string { return bundle.Locale.Get().Locale })
 	home, _ := os.UserHomeDir()
 	ports := hostPorts{sh: &sh}
 	desktopSvc := desktop.CreateService(userData, desktop.Ports{Home: home, PickDirectory: func(title, button, def string) string {
