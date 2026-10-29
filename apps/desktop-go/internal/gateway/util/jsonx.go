@@ -50,6 +50,9 @@ func (o *Obj) Get(k string) any {
 	if o == nil || o.m == nil {
 		return nil
 	}
+	if _, u := o.m[k].(JSUndefined); u {
+		return nil
+	}
 	return o.m[k]
 }
 
@@ -344,8 +347,9 @@ func fromToken(dec *jdec, t json.Token) (any, error) {
 
 // Stringify is JSON.stringify for the value space above.
 func Stringify(v any) string {
-	if _, ok := v.(JSFunc); ok {
-		return "" // JSON.stringify(fn) === undefined
+	switch v.(type) {
+	case JSFunc, JSUndefined:
+		return "" // JSON.stringify(fn) / JSON.stringify(undefined) === undefined
 	}
 	var b strings.Builder
 	writeValue(&b, v)
@@ -354,7 +358,7 @@ func Stringify(v any) string {
 
 func writeValue(b *strings.Builder, v any) {
 	switch x := v.(type) {
-	case nil, JSFunc:
+	case nil, JSFunc, JSUndefined:
 		b.WriteString("null")
 	case bool:
 		if x {
@@ -380,8 +384,8 @@ func writeValue(b *strings.Builder, v any) {
 		b.WriteByte('{')
 		first := true
 		for _, k := range x.keys {
-			if _, fn := x.m[k].(JSFunc); fn {
-				continue // functions are skipped as object members
+			if skipMember(x.m[k]) {
+				continue // functions / undefined are skipped as object members
 			}
 			if !first {
 				b.WriteByte(',')

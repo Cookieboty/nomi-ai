@@ -1,0 +1,603 @@
+[
+  {
+    "id": "custom",
+    "name": "ai-runtime.providers.preset-custom",
+    "category": "custom",
+    "protocol": "openai-chat",
+    "baseURL": "",
+    "defaultModel": "",
+    "models": [],
+    "requiresApiKey": false,
+    "hint": "ai-runtime.providers.hint-custom",
+    "verified": true
+  },
+  {
+    "id": "openai",
+    "name": "ai-runtime.providers.preset-openai",
+    "category": "vendor",
+    "protocol": "openai-responses",
+    "baseURL": "https://api.openai.com/v1",
+    "defaultModel": "",
+    "models": [],
+    "requiresApiKey": true,
+    "websiteUrl": "https://platform.openai.com",
+    "apiKeyUrl": "https://platform.openai.com/api-keys",
+    "docsUrl": "https://platform.openai.com/docs/models",
+    "modelsEndpoint": true,
+    "verified": true,
+    "icon": "openai",
+    "keywords": [
+      "gpt",
+      "chatgpt"
+    ],
+    "urls": {
+      "chat": "https://api.openai.com/v1",
+      "responses": "https://api.openai.com/v1"
+    },
+    "checkedAt": "2026-10-21"
+  },
+  {
+    "id": "anthropic",
+    "name": "ai-runtime.providers.preset-anthropic",
+    "category": "vendor",
+    "protocol": "anthropic",
+    "baseURL": "https://api.anthropic.com",
+    "defaultModel": "",
+    "models": [],
+    "requiresApiKey": true,
+    "websiteUrl": "https://console.anthropic.com",
+    "apiKeyUrl": "https://console.anthropic.com/settings/keys",
+    "docsUrl": "https://docs.anthropic.com/en/docs/about-claude/models/overview",
+    "modelsEndpoint": true,
+    "verified": true,
+    "icon": "anthropic",
+    "keywords": [
+      "claude"
+    ],
+    "urls": {
+      "messages": "https://api.anthropic.com"
+    },
+    "checkedAt": "2026-10-21"
+  },
+  {
+    "id": "gemini",
+    "name": "ai-runtime.providers.preset-gemini",
+    "category": "vendor",
+    "protocol": "openai-chat",
+    "baseURL": "https://generativelanguage.googleapis.com/v1beta/openai",
+    "defaultModel": "",
+    "models": [],
+    "requiresApiKey": true,
+    "websiteUrl": "https://aistudio.google.com",
+    "apiKeyUrl": "https://aistudio.google.com/app/apikey",
+    "docsUrl": "https://ai.google.dev/gemini-api/docs/openai",
+    "modelsEndpoint": true,
+    "verified": true,
+    "icon": "gemini",
+    "keywords": [
+      "google",
+      "谷歌"
+    ],
+    "hint": "ai-runtime.providers.hint-gemini",
+    "urls": {
+      "gemini": "https://generativelanguage.googleapis.com/v1beta",
+      "chat": "https://generativelanguage.googleapis.com/v1beta/openai"
+    },
+    "checkedAt": "2026-10-21"
+  },
+  {
+    "id": "deepseek",
+    "name": "ai-runtime.providers.preset-deepseek",
+    "category": "vendor",
+    "protocol": "openai-chat",
+    "baseURL": "https://api.deepseek.com",
+    "defaultModel": "",
+    "models": [],
+    "requiresApiKey": true,
+    "websiteUrl": "https://platform.deepseek.com",
+    "apiKeyUrl": "https://platform.deepseek.com/api_keys",
+    "docsUrl": "https://api-docs.deepseek.com/",
+    "modelsEndpoint": true,
+    "verified": true,
+    "icon": "deepseek",
+    "keywords": [
+      "深度求索"
+    ],
+    "urls": {
+      "chat": "https://api.deepseek.com",
+      "responses": "https://api.deepseek.com",
+      "messages": "https://api.deepseek.com/anthropic"
+    },
+    "modelMeta": [
+      {
+        "id": "deepseek-v4-pro",
+        "ctx": 1000000,
+        "maxOutput": 393216,
+        "reasoning": true,
+        "vision": false,
+        "toolCalling": true
+      },
+      {
+        "id": "deepseek-flash",
+        "ctx": 1000000,
+        "maxOutput": 393216,
+        "reasoning": true,
+        "vision": true,
+        "toolCalling": true
+      }
+    ],
+    "quirks": {
+      "reasoningPassback": true
+    },
+    "checkedAt": "2026-10-21"
+  },
+  {
+    "id": "kimi",
+    "name": "ai-runtime.providers.preset-kimi",
+    "category": "vendor",
+    "protocol": "openai-chat",
+    "baseURL": "https://api.moonshot.cn/v1",
+    "defaultModel": "",
+    "models": [],
+    "requiresApiKey": true,
+    "websiteUrl": "https://platform.moonshot.cn",
+    "apiKeyUrl": "https://platform.moonshot.cn/console/api-keys",
+    "docsUrl": "https://platform.moonshot.cn/docs/guide/start-using-kimi-api",
+    "modelsEndpoint": true,
+    "verified": true,
+    "icon": "kimi",
+    "keywords": [
+      "moonshot",
+      "月之暗面"
+    ],
+    "urls": {
+      "chat": "https://api.moonshot.cn/v1",
+      "responses": "https://api.moonshot.cn/v1",
+      "messages": "https://api.moonshot.cn/anthropic"
+    },
+    "modelMeta": [
+      {
+        "id": "kimi-k3",
+        "ctx": 1000000,
+        "maxOutput": 1048576,
+        "reasoning": true,
+        "vision": true,
+        "toolCalling": true
+      },
+      {
+        "id": "kimi-k2.7-code",
+        "ctx": 262144,
+        "reasoning": true,
+        "vision": true,
+        "toolCalling": true
+      },
+      {
+        "id": "kimi-k2.6",
+        "ctx": 262144,
+        "reasoning": true,
+        "vision": true,
+        "toolCalling": true
+      }
+    ],
+    "quirks": {
+      "dropParams": [
+        "temperature",
+        "top_p",
+        "n",
+        "presence_penalty",
+        "frequency_penalty"
+      ],
+      "reasoningPassback": true
+    },
+    "checkedAt": "2026-10-21"
+  },
+  {
+    "id": "zhipu",
+    "name": "ai-runtime.providers.preset-zhipu",
+    "category": "vendor",
+    "protocol": "openai-chat",
+    "baseURL": "https://open.bigmodel.cn/api/paas/v4",
+    "defaultModel": "",
+    "models": [],
+    "requiresApiKey": true,
+    "websiteUrl": "https://open.bigmodel.cn",
+    "apiKeyUrl": "https://open.bigmodel.cn/usercenter/apikeys",
+    "docsUrl": "https://docs.bigmodel.cn/cn/guide/develop/openai/introduction",
+    "modelsEndpoint": null,
+    "verified": true,
+    "icon": "zhipu",
+    "keywords": [
+      "智谱",
+      "glm",
+      "bigmodel"
+    ],
+    "urls": {
+      "chat": "https://open.bigmodel.cn/api/paas/v4",
+      "messages": "https://open.bigmodel.cn/api/anthropic"
+    },
+    "modelMeta": [
+      {
+        "id": "glm-5.3",
+        "ctx": 1000000,
+        "maxOutput": 131072,
+        "reasoning": true,
+        "vision": false,
+        "toolCalling": true
+      },
+      {
+        "id": "glm-5.3-flash",
+        "ctx": 1000000,
+        "maxOutput": 131072,
+        "reasoning": true,
+        "vision": true,
+        "toolCalling": true
+      },
+      {
+        "id": "glm-5.2",
+        "ctx": 1000000,
+        "maxOutput": 131072,
+        "reasoning": true,
+        "vision": false,
+        "toolCalling": true
+      },
+      {
+        "id": "glm-5.1",
+        "ctx": 200000,
+        "maxOutput": 131072,
+        "reasoning": true,
+        "vision": false,
+        "toolCalling": true
+      }
+    ],
+    "quirks": {
+      "maxTools": 128,
+      "reasoningPassback": true
+    },
+    "checkedAt": "2026-10-21"
+  },
+  {
+    "id": "qwen",
+    "name": "ai-runtime.providers.preset-qwen",
+    "category": "vendor",
+    "protocol": "openai-chat",
+    "baseURL": "https://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+    "defaultModel": "",
+    "models": [],
+    "requiresApiKey": true,
+    "websiteUrl": "https://bailian.console.aliyun.com",
+    "docsUrl": "https://help.aliyun.com/zh/model-studio/compatibility-of-openai-with-dashscope",
+    "modelsEndpoint": null,
+    "verified": true,
+    "icon": "qwen",
+    "keywords": [
+      "qwen",
+      "阿里",
+      "百炼",
+      "aliyun",
+      "dashscope"
+    ],
+    "hint": "ai-runtime.providers.hint-qwen",
+    "urls": {
+      "chat": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      "responses": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      "messages": "https://dashscope.aliyuncs.com/apps/anthropic"
+    },
+    "modelMeta": [
+      {
+        "id": "qwen3.8-max",
+        "ctx": 1000000,
+        "maxOutput": 131072,
+        "reasoning": true,
+        "vision": true,
+        "toolCalling": true
+      },
+      {
+        "id": "qwen3.8-flash",
+        "ctx": 1000000,
+        "maxOutput": 131072,
+        "reasoning": true,
+        "vision": true,
+        "toolCalling": true
+      },
+      {
+        "id": "qwen3.7-plus",
+        "ctx": 1000000,
+        "maxOutput": 65536,
+        "reasoning": true,
+        "vision": true,
+        "toolCalling": true
+      }
+    ],
+    "checkedAt": "2026-10-21"
+  },
+  {
+    "id": "zhipu-coding",
+    "name": "ai-runtime.providers.preset-zhipu-coding",
+    "category": "vendor",
+    "protocol": "anthropic",
+    "baseURL": "https://open.bigmodel.cn/api/anthropic",
+    "defaultModel": "",
+    "models": [],
+    "requiresApiKey": true,
+    "websiteUrl": "https://bigmodel.cn/claude-code",
+    "docsUrl": "https://docs.bigmodel.cn/cn/coding-plan/quick-start",
+    "modelsEndpoint": null,
+    "verified": true,
+    "icon": "zhipu",
+    "keywords": [
+      "智谱",
+      "glm",
+      "coding plan",
+      "编程套餐"
+    ],
+    "hint": "ai-runtime.providers.hint-coding-plan",
+    "codingPlan": true,
+    "urls": {
+      "chat": "https://open.bigmodel.cn/api/coding/paas/v4",
+      "messages": "https://open.bigmodel.cn/api/anthropic"
+    },
+    "modelMeta": [
+      {
+        "id": "glm-5.3",
+        "ctx": 1000000,
+        "maxOutput": 131072,
+        "reasoning": true,
+        "vision": false,
+        "toolCalling": true
+      },
+      {
+        "id": "glm-5.3-flash",
+        "ctx": 1000000,
+        "maxOutput": 131072,
+        "reasoning": true,
+        "vision": true,
+        "toolCalling": true
+      }
+    ],
+    "quirks": {
+      "maxTools": 128,
+      "reasoningPassback": true
+    },
+    "checkedAt": "2026-10-21"
+  },
+  {
+    "id": "qwen-coding",
+    "name": "ai-runtime.providers.preset-qwen-coding",
+    "category": "vendor",
+    "protocol": "anthropic",
+    "baseURL": "https://coding.dashscope.aliyuncs.com/apps/anthropic",
+    "defaultModel": "",
+    "models": [],
+    "requiresApiKey": true,
+    "websiteUrl": "https://bailian.console.aliyun.com",
+    "docsUrl": "https://help.aliyun.com/zh/model-studio/coding-plan-faq",
+    "modelsEndpoint": null,
+    "verified": true,
+    "icon": "qwen",
+    "keywords": [
+      "qwen",
+      "通义",
+      "百炼",
+      "coding plan",
+      "编程套餐"
+    ],
+    "hint": "ai-runtime.providers.hint-coding-plan",
+    "codingPlan": true,
+    "urls": {
+      "chat": "https://coding.dashscope.aliyuncs.com/v1",
+      "messages": "https://coding.dashscope.aliyuncs.com/apps/anthropic"
+    },
+    "modelMeta": [
+      {
+        "id": "qwen3.7-plus",
+        "ctx": 1000000,
+        "maxOutput": 65536,
+        "reasoning": true,
+        "vision": true,
+        "toolCalling": true
+      }
+    ],
+    "checkedAt": "2026-10-21"
+  },
+  {
+    "id": "doubao",
+    "name": "ai-runtime.providers.preset-doubao",
+    "category": "vendor",
+    "protocol": "openai-chat",
+    "baseURL": "https://ark.cn-beijing.volces.com/api/v3",
+    "defaultModel": "",
+    "models": [],
+    "requiresApiKey": true,
+    "websiteUrl": "https://console.volcengine.com/ark",
+    "docsUrl": "https://docs.volcengine.com/docs/ark/compatible-with-openai-sdk?lang=zh",
+    "modelsEndpoint": null,
+    "verified": true,
+    "icon": "doubao",
+    "keywords": [
+      "doubao",
+      "volcengine",
+      "ark",
+      "字节"
+    ]
+  },
+  {
+    "id": "minimax",
+    "name": "ai-runtime.providers.preset-minimax",
+    "category": "vendor",
+    "protocol": "openai-chat",
+    "baseURL": "https://api.minimax.cn/v1",
+    "defaultModel": "",
+    "models": [],
+    "requiresApiKey": true,
+    "websiteUrl": "https://platform.minimaxi.com",
+    "docsUrl": "https://platform.minimaxi.com/docs/api-reference/text-openai-api",
+    "modelsEndpoint": null,
+    "verified": true,
+    "icon": "minimax",
+    "urls": {
+      "chat": "https://api.minimax.cn/v1",
+      "messages": "https://api.minimax.cn/anthropic"
+    },
+    "modelMeta": [
+      {
+        "id": "MiniMax-M3",
+        "ctx": 1000000,
+        "maxOutput": 524288,
+        "reasoning": true,
+        "vision": true,
+        "toolCalling": true
+      },
+      {
+        "id": "MiniMax-M3.1-Flash",
+        "ctx": 1000000,
+        "maxOutput": 524288,
+        "reasoning": true,
+        "vision": true,
+        "toolCalling": true
+      }
+    ],
+    "quirks": {
+      "dropParams": [
+        "service_tier"
+      ],
+      "reasoningPassback": true,
+      "extraBody": {
+        "chat": {
+          "reasoning_split": true
+        }
+      }
+    },
+    "checkedAt": "2026-10-21"
+  },
+  {
+    "id": "xai",
+    "name": "ai-runtime.providers.preset-xai",
+    "category": "vendor",
+    "protocol": "openai-responses",
+    "baseURL": "https://api.x.ai/v1",
+    "defaultModel": "",
+    "models": [],
+    "requiresApiKey": true,
+    "websiteUrl": "https://console.x.ai",
+    "docsUrl": "https://docs.x.ai/docs/models",
+    "modelsEndpoint": null,
+    "verified": true,
+    "icon": "xai",
+    "keywords": [
+      "grok"
+    ],
+    "urls": {
+      "responses": "https://api.x.ai/v1",
+      "chat": "https://api.x.ai/v1"
+    },
+    "checkedAt": "2026-10-21"
+  },
+  {
+    "id": "openrouter",
+    "name": "ai-runtime.providers.preset-openrouter",
+    "category": "platform",
+    "protocol": "openai-chat",
+    "baseURL": "https://openrouter.ai/api/v1",
+    "defaultModel": "",
+    "models": [],
+    "requiresApiKey": true,
+    "websiteUrl": "https://openrouter.ai",
+    "apiKeyUrl": "https://openrouter.ai/keys",
+    "docsUrl": "https://openrouter.ai/docs/api/api-reference/models/get-models",
+    "modelsEndpoint": true,
+    "verified": true,
+    "icon": "openrouter",
+    "hint": "ai-runtime.providers.hint-openrouter",
+    "urls": {
+      "chat": "https://openrouter.ai/api/v1",
+      "responses": "https://openrouter.ai/api/v1",
+      "messages": "https://openrouter.ai/api"
+    },
+    "checkedAt": "2026-10-21"
+  },
+  {
+    "id": "siliconflow",
+    "name": "ai-runtime.providers.preset-siliconflow",
+    "category": "platform",
+    "protocol": "openai-chat",
+    "baseURL": "https://api.siliconflow.cn/v1",
+    "defaultModel": "",
+    "models": [],
+    "requiresApiKey": true,
+    "websiteUrl": "https://siliconflow.cn",
+    "apiKeyUrl": "https://cloud.siliconflow.cn/account/ak",
+    "docsUrl": "https://docs.siliconflow.cn/cn/userguide/capabilities/text-generation",
+    "modelsEndpoint": true,
+    "verified": true,
+    "icon": "siliconcloud",
+    "keywords": [
+      "硅基"
+    ]
+  },
+  {
+    "id": "amux",
+    "name": "ai-runtime.providers.preset-amux",
+    "category": "platform",
+    "protocol": "openai-chat",
+    "baseURL": "https://gateway.amux.ai/v1",
+    "urls": {
+      "chat": "https://gateway.amux.ai/v1",
+      "responses": "https://gateway.amux.ai/v1",
+      "messages": "https://gateway.amux.ai/v1"
+    },
+    "defaultModel": "",
+    "models": [],
+    "requiresApiKey": true,
+    "websiteUrl": "https://amux.ai",
+    "docsUrl": "https://amux.ai/api-reference",
+    "modelsEndpoint": true,
+    "verified": true,
+    "checkedAt": "2026-10-12",
+    "icon": "amux",
+    "keywords": [
+      "amux",
+      "gateway"
+    ],
+    "hint": "ai-runtime.providers.hint-amux"
+  },
+  {
+    "id": "ollama",
+    "name": "ai-runtime.providers.preset-ollama",
+    "category": "platform",
+    "protocol": "openai-chat",
+    "baseURL": "http://localhost:11434/v1",
+    "defaultModel": "",
+    "models": [],
+    "requiresApiKey": false,
+    "websiteUrl": "https://ollama.com",
+    "docsUrl": "https://docs.ollama.com/api/openai-compatibility",
+    "modelsEndpoint": true,
+    "verified": true,
+    "icon": "ollama",
+    "keywords": [
+      "local",
+      "本地"
+    ],
+    "hint": "ai-runtime.providers.hint-ollama"
+  },
+  {
+    "id": "lmstudio",
+    "name": "ai-runtime.providers.preset-lmstudio",
+    "category": "platform",
+    "protocol": "openai-chat",
+    "baseURL": "http://localhost:1234/v1",
+    "defaultModel": "",
+    "models": [],
+    "requiresApiKey": false,
+    "websiteUrl": "https://lmstudio.ai",
+    "docsUrl": "https://lmstudio.ai/docs/app/api/endpoints/openai",
+    "modelsEndpoint": true,
+    "verified": true,
+    "icon": "lmstudio",
+    "keywords": [
+      "local",
+      "本地"
+    ],
+    "hint": "ai-runtime.providers.hint-lmstudio"
+  }
+]

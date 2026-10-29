@@ -14,8 +14,22 @@ var gil sync.Mutex
 // Enter 拿锁进入 JS 世界（外部 goroutine：IPC handler、子进程读流、定时器）。
 func Enter() { gil.Lock() }
 
-// Leave 离开 JS 世界。
-func Leave() { gil.Unlock() }
+// Leave 离开 JS 世界（让出）。处在某个 Async 的同步阶段时，锁直接交还给调用者（= async 函数在首个
+// await 处把控制权还给调用方）。
+func Leave() { release() }
+
+// frames：正在同步阶段执行的 Async 调用栈（只在持锁时访问）。
+var frames []chan struct{}
+
+func release() {
+	if n := len(frames); n > 0 {
+		f := frames[n-1]
+		frames = frames[:n-1]
+		close(f)
+		return
+	}
+	gil.Unlock()
+}
 
 // Run 在 JS 世界里执行 fn（宏任务）。
 func Run(fn func()) {
@@ -31,7 +45,7 @@ func Call[T any](fn func() T) T {
 	return fn()
 }
 
-// Go 起一个新的“异步函数”（void promise）：在新 goroutine 里持锁运行。
+// Go = setImmediate(fn)：排一个宏任务（不在当前同步段内执行）。
 func Go(fn func()) { go Run(fn) }
 
 /* ------------------------------- Promise ------------------------------- */
@@ -59,21 +73,40 @@ func Rejected[T any](err error) *Promise[T] {
 	return p
 }
 
-// Async 把一段可能 Await 的代码当作 async 函数启动：当前调用者持锁时，
-// 同步部分在调用者里立即开始（与 JS 一样执行到第一个 await），之后在独立 goroutine 继续。
-// 为简单起见：fn 在新 goroutine 里持锁运行；调用者继续持锁执行直到自己让出。
+// Async = 调用一个 async 函数（必须持锁调用）：fn 立即在新 goroutine 里执行同步部分（锁移交），
+// 到第一个让出点（Await/Sleep/Leave）或结束时把锁还给调用者，调用者继续——与 JS 一致。
 func Async[T any](fn func() (T, error)) *Promise[T] {
 	p := NewPromise[T]()
+	ch := make(chan struct{})
+	frames = append(frames, ch)
 	go func() {
-		gil.Lock()
-		defer gil.Unlock()
-		v, err := fn()
+		var v T
+		var err error
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					if e, ok := r.(JSThrow); ok {
+						err = e // async 函数里的 throw = 拒绝
+						return
+					}
+					panic(r)
+				}
+			}()
+			v, err = fn()
+		}()
 		if err != nil {
 			p.Reject(err)
 		} else {
 			p.Resolve(v)
 		}
+		if n := len(frames); n > 0 && frames[n-1] == ch {
+			frames = frames[:n-1]
+			close(ch)
+		} else {
+			gil.Unlock()
+		}
 	}()
+	<-ch
 	return p
 }
 
@@ -103,13 +136,12 @@ func (p *Promise[T]) Result() (T, error) { return p.v, p.err }
 
 // Await 必须在持锁时调用：释放锁等待结算，再拿回锁（= await）。
 func Await[T any](p *Promise[T]) (T, error) {
-	select {
-	case <-p.done:
-	default:
-		gil.Unlock()
-		<-p.done
-		gil.Lock()
+	if len(frames) == 0 && p.Settled() {
+		return p.v, p.err
 	}
+	release()
+	<-p.done
+	gil.Lock()
 	return p.v, p.err
 }
 
@@ -121,7 +153,7 @@ func Block[T any](p *Promise[T]) (T, error) {
 
 // Sleep = await new Promise(r => setTimeout(r, ms))。
 func Sleep(d time.Duration) {
-	gil.Unlock()
+	release()
 	time.Sleep(d)
 	gil.Lock()
 }
@@ -251,3 +283,8 @@ func Dispatch(fn func()) {
 	}()
 	fn()
 }
+
+// UndefinedT / Undefined：需要区分 JS undefined 与 null 时使用（Go nil = null）。
+type UndefinedT struct{}
+
+var Undefined = UndefinedT{}

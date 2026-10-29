@@ -1,0 +1,1150 @@
+[
+ {
+  "id": "codex-basic",
+  "log": [
+   {
+    "ev": {
+     "kind": "health",
+     "state": "ready"
+    }
+   },
+   {
+    "op": "start",
+    "ok": {
+     "sessionId": null,
+     "version": "mock-codex/0.0.0",
+     "capabilities": {
+      "loadSession": true,
+      "images": true
+     }
+    }
+   },
+   {
+    "op": "ensureThread",
+    "ok": "mock-codex-thread-1"
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "status",
+      "kind": "completed",
+      "text": "{\"type\":\"reasoning\",\"id\":\"rs-turn-1\",\"text\":\"thinking…\"}"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "status",
+      "kind": "started",
+      "text": "{\"type\":\"command_execution\",\"id\":\"cmd-turn-1\",\"command\":\"ls\",\"status\":\"in_progress\"}"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "status",
+      "kind": "completed",
+      "text": "{\"type\":\"command_execution\",\"id\":\"cmd-turn-1\",\"command\":\"ls\",\"aggregated_output\":\"a.txt\",\"exit_code\":0,\"status\":\"completed\"}"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "status",
+      "kind": "started",
+      "text": "{\"type\":\"agent_message\",\"id\":\"msg-turn-1\",\"text\":\"\"}"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "text-delta",
+      "text": "【Mock"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "text-delta",
+      "text": " Codex】任务完成。"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "status",
+      "kind": "completed",
+      "text": "{\"type\":\"agent_message\",\"id\":\"msg-turn-1\",\"text\":\"【Mock Codex】任务完成。\"}"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "op": "send",
+    "ok": {
+     "turnId": "id-1",
+     "stopReason": "completed",
+     "text": "【Mock Codex】任务完成。",
+     "sessionId": "mock-codex-thread-1",
+     "cliTurnId": "turn-1",
+     "usage": {
+      "inputTokens": 10,
+      "outputTokens": 8,
+      "cacheReadTokens": 2
+     },
+     "raw": {
+      "id": "turn-1",
+      "items": [],
+      "status": "completed",
+      "error": null
+     }
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "status",
+      "kind": "completed",
+      "text": "{\"type\":\"reasoning\",\"id\":\"rs-turn-2\",\"text\":\"thinking…\"}"
+     },
+     "turnId": "id-2"
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "status",
+      "kind": "started",
+      "text": "{\"type\":\"command_execution\",\"id\":\"cmd-turn-2\",\"command\":\"ls\",\"status\":\"in_progress\"}"
+     },
+     "turnId": "id-2"
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "status",
+      "kind": "completed",
+      "text": "{\"type\":\"command_execution\",\"id\":\"cmd-turn-2\",\"command\":\"ls\",\"aggregated_output\":\"a.txt\",\"exit_code\":0,\"status\":\"completed\"}"
+     },
+     "turnId": "id-2"
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "status",
+      "kind": "started",
+      "text": "{\"type\":\"agent_message\",\"id\":\"msg-turn-2\",\"text\":\"\"}"
+     },
+     "turnId": "id-2"
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "text-delta",
+      "text": "【Mock"
+     },
+     "turnId": "id-2"
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "text-delta",
+      "text": " Codex】任务完成。"
+     },
+     "turnId": "id-2"
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "status",
+      "kind": "completed",
+      "text": "{\"type\":\"agent_message\",\"id\":\"msg-turn-2\",\"text\":\"【Mock Codex】任务完成。\"}"
+     },
+     "turnId": "id-2"
+    }
+   },
+   {
+    "op": "send",
+    "ok": {
+     "turnId": "id-2",
+     "stopReason": "completed",
+     "text": "【Mock Codex】任务完成。",
+     "sessionId": "mock-codex-thread-1",
+     "cliTurnId": "turn-2",
+     "usage": {
+      "inputTokens": 10,
+      "outputTokens": 8,
+      "cacheReadTokens": 2
+     },
+     "raw": {
+      "id": "turn-2",
+      "items": [],
+      "status": "completed",
+      "error": null
+     }
+    }
+   },
+   {
+    "ev": {
+     "kind": "health",
+     "state": "exited",
+     "code": null
+    }
+   },
+   {},
+   {
+    "op": "close",
+    "ok": "<undefined>"
+   }
+  ]
+ },
+ {
+  "id": "codex-resume",
+  "log": [
+   {
+    "ev": {
+     "kind": "health",
+     "state": "ready"
+    }
+   },
+   {
+    "op": "start",
+    "ok": {
+     "sessionId": "other-thread",
+     "resumed": true,
+     "version": "mock-codex/0.0.0",
+     "capabilities": {
+      "loadSession": true,
+      "images": true
+     }
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "status",
+      "kind": "completed",
+      "text": "{\"type\":\"reasoning\",\"id\":\"rs-turn-1\",\"text\":\"thinking…\"}"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "status",
+      "kind": "started",
+      "text": "{\"type\":\"command_execution\",\"id\":\"cmd-turn-1\",\"command\":\"ls\",\"status\":\"in_progress\"}"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "status",
+      "kind": "completed",
+      "text": "{\"type\":\"command_execution\",\"id\":\"cmd-turn-1\",\"command\":\"ls\",\"aggregated_output\":\"a.txt\",\"exit_code\":0,\"status\":\"completed\"}"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "status",
+      "kind": "started",
+      "text": "{\"type\":\"agent_message\",\"id\":\"msg-turn-1\",\"text\":\"\"}"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "text-delta",
+      "text": "【Mock"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "text-delta",
+      "text": " Codex】已续接会话 other-thread"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "status",
+      "kind": "completed",
+      "text": "{\"type\":\"agent_message\",\"id\":\"msg-turn-1\",\"text\":\"【Mock Codex】已续接会话 other-thread\"}"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "op": "send",
+    "ok": {
+     "turnId": "id-1",
+     "stopReason": "completed",
+     "text": "【Mock Codex】已续接会话 other-thread",
+     "sessionId": "other-thread",
+     "cliTurnId": "turn-1",
+     "usage": {
+      "inputTokens": 10,
+      "outputTokens": 8,
+      "cacheReadTokens": 2
+     },
+     "raw": {
+      "id": "turn-1",
+      "items": [],
+      "status": "completed",
+      "error": null
+     }
+    }
+   },
+   {
+    "ev": {
+     "kind": "health",
+     "state": "exited",
+     "code": null
+    }
+   },
+   {},
+   {
+    "op": "close",
+    "ok": "<undefined>"
+   }
+  ]
+ },
+ {
+  "id": "codex-perm-allow",
+  "log": [
+   {
+    "ev": {
+     "kind": "health",
+     "state": "ready"
+    }
+   },
+   {
+    "op": "start",
+    "ok": {
+     "sessionId": null,
+     "version": "mock-codex/0.0.0",
+     "capabilities": {
+      "loadSession": true,
+      "images": true
+     }
+    }
+   },
+   {
+    "op": "ensureThread",
+    "ok": "mock-codex-thread-1"
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "status",
+      "kind": "completed",
+      "text": "{\"type\":\"reasoning\",\"id\":\"rs-turn-1\",\"text\":\"thinking…\"}"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "status",
+      "kind": "started",
+      "text": "{\"type\":\"command_execution\",\"id\":\"cmd-turn-1\",\"command\":\"ls\",\"status\":\"in_progress\"}"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "ev": {
+     "kind": "permission",
+     "id": "codex-perm-id-2",
+     "request": {
+      "summary": "bash: ls",
+      "method": "item/commandExecution/requestApproval"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "status",
+      "kind": "completed",
+      "text": "{\"type\":\"command_execution\",\"id\":\"cmd-turn-1\",\"command\":\"ls\",\"aggregated_output\":\"a.txt\",\"exit_code\":0,\"status\":\"completed\"}"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "status",
+      "kind": "started",
+      "text": "{\"type\":\"agent_message\",\"id\":\"msg-turn-1\",\"text\":\"\"}"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "text-delta",
+      "text": "【Mock"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "text-delta",
+      "text": " Codex】任务完成。"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "status",
+      "kind": "completed",
+      "text": "{\"type\":\"agent_message\",\"id\":\"msg-turn-1\",\"text\":\"【Mock Codex】任务完成。\"}"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "op": "send",
+    "ok": {
+     "turnId": "id-1",
+     "stopReason": "completed",
+     "text": "【Mock Codex】任务完成。",
+     "sessionId": "mock-codex-thread-1",
+     "cliTurnId": "turn-1",
+     "usage": {
+      "inputTokens": 10,
+      "outputTokens": 8,
+      "cacheReadTokens": 2
+     },
+     "raw": {
+      "id": "turn-1",
+      "items": [],
+      "status": "completed",
+      "error": null
+     }
+    }
+   },
+   {
+    "ev": {
+     "kind": "health",
+     "state": "exited",
+     "code": null
+    }
+   },
+   {},
+   {
+    "op": "close",
+    "ok": "<undefined>"
+   }
+  ]
+ },
+ {
+  "id": "codex-perm-deny",
+  "log": [
+   {
+    "ev": {
+     "kind": "health",
+     "state": "ready"
+    }
+   },
+   {
+    "op": "start",
+    "ok": {
+     "sessionId": null,
+     "version": "mock-codex/0.0.0",
+     "capabilities": {
+      "loadSession": true,
+      "images": true
+     }
+    }
+   },
+   {
+    "op": "ensureThread",
+    "ok": "mock-codex-thread-1"
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "status",
+      "kind": "completed",
+      "text": "{\"type\":\"reasoning\",\"id\":\"rs-turn-1\",\"text\":\"thinking…\"}"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "status",
+      "kind": "started",
+      "text": "{\"type\":\"command_execution\",\"id\":\"cmd-turn-1\",\"command\":\"ls\",\"status\":\"in_progress\"}"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "ev": {
+     "kind": "permission",
+     "id": "codex-perm-id-2",
+     "request": {
+      "summary": "bash: ls",
+      "method": "item/commandExecution/requestApproval"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "status",
+      "kind": "completed",
+      "text": "{\"type\":\"command_execution\",\"id\":\"cmd-turn-1\",\"command\":\"ls\",\"aggregated_output\":\"a.txt\",\"exit_code\":null,\"status\":\"failed\"}"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "status",
+      "kind": "started",
+      "text": "{\"type\":\"agent_message\",\"id\":\"msg-turn-1\",\"text\":\"\"}"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "text-delta",
+      "text": "【Mock"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "text-delta",
+      "text": " Codex】任务完成。"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "status",
+      "kind": "completed",
+      "text": "{\"type\":\"agent_message\",\"id\":\"msg-turn-1\",\"text\":\"【Mock Codex】任务完成。\"}"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "op": "send",
+    "ok": {
+     "turnId": "id-1",
+     "stopReason": "completed",
+     "text": "【Mock Codex】任务完成。",
+     "sessionId": "mock-codex-thread-1",
+     "cliTurnId": "turn-1",
+     "usage": {
+      "inputTokens": 10,
+      "outputTokens": 8,
+      "cacheReadTokens": 2
+     },
+     "raw": {
+      "id": "turn-1",
+      "items": [],
+      "status": "completed",
+      "error": null
+     }
+    }
+   },
+   {
+    "ev": {
+     "kind": "health",
+     "state": "exited",
+     "code": null
+    }
+   },
+   {},
+   {
+    "op": "close",
+    "ok": "<undefined>"
+   }
+  ]
+ },
+ {
+  "id": "codex-fail",
+  "log": [
+   {
+    "ev": {
+     "kind": "health",
+     "state": "ready"
+    }
+   },
+   {
+    "op": "start",
+    "ok": {
+     "sessionId": null,
+     "version": "mock-codex/0.0.0",
+     "capabilities": {
+      "loadSession": true,
+      "images": true
+     }
+    }
+   },
+   {
+    "op": "send",
+    "err": "app-server thread not started"
+   },
+   {
+    "op": "ensureThread",
+    "ok": "mock-codex-thread-1"
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "status",
+      "kind": "completed",
+      "text": "{\"type\":\"reasoning\",\"id\":\"rs-turn-1\",\"text\":\"thinking…\"}"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "status",
+      "kind": "started",
+      "text": "{\"type\":\"command_execution\",\"id\":\"cmd-turn-1\",\"command\":\"ls\",\"status\":\"in_progress\"}"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "status",
+      "kind": "completed",
+      "text": "{\"type\":\"command_execution\",\"id\":\"cmd-turn-1\",\"command\":\"ls\",\"aggregated_output\":\"a.txt\",\"exit_code\":0,\"status\":\"completed\"}"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "op": "send",
+    "ok": {
+     "turnId": "id-1",
+     "stopReason": "failed",
+     "text": "",
+     "sessionId": "mock-codex-thread-1",
+     "cliTurnId": "turn-1",
+     "error": "Mock: quota exceeded",
+     "raw": {
+      "id": "turn-1",
+      "items": [],
+      "status": "failed",
+      "error": {
+       "message": "Mock: quota exceeded"
+      }
+     }
+    }
+   },
+   {
+    "ev": {
+     "kind": "health",
+     "state": "exited",
+     "code": null
+    }
+   },
+   {},
+   {
+    "op": "close",
+    "ok": "<undefined>"
+   }
+  ]
+ },
+ {
+  "id": "codex-noapp",
+  "log": [
+   {
+    "ev": {
+     "kind": "health",
+     "state": "exited",
+     "code": 2
+    }
+   },
+   {},
+   {
+    "op": "start",
+    "err": "ACP process exited"
+   },
+   {
+    "op": "close",
+    "ok": "<undefined>"
+   }
+  ]
+ },
+ {
+  "id": "gemini-basic",
+  "log": [
+   {
+    "ev": {
+     "kind": "health",
+     "state": "ready"
+    }
+   },
+   {
+    "op": "start",
+    "ok": {
+     "sessionId": "gem-bae7340d-bf39-44a5-83a9-9faf525d3acc",
+     "currentModeId": "default",
+     "version": "1",
+     "capabilities": {
+      "loadSession": true,
+      "images": false,
+      "audio": false
+     }
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "thinking",
+      "text": "Thinking…"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "text-delta",
+      "text": "Mock Gemini: hello"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "op": "send",
+    "ok": {
+     "turnId": "id-1",
+     "stopReason": "end_turn",
+     "text": "Mock Gemini: hello",
+     "sessionId": "gem-bae7340d-bf39-44a5-83a9-9faf525d3acc",
+     "raw": {
+      "stopReason": "end_turn",
+      "_meta": {
+       "quota": {
+        "token_count": {
+         "input_tokens": 12,
+         "output_tokens": 5
+        }
+       }
+      }
+     }
+    }
+   },
+   {
+    "ev": {
+     "kind": "health",
+     "state": "exited",
+     "code": null
+    }
+   },
+   {},
+   {
+    "op": "close",
+    "ok": "<undefined>"
+   }
+  ]
+ },
+ {
+  "id": "gemini-perm",
+  "log": [
+   {
+    "ev": {
+     "kind": "health",
+     "state": "ready"
+    }
+   },
+   {
+    "op": "start",
+    "ok": {
+     "sessionId": "gem-dc296b2d-2efe-4c7f-8ef1-83d7aba0a8e6",
+     "currentModeId": "default",
+     "version": "1",
+     "capabilities": {
+      "loadSession": true,
+      "images": false,
+      "audio": false
+     }
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "thinking",
+      "text": "Thinking…"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "tool",
+      "name": "edit",
+      "status": "start",
+      "detail": "tc-1",
+      "input": "{\"description\":\"Write file\",\"path\":\"a.txt\"}"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "ev": {
+     "kind": "permission",
+     "id": "acp-perm-id-2",
+     "request": {
+      "summary": "Write file: a.txt",
+      "toolUseId": "tc-1",
+      "options": [
+       {
+        "id": "proceed_once",
+        "kind": "allow_once",
+        "name": "Allow"
+       },
+       {
+        "id": "proceed_always",
+        "kind": "allow_always",
+        "name": "Always"
+       },
+       {
+        "id": "cancel",
+        "kind": "reject_once",
+        "name": "Reject"
+       }
+      ],
+      "method": "session/request_permission"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "tool",
+      "name": "edit",
+      "status": "error",
+      "detail": "tc-1",
+      "input": "{}",
+      "output": "denied"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "text-delta",
+      "text": "Mock Gemini: do it"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "op": "send",
+    "ok": {
+     "turnId": "id-1",
+     "stopReason": "end_turn",
+     "text": "Mock Gemini: do it",
+     "sessionId": "gem-dc296b2d-2efe-4c7f-8ef1-83d7aba0a8e6",
+     "denied": true,
+     "raw": {
+      "stopReason": "end_turn",
+      "_meta": {
+       "quota": {
+        "token_count": {
+         "input_tokens": 12,
+         "output_tokens": 5
+        }
+       }
+      }
+     }
+    }
+   },
+   {
+    "ev": {
+     "kind": "health",
+     "state": "exited",
+     "code": null
+    }
+   },
+   {},
+   {
+    "op": "close",
+    "ok": "<undefined>"
+   }
+  ]
+ },
+ {
+  "id": "acp-basic",
+  "log": [
+   {
+    "ev": {
+     "kind": "health",
+     "state": "ready"
+    }
+   },
+   {
+    "op": "start",
+    "ok": {
+     "sessionId": "acp-98a79ee3",
+     "version": "1",
+     "capabilities": {
+      "loadSession": true,
+      "images": true,
+      "audio": false
+     }
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "text-delta",
+      "text": "external: hi (turn 1)"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "op": "send",
+    "ok": {
+     "turnId": "id-1",
+     "stopReason": "end_turn",
+     "text": "external: hi (turn 1)",
+     "sessionId": "acp-98a79ee3",
+     "raw": {
+      "stopReason": "end_turn"
+     }
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "text-delta",
+      "text": "external: second (turn 2)"
+     },
+     "turnId": "id-2"
+    }
+   },
+   {
+    "op": "send",
+    "ok": {
+     "turnId": "id-2",
+     "stopReason": "end_turn",
+     "text": "external: second (turn 2)",
+     "sessionId": "acp-98a79ee3",
+     "raw": {
+      "stopReason": "end_turn"
+     }
+    }
+   },
+   {
+    "ev": {
+     "kind": "health",
+     "state": "exited",
+     "code": null
+    }
+   },
+   {},
+   {
+    "op": "close",
+    "ok": "<undefined>"
+   }
+  ]
+ },
+ {
+  "id": "acp-perm-allow",
+  "log": [
+   {
+    "ev": {
+     "kind": "health",
+     "state": "ready"
+    }
+   },
+   {
+    "op": "start",
+    "ok": {
+     "sessionId": "acp-ad786bb8",
+     "version": "1",
+     "capabilities": {
+      "loadSession": true,
+      "images": true,
+      "audio": false
+     }
+    }
+   },
+   {
+    "ev": {
+     "kind": "permission",
+     "id": "acp-perm-id-2",
+     "request": {
+      "summary": "touch ok.txt",
+      "toolUseId": "tc1",
+      "options": [
+       {
+        "id": "allow",
+        "kind": "allow_once",
+        "name": "Allow"
+       },
+       {
+        "id": "reject",
+        "kind": "reject_once",
+        "name": "Reject"
+       }
+      ],
+      "method": "session/request_permission"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "tool",
+      "name": "edit",
+      "status": "done",
+      "detail": "tc1",
+      "input": "{\"description\":\"touch ok.txt\"}"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "ev": {
+     "kind": "harness",
+     "event": {
+      "type": "text-delta",
+      "text": "external: perm please (turn 1)"
+     },
+     "turnId": "id-1"
+    }
+   },
+   {
+    "op": "send",
+    "ok": {
+     "turnId": "id-1",
+     "stopReason": "end_turn",
+     "text": "external: perm please (turn 1)",
+     "sessionId": "acp-ad786bb8",
+     "raw": {
+      "stopReason": "end_turn"
+     }
+    }
+   },
+   {
+    "ev": {
+     "kind": "health",
+     "state": "exited",
+     "code": null
+    }
+   },
+   {},
+   {
+    "op": "close",
+    "ok": "<undefined>"
+   }
+  ]
+ }
+]
