@@ -75,7 +75,7 @@ func ExtractDocx(buf []byte) Extracted {
 	return Extracted{Text: DocxXMLToText(utf8String(x)), Mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}
 }
 
-// ExtractPdf：逐页纯文本（D-B6-8：文本与 pdf.js 的排版合并规则不完全一致）
+// ExtractPdf：逐页纯文本；按 pdf.js getTextContent + unpdf extractText 规则合并（pdfjs_text.go）
 func ExtractPdf(buf []byte) Extracted {
 	r, err := pdf.NewReader(bytes.NewReader(buf), int64(len(buf)))
 	if err != nil {
@@ -83,11 +83,12 @@ func ExtractPdf(buf []byte) Extracted {
 	}
 	n := r.NumPage()
 	texts := make([]string, 0, n)
+	d := &pdfjsDocCtx{fonts: map[string]*pdfjsFont{}}
 	for i := 1; i <= n; i++ {
 		p := r.Page(i)
 		t := ""
 		if !p.V.IsNull() {
-			t, _ = p.GetPlainText(nil)
+			t = pdfjsPageText(d, p.V)
 		}
 		texts = append(texts, jsTrim(t))
 	}
