@@ -267,6 +267,8 @@ Go 版**1:1 镜像** Node 版：模块边界、包/层结构、数据格式、�
 | D-B5-MCP-5 | 事件循环顺序 | Node `fetch()` 同步发起，fire-and-forget 入站 GET 先于下一个 POST 到达；Go 用 httptrace `WroteRequest` 等 GET 写出（≤2s）再继续，消息分发用单队列保持 Node 的顺序 | 无 |
 | D-B5-MCP-6 | `ExtensionsService.attach(mcp, registry)` | Go extensions 只见薄接口（ToolDef/McpRuntime）；`mcpbridge.ExtRuntime/ExtRegistry` 适配，Register 时从原 Definition 补回 Input/RequiresWorkspace，ExecContext 经 ctx 透传；GUI 配置 env/headers 是 Go map，按键排序传入 | 无行为差异 |
 | D-B5-MCP-7 | **未完成** | main.go / AIRuntimeBoot 装配（`mcpbridge.New` + `Apply` + `ext.Attach`）随运行时 worker（feat/2.0.5-go-ai）的 Registry 接线落地；本分支只提供 API | 待运行时接线 |
+| D-B5-MCP-8 | 等价 | Windows 自定义 env 起子进程：libuv `make_program_env` 会从父进程补齐 required_vars（HOMEDRIVE/HOMEPATH/LOGONSERVER/PATH/SYSTEMDRIVE/SYSTEMROOT/TEMP/USERDOMAIN/USERNAME/USERPROFILE/WINDIR，大小写不敏感、仅非空）；Go 无此行为，`nodeproc.libuvEnv` 在 Windows 上照搬（unix 为恒等） | stdio golden 在 Windows 逐键相等 |
+| D-B5-MCP-9 | 比对容差 | http-slowinit：init 超时后 setProtocolVersion(legacy) 发起入站 GET、同 tick 内 close() abort；GET 是否上线在 Node 自身随机器而异（本地 4/4 有、CI 三平台无）。Go 改为 GET 异步发起、下一个 POST 先等其写出（保持顺序），close 不等直接 abort；parity 测试仅对该场景剥离"最后一个 POST 之后"的 GET，其余 wire 逐字节比对 | Node 自身非确定 |
 | D-B5-7 | **未完成**（本轮剩余） | registry/RoutedRegistry 与 main.go `GetRegistry` 接线、providers test/testDraft/fetchModels（D-B4d-3）、GatewayService 写操作（D-B4d-6）、chat 流式 procs/事件（替换 UNAVAILABLE）、memory episodes `privacy.RuleSpans`、D-B8-2/3/4 | 下一轮 |
 
 ### 3.5 一致性测试策略（golden，Node 与 Go 同输入对比输出）
