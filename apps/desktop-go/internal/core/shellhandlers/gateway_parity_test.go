@@ -251,10 +251,12 @@ func TestGatewayServiceParity(t *testing.T) {
 				got.Set("state", state).Set("runtimeConfig", s.RuntimeConfig()).
 					Set("nomiMain", nomiRouteObj(s.NomiRoute("main"))).Set("nomiTools", nomiRouteObj(s.NomiRoute("tools")))
 				gs := strings.ReplaceAll(strings.ReplaceAll(canon(got), strings.ReplaceAll(ud, `\`, `\\`), "<UD>"), ud, "<UD>")
-				if runtime.GOOS == "windows" {
-					gs = strings.ReplaceAll(gs, `<UD>\\gateway\\`, "<UD>/gateway/")
-				}
 				ws := canon(want)
+				if runtime.GOOS == "windows" {
+					// committed golden 录自 POSIX；CI 现场录制时 Node 也是反斜杠 → 两侧统一成 /
+					gs = strings.ReplaceAll(gs, `<UD>\\gateway\\`, "<UD>/gateway/")
+					ws = strings.ReplaceAll(ws, `<UD>\\gateway\\`, "<UD>/gateway/")
+				}
 				if gs != ws {
 					t.Fatalf("step %d %s %s\n--- node\n%s\n--- go\n%s", i, st.Op, string(raw[:0]), ws, gs)
 				}

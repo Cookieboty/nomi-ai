@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"sync"
 
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwagents"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore/agents"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
@@ -288,13 +288,17 @@ func (c *Commands) generate() error {
 				model = &m
 			}
 		}
-		var launch *gwagents.Launch
+		var launch *agents.AgentLaunch
 		var template *string
 		if model != nil && client != nil {
 			home := c.home
-			ctx := &gwagents.LaunchContext{URL: src.URL, Token: tokenMark, Model: *model, Models: client.Models,
-				Dir: filepath.Join(c.WorkDir, kind), MetaOf: src.MetaOf, Catalog: src.Catalog, Home: &home, Platform: c.platform}
-			launch = gwagents.AgentLaunch(kind, ctx)
+			ctx := &agents.LaunchContext{URL: src.URL, Token: tokenMark, Model: *model, Models: client.Models,
+				Dir: filepath.Join(c.WorkDir, kind), MetaOf: src.MetaOf, Catalog: src.Catalog, Home: home, Platform: c.platform}
+			l, err := agents.AgentLaunchFor(kind, ctx)
+			if err != nil {
+				return err
+			}
+			launch = l
 			t, err := c.template(kind, ctx)
 			if err != nil {
 				return err
@@ -333,7 +337,7 @@ func (c *Commands) generate() error {
 
 var modelLineRe = regexp.MustCompile(`(?m)^model = .*$`)
 
-func (c *Commands) template(kind string, ctx *gwagents.LaunchContext) (*string, error) {
+func (c *Commands) template(kind string, ctx *agents.LaunchContext) (*string, error) {
 	if kind != "grok" && kind != "dsh" {
 		return nil, nil
 	}
@@ -345,7 +349,9 @@ func (c *Commands) template(kind string, ctx *gwagents.LaunchContext) (*string, 
 		tdir := filepath.Join(dir, "dsh")
 		cp := *ctx
 		cp.Model, cp.Dir = modelMark, tdir
-		gwagents.AgentLaunch("dsh", &cp)
+		if _, err := agents.AgentLaunchFor("dsh", &cp); err != nil {
+			return nil, err
+		}
 		f := filepath.Join(tdir, "patch.yml")
 		return &f, nil
 	}

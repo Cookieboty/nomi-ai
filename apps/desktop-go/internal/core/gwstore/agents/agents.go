@@ -37,6 +37,7 @@ type LaunchContext struct {
 	Catalog           []string
 	Placeholder       *string
 	Home              string
+	Platform          string // 测试注入；空 = 当前 Node platform
 }
 
 // AgentLaunch = AgentLaunch；Env 为有序对象（值均为 string）
@@ -150,7 +151,7 @@ func envTrim(k string) string {
 
 func prepareClaudeHome(c *LaunchContext) error {
 	userDir := accounts.UserCliHome("claude", nil, homeOr(c.Home))
-	if _, err := accounts.EnsureAccountHome("claude", c.Dir, userDir, usage.Platform()); err != nil {
+	if _, err := accounts.EnsureAccountHome("claude", c.Dir, userDir, c.platform()); err != nil {
 		return err
 	}
 	_ = os.Remove(filepath.Join(c.Dir, "settings.local.json"))
@@ -391,7 +392,7 @@ func grok(c *LaunchContext) (*AgentLaunch, error) {
 	if err := os.MkdirAll(filepath.Join(shared, "sessions"), 0o777); err != nil {
 		return nil, err
 	}
-	problems, err := launch.EnsurePrivateHome(c.Dir, shared, ".*", []string{`^(config\.toml|auth\.json)$`, `\.lock$`}, usage.Platform())
+	problems, err := launch.EnsurePrivateHome(c.Dir, shared, ".*", []string{`^(config\.toml|auth\.json)$`, `\.lock$`}, c.platform())
 	if err != nil {
 		return nil, err
 	}
@@ -472,4 +473,20 @@ func StripGatewayLeftovers(env *u.Obj, url string, tokens []string) *u.Obj {
 		}
 	}
 	return out
+}
+
+func (c *LaunchContext) platform() string {
+	if c.Platform != "" {
+		return c.Platform
+	}
+	return usage.Platform()
+}
+
+// EnvGet：launch.env[k]
+func (a *AgentLaunch) EnvGet(k string) (string, bool) {
+	if a.Env == nil || !a.Env.Has(k) {
+		return "", false
+	}
+	v, _ := a.Env.Get(k).(string)
+	return v, true
 }

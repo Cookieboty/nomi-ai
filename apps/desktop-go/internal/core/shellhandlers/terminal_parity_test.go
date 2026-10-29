@@ -10,7 +10,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwagents"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore/agents"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/terminal"
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
@@ -54,7 +54,7 @@ func termSource() *terminal.Source {
 	cl := func(tok *string, kv ...any) *terminal.Client {
 		return &terminal.Client{Token: tok, Models: u.NewObj(kv...)}
 	}
-	metas := map[string]*gwagents.ModelMeta{
+	metas := map[string]*agents.ModelMeta{
 		"p1/claude-x": {Label: s("Claude X"), Provider: s("P1"), Ctx: f(200000), MaxOutput: f(8192), Reasoning: b(true)},
 		"p1/gpt-x":    {Label: s("GPT X"), Ctx: f(128000), Vision: b(true)},
 		"p1/ds-x":     {Provider: s("P1"), Ctx: f(64000), MaxOutput: f(4096)},
@@ -68,7 +68,7 @@ func termSource() *terminal.Source {
 			"grok":   cl(s("tok-grok"), "main", "p1/grok-x"),
 			"dsh":    cl(s("tok-dsh"), "main", "p1/ds-x"),
 		},
-		MetaOf:  func(r string) *gwagents.ModelMeta { return metas[r] },
+		MetaOf:  func(r string) *agents.ModelMeta { return metas[r] },
 		Catalog: []string{"p1/claude-x", "p1/gpt-x", "p1/grok-x", "p1/ds-x"},
 	}
 }
@@ -165,7 +165,7 @@ func TestTerminalParity(t *testing.T) {
 		}
 		in := &terminal.ScriptInput{Kind: c.Kind, Platform: c.Platform, URL: "http://127.0.0.1:17890", TokenFile: "/t/" + c.Kind, Model: c.Model}
 		if c.Model != nil {
-			in.Launch = &gwagents.Launch{Env: []gwagents.KV{{K: "A", V: "1"}, {K: "B", V: "it's"}}, Args: []string{"--x", "y z"}, Strip: []string{"S1"}}
+			in.Launch = &agents.AgentLaunch{Env: u.NewObj("A", "1", "B", "it's"), Args: []string{"--x", "y z"}, Strip: []string{"S1"}}
 			if c.Kind == "dsh" {
 				tp := "/tpl/patch.yml"
 				in.Template = &tp
