@@ -1251,3 +1251,16 @@ func (l *UsageLedger) Close() {
 	l.closed = true
 	l.flushLocked()
 }
+
+// MarshalJSON：state 为 nil 时省略；空对象 {} 照写（与 Node JSON.stringify 一致）。
+func (c FileCursor) MarshalJSON() ([]byte, error) {
+	type plain FileCursor
+	var st any
+	if c.State != nil {
+		st = c.State
+	}
+	return json.Marshal(struct {
+		plain
+		State any `json:"state,omitempty"`
+	}{plain(c), st})
+}
