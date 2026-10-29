@@ -165,7 +165,7 @@ func (o *Orchestrator) spawnCollect(tab *util.Obj, opts collectOpts) *jsrt.Promi
 			Spawn: func(cmd string, argv []string, cwd string) clisdk.ChildLike {
 				child := SpawnHarness(cmd, argv, cwd, o.childEnv(opts.asNode, launch, opts.env), id)
 				o.watchTabRelease(tab, child)
-				o.children[id] = child
+				o.children.Set(id, child)
 				return child
 			},
 			Command:        opts.cmd,
@@ -240,7 +240,7 @@ func (o *Orchestrator) spawnCollect(tab *util.Obj, opts collectOpts) *jsrt.Promi
 			}
 		})
 		_, sendErr := jsrt.Await(driver.Send(clisdk.TurnInput{Text: ""}))
-		delete(o.children, id)
+		o.children.Delete(id)
 		o.clearPermissionTimeouts(id)
 		driver.Close()
 		if sendErr != nil {

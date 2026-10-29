@@ -102,7 +102,7 @@ func (o *Orchestrator) RewindTab(id, messageID string) *jsrt.Promise[[]*util.Obj
 			env := usage.ProcessEnv().Clone().Assign(o.launchEnvOf(tab))
 			dir := usage.ClaudeConfigDir(o.home, env)
 			cwd, sid := str(tab, "cwd"), *sessionID
-			claudeAt, _ = jsrt.Await(jsrt.Resolved(cli.ClaudeRewindPoint(dir, cwd, sid, messageID)))
+			claudeAt, _ = jsrt.Await(ioAsync(func() string { return cli.ClaudeRewindPoint(dir, cwd, sid, messageID) }))
 		} else if sessionID != nil && *sessionID != "" && backend == "codex" {
 			if turnID := codexRevertTarget(o.TabMessages(id), start, *sessionID); turnID != "" {
 				codexReverted, _ = jsrt.Await(o.revertCodexThread(tab, *sessionID, turnID))

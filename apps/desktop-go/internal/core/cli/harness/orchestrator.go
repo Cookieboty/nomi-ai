@@ -185,7 +185,7 @@ type Orchestrator struct {
 
 	tabs     *util.Obj // id → HarnessTabMeta（Map 插入序）
 	messages map[string][]*util.Obj
-	children map[string]clisdk.ChildLike
+	children *ordMap[clisdk.ChildLike]
 	progress map[string][2]string // kind, value
 	partial  map[string]*partialTurn
 
@@ -196,7 +196,7 @@ type Orchestrator struct {
 	sendAborts       map[string]*jsrt.AbortController
 	takeoverInFlight map[string]*jsrt.Promise[struct{}]
 	eventBatcher     *cli.EventBatcher
-	pendingPerms     map[string]map[string]*jsrt.Timer
+	pendingPerms     *ordMap[map[string]*jsrt.Timer]
 	pendingPermOrder map[string][]string
 	migratedImgTabs  map[string]bool
 	tabBindings      map[string]*tabBinding
@@ -292,11 +292,11 @@ func nowMs() float64 { return float64(time.Now().UnixMilli()) }
 // New = new HarnessOrchestrator(d)。
 func New(d Deps) *Orchestrator {
 	o := &Orchestrator{
-		d: d, tabs: util.NewObj(), messages: map[string][]*util.Obj{}, children: map[string]clisdk.ChildLike{},
+		d: d, tabs: util.NewObj(), messages: map[string][]*util.Obj{}, children: newOrdMap[clisdk.ChildLike](),
 		progress: map[string][2]string{}, partial: map[string]*partialTurn{}, turnExits: map[string]bool{},
 		stopRequested: map[string]bool{}, delegatedUnsent: map[string]bool{}, stopBeforeStart: map[string]bool{},
 		sendAborts: map[string]*jsrt.AbortController{}, takeoverInFlight: map[string]*jsrt.Promise[struct{}]{},
-		pendingPerms: map[string]map[string]*jsrt.Timer{}, pendingPermOrder: map[string][]string{},
+		pendingPerms: newOrdMap[map[string]*jsrt.Timer](), pendingPermOrder: map[string][]string{},
 		migratedImgTabs: map[string]bool{}, tabBindings: map[string]*tabBinding{}, bgAgents: map[string]*orderedAgents{},
 		dormant: map[string]bool{}, activeTabID: MainTabID, defaultPermMode: cli.DefaultPermissionMode,
 		autoApprove: true, lastSettings: util.NewObj(), codexNetwork: true, tabFileBytes: map[string]int{},
