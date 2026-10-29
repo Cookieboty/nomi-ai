@@ -109,7 +109,7 @@ func wsIO(r wsResolved, err error, syscall, path string, dest ...string) *util.O
 
 func mtimeMs(st os.FileInfo) float64 {
 	t := st.ModTime()
-	return float64(t.Unix())*1000 + float64(t.Nanosecond())/1e6
+	return float64(float64(t.Unix())*1000) + float64(float64(t.Nanosecond())/1e6)
 }
 
 func prepend(first *util.Obj, rest *util.Obj) *util.Obj {

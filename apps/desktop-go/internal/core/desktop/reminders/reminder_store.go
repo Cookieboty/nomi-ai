@@ -355,7 +355,7 @@ func (s *Store) Tick() {
 	s.mu.Unlock()
 }
 
-func jsRound(x float64) float64 { return math.Floor(x + 0.5) }
+func jsRound(x float64) float64 { return math.Floor(float64(x) + 0.5) }
 
 func toBase36(n int64) string { return strconv.FormatInt(n, 36) }
 
@@ -568,10 +568,10 @@ type DueInput struct {
 // ResolveDue：返回毫秒时间戳，无效时 ok=false
 func ResolveDue(i DueInput, now float64) (float64, bool) {
 	if i.InSeconds != nil {
-		return now + *i.InSeconds*1000, true
+		return now + float64(*i.InSeconds*1000), true
 	}
 	if i.InMinutes != nil {
-		return now + *i.InMinutes*60_000, true
+		return now + float64(*i.InMinutes*60_000), true
 	}
 	if i.At != "" {
 		return DateParse(i.At)

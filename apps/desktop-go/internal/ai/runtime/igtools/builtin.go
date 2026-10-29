@@ -82,7 +82,7 @@ func BuiltinTools(env Env) []tools.Definition {
 					lo, hi := math.Ceil(mn), math.Floor(mx)
 					return math.Floor(env.random()*(hi-lo+1)) + lo, nil
 				}
-				return env.random()*(mx-mn) + mn, nil
+				return float64(env.random()*(mx-mn)) + mn, nil
 			},
 		},
 		{

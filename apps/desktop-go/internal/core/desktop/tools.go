@@ -69,7 +69,7 @@ func ChunkText(text string, size, max int) []string {
 					break
 				}
 			}
-			if float64(nl) > float64(i)+float64(size)/2 {
+			if float64(nl) > float64(i)+float64(float64(size)/2) {
 				end = nl
 			}
 		}

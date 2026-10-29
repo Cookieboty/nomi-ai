@@ -121,7 +121,7 @@ func jsExp(x float64) float64 {
 		k = int(float64(log2e*x) + 0.5)
 	}
 	hi := x - float64(float64(k)*ln2Hi)
-	lo := float64(k) * ln2Lo
+	lo := float64(float64(k) * ln2Lo)
 	r := hi - lo
 	t := r * r
 	c := r - float64(t*(p1+float64(t*(p2+float64(t*(p3+float64(t*(p4+float64(t*p5)))))))))
@@ -184,14 +184,14 @@ func HorizontalBounds(areas []Rect) (float64, float64) {
 }
 
 func OnFloor(s BodyState, env PhysicsEnv) bool {
-	cx := s.X + (env.Box.Left+env.Box.Right)/2
+	cx := s.X + float64((env.Box.Left+env.Box.Right)/2)
 	return math.Abs(s.Y+env.Box.Bottom-FloorFor(env.WorkAreas, cx)) <= 1
 }
 
 func ClampToWorld(s BodyState, env PhysicsEnv) BodyState {
 	min, max := HorizontalBounds(env.WorkAreas)
 	x := clampf(s.X, min-env.Box.Left, max-env.Box.Right)
-	cx := x + (env.Box.Left+env.Box.Right)/2
+	cx := x + float64((env.Box.Left+env.Box.Right)/2)
 	area := AreaUnder(env.WorkAreas, cx)
 	y := clampf(s.Y, area.Y-env.Box.Top, GroundY(area.Y+area.Height, env.Box.Bottom))
 	s.X, s.Y = x, y
@@ -213,7 +213,7 @@ func Step(s BodyState, dt float64, env PhysicsEnv) (BodyState, []PhysicsEvent) {
 		return s, events
 	}
 	min, max := HorizontalBounds(env.WorkAreas)
-	cx := func() float64 { return s.X + (env.Box.Left+env.Box.Right)/2 }
+	cx := func() float64 { return s.X + float64((env.Box.Left+env.Box.Right)/2) }
 	floor := func() float64 { return FloorFor(env.WorkAreas, cx()) }
 	feet := func() float64 { return s.Y + env.Box.Bottom }
 
@@ -378,7 +378,7 @@ func (v *VelocityTracker) ReleaseWith(t, maxSpeed, maxAge float64) (float64, flo
 // PickWanderTarget：在当前工作区内随机挑一个点（80–360px）
 func PickWanderTarget(s BodyState, env PhysicsEnv, rnd func() float64) float64 {
 	const minDist, maxDist = 80.0, 360.0
-	cxOff := (env.Box.Left + env.Box.Right) / 2
+	cxOff := float64((env.Box.Left + env.Box.Right) / 2)
 	area := AreaUnder(env.WorkAreas, s.X+cxOff)
 	lo := area.X - env.Box.Left
 	hi := area.X + area.Width - env.Box.Right
@@ -398,11 +398,11 @@ func AnchorOnBoxChange(s BodyState, prev *CharacterBox, next CharacterBox, areas
 	if prev == nil || (s.Mode != "idle" && s.Mode != "walking") {
 		return s
 	}
-	cxPrev := s.X + (prev.Left+prev.Right)/2
+	cxPrev := s.X + float64((prev.Left+prev.Right)/2)
 	if math.Abs(s.Y+prev.Bottom-FloorFor(areas, cxPrev)) > 2 {
 		return s
 	}
-	cx := s.X + (next.Left+next.Right)/2
+	cx := s.X + float64((next.Left+next.Right)/2)
 	s.Y = GroundY(FloorFor(areas, cx), next.Bottom)
 	s.VY = 0
 	return s
@@ -413,6 +413,6 @@ func ShouldFallAtStart(s BodyState, env PhysicsEnv) bool {
 		return false
 	}
 	cfg := env.cfg()
-	cx := s.X + (env.Box.Left+env.Box.Right)/2
+	cx := s.X + float64((env.Box.Left+env.Box.Right)/2)
 	return FloorFor(env.WorkAreas, cx)-(s.Y+env.Box.Bottom) > cfg.FallGap
 }

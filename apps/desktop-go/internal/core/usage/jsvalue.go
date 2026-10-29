@@ -137,3 +137,94 @@ func jsvOrUndef(p *JSV) any {
 type JSNum float64
 
 func (n JSNum) MarshalJSON() ([]byte, error) { return []byte(util.Stringify(float64(n))), nil }
+
+// srcV：r.source 的 JS 值（缺失 = undefined，类型不符 = 原始 JSON 值）
+func (r *UsageRecord) srcV() any {
+	if raw, ok := r.raw["source"]; ok {
+		x, _ := util.Parse(raw)
+		return x
+	}
+	if !r.hasOwn("source") {
+		return util.JSUndefined{}
+	}
+	return r.Source
+}
+
+var objKeySeq int
+
+// sameValueZeroKey：Map / Set 的键身份（对象 / 数组按引用：每次都是新键）
+func sameValueZeroKey(v any) string {
+	switch x := v.(type) {
+	case util.JSUndefined:
+		return "u"
+	case nil:
+		return "n"
+	case string:
+		return "s" + x
+	case bool:
+		if x {
+			return "bt"
+		}
+		return "bf"
+	case float64:
+		if x == 0 {
+			return "f0"
+		}
+		return "f" + util.Stringify(x) + "|" + jsToString(x)
+	}
+	objKeySeq++
+	return "o" + util.JSString(float64(objKeySeq))
+}
+
+func jsStrictEqStr(v any, s string) bool {
+	x, ok := v.(string)
+	return ok && x == s
+}
+
+// jsUniqDefaultSorted：[...new Set(xs)].sort()（undefined 排最后，其余按 String(x) 的 UTF-16 序，稳定）
+func jsUniqDefaultSorted(xs []any) []JSV {
+	seen := map[string]bool{}
+	var defs []any
+	undef := false
+	for _, x := range xs {
+		k := sameValueZeroKey(x)
+		if seen[k] {
+			continue
+		}
+		seen[k] = true
+		if _, u := x.(util.JSUndefined); u {
+			undef = true
+			continue
+		}
+		defs = append(defs, x)
+	}
+	jsSortStable(defs, func(a, b any) float64 {
+		return float64(CmpUTF16(jsStr(jsToPrimitive(a)), jsStr(jsToPrimitive(b))))
+	})
+	out := make([]JSV, 0, len(defs)+1)
+	for _, x := range defs {
+		out = append(out, JSV{x})
+	}
+	if undef {
+		out = append(out, JSV{util.JSUndefined{}})
+	}
+	return out
+}
+
+// JSThrow：Node 侧会抛出的 TypeError（Details 按 source 排序时 a.source 不是字符串）
+type JSThrow struct{ Msg string }
+
+func (e JSThrow) Error() string { return e.Msg }
+
+// jsLocaleRecv：`<expr>.localeCompare(...)` 的接收者检查；非字符串按 V8 抛 TypeError
+func jsLocaleRecv(v any, expr string) string {
+	switch x := v.(type) {
+	case string:
+		return x
+	case util.JSUndefined:
+		panic(JSThrow{"Cannot read properties of undefined (reading 'localeCompare')"})
+	case nil:
+		panic(JSThrow{"Cannot read properties of null (reading 'localeCompare')"})
+	}
+	panic(JSThrow{expr + ".localeCompare is not a function"})
+}

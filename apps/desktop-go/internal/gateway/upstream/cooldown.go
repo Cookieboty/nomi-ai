@@ -54,7 +54,7 @@ func ParseRetryAfter(v *string, now float64) *float64 {
 	s := u.JSTrim(*v)
 	if reSeconds.MatchString(s) {
 		f, _ := strconv.ParseFloat(s, 64)
-		r := jsRound(f * 1000)
+		r := jsRound(float64(f * 1000)) // explicit float64(): no FMA with jsRound's +0.5
 		return &r
 	}
 	t, ok := dateParse(s)

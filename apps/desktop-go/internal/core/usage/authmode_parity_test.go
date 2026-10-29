@@ -235,7 +235,7 @@ func TestAuthModeParityDetector(t *testing.T) {
 						ai.FP = &fp
 					}
 					if p, ok := r.Get("plan").(string); ok {
-						ai.Plan = p
+						ai.Plan = &p
 					}
 					saved[k] = ai
 				}

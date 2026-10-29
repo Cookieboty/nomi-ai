@@ -35,6 +35,7 @@ const m = await importSources(root, {
   ext: P('core/src/extensions/ExtensionsService.ts'),
   dlg: P('core/src/cli/delegate/DelegateService.ts'),
   ighost: P('ai-runtime/src/IgPluginHost.ts'),
+  dsvc: P('core/src/desktop/DesktopService.ts'),
 });
 const req = createRequire(path.join(root, 'packages/core/package.json'));
 const { asSchema } = await import(pathToFileURL(req.resolve('ai')).href);
@@ -90,6 +91,18 @@ const extThis = {
   d: { events: { publish: (ch, p) => calls.push(['publish', ch, p]) } },
 };
 const dlgThis = {};
+// 生产同形的 DesktopService（临时 userData，假端口）：desktop.tools() 的 23 个 fs_* / desktop_* 工具进注册表
+const UD = fs.mkdtempSync(path.join(os.tmpdir(), 'b7s-igt-ud-'));
+const deskSvc = m.dsvc.createDesktopService(quiet, {
+  ports: {
+    paths: { home: () => UD, userData: () => UD },
+    dialogs: { pickDirectory: async () => null },
+    clipboard: { readText: () => '', writeText: () => {} },
+    notifications: { isSupported: () => false, show: () => {} },
+    processes: { available: () => false },
+  },
+  events: { publish: () => {}, broadcast: () => {} },
+});
 
 async function boot(withHost = true) {
   const SBP = fs.mkdtempSync(path.join(os.tmpdir(), 'b7s-igt-p-'));
@@ -108,7 +121,7 @@ async function boot(withHost = true) {
     { plugin: m.companion.CompanionToolsPlugin, config: { autoConfirm: true } },
     ...(withHost ? [{ plugin: avatarHost, config: {} }] : []),
     ...m.desk.createDesktopIgPlugins({
-      desktop: () => null,
+      desktop: () => deskSvc,
       kb: () => ({ tools: () => m.kb.KnowledgeService.prototype.tools.call(kbThis) }),
       mem: () => ({ tools: () => m.mem.MemoryService.prototype.tools.call(memThis) }),
       delegate: () => ({ tools: () => m.dlg.DelegateService.prototype.tools.call(dlgThis) }),
@@ -166,4 +179,5 @@ fs.rmSync(b.SBP, { recursive: true, force: true });
 const out = { list, schemas, meta, exec };
 fs.writeFileSync(path.join(TD, 'b7s-igtools.json'), JSON.stringify(out, null, 1).split(SB).join('@@SB@@') + '\n');
 fs.rmSync(SB, { recursive: true, force: true });
+fs.rmSync(UD, { recursive: true, force: true });
 console.log(`b7s-igtools: ${list.length} tools, ${exec.length} exec cases`);

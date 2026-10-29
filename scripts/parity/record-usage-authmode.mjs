@@ -158,6 +158,13 @@ const scenarios = [
   // 指纹相同、仅 plan 不同（恢复出来的旧 plan）→ 仍算变化
   { name: 'plan-only-same-fp', files: {}, env: {}, salt: 's3', run: { claude: '{"authMethod":"claude.ai","email":"a@b","subscriptionType":"pro"}' },
     restore: { claude: { mode: 'subscription', fp: '8e358a055c277b34', plan: 'Team' } }, ops: [['snap'], ['full', 'claude'], ['snap']] },
+  // 恢复出来的 plan: ''（Node 原样保留：passive 快照里带 plan:''，且与无 plan 的探测结果不等 → 记为变化）
+  { name: 'restored-empty-plan', files: {}, env: {}, salt: 's3', run: { claude: '{"authMethod":"claude.ai","email":"a@b"}' },
+    restore: { claude: { mode: 'subscription', fp: '8e358a055c277b34', plan: '' }, codex: { mode: 'api', fp: null, plan: '' } }, ops: [['snap'], ['full', 'claude'], ['snap']] },
+  { name: 'restored-empty-plan-same', files: {}, env: {}, salt: 's3', run: { claude: '{"authMethod":"claude.ai","email":"a@b","subscriptionType":""}' },
+    restore: { claude: { mode: 'subscription', fp: '8e358a055c277b34', plan: '' } }, ops: [['full', 'claude'], ['snap']] },
+  { name: 'restored-empty-plan-same-fp', files: {}, env: {}, salt: 's3', run: { claude: '{"authMethod":"claude.ai","email":"a@b"}' },
+    restore: { claude: { mode: 'subscription', fp: '2d648b571179f3df', plan: '' } }, ops: [['full', 'claude'], ['snap']] },
   { name: 'plan-drop-same-fp', files: {}, env: {}, salt: 's3', run: { claude: '{"authMethod":"claude.ai","email":"a@b","subscriptionType":"pro"}' },
     restore: { claude: { mode: 'subscription', fp: '8e358a055c277b34', plan: 'Pro' } }, ops: [['full', 'claude'], ['snap']] },
   // 进行中探测共享：同步两次 detectFull 拿到同一个 promise、只跑一次；结算前被动读取看不到缓存

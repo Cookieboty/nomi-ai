@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/harness"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/tools"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/runtime/aifacade"
@@ -88,6 +89,9 @@ func registerIgTools(r tools.Registry, profile *aifacade.ProfileStore, fac **aif
 	defs := igtools.BuiltinTools(igtools.Env{})
 	defs = append(defs, igtools.PreferenceTools(profile, igtools.Env{})...)
 	defs = append(defs, igtools.CompanionTools(lazyAvatar{fac}, true)...)
+	if d != nil {
+		defs = append(defs, igtools.DesktopTools(igtools.DeskDepsFor(d, desktopShellEnv))...)
+	}
 	defs = append(defs, igtools.KBTools(kbHost{kb: kb, d: d})...)
 	defs = append(defs, igtools.MemTools(memHost{m: mem})...)
 	for _, n := range delegateToolNames {
@@ -100,4 +104,16 @@ func registerIgTools(r tools.Registry, profile *aifacade.ProfileStore, fac **aif
 	for _, def := range defs {
 		r.Register(def)
 	}
+}
+
+// desktopShellEnv = cliChildEnv(false)：工作区命令与编程助手标签同一套环境
+func desktopShellEnv() []string {
+	o := harness.CliChildEnv(false, nil)
+	var env []string
+	for _, k := range o.Keys() {
+		if v, ok := o.Get(k).(string); ok {
+			env = append(env, k+"="+v)
+		}
+	}
+	return env
 }
