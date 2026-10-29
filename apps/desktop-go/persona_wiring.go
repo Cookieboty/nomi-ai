@@ -1,12 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/character"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/charcontract"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/persona"
 )
@@ -58,4 +60,19 @@ func chatBgPresetFile() string {
 		}
 	}
 	return filepath.Join(filepath.Dir(os.Args[0]), rel)
+}
+
+// newCharacterService：角色包解析抛出的 TypeError（Node createCore 内同步抛出）→ main.ts 的
+// console.error('❌ 应用启动失败:', error) + process.exit(1)
+func newCharacterService(userData, resources, builtin string) (cs *character.Service) {
+	defer func() {
+		if r := recover(); r != nil {
+			if t, ok := r.(charcontract.JSThrow); ok {
+				fmt.Fprintln(os.Stderr, "❌ 应用启动失败:", "TypeError: "+t.Message)
+				os.Exit(1)
+			}
+			panic(r)
+		}
+	}()
+	return character.NewService(userData, resources, builtin)
 }

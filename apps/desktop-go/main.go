@@ -18,7 +18,6 @@ import (
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/character"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/chatbg"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
@@ -108,7 +107,7 @@ func main() {
 		return island.Display{Bounds: r(b), WorkArea: r(w)}, ok
 	}
 	i18n.SetLocale(func() string { return bundle.Locale.Get().Locale })
-	charSvc := character.NewService(userData, os.Getenv("NOMI_RESOURCES"), builtinPackDir())
+	charSvc := newCharacterService(userData, os.Getenv("NOMI_RESOURCES"), builtinPackDir())
 	personaSvc := newPersona(charSvc, router)
 	bundle.OnLocaleChange = append(bundle.OnLocaleChange, func() { personaSvc.LocaleChanged() })
 	chatBgSvc := chatbg.New(filepath.Join(userData, chatbg.File), filepath.Join(userData, "chat", "images"), chatBgPresetFile(),

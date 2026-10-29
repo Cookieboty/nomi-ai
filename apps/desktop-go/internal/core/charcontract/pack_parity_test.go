@@ -96,7 +96,9 @@ func TestPackParity(t *testing.T) {
 		// 结果是 JSON 文本：Windows 路径里的 \ 被转义成 \\，两种形式都要替换（不做 realpath：Node 的报错直接用传入的 dir）
 		dirJSON := Stringify(dir)
 		dirJSON = dirJSON[1 : len(dirJSON)-1]
-		fix := func(s string) string { return strings.ReplaceAll(strings.ReplaceAll(s, dirJSON, "<DIR>"), dir, "<DIR>") }
+		fix := func(s string) string {
+			return strings.ReplaceAll(strings.ReplaceAll(s, dirJSON, "<DIR>"), dir, "<DIR>")
+		}
 		check := func(what, got, want string) {
 			want = normGolden(t, want)
 			if got != want && fails < 8 {
@@ -108,10 +110,18 @@ func TestPackParity(t *testing.T) {
 		}
 		check("strict", fix(runValidate(dir, false)), c.Strict)
 		check("lenient", fix(runValidate(dir, true)), c.Lenient)
-		lr := LoadPackAt(dir, true)
 		lo := NewObj()
-		if strings.HasPrefix(lr.Reason, "Cannot read") {
-			lo.Set("thrown", lr.Reason)
+		lr, thrown := func() (lr LoadPackResult, thrown *JSThrow) {
+			defer func() {
+				if r := recover(); r != nil {
+					t := r.(JSThrow)
+					thrown = &t
+				}
+			}()
+			return LoadPackAt(dir, true), nil
+		}()
+		if thrown != nil {
+			lo.Set("thrown", thrown.Message)
 		} else {
 			lo.Set("ok", lr.OK)
 			if lr.OK {
