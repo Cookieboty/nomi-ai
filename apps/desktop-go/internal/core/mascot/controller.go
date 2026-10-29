@@ -4,6 +4,7 @@ package mascot
 // host/windowBounds.ts 的逐行移植。窗口、时钟、定时器、光标、显示器经接口注入，便于回放 Node 录下的轨迹。
 
 import (
+	"log"
 	"math"
 	"sync"
 )
@@ -217,6 +218,8 @@ func (c *Controller) Start() {
 		c.pref = c.hooks.Get()
 	}
 	x, y := c.win.GetPosition()
+	_, h0 := c.win.GetSize()
+	log.Printf("[mascot] start size=%dx%d scale=%.2f pref=%v areas=%+v", w, h0, c.scale, c.pref, c.workAreas)
 	c.requested = &pt{float64(x), float64(y)}
 	c.body = BodyState{X: float64(x), Y: float64(y), Mode: "idle"}
 	c.last = c.host.Now()
@@ -457,6 +460,7 @@ func (c *Controller) applyScale(target float64, userPref, notify bool) ScaleStat
 		c.pref = target
 	}
 	if target != c.scale {
+		log.Printf("[mascot] applyScale %.2f -> %.2f cap=%.2f userPref=%v areas=%+v", c.scale, target, c.capNow(), userPref, c.workAreas)
 		b := c.win.GetBounds()
 		from := c.scale
 		nb := ResizeMascotBounds(ResizeInput{

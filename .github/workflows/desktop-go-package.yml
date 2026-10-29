@@ -126,7 +126,7 @@ jobs:
           cd packages/electron && pnpm exec electron-builder build --win --dir --publish never
           find . -type d -name win-unpacked -not -path '*/node_modules/*'
       - uses: actions/upload-artifact@v4
-        with: { name: electron-204-win-unpacked, path: 'e204/packages/electron/**/win-unpacked/', compression-level: 1 }
+        with: { name: electron-204-win-unpacked, path: 'e204/dist/win-unpacked/', if-no-files-found: error, compression-level: 1 }
 
   verify:
     needs: [package, electron-204-win]
@@ -255,7 +255,7 @@ jobs:
 
   bench:
     needs: [package, electron-204]
-    if: always() && needs.package.result == 'success' && github.event_name == 'workflow_dispatch' && inputs.bench
+    if: always() && github.event_name == 'workflow_dispatch' && inputs.bench
     strategy:
       fail-fast: false
       matrix:
