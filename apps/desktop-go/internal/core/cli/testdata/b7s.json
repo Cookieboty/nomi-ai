@@ -1,0 +1,1131 @@
+{
+ "platform": "linux",
+ "cases": [
+  {
+   "name": "md:claude",
+   "out": {
+    "v": {
+     "backend": "claude",
+     "models": [
+      {
+       "id": "opus",
+       "label": "Opus Mock",
+       "description": "Opus Mock (mock)",
+       "reasoning": true,
+       "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+       ]
+      },
+      {
+       "id": "sonnet",
+       "label": "Sonnet Mock",
+       "description": "Sonnet Mock (mock)",
+       "reasoning": true,
+       "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+       ]
+      },
+      {
+       "id": "claude-haiku-old",
+       "label": "Haiku Old",
+       "description": "Haiku Old (mock)",
+       "reasoning": false,
+       "efforts": []
+      },
+      {
+       "id": "claude-opus-old",
+       "label": "Opus Old",
+       "description": "Opus Old (mock)",
+       "reasoning": true,
+       "efforts": [
+        "low",
+        "medium",
+        "high",
+        "max"
+       ]
+      }
+     ],
+     "defaultModel": {
+      "id": "default",
+      "label": "Opus Mock",
+      "description": "Default (recommended) (mock)",
+      "reasoning": true,
+      "efforts": [
+       "low",
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "name": "md:claude:env",
+   "out": {
+    "v": {
+     "backend": "claude",
+     "models": [
+      {
+       "id": "opus",
+       "label": "Opus Mock",
+       "description": "Opus Mock (mock)",
+       "reasoning": true,
+       "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+       ],
+       "defaultEffort": "high"
+      },
+      {
+       "id": "sonnet",
+       "label": "Sonnet Mock",
+       "description": "Sonnet Mock (mock)",
+       "reasoning": true,
+       "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+       ],
+       "defaultEffort": "high"
+      },
+      {
+       "id": "claude-haiku-old",
+       "label": "Haiku Old",
+       "description": "Haiku Old (mock)",
+       "reasoning": false,
+       "efforts": []
+      },
+      {
+       "id": "claude-opus-old",
+       "label": "Opus Old",
+       "description": "Opus Old (mock)",
+       "reasoning": true,
+       "efforts": [
+        "low",
+        "medium",
+        "high",
+        "max"
+       ],
+       "defaultEffort": "high"
+      }
+     ],
+     "defaultModel": {
+      "id": "default",
+      "label": "Opus Mock",
+      "description": "Default (recommended) (mock)",
+      "reasoning": true,
+      "efforts": [
+       "low",
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ],
+      "defaultEffort": "high"
+     }
+    }
+   }
+  },
+  {
+   "name": "md:claude:envAuto",
+   "out": {
+    "v": {
+     "backend": "claude",
+     "models": [
+      {
+       "id": "opus",
+       "label": "Opus Mock",
+       "description": "Opus Mock (mock)",
+       "reasoning": true,
+       "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+       ],
+       "defaultEffort": "medium"
+      },
+      {
+       "id": "sonnet",
+       "label": "Sonnet Mock",
+       "description": "Sonnet Mock (mock)",
+       "reasoning": true,
+       "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+       ],
+       "defaultEffort": "medium"
+      },
+      {
+       "id": "claude-haiku-old",
+       "label": "Haiku Old",
+       "description": "Haiku Old (mock)",
+       "reasoning": false,
+       "efforts": []
+      },
+      {
+       "id": "claude-opus-old",
+       "label": "Opus Old",
+       "description": "Opus Old (mock)",
+       "reasoning": true,
+       "efforts": [
+        "low",
+        "medium",
+        "high",
+        "max"
+       ],
+       "defaultEffort": "medium"
+      }
+     ],
+     "defaultModel": {
+      "id": "default",
+      "label": "Opus Mock",
+      "description": "Default (recommended) (mock)",
+      "reasoning": true,
+      "efforts": [
+       "low",
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ],
+      "defaultEffort": "medium"
+     }
+    }
+   }
+  },
+  {
+   "name": "md:claude:badSettings",
+   "out": {
+    "v": {
+     "backend": "claude",
+     "models": [
+      {
+       "id": "opus",
+       "label": "Opus Mock",
+       "description": "Opus Mock (mock)",
+       "reasoning": true,
+       "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+       ]
+      },
+      {
+       "id": "sonnet",
+       "label": "Sonnet Mock",
+       "description": "Sonnet Mock (mock)",
+       "reasoning": true,
+       "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+       ]
+      },
+      {
+       "id": "claude-haiku-old",
+       "label": "Haiku Old",
+       "description": "Haiku Old (mock)",
+       "reasoning": false,
+       "efforts": []
+      },
+      {
+       "id": "claude-opus-old",
+       "label": "Opus Old",
+       "description": "Opus Old (mock)",
+       "reasoning": true,
+       "efforts": [
+        "low",
+        "medium",
+        "high",
+        "max"
+       ]
+      }
+     ],
+     "defaultModel": {
+      "id": "default",
+      "label": "Opus Mock",
+      "description": "Default (recommended) (mock)",
+      "reasoning": true,
+      "efforts": [
+       "low",
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "name": "md:claude:none",
+   "out": {
+    "err": "claude CLI not found"
+   }
+  },
+  {
+   "name": "md:claude:dies",
+   "out": {
+    "err": "line2 line3 boom: policy locked"
+   }
+  },
+  {
+   "name": "md:claude:timeout",
+   "out": {
+    "err": "timed out after 400ms"
+   }
+  },
+  {
+   "name": "md:codex",
+   "out": {
+    "v": {
+     "backend": "codex",
+     "models": [
+      {
+       "id": "mock-mini",
+       "label": "Mock Mini",
+       "reasoning": true,
+       "efforts": [
+        "low",
+        "medium",
+        "high"
+       ],
+       "defaultEffort": "low"
+      },
+      {
+       "id": "mock-pro",
+       "label": "Mock Pro",
+       "reasoning": true,
+       "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max",
+        "ultra"
+       ],
+       "defaultEffort": "medium"
+      },
+      {
+       "id": "mock-plain",
+       "label": "Mock Plain",
+       "reasoning": false,
+       "efforts": []
+      }
+     ],
+     "defaultModel": null
+    }
+   }
+  },
+  {
+   "name": "md:codex:noCfg",
+   "out": {
+    "v": {
+     "backend": "codex",
+     "models": [
+      {
+       "id": "mock-mini",
+       "label": "Mock Mini",
+       "reasoning": true,
+       "efforts": [
+        "low",
+        "medium",
+        "high"
+       ],
+       "defaultEffort": "low"
+      },
+      {
+       "id": "mock-pro",
+       "label": "Mock Pro",
+       "reasoning": true,
+       "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max",
+        "ultra"
+       ],
+       "defaultEffort": "medium"
+      },
+      {
+       "id": "mock-plain",
+       "label": "Mock Plain",
+       "reasoning": false,
+       "efforts": []
+      }
+     ],
+     "defaultModel": null
+    }
+   }
+  },
+  {
+   "name": "md:codex:fail",
+   "out": {
+    "err": "Error: failed to refresh models"
+   }
+  },
+  {
+   "name": "md:codex:garbage",
+   "out": {
+    "err": "codex debug models: invalid JSON"
+   }
+  },
+  {
+   "name": "md:codex:dies",
+   "out": {
+    "err": "line2 line3 boom: policy locked"
+   }
+  },
+  {
+   "name": "md:grok",
+   "out": {
+    "v": {
+     "backend": "grok",
+     "models": [
+      {
+       "id": "grok-mock",
+       "label": "Grok Mock",
+       "reasoning": true,
+       "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh"
+       ],
+       "defaultEffort": "high"
+      },
+      {
+       "id": "grok-mock-old",
+       "label": "Grok Mock Old",
+       "reasoning": true,
+       "efforts": [
+        "low",
+        "medium",
+        "high"
+       ],
+       "defaultEffort": "high"
+      }
+     ],
+     "defaultModel": {
+      "id": "grok-mock",
+      "label": "Grok Mock",
+      "reasoning": true,
+      "efforts": [
+       "low",
+       "medium",
+       "high",
+       "xhigh"
+      ],
+      "defaultEffort": "high"
+     },
+     "permissionModes": [
+      "plan",
+      "default",
+      "acceptEdits",
+      "bypassPermissions",
+      "dontAsk"
+     ]
+    }
+   }
+  },
+  {
+   "name": "md:grok:cache",
+   "out": {
+    "v": {
+     "backend": "grok",
+     "models": [
+      {
+       "id": "grok-mock",
+       "label": "Grok Mock",
+       "reasoning": true,
+       "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh"
+       ],
+       "defaultEffort": "high"
+      },
+      {
+       "id": "grok-mock-old",
+       "label": "Grok Mock Old",
+       "reasoning": true,
+       "efforts": [
+        "low",
+        "medium",
+        "high"
+       ],
+       "defaultEffort": "high"
+      },
+      {
+       "id": "grok-cache-only",
+       "label": "Cache Only",
+       "reasoning": false,
+       "efforts": []
+      }
+     ],
+     "defaultModel": {
+      "id": "grok-mock",
+      "label": "Grok Mock",
+      "reasoning": true,
+      "efforts": [
+       "low",
+       "medium",
+       "high",
+       "xhigh"
+      ],
+      "defaultEffort": "high"
+     },
+     "permissionModes": [
+      "plan",
+      "default",
+      "acceptEdits",
+      "bypassPermissions",
+      "dontAsk"
+     ]
+    }
+   }
+  },
+  {
+   "name": "md:grok:noAcp",
+   "out": {
+    "err": "error: unrecognized subcommand stdio"
+   }
+  },
+  {
+   "name": "md:grok:noAcp:cache",
+   "out": {
+    "v": {
+     "backend": "grok",
+     "models": [
+      {
+       "id": "grok-mock-old",
+       "label": "Old",
+       "reasoning": false,
+       "efforts": []
+      },
+      {
+       "id": "grok-cache-only",
+       "label": "Cache Only",
+       "reasoning": false,
+       "efforts": []
+      }
+     ],
+     "defaultModel": {
+      "id": "grok-cache-only",
+      "label": "Cache Only",
+      "reasoning": false,
+      "efforts": []
+     }
+    }
+   }
+  },
+  {
+   "name": "md:grok:noAcp:cache2",
+   "out": {
+    "v": {
+     "backend": "grok",
+     "models": [
+      {
+       "id": "grok-mock-old",
+       "label": "Old",
+       "reasoning": false,
+       "efforts": []
+      },
+      {
+       "id": "grok-cache-only",
+       "label": "Cache Only",
+       "reasoning": false,
+       "efforts": []
+      }
+     ],
+     "defaultModel": null
+    }
+   }
+  },
+  {
+   "name": "md:grok:none:cache",
+   "out": {
+    "err": "grok CLI not found"
+   }
+  },
+  {
+   "name": "md:grok:timeout",
+   "out": {
+    "err": "timed out after 400ms"
+   }
+  },
+  {
+   "name": "md:gemini",
+   "out": {
+    "err": "no model discovery for gemini"
+   }
+  },
+  {
+   "name": "md:effort:none",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "md:effort:env",
+   "out": {
+    "v": "max"
+   }
+  },
+  {
+   "name": "md:effort:blank",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "md:effort:file",
+   "out": {
+    "v": "medium"
+   }
+  },
+  {
+   "name": "md:effort:missing",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "md:effort:bad",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "acp:msg:0",
+   "out": {
+    "v": "Gemini 响应超时（0 秒没有响应），已取消这次请求。请重试，若反复出现请检查网络或重启该会话。"
+   }
+  },
+  {
+   "name": "acp:msg:499",
+   "out": {
+    "v": "Gemini 响应超时（0 秒没有响应），已取消这次请求。请重试，若反复出现请检查网络或重启该会话。"
+   }
+  },
+  {
+   "name": "acp:msg:500",
+   "out": {
+    "v": "Gemini 响应超时（1 秒没有响应），已取消这次请求。请重试，若反复出现请检查网络或重启该会话。"
+   }
+  },
+  {
+   "name": "acp:msg:1500",
+   "out": {
+    "v": "Gemini 响应超时（2 秒没有响应），已取消这次请求。请重试，若反复出现请检查网络或重启该会话。"
+   }
+  },
+  {
+   "name": "acp:msg:2500",
+   "out": {
+    "v": "Gemini 响应超时（3 秒没有响应），已取消这次请求。请重试，若反复出现请检查网络或重启该会话。"
+   }
+  },
+  {
+   "name": "acp:msg:60000",
+   "out": {
+    "v": "Gemini 响应超时（60 秒没有响应），已取消这次请求。请重试，若反复出现请检查网络或重启该会话。"
+   }
+  },
+  {
+   "name": "acp:msg:90499",
+   "out": {
+    "v": "Gemini 响应超时（90 秒没有响应），已取消这次请求。请重试，若反复出现请检查网络或重启该会话。"
+   }
+  },
+  {
+   "name": "trust:exit:55:",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "trust:exit:1:Gemini CLI is not running in a trusted directory",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "trust:exit:1:x",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "trust:exit:null:not running in a trusted directory",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "trust:exit:0:",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "trust:msg",
+   "out": {
+    "v": "Gemini CLI 不信任当前文件夹（/a/b），已拒绝在这里运行。可以点下方「信任此文件夹」，或在终端里进入该文件夹运行一次 `gemini` 并选择信任，然后重试。"
+   }
+  },
+  {
+   "name": "trust:err",
+   "out": {
+    "v": {
+     "name": "GeminiUntrustedError",
+     "message": "Gemini CLI 不信任当前文件夹（/a），已拒绝在这里运行。可以点下方「信任此文件夹」，或在终端里进入该文件夹运行一次 `gemini` 并选择信任，然后重试。",
+     "folder": "/a"
+    }
+   }
+  },
+  {
+   "name": "trust:loginEnv",
+   "out": {
+    "v": {
+     "GEMINI_CLI_HOME": "/stage",
+     "GEMINI_CLI_TRUST_WORKSPACE": "true"
+    }
+   }
+  },
+  {
+   "name": "tf:blocked:{}",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "tf:blocked:{\"GEMINI_CLI_TRUST_WORKSPACE\":\"false\"}",
+   "out": {
+    "v": "GEMINI_CLI_TRUST_WORKSPACE=false"
+   }
+  },
+  {
+   "name": "tf:blocked:{\"GEMINI_RESTRICTED_MODE\":\"true\"}",
+   "out": {
+    "v": "GEMINI_RESTRICTED_MODE=true"
+   }
+  },
+  {
+   "name": "tf:blocked:{\"GEMINI_CLI_TRUST_WORKSPACE\":\"true\"}",
+   "out": {
+    "v": null
+   }
+  },
+  {
+   "name": "tf:path:default",
+   "out": {
+    "v": "/home/u/.gemini/trustedFolders.json"
+   }
+  },
+  {
+   "name": "tf:path:explicit",
+   "out": {
+    "v": "/x/y.json"
+   }
+  },
+  {
+   "name": "tf:path:cliHome",
+   "out": {
+    "v": "/gh/.gemini/trustedFolders.json"
+   }
+  },
+  {
+   "name": "tf:key:linux:/a/B",
+   "out": {
+    "v": "/a/B"
+   }
+  },
+  {
+   "name": "tf:key:linux:/a/b/",
+   "out": {
+    "v": "/a/b"
+   }
+  },
+  {
+   "name": "tf:key:linux:/a/./b/../c",
+   "out": {
+    "v": "/a/c"
+   }
+  },
+  {
+   "name": "tf:key:linux:rel/x",
+   "out": {
+    "v": "<SB>/rel/x"
+   }
+  },
+  {
+   "name": "tf:key:linux:C:\\Users\\Me",
+   "out": {
+    "v": "<SB>/C:/Users/Me"
+   }
+  },
+  {
+   "name": "tf:key:linux:c:/users/me/",
+   "out": {
+    "v": "<SB>/c:/users/me"
+   }
+  },
+  {
+   "name": "tf:key:linux:\\\\srv\\share\\x",
+   "out": {
+    "v": "<SB>///srv/share/x"
+   }
+  },
+  {
+   "name": "tf:key:linux:/",
+   "out": {
+    "v": "/"
+   }
+  },
+  {
+   "name": "tf:key:darwin:/a/B",
+   "out": {
+    "v": "/a/b"
+   }
+  },
+  {
+   "name": "tf:key:darwin:/a/b/",
+   "out": {
+    "v": "/a/b"
+   }
+  },
+  {
+   "name": "tf:key:darwin:/a/./b/../c",
+   "out": {
+    "v": "/a/c"
+   }
+  },
+  {
+   "name": "tf:key:darwin:rel/x",
+   "out": {
+    "v": "<SB>/rel/x"
+   }
+  },
+  {
+   "name": "tf:key:darwin:C:\\Users\\Me",
+   "out": {
+    "v": "<SB>/c:/users/me"
+   }
+  },
+  {
+   "name": "tf:key:darwin:c:/users/me/",
+   "out": {
+    "v": "<SB>/c:/users/me"
+   }
+  },
+  {
+   "name": "tf:key:darwin:\\\\srv\\share\\x",
+   "out": {
+    "v": "<SB>///srv/share/x"
+   }
+  },
+  {
+   "name": "tf:key:darwin:/",
+   "out": {
+    "v": "/"
+   }
+  },
+  {
+   "name": "tf:key:win32:/a/B",
+   "out": {
+    "v": "/a/b"
+   }
+  },
+  {
+   "name": "tf:key:win32:/a/b/",
+   "out": {
+    "v": "/a/b"
+   }
+  },
+  {
+   "name": "tf:key:win32:/a/./b/../c",
+   "out": {
+    "v": "/a/c"
+   }
+  },
+  {
+   "name": "tf:key:win32:rel/x",
+   "out": {
+    "v": "<SB>/rel/x"
+   }
+  },
+  {
+   "name": "tf:key:win32:C:\\Users\\Me",
+   "out": {
+    "v": "c:/users/me"
+   }
+  },
+  {
+   "name": "tf:key:win32:c:/users/me/",
+   "out": {
+    "v": "c:/users/me"
+   }
+  },
+  {
+   "name": "tf:key:win32:\\\\srv\\share\\x",
+   "out": {
+    "v": "//srv/share/x"
+   }
+  },
+  {
+   "name": "tf:key:win32:/",
+   "out": {
+    "v": "/"
+   }
+  },
+  {
+   "name": "tf:strip:\"{\\\"a\\\":1}\"",
+   "out": {
+    "v": "{\"a\":1}"
+   }
+  },
+  {
+   "name": "tf:strip:\"// c\\n{\\\"a\\\":\\\"//x\\\"} /* y */\"",
+   "out": {
+    "v": "\n{\"a\":\"//x\"} "
+   }
+  },
+  {
+   "name": "tf:strip:\"{\\\"a\\\":\\\"\\\\\\\"/*\\\"}\"",
+   "out": {
+    "v": "{\"a\":\"\\\"/*\"}"
+   }
+  },
+  {
+   "name": "tf:strip:\"/* open\"",
+   "out": {
+    "v": ""
+   }
+  },
+  {
+   "name": "tf:strip:\"\\\"unterminated \\\\\"",
+   "out": {
+    "v": "\"unterminated \\"
+   }
+  },
+  {
+   "name": "tf:strip:\"{\\\"k\\\": \\\"v\\\"} // tail\"",
+   "out": {
+    "v": "{\"k\": \"v\"} "
+   }
+  },
+  {
+   "name": "tf:broad:linux:/",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "tf:broad:linux:/home/u",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "tf:broad:linux:/home/u/Documents",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "tf:broad:linux:/home/u/p/x",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "tf:broad:linux:/home",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "tf:broad:linux:/srv/conv",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "tf:broad:darwin:/Users/U/Desktop",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "tf:broad:win32:C:\\",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "tf:broad:win32:c:\\users\\ME",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "tf:broad:win32:D:\\proj\\a",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "tf:broad:win32:C:\\Users\\me\\Downloads",
+   "out": {
+    "v": true
+   }
+  },
+  {
+   "name": "tf:trust:blocked",
+   "out": {
+    "err": "环境变量 GEMINI_RESTRICTED_MODE=true 让 Gemini 始终不信任任何文件夹，写入受信任列表也不会生效。请先去掉它。"
+   }
+  },
+  {
+   "name": "tf:trust:relative",
+   "out": {
+    "err": "工作目录无效"
+   }
+  },
+  {
+   "name": "tf:trust:missing",
+   "out": {
+    "err": "工作目录无效"
+   }
+  },
+  {
+   "name": "tf:trust:notDir",
+   "out": {
+    "err": "工作目录无效"
+   }
+  },
+  {
+   "name": "tf:trust:fresh",
+   "out": {
+    "v": {
+     "r": {
+      "folder": "<SB>/proj/Repo",
+      "file": "<SB>/gh/.gemini/trustedFolders.json",
+      "previous": null
+     },
+     "file": "{\n  \"<SB>/proj/Repo\": \"TRUST_FOLDER\"\n}\n"
+    }
+   }
+  },
+  {
+   "name": "tf:trust:again",
+   "out": {
+    "v": {
+     "r": {
+      "folder": "<SB>/proj/Repo",
+      "file": "<SB>/gh/.gemini/trustedFolders.json",
+      "previous": "TRUST_FOLDER"
+     },
+     "file": "{\n  \"<SB>/proj/Repo\": \"TRUST_FOLDER\"\n}\n"
+    }
+   }
+  },
+  {
+   "name": "tf:trust:flip",
+   "out": {
+    "v": {
+     "r": {
+      "folder": "<SB>/proj/Repo",
+      "file": "<SB>/gh/.gemini/trustedFolders.json",
+      "previous": "DO_NOT_TRUST"
+     },
+     "file": "{\n  \"<SB>/proj/Repo\": \"TRUST_FOLDER\",\n  \"/other\": \"TRUST_PARENT\"\n}\n"
+    }
+   }
+  },
+  {
+   "name": "tf:trust:malformed",
+   "out": {
+    "err": "Gemini 的受信任文件夹列表（<SB>/gh/.gemini/trustedFolders.json）格式有误，Nomi 没有改动它。请先修复或删除这个文件后再试。"
+   }
+  },
+  {
+   "name": "tf:trust:blank",
+   "out": {
+    "v": {
+     "r": {
+      "folder": "<SB>/proj/Repo",
+      "file": "<SB>/gh/.gemini/trustedFolders.json",
+      "previous": null
+     },
+     "file": "{\n  \"<SB>/proj/Repo\": \"TRUST_FOLDER\"\n}\n"
+    }
+   }
+  },
+  {
+   "name": "tf:trust:staleLock",
+   "out": {
+    "v": {
+     "r": {
+      "folder": "<SB>/proj/Repo",
+      "file": "<SB>/gh/.gemini/trustedFolders.json",
+      "previous": null
+     },
+     "file": "{\n  \"<SB>/proj/Repo\": \"TRUST_FOLDER\"\n}\n"
+    }
+   }
+  },
+  {
+   "name": "tf:trust:lockGone",
+   "out": {
+    "v": false
+   }
+  },
+  {
+   "name": "tf:trust:explicitPath",
+   "out": {
+    "v": {
+     "r": {
+      "folder": "<SB>/proj/Repo",
+      "file": "<SB>/deep/dir/t.json",
+      "previous": null
+     },
+     "file": "{\n  \"<SB>/proj/Repo\": \"TRUST_FOLDER\"\n}\n"
+    }
+   }
+  },
+  {
+   "name": "tf:trust:explicitFile",
+   "out": {
+    "v": "{\n  \"<SB>/proj/Repo\": \"TRUST_FOLDER\"\n}\n"
+   }
+  }
+ ]
+}
