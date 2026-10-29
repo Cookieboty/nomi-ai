@@ -81,7 +81,8 @@ func next(t *testing.T, ch chan contract.ServerFrame) contract.ServerFrame {
 
 func TestStubReturnsUnavailable(t *testing.T) {
 	s, ch := session(t, newRouter(), "chat")
-	s.Handle([]byte(`{"t":"req","id":"1","kind":"call","name":"theme.get"}`))
+	// theme.* 已在批次 3 实现；选一个仍为桩的过程
+	s.Handle([]byte(`{"t":"req","id":"1","kind":"call","name":"kb.state"}`))
 	f := next(t, ch)
 	if f.T != "err" || f.Error.Code != "UNAVAILABLE" {
 		t.Fatalf("got %+v", f)

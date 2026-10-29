@@ -166,6 +166,11 @@ Go 版**1:1 镜像** Node 版：模块边界、包/层结构、数据格式、�
 | D7 | node-pty | Go PTY（creack/pty + Windows ConPTY） | 平台库不同，读写/尺寸/退出码语义对齐 |
 | D8 | 未注册过程不存在 | 迁移期桩返回 `UNAVAILABLE` | 临时，全部实现后删除 |
 | D9 | 默认 Rive 看板娘 | 默认 SVG，Rive 可选 | 产品决策 Q5 |
+| D10 | Go 与 Electron 共用同一 userData 目录（§4.5 初稿） | Go 版单独用 `Nomi`；首启从 `@nomi-ai/electron`（及旧 `@ig-live/electron`）**复制**进 `Nomi`，不改、不删 Electron 原目录 | 用户要求升级后仍能打开 Electron 构建；同目录会互相踩配置/钥匙串 |
+| D11 | 渲染侧 `ai-chat:*` 会话存在 Chromium localStorage（LevelDB） | Go 尽力从 `Local Storage/leveldb` 抽出 `ai-chat:*` 键写入 `userData/ai-chat/`；抽不出时不报错，会话文件层（`*.jsonl`）照常复制 | LevelDB 格式/加密因 Chromium 版本而异，无法保证 100% |
+| D12 | `writePrivateFile*` 在 Windows 上对文件跑 icacls | Go 版只保证 0600 + 目录 0700，跳过逐文件 ACL | Go 无稳定等价；userData 本就在用户目录下 |
+| D13 | GatewayStore / keys 的 `encryption: safeStorage \| none` | 迁移后新增 `encryption: keyring`（磁盘存钥匙串 account id 的 base64） | Go 无 safeStorage，密文改放 OS 钥匙串 |
+| D14 | Linux 上 Electron safeStorage（libsecret + Chromium OSCrypt）可解 | 本批 Linux `Available()=false`，safeStorage 密文进 `secretsFailed`，提示用户重填；`encryption=none` 仍迁 | Chromium OSCrypt 派生较重，先保证失败路径可读 |
 
 ### 3.5 一致性测试策略（golden，Node 与 Go 同输入对比输出）
 
@@ -214,7 +219,7 @@ electron-updater 不能用。需自建：GitHub Releases 清单 + sha256/签名�
 
 ### 4.5 用户数据迁移
 存储全是 JSON/TOML（无 DB），Go 版读写同一目录即可，但：
-- userData 路径：Electron 在 Mac `~/Library/Application Support/<productName>`、Win `%APPDATA%\<productName>`、Linux `~/.config/<productName>`，Go 版必须指向同一目录（不能用 Wails 默认）；
+- userData 路径：Electron 在 Mac `~/Library/Application Support/<productName>`、Win `%APPDATA%\<productName>`、Linux `~/.config/<productName>`；**已改（D10）**：Go 版目录名 `Nomi`，首启从 Electron 目录复制，不再共用同一目录；
 - safeStorage 密文（API Key 等 7 处）：Electron 用 Keychain 中 “<App> Safe Storage” 密钥 + AES（Mac/Linux）或 DPAPI（Win）。Go 可解（Mac 读 Keychain 项、Win `CryptUnprotectData`），首次启动解密后转存 go-keyring；失败则提示重填；
 - Electron 自身的 localStorage/IndexedDB（渲染进程存的数据）在 Chromium LevelDB 里，WebView 换了读不到——批次 3 需普查渲染进程是否有持久化在 localStorage 的东西，有则改走契约存储并一次性导出。
 - 迁移前做一次备份目录（`<userData>/backup-2.0.4/`）。
