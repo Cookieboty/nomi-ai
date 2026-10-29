@@ -101,7 +101,7 @@ func cupResolve(loc *time.Location, clock float64) []float64 {
 	var found []float64
 	seen := map[float64]bool{}
 	for h := -36; h <= 36; h += 6 {
-		probe := clock + float64(h)*cupHourMS
+		probe := clock + float64(float64(h)*cupHourMS)
 		offset := cupWall(loc, probe) - probe
 		instant := clock - offset
 		if cupWall(loc, instant) == clock && !seen[instant] {
@@ -184,7 +184,7 @@ func ParseClaudeResetTime(input string, now float64, spanHours float64) *float64
 		}
 	}
 	sort.Float64s(cands)
-	horizon := now + (spanHours+2)*cupHourMS
+	horizon := now + float64((spanHours+2)*cupHourMS)
 	var chosen *float64
 	if explicitYear {
 		if len(cands) > 0 {
@@ -199,7 +199,7 @@ func ParseClaudeResetTime(input string, now float64, spanHours float64) *float64
 		}
 		if chosen == nil && dateText != "" {
 			for _, x := range cands {
-				if x >= now-24*cupHourMS && x <= horizon {
+				if x >= now-float64(24*cupHourMS) && x <= horizon {
 					chosen = f64p(x)
 					break
 				}

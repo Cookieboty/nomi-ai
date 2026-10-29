@@ -191,7 +191,7 @@ func main() {
 	desktopSvc := desktop.CreateService(userData, desktop.Ports{Home: home, PickDirectory: func(title, button, def string) string {
 		dir, _ := ports.PickDir(title, button, def)
 		return dir
-	}}, router.EmitTo)
+	}, ClipboardRead: ports.ClipboardRead, ClipboardWrite: ports.ClipboardWrite}, router.EmitTo)
 	desktopSvc.AttachWindows(&desktop.Windows{Main: func() bool { return sh != nil }})
 	desktop.Register(router, desktopSvc)
 	desktopSvc.StartReminders()

@@ -644,3 +644,12 @@ func Refine(s Schema, fn func(any) bool, msg string) Schema { return refineS{s, 
 
 // ZodError：ZodError（message = JSON.stringify(issues, null, 2)）
 func ZodError(iss []*issue) error { return zodError(iss) }
+
+// IssueMessages：issues.map(x => x.message)（safeParse 失败时工具自己拼错误文案用）
+func IssueMessages(iss []*issue) []string {
+	out := make([]string, len(iss))
+	for j, x := range iss {
+		out[j] = x.msg
+	}
+	return out
+}

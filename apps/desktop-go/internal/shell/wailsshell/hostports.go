@@ -75,3 +75,12 @@ func (w *Wails) PickFiles(title string, filters []SaveFileFilter) ([]string, err
 	}
 	return []string{p}, nil
 }
+
+// ClipboardText = clipboard.readText()（读不到按空串）
+func (w *Wails) ClipboardText() string {
+	s, _ := w.app.Clipboard.Text()
+	return s
+}
+
+// ClipboardSetText = clipboard.writeText(t)
+func (w *Wails) ClipboardSetText(text string) bool { return w.app.Clipboard.SetText(text) }
