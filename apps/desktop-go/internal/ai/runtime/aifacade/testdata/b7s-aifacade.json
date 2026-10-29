@@ -1,0 +1,2825 @@
+[
+ {
+  "name": "sessions",
+  "steps": [
+   {
+    "p": "ai.sessions.list",
+    "out": []
+   },
+   {
+    "p": "ai.sessions.create",
+    "out": {
+     "id": "sess_loyw3v28_xsh8py",
+     "title": "New Session",
+     "createdAt": 1700000000000,
+     "updatedAt": 1700000000000
+    }
+   },
+   {
+    "p": "ai.sessions.create",
+    "out": {
+     "id": "sess_loyw3v2d_c1smjo",
+     "title": "A",
+     "createdAt": 1700000000005,
+     "updatedAt": 1700000000005,
+     "agentPreset": "companion",
+     "meta": {
+      "k": 1,
+      "b": true,
+      "s": "x"
+     }
+    }
+   },
+   {
+    "p": "ai.sessions.create",
+    "out": {
+     "id": "sess_loyw3v2d_arleqn",
+     "title": "New Session",
+     "createdAt": 1700000000005,
+     "updatedAt": 1700000000005
+    }
+   },
+   {
+    "p": "ai.sessions.create",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [],
+        "message": "Invalid input: expected object, received null"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.sessions.create",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "title"
+        ],
+        "message": "Invalid input: expected string, received number"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.sessions.create",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "meta",
+         "k"
+        ],
+        "message": "Invalid input"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.sessions.create",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "meta",
+         "k"
+        ],
+        "message": "Invalid input"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.sessions.list",
+    "out": [
+     {
+      "id": "sess_loyw3v28_xsh8py",
+      "title": "New Session",
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+     },
+     {
+      "id": "sess_loyw3v2d_c1smjo",
+      "title": "A",
+      "createdAt": 1700000000005,
+      "updatedAt": 1700000000005,
+      "agentPreset": "companion",
+      "meta": {
+       "k": 1,
+       "b": true,
+       "s": "x"
+      }
+     },
+     {
+      "id": "sess_loyw3v2d_arleqn",
+      "title": "New Session",
+      "createdAt": 1700000000005,
+      "updatedAt": 1700000000005
+     }
+    ]
+   },
+   {
+    "p": "ai.sessions.get",
+    "out": null,
+    "undef": true
+   },
+   {
+    "p": "ai.sessions.get",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "id"
+        ],
+        "message": "Invalid input: expected string, received undefined"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.sessions.get",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [],
+        "message": "Invalid input: expected object, received undefined"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.sessions.fork",
+    "err": {
+     "code": "INTERNAL",
+     "message": "session 'nope' not found"
+    }
+   },
+   {
+    "p": "ai.sessions.rename",
+    "err": {
+     "code": "INTERNAL",
+     "message": "session 'nope' not found"
+    }
+   },
+   {
+    "p": "ai.sessions.rename",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "title"
+        ],
+        "message": "Invalid input: expected string, received undefined"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.sessions.delete",
+    "out": false
+   },
+   {
+    "p": "ai.sessions.list",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [],
+        "message": "Invalid input: expected void, received object"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.sessions.list",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [],
+        "message": "Invalid input: expected void, received null"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "sessionsFlow",
+  "steps": [
+   {
+    "p": "ai.sessions.create",
+    "out": {
+     "id": "sess_loyw3v28_86ohrp",
+     "title": "Root",
+     "createdAt": 1700000000000,
+     "updatedAt": 1700000000000,
+     "agentPreset": "p1",
+     "meta": {
+      "a": "1"
+     }
+    }
+   },
+   {
+    "p": "ai.sessions.get",
+    "out": {
+     "id": "sess_loyw3v28_86ohrp",
+     "title": "Root",
+     "createdAt": 1700000000000,
+     "updatedAt": 1700000000000,
+     "agentPreset": "p1",
+     "meta": {
+      "a": "1"
+     }
+    }
+   },
+   {
+    "p": "ai.sessions.fork",
+    "out": {
+     "id": "sess_loyw3v2i_t007lh",
+     "title": "Root (copy)",
+     "createdAt": 1700000000010,
+     "updatedAt": 1700000000010,
+     "agentPreset": "p1",
+     "meta": {
+      "a": "1"
+     }
+    }
+   },
+   {
+    "p": "ai.sessions.fork",
+    "out": {
+     "id": "sess_loyw3v2l_r52wgu",
+     "title": "F2",
+     "createdAt": 1700000000013,
+     "updatedAt": 1700000000013,
+     "agentPreset": "p1",
+     "meta": {
+      "z": 2
+     }
+    }
+   },
+   {
+    "p": "ai.sessions.fork",
+    "out": {
+     "id": "sess_loyw3v2l_f13xfm",
+     "title": "Root (copy)",
+     "createdAt": 1700000000013,
+     "updatedAt": 1700000000013,
+     "agentPreset": "p2",
+     "meta": {
+      "a": "1"
+     }
+    }
+   },
+   {
+    "p": "ai.sessions.fork",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "overrides",
+         "title"
+        ],
+        "message": "Invalid input: expected string, received number"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.sessions.rename",
+    "out": {
+     "id": "sess_loyw3v28_86ohrp",
+     "title": "Renamed",
+     "createdAt": 1700000000000,
+     "updatedAt": 1700000000024,
+     "agentPreset": "p1",
+     "meta": {
+      "a": "1"
+     }
+    }
+   },
+   {
+    "p": "ai.sessions.get",
+    "out": {
+     "id": "sess_loyw3v28_86ohrp",
+     "title": "Renamed",
+     "createdAt": 1700000000000,
+     "updatedAt": 1700000000024,
+     "agentPreset": "p1",
+     "meta": {
+      "a": "1"
+     }
+    }
+   },
+   {
+    "p": "ai.sessions.list",
+    "out": [
+     {
+      "id": "sess_loyw3v28_86ohrp",
+      "title": "Renamed",
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000024,
+      "agentPreset": "p1",
+      "meta": {
+       "a": "1"
+      }
+     },
+     {
+      "id": "sess_loyw3v2i_t007lh",
+      "title": "Root (copy)",
+      "createdAt": 1700000000010,
+      "updatedAt": 1700000000010,
+      "agentPreset": "p1",
+      "meta": {
+       "a": "1"
+      }
+     },
+     {
+      "id": "sess_loyw3v2l_r52wgu",
+      "title": "F2",
+      "createdAt": 1700000000013,
+      "updatedAt": 1700000000013,
+      "agentPreset": "p1",
+      "meta": {
+       "z": 2
+      }
+     },
+     {
+      "id": "sess_loyw3v2l_f13xfm",
+      "title": "Root (copy)",
+      "createdAt": 1700000000013,
+      "updatedAt": 1700000000013,
+      "agentPreset": "p2",
+      "meta": {
+       "a": "1"
+      }
+     }
+    ]
+   },
+   {
+    "p": "ai.sessions.delete",
+    "out": true
+   },
+   {
+    "p": "ai.sessions.delete",
+    "out": false
+   },
+   {
+    "p": "ai.sessions.get",
+    "out": null,
+    "undef": true
+   },
+   {
+    "p": "ai.sessions.create",
+    "out": {
+     "id": "sess_loyw3v2w_su7dgc",
+     "title": "",
+     "createdAt": 1700000000024,
+     "updatedAt": 1700000000024
+    }
+   },
+   {
+    "p": "ai.sessions.list",
+    "out": [
+     {
+      "id": "sess_loyw3v2i_t007lh",
+      "title": "Root (copy)",
+      "createdAt": 1700000000010,
+      "updatedAt": 1700000000010,
+      "agentPreset": "p1",
+      "meta": {
+       "a": "1"
+      }
+     },
+     {
+      "id": "sess_loyw3v2l_r52wgu",
+      "title": "F2",
+      "createdAt": 1700000000013,
+      "updatedAt": 1700000000013,
+      "agentPreset": "p1",
+      "meta": {
+       "z": 2
+      }
+     },
+     {
+      "id": "sess_loyw3v2l_f13xfm",
+      "title": "Root (copy)",
+      "createdAt": 1700000000013,
+      "updatedAt": 1700000000013,
+      "agentPreset": "p2",
+      "meta": {
+       "a": "1"
+      }
+     },
+     {
+      "id": "sess_loyw3v2w_su7dgc",
+      "title": "",
+      "createdAt": 1700000000024,
+      "updatedAt": 1700000000024
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "tools",
+  "steps": [
+   {
+    "p": "ai.tools.list",
+    "out": [
+     {
+      "name": "echo",
+      "description": "Echo v2",
+      "parametersJsonSchema": {},
+      "enabled": true
+     },
+     {
+      "name": "rm",
+      "description": "remove",
+      "parametersJsonSchema": {},
+      "dangerous": true,
+      "enabled": true
+     },
+     {
+      "name": "nod",
+      "description": "",
+      "parametersJsonSchema": {},
+      "enabled": true
+     }
+    ]
+   },
+   {
+    "p": "ai.tools.setEnabled",
+    "out": null,
+    "undef": true
+   },
+   {
+    "p": "ai.tools.setEnabled",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[TOOL_NOT_FOUND|0] tool 'ghost' 未注册"
+    }
+   },
+   {
+    "p": "ai.tools.setEnabled",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "enabled"
+        ],
+        "message": "Invalid input: expected boolean, received undefined"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.tools.setEnabled",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "enabled"
+        ],
+        "message": "Invalid input: expected boolean, received string"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.tools.list",
+    "out": [
+     {
+      "name": "echo",
+      "description": "Echo v2",
+      "parametersJsonSchema": {},
+      "enabled": false
+     },
+     {
+      "name": "rm",
+      "description": "remove",
+      "parametersJsonSchema": {},
+      "dangerous": true,
+      "enabled": true
+     },
+     {
+      "name": "nod",
+      "description": "",
+      "parametersJsonSchema": {},
+      "enabled": true
+     }
+    ]
+   },
+   {
+    "p": "ai.tools.setEnabled",
+    "out": null,
+    "undef": true
+   },
+   {
+    "p": "ai.tools.list",
+    "out": [
+     {
+      "name": "echo",
+      "description": "Echo v2",
+      "parametersJsonSchema": {},
+      "enabled": true
+     },
+     {
+      "name": "rm",
+      "description": "remove",
+      "parametersJsonSchema": {},
+      "dangerous": true,
+      "enabled": true
+     },
+     {
+      "name": "nod",
+      "description": "",
+      "parametersJsonSchema": {},
+      "enabled": true
+     }
+    ]
+   },
+   {
+    "p": "ai.tools.confirm",
+    "out": null,
+    "undef": true
+   },
+   {
+    "p": "ai.tools.confirm",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[TOOL_CONFIRM_INVALID|0] confirm 必须提供 reqId"
+    }
+   },
+   {
+    "p": "ai.tools.confirm",
+    "err": {
+     "code": "FORBIDDEN",
+     "message": "Untrusted caller may not call dangerous 'ai.tools.confirm'",
+     "data": {
+      "dangerous": true
+     }
+    }
+   },
+   {
+    "p": "ai.tools.confirm",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "ok"
+        ],
+        "message": "Invalid input: expected boolean, received undefined"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.tools.confirm",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "reason"
+        ],
+        "message": "Invalid input: expected string, received number"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.tools.list",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [],
+        "message": "Invalid input: expected void, received object"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "toolsNoRegistry",
+  "steps": [
+   {
+    "p": "ai.tools.list",
+    "out": []
+   },
+   {
+    "p": "ai.tools.setEnabled",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[TOOL_NOT_FOUND|0] tool 'x' 未注册"
+    }
+   }
+  ]
+ },
+ {
+  "name": "memory",
+  "steps": [
+   {
+    "p": "ai.memory.facts.list",
+    "out": []
+   },
+   {
+    "p": "ai.memory.facts.put",
+    "out": {
+     "id": "f1",
+     "kind": "note",
+     "text": "t",
+     "source": "user",
+     "at": 1
+    }
+   },
+   {
+    "p": "ai.memory.facts.put",
+    "out": {
+     "id": "f2",
+     "kind": "goal",
+     "text": "t2",
+     "source": "system",
+     "at": 2,
+     "confidence": 0.5
+    }
+   },
+   {
+    "p": "ai.memory.facts.put",
+    "out": {
+     "id": "f1",
+     "kind": "habit",
+     "text": "t3",
+     "source": "inferred",
+     "at": 3
+    }
+   },
+   {
+    "p": "ai.memory.facts.put",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "kind"
+        ],
+        "message": "Invalid option: expected one of \"preference\"|\"identity\"|\"goal\"|\"dislike\"|\"habit\"|\"note\""
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.memory.facts.put",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "source"
+        ],
+        "message": "Invalid option: expected one of \"user\"|\"inferred\"|\"distilled\"|\"system\""
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.memory.facts.put",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "at"
+        ],
+        "message": "Invalid input: expected number, received undefined"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.memory.facts.put",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "at"
+        ],
+        "message": "Invalid input: expected number, received string"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.memory.facts.list",
+    "out": [
+     {
+      "id": "f1",
+      "kind": "habit",
+      "text": "t3",
+      "source": "inferred",
+      "at": 3
+     },
+     {
+      "id": "f2",
+      "kind": "goal",
+      "text": "t2",
+      "source": "system",
+      "at": 2,
+      "confidence": 0.5
+     }
+    ]
+   },
+   {
+    "p": "ai.memory.facts.delete",
+    "out": true
+   },
+   {
+    "p": "ai.memory.facts.delete",
+    "out": false
+   },
+   {
+    "p": "ai.memory.facts.delete",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "id"
+        ],
+        "message": "Invalid input: expected string, received number"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.memory.facts.list",
+    "out": [
+     {
+      "id": "f2",
+      "kind": "goal",
+      "text": "t2",
+      "source": "system",
+      "at": 2,
+      "confidence": 0.5
+     }
+    ]
+   },
+   {
+    "p": "ai.memory.summaries.get",
+    "out": null,
+    "undef": true
+   },
+   {
+    "p": "ai.memory.summaries.put",
+    "out": {
+     "sessionId": "s",
+     "summary": "sum",
+     "updatedAt": 5,
+     "stepCount": 2
+    }
+   },
+   {
+    "p": "ai.memory.summaries.get",
+    "out": {
+     "sessionId": "s",
+     "summary": "sum",
+     "updatedAt": 5,
+     "stepCount": 2
+    }
+   },
+   {
+    "p": "ai.memory.summaries.put",
+    "out": {
+     "sessionId": "s",
+     "summary": "sum2",
+     "updatedAt": 6,
+     "stepCount": 3
+    }
+   },
+   {
+    "p": "ai.memory.summaries.get",
+    "out": {
+     "sessionId": "s",
+     "summary": "sum2",
+     "updatedAt": 6,
+     "stepCount": 3
+    }
+   },
+   {
+    "p": "ai.memory.summaries.put",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "stepCount"
+        ],
+        "message": "Invalid input: expected number, received undefined"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.memory.summaries.get",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "sessionId"
+        ],
+        "message": "Invalid input: expected string, received undefined"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "profileDefault",
+  "steps": [
+   {
+    "p": "ai.memory.userProfile.get",
+    "out": {
+     "version": 1,
+     "identity": {},
+     "preferences": {},
+     "habits": {},
+     "dislikes": [],
+     "createdAt": 1700000000000,
+     "updatedAt": 1700000000000
+    },
+    "file": null
+   },
+   {
+    "p": "ai.memory.userProfile.export",
+    "out": {
+     "version": 1,
+     "identity": {},
+     "preferences": {},
+     "habits": {},
+     "dislikes": [],
+     "createdAt": 1700000000000,
+     "updatedAt": 1700000000000
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "out": {
+     "version": 1,
+     "identity": {
+      "displayName": "B",
+      "nickname": "Bo"
+     },
+     "preferences": {},
+     "habits": {},
+     "dislikes": [],
+     "createdAt": 1700000000000,
+     "updatedAt": 1700000000010
+    },
+    "events": [
+     {
+      "event": "ai.userProfile.changed",
+      "data": {
+       "profile": {
+        "version": 1,
+        "identity": {
+         "displayName": "B",
+         "nickname": "Bo"
+        },
+        "preferences": {},
+        "habits": {},
+        "dislikes": [],
+        "createdAt": 1700000000000,
+        "updatedAt": 1700000000010
+       }
+      }
+     }
+    ],
+    "file": "{\n  \"version\": 1,\n  \"identity\": {\n    \"displayName\": \"B\",\n    \"nickname\": \"Bo\"\n  },\n  \"preferences\": {},\n  \"habits\": {},\n  \"dislikes\": [],\n  \"createdAt\": 1700000000000,\n  \"updatedAt\": 1700000000010\n}"
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "out": {
+     "version": 1,
+     "identity": {
+      "displayName": "B",
+      "nickname": "Bo"
+     },
+     "preferences": {
+      "tone": {
+       "value": "cute",
+       "source": "user",
+       "updatedAt": 5
+      },
+      "autoAcceptTools": [
+       "a",
+       "b"
+      ]
+     },
+     "habits": {},
+     "dislikes": [
+      "x"
+     ],
+     "createdAt": 1700000000000,
+     "updatedAt": 1700000000020
+    },
+    "events": [
+     {
+      "event": "ai.userProfile.changed",
+      "data": {
+       "profile": {
+        "version": 1,
+        "identity": {
+         "displayName": "B",
+         "nickname": "Bo"
+        },
+        "preferences": {
+         "tone": {
+          "value": "cute",
+          "source": "user",
+          "updatedAt": 5
+         },
+         "autoAcceptTools": [
+          "a",
+          "b"
+         ]
+        },
+        "habits": {},
+        "dislikes": [
+         "x"
+        ],
+        "createdAt": 1700000000000,
+        "updatedAt": 1700000000020
+       }
+      }
+     }
+    ],
+    "file": "{\n  \"version\": 1,\n  \"identity\": {\n    \"displayName\": \"B\",\n    \"nickname\": \"Bo\"\n  },\n  \"preferences\": {\n    \"tone\": {\n      \"value\": \"cute\",\n      \"source\": \"user\",\n      \"updatedAt\": 5\n    },\n    \"autoAcceptTools\": [\n      \"a\",\n      \"b\"\n    ]\n  },\n  \"habits\": {},\n  \"dislikes\": [\n    \"x\"\n  ],\n  \"createdAt\": 1700000000000,\n  \"updatedAt\": 1700000000020\n}"
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "out": {
+     "version": 1,
+     "identity": {
+      "displayName": "B",
+      "nickname": "Bo"
+     },
+     "preferences": {
+      "tone": {
+       "value": "cute",
+       "source": "user",
+       "updatedAt": 5
+      },
+      "autoAcceptTools": [
+       "c"
+      ]
+     },
+     "habits": {},
+     "dislikes": [],
+     "createdAt": 1700000000000,
+     "updatedAt": 1700000000021
+    },
+    "events": [
+     {
+      "event": "ai.userProfile.changed",
+      "data": {
+       "profile": {
+        "version": 1,
+        "identity": {
+         "displayName": "B",
+         "nickname": "Bo"
+        },
+        "preferences": {
+         "tone": {
+          "value": "cute",
+          "source": "user",
+          "updatedAt": 5
+         },
+         "autoAcceptTools": [
+          "c"
+         ]
+        },
+        "habits": {},
+        "dislikes": [],
+        "createdAt": 1700000000000,
+        "updatedAt": 1700000000021
+       }
+      }
+     }
+    ]
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[\n  {\n    \"expected\": \"string\",\n    \"code\": \"invalid_type\",\n    \"path\": [\n      \"identity\",\n      \"nickname\"\n    ],\n    \"message\": \"Invalid input: expected string, received null\"\n  }\n]"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[\n  {\n    \"code\": \"unrecognized_keys\",\n    \"keys\": [\n      \"bogus\"\n    ],\n    \"path\": [\n      \"identity\"\n    ],\n    \"message\": \"Unrecognized key: \\\"bogus\\\"\"\n  }\n]"
+    },
+    "file": "{\n  \"version\": 1,\n  \"identity\": {\n    \"displayName\": \"B\",\n    \"nickname\": \"Bo\"\n  },\n  \"preferences\": {\n    \"tone\": {\n      \"value\": \"cute\",\n      \"source\": \"user\",\n      \"updatedAt\": 5\n    },\n    \"autoAcceptTools\": [\n      \"c\"\n    ]\n  },\n  \"habits\": {},\n  \"dislikes\": [],\n  \"createdAt\": 1700000000000,\n  \"updatedAt\": 1700000000021\n}"
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[\n  {\n    \"origin\": \"string\",\n    \"code\": \"too_big\",\n    \"maximum\": 16,\n    \"inclusive\": true,\n    \"path\": [\n      \"identity\",\n      \"locale\"\n    ],\n    \"message\": \"Too big: expected string to have <=16 characters\"\n  }\n]"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[\n  {\n    \"expected\": \"string\",\n    \"code\": \"invalid_type\",\n    \"path\": [\n      \"identity\",\n      \"nickname\"\n    ],\n    \"message\": \"Invalid input: expected string, received number\"\n  }\n]"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[\n  {\n    \"code\": \"invalid_value\",\n    \"values\": [\n      1\n    ],\n    \"path\": [\n      \"version\"\n    ],\n    \"message\": \"Invalid input: expected 1\"\n  }\n]"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[\n  {\n    \"code\": \"invalid_value\",\n    \"values\": [\n      \"formal\",\n      \"casual\",\n      \"cute\",\n      \"strict\"\n    ],\n    \"path\": [\n      \"preferences\",\n      \"tone\",\n      \"value\"\n    ],\n    \"message\": \"Invalid option: expected one of \\\"formal\\\"|\\\"casual\\\"|\\\"cute\\\"|\\\"strict\\\"\"\n  },\n  {\n    \"expected\": \"int\",\n    \"format\": \"safeint\",\n    \"code\": \"invalid_type\",\n    \"path\": [\n      \"preferences\",\n      \"tone\",\n      \"updatedAt\"\n    ],\n    \"message\": \"Invalid input: expected int, received number\"\n  }\n]"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[\n  {\n    \"code\": \"invalid_union\",\n    \"errors\": [\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"tab\"\n          ],\n          \"path\": [],\n          \"message\": \"Invalid input: expected \\\"tab\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            2\n          ],\n          \"path\": [],\n          \"message\": \"Invalid input: expected 2\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            4\n          ],\n          \"path\": [],\n          \"message\": \"Invalid input: expected 4\"\n        }\n      ]\n    ],\n    \"path\": [\n      \"preferences\",\n      \"codeStyle\",\n      \"indent\"\n    ],\n    \"message\": \"Invalid input\"\n  },\n  {\n    \"code\": \"invalid_value\",\n    \"values\": [\n      \"single\",\n      \"double\"\n    ],\n    \"path\": [\n      \"preferences\",\n      \"codeStyle\",\n      \"quotes\"\n    ],\n    \"message\": \"Invalid option: expected one of \\\"single\\\"|\\\"double\\\"\"\n  }\n]"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "out": {
+     "version": 1,
+     "identity": {
+      "displayName": "B",
+      "nickname": "Bo"
+     },
+     "preferences": {
+      "tone": {
+       "value": "cute",
+       "source": "user",
+       "updatedAt": 5
+      },
+      "codeStyle": {
+       "language": [
+        "go"
+       ],
+       "indent": "tab"
+      },
+      "autoAcceptTools": [
+       "c"
+      ]
+     },
+     "habits": {},
+     "dislikes": [],
+     "createdAt": 1700000000000,
+     "updatedAt": 1700000000021
+    },
+    "events": [
+     {
+      "event": "ai.userProfile.changed",
+      "data": {
+       "profile": {
+        "version": 1,
+        "identity": {
+         "displayName": "B",
+         "nickname": "Bo"
+        },
+        "preferences": {
+         "tone": {
+          "value": "cute",
+          "source": "user",
+          "updatedAt": 5
+         },
+         "codeStyle": {
+          "language": [
+           "go"
+          ],
+          "indent": "tab"
+         },
+         "autoAcceptTools": [
+          "c"
+         ]
+        },
+        "habits": {},
+        "dislikes": [],
+        "createdAt": 1700000000000,
+        "updatedAt": 1700000000021
+       }
+      }
+     }
+    ]
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[\n  {\n    \"origin\": \"array\",\n    \"code\": \"too_small\",\n    \"minimum\": 24,\n    \"inclusive\": true,\n    \"exact\": true,\n    \"path\": [\n      \"habits\",\n      \"activeHours\"\n    ],\n    \"message\": \"Too small: expected array to have exactly 24 items\"\n  },\n  {\n    \"origin\": \"number\",\n    \"code\": \"too_small\",\n    \"minimum\": 0,\n    \"inclusive\": true,\n    \"path\": [\n      \"habits\",\n      \"avgSessionLen\"\n    ],\n    \"message\": \"Too small: expected number to be >=0\"\n  },\n  {\n    \"origin\": \"number\",\n    \"code\": \"too_big\",\n    \"maximum\": 1,\n    \"inclusive\": true,\n    \"path\": [\n      \"habits\",\n      \"regenRate\"\n    ],\n    \"message\": \"Too big: expected number to be <=1\"\n  }\n]"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[\n  {\n    \"code\": \"unrecognized_keys\",\n    \"keys\": [\n      \"z\"\n    ],\n    \"path\": [\n      \"habits\",\n      \"topTools\",\n      0\n    ],\n    \"message\": \"Unrecognized key: \\\"z\\\"\"\n  },\n  {\n    \"origin\": \"number\",\n    \"code\": \"too_small\",\n    \"minimum\": 0,\n    \"inclusive\": true,\n    \"path\": [\n      \"habits\",\n      \"updatedAt\"\n    ],\n    \"message\": \"Too small: expected number to be >=0\"\n  }\n]"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[\n  {\n    \"expected\": \"array\",\n    \"code\": \"invalid_type\",\n    \"path\": [\n      \"dislikes\"\n    ],\n    \"message\": \"Invalid input: expected array, received string\"\n  }\n]"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[\n  {\n    \"origin\": \"string\",\n    \"code\": \"too_big\",\n    \"maximum\": 64,\n    \"inclusive\": true,\n    \"path\": [\n      \"dislikes\",\n      0\n    ],\n    \"message\": \"Too big: expected string to have <=64 characters\"\n  }\n]"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[\n  {\n    \"expected\": \"boolean\",\n    \"code\": \"invalid_type\",\n    \"path\": [\n      \"preferences\",\n      \"privacy\",\n      \"allowFileWrite\"\n    ],\n    \"message\": \"Invalid input: expected boolean, received string\"\n  },\n  {\n    \"code\": \"unrecognized_keys\",\n    \"keys\": [\n      \"extraTop\"\n    ],\n    \"path\": [],\n    \"message\": \"Unrecognized key: \\\"extraTop\\\"\"\n  }\n]"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[\n  {\n    \"code\": \"invalid_value\",\n    \"values\": [\n      \"user\",\n      \"inferred\",\n      \"distilled\"\n    ],\n    \"path\": [\n      \"preferences\",\n      \"replyLanguage\",\n      \"source\"\n    ],\n    \"message\": \"Invalid option: expected one of \\\"user\\\"|\\\"inferred\\\"|\\\"distilled\\\"\"\n  },\n  {\n    \"origin\": \"number\",\n    \"code\": \"too_big\",\n    \"maximum\": 1,\n    \"inclusive\": true,\n    \"path\": [\n      \"preferences\",\n      \"replyLanguage\",\n      \"confidence\"\n    ],\n    \"message\": \"Too big: expected number to be <=1\"\n  }\n]"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[\n  {\n    \"expected\": \"object\",\n    \"code\": \"invalid_type\",\n    \"path\": [\n      \"identity\"\n    ],\n    \"message\": \"Invalid input: expected object, received string\"\n  }\n]"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "source"
+        ],
+        "message": "Invalid option: expected one of \"user\"|\"inferred\"|\"distilled\""
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "patch"
+        ],
+        "message": "Invalid input: expected record, received undefined"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "patch"
+        ],
+        "message": "Invalid input: expected record, received array"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.get",
+    "out": {
+     "version": 1,
+     "identity": {
+      "displayName": "B",
+      "nickname": "Bo"
+     },
+     "preferences": {
+      "tone": {
+       "value": "cute",
+       "source": "user",
+       "updatedAt": 5
+      },
+      "codeStyle": {
+       "language": [
+        "go"
+       ],
+       "indent": "tab"
+      },
+      "autoAcceptTools": [
+       "c"
+      ]
+     },
+     "habits": {},
+     "dislikes": [],
+     "createdAt": 1700000000000,
+     "updatedAt": 1700000000021
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.reset",
+    "out": {
+     "version": 1,
+     "identity": {},
+     "preferences": {},
+     "habits": {},
+     "dislikes": [],
+     "createdAt": 1700000000121,
+     "updatedAt": 1700000000121
+    },
+    "events": [
+     {
+      "event": "ai.userProfile.changed",
+      "data": {
+       "profile": {
+        "version": 1,
+        "identity": {},
+        "preferences": {},
+        "habits": {},
+        "dislikes": [],
+        "createdAt": 1700000000121,
+        "updatedAt": 1700000000121
+       }
+      }
+     }
+    ],
+    "file": "{\n  \"version\": 1,\n  \"identity\": {},\n  \"preferences\": {},\n  \"habits\": {},\n  \"dislikes\": [],\n  \"createdAt\": 1700000000121,\n  \"updatedAt\": 1700000000121\n}"
+   },
+   {
+    "p": "ai.memory.userProfile.import",
+    "out": {
+     "version": 1,
+     "identity": {
+      "timezone": "UTC"
+     },
+     "preferences": {},
+     "habits": {
+      "activeHours": [
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ]
+     },
+     "dislikes": [
+      "a"
+     ],
+     "createdAt": 1,
+     "updatedAt": 2
+    },
+    "events": [
+     {
+      "event": "ai.userProfile.changed",
+      "data": {
+       "profile": {
+        "version": 1,
+        "identity": {
+         "timezone": "UTC"
+        },
+        "preferences": {},
+        "habits": {
+         "activeHours": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+         ]
+        },
+        "dislikes": [
+         "a"
+        ],
+        "createdAt": 1,
+        "updatedAt": 2
+       }
+      }
+     }
+    ],
+    "file": "{\n  \"version\": 1,\n  \"identity\": {\n    \"timezone\": \"UTC\"\n  },\n  \"preferences\": {},\n  \"habits\": {\n    \"activeHours\": [\n      0,\n      0,\n      0,\n      0,\n      0,\n      0,\n      0,\n      0,\n      0,\n      0,\n      0,\n      0,\n      0,\n      0,\n      0,\n      0,\n      0,\n      0,\n      0,\n      0,\n      0,\n      0,\n      0,\n      0\n    ]\n  },\n  \"dislikes\": [\n    \"a\"\n  ],\n  \"createdAt\": 1,\n  \"updatedAt\": 2\n}"
+   },
+   {
+    "p": "ai.memory.userProfile.import",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[\n  {\n    \"expected\": \"object\",\n    \"code\": \"invalid_type\",\n    \"path\": [\n      \"identity\"\n    ],\n    \"message\": \"Invalid input: expected object, received undefined\"\n  },\n  {\n    \"expected\": \"object\",\n    \"code\": \"invalid_type\",\n    \"path\": [\n      \"preferences\"\n    ],\n    \"message\": \"Invalid input: expected object, received undefined\"\n  },\n  {\n    \"expected\": \"object\",\n    \"code\": \"invalid_type\",\n    \"path\": [\n      \"habits\"\n    ],\n    \"message\": \"Invalid input: expected object, received undefined\"\n  },\n  {\n    \"expected\": \"array\",\n    \"code\": \"invalid_type\",\n    \"path\": [\n      \"dislikes\"\n    ],\n    \"message\": \"Invalid input: expected array, received undefined\"\n  },\n  {\n    \"expected\": \"number\",\n    \"code\": \"invalid_type\",\n    \"path\": [\n      \"createdAt\"\n    ],\n    \"message\": \"Invalid input: expected number, received undefined\"\n  },\n  {\n    \"expected\": \"number\",\n    \"code\": \"invalid_type\",\n    \"path\": [\n      \"updatedAt\"\n    ],\n    \"message\": \"Invalid input: expected number, received undefined\"\n  }\n]"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.import",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[\n  {\n    \"expected\": \"object\",\n    \"code\": \"invalid_type\",\n    \"path\": [],\n    \"message\": \"Invalid input: expected object, received null\"\n  }\n]"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.import",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "data"
+        ],
+        "message": "Invalid input: expected nonoptional, received undefined"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.import",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[\n  {\n    \"expected\": \"object\",\n    \"code\": \"invalid_type\",\n    \"path\": [],\n    \"message\": \"Invalid input: expected object, received string\"\n  }\n]"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.import",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[\n  {\n    \"code\": \"unrecognized_keys\",\n    \"keys\": [\n      \"x\",\n      \"y\"\n    ],\n    \"path\": [],\n    \"message\": \"Unrecognized keys: \\\"x\\\", \\\"y\\\"\"\n  }\n]"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.get",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [],
+        "message": "Invalid input: expected void, received object"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.reset",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [],
+        "message": "Invalid input: expected void, received object"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "profileFile",
+  "steps": [
+   {
+    "p": "ai.memory.userProfile.get",
+    "out": {
+     "version": 1,
+     "identity": {
+      "nickname": "N"
+     },
+     "preferences": {
+      "tone": {
+       "value": "weird",
+       "source": "user",
+       "updatedAt": 3
+      },
+      "codeStyle": {
+       "indent": "spaces"
+      }
+     },
+     "habits": {
+      "regenRate": 0.5
+     },
+     "dislikes": [
+      "q"
+     ],
+     "createdAt": 8,
+     "updatedAt": 9,
+     "chat": {
+      "x": 1
+     }
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.export",
+    "out": {
+     "version": 1,
+     "identity": {
+      "nickname": "N"
+     },
+     "preferences": {
+      "tone": {
+       "value": "weird",
+       "source": "user",
+       "updatedAt": 3
+      },
+      "codeStyle": {
+       "indent": "spaces"
+      }
+     },
+     "habits": {
+      "regenRate": 0.5
+     },
+     "dislikes": [
+      "q"
+     ],
+     "createdAt": 8,
+     "updatedAt": 9,
+     "chat": {
+      "x": 1
+     }
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[\n  {\n    \"code\": \"unrecognized_keys\",\n    \"keys\": [\n      \"foo\"\n    ],\n    \"path\": [\n      \"identity\"\n    ],\n    \"message\": \"Unrecognized key: \\\"foo\\\"\"\n  },\n  {\n    \"code\": \"invalid_value\",\n    \"values\": [\n      \"formal\",\n      \"casual\",\n      \"cute\",\n      \"strict\"\n    ],\n    \"path\": [\n      \"preferences\",\n      \"tone\",\n      \"value\"\n    ],\n    \"message\": \"Invalid option: expected one of \\\"formal\\\"|\\\"casual\\\"|\\\"cute\\\"|\\\"strict\\\"\"\n  },\n  {\n    \"code\": \"unrecognized_keys\",\n    \"keys\": [\n      \"q\"\n    ],\n    \"path\": [\n      \"preferences\",\n      \"tone\"\n    ],\n    \"message\": \"Unrecognized key: \\\"q\\\"\"\n  },\n  {\n    \"code\": \"invalid_union\",\n    \"errors\": [\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"tab\"\n          ],\n          \"path\": [],\n          \"message\": \"Invalid input: expected \\\"tab\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            2\n          ],\n          \"path\": [],\n          \"message\": \"Invalid input: expected 2\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            4\n          ],\n          \"path\": [],\n          \"message\": \"Invalid input: expected 4\"\n        }\n      ]\n    ],\n    \"path\": [\n      \"preferences\",\n      \"codeStyle\",\n      \"indent\"\n    ],\n    \"message\": \"Invalid input\"\n  },\n  {\n    \"code\": \"unrecognized_keys\",\n    \"keys\": [\n      \"zz\"\n    ],\n    \"path\": [\n      \"habits\"\n    ],\n    \"message\": \"Unrecognized key: \\\"zz\\\"\"\n  },\n  {\n    \"code\": \"unrecognized_keys\",\n    \"keys\": [\n      \"chat\"\n    ],\n    \"path\": [],\n    \"message\": \"Unrecognized key: \\\"chat\\\"\"\n  }\n]"
+    },
+    "file": "{\"updatedAt\": 9, \"createdAt\": 8, \"dislikes\": [\"q\"], \"habits\": {\"regenRate\": 0.5, \"zz\": 1}, \"preferences\": {\"tone\": {\"source\": \"user\", \"value\": \"weird\", \"updatedAt\": 3, \"q\": 1}, \"codeStyle\": {\"indent\": \"spaces\"}}, \"identity\": {\"nickname\": \"N\", \"foo\": \"bar\"}, \"version\": 1, \"chat\": {\"x\": 1}}"
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[\n  {\n    \"code\": \"unrecognized_keys\",\n    \"keys\": [\n      \"foo\"\n    ],\n    \"path\": [\n      \"identity\"\n    ],\n    \"message\": \"Unrecognized key: \\\"foo\\\"\"\n  },\n  {\n    \"code\": \"invalid_value\",\n    \"values\": [\n      \"formal\",\n      \"casual\",\n      \"cute\",\n      \"strict\"\n    ],\n    \"path\": [\n      \"preferences\",\n      \"tone\",\n      \"value\"\n    ],\n    \"message\": \"Invalid option: expected one of \\\"formal\\\"|\\\"casual\\\"|\\\"cute\\\"|\\\"strict\\\"\"\n  },\n  {\n    \"code\": \"unrecognized_keys\",\n    \"keys\": [\n      \"q\"\n    ],\n    \"path\": [\n      \"preferences\",\n      \"tone\"\n    ],\n    \"message\": \"Unrecognized key: \\\"q\\\"\"\n  },\n  {\n    \"code\": \"invalid_union\",\n    \"errors\": [\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"tab\"\n          ],\n          \"path\": [],\n          \"message\": \"Invalid input: expected \\\"tab\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            2\n          ],\n          \"path\": [],\n          \"message\": \"Invalid input: expected 2\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            4\n          ],\n          \"path\": [],\n          \"message\": \"Invalid input: expected 4\"\n        }\n      ]\n    ],\n    \"path\": [\n      \"preferences\",\n      \"codeStyle\",\n      \"indent\"\n    ],\n    \"message\": \"Invalid input\"\n  },\n  {\n    \"code\": \"unrecognized_keys\",\n    \"keys\": [\n      \"zz\"\n    ],\n    \"path\": [\n      \"habits\"\n    ],\n    \"message\": \"Unrecognized key: \\\"zz\\\"\"\n  },\n  {\n    \"code\": \"unrecognized_keys\",\n    \"keys\": [\n      \"chat\"\n    ],\n    \"path\": [],\n    \"message\": \"Unrecognized key: \\\"chat\\\"\"\n  }\n]"
+    }
+   }
+  ]
+ },
+ {
+  "name": "profileFileBadOutput",
+  "steps": [
+   {
+    "p": "ai.memory.userProfile.get",
+    "err": {
+     "code": "BAD_OUTPUT",
+     "message": "Invalid output of 'ai.memory.userProfile.get'",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "version"
+        ],
+        "message": "Invalid input: expected number, received string"
+       },
+       {
+        "path": [
+         "preferences"
+        ],
+        "message": "Invalid input: expected object, received undefined"
+       },
+       {
+        "path": [
+         "habits"
+        ],
+        "message": "Invalid input: expected object, received undefined"
+       },
+       {
+        "path": [
+         "dislikes"
+        ],
+        "message": "Invalid input: expected array, received undefined"
+       },
+       {
+        "path": [
+         "createdAt"
+        ],
+        "message": "Invalid input: expected number, received undefined"
+       },
+       {
+        "path": [
+         "updatedAt"
+        ],
+        "message": "Invalid input: expected number, received undefined"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.export",
+    "err": {
+     "code": "BAD_OUTPUT",
+     "message": "Invalid output of 'ai.memory.userProfile.export'",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "version"
+        ],
+        "message": "Invalid input: expected number, received string"
+       },
+       {
+        "path": [
+         "preferences"
+        ],
+        "message": "Invalid input: expected object, received undefined"
+       },
+       {
+        "path": [
+         "habits"
+        ],
+        "message": "Invalid input: expected object, received undefined"
+       },
+       {
+        "path": [
+         "dislikes"
+        ],
+        "message": "Invalid input: expected array, received undefined"
+       },
+       {
+        "path": [
+         "createdAt"
+        ],
+        "message": "Invalid input: expected number, received undefined"
+       },
+       {
+        "path": [
+         "updatedAt"
+        ],
+        "message": "Invalid input: expected number, received undefined"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.reset",
+    "out": {
+     "version": 1,
+     "identity": {},
+     "preferences": {},
+     "habits": {},
+     "dislikes": [],
+     "createdAt": 1700000000000,
+     "updatedAt": 1700000000000
+    },
+    "events": [
+     {
+      "event": "ai.userProfile.changed",
+      "data": {
+       "profile": {
+        "version": 1,
+        "identity": {},
+        "preferences": {},
+        "habits": {},
+        "dislikes": [],
+        "createdAt": 1700000000000,
+        "updatedAt": 1700000000000
+       }
+      }
+     }
+    ],
+    "file": "{\n  \"version\": 1,\n  \"identity\": {},\n  \"preferences\": {},\n  \"habits\": {},\n  \"dislikes\": [],\n  \"createdAt\": 1700000000000,\n  \"updatedAt\": 1700000000000\n}"
+   },
+   {
+    "p": "ai.memory.userProfile.get",
+    "out": {
+     "version": 1,
+     "identity": {},
+     "preferences": {},
+     "habits": {},
+     "dislikes": [],
+     "createdAt": 1700000000000,
+     "updatedAt": 1700000000000
+    }
+   }
+  ]
+ },
+ {
+  "name": "profileFileBroken",
+  "steps": [
+   {
+    "p": "ai.memory.userProfile.get",
+    "out": {
+     "version": 1,
+     "identity": {},
+     "preferences": {},
+     "habits": {},
+     "dislikes": [],
+     "createdAt": 1700000000000,
+     "updatedAt": 1700000000000
+    },
+    "file": "{not json"
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "out": {
+     "version": 1,
+     "identity": {},
+     "preferences": {},
+     "habits": {},
+     "dislikes": [],
+     "createdAt": 1700000000000,
+     "updatedAt": 1700000000001
+    },
+    "events": [
+     {
+      "event": "ai.userProfile.changed",
+      "data": {
+       "profile": {
+        "version": 1,
+        "identity": {},
+        "preferences": {},
+        "habits": {},
+        "dislikes": [],
+        "createdAt": 1700000000000,
+        "updatedAt": 1700000000001
+       }
+      }
+     }
+    ],
+    "file": "{\n  \"version\": 1,\n  \"identity\": {},\n  \"preferences\": {},\n  \"habits\": {},\n  \"dislikes\": [],\n  \"createdAt\": 1700000000000,\n  \"updatedAt\": 1700000000001\n}"
+   }
+  ]
+ },
+ {
+  "name": "profileFileArray",
+  "steps": [
+   {
+    "p": "ai.memory.userProfile.get",
+    "err": {
+     "code": "BAD_OUTPUT",
+     "message": "Invalid output of 'ai.memory.userProfile.get'",
+     "data": {
+      "issues": [
+       {
+        "path": [],
+        "message": "Invalid input: expected object, received array"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "profileFileNull",
+  "steps": [
+   {
+    "p": "ai.memory.userProfile.get",
+    "out": {
+     "version": 1,
+     "identity": {},
+     "preferences": {},
+     "habits": {},
+     "dislikes": [],
+     "createdAt": 1700000000000,
+     "updatedAt": 1700000000000
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "out": {
+     "version": 1,
+     "identity": {},
+     "preferences": {},
+     "habits": {},
+     "dislikes": [],
+     "createdAt": 1700000000000,
+     "updatedAt": 1700000000000
+    },
+    "events": [
+     {
+      "event": "ai.userProfile.changed",
+      "data": {
+       "profile": {
+        "version": 1,
+        "identity": {},
+        "preferences": {},
+        "habits": {},
+        "dislikes": [],
+        "createdAt": 1700000000000,
+        "updatedAt": 1700000000000
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "noProfile",
+  "steps": [
+   {
+    "p": "ai.memory.userProfile.get",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[SEAM_NOT_INJECTED|0] ctx.userProfile 未注入；请确认已加载 bundle-ig-base"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[SEAM_NOT_INJECTED|0] ctx.userProfile 未注入；请确认已加载 bundle-ig-base"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.reset",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[SEAM_NOT_INJECTED|0] ctx.userProfile 未注入；请确认已加载 bundle-ig-base"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.export",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[SEAM_NOT_INJECTED|0] ctx.userProfile 未注入；请确认已加载 bundle-ig-base"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.import",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[SEAM_NOT_INJECTED|0] ctx.userProfile 未注入；请确认已加载 bundle-ig-base"
+    }
+   }
+  ]
+ },
+ {
+  "name": "asrTts",
+  "steps": [
+   {
+    "p": "ai.asr.list",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[SEAM_NOT_INJECTED|0] ctx.asr 未注入；请确认 profile 已加载 bundle-ig-electron-caps"
+    }
+   },
+   {
+    "p": "ai.asr.transcribe",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[SEAM_NOT_INJECTED|0] ctx.asr 未注入；请确认 profile 已加载 bundle-ig-electron-caps"
+    }
+   },
+   {
+    "p": "ai.asr.transcribe",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[SEAM_NOT_INJECTED|0] ctx.asr 未注入；请确认 profile 已加载 bundle-ig-electron-caps"
+    }
+   },
+   {
+    "p": "ai.asr.transcribe",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "pcm",
+         "sampleRate"
+        ],
+        "message": "Invalid input: expected 16000"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.asr.transcribe",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "pcm",
+         "data"
+        ],
+        "message": "Expected Uint8Array"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.asr.transcribe",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "opts",
+         "language"
+        ],
+        "message": "Invalid input: expected string, received number"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.tts.list",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[SEAM_NOT_INJECTED|0] ctx.tts 未注入；请确认 profile 已加载 bundle-ig-electron-caps"
+    }
+   },
+   {
+    "p": "ai.tts.listVoices",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[SEAM_NOT_INJECTED|0] ctx.tts 未注入；请确认 profile 已加载 bundle-ig-electron-caps"
+    }
+   },
+   {
+    "p": "ai.tts.synth",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[SEAM_NOT_INJECTED|0] ctx.tts 未注入；请确认 profile 已加载 bundle-ig-electron-caps"
+    }
+   },
+   {
+    "p": "ai.tts.synth",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[SEAM_NOT_INJECTED|0] ctx.tts 未注入；请确认 profile 已加载 bundle-ig-electron-caps"
+    }
+   },
+   {
+    "p": "ai.tts.synth",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "opts",
+         "format"
+        ],
+        "message": "Invalid option: expected one of \"mp3\"|\"wav\"|\"ogg\""
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.tts.synth",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "text"
+        ],
+        "message": "Invalid input: expected string, received undefined"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.tts.stop",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[SEAM_NOT_INJECTED|0] ctx.tts 未注入；请确认 profile 已加载 bundle-ig-electron-caps"
+    }
+   },
+   {
+    "p": "ai.tts.stop",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "reqId"
+        ],
+        "message": "Invalid input: expected string, received undefined"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.tts.list",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [],
+        "message": "Invalid input: expected void, received object"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "avatar",
+  "steps": [
+   {
+    "p": "ai.avatar.isAvailable",
+    "out": true
+   },
+   {
+    "p": "ai.avatar.emotion",
+    "out": null,
+    "undef": true,
+    "events": [
+     {
+      "event": "avatar.event",
+      "data": {
+       "type": "emotion",
+       "name": "happy"
+      }
+     }
+    ]
+   },
+   {
+    "p": "ai.avatar.emotion",
+    "out": null,
+    "undef": true,
+    "events": [
+     {
+      "event": "avatar.event",
+      "data": {
+       "type": "emotion",
+       "name": "happy",
+       "weight": 0.25
+      }
+     }
+    ]
+   },
+   {
+    "p": "ai.avatar.emotion",
+    "out": null,
+    "undef": true,
+    "events": [
+     {
+      "event": "avatar.event",
+      "data": {
+       "type": "emotion",
+       "name": "happy",
+       "weight": 0
+      }
+     }
+    ]
+   },
+   {
+    "p": "ai.avatar.emotion",
+    "out": null,
+    "undef": true,
+    "events": [
+     {
+      "event": "avatar.event",
+      "data": {
+       "type": "emotion",
+       "name": "happy",
+       "weight": 1
+      }
+     }
+    ]
+   },
+   {
+    "p": "ai.avatar.emotion",
+    "out": null,
+    "undef": true
+   },
+   {
+    "p": "ai.avatar.emotion",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "weight"
+        ],
+        "message": "Too big: expected number to be <=1"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.avatar.emotion",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "name"
+        ],
+        "message": "semantic name (camelCase), not a clip / motion id"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.avatar.emotion",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "name"
+        ],
+        "message": "semantic name (camelCase), not a clip / motion id"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.avatar.emotion",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "name"
+        ],
+        "message": "semantic name (camelCase), not a clip / motion id"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.avatar.emotion",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "name"
+        ],
+        "message": "Invalid input: expected string, received undefined"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.avatar.gesture",
+    "out": null,
+    "undef": true,
+    "events": [
+     {
+      "event": "avatar.event",
+      "data": {
+       "type": "gesture",
+       "name": "wave"
+      }
+     }
+    ]
+   },
+   {
+    "p": "ai.avatar.gesture",
+    "out": null,
+    "undef": true
+   },
+   {
+    "p": "ai.avatar.gesture",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "name"
+        ],
+        "message": "semantic name (camelCase), not a clip / motion id"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.avatar.activity",
+    "out": null,
+    "undef": true,
+    "events": [
+     {
+      "event": "avatar.event",
+      "data": {
+       "type": "activity",
+       "name": "thinking"
+      }
+     }
+    ]
+   },
+   {
+    "p": "ai.avatar.activity",
+    "out": null,
+    "undef": true
+   },
+   {
+    "p": "ai.avatar.speaking",
+    "out": null,
+    "undef": true
+   },
+   {
+    "p": "ai.avatar.speaking",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "level"
+        ],
+        "message": "Too big: expected number to be <=1"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.avatar.speaking",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "level"
+        ],
+        "message": "Invalid input: expected number, received undefined"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.avatar.report",
+    "out": null,
+    "undef": true,
+    "events": [
+     {
+      "event": "ai.avatar.touched",
+      "data": {
+       "hitbox": "head",
+       "at": 1700000000004
+      }
+     }
+    ]
+   },
+   {
+    "p": "ai.avatar.report",
+    "out": null,
+    "undef": true,
+    "events": [
+     {
+      "event": "ai.avatar.clicked",
+      "data": {
+       "hitbox": "face",
+       "at": 1700000000004
+      }
+     }
+    ]
+   },
+   {
+    "p": "ai.avatar.report",
+    "out": null,
+    "undef": true,
+    "events": [
+     {
+      "event": "ai.avatar.clicked",
+      "data": {
+       "hitbox": "face",
+       "double": true,
+       "at": 1700000000004
+      }
+     }
+    ]
+   },
+   {
+    "p": "ai.avatar.report",
+    "out": null,
+    "undef": true,
+    "events": [
+     {
+      "event": "ai.avatar.clicked",
+      "data": {
+       "hitbox": "face",
+       "at": 1700000000004
+      }
+     }
+    ]
+   },
+   {
+    "p": "ai.avatar.report",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "hitbox"
+        ],
+        "message": "Invalid option: expected one of \"head\"|\"face\"|\"body\"|\"hand\"|\"hem\"|\"legs\"|\"any\""
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.avatar.report",
+    "out": null,
+    "undef": true,
+    "events": [
+     {
+      "event": "ai.avatar.scene",
+      "data": {
+       "characterId": "nomi",
+       "emotions": [
+        "happy"
+       ],
+       "activities": [],
+       "gestures": [
+        "wave",
+        "x"
+       ],
+       "at": 1700000000006
+      }
+     }
+    ]
+   },
+   {
+    "p": "ai.avatar.report",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "characterId"
+        ],
+        "message": "Too small: expected string to have >=1 characters"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.avatar.report",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "emotions",
+         0
+        ],
+        "message": "semantic name (camelCase), not a clip / motion id"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.avatar.report",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "gestures"
+        ],
+        "message": "Invalid input: expected array, received undefined"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.avatar.report",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "type"
+        ],
+        "message": "Invalid discriminator value. Expected 'touched' | 'clicked' | 'scene'"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.avatar.report",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [
+         "type"
+        ],
+        "message": "Invalid discriminator value. Expected 'touched' | 'clicked' | 'scene'"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.avatar.isAvailable",
+    "err": {
+     "code": "BAD_INPUT",
+     "message": "Invalid input",
+     "data": {
+      "issues": [
+       {
+        "path": [],
+        "message": "Invalid input: expected void, received object"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "avatarNoHost",
+  "steps": [
+   {
+    "p": "ai.avatar.isAvailable",
+    "out": true
+   },
+   {
+    "p": "ai.avatar.emotion",
+    "out": null,
+    "undef": true
+   },
+   {
+    "p": "ai.avatar.gesture",
+    "out": null,
+    "undef": true
+   },
+   {
+    "p": "ai.avatar.speaking",
+    "out": null,
+    "undef": true
+   },
+   {
+    "p": "ai.avatar.report",
+    "out": null,
+    "undef": true,
+    "events": [
+     {
+      "event": "ai.avatar.touched",
+      "data": {
+       "hitbox": "any",
+       "at": 1700000000000
+      }
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "noAvatar",
+  "steps": [
+   {
+    "p": "ai.avatar.isAvailable",
+    "out": false
+   },
+   {
+    "p": "ai.avatar.emotion",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[SEAM_NOT_INJECTED|0] 角色形象仅在装载 bundle-ig-mascot 的 AvatarSeamPlugin 后可用"
+    }
+   },
+   {
+    "p": "ai.avatar.gesture",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[SEAM_NOT_INJECTED|0] 角色形象仅在装载 bundle-ig-mascot 的 AvatarSeamPlugin 后可用"
+    }
+   },
+   {
+    "p": "ai.avatar.activity",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[SEAM_NOT_INJECTED|0] 角色形象仅在装载 bundle-ig-mascot 的 AvatarSeamPlugin 后可用"
+    }
+   },
+   {
+    "p": "ai.avatar.speaking",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[SEAM_NOT_INJECTED|0] 角色形象仅在装载 bundle-ig-mascot 的 AvatarSeamPlugin 后可用"
+    }
+   },
+   {
+    "p": "ai.avatar.report",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[SEAM_NOT_INJECTED|0] 角色形象仅在装载 bundle-ig-mascot 的 AvatarSeamPlugin 后可用"
+    }
+   }
+  ]
+ },
+ {
+  "name": "profileZodEdges",
+  "steps": [
+   {
+    "p": "ai.memory.userProfile.set",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[\n  {\n    \"origin\": \"array\",\n    \"code\": \"too_big\",\n    \"maximum\": 128,\n    \"inclusive\": true,\n    \"path\": [\n      \"dislikes\"\n    ],\n    \"message\": \"Too big: expected array to have <=128 items\"\n  }\n]"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[\n  {\n    \"expected\": \"string\",\n    \"code\": \"invalid_type\",\n    \"path\": [\n      \"dislikes\",\n      0\n    ],\n    \"message\": \"Invalid input: expected string, received number\"\n  },\n  {\n    \"expected\": \"string\",\n    \"code\": \"invalid_type\",\n    \"path\": [\n      \"dislikes\",\n      1\n    ],\n    \"message\": \"Invalid input: expected string, received number\"\n  },\n  {\n    \"expected\": \"string\",\n    \"code\": \"invalid_type\",\n    \"path\": [\n      \"dislikes\",\n      2\n    ],\n    \"message\": \"Invalid input: expected string, received number\"\n  }\n]"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[\n  {\n    \"expected\": \"int\",\n    \"format\": \"safeint\",\n    \"code\": \"invalid_type\",\n    \"path\": [\n      \"preferences\",\n      \"tone\",\n      \"updatedAt\"\n    ],\n    \"message\": \"Invalid input: expected int, received number\"\n  }\n]"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[\n  {\n    \"origin\": \"number\",\n    \"code\": \"too_small\",\n    \"minimum\": 0,\n    \"inclusive\": true,\n    \"path\": [\n      \"preferences\",\n      \"tone\",\n      \"updatedAt\"\n    ],\n    \"message\": \"Too small: expected number to be >=0\"\n  }\n]"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[\n  {\n    \"expected\": \"string\",\n    \"code\": \"invalid_type\",\n    \"path\": [\n      \"identity\",\n      \"nickname\"\n    ],\n    \"message\": \"Invalid input: expected string, received array\"\n  },\n  {\n    \"origin\": \"array\",\n    \"code\": \"too_big\",\n    \"maximum\": 64,\n    \"inclusive\": true,\n    \"path\": [\n      \"identity\",\n      \"nickname\"\n    ],\n    \"message\": \"Too big: expected array to have <=64 items\"\n  }\n]"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[\n  {\n    \"expected\": \"string\",\n    \"code\": \"invalid_type\",\n    \"path\": [\n      \"identity\",\n      \"nickname\"\n    ],\n    \"message\": \"Invalid input: expected string, received array\"\n  }\n]"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[\n  {\n    \"origin\": \"array\",\n    \"code\": \"too_big\",\n    \"maximum\": 24,\n    \"inclusive\": true,\n    \"exact\": true,\n    \"path\": [\n      \"habits\",\n      \"activeHours\"\n    ],\n    \"message\": \"Too big: expected array to have exactly 24 items\"\n  }\n]"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[\n  {\n    \"origin\": \"array\",\n    \"code\": \"too_small\",\n    \"minimum\": 24,\n    \"inclusive\": true,\n    \"exact\": true,\n    \"path\": [\n      \"habits\",\n      \"activeHours\"\n    ],\n    \"message\": \"Too small: expected array to have exactly 24 items\"\n  }\n]"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[\n  {\n    \"expected\": \"number\",\n    \"code\": \"invalid_type\",\n    \"path\": [\n      \"habits\",\n      \"activeHours\",\n      0\n    ],\n    \"message\": \"Invalid input: expected number, received string\"\n  },\n  {\n    \"expected\": \"number\",\n    \"code\": \"invalid_type\",\n    \"path\": [\n      \"habits\",\n      \"activeHours\",\n      1\n    ],\n    \"message\": \"Invalid input: expected number, received string\"\n  },\n  {\n    \"origin\": \"array\",\n    \"code\": \"too_small\",\n    \"minimum\": 24,\n    \"inclusive\": true,\n    \"exact\": true,\n    \"path\": [\n      \"habits\",\n      \"activeHours\"\n    ],\n    \"message\": \"Too small: expected array to have exactly 24 items\"\n  },\n  {\n    \"origin\": \"number\",\n    \"code\": \"too_big\",\n    \"maximum\": 1,\n    \"inclusive\": true,\n    \"path\": [\n      \"habits\",\n      \"regenRate\"\n    ],\n    \"message\": \"Too big: expected number to be <=1\"\n  },\n  {\n    \"expected\": \"string\",\n    \"code\": \"invalid_type\",\n    \"path\": [\n      \"habits\",\n      \"topTools\",\n      0,\n      \"tool\"\n    ],\n    \"message\": \"Invalid input: expected string, received number\"\n  },\n  {\n    \"origin\": \"number\",\n    \"code\": \"too_small\",\n    \"minimum\": 0,\n    \"inclusive\": true,\n    \"path\": [\n      \"habits\",\n      \"topTools\",\n      0,\n      \"count\"\n    ],\n    \"message\": \"Too small: expected number to be >=0\"\n  },\n  {\n    \"code\": \"unrecognized_keys\",\n    \"keys\": [\n      \"z\"\n    ],\n    \"path\": [\n      \"habits\",\n      \"topTools\",\n      0\n    ],\n    \"message\": \"Unrecognized key: \\\"z\\\"\"\n  }\n]"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[\n  {\n    \"code\": \"invalid_union\",\n    \"errors\": [\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"tab\"\n          ],\n          \"path\": [],\n          \"message\": \"Invalid input: expected \\\"tab\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            2\n          ],\n          \"path\": [],\n          \"message\": \"Invalid input: expected 2\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            4\n          ],\n          \"path\": [],\n          \"message\": \"Invalid input: expected 4\"\n        }\n      ]\n    ],\n    \"path\": [\n      \"preferences\",\n      \"codeStyle\",\n      \"indent\"\n    ],\n    \"message\": \"Invalid input\"\n  },\n  {\n    \"code\": \"invalid_value\",\n    \"values\": [\n      \"single\",\n      \"double\"\n    ],\n    \"path\": [\n      \"preferences\",\n      \"codeStyle\",\n      \"quotes\"\n    ],\n    \"message\": \"Invalid option: expected one of \\\"single\\\"|\\\"double\\\"\"\n  },\n  {\n    \"expected\": \"boolean\",\n    \"code\": \"invalid_type\",\n    \"path\": [\n      \"preferences\",\n      \"privacy\",\n      \"allowFileWrite\"\n    ],\n    \"message\": \"Invalid input: expected boolean, received number\"\n  },\n  {\n    \"code\": \"unrecognized_keys\",\n    \"keys\": [\n      \"q\"\n    ],\n    \"path\": [\n      \"preferences\",\n      \"privacy\"\n    ],\n    \"message\": \"Unrecognized key: \\\"q\\\"\"\n  }\n]"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[\n  {\n    \"origin\": \"number\",\n    \"code\": \"too_big\",\n    \"maximum\": 1,\n    \"inclusive\": true,\n    \"path\": [\n      \"preferences\",\n      \"tone\",\n      \"confidence\"\n    ],\n    \"message\": \"Too big: expected number to be <=1\"\n  }\n]"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "out": {
+     "version": 1,
+     "identity": {
+      "nickname": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀"
+     },
+     "preferences": {},
+     "habits": {},
+     "dislikes": [],
+     "createdAt": 1700000000000,
+     "updatedAt": 1700000000000
+    },
+    "events": [
+     {
+      "event": "ai.userProfile.changed",
+      "data": {
+       "profile": {
+        "version": 1,
+        "identity": {
+         "nickname": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀"
+        },
+        "preferences": {},
+        "habits": {},
+        "dislikes": [],
+        "createdAt": 1700000000000,
+        "updatedAt": 1700000000000
+       }
+      }
+     }
+    ]
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "err": {
+     "code": "INTERNAL",
+     "message": "[\n  {\n    \"origin\": \"string\",\n    \"code\": \"too_big\",\n    \"maximum\": 64,\n    \"inclusive\": true,\n    \"path\": [\n      \"identity\",\n      \"nickname\"\n    ],\n    \"message\": \"Too big: expected string to have <=64 characters\"\n  }\n]"
+    }
+   }
+  ]
+ },
+ {
+  "name": "profileFileZero",
+  "steps": [
+   {
+    "p": "ai.memory.userProfile.get",
+    "out": {
+     "version": 1,
+     "identity": {},
+     "preferences": {},
+     "habits": {},
+     "dislikes": [],
+     "createdAt": 1700000000000,
+     "updatedAt": 1700000000000
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "out": {
+     "version": 1,
+     "identity": {
+      "nickname": "z"
+     },
+     "preferences": {},
+     "habits": {},
+     "dislikes": [],
+     "createdAt": 1700000000000,
+     "updatedAt": 1700000000000
+    },
+    "events": [
+     {
+      "event": "ai.userProfile.changed",
+      "data": {
+       "profile": {
+        "version": 1,
+        "identity": {
+         "nickname": "z"
+        },
+        "preferences": {},
+        "habits": {},
+        "dislikes": [],
+        "createdAt": 1700000000000,
+        "updatedAt": 1700000000000
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "profileFileNumber",
+  "steps": [
+   {
+    "p": "ai.memory.userProfile.get",
+    "err": {
+     "code": "BAD_OUTPUT",
+     "message": "Invalid output of 'ai.memory.userProfile.get'",
+     "data": {
+      "issues": [
+       {
+        "path": [],
+        "message": "Invalid input: expected object, received number"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "err": {
+     "code": "INTERNAL",
+     "message": "Cannot create property 'identity' on number '5'"
+    }
+   },
+   {
+    "p": "ai.memory.userProfile.set",
+    "err": {
+     "code": "INTERNAL",
+     "message": "Cannot create property 'updatedAt' on number '5'"
+    }
+   }
+  ]
+ }
+]

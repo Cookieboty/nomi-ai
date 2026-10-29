@@ -29,15 +29,15 @@
     "synthUrl": [
       {
         "in": 0,
-        "out": "wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4&ConnectionId=3e5412f078e14534b01845eeaa1c94cc&Sec-MS-GEC=52BC7A17B50DFEC9-28C4394775C8751CD2F6859C030C06DB1489ACAB3B3A7651831FC26895177ED6&Sec-MS-GEC-Version=2-143.0.3650.75"
+        "out": "wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4&ConnectionId=cbff9126340845aeb227fbf0fd9cfd56&Sec-MS-GEC=52BC7A17B50DFEC9-28C4394775C8751CD2F6859C030C06DB1489ACAB3B3A7651831FC26895177ED6&Sec-MS-GEC-Version=2-143.0.3650.75"
       },
       {
         "in": 1,
-        "out": "wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4&ConnectionId=cf66ee3b6e4f4bda826c52f13af1cbb6&Sec-MS-GEC=52BC7A17B50DFEC9-28C4394775C8751CD2F6859C030C06DB1489ACAB3B3A7651831FC26895177ED6&Sec-MS-GEC-Version=2-143.0.3650.75"
+        "out": "wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4&ConnectionId=581f6d4dd59c41f9b9f86a5f629cc8c1&Sec-MS-GEC=52BC7A17B50DFEC9-28C4394775C8751CD2F6859C030C06DB1489ACAB3B3A7651831FC26895177ED6&Sec-MS-GEC-Version=2-143.0.3650.75"
       },
       {
         "in": 1700000000,
-        "out": "wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4&ConnectionId=b29fba1cdaf64b2d979fb1f643d0e582&Sec-MS-GEC=2CD23A2CA0B2595A-F3C846C370E05F9CC83ACC5F995C5F5D87A4D0F14CE8936A0F902E64099E38A2&Sec-MS-GEC-Version=2-143.0.3650.75"
+        "out": "wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4&ConnectionId=6f9c2d642d434615a4c55b2e72a65216&Sec-MS-GEC=2CD23A2CA0B2595A-F3C846C370E05F9CC83ACC5F995C5F5D87A4D0F14CE8936A0F902E64099E38A2&Sec-MS-GEC-Version=2-143.0.3650.75"
       }
     ],
     "voicesUrl": [

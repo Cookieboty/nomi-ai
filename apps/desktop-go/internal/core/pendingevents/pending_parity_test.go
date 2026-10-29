@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"reflect"
+	"strconv"
 	"testing"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
@@ -71,6 +72,7 @@ func run(t *testing.T, groupsDef json.RawMessage, ttl *float64, ops []json.RawMe
 	})
 	defer s.Close()
 	var out []string
+	reqID := 0
 	for _, raw := range ops {
 		v, err := util.Parse(raw)
 		if err != nil {
@@ -88,7 +90,10 @@ func run(t *testing.T, groupsDef json.RawMessage, ttl *float64, ops []json.RawMe
 		case "take":
 			out = append(out, eventJSON(p.Take(op[1].(string))))
 		case "nav":
-			b, _ := json.Marshal(contract.ClientFrame{T: "req", ID: "1", Kind: "call", Name: "nav.takePending", Input: json.RawMessage("{}")})
+			// 每次用新的请求 id：上一个请求的 goroutine 在回帧之后才清掉 active[id]，负载下复用 id 会撞上
+			// 「Duplicate request id」（不稳定的根因）
+			reqID++
+			b, _ := json.Marshal(contract.ClientFrame{T: "req", ID: strconv.Itoa(reqID), Kind: "call", Name: "nav.takePending", Input: json.RawMessage("{}")})
 			s.Handle(b)
 			f := <-frames
 			if f.T != "res" {
