@@ -81,4 +81,6 @@ if (process.env.NOMI_GOLDEN_DIR) {
   execFileSync(process.execPath, [join(here, 'record-b7-fns.mjs')], { stdio: 'inherit' });
   // core/cli + usage 叶子（直接加载 core TS 源码，需 tsx）：Windows 的 .cmd/.exe、taskkill、cmd 垫片在此录制
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7-cli.mjs')], { stdio: 'inherit', cwd: root });
+  // core/cli 纯叶子（codexThreadIndex / idleReclaim / sessionModels / commitMessage / contextCarry / historyTranscript）
+  execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7-leaves.mjs')], { stdio: 'inherit', cwd: root });
 }
