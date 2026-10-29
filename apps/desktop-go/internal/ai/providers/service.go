@@ -1,10 +1,12 @@
 package providers
 
 // ProviderService —— 对应 packages/ai-runtime/src/providers/ProviderService.ts 的 CRUD / 状态部分。
-// test / testDraft / fetchModels / fetchModelsDraft 依赖 LLM 适配器与 fetch，属批次 5
-// （docs/design/migrate-2.0.5-go.md D-B4d-3）。
+// test / testDraft / fetchModels / fetchModelsDraft 见 service_ping.go。
 
 import (
+	"net/http"
+	"time"
+
 	"fmt"
 	"regexp"
 	"strings"
@@ -24,6 +26,7 @@ type Resolved struct {
 // RoutedRegistry：ProviderService 用到的 RoutedLLMRegistry 子集（批次 5 实现）
 type RoutedRegistry interface {
 	Resolve(role string) (Resolved, bool)
+	Get(id string) llm.LLMProvider
 }
 
 // ServiceOptions：ProviderServiceOptions（CRUD 部分）
@@ -33,6 +36,12 @@ type ServiceOptions struct {
 	GetRegistry func() RoutedRegistry
 	// OverrideID："" = undefined
 	OverrideID string
+	// Factory：nil = defaultProviderFactory
+	Factory ProviderFactory
+	// TestTimeout：testTimeoutMs（0 = 15_000ms）
+	TestTimeout time.Duration
+	// Client：fetchImpl（nil = http.DefaultClient）
+	Client *http.Client
 }
 
 // Service：ProviderService

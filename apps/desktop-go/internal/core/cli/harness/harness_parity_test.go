@@ -313,7 +313,10 @@ func TestHarnessGolden(t *testing.T) {
 
 	sbj := js(SB)
 	sbj = sbj[1 : len(sbj)-1]
-	norm := func(s string) string { return uuidRe.ReplaceAllString(strings.ReplaceAll(s, sbj, "<SB>"), "<U>") }
+	sbs := strings.ReplaceAll(SB, `\`, "/") // win32 别名键里的正斜杠形式
+	norm := func(s string) string {
+		return uuidRe.ReplaceAllString(strings.ReplaceAll(strings.ReplaceAll(s, sbj, "<SB>"), sbs, "<SB>"), "<U>")
+	}
 	n := 0
 	for _, c := range g.Get("cases").([]any) {
 		co := c.(*util.Obj)
@@ -341,14 +344,6 @@ func TestHarnessGolden(t *testing.T) {
 		t.Errorf("Go produced %d cases, golden has %d", len(got), n)
 	}
 	t.Logf("compared %d harness cases (%s)", n, usage.Platform())
-}
-
-func strsAny(xs []string) []any {
-	out := make([]any, len(xs))
-	for i, x := range xs {
-		out[i] = x
-	}
-	return out
 }
 
 func b64(b []byte) string { return base64.StdEncoding.EncodeToString(b) }

@@ -114,6 +114,13 @@ export function compatibleScenarios({ sse, SSE_H, json }) {
   s.push({ name: 'compat/gen-http-401', protocol: P, call: 'generate', messages: [user('w')], responses: [json(401, { error: { message: 'nope', code: 401 } })] });
   s.push({ name: 'compat/gen-abort', protocol: P, call: 'generate', messages: [user('w')], abortBeforeGenerate: true,
     responses: [{ status: 200, headers: JSON_H_(), chunks: [], end: 'hang' }] });
+  s.push({ name: 'compat/execution-denied', protocol: P, messages: [
+      user('run it'),
+      { role: 'assistant', content: [{ type: 'tool-call', toolCallId: 'call_d', toolName: 'search', input: { q: 'rm' } }, { type: 'tool-call', toolCallId: 'call_e', toolName: 'search', input: { q: 'ls' } }] },
+      { role: 'tool', content: [
+        { type: 'tool-result', toolCallId: 'call_d', toolName: 'search', output: { type: 'execution-denied', reason: 'user rejected' } },
+        { type: 'tool-result', toolCallId: 'call_e', toolName: 'search', output: { type: 'execution-denied' } }] },
+    ], tools: [search], responses: [ok([chunk({ content: 'ok' }), fin('stop', usage)])] });
   return s;
 }
 function JSON_H_() { return { 'content-type': 'application/json' }; }

@@ -151,7 +151,7 @@ type lastTabSettings = *util.Obj
 
 type partialTurn struct {
 	text    string
-	breaks  []int
+	breaks  []float64
 	events  []*util.Obj
 	context *util.Obj
 	q       *turnQuality
@@ -185,7 +185,7 @@ type Orchestrator struct {
 
 	tabs     *util.Obj // id → HarnessTabMeta（Map 插入序）
 	messages map[string][]*util.Obj
-	children map[string]clisdk.ChildLike
+	children *ordMap[clisdk.ChildLike]
 	progress map[string][2]string // kind, value
 	partial  map[string]*partialTurn
 
@@ -196,7 +196,7 @@ type Orchestrator struct {
 	sendAborts       map[string]*jsrt.AbortController
 	takeoverInFlight map[string]*jsrt.Promise[struct{}]
 	eventBatcher     *cli.EventBatcher
-	pendingPerms     map[string]map[string]*jsrt.Timer
+	pendingPerms     *ordMap[map[string]*jsrt.Timer]
 	pendingPermOrder map[string][]string
 	migratedImgTabs  map[string]bool
 	tabBindings      map[string]*tabBinding
@@ -211,8 +211,6 @@ type Orchestrator struct {
 	autoApprove     bool
 	lastSettings    *util.Obj // backend → LastTabSettings
 	codexNetwork    bool
-	grokAcpUnavail  bool
-	codexAppUnavail bool
 
 	home, statePath, tabsPath, tabsDir, recentPath string
 	recent                                         []string
@@ -245,18 +243,31 @@ func (a *orderedAgents) size() int {
 }
 
 // emitter = EventEmitter 的最小子集（'tabs' / 'finished' 等）。
-type emitter struct{ ls map[string][]func(any) }
+type emitter struct{ ls map[string][]*func(any) }
 
-func (e *emitter) On(ev string, fn func(any)) {
+func (e *emitter) On(ev string, fn func(any)) { e.onOff(ev, fn) }
+
+// onOff = on，返回对应的 off（Node events.off(同一函数)）。
+func (e *emitter) onOff(ev string, fn func(any)) func() {
 	if e.ls == nil {
-		e.ls = map[string][]func(any){}
+		e.ls = map[string][]*func(any){}
 	}
-	e.ls[ev] = append(e.ls[ev], fn)
+	p := &fn
+	e.ls[ev] = append(e.ls[ev], p)
+	return func() {
+		ls := e.ls[ev]
+		for i, q := range ls {
+			if q == p {
+				e.ls[ev] = append(ls[:i:i], ls[i+1:]...)
+				return
+			}
+		}
+	}
 }
 func (e *emitter) ListenerCount(ev string) int { return len(e.ls[ev]) }
 func (e *emitter) Emit(ev string, v any) {
-	for _, fn := range append([]func(any){}, e.ls[ev]...) {
-		fn(v)
+	for _, fn := range append([]*func(any){}, e.ls[ev]...) {
+		(*fn)(v)
 	}
 }
 
@@ -281,11 +292,11 @@ func nowMs() float64 { return float64(time.Now().UnixMilli()) }
 // New = new HarnessOrchestrator(d)。
 func New(d Deps) *Orchestrator {
 	o := &Orchestrator{
-		d: d, tabs: util.NewObj(), messages: map[string][]*util.Obj{}, children: map[string]clisdk.ChildLike{},
+		d: d, tabs: util.NewObj(), messages: map[string][]*util.Obj{}, children: newOrdMap[clisdk.ChildLike](),
 		progress: map[string][2]string{}, partial: map[string]*partialTurn{}, turnExits: map[string]bool{},
 		stopRequested: map[string]bool{}, delegatedUnsent: map[string]bool{}, stopBeforeStart: map[string]bool{},
 		sendAborts: map[string]*jsrt.AbortController{}, takeoverInFlight: map[string]*jsrt.Promise[struct{}]{},
-		pendingPerms: map[string]map[string]*jsrt.Timer{}, pendingPermOrder: map[string][]string{},
+		pendingPerms: newOrdMap[map[string]*jsrt.Timer](), pendingPermOrder: map[string][]string{},
 		migratedImgTabs: map[string]bool{}, tabBindings: map[string]*tabBinding{}, bgAgents: map[string]*orderedAgents{},
 		dormant: map[string]bool{}, activeTabID: MainTabID, defaultPermMode: cli.DefaultPermissionMode,
 		autoApprove: true, lastSettings: util.NewObj(), codexNetwork: true, tabFileBytes: map[string]int{},
@@ -416,7 +427,7 @@ func (o *Orchestrator) SuggestCommitMessage(cwd, paths any) *util.Obj {
 		return util.NewObj("ok", false, "code", "nothing")
 	}
 	ac := jsrt.NewAbortController()
-	tm := jsrt.SetTimeout(90*time.Second, ac.Abort)
+	tm := jsrt.SetTimeout(90*time.Second, func() { ac.AbortWith(timeoutError{}) }) // AbortSignal.timeout(90_000)：reason = TimeoutError
 	defer jsrt.ClearTimeout(tm)
 	raw, err := o.d.Complete(cli.CommitMessagePrompt(*ctx), ac.Signal, o.helperTab(dir))
 	if err == nil {

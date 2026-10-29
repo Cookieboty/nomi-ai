@@ -1,6 +1,6 @@
 //go:build !windows
 
-package launch
+package nodefs
 
 import "syscall"
 

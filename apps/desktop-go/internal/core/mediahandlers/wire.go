@@ -14,11 +14,15 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// ConfigAdapter：ConfigService 的 voiceSettings 读写（类型化配置：voiceSettings 下的未知键不保留，D-B9-3）
+// ConfigAdapter：ConfigService 的 voiceSettings 读写（原样对象：未知键 / 键序保留，D-B9-3）
 type ConfigAdapter struct{ C *services.ConfigService }
 
 func (a ConfigAdapter) GetVoiceSettings() *util.Obj {
-	b, _ := json.Marshal(a.C.GetConfig().VoiceSettings)
+	vs := a.C.GetConfig().VoiceSettings
+	if vs.Raw != nil {
+		return vs.Raw.Clone()
+	}
+	b, _ := json.Marshal(vs)
 	v, _ := util.Parse(b)
 	o, _ := v.(*util.Obj)
 	return o
@@ -32,17 +36,19 @@ func (a ConfigAdapter) Save() error { return a.C.Save() }
 
 // WireDeps：main.go 提供的宿主能力
 type WireDeps struct {
-	UserData          string
-	Router            *contract.Router
-	Config            *services.ConfigService
-	Env               map[string]string
-	T                 func(key string, args ...any) string
-	Logf              func(string, ...any)
-	LocalOnly         func() bool
-	Audit             func(voice.AuditEvent)
-	OpenChat          func()
-	DefaultWakePhrase func() string
-	// TODO(batch-4/5)：AI runtime 的 listProviders / providerCredentials
+	UserData  string
+	Router    *contract.Router
+	Config    *services.ConfigService
+	Env       map[string]string
+	T         func(key string, args ...any) string
+	Logf      func(string, ...any)
+	LocalOnly func() bool
+	Audit     func(voice.AuditEvent)
+	OpenChat  func()
+	// OpenChatOnceLoaded：打开对话窗口，页面还在加载时返回 did-finish-load 登记函数（nil = 已加载完）
+	OpenChatOnceLoaded func() func(fn func())
+	DefaultWakePhrase  func() string
+	// AI runtime 的 listProviders / providerCredentials（= gateway；见 GatewayProviders / GatewayCredentials）
 	Providers   func() []voice.Provider
 	Credentials func(id string) *voice.Credentials
 }
@@ -60,13 +66,19 @@ func Wire(d WireDeps) (*voice.Service, *tts.Service) {
 		Logf:         d.Logf,
 	})
 	voiceSvc := voice.NewService(voice.Deps{
-		Root:              filepath.Join(d.UserData, "voice"),
-		Secrets:           security.NewSecretBox("voice"),
-		Providers:         d.Providers,
-		Credentials:       d.Credentials,
-		LocalOnly:         d.LocalOnly,
-		Audit:             d.Audit,
-		OpenChat:          func() bool { d.OpenChat(); return false },
+		Root:        filepath.Join(d.UserData, "voice"),
+		Secrets:     security.NewSecretBox("voice"),
+		Providers:   d.Providers,
+		Credentials: d.Credentials,
+		LocalOnly:   d.LocalOnly,
+		Audit:       d.Audit,
+		OpenChat: func() func(func()) {
+			if d.OpenChatOnceLoaded != nil {
+				return d.OpenChatOnceLoaded()
+			}
+			d.OpenChat()
+			return nil
+		},
 		Publish:           r.Emit,
 		PublishChat:       func(n string, p any) { r.EmitTo(n, p, "chat") },
 		SendToMascot:      sendToMascot,

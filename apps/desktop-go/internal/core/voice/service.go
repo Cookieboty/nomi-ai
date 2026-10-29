@@ -38,13 +38,14 @@ type AuditEvent struct {
 
 // Deps = VoiceDeps
 type Deps struct {
-	Root              string
-	Secrets           security.SecretBox
-	Providers         func() []Provider
-	Credentials       func(id string) *Credentials
-	LocalOnly         func() bool
-	Audit             func(AuditEvent)
-	OpenChat          func() (freshlyLoading bool)
+	Root        string
+	Secrets     security.SecretBox
+	Providers   func() []Provider
+	Credentials func(id string) *Credentials
+	LocalOnly   func() bool
+	Audit       func(AuditEvent)
+	// OpenChat 打开对话窗口；页面仍在加载时返回 once('did-finish-load') 的登记函数，否则 nil
+	OpenChat          func() (onceLoaded func(fn func()))
 	Publish           func(name string, payload any)
 	PublishChat       func(name string, payload any)
 	SendToMascot      func(cmd *util.Obj)
@@ -58,6 +59,9 @@ type Deps struct {
 	Env               func() map[string]string
 	Transcribe        func(ctx context.Context, o CloudOpts) (string, error) // 测试注入
 	Whisper           func(ctx context.Context, o WhisperOpts) (string, error)
+	VolcURL           string         // 测试注入（Node volcUrl）
+	VolcTimeouts      VolcTimeouts   // 测试注入（Node volcTimeouts）
+	VolcPace          *time.Duration // 测试注入（Node volcPaceMs）
 }
 
 // Error = VoiceError
@@ -82,6 +86,11 @@ type Service struct {
 	settings  Settings
 	downloads map[string]*dl
 	activity  string
+
+	streams      []streamEntry
+	streamOwners map[int]bool
+	streamSeq    int
+	toCancel     []*VolcSession
 }
 
 func NewService(d Deps) *Service {
@@ -106,7 +115,7 @@ func NewService(d Deps) *Service {
 	if d.Whisper == nil {
 		d.Whisper = RunWhisperCli
 	}
-	s := &Service{d: d, downloads: map[string]*dl{}, activity: "idle"}
+	s := &Service{d: d, downloads: map[string]*dl{}, activity: "idle", streamOwners: map[int]bool{}}
 	s.settings = s.load()
 	return s
 }
@@ -174,6 +183,9 @@ func (s *Service) SetVolcKey(raw any) *util.Obj {
 }
 
 func (s *Service) ClearVolcKey() bool {
+	s.mu.Lock()
+	s.cancelStreamsLocked()
+	s.unlockCancel()
 	_ = os.Remove(s.volcKeyFile())
 	s.audit(AuditEvent{Tool: "voice_volc_key", Args: util.NewObj("action", "clear"), Decision: "user", Result: "ok"})
 	s.broadcast("voice.changed", nil)
@@ -230,9 +242,12 @@ func (s *Service) SetSettings(patch any) Settings {
 	}
 	merged.Set("cloudAcked", s.settings.Obj().Get("cloudAcked"))
 	s.settings = Sanitize(merged, s.settings)
+	if s.settings.Engine != "volc" {
+		s.cancelStreamsLocked()
+	}
 	s.save()
 	eff := s.effective(s.settings)
-	s.mu.Unlock()
+	s.unlockCancel()
 	s.broadcast("voice.changed", nil)
 	return eff
 }
@@ -615,11 +630,6 @@ func (s *Service) Remove(id string) bool {
 	return true
 }
 
-// errVolcUnavailable：豆包网络链路不在本批（D-B9-1），等价于 VolcAsrError 以外的失败
-func (s *Service) errVolcUnavailable() error {
-	return errors.New("Doubao streaming ASR is not available in the Go host")
-}
-
 // Transcribe = transcribe(wav, opts)
 func (s *Service) Transcribe(ctx context.Context, wav []byte, source, purpose string) (string, error) {
 	s.mu.Lock()
@@ -638,6 +648,7 @@ func (s *Service) Transcribe(ctx context.Context, wav []byte, source, purpose st
 	}
 	var text string
 	var err error
+	fallback := false
 	switch engine {
 	case "whisper-cpp":
 		text, err = s.localTranscribe(ctx, wav, purpose)
@@ -646,8 +657,15 @@ func (s *Service) Transcribe(ctx context.Context, wav []byte, source, purpose st
 		if !r.OK {
 			return "", s.notReady(r)
 		}
-		// volcBatch 失败 → volcFallback：非 VolcAsrError，不回退
-		err = &Error{"failed", s.errVolcUnavailable().Error()}
+		pcm := wav[44:]
+		text, err = s.volcBatch(st, pcm)
+		if err != nil {
+			s.mu.Lock()
+			st2 := s.settings
+			s.mu.Unlock()
+			text, err = s.volcFallback(st2, err, pcm)
+			fallback = true
+		}
 	default:
 		r := s.readiness(st)
 		if !r.OK {
@@ -664,6 +682,9 @@ func (s *Service) Transcribe(ctx context.Context, wav []byte, source, purpose st
 	}
 	if purpose != "wake" {
 		args := util.NewObj("source", source, "engine", engine, "seconds", jsRound(float64(len(wav)-44)/32000))
+		if fallback {
+			args.Set("fallback", "whisper.cpp")
+		}
 		ms := s.nowMs() - started
 		result := "empty"
 		if text != "" {
@@ -741,45 +762,6 @@ func (s *Service) TranscribeResult(ctx context.Context, wav []byte, source, purp
 	return util.NewObj("ok", true, "text", text)
 }
 
-// StreamStart：豆包流式在 Go 宿主不可用（D-B9-1）；引擎 / 就绪检查与 Node 相同
-func (s *Service) StreamStart(source string) *util.Obj {
-	s.mu.Lock()
-	st := s.settings
-	s.mu.Unlock()
-	if st.Engine != "volc" {
-		return util.NewObj("ok", false, "code", "no_provider", "error", s.d.T("electron.common.the-current-recognition-engine-doesn-t-support-streaming"))
-	}
-	r := s.readiness(st)
-	if !r.OK {
-		code := r.Code
-		if code == "" {
-			code = "failed"
-		}
-		return util.NewObj("ok", false, "code", code, "error", r.Message)
-	}
-	return util.NewObj("ok", false, "code", "failed", "error", s.errVolcUnavailable().Error())
-}
-
-// StreamStop：没有任何会话（未知会话分支）
-func (s *Service) StreamStop() *util.Obj {
-	return util.NewObj("ok", false, "code", "failed", "error", s.d.T("electron.common.the-recognition-session-has-already-ended"))
-}
-
-// VolcTest = volcTest()
-func (s *Service) VolcTest() *util.Obj {
-	s.mu.Lock()
-	st := s.settings
-	s.mu.Unlock()
-	if st.Engine != "volc" {
-		return util.NewObj("ok", false, "message", s.d.T("electron.common.switch-the-recognition-engine-to-doubao-streaming-asr"))
-	}
-	if r := s.readiness(st); !r.OK {
-		return util.NewObj("ok", false, "message", r.Message)
-	}
-	s.audit(AuditEvent{Tool: "voice_volc_test", Args: util.NewObj(), Decision: "user", Result: "error"})
-	return util.NewObj("ok", false, "message", s.errVolcUnavailable().Error())
-}
-
 var activities = map[string]bool{"idle": true, "listening": true, "hearing": true, "transcribing": true, "wake-armed": true}
 
 func (s *Service) setActivity(a, source string) {
@@ -835,7 +817,7 @@ func (s *Service) SendToChat(text string) {
 	if s.d.OpenChat == nil || util.JSTrim(text) == "" {
 		return
 	}
-	loading := s.d.OpenChat()
+	onceLoaded := s.d.OpenChat()
 	s.mu.Lock()
 	auto := s.settings.AutoSend
 	s.mu.Unlock()
@@ -845,8 +827,8 @@ func (s *Service) SendToChat(text string) {
 			s.d.PublishChat("voice.inject", payload)
 		}
 	}
-	if loading {
-		time.AfterFunc(500*time.Millisecond, deliver)
+	if onceLoaded != nil {
+		onceLoaded(func() { time.AfterFunc(500*time.Millisecond, deliver) })
 	} else {
 		deliver()
 	}

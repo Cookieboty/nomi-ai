@@ -169,6 +169,7 @@ const reqs = [
   { apiKey: 'sk-1', model: 'whisper-1', language: 'zh', prompt: '提示' },
   { model: 'm', language: 'auto' },
   { apiKey: '', model: 'm', language: '' },
+  { apiKey: 'k', model: 'a\rb', language: 'en', prompt: 'x\r\ny\nz\r' },
 ];
 const seen = [];
 let next = null;
@@ -180,7 +181,19 @@ const server = createServer((req, res) => {
     const fields = [...body.matchAll(/name="([^"]+)"(?:; filename="([^"]+)")?\r\n(?:Content-Type: ([^\r\n]+)\r\n)?\r\n([^\r]*)/g)].map(
       (m) => [m[1], m[2] ?? null, m[3] ?? null, m[2] ? null : Buffer.from(m[4], 'latin1').toString('utf8')],
     );
-    seen.push({ method: req.method, url: req.url, auth: req.headers.authorization ?? null, multipart: /^multipart\/form-data; boundary=/.test(req.headers['content-type'] ?? ''), fields });
+    // D-B9-6：undici 的 boundary 形状、默认请求头（名字小写、按名排序比较；connection 属传输层不比）与 body 原字节
+    const boundary = /boundary=(.*)$/.exec(req.headers['content-type'] ?? '')?.[1] ?? '';
+    const headers = [];
+    for (let i = 0; i < req.rawHeaders.length; i += 2) {
+      const k = req.rawHeaders[i].toLowerCase();
+      if (k === 'connection') continue;
+      let v = req.rawHeaders[i + 1];
+      if (k === 'host') v = 'HOST';
+      headers.push([k, boundary ? v.split(boundary).join('BOUNDARY') : v]);
+    }
+    headers.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+    const rawBody = boundary ? body.split(boundary).join('BOUNDARY') : body;
+    seen.push({ method: req.method, url: req.url, auth: req.headers.authorization ?? null, multipart: /^multipart\/form-data; boundary=/.test(req.headers['content-type'] ?? ''), fields, boundary: /^----formdata-undici-0\d{11}$/.test(boundary), headers, body: rawBody });
     res.writeHead(next.status, { 'content-type': 'text/plain' });
     res.end(next.body);
   });
@@ -217,6 +230,144 @@ for (const [text, v, rate] of [['你好', undefined, undefined], ['你好', 'bad
   speak.push({ in: { text, voice: v ?? null, rate: rate === undefined ? null : String(rate) }, out: { ok: r.ok, kind: r.kind ?? null, message: r.message ?? null, calls } });
 }
 
+// ---------- D-B9-7：whisper-cli 无 stderr 时的 execFile err.message ----------
+const { execFile } = await import('node:child_process');
+const execCases = [
+  { name: 'exit', file: '/bin/sh', args: ['-c', 'exit 3'] },
+  { name: 'enoent', file: '/nonexistent/whisper-cli', args: ['-m', 'model.bin', '-f', 'in.wav'] },
+  { name: 'timeout', file: '/bin/sh', args: ['-c', 'sleep 5'], timeout: 200 },
+  { name: 'abort', file: '/bin/sh', args: ['-c', 'sleep 5'], abort: 100 },
+];
+const exec = [];
+if (process.platform !== 'win32')
+  for (const c of execCases) {
+    const ac = new AbortController();
+    if (c.abort) setTimeout(() => ac.abort(), c.abort);
+    const msg = await new Promise((r) =>
+      execFile(c.file, c.args, { timeout: c.timeout ?? 0, signal: ac.signal, maxBuffer: 8 << 20 }, (err, _o, stderr) => r(stderr || (err ? err.message : null))),
+    );
+    exec.push({ ...c, out: msg });
+  }
+
 mkdirSync(outDir, { recursive: true });
-writeFileSync(out, JSON.stringify({ edge, edgeClient, tts, voice, cloud, speech, speak }, null, 2) + '\n');
+// D-B9-4：V8 Date#toString（X-Timestamp）在各 TZ 下的写法（括号内 ICU 时区长名）
+const { execFileSync } = await import('node:child_process');
+const jsDateZones = ['UTC', 'Etc/UTC', 'Asia/Shanghai', 'Asia/Kolkata', 'Asia/Tokyo', 'America/New_York', 'America/Sao_Paulo',
+  'Europe/London', 'Europe/Berlin', 'Australia/Sydney', 'Australia/Lord_Howe', 'Pacific/Chatham', 'Asia/Kathmandu', 'America/St_Johns',
+  'Asia/Dubai', 'Pacific/Apia', 'America/Caracas'];
+const jsDateInstants = [0, 1767225600000, 1784505600000, 662688000000, 1793260800123];
+const jsDate = jsDateZones.map((tz) => ({
+  tz,
+  out: JSON.parse(execFileSync(process.execPath, ['-e', `process.stdout.write(JSON.stringify(${JSON.stringify(jsDateInstants)}.map((t)=>new Date(t).toString())))`], { env: { ...process.env, TZ: tz } }).toString()),
+}));
+// D-B9-3：ConfigService 读 config.json（与默认深合并）→ saveMascotVoiceSettings → 落盘的 voiceSettings（未知键 / 键序）
+const { ConfigService } = await imp('packages/core/src/services/ConfigService.ts');
+const mascotVS = await imp('packages/core/src/voice/mascotVoiceSettings.ts');
+const { mkdtempSync, readFileSync: rfs, writeFileSync: wfs } = await import('node:fs');
+const { tmpdir } = await import('node:os');
+const mascotCases = [
+  { file: { voiceSettings: { custom: { a: 1 }, volume: 0.5, extra: [1, 2], voiceMode: 'random' } }, patch: { volume: 0.25, late: 'x' } },
+  { file: { voiceSettings: { sfxEnabled: false, nested: { k: 'v' } } }, patch: { nested: { z: 1 }, enabled: true } },
+  { file: {}, patch: { timeAnnouncement: false, newKey: null } },
+];
+const mascot = [];
+for (const c of mascotCases) {
+  const dir = mkdtempSync(join(tmpdir(), 'b9cfg-'));
+  wfs(join(dir, 'config.json'), JSON.stringify(c.file));
+  const cfg = new ConfigService({ ports: { paths: { userData: () => dir } } });
+  await cfg.load();
+  const got = mascotVS.getMascotVoiceSettings(cfg);
+  let published = null;
+  mascotVS.saveMascotVoiceSettings(cfg, c.patch, { info() {}, error() {} }, { publish: (_n, p) => { published = p; } });
+  await cfg.save();
+  const saved = JSON.parse(rfs(join(dir, 'config.json'), 'utf8')).voiceSettings;
+  mascot.push({ ...c, got: JSON.stringify(got), published: JSON.stringify(published), saved: JSON.stringify(saved) });
+}
+// D-B9-1 / D-B9-5：VolcAsrSession 对着本地 ws 模拟服务（http 'upgrade'，不协商扩展）：
+// 记录握手 rawHeaders（顺序 / 值；随机值替换为占位）、客户端帧（头 4 字节 + 解压后的负载）、会话结果
+const volcMod = await imp('packages/core/src/voice/volcAsr.ts');
+const { createHash } = await import('node:crypto');
+const { gunzipSync, gzipSync } = await import('node:zlib');
+const srvResult = (seq, flags, json) => {
+  const g = gzipSync(Buffer.from(JSON.stringify(json)));
+  const b = Buffer.alloc(12 + g.length);
+  b[0] = 0x11; b[1] = (0b1001 << 4) | flags; b[2] = 0x11; b[3] = 0;
+  b.writeInt32BE(seq, 4); b.writeUInt32BE(g.length, 8); g.copy(b, 12);
+  return b;
+};
+const volcScript = [
+  { on: 'full', frame: srvResult(1, 1, { result: { text: '' } }).toString('hex') },
+  { on: 'audio', frame: srvResult(2, 1, { result: { text: '你好' } }).toString('hex') },
+  { on: 'audio', frame: srvResult(3, 1, { result: { text: '你好' } }).toString('hex') },
+  { on: 'audio', frame: srvResult(4, 1, { result: [{ text: '你好呀' }] }).toString('hex') },
+  { on: 'last', frame: srvResult(-5, 3, { result: { text: '你好呀，世界', utterances: [] } }).toString('hex') },
+];
+const wsFrame = (op, payload) => {
+  const n = payload.length;
+  const h = n < 126 ? Buffer.from([0x80 | op, n]) : n < 65536 ? Buffer.from([0x80 | op, 126, n >> 8, n & 255]) : null;
+  return Buffer.concat([h, payload]);
+};
+const volc = await new Promise((resolveAll) => {
+  const rec = { rawHeaders: null, url: null, frames: [] };
+  const srv = createServer();
+  srv.on('upgrade', (req, sock) => {
+    rec.url = req.url;
+    rec.rawHeaders = req.rawHeaders.slice();
+    const accept = createHash('sha1').update(req.headers['sec-websocket-key'] + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11').digest('base64');
+    sock.write(`HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\nX-Tt-Logid: LOG-B9\r\n\r\n`);
+    let buf = Buffer.alloc(0);
+    let sentAudio = false;
+    const send = (on) => { for (const s of volcScript) if (s.on === on) sock.write(wsFrame(2, Buffer.from(s.frame, 'hex'))); };
+    sock.on('data', (d) => {
+      buf = Buffer.concat([buf, d]);
+      for (;;) {
+        if (buf.length < 2) return;
+        const op = buf[0] & 0xf;
+        let len = buf[1] & 0x7f, o = 2;
+        if (len === 126) { if (buf.length < 4) return; len = buf.readUInt16BE(2); o = 4; }
+        else if (len === 127) { if (buf.length < 10) return; len = Number(buf.readBigUInt64BE(2)); o = 10; }
+        if (buf.length < o + 4 + len) return;
+        const mask = buf.subarray(o, o + 4);
+        const p = Buffer.from(buf.subarray(o + 4, o + 4 + len));
+        for (let i = 0; i < p.length; i++) p[i] ^= mask[i % 4];
+        buf = buf.subarray(o + 4 + len);
+        if (op === 8) { sock.end(wsFrame(8, p)); return; }
+        if (op !== 2) continue;
+        const type = p[1] >> 4, last = (p[1] & 0xf & 2) !== 0;
+        const payload = gunzipSync(p.subarray(8));
+        rec.frames.push({ head: p.subarray(0, 4).toString('hex'), payload: type === 1 ? payload.toString('utf8') : payload.toString('hex') });
+        if (type === 1) send('full');
+        else if (last) send('last');
+        else if (!sentAudio) { sentAudio = true; send('audio'); }
+      }
+    });
+    sock.on('error', () => {});
+  });
+  srv.listen(0, '127.0.0.1', async () => {
+    const port = srv.address().port;
+    const partials = [];
+    const s = new volcMod.VolcAsrSession({ apiKey: 'k-secret', resourceId: 'volc.seedasr.sauc.duration',
+      url: `ws://127.0.0.1:${port}/api/v3/sauc/bigmodel_async`, retries: 0, onPartial: (t) => partials.push(t) });
+    await s.start();
+    const pcm = Buffer.alloc(16000);
+    for (let i = 0; i < pcm.length; i++) pcm[i] = i % 251;
+    s.push(pcm.subarray(0, 7000));
+    await new Promise((r) => setTimeout(r, 150));
+    s.push(pcm.subarray(7000));
+    const text = await s.finish();
+    const ids = { [s.requestId]: 'REQUEST_ID' };
+    const rh = rec.rawHeaders.map((v, i) => {
+      const k = rec.rawHeaders[i - 1]?.toLowerCase();
+      if (i % 2 === 0) return v;
+      if (k === 'sec-websocket-key') return 'KEY';
+      if (k === 'host') return 'HOST';
+      if (k === 'x-api-connect-id') return /^[0-9a-f-]{36}$/.test(v) ? 'UUID' : v;
+      return ids[v] ?? v;
+    });
+    srv.close();
+    resolveAll({ url: rec.url, rawHeaders: rh, frames: rec.frames, script: volcScript, partials, text, logId: s.serverLogId ?? null,
+      pcm: pcm.toString('hex') });
+  });
+});
+writeFileSync(out, JSON.stringify({ edge, edgeClient, tts, voice, cloud, speech, speak, exec, jsDate, jsDateInstants, mascot, volc }, null, 2) + '\n');
 console.log(`wrote ${out}`);

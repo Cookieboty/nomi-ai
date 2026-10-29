@@ -5,6 +5,7 @@ package wailsshell
 /*
 #cgo pkg-config: gtk+-3.0
 #include <gtk/gtk.h>
+#include <stdlib.h>
 
 static void nomi_cursor(int *x, int *y) {
 	GdkDisplay *d = gdk_display_get_default();
@@ -25,10 +26,24 @@ static void nomi_input_shape(void *win, int *r, int n) {
 	gtk_widget_input_shape_combine_region(w, reg);
 	cairo_region_destroy(reg);
 }
+
+// = BrowserWindow.setIcon（GTK3：gtk_window_set_icon）
+static void nomi_set_icon(void *win, const guchar *buf, gsize n) {
+	GdkPixbufLoader *l = gdk_pixbuf_loader_new();
+	if (gdk_pixbuf_loader_write(l, buf, n, NULL) && gdk_pixbuf_loader_close(l, NULL)) {
+		GdkPixbuf *pb = gdk_pixbuf_loader_get_pixbuf(l);
+		if (pb) gtk_window_set_icon(GTK_WINDOW(win), pb);
+	} else {
+		gdk_pixbuf_loader_close(l, NULL);
+	}
+	g_object_unref(l);
+}
 */
 import "C"
 
 import (
+	"unsafe"
+
 	"github.com/wailsapp/wails/v3/pkg/application"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell"
@@ -57,3 +72,16 @@ func nativeInputShape(win *application.WebviewWindow, rects []shell.Rect) {
 		C.nomi_input_shape(p, ptr, C.int(len(rects)))
 	})
 }
+
+// 调用方已在主线程（IconWindow.SetIcon 用 InvokeSync）
+func nativeSetWindowIcon(win unsafe.Pointer, png []byte) {
+	if len(png) == 0 {
+		return
+	}
+	cb := C.CBytes(png)
+	defer C.free(cb)
+	C.nomi_set_icon(win, (*C.guchar)(cb), C.gsize(len(png)))
+}
+
+// setAppDetails 只在 Windows 有效
+func nativeSetAppDetails(unsafe.Pointer, string, string, int) error { return nil }

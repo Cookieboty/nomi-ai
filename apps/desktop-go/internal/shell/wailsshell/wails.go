@@ -39,10 +39,21 @@ type Wails struct {
 	wins map[shell.WindowKind]*application.WebviewWindow
 	tray *application.SystemTray
 	aot  map[shell.WindowKind]bool // SetAlwaysOnTop 记下的状态（重建时沿用）
+	// 应用图标（appicon.go）：新建窗口回调、启动前排队的操作
+	created []func(IconWindow)
+	started bool
+	pending []func()
+	// loads：窗口页面还在加载（= webContents.isLoading()）时，等 did-finish-load 的回调
+	loads map[*application.WebviewWindow]*pageLoad
+}
+
+type pageLoad struct {
+	done bool
+	fns  []func()
 }
 
 func New(cfg Config) *Wails {
-	w := &Wails{cfg: cfg, wins: map[shell.WindowKind]*application.WebviewWindow{}, aot: map[shell.WindowKind]bool{}}
+	w := &Wails{cfg: cfg, wins: map[shell.WindowKind]*application.WebviewWindow{}, aot: map[shell.WindowKind]bool{}, loads: map[*application.WebviewWindow]*pageLoad{}}
 	w.app = application.New(application.Options{
 		Name:    "Nomi",
 		Assets:  application.AssetOptions{Handler: application.AssetFileServerFS(cfg.Assets), Middleware: cfg.Middleware},
@@ -58,6 +69,7 @@ func New(cfg Config) *Wails {
 			},
 		},
 	})
+	w.hookStarted()
 	if trayHostAvailable() {
 		w.setupTray()
 	} else {
@@ -103,6 +115,45 @@ func (w *Wails) Show(k shell.WindowKind) {
 		return
 	}
 	w.create(k, nil)
+}
+
+// ShowOnceLoaded = 打开窗口后 `if (webContents.isLoading()) webContents.once('did-finish-load', fn)`：
+// 页面还在加载时返回登记函数（fn 在加载完成后异步调用一次），已加载完返回 nil
+func (w *Wails) ShowOnceLoaded(k shell.WindowKind) func(fn func()) {
+	w.Show(k)
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	win := w.wins[k]
+	pl := w.loads[win]
+	if win == nil || pl == nil || pl.done {
+		return nil
+	}
+	return func(fn func()) {
+		w.mu.Lock()
+		if !pl.done {
+			pl.fns = append(pl.fns, fn)
+			w.mu.Unlock()
+			return
+		}
+		w.mu.Unlock()
+		go fn()
+	}
+}
+
+func (w *Wails) pageLoaded(win *application.WebviewWindow) {
+	w.mu.Lock()
+	pl := w.loads[win]
+	if pl == nil || pl.done {
+		w.mu.Unlock()
+		return
+	}
+	pl.done = true
+	fns := pl.fns
+	pl.fns = nil
+	w.mu.Unlock()
+	for _, fn := range fns {
+		go fn()
+	}
 }
 
 // create 新建窗口；at 非空时先隐藏建好、挪到 at 再显示（重建用，避免先在默认位置闪一下）
@@ -161,6 +212,13 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 		opts.Hidden = true
 	}
 	win := w.app.Window.NewWithOptions(opts)
+	w.mu.Lock()
+	w.loads[win] = &pageLoad{}
+	w.mu.Unlock()
+	// did-finish-load：各平台 WebView 的页面加载完成事件（只有本平台的会触发）
+	for _, ev := range []events.WindowEventType{events.Linux.WindowLoadFinished, events.Mac.WebViewDidFinishNavigation, events.Windows.WebViewNavigationCompleted} {
+		win.OnWindowEvent(ev, func(*application.WindowEvent) { w.pageLoaded(win) })
+	}
 	// 用户点关闭 = 销毁（WebView 一起释放）
 	win.OnWindowEvent(events.Common.WindowClosing, func(*application.WindowEvent) {
 		w.mu.Lock()
@@ -168,6 +226,7 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 		if cur {
 			delete(w.wins, k)
 		}
+		delete(w.loads, win)
 		w.mu.Unlock()
 		if cur {
 			w.notify(k, "closed")
@@ -182,6 +241,7 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 	if at != nil {
 		win.SetBounds(application.Rect{X: at.X, Y: at.Y, Width: at.Width, Height: at.Height})
 	}
+	w.fireCreated(win)
 	win.Show()
 	w.notify(k, "created")
 	return win
@@ -213,6 +273,7 @@ func (w *Wails) Destroy(k shell.WindowKind) {
 	w.mu.Lock()
 	win := w.wins[k]
 	delete(w.wins, k)
+	delete(w.loads, win)
 	w.mu.Unlock()
 	if win != nil {
 		w.notify(k, "closed")

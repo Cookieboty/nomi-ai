@@ -141,7 +141,8 @@ await add('tf:trust:explicitFile', () => fs.readFileSync(path.join(SB, 'deep', '
 const scrub = (txt) => {
   const esc = (x) => JSON.stringify(x).slice(1, -1);
   const fwd = SB.replace(/\\/g, '/');
-  for (const f of [esc(fwd.toLowerCase()), esc(fwd), esc(SB)]) txt = txt.replaceAll(f, '<SB>');
+  const px = fwd.slice(fwd.indexOf('/')); // path.posix 在 win32 上的 posixCwd 形式（去盘符）
+  for (const f of [esc(esc(SB)), esc(fwd.toLowerCase()), esc(fwd), esc(SB), esc(px.toLowerCase()), esc(px)]) txt = txt.replaceAll(f, '<SB>');
   return txt;
 };
 const out = {

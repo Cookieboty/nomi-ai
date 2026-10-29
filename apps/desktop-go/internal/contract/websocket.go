@@ -9,9 +9,13 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/coder/websocket"
 )
+
+// callerSeq：每条连接一个调用方 id（契约 caller.id）
+var callerSeq atomic.Int64
 
 // 与 packages/contract/src/websocket.ts 一致
 const (
@@ -78,7 +82,7 @@ func (s *WSServer) serve(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
 	var mu sync.Mutex
-	sess := s.Router.NewSession(ctx, Caller{Surface: surface}, func(f ServerFrame) {
+	sess := s.Router.NewSession(ctx, Caller{Surface: surface, ID: int(callerSeq.Add(1)), Done: ctx.Done()}, func(f ServerFrame) {
 		b, err := EncodeWire(f)
 		if err != nil {
 			return

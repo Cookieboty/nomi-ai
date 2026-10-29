@@ -1,0 +1,2488 @@
+{
+ "cases": [
+  {
+   "fn": "jsonlEvents",
+   "args": [
+    "﻿{\"a\":1}\r\n  {\"b\":2}\nnope\n{bad\n[1]\n{\"c\":3}",
+    400
+   ],
+   "out": {
+    "v": [
+     {
+      "a": 1
+     },
+     {
+      "b": 2
+     },
+     {
+      "c": 3
+     }
+    ]
+   }
+  },
+  {
+   "fn": "jsonlEvents",
+   "args": [
+    "{\"a\":1}\n{\"a\":2}\n{\"a\":3}",
+    2
+   ],
+   "out": {
+    "v": [
+     {
+      "a": 2
+     },
+     {
+      "a": 3
+     }
+    ]
+   }
+  },
+  {
+   "fn": "jsonlEvents",
+   "args": [
+    "",
+    400
+   ],
+   "out": {
+    "v": []
+   }
+  },
+  {
+   "fn": "parseClaudeSession",
+   "args": [
+    "{\"type\":\"system\",\"sessionId\":\"sid-1\",\"cwd\":\"/w\",\"model\":\"top-model\",\"permissionMode\":\"plan\"}\n{\"type\":\"user\",\"isMeta\":true,\"message\":{\"content\":\"meta\"}}\n{\"type\":\"user\",\"message\":{\"content\":[{\"type\":\"tool_result\",\"content\":\"x\"}]}}\n{\"type\":\"user\",\"message\":{\"content\":[{\"type\":\"image\"},{\"type\":\"text\",\"text\":\"  Fix   the\\nbug please  \"}],\"model\":\"m1\",\"effort\":\"high\"}}",
+    "{\"type\":\"assistant\",\"timestamp\":\"2025-01-02T03:04:05.678Z\",\"message\":{\"stop_reason\":\"end_turn\",\"content\":[{\"type\":\"text\",\"text\":\"done!\"}]}}"
+   ],
+   "out": {
+    "v": {
+     "cwd": "/w",
+     "detail": "done!",
+     "lastAt": 1735787045678,
+     "model": "m1",
+     "permissionMode": "plan",
+     "phase": "turn-done",
+     "reasoningEffort": "high",
+     "sessionId": "sid-1",
+     "title": "Fix the bug please"
+    }
+   }
+  },
+  {
+   "fn": "parseClaudeSession",
+   "args": [
+    "{\"type\":\"summary\",\"summary\":\"Sum title\"}\n{\"isSidechain\":true,\"sessionId\":\"side\"}",
+    "{\"type\":\"assistant\",\"timestamp\":1735787045,\"message\":{\"content\":[{\"type\":\"tool_use\",\"name\":\"Bash\"}]}}"
+   ],
+   "out": {
+    "v": {
+     "detail": "Bash",
+     "lastAt": 1735787045000,
+     "parentId": "side",
+     "phase": "tool",
+     "sessionId": "side",
+     "title": "Sum title"
+    }
+   }
+  },
+  {
+   "fn": "parseClaudeSession",
+   "args": [
+    "",
+    "{\"type\":\"assistant\",\"message\":{\"stop_reason\":\"tool_use\",\"content\":[]}}"
+   ],
+   "out": {
+    "v": {
+     "phase": "tool"
+    }
+   }
+  },
+  {
+   "fn": "parseClaudeSession",
+   "args": [
+    "",
+    "{\"type\":\"assistant\",\"message\":{\"stop_reason\":null}}\n{\"type\":\"system\"}"
+   ],
+   "out": {
+    "v": {
+     "phase": "working"
+    }
+   }
+  },
+  {
+   "fn": "parseClaudeSession",
+   "args": [
+    "",
+    "{\"type\":\"assistant\",\"isApiErrorMessage\":true,\"message\":{\"content\":\"API Error: 500 API Error: 500 API Error: 500 API Error: 500 API Error: 500 API Error: 500 API Error: 500 API Error: 500 API Error: 500 API Error: 500 API Error: 500 API Error: 500 API Error: 500 API Error: 500 API Error: 500 API Error: 500 API Error: 500 API Error: 500 API Error: 500 API Error: 500 \"}}"
+   ],
+   "out": {
+    "v": {
+     "detail": "API Error: 500 API Error: 500 API Error: 500 API Error: 500 API Error: 500 API Error: 500 API Error: 500 API Error: 500…",
+     "phase": "error"
+    }
+   }
+  },
+  {
+   "fn": "parseClaudeSession",
+   "args": [
+    "",
+    "{\"type\":\"assistant\",\"message\":{\"model\":\"<synthetic>\",\"content\":[{\"type\":\"text\",\"text\":\"synthetic\"}]}}"
+   ],
+   "out": {
+    "v": {
+     "detail": "synthetic",
+     "model": "<synthetic>",
+     "phase": "error"
+    }
+   }
+  },
+  {
+   "fn": "parseClaudeSession",
+   "args": [
+    "",
+    "{\"type\":\"assistant\",\"message\":{\"stop_reason\":\"max_tokens\"}}\n{\"type\":\"file-history-snapshot\"}"
+   ],
+   "out": {
+    "v": {
+     "phase": "turn-done"
+    }
+   }
+  },
+  {
+   "fn": "parseClaudeSession",
+   "args": [
+    "",
+    "{\"type\":\"result\",\"subtype\":\"success\",\"result\":\"ok\",\"timestamp\":\"2025-01-02T03:04:05.678Z\",\"sessionId\":\"r\"}"
+   ],
+   "out": {
+    "v": {
+     "detail": "ok",
+     "lastAt": 1735787045678,
+     "phase": "task-done",
+     "sessionId": "r"
+    }
+   }
+  },
+  {
+   "fn": "parseClaudeSession",
+   "args": [
+    "",
+    "{\"type\":\"result\",\"subtype\":\"error_max_turns\",\"error\":\"boom\"}"
+   ],
+   "out": {
+    "v": {
+     "detail": "boom",
+     "phase": "error"
+    }
+   }
+  },
+  {
+   "fn": "parseClaudeSession",
+   "args": [
+    "",
+    "{\"type\":\"result\",\"is_error\":true}"
+   ],
+   "out": {
+    "v": {
+     "phase": "error"
+    }
+   }
+  },
+  {
+   "fn": "parseClaudeSession",
+   "args": [
+    "",
+    "{\"type\":\"user\",\"timestamp\":\"2025-01-02T03:04:05.678Z\",\"message\":{\"content\":[{\"type\":\"tool_result\"}]}}"
+   ],
+   "out": {
+    "v": {
+     "detail": "tool_result",
+     "lastAt": 1735787045678,
+     "phase": "working"
+    }
+   }
+  },
+  {
+   "fn": "parseClaudeSession",
+   "args": [
+    "",
+    "{\"type\":\"user\",\"timestamp\":\"bad\",\"message\":{\"content\":\"[Request interrupted by user for tool use]\"}}"
+   ],
+   "out": {
+    "v": {
+     "phase": "turn-done"
+    }
+   }
+  },
+  {
+   "fn": "parseClaudeSession",
+   "args": [
+    "",
+    "{\"type\":\"user\"}"
+   ],
+   "out": {
+    "v": {
+     "phase": "working"
+    }
+   }
+  },
+  {
+   "fn": "parseClaudeSession",
+   "args": [
+    "",
+    "{\"type\":\"progress\",\"timestamp\":\"2025-01-02T03:04:05.678Z\"}\n{\"type\":\"assistant\"}"
+   ],
+   "out": {
+    "v": {
+     "phase": "working"
+    }
+   }
+  },
+  {
+   "fn": "parseClaudeSession",
+   "args": [
+    "",
+    "{\"type\":\"tool_result\"}"
+   ],
+   "out": {
+    "v": {
+     "phase": "tool"
+    }
+   }
+  },
+  {
+   "fn": "parseClaudeSession",
+   "args": [
+    "",
+    "{\"type\":\"user\",\"message\":{\"content\":[null]}}"
+   ],
+   "out": {
+    "err": "Cannot read properties of null (reading 'type')",
+    "name": "TypeError"
+   }
+  },
+  {
+   "fn": "parseClaudeSession",
+   "args": [
+    "{\"type\":\"user\",\"message\":{\"content\":[{\"type\":\"input_text\",\"text\":\"<command-name>/clear</command-name>\"}]}}",
+    ""
+   ],
+   "out": {
+    "v": {
+     "phase": "unknown",
+     "title": "/clear"
+    }
+   }
+  },
+  {
+   "fn": "parseClaudeSession",
+   "args": [
+    "{\"type\":\"user\",\"message\":\"str\"}\n{\"type\":\"user\",\"message\":{\"content\":\"second\"}}",
+    "{\"type\":[\"result\"]}"
+   ],
+   "out": {
+    "v": {
+     "phase": "task-done",
+     "title": "second"
+    }
+   }
+  },
+  {
+   "fn": "parseClaudeSession",
+   "args": [
+    "",
+    "{\"type\":\"system\",\"message\":{\"model\":\"tail-model\",\"effort\":\"low\",\"permissionMode\":\"default\"},\"perTurnEffort\":\"max\"}"
+   ],
+   "out": {
+    "v": {
+     "model": "tail-model",
+     "permissionMode": "default",
+     "phase": "unknown",
+     "reasoningEffort": "max"
+    }
+   }
+  },
+  {
+   "fn": "parseCodexSession",
+   "args": [
+    "{\"type\":\"session_meta\",\"timestamp\":\"2025-01-02T03:04:05.678Z\",\"payload\":{\"id\":\"cx\",\"cwd\":\"/c\",\"model\":\"gpt-5\",\"reasoning_effort\":\"high\",\"sandbox_policy\":{\"type\":\"workspace-write\"},\"approval_policy\":\"on-request\"}}\n{\"type\":\"event_msg\",\"payload\":{\"type\":\"user_message\",\"message\":\"hello codex\"}}",
+    "{\"type\":\"event_msg\",\"timestamp\":\"2025-01-02T03:09:05Z\",\"payload\":{\"type\":\"task_complete\",\"last_agent_message\":\"All done\"}}\n{\"type\":\"event_msg\",\"payload\":{\"type\":\"token_count\"}}"
+   ],
+   "out": {
+    "v": {
+     "cwd": "/c",
+     "detail": "All done",
+     "lastAt": 1735787345000,
+     "model": "gpt-5",
+     "permissionMode": "auto",
+     "phase": "turn-done",
+     "reasoningEffort": "high",
+     "sessionId": "cx",
+     "title": "hello codex"
+    }
+   }
+  },
+  {
+   "fn": "parseCodexSession",
+   "args": [
+    "{\"type\":\"session_meta\",\"timestamp\":\"2025-01-02T03:04:05.678Z\",\"payload\":{\"id\":\"cx\",\"cwd\":\"/c\",\"model\":\"gpt-5\",\"sandbox_policy\":\"danger-full-access\"}}",
+    ""
+   ],
+   "out": {
+    "v": {
+     "cwd": "/c",
+     "model": "gpt-5",
+     "permissionMode": "bypass",
+     "phase": "unknown",
+     "sessionId": "cx"
+    }
+   }
+  },
+  {
+   "fn": "parseCodexSession",
+   "args": [
+    "{\"type\":\"session_meta\",\"timestamp\":\"2025-01-02T03:04:05.678Z\",\"payload\":{\"id\":\"cx\",\"cwd\":\"/c\",\"model\":\"gpt-5\",\"sandbox_policy\":\"DangerFullAccess\"}}",
+    ""
+   ],
+   "out": {
+    "v": {
+     "cwd": "/c",
+     "model": "gpt-5",
+     "permissionMode": "bypass",
+     "phase": "unknown",
+     "sessionId": "cx"
+    }
+   }
+  },
+  {
+   "fn": "parseCodexSession",
+   "args": [
+    "{\"type\":\"session_meta\",\"timestamp\":\"2025-01-02T03:04:05.678Z\",\"payload\":{\"id\":\"cx\",\"cwd\":\"/c\",\"model\":\"gpt-5\",\"sandbox_policy\":\"read_only\"}}",
+    ""
+   ],
+   "out": {
+    "v": {
+     "cwd": "/c",
+     "model": "gpt-5",
+     "permissionMode": "manual",
+     "phase": "unknown",
+     "sessionId": "cx"
+    }
+   }
+  },
+  {
+   "fn": "parseCodexSession",
+   "args": [
+    "{\"type\":\"session_meta\",\"timestamp\":\"2025-01-02T03:04:05.678Z\",\"payload\":{\"id\":\"cx\",\"cwd\":\"/c\",\"model\":\"gpt-5\",\"sandbox_policy\":\"readonly\"}}",
+    ""
+   ],
+   "out": {
+    "v": {
+     "cwd": "/c",
+     "model": "gpt-5",
+     "permissionMode": "manual",
+     "phase": "unknown",
+     "sessionId": "cx"
+    }
+   }
+  },
+  {
+   "fn": "parseCodexSession",
+   "args": [
+    "{\"type\":\"session_meta\",\"timestamp\":\"2025-01-02T03:04:05.678Z\",\"payload\":{\"id\":\"cx\",\"cwd\":\"/c\",\"model\":\"gpt-5\",\"sandbox_policy\":\"workspace write\"}}",
+    ""
+   ],
+   "out": {
+    "v": {
+     "cwd": "/c",
+     "model": "gpt-5",
+     "permissionMode": "acceptEdits",
+     "phase": "unknown",
+     "sessionId": "cx"
+    }
+   }
+  },
+  {
+   "fn": "parseCodexSession",
+   "args": [
+    "{\"type\":\"session_meta\",\"timestamp\":\"2025-01-02T03:04:05.678Z\",\"payload\":{\"id\":\"cx\",\"cwd\":\"/c\",\"model\":\"gpt-5\",\"sandbox_policy\":\"custom-mode\"}}",
+    ""
+   ],
+   "out": {
+    "v": {
+     "cwd": "/c",
+     "model": "gpt-5",
+     "permissionMode": "custom-mode",
+     "phase": "unknown",
+     "sessionId": "cx"
+    }
+   }
+  },
+  {
+   "fn": "parseCodexSession",
+   "args": [
+    "{\"type\":\"session_meta\",\"timestamp\":\"2025-01-02T03:04:05.678Z\",\"payload\":{\"id\":\"cx\",\"cwd\":\"/c\",\"model\":\"gpt-5\",\"sandbox_policy\":\"\"}}",
+    ""
+   ],
+   "out": {
+    "v": {
+     "cwd": "/c",
+     "model": "gpt-5",
+     "permissionMode": "",
+     "phase": "unknown",
+     "sessionId": "cx"
+    }
+   }
+  },
+  {
+   "fn": "parseCodexSession",
+   "args": [
+    "{\"type\":\"session_meta\",\"timestamp\":\"2025-01-02T03:04:05.678Z\",\"payload\":{\"id\":\"cx\",\"cwd\":\"/c\",\"model\":\"gpt-5\",\"sandboxPolicy\":{\"mode\":\"workspace-write\"},\"approvalPolicy\":\"never\"}}",
+    ""
+   ],
+   "out": {
+    "v": {
+     "cwd": "/c",
+     "model": "gpt-5",
+     "permissionMode": "acceptEdits",
+     "phase": "unknown",
+     "sessionId": "cx"
+    }
+   }
+  },
+  {
+   "fn": "parseCodexSession",
+   "args": [
+    "{\"type\":\"session_meta\",\"timestamp\":\"2025-01-02T03:04:05.678Z\",\"payload\":{\"id\":\"cx\",\"cwd\":\"/c\",\"model\":\"gpt-5\",\"sandbox_mode\":{\"type\":\"\"},\"approval_policy\":\"on_request\"}}",
+    ""
+   ],
+   "out": {
+    "v": {
+     "cwd": "/c",
+     "model": "gpt-5",
+     "permissionMode": "on_request",
+     "phase": "unknown",
+     "sessionId": "cx"
+    }
+   }
+  },
+  {
+   "fn": "parseCodexSession",
+   "args": [
+    "{\"type\":\"session_meta\",\"timestamp\":\"2025-01-02T03:04:05.678Z\",\"payload\":{\"id\":\"cx\",\"cwd\":\"/c\",\"model\":\"gpt-5\",\"permission_mode\":\"explicit\",\"sandbox_policy\":\"read-only\"}}",
+    ""
+   ],
+   "out": {
+    "v": {
+     "cwd": "/c",
+     "model": "gpt-5",
+     "permissionMode": "explicit",
+     "phase": "unknown",
+     "sessionId": "cx"
+    }
+   }
+  },
+  {
+   "fn": "parseCodexSession",
+   "args": [
+    "{\"type\":\"session_meta\",\"timestamp\":\"2025-01-02T03:04:05.678Z\",\"payload\":{\"id\":\"cx\",\"cwd\":\"/c\",\"model\":\"gpt-5\",\"sandbox_policy\":[1],\"approvalPolicy\":\"untrusted\"}}",
+    ""
+   ],
+   "out": {
+    "v": {
+     "cwd": "/c",
+     "model": "gpt-5",
+     "permissionMode": "untrusted",
+     "phase": "unknown",
+     "sessionId": "cx"
+    }
+   }
+  },
+  {
+   "fn": "parseCodexSession",
+   "args": [
+    "{\"id\":\"old-format\",\"timestamp\":\"2025-01-02T03:04:05.678Z\",\"instructions\":\"\"}\n{\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"<environment_context>x</environment_context>\"}]}}\n{\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"real q\"}]}}",
+    ""
+   ],
+   "out": {
+    "v": {
+     "phase": "unknown",
+     "sessionId": "old-format",
+     "title": "real q"
+    }
+   }
+  },
+  {
+   "fn": "parseCodexSession",
+   "args": [
+    "{\"type\":\"thread.started\",\"thread_id\":\"th\"}\n{\"type\":\"turn_context\",\"payload\":{\"model\":\"ctx-model\",\"cwd\":\"/ctx\",\"effort\":\"minimal\"}}",
+    ""
+   ],
+   "out": {
+    "v": {
+     "cwd": "/ctx",
+     "model": "ctx-model",
+     "phase": "unknown",
+     "reasoningEffort": "minimal",
+     "sessionId": "th"
+    }
+   }
+  },
+  {
+   "fn": "parseCodexSession",
+   "args": [
+    "",
+    "{\"type\":\"response_item\",\"payload\":{\"type\":\"message\"}}\n{\"type\":\"event_msg\",\"timestamp\":\"2025-01-02T03:04:05.678Z\",\"payload\":{\"type\":\"error\",\"message\":\"msg error\",\"reason\":\"why\"}}"
+   ],
+   "out": {
+    "v": {
+     "detail": "msg error",
+     "lastAt": 1735787045678,
+     "phase": "error"
+    }
+   }
+  },
+  {
+   "fn": "parseCodexSession",
+   "args": [
+    "",
+    "{\"type\":\"response_item\",\"payload\":{\"type\":\"message\"}}\n{\"type\":\"event_msg\",\"timestamp\":\"2025-01-02T03:04:05.678Z\",\"payload\":{\"type\":\"stream_error\",\"message\":\"msg stream_error\",\"reason\":\"why\"}}"
+   ],
+   "out": {
+    "v": {
+     "detail": "msg stream_error",
+     "lastAt": 1735787045678,
+     "phase": "error"
+    }
+   }
+  },
+  {
+   "fn": "parseCodexSession",
+   "args": [
+    "",
+    "{\"type\":\"response_item\",\"payload\":{\"type\":\"message\"}}\n{\"type\":\"event_msg\",\"timestamp\":\"2025-01-02T03:04:05.678Z\",\"payload\":{\"type\":\"turn_aborted\",\"message\":\"msg turn_aborted\",\"reason\":\"why\"}}"
+   ],
+   "out": {
+    "v": {
+     "detail": "msg turn_aborted",
+     "lastAt": 1735787045678,
+     "phase": "turn-done"
+    }
+   }
+  },
+  {
+   "fn": "parseCodexSession",
+   "args": [
+    "",
+    "{\"type\":\"response_item\",\"payload\":{\"type\":\"message\"}}\n{\"type\":\"event_msg\",\"timestamp\":\"2025-01-02T03:04:05.678Z\",\"payload\":{\"type\":\"exec_command_begin\",\"message\":\"msg exec_command_begin\",\"reason\":\"why\"}}"
+   ],
+   "out": {
+    "v": {
+     "detail": "exec_command",
+     "lastAt": 1735787045678,
+     "phase": "tool"
+    }
+   }
+  },
+  {
+   "fn": "parseCodexSession",
+   "args": [
+    "",
+    "{\"type\":\"response_item\",\"payload\":{\"type\":\"message\"}}\n{\"type\":\"event_msg\",\"timestamp\":\"2025-01-02T03:04:05.678Z\",\"payload\":{\"type\":\"patch_apply_begin\",\"message\":\"msg patch_apply_begin\",\"reason\":\"why\"}}"
+   ],
+   "out": {
+    "v": {
+     "detail": "patch_apply",
+     "lastAt": 1735787045678,
+     "phase": "tool"
+    }
+   }
+  },
+  {
+   "fn": "parseCodexSession",
+   "args": [
+    "",
+    "{\"type\":\"response_item\",\"payload\":{\"type\":\"message\"}}\n{\"type\":\"event_msg\",\"timestamp\":\"2025-01-02T03:04:05.678Z\",\"payload\":{\"type\":\"mcp_tool_call_begin\",\"message\":\"msg mcp_tool_call_begin\",\"reason\":\"why\"}}"
+   ],
+   "out": {
+    "v": {
+     "detail": "mcp_tool_call",
+     "lastAt": 1735787045678,
+     "phase": "tool"
+    }
+   }
+  },
+  {
+   "fn": "parseCodexSession",
+   "args": [
+    "",
+    "{\"type\":\"response_item\",\"payload\":{\"type\":\"message\"}}\n{\"type\":\"event_msg\",\"timestamp\":\"2025-01-02T03:04:05.678Z\",\"payload\":{\"type\":\"task_started\",\"message\":\"msg task_started\",\"reason\":\"why\"}}"
+   ],
+   "out": {
+    "v": {
+     "lastAt": 1735787045678,
+     "phase": "working"
+    }
+   }
+  },
+  {
+   "fn": "parseCodexSession",
+   "args": [
+    "",
+    "{\"type\":\"response_item\",\"payload\":{\"type\":\"message\"}}\n{\"type\":\"event_msg\",\"timestamp\":\"2025-01-02T03:04:05.678Z\",\"payload\":{\"type\":\"user_message\",\"message\":\"msg user_message\",\"reason\":\"why\"}}"
+   ],
+   "out": {
+    "v": {
+     "lastAt": 1735787045678,
+     "phase": "working"
+    }
+   }
+  },
+  {
+   "fn": "parseCodexSession",
+   "args": [
+    "",
+    "{\"type\":\"response_item\",\"payload\":{\"type\":\"message\"}}\n{\"type\":\"event_msg\",\"timestamp\":\"2025-01-02T03:04:05.678Z\",\"payload\":{\"type\":\"agent_reasoning\",\"message\":\"msg agent_reasoning\",\"reason\":\"why\"}}"
+   ],
+   "out": {
+    "v": {
+     "lastAt": 1735787045678,
+     "phase": "working"
+    }
+   }
+  },
+  {
+   "fn": "parseCodexSession",
+   "args": [
+    "",
+    "{\"type\":\"response_item\",\"payload\":{\"type\":\"message\"}}\n{\"type\":\"event_msg\",\"timestamp\":\"2025-01-02T03:04:05.678Z\",\"payload\":{\"type\":\"agent_message\",\"message\":\"msg agent_message\",\"reason\":\"why\"}}"
+   ],
+   "out": {
+    "v": {
+     "detail": "msg agent_message",
+     "lastAt": 1735787045678,
+     "phase": "working"
+    }
+   }
+  },
+  {
+   "fn": "parseCodexSession",
+   "args": [
+    "",
+    "{\"type\":\"response_item\",\"payload\":{\"type\":\"message\"}}\n{\"type\":\"event_msg\",\"timestamp\":\"2025-01-02T03:04:05.678Z\",\"payload\":{\"type\":\"other\",\"message\":\"msg other\",\"reason\":\"why\"}}"
+   ],
+   "out": {
+    "v": {
+     "phase": "working"
+    }
+   }
+  },
+  {
+   "fn": "parseCodexSession",
+   "args": [
+    "",
+    "{\"type\":\"event_msg\",\"payload\":{\"type\":\"turn_aborted\",\"reason\":\"interrupted\"}}"
+   ],
+   "out": {
+    "v": {
+     "detail": "interrupted",
+     "phase": "turn-done"
+    }
+   }
+  },
+  {
+   "fn": "parseCodexSession",
+   "args": [
+    "",
+    "{\"type\":\"response_item\",\"timestamp\":1735787045678,\"payload\":{\"type\":\"function_call\"}}"
+   ],
+   "out": {
+    "v": {
+     "detail": "function_call",
+     "lastAt": 1735787045678,
+     "phase": "tool"
+    }
+   }
+  },
+  {
+   "fn": "parseCodexSession",
+   "args": [
+    "",
+    "{\"type\":\"response_item\",\"timestamp\":1735787045678,\"payload\":{\"type\":\"local_shell_call\"}}"
+   ],
+   "out": {
+    "v": {
+     "detail": "local_shell_call",
+     "lastAt": 1735787045678,
+     "phase": "tool"
+    }
+   }
+  },
+  {
+   "fn": "parseCodexSession",
+   "args": [
+    "",
+    "{\"type\":\"response_item\",\"timestamp\":1735787045678,\"payload\":{\"type\":\"custom_tool_call\",\"name\":\"apply_patch\"}}"
+   ],
+   "out": {
+    "v": {
+     "detail": "apply_patch",
+     "lastAt": 1735787045678,
+     "phase": "tool"
+    }
+   }
+  },
+  {
+   "fn": "parseCodexSession",
+   "args": [
+    "",
+    "{\"type\":\"response_item\",\"timestamp\":1735787045678,\"payload\":{\"type\":\"reasoning\"}}"
+   ],
+   "out": {
+    "v": {
+     "lastAt": 1735787045678,
+     "phase": "working"
+    }
+   }
+  },
+  {
+   "fn": "parseCodexSession",
+   "args": [
+    "",
+    "{\"type\":\"turn.failed\",\"message\":\"m\",\"error\":{\"message\":\"inner\"}}"
+   ],
+   "out": {
+    "v": {
+     "detail": "m",
+     "phase": "error"
+    }
+   }
+  },
+  {
+   "fn": "parseCodexSession",
+   "args": [
+    "",
+    "{\"type\":\"error\",\"error\":{\"message\":\"inner\"}}"
+   ],
+   "out": {
+    "v": {
+     "detail": "inner",
+     "phase": "error"
+    }
+   }
+  },
+  {
+   "fn": "parseCodexSession",
+   "args": [
+    "",
+    "{\"type\":\"turn.completed\",\"message\":\"m\",\"error\":{\"message\":\"inner\"}}"
+   ],
+   "out": {
+    "v": {
+     "detail": "m",
+     "phase": "turn-done"
+    }
+   }
+  },
+  {
+   "fn": "parseCodexSession",
+   "args": [
+    "",
+    "{\"type\":\"turn.started\",\"message\":\"m\",\"error\":{\"message\":\"inner\"}}"
+   ],
+   "out": {
+    "v": {
+     "phase": "working"
+    }
+   }
+  },
+  {
+   "fn": "parseCodexSession",
+   "args": [
+    "",
+    "{\"type\":\"item.started\",\"message\":\"m\",\"error\":{\"message\":\"inner\"}}"
+   ],
+   "out": {
+    "v": {
+     "phase": "tool"
+    }
+   }
+  },
+  {
+   "fn": "parseCodexSession",
+   "args": [
+    "",
+    "{\"type\":\"item.completed\",\"message\":\"m\",\"error\":{\"message\":\"inner\"}}"
+   ],
+   "out": {
+    "v": {
+     "phase": "working"
+    }
+   }
+  },
+  {
+   "fn": "parseCodexSession",
+   "args": [
+    "",
+    "{\"type\":\"thread.started\",\"message\":\"m\",\"error\":{\"message\":\"inner\"}}"
+   ],
+   "out": {
+    "v": {
+     "phase": "working"
+    }
+   }
+  },
+  {
+   "fn": "parseCodexSession",
+   "args": [
+    "",
+    "{\"type\":\"weird\",\"message\":\"m\",\"error\":{\"message\":\"inner\"}}"
+   ],
+   "out": {
+    "v": {
+     "phase": "unknown"
+    }
+   }
+  },
+  {
+   "fn": "parseCodexSession",
+   "args": [
+    "",
+    "{\"type\":\"turn_context\",\"payload\":{\"model\":\"late\",\"sandbox_policy\":\"workspace-write\",\"approval_policy\":\"on-request\"}}\n{\"type\":\"compacted\"}"
+   ],
+   "out": {
+    "v": {
+     "model": "late",
+     "permissionMode": "auto",
+     "phase": "unknown"
+    }
+   }
+  },
+  {
+   "fn": "parseGrokSession",
+   "args": [
+    "{\"method\":\"session/update\",\"params\":{\"sessionId\":\"g1\",\"cwd\":\"/g\",\"update\":{\"sessionUpdate\":\"user_message\",\"prompt\":\"grok question\",\"timestamp\":\"2025-01-02T03:04:05.678Z\"}}}\n{\"params\":{\"update\":{\"usage\":{\"modelUsage\":{\"unknown\":{},\"grok-4\":{}}},\"reasoningEffort\":\"high\",\"currentModeId\":\"auto\"}}}\n{\"sessionUpdate\":\"turn_completed\",\"time\":\"2025-01-02T03:09:05Z\"}\n{\"usage\":{\"model\":\"u-model\"},\"timestamp\":0}",
+    "fallback"
+   ],
+   "out": {
+    "v": {
+     "cwd": "/g",
+     "lastAt": 1735787345000,
+     "model": "u-model",
+     "permissionMode": "auto",
+     "phase": "turn-done",
+     "reasoningEffort": "high",
+     "sessionId": "fallback",
+     "title": "grok question"
+    }
+   }
+  },
+  {
+   "fn": "parseGrokSession",
+   "args": [
+    "{\"params\":null,\"sessionId\":\"top\",\"prompt\":\"top prompt\",\"model\":\"top-m\",\"currentModeId\":\"plan\"}\n{\"params\":\"str\",\"usage\":{\"modelUsage\":\"ab\"}}",
+    null
+   ],
+   "out": {
+    "v": {
+     "model": "0",
+     "permissionMode": "plan",
+     "phase": "unknown",
+     "sessionId": "top",
+     "title": "top prompt"
+    }
+   }
+  },
+  {
+   "fn": "parseGrokSession",
+   "args": [
+    "{\"update\":{\"userMessage\":\"  \"},\"usage\":{\"modelUsage\":{\"1\":1,\"2\":1,\"b\":1}}}\n{\"params\":{\"update\":{\"sessionUpdate\":\"turn_completed\"}}}",
+    "fb"
+   ],
+   "out": {
+    "v": {
+     "model": "1",
+     "phase": "turn-done",
+     "sessionId": "fb"
+    }
+   }
+  },
+  {
+   "fn": "parseGrokSession",
+   "args": [
+    "",
+    null
+   ],
+   "out": {
+    "v": {
+     "phase": "unknown"
+    }
+   }
+  },
+  {
+   "fn": "parseGrokSession",
+   "args": [
+    "{\"usage\":{\"modelUsage\":{\"unknown\":{},\"\":{},\"grok-code\":{}}},\"prompt\":\"A long grok prompt that definitely exceeds the eighty character title limit for sure ok\",\"timestamp\":1000000000000}",
+    "fb"
+   ],
+   "out": {
+    "v": {
+     "lastAt": 1000000000000000,
+     "model": "grok-code",
+     "phase": "unknown",
+     "sessionId": "fb",
+     "title": "A long grok prompt that definitely exceeds the eighty character title limit for…"
+    }
+   }
+  },
+  {
+   "fn": "parseGrokSession",
+   "args": [
+    "{\"usage\":{\"modelUsage\":{\"unknown\":{}}},\"timestamp\":1000000000001}",
+    "fb"
+   ],
+   "out": {
+    "v": {
+     "lastAt": 1000000000001,
+     "phase": "unknown",
+     "sessionId": "fb"
+    }
+   }
+  },
+  {
+   "fn": "parseGeminiSession",
+   "args": [
+    "{\"sessionId\":\"gm\",\"lastUpdated\":\"2025-01-02T03:09:05Z\",\"summary\":\"Gem summary\",\"messages\":[{\"type\":\"user\",\"content\":[{\"text\":\"first q\"}]},{\"type\":\"gemini\",\"model\":\"gemini-2.5-pro\",\"thinkingConfig\":{\"thinkingLevel\":\"HIGH\"},\"approvalMode\":\"yolo\",\"content\":\"answer\",\"timestamp\":\"2025-01-02T03:04:05.678Z\"}]}"
+   ],
+   "out": {
+    "v": {
+     "detail": "answer",
+     "lastAt": 1735787045678,
+     "model": "gemini-2.5-pro",
+     "permissionMode": "yolo",
+     "phase": "turn-done",
+     "reasoningEffort": "HIGH",
+     "sessionId": "gm",
+     "title": "Gem summary"
+    }
+   }
+  },
+  {
+   "fn": "parseGeminiSession",
+   "args": [
+    "{\"sessionId\":\"gm\",\"lastUpdated\":\"2025-01-02T03:09:05Z\",\"messages\":[{\"type\":\"user\",\"content\":\"q\"},{\"type\":\"model\",\"content\":[{\"text\":\"a\"}],\"toolCalls\":[{\"result\":[]},{\"status\":\"error\"}]}]}"
+   ],
+   "out": {
+    "v": {
+     "detail": "a",
+     "lastAt": 1735787345000,
+     "phase": "working",
+     "sessionId": "gm",
+     "title": "q"
+    }
+   }
+  },
+  {
+   "fn": "parseGeminiSession",
+   "args": [
+    "{\"sessionId\":\"gm\",\"lastUpdated\":\"2025-01-02T03:09:05Z\",\"messages\":[{\"type\":\"gemini\",\"toolCalls\":[{\"result\":[]},{\"status\":\"pending\"}],\"metadata\":{\"model\":\"meta-m\"},\"reasoning_effort\":\"low\",\"permission_mode\":\"auto\"}]}"
+   ],
+   "out": {
+    "v": {
+     "lastAt": 1735787345000,
+     "model": "meta-m",
+     "permissionMode": "auto",
+     "phase": "tool",
+     "reasoningEffort": "low",
+     "sessionId": "gm"
+    }
+   }
+  },
+  {
+   "fn": "parseGeminiSession",
+   "args": [
+    "{\"sessionId\":\"gm\",\"lastUpdated\":\"2025-01-02T03:09:05Z\",\"messages\":[{\"type\":\"gemini\",\"toolCalls\":[null]}]}"
+   ],
+   "out": {
+    "err": "Cannot read properties of null (reading 'result')",
+    "name": "TypeError"
+   }
+  },
+  {
+   "fn": "parseGeminiSession",
+   "args": [
+    "{\"sessionId\":\"gm\",\"lastUpdated\":\"2025-01-02T03:09:05Z\",\"messages\":[{\"type\":\"gemini\",\"toolCalls\":[{\"status\":\"x\"},null]}]}"
+   ],
+   "out": {
+    "v": {
+     "lastAt": 1735787345000,
+     "phase": "tool",
+     "sessionId": "gm"
+    }
+   }
+  },
+  {
+   "fn": "parseGeminiSession",
+   "args": [
+    "{\"sessionId\":\"gm\",\"lastUpdated\":\"2025-01-02T03:09:05Z\",\"messages\":[{\"type\":\"error\",\"content\":\"e\",\"modelName\":\"mn\",\"effort\":\"e1\",\"thinkingConfig\":{\"effort\":\"te\"},\"mode\":\"m\"}]}"
+   ],
+   "out": {
+    "v": {
+     "lastAt": 1735787345000,
+     "model": "mn",
+     "permissionMode": "m",
+     "phase": "error",
+     "reasoningEffort": "e1",
+     "sessionId": "gm"
+    }
+   }
+  },
+  {
+   "fn": "parseGeminiSession",
+   "args": [
+    "{\"sessionId\":\"gm\",\"lastUpdated\":\"2025-01-02T03:09:05Z\",\"messages\":[{\"type\":\"info\",\"content\":\"i\",\"reasoning\":\"r\",\"thinkingConfig\":{\"thinking_level\":\"tl\"}}]}"
+   ],
+   "out": {
+    "v": {
+     "lastAt": 1735787345000,
+     "phase": "working",
+     "reasoningEffort": "r",
+     "sessionId": "gm"
+    }
+   }
+  },
+  {
+   "fn": "parseGeminiSession",
+   "args": [
+    "{\"sessionId\":\"gm\",\"lastUpdated\":\"2025-01-02T03:09:05Z\",\"messages\":[]}"
+   ],
+   "out": {
+    "v": {
+     "lastAt": 1735787345000,
+     "phase": "unknown",
+     "sessionId": "gm"
+    }
+   }
+  },
+  {
+   "fn": "parseGeminiSession",
+   "args": [
+    "{\"sessionId\":\"jl\",\"startTime\":\"2025-01-02T03:04:05.678Z\"}\n{\"$set\":{\"summary\":\"set sum\",\"lastUpdated\":\"2025-01-02T03:04:05.678Z\"}}\n{\"id\":\"a\",\"type\":\"user\",\"content\":\"jsonl q\"}\n{\"id\":\"b\",\"type\":\"gemini\",\"content\":\"r1\"}\n{\"id\":\"b\",\"type\":\"gemini\",\"content\":\"r2\",\"toolCalls\":[]}"
+   ],
+   "out": {
+    "v": {
+     "detail": "r2",
+     "lastAt": 1735787045678,
+     "phase": "turn-done",
+     "sessionId": "jl",
+     "title": "set sum"
+    }
+   }
+  },
+  {
+   "fn": "parseGeminiSession",
+   "args": [
+    "not json"
+   ],
+   "out": {
+    "v": {
+     "phase": "unknown"
+    }
+   }
+  },
+  {
+   "fn": "parseGeminiSession",
+   "args": [
+    "{\"sessionId\":\"gm\",\"lastUpdated\":\"2025-01-02T03:09:05Z\",\"messages\":[{\"type\":\"gemini\",\"toolCalls\":[{\"result\":null}]}]}"
+   ],
+   "out": {
+    "v": {
+     "lastAt": 1735787345000,
+     "phase": "working",
+     "sessionId": "gm"
+    }
+   }
+  },
+  {
+   "fn": "parseDshSession",
+   "args": [
+    "{\"type\":\"session/start\",\"id\":\"d1\",\"cwd\":\"/d\",\"time\":\"2025-01-02T03:04:05.678Z\"}\n{\"type\":\"approval/policy\",\"data\":{\"policy\":\"on-request\"}}\n{\"type\":\"sandbox/mode\",\"data\":{\"mode\":\"workspace-write\"}}\n{\"type\":\"permission/preset\",\"data\":{\"preset\":\"auto\"}}\n{\"type\":\"approval/policy\",\"data\":{\"policy\":\"never\"}}\n{\"type\":\"user/message\",\"data\":{\"content\":[{\"text\":\"dsh q\"}],\"model\":\"ds-v3\",\"reasoningEffort\":\"high\"}}\n{\"type\":\"assistant/message\",\"data\":{\"message\":{\"model\":\"msg-m\"}},\"timestamp\":1735787045}\n{\"type\":\"turn/end\",\"time\":0}",
+    "fb"
+   ],
+   "out": {
+    "v": {
+     "cwd": "/d",
+     "lastAt": 1735787045000,
+     "model": "msg-m",
+     "permissionMode": "auto",
+     "phase": "turn-done",
+     "reasoningEffort": "high",
+     "sessionId": "fb",
+     "title": "dsh q"
+    }
+   }
+  },
+  {
+   "fn": "parseDshSession",
+   "args": [
+    "{\"type\":\"sandbox/mode\",\"data\":{\"mode\":\"read-only\",\"context\":{\"model\":\"cm\",\"effort\":\"ce\"}}}\n{\"type\":\"approval/policy\",\"data\":{\"policy\":\"x\"}}\n{\"type\":\"agent/inbox/spliced\",\"data\":{\"inserted\":[{\"content\":\"spliced q\"}],\"request\":{\"thinkingLevel\":\"tl\"}}}",
+    null
+   ],
+   "out": {
+    "v": {
+     "model": "cm",
+     "permissionMode": "read-only",
+     "phase": "unknown",
+     "reasoningEffort": "tl",
+     "title": "spliced q"
+    }
+   }
+  },
+  {
+   "fn": "parseDshSession",
+   "args": [
+    "{\"type\":\"session/title\",\"data\":{\"title\":\"Dsh title\"}}\n{\"type\":\"user/message\",\"data\":{\"content\":\"later\"}}\n{\"type\":\"assistant/message\"}",
+    "s"
+   ],
+   "out": {
+    "v": {
+     "phase": "working",
+     "sessionId": "s",
+     "title": "Dsh title"
+    }
+   }
+  },
+  {
+   "fn": "parseDshSession",
+   "args": [
+    "{\"type\":\"user/message\",\"data\":{\"content\":[null]}}",
+    "s"
+   ],
+   "out": {
+    "err": "Cannot read properties of null (reading 'type')",
+    "name": "TypeError"
+   }
+  },
+  {
+   "fn": "parseDshSession",
+   "args": [
+    "{\"type\":\"user/message\",\"data\":{\"content\":[{\"type\":\"input_text\",\"text\":\"\"}]}}\n{\"type\":\"user/message\",\"data\":{\"inserted\":{\"0\":{\"content\":\"objidx\"}}}}",
+    "s"
+   ],
+   "out": {
+    "v": {
+     "phase": "unknown",
+     "sessionId": "s",
+     "title": "objidx"
+    }
+   }
+  },
+  {
+   "fn": "parseDshSession",
+   "args": [
+    "{\"type\":\"user/message\",\"data\":\"str\",\"sessionId\":\"sx\",\"modelAlias\":\"no\"}\n{\"data\":{\"modelAlias\":\"alias\",\"reasoning_effort\":\"re\",\"cwd\":\"/dc\"}}",
+    null
+   ],
+   "out": {
+    "v": {
+     "cwd": "/dc",
+     "model": "alias",
+     "phase": "unknown",
+     "reasoningEffort": "re",
+     "sessionId": "sx"
+    }
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "error",
+     "alive": true,
+     "ageMs": 0,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "failed"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "error",
+     "alive": true,
+     "ageMs": 1000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "failed"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "error",
+     "alive": true,
+     "ageMs": 59999,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "failed"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "error",
+     "alive": true,
+     "ageMs": 60000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "failed"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "error",
+     "alive": true,
+     "ageMs": 200000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "failed"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "error",
+     "alive": false,
+     "ageMs": 0,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "failed"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "error",
+     "alive": false,
+     "ageMs": 1000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "failed"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "error",
+     "alive": false,
+     "ageMs": 59999,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "failed"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "error",
+     "alive": false,
+     "ageMs": 60000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "failed"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "error",
+     "alive": false,
+     "ageMs": 200000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "failed"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "error",
+     "ageMs": 0,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "failed"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "error",
+     "ageMs": 1000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "failed"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "error",
+     "ageMs": 59999,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "failed"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "error",
+     "ageMs": 60000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "failed"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "error",
+     "ageMs": 200000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "failed"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "turn-done",
+     "alive": true,
+     "ageMs": 0,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "waiting"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "turn-done",
+     "alive": true,
+     "ageMs": 1000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "waiting"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "turn-done",
+     "alive": true,
+     "ageMs": 59999,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "waiting"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "turn-done",
+     "alive": true,
+     "ageMs": 60000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "waiting"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "turn-done",
+     "alive": true,
+     "ageMs": 200000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "waiting"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "turn-done",
+     "alive": false,
+     "ageMs": 0,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "completed"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "turn-done",
+     "alive": false,
+     "ageMs": 1000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "completed"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "turn-done",
+     "alive": false,
+     "ageMs": 59999,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "completed"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "turn-done",
+     "alive": false,
+     "ageMs": 60000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "completed"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "turn-done",
+     "alive": false,
+     "ageMs": 200000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "completed"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "turn-done",
+     "ageMs": 0,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "waiting"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "turn-done",
+     "ageMs": 1000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "idle"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "turn-done",
+     "ageMs": 59999,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "idle"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "turn-done",
+     "ageMs": 60000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "idle"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "turn-done",
+     "ageMs": 200000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "idle"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "task-done",
+     "alive": true,
+     "ageMs": 0,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "completed"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "task-done",
+     "alive": true,
+     "ageMs": 1000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "completed"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "task-done",
+     "alive": true,
+     "ageMs": 59999,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "completed"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "task-done",
+     "alive": true,
+     "ageMs": 60000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "completed"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "task-done",
+     "alive": true,
+     "ageMs": 200000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "completed"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "task-done",
+     "alive": false,
+     "ageMs": 0,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "completed"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "task-done",
+     "alive": false,
+     "ageMs": 1000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "completed"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "task-done",
+     "alive": false,
+     "ageMs": 59999,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "completed"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "task-done",
+     "alive": false,
+     "ageMs": 60000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "completed"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "task-done",
+     "alive": false,
+     "ageMs": 200000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "completed"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "task-done",
+     "ageMs": 0,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "completed"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "task-done",
+     "ageMs": 1000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "completed"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "task-done",
+     "ageMs": 59999,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "completed"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "task-done",
+     "ageMs": 60000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "completed"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "task-done",
+     "ageMs": 200000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "completed"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "working",
+     "alive": true,
+     "ageMs": 0,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "running"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "working",
+     "alive": true,
+     "ageMs": 1000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "running"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "working",
+     "alive": true,
+     "ageMs": 59999,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "idle"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "working",
+     "alive": true,
+     "ageMs": 60000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "idle"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "working",
+     "alive": true,
+     "ageMs": 200000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "idle"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "working",
+     "alive": false,
+     "ageMs": 0,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "idle"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "working",
+     "alive": false,
+     "ageMs": 1000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "idle"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "working",
+     "alive": false,
+     "ageMs": 59999,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "idle"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "working",
+     "alive": false,
+     "ageMs": 60000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "idle"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "working",
+     "alive": false,
+     "ageMs": 200000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "idle"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "working",
+     "ageMs": 0,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "running"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "working",
+     "ageMs": 1000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "running"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "working",
+     "ageMs": 59999,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "idle"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "working",
+     "ageMs": 60000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "idle"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "working",
+     "ageMs": 200000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "idle"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "tool",
+     "alive": true,
+     "ageMs": 0,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "running"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "tool",
+     "alive": true,
+     "ageMs": 1000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "running"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "tool",
+     "alive": true,
+     "ageMs": 59999,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "stalled"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "tool",
+     "alive": true,
+     "ageMs": 60000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "stalled"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "tool",
+     "alive": true,
+     "ageMs": 200000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "stalled"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "tool",
+     "alive": false,
+     "ageMs": 0,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "idle"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "tool",
+     "alive": false,
+     "ageMs": 1000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "idle"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "tool",
+     "alive": false,
+     "ageMs": 59999,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "idle"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "tool",
+     "alive": false,
+     "ageMs": 60000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "idle"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "tool",
+     "alive": false,
+     "ageMs": 200000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "idle"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "tool",
+     "ageMs": 0,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "running"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "tool",
+     "ageMs": 1000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "running"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "tool",
+     "ageMs": 59999,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "idle"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "tool",
+     "ageMs": 60000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "idle"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "tool",
+     "ageMs": 200000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "idle"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "unknown",
+     "alive": true,
+     "ageMs": 0,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "running"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "unknown",
+     "alive": true,
+     "ageMs": 1000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "running"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "unknown",
+     "alive": true,
+     "ageMs": 59999,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "running"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "unknown",
+     "alive": true,
+     "ageMs": 60000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "waiting"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "unknown",
+     "alive": true,
+     "ageMs": 200000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "waiting"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "unknown",
+     "alive": false,
+     "ageMs": 0,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "idle"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "unknown",
+     "alive": false,
+     "ageMs": 1000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "idle"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "unknown",
+     "alive": false,
+     "ageMs": 59999,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "idle"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "unknown",
+     "alive": false,
+     "ageMs": 60000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "idle"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "unknown",
+     "alive": false,
+     "ageMs": 200000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "idle"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "unknown",
+     "ageMs": 0,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "running"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "unknown",
+     "ageMs": 1000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "running"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "unknown",
+     "ageMs": 59999,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "running"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "unknown",
+     "ageMs": 60000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "idle"
+   }
+  },
+  {
+   "fn": "decideStatus",
+   "args": [
+    {
+     "phase": "unknown",
+     "ageMs": 200000,
+     "stallMs": 1000
+    }
+   ],
+   "out": {
+    "v": "idle"
+   }
+  },
+  {
+   "fn": "parseDshProjcache",
+   "args": [
+    "{\"record\":{\"identity\":{\"cwd\":\"/p\",\"createdAt\":1},\"rows\":{\"title\":{\"val\":\"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT\"},\"permissions\":{\"val\":{\"preset\":\"\",\"sandbox\":\"ro\",\"approval\":\"a\"}}}}}"
+   ],
+   "out": {
+    "v": {
+     "cwd": "/p",
+     "permissionMode": "ro",
+     "title": "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT"
+    }
+   }
+  },
+  {
+   "fn": "parseDshProjcache",
+   "args": [
+    "{\"record\":{\"identity\":{\"cwd\":\"\"},\"rows\":{\"title\":{\"val\":\"\"},\"titleInput\":{\"val\":{\"first\":{\"text\":\"from input\"}}},\"permissions\":{\"val\":{\"approval\":\"ap\"}}}}}"
+   ],
+   "out": {
+    "v": {
+     "cwd": "",
+     "permissionMode": "ap",
+     "title": "from input"
+    }
+   }
+  },
+  {
+   "fn": "parseDshProjcache",
+   "args": [
+    "{\"record\":{\"identity\":{\"cwd\":5},\"rows\":{}}}"
+   ],
+   "out": {
+    "v": {}
+   }
+  },
+  {
+   "fn": "parseDshProjcache",
+   "args": [
+    "null"
+   ],
+   "out": {
+    "v": {}
+   }
+  },
+  {
+   "fn": "parseDshProjcache",
+   "args": [
+    "{bad"
+   ],
+   "out": {
+    "v": {}
+   }
+  },
+  {
+   "fn": "parseDshProjcache",
+   "args": [
+    "7"
+   ],
+   "out": {
+    "v": {}
+   }
+  }
+ ]
+}

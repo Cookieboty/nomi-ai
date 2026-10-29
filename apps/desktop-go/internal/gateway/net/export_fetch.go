@@ -14,4 +14,6 @@ func ApplyUndiciRequestDefaults(req *http.Request) {
 }
 
 // DecodeUndiciResponse：按 undici 规则解码 content-encoding（见 decodeResponse）。
-func DecodeUndiciResponse(method string, resp *http.Response) error { return decodeResponse(method, resp) }
+func DecodeUndiciResponse(method string, resp *http.Response) error {
+	return decodeResponse(method, resp)
+}

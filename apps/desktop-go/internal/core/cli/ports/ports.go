@@ -31,9 +31,10 @@ type GatewayDefaults struct {
 	AccountId *string
 }
 
+// GatewayLaunchOpts：LongContext nil = 缺省（Node 不带该键）。
 type GatewayLaunchOpts struct {
 	TabBound    bool
-	LongContext bool
+	LongContext *bool
 }
 
 // GatewayLaunch：ModelInConfig nil = 缺省（undefined）。

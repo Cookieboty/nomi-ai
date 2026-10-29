@@ -69,9 +69,18 @@ func Load(t *testing.T, path, protocol string) []Scenario {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var g struct{ Scenarios []Scenario }
+	var g struct {
+		Node      string
+		Scenarios []Scenario
+	}
 	if err := json.Unmarshal(b, &g); err != nil {
 		t.Fatal(err)
+	}
+	// The UA runtime suffix is the recording Node's major (D-B5-P-3).
+	if m := strings.SplitN(strings.TrimPrefix(g.Node, "v"), ".", 2); m[0] != "" {
+		prev := llm.RuntimeUserAgent
+		llm.RuntimeUserAgent = "node.js/" + m[0]
+		t.Cleanup(func() { llm.RuntimeUserAgent = prev })
 	}
 	var out []Scenario
 	for _, s := range g.Scenarios {
@@ -397,6 +406,19 @@ func PartJSON(p llm.StreamPart) *util.Obj {
 		}
 	case "raw":
 		o.Set("rawValue", p.RawValue)
+	case "source":
+		o.Set("sourceType", p.SourceType).Set("id", p.ID)
+		if p.SourceType == "url" {
+			o.Set("url", p.URL)
+		} else {
+			o.Set("mediaType", p.MediaType)
+		}
+		if p.Title != nil {
+			o.Set("title", *p.Title)
+		}
+		if p.Filename != nil {
+			o.Set("filename", *p.Filename)
+		}
 	case "custom":
 		o.Set("kind", p.Kind)
 	case "finish":
@@ -507,7 +529,7 @@ func Replay(t *testing.T, sc Scenario, f Factory, ids []string) []string {
 						cancel()
 					}
 				}
-				d.Eq(tag+".parts", c.Parts, parts)
+				d.Eq(tag+".parts", rebaseJSON(srv, c.Parts), parts)
 				if c.StreamError != nil || streamErr != nil {
 					d.Eq(tag+".streamError", rebaseJSON(srv, c.StreamError), ErrJSON(streamErr))
 				}

@@ -159,7 +159,7 @@ func (o *Orchestrator) restoreLastSettings(raw any) {
 	}
 }
 
-func (o *Orchestrator) usesGrokAcp() bool { return o.d.GrokAcp && !o.grokAcpUnavail }
+func (o *Orchestrator) usesGrokAcp() bool { return o.d.GrokAcp && !o.live.grokAcpUnavailable }
 
 func (o *Orchestrator) rememberSettings(tab *util.Obj) {
 	b := str(tab, "backend")

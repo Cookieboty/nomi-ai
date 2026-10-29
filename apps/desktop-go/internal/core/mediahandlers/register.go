@@ -20,6 +20,8 @@ type Deps struct {
 	Logf   func(string, ...any)
 	// OpenVoiceSettings = ports.windows.open('chat', { route: 'voice' })：显示对话窗口 + nav.voiceSettingsRequested
 	OpenVoiceSettings func()
+
+	streams *voiceStreams // 测试注入（Node createVoiceStreams() 的实例）
 }
 
 func bad(msg string) error { return &contract.Error{Code: "BAD_INPUT", Message: msg} }
@@ -177,8 +179,12 @@ func Install(r *contract.Router, d Deps) {
 	})
 	reg("voice.volcClearKey", func(json.RawMessage) (any, error) { return v.ClearVolcKey(), nil })
 	reg("voice.volcTest", func(json.RawMessage) (any, error) { return v.VolcTest(), nil })
-	// 流式识别：豆包网络链路不在 Go 宿主（D-B9-1），start 帧 ok:false 后立即结束
-	r.Stream("voice.streamStart", func(_ context.Context, _ contract.Caller, raw json.RawMessage, emit func(any) error) (any, error) {
+	// 流式识别（豆包 2.0）：第一条 chunk 是启动结果，之后是这个会话的临时结果 / 错误；stop / cancel 后流结束
+	streams := d.streams
+	if streams == nil {
+		streams = newVoiceStreams()
+	}
+	r.Stream("voice.streamStart", func(ctx context.Context, c contract.Caller, raw json.RawMessage, emit func(any) error) (any, error) {
 		o, err := parseObj(raw)
 		if err != nil {
 			return nil, err
@@ -187,16 +193,77 @@ func Install(r *contract.Router, d Deps) {
 		if err != nil {
 			return nil, err
 		}
-		res := v.StreamStart(util.UTF16Slice0(source, 32))
-		chunk := util.NewObj("type", "start").Assign(res)
-		if err := emit(chunk); err != nil {
+		wc := streams.senderFor(c)
+		res := v.StreamStart(wc, source)
+		if res.Get("ok") != true {
+			if err := emit(util.NewObj("type", "start").Assign(res)); err != nil {
+				return nil, err
+			}
+			return nil, nil
+		}
+		sid := res.Get("id").(string)
+		ps := newPushStream()
+		streams.open(sid, wc.ID(), ps)
+		ps.push(util.NewObj("type", "start", "ok", true, "id", sid))
+		for {
+			items, done := ps.next()
+			for _, it := range items {
+				if err := emit(it); err != nil {
+					v.StreamCancel(wc, sid)
+					streams.close(sid, wc.ID())
+					return nil, err
+				}
+			}
+			if done {
+				return nil, nil
+			}
+			select {
+			case <-ps.wake:
+			case <-ctx.Done():
+				// 调用被取消（abort 帧、窗口断开）：撤销会话并结束流
+				v.StreamCancel(wc, sid)
+				streams.close(sid, wc.ID())
+				return nil, ctx.Err()
+			}
+		}
+	})
+	r.Call("voice.streamPush", func(_ context.Context, c contract.Caller, raw json.RawMessage) (any, error) {
+		o, err := parseObj(raw)
+		if err != nil {
 			return nil, err
 		}
-		return nil, nil
+		id, err := str(o, "id", true)
+		if err != nil {
+			return nil, err
+		}
+		pcm, err := bytesField(raw, "pcm")
+		if err != nil {
+			return nil, err
+		}
+		if pcm == nil {
+			pcm = []byte{}
+		}
+		return v.StreamPush(streams.senderFor(c), id, pcm), nil
 	})
-	reg("voice.streamPush", func(json.RawMessage) (any, error) { return false, nil })
-	reg("voice.streamStop", func(json.RawMessage) (any, error) { return v.StreamStop(), nil })
-	reg("voice.streamCancel", func(json.RawMessage) (any, error) { return false, nil })
+	r.Call("voice.streamStop", func(_ context.Context, c contract.Caller, raw json.RawMessage) (any, error) {
+		id, err := byID(raw)
+		if err != nil {
+			return nil, err
+		}
+		wc := streams.senderFor(c)
+		defer streams.close(id, wc.ID())
+		return v.StreamStop(wc, id), nil
+	})
+	r.Call("voice.streamCancel", func(_ context.Context, c contract.Caller, raw json.RawMessage) (any, error) {
+		id, err := byID(raw)
+		if err != nil {
+			return nil, err
+		}
+		wc := streams.senderFor(c)
+		ok := v.StreamCancel(wc, id)
+		streams.close(id, wc.ID())
+		return ok, nil
+	})
 	reg("voice.getMascotSettings", func(json.RawMessage) (any, error) {
 		s := voice.GetMascotVoiceSettings(d.Mascot)
 		if _, u := s.(util.JSUndefined); u {

@@ -52,8 +52,7 @@ func (posixPath) Resolve(ps ...string) string {
 		abs = strings.HasPrefix(ps[i], "/")
 	}
 	if !abs {
-		cwd, _ := os.Getwd()
-		acc = cwd + "/" + acc
+		acc = posixCwd() + "/" + acc
 	}
 	return path.Clean("/" + acc)
 }
@@ -329,4 +328,22 @@ func Tmpdir() string {
 		p = p[:len(p)-1]
 	}
 	return p
+}
+
+// posixCwd mirrors Node's lib/path.js posixCwd: on win32 the cwd's backslashes
+// become '/' and everything before the first '/' (the drive) is dropped.
+func posixCwd() string {
+	cwd, _ := os.Getwd()
+	if runtime.GOOS != "windows" {
+		return cwd
+	}
+	cwd = strings.ReplaceAll(cwd, `\`, "/")
+	i := strings.Index(cwd, "/")
+	if i < 0 {
+		i = len(cwd) - 1 // JS slice(-1)
+		if i < 0 {
+			return ""
+		}
+	}
+	return cwd[i:]
 }

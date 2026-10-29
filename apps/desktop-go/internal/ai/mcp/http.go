@@ -31,6 +31,7 @@ type HTTPTransport struct {
 	ua      string
 
 	mu               sync.Mutex
+	pendingGet       chan struct{} // 入站 GET 尚未写上连接；下一个 POST 先等它（undici fetch() 同步发起的到达顺序）
 	ctl              Signal
 	cancel           func(error)
 	sessionID        string
@@ -230,6 +231,7 @@ func (t *HTTPTransport) Send(msg *u.Obj, opts *SendOptions) <-chan error {
 	if err := throwIfAborted(optSignal); err != nil {
 		return resolved(err)
 	}
+	t.waitPendingGet()
 	ts := t.transportSignal()
 	var reqSignal Signal
 	switch {
@@ -435,10 +437,23 @@ func (t *HTTPTransport) startInboundSse(resume string) {
 	if t.isModern() {
 		return
 	}
-	// fetch() 同步发起：等 GET 写上连接再返回（有界），保持与 Node 相同的到达顺序
+	// fetch() 同步发起、不阻塞调用方：GET 异步发出；随后的 POST（Send）先等它写上连接（有界），
+	// 保持与 Node 相同的到达顺序；紧接着的 close() 不等，直接 abort（与 Node 一样可能在写出前取消）
 	ch := make(chan struct{})
 	var once sync.Once
+	t.mu.Lock()
+	t.pendingGet = ch
+	t.mu.Unlock()
 	go t.openInboundSse(resume, func() { once.Do(func() { close(ch) }) })
+}
+
+func (t *HTTPTransport) waitPendingGet() {
+	t.mu.Lock()
+	ch := t.pendingGet
+	t.mu.Unlock()
+	if ch == nil {
+		return
+	}
 	select {
 	case <-ch:
 	case <-time.After(2 * time.Second):

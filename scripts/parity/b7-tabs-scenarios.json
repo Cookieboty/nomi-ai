@@ -1,0 +1,751 @@
+{
+  "cases": [
+    {
+      "name": "create:defaults",
+      "ops": [
+        [
+          "createTab",
+          {}
+        ],
+        [
+          "createTab",
+          {
+            "backend": "codex",
+            "title": "Second"
+          }
+        ],
+        [
+          "listTabs"
+        ],
+        [
+          "reload"
+        ]
+      ]
+    },
+    {
+      "name": "create:gemini-cwd-mode",
+      "ops": [
+        [
+          "createTab",
+          {
+            "backend": "gemini",
+            "cwd": "$W",
+            "permissionMode": "plan"
+          }
+        ],
+        [
+          "createTab",
+          {
+            "backend": "claude",
+            "permissionMode": "bypass"
+          }
+        ],
+        [
+          "reload"
+        ]
+      ]
+    },
+    {
+      "name": "create:bad-backend",
+      "ops": [
+        [
+          "createTab",
+          {
+            "backend": "nope"
+          }
+        ],
+        [
+          "createTab",
+          {
+            "backend": "nomi"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "create:fork-messages",
+      "ops": [
+        [
+          "createTab",
+          {
+            "backend": "claude",
+            "title": "Fork",
+            "messages": [
+              {
+                "id": "m1",
+                "role": "user",
+                "content": "hi"
+              },
+              {
+                "id": "m2",
+                "role": "assistant",
+                "content": "yo"
+              }
+            ]
+          }
+        ],
+        [
+          "tabMessages",
+          "$0"
+        ],
+        [
+          "reload"
+        ],
+        [
+          "tabMessages",
+          "$0"
+        ]
+      ]
+    },
+    {
+      "name": "rename:trim-and-empty",
+      "ops": [
+        [
+          "createTab",
+          {}
+        ],
+        [
+          "renameTab",
+          "$0",
+          "  New name  "
+        ],
+        [
+          "renameTab",
+          "$0",
+          "   "
+        ],
+        [
+          "renameTab",
+          "$0",
+          "x"
+        ],
+        [
+          "renameTab",
+          "missing",
+          "y"
+        ],
+        [
+          "reload"
+        ]
+      ]
+    },
+    {
+      "name": "active:switch-close",
+      "ops": [
+        [
+          "createTab",
+          {
+            "title": "A"
+          }
+        ],
+        [
+          "createTab",
+          {
+            "title": "B"
+          }
+        ],
+        [
+          "createTab",
+          {
+            "title": "C"
+          }
+        ],
+        [
+          "setActiveTab",
+          "$1"
+        ],
+        [
+          "closeTab",
+          "$1"
+        ],
+        [
+          "closeTab",
+          "main"
+        ],
+        [
+          "closeTab",
+          "$0"
+        ],
+        [
+          "reload"
+        ]
+      ]
+    },
+    {
+      "name": "order:insertion-after-close",
+      "ops": [
+        [
+          "createTab",
+          {
+            "title": "A"
+          }
+        ],
+        [
+          "createTab",
+          {
+            "title": "B"
+          }
+        ],
+        [
+          "closeTab",
+          "$0"
+        ],
+        [
+          "createTab",
+          {
+            "title": "C"
+          }
+        ],
+        [
+          "renameTab",
+          "$1",
+          "B2"
+        ],
+        [
+          "listTabs"
+        ],
+        [
+          "reload"
+        ]
+      ]
+    },
+    {
+      "name": "backend:switch",
+      "ops": [
+        [
+          "createTab",
+          {
+            "backend": "claude"
+          }
+        ],
+        [
+          "setTabBackend",
+          "$0",
+          "gemini"
+        ],
+        [
+          "setTabBackend",
+          "$0",
+          "nomi"
+        ],
+        [
+          "setTabBackend",
+          "$0",
+          "bad"
+        ],
+        [
+          "setTabBackend",
+          "main",
+          "codex"
+        ],
+        [
+          "reload"
+        ]
+      ]
+    },
+    {
+      "name": "cwd:set",
+      "ops": [
+        [
+          "createTab",
+          {}
+        ],
+        [
+          "setTabCwd",
+          "$0",
+          "$W",
+          {
+            "carry": false
+          }
+        ],
+        [
+          "setTabCwd",
+          "$0",
+          "$T/missing",
+          {}
+        ],
+        [
+          "setCwd",
+          "$W",
+          {}
+        ],
+        [
+          "recentCwds"
+        ],
+        [
+          "reload"
+        ]
+      ]
+    },
+    {
+      "name": "perm:modes",
+      "ops": [
+        [
+          "createTab",
+          {
+            "backend": "claude"
+          }
+        ],
+        [
+          "setTabPermissionMode",
+          "$0",
+          "plan"
+        ],
+        [
+          "setTabPermissionMode",
+          "$0",
+          "manual"
+        ],
+        [
+          "setTabPermissionMode",
+          "$0",
+          "bogus"
+        ],
+        [
+          "setPermissionDefaults",
+          {
+            "defaultPermissionMode": "acceptEdits",
+            "codexNetwork": false,
+            "autoApprove": false
+          }
+        ],
+        [
+          "createTab",
+          {
+            "backend": "codex"
+          }
+        ],
+        [
+          "reload"
+        ]
+      ]
+    },
+    {
+      "name": "effort:set",
+      "ops": [
+        [
+          "createTab",
+          {
+            "backend": "codex"
+          }
+        ],
+        [
+          "setTabReasoningEffort",
+          "$0",
+          "high"
+        ],
+        [
+          "setTabReasoningEffort",
+          "$0",
+          "bogus"
+        ],
+        [
+          "setTabReasoningEffort",
+          "$0",
+          null
+        ],
+        [
+          "reload"
+        ]
+      ]
+    },
+    {
+      "name": "seed:messages",
+      "ops": [
+        [
+          "createTab",
+          {
+            "backend": "gemini"
+          }
+        ],
+        [
+          "seedTabMessages",
+          "$0",
+          [
+            {
+              "id": "u1",
+              "role": "user",
+              "content": "a"
+            },
+            {
+              "id": "a1",
+              "role": "assistant",
+              "content": "b"
+            }
+          ]
+        ],
+        [
+          "seedTabMessages",
+          "main",
+          []
+        ],
+        [
+          "tabMessages",
+          "$0"
+        ],
+        [
+          "clearTabCarry",
+          "$0"
+        ],
+        [
+          "reload"
+        ],
+        [
+          "tabMessages",
+          "$0"
+        ]
+      ]
+    },
+    {
+      "name": "rewind:gemini",
+      "ops": [
+        [
+          "createTab",
+          {
+            "backend": "gemini"
+          }
+        ],
+        [
+          "seedTabMessages",
+          "$0",
+          [
+            {
+              "id": "u1",
+              "role": "user",
+              "content": "a"
+            },
+            {
+              "id": "a1",
+              "role": "assistant",
+              "content": "b"
+            },
+            {
+              "id": "u2",
+              "role": "user",
+              "content": "c"
+            },
+            {
+              "id": "a2",
+              "role": "assistant",
+              "content": "d"
+            }
+          ]
+        ],
+        [
+          "rewindTab",
+          "$0",
+          "u2"
+        ],
+        [
+          "rewindTab",
+          "$0",
+          "zz"
+        ],
+        [
+          "rewindTab",
+          "$0",
+          "a1"
+        ],
+        [
+          "rewindTab",
+          "main",
+          "u1"
+        ],
+        [
+          "reload"
+        ],
+        [
+          "tabMessages",
+          "$0"
+        ]
+      ]
+    },
+    {
+      "name": "rewind:claude-no-session",
+      "ops": [
+        [
+          "createTab",
+          {
+            "backend": "claude"
+          }
+        ],
+        [
+          "seedTabMessages",
+          "$0",
+          [
+            {
+              "id": "u1",
+              "role": "user",
+              "content": "a"
+            },
+            {
+              "id": "a1",
+              "role": "assistant",
+              "content": "b"
+            },
+            {
+              "id": "u2",
+              "role": "user",
+              "content": "c"
+            }
+          ]
+        ],
+        [
+          "rewindTab",
+          "$0",
+          "u2"
+        ],
+        [
+          "reload"
+        ]
+      ]
+    },
+    {
+      "name": "rewind:claude-session-yield",
+      "ops": [
+        [
+          "createTab",
+          {
+            "backend": "claude",
+            "cliSessionId": "11111111-2222-3333-4444-555555555555"
+          }
+        ],
+        [
+          "seedTabMessages",
+          "$0",
+          [
+            {
+              "id": "u1",
+              "role": "user",
+              "content": "a"
+            },
+            {
+              "id": "a1",
+              "role": "assistant",
+              "content": "b"
+            },
+            {
+              "id": "u2",
+              "role": "user",
+              "content": "c"
+            }
+          ]
+        ],
+        [
+          "async",
+          "rewindTab",
+          "$0",
+          "u2"
+        ],
+        [
+          "seedTabMessages",
+          "$0",
+          [
+            {
+              "id": "u1",
+              "role": "user",
+              "content": "a"
+            }
+          ]
+        ],
+        [
+          "renameTab",
+          "$0",
+          "during"
+        ],
+        [
+          "await"
+        ],
+        [
+          "async",
+          "rewindTab",
+          "$0",
+          "u1"
+        ],
+        [
+          "seedTabMessages",
+          "$0",
+          [
+            {
+              "id": "x1",
+              "role": "user",
+              "content": "z"
+            }
+          ]
+        ],
+        [
+          "await"
+        ],
+        [
+          "reload"
+        ]
+      ]
+    },
+    {
+      "name": "load:legacy-files",
+      "files": {
+        "session.json": {
+          "backend": "codex",
+          "cwd": "$W",
+          "cliSessionId": "s-main",
+          "title": "Main T",
+          "permissionMode": "plan",
+          "reasoningEffort": "high"
+        },
+        "tabs.json": {
+          "activeTabId": "t2",
+          "defaultPermissionMode": "manual",
+          "codexNetwork": false,
+          "tabs": [
+            {
+              "id": "t1",
+              "title": "One",
+              "backend": "claude",
+              "cwd": "$W",
+              "status": "running",
+              "unread": "3",
+              "permissionMode": "manual",
+              "cliSessionId": null
+            },
+            {
+              "id": "t2",
+              "title": "Two",
+              "backend": "gemini",
+              "cwd": "$W",
+              "status": "error",
+              "permissionMode": "plan",
+              "lastServedRef": "bad ref!"
+            },
+            {
+              "id": "main",
+              "title": "dup"
+            },
+            {
+              "id": "t3",
+              "backend": "nomi"
+            },
+            {
+              "id": "t4",
+              "backend": "external"
+            },
+            {
+              "title": "noid"
+            }
+          ]
+        }
+      },
+      "ops": [
+        [
+          "listTabs"
+        ],
+        [
+          "reload"
+        ]
+      ]
+    },
+    {
+      "name": "load:autoapprove-set",
+      "files": {
+        "tabs.json": {
+          "activeTabId": "zz",
+          "defaultPermissionMode": "bypass",
+          "autoApprove": false,
+          "lastSettings": {
+            "claude": {
+              "permissionMode": "plan"
+            }
+          },
+          "tabs": [
+            {
+              "id": "t1",
+              "title": "One",
+              "backend": "codex",
+              "cwd": "$W",
+              "permissionMode": "acceptEdits"
+            }
+          ]
+        }
+      },
+      "ops": [
+        [
+          "listTabs"
+        ],
+        [
+          "reload"
+        ]
+      ]
+    },
+    {
+      "name": "load:corrupt",
+      "files": {
+        "session.json": "{not json",
+        "tabs.json": "[1,2"
+      },
+      "ops": [
+        [
+          "listTabs"
+        ],
+        [
+          "reload"
+        ]
+      ]
+    },
+    {
+      "name": "load:legacy-default-cwd",
+      "files": {
+        "session.json": {
+          "backend": "claude",
+          "cwd": "$T/docs",
+          "cliSessionId": "keep?"
+        }
+      },
+      "ops": [
+        [
+          "reload"
+        ]
+      ]
+    },
+    {
+      "name": "load:messages-file",
+      "files": {
+        "tabs.json": {
+          "autoApprove": true,
+          "tabs": [
+            {
+              "id": "t1",
+              "title": "One",
+              "backend": "gemini",
+              "cwd": "$W",
+              "permissionMode": "bypass"
+            }
+          ]
+        },
+        "tabs/t1.json": [
+          {
+            "id": "u1",
+            "role": "user",
+            "content": "persisted"
+          }
+        ]
+      },
+      "ops": [
+        [
+          "tabMessages",
+          "t1"
+        ],
+        [
+          "rewindTab",
+          "t1",
+          "u1"
+        ],
+        [
+          "reload"
+        ],
+        [
+          "tabMessages",
+          "t1"
+        ]
+      ]
+    }
+  ]
+}

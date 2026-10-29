@@ -3,13 +3,16 @@ package voice
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"errors"
+	"fmt"
 	"io"
-	"mime/multipart"
+	"math/big"
 	"net/http"
-	"net/textproto"
 	"regexp"
+	"strings"
 
+	gnet "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/net"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
@@ -32,47 +35,67 @@ type CloudOpts struct {
 	T        func(key string, args ...any) string
 }
 
-// BuildForm：与 undici FormData 相同的字段顺序与文件头（boundary 不同：D-B9-6）
-func BuildForm(o CloudOpts) (body []byte, contentType string) {
-	var b bytes.Buffer
-	w := multipart.NewWriter(&b)
-	h := textproto.MIMEHeader{}
-	h.Set("Content-Disposition", `form-data; name="file"; filename="speech.wav"`)
-	h.Set("Content-Type", "audio/wav")
-	fw, _ := w.CreatePart(h)
-	_, _ = fw.Write(o.Wav)
-	_ = w.WriteField("model", o.Model)
-	_ = w.WriteField("response_format", "json")
-	if o.Language != "" && o.Language != "auto" {
-		_ = w.WriteField("language", o.Language)
-	}
-	if o.Prompt != "" {
-		_ = w.WriteField("prompt", o.Prompt)
-	}
-	_ = w.Close()
-	return b.Bytes(), w.FormDataContentType()
+// undiciBoundary = undici extractBody：`----formdata-undici-0${`${random(1e11)}`.padStart(11, '0')}`
+func undiciBoundary() string {
+	n, _ := rand.Int(rand.Reader, big.NewInt(1e11))
+	return fmt.Sprintf("----formdata-undici-0%011d", n.Int64())
 }
 
-// TranscribeOpenAICompat = transcribeOpenAICompat(o)
+// BuildForm = undici 对 FormData 的序列化（字段顺序、头、结尾 `--boundary--` 不带 CRLF）
+func BuildForm(o CloudOpts) (body []byte, contentType string) {
+	return buildFormWith(o, undiciBoundary())
+}
+
+func buildFormWith(o CloudOpts, boundary string) ([]byte, string) {
+	var b bytes.Buffer
+	prefix := "--" + boundary + "\r\nContent-Disposition: form-data"
+	field := func(name, value string) {
+		b.WriteString(prefix + `; name="` + name + "\"\r\n\r\n" + strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(value, "\r\n", "\n"), "\r", "\n"), "\n", "\r\n") + "\r\n")
+	}
+	b.WriteString(prefix + `; name="file"; filename="speech.wav"` + "\r\nContent-Type: audio/wav\r\n\r\n")
+	b.Write(o.Wav)
+	b.WriteString("\r\n")
+	field("model", o.Model)
+	field("response_format", "json")
+	if o.Language != "" && o.Language != "auto" {
+		field("language", o.Language)
+	}
+	if o.Prompt != "" {
+		field("prompt", o.Prompt)
+	}
+	b.WriteString("--" + boundary + "--")
+	return b.Bytes(), "multipart/form-data; boundary=" + boundary
+}
+
+// cloudClient：Node 全局 fetch 不读代理环境变量、不走 h2；压缩协商交给 undici 规则（DisableCompression）
+var cloudClient = &http.Client{Transport: &http.Transport{DisableCompression: true}}
+
+// TranscribeOpenAICompat = transcribeOpenAICompat(o)（全局 fetch：undici 默认请求头，user-agent 为 node）
 func TranscribeOpenAICompat(ctx context.Context, o CloudOpts) (string, error) {
 	body, ct := BuildForm(o)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, TranscriptionsURL(o.BaseURL), bytes.NewReader(body))
 	if err != nil {
 		return "", err
 	}
-	req.Header.Set("Content-Type", ct)
+	req.Header = http.Header{}
 	if o.APIKey != "" {
-		req.Header.Set("Authorization", "Bearer "+o.APIKey)
+		req.Header["Authorization"] = []string{"Bearer " + o.APIKey}
 	}
+	req.Header["content-type"] = []string{ct}
+	req.Header["User-Agent"] = []string{"node"} // Node 全局 fetch 的 UA；用规范名避免 net/http 再补 Go-http-client
+	gnet.ApplyUndiciRequestDefaults(req)
 	c := o.Client
 	if c == nil {
-		c = http.DefaultClient
+		c = cloudClient
 	}
 	res, err := c.Do(req)
 	if err != nil {
 		return "", err
 	}
 	defer res.Body.Close()
+	if err := gnet.DecodeUndiciResponse(req.Method, res); err != nil {
+		return "", err
+	}
 	rb, err := io.ReadAll(res.Body)
 	if err != nil {
 		return "", err

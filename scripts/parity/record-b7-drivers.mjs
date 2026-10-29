@@ -90,4 +90,16 @@ if (process.env.NOMI_GOLDEN_DIR) {
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7-ws.mjs')], { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s.mjs')], { stdio: 'inherit', cwd: root });
   execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s-reader.mjs')], { stdio: 'inherit', cwd: root });
+  execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s-update.mjs')], { stdio: 'inherit', cwd: root });
+  execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s-agents.mjs')], { stdio: 'inherit', cwd: root });
+  execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s-history.mjs')], { stdio: 'inherit', cwd: root });
+  execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s-host.mjs')], { stdio: 'inherit', cwd: root });
+  // 批次 7s2：delegate（core / worktree / DelegateService）
+  execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b7s2-delegate.mjs')], { stdio: 'inherit', cwd: root });
+  // 批次 5：prepareChat（会话工作区 + 外发检查，D-B5-10）
+  execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b5-prepchat.mjs')], { stdio: 'inherit', cwd: root });
+  execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-b5-batch.mjs')], { stdio: 'inherit', cwd: root });
+  // shell.ts 的 diagnostics / appIcon / updates / quality / usage / gateway（record-shell.mjs 依赖 gateway dist 的 redactText）
+  execSync('pnpm --filter @nomi-ai/gateway build', { stdio: 'inherit', cwd: root });
+  execFileSync(process.execPath, ['--import', 'tsx', join(here, 'record-shell.mjs')], { stdio: 'inherit', cwd: root });
 }

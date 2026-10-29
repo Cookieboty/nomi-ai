@@ -6,11 +6,23 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"encoding/json"
+	"errors"
+	blm "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/llm"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/tools"
+	aitools "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/tools"
+	aiproviders "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/providers"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/runtime/airouter"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/runtime/aisdk/mcpbridge"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/sdk/facade"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/assetproto"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop/parse"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/extensions"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/local"
 	"io/fs"
 	"log"
 	"net/http"
@@ -18,6 +30,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
@@ -172,7 +185,34 @@ func main() {
 	desktopSvc.StartReminders()
 	// 批次 8：知识库 / 记忆 / 定时 / 本地模型 / 导出 / 扩展。
 	// Desktop 用批次 6 的同一个 DesktopService；TODO(batch-4/5): Complete / Gateway 接 AI runtime。
+	// createCore complete()：知识库 / 记忆 / 日程的 AI 补全，延迟绑定 ChatFacade（AI runtime 未就绪 → electron.common.ai-service-not-ready）
+	var chatFacadeRef atomic.Pointer[facade.Chat]
+	complete := func(ctx context.Context, msgs []deps.Msg) (string, error) {
+		chatFacade := chatFacadeRef.Load()
+		if chatFacade == nil {
+			return "", errors.New(i18n.T("electron.common.ai-service-not-ready"))
+		}
+		role := "chat"
+		cm := make([]blm.ChatMessage, 0, len(msgs))
+		for _, m := range msgs {
+			cm = append(cm, blm.ChatMessage{Role: m.Role, Content: m.Content})
+		}
+		resp, err := chatFacade.SendMessage(ctx, &facade.ChatStreamOptions{Role: &role, Messages: cm, Signal: ctx.Done()})
+		if err != nil {
+			return "", err
+		}
+		return resp.Content, nil
+	}
+	// D-B8-2：LocalModelService 的 gateway()（createCore: services.gateway ?? null）；网关服务稍后创建，延迟取
+	var gatewaySvc *gwstore.Service
 	b8 := knowledgehandlers.Wire(knowledgehandlers.WireDeps{
+		Gateway: func() local.GatewayLike {
+			if gatewaySvc == nil {
+				return nil
+			}
+			return shellhandlers.LocalGateway(gatewaySvc)()
+		},
+		Complete: complete,
 		UserData: userData,
 		Router:   router,
 		Secrets:  security.NewSecretBox("extensions"),
@@ -190,24 +230,83 @@ func main() {
 	// AIRuntimeBoot：内存 ProviderStore + ProviderService（providers.* 契约过程 + providers.changed）
 	providerBox := security.NewSecretBox("providers")
 	// GatewayStore：userData/gateway/store.json，格式 / 迁移 / 归档对齐 Node GatewayService.init（D-B4d-5 已消除）
-	gatewaySvc := gwstore.NewServiceForUserData(userData, gwstore.NewCipher(providerBox), nil)
+	gatewaySvc = gwstore.NewServiceForUserData(userData, gwstore.NewCipher(providerBox), nil)
+	gatewaySvc.Store.SetPresetDeps(gwstore.FindPresetDeps())
+	gatewaySvc.AttachRuntime(gwstore.RuntimeDeps{
+		Root: filepath.Join(userData, "gateway"), Lazy: true, Env: processEnv(),
+		RouteListening: func() bool { return false },
+		Broadcast:      func(ev string, p any) { router.Emit(ev, p) },
+		EnvProviders:   func() []gwstore.EnvProvider { return shellhandlers.GatewayEnvProviders(processEnv()) },
+	})
 	if err := gatewaySvc.Init(); err != nil {
 		log.Printf("[gateway] store init failed: %v", err)
 	}
-	providerSvc := shellhandlers.NewProviderService(providerBox, processEnv(), nil)
+	gatewaySvc.Start()
+	defer gatewaySvc.Dispose()
+	providerSvc, llmRegistry := shellhandlers.NewProviderRuntime(providerBox, processEnv(), nil, func(role string) *aiproviders.GatewayResolution {
+		r := gatewaySvc.NomiRoute(role)
+		if r == nil {
+			return nil
+		}
+		return &aiproviders.GatewayResolution{BaseURL: r.BaseURL, Token: r.Token, Model: r.Model, Protocol: r.Protocol,
+			Receiver: aitools.ToolCallProvider{ID: r.ReceiverID, BaseURL: r.ReceiverBaseURL}, Client: r.Client}
+	})
 	if providerBox == nil || !providerBox.CanEncrypt() {
 		log.Printf("[ai-runtime] warn: 系统安全存储（safeStorage）不可用：provider token 仅做编码保存，未加密。面板中会提示用户。")
 	}
 	shellhandlers.InstallProviders(router, providerSvc)
+	// ToolRegistry（ig ctx 的 ToolRegistryKey）+ MCP 桥（AiSdkMcpPlugin / McpBridgePlugin）+ ext.attach（desktop/plugin.ts）
+	toolRegistry := tools.NewInMemory()
+	mcpLog := mcpLogger{}
+	mcpSvc := mcpbridge.New(mcpbridge.Options{
+		GetRegistry: func() tools.Registry { return toolRegistry },
+		Logger:      mcpLog,
+		GuardTool:   mcpbridge.GuardFromExt(b8.Ext),
+	})
+	mcpbridge.Apply(mcpSvc, mcpbridge.PluginConfig{
+		Servers:     mcpbridge.ServersFromEnv(os.LookupEnv),
+		AutoConnect: mcpbridge.AutoConnectFromEnv(os.LookupEnv),
+	}, mcpLog)
+	defer mcpSvc.Dispose()
+	b8.Ext.Attach(func() extensions.McpRuntime { return mcpbridge.ExtRuntime{S: mcpSvc} }, mcpbridge.ExtRegistry{R: toolRegistry})
+	// ChatFacade + AiContractRouter 的 ai.chat.*（覆盖 core.Core 的演示 ai.chat.stream）
+	chatFacade := facade.NewChat(facade.Deps{
+		LLM:   func() facade.Registry { return airouter.Routed{R: llmRegistry} },
+		Tools: func() tools.Registry { return toolRegistry },
+		Emit:  airouter.PublishAssistantMessage(router.Emit),
+	})
+	chatFacadeRef.Store(chatFacade)
+	// createCore：desktop.attachRuntime（工具结果接收者 / 摘要补全）+ prepareChat（会话工作区 + 外发检查，D-B5-10）
+	desktopSvc.AttachRuntime(shellhandlers.DesktopRuntimeHooks(providerSvc, llmRegistry, gatewaySvc,
+		func(ctx context.Context, role string, msgs []blm.ChatMessage) (string, error) {
+			resp, err := chatFacade.SendMessage(ctx, &facade.ChatStreamOptions{Role: &role, Messages: msgs, Signal: ctx.Done()})
+			if err != nil {
+				return "", err
+			}
+			return resp.Content, nil
+		}))
+	chatHandlers := airouter.New(airouter.Options{Chat: chatFacade, Logger: deps.StdLogger{Prefix: "[ai-runtime]"},
+		PrepareChat: desktopSvc.ChatPrep().PrepareChat})
+	chatHandlers.Register(router)
+	defer chatHandlers.Dispose()
+	shellhandlers.InstallGateway(router, gatewaySvc)
 	// 批次 9：语音输入（voice.*）/ 朗读（tts.*）/ nav.openVoiceSettings
+	voiceGateway := func() mediahandlers.GatewayLike {
+		if gatewaySvc == nil {
+			return nil
+		}
+		return gatewaySvc
+	}
 	mediahandlers.Wire(mediahandlers.WireDeps{
-		UserData:  userData,
-		Router:    router,
-		Config:    bundle.Config,
-		Env:       processEnv(),
-		T:         i18n.T,
-		Logf:      log.Printf,
-		LocalOnly: func() bool { return desktopSvc.Broker.View().LocalOnly },
+		Providers:   mediahandlers.GatewayProviders(voiceGateway),
+		Credentials: mediahandlers.GatewayCredentials(voiceGateway),
+		UserData:    userData,
+		Router:      router,
+		Config:      bundle.Config,
+		Env:         processEnv(),
+		T:           i18n.T,
+		Logf:        log.Printf,
+		LocalOnly:   func() bool { return desktopSvc.Broker.View().LocalOnly },
 		Audit: func(e voice.AuditEvent) {
 			desktopSvc.Audit.Append(desktop.AuditEntry{Tool: e.Tool, Decision: e.Decision, Result: e.Result, Ms: e.Ms,
 				Source: "voice", Provider: e.Provider}, json.RawMessage(util.Stringify(e.Args)))
@@ -216,6 +315,17 @@ func main() {
 			if sh != nil {
 				sh.Show(shell.Chat)
 			}
+		},
+		OpenChatOnceLoaded: func() func(func()) {
+			if l, ok := sh.(interface {
+				ShowOnceLoaded(shell.WindowKind) func(func())
+			}); ok {
+				return l.ShowOnceLoaded(shell.Chat)
+			}
+			if sh != nil {
+				sh.Show(shell.Chat)
+			}
+			return nil
 		},
 		DefaultWakePhrase: func() string {
 			for _, p := range []*character.Pack{charSvc.Resolved(), charSvc.Builtin()} {
@@ -228,6 +338,8 @@ func main() {
 			return ""
 		},
 	})
+	shellP := installShellProcs(router, userData, &sh, gatewaySvc)
+	defer wireHarness(router, userData, home, ports)()
 	log.Printf("[desktop-go] %d contract procedures stubbed (not implemented yet)", procs.Install(router))
 
 	ws := &contract.WSServer{Router: router, Token: contract.NewToken(), Origins: map[string]bool{
@@ -262,6 +374,8 @@ func main() {
 				assetproto.ServeCharacterPack(w, charSvc.Root(), u)
 			},
 		}))})
+
+	shellP.AttachShell()
 
 	if ctl != "" {
 		go http.ListenAndServe(ctl, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -366,3 +480,10 @@ func islandPageMiddleware(isl *island.Service, next func(http.Handler) http.Hand
 		})
 	}
 }
+
+// mcpLogger：mcpbridge.Logger（ConsoleRuntimeLogger 的 [mcp] 前缀）
+type mcpLogger struct{}
+
+func (mcpLogger) Info(m string, kv ...any)  { log.Println(append([]any{"[mcp]", m}, kv...)...) }
+func (mcpLogger) Warn(m string, kv ...any)  { log.Println(append([]any{"[mcp] WARN", m}, kv...)...) }
+func (mcpLogger) Error(m string, kv ...any) { log.Println(append([]any{"[mcp] ERROR", m}, kv...)...) }
