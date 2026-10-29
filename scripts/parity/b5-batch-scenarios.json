@@ -1,0 +1,18 @@
+{
+  "ms": 16,
+  "scenarios": [
+    { "name": "burst-within-window", "events": [[0, {"type":"delta","content":"a"}], [1, {"type":"delta","content":"b"}], [5, {"type":"delta","content":"c"}], [40, "done"]] },
+    { "name": "spans-two-windows", "events": [[0, {"type":"delta","content":"a"}], [10, {"type":"delta","content":"b"}], [20, {"type":"delta","content":"c"}], [30, {"type":"delta","content":"d"}], [100, "done"]] },
+    { "name": "type-switch", "events": [[0, {"type":"reasoning","content":"r1"}], [2, {"type":"reasoning","content":"r2"}], [4, {"type":"delta","content":"d1"}], [6, {"type":"delta","content":"d2"}], [50, "done"]] },
+    { "name": "non-text-flushes", "events": [[0, {"type":"delta","content":"a"}], [3, {"type":"tool_call","id":"t1"}], [4, {"type":"delta","content":"b"}], [5, {"type":"delta","content":"c","extra":1}], [6, {"type":"delta","content":"d"}], [60, "done"]] },
+    { "name": "done-flushes-held", "events": [[0, {"type":"delta","content":"a"}], [2, {"type":"delta","content":"b"}], [3, "done"]] },
+    { "name": "error-drops-held", "events": [[0, {"type":"delta","content":"a"}], [5, {"type":"delta","content":"b"}], [8, "error"]] },
+    { "name": "error-after-flush", "events": [[0, {"type":"delta","content":"a"}], [30, "error"]] },
+    { "name": "exact-deadline-tie", "events": [[0, {"type":"delta","content":"a"}], [16, {"type":"delta","content":"b"}], [32, {"type":"delta","content":"c"}], [48, "done"]] },
+    { "name": "one-past-deadline", "events": [[0, {"type":"delta","content":"a"}], [17, {"type":"delta","content":"b"}], [70, "done"]] },
+    { "name": "empty-content", "events": [[0, {"type":"delta","content":""}], [1, {"type":"delta","content":""}], [3, {"type":"done"}], [4, "done"]] },
+    { "name": "non-text-only", "events": [[0, {"type":"usage","n":1}], [0, {"type":"done","finish":"stop"}], [1, "done"]] },
+    { "name": "same-tick-many", "events": [[0, {"type":"delta","content":"x"}], [0, {"type":"delta","content":"y"}], [0, {"type":"reasoning","content":"z"}], [0, {"type":"delta","content":"w"}], [20, "done"]] },
+    { "name": "long-gap-stream", "events": [[0, {"type":"delta","content":"1"}], [100, {"type":"delta","content":"2"}], [101, {"type":"delta","content":"3"}], [200, {"type":"tool_call","id":"x"}], [201, {"type":"delta","content":"4"}], [215, {"type":"delta","content":"5"}], [216, {"type":"delta","content":"6"}], [400, "done"]] }
+  ]
+}

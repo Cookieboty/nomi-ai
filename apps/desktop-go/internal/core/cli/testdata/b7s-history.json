@@ -1,0 +1,4609 @@
+{
+ "platform": "linux",
+ "scenarios": [
+  {
+   "name": "pure",
+   "files": [],
+   "steps": [
+    [
+     "meta",
+     "{\"type\":\"session_meta\",\"payload\":{\"source\":\"vscode\",\"originator\":\"Codex Desktop\",\"model_provider\":\"openai\"}}\n"
+    ],
+    [
+     "meta",
+     "{\"type\":\"session_meta\",\"payload\":{\"source\":{\"subagent\":\"x\"},\"originator\":\"  \",\"model_provider\":7}}\n"
+    ],
+    [
+     "meta",
+     "{\"type\":\"session_meta\",\"payload\":{\"source\":null}}\n"
+    ],
+    [
+     "meta",
+     ""
+    ],
+    [
+     "meta",
+     "garbage\n{\"type\":\"x\"}\n"
+    ],
+    [
+     "meta",
+     "{\"type\":\"session_meta\"}\n"
+    ],
+    [
+     "meta",
+     "{\"type\":\"session_meta\",\"payload\":\"str\"}\n"
+    ],
+    [
+     "sub",
+     "cli"
+    ],
+    [
+     "sub",
+     " {\"subagent\":1}"
+    ],
+    [
+     "sub",
+     "{bad"
+    ],
+    [
+     "sub",
+     "{\"other\":1}"
+    ],
+    [
+     "sub",
+     {
+      "subagent": {
+       "other": "guardian"
+      }
+     }
+    ],
+    [
+     "sub",
+     null
+    ],
+    [
+     "sub",
+     7
+    ],
+    [
+     "sub",
+     [
+      "subagent"
+     ]
+    ],
+    [
+     "sub",
+     "\"{x\""
+    ],
+    [
+     "sub",
+     " {\"subagent\":null}"
+    ],
+    [
+     "route",
+     null
+    ],
+    [
+     "route",
+     ""
+    ],
+    [
+     "route",
+     "openai"
+    ],
+    [
+     "route",
+     "nomi_gateway"
+    ],
+    [
+     "route",
+     "custom"
+    ],
+    [
+     "route",
+     "OpenAI"
+    ],
+    [
+     "client",
+     "nomi",
+     null
+    ],
+    [
+     "client",
+     " Nomi-desktop ",
+     null
+    ],
+    [
+     "client",
+     "Codex Desktop",
+     null
+    ],
+    [
+     "client",
+     "codex_work_desktop",
+     "cli"
+    ],
+    [
+     "client",
+     "codex_vscode",
+     null
+    ],
+    [
+     "client",
+     "codex_exec",
+     null
+    ],
+    [
+     "client",
+     null,
+     "exec"
+    ],
+    [
+     "client",
+     "codex_cli_rs",
+     "vscode"
+    ],
+    [
+     "client",
+     null,
+     "cli"
+    ],
+    [
+     "client",
+     null,
+     "vscode"
+    ],
+    [
+     "client",
+     "other",
+     "other"
+    ],
+    [
+     "client",
+     null,
+     null
+    ],
+    [
+     "client",
+     "NOMI",
+     "exec"
+    ],
+    [
+     "changed",
+     [
+      [
+       "a",
+       {
+        "id": "a",
+        "n": 1
+       }
+      ],
+      [
+       "b",
+       {
+        "id": "b",
+        "name": "x"
+       }
+      ]
+     ],
+     [
+      [
+       "a",
+       {
+        "id": "a",
+        "n": 1
+       }
+      ],
+      [
+       "b",
+       {
+        "id": "b",
+        "name": "y"
+       }
+      ],
+      [
+       "c",
+       {
+        "id": "c"
+       }
+      ]
+     ]
+    ],
+    [
+     "changed",
+     [
+      [
+       "a",
+       {
+        "id": "a",
+        "x": null
+       }
+      ]
+     ],
+     [
+      [
+       "a",
+       {
+        "id": "a"
+       }
+      ]
+     ]
+    ],
+    [
+     "changed",
+     [
+      [
+       "a",
+       {
+        "id": "a",
+        "x": 1
+       }
+      ]
+     ],
+     [
+      [
+       "a",
+       {
+        "id": "a",
+        "x": "1"
+       }
+      ]
+     ]
+    ],
+    [
+     "changed",
+     [
+      [
+       "z",
+       {
+        "id": "z"
+       }
+      ],
+      [
+       "a",
+       {
+        "id": "a"
+       }
+      ]
+     ],
+     []
+    ],
+    [
+     "changed",
+     [],
+     []
+    ],
+    [
+     "changed",
+     [
+      [
+       "a",
+       {
+        "id": "a",
+        "x": 0
+       }
+      ]
+     ],
+     [
+      [
+       "a",
+       {
+        "id": "a",
+        "x": 0
+       }
+      ]
+     ]
+    ]
+   ],
+   "out": [
+    {
+     "v": {
+      "modelProvider": "openai",
+      "originator": "Codex Desktop",
+      "source": "vscode"
+     }
+    },
+    {
+     "v": {
+      "source": {
+       "subagent": "x"
+      }
+     }
+    },
+    {
+     "v": {}
+    },
+    {
+     "v": {}
+    },
+    {
+     "v": {}
+    },
+    {
+     "v": {}
+    },
+    {
+     "v": {}
+    },
+    {
+     "v": false
+    },
+    {
+     "v": true
+    },
+    {
+     "v": false
+    },
+    {
+     "v": false
+    },
+    {
+     "v": true
+    },
+    {
+     "v": false
+    },
+    {
+     "v": false
+    },
+    {
+     "v": false
+    },
+    {
+     "v": false
+    },
+    {
+     "v": false
+    },
+    {
+     "v": "official"
+    },
+    {
+     "v": "official"
+    },
+    {
+     "v": "official"
+    },
+    {
+     "v": "gateway"
+    },
+    {
+     "v": "custom"
+    },
+    {
+     "v": "custom"
+    },
+    {
+     "v": "nomi"
+    },
+    {
+     "v": "nomi"
+    },
+    {
+     "v": "desktop"
+    },
+    {
+     "v": "desktop"
+    },
+    {
+     "v": "ide"
+    },
+    {
+     "v": "exec"
+    },
+    {
+     "v": "exec"
+    },
+    {
+     "v": "cli"
+    },
+    {
+     "v": "cli"
+    },
+    {
+     "v": "ide"
+    },
+    {
+     "undef": true
+    },
+    {
+     "undef": true
+    },
+    {
+     "v": "nomi"
+    },
+    {
+     "v": [
+      "b",
+      "c"
+     ]
+    },
+    {
+     "v": [
+      "a"
+     ]
+    },
+    {
+     "v": [
+      "a"
+     ]
+    },
+    {
+     "v": [
+      "z",
+      "a"
+     ]
+    },
+    {
+     "v": []
+    },
+    {
+     "v": []
+    }
+   ]
+  },
+  {
+   "name": "claudeBasic",
+   "deps": {
+    "open": [],
+    "tab": {
+     "reused": false
+    },
+    "trash": true
+   },
+   "files": [
+    {
+     "p": "home/.claude/projects/-work-app/a.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"a\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"older task\"}}\n{\"type\":\"assistant\",\"sessionId\":\"a\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 1000000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/b.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"b\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"permissionMode\":\"acceptEdits\",\"message\":{\"role\":\"user\",\"content\":\"newer task\"}}\n{\"type\":\"assistant\",\"sessionId\":\"b\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 2000000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/empty.jsonl",
+     "text": "{\"type\":\"queue-operation\",\"operation\":\"enqueue\",\"sessionId\":\"empty\"}\n",
+     "mtime": 3000000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/side.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"side\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"isSidechain\":true,\"message\":{\"role\":\"user\",\"content\":\"sub agent\"}}\n{\"type\":\"assistant\",\"sessionId\":\"side\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 4000000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/mixed.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"mixed\",\"cwd\":\"@@SB@@/work\",\"message\":{\"role\":\"user\",\"content\":\"main prompt\"}}\n{\"type\":\"user\",\"sessionId\":\"mixed\",\"isSidechain\":true,\"cwd\":\"@@SB@@/work\",\"message\":{\"role\":\"user\",\"content\":\"side\"}}\n",
+     "mtime": 5000000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/notitle.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"nt\",\"cwd\":\"@@SB@@/work\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"tool_result\",\"content\":\"x\"}]}}\n",
+     "mtime": 6000000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/gone.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"gone\",\"cwd\":\"@@SB@@/gone\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"permissionMode\":\"bogus\",\"message\":{\"role\":\"user\",\"content\":\"moved project\"}}\n{\"type\":\"assistant\",\"sessionId\":\"gone\",\"cwd\":\"@@SB@@/gone\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 500000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/raw.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"rawid\",\"message\":{\"role\":\"user\",\"content\":\"hi \\u00e9\"}}\n�bad\n",
+     "mtime": 7000000,
+     "json": true
+    }
+   ],
+   "steps": [
+    [
+     "list",
+     "claude",
+     {}
+    ],
+    [
+     "index",
+     "claude",
+     {
+      "limit": 2
+     }
+    ],
+    [
+     "index",
+     "claude",
+     {
+      "offset": 2,
+      "limit": 2
+     }
+    ],
+    [
+     "list",
+     "claude",
+     {
+      "offset": 600
+     }
+    ],
+    [
+     "list",
+     "claude",
+     {
+      "limit": 0.4
+     }
+    ],
+    [
+     "list",
+     "claude",
+     {
+      "limit": 99,
+      "offset": -3
+     }
+    ],
+    [
+     "list",
+     "claude",
+     {
+      "offset": 1.5
+     }
+    ],
+    [
+     "list",
+     "nope",
+     {}
+    ],
+    [
+     "transcript",
+     "claude",
+     "b"
+    ],
+    [
+     "transcript",
+     "claude",
+     "missing"
+    ],
+    [
+     "transcript",
+     "claude",
+     "nt"
+    ],
+    [
+     "open",
+     "claude",
+     "b"
+    ],
+    [
+     "open",
+     "claude",
+     "gone"
+    ],
+    [
+     "open",
+     "claude",
+     "missing"
+    ],
+    [
+     "calls"
+    ]
+   ],
+   "out": [
+    {
+     "v": {
+      "hasMore": false,
+      "items": [
+       {
+        "backend": "claude",
+        "cwdMissing": false,
+        "key": "claude:rawid",
+        "sessionId": "rawid",
+        "title": "hi é",
+        "updatedAt": 7000000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:nt",
+        "sessionId": "nt",
+        "title": "（无标题会话）",
+        "updatedAt": 6000000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:mixed",
+        "sessionId": "mixed",
+        "title": "main prompt",
+        "updatedAt": 5000000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:b",
+        "model": "claude-sonnet-4-5",
+        "permissionMode": "acceptEdits",
+        "sessionId": "b",
+        "title": "newer task",
+        "updatedAt": 2000000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:a",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "a",
+        "title": "older task",
+        "updatedAt": 1000000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/gone",
+        "cwdMissing": true,
+        "key": "claude:gone",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "gone",
+        "title": "moved project",
+        "updatedAt": 500000
+       }
+      ],
+      "nextOffset": null
+     }
+    },
+    {
+     "v": {
+      "hasMore": true,
+      "items": [
+       {
+        "backend": "claude",
+        "cwdMissing": false,
+        "key": "claude:rawid",
+        "sessionId": "rawid",
+        "title": "hi é",
+        "updatedAt": 7000000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:nt",
+        "sessionId": "nt",
+        "title": "（无标题会话）",
+        "updatedAt": 6000000
+       }
+      ],
+      "nextOffset": 2
+     }
+    },
+    {
+     "v": {
+      "hasMore": true,
+      "items": [
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:mixed",
+        "sessionId": "mixed",
+        "title": "main prompt",
+        "updatedAt": 5000000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:b",
+        "model": "claude-sonnet-4-5",
+        "permissionMode": "acceptEdits",
+        "sessionId": "b",
+        "title": "newer task",
+        "updatedAt": 2000000
+       }
+      ],
+      "nextOffset": 4
+     }
+    },
+    {
+     "v": {
+      "hasMore": false,
+      "items": [],
+      "nextOffset": null
+     }
+    },
+    {
+     "v": {
+      "hasMore": true,
+      "items": [
+       {
+        "backend": "claude",
+        "cwdMissing": false,
+        "key": "claude:rawid",
+        "sessionId": "rawid",
+        "title": "hi é",
+        "updatedAt": 7000000
+       }
+      ],
+      "nextOffset": 1
+     }
+    },
+    {
+     "v": {
+      "hasMore": false,
+      "items": [
+       {
+        "backend": "claude",
+        "cwdMissing": false,
+        "key": "claude:rawid",
+        "sessionId": "rawid",
+        "title": "hi é",
+        "updatedAt": 7000000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:nt",
+        "sessionId": "nt",
+        "title": "（无标题会话）",
+        "updatedAt": 6000000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:mixed",
+        "sessionId": "mixed",
+        "title": "main prompt",
+        "updatedAt": 5000000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:b",
+        "model": "claude-sonnet-4-5",
+        "permissionMode": "acceptEdits",
+        "sessionId": "b",
+        "title": "newer task",
+        "updatedAt": 2000000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:a",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "a",
+        "title": "older task",
+        "updatedAt": 1000000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/gone",
+        "cwdMissing": true,
+        "key": "claude:gone",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "gone",
+        "title": "moved project",
+        "updatedAt": 500000
+       }
+      ],
+      "nextOffset": null
+     }
+    },
+    {
+     "v": {
+      "hasMore": false,
+      "items": [
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:mixed",
+        "sessionId": "mixed",
+        "title": "main prompt",
+        "updatedAt": 5000000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:b",
+        "model": "claude-sonnet-4-5",
+        "permissionMode": "acceptEdits",
+        "sessionId": "b",
+        "title": "newer task",
+        "updatedAt": 2000000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:a",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "a",
+        "title": "older task",
+        "updatedAt": 1000000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/gone",
+        "cwdMissing": true,
+        "key": "claude:gone",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "gone",
+        "title": "moved project",
+        "updatedAt": 500000
+       }
+      ],
+      "nextOffset": null
+     }
+    },
+    {
+     "err": "未知后端"
+    },
+    {
+     "v": {
+      "messages": [
+       {
+        "content": "newer task",
+        "id": "hist-0",
+        "role": "user",
+        "timestamp": 1791972000000
+       },
+       {
+        "content": "ok",
+        "durationMs": 1000,
+        "id": "hist-1",
+        "role": "assistant",
+        "timestamp": 1791972001000
+       }
+      ],
+      "truncated": false
+     }
+    },
+    {
+     "v": {
+      "messages": [],
+      "note": "找不到该会话的记录文件",
+      "truncated": false
+     }
+    },
+    {
+     "v": {
+      "messages": [],
+      "note": "没有解析到可显示的历史消息",
+      "truncated": false
+     }
+    },
+    {
+     "v": {
+      "ok": true,
+      "reused": false,
+      "tab": {
+       "id": "tab-b"
+      }
+     }
+    },
+    {
+     "v": {
+      "error": "原工作目录已不存在：<SB>/gone。续接需要同一目录，请先恢复该目录。",
+      "ok": false
+     }
+    },
+    {
+     "v": {
+      "error": "找不到该会话，可能已被删除",
+      "ok": false
+     }
+    },
+    {
+     "v": [
+      [
+       "openTab",
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "firstMsg": {
+         "content": "newer task",
+         "id": "hist-0",
+         "role": "user",
+         "timestamp": 1791972000000
+        },
+        "messages": 2,
+        "modelOverride": "claude-sonnet-4-5",
+        "permissionMode": "acceptEdits",
+        "sessionId": "b",
+        "title": "newer task"
+       }
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "claudeOpenAndDeps",
+   "deps": {
+    "open": [
+     "claude:a"
+    ],
+    "tab": {
+     "reused": true
+    },
+    "trash": true,
+    "gateway": [
+     "claude:b"
+    ],
+    "sessionModel": {
+     "claude:b": "acme/claude-x"
+    },
+    "sessionAccount": {
+     "claude:b": {
+      "id": "acct-1",
+      "label": "me@x.com"
+     },
+     "claude:c": {
+      "id": "acct-2"
+     }
+    }
+   },
+   "files": [
+    {
+     "p": "home/.claude/projects/-work-app/a.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"a\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"opened already\"}}\n{\"type\":\"assistant\",\"sessionId\":\"a\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 1000000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/b.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"b\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"gateway one\"}}\n{\"type\":\"assistant\",\"sessionId\":\"b\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 2000000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/c.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"c\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"third\"}}\n{\"type\":\"assistant\",\"sessionId\":\"c\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 3000000,
+     "json": true
+    }
+   ],
+   "steps": [
+    [
+     "list",
+     "claude",
+     {}
+    ],
+    [
+     "calls"
+    ],
+    [
+     "open",
+     "claude",
+     "b"
+    ],
+    [
+     "open",
+     "claude",
+     "c"
+    ],
+    [
+     "calls"
+    ],
+    [
+     "remove",
+     "claude",
+     "a"
+    ],
+    [
+     "remove",
+     "zzz",
+     "a"
+    ]
+   ],
+   "out": [
+    {
+     "v": {
+      "hasMore": false,
+      "items": [
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:c",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "c",
+        "title": "third",
+        "updatedAt": 3000000
+       },
+       {
+        "account": "me@x.com",
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:b",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "b",
+        "title": "gateway one",
+        "updatedAt": 2000000
+       }
+      ],
+      "nextOffset": null
+     }
+    },
+    {
+     "v": [
+      [
+       "openTitle",
+       "claude",
+       "a",
+       "opened already"
+      ]
+     ]
+    },
+    {
+     "v": {
+      "ok": true,
+      "reused": true,
+      "tab": {
+       "id": "tab-b"
+      }
+     }
+    },
+    {
+     "v": {
+      "ok": true,
+      "reused": true,
+      "tab": {
+       "id": "tab-c"
+      }
+     }
+    },
+    {
+     "v": [
+      [
+       "openTab",
+       {
+        "accountId": "acct-1",
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "firstMsg": {
+         "content": "gateway one",
+         "id": "hist-0",
+         "role": "user",
+         "timestamp": 1791972000000
+        },
+        "lastServedRef": "acme/claude-x",
+        "messages": 2,
+        "modelOverride": "claude-sonnet-4-5",
+        "permissionModeSource": "history-cli",
+        "sessionId": "b",
+        "source": "thirdParty",
+        "title": "gateway one"
+       }
+      ],
+      [
+       "openTab",
+       {
+        "accountId": "acct-2",
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "firstMsg": {
+         "content": "third",
+         "id": "hist-0",
+         "role": "user",
+         "timestamp": 1791972000000
+        },
+        "messages": 2,
+        "modelOverride": "claude-sonnet-4-5",
+        "permissionModeSource": "history-cli",
+        "sessionId": "c",
+        "title": "third"
+       }
+      ]
+     ]
+    },
+    {
+     "v": {
+      "error": "该会话正在标签中打开，请先关闭标签再删除",
+      "ok": false
+     }
+    },
+    {
+     "v": {
+      "error": "未知后端",
+      "ok": false
+     }
+    }
+   ]
+  },
+  {
+   "name": "claudeNoOpenTab",
+   "deps": {
+    "open": []
+   },
+   "files": [
+    {
+     "p": "home/.claude/projects/-work-app/a.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"a\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"x\"}}\n{\"type\":\"assistant\",\"sessionId\":\"a\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 1000,
+     "json": true
+    }
+   ],
+   "steps": [
+    [
+     "open",
+     "claude",
+     "a"
+    ],
+    [
+     "remove",
+     "claude",
+     "a"
+    ]
+   ],
+   "out": [
+    {
+     "v": {
+      "error": "当前环境不支持打开历史会话",
+      "ok": false
+     }
+    },
+    {
+     "v": {
+      "error": "当前环境不支持删除历史会话",
+      "ok": false
+     }
+    }
+   ]
+  },
+  {
+   "name": "claudeEnv",
+   "deps": {
+    "open": [],
+    "tab": {
+     "reused": false
+    },
+    "trash": true,
+    "env": {
+     "CLAUDE_CONFIG_DIR": "@@SB@@/cc",
+     "CODEX_HOME": "@@SB@@/cx"
+    }
+   },
+   "files": [
+    {
+     "p": "cc/projects/p/e1.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"e1\",\"cwd\":\"@@SB@@/work\",\"message\":{\"role\":\"user\",\"content\":\"from env dir\"}}\n",
+     "mtime": 1000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/a.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"a\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"default dir\"}}\n{\"type\":\"assistant\",\"sessionId\":\"a\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 2000,
+     "json": true
+    },
+    {
+     "p": "cx/sessions/2026/10/14/rollout-x-01a13a9b-34b0-7612-ba36-613000000009.jsonl",
+     "text": "{\"timestamp\":\"2026-10-14T13:30:12.603Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"01a13a9b-34b0-7612-ba36-613000000009\",\"cwd\":\"@@SB@@/work\",\"source\":\"cli\"}}\n{\"timestamp\":\"2026-10-14T13:30:13.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"codex env\"}]}}\n",
+     "mtime": 3000,
+     "json": true
+    }
+   ],
+   "steps": [
+    [
+     "list",
+     "claude",
+     {}
+    ],
+    [
+     "list",
+     "codex",
+     {}
+    ]
+   ],
+   "out": [
+    {
+     "v": {
+      "hasMore": false,
+      "items": [
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:e1",
+        "sessionId": "e1",
+        "title": "from env dir",
+        "updatedAt": 1000
+       }
+      ],
+      "nextOffset": null
+     }
+    },
+    {
+     "v": {
+      "hasMore": false,
+      "items": [
+       {
+        "backend": "codex",
+        "client": "cli",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "codex:01a13a9b-34b0-7612-ba36-613000000009",
+        "route": "official",
+        "sessionId": "01a13a9b-34b0-7612-ba36-613000000009",
+        "title": "codex env",
+        "updatedAt": 3000
+       }
+      ],
+      "nextOffset": null
+     }
+    }
+   ]
+  },
+  {
+   "name": "claudePaging",
+   "deps": {
+    "open": [],
+    "tab": {
+     "reused": false
+    },
+    "trash": true
+   },
+   "files": [
+    {
+     "p": "home/.claude/projects/-work-app/s00.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s00\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 0\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s00\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 10000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s01.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s01\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 1\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s01\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 11000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s02.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s02\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 2\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s02\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 12000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s03.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s03\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 3\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s03\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 13000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s04.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s04\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 4\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s04\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 14000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s05.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s05\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 5\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s05\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 15000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s06.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s06\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 6\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s06\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 16000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s07.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s07\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 7\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s07\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 17000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s08.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s08\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 8\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s08\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 18000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s09.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s09\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 9\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s09\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 19000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s10.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s10\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 10\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s10\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 20000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s11.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s11\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 11\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s11\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 21000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s12.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s12\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 12\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s12\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 22000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s13.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s13\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 13\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s13\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 23000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s14.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s14\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 14\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s14\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 24000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s15.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s15\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 15\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s15\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 25000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s16.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s16\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 16\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s16\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 26000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s17.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s17\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 17\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s17\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 27000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s18.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s18\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 18\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s18\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 28000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s19.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s19\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 19\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s19\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 29000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s20.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s20\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 20\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s20\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 30000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s21.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s21\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 21\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s21\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 31000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s22.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s22\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 22\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s22\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 32000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s23.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s23\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 23\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s23\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 33000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s24.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s24\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 24\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s24\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 34000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s25.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s25\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 25\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s25\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 35000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s26.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s26\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 26\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s26\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 36000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s27.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s27\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 27\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s27\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 37000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s28.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s28\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 28\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s28\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 38000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s29.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s29\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 29\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s29\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 39000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s30.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s30\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 30\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s30\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 40000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s31.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s31\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 31\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s31\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 41000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s32.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s32\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 32\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s32\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 42000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s33.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s33\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 33\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s33\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 43000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s34.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s34\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 34\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s34\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 44000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s35.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s35\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 35\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s35\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 45000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s36.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s36\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 36\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s36\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 46000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s37.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s37\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 37\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s37\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 47000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s38.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s38\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 38\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s38\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 48000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s39.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s39\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 39\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s39\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 49000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s40.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s40\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 40\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s40\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 50000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s41.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s41\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 41\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s41\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 51000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s42.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s42\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 42\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s42\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 52000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s43.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s43\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 43\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s43\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 53000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/s44.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"s44\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"task 44\"}}\n{\"type\":\"assistant\",\"sessionId\":\"s44\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 54000,
+     "json": true
+    }
+   ],
+   "steps": [
+    [
+     "list",
+     "claude",
+     {}
+    ],
+    [
+     "list",
+     "claude",
+     {
+      "offset": 20
+     }
+    ],
+    [
+     "list",
+     "claude",
+     {
+      "offset": 40
+     }
+    ],
+    [
+     "index",
+     "claude",
+     {
+      "offset": 44
+     }
+    ],
+    [
+     "index",
+     "claude",
+     {
+      "offset": 45
+     }
+    ]
+   ],
+   "out": [
+    {
+     "v": {
+      "hasMore": true,
+      "items": [
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s44",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s44",
+        "title": "task 44",
+        "updatedAt": 54000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s43",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s43",
+        "title": "task 43",
+        "updatedAt": 53000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s42",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s42",
+        "title": "task 42",
+        "updatedAt": 52000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s41",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s41",
+        "title": "task 41",
+        "updatedAt": 51000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s40",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s40",
+        "title": "task 40",
+        "updatedAt": 50000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s39",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s39",
+        "title": "task 39",
+        "updatedAt": 49000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s38",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s38",
+        "title": "task 38",
+        "updatedAt": 48000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s37",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s37",
+        "title": "task 37",
+        "updatedAt": 47000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s36",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s36",
+        "title": "task 36",
+        "updatedAt": 46000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s35",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s35",
+        "title": "task 35",
+        "updatedAt": 45000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s34",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s34",
+        "title": "task 34",
+        "updatedAt": 44000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s33",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s33",
+        "title": "task 33",
+        "updatedAt": 43000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s32",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s32",
+        "title": "task 32",
+        "updatedAt": 42000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s31",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s31",
+        "title": "task 31",
+        "updatedAt": 41000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s30",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s30",
+        "title": "task 30",
+        "updatedAt": 40000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s29",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s29",
+        "title": "task 29",
+        "updatedAt": 39000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s28",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s28",
+        "title": "task 28",
+        "updatedAt": 38000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s27",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s27",
+        "title": "task 27",
+        "updatedAt": 37000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s26",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s26",
+        "title": "task 26",
+        "updatedAt": 36000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s25",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s25",
+        "title": "task 25",
+        "updatedAt": 35000
+       }
+      ],
+      "nextOffset": 20
+     }
+    },
+    {
+     "v": {
+      "hasMore": true,
+      "items": [
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s24",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s24",
+        "title": "task 24",
+        "updatedAt": 34000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s23",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s23",
+        "title": "task 23",
+        "updatedAt": 33000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s22",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s22",
+        "title": "task 22",
+        "updatedAt": 32000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s21",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s21",
+        "title": "task 21",
+        "updatedAt": 31000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s20",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s20",
+        "title": "task 20",
+        "updatedAt": 30000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s19",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s19",
+        "title": "task 19",
+        "updatedAt": 29000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s18",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s18",
+        "title": "task 18",
+        "updatedAt": 28000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s17",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s17",
+        "title": "task 17",
+        "updatedAt": 27000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s16",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s16",
+        "title": "task 16",
+        "updatedAt": 26000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s15",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s15",
+        "title": "task 15",
+        "updatedAt": 25000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s14",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s14",
+        "title": "task 14",
+        "updatedAt": 24000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s13",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s13",
+        "title": "task 13",
+        "updatedAt": 23000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s12",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s12",
+        "title": "task 12",
+        "updatedAt": 22000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s11",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s11",
+        "title": "task 11",
+        "updatedAt": 21000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s10",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s10",
+        "title": "task 10",
+        "updatedAt": 20000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s09",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s09",
+        "title": "task 9",
+        "updatedAt": 19000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s08",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s08",
+        "title": "task 8",
+        "updatedAt": 18000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s07",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s07",
+        "title": "task 7",
+        "updatedAt": 17000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s06",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s06",
+        "title": "task 6",
+        "updatedAt": 16000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s05",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s05",
+        "title": "task 5",
+        "updatedAt": 15000
+       }
+      ],
+      "nextOffset": 40
+     }
+    },
+    {
+     "v": {
+      "hasMore": false,
+      "items": [
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s04",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s04",
+        "title": "task 4",
+        "updatedAt": 14000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s03",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s03",
+        "title": "task 3",
+        "updatedAt": 13000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s02",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s02",
+        "title": "task 2",
+        "updatedAt": 12000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s01",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s01",
+        "title": "task 1",
+        "updatedAt": 11000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s00",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s00",
+        "title": "task 0",
+        "updatedAt": 10000
+       }
+      ],
+      "nextOffset": null
+     }
+    },
+    {
+     "v": {
+      "hasMore": false,
+      "items": [
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:s00",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "s00",
+        "title": "task 0",
+        "updatedAt": 10000
+       }
+      ],
+      "nextOffset": null
+     }
+    },
+    {
+     "v": {
+      "hasMore": false,
+      "items": [],
+      "nextOffset": null
+     }
+    }
+   ]
+  },
+  {
+   "name": "claudeMaxItems",
+   "deps": {
+    "open": [],
+    "tab": {
+     "reused": false
+    },
+    "trash": true
+   },
+   "files": [
+    {
+     "p": "home/.claude/projects/-work-app/m{i}.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"m{i}\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"many {i}\"}}\n{\"type\":\"assistant\",\"sessionId\":\"m{i}\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 10000,
+     "json": true,
+     "times": 520
+    }
+   ],
+   "steps": [
+    [
+     "list",
+     "claude",
+     {
+      "offset": 480
+     }
+    ],
+    [
+     "list",
+     "claude",
+     {
+      "offset": 460
+     }
+    ],
+    [
+     "index",
+     "claude",
+     {
+      "offset": 499,
+      "limit": 5
+     }
+    ],
+    [
+     "index",
+     "claude",
+     {
+      "offset": 500
+     }
+    ]
+   ],
+   "out": [
+    {
+     "v": {
+      "hasMore": false,
+      "items": [
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m039",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m039",
+        "title": "many 039",
+        "updatedAt": 49000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m038",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m038",
+        "title": "many 038",
+        "updatedAt": 48000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m037",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m037",
+        "title": "many 037",
+        "updatedAt": 47000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m036",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m036",
+        "title": "many 036",
+        "updatedAt": 46000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m035",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m035",
+        "title": "many 035",
+        "updatedAt": 45000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m034",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m034",
+        "title": "many 034",
+        "updatedAt": 44000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m033",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m033",
+        "title": "many 033",
+        "updatedAt": 43000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m032",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m032",
+        "title": "many 032",
+        "updatedAt": 42000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m031",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m031",
+        "title": "many 031",
+        "updatedAt": 41000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m030",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m030",
+        "title": "many 030",
+        "updatedAt": 40000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m029",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m029",
+        "title": "many 029",
+        "updatedAt": 39000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m028",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m028",
+        "title": "many 028",
+        "updatedAt": 38000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m027",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m027",
+        "title": "many 027",
+        "updatedAt": 37000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m026",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m026",
+        "title": "many 026",
+        "updatedAt": 36000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m025",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m025",
+        "title": "many 025",
+        "updatedAt": 35000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m024",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m024",
+        "title": "many 024",
+        "updatedAt": 34000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m023",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m023",
+        "title": "many 023",
+        "updatedAt": 33000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m022",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m022",
+        "title": "many 022",
+        "updatedAt": 32000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m021",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m021",
+        "title": "many 021",
+        "updatedAt": 31000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m020",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m020",
+        "title": "many 020",
+        "updatedAt": 30000
+       }
+      ],
+      "nextOffset": null
+     }
+    },
+    {
+     "v": {
+      "hasMore": true,
+      "items": [
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m059",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m059",
+        "title": "many 059",
+        "updatedAt": 69000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m058",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m058",
+        "title": "many 058",
+        "updatedAt": 68000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m057",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m057",
+        "title": "many 057",
+        "updatedAt": 67000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m056",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m056",
+        "title": "many 056",
+        "updatedAt": 66000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m055",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m055",
+        "title": "many 055",
+        "updatedAt": 65000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m054",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m054",
+        "title": "many 054",
+        "updatedAt": 64000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m053",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m053",
+        "title": "many 053",
+        "updatedAt": 63000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m052",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m052",
+        "title": "many 052",
+        "updatedAt": 62000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m051",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m051",
+        "title": "many 051",
+        "updatedAt": 61000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m050",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m050",
+        "title": "many 050",
+        "updatedAt": 60000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m049",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m049",
+        "title": "many 049",
+        "updatedAt": 59000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m048",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m048",
+        "title": "many 048",
+        "updatedAt": 58000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m047",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m047",
+        "title": "many 047",
+        "updatedAt": 57000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m046",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m046",
+        "title": "many 046",
+        "updatedAt": 56000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m045",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m045",
+        "title": "many 045",
+        "updatedAt": 55000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m044",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m044",
+        "title": "many 044",
+        "updatedAt": 54000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m043",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m043",
+        "title": "many 043",
+        "updatedAt": 53000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m042",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m042",
+        "title": "many 042",
+        "updatedAt": 52000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m041",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m041",
+        "title": "many 041",
+        "updatedAt": 51000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m040",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m040",
+        "title": "many 040",
+        "updatedAt": 50000
+       }
+      ],
+      "nextOffset": 480
+     }
+    },
+    {
+     "v": {
+      "hasMore": false,
+      "items": [
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:m020",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "m020",
+        "title": "many 020",
+        "updatedAt": 30000
+       }
+      ],
+      "nextOffset": null
+     }
+    },
+    {
+     "v": {
+      "hasMore": false,
+      "items": [],
+      "nextOffset": null
+     }
+    }
+   ]
+  },
+  {
+   "name": "claudeIncremental",
+   "deps": {
+    "open": [],
+    "tab": {
+     "reused": false
+    },
+    "trash": true
+   },
+   "files": [
+    {
+     "p": "home/.claude/projects/-work-app/a.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"a\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"first\"}}\n{\"type\":\"assistant\",\"sessionId\":\"a\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 1000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/b.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"b\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"second\"}}\n{\"type\":\"assistant\",\"sessionId\":\"b\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 2000,
+     "json": true
+    }
+   ],
+   "steps": [
+    [
+     "list",
+     "claude",
+     {}
+    ],
+    [
+     "write",
+     {
+      "p": "home/.claude/projects/-work-app/a.jsonl",
+      "text": "{\"type\":\"user\",\"sessionId\":\"a\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"first renamed\"}}\n{\"type\":\"assistant\",\"sessionId\":\"a\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+      "mtime": 3000,
+      "json": true
+     }
+    ],
+    [
+     "list",
+     "claude",
+     {}
+    ],
+    [
+     "list",
+     "claude",
+     {
+      "force": true
+     }
+    ],
+    [
+     "rm",
+     "home/.claude/projects/-work-app/b.jsonl"
+    ],
+    [
+     "list",
+     "claude",
+     {
+      "force": true
+     }
+    ],
+    [
+     "transcript",
+     "claude",
+     "b"
+    ]
+   ],
+   "out": [
+    {
+     "v": {
+      "hasMore": false,
+      "items": [
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:b",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "b",
+        "title": "second",
+        "updatedAt": 2000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:a",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "a",
+        "title": "first",
+        "updatedAt": 1000
+       }
+      ],
+      "nextOffset": null
+     }
+    },
+    {
+     "v": null
+    },
+    {
+     "v": {
+      "hasMore": false,
+      "items": [
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:b",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "b",
+        "title": "second",
+        "updatedAt": 2000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:a",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "a",
+        "title": "first",
+        "updatedAt": 1000
+       }
+      ],
+      "nextOffset": null
+     }
+    },
+    {
+     "v": {
+      "hasMore": false,
+      "items": [
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:a",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "a",
+        "title": "first renamed",
+        "updatedAt": 3000
+       },
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:b",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "b",
+        "title": "second",
+        "updatedAt": 2000
+       }
+      ],
+      "nextOffset": null
+     }
+    },
+    {
+     "v": null
+    },
+    {
+     "v": {
+      "hasMore": false,
+      "items": [
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:a",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "a",
+        "title": "first renamed",
+        "updatedAt": 3000
+       }
+      ],
+      "nextOffset": null
+     }
+    },
+    {
+     "v": {
+      "messages": [],
+      "note": "读取历史消息失败，仍可继续该会话",
+      "truncated": false
+     }
+    }
+   ]
+  },
+  {
+   "name": "claudeRemove",
+   "deps": {
+    "open": [],
+    "tab": {
+     "reused": false
+    },
+    "trash": true
+   },
+   "files": [
+    {
+     "p": "home/.claude/projects/-work-app/a.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"a\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"del me\"}}\n{\"type\":\"assistant\",\"sessionId\":\"a\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 1000,
+     "json": true
+    },
+    {
+     "p": "home/.claude/projects/-work-app/a/tool.txt",
+     "text": "x",
+     "mtime": 1000,
+     "json": false
+    },
+    {
+     "p": "home/.claude/projects/-work-app/b.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"b\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"keep\"}}\n{\"type\":\"assistant\",\"sessionId\":\"b\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 2000,
+     "json": true
+    }
+   ],
+   "steps": [
+    [
+     "remove",
+     "claude",
+     "a"
+    ],
+    [
+     "exists",
+     "home/.claude/projects/-work-app/a.jsonl"
+    ],
+    [
+     "exists",
+     "home/.claude/projects/-work-app/a"
+    ],
+    [
+     "calls"
+    ],
+    [
+     "list",
+     "claude",
+     {}
+    ],
+    [
+     "remove",
+     "claude",
+     "a"
+    ],
+    [
+     "remove",
+     "claude",
+     "b"
+    ]
+   ],
+   "out": [
+    {
+     "v": {
+      "ok": true,
+      "removed": 2
+     }
+    },
+    {
+     "v": false
+    },
+    {
+     "v": false
+    },
+    {
+     "v": [
+      [
+       "trash",
+       "<SB>/home/.claude/projects/-work-app/a.jsonl"
+      ],
+      [
+       "trash",
+       "<SB>/home/.claude/projects/-work-app/a"
+      ]
+     ]
+    },
+    {
+     "v": {
+      "hasMore": false,
+      "items": [
+       {
+        "backend": "claude",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "claude:b",
+        "model": "claude-sonnet-4-5",
+        "sessionId": "b",
+        "title": "keep",
+        "updatedAt": 2000
+       }
+      ],
+      "nextOffset": null
+     }
+    },
+    {
+     "v": {
+      "error": "找不到该会话，可能已被删除",
+      "ok": false
+     }
+    },
+    {
+     "v": {
+      "ok": true,
+      "removed": 1
+     }
+    }
+   ]
+  },
+  {
+   "name": "trashFails",
+   "deps": {
+    "open": [],
+    "tab": {
+     "reused": false
+    },
+    "trash": "fail"
+   },
+   "files": [
+    {
+     "p": "home/.claude/projects/-work-app/a.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"a\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":\"x\"}}\n{\"type\":\"assistant\",\"sessionId\":\"a\",\"cwd\":\"@@SB@@/work\",\"timestamp\":\"2026-10-14T10:00:01.000Z\",\"message\":{\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}}\n",
+     "mtime": 1000,
+     "json": true
+    }
+   ],
+   "steps": [
+    [
+     "remove",
+     "claude",
+     "a"
+    ],
+    [
+     "calls"
+    ]
+   ],
+   "out": [
+    {
+     "v": {
+      "error": "trash denied",
+      "ok": false
+     }
+    },
+    {
+     "v": [
+      [
+       "trash",
+       "<SB>/home/.claude/projects/-work-app/a.jsonl"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "codexIndex",
+   "deps": {
+    "open": [],
+    "tab": {
+     "reused": false
+    },
+    "trash": true,
+    "db": true,
+    "rows": [
+     {
+      "id": "01a13a9b-34b0-7612-ba36-613000000000",
+      "name": "named in sqlite",
+      "model": "gpt-5",
+      "reasoning_effort": "high",
+      "model_provider": "nomi_gateway",
+      "creator_account_id": "acc-9",
+      "cwd": "@@SB@@/work",
+      "archived": 0
+     },
+     {
+      "id": "01a13a9b-34b0-7612-ba36-613000000001",
+      "archived": 1
+     },
+     {
+      "id": "01a13a9b-34b0-7612-ba36-613000000002",
+      "source": "{\"subagent\":{\"thread_spawn\":{}}}"
+     },
+     {
+      "id": "01a13a9b-34b0-7612-ba36-613000000003",
+      "title": "",
+      "first_user_message": "first from db",
+      "originator": "codex_vscode",
+      "model_provider": "custom"
+     },
+     {
+      "id": "01a13a9b-34b0-7612-ba36-613000000006",
+      "title": "db only zst",
+      "source": "vscode",
+      "model_provider": "acme",
+      "cwd": ""
+     }
+    ],
+    "accountLabel": {
+     "acc-9": "nine@x.com"
+    }
+   },
+   "files": [
+    {
+     "p": "home/.codex/sessions/2026/10/14/rollout-2026-10-14T21-30-12-01a13a9b-34b0-7612-ba36-613000000000.jsonl",
+     "text": "{\"timestamp\":\"2026-10-14T13:30:12.603Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"01a13a9b-34b0-7612-ba36-613000000000\",\"cwd\":\"@@SB@@/work\",\"source\":\"cli\"}}\n{\"timestamp\":\"2026-10-14T13:30:13.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"from rollout\"}]}}\n",
+     "mtime": 9000,
+     "json": true
+    },
+    {
+     "p": "home/.codex/sessions/2026/10/14/rollout-2026-10-14T21-30-12-01a13a9b-34b0-7612-ba36-613000000001.jsonl",
+     "text": "{\"timestamp\":\"2026-10-14T13:30:12.603Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"01a13a9b-34b0-7612-ba36-613000000001\",\"cwd\":\"@@SB@@/work\",\"source\":\"cli\"}}\n{\"timestamp\":\"2026-10-14T13:30:13.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"archived\"}]}}\n",
+     "mtime": 8000,
+     "json": true
+    },
+    {
+     "p": "home/.codex/sessions/2026/10/14/rollout-2026-10-14T21-30-12-01a13a9b-34b0-7612-ba36-613000000002.jsonl",
+     "text": "{\"timestamp\":\"2026-10-14T13:30:12.603Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"01a13a9b-34b0-7612-ba36-613000000002\",\"cwd\":\"@@SB@@/work\",\"source\":\"cli\"}}\n{\"timestamp\":\"2026-10-14T13:30:13.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"spawned\"}]}}\n",
+     "mtime": 7000,
+     "json": true
+    },
+    {
+     "p": "home/.codex/sessions/2026/10/14/rollout-2026-10-14T21-30-12-01a13a9b-34b0-7612-ba36-613000000003.jsonl",
+     "text": "{\"timestamp\":\"x\",\"type\":\"session_meta\",\"payload\":{\"id\":\"01a13a9b-34b0-7612-ba36-613000000003\",\"source\":\"exec\"}}\n",
+     "mtime": 6000,
+     "json": true
+    },
+    {
+     "p": "home/.codex/sessions/2026/10/14/rollout-2026-10-14T21-30-12-01a13a9b-34b0-7612-ba36-613000000004.jsonl.zst",
+     "text": "{\"timestamp\":\"2026-10-14T13:30:12.603Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"01a13a9b-34b0-7612-ba36-613000000004\",\"cwd\":\"@@SB@@/work\",\"source\":\"vscode\",\"originator\":\"Codex Desktop\"}}\n{\"timestamp\":\"2026-10-14T13:30:13.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"compressed one\"}]}}\n",
+     "mtime": 5000,
+     "json": true,
+     "zstd": true
+    },
+    {
+     "p": "home/.codex/sessions/2026/10/14/rollout-2026-10-14T21-30-12-01a13a9b-34b0-7612-ba36-613000000005.jsonl",
+     "text": "{\"timestamp\":\"2026-10-14T13:30:12.603Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"01a13a9b-34b0-7612-ba36-613000000005\",\"cwd\":\"@@SB@@/work\",\"source\":{\"subagent\":{\"other\":\"guardian\"}}}}\n{\"timestamp\":\"2026-10-14T13:30:13.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"guardian\"}]}}\n",
+     "mtime": 4000,
+     "json": true
+    },
+    {
+     "p": "home/.codex/sessions/2026/10/14/rollout-2026-10-14T21-30-12-01a13a9b-34b0-7612-ba36-613000000006.jsonl.zst",
+     "text": "{\"timestamp\":\"2026-10-14T13:30:12.603Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"01a13a9b-34b0-7612-ba36-613000000006\",\"cwd\":\"@@SB@@/work\",\"source\":\"cli\"}}\n{\"timestamp\":\"2026-10-14T13:30:13.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"zz\"}]}}\n",
+     "mtime": 3500,
+     "json": true,
+     "zstd": true
+    },
+    {
+     "p": "home/.codex/sessions/2026/10/14/rollout-2026-10-14T21-30-12-01a13a9b-34b0-7612-ba36-613000000007.jsonl",
+     "text": "{\"timestamp\":\"2026-10-14T13:30:12.603Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"01a13a9b-34b0-7612-ba36-613000000007\",\"cwd\":\"@@SB@@/work\",\"source\":\"exec\",\"model_provider\":\"custom\",\"originator\":\"codex_exec\"}}\n{\"timestamp\":\"2026-10-14T13:30:13.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"via cc-switch\"}]}}\n",
+     "mtime": 3000,
+     "json": true
+    },
+    {
+     "p": "home/.codex/sessions/2026/10/14/rollout-2026-10-14T21-30-12-01a13a9b-34b0-7612-ba36-613000000008.jsonl",
+     "text": "{\"timestamp\":\"2026-10-14T13:30:12.603Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"01a13a9b-34b0-7612-ba36-613000000008\",\"cwd\":\"@@SB@@/work\",\"source\":\"cli\",\"originator\":\"Codex Desktop\"}}\n{\"timestamp\":\"2026-10-14T13:30:13.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"\"}]}}\n",
+     "mtime": 2000,
+     "json": true
+    },
+    {
+     "p": "home/.codex/archived_sessions/rollout-a-01a13a9b-34b0-7612-ba36-613000000001.jsonl",
+     "text": "{\"timestamp\":\"2026-10-14T13:30:12.603Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"01a13a9b-34b0-7612-ba36-613000000001\",\"cwd\":\"@@SB@@/work\",\"source\":\"cli\"}}\n{\"timestamp\":\"2026-10-14T13:30:13.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"arch\"}]}}\n",
+     "mtime": 1000,
+     "json": true
+    }
+   ],
+   "steps": [
+    [
+     "list",
+     "codex",
+     {}
+    ],
+    [
+     "open",
+     "codex",
+     "01a13a9b-34b0-7612-ba36-613000000000"
+    ],
+    [
+     "calls"
+    ],
+    [
+     "transcript",
+     "codex",
+     "01a13a9b-34b0-7612-ba36-613000000004"
+    ],
+    [
+     "rows",
+     [
+      {
+       "id": "01a13a9b-34b0-7612-ba36-613000000000",
+       "name": "renamed in sqlite",
+       "model_provider": "openai"
+      }
+     ]
+    ],
+    [
+     "touchDb"
+    ],
+    [
+     "list",
+     "codex",
+     {
+      "force": true
+     }
+    ],
+    [
+     "rowsFail"
+    ],
+    [
+     "touchDb"
+    ],
+    [
+     "list",
+     "codex",
+     {
+      "force": true
+     }
+    ],
+    [
+     "calls"
+    ]
+   ],
+   "out": [
+    {
+     "v": {
+      "hasMore": false,
+      "items": [
+       {
+        "account": "nine@x.com",
+        "backend": "codex",
+        "client": "cli",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "codex:01a13a9b-34b0-7612-ba36-613000000000",
+        "model": "gpt-5",
+        "reasoningEffort": "high",
+        "route": "gateway",
+        "sessionId": "01a13a9b-34b0-7612-ba36-613000000000",
+        "title": "named in sqlite",
+        "updatedAt": 9000
+       },
+       {
+        "backend": "codex",
+        "client": "ide",
+        "cwdMissing": false,
+        "key": "codex:01a13a9b-34b0-7612-ba36-613000000003",
+        "provider": "custom",
+        "route": "custom",
+        "sessionId": "01a13a9b-34b0-7612-ba36-613000000003",
+        "title": "first from db",
+        "updatedAt": 6000
+       },
+       {
+        "backend": "codex",
+        "client": "desktop",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "codex:01a13a9b-34b0-7612-ba36-613000000004",
+        "route": "official",
+        "sessionId": "01a13a9b-34b0-7612-ba36-613000000004",
+        "title": "compressed one",
+        "updatedAt": 5000
+       },
+       {
+        "backend": "codex",
+        "client": "ide",
+        "cwd": "",
+        "cwdMissing": false,
+        "key": "codex:01a13a9b-34b0-7612-ba36-613000000006",
+        "provider": "acme",
+        "route": "custom",
+        "sessionId": "01a13a9b-34b0-7612-ba36-613000000006",
+        "title": "db only zst",
+        "updatedAt": 3500
+       },
+       {
+        "backend": "codex",
+        "client": "exec",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "codex:01a13a9b-34b0-7612-ba36-613000000007",
+        "provider": "custom",
+        "route": "custom",
+        "sessionId": "01a13a9b-34b0-7612-ba36-613000000007",
+        "title": "via cc-switch",
+        "updatedAt": 3000
+       },
+       {
+        "backend": "codex",
+        "client": "desktop",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "codex:01a13a9b-34b0-7612-ba36-613000000008",
+        "route": "official",
+        "sessionId": "01a13a9b-34b0-7612-ba36-613000000008",
+        "title": "（无标题会话）",
+        "updatedAt": 2000
+       }
+      ],
+      "nextOffset": null
+     }
+    },
+    {
+     "v": {
+      "ok": true,
+      "reused": false,
+      "tab": {
+       "id": "tab-01a13a9b-34b0-7612-ba36-613000000000"
+      }
+     }
+    },
+    {
+     "v": [
+      [
+       "codexThreads"
+      ],
+      [
+       "openTab",
+       {
+        "backend": "codex",
+        "cwd": "<SB>/work",
+        "firstMsg": {
+         "content": "from rollout",
+         "id": "hist-0",
+         "role": "user",
+         "timestamp": 1791984613000
+        },
+        "messages": 1,
+        "modelOverride": "gpt-5",
+        "permissionModeSource": "history-cli",
+        "reasoningEffort": "high",
+        "sessionId": "01a13a9b-34b0-7612-ba36-613000000000",
+        "source": "thirdParty",
+        "title": "named in sqlite"
+       }
+      ]
+     ]
+    },
+    {
+     "v": {
+      "messages": [
+       {
+        "content": "compressed one",
+        "id": "hist-0",
+        "role": "user",
+        "timestamp": 1791984613000
+       }
+      ],
+      "truncated": false
+     }
+    },
+    {
+     "v": null
+    },
+    {
+     "v": null
+    },
+    {
+     "v": {
+      "hasMore": false,
+      "items": [
+       {
+        "backend": "codex",
+        "client": "cli",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "codex:01a13a9b-34b0-7612-ba36-613000000000",
+        "route": "official",
+        "sessionId": "01a13a9b-34b0-7612-ba36-613000000000",
+        "title": "renamed in sqlite",
+        "updatedAt": 9000
+       },
+       {
+        "backend": "codex",
+        "client": "cli",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "codex:01a13a9b-34b0-7612-ba36-613000000001",
+        "route": "official",
+        "sessionId": "01a13a9b-34b0-7612-ba36-613000000001",
+        "title": "archived",
+        "updatedAt": 8000
+       },
+       {
+        "backend": "codex",
+        "client": "cli",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "codex:01a13a9b-34b0-7612-ba36-613000000002",
+        "route": "official",
+        "sessionId": "01a13a9b-34b0-7612-ba36-613000000002",
+        "title": "spawned",
+        "updatedAt": 7000
+       },
+       {
+        "backend": "codex",
+        "client": "desktop",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "codex:01a13a9b-34b0-7612-ba36-613000000004",
+        "route": "official",
+        "sessionId": "01a13a9b-34b0-7612-ba36-613000000004",
+        "title": "compressed one",
+        "updatedAt": 5000
+       },
+       {
+        "backend": "codex",
+        "client": "cli",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "codex:01a13a9b-34b0-7612-ba36-613000000006",
+        "route": "official",
+        "sessionId": "01a13a9b-34b0-7612-ba36-613000000006",
+        "title": "zz",
+        "updatedAt": 3500
+       },
+       {
+        "backend": "codex",
+        "client": "exec",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "codex:01a13a9b-34b0-7612-ba36-613000000007",
+        "provider": "custom",
+        "route": "custom",
+        "sessionId": "01a13a9b-34b0-7612-ba36-613000000007",
+        "title": "via cc-switch",
+        "updatedAt": 3000
+       },
+       {
+        "backend": "codex",
+        "client": "desktop",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "codex:01a13a9b-34b0-7612-ba36-613000000008",
+        "route": "official",
+        "sessionId": "01a13a9b-34b0-7612-ba36-613000000008",
+        "title": "（无标题会话）",
+        "updatedAt": 2000
+       }
+      ],
+      "nextOffset": null
+     }
+    },
+    {
+     "v": null
+    },
+    {
+     "v": null
+    },
+    {
+     "v": {
+      "hasMore": false,
+      "items": [
+       {
+        "backend": "codex",
+        "client": "cli",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "codex:01a13a9b-34b0-7612-ba36-613000000000",
+        "route": "official",
+        "sessionId": "01a13a9b-34b0-7612-ba36-613000000000",
+        "title": "renamed in sqlite",
+        "updatedAt": 9000
+       },
+       {
+        "backend": "codex",
+        "client": "cli",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "codex:01a13a9b-34b0-7612-ba36-613000000001",
+        "route": "official",
+        "sessionId": "01a13a9b-34b0-7612-ba36-613000000001",
+        "title": "archived",
+        "updatedAt": 8000
+       },
+       {
+        "backend": "codex",
+        "client": "cli",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "codex:01a13a9b-34b0-7612-ba36-613000000002",
+        "route": "official",
+        "sessionId": "01a13a9b-34b0-7612-ba36-613000000002",
+        "title": "spawned",
+        "updatedAt": 7000
+       },
+       {
+        "backend": "codex",
+        "client": "desktop",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "codex:01a13a9b-34b0-7612-ba36-613000000004",
+        "route": "official",
+        "sessionId": "01a13a9b-34b0-7612-ba36-613000000004",
+        "title": "compressed one",
+        "updatedAt": 5000
+       },
+       {
+        "backend": "codex",
+        "client": "cli",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "codex:01a13a9b-34b0-7612-ba36-613000000006",
+        "route": "official",
+        "sessionId": "01a13a9b-34b0-7612-ba36-613000000006",
+        "title": "zz",
+        "updatedAt": 3500
+       },
+       {
+        "backend": "codex",
+        "client": "exec",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "codex:01a13a9b-34b0-7612-ba36-613000000007",
+        "provider": "custom",
+        "route": "custom",
+        "sessionId": "01a13a9b-34b0-7612-ba36-613000000007",
+        "title": "via cc-switch",
+        "updatedAt": 3000
+       },
+       {
+        "backend": "codex",
+        "client": "desktop",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "codex:01a13a9b-34b0-7612-ba36-613000000008",
+        "route": "official",
+        "sessionId": "01a13a9b-34b0-7612-ba36-613000000008",
+        "title": "（无标题会话）",
+        "updatedAt": 2000
+       }
+      ],
+      "nextOffset": null
+     }
+    },
+    {
+     "v": [
+      [
+       "codexThreads"
+      ],
+      [
+       "codexThreads"
+      ],
+      [
+       "warn",
+       "codex index refresh failed"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "codexNoDb",
+   "deps": {
+    "open": [],
+    "tab": {
+     "reused": false
+    },
+    "trash": true
+   },
+   "files": [
+    {
+     "p": "home/.codex/sessions/2026/10/14/rollout-2026-10-14T21-30-12-01a13a9b-34b0-7612-ba36-613000000000.jsonl",
+     "text": "{\"timestamp\":\"2026-10-14T13:30:12.603Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"01a13a9b-34b0-7612-ba36-613000000000\",\"cwd\":\"@@SB@@/work\",\"source\":\"cli\",\"model_provider\":\"openai\",\"model\":\"o3\"}}\n{\"timestamp\":\"2026-10-14T13:30:13.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"newest file\"}]}}\n",
+     "mtime": 5000,
+     "json": true
+    },
+    {
+     "p": "home/.codex/sessions/2026/10/13/rollout-2026-10-14T21-30-12-01a13a9b-34b0-7612-ba36-613000000000.jsonl",
+     "text": "{\"timestamp\":\"2026-10-14T13:30:12.603Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"01a13a9b-34b0-7612-ba36-613000000000\",\"cwd\":\"@@SB@@/work\",\"source\":\"cli\"}}\n{\"timestamp\":\"2026-10-14T13:30:13.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"older file same id\"}]}}\n",
+     "mtime": 4000,
+     "json": true
+    },
+    {
+     "p": "home/.codex/sessions/2026/10/14/rollout-2026-10-14T21-30-12-01a13a9b-34b0-7612-ba36-613000000001.jsonl",
+     "text": "{\"timestamp\":\"2026-10-14T13:30:12.603Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"01a13a9b-34b0-7612-ba36-613000000001\",\"cwd\":\"@@SB@@/work\",\"source\":\"vscode\",\"model_provider\":\"nomi_gateway\",\"originator\":\"nomi\"}}\n{\"timestamp\":\"2026-10-14T13:30:13.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"from nomi\"}]}}\n",
+     "mtime": 3000,
+     "json": true
+    },
+    {
+     "p": "home/.codex/sessions/2026/10/14/rollout-2026-10-14T21-30-12-01a13a9b-34b0-7612-ba36-613000000002.jsonl.zst",
+     "text": "{\"timestamp\":\"2026-10-14T13:30:12.603Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"01a13a9b-34b0-7612-ba36-613000000002\",\"cwd\":\"@@SB@@/work\",\"source\":\"cli\"}}\n{\"timestamp\":\"2026-10-14T13:30:13.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"zst no index\"}]}}\n",
+     "mtime": 2000,
+     "json": true,
+     "zstd": true
+    },
+    {
+     "p": "home/.codex/sessions/2026/10/14/rollout-2026-10-14T21-30-12-01a13a9b-34b0-7612-ba36-613000000003.jsonl",
+     "text": "{\"timestamp\": \"2026-10-14T13:30:12.603Z\", \"ordinal\": 0, \"type\": \"session_meta\", \"payload\": {\"session_id\": \"01a13a9b-34b0-7612-ba36-613a55008483\", \"id\": \"01a13a9b-34b0-7612-ba36-613a55008483\", \"timestamp\": \"2026-10-14T13:30:12.547Z\", \"cwd\": \"/tmp\", \"originator\": \"codex_exec\", \"cli_version\": \"0.162.1\", \"source\": \"exec\", \"base_instructions\": {\"text\": \"(trimmed)\"}}}\n{\"timestamp\": \"2026-10-14T13:30:12.604Z\", \"ordinal\": 1, \"type\": \"event_msg\", \"payload\": {\"type\": \"task_started\", \"turn_attribution\": {\"turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\", \"turn_trigger\": \"exec\", \"parent_turn_id\": null, \"initiating_agent_path\": null, \"root_turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\"}, \"turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\", \"root_turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\", \"started_at\": 1791984612, \"model_context_window\": 258400, \"collaboration_mode_kind\": \"default\"}}\n{\"timestamp\": \"2026-10-14T13:30:12.632Z\", \"ordinal\": 2, \"type\": \"response_item\", \"payload\": {\"type\": \"message\", \"id\": \"msg_01a13a9b-3517-7740-9129-e2472b258af4\", \"role\": \"developer\", \"content\": [{\"type\": \"input_text\", \"text\": \"<skills_instructions>(trimmed)</skills_instructions>\"}], \"internal_chat_message_metadata_passthrough\": {\"turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\", \"create_time\": 1791984612.6311965, \"content_item_kinds\": [\"host_skills.instructions\", \"permissions.instructions\"]}}, \"metadata\": {\"client_authored\": false, \"mcp_attribution\": {\"status\": \"none\"}}}\n{\"timestamp\": \"2026-10-14T13:30:12.632Z\", \"ordinal\": 3, \"type\": \"response_item\", \"payload\": {\"type\": \"message\", \"id\": \"msg_01a13a9b-3517-7740-9129-e25ce6b2223f\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"<environment_context>\\n  <cwd>/tmp</cwd>\\n  <shell>bash</shell>\\n  <current_date>2026-10-14</current_date>\\n  <timezone>Asia/Shanghai</timezone>\\n  <filesystem><workspace_roots><root>/tmp</root></workspace_roots><permission_profile type=\\\"managed\\\"><file_system type=\\\"restricted\\\"><entry access=\\\"read\\\"><special>:root</special></entry></file_system></permission_profile></filesystem>\\n</environment_context>\"}], \"internal_chat_message_metadata_passthrough\": {\"turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\", \"create_time\": 1791984612.6312072, \"content_item_kinds\": [\"environments.environment_context\"]}}}\n{\"timestamp\": \"2026-10-14T13:30:12.640Z\", \"ordinal\": 6, \"type\": \"response_item\", \"payload\": {\"type\": \"message\", \"id\": \"msg_01a13a9b-351f-79f2-9d70-91bc2965750a\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"Reply with exactly: pong\"}], \"internal_chat_message_metadata_passthrough\": {\"turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\", \"create_time\": 1791984612.639928, \"content_item_kinds\": [\"user.text\"]}}, \"metadata\": {\"retained_source\": {\"id\": {\"message_id\": \"msg_01a13a9b-351f-79f2-9d70-91bc2965750a\", \"turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\", \"role\": \"user\"}, \"revision\": \"retained_01a13a9b-3520-70a1-a124-396645fd0c32\", \"complete\": true}, \"client_authored\": false, \"user_input_order\": 0, \"mcp_attribution\": {\"status\": \"none\"}}}\n{\"timestamp\": \"2026-10-14T13:30:12.641Z\", \"ordinal\": 7, \"type\": \"event_msg\", \"payload\": {\"type\": \"item_completed\", \"thread_id\": \"01a13a9b-34b0-7612-ba36-613a55008483\", \"turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\", \"item\": {\"type\": \"UserMessage\", \"id\": \"01a13a9b-351f-79f2-9d70-91ccd153fb2b\", \"content\": [{\"type\": \"text\", \"text\": \"Reply with exactly: pong\", \"text_elements\": []}]}, \"started_at_ms\": 1791984612641, \"completed_at_ms\": 1791984612641}}\n{\"timestamp\": \"2026-10-14T13:30:24.027Z\", \"ordinal\": 8, \"type\": \"event_msg\", \"payload\": {\"type\": \"item_completed\", \"thread_id\": \"01a13a9b-34b0-7612-ba36-613a55008483\", \"turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\", \"item\": {\"type\": \"AgentMessage\", \"id\": \"msg_843727\", \"content\": [{\"type\": \"Text\", \"text\": \"pong\"}]}, \"started_at_ms\": 1791984624000, \"completed_at_ms\": 1791984624027}}\n{\"timestamp\": \"2026-10-14T13:30:24.038Z\", \"ordinal\": 9, \"type\": \"response_item\", \"payload\": {\"type\": \"message\", \"id\": \"msg_843727\", \"role\": \"assistant\", \"content\": [{\"type\": \"output_text\", \"text\": \"pong\"}], \"internal_chat_message_metadata_passthrough\": {\"turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\", \"content_item_kinds\": [\"unknown\"]}}, \"metadata\": {\"retained_source\": {\"id\": {\"message_id\": \"msg_843727\", \"turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\", \"role\": \"assistant\"}, \"revision\": \"retained_01a13a9b-61a6-79b3-b555-d5f9626435dc\", \"complete\": true}, \"client_authored\": false, \"user_input_order\": 1}}\n{\"timestamp\": \"2026-10-14T13:30:24.039Z\", \"ordinal\": 11, \"type\": \"event_msg\", \"payload\": {\"type\": \"token_count\", \"info\": {\"total_token_usage\": {\"input_tokens\": 3774, \"cached_input_tokens\": 18, \"cache_write_input_tokens\": 0, \"output_tokens\": 2, \"reasoning_output_tokens\": 0, \"total_tokens\": 3776}, \"last_token_usage\": {\"input_tokens\": 3774, \"cached_input_tokens\": 18, \"cache_write_input_tokens\": 0, \"output_tokens\": 2, \"reasoning_output_tokens\": 0, \"total_tokens\": 3776}, \"model_context_window\": 258400}, \"rate_limits\": {\"limit_id\": \"codex\", \"limit_name\": null, \"primary\": null, \"secondary\": null, \"credits\": null, \"individual_limit\": null, \"spend_control_reached\": null, \"plan_type\": null, \"rate_limit_reached_type\": null}}}\n{\"timestamp\": \"2026-10-14T13:30:24.054Z\", \"ordinal\": 12, \"type\": \"event_msg\", \"payload\": {\"type\": \"task_complete\", \"root_turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\", \"turn_id\": \"01a13a9b-34f2-7471-b46f-50f8d70a9a5d\", \"last_agent_message\": \"pong\", \"started_at\": 1791984612, \"completed_at\": 1791984624, \"duration_ms\": 11454, \"time_to_first_token_ms\": 11401}}\n{\"timestamp\": \"2026-10-14T13:31:00.000Z\", \"type\": \"response_item\", \"payload\": {\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"# AGENTS.md instructions for /tmp\\n\\n<INSTRUCTIONS>\\nbe nice\\n</INSTRUCTIONS>\"}]}}\n{\"timestamp\": \"2026-10-14T13:31:01.000Z\", \"type\": \"response_item\", \"payload\": {\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"List the files\"}]}}\n{\"timestamp\": \"2026-10-14T13:31:02.000Z\", \"type\": \"response_item\", \"payload\": {\"type\": \"function_call\", \"name\": \"shell\", \"arguments\": \"{\\\"command\\\":[\\\"ls\\\"]}\", \"call_id\": \"c1\"}}\n{\"timestamp\": \"2026-10-14T13:31:03.000Z\", \"type\": \"response_item\", \"payload\": {\"type\": \"function_call_output\", \"call_id\": \"c1\", \"output\": \"a.txt\\nb.txt\"}}\n{\"timestamp\": \"2026-10-14T13:31:04.000Z\", \"type\": \"response_item\", \"payload\": {\"type\": \"message\", \"role\": \"assistant\", \"content\": [{\"type\": \"output_text\", \"text\": \"There are two files: a.txt and b.txt.\"}]}}\n",
+     "mtime": 1000,
+     "json": true
+    },
+    {
+     "p": "home/.codex/sessions/2026/10/14/rollout-noid.jsonl",
+     "text": "{\"timestamp\":\"2026-10-14T13:30:12.603Z\",\"type\":\"session_meta\",\"payload\":{\"cwd\":\"@@SB@@/work\",\"source\":\"cli\"}}\n{\"timestamp\":\"2026-10-14T13:30:13.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"no id anywhere\"}]}}\n",
+     "mtime": 500,
+     "json": true
+    }
+   ],
+   "steps": [
+    [
+     "list",
+     "codex",
+     {}
+    ],
+    [
+     "open",
+     "codex",
+     "01a13a9b-34b0-7612-ba36-613000000001"
+    ],
+    [
+     "calls"
+    ],
+    [
+     "transcript",
+     "codex",
+     "01a13a9b-34b0-7612-ba36-613000000003"
+    ],
+    [
+     "transcript",
+     "codex",
+     "01a13a9b-34b0-7612-ba36-613000000002"
+    ],
+    [
+     "remove",
+     "codex",
+     "01a13a9b-34b0-7612-ba36-613000000000"
+    ],
+    [
+     "calls"
+    ],
+    [
+     "list",
+     "codex",
+     {
+      "force": true
+     }
+    ]
+   ],
+   "out": [
+    {
+     "v": {
+      "hasMore": false,
+      "items": [
+       {
+        "backend": "codex",
+        "client": "cli",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "codex:01a13a9b-34b0-7612-ba36-613000000000",
+        "model": "o3",
+        "route": "official",
+        "sessionId": "01a13a9b-34b0-7612-ba36-613000000000",
+        "title": "newest file",
+        "updatedAt": 5000
+       },
+       {
+        "backend": "codex",
+        "client": "nomi",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "codex:01a13a9b-34b0-7612-ba36-613000000001",
+        "route": "gateway",
+        "sessionId": "01a13a9b-34b0-7612-ba36-613000000001",
+        "title": "from nomi",
+        "updatedAt": 3000
+       },
+       {
+        "backend": "codex",
+        "client": "cli",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "codex:01a13a9b-34b0-7612-ba36-613000000002",
+        "route": "official",
+        "sessionId": "01a13a9b-34b0-7612-ba36-613000000002",
+        "title": "zst no index",
+        "updatedAt": 2000
+       },
+       {
+        "backend": "codex",
+        "client": "exec",
+        "cwd": "/tmp",
+        "cwdMissing": false,
+        "key": "codex:01a13a9b-34b0-7612-ba36-613a55008483",
+        "route": "official",
+        "sessionId": "01a13a9b-34b0-7612-ba36-613a55008483",
+        "title": "Reply with exactly: pong",
+        "updatedAt": 1000
+       }
+      ],
+      "nextOffset": null
+     }
+    },
+    {
+     "v": {
+      "ok": true,
+      "reused": false,
+      "tab": {
+       "id": "tab-01a13a9b-34b0-7612-ba36-613000000001"
+      }
+     }
+    },
+    {
+     "v": [
+      [
+       "openTab",
+       {
+        "backend": "codex",
+        "cwd": "<SB>/work",
+        "firstMsg": {
+         "content": "from nomi",
+         "id": "hist-0",
+         "role": "user",
+         "timestamp": 1791984613000
+        },
+        "messages": 1,
+        "permissionModeSource": "history-cli",
+        "sessionId": "01a13a9b-34b0-7612-ba36-613000000001",
+        "source": "thirdParty",
+        "title": "from nomi"
+       }
+      ]
+     ]
+    },
+    {
+     "v": {
+      "messages": [],
+      "note": "找不到该会话的记录文件",
+      "truncated": false
+     }
+    },
+    {
+     "v": {
+      "messages": [
+       {
+        "content": "zst no index",
+        "id": "hist-0",
+        "role": "user",
+        "timestamp": 1791984613000
+       }
+      ],
+      "truncated": false
+     }
+    },
+    {
+     "v": {
+      "ok": true,
+      "removed": 2
+     }
+    },
+    {
+     "v": [
+      [
+       "trash",
+       "<SB>/home/.codex/sessions/2026/10/14/rollout-2026-10-14T21-30-12-01a13a9b-34b0-7612-ba36-613000000000.jsonl"
+      ],
+      [
+       "trash",
+       "<SB>/home/.codex/sessions/2026/10/13/rollout-2026-10-14T21-30-12-01a13a9b-34b0-7612-ba36-613000000000.jsonl"
+      ]
+     ]
+    },
+    {
+     "v": {
+      "hasMore": false,
+      "items": [
+       {
+        "backend": "codex",
+        "client": "nomi",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "codex:01a13a9b-34b0-7612-ba36-613000000001",
+        "route": "gateway",
+        "sessionId": "01a13a9b-34b0-7612-ba36-613000000001",
+        "title": "from nomi",
+        "updatedAt": 3000
+       },
+       {
+        "backend": "codex",
+        "client": "cli",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "codex:01a13a9b-34b0-7612-ba36-613000000002",
+        "route": "official",
+        "sessionId": "01a13a9b-34b0-7612-ba36-613000000002",
+        "title": "zst no index",
+        "updatedAt": 2000
+       },
+       {
+        "backend": "codex",
+        "client": "exec",
+        "cwd": "/tmp",
+        "cwdMissing": false,
+        "key": "codex:01a13a9b-34b0-7612-ba36-613a55008483",
+        "route": "official",
+        "sessionId": "01a13a9b-34b0-7612-ba36-613a55008483",
+        "title": "Reply with exactly: pong",
+        "updatedAt": 1000
+       }
+      ],
+      "nextOffset": null
+     }
+    }
+   ]
+  },
+  {
+   "name": "gemini",
+   "deps": {
+    "open": [],
+    "tab": {
+     "reused": false
+    },
+    "trash": true
+   },
+   "files": [
+    {
+     "p": "home/.gemini/tmp/app/.project_root",
+     "text": "@@SB@@/work\n",
+     "mtime": 1000,
+     "json": false
+    },
+    {
+     "p": "home/.gemini/tmp/app/chats/session-2026-10-19T00-00-gem-1111.jsonl",
+     "text": "{\"sessionId\":\"gem-11111111\",\"projectHash\":\"h\",\"startTime\":\"2026-10-19T00:00:00Z\",\"kind\":\"main\"}\n{\"id\":\"u1\",\"type\":\"user\",\"timestamp\":\"2026-10-19T00:00:01Z\",\"content\":[{\"text\":\"看看日志\"}]}\n{\"id\":\"m1\",\"type\":\"gemini\",\"timestamp\":\"2026-10-19T00:00:02Z\",\"model\":\"gemini-2.5-pro\",\"reasoningEffort\":\"high\",\"permissionMode\":\"autoEdit\",\"content\":\"日志里没有错误\",\"tokens\":{\"input\":10,\"output\":4,\"cached\":2}}\n",
+     "mtime": 2000000,
+     "json": true
+    },
+    {
+     "p": "home/.gemini/tmp/app/chats/gem-11111111/sub.jsonl",
+     "text": "{\"sessionId\":\"sub\",\"kind\":\"subagent\"}\n",
+     "mtime": 1999999,
+     "json": true
+    },
+    {
+     "p": "home/.gemini/tmp/sum/.project_root",
+     "text": "   ",
+     "mtime": 1000,
+     "json": false
+    },
+    {
+     "p": "home/.gemini/tmp/sum/chats/session-2026-10-19T00-00-gem-2222.jsonl",
+     "text": "{\"sessionId\":\"gem-22222222\",\"projectHash\":\"h\",\"startTime\":\"2026-10-19T00:00:00Z\",\"kind\":\"main\",\"summary\":\"Summarised  title\"}\n{\"id\":\"u1\",\"type\":\"user\",\"timestamp\":\"2026-10-19T00:00:01Z\",\"content\":[{\"text\":\"看看日志\"}]}\n",
+     "mtime": 3000000,
+     "json": true
+    },
+    {
+     "p": "home/.gemini/tmp/sum/chats/gem-22222222/sub.jsonl",
+     "text": "{\"sessionId\":\"sub\",\"kind\":\"subagent\"}\n",
+     "mtime": 2999999,
+     "json": true
+    },
+    {
+     "p": "home/.gemini/tmp/sub/.project_root",
+     "text": "@@SB@@/work\n",
+     "mtime": 1000,
+     "json": false
+    },
+    {
+     "p": "home/.gemini/tmp/sub/chats/session-2026-10-19T00-00-gem-3333.jsonl",
+     "text": "{\"sessionId\":\"gem-33333333\",\"projectHash\":\"h\",\"startTime\":\"2026-10-19T00:00:00Z\",\"kind\":\"subagent\"}\n{\"id\":\"u1\",\"type\":\"user\",\"timestamp\":\"2026-10-19T00:00:01Z\",\"content\":[{\"text\":\"看看日志\"}]}\n",
+     "mtime": 4000000,
+     "json": true
+    },
+    {
+     "p": "home/.gemini/tmp/sub/chats/gem-33333333/sub.jsonl",
+     "text": "{\"sessionId\":\"sub\",\"kind\":\"subagent\"}\n",
+     "mtime": 3999999,
+     "json": true
+    },
+    {
+     "p": "home/.gemini/tmp/empty/.project_root",
+     "text": "@@SB@@/work\n",
+     "mtime": 1000,
+     "json": false
+    },
+    {
+     "p": "home/.gemini/tmp/empty/chats/session-2026-10-19T00-00-gem-4444.jsonl",
+     "text": "{\"sessionId\":\"gem-44444444\",\"projectHash\":\"h\",\"startTime\":\"2026-10-19T00:00:00Z\",\"kind\":\"main\"}\n{\"id\":\"u1\",\"type\":\"user\",\"timestamp\":\"2026-10-19T00:00:01Z\",\"content\":[{\"text\":\"   \"}]}\n",
+     "mtime": 5000000,
+     "json": true
+    },
+    {
+     "p": "home/.gemini/tmp/empty/chats/gem-44444444/sub.jsonl",
+     "text": "{\"sessionId\":\"sub\",\"kind\":\"subagent\"}\n",
+     "mtime": 4999999,
+     "json": true
+    },
+    {
+     "p": "home/.gemini/tmp/raw/chats/session-x.json",
+     "text": "{\"sessionId\": \"gem-sess-1\", \"projectHash\": \"abc\", \"startTime\": \"2026-10-14T10:00:00.000Z\", \"kind\": \"main\"}\n{\"id\": \"u1\", \"timestamp\": \"2026-10-14T10:00:01.000Z\", \"type\": \"user\", \"content\": \"hi\"}\n{\"id\": \"m1\", \"timestamp\": \"2026-10-14T10:00:05.000Z\", \"type\": \"gemini\", \"model\": \"gemini-2.5-pro\", \"content\": \"a\", \"tokens\": {\"input\": 100, \"output\": 5, \"cached\": 40, \"thoughts\": 3, \"tool\": 0, \"total\": 108}}\n{\"id\": \"m1\", \"timestamp\": \"2026-10-14T10:00:05.000Z\", \"type\": \"gemini\", \"model\": \"gemini-2.5-pro\", \"content\": \"ab\", \"tokens\": {\"input\": 100, \"output\": 10, \"cached\": 40, \"thoughts\": 5, \"tool\": 2, \"total\": 117}}\n{\"id\": \"m2\", \"timestamp\": \"2026-10-14T10:00:20.000Z\", \"type\": \"gemini\", \"model\": \"gemini-2.5-flash\", \"content\": \"c\", \"tokens\": {\"input\": 50, \"output\": 7, \"cached\": 0, \"thoughts\": 0, \"tool\": 0, \"total\": 57}}\n",
+     "mtime": 6000000,
+     "json": true
+    }
+   ],
+   "steps": [
+    [
+     "list",
+     "gemini",
+     {}
+    ],
+    [
+     "open",
+     "gemini",
+     "gem-11111111"
+    ],
+    [
+     "open",
+     "gemini",
+     "gem-22222222"
+    ],
+    [
+     "calls"
+    ],
+    [
+     "remove",
+     "gemini",
+     "gem-11111111"
+    ],
+    [
+     "calls"
+    ],
+    [
+     "exists",
+     "home/.gemini/tmp/app/chats/gem-11111111"
+    ]
+   ],
+   "out": [
+    {
+     "v": {
+      "hasMore": false,
+      "items": [
+       {
+        "backend": "gemini",
+        "cwdMissing": false,
+        "key": "gemini:gem-sess-1",
+        "model": "gemini-2.5-flash",
+        "sessionId": "gem-sess-1",
+        "title": "hi",
+        "updatedAt": 6000000
+       },
+       {
+        "backend": "gemini",
+        "cwdMissing": false,
+        "key": "gemini:gem-22222222",
+        "sessionId": "gem-22222222",
+        "title": "Summarised title",
+        "updatedAt": 3000000
+       },
+       {
+        "backend": "gemini",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "gemini:gem-11111111",
+        "model": "gemini-2.5-pro",
+        "permissionMode": "acceptEdits",
+        "reasoningEffort": "high",
+        "sessionId": "gem-11111111",
+        "title": "看看日志",
+        "updatedAt": 2000000
+       }
+      ],
+      "nextOffset": null
+     }
+    },
+    {
+     "v": {
+      "ok": true,
+      "reused": false,
+      "tab": {
+       "id": "tab-gem-11111111"
+      }
+     }
+    },
+    {
+     "v": {
+      "error": "原工作目录已不存在：?。续接需要同一目录，请先恢复该目录。",
+      "ok": false
+     }
+    },
+    {
+     "v": [
+      [
+       "openTab",
+       {
+        "backend": "gemini",
+        "cwd": "<SB>/work",
+        "firstMsg": {
+         "content": "看看日志",
+         "id": "hist-0",
+         "role": "user",
+         "timestamp": 1792368001000
+        },
+        "messages": 2,
+        "modelOverride": "gemini-2.5-pro",
+        "permissionMode": "acceptEdits",
+        "reasoningEffort": "high",
+        "sessionId": "gem-11111111",
+        "title": "看看日志"
+       }
+      ]
+     ]
+    },
+    {
+     "v": {
+      "ok": true,
+      "removed": 2
+     }
+    },
+    {
+     "v": [
+      [
+       "trash",
+       "<SB>/home/.gemini/tmp/app/chats/session-2026-10-19T00-00-gem-1111.jsonl"
+      ],
+      [
+       "trash",
+       "<SB>/home/.gemini/tmp/app/chats/gem-11111111"
+      ]
+     ]
+    },
+    {
+     "v": false
+    }
+   ]
+  },
+  {
+   "name": "geminiHome",
+   "deps": {
+    "open": [],
+    "tab": {
+     "reused": false
+    },
+    "trash": true,
+    "geminiHome": "@@SB@@/gh"
+   },
+   "files": [
+    {
+     "p": "gh/.gemini/tmp/x/chats/session-1.jsonl",
+     "text": "{\"sessionId\":\"gh-1\",\"kind\":\"main\"}\n{\"id\":\"u\",\"type\":\"user\",\"content\":\"from gemini home\"}\n",
+     "mtime": 1000,
+     "json": true
+    },
+    {
+     "p": "home/.gemini/tmp/app/.project_root",
+     "text": "@@SB@@/work\n",
+     "mtime": 1000,
+     "json": false
+    },
+    {
+     "p": "home/.gemini/tmp/app/chats/session-2026-10-19T00-00-gem-1111.jsonl",
+     "text": "{\"sessionId\":\"gem-11111111\",\"projectHash\":\"h\",\"startTime\":\"2026-10-19T00:00:00Z\",\"kind\":\"main\"}\n{\"id\":\"u1\",\"type\":\"user\",\"timestamp\":\"2026-10-19T00:00:01Z\",\"content\":[{\"text\":\"看看日志\"}]}\n",
+     "mtime": 2000,
+     "json": true
+    },
+    {
+     "p": "home/.gemini/tmp/app/chats/gem-11111111/sub.jsonl",
+     "text": "{\"sessionId\":\"sub\",\"kind\":\"subagent\"}\n",
+     "mtime": 1999,
+     "json": true
+    }
+   ],
+   "steps": [
+    [
+     "list",
+     "gemini",
+     {}
+    ]
+   ],
+   "out": [
+    {
+     "v": {
+      "hasMore": false,
+      "items": [
+       {
+        "backend": "gemini",
+        "cwdMissing": false,
+        "key": "gemini:gh-1",
+        "sessionId": "gh-1",
+        "title": "from gemini home",
+        "updatedAt": 1000
+       }
+      ],
+      "nextOffset": null
+     }
+    }
+   ]
+  },
+  {
+   "name": "grok",
+   "deps": {
+    "open": [],
+    "tab": {
+     "reused": false
+    },
+    "trash": true
+   },
+   "files": [
+    {
+     "p": "home/.grok/sessions/%40%40SB%40%40%2Fwork/grok-session-1/updates.jsonl",
+     "text": "{\"sessionId\":\"grok-session-1\",\"cwd\":\"@@SB@@/work\",\"sessionUpdate\":\"user_message\",\"content\":[{\"type\":\"text\",\"text\":\"inspect project\"}]}\n{\"sessionId\":\"grok-session-1\",\"sessionUpdate\":\"agent_message\",\"content\":[{\"type\":\"text\",\"text\":\"done\"}]}\n{\"sessionId\":\"grok-session-1\",\"sessionUpdate\":\"current_mode_update\",\"currentModeId\":\"acceptEdits\"}\n{\"sessionId\":\"grok-session-1\",\"usage\":{\"modelUsage\":{\"grok-4.7-build\":{\"inputTokens\":1}}},\"reasoningEffort\":\"high\"}\n",
+     "mtime": 3000000,
+     "json": true
+    },
+    {
+     "p": "home/.grok/sessions/%40%40SB%40%40%2Fwork/grok-acp-1/updates.jsonl",
+     "text": "{\"timestamp\":1792763438,\"method\":\"session/update\",\"params\":{\"sessionId\":\"grok-acp-1\",\"update\":{\"sessionUpdate\":\"user_message_chunk\",\"content\":{\"type\":\"text\",\"text\":\"你是什么模型\"}}}}\n{\"timestamp\":1792763438,\"method\":\"session/update\",\"params\":{\"sessionId\":\"grok-acp-1\",\"update\":{\"sessionUpdate\":\"agent_message_chunk\",\"content\":{\"type\":\"text\",\"text\":\"我是 Grok\"}}}}\n",
+     "mtime": 2000000,
+     "json": true
+    },
+    {
+     "p": "home/.grok/sessions/%E0%A4%A/grok-bad-enc/updates.jsonl",
+     "text": "{\"sessionUpdate\":\"user_message\",\"content\":[{\"type\":\"text\",\"text\":\"bad dir\"}]}\n",
+     "mtime": 1000000,
+     "json": true
+    },
+    {
+     "p": "home/.grok/sessions/%40%40SB%40%40%2Fwork/grok-empty/updates.jsonl",
+     "text": "{\"sessionUpdate\":\"agent_message\",\"content\":[{\"type\":\"text\",\"text\":\"only reply\"}]}\n",
+     "mtime": 500000,
+     "json": true
+    }
+   ],
+   "steps": [
+    [
+     "list",
+     "grok",
+     {}
+    ],
+    [
+     "open",
+     "grok",
+     "grok-session-1"
+    ],
+    [
+     "open",
+     "grok",
+     "grok-bad-enc"
+    ],
+    [
+     "calls"
+    ],
+    [
+     "remove",
+     "grok",
+     "grok-acp-1"
+    ],
+    [
+     "calls"
+    ],
+    [
+     "list",
+     "grok",
+     {
+      "force": true
+     }
+    ]
+   ],
+   "out": [
+    {
+     "v": {
+      "hasMore": false,
+      "items": [
+       {
+        "backend": "grok",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "grok:grok-session-1",
+        "model": "grok-4.7-build",
+        "permissionMode": "acceptEdits",
+        "reasoningEffort": "high",
+        "sessionId": "grok-session-1",
+        "title": "inspect project",
+        "updatedAt": 3000000
+       },
+       {
+        "backend": "grok",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "grok:grok-acp-1",
+        "sessionId": "grok-acp-1",
+        "title": "你是什么模型",
+        "updatedAt": 2000000
+       },
+       {
+        "backend": "grok",
+        "cwd": "%E0%A4%A",
+        "cwdMissing": true,
+        "key": "grok:grok-bad-enc",
+        "sessionId": "grok-bad-enc",
+        "title": "bad dir",
+        "updatedAt": 1000000
+       }
+      ],
+      "nextOffset": null
+     }
+    },
+    {
+     "v": {
+      "ok": true,
+      "reused": false,
+      "tab": {
+       "id": "tab-grok-session-1"
+      }
+     }
+    },
+    {
+     "v": {
+      "error": "原工作目录已不存在：%E0%A4%A。续接需要同一目录，请先恢复该目录。",
+      "ok": false
+     }
+    },
+    {
+     "v": [
+      [
+       "openTab",
+       {
+        "backend": "grok",
+        "cwd": "<SB>/work",
+        "firstMsg": {
+         "content": "inspect project",
+         "id": "hist-0",
+         "role": "user",
+         "timestamp": 3000000
+        },
+        "messages": 2,
+        "modelOverride": "grok-4.7-build",
+        "permissionMode": "acceptEdits",
+        "reasoningEffort": "high",
+        "sessionId": "grok-session-1",
+        "title": "inspect project"
+       }
+      ]
+     ]
+    },
+    {
+     "v": {
+      "ok": true,
+      "removed": 1
+     }
+    },
+    {
+     "v": [
+      [
+       "trash",
+       "<SB>/home/.grok/sessions/<SBENC>%2Fwork/grok-acp-1"
+      ]
+     ]
+    },
+    {
+     "v": {
+      "hasMore": false,
+      "items": [
+       {
+        "backend": "grok",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "grok:grok-session-1",
+        "model": "grok-4.7-build",
+        "permissionMode": "acceptEdits",
+        "reasoningEffort": "high",
+        "sessionId": "grok-session-1",
+        "title": "inspect project",
+        "updatedAt": 3000000
+       },
+       {
+        "backend": "grok",
+        "cwd": "%E0%A4%A",
+        "cwdMissing": true,
+        "key": "grok:grok-bad-enc",
+        "sessionId": "grok-bad-enc",
+        "title": "bad dir",
+        "updatedAt": 1000000
+       }
+      ],
+      "nextOffset": null
+     }
+    }
+   ]
+  },
+  {
+   "name": "dsh",
+   "deps": {
+    "open": [],
+    "tab": {
+     "reused": false
+    },
+    "trash": true
+   },
+   "files": [
+    {
+     "p": "home/.dsh/sessions/--work--/session-887fa07d-22ae-4013-849f-2b2fafcba3c3/session.v4.jsonl.zstd",
+     "text": "{\"type\": \"session\", \"version\": 4, \"id\": \"session-887fa07d-22ae-4013-849f-2b2fafcba3c3\", \"createdAt\": 1792012621678, \"cwd\": \"/tmp/dsh/work\", \"isSeeded\": false, \"delegationDepth\": 0}\n{\"type\": \"permission/preset\", \"seq\": 0, \"time\": 1792012621683, \"data\": {\"preset\": \"workspace-write\"}}\n{\"type\": \"sandbox/mode\", \"seq\": 1, \"time\": 1792012621685, \"data\": {\"mode\": \"workspace-write\"}}\n{\"type\": \"approval/policy\", \"seq\": 2, \"time\": 1792012621685, \"data\": {\"policy\": \"ask\"}}\n{\"type\": \"agent/inbox/spliced\", \"seq\": 3, \"time\": 1792012621688, \"data\": {\"target\": \"next-turn\", \"start\": 0, \"inserted\": [{\"content\": [{\"type\": \"text\", \"text\": \"Reply with just the word PONG\"}], \"source\": {\"kind\": \"user\"}, \"role\": \"user\", \"id\": \"fcd786a5-dcee-40bf-98e7-cde874b3f96b\"}]}}\n{\"type\": \"turn/start\", \"seq\": 4, \"time\": 1792012621689, \"data\": {\"turn\": 1}}\n{\"type\": \"agent/inbox/spliced\", \"seq\": 5, \"time\": 1792012621690, \"data\": {\"target\": \"next-turn\", \"start\": 0, \"removedCount\": 1, \"inserted\": []}}\n{\"type\": \"step/start\", \"seq\": 6, \"time\": 1792012621952, \"data\": {\"turn\": 1, \"step\": 1}}\n{\"type\": \"system/message\", \"seq\": 7, \"time\": 1792012621955, \"data\": {\"trimmed\": true}, \"surfaceOp\": \"append\"}\n{\"type\": \"user/message\", \"seq\": 8, \"time\": 1792012621956, \"data\": {\"content\": [{\"type\": \"text\", \"text\": \"Reply with just the word PONG\"}], \"source\": {\"kind\": \"user\"}, \"role\": \"user\", \"id\": \"fcd786a5-dcee-40bf-98e7-cde874b3f96b\"}, \"surfaceOp\": \"append\"}\n{\"type\": \"user/message\", \"seq\": 9, \"time\": 1792012621957, \"data\": {\"content\": [{\"type\": \"text\", \"text\": \"Current runtime context. This snapshot supersedes earlier runtime-context snapshots.\\n\\nCurrent DSH file policy: workspace-write. Any available operation enforced by the DSH file sandbox may modify files under the session workspace: \\\"/tmp/dsh/work\\\". Some platform temporary areas may also be writable.\\n\\nApproval policy: ask. Operations that require approval may ask through the configured answerers; without an available answerer, the request fails closed.\"}], \"source\": {\"kind\": \"runtime-context\", \"form\": \"snapshot\", \"sections\": [{\"name\": \"sandbox:policy\", \"text\": \"Current DSH file policy: workspace-write. Any available operation enforced by the DSH file sandbox may modify files under the session workspace: \\\"/tmp/dsh/work\\\". Some platform temporary areas may also be writable.\"}, {\"name\": \"approval:policy\", \"text\": \"Approval policy: ask. Operations that require approval may ask through the configured answerers; without an available answerer, the request fails closed.\"}]}, \"role\": \"user\", \"id\": \"eed5f114-4dd4-442c-a1a1-ee7b5a28a502\"}, \"surfaceOp\": \"append\"}\n{\"type\": \"request/header\", \"seq\": 10, \"time\": 1792012621959, \"data\": {\"trimmed\": true}}\n{\"type\": \"request/context\", \"seq\": 11, \"time\": 1792012621960, \"data\": {\"provider\": \"nomi\", \"model\": \"qwen2.5:0.5b\", \"contextWindow\": 262144}}\n{\"type\": \"session/title\", \"seq\": 12, \"time\": 1792012621963, \"data\": {\"title\": \"Reply with just the word\", \"messageSeqs\": [8], \"source\": {\"kind\": \"fallback\"}}}\n{\"type\": \"session/title-llm-request\", \"seq\": 13, \"time\": 1792012621964, \"data\": {\"trimmed\": true}}\n{\"type\": \"session/title\", \"seq\": 14, \"time\": 1792012623578, \"data\": {\"title\": \"pong session\", \"messageSeqs\": [8], \"source\": {\"kind\": \"provider\", \"provider\": \"session-title-first-prompt-llm\", \"model\": {\"provider\": \"nomi\", \"model\": \"qwen2.5:0.5b\"}}}}\n{\"type\": \"assistant/message\", \"seq\": 15, \"time\": 1792012632794, \"data\": {\"turn\": 1, \"step\": 1, \"message\": {\"role\": \"assistant\", \"content\": [{\"type\": \"text\", \"text\": \"PONG\"}], \"source\": {\"kind\": \"model\"}, \"id\": \"7068fd09-69a8-40ff-abf4-13cdd9c71251\"}, \"usage\": {\"inputTokens\": 4651, \"outputTokens\": 3, \"totalTokens\": 4657, \"cacheReadTokens\": 3}}, \"surfaceOp\": \"append\"}\n{\"type\": \"step/end\", \"seq\": 16, \"time\": 1792012632795, \"data\": {\"turn\": 1, \"step\": 1}}\n{\"type\": \"turn/end\", \"seq\": 17, \"time\": 1792012632796, \"data\": {\"turn\": 1, \"reason\": {\"kind\": \"completed\"}}}\n{\"type\": \"session/end-seed\", \"seq\": 18, \"time\": 1792012633681, \"data\": {}}\n{\"type\": \"agent/inbox/spliced\", \"seq\": 19, \"time\": 1792012633741, \"data\": {\"target\": \"next-turn\", \"start\": 0, \"inserted\": [{\"content\": [{\"type\": \"text\", \"text\": \"Say it again\"}], \"source\": {\"kind\": \"user\"}, \"role\": \"user\", \"id\": \"e0b974ec-d2d8-4362-adfd-49a430753f6a\"}]}}\n{\"type\": \"turn/start\", \"seq\": 20, \"time\": 1792012633742, \"data\": {\"turn\": 2}}\n{\"type\": \"agent/inbox/spliced\", \"seq\": 21, \"time\": 1792012633743, \"data\": {\"target\": \"next-turn\", \"start\": 0, \"removedCount\": 1, \"inserted\": []}}\n{\"type\": \"step/start\", \"seq\": 22, \"time\": 1792012633768, \"data\": {\"turn\": 2, \"step\": 1}}\n{\"type\": \"user/message\", \"seq\": 23, \"time\": 1792012633770, \"data\": {\"content\": [{\"type\": \"text\", \"text\": \"Say it again\"}], \"source\": {\"kind\": \"user\"}, \"role\": \"user\", \"id\": \"e0b974ec-d2d8-4362-adfd-49a430753f6a\"}, \"surfaceOp\": \"append\"}\n{\"type\": \"request/header\", \"seq\": 24, \"time\": 1792012633772, \"data\": {\"trimmed\": true}}\n{\"type\": \"assistant/message\", \"seq\": 25, \"time\": 1792012634008, \"data\": {\"turn\": 2, \"step\": 1, \"message\": {\"role\": \"assistant\", \"content\": [{\"type\": \"text\", \"text\": \"PONG\"}], \"source\": {\"kind\": \"model\"}, \"id\": \"3cd6b182-92e4-4aa0-91ea-cc7c4f0b80c0\"}, \"usage\": {\"inputTokens\": 13, \"outputTokens\": 3, \"totalTokens\": 4672, \"cacheReadTokens\": 4656}}, \"surfaceOp\": \"append\"}\n{\"type\": \"step/end\", \"seq\": 26, \"time\": 1792012634009, \"data\": {\"turn\": 2, \"step\": 1}}\n{\"type\": \"turn/end\", \"seq\": 27, \"time\": 1792012634009, \"data\": {\"turn\": 2, \"reason\": {\"kind\": \"completed\"}}}\n",
+     "mtime": 3000,
+     "json": true,
+     "zstd": true
+    },
+    {
+     "p": "home/.dsh/sessions/--work--/session-887fa07d-22ae-4013-849f-2b2fafcba3c3/session.lock",
+     "text": "",
+     "mtime": 2999,
+     "json": true
+    },
+    {
+     "p": "home/.dsh/storages/session_projcache/sessions/session-887fa07d-22ae-4013-849f-2b2fafcba3c3.json",
+     "text": "{\"version\":7,\"record\":{\"identity\":{\"formatVersion\":4,\"createdAt\":1792012621678,\"cwd\":\"@@SB@@/work\",\"isSeeded\":false,\"inheritedEventCount\":0},\"rows\":{\"title\":{\"ver\":1,\"seq\":27,\"val\":\"pong session\"},\"titleInput\":{\"ver\":3,\"seq\":27,\"val\":{\"first\":{\"seq\":8,\"text\":\"Reply with just the word PONG\"},\"count\":2,\"lastSeq\":23}},\"llmRetry\":{\"ver\":1,\"seq\":27,\"val\":{}},\"sandboxMode\":{\"ver\":1,\"seq\":27,\"val\":\"workspace-write\"},\"goal\":{\"ver\":6,\"seq\":27,\"val\":{\"current\":null,\"seenGoalIds\":[],\"failure\":null}},\"plan\":{\"ver\":3,\"seq\":27,\"val\":{\"active\":false,\"wanted\":null,\"running\":null,\"activeAtLastHeader\":false}},\"tokenUsage\":{\"ver\":2,\"seq\":27,\"val\":{\"totals\":{\"uncachedInputTokens\":4664,\"outputTokens\":6,\"cacheReadTokens\":4659,\"cacheWriteTokens\":0},\"last\":{\"turn\":2,\"step\":1,\"buckets\":{\"uncachedInputTokens\":13,\"outputTokens\":3,\"cacheReadTokens\":4656,\"cacheWriteTokens\":0}}}},\"contextPressure\":{\"ver\":5,\"seq\":27,\"val\":{\"surfaceTokens\":815,\"contextWindow\":262144,\"pressureTokens\":4669,\"sampledSurfaceTokens\":806}},\"contextBreakdown\":{\"ver\":5,\"seq\":27,\"val\":{\"nodes\":[{\"seq\":7,\"heuristicTokens\":648,\"system\":true},{\"seq\":8,\"heuristicTokens\":16,\"system\":false},{\"seq\":9,\"heuristicTokens\":122,\"system\":false},{\"seq\":15,\"heuristicTokens\":9,\"system\":false},{\"seq\":23,\"heuristicTokens\":11,\"system\":false},{\"seq\":25,\"heuristicTokens\":9,\"system\":false}],\"breakdown\":{\"systemTokens\":648,\"toolsTokens\":4633,\"messageTokens\":167}}},\"todos\":{\"ver\":2,\"seq\":27,\"val\":null},\"turnBoundary\":{\"ver\":2,\"seq\":27,\"val\":{\"openTurnStartSeq\":null,\"lastStepStartSeq\":22,\"lastStepBoundary\":{\"kind\":\"end\",\"seq\":26},\"lastTurn\":2}},\"inbox\":{\"ver\":1,\"seq\":27,\"val\":{\"next-turn\":[],\"next-step\":[]}},\"userQuestions\":{\"ver\":2,\"seq\":27,\"val\":{\"inheritedEventCount\":0,\"timed\":false,\"questions\":{\"active\":[],\"settled\":[]}}},\"subagentCatalog\":{\"ver\":3,\"seq\":27,\"val\":{\"inheritedEventCount\":0}},\"subagentTiming\":{\"ver\":3,\"seq\":27,\"val\":{\"descriptorSeen\":false,\"settledMs\":0}},\"subagent\":{\"ver\":2,\"seq\":27,\"val\":{}},\"subagentModelSelectionPolicy\":{\"ver\":1,\"seq\":27,\"val\":null},\"permissions\":{\"ver\":2,\"seq\":27,\"val\":{\"preset\":\"workspace-write\",\"sandbox\":\"workspace-write\",\"approval\":\"ask\",\"seeded\":true}}}}}",
+     "mtime": 1000,
+     "json": true
+    },
+    {
+     "p": "home/.dsh/sessions/--work--/session-887fa07d-22ae-4013-849f-2b2fafcba3c4/session.v4.jsonl.zstd",
+     "text": "{\"type\": \"session\", \"version\": 4, \"id\": \"session-887fa07d-22ae-4013-849f-2b2fafcba3c3\", \"createdAt\": 1792012621678, \"cwd\": \"/tmp/dsh/work\", \"isSeeded\": false, \"delegationDepth\": 0}\n{\"type\": \"permission/preset\", \"seq\": 0, \"time\": 1792012621683, \"data\": {\"preset\": \"workspace-write\"}}\n{\"type\": \"sandbox/mode\", \"seq\": 1, \"time\": 1792012621685, \"data\": {\"mode\": \"workspace-write\"}}\n{\"type\": \"approval/policy\", \"seq\": 2, \"time\": 1792012621685, \"data\": {\"policy\": \"ask\"}}\n{\"type\": \"agent/inbox/spliced\", \"seq\": 3, \"time\": 1792012621688, \"data\": {\"target\": \"next-turn\", \"start\": 0, \"inserted\": [{\"content\": [{\"type\": \"text\", \"text\": \"Reply with just the word PONG\"}], \"source\": {\"kind\": \"user\"}, \"role\": \"user\", \"id\": \"fcd786a5-dcee-40bf-98e7-cde874b3f96b\"}]}}\n{\"type\": \"turn/start\", \"seq\": 4, \"time\": 1792012621689, \"data\": {\"turn\": 1}}\n{\"type\": \"agent/inbox/spliced\", \"seq\": 5, \"time\": 1792012621690, \"data\": {\"target\": \"next-turn\", \"start\": 0, \"removedCount\": 1, \"inserted\": []}}\n{\"type\": \"step/start\", \"seq\": 6, \"time\": 1792012621952, \"data\": {\"turn\": 1, \"step\": 1}}\n{\"type\": \"system/message\", \"seq\": 7, \"time\": 1792012621955, \"data\": {\"trimmed\": true}, \"surfaceOp\": \"append\"}\n{\"type\": \"user/message\", \"seq\": 8, \"time\": 1792012621956, \"data\": {\"content\": [{\"type\": \"text\", \"text\": \"Reply with just the word PONG\"}], \"source\": {\"kind\": \"user\"}, \"role\": \"user\", \"id\": \"fcd786a5-dcee-40bf-98e7-cde874b3f96b\"}, \"surfaceOp\": \"append\"}\n{\"type\": \"user/message\", \"seq\": 9, \"time\": 1792012621957, \"data\": {\"content\": [{\"type\": \"text\", \"text\": \"Current runtime context. This snapshot supersedes earlier runtime-context snapshots.\\n\\nCurrent DSH file policy: workspace-write. Any available operation enforced by the DSH file sandbox may modify files under the session workspace: \\\"/tmp/dsh/work\\\". Some platform temporary areas may also be writable.\\n\\nApproval policy: ask. Operations that require approval may ask through the configured answerers; without an available answerer, the request fails closed.\"}], \"source\": {\"kind\": \"runtime-context\", \"form\": \"snapshot\", \"sections\": [{\"name\": \"sandbox:policy\", \"text\": \"Current DSH file policy: workspace-write. Any available operation enforced by the DSH file sandbox may modify files under the session workspace: \\\"/tmp/dsh/work\\\". Some platform temporary areas may also be writable.\"}, {\"name\": \"approval:policy\", \"text\": \"Approval policy: ask. Operations that require approval may ask through the configured answerers; without an available answerer, the request fails closed.\"}]}, \"role\": \"user\", \"id\": \"eed5f114-4dd4-442c-a1a1-ee7b5a28a502\"}, \"surfaceOp\": \"append\"}\n{\"type\": \"request/header\", \"seq\": 10, \"time\": 1792012621959, \"data\": {\"trimmed\": true}}\n{\"type\": \"request/context\", \"seq\": 11, \"time\": 1792012621960, \"data\": {\"provider\": \"nomi\", \"model\": \"qwen2.5:0.5b\", \"contextWindow\": 262144}}\n{\"type\": \"session/title\", \"seq\": 12, \"time\": 1792012621963, \"data\": {\"title\": \"Reply with just the word\", \"messageSeqs\": [8], \"source\": {\"kind\": \"fallback\"}}}\n{\"type\": \"session/title-llm-request\", \"seq\": 13, \"time\": 1792012621964, \"data\": {\"trimmed\": true}}\n{\"type\": \"session/title\", \"seq\": 14, \"time\": 1792012623578, \"data\": {\"title\": \"pong session\", \"messageSeqs\": [8], \"source\": {\"kind\": \"provider\", \"provider\": \"session-title-first-prompt-llm\", \"model\": {\"provider\": \"nomi\", \"model\": \"qwen2.5:0.5b\"}}}}\n{\"type\": \"assistant/message\", \"seq\": 15, \"time\": 1792012632794, \"data\": {\"turn\": 1, \"step\": 1, \"message\": {\"role\": \"assistant\", \"content\": [{\"type\": \"text\", \"text\": \"PONG\"}], \"source\": {\"kind\": \"model\"}, \"id\": \"7068fd09-69a8-40ff-abf4-13cdd9c71251\"}, \"usage\": {\"inputTokens\": 4651, \"outputTokens\": 3, \"totalTokens\": 4657, \"cacheReadTokens\": 3}}, \"surfaceOp\": \"append\"}\n{\"type\": \"step/end\", \"seq\": 16, \"time\": 1792012632795, \"data\": {\"turn\": 1, \"step\": 1}}\n{\"type\": \"turn/end\", \"seq\": 17, \"time\": 1792012632796, \"data\": {\"turn\": 1, \"reason\": {\"kind\": \"completed\"}}}\n{\"type\": \"session/end-seed\", \"seq\": 18, \"time\": 1792012633681, \"data\": {}}\n{\"type\": \"agent/inbox/spliced\", \"seq\": 19, \"time\": 1792012633741, \"data\": {\"target\": \"next-turn\", \"start\": 0, \"inserted\": [{\"content\": [{\"type\": \"text\", \"text\": \"Say it again\"}], \"source\": {\"kind\": \"user\"}, \"role\": \"user\", \"id\": \"e0b974ec-d2d8-4362-adfd-49a430753f6a\"}]}}\n{\"type\": \"turn/start\", \"seq\": 20, \"time\": 1792012633742, \"data\": {\"turn\": 2}}\n{\"type\": \"agent/inbox/spliced\", \"seq\": 21, \"time\": 1792012633743, \"data\": {\"target\": \"next-turn\", \"start\": 0, \"removedCount\": 1, \"inserted\": []}}\n{\"type\": \"step/start\", \"seq\": 22, \"time\": 1792012633768, \"data\": {\"turn\": 2, \"step\": 1}}\n{\"type\": \"user/message\", \"seq\": 23, \"time\": 1792012633770, \"data\": {\"content\": [{\"type\": \"text\", \"text\": \"Say it again\"}], \"source\": {\"kind\": \"user\"}, \"role\": \"user\", \"id\": \"e0b974ec-d2d8-4362-adfd-49a430753f6a\"}, \"surfaceOp\": \"append\"}\n{\"type\": \"request/header\", \"seq\": 24, \"time\": 1792012633772, \"data\": {\"trimmed\": true}}\n{\"type\": \"assistant/message\", \"seq\": 25, \"time\": 1792012634008, \"data\": {\"turn\": 2, \"step\": 1, \"message\": {\"role\": \"assistant\", \"content\": [{\"type\": \"text\", \"text\": \"PONG\"}], \"source\": {\"kind\": \"model\"}, \"id\": \"3cd6b182-92e4-4aa0-91ea-cc7c4f0b80c0\"}, \"usage\": {\"inputTokens\": 13, \"outputTokens\": 3, \"totalTokens\": 4672, \"cacheReadTokens\": 4656}}, \"surfaceOp\": \"append\"}\n{\"type\": \"step/end\", \"seq\": 26, \"time\": 1792012634009, \"data\": {\"turn\": 2, \"step\": 1}}\n{\"type\": \"turn/end\", \"seq\": 27, \"time\": 1792012634009, \"data\": {\"turn\": 2, \"reason\": {\"kind\": \"completed\"}}}\n",
+     "mtime": 2000,
+     "json": true,
+     "zstd": true,
+     "pad": 2097160
+    },
+    {
+     "p": "home/.dsh/sessions/--work--/session-887fa07d-22ae-4013-849f-2b2fafcba3c4/session.lock",
+     "text": "",
+     "mtime": 1999,
+     "json": true
+    },
+    {
+     "p": "home/.dsh/storages/session_projcache/sessions/session-887fa07d-22ae-4013-849f-2b2fafcba3c4.json",
+     "text": "{\"version\":7,\"record\":{\"identity\":{\"formatVersion\":4,\"createdAt\":1792012621678,\"cwd\":\"@@SB@@/work\",\"isSeeded\":false,\"inheritedEventCount\":0},\"rows\":{\"title\":{\"ver\":1,\"seq\":27,\"val\":\"pong session\"},\"titleInput\":{\"ver\":3,\"seq\":27,\"val\":{\"first\":{\"seq\":8,\"text\":\"Reply with just the word PONG\"},\"count\":2,\"lastSeq\":23}},\"llmRetry\":{\"ver\":1,\"seq\":27,\"val\":{}},\"sandboxMode\":{\"ver\":1,\"seq\":27,\"val\":\"workspace-write\"},\"goal\":{\"ver\":6,\"seq\":27,\"val\":{\"current\":null,\"seenGoalIds\":[],\"failure\":null}},\"plan\":{\"ver\":3,\"seq\":27,\"val\":{\"active\":false,\"wanted\":null,\"running\":null,\"activeAtLastHeader\":false}},\"tokenUsage\":{\"ver\":2,\"seq\":27,\"val\":{\"totals\":{\"uncachedInputTokens\":4664,\"outputTokens\":6,\"cacheReadTokens\":4659,\"cacheWriteTokens\":0},\"last\":{\"turn\":2,\"step\":1,\"buckets\":{\"uncachedInputTokens\":13,\"outputTokens\":3,\"cacheReadTokens\":4656,\"cacheWriteTokens\":0}}}},\"contextPressure\":{\"ver\":5,\"seq\":27,\"val\":{\"surfaceTokens\":815,\"contextWindow\":262144,\"pressureTokens\":4669,\"sampledSurfaceTokens\":806}},\"contextBreakdown\":{\"ver\":5,\"seq\":27,\"val\":{\"nodes\":[{\"seq\":7,\"heuristicTokens\":648,\"system\":true},{\"seq\":8,\"heuristicTokens\":16,\"system\":false},{\"seq\":9,\"heuristicTokens\":122,\"system\":false},{\"seq\":15,\"heuristicTokens\":9,\"system\":false},{\"seq\":23,\"heuristicTokens\":11,\"system\":false},{\"seq\":25,\"heuristicTokens\":9,\"system\":false}],\"breakdown\":{\"systemTokens\":648,\"toolsTokens\":4633,\"messageTokens\":167}}},\"todos\":{\"ver\":2,\"seq\":27,\"val\":null},\"turnBoundary\":{\"ver\":2,\"seq\":27,\"val\":{\"openTurnStartSeq\":null,\"lastStepStartSeq\":22,\"lastStepBoundary\":{\"kind\":\"end\",\"seq\":26},\"lastTurn\":2}},\"inbox\":{\"ver\":1,\"seq\":27,\"val\":{\"next-turn\":[],\"next-step\":[]}},\"userQuestions\":{\"ver\":2,\"seq\":27,\"val\":{\"inheritedEventCount\":0,\"timed\":false,\"questions\":{\"active\":[],\"settled\":[]}}},\"subagentCatalog\":{\"ver\":3,\"seq\":27,\"val\":{\"inheritedEventCount\":0}},\"subagentTiming\":{\"ver\":3,\"seq\":27,\"val\":{\"descriptorSeen\":false,\"settledMs\":0}},\"subagent\":{\"ver\":2,\"seq\":27,\"val\":{}},\"subagentModelSelectionPolicy\":{\"ver\":1,\"seq\":27,\"val\":null},\"permissions\":{\"ver\":2,\"seq\":27,\"val\":{\"preset\":\"workspace-write\",\"sandbox\":\"workspace-write\",\"approval\":\"ask\",\"seeded\":true}}}}}",
+     "mtime": 1000,
+     "json": true
+    },
+    {
+     "p": "home/.dsh/sessions/--work--/session-plain-1/session.v4.jsonl",
+     "text": "{\"type\": \"session\", \"version\": 4, \"id\": \"session-887fa07d-22ae-4013-849f-2b2fafcba3c3\", \"createdAt\": 1792012621678, \"cwd\": \"/tmp/dsh/work\", \"isSeeded\": false, \"delegationDepth\": 0}\n{\"type\": \"permission/preset\", \"seq\": 0, \"time\": 1792012621683, \"data\": {\"preset\": \"workspace-write\"}}\n{\"type\": \"sandbox/mode\", \"seq\": 1, \"time\": 1792012621685, \"data\": {\"mode\": \"workspace-write\"}}\n{\"type\": \"approval/policy\", \"seq\": 2, \"time\": 1792012621685, \"data\": {\"policy\": \"ask\"}}\n{\"type\": \"agent/inbox/spliced\", \"seq\": 3, \"time\": 1792012621688, \"data\": {\"target\": \"next-turn\", \"start\": 0, \"inserted\": [{\"content\": [{\"type\": \"text\", \"text\": \"Reply with just the word PONG\"}], \"source\": {\"kind\": \"user\"}, \"role\": \"user\", \"id\": \"fcd786a5-dcee-40bf-98e7-cde874b3f96b\"}]}}\n{\"type\": \"turn/start\", \"seq\": 4, \"time\": 1792012621689, \"data\": {\"turn\": 1}}\n{\"type\": \"agent/inbox/spliced\", \"seq\": 5, \"time\": 1792012621690, \"data\": {\"target\": \"next-turn\", \"start\": 0, \"removedCount\": 1, \"inserted\": []}}\n{\"type\": \"step/start\", \"seq\": 6, \"time\": 1792012621952, \"data\": {\"turn\": 1, \"step\": 1}}\n{\"type\": \"system/message\", \"seq\": 7, \"time\": 1792012621955, \"data\": {\"trimmed\": true}, \"surfaceOp\": \"append\"}\n{\"type\": \"user/message\", \"seq\": 8, \"time\": 1792012621956, \"data\": {\"content\": [{\"type\": \"text\", \"text\": \"Reply with just the word PONG\"}], \"source\": {\"kind\": \"user\"}, \"role\": \"user\", \"id\": \"fcd786a5-dcee-40bf-98e7-cde874b3f96b\"}, \"surfaceOp\": \"append\"}\n{\"type\": \"user/message\", \"seq\": 9, \"time\": 1792012621957, \"data\": {\"content\": [{\"type\": \"text\", \"text\": \"Current runtime context. This snapshot supersedes earlier runtime-context snapshots.\\n\\nCurrent DSH file policy: workspace-write. Any available operation enforced by the DSH file sandbox may modify files under the session workspace: \\\"/tmp/dsh/work\\\". Some platform temporary areas may also be writable.\\n\\nApproval policy: ask. Operations that require approval may ask through the configured answerers; without an available answerer, the request fails closed.\"}], \"source\": {\"kind\": \"runtime-context\", \"form\": \"snapshot\", \"sections\": [{\"name\": \"sandbox:policy\", \"text\": \"Current DSH file policy: workspace-write. Any available operation enforced by the DSH file sandbox may modify files under the session workspace: \\\"/tmp/dsh/work\\\". Some platform temporary areas may also be writable.\"}, {\"name\": \"approval:policy\", \"text\": \"Approval policy: ask. Operations that require approval may ask through the configured answerers; without an available answerer, the request fails closed.\"}]}, \"role\": \"user\", \"id\": \"eed5f114-4dd4-442c-a1a1-ee7b5a28a502\"}, \"surfaceOp\": \"append\"}\n{\"type\": \"request/header\", \"seq\": 10, \"time\": 1792012621959, \"data\": {\"trimmed\": true}}\n{\"type\": \"request/context\", \"seq\": 11, \"time\": 1792012621960, \"data\": {\"provider\": \"nomi\", \"model\": \"qwen2.5:0.5b\", \"contextWindow\": 262144}}\n{\"type\": \"session/title\", \"seq\": 12, \"time\": 1792012621963, \"data\": {\"title\": \"Reply with just the word\", \"messageSeqs\": [8], \"source\": {\"kind\": \"fallback\"}}}\n{\"type\": \"session/title-llm-request\", \"seq\": 13, \"time\": 1792012621964, \"data\": {\"trimmed\": true}}\n{\"type\": \"session/title\", \"seq\": 14, \"time\": 1792012623578, \"data\": {\"title\": \"pong session\", \"messageSeqs\": [8], \"source\": {\"kind\": \"provider\", \"provider\": \"session-title-first-prompt-llm\", \"model\": {\"provider\": \"nomi\", \"model\": \"qwen2.5:0.5b\"}}}}\n{\"type\": \"assistant/message\", \"seq\": 15, \"time\": 1792012632794, \"data\": {\"turn\": 1, \"step\": 1, \"message\": {\"role\": \"assistant\", \"content\": [{\"type\": \"text\", \"text\": \"PONG\"}], \"source\": {\"kind\": \"model\"}, \"id\": \"7068fd09-69a8-40ff-abf4-13cdd9c71251\"}, \"usage\": {\"inputTokens\": 4651, \"outputTokens\": 3, \"totalTokens\": 4657, \"cacheReadTokens\": 3}}, \"surfaceOp\": \"append\"}\n{\"type\": \"step/end\", \"seq\": 16, \"time\": 1792012632795, \"data\": {\"turn\": 1, \"step\": 1}}\n{\"type\": \"turn/end\", \"seq\": 17, \"time\": 1792012632796, \"data\": {\"turn\": 1, \"reason\": {\"kind\": \"completed\"}}}\n{\"type\": \"session/end-seed\", \"seq\": 18, \"time\": 1792012633681, \"data\": {}}\n{\"type\": \"agent/inbox/spliced\", \"seq\": 19, \"time\": 1792012633741, \"data\": {\"target\": \"next-turn\", \"start\": 0, \"inserted\": [{\"content\": [{\"type\": \"text\", \"text\": \"Say it again\"}], \"source\": {\"kind\": \"user\"}, \"role\": \"user\", \"id\": \"e0b974ec-d2d8-4362-adfd-49a430753f6a\"}]}}\n{\"type\": \"turn/start\", \"seq\": 20, \"time\": 1792012633742, \"data\": {\"turn\": 2}}\n{\"type\": \"agent/inbox/spliced\", \"seq\": 21, \"time\": 1792012633743, \"data\": {\"target\": \"next-turn\", \"start\": 0, \"removedCount\": 1, \"inserted\": []}}\n{\"type\": \"step/start\", \"seq\": 22, \"time\": 1792012633768, \"data\": {\"turn\": 2, \"step\": 1}}\n{\"type\": \"user/message\", \"seq\": 23, \"time\": 1792012633770, \"data\": {\"content\": [{\"type\": \"text\", \"text\": \"Say it again\"}], \"source\": {\"kind\": \"user\"}, \"role\": \"user\", \"id\": \"e0b974ec-d2d8-4362-adfd-49a430753f6a\"}, \"surfaceOp\": \"append\"}\n{\"type\": \"request/header\", \"seq\": 24, \"time\": 1792012633772, \"data\": {\"trimmed\": true}}\n{\"type\": \"assistant/message\", \"seq\": 25, \"time\": 1792012634008, \"data\": {\"turn\": 2, \"step\": 1, \"message\": {\"role\": \"assistant\", \"content\": [{\"type\": \"text\", \"text\": \"PONG\"}], \"source\": {\"kind\": \"model\"}, \"id\": \"3cd6b182-92e4-4aa0-91ea-cc7c4f0b80c0\"}, \"usage\": {\"inputTokens\": 13, \"outputTokens\": 3, \"totalTokens\": 4672, \"cacheReadTokens\": 4656}}, \"surfaceOp\": \"append\"}\n{\"type\": \"step/end\", \"seq\": 26, \"time\": 1792012634009, \"data\": {\"turn\": 2, \"step\": 1}}\n{\"type\": \"turn/end\", \"seq\": 27, \"time\": 1792012634009, \"data\": {\"turn\": 2, \"reason\": {\"kind\": \"completed\"}}}\n",
+     "mtime": 1500,
+     "json": true
+    },
+    {
+     "p": "home/.dsh/sessions/--work--/session-plain-1/session.lock",
+     "text": "",
+     "mtime": 1499,
+     "json": true
+    },
+    {
+     "p": "home/.dsh/storages/session_projcache/sessions/session-plain-1.json",
+     "text": "{\"version\":7,\"record\":{\"identity\":{\"formatVersion\":4,\"createdAt\":1792012621678,\"cwd\":\"@@SB@@/gone\",\"isSeeded\":false,\"inheritedEventCount\":0},\"rows\":{\"title\":{\"ver\":1,\"seq\":27,\"val\":\"pong session\"},\"titleInput\":{\"ver\":3,\"seq\":27,\"val\":{\"first\":{\"seq\":8,\"text\":\"Reply with just the word PONG\"},\"count\":2,\"lastSeq\":23}},\"llmRetry\":{\"ver\":1,\"seq\":27,\"val\":{}},\"sandboxMode\":{\"ver\":1,\"seq\":27,\"val\":\"workspace-write\"},\"goal\":{\"ver\":6,\"seq\":27,\"val\":{\"current\":null,\"seenGoalIds\":[],\"failure\":null}},\"plan\":{\"ver\":3,\"seq\":27,\"val\":{\"active\":false,\"wanted\":null,\"running\":null,\"activeAtLastHeader\":false}},\"tokenUsage\":{\"ver\":2,\"seq\":27,\"val\":{\"totals\":{\"uncachedInputTokens\":4664,\"outputTokens\":6,\"cacheReadTokens\":4659,\"cacheWriteTokens\":0},\"last\":{\"turn\":2,\"step\":1,\"buckets\":{\"uncachedInputTokens\":13,\"outputTokens\":3,\"cacheReadTokens\":4656,\"cacheWriteTokens\":0}}}},\"contextPressure\":{\"ver\":5,\"seq\":27,\"val\":{\"surfaceTokens\":815,\"contextWindow\":262144,\"pressureTokens\":4669,\"sampledSurfaceTokens\":806}},\"contextBreakdown\":{\"ver\":5,\"seq\":27,\"val\":{\"nodes\":[{\"seq\":7,\"heuristicTokens\":648,\"system\":true},{\"seq\":8,\"heuristicTokens\":16,\"system\":false},{\"seq\":9,\"heuristicTokens\":122,\"system\":false},{\"seq\":15,\"heuristicTokens\":9,\"system\":false},{\"seq\":23,\"heuristicTokens\":11,\"system\":false},{\"seq\":25,\"heuristicTokens\":9,\"system\":false}],\"breakdown\":{\"systemTokens\":648,\"toolsTokens\":4633,\"messageTokens\":167}}},\"todos\":{\"ver\":2,\"seq\":27,\"val\":null},\"turnBoundary\":{\"ver\":2,\"seq\":27,\"val\":{\"openTurnStartSeq\":null,\"lastStepStartSeq\":22,\"lastStepBoundary\":{\"kind\":\"end\",\"seq\":26},\"lastTurn\":2}},\"inbox\":{\"ver\":1,\"seq\":27,\"val\":{\"next-turn\":[],\"next-step\":[]}},\"userQuestions\":{\"ver\":2,\"seq\":27,\"val\":{\"inheritedEventCount\":0,\"timed\":false,\"questions\":{\"active\":[],\"settled\":[]}}},\"subagentCatalog\":{\"ver\":3,\"seq\":27,\"val\":{\"inheritedEventCount\":0}},\"subagentTiming\":{\"ver\":3,\"seq\":27,\"val\":{\"descriptorSeen\":false,\"settledMs\":0}},\"subagent\":{\"ver\":2,\"seq\":27,\"val\":{}},\"subagentModelSelectionPolicy\":{\"ver\":1,\"seq\":27,\"val\":null},\"permissions\":{\"ver\":2,\"seq\":27,\"val\":{\"preset\":\"workspace-write\",\"sandbox\":\"workspace-write\",\"approval\":\"ask\",\"seeded\":true}}}}}",
+     "mtime": 1000,
+     "json": true
+    },
+    {
+     "p": "home/.dsh/sessions/--work--/session-noidx/session.v4.jsonl.zstd",
+     "text": "{\"type\": \"session\", \"version\": 4, \"id\": \"session-887fa07d-22ae-4013-849f-2b2fafcba3c3\", \"createdAt\": 1792012621678, \"cwd\": \"/tmp/dsh/work\", \"isSeeded\": false, \"delegationDepth\": 0}\n{\"type\": \"permission/preset\", \"seq\": 0, \"time\": 1792012621683, \"data\": {\"preset\": \"workspace-write\"}}\n{\"type\": \"sandbox/mode\", \"seq\": 1, \"time\": 1792012621685, \"data\": {\"mode\": \"workspace-write\"}}\n{\"type\": \"approval/policy\", \"seq\": 2, \"time\": 1792012621685, \"data\": {\"policy\": \"ask\"}}\n{\"type\": \"agent/inbox/spliced\", \"seq\": 3, \"time\": 1792012621688, \"data\": {\"target\": \"next-turn\", \"start\": 0, \"inserted\": [{\"content\": [{\"type\": \"text\", \"text\": \"Reply with just the word PONG\"}], \"source\": {\"kind\": \"user\"}, \"role\": \"user\", \"id\": \"fcd786a5-dcee-40bf-98e7-cde874b3f96b\"}]}}\n{\"type\": \"turn/start\", \"seq\": 4, \"time\": 1792012621689, \"data\": {\"turn\": 1}}\n{\"type\": \"agent/inbox/spliced\", \"seq\": 5, \"time\": 1792012621690, \"data\": {\"target\": \"next-turn\", \"start\": 0, \"removedCount\": 1, \"inserted\": []}}\n{\"type\": \"step/start\", \"seq\": 6, \"time\": 1792012621952, \"data\": {\"turn\": 1, \"step\": 1}}\n{\"type\": \"system/message\", \"seq\": 7, \"time\": 1792012621955, \"data\": {\"trimmed\": true}, \"surfaceOp\": \"append\"}\n{\"type\": \"user/message\", \"seq\": 8, \"time\": 1792012621956, \"data\": {\"content\": [{\"type\": \"text\", \"text\": \"Reply with just the word PONG\"}], \"source\": {\"kind\": \"user\"}, \"role\": \"user\", \"id\": \"fcd786a5-dcee-40bf-98e7-cde874b3f96b\"}, \"surfaceOp\": \"append\"}\n{\"type\": \"user/message\", \"seq\": 9, \"time\": 1792012621957, \"data\": {\"content\": [{\"type\": \"text\", \"text\": \"Current runtime context. This snapshot supersedes earlier runtime-context snapshots.\\n\\nCurrent DSH file policy: workspace-write. Any available operation enforced by the DSH file sandbox may modify files under the session workspace: \\\"/tmp/dsh/work\\\". Some platform temporary areas may also be writable.\\n\\nApproval policy: ask. Operations that require approval may ask through the configured answerers; without an available answerer, the request fails closed.\"}], \"source\": {\"kind\": \"runtime-context\", \"form\": \"snapshot\", \"sections\": [{\"name\": \"sandbox:policy\", \"text\": \"Current DSH file policy: workspace-write. Any available operation enforced by the DSH file sandbox may modify files under the session workspace: \\\"/tmp/dsh/work\\\". Some platform temporary areas may also be writable.\"}, {\"name\": \"approval:policy\", \"text\": \"Approval policy: ask. Operations that require approval may ask through the configured answerers; without an available answerer, the request fails closed.\"}]}, \"role\": \"user\", \"id\": \"eed5f114-4dd4-442c-a1a1-ee7b5a28a502\"}, \"surfaceOp\": \"append\"}\n{\"type\": \"request/header\", \"seq\": 10, \"time\": 1792012621959, \"data\": {\"trimmed\": true}}\n{\"type\": \"request/context\", \"seq\": 11, \"time\": 1792012621960, \"data\": {\"provider\": \"nomi\", \"model\": \"qwen2.5:0.5b\", \"contextWindow\": 262144}}\n{\"type\": \"session/title\", \"seq\": 12, \"time\": 1792012621963, \"data\": {\"title\": \"Reply with just the word\", \"messageSeqs\": [8], \"source\": {\"kind\": \"fallback\"}}}\n{\"type\": \"session/title-llm-request\", \"seq\": 13, \"time\": 1792012621964, \"data\": {\"trimmed\": true}}\n{\"type\": \"session/title\", \"seq\": 14, \"time\": 1792012623578, \"data\": {\"title\": \"pong session\", \"messageSeqs\": [8], \"source\": {\"kind\": \"provider\", \"provider\": \"session-title-first-prompt-llm\", \"model\": {\"provider\": \"nomi\", \"model\": \"qwen2.5:0.5b\"}}}}\n{\"type\": \"assistant/message\", \"seq\": 15, \"time\": 1792012632794, \"data\": {\"turn\": 1, \"step\": 1, \"message\": {\"role\": \"assistant\", \"content\": [{\"type\": \"text\", \"text\": \"PONG\"}], \"source\": {\"kind\": \"model\"}, \"id\": \"7068fd09-69a8-40ff-abf4-13cdd9c71251\"}, \"usage\": {\"inputTokens\": 4651, \"outputTokens\": 3, \"totalTokens\": 4657, \"cacheReadTokens\": 3}}, \"surfaceOp\": \"append\"}\n{\"type\": \"step/end\", \"seq\": 16, \"time\": 1792012632795, \"data\": {\"turn\": 1, \"step\": 1}}\n{\"type\": \"turn/end\", \"seq\": 17, \"time\": 1792012632796, \"data\": {\"turn\": 1, \"reason\": {\"kind\": \"completed\"}}}\n{\"type\": \"session/end-seed\", \"seq\": 18, \"time\": 1792012633681, \"data\": {}}\n{\"type\": \"agent/inbox/spliced\", \"seq\": 19, \"time\": 1792012633741, \"data\": {\"target\": \"next-turn\", \"start\": 0, \"inserted\": [{\"content\": [{\"type\": \"text\", \"text\": \"Say it again\"}], \"source\": {\"kind\": \"user\"}, \"role\": \"user\", \"id\": \"e0b974ec-d2d8-4362-adfd-49a430753f6a\"}]}}\n{\"type\": \"turn/start\", \"seq\": 20, \"time\": 1792012633742, \"data\": {\"turn\": 2}}\n{\"type\": \"agent/inbox/spliced\", \"seq\": 21, \"time\": 1792012633743, \"data\": {\"target\": \"next-turn\", \"start\": 0, \"removedCount\": 1, \"inserted\": []}}\n{\"type\": \"step/start\", \"seq\": 22, \"time\": 1792012633768, \"data\": {\"turn\": 2, \"step\": 1}}\n{\"type\": \"user/message\", \"seq\": 23, \"time\": 1792012633770, \"data\": {\"content\": [{\"type\": \"text\", \"text\": \"Say it again\"}], \"source\": {\"kind\": \"user\"}, \"role\": \"user\", \"id\": \"e0b974ec-d2d8-4362-adfd-49a430753f6a\"}, \"surfaceOp\": \"append\"}\n{\"type\": \"request/header\", \"seq\": 24, \"time\": 1792012633772, \"data\": {\"trimmed\": true}}\n{\"type\": \"assistant/message\", \"seq\": 25, \"time\": 1792012634008, \"data\": {\"turn\": 2, \"step\": 1, \"message\": {\"role\": \"assistant\", \"content\": [{\"type\": \"text\", \"text\": \"PONG\"}], \"source\": {\"kind\": \"model\"}, \"id\": \"3cd6b182-92e4-4aa0-91ea-cc7c4f0b80c0\"}, \"usage\": {\"inputTokens\": 13, \"outputTokens\": 3, \"totalTokens\": 4672, \"cacheReadTokens\": 4656}}, \"surfaceOp\": \"append\"}\n{\"type\": \"step/end\", \"seq\": 26, \"time\": 1792012634009, \"data\": {\"turn\": 2, \"step\": 1}}\n{\"type\": \"turn/end\", \"seq\": 27, \"time\": 1792012634009, \"data\": {\"turn\": 2, \"reason\": {\"kind\": \"completed\"}}}\n",
+     "mtime": 1000,
+     "json": true,
+     "zstd": true
+    },
+    {
+     "p": "home/.dsh/sessions/--work--/session-noidx/session.lock",
+     "text": "",
+     "mtime": 999,
+     "json": true
+    },
+    {
+     "p": "home/.dsh/sessions/--work--/session-notitle/session.v4.jsonl.zstd",
+     "text": "{\"type\": \"session\", \"version\": 4, \"id\": \"session-887fa07d-22ae-4013-849f-2b2fafcba3c3\", \"createdAt\": 1792012621678, \"cwd\": \"/tmp/dsh/work\", \"isSeeded\": false, \"delegationDepth\": 0}\n{\"type\": \"permission/preset\", \"seq\": 0, \"time\": 1792012621683, \"data\": {\"preset\": \"workspace-write\"}}\n{\"type\": \"sandbox/mode\", \"seq\": 1, \"time\": 1792012621685, \"data\": {\"mode\": \"workspace-write\"}}\n{\"type\": \"approval/policy\", \"seq\": 2, \"time\": 1792012621685, \"data\": {\"policy\": \"ask\"}}\n{\"type\": \"agent/inbox/spliced\", \"seq\": 3, \"time\": 1792012621688, \"data\": {\"target\": \"next-turn\", \"start\": 0, \"inserted\": [{\"content\": [{\"type\": \"text\", \"text\": \"Reply with just the word PONG\"}], \"source\": {\"kind\": \"user\"}, \"role\": \"user\", \"id\": \"fcd786a5-dcee-40bf-98e7-cde874b3f96b\"}]}}\n{\"type\": \"turn/start\", \"seq\": 4, \"time\": 1792012621689, \"data\": {\"turn\": 1}}\n{\"type\": \"agent/inbox/spliced\", \"seq\": 5, \"time\": 1792012621690, \"data\": {\"target\": \"next-turn\", \"start\": 0, \"removedCount\": 1, \"inserted\": []}}\n{\"type\": \"step/start\", \"seq\": 6, \"time\": 1792012621952, \"data\": {\"turn\": 1, \"step\": 1}}\n{\"type\": \"system/message\", \"seq\": 7, \"time\": 1792012621955, \"data\": {\"trimmed\": true}, \"surfaceOp\": \"append\"}\n{\"type\": \"user/message\", \"seq\": 8, \"time\": 1792012621956, \"data\": {\"content\": [{\"type\": \"text\", \"text\": \"Reply with just the word PONG\"}], \"source\": {\"kind\": \"user\"}, \"role\": \"user\", \"id\": \"fcd786a5-dcee-40bf-98e7-cde874b3f96b\"}, \"surfaceOp\": \"append\"}\n{\"type\": \"user/message\", \"seq\": 9, \"time\": 1792012621957, \"data\": {\"content\": [{\"type\": \"text\", \"text\": \"Current runtime context. This snapshot supersedes earlier runtime-context snapshots.\\n\\nCurrent DSH file policy: workspace-write. Any available operation enforced by the DSH file sandbox may modify files under the session workspace: \\\"/tmp/dsh/work\\\". Some platform temporary areas may also be writable.\\n\\nApproval policy: ask. Operations that require approval may ask through the configured answerers; without an available answerer, the request fails closed.\"}], \"source\": {\"kind\": \"runtime-context\", \"form\": \"snapshot\", \"sections\": [{\"name\": \"sandbox:policy\", \"text\": \"Current DSH file policy: workspace-write. Any available operation enforced by the DSH file sandbox may modify files under the session workspace: \\\"/tmp/dsh/work\\\". Some platform temporary areas may also be writable.\"}, {\"name\": \"approval:policy\", \"text\": \"Approval policy: ask. Operations that require approval may ask through the configured answerers; without an available answerer, the request fails closed.\"}]}, \"role\": \"user\", \"id\": \"eed5f114-4dd4-442c-a1a1-ee7b5a28a502\"}, \"surfaceOp\": \"append\"}\n{\"type\": \"request/header\", \"seq\": 10, \"time\": 1792012621959, \"data\": {\"trimmed\": true}}\n{\"type\": \"request/context\", \"seq\": 11, \"time\": 1792012621960, \"data\": {\"provider\": \"nomi\", \"model\": \"qwen2.5:0.5b\", \"contextWindow\": 262144}}\n{\"type\": \"session/title\", \"seq\": 12, \"time\": 1792012621963, \"data\": {\"title\": \"Reply with just the word\", \"messageSeqs\": [8], \"source\": {\"kind\": \"fallback\"}}}\n{\"type\": \"session/title-llm-request\", \"seq\": 13, \"time\": 1792012621964, \"data\": {\"trimmed\": true}}\n{\"type\": \"session/title\", \"seq\": 14, \"time\": 1792012623578, \"data\": {\"title\": \"pong session\", \"messageSeqs\": [8], \"source\": {\"kind\": \"provider\", \"provider\": \"session-title-first-prompt-llm\", \"model\": {\"provider\": \"nomi\", \"model\": \"qwen2.5:0.5b\"}}}}\n{\"type\": \"assistant/message\", \"seq\": 15, \"time\": 1792012632794, \"data\": {\"turn\": 1, \"step\": 1, \"message\": {\"role\": \"assistant\", \"content\": [{\"type\": \"text\", \"text\": \"PONG\"}], \"source\": {\"kind\": \"model\"}, \"id\": \"7068fd09-69a8-40ff-abf4-13cdd9c71251\"}, \"usage\": {\"inputTokens\": 4651, \"outputTokens\": 3, \"totalTokens\": 4657, \"cacheReadTokens\": 3}}, \"surfaceOp\": \"append\"}\n{\"type\": \"step/end\", \"seq\": 16, \"time\": 1792012632795, \"data\": {\"turn\": 1, \"step\": 1}}\n{\"type\": \"turn/end\", \"seq\": 17, \"time\": 1792012632796, \"data\": {\"turn\": 1, \"reason\": {\"kind\": \"completed\"}}}\n{\"type\": \"session/end-seed\", \"seq\": 18, \"time\": 1792012633681, \"data\": {}}\n{\"type\": \"agent/inbox/spliced\", \"seq\": 19, \"time\": 1792012633741, \"data\": {\"target\": \"next-turn\", \"start\": 0, \"inserted\": [{\"content\": [{\"type\": \"text\", \"text\": \"Say it again\"}], \"source\": {\"kind\": \"user\"}, \"role\": \"user\", \"id\": \"e0b974ec-d2d8-4362-adfd-49a430753f6a\"}]}}\n{\"type\": \"turn/start\", \"seq\": 20, \"time\": 1792012633742, \"data\": {\"turn\": 2}}\n{\"type\": \"agent/inbox/spliced\", \"seq\": 21, \"time\": 1792012633743, \"data\": {\"target\": \"next-turn\", \"start\": 0, \"removedCount\": 1, \"inserted\": []}}\n{\"type\": \"step/start\", \"seq\": 22, \"time\": 1792012633768, \"data\": {\"turn\": 2, \"step\": 1}}\n{\"type\": \"user/message\", \"seq\": 23, \"time\": 1792012633770, \"data\": {\"content\": [{\"type\": \"text\", \"text\": \"Say it again\"}], \"source\": {\"kind\": \"user\"}, \"role\": \"user\", \"id\": \"e0b974ec-d2d8-4362-adfd-49a430753f6a\"}, \"surfaceOp\": \"append\"}\n{\"type\": \"request/header\", \"seq\": 24, \"time\": 1792012633772, \"data\": {\"trimmed\": true}}\n{\"type\": \"assistant/message\", \"seq\": 25, \"time\": 1792012634008, \"data\": {\"turn\": 2, \"step\": 1, \"message\": {\"role\": \"assistant\", \"content\": [{\"type\": \"text\", \"text\": \"PONG\"}], \"source\": {\"kind\": \"model\"}, \"id\": \"3cd6b182-92e4-4aa0-91ea-cc7c4f0b80c0\"}, \"usage\": {\"inputTokens\": 13, \"outputTokens\": 3, \"totalTokens\": 4672, \"cacheReadTokens\": 4656}}, \"surfaceOp\": \"append\"}\n{\"type\": \"step/end\", \"seq\": 26, \"time\": 1792012634009, \"data\": {\"turn\": 2, \"step\": 1}}\n{\"type\": \"turn/end\", \"seq\": 27, \"time\": 1792012634009, \"data\": {\"turn\": 2, \"reason\": {\"kind\": \"completed\"}}}\n",
+     "mtime": 900,
+     "json": true,
+     "zstd": true
+    },
+    {
+     "p": "home/.dsh/sessions/--work--/session-notitle/session.lock",
+     "text": "",
+     "mtime": 899,
+     "json": true
+    },
+    {
+     "p": "home/.dsh/storages/session_projcache/sessions/session-notitle.json",
+     "text": "{\"version\":7,\"record\":{\"identity\":{\"formatVersion\":4,\"createdAt\":1792012621678,\"cwd\":\"@@SB@@/work\",\"isSeeded\":false,\"inheritedEventCount\":0},\"rows\":{\"title\":{\"ver\":1,\"seq\":27,\"val\":\"pong session\"},\"titleInput\":{\"ver\":3,\"seq\":27,\"val\":{\"first\":{\"seq\":8,\"text\":\"Reply with just the word PONG\"},\"count\":2,\"lastSeq\":23}},\"llmRetry\":{\"ver\":1,\"seq\":27,\"val\":{}},\"sandboxMode\":{\"ver\":1,\"seq\":27,\"val\":\"workspace-write\"},\"goal\":{\"ver\":6,\"seq\":27,\"val\":{\"current\":null,\"seenGoalIds\":[],\"failure\":null}},\"plan\":{\"ver\":3,\"seq\":27,\"val\":{\"active\":false,\"wanted\":null,\"running\":null,\"activeAtLastHeader\":false}},\"tokenUsage\":{\"ver\":2,\"seq\":27,\"val\":{\"totals\":{\"uncachedInputTokens\":4664,\"outputTokens\":6,\"cacheReadTokens\":4659,\"cacheWriteTokens\":0},\"last\":{\"turn\":2,\"step\":1,\"buckets\":{\"uncachedInputTokens\":13,\"outputTokens\":3,\"cacheReadTokens\":4656,\"cacheWriteTokens\":0}}}},\"contextPressure\":{\"ver\":5,\"seq\":27,\"val\":{\"surfaceTokens\":815,\"contextWindow\":262144,\"pressureTokens\":4669,\"sampledSurfaceTokens\":806}},\"contextBreakdown\":{\"ver\":5,\"seq\":27,\"val\":{\"nodes\":[{\"seq\":7,\"heuristicTokens\":648,\"system\":true},{\"seq\":8,\"heuristicTokens\":16,\"system\":false},{\"seq\":9,\"heuristicTokens\":122,\"system\":false},{\"seq\":15,\"heuristicTokens\":9,\"system\":false},{\"seq\":23,\"heuristicTokens\":11,\"system\":false},{\"seq\":25,\"heuristicTokens\":9,\"system\":false}],\"breakdown\":{\"systemTokens\":648,\"toolsTokens\":4633,\"messageTokens\":167}}},\"todos\":{\"ver\":2,\"seq\":27,\"val\":null},\"turnBoundary\":{\"ver\":2,\"seq\":27,\"val\":{\"openTurnStartSeq\":null,\"lastStepStartSeq\":22,\"lastStepBoundary\":{\"kind\":\"end\",\"seq\":26},\"lastTurn\":2}},\"inbox\":{\"ver\":1,\"seq\":27,\"val\":{\"next-turn\":[],\"next-step\":[]}},\"userQuestions\":{\"ver\":2,\"seq\":27,\"val\":{\"inheritedEventCount\":0,\"timed\":false,\"questions\":{\"active\":[],\"settled\":[]}}},\"subagentCatalog\":{\"ver\":3,\"seq\":27,\"val\":{\"inheritedEventCount\":0}},\"subagentTiming\":{\"ver\":3,\"seq\":27,\"val\":{\"descriptorSeen\":false,\"settledMs\":0}},\"subagent\":{\"ver\":2,\"seq\":27,\"val\":{}},\"subagentModelSelectionPolicy\":{\"ver\":1,\"seq\":27,\"val\":null},\"permissions\":{\"ver\":2,\"seq\":27,\"val\":{\"preset\":\"workspace-write\",\"sandbox\":\"workspace-write\",\"approval\":\"ask\",\"seeded\":true}}},\"title\":\"\"}}",
+     "mtime": 1000,
+     "json": true
+    }
+   ],
+   "steps": [
+    [
+     "list",
+     "dsh",
+     {}
+    ],
+    [
+     "transcript",
+     "dsh",
+     "session-887fa07d-22ae-4013-849f-2b2fafcba3c3"
+    ],
+    [
+     "open",
+     "dsh",
+     "session-887fa07d-22ae-4013-849f-2b2fafcba3c3"
+    ],
+    [
+     "open",
+     "dsh",
+     "session-plain-1"
+    ],
+    [
+     "calls"
+    ],
+    [
+     "remove",
+     "dsh",
+     "session-887fa07d-22ae-4013-849f-2b2fafcba3c3"
+    ],
+    [
+     "calls"
+    ],
+    [
+     "exists",
+     "home/.dsh/storages/session_projcache/sessions/session-887fa07d-22ae-4013-849f-2b2fafcba3c3.json"
+    ],
+    [
+     "list",
+     "dsh",
+     {
+      "force": true
+     }
+    ]
+   ],
+   "out": [
+    {
+     "v": {
+      "hasMore": false,
+      "items": [
+       {
+        "backend": "dsh",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "dsh:session-887fa07d-22ae-4013-849f-2b2fafcba3c3",
+        "model": "qwen2.5:0.5b",
+        "permissionMode": "acceptEdits",
+        "sessionId": "session-887fa07d-22ae-4013-849f-2b2fafcba3c3",
+        "title": "pong session",
+        "updatedAt": 3000
+       },
+       {
+        "backend": "dsh",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "dsh:session-887fa07d-22ae-4013-849f-2b2fafcba3c4",
+        "permissionMode": "acceptEdits",
+        "sessionId": "session-887fa07d-22ae-4013-849f-2b2fafcba3c4",
+        "title": "pong session",
+        "updatedAt": 2000
+       },
+       {
+        "backend": "dsh",
+        "cwd": "<SB>/gone",
+        "cwdMissing": true,
+        "key": "dsh:session-plain-1",
+        "model": "qwen2.5:0.5b",
+        "permissionMode": "acceptEdits",
+        "sessionId": "session-plain-1",
+        "title": "pong session",
+        "updatedAt": 1500
+       },
+       {
+        "backend": "dsh",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "dsh:session-notitle",
+        "model": "qwen2.5:0.5b",
+        "permissionMode": "acceptEdits",
+        "sessionId": "session-notitle",
+        "title": "pong session",
+        "updatedAt": 900
+       }
+      ],
+      "nextOffset": null
+     }
+    },
+    {
+     "v": {
+      "messages": [
+       {
+        "content": "Reply with just the word PONG",
+        "id": "hist-0",
+        "role": "user",
+        "timestamp": 1792012621956
+       },
+       {
+        "content": "PONG",
+        "durationMs": 10838,
+        "id": "hist-1",
+        "role": "assistant",
+        "timestamp": 1792012632794,
+        "usage": {
+         "cacheReadTokens": 3,
+         "inputTokens": 4651,
+         "outputTokens": 3
+        }
+       },
+       {
+        "content": "Say it again",
+        "id": "hist-2",
+        "role": "user",
+        "timestamp": 1792012633770
+       },
+       {
+        "content": "PONG",
+        "durationMs": 238,
+        "id": "hist-3",
+        "role": "assistant",
+        "timestamp": 1792012634008,
+        "usage": {
+         "cacheReadTokens": 4656,
+         "inputTokens": 13,
+         "outputTokens": 3
+        }
+       }
+      ],
+      "truncated": false
+     }
+    },
+    {
+     "v": {
+      "ok": true,
+      "reused": false,
+      "tab": {
+       "id": "tab-session-887fa07d-22ae-4013-849f-2b2fafcba3c3"
+      }
+     }
+    },
+    {
+     "v": {
+      "error": "原工作目录已不存在：<SB>/gone。续接需要同一目录，请先恢复该目录。",
+      "ok": false
+     }
+    },
+    {
+     "v": [
+      [
+       "openTab",
+       {
+        "backend": "dsh",
+        "cwd": "<SB>/work",
+        "firstMsg": {
+         "content": "Reply with just the word PONG",
+         "id": "hist-0",
+         "role": "user",
+         "timestamp": 1792012621956
+        },
+        "messages": 4,
+        "modelOverride": "qwen2.5:0.5b",
+        "permissionMode": "acceptEdits",
+        "sessionId": "session-887fa07d-22ae-4013-849f-2b2fafcba3c3",
+        "title": "pong session"
+       }
+      ]
+     ]
+    },
+    {
+     "v": {
+      "ok": true,
+      "removed": 2
+     }
+    },
+    {
+     "v": [
+      [
+       "trash",
+       "<SB>/home/.dsh/sessions/--work--/session-887fa07d-22ae-4013-849f-2b2fafcba3c3"
+      ],
+      [
+       "trash",
+       "<SB>/home/.dsh/storages/session_projcache/sessions/session-887fa07d-22ae-4013-849f-2b2fafcba3c3.json"
+      ]
+     ]
+    },
+    {
+     "v": false
+    },
+    {
+     "v": {
+      "hasMore": false,
+      "items": [
+       {
+        "backend": "dsh",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "dsh:session-887fa07d-22ae-4013-849f-2b2fafcba3c4",
+        "permissionMode": "acceptEdits",
+        "sessionId": "session-887fa07d-22ae-4013-849f-2b2fafcba3c4",
+        "title": "pong session",
+        "updatedAt": 2000
+       },
+       {
+        "backend": "dsh",
+        "cwd": "<SB>/gone",
+        "cwdMissing": true,
+        "key": "dsh:session-plain-1",
+        "model": "qwen2.5:0.5b",
+        "permissionMode": "acceptEdits",
+        "sessionId": "session-plain-1",
+        "title": "pong session",
+        "updatedAt": 1500
+       },
+       {
+        "backend": "dsh",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "dsh:session-notitle",
+        "model": "qwen2.5:0.5b",
+        "permissionMode": "acceptEdits",
+        "sessionId": "session-notitle",
+        "title": "pong session",
+        "updatedAt": 900
+       }
+      ],
+      "nextOffset": null
+     }
+    }
+   ]
+  },
+  {
+   "name": "transcriptLong",
+   "deps": {
+    "open": [],
+    "tab": {
+     "reused": false
+    },
+    "trash": true
+   },
+   "files": [
+    {
+     "p": "home/.claude/projects/-work-app/long.jsonl",
+     "text": "{\"type\":\"user\",\"sessionId\":\"long\",\"cwd\":\"@@SB@@/work\",\"message\":{\"role\":\"user\",\"content\":\"long one\"}}\n",
+     "mtime": 1000,
+     "json": true,
+     "rep": [
+      "{\"type\":\"assistant\",\"sessionId\":\"long\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"reply xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}]}}\n",
+      2600
+     ]
+    }
+   ],
+   "steps": [
+    [
+     "open",
+     "claude",
+     "long"
+    ],
+    [
+     "transcriptMeta",
+     "claude",
+     "long"
+    ]
+   ],
+   "out": [
+    {
+     "v": {
+      "notice": "历史较长，只显示了最近的部分消息",
+      "ok": true,
+      "reused": false,
+      "tab": {
+       "id": "tab-long"
+      }
+     }
+    },
+    {
+     "v": {
+      "first": "reply xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "n": 1,
+      "truncated": true
+     }
+    }
+   ]
+  },
+  {
+   "name": "corruptZstd",
+   "deps": {
+    "open": [],
+    "tab": {
+     "reused": false
+    },
+    "trash": true
+   },
+   "files": [
+    {
+     "p": "home/.dsh/sessions/--work--/session-corrupt/session.v4.jsonl.zstd",
+     "text": "not really zstd",
+     "mtime": 1000,
+     "json": true
+    },
+    {
+     "p": "home/.dsh/sessions/--work--/session-corrupt/session.lock",
+     "text": "",
+     "mtime": 999,
+     "json": true
+    },
+    {
+     "p": "home/.dsh/storages/session_projcache/sessions/session-corrupt.json",
+     "text": "{\"version\":7,\"record\":{\"identity\":{\"formatVersion\":4,\"createdAt\":1792012621678,\"cwd\":\"@@SB@@/work\",\"isSeeded\":false,\"inheritedEventCount\":0},\"rows\":{\"title\":{\"ver\":1,\"seq\":27,\"val\":\"pong session\"},\"titleInput\":{\"ver\":3,\"seq\":27,\"val\":{\"first\":{\"seq\":8,\"text\":\"Reply with just the word PONG\"},\"count\":2,\"lastSeq\":23}},\"llmRetry\":{\"ver\":1,\"seq\":27,\"val\":{}},\"sandboxMode\":{\"ver\":1,\"seq\":27,\"val\":\"workspace-write\"},\"goal\":{\"ver\":6,\"seq\":27,\"val\":{\"current\":null,\"seenGoalIds\":[],\"failure\":null}},\"plan\":{\"ver\":3,\"seq\":27,\"val\":{\"active\":false,\"wanted\":null,\"running\":null,\"activeAtLastHeader\":false}},\"tokenUsage\":{\"ver\":2,\"seq\":27,\"val\":{\"totals\":{\"uncachedInputTokens\":4664,\"outputTokens\":6,\"cacheReadTokens\":4659,\"cacheWriteTokens\":0},\"last\":{\"turn\":2,\"step\":1,\"buckets\":{\"uncachedInputTokens\":13,\"outputTokens\":3,\"cacheReadTokens\":4656,\"cacheWriteTokens\":0}}}},\"contextPressure\":{\"ver\":5,\"seq\":27,\"val\":{\"surfaceTokens\":815,\"contextWindow\":262144,\"pressureTokens\":4669,\"sampledSurfaceTokens\":806}},\"contextBreakdown\":{\"ver\":5,\"seq\":27,\"val\":{\"nodes\":[{\"seq\":7,\"heuristicTokens\":648,\"system\":true},{\"seq\":8,\"heuristicTokens\":16,\"system\":false},{\"seq\":9,\"heuristicTokens\":122,\"system\":false},{\"seq\":15,\"heuristicTokens\":9,\"system\":false},{\"seq\":23,\"heuristicTokens\":11,\"system\":false},{\"seq\":25,\"heuristicTokens\":9,\"system\":false}],\"breakdown\":{\"systemTokens\":648,\"toolsTokens\":4633,\"messageTokens\":167}}},\"todos\":{\"ver\":2,\"seq\":27,\"val\":null},\"turnBoundary\":{\"ver\":2,\"seq\":27,\"val\":{\"openTurnStartSeq\":null,\"lastStepStartSeq\":22,\"lastStepBoundary\":{\"kind\":\"end\",\"seq\":26},\"lastTurn\":2}},\"inbox\":{\"ver\":1,\"seq\":27,\"val\":{\"next-turn\":[],\"next-step\":[]}},\"userQuestions\":{\"ver\":2,\"seq\":27,\"val\":{\"inheritedEventCount\":0,\"timed\":false,\"questions\":{\"active\":[],\"settled\":[]}}},\"subagentCatalog\":{\"ver\":3,\"seq\":27,\"val\":{\"inheritedEventCount\":0}},\"subagentTiming\":{\"ver\":3,\"seq\":27,\"val\":{\"descriptorSeen\":false,\"settledMs\":0}},\"subagent\":{\"ver\":2,\"seq\":27,\"val\":{}},\"subagentModelSelectionPolicy\":{\"ver\":1,\"seq\":27,\"val\":null},\"permissions\":{\"ver\":2,\"seq\":27,\"val\":{\"preset\":\"workspace-write\",\"sandbox\":\"workspace-write\",\"approval\":\"ask\",\"seeded\":true}}}}}",
+     "mtime": 1000,
+     "json": true
+    }
+   ],
+   "steps": [
+    [
+     "list",
+     "dsh",
+     {}
+    ],
+    [
+     "transcript",
+     "dsh",
+     "session-corrupt"
+    ],
+    [
+     "open",
+     "dsh",
+     "session-corrupt"
+    ]
+   ],
+   "out": [
+    {
+     "v": {
+      "hasMore": false,
+      "items": [
+       {
+        "backend": "dsh",
+        "cwd": "<SB>/work",
+        "cwdMissing": false,
+        "key": "dsh:session-corrupt",
+        "permissionMode": "acceptEdits",
+        "sessionId": "session-corrupt",
+        "title": "pong session",
+        "updatedAt": 1000
+       }
+      ],
+      "nextOffset": null
+     }
+    },
+    {
+     "v": {
+      "messages": [],
+      "note": "读取历史消息失败，仍可继续该会话",
+      "truncated": false
+     }
+    },
+    {
+     "v": {
+      "notice": "读取历史消息失败，仍可继续该会话",
+      "ok": true,
+      "reused": false,
+      "tab": {
+       "id": "tab-session-corrupt"
+      }
+     }
+    }
+   ]
+  }
+ ]
+}

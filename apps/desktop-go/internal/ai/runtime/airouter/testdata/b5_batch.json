@@ -1,0 +1,316 @@
+[
+ {
+  "name": "burst-within-window",
+  "emitted": [
+   {
+    "at": 16,
+    "chunk": {
+     "type": "delta",
+     "content": "abc"
+    }
+   }
+  ],
+  "outcome": {
+   "at": 40,
+   "end": "done"
+  }
+ },
+ {
+  "name": "spans-two-windows",
+  "emitted": [
+   {
+    "at": 16,
+    "chunk": {
+     "type": "delta",
+     "content": "ab"
+    }
+   },
+   {
+    "at": 36,
+    "chunk": {
+     "type": "delta",
+     "content": "cd"
+    }
+   }
+  ],
+  "outcome": {
+   "at": 100,
+   "end": "done"
+  }
+ },
+ {
+  "name": "type-switch",
+  "emitted": [
+   {
+    "at": 4,
+    "chunk": {
+     "type": "reasoning",
+     "content": "r1r2"
+    }
+   },
+   {
+    "at": 20,
+    "chunk": {
+     "type": "delta",
+     "content": "d1d2"
+    }
+   }
+  ],
+  "outcome": {
+   "at": 50,
+   "end": "done"
+  }
+ },
+ {
+  "name": "non-text-flushes",
+  "emitted": [
+   {
+    "at": 3,
+    "chunk": {
+     "type": "delta",
+     "content": "a"
+    }
+   },
+   {
+    "at": 3,
+    "chunk": {
+     "type": "tool_call",
+     "id": "t1"
+    }
+   },
+   {
+    "at": 5,
+    "chunk": {
+     "type": "delta",
+     "content": "b"
+    }
+   },
+   {
+    "at": 5,
+    "chunk": {
+     "type": "delta",
+     "content": "c",
+     "extra": 1
+    }
+   },
+   {
+    "at": 22,
+    "chunk": {
+     "type": "delta",
+     "content": "d"
+    }
+   }
+  ],
+  "outcome": {
+   "at": 60,
+   "end": "done"
+  }
+ },
+ {
+  "name": "done-flushes-held",
+  "emitted": [
+   {
+    "at": 3,
+    "chunk": {
+     "type": "delta",
+     "content": "ab"
+    }
+   }
+  ],
+  "outcome": {
+   "at": 3,
+   "end": "done"
+  }
+ },
+ {
+  "name": "error-drops-held",
+  "emitted": [],
+  "outcome": {
+   "at": 8,
+   "end": "error",
+   "message": "boom"
+  }
+ },
+ {
+  "name": "error-after-flush",
+  "emitted": [
+   {
+    "at": 16,
+    "chunk": {
+     "type": "delta",
+     "content": "a"
+    }
+   }
+  ],
+  "outcome": {
+   "at": 30,
+   "end": "error",
+   "message": "boom"
+  }
+ },
+ {
+  "name": "exact-deadline-tie",
+  "emitted": [
+   {
+    "at": 16,
+    "chunk": {
+     "type": "delta",
+     "content": "a"
+    }
+   },
+   {
+    "at": 32,
+    "chunk": {
+     "type": "delta",
+     "content": "b"
+    }
+   },
+   {
+    "at": 48,
+    "chunk": {
+     "type": "delta",
+     "content": "c"
+    }
+   }
+  ],
+  "outcome": {
+   "at": 48,
+   "end": "done"
+  }
+ },
+ {
+  "name": "one-past-deadline",
+  "emitted": [
+   {
+    "at": 16,
+    "chunk": {
+     "type": "delta",
+     "content": "a"
+    }
+   },
+   {
+    "at": 33,
+    "chunk": {
+     "type": "delta",
+     "content": "b"
+    }
+   }
+  ],
+  "outcome": {
+   "at": 70,
+   "end": "done"
+  }
+ },
+ {
+  "name": "empty-content",
+  "emitted": [
+   {
+    "at": 3,
+    "chunk": {
+     "type": "delta",
+     "content": ""
+    }
+   },
+   {
+    "at": 3,
+    "chunk": {
+     "type": "done"
+    }
+   }
+  ],
+  "outcome": {
+   "at": 4,
+   "end": "done"
+  }
+ },
+ {
+  "name": "non-text-only",
+  "emitted": [
+   {
+    "at": 0,
+    "chunk": {
+     "type": "usage",
+     "n": 1
+    }
+   },
+   {
+    "at": 0,
+    "chunk": {
+     "type": "done",
+     "finish": "stop"
+    }
+   }
+  ],
+  "outcome": {
+   "at": 1,
+   "end": "done"
+  }
+ },
+ {
+  "name": "same-tick-many",
+  "emitted": [
+   {
+    "at": 0,
+    "chunk": {
+     "type": "delta",
+     "content": "xy"
+    }
+   },
+   {
+    "at": 0,
+    "chunk": {
+     "type": "reasoning",
+     "content": "z"
+    }
+   },
+   {
+    "at": 16,
+    "chunk": {
+     "type": "delta",
+     "content": "w"
+    }
+   }
+  ],
+  "outcome": {
+   "at": 20,
+   "end": "done"
+  }
+ },
+ {
+  "name": "long-gap-stream",
+  "emitted": [
+   {
+    "at": 16,
+    "chunk": {
+     "type": "delta",
+     "content": "1"
+    }
+   },
+   {
+    "at": 116,
+    "chunk": {
+     "type": "delta",
+     "content": "23"
+    }
+   },
+   {
+    "at": 200,
+    "chunk": {
+     "type": "tool_call",
+     "id": "x"
+    }
+   },
+   {
+    "at": 217,
+    "chunk": {
+     "type": "delta",
+     "content": "456"
+    }
+   }
+  ],
+  "outcome": {
+   "at": 400,
+   "end": "done"
+  }
+ }
+]
