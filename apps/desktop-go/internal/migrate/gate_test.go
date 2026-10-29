@@ -86,7 +86,7 @@ func TestGateFastPathNo204Data(t *testing.T) {
 		t.Fatal("fast path must release the gate without waiting for the window")
 	}
 	if !thenCalled.Load() || ss.calls.Load() != 0 {
-		t.Fatalf("then=%v keychain calls=%d", thenCalled, ss.calls.Load())
+		t.Fatalf("then=%v keychain calls=%d", thenCalled.Load(), ss.calls.Load())
 	}
 }
 
