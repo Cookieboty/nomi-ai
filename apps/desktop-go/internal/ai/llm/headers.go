@@ -12,10 +12,11 @@ const (
 	AIVersion            = "7.0.136" // ai (streamText / generateText)
 )
 
-// RuntimeUserAgent is getRuntimeEnvironmentUserAgent() ("node.js/<process.version>").
+// RuntimeUserAgent is getRuntimeEnvironmentUserAgent(): navigator.userAgent
+// lowercased ("node.js/<major>" on Node >= 21.1).
 // The Go binary has no Node; it reports the Node version the goldens were
 // recorded with (D-B5-P-2). Tests override it from the golden.
-var RuntimeUserAgent = "node.js/v22.14.0"
+var RuntimeUserAgent = "node.js/22"
 
 // CombineHeaders is provider-utils combineHeaders (object spread: exact-case
 // keys overwrite in place, new keys append, undefined overrides).

@@ -1,0 +1,4705 @@
+{
+ "node": "v22.14.0",
+ "ai": "7.0.136",
+ "scenarios": [
+  {
+   "name": "compat/text",
+   "protocol": "openai-chat",
+   "settings": {
+    "id": "acme",
+    "protocol": "openai-chat",
+    "baseURL": "http://127.0.0.1:43647/v1",
+    "apiKey": "sk-test",
+    "defaultModel": "m-1"
+   },
+   "responses": [
+    {
+     "status": 200,
+     "headers": {
+      "content-type": "text/event-stream",
+      "x-request-id": "req-1"
+     },
+     "chunks": [
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"\"},\"finish_reason\":null}]}\n\n",
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hel\"},\"finish_reason\":null}]}\n\n",
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"lo\"},\"finish_reason\":null}]}\n\n",
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n",
+      "data: {\"id\":\"chatcmpl-1\",\"choices\":[],\"usage\":{\"prompt_tokens\":12,\"completion_tokens\":7,\"total_tokens\":19}}\n\n",
+      "data: [DONE]\n\n"
+     ]
+    }
+   ],
+   "ai": {
+    "errors": []
+   },
+   "calls": [
+    {
+     "kind": "stream",
+     "options": {
+      "maxOutputTokens": 256,
+      "temperature": 0.3,
+      "topP": 0.9,
+      "toolChoice": {
+       "type": "auto"
+      },
+      "prompt": [
+       {
+        "role": "system",
+        "content": "be brief"
+       },
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "hi"
+         }
+        ]
+       }
+      ],
+      "includeRawChunks": false
+     },
+     "requestBody": {
+      "model": "m-1",
+      "max_tokens": 256,
+      "temperature": 0.3,
+      "top_p": 0.9,
+      "messages": [
+       {
+        "role": "system",
+        "content": "be brief"
+       },
+       {
+        "role": "user",
+        "content": "hi"
+       }
+      ],
+      "stream": true,
+      "stream_options": {
+       "include_usage": true
+      }
+     },
+     "responseHeaders": {
+      "content-type": "text/event-stream",
+      "x-request-id": "req-1"
+     },
+     "parts": [
+      {
+       "type": "stream-start",
+       "warnings": []
+      },
+      {
+       "type": "response-metadata",
+       "id": "chatcmpl-1",
+       "modelId": "m-1-served",
+       "timestamp": {
+        "__date": 1700000000000
+       }
+      },
+      {
+       "type": "text-start",
+       "id": "txt-0"
+      },
+      {
+       "type": "text-delta",
+       "id": "txt-0",
+       "delta": "Hel"
+      },
+      {
+       "type": "text-delta",
+       "id": "txt-0",
+       "delta": "lo"
+      },
+      {
+       "type": "text-end",
+       "id": "txt-0"
+      },
+      {
+       "type": "finish",
+       "finishReason": {
+        "unified": "stop",
+        "raw": "stop"
+       },
+       "usage": {
+        "inputTokens": {
+         "total": 12,
+         "noCache": 12,
+         "cacheRead": 0
+        },
+        "outputTokens": {
+         "total": 7,
+         "text": 7,
+         "reasoning": 0
+        },
+        "raw": {
+         "prompt_tokens": 12,
+         "completion_tokens": 7,
+         "total_tokens": 19
+        }
+       },
+       "providerMetadata": {
+        "acme": {}
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+       "authorization": "Bearer sk-test",
+       "content-type": "application/json",
+       "user-agent": "ai-sdk-openai-compatible/3.0.67 ai-sdk-provider-utils/5.0.58 node.js/22"
+      },
+      "body": "{\"model\":\"m-1\",\"max_tokens\":256,\"temperature\":0.3,\"top_p\":0.9,\"messages\":[{\"role\":\"system\",\"content\":\"be brief\"},{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}"
+     }
+    }
+   ]
+  },
+  {
+   "name": "compat/text-headers-ua",
+   "protocol": "openai-chat",
+   "settings": {
+    "id": "acme",
+    "protocol": "openai-chat",
+    "baseURL": "http://127.0.0.1:43647/v1",
+    "apiKey": "sk-test",
+    "headers": {
+     "X-Custom": " v1 ",
+     "Authorization": "Bearer override"
+    },
+    "userAgent": "Nomi/2.0.5",
+    "defaultModel": "m-1"
+   },
+   "responses": [
+    {
+     "status": 200,
+     "headers": {
+      "content-type": "text/event-stream",
+      "x-request-id": "req-1"
+     },
+     "chunks": [
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"x\"},\"finish_reason\":null}]}\n\n",
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"length\"}],\"usage\":{\"prompt_tokens\":12,\"completion_tokens\":7,\"total_tokens\":19}}\n\n",
+      "data: [DONE]\n\n"
+     ]
+    }
+   ],
+   "ai": {
+    "errors": []
+   },
+   "calls": [
+    {
+     "kind": "stream",
+     "options": {
+      "toolChoice": {
+       "type": "auto"
+      },
+      "prompt": [
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "hi"
+         }
+        ]
+       }
+      ],
+      "includeRawChunks": false
+     },
+     "requestBody": {
+      "model": "m-1",
+      "messages": [
+       {
+        "role": "user",
+        "content": "hi"
+       }
+      ],
+      "stream": true,
+      "stream_options": {
+       "include_usage": true
+      }
+     },
+     "responseHeaders": {
+      "content-type": "text/event-stream",
+      "x-request-id": "req-1"
+     },
+     "parts": [
+      {
+       "type": "stream-start",
+       "warnings": []
+      },
+      {
+       "type": "response-metadata",
+       "id": "chatcmpl-1",
+       "modelId": "m-1-served",
+       "timestamp": {
+        "__date": 1700000000000
+       }
+      },
+      {
+       "type": "text-start",
+       "id": "txt-0"
+      },
+      {
+       "type": "text-delta",
+       "id": "txt-0",
+       "delta": "x"
+      },
+      {
+       "type": "text-end",
+       "id": "txt-0"
+      },
+      {
+       "type": "finish",
+       "finishReason": {
+        "unified": "length",
+        "raw": "length"
+       },
+       "usage": {
+        "inputTokens": {
+         "total": 12,
+         "noCache": 12,
+         "cacheRead": 0
+        },
+        "outputTokens": {
+         "total": 7,
+         "text": 7,
+         "reasoning": 0
+        },
+        "raw": {
+         "prompt_tokens": 12,
+         "completion_tokens": 7,
+         "total_tokens": 19
+        }
+       },
+       "providerMetadata": {
+        "acme": {}
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+       "authorization": "Bearer override",
+       "content-type": "application/json",
+       "user-agent": "Nomi/2.0.5 ai-sdk-openai-compatible/3.0.67 ai-sdk-provider-utils/5.0.58 node.js/22",
+       "x-custom": "v1"
+      },
+      "body": "{\"model\":\"m-1\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}"
+     }
+    }
+   ]
+  },
+  {
+   "name": "compat/no-apikey-headers",
+   "protocol": "openai-chat",
+   "settings": {
+    "id": "acme",
+    "protocol": "openai-chat",
+    "baseURL": "http://127.0.0.1:43647/v1",
+    "apiKey": "",
+    "defaultModel": "m-1"
+   },
+   "responses": [
+    {
+     "status": 200,
+     "headers": {
+      "content-type": "text/event-stream",
+      "x-request-id": "req-1"
+     },
+     "chunks": [
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"x\"},\"finish_reason\":null}]}\n\n",
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"content_filter\"}]}\n\n",
+      "data: [DONE]\n\n"
+     ]
+    }
+   ],
+   "ai": {
+    "errors": []
+   },
+   "calls": [
+    {
+     "kind": "stream",
+     "options": {
+      "toolChoice": {
+       "type": "auto"
+      },
+      "prompt": [
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "hi"
+         }
+        ]
+       }
+      ],
+      "includeRawChunks": false
+     },
+     "requestBody": {
+      "model": "m-1",
+      "messages": [
+       {
+        "role": "user",
+        "content": "hi"
+       }
+      ],
+      "stream": true,
+      "stream_options": {
+       "include_usage": true
+      }
+     },
+     "responseHeaders": {
+      "content-type": "text/event-stream",
+      "x-request-id": "req-1"
+     },
+     "parts": [
+      {
+       "type": "stream-start",
+       "warnings": []
+      },
+      {
+       "type": "response-metadata",
+       "id": "chatcmpl-1",
+       "modelId": "m-1-served",
+       "timestamp": {
+        "__date": 1700000000000
+       }
+      },
+      {
+       "type": "text-start",
+       "id": "txt-0"
+      },
+      {
+       "type": "text-delta",
+       "id": "txt-0",
+       "delta": "x"
+      },
+      {
+       "type": "text-end",
+       "id": "txt-0"
+      },
+      {
+       "type": "finish",
+       "finishReason": {
+        "unified": "content-filter",
+        "raw": "content_filter"
+       },
+       "usage": {
+        "inputTokens": {},
+        "outputTokens": {}
+       },
+       "providerMetadata": {
+        "acme": {}
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+       "content-type": "application/json",
+       "user-agent": "ai-sdk-openai-compatible/3.0.67 ai-sdk-provider-utils/5.0.58 node.js/22"
+      },
+      "body": "{\"model\":\"m-1\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}"
+     }
+    }
+   ]
+  },
+  {
+   "name": "compat/multi-turn",
+   "protocol": "openai-chat",
+   "settings": {
+    "id": "acme",
+    "protocol": "openai-chat",
+    "baseURL": "http://127.0.0.1:43647/v1",
+    "apiKey": "sk-test",
+    "defaultModel": "m-1"
+   },
+   "responses": [
+    {
+     "status": 200,
+     "headers": {
+      "content-type": "text/event-stream",
+      "x-request-id": "req-1"
+     },
+     "chunks": [
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"ok\"},\"finish_reason\":null}]}\n\n",
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":12,\"completion_tokens\":7,\"total_tokens\":19}}\n\n",
+      "data: [DONE]\n\n"
+     ]
+    }
+   ],
+   "ai": {
+    "errors": []
+   },
+   "calls": [
+    {
+     "kind": "stream",
+     "options": {
+      "tools": [
+       {
+        "type": "function",
+        "name": "get_weather",
+        "inputSchema": {
+         "type": "object",
+         "properties": {
+          "city": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "city"
+         ],
+         "additionalProperties": false
+        },
+        "description": "Get the weather"
+       },
+       {
+        "type": "function",
+        "name": "search",
+        "inputSchema": {
+         "type": "object",
+         "properties": {
+          "q": {
+           "type": "string"
+          }
+         }
+        }
+       }
+      ],
+      "toolChoice": {
+       "type": "auto"
+      },
+      "prompt": [
+       {
+        "role": "system",
+        "content": "sys"
+       },
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "q1"
+         }
+        ]
+       },
+       {
+        "role": "assistant",
+        "content": [
+         {
+          "type": "reasoning",
+          "text": "think"
+         },
+         {
+          "type": "text",
+          "text": "a1"
+         },
+         {
+          "type": "tool-call",
+          "toolCallId": "call_1",
+          "toolName": "get_weather",
+          "input": {
+           "city": "SF"
+          }
+         }
+        ]
+       },
+       {
+        "role": "tool",
+        "content": [
+         {
+          "type": "tool-result",
+          "toolCallId": "call_1",
+          "toolName": "get_weather",
+          "output": {
+           "type": "json",
+           "value": {
+            "t": 20
+           }
+          }
+         }
+        ]
+       },
+       {
+        "role": "assistant",
+        "content": [
+         {
+          "type": "tool-call",
+          "toolCallId": "call_2",
+          "toolName": "search",
+          "input": {
+           "q": "x"
+          }
+         }
+        ]
+       },
+       {
+        "role": "tool",
+        "content": [
+         {
+          "type": "tool-result",
+          "toolCallId": "call_2",
+          "toolName": "search",
+          "output": {
+           "type": "text",
+           "value": "found"
+          }
+         }
+        ]
+       },
+       {
+        "role": "assistant",
+        "content": [
+         {
+          "type": "tool-call",
+          "toolCallId": "call_3",
+          "toolName": "search",
+          "input": {
+           "q": "y"
+          }
+         }
+        ]
+       },
+       {
+        "role": "tool",
+        "content": [
+         {
+          "type": "tool-result",
+          "toolCallId": "call_3",
+          "toolName": "search",
+          "output": {
+           "type": "error-text",
+           "value": "boom"
+          }
+         }
+        ]
+       },
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "look"
+         },
+         {
+          "type": "file",
+          "mediaType": "image/png",
+          "data": {
+           "type": "data",
+           "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+          }
+         },
+         {
+          "type": "file",
+          "mediaType": "application/pdf",
+          "filename": "a.pdf",
+          "data": {
+           "type": "data",
+           "data": "JVBERi0xLjQK"
+          }
+         },
+         {
+          "type": "file",
+          "mediaType": "text/plain",
+          "data": {
+           "type": "data",
+           "data": {
+            "__bytes": "cGxhaW4gdGV4dA=="
+           }
+          }
+         }
+        ]
+       }
+      ],
+      "includeRawChunks": false
+     },
+     "requestBody": {
+      "model": "m-1",
+      "messages": [
+       {
+        "role": "system",
+        "content": "sys"
+       },
+       {
+        "role": "user",
+        "content": "q1"
+       },
+       {
+        "role": "assistant",
+        "content": "a1",
+        "reasoning_content": "think",
+        "tool_calls": [
+         {
+          "id": "call_1",
+          "type": "function",
+          "function": {
+           "name": "get_weather",
+           "arguments": "{\"city\":\"SF\"}"
+          }
+         }
+        ]
+       },
+       {
+        "role": "tool",
+        "tool_call_id": "call_1",
+        "content": "{\"t\":20}"
+       },
+       {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+         {
+          "id": "call_2",
+          "type": "function",
+          "function": {
+           "name": "search",
+           "arguments": "{\"q\":\"x\"}"
+          }
+         }
+        ]
+       },
+       {
+        "role": "tool",
+        "tool_call_id": "call_2",
+        "content": "found"
+       },
+       {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+         {
+          "id": "call_3",
+          "type": "function",
+          "function": {
+           "name": "search",
+           "arguments": "{\"q\":\"y\"}"
+          }
+         }
+        ]
+       },
+       {
+        "role": "tool",
+        "tool_call_id": "call_3",
+        "content": "boom"
+       },
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "look"
+         },
+         {
+          "type": "image_url",
+          "image_url": {
+           "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+          }
+         },
+         {
+          "type": "file",
+          "file": {
+           "filename": "a.pdf",
+           "file_data": "data:application/pdf;base64,JVBERi0xLjQK"
+          }
+         },
+         {
+          "type": "text",
+          "text": "plain text"
+         }
+        ]
+       }
+      ],
+      "tools": [
+       {
+        "type": "function",
+        "function": {
+         "name": "get_weather",
+         "description": "Get the weather",
+         "parameters": {
+          "type": "object",
+          "properties": {
+           "city": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "city"
+          ],
+          "additionalProperties": false
+         }
+        }
+       },
+       {
+        "type": "function",
+        "function": {
+         "name": "search",
+         "parameters": {
+          "type": "object",
+          "properties": {
+           "q": {
+            "type": "string"
+           }
+          }
+         }
+        }
+       }
+      ],
+      "tool_choice": "auto",
+      "stream": true,
+      "stream_options": {
+       "include_usage": true
+      }
+     },
+     "responseHeaders": {
+      "content-type": "text/event-stream",
+      "x-request-id": "req-1"
+     },
+     "parts": [
+      {
+       "type": "stream-start",
+       "warnings": []
+      },
+      {
+       "type": "response-metadata",
+       "id": "chatcmpl-1",
+       "modelId": "m-1-served",
+       "timestamp": {
+        "__date": 1700000000000
+       }
+      },
+      {
+       "type": "text-start",
+       "id": "txt-0"
+      },
+      {
+       "type": "text-delta",
+       "id": "txt-0",
+       "delta": "ok"
+      },
+      {
+       "type": "text-end",
+       "id": "txt-0"
+      },
+      {
+       "type": "finish",
+       "finishReason": {
+        "unified": "stop",
+        "raw": "stop"
+       },
+       "usage": {
+        "inputTokens": {
+         "total": 12,
+         "noCache": 12,
+         "cacheRead": 0
+        },
+        "outputTokens": {
+         "total": 7,
+         "text": 7,
+         "reasoning": 0
+        },
+        "raw": {
+         "prompt_tokens": 12,
+         "completion_tokens": 7,
+         "total_tokens": 19
+        }
+       },
+       "providerMetadata": {
+        "acme": {}
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+       "authorization": "Bearer sk-test",
+       "content-type": "application/json",
+       "user-agent": "ai-sdk-openai-compatible/3.0.67 ai-sdk-provider-utils/5.0.58 node.js/22"
+      },
+      "body": "{\"model\":\"m-1\",\"messages\":[{\"role\":\"system\",\"content\":\"sys\"},{\"role\":\"user\",\"content\":\"q1\"},{\"role\":\"assistant\",\"content\":\"a1\",\"reasoning_content\":\"think\",\"tool_calls\":[{\"id\":\"call_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{\\\"city\\\":\\\"SF\\\"}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"call_1\",\"content\":\"{\\\"t\\\":20}\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"call_2\",\"type\":\"function\",\"function\":{\"name\":\"search\",\"arguments\":\"{\\\"q\\\":\\\"x\\\"}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"call_2\",\"content\":\"found\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"call_3\",\"type\":\"function\",\"function\":{\"name\":\"search\",\"arguments\":\"{\\\"q\\\":\\\"y\\\"}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"call_3\",\"content\":\"boom\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"look\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}},{\"type\":\"file\",\"file\":{\"filename\":\"a.pdf\",\"file_data\":\"data:application/pdf;base64,JVBERi0xLjQK\"}},{\"type\":\"text\",\"text\":\"plain text\"}]}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"Get the weather\",\"parameters\":{\"type\":\"object\",\"properties\":{\"city\":{\"type\":\"string\"}},\"required\":[\"city\"],\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"search\",\"parameters\":{\"type\":\"object\",\"properties\":{\"q\":{\"type\":\"string\"}}}}}],\"tool_choice\":\"auto\",\"stream\":true,\"stream_options\":{\"include_usage\":true}}"
+     }
+    }
+   ]
+  },
+  {
+   "name": "compat/tools-stream",
+   "protocol": "openai-chat",
+   "settings": {
+    "id": "acme",
+    "protocol": "openai-chat",
+    "baseURL": "http://127.0.0.1:43647/v1",
+    "apiKey": "sk-test",
+    "defaultModel": "m-1"
+   },
+   "responses": [
+    {
+     "status": 200,
+     "headers": {
+      "content-type": "text/event-stream",
+      "x-request-id": "req-1"
+     },
+     "chunks": [
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"index\":0,\"id\":\"call_a\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"\"}}]},\"finish_reason\":null}]}\n\n",
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"{\\\"ci\"}}]},\"finish_reason\":null}]}\n\n",
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"ty\\\":\\\"SF\\\"}\"}}]},\"finish_reason\":null}]}\n\n",
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"tool_calls\"}],\"usage\":{\"prompt_tokens\":12,\"completion_tokens\":7,\"total_tokens\":19,\"prompt_tokens_details\":{\"cached_tokens\":4}}}\n\n",
+      "data: [DONE]\n\n"
+     ]
+    }
+   ],
+   "ai": {
+    "errors": []
+   },
+   "calls": [
+    {
+     "kind": "stream",
+     "options": {
+      "tools": [
+       {
+        "type": "function",
+        "name": "get_weather",
+        "inputSchema": {
+         "type": "object",
+         "properties": {
+          "city": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "city"
+         ],
+         "additionalProperties": false
+        },
+        "description": "Get the weather"
+       },
+       {
+        "type": "function",
+        "name": "search",
+        "inputSchema": {
+         "type": "object",
+         "properties": {
+          "q": {
+           "type": "string"
+          }
+         }
+        }
+       }
+      ],
+      "toolChoice": {
+       "type": "required"
+      },
+      "prompt": [
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "weather?"
+         }
+        ]
+       }
+      ],
+      "includeRawChunks": false
+     },
+     "requestBody": {
+      "model": "m-1",
+      "messages": [
+       {
+        "role": "user",
+        "content": "weather?"
+       }
+      ],
+      "tools": [
+       {
+        "type": "function",
+        "function": {
+         "name": "get_weather",
+         "description": "Get the weather",
+         "parameters": {
+          "type": "object",
+          "properties": {
+           "city": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "city"
+          ],
+          "additionalProperties": false
+         }
+        }
+       },
+       {
+        "type": "function",
+        "function": {
+         "name": "search",
+         "parameters": {
+          "type": "object",
+          "properties": {
+           "q": {
+            "type": "string"
+           }
+          }
+         }
+        }
+       }
+      ],
+      "tool_choice": "required",
+      "stream": true,
+      "stream_options": {
+       "include_usage": true
+      }
+     },
+     "responseHeaders": {
+      "content-type": "text/event-stream",
+      "x-request-id": "req-1"
+     },
+     "parts": [
+      {
+       "type": "stream-start",
+       "warnings": []
+      },
+      {
+       "type": "response-metadata",
+       "id": "chatcmpl-1",
+       "modelId": "m-1-served",
+       "timestamp": {
+        "__date": 1700000000000
+       }
+      },
+      {
+       "type": "tool-input-start",
+       "id": "call_a",
+       "toolName": "get_weather"
+      },
+      {
+       "type": "tool-input-delta",
+       "id": "call_a",
+       "delta": "{\"ci"
+      },
+      {
+       "type": "tool-input-delta",
+       "id": "call_a",
+       "delta": "ty\":\"SF\"}"
+      },
+      {
+       "type": "tool-input-end",
+       "id": "call_a"
+      },
+      {
+       "type": "tool-call",
+       "toolCallId": "call_a",
+       "toolName": "get_weather",
+       "input": "{\"city\":\"SF\"}"
+      },
+      {
+       "type": "finish",
+       "finishReason": {
+        "unified": "tool-calls",
+        "raw": "tool_calls"
+       },
+       "usage": {
+        "inputTokens": {
+         "total": 12,
+         "noCache": 8,
+         "cacheRead": 4
+        },
+        "outputTokens": {
+         "total": 7,
+         "text": 7,
+         "reasoning": 0
+        },
+        "raw": {
+         "prompt_tokens": 12,
+         "completion_tokens": 7,
+         "total_tokens": 19,
+         "prompt_tokens_details": {
+          "cached_tokens": 4
+         }
+        }
+       },
+       "providerMetadata": {
+        "acme": {}
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+       "authorization": "Bearer sk-test",
+       "content-type": "application/json",
+       "user-agent": "ai-sdk-openai-compatible/3.0.67 ai-sdk-provider-utils/5.0.58 node.js/22"
+      },
+      "body": "{\"model\":\"m-1\",\"messages\":[{\"role\":\"user\",\"content\":\"weather?\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"Get the weather\",\"parameters\":{\"type\":\"object\",\"properties\":{\"city\":{\"type\":\"string\"}},\"required\":[\"city\"],\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"search\",\"parameters\":{\"type\":\"object\",\"properties\":{\"q\":{\"type\":\"string\"}}}}}],\"tool_choice\":\"required\",\"stream\":true,\"stream_options\":{\"include_usage\":true}}"
+     }
+    }
+   ]
+  },
+  {
+   "name": "compat/parallel-tools",
+   "protocol": "openai-chat",
+   "settings": {
+    "id": "acme",
+    "protocol": "openai-chat",
+    "baseURL": "http://127.0.0.1:43647/v1",
+    "apiKey": "sk-test",
+    "defaultModel": "m-1"
+   },
+   "responses": [
+    {
+     "status": 200,
+     "headers": {
+      "content-type": "text/event-stream",
+      "x-request-id": "req-1"
+     },
+     "chunks": [
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call_a\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{\\\"city\\\":\"}},{\"index\":1,\"id\":\"call_b\",\"type\":\"function\",\"function\":{\"name\":\"search\",\"arguments\":\"\"}}]},\"finish_reason\":null}]}\n\n",
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":1,\"function\":{\"arguments\":\"{\\\"q\\\":\\\"z\\\"}\"}}]},\"finish_reason\":null}]}\n\n",
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"\\\"LA\\\"}\"}}]},\"finish_reason\":null}]}\n\n",
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"tool_calls\"}],\"usage\":{\"prompt_tokens\":12,\"completion_tokens\":7,\"total_tokens\":19}}\n\n",
+      "data: [DONE]\n\n"
+     ]
+    }
+   ],
+   "ai": {
+    "errors": []
+   },
+   "calls": [
+    {
+     "kind": "stream",
+     "options": {
+      "tools": [
+       {
+        "type": "function",
+        "name": "get_weather",
+        "inputSchema": {
+         "type": "object",
+         "properties": {
+          "city": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "city"
+         ],
+         "additionalProperties": false
+        },
+        "description": "Get the weather"
+       },
+       {
+        "type": "function",
+        "name": "search",
+        "inputSchema": {
+         "type": "object",
+         "properties": {
+          "q": {
+           "type": "string"
+          }
+         }
+        }
+       }
+      ],
+      "toolChoice": {
+       "type": "tool",
+       "toolName": "search"
+      },
+      "prompt": [
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "both"
+         }
+        ]
+       }
+      ],
+      "includeRawChunks": false
+     },
+     "requestBody": {
+      "model": "m-1",
+      "messages": [
+       {
+        "role": "user",
+        "content": "both"
+       }
+      ],
+      "tools": [
+       {
+        "type": "function",
+        "function": {
+         "name": "get_weather",
+         "description": "Get the weather",
+         "parameters": {
+          "type": "object",
+          "properties": {
+           "city": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "city"
+          ],
+          "additionalProperties": false
+         }
+        }
+       },
+       {
+        "type": "function",
+        "function": {
+         "name": "search",
+         "parameters": {
+          "type": "object",
+          "properties": {
+           "q": {
+            "type": "string"
+           }
+          }
+         }
+        }
+       }
+      ],
+      "tool_choice": {
+       "type": "function",
+       "function": {
+        "name": "search"
+       }
+      },
+      "stream": true,
+      "stream_options": {
+       "include_usage": true
+      }
+     },
+     "responseHeaders": {
+      "content-type": "text/event-stream",
+      "x-request-id": "req-1"
+     },
+     "parts": [
+      {
+       "type": "stream-start",
+       "warnings": []
+      },
+      {
+       "type": "response-metadata",
+       "id": "chatcmpl-1",
+       "modelId": "m-1-served",
+       "timestamp": {
+        "__date": 1700000000000
+       }
+      },
+      {
+       "type": "tool-input-start",
+       "id": "call_a",
+       "toolName": "get_weather"
+      },
+      {
+       "type": "tool-input-delta",
+       "id": "call_a",
+       "delta": "{\"city\":"
+      },
+      {
+       "type": "tool-input-start",
+       "id": "call_b",
+       "toolName": "search"
+      },
+      {
+       "type": "tool-input-delta",
+       "id": "call_b",
+       "delta": "{\"q\":\"z\"}"
+      },
+      {
+       "type": "tool-input-delta",
+       "id": "call_a",
+       "delta": "\"LA\"}"
+      },
+      {
+       "type": "tool-input-end",
+       "id": "call_a"
+      },
+      {
+       "type": "tool-call",
+       "toolCallId": "call_a",
+       "toolName": "get_weather",
+       "input": "{\"city\":\"LA\"}"
+      },
+      {
+       "type": "tool-input-end",
+       "id": "call_b"
+      },
+      {
+       "type": "tool-call",
+       "toolCallId": "call_b",
+       "toolName": "search",
+       "input": "{\"q\":\"z\"}"
+      },
+      {
+       "type": "finish",
+       "finishReason": {
+        "unified": "tool-calls",
+        "raw": "tool_calls"
+       },
+       "usage": {
+        "inputTokens": {
+         "total": 12,
+         "noCache": 12,
+         "cacheRead": 0
+        },
+        "outputTokens": {
+         "total": 7,
+         "text": 7,
+         "reasoning": 0
+        },
+        "raw": {
+         "prompt_tokens": 12,
+         "completion_tokens": 7,
+         "total_tokens": 19
+        }
+       },
+       "providerMetadata": {
+        "acme": {}
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+       "authorization": "Bearer sk-test",
+       "content-type": "application/json",
+       "user-agent": "ai-sdk-openai-compatible/3.0.67 ai-sdk-provider-utils/5.0.58 node.js/22"
+      },
+      "body": "{\"model\":\"m-1\",\"messages\":[{\"role\":\"user\",\"content\":\"both\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"Get the weather\",\"parameters\":{\"type\":\"object\",\"properties\":{\"city\":{\"type\":\"string\"}},\"required\":[\"city\"],\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"search\",\"parameters\":{\"type\":\"object\",\"properties\":{\"q\":{\"type\":\"string\"}}}}}],\"tool_choice\":{\"type\":\"function\",\"function\":{\"name\":\"search\"}},\"stream\":true,\"stream_options\":{\"include_usage\":true}}"
+     }
+    }
+   ]
+  },
+  {
+   "name": "compat/tool-complete-first-chunk",
+   "protocol": "openai-chat",
+   "settings": {
+    "id": "acme",
+    "protocol": "openai-chat",
+    "baseURL": "http://127.0.0.1:43647/v1",
+    "apiKey": "sk-test",
+    "defaultModel": "m-1"
+   },
+   "responses": [
+    {
+     "status": 200,
+     "headers": {
+      "content-type": "text/event-stream",
+      "x-request-id": "req-1"
+     },
+     "chunks": [
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call_c\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{\\\"city\\\":\\\"NY\\\"}\"}}]},\"finish_reason\":null}]}\n\n",
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"tool_calls\"}]}\n\n",
+      "data: [DONE]\n\n"
+     ]
+    }
+   ],
+   "ai": {
+    "errors": []
+   },
+   "calls": [
+    {
+     "kind": "stream",
+     "options": {
+      "tools": [
+       {
+        "type": "function",
+        "name": "get_weather",
+        "inputSchema": {
+         "type": "object",
+         "properties": {
+          "city": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "city"
+         ],
+         "additionalProperties": false
+        },
+        "description": "Get the weather"
+       }
+      ],
+      "toolChoice": {
+       "type": "none"
+      },
+      "prompt": [
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "w"
+         }
+        ]
+       }
+      ],
+      "includeRawChunks": false
+     },
+     "requestBody": {
+      "model": "m-1",
+      "messages": [
+       {
+        "role": "user",
+        "content": "w"
+       }
+      ],
+      "tools": [
+       {
+        "type": "function",
+        "function": {
+         "name": "get_weather",
+         "description": "Get the weather",
+         "parameters": {
+          "type": "object",
+          "properties": {
+           "city": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "city"
+          ],
+          "additionalProperties": false
+         }
+        }
+       }
+      ],
+      "tool_choice": "none",
+      "stream": true,
+      "stream_options": {
+       "include_usage": true
+      }
+     },
+     "responseHeaders": {
+      "content-type": "text/event-stream",
+      "x-request-id": "req-1"
+     },
+     "parts": [
+      {
+       "type": "stream-start",
+       "warnings": []
+      },
+      {
+       "type": "response-metadata",
+       "id": "chatcmpl-1",
+       "modelId": "m-1-served",
+       "timestamp": {
+        "__date": 1700000000000
+       }
+      },
+      {
+       "type": "tool-input-start",
+       "id": "call_c",
+       "toolName": "get_weather"
+      },
+      {
+       "type": "tool-input-delta",
+       "id": "call_c",
+       "delta": "{\"city\":\"NY\"}"
+      },
+      {
+       "type": "tool-input-end",
+       "id": "call_c"
+      },
+      {
+       "type": "tool-call",
+       "toolCallId": "call_c",
+       "toolName": "get_weather",
+       "input": "{\"city\":\"NY\"}"
+      },
+      {
+       "type": "finish",
+       "finishReason": {
+        "unified": "tool-calls",
+        "raw": "tool_calls"
+       },
+       "usage": {
+        "inputTokens": {},
+        "outputTokens": {}
+       },
+       "providerMetadata": {
+        "acme": {}
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+       "authorization": "Bearer sk-test",
+       "content-type": "application/json",
+       "user-agent": "ai-sdk-openai-compatible/3.0.67 ai-sdk-provider-utils/5.0.58 node.js/22"
+      },
+      "body": "{\"model\":\"m-1\",\"messages\":[{\"role\":\"user\",\"content\":\"w\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"Get the weather\",\"parameters\":{\"type\":\"object\",\"properties\":{\"city\":{\"type\":\"string\"}},\"required\":[\"city\"],\"additionalProperties\":false}}}],\"tool_choice\":\"none\",\"stream\":true,\"stream_options\":{\"include_usage\":true}}"
+     }
+    }
+   ]
+  },
+  {
+   "name": "compat/tool-no-id",
+   "protocol": "openai-chat",
+   "settings": {
+    "id": "acme",
+    "protocol": "openai-chat",
+    "baseURL": "http://127.0.0.1:43647/v1",
+    "apiKey": "sk-test",
+    "defaultModel": "m-1"
+   },
+   "responses": [
+    {
+     "status": 200,
+     "headers": {
+      "content-type": "text/event-stream",
+      "x-request-id": "req-1"
+     },
+     "chunks": [
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"name\":\"get_weather\",\"arguments\":\"{\\\"city\\\"\"}}]},\"finish_reason\":null}]}\n\n",
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\":\\\"P\\\"}\"}}]},\"finish_reason\":null}]}\n\n",
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"function_call\"}]}\n\n",
+      "data: [DONE]\n\n"
+     ]
+    }
+   ],
+   "ai": {
+    "errors": []
+   },
+   "calls": [
+    {
+     "kind": "stream",
+     "options": {
+      "tools": [
+       {
+        "type": "function",
+        "name": "get_weather",
+        "inputSchema": {
+         "type": "object",
+         "properties": {
+          "city": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "city"
+         ],
+         "additionalProperties": false
+        },
+        "description": "Get the weather"
+       }
+      ],
+      "toolChoice": {
+       "type": "auto"
+      },
+      "prompt": [
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "w"
+         }
+        ]
+       }
+      ],
+      "includeRawChunks": false
+     },
+     "requestBody": {
+      "model": "m-1",
+      "messages": [
+       {
+        "role": "user",
+        "content": "w"
+       }
+      ],
+      "tools": [
+       {
+        "type": "function",
+        "function": {
+         "name": "get_weather",
+         "description": "Get the weather",
+         "parameters": {
+          "type": "object",
+          "properties": {
+           "city": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "city"
+          ],
+          "additionalProperties": false
+         }
+        }
+       }
+      ],
+      "tool_choice": "auto",
+      "stream": true,
+      "stream_options": {
+       "include_usage": true
+      }
+     },
+     "responseHeaders": {
+      "content-type": "text/event-stream",
+      "x-request-id": "req-1"
+     },
+     "parts": [
+      {
+       "type": "stream-start",
+       "warnings": []
+      },
+      {
+       "type": "response-metadata",
+       "id": "chatcmpl-1",
+       "modelId": "m-1-served",
+       "timestamp": {
+        "__date": 1700000000000
+       }
+      },
+      {
+       "type": "tool-input-start",
+       "id": "nWyckPnjogoVjQEc",
+       "toolName": "get_weather"
+      },
+      {
+       "type": "tool-input-delta",
+       "id": "nWyckPnjogoVjQEc",
+       "delta": "{\"city\""
+      },
+      {
+       "type": "tool-input-delta",
+       "id": "nWyckPnjogoVjQEc",
+       "delta": ":\"P\"}"
+      },
+      {
+       "type": "tool-input-end",
+       "id": "nWyckPnjogoVjQEc"
+      },
+      {
+       "type": "tool-call",
+       "toolCallId": "nWyckPnjogoVjQEc",
+       "toolName": "get_weather",
+       "input": "{\"city\":\"P\"}"
+      },
+      {
+       "type": "finish",
+       "finishReason": {
+        "unified": "tool-calls",
+        "raw": "function_call"
+       },
+       "usage": {
+        "inputTokens": {},
+        "outputTokens": {}
+       },
+       "providerMetadata": {
+        "acme": {}
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+       "authorization": "Bearer sk-test",
+       "content-type": "application/json",
+       "user-agent": "ai-sdk-openai-compatible/3.0.67 ai-sdk-provider-utils/5.0.58 node.js/22"
+      },
+      "body": "{\"model\":\"m-1\",\"messages\":[{\"role\":\"user\",\"content\":\"w\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"Get the weather\",\"parameters\":{\"type\":\"object\",\"properties\":{\"city\":{\"type\":\"string\"}},\"required\":[\"city\"],\"additionalProperties\":false}}}],\"tool_choice\":\"auto\",\"stream\":true,\"stream_options\":{\"include_usage\":true}}"
+     }
+    }
+   ]
+  },
+  {
+   "name": "compat/reasoning",
+   "protocol": "openai-chat",
+   "settings": {
+    "id": "acme",
+    "protocol": "openai-chat",
+    "baseURL": "http://127.0.0.1:43647/v1",
+    "apiKey": "sk-test",
+    "thinking": true,
+    "defaultModel": "m-1"
+   },
+   "responses": [
+    {
+     "status": 200,
+     "headers": {
+      "content-type": "text/event-stream",
+      "x-request-id": "req-1"
+     },
+     "chunks": [
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\"Let me \"},\"finish_reason\":null}]}\n\n",
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\"think.\"},\"finish_reason\":null}]}\n\n",
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Answer\"},\"finish_reason\":null}]}\n\n",
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{\"reasoning\":\"more\"},\"finish_reason\":null}]}\n\n",
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"!\"},\"finish_reason\":null}]}\n\n",
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":5,\"completion_tokens\":20,\"completion_tokens_details\":{\"reasoning_tokens\":12,\"accepted_prediction_tokens\":1,\"rejected_prediction_tokens\":2}}}\n\n",
+      "data: [DONE]\n\n"
+     ]
+    }
+   ],
+   "ai": {
+    "errors": []
+   },
+   "calls": [
+    {
+     "kind": "stream",
+     "options": {
+      "toolChoice": {
+       "type": "auto"
+      },
+      "prompt": [
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "think"
+         }
+        ]
+       }
+      ],
+      "providerOptions": {
+       "acme": {
+        "reasoningEffort": "medium"
+       }
+      },
+      "includeRawChunks": false
+     },
+     "requestBody": {
+      "model": "m-1",
+      "reasoning_effort": "medium",
+      "messages": [
+       {
+        "role": "user",
+        "content": "think"
+       }
+      ],
+      "stream": true,
+      "stream_options": {
+       "include_usage": true
+      }
+     },
+     "responseHeaders": {
+      "content-type": "text/event-stream",
+      "x-request-id": "req-1"
+     },
+     "parts": [
+      {
+       "type": "stream-start",
+       "warnings": []
+      },
+      {
+       "type": "response-metadata",
+       "id": "chatcmpl-1",
+       "modelId": "m-1-served",
+       "timestamp": {
+        "__date": 1700000000000
+       }
+      },
+      {
+       "type": "reasoning-start",
+       "id": "reasoning-0"
+      },
+      {
+       "type": "reasoning-delta",
+       "id": "reasoning-0",
+       "delta": "Let me "
+      },
+      {
+       "type": "reasoning-delta",
+       "id": "reasoning-0",
+       "delta": "think."
+      },
+      {
+       "type": "reasoning-end",
+       "id": "reasoning-0"
+      },
+      {
+       "type": "text-start",
+       "id": "txt-0"
+      },
+      {
+       "type": "text-delta",
+       "id": "txt-0",
+       "delta": "Answer"
+      },
+      {
+       "type": "text-end",
+       "id": "txt-0"
+      },
+      {
+       "type": "reasoning-start",
+       "id": "reasoning-0"
+      },
+      {
+       "type": "reasoning-delta",
+       "id": "reasoning-0",
+       "delta": "more"
+      },
+      {
+       "type": "reasoning-end",
+       "id": "reasoning-0"
+      },
+      {
+       "type": "text-start",
+       "id": "txt-0"
+      },
+      {
+       "type": "text-delta",
+       "id": "txt-0",
+       "delta": "!"
+      },
+      {
+       "type": "text-end",
+       "id": "txt-0"
+      },
+      {
+       "type": "finish",
+       "finishReason": {
+        "unified": "stop",
+        "raw": "stop"
+       },
+       "usage": {
+        "inputTokens": {
+         "total": 5,
+         "noCache": 5,
+         "cacheRead": 0
+        },
+        "outputTokens": {
+         "total": 20,
+         "text": 8,
+         "reasoning": 12
+        },
+        "raw": {
+         "prompt_tokens": 5,
+         "completion_tokens": 20,
+         "completion_tokens_details": {
+          "reasoning_tokens": 12,
+          "accepted_prediction_tokens": 1,
+          "rejected_prediction_tokens": 2
+         }
+        }
+       },
+       "providerMetadata": {
+        "acme": {
+         "acceptedPredictionTokens": 1,
+         "rejectedPredictionTokens": 2
+        }
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+       "authorization": "Bearer sk-test",
+       "content-type": "application/json",
+       "user-agent": "ai-sdk-openai-compatible/3.0.67 ai-sdk-provider-utils/5.0.58 node.js/22"
+      },
+      "body": "{\"model\":\"m-1\",\"reasoning_effort\":\"medium\",\"messages\":[{\"role\":\"user\",\"content\":\"think\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}"
+     }
+    }
+   ]
+  },
+  {
+   "name": "compat/reasoning-then-tool",
+   "protocol": "openai-chat",
+   "settings": {
+    "id": "acme",
+    "protocol": "openai-chat",
+    "baseURL": "http://127.0.0.1:43647/v1",
+    "apiKey": "sk-test",
+    "defaultModel": "m-1"
+   },
+   "responses": [
+    {
+     "status": 200,
+     "headers": {
+      "content-type": "text/event-stream",
+      "x-request-id": "req-1"
+     },
+     "chunks": [
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\"r\"},\"finish_reason\":null}]}\n\n",
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"c1\",\"function\":{\"name\":\"search\",\"arguments\":\"{}\"}}]},\"finish_reason\":null}]}\n\n",
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"tool_calls\"}]}\n\n",
+      "data: [DONE]\n\n"
+     ]
+    }
+   ],
+   "ai": {
+    "errors": []
+   },
+   "calls": [
+    {
+     "kind": "stream",
+     "options": {
+      "tools": [
+       {
+        "type": "function",
+        "name": "search",
+        "inputSchema": {
+         "type": "object",
+         "properties": {
+          "q": {
+           "type": "string"
+          }
+         }
+        }
+       }
+      ],
+      "toolChoice": {
+       "type": "auto"
+      },
+      "prompt": [
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "t"
+         }
+        ]
+       }
+      ],
+      "includeRawChunks": false
+     },
+     "requestBody": {
+      "model": "m-1",
+      "messages": [
+       {
+        "role": "user",
+        "content": "t"
+       }
+      ],
+      "tools": [
+       {
+        "type": "function",
+        "function": {
+         "name": "search",
+         "parameters": {
+          "type": "object",
+          "properties": {
+           "q": {
+            "type": "string"
+           }
+          }
+         }
+        }
+       }
+      ],
+      "tool_choice": "auto",
+      "stream": true,
+      "stream_options": {
+       "include_usage": true
+      }
+     },
+     "responseHeaders": {
+      "content-type": "text/event-stream",
+      "x-request-id": "req-1"
+     },
+     "parts": [
+      {
+       "type": "stream-start",
+       "warnings": []
+      },
+      {
+       "type": "response-metadata",
+       "id": "chatcmpl-1",
+       "modelId": "m-1-served",
+       "timestamp": {
+        "__date": 1700000000000
+       }
+      },
+      {
+       "type": "reasoning-start",
+       "id": "reasoning-0"
+      },
+      {
+       "type": "reasoning-delta",
+       "id": "reasoning-0",
+       "delta": "r"
+      },
+      {
+       "type": "reasoning-end",
+       "id": "reasoning-0"
+      },
+      {
+       "type": "tool-input-start",
+       "id": "c1",
+       "toolName": "search"
+      },
+      {
+       "type": "tool-input-delta",
+       "id": "c1",
+       "delta": "{}"
+      },
+      {
+       "type": "tool-input-end",
+       "id": "c1"
+      },
+      {
+       "type": "tool-call",
+       "toolCallId": "c1",
+       "toolName": "search",
+       "input": "{}"
+      },
+      {
+       "type": "finish",
+       "finishReason": {
+        "unified": "tool-calls",
+        "raw": "tool_calls"
+       },
+       "usage": {
+        "inputTokens": {},
+        "outputTokens": {}
+       },
+       "providerMetadata": {
+        "acme": {}
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+       "authorization": "Bearer sk-test",
+       "content-type": "application/json",
+       "user-agent": "ai-sdk-openai-compatible/3.0.67 ai-sdk-provider-utils/5.0.58 node.js/22"
+      },
+      "body": "{\"model\":\"m-1\",\"messages\":[{\"role\":\"user\",\"content\":\"t\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"search\",\"parameters\":{\"type\":\"object\",\"properties\":{\"q\":{\"type\":\"string\"}}}}}],\"tool_choice\":\"auto\",\"stream\":true,\"stream_options\":{\"include_usage\":true}}"
+     }
+    }
+   ]
+  },
+  {
+   "name": "compat/unknown-finish",
+   "protocol": "openai-chat",
+   "settings": {
+    "id": "acme",
+    "protocol": "openai-chat",
+    "baseURL": "http://127.0.0.1:43647/v1",
+    "apiKey": "sk-test",
+    "defaultModel": "m-1"
+   },
+   "responses": [
+    {
+     "status": 200,
+     "headers": {
+      "content-type": "text/event-stream",
+      "x-request-id": "req-1"
+     },
+     "chunks": [
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"a\"},\"finish_reason\":null}]}\n\n",
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"weird\"}]}\n\n",
+      "data: [DONE]\n\n"
+     ]
+    }
+   ],
+   "ai": {
+    "errors": []
+   },
+   "calls": [
+    {
+     "kind": "stream",
+     "options": {
+      "toolChoice": {
+       "type": "auto"
+      },
+      "prompt": [
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "x"
+         }
+        ]
+       }
+      ],
+      "includeRawChunks": false
+     },
+     "requestBody": {
+      "model": "m-1",
+      "messages": [
+       {
+        "role": "user",
+        "content": "x"
+       }
+      ],
+      "stream": true,
+      "stream_options": {
+       "include_usage": true
+      }
+     },
+     "responseHeaders": {
+      "content-type": "text/event-stream",
+      "x-request-id": "req-1"
+     },
+     "parts": [
+      {
+       "type": "stream-start",
+       "warnings": []
+      },
+      {
+       "type": "response-metadata",
+       "id": "chatcmpl-1",
+       "modelId": "m-1-served",
+       "timestamp": {
+        "__date": 1700000000000
+       }
+      },
+      {
+       "type": "text-start",
+       "id": "txt-0"
+      },
+      {
+       "type": "text-delta",
+       "id": "txt-0",
+       "delta": "a"
+      },
+      {
+       "type": "text-end",
+       "id": "txt-0"
+      },
+      {
+       "type": "finish",
+       "finishReason": {
+        "unified": "other",
+        "raw": "weird"
+       },
+       "usage": {
+        "inputTokens": {},
+        "outputTokens": {}
+       },
+       "providerMetadata": {
+        "acme": {}
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+       "authorization": "Bearer sk-test",
+       "content-type": "application/json",
+       "user-agent": "ai-sdk-openai-compatible/3.0.67 ai-sdk-provider-utils/5.0.58 node.js/22"
+      },
+      "body": "{\"model\":\"m-1\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}"
+     }
+    }
+   ]
+  },
+  {
+   "name": "compat/no-finish",
+   "protocol": "openai-chat",
+   "settings": {
+    "id": "acme",
+    "protocol": "openai-chat",
+    "baseURL": "http://127.0.0.1:43647/v1",
+    "apiKey": "sk-test",
+    "defaultModel": "m-1"
+   },
+   "responses": [
+    {
+     "status": 200,
+     "headers": {
+      "content-type": "text/event-stream"
+     },
+     "chunks": [
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"a\"},\"finish_reason\":null}]}\n\n"
+     ]
+    }
+   ],
+   "ai": {
+    "errors": [
+     {
+      "name": "AI_InvalidResponseDataError",
+      "message": "Response stream ended without a finish reason."
+     }
+    ]
+   },
+   "calls": [
+    {
+     "kind": "stream",
+     "options": {
+      "toolChoice": {
+       "type": "auto"
+      },
+      "prompt": [
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "x"
+         }
+        ]
+       }
+      ],
+      "includeRawChunks": false
+     },
+     "requestBody": {
+      "model": "m-1",
+      "messages": [
+       {
+        "role": "user",
+        "content": "x"
+       }
+      ],
+      "stream": true,
+      "stream_options": {
+       "include_usage": true
+      }
+     },
+     "responseHeaders": {
+      "content-type": "text/event-stream"
+     },
+     "parts": [
+      {
+       "type": "stream-start",
+       "warnings": []
+      },
+      {
+       "type": "response-metadata",
+       "id": "chatcmpl-1",
+       "modelId": "m-1-served",
+       "timestamp": {
+        "__date": 1700000000000
+       }
+      },
+      {
+       "type": "text-start",
+       "id": "txt-0"
+      },
+      {
+       "type": "text-delta",
+       "id": "txt-0",
+       "delta": "a"
+      },
+      {
+       "type": "text-end",
+       "id": "txt-0"
+      },
+      {
+       "type": "error",
+       "error": {
+        "name": "AI_InvalidResponseDataError",
+        "message": "Response stream ended without a finish reason."
+       }
+      },
+      {
+       "type": "finish",
+       "finishReason": {
+        "unified": "error"
+       },
+       "usage": {
+        "inputTokens": {},
+        "outputTokens": {}
+       },
+       "providerMetadata": {
+        "acme": {}
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+       "authorization": "Bearer sk-test",
+       "content-type": "application/json",
+       "user-agent": "ai-sdk-openai-compatible/3.0.67 ai-sdk-provider-utils/5.0.58 node.js/22"
+      },
+      "body": "{\"model\":\"m-1\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}"
+     }
+    }
+   ]
+  },
+  {
+   "name": "compat/chunk-error",
+   "protocol": "openai-chat",
+   "settings": {
+    "id": "acme",
+    "protocol": "openai-chat",
+    "baseURL": "http://127.0.0.1:43647/v1",
+    "apiKey": "sk-test",
+    "defaultModel": "m-1"
+   },
+   "responses": [
+    {
+     "status": 200,
+     "headers": {
+      "content-type": "text/event-stream",
+      "x-request-id": "req-1"
+     },
+     "chunks": [
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"a\"},\"finish_reason\":null}]}\n\n",
+      "data: {\"error\":{\"message\":\"upstream overloaded\",\"type\":\"overloaded\",\"code\":529}}\n\n",
+      "data: [DONE]\n\n"
+     ]
+    }
+   ],
+   "ai": {
+    "errors": [
+     {
+      "name": "AI_StreamProviderError",
+      "message": "upstream overloaded"
+     }
+    ]
+   },
+   "calls": [
+    {
+     "kind": "stream",
+     "options": {
+      "toolChoice": {
+       "type": "auto"
+      },
+      "prompt": [
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "x"
+         }
+        ]
+       }
+      ],
+      "includeRawChunks": false
+     },
+     "requestBody": {
+      "model": "m-1",
+      "messages": [
+       {
+        "role": "user",
+        "content": "x"
+       }
+      ],
+      "stream": true,
+      "stream_options": {
+       "include_usage": true
+      }
+     },
+     "responseHeaders": {
+      "content-type": "text/event-stream",
+      "x-request-id": "req-1"
+     },
+     "parts": [
+      {
+       "type": "stream-start",
+       "warnings": []
+      },
+      {
+       "type": "response-metadata",
+       "id": "chatcmpl-1",
+       "modelId": "m-1-served",
+       "timestamp": {
+        "__date": 1700000000000
+       }
+      },
+      {
+       "type": "text-start",
+       "id": "txt-0"
+      },
+      {
+       "type": "text-delta",
+       "id": "txt-0",
+       "delta": "a"
+      },
+      {
+       "type": "error",
+       "error": {
+        "message": "upstream overloaded",
+        "type": "overloaded",
+        "code": 529
+       }
+      },
+      {
+       "type": "text-end",
+       "id": "txt-0"
+      },
+      {
+       "type": "finish",
+       "finishReason": {
+        "unified": "error"
+       },
+       "usage": {
+        "inputTokens": {},
+        "outputTokens": {}
+       },
+       "providerMetadata": {
+        "acme": {}
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+       "authorization": "Bearer sk-test",
+       "content-type": "application/json",
+       "user-agent": "ai-sdk-openai-compatible/3.0.67 ai-sdk-provider-utils/5.0.58 node.js/22"
+      },
+      "body": "{\"model\":\"m-1\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}"
+     }
+    }
+   ]
+  },
+  {
+   "name": "compat/bad-json-chunk",
+   "protocol": "openai-chat",
+   "settings": {
+    "id": "acme",
+    "protocol": "openai-chat",
+    "baseURL": "http://127.0.0.1:43647/v1",
+    "apiKey": "sk-test",
+    "defaultModel": "m-1"
+   },
+   "responses": [
+    {
+     "status": 200,
+     "headers": {
+      "content-type": "text/event-stream"
+     },
+     "chunks": [
+      "data: {\"choices\":[{\"delta\":{\"content\":\"a\"}}]}\n\n",
+      "data: {not json}\n\n",
+      "data: {\"choices\":[{\"delta\":{\"content\":\"b\"},\"finish_reason\":\"stop\"}]}\n\n"
+     ]
+    }
+   ],
+   "ai": {
+    "errors": [
+     {
+      "name": "AI_JSONParseError",
+      "text": "{not json}"
+     }
+    ]
+   },
+   "calls": [
+    {
+     "kind": "stream",
+     "options": {
+      "toolChoice": {
+       "type": "auto"
+      },
+      "prompt": [
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "x"
+         }
+        ]
+       }
+      ],
+      "includeRawChunks": false
+     },
+     "requestBody": {
+      "model": "m-1",
+      "messages": [
+       {
+        "role": "user",
+        "content": "x"
+       }
+      ],
+      "stream": true,
+      "stream_options": {
+       "include_usage": true
+      }
+     },
+     "responseHeaders": {
+      "content-type": "text/event-stream"
+     },
+     "parts": [
+      {
+       "type": "stream-start",
+       "warnings": []
+      },
+      {
+       "type": "text-start",
+       "id": "txt-0"
+      },
+      {
+       "type": "text-delta",
+       "id": "txt-0",
+       "delta": "a"
+      },
+      {
+       "type": "error",
+       "error": {
+        "name": "AI_JSONParseError",
+        "text": "{not json}"
+       }
+      },
+      {
+       "type": "text-delta",
+       "id": "txt-0",
+       "delta": "b"
+      },
+      {
+       "type": "text-end",
+       "id": "txt-0"
+      },
+      {
+       "type": "finish",
+       "finishReason": {
+        "unified": "stop",
+        "raw": "stop"
+       },
+       "usage": {
+        "inputTokens": {},
+        "outputTokens": {}
+       },
+       "providerMetadata": {
+        "acme": {}
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+       "authorization": "Bearer sk-test",
+       "content-type": "application/json",
+       "user-agent": "ai-sdk-openai-compatible/3.0.67 ai-sdk-provider-utils/5.0.58 node.js/22"
+      },
+      "body": "{\"model\":\"m-1\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}"
+     }
+    }
+   ]
+  },
+  {
+   "name": "compat/schema-mismatch-chunk",
+   "protocol": "openai-chat",
+   "settings": {
+    "id": "acme",
+    "protocol": "openai-chat",
+    "baseURL": "http://127.0.0.1:43647/v1",
+    "apiKey": "sk-test",
+    "defaultModel": "m-1"
+   },
+   "responses": [
+    {
+     "status": 200,
+     "headers": {
+      "content-type": "text/event-stream"
+     },
+     "chunks": [
+      "data: {\"choices\":\"nope\"}\n\n",
+      "data: {\"choices\":[{\"delta\":{\"content\":\"b\"},\"finish_reason\":\"stop\"}]}\n\n"
+     ]
+    }
+   ],
+   "ai": {
+    "errors": [
+     {
+      "name": "AI_TypeValidationError",
+      "value": {
+       "choices": "nope"
+      }
+     }
+    ]
+   },
+   "calls": [
+    {
+     "kind": "stream",
+     "options": {
+      "toolChoice": {
+       "type": "auto"
+      },
+      "prompt": [
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "x"
+         }
+        ]
+       }
+      ],
+      "includeRawChunks": false
+     },
+     "requestBody": {
+      "model": "m-1",
+      "messages": [
+       {
+        "role": "user",
+        "content": "x"
+       }
+      ],
+      "stream": true,
+      "stream_options": {
+       "include_usage": true
+      }
+     },
+     "responseHeaders": {
+      "content-type": "text/event-stream"
+     },
+     "parts": [
+      {
+       "type": "stream-start",
+       "warnings": []
+      },
+      {
+       "type": "error",
+       "error": {
+        "name": "AI_TypeValidationError",
+        "value": {
+         "choices": "nope"
+        }
+       }
+      },
+      {
+       "type": "text-start",
+       "id": "txt-0"
+      },
+      {
+       "type": "text-delta",
+       "id": "txt-0",
+       "delta": "b"
+      },
+      {
+       "type": "text-end",
+       "id": "txt-0"
+      },
+      {
+       "type": "finish",
+       "finishReason": {
+        "unified": "stop",
+        "raw": "stop"
+       },
+       "usage": {
+        "inputTokens": {},
+        "outputTokens": {}
+       },
+       "providerMetadata": {
+        "acme": {}
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+       "authorization": "Bearer sk-test",
+       "content-type": "application/json",
+       "user-agent": "ai-sdk-openai-compatible/3.0.67 ai-sdk-provider-utils/5.0.58 node.js/22"
+      },
+      "body": "{\"model\":\"m-1\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}"
+     }
+    }
+   ]
+  },
+  {
+   "name": "compat/sse-crlf-comments-trailing",
+   "protocol": "openai-chat",
+   "settings": {
+    "id": "acme",
+    "protocol": "openai-chat",
+    "baseURL": "http://127.0.0.1:43647/v1",
+    "apiKey": "sk-test",
+    "defaultModel": "m-1"
+   },
+   "responses": [
+    {
+     "status": 200,
+     "headers": {
+      "content-type": "text/event-stream"
+     },
+     "chunks": [
+      ": ping\r\n\r\n",
+      "event: message\r\ndata: {\"choices\":[{\"delta\":{\"content\":\"a\"}}]}\r\n\r\n",
+      "data: {\"choices\":[{\"delta\":",
+      "{\"content\":\"b\"},\"finish_reason\":\"stop\"}]}\n\n",
+      "data: {\"choices\":[{\"delta\":{\"content\":\"dropped\"}}]}"
+     ]
+    }
+   ],
+   "ai": {
+    "errors": []
+   },
+   "calls": [
+    {
+     "kind": "stream",
+     "options": {
+      "toolChoice": {
+       "type": "auto"
+      },
+      "prompt": [
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "x"
+         }
+        ]
+       }
+      ],
+      "includeRawChunks": false
+     },
+     "requestBody": {
+      "model": "m-1",
+      "messages": [
+       {
+        "role": "user",
+        "content": "x"
+       }
+      ],
+      "stream": true,
+      "stream_options": {
+       "include_usage": true
+      }
+     },
+     "responseHeaders": {
+      "content-type": "text/event-stream"
+     },
+     "parts": [
+      {
+       "type": "stream-start",
+       "warnings": []
+      },
+      {
+       "type": "text-start",
+       "id": "txt-0"
+      },
+      {
+       "type": "text-delta",
+       "id": "txt-0",
+       "delta": "a"
+      },
+      {
+       "type": "text-delta",
+       "id": "txt-0",
+       "delta": "b"
+      },
+      {
+       "type": "text-end",
+       "id": "txt-0"
+      },
+      {
+       "type": "finish",
+       "finishReason": {
+        "unified": "stop",
+        "raw": "stop"
+       },
+       "usage": {
+        "inputTokens": {},
+        "outputTokens": {}
+       },
+       "providerMetadata": {
+        "acme": {}
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+       "authorization": "Bearer sk-test",
+       "content-type": "application/json",
+       "user-agent": "ai-sdk-openai-compatible/3.0.67 ai-sdk-provider-utils/5.0.58 node.js/22"
+      },
+      "body": "{\"model\":\"m-1\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}"
+     }
+    }
+   ]
+  },
+  {
+   "name": "compat/http-400",
+   "protocol": "openai-chat",
+   "settings": {
+    "id": "acme",
+    "protocol": "openai-chat",
+    "baseURL": "http://127.0.0.1:43647/v1",
+    "apiKey": "sk-test",
+    "defaultModel": "m-1"
+   },
+   "responses": [
+    {
+     "status": 400,
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"error\":{\"message\":\"bad request: model\",\"type\":\"invalid_request_error\",\"param\":\"model\",\"code\":\"model_not_found\"}}"
+    }
+   ],
+   "maxRetries": 0,
+   "ai": {
+    "errors": [
+     {
+      "name": "AI_APICallError",
+      "message": "bad request: model",
+      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "statusCode": 400,
+      "responseBody": "{\"error\":{\"message\":\"bad request: model\",\"type\":\"invalid_request_error\",\"param\":\"model\",\"code\":\"model_not_found\"}}",
+      "isRetryable": false,
+      "data": {
+       "error": {
+        "message": "bad request: model",
+        "type": "invalid_request_error",
+        "param": "model",
+        "code": "model_not_found"
+       }
+      },
+      "responseHeaders": {
+       "content-type": "application/json"
+      }
+     }
+    ]
+   },
+   "calls": [
+    {
+     "kind": "stream",
+     "options": {
+      "toolChoice": {
+       "type": "auto"
+      },
+      "prompt": [
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "x"
+         }
+        ]
+       }
+      ],
+      "includeRawChunks": false
+     },
+     "thrown": {
+      "name": "AI_APICallError",
+      "message": "bad request: model",
+      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "statusCode": 400,
+      "responseBody": "{\"error\":{\"message\":\"bad request: model\",\"type\":\"invalid_request_error\",\"param\":\"model\",\"code\":\"model_not_found\"}}",
+      "isRetryable": false,
+      "data": {
+       "error": {
+        "message": "bad request: model",
+        "type": "invalid_request_error",
+        "param": "model",
+        "code": "model_not_found"
+       }
+      },
+      "responseHeaders": {
+       "content-type": "application/json"
+      }
+     },
+     "request": {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+       "authorization": "Bearer sk-test",
+       "content-type": "application/json",
+       "user-agent": "ai-sdk-openai-compatible/3.0.67 ai-sdk-provider-utils/5.0.58 node.js/22"
+      },
+      "body": "{\"model\":\"m-1\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}"
+     }
+    }
+   ]
+  },
+  {
+   "name": "compat/http-401",
+   "protocol": "openai-chat",
+   "settings": {
+    "id": "acme",
+    "protocol": "openai-chat",
+    "baseURL": "http://127.0.0.1:43647/v1",
+    "apiKey": "sk-test",
+    "defaultModel": "m-1"
+   },
+   "responses": [
+    {
+     "status": 401,
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"error\":{\"message\":\"Invalid API key\"}}"
+    }
+   ],
+   "maxRetries": 0,
+   "ai": {
+    "errors": [
+     {
+      "name": "AI_APICallError",
+      "message": "Invalid API key",
+      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "statusCode": 401,
+      "responseBody": "{\"error\":{\"message\":\"Invalid API key\"}}",
+      "isRetryable": false,
+      "data": {
+       "error": {
+        "message": "Invalid API key"
+       }
+      },
+      "responseHeaders": {
+       "content-type": "application/json"
+      }
+     }
+    ]
+   },
+   "calls": [
+    {
+     "kind": "stream",
+     "options": {
+      "toolChoice": {
+       "type": "auto"
+      },
+      "prompt": [
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "x"
+         }
+        ]
+       }
+      ],
+      "includeRawChunks": false
+     },
+     "thrown": {
+      "name": "AI_APICallError",
+      "message": "Invalid API key",
+      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "statusCode": 401,
+      "responseBody": "{\"error\":{\"message\":\"Invalid API key\"}}",
+      "isRetryable": false,
+      "data": {
+       "error": {
+        "message": "Invalid API key"
+       }
+      },
+      "responseHeaders": {
+       "content-type": "application/json"
+      }
+     },
+     "request": {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+       "authorization": "Bearer sk-test",
+       "content-type": "application/json",
+       "user-agent": "ai-sdk-openai-compatible/3.0.67 ai-sdk-provider-utils/5.0.58 node.js/22"
+      },
+      "body": "{\"model\":\"m-1\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}"
+     }
+    }
+   ]
+  },
+  {
+   "name": "compat/http-404",
+   "protocol": "openai-chat",
+   "settings": {
+    "id": "acme",
+    "protocol": "openai-chat",
+    "baseURL": "http://127.0.0.1:43647/v1",
+    "apiKey": "sk-test",
+    "defaultModel": "m-1"
+   },
+   "responses": [
+    {
+     "status": 404,
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "not found page"
+    }
+   ],
+   "maxRetries": 0,
+   "ai": {
+    "errors": [
+     {
+      "name": "AI_APICallError",
+      "message": "Not Found",
+      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "statusCode": 404,
+      "responseBody": "not found page",
+      "isRetryable": false,
+      "responseHeaders": {
+       "content-type": "application/json"
+      }
+     }
+    ]
+   },
+   "calls": [
+    {
+     "kind": "stream",
+     "options": {
+      "toolChoice": {
+       "type": "auto"
+      },
+      "prompt": [
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "x"
+         }
+        ]
+       }
+      ],
+      "includeRawChunks": false
+     },
+     "thrown": {
+      "name": "AI_APICallError",
+      "message": "Not Found",
+      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "statusCode": 404,
+      "responseBody": "not found page",
+      "isRetryable": false,
+      "responseHeaders": {
+       "content-type": "application/json"
+      }
+     },
+     "request": {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+       "authorization": "Bearer sk-test",
+       "content-type": "application/json",
+       "user-agent": "ai-sdk-openai-compatible/3.0.67 ai-sdk-provider-utils/5.0.58 node.js/22"
+      },
+      "body": "{\"model\":\"m-1\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}"
+     }
+    }
+   ]
+  },
+  {
+   "name": "compat/http-500",
+   "protocol": "openai-chat",
+   "settings": {
+    "id": "acme",
+    "protocol": "openai-chat",
+    "baseURL": "http://127.0.0.1:43647/v1",
+    "apiKey": "sk-test",
+    "defaultModel": "m-1"
+   },
+   "responses": [
+    {
+     "status": 500,
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": ""
+    }
+   ],
+   "maxRetries": 0,
+   "ai": {
+    "errors": [
+     {
+      "name": "AI_APICallError",
+      "message": "Internal Server Error",
+      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "statusCode": 500,
+      "responseBody": "",
+      "isRetryable": true,
+      "responseHeaders": {
+       "content-type": "application/json"
+      }
+     }
+    ]
+   },
+   "calls": [
+    {
+     "kind": "stream",
+     "options": {
+      "toolChoice": {
+       "type": "auto"
+      },
+      "prompt": [
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "x"
+         }
+        ]
+       }
+      ],
+      "includeRawChunks": false
+     },
+     "thrown": {
+      "name": "AI_APICallError",
+      "message": "Internal Server Error",
+      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "statusCode": 500,
+      "responseBody": "",
+      "isRetryable": true,
+      "responseHeaders": {
+       "content-type": "application/json"
+      }
+     },
+     "request": {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+       "authorization": "Bearer sk-test",
+       "content-type": "application/json",
+       "user-agent": "ai-sdk-openai-compatible/3.0.67 ai-sdk-provider-utils/5.0.58 node.js/22"
+      },
+      "body": "{\"model\":\"m-1\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}"
+     }
+    }
+   ]
+  },
+  {
+   "name": "compat/http-503",
+   "protocol": "openai-chat",
+   "settings": {
+    "id": "acme",
+    "protocol": "openai-chat",
+    "baseURL": "http://127.0.0.1:43647/v1",
+    "apiKey": "sk-test",
+    "defaultModel": "m-1"
+   },
+   "responses": [
+    {
+     "status": 503,
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"error\":{\"message\":\"overloaded\",\"code\":503}}"
+    }
+   ],
+   "maxRetries": 0,
+   "ai": {
+    "errors": [
+     {
+      "name": "AI_APICallError",
+      "message": "overloaded",
+      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "statusCode": 503,
+      "responseBody": "{\"error\":{\"message\":\"overloaded\",\"code\":503}}",
+      "isRetryable": true,
+      "data": {
+       "error": {
+        "message": "overloaded",
+        "code": 503
+       }
+      },
+      "responseHeaders": {
+       "content-type": "application/json"
+      }
+     }
+    ]
+   },
+   "calls": [
+    {
+     "kind": "stream",
+     "options": {
+      "toolChoice": {
+       "type": "auto"
+      },
+      "prompt": [
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "x"
+         }
+        ]
+       }
+      ],
+      "includeRawChunks": false
+     },
+     "thrown": {
+      "name": "AI_APICallError",
+      "message": "overloaded",
+      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "statusCode": 503,
+      "responseBody": "{\"error\":{\"message\":\"overloaded\",\"code\":503}}",
+      "isRetryable": true,
+      "data": {
+       "error": {
+        "message": "overloaded",
+        "code": 503
+       }
+      },
+      "responseHeaders": {
+       "content-type": "application/json"
+      }
+     },
+     "request": {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+       "authorization": "Bearer sk-test",
+       "content-type": "application/json",
+       "user-agent": "ai-sdk-openai-compatible/3.0.67 ai-sdk-provider-utils/5.0.58 node.js/22"
+      },
+      "body": "{\"model\":\"m-1\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}"
+     }
+    }
+   ]
+  },
+  {
+   "name": "compat/http-422",
+   "protocol": "openai-chat",
+   "settings": {
+    "id": "acme",
+    "protocol": "openai-chat",
+    "baseURL": "http://127.0.0.1:43647/v1",
+    "apiKey": "sk-test",
+    "defaultModel": "m-1"
+   },
+   "responses": [
+    {
+     "status": 422,
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"detail\":\"not openai shaped\"}"
+    }
+   ],
+   "maxRetries": 0,
+   "ai": {
+    "errors": [
+     {
+      "name": "AI_APICallError",
+      "message": "Unprocessable Entity",
+      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "statusCode": 422,
+      "responseBody": "{\"detail\":\"not openai shaped\"}",
+      "isRetryable": false,
+      "responseHeaders": {
+       "content-type": "application/json"
+      }
+     }
+    ]
+   },
+   "calls": [
+    {
+     "kind": "stream",
+     "options": {
+      "toolChoice": {
+       "type": "auto"
+      },
+      "prompt": [
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "x"
+         }
+        ]
+       }
+      ],
+      "includeRawChunks": false
+     },
+     "thrown": {
+      "name": "AI_APICallError",
+      "message": "Unprocessable Entity",
+      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "statusCode": 422,
+      "responseBody": "{\"detail\":\"not openai shaped\"}",
+      "isRetryable": false,
+      "responseHeaders": {
+       "content-type": "application/json"
+      }
+     },
+     "request": {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+       "authorization": "Bearer sk-test",
+       "content-type": "application/json",
+       "user-agent": "ai-sdk-openai-compatible/3.0.67 ai-sdk-provider-utils/5.0.58 node.js/22"
+      },
+      "body": "{\"model\":\"m-1\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}"
+     }
+    }
+   ]
+  },
+  {
+   "name": "compat/429-retry-then-ok",
+   "protocol": "openai-chat",
+   "settings": {
+    "id": "acme",
+    "protocol": "openai-chat",
+    "baseURL": "http://127.0.0.1:43647/v1",
+    "apiKey": "sk-test",
+    "defaultModel": "m-1"
+   },
+   "responses": [
+    {
+     "status": 429,
+     "headers": {
+      "content-type": "application/json",
+      "retry-after-ms": "0"
+     },
+     "body": "{\"error\":{\"message\":\"rate limited\"}}"
+    },
+    {
+     "status": 500,
+     "headers": {
+      "content-type": "application/json",
+      "retry-after": "0"
+     },
+     "body": "{\"error\":{\"message\":\"oops\"}}"
+    },
+    {
+     "status": 200,
+     "headers": {
+      "content-type": "text/event-stream",
+      "x-request-id": "req-1"
+     },
+     "chunks": [
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"ok\"},\"finish_reason\":null}]}\n\n",
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n",
+      "data: [DONE]\n\n"
+     ]
+    }
+   ],
+   "ai": {
+    "errors": []
+   },
+   "calls": [
+    {
+     "kind": "stream",
+     "options": {
+      "toolChoice": {
+       "type": "auto"
+      },
+      "prompt": [
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "x"
+         }
+        ]
+       }
+      ],
+      "includeRawChunks": false
+     },
+     "thrown": {
+      "name": "AI_APICallError",
+      "message": "rate limited",
+      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "statusCode": 429,
+      "responseBody": "{\"error\":{\"message\":\"rate limited\"}}",
+      "isRetryable": true,
+      "data": {
+       "error": {
+        "message": "rate limited"
+       }
+      },
+      "responseHeaders": {
+       "content-type": "application/json",
+       "retry-after-ms": "0"
+      }
+     },
+     "request": {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+       "authorization": "Bearer sk-test",
+       "content-type": "application/json",
+       "user-agent": "ai-sdk-openai-compatible/3.0.67 ai-sdk-provider-utils/5.0.58 node.js/22"
+      },
+      "body": "{\"model\":\"m-1\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}"
+     }
+    },
+    {
+     "kind": "stream",
+     "options": {
+      "toolChoice": {
+       "type": "auto"
+      },
+      "prompt": [
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "x"
+         }
+        ]
+       }
+      ],
+      "includeRawChunks": false
+     },
+     "thrown": {
+      "name": "AI_APICallError",
+      "message": "oops",
+      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "statusCode": 500,
+      "responseBody": "{\"error\":{\"message\":\"oops\"}}",
+      "isRetryable": true,
+      "data": {
+       "error": {
+        "message": "oops"
+       }
+      },
+      "responseHeaders": {
+       "content-type": "application/json",
+       "retry-after": "0"
+      }
+     },
+     "request": {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+       "authorization": "Bearer sk-test",
+       "content-type": "application/json",
+       "user-agent": "ai-sdk-openai-compatible/3.0.67 ai-sdk-provider-utils/5.0.58 node.js/22"
+      },
+      "body": "{\"model\":\"m-1\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}"
+     }
+    },
+    {
+     "kind": "stream",
+     "options": {
+      "toolChoice": {
+       "type": "auto"
+      },
+      "prompt": [
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "x"
+         }
+        ]
+       }
+      ],
+      "includeRawChunks": false
+     },
+     "requestBody": {
+      "model": "m-1",
+      "messages": [
+       {
+        "role": "user",
+        "content": "x"
+       }
+      ],
+      "stream": true,
+      "stream_options": {
+       "include_usage": true
+      }
+     },
+     "responseHeaders": {
+      "content-type": "text/event-stream",
+      "x-request-id": "req-1"
+     },
+     "parts": [
+      {
+       "type": "stream-start",
+       "warnings": []
+      },
+      {
+       "type": "response-metadata",
+       "id": "chatcmpl-1",
+       "modelId": "m-1-served",
+       "timestamp": {
+        "__date": 1700000000000
+       }
+      },
+      {
+       "type": "text-start",
+       "id": "txt-0"
+      },
+      {
+       "type": "text-delta",
+       "id": "txt-0",
+       "delta": "ok"
+      },
+      {
+       "type": "text-end",
+       "id": "txt-0"
+      },
+      {
+       "type": "finish",
+       "finishReason": {
+        "unified": "stop",
+        "raw": "stop"
+       },
+       "usage": {
+        "inputTokens": {},
+        "outputTokens": {}
+       },
+       "providerMetadata": {
+        "acme": {}
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+       "authorization": "Bearer sk-test",
+       "content-type": "application/json",
+       "user-agent": "ai-sdk-openai-compatible/3.0.67 ai-sdk-provider-utils/5.0.58 node.js/22"
+      },
+      "body": "{\"model\":\"m-1\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}"
+     }
+    }
+   ]
+  },
+  {
+   "name": "compat/429-exhausted",
+   "protocol": "openai-chat",
+   "settings": {
+    "id": "acme",
+    "protocol": "openai-chat",
+    "baseURL": "http://127.0.0.1:43647/v1",
+    "apiKey": "sk-test",
+    "defaultModel": "m-1"
+   },
+   "responses": [
+    {
+     "status": 429,
+     "headers": {
+      "content-type": "application/json",
+      "retry-after-ms": "0"
+     },
+     "body": "{\"error\":{\"message\":\"rate limited\"}}"
+    },
+    {
+     "status": 429,
+     "headers": {
+      "content-type": "application/json",
+      "retry-after-ms": "0"
+     },
+     "body": "{\"error\":{\"message\":\"rate limited again\"}}"
+    }
+   ],
+   "maxRetries": 1,
+   "ai": {
+    "errors": [
+     {
+      "name": "AI_RetryError",
+      "message": "Failed after 2 attempts. Last error: AI_APICallError: rate limited again",
+      "reason": "maxRetriesExceeded",
+      "errors": [
+       {
+        "name": "AI_APICallError",
+        "message": "rate limited",
+        "url": "http://127.0.0.1:43647/v1/chat/completions",
+        "statusCode": 429,
+        "responseBody": "{\"error\":{\"message\":\"rate limited\"}}",
+        "isRetryable": true,
+        "data": {
+         "error": {
+          "message": "rate limited"
+         }
+        },
+        "responseHeaders": {
+         "content-type": "application/json",
+         "retry-after-ms": "0"
+        }
+       },
+       {
+        "name": "AI_APICallError",
+        "message": "rate limited again",
+        "url": "http://127.0.0.1:43647/v1/chat/completions",
+        "statusCode": 429,
+        "responseBody": "{\"error\":{\"message\":\"rate limited again\"}}",
+        "isRetryable": true,
+        "data": {
+         "error": {
+          "message": "rate limited again"
+         }
+        },
+        "responseHeaders": {
+         "content-type": "application/json",
+         "retry-after-ms": "0"
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "calls": [
+    {
+     "kind": "stream",
+     "options": {
+      "toolChoice": {
+       "type": "auto"
+      },
+      "prompt": [
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "x"
+         }
+        ]
+       }
+      ],
+      "includeRawChunks": false
+     },
+     "thrown": {
+      "name": "AI_APICallError",
+      "message": "rate limited",
+      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "statusCode": 429,
+      "responseBody": "{\"error\":{\"message\":\"rate limited\"}}",
+      "isRetryable": true,
+      "data": {
+       "error": {
+        "message": "rate limited"
+       }
+      },
+      "responseHeaders": {
+       "content-type": "application/json",
+       "retry-after-ms": "0"
+      }
+     },
+     "request": {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+       "authorization": "Bearer sk-test",
+       "content-type": "application/json",
+       "user-agent": "ai-sdk-openai-compatible/3.0.67 ai-sdk-provider-utils/5.0.58 node.js/22"
+      },
+      "body": "{\"model\":\"m-1\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}"
+     }
+    },
+    {
+     "kind": "stream",
+     "options": {
+      "toolChoice": {
+       "type": "auto"
+      },
+      "prompt": [
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "x"
+         }
+        ]
+       }
+      ],
+      "includeRawChunks": false
+     },
+     "thrown": {
+      "name": "AI_APICallError",
+      "message": "rate limited again",
+      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "statusCode": 429,
+      "responseBody": "{\"error\":{\"message\":\"rate limited again\"}}",
+      "isRetryable": true,
+      "data": {
+       "error": {
+        "message": "rate limited again"
+       }
+      },
+      "responseHeaders": {
+       "content-type": "application/json",
+       "retry-after-ms": "0"
+      }
+     },
+     "request": {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+       "authorization": "Bearer sk-test",
+       "content-type": "application/json",
+       "user-agent": "ai-sdk-openai-compatible/3.0.67 ai-sdk-provider-utils/5.0.58 node.js/22"
+      },
+      "body": "{\"model\":\"m-1\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}"
+     }
+    }
+   ]
+  },
+  {
+   "name": "compat/retry-then-nonretryable",
+   "protocol": "openai-chat",
+   "settings": {
+    "id": "acme",
+    "protocol": "openai-chat",
+    "baseURL": "http://127.0.0.1:43647/v1",
+    "apiKey": "sk-test",
+    "defaultModel": "m-1"
+   },
+   "responses": [
+    {
+     "status": 502,
+     "headers": {
+      "content-type": "application/json",
+      "retry-after-ms": "0"
+     },
+     "body": "{\"error\":{\"message\":\"gw\"}}"
+    },
+    {
+     "status": 400,
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"error\":{\"message\":\"bad\"}}"
+    }
+   ],
+   "ai": {
+    "errors": [
+     {
+      "name": "AI_RetryError",
+      "message": "Failed after 2 attempts with non-retryable error: 'AI_APICallError: bad'",
+      "reason": "errorNotRetryable",
+      "errors": [
+       {
+        "name": "AI_APICallError",
+        "message": "gw",
+        "url": "http://127.0.0.1:43647/v1/chat/completions",
+        "statusCode": 502,
+        "responseBody": "{\"error\":{\"message\":\"gw\"}}",
+        "isRetryable": true,
+        "data": {
+         "error": {
+          "message": "gw"
+         }
+        },
+        "responseHeaders": {
+         "content-type": "application/json",
+         "retry-after-ms": "0"
+        }
+       },
+       {
+        "name": "AI_APICallError",
+        "message": "bad",
+        "url": "http://127.0.0.1:43647/v1/chat/completions",
+        "statusCode": 400,
+        "responseBody": "{\"error\":{\"message\":\"bad\"}}",
+        "isRetryable": false,
+        "data": {
+         "error": {
+          "message": "bad"
+         }
+        },
+        "responseHeaders": {
+         "content-type": "application/json"
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "calls": [
+    {
+     "kind": "stream",
+     "options": {
+      "toolChoice": {
+       "type": "auto"
+      },
+      "prompt": [
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "x"
+         }
+        ]
+       }
+      ],
+      "includeRawChunks": false
+     },
+     "thrown": {
+      "name": "AI_APICallError",
+      "message": "gw",
+      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "statusCode": 502,
+      "responseBody": "{\"error\":{\"message\":\"gw\"}}",
+      "isRetryable": true,
+      "data": {
+       "error": {
+        "message": "gw"
+       }
+      },
+      "responseHeaders": {
+       "content-type": "application/json",
+       "retry-after-ms": "0"
+      }
+     },
+     "request": {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+       "authorization": "Bearer sk-test",
+       "content-type": "application/json",
+       "user-agent": "ai-sdk-openai-compatible/3.0.67 ai-sdk-provider-utils/5.0.58 node.js/22"
+      },
+      "body": "{\"model\":\"m-1\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}"
+     }
+    },
+    {
+     "kind": "stream",
+     "options": {
+      "toolChoice": {
+       "type": "auto"
+      },
+      "prompt": [
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "x"
+         }
+        ]
+       }
+      ],
+      "includeRawChunks": false
+     },
+     "thrown": {
+      "name": "AI_APICallError",
+      "message": "bad",
+      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "statusCode": 400,
+      "responseBody": "{\"error\":{\"message\":\"bad\"}}",
+      "isRetryable": false,
+      "data": {
+       "error": {
+        "message": "bad"
+       }
+      },
+      "responseHeaders": {
+       "content-type": "application/json"
+      }
+     },
+     "request": {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+       "authorization": "Bearer sk-test",
+       "content-type": "application/json",
+       "user-agent": "ai-sdk-openai-compatible/3.0.67 ai-sdk-provider-utils/5.0.58 node.js/22"
+      },
+      "body": "{\"model\":\"m-1\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}"
+     }
+    }
+   ]
+  },
+  {
+   "name": "compat/mid-stream-destroy",
+   "protocol": "openai-chat",
+   "settings": {
+    "id": "acme",
+    "protocol": "openai-chat",
+    "baseURL": "http://127.0.0.1:43647/v1",
+    "apiKey": "sk-test",
+    "defaultModel": "m-1"
+   },
+   "responses": [
+    {
+     "status": 200,
+     "headers": {
+      "content-type": "text/event-stream"
+     },
+     "chunks": [
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"partial\"},\"finish_reason\":null}]}\n\n"
+     ],
+     "end": "destroy"
+    }
+   ],
+   "ai": {
+    "thrown": {
+     "name": "AI_APICallError",
+     "message": "Failed to process successful response",
+     "url": "http://127.0.0.1:43647/v1/chat/completions",
+     "statusCode": 200,
+     "isRetryable": true,
+     "responseHeaders": {
+      "content-type": "text/event-stream"
+     }
+    }
+   },
+   "calls": [
+    {
+     "kind": "stream",
+     "options": {
+      "toolChoice": {
+       "type": "auto"
+      },
+      "prompt": [
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "x"
+         }
+        ]
+       }
+      ],
+      "includeRawChunks": false
+     },
+     "requestBody": {
+      "model": "m-1",
+      "messages": [
+       {
+        "role": "user",
+        "content": "x"
+       }
+      ],
+      "stream": true,
+      "stream_options": {
+       "include_usage": true
+      }
+     },
+     "responseHeaders": {
+      "content-type": "text/event-stream"
+     },
+     "parts": [
+      {
+       "type": "stream-start",
+       "warnings": []
+      },
+      {
+       "type": "response-metadata",
+       "id": "chatcmpl-1",
+       "modelId": "m-1-served",
+       "timestamp": {
+        "__date": 1700000000000
+       }
+      },
+      {
+       "type": "text-start",
+       "id": "txt-0"
+      },
+      {
+       "type": "text-delta",
+       "id": "txt-0",
+       "delta": "partial"
+      }
+     ],
+     "streamError": {
+      "name": "AI_APICallError",
+      "message": "Failed to process successful response",
+      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "statusCode": 200,
+      "isRetryable": true,
+      "responseHeaders": {
+       "content-type": "text/event-stream"
+      }
+     },
+     "request": {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+       "authorization": "Bearer sk-test",
+       "content-type": "application/json",
+       "user-agent": "ai-sdk-openai-compatible/3.0.67 ai-sdk-provider-utils/5.0.58 node.js/22"
+      },
+      "body": "{\"model\":\"m-1\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}"
+     }
+    }
+   ]
+  },
+  {
+   "name": "compat/abort-mid-stream",
+   "protocol": "openai-chat",
+   "settings": {
+    "id": "acme",
+    "protocol": "openai-chat",
+    "baseURL": "http://127.0.0.1:43647/v1",
+    "apiKey": "sk-test",
+    "defaultModel": "m-1"
+   },
+   "responses": [
+    {
+     "status": 200,
+     "headers": {
+      "content-type": "text/event-stream"
+     },
+     "chunks": [
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"a\"},\"finish_reason\":null}]}\n\n",
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"b\"},\"finish_reason\":null}]}\n\n"
+     ],
+     "end": "hang"
+    }
+   ],
+   "abortAfterParts": 3,
+   "ai": {
+    "errors": []
+   },
+   "calls": [
+    {
+     "kind": "stream",
+     "options": {
+      "toolChoice": {
+       "type": "auto"
+      },
+      "prompt": [
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "x"
+         }
+        ]
+       }
+      ],
+      "includeRawChunks": false
+     },
+     "requestBody": {
+      "model": "m-1",
+      "messages": [
+       {
+        "role": "user",
+        "content": "x"
+       }
+      ],
+      "stream": true,
+      "stream_options": {
+       "include_usage": true
+      }
+     },
+     "responseHeaders": {
+      "content-type": "text/event-stream"
+     },
+     "parts": [
+      {
+       "type": "stream-start",
+       "warnings": []
+      },
+      {
+       "type": "response-metadata",
+       "id": "chatcmpl-1",
+       "modelId": "m-1-served",
+       "timestamp": {
+        "__date": 1700000000000
+       }
+      },
+      {
+       "type": "text-start",
+       "id": "txt-0"
+      },
+      {
+       "type": "text-delta",
+       "id": "txt-0",
+       "delta": "a"
+      }
+     ],
+     "streamError": {
+      "name": "AbortError",
+      "message": "This operation was aborted"
+     },
+     "request": {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+       "authorization": "Bearer sk-test",
+       "content-type": "application/json",
+       "user-agent": "ai-sdk-openai-compatible/3.0.67 ai-sdk-provider-utils/5.0.58 node.js/22"
+      },
+      "body": "{\"model\":\"m-1\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}"
+     }
+    }
+   ]
+  },
+  {
+   "name": "compat/gen-text",
+   "protocol": "openai-chat",
+   "settings": {
+    "id": "acme",
+    "protocol": "openai-chat",
+    "baseURL": "http://127.0.0.1:43647/v1",
+    "apiKey": "sk-test",
+    "defaultModel": "m-1"
+   },
+   "responses": [
+    {
+     "status": 200,
+     "headers": {
+      "content-type": "application/json",
+      "x-served-model": "z"
+     },
+     "body": "{\"id\":\"chatcmpl-9\",\"created\":1700000001,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"Hello\",\"reasoning_content\":\"hmm\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":12,\"completion_tokens\":7,\"total_tokens\":19,\"prompt_tokens_details\":{\"cached_tokens\":2}}}"
+    }
+   ],
+   "ai": {
+    "text": "Hello",
+    "finishReason": "stop"
+   },
+   "calls": [
+    {
+     "kind": "generate",
+     "options": {
+      "maxOutputTokens": 10,
+      "stopSequences": [
+       "END"
+      ],
+      "seed": 7,
+      "toolChoice": {
+       "type": "auto"
+      },
+      "prompt": [
+       {
+        "role": "system",
+        "content": "sys"
+       },
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "hi"
+         }
+        ]
+       }
+      ],
+      "headers": [
+       [
+        "user-agent",
+        "ai/7.0.136"
+       ]
+      ]
+     },
+     "result": {
+      "content": [
+       {
+        "type": "text",
+        "text": "Hello"
+       },
+       {
+        "type": "reasoning",
+        "text": "hmm"
+       }
+      ],
+      "finishReason": {
+       "unified": "stop",
+       "raw": "stop"
+      },
+      "usage": {
+       "inputTokens": {
+        "total": 12,
+        "noCache": 10,
+        "cacheRead": 2
+       },
+       "outputTokens": {
+        "total": 7,
+        "text": 7,
+        "reasoning": 0
+       },
+       "raw": {
+        "prompt_tokens": 12,
+        "completion_tokens": 7,
+        "total_tokens": 19,
+        "prompt_tokens_details": {
+         "cached_tokens": 2
+        }
+       }
+      },
+      "providerMetadata": {
+       "acme": {}
+      },
+      "warnings": [],
+      "requestBody": "{\"model\":\"m-1\",\"max_tokens\":10,\"stop\":[\"END\"],\"seed\":7,\"messages\":[{\"role\":\"system\",\"content\":\"sys\"},{\"role\":\"user\",\"content\":\"hi\"}]}",
+      "response": {
+       "id": "chatcmpl-9",
+       "timestamp": {
+        "__date": 1700000001000
+       },
+       "modelId": "m-1-served",
+       "headers": {
+        "content-type": "application/json",
+        "x-served-model": "z"
+       },
+       "body": {
+        "id": "chatcmpl-9",
+        "created": 1700000001,
+        "model": "m-1-served",
+        "choices": [
+         {
+          "index": 0,
+          "message": {
+           "role": "assistant",
+           "content": "Hello",
+           "reasoning_content": "hmm"
+          },
+          "finish_reason": "stop"
+         }
+        ],
+        "usage": {
+         "prompt_tokens": 12,
+         "completion_tokens": 7,
+         "total_tokens": 19,
+         "prompt_tokens_details": {
+          "cached_tokens": 2
+         }
+        }
+       }
+      }
+     },
+     "request": {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+       "authorization": "Bearer sk-test",
+       "content-type": "application/json",
+       "user-agent": "ai/7.0.136 ai-sdk-provider-utils/5.0.58 node.js/22"
+      },
+      "body": "{\"model\":\"m-1\",\"max_tokens\":10,\"stop\":[\"END\"],\"seed\":7,\"messages\":[{\"role\":\"system\",\"content\":\"sys\"},{\"role\":\"user\",\"content\":\"hi\"}]}"
+     }
+    }
+   ]
+  },
+  {
+   "name": "compat/gen-tools",
+   "protocol": "openai-chat",
+   "settings": {
+    "id": "acme",
+    "protocol": "openai-chat",
+    "baseURL": "http://127.0.0.1:43647/v1",
+    "apiKey": "sk-test",
+    "defaultModel": "m-1"
+   },
+   "responses": [
+    {
+     "status": 200,
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"choices\":[{\"message\":{\"content\":null,\"tool_calls\":[{\"id\":\"call_g\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{\\\"city\\\":\\\"SF\\\"}\"}},{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{\\\"city\\\":\\\"LA\\\"}\"}}]},\"finish_reason\":\"tool_calls\"}]}"
+    }
+   ],
+   "ai": {
+    "text": "",
+    "finishReason": "tool-calls"
+   },
+   "calls": [
+    {
+     "kind": "generate",
+     "options": {
+      "tools": [
+       {
+        "type": "function",
+        "name": "get_weather",
+        "inputSchema": {
+         "type": "object",
+         "properties": {
+          "city": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "city"
+         ],
+         "additionalProperties": false
+        },
+        "description": "Get the weather"
+       }
+      ],
+      "toolChoice": {
+       "type": "auto"
+      },
+      "prompt": [
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "w"
+         }
+        ]
+       }
+      ],
+      "headers": [
+       [
+        "user-agent",
+        "ai/7.0.136"
+       ]
+      ]
+     },
+     "result": {
+      "content": [
+       {
+        "type": "tool-call",
+        "toolCallId": "call_g",
+        "toolName": "get_weather",
+        "input": "{\"city\":\"SF\"}"
+       },
+       {
+        "type": "tool-call",
+        "toolCallId": "Nu4luHfalmz7t8dq",
+        "toolName": "get_weather",
+        "input": "{\"city\":\"LA\"}"
+       }
+      ],
+      "finishReason": {
+       "unified": "tool-calls",
+       "raw": "tool_calls"
+      },
+      "usage": {
+       "inputTokens": {},
+       "outputTokens": {}
+      },
+      "providerMetadata": {
+       "acme": {}
+      },
+      "warnings": [],
+      "requestBody": "{\"model\":\"m-1\",\"messages\":[{\"role\":\"user\",\"content\":\"w\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"Get the weather\",\"parameters\":{\"type\":\"object\",\"properties\":{\"city\":{\"type\":\"string\"}},\"required\":[\"city\"],\"additionalProperties\":false}}}],\"tool_choice\":\"auto\"}",
+      "response": {
+       "headers": {
+        "content-type": "application/json"
+       },
+       "body": {
+        "choices": [
+         {
+          "message": {
+           "content": null,
+           "tool_calls": [
+            {
+             "id": "call_g",
+             "type": "function",
+             "function": {
+              "name": "get_weather",
+              "arguments": "{\"city\":\"SF\"}"
+             }
+            },
+            {
+             "type": "function",
+             "function": {
+              "name": "get_weather",
+              "arguments": "{\"city\":\"LA\"}"
+             }
+            }
+           ]
+          },
+          "finish_reason": "tool_calls"
+         }
+        ]
+       }
+      }
+     },
+     "request": {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+       "authorization": "Bearer sk-test",
+       "content-type": "application/json",
+       "user-agent": "ai/7.0.136 ai-sdk-provider-utils/5.0.58 node.js/22"
+      },
+      "body": "{\"model\":\"m-1\",\"messages\":[{\"role\":\"user\",\"content\":\"w\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"Get the weather\",\"parameters\":{\"type\":\"object\",\"properties\":{\"city\":{\"type\":\"string\"}},\"required\":[\"city\"],\"additionalProperties\":false}}}],\"tool_choice\":\"auto\"}"
+     }
+    }
+   ]
+  },
+  {
+   "name": "compat/gen-no-choices",
+   "protocol": "openai-chat",
+   "settings": {
+    "id": "acme",
+    "protocol": "openai-chat",
+    "baseURL": "http://127.0.0.1:43647/v1",
+    "apiKey": "sk-test",
+    "defaultModel": "m-1"
+   },
+   "responses": [
+    {
+     "status": 200,
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"choices\":[]}"
+    }
+   ],
+   "maxRetries": 0,
+   "ai": {
+    "thrown": {
+     "name": "AI_InvalidResponseDataError",
+     "message": "Response did not contain any choices.",
+     "data": {
+      "choices": []
+     }
+    }
+   },
+   "calls": [
+    {
+     "kind": "generate",
+     "options": {
+      "toolChoice": {
+       "type": "auto"
+      },
+      "prompt": [
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "w"
+         }
+        ]
+       }
+      ],
+      "headers": [
+       [
+        "user-agent",
+        "ai/7.0.136"
+       ]
+      ]
+     },
+     "thrown": {
+      "name": "AI_InvalidResponseDataError",
+      "message": "Response did not contain any choices.",
+      "data": {
+       "choices": []
+      }
+     },
+     "request": {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+       "authorization": "Bearer sk-test",
+       "content-type": "application/json",
+       "user-agent": "ai/7.0.136 ai-sdk-provider-utils/5.0.58 node.js/22"
+      },
+      "body": "{\"model\":\"m-1\",\"messages\":[{\"role\":\"user\",\"content\":\"w\"}]}"
+     }
+    }
+   ]
+  },
+  {
+   "name": "compat/gen-invalid-json",
+   "protocol": "openai-chat",
+   "settings": {
+    "id": "acme",
+    "protocol": "openai-chat",
+    "baseURL": "http://127.0.0.1:43647/v1",
+    "apiKey": "sk-test",
+    "defaultModel": "m-1"
+   },
+   "responses": [
+    {
+     "status": 200,
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"choices\":"
+    }
+   ],
+   "maxRetries": 0,
+   "ai": {
+    "thrown": {
+     "name": "AI_APICallError",
+     "message": "Invalid JSON response",
+     "url": "http://127.0.0.1:43647/v1/chat/completions",
+     "statusCode": 200,
+     "responseBody": "{\"choices\":",
+     "isRetryable": false,
+     "responseHeaders": {
+      "content-type": "application/json"
+     }
+    }
+   },
+   "calls": [
+    {
+     "kind": "generate",
+     "options": {
+      "toolChoice": {
+       "type": "auto"
+      },
+      "prompt": [
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "w"
+         }
+        ]
+       }
+      ],
+      "headers": [
+       [
+        "user-agent",
+        "ai/7.0.136"
+       ]
+      ]
+     },
+     "thrown": {
+      "name": "AI_APICallError",
+      "message": "Invalid JSON response",
+      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "statusCode": 200,
+      "responseBody": "{\"choices\":",
+      "isRetryable": false,
+      "responseHeaders": {
+       "content-type": "application/json"
+      }
+     },
+     "request": {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+       "authorization": "Bearer sk-test",
+       "content-type": "application/json",
+       "user-agent": "ai/7.0.136 ai-sdk-provider-utils/5.0.58 node.js/22"
+      },
+      "body": "{\"model\":\"m-1\",\"messages\":[{\"role\":\"user\",\"content\":\"w\"}]}"
+     }
+    }
+   ]
+  },
+  {
+   "name": "compat/gen-schema-mismatch",
+   "protocol": "openai-chat",
+   "settings": {
+    "id": "acme",
+    "protocol": "openai-chat",
+    "baseURL": "http://127.0.0.1:43647/v1",
+    "apiKey": "sk-test",
+    "defaultModel": "m-1"
+   },
+   "responses": [
+    {
+     "status": 200,
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"choices\":[{\"message\":{\"content\":5}}]}"
+    }
+   ],
+   "maxRetries": 0,
+   "ai": {
+    "thrown": {
+     "name": "AI_APICallError",
+     "message": "Invalid JSON response",
+     "url": "http://127.0.0.1:43647/v1/chat/completions",
+     "statusCode": 200,
+     "responseBody": "{\"choices\":[{\"message\":{\"content\":5}}]}",
+     "isRetryable": false,
+     "responseHeaders": {
+      "content-type": "application/json"
+     }
+    }
+   },
+   "calls": [
+    {
+     "kind": "generate",
+     "options": {
+      "toolChoice": {
+       "type": "auto"
+      },
+      "prompt": [
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "w"
+         }
+        ]
+       }
+      ],
+      "headers": [
+       [
+        "user-agent",
+        "ai/7.0.136"
+       ]
+      ]
+     },
+     "thrown": {
+      "name": "AI_APICallError",
+      "message": "Invalid JSON response",
+      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "statusCode": 200,
+      "responseBody": "{\"choices\":[{\"message\":{\"content\":5}}]}",
+      "isRetryable": false,
+      "responseHeaders": {
+       "content-type": "application/json"
+      }
+     },
+     "request": {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+       "authorization": "Bearer sk-test",
+       "content-type": "application/json",
+       "user-agent": "ai/7.0.136 ai-sdk-provider-utils/5.0.58 node.js/22"
+      },
+      "body": "{\"model\":\"m-1\",\"messages\":[{\"role\":\"user\",\"content\":\"w\"}]}"
+     }
+    }
+   ]
+  },
+  {
+   "name": "compat/gen-http-401",
+   "protocol": "openai-chat",
+   "settings": {
+    "id": "acme",
+    "protocol": "openai-chat",
+    "baseURL": "http://127.0.0.1:43647/v1",
+    "apiKey": "sk-test",
+    "defaultModel": "m-1"
+   },
+   "responses": [
+    {
+     "status": 401,
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"error\":{\"message\":\"nope\",\"code\":401}}"
+    }
+   ],
+   "ai": {
+    "thrown": {
+     "name": "AI_APICallError",
+     "message": "nope",
+     "url": "http://127.0.0.1:43647/v1/chat/completions",
+     "statusCode": 401,
+     "responseBody": "{\"error\":{\"message\":\"nope\",\"code\":401}}",
+     "isRetryable": false,
+     "data": {
+      "error": {
+       "message": "nope",
+       "code": 401
+      }
+     },
+     "responseHeaders": {
+      "content-type": "application/json"
+     }
+    }
+   },
+   "calls": [
+    {
+     "kind": "generate",
+     "options": {
+      "toolChoice": {
+       "type": "auto"
+      },
+      "prompt": [
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "w"
+         }
+        ]
+       }
+      ],
+      "headers": [
+       [
+        "user-agent",
+        "ai/7.0.136"
+       ]
+      ]
+     },
+     "thrown": {
+      "name": "AI_APICallError",
+      "message": "nope",
+      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "statusCode": 401,
+      "responseBody": "{\"error\":{\"message\":\"nope\",\"code\":401}}",
+      "isRetryable": false,
+      "data": {
+       "error": {
+        "message": "nope",
+        "code": 401
+       }
+      },
+      "responseHeaders": {
+       "content-type": "application/json"
+      }
+     },
+     "request": {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+       "authorization": "Bearer sk-test",
+       "content-type": "application/json",
+       "user-agent": "ai/7.0.136 ai-sdk-provider-utils/5.0.58 node.js/22"
+      },
+      "body": "{\"model\":\"m-1\",\"messages\":[{\"role\":\"user\",\"content\":\"w\"}]}"
+     }
+    }
+   ]
+  },
+  {
+   "name": "compat/gen-abort",
+   "protocol": "openai-chat",
+   "settings": {
+    "id": "acme",
+    "protocol": "openai-chat",
+    "baseURL": "http://127.0.0.1:43647/v1",
+    "apiKey": "sk-test",
+    "defaultModel": "m-1"
+   },
+   "responses": [
+    {
+     "status": 200,
+     "headers": {
+      "content-type": "application/json"
+     },
+     "chunks": [],
+     "end": "hang"
+    }
+   ],
+   "abortBeforeGenerate": true,
+   "ai": {
+    "thrown": {
+     "name": "AbortError",
+     "message": "This operation was aborted"
+    }
+   },
+   "calls": [
+    {
+     "kind": "generate",
+     "options": {
+      "toolChoice": {
+       "type": "auto"
+      },
+      "prompt": [
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "w"
+         }
+        ]
+       }
+      ],
+      "headers": [
+       [
+        "user-agent",
+        "ai/7.0.136"
+       ]
+      ]
+     },
+     "thrown": {
+      "name": "AbortError",
+      "message": "This operation was aborted"
+     },
+     "request": {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+       "authorization": "Bearer sk-test",
+       "content-type": "application/json",
+       "user-agent": "ai/7.0.136 ai-sdk-provider-utils/5.0.58 node.js/22"
+      },
+      "body": "{\"model\":\"m-1\",\"messages\":[{\"role\":\"user\",\"content\":\"w\"}]}"
+     }
+    }
+   ]
+  }
+ ]
+}
