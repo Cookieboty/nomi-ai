@@ -1,11 +1,9 @@
 // Package builtin mirrors packages/cli-plugins/src/{index,main,gateways}.ts：
-// 内置 CLI 的 id / 清单 / 渲染信息 / 网关条目（数据由 scripts/parity/gen-b7-builtin.mjs 从 Node 导出）
+// 内置 CLI 的 id / 清单 / 渲染信息 / 网关条目（各插件 manifest / renderer / gateway 的 Go 移植；golden：b7s2-plugins.json）
 // 与 BUILTIN_PLUGINS（各 CLI 的 CreateMain）。
 package builtin
 
 import (
-	_ "embed"
-
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/claude"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/codex"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/dsh"
@@ -15,25 +13,8 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-//go:embed builtin.json
-var raw []byte
-
-var data = func() *util.Obj {
-	v, err := util.Parse(raw)
-	if err != nil {
-		panic(err)
-	}
-	return v.(*util.Obj)
-}()
-
-// IDs = BUILTIN_CLI_IDS。
-var IDs = func() []string {
-	out := []string{}
-	for _, x := range data.Get("ids").([]any) {
-		out = append(out, x.(string))
-	}
-	return out
-}()
+// IDs = BUILTIN_CLI_IDS（generated/ids.ts：目录名）。
+var IDs = []string{"claude", "codex", "dsh", "gemini", "grok"}
 
 // IsBuiltinCliID mirrors isBuiltinCliId。
 func IsBuiltinCliID(v any) bool {
@@ -49,14 +30,14 @@ func IsBuiltinCliID(v any) bool {
 	return false
 }
 
-// Manifests = BUILTIN_MANIFESTS（只读；调用方需修改时 Clone）。
-var Manifests = data.Get("manifests").(*util.Obj)
+// Manifests = BUILTIN_MANIFESTS（与各插件 Manifest 同一对象；调用方需修改时 Clone）。
+var Manifests = util.NewObj("claude", claude.Manifest, "codex", codex.Manifest, "dsh", dsh.Manifest, "gemini", gemini.Manifest, "grok", grok.Manifest)
 
 // Renderers = BUILTIN_RENDERER。
-var Renderers = data.Get("renderers").(*util.Obj)
+var Renderers = util.NewObj("claude", claude.Renderer, "codex", codex.Renderer, "dsh", dsh.Renderer, "gemini", gemini.Renderer, "grok", grok.Renderer)
 
-// GatewayEntries = BUILTIN_GATEWAY_ENTRIES。
-var GatewayEntries = data.Get("gatewayEntries").([]any)
+// GatewayEntries = BUILTIN_GATEWAY_ENTRIES（gateways.ts 顺序：claude、codex、grok、dsh、gemini）。
+var GatewayEntries = []any{claude.Gateway, codex.Gateway, grok.Gateway, dsh.Gateway, gemini.Gateway}
 
 func Manifest(id string) *util.Obj { m, _ := Manifests.Get(id).(*util.Obj); return m }
 
