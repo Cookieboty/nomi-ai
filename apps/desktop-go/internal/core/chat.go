@@ -4,9 +4,8 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/openai/openai-go/v3"
-	"github.com/openai/openai-go/v3/option"
-
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/llm"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/llm/compatible"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
 )
 
@@ -17,12 +16,12 @@ type LLMConfig struct {
 }
 
 type Core struct {
-	llm openai.Client
+	llm *compatible.Provider
 	cfg LLMConfig
 }
 
 func New(cfg LLMConfig) *Core {
-	return &Core{cfg: cfg, llm: openai.NewClient(option.WithBaseURL(cfg.BaseURL), option.WithAPIKey(cfg.APIKey))}
+	return &Core{cfg: cfg, llm: compatible.New(compatible.Settings{Name: "openai", BaseURL: cfg.BaseURL, APIKey: cfg.APIKey, IncludeUsage: true})}
 }
 
 // Register 把核心能力挂到契约路由上
@@ -39,48 +38,66 @@ func (c *Core) chatStream(ctx context.Context, _ contract.Caller, raw json.RawMe
 	if model == "" {
 		model = c.cfg.Model
 	}
-	msgs := make([]openai.ChatCompletionMessageParamUnion, 0, len(in.Messages))
+	prompt := make([]llm.Message, 0, len(in.Messages))
 	for _, m := range in.Messages {
 		switch m.Role {
 		case "system":
-			msgs = append(msgs, openai.SystemMessage(m.Content))
+			prompt = append(prompt, llm.Message{Role: "system", Text: m.Content})
 		case "assistant":
-			msgs = append(msgs, openai.AssistantMessage(m.Content))
+			prompt = append(prompt, llm.Message{Role: "assistant", Parts: []llm.Part{{Type: "text", Text: m.Content}}})
 		default:
-			msgs = append(msgs, openai.UserMessage(m.Content))
+			prompt = append(prompt, llm.Message{Role: "user", Parts: []llm.Part{{Type: "text", Text: m.Content}}})
 		}
 	}
-	params := openai.ChatCompletionNewParams{Model: model, Messages: msgs,
-		StreamOptions: openai.ChatCompletionStreamOptionsParam{IncludeUsage: openai.Bool(true)}}
-	if in.Temperature != nil {
-		params.Temperature = openai.Float(*in.Temperature)
-	}
-	// ctx 在前端 abort（或断线）时取消，openai-go 会关掉 HTTP 连接
-	stream := c.llm.Chat.Completions.NewStreaming(ctx, params)
-	defer stream.Close()
-	finish := "stop"
-	for stream.Next() {
-		ch := stream.Current()
-		if ch.Usage.TotalTokens > 0 {
-			_ = emit(ChatChunk{Type: "usage", Model: ch.Model, Usage: &ChatUsage{
-				PromptTokens: ch.Usage.PromptTokens, CompletionTokens: ch.Usage.CompletionTokens, TotalTokens: ch.Usage.TotalTokens}})
-		}
-		for _, choice := range ch.Choices {
-			if choice.Delta.Content != "" {
-				if err := emit(ChatChunk{Type: "delta", Content: choice.Delta.Content}); err != nil {
-					return nil, err
-				}
-			}
-			if choice.FinishReason != "" {
-				finish = choice.FinishReason
-			}
-		}
-	}
-	if err := stream.Err(); err != nil {
+	// ctx 在前端 abort（或断线）时取消，net/http 会关掉连接
+	res, err := c.llm.ChatModel(model).DoStream(ctx, llm.CallOptions{Prompt: prompt, Temperature: in.Temperature})
+	if err != nil {
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
 		return nil, err
+	}
+	finish := "stop"
+	var streamErr error
+	for p := range res.Stream {
+		switch p.Type {
+		case "response-metadata":
+			if p.Meta.ModelID != nil {
+				model = *p.Meta.ModelID
+			}
+		case "text-delta":
+			if streamErr == nil {
+				if err := emit(ChatChunk{Type: "delta", Content: p.Delta}); err != nil {
+					streamErr = err
+				}
+			}
+		case "error":
+			if streamErr == nil && p.Err != nil {
+				streamErr = p.Err
+			} else if streamErr == nil {
+				streamErr = &contract.Error{Code: "LLM_ERROR", Message: llm.GetErrorMessage(p.RawValue)}
+			}
+		case llm.PartStreamError:
+			if streamErr == nil {
+				streamErr = p.Err
+			}
+		case "finish":
+			if p.FinishReason.Raw != nil {
+				finish = *p.FinishReason.Raw
+			}
+			u := p.Usage
+			if u.InputTotal != nil && u.OutputTotal != nil && *u.InputTotal+*u.OutputTotal > 0 {
+				_ = emit(ChatChunk{Type: "usage", Model: model, Usage: &ChatUsage{
+					PromptTokens: int64(*u.InputTotal), CompletionTokens: int64(*u.OutputTotal),
+					TotalTokens: int64(*u.InputTotal + *u.OutputTotal)}})
+			}
+		}
+	}
+	if streamErr != nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		return nil, streamErr
 	}
 	_ = emit(ChatChunk{Type: "done", FinishReason: finish})
 	return nil, nil

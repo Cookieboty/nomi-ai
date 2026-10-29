@@ -9,8 +9,8 @@ import (
 	"testing"
 )
 
-// Windows 金标（按 Node/libuv 文档逻辑的夹具）：目录共享用 junction（无需特权）；libuv 写入的
-// SubstituteName/PrintName 以 \ 结尾，因此 readlinkSync 返回 target+`\`，与 target 不等 → 每次启动都删后重建（行为同 Node）。
+// Windows 夹具：目录共享用 junction（无需特权）。CI 现场 Node 录制（launch golden）表明 readlinkSync
+// 对 junction 返回不带尾 `\` 的 target，因此第二轮 cur == target → 保留不重建。
 func TestJunctionParityWindows(t *testing.T) {
 	S, err := realpathNative(t.TempDir())
 	if err != nil {
@@ -33,8 +33,8 @@ func TestJunctionParityWindows(t *testing.T) {
 			t.Fatalf("round %d: not a link: %v %v", i, st, err)
 		}
 		to, err := readlinkNode(link)
-		if err != nil || to != target+`\` {
-			t.Fatalf("readlink = %q %v, want %q", to, err, target+`\`)
+		if err != nil || to != target {
+			t.Fatalf("readlink = %q %v, want %q", to, err, target)
 		}
 		b, err := os.ReadFile(filepath.Join(link, "x.txt"))
 		if err != nil || string(b) != "hi" {

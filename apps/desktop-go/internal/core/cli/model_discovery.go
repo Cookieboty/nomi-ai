@@ -94,11 +94,19 @@ func mdWithTimeout(child clisdk.ChildLike, timeoutMs int, run func(done func(*ut
 		}()
 		fn()
 	}
-	timer = jsrt.SetTimeout(time.Duration(timeoutMs)*time.Millisecond, func() {
-		finish(func() { p.Reject(fmt.Errorf("timed out after %dms", timeoutMs)) })
-	})
+	deadline := time.Now().Add(time.Duration(timeoutMs) * time.Millisecond)
+	outer := func() { finish(func() { p.Reject(fmt.Errorf("timed out after %dms", timeoutMs)) }) }
+	timer = jsrt.SetTimeout(time.Duration(timeoutMs)*time.Millisecond, outer)
 	child.OnError(func(e error) { finish(func() { p.Reject(e) }) })
-	run(func(v *util.Obj) { finish(func() { p.Resolve(v) }) }, func(e error) { finish(func() { p.Reject(e) }) })
+	run(func(v *util.Obj) { finish(func() { p.Resolve(v) }) }, func(e error) {
+		// Node 定时器同时长 FIFO：外层超时先注册，必先于内层 RPC 超时触发（D-B7-S-4）。
+		var te *rpc.TimeoutError
+		if errors.As(e, &te) && !time.Now().Before(deadline) {
+			outer()
+			return
+		}
+		finish(func() { p.Reject(e) })
+	})
 	return p
 }
 

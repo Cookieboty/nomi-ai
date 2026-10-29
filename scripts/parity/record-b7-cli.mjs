@@ -304,7 +304,7 @@ await addAsync('readGrokAuthStatus:ok', () => grok.readGrokAuthStatus({ resolveB
 await addAsync('readGrokAuthStatus:nobin', () => grok.readGrokAuthStatus({ resolveBin: async () => null }));
 await addAsync('readGrokAuthStatus:throwbin', () => grok.readGrokAuthStatus({ resolveBin: async () => { throw new Error('x'); } }));
 await addAsync('readGrokAuthStatus:timeout', () => grok.readGrokAuthStatus({ resolveBin: async () => NODE, env: () => env, tmpRoot: sb(), timeoutMs: 400 }));
-add('readGrokAuthStatus:tmpClean', () => fs.readdirSync(SB).filter((n) => n.startsWith('nomi-grok-auth-')));
+add('readGrokAuthStatus:tmpClean', () => fs.readdirSync(SB).filter((n) => n.startsWith('nomi-grok-auth-')).map((n) => n.replace(/^(nomi-grok-auth-)[A-Za-z0-9]{6}$/, '$1<R>')));
 
 // —— sqliteRead ——
 let sqliteOk = false;

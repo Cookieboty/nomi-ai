@@ -54,6 +54,8 @@ jobs:
           export NOMI_GOLDEN_DIR="$RUNNER_TEMP/goldens"
           pnpm exec tsx scripts/parity/record-asset-protocols.mjs
           node scripts/parity/record-b7-drivers.mjs
+          pnpm --filter @nomi-ai/types --filter @nomi-ai/i18n build
+          pnpm exec tsx scripts/parity/record-b9.mjs
           pnpm exec tsx scripts/parity/check-scheme-url.mjs
           echo "NOMI_LIVE_GOLDENS=$NOMI_GOLDEN_DIR" >> "$GITHUB_ENV"
           if [ "$RUNNER_OS" = Linux ]; then diff -u apps/desktop-go/internal/core/assetproto/testdata/protocols.json "$NOMI_GOLDEN_DIR/protocols.json"; fi
@@ -63,6 +65,9 @@ jobs:
           mkdir -p frontend/dist && touch frontend/dist/.keep
           TAGS=""; [ "$RUNNER_OS" = Linux ] && TAGS="-tags gtk3"; [ "$RUNNER_OS" = macOS ] && TAGS="-tags private_mac_apis"
           go vet $TAGS ./... && go test $TAGS -race ./...
+      - name: chatbg image parity (no -race; Electron goldens)
+        working-directory: apps/desktop-go
+        run: go test -count=1 -run TestImageParity -v ./internal/core/chatbg/
       - name: frontend
         working-directory: apps/desktop-go/frontend
         run: ../../../node_modules/.bin/vite build --config vite.config.mts
