@@ -105,7 +105,7 @@ var (
 	sbxRe   = regexp.MustCompile(`[^\s()'"]*cd-sbx-[A-Za-z0-9]+`)
 	uuidRe  = regexp.MustCompile(`[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`)
 	mtimeRe = regexp.MustCompile(`("expectMtimeMs": )[0-9.e+]+`)
-	tdayRe  = regexp.MustCompile(`trash([\\/])\d{4}-\d{2}-\d{2}([\\/])`)
+	tdayRe  = regexp.MustCompile(`trash([\\/]+)\d{4}-\d{2}-\d{2}([\\/]+)`)
 )
 
 // deskNorm 同录制脚本 norm：按值换临时根各写法 / 提醒 id / uuid / mtime / 回收站日期，undoId 键值整体替换

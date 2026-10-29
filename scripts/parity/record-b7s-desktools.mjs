@@ -134,7 +134,7 @@ const normStr = (s) => {
     .replace(/[^\s()'"]*cd-sbx-[A-Za-z0-9]+/g, '@@SBX@@')
     .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g, '@@ID@@')
     .replace(/("expectMtimeMs": )[0-9.e+]+/g, '$1@@MT@@')
-    .replace(/trash([\\/])\d{4}-\d{2}-\d{2}([\\/])/g, 'trash$1@@D@@$2');
+    .replace(/trash([\\/]+)\d{4}-\d{2}-\d{2}([\\/]+)/g, 'trash$1@@D@@$2');
 };
 const norm = (v) => {
   if (typeof v === 'string') return normStr(v);
