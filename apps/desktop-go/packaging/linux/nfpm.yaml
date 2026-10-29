@@ -1,0 +1,29 @@
+# deb：nfpm 在 dist-pkg/.work-linux 下运行（相对路径以此为基准），VERSION 来自环境变量
+name: nomi
+arch: amd64
+platform: linux
+version: ${VERSION}
+section: utils
+priority: optional
+maintainer: Cookieboty <noreply@github.com>
+vendor: Cookieboty
+homepage: https://github.com/Cookieboty/nomi-ai
+license: MIT
+description: Nomi desktop AI assistant
+depends:
+  - libgtk-3-0
+  - libwebkit2gtk-4.1-0
+contents:
+  - src: ./AppDir/opt/Nomi
+    dst: /opt/Nomi
+    type: tree
+  - src: ./AppDir/usr/share/icons
+    dst: /usr/share/icons
+    type: tree
+  - src: ./AppDir/usr/share/applications/nomi.desktop
+    dst: /usr/share/applications/nomi.desktop
+  - src: /opt/Nomi/nomi
+    dst: /usr/bin/nomi
+    type: symlink
+scripts:
+  postinstall: ../../packaging/linux/postinst.sh

@@ -1,0 +1,195 @@
+# 2.0.5 Go + Wails 版安装包流水线（批次 11）：三平台打包 → 安装/启动/签名验证 → 更新元数据；tag 上才建 draft release。
+# 发布语义对齐 ci.yml 的 Electron 流程：draft → 校验三平台产物 → 人工 publish（本 workflow 不打 tag、不 publish，
+# publish 需 workflow_dispatch 显式 publish=true 且在 tag ref 上）。详见 docs/design/migrate-2.0.5-go.md §3.4 D-B11-*。
+name: desktop-go-package
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: '仅 tag ref：校验通过后把 draft release 设为正式（默认不发布）'
+        type: boolean
+        default: false
+  pull_request:
+    branches: [release/2.0.5]
+    paths:
+      - 'apps/desktop-go/**'
+      - 'characters/nomi/**'
+      - 'packages/host-electron/assets/**'
+      - '.github/workflows/desktop-go-package.yml'
+permissions:
+  contents: read
+# 与 desktop-go.yml 相同：非 PR 按 commit 分组且不取消；PR 只保留最新一次
+concurrency:
+  group: desktop-go-package-${{ github.event_name }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+env:
+  ELECTRON_BASELINE: v2.0.4 # 对比基线：安装目录 / 注册表 / Info.plist / .desktop
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: mac-arm64, os: macos-14 }
+          - { target: mac-x64, os: macos-14 }
+          - { target: windows, os: windows-latest }
+          - { target: linux, os: ubuntu-24.04 }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    defaults: { run: { shell: bash } }
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { lfs: true }
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - uses: actions/setup-go@v5
+        with: { go-version-file: apps/desktop-go/go.mod, cache-dependency-path: apps/desktop-go/go.sum }
+      - name: linux deps
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev file
+      - name: windows deps (NSIS)
+        if: runner.os == 'Windows'
+        run: command -v makensis || [ -x "/c/Program Files (x86)/NSIS/makensis.exe" ] || choco install nsis -y --no-progress
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - id: ver
+        run: echo "version=$(node -p "require('./packages/host-electron/package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: mac signing keychain (Developer ID, no notarization)
+        if: startsWith(matrix.target, 'mac-')
+        env:
+          MAC_CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          MAC_CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+        run: |
+          if [ -z "$MAC_CSC_LINK" ] || [ -z "$MAC_CSC_KEY_PASSWORD" ]; then
+            echo "::warning::MAC_CSC_LINK / MAC_CSC_KEY_PASSWORD 不可用 → ad-hoc 签名"; exit 0; fi
+          P12="$RUNNER_TEMP/cert.p12"
+          case "$MAC_CSC_LINK" in
+            https://*) curl -fsSL -o "$P12" "$MAC_CSC_LINK" ;;
+            file://*) cp "${MAC_CSC_LINK#file://}" "$P12" ;;
+            *) printf '%s' "$MAC_CSC_LINK" | base64 --decode > "$P12" ;;
+          esac
+          KC="$RUNNER_TEMP/nomi-sign.keychain-db"; KP="$(uuidgen)"
+          security create-keychain -p "$KP" "$KC"
+          security set-keychain-settings -lut 3600 "$KC"
+          security unlock-keychain -p "$KP" "$KC"
+          security import "$P12" -k "$KC" -P "$MAC_CSC_KEY_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KP" "$KC" >/dev/null
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          rm -f "$P12"
+          ID=$(security find-identity -v -p codesigning "$KC" | awk -F'"' '/Developer ID Application/{print $2; exit}')
+          [ -n "$ID" ] || { echo "::error::p12 里没有 Developer ID Application 证书"; security find-identity -v -p codesigning "$KC"; exit 1; }
+          echo "MAC_SIGN_IDENTITY=$ID" >> "$GITHUB_ENV"; echo "MAC_KEYCHAIN=$KC" >> "$GITHUB_ENV"
+          echo "签名身份：$ID" >> "$GITHUB_STEP_SUMMARY"
+      - name: package
+        run: apps/desktop-go/packaging/package.sh ${{ matrix.target }}
+      - name: sizes
+        run: |
+          { echo "### ${{ matrix.target }} 产物（字节）"; echo '```'; ls -l apps/desktop-go/dist-pkg | grep -v '^total'; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: codesign -dv
+        if: startsWith(matrix.target, 'mac-')
+        run: |
+          D=$(ls apps/desktop-go/dist-pkg/*.zip); T=$(mktemp -d); ditto -x -k "$D" "$T"
+          { echo '```'; codesign -dv --verbose=4 "$T/Nomi.app" 2>&1 | grep -v 'Hash'; lipo -archs "$T/Nomi.app/Contents/MacOS/Nomi"; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: cleanup keychain
+        if: always() && env.MAC_KEYCHAIN != ''
+        run: security delete-keychain "$MAC_KEYCHAIN" || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nomi-go-${{ matrix.target }}
+          path: apps/desktop-go/dist-pkg/
+          if-no-files-found: error
+          compression-level: 0
+
+  verify:
+    needs: package
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: mac-arm64, os: macos-14 }
+          - { target: windows, os: windows-latest }
+          - { target: linux, os: ubuntu-24.04 }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults: { run: { shell: bash } }
+    env:
+      GH_TOKEN: ${{ github.token }}
+      V: ${{ needs.package.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { sparse-checkout: apps/desktop-go/ci }
+      - uses: actions/download-artifact@v4
+        with: { name: 'nomi-go-${{ matrix.target }}', path: pkg }
+      - name: electron baseline (${{ env.ELECTRON_BASELINE }})
+        run: |
+          mkdir -p old
+          case "${{ matrix.target }}" in
+            mac-arm64) P='Nomi-*-arm64.dmg' ;; windows) P='Nomi-Setup-*.exe' ;; linux) P='Nomi-*.AppImage' ;;
+          esac
+          gh release download "$ELECTRON_BASELINE" -R "$GITHUB_REPOSITORY" -p "$P" -D old || echo "::warning::基线下载失败，跳过对比"
+          ls -l old pkg
+      - name: verify mac
+        if: runner.os == 'macOS'
+        run: apps/desktop-go/ci/verify-mac.sh "pkg/Nomi-$V-arm64.dmg" shots "$(ls old/*.dmg 2>/dev/null | head -1)"
+      - name: verify windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $old = (Get-ChildItem old\*.exe -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
+          ./apps/desktop-go/ci/verify-win.ps1 -Setup "pkg\Nomi-Setup-$env:V.exe" -Out shots -Old "$old"
+      - name: verify linux
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update && sudo apt-get install -y xvfb xdotool imagemagick libfuse2t64 desktop-file-utils
+          xvfb-run -a -s '-screen 0 1920x1080x24' apps/desktop-go/ci/verify-linux.sh "pkg/nomi_${V}_amd64.deb" "pkg/Nomi-$V.AppImage" shots "$(ls old/*.AppImage 2>/dev/null | head -1)"
+      - name: summary
+        if: always()
+        run: cat shots/report.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: 'verify-${{ matrix.target }}', path: shots/ }
+
+  manifest:
+    needs: package
+    runs-on: ubuntu-24.04
+    env: { V: '${{ needs.package.outputs.version }}' }
+    steps:
+      - uses: actions/checkout@v4
+        with: { sparse-checkout: apps/desktop-go/packaging }
+      - uses: actions/download-artifact@v4
+        with: { pattern: 'nomi-go-*', path: out, merge-multiple: true }
+      - name: latest-go.json + SHA256SUMS
+        run: |
+          python3 apps/desktop-go/packaging/update-manifest.py "$V" out --tag "v$V" --repo "$GITHUB_REPOSITORY"
+          { echo "### 全部产物（字节）"; echo '```'; ls -l out | grep -v '^total'; echo '```'; echo '```json'; cat out/latest-go.json; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with: { name: nomi-go-release, path: out/, compression-level: 0 }
+
+  # 只在 tag ref 上手动触发时运行（PR / 分支上永远跳过）：对齐 ci.yml prepare-release → build → publish-release
+  release-draft:
+    if: github.event_name == 'workflow_dispatch' && startsWith(github.ref, 'refs/tags/v')
+    needs: [package, manifest, verify]
+    runs-on: ubuntu-24.04
+    permissions: { contents: write }
+    env: { GH_TOKEN: '${{ github.token }}', TAG: '${{ github.ref_name }}' }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { name: nomi-go-release, path: out }
+      - name: draft release (create or reuse) + upload
+        run: |
+          [ "$TAG" = "v${{ needs.package.outputs.version }}" ] || { echo "::error::tag $TAG ≠ package.json 版本"; exit 1; }
+          NOTES="docs/releases/$TAG.md"; [ -f "$NOTES" ] || { echo "::error::缺 $NOTES"; exit 1; }
+          if ! gh release view "$TAG" >/dev/null 2>&1; then gh release create "$TAG" --draft --verify-tag -t "$TAG" -F "$NOTES"; fi
+          [ "$(gh release view "$TAG" --json isDraft -q .isDraft)" = true ] || { echo "::error::$TAG 已发布，拒绝覆盖"; exit 1; }
+          gh release upload "$TAG" out/* --clobber
+      - name: check assets (3 platforms)
+        run: |
+          V=${TAG#v}; have=$(gh release view "$TAG" --json assets -q '.assets[].name')
+          for f in "Nomi-$V-arm64.dmg" "Nomi-$V-arm64-mac.zip" "Nomi-$V.dmg" "Nomi-$V-mac.zip" "Nomi-Setup-$V.exe" "Nomi-$V.AppImage" "nomi_${V}_amd64.deb" latest-go.json SHA256SUMS; do
+            grep -qx "$f" <<<"$have" || { echo "::error::draft 缺少 $f"; exit 1; }; done
+      - name: publish (opt-in)
+        if: inputs.publish
+        run: gh release edit "$TAG" --draft=false --latest
