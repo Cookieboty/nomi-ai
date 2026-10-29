@@ -14,6 +14,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/ports"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/codinghandlers"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/hostports"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
@@ -64,9 +65,8 @@ func (e externals) Handshake(id string, images, resume bool) {
 var harnessOrch *harness.Orchestrator
 
 // wireHarness 对齐 createCore.ts 的 HarnessOrchestrator 构造 + coding.ts 的 harness.* 过程。
-// gateway：gwstore 尚无 cliDefaults/cliLaunch/cliLaunchForTab 等（harnessGateway.ts），落地后接入；
-// Node 侧为可选依赖。
-func wireHarness(router *contract.Router, userData, home string, hp hostPorts) (*cli.CliPluginHost, func()) {
+// gateway = harnessGateway(gateway)（harness_gateway.go）。
+func wireHarness(router *contract.Router, userData, home string, hp hostPorts, gw *gwstore.Service) (*cli.CliPluginHost, func()) {
 	docs := hostports.Documents()
 	var o *harness.Orchestrator
 	// 编程助手插件宿主（createCore.ts new CliPluginHost）
@@ -143,7 +143,8 @@ func wireHarness(router *contract.Router, userData, home string, hp hostPorts) (
 	o = jsrt.Call(func() *harness.Orchestrator {
 		return harness.New(harness.Deps{
 			Externals: externals{plugins}, Accounts: accPort,
-			Root: filepath.Join(userData, "harness"), Logger: stdLogger{}, Home: home,
+			Gateway: gatewayPort(gw),
+			Root:    filepath.Join(userData, "harness"), Logger: stdLogger{}, Home: home,
 			DefaultCwd: filepath.Join(docs, "nomi"), LegacyDefaultCwd: docs,
 			Ports:          harnessPorts{hp},
 			PrewarmClaude:  os.Getenv("NOMI_HARNESS_PREWARM") != "0",
@@ -155,4 +156,12 @@ func wireHarness(router *contract.Router, userData, home string, hp hostPorts) (
 	codinghandlers.RegisterHarness(router, func() *harness.Orchestrator { return o })
 	jsrt.Go(func() { plugins.Start() })
 	return plugins, func() { jsrt.Run(func() { o.Dispose() }) }
+}
+
+// gatewayPort：nil 网关 = Node 未传 gateway（可选依赖）
+func gatewayPort(gw *gwstore.Service) ports.HarnessGateway {
+	if gw == nil {
+		return nil
+	}
+	return harnessGateway{gw}
 }
