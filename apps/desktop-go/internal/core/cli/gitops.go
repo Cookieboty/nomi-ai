@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/charcontract"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -67,25 +68,35 @@ type GitRun struct {
 
 type capBuf struct {
 	bytes.Buffer
-	over bool
+	over  bool
+	limit int
 }
 
 func (c *capBuf) Write(p []byte) (int, error) {
-	if c.Len()+len(p) > gitMaxBuf {
+	if c.Len()+len(p) > c.limit {
 		c.over = true
 		return 0, errors.New("maxBuffer")
 	}
 	return c.Buffer.Write(p)
 }
 
-// gitExec = execFile('git', …)（GitExec 可替换，供测试）。
-var GitExec = func(cwd string, args []string, timeoutMs int, input string) GitRun {
-	cmd := exec.Command("git", append([]string{"--no-pager", "-c", "core.quotepath=false"}, args...)...)
+// gitExecResult：GitRun + Node execFile 回调里 err.message（成功为 ""）与原始 stderr。
+type gitExecResult struct {
+	GitRun
+	err       string
+	rawStderr string
+}
+
+// gitExecWith = execFile('git', ['--no-pager','-c','core.quotepath=false', …args], {timeout, maxBuffer, env, windowsHide})。
+func gitExecWith(cwd string, args []string, timeoutMs int, input string, maxBuf int, env *util.Obj) gitExecResult {
+	full := append([]string{"--no-pager", "-c", "core.quotepath=false"}, args...)
+	failed := "Command failed: git " + strings.Join(full, " ") + "\n"
+	cmd := exec.Command("git", full...)
 	cmd.Dir = cwd
-	cmd.Env = usage.EnvSlice(GitOpsEnv())
+	cmd.Env = usage.EnvSlice(env)
 	hideWindow(cmd)
 	cmd.Stdin = strings.NewReader(input)
-	var so, se capBuf
+	so, se := capBuf{limit: maxBuf}, capBuf{limit: maxBuf}
 	cmd.Stdout, cmd.Stderr = &so, &se
 	if err := cmd.Start(); err != nil {
 		msg := "spawn git ENOENT"
@@ -97,7 +108,7 @@ var GitExec = func(cwd string, args []string, timeoutMs int, input string) GitRu
 				}
 			}
 		}
-		return GitRun{Code: -1, Stderr: msg}
+		return gitExecResult{GitRun: GitRun{Code: -1, Stderr: msg}, err: msg}
 	}
 	killed := false
 	var mu sync.Mutex
@@ -112,29 +123,37 @@ var GitExec = func(cwd string, args []string, timeoutMs int, input string) GitRu
 	mu.Lock()
 	k := killed
 	mu.Unlock()
-	r := GitRun{Stdout: strings.ToValidUTF8(so.String(), "\uFFFD"), Stderr: strings.ToValidUTF8(se.String(), "\uFFFD"), TimedOut: k}
+	raw := charcontract.DecodeUTF8(se.Bytes())
+	r := gitExecResult{GitRun: GitRun{Stdout: charcontract.DecodeUTF8(so.Bytes()), Stderr: raw, TimedOut: k}, rawStderr: raw}
 	switch {
 	case err == nil:
 	case so.over || se.over:
 		r.Code, r.TimedOut = -1, true
+		r.err = "stdout maxBuffer length exceeded"
+		if se.over {
+			r.err = "stderr maxBuffer length exceeded"
+		}
 		if r.Stderr == "" {
-			r.Stderr = "stdout maxBuffer length exceeded"
-			if se.over {
-				r.Stderr = "stderr maxBuffer length exceeded"
-			}
+			r.Stderr = r.err
 		}
 	default:
+		r.err = failed + raw
 		var ee *exec.ExitError
 		if errors.As(err, &ee) && ee.ExitCode() >= 0 && !k {
 			r.Code = ee.ExitCode()
 		} else {
 			r.Code = -1
 			if r.Stderr == "" {
-				r.Stderr = "Command failed: git " + strings.Join(append([]string{"--no-pager", "-c", "core.quotepath=false"}, args...), " ") + "\n"
+				r.Stderr = failed
 			}
 		}
 	}
 	return r
+}
+
+// GitExec = gitOps 的 execFile('git', …)（可替换，供测试）。
+var GitExec = func(cwd string, args []string, timeoutMs int, input string) GitRun {
+	return gitExecWith(cwd, args, timeoutMs, input, gitMaxBuf, GitOpsEnv()).GitRun
 }
 
 func gitRun(cwd string, args []string, timeoutMs int, input string) GitRun {
