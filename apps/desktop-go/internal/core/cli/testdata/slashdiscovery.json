@@ -1,0 +1,1401 @@
+{"platform":"linux","cases":[
+ {
+  "op": "discover",
+  "args": [
+   "claude",
+   "proj"
+  ],
+  "out": {
+   "backend": "claude",
+   "entries": [
+    {
+     "id": "project:skill::nofm",
+     "name": "nofm",
+     "kind": "skill",
+     "scope": "project",
+     "description": "Skill heading",
+     "userInvocable": true,
+     "where": ".claude/skills/nofm"
+    },
+    {
+     "id": "project:skill::pdf-tools",
+     "name": "pdf-tools",
+     "kind": "skill",
+     "scope": "project",
+     "description": "Work with PDFs when a pdf appears",
+     "userInvocable": false,
+     "where": ".claude/skills/pdf"
+    },
+    {
+     "id": "project:skill::shared-link",
+     "name": "shared-link",
+     "kind": "skill",
+     "scope": "project",
+     "description": "shared skill",
+     "userInvocable": true,
+     "where": ".claude/skills/shared-link"
+    },
+    {
+     "id": "project:command::frontend:build",
+     "name": "frontend:build",
+     "kind": "command",
+     "scope": "project",
+     "description": "folded line one folded line two",
+     "userInvocable": true,
+     "where": ".claude/commands/frontend/build.md"
+    },
+    {
+     "id": "project:command::frontend:deep:deeper:ok",
+     "name": "frontend:deep:deeper:ok",
+     "kind": "command",
+     "scope": "project",
+     "description": "quoted desc",
+     "userInvocable": true,
+     "where": ".claude/commands/frontend/deep/deeper/ok.md"
+    },
+    {
+     "id": "project:command::hidden",
+     "name": "hidden",
+     "kind": "command",
+     "scope": "project",
+     "description": "hidden",
+     "userInvocable": false,
+     "where": ".claude/commands/hidden.md"
+    },
+    {
+     "id": "project:command::plain",
+     "name": "plain",
+     "kind": "command",
+     "scope": "project",
+     "description": "Plain heading",
+     "userInvocable": true,
+     "where": ".claude/commands/plain.md"
+    },
+    {
+     "id": "project:command::review",
+     "name": "review",
+     "kind": "command",
+     "scope": "project",
+     "description": "Review the code",
+     "argumentHint": "<file>",
+     "userInvocable": true,
+     "where": ".claude/commands/review.md"
+    },
+    {
+     "id": "project:command::UPPER",
+     "name": "UPPER",
+     "kind": "command",
+     "scope": "project",
+     "description": "crlf single",
+     "userInvocable": false,
+     "where": ".claude/commands/UPPER.MD"
+    },
+    {
+     "id": "project:agent::Helper Agent",
+     "name": "Helper Agent",
+     "kind": "agent",
+     "scope": "project",
+     "description": "helps",
+     "userInvocable": false,
+     "where": ".claude/agents/helper.md"
+    },
+    {
+     "id": "project:agent::raw",
+     "name": "raw",
+     "kind": "agent",
+     "scope": "project",
+     "description": "first line of raw agent",
+     "userInvocable": false,
+     "where": ".claude/agents/raw.md"
+    },
+    {
+     "id": "project:mcp::1",
+     "name": "1",
+     "kind": "mcp",
+     "scope": "project",
+     "description": "",
+     "userInvocable": false,
+     "where": ".mcp.json",
+     "transport": "stdio"
+    },
+    {
+     "id": "project:mcp::2",
+     "name": "2",
+     "kind": "mcp",
+     "scope": "project",
+     "description": "",
+     "userInvocable": false,
+     "where": ".mcp.json",
+     "transport": "http"
+    },
+    {
+     "id": "project:mcp::b",
+     "name": "b",
+     "kind": "mcp",
+     "scope": "project",
+     "description": "",
+     "userInvocable": false,
+     "where": ".mcp.json",
+     "transport": "stdio"
+    },
+    {
+     "id": "project:mcp::a",
+     "name": "a",
+     "kind": "mcp",
+     "scope": "project",
+     "description": "",
+     "userInvocable": false,
+     "where": ".mcp.json",
+     "transport": "http"
+    },
+    {
+     "id": "user:skill::shared",
+     "name": "shared",
+     "kind": "skill",
+     "scope": "user",
+     "description": "shared skill",
+     "userInvocable": true,
+     "where": "~/.claude/skills/shared"
+    },
+    {
+     "id": "user:command::mine",
+     "name": "mine",
+     "kind": "command",
+     "scope": "user",
+     "description": "mine",
+     "userInvocable": true,
+     "where": "~/.claude/commands/mine.md"
+    },
+    {
+     "id": "user:command::review",
+     "name": "review",
+     "kind": "command",
+     "scope": "user",
+     "description": "user review dup name",
+     "userInvocable": true,
+     "where": "~/.claude/commands/review.md"
+    },
+    {
+     "id": "user:agent::ua",
+     "name": "ua",
+     "kind": "agent",
+     "scope": "user",
+     "description": "user agent",
+     "userInvocable": false,
+     "where": "~/.claude/agents/ua.md"
+    }
+   ],
+   "supported": true
+  }
+ },
+ {
+  "op": "discover",
+  "args": [
+   "claude",
+   "proj/sub/dir"
+  ],
+  "out": {
+   "backend": "claude",
+   "entries": [
+    {
+     "id": "project:skill::nofm",
+     "name": "nofm",
+     "kind": "skill",
+     "scope": "project",
+     "description": "Skill heading",
+     "userInvocable": true,
+     "where": "nofm"
+    },
+    {
+     "id": "project:skill::pdf-tools",
+     "name": "pdf-tools",
+     "kind": "skill",
+     "scope": "project",
+     "description": "Work with PDFs when a pdf appears",
+     "userInvocable": false,
+     "where": "pdf"
+    },
+    {
+     "id": "project:skill::shared-link",
+     "name": "shared-link",
+     "kind": "skill",
+     "scope": "project",
+     "description": "shared skill",
+     "userInvocable": true,
+     "where": "shared-link"
+    },
+    {
+     "id": "project:command::frontend:build",
+     "name": "frontend:build",
+     "kind": "command",
+     "scope": "project",
+     "description": "folded line one folded line two",
+     "userInvocable": true,
+     "where": "build.md"
+    },
+    {
+     "id": "project:command::frontend:deep:deeper:ok",
+     "name": "frontend:deep:deeper:ok",
+     "kind": "command",
+     "scope": "project",
+     "description": "quoted desc",
+     "userInvocable": true,
+     "where": "ok.md"
+    },
+    {
+     "id": "project:command::hidden",
+     "name": "hidden",
+     "kind": "command",
+     "scope": "project",
+     "description": "hidden",
+     "userInvocable": false,
+     "where": "hidden.md"
+    },
+    {
+     "id": "project:command::plain",
+     "name": "plain",
+     "kind": "command",
+     "scope": "project",
+     "description": "Plain heading",
+     "userInvocable": true,
+     "where": "plain.md"
+    },
+    {
+     "id": "project:command::review",
+     "name": "review",
+     "kind": "command",
+     "scope": "project",
+     "description": "Review the code",
+     "argumentHint": "<file>",
+     "userInvocable": true,
+     "where": "review.md"
+    },
+    {
+     "id": "project:command::UPPER",
+     "name": "UPPER",
+     "kind": "command",
+     "scope": "project",
+     "description": "crlf single",
+     "userInvocable": false,
+     "where": "UPPER.MD"
+    },
+    {
+     "id": "project:agent::Helper Agent",
+     "name": "Helper Agent",
+     "kind": "agent",
+     "scope": "project",
+     "description": "helps",
+     "userInvocable": false,
+     "where": "helper.md"
+    },
+    {
+     "id": "project:agent::raw",
+     "name": "raw",
+     "kind": "agent",
+     "scope": "project",
+     "description": "first line of raw agent",
+     "userInvocable": false,
+     "where": "raw.md"
+    },
+    {
+     "id": "project:mcp::1",
+     "name": "1",
+     "kind": "mcp",
+     "scope": "project",
+     "description": "",
+     "userInvocable": false,
+     "where": ".mcp.json",
+     "transport": "stdio"
+    },
+    {
+     "id": "project:mcp::2",
+     "name": "2",
+     "kind": "mcp",
+     "scope": "project",
+     "description": "",
+     "userInvocable": false,
+     "where": ".mcp.json",
+     "transport": "http"
+    },
+    {
+     "id": "project:mcp::b",
+     "name": "b",
+     "kind": "mcp",
+     "scope": "project",
+     "description": "",
+     "userInvocable": false,
+     "where": ".mcp.json",
+     "transport": "stdio"
+    },
+    {
+     "id": "project:mcp::a",
+     "name": "a",
+     "kind": "mcp",
+     "scope": "project",
+     "description": "",
+     "userInvocable": false,
+     "where": ".mcp.json",
+     "transport": "http"
+    },
+    {
+     "id": "user:skill::shared",
+     "name": "shared",
+     "kind": "skill",
+     "scope": "user",
+     "description": "shared skill",
+     "userInvocable": true,
+     "where": "~/.claude/skills/shared"
+    },
+    {
+     "id": "user:command::mine",
+     "name": "mine",
+     "kind": "command",
+     "scope": "user",
+     "description": "mine",
+     "userInvocable": true,
+     "where": "~/.claude/commands/mine.md"
+    },
+    {
+     "id": "user:command::review",
+     "name": "review",
+     "kind": "command",
+     "scope": "user",
+     "description": "user review dup name",
+     "userInvocable": true,
+     "where": "~/.claude/commands/review.md"
+    },
+    {
+     "id": "user:agent::ua",
+     "name": "ua",
+     "kind": "agent",
+     "scope": "user",
+     "description": "user agent",
+     "userInvocable": false,
+     "where": "~/.claude/agents/ua.md"
+    }
+   ],
+   "supported": true
+  }
+ },
+ {
+  "op": "discover",
+  "args": [
+   "codex",
+   "proj"
+  ],
+  "out": {
+   "backend": "codex",
+   "entries": [
+    {
+     "id": "user:skill::as",
+     "name": "as",
+     "kind": "skill",
+     "scope": "user",
+     "description": "agents skill",
+     "userInvocable": true,
+     "where": "~/.agents/skills/as"
+    }
+   ],
+   "supported": true
+  }
+ },
+ {
+  "op": "discover",
+  "args": [
+   "grok",
+   "proj"
+  ],
+  "out": {
+   "backend": "grok",
+   "entries": [
+    {
+     "id": "project:skill::g1",
+     "name": "g1",
+     "kind": "skill",
+     "scope": "project",
+     "description": "grok skill",
+     "userInvocable": false,
+     "where": ".grok/skills/g1"
+    },
+    {
+     "id": "project:skill::g2",
+     "name": "g2",
+     "kind": "skill",
+     "scope": "project",
+     "description": "g2",
+     "userInvocable": true,
+     "where": ".grok/skills/g2"
+    },
+    {
+     "id": "project:plugin::bare",
+     "name": "bare",
+     "kind": "plugin",
+     "scope": "project",
+     "description": "",
+     "userInvocable": false,
+     "plugin": "bare",
+     "where": ".grok/plugins/bare"
+    },
+    {
+     "id": "plugin:command:bare:c2",
+     "name": "bare:c2",
+     "kind": "command",
+     "scope": "plugin",
+     "description": "bare",
+     "userInvocable": true,
+     "plugin": "bare",
+     "where": ".grok/plugins/bare/commands/c2.md"
+    },
+    {
+     "id": "project:plugin::broken",
+     "name": "broken",
+     "kind": "plugin",
+     "scope": "project",
+     "description": "",
+     "userInvocable": false,
+     "plugin": "broken",
+     "where": ".grok/plugins/broken"
+    },
+    {
+     "id": "project:plugin::Toolbox",
+     "name": "Toolbox",
+     "kind": "plugin",
+     "scope": "project",
+     "description": "plugin desc",
+     "userInvocable": false,
+     "plugin": "Toolbox",
+     "where": ".grok/plugins/tools"
+    },
+    {
+     "id": "plugin:skill:Toolbox:s1",
+     "name": "Toolbox:s1",
+     "kind": "skill",
+     "scope": "plugin",
+     "description": "plugin skill",
+     "userInvocable": true,
+     "plugin": "Toolbox",
+     "where": ".grok/plugins/tools/skills/s1"
+    },
+    {
+     "id": "plugin:command:Toolbox:c1",
+     "name": "Toolbox:c1",
+     "kind": "command",
+     "scope": "plugin",
+     "description": "plugin command $ARGUMENTS",
+     "userInvocable": true,
+     "plugin": "Toolbox",
+     "where": ".grok/plugins/tools/commands/c1.md"
+    },
+    {
+     "id": "plugin:agent::a1",
+     "name": "a1",
+     "kind": "agent",
+     "scope": "plugin",
+     "description": "agent",
+     "userInvocable": false,
+     "where": ".grok/plugins/tools/agents/a1.md"
+    },
+    {
+     "id": "plugin:mcp:Toolbox:0",
+     "name": "0",
+     "kind": "mcp",
+     "scope": "plugin",
+     "description": "",
+     "userInvocable": false,
+     "plugin": "Toolbox",
+     "where": ".grok/plugins/tools/.mcp.json",
+     "transport": "http"
+    },
+    {
+     "id": "plugin:mcp:Toolbox:1",
+     "name": "1",
+     "kind": "mcp",
+     "scope": "plugin",
+     "description": "",
+     "userInvocable": false,
+     "plugin": "Toolbox",
+     "where": ".grok/plugins/tools/.mcp.json",
+     "transport": "stdio"
+    },
+    {
+     "id": "project:workflow::deploy",
+     "name": "deploy",
+     "kind": "command",
+     "scope": "project",
+     "description": "",
+     "userInvocable": true,
+     "where": ".grok/workflows/deploy.rhai"
+    },
+    {
+     "id": "user:skill::gs",
+     "name": "gs",
+     "kind": "skill",
+     "scope": "user",
+     "description": "",
+     "userInvocable": true,
+     "where": "~/.grok/skills/gs"
+    },
+    {
+     "id": "bundled:skill::bs",
+     "name": "bs",
+     "kind": "skill",
+     "scope": "bundled",
+     "description": "bundled skill",
+     "userInvocable": true,
+     "where": "~/.grok/bundled/skills/bs"
+    },
+    {
+     "id": "bundled:workflow::flow",
+     "name": "flow",
+     "kind": "command",
+     "scope": "bundled",
+     "description": "",
+     "userInvocable": true,
+     "where": "~/.grok/bundled/workflows/flow.js"
+    }
+   ],
+   "supported": true
+  }
+ },
+ {
+  "op": "discover",
+  "args": [
+   "dsh",
+   "proj"
+  ],
+  "out": {
+   "backend": "dsh",
+   "entries": [],
+   "supported": false
+  }
+ },
+ {
+  "op": "discover",
+  "args": [
+   "gemini",
+   "proj"
+  ],
+  "out": {
+   "backend": "gemini",
+   "entries": [],
+   "supported": false
+  }
+ },
+ {
+  "op": "discover",
+  "args": [
+   "nomi",
+   "proj"
+  ],
+  "out": {
+   "backend": "nomi",
+   "entries": [],
+   "supported": false
+  }
+ },
+ {
+  "op": "discover",
+  "args": [
+   "claude",
+   "outside"
+  ],
+  "out": {
+   "backend": "claude",
+   "entries": [
+    {
+     "id": "user:skill::shared",
+     "name": "shared",
+     "kind": "skill",
+     "scope": "user",
+     "description": "shared skill",
+     "userInvocable": true,
+     "where": "~/.claude/skills/shared"
+    },
+    {
+     "id": "user:command::mine",
+     "name": "mine",
+     "kind": "command",
+     "scope": "user",
+     "description": "mine",
+     "userInvocable": true,
+     "where": "~/.claude/commands/mine.md"
+    },
+    {
+     "id": "user:command::review",
+     "name": "review",
+     "kind": "command",
+     "scope": "user",
+     "description": "user review dup name",
+     "userInvocable": true,
+     "where": "~/.claude/commands/review.md"
+    },
+    {
+     "id": "user:agent::ua",
+     "name": "ua",
+     "kind": "agent",
+     "scope": "user",
+     "description": "user agent",
+     "userInvocable": false,
+     "where": "~/.claude/agents/ua.md"
+    }
+   ],
+   "supported": true
+  }
+ },
+ {
+  "op": "expand",
+  "args": [
+   "claude",
+   "proj",
+   "project:command::review",
+   "  a.ts  \"strict mode\" extra "
+  ],
+  "out": {
+   "text": "# Review\nPlease review a.ts in strict mode. All: a.ts  \"strict mode\" extra. First a.ts second strict mode $ literal $nope",
+   "shellInjection": false
+  }
+ },
+ {
+  "op": "expand",
+  "args": [
+   "claude",
+   "proj",
+   "project:command::review",
+   ""
+  ],
+  "out": {
+   "text": "# Review\nPlease review  in . All: . First $0 second $ARGUMENTS[1] $ literal $nope",
+   "shellInjection": false
+  }
+ },
+ {
+  "op": "expand",
+  "args": [
+   "claude",
+   "proj",
+   "project:command::plain",
+   "x y"
+  ],
+  "out": {
+   "text": "# Plain heading\n\nbody text\n!`ls -la`\n\nARGUMENTS: x y",
+   "shellInjection": true
+  }
+ },
+ {
+  "op": "expand",
+  "args": [
+   "claude",
+   "proj",
+   "project:command::plain",
+   ""
+  ],
+  "out": {
+   "text": "# Plain heading\n\nbody text\n!`ls -la`",
+   "shellInjection": true
+  }
+ },
+ {
+  "op": "expand",
+  "args": [
+   "claude",
+   "proj",
+   "project:command::frontend:build",
+   "z"
+  ],
+  "out": {
+   "text": "build it\n\nARGUMENTS: z",
+   "shellInjection": false
+  }
+ },
+ {
+  "op": "expand",
+  "args": [
+   "claude",
+   "proj",
+   "project:skill::pdf-tools",
+   "doc.pdf"
+  ],
+  "out": {
+   "text": "[Skill: pdf-tools — <SB>/proj/.claude/skills/pdf]\n\nUse doc.pdf for pdf",
+   "shellInjection": false
+  }
+ },
+ {
+  "op": "expand",
+  "args": [
+   "claude",
+   "proj",
+   "project:skill::nofm",
+   "q"
+  ],
+  "out": {
+   "text": "[Skill: nofm — <SB>/proj/.claude/skills/nofm]\n\n## Skill heading\ntext\n\nARGUMENTS: q",
+   "shellInjection": false
+  }
+ },
+ {
+  "op": "expand",
+  "args": [
+   "claude",
+   "proj",
+   "project:agent::Helper Agent",
+   ""
+  ],
+  "out": null
+ },
+ {
+  "op": "expand",
+  "args": [
+   "claude",
+   "proj",
+   "project:mcp::a",
+   ""
+  ],
+  "out": null
+ },
+ {
+  "op": "expand",
+  "args": [
+   "claude",
+   "proj",
+   "user:command::mine",
+   "one two"
+  ],
+  "out": {
+   "text": "mine body two",
+   "shellInjection": false
+  }
+ },
+ {
+  "op": "expand",
+  "args": [
+   "claude",
+   "proj",
+   "project:command::linked-out",
+   ""
+  ],
+  "out": null
+ },
+ {
+  "op": "expand",
+  "args": [
+   "claude",
+   "proj",
+   "nope",
+   ""
+  ],
+  "out": null
+ },
+ {
+  "op": "expand",
+  "args": [
+   "grok",
+   "proj",
+   "project:workflow::deploy-prod",
+   ""
+  ],
+  "out": null
+ },
+ {
+  "op": "expand",
+  "args": [
+   "grok",
+   "proj",
+   "plugin:command:Toolbox:c1",
+   "go"
+  ],
+  "out": {
+   "text": "plugin command go",
+   "shellInjection": false
+  }
+ },
+ {
+  "op": "expand",
+  "args": [
+   "grok",
+   "proj",
+   "project:skill::g1",
+   ""
+  ],
+  "out": {
+   "text": "[Skill: g1 — <SB>/proj/.grok/skills/g1]\n\ngrok skill",
+   "shellInjection": false
+  }
+ },
+ {
+  "op": "expand",
+  "args": [
+   "codex",
+   "proj",
+   "user:command::cp",
+   "hello"
+  ],
+  "out": null
+ },
+ {
+  "op": "expand",
+  "args": [
+   "nomi",
+   "proj",
+   "x",
+   ""
+  ],
+  "out": null
+ },
+ {
+  "op": "frontmatter",
+  "args": [
+   ""
+  ],
+  "out": {
+   "meta": {},
+   "body": ""
+  }
+ },
+ {
+  "op": "frontmatter",
+  "args": [
+   "---\n"
+  ],
+  "out": {
+   "meta": {},
+   "body": "---\n"
+  }
+ },
+ {
+  "op": "frontmatter",
+  "args": [
+   "---\n---\nbody"
+  ],
+  "out": {
+   "meta": {},
+   "body": "body"
+  }
+ },
+ {
+  "op": "frontmatter",
+  "args": [
+   "---\nA_Key: v\n---\n"
+  ],
+  "out": {
+   "meta": {
+    "a_key": "v"
+   },
+   "body": ""
+  }
+ },
+ {
+  "op": "frontmatter",
+  "args": [
+   "---\nk: \"x\"\nq: 'y'\nm: \"z'\n---\nb"
+  ],
+  "out": {
+   "meta": {
+    "k": "x",
+    "q": "y",
+    "m": "\"z'"
+   },
+   "body": "b"
+  }
+ },
+ {
+  "op": "frontmatter",
+  "args": [
+   "---\nlist:\n  - a\n  - b\nlit: |-\n  l1\n  l2\nn:\n---\nrest\nmore"
+  ],
+  "out": {
+   "meta": {
+    "list": "a b",
+    "lit": "l1\nl2",
+    "n": ""
+   },
+   "body": "rest\nmore"
+  }
+ },
+ {
+  "op": "frontmatter",
+  "args": [
+   "﻿---\r\nx: 1\r\n---\r\nbody\r\n"
+  ],
+  "out": {
+   "meta": {
+    "x": "1"
+   },
+   "body": "body\n"
+  }
+ },
+ {
+  "op": "frontmatter",
+  "args": [
+   "--- \nx: 1\n---\n"
+  ],
+  "out": {
+   "meta": {},
+   "body": "--- \nx: 1\n---\n"
+  }
+ },
+ {
+  "op": "frontmatter",
+  "args": [
+   "---\n9bad: 1\nok-key_2: v: w\n---\n"
+  ],
+  "out": {
+   "meta": {
+    "ok-key_2": "v: w"
+   },
+   "body": ""
+  }
+ },
+ {
+  "op": "frontmatter",
+  "args": [
+   "---\nx: 1\n--- \nb"
+  ],
+  "out": {
+   "meta": {
+    "x": "1"
+   },
+   "body": "b"
+  }
+ },
+ {
+  "op": "frontmatter",
+  "args": [
+   "---\nx:\tv\n---\n"
+  ],
+  "out": {
+   "meta": {
+    "x": "v"
+   },
+   "body": ""
+  }
+ },
+ {
+  "op": "splitArgs",
+  "args": [
+   ""
+  ],
+  "out": []
+ },
+ {
+  "op": "splitArgs",
+  "args": [
+   "a b"
+  ],
+  "out": [
+   "a",
+   "b"
+  ]
+ },
+ {
+  "op": "splitArgs",
+  "args": [
+   "  \"x y\" 'z w' q  "
+  ],
+  "out": [
+   "x y",
+   "z w",
+   "q"
+  ]
+ },
+ {
+  "op": "splitArgs",
+  "args": [
+   "\"\" ''"
+  ],
+  "out": [
+   "",
+   ""
+  ]
+ },
+ {
+  "op": "splitArgs",
+  "args": [
+   "a\"b c\""
+  ],
+  "out": [
+   "a\"b",
+   "c\""
+  ]
+ },
+ {
+  "op": "splitArgs",
+  "args": [
+   " a　b"
+  ],
+  "out": [
+   "a",
+   "b"
+  ]
+ },
+ {
+  "op": "splitArgs",
+  "args": [
+   "'unterminated x"
+  ],
+  "out": [
+   "'unterminated",
+   "x"
+  ]
+ },
+ {
+  "op": "template",
+  "args": [
+   "$ARGUMENTS",
+   "a b",
+   []
+  ],
+  "out": {
+   "text": "a b",
+   "consumed": true
+  }
+ },
+ {
+  "op": "template",
+  "args": [
+   "$0-$1-$2",
+   "a b",
+   []
+  ],
+  "out": {
+   "text": "a-b-$2",
+   "consumed": true
+  }
+ },
+ {
+  "op": "template",
+  "args": [
+   "$ARGUMENTS[1]$ARGUMENTS[9]",
+   "a b",
+   []
+  ],
+  "out": {
+   "text": "b$ARGUMENTS[9]",
+   "consumed": true
+  }
+ },
+ {
+  "op": "template",
+  "args": [
+   "\\$0 $x $y",
+   "a",
+   [
+    "x"
+   ]
+  ],
+  "out": {
+   "text": "$0 a $y",
+   "consumed": true
+  }
+ },
+ {
+  "op": "template",
+  "args": [
+   "$x $y",
+   "a",
+   [
+    "x",
+    "y",
+    "9z"
+   ]
+  ],
+  "out": {
+   "text": "a ",
+   "consumed": true
+  }
+ },
+ {
+  "op": "template",
+  "args": [
+   "$007 $<H>",
+   "a b c d e f g h",
+   []
+  ],
+  "out": {
+   "text": "h $<H>",
+   "consumed": true
+  }
+ },
+ {
+  "op": "template",
+  "args": [
+   "no placeholders",
+   "a",
+   []
+  ],
+  "out": {
+   "text": "no placeholders",
+   "consumed": false
+  }
+ },
+ {
+  "op": "template",
+  "args": [
+   "$ARGUMENTSX $ARGUMENTS[",
+   "q",
+   [
+    "ARGUMENTSX"
+   ]
+  ],
+  "out": {
+   "text": "qX q[",
+   "consumed": true
+  }
+ },
+ {
+  "op": "numstat",
+  "args": [
+   ""
+  ],
+  "out": {}
+ },
+ {
+  "op": "numstat",
+  "args": [
+   "1\t2\ta.txt\u0000"
+  ],
+  "out": {
+   "a.txt": {
+    "added": 1,
+    "removed": 2
+   }
+  }
+ },
+ {
+  "op": "numstat",
+  "args": [
+   "-\t-\tbin.png\u0000"
+  ],
+  "out": {}
+ },
+ {
+  "op": "numstat",
+  "args": [
+   "3\t4\t\u0000old\u0000new\u0000"
+  ],
+  "out": {
+   "new": {
+    "added": 3,
+    "removed": 4
+   }
+  }
+ },
+ {
+  "op": "numstat",
+  "args": [
+   "\n5\t0\tx y\u0000bad\u00000\t0\tz\u0000"
+  ],
+  "out": {
+   "x y": {
+    "added": 5,
+    "removed": 0
+   },
+   "z": {
+    "added": 0,
+    "removed": 0
+   }
+  }
+ },
+ {
+  "op": "numstat",
+  "args": [
+   "1\t1\t\u0000only"
+  ],
+  "out": {}
+ },
+ {
+  "op": "branch",
+  "args": [
+   "proj"
+  ],
+  "out": null
+ },
+ {
+  "op": "diff",
+  "args": [
+   "proj"
+  ],
+  "out": {
+   "ok": false,
+   "status": "",
+   "stat": "",
+   "diff": "",
+   "truncated": false,
+   "error": "fatal: not a git repository (or any of the parent directories): .git"
+  }
+ },
+ {
+  "op": "branch",
+  "args": [
+   "outside"
+  ],
+  "out": null
+ },
+ {
+  "op": "diff",
+  "args": [
+   "outside"
+  ],
+  "out": {
+   "ok": false,
+   "status": "",
+   "stat": "",
+   "diff": "",
+   "truncated": false,
+   "error": "fatal: not a git repository (or any of the parent directories): .git"
+  }
+ },
+ {
+  "op": "branch",
+  "args": [
+   "repo"
+  ],
+  "out": {
+   "branch": "main"
+  }
+ },
+ {
+  "op": "diff",
+  "args": [
+   "repo"
+  ],
+  "out": {
+   "ok": true,
+   "status": " M f.txt\nA  g.txt\n?? u.txt",
+   "stat": "f.txt | 1 +\n g.txt | 1 +\n 2 files changed, 2 insertions(+)",
+   "diff": "diff --git a/f.txt b/f.txt\nindex <H>..<H> 100644\n--- a/f.txt\n+++ b/f.txt\n@@ -1 +1,2 @@\n one\n+two\ndiff --git a/g.txt b/g.txt\nnew file mode 100644\nindex <H>..<H>\n--- /dev/null\n+++ b/g.txt\n@@ -0,0 +1 @@\n+new\n",
+   "staged": "diff --git a/g.txt b/g.txt\nnew file mode 100644\nindex <H>..<H>\n--- /dev/null\n+++ b/g.txt\n@@ -0,0 +1 @@\n+new\n",
+   "unstaged": "diff --git a/f.txt b/f.txt\nindex <H>..<H> 100644\n--- a/f.txt\n+++ b/f.txt\n@@ -1 +1,2 @@\n one\n+two\n",
+   "truncated": false,
+   "numstat": {
+    "head": {
+     "f.txt": {
+      "added": 1,
+      "removed": 0
+     },
+     "g.txt": {
+      "added": 1,
+      "removed": 0
+     }
+    },
+    "staged": {
+     "g.txt": {
+      "added": 1,
+      "removed": 0
+     }
+    },
+    "unstaged": {
+     "f.txt": {
+      "added": 1,
+      "removed": 0
+     }
+    }
+   }
+  }
+ },
+ {
+  "op": "branch",
+  "args": [
+   "repo"
+  ],
+  "out": {
+   "branch": "main"
+  }
+ },
+ {
+  "op": "diff",
+  "args": [
+   "repo"
+  ],
+  "out": {
+   "ok": true,
+   "status": "A  g.txt\nRM f.txt -> h.txt\n?? u.txt",
+   "stat": "g.txt          | 1 +\n f.txt => h.txt | 1 +\n 2 files changed, 2 insertions(+)",
+   "diff": "diff --git a/g.txt b/g.txt\nnew file mode 100644\nindex <H>..<H>\n--- /dev/null\n+++ b/g.txt\n@@ -0,0 +1 @@\n+new\ndiff --git a/f.txt b/h.txt\nsimilarity index 50%\nrename from f.txt\nrename to h.txt\nindex <H>..<H> 100644\n--- a/f.txt\n+++ b/h.txt\n@@ -1 +1,2 @@\n one\n+two\n",
+   "staged": "diff --git a/g.txt b/g.txt\nnew file mode 100644\nindex <H>..<H>\n--- /dev/null\n+++ b/g.txt\n@@ -0,0 +1 @@\n+new\ndiff --git a/f.txt b/h.txt\nsimilarity index 100%\nrename from f.txt\nrename to h.txt\n",
+   "unstaged": "diff --git a/h.txt b/h.txt\nindex <H>..<H> 100644\n--- a/h.txt\n+++ b/h.txt\n@@ -1 +1,2 @@\n one\n+two\n",
+   "truncated": false,
+   "numstat": {
+    "head": {
+     "g.txt": {
+      "added": 1,
+      "removed": 0
+     },
+     "h.txt": {
+      "added": 1,
+      "removed": 0
+     }
+    },
+    "staged": {
+     "g.txt": {
+      "added": 1,
+      "removed": 0
+     },
+     "h.txt": {
+      "added": 0,
+      "removed": 0
+     }
+    },
+    "unstaged": {
+     "h.txt": {
+      "added": 1,
+      "removed": 0
+     }
+    }
+   }
+  }
+ },
+ {
+  "op": "branch",
+  "args": [
+   "repo"
+  ],
+  "out": {
+   "branch": null,
+   "detached": "<H>"
+  }
+ },
+ {
+  "op": "diff",
+  "args": [
+   "repo"
+  ],
+  "out": {
+   "ok": true,
+   "status": "A  g.txt\nRM f.txt -> h.txt\n?? u.txt",
+   "stat": "g.txt          | 1 +\n f.txt => h.txt | 1 +\n 2 files changed, 2 insertions(+)",
+   "diff": "diff --git a/g.txt b/g.txt\nnew file mode 100644\nindex <H>..<H>\n--- /dev/null\n+++ b/g.txt\n@@ -0,0 +1 @@\n+new\ndiff --git a/f.txt b/h.txt\nsimilarity index 50%\nrename from f.txt\nrename to h.txt\nindex <H>..<H> 100644\n--- a/f.txt\n+++ b/h.txt\n@@ -1 +1,2 @@\n one\n+two\n",
+   "staged": "diff --git a/g.txt b/g.txt\nnew file mode 100644\nindex <H>..<H>\n--- /dev/null\n+++ b/g.txt\n@@ -0,0 +1 @@\n+new\ndiff --git a/f.txt b/h.txt\nsimilarity index 100%\nrename from f.txt\nrename to h.txt\n",
+   "unstaged": "diff --git a/h.txt b/h.txt\nindex <H>..<H> 100644\n--- a/h.txt\n+++ b/h.txt\n@@ -1 +1,2 @@\n one\n+two\n",
+   "truncated": false,
+   "numstat": {
+    "head": {
+     "g.txt": {
+      "added": 1,
+      "removed": 0
+     },
+     "h.txt": {
+      "added": 1,
+      "removed": 0
+     }
+    },
+    "staged": {
+     "g.txt": {
+      "added": 1,
+      "removed": 0
+     },
+     "h.txt": {
+      "added": 0,
+      "removed": 0
+     }
+    },
+    "unstaged": {
+     "h.txt": {
+      "added": 1,
+      "removed": 0
+     }
+    }
+   }
+  }
+ }
+]}

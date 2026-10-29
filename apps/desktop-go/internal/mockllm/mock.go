@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-const reply = "你好呀！我是诺米～这句话来自 Go 核心里的本地 mock 服务器，经 openai-go 流式解析，再按 contract 的 ai.chat.stream 一块一块推到对话窗。"
+const reply = "你好呀！我是诺米～这句话来自 Go 核心里的本地 mock 服务器，经 Go 自适配的 openai-compatible 协议层（net/http + SSE）流式解析，再按 contract 的 ai.chat.stream 一块一块推到对话窗。"
 
 func Start() (baseURL string, err error) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")

@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -164,6 +165,9 @@ func findNode(t *testing.T) string {
 	}
 	return n
 }
+
+// mkdtempSuffix：fs.mkdtempSync 的 6 位随机后缀归一（Windows 上超时用例的子进程占用目录，Node 与 Go 都会残留）。
+var mkdtempSuffix = regexp.MustCompile(`^(nomi-grok-auth-)[A-Za-z0-9]{6}$`)
 
 func TestCliLeavesGolden(t *testing.T) {
 	g := loadCliGolden(t)
@@ -566,7 +570,7 @@ func TestCliLeavesGolden(t *testing.T) {
 	ents, _ := os.ReadDir(sb)
 	for _, e := range ents {
 		if strings.HasPrefix(e.Name(), "nomi-grok-auth-") {
-			left = append(left, e.Name())
+			left = append(left, mkdtempSuffix.ReplaceAllString(e.Name(), "${1}<R>"))
 		}
 	}
 	add("readGrokAuthStatus:tmpClean", val(left))
