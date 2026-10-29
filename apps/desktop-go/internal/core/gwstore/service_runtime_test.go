@@ -8,7 +8,16 @@ import (
 )
 
 func TestServiceRuntimeStartsGateway(t *testing.T) {
-	dir := t.TempDir()
+	// 网关 worker 在 Stop 后异步处理 "stop"（sessions.json 落盘，同 Node fork 子进程），不用 t.TempDir 以免清理竞争
+	dir, err := os.MkdirTemp("", "gwrt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		for i := 0; i < 50 && os.RemoveAll(dir) != nil; i++ {
+			time.Sleep(20 * time.Millisecond)
+		}
+	})
 	s := NewServiceForUserData(dir, nil, nil)
 	changed := 0
 	s.AttachRuntime(RuntimeDeps{Root: dir, Lazy: true, Env: map[string]string{}})
