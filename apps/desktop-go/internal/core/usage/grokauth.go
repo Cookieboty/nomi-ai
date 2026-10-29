@@ -1,7 +1,9 @@
 package usage
 
 import (
+	"crypto/rand"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -126,7 +128,7 @@ func ReadGrokAuthStatus(d GrokAuthReaderDeps) (string, bool) {
 	if root == "" {
 		root = os.TempDir()
 	}
-	dir, err := os.MkdirTemp(root, "nomi-grok-auth-")
+	dir, err := NodeMkdtemp(filepath.Join(root, "nomi-grok-auth-"))
 	if err != nil {
 		panic(err) // mkdtempSync 抛错 = async 函数 reject
 	}
@@ -226,4 +228,26 @@ func ReadGrokAuthStatus(d GrokAuthReaderDeps) (string, bool) {
 		return "", false
 	}
 	return *r, true
+}
+
+const mkdtempChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+// NodeMkdtemp = fs.mkdtempSync(prefix)：prefix 后接 6 个 [A-Za-z0-9] 随机字符（libuv uv_fs_mkdtemp），权限 0700。
+func NodeMkdtemp(prefix string) (string, error) {
+	for i := 0; i < 100; i++ {
+		var b [6]byte
+		_, _ = rand.Read(b[:])
+		for j := range b {
+			b[j] = mkdtempChars[int(b[j])%len(mkdtempChars)]
+		}
+		dir := prefix + string(b[:])
+		err := os.Mkdir(dir, 0o700)
+		if err == nil {
+			return dir, nil
+		}
+		if !os.IsExist(err) {
+			return "", err
+		}
+	}
+	return "", os.ErrExist
 }
