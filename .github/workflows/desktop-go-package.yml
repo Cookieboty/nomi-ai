@@ -100,8 +100,33 @@ jobs:
           if-no-files-found: error
           compression-level: 0
 
+  # 同一 runner 上的 2.0.4 尺寸基线：从 v2.0.4 源码构建 win-unpacked（不下载 Release 资产）
+  electron-204-win:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: v2.0.4, path: e204 }
+      - uses: pnpm/action-setup@v4
+        with: { version: 9.12.3 }
+      - uses: actions/setup-node@v4
+        with: { node-version: '24' }
+      - name: build electron 2.0.4 (win --dir, unsigned)
+        working-directory: e204
+        shell: bash
+        env: { CSC_IDENTITY_AUTO_DISCOVERY: 'false', HUSKY: '0' }
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm turbo run build
+          cd packages/electron && pnpm exec electron-builder build --win --dir --publish never
+          find . -type d -name win-unpacked -not -path '*/node_modules/*'
+      - uses: actions/upload-artifact@v4
+        with: { name: electron-204-win-unpacked, path: 'e204/packages/electron/**/win-unpacked/', compression-level: 1 }
+
   verify:
-    needs: package
+    needs: [package, electron-204-win]
+    if: ${{ always() && needs.package.result == 'success' }}
     strategy:
       fail-fast: false
       matrix:
@@ -120,6 +145,10 @@ jobs:
         with: { sparse-checkout: apps/desktop-go/ci }
       - uses: actions/download-artifact@v4
         with: { name: 'nomi-go-${{ matrix.target }}', path: pkg }
+      - uses: actions/download-artifact@v4
+        if: runner.os == 'Windows'
+        continue-on-error: true
+        with: { name: electron-204-win-unpacked, path: e204 }
       - name: verify mac
         if: runner.os == 'macOS'
         run: apps/desktop-go/ci/verify-mac.sh "pkg/Nomi-$V-arm64.dmg" shots apps/desktop-go/ci/baseline-2.0.4/mac-info-plist.txt
@@ -127,7 +156,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          ./apps/desktop-go/ci/verify-win.ps1 -Setup "pkg\Nomi-Setup-$env:V.exe" -Out shots
+          ./apps/desktop-go/ci/verify-win.ps1 -Setup "pkg\Nomi-Setup-$env:V.exe" -Out shots -ElectronExe "$((Get-ChildItem e204 -Recurse -Filter Nomi.exe -ErrorAction SilentlyContinue | Select-Object -First 1).FullName)"
       - name: verify linux
         if: runner.os == 'Linux'
         run: |
