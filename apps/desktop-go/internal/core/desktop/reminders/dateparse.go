@@ -275,8 +275,9 @@ func (d *dayComp) write(out *[8]float64) bool {
 	if d.index < 1 {
 		return false
 	}
-	for i := d.index; i < 3; i++ {
-		d.comp[i] = 1
+	// V8: while (index_ < kSize) comp_[index_++] = 1; — index_ ends at 3.
+	for ; d.index < 3; d.index++ {
+		d.comp[d.index] = 1
 	}
 	year, month, day := 0, kNone, kNone
 	if d.namedMonth == kNone {
