@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"io"
 	"io/fs"
 	"math"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -56,94 +58,113 @@ const (
 
 var ledgerTmpSeq int64
 
-func cloneRec(r *UsageRecord) *UsageRecord { c := *r; return &c }
-
-func mergeRecord(prev, r *UsageRecord) *UsageRecord {
-	model := prev.Model
-	if r.Model != "" && r.Model != "unknown" {
-		model = r.Model
+func cloneRec(r *UsageRecord) *UsageRecord {
+	c := *r
+	if r.keys != nil {
+		c.keys = append([]string(nil), r.keys...)
 	}
+	c.raw = cloneRaw(r.raw)
+	return &c
+}
+
+// numOr0：obj[k] ?? 0 的数字值；ok=false 表示不是数字（=== 任何数字都不成立）
+func numOr0(r *UsageRecord, k string) (float64, bool) {
+	if raw, ok := r.raw[k]; ok {
+		return 0, string(raw) == "null"
+	}
+	f := recFields[k]
+	fv := reflect.ValueOf(r).Elem().Field(f.idx)
+	if f.kind == 'n' {
+		return fv.Float(), true
+	}
+	if fv.IsNil() {
+		return 0, true
+	}
+	return fv.Elem().Float(), true
+}
+
+// numSame：merged[k]（数字）=== prev[k]
+func numSame(m, prev *UsageRecord, k string) bool {
+	if _, ok := prev.raw[k]; ok {
+		return false
+	}
+	return eqProp(m, prev, k)
+}
+
+// mergeRecord：{ ...prev, ...r, model, input, output, cacheRead, cacheWrite, ts } 的逐键语义
+func mergeRecord(prev, r *UsageRecord) *UsageRecord {
 	m := spreadRec(prev, r)
-	m.Model = model
+	modelFromPrev := !(r.truthy("model") && (r.raw["model"] != nil || r.Model != "unknown"))
+	if modelFromPrev {
+		copyProp(m, prev, "model")
+	} else {
+		copyProp(m, r, "model")
+	}
+	m.addKey("model")
 	m.Input = math.Max(prev.Input, r.Input)
+	m.setOwn("input")
 	m.Output = math.Max(prev.Output, r.Output)
+	m.setOwn("output")
 	m.CacheRead = math.Max(prev.CacheRead, r.CacheRead)
+	m.setOwn("cacheRead")
 	m.CacheWrite = math.Max(prev.CacheWrite, r.CacheWrite)
+	m.setOwn("cacheWrite")
 	m.Ts = math.Min(prev.Ts, r.Ts)
-	w1h := math.Max(or0(prev.CacheWrite1h, 0), or0(r.CacheWrite1h, 0))
+	m.setOwn("ts")
+	pw, _ := numOr0(prev, "cacheWrite1h")
+	rw, _ := numOr0(r, "cacheWrite1h")
+	if _, ok := prev.raw["cacheWrite1h"]; ok {
+		pw = jsNumRaw(prev, "cacheWrite1h")
+	}
+	if _, ok := r.raw["cacheWrite1h"]; ok {
+		rw = jsNumRaw(r, "cacheWrite1h")
+	}
+	w1h := math.Max(pw, rw)
 	if w1h != 0 && !math.IsNaN(w1h) {
 		m.CacheWrite1h = f64p(w1h)
+		m.setOwn("cacheWrite1h")
 	} else {
 		m.CacheWrite1h = nil
+		m.delOwn("cacheWrite1h")
 	}
-	if truthyB(prev.Fast) || truthyB(r.Fast) {
+	if prev.truthy("fast") || r.truthy("fast") {
 		m.Fast = boolp(true)
+		m.setOwn("fast")
 	} else {
 		m.Fast = nil
+		m.delOwn("fast")
 	}
-	if m.Input == prev.Input && m.Output == prev.Output && m.CacheRead == prev.CacheRead &&
-		m.CacheWrite == prev.CacheWrite && or0(m.CacheWrite1h, 0) == or0(prev.CacheWrite1h, 0) &&
-		truthyB(m.Fast) == truthyB(prev.Fast) && m.Model == prev.Model {
+	mw, _ := numOr0(m, "cacheWrite1h")
+	pv, pok := numOr0(prev, "cacheWrite1h")
+	if numSame(m, prev, "input") && numSame(m, prev, "output") && numSame(m, prev, "cacheRead") &&
+		numSame(m, prev, "cacheWrite") && pok && mw == pv &&
+		m.truthy("fast") == prev.truthy("fast") && (modelFromPrev || eqProp(m, prev, "model")) {
 		return nil
 	}
 	return m
 }
 
-func truthyB(b *bool) bool { return b != nil && *b }
-
-// spreadRec = { ...prev, ...r }：r 里出现（非 undefined）的可选字段覆盖 prev
-func spreadRec(prev, r *UsageRecord) *UsageRecord {
-	m := cloneRec(r)
-	if m.Dur == nil {
-		m.Dur = prev.Dur
+// jsNumRaw：x ?? 0 后参与 Math.max 的数值（原始值按 JS ToNumber）
+func jsNumRaw(r *UsageRecord, k string) float64 {
+	x, _ := util.Parse(r.raw[k])
+	if x == nil {
+		return 0
 	}
-	if m.Provider == nil {
-		m.Provider = prev.Provider
-	}
-	if m.CacheWrite1h == nil {
-		m.CacheWrite1h = prev.CacheWrite1h
-	}
-	if m.Fast == nil {
-		m.Fast = prev.Fast
-	}
-	if m.Rid == nil {
-		m.Rid = prev.Rid
-	}
-	if m.LogKey == nil {
-		m.LogKey = prev.LogKey
-	}
-	if m.Session == nil {
-		m.Session = prev.Session
-	}
-	if m.Project == nil {
-		m.Project = prev.Project
-	}
-	if m.Est == nil {
-		m.Est = prev.Est
-	}
-	return m
+	return jsToNumber(x)
 }
+
+func truthyB(b *bool) bool { return b != nil && *b }
 
 // parseLine：key 是字符串且 ts 是数字才收
 func parseLine(line string) *UsageRecord {
 	if line == "" {
 		return nil
 	}
-	var probe struct {
-		Key any `json:"key"`
-		Ts  any `json:"ts"`
-	}
-	if json.Unmarshal([]byte(line), &probe) != nil {
-		return nil
-	}
-	if _, ok := probe.Key.(string); !ok {
-		return nil
-	}
-	if _, ok := probe.Ts.(float64); !ok {
-		return nil
-	}
 	var r UsageRecord
-	if json.Unmarshal([]byte(line), &r) != nil {
+	if r.UnmarshalJSON([]byte(line)) != nil {
+		return nil
+	}
+	if !r.hasOwn("key") || !r.hasOwn("ts") || r.raw["key"] != nil || r.raw["ts"] != nil {
 		return nil
 	}
 	return &r
@@ -343,7 +364,7 @@ func marshalNoEscape(v any) ([]byte, error) {
 }
 
 func stringifyRec(r *UsageRecord) string {
-	b, _ := marshalNoEscape(r)
+	b, _ := r.MarshalJSON()
 	return string(b)
 }
 
@@ -659,24 +680,38 @@ func (l *UsageLedger) Attribute(key string, p AttributePatch) bool {
 		return false
 	}
 	next := cloneRec(prev)
-	if !nonEmpty(prev.Session) && p.Session != "" {
+	changed := false
+	if !prev.truthy("session") && p.Session != "" {
 		next.Session = strp(p.Session)
+		next.setOwn("session")
+		changed = true
 	}
-	if !nonEmpty(prev.Project) && p.Project != "" {
+	if !prev.truthy("project") && p.Project != "" {
 		next.Project = strp(p.Project)
+		next.setOwn("project")
+		changed = true
 	}
-	w1h := math.Min(math.Max(or0(prev.CacheWrite1h, 0), or0(p.CacheWrite1h, 0)), prev.CacheWrite)
-	if w1h > or0(prev.CacheWrite1h, 0) {
+	pw, _ := numOr0(prev, "cacheWrite1h")
+	if _, ok := prev.raw["cacheWrite1h"]; ok {
+		pw = jsNumRaw(prev, "cacheWrite1h")
+	}
+	w1h := math.Min(math.Max(pw, or0(p.CacheWrite1h, 0)), prev.CacheWrite)
+	if w1h > pw {
 		next.CacheWrite1h = f64p(w1h)
+		next.setOwn("cacheWrite1h")
+		changed = true
 	}
-	if p.Fast && !truthyB(prev.Fast) {
+	if p.Fast && !prev.truthy("fast") {
 		next.Fast = boolp(true)
+		next.setOwn("fast")
+		changed = true
 	}
-	if p.LogKey != "" && !nonEmpty(prev.LogKey) {
+	if p.LogKey != "" && !prev.truthy("logKey") {
 		next.LogKey = strp(p.LogKey)
+		next.setOwn("logKey")
+		changed = true
 	}
-	if eqStrP(next.Session, prev.Session) && eqStrP(next.Project, prev.Project) && eqF64P(next.CacheWrite1h, prev.CacheWrite1h) &&
-		eqBoolP(next.Fast, prev.Fast) && eqStrP(next.LogKey, prev.LogKey) {
+	if !changed {
 		return false
 	}
 	if prev.Via == "route" {
