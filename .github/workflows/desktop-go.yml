@@ -51,7 +51,7 @@ jobs:
         run: |
           pnpm --filter @nomi-ai/cli-sdk build
           # 录制脚本经 tsx 引用这些包的 dist：所有录制之前先构建（contract 在三平台都要，b5-batch 用）
-          pnpm --filter @nomi-ai/types --filter @nomi-ai/i18n --filter @nomi-ai/contract build
+          pnpm --filter "@nomi-ai/core^..." --filter @nomi-ai/contract build
           export NOMI_GOLDEN_DIR="$RUNNER_TEMP/goldens"
           pnpm exec tsx scripts/parity/record-asset-protocols.mjs
           node scripts/parity/record-b7-drivers.mjs
