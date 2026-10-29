@@ -1882,9 +1882,6 @@
     },
     {
      "line": "{\"method\":\"initialized\"}"
-    },
-    {
-     "line": "{\"id\":2,\"method\":\"account/rateLimits/read\"}"
     }
    ],
    "left": []

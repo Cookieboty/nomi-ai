@@ -101,7 +101,42 @@ async function settle() {
   // 等 killTree 的宽限 + 子进程退出，确保 log 不再变化、临时目录已删
   await sleep(700);
 }
-const leftovers = () => fs.readdirSync(T).sort();
+// 显式等待 mock 子进程退出（pid 由 usage-mock-cli 写到 <log>.pid）：Windows 上 .cmd 垫片的子进程树退出有延迟，
+// 进程还活着时其 cwd / 句柄让 rm 报 EPERM / EBUSY。
+const alive = (pid) => {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    return e.code === 'EPERM';
+  }
+};
+const waitChildrenExit = async (logDir, ms = 30_000) => {
+  let pids = [];
+  try {
+    for (const f of fs.readdirSync(logDir)) if (f.endsWith('.pid')) pids.push(...fs.readFileSync(path.join(logDir, f), 'utf8').split('\n').filter(Boolean).map(Number));
+  } catch {}
+  const end = Date.now() + ms;
+  while ((pids = pids.filter(alive)).length && Date.now() < end) await new Promise((r) => setTimeout(r, 100));
+  for (const p of pids) {
+    console.error(`waitChildrenExit: pid ${p} still alive after ${ms}ms, killing`);
+    try { process.kill(p, 'SIGKILL'); } catch {}
+  }
+};
+const rmQuiet = (p) => {
+  try {
+    fs.rmSync(p, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
+  } catch {}
+};
+// 每个场景的临时目录残留：先等/杀本场景的 mock 子进程，再按前缀记录（去掉 mkdtemp 的 6 位随机后缀，
+// 名字无关，同前缀按次数重复），随后删掉，避免残留累积到后续场景。
+// Windows：产品代码在 killTree 后立刻 rmSync，子进程句柄未释放时 EBUSY 被吞，目录是否残留取决于时序（Node 与 Go 同）。
+const leftovers = async () => {
+  await waitChildrenExit(L, 2_000);
+  const names = fs.readdirSync(T).sort();
+  for (const n of names) rmQuiet(path.join(T, n));
+  return names.map((n) => n.slice(0, -6)).sort();
+};
 
 const baseEnv = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^(NO_COLOR|DISABLE_|MOCK_)/.test(k)));
 const env = (plan, logf) => ({ ...baseEnv, MOCK_PLAN: JSON.stringify(plan), MOCK_LOG: logf, MOCK_X: 'x1' });
@@ -144,7 +179,7 @@ for (const sc of claudeScenarios) {
   await settle();
   const stdout = (sc.plan?.onStart ?? []).join('');
   if (sc.plan && sc.plan.exit === 'start') parses[stdout] = J(CP.parseClaudeUsageResult(stdout, NOW));
-  claude.push({ ...sc, outs, unsupported: f.isUnsupported(), log: readLog(logf), left: leftovers() });
+  claude.push({ ...sc, outs, unsupported: f.isUnsupported(), log: readLog(logf), left: await leftovers() });
 }
 
 const initOk = id(1, { userAgent: 'codex' });
@@ -194,7 +229,7 @@ for (const sc of codexScenarios) {
   const o = await r.fetch();
   const out = J(o);
   await settle();
-  codex.push({ ...sc, outs: [out], planKind: planKind(o.reading), log: readLog(logf), left: leftovers() });
+  codex.push({ ...sc, outs: [out], planKind: planKind(o.reading), log: readLog(logf), left: await leftovers() });
 }
 
 const gInit = id(1, { protocolVersion: 1 });
@@ -233,37 +268,10 @@ for (const sc of grokScenarios) {
   const outs = [J(await g.fetch())];
   if (sc.twice) outs.push(J(await g.fetch()));
   await settle();
-  grok.push({ ...sc, outs, log: readLog(logf), left: leftovers() });
+  grok.push({ ...sc, outs, log: readLog(logf), left: await leftovers() });
 }
 // 录制器自身临时目录的清理：Windows 上 .cmd 垫片下的子进程树退出有延迟，句柄未释放时 rm 报 EPERM；
 // 清理与 golden 内容无关，重试后仍失败则留给系统临时目录回收。
-// 显式等待 mock 子进程退出（pid 由 usage-mock-cli 写到 <log>.pid）：Windows 上 .cmd 垫片的子进程树退出有延迟，
-// 进程还活着时其 cwd / 句柄让 rm 报 EPERM / EBUSY。
-const alive = (pid) => {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (e) {
-    return e.code === 'EPERM';
-  }
-};
-const waitChildrenExit = async (logDir, ms = 30_000) => {
-  let pids = [];
-  try {
-    for (const f of fs.readdirSync(logDir)) if (f.endsWith('.pid')) pids.push(...fs.readFileSync(path.join(logDir, f), 'utf8').split('\n').filter(Boolean).map(Number));
-  } catch {}
-  const end = Date.now() + ms;
-  while ((pids = pids.filter(alive)).length && Date.now() < end) await new Promise((r) => setTimeout(r, 100));
-  for (const p of pids) {
-    console.error(`waitChildrenExit: pid ${p} still alive after ${ms}ms, killing`);
-    try { process.kill(p, 'SIGKILL'); } catch {}
-  }
-};
-const rmQuiet = (p) => {
-  try {
-    fs.rmSync(p, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
-  } catch {}
-};
 await waitChildrenExit(L);
 rmQuiet(T);
 rmQuiet(L);

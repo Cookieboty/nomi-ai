@@ -30,7 +30,12 @@ log({
 const out = (chunks) => {
   for (const c of chunks ?? []) process.stdout.write(c);
 };
-const quit = () => process.stdout.write('', () => process.exit(plan.code ?? 0));
+// 退出请求后不再处理后续 stdin 行：父进程可能把下一行与触发行同块或分块写入，管道分块时序不影响日志
+let quitting = false;
+const quit = () => {
+  quitting = true;
+  process.stdout.write('', () => process.exit(plan.code ?? 0));
+};
 out(plan.onStart);
 if (plan.big && plan.bigAfter === undefined) process.stdout.write((plan.bigChar ?? 'x').repeat(plan.big));
 if (plan.exit === 'start') quit();
@@ -41,7 +46,7 @@ else {
   process.stdin.on('data', (c) => {
     buf += c;
     let i;
-    while ((i = buf.indexOf('\n')) >= 0) {
+    while (!quitting && (i = buf.indexOf('\n')) >= 0) {
       const line = buf.slice(0, i);
       buf = buf.slice(i + 1);
       log({ line });
