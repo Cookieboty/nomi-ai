@@ -193,7 +193,8 @@ for (const [n, u] of [['u1', 'u1'], ['u2', 'u2'], ['u3', 'u3'], ['none', 'zz']])
 results.push(['rewind:bad', await tc.claudeRewindPoint(CFG, CWD, 'XYZ', 'u1')]);
 for (const [n, v] of results) add(n, () => v);
 
-const out = { platform: process.platform, fixtures: { T, rew }, cases: JSON.parse(JSON.stringify(cases).replaceAll(JSON.stringify(SB).slice(1, -1), '<SB>')) };
+// win32：别名键里还有正斜杠形式的沙箱路径（C:/…），同样归一
+const out = { platform: process.platform, fixtures: { T, rew }, cases: JSON.parse(JSON.stringify(cases).replaceAll(JSON.stringify(SB).slice(1, -1), "<SB>").replaceAll(SB.replaceAll("\\", "/"), "<SB>")) };
 const outDir = process.env.NOMI_GOLDEN_DIR || path.join(root, 'apps/desktop-go/internal/core/cli/harness/testdata');
 fs.mkdirSync(outDir, { recursive: true });
 fs.writeFileSync(path.join(outDir, 'harness.json'), `${JSON.stringify(out, null, 1)}\n`);

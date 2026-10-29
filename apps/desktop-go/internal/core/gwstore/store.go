@@ -98,6 +98,7 @@ type Store struct {
 	logger         Logger
 	data           *u.Obj
 	ephemeralPrivK string
+	preset         PresetDeps
 }
 
 // NewStore = new GatewayStore({ file, cipher, logger })

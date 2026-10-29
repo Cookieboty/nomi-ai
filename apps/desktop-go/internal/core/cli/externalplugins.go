@@ -2,12 +2,12 @@ package cli
 
 import (
 	"errors"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/nodefs"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
-	"syscall"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/charcontract"
@@ -101,16 +101,7 @@ func (s *ExternalPluginStore) Remove(id string) bool {
 func readJSONFile(p string) (any, error) {
 	b, err := os.ReadFile(p)
 	if err != nil {
-		if errors.Is(err, syscall.EISDIR) {
-			return nil, errors.New("EISDIR: illegal operation on a directory, read")
-		}
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, errors.New("ENOENT: no such file or directory, open '" + p + "'")
-		}
-		if errors.Is(err, os.ErrPermission) {
-			return nil, errors.New("EACCES: permission denied, open '" + p + "'")
-		}
-		return nil, err
+		return nil, errors.New(nodefs.ReadFileError(err, p))
 	}
 	src := string(b) // readFileSync(utf8) 不去 BOM；BOM 由 V8 解析器判定报错
 	if _, err := charcontract.ParseJSON(src); err != nil {

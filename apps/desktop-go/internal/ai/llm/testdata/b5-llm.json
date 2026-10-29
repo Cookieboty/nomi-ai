@@ -8,7 +8,7 @@
    "settings": {
     "id": "acme",
     "protocol": "openai-chat",
-    "baseURL": "http://127.0.0.1:43647/v1",
+    "baseURL": "http://127.0.0.1:42727/v1",
     "apiKey": "sk-test",
     "defaultModel": "m-1"
    },
@@ -161,7 +161,7 @@
    "settings": {
     "id": "acme",
     "protocol": "openai-chat",
-    "baseURL": "http://127.0.0.1:43647/v1",
+    "baseURL": "http://127.0.0.1:42727/v1",
     "apiKey": "sk-test",
     "headers": {
      "X-Custom": " v1 ",
@@ -298,7 +298,7 @@
    "settings": {
     "id": "acme",
     "protocol": "openai-chat",
-    "baseURL": "http://127.0.0.1:43647/v1",
+    "baseURL": "http://127.0.0.1:42727/v1",
     "apiKey": "",
     "defaultModel": "m-1"
    },
@@ -415,7 +415,7 @@
    "settings": {
     "id": "acme",
     "protocol": "openai-chat",
-    "baseURL": "http://127.0.0.1:43647/v1",
+    "baseURL": "http://127.0.0.1:42727/v1",
     "apiKey": "sk-test",
     "defaultModel": "m-1"
    },
@@ -832,7 +832,7 @@
    "settings": {
     "id": "acme",
     "protocol": "openai-chat",
-    "baseURL": "http://127.0.0.1:43647/v1",
+    "baseURL": "http://127.0.0.1:42727/v1",
     "apiKey": "sk-test",
     "defaultModel": "m-1"
    },
@@ -1047,7 +1047,7 @@
    "settings": {
     "id": "acme",
     "protocol": "openai-chat",
-    "baseURL": "http://127.0.0.1:43647/v1",
+    "baseURL": "http://127.0.0.1:42727/v1",
     "apiKey": "sk-test",
     "defaultModel": "m-1"
    },
@@ -1285,7 +1285,7 @@
    "settings": {
     "id": "acme",
     "protocol": "openai-chat",
-    "baseURL": "http://127.0.0.1:43647/v1",
+    "baseURL": "http://127.0.0.1:42727/v1",
     "apiKey": "sk-test",
     "defaultModel": "m-1"
    },
@@ -1451,7 +1451,7 @@
    "settings": {
     "id": "acme",
     "protocol": "openai-chat",
-    "baseURL": "http://127.0.0.1:43647/v1",
+    "baseURL": "http://127.0.0.1:42727/v1",
     "apiKey": "sk-test",
     "defaultModel": "m-1"
    },
@@ -1566,26 +1566,26 @@
       },
       {
        "type": "tool-input-start",
-       "id": "nWyckPnjogoVjQEc",
+       "id": "WJ6BF7FYRdqdsOwh",
        "toolName": "get_weather"
       },
       {
        "type": "tool-input-delta",
-       "id": "nWyckPnjogoVjQEc",
+       "id": "WJ6BF7FYRdqdsOwh",
        "delta": "{\"city\""
       },
       {
        "type": "tool-input-delta",
-       "id": "nWyckPnjogoVjQEc",
+       "id": "WJ6BF7FYRdqdsOwh",
        "delta": ":\"P\"}"
       },
       {
        "type": "tool-input-end",
-       "id": "nWyckPnjogoVjQEc"
+       "id": "WJ6BF7FYRdqdsOwh"
       },
       {
        "type": "tool-call",
-       "toolCallId": "nWyckPnjogoVjQEc",
+       "toolCallId": "WJ6BF7FYRdqdsOwh",
        "toolName": "get_weather",
        "input": "{\"city\":\"P\"}"
       },
@@ -1623,7 +1623,7 @@
    "settings": {
     "id": "acme",
     "protocol": "openai-chat",
-    "baseURL": "http://127.0.0.1:43647/v1",
+    "baseURL": "http://127.0.0.1:42727/v1",
     "apiKey": "sk-test",
     "thinking": true,
     "defaultModel": "m-1"
@@ -1816,7 +1816,7 @@
    "settings": {
     "id": "acme",
     "protocol": "openai-chat",
-    "baseURL": "http://127.0.0.1:43647/v1",
+    "baseURL": "http://127.0.0.1:42727/v1",
     "apiKey": "sk-test",
     "defaultModel": "m-1"
    },
@@ -1986,7 +1986,7 @@
    "settings": {
     "id": "acme",
     "protocol": "openai-chat",
-    "baseURL": "http://127.0.0.1:43647/v1",
+    "baseURL": "http://127.0.0.1:42727/v1",
     "apiKey": "sk-test",
     "defaultModel": "m-1"
    },
@@ -2104,7 +2104,7 @@
    "settings": {
     "id": "acme",
     "protocol": "openai-chat",
-    "baseURL": "http://127.0.0.1:43647/v1",
+    "baseURL": "http://127.0.0.1:42727/v1",
     "apiKey": "sk-test",
     "defaultModel": "m-1"
    },
@@ -2229,7 +2229,7 @@
    "settings": {
     "id": "acme",
     "protocol": "openai-chat",
-    "baseURL": "http://127.0.0.1:43647/v1",
+    "baseURL": "http://127.0.0.1:42727/v1",
     "apiKey": "sk-test",
     "defaultModel": "m-1"
    },
@@ -2359,7 +2359,7 @@
    "settings": {
     "id": "acme",
     "protocol": "openai-chat",
-    "baseURL": "http://127.0.0.1:43647/v1",
+    "baseURL": "http://127.0.0.1:42727/v1",
     "apiKey": "sk-test",
     "defaultModel": "m-1"
    },
@@ -2484,7 +2484,7 @@
    "settings": {
     "id": "acme",
     "protocol": "openai-chat",
-    "baseURL": "http://127.0.0.1:43647/v1",
+    "baseURL": "http://127.0.0.1:42727/v1",
     "apiKey": "sk-test",
     "defaultModel": "m-1"
    },
@@ -2607,7 +2607,7 @@
    "settings": {
     "id": "acme",
     "protocol": "openai-chat",
-    "baseURL": "http://127.0.0.1:43647/v1",
+    "baseURL": "http://127.0.0.1:42727/v1",
     "apiKey": "sk-test",
     "defaultModel": "m-1"
    },
@@ -2722,7 +2722,7 @@
    "settings": {
     "id": "acme",
     "protocol": "openai-chat",
-    "baseURL": "http://127.0.0.1:43647/v1",
+    "baseURL": "http://127.0.0.1:42727/v1",
     "apiKey": "sk-test",
     "defaultModel": "m-1"
    },
@@ -2741,7 +2741,7 @@
      {
       "name": "AI_APICallError",
       "message": "bad request: model",
-      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "url": "http://127.0.0.1:42727/v1/chat/completions",
       "statusCode": 400,
       "responseBody": "{\"error\":{\"message\":\"bad request: model\",\"type\":\"invalid_request_error\",\"param\":\"model\",\"code\":\"model_not_found\"}}",
       "isRetryable": false,
@@ -2782,7 +2782,7 @@
      "thrown": {
       "name": "AI_APICallError",
       "message": "bad request: model",
-      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "url": "http://127.0.0.1:42727/v1/chat/completions",
       "statusCode": 400,
       "responseBody": "{\"error\":{\"message\":\"bad request: model\",\"type\":\"invalid_request_error\",\"param\":\"model\",\"code\":\"model_not_found\"}}",
       "isRetryable": false,
@@ -2817,7 +2817,7 @@
    "settings": {
     "id": "acme",
     "protocol": "openai-chat",
-    "baseURL": "http://127.0.0.1:43647/v1",
+    "baseURL": "http://127.0.0.1:42727/v1",
     "apiKey": "sk-test",
     "defaultModel": "m-1"
    },
@@ -2836,7 +2836,7 @@
      {
       "name": "AI_APICallError",
       "message": "Invalid API key",
-      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "url": "http://127.0.0.1:42727/v1/chat/completions",
       "statusCode": 401,
       "responseBody": "{\"error\":{\"message\":\"Invalid API key\"}}",
       "isRetryable": false,
@@ -2874,7 +2874,7 @@
      "thrown": {
       "name": "AI_APICallError",
       "message": "Invalid API key",
-      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "url": "http://127.0.0.1:42727/v1/chat/completions",
       "statusCode": 401,
       "responseBody": "{\"error\":{\"message\":\"Invalid API key\"}}",
       "isRetryable": false,
@@ -2906,7 +2906,7 @@
    "settings": {
     "id": "acme",
     "protocol": "openai-chat",
-    "baseURL": "http://127.0.0.1:43647/v1",
+    "baseURL": "http://127.0.0.1:42727/v1",
     "apiKey": "sk-test",
     "defaultModel": "m-1"
    },
@@ -2925,7 +2925,7 @@
      {
       "name": "AI_APICallError",
       "message": "Not Found",
-      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "url": "http://127.0.0.1:42727/v1/chat/completions",
       "statusCode": 404,
       "responseBody": "not found page",
       "isRetryable": false,
@@ -2958,7 +2958,7 @@
      "thrown": {
       "name": "AI_APICallError",
       "message": "Not Found",
-      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "url": "http://127.0.0.1:42727/v1/chat/completions",
       "statusCode": 404,
       "responseBody": "not found page",
       "isRetryable": false,
@@ -2985,7 +2985,7 @@
    "settings": {
     "id": "acme",
     "protocol": "openai-chat",
-    "baseURL": "http://127.0.0.1:43647/v1",
+    "baseURL": "http://127.0.0.1:42727/v1",
     "apiKey": "sk-test",
     "defaultModel": "m-1"
    },
@@ -3004,7 +3004,7 @@
      {
       "name": "AI_APICallError",
       "message": "Internal Server Error",
-      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "url": "http://127.0.0.1:42727/v1/chat/completions",
       "statusCode": 500,
       "responseBody": "",
       "isRetryable": true,
@@ -3037,7 +3037,7 @@
      "thrown": {
       "name": "AI_APICallError",
       "message": "Internal Server Error",
-      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "url": "http://127.0.0.1:42727/v1/chat/completions",
       "statusCode": 500,
       "responseBody": "",
       "isRetryable": true,
@@ -3064,7 +3064,7 @@
    "settings": {
     "id": "acme",
     "protocol": "openai-chat",
-    "baseURL": "http://127.0.0.1:43647/v1",
+    "baseURL": "http://127.0.0.1:42727/v1",
     "apiKey": "sk-test",
     "defaultModel": "m-1"
    },
@@ -3083,7 +3083,7 @@
      {
       "name": "AI_APICallError",
       "message": "overloaded",
-      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "url": "http://127.0.0.1:42727/v1/chat/completions",
       "statusCode": 503,
       "responseBody": "{\"error\":{\"message\":\"overloaded\",\"code\":503}}",
       "isRetryable": true,
@@ -3122,7 +3122,7 @@
      "thrown": {
       "name": "AI_APICallError",
       "message": "overloaded",
-      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "url": "http://127.0.0.1:42727/v1/chat/completions",
       "statusCode": 503,
       "responseBody": "{\"error\":{\"message\":\"overloaded\",\"code\":503}}",
       "isRetryable": true,
@@ -3155,7 +3155,7 @@
    "settings": {
     "id": "acme",
     "protocol": "openai-chat",
-    "baseURL": "http://127.0.0.1:43647/v1",
+    "baseURL": "http://127.0.0.1:42727/v1",
     "apiKey": "sk-test",
     "defaultModel": "m-1"
    },
@@ -3174,7 +3174,7 @@
      {
       "name": "AI_APICallError",
       "message": "Unprocessable Entity",
-      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "url": "http://127.0.0.1:42727/v1/chat/completions",
       "statusCode": 422,
       "responseBody": "{\"detail\":\"not openai shaped\"}",
       "isRetryable": false,
@@ -3207,7 +3207,7 @@
      "thrown": {
       "name": "AI_APICallError",
       "message": "Unprocessable Entity",
-      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "url": "http://127.0.0.1:42727/v1/chat/completions",
       "statusCode": 422,
       "responseBody": "{\"detail\":\"not openai shaped\"}",
       "isRetryable": false,
@@ -3234,7 +3234,7 @@
    "settings": {
     "id": "acme",
     "protocol": "openai-chat",
-    "baseURL": "http://127.0.0.1:43647/v1",
+    "baseURL": "http://127.0.0.1:42727/v1",
     "apiKey": "sk-test",
     "defaultModel": "m-1"
    },
@@ -3294,7 +3294,7 @@
      "thrown": {
       "name": "AI_APICallError",
       "message": "rate limited",
-      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "url": "http://127.0.0.1:42727/v1/chat/completions",
       "statusCode": 429,
       "responseBody": "{\"error\":{\"message\":\"rate limited\"}}",
       "isRetryable": true,
@@ -3341,7 +3341,7 @@
      "thrown": {
       "name": "AI_APICallError",
       "message": "oops",
-      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "url": "http://127.0.0.1:42727/v1/chat/completions",
       "statusCode": 500,
       "responseBody": "{\"error\":{\"message\":\"oops\"}}",
       "isRetryable": true,
@@ -3462,7 +3462,7 @@
    "settings": {
     "id": "acme",
     "protocol": "openai-chat",
-    "baseURL": "http://127.0.0.1:43647/v1",
+    "baseURL": "http://127.0.0.1:42727/v1",
     "apiKey": "sk-test",
     "defaultModel": "m-1"
    },
@@ -3495,7 +3495,7 @@
        {
         "name": "AI_APICallError",
         "message": "rate limited",
-        "url": "http://127.0.0.1:43647/v1/chat/completions",
+        "url": "http://127.0.0.1:42727/v1/chat/completions",
         "statusCode": 429,
         "responseBody": "{\"error\":{\"message\":\"rate limited\"}}",
         "isRetryable": true,
@@ -3512,7 +3512,7 @@
        {
         "name": "AI_APICallError",
         "message": "rate limited again",
-        "url": "http://127.0.0.1:43647/v1/chat/completions",
+        "url": "http://127.0.0.1:42727/v1/chat/completions",
         "statusCode": 429,
         "responseBody": "{\"error\":{\"message\":\"rate limited again\"}}",
         "isRetryable": true,
@@ -3553,7 +3553,7 @@
      "thrown": {
       "name": "AI_APICallError",
       "message": "rate limited",
-      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "url": "http://127.0.0.1:42727/v1/chat/completions",
       "statusCode": 429,
       "responseBody": "{\"error\":{\"message\":\"rate limited\"}}",
       "isRetryable": true,
@@ -3600,7 +3600,7 @@
      "thrown": {
       "name": "AI_APICallError",
       "message": "rate limited again",
-      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "url": "http://127.0.0.1:42727/v1/chat/completions",
       "statusCode": 429,
       "responseBody": "{\"error\":{\"message\":\"rate limited again\"}}",
       "isRetryable": true,
@@ -3633,7 +3633,7 @@
    "settings": {
     "id": "acme",
     "protocol": "openai-chat",
-    "baseURL": "http://127.0.0.1:43647/v1",
+    "baseURL": "http://127.0.0.1:42727/v1",
     "apiKey": "sk-test",
     "defaultModel": "m-1"
    },
@@ -3664,7 +3664,7 @@
        {
         "name": "AI_APICallError",
         "message": "gw",
-        "url": "http://127.0.0.1:43647/v1/chat/completions",
+        "url": "http://127.0.0.1:42727/v1/chat/completions",
         "statusCode": 502,
         "responseBody": "{\"error\":{\"message\":\"gw\"}}",
         "isRetryable": true,
@@ -3681,7 +3681,7 @@
        {
         "name": "AI_APICallError",
         "message": "bad",
-        "url": "http://127.0.0.1:43647/v1/chat/completions",
+        "url": "http://127.0.0.1:42727/v1/chat/completions",
         "statusCode": 400,
         "responseBody": "{\"error\":{\"message\":\"bad\"}}",
         "isRetryable": false,
@@ -3721,7 +3721,7 @@
      "thrown": {
       "name": "AI_APICallError",
       "message": "gw",
-      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "url": "http://127.0.0.1:42727/v1/chat/completions",
       "statusCode": 502,
       "responseBody": "{\"error\":{\"message\":\"gw\"}}",
       "isRetryable": true,
@@ -3768,7 +3768,7 @@
      "thrown": {
       "name": "AI_APICallError",
       "message": "bad",
-      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "url": "http://127.0.0.1:42727/v1/chat/completions",
       "statusCode": 400,
       "responseBody": "{\"error\":{\"message\":\"bad\"}}",
       "isRetryable": false,
@@ -3800,7 +3800,7 @@
    "settings": {
     "id": "acme",
     "protocol": "openai-chat",
-    "baseURL": "http://127.0.0.1:43647/v1",
+    "baseURL": "http://127.0.0.1:42727/v1",
     "apiKey": "sk-test",
     "defaultModel": "m-1"
    },
@@ -3820,7 +3820,7 @@
     "thrown": {
      "name": "AI_APICallError",
      "message": "Failed to process successful response",
-     "url": "http://127.0.0.1:43647/v1/chat/completions",
+     "url": "http://127.0.0.1:42727/v1/chat/completions",
      "statusCode": 200,
      "isRetryable": true,
      "responseHeaders": {
@@ -3890,7 +3890,7 @@
      "streamError": {
       "name": "AI_APICallError",
       "message": "Failed to process successful response",
-      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "url": "http://127.0.0.1:42727/v1/chat/completions",
       "statusCode": 200,
       "isRetryable": true,
       "responseHeaders": {
@@ -3916,7 +3916,7 @@
    "settings": {
     "id": "acme",
     "protocol": "openai-chat",
-    "baseURL": "http://127.0.0.1:43647/v1",
+    "baseURL": "http://127.0.0.1:42727/v1",
     "apiKey": "sk-test",
     "defaultModel": "m-1"
    },
@@ -4019,7 +4019,7 @@
    "settings": {
     "id": "acme",
     "protocol": "openai-chat",
-    "baseURL": "http://127.0.0.1:43647/v1",
+    "baseURL": "http://127.0.0.1:42727/v1",
     "apiKey": "sk-test",
     "defaultModel": "m-1"
    },
@@ -4166,7 +4166,7 @@
    "settings": {
     "id": "acme",
     "protocol": "openai-chat",
-    "baseURL": "http://127.0.0.1:43647/v1",
+    "baseURL": "http://127.0.0.1:42727/v1",
     "apiKey": "sk-test",
     "defaultModel": "m-1"
    },
@@ -4237,7 +4237,7 @@
        },
        {
         "type": "tool-call",
-        "toolCallId": "Nu4luHfalmz7t8dq",
+        "toolCallId": "pBd2u4IVgdQ0DQYR",
         "toolName": "get_weather",
         "input": "{\"city\":\"LA\"}"
        }
@@ -4307,7 +4307,7 @@
    "settings": {
     "id": "acme",
     "protocol": "openai-chat",
-    "baseURL": "http://127.0.0.1:43647/v1",
+    "baseURL": "http://127.0.0.1:42727/v1",
     "apiKey": "sk-test",
     "defaultModel": "m-1"
    },
@@ -4381,7 +4381,7 @@
    "settings": {
     "id": "acme",
     "protocol": "openai-chat",
-    "baseURL": "http://127.0.0.1:43647/v1",
+    "baseURL": "http://127.0.0.1:42727/v1",
     "apiKey": "sk-test",
     "defaultModel": "m-1"
    },
@@ -4399,7 +4399,7 @@
     "thrown": {
      "name": "AI_APICallError",
      "message": "Invalid JSON response",
-     "url": "http://127.0.0.1:43647/v1/chat/completions",
+     "url": "http://127.0.0.1:42727/v1/chat/completions",
      "statusCode": 200,
      "responseBody": "{\"choices\":",
      "isRetryable": false,
@@ -4436,7 +4436,7 @@
      "thrown": {
       "name": "AI_APICallError",
       "message": "Invalid JSON response",
-      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "url": "http://127.0.0.1:42727/v1/chat/completions",
       "statusCode": 200,
       "responseBody": "{\"choices\":",
       "isRetryable": false,
@@ -4463,7 +4463,7 @@
    "settings": {
     "id": "acme",
     "protocol": "openai-chat",
-    "baseURL": "http://127.0.0.1:43647/v1",
+    "baseURL": "http://127.0.0.1:42727/v1",
     "apiKey": "sk-test",
     "defaultModel": "m-1"
    },
@@ -4481,7 +4481,7 @@
     "thrown": {
      "name": "AI_APICallError",
      "message": "Invalid JSON response",
-     "url": "http://127.0.0.1:43647/v1/chat/completions",
+     "url": "http://127.0.0.1:42727/v1/chat/completions",
      "statusCode": 200,
      "responseBody": "{\"choices\":[{\"message\":{\"content\":5}}]}",
      "isRetryable": false,
@@ -4518,7 +4518,7 @@
      "thrown": {
       "name": "AI_APICallError",
       "message": "Invalid JSON response",
-      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "url": "http://127.0.0.1:42727/v1/chat/completions",
       "statusCode": 200,
       "responseBody": "{\"choices\":[{\"message\":{\"content\":5}}]}",
       "isRetryable": false,
@@ -4545,7 +4545,7 @@
    "settings": {
     "id": "acme",
     "protocol": "openai-chat",
-    "baseURL": "http://127.0.0.1:43647/v1",
+    "baseURL": "http://127.0.0.1:42727/v1",
     "apiKey": "sk-test",
     "defaultModel": "m-1"
    },
@@ -4562,7 +4562,7 @@
     "thrown": {
      "name": "AI_APICallError",
      "message": "nope",
-     "url": "http://127.0.0.1:43647/v1/chat/completions",
+     "url": "http://127.0.0.1:42727/v1/chat/completions",
      "statusCode": 401,
      "responseBody": "{\"error\":{\"message\":\"nope\",\"code\":401}}",
      "isRetryable": false,
@@ -4605,7 +4605,7 @@
      "thrown": {
       "name": "AI_APICallError",
       "message": "nope",
-      "url": "http://127.0.0.1:43647/v1/chat/completions",
+      "url": "http://127.0.0.1:42727/v1/chat/completions",
       "statusCode": 401,
       "responseBody": "{\"error\":{\"message\":\"nope\",\"code\":401}}",
       "isRetryable": false,
@@ -4638,7 +4638,7 @@
    "settings": {
     "id": "acme",
     "protocol": "openai-chat",
-    "baseURL": "http://127.0.0.1:43647/v1",
+    "baseURL": "http://127.0.0.1:42727/v1",
     "apiKey": "sk-test",
     "defaultModel": "m-1"
    },
@@ -4697,6 +4697,243 @@
        "user-agent": "ai/7.0.136 ai-sdk-provider-utils/5.0.58 node.js/22"
       },
       "body": "{\"model\":\"m-1\",\"messages\":[{\"role\":\"user\",\"content\":\"w\"}]}"
+     }
+    }
+   ]
+  },
+  {
+   "name": "compat/execution-denied",
+   "protocol": "openai-chat",
+   "settings": {
+    "id": "acme",
+    "protocol": "openai-chat",
+    "baseURL": "http://127.0.0.1:42727/v1",
+    "apiKey": "sk-test",
+    "defaultModel": "m-1"
+   },
+   "responses": [
+    {
+     "status": 200,
+     "headers": {
+      "content-type": "text/event-stream",
+      "x-request-id": "req-1"
+     },
+     "chunks": [
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"ok\"},\"finish_reason\":null}]}\n\n",
+      "data: {\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"m-1-served\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":12,\"completion_tokens\":7,\"total_tokens\":19}}\n\n",
+      "data: [DONE]\n\n"
+     ]
+    }
+   ],
+   "ai": {
+    "errors": []
+   },
+   "calls": [
+    {
+     "kind": "stream",
+     "options": {
+      "tools": [
+       {
+        "type": "function",
+        "name": "search",
+        "inputSchema": {
+         "type": "object",
+         "properties": {
+          "q": {
+           "type": "string"
+          }
+         }
+        }
+       }
+      ],
+      "toolChoice": {
+       "type": "auto"
+      },
+      "prompt": [
+       {
+        "role": "user",
+        "content": [
+         {
+          "type": "text",
+          "text": "run it"
+         }
+        ]
+       },
+       {
+        "role": "assistant",
+        "content": [
+         {
+          "type": "tool-call",
+          "toolCallId": "call_d",
+          "toolName": "search",
+          "input": {
+           "q": "rm"
+          }
+         },
+         {
+          "type": "tool-call",
+          "toolCallId": "call_e",
+          "toolName": "search",
+          "input": {
+           "q": "ls"
+          }
+         }
+        ]
+       },
+       {
+        "role": "tool",
+        "content": [
+         {
+          "type": "tool-result",
+          "toolCallId": "call_d",
+          "toolName": "search",
+          "output": {
+           "type": "execution-denied",
+           "reason": "user rejected"
+          }
+         },
+         {
+          "type": "tool-result",
+          "toolCallId": "call_e",
+          "toolName": "search",
+          "output": {
+           "type": "execution-denied"
+          }
+         }
+        ]
+       }
+      ],
+      "includeRawChunks": false
+     },
+     "requestBody": {
+      "model": "m-1",
+      "messages": [
+       {
+        "role": "user",
+        "content": "run it"
+       },
+       {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+         {
+          "id": "call_d",
+          "type": "function",
+          "function": {
+           "name": "search",
+           "arguments": "{\"q\":\"rm\"}"
+          }
+         },
+         {
+          "id": "call_e",
+          "type": "function",
+          "function": {
+           "name": "search",
+           "arguments": "{\"q\":\"ls\"}"
+          }
+         }
+        ]
+       },
+       {
+        "role": "tool",
+        "tool_call_id": "call_d",
+        "content": "user rejected"
+       },
+       {
+        "role": "tool",
+        "tool_call_id": "call_e",
+        "content": "Tool call execution denied."
+       }
+      ],
+      "tools": [
+       {
+        "type": "function",
+        "function": {
+         "name": "search",
+         "parameters": {
+          "type": "object",
+          "properties": {
+           "q": {
+            "type": "string"
+           }
+          }
+         }
+        }
+       }
+      ],
+      "tool_choice": "auto",
+      "stream": true,
+      "stream_options": {
+       "include_usage": true
+      }
+     },
+     "responseHeaders": {
+      "content-type": "text/event-stream",
+      "x-request-id": "req-1"
+     },
+     "parts": [
+      {
+       "type": "stream-start",
+       "warnings": []
+      },
+      {
+       "type": "response-metadata",
+       "id": "chatcmpl-1",
+       "modelId": "m-1-served",
+       "timestamp": {
+        "__date": 1700000000000
+       }
+      },
+      {
+       "type": "text-start",
+       "id": "txt-0"
+      },
+      {
+       "type": "text-delta",
+       "id": "txt-0",
+       "delta": "ok"
+      },
+      {
+       "type": "text-end",
+       "id": "txt-0"
+      },
+      {
+       "type": "finish",
+       "finishReason": {
+        "unified": "stop",
+        "raw": "stop"
+       },
+       "usage": {
+        "inputTokens": {
+         "total": 12,
+         "noCache": 12,
+         "cacheRead": 0
+        },
+        "outputTokens": {
+         "total": 7,
+         "text": 7,
+         "reasoning": 0
+        },
+        "raw": {
+         "prompt_tokens": 12,
+         "completion_tokens": 7,
+         "total_tokens": 19
+        }
+       },
+       "providerMetadata": {
+        "acme": {}
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+       "authorization": "Bearer sk-test",
+       "content-type": "application/json",
+       "user-agent": "ai-sdk-openai-compatible/3.0.67 ai-sdk-provider-utils/5.0.58 node.js/22"
+      },
+      "body": "{\"model\":\"m-1\",\"messages\":[{\"role\":\"user\",\"content\":\"run it\"},{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"call_d\",\"type\":\"function\",\"function\":{\"name\":\"search\",\"arguments\":\"{\\\"q\\\":\\\"rm\\\"}\"}},{\"id\":\"call_e\",\"type\":\"function\",\"function\":{\"name\":\"search\",\"arguments\":\"{\\\"q\\\":\\\"ls\\\"}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"call_d\",\"content\":\"user rejected\"},{\"role\":\"tool\",\"tool_call_id\":\"call_e\",\"content\":\"Tool call execution denied.\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"search\",\"parameters\":{\"type\":\"object\",\"properties\":{\"q\":{\"type\":\"string\"}}}}}],\"tool_choice\":\"auto\",\"stream\":true,\"stream_options\":{\"include_usage\":true}}"
      }
     }
    ]
