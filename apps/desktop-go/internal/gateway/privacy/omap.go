@@ -12,8 +12,8 @@ type omap[V any] struct {
 func newOmap[V any]() *omap[V] { return &omap[V]{pos: map[string]int{}, vals: map[string]V{}} }
 
 func (m *omap[V]) get(k string) (V, bool) { v, ok := m.vals[k]; return v, ok }
-func (m *omap[V]) has(k string) bool     { _, ok := m.vals[k]; return ok }
-func (m *omap[V]) size() int             { return m.n }
+func (m *omap[V]) has(k string) bool      { _, ok := m.vals[k]; return ok }
+func (m *omap[V]) size() int              { return m.n }
 
 func (m *omap[V]) set(k string, v V) {
 	if _, ok := m.vals[k]; !ok {
