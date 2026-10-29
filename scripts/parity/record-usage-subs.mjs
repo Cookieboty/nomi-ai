@@ -168,7 +168,7 @@ const codexScenarios = [
   { name: 'closed', plan: { exit: 'start' } },
   { name: 'closed-after-init', plan: { onLine: { 0: [initOk] }, exit: 1 } },
   { name: 'timeout', plan: {}, timeoutMs: 400 },
-  { name: 'output-limit', plan: { big: 300_000 } },
+  { name: 'output-limit', plan: { big: 300_000, bigAfter: 0 } },
   { name: 'utf16-units-under-limit', plan: { big: 140_000, bigChar: 'é' }, timeoutMs: 600 },
   { name: 'enoent', bin: MISSING },
   { name: 'ok-proto-plan', plan: { onLine: { 0: [initOk], 2: [id(2, { ...okLimits, rateLimits: { ...okLimits.rateLimits, planType: '__proto__' } })] } } },
@@ -237,11 +237,34 @@ for (const sc of grokScenarios) {
 }
 // 录制器自身临时目录的清理：Windows 上 .cmd 垫片下的子进程树退出有延迟，句柄未释放时 rm 报 EPERM；
 // 清理与 golden 内容无关，重试后仍失败则留给系统临时目录回收。
+// 显式等待 mock 子进程退出（pid 由 usage-mock-cli 写到 <log>.pid）：Windows 上 .cmd 垫片的子进程树退出有延迟，
+// 进程还活着时其 cwd / 句柄让 rm 报 EPERM / EBUSY。
+const alive = (pid) => {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    return e.code === 'EPERM';
+  }
+};
+const waitChildrenExit = async (logDir, ms = 30_000) => {
+  let pids = [];
+  try {
+    for (const f of fs.readdirSync(logDir)) if (f.endsWith('.pid')) pids.push(...fs.readFileSync(path.join(logDir, f), 'utf8').split('\n').filter(Boolean).map(Number));
+  } catch {}
+  const end = Date.now() + ms;
+  while ((pids = pids.filter(alive)).length && Date.now() < end) await new Promise((r) => setTimeout(r, 100));
+  for (const p of pids) {
+    console.error(`waitChildrenExit: pid ${p} still alive after ${ms}ms, killing`);
+    try { process.kill(p, 'SIGKILL'); } catch {}
+  }
+};
 const rmQuiet = (p) => {
   try {
     fs.rmSync(p, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
   } catch {}
 };
+await waitChildrenExit(L);
 rmQuiet(T);
 rmQuiet(L);
 

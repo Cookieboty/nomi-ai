@@ -1139,7 +1139,7 @@
   },
   {
    "name": "enoent",
-   "bin": "/workspace/wt-205-usage2/scripts/parity/no-such-usage-cli",
+   "bin": "/workspace/wt-205-usage/scripts/parity/no-such-usage-cli",
    "outs": [
     "{\"kind\":\"transient\",\"reason\":\"not-installed\"}"
    ],
@@ -1927,7 +1927,8 @@
   {
    "name": "output-limit",
    "plan": {
-    "big": 300000
+    "big": 300000,
+    "bigAfter": 0
    },
    "outs": [
     "{\"kind\":\"transient\",\"reason\":\"output-limit\"}"
@@ -2000,7 +2001,7 @@
   },
   {
    "name": "enoent",
-   "bin": "/workspace/wt-205-usage2/scripts/parity/no-such-usage-cli",
+   "bin": "/workspace/wt-205-usage/scripts/parity/no-such-usage-cli",
    "outs": [
     "{\"kind\":\"transient\",\"reason\":\"not-installed\"}"
    ],
@@ -2671,7 +2672,7 @@
   },
   {
    "name": "enoent",
-   "bin": "/workspace/wt-205-usage2/scripts/parity/no-such-usage-cli",
+   "bin": "/workspace/wt-205-usage/scripts/parity/no-such-usage-cli",
    "outs": [
     "{\"kind\":\"transient\",\"reason\":\"no-limits\"}"
    ],

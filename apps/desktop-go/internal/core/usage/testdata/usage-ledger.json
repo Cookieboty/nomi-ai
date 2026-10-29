@@ -843,6 +843,135 @@
    ]
   },
   {
+   "name": "route-covering-js-values",
+   "ops": [
+    [
+     "upsert",
+     {
+      "key": "route:s1",
+      "ts": 1780000000000,
+      "source": "claude",
+      "via": "route",
+      "model": "claude-sonnet-4-5",
+      "input": "50",
+      "output": 3,
+      "cacheRead": 0,
+      "cacheWrite": 0
+     }
+    ],
+    [
+     "routeCovering",
+     "claude",
+     1780000000010,
+     {
+      "key": "k",
+      "prompt": 5000,
+      "output": 3
+     }
+    ],
+    [
+     "routeCovering",
+     "claude",
+     1780000000010,
+     {
+      "key": "k",
+      "prompt": 50,
+      "output": 3
+     }
+    ],
+    [
+     "upsert",
+     {
+      "key": "route:s2",
+      "ts": 1780000060000,
+      "source": "claude",
+      "via": "route",
+      "model": "claude-sonnet-4-5",
+      "input": 40,
+      "output": "1",
+      "cacheRead": 0,
+      "cacheWrite": 0
+     }
+    ],
+    [
+     "routeCovering",
+     "claude",
+     1780000060010,
+     {
+      "key": "k",
+      "prompt": 40,
+      "output": 300
+     }
+    ],
+    [
+     "routeCovering",
+     "claude",
+     1780000060010,
+     {
+      "key": "k",
+      "prompt": 40,
+      "output": 60
+     }
+    ],
+    [
+     "routeCovering",
+     "claude",
+     1780000060010,
+     {
+      "key": "k",
+      "prompt": 40,
+      "output": 110
+     }
+    ],
+    [
+     "routeCovering",
+     "claude",
+     1780000060010,
+     {
+      "key": "k",
+      "prompt": 40,
+      "output": 5000
+     }
+    ],
+    [
+     "upsert",
+     {
+      "key": "route:s3",
+      "ts": 1780000120000,
+      "source": "claude",
+      "via": "route",
+      "model": "claude-sonnet-4-5",
+      "input": "abc",
+      "output": 1,
+      "cacheRead": 0,
+      "cacheWrite": 0
+     }
+    ],
+    [
+     "routeCovering",
+     "claude",
+     1780000120010,
+     {
+      "key": "k",
+      "prompt": 0,
+      "output": 1
+     }
+    ]
+   ],
+   "out": [
+    true,
+    "route:s1",
+    null,
+    true,
+    null,
+    "route:s2",
+    "route:s2",
+    null,
+    true,
+    "route:s3"
+   ]
+  },
+  {
    "name": "cursors-reopen",
    "ops": [
     [

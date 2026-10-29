@@ -68,6 +68,17 @@ const scenarios = [
     ['routeCovering', 'claude', T0 + 2100, { key: 'k', prompt: 5000, output: 116 }],
     ['routeCovering', 'claude', T0 + 2100, { key: 'k', prompt: 5000, output: 117 }],
   ] },
+  { name: 'route-covering-js-values', ops: [
+    // 账本里 token 是字符串时：r.input + r.cacheRead + r.cacheWrite 拼接（'50'+0+0 = '5000'），r.output + tol 也拼接
+    ['upsert', R('route:s1', T0, { via: 'route', input: '50', cacheRead: 0, cacheWrite: 0, output: 3 })],
+    ['routeCovering', 'claude', T0 + 10, { key: 'k', prompt: 5000, output: 3 }],
+    ['routeCovering', 'claude', T0 + 10, { key: 'k', prompt: 50, output: 3 }],
+    ['upsert', R('route:s2', T0 + 60_000, { via: 'route', input: 40, cacheRead: 0, cacheWrite: 0, output: '1' })],
+    ['routeCovering', 'claude', T0 + 60_010, { key: 'k', prompt: 40, output: 300 }], ['routeCovering', 'claude', T0 + 60_010, { key: 'k', prompt: 40, output: 60 }], ['routeCovering', 'claude', T0 + 60_010, { key: 'k', prompt: 40, output: 110 }],
+    ['routeCovering', 'claude', T0 + 60_010, { key: 'k', prompt: 40, output: 5000 }],
+    ['upsert', R('route:s3', T0 + 120_000, { via: 'route', input: 'abc', output: 1 })],
+    ['routeCovering', 'claude', T0 + 120_010, { key: 'k', prompt: 0, output: 1 }],
+  ] },
   { name: 'cursors-reopen', ops: [
     ['setCursor', '/x/a.jsonl', { offset: 10, size: 20, mtimeMs: 5, state: { model: 'm', n: 1 } }],
     ['setCursor', '/x/b.jsonl', { offset: 0, size: 0, mtimeMs: 0, dev: 1, ino: 2, fp: 'abc', fpLen: 3 }],
