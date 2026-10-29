@@ -9,8 +9,11 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/accounts"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/harness"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/ports"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/codinghandlers"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/hostports"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
@@ -57,9 +60,12 @@ func (e externals) Handshake(id string, images, resume bool) {
 	e.h.SetHandshake(id, util.NewObj("images", images, "resume", resume))
 }
 
+// harnessOrch：wireHarness 构造的编排器（main 里只有一个）
+var harnessOrch *harness.Orchestrator
+
 // wireHarness 对齐 createCore.ts 的 HarnessOrchestrator 构造 + coding.ts 的 harness.* 过程。
 // gateway：gwstore 尚无 cliDefaults/cliLaunch/cliLaunchForTab 等（harnessGateway.ts），落地后接入；
-// accounts：AccountService 尚未移植（feat/2.0.5-go-b7s），落地后接入。两者 Node 侧均为可选依赖。
+// Node 侧为可选依赖。
 func wireHarness(router *contract.Router, userData, home string, hp hostPorts) (*cli.CliPluginHost, func()) {
 	docs := hostports.Documents()
 	var o *harness.Orchestrator
@@ -95,10 +101,49 @@ func wireHarness(router *contract.Router, userData, home string, hp hostPorts) (
 			OnExternalRemoved: func(id string) { o.ExternalRemoved(id) },
 		})
 	})
+	// AccountService（createCore.ts new AccountService）
+	var acc *accounts.AccountService
+	jsrt.Run(func() {
+		a, err := accounts.NewAccountService(accounts.ServiceDeps{
+			Root: filepath.Join(userData, "cli-accounts"), Logger: deps.StdLogger{Prefix: "[cli-accounts]"},
+			Events: hostEvents{router},
+			OnDefaultChanged: func(kind string) {
+				o.RecycleDefaultAccount(kind)
+				// usage.forgetAccountQuota：usage 服务尚未移植，落地后接入
+			},
+			InUse: func(kind, id string) any {
+				n := 0.0
+				for _, a := range o.OfficialAccountTabs(kind) {
+					var ap *string
+					if s, ok := a.(string); ok {
+						ap = &s
+					}
+					r, err := acc.Resolve(kind, ap)
+					if err != nil {
+						panic(jsrt.JSThrow{Name: "Error", Message: err.Error()})
+					}
+					if r == id {
+						n++
+					}
+				}
+				return n
+			},
+			OnChanged: func() { acc.BroadcastChanged() },
+		})
+		if err != nil {
+			log.Printf("[desktop-go] AccountService: %v", err)
+			return
+		}
+		acc = a
+	})
+	var accPort ports.HarnessOfficialAccounts
+	if acc != nil {
+		accPort = accounts.HarnessAdapter{S: acc}
+	}
 	o = jsrt.Call(func() *harness.Orchestrator {
 		return harness.New(harness.Deps{
-			Externals: externals{plugins},
-			Root:      filepath.Join(userData, "harness"), Logger: stdLogger{}, Home: home,
+			Externals: externals{plugins}, Accounts: accPort,
+			Root: filepath.Join(userData, "harness"), Logger: stdLogger{}, Home: home,
 			DefaultCwd: filepath.Join(docs, "nomi"), LegacyDefaultCwd: docs,
 			Ports:          harnessPorts{hp},
 			PrewarmClaude:  os.Getenv("NOMI_HARNESS_PREWARM") != "0",
@@ -106,6 +151,7 @@ func wireHarness(router *contract.Router, userData, home string, hp hostPorts) (
 			CodexAppServer: os.Getenv("NOMI_CODEX_APP_SERVER") != "0",
 		})
 	})
+	harnessOrch = o // coding_wiring.go（cliUpdate / history / delegate）共用同一编排器
 	codinghandlers.RegisterHarness(router, func() *harness.Orchestrator { return o })
 	jsrt.Go(func() { plugins.Start() })
 	return plugins, func() { jsrt.Run(func() { o.Dispose() }) }
